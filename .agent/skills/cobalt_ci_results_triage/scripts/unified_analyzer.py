@@ -297,18 +297,33 @@ def process_results_data(
     event = run.get('event', 'unknown')
     created_at = run.get('createdAt', '')
 
-    is_outdated, age_str = check_run_age(created_at, event, now)
+    is_outdated = False
+    age_str = 'ignored age'
+    if not run.get('ignore_age'):
+      is_outdated, age_str = check_run_age(created_at, event, now)
 
     if is_outdated:
-      outdated_runs_details.append({
-          'source': source,
-          'branch': branch,
-          'job_name': run.get('job_name'),
-          'run_id': run.get('run_id'),
-          'age': age_str,
-          'url': run.get('url'),
-          'event': event,
-      })
+      conclusion = run.get('conclusion')
+      failed_jobs = run.get('failed_jobs', [])
+
+      if conclusion:
+        # Treat any non-success outcome as failure (failure, timed_out,
+        # cancelled, etc.)
+        has_failed = conclusion.lower() not in ('success', 'skipped', 'neutral')
+      else:
+        # Fallback for backward compatibility
+        has_failed = len(failed_jobs) > 0
+
+      if has_failed:
+        outdated_runs_details.append({
+            'source': source,
+            'branch': branch,
+            'job_name': run.get('job_name'),
+            'run_id': run.get('run_id'),
+            'age': age_str,
+            'url': run.get('url'),
+            'event': event,
+        })
       continue
 
     for job in run.get('failed_jobs', []):
@@ -423,8 +438,8 @@ def generate_report(failed_jobs: List[Dict[str, Any]],
       report.append(f'### Branch: {branch} (Unhealthy)')
       report.append(f'*   **Failed Jobs**: {failed_count}')
       if outdated_count > 0:
-         report.append(f'*   **Outdated Failed Runs**: {outdated_count} '
-                       '(retrigger suggested)')
+        report.append(f'*   **Outdated Failed Runs**: {outdated_count} '
+                      '(retrigger suggested)')
       report.append('')
 
   report.append('## Detailed Branch Failures\n')

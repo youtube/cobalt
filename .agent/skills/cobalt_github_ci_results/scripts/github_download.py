@@ -155,7 +155,25 @@ def discover_single_run(workflow_config, limit):
       return None, 0
 
     run_data = runs[0]
+    run_data['event'] = event  # Inject event for check_run_age
     run_id = run_data['databaseId']
+    conclusion = run_data.get('conclusion')
+
+    now = datetime.datetime.now(datetime.timezone.utc)
+    is_outdated, _ = check_run_age(run_data, now)
+
+    # Optimization: Skip job details if the run is outdated OR succeeded
+    if is_outdated or conclusion == 'success':
+      return {
+          'run_id': str(run_id),
+          'job_name': workflow,
+          'branch': branch,
+          'event': event,
+          'createdAt': run_data.get('createdAt'),
+          'url': run_data.get('url'),
+          'conclusion': conclusion,
+          'failed_jobs': [],
+      }, 0
 
     jobs_stdout = run_gh_command([
         'run', 'view',
@@ -181,6 +199,7 @@ def discover_single_run(workflow_config, limit):
         'event': event,
         'createdAt': run_data.get('createdAt'),
         'url': run_data.get('url'),
+        'conclusion': conclusion,
         'failed_jobs': failed_jobs,
     }, len(jobs)
 
@@ -221,7 +240,8 @@ def discover_run_by_id(run_id):
         'view',
         str(run_id),
         '--json',
-        'databaseId,workflowName,headBranch,event,createdAt,url,jobs',
+        'databaseId,workflowName,headBranch,event,createdAt,url,jobs,'
+        'conclusion',
         '-R',
         DEFAULT_REPOSITORY,
     ]
@@ -245,6 +265,7 @@ def discover_run_by_id(run_id):
         'event': run_data.get('event'),
         'createdAt': run_data.get('createdAt'),
         'url': run_data.get('url'),
+        'conclusion': run_data.get('conclusion'),
         'failed_jobs': failed_jobs,
         'ignore_age': True,
     }
@@ -296,27 +317,45 @@ def parse_junit_xml(xml_path):
 def write_synthetic_log(failures, dest_path):
   """Writes a synthetic log for test failures."""
   os.makedirs(os.path.dirname(dest_path), exist_ok=True)
-  with open(dest_path, 'w', encoding='utf-8') as f:
-    for fail in failures:
-      f.write(f"JUnit Failure: {fail['testsuite']}.{fail['testcase']}\n")
-      if fail['message']:
-        f.write(f"Message: {fail['message']}\n")
-      if fail['details']:
-        f.write(f"Details:\n{fail['details']}\n")
-      f.write('-' * 40 + '\n')
+  temp_dest = dest_path + '.tmp'
+  try:
+    with open(temp_dest, 'w', encoding='utf-8') as f:
+      for fail in failures:
+        f.write(f"JUnit Failure: {fail['testsuite']}.{fail['testcase']}\n")
+        if fail['message']:
+          f.write(f"Message: {fail['message']}\n")
+        if fail['details']:
+          f.write(f"Details:\n{fail['details']}\n")
+        f.write('-' * 40 + '\n')
+    os.replace(temp_dest, dest_path)
+  except Exception as e:
+    print(f'Failed to write synthetic log to {dest_path}: {e}', file=sys.stderr)
+    if os.path.exists(temp_dest):
+      try:
+        os.remove(temp_dest)
+      except Exception:  # pylint: disable=broad-exception-caught
+        pass
+    raise
 
 
 def download_job_log(job_id, dest_path):
   """Downloads the log of a job."""
   os.makedirs(os.path.dirname(dest_path), exist_ok=True)
+  temp_dest = dest_path + '.tmp'
   try:
     stdout = run_gh_command(
         ['api', f'repos/{DEFAULT_REPOSITORY}/actions/jobs/{job_id}/logs'])
-    with open(dest_path, 'w', encoding='utf-8') as f:
+    with open(temp_dest, 'w', encoding='utf-8') as f:
       f.write(stdout)
+    os.replace(temp_dest, dest_path)
     return True
   except Exception as e:  # pylint: disable=broad-exception-caught
     print(f'Failed to download log for job {job_id}: {e}', file=sys.stderr)
+    if os.path.exists(temp_dest):
+      try:
+        os.remove(temp_dest)
+      except Exception:  # pylint: disable=broad-exception-caught
+        pass
     return False
 
 
@@ -381,28 +420,69 @@ def _extract_logs_from_artifacts(run_temp_dir, platform, target_name, *,
 
   log_files = glob.glob(log_pattern, recursive=True)
   if log_files:
-    shutil.copy(log_files[0], dest_log_path)
-    job['local_log_path'] = dest_log_path
-    job['log_type'] = 'test_log'
-    found_logs = True
-    print(
-        f'Found test log for {target_name} in artifact: {log_files[0]}',
-        file=sys.stderr,
-    )
+    temp_dest = dest_log_path + '.tmp'
+    try:
+      shutil.copy(log_files[0], temp_dest)
+      os.replace(temp_dest, dest_log_path)
+      job['local_log_path'] = dest_log_path
+      job['log_type'] = 'test_log'
+      found_logs = True
+      print(
+          f'Found test log for {target_name} in artifact: {log_files[0]}',
+          file=sys.stderr,
+      )
+    except Exception as e:  # pylint: disable=broad-exception-caught
+      print(f'Failed to copy test log: {e}', file=sys.stderr)
+      if os.path.exists(temp_dest):
+        try:
+          os.remove(temp_dest)
+        except Exception:  # pylint: disable=broad-exception-caught
+          pass
 
   for pattern in system_log_patterns:
     system_log_files = glob.glob(pattern, recursive=True)
     if system_log_files:
-      shutil.copy(system_log_files[0], dest_system_log_path)
-      job['device_system_log_path'] = dest_system_log_path
-      print(
-          f'Found device system log for {target_name} in artifact: '
-          f'{system_log_files[0]}',
-          file=sys.stderr,
-      )
-      break
+      temp_system_dest = dest_system_log_path + '.tmp'
+      try:
+        shutil.copy(system_log_files[0], temp_system_dest)
+        os.replace(temp_system_dest, dest_system_log_path)
+        job['device_system_log_path'] = dest_system_log_path
+        print(
+            f'Found device system log for {target_name} in artifact: '
+            f'{system_log_files[0]}',
+            file=sys.stderr,
+        )
+        break
+      except Exception as e:  # pylint: disable=broad-exception-caught
+        print(f'Failed to copy system log: {e}', file=sys.stderr)
+        if os.path.exists(temp_system_dest):
+          try:
+            os.remove(temp_system_dest)
+          except Exception:  # pylint: disable=broad-exception-caught
+            pass
 
   return found_logs
+
+
+def parse_job_name(job_name):
+  """Parses job name to determine if it is a test job and extract details."""
+  target_name = None
+  if ':' in job_name:
+    target_name = job_name.split(':')[-1].strip()
+
+  platform = None
+  if '/' in job_name:
+    platform = job_name.split('/')[0].strip()
+
+  is_test = ('test' in job_name.lower() or 'results' in job_name.lower() or
+             target_name is not None)
+  return is_test, platform, target_name
+
+
+def is_job_cached(job_id, cache_dir):
+  """Checks if a job log is already cached."""
+  dest_log_path = os.path.join(cache_dir, f'{job_id}.log')
+  return os.path.exists(dest_log_path) and os.path.getsize(dest_log_path) > 0
 
 
 def process_job(job, cache_dir, run_temp_dir):
@@ -413,7 +493,7 @@ def process_job(job, cache_dir, run_temp_dir):
   dest_log_path = os.path.join(cache_dir, f'{job_id}.log')
   dest_system_log_path = os.path.join(cache_dir, f'{job_id}_system_log.txt')
 
-  if os.path.exists(dest_log_path) and os.path.getsize(dest_log_path) > 0:
+  if is_job_cached(job_id, cache_dir):
     print(
         f'Log file already exists in cache for job {job_name} ({job_id}). '
         f'Skipping download.',
@@ -426,19 +506,7 @@ def process_job(job, cache_dir, run_temp_dir):
                                                  dest_system_log_path)
     return
 
-  target_name = None
-  if ':' in job_name:
-    target_name = job_name.split(':')[-1].strip()
-
-  platform = None
-  if '/' in job_name:
-    platform = job_name.split('/')[0].strip()
-
-  is_test_job = (
-      'test' in job_name.lower()
-      or 'results' in job_name.lower()
-      or target_name is not None
-  )
+  is_test_job, platform, target_name = parse_job_name(job_name)
 
   if is_test_job and run_temp_dir:
     print(
@@ -459,9 +527,8 @@ def process_job(job, cache_dir, run_temp_dir):
 
     if not found_logs:
       if target_name:
-        xml_pattern = os.path.join(
-            run_temp_dir, f'**/{target_name}_testoutput.xml'
-        )
+        xml_pattern = os.path.join(run_temp_dir,
+                                   f'**/{target_name}_testoutput.xml')
       else:
         xml_pattern = os.path.join(run_temp_dir, '**/*.xml')
       xml_files = glob.glob(xml_pattern, recursive=True)
@@ -510,6 +577,32 @@ def process_job(job, cache_dir, run_temp_dir):
 # ==========================================
 
 
+def process_run(run_id, run_data, cache_dir):
+  """Processes a single run, downloading artifacts if needed."""
+  need_artifacts = False
+  for job in run_data['jobs']:
+    is_test, _, _ = parse_job_name(job['name'])
+    if is_test and not is_job_cached(job['job_id'], cache_dir):
+      need_artifacts = True
+      break
+
+  if need_artifacts:
+    print(f'Downloading artifacts for run {run_id}...', file=sys.stderr)
+    with tempfile.TemporaryDirectory() as temp_dir_name:
+      download_success = download_test_results(run_id, temp_dir_name)
+      run_temp_dir = temp_dir_name if download_success else None
+      for job in run_data['jobs']:
+        process_job(job, cache_dir, run_temp_dir)
+  else:
+    print(
+        f'Skipping artifact download for run {run_id} (no uncached failed'
+        ' test jobs)',
+        file=sys.stderr,
+    )
+    for job in run_data['jobs']:
+      process_job(job, cache_dir, None)
+
+
 def main():
   parser = argparse.ArgumentParser(
       description='Discover failed GHA runs and download their logs.')
@@ -527,6 +620,13 @@ def main():
       '--output',
       required=True,
       help='Path to write the results JSON.',
+  )
+  parser.add_argument(
+      '--cache-dir',
+      help=(
+          'Path to store cached job logs. Defaults to'
+          ' ~/.cache/github_gardener_{user}'
+      ),
   )
   args = parser.parse_args()
 
@@ -553,7 +653,9 @@ def main():
 
   # 2. Download
   username = getpass.getuser()
-  cache_dir = os.path.join('/tmp', f'github_gardener_{username}')
+  default_cache_dir = os.path.expanduser(
+      os.path.join('~/.cache', f'github_gardener_{username}'))
+  cache_dir = args.cache_dir or default_cache_dir
   os.makedirs(cache_dir, exist_ok=True)
   print(f'Using cache directory: {cache_dir}', file=sys.stderr)
 
@@ -566,41 +668,25 @@ def main():
     # script independent of the triage skill code at runtime, we can
     # implement a simple version or import it.
     is_outdated, age_str = check_run_age(run, now)
-    if is_outdated and not run.get('ignore_age'):
+    if is_outdated:
       print(
           f"Skipping download for outdated run {run_id} - run is {age_str}",
           file=sys.stderr)
       continue
     run_tasks[run_id] = {'run': run, 'jobs': run.get('failed_jobs', [])}
 
-  temp_dirs = {}
-  futures = []
-
-  try:
-    print('Processing runs...', file=sys.stderr)
-    with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
-      for run_id, run_data in run_tasks.items():
-        print(f'Downloading artifacts for run {run_id}...', file=sys.stderr)
-        # pylint: disable=consider-using-with
-        temp_dir = tempfile.TemporaryDirectory()
-        temp_dirs[run_id] = temp_dir
-
-        download_success = download_test_results(run_id, temp_dir.name)
-        run_temp_dir = temp_dir.name if download_success else None
-
-        for job in run_data['jobs']:
-          futures.append(
-              executor.submit(process_job, job, cache_dir, run_temp_dir))
-
-      for future in concurrent.futures.as_completed(futures):
-        try:
-          future.result()
-        except Exception as e:  # pylint: disable=broad-exception-caught
-          print(f'Exception in process_job: {e}', file=sys.stderr)
-          traceback.print_exc(file=sys.stderr)
-  finally:
-    for temp_dir in temp_dirs.values():
-      temp_dir.cleanup()
+  print('Processing runs...', file=sys.stderr)
+  with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+    futures = [
+        executor.submit(process_run, run_id, run_data, cache_dir)
+        for run_id, run_data in run_tasks.items()
+    ]
+    for future in concurrent.futures.as_completed(futures):
+      try:
+        future.result()
+      except Exception as e:  # pylint: disable=broad-exception-caught
+        print(f'Exception in process_run: {e}', file=sys.stderr)
+        traceback.print_exc(file=sys.stderr)
 
   # Ensure output directory exists
   os.makedirs(os.path.dirname(os.path.abspath(args.output)), exist_ok=True)
@@ -614,3 +700,4 @@ def main():
 
 if __name__ == '__main__':
   main()
+# test

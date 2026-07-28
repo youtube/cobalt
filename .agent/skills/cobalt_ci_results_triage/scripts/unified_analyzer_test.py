@@ -449,6 +449,158 @@ class TestUnifiedAnalyzer(unittest.TestCase):
     self.assertEqual(len(outdated), 1)
     self.assertEqual(outdated[0]["run_id"], "303")
 
+  def test_process_results_data_outdated_runs_filtering(self):
+    fixed_now = datetime.datetime(
+        2026, 7, 20, 12, 0, 0, tzinfo=datetime.timezone.utc)
+
+    # 24 hours 1 minute ago (outdated for nightly)
+    outdated_time = ((fixed_now - datetime.timedelta(
+        hours=24, minutes=1)).isoformat().replace("+00:00", "Z"))
+
+    mock_data = {
+        "source":
+            "github",
+        "total_jobs_fetched":
+            7,
+        "runs": [
+            {
+                # 1. Outdated success (conclusion='success') -> NOT reported
+                "run_id": "401",
+                "job_name": "outdated-success",
+                "branch": "main",
+                "event": "schedule",
+                "createdAt": outdated_time,
+                "conclusion": "success",
+                "failed_jobs": [],
+            },
+            {
+                # 2. Outdated failure (conclusion='failure') -> Reported
+                "run_id":
+                    "402",
+                "job_name":
+                    "outdated-failure",
+                "branch":
+                    "main",
+                "event":
+                    "schedule",
+                "createdAt":
+                    outdated_time,
+                "conclusion":
+                    "failure",
+                "failed_jobs": [{
+                    "name": "j2",
+                    "url": "http://gha/402/job/1",
+                    "local_log_path": self.infra_log_path
+                }],
+            },
+            {
+                # 3. Outdated timeout (conclusion='timed_out') -> Reported
+                "run_id":
+                    "403",
+                "job_name":
+                    "outdated-timeout",
+                "branch":
+                    "main",
+                "event":
+                    "schedule",
+                "createdAt":
+                    outdated_time,
+                "conclusion":
+                    "timed_out",
+                "failed_jobs": [{
+                    "name": "j3",
+                    "url": "http://gha/403/job/1",
+                    "local_log_path": self.infra_log_path
+                }],
+            },
+            {
+                # 4. Outdated cancelled (conclusion='cancelled') -> Reported
+                "run_id":
+                    "404",
+                "job_name":
+                    "outdated-cancelled",
+                "branch":
+                    "main",
+                "event":
+                    "schedule",
+                "createdAt":
+                    outdated_time,
+                "conclusion":
+                    "cancelled",
+                "failed_jobs": [{
+                    "name": "j4",
+                    "url": "http://gha/404/job/1",
+                    "local_log_path": self.infra_log_path
+                }],
+            },
+            {
+                # 5. Outdated fallback failure (no conclusion,
+                # failed_jobs > 0) -> Reported
+                "run_id":
+                    "405",
+                "job_name":
+                    "outdated-fallback-failure",
+                "branch":
+                    "main",
+                "event":
+                    "schedule",
+                "createdAt":
+                    outdated_time,
+                "failed_jobs": [{
+                    "name": "j5",
+                    "url": "http://gha/405/job/1",
+                    "local_log_path": self.infra_log_path
+                }],
+            },
+            {
+                # 6. Outdated fallback success (no conclusion,
+                # failed_jobs == 0) -> NOT reported
+                "run_id": "406",
+                "job_name": "outdated-fallback-success",
+                "branch": "main",
+                "event": "schedule",
+                "createdAt": outdated_time,
+                "failed_jobs": [],
+            },
+            {
+                # 7. Outdated failure with ignore_age=True -> NOT marked as
+                # outdated (processed as recent failed)
+                "run_id":
+                    "407",
+                "job_name":
+                    "outdated-ignore-age",
+                "branch":
+                    "main",
+                "event":
+                    "schedule",
+                "createdAt":
+                    outdated_time,
+                "conclusion":
+                    "failure",
+                "ignore_age":
+                    True,
+                "failed_jobs": [{
+                    "name": "j7",
+                    "url": "http://gha/407/job/1",
+                    "local_log_path": self.infra_log_path
+                }],
+            },
+        ],
+    }
+
+    failed, outdated = unified_analyzer.process_results_data(
+        mock_data, fixed_now)
+
+    # 402, 403, 404, 405 should be in outdated
+    self.assertEqual(len(outdated), 4)
+    self.assertEqual({r["run_id"] for r in outdated},
+                     {"402", "403", "404", "405"})
+
+    # 407 should be in failed (because ignore_age=True bypassed outdated check)
+    # 401, 406 should be ignored completely
+    self.assertEqual(len(failed), 1)
+    self.assertEqual(failed[0]["run_id"], "407")
+
   # ==========================================
   # Report Formatting Tests
   # ==========================================
@@ -680,9 +832,9 @@ class TestUnifiedAnalyzer(unittest.TestCase):
     self.assertNotEqual(idx_custom, -1)
 
     self.assertTrue(
-        idx_main < idx_26_eap < idx_26_android < idx_25_10 < idx_25_2 < idx_25_1 < idx_9 < idx_cobalt < idx_custom,
-        "Branches not sorted in version descending order in Health Report"
-    )
+        idx_main < idx_26_eap < idx_26_android < idx_25_10 < idx_25_2 < idx_25_1
+        < idx_9 < idx_cobalt < idx_custom,
+        "Branches not sorted in version descending order in Health Report")
 
     # Check Detailed Branch Failures Section
     detailed_section = report[detailed_failures_idx:]
@@ -707,9 +859,10 @@ class TestUnifiedAnalyzer(unittest.TestCase):
     self.assertNotEqual(idx_custom_det, -1)
 
     self.assertTrue(
-        idx_main_det < idx_26_eap_det < idx_26_android_det < idx_25_10_det < idx_25_2_det < idx_25_1_det < idx_9_det < idx_cobalt_det < idx_custom_det,
-        "Branches not sorted in version descending order in Detailed Failures"
-    )
+        idx_main_det < idx_26_eap_det < idx_26_android_det < idx_25_10_det <
+        idx_25_2_det < idx_25_1_det < idx_9_det < idx_cobalt_det <
+        idx_custom_det,
+        "Branches not sorted in version descending order in Detailed Failures")
 
 
 if __name__ == "__main__":

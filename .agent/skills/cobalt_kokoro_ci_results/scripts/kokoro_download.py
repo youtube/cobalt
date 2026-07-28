@@ -13,6 +13,7 @@ import stat
 import subprocess
 import sys
 import tempfile
+import threading
 from typing import Any, Dict, List, Optional
 
 import getpass
@@ -68,6 +69,9 @@ SPONGE_LINK_PATTERN = re.compile(
 
 DEFAULT_TIMEOUT = 30
 
+# Limit concurrent subprocesses to avoid resource limits and API rate limiting
+SUBPROCESS_SEMAPHORE = threading.Semaphore(16)
+
 
 def _validate_invocation_id(invocation_id: str) -> bool:
   return bool(INVOCATION_ID_PATTERN.match(invocation_id))
@@ -81,10 +85,16 @@ def _validate_filename(filename: str) -> bool:
 
 def run_command(cmd: List[str],
                 timeout: int = DEFAULT_TIMEOUT) -> subprocess.CompletedProcess:
-  """Runs a shell command and returns the CompletedProcess."""
+  """Runs a command under a global semaphore and returns CompletedProcess."""
   logger.debug("Running command: %s", " ".join(cmd))
-  return subprocess.run(
-      cmd, capture_output=True, text=True, check=True, timeout=timeout)
+  with SUBPROCESS_SEMAPHORE:
+    try:
+      return subprocess.run(
+          cmd, capture_output=True, text=True, check=True, timeout=timeout)
+    except subprocess.CalledProcessError as err:
+      logger.error("Command failed: %s\nStdout: %s\nStderr: %s", " ".join(cmd),
+                   err.stdout, err.stderr)
+      raise
 
 
 def discover_jobs() -> List[Dict[str, str]]:
@@ -294,21 +304,25 @@ def fetch_sponge_log(build_id: str, filename: str) -> Optional[str]:
   logger.info("Found CNS path: %s", actual_path)
 
   # Copy the file to local cache
-  temp_local_path = local_path + ".tmp"
+  # Use a unique temp file to avoid collisions when multiple threads fetch logs
+  temp_local_path = None
   try:
-    ensure_cache_dir()
-    cp_cmd = ["fileutil", "cp", "--", actual_path, temp_local_path]
+    if not ensure_cache_dir():
+      return None
+    fd, temp_local_path = tempfile.mkstemp(dir=CACHE_DIR, suffix=".tmp")
+    os.close(fd)
+
+    cp_cmd = ["fileutil", "cp", "-f", "--", actual_path, temp_local_path]
     run_command(cp_cmd, timeout=60)
     os.replace(temp_local_path, local_path)
     return local_path
-  except (subprocess.SubprocessError, OSError) as e:
-    logger.error("Error fetching log from CNS for build %s: %s", build_id, e)
-    for path in (local_path, temp_local_path):
-      if os.path.exists(path):
-        try:
-          os.remove(path)
-        except OSError:
-          pass
+  except (subprocess.SubprocessError, OSError) as err:
+    logger.error("Error fetching log from CNS for build %s: %s", build_id, err)
+    if temp_local_path and os.path.exists(temp_local_path):
+      try:
+        os.remove(temp_local_path)
+      except OSError:
+        pass
     return None
 
 
@@ -404,12 +418,43 @@ def _extract_log_uris(
   return test_log_uri, infra_log_uri
 
 
+def process_child_job(child_id: str, branch: str) -> List[Dict[str, Any]]:
+  """Processes a single child job status and downloads its logs if failed."""
+  child_jobs = []
+  actions = get_child_actions(child_id)
+  for action in actions:
+    if action.get("status") in (3, 6, 9, "FAILED", "FAILED_TO_BUILD",
+                                "TOOL_FAILED"):
+      target_id = action.get("target_id", "unknown")
+      test_log_uri, infra_log_uri = _extract_log_uris(action.get("files", []))
+
+      # Try to download test log first, fallback to infra log
+      local_log_path = ""
+      log_uri = test_log_uri or infra_log_uri
+      if log_uri:
+        # Extract file name from URI or use default
+        filename = os.path.basename(log_uri.replace("googlefile:", ""))
+        if not filename or filename == "/":
+          filename = "test.log"
+
+        local_log_path = fetch_sponge_log(child_id, filename) or ""
+
+      child_jobs.append({
+          "job_name": f"{target_id}",
+          "conclusion": "failure",
+          "url": f"https://sponge.corp.google.com/invocation?id={child_id}",
+          "local_log_path": local_log_path,
+          "branch": branch,
+      })
+  return child_jobs
+
+
 def process_child_jobs(parent_log_path: str,
                        branch: str) -> List[Dict[str, Any]]:
   """Scans the parent log and downloads failed child job logs.
 
   Scans for child sponge links in the parent log, queries ResultStore
-  for child actions, and downloads their corresponding logs.
+  for child actions, and downloads their corresponding logs in parallel.
   """
   child_jobs = []
   if not os.path.exists(parent_log_path):
@@ -434,32 +479,22 @@ def process_child_jobs(parent_log_path: str,
 
   logger.info("Found child Sponge IDs in parent log: %s", sponge_ids)
 
-  for child_id in sponge_ids:
-    actions = get_child_actions(child_id)
-    for action in actions:
-      if action.get("status") in (3, 6, 9, "FAILED", "FAILED_TO_BUILD",
-                                  "TOOL_FAILED"):
-        target_id = action.get("target_id", "unknown")
-        test_log_uri, infra_log_uri = _extract_log_uris(action.get("files", []))
+  # Parallelize processing of child_ids
+  max_workers = min(len(sponge_ids), 16)
+  with concurrent.futures.ThreadPoolExecutor(
+      max_workers=max_workers) as executor:
+    futures = [
+        executor.submit(process_child_job, child_id, branch)
+        for child_id in sponge_ids
+    ]
+    for future in concurrent.futures.as_completed(futures):
+      try:
+        res = future.result()
+        if res:
+          child_jobs.extend(res)
+      except Exception as err:  # pylint: disable=broad-exception-caught
+        logger.error("Child job triage thread threw exception: %s", err)
 
-        # Try to download test log first, fallback to infra log
-        local_log_path = ""
-        log_uri = test_log_uri or infra_log_uri
-        if log_uri:
-          # Extract file name from URI or use default
-          filename = os.path.basename(log_uri.replace("googlefile:", ""))
-          if not filename or filename == "/":
-            filename = "test.log"
-
-          local_log_path = fetch_sponge_log(child_id, filename) or ""
-
-        child_jobs.append({
-            "job_name": f"{target_id}",
-            "conclusion": "failure",
-            "url": f"https://sponge.corp.google.com/invocation?id={child_id}",
-            "local_log_path": local_log_path,
-            "branch": branch,
-        })
   return child_jobs
 
 
@@ -540,6 +575,7 @@ def main():
             "url": f"https://sponge.corp.google.com/invocation?id={args.build}",
             "local_log_path": local_log_path,
             "child_jobs": child_jobs,
+            "ignore_age": True,
         }]
     }
   elif args.job:
@@ -547,6 +583,8 @@ def main():
     logger.info("Directly triaging job: %s", args.job)
     job = {"job_name": args.job, "branch": "unknown"}
     run_info = triage_job(job)
+    if run_info:
+      run_info["ignore_age"] = True
     results = {
         "total_jobs_fetched": 1,
         "failed_runs": [run_info] if run_info else []
@@ -607,7 +645,9 @@ def main():
         "event": "nightly",
         "createdAt": run.get("createdAt", ""),
         "url": run["url"],
-        "failed_jobs": failed_jobs
+        "conclusion": "FAILED",
+        "failed_jobs": failed_jobs,
+        "ignore_age": run.get("ignore_age", False)
     })
 
   unified_results = {
