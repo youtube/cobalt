@@ -20,12 +20,153 @@
 #include "base/functional/callback_helpers.h"
 #include "base/task/bind_post_task.h"
 #include "base/time/time.h"
+#include "media/base/demuxer_stream.h"
+#include "media/base/media_resource.h"
 #include "media/base/starboard/starboard_rendering_mode.h"
+#include "media/mojo/common/starboard/mojo_renderer_bypass_bridge.h"
 #include "media/mojo/services/mojo_media_log.h"
 #include "ui/gfx/geometry/rect_conversions.h"
 #include "ui/gl/gl_bindings.h"
 
 namespace media {
+
+namespace {
+// Time interval to update media time when bypass is active. This matches
+// `kTimeUpdateInterval` in media/mojo/services/mojo_renderer_service.cc.
+constexpr auto kTimeUpdateInterval = base::Milliseconds(125);
+}  // namespace
+
+// A proxy DemuxerStream that forwards Read calls to the
+// MojoRendererBypassBridge.
+//
+// Lifetime and Ownership: Owned by ProxyMediaResource and exists for the
+// duration of the active media bypass session.
+//
+// Threading Model: This class is thread-affine and must be used on the Mojo
+// service thread where StarboardRenderer and StarboardRendererWrapper run.
+class ProxyDemuxerStream : public DemuxerStream {
+ public:
+  ProxyDemuxerStream(scoped_refptr<MojoRendererBypassBridge> bridge,
+                     DemuxerStream::Type type)
+      : bridge_(bridge), type_(type) {}
+
+  void Read(uint32_t count, ReadCB read_cb) override {
+    bridge_->Read(type_, count, std::move(read_cb));
+  }
+
+  AudioDecoderConfig audio_decoder_config() override {
+    return bridge_->GetAudioConfig();
+  }
+
+  VideoDecoderConfig video_decoder_config() override {
+    return bridge_->GetVideoConfig();
+  }
+
+  Type type() const override { return type_; }
+
+  StreamLiveness liveness() const override {
+    return bridge_->GetLiveness(type_);
+  }
+
+  bool SupportsConfigChanges() override {
+    return bridge_->SupportsConfigChanges(type_);
+  }
+
+  std::string mime_type() const override { return bridge_->GetMimeType(type_); }
+
+  void EnableBitstreamConverter() override {
+    bridge_->EnableBitstreamConverter(type_);
+  }
+
+ private:
+  scoped_refptr<MojoRendererBypassBridge> bridge_;
+  Type type_;
+};
+
+// A MediaResource implementation that holds ProxyDemuxerStreams.
+//
+// Lifetime and Ownership: Owned by StarboardRendererWrapper and exists for the
+// duration of the active media bypass session.
+//
+// Threading Model: This class is thread-affine and must be used on the Mojo
+// service thread where StarboardRenderer and StarboardRendererWrapper run.
+class ProxyMediaResource : public MediaResource {
+ public:
+  ProxyMediaResource(std::unique_ptr<ProxyDemuxerStream> audio,
+                     std::unique_ptr<ProxyDemuxerStream> video)
+      : audio_(std::move(audio)), video_(std::move(video)) {}
+
+  std::vector<DemuxerStream*> GetAllStreams() override {
+    std::vector<DemuxerStream*> streams;
+    if (audio_) {
+      streams.push_back(audio_.get());
+    }
+    if (video_) {
+      streams.push_back(video_.get());
+    }
+    return streams;
+  }
+
+ private:
+  std::unique_ptr<ProxyDemuxerStream> audio_;
+  std::unique_ptr<ProxyDemuxerStream> video_;
+};
+
+// A RendererClient implementation that intercepts statistics updates to post
+// them directly to the bypass bridge.
+//
+// Lifetime and Ownership: Owned by StarboardRendererWrapper and exists for the
+// duration of the active media bypass session.
+//
+// Threading Model: This class is thread-affine and must be used on the Mojo
+// service thread (the same thread where StarboardRendererWrapper is created and
+// used).
+class ProxyRendererClient final : public RendererClient {
+ public:
+  ProxyRendererClient(RendererClient* client,
+                      scoped_refptr<MojoRendererBypassBridge> bridge)
+      : client_(client), bridge_(bridge) {
+    DCHECK(client);
+  }
+  ~ProxyRendererClient() = default;
+
+  void OnError(PipelineStatus status) override { client_->OnError(status); }
+  void OnFallback(PipelineStatus fallback) override {
+    client_->OnFallback(fallback);
+  }
+  void OnEnded() override { client_->OnEnded(); }
+  void OnStatisticsUpdate(const PipelineStatistics& stats) override {
+    if (bridge_) {
+      bridge_->PostStatisticsUpdate(stats);
+    } else {
+      client_->OnStatisticsUpdate(stats);
+    }
+  }
+  void OnBufferingStateChange(BufferingState state,
+                              BufferingStateChangeReason reason) override {
+    client_->OnBufferingStateChange(state, reason);
+  }
+  void OnWaiting(WaitingReason reason) override { client_->OnWaiting(reason); }
+  void OnAudioConfigChange(const AudioDecoderConfig& config) override {
+    client_->OnAudioConfigChange(config);
+  }
+  void OnVideoConfigChange(const VideoDecoderConfig& config) override {
+    client_->OnVideoConfigChange(config);
+  }
+  void OnVideoNaturalSizeChange(const gfx::Size& size) override {
+    client_->OnVideoNaturalSizeChange(size);
+  }
+  void OnVideoOpacityChange(bool opaque) override {
+    client_->OnVideoOpacityChange(opaque);
+  }
+  void OnVideoFrameRateChange(std::optional<int> fps) override {
+    client_->OnVideoFrameRateChange(fps);
+  }
+
+ private:
+  raw_ptr<RendererClient> client_;
+  scoped_refptr<MojoRendererBypassBridge> bridge_;
+};
 
 StarboardRendererWrapper::StarboardRendererWrapper(
     StarboardRendererTraits traits
@@ -130,17 +271,25 @@ void StarboardRendererWrapper::Initialize(MediaResource* media_resource,
 
 void StarboardRendererWrapper::Flush(base::OnceClosure flush_cb) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  StopMediaTimePolling();
   GetRenderer()->Flush(std::move(flush_cb));
 }
 
 void StarboardRendererWrapper::StartPlayingFrom(base::TimeDelta time) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   GetRenderer()->StartPlayingFrom(time);
+  StartMediaTimePollingIfNeeded();
 }
 
 void StarboardRendererWrapper::SetPlaybackRate(double playback_rate) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  playback_rate_ = playback_rate;
   GetRenderer()->SetPlaybackRate(playback_rate);
+  if (playback_rate_ > 0) {
+    StartMediaTimePollingIfNeeded();
+  } else {
+    StopMediaTimePolling();
+  }
 }
 
 void StarboardRendererWrapper::SetVolume(float volume) {
@@ -327,6 +476,45 @@ void StarboardRendererWrapper::OnSbWindowHandleReady(
   GetRenderer()->OnSbWindowHandleReady(sb_window_handle);
 }
 
+void StarboardRendererWrapper::InitializeWithBypassBridge(
+    uint32_t bypass_bridge_id,
+    InitializeWithBypassBridgeCallback callback) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  bypass_bridge_ = BypassBridgeRegistry::Get(bypass_bridge_id);
+  if (!bypass_bridge_) {
+    LOG(WARNING) << __func__ << ": Bypass bridge not found for ID "
+                 << bypass_bridge_id;
+    std::move(callback).Run(false);
+    return;
+  }
+
+  std::unique_ptr<ProxyDemuxerStream> audio_proxy;
+  std::unique_ptr<ProxyDemuxerStream> video_proxy;
+
+  AudioDecoderConfig audio_config = bypass_bridge_->GetAudioConfig();
+  if (audio_config.IsValidConfig()) {
+    audio_proxy = std::make_unique<ProxyDemuxerStream>(bypass_bridge_,
+                                                       DemuxerStream::AUDIO);
+  }
+  VideoDecoderConfig video_config = bypass_bridge_->GetVideoConfig();
+  if (video_config.IsValidConfig()) {
+    video_proxy = std::make_unique<ProxyDemuxerStream>(bypass_bridge_,
+                                                       DemuxerStream::VIDEO);
+  }
+
+  if (!audio_proxy && !video_proxy) {
+    LOG(ERROR) << __func__
+               << ": No valid audio or video config found in bypass bridge.";
+    bypass_bridge_ = nullptr;
+    std::move(callback).Run(false);
+    return;
+  }
+
+  proxy_media_resource_ = std::make_unique<ProxyMediaResource>(
+      std::move(audio_proxy), std::move(video_proxy));
+  std::move(callback).Run(true);
+}
+
 #if BUILDFLAG(IS_ANDROID)
 void StarboardRendererWrapper::OnOverlayInfoChanged(
     const OverlayInfo& overlay_info) {
@@ -375,7 +563,43 @@ void StarboardRendererWrapper::ContinueInitialization(
           &StarboardRendererWrapper::GetSbDecodeTargetGraphicsContextProvider,
           base::Unretained(this)));
 
-  GetRenderer()->Initialize(media_resource, client, std::move(init_cb));
+  if (bypass_bridge_) {
+    proxy_renderer_client_ =
+        std::make_unique<ProxyRendererClient>(client, bypass_bridge_);
+    client = proxy_renderer_client_.get();
+  }
+
+  GetRenderer()->Initialize(
+      proxy_media_resource_ ? proxy_media_resource_.get() : media_resource,
+      client, std::move(init_cb));
+}
+
+void StarboardRendererWrapper::PollMediaTime() {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  if (!bypass_bridge_) {
+    return;
+  }
+  base::TimeDelta media_time = GetRenderer()->GetMediaTime();
+  base::TimeDelta max_time = media_time + 2 * kTimeUpdateInterval;
+  bypass_bridge_->PostTimeUpdate(media_time, max_time, base::TimeTicks::Now());
+}
+
+void StarboardRendererWrapper::StartMediaTimePollingIfNeeded() {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  if (!bypass_bridge_) {
+    return;
+  }
+  if (playback_rate_ > 0 && !time_update_timer_.IsRunning()) {
+    time_update_timer_.Start(FROM_HERE, kTimeUpdateInterval, this,
+                             &StarboardRendererWrapper::PollMediaTime);
+  }
+}
+
+void StarboardRendererWrapper::StopMediaTimePolling() {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  if (time_update_timer_.IsRunning()) {
+    time_update_timer_.Stop();
+  }
 }
 
 void StarboardRendererWrapper::OnPaintVideoHoleFrameByStarboard(
@@ -414,6 +638,37 @@ StarboardRendererWrapper::GetSbDecodeTargetGraphicsContextProvider() {
   return &decode_target_graphics_context_provider_;
 }
 
+void StarboardRendererWrapper::GetCurrentDecodeTarget() {
+  decode_target_ = GetRenderer()->GetSbDecodeTarget();
+}
+
+void StarboardRendererWrapper::CreateVideoFrame_OnImageReady(
+    VideoPixelFormat format,
+    const gfx::Size& coded_size,
+    const gfx::Rect& visible_rect,
+    const gfx::Size& natural_size,
+    scoped_refptr<gpu::ClientSharedImage> shared_image) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+
+  auto release_cb = base::BindOnce(
+      [](scoped_refptr<gpu::ClientSharedImage> shared_image,
+         const gpu::SyncToken& sync_token) {
+        if (sync_token.HasData()) {
+          shared_image->BackingWasExternallyUpdated(sync_token);
+        }
+      },
+      shared_image);
+
+  auto frame = VideoFrame::WrapSharedImage(
+      format, std::move(shared_image), gpu::SyncToken(), std::move(release_cb),
+      coded_size, visible_rect, natural_size, base::TimeDelta());
+  if (!frame) {
+    LOG(ERROR) << __func__ << " failed to create video frame";
+    return;
+  }
+  current_frame_ = std::move(frame);
+}
+
 // static
 // Disable CFI checks for this method because it executes function pointers
 // provided by the Starboard library, which cannot be verified across the
@@ -445,37 +700,6 @@ void StarboardRendererWrapper::GraphicsContextRunner(
     base::ScopedAllowBaseSyncPrimitives allow_wait;
     done_event.Wait();
   }
-}
-
-void StarboardRendererWrapper::GetCurrentDecodeTarget() {
-  decode_target_ = GetRenderer()->GetSbDecodeTarget();
-}
-
-void StarboardRendererWrapper::CreateVideoFrame_OnImageReady(
-    VideoPixelFormat format,
-    const gfx::Size& coded_size,
-    const gfx::Rect& visible_rect,
-    const gfx::Size& natural_size,
-    scoped_refptr<gpu::ClientSharedImage> shared_image) {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-
-  auto release_cb = base::BindOnce(
-      [](scoped_refptr<gpu::ClientSharedImage> shared_image,
-         const gpu::SyncToken& sync_token) {
-        if (sync_token.HasData()) {
-          shared_image->BackingWasExternallyUpdated(sync_token);
-        }
-      },
-      shared_image);
-
-  auto frame = VideoFrame::WrapSharedImage(
-      format, std::move(shared_image), gpu::SyncToken(), std::move(release_cb),
-      coded_size, visible_rect, natural_size, base::TimeDelta());
-  if (!frame) {
-    LOG(ERROR) << __func__ << " failed to create video frame";
-    return;
-  }
-  current_frame_ = std::move(frame);
 }
 
 }  // namespace media
