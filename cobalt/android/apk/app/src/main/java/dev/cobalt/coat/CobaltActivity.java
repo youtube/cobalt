@@ -595,9 +595,6 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
                 if (currentWebContents != null) {
                   currentWebContents.onFreeze();
                 }
-                if (getJavaSwitches().containsKey(JavaSwitches.ENABLE_DOM_STORAGE_SMART_FLUSHING)) {
-                  CobaltContentBrowserClient.flushCookiesAndLocalStorage();
-                }
                 mFreezeRunnable = null;
               }
             };
