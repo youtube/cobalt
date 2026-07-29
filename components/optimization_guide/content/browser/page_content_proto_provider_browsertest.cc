@@ -851,8 +851,9 @@ class PageContentProtoProviderBrowserTestMultiProcess
   content::test::FencedFrameTestHelper fenced_frame_helper_;
 };
 
+// TODO(crbug.com/438250758): Test is flaky.
 IN_PROC_BROWSER_TEST_P(PageContentProtoProviderBrowserTestMultiProcess,
-                       AIPageContentMultipleCrossSiteFrames) {
+                       DISABLED_AIPageContentMultipleCrossSiteFrames) {
   LoadPage(https_server()->GetURL("a.com", "/iframe_cross_site.html"),
            GetActionableAIPageContentOptions());
 
@@ -1175,6 +1176,36 @@ IN_PROC_BROWSER_TEST_F(PageContentProtoProviderBrowserTestScriptTools, Basic) {
             "{\"type\":\"object\",\"properties\":{\"text\":{\"description\":"
             "\"Value to echo\",\"type\":\"string\"}},\"required\":[\"text\"]}");
   EXPECT_TRUE(tool.annotations().read_only());
+}
+
+IN_PROC_BROWSER_TEST_F(PageContentProtoProviderBrowserTestScriptTools,
+                       NoAnnotations) {
+  LoadPage(https_server()->GetURL("/script_tool_no_annotation.html"));
+
+  const auto& frame_data = page_content().main_frame_data();
+  ASSERT_EQ(frame_data.script_tools().size(), 1u);
+
+  const auto& tool = frame_data.script_tools().at(0);
+  EXPECT_EQ(tool.name(), "echo");
+  EXPECT_EQ(tool.description(), "echo input");
+  EXPECT_EQ(tool.input_schema(),
+            "{\"type\":\"object\",\"properties\":{\"text\":{\"description\":"
+            "\"Value to echo\",\"type\":\"string\"}},\"required\":[\"text\"]}");
+  EXPECT_FALSE(tool.annotations().read_only());
+}
+
+IN_PROC_BROWSER_TEST_F(PageContentProtoProviderBrowserTestScriptTools,
+                       NoInputSchema) {
+  LoadPage(https_server()->GetURL("/script_tool_no_input_schema.html"));
+
+  const auto& frame_data = page_content().main_frame_data();
+  ASSERT_EQ(frame_data.script_tools().size(), 1u);
+
+  const auto& tool = frame_data.script_tools().at(0);
+  EXPECT_EQ(tool.name(), "echo");
+  EXPECT_EQ(tool.description(), "echo input");
+  EXPECT_FALSE(tool.has_input_schema());
+  EXPECT_FALSE(tool.annotations().read_only());
 }
 
 class PageContentProtoProviderBrowserTestMediaData

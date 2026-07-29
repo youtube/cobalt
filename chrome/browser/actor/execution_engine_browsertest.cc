@@ -11,11 +11,13 @@
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/test_future.h"
+#include "chrome/browser/actor/actor_features.h"
 #include "chrome/browser/actor/actor_keyed_service.h"
 #include "chrome/browser/actor/actor_test_util.h"
 #include "chrome/browser/actor/tools/click_tool_request.h"
 #include "chrome/browser/actor/tools/tab_management_tool_request.h"
 #include "chrome/browser/actor/ui/event_dispatcher.h"
+#include "chrome/browser/chrome_content_browser_client.h"
 #include "chrome/browser/glic/public/glic_keyed_service.h"
 #include "chrome/browser/optimization_guide/browser_test_util.h"
 #include "chrome/browser/profiles/profile.h"
@@ -30,6 +32,7 @@
 #include "components/optimization_guide/content/browser/page_content_proto_provider.h"
 #include "components/optimization_guide/proto/features/actions_data.pb.h"
 #include "content/public/browser/render_frame_host.h"
+#include "content/public/common/content_client.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "content/public/test/prerender_test_util.h"
@@ -43,6 +46,40 @@ using ::optimization_guide::proto::ClickAction;
 namespace actor {
 
 namespace {
+class FakeChromeContentBrowserClient : public ChromeContentBrowserClient {
+ public:
+  bool HandleExternalProtocol(
+      const GURL& url,
+      content::WebContents::Getter web_contents_getter,
+      content::FrameTreeNodeId frame_tree_node_id,
+      content::NavigationUIData* navigation_data,
+      bool is_primary_main_frame,
+      bool is_in_fenced_frame_tree,
+      network::mojom::WebSandboxFlags sandbox_flags,
+      ::ui::PageTransition page_transition,
+      bool has_user_gesture,
+      const std::optional<url::Origin>& initiating_origin,
+      content::RenderFrameHost* initiator_document,
+      const net::IsolationInfo& isolation_info,
+      mojo::PendingRemote<network::mojom::URLLoaderFactory>* out_factory)
+      override {
+    external_protocol_result_ =
+        ChromeContentBrowserClient::HandleExternalProtocol(
+            url, web_contents_getter, frame_tree_node_id, navigation_data,
+            is_primary_main_frame, is_in_fenced_frame_tree, sandbox_flags,
+            page_transition, has_user_gesture, initiating_origin,
+            initiator_document, isolation_info, out_factory);
+
+    return external_protocol_result_.value();
+  }
+
+  std::optional<bool> external_protocol_result() {
+    return external_protocol_result_;
+  }
+
+ private:
+  std::optional<bool> external_protocol_result_ = std::nullopt;
+};
 
 class ExecutionEngineBrowserTest : public InProcessBrowserTest {
  public:
@@ -86,6 +123,8 @@ class ExecutionEngineBrowserTest : public InProcessBrowserTest {
     optimization_guide::RetryForHistogramUntilCountReached(
         &histogram_tester_for_init_,
         "OptimizationGuide.HintsManager.HintCacheInitialized", 1);
+
+    content::SetBrowserClientForTesting(&mock_browser_client_);
   }
 
  protected:
@@ -113,7 +152,7 @@ class ExecutionEngineBrowserTest : public InProcessBrowserTest {
     ASSERT_TRUE(dom_node_id);
     std::unique_ptr<ToolRequest> click =
         MakeClickRequest(*main_frame(), dom_node_id.value());
-    TestFuture<mojom::ActionResultPtr, std::optional<size_t>> result;
+    ActResultFuture result;
     actor_task().Act(ToRequestList(click), result.GetCallback());
     if (expected_code == mojom::ActionResultCode::kOk) {
       ExpectOkResult(result);
@@ -126,11 +165,16 @@ class ExecutionEngineBrowserTest : public InProcessBrowserTest {
     return prerender_helper_;
   }
 
+  FakeChromeContentBrowserClient& browser_client() {
+    return mock_browser_client_;
+  }
+
  private:
   TaskId task_id_;
   content::test::PrerenderTestHelper prerender_helper_;
   base::HistogramTester histogram_tester_for_init_;
   base::test::ScopedFeatureList scoped_feature_list_;
+  FakeChromeContentBrowserClient mock_browser_client_;
 };
 
 // The coordinator does not yet handle multi-tab cases. For now,
@@ -180,7 +224,7 @@ IN_PROC_BROWSER_TEST_F(ExecutionEngineBrowserTest, TwoClicks) {
       MakeClickRequest(*main_frame(), button2_id.value());
 
   // Execute the action
-  TestFuture<mojom::ActionResultPtr, std::optional<size_t>> result;
+  ActResultFuture result;
   actor_task().Act(ToRequestList(click1, click2), result.GetCallback());
   ExpectOkResult(result);
 
@@ -221,7 +265,7 @@ IN_PROC_BROWSER_TEST_F(ExecutionEngineBrowserTest, TwoClicksInBackgroundTab) {
       *first_tab_contents->GetPrimaryMainFrame(), button2_id.value());
 
   // Execute the actions.
-  TestFuture<mojom::ActionResultPtr, std::optional<size_t>> result;
+  ActResultFuture result;
   actor_task().Act(ToRequestList(click1, click2), result.GetCallback());
 
   // Check that the action succeeded.
@@ -284,6 +328,77 @@ IN_PROC_BROWSER_TEST_F(ExecutionEngineBrowserTest, PrerenderBlockedSite) {
   ClickTarget("#directToBlocked",
               mojom::ActionResultCode::kTriggeredNavigationBlocked);
 }
+
+IN_PROC_BROWSER_TEST_F(ExecutionEngineBrowserTest,
+                       ExternalProtocolLinkBlocked) {
+  const GURL start_url = embedded_https_test_server().GetURL(
+      "example.com", "/actor/external_protocol_links.html");
+  ASSERT_TRUE(content::NavigateToURL(web_contents(), start_url));
+
+  ClickTarget("#mailto", mojom::ActionResultCode::kTriggeredNavigationBlocked);
+}
+
+// We need to follow a link which then spawns the external protocol request in
+// an iframe to test this. If we launch click the external protocol link
+// directly, its caught by the network throttler as seen in the test above. If
+// we click a button that creates the iframe request directly, the actor will
+// finish the task before ChromeContentBrowserClient has a chance to check for
+// the actor task.
+IN_PROC_BROWSER_TEST_F(ExecutionEngineBrowserTest,
+                       BackgroundExternalProtocolBlocked) {
+  const GURL start_url =
+      embedded_https_test_server().GetURL("example.com", "/actor/link.html");
+  const GURL second_url = embedded_https_test_server().GetURL(
+      "example.com", "/actor/external_protocol.html");
+  ASSERT_TRUE(content::NavigateToURL(web_contents(), start_url));
+  EXPECT_TRUE(content::ExecJs(web_contents(),
+                              content::JsReplace("setLink($1);", second_url)));
+
+  ClickTarget("#link", mojom::ActionResultCode::kOk);
+
+  EXPECT_FALSE(browser_client().external_protocol_result().value());
+}
+
+class ExecutionEngineOriginGatingBrowserTest
+    : public ExecutionEngineBrowserTest,
+      public testing::WithParamInterface<bool> {
+ public:
+  ExecutionEngineOriginGatingBrowserTest() {
+    scoped_feature_list_.InitWithFeatureState(kGlicCrossOriginNavigationGating,
+                                              origin_gating_enabled());
+  }
+
+  bool origin_gating_enabled() { return GetParam(); }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+IN_PROC_BROWSER_TEST_P(ExecutionEngineOriginGatingBrowserTest,
+                       GateCrossOriginNavigations) {
+  const GURL start_url =
+      embedded_https_test_server().GetURL("example.com", "/actor/link.html");
+  const GURL second_url =
+      embedded_https_test_server().GetURL("foo.com", "/actor/blank.html");
+
+  ASSERT_TRUE(content::NavigateToURL(web_contents(), start_url));
+  EXPECT_TRUE(content::ExecJs(web_contents(),
+                              content::JsReplace("setLink($1);", start_url)));
+
+  ClickTarget("#link", mojom::ActionResultCode::kOk);
+
+  EXPECT_TRUE(content::ExecJs(web_contents(),
+                              content::JsReplace("setLink($1);", second_url)));
+
+  ClickTarget("#link",
+              origin_gating_enabled()
+                  ? mojom::ActionResultCode::kTriggeredNavigationBlocked
+                  : mojom::ActionResultCode::kOk);
+}
+
+INSTANTIATE_TEST_SUITE_P(All,
+                         ExecutionEngineOriginGatingBrowserTest,
+                         testing::Bool());
 
 }  // namespace
 

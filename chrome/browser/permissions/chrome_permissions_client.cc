@@ -52,6 +52,8 @@
 #include "chrome/grit/branded_strings.h"
 #include "components/content_settings/core/browser/content_settings_type_set.h"
 #include "components/content_settings/core/browser/cookie_settings.h"
+#include "components/content_settings/core/browser/permission_settings_info.h"
+#include "components/content_settings/core/browser/permission_settings_registry.h"
 #include "components/content_settings/core/common/content_settings.h"
 #include "components/google/core/common/google_util.h"
 #include "components/infobars/content/content_infobar_manager.h"
@@ -99,6 +101,7 @@
 #include "chrome/browser/ash/app_mode/web_app/kiosk_web_app_data.h"
 #include "chrome/browser/ash/app_mode/web_app/kiosk_web_app_manager.h"
 #include "chromeos/ash/components/browser_context_helper/browser_context_types.h"
+#include "chromeos/components/kiosk/kiosk_utils.h"
 #include "components/user_manager/user.h"
 #include "components/user_manager/user_manager.h"
 #endif
@@ -127,7 +130,7 @@ bool ShouldUseQuietUI(content::WebContents* web_contents,
   auto* manager =
       permissions::PermissionRequestManager::FromWebContents(web_contents);
   if (type != ContentSettingsType::NOTIFICATIONS &&
-      type != ContentSettingsType::GEOLOCATION) {
+      type != permissions::PermissionUtil::GetGeolocationType()) {
     return false;
   }
   return manager->ShouldCurrentRequestUseQuietUI();
@@ -135,19 +138,9 @@ bool ShouldUseQuietUI(content::WebContents* web_contents,
 #endif
 
 #if BUILDFLAG(IS_CHROMEOS)
-bool IsWebKiosk() {
-  return user_manager::UserManager::IsInitialized() &&
-         user_manager::UserManager::Get()->IsLoggedInAsKioskWebApp();
-}
-
-bool IsIwaKiosk() {
-  return ash::features::IsIsolatedWebAppKioskEnabled() &&
-         user_manager::UserManager::IsInitialized() &&
-         user_manager::UserManager::Get()->IsLoggedInAsKioskIWA();
-}
 
 std::optional<url::Origin> GetCurrentKioskOrigin() {
-  if (IsWebKiosk()) {
+  if (chromeos::IsWebKioskSession()) {
     const AccountId& account_id =
         user_manager::UserManager::Get()->GetPrimaryUser()->GetAccountId();
     DCHECK(ash::KioskWebAppManager::IsInitialized());
@@ -157,7 +150,7 @@ std::optional<url::Origin> GetCurrentKioskOrigin() {
     return url::Origin::Create(app_data->install_url());
   }
 
-  if (IsIwaKiosk()) {
+  if (chromeos::IsIwaKioskSession()) {
     const AccountId& account_id =
         user_manager::UserManager::Get()->GetPrimaryUser()->GetAccountId();
     const ash::KioskIwaData* iwa_data =
@@ -170,12 +163,13 @@ std::optional<url::Origin> GetCurrentKioskOrigin() {
 
 #endif
 
-bool IsPermissionSetByAdministator(ContentSetting setting,
-                                   const content_settings::SettingInfo& info) {
-  return ((setting == ContentSetting::CONTENT_SETTING_BLOCK ||
-           setting == ContentSetting::CONTENT_SETTING_ALLOW) &&
-          (info.source == content_settings::SettingSource::kPolicy ||
-           info.source == content_settings::SettingSource::kSupervised));
+bool IsPermissionSetByAdministator(
+    PermissionSetting setting,
+    const content_settings::PermissionSettingsInfo* permission_info,
+    const content_settings::SettingInfo& info) {
+  return !permission_info->delegate().IsUndecided(setting) &&
+         (info.source == content_settings::SettingSource::kPolicy ||
+          info.source == content_settings::SettingSource::kSupervised);
 }
 
 #if !BUILDFLAG(IS_ANDROID)
@@ -770,11 +764,14 @@ bool ChromePermissionsClient::CanRequestDevicePermission(
 // methods are needed to show the appropriate policy screen.
 bool ChromePermissionsClient::IsPermissionBlockedByDevicePolicy(
     content::WebContents* web_contents,
-    ContentSetting setting,
+    PermissionSetting setting,
     const content_settings::SettingInfo& info,
     ContentSettingsType type) const {
-  if (IsPermissionSetByAdministator(setting, info) &&
-      setting == CONTENT_SETTING_BLOCK) {
+  auto* permission_info =
+      content_settings::PermissionSettingsRegistry::GetInstance()->Get(type);
+
+  if (IsPermissionSetByAdministator(setting, permission_info, info) &&
+      permission_info->delegate().IsBlocked(setting)) {
     return true;
   }
 
@@ -799,11 +796,13 @@ bool ChromePermissionsClient::IsPermissionBlockedByDevicePolicy(
 
 bool ChromePermissionsClient::IsPermissionAllowedByDevicePolicy(
     content::WebContents* web_contents,
-    ContentSetting setting,
+    PermissionSetting setting,
     const content_settings::SettingInfo& info,
     ContentSettingsType type) const {
-  if (IsPermissionSetByAdministator(setting, info) &&
-      setting == CONTENT_SETTING_ALLOW) {
+  auto* permission_info =
+      content_settings::PermissionSettingsRegistry::GetInstance()->Get(type);
+  if (IsPermissionSetByAdministator(setting, permission_info, info) &&
+      permission_info->delegate().IsAnyPermissionAllowed(setting)) {
     return true;
   }
 

@@ -5,10 +5,18 @@
 #ifndef CHROME_BROWSER_ASH_CROSAPI_FILE_SYSTEM_PROVIDER_SERVICE_ASH_H_
 #define CHROME_BROWSER_ASH_CROSAPI_FILE_SYSTEM_PROVIDER_SERVICE_ASH_H_
 
+#include <variant>
+
+#include "base/files/file.h"
 #include "base/values.h"
 #include "chromeos/crosapi/mojom/file_system_provider.mojom.h"
 
 class Profile;
+
+namespace ash::file_system_provider {
+class RequestManager;
+class RequestValue;
+}  // namespace ash::file_system_provider
 
 namespace crosapi {
 
@@ -28,25 +36,6 @@ class FileSystemProviderServiceAsh : public mojom::FileSystemProviderService {
               mojom::FSPChangeType type,
               std::vector<mojom::FSPChangePtr> changes,
               NotifyCallback callback) override;
-  void DeprecatedOperationFinished(mojom::FSPOperationResponse response,
-                                   mojom::FileSystemIdPtr file_system_id,
-                                   int64_t request_id,
-                                   std::vector<base::Value> args,
-                                   OperationFinishedCallback callback) override;
-  void OperationFinished(mojom::FSPOperationResponse response,
-                         mojom::FileSystemIdPtr file_system_id,
-                         int64_t request_id,
-                         base::Value::List args,
-                         OperationFinishedCallback callback) override;
-  void OpenFileFinishedSuccessfully(
-      mojom::FileSystemIdPtr file_system_id,
-      int64_t request_id,
-      base::Value::List args,
-      OperationFinishedCallback callback) override;
-  void MountFinished(const std::string& extension_id,
-                     int64_t request_id,
-                     base::Value::List args,
-                     MountFinishedCallback callback) override;
   void ExtensionLoadedDeprecated(bool configurable,
                                  bool watchable,
                                  bool multiple_mounts,
@@ -71,23 +60,14 @@ class FileSystemProviderServiceAsh : public mojom::FileSystemProviderService {
                          std::vector<mojom::FSPChangePtr> changes,
                          NotifyCallback callback,
                          Profile* profile);
-  void OperationFinishedWithProfile(mojom::FSPOperationResponse response,
-                                    mojom::FileSystemIdPtr file_system_id,
-                                    int64_t request_id,
-                                    base::Value::List args,
-                                    OperationFinishedCallback callback,
-                                    Profile* profile);
-  void OpenFileFinishedSuccessfullyWithProfile(
-      mojom::FileSystemIdPtr file_system_id,
+
+  // Forwards an operation response from an extension to the request manager and
+  // then returns the error message. Empty string means success.
+  std::string ForwardOperationResponse(
+      ash::file_system_provider::RequestManager& manager,
       int64_t request_id,
-      base::Value::List args,
-      OperationFinishedCallback callback,
-      Profile* profile);
-  void MountFinishedWithProfile(const std::string& extension_id,
-                                int64_t request_id,
-                                base::Value::List args,
-                                MountFinishedCallback callback,
-                                Profile* profile);
+      const ash::file_system_provider::RequestValue& value,
+      std::variant<bool /*has_more*/, base::File::Error /*error*/> arg);
 };
 
 }  // namespace crosapi

@@ -9,6 +9,7 @@
 #include <string>
 #include <tuple>
 
+#include "base/containers/flat_map.h"
 #include "base/functional/callback.h"
 #include "base/functional/callback_forward.h"
 #include "base/memory/scoped_refptr.h"
@@ -16,6 +17,7 @@
 #include "base/task/sequenced_task_runner.h"
 #include "base/types/expected.h"
 #include "remoting/host/base/loggable.h"
+#include "remoting/host/desktop_capturer_proxy.h"
 #include "remoting/host/desktop_interaction_strategy.h"
 #include "remoting/host/linux/ei_sender_session.h"
 #include "remoting/host/linux/gdbus_connection_ref.h"
@@ -24,10 +26,13 @@
 #include "remoting/host/linux/gvariant_ref.h"
 #include "remoting/host/linux/pipewire_capture_stream.h"
 #include "remoting/host/linux/pipewire_capture_stream_manager.h"
+#include "remoting/host/linux/pipewire_desktop_capturer.h"
+#include "third_party/webrtc/modules/desktop_capture/desktop_capture_types.h"
 
 namespace remoting {
 
-class GnomeInteractionStrategy : public DesktopInteractionStrategy {
+class GnomeInteractionStrategy : public DesktopInteractionStrategy,
+                                 public PipewireCaptureStreamManager::Observer {
  public:
   GnomeInteractionStrategy(const GnomeInteractionStrategy&) = delete;
   GnomeInteractionStrategy& operator=(const GnomeInteractionStrategy&) = delete;
@@ -79,6 +84,10 @@ class GnomeInteractionStrategy : public DesktopInteractionStrategy {
   void OnEisFd(std::pair<std::tuple<GDBusFdList::Handle>, GDBusFdList> args);
   void OnEiSession(std::unique_ptr<EiSenderSession> ei_session);
 
+  // PipewireCaptureStreamManager::Observer overrides.
+  void OnPipewireCaptureStreamAdded(
+      base::WeakPtr<PipewireCaptureStream> stream) override;
+
   GDBusConnectionRef connection_ GUARDED_BY_CONTEXT(sequence_checker_);
   InitCallback init_callback_;
   gvariant::ObjectPath session_path_ GUARDED_BY_CONTEXT(sequence_checker_);
@@ -91,6 +100,16 @@ class GnomeInteractionStrategy : public DesktopInteractionStrategy {
       GUARDED_BY_CONTEXT(sequence_checker_);
   PipewireCaptureStreamManager capture_stream_manager_
       GUARDED_BY_CONTEXT(sequence_checker_);
+  PipewireCaptureStreamManager::Observer::Subscription
+      capture_stream_manager_subscription_
+          GUARDED_BY_CONTEXT(sequence_checker_);
+
+  // Map to allow capturers pending initialization to be initialized after the
+  // corresponding pipewire stream is created, which may happen before or after
+  // the capturer is created.
+  base::flat_map<webrtc::ScreenId, base::WeakPtr<DesktopCapturerProxy>>
+      pending_desktop_capturer_proxies_ GUARDED_BY_CONTEXT(sequence_checker_);
+
   scoped_refptr<base::SequencedTaskRunner> ui_task_runner_
       GUARDED_BY_CONTEXT(sequence_checker_);
 

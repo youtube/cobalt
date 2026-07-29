@@ -77,9 +77,45 @@ chromium-metrics-reviews@google.com.
   <int value="803" label="HistoryNoForwardEntries"/>
   <int value="804" label="HistoryFailedBeforeCommit"/>
   <int value="805" label="HistoryErrorPage"/>
+  <int value="900" label="LoginNoCredentialsAvailable"/>
+  <int value="901" label="LoginNotLoginPage"/>
+  <int value="902" label="LoginCredentialsEnteredButAnotherActionNeeded"/>
+  <int value="903" label="LoginNoFillableFields"/>
 </enum>
 
 <!-- LINT.ThenChange(//chrome/common/actor.mojom:ActionResultCode) -->
+
+<!-- LINT.IfChange(ComputedTargetResult) -->
+
+<enum name="ComputedTargetResult">
+  <int value="0" label="kSuccess"/>
+  <int value="1" label="kMissingActorTabData"/>
+  <int value="2" label="kMissingAnnotatedPageContent"/>
+  <int value="3" label="kTargetNotResolvedInApc"/>
+</enum>
+
+<!-- LINT.ThenChange(//chrome/browser/actor/ui/event_dispatcher.h:ComputedTargetResult) -->
+
+<!-- LINT.IfChange(GetDomNodeResult) -->
+
+<enum name="GetDomNodeResult">
+  <int value="0" label="kSuccess"/>
+  <int value="1" label="kNoApcMainFrameData"/>
+  <int value="2" label="kNodeNotFoundInApc"/>
+  <int value="3" label="kNoGeometry"/>
+  <int value="4" label="kOffScreen"/>
+</enum>
+
+<!-- LINT.ThenChange(//chrome/browser/actor/ui/dom_node_geometry.h:GetDomNodeResult) -->
+
+<!-- LINT.IfChange(ModelPageTargetType) -->
+
+<enum name="ModelPageTargetType">
+  <int value="0" label="kDomNode"/>
+  <int value="1" label="kPoint"/>
+</enum>
+
+<!-- LINT.ThenChange(//chrome/browser/actor/ui/event_dispatcher.h:ModelPageTargetType) -->
 
 </enums>
 

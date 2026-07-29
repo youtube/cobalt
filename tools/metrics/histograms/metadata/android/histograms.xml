@@ -939,7 +939,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.BackPress.Backfalsing2" enum="NavigationDirection"
-    expires_after="2025-12-07">
+    expires_after="2026-02-09">
   <owner>eleanorlee@google.com</owner>
   <owner>lazzzis@chromium.org</owner>
   <owner>clank-app-team@google.com</owner>
@@ -1004,7 +1004,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.BackPress.Intercept{Direction}"
-    enum="BackPressConsumer" expires_after="2025-12-07">
+    enum="BackPressConsumer" expires_after="2026-02-09">
   <owner>lazzzis@chromium.org</owner>
   <owner>src/chrome/browser/back_press/android/OWNERS</owner>
   <summary>
@@ -2409,7 +2409,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.Hub.PaneFocused" enum="HubPaneId"
-    expires_after="2025-12-07">
+    expires_after="2026-02-09">
   <owner>ckitagawa@chromium.org</owner>
   <owner>clank-hub-dev@google.com</owner>
   <summary>
@@ -2997,7 +2997,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.Messages.Enqueued" enum="MessageIdentifier"
-    expires_after="2025-12-07">
+    expires_after="2026-02-09">
   <owner>lazzzis@chromium.org</owner>
   <owner>src/components/messages/OWNERS</owner>
   <summary>
@@ -3035,7 +3035,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.Messages.Enqueued.Visible" enum="MessageIdentifier"
-    expires_after="2025-12-07">
+    expires_after="2026-02-09">
   <owner>lazzzis@chromium.org</owner>
   <owner>src/components/messages/OWNERS</owner>
   <summary>
@@ -3443,6 +3443,50 @@ chromium-metrics-reviews@google.com.
     at the requested index, record the time it took for this activity to get
     destroyed after the mismatch was reported.
   </summary>
+</histogram>
+
+<histogram
+    name="Android.MultiWindowMode.PopupBoundsAdjustment.Delta{Axis}.Outcome.{CrossDisplay}"
+    enum="Boolean" expires_after="M148">
+  <owner>chominskib@google.com</owner>
+  <owner>lt-web-apps-team@google.com</owner>
+  <summary>
+    After a contextual popup is spawned we may adjust its bounds so that size of
+    the website viewport is as requested by the caller in the |window.open()|
+    Javascript call. This records whether the absolute difference in {Axis}
+    between initial popup bounds and adjusted popup bounds was zero pixels. The
+    popup was opened on {CrossDisplay} its originating window.
+  </summary>
+  <token key="Axis">
+    <variant name="Height" summary="height"/>
+    <variant name="Width" summary="width"/>
+  </token>
+  <token key="CrossDisplay">
+    <variant name="CrossDisplay" summary="a different display than"/>
+    <variant name="InDisplay" summary="the same display as"/>
+  </token>
+</histogram>
+
+<histogram
+    name="Android.MultiWindowMode.PopupBoundsAdjustment.Delta{Axis}.Positive.{CrossDisplay}"
+    units="dips" expires_after="M148">
+  <owner>chominskib@google.com</owner>
+  <owner>lt-web-apps-team@google.com</owner>
+  <summary>
+    After a contextual popup is spawned we may adjust its bounds so that size of
+    the website viewport is as requested by the caller in the |window.open()|
+    Javascript call. This records the absolute difference in {Axis} between
+    initial popup bounds and adjusted popup bounds. Records only positive
+    differences. The popup was opened on {CrossDisplay} its originating window.
+  </summary>
+  <token key="Axis">
+    <variant name="Height" summary="height"/>
+    <variant name="Width" summary="width"/>
+  </token>
+  <token key="CrossDisplay">
+    <variant name="CrossDisplay" summary="a different display than"/>
+    <variant name="InDisplay" summary="the same display as"/>
+  </token>
 </histogram>
 
 <histogram name="Android.MultiWindowMode.PopupOpensInNewWindow" enum="Boolean"
@@ -5470,36 +5514,12 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.TabNavigationIntercept.Scheme"
-    enum="NavigationInterceptScheme" expires_after="2025-12-28">
+    enum="NavigationInterceptScheme" expires_after="2026-08-14">
   <owner>rbyers@chromium.org</owner>
   <owner>mthiesse@chromium.org</owner>
+  <owner>mamir@chromium.org</owner>
   <summary>
     When a navigation is intercepted, the scheme of the URL being intercepted.
-  </summary>
-</histogram>
-
-<histogram name="Android.TabNavigationInterceptResult.ForMdoc"
-    enum="NavigationInterceptResult" expires_after="2025-05-18">
-  <owner>pkotwicz@chromium.org</owner>
-  <owner>rbyers@chromium.org</owner>
-  <summary>
-    The distribution of results when running ExternalNavigationHandler for
-    mdoc:// navigations which are intercepted. This shows how frequently mdoc://
-    navigations trigger a dialog (that the user may potentially cancel to cancel
-    the external app launch.)
-  </summary>
-</histogram>
-
-<histogram name="Android.TabNavigationInterceptResult.ForOpenId4Vp"
-    enum="NavigationInterceptResult" expires_after="2025-09-29">
-  <owner>mamir@chromium.org</owner>
-  <owner>pkotwicz@chromium.org</owner>
-  <owner>rbyers@chromium.org</owner>
-  <summary>
-    The distribution of results when running ExternalNavigationHandler for
-    openid4vp:// navigations which are intercepted. This shows how frequently
-    openid4vp:// navigations trigger a dialog (that the user may potentially
-    cancel to cancel the external app launch.)
   </summary>
 </histogram>
 
@@ -5516,6 +5536,24 @@ chromium-metrics-reviews@google.com.
   <token key="ProtocolType">
     <variant name="ExternalProtocol" summary="external protocol"/>
     <variant name="InternalProtocol" summary="internal protocol"/>
+  </token>
+</histogram>
+
+<histogram name="Android.TabNavigationInterceptResult.For{Scheme}"
+    enum="NavigationInterceptResult" expires_after="2026-08-14">
+  <owner>mamir@chromium.org</owner>
+  <owner>rbyers@chromium.org</owner>
+  <summary>
+    The distribution of results when running ExternalNavigationHandler for
+    {Scheme} navigations which are intercepted. This shows how frequently
+    {Scheme} navigations trigger a dialog (that the user may potentially cancel
+    to cancel the external app launch.)
+  </summary>
+  <token key="Scheme">
+    <variant name="Haip" summary="haip://"/>
+    <variant name="Mdoc" summary="mdoc://"/>
+    <variant name="OpenId4Vci" summary="openid-credential-offer://"/>
+    <variant name="OpenId4Vp" summary="openid4vp://"/>
   </token>
 </histogram>
 
@@ -6476,7 +6514,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.WebView.ComponentUpdater.BindServiceTime.{Result}"
-    units="microseconds" expires_after="2025-12-06">
+    units="microseconds" expires_after="2026-02-09">
   <owner>ashleynewson@chromium.org</owner>
   <owner>src/android_webview/OWNERS</owner>
   <summary>
@@ -6541,7 +6579,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.WebView.ComponentUpdater.ProviderConnectUiTime"
-    units="microseconds" expires_after="2025-12-06">
+    units="microseconds" expires_after="2026-02-09">
   <owner>ashleynewson@chromium.org</owner>
   <owner>src/android_webview/OWNERS</owner>
   <summary>
@@ -7169,7 +7207,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.WebView.HistoricalApplicationExitInfo.Counts2.STARTUP"
-    enum="AndroidProcessExitReason" expires_after="2025-12-07">
+    enum="AndroidProcessExitReason" expires_after="2026-02-09">
   <owner>mvanouwerkerk@chromium.org</owner>
   <owner>src/android_webview/OWNERS</owner>
   <improvement direction="LOWER_IS_BETTER"/>
@@ -7664,7 +7702,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.WebView.NonEmbeddedMetrics.HistogramRecordAge"
-    units="minutes" expires_after="2025-12-07">
+    units="minutes" expires_after="2026-02-09">
   <owner>ntfschr@chromium.org</owner>
   <owner>src/android_webview/OWNERS</owner>
   <summary>
@@ -7677,7 +7715,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.WebView.NonEmbeddedMetrics.NumHistograms"
-    units="histograms" expires_after="2025-12-07">
+    units="histograms" expires_after="2026-02-09">
   <owner>ntfschr@chromium.org</owner>
   <owner>src/android_webview/OWNERS</owner>
   <summary>
@@ -7689,7 +7727,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram name="Android.WebView.NonEmbeddedMetrics.ParsingLogResult"
     enum="AndroidWebViewNonEmbeddedMetricsParsingLogResult"
-    expires_after="2025-12-07">
+    expires_after="2026-02-09">
   <owner>ntfschr@chromium.org</owner>
   <owner>src/android_webview/OWNERS</owner>
   <summary>
@@ -7701,7 +7739,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.WebView.NonEmbeddedMetrics.TransmissionResult"
-    enum="AndroidWebViewDevUiMetricsTransmission" expires_after="2025-12-07">
+    enum="AndroidWebViewDevUiMetricsTransmission" expires_after="2026-02-09">
   <owner>ntfschr@chromium.org</owner>
   <owner>src/android_webview/OWNERS</owner>
   <summary>
@@ -7892,6 +7930,17 @@ chromium-metrics-reviews@google.com.
     This is recorded every time WebView sends a prefetch request to the prefetch
     infrastructure inside of //content, it is not recorded for prefetches that
     are deemed as duplicate (or error out) and thus never reach //content.
+  </summary>
+</histogram>
+
+<histogram name="Android.WebView.ProfileWasCreatedByAsyncStartup"
+    enum="Boolean" expires_after="2026-03-14">
+  <owner>elabadysayed@chromium.org</owner>
+  <owner>src/android_webview/OWNERS</owner>
+  <summary>
+    A profile can be created from several code paths, including the
+    AsyncStartupWebView API. This histogram specifically records when
+    ProfileStore.getOrCreateProfile() is triggered by that startup path.
   </summary>
 </histogram>
 
@@ -8351,6 +8400,39 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Android.WebView.Startup.CheckNeedsPost.CalledOnUiThread"
+    enum="Boolean" expires_after="2026-05-26">
+  <owner>abhijithnair@chromium.org</owner>
+  <owner>src/android_webview/OWNERS</owner>
+  <summary>
+    Reports whether or not `checkNeedsPost`
+    (https://source.chromium.org/chromium/chromium/src/+/main:android_webview/glue/java/src/com/android/webview/chromium/SharedWebViewChromium.java;l=208;drc=6712edb4e0491c96b69c7346ac278e5c093b6584)
+    is called on the Chromium UI thread.
+
+    Conditions for recording this metric: Chromium is initialized and AwContents
+    is not null.
+
+    `checkNeedsPost` is called by various WebView APIs.
+
+    Only recorded on Android WebView.
+  </summary>
+</histogram>
+
+<histogram name="Android.WebView.Startup.CheckNeedsPost.IsChromiumInitialized"
+    enum="Boolean" expires_after="2026-05-26">
+  <owner>abhijithnair@chromium.org</owner>
+  <owner>src/android_webview/OWNERS</owner>
+  <summary>
+    Reports whether or not `checkNeedsPost`
+    (https://source.chromium.org/chromium/chromium/src/+/main:android_webview/glue/java/src/com/android/webview/chromium/SharedWebViewChromium.java;l=208;drc=6712edb4e0491c96b69c7346ac278e5c093b6584)
+    is called before Chromium is initialized or not.
+
+    `checkNeedsPost` is called by various WebView APIs.
+
+    Only recorded on Android WebView.
+  </summary>
+</histogram>
+
 <histogram
     name="Android.WebView.Startup.ChromiumInitTime.AsyncToSyncSwitchReason"
     enum="WebViewStartupCallSite" expires_after="2025-12-31">
@@ -8718,6 +8800,20 @@ chromium-metrics-reviews@google.com.
     <variant name="MetricsBridgeService"/>
     <variant name="VariationsSeedServer"/>
   </token>
+</histogram>
+
+<histogram name="Android.WebView.Startup.WebViewInitCalledOnAndroidMainLooper"
+    enum="Boolean" expires_after="2026-05-26">
+  <owner>abhijithnair@chromium.org</owner>
+  <owner>src/android_webview/OWNERS</owner>
+  <summary>
+    Reports whether or not `WebViewChromium#init` is called on the main looper.
+
+    This will be emitted each time within a call to the WebView constructor.
+
+    Only recorded on Android WebView on apps whose target SDK version is less
+    than JELLY_BEAN_MR2.
+  </summary>
 </histogram>
 
 <histogram name="Android.WebView.StorageAccessAutoGrantTime" units="ms"

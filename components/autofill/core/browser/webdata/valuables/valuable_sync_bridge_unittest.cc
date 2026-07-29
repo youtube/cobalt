@@ -16,6 +16,7 @@
 #include "components/autofill/core/browser/test_utils/test_autofill_clock.h"
 #include "components/autofill/core/browser/webdata/autofill_sync_metadata_table.h"
 #include "components/autofill/core/browser/webdata/mock_autofill_webdata_backend.h"
+#include "components/autofill/core/browser/webdata/valuables/valuables_sync_test_utils.h"
 #include "components/autofill/core/browser/webdata/valuables/valuables_sync_util.h"
 #include "components/autofill/core/browser/webdata/valuables/valuables_table.h"
 #include "components/sync/base/data_type.h"
@@ -39,12 +40,6 @@ constexpr char kId1[] = "1";
 constexpr char kId2[] = "2";
 constexpr char kInvalidId[] = "";
 
-LoyaltyCard TestLoyaltyCard(std::string_view id) {
-  return LoyaltyCard(ValuableId(std::string(id)), "merchant_name",
-                     "program_name", GURL("http://foobar.com/logo.png"),
-                     "card_number", {GURL("https://domain.example")});
-}
-
 std::vector<LoyaltyCard> ExtractLoyaltyCardsFromDataBatch(
     std::unique_ptr<syncer::DataBatch> batch) {
   std::vector<LoyaltyCard> loyalty_cards;
@@ -54,6 +49,18 @@ std::vector<LoyaltyCard> ExtractLoyaltyCardsFromDataBatch(
         data_pair.second->specifics.autofill_valuable()));
   }
   return loyalty_cards;
+}
+
+std::unique_ptr<syncer::EntityData> CreateEntityDataFromLoyaltyCardSpecifics(
+    const sync_pb::AutofillValuableSpecifics& card_specifics) {
+  std::unique_ptr<syncer::EntityData> entity_data =
+      std::make_unique<syncer::EntityData>();
+  entity_data->name = card_specifics.id();
+  sync_pb::AutofillValuableSpecifics* specifics =
+      entity_data->specifics.mutable_autofill_valuable();
+  specifics->CopyFrom(card_specifics);
+
+  return entity_data;
 }
 
 }  // namespace
@@ -141,15 +148,42 @@ TEST_F(ValuableSyncBridgeTest, IsEntityDataValid) {
 }
 
 TEST_F(ValuableSyncBridgeTest, IsLoyaltyCardEntityDataValid) {
-  // Valid case.
-  std::unique_ptr<syncer::EntityData> entity =
-      CreateEntityDataFromLoyaltyCard(TestLoyaltyCard(kId1));
-  EXPECT_TRUE(bridge().IsEntityDataValid(*entity));
-  // Invalid logo.
-  entity->specifics.mutable_autofill_valuable()
-      ->mutable_loyalty_card()
-      ->set_program_logo("invalid_url");
-  EXPECT_FALSE(bridge().IsEntityDataValid(*entity));
+  sync_pb::AutofillValuableSpecifics specifics = TestLoyaltyCardSpecifics(kId1);
+  EXPECT_TRUE(bridge().IsEntityDataValid(
+      *CreateEntityDataFromLoyaltyCardSpecifics(specifics)));
+
+  specifics.mutable_loyalty_card()->clear_program_logo();
+  EXPECT_TRUE(bridge().IsEntityDataValid(
+      *CreateEntityDataFromLoyaltyCardSpecifics(specifics)));
+  EXPECT_TRUE(
+      bridge().IsEntityDataValid(*CreateEntityDataFromLoyaltyCardSpecifics(
+          TestLoyaltyCardSpecifics(kId1, /*program_logo=*/""))));
+}
+
+TEST_F(ValuableSyncBridgeTest, IsLoyaltyCardEntityDataInvalid) {
+  // Invalid id.
+  EXPECT_FALSE(
+      bridge().IsEntityDataValid(*CreateEntityDataFromLoyaltyCardSpecifics(
+          TestLoyaltyCardSpecifics(kInvalidId))));
+
+  // Invalid program logo.
+  EXPECT_FALSE(
+      bridge().IsEntityDataValid(*CreateEntityDataFromLoyaltyCardSpecifics(
+          TestLoyaltyCardSpecifics(kId1, /*program_logo=*/"logo.png"))));
+
+  // Invalid number.
+  EXPECT_FALSE(bridge().IsEntityDataValid(
+      *CreateEntityDataFromLoyaltyCardSpecifics(TestLoyaltyCardSpecifics(
+          kId1, /*program_logo=*/"http://foobar.com/logo.png",
+          /*number=*/""))));
+
+  // Invalid merchant name.
+  sync_pb::AutofillValuableSpecifics empty_merchant_name_specifics =
+      TestLoyaltyCardSpecifics(kId1);
+  empty_merchant_name_specifics.mutable_loyalty_card()->clear_merchant_name();
+  EXPECT_FALSE(
+      bridge().IsEntityDataValid(*CreateEntityDataFromLoyaltyCardSpecifics(
+          empty_merchant_name_specifics)));
 }
 
 TEST_F(ValuableSyncBridgeTest, GetStorageKey) {
@@ -294,7 +328,7 @@ TEST_F(ValuableSyncBridgeTest,
   sync_pb::EntitySpecifics specifics;
   sync_pb::AutofillValuableSpecifics* autofill_valuables_specifics =
       specifics.mutable_autofill_valuable();
-  sync_pb::AutofillValuableSpecifics::LoyaltyCard* loyalty_card =
+  sync_pb::LoyaltyCard* loyalty_card =
       autofill_valuables_specifics->mutable_loyalty_card();
   loyalty_card->mutable_program_name()->assign("program_name");
   loyalty_card->mutable_program_logo()->assign("program_logo");
@@ -320,7 +354,7 @@ TEST_F(ValuableSyncBridgeTest,
       specifics_with_only_unknown_fields;
   sync_pb::AutofillValuableSpecifics* autofill_valuables_specifics =
       specifics_with_known_and_unknown_fields.mutable_autofill_valuable();
-  sync_pb::AutofillValuableSpecifics::LoyaltyCard* loyalty_card =
+  sync_pb::LoyaltyCard* loyalty_card =
       autofill_valuables_specifics->mutable_loyalty_card();
 
   loyalty_card->mutable_program_name()->assign("program_name");

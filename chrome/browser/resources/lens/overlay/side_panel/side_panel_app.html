@@ -45,7 +45,6 @@
 
   #ghostLoader {
     background-color: white;
-    max-width: 796px;
   }
 
   :host([dark-mode]) #ghostLoader {
@@ -59,7 +58,7 @@
   }
 
   :host([is-back-arrow-visible]) #ghostLoader {
-    max-width: 832px;
+    --ghost-loader-container-max-width: 832px;
   }
 
   #searchbox {
@@ -137,13 +136,14 @@
   }
 
   cr-icon-button.icon-arrow-back {
+    --cr-icon-button-fill-color:  #80868B;
     margin-block-start: 26px;
     margin-inline-start: 8px;
     margin-inline-end: 8px;
   }
 
   :host([dark-mode]) cr-icon-button.icon-arrow-back {
-    color: #70757A;
+     --cr-icon-button-fill-color: #70757A;
   }
 
   cr-searchbox-ghost-loader {
@@ -185,16 +185,33 @@
   #composeboxContainer {
     /* Temporary CSS to make the composebox visible. */
     --ntp-composebox-background-color: #F0F2F5;
+    display: none;
     inset-block-end: 0;
     position: absolute;
     width: 100%;
     z-index: 2;
-    display: none;
+  }
+
+  #composeboxContainer::before {
+    content: '';
+    background: linear-gradient(180deg, transparent 1%, white 52px);
+    inset: -66px 0 0;
+    pointer-events: none;
+    position: absolute;
+    width: 100%;
   }
 
   /* Show the composebox when enabled. */
   :host([enable-aim-searchbox]) #composeboxContainer {
-    display: block;
+    align-items: center;
+    display: flex;
+    flex-direction: column;
+  }
+
+  #composebox {
+    position: relative;
+    width: calc(100% - 32px); /* 16px on each side */
+    margin-bottom: 30px;
   }
 
   :host(:not([show-upload-progress])) #uploadProgressBarContainer,
@@ -304,6 +321,6 @@
 </cr-toast>
 
 <div id="composeboxContainer">
-  <ntp-composebox id="composebox">
+  <ntp-composebox id="composebox" is-collapsible hide-file-inputs>
   </ntp-composebox>
 </div>

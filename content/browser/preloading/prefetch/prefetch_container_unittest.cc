@@ -14,6 +14,8 @@
 #include "content/browser/preloading/prefetch/prefetch_features.h"
 #include "content/browser/preloading/prefetch/prefetch_match_resolver.h"
 #include "content/browser/preloading/prefetch/prefetch_probe_result.h"
+#include "content/browser/preloading/prefetch/prefetch_servable_state.h"
+#include "content/browser/preloading/prefetch/prefetch_serving_handle.h"
 #include "content/browser/preloading/prefetch/prefetch_status.h"
 #include "content/browser/preloading/prefetch/prefetch_test_util_internal.h"
 #include "content/browser/preloading/prefetch/prefetch_type.h"
@@ -342,8 +344,6 @@ TEST_F(PrefetchContainerTest, CreatePrefetchContainer) {
 }
 
 TEST_F(PrefetchContainerTest, CreatePrefetchContainer_Embedder) {
-  base::test::ScopedFeatureList scoped_feature_list(
-      features::kPrefetchBrowserInitiatedTriggers);
   PrefetchContainer prefetch_container(
       *web_contents(), GURL("https://test.com"),
       PrefetchType(PreloadingTriggerType::kEmbedder,
@@ -408,9 +408,9 @@ TEST_F(PrefetchContainerTest, Servable) {
   task_environment()->FastForwardBy(base::Minutes(2));
 
   EXPECT_NE(prefetch_container->GetServableState(base::Minutes(1)),
-            PrefetchContainer::ServableState::kServable);
+            PrefetchServableState::kServable);
   EXPECT_EQ(prefetch_container->GetServableState(base::Minutes(3)),
-            PrefetchContainer::ServableState::kServable);
+            PrefetchServableState::kServable);
   EXPECT_TRUE(prefetch_container->GetNonRedirectHead());
 }
 
@@ -434,55 +434,55 @@ TEST_F(PrefetchContainerTest, CookieListener) {
   // respectively. AdvanceCurrentURLToServe() is used to set the current hop to
   // check the cookies.
   {
-    auto reader = prefetch_container->CreateReader();
-    EXPECT_FALSE(reader.HaveDefaultContextCookiesChanged());
-    reader.AdvanceCurrentURLToServe();
-    EXPECT_FALSE(reader.HaveDefaultContextCookiesChanged());
-    reader.AdvanceCurrentURLToServe();
-    EXPECT_FALSE(reader.HaveDefaultContextCookiesChanged());
+    auto serving_handle = prefetch_container->CreateServingHandle();
+    EXPECT_FALSE(serving_handle.HaveDefaultContextCookiesChanged());
+    serving_handle.AdvanceCurrentURLToServe();
+    EXPECT_FALSE(serving_handle.HaveDefaultContextCookiesChanged());
+    serving_handle.AdvanceCurrentURLToServe();
+    EXPECT_FALSE(serving_handle.HaveDefaultContextCookiesChanged());
   }
 
   {
-    auto reader = prefetch_container->CreateReader();
-    EXPECT_FALSE(reader.HaveDefaultContextCookiesChanged());
-    reader.AdvanceCurrentURLToServe();
-    EXPECT_FALSE(reader.HaveDefaultContextCookiesChanged());
-    reader.AdvanceCurrentURLToServe();
-    EXPECT_FALSE(reader.HaveDefaultContextCookiesChanged());
+    auto serving_handle = prefetch_container->CreateServingHandle();
+    EXPECT_FALSE(serving_handle.HaveDefaultContextCookiesChanged());
+    serving_handle.AdvanceCurrentURLToServe();
+    EXPECT_FALSE(serving_handle.HaveDefaultContextCookiesChanged());
+    serving_handle.AdvanceCurrentURLToServe();
+    EXPECT_FALSE(serving_handle.HaveDefaultContextCookiesChanged());
   }
 
   prefetch_container->PauseAllCookieListeners();
   ASSERT_TRUE(SetCookie(kTestUrl1, "test-cookie0"));
   {
-    auto reader = prefetch_container->CreateReader();
-    EXPECT_FALSE(reader.HaveDefaultContextCookiesChanged());
-    reader.AdvanceCurrentURLToServe();
-    EXPECT_FALSE(reader.HaveDefaultContextCookiesChanged());
-    reader.AdvanceCurrentURLToServe();
-    EXPECT_FALSE(reader.HaveDefaultContextCookiesChanged());
+    auto serving_handle = prefetch_container->CreateServingHandle();
+    EXPECT_FALSE(serving_handle.HaveDefaultContextCookiesChanged());
+    serving_handle.AdvanceCurrentURLToServe();
+    EXPECT_FALSE(serving_handle.HaveDefaultContextCookiesChanged());
+    serving_handle.AdvanceCurrentURLToServe();
+    EXPECT_FALSE(serving_handle.HaveDefaultContextCookiesChanged());
   }
 
   prefetch_container->ResumeAllCookieListeners();
   ASSERT_TRUE(SetCookie(kTestUrl1, "test-cookie1"));
 
   {
-    auto reader = prefetch_container->CreateReader();
-    EXPECT_TRUE(reader.HaveDefaultContextCookiesChanged());
-    reader.AdvanceCurrentURLToServe();
-    EXPECT_FALSE(reader.HaveDefaultContextCookiesChanged());
-    reader.AdvanceCurrentURLToServe();
-    EXPECT_FALSE(reader.HaveDefaultContextCookiesChanged());
+    auto serving_handle = prefetch_container->CreateServingHandle();
+    EXPECT_TRUE(serving_handle.HaveDefaultContextCookiesChanged());
+    serving_handle.AdvanceCurrentURLToServe();
+    EXPECT_FALSE(serving_handle.HaveDefaultContextCookiesChanged());
+    serving_handle.AdvanceCurrentURLToServe();
+    EXPECT_FALSE(serving_handle.HaveDefaultContextCookiesChanged());
   }
 
   ASSERT_TRUE(SetCookie(kTestUrl2, "test-cookie2"));
 
   {
-    auto reader = prefetch_container->CreateReader();
-    EXPECT_TRUE(reader.HaveDefaultContextCookiesChanged());
-    reader.AdvanceCurrentURLToServe();
-    EXPECT_TRUE(reader.HaveDefaultContextCookiesChanged());
-    reader.AdvanceCurrentURLToServe();
-    EXPECT_FALSE(reader.HaveDefaultContextCookiesChanged());
+    auto serving_handle = prefetch_container->CreateServingHandle();
+    EXPECT_TRUE(serving_handle.HaveDefaultContextCookiesChanged());
+    serving_handle.AdvanceCurrentURLToServe();
+    EXPECT_TRUE(serving_handle.HaveDefaultContextCookiesChanged());
+    serving_handle.AdvanceCurrentURLToServe();
+    EXPECT_FALSE(serving_handle.HaveDefaultContextCookiesChanged());
   }
 }
 
@@ -493,37 +493,37 @@ TEST_F(PrefetchContainerTest, CookieCopy) {
 
   prefetch_container->RegisterCookieListener(cookie_manager());
 
-  auto reader = prefetch_container->CreateReader();
+  auto serving_handle = prefetch_container->CreateServingHandle();
 
-  EXPECT_FALSE(reader.IsIsolatedCookieCopyInProgress());
+  EXPECT_FALSE(serving_handle.IsIsolatedCookieCopyInProgress());
 
-  reader.OnIsolatedCookieCopyStart();
+  serving_handle.OnIsolatedCookieCopyStart();
 
-  EXPECT_TRUE(reader.IsIsolatedCookieCopyInProgress());
+  EXPECT_TRUE(serving_handle.IsIsolatedCookieCopyInProgress());
 
   // Once the cookie copy process has started, we should stop the cookie
   // listener.
   ASSERT_TRUE(SetCookie(kTestUrl, "test-cookie"));
-  EXPECT_FALSE(reader.HaveDefaultContextCookiesChanged());
+  EXPECT_FALSE(serving_handle.HaveDefaultContextCookiesChanged());
 
   task_environment()->FastForwardBy(base::Milliseconds(10));
-  reader.OnIsolatedCookiesReadCompleteAndWriteStart();
+  serving_handle.OnIsolatedCookiesReadCompleteAndWriteStart();
   task_environment()->FastForwardBy(base::Milliseconds(20));
 
   // The URL interceptor checks on the cookie copy status when trying to serve a
   // prefetch. If its still in progress, it registers a callback to be called
   // once the copy is complete.
-  EXPECT_TRUE(reader.IsIsolatedCookieCopyInProgress());
-  reader.OnInterceptorCheckCookieCopy();
+  EXPECT_TRUE(serving_handle.IsIsolatedCookieCopyInProgress());
+  serving_handle.OnInterceptorCheckCookieCopy();
   task_environment()->FastForwardBy(base::Milliseconds(40));
   bool callback_called = false;
-  reader.SetOnCookieCopyCompleteCallback(
+  serving_handle.SetOnCookieCopyCompleteCallback(
       base::BindOnce([](bool* callback_called) { *callback_called = true; },
                      &callback_called));
 
-  reader.OnIsolatedCookieCopyComplete();
+  serving_handle.OnIsolatedCookieCopyComplete();
 
-  EXPECT_FALSE(reader.IsIsolatedCookieCopyInProgress());
+  EXPECT_FALSE(serving_handle.IsIsolatedCookieCopyInProgress());
   EXPECT_TRUE(callback_called);
 
   histogram_tester.ExpectUniqueTimeSample(
@@ -555,13 +555,13 @@ TEST_F(PrefetchContainerTest, CookieCopyWithRedirects) {
   AddRedirectHop(prefetch_container.get(), kRedirectUrl2);
   prefetch_container->RegisterCookieListener(cookie_manager());
 
-  auto reader = prefetch_container->CreateReader();
+  auto serving_handle = prefetch_container->CreateServingHandle();
 
-  EXPECT_EQ(reader.GetCurrentURLToServe(), kTestUrl);
+  EXPECT_EQ(serving_handle.GetCurrentURLToServe(), kTestUrl);
 
-  EXPECT_FALSE(reader.IsIsolatedCookieCopyInProgress());
-  reader.OnIsolatedCookieCopyStart();
-  EXPECT_TRUE(reader.IsIsolatedCookieCopyInProgress());
+  EXPECT_FALSE(serving_handle.IsIsolatedCookieCopyInProgress());
+  serving_handle.OnIsolatedCookieCopyStart();
+  EXPECT_TRUE(serving_handle.IsIsolatedCookieCopyInProgress());
 
   // Once the cookie copy process has started, all cookie listeners are stopped.
   ASSERT_TRUE(SetCookie(kTestUrl, "test-cookie"));
@@ -572,82 +572,82 @@ TEST_F(PrefetchContainerTest, CookieCopyWithRedirects) {
   // respectively. AdvanceCurrentURLToServe() is used to set the current
   // hop to check the cookies.
   {
-    auto reader1 = prefetch_container->CreateReader();
-    EXPECT_FALSE(reader1.HaveDefaultContextCookiesChanged());
-    reader1.AdvanceCurrentURLToServe();
-    EXPECT_FALSE(reader1.HaveDefaultContextCookiesChanged());
-    reader1.AdvanceCurrentURLToServe();
-    EXPECT_FALSE(reader1.HaveDefaultContextCookiesChanged());
+    auto serving_handle1 = prefetch_container->CreateServingHandle();
+    EXPECT_FALSE(serving_handle1.HaveDefaultContextCookiesChanged());
+    serving_handle1.AdvanceCurrentURLToServe();
+    EXPECT_FALSE(serving_handle1.HaveDefaultContextCookiesChanged());
+    serving_handle1.AdvanceCurrentURLToServe();
+    EXPECT_FALSE(serving_handle1.HaveDefaultContextCookiesChanged());
   }
 
   task_environment()->FastForwardBy(base::Milliseconds(10));
-  reader.OnIsolatedCookiesReadCompleteAndWriteStart();
+  serving_handle.OnIsolatedCookiesReadCompleteAndWriteStart();
   task_environment()->FastForwardBy(base::Milliseconds(20));
 
   // The URL interceptor checks on the cookie copy status when trying to serve a
   // prefetch. If its still in progress, it registers a callback to be called
   // once the copy is complete.
-  EXPECT_TRUE(reader.IsIsolatedCookieCopyInProgress());
-  reader.OnInterceptorCheckCookieCopy();
+  EXPECT_TRUE(serving_handle.IsIsolatedCookieCopyInProgress());
+  serving_handle.OnInterceptorCheckCookieCopy();
   task_environment()->FastForwardBy(base::Milliseconds(40));
   bool callback_called = false;
-  reader.SetOnCookieCopyCompleteCallback(
+  serving_handle.SetOnCookieCopyCompleteCallback(
       base::BindOnce([](bool* callback_called) { *callback_called = true; },
                      &callback_called));
 
-  reader.OnIsolatedCookieCopyComplete();
+  serving_handle.OnIsolatedCookieCopyComplete();
 
-  EXPECT_FALSE(reader.IsIsolatedCookieCopyInProgress());
+  EXPECT_FALSE(serving_handle.IsIsolatedCookieCopyInProgress());
   EXPECT_TRUE(callback_called);
 
   // Simulate copying cookies for the next redirect hop.
-  reader.AdvanceCurrentURLToServe();
-  EXPECT_EQ(reader.GetCurrentURLToServe(), kRedirectUrl1);
-  EXPECT_FALSE(reader.IsIsolatedCookieCopyInProgress());
+  serving_handle.AdvanceCurrentURLToServe();
+  EXPECT_EQ(serving_handle.GetCurrentURLToServe(), kRedirectUrl1);
+  EXPECT_FALSE(serving_handle.IsIsolatedCookieCopyInProgress());
 
-  reader.OnIsolatedCookieCopyStart();
-  EXPECT_TRUE(reader.IsIsolatedCookieCopyInProgress());
+  serving_handle.OnIsolatedCookieCopyStart();
+  EXPECT_TRUE(serving_handle.IsIsolatedCookieCopyInProgress());
   task_environment()->FastForwardBy(base::Milliseconds(10));
 
-  reader.OnIsolatedCookiesReadCompleteAndWriteStart();
+  serving_handle.OnIsolatedCookiesReadCompleteAndWriteStart();
   task_environment()->FastForwardBy(base::Milliseconds(20));
-  EXPECT_TRUE(reader.IsIsolatedCookieCopyInProgress());
+  EXPECT_TRUE(serving_handle.IsIsolatedCookieCopyInProgress());
 
-  reader.OnInterceptorCheckCookieCopy();
+  serving_handle.OnInterceptorCheckCookieCopy();
   task_environment()->FastForwardBy(base::Milliseconds(40));
 
   callback_called = false;
-  reader.SetOnCookieCopyCompleteCallback(
+  serving_handle.SetOnCookieCopyCompleteCallback(
       base::BindOnce([](bool* callback_called) { *callback_called = true; },
                      &callback_called));
 
-  reader.OnIsolatedCookieCopyComplete();
-  EXPECT_FALSE(reader.IsIsolatedCookieCopyInProgress());
+  serving_handle.OnIsolatedCookieCopyComplete();
+  EXPECT_FALSE(serving_handle.IsIsolatedCookieCopyInProgress());
   EXPECT_TRUE(callback_called);
 
   // Simulate copying cookies for the last redirect hop.
-  reader.AdvanceCurrentURLToServe();
-  EXPECT_EQ(reader.GetCurrentURLToServe(), kRedirectUrl2);
-  EXPECT_FALSE(reader.IsIsolatedCookieCopyInProgress());
+  serving_handle.AdvanceCurrentURLToServe();
+  EXPECT_EQ(serving_handle.GetCurrentURLToServe(), kRedirectUrl2);
+  EXPECT_FALSE(serving_handle.IsIsolatedCookieCopyInProgress());
 
-  reader.OnIsolatedCookieCopyStart();
-  EXPECT_TRUE(reader.IsIsolatedCookieCopyInProgress());
+  serving_handle.OnIsolatedCookieCopyStart();
+  EXPECT_TRUE(serving_handle.IsIsolatedCookieCopyInProgress());
   task_environment()->FastForwardBy(base::Milliseconds(10));
 
-  reader.OnIsolatedCookiesReadCompleteAndWriteStart();
+  serving_handle.OnIsolatedCookiesReadCompleteAndWriteStart();
   task_environment()->FastForwardBy(base::Milliseconds(20));
-  EXPECT_TRUE(reader.IsIsolatedCookieCopyInProgress());
+  EXPECT_TRUE(serving_handle.IsIsolatedCookieCopyInProgress());
 
-  reader.OnInterceptorCheckCookieCopy();
+  serving_handle.OnInterceptorCheckCookieCopy();
   task_environment()->FastForwardBy(base::Milliseconds(40));
 
   callback_called = false;
-  reader.SetOnCookieCopyCompleteCallback(
+  serving_handle.SetOnCookieCopyCompleteCallback(
       base::BindOnce([](bool* callback_called) { *callback_called = true; },
                      &callback_called));
 
-  reader.OnIsolatedCookieCopyComplete();
-  EXPECT_FALSE(reader.IsIsolatedCookieCopyInProgress());
+  serving_handle.OnIsolatedCookieCopyComplete();
+  EXPECT_FALSE(serving_handle.IsIsolatedCookieCopyInProgress());
   EXPECT_TRUE(callback_called);
 
   histogram_tester.ExpectUniqueTimeSample(
@@ -696,7 +696,7 @@ TEST_F(PrefetchContainerTest, PrefetchProxyPrefetchedResourceUkm) {
   // Simulate a successful DNS probe for this prefetch. Not this will also
   // update the status of the prefetch to
   // |PrefetchStatus::kPrefetchUsedProbeSuccess|.
-  prefetch_container->CreateReader().OnPrefetchProbeResult(
+  prefetch_container->CreateServingHandle().OnPrefetchProbeResult(
       PrefetchProbeResult::kDNSProbeSuccess);
 
   // Deleting the prefetch container will trigger the recording of the
@@ -1295,8 +1295,6 @@ TEST_F(PrefetchContainerTest, IsIsolatedNetworkRequired) {
 }
 
 TEST_F(PrefetchContainerTest, IsIsolatedNetworkRequired_Embedder) {
-  base::test::ScopedFeatureList scoped_feature_list(
-      features::kPrefetchBrowserInitiatedTriggers);
   auto prefetch_container_default = CreateEmbedderPrefetchContainer(
       GURL("https://test.com/prefetch"), std::nullopt);
   prefetch_container_default->MakeResourceRequest({});
@@ -1372,14 +1370,14 @@ TEST_F(PrefetchContainerTest, MultipleStreamingURLLoaders) {
   EXPECT_FALSE(prefetch_container->GetStreamingURLLoader());
 
   EXPECT_NE(prefetch_container->GetServableState(base::TimeDelta::Max()),
-            PrefetchContainer::ServableState::kServable);
+            PrefetchServableState::kServable);
   EXPECT_FALSE(prefetch_container->GetNonRedirectHead());
 
   prefetch_container->SimulatePrefetchEligibleForTest();
   MakeServableStreamingURLLoadersWithNetworkTransitionRedirectForTest(
       prefetch_container.get(), kTestUrl1, kTestUrl2);
   EXPECT_EQ(prefetch_container->GetServableState(base::TimeDelta::Max()),
-            PrefetchContainer::ServableState::kServable);
+            PrefetchServableState::kServable);
   EXPECT_TRUE(prefetch_container->GetNonRedirectHead());
 
   // As the prefetch is already completed, the streaming loader is deleted
@@ -1389,22 +1387,23 @@ TEST_F(PrefetchContainerTest, MultipleStreamingURLLoaders) {
   task_environment()->RunUntilIdle();
   EXPECT_FALSE(prefetch_container->GetStreamingURLLoader());
 
-  PrefetchContainer::Reader reader = prefetch_container->CreateReader();
+  PrefetchServingHandle serving_handle =
+      prefetch_container->CreateServingHandle();
 
   base::WeakPtr<PrefetchResponseReader> weak_first_response_reader =
-      reader.GetCurrentResponseReaderToServeForTesting();
+      serving_handle.GetCurrentResponseReaderToServeForTesting();
   PrefetchRequestHandler first_request_handler =
-      reader.CreateRequestHandler().first;
+      serving_handle.CreateRequestHandler().first;
 
   base::WeakPtr<PrefetchResponseReader> weak_second_response_reader =
-      reader.GetCurrentResponseReaderToServeForTesting();
+      serving_handle.GetCurrentResponseReaderToServeForTesting();
   PrefetchRequestHandler second_request_handler =
-      reader.CreateRequestHandler().first;
+      serving_handle.CreateRequestHandler().first;
 
   // `CreateRequestHandler()` itself doesn't make the PrefetchContainer
   // non-servable.
   EXPECT_EQ(prefetch_container->GetServableState(base::TimeDelta::Max()),
-            PrefetchContainer::ServableState::kServable);
+            PrefetchServableState::kServable);
   EXPECT_TRUE(prefetch_container->GetNonRedirectHead());
 
   std::unique_ptr<PrefetchTestURLLoaderClient> first_serving_url_loader_client =
@@ -1479,7 +1478,7 @@ TEST_F(PrefetchContainerTest, CancelAndClearStreamingLoader) {
   base::WeakPtr<PrefetchStreamingURLLoader> streaming_loader =
       prefetch_container->GetStreamingURLLoader();
   EXPECT_EQ(prefetch_container->GetServableState(base::TimeDelta::Max()),
-            PrefetchContainer::ServableState::kServable);
+            PrefetchServableState::kServable);
 
   prefetch_container->CancelStreamingURLLoaderIfNotServing();
 
@@ -1487,7 +1486,7 @@ TEST_F(PrefetchContainerTest, CancelAndClearStreamingLoader) {
   EXPECT_FALSE(prefetch_container->GetStreamingURLLoader());
   EXPECT_TRUE(streaming_loader);
   EXPECT_EQ(prefetch_container->GetServableState(base::TimeDelta::Max()),
-            PrefetchContainer::ServableState::kServable);
+            PrefetchServableState::kServable);
 
   task_environment()->RunUntilIdle();
 
@@ -1495,7 +1494,7 @@ TEST_F(PrefetchContainerTest, CancelAndClearStreamingLoader) {
   // is canceled. This itself doesn't make PrefetchContainer non-servable.
   EXPECT_FALSE(streaming_loader);
   EXPECT_EQ(prefetch_container->GetServableState(base::TimeDelta::Max()),
-            PrefetchContainer::ServableState::kServable);
+            PrefetchServableState::kServable);
 }
 
 // To test lifetime and ownership issues, all possible event orderings for
@@ -1627,7 +1626,7 @@ TEST_P(PrefetchContainerLifetimeTest, Lifetime) {
   }
 
   EXPECT_NE(prefetch_container->GetServableState(base::TimeDelta::Max()),
-            PrefetchContainer::ServableState::kServable);
+            PrefetchServableState::kServable);
   EXPECT_FALSE(prefetch_container->GetNonRedirectHead());
 
   pending_request.client->OnReceiveResponse(
@@ -1636,13 +1635,14 @@ TEST_P(PrefetchContainerLifetimeTest, Lifetime) {
   task_environment()->RunUntilIdle();
 
   EXPECT_EQ(prefetch_container->GetServableState(base::TimeDelta::Max()),
-            PrefetchContainer::ServableState::kServable);
+            PrefetchServableState::kServable);
   EXPECT_TRUE(prefetch_container->GetNonRedirectHead());
 
-  PrefetchContainer::Reader reader = prefetch_container->CreateReader();
+  PrefetchServingHandle serving_handle =
+      prefetch_container->CreateServingHandle();
 
   base::WeakPtr<PrefetchResponseReader> weak_response_reader =
-      reader.GetCurrentResponseReaderToServeForTesting();
+      serving_handle.GetCurrentResponseReaderToServeForTesting();
   ASSERT_TRUE(prefetch_container->GetStreamingURLLoader());
   base::WeakPtr<PrefetchStreamingURLLoader> weak_streaming_loader =
       prefetch_container->GetStreamingURLLoader();
@@ -1650,9 +1650,10 @@ TEST_P(PrefetchContainerLifetimeTest, Lifetime) {
   PrefetchRequestHandler request_handler;
   std::unique_ptr<PrefetchTestURLLoaderClient> serving_url_loader_client;
 
-  PrefetchContainer::Reader reader2 = prefetch_container->CreateReader();
+  PrefetchServingHandle serving_handle2 =
+      prefetch_container->CreateServingHandle();
   ASSERT_EQ(weak_response_reader.get(),
-            reader2.GetCurrentResponseReaderToServeForTesting().get());
+            serving_handle2.GetCurrentResponseReaderToServeForTesting().get());
 
   network::ResourceRequest serving_request;
   serving_request.url = GURL("https://test.com");
@@ -1674,8 +1675,8 @@ TEST_P(PrefetchContainerLifetimeTest, Lifetime) {
         ASSERT_FALSE(request_handler);
         ASSERT_TRUE(prefetch_container);
         EXPECT_EQ(prefetch_container->GetServableState(base::TimeDelta::Max()),
-                  PrefetchContainer::ServableState::kServable);
-        request_handler = reader.CreateRequestHandler().first;
+                  PrefetchServableState::kServable);
+        request_handler = serving_handle.CreateRequestHandler().first;
         ASSERT_TRUE(request_handler);
         break;
 
@@ -1722,20 +1723,20 @@ TEST_P(PrefetchContainerLifetimeTest, Lifetime) {
       case Event::kSecondClient:
         ASSERT_TRUE(prefetch_container);
         EXPECT_EQ(prefetch_container->GetServableState(base::TimeDelta::Max()),
-                  PrefetchContainer::ServableState::kServable);
+                  PrefetchServableState::kServable);
 
         // The second request is servable if the body data pipe is finished and
         // the whole body fits within the data pipe tee size limit.
         if (!done.count(Event::kPrefetchOnComplete) ||
             body_size == BodySize::kLarge) {
           // Not servable.
-          ASSERT_FALSE(reader2.CreateRequestHandler().first);
+          ASSERT_FALSE(serving_handle2.CreateRequestHandler().first);
         } else {
           // As the first client is already served, the body pipe producer
           // should be also completed.
           EXPECT_TRUE(producer_completed);
 
-          auto request_handler2 = reader2.CreateRequestHandler().first;
+          auto request_handler2 = serving_handle2.CreateRequestHandler().first;
           ASSERT_TRUE(request_handler2);
 
           auto serving_url_loader_client2 =

@@ -15,6 +15,7 @@
 #include "content/browser/preloading/prefetch/no_vary_search_helper.h"
 #include "content/browser/preloading/prefetch/prefetch_container.h"
 #include "content/browser/preloading/prefetch/prefetch_params.h"
+#include "content/browser/preloading/prefetch/prefetch_serving_handle.h"
 #include "content/browser/preloading/prefetch/prefetch_status.h"
 #include "content/browser/preloading/prefetch/prefetch_streaming_url_loader_common_types.h"
 #include "content/common/content_export.h"
@@ -43,8 +44,8 @@ class BrowserContext;
 class PrefetchMatchResolver;
 class PrefetchOriginProber;
 class PrefetchProxyConfigurator;
-class PrefetchServiceDelegate;
 class PrefetchScheduler;
+class PrefetchServiceDelegate;
 class ServiceWorkerContext;
 
 // These values are persisted to logs. Entries should not be renumbered and
@@ -112,7 +113,7 @@ class CONTENT_EXPORT PrefetchService : public PrefetchContainer::Observer {
 
   // Copies any cookies in the isolated network context associated with
   // |prefetch_container| to the default network context.
-  virtual void CopyIsolatedCookies(const PrefetchContainer::Reader& reader);
+  virtual void CopyIsolatedCookies(const PrefetchServingHandle& serving_handle);
 
   // Adds `PrefetchContainer` under control of `PrefetchService` and returns
   // PrefetchHandle so that the caller can control prefetch resources associated
@@ -204,12 +205,12 @@ class CONTENT_EXPORT PrefetchService : public PrefetchContainer::Observer {
   // Note that `PrefetchContainer::GetServableState()` depends on
   // `base::TimeTicks::now()` and can expire (can change from `kServable` to
   // `kNotServable`) in the minute between two calls. Deciding something with
-  // multiple `PrefetchContainer::GetServableState()` calls can lead
-  // inconsistent state. To avoid that, we record `ServableState` in the
-  // `flat_map` at the beginning of matching process and refer to it.
-  std::pair<
-      std::vector<PrefetchContainer*>,
-      base::flat_map<PrefetchContainer::Key, PrefetchContainer::ServableState>>
+  // multiple `PrefetchContainer::GetServableState()` calls can
+  // lead inconsistent state. To avoid that, we record
+  // `PrefetchServableState` in the `flat_map` at the beginning of
+  // matching process and refer to it.
+  std::pair<std::vector<PrefetchContainer*>,
+            base::flat_map<PrefetchContainer::Key, PrefetchServableState>>
   CollectMatchCandidates(const PrefetchContainer::Key& key,
                          bool is_nav_prerender,
                          base::WeakPtr<PrefetchServingPageMetricsContainer>
@@ -355,7 +356,7 @@ class CONTENT_EXPORT PrefetchService : public PrefetchContainer::Observer {
   // isolated network context and are ready to be written to the default network
   // context.
   void OnGotIsolatedCookiesForCopy(
-      PrefetchContainer::Reader reader,
+      PrefetchServingHandle serving_handle,
       const net::CookieAccessResultList& cookie_list,
       const net::CookieAccessResultList& excluded_cookies);
 
@@ -382,7 +383,7 @@ class CONTENT_EXPORT PrefetchService : public PrefetchContainer::Observer {
   HandlePrefetchContainerResult ReturnPrefetchToServe(
       const PrefetchContainer::Key& key,
       const GURL& prefetch_url,
-      PrefetchContainer::Reader reader,
+      PrefetchServingHandle serving_handle,
       PrefetchMatchResolver& prefetch_match_resolver,
       FallbackToRegularNavigationWhenPrefetchNotUsable
           when_prefetch_not_used_fallback_to_regular_navigation =

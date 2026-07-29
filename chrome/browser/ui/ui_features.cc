@@ -147,6 +147,46 @@ BASE_FEATURE_PARAM(int,
                    "drop_target_width_percentage",
                    30);
 
+BASE_FEATURE(kSideBySideDropTargetNudge,
+             "SideBySideDropTargetNudge",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+BASE_FEATURE_PARAM(int,
+                   kSideBySideDropTargetNudgeMinWidth,
+                   &kSideBySideDropTargetNudge,
+                   "drop_target_nudge_min_width",
+                   80);
+BASE_FEATURE_PARAM(int,
+                   kSideBySideDropTargetNudgeMaxWidth,
+                   &kSideBySideDropTargetNudge,
+                   "drop_target_nudge_max_width",
+                   200);
+BASE_FEATURE_PARAM(int,
+                   kSideBySideDropTargetNudgeTargetWidthPercentage,
+                   &kSideBySideDropTargetNudge,
+                   "drop_target_nudge_width_percentage",
+                   5);
+BASE_FEATURE_PARAM(int,
+                   kSideBySideDropTargetNudgeToFullMinWidth,
+                   &kSideBySideDropTargetNudge,
+                   "drop_target_nudge_to_full_min_width",
+                   80);
+BASE_FEATURE_PARAM(int,
+                   kSideBySideDropTargetNudgeToFullMaxWidth,
+                   &kSideBySideDropTargetNudge,
+                   "drop_target_nudge_to_full_max_width",
+                   600);
+BASE_FEATURE_PARAM(int,
+                   kSideBySideDropTargetNudgeToFullTargetWidthPercentage,
+                   &kSideBySideDropTargetNudge,
+                   "drop_target_nudge_to_full_width_percentage",
+                   20);
+BASE_FEATURE_PARAM(double,
+                   kSideBySideDropTargetNudgeShowRatio,
+                   &kSideBySideDropTargetNudge,
+                   "drop_target_nudge_show_ratio",
+                   0.4f);
+
 constexpr base::FeatureParam<MiniToolbarActiveConfiguration>::Option
     kMiniToolbarActiveConfigurationOptions[] = {
         {MiniToolbarActiveConfiguration::Hide, "hide"},
@@ -546,6 +586,12 @@ BASE_FEATURE_PARAM(bool,
                    "mandatory_reauth",
                    false);
 
+BASE_FEATURE_PARAM(bool,
+                   kPageActionsMigrationClickToCall,
+                   &kPageActionsMigration,
+                   "click_to_call",
+                   false);
+
 BASE_FEATURE(kSavePasswordsContextualUi,
              "SavePasswordsContextualUi",
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -620,5 +666,21 @@ BASE_FEATURE(kBookmarkTabGroupConversion,
 bool IsBookmarkTabGroupConversionEnabled() {
   return base::FeatureList::IsEnabled(kBookmarkTabGroupConversion);
 }
+
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX)
+BASE_FEATURE(kSessionRestoreInfobar,
+             "SessionRestoreInfobar",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+#endif
+
+#if !BUILDFLAG(IS_ANDROID)
+BASE_FEATURE(kNewTabAddsToActiveGroup,
+             "kNewTabAddsToActiveGroup",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+bool IsNewTabButtonAddsToActiveGroupEnabled() {
+  return base::FeatureList::IsEnabled(kNewTabAddsToActiveGroup);
+}
+#endif  // !BUILDFLAG(IS_ANDROID)
 
 }  // namespace features

@@ -185,3 +185,51 @@ IN_PROC_BROWSER_TEST_F(TabListBridgeBrowserTest, GetIndexOfTab) {
   EXPECT_EQ(-1, tab_list_interface->GetIndexOfTab(new_tab->GetHandle()));
   EXPECT_EQ(-1, new_tab_list_interface->GetIndexOfTab(tab0->GetHandle()));
 }
+
+IN_PROC_BROWSER_TEST_F(TabListBridgeBrowserTest, DuplicateTab) {
+  const GURL url1("http://one.example");
+  const GURL url2("http://two.example");
+
+  // Open two tabs.
+  ASSERT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
+      browser(), url1, WindowOpenDisposition::CURRENT_TAB,
+      ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
+  ASSERT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
+      browser(), url2, WindowOpenDisposition::NEW_FOREGROUND_TAB,
+      ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
+
+  TabListInterface* tab_list_interface = TabListInterface::From(browser());
+  ASSERT_TRUE(tab_list_interface);
+
+  EXPECT_EQ(2, tab_list_interface->GetTabCount());
+
+  // Duplicate the first tab.
+  tabs::TabInterface* tab_to_duplicate = tab_list_interface->GetTab(0);
+  tab_list_interface->DuplicateTab(tab_to_duplicate->GetHandle());
+
+  // There should now be three tabs, with the duplicated tab inserted next to
+  // the original.
+  EXPECT_EQ(3, tab_list_interface->GetTabCount());
+  EXPECT_THAT(tab_list_interface->GetAllTabs(),
+              testing::ElementsAre(MatchesTab(url1), MatchesTab(url1),
+                                   MatchesTab(url2)));
+}
+
+IN_PROC_BROWSER_TEST_F(TabListBridgeBrowserTest, CloseTab) {
+  TabListInterface* tab_list_interface = TabListBridge::From(browser());
+  ASSERT_TRUE(tab_list_interface);
+
+  EXPECT_EQ(1, tab_list_interface->GetTabCount());
+
+  const GURL url("http://one.example");
+  ASSERT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
+      browser(), url, WindowOpenDisposition::NEW_FOREGROUND_TAB,
+      ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
+  EXPECT_EQ(2, tab_list_interface->GetTabCount());
+
+  tabs::TabInterface* tab_to_close = tab_list_interface->GetActiveTab();
+  ASSERT_TRUE(tab_to_close);
+
+  tab_list_interface->CloseTab(tab_to_close->GetHandle());
+  EXPECT_EQ(1, tab_list_interface->GetTabCount());
+}

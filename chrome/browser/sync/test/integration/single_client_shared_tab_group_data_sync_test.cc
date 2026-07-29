@@ -45,8 +45,8 @@
 #include "url/gurl.h"
 
 #if BUILDFLAG(IS_ANDROID)
-#include "base/android/build_info.h"
-#endif  // BUILDFLAG(IS_ANDROID)
+#include "base/android/device_info.h"
+#endif
 
 namespace tab_groups {
 namespace {
@@ -176,11 +176,9 @@ class SingleClientSharedTabGroupDataSyncTest : public SyncTest {
 
   void SetUp() override {
     feature_overrides_.InitWithFeatures(
-        {data_sharing::features::kDataSharingFeature,
-         tab_groups::kTabGroupSyncServiceDesktopMigration},
-        {});
+        {data_sharing::features::kDataSharingFeature}, {});
 #if BUILDFLAG(IS_ANDROID)
-    if (base::android::BuildInfo::GetInstance()->is_automotive()) {
+    if (base::android::device_info::is_automotive()) {
       // TODO(crbug.com/399444939): Re-enable once automotive is supported.
       GTEST_SKIP() << "Test shouldn't run on automotive builders.";
     }
@@ -850,14 +848,12 @@ class SingleClientSharedTabGroupVersioningSyncTest
     if (version_out_of_date) {
       feature_overrides_.InitWithFeatures(
           {data_sharing::features::kDataSharingFeature,
-           tab_groups::kTabGroupSyncServiceDesktopMigration,
            data_sharing::features::kDataSharingEnableUpdateChromeUI,
            data_sharing::features::kSharedDataTypesKillSwitch},
           {});
     } else {
       feature_overrides_.InitWithFeatures(
-          {data_sharing::features::kDataSharingFeature,
-           tab_groups::kTabGroupSyncServiceDesktopMigration},
+          {data_sharing::features::kDataSharingFeature},
           {data_sharing::features::kSharedDataTypesKillSwitch,
            data_sharing::features::kDataSharingEnableUpdateChromeUI});
     }

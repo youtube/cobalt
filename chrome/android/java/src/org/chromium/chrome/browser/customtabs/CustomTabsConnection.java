@@ -704,12 +704,8 @@ public class CustomTabsConnection {
     public void prefetch(
             CustomTabsSessionToken session, List<Uri> urls, @Nullable PrefetchOptions options) {
         try (TraceEvent e = TraceEvent.scoped("CustomTabsConnection.prefetch")) {
-            if (!ChromeFeatureList.sPrefetchBrowserInitiatedTriggers.isEnabled()
-                    || !ChromeFeatureList.sCctNavigationalPrefetch.isEnabled()) {
-                Log.w(
-                        TAG,
-                        "Prefetch failed because PrefetchBrowserInitiatedTriggers and/or"
-                                + " CCTNavigationalPrefetch is not enabled.");
+            if (!ChromeFeatureList.sCctNavigationalPrefetch.isEnabled()) {
+                Log.w(TAG, "CCTNavigationalPrefetch is not enabled.");
                 return;
             }
             RecordHistogram.recordBooleanHistogram("CustomTabs.Prefetch.PrefetchCalled", true);
@@ -1131,12 +1127,6 @@ public class CustomTabsConnection {
                     "onHandledIntent, URL: %s, extras: %s",
                     url,
                     bundleToJson(intent.getExtras()));
-        }
-
-        if (ChromeBrowserInitializer.getInstance().isFullBrowserInitialized()
-                && ChromeFeatureList.isEnabled(ChromeFeatureList.CCT_FIX_WARMUP)
-                && ChromeFeatureList.isEnabled(ChromeFeatureList.CCT_EARLY_NAV)) {
-            CustomTabsConnectionJni.get().emitIntentHandledTrigger();
         }
 
         // If we still have pending warmup tasks, don't continue as they would only delay intent
@@ -2259,7 +2249,5 @@ public class CustomTabsConnection {
                 SessionHolder<?> session,
                 WebContents webContents,
                 @JniType("std::string") String textFragment);
-
-        void emitIntentHandledTrigger();
     }
 }

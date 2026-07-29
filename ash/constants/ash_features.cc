@@ -1680,11 +1680,6 @@ BASE_FEATURE(kIppFirstSetupForUsbPrinters,
              "IppFirstSetupForUsbPrinters",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-// Enables Kiosk sessions with Isolated Web Apps.
-BASE_FEATURE(kIsolatedWebAppKiosk,
-             "IsolatedWebAppKiosk",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 // Enables correct handling of the function key row in Japanese.
 BASE_FEATURE(kJapaneseFunctionRow,
              "JapaneseFunctionRow",
@@ -2142,11 +2137,6 @@ BASE_FEATURE(kFeatureManagementOobeGeminiIntro,
 BASE_FEATURE(kFeatureManagementOobeSimon,
              "FeatureManagementOobeSimon",
              base::FEATURE_DISABLED_BY_DEFAULT);
-
-// Enables Skipping the assistant setup screen in OOBE.
-BASE_FEATURE(kOobeSkipAssistant,
-             "OobeSkipAssistant",
-             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enables or disables the OOBE QuickStart flow on the login screen.
 BASE_FEATURE(kOobeQuickStartOnLoginScreen,
@@ -2915,12 +2905,6 @@ BASE_FEATURE(kUseMessagesStagingUrl,
              "UseMessagesStagingUrl",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-// Use ML Service for non-Longform handwriting in CrOS 1P Virtual Keyboard on
-// all boards. When this flag is OFF, such usage exists on certain boards only.
-BASE_FEATURE(kUseMlServiceForNonLongformHandwritingOnAllBoards,
-             "UseMlServiceForNonLongformHandwritingOnAllBoards",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 BASE_FEATURE(kLiveCaptionUserMicrophone,
              "LiveCaptionUserMicrophone",
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -2935,7 +2919,7 @@ BASE_FEATURE(kUseSearchClickForRightClick,
 // TODO(crbug.com/419726206): Remove this before m142 branch cut.
 BASE_FEATURE(kUseICUForGetSunRiseSet,
              "UseICUForGetSunRiseSet",
-             base::FEATURE_ENABLED_BY_DEFAULT);
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Use the Stork production SM-DS server when fetching pending eSIM profiles.
 BASE_FEATURE(kUseStorkSmdsServerAddress,
@@ -3228,13 +3212,7 @@ BASE_FEATURE(kPeripheralNotification,
 // cursor with possible tearing artifacts.
 BASE_FEATURE(kEnableFastInkForSoftwareCursor,
              "EnableFastInkForSoftwareCursor",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
-// Enable the feature deferring vm_concierge startup until all the critical
-// login tasks are finished.
-BASE_FEATURE(kDeferConciergeStartup,
-             "DeferConciergeStartup",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kEnableDozeModePowerScheduler,
              "EnableDozeModePowerScheduler",
@@ -3498,7 +3476,7 @@ bool IsCrosSeparateGeoApiKeyEnabled() {
 
 bool IsCrosSafetyServiceEnabled() {
   return base::FeatureList::IsEnabled(kCrosSafetyService) ||
-         switches::IsMantisSecretKeyMatched() || IsCoralFeatureEnabled();
+         IsCoralFeatureEnabled();
 }
 
 bool IsCrossDeviceFeatureSuiteAllowed() {
@@ -3921,10 +3899,6 @@ bool IsIppClientInfoEnabled() {
   return base::FeatureList::IsEnabled(kIppClientInfo);
 }
 
-bool IsIsolatedWebAppKioskEnabled() {
-  return base::FeatureList::IsEnabled(kIsolatedWebAppKiosk);
-}
-
 bool IsJupiterScreensaverEnabled() {
   return base::FeatureList::IsEnabled(kJupiterScreensaver) &&
          IsTimeOfDayScreenSaverEnabled();
@@ -4143,10 +4117,6 @@ bool IsBootAnimationEnabled() {
 
 bool IsOobeAddUserDuringEnrollmentEnabled() {
   return base::FeatureList::IsEnabled(kOobeAddUserDuringEnrollment);
-}
-
-bool IsOobeSkipAssistantEnabled() {
-  return base::FeatureList::IsEnabled(kOobeSkipAssistant);
 }
 
 bool IsOobeChoobeEnabled() {

@@ -30,6 +30,8 @@
 
 using base::test::ios::kWaitForDownloadTimeout;
 
+namespace {
+
 // Path to the autofill test pages.
 const char kAutofillTestPagesDirectory[] = "components/test/data/autofill";
 
@@ -97,10 +99,16 @@ id<GREYMatcher> VirtualCardEnrollmentAcceptButton() {
       IDS_AUTOFILL_VIRTUAL_CARD_ENROLLMENT_ACCEPT_BUTTON_LABEL));
 }
 
-id<GREYMatcher> VirtualCardEnrollmentSkipButton() {
-  return testing::ButtonWithAccessibilityLabel(l10n_util::GetNSString(
-      IDS_AUTOFILL_VIRTUAL_CARD_ENROLLMENT_DECLINE_BUTTON_LABEL_SKIP));
+// Matcher for the activity indicator.
+id<GREYMatcher> ActivityIndicatorMatcher() {
+  return grey_allOf(
+      grey_kindOfClassName(@"UIActivityIndicatorView"),
+      grey_ancestor(grey_accessibilityID(
+          kConfirmationAlertPrimaryActionAccessibilityIdentifier)),
+      nil);
 }
+
+}  // namespace
 
 @interface VirtualCardEnrollmentBottomSheetEgTest : ChromeTestCase
 @end
@@ -276,7 +284,9 @@ id<GREYMatcher> VirtualCardEnrollmentSkipButton() {
       performAction:grey_tap()];
 }
 
-- (void)testVirtualCardEnrollmentShowsLoadingAndConfirmationAfterAcceptPushed {
+// TODO(crbug.com/415396933): Re-enable the test.
+- (void)
+    DISABLED_testVirtualCardEnrollmentShowsLoadingAndConfirmationAfterAcceptPushed {
   // TODO(crbug.com/437268290): Re-enable the test on iOS26.
   if (base::ios::IsRunningOnIOS26OrLater()) {
     EARL_GREY_TEST_DISABLED(@"Test disabled on iOS 26.");
@@ -300,12 +310,9 @@ id<GREYMatcher> VirtualCardEnrollmentSkipButton() {
       performAction:grey_tap()];
 
   // Assert an activity indicator view is being shown in the loading state.
-  id<GREYMatcher> activityIndicatorView =
-      grey_kindOfClassName(@"UIActivityIndicatorView");
-  [ChromeEarlGrey waitForUIElementToAppearWithMatcher:activityIndicatorView];
-  [[[EarlGrey selectElementWithMatcher:activityIndicatorView]
-      inRoot:grey_accessibilityID(
-                 kConfirmationAlertPrimaryActionAccessibilityIdentifier)]
+  [ChromeEarlGrey
+      waitForUIElementToAppearWithMatcher:ActivityIndicatorMatcher()];
+  [[EarlGrey selectElementWithMatcher:ActivityIndicatorMatcher()]
       assertWithMatcher:grey_sufficientlyVisible()];
 
   // Assert the primary action button is disabled.

@@ -35,15 +35,12 @@ class EVENTS_EXPORT MotionEventAndroidJava : public MotionEventAndroid {
   void operator=(const MotionEventAndroidJava&) = delete;
 
   // Start ui::MotionEvent overrides
-  float GetPressure(size_t pointer_index) const override;
   bool IsLatestEventTimeResampled() const override;
   // End ui::MotionEvent overrides
 
   // Start MotionEventAndroid overrides
   std::unique_ptr<MotionEventAndroid> CreateFor(
       const gfx::PointF& point) const override;
-  float GetXPix(size_t pointer_index) const override;
-  float GetYPix(size_t pointer_index) const override;
   base::android::ScopedJavaLocalRef<jobject> GetJavaObject() const override;
   // End MotionEventAndroid overrides
 

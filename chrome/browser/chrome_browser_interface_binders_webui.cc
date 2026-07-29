@@ -371,8 +371,8 @@
 
 #if BUILDFLAG(ENABLE_GLIC)
 #include "chrome/browser/glic/fre/glic_fre_ui.h"
-#include "chrome/browser/glic/glic_enabling.h"
 #include "chrome/browser/glic/host/glic_ui.h"
+#include "chrome/browser/glic/public/glic_enabling.h"
 #endif
 
 #if BUILDFLAG(ENABLE_WEBUI_TAB_STRIP)
@@ -1447,7 +1447,11 @@ void PopulateChromeWebUIFrameInterfaceBrokers(
 
   if (webui_browser::IsWebUIBrowserEnabled()) {
     registry.ForWebUI<WebUIBrowserUI>()
-        .Add<webui_browser::mojom::PageHandlerFactory>();
+        .Add<webui_browser::mojom::PageHandlerFactory>()
+        .Add<bookmark_bar::mojom::PageHandlerFactory>()
+        .Add<searchbox::mojom::PageHandler>()
+        .Add<metrics_reporter::mojom::PageMetricsHost>()
+        .Add<tabs_api::mojom::TabStripService>();
   }
 
 #endif  // !BUILDFLAG(IS_ANDROID)

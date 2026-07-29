@@ -18,13 +18,13 @@ set -u
 # have any type of "significant/visible changes" log that we could use for this?
 gen_changelog() {
   rm -f "${DEB_CHANGELOG}"
-  DATE_RFC5322="$(date --rfc-email)"
+  DATE_RFC5322="$(date --rfc-email -d "@$BUILD_TIMESTAMP")"
   process_template "${SCRIPTDIR}/changelog.template" "${DEB_CHANGELOG}"
   debchange -a --nomultimaint -m --changelog "${DEB_CHANGELOG}" \
     "Release Notes: ${RELEASENOTES}"
   GZLOG="${STAGEDIR}/usr/share/doc/${PACKAGE}-${CHANNEL}/changelog.gz"
   mkdir -p "$(dirname "${GZLOG}")"
-  gzip -9 -c "${DEB_CHANGELOG}" > "${GZLOG}"
+  gzip -9 -n -c "${DEB_CHANGELOG}" > "${GZLOG}"
   chmod 644 "${GZLOG}"
 }
 
@@ -41,7 +41,6 @@ prep_staging_debian() {
   prep_staging_common
   install -m 755 -d "${STAGEDIR}/DEBIAN" \
     "${STAGEDIR}/etc/cron.daily" \
-    "${STAGEDIR}/usr/share/menu" \
     "${STAGEDIR}/usr/share/doc/${USR_BIN_SYMLINK_NAME}"
 }
 
@@ -78,9 +77,6 @@ stage_install_debian() {
   pushd "${STAGEDIR}/etc/cron.daily/" > /dev/null
   ln -snf "${INSTALLDIR}/cron/${PACKAGE}" "${PACKAGE}"
   popd > /dev/null
-  process_template "${OUTPUTDIR}/installer/debian/debian.menu" \
-    "${STAGEDIR}/usr/share/menu/${PACKAGE}.menu"
-  chmod 644 "${STAGEDIR}/usr/share/menu/${PACKAGE}.menu"
   process_template "${OUTPUTDIR}/installer/debian/postinst" \
     "${STAGEDIR}/DEBIAN/postinst"
   chmod 755 "${STAGEDIR}/DEBIAN/postinst"
@@ -122,7 +118,8 @@ do_package() {
   if [ -f "${DEB_CONTROL}" ]; then
     gen_control
   fi
-  log_cmd fakeroot dpkg-deb -Znone -b "${STAGEDIR}" "${TMPFILEDIR}"
+  SOURCE_DATE_EPOCH="$BUILD_TIMESTAMP" log_cmd fakeroot dpkg-deb -Znone \
+    -b "${STAGEDIR}" "${TMPFILEDIR}"
   local PACKAGEFILE="${PACKAGE}-${CHANNEL}_${VERSIONFULL}_${ARCHITECTURE}.deb"
   if [ ${IS_OFFICIAL_BUILD} -ne 0 ]; then
     (cd "${TMPFILEDIR}" && ar -x "${TMPFILEDIR}/${PACKAGEFILE}")
@@ -192,6 +189,9 @@ process_opts() {
     case $OPTNAME in
       a )
         ARCHITECTURE="$OPTARG"
+        ;;
+      b )
+        BUILD_TIMESTAMP="$OPTARG"
         ;;
       c )
         CHANNEL="$OPTARG"

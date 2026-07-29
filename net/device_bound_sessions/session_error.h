@@ -6,6 +6,7 @@
 #define NET_DEVICE_BOUND_SESSIONS_SESSION_ERROR_H_
 
 #include "net/base/schemeful_site.h"
+#include "net/device_bound_sessions/deletion_reason.h"
 
 namespace net::device_bound_sessions {
 
@@ -39,7 +40,10 @@ struct NET_EXPORT SessionError {
     kMissingScope = 21,
     kNoCredentials = 22,
     kInvalidScopeIncludeSite = 23,
-    kMaxValue = kInvalidScopeIncludeSite
+    kWellKnownUnavailable = 24,
+    kSubdomainRegistrationUnauthorized = 25,
+    kWellKnownMalformed = 26,
+    kMaxValue = kWellKnownMalformed,
   };
   // LINT.ThenChange(//tools/metrics/histograms/metadata/net/enums.xml:DeviceBoundSessionError)
 
@@ -52,7 +56,9 @@ struct NET_EXPORT SessionError {
   SessionError(SessionError&&) noexcept;
   SessionError& operator=(SessionError&&) noexcept;
 
-  bool IsFatal() const;
+  // If the error is non-fatal, returns `std::nullopt`. Otherwise
+  // returns the reason for deleting the session.
+  std::optional<DeletionReason> GetDeletionReason() const;
 
   // Whether the error is due to server-side behavior.
   bool IsServerError() const;

@@ -37,6 +37,11 @@ GlicGetContextResult TransformFetcherResult(
     case page_content_annotations::FetchPageContextError::kWebContentsChanged:
       glic_error_code = GlicGetContextFromFocusedTabError::kWebContentsChanged;
       break;
+    case page_content_annotations::FetchPageContextError::
+        kPageContextNotEligible:
+      glic_error_code =
+          GlicGetContextFromFocusedTabError::kPageContextNotEligible;
+      break;
   }
   return base::unexpected(
       GlicGetContextError{glic_error_code, result.error().message});
@@ -50,7 +55,7 @@ GlicSharingManagerImpl::GlicSharingManagerImpl(
     GlicMetrics* metrics)
     : focused_browser_manager_(window_controller),
       focused_tab_manager_(&focused_browser_manager_),
-      pinned_tab_manager_(profile, window_controller),
+      pinned_tab_manager_(profile, window_controller, metrics),
       profile_(profile),
       metrics_(metrics) {}
 

@@ -100,9 +100,8 @@ void ActorLoginDelegateImpl::GetCredentials(CredentialsOrErrorReply callback) {
 
   get_credentials_helper_ = std::make_unique<ActorLoginGetCredentialsHelper>(
       GetWebContents().GetLastCommittedURL(), client_,
-      std::move(callback).Then(
-          base::BindOnce(&ActorLoginDelegateImpl::OnGetCredentialsCompleted,
-                         weak_ptr_factory_.GetWeakPtr())));
+      base::BindOnce(&ActorLoginDelegateImpl::OnGetCredentialsCompleted,
+                     weak_ptr_factory_.GetWeakPtr(), std::move(callback)));
 }
 
 void ActorLoginDelegateImpl::AttemptLogin(
@@ -146,16 +145,19 @@ void ActorLoginDelegateImpl::AttemptLogin(
   credential_filler_->AttemptLogin(password_manager);
 }
 
-void ActorLoginDelegateImpl::OnGetCredentialsCompleted() {
+void ActorLoginDelegateImpl::OnGetCredentialsCompleted(
+    CredentialsOrErrorReply callback,
+    CredentialsOrError result) {
   get_credentials_helper_.reset();
+  std::move(callback).Run(std::move(result));
 }
 
 void ActorLoginDelegateImpl::OnAttemptLoginCompleted(
     base::expected<LoginStatusResult, ActorLoginError> result) {
   // There shouldn't be a pending request without a pending callback.
   CHECK(pending_attempt_login_callback_);
-  std::move(pending_attempt_login_callback_).Run(std::move(result));
   credential_filler_.reset();
+  std::move(pending_attempt_login_callback_).Run(std::move(result));
 }
 
 

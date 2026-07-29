@@ -22,7 +22,7 @@
 #import "components/autofill/ios/browser/personal_data_manager_observer_bridge.h"
 #import "components/autofill/ios/common/features.h"
 #import "components/password_manager/core/common/password_manager_features.h"
-#import "components/plus_addresses/features.h"
+#import "components/plus_addresses/core/common/features.h"
 #import "components/plus_addresses/grit/plus_addresses_strings.h"
 #import "components/prefs/pref_service.h"
 #import "components/strings/grit/components_strings.h"
@@ -391,8 +391,7 @@ typedef NS_ENUM(NSInteger, ItemType) {
   }
   // TODO(crbug.com/407298266): Temporarily keep the toolbar visible when this
   // view controller is at the top of the navigation stack.
-  else if (IsAddAddressManuallyEnabled() &&
-           self.navigationController.topViewController == self) {
+  else if (self.navigationController.topViewController == self) {
     return NO;
   }
   return YES;
@@ -417,7 +416,7 @@ typedef NS_ENUM(NSInteger, ItemType) {
 - (UIBarButtonItem*)customLeftToolbarButton {
   // When in edit mode, a "Delete" button is shown as the left toolbar button.
   // This button shouldn't be overridden with a custom one.
-  if (self.tableView.isEditing || !IsAddAddressManuallyEnabled()) {
+  if (self.tableView.isEditing) {
     return nil;
   }
 
@@ -602,6 +601,22 @@ typedef NS_ENUM(NSInteger, ItemType) {
   }
 
   return cell;
+}
+
+- (NSString*)tableView:(UITableView*)tableView
+    titleForDeleteConfirmationButtonForRowAtIndexPath:(NSIndexPath*)indexPath {
+  if ([self isItemTypeForIndexPathAddress:indexPath]) {
+    AutofillProfileItem* item =
+        base::apple::ObjCCastStrict<AutofillProfileItem>(
+            [self.tableViewModel itemAtIndexPath:indexPath]);
+    if (item.autofillProfileRecordType == AutofillAccountHomeProfile ||
+        item.autofillProfileRecordType == AutofillAccountWorkProfile) {
+      return l10n_util::GetNSString(
+          IDS_IOS_SETTINGS_AUTOFILL_REMOVE_ADDRESS_LABEL);
+    }
+  }
+
+  return l10n_util::GetNSString(IDS_IOS_DELETE_ACTION_TITLE);
 }
 
 #pragma mark - Switch Callbacks

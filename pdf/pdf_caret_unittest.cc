@@ -62,7 +62,7 @@ class MockTestClient : public PdfCaretClient {
   MOCK_METHOD(uint32_t, GetCharCount, (uint32_t page_index), (const override));
 
   MOCK_METHOD(std::vector<gfx::Rect>,
-              GetScreenRectsForChar,
+              GetScreenRectsForCaret,
               (const PageCharacterIndex& index),
               (const override));
 
@@ -175,15 +175,19 @@ class PdfCaretTest : public testing::Test {
   void SetUpChar(const PageCharacterIndex& index,
                  uint32_t unicode_char,
                  std::vector<gfx::Rect> rects) {
-    EXPECT_CALL(client_, GetScreenRectsForChar(index))
+    EXPECT_CALL(client_, GetScreenRectsForCaret(index))
         .WillRepeatedly(Return(std::move(rects)));
   }
 
+  void SetUpPagesWithCharCounts(const std::vector<uint32_t>& char_counts) {
+    for (size_t i = 0; i < char_counts.size(); ++i) {
+      EXPECT_CALL(client(), GetCharCount(i))
+          .WillRepeatedly(Return(char_counts[i]));
+    }
+  }
+
   void SetUpMultiPageTest() {
-    EXPECT_CALL(client(), GetCharCount(0)).WillRepeatedly(Return(1));
-    EXPECT_CALL(client(), GetCharCount(1)).WillRepeatedly(Return(2));
-    EXPECT_CALL(client(), GetCharCount(2)).WillRepeatedly(Return(0));
-    EXPECT_CALL(client(), GetCharCount(3)).WillRepeatedly(Return(1));
+    SetUpPagesWithCharCounts({1, 2, 0, 1});
     SetUpChar(kTestChar0, 'a', {kTestChar0ScreenRect});
     SetUpChar({1, 0}, 'b', {kTestMultiPage1Char0ScreenRect});
     SetUpChar({1, 1}, 'c', {kTestMultiPage1Char1ScreenRect});
@@ -196,8 +200,19 @@ class PdfCaretTest : public testing::Test {
   SkBitmap bitmap_;
 };
 
+TEST_F(PdfCaretTest, NonTextPage) {
+  SetUpPagesWithCharCounts({0});
+  constexpr gfx::Rect kDefaultCaret{10, 10, 1, 12};
+  SetUpChar(kTestChar0, '\0', {kDefaultCaret});
+  InitializeCaretAtChar(kTestChar0);
+
+  caret().SetVisibility(true);
+
+  TestDrawCaret(kDefaultCaret);
+}
+
 TEST_F(PdfCaretTest, SetVisibility) {
-  EXPECT_CALL(client(), GetCharCount(0)).WillRepeatedly(Return(1));
+  SetUpPagesWithCharCounts({1});
   SetUpChar(kTestChar0, 'a', {kTestChar0ScreenRect});
   InitializeCaretAtChar(kTestChar0);
 
@@ -217,7 +232,7 @@ TEST_F(PdfCaretTest, SetVisibility) {
 }
 
 TEST_F(PdfCaretTest, SetBlinkIntervalWhileNotVisible) {
-  EXPECT_CALL(client(), GetCharCount(0)).WillRepeatedly(Return(1));
+  SetUpPagesWithCharCounts({1});
   SetUpChar(kTestChar0, 'a', {kTestChar0ScreenRect});
   InitializeCaretAtChar(kTestChar0);
 
@@ -247,7 +262,7 @@ TEST_F(PdfCaretTest, SetBlinkIntervalWhileNotVisible) {
 }
 
 TEST_F(PdfCaretTest, SetBlinkIntervalWhileVisible) {
-  EXPECT_CALL(client(), GetCharCount(0)).WillRepeatedly(Return(1));
+  SetUpPagesWithCharCounts({1});
   SetUpChar(kTestChar0, 'a', {kTestChar0ScreenRect});
   InitializeCaretAtChar(kTestChar0);
 
@@ -278,7 +293,7 @@ TEST_F(PdfCaretTest, SetBlinkIntervalWhileVisible) {
 }
 
 TEST_F(PdfCaretTest, SetBlinkIntervalNegative) {
-  EXPECT_CALL(client(), GetCharCount(0)).WillRepeatedly(Return(1));
+  SetUpPagesWithCharCounts({1});
   SetUpChar(kTestChar0, 'a', {kTestChar0ScreenRect});
   InitializeCaretAtChar(kTestChar0);
 
@@ -297,7 +312,7 @@ TEST_F(PdfCaretTest, SetBlinkIntervalNegative) {
 }
 
 TEST_F(PdfCaretTest, MaybeDrawCaret) {
-  EXPECT_CALL(client(), GetCharCount(0)).WillRepeatedly(Return(1));
+  SetUpPagesWithCharCounts({1});
   SetUpChar(kTestChar0, 'a', {kTestChar0ScreenRect});
   InitializeCaretAtChar(kTestChar0);
 
@@ -325,7 +340,7 @@ TEST_F(PdfCaretTest, MaybeDrawCaret) {
 }
 
 TEST_F(PdfCaretTest, Blink) {
-  EXPECT_CALL(client(), GetCharCount(0)).WillRepeatedly(Return(2));
+  SetUpPagesWithCharCounts({2});
   SetUpChar(kTestChar0, 'a', {kTestChar0ScreenRect});
   InitializeCaretAtChar(kTestChar0);
 
@@ -366,7 +381,7 @@ TEST_F(PdfCaretTest, Blink) {
 }
 
 TEST_F(PdfCaretTest, OnGeometryChanged) {
-  EXPECT_CALL(client(), GetCharCount(0)).WillRepeatedly(Return(1));
+  SetUpPagesWithCharCounts({1});
   SetUpChar(kTestChar0, 'a', {kTestChar0ScreenRect});
   InitializeCaretAtChar(kTestChar0);
 
@@ -415,8 +430,8 @@ TEST_F(PdfCaretTest, OnGeometryChanged) {
   EXPECT_TRUE(VerifyBlankRendering());
 }
 
-TEST_F(PdfCaretTest, SetPosition) {
-  EXPECT_CALL(client(), GetCharCount(0)).WillRepeatedly(Return(2));
+TEST_F(PdfCaretTest, SetChar) {
+  SetUpPagesWithCharCounts({2});
   SetUpChar(kTestChar0, 'a', {kTestChar0ScreenRect});
   // Set up second char two pixels to the right of the first char.
   SetUpChar({0, 1}, 'b', {gfx::Rect(24, 10, 12, 14)});
@@ -443,8 +458,8 @@ TEST_F(PdfCaretTest, SetPosition) {
   TestDrawCaret(kTestChar0Caret);
 }
 
-TEST_F(PdfCaretTest, SetPositionSpecialChars) {
-  EXPECT_CALL(client(), GetCharCount(0)).WillRepeatedly(Return(4));
+TEST_F(PdfCaretTest, SetCharSpecialChars) {
+  SetUpPagesWithCharCounts({4});
   SetUpChar(kTestChar0, 'a', {kTestChar0ScreenRect});
   InitializeCaretAtChar(kTestChar0);
   caret().SetVisibility(true);
@@ -470,7 +485,7 @@ TEST_F(PdfCaretTest, SetPositionSpecialChars) {
   TestDrawCaret(gfx::Rect{10, 26, 1, 8});
 }
 
-TEST_F(PdfCaretTest, SetPositionMultiPage) {
+TEST_F(PdfCaretTest, SetCharMultiPage) {
   SetUpMultiPageTest();
   InitializeCaretAtChar(kTestChar0);
   caret().SetVisibility(true);

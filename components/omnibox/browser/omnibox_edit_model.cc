@@ -22,6 +22,7 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/time/time.h"
 #include "base/trace_event/trace_event.h"
 #include "base/trace_event/typed_macros.h"
 #include "build/branding_buildflags.h"
@@ -70,11 +71,13 @@
 #include "components/search_engines/template_url_prepopulate_data.h"
 #include "components/search_engines/template_url_service.h"
 #include "components/search_engines/template_url_starter_pack_data.h"
+#include "components/search_engines/util.h"
 #include "components/strings/grit/components_strings.h"
 #include "net/cookies/cookie_util.h"
 #include "third_party/icu/source/common/unicode/ubidi.h"
 #include "third_party/metrics_proto/omnibox_event.pb.h"
 #include "third_party/metrics_proto/omnibox_focus_type.pb.h"
+#include "third_party/omnibox_proto/chrome_aim_entry_point.pb.h"
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/resource/resource_bundle.h"
@@ -739,9 +742,33 @@ void OmniboxEditModel::EnterKeywordModeForDefaultSearchProvider(
                    u"");
 }
 
+void OmniboxEditModel::OpenAiMode() {
+  std::u16string query_text;
+  if (popup_selection_.line != OmniboxPopupSelection::kNoMatch) {
+    query_text = autocomplete_controller()
+                     ->result()
+                     .match_at(popup_selection_.line)
+                     .contents;
+  }
+
+  GURL ai_mode_url =
+      GetUrlForAim(controller_->client()->GetTemplateURLService(),
+                   omnibox::DESKTOP_CHROME_OMNIBOX_KEYWORD_ENTRY_POINT,
+                   /*query_start_time=*/base::Time::Now(), query_text);
+  controller_->client()->OpenUrl(ai_mode_url);
+}
+
 void OmniboxEditModel::OpenSelection(OmniboxPopupSelection selection,
                                      base::TimeTicks timestamp,
                                      WindowOpenDisposition disposition) {
+  // Check for AIM button focus state first, since it can have a line selection
+  // of `kNoMatch`, which would otherwise be handled by the `AcceptInput` case
+  // below.
+  if (selection.state == OmniboxPopupSelection::FOCUSED_BUTTON_AIM) {
+    OpenAiMode();
+    return;
+  }
+
   // Intentionally accept input when selection has no line.
   // This will usually reach `OpenMatch` indirectly.
   if (selection.line >= autocomplete_controller()->result().size()) {
@@ -1761,9 +1788,20 @@ void OmniboxEditModel::SetPopupSelection(OmniboxPopupSelection new_selection,
   popup_selection_ = new_selection;
   popup_view_->OnSelectionChanged(old_selection, popup_selection_);
 
-  // Special case for transferring focus to the AIM button.
+  // Special case for removing focus ring from the AIM button.
+  if (old_selection.state == OmniboxPopupSelection::FOCUSED_BUTTON_AIM) {
+    view_->ApplyFocusRingToAimButton(false);
+    return;
+  }
+
+  // Special case for applying focus to the AIM button.
   if (popup_selection_.state == OmniboxPopupSelection::FOCUSED_BUTTON_AIM) {
-    view_->RequestAimButtonFocus();
+    view_->ApplyFocusRingToAimButton(true);
+    // Without this, focus indicators may appear stale (see crbug.com/1369229).
+    // Specifically, if the last suggestion in the list has one or more buttons,
+    // the focus ring will remain around the last one when focus wraps back
+    // around to the AIM button in the zero-input state.
+    popup_view_->UpdatePopupAppearance();
     return;
   }
 
@@ -2050,8 +2088,10 @@ OmniboxEditModel::MaybeGetPopupAccessibilityLabelForIPHSuggestion() {
       // Iff the next selection (the next time the user presses tab) is the
       // remove suggestion button for the IPH row, also append its a11y label.
       auto next_selection = popup_selection_.GetNextSelection(
+          autocomplete_controller()->input(),
           autocomplete_controller()->result(),
           controller_->client()->GetTemplateURLService(),
+          autocomplete_controller()->autocomplete_provider_client(),
           OmniboxPopupSelection::kForward, OmniboxPopupSelection::kStateOrLine);
       if (next_selection.line == next_line &&
           next_selection.state ==
@@ -2217,8 +2257,10 @@ void OmniboxEditModel::StepPopupSelection(
   // wrong suggestion when stepping backwards.
   const OmniboxPopupSelection old_selection = GetPopupSelection();
   OmniboxPopupSelection new_selection = old_selection.GetNextSelection(
-      autocomplete_controller()->result(),
-      controller_->client()->GetTemplateURLService(), direction, step);
+      autocomplete_controller()->input(), autocomplete_controller()->result(),
+      controller_->client()->GetTemplateURLService(),
+      autocomplete_controller()->autocomplete_provider_client(), direction,
+      step);
   if (kIsDesktop) {
     if (old_selection.IsChangeToKeyword(new_selection)) {
       ClearKeyword();
@@ -2815,12 +2857,10 @@ void OmniboxEditModel::SetFocusState(OmniboxFocusState state,
   if (state == focus_state_)
     return;
 
-  // Update state and notify view if the omnibox has focus and the caret
-  // visibility changed.
+  // Update state and notify view if the omnibox caret visibility changed.
   const bool was_caret_visible = is_caret_visible();
   focus_state_ = state;
-  if (focus_state_ != OMNIBOX_FOCUS_NONE &&
-      is_caret_visible() != was_caret_visible && view_) {
+  if (is_caret_visible() != was_caret_visible && view_) {
     view_->ApplyCaretVisibility();
   }
 

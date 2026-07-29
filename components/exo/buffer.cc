@@ -40,6 +40,7 @@
 #include "gpu/command_buffer/common/shared_image_usage.h"
 #include "gpu/command_buffer/common/sync_token.h"
 #include "media/base/media_switches.h"
+#include "third_party/perfetto/include/perfetto/tracing/track.h"
 #include "ui/aura/env.h"
 #include "ui/color/color_id.h"
 #include "ui/compositor/compositor.h"
@@ -90,57 +91,6 @@ SkColorType GetColorTypeForBitmapCreation(viz::SharedImageFormat format) {
   return SkColorType::kUnknown_SkColorType;
 }
 
-// Gets the shared image format equivalent of |buffer_format| used for creating
-// shared image.
-viz::SharedImageFormat GetSharedImageFormat(gfx::BufferFormat buffer_format) {
-  viz::SharedImageFormat format;
-  switch (buffer_format) {
-    case gfx::BufferFormat::BGRA_8888:
-      return viz::SinglePlaneFormat::kBGRA_8888;
-    case gfx::BufferFormat::R_8:
-      return viz::SinglePlaneFormat::kR_8;
-    case gfx::BufferFormat::RGBA_8888:
-      return viz::SinglePlaneFormat::kRGBA_8888;
-    case gfx::BufferFormat::RGBA_F16:
-      return viz::SinglePlaneFormat::kRGBA_F16;
-    case gfx::BufferFormat::BGR_565: {
-      UMA_HISTOGRAM_BOOLEAN("Graphics.Exo.Buffer.Used_BRG_565", true);
-    }
-      return viz::SinglePlaneFormat::kBGR_565;
-    case gfx::BufferFormat::RGBX_8888:
-      return viz::SinglePlaneFormat::kRGBX_8888;
-    case gfx::BufferFormat::BGRX_8888:
-      return viz::SinglePlaneFormat::kBGRX_8888;
-    case gfx::BufferFormat::RGBA_1010102:
-      return viz::SinglePlaneFormat::kRGBA_1010102;
-    case gfx::BufferFormat::BGRA_1010102:
-      return viz::SinglePlaneFormat::kBGRA_1010102;
-    case gfx::BufferFormat::YVU_420:
-      format = viz::MultiPlaneFormat::kYV12;
-      break;
-    case gfx::BufferFormat::YUV_420_BIPLANAR:
-      format = viz::MultiPlaneFormat::kNV12;
-      break;
-    case gfx::BufferFormat::P010:
-      format = viz::MultiPlaneFormat::kP010;
-      break;
-    case gfx::BufferFormat::R_16:
-    case gfx::BufferFormat::RG_1616:
-    case gfx::BufferFormat::RG_88:
-    case gfx::BufferFormat::RGBA_4444:
-    case gfx::BufferFormat::YUVA_420_TRIPLANAR:
-      NOTREACHED();
-  }
-#if BUILDFLAG(IS_CHROMEOS)
-  // If format is true multiplanar format, we prefer external sampler on
-  // ChromeOS.
-  if (format.is_multi_plane()) {
-    format.SetPrefersExternalSampler();
-  }
-#endif
-  return format;
-}
-
 // Helper to create ClientSharedImage.
 gpu::SharedImageInterface* GetSharedImageInterface() {
   ui::ContextFactory* context_factory =
@@ -155,6 +105,11 @@ gpu::SharedImageInterface* GetSharedImageInterface() {
     return nullptr;
   }
   return context_provider->SharedImageInterface();
+}
+
+perfetto::NamedTrack GetTrack(const void* buffer_id) {
+  return perfetto::NamedTrack(kBufferInUse,
+                              reinterpret_cast<uintptr_t>(buffer_id));
 }
 
 }  // namespace
@@ -363,7 +318,7 @@ void Buffer::Texture::UpdateSharedImage(
     sii->UpdateSharedImage(gpu::SyncToken(), std::move(acquire_fence),
                            shared_image_->mailbox());
     sync_token_ = sii->GenUnverifiedSyncToken();
-    TRACE_EVENT_ASYNC_STEP_INTO0("exo", kBufferInUse, GetBufferId(), "bound");
+    TRACE_EVENT_INSTANT("exo", "bound", GetTrack(GetBufferId()));
   }
 }
 
@@ -447,8 +402,7 @@ void Buffer::Texture::ReleaseWhenQueryResultIsAvailable(
   release_callback_ = std::move(callback);
   wait_for_release_time_ = base::TimeTicks::Now() + wait_for_release_delay_;
   ScheduleWaitForRelease(wait_for_release_delay_);
-  TRACE_EVENT_ASYNC_STEP_INTO0("exo", kBufferInUse, GetBufferId(),
-                               "pending_query");
+  TRACE_EVENT_INSTANT("exo", "pending_query", GetTrack(GetBufferId()));
   context_provider_->ContextSupport()->SignalQuery(
       query_id_, base::BindOnce(&Buffer::Texture::Released,
                                 weak_ptr_factory_.GetWeakPtr()));
@@ -559,30 +513,38 @@ Buffer::~Buffer() = default;
 std::unique_ptr<Buffer> Buffer::CreateBufferFromGMBHandle(
     gfx::GpuMemoryBufferHandle buffer_handle,
     const gfx::Size& buffer_size,
-    gfx::BufferFormat buffer_format,
+    viz::SharedImageFormat format,
     gfx::BufferUsage buffer_usage,
     unsigned query_type,
     bool use_zero_copy,
     bool is_overlay_candidate,
     bool y_invert) {
+  // If format is true multiplanar format, we prefer external sampler on
+  // ChromeOS.
+  if (format.is_multi_plane()) {
+    format.SetPrefersExternalSampler();
+  }
   return base::WrapUnique(
-      new Buffer(std::move(buffer_handle), GetSharedImageFormat(buffer_format),
-                 buffer_size, buffer_usage, query_type, use_zero_copy,
-                 is_overlay_candidate, y_invert));
+      new Buffer(std::move(buffer_handle), format, buffer_size, buffer_usage,
+                 query_type, use_zero_copy, is_overlay_candidate, y_invert));
 }
 
 // static
 std::unique_ptr<Buffer> Buffer::CreateBuffer(
     gfx::Size buffer_size,
-    gfx::BufferFormat buffer_format,
+    viz::SharedImageFormat format,
     gfx::BufferUsage buffer_usage,
     std::string_view debug_label,
     gpu::SurfaceHandle surface_handle,
     base::WaitableEvent* shutdown_event,
     bool is_overlay_candidate) {
+  // If format is true multiplanar format, we prefer external sampler on
+  // ChromeOS.
+  if (format.is_multi_plane()) {
+    format.SetPrefersExternalSampler();
+  }
   scoped_refptr<gpu::ClientSharedImage> shared_image;
   auto* sii = GetSharedImageInterface();
-  auto format = GetSharedImageFormat(buffer_format);
   if (sii) {
     // Note that we are creating this mappable shared image only to get a
     // GMBHandle from it and use below to create ::Buffer.
@@ -678,8 +640,8 @@ std::optional<viz::TransferableResource> Buffer::ProduceTransferableResource(
   Texture* contents_texture = contents_texture_.get();
 
   if (release_contents_callback_.IsCancelled()) {
-    TRACE_EVENT_ASYNC_BEGIN1("exo", kBufferInUse, GetBufferId(), "buffer_id",
-                             GetBufferId());
+    TRACE_EVENT_BEGIN("exo", kBufferInUse, GetTrack(GetBufferId()), "buffer_id",
+                      GetBufferId());
   }
 
   // Cancel pending contents release callback.
@@ -848,7 +810,7 @@ bool Buffer::NeedsHardwareProtection() {
 // Buffer, private:
 
 void Buffer::Release() {
-  TRACE_EVENT_ASYNC_END0("exo", kBufferInUse, GetBufferId());
+  TRACE_EVENT_END("exo", /* kBufferInUse */ GetTrack(GetBufferId()));
 
   // Run release callback to notify the client that buffer has been released.
   if (!release_callback_.is_null() && !legacy_release_skippable_) {
@@ -879,8 +841,7 @@ void Buffer::ReleaseContents() {
   release_contents_callback_.Cancel();
 
   if (attach_count_) {
-    TRACE_EVENT_ASYNC_STEP_INTO0("exo", kBufferInUse, GetBufferId(),
-                                 "attached");
+    TRACE_EVENT_INSTANT("exo", "attached", GetTrack(GetBufferId()));
   } else {
     // Release buffer if not attached to surface.
     Release();

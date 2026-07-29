@@ -8,6 +8,7 @@
 #include "base/time/time.h"
 #include "components/autofill/core/browser/data_manager/payments/payments_data_manager.h"
 #include "components/autofill/core/browser/data_manager/personal_data_manager.h"
+#include "components/autofill/core/browser/metrics/payments/credit_card_save_metrics.h"
 #include "components/autofill/core/browser/payments/client_behavior_constants.h"
 #include "components/autofill/core/browser/payments/multiple_request_payments_network_interface.h"
 #include "components/autofill/core/browser/payments/payments_autofill_client.h"
@@ -66,6 +67,9 @@ void SaveAndFillManagerImpl::OnUserDidDecideOnLocalSave(
         user_provided_card_save_and_fill_details) {
   switch (user_decision) {
     case CardSaveAndFillDialogUserDecision::kAccepted: {
+      if (auto* strike_database = GetSaveAndFillStrikeDatabase()) {
+        strike_database->ClearStrikes();
+      }
       CreditCard card_save_candidate;
       PopulateCreditCardInfo(card_save_candidate,
                              user_provided_card_save_and_fill_details);
@@ -85,10 +89,14 @@ void SaveAndFillManagerImpl::OnUserDidDecideOnLocalSave(
       payments_autofill_client()
           ->GetPaymentsDataManager()
           .OnAcceptedLocalCreditCardSave(card_save_candidate);
+      // TODO(crbug.com/435506033): Add local save confirmation as a separate
+      // effort.
       break;
     }
     case CardSaveAndFillDialogUserDecision::kDeclined:
-      GetSaveAndFillStrikeDatabase()->AddStrike();
+      if (auto* strike_database = GetSaveAndFillStrikeDatabase()) {
+        strike_database->AddStrike();
+      }
       break;
   }
   fill_card_callback_.Reset();
@@ -179,7 +187,7 @@ void SaveAndFillManagerImpl::PopulateInitialUploadDetails() {
   // TODO(crbug.com/432100446): Add kShowAccountEmailInLegalMessage to
   // `client_behavior_signals` when feature launched to mobile.
 
-  upload_details_.upload_card_source = UploadCardSource::UPSTREAM_SAVE_AND_FILL;
+  upload_details_.upload_card_source = UploadCardSource::kUpstreamSaveAndFill;
   upload_details_.billing_customer_number = payments::GetBillingCustomerId(
       payments_autofill_client()->GetPaymentsDataManager());
   upload_details_.app_locale = autofill_client_->GetAppLocale();
@@ -226,6 +234,9 @@ void SaveAndFillManagerImpl::OnUserDidDecideOnUploadSave(
   switch (user_decision) {
     case CardSaveAndFillDialogUserDecision::kAccepted:
       upload_save_and_fill_dialog_accepted_ = true;
+      if (auto* strike_database = GetSaveAndFillStrikeDatabase()) {
+        strike_database->ClearStrikes();
+      }
       PopulateCreditCardInfo(upload_details_.card,
                              user_provided_card_save_and_fill_details);
       if (fill_card_callback_) {
@@ -238,7 +249,9 @@ void SaveAndFillManagerImpl::OnUserDidDecideOnUploadSave(
       }
       break;
     case CardSaveAndFillDialogUserDecision::kDeclined:
-      GetSaveAndFillStrikeDatabase()->AddStrike();
+      if (auto* strike_database = GetSaveAndFillStrikeDatabase()) {
+        strike_database->AddStrike();
+      }
       break;
   }
 
@@ -267,8 +280,22 @@ void SaveAndFillManagerImpl::SendCreateCardRequest() {
 void SaveAndFillManagerImpl::OnDidCreateCard(
     PaymentsAutofillClient::PaymentsRpcResult result,
     const std::string& instrument_id) {
-  // TODO(crbug.com/378164165): Implement logic to handle CreateCard response
-  // and the instrument id.
+  if (result != PaymentsAutofillClient::PaymentsRpcResult::kSuccess) {
+    // If card creation fails, save the card locally instead. All card
+    // information should exist, except for the optional CVC.
+    // TODO(crbug.com/378164165): Add CVC pref check in SaveCardLocallyIfNew so
+    // we don't need to strip the CVC from upload_details_.card. The missing
+    // check may be causing issue for CVC saving flows.
+    autofill_metrics::LogCreditCardUploadRanLocalSaveFallbackMetric(
+        /*new_local_card_added=*/payments_autofill_client()
+            ->GetPaymentsDataManager()
+            .SaveCardLocallyIfNew(upload_details_.card));
+  }
+
+  // Invoke feedback bubble. No callback needed (virtual card enrollment is not
+  // eligible for card saved via the Save and Fill flow).
+  payments_autofill_client()->CreditCardUploadCompleted(
+      result, /*on_confirmation_closed_callback=*/std::nullopt);
 }
 
 SaveAndFillStrikeDatabase*

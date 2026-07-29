@@ -393,7 +393,7 @@ public class HiddenTabHolder {
                         : PageTransition.LINK | PageTransition.FROM_API;
         params.setTransitionType(IntentHandler.getTransitionTypeFromIntent(intent, transitionType));
         params.setInitiatorOrigin(Origin.createOpaqueOrigin());
-        RedirectHandlerTabHelper.updateIntentInTab(tab, intent);
+        RedirectHandlerTabHelper.updateIntentInTab(tab, intent, /* isCustomTab= */ true);
 
         String referrer = IntentHandler.getReferrerUrlIncludingExtraHeaders(intent);
         if (referrer == null) referrer = "";
@@ -437,8 +437,7 @@ public class HiddenTabHolder {
         // Notifies PreloadingImpl that a navigation to CCT is happening. This is used to calculate
         // the recall of CCT prefetch's attempt. Please see
         // PreloadingData::setIsNavigationInDomainCallback for more details.
-        if (ChromeFeatureList.sPrefetchBrowserInitiatedTriggers.isEnabled()
-                && ChromeFeatureList.sCctNavigationalPrefetch.isEnabled()) {
+        if (ChromeFeatureList.sCctNavigationalPrefetch.isEnabled()) {
             WebContents webContents = tab.getWebContents();
             if (webContents != null) {
                 PreloadingDataBridge.setIsNavigationInDomainCallbackForCct(webContents);

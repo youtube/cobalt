@@ -13,6 +13,10 @@ namespace base {
 class TimeDelta;
 }  // namespace base
 
+namespace bwg {
+enum class EntryPoint;
+}  // namespace bwg
+
 // UMA histogram key for IOS.Gemini.Eligibility.
 extern const char kEligibilityHistogram[];
 
@@ -27,6 +31,12 @@ extern const char kPromoActionHistogram[];
 
 // UMA histogram key for IOS.Gemini.FRE.ConsentAction.
 extern const char kConsentActionHistogram[];
+
+// UMA histogram key for IOS.Gemini.Session.PromptCount.
+extern const char kSessionPromptCountHistogram[];
+
+// UMA histogram key for IOS.Gemini.Session.FirstPrompt.
+extern const char kSessionFirstPromptHistogram[];
 
 // Enum for the IOS.Gemini.FRE.PromoAction and IOS.Gemini.FRE.ConsentAction
 // histograms.
@@ -54,6 +64,18 @@ extern const char kStartupTimeNoFREHistogram[];
 // UMA histogram key for IOS.Gemini.Session.Time.
 extern const char kBWGSessionTimeHistogram[];
 
+// UMA histogram key for IOS.Gemini.SessionLength.WithPrompt.
+extern const char kBWGSessionLengthWithPromptHistogram[];
+
+// UMA histogram key for IOS.Gemini.SessionLength.Abandoned.
+extern const char kBWGSessionLengthAbandonedHistogram[];
+
+// UMA histogram key for IOS.Gemini.SessionLength.FRE.WithPrompt.
+extern const char kBWGSessionLengthFREWithPromptHistogram[];
+
+// UMA histogram key for IOS.Gemini.SessionLength.FRE.Abandoned.
+extern const char kBWGSessionLengthFREWithAbandonedHistogram[];
+
 // Enum for the IOS.Gemini.FirstPrompt.SubmissionMethod histogram.
 // LINT.IfChange(IOSGeminiFirstPromptSubmissionMethod)
 enum class IOSGeminiFirstPromptSubmissionMethod {
@@ -70,8 +92,30 @@ enum class IOSGeminiFirstPromptSubmissionMethod {
 // UMA histogram key for IOS.Gemini.FirstPrompt.SubmissionMethod.
 extern const char kFirstPromptSubmissionMethodHistogram[];
 
+// UMA histogram key for IOS.Gemini.Prompt.ContextAttachment.
+extern const char kPromptContextAttachmentHistogram[];
+
+// UMA histogram key for IOS.Gemini.Response.Latency.WithContext.
+extern const char kResponseLatencyWithContextHistogram[];
+
+// UMA histogram key for IOS.Gemini.Response.Latency.WithoutContext.
+extern const char kResponseLatencyWithoutContextHistogram[];
+
+// Represents the completed Gemini session types.
+enum class IOSGeminiSessionType {
+  kUnknown = 0,
+  kWithPrompt = 1,
+  kAbandoned = 2,
+  kMaxValue = kAbandoned,
+};
+
 // Records the duration of a Gemini session.
 void RecordBWGSessionTime(base::TimeDelta session_duration);
+
+// Records the duration of a Gemini session by type of session.
+void RecordBWGSessionLengthByType(base::TimeDelta session_duration,
+                                  bool is_first_run,
+                                  IOSGeminiSessionType session_type);
 
 // Records when user sees the Gemini entry point impression.
 // Can be called once every 10 minutes to avoid spam logging.
@@ -104,5 +148,26 @@ void RecordFREConsentDismiss();
 
 // Records that the user clicked a link on the BWG FRE consent screen.
 void RecordFREConsentLinkClick();
+
+// Records prompt context attachment metrics.
+void RecordPromptContextAttachment(bool has_page_context);
+
+// Records the latency from prompt submission to response received.
+void RecordResponseLatency(base::TimeDelta latency, bool had_page_context);
+
+// Records the total number of prompts sent in a BWG session.
+void RecordSessionPromptCount(int prompt_count);
+
+// Records if a first prompt was sent in a BWG session.
+void RecordSessionFirstPrompt(bool had_first_prompt);
+
+// Records that the user clicked a URL in a BWG session.
+void RecordURLOpened();
+
+// Records entry point metrics with context about whether FRE is shown.
+void RecordBWGEntryPointClick(bwg::EntryPoint entry_point, bool is_fre_flow);
+
+// Records that the user tapped the new chat button in a BWG session.
+void RecordBWGNewChatButtonTapped();
 
 #endif  // IOS_CHROME_BROWSER_INTELLIGENCE_BWG_METRICS_BWG_METRICS_H_

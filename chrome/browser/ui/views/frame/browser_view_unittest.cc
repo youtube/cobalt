@@ -7,6 +7,7 @@
 #include <memory>
 #include <string_view>
 
+#include "base/byte_count.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/strings/strcat.h"
 #include "base/strings/utf_string_conversions.h"
@@ -28,7 +29,7 @@
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/bookmarks/bookmark_bar_view.h"
 #include "chrome/browser/ui/views/frame/browser_view_layout.h"
-#include "chrome/browser/ui/views/frame/tab_strip_region_view.h"
+#include "chrome/browser/ui/views/frame/tab_strip_view_interface.h"
 #include "chrome/browser/ui/views/frame/test_with_browser_view.h"
 #include "chrome/browser/ui/views/frame/top_container_view.h"
 #include "chrome/browser/ui/views/infobars/infobar_container_view.h"
@@ -69,7 +70,7 @@ namespace {
 // Tab strip bounds depend on the window frame sizes.
 gfx::Point ExpectedTabStripRegionOrigin(BrowserView* browser_view) {
   gfx::Rect tabstrip_bounds(browser_view->frame()->GetBoundsForTabStripRegion(
-      browser_view->tab_strip_region_view()->GetMinimumSize()));
+      browser_view->tab_strip_view()->GetMinimumSize()));
   gfx::Point tabstrip_region_origin(tabstrip_bounds.origin());
   views::View::ConvertPointToTarget(browser_view->parent(), browser_view,
                                     &tabstrip_region_origin);
@@ -237,7 +238,7 @@ TEST_F(BrowserViewTest, DISABLED_BrowserViewLayout) {
       browser_view()->GetContentsContainerForTest();
   views::WebView* contents_web_view = browser_view()->contents_web_view();
   views::WebView* devtools_web_view =
-      browser_view()->GetActiveContentsContainerView()->GetDevtoolsWebView();
+      browser_view()->GetActiveContentsContainerView()->devtools_web_view();
 
   // Start with a single tab open to a normal page.
   AddTab(browser, GURL("about:blank"));
@@ -527,7 +528,7 @@ TEST_F(BrowserViewTest, UpdateWindowTitle) {
 TEST_F(BrowserViewTest, WindowTitleOmitsLowMemoryUsage) {
   scoped_refptr<TabResourceUsage> tab_resource_usage_ =
       base::MakeRefCounted<TabResourceUsage>();
-  tab_resource_usage_->SetMemoryUsageInBytes(100);
+  tab_resource_usage_->SetMemoryUsage(base::ByteCount(100));
 
   TabRendererData memory_usage;
   memory_usage.tab_resource_usage = tab_resource_usage_;
@@ -539,8 +540,9 @@ TEST_F(BrowserViewTest, WindowTitleOmitsLowMemoryUsage) {
   // Expect that low memory usage isn't in the window title.
   EXPECT_EQ(SubBrowserName(u"about:blank - ", u""),
             browser_view()->GetAccessibleWindowTitle());
-  uint64_t memory_used = TabResourceUsage::kHighMemoryUsageThresholdBytes + 1;
-  tab_resource_usage_->SetMemoryUsageInBytes(memory_used);
+  base::ByteCount memory_used =
+      TabResourceUsage::kHighMemoryUsageThreshold + base::ByteCount(1);
+  tab_resource_usage_->SetMemoryUsage(memory_used);
 
   // Expect that high memory usage is in the window title.
   EXPECT_TRUE(browser_view()->GetAccessibleWindowTitle().find(

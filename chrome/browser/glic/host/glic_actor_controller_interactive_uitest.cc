@@ -17,6 +17,7 @@
 #include "chrome/browser/actor/actor_tab_data.h"
 #include "chrome/browser/actor/actor_task.h"
 #include "chrome/browser/actor/actor_test_util.h"
+#include "chrome/browser/actor/browser_action_util.h"
 #include "chrome/browser/actor/execution_engine.h"
 #include "chrome/browser/actor/tools/history_tool_request.h"
 #include "chrome/browser/devtools/devtools_window_testing.h"
@@ -26,6 +27,7 @@
 #include "chrome/browser/glic/test_support/interactive_glic_test.h"
 #include "chrome/browser/glic/test_support/interactive_test_util.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
+#include "chrome/browser/ui/browser_tabstrip.h"
 #include "chrome/common/actor/action_result.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/common/webui_url_constants.h"
@@ -38,22 +40,25 @@
 #include "content/public/test/browser_test_utils.h"
 #include "net/dns/mock_host_resolver.h"
 #include "third_party/abseil-cpp/absl/functional/overload.h"
+#include "third_party/blink/public/common/features_generated.h"
 #include "ui/base/interaction/element_identifier.h"
 
 namespace glic::test {
 
 namespace {
 
+namespace apc = ::optimization_guide::proto;
+
 using ::actor::TaskId;
+using apc::Actions;
+using apc::ActionsResult;
+using apc::AnnotatedPageContent;
+using apc::ClickAction;
+using apc::ContentAttributes;
+using apc::ContentNode;
 using ::base::test::EqualsProto;
 using ::content::RenderFrameHost;
 using ::content::WebContents;
-using ::optimization_guide::proto::Actions;
-using ::optimization_guide::proto::ActionsResult;
-using ::optimization_guide::proto::AnnotatedPageContent;
-using ::optimization_guide::proto::ClickAction;
-using ::optimization_guide::proto::ContentAttributes;
-using ::optimization_guide::proto::ContentNode;
 using ::tabs::TabHandle;
 using ::tabs::TabInterface;
 
@@ -152,6 +157,7 @@ class GlicActorControllerUiTest : public test::InteractiveGlicTest {
         InAnyContext(WithElement(
             kGlicContentsElementId,
             [result_out = buffer_raw,
+             actions_result_out = &last_execution_result_,
              proto_provider =
                  std::move(proto_provider)](ui::TrackedElement* el) mutable {
               content::WebContents* glic_contents =
@@ -178,6 +184,7 @@ class GlicActorControllerUiTest : public test::InteractiveGlicTest {
                     DecodeActionsResultProto(result.ExtractString());
                 if (actions_result) {
                   *result_out = actions_result->action_result();
+                  *actions_result_out = actions_result;
                 } else {
                   *result_out = -static_cast<int>(
                       mojom::PerformActionsErrorReason::kInvalidProto);
@@ -340,6 +347,18 @@ class GlicActorControllerUiTest : public test::InteractiveGlicTest {
     return WaitAction(task_id_, std::move(expected_result));
   }
 
+  auto ScriptAction(const std::string& name,
+                    const std::string& input_arguments) {
+    auto script_provider = base::BindLambdaForTesting([&]() {
+      Actions action = actor::MakeScriptTool(
+          *tab_handle_.Get()->GetContents()->GetPrimaryMainFrame(), name,
+          input_arguments);
+      action.set_task_id(task_id_.value());
+      return EncodeActionProto(action);
+    });
+    return ExecuteAction(std::move(script_provider), {});
+  }
+
   // Starts a new task by executing an initial navigate action to `task_url` to
   // create a new tab. The new tab can then be referenced by the identifier
   // passed in `new_tab_id`. Stores the created task's id in `task_id_` and the
@@ -445,6 +464,7 @@ class GlicActorControllerUiTest : public test::InteractiveGlicTest {
   auto WaitForActorTaskState(mojom::ActorTaskState expected_state) {
     // WaitForActorTaskState doesn't reliably check the stopped state, since the
     // observable may have already been deleted.
+    // Use PrepareForStopStateChange/WaitForActorTaskStateToStopped instead.
     EXPECT_NE(expected_state, mojom::ActorTaskState::kStopped);
 
     return InAnyContext(WithElement(
@@ -459,6 +479,36 @@ class GlicActorControllerUiTest : public test::InteractiveGlicTest {
               });
               )js",
               task_id.value(), base::to_underlying(expected_state));
+          ASSERT_TRUE(content::ExecJs(glic_contents, script));
+        }));
+  }
+
+  // Gets a reference to a state observable for use in
+  // WaitForActorTaskStateToStopped.
+  auto PrepareForStopStateChange() {
+    return InAnyContext(WithElement(
+        kGlicContentsElementId, [&task_id = task_id_](ui::TrackedElement* el) {
+          content::WebContents* glic_contents =
+              AsInstrumentedWebContents(el)->web_contents();
+          std::string script = content::JsReplace(
+              "window.taskStateObs = client.browser.getActorTaskState($1);",
+              task_id.value());
+          ASSERT_TRUE(content::ExecJs(glic_contents, script));
+        }));
+  }
+
+  // Uses the state observable from PrepareForStopStateChange to await a state
+  // change to stopped.
+  auto WaitForActorTaskStateChangeToStopped() {
+    return InAnyContext(
+        WithElement(kGlicContentsElementId, [](ui::TrackedElement* el) {
+          content::WebContents* glic_contents =
+              AsInstrumentedWebContents(el)->web_contents();
+          std::string script = content::JsReplace(
+              "window.taskStateObs.waitUntil((state) => { "
+              "  return state == $1; "
+              "});",
+              base::to_underlying(mojom::ActorTaskState::kStopped));
           ASSERT_TRUE(content::ExecJs(glic_contents, script));
         }));
   }
@@ -580,12 +630,27 @@ class GlicActorControllerUiTest : public test::InteractiveGlicTest {
         }));
   }
 
+  auto CloseTab(ui::ElementIdentifier tab) {
+    return InAnyContext(
+        WithElement(tab, [this](ui::TrackedElement* el) {
+          content::WebContents* contents =
+              AsInstrumentedWebContents(el)->web_contents();
+          content::WebContentsDestroyedWatcher destroyed_watcher(contents);
+          chrome::CloseWebContents(browser(), contents, true);
+          destroyed_watcher.Wait();
+        }).SetMustRemainVisible(false));
+  }
+
   auto NavigateFrame(ui::ElementIdentifier webcontents_id,
                      const std::string_view frame,
                      const GURL& url) {
     return ExecuteJs(webcontents_id,
                      base::StrCat({"()=>{document.getElementById('", frame,
                                    "').src='", url.spec(), "';}"}));
+  }
+
+  const std::optional<ActionsResult>& last_execution_result() const {
+    return last_execution_result_;
   }
 
   // The default task_id and tab created by StartActorTaskInNewTab. Most tests
@@ -623,6 +688,7 @@ class GlicActorControllerUiTest : public test::InteractiveGlicTest {
     NOTREACHED() << "Label [" << label << "] not found in page.";
   }
 
+  std::optional<ActionsResult> last_execution_result_;
   base::test::ScopedFeatureList scoped_feature_list_;
   std::unique_ptr<AnnotatedPageContent> annotated_page_content_;
 };
@@ -871,6 +937,24 @@ IN_PROC_BROWSER_TEST_F(GlicActorControllerUiTest, StopActorTask) {
   // clang-format on
 }
 
+// Tests that closing a tab that's being acted on stops the associated task.
+IN_PROC_BROWSER_TEST_F(GlicActorControllerUiTest, StopActorTaskOnTabClose) {
+  DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kNewActorTabId);
+
+  const GURL task_url =
+      embedded_test_server()->GetURL("/actor/page_with_clickable_element.html");
+
+  RunTestSequence(
+      // clang-format off
+    InitializeWithOpenGlicWindow(),
+    StartActorTaskInNewTab(task_url, kNewActorTabId),
+    CheckIsActingOnTab(kNewActorTabId, true),
+    PrepareForStopStateChange(),
+    CloseTab(kNewActorTabId),
+    WaitForActorTaskStateChangeToStopped());
+  // clang-format on
+}
+
 // Ensure that a task can be started after a previous task was stopped.
 IN_PROC_BROWSER_TEST_F(GlicActorControllerUiTest, StopThenStartActTask) {
   constexpr std::string_view kClickableButtonLabel = "clickable";
@@ -976,7 +1060,7 @@ IN_PROC_BROWSER_TEST_F(GlicActorControllerUiTest, PauseAlreadyPausedActorTask) {
     ClickAction(kClickableButtonLabel),
     WaitForJsResult(kNewActorTabId, "() => button_clicked"),
 
-    // Ensur epausing twice in a row is a no-op.
+    // Ensure pausing twice in a row is a no-op.
     PauseActorTask(),
     PauseActorTask(),
     CheckIsActingOnTab(kNewActorTabId, true)
@@ -1143,6 +1227,134 @@ IN_PROC_BROWSER_TEST_F(GlicActorControllerUiTest,
       StopActorTask(),
       CheckIsWebContentsCaptured(kNewActorTabId, false));
   // clang-format on
+}
+
+// Basic test to check that the ActionsResult proto returned from PerformActions
+// is filled in with the window and tab observation fields.
+IN_PROC_BROWSER_TEST_F(GlicActorControllerUiTest,
+                       PerformActionsResultObservations) {
+  DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kNewActorTabId);
+  DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kOtherTabId);
+
+  constexpr std::string_view kClickableButtonLabel = "clickable";
+
+  const GURL task_url =
+      embedded_test_server()->GetURL("/actor/page_with_clickable_element.html");
+
+  // clang-format off
+  RunTestSequence(
+      // Add an extra tab to ensure that the window's tab list is filled in
+      // correctly.
+      AddInstrumentedTab(kOtherTabId, GURL(chrome::kChromeUISettingsURL)),
+      InitializeWithOpenGlicWindow(),
+      StartActorTaskInNewTab(task_url, kNewActorTabId),
+
+      GetPageContextFromFocusedTab(),
+      ClickAction(kClickableButtonLabel),
+
+      Do([&]() {
+        ASSERT_TRUE(last_execution_result());
+
+        // Check that the window observation is filled in correctly.
+        ASSERT_EQ(last_execution_result()->windows().size(), 1);
+        apc::WindowObservation window = last_execution_result()->windows().at(0);
+        EXPECT_EQ(window.id(), browser()->session_id().id());
+        EXPECT_EQ(window.activated_tab_id(), tab_handle_.raw_value());
+        EXPECT_TRUE(window.active());
+        ASSERT_GE(browser()->tab_strip_model()->count(), 2);
+        EXPECT_EQ(window.tab_ids().size(), browser()->tab_strip_model()->count());
+        for (tabs::TabInterface* tab : *browser()->tab_strip_model()) {
+          EXPECT_THAT(window.tab_ids(),
+                      testing::Contains(tab->GetHandle().raw_value()));
+        }
+        EXPECT_EQ(window.tab_ids().size(), browser()->tab_strip_model()->count());
+
+        // Check that the acting tab has an observation that's filled in correctly.
+        ASSERT_EQ(last_execution_result()->tabs().size(), 1);
+        apc::TabObservation tab = last_execution_result()->tabs().at(0);
+        EXPECT_TRUE(tab.has_id());
+        EXPECT_EQ(tab.id(), tab_handle_.raw_value());
+        EXPECT_TRUE(tab.has_annotated_page_content());
+        EXPECT_TRUE(tab.annotated_page_content().has_main_frame_data());
+        EXPECT_TRUE(tab.annotated_page_content().has_root_node());
+        EXPECT_TRUE(tab.has_screenshot());
+        EXPECT_GT(tab.screenshot().size(), 0u);
+        EXPECT_TRUE(tab.has_screenshot_mime_type());
+        EXPECT_EQ(tab.screenshot_mime_type(), actor::kMimeTypeJpeg);
+      })
+  );
+  // clang-format on
+}
+
+IN_PROC_BROWSER_TEST_F(GlicActorControllerUiTest,
+                       ActuationSucceedsOnBackgroundTabAfterPauseAndResume) {
+  DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kNewActorTabId);
+  DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kOtherTabId);
+
+  constexpr std::string_view kClickableButtonLabel = "clickable";
+
+  const GURL task_url =
+      embedded_test_server()->GetURL("/actor/page_with_clickable_element.html");
+
+  RunTestSequence(
+      // clang-format off
+      InitializeWithOpenGlicWindow(),
+      StartActorTaskInNewTab(task_url, kNewActorTabId),
+      GetPageContextFromFocusedTab(),
+      SetOnIncompatibleAction(OnIncompatibleAction::kSkipTest,
+                              kActivateSurfaceIncompatibilityNotice),
+      AddInstrumentedTab(kOtherTabId, GURL(chrome::kChromeUISettingsURL)),
+      FocusWebContents(kOtherTabId),
+      CheckIsWebContentsCaptured(kNewActorTabId, true),
+      PauseActorTask(),
+      CheckIsWebContentsCaptured(kNewActorTabId, false),
+      ResumeActorTask(UpdatedContextOptions(), true),
+      CheckIsWebContentsCaptured(kNewActorTabId, true),
+      ClickAction(kClickableButtonLabel),
+      WaitForJsResult(kNewActorTabId, "() => button_clicked"),
+      CheckIsActingOnTab(kNewActorTabId, true),
+      CheckIsActingOnTab(kOtherTabId, false),
+      StopActorTask(),
+      CheckIsWebContentsCaptured(kNewActorTabId, false));
+  // clang-format on
+}
+
+class GlicActorControllerWithScriptToolsTest
+    : public GlicActorControllerUiTest {
+ public:
+  GlicActorControllerWithScriptToolsTest() {
+    scoped_feature_list_.InitAndEnableFeature(blink::features::kScriptTools);
+  }
+  ~GlicActorControllerWithScriptToolsTest() override = default;
+
+  auto CheckValidResult(const std::string& expected_result) {
+    return Steps(Do([&]() {
+      ASSERT_TRUE(last_execution_result());
+      ASSERT_EQ(last_execution_result()->script_tool_results().size(), 1);
+
+      const auto& result = last_execution_result()->script_tool_results().at(0);
+      EXPECT_EQ(result.index_of_script_tool_action(), 0);
+      EXPECT_EQ(result.result(), expected_result);
+    }));
+  }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+IN_PROC_BROWSER_TEST_F(GlicActorControllerWithScriptToolsTest, Basic) {
+  DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kNewActorTabId);
+
+  const GURL task_url =
+      embedded_test_server()->GetURL("/actor/script_tool.html");
+
+  const std::string expected_result = "This is an example sentence.";
+  const std::string input_arguments =
+      "{ \"text\": \"This is an example sentence.\" }";
+  RunTestSequence(InitializeWithOpenGlicWindow(),
+                  StartActorTaskInNewTab(task_url, kNewActorTabId),
+                  ScriptAction("echo", input_arguments),
+                  CheckValidResult(expected_result));
 }
 
 }  //  namespace

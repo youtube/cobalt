@@ -69,6 +69,7 @@
 #include "chrome/browser/platform_util.h"  // nogncheck
 #include "chrome/browser/renderer_host/chrome_navigation_ui_data.h"
 #include "chrome/browser/resource_coordinator/tab_lifecycle_unit_external.h"
+#include "chrome/browser/tab_group_sync/tab_group_sync_service_factory.h"
 #include "chrome/browser/ui/browser.h"                   // nogncheck
 #include "chrome/browser/ui/browser_finder.h"            // nogncheck
 #include "chrome/browser/ui/browser_navigator.h"         // nogncheck
@@ -89,6 +90,7 @@
 #include "chrome/common/url_constants.h"
 #include "components/data_sharing/public/features.h"
 #include "components/saved_tab_groups/public/features.h"
+#include "components/saved_tab_groups/public/tab_group_sync_service.h"
 #include "components/sessions/content/session_tab_helper.h"
 #include "components/tab_groups/tab_group_id.h"  // nogncheck
 #include "content/public/browser/back_forward_cache.h"
@@ -181,17 +183,21 @@ Browser* CreateAndShowBrowser(Profile* profile,
   browser->window()->Show();
   return browser;
 }
+#endif  // !BUILDFLAG(IS_ANDROID)
 
 // Use this function for reporting a tab id to an extension. It will
 // take care of setting the id to TAB_ID_NONE if necessary (for
 // example with devtools).
 int GetTabIdForExtensions(const WebContents* web_contents) {
+#if !BUILDFLAG(IS_ANDROID)
+  // TODO(https://crbug.com/430344931): Port this logic.
   Browser* browser = chrome::FindBrowserWithTab(web_contents);
-  if (browser && !ExtensionTabUtil::BrowserSupportsTabs(browser))
+  if (browser && !ExtensionTabUtil::BrowserSupportsTabs(browser)) {
     return -1;
+  }
+#endif
   return sessions::SessionTabHelper::IdForTab(web_contents).id();
 }
-#endif  // !BUILDFLAG(IS_ANDROID)
 
 bool IsFileUrl(const GURL& url) {
   return url.SchemeIsFile() || (url.SchemeIs(content::kViewSourceScheme) &&
@@ -546,12 +552,7 @@ api::tabs::Tab ExtensionTabUtil::CreateTabObject(
     GetTabListInterface(*contents, &tab_list, &tab_index);
   }
   api::tabs::Tab tab_object;
-  tab_object.id =
-#if BUILDFLAG(IS_ANDROID)
-      GetTabId(contents);
-#else
-      GetTabIdForExtensions(contents);
-#endif
+  tab_object.id = GetTabIdForExtensions(contents);
   tab_object.index = tab_index;
   tab_object.window_id = GetWindowIdOfTab(contents);
   tab_object.status = GetLoadingStatus(contents);
@@ -1098,7 +1099,7 @@ bool ExtensionTabUtil::GetSharedStateOfGroup(const tab_groups::TabGroupId& id) {
   }
 
   tab_groups::TabGroupSyncService* tab_group_service =
-      tab_groups::SavedTabGroupUtils::GetServiceForProfile(browser->profile());
+      tab_groups::TabGroupSyncServiceFactory::GetForProfile(browser->profile());
   if (!tab_group_service) {
     return false;
   }
@@ -1492,8 +1493,8 @@ bool ExtensionTabUtil::OpenOptionsPage(const Extension* extension,
 }
 
 // static
-bool ExtensionTabUtil::BrowserSupportsTabs(Browser* browser) {
-  return browser && !browser->is_type_devtools();
+bool ExtensionTabUtil::BrowserSupportsTabs(BrowserWindowInterface* browser) {
+  return browser && browser->GetType() != BrowserWindowInterface::TYPE_DEVTOOLS;
 }
 #endif  // !BUILDFLAG(IS_ANDROID)
 
@@ -1563,7 +1564,7 @@ bool ExtensionTabUtil::TabIsInSavedTabGroup(content::WebContents* contents,
   }
 
   tab_groups::TabGroupSyncService* tab_group_service =
-      tab_groups::SavedTabGroupUtils::GetServiceForProfile(
+      tab_groups::TabGroupSyncServiceFactory::GetForProfile(
           tab_strip_model->profile());
 
   // If the service failed to start, then there are no saved tab groups.

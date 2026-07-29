@@ -71,7 +71,7 @@ class DummyMainThreadScheduler : public MainThreadScheduler {
   void RemoveRAILModeObserver(RAILModeObserver const* observer) override {}
 
   void ForEachMainThreadIsolate(
-      base::RepeatingCallback<void(v8::Isolate* isolate)> callback) override {}
+      base::FunctionRef<void(v8::Isolate* isolate)>) override {}
 
   v8::Isolate* Isolate() override { return nullptr; }
 
@@ -115,7 +115,7 @@ class UserLevelMemoryPressureSignalGeneratorTest : public testing::Test {
     // OnMemoryPressure() is available, but the test environment seems not
     // to initialize it.
     memory_pressure_listener_ =
-        std::make_unique<base::SyncMemoryPressureListener>(WTF::BindRepeating(
+        std::make_unique<base::SyncMemoryPressureListener>(blink::BindRepeating(
             &UserLevelMemoryPressureSignalGeneratorTest::OnSyncMemoryPressure,
             base::Unretained(this)));
     base::MemoryPressureListener::SetNotificationsSuppressed(false);
@@ -477,9 +477,9 @@ TEST_F(UserLevelMemoryPressureSignalGeneratorTest,
 
   test_task_runner_->PostDelayedTask(
       FROM_HERE,
-      WTF::BindOnce(
+      BindOnce(
           &UserLevelMemoryPressureSignalGenerator::RequestMemoryPressureSignal,
-          WTF::UnretainedWrapper(generator.get())),
+          UnretainedWrapper(generator.get())),
       kInertInterval);
 
   EXPECT_CALL(*generator, Generate(_)).Times(2);
