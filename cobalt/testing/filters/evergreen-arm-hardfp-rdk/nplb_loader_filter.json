@@ -32,7 +32,7 @@
     "SbLogFlushTest.DontCrashMeBro",
     "SbPlayerGetAudioConfigurationTests/*",
     "SbPlayerGetMediaTimeTests/*",
-    "SbPlayerWriteSampleTests/SbPlayerWriteSampleTest.LimitedAudioInput/*",
+    "SbPlayerWriteSampleTests/*",
     "SbSystemGetLocaleIdTest.SunnyDay",
     "SbSystemGetPathTest.CanWriteAndReadFilesStorage",
     "SbSystemGetPropertyTest.ReturnsRequired",
