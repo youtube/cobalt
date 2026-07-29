@@ -111,7 +111,6 @@ class ExoPlayerBridge final : private VideoSurfaceHolder {
   int SkipData(JNIEnv* env, int type, int64_t position_us);
   int64_t GetBufferedPositionUs(JNIEnv* env, int type) const;
 
-  // Native callbacks.
   void OnInitialized(JNIEnv*);
   void OnReady(JNIEnv*);
   void OnError(JNIEnv* env, jstring msg);
@@ -124,7 +123,6 @@ class ExoPlayerBridge final : private VideoSurfaceHolder {
   std::string GetInitErrorMessage() const { return init_error_msg_; }
 
  private:
-  // VideoSurfaceHolder method.
   void OnSurfaceDestroyed() override;
 
   bool HasPlaybackErrorOccurred() const;
@@ -140,7 +138,6 @@ class ExoPlayerBridge final : private VideoSurfaceHolder {
   const int video_sample_offset_;
 
   mutable std::mutex mutex_;
-  // Guarded by |mutex_|.
   std::deque<scoped_refptr<InputBuffer>> pending_audio_samples_;
   std::deque<scoped_refptr<InputBuffer>> pending_video_samples_;
   bool audio_eos_pending_ = false;

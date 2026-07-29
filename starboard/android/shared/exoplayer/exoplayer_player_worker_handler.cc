@@ -51,7 +51,6 @@ Result<void> ExoPlayerPlayerWorkerHandler::Init(
     UpdatePlayerErrorCB update_player_error_cb) {
   SB_CHECK(!update_media_info_cb_);
 
-  // Ensure all parameters have to be valid.
   SB_CHECK(SbPlayerIsValid(player));
   SB_CHECK(update_media_info_cb);
   SB_CHECK(get_player_state_cb);

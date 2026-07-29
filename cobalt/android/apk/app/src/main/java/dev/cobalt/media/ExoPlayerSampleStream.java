@@ -68,7 +68,6 @@ public class ExoPlayerSampleStream implements SampleStream {
     if (result == RESULT_NEEDS_ALLOCATION) {
       int size = (int) mMetadata[1];
       buffer.data = java.nio.ByteBuffer.allocateDirect(size);
-      // Now that it is allocated, read again
       result = mBridge.readSample(mType, buffer.data, mMetadata);
     }
 
@@ -83,8 +82,6 @@ public class ExoPlayerSampleStream implements SampleStream {
       }
 
       if (buffer.data != null) {
-        // Set position to size so that when ExoPlayer calls buffer.flip(),
-        // the limit becomes size and position becomes 0.
         buffer.data.position(size);
       }
 

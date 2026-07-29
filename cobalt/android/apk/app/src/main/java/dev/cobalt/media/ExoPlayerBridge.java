@@ -45,11 +45,10 @@ import org.jni_zero.NativeMethods;
 /** Facilitates communication between the native ExoPlayerBridge and the Java ExoPlayer */
 @JNINamespace("starboard")
 public class ExoPlayerBridge {
-  // Used in ExoPlayerSampleStream.
   public static final int TYPE_AUDIO = 0;
   public static final int TYPE_VIDEO = 1;
 
-  private ExoPlayer mPlayer;
+  private volatile ExoPlayer mPlayer;
   private ExoPlayerMediaSource mAudioMediaSource;
   private ExoPlayerMediaSource mVideoMediaSource;
   private long mNativeExoPlayerBridge;
@@ -66,7 +65,7 @@ public class ExoPlayerBridge {
   private final ExoPlayerListener mPlayerListener;
   private final DroppedFramesListener mDroppedFramesListener;
 
-  private static final long PLAYER_RELEASE_TIMEOUT_MS = 2000; // 2 seconds.
+  private static final long PLAYER_RELEASE_TIMEOUT_MS = 2000;
 
   private class ExoPlayerListener implements Player.Listener {
     @Override

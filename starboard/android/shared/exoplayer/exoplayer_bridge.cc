@@ -346,19 +346,15 @@ int ExoPlayerBridge::ReadSample(JNIEnv* env,
   bool eos_pending =
       type == kSbMediaTypeAudio ? audio_eos_pending_ : video_eos_pending_;
 
-  // 1. Handle empty queues.
   if (pending_samples.empty()) {
     if (eos_pending) {
-      // If we have no more samples but EOS was signaled, emit the EOS flag.
       jlong metadata[3] = {0, 0, kBufferFlagEndOfStream};
       env->SetLongArrayRegion(j_metadata, 0, std::size(metadata), metadata);
       return kResultBufferRead;
     }
-    // Otherwise, tell ExoPlayer there's no data available yet.
     return kResultNothingRead;
   }
 
-  // 2. Peek at the next sample to determine its metadata requirements.
   const auto& input_buffer = pending_samples.front();
   int offset =
       type == kSbMediaTypeAudio ? audio_sample_offset_ : video_sample_offset_;
@@ -369,14 +365,11 @@ int ExoPlayerBridge::ReadSample(JNIEnv* env,
     return kResultNothingRead;
   }
 
-  // Determine flags for this sample.
   bool is_key_frame = type == kSbMediaTypeAudio
                           ? true
                           : input_buffer->video_sample_info().is_key_frame;
   int flags = is_key_frame ? kBufferFlagKeyFrame : 0;
 
-  // If this is the absolute last sample and EOS was signaled, piggyback the EOS
-  // flag.
   if (eos_pending && pending_samples.size() == 1) {
     flags |= kBufferFlagEndOfStream;
   }
@@ -386,7 +379,6 @@ int ExoPlayerBridge::ReadSample(JNIEnv* env,
   jlong metadata[3] = {input_buffer->timestamp(), size, flags};
   env->SetLongArrayRegion(j_metadata, 0, std::size(metadata), metadata);
 
-  // 3. Handle Lazy Allocation Queries.
   // If ExoPlayer passes a null buffer, or if the provided buffer is too small,
   // it's querying for the required buffer size. We embed the needed size into
   // the metadata array (done above) and request reallocation.
@@ -394,24 +386,27 @@ int ExoPlayerBridge::ReadSample(JNIEnv* env,
     return kResultNeedsAllocation;
   }
 
-  // 4. Validate the provided direct buffer.
   void* direct_buffer = env->GetDirectBufferAddress(j_buffer);
   if (!direct_buffer) {
     ReportError("Failed to get direct buffer address");
     return kResultNothingRead;
   }
 
-  // 5. Zero-copy transfer: memcpy directly into the JVM's ByteBuffer memory.
-  memcpy(direct_buffer, input_buffer->data() + offset, size);
+  if (size > 0) {
+    const uint8_t* source_data = input_buffer->data();
+    if (!source_data) {
+      ReportError("Input buffer data is null for non-empty sample.");
+      return kResultNothingRead;
+    }
+    memcpy(direct_buffer, source_data + offset, size);
+  }
 
-  // 6. Update high-water mark trackers to prevent PREROLL stalling.
   if (type == kSbMediaTypeAudio) {
     last_audio_timestamp_ = input_buffer->timestamp();
   } else {
     last_video_timestamp_ = input_buffer->timestamp();
   }
 
-  // Finally, consume the sample from our native queue.
   pending_samples.pop_front();
   return kResultBufferRead;
 }
