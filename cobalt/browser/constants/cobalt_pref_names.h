@@ -1,0 +1,32 @@
+// Copyright 2026 The Cobalt Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+#ifndef COBALT_BROWSER_CONSTANTS_COBALT_PREF_NAMES_H_
+#define COBALT_BROWSER_CONSTANTS_COBALT_PREF_NAMES_H_
+
+namespace cobalt {
+
+// Filenames for persistent preference stores in the cache directory.
+constexpr char kExperimentConfigFilename[] = "Experiment Config";
+constexpr char kMetricsConfigFilename[] = "Metrics Config";
+constexpr char kVariationsBeaconFilename[] = "Variations";
+
+// Variations preference keys.
+constexpr char kVariationsCrashStreak[] = "variations_crash_streak";
+constexpr char kStabilityExitedCleanly[] =
+    "user_experience_metrics.stability.exited_cleanly";
+
+}  // namespace cobalt
+
+#endif  // COBALT_BROWSER_CONSTANTS_COBALT_PREF_NAMES_H_

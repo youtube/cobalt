@@ -2,6 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+import("//content/browser/devtools/features.gni")
 import("//third_party/blink/renderer/modules/modules.gni")
 
 blink_modules_sources("storage") {
@@ -25,6 +26,11 @@ blink_modules_sources("storage") {
     "storage_namespace.cc",
     "storage_namespace.h",
   ]
+
+  if (!enable_devtools_backend) {
+    sources -= [ "inspector_dom_storage_agent.cc" ]
+    sources += [ "cobalt/inspector_dom_storage_agent_stub.h" ]
+  }
 }
 
 source_set("unit_tests") {

@@ -13,13 +13,31 @@
 #include "base/memory/weak_ptr.h"
 #include "base/sequence_checker.h"
 #include "base/types/pass_key.h"
+<<<<<<< HEAD:components/services/storage/dom_storage/leveldb/dom_storage_batch_operation_leveldb.cc
 #include "components/services/storage/dom_storage/leveldb/dom_storage_database_leveldb.h"
 #include "components/services/storage/dom_storage/leveldb/dom_storage_database_leveldb_utils.h"
+=======
+#include "build/build_config.h"
+#include "components/services/storage/dom_storage/dom_storage_database_leveldb.h"
+#include "components/services/storage/dom_storage/dom_storage_database_leveldb_utils.h"
+>>>>>>> parent of 16ecb4c7697 (CONFLICTED Chromium Cherry pick: Revert Cobalt.):components/services/storage/dom_storage/dom_storage_batch_operation_leveldb.cc
 #include "storage/common/database/leveldb_status_helper.h"
 #include "third_party/leveldatabase/src/include/leveldb/db.h"
 #include "third_party/leveldatabase/src/include/leveldb/write_batch.h"
 
 namespace storage {
+
+#if BUILDFLAG(IS_COBALT)
+namespace {
+
+leveldb::WriteOptions CreateSyncWriteOptions() {
+  leveldb::WriteOptions options;
+  options.sync = true;
+  return options;
+}
+
+}  // namespace
+#endif
 
 DomStorageBatchOperationLevelDB::DomStorageBatchOperationLevelDB(
     base::WeakPtr<DomStorageDatabaseLevelDB> database)
@@ -90,7 +108,14 @@ DbStatus DomStorageBatchOperationLevelDB::Commit() {
   if (database_->ShouldFailAllCommits()) {
     return DbStatus::IOError("Simulated I/O Error");
   }
+#if BUILDFLAG(IS_COBALT)
+  // The leveldb backend is asynchronous by default, which means that after a
+  // power off the storage may not actually have been persisted. Turning the
+  // sync option on explicitly guarantees the flush happens.
+  return FromLevelDBStatus(db->Write(CreateSyncWriteOptions(), &write_batch_));
+#else
   return FromLevelDBStatus(db->Write(leveldb::WriteOptions(), &write_batch_));
+#endif
 }
 
 size_t DomStorageBatchOperationLevelDB::ApproximateSizeForMetrics() const {

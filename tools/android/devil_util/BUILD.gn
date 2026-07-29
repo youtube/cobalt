@@ -2,23 +2,35 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+if (is_cobalt) {
+  import("//starboard/build/config/toolchain_variables.gni")
+}
+
 if (is_android) {
   import("//build/config/android/config.gni")
   import("//build/symlink.gni")
 
+  # On AOSP, devil pushes only the bare devil_util_bin to the Android device and
+  # runs it outside of an APK, so it must be compiled with the native toolchain.
+  if (is_cobalt && build_with_separate_cobalt_toolchain) {
+    standalone_toolchain = native_toolchain
+  } else {
+    standalone_toolchain = default_toolchain
+  }
+
   group("devil_util") {
     data_deps = [
-      ":devil_util_dist($default_toolchain)",
-      ":devil_util_host($default_toolchain)",
+      ":devil_util_dist($standalone_toolchain)",
+      ":devil_util_host($standalone_toolchain)",
     ]
   }
 
-  if (current_toolchain == default_toolchain) {
+  if (current_toolchain == standalone_toolchain) {
     import("//build/config/android/rules.gni")
 
     create_native_executable_dist("devil_util_dist") {
       dist_dir = "$root_build_dir/devil_util_dist"
-      binary = "$root_build_dir/devil_util_bin"
+      binary = "$root_out_dir/devil_util_bin"
       deps = [ ":devil_util_bin" ]
     }
 
@@ -50,4 +62,10 @@ executable("devil_util_bin") {
     "//third_party/zstd:compress",
     "//third_party/zstd:decompress",
   ]
+
+  # Statically link libc++ to make it a self-contained executable.
+  if (is_cobalt && is_partner_toolchain) {
+    ldflags = [ "-static-libstdc++" ]
+    deps += [ "//buildtools/third_party/libunwind" ]
+  }
 }
