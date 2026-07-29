@@ -13281,17 +13281,12 @@ TEST_P(QuicConnectionTest, SendAckFrequencyFrame) {
   // Send packet 101.
   SendStreamDataToPeer(/*id=*/1, "bar", /*offset=*/3, NO_FIN, nullptr);
 
-<<<<<<< HEAD
-  EXPECT_EQ(captured_frame.ack_eliciting_threshold, 10u);
-  EXPECT_EQ(captured_frame.requested_max_ack_delay,
-=======
 #if BUILDFLAG(IS_COBALT)
-  EXPECT_EQ(captured_frame.packet_tolerance, kMaxRetransmittablePacketsBeforeAck);
+  EXPECT_EQ(captured_frame.ack_eliciting_threshold, kMaxRetransmittablePacketsBeforeAck);
 #else
-  EXPECT_EQ(captured_frame.packet_tolerance, 10u);
+  EXPECT_EQ(captured_frame.ack_eliciting_threshold, 10u);
 #endif
-  EXPECT_EQ(captured_frame.max_ack_delay,
->>>>>>> parent of c5573cc041 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+  EXPECT_EQ(captured_frame.requested_max_ack_delay,
             QuicTime::Delta::FromMilliseconds(GetDefaultDelayedAckTimeMs()));
 
   // Sending packet 102 does not trigger sending another AckFrequencyFrame.

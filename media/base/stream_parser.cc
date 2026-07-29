@@ -4,13 +4,10 @@
 
 #include "media/base/stream_parser.h"
 
-<<<<<<< HEAD
-#include "base/notimplemented.h"
-=======
 #include <atomic>
 
 #include "base/logging.h"
->>>>>>> parent of c5573cc041 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+#include "base/notimplemented.h"
 #include "media/base/stream_parser_buffer.h"
 #include "media/media_buildflags.h"
 

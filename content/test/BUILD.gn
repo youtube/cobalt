@@ -801,26 +801,11 @@ static_library("test_support") {
   }
 
   if (!enable_privacy_sandbox_apis) {
-    _filtered_sources = filter_exclude(sources, [
-      "../browser/browsing_topics/*",
-      "../browser/attribution_reporting/*",
-      "../browser/shared_storage/*",
-      "../browser/interest_group/*",
-      "../browser/private_aggregation/*",
-      "../browser/aggregation_service/*",
-      "../public/test/*browsing_topics*",
-      "../public/test/*shared_storage*",
-      "../public/test/*attribution*",
-      "../public/test/*interest_group*",
-      "../public/test/*private_aggregation*",
-      "../public/test/*aggregation_service*",
-    ])
-    sources = []
-    sources = _filtered_sources
-
-    deps -= [
-      "//content/browser/attribution_reporting:mojo_bindings",
-      "//content/browser/attribution_reporting:registration_result_mojom",
+    sources -= [
+      "../browser/browsing_topics/test_util.cc",
+      "../browser/browsing_topics/test_util.h",
+      "../public/test/browsing_topics_test_util.cc",
+      "../public/test/browsing_topics_test_util.h",
     ]
   }
 
@@ -2037,18 +2022,11 @@ test("content_browsertests") {
     deps += [ "//components/variations" ]
   }
 
-<<<<<<< HEAD
-  data_deps = [ "//content/shell:pak" ]
-=======
   if (is_cobalt) {
     deps -= [ "//device/bluetooth:mocks" ]
   }
 
-  data_deps = [
-    "//content/shell:pak",
-    "//third_party/mesa_headers",
-  ]
->>>>>>> parent of c5573cc041 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+  data_deps = [ "//content/shell:pak" ]
 
   data = [
     "data/",
@@ -2485,24 +2463,6 @@ test("content_browsertests") {
       "//build/config/fuchsia/test/network.shard.test-cml",
       "//build/config/fuchsia/test/present_view.shard.test-cml",
       "//third_party/fuchsia-sdk/sdk/pkg/vulkan/client.shard.cml",
-    ]
-  }
-
-  if (!enable_privacy_sandbox_apis) {
-    _filtered_sources = filter_exclude(sources, [
-      "../browser/browsing_topics/*",
-      "../browser/attribution_reporting/*",
-      "../browser/shared_storage/*",
-      "../browser/interest_group/*",
-      "../browser/private_aggregation/*",
-      "../browser/aggregation_service/*",
-    ])
-    sources = []
-    sources = _filtered_sources
-
-    deps -= [
-      "//content/browser/attribution_reporting:mojo_bindings",
-      "//content/browser/attribution_reporting:registration_result_mojom",
     ]
   }
 }
@@ -3416,9 +3376,6 @@ test("content_unittests") {
     deps += [ ":content_nocompile_tests" ]
   }
 
-<<<<<<< HEAD
-  data_deps = [ "//testing/buildbot/filters:content_unittests_filters" ]
-=======
   if (is_cobalt) {
     deps -= [
       "//device/bluetooth",
@@ -3426,11 +3383,7 @@ test("content_unittests") {
     ]
   }
 
-  data_deps = [
-    "//testing/buildbot/filters:content_unittests_filters",
-    "//third_party/mesa_headers",
-  ]
->>>>>>> parent of c5573cc041 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+  data_deps = [ "//testing/buildbot/filters:content_unittests_filters" ]
 
   if (!is_ios) {
     data_deps += [
@@ -3444,7 +3397,7 @@ test("content_unittests") {
   }
 
   # Platforms where sqlite_dev_shell is defined.
-  if ((is_win || is_mac || is_linux || is_chromeos) && enable_privacy_sandbox_apis) {
+  if (is_win || is_mac || is_linux || is_chromeos) {
     sources += [ "../browser/attribution_reporting/attribution_storage_sql_query_plans_unittest.cc" ]
     deps += [ "../browser/attribution_reporting:sqlite_test_utils" ]
   }
@@ -3735,34 +3688,6 @@ test("content_unittests") {
   # TODO(crbug.com/1293538): Update to check is_cast_audio_only
   if (is_castos || is_cast_android) {
     deps += [ "//chromecast:chromecast_buildflags" ]
-  }
-
-  if (!enable_privacy_sandbox_apis) {
-    _filtered_sources = filter_exclude(sources, [
-      "../browser/browsing_topics/*",
-      "../browser/attribution_reporting/*",
-      "../browser/shared_storage/*",
-      "../browser/interest_group/*",
-      "../browser/private_aggregation/*",
-      "../browser/aggregation_service/*",
-      "../public/test/*browsing_topics*",
-      "../public/test/*shared_storage*",
-      "../public/test/*attribution*",
-      "../public/test/*interest_group*",
-      "../public/test/*private_aggregation*",
-      "../public/test/*aggregation_service*",
-      "*test_aggregation_service*",
-    ])
-    sources = []
-    sources = _filtered_sources
-
-    deps -= [
-      "//content/browser/attribution_reporting:attribution_reporting_proto",
-      "//content/browser/attribution_reporting:mojo_bindings",
-      "//content/browser/attribution_reporting:registration_result_mojom",
-      "//content/browser/interest_group:interest_group_proto",
-      "//content/browser/private_aggregation:for_content_tests",
-    ]
   }
 }
 

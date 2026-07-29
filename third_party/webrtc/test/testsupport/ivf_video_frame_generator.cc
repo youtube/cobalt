@@ -18,19 +18,16 @@
 
 #include "absl/strings/string_view.h"
 #include "api/environment/environment.h"
-<<<<<<< HEAD
 #include "api/scoped_refptr.h"
 #include "api/test/frame_generator_interface.h"
 #include "api/units/time_delta.h"
-=======
-#include "build/build_config.h"
->>>>>>> parent of c5573cc041 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #include "api/video/encoded_image.h"
 #include "api/video/i420_buffer.h"
 #include "api/video/video_codec_type.h"
 #include "api/video/video_frame.h"
 #include "api/video/video_frame_buffer.h"
 #include "api/video_codecs/video_decoder.h"
+#include "build/build_config.h"
 #include "modules/video_coding/codecs/av1/dav1d_decoder.h"
 #include "modules/video_coding/codecs/h264/include/h264.h"
 #if !(BUILDFLAG(IS_STARBOARD) || BUILDFLAG(USE_STARBOARD_MEDIA))
@@ -53,9 +50,17 @@ std::unique_ptr<VideoDecoder> CreateDecoder(const Environment& env,
                                             VideoCodecType codec_type) {
   switch (codec_type) {
     case VideoCodecType::kVideoCodecVP8:
+#if !(BUILDFLAG(IS_STARBOARD) || BUILDFLAG(USE_STARBOARD_MEDIA))
       return CreateVp8Decoder(env);
+#else
+      return nullptr;
+#endif
     case VideoCodecType::kVideoCodecVP9:
+#if !(BUILDFLAG(IS_STARBOARD) || BUILDFLAG(USE_STARBOARD_MEDIA))
       return VP9Decoder::Create();
+#else
+      return nullptr;
+#endif
     case VideoCodecType::kVideoCodecH264:
       return H264Decoder::Create();
     case VideoCodecType::kVideoCodecAV1:

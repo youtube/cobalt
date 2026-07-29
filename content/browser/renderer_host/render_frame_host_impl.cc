@@ -100,9 +100,7 @@
 #include "content/browser/guest_page_holder_impl.h"
 #include "content/browser/idle/idle_manager_impl.h"
 #include "content/browser/installedapp/installed_app_provider_impl.h"
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #include "content/browser/interest_group/ad_auction_document_data.h"
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #include "content/browser/loader/file_url_loader_factory.h"
 #include "content/browser/loader/keep_alive_url_loader_service.h"
 #include "content/browser/loader/navigation_early_hints_manager.h"
@@ -9957,7 +9955,6 @@ void RenderFrameHostImpl::SendLegacyTechEvent(
 
 void RenderFrameHostImpl::SendPrivateAggregationRequestsForFencedFrameEvent(
     const std::string& event_type) {
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   if (!base::FeatureList::IsEnabled(blink::features::kPrivateAggregationApi) ||
       !blink::features::kPrivateAggregationApiEnabledInProtectedAudience
            .Get()) {
@@ -10006,7 +10003,6 @@ void RenderFrameHostImpl::SendPrivateAggregationRequestsForFencedFrameEvent(
 
   fenced_frame_properties->fenced_frame_reporter()
       ->SendPrivateAggregationRequestsForEvent(event_type);
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 }
 
 std::vector<FencedFrame*> RenderFrameHostImpl::GetFencedFrames() const {
@@ -14066,11 +14062,7 @@ void RenderFrameHostImpl::CreateDedicatedWorkerHostFactory(
       std::move(receiver));
 }
 
-<<<<<<< HEAD
-#if BUILDFLAG(IS_ANDROID) || (BUILDFLAG(IS_IOS) && !BUILDFLAG(IS_IOS_TVOS))
-=======
-#if BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT)
->>>>>>> parent of c5573cc041 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+#if (BUILDFLAG(IS_ANDROID) || (BUILDFLAG(IS_IOS) && !BUILDFLAG(IS_IOS_TVOS))) && !BUILDFLAG(IS_COBALT)
 void RenderFrameHostImpl::BindNFCReceiver(
     mojo::PendingReceiver<device::mojom::NFC> receiver) {
   delegate_->GetNFC(this, std::move(receiver));
@@ -15418,7 +15410,6 @@ bool RenderFrameHostImpl::DidCommitNavigationInternal(
                 ->GetValueIgnoringVisibility());
       }
 
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
       if (fenced_frame_properties->ad_auction_data().has_value()) {
         AdAuctionDocumentData::CreateForCurrentDocument(
             this,
@@ -15429,7 +15420,6 @@ bool RenderFrameHostImpl::DidCommitNavigationInternal(
                 ->GetValueIgnoringVisibility()
                 .interest_group_name);
       }
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
     }
 
     // Continue observing the events for the committed navigation.

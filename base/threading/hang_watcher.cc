@@ -9,6 +9,7 @@
 #include <utility>
 
 #include "base/containers/flat_map.h"
+#include "base/logging.h"
 #include "base/debug/alias.h"
 #include "base/debug/crash_logging.h"
 #include "base/debug/dump_without_crashing.h"

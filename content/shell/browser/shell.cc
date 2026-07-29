@@ -214,18 +214,10 @@ void Shell::Shutdown() {
   if (quit_loop)
     std::move(quit_loop).Run();
 
-<<<<<<< HEAD
-  // Pump the message loop to allow window teardown tasks to run. On iOS the
-  // run loop is controlled differently and cannot be pumped.
-#if !BUILDFLAG(IS_IOS)
-  base::RunLoop().RunUntilIdle();
-#endif  // !BUILDFLAG(IS_IOS)
-=======
-#if !BUILDFLAG(IS_STARBOARD)
+#if !BUILDFLAG(IS_STARBOARD) && !BUILDFLAG(IS_IOS)
   // Pump the message loop to allow window teardown tasks to run.
   base::RunLoop().RunUntilIdle();
-#endif  // !BUILDFLAG(IS_STARBOARD)
->>>>>>> parent of c5573cc041 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+#endif  // !BUILDFLAG(IS_STARBOARD) && !BUILDFLAG(IS_IOS)
 }
 
 gfx::Size Shell::AdjustWindowSize(const gfx::Size& initial_size) {

@@ -1493,13 +1493,6 @@ BASE_FEATURE(kReduceGpuPriorityOnBackground,
 // it won't work.
 BASE_FEATURE(kUserMediaScreenCapturing,
              "UserMediaScreenCapturing",
-<<<<<<< HEAD
-=======
-
-#if BUILDFLAG(ENABLE_SCREEN_CAPTURE)
-             base::FEATURE_ENABLED_BY_DEFAULT
-#else
->>>>>>> parent of c5573cc041 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
              base::FEATURE_DISABLED_BY_DEFAULT
 );
 

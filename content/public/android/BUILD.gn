@@ -231,10 +231,7 @@ android_library("content_full_java") {
 
   # TODO(b/443992661): Add a GN flag to conditionally disable or enable shape detection.
   if(is_cobalt) {
-    deps -= [
-      "//services/shape_detection:shape_detection_java",
-      "//media/capture/video/android:capture_java",
-    ]
+    deps -= [ "//services/shape_detection:shape_detection_java" ]
   }
   
   srcjar_deps = [
@@ -444,17 +441,16 @@ android_library("content_full_java") {
     "java/src/org/chromium/content_public/browser/selection/SelectionDropdownMenuDelegate.java",
   ]
 
-<<<<<<< HEAD
-  if (enable_screen_capture) {
-    sources += [ "java/src/org/chromium/content_public/browser/media/capture/ScreenCapture.java" ]
-    deps += [ "//third_party/androidx:androidx_activity_activity_java" ]
-=======
   # If in the future privacy sandbox components are removed from the code base, ignore this if block.
   if (!enable_privacy_sandbox_apis) {
     sources -= [
       "java/src/org/chromium/content/browser/AttributionOsLevelManager.java",
     ]
->>>>>>> parent of c5573cc041 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+  }
+
+  if (enable_screen_capture) {
+    sources += [ "java/src/org/chromium/content_public/browser/media/capture/ScreenCapture.java" ]
+    deps += [ "//third_party/androidx:androidx_activity_activity_java" ]
   }
 
   public_deps = [ "//ui/base/mojom:ui_base_types_java" ]
@@ -563,16 +559,15 @@ generate_jni("content_jni_headers") {
     "java/src/org/chromium/content_public/browser/Page.java",
   ]
 
-<<<<<<< HEAD
-  if (enable_screen_capture) {
-    sources += [ "java/src/org/chromium/content_public/browser/media/capture/ScreenCapture.java" ]
-=======
   # If in the future privacy sandbox components are removed from the code base, ignore this if block.
   if (!enable_privacy_sandbox_apis) {
     sources -= [
       "java/src/org/chromium/content/browser/AttributionOsLevelManager.java",
     ]
->>>>>>> parent of c5573cc041 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+  }
+
+  if (enable_screen_capture) {
+    sources += [ "java/src/org/chromium/content_public/browser/media/capture/ScreenCapture.java" ]
   }
 }
 
