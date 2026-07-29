@@ -1,0 +1,20 @@
+load("//bazel:skia_rules.bzl", "skia_cc_library")
+
+package(
+    default_applicable_licenses = ["//:license"],
+)
+
+licenses(["notice"])
+
+# Temporary forwarding target for g3 migration
+
+skia_cc_library(
+    name = "pathops",
+    srcs = [],
+    hdrs = [
+        "//include/pathops:public_hdrs",
+    ],
+    features = ["layering_check"],
+    visibility = ["//visibility:public"],
+    deps = ["//modules/pathops"],
+)
