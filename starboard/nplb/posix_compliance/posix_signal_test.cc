@@ -236,13 +236,13 @@ TEST_F(PosixSignalTest, KillSendsSignalToSelf) {
   struct sigaction sa = {};
   sa.sa_handler = PipeWritingSignalHandler;
   sigemptyset(&sa.sa_mask);
-  ASSERT_EQ(sigaction(SIGUSR1, &sa, nullptr), 0);
+  ASSERT_EQ(sigaction(SIGUSR2, &sa, nullptr), 0);
 
-  ASSERT_EQ(kill(getpid(), SIGUSR1), 0);
+  ASSERT_EQ(kill(getpid(), SIGUSR2), 0);
 
   int received_signal = 0;
   EXPECT_TRUE(WaitForSignalWithTimeout(&received_signal, 1000));
-  EXPECT_EQ(received_signal, SIGUSR1);
+  EXPECT_EQ(received_signal, SIGUSR2);
 }
 
 TEST_F(PosixSignalTest, PauseIsInterruptedBySignal) {
