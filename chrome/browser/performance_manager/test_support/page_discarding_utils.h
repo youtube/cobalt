@@ -103,6 +103,24 @@ class GraphTestHarnessWithMockDiscarder
       user_performance_tuning_manager_environment_;
   raw_ptr<testing::MockPageDiscarder> mock_discarder_;
 };
+
+// Scoped helper object to unconditionally always discard pages in tests, for
+// the duration of the object's life. This object is not nestable.
+class ScopedSetAllPagesDiscardableForTesting {
+ public:
+  ScopedSetAllPagesDiscardableForTesting() {
+    auto* policy = policies::DiscardEligibilityPolicy::GetFromGraph();
+    CHECK(policy);
+    policy->set_always_discard_for_testing(true);
+  }
+
+  ~ScopedSetAllPagesDiscardableForTesting() {
+    auto* policy = policies::DiscardEligibilityPolicy::GetFromGraph();
+    CHECK(policy);
+    policy->set_always_discard_for_testing(false);
+  }
+};
+
 #endif  // !BUILDFLAG(IS_ANDROID)
 
 }  // namespace testing

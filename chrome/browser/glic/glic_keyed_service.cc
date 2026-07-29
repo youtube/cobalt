@@ -51,6 +51,7 @@
 #include "content/public/common/url_constants.h"
 #include "extensions/browser/guest_view/web_view/web_view_guest.h"
 #include "mojo/public/cpp/bindings/callback_helpers.h"
+#include "net/log/net_log_with_source.h"
 #include "third_party/blink/public/common/web_preferences/web_preferences.h"
 #include "ui/base/page_transition_types.h"
 #include "ui/views/widget/widget.h"
@@ -70,6 +71,11 @@ base::TimeDelta GetWarmingDelay() {
   }
   return delay_start;
 }
+
+// TODO(b/421426722): Use net::DefineNetworkTrafficAnnotationTag() to define the
+// annotation, and remove this file from tools/traffic_annotation/safe_list.txt.
+const net::NetworkTrafficAnnotationTag kGlicWebUITrafficAnnotation =
+    MISSING_TRAFFIC_ANNOTATION;
 
 }  // namespace
 
@@ -181,7 +187,9 @@ void GlicKeyedService::CloseUI() {
 void GlicKeyedService::PrepareForOpen() {
   window_controller_->fre_controller()->MaybePreconnect();
 
-  auto* active_web_contents = GetFocusedTabData().focus();
+  auto* active_web_contents = GetFocusedTabData().focus()
+                                  ? GetFocusedTabData().focus()->GetContents()
+                                  : nullptr;
   if (contextual_cueing_service_ && active_web_contents) {
     contextual_cueing_service_
         ->PrepareToFetchContextualGlicZeroStateSuggestions(active_web_contents);
@@ -209,7 +217,9 @@ void GlicKeyedService::FetchZeroStateSuggestions(
     bool is_first_run,
     mojom::WebClientHandler::GetZeroStateSuggestionsForFocusedTabCallback
         callback) {
-  auto* active_web_contents = GetFocusedTabData().focus();
+  auto* active_web_contents = GetFocusedTabData().focus()
+                                  ? GetFocusedTabData().focus()->GetContents()
+                                  : nullptr;
 
   if (contextual_cueing_service_ && active_web_contents && IsWindowShowing()) {
     auto suggestions = mojom::ZeroStateSuggestions::New();
@@ -350,10 +360,16 @@ void GlicKeyedService::GetContextFromFocusedTab(
         std::string("permission denied")));
     return;
   }
-
+  FocusedTabData data = GetFocusedTabData();
+  if (!data.focus()) {
+    std::move(callback).Run(
+        mojom::GetContextResult::NewErrorReason(data.GetFocus().error()));
+    return;
+  }
   metrics_->DidRequestContextFromFocusedTab();
 
-  FetchPageContext(GetFocusedTabData(), options, std::move(callback));
+  FetchPageContext(data.focus(), options,
+                   /*include_actionable_data=*/false, std::move(callback));
 }
 
 void GlicKeyedService::ActInFocusedTab(
@@ -423,8 +439,8 @@ FocusedTabData GlicKeyedService::GetFocusedTabData() {
 
 bool GlicKeyedService::IsContextAccessIndicatorShown(
     const content::WebContents* contents) {
-  return is_context_access_indicator_enabled_ &&
-         GetFocusedTabData().focus() == contents;
+  return is_context_access_indicator_enabled_ && GetFocusedTabData().focus() &&
+         GetFocusedTabData().focus()->GetContents() == contents;
 }
 
 void GlicKeyedService::TryPreload() {
@@ -528,6 +544,21 @@ bool GlicKeyedService::IsProcessHostForGlic(
 
 bool GlicKeyedService::IsGlicWebUi(content::WebContents* web_contents) {
   return host().IsGlicWebUi(web_contents);
+}
+
+void GlicKeyedService::LogDummyNetworkRequestForTrafficAnnotation(
+    const GURL& url) {
+  net::NetLogWithSource net_log =
+      net::NetLogWithSource::Make(net::NetLogSourceType::URL_REQUEST);
+  net_log.AddEvent(net::NetLogEventType::REQUEST_ALIVE, [&]() {
+    base::Value::Dict dict;
+    dict.Set("priority", "IDLE");
+    dict.Set("url", url.spec());
+    dict.Set("traffic_annotation",
+             kGlicWebUITrafficAnnotation.unique_id_hash_code);
+    dict.Set("dummy_request", true);
+    return dict;
+  });
 }
 
 }  // namespace glic

@@ -82,7 +82,11 @@ if (!is_android) {
   source_set("desktop_entrypoint_handlers_helper") {
     sources = [ "desktop_entrypoint_handlers_helper.cc" ]
     public = [ "desktop_entrypoint_handlers_helper.h" ]
-    deps = [ "//chrome/common" ]
+    deps = [
+      "//chrome/browser/search",
+      "//chrome/common",
+      "//extensions/browser",
+    ]
   }
 
   source_set("desktop_view_manager") {
@@ -101,6 +105,7 @@ if (!is_android) {
       ":notice_mojom",
       "//base",
       "//chrome/browser/profiles:profile",
+      "//chrome/browser/sync",
       "//chrome/browser/ui:ui",
       "//chrome/browser/ui/browser_window:browser_window",
       "//chrome/browser/ui/privacy_sandbox:privacy_sandbox",
@@ -215,6 +220,7 @@ source_set("browser_tests") {
     sources += [ "desktop_entrypoint_handlers_browsertest.cc" ]
     deps += [
       ":desktop_view_manager",
+      "//chrome/browser/sync",
       "//chrome/test:test_support_ui",
     ]
   }

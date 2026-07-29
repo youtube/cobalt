@@ -110,11 +110,9 @@ void OffscreenCanvas::Commit(scoped_refptr<CanvasResource>&& canvas_resource,
     return;
   RecordCanvasSizeToUMA();
 
-  base::TimeTicks commit_start_time = base::TimeTicks::Now();
   current_frame_damage_rect_.join(damage_rect);
   GetOrCreateResourceDispatcher()->DispatchFrameSync(
-      std::move(canvas_resource), commit_start_time, current_frame_damage_rect_,
-      IsOpaque());
+      std::move(canvas_resource), current_frame_damage_rect_, IsOpaque());
   current_frame_damage_rect_ = SkIRect::MakeEmpty();
 }
 
@@ -484,7 +482,9 @@ bool OffscreenCanvas::IsAccelerated() const {
   return GetRasterMode() == RasterMode::kGPU;
 }
 
-bool OffscreenCanvas::EnableAcceleration() {
+bool OffscreenCanvas::EnableAccelerationForCanvas2D() {
+  CHECK(IsRenderingContext2D());
+
   // Unlike HTML canvases, offscreen canvases don't automatically shift between
   // CPU and GPU. Instead, we just return true if the canvas exists on GPU, or
   // false if the canvas is CPU-bound. If the canvas' resource provider doesn't
@@ -667,10 +667,8 @@ bool OffscreenCanvas::PushFrame(scoped_refptr<CanvasResource>&& canvas_resource,
   current_frame_damage_rect_.join(damage_rect);
   if (current_frame_damage_rect_.isEmpty() || !canvas_resource)
     return false;
-  const base::TimeTicks commit_start_time = base::TimeTicks::Now();
   GetOrCreateResourceDispatcher()->DispatchFrame(
-      std::move(canvas_resource), commit_start_time, current_frame_damage_rect_,
-      IsOpaque());
+      std::move(canvas_resource), current_frame_damage_rect_, IsOpaque());
   current_frame_damage_rect_ = SkIRect::MakeEmpty();
 
   if (plain_text_painter_ != nullptr) {

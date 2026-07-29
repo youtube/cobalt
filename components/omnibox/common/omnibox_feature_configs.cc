@@ -20,16 +20,6 @@ constexpr auto enabled_by_default_desktop_only =
     base::FEATURE_ENABLED_BY_DEFAULT;
 #endif
 
-BASE_FEATURE(AutocompleteControllerMetricsOptimization::
-                 kAutocompleteControllerMetricsOptimization,
-             "AutocompleteControllerMetricsOptimization",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-AutocompleteControllerMetricsOptimization::
-    AutocompleteControllerMetricsOptimization() {
-  enabled =
-      base::FeatureList::IsEnabled(kAutocompleteControllerMetricsOptimization);
-}
-
 // TODO(manukh): Enabled by default in m120. Clean up 12/5 when after m121
 //   branch cut.
 // static
@@ -106,6 +96,14 @@ BASE_FEATURE(ContextualSearch::kContextualSearchAlternativeActionLabel,
              "ContextualSearchAlternativeActionLabel",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+BASE_FEATURE(ContextualSearch::kUseApcPaywallSignal,
+             "UseApcPaywallSignal",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(ContextualSearch::kShowSuggestionsOnNoApc,
+             "ShowSuggestionsOnNoApc",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 ContextualSearch::ContextualSearch() {
   // Meta-feature turns on/off other features, but only if it's overridden by
   // the user. If not then each feature is controlled separately.
@@ -146,6 +144,9 @@ ContextualSearch::ContextualSearch() {
           .Get();
   show_open_lens_action =
       feature_enabled(kOmniboxContextualSearchOnFocusSuggestions);
+  use_apc_paywall_signal = feature_enabled(kUseApcPaywallSignal);
+  show_suggestions_on_no_apc =
+      base::FeatureList::IsEnabled(kShowSuggestionsOnNoApc);
 }
 
 ContextualSearch::ContextualSearch(const ContextualSearch&) = default;
@@ -165,7 +166,13 @@ BASE_FEATURE(MiaZPS::kOmniboxMiaZPS,
              "OmniboxMiaZPS",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-MiaZPS::MiaZPS() : enabled(base::FeatureList::IsEnabled(kOmniboxMiaZPS)) {}
+MiaZPS::MiaZPS() {
+  enabled = base::FeatureList::IsEnabled(kOmniboxMiaZPS);
+  local_history_non_normalized_contents =
+      base::FeatureParam<bool>(&kOmniboxMiaZPS,
+                               "LocalHistoryNonNormalizedContents", true)
+          .Get();
+}
 
 DocumentProvider::DocumentProvider() {
   enabled = base::FeatureList::IsEnabled(omnibox::kDocumentProvider);
@@ -279,7 +286,7 @@ SearchAggregatorProvider::SearchAggregatorProvider() {
 
   realbox_unscoped_suggestions =
       base::FeatureParam<bool>(&kSearchAggregatorProvider,
-                               "realbox_unscoped_suggestions", false)
+                               "realbox_unscoped_suggestions", true)
           .Get();
 
   scoring_max_matches_created_per_type =
@@ -463,6 +470,10 @@ OmniboxUrlSuggestionsOnFocus::OmniboxUrlSuggestionsOnFocus() {
       base::FeatureParam<int>(&kOmniboxUrlSuggestionsOnFocus,
                               "OnFocusPrefetchDelay", 300)
           .Get();
+  max_requested_urls_from_history =
+      base::FeatureParam<size_t>(&kOmniboxUrlSuggestionsOnFocus,
+                                 "MaxRequestedUrlsFromHistory", 500)
+          .Get();
 }
 
 OmniboxUrlSuggestionsOnFocus::OmniboxUrlSuggestionsOnFocus(
@@ -492,6 +503,14 @@ HappinessTrackingSurveyForOmniboxOnFocusZps::
   survey_delay =
       base::FeatureParam<size_t>(&kHappinessTrackingSurveyForOmniboxOnFocusZps,
                                  "SurveyDelay", 7000)
+          .Get();
+  happiness_trigger_id = base::FeatureParam<std::string>(
+                             &kHappinessTrackingSurveyForOmniboxOnFocusZps,
+                             "HappinessTriggerId", "")
+                             .Get();
+  utility_trigger_id =
+      base::FeatureParam<std::string>(
+          &kHappinessTrackingSurveyForOmniboxOnFocusZps, "UtilityTriggerId", "")
           .Get();
 }
 }  // namespace omnibox_feature_configs

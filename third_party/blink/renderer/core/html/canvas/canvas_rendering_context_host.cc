@@ -139,8 +139,7 @@ CanvasRenderingContextHost::GetOrCreateCanvasResourceProviderImpl() {
     }
     if (!provider) {
       did_fail_to_create_resource_provider_ = true;
-    }
-    if (provider->IsValid()) {
+    } else if (provider->IsValid()) {
       base::UmaHistogramBoolean("Blink.Canvas.ResourceProviderIsAccelerated",
                                 provider->IsAccelerated());
       base::UmaHistogramEnumeration("Blink.Canvas.ResourceProviderType",

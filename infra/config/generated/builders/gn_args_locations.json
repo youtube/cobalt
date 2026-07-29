@@ -89,6 +89,7 @@
     "android-15-x64-fyi-rel": "ci/android-15-x64-fyi-rel/gn-args.json",
     "android-16-x64-fyi-rel": "ci/android-16-x64-fyi-rel/gn-args.json",
     "android-annotator-rel": "ci/android-annotator-rel/gn-args.json",
+    "android-chrome-13-x64-wpt-android-specific": "ci/android-chrome-13-x64-wpt-android-specific/gn-args.json",
     "android-cronet-asan-x86-rel": "ci/android-cronet-asan-x86-rel/gn-args.json",
     "android-pie-x86-fyi-rel": "ci/android-pie-x86-fyi-rel/gn-args.json"
   },
@@ -100,6 +101,9 @@
     "mac-angle-chromium-builder": "ci/mac-angle-chromium-builder/gn-args.json",
     "win-angle-chromium-x64-builder": "ci/win-angle-chromium-x64-builder/gn-args.json",
     "win-angle-chromium-x86-builder": "ci/win-angle-chromium-x86-builder/gn-args.json"
+  },
+  "chromium.bedrock": {
+    "linux-bedrock-browser-metrics": "ci/linux-bedrock-browser-metrics/gn-args.json"
   },
   "chromium.build": {
     "android-build-perf-developer": "build/android-build-perf-developer/gn-args.json",
@@ -319,11 +323,11 @@
     "ios-vm": "ci/ios-vm/gn-args.json",
     "ios-webkit-tot": "ci/ios-webkit-tot/gn-args.json",
     "ios-wpt-fyi-rel": "ci/ios-wpt-fyi-rel/gn-args.json",
-    "ios17-beta-simulator": "ci/ios17-beta-simulator/gn-args.json",
-    "ios17-sdk-simulator": "ci/ios17-sdk-simulator/gn-args.json",
     "ios18-beta-simulator": "ci/ios18-beta-simulator/gn-args.json",
     "ios18-sdk-device": "ci/ios18-sdk-device/gn-args.json",
     "ios18-sdk-simulator": "ci/ios18-sdk-simulator/gn-args.json",
+    "ios19-beta-simulator": "ci/ios19-beta-simulator/gn-args.json",
+    "ios19-sdk-simulator": "ci/ios19-sdk-simulator/gn-args.json",
     "linux-annotator-rel": "ci/linux-annotator-rel/gn-args.json",
     "linux-blink-heap-verification": "ci/linux-blink-heap-verification/gn-args.json",
     "linux-blink-wpt-3pcd-fyi-rel": "ci/linux-blink-wpt-3pcd-fyi-rel/gn-args.json",
@@ -343,6 +347,7 @@
     "mac-perfetto-rel": "ci/mac-perfetto-rel/gn-args.json",
     "mac-vm": "ci/mac-vm/gn-args.json",
     "mac13-wpt-chromium-rel": "ci/mac13-wpt-chromium-rel/gn-args.json",
+    "tvos-rel-fyi": "ci/tvos-rel-fyi/gn-args.json",
     "win-annotator-rel": "ci/win-annotator-rel/gn-args.json",
     "win-fieldtrial-rel": "ci/win-fieldtrial-rel/gn-args.json",
     "win-no-safe-browsing-rel": "ci/win-no-safe-browsing-rel/gn-args.json",
@@ -533,8 +538,6 @@
     "linux-blink-rel": "try/linux-blink-rel/gn-args.json",
     "linux-wpt-chromium-rel": "try/linux-wpt-chromium-rel/gn-args.json",
     "mac-skia-alt-arm64-blink-rel": "try/mac-skia-alt-arm64-blink-rel/gn-args.json",
-    "mac11.0-blink-rel": "try/mac11.0-blink-rel/gn-args.json",
-    "mac11.0.arm64-blink-rel": "try/mac11.0.arm64-blink-rel/gn-args.json",
     "mac12.0-blink-rel": "try/mac12.0-blink-rel/gn-args.json",
     "mac12.0.arm64-blink-rel": "try/mac12.0.arm64-blink-rel/gn-args.json",
     "mac13-blink-rel": "try/mac13-blink-rel/gn-args.json",
@@ -593,6 +596,7 @@
     "android-cast-arm-rel": "try/android-cast-arm-rel/gn-args.json",
     "android-cast-arm64-dbg": "try/android-cast-arm64-dbg/gn-args.json",
     "android-cast-arm64-rel": "try/android-cast-arm64-rel/gn-args.json",
+    "android-chrome-13-x64-wpt-android-specific": "try/android-chrome-13-x64-wpt-android-specific/gn-args.json",
     "android-clobber-rel": "try/android-clobber-rel/gn-args.json",
     "android-code-coverage": "try/android-code-coverage/gn-args.json",
     "android-code-coverage-native": "try/android-code-coverage-native/gn-args.json",
@@ -877,8 +881,6 @@
     "gpu-fyi-try-mac-intel-dbg": "try/gpu-fyi-try-mac-intel-dbg/gn-args.json",
     "gpu-fyi-try-mac-intel-exp": "try/gpu-fyi-try-mac-intel-exp/gn-args.json",
     "gpu-fyi-try-mac-intel-rel": "try/gpu-fyi-try-mac-intel-rel/gn-args.json",
-    "gpu-fyi-try-mac-nvidia-retina-exp": "try/gpu-fyi-try-mac-nvidia-retina-exp/gn-args.json",
-    "gpu-fyi-try-mac-nvidia-retina-rel": "try/gpu-fyi-try-mac-nvidia-retina-rel/gn-args.json",
     "gpu-try-mac-amd-retina-dbg": "try/gpu-try-mac-amd-retina-dbg/gn-args.json",
     "gpu-try-mac-intel-dbg": "try/gpu-try-mac-intel-dbg/gn-args.json",
     "ios-asan": "try/ios-asan/gn-args.json",
@@ -893,10 +895,10 @@
     "ios-simulator-noncq": "try/ios-simulator-noncq/gn-args.json",
     "ios-vm": "try/ios-vm/gn-args.json",
     "ios-wpt-fyi-rel": "try/ios-wpt-fyi-rel/gn-args.json",
-    "ios17-beta-simulator": "try/ios17-beta-simulator/gn-args.json",
-    "ios17-sdk-simulator": "try/ios17-sdk-simulator/gn-args.json",
     "ios18-beta-simulator": "try/ios18-beta-simulator/gn-args.json",
     "ios18-sdk-simulator": "try/ios18-sdk-simulator/gn-args.json",
+    "ios19-beta-simulator": "try/ios19-beta-simulator/gn-args.json",
+    "ios19-sdk-simulator": "try/ios19-sdk-simulator/gn-args.json",
     "mac-arm64-clobber-rel": "try/mac-arm64-clobber-rel/gn-args.json",
     "mac-arm64-on-arm64-rel": "try/mac-arm64-on-arm64-rel/gn-args.json",
     "mac-builder-next": "try/mac-builder-next/gn-args.json",
@@ -925,7 +927,8 @@
     "mac_chromium_compile_dbg_ng": "try/mac_chromium_compile_dbg_ng/gn-args.json",
     "mac_chromium_compile_rel_ng": "try/mac_chromium_compile_rel_ng/gn-args.json",
     "mac_chromium_dbg_ng": "try/mac_chromium_dbg_ng/gn-args.json",
-    "mac_optional_gpu_tests_rel": "try/mac_optional_gpu_tests_rel/gn-args.json"
+    "mac_optional_gpu_tests_rel": "try/mac_optional_gpu_tests_rel/gn-args.json",
+    "tvos-rel-fyi": "try/tvos-rel-fyi/gn-args.json"
   },
   "tryserver.chromium.rust": {
     "android-rust-arm32-rel": "try/android-rust-arm32-rel/gn-args.json",

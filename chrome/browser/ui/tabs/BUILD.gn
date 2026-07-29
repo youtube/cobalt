@@ -74,6 +74,8 @@ if (!is_android) {
   source_set("tab_group") {
     sources = [
       "tab_group_deletion_dialog_controller.h",
+      "tab_group_desktop.h",
+      "tab_group_features.h",
       "tab_group_model.h",
       "tab_group_theme.h",
     ]
@@ -92,6 +94,8 @@ if (!is_android) {
 
     sources = [
       "tab_group_deletion_dialog_controller.cc",
+      "tab_group_desktop.cc",
+      "tab_group_features.cc",
       "tab_group_model.cc",
       "tab_group_theme.cc",
     ]
@@ -106,6 +110,7 @@ if (!is_android) {
       "//chrome/browser/themes",
       "//chrome/browser/ui:browser_element_identifiers",
       "//chrome/browser/ui:ui_features",
+      "//chrome/browser/ui/browser_window:browser_window",
       "//chrome/browser/ui/color:color_headers",
 
       # TODO(370883612): depends on //chrome/browser/ui/tabs instead.
@@ -272,7 +277,6 @@ if (!is_android) {
       "//chrome/browser/ui:browser_list",
       "//chrome/browser/ui/color:color_headers",
       "//chrome/browser/ui/startup:startup_tab",
-      "//chrome/browser/ui/tabs/alert:tab_alert",
       "//components/collaboration/public:public",
       "//components/keyed_service/core",
       "//components/tabs:public",
@@ -341,6 +345,7 @@ if (!is_android) {
       "//chrome/browser/ui/browser_window:browser_window",
       "//chrome/browser/ui/commerce",
       "//chrome/browser/ui/lens",
+      "//chrome/browser/ui/tabs/alert:tab_alert",
       "//chrome/browser/ui/views/intent_picker:intent_picker_page_action",
       "//chrome/browser/ui/views/page_action",
       "//chrome/browser/ui/views/side_panel",
@@ -538,6 +543,7 @@ if (!is_android) {
       ":tab_model",
       ":tabs",
       ":test_support",
+      "tab_strip_api:unit_tests",
       "//base/test:test_support",
       "//chrome/app:command_ids",
       "//chrome/app:generated_resources",
@@ -552,8 +558,6 @@ if (!is_android) {
       "//chrome/browser/ui:ui_features",
       "//chrome/browser/ui/startup:startup_tab",
       "//chrome/browser/ui/tab_contents",
-      "//chrome/browser/ui/tabs/tab_strip_api:tab_strip_api",
-      "//chrome/browser/ui/tabs/tab_strip_api:unit_tests",
       "//chrome/common:non_code_constants",
       "//chrome/test:test_support",
       "//components/commerce/core:account_checker_test_support",

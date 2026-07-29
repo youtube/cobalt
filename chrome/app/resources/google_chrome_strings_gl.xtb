@@ -244,6 +244,7 @@
 <translation id="4050175100176540509">A última versión conta con melloras de seguranza importantes e novas funcións.</translation>
 <translation id="4053720452172726777">Personaliza e controla Google Chrome</translation>
 <translation id="408393047846373801">Para poder acceder aos teus contrasinais e moito máis en todos os teus dispositivos, inicia sesión en Chrome. Despois de iniciar sesión, este contrasinal gardarase na túa Conta de Google.</translation>
+<translation id="409936259433005390">Vas cambiar a Windows 11 dentro de pouco? Descarga o instalador de Chrome en OneDrive para teres todo listo desde o primeiro día.</translation>
 <translation id="4110895483821904099">Configura o teu novo perfil de Chrome</translation>
 <translation id="4111566860456076004">Chrome non pode verificar de onde procede esta extensión, polo que pode non ser segura. Quítaa de Chrome para que deixe de ver e cambiar os teus datos nos sitios que visites, como a túa información persoal.</translation>
 <translation id="4128488089242627000">Chrome execútase máis rápido e as funcións que usen JavaScript deberían funcionar tal como se deseñaron (opción recomendada)</translation>
@@ -317,6 +318,7 @@
 <translation id="4970880042055371251">Versión de Chrome OS</translation>
 <translation id="4990567037958725628">Google Chrome Canary</translation>
 <translation id="5003967926796347400">Fai clic en Xestor de contrasinais de Google</translation>
+<translation id="504867494566807945">Abre ligazóns en Chrome desde calquera aplicación. Ademais, o navegador fíxase na barra de tarefas para que poidas acceder a el facilmente.</translation>
 <translation id="5114340746415930644">Escribe a túa frase de acceso para usar e gardar os datos de Chrome na túa conta (<ph name="USER_EMAIL" />)</translation>
 <translation id="5120334927898581447">Iniciar sesión en Chrome cando inicies sesión noutros servizos de Google</translation>
 <translation id="5126049312684316860">Chrome precargará aínda máis páxinas que é probable que visites para que carguen máis rapidamente cando accedas a elas</translation>
@@ -397,6 +399,7 @@ Google Chrome non pode recuperar a túa configuración.</translation>
 <translation id="6075300983329039771">A túa organización, <ph name="MANAGER" />, esixe que inicies sesión en Chrome</translation>
 <translation id="6113794647360055231">Chrome introduciu melloras</translation>
 <translation id="6116252277240876590">Este é o idioma no que se mostran os menús, as opcións de configuración, as alertas e outros textos en Chrome</translation>
+<translation id="6127237283587442951">Utiliza Chrome de forma predeterminada e fíxao na barra de tarefas</translation>
 <translation id="6134085236017727171">Para usar o micrófono, concédelle acceso a Chrome na <ph name="BEGIN_LINK" />configuración do sistema<ph name="END_LINK" /></translation>
 <translation id="6135456723633883042">Estas pestanas usan recursos adicionais. Para mellorar o rendemento, permite que Chrome as desactive.</translation>
 <translation id="6145313976051292476">Abrir PDF en Chrome</translation>
@@ -511,7 +514,6 @@ Google Chrome non pode recuperar a túa configuración.</translation>
 <translation id="7572537927358445944">Desactivado • Chrome non pode verificar de onde procede esta extensión</translation>
 <translation id="7583399374488819119">Instalador de <ph name="COMPANY_NAME" /></translation>
 <translation id="7606334485649076285">Google Chrome OS Flex</translation>
-<translation id="7626032353295482388">Dámosche a benvida a Chrome</translation>
 <translation id="7626072681686626474"><ph name="MANAGER" /> require que leas e aceptes as seguintes Condicións de servizo antes de utilizar este dispositivo. Estas condicións non amplían, modifican nin limitan as de Google Chrome OS.</translation>
 <translation id="7629695634924605473">Chrome permíteche saber se os teus contrasinais están en risco nalgún momento</translation>
 <translation id="7641148173327520642">A persoa que administra o teu sistema configurou Google Chrome para abrir o navegador <ph name="TARGET_URL_HOSTNAME" /> co obxectivo de acceder a <ph name="ALTERNATIVE_BROWSER_NAME" />.</translation>
@@ -631,6 +633,7 @@ Google Chrome non pode recuperar a túa configuración.</translation>
 <translation id="9090566250983691233">Descubre por que Chrome bloquea algúns ficheiros</translation>
 <translation id="9106236359747881194">Selecciona un texto para buscalo</translation>
 <translation id="911206726377975832">Queres eliminar tamén os teus datos de navegación?</translation>
+<translation id="9134482777260927479">Axuda cos deberes escolares</translation>
 <translation id="9138603949443464873">Para aplicar os cambios, reinicia Chrome</translation>
 <translation id="9148058034647219655">Saír</translation>
 <translation id="9195993889682885387">Chrome pode facer unha estimación dos teus intereses a partir do teu historial de navegación das últimas semanas. Esa información non sae do teu dispositivo.</translation>

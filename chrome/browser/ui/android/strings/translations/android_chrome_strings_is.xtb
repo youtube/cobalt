@@ -375,6 +375,7 @@ Aðeins einstaklingar sem eru með aðgangsorðið þitt geta lesið dulkóðuð
 <translation id="2718352093833049315">Aðeins um Wi-Fi</translation>
 <translation id="2718846868787000099">Vefsvæðin sem þú opnar geta séð kjörstillingarnar þínar til að sýna þér efni á þeim tungumálum sem þú hefur valið.</translation>
 <translation id="2723001399770238859">hljóð</translation>
+<translation id="2734335652257251631">Sýna lesstillingu</translation>
 <translation id="2739887572830526131">Haltu flipahópnum ef þú vilt bæta flipum við síðar eða eyddu honum ef þú hefur ekki þörf fyrir hann lengur.</translation>
 <translation id="2742373789128106053"><ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /> er ekki í boði eins og er.</translation>
 <translation id="2760805590727089264">MM / ÁÁ</translation>
@@ -928,6 +929,7 @@ Google reikningurinn þinn kann að vera með annars konar vefskoðunarferil, sv
 <translation id="5233638681132016545">Nýr flipi</translation>
 <translation id="5235196193381275927">Eitthvað fór úrskeiðis við innskráningu</translation>
 <translation id="5246093389635966745">Breyta flýtileið tækjastiku</translation>
+<translation id="5252768492075585080">Stillingar fótspora þriðja aðila</translation>
 <translation id="5264813352784073502">síðustu 48 klst.</translation>
 <translation id="5267572070504076962">Kveiktu á öruggri vefskoðun til að verjast hættulegum vefsvæðum</translation>
 <translation id="5271967389191913893">Tækið getur ekki opnað efnið sem á að sækja.</translation>
@@ -1398,6 +1400,7 @@ Til að breyta þessari stillingu skaltu <ph name="BEGIN_LINK" />eyða Chrome-g�
 <translation id="7237724030342645845">Google-aðgangsorðastjórnun hætti að virka</translation>
 <translation id="72415438529550637">Tillögu að aðgangsorði lokað.</translation>
 <translation id="7248671827512403053">Forrit</translation>
+<translation id="7253951228444156601">Athugar aðgangsorð…</translation>
 <translation id="7260367682327802201">Hugsanlega er svipuð stilling í Android-tækinu þínu. Ef kveikt er á auglýsingamælingum í Chrome og Android-tækinu þínu getur fyrirtæki hugsanlega mælt árangur auglýsingar á vefsvæðum sem þú heimsækir og í forritum sem þú notar.</translation>
 <translation id="727288900855680735">Senda <ph name="ONE_TIME_CODE" /> til <ph name="ORIGIN" />?</translation>
 <translation id="7274013316676448362">Vefsvæði á bannlista</translation>
@@ -1439,6 +1442,7 @@ Til að breyta þessari stillingu skaltu <ph name="BEGIN_LINK" />eyða Chrome-g�
 <translation id="7431991332293347422">Stjórnaðu því hvernig vefskoðunarferillinn þinn er notaður til að sérsníða leit og fleira</translation>
 <translation id="7435356471928173109">Kerfisstjórinn slökkti á þessu</translation>
 <translation id="7437998757836447326">Skrá út af Chrome</translation>
+<translation id="7439467816829380878">Flytja flipa í hóp</translation>
 <translation id="7453810262525006706">Draga saman í hliðarglugga</translation>
 <translation id="7454641608352164238">Ekki nægt pláss</translation>
 <translation id="7454744349230173024">Fyrirtækið þitt slökkti á eiginleikanum til að vista aðgangsorð</translation>
@@ -1531,6 +1535,7 @@ Til að breyta þessari stillingu skaltu <ph name="BEGIN_LINK" />eyða Chrome-g�
 <translation id="7810647596859435254">Opna með…</translation>
 <translation id="7814066895362068701">{FILE_COUNT,plural, =1{Allar skrár, 1 skrá á lista}one{Allar skrár, # skrá á lista}other{Allar skrár, # skrár á lista}}</translation>
 <translation id="7815484226266492798">Löng skjámynd</translation>
+<translation id="7815680994978050279">Lokað á hættulegt niðurhal</translation>
 <translation id="7819605256207059717">Fyrirtækið setti á bannlista</translation>
 <translation id="7821130663268546430">Þú finnur alla opna flipa í flipavalinu</translation>
 <translation id="7822705602465980873">Þegar þú ert innskráð(ur) eru þessi gögn tengd við Google-reikninginn þinn til að vernda þig í Google-þjónustum, t.d. með því að auka vernd í Gmail eftir öryggistilvik.</translation>
@@ -1744,6 +1749,7 @@ Til að breyta þessari stillingu skaltu <ph name="BEGIN_LINK" />eyða Chrome-g�
 <translation id="8676789164135894283">Innskráningarstaðfestingar</translation>
 <translation id="8683039184091909753">mynd</translation>
 <translation id="8688183792442786085">Valinn flipi: <ph name="TAB_TITLE" /></translation>
+<translation id="8693232767599693749">Sjá lesstillingu?</translation>
 <translation id="8697753151306746444">Deildu glugga eða skjá í staðinn</translation>
 <translation id="869891660844655955">Lokadagsetning</translation>
 <translation id="8699120352855309748">Ekki bjóða upp á að þýða þessi tungumál</translation>
@@ -1813,6 +1819,7 @@ Til að breyta þessari stillingu skaltu <ph name="BEGIN_LINK" />eyða Chrome-g�
 <translation id="9019199799064251516">Halda áfram án þess að nota prófíllás bílsins?</translation>
 <translation id="9022774213089566801">Oft skoðað</translation>
 <translation id="9022871169049522985">Vefsvæði og auglýsendur geta mælt árangur auglýsinga sinna</translation>
+<translation id="9027728231343310283">Afturkalla <ph name="SITE" /></translation>
 <translation id="9035378196785279980">Flytja í\u2026</translation>
 <translation id="9042893549633094279">Persónuvernd og öryggi</translation>
 <translation id="9047347135558855162">Leitaðu í Chrome í einum grænum</translation>

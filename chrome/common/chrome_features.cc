@@ -328,7 +328,7 @@ BASE_FEATURE(kForcedAppRelaunchOnPlaceholderUpdate,
 BASE_FEATURE(kGeoLanguage, "GeoLanguage", base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Controls whether the actor component of Glic is enabled.
-BASE_FEATURE(kGlicActor, "GlicActor", base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kGlicActor, "GlicActor", base::FEATURE_ENABLED_BY_DEFAULT);
 const base::FeatureParam<base::TimeDelta> kGlicActorActorObservationDelay{
     &kGlicActor, "glic-actor-observation-delay", base::Seconds(3)};
 
@@ -581,6 +581,12 @@ BASE_FEATURE(kGlicApiActivationGating,
 BASE_FEATURE(kGlicGetUserProfileInfoApiActivationGating,
              "GlicGetUserProfileInfoApiActivationGating",
              base::FEATURE_ENABLED_BY_DEFAULT);
+
+// When enabled, don't try to update the views background color based on the
+// glic client background color.
+BASE_FEATURE(kGlicExplicitBackgroundColor,
+             "GlicExplicitBackgroundColor",
+             base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(ENABLE_GLIC)
 
 // Force Privacy Guide to be available even if it would be unavailable
@@ -1141,7 +1147,7 @@ BASE_FEATURE(kRemoveSupervisedUsersOnStartup,
              base::FEATURE_DISABLED_BY_DEFAULT);
 #endif
 
-#if BUILDFLAG(ENABLE_EXTENSIONS)
+#if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
 BASE_FEATURE(kSafetyHubExtensionsUwSTrigger,
              "SafetyHubExtensionsUwSTrigger",
              base::FEATURE_ENABLED_BY_DEFAULT);
