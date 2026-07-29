@@ -2485,11 +2485,9 @@ void StoragePartitionImpl::OnAdAuctionEventRecordHeaderReceived(
       top_frame_origin, std::move(event_record));
 }
 
-#if BUILDFLAG(IS_MAC)
 bool StoragePartitionImpl::IsStorageServiceRemoteValid() const {
   return GetStorageServiceRemoteStorage().is_bound();
 }
-#endif  // BUILDFLAG(IS_MAC)
 
 void StoragePartitionImpl::Clone(
     mojo::PendingReceiver<network::mojom::URLLoaderNetworkServiceObserver>
@@ -3060,7 +3058,6 @@ void StoragePartitionImpl::DataDeletionHelper::ClearDataOnUIThread(
 #endif  // BUILDFLAG(ENABLE_LIBRARY_CDMS)
 
   if (remove_mask_ & REMOVE_DATA_MASK_INDEXEDDB ||
-      remove_mask_ & REMOVE_DATA_MASK_WEBSQL ||
       remove_mask_ & REMOVE_DATA_MASK_FILE_SYSTEMS ||
       remove_mask_ & REMOVE_DATA_MASK_SERVICE_WORKERS ||
       remove_mask_ & REMOVE_DATA_MASK_CACHE_STORAGE) {

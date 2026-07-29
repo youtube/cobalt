@@ -4,6 +4,8 @@
 
 #include "net/filter/brotli_source_stream.h"
 
+#include <stdint.h>
+
 #include <string>
 #include <string_view>
 #include <utility>
@@ -18,6 +20,7 @@
 #include "base/memory/scoped_refptr.h"
 #include "base/path_service.h"
 #include "base/run_loop.h"
+#include "base/strings/string_view_util.h"
 #include "net/base/io_buffer.h"
 #include "net/base/test_completion_callback.h"
 #include "net/filter/mock_source_stream.h"
@@ -68,12 +71,11 @@ class BrotliSourceStreamTest : public PlatformTest {
   }
 
   int ReadStream(net::CompletionOnceCallback callback) {
-    return brotli_stream_->Read(out_buffer().get(), out_data_size(),
+    return brotli_stream_->Read(out_buffer_.get(), out_buffer_->size(),
                                 std::move(callback));
   }
 
-  char* out_data() { return out_buffer()->data(); }
-  size_t out_data_size() { return out_buffer()->size(); }
+  base::span<const uint8_t> out_span() const { return out_buffer_->span(); }
 
   std::string source_data() { return source_data_; }
 
@@ -108,7 +110,7 @@ TEST_F(BrotliSourceStreamTest, DecodeBrotliOneBlockSync) {
 
   EXPECT_EQ(static_cast<int>(source_data_len()), bytes_read);
   EXPECT_EQ(source_data(),
-            base::as_string_view(out_buffer()->first(source_data_len())));
+            base::as_string_view(out_span().first(source_data_len())));
   EXPECT_EQ("BROTLI", brotli_stream()->Description());
 }
 
@@ -142,7 +144,8 @@ TEST_F(BrotliSourceStreamTest, IgnoreExtraDataInOneRead) {
     if (bytes_read == OK)
       break;
     ASSERT_GT(bytes_read, OK);
-    actual_output.append(out_data(), bytes_read);
+    actual_output.append(base::as_string_view(
+        out_span().first(static_cast<size_t>(bytes_read))));
   }
   EXPECT_EQ(source_data_len(), actual_output.size());
   EXPECT_EQ(source_data(), actual_output);
@@ -164,7 +167,8 @@ TEST_F(BrotliSourceStreamTest, IgnoreExtraDataInDifferentRead) {
     if (bytes_read == OK)
       break;
     ASSERT_GT(bytes_read, OK);
-    actual_output.append(out_data(), bytes_read);
+    actual_output.append(base::as_string_view(
+        out_span().first(static_cast<size_t>(bytes_read))));
   }
   EXPECT_EQ(source_data_len(), actual_output.size());
   EXPECT_EQ(source_data(), actual_output);
@@ -181,7 +185,7 @@ TEST_F(BrotliSourceStreamTest, DecodeBrotliTwoBlockSync) {
   int bytes_read = ReadStream(callback.callback());
   EXPECT_EQ(static_cast<int>(source_data_len()), bytes_read);
   EXPECT_EQ(source_data(),
-            base::as_string_view(out_buffer()->first(source_data_len())));
+            base::as_string_view(out_span().first(source_data_len())));
   EXPECT_EQ("BROTLI", brotli_stream()->Description());
 }
 
@@ -196,7 +200,7 @@ TEST_F(BrotliSourceStreamTest, DecodeBrotliOneBlockAsync) {
   int rv = callback.WaitForResult();
   EXPECT_EQ(static_cast<int>(source_data_len()), rv);
   EXPECT_EQ(source_data(),
-            base::as_string_view(out_buffer()->first(source_data_len())));
+            base::as_string_view(out_span().first(source_data_len())));
   EXPECT_EQ("BROTLI", brotli_stream()->Description());
 }
 
@@ -218,7 +222,8 @@ TEST_F(BrotliSourceStreamTest, DecodeWithSmallBufferSync) {
     bytes_read = ReadStream(callback.callback());
     EXPECT_LE(OK, bytes_read);
     EXPECT_GE(kSmallBufferSize, static_cast<size_t>(bytes_read));
-    decoded_result.append(out_data(), static_cast<size_t>(bytes_read));
+    decoded_result.append(base::as_string_view(
+        out_span().first(static_cast<size_t>(bytes_read))));
   } while (bytes_read > 0);
   EXPECT_EQ(source_data_len(), decoded_result.size());
   EXPECT_EQ(source_data(), decoded_result);
@@ -246,7 +251,8 @@ TEST_F(BrotliSourceStreamTest, DecodeWithSmallBufferAsync) {
       bytes_read = callback.WaitForResult();
     }
     EXPECT_GE(static_cast<int>(kSmallBufferSize), bytes_read);
-    decoded_result.append(out_data(), static_cast<size_t>(bytes_read));
+    decoded_result.append(base::as_string_view(
+        out_span().first(static_cast<size_t>(bytes_read))));
   } while (bytes_read > 0);
   EXPECT_EQ(source_data_len(), decoded_result.size());
   EXPECT_EQ(source_data(), decoded_result);
@@ -270,7 +276,8 @@ TEST_F(BrotliSourceStreamTest, DecodeWithOneByteBuffer) {
     EXPECT_NE(ERR_IO_PENDING, bytes_read);
     EXPECT_GE(bytes_read, 0);
     EXPECT_LE(bytes_read, 1);
-    decoded_result.append(out_data(), static_cast<size_t>(bytes_read));
+    decoded_result.append(base::as_string_view(
+        out_span().first(static_cast<size_t>(bytes_read))));
   } while (bytes_read > 0);
   EXPECT_EQ(source_data_len(), decoded_result.size());
   EXPECT_EQ(source_data(), decoded_result);

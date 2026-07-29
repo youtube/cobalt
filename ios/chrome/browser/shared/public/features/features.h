@@ -1073,10 +1073,20 @@ bool IsManualUploadForBestOfAppEnabled();
 // Whether the Lens Interactive Promo variant of `kBestOfAppFRE` is enabled.
 bool IsBestOfAppLensInteractivePromoEnabled();
 
+// Whether the Lens Animated Promo variant of `kBestOfAppFRE` is enabled.
+bool IsBestOfAppLensAnimatedPromoEnabled();
+
 // Feature flag to include GWS variations in feedback.
 BASE_DECLARE_FEATURE(kFeedbackIncludeGWSVariations);
 
 // Whether the feature to include GWS variations in feedback is enabled.
 bool IsFeedbackIncludeGWSVariationsEnabled();
+
+// Feature flag enabling checking a propensity model before showing a default
+// browser promo.
+BASE_DECLARE_FEATURE(kDefaultBrowserPromoPropensityModel);
+
+// Whether the `kDefaultBrowserPromoPropensityModel` feature is enabled.
+bool IsDefaultBrowserPromoPropensityModelEnabled();
 
 #endif  // IOS_CHROME_BROWSER_SHARED_PUBLIC_FEATURES_FEATURES_H_

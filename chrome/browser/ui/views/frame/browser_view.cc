@@ -435,22 +435,6 @@ void CheckFocusListForCycles(views::View* const start_view) {
 
 #endif  // DCHECK_IS_ON()
 
-void MaybeResetStoredFocusForWebContents(content::WebContents* web_contents) {
-  // In the case that the last focused view of the WebContents is a
-  // ContentsWebView, but not the ContentsWebView hosting the WebContents
-  // itself, we must reset the stored focus to prevent incorrect split-tab
-  // activation behavior when the split-view is swapped in during a tab switch.
-  ChromeWebContentsViewFocusHelper* focus_helper =
-      ChromeWebContentsViewFocusHelper::FromWebContents(web_contents);
-  if (focus_helper) {
-    ContentsWebView* focused_view =
-        views::AsViewClass<ContentsWebView>(focus_helper->GetStoredFocus());
-    if (focused_view && focused_view->web_contents() != web_contents) {
-      focus_helper->ResetStoredFocus();
-    }
-  }
-}
-
 bool GetGestureCommand(ui::GestureEvent* event, int* command) {
   DCHECK(command);
   *command = 0;
@@ -1041,6 +1025,7 @@ BrowserView::BrowserView(std::unique_ptr<Browser> browser)
   if (GetIsWebAppType()) {
     web_app_frame_toolbar_ = top_container_->AddChildView(
         std::make_unique<WebAppFrameToolbarView>(this));
+    top_container_->set_web_app_frame_toolbar(web_app_frame_toolbar_);
     if (ShouldShowWindowTitle()) {
       web_app_window_title_ = top_container_->AddChildView(
           std::make_unique<views::Label>(GetWindowTitle()));
@@ -1097,6 +1082,11 @@ BrowserView::BrowserView(std::unique_ptr<Browser> browser)
 
   if (base::FeatureList::IsEnabled(ntp_features::kNtpFooter) &&
       !base::FeatureList::IsEnabled(features::kSideBySide)) {
+    new_tab_footer_web_view_separator_ =
+        contents_container->AddChildView(std::make_unique<ContentsSeparator>());
+    new_tab_footer_web_view_separator_->SetProperty(
+        views::kElementIdentifierKey, kFooterWebViewSeparatorElementId);
+
     new_tab_footer_web_view_ =
         contents_container->AddChildView(std::move(new_tab_footer_web_view));
   }
@@ -1141,12 +1131,12 @@ BrowserView::BrowserView(std::unique_ptr<Browser> browser)
   contents_container->SetLayoutManager(std::make_unique<ContentsLayoutManager>(
       devtools_web_view_, devtools_scrim_view_, contents_view,
       lens_overlay_view_, contents_scrim_view_, glic_border_, watermark_view_,
-      new_tab_footer_web_view_));
+      new_tab_footer_web_view_separator_, new_tab_footer_web_view_));
 #else
   contents_container->SetLayoutManager(std::make_unique<ContentsLayoutManager>(
       devtools_web_view_, devtools_scrim_view_, contents_view,
       lens_overlay_view_, contents_scrim_view_, nullptr, watermark_view_,
-      new_tab_footer_web_view_));
+      new_tab_footer_web_view_separator_, new_tab_footer_web_view_));
 #endif
 
   toolbar_ = top_container_->AddChildView(
@@ -1287,6 +1277,7 @@ BrowserView::~BrowserView() {
   watermark_view_ = nullptr;
   glic_border_ = nullptr;
   new_tab_footer_web_view_ = nullptr;
+  new_tab_footer_web_view_separator_ = nullptr;
   contents_container_ = nullptr;
   unified_side_panel_ = nullptr;
   right_aligned_side_panel_separator_ = nullptr;
@@ -1663,6 +1654,25 @@ void BrowserView::ActivateWebContents(content::WebContents* web_contents) {
       browser_->tab_strip_model()->GetIndexOfWebContents(web_contents);
   if (tab_index != TabStripModel::kNoTab) {
     browser_->tab_strip_model()->ActivateTabAt(tab_index);
+  }
+}
+
+void BrowserView::MaybeUpdateStoredFocusForWebContents(
+    content::WebContents* web_contents) {
+  ChromeWebContentsViewFocusHelper* focus_helper =
+      ChromeWebContentsViewFocusHelper::FromWebContents(web_contents);
+  if (!focus_helper) {
+    return;
+  }
+
+  // In the case that the last focused view of the WebContents is a
+  // ContentsWebView, but not the ContentsWebView hosting the WebContents
+  // itself, we must reset the stored focus to prevent incorrect tab
+  // activation behavior when the split view is swapped in during a tab switch.
+  ContentsWebView* focused_view =
+      views::AsViewClass<ContentsWebView>(focus_helper->GetStoredFocus());
+  if (focused_view && focused_view->web_contents() != web_contents) {
+    focus_helper->SetStoredFocusView(GetContentsView());
   }
 }
 
@@ -2195,7 +2205,6 @@ void BrowserView::OnActiveTabChanged(content::WebContents* old_contents,
         multi_contents_view_->GetActiveContentsView()->SetWebContents(
             new_contents);
       }
-      MaybeResetStoredFocusForWebContents(new_contents);
     } else {
       active_contents_view->SetWebContents(new_contents);
     }
@@ -2212,10 +2221,17 @@ void BrowserView::OnActiveTabChanged(content::WebContents* old_contents,
     UpdateActiveTabInSplitView();
   }
 
+  MaybeUpdateStoredFocusForWebContents(new_contents);
+
   if (will_restore_focus) {
     // We only restore focus if our window is visible, to avoid invoking blur
     // handlers when we are eventually shown.
     new_contents->RestoreFocus();
+  } else if (!GetWidget()->IsActive()) {
+    // When the window is inactive during tab switch, restore focus for the
+    // active web content on activation.
+    GetFocusManager()->SetStoredFocusView(nullptr);
+    restore_focus_on_activation_ = true;
   }
 
   // Update all the UI bits.

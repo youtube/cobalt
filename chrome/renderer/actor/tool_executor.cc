@@ -9,10 +9,13 @@
 
 #include "base/functional/callback.h"
 #include "base/memory/ptr_util.h"
+#include "base/notreached.h"
+#include "base/task/sequenced_task_runner.h"
 #include "chrome/common/actor.mojom.h"
-#include "chrome/common/actor/actor_logging.h"
+#include "chrome/common/actor/action_result.h"
 #include "chrome/renderer/actor/click_tool.h"
 #include "chrome/renderer/actor/drag_and_release_tool.h"
+#include "chrome/renderer/actor/journal.h"
 #include "chrome/renderer/actor/mouse_move_tool.h"
 #include "chrome/renderer/actor/scroll_tool.h"
 #include "chrome/renderer/actor/select_tool.h"
@@ -25,67 +28,79 @@ using content::RenderFrame;
 
 namespace actor {
 
-ToolExecutor::ToolExecutor(RenderFrame* frame) : frame_(*frame) {}
+ToolExecutor::ToolExecutor(RenderFrame* frame, Journal& journal)
+    : frame_(*frame), journal_(journal) {}
 
 ToolExecutor::~ToolExecutor() = default;
 
 void ToolExecutor::InvokeTool(mojom::ToolInvocationPtr request,
                               ToolExecutorCallback callback) {
-  CHECK(!tool_);
+  CHECK(!completion_callback_);
+  std::unique_ptr<ToolBase> tool;
   switch (request->action->which()) {
     case actor::mojom::ToolAction::Tag::kClick: {
       // Check the mojom we received is in good shape.
       CHECK(request->action->get_click());
-      tool_ = std::make_unique<ClickTool>(
-          std::move(request->action->get_click()), frame_.get());
+      tool = std::make_unique<ClickTool>(
+          frame_.get(), request->task_id, journal_.get(),
+          std::move(request->action->get_click()));
       break;
     }
     case actor::mojom::ToolAction::Tag::kMouseMove: {
       CHECK(request->action->get_mouse_move());
-      tool_ = std::make_unique<MouseMoveTool>(
-          std::move(request->action->get_mouse_move()), frame_.get());
+      tool = std::make_unique<MouseMoveTool>(
+          frame_.get(), request->task_id, journal_.get(),
+          std::move(request->action->get_mouse_move()));
       break;
     }
     case actor::mojom::ToolAction::Tag::kType: {
       CHECK(request->action->get_type());
-      tool_ = std::make_unique<TypeTool>(std::move(request->action->get_type()),
-                                         frame_.get());
+      tool = std::make_unique<TypeTool>(frame_.get(), request->task_id,
+                                        journal_.get(),
+                                        std::move(request->action->get_type()));
       break;
     }
     case actor::mojom::ToolAction::Tag::kScroll: {
       CHECK(request->action->get_scroll());
-      tool_ = std::make_unique<ScrollTool>(
-          std::move(request->action->get_scroll()), frame_.get());
+      tool = std::make_unique<ScrollTool>(
+          frame_.get(), request->task_id, journal_.get(),
+          std::move(request->action->get_scroll()));
       break;
     }
     case actor::mojom::ToolAction::Tag::kSelect: {
       CHECK(request->action->get_select());
-      tool_ = std::make_unique<SelectTool>(
-          std::move(request->action->get_select()), frame_.get());
+      tool = std::make_unique<SelectTool>(
+          frame_.get(), request->task_id, journal_.get(),
+          std::move(request->action->get_select()));
       break;
     }
     case actor::mojom::ToolAction::Tag::kDragAndRelease: {
       CHECK(request->action->get_drag_and_release());
-      tool_ = std::make_unique<DragAndReleaseTool>(
-          std::move(request->action->get_drag_and_release()), frame_.get());
+      tool = std::make_unique<DragAndReleaseTool>(
+          frame_.get(), request->task_id, journal_.get(),
+          std::move(request->action->get_drag_and_release()));
       break;
     }
+    default:
+      NOTREACHED();
   }
 
-  ACTOR_LOG() << "Renderer InvokeTool: " << tool_->DebugString();
+  journal_->Log(request->task_id, "Renderer InvokeTool", tool->DebugString());
 
-  // It's safe to use base::Unretained as tool_ is owned by this object and
-  // tool_ has its own weak factory to manage the callback.
-  tool_->Execute(base::BindOnce(&ToolExecutor::ToolFinished,
-                                base::Unretained(this), std::move(callback)));
+  completion_callback_ = std::move(callback);
+
+  page_stability_monitor_ =
+      std::make_unique<PageStabilityMonitor>(frame_.get());
+
+  mojom::ActionResultPtr result = tool->Execute();
+
+  page_stability_monitor_->WaitForStable(base::BindOnce(
+      &ToolExecutor::ToolFinished, base::Unretained(this), std::move(result)));
 }
 
-void ToolExecutor::ToolFinished(ToolExecutorCallback callback,
-                                mojom::ActionResultPtr result) {
-  CHECK(tool_);
-  // Release current tool so we can accept a new tool invocation.
-  tool_.reset();
-  std::move(callback).Run(std::move(result));
+void ToolExecutor::ToolFinished(mojom::ActionResultPtr result) {
+  CHECK(completion_callback_);
+  std::move(completion_callback_).Run(std::move(result));
 }
 
 }  // namespace actor

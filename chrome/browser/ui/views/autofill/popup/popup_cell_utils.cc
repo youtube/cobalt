@@ -19,6 +19,7 @@
 #include "base/strings/string_util.h"
 #include "base/time/time.h"
 #include "build/branding_buildflags.h"
+#include "cc/paint/skia_paint_canvas.h"
 #include "chrome/app/vector_icons/vector_icons.h"
 #include "chrome/browser/ui/passwords/ui_utils.h"
 #include "chrome/browser/ui/views/autofill/payments/payments_view_util.h"
@@ -28,6 +29,7 @@
 #include "chrome/browser/ui/views/autofill/popup/popup_view_utils.h"
 #include "chrome/browser/ui/views/chrome_layout_provider.h"
 #include "chrome/browser/ui/webid/identity_ui_utils.h"
+#include "chrome/grit/platform_locale_settings.h"
 #include "components/autofill/core/browser/filling/filling_product.h"
 #include "components/autofill/core/browser/suggestions/suggestion.h"
 #include "components/autofill/core/browser/suggestions/suggestion_type.h"
@@ -41,7 +43,9 @@
 #include "ui/base/resource/resource_bundle.h"
 #include "ui/color/color_id.h"
 #include "ui/color/color_provider_manager.h"
+#include "ui/gfx/canvas.h"
 #include "ui/gfx/geometry/size.h"
+#include "ui/gfx/monogram_utils.h"
 #include "ui/gfx/paint_vector_icon.h"
 #include "ui/views/border.h"
 #include "ui/views/controls/image_view.h"
@@ -92,6 +96,15 @@ constexpr int kGooglePasswordManagerIconSize = 20;
 // Metric to measure the duration of getting the image for the Autofill pop-up.
 constexpr char kHistogramGetImageViewByName[] =
     "Autofill.PopupGetImageViewTime";
+
+// The monochrome icon size used when rendering letter monochrome icons.
+constexpr int kMonochromeIconSize = 24;
+
+// The background color of the letter monochrome icons.
+constexpr SkColor kMonochromeIconBgColor = SkColorSetARGB(255, 237, 242, 250);
+
+// The text color of the letter monochrome icons.
+constexpr SkColor kMonochromeIconTextColor = SkColorSetARGB(255, 71, 71, 71);
 
 // Returns the name of the network for payment method icons, empty string
 // otherwise.
@@ -155,6 +168,8 @@ std::u16string GetIconAccessibleName(Suggestion::Icon icon) {
     case Suggestion::Icon::kOfferTag:
     case Suggestion::Icon::kPenSpark:
     case Suggestion::Icon::kPlusAddress:
+    case Suggestion::Icon::kQuestionMark:
+    case Suggestion::Icon::kRecoveryPassword:
     case Suggestion::Icon::kSaveAndFill:
     case Suggestion::Icon::kScanCreditCard:
     case Suggestion::Icon::kSettings:
@@ -200,7 +215,7 @@ std::unique_ptr<views::TableLayoutView> CreateSuggestionContentTable(
     std::vector<std::unique_ptr<views::View>> minor_text_labels,
     std::unique_ptr<views::Label> description_label,
     std::vector<std::unique_ptr<views::View>> subtext_views) {
-  const bool kHasTwoColumns = !!description_label;
+  const bool has_two_columns = !!description_label;
   auto table =
       views::Builder<views::TableLayoutView>()
           .AddColumn(views::LayoutAlignment::kStart,
@@ -208,7 +223,7 @@ std::unique_ptr<views::TableLayoutView> CreateSuggestionContentTable(
                      views::TableLayout::kFixedSize,
                      views::TableLayout::ColumnSize::kUsePreferred, 0, 0)
           .Build();
-  if (kHasTwoColumns) {
+  if (has_two_columns) {
     const int kDividerSpacing = ChromeLayoutProvider::Get()->GetDistanceMetric(
         DISTANCE_RELATED_LABEL_HORIZONTAL_LIST);
     table->AddPaddingColumn(views::TableLayout::kFixedSize, kDividerSpacing);
@@ -244,16 +259,15 @@ std::unique_ptr<views::TableLayoutView> CreateSuggestionContentTable(
   }
 
   // The description goes into the first row, second column.
-  if (kHasTwoColumns) {
-    table->AddChildView(description_label ? std::move(description_label)
-                                          : std::make_unique<views::View>());
+  if (has_two_columns) {
+    table->AddChildView(std::move(description_label));
   }
 
   // Every subtext label goes into an additional row.
   for (std::unique_ptr<views::View>& subtext_view : subtext_views) {
     table->AddPaddingRow(0, kAdjacentLabelsVerticalSpacing).AddRows(1, 0);
     table->AddChildView(std::move(subtext_view));
-    if (kHasTwoColumns) {
+    if (has_two_columns) {
       table->AddChildView(std::make_unique<views::View>());
     }
   }
@@ -344,6 +358,12 @@ std::optional<ui::ImageModel> GetIconImageModelFromIcon(Suggestion::Icon icon) {
 #else
       return ImageModelFromVectorIcon(vector_icons::kEmailIcon, kIconSize);
 #endif
+    case Suggestion::Icon::kQuestionMark:
+      return ImageModelFromVectorIcon(vector_icons::kHelpOutlineIcon,
+                                      kIconSize);
+    case Suggestion::Icon::kRecoveryPassword:
+      return ImageModelFromVectorIcon(vector_icons::kHistoryChromeRefreshIcon,
+                                      kIconSize);
     case Suggestion::Icon::kSaveAndFill:
       return ImageModelFromVectorIcon(kCreditCardIcon, kIconSize);
     case Suggestion::Icon::kSettings:
@@ -443,16 +463,34 @@ std::u16string GetVoiceOverStringFromSuggestion(const Suggestion& suggestion) {
 std::unique_ptr<views::ImageView> GetIconImageView(
     const Suggestion& suggestion) {
   base::TimeTicks start_time = base::TimeTicks::Now();
-
-  if (auto* icon = std::get_if<gfx::Image>(&suggestion.custom_icon);
-      icon && !icon->IsEmpty()) {
-    gfx::ImageSkia image = icon->AsImageSkia();
+  // Check that icon and custom_icon are not set at the same time.
+  CHECK(!(suggestion.icon != Suggestion::Icon::kNoIcon &&
+          suggestion.custom_icon.index() != 0));
+  if (auto* monochrome_icon = std::get_if<Suggestion::LetterMonochromeIcon>(
+          &suggestion.custom_icon)) {
+    SkBitmap bitmap;
+    bitmap.allocN32Pixels(kMonochromeIconSize, kMonochromeIconSize, false);
+    cc::SkiaPaintCanvas paint_canvas(bitmap);
+    gfx::Canvas canvas(&paint_canvas, 1.f);
+    const std::vector<std::string> font_names = {
+        l10n_util::GetStringUTF8(IDS_NTP_FONT_FAMILY)};
+    gfx::DrawMonogramInCanvas(&canvas, kMonochromeIconSize, kMonochromeIconSize,
+                              monochrome_icon->monogram_text, font_names,
+                              kMonochromeIconTextColor, kMonochromeIconBgColor);
+    return ConvertModelToImageView(
+        ImageModelFromImageSkia(
+            gfx::Image::CreateFrom1xBitmap(bitmap).AsImageSkia()),
+        suggestion.HasDeactivatedStyle());
+  }
+  if (auto* image = std::get_if<gfx::Image>(&suggestion.custom_icon);
+      image && !image->IsEmpty()) {
+    gfx::ImageSkia image_skia = image->AsImageSkia();
     if (std::holds_alternative<Suggestion::IdentityCredentialPayload>(
             suggestion.payload)) {
-      image = webid::CreateCircleCroppedImage(
-          image, webid::kDesiredAvatarSizeInAutofillDropdown);
+      image_skia = webid::CreateCircleCroppedImage(
+          image_skia, webid::kDesiredAvatarSizeInAutofillDropdown);
     }
-    return ConvertModelToImageView(ImageModelFromImageSkia(image),
+    return ConvertModelToImageView(ImageModelFromImageSkia(image_skia),
                                    suggestion.HasDeactivatedStyle());
   }
   std::unique_ptr<views::ImageView> icon_image_view =

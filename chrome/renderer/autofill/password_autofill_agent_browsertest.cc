@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <string>
 #ifdef UNSAFE_BUFFERS_BUILD
 // TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
 #pragma allow_unsafe_libc_calls
@@ -47,7 +48,6 @@
 #include "components/password_manager/core/common/password_manager_constants.h"
 #include "components/password_manager/core/common/password_manager_features.h"
 #include "components/safe_browsing/buildflags.h"
-#include "components/signin/public/base/signin_switches.h"
 #include "content/public/renderer/render_frame.h"
 #include "content/public/test/browser_test_utils.h"
 #include "mojo/public/cpp/bindings/pending_associated_receiver.h"
@@ -2424,45 +2424,12 @@ TEST_F(PasswordAutofillAgentTest,
       AutofillSuggestionTriggerSource::kManualFallbackPasswords);
 }
 
-TEST_F(PasswordAutofillAgentTest,
-       NoPopupOnPasswordFieldWithoutSuggestionsByDefault) {
-  scoped_feature_list_.InitAndDisableFeature(
-      ::switches::kEnablePendingModePasswordsPromo);
-
-  ClearUsernameAndPasswordFieldValues();
-  UpdateRendererIDsInFillData();
-
-  ASSERT_TRUE(SimulateElementClick(kPasswordName));
-
-  CheckSuggestionsNotShown();
-}
-
-// Passwords fields should never trigger the popup on password passwords fields
-// without suggestions since it would not be helpful.
-TEST_F(PasswordAutofillAgentTest, NoPopupOnPasswordFieldWithoutSuggestions) {
-  scoped_feature_list_.InitAndDisableFeature(
-      ::switches::kEnablePendingModePasswordsPromo);
-
-  ClearUsernameAndPasswordFieldValues();
-  UpdateRendererIDsInFillData();
-
-  password_autofill_agent_->InformNoSavedCredentials(
-      /*should_show_popup_without_passwords=*/false);
-
-  ASSERT_TRUE(SimulateElementClick(kPasswordName));
-
-  CheckSuggestionsNotShown();
-}
-
 #if BUILDFLAG(ENABLE_DICE_SUPPORT)
-// when kEnablePendingModePasswordsPromo is enabled users in pending state will
-// be shown a suggestion to "verify it's you" even when there are no passwords
+// Users in pending state are shown a suggestion to "verify it's you" even when
+// there are no passwords.
 TEST_F(
     PasswordAutofillAgentTest,
     NoPopupOnPasswordFieldWithoutSuggestionsByDefaultWhenNotEligibleForPromo) {
-  scoped_feature_list_.InitAndEnableFeature(
-      ::switches::kEnablePendingModePasswordsPromo);
-
   ClearUsernameAndPasswordFieldValues();
   UpdateRendererIDsInFillData();
 
@@ -2475,9 +2442,6 @@ TEST_F(
 
 TEST_F(PasswordAutofillAgentTest,
        PopupOnPasswordFieldWithoutSuggestionsWhenEligibleForPromo) {
-  scoped_feature_list_.InitAndEnableFeature(
-      ::switches::kEnablePendingModePasswordsPromo);
-
   ClearUsernameAndPasswordFieldValues();
   UpdateRendererIDsInFillData();
 
@@ -5191,34 +5155,40 @@ TEST_F(PasswordAutofillAgentTest, NoFillingFallbackForBannedFields) {
 
 // Tests that `FillChangePasswordForm` fills change password form.
 TEST_F(PasswordAutofillAgentTest, FillChangePasswordForm) {
-  LoadHTML(kPasswordChangeFormHTML);
-  UpdateUrlForHTML(kPasswordChangeFormHTML);
+  std::vector<std::string> htms_to_test = {kPasswordChangeFormHTML,
+                                           kPasswordChangeWithoutFormHTML};
+  for (const std::string& html : htms_to_test) {
+    SCOPED_TRACE(testing::Message() << "Running for the page: " << html);
+    LoadHTML(html);
+    UpdateUrlForHTML(html);
 
-  WebInputElement password = GetInputElementByID("password"),
-                  new_password = GetInputElementByID("newpassword"),
-                  confirmation_password =
-                      GetInputElementByID("confirmpassword");
-  auto password_id = autofill::form_util::GetFieldRendererId(password),
-       new_password_id = autofill::form_util::GetFieldRendererId(new_password),
-       password_confirmation =
-           autofill::form_util::GetFieldRendererId(confirmation_password);
+    WebInputElement password = GetInputElementByID("password"),
+                    new_password = GetInputElementByID("newpassword"),
+                    confirmation_password =
+                        GetInputElementByID("confirmpassword");
+    auto password_id = autofill::form_util::GetFieldRendererId(password),
+         new_password_id =
+             autofill::form_util::GetFieldRendererId(new_password),
+         password_confirmation =
+             autofill::form_util::GetFieldRendererId(confirmation_password);
 
-  const std::vector<autofill::FormData>& parsed_form_data =
-      fake_driver_.form_data_parsed().value();
-  EXPECT_EQ(1u, parsed_form_data.size());
+    const std::vector<autofill::FormData>& parsed_form_data =
+        fake_driver_.form_data_parsed().value();
+    EXPECT_EQ(1u, parsed_form_data.size());
 
-  base::MockCallback<
-      base::OnceCallback<void(const std::optional<autofill::FormData>&)>>
-      mock_reply;
-  EXPECT_CALL(mock_reply, Run(testing::Optional(parsed_form_data[0])));
+    base::MockCallback<
+        base::OnceCallback<void(const std::optional<autofill::FormData>&)>>
+        mock_reply;
+    EXPECT_CALL(mock_reply, Run(testing::Optional(parsed_form_data[0])));
 
-  password_autofill_agent_->FillChangePasswordForm(
-      password_id, new_password_id, password_confirmation, u"qwerty",
-      u"Pa$sw0rD", mock_reply.Get());
+    password_autofill_agent_->FillChangePasswordForm(
+        password_id, new_password_id, password_confirmation, u"qwerty",
+        u"Pa$sw0rD", mock_reply.Get());
 
-  EXPECT_EQ(u"qwerty", password.Value().Utf16());
-  EXPECT_EQ(u"Pa$sw0rD", new_password.Value().Utf16());
-  EXPECT_EQ(u"Pa$sw0rD", confirmation_password.Value().Utf16());
+    EXPECT_EQ(u"qwerty", password.Value().Utf16());
+    EXPECT_EQ(u"Pa$sw0rD", new_password.Value().Utf16());
+    EXPECT_EQ(u"Pa$sw0rD", confirmation_password.Value().Utf16());
+  }
 }
 
 // Tests that `FillChangePasswordForm` invokes callback with std::nullopt when

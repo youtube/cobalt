@@ -32,10 +32,6 @@ CanvasResourceHost::ReplaceResourceProvider(
       std::move(resource_provider_);
   resource_provider_ = std::move(new_resource_provider);
   UpdateMemoryUsage();
-  if (resource_provider_) {
-    resource_provider_->AlwaysEnableRasterTimersForTesting(
-        always_enable_raster_timers_for_testing_);
-  }
   if (old_resource_provider) {
     old_resource_provider->SetCanvasResourceHost(nullptr);
   }
@@ -55,19 +51,6 @@ void CanvasResourceHost::SetPreferred2DRasterMode(RasterModeHint hint) {
 
 bool CanvasResourceHost::ShouldTryToUseGpuRaster() const {
   return preferred_2d_raster_mode_ == RasterModeHint::kPreferGPU && CanUseGPU();
-}
-
-bool CanvasResourceHost::IsComposited() const {
-  if (IsHibernating()) {
-    return false;
-  }
-
-  if (!resource_provider_) [[unlikely]] {
-    return false;
-  }
-
-  return resource_provider_->SupportsDirectCompositing() &&
-         !LowLatencyEnabled();
 }
 
 RasterMode CanvasResourceHost::GetRasterMode() const {

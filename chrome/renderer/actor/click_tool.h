@@ -12,10 +12,6 @@
 #include "chrome/common/actor.mojom.h"
 #include "chrome/renderer/actor/tool_base.h"
 
-namespace blink {
-class WebMouseEvent;
-}  // namespace blink
-
 namespace content {
 class RenderFrame;
 }  // namespace content
@@ -29,23 +25,20 @@ namespace actor {
 // A tool that can be invoked to perform a click on a target.
 class ClickTool : public ToolBase {
  public:
-  ClickTool(mojom::ClickActionPtr action, content::RenderFrame& frame);
+  ClickTool(content::RenderFrame& frame,
+            Journal::TaskId task_id,
+            Journal& journal,
+            mojom::ClickActionPtr action);
   ~ClickTool() override;
 
   // actor::ToolBase
-  void Execute(ToolFinishedCallback callback) override;
+  mojom::ActionResultPtr Execute() override;
   std::string DebugString() const override;
 
  private:
   using ValidatedResult = base::expected<gfx::PointF, mojom::ActionResultPtr>;
   ValidatedResult Validate() const;
 
-  void SendMouseUp(blink::WebMouseEvent mouse_event,
-                   ToolFinishedCallback callback);
-
-  // Raw ref since this is owned by ToolExecutor whose lifetime is tied to
-  // RenderFrame.
-  base::raw_ref<content::RenderFrame> frame_;
   mojom::ClickActionPtr action_;
 };
 

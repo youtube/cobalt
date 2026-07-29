@@ -12,6 +12,7 @@
 #include "base/path_service.h"
 #include "base/run_loop.h"
 #include "base/strings/strcat.h"
+#include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/bind.h"
 #include "base/test/gtest_tags.h"
@@ -1560,7 +1561,7 @@ IN_PROC_BROWSER_TEST_F(ExtensionPolicyTest,
         kGoodCrxId, kResourcePath,
         extensions::TestContentVerifyJobObserver::Result::FAILURE);
 
-    GURL resource_url = extension->GetResourceURL("script1.js");
+    GURL resource_url = extension->ResolveExtensionURL("script1.js");
     FetchSubresource(chrome_test_utils::GetActiveWebContents(this),
                      resource_url);
 
@@ -1641,7 +1642,7 @@ IN_PROC_BROWSER_TEST_F(
         kGoodCrxId, kResourcePath,
         extensions::TestContentVerifyJobObserver::Result::FAILURE);
 
-    GURL resource_url = extension->GetResourceURL("script1.js");
+    GURL resource_url = extension->ResolveExtensionURL("script1.js");
     FetchSubresource(chrome_test_utils::GetActiveWebContents(this),
                      resource_url);
 
@@ -1716,7 +1717,7 @@ IN_PROC_BROWSER_TEST_F(ExtensionPolicyTest,
         kGoodCrxId, kResourcePath,
         extensions::TestContentVerifyJobObserver::Result::FAILURE);
 
-    GURL resource_url = extension->GetResourceURL("script1.js");
+    GURL resource_url = extension->ResolveExtensionURL("script1.js");
     FetchSubresource(chrome_test_utils::GetActiveWebContents(this),
                      resource_url);
 

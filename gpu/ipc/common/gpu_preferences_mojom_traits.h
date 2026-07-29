@@ -239,7 +239,6 @@ struct GPU_EXPORT
         prefs.enable_gpu_driver_debug_logging();
     out->disable_gpu_program_cache = prefs.disable_gpu_program_cache();
     out->enforce_gl_minimums = prefs.enforce_gl_minimums();
-    out->force_gpu_mem_available_bytes = prefs.force_gpu_mem_available_bytes();
     out->force_gpu_mem_discardable_limit_bytes =
         prefs.force_gpu_mem_discardable_limit_bytes();
     out->force_max_texture_size = prefs.force_max_texture_size();
@@ -250,6 +249,8 @@ struct GPU_EXPORT
     out->gl_shader_interm_output = prefs.gl_shader_interm_output();
     out->enable_android_surface_control =
         prefs.enable_android_surface_control();
+    out->perform_graphite_precompilation =
+        prefs.perform_graphite_precompilation();
     out->enable_gpu_service_logging = prefs.enable_gpu_service_logging();
     out->enable_gpu_service_tracing = prefs.enable_gpu_service_tracing();
     out->use_passthrough_cmd_decoder = prefs.use_passthrough_cmd_decoder();
@@ -371,10 +372,6 @@ struct GPU_EXPORT
   static bool enforce_gl_minimums(const gpu::GpuPreferences& prefs) {
     return prefs.enforce_gl_minimums;
   }
-  static uint32_t force_gpu_mem_available_bytes(
-      const gpu::GpuPreferences& prefs) {
-    return prefs.force_gpu_mem_available_bytes;
-  }
   static uint32_t force_gpu_mem_discardable_limit_bytes(
       const gpu::GpuPreferences& prefs) {
     return prefs.force_gpu_mem_discardable_limit_bytes;
@@ -397,6 +394,10 @@ struct GPU_EXPORT
   }
   static bool enable_android_surface_control(const gpu::GpuPreferences& prefs) {
     return prefs.enable_android_surface_control;
+  }
+  static bool perform_graphite_precompilation(
+      const gpu::GpuPreferences& prefs) {
+    return prefs.perform_graphite_precompilation;
   }
   static bool enable_gpu_service_logging(const gpu::GpuPreferences& prefs) {
     return prefs.enable_gpu_service_logging;

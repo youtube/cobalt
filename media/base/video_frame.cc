@@ -39,6 +39,8 @@
 #include "media/base/video_util.h"
 #include "ui/gfx/buffer_format_util.h"
 #include "ui/gfx/geometry/point.h"
+
+// TODO(crbug.com/40263579): Remove.
 #include "ui/gfx/gpu_memory_buffer.h"
 
 #if BUILDFLAG(IS_APPLE)
@@ -736,33 +738,6 @@ scoped_refptr<VideoFrame> VideoFrame::WrapExternalYuvData(
     frame->data_[plane] = data[plane];
   }
   return frame;
-}
-
-// TODO(crbug.com/338570700): This method needs to be remove in favour
-// of its span version.
-// static
-scoped_refptr<VideoFrame> VideoFrame::WrapExternalYuvData(
-    VideoPixelFormat format,
-    const gfx::Size& coded_size,
-    const gfx::Rect& visible_rect,
-    const gfx::Size& natural_size,
-    size_t y_stride,
-    size_t uv_stride,
-    const uint8_t* y_data,
-    const uint8_t* uv_data,
-    base::TimeDelta timestamp) {
-  auto layout = VideoFrameLayout::CreateWithStrides(format, coded_size,
-                                                    {y_stride, uv_stride});
-  if (!layout) {
-    DLOG(ERROR) << "Invalid layout.";
-    return nullptr;
-  }
-
-  return WrapExternalYuvData(
-      format, coded_size, visible_rect, natural_size, y_stride, uv_stride,
-      UNSAFE_TODO(base::span(y_data, layout->planes()[Plane::kY].size)),
-      UNSAFE_TODO(base::span(uv_data, layout->planes()[Plane::kUV].size)),
-      timestamp);
 }
 
 // static

@@ -22,6 +22,7 @@
 #include "extensions/browser/disable_reason.h"
 #include "extensions/browser/extension_registrar.h"
 #include "extensions/browser/process_manager.h"
+#include "extensions/browser/service_worker/sequenced_context_id.h"
 #include "extensions/browser/service_worker/service_worker_host.h"
 #include "extensions/browser/service_worker/service_worker_state.h"
 #include "extensions/browser/service_worker/service_worker_task_queue.h"
@@ -172,8 +173,8 @@ class ServiceWorkerTrackingBrowserTest : public ExtensionBrowserTest {
     if (!activation_token) {
       return nullptr;
     }
-    ServiceWorkerTaskQueue::SequencedContextId context_id{
-        extension_->id(), profile()->UniqueId(), activation_token.value()};
+    SequencedContextId context_id{extension_->id(), profile()->UniqueId(),
+                                  activation_token.value()};
     return task_queue->GetWorkerStateForTesting(context_id);
   }
 
@@ -225,7 +226,8 @@ class ServiceWorkerIdTrackingBrowserTest
     // completely shutting down the render process (which is another way that
     // eventually removes the worker from `WorkerIdSet`).
     SCOPED_TRACE("Loading extension tab for test extension");
-    NavigateInNewTab(extension_->GetResourceURL("extension_page_tab.html"));
+    NavigateInNewTab(
+        extension_->ResolveExtensionURL("extension_page_tab.html"));
   }
 
   void LoadServiceWorkerExtensionAndOpenExtensionTab() {

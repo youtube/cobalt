@@ -28,7 +28,6 @@
 #include "base/files/file.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
-#include "base/functional/overloaded.h"
 #include "base/json/json_file_value_serializer.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/notreached.h"
@@ -38,6 +37,7 @@
 #include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
+#include "base/strings/string_view_util.h"
 #include "base/timer/elapsed_timer.h"
 #include "base/types/expected.h"
 #include "base/types/expected_macros.h"
@@ -56,6 +56,7 @@
 #include "services/webnn/public/mojom/webnn_graph.mojom.h"
 #include "services/webnn/webnn_constant_operand.h"
 #include "services/webnn/webnn_utils.h"
+#include "third_party/abseil-cpp/absl/functional/overload.h"
 #include "third_party/coremltools/mlmodel/format/FeatureTypes.pb.h"
 #include "third_party/coremltools/mlmodel/format/MIL.pb.h"
 #include "third_party/fp16/src/include/fp16.h"
@@ -192,6 +193,7 @@ constexpr char kOpCosTypeName[] = "cos";
 constexpr char kOpExpTypeName[] = "exp";
 constexpr char kOpFloorTypeName[] = "floor";
 constexpr char kOpIdentityTypeName[] = "identity";
+constexpr char kOpSignTypeName[] = "sign";
 constexpr char kOpSinTypeName[] = "sin";
 constexpr char kOpTanTypeName[] = "tan";
 constexpr char kOpErfTypeName[] = "erf";
@@ -1241,8 +1243,8 @@ ContextProperties GraphBuilderCoreml::GetContextProperties() {
        /*neg_input=*/{kFloatsAndInt32, kMaxRank},
        /*reciprocal_input=*/
        {DataTypeConstraint::kFloat16To32, kMaxRank},
-       // Sign is not implemented.
-       /*sign_input=*/{},
+       /*sign_input=*/
+       {kFloatsAndInt32, kMaxRank},
        /*sin_input=*/
        {DataTypeConstraint::kFloat16To32, kMaxRank},
        /*sqrt_input=*/
@@ -2749,7 +2751,7 @@ GraphBuilderCoreml::AddOperationForElementwiseBinary(
     const mojom::ElementWiseBinary::Kind kind,
     CoreML::Specification::MILSpec::Block& block) {
   CoreML::Specification::MILSpec::DataType mil_data_type;
-  std::visit(base::Overloaded{
+  std::visit(absl::Overload{
                  [&](OperandId lhs_operand_id) {
                    const OperandInfo& lhs_operand_info =
                        GetOperandInfo(lhs_operand_id);
@@ -2894,34 +2896,33 @@ GraphBuilderCoreml::AddOperationForElementwiseBinary(
   op->set_type(op_type_name);
   std::optional<mojom::ErrorPtr> set_input_error;
   std::visit(
-      base::Overloaded{[&](OperandId lhs_operand_id) {
-                         auto result = SetInputFromOperand(
-                             *op->mutable_inputs(), kOpParamX, lhs_operand_id);
-                         if (!result.has_value()) {
-                           set_input_error = std::move(result.error());
-                         }
-                       },
-                       [&](CoreML::Specification::MILSpec::Value lhs_value) {
-                         SetInputWithValue(*op->mutable_inputs(), kOpParamX,
-                                           lhs_value);
-                       }},
+      absl::Overload{[&](OperandId lhs_operand_id) {
+                       auto result = SetInputFromOperand(
+                           *op->mutable_inputs(), kOpParamX, lhs_operand_id);
+                       if (!result.has_value()) {
+                         set_input_error = std::move(result.error());
+                       }
+                     },
+                     [&](CoreML::Specification::MILSpec::Value lhs_value) {
+                       SetInputWithValue(*op->mutable_inputs(), kOpParamX,
+                                         lhs_value);
+                     }},
       lhs_operand);
   std::visit(
-      base::Overloaded{[&](OperandId rhs_operand_id) {
-                         const OperandInfo& rhs_operand_info =
-                             GetOperandInfo(rhs_operand_id);
-                         CHECK_EQ(mil_data_type,
-                                  rhs_operand_info.mil_data_type);
-                         auto result = SetInputFromOperand(
-                             *op->mutable_inputs(), kOpParamY, rhs_operand_id);
-                         if (!result.has_value()) {
-                           set_input_error = std::move(result.error());
-                         }
-                       },
-                       [&](CoreML::Specification::MILSpec::Value rhs_value) {
-                         SetInputWithValue(*op->mutable_inputs(), kOpParamY,
-                                           rhs_value);
-                       }},
+      absl::Overload{[&](OperandId rhs_operand_id) {
+                       const OperandInfo& rhs_operand_info =
+                           GetOperandInfo(rhs_operand_id);
+                       CHECK_EQ(mil_data_type, rhs_operand_info.mil_data_type);
+                       auto result = SetInputFromOperand(
+                           *op->mutable_inputs(), kOpParamY, rhs_operand_id);
+                       if (!result.has_value()) {
+                         set_input_error = std::move(result.error());
+                       }
+                     },
+                     [&](CoreML::Specification::MILSpec::Value rhs_value) {
+                       SetInputWithValue(*op->mutable_inputs(), kOpParamY,
+                                         rhs_value);
+                     }},
       rhs_operand);
 
   if (set_input_error) {
@@ -3002,8 +3003,10 @@ GraphBuilderCoreml::AddOperationForElementwiseUnary(
                                output_operand_id, block);
     }
     case mojom::ElementWiseUnary::Kind::kSign: {
-      // Sign is not implemented.
-      NOTREACHED();
+      CHECK(context_properties_.data_type_limits.sign_input.data_types.Has(
+          input_operand_data_type));
+      return AddUnaryOperation(kOpSignTypeName, input_operand_id,
+                               output_operand_id, block);
     }
     case mojom::ElementWiseUnary::Kind::kSin: {
       CHECK(context_properties_.data_type_limits.sin_input.data_types.Has(

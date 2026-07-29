@@ -180,9 +180,6 @@ struct GPU_EXPORT GpuPreferences {
   // Enforce GL minimums.
   bool enforce_gl_minimums = false;
 
-  // Sets the total amount of memory that may be allocated for GPU resources.
-  uint32_t force_gpu_mem_available_bytes = 0u;
-
   // Sets the maximum discardable cache size limit for GPU resources.
   uint32_t force_gpu_mem_discardable_limit_bytes = 0u;
 
@@ -208,6 +205,10 @@ struct GPU_EXPORT GpuPreferences {
 
   // Enables the use of SurfaceControl for overlays on Android.
   bool enable_android_surface_control = false;
+
+  // An additional Graphite Precompilation control that only enables
+  // precompilation when not testing.
+  bool perform_graphite_precompilation = false;
 
   // ===================================
   // Settings from //ui/gl/gl_switches.h

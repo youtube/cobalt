@@ -327,6 +327,9 @@
         "Linux": "experimental",
         "default": "",
       },
+      origin_trial_feature_name: "AIPromptAPIMultimodalInput",
+      origin_trial_os: ["win", "mac", "linux"],
+      origin_trial_allows_third_party: true,
       implied_by: ["AIPromptAPIMultimodalInput"],
     },
     {
@@ -352,6 +355,9 @@
         "Linux": "experimental",
         "default": "",
       },
+      origin_trial_feature_name: "AIPromptAPIMultimodalInput",
+      origin_trial_os: ["win", "mac", "linux"],
+      origin_trial_allows_third_party: true,
       base_feature_status: "enabled",
       copied_from_base_feature_if: "overridden",
     },
@@ -385,15 +391,11 @@
     {
       name: "AISummarizationAPI",
       status: {
-        "Win": "experimental",
-        "Mac": "experimental",
-        "Linux": "experimental",
+        "Win": "stable",
+        "Mac": "stable",
+        "Linux": "stable",
         "default": "",
       },
-      origin_trial_feature_name: "AISummarizationAPI",
-      origin_trial_allows_third_party: true,
-      base_feature_status: "enabled",
-      copied_from_base_feature_if: "overridden",
     },
     {
       name: "AISummarizationAPIForWorkers",
@@ -415,6 +417,10 @@
     {
       name: "AIWriterAPIForWorkers",
       public: true,
+    },
+    {
+      name: "AlignZoomToCenter",
+      status: "stable",
     },
     {
       name: "AllowContentInitiatedDataUrlNavigations",
@@ -479,7 +485,7 @@
     {
       // https://drafts.csswg.org/web-animations-2/#triggers
       name: "AnimationTrigger",
-      status: "test",
+      status: "experimental",
     },
     {
       name: "AnimationWorklet",
@@ -555,8 +561,10 @@
     },
     {
       name: "AudioOutputDevices",
-      // Android does not yet support switching of audio output devices
+      // Android support for switching audio output devices is not stable
       status: {"Android": "", "default": "stable"},
+      public: true,
+      base_feature: "none"
     },
     {
       name: "AudioVideoTracks",
@@ -710,13 +718,14 @@
       name: "BuiltInAIAPI",
       status: "experimental",
       base_feature_status: "enabled",
-      // A origin trial is feature is required for the build to success.
-      // The feature reuses the AISummarizationAPI. Any other origin trial
+      // An OT feature name is required to satisfy `implied_by` build checks.
+      // The feature reuses AIPromptAPIMultimodalInput, but any origin trial
       // features in the `implied_by` list will enable this feature as well.
-      origin_trial_feature_name: "AISummarizationAPI",
+      origin_trial_feature_name: "AIPromptAPIMultimodalInput",
       copied_from_base_feature_if: "overridden",
       implied_by: [
         "AIPromptAPI",
+        "AIPromptAPIMultimodalInput",
         "AIRewriterAPI",
         "AISummarizationAPI",
         "AIWriterAPI",
@@ -1075,13 +1084,6 @@
       base_feature: "none",
     },
     {
-     // crbug.com/40258893
-     // Update UA styles for lists to match HTML spec. This was added in M135
-     // and can be removed after M138.
-     name: "CorrectStylesForLists",
-     status: "stable",
-    },
-    {
       // Corrects the handling of <form> elements nested within <template> tags
       // in HTML parsing. See https://crbug.com/352896478 for details.
       name: "CorrectTemplateFormParsing",
@@ -1234,6 +1236,11 @@
       status: "experimental",
     },
     {
+      // Allows getComputedStyle() and similar to get information about :visited colors.
+      // Only safe if PartitionVisitedLinkDatabaseWithSelfLinks is enabled.
+      name: "CSSDoNotHideVisitedColor",
+    },
+    {
       name: "CSSDynamicRangeLimit",
       status: "stable",
     },
@@ -1345,6 +1352,11 @@
       status: "test",
     },
     {
+      // Kill switch for crbug.com/378966977
+      name: "CSSNegatedFeatureless",
+      status: "stable",
+    },
+    {
       name: "CSSNestedPseudoElements",
       status: "stable",
     },
@@ -1445,6 +1457,10 @@
       // https://github.com/w3c/csswg-drafts/issues/11019
       name: "CSSSafeAreaMaxInset",
       status: "stable"
+    },
+    {
+      name: "CSSSafePrintableInset",
+      status: "experimental",
     },
     {
       // The "@import scope(...)" syntax.
@@ -1567,15 +1583,10 @@
       status: "experimental",
     },
     {
-      // TODO(https://crbug.com/1411581):
-      // https://w3c.github.io/csswg-drafts/css-inline-3/#propdef-leading-trim
-      name: "CSSTextBoxTrim",
-      status: "stable",
-    },
-    {
       // crbug.com/1463890, crbug.com/1463891: CSS `text-spacing` shorthand
       name: "CSSTextSpacing",
       depends_on: ["CSSTextAutoSpace"],
+      status: "experimental",
     },
     {
       // Support for tree-scoped [1] timeline names (e.g. produced by
@@ -1589,6 +1600,10 @@
       // of the custom property being referenced.
       name: "CSSTypeAgnosticVarFallback",
       status: "stable",
+    },
+    {
+      name: "CSSTypedArithmetic",
+      status: "experimental",
     },
     // Support for `user-select:contain`.
     {
@@ -1961,8 +1976,8 @@
       status: "stable",
     },
     {
-      // Experiment with preventing some instances of mutation XSS
-      // by escaping "<" and ">" in attribute values.
+      // Escapes "<" and ">" in attribute values. This was launched
+      // in M138, and this flag can be removed in M140.
       // See: crbug.com/1175016
       name: "EscapeLtGtInAttributes",
       status: "stable",
@@ -2417,10 +2432,6 @@
       name: "ForceReduceMotion",
     },
     {
-      name: "ForceTallerSelectPopup",
-      status: {"ChromeOS": "stable"},
-    },
-    {
       // TODO(crbug.com/1419161): Remove this feature after M113 has been stable
       // for a few weeks or more. This is a kill switch that, when enabled, goes
       // back to the old behavior, which was to restore the state for <input>
@@ -2830,7 +2841,6 @@
       // KeyboardFocusableScrollersOptOut flag.
       name: "KeyboardFocusableScrollers",
       status: "stable",
-      public: true,
     },
     {
       // TODO(crbug.com/40113891): Disables KeyboardFocusableScrollers.
@@ -2892,6 +2902,10 @@
       status: "stable",
     },
     {
+      name: "LayoutMinSizeAutoIndefinite",
+      status: "stable",
+    },
+    {
       name: "LayoutMinSizeIndefinite",
       status: "stable",
     },
@@ -2905,6 +2919,10 @@
     },
     {
       name: "LayoutStretch",
+      status: "stable",
+    },
+    {
+      name: "LayoutStretchCacheFix",
       status: "stable",
     },
     {
@@ -3518,6 +3536,12 @@
       // PARAKEET ad serving runtime flag/JS API.
       name: "Parakeet",
       origin_trial_feature_name: "Parakeet",
+    },
+    {
+      // Uses base::Time::FromUTCString() in ParseDate() instead of code from
+      // ParseDateFromNullTerminatedCharacters() from date_math.cc.
+      name: "ParseDateUsesBaseTimeFromUtcString",
+      status: "stable",
     },
     {
       name: "PartialCompletionNotAllowedInMoveParagraphs",
@@ -4255,6 +4279,11 @@
       name: "ScrollIntoViewRootFrameViewportBugFix",
       status: "stable",
     },
+    // TODO(crbug.com/401443093): Remove after M141.
+    {
+      name: "ScrollIntoViewSelfScrollFix",
+      status: "stable"
+    },
     {
       // Separate flag for crbug.com/1426506 (getCurrentTime API change) which
       // is expected to land after the initial launch of ScrollTimeline.
@@ -4407,13 +4436,6 @@
       status: "stable",
     },
     {
-      // Sets the minimum target size of <option> in <select> to 24x24 CSS
-      // pixels to meet Accessibility standards.
-      // https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum.html
-      name: "SelectOptionAccessibilityTargetSize",
-      status: "stable",
-    },
-    {
       // Makes the HTML parser allow most tags inside of <select> instead of
       // only <option>, <optgroup>, and <hr>.
       // https://github.com/whatwg/html/issues/10310
@@ -4468,6 +4490,12 @@
     {
       name: "ServiceWorkerClientLifecycleState",
       status: "experimental",
+    },
+    {
+      // Support for Service Worker APIs in Dedicated Workers.
+      // See https://chromestatus.com/feature/6497653025931264
+      // See https://issues.chromium.org/issues/40364838
+      name: "ServiceWorkerInDedicatedWorker",
     },
     {
       name: "ServiceWorkerStaticRouterTimingInfo",
@@ -4608,7 +4636,6 @@
     {
       name: "SoftNavigationHeuristics",
       status: "experimental",
-      depends_on: ["NavigationId","SoftNavigationDetectionAdvancedPaintAttribution"],
       origin_trial_allows_third_party: true,
       origin_trial_feature_name: "SoftNavigationHeuristics",
     },
@@ -4634,14 +4661,6 @@
       status: "stable",
     },
     {
-      name: "SpeculationRulesPointerDownHeuristics",
-      base_feature_status: "enabled",
-    },
-    {
-      name: "SpeculationRulesPointerHoverHeuristics",
-      base_feature_status: "enabled",
-    },
-    {
       name: "SpeculationRulesPrefetchWithSubresources",
     },
     {
@@ -4650,8 +4669,7 @@
       name: "SpeculationRulesTargetHint",
       origin_trial_feature_name: "SpeculationRulesTargetHint",
       base_feature: "Prerender2InNewTab",
-      status: "experimental",
-      base_feature_status: "enabled",
+      status: "stable",
       copied_from_base_feature_if: "overridden",
     },
     {
@@ -4670,6 +4688,11 @@
       name: "StableBlinkFeatures",
       status: "stable",
       base_feature: "none",
+    },
+    // Killswitch for https://crbug.com/40915318
+    {
+      name: "StandardHistoryStateEmptyUrlHandling",
+      status: "stable",
     },
     {
       // See https://github.com/w3c/csswg-drafts/issues/9398
@@ -4707,13 +4730,6 @@
     {
       name: "StrictMimeTypesForWorkers",
       status: "experimental",
-    },
-    {
-      // crbug.com/396607231
-      // Update strong, b elements default to be font-weight: bolder
-      // Enabled by default on M135. Remove flag on or after M138.
-      name: "StrongBolder",
-      status: "stable",
     },
     {
       name: "StylusHandwriting",
@@ -5027,21 +5043,10 @@
       origin_trial_allows_third_party: true,
       base_feature_status: "enabled",
       copied_from_base_feature_if: "overridden",
-      implied_by: ["TranslationAPIV1"],
     },
     {
       name: "TranslationAPIForWorkers",
       public: true,
-    },
-    {
-      name: "TranslationAPIV1",
-      status: {
-        "Win": "experimental",
-        "Mac": "experimental",
-        "Linux": "experimental",
-        "default": "",
-      },
-      copied_from_base_feature_if: "overridden",
     },
     {
       // Ensures symbols are treated as word boundaries during traversal.
@@ -5387,6 +5392,7 @@
     {
       name: "WebAuthenticationImmediateGet",
       origin_trial_feature_name: "WebAuthenticationImmediateGet",
+      origin_trial_os: ["win", "mac", "linux", "chromeos"],
       base_feature: "none",
       public: true,
     },
@@ -5692,7 +5698,7 @@
       name: "WebXRDepthPerformance",
       depends_on: ["WebXR"],
       public: true,
-      status: "experimental",
+      status: "stable",
     },
     {
       name: "WebXREnabledFeatures",
@@ -5773,6 +5779,10 @@
       name: "WebXRSpecParity",
       depends_on: ["WebXR"],
       public: true,
+      status: "experimental",
+    },
+    {
+      name: "WidthAndHeightAsPresentationAttributesOnNestedSvg",
       status: "experimental",
     },
     // If enabled, window.default[Ss]tatus will be supported. This is disabled

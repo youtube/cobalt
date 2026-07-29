@@ -85,42 +85,30 @@ enum class ManifestVersionPopulationSplit {
   kMaxValue = kMv3ExtensionsOnly,
 };
 
-// The following enumeration is used in histograms matching
-// Extensions.ManifestReload*.
-enum class ManifestReloadReason {
-  kNotNeeded = 0,        // Reload not needed.
-  kUnpackedDir,          // Unpacked directory.
-  kNeedsRelocalization,  // The locale has changed since we read this extension.
-  kCorruptPreferences,   // The manifest in the preferences is corrupt.
-
-  // New enum values must go above here.
-  kNumManifestReloadReasons
-};
-
 // Used in histogram Extensions.BackgroundPageType.
-enum BackgroundPageType {
-  NO_BACKGROUND_PAGE = 0,
-  BACKGROUND_PAGE_PERSISTENT,
-  EVENT_PAGE,
-  SERVICE_WORKER,
+enum class BackgroundPageType {
+  kNone = 0,
+  kPersistent,
+  kEventPage,
+  kServiceWorker,
 
   // New enum values must go above here.
-  NUM_BACKGROUND_PAGE_TYPES
+  kMaxValue = kServiceWorker
 };
 
 // Used in histogram Extensions.ExternalItemState.
-enum ExternalItemState {
-  DEPRECATED_EXTERNAL_ITEM_DISABLED = 0,
-  DEPRECATED_EXTERNAL_ITEM_ENABLED,
-  EXTERNAL_ITEM_WEBSTORE_DISABLED,
-  EXTERNAL_ITEM_WEBSTORE_ENABLED,
-  EXTERNAL_ITEM_NONWEBSTORE_DISABLED,
-  EXTERNAL_ITEM_NONWEBSTORE_ENABLED,
-  EXTERNAL_ITEM_WEBSTORE_UNINSTALLED,
-  EXTERNAL_ITEM_NONWEBSTORE_UNINSTALLED,
+enum class ExternalItemState {
+  kDeprecated_Disabled = 0,
+  kDeprecated_Enabled,
+  kWebstoreDisabled,
+  kWebstoreEnabled,
+  kNonwebstoreDisabled,
+  kNonwebstoreEnabled,
+  kWebstoreUninstalled,
+  kNonwebstoreUninstalled,
 
   // New enum values must go above here.
-  EXTERNAL_ITEM_MAX_ITEMS
+  kMaxValue = kNonwebstoreUninstalled
 };
 
 bool IsManifestCorrupt(const base::Value::Dict& manifest) {
@@ -132,34 +120,41 @@ bool IsManifestCorrupt(const base::Value::Dict& manifest) {
          manifest.contains(manifest_keys::kBackgroundScripts);
 }
 
-ManifestReloadReason ShouldReloadExtensionManifest(const ExtensionInfo& info) {
+bool ShouldReloadExtensionManifest(const ExtensionInfo& info) {
   // Always reload manifests of unpacked extensions, because they can change
   // on disk independent of the manifest in our prefs.
-  if (Manifest::IsUnpackedLocation(info.extension_location))
-    return ManifestReloadReason::kUnpackedDir;
+  if (Manifest::IsUnpackedLocation(info.extension_location)) {
+    return true;
+  }
 
-  if (!info.extension_manifest)
-    return ManifestReloadReason::kNotNeeded;
+  if (!info.extension_manifest) {
+    return false;
+  }
 
   // Reload the manifest if it needs to be relocalized.
-  if (extension_l10n_util::ShouldRelocalizeManifest(*info.extension_manifest))
-    return ManifestReloadReason::kNeedsRelocalization;
+  if (extension_l10n_util::ShouldRelocalizeManifest(*info.extension_manifest)) {
+    return true;
+  }
 
   // Reload if the copy of the manifest in the preferences is corrupt.
-  if (IsManifestCorrupt(*info.extension_manifest))
-    return ManifestReloadReason::kCorruptPreferences;
+  if (IsManifestCorrupt(*info.extension_manifest)) {
+    return true;
+  }
 
-  return ManifestReloadReason::kNotNeeded;
+  return false;
 }
 
 BackgroundPageType GetBackgroundPageType(const Extension* extension) {
-  if (!BackgroundInfo::HasBackgroundPage(extension))
-    return NO_BACKGROUND_PAGE;
-  if (BackgroundInfo::HasPersistentBackgroundPage(extension))
-    return BACKGROUND_PAGE_PERSISTENT;
-  if (BackgroundInfo::IsServiceWorkerBased(extension))
-    return SERVICE_WORKER;
-  return EVENT_PAGE;
+  if (!BackgroundInfo::HasBackgroundPage(extension)) {
+    return BackgroundPageType::kNone;
+  }
+  if (BackgroundInfo::HasPersistentBackgroundPage(extension)) {
+    return BackgroundPageType::kPersistent;
+  }
+  if (BackgroundInfo::IsServiceWorkerBased(extension)) {
+    return BackgroundPageType::kServiceWorker;
+  }
+  return BackgroundPageType::kEventPage;
 }
 
 // Helper to record a single disable reason histogram value (see
@@ -185,8 +180,9 @@ void RecordDisableReasons(const DisableReasonSet& reasons) {
 // Returns the current access level for the given `extension`.
 HostPermissionsAccess GetHostPermissionAccessLevelForExtension(
     const Extension& extension) {
-  if (!util::CanWithholdPermissionsFromExtension(extension))
+  if (!util::CanWithholdPermissionsFromExtension(extension)) {
     return HostPermissionsAccess::kCannotAffect;
+  }
 
   bool has_active_hosts = !extension.permissions_data()
                                ->active_permissions()
@@ -227,8 +223,9 @@ HostPermissionsAccess GetHostPermissionAccessLevelForExtension(
                                             .effective_hosts()
                                             .begin();
     if (single_pattern.scheme() != content::kChromeUIScheme ||
-        single_pattern.host() != chrome::kChromeUIFaviconHost)
+        single_pattern.host() != chrome::kChromeUIFaviconHost) {
       return HostPermissionsAccess::kOnSpecificSites;
+    }
   }
 
   // The extension is not running automatically anywhere. All its hosts were
@@ -356,8 +353,9 @@ void InstalledLoader::Load(const ExtensionInfo& info, bool write_to_prefs) {
     }
   }
 
-  if (write_to_prefs)
+  if (write_to_prefs) {
     extension_prefs_->UpdateManifest(extension.get());
+  }
 
   ExtensionRegistrar::Get(profile_)->AddExtension(extension.get());
 }
@@ -386,8 +384,7 @@ void InstalledLoader::LoadAllExtensions(Profile* profile) {
       continue;
     }
 
-    if (ShouldReloadExtensionManifest(info) !=
-        ManifestReloadReason::kNotNeeded) {
+    if (ShouldReloadExtensionManifest(info)) {
       // Reloading an extension reads files from disk.  We do this on the
       // UI thread because reloads should be very rare, and the complexity
       // added by delaying the time when the extensions service knows about
@@ -564,17 +561,17 @@ void InstalledLoader::RecordExtensionsMetrics(Profile* profile,
       // Check for inconsistencies if the extension was supposedly installed
       // from the webstore.
       enum {
-        BAD_UPDATE_URL = 0,
+        kBadUpdateUrl = 0,
         // This value was a mistake. Turns out sideloaded extensions can
         // have the from_webstore bit if they update from the webstore.
-        DEPRECATED_IS_EXTERNAL = 1,
+        kDeprecatedIsExternal = 1,
       };
       if (extension->from_webstore()) {
-        UMA_HISTOGRAM_ENUMERATION(
-            "Extensions.FromWebstoreInconsistency", BAD_UPDATE_URL, 2);
+        UMA_HISTOGRAM_ENUMERATION("Extensions.FromWebstoreInconsistency",
+                                  kBadUpdateUrl, 2);
         if (should_record_incremented_metrics) {
           UMA_HISTOGRAM_ENUMERATION("Extensions.FromWebstoreInconsistency2",
-                                    BAD_UPDATE_URL, 2);
+                                    kBadUpdateUrl, 2);
         }
       } else if (is_user_profile) {
         // Record enabled non-webstore extensions based on developer mode
@@ -599,22 +596,18 @@ void InstalledLoader::RecordExtensionsMetrics(Profile* profile,
     if (Manifest::IsExternalLocation(location)) {
       // See loop below for DISABLED.
       if (UpdatesFromWebstore(*extension)) {
-        UMA_HISTOGRAM_ENUMERATION("Extensions.ExternalItemState",
-                                  EXTERNAL_ITEM_WEBSTORE_ENABLED,
-                                  EXTERNAL_ITEM_MAX_ITEMS);
+        base::UmaHistogramEnumeration("Extensions.ExternalItemState",
+                                      ExternalItemState::kWebstoreEnabled);
         if (should_record_incremented_metrics) {
-          UMA_HISTOGRAM_ENUMERATION("Extensions.ExternalItemState2",
-                                    EXTERNAL_ITEM_WEBSTORE_ENABLED,
-                                    EXTERNAL_ITEM_MAX_ITEMS);
+          base::UmaHistogramEnumeration("Extensions.ExternalItemState2",
+                                        ExternalItemState::kWebstoreEnabled);
         }
       } else {
-        UMA_HISTOGRAM_ENUMERATION("Extensions.ExternalItemState",
-                                  EXTERNAL_ITEM_NONWEBSTORE_ENABLED,
-                                  EXTERNAL_ITEM_MAX_ITEMS);
+        base::UmaHistogramEnumeration("Extensions.ExternalItemState",
+                                      ExternalItemState::kNonwebstoreEnabled);
         if (should_record_incremented_metrics) {
-          UMA_HISTOGRAM_ENUMERATION("Extensions.ExternalItemState2",
-                                    EXTERNAL_ITEM_NONWEBSTORE_ENABLED,
-                                    EXTERNAL_ITEM_MAX_ITEMS);
+          base::UmaHistogramEnumeration("Extensions.ExternalItemState2",
+                                        ExternalItemState::kNonwebstoreEnabled);
         }
       }
     }
@@ -703,8 +696,9 @@ void InstalledLoader::RecordExtensionsMetrics(Profile* profile,
     // From now on, don't count component extensions, since they are only
     // extensions as an implementation detail. Continue to count unpacked
     // extensions for a few metrics.
-    if (Manifest::IsComponentLocation(location))
+    if (Manifest::IsComponentLocation(location)) {
       continue;
+    }
 
     // Histogram for extensions overriding the new tab page should include
     // unpacked extensions.
@@ -718,17 +712,21 @@ void InstalledLoader::RecordExtensionsMetrics(Profile* profile,
     // Histogram for extensions with settings overrides.
     const SettingsOverrides* settings = SettingsOverrides::Get(extension);
     if (settings) {
-      if (settings->search_engine)
+      if (settings->search_engine) {
         ++search_engine_override_count;
-      if (!settings->startup_pages.empty())
+      }
+      if (!settings->startup_pages.empty()) {
         ++startup_pages_override_count;
-      if (settings->homepage)
+      }
+      if (settings->homepage) {
         ++homepage_override_count;
+      }
     }
 
     // Don't count unpacked extensions anymore, either.
-    if (Manifest::IsUnpackedLocation(location))
+    if (Manifest::IsUnpackedLocation(location)) {
       continue;
+    }
 
     if (should_record_incremented_metrics) {
       UMA_HISTOGRAM_ENUMERATION("Extensions.ManifestVersion2",
@@ -740,16 +738,14 @@ void InstalledLoader::RecordExtensionsMetrics(Profile* profile,
     // are effectively extensions. Unfortunately, it's too late, as we don't
     // want to mess up the existing stats.
     if (type == Manifest::TYPE_EXTENSION) {
-      UMA_HISTOGRAM_ENUMERATION("Extensions.BackgroundPageType",
-                                GetBackgroundPageType(extension),
-                                NUM_BACKGROUND_PAGE_TYPES);
+      base::UmaHistogramEnumeration("Extensions.BackgroundPageType",
+                                    GetBackgroundPageType(extension));
       if (should_record_incremented_metrics) {
-        UMA_HISTOGRAM_ENUMERATION("Extensions.BackgroundPageType2",
-                                  GetBackgroundPageType(extension),
-                                  NUM_BACKGROUND_PAGE_TYPES);
+        base::UmaHistogramEnumeration("Extensions.BackgroundPageType2",
+                                      GetBackgroundPageType(extension));
       }
 
-      if (GetBackgroundPageType(extension) == EVENT_PAGE) {
+      if (GetBackgroundPageType(extension) == BackgroundPageType::kEventPage) {
         // Count extension event pages with no registered events. Either the
         // event page is badly designed, or there may be a bug where the event
         // page failed to start after an update (crbug.com/469361).
@@ -815,12 +811,13 @@ void InstalledLoader::RecordExtensionsMetrics(Profile* profile,
     // we want to know how many extensions have a given type of action as part
     // of their code, rather than as part of the extension action redesign
     // (which gives each extension an action).
-    if (extension->manifest()->FindKey(manifest_keys::kPageAction))
+    if (extension->manifest()->FindKey(manifest_keys::kPageAction)) {
       ++page_action_count;
-    else if (extension->manifest()->FindKey(manifest_keys::kBrowserAction))
+    } else if (extension->manifest()->FindKey(manifest_keys::kBrowserAction)) {
       ++browser_action_count;
-    else
+    } else {
       ++no_action_count;
+    }
 
     RecordPermissionMessagesHistogram(extension, "Load",
                                       should_record_incremented_metrics);
@@ -831,16 +828,18 @@ void InstalledLoader::RecordExtensionsMetrics(Profile* profile,
     if (ui_util::ShouldDisplayInExtensionSettings(*extension) &&
         !Manifest::IsPolicyLocation(extension->location())) {
       if (util::CanBeIncognitoEnabled(extension)) {
-        if (util::IsIncognitoEnabled(extension->id(), profile))
+        if (util::IsIncognitoEnabled(extension->id(), profile)) {
           ++incognito_allowed_count;
-        else
+        } else {
           ++incognito_not_allowed_count;
+        }
       }
       if (extension->wants_file_access()) {
-        if (util::AllowFileAccess(extension->id(), profile))
+        if (util::AllowFileAccess(extension->id(), profile)) {
           ++file_access_allowed_count;
-        else
+        } else {
           ++file_access_not_allowed_count;
+        }
       }
     }
 
@@ -872,8 +871,9 @@ void InstalledLoader::RecordExtensionsMetrics(Profile* profile,
                                        .effective_hosts()) {
           // Ignore chrome:-scheme patterns (like chrome://favicon); these
           // aren't withheld, and thus shouldn't be considered "granted".
-          if (pattern.scheme() != content::kChromeUIScheme)
+          if (pattern.scheme() != content::kChromeUIScheme) {
             ++num_granted_hosts;
+          }
         }
         // TODO(devlin): This only takes into account the granted hosts that
         // were also requested by the extension (because it looks at the active
@@ -916,22 +916,19 @@ void InstalledLoader::RecordExtensionsMetrics(Profile* profile,
     if (Manifest::IsExternalLocation(location)) {
       // See loop above for ENABLED.
       if (UpdatesFromWebstore(*disabled_extension)) {
-        UMA_HISTOGRAM_ENUMERATION("Extensions.ExternalItemState",
-                                  EXTERNAL_ITEM_WEBSTORE_DISABLED,
-                                  EXTERNAL_ITEM_MAX_ITEMS);
+        base::UmaHistogramEnumeration("Extensions.ExternalItemState",
+                                      ExternalItemState::kWebstoreDisabled);
         if (should_record_incremented_metrics) {
-          UMA_HISTOGRAM_ENUMERATION("Extensions.ExternalItemState2",
-                                    EXTERNAL_ITEM_WEBSTORE_DISABLED,
-                                    EXTERNAL_ITEM_MAX_ITEMS);
+          base::UmaHistogramEnumeration("Extensions.ExternalItemState2",
+                                        ExternalItemState::kWebstoreDisabled);
         }
       } else {
-        UMA_HISTOGRAM_ENUMERATION("Extensions.ExternalItemState",
-                                  EXTERNAL_ITEM_NONWEBSTORE_DISABLED,
-                                  EXTERNAL_ITEM_MAX_ITEMS);
+        base::UmaHistogramEnumeration("Extensions.ExternalItemState",
+                                      ExternalItemState::kNonwebstoreDisabled);
         if (should_record_incremented_metrics) {
-          UMA_HISTOGRAM_ENUMERATION("Extensions.ExternalItemState2",
-                                    EXTERNAL_ITEM_NONWEBSTORE_DISABLED,
-                                    EXTERNAL_ITEM_MAX_ITEMS);
+          base::UmaHistogramEnumeration(
+              "Extensions.ExternalItemState2",
+              ExternalItemState::kNonwebstoreDisabled);
         }
       }
     }

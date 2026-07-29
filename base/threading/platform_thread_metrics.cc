@@ -7,6 +7,7 @@
 #include <memory>
 #include <optional>
 
+#include "base/check.h"
 #include "base/memory/ptr_util.h"
 #include "base/threading/platform_thread.h"
 #include "base/time/time.h"
@@ -50,15 +51,16 @@ PlatformThreadMetrics::~PlatformThreadMetrics() = default;
 double PlatformThreadMetrics::GetCPUUsageProportion(TimeDelta cumulative_cpu) {
   TimeTicks time = TimeTicks::Now();
 
-  if (last_cumulative_cpu_.is_zero()) {
+  if (!last_cpu_time_.has_value()) {
     // First call, just set the last values.
+    CHECK(last_cumulative_cpu_.is_zero());
     last_cumulative_cpu_ = cumulative_cpu;
     last_cpu_time_ = time;
     return 0;
   }
 
   TimeDelta cpu_time_delta = cumulative_cpu - last_cumulative_cpu_;
-  TimeDelta time_delta = time - last_cpu_time_;
+  TimeDelta time_delta = time - last_cpu_time_.value();
   if (time_delta.is_zero()) {
     return 0;
   }

@@ -9,7 +9,8 @@
 
 #include "base/check_op.h"
 #include "base/containers/span.h"
-#include "base/trace_event/base_tracing.h"
+#include "base/strings/string_view_util.h"
+#include "base/trace_event/trace_event.h"
 #include "components/persistent_cache/sqlite/sqlite_entry_impl.h"
 #include "components/persistent_cache/sqlite/vfs/sandboxed_file.h"
 #include "components/persistent_cache/sqlite/vfs/sqlite_sandboxed_vfs.h"
@@ -30,11 +31,11 @@ SqliteVfsFileSet SqliteBackendImpl::GetVfsFileSetFromParams(
   CHECK_EQ(backend_params.type, BackendType::kSqlite);
 
   using AccessRights = SandboxedFile::AccessRights;
-  SandboxedFile db_file = SandboxedFile(std::move(backend_params.db_file),
-                                        backend_params.db_file_is_writable
-                                            ? AccessRights::kReadWrite
-                                            : AccessRights::kReadOnly);
-  SandboxedFile journal_file = SandboxedFile(
+  std::unique_ptr<SandboxedFile> db_file = std::make_unique<SandboxedFile>(
+      std::move(backend_params.db_file), backend_params.db_file_is_writable
+                                             ? AccessRights::kReadWrite
+                                             : AccessRights::kReadOnly);
+  std::unique_ptr<SandboxedFile> journal_file = std::make_unique<SandboxedFile>(
       std::move(backend_params.journal_file),
       backend_params.journal_file_is_writable ? AccessRights::kReadWrite
                                               : AccessRights::kReadOnly);
@@ -47,16 +48,17 @@ SqliteBackendImpl::SqliteBackendImpl(BackendParams backend_params)
 
 SqliteBackendImpl::SqliteBackendImpl(SqliteVfsFileSet vfs_file_set)
     : database_path_(vfs_file_set.GetDbVirtualFilePath()),
+      vfs_file_set_(std::move(vfs_file_set)),
+      unregister_runner_(
+          SqliteSandboxedVfsDelegate::GetInstance()->RegisterSandboxedFiles(
+              vfs_file_set_)),
       db_(sql::DatabaseOptions()
               .set_vfs_name_discouraged(
                   SqliteSandboxedVfsDelegate::kSqliteVfsName)
               // Prevent SQLite from trying to use mmap, as SandboxedVfs does
               // not currently support this.
               .set_mmap_enabled(false),
-          kSqliteHistogramTag),
-      unregister_runner_(
-          SqliteSandboxedVfsDelegate::GetInstance()->RegisterSandboxedFiles(
-              std::move(vfs_file_set))) {}
+          kSqliteHistogramTag) {}
 
 SqliteBackendImpl::~SqliteBackendImpl() = default;
 

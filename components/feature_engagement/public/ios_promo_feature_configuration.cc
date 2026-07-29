@@ -256,11 +256,28 @@ std::optional<FeatureConfig> GetStandardPromoConfig(
     config.availability = Comparator(ANY, 0);
     config.session_rate = Comparator(ANY, 0);
     config.used =
-        EventConfig(feature_engagement::events::kIOSGLICPromoUsed,
+        EventConfig(feature_engagement::events::kIOSBWGPromoUsed,
                     Comparator(EQUAL, 0), feature_engagement::kMaxStoragePeriod,
                     feature_engagement::kMaxStoragePeriod);
     config.trigger =
-        EventConfig(feature_engagement::events::kIOSGLICPromoTrigger,
+        EventConfig(feature_engagement::events::kIOSBWGPromoTrigger,
+                    Comparator(EQUAL, 0), feature_engagement::kMaxStoragePeriod,
+                    feature_engagement::kMaxStoragePeriod);
+    return config;
+  }
+
+  if (kIPHIOSPageActionMenu.name == feature->name) {
+    // Show the promo only once when the conditions are met.
+    FeatureConfig config;
+    config.valid = true;
+    config.availability = Comparator(ANY, 0);
+    config.session_rate = Comparator(ANY, 0);
+    config.trigger =
+        EventConfig(feature_engagement::events::kIOSPageActionMenuIPHTrigger,
+                    Comparator(EQUAL, 0), feature_engagement::kMaxStoragePeriod,
+                    feature_engagement::kMaxStoragePeriod);
+    config.used =
+        EventConfig(feature_engagement::events::kIOSPageActionMenuIPHUsed,
                     Comparator(EQUAL, 0), feature_engagement::kMaxStoragePeriod,
                     feature_engagement::kMaxStoragePeriod);
     return config;
@@ -501,6 +518,33 @@ std::optional<FeatureConfig> GetCustomConfig(const base::Feature* feature) {
     // non-contextual default browser promo. Thus, it should share cooldown
     // rules.
     config.groups.push_back(kiOSDefaultBrowserPromosGroup.name);
+    return config;
+  }
+
+  if (kIPHiOSSafariImportFeature.name == feature->name) {
+    // A config that shows the Safari import entry point modal. If the user
+    // proceeds with the import or dismisses the modal, the entry point will
+    // show again.
+    FeatureConfig config;
+    config.valid = true;
+    config.availability = Comparator(ANY, 0);
+    config.session_rate = Comparator(ANY, 0);
+    // Can be triggered any number of times, as long as the user keeps setting
+    // the reminder.
+    config.trigger =
+        EventConfig("ios_safari_import_entry_point_trigger", Comparator(ANY, 0),
+                    kMaxStoragePeriod, kMaxStoragePeriod);
+    // If the user has started or dismissed the Safari import workflow, don't
+    // show the entry point again.
+    config.used =
+        EventConfig("ios_safari_import_entry_point_used_or_dismissed",
+                    Comparator(EQUAL, 0), feature_engagement::kMaxStoragePeriod,
+                    feature_engagement::kMaxStoragePeriod);
+    // Show the entry point if the user has neither started or dismissed the
+    // Safari import workflow, nor tapped "remind me later" in the last two
+    // days.
+    config.event_configs.insert(EventConfig(
+        events::kIOSSafariImportRemindMeLater, Comparator(EQUAL, 0), 2, 2));
     return config;
   }
 

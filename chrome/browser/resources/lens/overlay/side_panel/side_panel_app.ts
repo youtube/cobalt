@@ -172,6 +172,10 @@ export class LensSidePanelAppElement extends LensSidePanelAppElementBase {
         type: String,
         value: '',
       },
+      searchboxSuggestionCount: {
+        type: Number,
+        value: 0,
+      },
     };
   }
 
@@ -227,7 +231,12 @@ export class LensSidePanelAppElement extends LensSidePanelAppElementBase {
   private pageHandler: LensSidePanelPageHandlerInterface;
   declare private wasBackArrowAvailable: boolean;
   declare private toastMessage: string;
+  // The number of suggestions currently being shown to the user.
+  declare private searchboxSuggestionCount: number;
   private eventTracker_: EventTracker = new EventTracker();
+
+  private searchboxBoundingClientRectObserver: ResizeObserver =
+      new ResizeObserver(this.onSearchboxBoundsChanged.bind(this));
 
   constructor() {
     super();
@@ -399,13 +408,10 @@ export class LensSidePanelAppElement extends LensSidePanelAppElementBase {
 
   // Called when the searchbox requests autocomplete suggestions.
   private handleQueryAutocomplete(e: CustomEvent) {
-    this.autocompleteRequestStarted = true;
-    if (!e.detail.inputValue.trim()) {
-      // If there is an input of only whitespace, don't show ghost loader since
-      // no results will ever be returned for these inputs.
-      this.suppressGhostLoader = e.detail.inputValue;
-      this.showErrorState = false;
-    }
+    // A request is only started for zero suggest, which is when the input value
+    // is empty.
+    this.autocompleteRequestStarted = !e.detail.inputValue;
+    this.showErrorState = false;
   }
 
   private setShowErrorPage(
@@ -423,6 +429,11 @@ export class LensSidePanelAppElement extends LensSidePanelAppElementBase {
     this.notifyHelpBubbleAnchorCustomEvent(
         'kLensSidePanelSearchBoxElementId',
         'kLensSidePanelSearchBoxFocusedEventId');
+
+    // Setup a listener on the suggestions container to adjust the ghost loader
+    // number of suggestions.
+    this.searchboxBoundingClientRectObserver.observe(
+        this.$.searchbox.getSuggestionsElement());
   }
 
   private onSearchboxFocusOut_(event: FocusEvent) {
@@ -439,6 +450,14 @@ export class LensSidePanelAppElement extends LensSidePanelAppElementBase {
     this.isSearchboxFocused = false;
     this.autocompleteRequestStarted = false;
     this.showErrorState = false;
+
+    // Disconnect the ResizeObserver.
+    this.searchboxBoundingClientRectObserver.disconnect();
+  }
+
+  private onSearchboxBoundsChanged() {
+    this.searchboxSuggestionCount =
+        this.$.searchbox.getSuggestionsElement().selectableMatchElements.length;
   }
 
   private computeShowGhostLoader(): boolean {

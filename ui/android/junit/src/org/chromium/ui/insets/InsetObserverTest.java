@@ -5,7 +5,9 @@
 package org.chromium.ui.insets;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.clearInvocations;
@@ -18,7 +20,6 @@ import static org.mockito.Mockito.verify;
 import android.graphics.Rect;
 import android.os.Build;
 import android.os.Build.VERSION_CODES;
-import android.view.View;
 import android.view.WindowInsets;
 import android.widget.LinearLayout;
 
@@ -120,7 +121,10 @@ public class InsetObserverTest {
                 .when(mModifiedInsets)
                 .getInsets(WindowInsetsCompat.Type.systemGestures());
 
-        mInsetObserver = new InsetObserver(new ImmutableWeakReference<View>(mContentView));
+        mInsetObserver =
+                new InsetObserver(
+                        new ImmutableWeakReference<>(mContentView),
+                        /* enableKeyboardOverlayMode= */ true);
         mInsetObserver.addObserver(mObserver);
     }
 
@@ -212,6 +216,16 @@ public class InsetObserverTest {
                 insets.getInsets(WindowInsetsCompat.Type.systemBars()));
         verify(mInsetsConsumer2).onApplyWindowInsets(mContentView, mInsets);
         verify(mInsetsConsumer1).onApplyWindowInsets(mContentView, mModifiedInsets);
+    }
+
+    @Test
+    @SmallTest
+    public void isKeyboardInOverlayMode() {
+        mInsetObserver.setKeyboardInOverlayMode(true);
+        assertTrue(mInsetObserver.isKeyboardInOverlayMode());
+
+        mInsetObserver.setKeyboardInOverlayMode(false);
+        assertFalse(mInsetObserver.isKeyboardInOverlayMode());
     }
 
     @Test
@@ -377,7 +391,10 @@ public class InsetObserverTest {
     @Config(sdk = VERSION_CODES.R)
     public void initializeWithLastSeenRawWindowInsets() {
         doReturn(mNonCompatInsets).when(mContentView).getRootWindowInsets();
-        mInsetObserver = new InsetObserver(new ImmutableWeakReference<View>(mContentView));
+        mInsetObserver =
+                new InsetObserver(
+                        new ImmutableWeakReference<>(mContentView),
+                        /* enableKeyboardOverlayMode= */ true);
         assertEquals(
                 "WindowInsets is different.",
                 WindowInsetsCompat.toWindowInsetsCompat(mNonCompatInsets),

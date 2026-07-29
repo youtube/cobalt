@@ -413,10 +413,6 @@ TEST_F(RealTimeUrlLookupServiceTest, StartFillingRequestProto) {
 }
 
 TEST_F(RealTimeUrlLookupServiceTest, TestFillReferringAppInfo) {
-  // The features kAddReferringAppInfoToProtegoPings and
-  // kAddReferringWebApkToProtegoPings are relevant to this functionality, but
-  // the actual check for the feature state is earlier (not in
-  // RealTimeUrlLookupService).
   EnableRealTimeUrlLookup({}, {});
   struct {
     bool is_enhanced_protection;
@@ -598,7 +594,7 @@ TEST_F(RealTimeUrlLookupServiceTest, TestCacheInCacheManager) {
 
 TEST_F(RealTimeUrlLookupServiceTest, TestStartLookup_PendingRequestForSameUrl) {
   base::HistogramTester histograms;
-  EnableRealTimeUrlLookup({kSafeBrowsingRemoveCookiesInAuthRequests}, {});
+  EnableRealTimeUrlLookup({}, {});
   GURL url(kTestUrl);
   SetUpRTLookupResponse(RTLookupResponse::ThreatInfo::DANGEROUS,
                         RTLookupResponse::ThreatInfo::SOCIAL_ENGINEERING, 60,
@@ -678,7 +674,7 @@ TEST_F(RealTimeUrlLookupServiceTest, TestStartLookup_ResponseIsAlreadyCached) {
 TEST_F(RealTimeUrlLookupServiceTest,
        TestStartLookup_PingWithTokenUpdatesEsbProtegoPingWithTokenLastLogTime) {
   base::HistogramTester histograms;
-  EnableRealTimeUrlLookup({kSafeBrowsingRemoveCookiesInAuthRequests}, {});
+  EnableRealTimeUrlLookup({}, {});
   EnableTokenFetchesInClient();
   SetSafeBrowsingState(&test_pref_service_,
                        SafeBrowsingState::ENHANCED_PROTECTION);
@@ -708,7 +704,7 @@ TEST_F(RealTimeUrlLookupServiceTest,
 TEST_F(
     RealTimeUrlLookupServiceTest,
     TestStartLookup_PingWithoutTokenSetsEsbProtegoPingWithoutTokenLastLogTime) {
-  EnableRealTimeUrlLookup({kSafeBrowsingRemoveCookiesInAuthRequests}, {});
+  EnableRealTimeUrlLookup({}, {});
   DisableTokenFetchesInClient();
   SetSafeBrowsingState(&test_pref_service_,
                        SafeBrowsingState::ENHANCED_PROTECTION);
@@ -732,7 +728,7 @@ TEST_F(
 TEST_F(
     RealTimeUrlLookupServiceTest,
     TestStartLookup_DoesNotSetEsbProtegoPingWithTokenLastLogTimeWhenCacheIsHit) {
-  EnableRealTimeUrlLookup({kSafeBrowsingRemoveCookiesInAuthRequests}, {});
+  EnableRealTimeUrlLookup({}, {});
   EnableTokenFetchesInClient();
   SetSafeBrowsingState(&test_pref_service_,
                        SafeBrowsingState::ENHANCED_PROTECTION);
@@ -757,7 +753,7 @@ TEST_F(
 TEST_F(
     RealTimeUrlLookupServiceTest,
     TestStartLookup_DoesNotSetEsbProtegoPingWithoutTokenLastLogTimeWhenCacheIsHit) {
-  EnableRealTimeUrlLookup({kSafeBrowsingRemoveCookiesInAuthRequests}, {});
+  EnableRealTimeUrlLookup({}, {});
   DisableTokenFetchesInClient();
   SetSafeBrowsingState(&test_pref_service_,
                        SafeBrowsingState::ENHANCED_PROTECTION);
@@ -783,7 +779,7 @@ TEST_F(
 TEST_F(
     RealTimeUrlLookupServiceTest,
     TestStartLookup_DoesNotSetEsbProtegoPingWithTokenLastLogTimeWhenEsbIsDisabled) {
-  EnableRealTimeUrlLookup({kSafeBrowsingRemoveCookiesInAuthRequests}, {});
+  EnableRealTimeUrlLookup({}, {});
   SetSafeBrowsingState(&test_pref_service_,
                        SafeBrowsingState::STANDARD_PROTECTION);
   EnableTokenFetchesInClient();
@@ -808,7 +804,7 @@ TEST_F(
 TEST_F(
     RealTimeUrlLookupServiceTest,
     TestStartLookup_DoesNotSetEsbProtegoPingWithoutTokenLastLogTimeWhenEsbIsDisabled) {
-  EnableRealTimeUrlLookup({kSafeBrowsingRemoveCookiesInAuthRequests}, {});
+  EnableRealTimeUrlLookup({}, {});
   SetSafeBrowsingState(&test_pref_service_,
                        SafeBrowsingState::STANDARD_PROTECTION);
   DisableTokenFetchesInClient();
@@ -833,8 +829,7 @@ TEST_F(
 TEST_F(RealTimeUrlLookupServiceTest,
        TestStartLookup_AttachTokenWhenWithTokenIsEnabled) {
   base::HistogramTester histograms;
-  EnableRealTimeUrlLookup(
-      {kSafeBrowsingRemoveCookiesInAuthRequests, kLocalIpAddressInEvents}, {});
+  EnableRealTimeUrlLookup({kLocalIpAddressInEvents}, {});
   EnableTokenFetchesInClient();
   GURL url(kTestUrl);
   SetUpRTLookupResponse(RTLookupResponse::ThreatInfo::DANGEROUS,
@@ -856,10 +851,9 @@ TEST_F(RealTimeUrlLookupServiceTest,
         EXPECT_FALSE(request_proto.has_profile_dm_token());
         EXPECT_FALSE(request_proto.has_client_reporting_metadata());
         EXPECT_TRUE(request_proto.local_ips().empty());
-
-        // Cookies should be removed when token is set.
+        // Cookies should still be included when token is set.
         EXPECT_EQ(request.credentials_mode,
-                  network::mojom::CredentialsMode::kOmit);
+                  network::mojom::CredentialsMode::kInclude);
         EXPECT_THAT(
             request.headers.GetHeader(net::HttpRequestHeaders::kAuthorization),
             testing::Optional(std::string("Bearer access_token_string")));
@@ -884,13 +878,21 @@ TEST_F(RealTimeUrlLookupServiceTest,
   histograms.ExpectUniqueSample("SafeBrowsing.RT.ThreatInfoSize",
                                 /* sample */ 1,
                                 /* expected_count */ 1);
+  histograms.ExpectUniqueSample("SafeBrowsing.RT.HasAccessTokenFromFetcher",
+                                /*sample=*/true, /*expected_bucket_count=*/1);
+  histograms.ExpectUniqueSample(
+      "SafeBrowsing.RT.HasAccessTokenFromFetcher.Consumer", /*sample=*/true,
+      /*expected_bucket_count=*/1);
+  histograms.ExpectTotalCount("SafeBrowsing.RT.GetToken.TimeTaken",
+                              /*expected_count=*/1);
+  histograms.ExpectTotalCount("SafeBrowsing.RT.GetToken.TimeTaken.Consumer",
+                              /*expected_count=*/1);
 }
 
 TEST_F(RealTimeUrlLookupServiceTest,
        TestStartLookup_NoTokenWhenTokenIsUnavailable) {
   base::HistogramTester histograms;
-  EnableRealTimeUrlLookup(
-      {kSafeBrowsingRemoveCookiesInAuthRequests, kLocalIpAddressInEvents}, {});
+  EnableRealTimeUrlLookup({kLocalIpAddressInEvents}, {});
   EnableTokenFetchesInClient();
   GURL url(kTestUrl);
   SetUpRTLookupResponse(RTLookupResponse::ThreatInfo::DANGEROUS,

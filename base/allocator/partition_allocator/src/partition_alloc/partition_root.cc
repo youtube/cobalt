@@ -1112,10 +1112,6 @@ void PartitionRoot::Init(PartitionOptions opts) {
     settings.fewer_memory_regions =
         opts.fewer_memory_regions == PartitionOptions::kEnabled;
 
-    // If quarantine is enabled, it should be guarded with locks.
-    PA_CHECK(!opts.scheduler_loop_quarantine_global_config.enable_quarantine ||
-             opts.scheduler_loop_quarantine_global_config.quarantine_config
-                 .lock_required);
     scheduler_loop_quarantine.Configure(
         scheduler_loop_quarantine_root,
         opts.scheduler_loop_quarantine_global_config);
@@ -1195,14 +1191,11 @@ void PartitionRoot::Init(PartitionOptions opts) {
     // This is a "magic" value so we can test if a root pointer is valid.
     inverted_self = ~reinterpret_cast<uintptr_t>(this);
 
-    const bool use_small_single_slot_spans =
-        opts.use_small_single_slot_spans == PartitionOptions::kEnabled;
-
     // Set up the actual usable buckets first.
     for (size_t bucket_index = 0; bucket_index < BucketIndexLookup::kNumBuckets;
          ++bucket_index) {
       const size_t slot_size = BucketIndexLookup::GetBucketSize(bucket_index);
-      buckets[bucket_index].Init(slot_size, use_small_single_slot_spans);
+      buckets[bucket_index].Init(slot_size);
     }
 
 #if !PA_CONFIG(THREAD_CACHE_SUPPORTED)
@@ -1712,7 +1705,7 @@ void PartitionRoot::DumpStats(const char* partition_name,
     if (stats.has_scheduler_loop_quarantine) {
       memset(
           reinterpret_cast<void*>(&stats.scheduler_loop_quarantine_stats_total),
-          0, sizeof(LightweightQuarantineStats));
+          0, sizeof(SchedulerLoopQuarantineStats));
       scheduler_loop_quarantine_root.AccumulateStats(
           stats.scheduler_loop_quarantine_stats_total);
     }

@@ -112,6 +112,9 @@ const char kComposePromotionUmaName[] = "ComposePromotion";
 
 const char kEphemeralHomeModuleBackendKey[] = "ephemeral_home_module_backend";
 
+const char kIosDefaultBrowserPromoKey[] = "ios_default_browser_promo";
+const char kIosDefaultBrowserPromoUmaName[] = "IosDefaultBrowserPromo";
+
 // The key is used to decide whether the user would use FedCM.
 const char kFedCmUserKey[] = "fedcm_user";
 const char kFedCmUserUmaName[] = "FedCmUser";
@@ -166,6 +169,7 @@ const char kContextualPageActionModelLabelDiscounts[] = "discounts";
 const char kContextualPageActionModelLabelPriceTracking[] = "price_tracking";
 const char kContextualPageActionModelLabelReaderMode[] = "reader_mode";
 const char kContextualPageActionModelLabelPriceInsights[] = "price_insights";
+const char kContextualPageActionModelLabelTabGrouping[] = "tab_grouping";
 
 // Labels for cross device segment.
 const char kNoCrossDeviceUsage[] = "NoCrossDeviceUsage";
@@ -243,6 +247,8 @@ const char kContextualPageActionModelInputReaderMode[] = "has_reader_mode";
 const char kContextualPageActionModelInputPriceInsights[] =
     "has_price_insights";
 const char kContextualPageActionModelInputDiscounts[] = "has_discounts";
+const char kContextualPageActionModelInputTabGrouping[] =
+    "has_tab_grouping_suggestion";
 
 const char kComposePrmotionLabelShow[] = "Show";
 const char kComposePrmotionLabelDontShow[] = "DontShow";

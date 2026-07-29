@@ -26,12 +26,6 @@ chromium-metrics-reviews@google.com.
 
 <enums>
 
-<enum name="AVIFCleanApertureType">
-  <int value="0" label="kInvalid"/>
-  <int value="1" label="kNonzeroOrigin"/>
-  <int value="2" label="kZeroOrigin"/>
-</enum>
-
 <enum name="BackgroundResourceFetchSupportStatus">
   <int value="0" label="Supported"/>
   <int value="1" label="Unsupported sync request"/>
@@ -2553,7 +2547,7 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="2200" label="BatteryStatusCrossOrigin"/>
   <int value="2201" label="BatteryStatusSameOriginABA"/>
   <int value="2202" label="WebAudioValueSetterIsSetValue (Obsolete)"/>
-  <int value="2203" label="HasIDClassTagAttribute"/>
+  <int value="2203" label="OBSOLETE_HasIDClassTagAttribute"/>
   <int value="2204" label="HasBeforeOrAfterPseudoElement"/>
   <int value="2205" label="ShapeOutsideMaybeAffectedInlineSize"/>
   <int value="2206" label="ShapeOutsideMaybeAffectedInlinePosition"/>
@@ -6222,6 +6216,7 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="5591" label="SchedulerYieldNonTrivialInheritCrossFrameIgnored"/>
   <int value="5592" label="LocalNetworkAccessPrivateAliasUse"/>
   <int value="5593" label="V8URLPattern_Generate_Method"/>
+  <int value="5594" label="SelectMultipleSizeOne"/>
 </enum>
 
 <!-- LINT.ThenChange(//third_party/blink/public/mojom/use_counter/metrics/web_feature.mojom:WebFeature) -->
@@ -7813,6 +7808,7 @@ Called by update_use_counter_css.py.-->
   <int value="856" label="text-grow"/>
   <int value="857" label="text-shrink"/>
   <int value="858" label="rule"/>
+  <int value="859" label="origin-trial-test-shorthand"/>
 </enum>
 
 <!-- LINT.ThenChange(//third_party/blink/public/mojom/use_counter/metrics/css_property_id.mojom:CSSSampleId) -->

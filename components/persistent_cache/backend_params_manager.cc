@@ -4,7 +4,9 @@
 
 #include "components/persistent_cache/backend_params_manager.h"
 
+#include "base/files/file_enumerator.h"
 #include "base/files/file_path.h"
+#include "base/files/file_util.h"
 #include "base/functional/bind.h"
 #include "base/location.h"
 #include "base/sequence_checker.h"
@@ -25,7 +27,11 @@ namespace persistent_cache {
 
 BackendParamsManager::BackendParamsManager(base::FilePath top_directory)
     : backend_params_map_(kLruCacheCapacity),
-      top_directory_(std::move(top_directory)) {}
+      top_directory_(std::move(top_directory)) {
+  if (!base::PathExists(top_directory_)) {
+    base::CreateDirectory(top_directory_);
+  }
+}
 BackendParamsManager::~BackendParamsManager() = default;
 
 void BackendParamsManager::GetParamsSyncOrCreateAsync(
@@ -68,6 +74,21 @@ BackendParams BackendParamsManager::GetOrCreateParamsSync(
   SaveParams(key, CompletedCallback(), new_params.Copy());
 
   return new_params;
+}
+
+void BackendParamsManager::DeleteAllFiles() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
+  // Clear params cache so they don't hold on to files or prevent their
+  // deletion. BackendParam instances that were vended by this class and
+  // retained somewhere else can still create problems and need to be handled
+  // appropriately.
+  backend_params_map_.Clear();
+
+  base::DeletePathRecursively(top_directory_);
+
+  // Recreate the directory since the objective was to delete files only.
+  base::CreateDirectory(top_directory_);
 }
 
 // static

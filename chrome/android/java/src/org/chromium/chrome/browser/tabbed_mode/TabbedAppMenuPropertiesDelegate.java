@@ -216,6 +216,9 @@ public class TabbedAppMenuPropertiesDelegate extends AppMenuPropertiesDelegateIm
         // Add to Group
         if (shouldShowAddToGroup()) modelList.add(buildAddToGroupItem(currentTab));
 
+        // Pin tab.
+        if (shouldShowPinTab()) modelList.add(buildPinTabItem());
+
         // New Window
         if (shouldShowNewWindow()) modelList.add(buildNewWindowItem());
 
@@ -340,8 +343,8 @@ public class TabbedAppMenuPropertiesDelegate extends AppMenuPropertiesDelegateIm
         modelList.add(buildSettingsItem());
 
         // NTP Customizations
-        if (shouldShowNtpCustomizations()) {
-            modelList.add(buildNtpCustomizationsItem());
+        if (shouldShowNtpCustomizations(currentTab)) {
+            modelList.add(buildNtpCustomizationsItem(currentTab));
         }
 
         // Help
@@ -443,6 +446,20 @@ public class TabbedAppMenuPropertiesDelegate extends AppMenuPropertiesDelegateIm
                         getAddToGroupMenuItemString(
                                 currentTab != null ? currentTab.getTabGroupId() : null)));
         return new MVCListAdapter.ListItem(AppMenuHandler.AppMenuItemType.STANDARD, model);
+    }
+
+    private boolean shouldShowPinTab() {
+        return ChromeFeatureList.sAndroidPinnedTabs.isEnabled();
+    }
+
+    private MVCListAdapter.ListItem buildPinTabItem() {
+        assert shouldShowPinTab();
+        return new MVCListAdapter.ListItem(
+                AppMenuHandler.AppMenuItemType.STANDARD,
+                buildModelForStandardMenuItem(
+                        R.id.pin_tab_menu_id,
+                        R.string.menu_pin_tab,
+                        shouldShowIconBeforeItem() ? R.drawable.ic_offline_pin_24dp : 0));
     }
 
     private MVCListAdapter.ListItem buildNewWindowItem() {
@@ -668,12 +685,21 @@ public class TabbedAppMenuPropertiesDelegate extends AppMenuPropertiesDelegateIm
                         shouldShowIconBeforeItem() ? R.drawable.settings_cog : 0));
     }
 
-    private boolean shouldShowNtpCustomizations() {
-        return ChromeFeatureList.sNewTabPageCustomization.isEnabled() && !isIncgnitoShowing();
+    /**
+     * Returns True if the NTP Customization menu entry should be visible.
+     *
+     * <p>This entry is shown only when the corresponding feature flag is enabled and the user is on
+     * the regular Ntp.
+     */
+    private boolean shouldShowNtpCustomizations(@Nullable Tab currentTab) {
+        return ChromeFeatureList.sNewTabPageCustomization.isEnabled()
+                && !isIncgnitoShowing()
+                && currentTab != null
+                && UrlUtilities.isNtpUrl(currentTab.getUrl());
     }
 
-    private MVCListAdapter.ListItem buildNtpCustomizationsItem() {
-        assert shouldShowNtpCustomizations();
+    private MVCListAdapter.ListItem buildNtpCustomizationsItem(Tab currentTab) {
+        assert shouldShowNtpCustomizations(currentTab);
         return new MVCListAdapter.ListItem(
                 AppMenuHandler.AppMenuItemType.STANDARD,
                 buildModelForStandardMenuItem(

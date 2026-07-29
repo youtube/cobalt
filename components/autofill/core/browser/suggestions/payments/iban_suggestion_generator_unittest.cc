@@ -4,6 +4,7 @@
 
 #include "components/autofill/core/browser/suggestions/payments/iban_suggestion_generator.h"
 
+#include "base/strings/utf_string_conversions.h"
 #include "base/test/mock_callback.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
@@ -38,8 +39,6 @@ class IbanSuggestionGeneratorTest : public testing::Test,
         {{features::kAutofillEnableNewFopDisplayDesktop,
           IsNewFopDisplayEnabled()},
          {features::kAutofillNewSuggestionGeneration, true}});
-    original_resource_bundle_ =
-        ui::ResourceBundle::SwapSharedInstanceForTesting(nullptr);
     prefs_ = test::PrefServiceForTesting();
     payments_data_manager().SetAutofillPaymentMethodsEnabled(true);
     autofill_client_.set_payments_autofill_client(
@@ -67,7 +66,6 @@ class IbanSuggestionGeneratorTest : public testing::Test,
 
   ~IbanSuggestionGeneratorTest() override {
     ui::ResourceBundle::CleanupSharedInstance();
-    ui::ResourceBundle::SwapSharedInstanceForTesting(original_resource_bundle_);
   }
 
   bool IsNewFopDisplayEnabled() const {
@@ -165,7 +163,7 @@ class IbanSuggestionGeneratorTest : public testing::Test,
   std::unique_ptr<PrefService> prefs_;
   std::unique_ptr<FormStructure> form_structure_;
   testing::NiceMock<ui::MockResourceBundleDelegate> mock_resource_delegate_;
-  raw_ptr<ui::ResourceBundle> original_resource_bundle_;
+  ui::ResourceBundle::SharedInstanceSwapperForTesting resource_bundle_swapper_;
   base::test::ScopedFeatureList feature_list_;
 };
 

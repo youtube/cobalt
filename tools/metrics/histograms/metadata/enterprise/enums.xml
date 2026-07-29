@@ -75,7 +75,6 @@ chromium-metrics-reviews@google.com.
   <int value="0" label="Page UserData"/>
   <int value="1" label="Cached lookup result"/>
   <int value="2" label="Post navigation lookup"/>
-  <int value="3" label="WebContents UserData"/>
 </enum>
 
 <enum name="DeviceIdentifierStatus">
@@ -473,6 +472,7 @@ chromium-metrics-reviews@google.com.
   <int value="34" label="FAILURE_INVALID_STATE"/>
   <int value="35" label="FAILURE_INVALID_ARGUMENT"/>
   <int value="36" label="FAILURE_NETWORK_FAILURE"/>
+  <int value="37" label="FAILURE_OPERATION_TIMEOUT"/>
 </enum>
 
 <enum name="EnterpriseDeviceManagementStatus">
@@ -2235,6 +2235,8 @@ chromium-metrics-reviews@google.com.
   <int value="1364" label="LocalNetworkAccessRestrictionsEnabled"/>
   <int value="1365" label="PrefetchWithServiceWorkerEnabled"/>
   <int value="1366" label="AIModeSearchSuggestSettings"/>
+  <int value="1367" label="AIModeSettings"/>
+  <int value="1368" label="WatermarkStyle"/>
 </enum>
 
 <enum name="EnterprisePoliciesSources">

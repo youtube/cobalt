@@ -163,8 +163,8 @@ IwaInstaller::IwaInstaller(
 IwaInstaller::~IwaInstaller() = default;
 
 void IwaInstaller::Start() {
-  if (!CHECK_DEREF(IwaKeyDistributionInfoProvider::GetInstance())
-           .IsManagedInstallPermitted(install_options_.web_bundle_id().id())) {
+  if (!IwaKeyDistributionInfoProvider::GetInstance().IsManagedInstallPermitted(
+          install_options_.web_bundle_id().id())) {
     Finish(Result(Result::Type::kErrorAppNotInAllowlist,
                   "Not in the managed allowlist."));
     return;
@@ -379,9 +379,6 @@ void IwaInstaller::RunInstallFromInternetCommand(
   IsolatedWebAppUrlInfo url_info =
       IsolatedWebAppUrlInfo::CreateFromSignedWebBundleId(
           install_options_.web_bundle_id());
-
-  // TODO: crbug.com/306638108 - In the time it took to download everything, the
-  // app might have already been installed by other means.
 
   install_command_wrapper_->Install(
       GetIsolatedWebAppInstallSource(install_source_type_, bundle_.path(),

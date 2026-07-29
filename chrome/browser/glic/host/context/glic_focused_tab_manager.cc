@@ -15,7 +15,9 @@
 #include "chrome/browser/ui/browser_list.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/browser_window/public/desktop_browser_window_capabilities.h"
+#include "chrome/common/webui_url_constants.h"
 #include "content/public/common/url_constants.h"
+#include "ui/base/base_window.h"
 #include "ui/views/widget/widget.h"
 #if BUILDFLAG(IS_MAC)
 #include "ui/base/cocoa/appkit_utils.h"
@@ -381,11 +383,11 @@ bool GlicFocusedTabManager::IsBrowserStateValid(
     return false;
   }
 
-  if (browser_interface->IsMinimized()) {
+  if (browser_interface->GetWindow()->IsMinimized()) {
     return false;
   }
 
-  if (!browser_interface->IsVisible()) {
+  if (!browser_interface->GetWindow()->IsVisible()) {
     return false;
   }
 

@@ -133,7 +133,6 @@ class TileManagerTilePriorityQueueTest : public TestLayerTreeHostBase {
  public:
   LayerTreeSettings CreateSettings() override {
     auto settings = TestLayerTreeHostBase::CreateSettings();
-    settings.create_low_res_tiling = true;
     return settings;
   }
 
@@ -165,20 +164,6 @@ TEST_F(TileManagerTilePriorityQueueTest, RasterTilePriorityQueue) {
   std::set<Tile*> smoothness_tiles;
   queue = host_impl()->BuildRasterQueue(SMOOTHNESS_TAKES_PRIORITY,
                                         RasterTilePriorityQueue::Type::ALL);
-  bool had_low_res = false;
-  while (!queue->IsEmpty()) {
-    PrioritizedTile prioritized_tile = queue->Top();
-    EXPECT_TRUE(prioritized_tile.tile());
-    EXPECT_EQ(TilePriority::NOW, prioritized_tile.priority().priority_bin);
-    if (prioritized_tile.priority().resolution == LOW_RESOLUTION)
-      had_low_res = true;
-    else
-      smoothness_tiles.insert(prioritized_tile.tile());
-    queue->Pop();
-  }
-  EXPECT_EQ(all_tiles, smoothness_tiles);
-  EXPECT_TRUE(had_low_res);
-
   // Check that everything is required for activation.
   queue = host_impl()->BuildRasterQueue(
       SMOOTHNESS_TAKES_PRIORITY,
@@ -235,11 +220,6 @@ TEST_F(TileManagerTilePriorityQueueTest, RasterTilePriorityQueue) {
     high_res_tiles.insert(active_high_res_tiles[i]);
   }
 
-  std::vector<Tile*> active_low_res_tiles =
-      active_layer()->LowResTiling()->AllTilesForTesting();
-  for (size_t i = 0; i < active_low_res_tiles.size(); ++i)
-    all_tiles.insert(active_low_res_tiles[i]);
-
   PrioritizedTile last_tile;
   smoothness_tiles.clear();
   tile_count = 0;
@@ -270,13 +250,6 @@ TEST_F(TileManagerTilePriorityQueueTest, RasterTilePriorityQueue) {
       skip_updating_last_tile = true;
     }
 
-    if (prioritized_tile.priority().priority_bin == TilePriority::NOW &&
-        last_tile.priority().resolution !=
-            prioritized_tile.priority().resolution) {
-      // Low resolution should come first.
-      EXPECT_EQ(LOW_RESOLUTION, last_tile.priority().resolution);
-    }
-
     if (!skip_updating_last_tile)
       last_tile = prioritized_tile;
     ++tile_count;
@@ -292,7 +265,7 @@ TEST_F(TileManagerTilePriorityQueueTest, RasterTilePriorityQueue) {
   EXPECT_EQ(all_tiles, smoothness_tiles);
   // Since we don't guarantee increasing distance due to spiral iterator, we
   // should check that we're _mostly_ right.
-  EXPECT_GT(correct_order_tiles, 3 * tile_count / 4);
+  EXPECT_GT(correct_order_tiles, 2 * tile_count / 4);
 
   // Check that we have consistent required_for_activation tiles.
   queue = host_impl()->BuildRasterQueue(
@@ -840,9 +813,7 @@ TEST_F(TileManagerTilePriorityQueueTest, EvictionTilePriorityQueue) {
   host_impl()->active_tree()->SetDeviceViewportRect(gfx::Rect(layer_bounds));
   SetupDefaultTrees(layer_bounds);
   ASSERT_TRUE(active_layer()->HighResTiling());
-  ASSERT_TRUE(active_layer()->LowResTiling());
   ASSERT_TRUE(pending_layer()->HighResTiling());
-  EXPECT_FALSE(pending_layer()->LowResTiling());
 
   std::unique_ptr<EvictionTilePriorityQueue> empty_queue(
       host_impl()->BuildEvictionQueue(SAME_PRIORITY_FOR_BOTH_TREES));
@@ -912,11 +883,6 @@ TEST_F(TileManagerTilePriorityQueueTest, EvictionTilePriorityQueue) {
   for (size_t i = 0; i < active_high_res_tiles.size(); ++i)
     all_tiles.insert(active_high_res_tiles[i]);
 
-  std::vector<Tile*> active_low_res_tiles =
-      active_layer()->LowResTiling()->AllTilesForTesting();
-  for (size_t i = 0; i < active_low_res_tiles.size(); ++i)
-    all_tiles.insert(active_low_res_tiles[i]);
-
   tile_manager()->InitializeTilesWithResourcesForTesting(
       std::vector<Tile*>(all_tiles.begin(), all_tiles.end()));
 
@@ -960,7 +926,7 @@ TEST_F(TileManagerTilePriorityQueueTest, EvictionTilePriorityQueue) {
 
   // Ensure that the distance is decreasing many more times than increasing.
   EXPECT_EQ(3, distance_increasing);
-  EXPECT_EQ(16, distance_decreasing);
+  EXPECT_EQ(15, distance_decreasing);
   EXPECT_EQ(tile_count, smoothness_tiles.size());
   EXPECT_EQ(all_tiles, smoothness_tiles);
 
@@ -1001,7 +967,7 @@ TEST_F(TileManagerTilePriorityQueueTest, EvictionTilePriorityQueue) {
 
   // Ensure that the distance is decreasing many more times than increasing.
   EXPECT_EQ(3, distance_increasing);
-  EXPECT_EQ(16, distance_decreasing);
+  EXPECT_EQ(15, distance_decreasing);
   EXPECT_EQ(tile_count, new_content_tiles.size());
   EXPECT_EQ(all_tiles, new_content_tiles);
 }
@@ -1118,7 +1084,6 @@ TEST_F(TileManagerTilePriorityQueueTest,
       pending_child_layer->HighResTiling()->AllTilesForTesting();
   pending_child_layer->HighResTiling()->SetAllTilesOccludedForTesting();
   active_child_layer->HighResTiling()->SetAllTilesOccludedForTesting();
-  active_child_layer->LowResTiling()->SetAllTilesOccludedForTesting();
 
   tile_manager()->InitializeTilesWithResourcesForTesting(
       std::vector<Tile*>(all_tiles.begin(), all_tiles.end()));
@@ -1710,6 +1675,10 @@ TEST_F(TileManagerTilePriorityQueueTest, RasterQueueAllUsesCorrectTileBounds) {
     EXPECT_TRUE(queue);
     EXPECT_FALSE(queue->IsEmpty());
   }
+
+  // Clear the raw_ptr to tiling_set before it goes out of scope to prevent
+  // dangling pointer when pending_client is destroyed after tiling_set.
+  pending_client.set_twin_tiling_set(nullptr);
 }
 
 TEST_F(TileManagerTilePriorityQueueTest, NoRasterTasksforSolidColorTiles) {
@@ -2014,7 +1983,6 @@ class TileManagerOcclusionTest : public TileManagerTest {
  public:
   LayerTreeSettings CreateSettings() override {
     auto settings = TileManagerTest::CreateSettings();
-    settings.create_low_res_tiling = true;
     settings.use_occlusion_for_tile_prioritization = true;
     return settings;
   }

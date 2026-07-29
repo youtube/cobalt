@@ -37,6 +37,15 @@ BASE_DECLARE_FEATURE(kLensOverlayImageContextMenuActions);
 COMPONENT_EXPORT(LENS_FEATURES)
 BASE_DECLARE_FEATURE(kLensOverlayContextualSearchbox);
 
+// Enables the Lens overlay searchbox for omnibox suggestions. This does the
+// same thing as kLensOverlayContextualSearchbox, but is used to enable the
+// feature from the omnibox contextual suggestions experiment. This relies on
+// the same params as kLensOverlayContextualSearchbox. This flag turns the meta
+// feature on to remove the dependency between the CSB experiment and omnibox
+// experiment.
+COMPONENT_EXPORT(LENS_FEATURES)
+BASE_DECLARE_FEATURE(kLensOverlayContextualSearchboxForOmniboxSuggestions);
+
 // Enables the Lens overlay optimizations.
 COMPONENT_EXPORT(LENS_FEATURES)
 BASE_DECLARE_FEATURE(kLensOverlayLatencyOptimizations);
@@ -60,6 +69,15 @@ BASE_DECLARE_FEATURE(kLensOverlaySimplifiedSelection);
 // Enables the Lens overlay visual selection updates.
 COMPONENT_EXPORT(LENS_FEATURES)
 BASE_DECLARE_FEATURE(kLensOverlayVisualSelectionUpdates);
+
+// Enables the Lens overlay visual selection updates for omnibox suggestions.
+// This does the same thing as kLensOverlayVisualSelectionUpdates, but is used
+// to enable the feature from the omnibox contextual suggestions experiment.
+// This relies on the same params as kLensOverlayVisualSelectionUpdates. This
+// flag turns the meta feature on to remove the dependency between the visual
+// selection ramp up and omnibox experiment.
+COMPONENT_EXPORT(LENS_FEATURES)
+BASE_DECLARE_FEATURE(kLensOverlayVisualSelectionUpdatesForOmniboxSuggestions);
 
 // Enables the Lens overlay updated client context.
 COMPONENT_EXPORT(LENS_FEATURES)
@@ -420,6 +438,11 @@ extern bool UseInnerTextAsContext();
 // when combined with other page content types.
 COMPONENT_EXPORT(LENS_FEATURES)
 extern bool UseInnerHtmlAsContext();
+
+// Returns whether to send the client context to the cluster info request for
+// contextual suggest.
+COMPONENT_EXPORT(LENS_FEATURES)
+extern bool SendClientContextToClusterInfoRequestForContextualSuggest();
 
 // Returns whether to include the Annotated Page Content from the underlying
 // page in the inner HTML requests used as page context. Must have

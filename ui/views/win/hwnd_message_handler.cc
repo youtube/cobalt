@@ -25,6 +25,7 @@
 #include "base/memory/ptr_util.h"
 #include "base/memory/raw_ptr.h"
 #include "base/metrics/histogram_functions.h"
+#include "base/strings/string_util.h"
 #include "base/strings/string_util_win.h"
 #include "base/strings/stringprintf.h"
 #include "base/task/current_thread.h"
@@ -2853,16 +2854,6 @@ void HWNDMessageHandler::OnSysCommand(UINT notification_code,
                                 modifiers);
     delegate_->HandleAccelerator(accelerator);
     return;
-  }
-
-  // Identify a End Task from Task Manager by a SC_CLOSE which is sent using
-  // SendMessage (ISMEX_SEND) as opposed to SendNotifyMessage (ISMEX_NOTIFY).
-  if (notification_code == SC_CLOSE) {
-    DWORD send_message_ex = ::InSendMessageEx(nullptr);
-    if (send_message_ex == ISMEX_SEND) {
-      delegate_->HandleRequestClose();
-      return;
-    }
   }
 
   if (delegate_->HandleCommand(static_cast<int>(notification_code))) {

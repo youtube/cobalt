@@ -142,6 +142,11 @@ inline constexpr content::PreloadingPredictor kChromeCustomTabs(
 inline constexpr content::PreloadingPredictor
     kMouseHoverOrMouseDownOnNewTabPage(116,
                                        "MouseHoverOrMouseDownOnNewTabPage");
+
+// When the default search engine needs to prerender a prewarm page.
+inline constexpr content::PreloadingPredictor kPrewarmDefaultSearchEngine(
+    117,
+    "PrewarmDefaultSearchEngine");
 }  // namespace chrome_preloading_predictor
 // LINT.ThenChange()
 
@@ -197,7 +202,13 @@ enum class ChromePreloadingEligibility {
           content::PreloadingEligibility::kPreloadingEligibilityContentEnd) +
       6,
 
-  kMaxValue = kPreloadingErrorBackOff,
+  // Search urls are not eligible for certain types of preloading triggers.
+  KDisallowSearchUrl =
+      static_cast<int>(
+          content::PreloadingEligibility::kPreloadingEligibilityContentEnd) +
+      7,
+
+  kMaxValue = KDisallowSearchUrl,
 };
 // LINT.ThenChange()
 

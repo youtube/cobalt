@@ -106,10 +106,8 @@ void CookieControlsBridge::SetThirdPartyCookieBlockingEnabledForSite(
   controller_->OnCookieBlockingEnabledForSite(block_cookies);
 }
 
-void CookieControlsBridge::SetTrackingProtectionsPausedForSite(
-    JNIEnv* env,
-    bool pause_protections) {
-  controller_->OnTrackingProtectionsChangedForSite(pause_protections);
+void CookieControlsBridge::OnTrackingProtectionsChangedForSite(JNIEnv* env) {
+  controller_->OnTrackingProtectionsChangedForSite();
 }
 
 void CookieControlsBridge::OnUiClosing(JNIEnv* env) {

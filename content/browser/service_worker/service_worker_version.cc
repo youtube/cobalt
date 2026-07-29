@@ -14,6 +14,7 @@
 #include "base/check.h"
 #include "base/command_line.h"
 #include "base/containers/contains.h"
+#include "base/debug/crash_logging.h"
 #include "base/debug/dump_without_crashing.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
@@ -590,7 +591,7 @@ void ServiceWorkerVersion::StartWorker(ServiceWorkerMetrics::EventType purpose,
   // Ensure the live registration during starting worker so that the worker can
   // get associated with it in
   // ServiceWorkerHost::CompleteStartWorkerPreparation.
-  context_->registry()->FindRegistrationForId(
+  context_->registry().FindRegistrationForId(
       registration_id_, key_,
       base::BindOnce(
           &ServiceWorkerVersion::DidEnsureLiveRegistrationForStartWorker,
@@ -712,7 +713,7 @@ void ServiceWorkerVersion::StartUpdate() {
   if (!context_) {
     return;
   }
-  context_->registry()->FindRegistrationForId(
+  context_->registry().FindRegistrationForId(
       registration_id_, key_,
       base::BindOnce(&ServiceWorkerVersion::FoundRegistrationForUpdate,
                      weak_factory_.GetWeakPtr()));
@@ -1488,7 +1489,7 @@ void ServiceWorkerVersion::OnStarted(
 
   if (status == blink::ServiceWorkerStatusCode::kOk) {
     if (fetch_handler_type_ && fetch_handler_type_ != new_fetch_handler_type) {
-      context_->registry()->UpdateFetchHandlerType(
+      context_->registry().UpdateFetchHandlerType(
           registration_id_, key_, new_fetch_handler_type,
           // Ignore errors; bumping the update fetch handler type is
           // just best-effort.

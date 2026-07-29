@@ -8,6 +8,7 @@
 
 #import "base/ios/ios_util.h"
 #import "base/memory/raw_ptr.h"
+#import "base/metrics/histogram_macros.h"
 #import "base/metrics/user_metrics.h"
 #import "base/metrics/user_metrics_action.h"
 #import "components/omnibox/browser/omnibox_client.h"
@@ -16,6 +17,7 @@
 #import "ios/chrome/browser/omnibox/model/omnibox_controller_ios.h"
 #import "ios/chrome/browser/omnibox/model/omnibox_edit_model_ios.h"
 #import "ios/chrome/browser/omnibox/model/omnibox_text_controller_delegate.h"
+#import "ios/chrome/browser/omnibox/model/omnibox_text_model.h"
 #import "ios/chrome/browser/omnibox/model/omnibox_view_ios.h"
 #import "ios/chrome/browser/omnibox/public/omnibox_metrics_helper.h"
 #import "ios/chrome/browser/omnibox/ui/omnibox_focus_delegate.h"
@@ -23,6 +25,13 @@
 #import "ios/chrome/browser/shared/ui/util/pasteboard_util.h"
 #import "ios/chrome/common/NSString+Chromium.h"
 #import "net/base/apple/url_conversions.h"
+
+namespace {
+
+const char kOmniboxFocusResultedInNavigation[] =
+    "Omnibox.focus_resulted_in_navigation";
+
+}  // namespace
 
 @interface OmniboxTextController ()
 
@@ -40,6 +49,8 @@
   raw_ptr<OmniboxEditModelIOS> _omniboxEditModel;
   /// Whether the popup was scrolled during this omnibox interaction.
   BOOL _suggestionsListScrolled;
+  /// The omnbibox text model, holding the text state.
+  raw_ptr<OmniboxTextModel> _omniboxTextModel;
   /// Whether it's the lens overlay omnibox.
   BOOL _inLensOverlay;
 }
@@ -47,12 +58,15 @@
 - (instancetype)initWithOmniboxController:
                     (OmniboxControllerIOS*)omniboxController
                            omniboxViewIOS:(OmniboxViewIOS*)omniboxViewIOS
+                         omniboxEditModel:(OmniboxEditModelIOS*)omniboxEditModel
+                         omniboxTextModel:(OmniboxTextModel*)omniboxTextModel
                             inLensOverlay:(BOOL)inLensOverlay {
   self = [super init];
   if (self) {
     _omniboxController = omniboxController;
-    _omniboxEditModel = omniboxController->edit_model();
+    _omniboxEditModel = omniboxEditModel;
     _omniboxViewIOS = omniboxViewIOS;
+    _omniboxTextModel = omniboxTextModel;
     _inLensOverlay = inLensOverlay;
   }
   return self;
@@ -127,8 +141,22 @@
         _suggestionsListScrolled);
   }
 
-  _omniboxEditModel->OnWillKillFocus();
-  _omniboxEditModel->OnKillFocus();
+  if ((_omniboxTextModel->user_input_in_progress ||
+       !_omniboxTextModel->in_revert) &&
+      self.client) {
+    self.client->OnInputStateChanged();
+  }
+
+  UMA_HISTOGRAM_BOOLEAN(kOmniboxFocusResultedInNavigation,
+                        _omniboxTextModel->focus_resulted_in_navigation);
+  if (_omniboxTextModel->HasFocus()) {
+    _omniboxTextModel->KillFocus();
+    if (self.client) {
+      self.client->OnFocusChanged(_omniboxTextModel->focus_state,
+                                  OMNIBOX_FOCUS_CHANGE_EXPLICIT);
+    }
+  }
+
   [self.textField exitPreEditState];
 
   // The controller looks at the current pre-edit state, so the call to
@@ -154,6 +182,18 @@
                                   self.textField);
 }
 
+// Notifies the client about input changes.
+- (void)notifyClientOnUserInputInProgressChange:(BOOL)changedToUserInProgress {
+  if (changedToUserInProgress && self.client) {
+    self.client->OnInputInProgress(true);
+
+    if (_omniboxTextModel->user_input_in_progress ||
+        !_omniboxTextModel->in_revert) {
+      self.client->OnInputStateChanged();
+    }
+  }
+}
+
 #pragma mark - Autocomplete events
 
 - (void)setAdditionalText:(const std::u16string&)text {
@@ -170,8 +210,7 @@
 - (void)onUserRemoveAdditionalText {
   [self setAdditionalText:u""];
   if (_omniboxEditModel) {
-    _omniboxEditModel->UpdateInput(/*has_selected_text=*/false,
-                                   /*prevent_inline_autocomplete=*/true);
+    [self updateInput];
   }
 }
 
@@ -191,8 +230,7 @@
   if (self.textField.userText.length) {
     // If the omnibox is not empty, start autocomplete.
     if (_omniboxEditModel) {
-      _omniboxEditModel->UpdateInput(/*has_selected_text=*/false,
-                                     /*prevent_inline_autocomplete=*/true);
+      [self updateInput];
     }
   } else {
     [self.omniboxAutocompleteController closeOmniboxPopup];
@@ -257,7 +295,7 @@
 }
 
 - (void)onTextInputModeChange {
-  // Update the popup to align suggestions with the text in the textField.
+  [self updatePopupLayoutDirection];
   [self.omniboxAutocompleteController updatePopupSuggestions];
 }
 
@@ -500,8 +538,16 @@
   UITextPosition* start = textField.beginningOfDocument;
   UITextPosition* newPosition = [textField positionFromPosition:start
                                                          offset:caretPos];
-  textField.selectedTextRange = [textField textRangeFromPosition:newPosition
-                                                      toPosition:newPosition];
+  // Position and range can be nil causing crash. crbug.com/422295565
+  if (!newPosition) {
+    return;
+  }
+  UITextRange* textRange = [textField textRangeFromPosition:newPosition
+                                                 toPosition:newPosition];
+  if (!textRange) {
+    return;
+  }
+  textField.selectedTextRange = textRange;
 }
 
 /// Updates the autocomplete popup and other state after the text has been
@@ -572,6 +618,42 @@
 /// Returns the omnibox client.
 - (OmniboxClient*)client {
   return _omniboxController ? _omniboxController->client() : nullptr;
+}
+
+/// Notifes the client and asks the autocomplete controller to start with a new
+/// updated input on user input in progress change.
+- (void)updateInput {
+  BOOL changeToUserInputInProgress =
+      _omniboxTextModel->SetInputInProgressNoNotify(true);
+
+  if (changeToUserInputInProgress &&
+      _omniboxTextModel->user_input_in_progress) {
+    _omniboxController->autocomplete_controller()->ResetSession();
+  }
+
+  if (!(_omniboxTextModel->HasFocus())) {
+    [self notifyClientOnUserInputInProgressChange:changeToUserInputInProgress];
+    return;
+  }
+
+  if (changeToUserInputInProgress && _omniboxTextModel->user_text.empty()) {
+    // In the case the user enters user-input-in-progress mode by clearing
+    // everything (i.e. via Backspace), ask for ZeroSuggestions instead of the
+    // normal prefix (as-you-type) autocomplete.
+    //
+    // The difference between a ZeroSuggest request and a normal
+    // prefix autocomplete request is getting fuzzier, and should be fully
+    // encapsulated by the AutocompleteInput::focus_type() member. We should
+    // merge these two calls soon, lest we confuse future developers.
+    _omniboxEditModel->StartZeroSuggestRequest(
+        /*user_clobbered_permanent_text=*/true);
+  } else {
+    // Otherwise run the normal prefix (as-you-type) autocomplete.
+    _omniboxEditModel->StartAutocomplete(/* has_selected_text*/ false,
+                                         /*prevent_inline_autocomplete*/ true);
+  }
+
+  [self notifyClientOnUserInputInProgressChange:changeToUserInputInProgress];
 }
 
 @end

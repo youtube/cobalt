@@ -13,7 +13,7 @@ import {isRTL} from 'chrome://resources/js/util.js';
 
 import type {AlertIndicatorsElement} from '../alert_indicators.js';
 import {getTemplate} from '../tab.html.js';
-import type {Tab} from '../tab_strip_api.mojom-webui.js';
+import type {Tab, TabId} from '../tab_strip_api.mojom-webui.js';
 import {TabNetworkState} from '../tabs.mojom-webui.js';
 
 import type {TabStripApiProxy} from './tab_strip_api.js';
@@ -36,9 +36,10 @@ export class TabElement extends CustomElement {
   private thumbnail_: HTMLImageElement;
   private tab_: Tab|null = null;
   private titleTextEl_: HTMLElement;
-  private onTabActivating_: (tabId: string) => void;
+  private onTabActivating_: (tabId: TabId) => void;
   private tabStripApi_: TabStripApiProxy;
   private isValidDragOverTarget_: boolean;
+  private dragHandler_: any;
 
   // Temp public
   isActive: boolean = false;
@@ -69,6 +70,7 @@ export class TabElement extends CustomElement {
 
     this.titleTextEl_ = this.getRequiredElement('#titleText');
     this.tabStripApi_ = TabStripApiProxyImpl.getInstance();
+    this.dragHandler_ = () => 0;
 
     /**
      * Flag indicating if this TabElement can accept dragover events. This
@@ -79,9 +81,13 @@ export class TabElement extends CustomElement {
 
 
     this.tabEl_.addEventListener('click', () => this.onClick_());
+    this.addEventListener(
+        'dragend',
+        (event: MouseEvent) => this.dragHandler_(this, event.clientX));
 
     this.closeButtonEl_.addEventListener('click', e => this.onClose_(e));
-    this.onTabActivating_ = (_tabId: string) => {};
+    this.onTabActivating_ = (tabId: TabId) =>
+        this.tabStripApi_.activateTab(tabId);
   }
 
   hasTabModel(): boolean {
@@ -91,6 +97,10 @@ export class TabElement extends CustomElement {
   get tab(): Tab {
     assert(this.tab_);
     return this.tab_;
+  }
+
+  set dragEndHandler(handler: (element: TabElement, x: number) => void) {
+    this.dragHandler_ = handler;
   }
 
   set tab(tab: Tab) {
@@ -142,10 +152,6 @@ export class TabElement extends CustomElement {
     this.isValidDragOverTarget_ = isValid;
   }
 
-  set onTabActivating(callback: (tabId: string) => void) {
-    this.onTabActivating_ = callback;
-  }
-
   override focus() {
     this.tabEl_.focus();
   }
@@ -166,7 +172,7 @@ export class TabElement extends CustomElement {
 
   private onClick_() {
     if (this.tab_) {  // Check if this.tab_ is not null
-      this.onTabActivating_(this.tab_.id.id);
+      this.onTabActivating_(this.tab_.id);
     } else {
       // Optionally, handle the case where this.tab_ is null,
       // for example, by logging an error or doing nothing.

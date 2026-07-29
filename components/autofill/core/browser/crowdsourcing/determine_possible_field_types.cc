@@ -178,7 +178,7 @@ FieldTypeSet GetAvailableAutofillAiFieldTypes(
   FieldTypeSet types;
   for (const EntityInstance& entity : entities) {
     for (const AttributeInstance& attribute : entity.attributes()) {
-      for (FieldType field_type : attribute.GetSupportedTypes()) {
+      for (FieldType field_type : attribute.type().field_subtypes()) {
         bool is_empty = comparator.HasOnlySkippableCharacters(attribute.GetInfo(
             field_type, comparator.app_locale(), std::nullopt));
         if (!is_empty) {
@@ -213,7 +213,7 @@ FieldTypeSet GetPossibleAutofillAiFieldTypes(
   FieldTypeSet types;
   for (const EntityInstance& entity : entities) {
     for (const AttributeInstance& attribute : entity.attributes()) {
-      for (FieldType field_type : attribute.GetSupportedTypes()) {
+      for (FieldType field_type : attribute.type().field_subtypes()) {
         bool matches = comparator.Compare(
             value,
             attribute.GetInfo(field_type, comparator.app_locale(),
@@ -245,7 +245,7 @@ void FindAndSetPossibleDateFieldTypes(
 
   for (const EntityInstance& entity : entities) {
     for (const AttributeInstance& attribute : entity.attributes()) {
-      for (const FieldType field_type : attribute.GetSupportedTypes()) {
+      for (const FieldType field_type : attribute.type().field_subtypes()) {
         if (!IsDateFieldType(field_type)) {
           continue;
         }
@@ -459,14 +459,11 @@ std::map<FieldGlobalId, DatesAndFormats> ExtractDatesInFields(
 
   // Cheap check if the three fields' values might together contain a year,
   // month and day.
-  // TODO(crbug.com/396325496): Remove the label / separator comparisons when
-  // AutofillDisallowSlashDotLabels is cleaned up.
   auto may_be_split_date =
       [&](base::span<const std::unique_ptr<AutofillField>, 3> group) {
         return std::ranges::all_of(group, may_be_part_of_date) &&
                (group[0]->label() == group[1]->label() ||
-                std::ranges::all_of(group[1]->label(),
-                                    data_util::IsDateSeparatorChar)) &&
+                group[1]->label().empty()) &&
                group[1]->label() == group[2]->label();
       };
 

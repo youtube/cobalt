@@ -103,11 +103,16 @@ OffscreenCanvasRenderingContext2D::OffscreenCanvasRenderingContext2D(
                                  TaskType::kInternalDefault)) {
   identifiability_study_helper_.SetExecutionContext(
       canvas->GetTopExecutionContext());
-  is_valid_size_ = IsValidImageSize(Host()->Size());
+  is_valid_size_ = Host()->IsValidImageSize();
 
   // Clear the background transparent or opaque.
-  if (IsCanvas2DBufferValid())
+
+  // NOTE: At this point the canvas has no context installed yet and hence it is
+  // not possible to go through GetResourceProviderForCanvas2D() on it, which
+  // asserts that the context is present and is Canvas2D.
+  if (canvas->ResourceProvider() && canvas->ResourceProvider()->IsValid()) {
     DidDraw(CanvasPerformanceMonitor::DrawType::kOther);
+  }
 
   ExecutionContext* execution_context = canvas->GetTopExecutionContext();
   if (auto* window = DynamicTo<LocalDOMWindow>(execution_context)) {
@@ -171,19 +176,19 @@ OffscreenCanvasRenderingContext2D::GetOrCreateCanvasResourceProvider() const {
   if (host == nullptr) [[unlikely]] {
     return nullptr;
   }
-  return host->GetOrCreateResourceProvider();
+  return host->GetOrCreateResourceProviderForCanvas2D();
 }
 
 CanvasResourceProvider*
 OffscreenCanvasRenderingContext2D::GetCanvasResourceProvider() const {
-  return Host()->ResourceProvider();
+  return Host()->GetResourceProviderForCanvas2D();
 }
 
 void OffscreenCanvasRenderingContext2D::Reset() {
   Host()->DiscardResourceProvider();
   BaseRenderingContext2D::ResetInternal();
   // Because the host may have changed to a zero size
-  is_valid_size_ = IsValidImageSize(Host()->Size());
+  is_valid_size_ = Host()->IsValidImageSize();
   // We must resize the damage rect to avoid a potentially larger damage than
   // actual canvas size. See: crbug.com/1227165
   dirty_rect_for_commit_ = SkIRect::MakeWH(Width(), Height());
@@ -318,7 +323,8 @@ void OffscreenCanvasRenderingContext2D::WillDraw(
   } else {
     Host()->DidDraw(dirty_rect_for_commit_);
   }
-  if (CanvasResourceProvider* provider = ResourceProvider();
+  if (CanvasResourceProvider* provider =
+          Host()->GetResourceProviderForCanvas2D();
       layer_count_ == 0 && provider != nullptr) [[likely]] {
     // TODO(crbug.com/1246486): Make auto-flushing layer friendly.
     provider->FlushIfRecordingLimitExceeded();
@@ -344,7 +350,7 @@ void OffscreenCanvasRenderingContext2D::LoseContext(LostContextMode lost_mode) {
 }
 
 bool OffscreenCanvasRenderingContext2D::IsPaintable() const {
-  return Host()->ResourceProvider();
+  return Host()->GetResourceProviderForCanvas2D();
 }
 
 bool OffscreenCanvasRenderingContext2D::WritePixels(
@@ -358,12 +364,12 @@ bool OffscreenCanvasRenderingContext2D::WritePixels(
   Host()->FlushRecording(FlushReason::kWritePixels);
 
   // Short-circuit out if an error occurred while flushing the recording.
-  if (!Host()->ResourceProvider()->IsValid()) {
+  if (!Host()->GetResourceProviderForCanvas2D()->IsValid()) {
     return false;
   }
 
-  return Host()->ResourceProvider()->WritePixels(orig_info, pixels, row_bytes,
-                                                 x, y);
+  return Host()->GetResourceProviderForCanvas2D()->WritePixels(
+      orig_info, pixels, row_bytes, x, y);
 }
 
 bool OffscreenCanvasRenderingContext2D::ResolveFont(const String& new_font) {

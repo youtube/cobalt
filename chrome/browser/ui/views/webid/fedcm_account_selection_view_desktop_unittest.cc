@@ -8,7 +8,6 @@
 #include <string>
 
 #include "base/test/metrics/histogram_tester.h"
-#include "chrome/browser/ui/tabs/test/mock_tab_interface.h"
 #include "chrome/browser/ui/views/chrome_constrained_window_views_client.h"
 #include "chrome/browser/ui/views/webid/account_selection_bubble_view.h"
 #include "chrome/browser/ui/views/webid/account_selection_view_test_base.h"
@@ -17,6 +16,7 @@
 #include "chrome/test/base/testing_profile.h"
 #include "chrome/test/views/chrome_views_test_base.h"
 #include "components/constrained_window/constrained_window_views.h"
+#include "components/tabs/public/mock_tab_interface.h"
 #include "content/public/browser/identity_request_dialog_controller.h"
 #include "content/public/test/test_renderer_host.h"
 #include "content/public/test/web_contents_tester.h"
@@ -42,7 +42,8 @@ class TestAccountSelectionView : public AccountSelectionViewBase,
             owner,
             /*url_loader_factory=*/nullptr,
             content::RelyingPartyData(/*rp_for_display=*/u"",
-                                      /*iframe_for_display=*/u"")) {
+                                      /*iframe_for_display=*/u""),
+            /*device_scale_factor=*/1.f) {
     // This matches behavior of the production code, which implicitly passes
     // ownership of the view to the widget via DialogDelegate superclass.
     SetOwnedByWidget(OwnedByWidgetPassKey());

@@ -164,6 +164,8 @@ class CORE_EXPORT HTMLCanvasElement final
       const AtomicString&,
       HeapVector<CSSPropertyValue, 8>&) final;
 
+  bool IsCompositedForCanvas2D() const;
+
   // Used for canvas capture.
   void AddListener(CanvasDrawListener*);
   void RemoveListener(CanvasDrawListener*);
@@ -260,7 +262,8 @@ class CORE_EXPORT HTMLCanvasElement final
   size_t GetMemoryUsage() const override;
   bool ShouldAccelerate2dContext() const override;
   bool LowLatencyEnabled() const override;
-  CanvasResourceProvider* GetOrCreateCanvasResourceProvider() override;
+  CanvasResourceProvider* GetOrCreateCanvasResourceProviderForCanvas2D()
+      override;
   bool IsPrinting() const override;
   bool IsHibernating() const override;
   void SetTransferToGPUTextureWasInvoked() override;
@@ -361,6 +364,7 @@ class CORE_EXPORT HTMLCanvasElement final
   bool ShouldDisableAccelerationBecauseOfReadback() const;
 
   void SetHitTestRegions(VectorOf<ElementHitTestRegion> hit_test_regions);
+  const VectorOf<ElementHitTestRegion>& GetHitTestRegions() const;
 
  protected:
   void DidMoveToNewDocument(Document& old_document) override;
@@ -373,12 +377,6 @@ class CORE_EXPORT HTMLCanvasElement final
     kNotWebExposed,
   };
 
-  // Can be called only when the context is 2D.
-  CanvasResourceProvider* GetResourceProviderForCanvas2D() {
-    CHECK(IsRenderingContext2D());
-    return ResourceProvider();
-  }
-
   void Dispose();
 
   // Updates the preferred 2D raster mode based on the state of the context and
@@ -388,7 +386,7 @@ class CORE_EXPORT HTMLCanvasElement final
   // Recreates the resource provider.
   // TODO(crbug.com/40280152): Remove parameter once the hibernation handler is
   // an instance variable of this class.
-  CanvasResourceProvider* RecreateCanvasResourceProviderFor2DContext(
+  CanvasResourceProvider* RecreateCanvasResourceProviderForCanvas2D(
       CanvasHibernationHandler& hibernation_handler);
 
   void ColorSchemeMayHaveChanged();
@@ -412,6 +410,7 @@ class CORE_EXPORT HTMLCanvasElement final
 
   bool ShouldAccelerate() const;
   void ParseAttribute(const AttributeModificationParams&) override;
+  void AttributeChanged(const AttributeModificationParams&) override;
   LayoutObject* CreateLayoutObject(const ComputedStyle&) override;
   bool AreAuthorShadowsAllowed() const override { return false; }
 

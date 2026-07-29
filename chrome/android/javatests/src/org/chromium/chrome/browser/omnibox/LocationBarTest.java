@@ -9,12 +9,12 @@ import static androidx.test.espresso.assertion.ViewAssertions.matches;
 import static androidx.test.espresso.matcher.ViewMatchers.isDisplayed;
 import static androidx.test.espresso.matcher.ViewMatchers.withEffectiveVisibility;
 import static androidx.test.espresso.matcher.ViewMatchers.withId;
+import static androidx.test.espresso.matcher.ViewMatchers.withParent;
 
 import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertFalse;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.doReturn;
 
 import android.content.Intent;
@@ -123,9 +123,6 @@ public class LocationBarTest {
                 () -> {
                     TemplateUrlServiceFactory.setInstanceForTesting(mTemplateUrlService);
                     LocaleManager.getInstance().setDelegateForTest(mLocaleManagerDelegate);
-                    doReturn(new StatusIconResource(null))
-                            .when(mSearchEngineUtils)
-                            .getSearchEngineLogo(anyInt());
                 });
     }
 
@@ -195,15 +192,6 @@ public class LocationBarTest {
                     doReturn(isGoogle ? mGoogleSearchEngine : mNonGoogleSearchEngine)
                             .when(mTemplateUrlService)
                             .getDefaultSearchEngineTemplateUrl();
-
-                    StatusIconResource logo =
-                            new StatusIconResource(
-                                    isGoogle
-                                            ? R.drawable.ic_logo_googleg_20dp
-                                            : R.drawable.ic_search,
-                                    0);
-
-                    doReturn(logo).when(mSearchEngineUtils).getSearchEngineLogo(anyInt());
                 });
     }
 
@@ -534,7 +522,10 @@ public class LocationBarTest {
         mActivityTestRule.loadUrl(UrlConstants.NTP_URL);
 
         Mockito.reset(mVoiceRecognitionHandler);
-        ViewUtils.waitForVisibleView(withId(R.id.voice_search_button));
+        onView(
+                allOf(
+                        withId(R.id.voice_search_button),
+                        withParent(withId(R.layout.new_tab_page_layout))));
 
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
@@ -638,7 +629,7 @@ public class LocationBarTest {
     @CommandLineFlags.Add({
         "disable-features=" + ChromeFeatureList.ADAPTIVE_BUTTON_IN_TOP_TOOLBAR_CUSTOMIZATION_V2
     })
-    @Restriction(DeviceFormFactor.TABLET)
+    @Restriction(DeviceFormFactor.TABLET_OR_DESKTOP)
     public void testFocusLogic_buttonVisibilityTablet() {
         testFocusLogic_buttonVisibilityTablet(
                 /* expectRetainOmniboxOnFocus= */ ThreadUtils.runOnUiThreadBlocking(
@@ -650,7 +641,7 @@ public class LocationBarTest {
     @CommandLineFlags.Add({
         "disable-features=" + ChromeFeatureList.ADAPTIVE_BUTTON_IN_TOP_TOOLBAR_CUSTOMIZATION_V2
     })
-    @Restriction(DeviceFormFactor.TABLET)
+    @Restriction(DeviceFormFactor.TABLET_OR_DESKTOP)
     public void testFocusLogic_buttonVisibilityTabletWithRetainOmniboxOnFocusDisabled() {
         OmniboxFeatures.setShouldRetainOmniboxOnFocusForTesting(Boolean.FALSE);
         testFocusLogic_buttonVisibilityTablet(/* expectRetainOmniboxOnFocus= */ false);
@@ -661,7 +652,7 @@ public class LocationBarTest {
     @CommandLineFlags.Add({
         "disable-features=" + ChromeFeatureList.ADAPTIVE_BUTTON_IN_TOP_TOOLBAR_CUSTOMIZATION_V2
     })
-    @Restriction(DeviceFormFactor.TABLET)
+    @Restriction(DeviceFormFactor.TABLET_OR_DESKTOP)
     public void testFocusLogic_buttonVisibilityTabletWithRetainOmniboxOnFocusEnabled() {
         OmniboxFeatures.setShouldRetainOmniboxOnFocusForTesting(Boolean.TRUE);
         testFocusLogic_buttonVisibilityTablet(/* expectRetainOmniboxOnFocus= */ true);
@@ -782,6 +773,13 @@ public class LocationBarTest {
         startActivityNormally();
 
         mActivityTestRule.loadUrl(UrlConstants.NTP_URL);
+
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    mSearchEngineUtils.setSearchEngineIcon(
+                            new StatusIconResource(R.drawable.ic_search, 0));
+                });
+
         onView(withId(R.id.location_bar_status_icon)).check(matches(isDisplayed()));
     }
 

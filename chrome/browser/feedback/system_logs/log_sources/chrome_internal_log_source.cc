@@ -158,11 +158,11 @@ std::string GetPrimaryAccountTypeString() {
       return "guest";
     case user_manager::UserType::kPublicAccount:
       return "public_account";
-    case user_manager::UserType::kKioskApp:
+    case user_manager::UserType::kKioskChromeApp:
       return "kiosk_app";
     case user_manager::UserType::kChild:
       return "child";
-    case user_manager::UserType::kWebKioskApp:
+    case user_manager::UserType::kKioskWebApp:
       return "web_kiosk_app";
     case user_manager::UserType::kKioskIWA:
       return "kiosk_iwa";

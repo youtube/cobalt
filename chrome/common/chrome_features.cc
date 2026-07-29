@@ -279,7 +279,7 @@ BASE_FEATURE(kDesktopPWAsTabStripSettings,
 #if BUILDFLAG(IS_ANDROID)
 BASE_FEATURE(kDisplayEdgeToEdgeFullscreen,
              "DisplayEdgeToEdgeFullscreen",
-             base::FEATURE_ENABLED_BY_DEFAULT);
+             base::FEATURE_DISABLED_BY_DEFAULT);
 #endif
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
@@ -587,6 +587,34 @@ BASE_FEATURE(kGlicGetUserProfileInfoApiActivationGating,
 BASE_FEATURE(kGlicExplicitBackgroundColor,
              "GlicExplicitBackgroundColor",
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Features to experiment with resetting the panel default location.
+BASE_FEATURE(kGlicPanelResetTopChromeButton,
+             "GlicPanelResetTopChromeButton",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+const base::FeatureParam<bool> kGlicPanelResetTopChromeButtonOnOpen{
+    &kGlicPanelResetTopChromeButton, "glic-panel-reset-on-open", true};
+const base::FeatureParam<bool> kGlicPanelResetTopChromeButtonAnimate{
+    &kGlicPanelResetTopChromeButton, "glic-panel-reset-animate", false};
+const base::FeatureParam<int> kGlicPanelResetTopChromeButtonDelayMs{
+    &kGlicPanelResetTopChromeButton, "glic-panel-reset-delay-ms", 2000};
+BASE_FEATURE(kGlicPanelResetOnStart,
+             "GlicPanelResetOnStart",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kGlicPanelSetPositionOnDrag,
+             "GlicPanelSetPositionOnDrag",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kGlicPanelResetOnSessionTimeout,
+             "GlicPanelResetOnSessionTimeout",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+const base::FeatureParam<int> kGlicPanelResetOnSessionTimeoutDelayH{
+    &kGlicPanelResetOnSessionTimeout,
+    "glic-panel-reset-session-timeout-delay-h", 0};
+
+BASE_FEATURE(kGlicWebClientUnresponsiveMetrics,
+             "GlicWebClientUnresponsiveMetrics",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
 #endif  // BUILDFLAG(ENABLE_GLIC)
 
 // Force Privacy Guide to be available even if it would be unavailable
@@ -1773,12 +1801,6 @@ BASE_FEATURE(kEventBasedLogUpload,
 // go/legacy-log-upload-migration.
 BASE_FEATURE(kPeriodicLogUploadMigration,
              "PeriodicLogUploadMigration",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
-// A feature to enable periodic log K12 user age classification. See
-// go/teachers-on-chromeos-data.
-BASE_FEATURE(kK12AgeClassificationMetricsProvider,
-             "K12AgeClassificationMetricsProvider",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 // A feature to enable periodic log class management enabled policy.

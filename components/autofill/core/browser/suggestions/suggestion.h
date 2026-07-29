@@ -24,8 +24,13 @@
 #include "components/autofill/core/browser/filling/field_filling_skip_reason.h"
 #include "components/autofill/core/browser/suggestions/suggestion_type.h"
 #include "components/autofill/core/common/unique_ids.h"
+#include "third_party/skia/include/core/SkColor.h"
 #include "ui/gfx/image/image.h"
 #include "url/gurl.h"
+
+#if BUILDFLAG(IS_ANDROID)
+#include "base/android/scoped_java_ref.h"
+#endif  // BUILDFLAG(IS_ANDROID)
 
 namespace autofill {
 
@@ -142,6 +147,10 @@ struct Suggestion {
     AutofillProfilePayload& operator=(AutofillProfilePayload&&);
     ~AutofillProfilePayload();
 
+#if BUILDFLAG(IS_ANDROID)
+    base::android::ScopedJavaLocalRef<jobject> CreateJavaObject() const;
+#endif  // BUILDFLAG(IS_ANDROID)
+
     friend bool operator==(const AutofillProfilePayload&,
                            const AutofillProfilePayload&) = default;
 
@@ -200,6 +209,20 @@ struct Suggestion {
 
     friend bool operator==(const FaviconDetails&,
                            const FaviconDetails&) = default;
+  };
+
+  // This struct is used to provide data for monochrome icons that are rendered
+  // when there is no loyalty card program logo available.
+  struct LetterMonochromeIcon {
+    explicit LetterMonochromeIcon(std::u16string monogram_text)
+        : monogram_text(monogram_text) {}
+
+    friend bool operator==(const LetterMonochromeIcon&,
+                           const LetterMonochromeIcon&) = default;
+
+    // `monogram_text` is a std::u16string in order to support 2 letter
+    // monograms.
+    std::u16string monogram_text;
   };
 
   // This struct is used to provide the In-Product-Help bubble. It contains both
@@ -290,6 +313,8 @@ struct Suggestion {
     kOfferTag,
     kPenSpark,
     kPlusAddress,
+    kQuestionMark,
+    kRecoveryPassword,
     kScanCreditCard,
     kSettings,
     kSettingsAndroid,
@@ -459,9 +484,10 @@ struct Suggestion {
 
   // This field outlines various methods for specifying the custom icon.
   // Depending on the use case and platform, it can be a `gfx::Image` instance
-  // or imply more complex semantic of fetching the icon (see `CustomIconUrl`
-  // and `FaviconDetails` docs for details).
-  std::variant<gfx::Image, CustomIconUrl, FaviconDetails> custom_icon;
+  // or imply more complex semantic of fetching the icon (see `CustomIconUrl`,
+  // `LetterMonochromeIcon` and `FaviconDetails` docs for details).
+  std::variant<gfx::Image, CustomIconUrl, FaviconDetails, LetterMonochromeIcon>
+      custom_icon;
 
   // The children of this suggestion. If present, the autofill popup will have
   // submenus.
@@ -514,13 +540,6 @@ struct Suggestion {
 
   // The acceptability of the suggestion, see the enum values doc for details.
   Acceptability acceptability = Acceptability::kAcceptable;
-
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
-  // If true, selecting a suggestion or, when it exists, expanding its
-  // sub-popup, highlights the background of the suggestion row and its
-  // contained cells.
-  bool highlight_on_select = true;
-#endif
 
   // Returns whether the user is able to preview the suggestion by hovering on
   // it or accept it by clicking on it.

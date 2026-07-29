@@ -348,7 +348,7 @@ void ToolbarView::Init() {
 
   PrefService* const prefs = browser_->profile()->GetPrefs();
   std::unique_ptr<HomeButton> home = std::make_unique<HomeButton>(
-      base::BindRepeating(callback, browser_, IDC_HOME), prefs);
+      browser_, base::BindRepeating(callback, browser_, IDC_HOME));
 
   std::unique_ptr<ExtensionsToolbarContainer> extensions_container;
   std::unique_ptr<views::View> toolbar_divider;
@@ -718,11 +718,11 @@ WebContents* ToolbarView::GetWebContents() {
 }
 
 LocationBarModel* ToolbarView::GetLocationBarModel() {
-  return browser_->location_bar_model();
+  return browser_->GetFeatures().location_bar_model();
 }
 
 const LocationBarModel* ToolbarView::GetLocationBarModel() const {
-  return browser_->location_bar_model();
+  return browser_->GetFeatures().location_bar_model();
 }
 
 ContentSettingBubbleModelDelegate*

@@ -7,11 +7,14 @@
 #include "chrome/browser/privacy_sandbox/notice/desktop_entrypoint_handlers_helper.h"
 #include "chrome/browser/privacy_sandbox/notice/desktop_view_manager.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/search_engine_choice/search_engine_choice_dialog_service.h"
+#include "chrome/browser/search_engine_choice/search_engine_choice_dialog_service_factory.h"
 #include "chrome/browser/sync/sync_service_factory.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/profiles/profile_customization_bubble_sync_controller.h"
 #include "chrome/common/webui_url_constants.h"
+#include "components/privacy_sandbox/privacy_sandbox_features.h"
 #include "components/sync/service/sync_service.h"
 #include "components/tabs/public/tab_interface.h"
 #include "components/web_modal/web_contents_modal_dialog_host.h"
@@ -44,6 +47,13 @@ NavigationHandler::NavigationHandler(
 void NavigationHandler::HandleNewNavigation(
     content::NavigationHandle* navigation_handle,
     Profile* profile) {
+  // TODO(crbug.com/408016824): Move this Feature flag check to the orchestrator
+  // once implemented.
+  if (!base::FeatureList::IsEnabled(
+          privacy_sandbox::kPrivacySandboxNoticeFramework)) {
+    return;
+  }
+
   auto* tab_interface =
       tabs::TabInterface::GetFromContents(navigation_handle->GetWebContents());
   if (!tab_interface) {
@@ -111,6 +121,15 @@ void NavigationHandler::HandleNewNavigation(
     if (sync_service->IsSetupInProgress()) {
       return;
     }
+  }
+
+  // If the SearchEngineChoiceDialog has shown, we do not want to show our
+  // notice.
+  SearchEngineChoiceDialogService* search_engine_choice_dialog_service =
+      SearchEngineChoiceDialogServiceFactory::GetForProfile(profile);
+  if (search_engine_choice_dialog_service &&
+      search_engine_choice_dialog_service->CanSuppressPrivacySandboxPromo()) {
+    return;
   }
 
   // TODO(crbug.com/408016824):  Add error-event histograms.

@@ -29,7 +29,7 @@
 #include "base/notreached.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/strings/utf_string_conversions.h"
-#include "base/trace_event/base_tracing.h"
+#include "base/trace_event/trace_event.h"
 #include "base/types/expected_macros.h"
 #include "base/unguessable_token.h"
 #include "components/services/storage/indexed_db/locks/partitioned_lock_id.h"
@@ -81,29 +81,22 @@ namespace {
 // database, so they are kept separately, and sent back with the original data
 // so that the render process can amend the returned object.
 blink::mojom::IDBReturnValuePtr ConvertValueToReturnValue(
-    BucketContext& bucket_context,
+    BackingStore::Transaction& transaction,
     IndexedDBValue value,
     blink::IndexedDBKey primary_key,
     blink::IndexedDBKeyPath key_path) {
   auto mojo_value = blink::mojom::IDBReturnValue::New();
-  mojo_value->value = blink::mojom::IDBValue::New();
   if (primary_key.IsValid()) {
     mojo_value->primary_key = std::move(primary_key);
     mojo_value->key_path = std::move(key_path);
   }
-  if (!value.empty()) {
-    mojo_value->value->bits = std::move(value.bits);
-  }
-  IndexedDBExternalObject::ConvertToMojo(value.external_objects,
-                                         &mojo_value->value->external_objects);
-  bucket_context.CreateAllExternalObjects(value.external_objects,
-                                          &mojo_value->value->external_objects);
+  mojo_value->value = transaction.BuildMojoValue(std::move(value));
   return mojo_value;
 }
 
 // Returns an `IDBReturnValuePtr` created from the cursor's current position.
 blink::mojom::IDBReturnValuePtr ExtractReturnValueFromCursorValue(
-    BucketContext& bucket_context,
+    BackingStore::Transaction& transaction,
     const IndexedDBObjectStoreMetadata& object_store_metadata,
     BackingStore::Cursor& cursor) {
   IndexedDBValue value(std::move(cursor.GetValue()));
@@ -119,7 +112,7 @@ blink::mojom::IDBReturnValuePtr ExtractReturnValueFromCursorValue(
     key_path = object_store_metadata.key_path;
   }
 
-  return ConvertValueToReturnValue(bucket_context, std::move(value),
+  return ConvertValueToReturnValue(transaction, std::move(value),
                                    std::move(primary_key), std::move(key_path));
 }
 
@@ -464,9 +457,9 @@ Status Database::GetOperation(int64_t object_store_id,
       key_path = object_store_metadata.key_path;
     }
 
-    blink::mojom::IDBReturnValuePtr mojo_value =
-        ConvertValueToReturnValue(*bucket_context_, std::move(value),
-                                  std::move(primary_key), std::move(key_path));
+    blink::mojom::IDBReturnValuePtr mojo_value = ConvertValueToReturnValue(
+        *transaction->BackingStoreTransaction(), std::move(value),
+        std::move(primary_key), std::move(key_path));
     std::move(callback).Run(
         blink::mojom::IDBDatabaseGetResult::NewValue(std::move(mojo_value)));
     return Status::OK();
@@ -524,8 +517,8 @@ Status Database::GetOperation(int64_t object_store_id,
   }
 
   blink::mojom::IDBReturnValuePtr mojo_value = ConvertValueToReturnValue(
-      *bucket_context_, std::move(value), std::move(primary_key_return),
-      std::move(key_path_return));
+      *transaction->BackingStoreTransaction(), std::move(value),
+      std::move(primary_key_return), std::move(key_path_return));
   std::move(callback).Run(
       blink::mojom::IDBDatabaseGetResult::NewValue(std::move(mojo_value)));
   return Status::OK();
@@ -711,8 +704,9 @@ Status Database::GetAllOperation(
                                        /*index_key=*/std::nullopt);
     } else if (result_type == blink::mojom::IDBGetAllResultType::Values) {
       blink::mojom::IDBReturnValuePtr return_value =
-          ExtractReturnValueFromCursorValue(bucket_context_.get(),
-                                            object_store_metadata, **cursor);
+          ExtractReturnValueFromCursorValue(
+              *transaction->BackingStoreTransaction(), object_store_metadata,
+              **cursor);
       return_record = blink::mojom::IDBRecord::New(
           /*primary_key=*/std::nullopt, std::move(return_value),
           /*index_key=*/std::nullopt);
@@ -720,8 +714,9 @@ Status Database::GetAllOperation(
       // Construct the record, which includes the primary key, value and index
       // key.
       blink::mojom::IDBReturnValuePtr return_value =
-          ExtractReturnValueFromCursorValue(bucket_context_.get(),
-                                            object_store_metadata, **cursor);
+          ExtractReturnValueFromCursorValue(
+              *transaction->BackingStoreTransaction(), object_store_metadata,
+              **cursor);
       std::optional<IndexedDBKey> index_key;
       if (index_id != IndexedDBIndexMetadata::kInvalidId) {
         // The index key only exists for `IDBIndex::getAllRecords()`.
@@ -742,65 +737,6 @@ Status Database::GetAllOperation(
     }
   }
   send_records(/*done=*/true);
-  return Status::OK();
-}
-
-Status Database::SetIndexKeysOperation(
-    int64_t object_store_id,
-    IndexedDBKey primary_key,
-    std::vector<IndexedDBIndexKeys> index_keys,
-    Transaction* transaction) {
-  DCHECK(transaction);
-  TRACE_EVENT1("IndexedDB", "Database::SetIndexKeysOperation", "txn.id",
-               transaction->id());
-  DCHECK_EQ(transaction->mode(),
-            blink::mojom::IDBTransactionMode::VersionChange);
-
-  ASSIGN_OR_RETURN(
-      std::optional<BackingStore::RecordIdentifier> found_record,
-      transaction->BackingStoreTransaction()->KeyExistsInObjectStore(
-          object_store_id, primary_key));
-  if (!found_record) {
-    return transaction->Abort(
-        DatabaseError(blink::mojom::IDBException::kUnknownError,
-                      "Internal error setting index keys for object store."));
-  }
-
-  std::vector<std::unique_ptr<IndexWriter>> index_writers;
-  std::string error_message;
-  bool obeys_constraints = false;
-
-  const IndexedDBObjectStoreMetadata& object_store_metadata =
-      GetObjectStoreMetadata(object_store_id);
-  bool backing_store_success =
-      MakeIndexWriters(transaction, object_store_metadata, primary_key, false,
-                       std::move(index_keys), &index_writers, &error_message,
-                       &obeys_constraints);
-  if (!backing_store_success) {
-    return transaction->Abort(DatabaseError(
-        blink::mojom::IDBException::kUnknownError,
-        "Internal error: backing store error updating index keys."));
-  }
-  if (!obeys_constraints) {
-    return transaction->Abort(DatabaseError(
-        blink::mojom::IDBException::kConstraintError, error_message));
-  }
-
-  for (const auto& writer : index_writers) {
-    IDB_RETURN_IF_ERROR(writer->WriteIndexKeys(
-        *found_record, transaction->BackingStoreTransaction(),
-        object_store_id));
-  }
-  return Status::OK();
-}
-
-Status Database::SetIndexesReadyOperation(size_t index_count,
-                                          Transaction* transaction) {
-  // TODO(dmurph): This method should be refactored out for something more
-  // reliable.
-  for (size_t i = 0; i < index_count; ++i) {
-    transaction->DidCompletePreemptiveEvent();
-  }
   return Status::OK();
 }
 
@@ -871,15 +807,9 @@ Status Database::OpenCursorOperation(
   transaction->RegisterOpenCursor(cursor);
 
   blink::mojom::IDBValuePtr mojo_value;
-  std::vector<IndexedDBExternalObject> external_objects;
   if (cursor->Value()) {
-    mojo_value = IndexedDBValue::ConvertAndEraseValue(cursor->Value());
-    external_objects.swap(cursor->Value()->external_objects);
-  }
-
-  if (mojo_value) {
-    bucket_context_->CreateAllExternalObjects(external_objects,
-                                              &mojo_value->external_objects);
+    mojo_value = transaction->BackingStoreTransaction()->BuildMojoValue(
+        std::move(*cursor->Value()));
   }
 
   std::move(params->callback)

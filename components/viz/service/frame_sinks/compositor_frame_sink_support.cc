@@ -585,8 +585,8 @@ bool CompositorFrameSinkSupport::WantsAnimateOnlyBeginFrames() const {
 void CompositorFrameSinkSupport::BindLayerContext(
     mojom::PendingLayerContext& context,
     bool draw_mode_is_gpu) {
-  layer_context_ = std::make_unique<LayerContextImpl>(this, draw_mode_is_gpu);
-  layer_context_->Bind(context);
+  layer_context_ =
+      std::make_unique<LayerContextImpl>(this, context, draw_mode_is_gpu);
 }
 
 void CompositorFrameSinkSupport::SetThreads(
@@ -886,7 +886,7 @@ SubmitResult CompositorFrameSinkSupport::MaybeSubmitCompositorFrame(
               frame_sink_manager_
                   ->copy_output_request_result_size_for_testing();  // IN-TEST
           !size_for_testing.IsEmpty()) [[unlikely]] {
-        SetCopyOutoutRequestResultSize(copy_request.get(), gfx::Rect(),
+        SetCopyOutputRequestResultSize(copy_request.get(), gfx::Rect(),
                                        size_for_testing,
                                        prev_surface->size_in_pixels());
       }

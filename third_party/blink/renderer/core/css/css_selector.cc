@@ -31,6 +31,7 @@
 #include <memory>
 
 #include "base/compiler_specific.h"
+#include "base/strings/string_view_util.h"
 #include "style_rule.h"
 #include "third_party/blink/renderer/core/css/css_markup.h"
 #include "third_party/blink/renderer/core/css/css_selector_list.h"
@@ -257,8 +258,8 @@ inline unsigned CSSSelector::SpecificityForOneSelector() const {
           DCHECK(SelectorList()->IsSingleComplexSelector());
           return kTagSpecificity + SelectorList()->First()->Specificity();
         case kPseudoViewTransitionGroup:
-        case kPseudoViewTransitionImagePair:
         case kPseudoViewTransitionGroupChildren:
+        case kPseudoViewTransitionImagePair:
         case kPseudoViewTransitionOld:
         case kPseudoViewTransitionNew: {
           CHECK(!IdentList().empty());
@@ -391,10 +392,10 @@ PseudoId CSSSelector::GetPseudoId(PseudoType type) {
       return kPseudoIdViewTransition;
     case kPseudoViewTransitionGroup:
       return kPseudoIdViewTransitionGroup;
-    case kPseudoViewTransitionImagePair:
-      return kPseudoIdViewTransitionImagePair;
     case kPseudoViewTransitionGroupChildren:
       return kPseudoIdViewTransitionGroupChildren;
+    case kPseudoViewTransitionImagePair:
+      return kPseudoIdViewTransitionImagePair;
     case kPseudoViewTransitionOld:
       return kPseudoIdViewTransitionOld;
     case kPseudoViewTransitionNew:
@@ -927,8 +928,8 @@ void CSSSelector::UpdatePseudoType(const AtomicString& value,
     case kPseudoGrammarError:
     case kPseudoViewTransition:
     case kPseudoViewTransitionGroup:
-    case kPseudoViewTransitionImagePair:
     case kPseudoViewTransitionGroupChildren:
+    case kPseudoViewTransitionImagePair:
     case kPseudoViewTransitionOld:
     case kPseudoViewTransitionNew:
     case kPseudoDetailsContent:
@@ -1292,8 +1293,8 @@ bool CSSSelector::SerializeSimpleSelector(StringBuilder& builder,
         break;
       }
       case kPseudoViewTransitionGroup:
-      case kPseudoViewTransitionImagePair:
       case kPseudoViewTransitionGroupChildren:
+      case kPseudoViewTransitionImagePair:
       case kPseudoViewTransitionNew:
       case kPseudoViewTransitionOld: {
         builder.Append('(');
@@ -1596,6 +1597,23 @@ bool CSSSelector::HasLinkOrVisited() const {
   return false;
 }
 
+bool CSSSelector::HasVisited() const {
+  for (const CSSSelector* current = this; current;
+       current = current->NextSimpleSelector()) {
+    CSSSelector::PseudoType pseudo = current->GetPseudoType();
+    if (pseudo == CSSSelector::kPseudoVisited) {
+      return true;
+    }
+    for (const CSSSelector* sub_selector = current->SelectorListOrParent();
+         sub_selector; sub_selector = CSSSelectorList::Next(*sub_selector)) {
+      if (sub_selector->HasVisited()) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 void CSSSelector::SetNth(int a, int b, CSSSelectorList* sub_selectors) {
   CreateRareData();
   data_.rare_data_->bits_.nth_.a_ = a;
@@ -1642,8 +1660,8 @@ bool CSSSelector::IsTreeAbidingPseudoElement() const {
           GetPseudoType() == kPseudoBackdrop ||
           GetPseudoType() == kPseudoViewTransition ||
           GetPseudoType() == kPseudoViewTransitionGroup ||
-          GetPseudoType() == kPseudoViewTransitionImagePair ||
           GetPseudoType() == kPseudoViewTransitionGroupChildren ||
+          GetPseudoType() == kPseudoViewTransitionImagePair ||
           GetPseudoType() == kPseudoViewTransitionOld ||
           GetPseudoType() == kPseudoViewTransitionNew ||
           IsElementBackedPseudoElement(GetPseudoType()));
@@ -1705,8 +1723,8 @@ bool CSSSelector::IsAllowedAfterPart() const {
     case kPseudoPermissionIcon:
     case kPseudoViewTransition:
     case kPseudoViewTransitionGroup:
-    case kPseudoViewTransitionImagePair:
     case kPseudoViewTransitionGroupChildren:
+    case kPseudoViewTransitionImagePair:
     case kPseudoViewTransitionNew:
     case kPseudoViewTransitionOld:
       return true;

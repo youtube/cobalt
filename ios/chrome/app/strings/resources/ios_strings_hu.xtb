@@ -671,6 +671,7 @@ A keresési előzmények törléséről a keresőmotorja útmutatójából táj�
 <translation id="385051799172605136">Vissza</translation>
 <translation id="3850952228519377137">Az „Árkövetés az Ön lapjain” elrejtése</translation>
 <translation id="3851938967634752633">A(z) <ph name="WEBSITE" />-, a(z) <ph name="SECOND_WEBSITE" />- és további <ph name="NUMBER_OF_ACCOUNTS" /> fiók jelszavai törölve lesznek. A fiókjai nem törlődnek.</translation>
+<translation id="3853162385423733133">A Google-fiókjában (<ph name="EMAIL" />) lévő jelszavak használatának és mentésének folytatása</translation>
 <translation id="3858860766373142691">Név</translation>
 <translation id="3868495844258915202">Teljes URL megjelenítése</translation>
 <translation id="3875783148670536197">Bemutató</translation>
@@ -1002,6 +1003,7 @@ A keresési előzmények törléséről a keresőmotorja útmutatójából táj�
 <translation id="5132942445612118989">Jelszavak, előzmények és egyebek szinkronizálása valamennyi eszközén</translation>
 <translation id="5141363746588976328">Az „Árcsökkenések az Ön lapjain” kártya elrejtése</translation>
 <translation id="5145331760738811130">Kilépés a Lapváltóból</translation>
+<translation id="5148717509369231739">Importálás a Safariból</translation>
 <translation id="5157638238828697074">Hiba történt. Nem sikerült megnyitni az alkalmazást.</translation>
 <translation id="5163417375525818870">PDF-fájlok</translation>
 <translation id="5168414296986405587">Az iPadOS-re tervezve</translation>
@@ -1113,6 +1115,7 @@ Az Átadást engedélyezni kell a Beállítások általános részében is, és 
 <translation id="5626245204502895507">A fájlt jelenleg nem lehet letölteni.</translation>
 <translation id="562753339521713441">Biztonsági ellenőrzés futtatása</translation>
 <translation id="5628388627414062173">{count,plural, =1{{count} oldal az olvasólistán}other{{count} oldal az olvasólistán}}</translation>
+<translation id="5632194969640946913">Böngészés közben további információkat szerezhet, és bármely oldalon kereshet arra, amit lát termékek, helyek és szövegek felfedezéséhez.</translation>
 <translation id="5632485077360054581">Bemutató</translation>
 <translation id="5633237939819267663">{count,plural, =1{Könyvjelző mentve ide: „{title}”}other{{count} könyvjelző mentve ide: „{title}”}}</translation>
 <translation id="564170563478022912">Kijelentkezik? A nem mentett fiókadatok törlődnek.</translation>

@@ -204,6 +204,12 @@ inline constexpr char kSyncLastSyncedTime[] = "sync.last_synced_time";
 inline constexpr char kSyncLastPollTime[] = "sync.last_poll_time";
 inline constexpr char kSyncPollInterval[] = "sync.short_poll_interval";
 
+// Deprecated 06/2025.
+inline constexpr char kVariationsLimitedEntropySyntheticTrialSeed[] =
+    "variations_limited_entropy_synthetic_trial_seed";
+inline constexpr char kVariationsLimitedEntropySyntheticTrialSeedV2[] =
+    "variations_limited_entropy_synthetic_trial_seed_v2";
+
 // Migrates a boolean pref from source to target PrefService.
 void MigrateBooleanPref(std::string_view pref_name,
                         PrefService* target_pref_service,
@@ -678,6 +684,11 @@ void RegisterLocalStatePrefs(PrefRegistrySimple* registry) {
       prefs::kHomeCustomizationMagicStackSafetyCheckIssuesCount, 0);
 
   registry->RegisterTimePref(prefs::kLensOverlayLastPresented, base::Time());
+
+  // Deprecated 06/2025.
+  registry->RegisterUint64Pref(kVariationsLimitedEntropySyntheticTrialSeed, 0);
+  registry->RegisterUint64Pref(kVariationsLimitedEntropySyntheticTrialSeedV2,
+                               0);
 }
 
 void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
@@ -841,6 +852,9 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
   // Register pref used to detect addresses in web page
   registry->RegisterBooleanPref(prefs::kDetectAddressesEnabled, true);
   registry->RegisterBooleanPref(prefs::kDetectAddressesAccepted, false);
+
+  // Register MiniMap setting pref.
+  registry->RegisterBooleanPref(prefs::kIosMiniMapShowNativeMap, true);
 
   // Preferences related to Save to Photos settings.
   registry->RegisterStringPref(prefs::kIosSaveToPhotosDefaultGaiaId,
@@ -1029,10 +1043,15 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
 
   registry->RegisterBooleanPref(prefs::kIOSBwgConsent, false);
 
+  registry->RegisterBooleanPref(prefs::kIOSBWGManualPromo, false);
+
   registry->RegisterTimePref(prefs::kIosSyncInfobarErrorLastDismissedTimestamp,
                              base::Time());
 
+  // TODO(crbug.com/422744656): Remove `kAIModeSearchSuggestSettings` pref once
+  // `kAIModeSettings` is implemented.
   registry->RegisterIntegerPref(omnibox::kAIModeSearchSuggestSettings, 0);
+  registry->RegisterIntegerPref(omnibox::kAIModeSettings, 0);
 
   // Deprecated 09/2024 (migrated to localState prefs).
   registry->RegisterBooleanPref(prefs::kIncognitoInterstitialEnabled, false);
@@ -1129,6 +1148,10 @@ void MigrateObsoleteLocalStatePrefs(PrefService* prefs) {
 
   // Added 04/2025.
   prefs->ClearPref("set_up_list.disabled");
+
+  // Added 06/2025.
+  prefs->ClearPref(kVariationsLimitedEntropySyntheticTrialSeed);
+  prefs->ClearPref(kVariationsLimitedEntropySyntheticTrialSeedV2);
 }
 
 // This method should be periodically pruned of year+ old migrations.

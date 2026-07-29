@@ -47,7 +47,11 @@ class SettingsBrowserTest : public WebUIMochaBrowserTest {
 #endif
             privacy_sandbox::kPrivacySandboxRelatedWebsiteSetsUi,
             privacy_sandbox::kFingerprintingProtectionUx},
-        /*disabled_features=*/{});
+        /*disabled_features=*/{
+#if BUILDFLAG(ENABLE_GLIC)
+            features::kGlicClosedCaptioning
+#endif
+        });
     set_test_loader_host(chrome::kChromeUISettingsHost);
   }
 
@@ -834,10 +838,15 @@ IN_PROC_BROWSER_TEST_F(SettingsClearBrowsingDataV2Test,
 
 using SettingsCookiesPageTest = SettingsBrowserTest;
 
-// TODO(crbug.com/40889245): fix flakiness on almost all platforms and
-// re-enable.
-IN_PROC_BROWSER_TEST_F(SettingsCookiesPageTest, DISABLED_CookiesPageTest) {
+IN_PROC_BROWSER_TEST_F(SettingsCookiesPageTest, CookiesPageTest) {
   RunTest("settings/cookies_page_test.js", "runMochaSuite('CookiesPageTest')");
+}
+
+// TODO(crbug.com/370008370): Remove once AlwaysBlock3pcsIncognito launched.
+IN_PROC_BROWSER_TEST_F(SettingsCookiesPageTest,
+                       CookiesPageAlwaysBlock3pcsIncognitoDisabledTest) {
+  RunTest("settings/cookies_page_test.js",
+          "runMochaSuite('CookiesPageTest_alwaysBlock3pcsIncognitoDisabled')");
 }
 
 IN_PROC_BROWSER_TEST_F(SettingsCookiesPageTest, ExceptionsList) {
