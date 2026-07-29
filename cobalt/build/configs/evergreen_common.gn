@@ -1,0 +1,3 @@
+import("//cobalt/build/configs/linux_modular_common.gn")
+
+use_evergreen = true

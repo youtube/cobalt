@@ -16,6 +16,11 @@
 #include "third_party/blink/public/web/web_local_frame.h"
 #include "third_party/blink/renderer/platform/media/web_audio_source_provider_client.h"
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "base/feature_list.h"
+#include "media/base/media_switches.h"
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 namespace blink {
 
 // Size of the buffer that WebAudio processes each time, it is the same value
@@ -32,9 +37,17 @@ WebAudioMediaStreamAudioSink::WebAudioMediaStreamAudioSink(
       track_stopped_(false),
       platform_buffer_duration_(platform_buffer_duration),
       sink_params_(media::AudioParameters::AUDIO_PCM_LOW_LATENCY,
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+                   media::ChannelLayoutConfig::Mono(),
+#else
                    media::ChannelLayoutConfig::Stereo(),
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
                    context_sample_rate,
-                   kWebAudioRenderBufferSize) {
+                   kWebAudioRenderBufferSize)
+{
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  LOG(INFO) << "WebAudioMediaStreamAudioSink: sink_params=" << sink_params_.AsHumanReadableString();
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
   CHECK(sink_params_.IsValid());
   CHECK_GT(platform_buffer_duration_, base::TimeDelta());
 

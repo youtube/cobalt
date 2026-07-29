@@ -52,6 +52,12 @@ class WriterDelegate {
   // Called if an error occurred while extracting the file. The WriterDelegate
   // can then remove and clean up the partially extracted data.
   virtual void OnError() {}
+
+#if BUILDFLAG(IS_STARBOARD)
+  // Invoked at the end of the entry extraction to flush to persistent storage.
+  // Returns failure on failure to flush.
+  virtual bool Flush() { return true; }
+#endif
 };
 
 // This class is used for reading ZIP archives. A typical use case of this class
@@ -365,6 +371,11 @@ class FileWriterDelegate : public WriterDelegate {
 
   // Empties the file to avoid leaving garbage data in it.
   void OnError() override;
+
+#if BUILDFLAG(IS_STARBOARD)
+  // Flush to persistent storage.
+  bool Flush() override;
+#endif
 
   // Gets the number of bytes written into the file.
   int64_t file_length() { return file_length_; }
