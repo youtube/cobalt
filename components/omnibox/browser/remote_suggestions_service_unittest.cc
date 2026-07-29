@@ -5,6 +5,7 @@
 #include "components/omnibox/browser/remote_suggestions_service.h"
 
 #include <memory>
+#include <optional>
 #include <string>
 
 #include "base/functional/bind.h"
@@ -16,6 +17,7 @@
 #include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
 #include "base/time/time.h"
+#include "base/types/optional_ref.h"
 #include "components/lens/lens_features.h"
 #include "components/search_engines/search_engines_test_environment.h"
 #include "components/search_engines/template_url_service.h"
@@ -63,7 +65,7 @@ class TestObserver : public RemoteSuggestionsService::Observer {
   void OnRequestCompleted(
       const base::UnguessableToken& request_id,
       const int response_code,
-      const std::unique_ptr<std::string>& response_body) override {
+      base::optional_ref<std::string> response_body) override {
     ASSERT_EQ(request_id_, request_id);
     response_received_ = true;
     response_body_ = response_body ? *response_body : "";
@@ -92,7 +94,7 @@ class MockDelegate : public NiceMock<RemoteSuggestionsService::Delegate> {
       OnRequestCompleted,
       (const network::SimpleURLLoader* source,
        const int response_code,
-       std::unique_ptr<std::string> response_body,
+       std::optional<std::string> response_body,
        RemoteSuggestionsService::CompletionCallback completion_callback),
       (override));
 
@@ -102,7 +104,7 @@ class MockDelegate : public NiceMock<RemoteSuggestionsService::Delegate> {
       (const int request_index,
        const network::SimpleURLLoader* source,
        const int response_code,
-       std::unique_ptr<std::string> response_body,
+       std::optional<std::string> response_body,
        RemoteSuggestionsService::IndexedCompletionCallback completion_callback),
       (override));
 };
@@ -119,8 +121,8 @@ class RemoteSuggestionsServiceTest : public testing::Test {
 
   void OnRequestCompleted(const network::SimpleURLLoader* source,
                           const int response_code,
-                          std::unique_ptr<std::string> response_body) {
-    response_body_ = response_body ? *response_body : "";
+                          std::optional<std::string> response_body) {
+    response_body_ = std::move(response_body).value_or("");
   }
 
   TemplateURLService& template_url_service() {
@@ -453,7 +455,7 @@ TEST_F(RemoteSuggestionsServiceTest, Delegate) {
   EXPECT_CALL(delegate3, OnRequestCompleted(_, _, _, _))
       .WillOnce(
           [](const network::SimpleURLLoader* source, const int response_code,
-             std::unique_ptr<std::string> response_body,
+             std::optional<std::string> response_body,
              RemoteSuggestionsService::CompletionCallback completion_callback) {
             base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
                 FROM_HERE,
@@ -685,6 +687,102 @@ TEST_F(RemoteSuggestionsServiceTest,
             "https://www.google.com/"
             "suggest?q=query&client=chrome-contextual&gs_ps=1&vit=vit&vsrid="
             "vsrid&gsessionid=gsessionid");
+}
+
+TEST_F(RemoteSuggestionsServiceTest,
+       LensOverlaySuggestInputsAppendedQueryParamsForLensComposeboxMultimodal)
+       {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeatureWithParameters(
+      lens::features::kLensAimSuggestions,
+      {{lens::features::kLensAimSuggestionsType.name,
+        lens::features::kLensAimSuggestionsTypeMultimodal}});
+
+  // Set up a Google search provider.
+  TemplateURLData google_template_url_data;
+  google_template_url_data.SetURL(
+      "https://www.google.com/search?q={searchTerms}");
+  google_template_url_data.suggestions_url =
+      "https://www.google.com/suggest?q={searchTerms}";
+  google_template_url_data.id = SEARCH_ENGINE_GOOGLE;
+  TemplateURL google_template_url(google_template_url_data);
+
+  TemplateURLRef::SearchTermsArgs search_terms_args(u"query");
+  search_terms_args.page_classification =
+      metrics::OmniboxEventProto::LENS_SIDE_PANEL_COMPOSEBOX;
+  search_terms_args.lens_overlay_suggest_inputs =
+      std::make_optional<lens::proto::LensOverlaySuggestInputs>();
+
+  GURL endpoint_url = RemoteSuggestionsService::EndpointUrl(
+      google_template_url, search_terms_args, SearchTermsData());
+
+  // Just the client param is appended.
+  ASSERT_EQ(endpoint_url.spec(),
+            "https://www.google.com/"
+            "suggest?q=query&client=chrome-multimodal&gs_ps=1");
+
+  search_terms_args.lens_overlay_suggest_inputs->set_encoded_image_signals(
+      "iil");
+
+  endpoint_url = RemoteSuggestionsService::EndpointUrl(
+      google_template_url, search_terms_args, SearchTermsData());
+
+  // The iil query param is appended.
+  ASSERT_EQ(endpoint_url.spec(),
+            "https://www.google.com/"
+            "suggest?q=query&client=chrome-multimodal&iil=iil&gs_ps=1");
+
+  search_terms_args.lens_overlay_suggest_inputs->set_encoded_request_id(
+      "vsrid");
+  search_terms_args.lens_overlay_suggest_inputs->set_search_session_id(
+      "gsessionid");
+  search_terms_args.lens_overlay_suggest_inputs
+      ->set_encoded_visual_search_interaction_log_data("vsint");
+
+  endpoint_url = RemoteSuggestionsService::EndpointUrl(
+      google_template_url, search_terms_args, SearchTermsData());
+
+  // No additional query params are appended for empty Lens suggest inputs
+  // because send_gsession_vsrid_vit_for_lens_suggest and
+  // send_vsint_for_lens_suggest are false.
+  ASSERT_EQ(endpoint_url.spec(),
+            "https://www.google.com/"
+            "suggest?q=query&client=chrome-multimodal&iil=iil&gs_ps=1");
+
+  search_terms_args.lens_overlay_suggest_inputs
+      ->set_send_gsession_vsrid_vit_for_lens_suggest(true);
+  endpoint_url = RemoteSuggestionsService::EndpointUrl(
+      google_template_url, search_terms_args, SearchTermsData());
+
+  // Appended gsessionid and vsrids.
+  ASSERT_EQ(endpoint_url.spec(),
+            "https://www.google.com/"
+            "suggest?q=query&client=chrome-multimodal&iil=iil&gs_ps=1&vsrid=vsrid&"
+            "gsessionid=gsessionid");
+
+  search_terms_args.lens_overlay_suggest_inputs
+      ->set_contextual_visual_input_type("vit");
+  endpoint_url = RemoteSuggestionsService::EndpointUrl(
+      google_template_url, search_terms_args, SearchTermsData());
+
+  // Appended vit.
+  ASSERT_EQ(
+      endpoint_url.spec(),
+      "https://www.google.com/"
+      "suggest?q=query&client=chrome-multimodal&iil=iil&gs_ps=1&vit=vit&vsrid=vsrid&"
+      "gsessionid=gsessionid");
+
+  search_terms_args.lens_overlay_suggest_inputs
+      ->set_send_vsint_for_lens_suggest(true);
+  endpoint_url = RemoteSuggestionsService::EndpointUrl(
+      google_template_url, search_terms_args, SearchTermsData());
+
+  // Appended vsint.
+  ASSERT_EQ(
+      endpoint_url.spec(),
+      "https://www.google.com/"
+      "suggest?q=query&client=chrome-multimodal&iil=iil&vsint=vsint&gs_ps=1&vit=vit&"
+      "vsrid=vsrid&gsessionid=gsessionid");
 }
 
 TEST_F(RemoteSuggestionsServiceTest,

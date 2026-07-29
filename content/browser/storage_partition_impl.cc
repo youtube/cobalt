@@ -20,7 +20,6 @@
 #include "base/dcheck_is_on.h"
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
-#include "base/functional/callback_forward.h"
 #include "base/functional/callback_helpers.h"
 #include "base/functional/concurrent_closures.h"
 #include "base/location.h"
@@ -66,7 +65,6 @@
 #include "content/browser/cache_storage/cache_storage_control_wrapper.h"
 #include "content/browser/code_cache/generated_code_cache.h"
 #include "content/browser/code_cache/generated_code_cache_context.h"
-#include "content/browser/cookie_deprecation_label/cookie_deprecation_label_manager_impl.h"
 #include "content/browser/cookie_store/cookie_store_manager.h"
 #include "content/browser/devtools/devtools_background_services_context_impl.h"
 #include "content/browser/devtools/devtools_instrumentation.h"
@@ -158,6 +156,7 @@
 #include "services/network/public/mojom/url_loader_network_service_observer.mojom.h"
 #include "storage/browser/blob/blob_url_registry.h"
 #include "storage/browser/quota/quota_client_type.h"
+#include "storage/browser/quota/quota_features.h"
 #include "storage/browser/quota/quota_manager.h"
 #include "storage/browser/quota/quota_manager_impl.h"
 #include "storage/browser/quota/quota_settings.h"
@@ -1271,14 +1270,27 @@ void StoragePartitionImpl::RegisterKeepAliveHandle(
 }
 
 void StoragePartitionImpl::RevokeNetworkForNoncesInNetworkContext(
-    const std::vector<base::UnguessableToken>& nonces,
-    network::mojom::NetworkContext::RevokeNetworkForNoncesCallback callback) {
-  GetNetworkContext()->RevokeNetworkForNonces(nonces, std::move(callback));
+    const std::map<base::UnguessableToken, std::set<std::string>>&
+        nonces_to_patterns,
+    base::OnceClosure callback) {
+  std::vector<network::mojom::NonceAndAllowlistedPatternsPtr> dest_vector;
+  for (const auto& pair : nonces_to_patterns) {
+    // Create a new Mojo struct pointer for each map entry.
+    auto nonce_and_patterns =
+        network::mojom::NonceAndAllowlistedPatterns::New();
+    nonce_and_patterns->nonce = pair.first;
+    nonce_and_patterns->allowlisted_patterns.assign(pair.second.begin(),
+                                                    pair.second.end());
+    dest_vector.push_back(std::move(nonce_and_patterns));
+  }
+  GetNetworkContext()->RevokeNetworkForNonces(std::move(dest_vector),
+                                              std::move(callback));
 
-  // Save nonces in `StoragePartitionImpl`. When there is a crash of
-  // `NetworkService`, the network revocation nonces of `NetworkContext` will be
-  // restored using this.
-  network_revocation_nonces_.insert(std::begin(nonces), std::end(nonces));
+  // Save nonces and allowlisted URLs in `StoragePartitionImpl`. When there is a
+  // crash of `NetworkService`, the network revocation nonces of
+  // `NetworkContext` will be restored using this.
+  network_revocation_nonces_.insert(nonces_to_patterns.begin(),
+                                    nonces_to_patterns.end());
 }
 
 void StoragePartitionImpl::ClearNoncesInNetworkContextAfterDelay(
@@ -1310,7 +1322,7 @@ void StoragePartitionImpl::RemoveKeepAliveHandleFromMap(
   auto it = navigation_state_keep_alive_map_.find(frame_token);
   if (it != navigation_state_keep_alive_map_.end() &&
       it->second == keep_alive) {
-    navigation_state_keep_alive_map_.erase(frame_token);
+    navigation_state_keep_alive_map_.erase(it);
   }
 }
 
@@ -1354,11 +1366,19 @@ void StoragePartitionImpl::Initialize(
   // QuotaManager prior to the QuotaManager being used. We do them
   // all together here prior to handing out a reference to anything
   // that utilizes the QuotaManager.
+  const bool report_static_storage_quota =
+      GetContentClient()
+          ->browser()
+          ->GetOverrideValueForStaticStorageQuota(browser_context_)
+          .value_or(base::FeatureList::IsEnabled(
+              storage::features::kStaticStorageQuota));
+
   quota_context_ = base::MakeRefCounted<QuotaContext>(
       is_in_memory(), partition_path_,
       browser_context_->GetSpecialStoragePolicy(),
       base::BindRepeating(&StoragePartitionImpl::GetQuotaSettings,
-                          weak_factory_.GetWeakPtr()));
+                          weak_factory_.GetWeakPtr()),
+      report_static_storage_quota);
   quota_manager_ = quota_context_->quota_manager();
   scoped_refptr<storage::QuotaManagerProxy> quota_manager_proxy =
       quota_manager_->proxy();
@@ -1455,20 +1475,6 @@ void StoragePartitionImpl::Initialize(
 
   bluetooth_allowed_devices_map_ =
       std::make_unique<BluetoothAllowedDevicesMap>();
-
-  // Must be initialized before the
-  // `shared_url_loader_factory_for_browser_process_`. Cookie deprecation
-  // traffic labels should not be sent for off-the-record profiles, unless the
-  // "enable_otr_profiles" feature parameter is true.
-  if (base::FeatureList::IsEnabled(
-          features::kCookieDeprecationFacilitatedTesting) &&
-      base::FeatureList::IsEnabled(
-          features::kCookieDeprecationFacilitatedTestingLabels) &&
-      (!is_in_memory() ||
-       features::kCookieDeprecationFacilitatedTestingEnableOTRProfiles.Get())) {
-    cookie_deprecation_label_manager_ =
-        std::make_unique<CookieDeprecationLabelManagerImpl>(browser_context_);
-  }
 
   shared_url_loader_factory_for_browser_process_ = std::make_unique<
       ReconnectableURLLoaderFactoryForIOThreadWrapper>(base::BindRepeating(
@@ -1972,12 +1978,6 @@ PrivateAggregationDataModel*
 StoragePartitionImpl::GetPrivateAggregationDataModel() {
   DCHECK(initialized_);
   return private_aggregation_manager_.get();
-}
-
-CookieDeprecationLabelManager*
-StoragePartitionImpl::GetCookieDeprecationLabelManager() {
-  CHECK(initialized_);
-  return cookie_deprecation_label_manager_.get();
 }
 
 void StoragePartitionImpl::DeleteStaleSessionData() {
@@ -3674,25 +3674,27 @@ void StoragePartitionImpl::InitNetworkContext() {
     }
   }
 
-  if (cookie_deprecation_label_manager_) {
-    context_params->cookie_deprecation_label =
-        cookie_deprecation_label_manager_->GetValue().value_or("");
-  }
-
   network_context_owner_->network_context.reset();
   CreateNetworkContextInNetworkService(
       network_context_owner_->network_context.BindNewPipeAndPassReceiver(),
       std::move(context_params));
   DCHECK(network_context_owner_->network_context);
 
-  // Restore the saved network revocation nonces. This allows fenced frames'
-  // untrusted network access states to be persisted in case of a
-  // `NetworkService` crash.
-  std::vector<base::UnguessableToken> nonces(
-      std::begin(network_revocation_nonces_),
-      std::end(network_revocation_nonces_));
+  // Restore the saved network revocation nonces. This allows network access
+  // states to be persisted in case of a `NetworkService` crash.
+  std::vector<network::mojom::NonceAndAllowlistedPatternsPtr> dest_vector;
+  for (const auto& pair : network_revocation_nonces_) {
+    // Create a new Mojo struct pointer for each map entry.
+    auto nonce_and_patterns =
+        network::mojom::NonceAndAllowlistedPatterns::New();
+    nonce_and_patterns->nonce = pair.first;
+    nonce_and_patterns->allowlisted_patterns.assign(pair.second.begin(),
+                                                    pair.second.end());
+    dest_vector.push_back(std::move(nonce_and_patterns));
+  }
+
   network_context_owner_->network_context->RevokeNetworkForNonces(
-      nonces, base::NullCallback());
+      std::move(dest_vector), base::NullCallback());
 
   network_context_client_receiver_.reset();
   network_context_owner_->network_context->SetClient(
@@ -3864,7 +3866,7 @@ void StoragePartitionImpl::DecrementActiveDocumentCount(
   CHECK(it != active_document_per_nik_count_.end());
   it->second--;
   if (it->second == 0) {
-    active_document_per_nik_count_.erase(nik);
+    active_document_per_nik_count_.erase(it);
   }
 }
 

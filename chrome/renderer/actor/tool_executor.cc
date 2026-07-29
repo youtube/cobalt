@@ -150,8 +150,8 @@ void ToolExecutor::InvokeTool(mojom::ToolInvocationPtr invocation,
       NOTREACHED();
   }
 
-  if (features::kGlicActorScrollTargetIntoView.Get()) {
-    tool_->EnsureTargetInView();
+  if (tool_->EnsureTargetInView()) {
+    performed_scroll_into_view_ = true;
   }
 
   execute_journal_entry_ = journal_->CreatePendingAsyncEntry(
@@ -164,6 +164,7 @@ void ToolExecutor::InvokeTool(mojom::ToolInvocationPtr invocation,
 void ToolExecutor::ToolFinished(mojom::ActionResultPtr result) {
   execute_journal_entry_.reset();
   result->execution_end_time = base::TimeTicks::Now();
+  result->requires_page_stabilization |= performed_scroll_into_view_;
   OnCompletion(std::move(result));
 }
 

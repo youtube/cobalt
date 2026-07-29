@@ -49,6 +49,12 @@
   background-size: 24px;
 }
 
+.deep-dive {
+  background-color: var(--color-sys-on-surface-subtle);
+  background-size: 24px;
+  -webkit-mask-image: url(chrome://new-tab-page/icons/suggestion.svg);
+}
+
 .deep-search {
   background-color: var(--color-sys-on-surface-subtle);
   background-size: 24px;
@@ -58,10 +64,11 @@
 .action-chip {
   align-items: center;
   background-color: var(--chip-background-color);
-  border-radius: 12px;
+  border-radius: 16px;
   border: none;
   cursor: pointer;
   display: flex;
+  font-family: inherit;
   gap: 12px;
   height: 56px;
   isolation: isolate;
@@ -71,6 +78,12 @@
   position: relative;
   transform: translateY(-56px);
   width: 240px;
+}
+
+.action-chip:focus-visible {
+  box-shadow: none;
+  outline: 2px solid var(--color-new-tab-page-focus-ring);
+  outline-offset: 2px;
 }
 
 .action-chips-container .action-chip:nth-child(1) {
@@ -116,7 +129,7 @@
 }
 
 .action-chip-recent-tab-favicon {
-  border-radius: 100%;
+  border-radius: 2px;
   height: 24px;
   width: 24px;
 }
@@ -127,11 +140,12 @@
   flex-direction: column;
   gap: 2px;
   min-width: 0;
+  width: 100%;
 }
 
 .chip-title {
   color: var(--color-sys-on-surface);
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 500;
   overflow: hidden;
   text-align: left;
@@ -144,6 +158,17 @@
   color: var(--color-sys-on-surface-subtle);
   font-size: 12px;
   font-weight: 400;
+  line-height: 18px;
+  text-align: start;
+  width: 100%;
+}
+
+.deep-dive-chip .chip-body {
+  display: -webkit-box;
+  overflow: hidden;
+  word-break: break-word;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 @media (min-width: 560px) {

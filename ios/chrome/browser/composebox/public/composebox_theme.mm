@@ -38,10 +38,46 @@
 
 - (UIColor*)inputPlateBackgroundColor {
   if (self.isTopInputPlate) {
-    return [UIColor colorNamed:kGroupedPrimaryBackgroundColor];
+    return [UIColor colorNamed:kTextfieldBackgroundColor];
   }
 
   return [UIColor colorNamed:kPrimaryBackgroundColor];
+}
+
+- (UIColor*)closeButtonBackgroundColor {
+  return [UIColor colorNamed:kTextfieldBackgroundColor];
+}
+
+- (UIColor*)aimButtonTextColorWithAIMEnabled:(BOOL)AIMEnabled {
+  if (AIMEnabled) {
+    return [UIColor colorNamed:kBlue600Color];
+  } else {
+    return [UIColor colorNamed:kTextPrimaryColor];
+  }
+}
+
+- (UIColor*)aimButtonBackgroundColorWithAIMEnabled:(BOOL)AIMEnabled {
+  if (AIMEnabled) {
+    if (self.isTopInputPlate) {
+      return [UIColor colorNamed:kAimComposeboxButtonBackgroundColor];
+    } else {
+      return [UIColor colorNamed:kBlueHaloColor];
+    }
+  } else {
+    return [UIColor colorNamed:kSecondaryBackgroundColor];
+  }
+}
+
+- (UIColor*)imageGenerationButtonBackgroundColor {
+  if (self.isTopInputPlate) {
+    return [UIColor colorNamed:kAimComposeboxButtonBackgroundColor];
+  } else {
+    return [UIColor colorNamed:kSecondaryBackgroundColor];
+  }
+}
+
+- (UIColor*)imageGenerationButtonTextColor {
+  return [UIColor colorNamed:kTextPrimaryColor];
 }
 
 @end

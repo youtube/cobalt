@@ -39,7 +39,7 @@ class MicroBenchmarkImpl;
 class Tile;
 
 class CC_EXPORT PictureLayerImpl
-    : public TileBasedLayerImpl,
+    : public TileBasedLayerImpl<PictureLayerTiling>,
       public PictureLayerTilingClient,
       public ImageAnimationController::AnimationDriver {
  public:
@@ -198,9 +198,8 @@ class CC_EXPORT PictureLayerImpl
   }
 
   // For testing.
-  void SetContentsScaleForTesting(float scale) {
-    ideal_contents_scale_ = raster_contents_scale_ =
-        gfx::Vector2dF(scale, scale);
+  void SetRasterContentsScaleForTesting(float scale) {
+    raster_contents_scale_ = gfx::Vector2dF(scale, scale);
   }
 
   std::vector<raw_ptr<PictureLayerTiling, VectorExperimental>>&
@@ -332,9 +331,7 @@ class CC_EXPORT PictureLayerImpl
   float ideal_source_scale_key() const {
     return std::max(ideal_source_scale_.x(), ideal_source_scale_.y());
   }
-  float ideal_contents_scale_key() const {
-    return std::max(ideal_contents_scale_.x(), ideal_contents_scale_.y());
-  }
+  float GetIdealContentsScaleKey() const override;
   float raster_source_scale_key() const {
     return std::max(raster_source_scale_.x(), raster_source_scale_.y());
   }
@@ -418,6 +415,13 @@ class CC_EXPORT PictureLayerImpl
       AppendQuadsData* append_quads_data,
       viz::SharedQuadState* shared_quad_state,
       const Occlusion& scaled_occlusion) override;
+  TilingSetCoverageIterator<PictureLayerTiling> Cover(
+      const gfx::Rect& coverage_rect,
+      float coverage_scale,
+      float ideal_contents_scale) override;
+
+  TilingResolution GetTilingResolutionForDebugBorders(
+      const PictureLayerTiling* tiling) const override;
 };
 
 }  // namespace cc

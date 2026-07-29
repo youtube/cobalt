@@ -32,8 +32,6 @@
 
 #include "base/gtest_prod_util.h"
 #include "cc/layers/texture_layer_client.h"
-#include "third_party/blink/public/common/privacy_budget/identifiable_surface.h"
-#include "third_party/blink/public/common/privacy_budget/identifiable_token.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_value.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_blob_callback.h"
 #include "third_party/blink/renderer/core/core_export.h"
@@ -66,6 +64,7 @@ class CanvasContextCreationAttributesCore;
 class CanvasDrawListener;
 class CanvasHighDynamicRangeOptions;
 class CanvasRenderingContextFactory;
+class DOMMatrix;
 class Element;
 class GraphicsContext;
 class HTMLCanvasElement;
@@ -219,8 +218,7 @@ class CORE_EXPORT HTMLCanvasElement final
   void PageVisibilityChanged() override;
 
   // CanvasImageSource implementation
-  scoped_refptr<Image> GetSourceImageForCanvas(FlushReason,
-                                               SourceImageStatus*,
+  scoped_refptr<Image> GetSourceImageForCanvas(SourceImageStatus*,
                                                const gfx::SizeF&) override;
   bool WouldTaintOrigin() const override;
   gfx::SizeF ElementSize(const gfx::SizeF&,
@@ -308,11 +306,7 @@ class CORE_EXPORT HTMLCanvasElement final
     needs_unbuffered_input_ = value;
   }
 
-  scoped_refptr<StaticBitmapImage> Snapshot(FlushReason,
-                                            SourceDrawingBuffer) const;
-  scoped_refptr<StaticBitmapImage> Snapshot(SourceDrawingBuffer buffer) const {
-    return Snapshot(FlushReason::kOther, buffer);
-  }
+  scoped_refptr<StaticBitmapImage> Snapshot(SourceDrawingBuffer) const;
 
   // Returns the cc layer containing the contents. It's the cc layer of
   // SurfaceLayerBridge() or RenderingContext(), or nullptr if the canvas is not
@@ -339,6 +333,15 @@ class CORE_EXPORT HTMLCanvasElement final
 
   void ResetLayer();
 
+  gfx::Vector2dF PhysicalPixelToCanvasGridScaleFactor();
+
+  // If `element` is drawn into the canvas's coordinate system with
+  // `draw_transform`, this returns the transform that can be applied to
+  // `element` to make its CSS position match the drawn position.
+  DOMMatrix* getElementTransform(Element* element,
+                                 DOMMatrix* draw_transform,
+                                 ExceptionState&);
+
  protected:
   void DidMoveToNewDocument(Document& old_document) override;
   void DidRecalcStyle(const StyleRecalcChange change) override;
@@ -348,16 +351,6 @@ class CORE_EXPORT HTMLCanvasElement final
   void Dispose();
 
   void ColorSchemeMayHaveChanged();
-
-  void RecordIdentifiabilityMetric(IdentifiableSurface surface,
-                                   IdentifiableToken value) const;
-
-  // If the user is enrolled in the identifiability study, report the canvas
-  // type, and if applicable, canvas digest, taint bits, and
-  // |canvas_contents_token|, which represents the current bitmap displayed by
-  // this canvas.
-  void IdentifiabilityReportWithDigest(
-      IdentifiableToken canvas_contents_token) const;
 
   void PaintInternal(GraphicsContext&, const PhysicalRect&);
 
@@ -390,7 +383,6 @@ class CORE_EXPORT HTMLCanvasElement final
       const CanvasContextCreationAttributesCore&);
 
   scoped_refptr<StaticBitmapImage> GetSourceImageForCanvasInternal(
-      FlushReason,
       SourceImageStatus*);
 
   static std::pair<blink::Image*, float> BrokenCanvas(

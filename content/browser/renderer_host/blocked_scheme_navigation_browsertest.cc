@@ -137,8 +137,8 @@ void RegisterFakePlugin() {
   plugin_info.mime_types.emplace_back(kPdfMimeType, kPdfFileType,
                                       std::string());
   auto* plugin_service = PluginService::GetInstance();
-  plugin_service->RegisterInternalPlugin(plugin_info, false);
-  plugin_service->RefreshPlugins();
+  plugin_service->RegisterInternalPlugin(plugin_info);
+  plugin_service->GetPlugins();
 }
 
 void UnregisterFakePlugin() {
@@ -148,7 +148,7 @@ void UnregisterFakePlugin() {
   ASSERT_EQ(1u, plugins.size());
 
   plugin_service->UnregisterInternalPlugin(plugins[0].path);
-  plugin_service->RefreshPlugins();
+  plugin_service->GetPlugins();
 
   EXPECT_TRUE(plugin_service->GetInternalPluginsForTesting().empty());
 }

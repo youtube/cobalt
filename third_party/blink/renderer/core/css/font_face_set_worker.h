@@ -20,13 +20,8 @@ namespace blink {
 
 class Font;
 
-class CORE_EXPORT FontFaceSetWorker final
-    : public FontFaceSet,
-      public Supplement<WorkerGlobalScope> {
+class CORE_EXPORT FontFaceSetWorker final : public FontFaceSet {
  public:
-  static constexpr auto kSupplementIndex =
-      WorkerGlobalScope::Supplements::kFontFaceSetWorker;
-
   explicit FontFaceSetWorker(WorkerGlobalScope&);
   FontFaceSetWorker(const FontFaceSetWorker&) = delete;
   FontFaceSetWorker& operator=(const FontFaceSetWorker&) = delete;

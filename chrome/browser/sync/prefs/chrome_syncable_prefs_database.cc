@@ -14,12 +14,12 @@
 #include "chrome/browser/ui/toolbar/toolbar_pref_names.h"
 #include "chrome/browser/ui/webui/side_panel/read_anything/read_anything_prefs.h"
 #include "chrome/common/pref_names.h"
+#include "components/desktop_to_mobile_promos/pref_names.h"
 #include "components/language/core/browser/pref_names.h"
 #include "components/live_caption/pref_names.h"
 #include "components/performance_manager/public/user_tuning/prefs.h"
 #include "components/privacy_sandbox/privacy_sandbox_prefs.h"
 #include "components/privacy_sandbox/tracking_protection_prefs.h"
-#include "components/sharing_message/pref_names.h"
 #include "components/spellcheck/browser/pref_names.h"
 #include "components/sync/base/data_type.h"
 #include "components/sync_preferences/syncable_prefs_database.h"
@@ -431,6 +431,10 @@ enum {
   kDockedMagnifierAcceleratorDialogHasBeenAccepted = 100363,
   kSelectToSpeakAcceleratorDialogHasBeenAccepted = 100364,
   kAccessibilityScreenMagnifierScale = 100365,
+  // kIOSPromoReminder = 100366, (deprecated, moved to common syncable prefs)
+  kClassManagementToolsOOBEAccessCountSetting = 100367,
+  kClassManagementToolsKioskReceiverCodes = 100368,
+  kPinContextualTaskButton = 100369,
   // See components/sync_preferences/README.md about adding new entries here.
   // vvvvv IMPORTANT! vvvvv
   // Note to the reviewer: IT IS YOUR RESPONSIBILITY to ensure that new syncable
@@ -585,6 +589,10 @@ constexpr auto kChromeSyncablePrefsAllowlist = base::MakeFixedFlatMap<
       sync_preferences::MergeBehavior::kNone}},
     {prefs::kShowForwardButton,
      {syncable_prefs_ids::kShowForwardButton, syncer::PREFERENCES,
+      sync_preferences::PrefSensitivity::kNone,
+      sync_preferences::MergeBehavior::kNone}},
+    {prefs::kPinContextualTaskButton,
+     {syncable_prefs_ids::kPinContextualTaskButton, syncer::PREFERENCES,
       sync_preferences::PrefSensitivity::kNone,
       sync_preferences::MergeBehavior::kNone}},
     {prefs::kPinSplitTabButton,
@@ -814,6 +822,14 @@ constexpr auto kChromeSyncablePrefsAllowlist = base::MakeFixedFlatMap<
      {syncable_prefs_ids::kAppNotificationBadgingEnabled,
       syncer::OS_PREFERENCES, sync_preferences::PrefSensitivity::kNone,
       sync_preferences::MergeBehavior::kNone}},
+    {ash::prefs::kClassManagementToolsOOBEAccessCountSetting,
+     {syncable_prefs_ids::kClassManagementToolsOOBEAccessCountSetting,
+      syncer::OS_PREFERENCES, sync_preferences::PrefSensitivity::kNone,
+      sync_preferences::MergeBehavior::kNone}},
+    {ash::prefs::kClassManagementToolsKioskReceiverCodes,
+     {syncable_prefs_ids::kClassManagementToolsKioskReceiverCodes,
+      syncer::OS_PREFERENCES, sync_preferences::PrefSensitivity::kNone,
+      sync_preferences::MergeBehavior::kMergeableDict}},
     {prefs::kDefaultTasksByMimeType,
      {syncable_prefs_ids::kDefaultTasksByMimeType, syncer::OS_PREFERENCES,
       sync_preferences::PrefSensitivity::kNone,

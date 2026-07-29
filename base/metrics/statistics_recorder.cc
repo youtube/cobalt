@@ -15,6 +15,7 @@
 #include "base/logging.h"
 #include "base/memory/ptr_util.h"
 #include "base/metrics/histogram.h"
+#include "base/metrics/histogram_base.h"
 #include "base/metrics/histogram_snapshot_manager.h"
 #include "base/metrics/metrics_hashes.h"
 #include "base/metrics/persistent_histogram_allocator.h"
@@ -317,7 +318,8 @@ void StatisticsRecorder::PrepareDeltas(
     HistogramBase::Flags flags_to_set,
     HistogramBase::Flags required_flags,
     HistogramSnapshotManager* snapshot_manager) {
-  Histograms histograms = Sort(GetHistograms(include_persistent));
+  Histograms histograms =
+      Sort(GetHistograms(include_persistent, HistogramBase::Flags::kNoFlags));
   snapshot_manager->PrepareDeltas(std::move(histograms), flags_to_set,
                                   required_flags);
 }
@@ -534,7 +536,8 @@ bool StatisticsRecorder::ShouldRecordHistogram(uint32_t histogram_hash) {
 
 // static
 StatisticsRecorder::Histograms StatisticsRecorder::GetHistograms(
-    bool include_persistent) {
+    bool include_persistent,
+    int32_t exclude_flags) {
   // This must be called *before* the lock is acquired below because it will
   // call back into this object to register histograms. Those called methods
   // will acquire the lock at that time.
@@ -558,6 +561,12 @@ StatisticsRecorder::Histograms StatisticsRecorder::GetHistograms(
     if (!include_persistent && is_persistent) {
       continue;
     }
+
+    if (exclude_flags & entry.second->flags()) {
+      // Skip the histogram if any flag from exclude_flags is set.
+      continue;
+    }
+
     out.push_back(entry.second);
   }
 

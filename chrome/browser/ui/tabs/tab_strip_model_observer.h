@@ -61,7 +61,10 @@ class TabStripModelChange {
     kDeleted,
 
     // Tab got detached from a TabStrip and inserted into another TabStrip.
-    kInsertedIntoOtherTabStrip
+    kInsertedIntoOtherTabStrip,
+
+    // Insert the WebContents into side panel.
+    kInsertedIntoSidePanel
   };
 
   struct RemovedTab {
@@ -544,6 +547,12 @@ class TabStripModelObserver {
   // changes may cause repainting of some Tab Group UI. They are
   // independent of the tabstrip model and do not affect any tab state.
   virtual void OnTabGroupChanged(const TabGroupChange& change);
+
+  // Called when the "GroupFocused" state changes. This will happen before the
+  // group is fully destroyed.
+  virtual void OnTabGroupFocusChanged(
+      std::optional<tab_groups::TabGroupId> new_focused_group_id,
+      std::optional<tab_groups::TabGroupId> old_focused_group_id);
 
   // Notfies us when a Tab Group is added to the Tab Group Model.
   virtual void OnTabGroupAdded(const tab_groups::TabGroupId& group_id);

@@ -26,10 +26,10 @@
 #include "base/containers/flat_set.h"
 #include "base/containers/lru_cache.h"
 #include "base/containers/span.h"
+#include "base/feature_list.h"
 #include "base/files/file_path.h"
 #include "base/functional/callback.h"
 #include "base/gtest_prod_util.h"
-#include "base/hash/sha1.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_refptr.h"
@@ -40,6 +40,7 @@
 #include "net/base/cache_type.h"
 #include "net/base/completion_once_callback.h"
 #include "net/base/does_url_match_filter.h"
+#include "net/base/hash_value.h"
 #include "net/base/load_states.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_export.h"
@@ -60,6 +61,8 @@ class Origin;
 }
 
 namespace net {
+
+NET_EXPORT BASE_DECLARE_FEATURE(kHttpCacheInitializeDiskCacheBackendEarly);
 
 class HttpNetworkSession;
 class HttpResponseInfo;
@@ -98,6 +101,8 @@ class NET_EXPORT HttpCache : public HttpTransactionFactory {
         disk_cache::ApplicationStatusListenerGetter
             app_status_listener_getter) {}
 #endif
+
+    virtual std::optional<CacheType> GetCacheType() const;
   };
 
   // A default backend factory for the common use cases.
@@ -128,6 +133,8 @@ class NET_EXPORT HttpCache : public HttpTransactionFactory {
     void SetAppStatusListenerGetter(disk_cache::ApplicationStatusListenerGetter
                                         app_status_listener_getter) override;
 #endif
+
+    std::optional<CacheType> GetCacheType() const override;
 
    private:
     CacheType type_;
@@ -822,7 +829,7 @@ class NET_EXPORT HttpCache : public HttpTransactionFactory {
   raw_ptr<base::Clock> clock_;
 
   // Used to track which keys led to a no-store response.
-  base::LRUCacheSet<base::SHA1Digest> keys_marked_no_store_;
+  base::LRUCacheSet<SHA256HashValue> keys_marked_no_store_;
 
   // Set if the kHttpCacheNoVarySearch feature is enabled. Translates the URL in
   // the request into the URL of a previous response that is equivalent

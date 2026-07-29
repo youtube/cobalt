@@ -158,7 +158,7 @@ class BrowsingHistoryHandlerTest : public ChromeRenderViewHostTestHarness {
                 /*host_only=*/options.host_only,
                 /*visit_order=*/options.visit_order,
                 /*app_id=*/options.app_id,
-                /*include_actor_visits=*/options.include_actor_visits)))
+                /*include_actor_visits=*/true)))
         .Times(1)
         .WillOnce([&, mock_results](const std::u16string& search_text,
                                     const QueryOptions& options) {
@@ -177,7 +177,6 @@ class BrowsingHistoryHandlerTest : public ChromeRenderViewHostTestHarness {
           info.search_text = search_text;
           info.reached_beginning = true;
           info.sync_timed_out = false;
-          info.has_synced_results = true;
           handler_->OnQueryComplete(
               mock_results.empty() ? results : mock_results, info,
               base::OnceClosure());
@@ -360,15 +359,26 @@ TEST_F(BrowsingHistoryHandlerTest, SendsUpdatedInfoOnAccountChange) {
   EXPECT_CALL(*mock_page(), SendAccountInfo(_));
   // Update the account info with all the necessary fields for
   // AccountInfo::isValid() to be true.
-  account_info.hosted_domain = "example.com";
-  account_info.full_name = "Test User";
-  account_info.given_name = "Test";
-  account_info.picture_url = "http://example.com/test.jpg";
+  account_info = AccountInfo::Builder(account_info)
+                     .SetFullName("Test User")
+                     .SetGivenName("Test")
+                     .SetHostedDomain("example.com")
+                     .SetAvatarUrl("http://example.com/test.jpg")
+                     .Build();
   ASSERT_TRUE(account_info.IsValid());
 
   signin::UpdateAccountInfoForAccount(identity_manager, account_info);
 
   mock_page()->FlushForTesting();
+}
+
+TEST_F(BrowsingHistoryHandlerTest, IncludeActorVisits) {
+  std::u16string query = u"test";
+  QueryOptions options;
+  options.include_actor_visits = true;
+
+  MockHistoryServiceCall(query, options);
+  RunQueryHistory("test");
 }
 #endif
 

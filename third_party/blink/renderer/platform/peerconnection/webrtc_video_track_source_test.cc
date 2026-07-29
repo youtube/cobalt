@@ -74,7 +74,6 @@ class WebRtcVideoTrackSourceTest
             shared_resources_)) {
     track_source_->AddOrUpdateSink(&mock_sink_, webrtc::VideoSinkWants());
     test_sii_ = base::MakeRefCounted<gpu::TestSharedImageInterface>();
-    test_sii_->UseTestGMBInSharedImageCreationWithBufferUsage();
   }
 
   void ProcessFeedback(const media::VideoCaptureFeedback& feedback) {
@@ -309,6 +308,15 @@ TEST_P(WebRtcVideoTrackSourceTest, TestColorSpaceSettings) {
       .natural_size = gfx::Size(640, 360),
       .storage_type = std::get<0>(GetParam()),
       .pixel_format = std::get<1>(GetParam())};
+
+  if (frame_parameters.pixel_format == media::PIXEL_FORMAT_ABGR ||
+      frame_parameters.pixel_format == media::PIXEL_FORMAT_ARGB ||
+      frame_parameters.pixel_format == media::PIXEL_FORMAT_XBGR ||
+      frame_parameters.pixel_format == media::PIXEL_FORMAT_XRGB) {
+    // RGB frames can't be encoded directly, they will be converted and color
+    // space will change.
+    return;
+  }
 
   Sequence s;
 

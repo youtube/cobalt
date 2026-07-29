@@ -8,7 +8,10 @@
   // Observer for the web state loading.
   std::unique_ptr<web::WebStateObserverBridge> _webStateObserverBridge;
   // Stores the callbacks to be used once the web state is loaded.
-  std::unordered_map<web::WebStateID, ProceduralBlock> _callbacks;
+  std::unordered_map<web::WebStateID, WebStateLoadedCompletionBlock>
+      _loadedCallbacks;
+  // Stores the callbacks to be used once the web state is realized.
+  std::unordered_map<web::WebStateID, ProceduralBlock> _realizedCallbacks;
   // Temporarily stores the active observations.
   std::unordered_map<web::WebStateID, base::WeakPtr<web::WebState>>
       _activeObservations;
@@ -25,8 +28,8 @@
 }
 
 - (void)webState:(web::WebState*)webState
-    executeOnceLoaded:(ProceduralBlock)completion {
-  _callbacks[webState->GetUniqueIdentifier()] = completion;
+    executeOnceLoaded:(WebStateLoadedCompletionBlock)completion {
+  _loadedCallbacks[webState->GetUniqueIdentifier()] = completion;
   BOOL realized = webState->IsRealized();
   BOOL loading = webState->IsLoading();
 
@@ -41,12 +44,33 @@
     return;
   }
 
-  [self callCompletionForID:webState->GetUniqueIdentifier()];
+  // Already loaded.
+  [self callLoadedCompletionForID:webState->GetUniqueIdentifier() success:YES];
+}
+
+- (void)webState:(web::WebState*)webState
+    executeOnceRealized:(ProceduralBlock)completion {
+  _realizedCallbacks[webState->GetUniqueIdentifier()] = completion;
+  BOOL realized = webState->IsRealized();
+
+  if (realized) {
+    [self callRealizedCompletionForID:webState->GetUniqueIdentifier()];
+    return;
+  }
+
+  [self observeWebState:webState];
+  [self forceRealizeWebState:webState];
 }
 
 #pragma mark - Private
 
 - (void)observeWebState:(web::WebState*)webState {
+  BOOL alreadyObserving =
+      _activeObservations.find(webState->GetUniqueIdentifier()) !=
+      _activeObservations.end();
+  if (alreadyObserving) {
+    return;
+  }
   webState->AddObserver(_webStateObserverBridge.get());
   _activeObservations[webState->GetUniqueIdentifier()] = webState->GetWeakPtr();
 }
@@ -61,10 +85,18 @@
   webState->ForceRealized();
 }
 
-- (void)callCompletionForID:(web::WebStateID)webStateID {
-  if (auto block = _callbacks[webStateID]) {
+- (void)callLoadedCompletionForID:(web::WebStateID)webStateID
+                          success:(BOOL)success {
+  if (auto block = _loadedCallbacks[webStateID]) {
+    block(success);
+    _loadedCallbacks.erase(webStateID);
+  }
+}
+
+- (void)callRealizedCompletionForID:(web::WebStateID)webStateID {
+  if (auto block = _realizedCallbacks[webStateID]) {
     block();
-    _callbacks.erase(webStateID);
+    _realizedCallbacks.erase(webStateID);
   }
 }
 
@@ -92,12 +124,21 @@
 
 - (void)webState:(web::WebState*)webState didLoadPageWithSuccess:(BOOL)success {
   [self removeObserverForWebState:webState];
-  [self callCompletionForID:webState->GetUniqueIdentifier()];
+  [self callLoadedCompletionForID:webState->GetUniqueIdentifier()
+                          success:success];
+}
+
+- (void)webStateRealized:(web::WebState*)webState {
+  if (!_loadedCallbacks.contains(webState->GetUniqueIdentifier())) {
+    [self removeObserverForWebState:webState];
+  }
+  [self callRealizedCompletionForID:webState->GetUniqueIdentifier()];
 }
 
 - (void)webStateDestroyed:(web::WebState*)webState {
   [self removeObserverForWebState:webState];
-  [self callCompletionForID:webState->GetUniqueIdentifier()];
+  [self callRealizedCompletionForID:webState->GetUniqueIdentifier()];
+  [self callLoadedCompletionForID:webState->GetUniqueIdentifier() success:NO];
 }
 
 @end

@@ -81,18 +81,13 @@ public class MultiWindowAppMenuTest {
     }
 
     private void doTestOpenNewWindow_fromIncognitoNtp() {
-        WebPageStation blankPage = mCtaTestRule.startOnBlankPage();
-        IncognitoNewTabPageStation pageInFirstWindow = blankPage.openNewIncognitoTabOrWindowFast();
+        WebPageStation blankPage = mCtaTestRule.startOnIncognitoBlankPage();
+        IncognitoNewTabPageStation pageInFirstWindow = blankPage.openNewIncognitoTabFast();
         RegularNewTabPageStation pageInSecondWindow =
                 pageInFirstWindow.openAppMenu().openNewWindow();
 
         TransitAsserts.assertInDifferentTasks(pageInFirstWindow, pageInSecondWindow);
-        if (pageInFirstWindow.getActivity().isIncognitoWindow()) {
-            TransitAsserts.assertFinalDestinations(
-                    blankPage, pageInFirstWindow, pageInSecondWindow);
-        } else {
-            TransitAsserts.assertFinalDestinations(pageInFirstWindow, pageInSecondWindow);
-        }
+        TransitAsserts.assertFinalDestinations(pageInFirstWindow, pageInSecondWindow);
     }
 
     @Test
@@ -150,13 +145,17 @@ public class MultiWindowAppMenuTest {
     @Test
     @LargeTest
     @EnableFeatures(OPEN_WINDOW_ON_TOP)
+    @DisableFeatures(ChromeFeatureList.SETTINGS_MULTI_COLUMN)
     public void testInteractWithBothWindows_robustWindowManagementExperimentalEnabled() {
         doTestInteractWithBothWindows();
     }
 
     @Test
     @LargeTest
-    @DisableFeatures(ChromeFeatureList.ROBUST_WINDOW_MANAGEMENT_EXPERIMENTAL)
+    @DisableFeatures({
+        ChromeFeatureList.ROBUST_WINDOW_MANAGEMENT_EXPERIMENTAL,
+        ChromeFeatureList.SETTINGS_MULTI_COLUMN
+    })
     public void testInteractWithBothWindows() {
         doTestInteractWithBothWindows();
     }

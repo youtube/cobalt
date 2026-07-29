@@ -93,14 +93,18 @@
 #include "third_party/abseil-cpp/absl/cleanup/cleanup.h"
 #include "ui/base/ui_base_features.h"
 #include "ui/compositor/compositor_switches.h"
-#include "ui/compositor/scoped_animation_duration_scale_mode.h"
 #include "ui/display/display_switches.h"
 #include "ui/gfx/animation/animation_test_api.h"
+#include "ui/gfx/scoped_animation_duration_scale_mode.h"
 #include "ui/gl/gl_implementation.h"
 #include "ui/gl/gl_switches.h"
 
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
 #include "ui/platform_window/common/platform_window_defaults.h"  // nogncheck
+#endif
+
+#if BUILDFLAG(IS_CHROMEOS) && !BUILDFLAG(IS_CHROMEOS_DEVICE)
+#include "ui/events/ozone/events_ozone.h"
 #endif
 
 #if BUILDFLAG(IS_ANDROID)
@@ -272,6 +276,13 @@ BrowserTestBase::BrowserTestBase() {
   ui::test::EnableTestConfigForPlatformWindows();
 #endif
 
+#if BUILDFLAG(IS_CHROMEOS) && !BUILDFLAG(IS_CHROMEOS_DEVICE)
+  // Events used in tests on CrOS are generated either at aura level, or ozone
+  // level, except for Crosier tests that run on a device.  Disable native
+  // events handling as they can cause unexpected behavior.
+  ui::DisableNativeUiEventDispatchForTest();
+#endif
+
 #if BUILDFLAG(IS_POSIX)
   handle_sigterm_ = true;
 #endif
@@ -422,8 +433,8 @@ void BrowserTestBase::SetUp() {
   // Disable animations when verifying pixel output, as they make tests flaky.
   if (command_line->HasSwitch(switches::kVerifyPixels)) {
     disable_layer_animations_ =
-        std::make_unique<ui::ScopedAnimationDurationScaleMode>(
-            ui::ScopedAnimationDurationScaleMode::ZERO_DURATION);
+        std::make_unique<gfx::ScopedAnimationDurationScaleMode>(
+            gfx::ScopedAnimationDurationScaleMode::ZERO_DURATION);
     disable_rich_animations_ =
         gfx::AnimationTestApi::SetRichAnimationRenderMode(
             gfx::Animation::RichAnimationRenderMode::FORCE_DISABLED);
@@ -655,7 +666,8 @@ void BrowserTestBase::SetUp() {
     auto* provider = delegate->CreateVariationsIdsProvider();
     if (!provider) {
       variations::VariationsIdsProvider::CreateInstance(
-          variations::VariationsIdsProvider::Mode::kUseSignedInState);
+          variations::VariationsIdsProvider::Mode::kUseSignedInState,
+          std::make_unique<base::DefaultClock>());
     }
 
     std::optional<int> post_early_initialization_exit_code =

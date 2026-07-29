@@ -43,7 +43,6 @@ import org.robolectric.annotation.Config;
 import org.robolectric.annotation.Implementation;
 import org.robolectric.annotation.Implements;
 
-import org.chromium.base.DeviceInfo;
 import org.chromium.base.FeatureOverrides;
 import org.chromium.base.SysUtils;
 import org.chromium.base.supplier.ObservableSupplier;
@@ -144,8 +143,6 @@ public class MultiWindowUtilsUnitTest {
     private static final String URL_3 = "url3";
     private static final GURL NTP_GURL = new GURL(UrlConstants.NTP_URL);
     private static final GURL TEST_GURL = new GURL("https://youtube.com/");
-    private static final String XR_DEVICE = "XrDevice";
-    private static final String DESKTOP_DEVICE = "DesktopDevice";
 
     private MultiWindowUtils mUtils;
     private boolean mIsInMultiWindowMode;
@@ -491,31 +488,6 @@ public class MultiWindowUtilsUnitTest {
                         mTabModelSelector, mTabGroupModelFilter));
     }
     ;
-
-    @Test
-    public void testGetInstanceCount() {
-        when(mTabModelSelector.getModel(false)).thenReturn(mNormalTabModel);
-        when(mTabModelSelector.getModel(true)).thenReturn(mIncognitoTabModel);
-
-        // Instance with no tabs (ID_1) still counts as long as it is alive.
-        writeInstanceInfo(
-                INSTANCE_ID_0, URL_1, /* tabCount= */ 3, /* incognitoTabCount= */ 2, TASK_ID_5);
-        writeInstanceInfo(
-                INSTANCE_ID_1, URL_2, /* tabCount= */ 0, /* incognitoTabCount= */ 0, TASK_ID_6);
-        writeInstanceInfo(
-                INSTANCE_ID_2, URL_3, /* tabCount= */ 6, /* incognitoTabCount= */ 2, TASK_ID_7);
-        assertEquals(3, MultiWindowUtils.getInstanceCount());
-
-        // Instance with no running task is not taken into account if there is no normal tab,
-        // regardless of the # of incognito tabs.
-        writeInstanceInfo(
-                INSTANCE_ID_1,
-                URL_2,
-                /* tabCount= */ 0,
-                /* incognitoTabCount= */ 2,
-                MultiWindowUtils.INVALID_TASK_ID);
-        assertEquals(2, MultiWindowUtils.getInstanceCount());
-    }
 
     @Test
     public void testGetInstanceCountWithFallback() {
@@ -1108,17 +1080,6 @@ public class MultiWindowUtilsUnitTest {
         assertEquals(
                 "Instance limit on low-memory device is incorrect.",
                 5,
-                MultiWindowUtils.getMaxInstances());
-    }
-
-    @Test
-    @EnableFeatures(ChromeFeatureList.DISABLE_INSTANCE_LIMIT)
-    public void testMaxInstances_XrDevice() {
-        DeviceInfo.setIsXrForTesting(true);
-        MultiWindowUtils.setMultiInstanceApi31EnabledForTesting(true);
-        assertEquals(
-                "Instance limit on XR device is incorrect.",
-                1000,
                 MultiWindowUtils.getMaxInstances());
     }
 

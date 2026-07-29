@@ -2,10 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import 'chrome://resources/cr_elements/cr_button/cr_button.js';
+import 'chrome://resources/cr_elements/cr_checkbox/cr_checkbox.js';
+import 'chrome://resources/cr_elements/cr_dialog/cr_dialog.js';
 import 'chrome://resources/cr_elements/cr_icon_button/cr_icon_button.js';
 import 'chrome://resources/cr_elements/cr_icon/cr_icon.js';
 import 'chrome://resources/cr_elements/icons.html.js';
-import 'chrome://resources/cr_elements/cr_checkbox/cr_checkbox.js';
 import './icons.html.js';
 import './profile_card.js';
 import '/strings.m.js';
@@ -37,6 +39,7 @@ export interface ProfilePickerMainViewElement {
     askOnStartup: CrCheckboxElement,
     'picker-logo': HTMLElement,
     browseAsGuestButton: HTMLElement,
+    openAllProfilesButton: HTMLElement,
     profilesContainer: HTMLElement,
     profilesWrapper: HTMLElement,
     forceSigninErrorDialog: CrDialogElement,
@@ -76,7 +79,7 @@ export class ProfilePickerMainViewElement extends
       forceSigninErrorDialogBody_: {type: String},
       forceSigninErrorProfilePath_: {type: String},
       shouldShownSigninButton_: {type: Boolean},
-
+      shouldShowOpenAllProfilesButton_: {type: Boolean},
       // Exposed to CSS as 'is-glic_'.
       isGlic_: {type: Boolean, reflect: true},
     };
@@ -111,6 +114,12 @@ export class ProfilePickerMainViewElement extends
   protected accessor forceSigninErrorDialogBody_: string = '';
   private accessor forceSigninErrorProfilePath_: string = '';
   protected accessor shouldShownSigninButton_: boolean = false;
+
+  private isOpenAllProfilesButtonExperimentEnabled_: boolean =
+      loadTimeData.getBoolean('isOpenAllProfilesButtonExperimentEnabled');
+  private maxProfilesCountToShowOpenAllProfilesButton_: number =
+      loadTimeData.getInteger('maxProfilesCountToShowOpenAllProfilesButton');
+  protected accessor shouldShowOpenAllProfilesButton_: boolean = false;
 
   private showProfilePickerToAllUsersExperiment_: boolean =
       loadTimeData.getBoolean('showProfilePickerToAllUsersExperiment');
@@ -164,6 +173,12 @@ export class ProfilePickerMainViewElement extends
       // The strings containing the link may appear dynamically, so we need to
       // update their `click` events accordingly.
       this.updateLearnMoreLinkEvents_();
+      this.computeShouldShowOpenAllProfilesButton_();
+    }
+
+    if (changedPrivateProperties.has('shouldShowOpenAllProfilesButton_') &&
+        this.shouldShowOpenAllProfilesButton_) {
+      this.manageProfilesBrowserProxy_.recordOpenAllProfilesButtonShown();
     }
   }
 
@@ -281,6 +296,22 @@ export class ProfilePickerMainViewElement extends
     this.manageProfilesBrowserProxy_.launchGuestProfile();
   }
 
+  protected onOpenAllProfilesClick_() {
+    this.disableAllPickerButtons_();
+    chrome.metricsPrivate.recordUserAction(
+        'ProfilePicker_OpenAllProfilesClicked');
+    this.manageProfilesBrowserProxy_.launchAllProfiles(
+        this.profilesList_.map(profile => profile.profilePath));
+  }
+
+  private computeShouldShowOpenAllProfilesButton_() {
+    this.shouldShowOpenAllProfilesButton_ =
+        this.isOpenAllProfilesButtonExperimentEnabled_ &&
+        1 < this.profilesList_.length &&
+        this.profilesList_.length <=
+            this.maxProfilesCountToShowOpenAllProfilesButton_;
+  }
+
   private maybeUpdateGuestMode_(enableGuestMode: boolean) {
     if (enableGuestMode === this.guestModeEnabled_) {
       return;
@@ -297,9 +328,9 @@ export class ProfilePickerMainViewElement extends
     const index = this.profilesList_.findIndex(
         profile => profile.profilePath === profilePath);
     assert(index !== -1);
-    // TODO(crbug.com/40123459): Add animation.
     this.profilesList_.splice(index, 1);
     this.requestUpdate();
+    this.computeShouldShowOpenAllProfilesButton_();
   }
 
   private computeHideAskOnStartup_(): boolean {

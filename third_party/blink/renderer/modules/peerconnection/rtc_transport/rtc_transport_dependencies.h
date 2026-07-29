@@ -11,7 +11,6 @@
 #include "third_party/blink/renderer/core/execution_context/execution_context_lifecycle_observer.h"
 #include "third_party/blink/renderer/modules/modules_export.h"
 #include "third_party/blink/renderer/platform/p2p/port_allocator.h"
-#include "third_party/blink/renderer/platform/supplementable.h"
 
 namespace blink {
 
@@ -21,12 +20,8 @@ class P2PSocketDispatcher;
 
 class MODULES_EXPORT RtcTransportDependencies
     : public GarbageCollected<RtcTransportDependencies>,
-      public Supplement<ExecutionContext>,
       public ExecutionContextLifecycleObserver {
  public:
-  static constexpr auto kSupplementIndex =
-      ExecutionContext::Supplements::kRtcTransportDependencies;
-
   static scoped_refptr<base::SingleThreadTaskRunner> NetworkTaskRunner();
   // Gets from, invoking callback once initialized and ready.
   static void GetInitialized(

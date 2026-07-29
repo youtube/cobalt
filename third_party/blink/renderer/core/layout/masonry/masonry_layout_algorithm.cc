@@ -14,7 +14,7 @@
 #include "third_party/blink/renderer/core/layout/grid/grid_track_sizing_algorithm.h"
 #include "third_party/blink/renderer/core/layout/layout_utils.h"
 #include "third_party/blink/renderer/core/layout/logical_box_fragment.h"
-#include "third_party/blink/renderer/core/layout/masonry/layout_masonry.h"
+#include "third_party/blink/renderer/core/layout/masonry/layout_grid_lanes.h"
 #include "third_party/blink/renderer/core/layout/masonry/masonry_running_positions.h"
 
 namespace blink {
@@ -41,7 +41,7 @@ MinMaxSizesResult MasonryLayoutAlgorithm::ComputeMinMaxSizes(
     const MinMaxSizesFloatInput&) {
   const ComputedStyle& style = Style();
   const bool is_for_columns =
-      style.MasonryTrackSizingDirection() == kForColumns;
+      style.GridLanesTrackSizingDirection() == kForColumns;
 
   auto ComputeIntrinsicInlineSize = [&](SizingConstraint sizing_constraint) {
     bool needs_intrinsic_track_size = false;
@@ -400,6 +400,9 @@ void MasonryLayoutAlgorithm::PlaceMasonryItems(
       }
     }
 
+    // TODO(celestepan): If an item was placed into an earlier track opening as
+    // a result of dense-packing, the auto-placement cursor should not be moved.
+    //
     // Update auto-placement cursor after we have determined the item's final
     // placement.
     running_positions.UpdateAutoPlacementCursor(masonry_item.resolved_position,
@@ -544,24 +547,21 @@ void MasonryLayoutAlgorithm::PlaceOutOfFlowItems(
           container_builder_.Borders(), total_fragment_size, out_of_flow_item));
     }
 
-    auto child_offset = containing_block_rect
+    LogicalStaticPosition static_pos;
+    static_pos.offset = containing_block_rect
                             ? containing_block_rect->offset
                             : BorderScrollbarPadding().StartOffset();
     const auto containing_block_size = containing_block_rect
                                            ? containing_block_rect->size
                                            : default_containing_block_size;
 
-    LogicalStaticPosition::InlineEdge inline_edge;
-    LogicalStaticPosition::BlockEdge block_edge;
-
     AlignmentOffsetForOutOfFlow(out_of_flow_item->Alignment(kForColumns),
                                 out_of_flow_item->Alignment(kForRows),
-                                containing_block_size, &inline_edge,
-                                &block_edge, &child_offset);
+                                containing_block_size, &static_pos);
 
     // TODO(kschmi): Handle fragmentation.
-    container_builder_.AddOutOfFlowChildCandidate(
-        out_of_flow_item->node, child_offset, inline_edge, block_edge);
+    container_builder_.AddOutOfFlowChildCandidate(out_of_flow_item->node,
+                                                  static_pos);
   }
 }
 
@@ -573,7 +573,7 @@ GridItems MasonryLayoutAlgorithm::BuildVirtualMasonryItems(
     const wtf_size_t auto_repetition_count,
     wtf_size_t& start_offset) const {
   const auto& style = Style();
-  const auto grid_axis_direction = style.MasonryTrackSizingDirection();
+  const auto grid_axis_direction = style.GridLanesTrackSizingDirection();
   const bool is_for_columns = grid_axis_direction == kForColumns;
 
   const LayoutUnit grid_axis_gap =
@@ -904,14 +904,15 @@ GridSizingTrackCollection MasonryLayoutAlgorithm::ComputeGridAxisTracks(
                                            needs_intrinsic_track_size));
   const auto& node = Node();
   if (masonry_items.IsEmpty()) {
-    masonry_items = node.ConstructMasonryItems(line_resolver, opt_oof_children);
+    masonry_items =
+        node.ConstructGridLanesItems(line_resolver, opt_oof_children);
   } else {
     // If `masonry_items` is not empty, that means that we are in
     // a second track sizing pass required for intrinsic tracks within
     // a repeat() track definition. Don't construct the masonry items
     // from scratch. Rather, adjust their spans based on the updated
     // `line_resolver`.
-    node.AdjustMasonryItemSpans(masonry_items, line_resolver);
+    node.AdjustGridLanesItemSpans(masonry_items, line_resolver);
   }
 
   return BuildGridAxisTracks(line_resolver, masonry_items, sizing_constraint,
@@ -927,7 +928,7 @@ GridSizingTrackCollection MasonryLayoutAlgorithm::BuildGridAxisTracks(
     Vector<wtf_size_t>& collapsed_track_indexes,
     wtf_size_t& start_offset) const {
   const auto& style = Style();
-  const auto grid_axis_direction = style.MasonryTrackSizingDirection();
+  const auto grid_axis_direction = style.GridLanesTrackSizingDirection();
   GridItems virtual_items = BuildVirtualMasonryItems(
       line_resolver, masonry_items, needs_intrinsic_track_size,
       sizing_constraint, line_resolver.AutoRepetitions(grid_axis_direction),
@@ -941,7 +942,7 @@ GridSizingTrackCollection MasonryLayoutAlgorithm::BuildGridAxisTracks(
     } else {
       placement_data.row_start_offset = start_offset;
     }
-    To<LayoutMasonry>(Node().GetLayoutBox())
+    To<LayoutGridLanes>(Node().GetLayoutBox())
         ->SetCachedPlacementData(std::move(placement_data));
   }
 
@@ -1006,7 +1007,7 @@ Vector<LayoutUnit> MasonryLayoutAlgorithm::GetIntrinsicRepeaterTrackSizes(
   CHECK_NE(track_collection.GetIntrinsicSizedRepeaterSetIndex(), kNotFound);
   const ComputedStyle& style = Style();
   const bool is_for_columns =
-      style.MasonryTrackSizingDirection() == kForColumns;
+      style.GridLanesTrackSizingDirection() == kForColumns;
 
   const GridTrackList& track_list =
       is_for_columns ? style.GridTemplateColumns().GetTrackList()
@@ -1046,9 +1047,9 @@ wtf_size_t MasonryLayoutAlgorithm::ComputeAutomaticRepetitions(
     const Vector<LayoutUnit>* intrinsic_repeat_track_sizes,
     bool& needs_intrinsic_track_size) const {
   const ComputedStyle& style = Style();
-  GridTrackSizingDirection masonry_track_sizing_direction =
-      style.MasonryTrackSizingDirection();
-  const bool is_for_columns = masonry_track_sizing_direction == kForColumns;
+  GridTrackSizingDirection grid_axis_direction =
+      style.GridLanesTrackSizingDirection();
+  const bool is_for_columns = grid_axis_direction == kForColumns;
 
   const GridTrackList& track_list =
       is_for_columns ? style.GridTemplateColumns().GetTrackList()
@@ -1076,7 +1077,7 @@ wtf_size_t MasonryLayoutAlgorithm::ComputeAutomaticRepetitions(
   // grid_layout_utils.cc.
 
   const LayoutUnit gutter_size = GridTrackSizingAlgorithm::CalculateGutterSize(
-      style, masonry_available_size_, masonry_track_sizing_direction);
+      style, masonry_available_size_, grid_axis_direction);
 
   return CalculateAutomaticRepetitions(
       track_list, gutter_size,
@@ -1187,7 +1188,7 @@ ConstraintSpace MasonryLayoutAlgorithm::CreateConstraintSpaceForMeasure(
     bool is_for_min_max_sizing) const {
   LogicalSize containing_size = masonry_available_size_;
   const auto writing_mode = GetConstraintSpace().GetWritingMode();
-  const auto grid_axis_direction = Style().MasonryTrackSizingDirection();
+  const auto grid_axis_direction = Style().GridLanesTrackSizingDirection();
   const bool is_parallel_with_root_grid =
       masonry_item.is_parallel_with_root_grid;
 
@@ -1254,7 +1255,7 @@ LogicalRect MasonryLayoutAlgorithm::ComputeOutOfFlowItemContainingRect(
     GridItemData* out_of_flow_item) {
   DCHECK(out_of_flow_item && out_of_flow_item->IsOutOfFlow());
   const bool is_for_columns =
-      masonry_style.MasonryTrackSizingDirection() == kForColumns;
+      masonry_style.GridLanesTrackSizingDirection() == kForColumns;
 
   out_of_flow_item->ComputeOutOfFlowItemPlacement(
       is_for_columns ? layout_data.Columns() : layout_data.Rows(),

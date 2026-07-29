@@ -4,10 +4,12 @@
 import type {ContextualUpload, TabUpload} from 'chrome://resources/cr_components/composebox/common.js';
 import {ComposeboxMode} from 'chrome://resources/cr_components/composebox/contextual_entrypoint_and_carousel.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
+import type {PropertyValues} from 'chrome://resources/lit/v3_0/lit.rollup.js';
 import {CrLitElement} from 'chrome://resources/lit/v3_0/lit.rollup.js';
 
 import type {ActionChip, ActionChipsHandlerInterface, PageCallbackRouter, TabInfo} from '../action_chips.mojom-webui.js';
 import {ChipType} from '../action_chips.mojom-webui.js';
+import {WindowProxy} from '../window_proxy.js';
 
 import {getCss} from './action_chips.css.js';
 import {getHtml} from './action_chips.html.js';
@@ -22,6 +24,30 @@ function recordClick(chipType: ChipType) {
   chrome.metricsPrivate.recordEnumerationValue(
       'NewTabPage.ActionChips.Click', chipType, ChipType.MAX_VALUE + 1);
 }
+
+// Records a latency metric.
+function recordLatency(metricName: string, latency: number) {
+  chrome.metricsPrivate.recordTime(metricName, Math.round(latency));
+}
+
+/**
+ * The enum value sent as part of action-chips-retrieval-state-changed.
+ * The handler of the event should expect to receive UPDATED multiple times.
+ */
+export enum ActionChipsRetrievalState {
+  // The initial state. This is not sent as part of the event and can be used as
+  // the default value of a variable containing this enum.
+  INITIAL,
+  // The state used in an event firing when the first and only retrieval
+  // request is sent from this component.
+  REQUESTED,
+  // The state used in events firing when the action chips are updated by a call
+  // from the browser side.
+  UPDATED,
+}
+
+const kActionChipsRetrievalStateChangedEvent =
+    'action-chips-retrieval-state-changed';
 
 /**
  * The element for displaying Action Chips.
@@ -45,6 +71,7 @@ export class ActionChipsElement extends CrLitElement {
   private callbackRouter: PageCallbackRouter;
   protected accessor actionChips_: ActionChip[] = [];
   private onActionChipChangedListenerId_: number|null = null;
+  private initialLoadStartTime_: number|null = null;
 
   private delayTabUploads_: boolean =
       loadTimeData.getBoolean('addTabUploadDelayOnActionChipClick');
@@ -60,12 +87,14 @@ export class ActionChipsElement extends CrLitElement {
         return 'banana';
       case ChipType.kDeepSearch:
         return 'deep-search';
+      case ChipType.kDeepDive:
+        return 'deep-dive';
       default:
         return '';
     }
   }
 
-  protected getId(chip: ActionChip): string|null {
+  protected getId_(chip: ActionChip, index: number): string|null {
     switch (chip.type) {
       case ChipType.kImage:
         return 'nano-banana';
@@ -73,6 +102,8 @@ export class ActionChipsElement extends CrLitElement {
         return 'deep-search';
       case ChipType.kRecentTab:
         return 'tab-context';
+      case ChipType.kDeepDive:
+        return `deep-dive-${index}`;
       default:
         return null;
     }
@@ -83,6 +114,7 @@ export class ActionChipsElement extends CrLitElement {
     const proxy = ActionChipsApiProxyImpl.getInstance();
     this.handler = proxy.getHandler();
     this.callbackRouter = proxy.getCallbackRouter();
+    this.initialLoadStartTime_ = WindowProxy.getInstance().now();
   }
 
   override connectedCallback() {
@@ -91,13 +123,31 @@ export class ActionChipsElement extends CrLitElement {
         this.callbackRouter.onActionChipsChanged.addListener(
             (actionChips: ActionChip[]) => {
               this.actionChips_ = actionChips;
+              this.fire(
+                  kActionChipsRetrievalStateChangedEvent,
+                  {state: ActionChipsRetrievalState.UPDATED});
             });
     this.handler.startActionChipsRetrieval();
+    this.fire(
+        kActionChipsRetrievalStateChangedEvent,
+        {state: ActionChipsRetrievalState.REQUESTED});
   }
 
   override disconnectedCallback() {
     super.disconnectedCallback();
     this.callbackRouter.removeListener(this.onActionChipChangedListenerId_!);
+  }
+
+  override updated(changedProperties: PropertyValues<this>) {
+    super.updated(changedProperties);
+
+    // Records only the first load latency after rendering chips.
+    if (this.initialLoadStartTime_ !== null && this.actionChips_.length > 0) {
+      recordLatency(
+          'NewTabPage.ActionChips.WebUI.InitialLoadLatency',
+          WindowProxy.getInstance().now() - this.initialLoadStartTime_);
+      this.initialLoadStartTime_ = null;
+    }
   }
 
   protected onCreateImageClick_() {
@@ -159,6 +209,14 @@ export class ActionChipsElement extends CrLitElement {
   private onActionChipClick_(
       query: string, contextFiles: ContextualUpload[], mode: ComposeboxMode) {
     this.fire('action-chip-click', {searchboxText: query, contextFiles, mode});
+  }
+
+  protected isDeepDiveChip_(chip: ActionChip) {
+    return chip.type === ChipType.kDeepDive;
+  }
+
+  protected isRecentTabChip_(chip: ActionChip) {
+    return chip.type === ChipType.kRecentTab;
   }
 }
 

@@ -604,18 +604,22 @@ String StylePropertySerializer::SerializeShorthand(
       return GetShorthandValue(flexShorthand());
     case CSSPropertyID::kFlexFlow:
       return GetShorthandValueForDoubleBarCombinator(flexFlowShorthand());
-    case CSSPropertyID::kGrid:
-      return GetShorthandValueForGrid(gridShorthand());
-    case CSSPropertyID::kGridTemplate:
-      return GetShorthandValueForGridTemplate(gridTemplateShorthand());
-    case CSSPropertyID::kGridColumn:
-      return GetShorthandValueForGridLine(gridColumnShorthand());
-    case CSSPropertyID::kGridRow:
-      return GetShorthandValueForGridLine(gridRowShorthand());
-    case CSSPropertyID::kGridArea:
-      return GetShorthandValueForGridArea(gridAreaShorthand());
     case CSSPropertyID::kGap:
       return Get2Values(gapShorthand());
+    case CSSPropertyID::kGrid:
+      return GetShorthandValueForGrid(gridShorthand());
+    case CSSPropertyID::kGridArea:
+      return GetShorthandValueForGridArea(gridAreaShorthand());
+    case CSSPropertyID::kGridColumn:
+      return GetShorthandValueForGridLine(gridColumnShorthand());
+    case CSSPropertyID::kGridLanes:
+      return GetShorthandValueForGridLanes(gridLanesShorthand());
+    case CSSPropertyID::kGridLanesFlow:
+      return GetShorthandValue(gridLanesFlowShorthand());
+    case CSSPropertyID::kGridRow:
+      return GetShorthandValueForGridLine(gridRowShorthand());
+    case CSSPropertyID::kGridTemplate:
+      return GetShorthandValueForGridTemplate(gridTemplateShorthand());
     case CSSPropertyID::kInset:
       return Get4Values(insetShorthand());
     case CSSPropertyID::kInterestDelay:
@@ -646,10 +650,6 @@ String StylePropertySerializer::SerializeShorthand(
       return Get2Values(marginBlockShorthand());
     case CSSPropertyID::kMarginInline:
       return Get2Values(marginInlineShorthand());
-    case CSSPropertyID::kMasonry:
-      return GetShorthandValueForMasonry(masonryShorthand());
-    case CSSPropertyID::kMasonryFlow:
-      return GetShorthandValue(masonryFlowShorthand());
     case CSSPropertyID::kOffset:
       return OffsetValue();
     case CSSPropertyID::kOverflow:
@@ -694,6 +694,10 @@ String StylePropertySerializer::SerializeShorthand(
       return TextSpacingValue();
     case CSSPropertyID::kTimelineTrigger:
       return GetLayeredShorthandValue(timelineTriggerShorthand());
+    case CSSPropertyID::kTimelineTriggerRange:
+      return TimelineTriggerRangeShorthandValue();
+    case CSSPropertyID::kTimelineTriggerExitRange:
+      return TimelineTriggerExitRangeShorthandValue();
     case CSSPropertyID::kWebkitTextStroke:
       return GetShorthandValue(webkitTextStrokeShorthand());
     case CSSPropertyID::kTextWrap:
@@ -764,8 +768,6 @@ String StylePropertySerializer::SerializeShorthand(
       // Temporary exceptions to the NOTREACHED() below.
       // TODO(crbug.com/1316689): Write something real here.
       return String();
-    case CSSPropertyID::kScrollStart:
-      return ScrollStartValue();
     case CSSPropertyID::kPositionTry:
       return PositionTryValue(positionTryShorthand());
     default:
@@ -1049,6 +1051,16 @@ std::pair<CSSValueID, double> GetTimelineRangePercent(
   return {name, offset_percent};
 }
 
+bool DropAnimationRangeEndValue(const CSSValue& start, const CSSValue& end) {
+  // The form "name X name 100%" must contract to "name X".
+  //
+  // https://github.com/w3c/csswg-drafts/issues/8438
+  const auto& start_pair = GetTimelineRangePercent(start, 0.0);
+  const auto& end_pair = GetTimelineRangePercent(end, 100.0);
+  std::pair<CSSValueID, double> omittable_end = {start_pair.first, 100.0};
+  return end_pair == omittable_end;
+}
+
 CSSValue* AnimationRangeShorthandValueItem(wtf_size_t index,
                                            const CSSValueList& start_list,
                                            const CSSValueList& end_list) {
@@ -1062,15 +1074,39 @@ CSSValue* AnimationRangeShorthandValueItem(wtf_size_t index,
 
   list->Append(start);
 
-  // The form "name X name 100%" must contract to "name X".
-  //
-  // https://github.com/w3c/csswg-drafts/issues/8438
-  const auto& start_pair = GetTimelineRangePercent(start, 0.0);
-  const auto& end_pair = GetTimelineRangePercent(end, 100.0);
-  std::pair<CSSValueID, double> omittable_end = {start_pair.first, 100.0};
-  if (end_pair != omittable_end) {
+  if (!DropAnimationRangeEndValue(start, end)) {
     list->Append(end);
   }
+
+  return list;
+}
+
+CSSValue* TimelineTriggerExitRangeShorthandValueItem(
+    wtf_size_t index,
+    const CSSValueList& start_list,
+    const CSSValueList& end_list) {
+  DCHECK_LT(index, start_list.length());
+  DCHECK_LT(index, end_list.length());
+
+  if (const auto* end_name =
+          DynamicTo<CSSIdentifierValue>(end_list.Item(index))) {
+    // Only the 'normal' and 'auto' keywords are stored as identifiers.
+    DCHECK(end_name->GetValueID() == CSSValueID::kAuto ||
+           end_name->GetValueID() == CSSValueID::kNormal);
+
+    CSSValueList* name_list = CSSValueList::CreateSpaceSeparated();
+    name_list->Append(start_list.Item(index));
+
+    // Only add 'normal' as 'auto' is the default.
+    if (end_name->GetValueID() == CSSValueID::kNormal) {
+      name_list->Append(*end_name);
+    }
+
+    return name_list;
+  }
+
+  CSSValue* list =
+      AnimationRangeShorthandValueItem(index, start_list, end_list);
 
   return list;
 }
@@ -1097,6 +1133,61 @@ String StylePropertySerializer::AnimationRangeShorthandValue() const {
 
   for (wtf_size_t i = 0; i < start_list.length(); ++i) {
     list->Append(*AnimationRangeShorthandValueItem(i, start_list, end_list));
+  }
+
+  return list->CssText();
+}
+
+String StylePropertySerializer::TimelineTriggerRangeShorthandValue() const {
+  CHECK_EQ(timelineTriggerRangeShorthand().length(), 2u);
+  CHECK_EQ(timelineTriggerRangeShorthand().properties()[0],
+           &GetCSSPropertyTimelineTriggerRangeStart());
+  CHECK_EQ(timelineTriggerRangeShorthand().properties()[1],
+           &GetCSSPropertyTimelineTriggerRangeEnd());
+
+  const CSSValueList& start_list =
+      To<CSSValueList>(*property_set_.GetPropertyCSSValue(
+          GetCSSPropertyTimelineTriggerRangeStart()));
+  const CSSValueList& end_list =
+      To<CSSValueList>(*property_set_.GetPropertyCSSValue(
+          GetCSSPropertyTimelineTriggerRangeEnd()));
+
+  if (start_list.length() != end_list.length()) {
+    return "";
+  }
+
+  CSSValueList* list = CSSValueList::CreateCommaSeparated();
+
+  for (wtf_size_t i = 0; i < start_list.length(); ++i) {
+    list->Append(*AnimationRangeShorthandValueItem(i, start_list, end_list));
+  }
+
+  return list->CssText();
+}
+
+String StylePropertySerializer::TimelineTriggerExitRangeShorthandValue() const {
+  CHECK_EQ(timelineTriggerExitRangeShorthand().length(), 2u);
+  CHECK_EQ(timelineTriggerExitRangeShorthand().properties()[0],
+           &GetCSSPropertyTimelineTriggerExitRangeStart());
+  CHECK_EQ(timelineTriggerExitRangeShorthand().properties()[1],
+           &GetCSSPropertyTimelineTriggerExitRangeEnd());
+
+  const CSSValueList& start_list =
+      To<CSSValueList>(*property_set_.GetPropertyCSSValue(
+          GetCSSPropertyTimelineTriggerExitRangeStart()));
+  const CSSValueList& end_list =
+      To<CSSValueList>(*property_set_.GetPropertyCSSValue(
+          GetCSSPropertyTimelineTriggerExitRangeEnd()));
+
+  if (start_list.length() != end_list.length()) {
+    return "";
+  }
+
+  CSSValueList* list = CSSValueList::CreateCommaSeparated();
+
+  for (wtf_size_t i = 0; i < start_list.length(); ++i) {
+    list->Append(
+        *TimelineTriggerExitRangeShorthandValueItem(i, start_list, end_list));
   }
 
   return list->CssText();
@@ -1726,11 +1817,9 @@ String StylePropertySerializer::GetLayeredShorthandValue(
 
       if (property->IDEquals(CSSPropertyID::kTransitionBehavior)) {
         CHECK_EQ(shorthand.id(), CSSPropertyID::kTransition);
-        auto* ident = DynamicTo<CSSIdentifierValue>(value);
-        CHECK(ident) << " transition-behavior should only have a "
-                        "CSSIdentifierValue for a value. CssText: "
-                     << value->CssText();
-        if (ident->GetValueID() == CSSValueID::kNormal) {
+        // transition-behavior can only have a CSSIdentifierValue for a value.
+        if (To<CSSIdentifierValue>(*value).GetValueID() ==
+            CSSValueID::kNormal) {
           // transition-behavior overrides InitialValue to return "normal"
           // instead of "initial", but we don't want to include "normal" in the
           // shorthand serialization, so this special case is needed.
@@ -1833,6 +1922,79 @@ String StylePropertySerializer::GetLayeredShorthandValue(
         }
       }
 
+      if (shorthand.id() == CSSPropertyID::kTimelineTrigger) {
+        if (property->IDEquals(CSSPropertyID::kTimelineTriggerName)) {
+          const auto* name_identifier = DynamicTo<CSSIdentifierValue>(value);
+          if (name_identifier) {
+            DCHECK(name_identifier->GetValueID() == CSSValueID::kNone);
+            omit_value = true;
+          }
+        } else if (property->IDEquals(CSSPropertyID::kTimelineTriggerSource)) {
+          const auto* timeline_identifier =
+              DynamicTo<CSSIdentifierValue>(value);
+          if (timeline_identifier) {
+            DCHECK(timeline_identifier->GetValueID() == CSSValueID::kAuto);
+            omit_value = true;
+          }
+        } else if (property->IDEquals(
+                       CSSPropertyID::kTimelineTriggerRangeStart)) {
+          if (const auto* start_identifier =
+                  DynamicTo<CSSIdentifierValue>(value)) {
+            // Only 'normal' is stored as an identifier, other values are lists.
+            // 'normal' is the default value. It should be skipped.
+            DCHECK(start_identifier->GetValueID() == CSSValueID::kNormal);
+            omit_value = true;
+          }
+        } else if (property->IDEquals(
+                       CSSPropertyID::kTimelineTriggerRangeEnd)) {
+          if (const auto* end_identifier =
+                  DynamicTo<CSSIdentifierValue>(value)) {
+            DCHECK(end_identifier->GetValueID() == CSSValueID::kNormal);
+            omit_value = true;
+          } else {
+            // Get timeline-trigger-range-start.
+            // The form "name X name 100%" must contract to "name X".
+            //
+            // https://github.com/w3c/csswg-drafts/issues/8438
+            const auto* property_values =
+                To<CSSValueList>(values[property_index - 1].Get());
+
+            DCHECK_LT(layer, property_values->length());
+            const CSSValue* start_value = &property_values->Item(layer);
+
+            omit_value = DropAnimationRangeEndValue(*start_value, *value);
+          }
+        } else if (property->IDEquals(
+                       CSSPropertyID::kTimelineTriggerExitRangeStart)) {
+          if (const auto* start_identifier =
+                  DynamicTo<CSSIdentifierValue>(value)) {
+            // Only 'normal' and 'auto' are stored as identifiers, other values
+            // are lists. 'normal' is the default value. 'auto' should be
+            // skipped as it is the default.
+            DCHECK(start_identifier->GetValueID() == CSSValueID::kNormal ||
+                   start_identifier->GetValueID() == CSSValueID::kAuto);
+            omit_value = start_identifier->GetValueID() == CSSValueID::kAuto;
+          }
+        } else if (property->IDEquals(
+                       CSSPropertyID::kTimelineTriggerExitRangeEnd)) {
+          if (const auto* end_identifier =
+                  DynamicTo<CSSIdentifierValue>(value)) {
+            DCHECK(end_identifier->GetValueID() == CSSValueID::kAuto ||
+                   end_identifier->GetValueID() == CSSValueID::kNormal);
+            omit_value = end_identifier->GetValueID() == CSSValueID::kAuto;
+          } else {
+            // Get timeline-trigger-exit-range-start.
+            const auto* property_values =
+                To<CSSValueList>(values[property_index - 1].Get());
+
+            DCHECK_LT(layer, property_values->length());
+            const CSSValue* start_value = &property_values->Item(layer);
+
+            omit_value = DropAnimationRangeEndValue(*start_value, *value);
+          }
+        }
+      }
+
       if (!omit_value) {
         if (property->IDEquals(CSSPropertyID::kBackgroundSize) ||
             property->IDEquals(CSSPropertyID::kMaskSize)) {
@@ -1841,6 +2003,9 @@ String StylePropertySerializer::GetLayeredShorthandValue(
           } else {
             layer_result.Append(" 0% 0% / ");
           }
+        } else if (property->IDEquals(
+                       CSSPropertyID::kTimelineTriggerExitRangeStart)) {
+          layer_result.Append(" / ");
         } else if (!layer_result.empty()) {
           // Do this second to avoid ending up with an extra space in the output
           // if we hit the continue above.
@@ -1867,6 +2032,10 @@ String StylePropertySerializer::GetLayeredShorthandValue(
       // set to their defaults. If everything is set to the default, then emit
       // "all" instead of an empty string.
       layer_result.Append("all");
+    }
+    if (shorthand.id() == CSSPropertyID::kTimelineTrigger &&
+        layer_result.empty()) {
+      layer_result.Append("none");
     }
     if (!layer_result.empty()) {
       if (!result.empty()) {
@@ -2582,7 +2751,7 @@ String StylePropertySerializer::GetShorthandValueForGridLine(
   return result.ReleaseString();
 }
 
-String StylePropertySerializer::GetShorthandValueForMasonry(
+String StylePropertySerializer::GetShorthandValueForGridLanes(
     const StylePropertyShorthand& shorthand) const {
   const auto* template_area_values =
       property_set_.GetPropertyCSSValue(*shorthand.properties()[0]);
@@ -2590,27 +2759,27 @@ String StylePropertySerializer::GetShorthandValueForMasonry(
   // Note: `shorthand.properties()[1]` is intentionally not used here because it
   // always refers to `grid-template-columns`.
   // Instead, we use `GetCSSPropertyGridTemplateColumns()` or
-  // `GetCSSPropertyGridTemplateRows()` depending on the `masonry-direction`,
-  // since `grid-template-rows` is not listed in the `masonry` shorthand
+  // `GetCSSPropertyGridTemplateRows()` depending on the `grid-lanes` direction,
+  // since `grid-template-rows` is not listed in the `grid-lanes` shorthand
   // property.
-  const auto* masonry_direction_values =
+  const auto* grid_lanes_direction_values =
       property_set_.GetPropertyCSSValue(*shorthand.properties()[2]);
-  DCHECK(masonry_direction_values);
-  const auto* masonry_template_tracks_values =
-      CSSOMUtils::IsMasonryColumnDirectionValue(masonry_direction_values)
+  DCHECK(grid_lanes_direction_values);
+  const auto* grid_lanes_template_tracks_values =
+      CSSOMUtils::IsGridLanesColumnDirectionValue(grid_lanes_direction_values)
           ? property_set_.GetPropertyCSSValue(
                 GetCSSPropertyGridTemplateColumns())
           : property_set_.GetPropertyCSSValue(GetCSSPropertyGridTemplateRows());
-  DCHECK(masonry_template_tracks_values);
-  const auto* masonry_fill_values =
+  DCHECK(grid_lanes_template_tracks_values);
+  const auto* grid_lanes_fill_values =
       property_set_.GetPropertyCSSValue(*shorthand.properties()[3]);
-  DCHECK(masonry_fill_values);
+  DCHECK(grid_lanes_fill_values);
 
-  const CSSValueList* masonry_list =
-      CSSOMUtils::ComputedValueForMasonryShorthand(
-          masonry_template_tracks_values, template_area_values,
-          masonry_direction_values, masonry_fill_values);
-  return masonry_list->CssText();
+  const CSSValueList* grid_lanes_list =
+      CSSOMUtils::ComputedValueForGridLanesShorthand(
+          grid_lanes_template_tracks_values, template_area_values,
+          grid_lanes_direction_values, grid_lanes_fill_values);
+  return grid_lanes_list->CssText();
 }
 
 String StylePropertySerializer::GetShorthandValueForGridTemplate(
@@ -3016,32 +3185,6 @@ String StylePropertySerializer::WhiteSpaceValue() const {
   // `IsValidWhiteSpace()` above.
   DCHECK(!result.empty());
   return result.ToString();
-}
-
-String StylePropertySerializer::ScrollStartValue() const {
-  CHECK_EQ(scrollStartShorthand().length(), 2u);
-  CHECK_EQ(scrollStartShorthand().properties()[0],
-           &GetCSSPropertyScrollStartBlock());
-  CHECK_EQ(scrollStartShorthand().properties()[1],
-           &GetCSSPropertyScrollStartInline());
-
-  CSSValueList* list = CSSValueList::CreateSpaceSeparated();
-  const CSSValue* block_value =
-      property_set_.GetPropertyCSSValue(GetCSSPropertyScrollStartBlock());
-  const CSSValue* inline_value =
-      property_set_.GetPropertyCSSValue(GetCSSPropertyScrollStartInline());
-
-  DCHECK(block_value);
-  DCHECK(inline_value);
-
-  list->Append(*block_value);
-
-  if (const auto* ident_value = DynamicTo<CSSIdentifierValue>(inline_value);
-      !ident_value || ident_value->GetValueID() != CSSValueID::kStart) {
-    list->Append(*inline_value);
-  }
-
-  return list->CssText();
 }
 
 String StylePropertySerializer::LineClampValue(

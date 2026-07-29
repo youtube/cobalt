@@ -158,6 +158,13 @@ class OmniboxClient {
   virtual metrics::OmniboxEventProto::PageClassification GetPageClassification(
       bool is_prefetch) const = 0;
 
+  // Classify the current page being viewed as, for example, the new tab
+  // page or a normal web page.  Used for logging omnibox events for
+  // UMA opted-in users.  Examines the user's profile to determine if the
+  // current page is the user's home page.
+  virtual metrics::OmniboxEventProto::PageClassification
+  GetOmniboxComposeboxPageClassification() const;
+
   // Returns the security level that the toolbar should display.
   virtual security_state::SecurityLevel GetSecurityLevel() const = 0;
 
@@ -324,6 +331,10 @@ class OmniboxClient {
   // Optionally warm-up for the default search engine so that we can navigate to
   // the search result page effectively.
   virtual void MaybePrewarmForDefaultSearchEngine() {}
+
+  // Whether WebUi Omnibox's aim popup is enabled and the user is eligible to
+  // use it.
+  virtual bool IsAimPopupEnabled() const;
 
   virtual base::WeakPtr<OmniboxClient> AsWeakPtr() = 0;
 };

@@ -22,7 +22,7 @@ using base::android::ScopedJavaLocalRef;
 
 namespace {
 
-GURL JNI_UrlFormatter_ConvertJavaStringToGURL(
+static GURL JNI_UrlFormatter_ConvertJavaStringToGURL(
     JNIEnv* env,
     const base::android::JavaParamRef<jstring>& url) {
   return url ? GURL(base::android::ConvertJavaStringToUTF8(env, url)) : GURL();
@@ -150,3 +150,5 @@ JNI_UrlFormatter_FormatUrlForDisplayOmitSchemePathAndTrivialSubdomains(
 }  // namespace android
 
 }  // namespace url_formatter
+
+DEFINE_JNI(UrlFormatter)

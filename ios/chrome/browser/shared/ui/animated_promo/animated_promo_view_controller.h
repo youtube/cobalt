@@ -34,10 +34,6 @@
 // The text for the secondary action. Must be set before the view is loaded.
 @property(nonatomic, copy) NSString* secondaryActionString;
 
-// Controls if the navigation bar dismiss button is available in the view.
-// Default is NO. Must be set before the view is loaded.
-@property(nonatomic) BOOL showDismissBarButton;
-
 // The name of the animation resource to be used in light mode. Must be set
 // before the view is loaded.
 @property(nonatomic, copy) NSString* animationName;
@@ -53,6 +49,23 @@
 // A dictionary that allows localization of text within the animations.
 @property(nonatomic, copy)
     NSDictionary<NSString*, NSString*>* animationTextProvider;
+
+// A dictionary that associate a keypath with a color, for the light/dark mode.
+// `useLegacyDarkMode` should be NO for this to be taken into account.
+@property(nonatomic, copy)
+    NSDictionary<NSString*, UIColor*>* lightModeColorProvider;
+@property(nonatomic, copy)
+    NSDictionary<NSString*, UIColor*>* darkModeColorProvider;
+
+// A boolean to indicate if the view controller should use the legacy mode for
+// dark mode (i.e. finding a json ending with _darkmode). Default is YES.
+@property(nonatomic, assign) BOOL useLegacyDarkMode;
+
+- (instancetype)init NS_DESIGNATED_INITIALIZER;
+
+- (instancetype)initWithCoder:(NSCoder*)coder NS_UNAVAILABLE;
+- (instancetype)initWithNibName:(NSString*)nibNameOrNil
+                         bundle:(NSBundle*)nibBundleOrNil NS_UNAVAILABLE;
 
 @end
 

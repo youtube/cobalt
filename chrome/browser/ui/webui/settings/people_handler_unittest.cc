@@ -50,6 +50,7 @@
 #include "components/signin/public/base/consent_level.h"
 #include "components/signin/public/base/signin_pref_names.h"
 #include "components/signin/public/base/signin_prefs.h"
+#include "components/signin/public/base/signin_switches.h"
 #include "components/signin/public/identity_manager/account_capabilities_test_mutator.h"
 #include "components/signin/public/identity_manager/accounts_mutator.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
@@ -565,7 +566,9 @@ TEST_F(PeopleHandlerTest, DisplayBasicLogin) {
                            signin_metrics::AccessPoint::kSettings,
                            signin_metrics::PromoAction::
                                PROMO_ACTION_NEW_ACCOUNT_NO_EXISTING_ACCOUNT));
-  handler_->HandleStartSignin(base::Value::List());
+  base::Value::List args;
+  args.Append(0);
+  handler_->HandleStartSignin(args);
 
   // The sign-in flow setup hands off control to the gaia login tab.
   EXPECT_EQ(
@@ -1583,7 +1586,9 @@ TEST_F(PeopleHandlerTest, HandleStartSigninManaged) {
       kManagedEmail, ConsentLevel::kSignin);
   SetExplicitSignin(true);
   // Make the account managed and disallow signout.
-  account.hosted_domain = "managedchrome.com";
+  account = AccountInfo::Builder(account)
+                .SetHostedDomain("managedchrome.com")
+                .Build();
   AccountCapabilitiesTestMutator(&account.capabilities)
       .set_is_subject_to_enterprise_features(true);
   identity_test_env()->UpdateAccountInfoForAccount(account);
@@ -1599,7 +1604,9 @@ TEST_F(PeopleHandlerTest, HandleStartSigninManaged) {
       ShowReauthUI(profile(), kManagedEmail, /*enable_sync=*/false,
                    signin_metrics::AccessPoint::kSettings,
                    signin_metrics::PromoAction::PROMO_ACTION_NO_SIGNIN_PROMO));
-  web_ui_.HandleReceivedMessage("SyncSetupStartSignIn", base::Value::List());
+  base::Value::List args;
+  args.Append(0);
+  web_ui_.HandleReceivedMessage("SyncSetupStartSignIn", args);
 }
 
 TEST_F(PeopleHandlerTest, SigninPendingValueWithSync) {
@@ -1779,6 +1786,53 @@ TEST_F(
   histogram_tester.ExpectBucketCount(
       "Signin.Settings.ChromeSigninSettingModification",
       /*`ChromeSigninSettingModification::kToSignin`*/ 2, 1);
+}
+
+class PeopleHandlerUnoBubbleLimitsExperimentTest : public PeopleHandlerTest {
+ private:
+  base::test::ScopedFeatureList feature_list_{
+      switches::kSigninPromoLimitsExperiment};
+};
+
+TEST_F(PeopleHandlerUnoBubbleLimitsExperimentTest,
+       ShouldClearExperimentPrefsWhenExplicitlySettingDontSignin) {
+  base::HistogramTester histogram_tester;
+  // Signed in user can see the setting.
+  AccountInfo account = identity_test_env()->MakePrimaryAccountAvailable(
+      /*email=*/"email@gmail.com", ConsentLevel::kSignin);
+
+  CreatePeopleHandler();
+
+  // Simluates settings page loading.
+  SimulateHandleGetChromeSigninUserChoiceInfo();
+
+  SigninPrefs signin_prefs(*profile()->GetPrefs());
+  ChromeSigninUserChoice current_choice =
+      signin_prefs.GetChromeSigninInterceptionUserChoice(account.gaia);
+
+  // Simulates setting a new value through the UI.
+  ChromeSigninUserChoice user_choice = ChromeSigninUserChoice::kSignin;
+  ASSERT_NE(current_choice, user_choice);
+  SimulateHandleSetChromeSigninUserChoiceInfo(account.email, user_choice);
+
+  // Simulate a last bubble decline time as well.
+  signin_prefs.SetChromeSigninInterceptionLastBubbleDeclineTime(
+      account.gaia, base::Time::Now());
+  signin_prefs.IncrementChromeSigninBubbleRepromptCount(account.gaia);
+
+  // Simulates a second selection within the same settings session.
+  ChromeSigninUserChoice user_choice2 = ChromeSigninUserChoice::kDoNotSignin;
+  ASSERT_NE(current_choice, user_choice2);
+  SimulateHandleSetChromeSigninUserChoiceInfo(account.email, user_choice2);
+  // Explicitly setting the do not sign in option should clear bubble declined
+  // time.
+  EXPECT_FALSE(
+      signin_prefs
+          .GetChromeSigninInterceptionLastBubbleDeclineTime(account.gaia)
+          .has_value());
+  EXPECT_EQ(signin_prefs.GetChromeSigninBubbleRepromptCount(account.gaia), 0);
+
+  DestroyPeopleHandler();
 }
 
 #endif

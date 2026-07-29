@@ -11,8 +11,8 @@ AndroidTabPackage::AndroidTabPackage(
     int id,
     int parent_id,
     long timestamp_millis,
-    std::unique_ptr<std::string> web_contents_state_bytes,
-    std::unique_ptr<std::string> opener_app_id,
+    std::optional<std::vector<uint8_t>> web_contents_state_bytes,
+    std::optional<std::string> opener_app_id,
     int theme_color,
     long last_navigation_committed_timestamp_millis,
     bool tab_has_sensitive_content,
@@ -30,5 +30,9 @@ AndroidTabPackage::AndroidTabPackage(
       launch_type_at_creation_(launch_type_at_creation) {}
 
 AndroidTabPackage::~AndroidTabPackage() = default;
+
+AndroidTabPackage::AndroidTabPackage(AndroidTabPackage&&) noexcept = default;
+AndroidTabPackage& AndroidTabPackage::operator=(AndroidTabPackage&&) noexcept =
+    default;
 
 }  // namespace tabs

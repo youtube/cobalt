@@ -6,13 +6,12 @@
 
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/promos/ios_promo_trigger_service.h"
-#include "components/sharing_message/features.h"
+#include "components/desktop_to_mobile_promos/features.h"
 
 // static
 IOSPromoTriggerService* IOSPromoTriggerServiceFactory::GetForProfile(
     Profile* profile) {
-  if (MobilePromoOnDesktopTypeEnabled() ==
-      MobilePromoOnDesktopPromoType::kDisabled) {
+  if (!MobilePromoOnDesktopEnabled()) {
     return nullptr;
   }
   return static_cast<IOSPromoTriggerService*>(
@@ -37,5 +36,6 @@ IOSPromoTriggerServiceFactory::~IOSPromoTriggerServiceFactory() = default;
 std::unique_ptr<KeyedService>
 IOSPromoTriggerServiceFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
-  return std::make_unique<IOSPromoTriggerService>();
+  Profile* profile = Profile::FromBrowserContext(context);
+  return std::make_unique<IOSPromoTriggerService>(profile);
 }

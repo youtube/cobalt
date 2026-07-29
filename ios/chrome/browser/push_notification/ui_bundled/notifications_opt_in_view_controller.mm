@@ -12,6 +12,7 @@
 #import "ios/chrome/browser/shared/ui/table_view/content_configuration/table_view_cell_content_configuration.h"
 #import "ios/chrome/browser/shared/ui/table_view/table_view_utils.h"
 #import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
+#import "ios/chrome/common/ui/button_stack/button_stack_configuration.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
 #import "ios/chrome/grit/ios_branded_strings.h"
 #import "ios/chrome/grit/ios_strings.h"
@@ -32,8 +33,6 @@ struct CellConfig {
 CGFloat const kTableViewCornerRadius = 10;
 // Table view separator inset.
 CGFloat const kTableViewSeparatorInset = 16.0;
-// Table view separator inset to use to hide the separator.
-CGFloat const kTableViewSeparatorInsetHide = 10000;
 // Space above the title.
 CGFloat const kSpaceAboveTitle = 20.0;
 // Accessibility identifier.
@@ -82,9 +81,9 @@ bool TooNarrowForBanner(UIView* view) {
   self.subtitleText =
       l10n_util::GetNSString(IDS_IOS_NOTIFICATIONS_OPT_IN_SUBTITLE);
   self.titleHorizontalMargin = kTitleHorizontalMargin;
-  self.primaryActionString =
+  self.configuration.primaryActionString =
       l10n_util::GetNSString(IDS_IOS_NOTIFICATIONS_OPT_IN_ENABLE_BUTTON);
-  self.secondaryActionString =
+  self.configuration.secondaryActionString =
       l10n_util::GetNSString(IDS_IOS_NOTIFICATIONS_ALERT_CANCEL);
   self.titleTopMarginWhenNoHeaderImage = kSpaceAboveTitle;
   [self configureBanner];
@@ -226,6 +225,8 @@ bool TooNarrowForBanner(UIView* view) {
   UITableView* tableView =
       [[UITableView alloc] initWithFrame:CGRectZero
                                    style:UITableViewStylePlain];
+  tableView.tableFooterView =
+      [[UIView alloc] initWithFrame:CGRectMake(0, 0, 0, CGFLOAT_MIN)];
   tableView.layer.cornerRadius = kTableViewCornerRadius;
   tableView.estimatedRowHeight = UITableViewAutomaticDimension;
   tableView.scrollEnabled = NO;
@@ -233,7 +234,8 @@ bool TooNarrowForBanner(UIView* view) {
   tableView.delegate = self;
   tableView.userInteractionEnabled = YES;
   tableView.translatesAutoresizingMaskIntoConstraints = NO;
-  tableView.separatorInset = UIEdgeInsetsZero;
+  tableView.separatorInset =
+      UIEdgeInsetsMake(0, kTableViewSeparatorInset, 0, 0);
   _tableViewHeightConstraint =
       [tableView.heightAnchor constraintEqualToConstant:0];
   _tableViewHeightConstraint.active = YES;
@@ -295,13 +297,6 @@ bool TooNarrowForBanner(UIView* view) {
   cell.accessibilityIdentifier = config.accessibility_id;
   cell.selectionStyle = UITableViewCellSelectionStyleNone;
 
-  // Make the separator invisible on the last row.
-  BOOL lastRow =
-      indexPath.row == [tableView numberOfRowsInSection:indexPath.section] - 1;
-  CGFloat separatorInset =
-      lastRow ? kTableViewSeparatorInsetHide : kTableViewSeparatorInset;
-  cell.separatorInset = UIEdgeInsetsMake(0.f, separatorInset, 0.f, 0.f);
-
   cell.selectionStyle = UITableViewCellSelectionStyleNone;
   cell.backgroundColor = [UIColor colorNamed:kSecondaryBackgroundColor];
 
@@ -327,9 +322,10 @@ bool TooNarrowForBanner(UIView* view) {
 // Enables the primary action button if any one of the toggles are on. Disables
 // otherwise.
 - (void)updatePrimaryButtonState {
-  self.primaryButtonEnabled =
+  self.configuration.primaryActionEnabled =
       _contentNotificationsEnabled || _tipsNotificationsEnabled ||
       _priceTrackingNotificationsEnabled || _safetyCheckNotificationsEnabled;
+  [self reloadConfiguration];
 }
 
 // Configures the banner based on the view's size.

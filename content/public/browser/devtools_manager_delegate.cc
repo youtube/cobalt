@@ -22,6 +22,11 @@ DevToolsManagerDelegate::DevToolsOptions::~DevToolsOptions() = default;
 void DevToolsManagerDelegate::Inspect(DevToolsAgentHost* agent_host) {
 }
 
+scoped_refptr<DevToolsAgentHost> DevToolsManagerDelegate::GetDevToolsAgentHost(
+    DevToolsAgentHost* agent_host) {
+  return nullptr;
+}
+
 scoped_refptr<DevToolsAgentHost> DevToolsManagerDelegate::OpenDevTools(
     DevToolsAgentHost* agent_host,
     const DevToolsManagerDelegate::DevToolsOptions& devtools_options) {
@@ -105,7 +110,12 @@ bool DevToolsManagerDelegate::IsBrowserTargetDiscoverable() {
   return false;
 }
 
-DevToolsManagerDelegate::~DevToolsManagerDelegate() {
+void DevToolsManagerDelegate::AcceptDebugging(AcceptCallback callback) {
+  std::move(callback).Run(
+      content::DevToolsManagerDelegate::AcceptConnectionResult::kDeny);
 }
 
+void DevToolsManagerDelegate::SetActiveWebSocketConnections(size_t count) {}
+
+DevToolsManagerDelegate::~DevToolsManagerDelegate() = default;
 }  // namespace content

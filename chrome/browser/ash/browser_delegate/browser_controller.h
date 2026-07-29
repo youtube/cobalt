@@ -36,21 +36,27 @@ class BrowserController {
   // See AddObserver below.
   class Observer : public base::CheckedObserver {
    public:
-    // Called when the last browser is irrevocably being closed.
-    // TODO(crbug.com/369689187): Figure out if/how we want to allow inspection
-    // of the browser (the instance still exists but we shouldn't allow
-    // arbitrary operations).
-    virtual void OnLastBrowserClosed() {}
-
-    // Called when a browser is closed.
-    virtual void OnBrowserClosed(BrowserDelegate* browser) {}
-
     // Called when a browser is created.
+    // `browser` is never nullptr.
     // Note: When invoking BrowserController::ForEachBrowser in
     // OnBrowserCreated, the new browser will show up for
     // kAscendingCreationTime but not yet for kAscendingActivationTime.
     // TODO(crbug.com/369688254): Revisit this behavior.
     virtual void OnBrowserCreated(BrowserDelegate* browser) {}
+
+    // Called when a browser is activated.
+    // `browser` is never nullptr.
+    virtual void OnBrowserActivated(BrowserDelegate* browser) {}
+
+    // Called when a browser is closed.
+    // `browser` is never nullptr.
+    virtual void OnBrowserClosed(BrowserDelegate* browser) {}
+
+    // Called when the last browser is irrevocably being closed.
+    // TODO(crbug.com/369689187): Figure out if/how we want to allow inspection
+    // of the browser (the instance still exists but we shouldn't allow
+    // arbitrary operations).
+    virtual void OnLastBrowserClosed() {}
   };
 
   // See CreateWebApp below.
@@ -108,6 +114,11 @@ class BrowserController {
   // Returns (the delegate for) the browser associated with the given native
   // window, if any. This can be nullptr when the browser is shutting down.
   virtual BrowserDelegate* GetBrowserForWindow(aura::Window* window) = 0;
+
+  // Returns (the delegate for) the browser associated with the given tab, if
+  // any. This can be nullptr when the tab is in the process of being moved from
+  // one browser to another.
+  virtual BrowserDelegate* GetBrowserForTab(content::WebContents* contents) = 0;
 
   // Returns (the delegate for) the most recently activated web app browser
   // that matches the given parameters. Returns nullptr if there's none.

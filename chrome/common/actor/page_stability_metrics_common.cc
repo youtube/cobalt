@@ -9,4 +9,38 @@ namespace actor {
 const char kActorRendererPageStabilityOutcomeMetricName[] =
     "Actor.RendererPageStability.Outcome";
 
+const char kActorRendererPageStabilityTotalTimeToStableMetricName[] =
+    "Actor.RendererPageStability.TotalTimeToStable";
+
+const char
+    kActorRendererPageStabilityTotalTimeToRenderFrameGoingAwayMetricName[] =
+        "Actor.RendererPageStability.TotalTimeToRenderFrameGoingAway";
+
+const char kActorRendererPageStabilityTimeFromMonitoringToStableMetricName[] =
+    "Actor.RendererPageStability.TimeFromMonitoringToStable";
+
+const char
+    kActorRendererPageStabilityTimeFromMonitoringToPaintStabilityMetricName[] =
+        "Actor.RendererPageStability.TimeFromMonitoringToPaintStability";
+
+const char
+    kActorRendererPageStabilityTimeFromMonitoringToNetworkAndMainThreadIdleMetricName
+        [] = "Actor.RendererPageStability."
+             "TimeFromMonitoringToNetworkAndMainThreadIdle";
+
+const char
+    kActorRendererPaintStabilityTimeToFirstInteractionContentfulPaintMetricName
+        [] = "Actor.RendererPaintStability."
+             "TimeToFirstInteractionContentfulPaint";
+
+const char
+    kActorRendererPaintStabilityTimeBetweenInteractionContentfulPaintsMetricName
+        [] = "Actor.RendererPaintStability."
+             "TimeBetweenInteractionContentfulPaints";
+
+const char
+    kActorRendererPaintStabilitySubsequentInteractionContentfulPaintCountMetricName
+        [] = "Actor.RendererPaintStability."
+             "SubsequentInteractionContentfulPaintCount";
+
 }  // namespace actor

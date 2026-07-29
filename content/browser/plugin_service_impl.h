@@ -36,25 +36,19 @@ class CONTENT_EXPORT PluginServiceImpl : public PluginService {
 
   // PluginService implementation:
   void Init() override;
-  bool GetPluginInfoArray(const GURL& url,
+  void GetPluginInfoArray(const GURL& url,
                           const std::string& mime_type,
                           std::vector<WebPluginInfo>* info,
                           std::vector<std::string>* actual_mime_types) override;
-  bool GetPluginInfo(content::BrowserContext* browser_context,
-                     const GURL& url,
-                     const std::string& mime_type,
-                     bool* is_stale,
-                     WebPluginInfo* info,
-                     std::string* actual_mime_type) override;
+  bool HasPlugin(content::BrowserContext* browser_context,
+                 const GURL& url,
+                 const std::string& mime_type) override;
   std::optional<WebPluginInfo> GetPluginInfoByPathForTesting(
       const base::FilePath& plugin_path) override;
-  void GetPluginsAsync(GetPluginsCallback callback) override;
   const std::vector<WebPluginInfo>& GetPlugins() override;
   void SetFilter(PluginServiceFilter* filter) override;
   PluginServiceFilter* GetFilter() override;
-  void RefreshPlugins() override;
-  void RegisterInternalPlugin(const WebPluginInfo& info,
-                              bool add_at_beginning) override;
+  void RegisterInternalPlugin(const WebPluginInfo& info) override;
   void UnregisterInternalPlugin(const base::FilePath& path) override;
   std::vector<WebPluginInfo> GetInternalPluginsForTesting() override;
 

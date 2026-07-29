@@ -104,6 +104,7 @@ static_library("search_engines") {
     "//services/network/public/cpp",
     "//services/network/public/mojom",
     "//services/preferences/tracked",
+    "//services/preferences/tracked:features",
     "//sql",
     "//third_party/lens_server_proto:lens_overlay_proto",
     "//third_party/metrics_proto",
@@ -120,17 +121,13 @@ static_library("search_engines") {
 
   if (is_android) {
     sources += [
-      "android/search_engines_feature_map.cc",
       "android/template_url_android.cc",
       "android/template_url_android.h",
       "android/template_url_service_android.cc",
       "android/template_url_service_android.h",
     ]
 
-    deps += [
-      "//components/search_engines/android:features_jni_headers",
-      "//components/search_engines/android:jni_headers",
-    ]
+    deps += [ "//components/search_engines/android:jni_headers" ]
   }
 
   deps += [
@@ -254,6 +251,7 @@ source_set("unit_tests") {
     "//services/network:test_support",
     "//services/network/public/cpp",
     "//services/preferences/tracked",
+    "//services/preferences/tracked:features",
     "//sql",
     "//sql:test_support",
     "//testing/gmock",

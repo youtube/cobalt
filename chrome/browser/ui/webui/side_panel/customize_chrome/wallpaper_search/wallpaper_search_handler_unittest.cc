@@ -12,7 +12,6 @@
 #include "base/base64.h"
 #include "base/containers/span.h"
 #include "base/files/file_util.h"
-#include "base/functional/callback_forward.h"
 #include "base/strings/string_view_util.h"
 #include "base/test/bind.h"
 #include "base/test/gmock_move_support.h"
@@ -669,7 +668,7 @@ TEST_F(WallpaperSearchHandlerTest, GetWallpaperSearchResults_Success) {
           [&request, &done_callback](
               optimization_guide::ModelBasedCapabilityKey feature_arg,
               const google::protobuf::MessageLite& request_arg,
-              const std::optional<base::TimeDelta>& execution_timeout,
+              const optimization_guide::ModelExecutionOptions& options,
               optimization_guide::OptimizationGuideModelExecutionResultCallback
                   done_callback_arg) {
             ASSERT_EQ(request.GetTypeName(), request_arg.GetTypeName());
@@ -821,7 +820,7 @@ TEST_F(WallpaperSearchHandlerTest, GetWallpaperSearchResults_MultipleRequests) {
           [&request1, &done_callback1](
               optimization_guide::ModelBasedCapabilityKey feature_arg,
               const google::protobuf::MessageLite& request_arg,
-              const std::optional<base::TimeDelta>& execution_timeout,
+              const optimization_guide::ModelExecutionOptions& options,
               optimization_guide::OptimizationGuideModelExecutionResultCallback
                   done_callback_arg) {
             ASSERT_EQ(request1.GetTypeName(), request_arg.GetTypeName());
@@ -887,7 +886,7 @@ TEST_F(WallpaperSearchHandlerTest, GetWallpaperSearchResults_MultipleRequests) {
           [&request2, &done_callback2](
               optimization_guide::ModelBasedCapabilityKey feature_arg,
               const google::protobuf::MessageLite& request_arg,
-              const std::optional<base::TimeDelta>& execution_timeout,
+              const optimization_guide::ModelExecutionOptions& options,
               optimization_guide::OptimizationGuideModelExecutionResultCallback
                   done_callback_arg) {
             ASSERT_EQ(request2.GetTypeName(), request_arg.GetTypeName());
@@ -983,7 +982,7 @@ TEST_F(WallpaperSearchHandlerTest,
           [&request](
               optimization_guide::ModelBasedCapabilityKey feature_arg,
               const google::protobuf::MessageLite& request_arg,
-              const std::optional<base::TimeDelta>& execution_timeout,
+              const optimization_guide::ModelExecutionOptions& options,
               optimization_guide::OptimizationGuideModelExecutionResultCallback
                   done_callback_arg) {
             ASSERT_EQ(request.GetTypeName(), request_arg.GetTypeName());
@@ -1018,7 +1017,7 @@ TEST_F(WallpaperSearchHandlerTest, GetWallpaperSearchResults_ConvertsHueToHex) {
           [&request](
               optimization_guide::ModelBasedCapabilityKey feature_arg,
               const google::protobuf::MessageLite& request_arg,
-              const std::optional<base::TimeDelta>& execution_timeout,
+              const optimization_guide::ModelExecutionOptions& options,
               optimization_guide::OptimizationGuideModelExecutionResultCallback
                   done_callback_arg) {
             ASSERT_EQ(request.GetTypeName(), request_arg.GetTypeName());
@@ -1055,7 +1054,7 @@ TEST_F(WallpaperSearchHandlerTest, GetWallpaperSearchResults_NoResponse) {
           [&request, &done_callback](
               optimization_guide::ModelBasedCapabilityKey feature_arg,
               const google::protobuf::MessageLite& request_arg,
-              const std::optional<base::TimeDelta>& execution_timeout,
+              const optimization_guide::ModelExecutionOptions& options,
               optimization_guide::OptimizationGuideModelExecutionResultCallback
                   done_callback_arg) {
             ASSERT_EQ(request.GetTypeName(), request_arg.GetTypeName());
@@ -1125,7 +1124,7 @@ TEST_F(WallpaperSearchHandlerTest, GetWallpaperSearchResults_NoImages) {
           [&request, &done_callback](
               optimization_guide::ModelBasedCapabilityKey feature_arg,
               const google::protobuf::MessageLite& request_arg,
-              const std::optional<base::TimeDelta>& execution_timeout,
+              const optimization_guide::ModelExecutionOptions& options,
               optimization_guide::OptimizationGuideModelExecutionResultCallback
                   done_callback_arg) {
             ASSERT_EQ(request.GetTypeName(), request_arg.GetTypeName());
@@ -1197,7 +1196,7 @@ TEST_F(WallpaperSearchHandlerTest, GetWallpaperSearchResults_RequestThrottled) {
           [&request, &done_callback](
               optimization_guide::ModelBasedCapabilityKey feature_arg,
               const google::protobuf::MessageLite& request_arg,
-              const std::optional<base::TimeDelta>& execution_timeout,
+              const optimization_guide::ModelExecutionOptions& options,
               optimization_guide::OptimizationGuideModelExecutionResultCallback
                   done_callback_arg) {
             ASSERT_EQ(request.GetTypeName(), request_arg.GetTypeName());
@@ -1382,7 +1381,7 @@ TEST_F(WallpaperSearchHandlerTest, SetBackgroundToWallpaperSearchResult) {
           [&request, &done_callback](
               optimization_guide::ModelBasedCapabilityKey feature_arg,
               const google::protobuf::MessageLite& request_arg,
-              const std::optional<base::TimeDelta>& execution_timeout,
+              const optimization_guide::ModelExecutionOptions& options,
               optimization_guide::OptimizationGuideModelExecutionResultCallback
                   done_callback_arg) {
             ASSERT_EQ(request.GetTypeName(), request_arg.GetTypeName());
@@ -1562,7 +1561,7 @@ TEST_F(WallpaperSearchHandlerTest, SetUserFeedback) {
           [&request1, &done_callback1](
               optimization_guide::ModelBasedCapabilityKey feature_arg,
               const google::protobuf::MessageLite& request_arg,
-              const std::optional<base::TimeDelta>& execution_timeout,
+              const optimization_guide::ModelExecutionOptions& options,
               optimization_guide::OptimizationGuideModelExecutionResultCallback
                   done_callback_arg) {
             request1.CheckTypeAndMergeFrom(request_arg);
@@ -1609,7 +1608,7 @@ TEST_F(WallpaperSearchHandlerTest, SetUserFeedback) {
           [&request2, &done_callback2](
               optimization_guide::ModelBasedCapabilityKey feature_arg,
               const google::protobuf::MessageLite& request_arg,
-              const std::optional<base::TimeDelta>& execution_timeout,
+              const optimization_guide::ModelExecutionOptions& options,
               optimization_guide::OptimizationGuideModelExecutionResultCallback
                   done_callback_arg) {
             ASSERT_EQ(request2.GetTypeName(), request_arg.GetTypeName());

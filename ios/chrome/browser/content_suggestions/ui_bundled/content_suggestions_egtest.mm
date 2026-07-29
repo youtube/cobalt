@@ -20,7 +20,7 @@
 #import "ios/chrome/browser/content_suggestions/ui_bundled/magic_stack/magic_stack_constants.h"
 #import "ios/chrome/browser/content_suggestions/ui_bundled/new_tab_page_app_interface.h"
 #import "ios/chrome/browser/content_suggestions/ui_bundled/ntp_home_constant.h"
-#import "ios/chrome/browser/content_suggestions/ui_bundled/set_up_list/constants.h"
+#import "ios/chrome/browser/content_suggestions/ui_bundled/set_up_list/public/set_up_list_constants.h"
 #import "ios/chrome/browser/first_run/ui_bundled/first_run_constants.h"
 #import "ios/chrome/browser/home_customization/utils/home_customization_constants.h"
 #import "ios/chrome/browser/home_customization/utils/home_customization_helper.h"
@@ -78,8 +78,7 @@ void TapView(NSString* accessibility_id) {
 
 // Tap the PromoStyleSecondaryActionButton.
 void TapPromoStyleSecondaryActionButton() {
-  id<GREYMatcher> button =
-      grey_accessibilityID(kPromoStyleSecondaryActionAccessibilityIdentifier);
+  id<GREYMatcher> button = chrome_test_util::ButtonStackSecondaryButton();
   [[EarlGrey selectElementWithMatcher:button] assertWithMatcher:grey_notNil()];
   [[EarlGrey selectElementWithMatcher:button] performAction:grey_tap()];
 }

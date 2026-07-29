@@ -480,13 +480,16 @@ void AppBannerManagerAndroid::OnInstallEvent(
           TrackUserResponse(USER_RESPONSE_NATIVE_APP_ACCEPTED);
           break;
         case AddToHomescreenParams::AppType::WEBAPK:
-          [[fallthrough]];
-        case AddToHomescreenParams::AppType::SHORTCUT:
           TrackUserResponse(USER_RESPONSE_WEB_APP_ACCEPTED);
           AppBannerSettingsHelper::RecordBannerInstallEvent(
               web_contents(), a2hs_params.shortcut_info->url.spec());
           break;
         default:
+          // a2hs_params should be the one created by
+          // CreateAddToHomescreenParams(), which only returns
+          // AddToHomescreenParams::AppType::NATIVE or
+          // AddToHomescreenParams::AppType::WEBAPK, so this shouldn't be
+          // reached.
           NOTREACHED();
       }
       break;
@@ -507,8 +510,7 @@ void AppBannerManagerAndroid::OnInstallEvent(
 
     case AddToHomescreenInstaller::Event::INSTALL_REQUEST_FINISHED:
       SendBannerAccepted();
-      if (a2hs_params.app_type == AddToHomescreenParams::AppType::WEBAPK ||
-          a2hs_params.app_type == AddToHomescreenParams::AppType::SHORTCUT) {
+      if (a2hs_params.app_type == AddToHomescreenParams::AppType::WEBAPK) {
         OnInstall(a2hs_params.shortcut_info->display,
                   /*set_current_web_app_not_installable=*/false);
       }
@@ -701,7 +703,7 @@ void AppBannerManagerAndroid::InvalidateWeakPtrsForThisNavigation() {
 WEB_CONTENTS_USER_DATA_KEY_IMPL(AppBannerManagerAndroid);
 
 // static
-base::android::ScopedJavaLocalRef<jobject>
+static base::android::ScopedJavaLocalRef<jobject>
 JNI_AppBannerManager_GetJavaBannerManagerForWebContents(
     JNIEnv* env,
     const JavaParamRef<jobject>& java_web_contents) {
@@ -713,7 +715,7 @@ JNI_AppBannerManager_GetJavaBannerManagerForWebContents(
 }
 
 // static
-base::android::ScopedJavaLocalRef<jstring>
+static base::android::ScopedJavaLocalRef<jstring>
 JNI_AppBannerManager_GetInstallableWebAppManifestId(
     JNIEnv* env,
     const base::android::JavaParamRef<jobject>& java_web_contents) {
@@ -723,7 +725,7 @@ JNI_AppBannerManager_GetInstallableWebAppManifestId(
 }
 
 // static
-jboolean JNI_AppBannerManager_IsProbablyPromotable(
+static jboolean JNI_AppBannerManager_IsProbablyPromotable(
     JNIEnv* env,
     const base::android::JavaParamRef<jobject>& java_web_contents) {
   auto* manager =
@@ -736,12 +738,12 @@ jboolean JNI_AppBannerManager_IsProbablyPromotable(
 }
 
 // static
-void JNI_AppBannerManager_IgnoreChromeChannelForTesting(JNIEnv*) {
+static void JNI_AppBannerManager_IgnoreChromeChannelForTesting(JNIEnv*) {
   gIgnoreChromeChannelForTesting = true;
 }
 
 // static
-void JNI_AppBannerManager_SetDaysAfterDismissAndIgnoreToTrigger(
+static void JNI_AppBannerManager_SetDaysAfterDismissAndIgnoreToTrigger(
     JNIEnv* env,
     jint dismiss_days,
     jint ignore_days) {
@@ -750,15 +752,19 @@ void JNI_AppBannerManager_SetDaysAfterDismissAndIgnoreToTrigger(
 }
 
 // static
-void JNI_AppBannerManager_SetTimeDeltaForTesting(JNIEnv* env, jint days) {
+static void JNI_AppBannerManager_SetTimeDeltaForTesting(JNIEnv* env,
+                                                        jint days) {
   AppBannerManager::SetTimeDeltaForTesting(days);
 }
 
 // static
-void JNI_AppBannerManager_SetOverrideSegmentationResultForTesting(  // IN-TEST
+static void
+JNI_AppBannerManager_SetOverrideSegmentationResultForTesting(  // IN-TEST
     JNIEnv* env,
     jboolean show) {
   AmbientBadgeManager::SetOverrideSegmentationResultForTesting(show);
 }
 
 }  // namespace webapps
+
+DEFINE_JNI(AppBannerManager)

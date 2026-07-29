@@ -68,10 +68,15 @@ export declare interface AdditionalContextPart {
    * to read it as a stream if the data is large.
    */
   data?: Blob;
+  /**
+   * The following four fields can be contained by `tabContext` and are
+   * deprecated
+   */
   screenshot?: Screenshot;
   webPageData?: WebPageData;
   annotatedPageData?: AnnotatedPageData;
   pdf?: PdfDocumentData;
+  tabContext?: TabContextResult;
 }
 
 /**
@@ -911,6 +916,14 @@ export declare interface GlicBrowserHost {
 
   /** Returns the host's capability to act on web pages. */
   getActOnWebCapability?(): ObservableValue<boolean>;
+
+  /**
+   * @todo Not yet implemented: https://crbug.com/458761731.
+   *
+   * Load and extract content from given urls.
+   */
+  loadAndExtractContent?(urls: string[], options: TabContextOptions[]):
+      Promise<TabContextResult[]>;
 }
 
 /** Information about a conversation. */
@@ -1982,16 +1995,19 @@ export declare interface SelectCredentialDialogResponse {
 }
 
 export declare interface UserConfirmationDialogRequest {
-  // These fields form a union type, only 1 must be set.
-  // Origin to request the actor navigate to.
+  // If present, the actor is requesting the user confirm that it can
+  // navigate or act on the provided origin.
   navigationOrigin?: string;
+  // If present, true when the navigationOrigin in a request is on the
+  // Optimization Guide blocklist.
+  forBlocklistedOrigin?: boolean;
+
   /**
    * @deprecated Unique integer ID for identifying downloads
    * for confirmation. We decided not to show user confirmation
    * dialog in that case.
    */
   downloadId?: number;
-  // End of union fields.
 
   // The WebClient must call this function to respond back to the browser when
   // the dialog is closed.

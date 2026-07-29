@@ -73,6 +73,7 @@
 <translation id="311432875115153175">பக்கக் குழுவின் பட்டியல் மூடப்பட்டது</translation>
 <translation id="3194464645767632461">ரேட்டிங்</translation>
 <translation id="3269930881809501915">{TABS_COUNT,plural, =1{<ph name="TABS_COUNT_ONE" /> பக்கத்தைக் குழுவில் சேர்க்கும்}other{<ph name="TABS_COUNT_MANY" /> பக்கங்களைக் குழுவில் சேர்க்கும்}}</translation>
+<translation id="3293080634164207409">பக்கங்களைச் சேருங்கள்</translation>
 <translation id="3328308545011660196">பரிந்துரை: <ph name="NUMBER_OF_TABS" /> தாவல்கள் தொடர்புடையவையாகத் தெரிகின்றன. அவற்றைக் குழுவாக்கவா?</translation>
 <translation id="3330595302841061275">{DAY_COUNT,plural, =1{1 நாளுக்குப் பின் செயலற்றதாகும்}other{<ph name="DAY_COUNT_MANY" /> நாட்களுக்குப் பின் செயலற்றதாகும்}}</translation>
 <translation id="358453129938375749">{NUMBER_OF_TABS_ADDED,plural, =1{<ph name="ONE_ADDED" /> புதிய பக்கம்}other{<ph name="MANY_ADDED" /> புதிய பக்கங்கள்}}</translation>
@@ -81,6 +82,7 @@
 <translation id="3649471731638882002">{TAB_COUNT,plural, =1{பக்கத்தை மூடு}other{பக்கங்களை மூடு}}</translation>
 <translation id="3652027618765638838"><ph name="CURRENT_RATING" />/<ph name="RATING_BASELINE" /></translation>
 <translation id="374923079891132274">ஷேர் ஷீட் மாதிரிக்காட்சியின் சிறுபடம்.</translation>
+<translation id="3776329373944672717">பக்கக் குழுவின் தலைப்பு <ph name="TITLE_OF_GROUP" /></translation>
 <translation id="3810973564298564668">நிர்வகி</translation>
 <translation id="3849789634341518784">{TAB_COUNT,plural, =1{பக்கத்தைப் பிரித்தெடுக்கும்}other{பக்கங்களைப் பிரித்தெடுக்கும்}}</translation>
 <translation id="3940195383040445971">பக்கங்களில் விலையைக் கண்காணித்தல்</translation>
@@ -193,6 +195,7 @@
 <translation id="7853202427316060426">செயல்பாடு</translation>
 <translation id="7854360405711302755">{REVIEWS,plural, =1{ ரேட்டிங்: <ph name="CURRENT_RATING" />/<ph name="RATING_BASELINE" />, <ph name="REVIEWS_COUNT_ONE" /> மதிப்புரை}other{ரேட்டிங்: <ph name="CURRENT_RATING" />/<ph name="RATING_BASELINE" />, <ph name="REVIEWS_COUNT_MANY" /> மதிப்புரைகள்}}</translation>
 <translation id="7885132941432959125">தாவலை வலதுபுறம் நகர்த்து</translation>
+<translation id="7887334752153342268">பிரதி எடு</translation>
 <translation id="7939917283308035850"><ph name="COLOR_NAME" /> தேர்ந்தெடுக்கப்படவில்லை</translation>
 <translation id="7961015016161918242">எப்போதும் இல்லை</translation>
 <translation id="7966321538264951561">பரிந்துரைகளை நிராகரிக்கும்.</translation>
@@ -216,6 +219,7 @@
 <translation id="8428213095426709021">அமைப்புகள்</translation>
 <translation id="855081842937141170">தாவலைப் பொருத்து</translation>
 <translation id="8633025649649592204">சமீபத்திய செயல்</translation>
+<translation id="8635822281281406185">அதிகபட்சம் 10 ஃபைல்கள், பக்கங்கள் அல்லது படங்களைச் சேர்க்கவும்</translation>
 <translation id="8712637175834984815">புரிந்தது</translation>
 <translation id="8714939927607906138">குறைவான விலை</translation>
 <translation id="8730621377337864115">முடிந்தது</translation>

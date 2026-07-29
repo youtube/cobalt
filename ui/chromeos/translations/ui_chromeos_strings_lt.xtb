@@ -354,7 +354,6 @@
 <translation id="3811494700605067549">Pasirinktas 1 failas</translation>
 <translation id="3817579325494460411">Nepateikta</translation>
 <translation id="3819448694985509187">Netinkamas PIN kodas. Liko vienas bandymas.</translation>
-<translation id="3822559385185038546">Šį tarpinio serverio nustatymą priverstinai pritaikė administratorius</translation>
 <translation id="3830674330436234648">Atkūrimas nepasiekiamas</translation>
 <translation id="383652340667548381">Serbų</translation>
 <translation id="3839045880592694915">Operatorius neleidžia prijungti modemo. Susisiekite su operatoriumi, jei reikia daugiau išsamios informacijos.</translation>
@@ -597,6 +596,7 @@
 <translation id="5596627076506792578">Daugiau parinkčių</translation>
 <translation id="5602622065581044566">Bulgarų k. su fonetine klaviatūra</translation>
 <translation id="5605830556594064952">JAV Dvorako</translation>
+<translation id="560739212255190568">Administratorius nustatė tarpinio serverio nepaisymo taisykles ir įgalino toliau nurodytą tarpinį serverį</translation>
 <translation id="5618330573454123917">Šis failas skirtas kompiuteriui, kuriame naudojama „Macintosh“ programinė įranga. Jis nesuderinamas su jūsų įrenginiu, kuriame veikia „Chrome“ OS. <ph name="BEGIN_LINK_HELP" />Sužinokite daugiau<ph name="END_LINK_HELP" /> apie failų atidarymą naudojant „Chrome“ OS.</translation>
 <translation id="5625294776298156701">Tamilų k. su „Tamil99“ klaviatūra</translation>
 <translation id="5633226425545095130">Perkėlus šį elementą jis bus bendrinamas su visais, kurie gali peržiūrėti bendrinamą aplanką „<ph name="DESTINATION_NAME" />“.</translation>
@@ -996,6 +996,7 @@
 <translation id="8540608333167683902"><ph name="NETWORK_INDEX" /> tinklas iš <ph name="NETWORK_COUNT" />, „<ph name="NETWORK_NAME" />“, <ph name="CONNECTION_STATUS" />, signalo stiprumas <ph name="SIGNAL_STRENGTH" /> %, išsami informacija</translation>
 <translation id="8545476925160229291">Anglų k. (JAV)</translation>
 <translation id="854655314928502177">Žiniatinklio tarpinio serverio automatinio aptikimo URL:</translation>
+<translation id="8547747809824590510">Administratorius nustatė tarpinio serverio nepaisymo taisykles</translation>
 <translation id="8549186985808798022">Italų k.</translation>
 <translation id="8551494947769799688">Latvių</translation>
 <translation id="8560515948038859357">Kantoniečių k.</translation>
@@ -1056,6 +1057,7 @@
 <translation id="9038620279323455325">Failas pavadinimu „<ph name="FILE_NAME" />“ jau yra. Pasirinkite kitą pavadinimą.</translation>
 <translation id="9046895021617826162">Nepavyko prisijungti</translation>
 <translation id="9065512565307033593">Jei jums nepavyks patvirtinti, tinklo prieiga bus išjungta.</translation>
+<translation id="9079844694307518094">Administratorius įgalino toliau nurodytą tarpinį serverį</translation>
 <translation id="908378762078012445">Rusų k. su fonetine AATSEEL klaviatūra</translation>
 <translation id="9086302186042011942">Sinchronizuojama</translation>
 <translation id="9099674669267916096">Puslapių skaičius</translation>

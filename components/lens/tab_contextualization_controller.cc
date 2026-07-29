@@ -10,12 +10,14 @@
 #include "base/task/thread_pool.h"
 #include "components/lens/lens_features.h"
 #include "components/optimization_guide/content/browser/page_context_eligibility.h"
+#include "components/sessions/content/session_tab_helper.h"
 #include "components/viz/common/frame_sinks/copy_output_result.h"
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/render_view_host.h"
 #include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/web_contents.h"
 #include "pdf/buildflags.h"
+#include "third_party/blink/public/mojom/content_extraction/ai_page_content.mojom.h"
 #include "ui/base/unowned_user_data/scoped_unowned_user_data.h"
 
 #if BUILDFLAG(ENABLE_PDF)
@@ -75,7 +77,7 @@ void TabContextualizationController::PrimaryPageChanged(content::Page& page) {
 
 void TabContextualizationController::OnEligibilityChecked(
     bool is_page_context_eligible,
-    std::optional<optimization_guide::AIPageContentResult> apc) {
+    optimization_guide::AIPageContentResultOrError apc) {
   is_page_context_eligible_ = is_page_context_eligible;
 }
 
@@ -105,12 +107,12 @@ void TabContextualizationController::GetAnnotatedPageContent(
 
 void TabContextualizationController::OnAnnotatedPageContentReceived(
     GetApcResultCallback callback,
-    std::optional<optimization_guide::AIPageContentResult> result) {
+    optimization_guide::AIPageContentResultOrError result) {
   // The tab URL is used to check if the page is context eligible.
   const auto& tab_url = tab_->GetContents()->GetLastCommittedURL();
 
   std::vector<optimization_guide::FrameMetadata> frame_metadata_structs;
-  if (result) {
+  if (result.has_value()) {
     // Convert the page metadata to a C struct defined in the
     // `optimization_guide` component so it can be passed to the shared library.
     frame_metadata_structs =
@@ -129,7 +131,7 @@ void TabContextualizationController::
         GetPageContextCallback callback,
         std::unique_ptr<lens::ContextualInputData> data,
         bool page_context_eligible,
-        std::optional<optimization_guide::AIPageContentResult> result) {
+        optimization_guide::AIPageContentResultOrError result) {
   data->is_page_context_eligible = page_context_eligible;
   data->primary_content_type = lens::MimeType::kAnnotatedPageContent;
   data->context_input = std::vector<lens::ContextualInput>();
@@ -177,6 +179,8 @@ void TabContextualizationController::GetPageContext(
     return;
   }
 
+  contextual_input_data->tab_session_id =
+      sessions::SessionTabHelper::IdForTab(web_contents);
   contextual_input_data->page_url = web_contents->GetLastCommittedURL();
   contextual_input_data->page_title =
       base::UTF16ToUTF8(web_contents->GetTitle());

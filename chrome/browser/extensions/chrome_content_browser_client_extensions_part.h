@@ -9,11 +9,9 @@
 #include <vector>
 
 #include "base/auto_reset.h"
-#include "base/feature_list.h"
 #include "base/gtest_prod_util.h"
 #include "chrome/browser/chrome_content_browser_client_parts.h"
 #include "components/download/public/common/quarantine_connection.h"
-#include "content/public/browser/browser_or_resource_context.h"
 #include "extensions/buildflags/buildflags.h"
 #include "services/network/public/mojom/network_context.mojom-forward.h"
 #include "services/network/public/mojom/url_loader_factory.mojom-forward.h"

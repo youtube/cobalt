@@ -8,7 +8,7 @@
 #include "base/memory/weak_ptr.h"
 #include "base/scoped_observation.h"
 #include "chrome/browser/ui/omnibox/omnibox_edit_model.h"
-#include "chrome/browser/ui/webui/searchbox/searchbox_handler.h"
+#include "chrome/browser/ui/webui/cr_components/searchbox/searchbox_handler.h"
 #include "chrome/browser/ui/webui/top_chrome/top_chrome_web_ui_controller.h"
 #include "components/omnibox/browser/omnibox_popup_selection.h"
 #include "components/omnibox/browser/searchbox.mojom.h"
@@ -66,6 +66,7 @@ class WebuiOmniboxHandler : public SearchboxHandler,
                           OmniboxPopupSelection selection) override;
   void OnMatchIconUpdated(size_t index) override {}
   void OnContentsChanged() override {}
+  void OnKeywordStateChanged(bool is_keyword_selected) override;
 
  private:
   // Observe `OmniboxEditModel` for updates that require updating the views.

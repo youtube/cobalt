@@ -29,7 +29,6 @@
 #include "content/public/browser/web_ui.h"
 #include "content/public/browser/web_ui_data_source.h"
 #include "ui/base/l10n/l10n_util.h"
-#include "ui/webui/color_change_listener/color_change_handler.h"
 #include "ui/webui/webui_util.h"
 
 namespace lens {
@@ -160,10 +159,15 @@ LensOverlayUntrustedUI::LensOverlayUntrustedUI(content::WebUI* web_ui)
       "privacyNoticeBody",
       l10n_util::GetStringFUTF16(
           IDS_LENS_PERMISSION_BUBBLE_DIALOG_CSB_DESCRIPTION,
-          base::StrCat({u"<a href=\"#\" on-click=\"onLearnMoreClick\" "
-                        u"on-keydown=\"onLearnMoreClick\">",
-                        l10n_util::GetStringUTF16(IDS_LENS_OVERLAY_LEARN_MORE),
-                        u"</a>"})));
+          base::StrCat(
+              {u"<a href=\"#\" on-click=\"onLearnMoreClick\" "
+               u"on-keydown=\"onLearnMoreClick\" aria-label=\"",
+               l10n_util::GetStringUTF16(
+                   IDS_LENS_PERMISSION_BUBBLE_DIALOG_LEARN_MORE_ABOUT_GOOGLE_LENS_LINK),
+               u"\">", l10n_util::GetStringUTF16(IDS_LENS_OVERLAY_LEARN_MORE),
+               u"</a>"})));
+  html_source->AddLocalizedString(
+      "tabToContinue", IDS_LENS_PERMISSION_BUBBLE_DIALOG_TAB_TO_CONTINUE);
 
   // Add default theme colors.
   const auto& palette = lens::kPaletteColors.at(lens::PaletteId::kFallback);
@@ -379,12 +383,6 @@ void LensOverlayUntrustedUI::BindInterface(
       std::move(receiver), Profile::FromWebUI(web_ui()),
       web_ui()->GetWebContents(), /*lens_searchbox_client=*/controller);
   controller->SetContextualSearchboxHandler(std::move(handler));
-}
-
-void LensOverlayUntrustedUI::BindInterface(
-    mojo::PendingReceiver<color_change_listener::mojom::PageHandler> receiver) {
-  color_provider_handler_ = std::make_unique<ui::ColorChangeHandler>(
-      web_ui()->GetWebContents(), std::move(receiver));
 }
 
 void LensOverlayUntrustedUI::BindInterface(

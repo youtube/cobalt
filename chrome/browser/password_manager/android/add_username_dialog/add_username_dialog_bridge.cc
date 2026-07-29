@@ -9,7 +9,6 @@
 #include <utility>
 
 #include "base/android/jni_string.h"
-#include "base/functional/callback_forward.h"
 #include "ui/gfx/native_ui_types.h"
 
 // Must come after all headers that specialize FromJniType() / ToJniType().
@@ -90,3 +89,5 @@ void AddUsernameDialogBridge::OnDialogAccepted(JNIEnv* env,
 void AddUsernameDialogBridge::OnDialogDismissed(JNIEnv* env) {
   std::move(dialog_dismissed_callback_).Run();
 }
+
+DEFINE_JNI(AddUsernameDialogBridge)

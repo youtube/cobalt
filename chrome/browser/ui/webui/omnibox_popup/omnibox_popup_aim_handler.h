@@ -13,6 +13,7 @@
 #include "mojo/public/cpp/bindings/remote.h"
 
 class OmniboxPopupUI;
+class GURL;
 
 class OmniboxPopupAimHandler : public omnibox_popup_aim::mojom::PageHandler {
  public:
@@ -28,6 +29,7 @@ class OmniboxPopupAimHandler : public omnibox_popup_aim::mojom::PageHandler {
 
   // omnibox_popup_aim::mojom::PageHandler:
   void Close() override;
+  void NavigateCurrentTab(const GURL& url) override;
 
   // Forwards an OnShow() call to the page with the given `context`. This call
   // is intended to be used to notify the page that the widget in which the AIM
@@ -38,6 +40,10 @@ class OmniboxPopupAimHandler : public omnibox_popup_aim::mojom::PageHandler {
   // to notify the page that the widget in which the AIM popup view is embedded
   // in has closed.
   void OnClose();
+
+  // Forwards an AddContext() call to the page. This call is intended to be used
+  // to notify the page that searchbox context has been added.
+  void AddContext(std::unique_ptr<SearchboxContextData::Context> context);
 
  private:
   void OnClosedCallback(const std::string& input);

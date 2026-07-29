@@ -77,8 +77,6 @@ source_set("browser_sources") {
     "browser_main_parts.cc",
     "browser_main_parts.h",
     "browser_main_runner.h",
-    "browser_or_resource_context.cc",
-    "browser_or_resource_context.h",
     "browser_plugin_guest_delegate.cc",
     "browser_plugin_guest_delegate.h",
     "browser_plugin_guest_manager.cc",
@@ -128,7 +126,6 @@ source_set("browser_sources") {
     "context_menu_params.h",
     "cookie_access_details.cc",
     "cookie_access_details.h",
-    "cookie_deprecation_label_manager.h",
     "cookie_insight_list_data.h",
     "cookie_insight_list_handler.h",
     "cookie_store_factory.h",
@@ -381,7 +378,6 @@ source_set("browser_sources") {
     "renderer_preferences_util.cc",
     "renderer_preferences_util.h",
     "replaced_navigation_entry_data.h",
-    "resource_context.h",
     "resource_coordinator_service.h",
     "responsiveness_calculator_delegate.h",
     "restore_type.h",
@@ -539,7 +535,6 @@ source_set("browser_sources") {
     "webui_config.h",
     "webui_config_map.cc",
     "webui_config_map.h",
-    "worker_type.h",
     "zoom_level_delegate.h",
   ]
   configs += [

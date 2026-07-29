@@ -34,7 +34,8 @@ void DidGetResult(
 
 namespace installedapp {
 
-void JNI_InstalledAppProviderImpl_CheckDigitalAssetLinksRelationshipForWebApk(
+static void
+JNI_InstalledAppProviderImpl_CheckDigitalAssetLinksRelationshipForWebApk(
     JNIEnv* env,
     const base::android::JavaParamRef<jobject>& jhandle,
     const base::android::JavaParamRef<jstring>& jwebDomain,
@@ -65,3 +66,5 @@ void JNI_InstalledAppProviderImpl_CheckDigitalAssetLinksRelationshipForWebApk(
 }
 
 }  // namespace installedapp
+
+DEFINE_JNI(InstalledAppProviderImpl)

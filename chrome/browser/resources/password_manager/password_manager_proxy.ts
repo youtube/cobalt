@@ -641,7 +641,11 @@ export class PasswordManagerImpl implements PasswordManagerProxy {
   }
 
   switchBiometricAuthBeforeFillingState() {
-    return chrome.passwordsPrivate.switchBiometricAuthBeforeFillingState();
+    if (!loadTimeData.getBoolean('enablePasswordManagerMojoApi')) {
+      return chrome.passwordsPrivate.switchBiometricAuthBeforeFillingState();
+    }
+    return this.handler.switchBiometricAuthBeforeFillingState().then(
+        result => result.success);
   }
 
   showExportedFileInShell(filePath: string) {
@@ -696,15 +700,27 @@ export class PasswordManagerImpl implements PasswordManagerProxy {
   }
 
   isAccountStorageEnabled() {
-    return chrome.passwordsPrivate.isAccountStorageEnabled();
+    if (!loadTimeData.getBoolean('enablePasswordManagerMojoApi')) {
+      return chrome.passwordsPrivate.isAccountStorageEnabled();
+    }
+    return this.handler.isAccountStorageEnabled().then(
+        result => result.enabled);
   }
 
   setAccountStorageEnabled(enabled: boolean) {
-    chrome.passwordsPrivate.setAccountStorageEnabled(enabled);
+    if (!loadTimeData.getBoolean('enablePasswordManagerMojoApi')) {
+      chrome.passwordsPrivate.setAccountStorageEnabled(enabled);
+      return;
+    }
+    this.handler.setAccountStorageEnabled(enabled);
   }
 
   shouldShowAccountStorageSettingToggle() {
-    return chrome.passwordsPrivate.shouldShowAccountStorageSettingToggle();
+    if (!loadTimeData.getBoolean('enablePasswordManagerMojoApi')) {
+      return chrome.passwordsPrivate.shouldShowAccountStorageSettingToggle();
+    }
+    return this.handler.shouldShowAccountStorageSettingToggle().then(
+        result => result.shouldShow);
   }
 
   movePasswordsToAccount(ids: number[]) {
@@ -716,11 +732,19 @@ export class PasswordManagerImpl implements PasswordManagerProxy {
   }
 
   changePasswordManagerPin() {
-    return chrome.passwordsPrivate.changePasswordManagerPin();
+    if (!loadTimeData.getBoolean('enablePasswordManagerMojoApi')) {
+      return chrome.passwordsPrivate.changePasswordManagerPin();
+    }
+    return this.handler.changePasswordManagerPin().then(
+        result => result.success);
   }
 
   isPasswordManagerPinAvailable() {
-    return chrome.passwordsPrivate.isPasswordManagerPinAvailable();
+    if (!loadTimeData.getBoolean('enablePasswordManagerMojoApi')) {
+      return chrome.passwordsPrivate.isPasswordManagerPinAvailable();
+    }
+    return this.handler.isPasswordManagerPinAvailable().then(
+        result => result.isAvailable);
   }
 
   disconnectCloudAuthenticator() {
@@ -732,10 +756,11 @@ export class PasswordManagerImpl implements PasswordManagerProxy {
   }
 
   deleteAllPasswordManagerData() {
-    return loadTimeData.getBoolean('enablePasswordManagerMojoApi') ?
-        this.handler.deleteAllPasswordManagerData().then(
-            result => result.success) :
-        chrome.passwordsPrivate.deleteAllPasswordManagerData();
+    if (!loadTimeData.getBoolean('enablePasswordManagerMojoApi')) {
+      return chrome.passwordsPrivate.deleteAllPasswordManagerData();
+    }
+    return this.handler.deleteAllPasswordManagerData().then(
+        result => result.success);
   }
 
   getActorLoginPermissions() {

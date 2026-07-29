@@ -38,7 +38,7 @@ VIZ_COMMON_EXPORT extern const char kDrawQuadSplit[];
 VIZ_COMMON_EXPORT BASE_DECLARE_FEATURE(kDrawQuadSplitLimit);
 
 VIZ_COMMON_EXPORT BASE_DECLARE_FEATURE(
-    kEnableBackdropFiltersCullingOptimization);
+    kEnableRenderPassDrawQuadCullingOptimization);
 
 enum class DelegatedCompositingMode {
   // Enable delegated compositing.
@@ -156,8 +156,8 @@ VIZ_COMMON_EXPORT extern const base::FeatureParam<int>
 VIZ_COMMON_EXPORT BASE_DECLARE_FEATURE(kDisplaySchedulerAsClient);
 
 VIZ_COMMON_EXPORT int DrawQuadSplitLimit();
+VIZ_COMMON_EXPORT bool IsRenderPassDrawQuadCullingOptimizationEnabled();
 VIZ_COMMON_EXPORT bool IsBackForwardTransitionsSameDocSharedImageEnabled();
-VIZ_COMMON_EXPORT bool IsBackdropFiltersCullingOptimizationEnabled();
 VIZ_COMMON_EXPORT bool IsDelegatedCompositingEnabled();
 VIZ_COMMON_EXPORT bool IsVizDirectCompositorThreadIpcNonRootEnabled();
 VIZ_COMMON_EXPORT bool IsVizDirectCompositorThreadIpcFrameSinkManagerEnabled();

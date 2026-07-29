@@ -14,6 +14,7 @@
 #import "base/memory/ptr_util.h"
 #import "base/memory/raw_ref.h"
 #import "base/memory/weak_ptr.h"
+#import "base/notimplemented.h"
 #import "base/strings/sys_string_conversions.h"
 #import "components/autofill/core/browser/autofill_progress_dialog_type.h"
 #import "components/autofill/core/browser/data_manager/payments/payments_data_manager.h"
@@ -45,6 +46,7 @@
 #import "components/autofill/core/browser/ui/payments/card_unmask_prompt_view.h"
 #import "components/autofill/core/browser/ui/payments/virtual_card_enroll_ui_model.h"
 #import "components/autofill/core/common/autofill_payments_features.h"
+#import "components/autofill/core/common/autofill_prefs.h"
 #import "components/autofill/ios/browser/credit_card_save_metrics_ios.h"
 #import "ios/chrome/browser/autofill/model/bottom_sheet/autofill_bottom_sheet_tab_helper.h"
 #import "ios/chrome/browser/autofill/model/credit_card/autofill_save_card_infobar_delegate_ios.h"
@@ -482,6 +484,14 @@ void IOSChromePaymentsAutofillClient::ShowMandatoryReauthOptInPrompt(
 
 void IOSChromePaymentsAutofillClient::ShowMandatoryReauthOptInConfirmation() {}
 
+bool IOSChromePaymentsAutofillClient::IsAutofillPaymentMethodsEnabled() const {
+  return autofill::prefs::IsAutofillPaymentMethodsEnabled(pref_service_);
+}
+
+void IOSChromePaymentsAutofillClient::DisablePaymentsAutofill() {
+  NOTIMPLEMENTED();
+}
+
 IbanManager* IOSChromePaymentsAutofillClient::GetIbanManager() {
   return nullptr;
 }
@@ -532,10 +542,14 @@ bool IOSChromePaymentsAutofillClient::ShowTouchToFillLoyaltyCard(
   return false;
 }
 
-bool IOSChromePaymentsAutofillClient::UpdateTouchToFillBnplPaymentMethod(
+bool IOSChromePaymentsAutofillClient::OnPurchaseAmountExtracted(
+    base::span<const payments::BnplIssuerContext> bnpl_issuer_contexts,
     std::optional<int64_t> extracted_amount,
-    bool is_amount_supported_by_any_issuer) {
-  return false;
+    bool is_amount_supported_by_any_issuer,
+    const std::optional<std::string>& app_locale,
+    base::OnceCallback<void(BnplIssuer)> selected_issuer_callback,
+    base::OnceClosure cancel_callback) {
+  NOTREACHED();
 }
 
 bool IOSChromePaymentsAutofillClient::ShowTouchToFillProgress(

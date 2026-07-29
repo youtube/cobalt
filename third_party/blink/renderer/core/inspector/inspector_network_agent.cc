@@ -2305,6 +2305,20 @@ void InspectorNetworkAgent::DirectUDPSocketChunkReceived(
       base::TimeTicks::Now().since_origin().InSecondsF());
 }
 
+void InspectorNetworkAgent::DirectUDPSocketJoinedMulticastGroup(
+    uint64_t identifier,
+    const String& ipAddress) {
+  GetFrontend()->directUDPSocketJoinedMulticastGroup(
+      IdentifiersFactory::SubresourceRequestId(identifier), ipAddress);
+}
+
+void InspectorNetworkAgent::DirectUDPSocketLeftMulticastGroup(
+    uint64_t identifier,
+    const String& ipAddress) {
+  GetFrontend()->directUDPSocketLeftMulticastGroup(
+      IdentifiersFactory::SubresourceRequestId(identifier), ipAddress);
+}
+
 protocol::Response InspectorNetworkAgent::enable(
     std::optional<int> total_buffer_size,
     std::optional<int> resource_buffer_size,
@@ -2549,6 +2563,7 @@ protocol::Response InspectorNetworkAgent::emulateNetworkConditionsByRule(
     std::unique_ptr<protocol::Array<protocol::Network::NetworkConditions>>
         matched_network_conditions,
     std::unique_ptr<protocol::Array<String>>* rule_ids_result) {
+  *rule_ids_result = std::make_unique<protocol::Array<String>>();
   return protocol::Response::Success();
 }
 

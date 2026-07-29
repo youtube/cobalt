@@ -7,8 +7,6 @@
 
 #include <memory>
 
-#include "third_party/blink/public/common/privacy_budget/identifiable_surface.h"
-#include "third_party/blink/public/common/privacy_budget/identifiable_token.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/dom/events/event_target.h"
@@ -165,8 +163,7 @@ class CORE_EXPORT OffscreenCanvas final
                                                ExceptionState&) final;
 
   // CanvasImageSource implementation
-  scoped_refptr<Image> GetSourceImageForCanvas(FlushReason,
-                                               SourceImageStatus*,
+  scoped_refptr<Image> GetSourceImageForCanvas(SourceImageStatus*,
                                                const gfx::SizeF&) final;
   bool WouldTaintOrigin() const final { return !origin_clean_; }
   gfx::SizeF ElementSize(const gfx::SizeF& default_object_size,
@@ -242,9 +239,6 @@ class CORE_EXPORT OffscreenCanvas final
       Vector<std::unique_ptr<CanvasRenderingContextFactory>>;
   static ContextFactoryVector& RenderingContextFactories();
   static CanvasRenderingContextFactory* GetRenderingContextFactory(int);
-
-  void RecordIdentifiabilityMetric(const blink::IdentifiableSurface& surface,
-                                   const IdentifiableToken& token) const;
 
   Member<CanvasRenderingContext> context_;
   WeakMember<ExecutionContext> execution_context_;

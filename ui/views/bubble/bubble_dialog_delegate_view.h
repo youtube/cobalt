@@ -26,6 +26,7 @@
 #include "ui/base/mojom/ui_base_types.mojom-shared.h"
 #include "ui/color/color_variant.h"
 #include "ui/compositor/layer_type.h"
+#include "ui/gfx/geometry/insets.h"
 #include "ui/views/bubble/bubble_border.h"
 #include "ui/views/bubble/bubble_frame_view.h"
 #include "ui/views/metadata/view_factory.h"
@@ -56,8 +57,6 @@ class CrostiniUninstallerView;
 class CrostiniUpdateFilesystemView;
 class DiceWebSigninInterceptionBubbleView;
 class ExtensionInstallDialogView;
-class ExtensionInstallFrictionDialogView;
-class ExtensionInstalledBubbleView;
 class ExtensionPopup;
 class ExtensionsMenuView;
 class FlyingIndicator;
@@ -72,7 +71,6 @@ class NetworkProfileBubbleView;
 class PageInfoBubbleViewBase;
 class PermissionPromptBaseView;
 class PluginVmInstallerView;
-class ProfileCustomizationBubbleView;
 class ProfileMenuViewBase;
 class RemoveSuggestionBubbleDialogDelegateView;
 class StoragePressureBubbleView;
@@ -80,7 +78,6 @@ class TabGroupEditorBubbleView;
 class TabHoverCardBubbleView;
 class TestBubbleView;
 class ToolbarActionHoverCardBubbleView;
-class ToolbarActionsBarBubbleViews;
 class ScreenshotSurfaceTestDialog;
 class WebBubbleView;
 class WebUIBubbleDialogView;
@@ -490,13 +487,9 @@ class VIEWS_EXPORT BubbleDialogDelegate : public DialogDelegate {
   ui::ColorVariant background_color() const { return color_; }
   void SetBackgroundColor(ui::ColorVariant color);
 
-  void set_title_margins(const gfx::Insets& title_margins) {
-    title_margins_ = title_margins;
-  }
-
-  gfx::Insets footnote_margins() const { return footnote_margins_; }
-  void set_footnote_margins(const gfx::Insets& footnote_margins) {
-    footnote_margins_ = footnote_margins;
+  // TODO(crbug.com/431219296): Deprecate after API migration.
+  gfx::Insets footnote_margins() const {
+    return frame_margins().footnote.value_or(gfx::Insets());
   }
 
   // Sets the content margins to a default picked for smaller bubbles.
@@ -658,8 +651,6 @@ class VIEWS_EXPORT BubbleDialogDelegate : public DialogDelegate {
 
   gfx::Rect GetDesiredBubbleBounds();
 
-  gfx::Insets title_margins_;
-  gfx::Insets footnote_margins_;
   BubbleBorder::Arrow arrow_ = BubbleBorder::NONE;
   BubbleBorder::Shadow shadow_;
   ui::ColorVariant color_ = ui::kColorBubbleBackground;
@@ -813,8 +804,6 @@ class VIEWS_EXPORT BubbleDialogDelegateView : public View,
   friend class ::CrostiniUpdateFilesystemView;
   friend class ::DiceWebSigninInterceptionBubbleView;
   friend class ::ExtensionInstallDialogView;
-  friend class ::ExtensionInstallFrictionDialogView;
-  friend class ::ExtensionInstalledBubbleView;
   friend class ::ExtensionPopup;
   friend class ::ExtensionsMenuView;
   friend class ::FlyingIndicator;
@@ -829,7 +818,6 @@ class VIEWS_EXPORT BubbleDialogDelegateView : public View,
   friend class ::PageInfoBubbleViewBase;
   friend class ::PermissionPromptBaseView;
   friend class ::PluginVmInstallerView;
-  friend class ::ProfileCustomizationBubbleView;
   friend class ::ProfileMenuViewBase;
   friend class ::RemoveSuggestionBubbleDialogDelegateView;
   friend class ::StoragePressureBubbleView;
@@ -837,7 +825,6 @@ class VIEWS_EXPORT BubbleDialogDelegateView : public View,
   friend class ::TabHoverCardBubbleView;
   friend class ::TestBubbleView;
   friend class ::ToolbarActionHoverCardBubbleView;
-  friend class ::ToolbarActionsBarBubbleViews;
   friend class ::ScreenshotSurfaceTestDialog;
   friend class ::WebBubbleView;
   friend class ::WebUIBubbleDialogView;
@@ -967,6 +954,7 @@ VIEW_BUILDER_PROPERTY(int, DefaultButton)
 VIEW_BUILDER_METHOD(SetButtonLabel, ui::mojom::DialogButton, std::u16string)
 VIEW_BUILDER_METHOD(SetButtonEnabled, ui::mojom::DialogButton, bool)
 VIEW_BUILDER_METHOD(set_margins, gfx::Insets)
+VIEW_BUILDER_METHOD(set_frame_margins, const DialogDelegate::FrameMargins&)
 VIEW_BUILDER_METHOD(set_use_round_corners, bool)
 VIEW_BUILDER_METHOD(set_corner_radius, int)
 VIEW_BUILDER_METHOD(set_draggable, bool)

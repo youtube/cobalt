@@ -4,12 +4,13 @@
 
 package org.chromium.chrome.browser.toolbar.top;
 
+import static org.chromium.build.NullUtil.assertNonNull;
+
 import android.graphics.Rect;
 import android.graphics.drawable.Drawable;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.view.View.OnLongClickListener;
-import android.view.ViewGroup.MarginLayoutParams;
 import android.widget.ImageButton;
 
 import androidx.annotation.ColorInt;
@@ -22,8 +23,10 @@ import org.chromium.base.supplier.OneShotCallback;
 import org.chromium.base.supplier.OneshotSupplier;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
+import org.chromium.chrome.browser.browser_controls.BrowserControlsOffsetTagsInfo;
 import org.chromium.chrome.browser.browser_controls.BrowserControlsStateProvider;
 import org.chromium.chrome.browser.browser_controls.BrowserControlsStateProvider.ControlsPosition;
+import org.chromium.chrome.browser.browser_controls.BrowserControlsUtils;
 import org.chromium.chrome.browser.browser_controls.BrowserControlsVisibilityManager;
 import org.chromium.chrome.browser.browser_controls.BrowserStateBrowserControlsVisibilityDelegate;
 import org.chromium.chrome.browser.browser_controls.TopControlLayer;
@@ -76,13 +79,21 @@ import java.util.function.Supplier;
 /** A coordinator for the top toolbar component. */
 @NullMarked
 public class TopToolbarCoordinator implements Toolbar, TopControlLayer {
+    private static final int UNSPECIFIED_TOOLBAR_OFFSET = -1234;
 
-    /** Observes toolbar color change. */
+    /** Observes toolbar color or expanding state change. */
     public interface ToolbarColorObserver {
         /**
          * @param color The toolbar color.
          */
         void onToolbarColorChanged(@ColorInt int color);
+
+        /**
+         * Notifies the observer when the Toolbar is expanding or has collapsed.
+         *
+         * @param isToolbarExpanding Whether the toolbar is expanding.
+         */
+        void onToolbarExpandingOnNtp(boolean isToolbarExpanding);
     }
 
     private final ToolbarLayout mToolbarLayout;
@@ -122,6 +133,7 @@ public class TopToolbarCoordinator implements Toolbar, TopControlLayer {
     private int mFindToolbarToken = TokenHolder.INVALID_TOKEN;
 
     private final int mIndexOfLocationBarInToolbar;
+    private int mLayerYOffset;
 
     /**
      * Creates a new {@link TopToolbarCoordinator}.
@@ -287,6 +299,7 @@ public class TopToolbarCoordinator implements Toolbar, TopControlLayer {
 
         // Add the layer after toolbar / control container is initialized.
         mTopControlsStacker.addControl(this);
+        mTopControlsStacker.requestLayerUpdatePost(false);
     }
 
     /**
@@ -366,25 +379,30 @@ public class TopToolbarCoordinator implements Toolbar, TopControlLayer {
                             suppressToolbarSceneLayerSupplier,
                             layoutsToShowOn,
                             /* isVisibilityManuallyControlled= */ false,
-                            captureResourceIdSupplier);
+                            captureResourceIdSupplier,
+                            mToolbarLayout.getProgressBar());
             layoutManager.addSceneOverlay(mOverlayCoordinator);
             mToolbarLayout.setOverlayCoordinator(mOverlayCoordinator);
         }
 
         int tabStripHeightResource = mToolbarLayout.getTabStripHeightFromResource();
 
-        mTabStripTransitionCoordinator =
-                new TabStripTransitionCoordinator(
-                        browserControlsVisibilityManager,
-                        mControlContainer,
-                        mToolbarLayout,
-                        tabStripHeightResource,
-                        mTabObscuringHandler,
-                        mDesktopWindowStateManager,
-                        mTabStripTransitionDelegateSupplier,
-                        tabStripTransitionHandler);
-        mToolbarLayout.getContext().registerComponentCallbacks(mTabStripTransitionCoordinator);
-        mToolbarLayout.setTabStripTransitionCoordinator(mTabStripTransitionCoordinator);
+        mTabStripTransitionDelegateSupplier.runSyncOrOnAvailable(
+                (tabStripTransitionDelegate) -> {
+                    mTabStripTransitionCoordinator =
+                            new TabStripTransitionCoordinator(
+                                    browserControlsVisibilityManager,
+                                    mControlContainer,
+                                    tabStripHeightResource,
+                                    mTabObscuringHandler,
+                                    mDesktopWindowStateManager,
+                                    tabStripTransitionDelegate,
+                                    tabStripTransitionHandler);
+                    mToolbarLayout
+                            .getContext()
+                            .registerComponentCallbacks(mTabStripTransitionCoordinator);
+                    mToolbarLayout.setTabStripTransitionCoordinator(mTabStripTransitionCoordinator);
+                });
     }
 
     /** Returns the color of the hairline drawn underneath the toolbar. */
@@ -802,6 +820,18 @@ public class TopToolbarCoordinator implements Toolbar, TopControlLayer {
         mToolbarLayout.addView(mLocationBarView, mIndexOfLocationBarInToolbar);
     }
 
+    @Override
+    public void onCaptureSizeUpdated() {
+        // Y Offset is used when isTopControlsRefactorOffsetEnabled.
+        if (!BrowserControlsUtils.isTopControlsRefactorOffsetEnabled()
+                || mBrowserControls.getControlsPosition() != ControlsPosition.TOP
+                || mOverlayCoordinator == null) {
+            return;
+        }
+
+        updateSceneLayerYOffset();
+    }
+
     public void onTransitionStart() {
         mToolbarLayout.onTransitionStart();
     }
@@ -857,30 +887,66 @@ public class TopToolbarCoordinator implements Toolbar, TopControlLayer {
     }
 
     @Override
+    public void updateOffsetTag(@Nullable BrowserControlsOffsetTagsInfo offsetTagsInfo) {
+        if (mBrowserControls.getControlsPosition() != ControlsPosition.TOP
+                || !BrowserControlsUtils.isTopControlsRefactorOffsetEnabled()
+                || mOverlayCoordinator == null) {
+            return;
+        }
+
+        mOverlayCoordinator.setOffsetTagInfo(offsetTagsInfo);
+    }
+
+    @Override
     public void onBrowserControlsOffsetUpdate(int layerYOffset, boolean reachRestingPosition) {
         if (mBrowserControls.getControlsPosition() != ControlsPosition.TOP) {
             return;
         }
 
-        // In Android view, tab strip and toolbar lives together in control container. The toolbar
-        // applies a top margin so it can leave enough space for the tab strip to show.
-        int tabStripHeight = getTabStripHeight();
-
-        // In compositor, the position of the toolbar depends on the capture. As for Oct 2025, the
-        // capture includes everything in control container, including the top margin, which
-        // represents the size of the tab strip.
-        // To place the toolbar at its desired position, we have to subtract the top margin
-        // from layerYOffset.
+        mLayerYOffset = layerYOffset;
         if (mOverlayCoordinator != null) {
-            mOverlayCoordinator.setYOffset(layerYOffset - tabStripHeight);
+            updateSceneLayerYOffset();
         }
 
         // Skip the layout params in non-resting position to avoid trigger layout during browser
         // controls reposition.
         if (reachRestingPosition) {
-            MarginLayoutParams lp = (MarginLayoutParams) mToolbarLayout.getLayoutParams();
-            lp.topMargin = tabStripHeight;
-            mToolbarLayout.setLayoutParams(lp);
+            mControlContainer.mutateToolbarLayoutParams().topMargin = getTabStripHeight();
         }
+    }
+
+    @Override
+    public void prepForHeightAdjustmentAnimation(int latestYOffset) {
+        if (mBrowserControls.getControlsPosition() != ControlsPosition.TOP
+                || !BrowserControlsUtils.isTopControlsRefactorOffsetEnabled()
+                || mOverlayCoordinator == null) {
+            return;
+        }
+
+        // Remove the offset tag on animation starts, so the toolbar does not set the yOffset
+        // while the compositor moves the layer with offset tags.
+        mOverlayCoordinator.setOffsetTagInfo(null);
+    }
+
+    // In compositor, the position of the toolbar depends on the capture. As of Nov 2025, the
+    // capture includes everything in control container, including the top margin, which represents
+    // the size of the tab strip.
+    // To place the toolbar at its desired position, we have to subtract the diffs of the capture a
+    // nd the toolbar, in order to put the toolbar at the desired yOffset.
+    private void updateSceneLayerYOffset() {
+        // Edge case: When Chrome launches on NTP, the browser controls might not dispatch
+        // a valid yOffset for the toolbar. If the capture size changes (e.g. resize screen), we
+        // we will not have a valid yOffset.
+        // Pull the height from top as a fallback value from top controls stacker.
+        if (mLayerYOffset == UNSPECIFIED_TOOLBAR_OFFSET) {
+            mLayerYOffset = mTopControlsStacker.getHeightFromLayerToTop(getTopControlType());
+        }
+
+        int captureHeight = mControlContainer.getToolbarCaptureHeight();
+        int diff =
+                captureHeight
+                        - mControlContainer.getToolbarHeight()
+                        - mControlContainer.getToolbarHairlineHeight();
+        assertNonNull(mOverlayCoordinator).setYOffset(mLayerYOffset - diff);
     }
 }

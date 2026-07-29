@@ -22,9 +22,11 @@
 #include "base/apple/scoped_cftyperef.h"
 #include "base/containers/contains.h"
 #include "base/containers/span.h"
+#include "base/containers/to_vector.h"
 #include "base/logging.h"
 #include "base/memory/scoped_policy.h"
 #include "base/metrics/histogram_functions.h"
+#include "base/notimplemented.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/sys_string_conversions.h"
@@ -47,12 +49,6 @@ namespace {
 // claims this should be a user-visible label, but there does not exist any UI
 // that shows this value. Therefore, it is left untranslated.
 constexpr char kAttrLabel[] = "Chromium unexportable key";
-
-// Copies a CFDataRef into a vector of bytes.
-std::vector<uint8_t> CFDataToVec(CFDataRef data) {
-  auto span = base::apple::CFDataToSpan(data);
-  return {span.begin(), span.end()};
-}
 
 std::optional<std::vector<uint8_t>> Convertx963ToDerSpki(
     base::span<const uint8_t> x962) {
@@ -93,10 +89,10 @@ class UnexportableSigningKeyMac : public UnexportableSigningKey {
   UnexportableSigningKeyMac(base::apple::ScopedCFTypeRef<SecKeyRef> key,
                             CFDictionaryRef key_attributes)
       : key_(std::move(key)),
-        application_label_(
-            CFDataToVec(base::apple::GetValueFromDictionary<CFDataRef>(
+        application_label_(base::ToVector(base::apple::CFDataToSpan(
+            base::apple::GetValueFromDictionary<CFDataRef>(
                 key_attributes,
-                kSecAttrApplicationLabel))) {
+                kSecAttrApplicationLabel)))) {
     base::apple::ScopedCFTypeRef<SecKeyRef> public_key(
         crypto::apple::KeychainV2::GetInstance().KeyCopyPublicKey(key_.get()));
     base::apple::ScopedCFTypeRef<CFDataRef> x962_bytes(
@@ -144,7 +140,7 @@ class UnexportableSigningKeyMac : public UnexportableSigningKey {
       LogKeychainOperationError(TPMOperation::kMessageSigning, error);
       return std::nullopt;
     }
-    return CFDataToVec(signature.get());
+    return base::ToVector(base::apple::CFDataToSpan(signature.get()));
   }
 
   bool IsHardwareBacked() const override { return true; }
@@ -214,7 +210,7 @@ UnexportableKeyProviderMac::GenerateSigningKeySlowly(
       // kSecAccessControlUserPresence is documented[1] (at the time of
       // writing) to be "equivalent to specifying kSecAccessControlBiometryAny,
       // kSecAccessControlOr, and kSecAccessControlDevicePasscode". This is
-      // incorrect because includingkSecAccessControlBiometryAny causes key
+      // incorrect because including kSecAccessControlBiometryAny causes key
       // creation to fail if biometrics are supported but not enrolled. It also
       // appears to support Apple Watch confirmation, but this isn't documented
       // (and kSecAccessControlWatch is deprecated as of macOS 15).
@@ -316,6 +312,18 @@ UnexportableKeyProviderMac::FromWrappedSigningKeySlowly(
                                                      key_attributes);
 }
 
+StatefulUnexportableKeyProvider*
+UnexportableKeyProviderMac::AsStatefulUnexportableKeyProvider() {
+  return this;
+}
+
+std::optional<std::vector<std::unique_ptr<UnexportableSigningKey>>>
+UnexportableKeyProviderMac::GetAllSigningKeysSlowly() {
+  // TODO(crbug.com/455539044): Implement this.
+  NOTIMPLEMENTED();
+  return std::nullopt;
+}
+
 bool UnexportableKeyProviderMac::DeleteSigningKeySlowly(
     base::span<const uint8_t> wrapped_key) {
   base::ScopedBlockingCall scoped_blocking_call(FROM_HERE,
@@ -352,6 +360,12 @@ std::unique_ptr<UnexportableKeyProviderMac> GetUnexportableKeyProviderMac(
   }
 #endif  // !BUILDFLAG(IS_IOS)
   return std::make_unique<UnexportableKeyProviderMac>(std::move(config));
+}
+
+std::optional<size_t> UnexportableKeyProviderMac::DeleteAllSigningKeysSlowly() {
+  // TODO(crbug.com/455539044): Implement this.
+  NOTIMPLEMENTED();
+  return std::nullopt;
 }
 
 }  // namespace crypto::apple

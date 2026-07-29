@@ -5,14 +5,14 @@
 #include "services/webnn/ort/context_impl_ort.h"
 
 #include "base/feature_list.h"
-#include "services/webnn/ort/buffer_content_ort.h"
 #include "services/webnn/ort/graph_impl_ort.h"
+#include "services/webnn/ort/ort_data_type.h"
+#include "services/webnn/ort/ort_status.h"
 #include "services/webnn/ort/tensor_impl_ort.h"
 #include "services/webnn/public/cpp/supported_data_types.h"
 #include "services/webnn/public/mojom/webnn_context_provider.mojom.h"
 #include "services/webnn/public/mojom/webnn_graph.mojom.h"
 #include "services/webnn/public/mojom/webnn_tensor.mojom.h"
-#include "services/webnn/queueable_resource_state.h"
 #include "services/webnn/scoped_sequence.h"
 #include "services/webnn/webnn_constant_operand.h"
 #include "services/webnn/webnn_context_impl.h"
@@ -24,13 +24,12 @@ namespace {
 
 // The feature flag allows us to try using device allocator to create device
 // tensors for EPs, e.g. OpenVINO EP.
-BASE_FEATURE(kUseDeviceTensor, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kUseDeviceTensor, base::FEATURE_ENABLED_BY_DEFAULT);
 
 }  // namespace
 
 // static
-std::unique_ptr<WebNNContextImpl, WebNNContextImpl::TaskRunnerDeleter>
-ContextImplOrt::Create(
+std::unique_ptr<WebNNContextImpl, OnTaskRunnerDeleter> ContextImplOrt::Create(
     mojo::PendingReceiver<mojom::WebNNContext> receiver,
     base::WeakPtr<WebNNContextProviderImpl> context_provider,
     const EpWorkarounds& ep_workarounds,
@@ -48,16 +47,15 @@ ContextImplOrt::Create(
     ScopedTrace scoped_trace) {
   DCHECK(owning_task_runner->RunsTasksInCurrentSequence());
   auto task_runner = owning_task_runner;
-  std::unique_ptr<WebNNContextImpl, WebNNContextImpl::TaskRunnerDeleter>
-      context_impl(
-          new ContextImplOrt(
-              std::move(receiver), std::move(context_provider),
-              std::move(ep_workarounds), std::move(options), device_type,
-              std::move(write_tensor_consumer), std::move(read_tensor_producer),
-              std::move(env), command_buffer_id, std::move(sequence),
-              std::move(memory_tracker), std::move(owning_task_runner),
-              shared_image_manager, std::move(main_task_runner)),
-          WebNNContextImpl::TaskRunnerDeleter(std::move(task_runner)));
+  std::unique_ptr<WebNNContextImpl, OnTaskRunnerDeleter> context_impl(
+      new ContextImplOrt(
+          std::move(receiver), std::move(context_provider),
+          std::move(ep_workarounds), std::move(options), device_type,
+          std::move(write_tensor_consumer), std::move(read_tensor_producer),
+          std::move(env), command_buffer_id, std::move(sequence),
+          std::move(memory_tracker), std::move(owning_task_runner),
+          shared_image_manager, std::move(main_task_runner)),
+      OnTaskRunnerDeleter(std::move(task_runner)));
   return context_impl;
 }
 
@@ -370,22 +368,53 @@ ContextImplOrt::CreateTensorImpl(
         mojom::Error::New(mojom::Error::Code::kNotSupportedError,
                           "Creation of constant tensors is not supported."));
   }
+  const OrtApi* ort_api = PlatformFunctions::GetInstance()->ort_api();
 
-  auto buffer_content = std::make_unique<BufferContentOrt>(
-      tensor_info->descriptor, device_allocator_);
-  auto buffer_state =
-      base::MakeRefCounted<QueueableResourceState<BufferContentOrt>>(
-          std::move(buffer_content));
-  return base::MakeRefCounted<TensorImplOrt>(std::move(receiver), AsWeakPtr(),
-                                             std::move(tensor_info),
-                                             std::move(buffer_state));
+  OrtAllocator* allocator = nullptr;
+  bool can_access_on_cpu = true;
+  // Use the device allocator if it's present and should be used. Otherwise, use
+  // the default allocator which is CPU based and non-arena.
+  if (device_allocator_ && device_allocator_->ShouldUse(tensor_info)) {
+    allocator = device_allocator_->get();
+    can_access_on_cpu = device_allocator_->CanAccessOnCPU();
+  } else {
+    // `GetAllocatorWithDefaultOptions()` always returns the same pointer to the
+    // same default allocator and its returned value should NOT be freed.
+    CHECK_STATUS(ort_api->GetAllocatorWithDefaultOptions(&allocator));
+  }
+  CHECK(allocator);
+
+  ONNXTensorElementDataType ort_data_type =
+      WebnnToOnnxDataType(tensor_info->descriptor.data_type());
+  std::vector<int64_t> ort_shape =
+      WebnnToOnnxShape(tensor_info->descriptor.shape());
+
+  // TODO(crbug.com/453420646): Implement context lost handling for ORT tensor
+  // creation failures.
+  // TODO(crbug.com/445971854): Emit mojom::Error since CreateTensorAsOrtValue()
+  // could malloc and fail if OOM.
+  ScopedOrtValue tensor;
+  CHECK_STATUS(ort_api->CreateTensorAsOrtValue(
+      allocator, ort_shape.data(), ort_shape.size(), ort_data_type,
+      ScopedOrtValue::Receiver(tensor).get()));
+  CHECK(tensor.get());
+
+  size_t size;
+  CHECK_STATUS(ort_api->GetTensorSizeInBytes(tensor.get(), &size));
+
+  // Invalid values are rejected in GraphBuilder.
+  CHECK(base::IsValueInRangeForNumericType<int>(size));
+
+  return base::MakeRefCounted<TensorImplOrt>(
+      std::move(receiver), AsWeakPtr(), std::move(tensor_info), size,
+      std::move(tensor), can_access_on_cpu);
 }
 
 base::expected<scoped_refptr<WebNNTensorImpl>, mojom::ErrorPtr>
 ContextImplOrt::CreateTensorFromSharedImageImpl(
     mojo::PendingAssociatedReceiver<mojom::WebNNTensor> receiver,
     mojom::TensorInfoPtr tensor_info,
-    std::unique_ptr<gpu::WebNNTensorRepresentation> representation) {
+    WebNNTensorImpl::RepresentationPtr representation) {
   return base::unexpected(
       mojom::Error::New(mojom::Error::Code::kNotSupportedError,
                         "WebGPU Interop is not supported."));

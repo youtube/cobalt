@@ -47,6 +47,8 @@ COMPONENT_EXPORT(SIGNIN_SWITCHES)
 extern const char kHistorySyncLastDeclinedTimestamp[];
 COMPONENT_EXPORT(SIGNIN_SWITCHES)
 extern const char kHistorySyncSuccessiveDeclineCount[];
+COMPONENT_EXPORT(SIGNIN_SWITCHES)
+extern const char kHistoryPageHistorySyncPromoShownCount[];
 #if BUILDFLAG(IS_IOS)
 COMPONENT_EXPORT(SIGNIN_SWITCHES)
 extern const char kRestrictAccountsToPatterns[];
@@ -65,6 +67,10 @@ COMPONENT_EXPORT(SIGNIN_SWITCHES)
 extern const char kSigninAllowedOnNextStartup[];
 COMPONENT_EXPORT(SIGNIN_SWITCHES)
 extern const char kSigninInterceptionIDPCookiesUrl[];
+COMPONENT_EXPORT(SIGNIN_SWITCHES)
+extern const char kAddressSignInPromoShownCountPerProfileForLimitsExperiment[];
+COMPONENT_EXPORT(SIGNIN_SWITCHES)
+extern const char kPasswordSignInPromoShownCountPerProfileForLimitsExperiment[];
 COMPONENT_EXPORT(SIGNIN_SWITCHES)
 extern const char kProfileSeparationSettings[];
 COMPONENT_EXPORT(SIGNIN_SWITCHES)

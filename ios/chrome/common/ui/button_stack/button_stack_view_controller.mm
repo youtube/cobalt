@@ -8,6 +8,7 @@
 #import "ios/chrome/common/ui/button_stack/button_stack_action_delegate.h"
 #import "ios/chrome/common/ui/button_stack/button_stack_configuration.h"
 #import "ios/chrome/common/ui/button_stack/button_stack_constants.h"
+#import "ios/chrome/common/ui/button_stack/button_stack_utils.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
 #import "ios/chrome/common/ui/util/button_util.h"
 #import "ios/chrome/common/ui/util/chrome_button.h"
@@ -18,8 +19,6 @@ namespace {
 
 // Spacing between buttons in the stack.
 const CGFloat kButtonSpacing = 8.0;
-// Horizontal margin for the button stack.
-const CGFloat kButtonStackHorizontalMargin = 16.0;
 
 // Default bottom margin for the button stack.
 const CGFloat kButtonStackBottomMargin = 20.0;
@@ -32,6 +31,12 @@ const CGFloat kContentViewBottomInset = 20;
 
 // Height of the gradient view above the action buttons.
 const CGFloat kGradientHeight = 30;
+
+// Max multiplier for the detent height.
+const CGFloat kMaxDetentMultiplier = 0.75;
+
+// Min multiplier for the detent height.
+const CGFloat kMinDetentMultiplier = 0.25;
 
 // The position of a button in the stack.
 typedef NS_ENUM(NSInteger, ButtonStackButtonPosition) {
@@ -49,6 +54,7 @@ typedef NS_ENUM(NSInteger, ButtonStackButtonPosition) {
 
 // Redefine properties as readwrite for internal use.
 @property(nonatomic, strong, readwrite) UIView* contentView;
+@property(nonatomic, strong, readwrite) UILayoutGuide* widthLayoutGuide;
 @property(nonatomic, strong, readwrite) ButtonStackConfiguration* configuration;
 @property(nonatomic, strong, readwrite) ChromeButton* primaryActionButton;
 @property(nonatomic, strong, readwrite) ChromeButton* secondaryActionButton;
@@ -72,6 +78,14 @@ typedef NS_ENUM(NSInteger, ButtonStackButtonPosition) {
   CAGradientLayer* _gradientMask;
   // Whether the gradient view is shown.
   BOOL _showsGradientView;
+  // The width layout guide for the content.
+  UILayoutGuide* _widthLayoutGuide;
+  // The constraint for the content view height.
+  NSLayoutConstraint* _contentViewHeightConstraint;
+}
+
+- (instancetype)init {
+  return [self initWithConfiguration:[[ButtonStackConfiguration alloc] init]];
 }
 
 - (instancetype)initWithConfiguration:(ButtonStackConfiguration*)configuration {
@@ -83,6 +97,7 @@ typedef NS_ENUM(NSInteger, ButtonStackButtonPosition) {
     _addsContentViewBottomInset = YES;
     _showsGradientView = YES;
     _actionStackBottomMargin = kButtonStackBottomMargin;
+    _contentInsetAdjustmentBehavior = UIScrollViewContentInsetAdjustmentAlways;
   }
   return self;
 }
@@ -98,6 +113,7 @@ typedef NS_ENUM(NSInteger, ButtonStackButtonPosition) {
   [self.view addSubview:_scrollContainerView];
 
   _scrollView = [self createScrollView];
+  _scrollView.contentInsetAdjustmentBehavior = _contentInsetAdjustmentBehavior;
   [_scrollContainerView addSubview:_scrollView];
 
   _contentView = [[UIView alloc] init];
@@ -110,47 +126,31 @@ typedef NS_ENUM(NSInteger, ButtonStackButtonPosition) {
   [self updateButtonState];
 }
 
+- (void)viewIsAppearing:(BOOL)animated {
+  [super viewIsAppearing:animated];
+  if (self.navigationController.navigationBar) {
+    // On iOS 26, the navigation bar is positioned differently in viewDidLoad
+    // and after. Make sure that the right position is taken into account.
+    [self.sheetPresentationController invalidateDetents];
+  }
+}
+
 - (void)viewDidAppear:(BOOL)animated {
   [super viewDidAppear:animated];
   [_scrollView flashScrollIndicators];
+  [self updateGradientVisibility];
 }
 
 - (void)viewDidLayoutSubviews {
   [super viewDidLayoutSubviews];
 
-  // Determine if the gradient should be visible.
-  BOOL scrollable =
-      _scrollView.contentSize.height > _scrollView.bounds.size.height;
-  CGFloat effectiveGradientHeight =
-      kGradientHeight - _scrollView.contentInset.bottom;
-  BOOL shouldShowGradient =
-      _showsGradientView && scrollable && (effectiveGradientHeight > 0);
+  // Update the content view height constraint to account for the adjusted
+  // content inset (e.g. navigation bar).
+  _contentViewHeightConstraint.constant =
+      -(_scrollView.adjustedContentInset.top +
+        _scrollView.adjustedContentInset.bottom);
 
-  if (!shouldShowGradient) {
-    _scrollContainerView.layer.mask = nil;
-    return;
-  }
-
-  // Create mask if it doesn't exist.
-  if (!_gradientMask) {
-    _gradientMask = [CAGradientLayer layer];
-    _gradientMask.endPoint = CGPointMake(0.0, 1.0);
-    UIColor* bottomColor =
-        BlendColors([UIColor clearColor], self.view.backgroundColor,
-                    _scrollView.contentInset.bottom / kGradientHeight);
-    _gradientMask.colors =
-        @[ (id)self.view.backgroundColor.CGColor, (id)bottomColor.CGColor ];
-  }
-
-  // Apply mask and calculate geometry.
-  _scrollContainerView.layer.mask = _gradientMask;
-  _gradientMask.frame = _scrollContainerView.bounds;
-
-  CGFloat startY =
-      (effectiveGradientHeight >= _gradientMask.frame.size.height)
-          ? 0.0
-          : 1.0 - (effectiveGradientHeight / _gradientMask.frame.size.height);
-  _gradientMask.startPoint = CGPointMake(0.0, startY);
+  [self updateGradientVisibility];
 }
 
 #pragma mark - Public
@@ -159,33 +159,64 @@ typedef NS_ENUM(NSInteger, ButtonStackButtonPosition) {
   CGFloat scrollPosition =
       _scrollView.contentOffset.y + _scrollView.frame.size.height;
   CGFloat scrollLimit =
-      _scrollView.contentSize.height + _scrollView.contentInset.bottom;
+      _scrollView.contentSize.height + _scrollView.adjustedContentInset.bottom;
   return scrollPosition >= scrollLimit;
 }
 
 - (void)scrollToBottom {
   CGFloat scrollLimit = _scrollView.contentSize.height -
                         _scrollView.bounds.size.height +
-                        _scrollView.contentInset.bottom;
+                        _scrollView.adjustedContentInset.bottom;
   [_scrollView setContentOffset:CGPointMake(0, scrollLimit) animated:YES];
 }
 
-- (CGFloat)buttonStackHeight {
-  // Calculate the size the stack view needs without forcing a full layout pass.
-  CGFloat stackHeight =
-      [_actionStackView
-          systemLayoutSizeFittingSize:UILayoutFittingCompressedSize]
-          .height;
-  if (stackHeight > 0) {
-    stackHeight += [self contentViewBottomInset];
-    return stackHeight + self.actionStackBottomMargin;
-  }
-  return 0;
-}
-
 - (BOOL)hasVisibleButtons {
+  if (self.configuration.hideButtons) {
+    return NO;
+  }
   return !(_primaryActionButton.hidden && _secondaryActionButton.hidden &&
            _tertiaryActionButton.hidden);
+}
+
+- (UISheetPresentationControllerDetent*)preferredHeightDetent {
+  __typeof(self) __weak weakSelf = self;
+  auto resolver = ^CGFloat(
+      id<UISheetPresentationControllerDetentResolutionContext> context) {
+    return [weakSelf detentForPreferredHeightInContext:context];
+  };
+  return [UISheetPresentationControllerDetent
+      customDetentWithIdentifier:@"preferred_height"
+                        resolver:resolver];
+}
+
+- (CGFloat)preferredHeightForContent {
+  // Calculate the available width for the content from the layout guide.
+  // This is more reliable than self.stackView.bounds.size.width before a layout
+  // pass.
+  CGFloat availableWidth = _widthLayoutGuide.layoutFrame.size.width;
+  CGSize fittingSize =
+      CGSizeMake(availableWidth, UILayoutFittingCompressedSize.height);
+
+  // Calculate the height of the content view constrained by the available
+  // width.
+  CGFloat height =
+      [self.contentView
+            systemLayoutSizeFittingSize:fittingSize
+          withHorizontalFittingPriority:UILayoutPriorityRequired
+                verticalFittingPriority:UILayoutPriorityFittingSizeLevel]
+          .height;
+  height += _scrollView.adjustedContentInset.bottom;
+
+  // Add the height of the button stack.
+  height += [self buttonStackHeight];
+
+  // Add the scroll view's top padding, which includes the navigation bar unless
+  // automatic content inset adjustments are disabled.
+  if (self.navigationController) {
+    height += _scrollView.adjustedContentInset.top;
+  }
+
+  return height;
 }
 
 #pragma mark - ButtonStackConsumer
@@ -241,7 +272,15 @@ typedef NS_ENUM(NSInteger, ButtonStackButtonPosition) {
 
 - (void)setShowsGradientView:(BOOL)showsGradientView {
   _showsGradientView = showsGradientView;
-  _scrollContainerView.layer.mask = _showsGradientView ? _gradientMask : nil;
+  [self updateGradientVisibility];
+}
+
+- (void)setContentInsetAdjustmentBehavior:
+    (UIScrollViewContentInsetAdjustmentBehavior)contentInsetAdjustmentBehavior {
+  _contentInsetAdjustmentBehavior = contentInsetAdjustmentBehavior;
+  if (self.isViewLoaded) {
+    _scrollView.contentInsetAdjustmentBehavior = contentInsetAdjustmentBehavior;
+  }
 }
 
 - (void)setActionStackBottomMargin:(CGFloat)actionStackBottomMargin {
@@ -249,7 +288,23 @@ typedef NS_ENUM(NSInteger, ButtonStackButtonPosition) {
   [self reconfigureBottomConstraint];
 }
 
+#pragma mark - UIScrollViewDelegate
+
+- (void)scrollViewDidScroll:(UIScrollView*)scrollView {
+  [self updateGradientVisibility];
+}
+
 #pragma mark - Private
+
+// Returns the height of the button stack view.
+- (CGFloat)buttonStackHeight {
+  // Calculate the size the stack view needs without forcing a full layout pass.
+  CGFloat stackHeight =
+      [_actionStackView
+          systemLayoutSizeFittingSize:UILayoutFittingCompressedSize]
+          .height;
+  return stackHeight + self.actionStackBottomMargin;
+}
 
 // Returns the bottom inset for the content view.
 - (CGFloat)contentViewBottomInset {
@@ -279,6 +334,8 @@ typedef NS_ENUM(NSInteger, ButtonStackButtonPosition) {
   scrollView.scrollEnabled = self.scrollEnabled;
   scrollView.showsVerticalScrollIndicator = self.showsVerticalScrollIndicator;
   scrollView.delegate = self;
+  scrollView.contentInset =
+      UIEdgeInsetsMake(0, 0, [self contentViewBottomInset], 0);
   return scrollView;
 }
 
@@ -342,6 +399,7 @@ typedef NS_ENUM(NSInteger, ButtonStackButtonPosition) {
 // Updates the buttons' visibility, titles, and images based on the current
 // configuration.
 - (void)reconfigureButtons {
+  _actionStackView.hidden = _configuration.hideButtons;
   [self configureButtonForPosition:ButtonStackButtonPositionPrimary
                         withString:_configuration.primaryActionString
                              style:_configuration.primaryButtonStyle];
@@ -453,23 +511,28 @@ typedef NS_ENUM(NSInteger, ButtonStackButtonPosition) {
     [_scrollContainerView.trailingAnchor
         constraintEqualToAnchor:view.trailingAnchor],
     [_scrollContainerView.bottomAnchor
-        constraintEqualToAnchor:_actionStackView.topAnchor
-                       constant:-[self contentViewBottomInset]],
+        constraintEqualToAnchor:_actionStackView.topAnchor],
     _scrollContainerBottomToSafeAreaBottomConstraint,
   ]];
   AddSameConstraints(_scrollView, _scrollContainerView);
 
   // contentView view constraints.
-  AddSameConstraints(_scrollView, _contentView);
+  _widthLayoutGuide = AddButtonStackContentWidthLayoutGuide(self.view);
   [NSLayoutConstraint activateConstraints:@[
-    [_contentView.widthAnchor constraintEqualToAnchor:_scrollView.widthAnchor],
+    [_contentView.leadingAnchor
+        constraintEqualToAnchor:_widthLayoutGuide.leadingAnchor],
+    [_contentView.trailingAnchor
+        constraintEqualToAnchor:_widthLayoutGuide.trailingAnchor],
+    [_contentView.topAnchor constraintEqualToAnchor:_scrollView.topAnchor],
+    [_contentView.bottomAnchor
+        constraintEqualToAnchor:_scrollView.bottomAnchor],
   ]];
 
   // Ensures the content view either fills the scroll view (for short content)
   // or expands to enable scrolling (for long content).
-  NSLayoutConstraint* contentViewHeightConstraint = [_contentView.heightAnchor
+  _contentViewHeightConstraint = [_contentView.heightAnchor
       constraintGreaterThanOrEqualToAnchor:_scrollView.heightAnchor];
-  contentViewHeightConstraint.priority = UILayoutPriorityDefaultLow;
+  _contentViewHeightConstraint.priority = UILayoutPriorityDefaultLow;
 
   _actionStackSafeAreaBottomConstraint = [_actionStackView.bottomAnchor
       constraintEqualToAnchor:safeAreaLayoutGuide.bottomAnchor];
@@ -485,12 +548,10 @@ typedef NS_ENUM(NSInteger, ButtonStackButtonPosition) {
   // Action stack view constraints.
   [NSLayoutConstraint activateConstraints:@[
     [_actionStackView.leadingAnchor
-        constraintEqualToAnchor:safeAreaLayoutGuide.leadingAnchor
-                       constant:kButtonStackHorizontalMargin],
+        constraintEqualToAnchor:_widthLayoutGuide.leadingAnchor],
     [_actionStackView.trailingAnchor
-        constraintEqualToAnchor:safeAreaLayoutGuide.trailingAnchor
-                       constant:-kButtonStackHorizontalMargin],
-    contentViewHeightConstraint,
+        constraintEqualToAnchor:_widthLayoutGuide.trailingAnchor],
+    _contentViewHeightConstraint,
     _actionStackBottomConstraint,
     _actionStackSafeAreaBottomConstraint,
   ]];
@@ -501,7 +562,8 @@ typedef NS_ENUM(NSInteger, ButtonStackButtonPosition) {
 - (void)updateButtonState {
   const BOOL showingProgressState =
       self.configuration.isLoading || self.configuration.isConfirmed;
-  _primaryActionButton.enabled = !showingProgressState;
+  _primaryActionButton.enabled =
+      self.configuration.primaryActionEnabled && !showingProgressState;
   _secondaryActionButton.enabled = !showingProgressState;
   _tertiaryActionButton.enabled = !showingProgressState;
 
@@ -534,6 +596,59 @@ typedef NS_ENUM(NSInteger, ButtonStackButtonPosition) {
 // Handles the tap event for the tertiary action button.
 - (void)handleTertiaryAction {
   [self.actionDelegate didTapTertiaryActionButton];
+}
+
+// Calculates the detent height for the given context.
+- (CGFloat)detentForPreferredHeightInContext:
+    (id<UISheetPresentationControllerDetentResolutionContext>)context {
+  // Only activate this detent in portrait orientation on iPhone.
+  UITraitCollection* traitCollection = context.containerTraitCollection;
+  if (traitCollection.horizontalSizeClass != UIUserInterfaceSizeClassCompact ||
+      traitCollection.verticalSizeClass != UIUserInterfaceSizeClassRegular) {
+    return UISheetPresentationControllerDetentInactive;
+  }
+
+  CGFloat height = [self preferredHeightForContent];
+
+  // Make sure detent is not larger than 75% of the maximum detent value but at
+  // least as large as 25% of the maximum detent value.
+  height = MIN(height, kMaxDetentMultiplier * context.maximumDetentValue);
+  height = MAX(height, kMinDetentMultiplier * context.maximumDetentValue);
+  return height;
+}
+
+// Updates the visibility of the gradient view based on scroll position.
+- (void)updateGradientVisibility {
+  // Determine if the gradient should be visible.
+  CGFloat visibleHeight = _scrollView.bounds.size.height -
+                          _scrollView.adjustedContentInset.top -
+                          _scrollView.adjustedContentInset.bottom;
+  BOOL scrollable = _scrollView.contentSize.height > visibleHeight;
+  BOOL shouldShowGradient = _showsGradientView && scrollable;
+
+  if (!shouldShowGradient) {
+    _scrollContainerView.layer.mask = nil;
+    return;
+  }
+
+  // Create mask if it doesn't exist.
+  if (!_gradientMask) {
+    _gradientMask = [CAGradientLayer layer];
+    _gradientMask.endPoint = CGPointMake(0.0, 1.0);
+    _gradientMask.colors = @[
+      (id)self.view.backgroundColor.CGColor, (id)UIColor.clearColor.CGColor
+    ];
+  }
+
+  // Apply mask and calculate geometry.
+  _scrollContainerView.layer.mask = _gradientMask;
+  _gradientMask.frame = _scrollContainerView.bounds;
+
+  CGFloat startY =
+      (kGradientHeight >= _gradientMask.frame.size.height)
+          ? 0.0
+          : 1.0 - (kGradientHeight / _gradientMask.frame.size.height);
+  _gradientMask.startPoint = CGPointMake(0.0, startY);
 }
 
 @end

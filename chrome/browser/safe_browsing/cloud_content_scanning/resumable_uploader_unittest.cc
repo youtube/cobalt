@@ -10,6 +10,7 @@
 #include "base/containers/span.h"
 #include "base/files/file_path.h"
 #include "base/files/scoped_temp_dir.h"
+#include "base/functional/callback_helpers.h"
 #include "base/memory/read_only_shared_memory_region.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/run_loop.h"
@@ -17,11 +18,11 @@
 #include "base/test/gmock_callback_support.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
-#include "chrome/browser/enterprise/connectors/test/uploader_test_utils.h"
 #include "chrome/browser/safe_browsing/cloud_content_scanning/binary_upload_service.h"
-#include "chrome/browser/safe_browsing/cloud_content_scanning/connector_upload_request.h"
 #include "components/enterprise/common/proto/connectors.pb.h"
+#include "components/enterprise/connectors/core/cloud_content_scanning/connector_upload_request.h"
 #include "components/enterprise/connectors/core/features.h"
+#include "components/enterprise/connectors/core/uploader_test_utils.h"
 #include "content/public/test/browser_task_environment.h"
 #include "net/base/net_errors.h"
 #include "net/http/http_status_code.h"
@@ -158,7 +159,8 @@ class ResumableUploadRequestTest : public testing::Test {
 
   void VerifyMetadataRequestHeaders(
       const network::ResourceRequest& resource_request,
-      std::string expected_size) {
+      std::string expected_size,
+      const std::string& expected_content_type = "application/octet-stream") {
     ASSERT_TRUE(resource_request.headers.HasHeader("X-Goog-Upload-Protocol"));
     ASSERT_THAT(resource_request.headers.GetHeader("X-Goog-Upload-Protocol"),
                 testing::Optional(std::string("resumable")));
@@ -171,7 +173,7 @@ class ResumableUploadRequestTest : public testing::Test {
         "X-Goog-Upload-Header-Content-Type"));
     ASSERT_THAT(
         resource_request.headers.GetHeader("X-Goog-Upload-Header-Content-Type"),
-        testing::Optional(std::string("application/octet-stream")));
+        testing::Optional(expected_content_type));
 
     ASSERT_TRUE(resource_request.headers.HasHeader(
         "X-Goog-Upload-Header-Content-Length"));
@@ -262,7 +264,7 @@ TEST_F(ResumableUploadStringRequestTest,
   auto* request = static_cast<ResumableUploadRequest*>(connector_request.get());
   request->SetMetadataRequestHeaders(&resource_request);
 
-  VerifyMetadataRequestHeaders(std::move(resource_request), "11");
+  VerifyMetadataRequestHeaders(std::move(resource_request), "11", "image/png");
 }
 
 class ResumableUploadSendMetadataRequestTest
@@ -396,7 +398,8 @@ class ResumableUploadSendContentRequestTest
 
   UploadRequestType GetRequestType() { return GetParam(); }
 
-  std::unique_ptr<ConnectorUploadRequest> CreateTestRequest(
+  std::unique_ptr<enterprise_connectors::ConnectorUploadRequest>
+  CreateTestRequest(
       enterprise_connectors::ScanRequestUploadResult get_data_result,
       ResumableUploadRequest::VerdictReceivedCallback verdict_received_callback,
       ResumableUploadRequest::ContentUploadedCallback content_uploaded_callback,
@@ -503,9 +506,8 @@ TEST_P(ResumableUploadSendContentRequestTest, HandlesSuccessfulContentScan) {
   if (GetRequestType() == UploadRequestType::kString) {
     EXPECT_EQ(GetContent(), content_upload_body);
   } else {
-    EXPECT_EQ(GetContent(),
-              enterprise_connectors::test::GetBodyFromFileOrPageRequest(
-                  request->data_pipe_getter_for_testing()));
+    EXPECT_EQ(GetContent(), enterprise_connectors::GetBodyFromFileOrPageRequest(
+                                request->data_pipe_getter_for_testing()));
   }
   EXPECT_EQ(content_upload_method, "POST");
   EXPECT_EQ(content_upload_command, "upload, finalize");
@@ -667,9 +669,8 @@ TEST_P(ResumableUploadSendContentRequestTest, HandlesFailedContentScan) {
   if (GetRequestType() == UploadRequestType::kString) {
     EXPECT_EQ(GetContent(), content_upload_body);
   } else {
-    EXPECT_EQ(GetContent(),
-              enterprise_connectors::test::GetBodyFromFileOrPageRequest(
-                  request->data_pipe_getter_for_testing()));
+    EXPECT_EQ(GetContent(), enterprise_connectors::GetBodyFromFileOrPageRequest(
+                                request->data_pipe_getter_for_testing()));
   }
   EXPECT_EQ(content_upload_method, "POST");
   EXPECT_EQ(content_upload_command, "upload, finalize");

@@ -7,16 +7,19 @@
 #import "base/feature_list.h"
 #import "base/functional/bind.h"
 #import "base/functional/callback.h"
+#import "base/metrics/histogram_functions.h"
 #import "components/enterprise/data_controls/core/browser/prefs.h"
 #import "components/enterprise/data_controls/core/browser/rule.h"
 #import "components/policy/core/common/policy_types.h"
 #import "components/prefs/pref_service.h"
 #import "components/strings/grit/components_strings.h"
 #import "ios/chrome/browser/enterprise/common/util.h"
+#import "ios/chrome/browser/enterprise/data_controls/model/data_controls_metrics.h"
 #import "ios/chrome/browser/enterprise/data_controls/model/data_controls_pasteboard_manager.h"
 #import "ios/chrome/browser/enterprise/data_controls/utils/data_controls_utils.h"
 #import "ios/chrome/browser/shared/model/profile/profile_ios.h"
 #import "ios/chrome/browser/shared/public/commands/snackbar_commands.h"
+#import "ios/chrome/browser/shared/public/snackbar/snackbar_message.h"
 #import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
 #import "ios/components/enterprise/data_controls/features.h"
 #import "ios/web/public/web_state.h"
@@ -183,9 +186,18 @@ void DataControlsTabHelper::FinishCopy(const GURL& source_url,
 
   Verdict verdict = std::move(verdicts.copy_action_verdict);
 
+  // Record the verdict level to the Copy histogram.
+  base::UmaHistogramEnumeration(
+      kIOSWebStateDataControlsClipboardCopyVerdictHistogram, verdict.level());
+
   bool allowed = verdict.level() != Rule::Level::kBlock;
   if (verdict.level() == Rule::Level::kWarn) {
     allowed = bypassed;
+
+    // Record whether user ignores the warning and decides to copy anyway.
+    base::UmaHistogramBoolean(
+        kIOSWebStateDataControlsClipboardCopyClipboardWarningBypassedHistogram,
+        bypassed);
   }
 
   if (allowed) {
@@ -228,6 +240,10 @@ void DataControlsTabHelper::FinishPaste(
     Verdict verdict,
     base::OnceCallback<void(bool)> callback,
     bool bypassed) {
+  // Record the verdict level to the Paste histogram.
+  base::UmaHistogramEnumeration(
+      kIOSWebStateDataControlsClipboardPasteVerdictHistogram, verdict.level());
+
   if (verdict.level() > Rule::Level::kNotSet && destination_profile.get()) {
     MaybeReportDataControlsPaste(
         source_url, destination_url, source_profile.get(),
@@ -245,6 +261,11 @@ void DataControlsTabHelper::FinishPaste(
   bool allowed = verdict.level() != Rule::Level::kBlock;
   if (verdict.level() == Rule::Level::kWarn) {
     allowed = bypassed;
+
+    // Record whether user ignores the warning and decides to paste anyway.
+    base::UmaHistogramBoolean(
+        kIOSWebStateDataControlsClipboardPasteClipboardWarningBypassedHistogram,
+        bypassed);
   }
 
   if (allowed) {
@@ -273,23 +294,13 @@ void DataControlsTabHelper::ShowWarningDialog(
 }
 
 void DataControlsTabHelper::ShowRestrictSnackbar(std::string_view org_domain) {
-  // Hide the keyboard to prevent it from covering the snack bar.
-  // TODO(crbug.com/457472925): Replace temporary fix with snack bar command
-  // that removes the keyboard before presenting it.
-  UIWindow* window = web_state_->GetView().window;
-  UIResponder* firstResponder =
-      GetFirstResponderInWindowScene(window.windowScene);
-  [firstResponder resignFirstResponder];
-
-  NSString* message =
+  NSString* title =
       org_domain.empty()
           ? l10n_util::GetNSString(IDS_POLICY_ACTION_BLOCKED_BY_ORGANIZATION)
           : l10n_util::GetNSStringF(IDS_DATA_CONTROLS_BLOCKED_LABEL_WITH_DOMAIN,
                                     base::UTF8ToUTF16(org_domain));
-  [snackbar_handler_ showSnackbarWithMessage:message
-                                  buttonText:nil
-                               messageAction:nil
-                            completionAction:nil];
+  SnackbarMessage* message = [[SnackbarMessage alloc] initWithTitle:title];
+  [snackbar_handler_ showSnackbarMessageAfterDismissingKeyboard:message];
 }
 
 std::string DataControlsTabHelper::GetManagementDomain(ProfileIOS* profile) {

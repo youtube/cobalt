@@ -304,6 +304,7 @@ Podatki so šifrirani z vašim geslom. Vnesite ga, če želite podatke iz Chroma
 <translation id="787226752901403048">Prijavite se v Chrome, če želite deliti in se pridružiti skupinam zavihkov ter skupaj razvijati zamisli</translation>
 <translation id="7897703007638178753">Ogled nedavnih zavihkov v Chromu</translation>
 <translation id="7948283758957877064">Novosti v Chromu</translation>
+<translation id="7996707498590516621">Ustvarjanje slike z Geminijem v Chromu</translation>
 <translation id="8000174216052461231">Nasvet za Chrome: Prejmite Chromovo najmočnejšo varnost</translation>
 <translation id="8006014511203279255">Chrome lahko uporabljate, kadar koli se dotaknete povezav v sporočilih ali drugih aplikacijah.</translation>
 <translation id="8014670471808569312">Chrome bo ponudil shranjevanje gesla.</translation>
@@ -332,7 +333,7 @@ Vaše šifrirane podatke lahko bere samo oseba, ki ima vaše geslo. Geslo ni pos
 <translation id="84594714173170813">Še naprej uporabljajte podatke v Chromu v računu Google</translation>
 <translation id="8491300088149538575">Prijavljeni ste kot <ph name="EMAIL" />.
 
-Podatki so bili šifrirani z geslom dne <ph name="TIME" />. Vnesite ga, če želite podatke iz Chroma uporabljati in shranjevati v računu Google.</translation>
+Podatki so bili z geslom šifrirani: <ph name="TIME" />. Vnesite ga, če želite podatke iz Chroma uporabljati in shranjevati v računu Google.</translation>
 <translation id="8540666473246803645">Google Chrome</translation>
 <translation id="8544583291890527417">Opozorila o težavah z zasebnostjo ali varnostjo, ki jih Chrome zazna.</translation>
 <translation id="855027533751209304">Nasvet za Chrome: Iščite, kar vidite</translation>

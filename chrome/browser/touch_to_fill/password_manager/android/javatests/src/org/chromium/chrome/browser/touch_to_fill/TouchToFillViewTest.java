@@ -49,6 +49,7 @@ import androidx.test.filters.MediumTest;
 
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -96,44 +97,58 @@ import java.util.concurrent.atomic.AtomicBoolean;
 @CommandLineFlags.Add({ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE})
 public class TouchToFillViewTest {
     private static final Credential ANA =
-            new Credential("Ana", "S3cr3t", "Ana", "", "example.xyz", GetLoginMatchType.EXACT, 0);
+            new Credential.Builder()
+                    .setUsername("Ana")
+                    .setPassword("S3cr3t")
+                    .setFormattedUsername("Ana")
+                    .setOriginUrl("")
+                    .setDisplayName("example.xyz")
+                    .setMatchType(GetLoginMatchType.EXACT)
+                    .setLastUsedMsSinceEpoch(0)
+                    .build();
     private static final Credential NO_ONE =
-            new Credential(
-                    "",
-                    "***",
-                    "No Username",
-                    "m.example.xyz",
-                    "m.example.xyz",
-                    GetLoginMatchType.PSL,
-                    0);
+            new Credential.Builder()
+                    .setUsername("")
+                    .setPassword("***")
+                    .setFormattedUsername("No Username")
+                    .setOriginUrl("m.example.xyz")
+                    .setDisplayName("m.example.xyz")
+                    .setMatchType(GetLoginMatchType.PSL)
+                    .setLastUsedMsSinceEpoch(0)
+                    .build();
     private static final Credential BOB =
-            new Credential(
-                    "Bob",
-                    "***",
-                    "Bob",
-                    "mobile.example.xyz",
-                    "mobile.example.xyz",
-                    GetLoginMatchType.PSL,
-                    0);
+            new Credential.Builder()
+                    .setUsername("Bob")
+                    .setPassword("***")
+                    .setFormattedUsername("Bob")
+                    .setOriginUrl("mobile.example.xyz")
+                    .setDisplayName("mobile.example.xyz")
+                    .setMatchType(GetLoginMatchType.PSL)
+                    .setLastUsedMsSinceEpoch(0)
+                    .build();
     private static final WebauthnCredential CAM =
             new WebauthnCredential("example.net", new byte[] {1}, new byte[] {2}, "Cam");
     private static final Credential NIK =
-            new Credential(
-                    "Nik", "***", "Nik", "group.xyz", "group.xyz", GetLoginMatchType.AFFILIATED, 0);
+            new Credential.Builder()
+                    .setUsername("Nik")
+                    .setPassword("***")
+                    .setFormattedUsername("Nik")
+                    .setOriginUrl("group.xyz")
+                    .setDisplayName("group.xyz")
+                    .setMatchType(GetLoginMatchType.AFFILIATED)
+                    .setLastUsedMsSinceEpoch(0)
+                    .build();
     private static final Credential NIK_BACKUP =
-            new Credential(
-                    "Nik",
-                    "***",
-                    "Nik",
-                    "group.xyz",
-                    "group.xyz",
-                    GetLoginMatchType.AFFILIATED,
-                    0,
-                    /* isShared= */ false,
-                    /* senderName= */ null,
-                    null,
-                    /* sharingNotificationDisplayed= */ false,
-                    /* isBackupCredential= */ true);
+            new Credential.Builder()
+                    .setUsername("Nik")
+                    .setPassword("***")
+                    .setFormattedUsername("Nik")
+                    .setOriginUrl("group.xyz")
+                    .setDisplayName("group.xyz")
+                    .setMatchType(GetLoginMatchType.AFFILIATED)
+                    .setLastUsedMsSinceEpoch(0)
+                    .setIsBackupCredential(true)
+                    .build();
     private final AtomicBoolean mManageButtonClicked = new AtomicBoolean(false);
     private final AtomicBoolean mHybridButtonClicked = new AtomicBoolean(false);
     private final AtomicBoolean mMorePasskeysClicked = new AtomicBoolean(false);
@@ -958,6 +973,7 @@ public class TouchToFillViewTest {
 
     @Test
     @MediumTest
+    @Ignore("TODO(crbug.com/430575808): Fix screen state update with animation in test")
     public void testMorePasskeysButtonIsClickable() {
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
@@ -968,6 +984,9 @@ public class TouchToFillViewTest {
                                             buildFooterItem(/* showHybrid= */ false)));
                     mModel.set(VISIBLE, true);
                 });
+        BottomSheetTestSupport.waitForState(mBottomSheetController, SheetState.SCROLLING);
+
+        ThreadUtils.runOnUiThreadBlocking(() -> mSheetTestSupport.endAllAnimations());
         BottomSheetTestSupport.waitForOpen(mBottomSheetController);
 
         ThreadUtils.runOnUiThreadBlocking(

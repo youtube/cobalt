@@ -72,30 +72,30 @@ inline bool IsPortDigit(char16_t ch) {
 
 // Returns the offset of the next authority terminator in the input starting
 // from start_offset. If no terminator is found, the return value will be equal
-// to spec_len.
+// to `spec.length()`.
 template <typename CHAR>
-int FindNextAuthorityTerminator(const CHAR* spec,
-                                int start_offset,
-                                int spec_len,
-                                ParserMode parser_mode) {
-  for (int i = start_offset; i < spec_len; i++) {
+size_t FindNextAuthorityTerminator(std::basic_string_view<CHAR> spec,
+                                   size_t start_offset,
+                                   ParserMode parser_mode) {
+  for (size_t i = start_offset; i < spec.length(); ++i) {
     if (IsAuthorityTerminator(spec[i], parser_mode)) {
       return i;
     }
   }
-  return spec_len;  // Not found.
+  return spec.length();  // Not found.
 }
 
 template <typename CHAR>
-void ParseUserInfo(const CHAR* spec,
+void ParseUserInfo(std::basic_string_view<CHAR> spec,
                    const Component& user,
                    Component* username,
                    Component* password) {
   // Find the first colon in the user section, which separates the username and
   // password.
   int colon_offset = 0;
-  while (colon_offset < user.len && spec[user.begin + colon_offset] != ':')
-    colon_offset++;
+  while (colon_offset < user.len && spec[user.begin + colon_offset] != ':') {
+    ++colon_offset;
+  }
 
   if (colon_offset < user.len) {
     // Found separator: <username>:<password>
@@ -109,7 +109,7 @@ void ParseUserInfo(const CHAR* spec,
 }
 
 template <typename CHAR>
-void ParseServerInfo(const CHAR* spec,
+void ParseServerInfo(std::basic_string_view<CHAR> spec,
                      const Component& serverinfo,
                      Component* hostname,
                      Component* port_num) {
@@ -130,7 +130,7 @@ void ParseServerInfo(const CHAR* spec,
   int colon = -1;
 
   // Find the last right-bracket, and the last colon.
-  for (int i = serverinfo.begin; i < serverinfo.end(); i++) {
+  for (int i = serverinfo.begin; i < serverinfo.end(); ++i) {
     switch (spec[i]) {
       case ']':
         ipv6_terminator = i;
@@ -194,58 +194,36 @@ void DoParseAuthority(std::basic_string_view<CHAR> spec,
 
   if (spec[i] == '@') {
     // Found user info: <user-info>@<server-info>
-    ParseUserInfo(spec.data(), Component(auth.begin, i - auth.begin), username,
+    ParseUserInfo(spec, Component(auth.begin, i - auth.begin), username,
                   password);
-    ParseServerInfo(spec.data(), MakeRange(i + 1, auth.begin + auth.len),
-                    hostname, port_num);
+    ParseServerInfo(spec, MakeRange(i + 1, auth.begin + auth.len), hostname,
+                    port_num);
   } else {
     // No user info, everything is server info.
     username->reset();
     password->reset();
-    ParseServerInfo(spec.data(), auth, hostname, port_num);
+    ParseServerInfo(spec, auth, hostname, port_num);
   }
 }
 
+// This function returns a pair of the index of the query separator `?` and the
+// index of the reference separator `#`.  They are `npos` if they are not found
+// in the `spec`.
 template <typename CHAR>
-inline void FindQueryAndRefParts(const CHAR* spec,
-                                 const Component& path,
-                                 int* query_separator,
-                                 int* ref_separator) {
-  if constexpr (sizeof(*spec) == 1) {
-    // memchr is much faster than any scalar code we can write.
-    const CHAR* ptr = spec + path.begin;
-    const CHAR* first_hash =
-        reinterpret_cast<const CHAR*>(memchr(ptr, '#', path.len));
-    size_t len_before_fragment =
-        first_hash == nullptr ? path.len : first_hash - ptr;
-    const CHAR* first_question =
-        reinterpret_cast<const CHAR*>(memchr(ptr, '?', len_before_fragment));
-    if (first_hash != nullptr) {
-      *ref_separator = first_hash - spec;
-    }
-    if (first_question != nullptr) {
-      *query_separator = first_question - spec;
-    }
-  } else {
-    int path_end = path.begin + path.len;
-    for (int i = path.begin; i < path_end; i++) {
-      switch (spec[i]) {
-        case '?':
-          // Only match the query string if it precedes the reference fragment
-          // and when we haven't found one already.
-          if (*query_separator < 0)
-            *query_separator = i;
-          break;
-        case '#':
-          // Record the first # sign only.
-          if (*ref_separator < 0) {
-            *ref_separator = i;
-            return;
-          }
-          break;
-      }
-    }
-  }
+inline std::pair<size_t, size_t> FindQueryAndRefParts(
+    std::basic_string_view<CHAR> spec,
+    const Component& path) {
+  size_t path_begin = static_cast<size_t>(path.begin);
+  size_t path_end = path.CheckedEnd();
+  size_t ref_separator =
+      spec.substr(0, path_end).find_first_of('#', path_begin);
+  // Only match the query string if it precedes the reference fragment
+  size_t len_before_fragment =
+      ref_separator == std::basic_string_view<CHAR>::npos ? path_end
+                                                          : ref_separator;
+  size_t query_separator =
+      spec.substr(0, len_before_fragment).find_first_of('?', path_begin);
+  return {query_separator, ref_separator};
 }
 
 template <typename CHAR>
@@ -258,18 +236,19 @@ void ParsePath(std::basic_string_view<CHAR> spec,
   DCHECK(path.is_valid());
 
   // Search for first occurrence of either ? or #.
-  int query_separator = -1;  // Index of the '?'
-  int ref_separator = -1;    // Index of the '#'
-  FindQueryAndRefParts(spec.data(), path, &query_separator, &ref_separator);
+  //  query_separator: Index of the '?'
+  //  ref_separator: Index of the '#'
+  auto [query_separator, ref_separator] = FindQueryAndRefParts(spec, path);
 
   // Markers pointing to the character after each of these corresponding
   // components. The code below words from the end back to the beginning,
   // and will update these indices as it finds components that exist.
-  int file_end, query_end;
+  size_t file_end, query_end;
 
   // Ref fragment: from the # to the end of the path.
-  int path_end = path.begin + path.len;
-  if (ref_separator >= 0) {
+  size_t path_end = path.CheckedEnd();
+  constexpr size_t npos = std::basic_string_view<CHAR>::npos;
+  if (ref_separator != npos) {
     file_end = query_end = ref_separator;
     *ref = MakeRange(ref_separator + 1, path_end);
   } else {
@@ -279,15 +258,16 @@ void ParsePath(std::basic_string_view<CHAR> spec,
 
   // Query fragment: everything from the ? to the next boundary (either the end
   // of the path or the ref fragment).
-  if (query_separator >= 0) {
+  if (query_separator != npos) {
     file_end = query_separator;
     *query = MakeRange(query_separator + 1, query_end);
   } else {
     query->reset();
   }
 
-  if (file_end != path.begin) {
-    *filepath = MakeRange(path.begin, file_end);
+  size_t path_begin = static_cast<size_t>(path.begin);
+  if (file_end != path_begin) {
+    *filepath = MakeRange(path_begin, file_end);
   } else {
     // File path: treat an empty file path as no file path.
     //
@@ -342,9 +322,8 @@ template <typename CHAR>
 void DoParseAfterSpecialScheme(std::basic_string_view<CHAR> spec,
                                int after_scheme,
                                Parsed* parsed) {
-  int spec_len = base::checked_cast<int>(spec.length());
-  int num_slashes = CountConsecutiveSlashesOrBackslashes(spec, after_scheme);
-  int after_slashes = after_scheme + num_slashes;
+  size_t num_slashes = CountConsecutiveSlashesOrBackslashes(spec, after_scheme);
+  size_t after_slashes = after_scheme + num_slashes;
 
   // First split into two main parts, the authority (username, password, host,
   // and port) and the full path (path, query, and reference).
@@ -352,12 +331,12 @@ void DoParseAfterSpecialScheme(std::basic_string_view<CHAR> spec,
   // Treat everything from `after_slashes` to the next slash (or end of spec) to
   // be the authority. Note that we ignore the number of slashes and treat it as
   // the authority.
-  int end_auth = FindNextAuthorityTerminator(spec.data(), after_slashes,
-                                             spec_len, ParserMode::kSpecialURL);
+  size_t end_auth =
+      FindNextAuthorityTerminator(spec, after_slashes, ParserMode::kSpecialURL);
 
-  Component authority(after_slashes, end_auth - after_slashes);
+  Component authority = MakeRange(after_slashes, end_auth);
   // Everything starting from the slash to the end is the path.
-  Component full_path(end_auth, spec_len - end_auth);
+  Component full_path = MakeRange(end_auth, spec.length());
 
   // Now parse those two sub-parts.
   DoParseAuthority(spec, authority, ParserMode::kSpecialURL, &parsed->username,
@@ -398,7 +377,7 @@ void DoParseAfterNonSpecialScheme(std::basic_string_view<CHAR> spec,
 
   size_t num_slashes = CountConsecutiveSlashes(spec, after_scheme);
 
-  int spec_len = base::checked_cast<int>(spec.length());
+  size_t spec_len = spec.length();
   if (num_slashes >= 2) {
     // Found "//<some data>", looks like an authority section.
     //
@@ -414,7 +393,7 @@ void DoParseAfterNonSpecialScheme(std::basic_string_view<CHAR> spec,
     //
     parsed->has_opaque_path = false;
 
-    int after_slashes = after_scheme + 2;
+    size_t after_slashes = after_scheme + 2;
 
     // First split into two main parts, the authority (username, password, host,
     // and port) and the full path (path, query, and reference).
@@ -422,9 +401,9 @@ void DoParseAfterNonSpecialScheme(std::basic_string_view<CHAR> spec,
     // Treat everything from there to the next slash (or end of spec) to be the
     // authority. Note that we ignore the number of slashes and treat it as the
     // authority.
-    int end_auth = FindNextAuthorityTerminator(
-        spec.data(), after_slashes, spec_len, ParserMode::kNonSpecialURL);
-    Component authority(after_slashes, end_auth - after_slashes);
+    size_t end_auth = FindNextAuthorityTerminator(spec, after_slashes,
+                                                  ParserMode::kNonSpecialURL);
+    Component authority = MakeRange(after_slashes, end_auth);
 
     // Now parse those two sub-parts.
     DoParseAuthority(spec, authority, ParserMode::kNonSpecialURL,
@@ -432,7 +411,7 @@ void DoParseAfterNonSpecialScheme(std::basic_string_view<CHAR> spec,
                      &parsed->port);
 
     // Everything starting from the slash to the end is the path.
-    Component full_path(end_auth, spec_len - end_auth);
+    Component full_path = MakeRange(end_auth, spec_len);
     ParsePath(spec, full_path, &parsed->path, &parsed->query, &parsed->ref);
     return;
   }
@@ -724,12 +703,12 @@ int DoParsePort(std::basic_string_view<CHAR> spec, const Component& component) {
       // Invalid port digit, fail.
       return PORT_INVALID;
     }
-    digits[i] = static_cast<char>(ch);
+    UNSAFE_TODO(digits[i]) = static_cast<char>(ch);
   }
 
   // Null-terminate the string and convert to integer. Since we guarantee
   // only digits, atoi's lack of error handling is OK.
-  digits[digits_comp.len] = 0;
+  UNSAFE_TODO(digits[digits_comp.len]) = 0;
   int port = atoi(digits);
   if (port > 65535)
     return PORT_INVALID;  // Out of range.

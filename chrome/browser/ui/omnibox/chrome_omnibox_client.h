@@ -64,6 +64,8 @@ class ChromeOmniboxClient final : public OmniboxClient {
   GURL GetNavigationEntryURL() const override;
   metrics::OmniboxEventProto::PageClassification GetPageClassification(
       bool is_prefetch) const override;
+  metrics::OmniboxEventProto::PageClassification
+  GetOmniboxComposeboxPageClassification() const override;
   security_state::SecurityLevel GetSecurityLevel() const override;
   net::CertStatus GetCertStatus() const override;
   const gfx::VectorIcon& GetVectorIcon() const override;
@@ -123,6 +125,7 @@ class ChromeOmniboxClient final : public OmniboxClient {
   void OpenUrl(GURL gurl) override;
   void OpenIphLink(GURL gurl) override;
   bool IsHistoryEmbeddingsEnabled() const override;
+  bool IsAimPopupEnabled() const override;
   std::optional<lens::proto::LensOverlaySuggestInputs>
   GetLensOverlaySuggestInputs() const override;
   void MaybePrewarmForDefaultSearchEngine() override;

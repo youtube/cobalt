@@ -4,7 +4,8 @@
 		{
 			"name": "@chromium-project",
 			"deps": [
-				"@chromium-luci"
+				"@chromium-luci",
+				"@chromium-targets"
 			],
 			"lucicfg": "1.44.1",
 			"resources": [
@@ -31,10 +32,20 @@
 			"name": "@chromium-luci",
 			"source": {
 				"repo": "https://chromium.googlesource.com/infra/chromium/+/refs/heads/main",
-				"revision": "133d552b8613e9a56025efdf91348ea2e2f8dcac",
+				"revision": "2bb983a2ea4435c7a7c11a5e96664dc3090fad77",
 				"path": "starlark-libs/chromium-luci"
 			},
-			"lucicfg": "1.45.0"
+			"lucicfg": "1.46.1"
+		},
+		{
+			"name": "@chromium-targets",
+			"source": {
+				"path": "./targets"
+			},
+			"deps": [
+				"@chromium-luci"
+			],
+			"lucicfg": "1.46.1"
 		}
 	]
 }

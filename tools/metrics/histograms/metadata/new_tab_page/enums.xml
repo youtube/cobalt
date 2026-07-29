@@ -42,13 +42,6 @@ chromium-metrics-reviews@google.com.
 
 <!-- LINT.ThenChange(//chrome/browser/ui/webui/new_tab_page/action_chips/action_chips.mojom:ChipType) -->
 
-<enum name="ComposeboxFileValidationError">
-  <int value="0" label="No error"/>
-  <int value="1" label="Too many files uploaded"/>
-  <int value="2" label="File is empty"/>
-  <int value="3" label="File size is too large"/>
-</enum>
-
 <enum name="FailToShowHomeSurfaceReason">
   <int value="0" label="Fail to create a NTP Tab"/>
   <int value="1" label="Fail to find a NTP Tab"/>
@@ -218,6 +211,28 @@ chromium-metrics-reviews@google.com.
   <int value="1" label="CTA image shown"/>
 </enum>
 
+<!-- LINT.IfChange(NewTabPageLogoShowniOSGoogleDSEEnum) -->
+
+<enum name="NewTabPageLogoShowniOSGoogleDSEEnum">
+  <int value="0" label="Embedded logo shown"/>
+  <int value="1" label="Downloaded logo shown"/>
+  <int value="2" label="Static image doodle shown"/>
+  <int value="3" label="CTA doodle shown"/>
+</enum>
+
+<!-- LINT.ThenChange(//ios/chrome/browser/ntp/search_engine_logo/mediator/search_engine_logo_mediator.mm:NewTabPageLogoShowniOSGoogleDSEEnum) -->
+
+<!-- LINT.IfChange(NewTabPageLogoShowniOSThirdPartyDSEEnum) -->
+
+<enum name="NewTabPageLogoShowniOSThirdPartyDSEEnum">
+  <int value="0" label="No logo shown"/>
+  <int value="1" label="Downloaded logo shown"/>
+  <int value="2" label="Static image doodle shown"/>
+  <int value="3" label="CTA doodle shown"/>
+</enum>
+
+<!-- LINT.ThenChange(//ios/chrome/browser/ntp/search_engine_logo/mediator/search_engine_logo_mediator.mm:NewTabPageLogoShowniOSThirdPartyDSEEnum) -->
+
 <enum name="NewTabPageVoiceAction">
   <int value="0" label="Activated by clicking on the fakebox icon"/>
   <int value="1" label="Activated by keyboard shortcut"/>
@@ -344,10 +359,11 @@ chromium-metrics-reviews@google.com.
   <int value="2" label="Discover Feed Bottom Sheet"/>
   <int value="3" label="New Tab Page Appearance Bottom Sheet"/>
   <int value="4" label="Most Visited Tiles Bottom Sheet"/>
-  <int value="5" label="New Tab Page Theme Collections Bottom Sheet"/>
-  <int value="6" label="New Tab Page Single Theme Collection Bottom Sheet"/>
-  <int value="7" label="New Tab Page Chrome Colors Bottom Sheet"/>
-  <int value="8" label="New Tab Page Upload Image Photo Picker"/>
+  <int value="5" label="Theme Collections"/>
+  <int value="6" label="Single Theme Collection"/>
+  <int value="7" label="Chrome Colors"/>
+  <int value="8" label="Upload Image Photo Picker"/>
+  <int value="9" label="Chrome Default"/>
 </enum>
 
 <enum name="NtpCustomizationEntryPoint">
@@ -528,6 +544,19 @@ chromium-metrics-reviews@google.com.
 <enum name="NtpTabResumeResultStatus">
   <int value="0" label="Error"/>
   <int value="1" label="Success"/>
+</enum>
+
+<enum name="NtpThemeColorId">
+  <int value="0" label="Default"/>
+  <int value="1" label="NTP Colors Blue"/>
+  <int value="2" label="NTP Colors Aqua"/>
+  <int value="3" label="NTP Colors Green"/>
+  <int value="4" label="NTP Colors Viridian"/>
+  <int value="5" label="NTP Colors Citron"/>
+  <int value="6" label="NTP Colors Orange"/>
+  <int value="7" label="NTP Colors Rose"/>
+  <int value="8" label="NTP Colors Fuchsia"/>
+  <int value="9" label="NTP Colors Violet"/>
 </enum>
 
 <enum name="NTPTileTitleSource">

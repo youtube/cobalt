@@ -4,6 +4,7 @@
 
 #include "third_party/blink/renderer/platform/graphics/static_bitmap_image_transform.h"
 
+#include "base/functional/callback_helpers.h"
 #include "base/test/null_task_runner.h"
 #include "base/test/task_environment.h"
 #include "components/viz/test/test_context_provider.h"
@@ -58,15 +59,13 @@ TEST_F(StaticBitmapImageTransformTest, ConvertColorSpace) {
 
   // A no-op color space conversion should not create a copy.
   auto image_srgb = StaticBitmapImageTransform::ConvertToColorSpace(
-      FlushReason::kOther, image,
-      gfx::ColorSpace::CreateSRGB().ToSkColorSpace());
+      image, gfx::ColorSpace::CreateSRGB().ToSkColorSpace());
   EXPECT_EQ(image_srgb, image);
 
   // A non-no-op color space conversion should create a copy, and the copy
   // should have been done by the GPU.
   auto image_p3 = StaticBitmapImageTransform::ConvertToColorSpace(
-      FlushReason::kOther, image,
-      gfx::ColorSpace::CreateDisplayP3D65().ToSkColorSpace());
+      image, gfx::ColorSpace::CreateDisplayP3D65().ToSkColorSpace());
   EXPECT_NE(image_p3, image);
   EXPECT_TRUE(image_p3->IsTextureBacked());
 }

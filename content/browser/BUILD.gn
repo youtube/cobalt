@@ -828,8 +828,6 @@ source_set("browser") {
     "content_index/content_index_database.h",
     "content_index/content_index_service_impl.cc",
     "content_index/content_index_service_impl.h",
-    "cookie_deprecation_label/cookie_deprecation_label_manager_impl.cc",
-    "cookie_deprecation_label/cookie_deprecation_label_manager_impl.h",
     "cookie_insight_list/cookie_insight_list.cc",
     "cookie_insight_list/cookie_insight_list.h",
     "cookie_insight_list/cookie_insight_list_handler_impl.cc",
@@ -1568,6 +1566,10 @@ source_set("browser") {
     "permissions/permission_service_context.h",
     "permissions/permission_service_impl.cc",
     "permissions/permission_service_impl.h",
+    "picture_in_picture/document_picture_in_picture_navigation_throttle.cc",
+    "picture_in_picture/document_picture_in_picture_navigation_throttle.h",
+    "picture_in_picture/document_picture_in_picture_window_controller_impl.cc",
+    "picture_in_picture/document_picture_in_picture_window_controller_impl.h",
     "picture_in_picture/picture_in_picture_service_impl.cc",
     "picture_in_picture/picture_in_picture_service_impl.h",
     "picture_in_picture/picture_in_picture_session.cc",
@@ -1959,6 +1961,8 @@ source_set("browser") {
     "renderer_host/navigator.cc",
     "renderer_host/navigator.h",
     "renderer_host/navigator_delegate.h",
+    "renderer_host/network_restrictions_commit_deferring_condition.cc",
+    "renderer_host/network_restrictions_commit_deferring_condition.h",
     "renderer_host/origin_trial_state_host_impl.cc",
     "renderer_host/origin_trial_state_host_impl.h",
     "renderer_host/overscroll_configuration.cc",
@@ -2058,8 +2062,6 @@ source_set("browser") {
     "renderer_host/view_transition_opt_in_state.h",
     "renderer_host/visible_time_request_trigger.cc",
     "renderer_host/visible_time_request_trigger.h",
-    "resource_context_impl.cc",
-    "resource_context_impl.h",
     "resource_coordinator_service.cc",
     "scheduler/browser_io_thread_delegate.cc",
     "scheduler/browser_io_thread_delegate.h",
@@ -2149,8 +2151,6 @@ source_set("browser") {
     "service_worker/service_worker_fetch_dispatcher.h",
     "service_worker/service_worker_host.cc",
     "service_worker/service_worker_host.h",
-    "service_worker/service_worker_identifiability_metrics.cc",
-    "service_worker/service_worker_identifiability_metrics.h",
     "service_worker/service_worker_info.cc",
     "service_worker/service_worker_info.h",
     "service_worker/service_worker_installed_script_loader.cc",
@@ -2644,10 +2644,11 @@ source_set("browser") {
   }
 
   if (is_win) {
-    deps += [
-      "//components/services/font_data:lib",
-      "//components/stylus_handwriting/win",
-    ]
+    deps += [ "//components/stylus_handwriting/win" ]
+  }
+
+  if (is_win || is_linux) {
+    deps += [ "//components/services/font_data:lib" ]
   }
 
   if (allow_oop_video_decoder) {
@@ -2871,7 +2872,6 @@ source_set("browser") {
       "speech/tts_mac.mm",
       "theme_helper_mac.h",
       "theme_helper_mac.mm",
-      "web_contents/web_contents_impl_mac.mm",
       "web_contents/web_contents_view_mac.h",
       "web_contents/web_contents_view_mac.mm",
       "web_contents/web_drag_dest_mac.h",
@@ -2916,7 +2916,6 @@ source_set("browser") {
       "renderer_host/web_menu_runner_ios.h",
       "renderer_host/web_menu_runner_ios.mm",
       "speech/tts_ios.mm",
-      "web_contents/web_contents_impl_ios.mm",
       "web_contents/web_contents_view_ios.h",
       "web_contents/web_contents_view_ios.mm",
     ]
@@ -3505,12 +3504,6 @@ source_set("browser") {
       "webauth/virtual_discovery.h",
       "webauth/virtual_fido_discovery_factory.cc",
       "webauth/virtual_fido_discovery_factory.h",
-
-      # The Document Picture-in-Picture API is not implemented on Android.
-      "picture_in_picture/document_picture_in_picture_navigation_throttle.cc",
-      "picture_in_picture/document_picture_in_picture_navigation_throttle.h",
-      "picture_in_picture/document_picture_in_picture_window_controller_impl.cc",
-      "picture_in_picture/document_picture_in_picture_window_controller_impl.h",
 
       # Cross-device digital credentials flows are handled by Play Services on
       # Android, not the browser.

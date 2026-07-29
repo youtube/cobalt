@@ -71,7 +71,6 @@
 #include "storage/browser/quota/quota_manager_proxy.h"
 #include "storage/browser/quota/special_storage_policy.h"
 #include "third_party/blink/public/common/features.h"
-#include "third_party/blink/public/common/privacy_budget/identifiability_study_settings.h"
 #include "third_party/blink/public/common/service_worker/embedded_worker_status.h"
 #include "third_party/blink/public/common/service_worker/service_worker_scope_match.h"
 #include "third_party/blink/public/common/service_worker/service_worker_status_code.h"
@@ -102,9 +101,6 @@ GetRunningInfoVersionStatusForStatus(
       return ServiceWorkerRunningInfo::ServiceWorkerVersionStatus::kRedundant;
   }
 }
-
-const base::FeatureParam<int> kUpdateDelayParam{
-    &blink::features::kServiceWorkerUpdateDelay, "update_delay_in_ms", 1000};
 
 void DidFindRegistrationForStartActiveWorker(
     ServiceWorkerContextWrapper::StatusCallback callback,
@@ -257,11 +253,6 @@ void ServiceWorkerContext::RunTask(
       base::BindOnce(&RunOnceClosure, std::move(ref), std::move(task)));
 }
 
-// static
-base::TimeDelta ServiceWorkerContext::GetUpdateDelay() {
-  return base::Milliseconds(kUpdateDelayParam.Get());
-}
-
 ServiceWorkerContextWrapper::ServiceWorkerContextWrapper(
     BrowserContext* browser_context)
     : core_observer_list_(
@@ -275,12 +266,6 @@ ServiceWorkerContextWrapper::ServiceWorkerContextWrapper(
   // Add this object as an observer of the wrapped |context_core_|. This lets us
   // forward observer methods to observers outside of content.
   core_observer_list_->AddObserver(this);
-
-  if (blink::IdentifiabilityStudySettings::Get()->IsActive()) {
-    identifiability_metrics_ =
-        std::make_unique<ServiceWorkerIdentifiabilityMetrics>();
-    core_observer_list_->AddObserver(identifiability_metrics_.get());
-  }
 }
 
 void ServiceWorkerContextWrapper::Init(
@@ -1527,8 +1512,6 @@ ServiceWorkerContextWrapper::~ServiceWorkerContextWrapper() {
   // tests where this object is not guaranteed to outlive the
   // ServiceWorkerContextCore it wraps.
   core_observer_list_->RemoveObserver(this);
-  if (identifiability_metrics_)
-    core_observer_list_->RemoveObserver(identifiability_metrics_.get());
 }
 
 void ServiceWorkerContextWrapper::FindRegistrationForScopeImpl(
@@ -1927,28 +1910,18 @@ ServiceWorkerContextWrapper::GetLoaderFactoryForBrowserInitiatedRequest(
         /*cookie_overrides=*/std::nullopt);
   } else {
     DCHECK(storage_partition());
-    if (base::FeatureList::IsEnabled(
-            features::kPrivateNetworkAccessForWorkers)) {
-      if (url_loader_factory::GetTestingInterceptor()) {
-        url_loader_factory::GetTestingInterceptor().Run(
-            network::mojom::kBrowserProcessId, factory_builder);
-      }
-
-      network::mojom::URLLoaderFactoryParamsPtr params =
-          storage_partition_->CreateURLLoaderFactoryParams();
-      params->client_security_state = std::move(client_security_state);
-      remote =
-          std::move(factory_builder)
-              .Finish<mojo::PendingRemote<network::mojom::URLLoaderFactory>>(
-                  storage_partition_->GetNetworkContext(), std::move(params));
-    } else {
-      // Set up a Mojo connection to the network loader factory if it's not been
-      // created yet.
-      remote =
-          std::move(factory_builder)
-              .Finish<mojo::PendingRemote<network::mojom::URLLoaderFactory>>(
-                  storage_partition_->GetURLLoaderFactoryForBrowserProcess());
+    if (url_loader_factory::GetTestingInterceptor()) {
+      url_loader_factory::GetTestingInterceptor().Run(
+          network::mojom::kBrowserProcessId, factory_builder);
     }
+
+    network::mojom::URLLoaderFactoryParamsPtr params =
+        storage_partition_->CreateURLLoaderFactoryParams();
+    params->client_security_state = std::move(client_security_state);
+    remote =
+        std::move(factory_builder)
+            .Finish<mojo::PendingRemote<network::mojom::URLLoaderFactory>>(
+                storage_partition_->GetNetworkContext(), std::move(params));
   }
 
   // Clone context()->loader_factory_bundle_for_update_check() and set up the

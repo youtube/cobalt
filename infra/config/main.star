@@ -166,6 +166,7 @@ chromium_luci.configure_project(
     platforms = settings.platforms,
     experiments = [
         "targets.module_name_without_slash",
+        "targets.module_scheme_generator",
         "targets.module_scheme_junit_tests",
         "targets.module_scheme_regex",
         "targets.module_scheme_script_tests",
@@ -240,6 +241,11 @@ luci.realm(
             roles = "role/resultdb.invocationCreator",
             groups = "project-chromium-tryjob-access",
         ),
+        # Allow everyone to view Turbo CI workflows
+        luci.binding(
+            roles = "role/turboci.graph.reader",
+            groups = "all",
+        ),
         # Other roles are inherited from @root which grants them to group:all.
     ],
 )
@@ -272,6 +278,11 @@ luci.realm(
                 "chromium-led-users",
                 "project-chromium-tryjob-access",
             ],
+        ),
+        # Allow everyone to view Turbo CI workflows
+        luci.binding(
+            roles = "role/turboci.graph.reader",
+            groups = "all",
         ),
     ],
 )
@@ -357,15 +368,8 @@ exec("//swarming.star")
 
 exec("//recipes.star")
 exec("//gn_args/gn_args.star")
-exec("//targets/basic_suites.star")
-exec("//targets/binaries.star")
-exec("//targets/bundles.star")
-exec("//targets/compile_targets.star")
-exec("//targets/compound_suites.star")
-exec("//targets/matrix_compound_suites.star")
-exec("//targets/mixins.star")
-exec("//targets/tests.star")
-exec("//targets/variants.star")
+
+exec("@chromium-targets//declarations.star")
 
 exec("//notifiers.star")
 

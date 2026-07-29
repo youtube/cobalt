@@ -9,7 +9,6 @@
 #include <unordered_set>
 
 #include "base/functional/bind.h"
-#include "base/functional/callback_forward.h"
 #include "base/functional/callback_helpers.h"
 #include "base/metrics/user_metrics.h"
 #include "base/strings/utf_string_conversions.h"
@@ -784,6 +783,7 @@ tabs::TabInterface* SavedTabGroupUtils::GetGroupedTab(LocalTabGroupID group_id,
 
 void SavedTabGroupUtils::PerformTabGroupMenuAction(
     const TabGroupMenuAction& action,
+    const TabGroupMenuContext& context,
     Browser* browser,
     TabGroupSyncService* tab_group_service) {
   auto type = action.type;
@@ -797,7 +797,12 @@ void SavedTabGroupUtils::PerformTabGroupMenuAction(
   switch (type) {
     case TabGroupMenuAction::Type::OPEN_IN_BROWSER: {
       base::RecordAction(base::UserMetricsAction(
-          "TabGroups_SavedTabGroups_OpenedFromTabGroupsAppMenu"));
+          "TabGroups_SavedTabGroups_TabGroupSubmenu_Opened"));
+
+      if (context == TabGroupMenuContext::APP_MENU) {
+        base::RecordAction(base::UserMetricsAction(
+            "TabGroups_SavedTabGroups_OpenedFromTabGroupsAppMenu"));
+      }
 
       bool will_open_shared_group = false;
       if (std::optional<tab_groups::SavedTabGroup> saved_group =

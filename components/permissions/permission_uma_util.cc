@@ -309,6 +309,15 @@ enum class UkmPromptOptions {
   PRECISE_LOCATION = 2,
 };
 
+UkmPromptOptions ToUkmPromptOptions(GeolocationAccuracy accuracy) {
+  switch (accuracy) {
+    case GeolocationAccuracy::kPrecise:
+      return UkmPromptOptions::PRECISE_LOCATION;
+    case GeolocationAccuracy::kApproximate:
+      return UkmPromptOptions::APPROXIMATE_LOCATION;
+  }
+}
+
 void RecordPermissionActionUkm(
     PermissionAction action,
     PermissionRequestGestureType gesture_type,
@@ -1167,9 +1176,7 @@ void PermissionUmaUtil::PermissionPromptResolved(
       base::UmaHistogramEnumeration(
           base::StrCat(
               {"Permissions.Prompt.Geolocation.", action_string, ".Accuracy"}),
-          geolocation_options->selected_precise
-              ? GeolocationAccuracy::kPrecise
-              : GeolocationAccuracy::kApproximate);
+          geolocation_options->selected_accuracy);
     }
   }
 
@@ -1517,9 +1524,8 @@ void PermissionUmaUtil::RecordPermissionAction(
   if (permission == ContentSettingsType::GEOLOCATION_WITH_OPTIONS) {
     if (const auto* geolocation_options =
             std::get_if<GeolocationPromptOptions>(&prompt_options)) {
-      ukm_prompt_options = geolocation_options->selected_precise
-                               ? UkmPromptOptions::PRECISE_LOCATION
-                               : UkmPromptOptions::APPROXIMATE_LOCATION;
+      ukm_prompt_options =
+          ToUkmPromptOptions(geolocation_options->selected_accuracy);
     }
   }
 
@@ -1898,6 +1904,8 @@ std::string PermissionUmaUtil::GetPromptDispositionString(
       return "NotApplicable";
     case PermissionPromptDisposition::MAC_OS_PROMPT:
       return "MacOsPrompt";
+    case PermissionPromptDisposition::MESSAGE_UI_LOUD:
+      return "MessageUILoud";
   }
 
   NOTREACHED();
@@ -1947,6 +1955,7 @@ bool PermissionUmaUtil::IsPromptDispositionQuiet(
     case PermissionPromptDisposition::CUSTOM_MODAL_DIALOG:
     case PermissionPromptDisposition::NOT_APPLICABLE:
     case PermissionPromptDisposition::MAC_OS_PROMPT:
+    case PermissionPromptDisposition::MESSAGE_UI_LOUD:
       return false;
   }
 }
@@ -1961,6 +1970,7 @@ bool PermissionUmaUtil::IsPromptDispositionLoud(
     case PermissionPromptDisposition::MODAL_DIALOG:
     case PermissionPromptDisposition::MAC_OS_PROMPT:
     case PermissionPromptDisposition::LOCATION_BAR_LEFT_CHIP_AUTO_BUBBLE:
+    case PermissionPromptDisposition::MESSAGE_UI_LOUD:
       return true;
     case PermissionPromptDisposition::LOCATION_BAR_RIGHT_STATIC_ICON:
     case PermissionPromptDisposition::LOCATION_BAR_RIGHT_ANIMATED_ICON:

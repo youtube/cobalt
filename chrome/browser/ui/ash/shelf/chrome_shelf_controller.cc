@@ -77,12 +77,7 @@
 #include "chrome/browser/ui/ash/shelf/shelf_spinner_controller.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_finder.h"
-#include "chrome/browser/ui/browser_window.h"
-#include "chrome/browser/ui/browser_window/public/browser_window_features.h"
-#include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
 #include "chrome/browser/ui/chrome_pages.h"
-#include "chrome/browser/ui/tabs/tab_enums.h"
-#include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/webui/ash/settings/app_management/app_management_uma.h"
 #include "chrome/browser/web_applications/web_app_helpers.h"
 #include "chrome/common/extensions/manifest_handlers/app_launch_info.h"
@@ -117,6 +112,7 @@
 #include "extensions/common/manifest_handlers/app_display_info.h"
 #include "ui/aura/client/aura_constants.h"
 #include "ui/aura/window.h"
+#include "ui/base/base_window.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/resource/resource_bundle.h"
 #include "ui/base/ui_base_features.h"
@@ -352,17 +348,16 @@ void ChromeShelfController::Init() {
 
   // Tag all open browser windows with the appropriate shelf id property. This
   // associates each window with the shelf item for the active web contents.
-  ForEachCurrentBrowserWindowInterfaceOrderedByActivation(
-      [&](BrowserWindowInterface* browser) {
-        if (IsBrowserRepresentedInBrowserList(browser, model_)) {
+  ash::BrowserController::GetInstance()->ForEachBrowser(
+      ash::BrowserController::BrowserOrder::kAscendingActivationTime,
+      [&](ash::BrowserDelegate& browser) {
+        if (IsBrowserRepresentedInBrowserList(&browser, model_)) {
           if (content::WebContents* const active_web_contents =
-                  browser->GetTabStripModel()->GetActiveWebContents()) {
-            SetShelfIDForBrowserWindowContents(
-                ash::BrowserController::GetInstance()->GetDelegate(browser),
-                active_web_contents);
+                  browser.GetActiveWebContents()) {
+            SetShelfIDForBrowserWindowContents(&browser, active_web_contents);
           }
         }
-        return true;
+        return ash::BrowserController::kContinueIteration;
       });
 
   UpdatePinnedAppsFromSync();
@@ -556,27 +551,24 @@ void ChromeShelfController::UpdateAppState(content::WebContents* contents,
 
 void ChromeShelfController::UpdateV1AppState(const std::string& app_id) {
   TRACE_EVENT0("ui", "ChromeShelfController::UpdateV1AppState");
-  ForEachCurrentBrowserWindowInterfaceOrderedByActivation(
-      [&](BrowserWindowInterface* browser) {
-        if (browser->GetType() != BrowserWindowInterface::TYPE_NORMAL ||
-            !multi_user_util::IsProfileFromActiveUser(browser->GetProfile())) {
-          return true;
+  ash::BrowserController::GetInstance()->ForEachBrowser(
+      ash::BrowserController::BrowserOrder::kAscendingActivationTime,
+      [&](ash::BrowserDelegate& browser) {
+        if (browser.GetType() != ash::BrowserType::kNormal ||
+            browser.GetAccountId() != GetActiveAccountId()) {
+          return ash::BrowserController::kContinueIteration;
         }
-        TabStripModel* const tab_strip_model = browser->GetTabStripModel();
-        for (int i = 0; i < tab_strip_model->count(); ++i) {
-          content::WebContents* const web_contents =
-              tab_strip_model->GetWebContentsAt(i);
+        for (size_t index = 0; index < browser.GetWebContentsCount(); index++) {
+          content::WebContents* web_contents = browser.GetWebContentsAt(index);
           if (shelf_controller_helper_->GetAppID(web_contents) != app_id) {
             continue;
           }
           UpdateAppState(web_contents, false /*remove*/);
-          if (tab_strip_model->GetActiveWebContents() == web_contents) {
-            SetShelfIDForBrowserWindowContents(
-                ash::BrowserController::GetInstance()->GetDelegate(browser),
-                web_contents);
+          if (browser.GetActiveWebContents() == web_contents) {
+            SetShelfIDForBrowserWindowContents(&browser, web_contents);
           }
         }
-        return true;
+        return ash::BrowserController::kContinueIteration;
       });
 }
 
@@ -723,13 +715,14 @@ ChromeShelfController::GetBrowserShortcutShelfItemControllerForTesting() {
 
 void ChromeShelfController::UpdateBrowserItemState() {
   ash::ShelfItemStatus browser_status = ash::STATUS_CLOSED;
-  ForEachCurrentBrowserWindowInterfaceOrderedByActivation(
-      [&](BrowserWindowInterface* browser) {
-        if (IsBrowserRepresentedInBrowserList(browser, model_)) {
+  ash::BrowserController::GetInstance()->ForEachBrowser(
+      ash::BrowserController::BrowserOrder::kAscendingActivationTime,
+      [&](ash::BrowserDelegate& browser) {
+        if (IsBrowserRepresentedInBrowserList(&browser, model_)) {
           browser_status = ash::STATUS_RUNNING;
-          return false;
+          return ash::BrowserController::kBreakIteration;
         }
-        return true;
+        return ash::BrowserController::kContinueIteration;
       });
 
   if (browser_status == ash::STATUS_CLOSED) {
@@ -1551,7 +1544,8 @@ ash::ShelfItemStatus ChromeShelfController::GetAppState(
     const std::string& app_id) {
   for (auto [web_contents, to_app_id] : web_contents_to_app_id_) {
     if (app_id == to_app_id) {
-      Browser* browser = chrome::FindBrowserWithTab(web_contents);
+      ash::BrowserDelegate* browser =
+          ash::BrowserController::GetInstance()->GetBrowserForTab(web_contents);
       // Usually there should never be an item in our |web_contents_to_app_id_|
       // list which got deleted already. However - in some situations e.g.
       // Browser::SwapTabContent there is temporarily no associated browser.
@@ -1621,27 +1615,25 @@ void ChromeShelfController::CreateBrowserShortcutItem(bool pinned) {
 void ChromeShelfController::CloseWindowedAppsFromRemovedExtension(
     const std::string& app_id,
     const Profile* profile) {
+  CHECK(!app_id.empty());
   // This function cannot rely on the controller's enumeration functionality
   // since the extension has already been unloaded.
-  std::vector<BrowserWindowInterface*> browser_to_close;
-  ForEachCurrentBrowserWindowInterfaceOrderedByActivation(
-      [&](BrowserWindowInterface* browser) {
-        if ((browser->GetType() == BrowserWindowInterface::TYPE_APP ||
-             browser->GetType() == BrowserWindowInterface::TYPE_APP_POPUP) &&
-            app_id == web_app::GetAppIdFromApplicationName(
-                          browser->GetBrowserForMigrationOnly()->app_name()) &&
-            profile == browser->GetProfile()) {
-          browser_to_close.push_back(browser);
+  std::vector<ash::BrowserDelegate*> browsers_to_close;
+  ash::BrowserController::GetInstance()->ForEachBrowser(
+      ash::BrowserController::BrowserOrder::kAscendingActivationTime,
+      [&](ash::BrowserDelegate& browser) {
+        if (IsAppBrowser(browser) && browser.GetAppId() == app_id &&
+            profile == browser.GetBrowser().GetProfile()) {
+          browsers_to_close.push_back(&browser);
         }
-        return true;  // continue iterating
+        return ash::BrowserController::kContinueIteration;
       });
-  while (!browser_to_close.empty()) {
-    TabStripModel* tab_strip =
-        browser_to_close.back()->GetFeatures().tab_strip_model();
-    if (!tab_strip->empty()) {
-      tab_strip->CloseWebContentsAt(0, TabCloseTypes::CLOSE_NONE);
+  while (!browsers_to_close.empty()) {
+    ash::BrowserDelegate* browser = browsers_to_close.back();
+    if (browser->GetWebContentsCount()) {
+      browser->CloseWebContentsAt(0, ash::BrowserDelegate::UserGesture::kNo);
     }
-    browser_to_close.pop_back();
+    browsers_to_close.pop_back();
   }
 }
 

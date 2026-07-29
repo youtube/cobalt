@@ -26,6 +26,7 @@
 #include "chrome/browser/web_applications/web_app_helpers.h"
 #include "chromeos/ash/components/browser_context_helper/browser_context_helper.h"
 #include "components/account_id/account_id.h"
+#include "components/tabs/public/tab_interface.h"
 #include "ui/aura/window.h"
 
 namespace {
@@ -131,9 +132,19 @@ void BrowserControllerImpl::ForEachBrowser(
 
 BrowserDelegate* BrowserControllerImpl::GetBrowserForWindow(
     aura::Window* window) {
-  BrowserView* browser_view =
-      BrowserView::GetBrowserViewForNativeWindow(window);
-  return GetDelegate(browser_view ? browser_view->browser() : nullptr);
+  // TODO(crbug.com/369688254): We'd like to use
+  // BrowserView::GetBrowserViewForNativeWindow followed by BrowserView::browser
+  // here but this can CHECK-fail during shutdown. Find a solution.
+  return GetDelegate(chrome::FindBrowserWithWindow(window));
+}
+
+BrowserDelegate* BrowserControllerImpl::GetBrowserForTab(
+    content::WebContents* contents) {
+  // TODO(crbug.com/369688254): We'd like to use
+  // tabs::TabInterface::MaybeGetFromContents followed by
+  // tabs::TabInterface::GetBrowserWindowInterface here but this can CHECK-fail
+  // during shutdown. Find a solution.
+  return GetDelegate(chrome::FindBrowserWithTab(contents));
 }
 
 BrowserDelegate* BrowserControllerImpl::FindWebApp(const AccountId& account_id,
@@ -264,6 +275,13 @@ void BrowserControllerImpl::OnBrowserAdded(Browser* browser) {
   ash::BrowserDelegate* browser_delegate = GetDelegate(browser);
   for (auto& observer : observers_) {
     observer.OnBrowserCreated(browser_delegate);
+  }
+}
+
+void BrowserControllerImpl::OnBrowserSetLastActive(Browser* browser) {
+  ash::BrowserDelegate* browser_delegate = GetDelegate(browser);
+  for (auto& observer : observers_) {
+    observer.OnBrowserActivated(browser_delegate);
   }
 }
 

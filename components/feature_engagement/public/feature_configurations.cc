@@ -55,7 +55,8 @@ std::optional<FeatureConfig> CreateNewUserGestureInProductHelpConfig(
     const char* action_event,
     const char* trigger_event,
     const char* used_event,
-    const char* dismiss_button_tap_event) {
+    const char* dismiss_button_tap_event,
+    std::optional<uint32_t> first_run_recency_in_days = std::nullopt) {
   // Maximum storage days for iOS gesture IPHs in days. Note that they only
   // triggered for users who installed Chrome on iOS in the last specific number
   // of days, so this could be used as the maximum storage period of respective
@@ -89,6 +90,13 @@ std::optional<FeatureConfig> CreateNewUserGestureInProductHelpConfig(
   config.event_configs.insert(EventConfig(dismiss_button_tap_event,
                                           Comparator(EQUAL, 0), kMaxStorageDays,
                                           kMaxStorageDays));
+  if (first_run_recency_in_days.has_value()) {
+    config.event_configs.insert(
+        EventConfig(feature_engagement::events::kIOSFirstRunComplete,
+                    Comparator(GREATER_THAN_OR_EQUAL, 1),
+                    first_run_recency_in_days.value(), 360));
+  }
+
   return config;
 }
 #endif
@@ -2674,7 +2682,8 @@ std::optional<FeatureConfig> GetClientSideFeatureConfig(
         /*trigger_event=*/"swipe_back_forward_trigger", /*used_event=*/
         feature_engagement::events::kIOSSwipeBackForwardUsed,
         /*dismiss_button_tap_event=*/
-        feature_engagement::events::kIOSSwipeBackForwardIPHDismissButtonTapped);
+        feature_engagement::events::kIOSSwipeBackForwardIPHDismissButtonTapped,
+        /*first_run_recency_in_days=*/60);
   }
 
   if (kIPHiOSSwipeToolbarToChangeTabFeature.name == feature->name) {
@@ -2686,7 +2695,8 @@ std::optional<FeatureConfig> GetClientSideFeatureConfig(
         feature_engagement::events::kIOSSwipeToolbarToChangeTabUsed,
         /*dismiss_button_tap_event=*/
         feature_engagement::events::
-            kIOSSwipeToolbarToChangeTabIPHDismissButtonTapped);
+            kIOSSwipeToolbarToChangeTabIPHDismissButtonTapped,
+        /*first_run_recency_in_days=*/60);
   }
 
   if (kIPHiOSOverflowMenuCustomizationFeature.name == feature->name) {
@@ -2927,6 +2937,37 @@ std::optional<FeatureConfig> GetClientSideFeatureConfig(
                     Comparator(LESS_THAN_OR_EQUAL, 3), /*window=*/1,
                     feature_engagement::kMaxStoragePeriod);
 
+    return config;
+  }
+
+  if (kIPHiOSGeminiFullscreenPromoFeature.name == feature->name) {
+    FeatureConfig config;
+    config.valid = true;
+    // This feature is part of the standard iOS fullscreen promo group.
+    config.groups.push_back(kiOSFullscreenPromosGroup.name);
+    // Show promo only to users that are not recent.
+    config.event_configs.insert(EventConfig(
+        events::kIOSFirstRunComplete, Comparator(GREATER_THAN_OR_EQUAL, 1),
+        feature_engagement::kMaxStoragePeriod,
+        feature_engagement::kMaxStoragePeriod));
+    config.event_configs.insert(
+        EventConfig(events::kIOSFirstRunComplete, Comparator(EQUAL, 0), 1,
+                    feature_engagement::kMaxStoragePeriod));
+    // Show promo only if user has never started the Gemini flow before.
+    config.used =
+        EventConfig(events::kIOSGeminiFlowStartedNonPromo, Comparator(EQUAL, 0),
+                    feature_engagement::kMaxStoragePeriod,
+                    feature_engagement::kMaxStoragePeriod);
+    // The promo should only be shown once.
+    config.trigger =
+        EventConfig(events::kIOSGeminiFullscreenPromoTriggered,
+                    Comparator(EQUAL, 0), feature_engagement::kMaxStoragePeriod,
+                    feature_engagement::kMaxStoragePeriod);
+    // Show promo only if user never give consent.
+    config.event_configs.insert(
+        EventConfig(events::kIOSGeminiConsentGiven, Comparator(EQUAL, 0),
+                    feature_engagement::kMaxStoragePeriod,
+                    feature_engagement::kMaxStoragePeriod));
     return config;
   }
 

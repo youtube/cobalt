@@ -43,11 +43,10 @@ import org.robolectric.annotation.Config;
 
 import org.chromium.base.Callback;
 import org.chromium.base.test.BaseRobolectricTestRunner;
+import org.chromium.base.test.util.HistogramWatcher;
 import org.chromium.chrome.browser.ntp_customization.BottomSheetDelegate;
 import org.chromium.chrome.browser.ntp_customization.NtpCustomizationCoordinator.BottomSheetType;
 import org.chromium.chrome.browser.ntp_customization.R;
-import org.chromium.chrome.browser.ntp_customization.theme.NtpThemeBridge;
-import org.chromium.chrome.browser.ntp_customization.theme.NtpThemeBridge.ThemeCollectionSelectionListener;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
 import org.chromium.url.GURL;
@@ -63,6 +62,7 @@ public class NtpThemeCollectionsCoordinatorUnitTest {
 
     private static final String TEST_COLLECTION_ID = "Test Collection Id";
     private static final String TEST_COLLECTION_TITLE = "Test Collection";
+    private static final int TEST_COLLECTION_HASH = 123; // Mock hash value for testing
 
     @Rule public MockitoRule mMockitoRule = MockitoJUnit.rule();
 
@@ -70,10 +70,10 @@ public class NtpThemeCollectionsCoordinatorUnitTest {
     @Mock private BottomSheetDelegate mBottomSheetDelegate;
     @Mock private BottomSheetController mBottomSheetController;
     @Mock private NtpSingleThemeCollectionCoordinator mNtpSingleThemeCollectionCoordinator;
-    @Mock private NtpThemeBridge mNtpThemeBridge;
+    @Mock private NtpThemeCollectionManager mNtpThemeCollectionManager;
+    @Mock private Runnable mOnDailyUpdateCancelledCallback;
     @Captor private ArgumentCaptor<Callback<List<BackgroundCollection>>> mCallbackCaptor;
     @Captor private ArgumentCaptor<ComponentCallbacks> mComponentCallbacksCaptor;
-    @Captor private ArgumentCaptor<ThemeCollectionSelectionListener> mListenerCaptor;
 
     private NtpThemeCollectionsCoordinator mCoordinator;
     private Context mContext;
@@ -92,7 +92,11 @@ public class NtpThemeCollectionsCoordinatorUnitTest {
 
         mCoordinator =
                 new NtpThemeCollectionsCoordinator(
-                        mContextSpy, mBottomSheetDelegate, mProfile, mNtpThemeBridge);
+                        mContextSpy,
+                        mBottomSheetDelegate,
+                        mProfile,
+                        mNtpThemeCollectionManager,
+                        mOnDailyUpdateCancelledCallback);
 
         ArgumentCaptor<View> viewCaptor = ArgumentCaptor.forClass(View.class);
         verify(mBottomSheetDelegate)
@@ -103,7 +107,7 @@ public class NtpThemeCollectionsCoordinatorUnitTest {
     @Test
     public void testConstructor() {
         assertNotNull(mBottomSheetView);
-        verify(mNtpThemeBridge).getBackgroundCollections(mCallbackCaptor.capture());
+        verify(mNtpThemeCollectionManager).getBackgroundCollections(mCallbackCaptor.capture());
 
         RecyclerView recyclerView =
                 mBottomSheetView.findViewById(R.id.theme_collections_recycler_view);
@@ -175,18 +179,22 @@ public class NtpThemeCollectionsCoordinatorUnitTest {
         assertFalse(learnMoreButton.hasOnClickListeners());
         verify(adapterSpy).clearOnClickListeners();
         verify(mNtpSingleThemeCollectionCoordinator).destroy();
-        verify(mNtpThemeBridge).removeListener(any(ThemeCollectionSelectionListener.class));
         verify(mContextSpy).unregisterComponentCallbacks(eq(componentCallbacks));
     }
 
     @Test
     public void testHandleThemeCollectionClick() {
+        String histogramName = "NewTabPage.Customization.Theme.ThemeCollection.CollectionShow";
+
         // Populate mThemeCollectionsList in the coordinator.
-        verify(mNtpThemeBridge).getBackgroundCollections(mCallbackCaptor.capture());
+        verify(mNtpThemeCollectionManager).getBackgroundCollections(mCallbackCaptor.capture());
         List<BackgroundCollection> collections = new ArrayList<>();
         collections.add(
                 new BackgroundCollection(
-                        TEST_COLLECTION_ID, TEST_COLLECTION_TITLE, JUnitTestGURLs.EXAMPLE_URL));
+                        TEST_COLLECTION_ID,
+                        TEST_COLLECTION_TITLE,
+                        JUnitTestGURLs.EXAMPLE_URL,
+                        TEST_COLLECTION_HASH));
         mCallbackCaptor.getValue().onResult(collections);
         verify(mBottomSheetController).expandSheet();
 
@@ -206,46 +214,28 @@ public class NtpThemeCollectionsCoordinatorUnitTest {
         assertNull(mCoordinator.getNtpSingleThemeCollectionCoordinatorForTesting());
         when(mBottomSheetController.getSheetState())
                 .thenReturn(BottomSheetController.SheetState.FULL);
+        HistogramWatcher histogramWatcher =
+                HistogramWatcher.newSingleRecordWatcher(histogramName, TEST_COLLECTION_HASH);
         themeCollectionView.performClick();
         assertNotNull(mCoordinator.getNtpSingleThemeCollectionCoordinatorForTesting());
         verify(mBottomSheetDelegate).showBottomSheet(eq(BottomSheetType.SINGLE_THEME_COLLECTION));
+        histogramWatcher.assertExpected();
 
         // On second click, the existing single theme coordinator is updated and the sheet is shown.
         mCoordinator.setNtpSingleThemeCollectionCoordinatorForTesting(
                 mNtpSingleThemeCollectionCoordinator);
+        histogramWatcher =
+                HistogramWatcher.newSingleRecordWatcher(histogramName, TEST_COLLECTION_HASH);
         themeCollectionView.performClick();
         verify(mNtpSingleThemeCollectionCoordinator)
                 .updateThemeCollection(
                         eq(TEST_COLLECTION_ID),
                         eq(TEST_COLLECTION_TITLE),
+                        eq(TEST_COLLECTION_HASH),
                         eq(BottomSheetController.SheetState.FULL));
         verify(mBottomSheetDelegate, times(2))
                 .showBottomSheet(eq(BottomSheetType.SINGLE_THEME_COLLECTION));
-    }
-
-    @Test
-    public void testOnThemeSelectionChanged() {
-        RecyclerView recyclerView =
-                mBottomSheetView.findViewById(R.id.theme_collections_recycler_view);
-        NtpThemeCollectionsAdapter adapter = (NtpThemeCollectionsAdapter) recyclerView.getAdapter();
-        NtpThemeCollectionsAdapter adapterSpy = spy(adapter);
-        mCoordinator.setNtpThemeCollectionsAdapterForTesting(adapterSpy);
-
-        verify(mNtpThemeBridge).addListener(mListenerCaptor.capture());
-        ThemeCollectionSelectionListener listener = mListenerCaptor.getValue();
-
-        String collectionId = "test_id";
-        GURL imageUrl = JUnitTestGURLs.URL_2;
-        listener.onThemeCollectionSelectionChanged(collectionId, imageUrl);
-
-        verify(adapterSpy).setSelection(eq(collectionId), eq(imageUrl));
-    }
-
-    @Test
-    public void testClearThemeSelection() {
-        mCoordinator.clearThemeCollectionSelection();
-
-        verify(mNtpThemeBridge).setSelectedTheme(eq(null), eq(null));
+        histogramWatcher.assertExpected();
     }
 
     @Test
@@ -284,5 +274,30 @@ public class NtpThemeCollectionsCoordinatorUnitTest {
                 "Screen width should be updated to the new value.",
                 500,
                 mCoordinator.getScreenWidthForTesting());
+    }
+
+    @Test
+    public void testInitializeBottomSheetContent() {
+        RecyclerView recyclerView =
+                mBottomSheetView.findViewById(R.id.theme_collections_recycler_view);
+        NtpThemeCollectionsAdapter adapter = (NtpThemeCollectionsAdapter) recyclerView.getAdapter();
+        NtpThemeCollectionsAdapter adapterSpy = spy(adapter);
+        mCoordinator.setNtpThemeCollectionsAdapterForTesting(adapterSpy);
+        mCoordinator.setNtpSingleThemeCollectionCoordinatorForTesting(
+                mNtpSingleThemeCollectionCoordinator);
+
+        // Mock manager return values
+        String collectionId = "test_id";
+        GURL imageUrl = JUnitTestGURLs.URL_2;
+        when(mNtpThemeCollectionManager.getSelectedThemeCollectionId()).thenReturn(collectionId);
+        when(mNtpThemeCollectionManager.getSelectedThemeCollectionImageUrl()).thenReturn(imageUrl);
+
+        // Test for THEME_COLLECTIONS
+        mCoordinator.initializeBottomSheetContent(BottomSheetType.THEME_COLLECTIONS);
+        verify(adapterSpy).setSelection(eq(collectionId), eq(imageUrl));
+
+        // Test for SINGLE_THEME_COLLECTION
+        mCoordinator.initializeBottomSheetContent(BottomSheetType.SINGLE_THEME_COLLECTION);
+        verify(mNtpSingleThemeCollectionCoordinator).initializeBottomSheetContent();
     }
 }

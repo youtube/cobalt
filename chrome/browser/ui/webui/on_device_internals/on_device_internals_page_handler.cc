@@ -20,6 +20,7 @@
 #include "components/optimization_guide/core/model_execution/model_execution_manager.h"
 #include "components/optimization_guide/core/model_execution/model_execution_prefs.h"
 #include "components/optimization_guide/core/model_execution/model_execution_util.h"
+#include "components/optimization_guide/core/model_execution/on_device_features.h"
 #include "components/optimization_guide/core/model_execution/on_device_model_adaptation_loader.h"
 #include "components/optimization_guide/core/model_execution/on_device_model_component.h"
 #include "components/optimization_guide/core/model_execution/on_device_model_service_controller.h"
@@ -325,8 +326,7 @@ void PageHandler::OnLogMessageAdded(
     int source_line,
     const std::string& message) {
   if (log_source ==
-          optimization_guide_common::mojom::LogSource::MODEL_EXECUTION ||
-      log_source == optimization_guide_common::mojom::LogSource::BUILT_IN_AI) {
+      optimization_guide_common::mojom::LogSource::MODEL_EXECUTION) {
     page_->OnLogMessageAdded(event_time, source_file, source_line, message);
   }
 }
@@ -364,11 +364,7 @@ void PageHandler::GetPageData(PageHandler::GetPageDataCallback callback) {
       optimization_guide::features::GetOnDeviceModelCrashCountBeforeDisable();
 
   // Get data on feature adaptations.
-  for (const auto feature : optimization_guide::kAllModelBasedCapabilityKeys) {
-    if (!optimization_guide::features::internal::
-            GetOptimizationTargetForCapability(feature)) {
-      continue;
-    }
+  for (const auto feature : optimization_guide::OnDeviceFeatureSet::All()) {
     auto feature_adaptation_info = mojom::FeatureAdaptationInfo::New();
     feature_adaptation_info->feature_name = base::ToString(feature);
     feature_adaptation_info->feature_key = static_cast<int32_t>(feature);

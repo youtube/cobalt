@@ -25,9 +25,6 @@
 #include "chrome/browser/extensions/extension_util.h"
 #include "chrome/browser/extensions/install_verifier_factory.h"
 #include "chrome/browser/extensions/manifest_v2_experiment_manager.h"
-#include "chrome/browser/extensions/permissions/permissions_updater.h"
-#include "chrome/browser/extensions/permissions/scripting_permissions_modifier.h"
-#include "chrome/browser/extensions/permissions/site_permissions_helper.h"
 #include "chrome/browser/extensions/sync/account_extension_tracker.h"
 #include "chrome/browser/extensions/sync/extension_sync_util.h"
 #include "chrome/browser/extensions/unpacked_installer.h"
@@ -54,6 +51,9 @@
 #include "extensions/browser/install_verifier.h"
 #include "extensions/browser/management_policy.h"
 #include "extensions/browser/path_util.h"
+#include "extensions/browser/permissions/permissions_updater.h"
+#include "extensions/browser/permissions/scripting_permissions_modifier.h"
+#include "extensions/browser/permissions/site_permissions_helper.h"
 #include "extensions/browser/permissions_manager.h"
 #include "extensions/browser/ui_util.h"
 #include "extensions/browser/user_script_manager.h"
@@ -296,7 +296,7 @@ bool MatchesExtension(ui::FileInfo& file_info,
 namespace api {
 
 void DeveloperPrivateAPIFunction::GetManifestError(
-    const std::string& error,
+    const std::u16string& error,
     const base::FilePath& extension_path,
     GetManifestErrorCallback callback) {
   size_t line = 0u;
@@ -309,7 +309,7 @@ void DeveloperPrivateAPIFunction::GetManifestError(
   // it's ready).
   //
   // This regex call can fail, but if it does, we just don't highlight anything.
-  re2::RE2::FullMatch(error, regex, &line, &column);
+  re2::RE2::FullMatch(base::UTF16ToUTF8(error), regex, &line, &column);
 
   // This will read the manifest and call AddFailure with the read manifest
   // contents.
@@ -322,7 +322,7 @@ void DeveloperPrivateAPIFunction::GetManifestError(
 
 developer::LoadError DeveloperPrivateAPIFunction::CreateLoadError(
     const base::FilePath& file_path,
-    const std::string& error,
+    const std::u16string& error,
     size_t line_number,
     const std::string& manifest,
     const DeveloperPrivateAPI::UnpackedRetryId& retry_guid) {
@@ -330,7 +330,7 @@ developer::LoadError DeveloperPrivateAPIFunction::CreateLoadError(
 
   SourceHighlighter highlighter(manifest, line_number);
   developer::LoadError response;
-  response.error = error;
+  response.error = base::UTF16ToUTF8(error);
   response.path = base::UTF16ToUTF8(prettified_path.LossyDisplayName());
   response.retry_guid = retry_guid;
 
@@ -699,7 +699,7 @@ void DeveloperPrivateReloadFunction::OnShutdown(ExtensionRegistry* registry) {
 void DeveloperPrivateReloadFunction::OnLoadFailure(
     content::BrowserContext* browser_context,
     const base::FilePath& file_path,
-    const std::string& error) {
+    const std::u16string& error) {
   if (file_path == reloading_extension_path_) {
     // Reload failed - create an error to pass back to the extension.
     GetManifestError(
@@ -712,7 +712,7 @@ void DeveloperPrivateReloadFunction::OnLoadFailure(
 
 void DeveloperPrivateReloadFunction::OnGotManifestError(
     const base::FilePath& file_path,
-    const std::string& error,
+    const std::u16string& error,
     size_t line_number,
     const std::string& manifest) {
   DeveloperPrivateAPI::UnpackedRetryId retry_guid =
@@ -862,17 +862,6 @@ void DeveloperPrivateLoadUnpackedFunction::FileSelectionCanceled() {
 
 void DeveloperPrivateLoadUnpackedFunction::StartFileLoad(
     base::FilePath file_path) {
-#if BUILDFLAG(IS_ANDROID)
-  // TODO(b/433416481): Make SelectFileDialog return a virtual document path and
-  // remove this code.
-  std::optional<base::FilePath> vp =
-      base::ResolveToVirtualDocumentPath(file_path);
-  if (!vp) {
-    OnLoadComplete(nullptr, file_path, "Failed to resolve (removed?)");
-    return;
-  }
-  file_path = *vp;
-#endif  // BUILDFLAG(IS_ANDROID)
   scoped_refptr<UnpackedInstaller> installer(
       UnpackedInstaller::Create(browser_context()));
   installer->set_be_noisy_on_failure(!fail_quietly_);
@@ -887,14 +876,14 @@ void DeveloperPrivateLoadUnpackedFunction::StartFileLoad(
 void DeveloperPrivateLoadUnpackedFunction::OnLoadComplete(
     const Extension* extension,
     const base::FilePath& file_path,
-    const std::string& error) {
+    const std::u16string& error) {
   if (extension) {
     Finish(NoArguments());
     return;
   }
 
   if (!populate_error_) {
-    Finish(Error(error));
+    Finish(Error(base::UTF16ToUTF8(error)));
     return;
   }
 
@@ -906,7 +895,7 @@ void DeveloperPrivateLoadUnpackedFunction::OnLoadComplete(
 
 void DeveloperPrivateLoadUnpackedFunction::OnGotManifestError(
     const base::FilePath& file_path,
-    const std::string& error,
+    const std::u16string& error,
     size_t line_number,
     const std::string& manifest) {
   DCHECK(!retry_guid_.empty());
@@ -1722,19 +1711,6 @@ ExtensionFunction::ResponseAction DeveloperPrivatePackDirectoryFunction::Run() {
   base::FilePath key_file = base::FilePath::FromUTF8Unsafe(key_path_str_);
 
   developer::PackDirectoryResponse response;
-
-#if BUILDFLAG(IS_ANDROID)
-  // TODO(b/433416481): Make SelectFileDialog return a virtual document path and
-  // remove this code.
-  std::optional<base::FilePath> virtual_path =
-      base::ResolveToVirtualDocumentPath(root_directory);
-  if (!virtual_path) {
-    response.message = "Failed to resolve (removed?)";
-    response.status = developer::PackStatus::kError;
-    return RespondNow(WithArguments(response.ToValue()));
-  }
-  root_directory = *virtual_path;
-#endif  // BUILDFLAG(IS_ANDROID)
 
   if (root_directory.empty()) {
     if (item_path_str_.empty()) {

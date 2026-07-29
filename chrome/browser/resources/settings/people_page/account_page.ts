@@ -8,12 +8,17 @@
  * manage features related to the user's primary account, such as sync
  * controls and advanced sync settings.
  */
+import 'chrome://resources/cr_elements/cr_collapse/cr_collapse.js';
+import 'chrome://resources/cr_elements/cr_expand_button/cr_expand_button.js';
+import 'chrome://resources/cr_elements/cr_icon/cr_icon.js';
+import 'chrome://resources/cr_elements/cr_link_row/cr_link_row.js';
 import './sync_account_control.js';
+import './sync_controls.js';
 import './sync_encryption_options.js';
 import '../settings_page/settings_subpage.js';
 
 import type {SyncBrowserProxy, SyncPrefs, SyncStatus} from '/shared/settings/people_page/sync_browser_proxy.js';
-import {SignedInState, SyncBrowserProxyImpl} from '/shared/settings/people_page/sync_browser_proxy.js';
+import {ChromeSigninAccessPoint, SignedInState, SyncBrowserProxyImpl} from '/shared/settings/people_page/sync_browser_proxy.js';
 import {I18nMixin} from 'chrome://resources/cr_elements/i18n_mixin.js';
 import {WebUiListenerMixin} from 'chrome://resources/cr_elements/web_ui_listener_mixin.js';
 import {assert} from 'chrome://resources/js/assert.js';
@@ -79,6 +84,11 @@ export class SettingsAccountPageElement extends SettingsAccountPageElementBase {
         value: false,
       },
 
+      // Exposes ChromeSigninAccessPoint enum to HTML bindings.
+      accessPointEnum_: {
+        type: Object,
+        value: ChromeSigninAccessPoint,
+      },
     };
   }
 

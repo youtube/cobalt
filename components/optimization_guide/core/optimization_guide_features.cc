@@ -101,11 +101,6 @@ BASE_FEATURE(kOptimizationGuideOnDeviceModel,
              base::FEATURE_DISABLED_BY_DEFAULT);
 #endif
 
-// Whether to allow on device model evaluation for Compose. This has no effect
-// if OptimizationGuideOnDeviceModel is off.
-BASE_FEATURE(kOptimizationGuideComposeOnDeviceEval,
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 // Whether the on device service is launched after a delay on startup to log
 // metrics.
 BASE_FEATURE(kLogOnDeviceMetricsOnStartup, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -494,7 +489,7 @@ bool IsFreeDiskSpaceTooLowForOnDeviceModelInstall(
   return base::MiB(base::GetFieldTrialParamByFeatureAsInt(
              kOptimizationGuideOnDeviceModel,
              "on_device_model_free_space_mb_required_to_retain",
-             base::GiB(10).InMiB())) >= free_disk_space_bytes;
+             base::GiB(5).InMiB())) >= free_disk_space_bytes;
 }
 
 bool GetOnDeviceModelRetractUnsafeContent() {

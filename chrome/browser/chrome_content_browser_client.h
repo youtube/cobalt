@@ -296,7 +296,7 @@ class ChromeContentBrowserClient : public content::ContentBrowserClient {
       content::BrowserContext* browser_context,
       const GURL& url) override;
 #if !BUILDFLAG(IS_ANDROID)
-  bool IsInitialWebUIScheme(const GURL& url) override;
+  bool IsInitialWebUIURL(const GURL& url) override;
 #endif  // !BUILDFLAG(IS_ANDROID)
   bool IsIsolatedContextAllowedForUrl(content::BrowserContext* browser_context,
                                       const GURL& lock_url) override;
@@ -1108,8 +1108,6 @@ class ChromeContentBrowserClient : public content::ContentBrowserClient {
   void PreferenceRankVideoDeviceInfos(
       content::BrowserContext* browser_context,
       blink::WebMediaDeviceInfoArray& infos) override;
-  network::mojom::IpProtectionProxyBypassPolicy
-  GetIpProtectionProxyBypassPolicy() override;
   void MaybePrewarmHttpDiskCache(
       content::BrowserContext& browser_context,
       const std::optional<url::Origin>& initiator_origin,
@@ -1214,6 +1212,9 @@ class ChromeContentBrowserClient : public content::ContentBrowserClient {
 
   void RecordAssistedLogin(
       content::ContentBrowserClient::AssistedLoginType login_type) override;
+
+  std::optional<bool> GetOverrideValueForStaticStorageQuota(
+      content::BrowserContext* browser_context) override;
 
  protected:
   static bool HandleWebUI(GURL* url, content::BrowserContext* browser_context);

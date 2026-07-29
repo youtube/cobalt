@@ -1,5 +1,5 @@
 {% from 'templates/macros.tmpl' import license, print_if, source_files_for_generated_file %}
-{% from 'templates/fields/field.tmpl' import encode, getter_expression, setter_expression, declare_storage, fieldwise_compare, fieldwise_diff, fieldwise_pointer_compare_inherited, field_group_access_bit_name %}
+{% from 'templates/fields/field.tmpl' import encode, getter_expression, setter_expression, declare_storage, fieldwise_compare, fieldwise_diff, field_group_access_bit_name %}
 {% from 'templates/fields/group.tmpl' import declare_field_group_class %}
 {{license()}}
 
@@ -171,9 +171,25 @@ class ComputedStyleBase : public GarbageCollected<ComputedStyleBase> {
     );
   }
 
-  inline bool InheritedDataShared(const ComputedStyleBase& o) const {
+  inline bool NonHighlightOriginatingElementDataEqual(const ComputedStyleBase& o) const {
     return (
-        {{fieldwise_pointer_compare_inherited(computed_style)|indent(8)}}
+        {{fieldwise_compare(computed_style, computed_style.all_fields
+            |selectattr("is_property")
+            |rejectattr("highlight_style_comes_from_originating_element")
+            |list
+          )|indent(8)}}
+    );
+  }
+
+  // Equivalent to InheritedEqual() && InheritedVariablesEqual(),
+  // but in one call and a bit faster.
+  inline bool InheritedEqualIncludingInheritedVariables(const ComputedStyleBase& o) const {
+    return (
+        {{fieldwise_compare(computed_style, computed_style.all_fields
+            |selectattr("is_property")
+            |selectattr("is_inherited")
+            |list
+          )|indent(8)}}
     );
   }
 
@@ -236,6 +252,19 @@ class ComputedStyleBase : public GarbageCollected<ComputedStyleBase> {
   {{declare_field_group_class(subgroup)|indent(2)}}
 
   {% endfor %}
+
+ public:
+  inline unsigned HashInheritedBitFields() const {
+    // TODO(sesse): It is possible that rapidhash is overkill for hashing
+    // what amounts to ~40 bits of data.
+    Data inherited_data;
+    memset(&inherited_data, 0, sizeof(inherited_data));
+    {% for field in computed_style.fields|rejectattr('requires_tracing')|selectattr('is_inherited') %}
+      inherited_data.{{field.name}} = data_.{{field.name}};
+    {% endfor %}
+    return rapidhash(reinterpret_cast<uint8_t*>(&inherited_data),
+                     sizeof(inherited_data));
+  }
 
  protected:
   // Constructor and destructor are protected so that only the parent class ComputedStyle

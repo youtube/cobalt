@@ -22,9 +22,7 @@
 #include "chrome/browser/extensions/extension_view.h"
 #include "chrome/browser/extensions/extension_view_host.h"
 #include "chrome/browser/extensions/extension_view_host_factory.h"
-#include "chrome/browser/extensions/permissions/site_permissions_helper.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/extensions/extension_action_platform_delegate.h"
 #include "chrome/browser/ui/extensions/extension_popup_types.h"
@@ -37,6 +35,7 @@
 #include "extensions/browser/extension_action.h"
 #include "extensions/browser/extension_action_manager.h"
 #include "extensions/browser/extension_registry.h"
+#include "extensions/browser/permissions/site_permissions_helper.h"
 #include "extensions/common/api/extension_action/action_info.h"
 #include "extensions/common/extension.h"
 #include "extensions/common/extension_features.h"
@@ -202,15 +201,9 @@ std::string ExtensionActionViewModel::GetId() const {
   return extension_id_;
 }
 
-void ExtensionActionViewModel::SetUpdateObserver(
+base::CallbackListSubscription ExtensionActionViewModel::RegisterUpdateObserver(
     base::RepeatingClosure observer) {
-  DCHECK(observer.is_null() ^ observer_.is_null());
-  if (observer) {
-    observer_ = std::move(observer);
-  } else {
-    HidePopup();
-    observer_.Reset();
-  }
+  return observers_.Add(observer);
 }
 
 ui::ImageModel ExtensionActionViewModel::GetIcon(
@@ -252,7 +245,7 @@ std::u16string ExtensionActionViewModel::GetAccessibleName(
   // GetAccessibleName() can (surprisingly) be called during browser
   // teardown. Handle this gracefully.
   if (!web_contents) {
-    return base::UTF8ToUTF16(extension()->name());
+    return base::UTF8ToUTF16(extension_->name());
   }
 
   std::u16string action_title = GetActionTitle(web_contents);
@@ -354,7 +347,7 @@ bool ExtensionActionViewModel::IsEnabled(
   extensions::SidePanelService* side_panel_service =
       extensions::SidePanelService::Get(profile_);
   if (side_panel_service &&
-      side_panel_service->HasSidePanelActionForTab(*extension(), tab_id)) {
+      side_panel_service->HasSidePanelActionForTab(*extension_, tab_id)) {
     return true;
   }
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS)}
@@ -384,7 +377,7 @@ ui::MenuModel* ExtensionActionViewModel::GetContextMenu(
 
   // Reconstruct the menu every time because the menu's contents are dynamic.
   context_menu_model_ = std::make_unique<extensions::ExtensionContextMenuModel>(
-      extension(), browser_, is_pinned, this,
+      extension_.get(), browser_, is_pinned, this,
       ToolbarActionsModel::CanShowActionsInToolbar(*browser_),
       context_menu_source);
   return context_menu_model_.get();
@@ -415,7 +408,7 @@ void ExtensionActionViewModel::ExecuteUserAction(InvocationSource source) {
   // always grant tab permissions.
   constexpr bool kGrantTabPermissions = true;
   extensions::ExtensionAction::ShowAction action =
-      action_runner->RunAction(extension(), kGrantTabPermissions);
+      action_runner->RunAction(extension_.get(), kGrantTabPermissions);
 
   if (action == extensions::ExtensionAction::ShowAction::kShowPopup) {
     constexpr bool kByUser = true;
@@ -424,7 +417,7 @@ void ExtensionActionViewModel::ExecuteUserAction(InvocationSource source) {
              extensions::ExtensionAction::ShowAction::kToggleSidePanel) {
 #if BUILDFLAG(ENABLE_EXTENSIONS)
     extensions::side_panel_util::ToggleExtensionSidePanel(browser_,
-                                                          extension()->id());
+                                                          extension_->id());
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS)
   }
 }
@@ -451,12 +444,12 @@ void ExtensionActionViewModel::UnregisterCommand() {
 
 void ExtensionActionViewModel::DidFinishNavigation(
     content::NavigationHandle* handle) {
-  NotifyObserver();
+  NotifyObservers();
 }
 
 void ExtensionActionViewModel::OnActiveTabChanged(tabs::TabInterface* tab) {
   WebContentsObserver::Observe(GetCurrentWebContents());
-  NotifyObserver();
+  NotifyObservers();
 }
 
 void ExtensionActionViewModel::OnToolbarActionAdded(
@@ -467,10 +460,10 @@ void ExtensionActionViewModel::OnToolbarActionRemoved(
 
 void ExtensionActionViewModel::OnToolbarActionUpdated(
     const ToolbarActionsModel::ActionId& action_id) {
-  if (action_id != extension()->id()) {
+  if (action_id != extension_->id()) {
     return;
   }
-  NotifyObserver();
+  NotifyObservers();
 }
 
 void ExtensionActionViewModel::OnToolbarModelInitialized() {}
@@ -480,7 +473,7 @@ void ExtensionActionViewModel::OnToolbarPinnedActionsChanged() {}
 void ExtensionActionViewModel::OnExtensionCommandAdded(
     const std::string& extension_id,
     const std::string& command_name) {
-  if (extension_id != extension()->id()) {
+  if (extension_id != extension_->id()) {
     return;  // Not this action's extension.
   }
 
@@ -494,7 +487,7 @@ void ExtensionActionViewModel::OnExtensionCommandAdded(
 void ExtensionActionViewModel::OnExtensionCommandRemoved(
     const std::string& extension_id,
     const std::string& command_name) {
-  if (extension_id != extension()->id()) {
+  if (extension_id != extension_->id()) {
     return;
   }
 
@@ -530,22 +523,22 @@ content::WebContents* ExtensionActionViewModel::GetCurrentWebContents() const {
   return tab->GetContents();
 }
 
-void ExtensionActionViewModel::NotifyObserver() {
-  if (!observer_ || !TabListInterface::From(browser_)->GetActiveTab()) {
+void ExtensionActionViewModel::NotifyObservers() {
+  if (!TabListInterface::From(browser_)->GetActiveTab()) {
     return;
   }
-  observer_.Run();
+  observers_.Notify();
 }
 
 void ExtensionActionViewModel::OnIconUpdated() {
-  NotifyObserver();
+  NotifyObservers();
 }
 
 extensions::SitePermissionsHelper::SiteInteraction
 ExtensionActionViewModel::GetSiteInteraction(
     content::WebContents* web_contents) const {
   return extensions::SitePermissionsHelper(profile_).GetSiteInteraction(
-      *extension(), web_contents);
+      *extension_, web_contents);
 }
 
 bool ExtensionActionViewModel::ExtensionIsValid() const {
@@ -638,8 +631,8 @@ void ExtensionActionViewModel::TriggerPopup(PopupShowAction show_action,
   const GURL popup_url = extension_action_->GetPopupUrl(tab_id);
 
   std::unique_ptr<extensions::ExtensionViewHost> host =
-      extensions::ExtensionViewHostFactory::CreatePopupHost(
-          popup_url, browser_->GetBrowserForMigrationOnly());
+      extensions::ExtensionViewHostFactory::CreatePopupHost(popup_url,
+                                                            browser_);
   // Creating a host should never fail in this case, since the extension is
   // valid and has a valid popup URL.
   CHECK(host);
@@ -687,7 +680,7 @@ ExtensionActionViewModel::GetIconImageSource(content::WebContents* web_contents,
       extensions::SidePanelService::Get(profile_);
   bool has_side_panel_action =
       side_panel_service &&
-      side_panel_service->HasSidePanelActionForTab(*extension(), tab_id);
+      side_panel_service->HasSidePanelActionForTab(*extension_, tab_id);
 #else   // BUILDFLAG(ENABLE_EXTENSIONS)
   bool has_side_panel_action = false;
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS)
@@ -703,7 +696,7 @@ ExtensionActionViewModel::GetIconImageSource(content::WebContents* web_contents,
   }
 
   bool was_blocked = extensions::SitePermissionsHelper(profile_).HasBeenBlocked(
-      *extension(), web_contents);
+      *extension_, web_contents);
   image_source->set_paint_blocked_actions_decoration(was_blocked);
 
   return image_source;

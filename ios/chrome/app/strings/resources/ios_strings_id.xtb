@@ -1,6 +1,7 @@
 <?xml version="1.0" ?>
 <!DOCTYPE translationbundle>
 <translationbundle lang="id">
+<translation id="1004825134262590729">{count,plural, =1{{count} kunci sandi}other{{count} kunci sandi}}</translation>
 <translation id="1005023885865154304">Buka setelan Isi Otomatis Sandi</translation>
 <translation id="1005230401424685968">TTTT</translation>
 <translation id="1013952917065545813">Anda dapat kembali ke sini untuk membuka kembali tab yang baru saja Anda tutup</translation>
@@ -41,6 +42,7 @@
 <translation id="1122068467107743258">Kantor</translation>
 <translation id="1126696498560056882">Kelola akun di perangkat ini</translation>
 <translation id="1126809382673880764">Tidak melindungi Anda terhadap situs, download, dan ekstensi berbahaya. Anda akan tetap mendapatkan perlindungan Safe Browsing, jika tersedia, di layanan Google lainnya, seperti Gmail dan Penelusuran.</translation>
+<translation id="1133418583142946603">Tambahkan tab saat ini</translation>
 <translation id="1136104150802877429">Menampilkan ulasan produk</translation>
 <translation id="1142371195993008685">Nonaktifkan notifikasi untuk <ph name="FEATURE_NAME" /></translation>
 <translation id="1147031633655575115">Login sebagai <ph name="USER" /></translation>
@@ -77,6 +79,7 @@
 <translation id="1285320974508926690">Jangan pernah terjemahkan situs ini</translation>
 <translation id="1287229685519872919">data Google Workspace</translation>
 <translation id="1291506870746876680">Izin <ph name="BEGIN_BOLD" />"<ph name="SITE_NAME" />"<ph name="END_BOLD" /> akan direset ke nonaktif saat Anda menutup situs ini.</translation>
+<translation id="1293556467332435079">File</translation>
 <translation id="129553762522093515">Baru saja ditutup</translation>
 <translation id="1296581780163690620">Download file? (<ph name="FILE_SIZE" />)</translation>
 <translation id="1305822519689023679">Untuk memastikan Anda selalu dapat menggunakan sandi yang tersimpan di Akun Google Anda, verifikasi diri Anda.</translation>
@@ -172,6 +175,7 @@
 <translation id="1622717322707146952">Pilih “Tambahkan ke Google Kalender“ atau “Tambahkan ke Apple Calendar“.</translation>
 <translation id="1629162218487290695">Verifikasi diri Anda…</translation>
 <translation id="1636234353664774105">Dapatkan rute ke tujuan dengan panduan belokan demi belokan menggunakan fitur navigasi</translation>
+<translation id="1637811476055996098">Pilih File</translation>
 <translation id="1641113438599504367">Safe Browsing</translation>
 <translation id="1644574205037202324">Histori</translation>
 <translation id="164673457281113247">{count,plural, =1{Bookmark disimpan}other{Bookmark disimpan}}</translation>
@@ -339,6 +343,7 @@
 <translation id="2245007488813216650">Menerjemahkan…</translation>
 <translation id="2249119578464404734">Di bagian atas layar, ketuk ikon Penelusuran</translation>
 <translation id="2251686759395008410">Menu → Histori</translation>
+<translation id="2252378061043785266">Jangan Pernah Tampilkan Situs Ini</translation>
 <translation id="2252749852083403809">Menyimpan di Drive untuk <ph name="USER_EMAIL" />.</translation>
 <translation id="2256933947031277845">Organisasi mengizinkan Anda login hanya dengan akun tertentu.</translation>
 <translation id="2257567812274161158">Sinkronisasi tidak berfungsi.</translation>
@@ -509,7 +514,6 @@
 <translation id="2918688092312652908">Tandai Belum Dibaca</translation>
 <translation id="2922210239002704889">Buka halaman beranda atau keyboard Anda</translation>
 <translation id="2924940770243654951">Buka di tab Samaran baru</translation>
-<translation id="2931440415625410757">Tampilkan petunjuk</translation>
 <translation id="2952278131021475699">Penelusuran Kamera Lens</translation>
 <translation id="2962516096219646456">Lihat semua data isi otomatis</translation>
 <translation id="2965594942405840553">Tindakan ini tidak dapat diurungkan</translation>
@@ -794,7 +798,6 @@
 <translation id="4113957097611235433">Ubah Sandi Anda</translation>
 <translation id="4120936477286528673">Situs ini berulang kali mencoba membuka aplikasi lain.</translation>
 <translation id="4121993058175073134">Konfigurasi akun email Anda di aplikasi Setelan untuk mengirim data net-ekspor.</translation>
-<translation id="4132991308423633339">Ekspor sandi dan kunci sandi…</translation>
 <translation id="4133139945030148655">Sudah siap digunakan</translation>
 <translation id="4133265950310064865">Perlindungan yang Disempurnakan</translation>
 <translation id="4145507240503767005"><ph name="SEARCH_ENGINE_NAME" />, <ph name="SEARCH_ENGINE_DOMAIN" /></translation>
@@ -1043,6 +1046,7 @@
 <translation id="5055015094595227120">Lokasi presisi</translation>
 <translation id="5055551113846164633">Tindakan ini akan menghapus alamat yang disimpan di perangkat ini. Tindakan ini juga akan menghapus alamat yang disimpan di Akun Google <ph name="USER_EMAIL" /> Anda.</translation>
 <translation id="5056446788882570708">Masalah ditemukan <ph name="TIME" />.</translation>
+<translation id="5056587122125565772">Buat gambar</translation>
 <translation id="5059136629401106827">Oke</translation>
 <translation id="5062321486222145940">Instal Google Drive</translation>
 <translation id="5067540696062462445">Download</translation>
@@ -1280,6 +1284,7 @@ Handoff juga harus diaktifkan pada bagian General di Settings, dan perangkat And
 <translation id="5902752768726620872">{count,plural, =1{{count} tab baru}other{{count} tab baru}}</translation>
 <translation id="5911030830365207728">Google Terjemahan</translation>
 <translation id="5922999516621365983">Tarik tab ke sini untuk menyematkannya.</translation>
+<translation id="5930982343430790032">{COUNT,plural, =1{Tambahkan hingga 1 file, tab, atau gambar}other{Tambahkan hingga {COUNT} file, tab, atau gambar}}</translation>
 <translation id="5936006948844852401">Kelola penyimpanan</translation>
 <translation id="5936065461722368675">Terjemahkan seluruh halaman</translation>
 <translation id="5937560539988385583">Halaman diterjemahkan</translation>
@@ -1504,6 +1509,7 @@ Handoff juga harus diaktifkan pada bagian General di Settings, dan perangkat And
 <translation id="6659660757330712663">Anda dapat menggeser toolbar untuk beralih di antara tab.</translation>
 <translation id="6663529247339810546">Gambar tak disimpan</translation>
 <translation id="6668619169535738264">Edit Bookmark</translation>
+<translation id="6670729408462528018">Galeri</translation>
 <translation id="6671294218820966278">Tandai Sudah Dibaca</translation>
 <translation id="6672697278890207089">Masukkan frasa sandi Anda</translation>
 <translation id="6674917187596384849">Anda dapat berganti akun dengan mudah</translation>
@@ -1603,6 +1609,7 @@ Handoff juga harus diaktifkan pada bagian General di Settings, dan perangkat And
 <translation id="7039345315346323556">Terbaru</translation>
 <translation id="704692552158601232">Aplikasi Browser Default</translation>
 <translation id="7055240621761583113">Isi otomatis sandi</translation>
+<translation id="7057567173736333354">Deskripsikan gambar Anda</translation>
 <translation id="7063811929043357292">Akunmu dikelola oleh orang tuamu.
 <ph name="BEGIN_LINK" />Pelajari Lebih Lanjut<ph name="END_LINK" /></translation>
 <translation id="7067780033517902110">Semua Jenis File</translation>
@@ -1660,6 +1667,7 @@ Handoff juga harus diaktifkan pada bagian General di Settings, dan perangkat And
 <translation id="7328162502911382168">(<ph name="COUNT" />)</translation>
 <translation id="7334364820047587268">Anda sudah memiliki sandi untuk akun ini di Pengelola Sandi Google Anda. Jika Anda memilih untuk mengimpor salah satu sandi di bawah ini, sandi tersebut akan menggantikan sandi yang sudah ada.</translation>
 <translation id="7336264872878993241"><ph name="PERCENT" /> persen berhasil didownload</translation>
+<translation id="7345061034321640811">Impor tidak diizinkan</translation>
 <translation id="7352651011704765696">Terjadi error</translation>
 <translation id="7363349185727752629">Panduan terkait pilihan privasi Anda</translation>
 <translation id="7364796246159120393">Pilih File</translation>
@@ -1866,6 +1874,7 @@ Handoff juga harus diaktifkan pada bagian General di Settings, dan perangkat And
 <translation id="8032569120109842252">Mengikuti</translation>
 <translation id="8035133914807600019">Folder baru…</translation>
 <translation id="8035412398498507358">Foto</translation>
+<translation id="8037713009824540257">Tambahkan Situs</translation>
 <translation id="8040407350301524547">Untuk opsi rute, ketuk “Dapatkan rute”.</translation>
 <translation id="804427445359061970">Tab Anda dari perangkat lain akan ditampilkan di sini</translation>
 <translation id="8058655154417507695">Tahun akhir masa berlaku</translation>
@@ -2201,6 +2210,7 @@ Handoff juga harus diaktifkan pada bagian General di Settings, dan perangkat And
 <translation id="952704832371081537">Batal</translation>
 <translation id="95332591904104970">Aplikasi terhubung</translation>
 <translation id="954667170699278022">Daftar Bacaan</translation>
+<translation id="956066588046842680">Mengimpor data ini tidak diizinkan oleh kebijakan organisasi Anda.</translation>
 <translation id="956218893102219091">Gunakan lokasi presisi Anda untuk mendapatkan hasil Gemini yang paling akurat, bukan estimasi lokasi berdasarkan alamat IP Anda. <ph name="BEGIN_LINK" />Pelajari lebih lanjut<ph name="END_LINK" /></translation>
 <translation id="961856697154696964">Hapus data penjelajahan</translation>
 <translation id="963102227019621224">Aktivitas Web &amp; Aplikasi</translation>
@@ -2212,5 +2222,6 @@ Handoff juga harus diaktifkan pada bagian General di Settings, dan perangkat And
 <translation id="984275831282074731">Metode pembayaran</translation>
 <translation id="985379595344853742">Tutup semua tab Samaran</translation>
 <translation id="988141524645182168">Perangkat Lainnya</translation>
+<translation id="995174784802614337">{count,plural, =1{{count} kunci sandi diimpor}other{{count} kunci sandi diimpor}}</translation>
 <translation id="999768147936949692">Untuk saat ini, Anda hanya dapat berbagi sandi dengan anggota keluarga. <ph name="BEGIN_LINK" />Undang anggota keluarga<ph name="END_LINK" /> untuk bergabung dengan grup Anda dan optimalkan produk serta langganan Anda di Google.</translation>
 </translationbundle>

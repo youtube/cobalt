@@ -308,7 +308,8 @@ void OmniboxPopupViewViews::SetSelectedIndex(size_t index) {
     OmniboxPopupSelection::LineState line_state = OmniboxPopupSelection::NORMAL;
     controller()->edit_model()->SetPopupSelection(
         OmniboxPopupSelection(index, line_state));
-    OnPropertyChanged(controller()->edit_model(), views::kPropertyEffectsNone);
+    OnPropertyChanged(controller()->edit_model(),
+                      views::PropertyEffects::kNone);
   }
 }
 
@@ -702,7 +703,7 @@ gfx::Rect OmniboxPopupViewViews::GetTargetBounds() const {
 
   if (base::FeatureList::IsEnabled(omnibox::kWebUIOmniboxPopup) &&
       !base::FeatureList::IsEnabled(omnibox::kWebUIOmniboxFullPopup) &&
-      !base::FeatureList::IsEnabled(omnibox::kWebUIOmniboxAimPopup) &&
+      !omnibox::IsAimPopupFeatureEnabled() &&
       base::FeatureList::IsEnabled(omnibox::kWebUIOmniboxPopupDebug) &&
       omnibox::kWebUIOmniboxPopupDebugSxSParam.Get()) {
     if (auto bounds = GetDebugWidgetBounds(location_bar_view_, popup_height)) {

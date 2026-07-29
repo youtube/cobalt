@@ -29,6 +29,7 @@
 #include "components/autofill/core/browser/suggestions/suggestion.h"
 #include "components/autofill/core/browser/test_utils/autofill_test_utils.h"
 #include "components/autofill/core/browser/ui/payments/bnpl_ui_delegate.h"
+#include "components/autofill/core/common/autofill_prefs.h"
 
 #if BUILDFLAG(IS_ANDROID)
 #include "base/test/gmock_callback_support.h"
@@ -321,6 +322,15 @@ void TestPaymentsAutofillClient::ShowMandatoryReauthOptInConfirmation() {
   mandatory_reauth_opt_in_prompt_was_reshown_ = true;
 }
 
+bool TestPaymentsAutofillClient::IsAutofillPaymentMethodsEnabled() const {
+  return autofill_payment_methods_enabled_ &&
+         autofill_payment_methods_supported_;
+}
+
+void TestPaymentsAutofillClient::DisablePaymentsAutofill() {
+  autofill_payment_methods_supported_ = false;
+}
+
 MockIbanManager* TestPaymentsAutofillClient::GetIbanManager() {
   if (!mock_iban_manager_) {
     mock_iban_manager_ = std::make_unique<NiceMock<MockIbanManager>>(
@@ -373,9 +383,13 @@ bool TestPaymentsAutofillClient::ShowTouchToFillLoyaltyCard(
   return false;
 }
 
-bool TestPaymentsAutofillClient::UpdateTouchToFillBnplPaymentMethod(
+bool TestPaymentsAutofillClient::OnPurchaseAmountExtracted(
+    base::span<const payments::BnplIssuerContext> bnpl_issuer_contexts,
     std::optional<int64_t> extracted_amount,
-    bool is_amount_supported_by_any_issuer) {
+    bool is_amount_supported_by_any_issuer,
+    const std::optional<std::string>& app_locale,
+    base::OnceCallback<void(BnplIssuer)> selected_issuer_callback,
+    base::OnceClosure cancel_callback) {
   return false;
 }
 

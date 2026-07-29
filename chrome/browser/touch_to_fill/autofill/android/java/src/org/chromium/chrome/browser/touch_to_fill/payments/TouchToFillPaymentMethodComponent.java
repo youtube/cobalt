@@ -29,7 +29,7 @@ interface TouchToFillPaymentMethodComponent {
     /** This delegate is called when the TouchToFillPaymentMethod component is interacted with. */
     interface Delegate {
         /** Called whenever the sheet is dismissed (by user or native). */
-        void onDismissed(boolean dismissedByUser);
+        void onDismissed(boolean dismissedByUser, boolean shouldReshow);
 
         /** Called when user requests to scan a new credit card. */
         void scanCreditCard();
@@ -84,9 +84,6 @@ interface TouchToFillPaymentMethodComponent {
 
         /** Called when the user clicks the "Manage loyalty cards" button. */
         void openPassesManagementUi();
-
-        /** Called when the user clicks the "OK" button on the error screen. */
-        void onErrorOkPressed();
 
         /**
          * Called when the user selects a BNPL issuer.
@@ -146,17 +143,21 @@ interface TouchToFillPaymentMethodComponent {
             boolean firstTimeUsage);
 
     /**
-     * Updates BNPL suggestions on payment methods bottom sheet based on the results of amount
+     * Updates BNPL suggestions or BNPL screen on the bottom sheet based on the results of amount
      * extraction.
      *
+     * @param bnplIssuerContexts A list of {@link BnplIssuerContext} objects, each representing a
+     *     BNPL issuer context, to be displayed on the bottom sheet for the user to select from.
      * @param extractedAmount The amount extracted from the checkout page, or {@code null} if
      *     extraction failed or timed out.
      * @param isAmountSupportedByAnyIssuer Whether the {@code extractedAmount} is supported by at
      *     least one BNPL issuer. This is only relevant if {@code extractedAmount} is not {@code
      *     null}.
      */
-    void updateBnplPaymentMethod(
-            @Nullable Long extractedAmount, boolean isAmountSupportedByAnyIssuer);
+    void onPurchaseAmountExtracted(
+            List<BnplIssuerContext> bnplIssuerContexts,
+            @Nullable Long extractedAmount,
+            boolean isAmountSupportedByAnyIssuer);
 
     /** Displays a progress screen bottom sheet. */
     void showProgressScreen();

@@ -14,7 +14,6 @@
 #include "third_party/blink/renderer/core/timing/window_performance.h"
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_hash_map.h"
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_vector.h"
-#include "third_party/blink/renderer/platform/supplementable.h"
 #include "third_party/blink/renderer/platform/wtf/functional.h"
 #include "third_party/blink/renderer/platform/wtf/vector.h"
 
@@ -28,12 +27,8 @@ struct DOMPaintTimingInfo;
 // ImageElementTiming is responsible for tracking the paint timings for <img>
 // elements for a given window.
 class CORE_EXPORT ImageElementTiming final
-    : public GarbageCollected<ImageElementTiming>,
-      public Supplement<LocalDOMWindow> {
+    : public GarbageCollected<ImageElementTiming> {
  public:
-  static constexpr auto kSupplementIndex =
-      LocalDOMWindow::Supplements::kImageElementTiming;
-
   // The maximum amount of characters included in Element Timing and Largest
   // Contentful Paint for inline images.
   static constexpr const unsigned kInlineImageMaxChars = 100;
@@ -67,7 +62,7 @@ class CORE_EXPORT ImageElementTiming final
   void NotifyImageRemoved(const LayoutObject*,
                           const ImageResourceContent* image);
 
-  void Trace(Visitor*) const override;
+  void Trace(Visitor*) const;
 
   std::optional<base::OnceCallback<void(const base::TimeTicks&,
                                         const DOMPaintTimingInfo&)>>
@@ -117,6 +112,8 @@ class CORE_EXPORT ImageElementTiming final
     AtomicString id;
     Member<Element> element;
   };
+
+  Member<LocalDOMWindow> local_dom_window_;
 
   // Vector containing the element timing infos that will be reported during the
   // next presentation promise callback.

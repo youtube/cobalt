@@ -195,7 +195,7 @@ in third_party/OWNERS for help.
 
 See [Moving large files to Google Storage](https://goto.google.com/checking-in-large-files)
 
-# Standard directory structure for dependencies {standard-dep-structure}
+# Standard directory structure for dependencies {#standard-dep-structure}
 
 Regardless of how you import a dependency, you should use the following
 directory structure. This folder layout enforces separation between first and
@@ -399,6 +399,10 @@ about:credits page in Google Chrome builds.
 If the library will never be shipped as a part of Chrome (e.g. build-time tools,
 testing tools), make sure to set the "Shipped" field to "no" so that the license
 is not included in about:credits page ([more on this below](#credits)).
+
+README.chromium files contain a 'License Android Compatible' field indicating whether
+the package's license is compatible with Android. This is optional if the package is
+not shipped, or uses a standard license.
 
 When a dependency allows a choice of license, OWNERS should choose the least
 restrictive license that meets Chromium's needs and document only the chosen

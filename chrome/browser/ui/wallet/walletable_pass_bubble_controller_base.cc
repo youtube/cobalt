@@ -35,7 +35,11 @@ WalletablePassClient::WalletablePassBubbleResult GetResult(
 
 WalletablePassBubbleControllerBase::WalletablePassBubbleControllerBase(
     tabs::TabInterface* tab)
-    : tab_(CHECK_DEREF(tab)) {}
+    : tab_(CHECK_DEREF(tab)) {
+  tab_activation_subscription_ = tab->RegisterDidActivate(
+      base::BindRepeating(&WalletablePassBubbleControllerBase::OnTabActivated,
+                          base::Unretained(this)));
+}
 
 WalletablePassBubbleControllerBase::~WalletablePassBubbleControllerBase() =
     default;
@@ -46,6 +50,13 @@ bool WalletablePassBubbleControllerBase::CanBeReshown() const {
 
 bool WalletablePassBubbleControllerBase::IsShowingBubble() const {
   return bubble_view_ != nullptr;
+}
+
+void WalletablePassBubbleControllerBase::OnBubbleDiscarded() {
+  CHECK(base::FeatureList::IsEnabled(
+      autofill::features::kAutofillShowBubblesBasedOnPriorities));
+  std::move(callback_).Run(
+      WalletablePassClient::WalletablePassBubbleResult::kDiscarded);
 }
 
 void WalletablePassBubbleControllerBase::HideBubble(
@@ -62,8 +73,29 @@ bool WalletablePassBubbleControllerBase::IsMouseHovered() const {
 
 void WalletablePassBubbleControllerBase::OnBubbleClosed(
     WalletablePassBubbleClosedReason reason) {
-  // TODO(crbug.com/432429605): BubbleManager can show and hide the bubble
-  // multiple times. The callback should run only on user action.
+  if (base::FeatureList::IsEnabled(
+          autofill::features::kAutofillShowBubblesBasedOnPriorities)) {
+    if (autofill::BubbleManager* manager =
+            autofill::BubbleManager::GetForTab(&tab())) {
+      if (manager->HasPendingBubbleOfSameType(GetBubbleType())) {
+        // It means that the BubbleManager has the bubble in the queue,
+        // therefore, do not run the callback.
+        ResetBubbleViewAndInformBubbleManager();
+        return;
+      }
+    }
+  }
+
+  if (!base::FeatureList::IsEnabled(
+          autofill::features::kAutofillShowBubblesBasedOnPriorities) &&
+      reshow_bubble_on_activation_) {
+    // If the bubble is closed because the user clicked a link that opened a new
+    // tab, we want to reshow the bubble when the user returns to this tab.
+    // In this case, we don't run the callback yet.
+    ResetBubbleViewAndInformBubbleManager();
+    return;
+  }
+
   if (callback_) {
     std::move(callback_).Run(GetResult(reason));
   }
@@ -104,6 +136,20 @@ void WalletablePassBubbleControllerBase::
     }
   }
   bubble_view_ = nullptr;
+}
+
+void WalletablePassBubbleControllerBase::SetReshowOnActivation(bool reshow) {
+  reshow_bubble_on_activation_ = reshow;
+}
+
+void WalletablePassBubbleControllerBase::OnTabActivated(
+    tabs::TabInterface* tab) {
+  if (!base::FeatureList::IsEnabled(
+          autofill::features::kAutofillShowBubblesBasedOnPriorities) &&
+      reshow_bubble_on_activation_) {
+    reshow_bubble_on_activation_ = false;
+    QueueOrShowBubble();
+  }
 }
 
 }  // namespace wallet

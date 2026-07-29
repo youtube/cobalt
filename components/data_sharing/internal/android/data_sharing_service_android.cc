@@ -308,7 +308,7 @@ ScopedJavaLocalRef<jobject> DataSharingServiceAndroid::GetJavaObserverBridge() {
   return Java_DataSharingServiceImpl_getObserverBridge(env, GetJavaObject());
 }
 
-ScopedJavaLocalRef<jobject>
+static ScopedJavaLocalRef<jobject>
 JNI_DataSharingServiceImpl_GetDataSharingUrlForTesting(
     JNIEnv* env,
     const JavaParamRef<jstring>& j_group_id,
@@ -342,3 +342,6 @@ void DataSharingServiceAndroid::SetSharedEntitiesPreviewForTesting(
 }
 
 }  // namespace data_sharing
+
+DEFINE_JNI(DataSharingServiceImpl)
+DEFINE_JNI(ObserverBridge)

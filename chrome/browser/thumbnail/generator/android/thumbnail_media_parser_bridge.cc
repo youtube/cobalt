@@ -44,7 +44,7 @@ void OnMediaParsed(ThumbnailMediaParser*,
 }  // namespace
 
 // static
-void JNI_ThumbnailMediaParserBridge_Parse(
+static void JNI_ThumbnailMediaParserBridge_Parse(
     JNIEnv* env,
     const base::android::JavaParamRef<jstring>& jmime_type,
     const base::android::JavaParamRef<jstring>& jfile_path,
@@ -61,3 +61,6 @@ void JNI_ThumbnailMediaParserBridge_Parse(
       base::BindOnce(&OnMediaParsed, base::Owned(parser),
                      base::android::ScopedJavaGlobalRef<jobject>(jcallback)));
 }
+
+DEFINE_JNI(ThumbnailMediaData)
+DEFINE_JNI(ThumbnailMediaParserBridge)

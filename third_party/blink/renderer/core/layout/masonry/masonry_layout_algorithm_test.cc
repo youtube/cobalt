@@ -27,11 +27,12 @@ class MasonryLayoutAlgorithmTest : public BaseLayoutAlgorithmTest {
     const GridLineResolver line_resolver(style, /*auto_repetitions=*/0);
     collapsed_track_indexes_.clear();
 
-    auto masonry_items = algorithm.Node().ConstructMasonryItems(line_resolver);
+    auto grid_lanes_items =
+        algorithm.Node().ConstructGridLanesItems(line_resolver);
     bool needs_intrinsic_track_size = false;
     grid_axis_tracks_ = algorithm.ComputeGridAxisTracks(
         SizingConstraint::kLayout, /*intrinsic_repeat_track_sizes=*/nullptr,
-        masonry_items, collapsed_track_indexes_, start_offset,
+        grid_lanes_items, collapsed_track_indexes_, start_offset,
         needs_intrinsic_track_size);
 
     // We have a repeat() track definition with an intrinsic sized track(s). The
@@ -45,19 +46,19 @@ class MasonryLayoutAlgorithmTest : public BaseLayoutAlgorithmTest {
       CHECK(collapsed_track_indexes_.empty());
 
       Vector<LayoutUnit> intrinsic_repeat_track_sizes =
-          algorithm.GetIntrinsicRepeaterTrackSizes(!masonry_items.IsEmpty(),
+          algorithm.GetIntrinsicRepeaterTrackSizes(!grid_lanes_items.IsEmpty(),
                                                    grid_axis_tracks_.value());
       grid_axis_tracks_ = algorithm.ComputeGridAxisTracks(
           SizingConstraint::kLayout, &intrinsic_repeat_track_sizes,
-          masonry_items, collapsed_track_indexes_, start_offset,
+          grid_lanes_items, collapsed_track_indexes_, start_offset,
           needs_intrinsic_track_size);
     }
 
     const auto grid_axis_direction = grid_axis_tracks_->Direction();
-    ASSERT_EQ(grid_axis_direction, style.MasonryTrackSizingDirection());
+    ASSERT_EQ(grid_axis_direction, style.GridLanesTrackSizingDirection());
 
     for (const auto& masonry_item : algorithm.BuildVirtualMasonryItems(
-             line_resolver, masonry_items, needs_intrinsic_track_size,
+             line_resolver, grid_lanes_items, needs_intrinsic_track_size,
              SizingConstraint::kLayout,
              line_resolver.AutoRepetitions(grid_axis_direction),
              start_offset)) {
@@ -142,15 +143,15 @@ class MasonryLayoutAlgorithmTest : public BaseLayoutAlgorithmTest {
   Vector<wtf_size_t> collapsed_track_indexes_;
 };
 
-TEST_F(MasonryLayoutAlgorithmTest, ConstructMasonryItems) {
+TEST_F(MasonryLayoutAlgorithmTest, ConstructGridLanesItems) {
   SetBodyInnerHTML(R"HTML(
     <style>
-    #masonry {
-      display: masonry;
+    #grid-lanes {
+      display: grid-lanes;
       grid-template-columns: auto auto [header-start] auto auto [header-end];
     }
     </style>
-    <div id="masonry">
+    <div id="grid-lanes">
       <div>1</div>
       <div style="grid-column: 3 / span 2">2</div>
       <div style="grid-column: span 2">3</div>
@@ -162,10 +163,10 @@ TEST_F(MasonryLayoutAlgorithmTest, ConstructMasonryItems) {
     </div>
   )HTML");
 
-  MasonryNode node(GetLayoutBoxByElementId("masonry"));
+  GridLanesNode node(GetLayoutBoxByElementId("grid-lanes"));
 
   const GridLineResolver line_resolver(node.Style(), /*auto_repetitions=*/0);
-  auto masonry_items = node.ConstructMasonryItems(line_resolver);
+  auto grid_lanes_items = node.ConstructGridLanesItems(line_resolver);
 
   const Vector<GridSpan> expected_spans = {
       GridSpan::IndefiniteGridSpan(1),
@@ -177,13 +178,13 @@ TEST_F(MasonryLayoutAlgorithmTest, ConstructMasonryItems) {
       GridSpan::TranslatedDefiniteGridSpan(0, 2),
       GridSpan::TranslatedDefiniteGridSpan(2, 4)};
 
-  EXPECT_EQ(masonry_items.Size(), expected_spans.size());
+  EXPECT_EQ(grid_lanes_items.Size(), expected_spans.size());
 
-  const auto grid_axis_direction = node.Style().MasonryTrackSizingDirection();
-  for (wtf_size_t i = 0; auto& masonry_item : masonry_items) {
-    masonry_item.MaybeTranslateSpan(/*start_offset=*/0,
-                                    GridTrackSizingDirection::kForColumns);
-    EXPECT_EQ(masonry_item.resolved_position.Span(grid_axis_direction),
+  const auto grid_axis_direction = node.Style().GridLanesTrackSizingDirection();
+  for (wtf_size_t i = 0; auto& grid_lanes_item : grid_lanes_items) {
+    grid_lanes_item.MaybeTranslateSpan(/*start_offset=*/0,
+                                       GridTrackSizingDirection::kForColumns);
+    EXPECT_EQ(grid_lanes_item.resolved_position.Span(grid_axis_direction),
               expected_spans[i++]);
   }
 }
@@ -191,18 +192,18 @@ TEST_F(MasonryLayoutAlgorithmTest, ConstructMasonryItems) {
 TEST_F(MasonryLayoutAlgorithmTest, BuildRanges) {
   SetBodyInnerHTML(R"HTML(
     <style>
-    #masonry {
-      display: masonry;
+    #grid-lanes {
+      display: grid-lanes;
       grid-template-columns: 5% repeat(3, 10px auto) repeat(1, auto 5px 1fr);
     }
     </style>
-    <div id="masonry">
+    <div id="grid-lanes">
       <div style="grid-column: span 2 / 1"></div>
       <div style="grid-column: 9 / span 5"></div>
     </div>
   )HTML");
 
-  BlockNode node(GetLayoutBoxByElementId("masonry"));
+  BlockNode node(GetLayoutBoxByElementId("grid-lanes"));
 
   const auto space = ConstructBlockLayoutTestConstraintSpace(
       {WritingMode::kHorizontalTb, TextDirection::kLtr},
@@ -238,15 +239,15 @@ TEST_F(MasonryLayoutAlgorithmTest, BuildRanges) {
 TEST_F(MasonryLayoutAlgorithmTest, BuildFixedTrackSizes) {
   SetBodyInnerHTML(R"HTML(
     <style>
-    #masonry {
-      display: masonry;
+    #grid-lanes {
+      display: grid-lanes;
       grid-template-columns: 5% repeat(3, 10px 15%) repeat(1, 15px 5px 20px);
     }
     </style>
-    <div id="masonry"></div>
+    <div id="grid-lanes"></div>
   )HTML");
 
-  BlockNode node(GetLayoutBoxByElementId("masonry"));
+  BlockNode node(GetLayoutBoxByElementId("grid-lanes"));
 
   const auto space = ConstructBlockLayoutTestConstraintSpace(
       {WritingMode::kHorizontalTb, TextDirection::kLtr},
@@ -267,7 +268,7 @@ TEST_F(MasonryLayoutAlgorithmTest, BuildFixedTrackSizes) {
 
 TEST_F(MasonryLayoutAlgorithmTest, CollectMasonryItemGroups) {
   SetBodyInnerHTML(R"HTML(
-    <div id="masonry" style="display: masonry">
+    <div id="grid-lanes" style="display: grid-lanes">
       <div></div>
       <div style="grid-column: 1"></div>
       <div style="grid-column: 1 / 4"></div>
@@ -277,14 +278,14 @@ TEST_F(MasonryLayoutAlgorithmTest, CollectMasonryItemGroups) {
     </div>
   )HTML");
 
-  MasonryNode node(GetLayoutBoxByElementId("masonry"));
+  GridLanesNode node(GetLayoutBoxByElementId("grid-lanes"));
 
   wtf_size_t max_end_line, start_offset;
   const GridLineResolver line_resolver(node.Style(), /*auto_repetitions=*/0);
-  const auto masonry_items = node.ConstructMasonryItems(line_resolver);
+  const auto grid_lanes_items = node.ConstructGridLanesItems(line_resolver);
   wtf_size_t unplaced_item_span_count = 0;
   const auto item_groups =
-      node.CollectItemGroups(line_resolver, masonry_items, max_end_line,
+      node.CollectItemGroups(line_resolver, grid_lanes_items, max_end_line,
                              start_offset, unplaced_item_span_count);
 
   EXPECT_EQ(item_groups.size(), 4u);
@@ -308,19 +309,19 @@ TEST_F(MasonryLayoutAlgorithmTest, ExplicitlyPlacedVirtualItems) {
   SetBodyInnerHTML(R"HTML(
     <style>
     body { font: 10px/1 Ahem }
-    #masonry {
-      display: masonry;
+    #grid-lanes {
+      display: grid-lanes;
       grid-template-columns: repeat(2, 100px);
     }
     </style>
-    <div id="masonry">
+    <div id="grid-lanes">
       <div style="grid-column: 1">XX XX</div>
       <div style="grid-column: -4 / 3">XXX X</div>
       <div style="grid-column: span 3 / 3">X XX X</div>
     </div>
   )HTML");
 
-  BlockNode node(GetLayoutBoxByElementId("masonry"));
+  BlockNode node(GetLayoutBoxByElementId("grid-lanes"));
 
   const auto space = ConstructBlockLayoutTestConstraintSpace(
       {WritingMode::kHorizontalTb, TextDirection::kLtr},
@@ -357,12 +358,12 @@ TEST_F(MasonryLayoutAlgorithmTest, AutoPlacedVirtualItems) {
   SetBodyInnerHTML(R"HTML(
     <style>
     body { font: 10px/1 Ahem }
-    #masonry {
-      display: masonry;
+    #grid-lanes {
+      display: grid-lanes;
       grid-template-columns: repeat(3, auto);
     }
     </style>
-    <div id="masonry">
+    <div id="grid-lanes">
       <div>X X X X X</div>
       <div style="grid-column: span 2">XXX X</div>
       <div>XX XX XX XX XX</div>
@@ -371,7 +372,7 @@ TEST_F(MasonryLayoutAlgorithmTest, AutoPlacedVirtualItems) {
     </div>
   )HTML");
 
-  BlockNode node(GetLayoutBoxByElementId("masonry"));
+  BlockNode node(GetLayoutBoxByElementId("grid-lanes"));
 
   const auto space = ConstructBlockLayoutTestConstraintSpace(
       {WritingMode::kHorizontalTb, TextDirection::kLtr},
@@ -411,19 +412,19 @@ TEST_F(MasonryLayoutAlgorithmTest, BuildIntrinsicTrackSizes) {
   SetBodyInnerHTML(R"HTML(
     <style>
     body { font: 10px/1 Ahem }
-    #masonry {
-      display: masonry;
+    #grid-lanes {
+      display: grid-lanes;
       grid-template-columns: min-content max-content;
     }
     </style>
-    <div id="masonry">
+    <div id="grid-lanes">
       <div style="grid-column: 1">XX XX</div>
       <div style="grid-column: 2">XX XX</div>
       <div style="grid-column: 1 / 3">XXX XXXXXX XXXXXXXXX</div>
     </div>
   )HTML");
 
-  BlockNode node(GetLayoutBoxByElementId("masonry"));
+  BlockNode node(GetLayoutBoxByElementId("grid-lanes"));
 
   const auto space = ConstructBlockLayoutTestConstraintSpace(
       {WritingMode::kHorizontalTb, TextDirection::kLtr},
@@ -446,18 +447,18 @@ TEST_F(MasonryLayoutAlgorithmTest, MaximizeAndStretchAutoTracks) {
   SetBodyInnerHTML(R"HTML(
     <style>
     body { font: 10px/1 Ahem }
-    #masonry {
-      display: masonry;
+    #grid-lanes {
+      display: grid-lanes;
       grid-template-columns: minmax(15px, min-content) max-content auto;
     }
     </style>
-    <div id="masonry">
+    <div id="grid-lanes">
       <div style="grid-column: 1">XXX XXX</div>
       <div style="grid-column: 1 / 3">X XX X</div>
     </div>
   )HTML");
 
-  BlockNode node(GetLayoutBoxByElementId("masonry"));
+  BlockNode node(GetLayoutBoxByElementId("grid-lanes"));
 
   const auto space = ConstructBlockLayoutTestConstraintSpace(
       {WritingMode::kHorizontalTb, TextDirection::kLtr},
@@ -484,15 +485,15 @@ TEST_F(MasonryLayoutAlgorithmTest, MaximizeAndStretchAutoTracks) {
 TEST_F(MasonryLayoutAlgorithmTest, ExpandFlexibleTracks) {
   SetBodyInnerHTML(R"HTML(
     <style>
-    #masonry {
-      display: masonry;
+    #grid-lanes {
+      display: grid-lanes;
       grid-template-columns: 1fr 5fr 3fr 1fr;
     }
     </style>
-    <div id="masonry"></div>
+    <div id="grid-lanes"></div>
   )HTML");
 
-  BlockNode node(GetLayoutBoxByElementId("masonry"));
+  BlockNode node(GetLayoutBoxByElementId("grid-lanes"));
 
   const auto space = ConstructBlockLayoutTestConstraintSpace(
       {WritingMode::kHorizontalTb, TextDirection::kLtr},
@@ -513,17 +514,17 @@ TEST_F(MasonryLayoutAlgorithmTest, ExpandFlexibleTracks) {
 TEST_F(MasonryLayoutAlgorithmTest, BuildRowSizes) {
   SetBodyInnerHTML(R"HTML(
     <style>
-    #masonry {
+    #grid-lanes {
       height: 100px;
-      display: masonry;
-      masonry-direction: row;
+      display: grid-lanes;
+      grid-lanes-direction: row;
       grid-template-rows: 20px 1fr 30%;
     }
     </style>
-    <div id="masonry"></div>
+    <div id="grid-lanes"></div>
   )HTML");
 
-  BlockNode node(GetLayoutBoxByElementId("masonry"));
+  BlockNode node(GetLayoutBoxByElementId("grid-lanes"));
 
   const auto space = ConstructBlockLayoutTestConstraintSpace(
       {WritingMode::kHorizontalTb, TextDirection::kLtr},
@@ -544,16 +545,16 @@ TEST_F(MasonryLayoutAlgorithmTest, BuildRowSizes) {
 TEST_F(MasonryLayoutAlgorithmTest, ColumnAutoFitAutoPlacement) {
   SetBodyInnerHTML(R"HTML(
     <style>
-    #masonry {
-      display: masonry;
+    #grid-lanes {
+      display: grid-lanes;
       grid-template-columns: repeat(auto-fit, 100px);
     }
-    #masonry > div {
+    #grid-lanes > div {
       width: 100%;
       height: 100px;
     }
     </style>
-    <div id="masonry">
+    <div id="grid-lanes">
       <div></div>
       <div></div>
       <div></div>
@@ -562,7 +563,7 @@ TEST_F(MasonryLayoutAlgorithmTest, ColumnAutoFitAutoPlacement) {
     </div>
   )HTML");
 
-  BlockNode node(GetLayoutBoxByElementId("masonry"));
+  BlockNode node(GetLayoutBoxByElementId("grid-lanes"));
 
   const auto space = ConstructBlockLayoutTestConstraintSpace(
       {WritingMode::kHorizontalTb, TextDirection::kLtr},
@@ -584,16 +585,16 @@ TEST_F(MasonryLayoutAlgorithmTest, ColumnAutoFitAutoPlacement) {
 TEST_F(MasonryLayoutAlgorithmTest, ColumnAutoFitAutoAndExplicitPlacement) {
   SetBodyInnerHTML(R"HTML(
     <style>
-    #masonry {
-      display: masonry;
+    #grid-lanes {
+      display: grid-lanes;
       grid-template-columns: repeat(auto-fit, 100px);
     }
-    #masonry > div {
+    #grid-lanes > div {
       width: 100%;
       height: 100px;
     }
     </style>
-    <div id="masonry">
+    <div id="grid-lanes">
       <div></div>
       <div></div>
       <div style="grid-column: 4"></div>
@@ -602,7 +603,7 @@ TEST_F(MasonryLayoutAlgorithmTest, ColumnAutoFitAutoAndExplicitPlacement) {
     </div>
   )HTML");
 
-  BlockNode node(GetLayoutBoxByElementId("masonry"));
+  BlockNode node(GetLayoutBoxByElementId("grid-lanes"));
 
   const auto space = ConstructBlockLayoutTestConstraintSpace(
       {WritingMode::kHorizontalTb, TextDirection::kLtr},
@@ -624,16 +625,16 @@ TEST_F(MasonryLayoutAlgorithmTest, ColumnAutoFitAutoAndExplicitPlacement) {
 TEST_F(MasonryLayoutAlgorithmTest, ColumnAutoFillAutoFitAutoPlacement) {
   SetBodyInnerHTML(R"HTML(
   <style>
-  #masonry {
-      display: masonry;
+  #grid-lanes {
+      display: grid-lanes;
       grid-template-columns: repeat(5, 100px) repeat(auto-fit, 100px);
   }
-  #masonry > div {
+  #grid-lanes > div {
       width: 100%;
       height: 100px;
   }
   </style>
-  <div id="masonry">
+  <div id="grid-lanes">
     <div></div>
     <div></div>
     <div></div>
@@ -643,7 +644,7 @@ TEST_F(MasonryLayoutAlgorithmTest, ColumnAutoFillAutoFitAutoPlacement) {
   </div>
   )HTML");
 
-  BlockNode node(GetLayoutBoxByElementId("masonry"));
+  BlockNode node(GetLayoutBoxByElementId("grid-lanes"));
 
   const auto space = ConstructBlockLayoutTestConstraintSpace(
       {WritingMode::kHorizontalTb, TextDirection::kLtr},
@@ -666,16 +667,16 @@ TEST_F(MasonryLayoutAlgorithmTest, ColumnAutoFillAutoFitAutoPlacement) {
 TEST_F(MasonryLayoutAlgorithmTest, ColumnAutoFillAutoFitNoCollapse) {
   SetBodyInnerHTML(R"HTML(
   <style>
-  #masonry {
-      display: masonry;
+  #grid-lanes {
+      display: grid-lanes;
       grid-template-columns: repeat(auto-fit, 100px) repeat(5, 100px);
   }
-  #masonry > div {
+  #grid-lanes > div {
       width: 100%;
       height: 100px;
   }
   </style>
-  <div id="masonry">
+  <div id="grid-lanes">
     <div></div>
     <div></div>
     <div></div>
@@ -684,7 +685,7 @@ TEST_F(MasonryLayoutAlgorithmTest, ColumnAutoFillAutoFitNoCollapse) {
   </div>
   )HTML");
 
-  BlockNode node(GetLayoutBoxByElementId("masonry"));
+  BlockNode node(GetLayoutBoxByElementId("grid-lanes"));
 
   const auto space = ConstructBlockLayoutTestConstraintSpace(
       {WritingMode::kHorizontalTb, TextDirection::kLtr},
@@ -709,16 +710,16 @@ TEST_F(MasonryLayoutAlgorithmTest, ColumnAutoFillAutoFitNoCollapse) {
 TEST_F(MasonryLayoutAlgorithmTest, ColumnAutoFitAutoSizeAutoPlacement) {
   SetBodyInnerHTML(R"HTML(
     <style>
-    #masonry {
-        display: masonry;
+    #grid-lanes {
+        display: grid-lanes;
         grid-template-columns: repeat(auto-fit, auto);
     }
-    #masonry > div {
+    #grid-lanes > div {
         width: 100px;
         height: 100px;
     }
     </style>
-    <div id="masonry">
+    <div id="grid-lanes">
       <div style="grid-column: 1;"></div>
       <div style="grid-column: 3;"></div>
       <div></div>
@@ -728,7 +729,7 @@ TEST_F(MasonryLayoutAlgorithmTest, ColumnAutoFitAutoSizeAutoPlacement) {
     </div>
   )HTML");
 
-  BlockNode node(GetLayoutBoxByElementId("masonry"));
+  BlockNode node(GetLayoutBoxByElementId("grid-lanes"));
 
   const auto space = ConstructBlockLayoutTestConstraintSpace(
       {WritingMode::kHorizontalTb, TextDirection::kLtr},
@@ -753,18 +754,18 @@ TEST_F(MasonryLayoutAlgorithmTest,
        ColumnAutoFitAutoSizeAndAutoAndExplicitPlacement) {
   SetBodyInnerHTML(R"HTML(
     <style>
-    #masonry {
-        display: masonry;
+    #grid-lanes {
+        display: grid-lanes;
         grid-template-columns: repeat(auto-fit, auto);
         height: 200px;
         width: 1000px;
     }
-    #masonry > div {
+    #grid-lanes > div {
         width: 100px;
         height: 100px;
     }
     </style>
-    <div id="masonry">
+    <div id="grid-lanes">
       <div></div>
       <div></div>
       <div style="grid-column: 4"></div>
@@ -773,7 +774,7 @@ TEST_F(MasonryLayoutAlgorithmTest,
     </div>
   )HTML");
 
-  BlockNode node(GetLayoutBoxByElementId("masonry"));
+  BlockNode node(GetLayoutBoxByElementId("grid-lanes"));
 
   const auto space = ConstructBlockLayoutTestConstraintSpace(
       {WritingMode::kHorizontalTb, TextDirection::kLtr},
@@ -797,16 +798,16 @@ TEST_F(MasonryLayoutAlgorithmTest,
 TEST_F(MasonryLayoutAlgorithmTest, ColumnAutoFillAutoFitAutoAndAutoPlacement) {
   SetBodyInnerHTML(R"HTML(
   <style>
-  #masonry {
-      display: masonry;
+  #grid-lanes {
+      display: grid-lanes;
       grid-template-columns: repeat(5, 100px) repeat(auto-fit, auto);
   }
-  #masonry > div {
+  #grid-lanes > div {
       width: 100px;
       height: 100px;
   }
   </style>
-  <div id="masonry">
+  <div id="grid-lanes">
     <div></div>
     <div></div>
     <div></div>
@@ -816,7 +817,7 @@ TEST_F(MasonryLayoutAlgorithmTest, ColumnAutoFillAutoFitAutoAndAutoPlacement) {
   </div>
   )HTML");
 
-  BlockNode node(GetLayoutBoxByElementId("masonry"));
+  BlockNode node(GetLayoutBoxByElementId("grid-lanes"));
 
   const auto space = ConstructBlockLayoutTestConstraintSpace(
       {WritingMode::kHorizontalTb, TextDirection::kLtr},
@@ -841,16 +842,16 @@ TEST_F(MasonryLayoutAlgorithmTest, ColumnAutoFillAutoFitAutoAndAutoPlacement) {
 TEST_F(MasonryLayoutAlgorithmTest, ColumnAutoFillAutoFitAutoNoCollapse) {
   SetBodyInnerHTML(R"HTML(
   <style>
-  #masonry {
-      display: masonry;
+  #grid-lanes {
+      display: grid-lanes;
       grid-template-columns: repeat(auto-fit, auto) repeat(5, 100px);
   }
-  #masonry > div {
+  #grid-lanes > div {
       width: auto;
       height: 100px;
   }
   </style>
-  <div id="masonry">
+  <div id="grid-lanes">
     <div></div>
     <div></div>
     <div></div>
@@ -859,7 +860,7 @@ TEST_F(MasonryLayoutAlgorithmTest, ColumnAutoFillAutoFitAutoNoCollapse) {
   </div>
   )HTML");
 
-  BlockNode node(GetLayoutBoxByElementId("masonry"));
+  BlockNode node(GetLayoutBoxByElementId("grid-lanes"));
 
   const auto space = ConstructBlockLayoutTestConstraintSpace(
       {WritingMode::kHorizontalTb, TextDirection::kLtr},
@@ -884,18 +885,18 @@ TEST_F(MasonryLayoutAlgorithmTest, ColumnAutoFillAutoFitAutoNoCollapse) {
 TEST_F(MasonryLayoutAlgorithmTest, RowAutoFitAutoPlacement) {
   SetBodyInnerHTML(R"HTML(
     <style>
-    #masonry {
-      display: masonry;
-      masonry-direction: row;
+    #grid-lanes {
+      display: grid-lanes;
+      grid-lanes-direction: row;
       grid-template-rows: repeat(auto-fit, 100px);
       height: 1000px;
     }
-    #masonry > div {
+    #grid-lanes > div {
       height: 100%;
       width: 100px;
     }
     </style>
-    <div id="masonry">
+    <div id="grid-lanes">
       <div></div>
       <div></div>
       <div></div>
@@ -904,7 +905,7 @@ TEST_F(MasonryLayoutAlgorithmTest, RowAutoFitAutoPlacement) {
     </div>
   )HTML");
 
-  BlockNode node(GetLayoutBoxByElementId("masonry"));
+  BlockNode node(GetLayoutBoxByElementId("grid-lanes"));
 
   const auto space = ConstructBlockLayoutTestConstraintSpace(
       {WritingMode::kHorizontalTb, TextDirection::kLtr},
@@ -926,18 +927,18 @@ TEST_F(MasonryLayoutAlgorithmTest, RowAutoFitAutoPlacement) {
 TEST_F(MasonryLayoutAlgorithmTest, RowAutoFitAutoAndExplicitPlacement) {
   SetBodyInnerHTML(R"HTML(
     <style>
-    #masonry {
-      display: masonry;
-      masonry-direction: row;
+    #grid-lanes {
+      display: grid-lanes;
+      grid-lanes-direction: row;
       grid-template-rows: repeat(auto-fit, 100px);
       height: 1000px;
     }
-    #masonry > div {
+    #grid-lanes > div {
       height: 100%;
       width: 100px;
     }
     </style>
-    <div id="masonry">
+    <div id="grid-lanes">
       <div></div>
       <div></div>
       <div style="grid-row: 4"></div>
@@ -946,7 +947,7 @@ TEST_F(MasonryLayoutAlgorithmTest, RowAutoFitAutoAndExplicitPlacement) {
     </div>
   )HTML");
 
-  BlockNode node(GetLayoutBoxByElementId("masonry"));
+  BlockNode node(GetLayoutBoxByElementId("grid-lanes"));
 
   const auto space = ConstructBlockLayoutTestConstraintSpace(
       {WritingMode::kHorizontalTb, TextDirection::kLtr},
@@ -968,18 +969,18 @@ TEST_F(MasonryLayoutAlgorithmTest, RowAutoFitAutoAndExplicitPlacement) {
 TEST_F(MasonryLayoutAlgorithmTest, RowAutoFillAutoFitAutoPlacement) {
   SetBodyInnerHTML(R"HTML(
   <style>
-  #masonry {
-      display: masonry;
-      masonry-direction: row;
+  #grid-lanes {
+      display: grid-lanes;
+      grid-lanes-direction: row;
       grid-template-rows: repeat(5, 100px) repeat(auto-fit, 100px);
       height: 1000px;
   }
-  #masonry > div {
+  #grid-lanes > div {
       height: 100%;
       width: 100px;
   }
   </style>
-  <div id="masonry">
+  <div id="grid-lanes">
     <div></div>
     <div></div>
     <div></div>
@@ -989,7 +990,7 @@ TEST_F(MasonryLayoutAlgorithmTest, RowAutoFillAutoFitAutoPlacement) {
   </div>
   )HTML");
 
-  BlockNode node(GetLayoutBoxByElementId("masonry"));
+  BlockNode node(GetLayoutBoxByElementId("grid-lanes"));
 
   const auto space = ConstructBlockLayoutTestConstraintSpace(
       {WritingMode::kHorizontalTb, TextDirection::kLtr},
@@ -1012,18 +1013,18 @@ TEST_F(MasonryLayoutAlgorithmTest, RowAutoFillAutoFitAutoPlacement) {
 TEST_F(MasonryLayoutAlgorithmTest, RowAutoFillAutoFitNoCollapse) {
   SetBodyInnerHTML(R"HTML(
   <style>
-  #masonry {
-      display: masonry;
-      masonry-direction: row;
+  #grid-lanes {
+      display: grid-lanes;
+      grid-lanes-direction: row;
       grid-template-rows: repeat(auto-fit, 100px) repeat(5, 100px);
       height: 1000px;
   }
-  #masonry > div {
+  #grid-lanes > div {
       height: 100%;
       width: 100px;
   }
   </style>
-  <div id="masonry">
+  <div id="grid-lanes">
     <div></div>
     <div></div>
     <div></div>
@@ -1032,7 +1033,7 @@ TEST_F(MasonryLayoutAlgorithmTest, RowAutoFillAutoFitNoCollapse) {
   </div>
   )HTML");
 
-  BlockNode node(GetLayoutBoxByElementId("masonry"));
+  BlockNode node(GetLayoutBoxByElementId("grid-lanes"));
 
   const auto space = ConstructBlockLayoutTestConstraintSpace(
       {WritingMode::kHorizontalTb, TextDirection::kLtr},
@@ -1057,18 +1058,18 @@ TEST_F(MasonryLayoutAlgorithmTest, RowAutoFillAutoFitNoCollapse) {
 TEST_F(MasonryLayoutAlgorithmTest, RowAutoFitAutoSizeAutoPlacement) {
   SetBodyInnerHTML(R"HTML(
     <style>
-    #masonry {
-        display: masonry;
-        masonry-direction: row;
+    #grid-lanes {
+        display: grid-lanes;
+        grid-lanes-direction: row;
         grid-template-rows: repeat(auto-fit, auto);
         height: 1000px;
     }
-    #masonry > div {
+    #grid-lanes > div {
         height: 100px;
         width: 100px;
     }
     </style>
-    <div id="masonry">
+    <div id="grid-lanes">
       <div style="grid-row: 1;"></div>
       <div style="grid-row: 3;"></div>
       <div></div>
@@ -1078,7 +1079,7 @@ TEST_F(MasonryLayoutAlgorithmTest, RowAutoFitAutoSizeAutoPlacement) {
     </div>
   )HTML");
 
-  BlockNode node(GetLayoutBoxByElementId("masonry"));
+  BlockNode node(GetLayoutBoxByElementId("grid-lanes"));
 
   const auto space = ConstructBlockLayoutTestConstraintSpace(
       {WritingMode::kHorizontalTb, TextDirection::kLtr},
@@ -1103,18 +1104,18 @@ TEST_F(MasonryLayoutAlgorithmTest,
        RowAutoFitAutoSizeAndAutoAndExplicitPlacement) {
   SetBodyInnerHTML(R"HTML(
     <style>
-    #masonry {
-        display: masonry;
-        masonry-direction: row;
+    #grid-lanes {
+        display: grid-lanes;
+        grid-lanes-direction: row;
         grid-template-rows: repeat(auto-fit, auto);
         height: 1000px;
     }
-    #masonry > div {
+    #grid-lanes > div {
         height: 100px;
         width: 100px;
     }
     </style>
-    <div id="masonry">
+    <div id="grid-lanes">
       <div></div>
       <div></div>
       <div style="grid-row: 4"></div>
@@ -1123,7 +1124,7 @@ TEST_F(MasonryLayoutAlgorithmTest,
     </div>
   )HTML");
 
-  BlockNode node(GetLayoutBoxByElementId("masonry"));
+  BlockNode node(GetLayoutBoxByElementId("grid-lanes"));
 
   const auto space = ConstructBlockLayoutTestConstraintSpace(
       {WritingMode::kHorizontalTb, TextDirection::kLtr},
@@ -1147,18 +1148,18 @@ TEST_F(MasonryLayoutAlgorithmTest,
 TEST_F(MasonryLayoutAlgorithmTest, RowAutoFillAutoFitAutoAndAutoPlacement) {
   SetBodyInnerHTML(R"HTML(
     <style>
-    #masonry {
-        display: masonry;
-        masonry-direction: row;
+    #grid-lanes {
+        display: grid-lanes;
+        grid-lanes-direction: row;
         grid-template-rows: repeat(5, 100px) repeat(auto-fit, auto);
         height: 1000px;
     }
-    #masonry > div {
+    #grid-lanes > div {
         height: 100px;
         width: 100px;
     }
     </style>
-    <div id="masonry">
+    <div id="grid-lanes">
       <div></div>
       <div></div>
       <div></div>
@@ -1168,7 +1169,7 @@ TEST_F(MasonryLayoutAlgorithmTest, RowAutoFillAutoFitAutoAndAutoPlacement) {
     </div>
   )HTML");
 
-  BlockNode node(GetLayoutBoxByElementId("masonry"));
+  BlockNode node(GetLayoutBoxByElementId("grid-lanes"));
 
   const auto space = ConstructBlockLayoutTestConstraintSpace(
       {WritingMode::kHorizontalTb, TextDirection::kLtr},
@@ -1193,18 +1194,18 @@ TEST_F(MasonryLayoutAlgorithmTest, RowAutoFillAutoFitAutoAndAutoPlacement) {
 TEST_F(MasonryLayoutAlgorithmTest, RowAutoFillAutoFitAutoNoCollapse) {
   SetBodyInnerHTML(R"HTML(
   <style>
-  #masonry {
-      display: masonry;
-      masonry-direction: row;
+  #grid-lanes {
+      display: grid-lanes;
+      grid-lanes-direction: row;
       grid-template-rows: repeat(auto-fit, auto) repeat(5, 100px);
       height: 1000px;
   }
-  #masonry > div {
+  #grid-lanes > div {
       height: 100px;
       width: 100px;
   }
   </style>
-  <div id="masonry">
+  <div id="grid-lanes">
     <div></div>
     <div></div>
     <div></div>
@@ -1213,7 +1214,7 @@ TEST_F(MasonryLayoutAlgorithmTest, RowAutoFillAutoFitAutoNoCollapse) {
   </div>
   )HTML");
 
-  BlockNode node(GetLayoutBoxByElementId("masonry"));
+  BlockNode node(GetLayoutBoxByElementId("grid-lanes"));
 
   const auto space = ConstructBlockLayoutTestConstraintSpace(
       {WritingMode::kHorizontalTb, TextDirection::kLtr},
@@ -1306,11 +1307,12 @@ TEST_F(MasonryLayoutAlgorithmTest, GetMaxPositionsForAllTracks) {
       {LayoutUnit(2.0), LayoutUnit(3.0), LayoutUnit(3.5), LayoutUnit(2.5)},
       /*tie_threshold=*/LayoutUnit());
 
-  EXPECT_EQ(
-      GetMaxPositionsForAllTracks(running_positions, /*span_size=*/2),
-      Vector<LayoutUnit>({LayoutUnit(3), LayoutUnit(3.5), LayoutUnit(3.5)}));
+  EXPECT_EQ(GetMaxPositionsForAllTracks(running_positions, /*span_size=*/2),
+            Vector<LayoutUnit>({LayoutUnit(3), LayoutUnit(3.5), LayoutUnit(3.5),
+                                LayoutUnit(3.5)}));
   EXPECT_EQ(GetMaxPositionsForAllTracks(running_positions, /*span_size=*/4),
-            Vector<LayoutUnit>({LayoutUnit(3.5)}));
+            Vector<LayoutUnit>({LayoutUnit(3.5), LayoutUnit(3.5),
+                                LayoutUnit(3.5), LayoutUnit(3.5)}));
   EXPECT_EQ(GetMaxPositionsForAllTracks(running_positions, /*span_size=*/1),
             Vector<LayoutUnit>({LayoutUnit(2.0), LayoutUnit(3.0),
                                 LayoutUnit(3.5), LayoutUnit(2.5)}));

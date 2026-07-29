@@ -66,6 +66,7 @@ import org.robolectric.shadows.ShadowLooper;
 import org.chromium.base.Callback;
 import org.chromium.base.MathUtils;
 import org.chromium.base.test.BaseRobolectricTestRunner;
+import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.omnibox.UrlBar.UrlBarDelegate;
@@ -1033,16 +1034,19 @@ public class UrlBarUnitTest {
         mUrlBar.setInputIsMultilineEligible(true);
         assertEquals(UrlBar.MULTILINE_EDIT_MAX_LINES, mUrlBar.getMaxLines());
         assertFalse(mUrlBar.isSingleLine());
+        assertFalse(mUrlBar.isHorizontallyScrollable());
 
         mUrlBar.setInputIsMultilineEligible(false);
-        assertEquals(1, mUrlBar.getMaxLines());
-        assertTrue(mUrlBar.isSingleLine());
+        assertEquals(UrlBar.MULTILINE_EDIT_MAX_LINES, mUrlBar.getMaxLines());
+        assertFalse(mUrlBar.isSingleLine());
+        assertTrue(mUrlBar.isHorizontallyScrollable());
 
         // Defocused omnibox - never multiline
         mUrlBar.onFocusChanged(false, View.LAYOUT_DIRECTION_LTR, new Rect());
         mUrlBar.setInputIsMultilineEligible(true);
         assertEquals(1, mUrlBar.getMaxLines());
         assertTrue(mUrlBar.isSingleLine());
+        assertTrue(mUrlBar.isHorizontallyScrollable());
     }
 
     @Test
@@ -1084,5 +1088,17 @@ public class UrlBarUnitTest {
         mUrlBar.onTextChanged("text 2", 0, 0, 6);
         ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
         verify(callback, never()).onResult(anyBoolean());
+    }
+
+    @Test
+    @EnableFeatures(OmniboxFeatureList.URL_BAR_WITHOUT_LIGATURES)
+    public void testUrlBarWithoutLigaturesEnabled() {
+        assertEquals("liga=0, clig=0, calt=0, dlig=0", mUrlBar.getFontFeatureSettings());
+    }
+
+    @Test
+    @DisableFeatures(OmniboxFeatureList.URL_BAR_WITHOUT_LIGATURES)
+    public void testUrlBarWithoutLigaturesDisabled() {
+        assertNull(mUrlBar.getFontFeatureSettings());
     }
 }

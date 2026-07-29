@@ -75,9 +75,9 @@ NSString* const kWhatsNewInstructionsLabelAccessibilityIdentifier =
       initWithConfiguration:configuration];
   _alertScreen.underTitleView = instructionView;
   _alertScreen.actionHandler = self.actionHandler;
-  _alertScreen.showDismissBarButton = NO;
 
-  self.title = l10n_util::GetNSString(IDS_IOS_WHATS_HOW_TO_ENABLE_TITLE);
+  self.title =
+      l10n_util::GetNSString(IDS_IOS_WHATS_NEW_SHOW_INSTRUCTIONS_TITLE);
 
   _alertScreen.topAlignedLayout = YES;
 

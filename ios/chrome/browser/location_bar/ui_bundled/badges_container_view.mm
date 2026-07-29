@@ -11,6 +11,7 @@
 #import "ios/chrome/browser/location_bar/ui_bundled/location_bar_placeholder_type.h"
 #import "ios/chrome/browser/shared/public/commands/page_action_menu_commands.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
+#import "ios/chrome/browser/shared/ui/symbols/symbols.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
 #import "ios/chrome/common/ui/util/constraints_ui_util.h"
 
@@ -37,6 +38,7 @@ const CGFloat kBackgroundHorizontalInset = 5.0;
   UIStackView* _containerStackView;
   UIButton* _tapOverlayButton;
   UIView* _badgeBackgroundView;
+  BOOL _disableProactiveOverlay;
 
   /// Whether the contextual panel entrypoint should be visible. The placeholder
   /// view trumps the entrypoint when kLensOverlayPriceInsightsCounterfactual is
@@ -129,6 +131,10 @@ const CGFloat kBackgroundHorizontalInset = 5.0;
 - (void)setContextualPanelCurrentlyAnimating:(BOOL)animating {
   _contextualPanelCurrentlyAnimating = animating;
   [self updateViewsVisibility];
+}
+
+- (void)disableProactiveSuggestionOverlay:(BOOL)disabled {
+  _disableProactiveOverlay = disabled;
 }
 
 #pragma mark - ReaderModeChipVisibilityDelegate
@@ -285,13 +291,19 @@ const CGFloat kBackgroundHorizontalInset = 5.0;
   // The Incognito badge should decide its visibility independently of the
   // visibility of other badges.
   incognitoBadgeViewShouldBeVisibleFinal = _incognitoBadgeViewShouldBeVisible;
-  // The Reader mode chip (which wants to be visible when Reader mode is active)
-  // should not be visible if the contextual panel is currently visible and
-  // animating.
-  readerModeChipShouldBeVisibleFinal =
-      _readerModeChipShouldBeVisible &&
-      !(_contextualPanelEntrypointShouldBeVisible &&
-        _contextualPanelCurrentlyAnimating);
+  if (IsProactiveSuggestionsFrameworkEnabled()) {
+    // When framework enabled, reader mode chip visibility follows desired state
+    // directly.
+    readerModeChipShouldBeVisibleFinal = _readerModeChipShouldBeVisible;
+  } else {
+    // The Reader mode chip (which wants to be visible when Reader mode is
+    // active) should not be visible if the contextual panel is currently
+    // visible and animating.
+    readerModeChipShouldBeVisibleFinal =
+        _readerModeChipShouldBeVisible &&
+        !(_contextualPanelEntrypointShouldBeVisible &&
+          _contextualPanelCurrentlyAnimating);
+  }
 
   // Other badges can be visible only outside of Reader mode.
   if (!readerModeChipShouldBeVisibleFinal) {
@@ -434,7 +446,7 @@ const CGFloat kBackgroundHorizontalInset = 5.0;
 - (BOOL)hasVisibleBadges {
   for (UIView* subview in _containerStackView.arrangedSubviews) {
     if (!subview.hidden && subview != _placeholderView) {
-      return YES;
+      return !_disableProactiveOverlay;
     }
   }
   return NO;

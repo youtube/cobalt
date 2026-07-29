@@ -293,6 +293,7 @@ class ComputedStyle final : public ComputedStyleBase {
   friend class css_longhand::ColumnRuleWidth;
   friend class css_longhand::OutlineWidth;
   friend class ComputedStylePropertyMap;
+  friend class LengthPropertyFunctions;
   // Access to private Appearance() and HasAppearance().
   friend class LayoutTheme;
   friend class StyleAdjuster;
@@ -511,7 +512,7 @@ class ComputedStyle final : public ComputedStyleBase {
   }
 
   bool MayUseImplicitAnchor() const {
-    return !PositionAnchor() && HasOutOfFlowPosition() &&
+    return PositionAnchor().IsAuto() && HasOutOfFlowPosition() &&
            (HasAnchorFunctions() ||
             AlignSelf().GetPosition() == ItemPosition::kAnchorCenter ||
             JustifySelf().GetPosition() == ItemPosition::kAnchorCenter);
@@ -992,7 +993,7 @@ class ComputedStyle final : public ComputedStyleBase {
   bool NonInheritedEqual(const ComputedStyle&) const;
   inline bool IndependentInheritedEqual(const ComputedStyle&) const;
   inline bool NonIndependentInheritedEqual(const ComputedStyle&) const;
-  bool InheritedDataShared(const ComputedStyle&) const;
+  bool InheritedEqualIncludingInheritedVariables(const ComputedStyle&) const;
 
   bool HasChildDependentFlags() const { return ChildHasExplicitInheritance(); }
   void CopyChildDependentFlagsFrom(const ComputedStyle&) const;
@@ -1160,26 +1161,26 @@ class ComputedStyle final : public ComputedStyleBase {
     return ComputedGridTemplate(SpecifiedGridTemplateRows());
   }
 
-  // Masonry utility functions.
-  GridTrackSizingDirection MasonryTrackSizingDirection() const {
-    switch (MasonryDirection()) {
-      case EMasonryDirection::kColumn:
-      case EMasonryDirection::kColumnReverse:
+  // Grid Lanes utility functions.
+  GridTrackSizingDirection GridLanesTrackSizingDirection() const {
+    switch (GridLanesDirection()) {
+      case EGridLanesDirection::kColumn:
+      case EGridLanesDirection::kColumnReverse:
         return kForColumns;
-      case EMasonryDirection::kRow:
-      case EMasonryDirection::kRowReverse:
+      case EGridLanesDirection::kRow:
+      case EGridLanesDirection::kRowReverse:
         return kForRows;
     }
     NOTREACHED();
   }
 
-  bool IsReverseMasonryDirection() const {
-    const auto masonry_direction = MasonryDirection();
-    return (masonry_direction == EMasonryDirection::kColumnReverse ||
-            masonry_direction == EMasonryDirection::kRowReverse);
+  bool IsReverseGridLanesDirection() const {
+    const auto grid_lanes_direction = GridLanesDirection();
+    return (grid_lanes_direction == EGridLanesDirection::kColumnReverse ||
+            grid_lanes_direction == EGridLanesDirection::kRowReverse);
   }
 
-  // Grid axis utility functions, usable in Grid and Masonry.
+  // Grid axis utility functions, usable in Grid and Grid Lanes.
   const GridTrackList& AutoTracks(
       GridTrackSizingDirection track_direction) const {
     return (track_direction == kForColumns) ? GridAutoColumns()
@@ -1733,7 +1734,9 @@ class ComputedStyle final : public ComputedStyleBase {
   bool IsDisplayTableBox() const { return IsDisplayTableBox(Display()); }
   bool IsDisplayFlexibleBox() const { return IsDisplayFlexibleBox(Display()); }
   bool IsDisplayGridBox() const { return IsDisplayGridBox(Display()); }
-  bool IsDisplayMasonryBox() const { return IsDisplayMasonryBox(Display()); }
+  bool IsDisplayGridLanesBox() const {
+    return IsDisplayGridLanesBox(Display());
+  }
   bool IsDisplayFlexibleOrGridBox() const {
     return IsDisplayFlexibleBox(Display()) || IsDisplayGridBox(Display());
   }
@@ -1746,7 +1749,7 @@ class ComputedStyle final : public ComputedStyleBase {
   bool IsDisplayMathType() const { return IsDisplayMathBox(Display()); }
 
   bool BlockifiesChildren() const {
-    return IsDisplayFlexibleOrGridBox() || IsDisplayMasonryBox() ||
+    return IsDisplayFlexibleOrGridBox() || IsDisplayGridLanesBox() ||
            IsDisplayMathType() || IsDisplayLayoutCustomBox() ||
            (Display() == EDisplay::kContents && IsInBlockifyingDisplay());
   }
@@ -2640,8 +2643,9 @@ class ComputedStyle final : public ComputedStyleBase {
     return display == EDisplay::kGrid || display == EDisplay::kInlineGrid;
   }
 
-  static bool IsDisplayMasonryBox(EDisplay display) {
-    return display == EDisplay::kMasonry || display == EDisplay::kInlineMasonry;
+  static bool IsDisplayGridLanesBox(EDisplay display) {
+    return display == EDisplay::kGridLanes ||
+           display == EDisplay::kInlineGridLanes;
   }
 
   static bool IsDisplayMathBox(EDisplay display) {
@@ -2659,7 +2663,7 @@ class ComputedStyle final : public ComputedStyleBase {
            display == EDisplay::kInlineFlowRootListItem ||
            display == EDisplay::kInlineGrid ||
            display == EDisplay::kInlineLayoutCustom ||
-           display == EDisplay::kInlineMasonry ||
+           display == EDisplay::kInlineGridLanes ||
            display == EDisplay::kInlineTable || display == EDisplay::kMath ||
            display == EDisplay::kWebkitInlineBox;
   }
@@ -2682,14 +2686,14 @@ class ComputedStyle final : public ComputedStyleBase {
            display == EDisplay::kTableCaption;
   }
 
-  static GridTrackSizingDirection MasonryTrackSizingDirection(
-      EMasonryDirection direction) {
+  static GridTrackSizingDirection GridLanesTrackSizingDirection(
+      EGridLanesDirection direction) {
     switch (direction) {
-      case EMasonryDirection::kColumn:
-      case EMasonryDirection::kColumnReverse:
+      case EGridLanesDirection::kColumn:
+      case EGridLanesDirection::kColumnReverse:
         return kForColumns;
-      case EMasonryDirection::kRow:
-      case EMasonryDirection::kRowReverse:
+      case EGridLanesDirection::kRow:
+      case EGridLanesDirection::kRowReverse:
         return kForRows;
     }
     NOTREACHED();

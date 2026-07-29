@@ -67,6 +67,14 @@ using enum OmniboxKeyboardAction;
 
   /// The omnibox typing attributes.
   NSDictionary<NSAttributedStringKey, id>* _omniboxTypingAttributes;
+
+  /// Whether to force disable the return key.
+  BOOL _forceDisableReturnKey;
+
+  // The default and custom placeholder texts to be shown when there is no other
+  // text present.
+  NSString* _customPlaceholderText;
+  NSString* _defaultPlaceholderText;
 }
 
 @synthesize omniboxTextInputDelegate = _omniboxTextInputDelegate;
@@ -484,10 +492,6 @@ using enum OmniboxKeyboardAction;
   [super setAttributedText:mutableText];
 }
 
-- (void)setPlaceholder:(NSString*)placeholder {
-  self.placeholderLabel.text = placeholder;
-}
-
 - (void)setText:(NSString*)text {
   NSAttributedString* as = [[NSAttributedString alloc] initWithString:text];
   [self setTextInternal:as autocompleteLength:0];
@@ -513,6 +517,9 @@ using enum OmniboxKeyboardAction;
 - (BOOL)hasText {
   // Returns YES when `allowsReturnKeyWithEmptyText` to enable the 'Go' key in
   // the keyboard.
+  if (_forceDisableReturnKey) {
+    return NO;
+  }
   return self.allowsReturnKeyWithEmptyText || [super hasText];
 }
 
@@ -808,6 +815,9 @@ using enum OmniboxKeyboardAction;
       return ([self isPreEditing] || [self hasAutocompleteText] ||
               [self hasAdditionalText]);
     case kReturnKey: {
+      if (_forceDisableReturnKey) {
+        return NO;
+      }
       NSString* trimmedText =
           [self.text stringByTrimmingCharactersInSet:
                          [NSCharacterSet whitespaceAndNewlineCharacterSet]];
@@ -896,6 +906,15 @@ using enum OmniboxKeyboardAction;
 }
 
 #pragma mark - Private methods
+
+- (void)updatePlaceholder {
+  if (_customPlaceholderText) {
+    self.placeholderLabel.text = _customPlaceholderText;
+    return;
+  }
+
+  self.placeholderLabel.text = _defaultPlaceholderText;
+}
 
 #pragma mark Font
 
@@ -1138,6 +1157,21 @@ using enum OmniboxKeyboardAction;
 
 - (NSString*)placeholder {
   return self.placeholderLabel.text;
+}
+
+- (void)forceDisableReturnKey:(BOOL)forceDisable {
+  _forceDisableReturnKey = forceDisable;
+  [self reloadInputViews];
+}
+
+- (void)setDefaultPlaceholderText:(NSString*)defaultPlaceholderText {
+  _defaultPlaceholderText = [defaultPlaceholderText copy];
+  [self updatePlaceholder];
+}
+
+- (void)setCustomPlaceholderText:(NSString*)customPlaceholderText {
+  _customPlaceholderText = [customPlaceholderText copy];
+  [self updatePlaceholder];
 }
 
 #pragma mark - UITextViewDelegate

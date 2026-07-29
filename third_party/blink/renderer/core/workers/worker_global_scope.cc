@@ -32,7 +32,6 @@
 #include "base/trace_event/typed_macros.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "services/metrics/public/cpp/mojo_ukm_recorder.h"
-#include "third_party/blink/public/common/privacy_budget/identifiability_study_settings.h"
 #include "third_party/blink/public/common/thread_safe_browser_interface_broker_proxy.h"
 #include "third_party/blink/public/mojom/browser_interface_broker.mojom-blink.h"
 #include "third_party/blink/public/mojom/devtools/inspector_issue.mojom-blink.h"
@@ -49,7 +48,6 @@
 #include "third_party/blink/renderer/core/events/error_event.h"
 #include "third_party/blink/renderer/core/events/message_event.h"
 #include "third_party/blink/renderer/core/execution_context/agent.h"
-#include "third_party/blink/renderer/core/frame/font_matching_metrics.h"
 #include "third_party/blink/renderer/core/frame/reporting_context.h"
 #include "third_party/blink/renderer/core/frame/user_activation.h"
 #include "third_party/blink/renderer/core/inspector/console_message.h"
@@ -754,15 +752,6 @@ WorkerGlobalScope::WorkerGlobalScope(
   DCHECK(creation_params->worker_permissions_policy);
   GetSecurityContext().SetPermissionsPolicy(
       std::move(creation_params->worker_permissions_policy));
-
-  // UKM recorder is needed in the Dispose() method but sometimes it is not
-  // initialized by then because of a race problem.
-  // If the Identifiability Study is enabled, we need the UKM recorder in any
-  // case so it should not affect anything if we initialize it here.
-  // TODO(crbug.com/1370978): Check if there is another fix instead of
-  // initializing UKM Recorder here.
-  if (blink::IdentifiabilityStudySettings::Get()->IsActive())
-    UkmRecorder();
 }
 
 void WorkerGlobalScope::ExceptionThrown(ErrorEvent* event) {
@@ -845,19 +834,18 @@ void WorkerGlobalScope::Trace(Visitor* visitor) const {
   visitor->Trace(trusted_types_);
   visitor->Trace(worker_script_);
   visitor->Trace(browser_interface_broker_proxy_);
+  visitor->Trace(global_fetch_impl_);
+  visitor->Trace(global_cache_storage_impl_);
+  visitor->Trace(global_cookie_store_impl_);
+  visitor->Trace(global_performance_impl_);
+  visitor->Trace(font_face_set_worker_);
+  ExecutionContext::Trace(visitor);
+  WindowOrWorkerGlobalScope::Trace(visitor);
   WorkerOrWorkletGlobalScope::Trace(visitor);
-  Supplementable<WorkerGlobalScope, 7>::Trace(visitor);
 }
 
 bool WorkerGlobalScope::HasPendingActivity() const {
   return !ExecutionContext::IsContextDestroyed();
-}
-
-FontMatchingMetrics* WorkerGlobalScope::GetFontMatchingMetrics() {
-  if (!font_matching_metrics_) {
-    font_matching_metrics_ = std::make_unique<FontMatchingMetrics>(this);
-  }
-  return font_matching_metrics_.get();
 }
 
 CodeCacheHost* WorkerGlobalScope::GetCodeCacheHost() {
@@ -870,7 +858,7 @@ CodeCacheHost* WorkerGlobalScope::GetCodeCacheHost() {
     mojo::Remote<mojom::blink::CodeCacheHost> remote;
     GetBrowserInterfaceBroker().GetInterface(
         remote.BindNewPipeAndPassReceiver());
-    code_cache_host_ = std::make_unique<CodeCacheHost>(std::move(remote));
+    code_cache_host_ = CodeCacheHost::Create(std::move(remote));
   }
   return code_cache_host_.get();
 }

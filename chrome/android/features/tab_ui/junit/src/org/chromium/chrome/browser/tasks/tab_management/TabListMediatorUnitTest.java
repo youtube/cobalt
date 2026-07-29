@@ -1700,7 +1700,9 @@ public class TabListMediatorUnitTest {
                         TabActionState.CLOSABLE,
                         mDataSharingTabManager,
                         /* onTabGroupCreation= */ null,
-                        /* undoBarExplicitTrigger= */ null);
+                        /* undoBarExplicitTrigger= */ null,
+                        /* snackbarManager= */ null,
+                        /* allowedSelectionCount= */ 0);
         mMediator.initWithNative(mProfile);
 
         initAndAssertAllProperties();
@@ -3518,7 +3520,9 @@ public class TabListMediatorUnitTest {
                         TabProperties.TabActionState.CLOSABLE,
                         mDataSharingTabManager,
                         /* onTabGroupCreation= */ null,
-                        /* undoBarExplicitTrigger= */ null);
+                        /* undoBarExplicitTrigger= */ null,
+                        /* snackbarManager= */ null,
+                        /* allowedSelectionCount= */ 0);
         mMediator.registerOrientationListener(mGridLayoutManager);
         mMediator.initWithNative(mProfile);
         initAndAssertAllProperties();
@@ -3552,7 +3556,9 @@ public class TabListMediatorUnitTest {
                         TabProperties.TabActionState.CLOSABLE,
                         mDataSharingTabManager,
                         /* onTabGroupCreation= */ null,
-                        /* undoBarExplicitTrigger= */ null);
+                        /* undoBarExplicitTrigger= */ null,
+                        /* snackbarManager= */ null,
+                        /* allowedSelectionCount= */ 0);
         mMediator.registerOrientationListener(mGridLayoutManager);
         mMediator.initWithNative(mProfile);
         initWithThreeTabs();
@@ -3747,7 +3753,9 @@ public class TabListMediatorUnitTest {
                         TabProperties.TabActionState.CLOSABLE,
                         mDataSharingTabManager,
                         /* onTabGroupCreation= */ null,
-                        mUndoBarExplicitTrigger);
+                        mUndoBarExplicitTrigger,
+                        /* snackbarManager= */ null,
+                        /* allowedSelectionCount= */ 0);
         initAndAssertAllProperties();
 
         Tab newTab = prepareTab(TAB3_ID, TAB3_TITLE, TAB3_URL);
@@ -4069,7 +4077,9 @@ public class TabListMediatorUnitTest {
                         TabProperties.TabActionState.SELECTABLE,
                         mDataSharingTabManager,
                         /* onTabGroupCreation= */ null,
-                        /* undoBarExplicitTrigger= */ null);
+                        /* undoBarExplicitTrigger= */ null,
+                        /* snackbarManager= */ null,
+                        /* allowedSelectionCount= */ 0);
         mMediator.registerOrientationListener(mGridLayoutManager);
         mMediator.initWithNative(mProfile);
         initAndAssertAllProperties();
@@ -4116,7 +4126,9 @@ public class TabListMediatorUnitTest {
                         TabProperties.TabActionState.SELECTABLE,
                         mDataSharingTabManager,
                         /* onTabGroupCreation= */ null,
-                        /* undoBarExplicitTrigger= */ null);
+                        /* undoBarExplicitTrigger= */ null,
+                        /* snackbarManager= */ null,
+                        /* allowedSelectionCount= */ 0);
         mMediator.registerOrientationListener(mGridLayoutManager);
         mMediator.initWithNative(mProfile);
         initAndAssertAllProperties();
@@ -4163,7 +4175,9 @@ public class TabListMediatorUnitTest {
                         TabProperties.TabActionState.SELECTABLE,
                         mDataSharingTabManager,
                         /* onTabGroupCreation= */ null,
-                        /* undoBarExplicitTrigger= */ null);
+                        /* undoBarExplicitTrigger= */ null,
+                        /* snackbarManager= */ null,
+                        /* allowedSelectionCount= */ 0);
         mMediator.registerOrientationListener(mGridLayoutManager);
         mMediator.initWithNative(mProfile);
         initAndAssertAllProperties();
@@ -4903,7 +4917,9 @@ public class TabListMediatorUnitTest {
                         TabProperties.TabActionState.CLOSABLE,
                         mDataSharingTabManager,
                         /* onTabGroupCreation= */ null,
-                        /* undoBarExplicitTrigger= */ null);
+                        /* undoBarExplicitTrigger= */ null,
+                        /* snackbarManager= */ null,
+                        /* allowedSelectionCount= */ 0);
         mMediator.registerOrientationListener(mGridLayoutManager);
         mMediator.initWithNative(mProfile);
         initAndAssertAllProperties();
@@ -5256,7 +5272,9 @@ public class TabListMediatorUnitTest {
                         TabProperties.TabActionState.CLOSABLE,
                         mDataSharingTabManager,
                         /* onTabGroupCreation= */ null,
-                        mUndoBarExplicitTrigger);
+                        mUndoBarExplicitTrigger,
+                        /* snackbarManager= */ null,
+                        /* allowedSelectionCount= */ 0);
         initAndAssertAllProperties();
 
         mModelList
@@ -5319,7 +5337,9 @@ public class TabListMediatorUnitTest {
                         TabProperties.TabActionState.CLOSABLE,
                         mDataSharingTabManager,
                         /* onTabGroupCreation= */ null,
-                        /* undoBarExplicitTrigger= */ null);
+                        /* undoBarExplicitTrigger= */ null,
+                        /* snackbarManager= */ null,
+                        /* allowedSelectionCount= */ 0);
         mMediator.registerOrientationListener(mGridLayoutManager);
         mMediator.initWithNative(mProfile);
         initAndAssertAllProperties();
@@ -5444,6 +5464,80 @@ public class TabListMediatorUnitTest {
     }
 
     @Test
+    @EnableFeatures(ChromeFeatureList.MEDIA_INDICATORS_ANDROID)
+    public void testMediaState_TabGroup_ContentDescription() {
+        List<Tab> tabs = new ArrayList<>(Arrays.asList(mTab1, mTab2));
+        createTabGroup(tabs, TAB1_ID, TAB_GROUP_ID);
+        mMediator.resetWithListOfTabs(tabs, null, false);
+        PropertyModel model = mModelList.get(0).model;
+
+        Resources res = mContext.getResources();
+        String playingAudio =
+                res.getString(org.chromium.chrome.tab_ui.R.string.accessibility_tab_group_audible);
+        String mutedAudio =
+                res.getString(org.chromium.chrome.tab_ui.R.string.accessibility_tab_group_muted);
+        String recording =
+                res.getString(
+                        org.chromium.chrome.tab_ui.R.string.accessibility_tab_group_recording);
+        String sharing =
+                res.getString(org.chromium.chrome.tab_ui.R.string.accessibility_tab_group_sharing);
+
+        // Description without media state.
+        final @TabGroupColorId int defaultColor = TabGroupColorId.GREY;
+        final @StringRes int colorDescRes =
+                TabGroupColorPickerUtils.getTabGroupColorPickerItemColorAccessibilityString(
+                        defaultColor);
+        String baseDescription =
+                res.getQuantityString(
+                        org.chromium.chrome.tab_ui.R.plurals
+                                .accessibility_expand_tab_group_with_color,
+                        2,
+                        2,
+                        res.getString(colorDescRes));
+
+        // MediaState AUDIBLE.
+        updateTabMediaState(mTab1, MediaState.AUDIBLE);
+        assertEquals(
+                baseDescription + " " + playingAudio,
+                model.get(TabProperties.CONTENT_DESCRIPTION_TEXT_RESOLVER)
+                        .resolve(mContext)
+                        .toString());
+
+        // MediaState MUTED.
+        updateTabMediaState(mTab1, MediaState.MUTED);
+        assertEquals(
+                baseDescription + " " + mutedAudio,
+                model.get(TabProperties.CONTENT_DESCRIPTION_TEXT_RESOLVER)
+                        .resolve(mContext)
+                        .toString());
+
+        // MediaState RECORDING.
+        updateTabMediaState(mTab2, MediaState.RECORDING);
+        assertEquals(
+                baseDescription + " " + recording,
+                model.get(TabProperties.CONTENT_DESCRIPTION_TEXT_RESOLVER)
+                        .resolve(mContext)
+                        .toString());
+
+        // MediaState SHARING.
+        updateTabMediaState(mTab2, MediaState.SHARING);
+        assertEquals(
+                baseDescription + " " + sharing,
+                model.get(TabProperties.CONTENT_DESCRIPTION_TEXT_RESOLVER)
+                        .resolve(mContext)
+                        .toString());
+
+        // MediaState NONE.
+        updateTabMediaState(mTab1, MediaState.NONE);
+        updateTabMediaState(mTab2, MediaState.NONE);
+        assertEquals(
+                baseDescription,
+                model.get(TabProperties.CONTENT_DESCRIPTION_TEXT_RESOLVER)
+                        .resolve(mContext)
+                        .toString());
+    }
+
+    @Test
     public void testContextClickListener() {
         mMediator =
                 new TabListMediator(
@@ -5463,7 +5557,9 @@ public class TabListMediatorUnitTest {
                         TabProperties.TabActionState.CLOSABLE,
                         mDataSharingTabManager,
                         /* onTabGroupCreation= */ null,
-                        /* undoBarExplicitTrigger= */ null);
+                        /* undoBarExplicitTrigger= */ null,
+                        /* snackbarManager= */ null,
+                        /* allowedSelectionCount= */ 0);
         mMediator.initWithNative(mProfile);
 
         initAndAssertAllProperties();
@@ -5672,7 +5768,9 @@ public class TabListMediatorUnitTest {
                         tabActionState,
                         mDataSharingTabManager,
                         /* onTabGroupCreation= */ null,
-                        mUndoBarExplicitTrigger);
+                        mUndoBarExplicitTrigger,
+                        /* snackbarManager= */ null,
+                        /* allowedSelectionCount= */ 0);
         TrackerFactory.setTrackerForTests(mTracker);
         mMediator.registerOrientationListener(mGridLayoutManager);
 

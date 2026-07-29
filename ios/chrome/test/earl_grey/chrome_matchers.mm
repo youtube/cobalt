@@ -333,6 +333,10 @@ id<GREYMatcher> OpenLinkInNewWindowButton() {
   return [ChromeMatchersAppInterface openLinkInNewWindowButton];
 }
 
+id<GREYMatcher> NavigationBarCloseButton() {
+  return [ChromeMatchersAppInterface navigationBarCloseButton];
+}
+
 id<GREYMatcher> NavigationBarDoneButton() {
   return [ChromeMatchersAppInterface navigationBarDoneButton];
 }
@@ -989,12 +993,16 @@ id<GREYMatcher> SettingsActionButton() {
 
 #pragma mark - Promo style view controller
 
+// TODO(crbug.com/444648926): Remove this matcher once downstream dependencies
+// have been updated.
 id<GREYMatcher> PromoScreenPrimaryButtonMatcher() {
-  return [ChromeMatchersAppInterface promoScreenPrimaryButtonMatcher];
+  return chrome_test_util::ButtonStackPrimaryButton();
 }
 
+// TODO(crbug.com/444648926): Remove this matcher once downstream dependencies
+// have been updated.
 id<GREYMatcher> PromoScreenSecondaryButtonMatcher() {
-  return [ChromeMatchersAppInterface promoScreenSecondaryButtonMatcher];
+  return chrome_test_util::ButtonStackSecondaryButton();
 }
 
 #pragma mark - Incognito Interstitial

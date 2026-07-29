@@ -13,7 +13,6 @@
 #include "base/android/jni_string.h"
 #include "base/android/scoped_java_ref.h"
 #include "base/functional/bind.h"
-#include "base/functional/callback_forward.h"
 #include "content/public/browser/browser_thread.h"
 #include "url/android/gurl_android.h"
 #include "url/gurl.h"
@@ -142,3 +141,5 @@ void ThirdPartyCredentialManagerBridge::Store(
 }
 
 }  // namespace credential_management
+
+DEFINE_JNI(ThirdPartyCredentialManagerBridge)

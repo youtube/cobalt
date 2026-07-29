@@ -17,6 +17,7 @@
 #include "base/debug/leak_annotations.h"
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
+#include "base/functional/callback_helpers.h"
 #include "base/mac/launch_application.h"
 #include "base/mac/mac_util.h"
 #include "base/mac/scoped_mach_msg_destroy.h"
@@ -171,7 +172,13 @@ class ScopedSynchronizeThreads {
   raw_ptr<base::WaitableEvent> operation_finished_;
 };
 
+AppShimController::TestDelegate* g_test_delegate = nullptr;
+
 }  // namespace
+
+void AppShimController::SetDelegateForTesting(TestDelegate* delegate) {
+  g_test_delegate = delegate;
+}
 
 AppShimController::Params::Params() = default;
 AppShimController::Params::Params(const Params& other) = default;
@@ -418,6 +425,10 @@ bool AppShimController::FindOrLaunchChrome() {
     browser_command_line.AppendSwitch(switches::kNoStartupWindow);
   }
 
+  if (g_test_delegate) {
+    g_test_delegate->PopulateChromeCommandLine(browser_command_line);
+  }
+
   base::mac::LaunchApplication(
       chrome_bundle_path, browser_command_line, /*url_specs=*/{},
       {.create_new_instance = true,
@@ -514,7 +525,7 @@ void AppShimController::PollForChromeReady(
   {
     mojo::PlatformChannelEndpoint endpoint;
     NSString* browser_bundle_id =
-        base::apple::ObjCCast<NSString>([NSBundle.mainBundle
+        base::apple::ObjCCast<NSString>([base::apple::MainBundle()
             objectForInfoDictionaryKey:app_mode::kBrowserBundleIDKey]);
     CHECK(browser_bundle_id);
     const std::string server_name = base::StringPrintf(
@@ -962,6 +973,7 @@ void AppShimController::BindChildHistogramFetcherFactory(
 
 bool AppShimController::WebAppIsAdHocSigned() const {
   NSNumber* isAdHocSigned =
-      NSBundle.mainBundle.infoDictionary[app_mode::kCrAppModeIsAdHocSignedKey];
+      base::apple::MainBundle()
+          .infoDictionary[app_mode::kCrAppModeIsAdHocSignedKey];
   return isAdHocSigned.boolValue;
 }

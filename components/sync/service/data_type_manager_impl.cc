@@ -14,6 +14,7 @@
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
+#include "base/functional/callback_helpers.h"
 #include "base/logging.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
@@ -889,6 +890,11 @@ DataTypeSet DataTypeManagerImpl::GetTypesWithPendingDownloadForInitialSync()
 
 DataTypeSet DataTypeManagerImpl::GetDataTypesWithPermanentErrors() const {
   return data_type_status_table_.GetFatalErrorTypes();
+}
+
+DataTypeStatusTable::TypeErrorMap DataTypeManagerImpl::GetDataTypeErrors()
+    const {
+  return data_type_status_table_.GetAllErrors();
 }
 
 DataTypeSet DataTypeManagerImpl::GetStoppedDataTypesExcludingNigori() const {

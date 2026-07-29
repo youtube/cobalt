@@ -6,7 +6,10 @@
 
 #include <memory>
 
+#include "base/check_deref.h"
 #include "base/test/scoped_feature_list.h"
+#include "chrome/browser/glic/test_support/glic_test_environment.h"
+#include "chrome/browser/glic/test_support/glic_test_util.h"
 #include "chrome/browser/global_features.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
@@ -37,10 +40,11 @@
 #include "ui/views/test/views_test_utils.h"
 #include "ui/views/widget/widget.h"
 
-#if BUILDFLAG(ENABLE_GLIC)
-#include "chrome/browser/glic/test_support/glic_test_environment.h"
-#include "chrome/browser/glic/test_support/glic_test_util.h"
-#endif  // BUILDFLAG(ENABLE_GLIC)
+#if BUILDFLAG(IS_CHROMEOS)
+#include "chrome/browser/ash/test/glic_user_session_test_helper.h"
+#endif  // BUILDFLAG(IS_CHROMEOS)
+
+static_assert(BUILDFLAG(ENABLE_GLIC));
 
 namespace {
 using testing::SizeIs;
@@ -48,19 +52,23 @@ using testing::SizeIs;
 
 class FakeGlicTabStripController : public FakeBaseTabStripController {
  public:
+  // `profile` must be non-null and must outlive `this`.
+  explicit FakeGlicTabStripController(TestingProfile* profile)
+      : profile_(CHECK_DEREF(profile)) {}
+
   Profile* GetProfile() const override {
     if (use_otr_profile_) {
       TestingProfile* otr_profile = TestingProfile::Builder().BuildOffTheRecord(
-          profile_.get(), Profile::OTRProfileID::CreateUniqueForTesting());
+          &profile_.get(), Profile::OTRProfileID::CreateUniqueForTesting());
 
       return otr_profile;
     }
 
-    return profile_.get();
+    return &profile_.get();
   }
   void Setup() {
     auto browser_window = std::make_unique<TestBrowserWindow>();
-    Browser::CreateParams params(profile_.get(), /*user_gesture*/ true);
+    Browser::CreateParams params(&profile_.get(), /*user_gesture*/ true);
     params.type = Browser::TYPE_NORMAL;
     params.window = browser_window.release();
     browser_ = Browser::DeprecatedCreateOwnedForTesting(params);
@@ -77,7 +85,7 @@ class FakeGlicTabStripController : public FakeBaseTabStripController {
 
  private:
   bool use_otr_profile_ = false;
-  std::unique_ptr<TestingProfile> profile_ = std::make_unique<TestingProfile>();
+  const raw_ref<TestingProfile> profile_;
   std::unique_ptr<Browser> browser_;
 };
 
@@ -87,7 +95,6 @@ class TabStripActionContainerTest : public ChromeViewsTestBase,
   TabStripActionContainerTest()
       : animation_mode_reset_(gfx::AnimationTestApi::SetRichAnimationRenderMode(
             gfx::Animation::RichAnimationRenderMode::FORCE_ENABLED)) {
-#if BUILDFLAG(ENABLE_GLIC)
     std::vector<base::test::FeatureRefAndParams> enabled_features = {
         {features::kGlic, {}},
         {features::kTabstripComboButton, {}},
@@ -102,7 +109,6 @@ class TabStripActionContainerTest : public ChromeViewsTestBase,
     }
     scoped_feature_list_.InitWithFeaturesAndParameters(enabled_features,
                                                        disabled_features);
-#endif  // BUILDFLAG(ENABLE_GLIC)
   }
   TabStripActionContainerTest(const TabStripActionContainerTest&) = delete;
   TabStripActionContainerTest& operator=(const TabStripActionContainerTest&) =
@@ -110,32 +116,49 @@ class TabStripActionContainerTest : public ChromeViewsTestBase,
   ~TabStripActionContainerTest() override = default;
 
   void SetUp() override {
-    ChromeViewsTestBase::SetUp();
     testing_profile_manager_ = std::make_unique<TestingProfileManager>(
         TestingBrowserProcess::GetGlobal());
     ASSERT_TRUE(testing_profile_manager_->SetUp());
+#if BUILDFLAG(IS_CHROMEOS)
+    glic_user_session_test_helper_.PreProfileSetUp(
+        testing_profile_manager_->profile_manager());
+#endif  // BUILDFLAG(IS_CHROMEOS)
     TestingBrowserProcess::GetGlobal()->CreateGlobalFeaturesForTesting();
-    profile_ = std::make_unique<TestingProfile>();
-#if BUILDFLAG(ENABLE_GLIC)
+    ChromeViewsTestBase::SetUp();
+    profile_ = testing_profile_manager_->CreateTestingProfile(
+        TestingProfile::kDefaultProfileUserName);
     glic_test_environment_.SetupProfile(profile_.get());
-#endif  // BUILDFLAG(ENABLE_GLIC)
     web_contents_ = content::WebContentsTester::CreateTestWebContents(
         profile_.get(), nullptr);
   }
 
   void TearDown() override {
-    ChromeViewsTestBase::TearDown();
     tab_strip_action_container_.reset();
     glic_nudge_controller_.reset();
+    tab_declutter_controller_.reset();
+    browser_window_interface_.reset();
+    tab_interface_.reset();
+    tab_strip_model_.reset();
+    tab_strip_.reset();
+
+    web_contents_.reset();
+    profile_ = nullptr;
+
+    ChromeViewsTestBase::TearDown();
     TestingBrowserProcess::GetGlobal()->GetFeatures()->Shutdown();
+    testing_profile_manager_.reset();
+#if BUILDFLAG(IS_CHROMEOS)
+    glic_user_session_test_helper_.PostProfileTearDown();
+#endif  // BUILDFLAG(IS_CHROMEOS)
   }
 
   void BuildGlicContainer(bool use_otr_profile) {
-    controller_ = std::make_unique<FakeGlicTabStripController>();
-    controller_->Setup();
-    controller_->ShouldUseOtrProfile(use_otr_profile);
+    auto controller =
+        std::make_unique<FakeGlicTabStripController>(profile_.get());
+    controller->Setup();
+    controller->ShouldUseOtrProfile(use_otr_profile);
 
-    tab_strip_ = std::make_unique<TabStrip>(std::move(controller_));
+    tab_strip_ = std::make_unique<TabStrip>(std::move(controller));
 
     tab_strip_model_ = std::make_unique<TabStripModel>(
         &tab_strip_model_delegate_, tab_strip_->controller()->GetProfile());
@@ -181,9 +204,7 @@ class TabStripActionContainerTest : public ChromeViewsTestBase,
   }
 
  protected:
-#if BUILDFLAG(ENABLE_GLIC)
   glic::GlicUnitTestEnvironment glic_test_environment_;
-#endif
   std::unique_ptr<TestingProfileManager> testing_profile_manager_;
   std::unique_ptr<TabStrip> tab_strip_;
   std::unique_ptr<TabStripModel> tab_strip_model_;
@@ -194,7 +215,6 @@ class TabStripActionContainerTest : public ChromeViewsTestBase,
   TestTabStripModelDelegate tab_strip_model_delegate_;
   base::test::ScopedFeatureList scoped_feature_list_;
   std::unique_ptr<views::View> locked_expansion_view_;
-  std::unique_ptr<FakeGlicTabStripController> controller_;
   std::unique_ptr<TabStripActionContainer> tab_strip_action_container_;
 
   content::WebContents* web_contents() { return web_contents_.get(); }
@@ -207,7 +227,10 @@ class TabStripActionContainerTest : public ChromeViewsTestBase,
   // Owned by TabStrip.
 
   content::RenderViewHostTestEnabler render_view_host_test_enabler_;
-  std::unique_ptr<TestingProfile> profile_;
+#if BUILDFLAG(IS_CHROMEOS)
+  ash::GlicUserSessionTestHelper glic_user_session_test_helper_;
+#endif  // BUILDFLAG(IS_CHROMEOS)
+  raw_ptr<TestingProfile> profile_ = nullptr;
   std::unique_ptr<content::WebContents> web_contents_;
   gfx::AnimationTestApi::RenderModeResetter animation_mode_reset_;
   base::RepeatingCallback<void(BrowserWindowInterface*)>
@@ -219,8 +242,6 @@ INSTANTIATE_TEST_SUITE_P(/* no prefix */,
                          ::testing::Bool(),
                          &TabStripActionContainerTest::GetParamName);
 
-#if BUILDFLAG(ENABLE_GLIC)
-// TODO(crbug.com/437141881): Fix flaky tests on Mac.
 TEST_P(TabStripActionContainerTest, GlicButtonDrawing) {
   BuildGlicContainer(/*use_otr_profile=*/false);
   EXPECT_TRUE(tab_strip_action_container_->GetGlicButton());
@@ -231,8 +252,6 @@ TEST_P(TabStripActionContainerTest, GlicButtonUnsupportedProfile) {
   EXPECT_FALSE(tab_strip_action_container_->GetGlicButton());
 }
 
-#endif  // BUILDFLAG(ENABLE_GLIC)
-
 TEST_P(TabStripActionContainerTest, OrdersButtonsCorrectlyAtConstruction) {
   BuildGlicContainer(/*use_otr_profile=*/false);
   ASSERT_EQ(tab_strip_action_container_->tab_declutter_button(),
@@ -241,7 +260,6 @@ TEST_P(TabStripActionContainerTest, OrdersButtonsCorrectlyAtConstruction) {
   ASSERT_EQ(tab_strip_action_container_->auto_tab_group_button(),
             tab_strip_action_container_->children()[1]);
 
-#if BUILDFLAG(ENABLE_GLIC)
 // TODO(crbug.com/437141881): Fix flaky tests on Mac.
 // Mac doesn't have a separator, so the children sizes are different.
 #if !BUILDFLAG(IS_MAC)
@@ -260,13 +278,11 @@ TEST_P(TabStripActionContainerTest, OrdersButtonsCorrectlyAtConstruction) {
   ASSERT_EQ(tab_strip_action_container_->GetGlicButton(),
             tab_strip_action_container_->children()[3]);
 #endif  // !BUILDFLAG(IS_MAC)
-#endif  // BUILDFLAG(ENABLE_GLIC)
 }
 
 TEST_P(TabStripActionContainerTest, OrdersButtonsCorrectlyWhenShown) {
   BuildGlicContainer(/*use_otr_profile=*/false);
 
-#if BUILDFLAG(ENABLE_GLIC)
 // TODO(crbug.com/437141881): Fix flaky tests on Mac.
 // Mac doesn't have a separator, so the children sizes are different.
 #if !BUILDFLAG(IS_MAC)
@@ -304,10 +320,8 @@ TEST_P(TabStripActionContainerTest, OrdersButtonsCorrectlyWhenShown) {
                   ->children()[1]);
   }
 #endif  // !BUILDFLAG(IS_MAC)
-#endif  // BUILDFLAG(ENABLE_GLIC)
 }
 
-#if BUILDFLAG(ENABLE_GLIC)
 TEST_P(TabStripActionContainerTest, GlicButtonUpdateLabel) {
   BuildGlicContainer(/*use_otr_profile=*/false);
   glic_nudge_controller_->UpdateNudgeLabel(
@@ -332,7 +346,6 @@ TEST_P(TabStripActionContainerTest, GlicButtonHideNudgeOnTabChange) {
   ASSERT_FALSE(tab_strip_action_container_->GetIsShowingGlicNudge());
   ASSERT_EQ(tab_strip_action_container_->GetGlicButton()->GetText(), u"Gemini");
 }
-#endif  // BUILDFLAG(ENABLE_GLIC)
 
 class TabStripActionContainerTestWithProduct
     : public TabStripActionContainerTest {
@@ -363,7 +376,6 @@ TEST_P(TabStripActionContainerTestWithProduct, OrdersButtonsCorrectly) {
   ASSERT_EQ(tab_strip_action_container_->GetProductSpecificationsButton(),
             tab_strip_action_container_->children()[2]);
 
-#if BUILDFLAG(ENABLE_GLIC)
 // TODO(crbug.com/437141881): Fix flaky tests on Mac.
 // Mac doesn't have a separator, so the children sizes are different.
 #if !BUILDFLAG(IS_MAC)
@@ -382,5 +394,4 @@ TEST_P(TabStripActionContainerTestWithProduct, OrdersButtonsCorrectly) {
   ASSERT_EQ(tab_strip_action_container_->GetGlicButton(),
             tab_strip_action_container_->children()[4]);
 #endif  // !BUILDFLAG(IS_MAC)
-#endif  // BUILDFLAG(ENABLE_GLIC)
 }

@@ -74,6 +74,7 @@
 <translation id="1274654146705270731">πορτοκάλια</translation>
 <translation id="1275718070701477396">Επιλέχθηκε</translation>
 <translation id="1290331692326790741">Ασθενές σήμα</translation>
+<translation id="1292474106138697109">Οθόνη εφαρμογής Εργαλεία για την τάξη</translation>
 <translation id="1300115153046603471">Το APN είναι τύπου προεπιλογής και <ph name="ATTACH" />.</translation>
 <translation id="1301069673413256657">GSM</translation>
 <translation id="1301340234286078471">Μετατροπή</translation>
@@ -1046,6 +1047,7 @@
 <translation id="5596627076506792578">Περισσότερες επιλογές</translation>
 <translation id="5600027863942488546">Το πλήκτρο <ph name="KEY_NAME" /> ελέγχθηκε</translation>
 <translation id="5606865426897221650">Καρτέλα</translation>
+<translation id="5612205513582918357">Η εφαρμογή Εργαλεία για την τάξημοιράζεται την οθόνη σας με τον χρήστη <ph name="RECEIVER_NAME" /></translation>
 <translation id="5613201299517339763">Αποσυνδεθήκατε</translation>
 <translation id="5620281292257375798">Εσωτερική χρήση μόνο</translation>
 <translation id="5628106863521633649">Διαθέσιμες γλώσσες</translation>
@@ -1107,7 +1109,7 @@
 <translation id="5907649332524363701">χρώμα πλήκτρων</translation>
 <translation id="5908813850962688338">Η εγκατάσταση αυτής της ενημέρωσης θα διαρκέσει μερικά λεπτά. Διατηρήστε τη συσκευή σας συνδεδεμένη στην πρίζα και ενεργοποιημένη κατά τη λήψη της ενημέρωσης. Η συσκευή σας μπορεί να κάνει πολλές επανεκκινήσεις και να εμφανίσει μια μαύρη οθόνη κατά τη διάρκεια αυτής της διαδικασίας. Θα σας ζητηθεί να επανεκκινήσετε τη συσκευή σας, για να ολοκληρώσετε την εγκατάσταση.</translation>
 <translation id="5915794087373112615">Ο καθηγητής θα δει την οθόνη σας σε <ph name="NUM_SECONDS" /> δευτερόλεπτα</translation>
-<translation id="5916084858004523819">Απαγορεύεται</translation>
+<translation id="5916084858004523819">Απαγορευμένο</translation>
 <translation id="5916664084637901428">Ενεργό</translation>
 <translation id="5921506667911082617">{COUNT,plural, =1{Το αρχείο σας σαρώθηκε και αποθηκεύτηκε με επιτυχία στον φάκελο <ph name="LINK_BEGIN" /><ph name="FOLDER_NAME" /><ph name="LINK_END" />.}other{Τα αρχεία σας σαρώθηκαν και αποθηκεύτηκαν με επιτυχία στον φάκελο <ph name="LINK_BEGIN" /><ph name="FOLDER_NAME" /><ph name="LINK_END" />.}}</translation>
 <translation id="5928411637936685857">Κουμπί διαγραφής για <ph name="ACCELERATOR_INFO" />.</translation>

@@ -21,6 +21,7 @@
 #include "components/services/storage/dom_storage/session_storage_data_map.h"
 #include "components/services/storage/dom_storage/session_storage_metadata.h"
 #include "components/services/storage/dom_storage/storage_area_test_util.h"
+#include "components/services/storage/dom_storage/test_support/dom_storage_database_testing.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "storage/common/database/db_status.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -63,14 +64,6 @@ class SessionStorageNamespaceImplTest
             base::Uuid::GenerateRandomV4().AsLowercaseString()) {}
   ~SessionStorageNamespaceImplTest() override = default;
 
-  void RunBatch(std::vector<AsyncDomStorageDatabase::BatchDatabaseTask> tasks) {
-    base::RunLoop loop(base::RunLoop::Type::kNestableTasksAllowed);
-    database_->RunBatchDatabaseTasks(
-        RunBatchTasksContext::kTest, std::move(tasks),
-        base::BindLambdaForTesting([&](DbStatus) { loop.Quit(); }));
-    loop.Run();
-  }
-
   void SetUp() override {
     // Create an in-memory database that already has a namespace saved.
     base::RunLoop loop;
@@ -83,12 +76,9 @@ class SessionStorageNamespaceImplTest
     loop.Run();
 
     metadata_.SetupNewDatabaseForTesting();
-    std::vector<AsyncDomStorageDatabase::BatchDatabaseTask> save_tasks;
     auto entry = metadata_.GetOrCreateNamespaceEntry(test_namespace_id1_);
-    auto map_id =
-        metadata_.RegisterNewMap(entry, test_storage_key1_, &save_tasks);
+    auto map_id = metadata_.RegisterNewMap(entry, test_storage_key1_);
     DCHECK(map_id->KeyPrefix() == StdStringToUint8Vector("map-0-"));
-    RunBatch(std::move(save_tasks));
 
     // Put some data in one of the maps.
     base::RunLoop put_loop;
@@ -123,11 +113,7 @@ class SessionStorageNamespaceImplTest
   scoped_refptr<SessionStorageMetadata::MapData> RegisterNewAreaMap(
       NamespaceEntry namespace_entry,
       const blink::StorageKey& storage_key) {
-    std::vector<AsyncDomStorageDatabase::BatchDatabaseTask> save_tasks;
-    auto map_data =
-        metadata_.RegisterNewMap(namespace_entry, storage_key, &save_tasks);
-    RunBatch(std::move(save_tasks));
-    return map_data;
+    return metadata_.RegisterNewMap(namespace_entry, storage_key);
   }
 
   void RegisterShallowClonedNamespace(
@@ -135,12 +121,13 @@ class SessionStorageNamespaceImplTest
       const std::string& destination_namespace,
       const SessionStorageNamespaceImpl::StorageKeyAreas& areas_to_clone)
       override {
-    std::vector<AsyncDomStorageDatabase::BatchDatabaseTask> save_tasks;
     auto namespace_entry =
         metadata_.GetOrCreateNamespaceEntry(destination_namespace);
-    metadata_.RegisterShallowClonedNamespace(source_namespace, namespace_entry,
-                                             &save_tasks);
-    RunBatch(std::move(save_tasks));
+    metadata_.RegisterShallowClonedNamespace(source_namespace, namespace_entry);
+
+    ASSERT_NO_FATAL_FAILURE(PutMetadataSync(
+        *database_,
+        SessionStorageMetadata::ToDomStorageMetadata(namespace_entry)));
 
     auto it = namespaces_.find(destination_namespace);
     if (it == namespaces_.end()) {

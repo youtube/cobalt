@@ -36,8 +36,6 @@
 #include "base/feature_list.h"
 #include "cc/input/snap_selection_strategy.h"
 #include "third_party/blink/public/common/features.h"
-#include "third_party/blink/public/common/privacy_budget/identifiability_metric_builder.h"
-#include "third_party/blink/public/common/privacy_budget/identifiability_study_settings.h"
 #include "third_party/blink/public/mojom/scroll/scroll_into_view_params.mojom-blink.h"
 #include "third_party/blink/public/web/web_autofill_state.h"
 #include "third_party/blink/renderer/bindings/core/v8/dictionary.h"
@@ -208,6 +206,7 @@
 #include "third_party/blink/renderer/core/layout/layout_view.h"
 #include "third_party/blink/renderer/core/layout/svg/layout_svg_root.h"
 #include "third_party/blink/renderer/core/loader/render_blocking_resource_manager.h"
+#include "third_party/blink/renderer/core/overscroll/overscroll_area_tracker.h"
 #include "third_party/blink/renderer/core/page/chrome_client.h"
 #include "third_party/blink/renderer/core/page/focus_controller.h"
 #include "third_party/blink/renderer/core/page/page.h"
@@ -3382,7 +3381,7 @@ bool Element::toggleAttribute(const AtomicString& qualified_name,
   if (!is_valid) {
     exception_state.ThrowDOMException(
         DOMExceptionCode::kInvalidCharacterError,
-        "'" + qualified_name + "' is not a valid attribute name.");
+        StrCat({"'", qualified_name, "' is not a valid attribute name."}));
     return false;
   }
   // 2. If the context object is in the HTML namespace and its node document is
@@ -3425,7 +3424,7 @@ bool Element::toggleAttribute(const AtomicString& qualified_name,
   if (!is_valid) {
     exception_state.ThrowDOMException(
         DOMExceptionCode::kInvalidCharacterError,
-        "'" + qualified_name + "' is not a valid attribute name.");
+        StrCat({"'", qualified_name, "' is not a valid attribute name."}));
     return false;
   }
   // 2. If the context object is in the HTML namespace and its node document is
@@ -3654,11 +3653,6 @@ void Element::AttributeChanged(const AttributeModificationParams& params) {
         blur();
       }
     }
-  } else if (params.name == html_names::kAnchorAttr) {
-    if (RuntimeEnabledFeatures::HTMLAnchorAttributeEnabled()) {
-      EnsureAnchorElementObserver().Notify();
-      return;
-    }
   } else if (name == html_names::kSlotAttr) {
     if (params.old_value != params.new_value) {
       if (ShadowRoot* root = ShadowRootOfParent()) {
@@ -3673,15 +3667,13 @@ void Element::AttributeChanged(const AttributeModificationParams& params) {
     if (parentNode()) {
       UpdateFocusgroup(params.new_value);
     }
-  } else if (IsElementReflectionAttribute(name)) {
-    SynchronizeContentAttributeAndElementReference(name);
-    if (name == html_names::kInterestforAttr &&
-        RuntimeEnabledFeatures::HTMLInterestForAttributeEnabled()) {
-      UseCounter::Count(GetDocument(), WebFeature::kInterestFor);
-      if (!params.old_value.IsNull()) {
-        // We are changing the value of the `interestfor` attribute, so
-        // ensure it doesn't have interest.
-        ChangeInterestState(InterestForElement(), InterestState::kNoInterest);
+  } else if (RuntimeEnabledFeatures::CSSOverscrollGesturesEnabled() &&
+             name == html_names::kOverscrollcontainerAttr) {
+    if (params.old_value.IsNull() && !params.new_value.IsNull()) {
+      EnsureOverscrollAreaTracker().TakeOverscrollFromAncestor();
+    } else if (!params.old_value.IsNull() && params.new_value.IsNull()) {
+      if (auto* area_tracker = OverscrollAreaTracker()) {
+        area_tracker->PropagateOverscrollToAncestor();
       }
     }
   } else if (IsStyledElement()) {
@@ -3691,7 +3683,11 @@ void Element::AttributeChanged(const AttributeModificationParams& params) {
       }
       StyleAttributeChanged(params.new_value, params.reason);
     } else if (IsPresentationAttribute(name)) {
-      if (name == html_names::kHiddenAttr) {
+      if (name == html_names::kAnchorAttr) {
+        if (RuntimeEnabledFeatures::HTMLAnchorAttributeEnabled()) {
+          EnsureAnchorElementObserver().Notify();
+        }
+      } else if (name == html_names::kHiddenAttr) {
         if (params.new_value == keywords::kUntilFound) {
           EnsureDisplayLockContext().SetIsHiddenUntilFoundElement(true);
         } else if (DisplayLockContext* context = GetDisplayLockContext()) {
@@ -3707,6 +3703,19 @@ void Element::AttributeChanged(const AttributeModificationParams& params) {
       GetElementData()->SetPresentationAttributeStyleIsDirty(true);
       SetNeedsStyleRecalc(kLocalStyleChange,
                           StyleChangeReasonForTracing::FromAttribute(name));
+    }
+  }
+
+  if (IsElementReflectionAttribute(name)) {
+    SynchronizeContentAttributeAndElementReference(name);
+    if (name == html_names::kInterestforAttr &&
+        RuntimeEnabledFeatures::HTMLInterestForAttributeEnabled()) {
+      UseCounter::Count(GetDocument(), WebFeature::kInterestFor);
+      if (!params.old_value.IsNull()) {
+        // We are changing the value of the `interestfor` attribute, so
+        // ensure it doesn't have interest.
+        ChangeInterestState(InterestForElement(), InterestState::kNoInterest);
+      }
     }
   }
 
@@ -4706,10 +4715,8 @@ bool Element::SkipStyleRecalcForContainer(
   // originating element's box and cannot be skipped if the originating element
   // is a size container because the pseudo-element and its box need to be
   // created before layout.
-  // The same applies to scoped view-transitions.
   if (!style.ScrollMarkerGroupNone() ||
       CanGeneratePseudoElement(kPseudoIdScrollButton) ||
-      CanGeneratePseudoElement(kPseudoIdViewTransition) ||
       HasSiblingBoxPseudoElements()) {
     return false;
   }
@@ -5258,12 +5265,6 @@ StyleRecalcChange Element::RecalcOwnStyle(
   }
   SetComputedStyle(new_style);
 
-  if (new_style && (GetDocument().documentElement() == this) &&
-      GetDocument().GetLayoutView()->SetScrollbarSizesForViewportUnits(
-          new_style->UnconditionalScrollbarSize())) {
-    GetDocument().GetStyleEngine().UpdateViewportSize();
-  }
-
   if ((!old_style && new_style && new_style->GetCounterDirectives()) ||
       (old_style && new_style &&
        !old_style->CounterDirectivesEqual(*new_style)) ||
@@ -5360,6 +5361,17 @@ StyleRecalcChange Element::RecalcOwnStyle(
         // keep track of which elements depend on root font units like we do for
         // viewport styles, but we assume root font size changes are rare and
         // just recalculate everything.
+        child_change =
+            child_change.EnsureAtLeast(StyleRecalcChange::kRecalcDescendants);
+      }
+
+      if (new_style &&
+          GetDocument().GetLayoutView()->SetScrollbarSizesForViewportUnits(
+              new_style->UnconditionalScrollbarSize())) {
+        GetDocument().GetStyleEngine().UpdateViewportSize();
+        GetDocument()
+            .GetStyleResolver()
+            .InvalidateMatchedPropertiesCacheForViewportUnits();
         child_change =
             child_change.EnsureAtLeast(StyleRecalcChange::kRecalcDescendants);
       }
@@ -5720,25 +5732,16 @@ void Element::AttachOverscrollPseudoElements(AttachContext& context) {
 }
 
 void Element::AttachTransitionPseudoElements(AttachContext& context) {
-  ViewTransition* transition = ViewTransitionUtils::GetTransition(*this);
-  if (!transition) {
-    return;
-  }
-
+  // For a document transition, the LayoutObject for the ::view-transition
+  // pseudo-element is wrapped by the anonymous LayoutViewTransitionRoot,
+  // which represents the snapshot containing block.
+  //
+  // The LayoutViewTransitionRoot is a child of the LayoutView, and will be
+  // injected by LayoutView::AddChild.
   // See LayoutTreeBuilderTraversal::ParentLayoutObject.
   AttachContext children_context(context);
   if (context.parent && context.parent->IsDocumentElement()) {
-    // For a document transition, the LayoutObject for the ::view-transition
-    // pseudo-element is wrapped by the anonymous LayoutViewTransitionRoot,
-    // which represents the snapshot containing block.
-    //
-    // The LayoutViewTransitionRoot is a child of the LayoutView, and will be
-    // injected by LayoutView::AddChild.
     children_context.parent = GetDocument().GetLayoutView();
-  } else if (GetLayoutObject() && transition->Scope() == this) {
-    // The layout object for the ::view-transition() pseudo is a sibling
-    // of the scoped elements layout object.
-    children_context.parent = GetLayoutObject()->Parent();
   }
 
   auto attach_pseudo = [&](PseudoElement* pseudo_element) {
@@ -7441,7 +7444,8 @@ std::optional<QualifiedName> Element::ParseAttributeName(
   if (!Document::HasValidNamespaceForAttributes(q_name)) {
     exception_state.ThrowDOMException(
         DOMExceptionCode::kNamespaceError,
-        "'" + namespace_uri + "' is an invalid namespace for attributes.");
+        StrCat(
+            {"'", namespace_uri, "' is an invalid namespace for attributes."}));
     return std::nullopt;
   }
   return q_name;
@@ -8416,6 +8420,16 @@ void Element::SetIsAdRelated() {
 bool Element::IsAdRelated() const {
   if (const ElementRareDataVector* data = GetElementRareData()) {
     return data->GetDisplayAdElementMonitor();
+  }
+  return false;
+}
+
+bool Element::ShouldHighlightAd() const {
+  if (const ElementRareDataVector* data = GetElementRareData()) {
+    if (const DisplayAdElementMonitor* monitor =
+            data->GetDisplayAdElementMonitor()) {
+      return monitor->ShouldHighlight();
+    }
   }
   return false;
 }
@@ -9882,8 +9896,13 @@ PseudoElement* Element::CreatePseudoElementIfNeeded(
 
   PseudoElement* pseudo_element =
       PseudoElement::Create(this, pseudo_id, pseudo_argument);
-  CHECK(pseudo_element);
-
+  if (RuntimeEnabledFeatures::ScopedViewTransitionsEnabled()) {
+    if (!pseudo_element) {
+      // TODO(crbug.com/405117185): Replace with DCHECK(pseudo_element) once we
+      // properly track per-scope view transition names.
+      return nullptr;
+    }
+  }
   EnsureElementRareData().SetPseudoElement(pseudo_id, pseudo_element,
                                            pseudo_argument);
   pseudo_element->InsertedInto(*this);
@@ -10368,8 +10387,7 @@ bool Element::HasSiblingBoxPseudoElements() const {
   for (PseudoId pseudo_id :
        {kPseudoIdScrollButtonBlockStart, kPseudoIdScrollButtonInlineStart,
         kPseudoIdScrollButtonInlineEnd, kPseudoIdScrollButtonBlockEnd,
-        kPseudoIdScrollMarkerGroupAfter, kPseudoIdScrollMarkerGroupBefore,
-        kPseudoIdViewTransition}) {
+        kPseudoIdScrollMarkerGroupAfter, kPseudoIdScrollMarkerGroupBefore}) {
     if (rare_data->GetPseudoElement(pseudo_id)) {
       return true;
     }
@@ -12087,7 +12105,6 @@ void Element::UpdateTransitionPseudoElements(
     }
 
     bool had_transition_pseudo = !!GetPseudoElement(kPseudoIdViewTransition);
-
     PseudoElement* transition_pseudo =
         UpdatePseudoElement(kPseudoIdViewTransition, style_recalc_change,
                             style_recalc_context, g_null_atom);
@@ -12537,7 +12554,7 @@ void Element::SetAttributeHinted(AtomicString local_name,
   if (!is_valid) {
     exception_state.ThrowDOMException(
         DOMExceptionCode::kInvalidCharacterError,
-        "'" + local_name + "' is not a valid attribute name.");
+        StrCat({"'", local_name, "' is not a valid attribute name."}));
     return;
   }
   SynchronizeAttributeHinted(local_name, hint);
@@ -12580,7 +12597,7 @@ void Element::SetAttributeHinted(AtomicString local_name,
   if (!Document::IsValidName(local_name)) {
     exception_state.ThrowDOMException(
         DOMExceptionCode::kInvalidCharacterError,
-        "'" + local_name + "' is not a valid attribute name.");
+        StrCat({"'", local_name, "' is not a valid attribute name."}));
     return;
   }
   SynchronizeAttributeHinted(local_name, hint);
@@ -12876,15 +12893,6 @@ Element* Element::ImplicitAnchorElement() const {
         }
         return pseudo_element->UltimateOriginatingElement()
             .ImplicitAnchorElement();
-
-      case kPseudoIdViewTransition: {
-        Element* parent = parentElement();
-        if (!parent->IsDocumentElement()) {
-          return parent;
-        }
-        break;
-      }
-
       default:
         return nullptr;
     }
@@ -13085,6 +13093,17 @@ bool Element::SupportsBaseAppearance(AppearanceValue appearance_value) const {
     return SupportsBaseAppearanceInternal(*base_appearance_value);
   }
   return false;
+}
+
+OverscrollAreaTracker& Element::EnsureOverscrollAreaTracker() {
+  return EnsureElementRareData().EnsureOverscrollAreaTracker(this);
+}
+
+OverscrollAreaTracker* Element::OverscrollAreaTracker() const {
+  if (const ElementRareDataVector* data = GetElementRareData()) {
+    return data->OverscrollAreaTracker();
+  }
+  return nullptr;
 }
 
 }  // namespace blink

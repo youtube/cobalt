@@ -14,7 +14,6 @@
 #include "base/check.h"
 #include "base/compiler_specific.h"
 #include "base/dcheck_is_on.h"
-#include "base/feature_list.h"
 #include "base/notreached.h"
 #include "cc/paint/paint_canvas.h"
 #include "cc/paint/paint_flags.h"
@@ -95,8 +94,6 @@ class Path;
 class Path2D;
 class ScriptState;
 class V8UnionCanvasFilterOrString;
-struct V8CanvasStyle;
-enum class CanvasOps;
 enum class ColorParseResult;
 enum RespectImageOrientationEnum : uint8_t;
 template <typename T>
@@ -553,10 +550,9 @@ class MODULES_EXPORT Canvas2DRecorderContext : public CanvasPath {
                       ExceptionState* exception_state);
   void AddLayerFilterUserCount(const V8CanvasFilterInput*);
 
-  // Pops from the top of the state stack, inverts transform, restores the
-  // PaintCanvas, and validates the state stack. Helper for Restore and
-  // EndLayer.
-  void PopAndRestore(cc::PaintCanvas& canvas);
+  // Pops from the top of the state stack, inverts transform, and validates the
+  // state stack. Helper for Restore and EndLayer.
+  void PopStateStack();
 
   void ValidateStateStackImpl(const cc::PaintCanvas* canvas = nullptr) const;
 
@@ -662,20 +658,8 @@ class MODULES_EXPORT Canvas2DRecorderContext : public CanvasPath {
 
   virtual std::optional<cc::PaintRecord> FlushCanvas(FlushReason) = 0;
 
-  // Only call if identifiability_study_helper_.ShouldUpdateBuilder() returns
-  // true.
-  void IdentifiabilityUpdateForStyleUnion(const V8CanvasStyle& style);
-
   RespectImageOrientationEnum RespectImageOrientationInternal(
       CanvasImageSource*);
-
-  // Updates the identifiability study before changing stroke or fill styles.
-  void UpdateIdentifiabilityStudyBeforeSettingStrokeOrFill(
-      const V8CanvasStyle& v8_style,
-      CanvasOps op);
-  void UpdateIdentifiabilityStudyBeforeSettingStrokeOrFill(
-      v8::Local<v8::String> v8_string,
-      CanvasOps op);
 
   // Parses the string as a color and returns the result of parsing.
   ColorParseResult ParseColorOrCurrentColor(const String& color_string,

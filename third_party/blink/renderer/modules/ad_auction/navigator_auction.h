@@ -24,7 +24,6 @@
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_remote.h"
-#include "third_party/blink/renderer/platform/supplementable.h"
 #include "third_party/blink/renderer/platform/weborigin/security_origin.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 #include "third_party/blink/renderer/platform/wtf/vector.h"
@@ -42,16 +41,13 @@ class V8UnionFencedFrameConfigOrUSVString;
 
 class MODULES_EXPORT NavigatorAuction final
     : public GarbageCollected<NavigatorAuction>,
-      public Supplement<Navigator> {
+      public GarbageCollectedMixin {
  public:
   class AuctionHandle;
-  static constexpr auto kSupplementIndex =
-      Navigator::Supplements::kNavigatorAuction;
 
   explicit NavigatorAuction(Navigator&);
 
   // Gets, or creates, NavigatorAuction supplement on Navigator.
-  // See platform/Supplementable.h
   static NavigatorAuction& From(ExecutionContext*, Navigator&);
 
   // TODO(crbug.com/1441988): Make `const AuctionAdInterestGroup*` after rename.
@@ -215,7 +211,7 @@ class MODULES_EXPORT NavigatorAuction final
   void Trace(Visitor* visitor) const override {
     visitor->Trace(ad_auction_service_);
     visitor->Trace(protected_audience_);
-    Supplement<Navigator>::Trace(visitor);
+    visitor->Trace(navigator_);
   }
 
  private:
@@ -284,6 +280,8 @@ class MODULES_EXPORT NavigatorAuction final
       ScriptPromiseResolver<AdAuctionData>* resolver,
       Vector<mojom::blink::AdAuctionPerSellerRequestPtr> requests,
       const std::optional<base::Uuid>& request_id);
+
+  Member<Navigator> navigator_;
 
   // Manage queues of cross-site join and leave operations that have yet to be
   // sent to the browser process.

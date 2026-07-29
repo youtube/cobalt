@@ -23,15 +23,19 @@ class TabStateStorageServiceAndroid : public base::SupportsUserData::Data {
       TabStateStorageService* tab_state_storage_service);
   ~TabStateStorageServiceAndroid() override;
 
+  void BoostPriority(JNIEnv* env);
+
   void Save(JNIEnv* env, TabAndroid* tab);
 
   void LoadAllData(
       JNIEnv* env,
-      std::string window_tag,
+      const std::string& window_tag,
       bool is_off_the_record,
       const jni_zero::JavaParamRef<jobject>& j_loaded_data_callback);
 
   void ClearState(JNIEnv* env);
+
+  void ClearWindow(JNIEnv* env, const std::string& window_tag);
 
   base::android::ScopedJavaLocalRef<jobject> GetJavaObject();
 

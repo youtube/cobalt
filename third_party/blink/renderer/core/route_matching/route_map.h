@@ -11,7 +11,6 @@
 #include "third_party/blink/renderer/platform/bindings/script_wrappable.h"
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_hash_map.h"
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_hash_set.h"
-#include "third_party/blink/renderer/platform/supplementable.h"
 #include "third_party/blink/renderer/platform/weborigin/kurl.h"
 #include "third_party/blink/renderer/platform/wtf/hash_set.h"
 #include "third_party/blink/renderer/platform/wtf/text/string_hash.h"
@@ -66,8 +65,7 @@ class CORE_EXPORT RouteMap final : public ScriptWrappable,
 
   Route* get(const String& route_name);
 
-  // Supplement support. Document pointers may be null (in which case null will
-  // be returned).
+  // Document pointers may be null (in which case null will be returned).
   static const RouteMap* Get(const Document*);
   static RouteMap* Get(Document*);
   static RouteMap& Ensure(Document&);

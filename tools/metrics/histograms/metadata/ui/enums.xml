@@ -103,6 +103,35 @@ chromium-metrics-reviews@google.com.
   <int value="3" label="Other Mode is Default"/>
 </enum>
 
+<!-- LINT.IfChange(DefaultBrowserStateValidationResult) -->
+
+<enum name="DefaultBrowserStateValidationResult">
+  <summary>
+    The result of comparing a secondary browser state checker's result to the
+    standard API used for determing default browser state.
+  </summary>
+  <int value="0" label="TruePositive"/>
+  <int value="1" label="TrueNegative"/>
+  <int value="2" label="FalsePositive"/>
+  <int value="3" label="FalseNegative"/>
+</enum>
+
+<!-- LINT.ThenChange(//chrome/browser/default_browser/default_browser_manager.cc:DefaultBrowserStateValidationResult) -->
+
+<!-- LINT.IfChange(DefaultBrowserUserInteraction) -->
+
+<enum name="DefaultBrowserUserInteraction">
+  <summary>
+    Decisions a user can take when presented with a choice to make Chrome their
+    default browser.
+  </summary>
+  <int value="0" label="Accepted"/>
+  <int value="1" label="Ignored"/>
+  <int value="2" label="Dismissed"/>
+</enum>
+
+<!-- LINT.ThenChange(//chrome/browser/default_browser/default_browser_controller.h:DefaultBrowserInteractionType) -->
+
 <enum name="OpenLinkAs">
   <int value="0" label="Open Link as Profile displayed."/>
   <int value="1" label="Open Link as Profile clicked."/>
@@ -410,6 +439,9 @@ chromium-metrics-reviews@google.com.
   <int value="74" label="UMA_BOOKMARK_BATCH_UPLOAD"/>
   <int value="75" label="UMA_NTP_MOST_VISITED_UNPIN_UNDO"/>
   <int value="76" label="UMA_SIGN_IN"/>
+  <int value="77" label="UMA_TAB_PICKER_LIMIT_REACHED"/>
+  <int value="78" label="UMA_FUSEBOX_MAX_ATTACHMENTS"/>
+  <int value="79" label="UMA_FUSEBOX_UPLOAD_FAILED"/>
 </enum>
 
 <enum name="WebUIPreloadReason">
@@ -435,6 +467,7 @@ chromium-metrics-reviews@google.com.
   <int value="-2108276563" label="/adPrivacy/sites"/>
   <int value="-2088016711" label="/startupPages"/>
   <int value="-2082028555" label="/androidApps/details"/>
+  <int value="-2026378196" label="/contactInfo"/>
   <int value="-2019732586" label="/printing"/>
   <int value="-1950073287" label="/crostini/details"/>
   <int value="-1930329480" label="/signOut"/>
@@ -742,6 +775,7 @@ chromium-metrics-reviews@google.com.
   <int value="-753390931" label="chrome://interstitials/"/>
   <int value="-734627230" label="chrome://extension-icon/"/>
   <int value="-727952446" label="chrome://nacl/"/>
+  <int value="-722142308" label="chrome://updater/"/>
   <int value="-707542503" label="chrome://choose-mobile-network/"/>
   <int value="-695712248" label="chrome://segmentation-internals/"/>
   <int value="-680649366" label="chrome-untrusted://hats/"/>
@@ -1103,6 +1137,7 @@ chromium-metrics-reviews@google.com.
   <int value="98" label="Trigger installed app update dialog"/>
   <int value="99" label="Identity docs"/>
   <int value="100" label="Travel"/>
+  <int value="101" label="Contact info"/>
 </enum>
 
 <!-- LINT.ThenChange(/chrome/browser/ui/toolbar/app_menu_model.h:AppMenuAction) -->

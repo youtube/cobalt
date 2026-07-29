@@ -69,7 +69,6 @@
 #include "components/password_manager/core/browser/password_store/mock_password_store_interface.h"
 #include "components/password_manager/core/browser/password_store/password_store_consumer.h"
 #include "components/password_manager/core/common/password_manager_pref_names.h"
-#include "components/policy/core/common/policy_pref_names.h"
 #include "components/prefs/pref_service.h"
 #include "components/safe_browsing/buildflags.h"
 #include "components/safe_browsing/core/common/features.h"
@@ -405,8 +404,7 @@ class MockTouchToFillController : public TouchToFillController {
 
   MOCK_METHOD(void,
               InitData,
-              (base::span<const password_manager::UiCredential>,
-               std::vector<password_manager::PasskeyCredential>,
+              (std::vector<TouchToFillView::Credential>,
                base::WeakPtr<password_manager::ContentPasswordManagerDriver>),
               (override));
 
@@ -702,21 +700,21 @@ TEST_F(ChromePasswordManagerClientTest, PasswordManagerBlocklistPolicy) {
   // Check that the blocklist is initially empty.
   EXPECT_TRUE(profile()
                   ->GetTestingPrefService()
-                  ->GetList(policy::policy_prefs::kPasswordManagerBlocklist)
+                  ->GetList(password_manager::prefs::kPasswordManagerBlocklist)
                   .empty());
   // Add a URL to the blocklist.
   {
     base::Value::List blocked_list;
     blocked_list.Append("https://example.com");
     profile()->GetTestingPrefService()->SetList(
-        policy::policy_prefs::kPasswordManagerBlocklist,
+        password_manager::prefs::kPasswordManagerBlocklist,
         std::move(blocked_list));
   }
 
   // Verify the URL was added.
   EXPECT_FALSE(profile()
                    ->GetTestingPrefService()
-                   ->GetList(policy::policy_prefs::kPasswordManagerBlocklist)
+                   ->GetList(password_manager::prefs::kPasswordManagerBlocklist)
                    .empty());
   // Expect the password manager to be disallowed for the URL
   // and thus saving passwords should be disallowed.
@@ -724,11 +722,11 @@ TEST_F(ChromePasswordManagerClientTest, PasswordManagerBlocklistPolicy) {
       GetClient()->IsSavingAndFillingEnabled(GURL("https://example.com")));
   // Clear the blocklist pref.
   profile()->GetTestingPrefService()->ClearPref(
-      policy::policy_prefs::kPasswordManagerBlocklist);
+      password_manager::prefs::kPasswordManagerBlocklist);
   // Verify blocklist is empty.
   EXPECT_TRUE(profile()
                   ->GetTestingPrefService()
-                  ->GetList(policy::policy_prefs::kPasswordManagerBlocklist)
+                  ->GetList(password_manager::prefs::kPasswordManagerBlocklist)
                   .empty());
   // Password manager and saving passwords should be allowed again
   EXPECT_TRUE(
@@ -1170,21 +1168,6 @@ TEST_F(ChromePasswordManagerClientTest,
   EXPECT_TRUE(GetClient()->IsReauthBeforeFillingRequired(&authenticator));
 }
 
-// Test that `IsReauthBeforeFillingRequired` always returns true for mandatory
-// biometric auth.
-TEST_F(ChromePasswordManagerClientTest, MandatoryBiometricEnabled) {
-  // Authentication is always available for automotive.
-  if (base::android::device_info::is_automotive()) {
-    GTEST_SKIP();
-  }
-  base::test::ScopedFeatureList enabled_features(
-      password_manager::features::kBiometricAuthIdentityCheck);
-  device_reauth::MockDeviceAuthenticator authenticator;
-  ON_CALL(authenticator, GetBiometricAvailabilityStatus)
-      .WillByDefault(Return(BiometricStatus::kRequired));
-  EXPECT_TRUE(GetClient()->IsReauthBeforeFillingRequired(&authenticator));
-}
-
 #else
 // Test that authentication is not possible on other platforms.
 TEST_F(ChromePasswordManagerClientTest, CanUseBiometricAuth) {
@@ -1411,7 +1394,7 @@ TEST_F(ChromePasswordManagerClientTest,
           test_web_contents.get());
   ON_CALL(*client, GetMainFrameCertStatus()).WillByDefault(Return(0));
   EXPECT_CALL(*client->password_protection_service(),
-              MaybeStartPasswordFieldOnFocusRequest(_, _, _, _, _))
+              MaybeStartPasswordFieldOnFocusRequest)
       .Times(1);
   PasswordManagerClient* mojom_client = client;
   mojom_client->CheckSafeBrowsingReputation(GURL("http://foo.com/submit"),
@@ -2118,15 +2101,15 @@ TEST_F(ChromePasswordManagerClientAndroidTest,
 
   base::RunLoop().RunUntilIdle();
 
-  std::vector<password_manager::PasskeyCredential> credentials{};
-  EXPECT_CALL(*ttf_controller, InitData(_, Eq(credentials), _));
+  std::vector<TouchToFillView::Credential> credentials{};
+  EXPECT_CALL(*ttf_controller, InitData(Eq(credentials), _));
   EXPECT_CALL(*ttf_controller, Show).WillOnce(Return(true));
 
   // Simulate an empty passkey list being provided.
   ChromeWebAuthnCredentialsDelegateFactory::GetFactory(web_contents())
       ->GetDelegateForFrame(main_rfh())
       ->OnCredentialsReceived(
-          credentials,
+          std::vector<password_manager::PasskeyCredential>(),
           ChromeWebAuthnCredentialsDelegate::SecurityKeyOrHybridFlowAvailable(
               true));
 }
@@ -2170,8 +2153,8 @@ TEST_F(ChromePasswordManagerClientAndroidTest,
   base::RunLoop().RunUntilIdle();
 
   base::RunLoop waiter;
-  std::vector<password_manager::PasskeyCredential> credentials{};
-  EXPECT_CALL(*ttf_controller, InitData(_, Eq(credentials), _));
+  std::vector<TouchToFillView::Credential> credentials{};
+  EXPECT_CALL(*ttf_controller, InitData(Eq(credentials), _));
   EXPECT_CALL(*ttf_controller, Show)
       .WillOnce([&waiter](std::unique_ptr<TouchToFillControllerDelegate>,
                           webauthn::WebAuthnCredManDelegate*) {
@@ -2191,7 +2174,7 @@ TEST_F(ChromePasswordManagerClientAndroidTest,
   ChromeWebAuthnCredentialsDelegateFactory::GetFactory(web_contents())
       ->GetDelegateForFrame(main_rfh())
       ->OnCredentialsReceived(
-          credentials,
+          std::vector<password_manager::PasskeyCredential>(),
           ChromeWebAuthnCredentialsDelegate::SecurityKeyOrHybridFlowAvailable(
               true));
 }

@@ -39,7 +39,7 @@ import zlib
 # These fields are written by //tools/clang/scripts/upload_revision.py, and
 # should not be changed manually.
 # They are also read by build/config/compiler/BUILD.gn.
-CLANG_REVISION = 'llvmorg-22-init-12326-g8a5f1533'
+CLANG_REVISION = 'llvmorg-22-init-14273-gea10026b'
 CLANG_SUB_REVISION = 2
 
 PACKAGE_VERSION = '%s-%s' % (CLANG_REVISION, CLANG_SUB_REVISION)
@@ -288,13 +288,20 @@ def UpdatePackage(package_name,
   # TODO(hans): Create a clang-win-runtime package and use separate DEPS hook.
   target_os = []
   if package_name == 'clang':
-    try:
-      GCLIENT_CONFIG = os.path.join(os.path.dirname(CHROMIUM_DIR), '.gclient')
-      env = {}
-      exec (open(GCLIENT_CONFIG).read(), env, env)
-      target_os = env.get('target_os', target_os)
-    except:
-      pass
+    # Probe for .gclient in the src dir or its parent (crbug.com/462493895).
+    # Some projects (ANGLE) keep it in the src dir, others (Chromium) in its
+    # parent.
+    for gclient_config in [
+        os.path.join(CHROMIUM_DIR, '.gclient'),
+        os.path.join(CHROMIUM_DIR, '..', '.gclient')
+    ]:
+      try:
+        env = {}
+        exec(open(gclient_config).read(), env, env)
+        target_os = env.get('target_os', target_os)
+        break
+      except:
+        pass
 
   if os.path.exists(OLD_STAMP_FILE):
     # Delete the old stamp file so it doesn't look like an old version of clang

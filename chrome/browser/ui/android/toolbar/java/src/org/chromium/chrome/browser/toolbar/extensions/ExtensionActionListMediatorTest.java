@@ -41,6 +41,7 @@ import org.robolectric.annotation.LooperMode;
 import org.chromium.base.supplier.ObservableSupplierImpl;
 import org.chromium.base.supplier.OneshotSupplierImpl;
 import org.chromium.base.test.BaseRobolectricTestRunner;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.extensions.ContextMenuSource;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tab.MockTab;
@@ -65,6 +66,7 @@ import org.chromium.ui.modelutil.MVCListAdapter.ModelList;
 public class ExtensionActionListMediatorTest {
     private static final int TAB1_ID = 111;
     private static final int TAB2_ID = 222;
+    private static final long BROWSER_WINDOW_POINTER = 1000L;
     private static final long ACTION_CONTEXT_MENU_BRIDGE_POINTER = 10000L;
 
     private static final Bitmap ICON_RED = createSimpleIcon(Color.RED);
@@ -74,6 +76,7 @@ public class ExtensionActionListMediatorTest {
     private static final Bitmap ICON_MAGENTA = createSimpleIcon(Color.MAGENTA);
 
     @Rule public final MockitoRule mMockitoRule = MockitoJUnit.rule();
+    @Mock private ChromeAndroidTask mTask;
     @Mock private Profile mProfile;
     @Mock private WindowAndroid mWindowAndroid;
     @Mock private WebContents mWebContents;
@@ -90,8 +93,8 @@ public class ExtensionActionListMediatorTest {
     private MockTab mTab1;
     private MockTab mTab2;
     private OneshotSupplierImpl<ChromeAndroidTask> mTaskSupplier;
-    private ObservableSupplierImpl<Profile> mProfileSupplier;
-    private ObservableSupplierImpl<Tab> mCurrentTabSupplier;
+    private ObservableSupplierImpl<@Nullable Profile> mProfileSupplier;
+    private ObservableSupplierImpl<@Nullable Tab> mCurrentTabSupplier;
     private ModelList mModels;
     private ExtensionActionListMediator mMediator;
 
@@ -99,9 +102,12 @@ public class ExtensionActionListMediatorTest {
     public void setUp() {
         Context context = ApplicationProvider.getApplicationContext();
 
+        // Mock AndroidChromeTask.
+        when(mTask.getOrCreateNativeBrowserWindowPtr()).thenReturn(BROWSER_WINDOW_POINTER);
+
         // Mock {@link ExtensionActionsBridge}.
         ExtensionActionContextMenuBridgeJni.setInstanceForTesting(mActionContextMenuBridgeJniMock);
-        when(mActionContextMenuBridgeJniMock.init(any(), any(), any(), anyInt()))
+        when(mActionContextMenuBridgeJniMock.init(anyLong(), any(), any(), anyInt()))
                 .thenReturn(ACTION_CONTEXT_MENU_BRIDGE_POINTER);
         when(mActionContextMenuBridgeJniMock.getMenuModelBridge(anyLong()))
                 .thenReturn(mMenuModelBridge);
@@ -113,6 +119,7 @@ public class ExtensionActionListMediatorTest {
         mTab1.setWebContentsOverrideForTesting(mWebContents);
         mTab2.setWebContentsOverrideForTesting(mWebContents);
         mTaskSupplier = new OneshotSupplierImpl<>();
+        mTaskSupplier.set(mTask);
         mProfileSupplier = new ObservableSupplierImpl<>();
         mCurrentTabSupplier = new ObservableSupplierImpl<>();
         mModels = new ModelList();
@@ -220,7 +227,7 @@ public class ExtensionActionListMediatorTest {
 
         verify(mActionContextMenuBridgeJniMock)
                 .init(
-                        eq(mProfile),
+                        eq(BROWSER_WINDOW_POINTER),
                         eq("a"),
                         eq(mWebContents),
                         eq(ContextMenuSource.TOOLBAR_ACTION));

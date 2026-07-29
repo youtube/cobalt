@@ -16,7 +16,6 @@
 #include "third_party/blink/renderer/core/execution_context/execution_context.h"
 #include "third_party/blink/renderer/modules/modules_export.h"
 #include "third_party/blink/renderer/modules/webcodecs/video_frame_layout.h"
-#include "third_party/blink/renderer/platform/supplementable.h"
 #include "third_party/skia/include/gpu/ganesh/GrTypes.h"
 
 namespace blink {
@@ -27,18 +26,15 @@ class SyncReadbackThread;
 // thread to avoid blocking the main thread.
 class MODULES_EXPORT BackgroundReadback
     : public GarbageCollected<BackgroundReadback>,
-      public Supplement<ExecutionContext> {
+      public GarbageCollectedMixin {
  public:
   using ReadbackToFrameDoneCallback =
       base::OnceCallback<void(scoped_refptr<media::VideoFrame>)>;
   using ReadbackDoneCallback = base::OnceCallback<void(bool)>;
 
-  explicit BackgroundReadback(base::PassKey<BackgroundReadback> key,
-                              ExecutionContext& context);
+  explicit BackgroundReadback(base::PassKey<BackgroundReadback> key);
   virtual ~BackgroundReadback();
 
-  static constexpr auto kSupplementIndex =
-      ExecutionContext::Supplements::kBackgroundReadback;
   static BackgroundReadback* From(ExecutionContext& context);
 
   void ReadbackTextureBackedFrameToMemoryFrame(
@@ -52,9 +48,7 @@ class MODULES_EXPORT BackgroundReadback
       base::span<uint8_t> dest_buffer,
       ReadbackDoneCallback done_cb);
 
-  void Trace(Visitor* visitor) const override {
-    Supplement<ExecutionContext>::Trace(visitor);
-  }
+  void Trace(Visitor* visitor) const override {}
 
  private:
   void ReadbackOnThread(scoped_refptr<media::VideoFrame> txt_frame,

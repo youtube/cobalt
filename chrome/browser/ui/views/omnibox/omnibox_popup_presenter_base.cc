@@ -42,13 +42,15 @@ void OmniboxPopupPresenterBase::Show() {
   widget_->ShowInactive();
 
   if (auto* content = GetWebUIContent()) {
-    SetWidgetContentHeight(content->GetPreferredSize().height());
+    content->GetWebContents()->UpdateWebContentsVisibility(
+        content::Visibility::VISIBLE);
     content->GetWebContents()->WasShown();
     if (ShouldReceiveFocus()) {
       widget_->Activate();
       content->RequestFocus();
-      content->ShowUI();
+      content->GetWebContents()->Focus();
     }
+    content->ShowUI();
   }
 }
 
@@ -66,14 +68,14 @@ bool OmniboxPopupPresenterBase::IsShown() const {
   return widget_ && widget_->IsVisible();
 }
 
-void OmniboxPopupPresenterBase::SetWidgetContentHeight(int content_height) {
+void OmniboxPopupPresenterBase::SetWidgetBounds(int content_height) {
   if (widget_) {
     // The width is known, and is the basis for consistent web content rendering
     // so width is specified exactly; then only height adjusts dynamically.
     gfx::Rect widget_bounds = location_bar_view_->GetBoundsInScreen();
+    widget_bounds.Inset(
+        -RoundedOmniboxResultsFrame::GetLocationBarAlignmentInsets());
     if (ShouldShowLocationBarCutout()) {
-      widget_bounds.Inset(
-          -RoundedOmniboxResultsFrame::GetLocationBarAlignmentInsets());
       widget_bounds.set_height(widget_bounds.height() + content_height);
     } else {
       widget_bounds.set_height(
@@ -100,6 +102,7 @@ void OmniboxPopupPresenterBase::SetWebUIContent(
     std::unique_ptr<OmniboxPopupWebUIBaseContent> webui_content) {
   omnibox_popup_webui_content_ =
       GetUIContainer()->AddChildView(std::move(webui_content));
+  Observe(omnibox_popup_webui_content_->GetWebContents());
   EnsureWidgetCreated();
 }
 
@@ -169,4 +172,16 @@ RoundedOmniboxResultsFrame* OmniboxPopupPresenterBase::GetResultsFrame() const {
   CHECK(widget_);
   return views::AsViewClass<RoundedOmniboxResultsFrame>(
       widget_->GetContentsView());
+}
+
+void OmniboxPopupPresenterBase::OnVisibilityChanged(
+    content::Visibility visibility) {
+  // Keep the WebContents visible at all times, even when the widget is no
+  // longer visible. This ensures the renderer continues to paint the contents
+  // as the autocomplete results update asynchronously and independently of the
+  // widget visibility.
+  if (visibility != content::Visibility::VISIBLE) {
+    GetWebUIContent()->GetWebContents()->UpdateWebContentsVisibility(
+        content::Visibility::VISIBLE);
+  }
 }

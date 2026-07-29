@@ -26,6 +26,18 @@ chromium-metrics-reviews@google.com.
 
 <enums>
 
+<!-- LINT.IfChange(ActorFormFillingOutcome) -->
+
+<enum name="ActorFormFillingOutcome">
+  <int value="0" label="Success"/>
+  <int value="1" label="Other error"/>
+  <int value="2" label="Autofill not available"/>
+  <int value="3" label="Form not found"/>
+  <int value="4" label="Suggestion not found"/>
+</enum>
+
+<!-- LINT.ThenChange(//components/autofill/core/browser/integrators/glic/actor_form_filling_types.h:ActorFormFillingError) -->
+
 <enum name="AndroidAutofillAvailabilityStatus">
   <summary>
     Describes whether Android Autofill was available. If not, it splits the
@@ -2298,10 +2310,10 @@ Called by update_autofill_enums.py.-->
   <int value="48"
       label="CreditCardSeamlessFill :-( (all other scenarios = Partial fill)"/>
   <int value="49"
-      label="Missing shared-autofill feature prevented a cross-origin
-             credit-card field from being filled. Shared-autofill is a
-             policy-controlled feature by which a frame can allow a
-             child-frame to be autofilled across origin."/>
+      label="Disabled policy-controlled feature &quot;autofill&quot;
+             prevented a cross-origin credit-card field from being filled.
+             With &quot;autofill&quot;, a frame can allow a child-frame to be
+             autofilled across origin."/>
   <int value="50"
       label="CreditCardSeamlessFillable :-D (name &amp; number &amp; exp.
              date &amp; CVC = Full fill)"/>
@@ -3245,8 +3257,8 @@ Called by update_autofill_enums.py.-->
   <int value="301" label="RemoveEntityInstance: Failure"/>
   <int value="310" label="RemoveEntityInstancesModifiedBetween: Success"/>
   <int value="311" label="RemoveEntityInstancesModifiedBetween: Failure"/>
-  <int value="312" label="CleanupForCrbug411681430: Success"/>
-  <int value="313" label="CleanupForCrbug411681430: Failure"/>
+  <int value="312" label="ClearLocalCvcsUpToMay2025: Success"/>
+  <int value="313" label="ClearLocalCvcsUpToMay2025: Failure"/>
   <int value="314" label="CleanupForCrbug445879524: Success"/>
   <int value="315" label="CleanupForCrbug445879524: Failure"/>
 </enum>
@@ -3320,11 +3332,15 @@ Called by update_autofill_enums.py.-->
 
 <!-- LINT.ThenChange(/components/autofill/core/browser/payments/payments_window_manager.h:BnplFlowResult) -->
 
-<enum name="BnplSuggestionNotShownReason">
+<!-- LINT.IfChange(BnplSuggestionUnavailableReason) -->
+
+<enum name="BnplSuggestionUnavailableReason">
   <int value="0" label="Amount extraction failure"/>
   <int value="1" label="Checkout amount not supported"/>
   <int value="2" label="Amount extraction timeout"/>
 </enum>
+
+<!-- LINT.ThenChange(/components/autofill/core/browser/metrics/payments/bnpl_metrics.h:BnplSuggestionUnavailableReason) -->
 
 <!-- LINT.IfChange(BnplTosDialogResult) -->
 
@@ -4406,7 +4422,8 @@ Called by update_autofill_enums.py.-->
   <int value="1" label="Not shown: clicked field not focusable or not empty"/>
   <int value="2" label="Not shown: no valid payment methods to display"/>
   <int value="3" label="Not shown: form or client not secure"/>
-  <int value="4" label="Not shown: was shown before"/>
+  <int value="4"
+      label="Not shown: was shown before and should not be shown again"/>
   <int value="5" label="Not shown: could not show Autofill UI"/>
   <int value="6"
       label="Not shown: tried to display the sheet, but failed due to unknown
@@ -4486,6 +4503,48 @@ Called by update_autofill_enums.py.-->
 </enum>
 
 <!-- LINT.ThenChange(/chrome/browser/webdata_services/web_data_service_factory.cc:AutofillAccountStorageResult) -->
+
+<!-- LINT.IfChange(YourSavedInfoDataCategory) -->
+
+<enum name="YourSavedInfoDataCategory">
+  <int value="0" label="Password Manager"/>
+  <int value="1" label="Payments"/>
+  <int value="2" label="Contact info"/>
+  <int value="3" label="Identity docs"/>
+  <int value="4" label="Travel"/>
+</enum>
+
+<!-- LINT.ThenChange(/chrome/browser/resources/settings/metrics_browser_proxy.ts:YourSavedInfoDataCategory) -->
+
+<!-- LINT.IfChange(YourSavedInfoDataChip) -->
+
+<enum name="YourSavedInfoDataChip">
+  <int value="0" label="Passwords"/>
+  <int value="1" label="Passkeys"/>
+  <int value="2" label="Credit cards"/>
+  <int value="3" label="Pay over time"/>
+  <int value="4" label="IBANs"/>
+  <int value="5" label="Loyalty cards"/>
+  <int value="6" label="Addresses"/>
+  <int value="7" label="Driver's licenses"/>
+  <int value="8" label="National ID cards"/>
+  <int value="9" label="Passports"/>
+  <int value="10" label="Flight reservations"/>
+  <int value="11" label="Travel info"/>
+  <int value="12" label="Vehicles"/>
+</enum>
+
+<!-- LINT.ThenChange(/chrome/browser/resources/settings/metrics_browser_proxy.ts:YourSavedInfoDataChip) -->
+
+<!-- LINT.IfChange(YourSavedInfoRelatedService) -->
+
+<enum name="YourSavedInfoRelatedService">
+  <int value="0" label="Google Password Manager"/>
+  <int value="1" label="Google Wallet"/>
+  <int value="2" label="Google Account"/>
+</enum>
+
+<!-- LINT.ThenChange(/chrome/browser/resources/settings/metrics_browser_proxy.ts:YourSavedInfoRelatedService) -->
 
 </enums>
 

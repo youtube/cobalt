@@ -38,6 +38,7 @@
 #include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
 #include "chrome/browser/ui/tabs/public/tab_features.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
+#include "chrome/browser/ui/views/side_panel/glic/glic_side_panel_coordinator.h"
 #include "chrome/common/actor_webui.mojom.h"
 #include "chrome/common/chrome_features.h"
 #include "components/prefs/pref_service.h"
@@ -54,6 +55,14 @@ BASE_FEATURE(kGlicBindOnlyForDaisyChainingFromFloatingUi,
              base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kGlicActorDaisyChainingFromFloatingUiDoesntClose,
              base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(kGlicBindOnPinFromFloatingUiDoesntShowSidePanel,
+             base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(kGlicRemoveBlankInstancesOnClose,
+             base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(kGlicAlwaysBindOnPin, base::FEATURE_ENABLED_BY_DEFAULT);
+
+const base::FeatureParam<base::TimeDelta> kRemoveBlankInstanceDelay{
+    &kGlicRemoveBlankInstancesOnClose, "delay", base::Seconds(1)};
 
 namespace {
 EmbedderKey CreateSidePanelEmbedderKey(tabs::TabInterface* tab) {
@@ -245,6 +254,10 @@ bool GlicInstanceImpl::IsActuating() const {
   return actor_task_manager_ && actor_task_manager_->IsActuating();
 }
 
+bool GlicInstanceImpl::IsLiveMode() {
+  return interaction_mode_ == mojom::WebClientMode::kAudio;
+}
+
 void GlicInstanceImpl::Show(const ShowOptions& options) {
   if (const auto* side_panel_options =
           std::get_if<SidePanelShowOptions>(&options.embedder_options);
@@ -302,7 +315,6 @@ void GlicInstanceImpl::Close(EmbedderKey key) {
   }
   instance_metrics_.OnClose();
   embedder->Close();
-  MaybeDeactivateEmbedder(key);
 }
 
 bool GlicInstanceImpl::Toggle(ShowOptions&& options,
@@ -540,7 +552,17 @@ void GlicInstanceImpl::UnbindEmbedder(EmbedderKey key) {
   }
 
   Close(key);
+  // Deactivate if this was the active embedder. This ensures predictable state
+  // for the other embedders and also cleans up the host delegate reference to
+  // avoid a dangling raw_ptr.
+  MaybeDeactivateEmbedder(key);
   embedders_.erase(key);
+
+  // Remove the instance if all embedders are gone.
+  if (embedders_.empty() && coordinator_delegate_) {
+    // This call will delete `this`.
+    coordinator_delegate_->RemoveInstance(this);
+  }
 }
 
 Host& GlicInstanceImpl::host() {
@@ -717,8 +739,8 @@ GlicUiEmbedder* GlicInstanceImpl::CreateActiveEmbedderForFloaty(
 void GlicInstanceImpl::ShowInactiveSidePanelEmbedderFor(
     tabs::TabInterface* tab) {
   auto& entry = BindTab(tab);
-  entry.embedder = GlicInactiveSidePanelUi::CreateForBackgroundTab(
-      tab->GetWeakPtr(), host().webui_contents(), *this);
+  entry.embedder =
+      GlicInactiveSidePanelUi::CreateForBackgroundTab(tab->GetWeakPtr(), *this);
 }
 
 void GlicInstanceImpl::SetActiveEmbedderAndNotifyStateChange(
@@ -762,11 +784,8 @@ void GlicInstanceImpl::MaybeShowHostUi(GlicUiEmbedder* embedder) {
 void GlicInstanceImpl::OnBoundTabDestroyed(tabs::TabInterface* tab,
                                            const InstanceId& instance_id) {
   instance_metrics_.OnBoundTabDestroyed();
+  // This call may delete `this`.
   UnbindEmbedder(tab);
-  if (embedders_.empty() && coordinator_delegate_) {
-    // This call will delete `this`.
-    coordinator_delegate_->RemoveInstance(this);
-  }
 }
 
 void GlicInstanceImpl::OnBoundTabActivated(tabs::TabInterface* tab) {
@@ -929,6 +948,54 @@ void GlicInstanceImpl::MaybeActivateForegroundEmbedder() {
   }
 
   NotifyInstanceActivationChanged(false);
+  // This call might delete `this`.
+  remove_blank_instance_timer_.Start(
+      FROM_HERE, kRemoveBlankInstanceDelay.Get(), this,
+      &GlicInstanceImpl::MaybeRemoveBlankInstanceOnClose);
+}
+
+void GlicInstanceImpl::MaybeRemoveBlankInstanceOnClose() {
+  if (!base::FeatureList::IsEnabled(kGlicRemoveBlankInstancesOnClose)) {
+    return;
+  }
+  // If the conversation id is set, then the instance isn't blank.
+  if (conversation_id().has_value()) {
+    return;
+  }
+  if (embedders_.size() != 1) {
+    return;
+  }
+
+  const auto& [key, entry] = *embedders_.begin();
+  tabs::TabInterface* const* tab = std::get_if<tabs::TabInterface*>(&key);
+  if (!tab) {
+    // The single embedder is not a side panel (e.g., it's a floating embedder).
+    return;
+  }
+
+  GlicSidePanelCoordinator* coordinator =
+      GlicSidePanelCoordinator::GetForTab(*tab);
+  if (!coordinator) {
+    return;
+  }
+  // Only delete the instance if the side panel is actually closed, as opposed
+  // to just being on a backgrounded tab.
+  if (coordinator->state() != GlicSidePanelCoordinator::State::kClosed) {
+    return;
+  }
+
+  // Only remove the instance if there are no pinned tabs, or if the only pinned
+  // tab is the one for this embedder.
+  if (sharing_manager_.GetNumPinnedTabs() > 1) {
+    return;
+  }
+  if (sharing_manager_.GetNumPinnedTabs() == 1 &&
+      !sharing_manager_.IsTabPinned((*tab)->GetHandle())) {
+    return;
+  }
+
+  // This call will delete `this`.
+  UnbindEmbedder(*tab);
 }
 
 void GlicInstanceImpl::NotifyInstanceActivationChanged(bool is_active) {
@@ -937,6 +1004,7 @@ void GlicInstanceImpl::NotifyInstanceActivationChanged(bool is_active) {
   if (is_active) {
     last_active_time_ = base::TimeTicks::Now();
     inactivity_timer_.Stop();
+    remove_blank_instance_timer_.Stop();
   } else {
     last_active_time_ = base::TimeTicks::Now();
     inactivity_timer_.Start(
@@ -974,11 +1042,30 @@ void GlicInstanceImpl::OnTabPinningStatusChanged(tabs::TabInterface* tab,
     return;
   }
 
-  if (auto* helper = GlicInstanceHelper::From(tab)) {
-    auto instance_id = helper->GetInstanceId();
-    if (!instance_id.has_value()) {
-      ShowInactiveSidePanelEmbedderFor(tab);
-    }
+  auto* helper = GlicInstanceHelper::From(tab);
+  if (!helper) {
+    return;
+  }
+
+  helper->OnPinnedByInstance(id());
+  auto instance_id = helper->GetInstanceId();
+  if (!base::FeatureList::IsEnabled(kGlicAlwaysBindOnPin) &&
+      instance_id.has_value()) {
+    return;
+  }
+
+  // Don't try to rebind/show if the tab is already bound to this instance.
+  if (instance_id == id()) {
+    return;
+  }
+
+  if (base::FeatureList::IsEnabled(
+          kGlicBindOnPinFromFloatingUiDoesntShowSidePanel) &&
+      IsDetached()) {
+    // Bind without showing if floaty is open.
+    BindTab(tab);
+  } else {
+    ShowInactiveSidePanelEmbedderFor(tab);
   }
 }
 
@@ -1055,9 +1142,10 @@ void GlicInstanceImpl::RequestToShowCredentialSelectionDialog(
 void GlicInstanceImpl::RequestToShowUserConfirmationDialog(
     actor::TaskId task_id,
     const url::Origin& navigation_origin,
+    bool for_blocklisted_origin,
     actor::ActorTaskDelegate::UserConfirmationDialogCallback callback) {
-  host_.RequestToShowUserConfirmationDialog(task_id, navigation_origin,
-                                            std::move(callback));
+  host_.RequestToShowUserConfirmationDialog(
+      task_id, navigation_origin, for_blocklisted_origin, std::move(callback));
 }
 
 void GlicInstanceImpl::RequestToConfirmNavigation(

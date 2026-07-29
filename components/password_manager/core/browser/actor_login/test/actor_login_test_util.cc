@@ -20,6 +20,63 @@ using autofill::test::CreateTestFormField;
 using autofill::test::MakeFormRendererId;
 using password_manager::PasswordForm;
 
+optimization_guide::proto::ActorLoginQuality_FormData CreateExpectedFormData(
+    const PasswordForm& form) {
+  optimization_guide::proto::ActorLoginQuality_FormData form_data_proto;
+
+  form_data_proto.set_form_signature(
+      autofill::CalculateFormSignature(form.form_data).value());
+
+  for (const auto& field : form.form_data.fields()) {
+    optimization_guide::proto::ActorLoginQuality_FormData_FieldData field_data;
+    field_data.set_signature(
+        autofill::CalculateFieldSignatureForField(field).value());
+
+    if (field.renderer_id() == form.username_element_renderer_id) {
+      field_data.set_field_type(
+          optimization_guide::proto::ActorLoginQuality_FormData_FieldData::
+              USERNAME);
+    } else if (field.renderer_id() == form.password_element_renderer_id) {
+      field_data.set_field_type(
+          optimization_guide::proto::ActorLoginQuality_FormData_FieldData::
+              PASSWORD);
+    } else if (field.renderer_id() == form.new_password_element_renderer_id) {
+      field_data.set_field_type(
+          optimization_guide::proto::ActorLoginQuality_FormData_FieldData::
+              NEW_PASSWORD);
+    } else if (field.renderer_id() ==
+               form.confirmation_password_element_renderer_id) {
+      field_data.set_field_type(
+          optimization_guide::proto::ActorLoginQuality_FormData_FieldData::
+              CONFIRMATION_PASSWORD);
+    } else {
+      field_data.set_field_type(
+          optimization_guide::proto::ActorLoginQuality_FormData_FieldData::
+              UNKNOWN);
+    }
+    *form_data_proto.add_field_data() = field_data;
+  }
+
+  return form_data_proto;
+}
+
+optimization_guide::proto::ActorLoginQuality_ParsedFormDetails
+CreateExpectedLoginFormDetails(const PasswordForm& form,
+                               bool is_username_visible,
+                               bool is_password_visible,
+                               std::optional<int> async_check_time_ms) {
+  optimization_guide::proto::ActorLoginQuality_ParsedFormDetails details;
+  *details.mutable_form_data() = CreateExpectedFormData(form);
+
+  details.set_is_username_field_visible(is_username_visible);
+  details.set_is_password_field_visible(is_password_visible);
+  details.set_is_new_password_visible(false);
+  details.set_is_valid_frame_and_origin(true);
+  details.set_async_check_time_ms(async_check_time_ms.value_or(0));
+
+  return details;
+}
+
 Credential CreateTestCredential(const std::u16string& username,
                                 const GURL& url,
                                 const url::Origin& request_origin) {

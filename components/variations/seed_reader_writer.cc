@@ -231,10 +231,6 @@ int64_t TimeToProtoTime(base::Time time) {
   return time.ToDeltaSinceWindowsEpoch().InMicroseconds();
 }
 
-base::Time ProtoTimeToTime(int64_t proto_time) {
-  return base::Time::FromDeltaSinceWindowsEpoch(base::Microseconds(proto_time));
-}
-
 bool ShouldStoreWithoutProcessing(std::string_view seed_data) {
   return seed_data.empty() || seed_data == kIdenticalToSafeSeedSentinel;
 }
@@ -551,6 +547,33 @@ void SeedReaderWriter::AllowToPurgeSeedDataFromMemory() {
   }
 }
 
+void SeedReaderWriter::GetStoredSeedInfoForDebugging(
+    base::OnceCallback<void(StoredSeedInfo)> done_callback) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  // The seed info may be stored either on the SeedFile or Local State.
+  // TODO(crbug.com/411431524): Load StoredSeedInfo object directly from parsing
+  // the SeedFile once all clients are migrated there.
+  // In-memory stored fields.
+  SeedInfo seed_info = GetSeedInfo();
+  StoredSeedInfo stored_seed_info;
+  stored_seed_info.set_milestone(seed_info.milestone);
+  stored_seed_info.set_seed_date(TimeToProtoTime(seed_info.seed_date));
+  stored_seed_info.set_client_fetch_time(
+      TimeToProtoTime(seed_info.client_fetch_time));
+  stored_seed_info.set_session_country_code(seed_info.session_country_code);
+  stored_seed_info.set_permanent_country_code(seed_info.permanent_country_code);
+  stored_seed_info.set_permanent_version(seed_info.permanent_country_version);
+  auto cb = base::BindOnce(
+      [](base::OnceCallback<void(StoredSeedInfo)> done_callback,
+         StoredSeedInfo stored_seed_info, ReadSeedDataResult result) {
+        stored_seed_info.set_data(result.seed_data);
+        stored_seed_info.set_signature(result.signature);
+        std::move(done_callback).Run(std::move(stored_seed_info));
+      },
+      std::move(done_callback), std::move(stored_seed_info));
+  ReadSeedData(std::move(cb));
+}
+
 // static
 std::string SeedReaderWriter::CompressForSeedFileForTesting(
     std::string_view contents) {
@@ -574,6 +597,11 @@ bool SeedReaderWriter::UncompressFromSeedFileForTesting(
 // static
 std::size_t SeedReaderWriter::MaxUncompressedSeedSizeForTesting() {
   return kMaxUncompressedSeedSize;
+}
+
+// static
+base::Time SeedReaderWriter::ProtoTimeToTime(int64_t proto_time) {
+  return base::Time::FromDeltaSinceWindowsEpoch(base::Microseconds(proto_time));
 }
 
 base::ImportantFileWriter::BackgroundDataProducerCallback

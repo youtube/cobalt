@@ -431,7 +431,7 @@ public class PendingActionManagerUnitTest {
         mManager.requestAction(PendingAction.ACTIVATE);
 
         // Assert.
-        Assert.assertEquals(
+        assertEquals(
                 "isActive should be true in the future when ACTIVATE is in progress",
                 true,
                 mManager.isActiveFuture(State.PENDING_CREATE));
@@ -443,9 +443,22 @@ public class PendingActionManagerUnitTest {
         mManager.requestAction(PendingAction.SHOW);
 
         // Assert.
-        Assert.assertTrue(
+        assertEquals(
                 "isVisible should be true in the future when SHOW is in progress",
-                mManager.isVisibleFuture());
+                true,
+                mManager.isVisibleFuture(State.PENDING_UPDATE));
+    }
+
+    @Test
+    public void testIsVisibleFuture_afterRequestMinimize_returnsFalse() {
+        // Arrange.
+        mManager.requestAction(PendingAction.MINIMIZE);
+
+        // Assert.
+        assertEquals(
+                "isVisible should be false in the future when MINIMIZE is in progress",
+                false,
+                mManager.isVisibleFuture(State.PENDING_UPDATE));
     }
 
     @Test
@@ -454,9 +467,10 @@ public class PendingActionManagerUnitTest {
         mManager.requestMaximize(new Rect());
 
         // Assert.
-        Assert.assertTrue(
+        assertEquals(
                 "isMaximized should be true in the future when MAXIMIZE is in progress",
-                mManager.isMaximizedFuture());
+                true,
+                mManager.isMaximizedFuture(State.PENDING_UPDATE));
     }
 
     @Test
@@ -465,7 +479,7 @@ public class PendingActionManagerUnitTest {
         mManager.requestMaximize(new Rect());
 
         // Assert.
-        Assert.assertEquals(
+        assertEquals(
                 "isActive should be true in the future when MAXIMIZE is in progress",
                 true,
                 mManager.isActiveFuture(State.PENDING_UPDATE));
@@ -477,7 +491,7 @@ public class PendingActionManagerUnitTest {
         mManager.requestSetBounds(TEST_SET_BOUNDS_INPUT_1);
 
         // Assert.
-        Assert.assertEquals(
+        assertEquals(
                 "Should return pending bounds",
                 TEST_SET_BOUNDS_INPUT_1,
                 mManager.getPendingBoundsInDp());
@@ -490,7 +504,7 @@ public class PendingActionManagerUnitTest {
         mManager.getAndClearTargetPendingActions(PendingAction.SET_BOUNDS);
 
         // Assert.
-        Assert.assertNull("Pending bounds should have been clear", mManager.getFutureBoundsInDp());
+        assertNull("Pending bounds should have been clear", mManager.getFutureBoundsInDp());
     }
 
     @Test
@@ -500,7 +514,7 @@ public class PendingActionManagerUnitTest {
         assertEquals(true, mManager.isActiveFuture(State.PENDING_UPDATE));
 
         mManager.getAndClearTargetPendingActions(PendingAction.ACTIVATE);
-        Assert.assertNull(
+        assertNull(
                 "No pending action affecting isActive's future state",
                 mManager.isActiveFuture(State.PENDING_UPDATE));
     }

@@ -61,6 +61,7 @@ using signin::SignInPromoType;
 using signin_util::SignedInState;
 
 constexpr int kSigninPromoShownThreshold = 5;
+constexpr int kSigninPromoShownThresholdForLimitsExperiment = 20;
 constexpr int kSigninPromoDismissedThreshold = 2;
 
 // Prefs that are part of the dictionary from
@@ -218,6 +219,30 @@ syncer::DataType GetDataTypeFromSignInPromoType(SignInPromoType type) {
   }
 }
 
+int GetAddressPromoShownCount(Profile& profile, const GaiaId& gaia_id) {
+  if (!gaia_id.empty()) {
+    return SigninPrefs(*profile.GetPrefs())
+        .GetAddressSigninPromoImpressionCount(gaia_id);
+  }
+
+  return profile.GetPrefs()->GetInteger(
+      base::FeatureList::IsEnabled(switches::kSigninPromoLimitsExperiment)
+          ? prefs::kAddressSignInPromoShownCountPerProfileForLimitsExperiment
+          : prefs::kAddressSignInPromoShownCountPerProfile);
+}
+
+int GetPasswordPromoShownCount(Profile& profile, const GaiaId& gaia_id) {
+  if (!gaia_id.empty()) {
+    return SigninPrefs(*profile.GetPrefs())
+        .GetPasswordSigninPromoImpressionCount(gaia_id);
+  }
+
+  return profile.GetPrefs()->GetInteger(
+      base::FeatureList::IsEnabled(switches::kSigninPromoLimitsExperiment)
+          ? prefs::kPasswordSignInPromoShownCountPerProfileForLimitsExperiment
+          : prefs::kPasswordSignInPromoShownCountPerProfile);
+}
+
 bool ShouldShowPromoBasedOnImpressionOrDismissalCount(Profile& profile,
                                                       SignInPromoType type) {
   // Footer sign in promos are always shown.
@@ -232,24 +257,19 @@ bool ShouldShowPromoBasedOnImpressionOrDismissalCount(Profile& profile,
   int show_count = 0;
   switch (type) {
     case SignInPromoType::kAddress:
-      show_count =
-          account.gaia.empty()
-              ? profile.GetPrefs()->GetInteger(
-                    prefs::kAddressSignInPromoShownCountPerProfile)
-              : SigninPrefs(*profile.GetPrefs())
-                    .GetAddressSigninPromoImpressionCount(account.gaia);
+      show_count = GetAddressPromoShownCount(profile, account.gaia);
       break;
     case SignInPromoType::kPassword:
-      show_count =
-          account.gaia.empty()
-              ? profile.GetPrefs()->GetInteger(
-                    prefs::kPasswordSignInPromoShownCountPerProfile)
-              : SigninPrefs(*profile.GetPrefs())
-                    .GetPasswordSigninPromoImpressionCount(account.gaia);
+      show_count = GetPasswordPromoShownCount(profile, account.gaia);
       break;
     case SignInPromoType::kBookmark:
     case SignInPromoType::kExtension:
       NOTREACHED();
+  }
+
+  // For SigninPromoLimitsExperiment, don't check the dismiss count.
+  if (base::FeatureList::IsEnabled(switches::kSigninPromoLimitsExperiment)) {
+    return show_count < kSigninPromoShownThresholdForLimitsExperiment;
   }
 
   int dismiss_count =
@@ -393,17 +413,19 @@ bool ShouldShowExtensionSyncPromo(Profile& profile,
     return false;
   }
 
-  // `ShouldShowSyncPromo()` does not check if extensions are syncing in
-  // transport mode. That's why `IsSyncingExtensionsEnabled()` is added so the
-  // sign in promo is not shown in that case.
-  if (extensions::sync_util::IsSyncingExtensionsEnabled(&profile)) {
-    return false;
-  }
+  if (!base::FeatureList::IsEnabled(syncer::kUnoPhase2FollowUp)) {
+    // `ShouldShowSyncPromo()` does not check if extensions are syncing in
+    // transport mode. That's why `IsSyncingExtensionsEnabled()` is added so the
+    // sign in promo is not shown in that case.
+    if (extensions::sync_util::IsSyncingExtensionsEnabled(&profile)) {
+      return false;
+    }
 
-  // The promo is not shown to users that have explicitly signed in through the
-  // browser (even if extensions are not syncing).
-  if (profile.GetPrefs()->GetBoolean(prefs::kExplicitBrowserSignin)) {
-    return false;
+    // The promo is not shown to users that have explicitly signed in through
+    // the browser (even if extensions are not syncing).
+    if (profile.GetPrefs()->GetBoolean(prefs::kExplicitBrowserSignin)) {
+      return false;
+    }
   }
 
   return true;
@@ -460,16 +482,6 @@ bool ShouldShowBookmarkSignInPromo(Profile& profile) {
 #if BUILDFLAG(ENABLE_DICE_SUPPORT)
   if (!base::FeatureList::IsEnabled(
           switches::kSyncEnableBookmarksInTransportMode)) {
-    return false;
-  }
-
-  // Do not show the promo if a user was previously syncing, as this may result
-  // in duplicate data.
-  // TODO(crbug.com/402748138): Remove this once bookmarks de-duplication is
-  // implemented.
-  if (!profile.GetPrefs()
-           ->GetString(::prefs::kGoogleServicesLastSyncingGaiaId)
-           .empty()) {
     return false;
   }
 
@@ -549,10 +561,18 @@ void RecordSignInPromoShown(signin_metrics::AccessPoint access_point,
     const char* pref_name;
     switch (promo_type) {
       case SignInPromoType::kPassword:
-        pref_name = prefs::kPasswordSignInPromoShownCountPerProfile;
+        pref_name =
+            base::FeatureList::IsEnabled(switches::kSigninPromoLimitsExperiment)
+                ? prefs::
+                      kPasswordSignInPromoShownCountPerProfileForLimitsExperiment
+                : prefs::kPasswordSignInPromoShownCountPerProfile;
         break;
       case SignInPromoType::kAddress:
-        pref_name = prefs::kAddressSignInPromoShownCountPerProfile;
+        pref_name =
+            base::FeatureList::IsEnabled(switches::kSigninPromoLimitsExperiment)
+                ? prefs::
+                      kAddressSignInPromoShownCountPerProfileForLimitsExperiment
+                : prefs::kAddressSignInPromoShownCountPerProfile;
         break;
       case SignInPromoType::kBookmark:
       case SignInPromoType::kExtension:
@@ -579,6 +599,22 @@ void RecordSignInPromoShown(signin_metrics::AccessPoint access_point,
     case SignInPromoType::kExtension:
       return;
   }
+}
+
+int GetShownCountOfAvatarButtonPromoType(
+    ProfileMenuAvatarButtonPromoInfo::Type promo_type,
+    PrefService& prefs,
+    GaiaId gaia_id) {
+  SigninPrefs signin_prefs(prefs);
+  if (promo_type == ProfileMenuAvatarButtonPromoInfo::Type::kSyncPromo) {
+    CHECK(switches::IsAvatarSyncPromoFeatureEnabled());
+    return signin_prefs.GetSyncPromoIdentityPillShownCount(gaia_id);
+  }
+
+  base::DictValue& promo_counts =
+      signin_prefs.GetOrCreateAvatarButtonPromoCountDictionary(gaia_id);
+  return promo_counts.FindInt(GetAvatarButtonPromoShownKey(promo_type))
+      .value_or(0);
 }
 
 void ComputeProfileMenuAvatarButtonPromoInfo(

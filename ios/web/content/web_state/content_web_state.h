@@ -55,11 +55,6 @@ class ContentWebState : public WebState,
   explicit ContentWebState(const CreateParams& params);
 
   // Constructor for ContentWebState created for deserialized sessions.
-  ContentWebState(const CreateParams& params,
-                  CRWSessionStorage* session_storage,
-                  NativeSessionFetcher session_fetcher);
-
-  // Constructor for ContentWebState created for deserialized sessions.
   ContentWebState(BrowserState* browser_state,
                   WebStateID unique_identifier,
                   proto::WebStateMetadataStorage metadata,
@@ -107,7 +102,6 @@ class ContentWebState : public WebState,
   const SessionCertificatePolicyCache* GetSessionCertificatePolicyCache()
       const override;
   SessionCertificatePolicyCache* GetSessionCertificatePolicyCache() override;
-  CRWSessionStorage* BuildSessionStorage() const override;
   void LoadData(NSData* data, NSString* mime_type, const GURL& url) override;
   void ExecuteUserJavaScript(NSString* javaScript) override;
   WebStateID GetUniqueIdentifier() const override;

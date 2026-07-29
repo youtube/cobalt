@@ -41,7 +41,6 @@ import org.chromium.base.supplier.ObservableSupplierImpl;
 import org.chromium.base.supplier.OneShotCallback;
 import org.chromium.base.supplier.OneshotSupplier;
 import org.chromium.base.supplier.OneshotSupplierImpl;
-import org.chromium.base.supplier.TransitiveObservableSupplier;
 import org.chromium.base.supplier.UnownedUserDataSupplier;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.ActivityTabProvider;
@@ -72,6 +71,7 @@ import org.chromium.chrome.browser.contextualsearch.ContextualSearchManagerSuppl
 import org.chromium.chrome.browser.contextualsearch.ContextualSearchObserver;
 import org.chromium.chrome.browser.crash.ChromePureJavaExceptionReporter;
 import org.chromium.chrome.browser.data_sharing.DataSharingTabManager;
+import org.chromium.chrome.browser.desktop_site.DesktopSiteUtils;
 import org.chromium.chrome.browser.device_lock.DeviceLockActivityLauncherImpl;
 import org.chromium.chrome.browser.document.ChromeLauncherActivity;
 import org.chromium.chrome.browser.dom_distiller.ReaderModeBottomSheetManager;
@@ -135,7 +135,6 @@ import org.chromium.chrome.browser.share.qrcode.QrCodeDialog;
 import org.chromium.chrome.browser.share.scroll_capture.ScrollCaptureManager;
 import org.chromium.chrome.browser.tab.AccessibilityVisibilityHandler;
 import org.chromium.chrome.browser.tab.AutofillSessionLifetimeController;
-import org.chromium.chrome.browser.tab.RequestDesktopUtils;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TabLaunchType;
 import org.chromium.chrome.browser.tab.TabLoadIfNeededCaller;
@@ -149,6 +148,7 @@ import org.chromium.chrome.browser.tabmodel.TabCreator;
 import org.chromium.chrome.browser.tabmodel.TabCreatorManager;
 import org.chromium.chrome.browser.tabmodel.TabModel;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
+import org.chromium.chrome.browser.tabmodel.TabModelSelectorBase;
 import org.chromium.chrome.browser.tabmodel.TabModelUtils;
 import org.chromium.chrome.browser.tabwindow.TabWindowInfo;
 import org.chromium.chrome.browser.theme.AdjustedTopUiThemeColorProvider;
@@ -342,8 +342,7 @@ public class RootUiCoordinator
     private @Nullable ScrollCaptureManager mScrollCaptureManager;
     protected final ActivityLifecycleDispatcher mActivityLifecycleDispatcher;
     protected final ObservableSupplier<LayoutManagerImpl> mLayoutManagerImplSupplier;
-    protected final TransitiveObservableSupplier<LayoutManagerImpl, @StripVisibilityState Integer>
-            mTabStripVisibilitySupplier;
+    protected final ObservableSupplier<@StripVisibilityState Integer> mTabStripVisibilitySupplier;
     protected final ObservableSupplierImpl<LayoutManager> mLayoutManagerSupplier;
     protected final ObservableSupplier<ModalDialogManager> mModalDialogManagerSupplier;
     private final AppMenuBlocker mAppMenuBlocker;
@@ -392,7 +391,7 @@ public class RootUiCoordinator
     private final ObservableSupplierImpl<TopInsetCoordinator> mTopInsetCoordinatorSupplier;
     private @Nullable ToolbarControlContainer mToolbarContainer;
     private @Nullable DesktopWindowStateManager mDesktopWindowStateManager;
-    private final ExclusiveAccessManager mExclusiveAccessManager;
+    private @Nullable final ExclusiveAccessManager mExclusiveAccessManager;
     private final PageZoomManager mPageZoomManager;
     private @Nullable AppHeaderObserver mAppHeaderObserver;
     protected final ObservableSupplierImpl<ReaderModeIphController>
@@ -539,9 +538,8 @@ public class RootUiCoordinator
         mLayoutManagerImplSupplier = layoutManagerSupplier;
         mLayoutManagerImplSupplier.addObserver(mLayoutManagerSupplierCallback);
         mTabStripVisibilitySupplier =
-                new TransitiveObservableSupplier<>(
-                        mLayoutManagerImplSupplier,
-                        (layoutManagerImpl) -> {
+                mLayoutManagerImplSupplier.createTransitive(
+                        layoutManagerImpl -> {
                             StripLayoutHelperManager stripLayoutHelperManager =
                                     layoutManagerImpl.getStripLayoutHelperManager();
                             return stripLayoutHelperManager != null
@@ -677,20 +675,6 @@ public class RootUiCoordinator
                         mPageZoomManager,
                         /* useSlider= */ ChromeFeatureList.sAndroidSettingsContainment.isEnabled());
 
-        mActivityRecreationController =
-                new ActivityRecreationController(
-                        mToolbarManagerOneshotSupplier,
-                        mLayoutManagerSupplier,
-                        mActivityTabProvider,
-                        new Handler());
-        mExpandedBottomSheetHelper =
-                new ExpandedSheetHelperImpl(mModalDialogManagerSupplier, getTabObscuringHandler());
-        mEdgeToEdgeManager = edgeToEdgeManager;
-        mBottomControlsStacker =
-                new BottomControlsStacker(mBrowserControlsManager, mActivity, mWindowAndroid);
-        mTopControlsStacker = new TopControlsStacker(mBrowserControlsManager);
-        mXrSpaceModeObservableSupplier = xrSpaceModeObservableSupplier;
-
         if (ChromeFeatureList.sEnableExclusiveAccessManager.isEnabled()) {
             mExclusiveAccessManager =
                     new ExclusiveAccessManager(
@@ -699,12 +683,33 @@ public class RootUiCoordinator
             mBackPressManager.addHandler(
                     new ExclusiveAccessManagerBackPressHandler(mExclusiveAccessManager),
                     BackPressHandler.Type.FULLSCREEN);
+            // Fullscreen manager state, not actual window state, has to be recreated as soon after
+            // RootUiCoordinator creations as possible. It is needed to keep renderer in the
+            // fullscreen state if recreation was caused by the window move to another display
+            // during full screen to another screen call
+            mExclusiveAccessManager.setFullscreenPendingState(savedInstanceState);
         } else {
             mExclusiveAccessManager = null;
             mBackPressManager.addHandler(
                     new FullscreenBackPressHandler(mBrowserControlsManager.getFullscreenManager()),
                     BackPressHandler.Type.FULLSCREEN);
         }
+
+        mActivityRecreationController =
+                new ActivityRecreationController(
+                        mToolbarManagerOneshotSupplier,
+                        mLayoutManagerSupplier,
+                        mActivityTabProvider,
+                        new Handler(),
+                        mExclusiveAccessManager);
+
+        mExpandedBottomSheetHelper =
+                new ExpandedSheetHelperImpl(mModalDialogManagerSupplier, getTabObscuringHandler());
+        mEdgeToEdgeManager = edgeToEdgeManager;
+        mBottomControlsStacker =
+                new BottomControlsStacker(mBrowserControlsManager, mActivity, mWindowAndroid);
+        mTopControlsStacker = new TopControlsStacker(mBrowserControlsManager);
+        mXrSpaceModeObservableSupplier = xrSpaceModeObservableSupplier;
 
         if (BrowserControlsUtils.doSyncMinHeightWithTotalHeightV2()) {
             if (DeviceInfo.isDesktop()
@@ -1294,7 +1299,7 @@ public class RootUiCoordinator
         }
 
         if (DeviceFormFactor.isWindowOnTablet(mWindowAndroid)
-                && RequestDesktopUtils.maybeDefaultEnableGlobalSetting(
+                && DesktopSiteUtils.maybeDefaultEnableGlobalSetting(
                         getPrimaryDisplaySizeInInches(), originalProfile, mActivity)) {
             // TODO(crbug.com/40856393): Remove this explicit load when this bug is addressed.
             if (mActivityTabProvider != null && mActivityTabProvider.get() != null) {
@@ -1304,7 +1309,7 @@ public class RootUiCoordinator
             }
         }
 
-        RequestDesktopUtils.maybeDefaultEnableWindowSetting(mActivity, originalProfile);
+        DesktopSiteUtils.maybeDefaultEnableWindowSetting(mActivity, originalProfile);
 
         initMerchantTrustSignals(originalProfile);
     }
@@ -1717,6 +1722,11 @@ public class RootUiCoordinator
                             },
                             // Open Quick Delete Dialog callback:
                             () -> {
+                                TabModelSelectorBase tabModelSelector =
+                                        ArchivedTabModelOrchestrator.getForProfile(
+                                                        mProfileSupplier.get())
+                                                .getTabModelSelector();
+                                assert tabModelSelector != null;
                                 QuickDeleteController quickDeleteController =
                                         new QuickDeleteController(
                                                 mActivity,
@@ -1726,9 +1736,7 @@ public class RootUiCoordinator
                                                 mSnackbarManagerSupplier.get(),
                                                 mLayoutManager,
                                                 mTabModelSelectorSupplier.get(),
-                                                ArchivedTabModelOrchestrator.getForProfile(
-                                                                mProfileSupplier.get())
-                                                        .getTabModelSelector());
+                                                tabModelSelector);
                                 quickDeleteController.showDialog();
                             },
                             TabWindowManagerSingleton::getInstance,
@@ -1785,7 +1793,8 @@ public class RootUiCoordinator
                             mTopControlsStacker,
                             mTopInsetCoordinatorSupplier,
                             mXrSpaceModeObservableSupplier,
-                            mPageZoomManager);
+                            mPageZoomManager,
+                            mSnackbarManagerSupplier.get());
             if (!mSupportsAppMenuSupplier.getAsBoolean()) {
                 mToolbarManager.getToolbar().disableMenuButton();
             }
@@ -2370,6 +2379,9 @@ public class RootUiCoordinator
     public void onSaveInstanceState(Bundle outState) {
         assert mTabModelSelectorSupplier.get() != null;
         mActivityRecreationController.saveUiState(outState);
+        if (mExclusiveAccessManager != null) {
+            mExclusiveAccessManager.saveFullscreenState(outState);
+        }
     }
 
     /**

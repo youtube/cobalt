@@ -1454,7 +1454,7 @@ void CookieMonster::FilterCookiesWithOptions(
 
     if (!access_result.status.IsInclude()) {
       if (options.return_excluded_cookies()) {
-        excluded_cookies.push_back({*cookie_ptr, access_result});
+        excluded_cookies.emplace_back(*cookie_ptr, access_result);
       }
       continue;
     }
@@ -1463,7 +1463,7 @@ void CookieMonster::FilterCookiesWithOptions(
       InternalUpdateCookieAccessTime(*cookie_ptr, current_time);
     }
 
-    included_cookies.push_back({*cookie_ptr, access_result});
+    included_cookies.emplace_back(*cookie_ptr, access_result);
   }
 }
 
@@ -1563,6 +1563,8 @@ CookieMonster::MaybeDeleteEquivalentCookieAndUpdateStatus(
     CanonicalCookie* deletion_candidate = deletion_candidate_it->second.get();
     if (deletion_candidate->Value() == cookie_being_set.Value()) {
       creation_date_to_inherit = deletion_candidate->CreationDate();
+      observability =
+          CookieChangeObservability::kWebObservableWithoutValueChange;
     }
     if (deletion_candidate->IsWebEquivalentTo(cookie_being_set)) {
       observability = CookieChangeObservability::kNotWebObservable;
@@ -1607,6 +1609,8 @@ CookieChangeCause CookieMonster::ToCookieChangeCause(
       return CookieChangeCause::INSERTED;
     case CookieChangeObservability::kNotWebObservable:
       return CookieChangeCause::INSERTED_NO_CHANGE_OVERWRITE;
+    case CookieChangeObservability::kWebObservableWithoutValueChange:
+      return CookieChangeCause::INSERTED_NO_VALUE_CHANGE_OVERWRITE;
   }
   NOTREACHED() << "Invalid CookieChangeObservability value: "
                << static_cast<int>(observability);

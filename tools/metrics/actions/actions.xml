@@ -434,6 +434,8 @@ should be able to be added at any place in this file.
       summary="For iOSFeedSwipeAnimatedFeature feature"/>
   <variant name="_iOSFeedSwipeStaticFeature"
       summary="For iOSFeedSwipeStaticFeature feature"/>
+  <variant name="_iOSGeminiFullscreenPromoFeature"
+      summary="For iOSGeminiFullscreenPromoFeature feature"/>
   <variant name="_iOSHistoryOnOverflowMenuFeature"
       summary="For iOSHistoryOnOverflowMenuFeature feature"/>
   <variant name="_iOSHomepageCustomizationNewBadge"
@@ -3492,6 +3494,24 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
+<action name="Actor.Ui.TaskNudge.{NudgeText}.Click">
+  <owner>chrstne@google.com</owner>
+  <owner>kenok@google.com</owner>
+  <owner>koilos@google.com</owner>
+  <description>
+    Recorded when the user clicks the Task Nudge when it is shown (this
+    currently happens when a Task is interrupted).
+  </description>
+  <token key="NudgeText">
+    <variant name="CompleteTasks"
+        summary="Task Nudge text shown when a task is complete."/>
+    <variant name="MultipleTasksNeedAttention"
+        summary="Task Nudge text shown when multiple tasks need attention"/>
+    <variant name="NeedsAttention"
+        summary="Task Nudge text shown when one task needs attention."/>
+  </token>
+</action>
+
 <action name="AddAddressManually_AddressSaved">
   <owner>sinhasourav@google.com</owner>
   <owner>bling-transactions@google.com</owner>
@@ -5580,6 +5600,76 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
+<action name="Autofill.TouchToFill.Bnpl.UserAction{ActionType}">
+  <owner>ferny@google.com</owner>
+  <owner>yishuil@google.com</owner>
+  <description>
+    User performed an action in the Touch To Fill (TTF) bottom sheet during a
+    Buy Now, Pay Later (BNPL) flow. {ActionType}
+  </description>
+  <token key="ActionType">
+    <variant name="" summary="aggregated"/>
+    <variant name=".AffirmTosScreen.Accepted"
+        summary="BNPL ToS screen for Affirm accepted."/>
+    <variant name=".AffirmTosScreen.Dismissed"
+        summary="BNPL ToS screen for Affirm dismissed."/>
+    <variant name=".AffirmTosScreen.LegalMessageLinkClicked"
+        summary="Link in legal messages on BNPL ToS screen for Affirm was
+                 clicked."/>
+    <variant name=".AffirmTosScreen.Shown"
+        summary="BNPL ToS screen shown for Affirm."/>
+    <variant name=".AffirmTosScreen.WalletLinkClicked"
+        summary="Wallet link on BNPL ToS screen for Affirm was clicked."/>
+    <variant name=".ErrorScreen.Dismissed" summary="Error screen dismissed."/>
+    <variant name=".ErrorScreen.Shown" summary="Error screen shown."/>
+    <variant name=".IssuerSelectionScreen.AffirmLinkedSelected"
+        summary="Linked Affirm issuer selected."/>
+    <variant name=".IssuerSelectionScreen.AffirmUnlinkedSelected"
+        summary="Unlinked Affirm issuer selected."/>
+    <variant name=".IssuerSelectionScreen.BackButtonSelected"
+        summary="Back button selected."/>
+    <variant name=".IssuerSelectionScreen.Dismissed"
+        summary="Issuer selection screen dismissed."/>
+    <variant name=".IssuerSelectionScreen.KlarnaLinkedSelected"
+        summary="Linked Klarna issuer selected."/>
+    <variant name=".IssuerSelectionScreen.KlarnaUnlinkedSelected"
+        summary="Unlinked Klarna issuer selected."/>
+    <variant name=".IssuerSelectionScreen.SettingsLinkSelected"
+        summary="Settings link selected."/>
+    <variant name=".IssuerSelectionScreen.Shown"
+        summary="Issuer selection screen shown."/>
+    <variant name=".IssuerSelectionScreen.ZipLinkedSelected"
+        summary="Linked Zip issuer selected."/>
+    <variant name=".IssuerSelectionScreen.ZipUnlinkedSelected"
+        summary="Unlinked Zip issuer selected."/>
+    <variant name=".KlarnaTosScreen.Accepted"
+        summary="BNPL ToS screen for Klarna accepted."/>
+    <variant name=".KlarnaTosScreen.Dismissed"
+        summary="BNPL ToS screen for Klarna dismissed."/>
+    <variant name=".KlarnaTosScreen.LegalMessageLinkClicked"
+        summary="Link in legal messages on BNPL ToS screen for Klarna was
+                 clicked."/>
+    <variant name=".KlarnaTosScreen.Shown"
+        summary="BNPL ToS screen shown for Klarna."/>
+    <variant name=".KlarnaTosScreen.WalletLinkClicked"
+        summary="Wallet link on BNPL ToS screen for Klarna was clicked."/>
+    <variant name=".ProgressScreen.Dismissed"
+        summary="Progress screen dismissed."/>
+    <variant name=".ProgressScreen.Shown" summary="Progress screen shown."/>
+    <variant name=".ZipTosScreen.Accepted"
+        summary="BNPL ToS screen for Zip accepted."/>
+    <variant name=".ZipTosScreen.Dismissed"
+        summary="BNPL ToS screen for Zip dismissed."/>
+    <variant name=".ZipTosScreen.LegalMessageLinkClicked"
+        summary="Link in legal messages on BNPL ToS screen for Zip was
+                 clicked."/>
+    <variant name=".ZipTosScreen.Shown"
+        summary="BNPL ToS screen shown for Zip."/>
+    <variant name=".ZipTosScreen.WalletLinkClicked"
+        summary="Wallet link on BNPL ToS screen for Zip was clicked."/>
+  </token>
+</action>
+
 <action name="Autofill_BrandingTapped">
   <owner>ginnyhuang@chromium.org</owner>
   <description>
@@ -6788,6 +6878,24 @@ should be able to be added at any place in this file.
   <description>
     Recorded when the user clicks on the Buy Now, Pay Later (BNPL) issuer terms
     preference on the BNPL setting page.
+  </description>
+</action>
+
+<action name="Bnpl_ToggledOff">
+  <owner>viplavkadam@google.com</owner>
+  <owner>vinnypersky@google.com</owner>
+  <description>
+    Recorded when the user clicks on the BNPL toggle on the Pay Later settings
+    page, switching it from the on state to the off state.
+  </description>
+</action>
+
+<action name="Bnpl_ToggledOn">
+  <owner>viplavkadam@google.com</owner>
+  <owner>vinnypersky@google.com</owner>
+  <description>
+    Recorded when the user clicks on the BNPL toggle on the Pay Later settings
+    page, switching it from the off state to the on state.
   </description>
 </action>
 
@@ -10160,6 +10268,27 @@ should be able to be added at any place in this file.
         summary="The suggestion was clicked directly."/>
     <variant name=".ToolbarButtonClicked"
         summary="The toolbar button was shown."/>
+  </token>
+</action>
+
+<action name="ContextualTasks.WebUI.UserAction{ActionType}">
+  <owner>sophiechang@chromium.org</owner>
+  <owner>chrome-contextual-tasks-eng@google.com</owner>
+  <description>
+    The user interacted with the contextual tasks web UI directly. {ActionType}
+  </description>
+  <token key="ActionType">
+    <variant name=".CloseSidePanel" summary="The user closed the side panel."/>
+    <variant name=".OpenHelp" summary="The user opened the help page."/>
+    <variant name=".OpenInNewTab"
+        summary="The user opened the task in a new tab."/>
+    <variant name=".OpenMyActivity"
+        summary="The user opened the My Activity page."/>
+    <variant name=".OpenNewThread" summary="The user opened a new thread."/>
+    <variant name=".OpenThreadHistory"
+        summary="The user opened the thread history."/>
+    <variant name=".TabFromSourcesMenuClicked"
+        summary="The user clicked on a tab from the sources menu."/>
   </token>
 </action>
 
@@ -13764,6 +13893,14 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
+<action name="Glic.CookieSynchronizer.Timeout">
+  <owner>perrier@google.com</owner>
+  <owner>harringtond@chromium.org</owner>
+  <description>
+    Logged anytime the Glic CookieSyncronizer timeout is reached.
+  </description>
+</action>
+
 <action name="Glic.Disabled">
   <owner>iwells@google.com</owner>
   <owner>erikchen@chromium.org</owner>
@@ -14065,6 +14202,24 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
+<action name="Glic.Instance.Floaty.UserResizeEnded">
+  <owner>birnie@google.com</owner>
+  <owner>perrier@google.com</owner>
+  <description>
+    Logged when the user stops resizing the instance showing in a floaty
+    embedder.
+  </description>
+</action>
+
+<action name="Glic.Instance.Floaty.UserResizeStarted">
+  <owner>birnie@google.com</owner>
+  <owner>perrier@google.com</owner>
+  <description>
+    Logged when the user initiates a resize of the instance showing in a floaty
+    embedder.
+  </description>
+</action>
+
 <action name="Glic.Instance.Hide">
   <owner>birnie@google.com</owner>
   <owner>perrier@google.com</owner>
@@ -14311,7 +14466,7 @@ should be able to be added at any place in this file.
 <action name="Glic.Instance.WebUiStateChanged.Unresponsive">
   <owner>birnie@google.com</owner>
   <owner>perrier@google.com</owner>
-  <description>The GLic instance WebUI is unresponsive.</description>
+  <description>The Glic instance WebUI is unresponsive.</description>
 </action>
 
 <action name="Glic.Pinned">
@@ -14319,6 +14474,23 @@ should be able to be added at any place in this file.
   <owner>erikchen@chromium.org</owner>
   <description>
     Logged anytime glic is pinned to the tabstrip, regardless of source.
+  </description>
+</action>
+
+<action name="Glic.PinnedTab.OriginChanged">
+  <owner>wry@chromium.org</owner>
+  <owner>perrier@chromium.org</owner>
+  <description>
+    Logged anytime a pinned tab is navigated to a new origin.
+  </description>
+</action>
+
+<action name="Glic.PinnedTab.OriginChanged.Unpinned">
+  <owner>wry@chromium.org</owner>
+  <owner>perrier@chromium.org</owner>
+  <description>
+    Logged anytime a pinned tab is navigated to a new origin and the tab is
+    unpinned as a result.
   </description>
 </action>
 
@@ -15397,14 +15569,6 @@ should be able to be added at any place in this file.
     configured for tracking only. {InProductHelp_Type}
   </description>
   <token key="InProductHelp_Type" variants="InProductHelp_Type"/>
-</action>
-
-<action name="InputMethod.Assistive.EmojiSuggested">
-  <owner>myy@chromium.org</owner>
-  <owner>essential-inputs-team@google.com</owner>
-  <description>
-    Recorded when users type some words and an emoji is suggested.
-  </description>
 </action>
 
 <action name="InputMethodOptions_Open_chewing">
@@ -17923,6 +18087,22 @@ should be able to be added at any place in this file.
     Recorded the first time (between the presentation and the dismissal of the
     unit conversion view controller) the user changes the unit type (title
     button) of a unit conversion view controller. iOS only.
+  </description>
+</action>
+
+<action name="IOS.WelcomeBack.Dismissed">
+  <owner>cheickcisse@google.com</owner>
+  <owner>bling-mony-pod@google.com</owner>
+  <description>
+    Recorded when the user dismisses the Welcome Back screen. iOS only.
+  </description>
+</action>
+
+<action name="IOS.WelcomeBack.Impression">
+  <owner>cheickcisse@google.com</owner>
+  <owner>bling-mony-pod@google.com</owner>
+  <description>
+    Recorded when the Welcome Back screen is presented to the user. iOS only.
   </description>
 </action>
 
@@ -26243,6 +26423,22 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
+<action name="MobileIncognitoIndicatorClicked">
+  <owner>mklw@google.com</owner>
+  <description>
+    The user clicked on the Incognito indicator button on the toolbar. Android
+    only.
+  </description>
+</action>
+
+<action name="MobileIncognitoIndicatorCloseAllWindows">
+  <owner>mklw@google.com</owner>
+  <description>
+    The user clicked on the &quot;Close all Incognito windows&quot; menu item
+    that appears after clicking on the Incognito indicator. Android only.
+  </description>
+</action>
+
 <action name="MobileKeyboardAccessoryOpenPasswordManager">
   <owner>noemies@google.com</owner>
   <description>
@@ -29458,6 +29654,14 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
+<action name="MobileTabGridCreateTabGroup">
+  <owner>bmcclure@google.com</owner>
+  <owner>bling-pandamonium@google.com</owner>
+  <description>
+    User tapped the New Tab Group button on the Tab Grid.
+  </description>
+</action>
+
 <action name="MobileTabGridDone">
   <owner>edchin@chromium.org</owner>
   <owner>marq@chromium.org</owner>
@@ -30371,10 +30575,22 @@ should be able to be added at any place in this file.
 </action>
 
 <action name="MobileToolbarPinnedOnlyTabStrip">
+  <obsolete>
+    Deprecated in favor of MobileToolbarPinnedOnlyTabStripSkipInit below.
+  </obsolete>
   <owner>zheliooo@google.com</owner>
   <description>
     User entered a state where pinned tabs occupy the entire visible area of
     tablet tab strip; record at most once per session. Android only.
+  </description>
+</action>
+
+<action name="MobileToolbarPinnedOnlyTabStripSkipInit">
+  <owner>zheliooo@google.com</owner>
+  <description>
+    User entered a state where pinned tabs occupy the entire visible area of
+    tablet tab strip; record at most once per session. Skips recording if tab
+    strip has not yet finished initialization. Android only.
   </description>
 </action>
 
@@ -30726,6 +30942,12 @@ should be able to be added at any place in this file.
     <variant name=".CloseTab.MultiTab"
         summary="User closed multiple tabs via the tab context menu on tab
                  strip on Android."/>
+    <variant name=".DuplicateTab"
+        summary="User duplicated a tab via the tab context menu on tab strip
+                 on Android."/>
+    <variant name=".DuplicateTab.MultiTab"
+        summary="User duplicated multiple tabs via the tab context menu on
+                 tab strip on Android."/>
     <variant name=".MoveTabToGroup"
         summary="User moved a tab to a synced tab group via the tab context
                  menu on tab strip on Android."/>
@@ -31105,6 +31327,14 @@ should be able to be added at any place in this file.
 <action name="MobileWebsiteSettingsOpenedFromMenu">
   <owner>tedchoc@chromium.org</owner>
   <description>Page Info opened via the menu.</description>
+</action>
+
+<action name="MobileWebsiteSettingsOpenedFromPermissionPrompt">
+  <owner>elklm@chromium.org</owner>
+  <description>
+    The user opened the page info dialog by clicking the manage button in a
+    permission prompt.
+  </description>
 </action>
 
 <action name="MobileWebsiteSettingsOpenedFromToolbar">
@@ -34413,6 +34643,12 @@ should be able to be added at any place in this file.
   <description>Please enter the description of this user action.</description>
 </action>
 
+<action name="Options_ShowContactInfo">
+  <owner>jsobiech@google.com</owner>
+  <owner>chrome-autofill-team@google.com</owner>
+  <description>Settings: Show contact info page</description>
+</action>
+
 <action name="Options_ShowCookies">
   <owner>Please list the metric's owners. Add more owner tags as needed.</owner>
   <description>Please enter the description of this user action.</description>
@@ -37085,6 +37321,14 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
+<action name="ProfilePicker_OpenAllProfilesClicked">
+  <owner>kbajkiewicz@google.org</owner>
+  <owner>chrome-signin-team@google.com</owner>
+  <description>
+    The user clicked the open all profiles button in chrome://profile-picker.
+  </description>
+</action>
+
 <action name="ProfilePicker_RemoveOptionClicked">
   <owner>msalama@chromium.org</owner>
   <owner>chrome-signin-team@google.com</owner>
@@ -39190,6 +39434,15 @@ should be able to be added at any place in this file.
   <description>
     Reported when user navigates to Ip Protection Settings via the Ip Protection
     link row in the Privacy Page.
+  </description>
+</action>
+
+<action name="Settings.MobileHelpAndFeedback">
+  <owner>jinsukkim@chromium.org</owner>
+  <owner>clank-app-team@google.com</owner>
+  <description>
+    Reported when user clicks the question icon on the toolbar of Settings page,
+    and the Help and Feedback dialog is shown. Recorded for Android only.
   </description>
 </action>
 
@@ -42879,6 +43132,14 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
+<action name="Signin_Impression_FromYourSavedInfo" not_user_triggered="true">
+  <owner>ireneuszszulc@google.com</owner>
+  <owner>chrome-autofill-team@google.com</owner>
+  <description>
+    Recorded when showing sign in entry in the Your Saved Info settings page.
+  </description>
+</action>
+
 <action name="Signin_ImpressionWithAccount_FromAvatarBubbleSignin"
     not_user_triggered="true">
   <obsolete>Removed in M104.</obsolete>
@@ -43922,6 +44183,16 @@ should be able to be added at any place in this file.
   <description>
     Recorded on sign in start from access point
     signin_metrics::AccessPoint::kUserManagerWithPrefilledEmail.
+  </description>
+</action>
+
+<action name="Signin_Signin_FromYourSavedInfo">
+  <owner>ireneuszszulc@google.com</owner>
+  <owner>chrome-autofill-team@google.com</owner>
+  <description>
+    Recorded on sign in start from access point
+    signin_metrics::AccessPoint::kSettingsYourSavedInfo, emitted from Your saved
+    info settings page.
   </description>
 </action>
 
@@ -47080,6 +47351,15 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
+<action name="TabContextMenu_AddToClosedSavedGroup">
+  <owner>dominicaustria@google.com</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
+  <description>
+    User selected the menu item to add to a closed saved tab group from the tab
+    context menu.
+  </description>
+</action>
+
 <action name="TabContextMenu_AddToExistingGroup">
   <owner>dpenning@chromium.org</owner>
   <owner>top-chrome-desktop-ui@google.com</owner>
@@ -48222,6 +48502,17 @@ should be able to be added at any place in this file.
   <description>
     User added a tab into a SavedTabGroup, for example by clicking on a link
     that opens a new tab or by manually adding a new tab into the group.
+  </description>
+</action>
+
+<action name="TabGroups_SavedTabGroups_TabGroupSubmenu_Opened">
+  <owner>dominicaustria@google.com</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
+  <description>
+    User opened a SavedTabGroup by clicking the 'Open group' menu item that
+    appears in the submenu or context menu for a tab group. This can appear in
+    several places, but one such location is the tab groups submenu within the
+    app menu.
   </description>
 </action>
 

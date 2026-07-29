@@ -13,12 +13,19 @@
 #include "components/policy/core/browser/url_list/url_blocklist_manager.h"
 #include "components/policy/core/common/policy_pref_names.h"
 
-// TODO(crbug.com/454904366): Remove all dependencies on this factory that
-// reside inside //chrome/browser/ash/
+#if BUILDFLAG(IS_CHROMEOS)
+#include "chromeos/ash/components/policy/policy_blocklist_service/ash_policy_blocklist_service_factory.h"
+#endif
+
 // static
 PolicyBlocklistService* ChromePolicyBlocklistServiceFactory::GetForProfile(
     Profile* profile) {
-
+#if BUILDFLAG(IS_CHROMEOS)
+  // See comment AshPolicyBlocklistServiceFactory as to what's going on here.
+  if (!profile->IsIncognitoProfile()) {
+    return ash::AshPolicyBlocklistServiceFactory::GetForBrowserContext(profile);
+  }
+#endif
   return static_cast<PolicyBlocklistService*>(
       GetInstance()->GetServiceForBrowserContext(profile, true));
 }
@@ -50,10 +57,21 @@ ChromePolicyBlocklistServiceFactory::~ChromePolicyBlocklistServiceFactory() =
 std::unique_ptr<KeyedService>
 ChromePolicyBlocklistServiceFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
-  PrefService* pref_service = Profile::FromBrowserContext(context)->GetPrefs();
+  Profile* profile = Profile::FromBrowserContext(context);
+  PrefService* pref_service = profile->GetPrefs();
   auto url_blocklist_manager = std::make_unique<policy::URLBlocklistManager>(
       pref_service, policy::policy_prefs::kUrlBlocklist,
       policy::policy_prefs::kUrlAllowlist);
+
+  std::unique_ptr<policy::URLBlocklistManager> incognito_url_blocklist_manager;
+  if (profile->IsIncognitoProfile()) {
+    incognito_url_blocklist_manager =
+        std::make_unique<policy::URLBlocklistManager>(
+            pref_service, policy::policy_prefs::kIncognitoModeBlocklist,
+            policy::policy_prefs::kIncognitoModeAllowlist);
+  }
+
   return std::make_unique<PolicyBlocklistService>(
-      std::move(url_blocklist_manager), pref_service);
+      std::move(url_blocklist_manager),
+      std::move(incognito_url_blocklist_manager), pref_service);
 }

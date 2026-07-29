@@ -16,6 +16,7 @@
 #include "base/types/pass_key.h"
 #include "services/webnn/error.h"
 #include "services/webnn/public/cpp/operand_descriptor.h"
+#include "services/webnn/public/cpp/webnn_trace.h"
 #include "services/webnn/public/cpp/webnn_types.h"
 #include "services/webnn/webnn_context_impl.h"
 #include "services/webnn/webnn_tensor_impl.h"
@@ -115,6 +116,8 @@ void WebNNGraphImpl::OnDisconnect() {
 void WebNNGraphImpl::Dispatch(
     const base::flat_map<std::string, blink::WebNNTensorToken>& named_inputs,
     const base::flat_map<std::string, blink::WebNNTensorToken>& named_outputs) {
+  ScopedTrace scoped_trace("WebNNGraphImpl::Dispatch");
+
   if (!ValidateWebNNTensorsUsage(named_inputs, named_outputs)) {
     GetMojoReceiver().ReportBadMessage(kBadMessageInvalidTensor);
     return;
@@ -190,6 +193,7 @@ void WebNNGraphImpl::Dispatch(
                  name_to_input_tensor_map,
              base::flat_map<std::string, scoped_refptr<WebNNTensorImpl>>
                  name_to_output_tensor_map,
+             ScopedTrace scoped_trace,
              mojo::ReportBadMessageCallback bad_message_cb) {
             for (auto& [name, tensor] : name_to_input_tensor_map) {
               if (tensor->is_exported()) {
@@ -215,7 +219,7 @@ void WebNNGraphImpl::Dispatch(
                                std::move(name_to_output_tensor_map));
           },
           base::RetainedRef(this), std::move(name_to_input_tensor_map),
-          std::move(name_to_output_tensor_map),
+          std::move(name_to_output_tensor_map), std::move(scoped_trace),
           GetMojoReceiver().GetBadMessageCallback()));
 }
 

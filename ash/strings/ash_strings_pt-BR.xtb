@@ -234,7 +234,7 @@
 <translation id="1747827819627189109">Teclado na tela ativado</translation>
 <translation id="1749109475624620922">Janela <ph name="WINDOW_TITLE" /> atribuída a todos os espaços de trabalho</translation>
 <translation id="1750088060796401187">São permitidos apenas <ph name="MAX_DESK_LIMIT" /> espaços de trabalho. Remova um deles para abrir outro novo.</translation>
-<translation id="1751335846119670066">Quero ajuda para ler</translation>
+<translation id="1751335846119670066">Me ajude a ler</translation>
 <translation id="1755408179247123630">Ativar o Selecionar para Ouvir?</translation>
 <translation id="1755556344721611131">App Diagnóstico</translation>
 <translation id="1756833229520115364">Não foi possível salvar o modelo. Excesso de janelas ou guias.</translation>
@@ -1058,7 +1058,7 @@ Alguns recursos estão limitados para aumentar a duração da bateria.</translat
 <translation id="4545950850562423083">Salvar a página atual como favorita</translation>
 <translation id="4548482551627849548">Mover a janela ativa para o espaço de trabalho à esquerda</translation>
 <translation id="4552748006424994716">Para evitar eco, ouça o microfone apenas quando estiver usando um fone de ouvido com fio.</translation>
-<translation id="4556953949326137018">Quando você usa ações sugeridas, como "adicionar à Agenda" ou "criar um Documentos Google", o conteúdo da área selecionada é enviado aos servidores do Google para sugerir ações e está sujeito aos <ph name="LINK_TO_SERVICE_TERMS" />. Não inclua informações pessoais, sensíveis ou confidenciais.</translation>
+<translation id="4556953949326137018">Quando você usa ações sugeridas, como "adicionar à Agenda" ou "criar um Google Docs", o conteúdo da área selecionada é enviado aos servidores do Google para sugerir ações e está sujeito aos <ph name="LINK_TO_SERVICE_TERMS" />. Não inclua informações pessoais, sensíveis ou confidenciais.</translation>
 <translation id="4560576029703263363">Ativado</translation>
 <translation id="4561267230861221837">3G</translation>
 <translation id="4565377596337484307">Ocultar senha</translation>
@@ -1905,7 +1905,7 @@ Nova instalação</translation>
 <translation id="735745346212279324">VPN desconectada</translation>
 <translation id="7360036564632145207">Mudar sua configuração de proteção de acesso a dados para periféricos pode otimizar o desempenho</translation>
 <translation id="736045644501761622">Definir Estilo e fundo de tela</translation>
-<translation id="7368041336688136012">Você precisa ter pelo menos 18 anos para usar os recursos Quero ajuda para ler, Quero ajuda para escrever e criar imagens com a IA.</translation>
+<translation id="7368041336688136012">Você precisa ter pelo menos 18 anos para usar os recursos Me ajude a ler, Me ajude a escrever e criar imagens com a IA.</translation>
 <translation id="7371404428569700291">Gravar janela</translation>
 <translation id="7372069265635026568">Memória disponível: <ph name="AVAILABLE_MEMORY" /> de um total de <ph name="TOTAL_MEMORY" /></translation>
 <translation id="737315737514430195">Dá acesso ao microfone para todos os apps e sites com essa permissão</translation>
@@ -2256,7 +2256,7 @@ Para desligar o dispositivo, toque no botão liga/desliga novamente e pressione.
 <translation id="85123341071060231">O Bluetooth do Chromebook está desativado. Para desbloquear, digite sua senha.</translation>
 <translation id="8513108775083588393">Girar automat.</translation>
 <translation id="851458219935658693">Mostrar janelas do espaço de trabalho atual, botão de opção selecionado</translation>
-<translation id="851660987304951246">Use o recurso "Quero ajuda para ler" para resumir rapidamente o conteúdo ou fazer perguntas</translation>
+<translation id="851660987304951246">Use o recurso "Me ajude a ler" para resumir rapidamente o conteúdo ou fazer perguntas</translation>
 <translation id="8517041960877371778">Seu <ph name="DEVICE_TYPE" /> pode não ser carregado enquanto estiver ligado.</translation>
 <translation id="8519329096920173967">Pesquisar o que aparece na tela com o Google Lens</translation>
 <translation id="8535393432370007982">Desfazer ordem de classificação por cor</translation>
@@ -2375,7 +2375,7 @@ Para desligar o dispositivo, toque no botão liga/desliga novamente e pressione.
 <translation id="8926951137623668982">Estante sempre oculta</translation>
 <translation id="8929566928381252430">Quer usar a tecla Caps Lock? Use</translation>
 <translation id="8929623844713377237">Contato criado</translation>
-<translation id="8934418770423095813">Criar um arquivo do Documentos Google</translation>
+<translation id="8934418770423095813">Criar um arquivo do Google Docs</translation>
 <translation id="8934926665751933910">{NUM_FILES,plural, =1{1 arquivo}one{# arquivo}other{# arquivos}}</translation>
 <translation id="8936501819958976551">desativado</translation>
 <translation id="8938800817013097409">Dispositivo USB-C (porta traseira da direita)</translation>
@@ -2444,7 +2444,7 @@ Para desligar o dispositivo, toque no botão liga/desliga novamente e pressione.
 <translation id="9168436347345867845">Mais tarde</translation>
 <translation id="9178475906033259337">Exibindo 1 resultado para <ph name="QUERY" /></translation>
 <translation id="9179259655489829027">Este recurso permite acessar rapidamente qualquer usuário conectado sem a necessidade de uma senha. Use esse recurso somente com contas em que você confia.</translation>
-<translation id="9183302530794969518">Documentos Google</translation>
+<translation id="9183302530794969518">Google Docs</translation>
 <translation id="9183456764293710005">Lupa de tela cheia</translation>
 <translation id="9192133205265227850">Usar "<ph name="DEVICE_NAME" />"</translation>
 <translation id="9193626018745640770">Transmitindo para um destinatário desconhecido</translation>

@@ -6,6 +6,7 @@
 
 #import "base/check_op.h"
 #import "base/feature_list.h"
+#import "base/functional/callback_helpers.h"
 #import "base/ios/block_types.h"
 #import "base/metrics/user_metrics.h"
 #import "base/metrics/user_metrics_action.h"
@@ -85,6 +86,7 @@ using DismissViewCallback = SystemIdentityManager::DismissViewCallback;
     SettingsNavigationControllerDelegate,
     SignoutActionSheetCoordinatorDelegate,
     SyncEncryptionPassphraseTableViewControllerPresentationDelegate,
+    SyncEncryptionTableViewControllerPresentationDelegate,
     SyncErrorSettingsCommandHandler,
     TrustedVaultReauthenticationCoordinatorDelegate> {
   // Sync observer.
@@ -212,6 +214,13 @@ using DismissViewCallback = SystemIdentityManager::DismissViewCallback;
 }
 
 #pragma mark - Private
+
+// Called when the add account coordinator is complete.
+- (void)addAccountCoordinatorCompletedWithCoordinator:
+    (SigninCoordinator*)coordinator {
+  CHECK_EQ(_addAccountCoordinator, coordinator, base::NotFatalUntil::M151);
+  [self stopAddAccountCoordinator];
+}
 
 // Stops properly all views opened by the current coordinator.
 - (void)stopChildren {
@@ -581,6 +590,7 @@ using DismissViewCallback = SystemIdentityManager::DismissViewCallback;
     controllerToPush = _syncEncryptionTableViewController =
         [[SyncEncryptionTableViewController alloc]
             initWithBrowser:self.browser];
+    _syncEncryptionTableViewController.presentationDelegate = self;
   }
 
   [self.viewController configureHandlersForRootViewController:controllerToPush];
@@ -653,8 +663,9 @@ using DismissViewCallback = SystemIdentityManager::DismissViewCallback;
                                            DoNothingContinuationProvider()];
   __weak __typeof(self) weakSelf = self;
   _addAccountCoordinator.signinCompletion =
-      ^(SigninCoordinatorResult result, id<SystemIdentity> identity) {
-        [weakSelf stopAddAccountCoordinator];
+      ^(SigninCoordinator* coordinator, SigninCoordinatorResult result,
+        id<SystemIdentity> identity) {
+        [weakSelf addAccountCoordinatorCompletedWithCoordinator:coordinator];
       };
   [_addAccountCoordinator start];
 }
@@ -701,6 +712,17 @@ using DismissViewCallback = SystemIdentityManager::DismissViewCallback;
   _syncEncryptionPassphraseTableViewController.presentationDelegate = nil;
   [_syncEncryptionPassphraseTableViewController settingsWillBeDismissed];
   _syncEncryptionPassphraseTableViewController = nil;
+}
+
+#pragma mark - SyncEncryptionTableViewControllerPresentationDelegate
+
+- (void)syncEncryptionTableViewControllerDidDisappear:
+    (SyncEncryptionTableViewController*)viewController {
+  CHECK_EQ(_syncEncryptionTableViewController, viewController,
+           base::NotFatalUntil::M150);
+  _syncEncryptionTableViewController.presentationDelegate = nil;
+  [_syncEncryptionTableViewController settingsWillBeDismissed];
+  _syncEncryptionTableViewController = nil;
 }
 
 @end

@@ -50,10 +50,6 @@
 // the view is loaded.
 @property(nonatomic, copy) UIColor* mainBackgroundColor;
 
-// The navigation bar title view. Nil if not needed. If needed, must be set
-// before the view is loaded.
-@property(nonatomic, strong) UIView* titleView;
-
 // The view displayed above titles and subtitles, but under the navigation bar
 // and the image view. Nil if not needed. If needed, must be set before the view
 // is loaded.
@@ -134,17 +130,6 @@
 // green checkmark badge. Must be set before the view is loaded. Default is NO.
 @property(nonatomic, assign) BOOL imageEnclosedWithShadowWithoutBadge;
 
-// Controls if the navigation bar dismiss button is available in the view.
-// Default is YES. Must be set before the view is loaded.
-@property(nonatomic) BOOL showDismissBarButton;
-
-// Allows to modify the system item for the dismiss bar button (defaults to
-// UIBarButtonSystemItemDone). Must be set before the view is loaded.
-@property(nonatomic, assign) UIBarButtonSystemItem dismissBarButtonSystemItem;
-
-// Sets a custom UIBarButtonItem for the dismiss bar button.
-@property(nonatomic, strong) UIImage* customDismissBarButtonImage;
-
 // The action handler for interactions in this View Controller.
 @property(nonatomic, weak) id<ConfirmationAlertActionHandler> actionHandler;
 
@@ -161,15 +146,6 @@
 // different style, or a UITextViewDelegate. The default implementation does
 // nothing.
 - (void)customizeSubtitle:(UITextView*)subtitle;
-
-// Detent that attempts to fit the preferred height of the content. Detent may
-// be inactive in some size classes, so it should be used together with at
-// least one other detent.
-- (UISheetPresentationControllerDetent*)
-    preferredHeightDetent API_AVAILABLE(ios(16));
-
-// Calculates the preferred height of the content.
-- (CGFloat)preferredHeightForContent;
 
 @end
 

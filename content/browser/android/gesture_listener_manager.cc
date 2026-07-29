@@ -383,7 +383,7 @@ void GestureListenerManager::UnobserveRenderFrames() {
   observed_render_frames_.clear();
 }
 
-jlong JNI_GestureListenerManagerImpl_Init(
+static jlong JNI_GestureListenerManagerImpl_Init(
     JNIEnv* env,
     const JavaParamRef<jobject>& obj,
     const JavaParamRef<jobject>& jweb_contents) {
@@ -398,3 +398,5 @@ jlong JNI_GestureListenerManagerImpl_Init(
 }
 
 }  // namespace content
+
+DEFINE_JNI(GestureListenerManagerImpl)

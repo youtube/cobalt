@@ -26,7 +26,6 @@
 #include "base/check_is_test.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
-#include "base/functional/callback_forward.h"
 #include "base/functional/callback_helpers.h"
 #include "base/location.h"
 #include "base/logging.h"
@@ -77,6 +76,14 @@ namespace {
 // Special filter value for `ListCoursesRequest` to request courses with access
 // limited to the requesting user.
 constexpr char kOwnCoursesFilterValue[] = "me";
+
+std::string GetReceiverName(std::string receiver_id,
+                            PrefService* pref_service) {
+  const auto& receiverCodes = pref_service->GetDict(
+      ash::prefs::kClassManagementToolsKioskReceiverCodes);
+  auto* receiver_name = receiverCodes.FindString(receiver_id);
+  return receiver_name ? *receiver_name : "";
+}
 
 std::unique_ptr<::boca::OnTaskConfig> OnTaskConfigMojomToProto(
     const mojom::OnTaskConfigPtr& config) {
@@ -839,7 +846,8 @@ void BocaAppHandler::PresentOwnScreen(const std::string& receiver_id,
     return;
   }
   teacher_screen_presenter()->Start(
-      receiver_id, user_identity_, is_session_active, std::move(callback),
+      receiver_id, GetReceiverName(receiver_id, pref_service_), user_identity_,
+      is_session_active, std::move(callback),
       base::BindOnce(&BocaAppHandler::OnPresentOwnScreenEnded,
                      weak_ptr_factory_.GetWeakPtr()));
 }

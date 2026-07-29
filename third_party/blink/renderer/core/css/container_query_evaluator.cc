@@ -13,6 +13,7 @@
 #include "third_party/blink/renderer/core/css/scroll_state_query_snapshot.h"
 #include "third_party/blink/renderer/core/css/snapped_query_scroll_snapshot.h"
 #include "third_party/blink/renderer/core/css/style_change_reason.h"
+#include "third_party/blink/renderer/core/css/style_engine.h"
 #include "third_party/blink/renderer/core/css/style_recalc_context.h"
 #include "third_party/blink/renderer/core/dom/document.h"
 #include "third_party/blink/renderer/core/dom/flat_tree_traversal.h"
@@ -974,7 +975,7 @@ StyleRecalcChange ContainerQueryEvaluator::ApplyScrollStateAndStyleChanges(
   // the container values and invalidate style for any changed queries.
   bool invalidate_for_font =
       (unit_flags_ & MediaQueryExpValue::kFontRelative) &&
-      old_style.GetFont() != new_style.GetFont();
+      !base::ValuesEquivalent(old_style.GetFont(), new_style.GetFont());
 
   // Writing direction changes may affect how logical queries match for size and
   // scroll-state() queries even when the physical size or scroll-state do not

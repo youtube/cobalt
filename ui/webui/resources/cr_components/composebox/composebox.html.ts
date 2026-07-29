@@ -12,26 +12,29 @@ export function getHtml(this: ComposeboxElement) {
   const submitContainer = html`
     <div id="submitContainer" class="icon-fade" part="submit"
         slot="${this.ntpRealboxNextEnabled ? 'submit-button' : nothing}"
-        tabindex="0"
-        title="${this.i18n('composeboxSubmitButtonTitle')}"
+        tabindex="-1"
         @click="${this.submitQuery_}"
-        ?disabled="${!this.submitEnabled_}"
         @focusin="${this.handleSubmitFocusIn_}">
       <div id="submitOverlay"></div>
       <cr-icon-button
         class="action-icon icon-arrow-upward"
         id="submitIcon"
         part="action-icon submit-icon"
-        tabindex="-1">
+        tabindex="0"
+        title="${this.i18n('composeboxSubmitButtonTitle')}"
+        ?disabled="${!this.submitEnabled_}">
       </cr-icon-button>
     </div>`;
   // clang-format off
   return html`<!--_html_template_start_-->
   <search-animated-glow
       animation-state="${this.animationState}"
-      entrypoint-name="${this.entrypointName}">
+      .entrypointName="${this.entrypointName}"
+      .requiresVoice="${this.shouldShowVoiceSearch_()}"
+      .transcript="${this.transcript_}"
+      .receivedSpeech="${this.receivedSpeech_}">
   </search-animated-glow>
-  <ntp-error-scrim id="errorScrim"
+  <ntp-error-scrim id="errorScrim" part="error-scrim"
     ?compact-mode="${this.searchboxLayoutMode === 'Compact' &&
                      this.contextFilesSize_ === 0}"
     @error-scrim-visibility-changed="${this.onErrorScrimVisibilityChanged_}">
@@ -39,10 +42,10 @@ export function getHtml(this: ComposeboxElement) {
   <div id="composebox" @keydown="${this.onKeydown_}"
       @focusin="${this.handleComposeboxFocusIn_}"
       @focusout="${this.handleComposeboxFocusOut_}"
-      @dragenter="${this.dragAndDropHandler.handleDragEnter}"
-      @dragover="${this.dragAndDropHandler.handleDragOver}"
-      @dragleave="${this.dragAndDropHandler.handleDragLeave}"
-      @drop="${this.dragAndDropHandler.handleDrop}"
+      @dragenter="${this.dragAndDropHandler_.handleDragEnter}"
+      @dragover="${this.dragAndDropHandler_.handleDragOver}"
+      @dragleave="${this.dragAndDropHandler_.handleDragLeave}"
+      @drop="${this.dragAndDropHandler_.handleDrop}"
       @paste="${this.onPaste_}">
     <div id="inputContainer" part="input-container">
       <div id="textContainer" part="text-container">
@@ -94,6 +97,7 @@ export function getHtml(this: ComposeboxElement) {
         <cr-composebox-dropdown
             id="matches"
             part="dropdown"
+            exportparts="match-text-container"
             role="listbox"
             .result="${this.result_}"
             .selectedMatchIndex="${this.selectedMatchIndex_}"
@@ -137,8 +141,10 @@ export function getHtml(this: ComposeboxElement) {
     ${this.ntpRealboxNextEnabled ? '' : submitContainer}
   </div>
   <cr-composebox-voice-search id="voiceSearch"
-      @on-voice-search-cancel="${this.onVoiceSearchClose_}"
-      @on-voice-search-final-result="${this.onVoiceSearchFinalResult_}">
+      @voice-search-cancel="${this.onVoiceSearchClose_}"
+      @voice-search-final-result="${this.onVoiceSearchFinalResult_}"
+      @transcript-update="${this.onTranscriptUpdate_}"
+      @speech-received="${this.onSpeechReceived_}">
   </cr-composebox-voice-search>
   ${this.shouldShowSuggestionActivityLink_() ? html`
     <div id="suggestionActivity">

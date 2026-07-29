@@ -5,12 +5,12 @@
 #ifndef IOS_CHROME_BROWSER_COMPOSEBOX_COORDINATOR_COMPOSEBOX_URL_LOADER_H_
 #define IOS_CHROME_BROWSER_COMPOSEBOX_COORDINATOR_COMPOSEBOX_URL_LOADER_H_
 
-class GURL;
+struct UrlLoadParams;
 
 // Protocol for loading URLs in the composebox.
 @protocol ComposeboxURLLoader
 
-- (void)loadURL:(const GURL&)URL;
+- (void)loadURLParams:(const UrlLoadParams&)URLLoadParams;
 
 @end
 

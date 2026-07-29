@@ -174,8 +174,6 @@ class CORE_EXPORT HTMLElement : public Element {
 
   HTMLFormElement* FindFormAncestor() const;
 
-  static bool IsValidContainerTimingNestingAttribute(const AtomicString& value);
-
   bool HasDirectionAuto() const;
 
   static bool IsValidDirAttribute(const AtomicString& value);
@@ -204,7 +202,10 @@ class CORE_EXPORT HTMLElement : public Element {
   // origin trial is over.
   virtual bool IsHTMLFencedFrameElement() const { return false; }
   virtual bool IsHTMLFrameSetElement() const { return false; }
+  // TODO(crbug.com/443013457): Remove these 2 methods when the
+  // permission/usermedia trials are over.
   virtual bool IsHTMLPermissionElement() const { return false; }
+  virtual bool IsHTMLUserMediaElement() const { return false; }
   virtual bool IsHTMLUnknownElement() const { return false; }
   virtual bool IsPluginElement() const { return false; }
 
@@ -472,8 +473,6 @@ class CORE_EXPORT HTMLElement : public Element {
   void OnPopoverChanged(const AttributeModificationParams&);
   void OnContainerTimingAttrChanged(const AttributeModificationParams&);
   void OnContainerTimingIgnoreAttrChanged(const AttributeModificationParams&);
-  void OnContainerTimingNestingAttrChanged(
-      const AttributeModificationParams& params);
   void OnRoleAttrChanged(const AttributeModificationParams&);
 
   int AdjustedOffsetForZoom(LayoutUnit);

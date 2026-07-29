@@ -113,7 +113,6 @@ namespace http://www.w3.org/1999/xhtml
     property computedStyleMap
     property containerTiming
     property containerTimingIgnore
-    property containerTimingNesting
     property contains
     property contentEditable
     property currentCSSZoom
@@ -354,6 +353,7 @@ namespace http://www.w3.org/1999/xhtml
     property slot
     property spellcheck
     property startViewTransition
+    property streamAppendHTMLUnsafe
     property style
     property tabIndex
     property tagName
@@ -503,6 +503,7 @@ html element body
     property onbeforeunload
     property ongamepadconnected
     property ongamepaddisconnected
+    property ongamepadrawinputchanged
     property onhashchange
     property onlanguagechange
     property onmessage
@@ -549,6 +550,7 @@ html element canvas
     property captureStream
     property configureHighDynamicRange
     property getContext
+    property getElementTransform
     property height
     property layoutSubtree
     property toBlob
@@ -672,6 +674,7 @@ html element frameset
     property onbeforeunload
     property ongamepadconnected
     property ongamepaddisconnected
+    property ongamepadrawinputchanged
     property onhashchange
     property onlanguagechange
     property onmessage
@@ -695,15 +698,12 @@ html element geolocation
     property initialPermissionStatus
     property invalidReason
     property isValid
-    property ondismiss
     property onlocation
     property onpromptaction
     property onpromptdismiss
-    property onresolve
     property onvalidationstatuschange
     property permissionStatus
     property position
-    property type
     property watch
 html element h1
     property align
@@ -857,10 +857,8 @@ html element install
     property invalidReason
     property isValid
     property manifest
-    property ondismiss
     property onpromptaction
     property onpromptdismiss
-    property onresolve
     property onvalidationstatuschange
     property permissionStatus
     property type
@@ -1016,10 +1014,8 @@ html element permission
     property initialPermissionStatus
     property invalidReason
     property isValid
-    property ondismiss
     property onpromptaction
     property onpromptdismiss
-    property onresolve
     property onvalidationstatuschange
     property permissionStatus
     property type
@@ -1263,6 +1259,15 @@ html element u
 html element ul
     property compact
     property type
+html element usermedia
+    property initialPermissionStatus
+    property invalidReason
+    property isValid
+    property onpromptaction
+    property onpromptdismiss
+    property onvalidationstatuschange
+    property permissionStatus
+    property type
 html element var
 html element video
     property HAVE_CURRENT_DATA
@@ -1444,7 +1449,6 @@ namespace http://www.w3.org/2000/svg
     property computedStyleMap
     property containerTiming
     property containerTimingIgnore
-    property containerTimingNesting
     property contains
     property currentCSSZoom
     property currentPatch
@@ -1664,6 +1668,7 @@ namespace http://www.w3.org/2000/svg
     property shadowRoot
     property slot
     property startViewTransition
+    property streamAppendHTMLUnsafe
     property style
     property tabIndex
     property tagName

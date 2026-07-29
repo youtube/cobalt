@@ -20,7 +20,6 @@
 #include "chrome/browser/extensions/extension_tab_util.h"
 #include "chrome/browser/extensions/extension_uninstall_dialog.h"
 #include "chrome/browser/extensions/extension_util.h"
-#include "chrome/browser/extensions/permissions/scripting_permissions_modifier.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
@@ -52,6 +51,7 @@
 #include "extensions/browser/extension_registrar.h"
 #include "extensions/browser/extension_registry.h"
 #include "extensions/browser/extension_system.h"
+#include "extensions/browser/permissions/scripting_permissions_modifier.h"
 #include "extensions/browser/permissions_manager.h"
 #include "extensions/browser/process_manager.h"
 #include "extensions/browser/test_extension_registry_observer.h"
@@ -1513,7 +1513,8 @@ IN_PROC_BROWSER_TEST_P(ExtensionsToolbarContainerFeatureRolloutInteractiveTest,
       // Trigger post-install dialog. We do manually since loading an
       // extension in the test doesn't go through the full install flow.
       Do([&]() {
-        ExtensionInstallUIDesktop::ShowBubble(extension, browser(), SkBitmap());
+        ExtensionInstallUIDesktop::ShowBubble(extension, browser(),
+                                              browser()->profile(), SkBitmap());
       }),
       WaitForShow(kToolbarActionViewElementId));
 }

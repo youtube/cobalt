@@ -1723,7 +1723,7 @@ fyi_ios_builder(
             "mac_beta_arm64",
             "mac_toolchain",
             "out_dir_arg",
-            "xcode_26_beta",
+            "xcode_26_main",
             "xctest",
         ],
     ),
@@ -1734,7 +1734,6 @@ fyi_ios_builder(
         short_name = "ios-blk",
     ),
     execution_timeout = 3 * time.hour,
-    xcode = xcode.x26betabots,
 )
 
 fyi_ios_builder(
@@ -1994,6 +1993,7 @@ fyi_ios_builder(
         mixins = [
             "expand-as-isolated-script",
             "has_native_resultdb_integration",
+            "ios_beta_test_pool",
             "mac_15_beta_arm64",
             "mac_toolchain",
             "out_dir_arg",
@@ -2052,10 +2052,11 @@ fyi_ios_builder(
         mixins = [
             "expand-as-isolated-script",
             "has_native_resultdb_integration",
+            "ios_beta_test_pool",
             "mac_15_arm64",
             "mac_toolchain",
             "out_dir_arg",
-            "xcode_16_beta",
+            "xcode_26_beta",
             "xctest",
         ],
     ),
@@ -2106,6 +2107,7 @@ fyi_ios_builder(
         mixins = [
             "expand-as-isolated-script",
             "has_native_resultdb_integration",
+            "ios_beta_test_pool",
             "mac_15_beta_arm64",
             "mac_toolchain",
             "out_dir_arg",
@@ -2166,6 +2168,7 @@ fyi_ios_builder(
         mixins = [
             "expand-as-isolated-script",
             "has_native_resultdb_integration",
+            "ios_beta_test_pool",
             "mac_15_beta_arm64",
             "mac_toolchain",
             "out_dir_arg",

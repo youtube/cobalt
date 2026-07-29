@@ -9,30 +9,47 @@
 #import "base/memory/weak_ptr.h"
 #import "base/time/time.h"
 #import "components/keyed_service/core/keyed_service.h"
+#import "components/prefs/pref_change_registrar.h"
 
 namespace base {
 class Time;
 }  // namespace base
 
-class PrefRegistrySimple;
-class PrefService;
+class Browser;
+class ProfileIOS;
+
+namespace user_prefs {
+class PrefRegistrySyncable;
+}  // namespace user_prefs
 
 // A KeyedService that tracks user activity for cross-platform promos.
 class CrossPlatformPromosService : public KeyedService {
  public:
-  explicit CrossPlatformPromosService(PrefService* profile_prefs);
+  CrossPlatformPromosService(ProfileIOS* profile);
   ~CrossPlatformPromosService() override;
 
   // Registers the profile prefs used by this service.
-  static void RegisterProfilePrefs(PrefRegistrySimple* registry);
+  static void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry);
 
   // Called when the application enters the foreground.
   void OnApplicationWillEnterForeground();
 
-  // Clears the prefs used by this service.
-  void ClearData();
+  // Shows the Lens promo.
+  void ShowLensPromo(Browser* browser);
+
+  // Shows the Enhanced Safe Browsing promo.
+  void ShowESBPromo(Browser* browser);
+
+  // Shows the CPE promo.
+  void ShowCPEPromo(Browser* browser);
+
+  // Evaluates synced prefs to see whether a promo should be shown.
+  void MaybeShowPromo();
 
  private:
+  // Returns a regular, active browser, or nullptr if none is found.
+  Browser* GetActiveBrowser();
+
   // Records the current day as active, and updates the pref that stores the
   // 16th most recent day that the user was active.
   void Update16thActiveDay();
@@ -45,7 +62,8 @@ class CrossPlatformPromosService : public KeyedService {
   // and going to the oldest, and returns the Nth active day.
   base::Time FindActiveDay(size_t count);
 
-  raw_ptr<PrefService> profile_prefs_;
+  raw_ptr<ProfileIOS> profile_;
+  PrefChangeRegistrar pref_change_registrar_;
   base::WeakPtrFactory<CrossPlatformPromosService> weak_factory_{this};
 };
 

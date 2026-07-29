@@ -21,8 +21,6 @@ BASE_DECLARE_FEATURE(kPageContentAnnotationsValidation);
 COMPONENT_EXPORT(PAGE_CONTENT_ANNOTATIONS_FEATURES)
 BASE_DECLARE_FEATURE(kRemotePageMetadata);
 COMPONENT_EXPORT(PAGE_CONTENT_ANNOTATIONS_FEATURES)
-BASE_DECLARE_FEATURE(kPageContentAnnotationsPersistSalientImageMetadata);
-COMPONENT_EXPORT(PAGE_CONTENT_ANNOTATIONS_FEATURES)
 BASE_DECLARE_FEATURE(kExtractRelatedSearchesFromPrefetchedZPSResponse);
 
 // Enables extraction of AnnotatedPageContent for every page load.
@@ -36,6 +34,14 @@ BASE_DECLARE_FEATURE(kPageContentCache);
 // The maximum number of days to keep page content in the cache.
 COMPONENT_EXPORT(PAGE_CONTENT_ANNOTATIONS_FEATURES)
 extern const base::FeatureParam<int> kPageContentCacheMaxCacheAgeInDays;
+
+// The maximum number of tabs to keep page content in the cache.
+COMPONENT_EXPORT(PAGE_CONTENT_ANNOTATIONS_FEATURES)
+extern const base::FeatureParam<int> kPageContentCacheMaxTabs;
+
+// Whether to enable taking screenshots for page content cache.
+COMPONENT_EXPORT(PAGE_CONTENT_ANNOTATIONS_FEATURES)
+extern const base::FeatureParam<bool> kPageContentCacheEnableScreenshot;
 
 // The maximum number of "related searches" entries allowed to be maintained in
 // a least-recently-used cache for "related searches" data obtained via ZPS
@@ -170,7 +176,7 @@ PageContentExtractionTriggeringMode GetPageContentExtractionTriggeringMode();
 // any user may load it, while "" uses the |default_value| allowlist.
 // Exposed for test coverage.
 COMPONENT_EXPORT(PAGE_CONTENT_ANNOTATIONS_FEATURES)
-extern bool IsSupportedLocaleForFeature(const std::string locale,
+extern bool IsSupportedLocaleForFeature(const std::string& locale,
                                         const base::Feature& feature,
                                         const std::string& default_value);
 

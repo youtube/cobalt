@@ -10,11 +10,7 @@
   }
 
   .card {
-    align-items: flex-start;
-    aspect-ratio: 1 / 1;
-    display: inline-flex;
-    justify-content: flex-start;
-    min-width: 44%;
+    flex: 1;
     padding: 20px;
   }
 
@@ -23,12 +19,18 @@
     cursor: pointer;
   }
 
-  .card-container {
-    align-items: stretch;
+  .card-start {
+    border-start-start-radius: var(--cr-card-border-radius);
+  }
+
+  .card-end {
+    border-start-end-radius: var(--cr-card-border-radius);
+  }
+
+  #bundlesRadioGroup controlled-radio-button::part(labelWrapper) {
+    align-items: center;
     display: flex;
-    gap: 0;
-    justify-content: center;
-    width: 100%;
+    justify-content: space-between;
   }
 
   .section-header {
@@ -47,21 +49,17 @@
     margin-top: 0px;
   }
 
-  #securitySettingsBundleStandard {
-    border-top-left-radius: var(--cr-card-border-radius);
-  }
-
-  #securitySettingsBundleEnhanced {
-    border-top-right-radius: var(--cr-card-border-radius);
-  }
-
   #safeBrowsingRadioGroup {
     padding-inline-start: 40px;
   }
 
   security-page-feature-row {
-    border-bottom-left-radius: var(--cr-card-border-radius);
-    border-bottom-right-radius: var(--cr-card-border-radius);
+    border-end-start-radius: var(--cr-card-border-radius);
+    border-end-end-radius: var(--cr-card-border-radius);
+  }
+
+  settings-toggle-button {
+    border-radius: var(--cr-card-border-radius);
   }
 </style>
 <settings-subpage page-title="$i18n{securityPageTitle}"
@@ -70,32 +68,84 @@
   <h2 class="section-header cr-secondary-text first">
     $i18n{securityTitle}
   </h2>
-  <cr-button id="resetBundleToDefaultsButton"
-      on-click="onResetBundleToDefaultsButtonClick_"
-      hidden$="[[isResetToDefaultsButtonHidden_]]">
-    $i18n{securityBundleResetToDefaultsButtonLabel}
-  </cr-button>
   <settings-radio-group id="bundlesRadioGroup"
       class="card-container"
       pref="{{prefs.generated.security_settings_bundle}}"
       on-change="onSecurityBundleChanged_"
-      selectable-elements="controlled-radio-button">
-    <controlled-radio-button
-        id="securitySettingsBundleStandard"
-        name="[[securitySettingsBundleSettingEnum_.STANDARD]]"
-        pref="{{prefs.generated.security_settings_bundle}}"
-        label="$i18n{securityStandardBundleTitle}"
-        class="card box">
-    </controlled-radio-button>
-    <controlled-radio-button
-        id="securitySettingsBundleEnhanced"
-        name="[[securitySettingsBundleSettingEnum_.ENHANCED]]"
-        pref="{{prefs.generated.security_settings_bundle}}"
-        label="$i18n{securityEnhancedBundleTitle}"
-        class="card box">
-    </controlled-radio-button>
+      selectable-elements="controlled-radio-button"
+      nested-selectable is-horizontal>
+    <div class="box card card-start">
+      <controlled-radio-button
+          id="securitySettingsBundleStandard"
+          name="[[securitySettingsBundleSettingEnum_.STANDARD]]"
+          pref="{{prefs.generated.security_settings_bundle}}"
+          label="$i18n{securityStandardBundleTitle}">
+        <cr-button
+            id="resetStandardBundleToDefaultsButton"
+            on-click="onResetBundleToDefaultsButtonClick_"
+            hidden$="[[!isResetStandardBundleToDefaultsButtonVisible_]]">
+          $i18n{securityBundleResetToDefaultsButtonLabel}
+        </cr-button>
+      </controlled-radio-button>
+      <!-- TODO(crbug.com/460826064): Fix styling before enabling feature. -->
+      <ul class="icon-bulleted-list">
+        <li>
+          <cr-icon icon="settings20:computer"></cr-icon>
+          <div class="cr-secondary-text">
+            $i18n{securityBundleStandardBulletOne}
+          </div>
+        </li>
+        <li>
+          <cr-icon icon="settings20:local-cafe"></cr-icon>
+          <div class="cr-secondary-text">
+            $i18n{securityBundleStandardBulletTwo}
+          </div>
+        </li>
+        <li>
+          <cr-icon icon="settings20:sprint"></cr-icon>
+          <div class="cr-secondary-text">
+            $i18n{securityBundleStandardBulletThree}
+          </div>
+        </li>
+      </ul>
+    </div>
+    <div class="box card card-end">
+      <controlled-radio-button
+          id="securitySettingsBundleEnhanced"
+          name="[[securitySettingsBundleSettingEnum_.ENHANCED]]"
+          pref="{{prefs.generated.security_settings_bundle}}"
+          label="$i18n{securityEnhancedBundleTitle}">
+        <cr-button id="resetEnhancedBundleToDefaultsButton"
+            on-click="onResetBundleToDefaultsButtonClick_"
+            hidden$="[[!isResetEnhancedBundleToDefaultsButtonVisible_]]">
+          $i18n{securityBundleResetToDefaultsButtonLabel}
+        </cr-button>
+      </controlled-radio-button>
+      <!-- TODO(crbug.com/460826064): Fix styling before enabling feature. -->
+      <ul class="icon-bulleted-list">
+        <li>
+          <cr-icon icon="settings20:center-focus-strong"></cr-icon>
+          <div class="cr-secondary-text">
+            $i18n{securityBundleEnhancedBulletOne}
+          </div>
+        </li>
+        <li>
+          <cr-icon icon="settings20:e911-emergency"></cr-icon>
+          <div class="cr-secondary-text">
+            $i18n{securityBundleEnhancedBulletTwo}
+          </div>
+        </li>
+        <li>
+          <cr-icon icon="settings20:front-hand"></cr-icon>
+          <div class="cr-secondary-text">
+            $i18n{securityBundleEnhancedBulletThree}
+          </div>
+        </li>
+      </ul>
+    </div>
   </settings-radio-group>
   <security-page-feature-row id="safeBrowsingRow"
+      on-expanded-changed="onSafeBrowsingRowClick_"
       pref="{{prefs.generated.safe_browsing}}"
       label="$i18n{securitySafeBrowsingTitle}"
       sub-label="$i18n{securitySafeBrowsingDesc}"
@@ -105,7 +155,8 @@
     <div slot="collapse">
       <settings-radio-group id="safeBrowsingRadioGroup"
           pref="{{prefs.generated.safe_browsing}}"
-          selectable-elements="controlled-radio-button">
+          selectable-elements="controlled-radio-button"
+          on-change="onSafeBrowsingRadioChange_">
         <controlled-radio-button
             label="$i18n{securitySafeBrowsingStandardTitle}"
             name="[[safeBrowsingSettingEnum_.STANDARD]]"
@@ -119,4 +170,13 @@
       </settings-radio-group>
     </div>
   </security-page-feature-row>
+  <h2 class="section-header cr-secondary-text">
+    $i18n{securityAccountAndNetworkSectionTitle}
+  </h2>
+  <settings-toggle-button id="passwordsLeakToggle"
+      pref="{{prefs.generated.password_leak_detection}}"
+      label="$i18n{securityPasswordsLeakDetectionTitle}"
+      sub-label="$i18n{securityPasswordsLeakDetectionDesc}"
+      class="box">
+  </settings-toggle-button>
 </settings-subpage>

@@ -13,7 +13,7 @@
 #include "chrome/browser/lifetime/browser_shutdown.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
-#include "chrome/browser/ui/browser_list.h"
+#include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_tabstrip.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
@@ -204,36 +204,85 @@ class BrowserCommandsWithReloadSelectionModelTest : public BrowserCommandsTest {
   base::test::ScopedFeatureList feature_list_;
 };
 
-// With kReloadSelectionModel enabled, only the active tab is reloaded.
 IN_PROC_BROWSER_TEST_F(BrowserCommandsWithReloadSelectionModelTest,
                        ReloadSelectedTabs) {
-  // Add feature
-  constexpr int kTabCount = 3;
-  std::vector<ReloadObserver> watcher_vec(kTabCount);
+  // Add 5 tabs.
+  constexpr int kTabCount = 5;
   for (int i = 0; i < kTabCount; i++) {
     ASSERT_TRUE(AddTabAtIndexToBrowser(browser(), i + 1, GURL(kUrl),
                                        ui::PAGE_TRANSITION_LINK, false));
+  }
+  // Helper to stop all tabs. Otherwise, reloading an already-loading tab won't
+  // cause a new load.
+  auto stop_all_tabs = [&]() {
+    for (int i = 0; i < kTabCount; i++) {
+      content::WebContents* tab =
+          browser()->tab_strip_model()->GetWebContentsAt(i + 1);
+      tab->Stop();
+    }
+  };
+
+  // Create a split tab.
+  browser()->tab_strip_model()->AddToNewSplit(
+      {3},
+      split_tabs::SplitTabVisualData(split_tabs::SplitTabLayout::kVertical,
+                                     1.0f),
+      split_tabs::SplitTabCreatedSource::kToolbarButton);
+
+  // Track how many times each tab is reloaded.
+  std::vector<ReloadObserver> reload_observers(kTabCount);
+  for (int i = 0; i < kTabCount; i++) {
     content::WebContents* tab =
         browser()->tab_strip_model()->GetWebContentsAt(i + 1);
-    watcher_vec[i].SetWebContents(tab);
+    reload_observers[i].SetWebContents(tab);
   }
+  // Helper to get reload counts as a vector to use in `EXPECT_THAT`.
+  auto get_reloads = [&]() {
+    std::vector<int> reloads;
+    for (ReloadObserver& watcher : reload_observers) {
+      reloads.push_back(watcher.load_count());
+    }
+    return reloads;
+  };
 
-  for (ReloadObserver& watcher : watcher_vec) {
-    EXPECT_EQ(0, watcher.load_count());
-  }
+  // The split tab should be active.
+  EXPECT_THAT(
+      browser()->tab_strip_model()->selection_model().selected_indices(),
+      testing::ElementsAre(4, 5));
+  EXPECT_EQ(browser()->tab_strip_model()->active_index(), 5);
+  EXPECT_THAT(get_reloads(), testing::ElementsAre(0, 0, 0, 0, 0));
 
-  // Add two tabs to the selection (the last one created remains selected) and
-  // trigger a reload command on the active tab.
-  for (int i = 0; i < kTabCount - 1; i++) {
-    browser()->tab_strip_model()->SelectTabAt(i + 1);
-  }
+  // Reload with only the split tab selected. Only the active view should
+  // reload.
   EXPECT_TRUE(chrome::ExecuteCommand(browser(), IDC_RELOAD));
+  EXPECT_THAT(get_reloads(), testing::ElementsAre(0, 0, 0, 0, 1));
+  stop_all_tabs();
 
-  int load_sum = 0;
-  for (ReloadObserver& watcher : watcher_vec) {
-    load_sum += watcher.load_count();
-  }
-  EXPECT_EQ(1, load_sum);
+  // Select 1st tab.
+  browser()->tab_strip_model()->SelectTabAt(1);
+  EXPECT_THAT(
+      browser()->tab_strip_model()->selection_model().selected_indices(),
+      testing::ElementsAre(1, 4, 5));
+  EXPECT_EQ(browser()->tab_strip_model()->active_index(), 1);
+
+  // Reload with the split tab selected but not active. All selected tabs should
+  // reload.
+  EXPECT_TRUE(chrome::ExecuteCommand(browser(), IDC_RELOAD));
+  EXPECT_THAT(get_reloads(), testing::ElementsAre(1, 0, 0, 1, 2));
+  stop_all_tabs();
+
+  // Activate the split tab.
+  browser()->tab_strip_model()->SelectTabAt(5);
+  EXPECT_THAT(
+      browser()->tab_strip_model()->selection_model().selected_indices(),
+      testing::ElementsAre(1, 4, 5));
+  EXPECT_EQ(browser()->tab_strip_model()->active_index(), 5);
+
+  // Reload with the split 4|5 tab selected and active. All selected tabs should
+  // reload.
+  EXPECT_TRUE(chrome::ExecuteCommand(browser(), IDC_RELOAD));
+  EXPECT_THAT(get_reloads(), testing::ElementsAre(2, 0, 0, 2, 3));
+  stop_all_tabs();
 }
 
 class BrowserCommandsWithCloseHotkeySplitViewTest : public BrowserCommandsTest {
@@ -286,7 +335,7 @@ IN_PROC_BROWSER_TEST_F(BrowserCommandsWithCloseHotkeySplitViewTest,
 // All tabs in the selection model get closed.
 IN_PROC_BROWSER_TEST_F(BrowserCommandsWithCloseHotkeySplitViewTest,
                        CloseAllTabsInSelectionModel) {
-  // Add 3 tabs.
+  // Add 4 tabs.
   constexpr int kTabCount = 4;
   for (int i = 1; i < kTabCount; i++) {
     ASSERT_TRUE(AddTabAtIndexToBrowser(browser(), i, GURL(kUrl),
@@ -397,8 +446,7 @@ IN_PROC_BROWSER_TEST_F(BrowserCommandsTest, MoveTabsToNewWindow) {
   ASSERT_EQ(2, browser()->GetTabStripModel()->count());
 
   // Check that the two additional windows have been created.
-  BrowserList* active_browser_list = BrowserList::GetInstance();
-  EXPECT_EQ(3u, active_browser_list->size());
+  EXPECT_EQ(3u, chrome::GetTotalBrowserCount());
 
   // Check that the tabs made it to other windows.
   EXPECT_EQ(1, second_browser->GetTabStripModel()->count());
@@ -705,29 +753,30 @@ IN_PROC_BROWSER_TEST_F(BrowserCommandsTest, MoveActiveTabToNewWindow) {
   // Two tabs is enough for it to be meaningful to pop one out.
   EXPECT_TRUE(chrome::IsCommandEnabled(browser(), IDC_MOVE_TAB_TO_NEW_WINDOW));
 
-  BrowserList* browser_list = BrowserList::GetInstance();
   // Pre-command, assert that we have one browser, with two tabs, with the
   // url2 tab active.
-  EXPECT_EQ(browser_list->size(), 1u);
+  EXPECT_EQ(chrome::GetTotalBrowserCount(), 1u);
   EXPECT_EQ(browser()->tab_strip_model()->count(), 2);
   EXPECT_EQ(browser()->tab_strip_model()->GetActiveWebContents()->GetURL(),
             url2);
 
   ui_test_utils::BrowserCreatedObserver browser_created_observer;
   chrome::ExecuteCommand(browser(), IDC_MOVE_TAB_TO_NEW_WINDOW);
-  Browser* active_browser = browser_created_observer.Wait();
+  BrowserWindowInterface* const active_browser =
+      browser_created_observer.Wait();
   ui_test_utils::WaitUntilBrowserBecomeActive(active_browser);
 
   // Now we should have: two browsers, each with one tab (url1 in browser(),
   // and url2 in the new one).
-  EXPECT_EQ(browser_list->size(), 2u);
+  EXPECT_EQ(chrome::GetTotalBrowserCount(), 2u);
   EXPECT_NE(active_browser, browser());
-  EXPECT_EQ(browser()->tab_strip_model()->count(), 1);
-  EXPECT_EQ(active_browser->tab_strip_model()->count(), 1);
-  EXPECT_EQ(browser()->tab_strip_model()->GetActiveWebContents()->GetURL(),
+  EXPECT_EQ(browser()->GetTabStripModel()->count(), 1);
+  EXPECT_EQ(active_browser->GetTabStripModel()->count(), 1);
+  EXPECT_EQ(browser()->GetTabStripModel()->GetActiveWebContents()->GetURL(),
             url1);
-  EXPECT_EQ(active_browser->tab_strip_model()->GetActiveWebContents()->GetURL(),
-            url2);
+  EXPECT_EQ(
+      active_browser->GetTabStripModel()->GetActiveWebContents()->GetURL(),
+      url2);
 }
 
 IN_PROC_BROWSER_TEST_F(BrowserCommandsTest,
@@ -747,23 +796,23 @@ IN_PROC_BROWSER_TEST_F(BrowserCommandsTest,
 
   ui_test_utils::BrowserCreatedObserver browser_created_observer;
   chrome::ExecuteCommand(browser(), IDC_MOVE_TAB_TO_NEW_WINDOW);
-  Browser* active_browser = browser_created_observer.Wait();
+  BrowserWindowInterface* const active_browser =
+      browser_created_observer.Wait();
   ui_test_utils::WaitUntilBrowserBecomeActive(active_browser);
 
   // Now we should have two browsers:
   // The original, now with only a single tab: url2
   // The new one with the two tabs we moved: url1 and url3. This one should
   // be active.
-  BrowserList* browser_list = BrowserList::GetInstance();
-  EXPECT_EQ(browser_list->size(), 2u);
+  EXPECT_EQ(chrome::GetTotalBrowserCount(), 2u);
   EXPECT_NE(active_browser, browser());
-  ASSERT_EQ(browser()->tab_strip_model()->count(), 1);
-  ASSERT_EQ(active_browser->tab_strip_model()->count(), 2);
-  EXPECT_EQ(browser()->tab_strip_model()->GetActiveWebContents()->GetURL(),
+  ASSERT_EQ(browser()->GetTabStripModel()->count(), 1);
+  ASSERT_EQ(active_browser->GetTabStripModel()->count(), 2);
+  EXPECT_EQ(browser()->GetTabStripModel()->GetActiveWebContents()->GetURL(),
             url2);
-  EXPECT_EQ(active_browser->tab_strip_model()->GetWebContentsAt(0)->GetURL(),
+  EXPECT_EQ(active_browser->GetTabStripModel()->GetWebContentsAt(0)->GetURL(),
             url1);
-  EXPECT_EQ(active_browser->tab_strip_model()->GetWebContentsAt(1)->GetURL(),
+  EXPECT_EQ(active_browser->GetTabStripModel()->GetWebContentsAt(1)->GetURL(),
             url3);
 }
 

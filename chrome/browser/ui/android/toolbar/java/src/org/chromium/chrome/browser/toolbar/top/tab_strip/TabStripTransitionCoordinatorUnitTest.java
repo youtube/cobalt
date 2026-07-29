@@ -5,6 +5,8 @@
 package org.chromium.chrome.browser.toolbar.top.tab_strip;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
@@ -18,8 +20,6 @@ import android.graphics.Rect;
 import android.util.AttributeSet;
 import android.util.DisplayMetrics;
 import android.view.View;
-import android.view.ViewGroup;
-import android.view.ViewGroup.MarginLayoutParams;
 import android.widget.FrameLayout;
 
 import androidx.annotation.Nullable;
@@ -40,7 +40,6 @@ import org.robolectric.annotation.Config;
 import org.robolectric.shadows.ShadowLooper;
 
 import org.chromium.base.Callback;
-import org.chromium.base.supplier.OneshotSupplierImpl;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.util.CallbackHelper;
 import org.chromium.base.test.util.CommandLineFlags;
@@ -54,7 +53,6 @@ import org.chromium.chrome.browser.browser_controls.BrowserStateBrowserControlsV
 import org.chromium.chrome.browser.tab.TabObscuringHandler;
 import org.chromium.chrome.browser.tab.TabObscuringHandler.Target;
 import org.chromium.chrome.browser.toolbar.ControlContainer;
-import org.chromium.chrome.browser.toolbar.ToolbarHairlineView;
 import org.chromium.chrome.browser.toolbar.top.tab_strip.TabStripTransitionCoordinator.TabStripTransitionDelegate;
 import org.chromium.chrome.browser.toolbar.top.tab_strip.TabStripTransitionCoordinator.TabStripTransitionHandler;
 import org.chromium.chrome.browser.ui.desktop_windowing.AppHeaderUtils.DesktopWindowModeState;
@@ -98,7 +96,6 @@ public class TabStripTransitionCoordinatorUnitTest {
     private final TabObscuringHandler mTabObscuringHandler = new TabObscuringHandler();
     private TestHandler mTestHandler;
     private TestDelegate mDelegate;
-    private OneshotSupplierImpl<TabStripTransitionDelegate> mDelegateSupplier;
     private int mReservedTopPadding;
 
     // Test variables
@@ -618,22 +615,6 @@ public class TabStripTransitionCoordinatorUnitTest {
     }
 
     @Test
-    public void viewStubInflated() {
-        doReturn(mSpyControlContainer.findToolbar)
-                .when(mSpyControlContainer)
-                .findViewById(R.id.find_toolbar);
-
-        setDeviceWidthDp(NARROW_NORMAL_WINDOW_WIDTH);
-        doReturn(TEST_TOOLBAR_HEIGHT)
-                .when(mBrowserControlsVisibilityManager)
-                .getTopControlsHeight();
-        runOffsetTransitionForBrowserControlManager(
-                /* beginOffset= */ TEST_TAB_STRIP_HEIGHT + TEST_TOOLBAR_HEIGHT,
-                /* endOffset= */ TEST_TOOLBAR_HEIGHT);
-        assertTabStripHeightForMargins(0);
-    }
-
-    @Test
     public void transitionFinishedUMASuccess() {
         setDeviceWidthDp(NARROW_NORMAL_WINDOW_WIDTH);
         doReturn(TEST_TOOLBAR_HEIGHT)
@@ -1117,18 +1098,15 @@ public class TabStripTransitionCoordinatorUnitTest {
         }
 
         mDelegate = new TestDelegate();
-        mDelegateSupplier = new OneshotSupplierImpl<>();
-        mDelegateSupplier.set(mDelegate);
         mTestHandler = new TestHandler();
         mCoordinator =
                 new TabStripTransitionCoordinator(
                         mBrowserControlsVisibilityManager,
                         mControlContainer,
-                        mSpyControlContainer.toolbarLayout,
                         TEST_TAB_STRIP_HEIGHT,
                         mTabObscuringHandler,
                         mDesktopWindowStateManager,
-                        mDelegateSupplier,
+                        mDelegate,
                         mTestHandler);
         ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
     }
@@ -1175,22 +1153,7 @@ public class TabStripTransitionCoordinatorUnitTest {
     }
 
     private void assertTabStripHeightForMargins(int tabStripHeight) {
-        Assert.assertEquals(
-                "Top margin is wrong for toolbarLayout.",
-                tabStripHeight,
-                mSpyControlContainer.toolbarLayout.getTopMargin());
-        Assert.assertEquals(
-                "Top margin is wrong for findToolbar.",
-                tabStripHeight + TEST_TOOLBAR_HEIGHT,
-                mSpyControlContainer.findToolbar.getTopMargin());
-
-        int toolbarHairlineTopMargin =
-                ((MarginLayoutParams) mSpyControlContainer.toolbarHairline.getLayoutParams())
-                        .topMargin;
-        Assert.assertEquals(
-                "Top margin is wrong for toolbarHairline.",
-                tabStripHeight + TEST_TOOLBAR_HEIGHT,
-                toolbarHairlineTopMargin);
+        verify(mControlContainer).onHeightChanged(eq(tabStripHeight), anyBoolean());
     }
 
     private void assertObservedHeight(int tabStripHeight) {
@@ -1276,26 +1239,15 @@ public class TabStripTransitionCoordinatorUnitTest {
     // Due to the complexity to use the real views for top toolbar in robolectric tests, use view
     // mocks for the sake of unit tests.
     static class TestControlContainerView extends FrameLayout {
-        public TestView toolbarLayout;
-        public ToolbarHairlineView toolbarHairline;
-        public TestView findToolbar;
-
+        public View toolbarLayout;
         @Nullable public View.OnLayoutChangeListener onLayoutChangeListener;
 
         static TestControlContainerView createSpy(Context context) {
             TestControlContainerView controlContainer =
                     Mockito.spy(new TestControlContainerView(context, null));
-
             doReturn(controlContainer.toolbarLayout)
                     .when(controlContainer)
                     .findViewById(R.id.toolbar);
-            doReturn(controlContainer.toolbarHairline)
-                    .when(controlContainer)
-                    .findViewById(R.id.toolbar_hairline);
-            doReturn(controlContainer.findToolbar)
-                    .when(controlContainer)
-                    .findViewById(R.id.find_toolbar_tablet_stub);
-
             doAnswer(args -> context.getResources().getDisplayMetrics().widthPixels)
                     .when(controlContainer)
                     .getWidth();
@@ -1317,33 +1269,8 @@ public class TabStripTransitionCoordinatorUnitTest {
         public TestControlContainerView(Context context, @Nullable AttributeSet attrs) {
             super(context, attrs);
 
-            toolbarLayout = Mockito.spy(new TestView(context, attrs));
-            findToolbar = Mockito.spy(new TestView(context, attrs));
+            toolbarLayout = Mockito.spy(new View(context, attrs));
             when(toolbarLayout.getHeight()).thenReturn(TEST_TOOLBAR_HEIGHT);
-            when(findToolbar.getHeight()).thenReturn(TEST_TOOLBAR_HEIGHT);
-            toolbarHairline = new ToolbarHairlineView(context, attrs);
-
-            MarginLayoutParams sourceParams =
-                    new MarginLayoutParams(
-                            ViewGroup.LayoutParams.MATCH_PARENT,
-                            ViewGroup.LayoutParams.MATCH_PARENT);
-            sourceParams.topMargin = TEST_TAB_STRIP_HEIGHT + TEST_TOOLBAR_HEIGHT;
-            addView(toolbarHairline, new MarginLayoutParams(sourceParams));
-            addView(findToolbar, new MarginLayoutParams(sourceParams));
-
-            sourceParams.topMargin = TEST_TAB_STRIP_HEIGHT;
-            sourceParams.height = TEST_TOOLBAR_HEIGHT;
-            addView(toolbarLayout, new MarginLayoutParams(sourceParams));
-        }
-    }
-
-    static class TestView extends View {
-        public TestView(Context context, @Nullable AttributeSet attrs) {
-            super(context, attrs);
-        }
-
-        public int getTopMargin() {
-            return ((MarginLayoutParams) getLayoutParams()).topMargin;
         }
     }
 
@@ -1351,7 +1278,8 @@ public class TabStripTransitionCoordinatorUnitTest {
         public int heightRequested = NOTHING_OBSERVED;
 
         @Override
-        public void onTransitionRequested(int newHeight) {
+        public void onTransitionRequested(
+                int newHeight, boolean applyScrimOverlay, Runnable transitionStartedCallback) {
             heightRequested = newHeight;
         }
 
@@ -1382,7 +1310,7 @@ public class TabStripTransitionCoordinatorUnitTest {
         }
 
         @Override
-        public void onHeightTransitionFinished() {
+        public void onHeightTransitionFinished(boolean success) {
             heightTransitionFinished = true;
         }
 

@@ -107,9 +107,9 @@
 #include "base/types/expected.h"
 #include "remoting/base/logging.h"
 #include "remoting/host/base/loggable.h"
+#include "remoting/host/linux/ei_input_injector.h"
+#include "remoting/host/linux/ei_keyboard_layout_monitor.h"
 #include "remoting/host/linux/ei_keymap.h"
-#include "remoting/host/linux/gnome_input_injector.h"
-#include "remoting/host/linux/gnome_keyboard_layout_monitor.h"
 #include "remoting/proto/event.pb.h"
 #include "third_party/libei/cipd/include/libei-1.0/libei.h"
 #include "ui/events/keycodes/dom/keycode_converter.h"
@@ -164,14 +164,14 @@ base::WeakPtr<EiSenderSession> EiSenderSession::GetWeakPtr() {
 }
 
 void EiSenderSession::SetKeyboardLayoutMonitor(
-    base::WeakPtr<GnomeKeyboardLayoutMonitor> monitor) {
+    base::WeakPtr<EiKeyboardLayoutMonitor> monitor) {
   keyboard_layout_monitor_ = monitor;
   keyboard_layout_monitor_->OnKeymapChanged(
       keyboards_.empty() ? nullptr : std::get<1>(keyboards_.back()).get());
 }
 
 void EiSenderSession::SetInputInjector(
-    base::WeakPtr<GnomeInputInjector> input_injector) {
+    base::WeakPtr<EiInputInjector> input_injector) {
   input_injector_ = input_injector;
   input_injector_->SetKeymap(
       keyboards_.empty() ? nullptr : std::get<1>(keyboards_.back())->GetWeakPtr());
@@ -602,12 +602,16 @@ void EiSenderSession::AddDeviceRegions(
     EiDevicePtr device) {
   for (size_t i = 0; ei_region* region = ei_device_get_region(device.get(), i);
        ++i) {
-    if (const char* mapping_id = ei_region_get_mapping_id(region)) {
-      map.emplace(std::piecewise_construct, std::tuple(mapping_id),
-                  std::forward_as_tuple(EiRegionPtr::Ref(region), device));
-    } else {
-      LOG(WARNING) << "Region found without mapping id";
+    const char* mapping_id = ei_region_get_mapping_id(region);
+    // Some DEs do not support mapping IDs, and will pass an empty string to
+    // InjectAbsolutePointerMove().
+    std::string_view mapping_id_view =
+        mapping_id ? mapping_id : std::string_view{};
+    if (mapping_id_view.empty()) {
+      HOST_LOG << "Region found without mapping id";
     }
+    map.emplace(std::piecewise_construct, std::tuple(mapping_id_view),
+                std::forward_as_tuple(EiRegionPtr::Ref(region), device));
   }
 }
 

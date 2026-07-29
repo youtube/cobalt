@@ -51,6 +51,7 @@ import org.chromium.ui.util.TokenHolder;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 
 /**
@@ -91,6 +92,7 @@ class TabListEditorMediator
     private @Nullable LifecycleObserver mLifecycleObserver;
     private int mSnackbarOverrideToken;
     private @Nullable ItemPickerSelectionHandler mSelectionHandler;
+    private Set<TabListEditorItemSelectionId> mInitialSelectedTabIds = new HashSet<>();
 
     private final View.OnClickListener mNavigationClickListener =
             new View.OnClickListener() {
@@ -169,8 +171,6 @@ class TabListEditorMediator
                         }
                     }
 
-                    // TODO(crbug.com/40945153): Revisit after adding the inactive tab model for
-                    // using a custom click handler when selecting tabs.
                     @Override
                     public void didSelectTab(Tab tab, @TabSelectionType int type, int lastId) {
                         if (mTabActionState == TabProperties.TabActionState.CLOSABLE
@@ -186,7 +186,7 @@ class TabListEditorMediator
                     @Override
                     public void onSelectionStateChange(
                             List<TabListEditorItemSelectionId> selectedItems) {
-                        updateDoneButtonVisibility();
+                        updateToolbar();
                     }
                 };
         mSelectionDelegate.addObserver(mSelectionObserver);
@@ -214,14 +214,16 @@ class TabListEditorMediator
         return mModel.get(TabListEditorProperties.IS_VISIBLE);
     }
 
-    private void updateDoneButtonVisibility() {
+    private void updateToolbar() {
         if (mCreationMode != CreationMode.ITEM_PICKER) {
             mModel.set(TabListEditorProperties.DONE_BUTTON_VISIBILITY, false);
             return;
         }
+        mModel.set(TabListEditorProperties.DONE_BUTTON_VISIBILITY, true);
 
-        boolean hasSelection = !mSelectionDelegate.getSelectedItems().isEmpty();
-        mModel.set(TabListEditorProperties.DONE_BUTTON_VISIBILITY, hasSelection);
+        Set<TabListEditorItemSelectionId> currentSelection = mSelectionDelegate.getSelectedItems();
+        boolean hasSelectionChanged = !Objects.equals(mInitialSelectedTabIds, currentSelection);
+        mModel.set(TabListEditorProperties.IS_DONE_BUTTON_ENABLED, hasSelectionChanged);
     }
 
     private void updateColors(boolean isIncognito) {
@@ -283,6 +285,7 @@ class TabListEditorMediator
         // We don't call TabListCoordinator#prepareTabSwitcherView, since not all the logic (e.g.
         // requiring one tab to be selected) is applicable here.
         mTabListCoordinator.prepareTabGridView();
+        mTabListCoordinator.attachEmptyView();
         mVisibleTabs.clear();
         mVisibleTabs.addAll(tabs);
         mVisibleTabGroups.clear();
@@ -290,17 +293,18 @@ class TabListEditorMediator
 
         mResetHandler.resetWithListOfTabs(
                 tabs, tabGroupSyncIds, recyclerViewPosition, /* quickMode= */ false);
+        mTabListEditorLayout.hideLoadingUi();
 
         mModel.set(TabListEditorProperties.IS_VISIBLE, true);
 
         @StringRes
         int titleId =
                 (mCreationMode == CreationMode.ITEM_PICKER)
-                        ? R.string.tab_selection_editor_toolbar_add_tabs
+                        ? R.string.tab_selection_editor_toolbar_add_recent_tabs
                         : R.string.tab_selection_editor_toolbar_select_items;
         mModel.set(TabListEditorProperties.TOOLBAR_TITLE, mContext.getString(titleId));
 
-        updateDoneButtonVisibility();
+        updateToolbar();
 
         updateColors(
                 assumeNonNull(mCurrentTabGroupModelFilterSupplier.get())
@@ -392,13 +396,16 @@ class TabListEditorMediator
         mTabListCoordinator.cleanupTabGridView();
         mVisibleTabs.clear();
         mVisibleTabGroups.clear();
-        mResetHandler.resetWithListOfTabs(
-                /* tabs= */ null,
-                /* tabGroupSyncIds= */ null,
-                /* recyclerViewPosition= */ null,
-                /* quickMode= */ false);
-        mModel.set(TabListEditorProperties.IS_VISIBLE, false);
-        mResetHandler.postHiding();
+
+        if (mCreationMode != CreationMode.ITEM_PICKER) {
+            mResetHandler.resetWithListOfTabs(
+                    /* tabs= */ null,
+                    /* tabGroupSyncIds= */ null,
+                    /* recyclerViewPosition= */ null,
+                    /* quickMode= */ false);
+            mModel.set(TabListEditorProperties.IS_VISIBLE, false);
+            mResetHandler.postHiding();
+        }
         if (mLifecycleObserver != null) mLifecycleObserver.didHide();
     }
 
@@ -488,6 +495,12 @@ class TabListEditorMediator
                 mVisibleTabGroups.isEmpty() ? null : mVisibleTabGroups,
                 /* recyclerViewPosition= */ null,
                 /* quickMode= */ true);
+    }
+
+    @Override
+    public void preselectTabs(Set<TabListEditorItemSelectionId> itemIds) {
+        mInitialSelectedTabIds = itemIds;
+        selectTabs(itemIds);
     }
 
     /** Destroy any members that needs clean up. */

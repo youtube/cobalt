@@ -121,6 +121,20 @@ const base::FeatureParam<DevToolsFreestylerUserTier>
         /*default_value=*/DevToolsFreestylerUserTier::kPublic,
         &devtools_freestyler_user_tier_options};
 
+// Whether the DevTools AI Code Generation is enabled.
+BASE_FEATURE(kDevToolsAiCodeGeneration, base::FEATURE_DISABLED_BY_DEFAULT);
+const base::FeatureParam<std::string> kDevToolsAiCodeGenerationModelId{
+    &kDevToolsAiCodeGeneration, "aida_model_id",
+    /*default_value=*/""};
+const base::FeatureParam<double> kDevToolsAiCodeGenerationTemperature{
+    &kDevToolsAiCodeGeneration, "aida_temperature",
+    /*default_value=*/-1};
+const base::FeatureParam<DevToolsFreestylerUserTier>
+    kDevToolsAiCodeGenerationUserTier{
+        &kDevToolsAiCodeGeneration, "user_tier",
+        /*default_value=*/DevToolsFreestylerUserTier::kPublic,
+        &devtools_freestyler_user_tier_options};
+
 // Whether an infobar is shown when the process is shared.
 BASE_FEATURE(kDevToolsSharedProcessInfobar, base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -171,18 +185,18 @@ const base::FeatureParam<bool> kDevToolsGdpProfilesBadgesEnabled{
 // Whether the starter badge for the Google Developer Program is enabled.
 const base::FeatureParam<bool> kDevToolsGdpProfilesStarterBadgeEnabled{
     &kDevToolsGdpProfiles, "starter_badge_enabled",
-    /*default_value=*/false};
+    /*default_value=*/true};
 
 // Whether DevTools Live Edit (Debugger.setScriptSource usage in CDP) is
 // enabled.
 BASE_FEATURE(kDevToolsLiveEdit, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kDevToolsIndividualRequestThrottling,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Whether the AI Prompt API (https://developer.chrome.com/docs/ai/prompt-api)
 // is available in DevTools.
-BASE_FEATURE(kDevToolsAiPromptApi, base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(kDevToolsAiPromptApi, base::FEATURE_DISABLED_BY_DEFAULT);
 // Whether the Prompt API is allowed to run on devices without a dedicated GPU.
 const base::FeatureParam<bool> kDevToolsAiPromptApiAllowWithoutGpu{
     &kDevToolsAiPromptApi, "allow_without_gpu",
@@ -193,6 +207,10 @@ BASE_FEATURE(kDevToolsStartingStyleDebugging, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Whether Network panel should use Durable Messages to preserve network bodies.
 BASE_FEATURE(kDevToolsEnableDurableMessages, base::FEATURE_DISABLED_BY_DEFAULT);
+
+// If enabled, allows starting remote debugging in a running Chrome instance.
+BASE_FEATURE(kDevToolsAcceptDebuggingConnections,
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Whether the policy dialog should be shown instead of greying out the
 // Developer Tools toggle.

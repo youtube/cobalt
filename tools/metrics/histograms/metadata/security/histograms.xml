@@ -470,7 +470,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Security.PageInfo.MerchantTrustStatus"
-    enum="MerchantTrustStatus" expires_after="2026-03-15">
+    enum="MerchantTrustStatus" expires_after="2026-05-17">
   <owner>tommasin@chromium.org</owner>
   <owner>privacy-on-the-web@google.com</owner>
   <summary>
@@ -563,21 +563,6 @@ chromium-metrics-reviews@google.com.
     The device type of a user accepted request to Private Network device. The
     device is stored permenantly when it has valid name and ID. Otherwise, the
     device is stored temporarily with IP address.
-  </summary>
-</histogram>
-
-<histogram name="Security.PrivateNetworkAccess.PrivateIpInferrable"
-    enum="Boolean" expires_after="2026-05-03">
-  <owner>titouan@chromium.org</owner>
-  <owner>lyf@chromium.org</owner>
-  <owner>clamy@chromium.org</owner>
-  <owner>estark@chromium.org</owner>
-  <owner>jdeblasio@chromium.org</owner>
-  <owner>src/chrome/browser/local_network_access/OWNERS</owner>
-  <summary>
-    Records whether a failed PNA check could have been avoided by inferring the
-    request's target IP address space by recognizing that the request URL's host
-    is a literal private IP address. Recorded at most once per URL request.
   </summary>
 </histogram>
 
@@ -864,7 +849,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="SiteIsolation.BrowsingInstance.MaxCountPerProcess"
-    units="units" expires_after="2026-03-15">
+    units="units" expires_after="2026-05-17">
   <owner>wjmaclean@chromium.org</owner>
   <owner>creis@chromium.org</owner>
   <summary>
@@ -884,7 +869,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="SiteIsolation.CreateOpenerProxiesTime" units="microseconds"
-    expires_after="2026-03-15">
+    expires_after="2026-05-17">
   <owner>alexmos@chromium.org</owner>
   <owner>creis@chromium.org</owner>
   <owner>nasko@chromium.org</owner>
@@ -946,7 +931,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="SiteIsolation.IsolatableSandboxedIframes.UniqueSites"
-    units="processes" expires_after="2026-03-22">
+    units="processes" expires_after="2026-05-24">
   <owner>wjmaclean@chromium.org</owner>
   <owner>alexmos@chromium.org</owner>
   <owner>creis@chromium.org</owner>
@@ -959,7 +944,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="SiteIsolation.IsPasswordFormSubmittedInDedicatedProcess"
-    enum="SiteIsolationIsDedicatedProcess" expires_after="2026-03-22">
+    enum="SiteIsolationIsDedicatedProcess" expires_after="2026-05-24">
   <owner>alexmos@chromium.org</owner>
   <owner>lukasza@chromium.org</owner>
   <summary>

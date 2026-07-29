@@ -7,15 +7,19 @@
 #include <string>
 
 #include "base/android/jni_android.h"
+#include "chrome/browser/media/webrtc/capture_policy_utils.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/web_contents.h"
 #include "third_party/blink/public/mojom/mediastream/media_stream.mojom.h"
+#include "url/android/gurl_android.h"
 
 // Must come after all headers that specialize FromJniType() / ToJniType().
 #include "chrome/android/chrome_jni_headers/MediaCapturePickerManagerBridge_jni.h"
 
 using base::android::JavaParamRef;
+
+int MediaCapturePickerManagerBridge::next_fake_id_ = 1;
 
 MediaCapturePickerManagerBridge::MediaCapturePickerManagerBridge() {
   JNIEnv* env = base::android::AttachCurrentThread();
@@ -36,6 +40,8 @@ void MediaCapturePickerManagerBridge::Show(
   CHECK(params.web_contents);
   CHECK(callback_.is_null());
   callback_ = std::move(callback);
+  web_contents_filter_ = params.includable_web_contents_filter;
+
   JNIEnv* env = base::android::AttachCurrentThread();
   Java_MediaCapturePickerManagerBridge_showDialog(
       env, java_object_, params.web_contents->GetJavaWebContents(),
@@ -49,10 +55,8 @@ void MediaCapturePickerManagerBridge::Show(
 
 void MediaCapturePickerManagerBridge::OnPickTab(
     JNIEnv* env,
-    const base::android::JavaParamRef<jobject>& java_web_contents,
+    content::WebContents* web_contents,
     bool audio_share) {
-  content::WebContents* web_contents =
-      content::WebContents::FromJavaWebContents(java_web_contents);
   CHECK(web_contents);
   auto desktop_media_id = content::DesktopMediaID(
       content::DesktopMediaID::TYPE_WEB_CONTENTS,
@@ -66,13 +70,13 @@ void MediaCapturePickerManagerBridge::OnPickTab(
 
 void MediaCapturePickerManagerBridge::OnPickWindow(JNIEnv* env) {
   auto desktop_media_id = content::DesktopMediaID(
-      content::DesktopMediaID::TYPE_WINDOW, content::DesktopMediaID::kNullId);
+      content::DesktopMediaID::TYPE_WINDOW, next_fake_id_++);
   std::move(callback_).Run(desktop_media_id);
 }
 
 void MediaCapturePickerManagerBridge::OnPickScreen(JNIEnv* env) {
   auto desktop_media_id = content::DesktopMediaID(
-      content::DesktopMediaID::TYPE_SCREEN, content::DesktopMediaID::kNullId);
+      content::DesktopMediaID::TYPE_SCREEN, next_fake_id_++);
   std::move(callback_).Run(desktop_media_id);
 }
 
@@ -80,3 +84,14 @@ void MediaCapturePickerManagerBridge::OnCancel(JNIEnv* env) {
   std::move(callback_).Run(base::unexpected(
       blink::mojom::MediaStreamRequestResult::PERMISSION_DENIED_BY_USER));
 }
+
+bool MediaCapturePickerManagerBridge::ShouldFilterWebContents(
+    JNIEnv* env,
+    content::WebContents* web_contents) {
+  if (!web_contents) {
+    return true;
+  }
+  return !web_contents_filter_.Run(web_contents);
+}
+
+DEFINE_JNI(MediaCapturePickerManagerBridge)

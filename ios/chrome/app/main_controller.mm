@@ -12,6 +12,7 @@
 #import "base/check_op.h"
 #import "base/feature_list.h"
 #import "base/functional/callback.h"
+#import "base/functional/callback_helpers.h"
 #import "base/functional/concurrent_closures.h"
 #import "base/ios/ios_util.h"
 #import "base/memory/raw_ptr.h"
@@ -225,10 +226,6 @@ NSString* const kDefaultBrowserStatusCheck = @"DefaultBrowserStatusCheck";
 // Constant for deferred logging of install attribution data from shared user
 // defaults.
 NSString* const kLogInstallAttribution = @"LogInstallAttribution";
-
-// Constant for enabling share extension for multi-profile.
-NSString* const kShareExtensionForMultiprofileKey =
-    @"ShareExtensionForMultiprofileKey";
 
 // Constant for enabling  multi-profile.
 NSString* const kMultiprofileKey = @"MultiprofileKey";
@@ -755,9 +752,7 @@ std::string GetProfileNameForChoice(ProfileChoice choice,
     ProfileController* controller = pair.second;
     [controller applicationWillResignActive:application];
   }
-  if (IsShareExtensionForMultiprofileEnabled()) {
-    [_shareExtensionController applicationWillResignActive];
-  }
+  [_shareExtensionController applicationWillResignActive];
 }
 
 - (void)applicationWillTerminate:(UIApplication*)application {
@@ -894,9 +889,7 @@ std::string GetProfileNameForChoice(ProfileChoice choice,
   // This will be a no-op if upload already started.
   crash_helper::UploadCrashReports();
 
-  if (IsShareExtensionForMultiprofileEnabled()) {
-    [_shareExtensionController applicationDidBecomeActive];
-  }
+  [_shareExtensionController applicationDidBecomeActive];
 }
 
 - (void)application:(UIApplication*)application
@@ -1490,10 +1483,6 @@ std::string GetProfileNameForChoice(ProfileChoice choice,
           boolForKey:kWidgetKitRefreshFiveMinutes]),
       kFieldTrialVersionKey : @1,
     },
-    kShareExtensionForMultiprofileKey : @{
-      kFieldTrialValueKey : @(IsShareExtensionForMultiprofileEnabled()),
-      kFieldTrialVersionKey : @1,
-    },
     kMultiprofileKey : @{
       kFieldTrialValueKey : @(AreSeparateProfilesForManagedAccountsEnabled()),
       kFieldTrialVersionKey : @1,
@@ -1553,9 +1542,7 @@ std::string GetProfileNameForChoice(ProfileChoice choice,
   [self scheduleDumpDocumentsStatistics];
 #endif  // BUILDFLAG(IOS_ENABLE_SANDBOX_DUMP)
 
-  if (IsShareExtensionForMultiprofileEnabled()) {
-    [self scheduleProcessingShareExtensionFiles];
-  }
+  [self scheduleProcessingShareExtensionFiles];
 }
 
 - (void)scheduleDeleteTempDownloadsDirectory {
@@ -1638,7 +1625,6 @@ std::string GetProfileNameForChoice(ProfileChoice choice,
 #endif  // BUILDFLAG(IOS_ENABLE_SANDBOX_DUMP)
 
 - (void)scheduleProcessingShareExtensionFiles {
-  CHECK(IsShareExtensionForMultiprofileEnabled());
   _shareExtensionController = [[ShareExtensionController alloc] init];
   [_shareExtensionController startFilesProcessing];
 }

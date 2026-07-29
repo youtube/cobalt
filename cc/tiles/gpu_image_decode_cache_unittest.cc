@@ -190,6 +190,10 @@ class GPUImageDecodeTestMockContextProvider : public viz::TestContextProvider {
     return viz::TestContextProvider::ContextCapabilities();
   }
 
+  gpu::raster::RasterInterface* RasterInterface() override {
+    return raster_interface_gles_.get();
+  }
+
  private:
   ~GPUImageDecodeTestMockContextProvider() override = default;
   GPUImageDecodeTestMockContextProvider(
@@ -198,10 +202,11 @@ class GPUImageDecodeTestMockContextProvider : public viz::TestContextProvider {
       std::unique_ptr<gpu::raster::RasterInterface> raster)
       : TestContextProvider(std::move(support),
                             std::move(gl),
-                            std::move(raster),
                             nullptr /* sii */,
-                            true) {}
+                            true),
+        raster_interface_gles_(std::move(raster)) {}
 
+  std::unique_ptr<gpu::raster::RasterInterface> raster_interface_gles_;
   std::optional<gpu::Capabilities> capabilities_override_;
 };
 
@@ -228,7 +233,7 @@ SkM44 CreateMatrix(const SkSize& scale) {
   return SkM44::Scale(scale.width(), scale.height());
 }
 
-size_t kGpuMemoryLimitBytes = 96 * 1024 * 1024;
+constexpr size_t kGpuMemoryLimitBytes = 96 * 1024 * 1024;
 
 class GpuImageDecodeCacheTest
     : public ::testing::TestWithParam<

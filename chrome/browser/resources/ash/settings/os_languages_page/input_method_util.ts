@@ -99,7 +99,6 @@ export enum OptionType {
   PINYIN_ENABLE_LOWER_PAGING = 'pinyinEnableLowerPaging',
   PINYIN_ENABLE_UPPER_PAGING = 'pinyinEnableUpperPaging',
   PINYIN_FULL_WIDTH_CHARACTER = 'pinyinFullWidthCharacter',
-  PINYIN_FUZZY_CONFIG = 'pinyinFuzzyConfig',
   PINYIN_EN_ENG = 'en:eng',
   PINYIN_AN_ANG = 'an:ang',
   PINYIN_IAN_IANG = 'ian:iang',
@@ -144,7 +143,6 @@ export const OPTION_DEFAULT = {
   [OptionType.ENABLE_GESTURE_TYPING]: true,
   [OptionType.ENABLE_PREDICTION]: false,
   [OptionType.ENABLE_SOUND_ON_KEYPRESS]: false,
-  [OptionType.JAPANESE_NUMBER_OF_SUGGESTIONS]: 3,
   [OptionType.PHYSICAL_KEYBOARD_AUTO_CORRECTION_LEVEL]: 0,
   [OptionType.PHYSICAL_KEYBOARD_ENABLE_CAPITALIZATION]: true,
   [OptionType.PHYSICAL_KEYBOARD_ENABLE_PREDICTIVE_WRITING]: true,
@@ -158,6 +156,7 @@ export const OPTION_DEFAULT = {
       JapaneseShiftKeyModeStyle.ALPHANUMERIC,
   [OptionType.JAPANESE_USE_INPUT_HISTORY]: true,
   [OptionType.JAPANESE_USE_SYSTEM_DICTIONARY]: true,
+  [OptionType.JAPANESE_NUMBER_OF_SUGGESTIONS]: 3,
   [OptionType.JAPANESE_INPUT_MODE]: JapaneseInputMode.ROMAJI,
   [OptionType.JAPANESE_PUNCTUATION_STYLE]:
       JapanesePunctuationStyle.KUTEN_TOUTEN,
@@ -180,20 +179,6 @@ export const OPTION_DEFAULT = {
   [OptionType.PINYIN_ENABLE_LOWER_PAGING]: true,
   [OptionType.PINYIN_ENABLE_UPPER_PAGING]: true,
   [OptionType.PINYIN_FULL_WIDTH_CHARACTER]: false,
-  [OptionType.PINYIN_FUZZY_CONFIG]: {
-    an_ang: undefined,
-    c_ch: undefined,
-    en_eng: undefined,
-    f_h: undefined,
-    ian_iang: undefined,
-    in_ing: undefined,
-    k_g: undefined,
-    l_n: undefined,
-    r_l: undefined,
-    s_sh: undefined,
-    uan_uang: undefined,
-    z_zh: undefined,
-  },
   // Options for zhuyin input method.
   [OptionType.ZHUYIN_KEYBOARD_LAYOUT]: KeyboardLayout.STANDARD,
   [OptionType.ZHUYIN_PAGE_SIZE]: '10',
@@ -615,9 +600,6 @@ export function getOptionUiType(option: OptionType): UiType {
       return UiType.LINK;
     case OptionType.JAPANESE_DELETE_PERSONALIZATION_DATA:
       return UiType.SUBMENU_BUTTON;
-    case OptionType.PINYIN_FUZZY_CONFIG:
-      // Not implemented.
-      assertNotReached();
     default:
       assertExhaustive(option);
   }
@@ -746,7 +728,6 @@ export function getOptionLabelName(option: OptionType): string {
     case OptionType.VIETNAMESE_TELEX_INSERT_U_HORN_ON_W:
       return 'inputMethodOptionsVietnameseTelexWShortcut';
     case OptionType.ENABLE_COMPLETION:
-    case OptionType.PINYIN_FUZZY_CONFIG:
       // Not implemented.
       assertNotReached();
     default:

@@ -4,10 +4,13 @@
 
 #include "components/optimization_guide/core/model_execution/usage_tracker.h"
 
+#include "base/strings/to_string.h"
 #include "base/task/single_thread_task_runner.h"
-#include "components/optimization_guide/core/model_execution/model_execution_features.h"
+#include "base/trace_event/trace_event.h"
 #include "components/optimization_guide/core/model_execution/model_execution_prefs.h"
 #include "components/optimization_guide/core/model_execution/model_execution_util.h"
+#include "components/optimization_guide/core/model_execution/on_device_features.h"
+#include "components/optimization_guide/public/mojom/model_broker.mojom-data-view.h"
 #include "components/prefs/pref_service.h"
 
 namespace optimization_guide {
@@ -19,8 +22,9 @@ UsageTracker::UsageTracker(PrefService* local_state)
 
 UsageTracker::~UsageTracker() = default;
 
-void UsageTracker::OnDeviceEligibleFeatureUsed(
-    ModelBasedCapabilityKey feature) {
+void UsageTracker::OnDeviceEligibleFeatureUsed(mojom::OnDeviceFeature feature) {
+  TRACE_EVENT("optimization_guide", "UsageTracker::OnDeviceEligibleFeatureUsed",
+              "feature", base::ToString(feature));
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   bool was_first_usage = !WasOnDeviceEligibleFeatureRecentlyUsed(feature);
@@ -37,11 +41,8 @@ void UsageTracker::OnDeviceEligibleFeatureUsed(
 }
 
 bool UsageTracker::WasOnDeviceEligibleFeatureRecentlyUsed(
-    ModelBasedCapabilityKey feature) const {
+    mojom::OnDeviceFeature feature) const {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  if (!features::internal::GetOptimizationTargetForCapability(feature)) {
-    return false;
-  }
   return model_execution::prefs::WasFeatureRecentlyUsed(&*local_state_,
                                                         feature);
 }
@@ -49,8 +50,8 @@ bool UsageTracker::WasOnDeviceEligibleFeatureRecentlyUsed(
 bool UsageTracker::WasAnyOnDeviceEligibleFeatureRecentlyUsed() const {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   return std::ranges::any_of(
-      kAllModelBasedCapabilityKeys, [&](ModelBasedCapabilityKey key) {
-        return WasOnDeviceEligibleFeatureRecentlyUsed(key);
+      OnDeviceFeatureSet::All(), [&](mojom::OnDeviceFeature feature) {
+        return WasOnDeviceEligibleFeatureRecentlyUsed(feature);
       });
 }
 

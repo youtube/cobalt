@@ -75,7 +75,7 @@ import org.chromium.chrome.browser.lens.LensController;
 import org.chromium.chrome.browser.locale.LocaleManager;
 import org.chromium.chrome.browser.multiwindow.MultiInstanceManager;
 import org.chromium.chrome.browser.omnibox.UrlBarCoordinator.SelectionState;
-import org.chromium.chrome.browser.omnibox.fusebox.NavigationAttachmentsCoordinator;
+import org.chromium.chrome.browser.omnibox.fusebox.FuseboxCoordinator;
 import org.chromium.chrome.browser.omnibox.geo.GeolocationHeader;
 import org.chromium.chrome.browser.omnibox.status.StatusCoordinator;
 import org.chromium.chrome.browser.omnibox.suggestions.AutocompleteCoordinator;
@@ -97,6 +97,7 @@ import org.chromium.chrome.browser.ui.theme.BrandedColorScheme;
 import org.chromium.chrome.browser.util.BrowserUiUtils;
 import org.chromium.chrome.browser.util.ChromeAccessibilityUtil;
 import org.chromium.chrome.test.util.browser.signin.AccountManagerTestRule;
+import org.chromium.components.browser_ui.accessibility.AccessibilityFeatureMap;
 import org.chromium.components.browser_ui.accessibility.PageZoomIndicatorCoordinator;
 import org.chromium.components.browser_ui.styles.ChromeColors;
 import org.chromium.components.embedder_support.util.UrlUtilities;
@@ -138,6 +139,7 @@ import java.util.Map;
         })
 @DisableFeatures({
     ChromeFeatureList.ADAPTIVE_BUTTON_IN_TOP_TOOLBAR_CUSTOMIZATION_V2,
+    AccessibilityFeatureMap.ANDROID_ZOOM_INDICATOR,
 })
 @EnableFeatures(ChromeFeatureList.TOOLBAR_TABLET_RESIZE_REFACTOR)
 public class LocationBarMediatorTest {
@@ -223,7 +225,7 @@ public class LocationBarMediatorTest {
     @Mock private AppBannerManager mAppBannerManager;
     @Mock private AppBannerManager.Natives mAppBannerManagerJni;
     @Mock private NewTabPageDelegate mNewTabPageDelegate;
-    @Mock private NavigationAttachmentsCoordinator mNavigationAttachmentsCoordinator;
+    @Mock private FuseboxCoordinator mFuseboxCoordinator;
 
     @Captor private ArgumentCaptor<Runnable> mRunnableCaptor;
     @Captor private ArgumentCaptor<LoadUrlParams> mLoadUrlParamsCaptor;
@@ -301,7 +303,7 @@ public class LocationBarMediatorTest {
                         () -> mModalDialogManager,
                         mAutocompleteRequestTypeSupplier,
                         mPageZoomIndicatorCoordinator,
-                        mNavigationAttachmentsCoordinator,
+                        mFuseboxCoordinator,
                         mMultiInstanceManager);
         mMediator.setCoordinators(mUrlCoordinator, mAutocompleteCoordinator, mStatusCoordinator);
         mMediator.setAddToHomescreenCoordinatorForTesting(mAddToHomescreenCoordinator);
@@ -340,7 +342,7 @@ public class LocationBarMediatorTest {
                         () -> mModalDialogManager,
                         new ObservableSupplierImpl<>(AutocompleteRequestType.SEARCH),
                         mPageZoomIndicatorCoordinator,
-                        mNavigationAttachmentsCoordinator,
+                        mFuseboxCoordinator,
                         mMultiInstanceManager);
         tabletMediator.setCoordinators(
                 mUrlCoordinator, mAutocompleteCoordinator, mStatusCoordinator);
@@ -657,7 +659,7 @@ public class LocationBarMediatorTest {
                         .build());
 
         verify(mMultiInstanceManager)
-                .openUrlInSelectedWindow(mLoadUrlParamsCaptor.capture(), anyInt(), eq(true));
+                .openUrlInOtherWindow(mLoadUrlParamsCaptor.capture(), anyInt(), eq(true), anyInt());
         assertEquals(TEST_URL, mLoadUrlParamsCaptor.getValue().getUrl());
         assertEquals(
                 PageTransition.TYPED | PageTransition.FROM_ADDRESS_BAR,
@@ -1048,7 +1050,7 @@ public class LocationBarMediatorTest {
         mMediator.setUrlBarFocus(
                 true, null, OmniboxFocusReason.FAKE_BOX_TAP, AutocompleteRequestType.AI_MODE);
         verify(mUrlCoordinator).requestFocus();
-        verify(mNavigationAttachmentsCoordinator).onAiModeActivatedFromNtp();
+        verify(mFuseboxCoordinator).onAiModeActivatedFromNtp();
     }
 
     @Test
@@ -1155,7 +1157,7 @@ public class LocationBarMediatorTest {
                         () -> mModalDialogManager,
                         new ObservableSupplierImpl<>(AutocompleteRequestType.SEARCH),
                         mPageZoomIndicatorCoordinator,
-                        mNavigationAttachmentsCoordinator,
+                        mFuseboxCoordinator,
                         mMultiInstanceManager);
         mMediator.setCoordinators(mUrlCoordinator, mAutocompleteCoordinator, mStatusCoordinator);
         int primeCount = sGeoHeaderPrimeCount;
@@ -1639,6 +1641,28 @@ public class LocationBarMediatorTest {
     }
 
     @Test
+    @EnableFeatures(OmniboxFeatureList.OMNIBOX_MULTIMODAL_INPUT)
+    public void navigateButtonVisibility() {
+        mMediator.onFinishNativeInitialization();
+        Profile profile = mock(Profile.class);
+        mMediator.setProfile(profile);
+        doReturn(true).when(mUrlCoordinator).isTextWrapped();
+        doReturn("text").when(mUrlCoordinator).getTextWithAutocomplete();
+        mMediator.onUrlFocusChange(true);
+        mAutocompleteRequestTypeSupplier.set(AutocompleteRequestType.SEARCH);
+
+        verify(mLocationBarLayout).setNavigateButtonVisibility(true);
+
+        doReturn(false).when(mUrlCoordinator).isTextWrapped();
+        mAutocompleteRequestTypeSupplier.set(AutocompleteRequestType.AI_MODE);
+        verify(mLocationBarLayout, times(2)).setNavigateButtonVisibility(true);
+
+        doReturn(false).when(mUrlCoordinator).isTextWrapped();
+        mAutocompleteRequestTypeSupplier.set(AutocompleteRequestType.IMAGE_GENERATION);
+        verify(mLocationBarLayout, times(3)).setNavigateButtonVisibility(true);
+    }
+
+    @Test
     public void testDeleteButtonClicked() {
         mMediator.onFinishNativeInitialization();
         mMediator.deleteButtonClicked(null);
@@ -1908,7 +1932,7 @@ public class LocationBarMediatorTest {
     }
 
     @Test
-    @EnableFeatures(ChromeFeatureList.ANDROID_ZOOM_INDICATOR)
+    @EnableFeatures(AccessibilityFeatureMap.ANDROID_ZOOM_INDICATOR)
     public void testZoomButtonClicked() {
         mMediator.onFinishNativeInitialization();
         doReturn(mWebContents).when(mTab).getWebContents();
@@ -1917,7 +1941,7 @@ public class LocationBarMediatorTest {
     }
 
     @Test
-    @EnableFeatures(ChromeFeatureList.ANDROID_ZOOM_INDICATOR)
+    @EnableFeatures(AccessibilityFeatureMap.ANDROID_ZOOM_INDICATOR)
     public void testShouldShowZoomButton_featureEnabledAndNotDefaultZoom() {
         mMediator.onFinishNativeInitialization();
         doReturn(mWebContents).when(mTab).getWebContents();
@@ -1926,7 +1950,7 @@ public class LocationBarMediatorTest {
     }
 
     @Test
-    @EnableFeatures(ChromeFeatureList.ANDROID_ZOOM_INDICATOR)
+    @EnableFeatures(AccessibilityFeatureMap.ANDROID_ZOOM_INDICATOR)
     public void testShouldShowZoomButton_featureEnabledAndDefaultZoom() {
         mMediator.onFinishNativeInitialization();
         doReturn(mWebContents).when(mTab).getWebContents();
@@ -1935,7 +1959,7 @@ public class LocationBarMediatorTest {
     }
 
     @Test
-    @DisableFeatures(ChromeFeatureList.ANDROID_ZOOM_INDICATOR)
+    @DisableFeatures(AccessibilityFeatureMap.ANDROID_ZOOM_INDICATOR)
     public void testShouldShowZoomButton_featureDisabled() {
         mMediator.onFinishNativeInitialization();
         doReturn(mWebContents).when(mTab).getWebContents();
@@ -1944,7 +1968,7 @@ public class LocationBarMediatorTest {
     }
 
     @Test
-    @EnableFeatures(ChromeFeatureList.ANDROID_ZOOM_INDICATOR)
+    @EnableFeatures(AccessibilityFeatureMap.ANDROID_ZOOM_INDICATOR)
     public void testShouldShowZoomButton_nullWebContents() {
         mMediator.onFinishNativeInitialization();
         doReturn(null).when(mTab).getWebContents();
@@ -1952,7 +1976,7 @@ public class LocationBarMediatorTest {
     }
 
     @Test
-    @EnableFeatures(ChromeFeatureList.ANDROID_ZOOM_INDICATOR)
+    @EnableFeatures(AccessibilityFeatureMap.ANDROID_ZOOM_INDICATOR)
     public void testUpdateZoomButtonVisibility_popupShowing() {
         mMediator.onFinishNativeInitialization();
         doReturn(mWebContents).when(mTab).getWebContents();
@@ -1963,7 +1987,7 @@ public class LocationBarMediatorTest {
     }
 
     @Test
-    @EnableFeatures(ChromeFeatureList.ANDROID_ZOOM_INDICATOR)
+    @EnableFeatures(AccessibilityFeatureMap.ANDROID_ZOOM_INDICATOR)
     public void testUpdateZoomButtonVisibility_hideButton() {
         mMediator.onFinishNativeInitialization();
         doReturn(mWebContents).when(mTab).getWebContents();
@@ -2083,7 +2107,7 @@ public class LocationBarMediatorTest {
     @Test
     @EnableFeatures({
         ChromeFeatureList.TOOLBAR_TABLET_RESIZE_REFACTOR,
-        ChromeFeatureList.ANDROID_ZOOM_INDICATOR
+        AccessibilityFeatureMap.ANDROID_ZOOM_INDICATOR
     })
     public void testZoomButtonToolbarWidthConsumer_notVisible() {
         int buttonWidth =
@@ -2109,7 +2133,7 @@ public class LocationBarMediatorTest {
     @Test
     @EnableFeatures({
         ChromeFeatureList.TOOLBAR_TABLET_RESIZE_REFACTOR,
-        ChromeFeatureList.ANDROID_ZOOM_INDICATOR
+        AccessibilityFeatureMap.ANDROID_ZOOM_INDICATOR
     })
     public void testZoomButtonToolbarWidthConsumer() {
         int buttonWidth =

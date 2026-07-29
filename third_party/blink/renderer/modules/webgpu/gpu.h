@@ -14,7 +14,6 @@
 #include "third_party/blink/renderer/platform/bindings/script_wrappable.h"
 #include "third_party/blink/renderer/platform/graphics/gpu/webgpu_cpp.h"
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_hash_set.h"
-#include "third_party/blink/renderer/platform/supplementable.h"
 
 namespace blink {
 
@@ -55,13 +54,10 @@ struct BoxedMappableWGPUBufferHandles
 };
 
 class MODULES_EXPORT GPU final : public ScriptWrappable,
-                                 public Supplement<NavigatorBase>,
                                  public ExecutionContextLifecycleObserver {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
-  static const unsigned kSupplementIndex;
-
   // Getter for navigator.gpu
   static GPU* gpu(NavigatorBase&);
 
@@ -110,10 +106,6 @@ class MODULES_EXPORT GPU final : public ScriptWrappable,
       wgpu::RequestAdapterStatus status,
       wgpu::Adapter adapter,
       wgpu::StringView error_message);
-
-  void RecordAdapterForIdentifiability(ScriptState* script_state,
-                                       const GPURequestAdapterOptions* options,
-                                       GPUAdapter* adapter) const;
 
   void RequestAdapterImpl(ScriptState* script_state,
                           const GPURequestAdapterOptions* options,

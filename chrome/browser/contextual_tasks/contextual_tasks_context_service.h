@@ -5,6 +5,7 @@
 #ifndef CHROME_BROWSER_CONTEXTUAL_TASKS_CONTEXTUAL_TASKS_CONTEXT_SERVICE_H_
 #define CHROME_BROWSER_CONTEXTUAL_TASKS_CONTEXTUAL_TASKS_CONTEXT_SERVICE_H_
 
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -13,6 +14,8 @@
 #include "base/scoped_observation.h"
 #include "base/time/tick_clock.h"
 #include "base/time/time.h"
+#include "chrome/browser/contextual_tasks/contextual_tasks_types.mojom.h"
+#include "chrome/browser/passage_embeddings/page_embeddings_service.h"
 #include "components/keyed_service/core/keyed_service.h"
 #include "components/passage_embeddings/passage_embeddings_types.h"
 
@@ -23,6 +26,14 @@ class Profile;
 namespace content {
 class WebContents;
 }  // namespace content
+
+namespace optimization_guide::proto {
+class ContextualTasksContextQuality;
+}  // namespace optimization_guide::proto
+
+namespace page_content_annotations {
+class PageContentExtractionService;
+}  // namespace page_content_annotations
 
 namespace passage_embeddings {
 class Embedder;
@@ -37,36 +48,37 @@ enum class ContextDeterminationStatus {
   kEmbedderNotAvailable = 1,
   kQueryEmbeddingFailed = 2,
   kQueryEmbeddingOutputMalformed = 3,
+  kNoEligibleTabs = 4,
 
   // Keep in sync with ContextualTasksContextDeterminationStatus in
   // contextual_tasks/enums.xml.
-  kMaxValue = kQueryEmbeddingOutputMalformed,
-};
-
-enum TabSelectionMode {
-  // Selects tabs based on (query, tab) embeddings match.
-  kEmbeddingsMatch,
-  // Selects tabs based on score based on signals like (query, tab) semantic
-  // similarity, tab recency etc.
-  kMultiSignalScoring,
+  kMaxValue = kNoEligibleTabs,
 };
 
 // Options to regulate tab selection behavior.
 struct TabSelectionOptions {
-  TabSelectionMode tab_selection_mode = TabSelectionMode::kEmbeddingsMatch;
+  mojom::TabSelectionMode tab_selection_mode =
+      mojom::TabSelectionMode::kMultiSignalScoring;
+
+  // If set, only tabs with a model score of at least `min_model_score` will be
+  // selected.
+  std::optional<float> min_model_score;
 };
 
 // A service used to determine the relevant context for a given task.
 class ContextualTasksContextService
     : public KeyedService,
-      public passage_embeddings::EmbedderMetadataObserver {
+      public passage_embeddings::EmbedderMetadataObserver,
+      public passage_embeddings::PageEmbeddingsService::Observer {
  public:
   ContextualTasksContextService(
       Profile* profile,
       passage_embeddings::PageEmbeddingsService* page_embeddings_service,
       passage_embeddings::EmbedderMetadataProvider* embedder_metadata_provider,
       passage_embeddings::Embedder* embedder,
-      OptimizationGuideKeyedService* optimization_guide_keyed_service);
+      OptimizationGuideKeyedService* optimization_guide_keyed_service,
+      page_content_annotations::PageContentExtractionService*
+          page_content_extraction_service);
   ContextualTasksContextService(const ContextualTasksContextService&) = delete;
   ContextualTasksContextService operator=(
       const ContextualTasksContextService&) = delete;
@@ -86,11 +98,15 @@ class ContextualTasksContextService
   void EmbedderMetadataUpdated(
       passage_embeddings::EmbedderMetadata metadata) override;
 
+  // passage_embeddings::PageEmbeddingsService::Observer:
+  passage_embeddings::PageEmbeddingsService::Priority GetDefaultPriority()
+      const override;
+
   // Callback invoked when the embedding for `query` is ready.
   void OnQueryEmbeddingReady(
       const std::string& query,
+      const TabSelectionOptions& options,
       base::TimeTicks start_time,
-      TabSelectionMode tab_selection_mode,
       const std::vector<GURL>& explicit_urls,
       base::OnceCallback<void(std::vector<content::WebContents*>)> callback,
       std::vector<std::string> passages,
@@ -98,16 +114,22 @@ class ContextualTasksContextService
       passage_embeddings::Embedder::TaskId task_id,
       passage_embeddings::ComputeEmbeddingsStatus status);
 
+  // Returns all tabs for the profile that are eligible for selection.
+  std::vector<content::WebContents*> GetAllEligibleTabs();
+
   // Returns the relevant tabs for `query` based on given `tab_selection_mode`.
   std::vector<content::WebContents*> SelectRelevantTabs(
       const std::string& query,
+      const TabSelectionOptions& options,
       const passage_embeddings::Embedding& query_embedding,
       const std::vector<content::WebContents*>& all_tabs,
-      TabSelectionMode tab_selection_mode);
+      const std::vector<GURL>& explicit_urls,
+      optimization_guide::proto::ContextualTasksContextQuality* quality_log);
 
   // Selects tabs based on embeddings match.
   std::vector<content::WebContents*> SelectTabsByEmbeddingsMatch(
       const std::string& query,
+      const TabSelectionOptions& options,
       const passage_embeddings::Embedding& query_embedding,
       const std::vector<content::WebContents*>& all_tabs);
 
@@ -115,15 +137,21 @@ class ContextualTasksContextService
   // tab recency etc.
   std::vector<content::WebContents*> SelectTabsByMultiSignalScore(
       const std::string& query,
+      const TabSelectionOptions& options,
       const passage_embeddings::Embedding& query_embedding,
-      const std::vector<content::WebContents*>& all_tabs);
+      const std::vector<content::WebContents*>& all_tabs,
+      const std::vector<GURL>& explicit_urls,
+      optimization_guide::proto::ContextualTasksContextQuality* quality_log);
 
   // Returns the duration since the tab was last active.
   std::optional<base::TimeDelta> GetDurationSinceLastActive(
       content::WebContents* web_contents);
 
-  // Whether the embedder is available.
-  bool is_embedder_available_ = false;
+  // Returns whether the tab should be added to the selection.
+  bool ShouldAddTabToSelection(content::WebContents* web_contents);
+
+  // The version of the embedder model.
+  std::optional<int64_t> embedder_model_version_;
 
   // Not owned. Guaranteed to outlive `this`.
   raw_ptr<Profile> profile_;
@@ -132,11 +160,16 @@ class ContextualTasksContextService
       embedder_metadata_provider_;
   raw_ptr<passage_embeddings::Embedder> embedder_;
   raw_ptr<OptimizationGuideKeyedService> optimization_guide_keyed_service_;
+  raw_ptr<page_content_annotations::PageContentExtractionService>
+      page_content_extraction_service_;
   raw_ptr<const base::TickClock> tick_clock_;
 
   base::ScopedObservation<passage_embeddings::EmbedderMetadataProvider,
                           passage_embeddings::EmbedderMetadataObserver>
-      scoped_observation_{this};
+      scoped_embedder_metadata_provider_observation_{this};
+  base::ScopedObservation<passage_embeddings::PageEmbeddingsService,
+                          passage_embeddings::PageEmbeddingsService::Observer>
+      scoped_page_embeddings_service_observation_{this};
 
   base::WeakPtrFactory<ContextualTasksContextService> weak_ptr_factory_{this};
 };

@@ -24,6 +24,7 @@
 #include "chrome/grit/lens_shared_resources_map.h"
 #include "chrome/grit/lens_untrusted_resources.h"
 #include "chrome/grit/lens_untrusted_resources_map.h"
+#include "components/contextual_search/contextual_search_metrics_recorder.h"
 #include "components/lens/lens_features.h"
 #include "components/strings/grit/components_strings.h"
 #include "content/public/browser/web_contents.h"
@@ -31,7 +32,6 @@
 #include "content/public/browser/web_ui_data_source.h"
 #include "third_party/lens_server_proto/aim_communication.pb.h"
 #include "ui/base/l10n/l10n_util.h"
-#include "ui/webui/color_change_listener/color_change_handler.h"
 #include "ui/webui/resources/cr_components/composebox/composebox.mojom.h"
 #include "ui/webui/webui_util.h"
 
@@ -191,6 +191,15 @@ LensSidePanelUntrustedUI::LensSidePanelUntrustedUI(content::WebUI* web_ui)
   html_source->AddBoolean("composeboxShowRecentTabChip", false);
   // Enable submit button.
   html_source->AddBoolean("composeboxShowSubmit", true);
+  // Enables a fix that causes no flickering when transitioning between ZPS and
+  // typed suggestions.
+  html_source->AddBoolean("composeboxNoFlickerSuggestionsFix", true);
+  // Specify metrics source.
+  html_source->AddString(
+      "composeboxSource",
+      contextual_search::ContextualSearchMetricsRecorder::
+          ContextualSearchSourceToString(
+              contextual_search::ContextualSearchSource::kLens));
 
   // Add strings for post message communication with the remote UI.
   lens::ClientToAimMessage handshake_ping;
@@ -216,6 +225,9 @@ LensSidePanelUntrustedUI::LensSidePanelUntrustedUI(content::WebUI* web_ui)
           ? "//resources/cr_components/searchbox/icons/google_g_cr23.svg"
           : "//resources/cr_components/searchbox/icons/google_g.svg");
   html_source->AddBoolean("reportMetrics", false);
+  html_source->AddLocalizedString(
+      "lensSearchButtonLabel",
+      IDS_TOOLTIP_LENS_REINVOKE_VISUAL_SELECTION_A11Y_LABEL);
   html_source->AddLocalizedString("searchBoxHint",
                                   IDS_GOOGLE_LENS_SEARCH_BOX_EMPTY_HINT);
   html_source->AddLocalizedString("searchBoxHintMultimodal",
@@ -266,12 +278,6 @@ void LensSidePanelUntrustedUI::BindInterface(
         receiver) {
   lens_ghost_loader_page_factory_receiver_.reset();
   lens_ghost_loader_page_factory_receiver_.Bind(std::move(receiver));
-}
-
-void LensSidePanelUntrustedUI::BindInterface(
-    mojo::PendingReceiver<color_change_listener::mojom::PageHandler> receiver) {
-  color_provider_handler_ = std::make_unique<ui::ColorChangeHandler>(
-      web_ui()->GetWebContents(), std::move(receiver));
 }
 
 void LensSidePanelUntrustedUI::BindInterface(

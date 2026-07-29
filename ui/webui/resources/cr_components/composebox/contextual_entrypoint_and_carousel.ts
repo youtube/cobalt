@@ -1,10 +1,12 @@
 // Copyright 2025 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+
+import './composebox_tool_chip.js';
 import './context_menu_entrypoint.js';
 import './file_carousel.js';
-import './recent_tab_chip.js';
 import './icons.html.js';
+import './recent_tab_chip.js';
 import '//resources/cr_elements/cr_icon_button/cr_icon_button.js';
 
 import type {CrIconButtonElement} from '//resources/cr_elements/cr_icon_button/cr_icon_button.js';
@@ -19,7 +21,7 @@ import type {Url} from '//resources/mojo/url/mojom/url.mojom-webui.js';
 
 import type {ComposeboxFile, ContextualUpload} from './common.js';
 import {FileUploadErrorType, FileUploadStatus} from './composebox_query.mojom-webui.js';
-import type {ContextMenuEntrypointElement} from './context_menu_entrypoint.js';
+import {type ContextMenuEntrypointElement, GlifAnimationState} from './context_menu_entrypoint.js';
 import {getCss} from './contextual_entrypoint_and_carousel.css.js';
 import {getHtml} from './contextual_entrypoint_and_carousel.html.js';
 import type {ComposeboxFileCarouselElement} from './file_carousel.js';
@@ -57,6 +59,8 @@ const FILE_VALIDATION_ERRORS_MAP = new Map<FileUploadErrorType, string>([
   ],
 ]);
 
+// LINT.IfChange(FileValidationError)
+
 // These values are persisted to logs. Entries should not be renumbered and
 // numeric values should never be reused.
 const enum ComposeboxFileValidationError {
@@ -66,6 +70,8 @@ const enum ComposeboxFileValidationError {
   FILE_SIZE_TOO_LARGE = 3,
   MAX_VALUE = FILE_SIZE_TOO_LARGE,
 }
+
+// LINT.ThenChange(//tools/metrics/histograms/metadata/contextual_search/enums.xml:FileValidationError)
 
 // These values are sorted by precedence. The error with the highest value
 // will be the one shown to the user if multiple errors apply.
@@ -105,6 +111,7 @@ export class ContextualEntrypointAndCarouselElement extends I18nMixinLit
         reflect: true,
         type: Boolean,
       },
+      contextMenuGlifAnimationState: {type: String, reflect: true},
 
       // =========================================================================
       // Protected properties
@@ -149,6 +156,8 @@ export class ContextualEntrypointAndCarouselElement extends I18nMixinLit
   accessor tabSuggestions: TabInfo[] = [];
   accessor carouselOnTop_: boolean = false;
   accessor showVoiceSearch: boolean = false;
+  accessor contextMenuGlifAnimationState: GlifAnimationState =
+      GlifAnimationState.INELIGIBLE;
 
   protected accessor attachmentFileTypes_: string =
       loadTimeData.getString('composeboxAttachmentFileTypes');
@@ -179,8 +188,7 @@ export class ContextualEntrypointAndCarouselElement extends I18nMixinLit
 
   protected get shouldShowRecentTabChip_(): boolean {
     return !!this.recentTabForChip_ && this.showDropdown &&
-        this.showRecentTabChip_ && this.files_.size === 0 &&
-        !this.inToolMode_;
+        this.showRecentTabChip_ && this.files_.size === 0 && !this.inToolMode_;
   }
 
   private maxFileCount_: number =
@@ -189,6 +197,8 @@ export class ContextualEntrypointAndCarouselElement extends I18nMixinLit
       loadTimeData.getInteger('composeboxFileMaxSize');
   private createImageModeEnabled_: boolean =
       loadTimeData.getBoolean('composeboxShowCreateImageButton');
+  private composeboxSource_: string =
+      loadTimeData.getString('composeboxSource');
 
   override willUpdate(changedProperties: PropertyValues<this>) {
     super.willUpdate(changedProperties);
@@ -201,16 +211,15 @@ export class ContextualEntrypointAndCarouselElement extends I18nMixinLit
       // don't want to disable the context menu entrypoint because the user
       // should still be able to use the tool within the context menu.
       const isCreateImageToolAvailableWithImages =
-          this.createImageModeEnabled_ &&
-          this.hasImageFiles() && this.files_.size === 1;
+          this.createImageModeEnabled_ && this.hasImageFiles() &&
+          this.files_.size === 1;
       // `inputsDisabled_` decides whether or not the context menu entrypoint is
       // shown to the user. Only set `inputsDisabled_` to true if
       // 1. The max number of files is reached, and the create image tool button
       //    is not available.
       // 2. The user has an image uploaded and is in create image mode.
-      this.inputsDisabled_ =
-          (this.files_.size >= this.maxFileCount_ &&
-           !isCreateImageToolAvailableWithImages) ||
+      this.inputsDisabled_ = (this.files_.size >= this.maxFileCount_ &&
+                              !isCreateImageToolAvailableWithImages) ||
           (this.hasImageFiles() && this.inCreateImageMode_);
       this.showFileCarousel_ = this.files_.size > 0;
       this.fire('on-context-files-changed', {files: this.files_.size});
@@ -231,7 +240,7 @@ export class ContextualEntrypointAndCarouselElement extends I18nMixinLit
       if ('tabId' in file) {
         // If the composebox is being initialized with tab context, we want to
         // keep the context menu open to allow for multi-tab selection.
-        if (this.contextMenuEnabled_ && !file.delayUpload)  {
+        if (this.contextMenuEnabled_ && !file.delayUpload) {
           this.$.contextEntrypoint.openMenuForMultiSelection();
         }
         this.addTabContext_(new CustomEvent('addTabContext', {
@@ -265,13 +274,15 @@ export class ContextualEntrypointAndCarouselElement extends I18nMixinLit
     let errorMessage = null;
     let file = this.files_.get(token);
     if (file) {
-      if ([FileUploadStatus.kValidationFailed,
-           FileUploadStatus.kUploadFailed,
-           FileUploadStatus.kUploadExpired].includes(status)) {
+      if ([
+            FileUploadStatus.kValidationFailed,
+            FileUploadStatus.kUploadFailed,
+            FileUploadStatus.kUploadExpired,
+          ].includes(status)) {
         this.files_.delete(token);
         if (file.tabId) {
           this.addedTabsIds_ = new Map([...this.addedTabsIds_.entries()].filter(
-            ([id, _]) => id !== file!.tabId));
+              ([id, _]) => id !== file!.tabId));
         }
         switch (status) {
           case FileUploadStatus.kValidationFailed:
@@ -309,9 +320,8 @@ export class ContextualEntrypointAndCarouselElement extends I18nMixinLit
     }
 
     this.files_ = new Map(undeletableFiles.map(file => [file.uuid, file]));
-    this.addedTabsIds_ = new Map(
-        undeletableFiles.filter(file => file.tabId)
-            .map(file => [file.tabId!, file.uuid]));
+    this.addedTabsIds_ = new Map(undeletableFiles.filter(file => file.tabId)
+                                     .map(file => [file.tabId!, file.uuid]));
   }
 
   resetModes() {
@@ -372,13 +382,12 @@ export class ContextualEntrypointAndCarouselElement extends I18nMixinLit
   }
 
   private addTabFromAttachment_(tabAttachment: TabAttachmentStub) {
-    // TODO(crbug.com/459920991): Figure out if we should delay upload.
     this.addTabContext_(new CustomEvent('addTabContext', {
       detail: {
         id: tabAttachment.tabId,
         title: tabAttachment.title,
         url: tabAttachment.url,
-        delayUpload: /*delay_upload=*/ true,
+        delayUpload: /*delay_upload=*/ false,
       },
     }));
   }
@@ -400,7 +409,6 @@ export class ContextualEntrypointAndCarouselElement extends I18nMixinLit
         this.setInitialMode(ComposeboxMode.CREATE_IMAGE);
         break;
       default:
-        this.resetModes();
     }
   }
 
@@ -412,7 +420,7 @@ export class ContextualEntrypointAndCarouselElement extends I18nMixinLit
     const file = this.files_.get(e.detail.uuid);
     if (file?.tabId) {
       this.addedTabsIds_ = new Map([...this.addedTabsIds_.entries()].filter(
-            ([id, _]) => id !== file.tabId));
+          ([id, _]) => id !== file.tabId));
     }
 
     this.files_ = new Map([...this.files_.entries()].filter(
@@ -450,11 +458,19 @@ export class ContextualEntrypointAndCarouselElement extends I18nMixinLit
 
     this.recordFileValidationMetric_(metric);
     this.fire('on-file-validation-error', {
-        errorMessage: this.i18n(errorMessage),
-      });
+      errorMessage: this.i18n(errorMessage),
+    });
   }
 
-protected processFiles_(files: FileList|null) {
+  private isFileAllowed_(file: File, acceptedFileTypes: string): boolean {
+    const fileType = file.type.toLowerCase();
+    const allowedTypes = acceptedFileTypes.split(',');
+    return allowedTypes.some(type => {
+      return fileType === type;
+    });
+  }
+
+  protected processFiles_(files: FileList|null) {
     if (!files || files.length === 0) {
       return;
     }
@@ -473,13 +489,11 @@ protected processFiles_(files: FileList|null) {
         errorToDisplay = Math.max(errorToDisplay, sizeError);
         continue;
       }
-      // TODO(crbug.com/460228091): The current frontend check is broader than the
-      // backend's validation (e.g. allows SVGs). This can lead to a file
-      // reserving a slot here, only to be rejected by the backend later
-      // resulting in fewer files uploaded as expected.
-      // In the future, only reserve slots when the file upload is successful.
-      if (!file.type.includes('pdf') && !file.type.includes('image')) {
-        errorToDisplay = Math.max(errorToDisplay, ProcessFilesError.INVALID_TYPE);
+
+      if (!this.isFileAllowed_(file, this.imageFileTypes_) &&
+          !this.isFileAllowed_(file, this.attachmentFileTypes_)) {
+        errorToDisplay =
+            Math.max(errorToDisplay, ProcessFilesError.INVALID_TYPE);
         continue;
       }
 
@@ -493,7 +507,6 @@ protected processFiles_(files: FileList|null) {
     }
 
     this.handleProcessFilesError_(errorToDisplay);
-
   }
 
   protected onFileChange_(e: Event) {
@@ -514,7 +527,10 @@ protected processFiles_(files: FileList|null) {
   }
 
   protected addTabContext_(e: CustomEvent<{
-      id: number, title: string, url: Url, delayUpload: boolean,
+    id: number,
+    title: string,
+    url: Url,
+    delayUpload: boolean,
   }>) {
     e.stopPropagation();
 
@@ -570,8 +586,9 @@ protected processFiles_(files: FileList|null) {
   private recordFileValidationMetric_(
       enumValue: ComposeboxFileValidationError) {
     chrome.metricsPrivate.recordEnumerationValue(
-        'NewTabPage.Composebox.File.WebUI.UploadAttemptFailure', enumValue,
-        ComposeboxFileValidationError.MAX_VALUE + 1);
+        'ContextualSearch.File.WebUI.UploadAttemptFailure.' +
+            this.composeboxSource_,
+        enumValue, ComposeboxFileValidationError.MAX_VALUE + 1);
   }
 }
 

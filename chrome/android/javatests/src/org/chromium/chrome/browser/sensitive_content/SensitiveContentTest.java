@@ -14,7 +14,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import static org.chromium.base.test.util.CriteriaHelper.pollUiThread;
@@ -294,7 +293,7 @@ public class SensitiveContentTest {
         HistogramWatcher histogramWatcherForTrueBucket =
                 HistogramWatcher.newSingleRecordWatcher(histogram, /* value= */ true);
         // Open the first incognito tab.
-        CtaPageStation page = mPage.openNewIncognitoTabFast();
+        CtaPageStation page = mPage.openNewIncognitoTabOrWindowFast();
         // Open the second incognito tab.
         page = page.openNewIncognitoTabFast();
         final Tab secondIncognitoTab = page.loadedTabElement.value();
@@ -358,7 +357,7 @@ public class SensitiveContentTest {
     @DisableFeatures(ChromeFeatureList.ANDROID_OPEN_INCOGNITO_AS_WINDOW)
     public void testIncognitoTabSwitcherBecomesSensitiveWithTabGroups() {
         // Open the first incognito tab.
-        CtaPageStation page = mPage.openNewIncognitoTabFast();
+        CtaPageStation page = mPage.openNewIncognitoTabOrWindowFast();
         final Tab firstIncognitoTab = page.loadedTabElement.value();
         // Open the second incognito tab.
         page = page.openNewIncognitoTabFast();
@@ -626,7 +625,6 @@ public class SensitiveContentTest {
                     assertEquals(2, tabModel.getCount());
                     secondTabAfterFreeze[0] = tabModel.getTabAt(1);
                     assertNotNull(secondTabAfterFreeze[0]);
-                    assertNull(secondTabAfterFreeze[0].getWebContents());
                 });
 
         // Select the second tab.

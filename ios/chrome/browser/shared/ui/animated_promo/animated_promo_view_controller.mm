@@ -46,9 +46,14 @@ constexpr CGFloat kCustomTopOffsetForRegularSizeClass = -24;
 
   // TopAnchor constraint for `alertScreen`.
   NSLayoutConstraint* _alertScreenTopAnchorConstraint;
+}
 
-  // The navigation bar for the promo view.
-  UINavigationBar* _navigationBar;
+- (instancetype)init {
+  self = [super initWithNibName:nil bundle:nil];
+  if (self) {
+    _useLegacyDarkMode = YES;
+  }
+  return self;
 }
 
 #pragma mark - UIViewController
@@ -62,9 +67,6 @@ constexpr CGFloat kCustomTopOffsetForRegularSizeClass = -24;
   alertScreen.configuration.primaryActionString = _primaryActionString;
   alertScreen.configuration.secondaryActionString = _secondaryActionString;
   [alertScreen reloadConfiguration];
-  // The `alertScreen` itself should not show its own dismiss button, as
-  // `AnimatedPromoViewController` will manage one for the whole view.
-  alertScreen.showDismissBarButton = NO;
   alertScreen.actionHandler = _actionHandler;
   alertScreen.shouldFillInformationStack = YES;
   alertScreen.underTitleView = _underTitleView;
@@ -72,94 +74,55 @@ constexpr CGFloat kCustomTopOffsetForRegularSizeClass = -24;
   _alertScreen = alertScreen;
 
   _animationViewWrapper = [self createAnimation:_animationName];
-  _animationViewWrapperDarkMode = [self createAnimation:_animationNameDarkMode];
 
   // Set the text localization.
   [_animationViewWrapper setDictionaryTextProvider:_animationTextProvider];
-  [_animationViewWrapperDarkMode
-      setDictionaryTextProvider:_animationTextProvider];
+
+  if (self.useLegacyDarkMode) {
+    _animationViewWrapperDarkMode =
+        [self createAnimation:_animationNameDarkMode];
+    [_animationViewWrapperDarkMode
+        setDictionaryTextProvider:_animationTextProvider];
+  }
+
+  if (_animationBackgroundColor) {
+    _animationViewWrapper.animationView.backgroundColor =
+        _animationBackgroundColor;
+    _animationViewWrapperDarkMode.animationView.backgroundColor =
+        _animationBackgroundColor;
+  }
 
   [super viewDidLoad];
 
   self.view.backgroundColor = [UIColor colorNamed:kBackgroundColor];
-
-  if (self.showDismissBarButton && ![self isAnyNavigationBarVisible]) {
-    [self setupNavigationBar];
-  } else if (self.showDismissBarButton && [self isAnyNavigationBarVisible]) {
-    self.navigationItem.rightBarButtonItem = [[UIBarButtonItem alloc]
-        initWithBarButtonSystemItem:UIBarButtonSystemItemDone
-                             target:self
-                             action:@selector(didTapDismissButton)];
-  }
 
   if (_animationViewWrapper) {
     [self configureAndLayoutAnimationView];
   }
   [self configureAlertScreen];
   [self layoutAlertScreen];
-  // Set up UI with current trait first.
-  [self updateUIOnTraitChange];
 
-  NSArray<UITrait>* traits = TraitCollectionSetForTraits(
-      @[ UITraitVerticalSizeClass.class, UITraitUserInterfaceStyle.class ]);
-  [self registerForTraitChanges:traits
-                     withAction:@selector(updateUIOnTraitChange)];
+  // Set up UI with current trait first.
+  [self updateUIForSizeClass];
+  [self updateForDarkMode];
+
+  [self registerForTraitChanges:@[ UITraitVerticalSizeClass.class ]
+                     withAction:@selector(updateUIForSizeClass)];
+
+  [self registerForTraitChanges:@[ UITraitUserInterfaceStyle.class ]
+                     withAction:@selector(updateForDarkMode)];
 }
 
 #pragma mark - Private
 
 // Helper to determine if any navigation bar is currently visible.
 - (BOOL)isAnyNavigationBarVisible {
-  if (_navigationBar) {
-    return YES;
-  }
-
   if (self.navigationController.navigationBar &&
       !self.navigationController.navigationBarHidden) {
     return YES;
   }
 
   return NO;
-}
-
-// Sets up the navigation bar with a "Done" button.
-- (void)setupNavigationBar {
-  CHECK(self.showDismissBarButton);
-  CHECK(!self.navigationController);
-
-  _navigationBar = [[UINavigationBar alloc] init];
-  _navigationBar.translatesAutoresizingMaskIntoConstraints = NO;
-  _navigationBar.translucent = NO;
-  [_navigationBar setShadowImage:[[UIImage alloc] init]];
-  _navigationBar.barTintColor = [UIColor colorNamed:kBackgroundColor];
-
-  UINavigationItem* navigationItem = [[UINavigationItem alloc] init];
-  UIBarButtonItem* doneButton = [[UIBarButtonItem alloc]
-      initWithBarButtonSystemItem:UIBarButtonSystemItemDone
-                           target:self
-                           action:@selector(didTapDismissButton)];
-  navigationItem.rightBarButtonItem = doneButton;
-
-  [_navigationBar setItems:@[ navigationItem ]];
-
-  [self.view addSubview:_navigationBar];
-
-  [NSLayoutConstraint activateConstraints:@[
-    [_navigationBar.topAnchor
-        constraintEqualToAnchor:self.view.safeAreaLayoutGuide.topAnchor],
-    [_navigationBar.leadingAnchor
-        constraintEqualToAnchor:self.view.leadingAnchor],
-    [_navigationBar.trailingAnchor
-        constraintEqualToAnchor:self.view.trailingAnchor],
-  ]];
-}
-
-// Action for the "Done" button in the navigation bar.
-- (void)didTapDismissButton {
-  if ([self.actionHandler
-          respondsToSelector:@selector(confirmationAlertDismissAction)]) {
-    [self.actionHandler confirmationAlertDismissAction];
-  }
 }
 
 // The offset from center Y to place the divider between the animation and the
@@ -182,9 +145,6 @@ constexpr CGFloat kCustomTopOffsetForRegularSizeClass = -24;
 - (void)configureAlertScreen {
   DCHECK(_alertScreen);
   _alertScreen.imageHasFixedSize = YES;
-  // The `alertScreen` itself should not show its own dismiss button, as
-  // `AnimatedPromoViewController` will manage one for the whole view.
-  _alertScreen.showDismissBarButton = NO;
   _alertScreen.titleTextStyle = UIFontTextStyleTitle2;
   _alertScreen.topAlignedLayout = YES;
   _alertScreen.customSpacing = kCustomSpacing;
@@ -195,13 +155,8 @@ constexpr CGFloat kCustomTopOffsetForRegularSizeClass = -24;
     spacingAfterImage = kCustomSpacingAfterImageWithoutAnimation;
   }
 
-  CGFloat spacingBeforeImage = 0;
-
-  if (![self isAnyNavigationBarVisible]) {
-    spacingBeforeImage = kCustomSpacingAtTopIfNoNavigationBar;
-  }
-
-  _alertScreen.customSpacingBeforeImageIfNoNavigationBar = spacingBeforeImage;
+  _alertScreen.customSpacingBeforeImageIfNoNavigationBar =
+      kCustomSpacingAtTopIfNoNavigationBar;
   _alertScreen.customSpacingAfterImage = spacingAfterImage;
 
   [self addChildViewController:_alertScreen];
@@ -251,15 +206,19 @@ constexpr CGFloat kCustomTopOffsetForRegularSizeClass = -24;
 // Configures the animation view and its constraints.
 - (void)configureAndLayoutAnimationView {
   [self configureAndLayoutAnimationViewForWrapper:_animationViewWrapper];
-  [self
-      configureAndLayoutAnimationViewForWrapper:_animationViewWrapperDarkMode];
+  if (self.useLegacyDarkMode) {
+    [self configureAndLayoutAnimationViewForWrapper:
+              _animationViewWrapperDarkMode];
 
-  BOOL darkModeEnabled =
-      (self.traitCollection.userInterfaceStyle == UIUserInterfaceStyleDark);
+    BOOL darkModeEnabled =
+        (self.traitCollection.userInterfaceStyle == UIUserInterfaceStyleDark);
 
-  _animationViewWrapper.animationView.hidden = darkModeEnabled;
-  _animationViewWrapperDarkMode.animationView.hidden = !darkModeEnabled;
-  [self updateAnimationsPlaying];
+    _animationViewWrapper.animationView.hidden = darkModeEnabled;
+    _animationViewWrapperDarkMode.animationView.hidden = !darkModeEnabled;
+    [self updateAnimationsPlaying];
+  } else {
+    [_animationViewWrapper play];
+  }
 }
 
 // Helper method to configure the animation view and its constraints for the
@@ -306,24 +265,44 @@ constexpr CGFloat kCustomTopOffsetForRegularSizeClass = -24;
 
 // Called when the device is rotated or dark mode is enabled/disabled. (Un)Hide
 // the animations accordingly.
-- (void)updateUIOnTraitChange {
-  BOOL darkModeEnabled =
-      (self.traitCollection.userInterfaceStyle == UIUserInterfaceStyleDark);
+- (void)updateUIForSizeClass {
   BOOL hidden = ![self shouldShowAnimation];
 
-  _animationViewWrapper.animationView.hidden = hidden || darkModeEnabled;
-  _animationViewWrapperDarkMode.animationView.hidden =
-      hidden || !darkModeEnabled;
+  if (self.useLegacyDarkMode) {
+    BOOL darkModeEnabled =
+        (self.traitCollection.userInterfaceStyle == UIUserInterfaceStyleDark);
 
-  if (_animationBackgroundColor) {
-    _animationViewWrapper.animationView.backgroundColor =
-        _animationBackgroundColor;
-    _animationViewWrapperDarkMode.animationView.backgroundColor =
-        _animationBackgroundColor;
+    _animationViewWrapper.animationView.hidden = hidden || darkModeEnabled;
+    _animationViewWrapperDarkMode.animationView.hidden =
+        hidden || !darkModeEnabled;
+  } else {
+    _animationViewWrapper.animationView.hidden = hidden;
   }
 
   [self updateAnimationsPlaying];
   [self updateAlertScreenTopAnchorConstraint];
+}
+
+// Updates the animations for the styl used (light/dark mode).
+- (void)updateForDarkMode {
+  if (self.useLegacyDarkMode) {
+    [self updateUIForSizeClass];
+    return;
+  }
+  if (self.traitCollection.userInterfaceStyle == UIUserInterfaceStyleDark) {
+    [self updateAnimationWithColorProvider:self.darkModeColorProvider];
+  } else {
+    [self updateAnimationWithColorProvider:self.lightModeColorProvider];
+  }
+}
+
+// Updates the _animationViewWrapper with colors from `colorProvider`.
+- (void)updateAnimationWithColorProvider:
+    (NSDictionary<NSString*, UIColor*>*)colorProvider {
+  for (NSString* keypath in colorProvider.allKeys) {
+    [_animationViewWrapper setColorValue:colorProvider[keypath]
+                              forKeypath:keypath];
+  }
 }
 
 @end

@@ -61,9 +61,10 @@ import org.chromium.chrome.browser.lens.LensQueryParams;
 import org.chromium.chrome.browser.lifecycle.PauseResumeWithNativeObserver;
 import org.chromium.chrome.browser.locale.LocaleManager;
 import org.chromium.chrome.browser.multiwindow.MultiInstanceManager;
+import org.chromium.chrome.browser.multiwindow.MultiInstanceManager.PersistedInstanceType;
 import org.chromium.chrome.browser.omnibox.UrlBar.UrlBarDelegate;
 import org.chromium.chrome.browser.omnibox.UrlBarCoordinator.SelectionState;
-import org.chromium.chrome.browser.omnibox.fusebox.NavigationAttachmentsCoordinator;
+import org.chromium.chrome.browser.omnibox.fusebox.FuseboxCoordinator;
 import org.chromium.chrome.browser.omnibox.geo.GeolocationHeader;
 import org.chromium.chrome.browser.omnibox.status.StatusCoordinator;
 import org.chromium.chrome.browser.omnibox.styles.OmniboxResourceProvider;
@@ -83,6 +84,7 @@ import org.chromium.chrome.browser.ui.default_browser_promo.DefaultBrowserPromoU
 import org.chromium.chrome.browser.ui.native_page.NativePage;
 import org.chromium.chrome.browser.ui.theme.BrandedColorScheme;
 import org.chromium.chrome.browser.util.ChromeAccessibilityUtil;
+import org.chromium.components.browser_ui.accessibility.AccessibilityFeatureMap;
 import org.chromium.components.browser_ui.accessibility.PageZoomIndicatorCoordinator;
 import org.chromium.components.browser_ui.styles.ChromeColors;
 import org.chromium.components.browser_ui.widget.animation.CancelAwareAnimatorListener;
@@ -233,7 +235,7 @@ class LocationBarMediator
     private final Supplier<@Nullable ModalDialogManager> mModalDialogManagerSupplier;
     private final ObservableSupplier<@AutocompleteRequestType Integer>
             mAutocompleteRequestTypeSupplier;
-    private final NavigationAttachmentsCoordinator mNavigationAttachmentsCoordinator;
+    private final FuseboxCoordinator mFuseboxCoordinator;
     private final boolean mPersistEditingState;
 
     private final ButtonToolbarWidthConsumer mBookmarkButtonToolbarWidthConsumer;
@@ -264,12 +266,12 @@ class LocationBarMediator
             Supplier<@Nullable ModalDialogManager> modalDialogManagerSupplier,
             ObservableSupplier<@AutocompleteRequestType Integer> autocompleteRequestTypeSupplier,
             @Nullable PageZoomIndicatorCoordinator pageZoomIndicatorCoordinator,
-            NavigationAttachmentsCoordinator navigationAttachmentsCoordinator,
+            FuseboxCoordinator fuseboxCoordinator,
             @Nullable MultiInstanceManager multiInstanceManager) {
         mContext = context;
         mLocationBarLayout = locationBarLayout;
         mLocationBarDataProvider = locationBarDataProvider;
-        mNavigationAttachmentsCoordinator = navigationAttachmentsCoordinator;
+        mFuseboxCoordinator = fuseboxCoordinator;
         mLocationBarDataProvider.addObserver(this);
         mEmbedderUiOverrides = embedderUiOverrides;
         mOverrideUrlLoadingDelegate = overrideUrlLoadingDelegate;
@@ -629,7 +631,7 @@ class LocationBarMediator
         // need to communicate with other coordinators like this.
         String userText = mUrlCoordinator.getTextWithoutAutocomplete();
         mStatusCoordinator.onDefaultMatchClassified(
-                !NavigationAttachmentsCoordinator.isConventionalFulfillmentType(
+                !FuseboxCoordinator.isConventionalFulfillmentType(
                                 mAutocompleteRequestTypeSupplier.get())
                         ||
                         // Zero suggest is always considered Search.
@@ -752,8 +754,11 @@ class LocationBarMediator
 
             TabModelSelector tabModelSelector = mTabModelSelectorSupplier.get();
             if (omniboxLoadUrlParams.openInNewWindow && mMultiInstanceManager != null) {
-                mMultiInstanceManager.openUrlInSelectedWindow(
-                        loadUrlParams, currentTab.getParentId(), /* preferNew= */ true);
+                mMultiInstanceManager.openUrlInOtherWindow(
+                        loadUrlParams,
+                        currentTab.getParentId(),
+                        /* preferNew= */ true,
+                        PersistedInstanceType.ACTIVE);
             } else if (omniboxLoadUrlParams.openInNewTab && tabModelSelector != null) {
                 tabModelSelector.openNewTab(
                         loadUrlParams,
@@ -784,6 +789,7 @@ class LocationBarMediator
     /** Recalculates the visibility of the buttons inside the location bar. */
     /* package */ void updateButtonVisibility() {
         updateDeleteButtonVisibility();
+        updateNavigateButtonVisibility();
         updateInstallButtonVisibility();
         if (!mIsComposeplateEnabled || mIsComposeplateV2Enabled) {
             updateMicButtonVisibility();
@@ -878,7 +884,7 @@ class LocationBarMediator
     /* package */ void zoomButtonClicked(View view) {
         WebContents webContents = getWebContentsForCurrentTab();
         if (mPageZoomIndicatorCoordinator == null || webContents == null) return;
-        assert ChromeFeatureList.sAndroidZoomIndicator.isEnabled();
+        assert AccessibilityFeatureMap.sAndroidZoomIndicator.isEnabled();
         mPageZoomIndicatorCoordinator.show(webContents);
     }
 
@@ -1316,6 +1322,7 @@ class LocationBarMediator
         if (mAutocompleteCoordinator != null) {
             mAutocompleteCoordinator.updateVisualsForState(mBrandedColorScheme);
         }
+        mFuseboxCoordinator.updateVisualsForState(mBrandedColorScheme);
     }
 
     /** Returns the primary color based on the url focus, and incognito state. */
@@ -1377,10 +1384,20 @@ class LocationBarMediator
 
     private void updateDeleteButtonVisibility() {
         mLocationBarLayout.setDeleteButtonVisibility(isUrlBarFocusedWithUserInput());
-        mLocationBarLayout.setNavigateButtonVisibility(
+    }
+
+    private void updateNavigateButtonVisibility() {
+        @AutocompleteRequestType
+        int autocompleteRequestType = mAutocompleteRequestTypeSupplier.get();
+        boolean isMultimodalEnabled = OmniboxFeatures.sOmniboxMultimodalInput.isEnabled();
+        boolean navigateButtonVisible =
                 isUrlBarFocusedWithUserInput()
-                        && mAutocompleteRequestTypeSupplier.get()
-                                == AutocompleteRequestType.AI_MODE);
+                        && isMultimodalEnabled
+                        && (mUrlCoordinator.isTextWrapped()
+                                || autocompleteRequestType == AutocompleteRequestType.AI_MODE
+                                || autocompleteRequestType
+                                        == AutocompleteRequestType.IMAGE_GENERATION);
+        mLocationBarLayout.setNavigateButtonVisibility(navigateButtonVisible);
     }
 
     /* package */ void onZoomLevelChanged() {
@@ -1390,7 +1407,7 @@ class LocationBarMediator
     @VisibleForTesting
     boolean shouldShowZoomButton() {
         if (mUrlHasFocus || mIsUrlFocusChangeInProgress) return false;
-        if (!ChromeFeatureList.sAndroidZoomIndicator.isEnabled()
+        if (!AccessibilityFeatureMap.sAndroidZoomIndicator.isEnabled()
                 || !mIsTablet
                 || mPageZoomIndicatorCoordinator == null
                 || getWebContentsForCurrentTab() == null
@@ -1766,7 +1783,7 @@ class LocationBarMediator
         boolean urlHasFocus = mUrlHasFocus;
         if (shouldBeFocused) {
             if (requestType == AutocompleteRequestType.AI_MODE) {
-                mNavigationAttachmentsCoordinator.onAiModeActivatedFromNtp();
+                mFuseboxCoordinator.onAiModeActivatedFromNtp();
             }
             if (!urlHasFocus) {
                 recordOmniboxFocusReason(reason);
@@ -2073,6 +2090,7 @@ class LocationBarMediator
         mLocationBarLayout.setMicButtonTint(tint);
         mLocationBarLayout.setLensButtonTint(tint);
         mLocationBarLayout.setInstallButtonTint(tint);
+        mLocationBarLayout.setZoomButtonTint(tint);
         if (mIsComposeplateEnabled && !mIsComposeplateV2Enabled) {
             mLocationBarLayout.setComposeplateButtonTint(tint);
         }

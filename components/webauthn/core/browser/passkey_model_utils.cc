@@ -161,6 +161,11 @@ std::vector<uint8_t> ExtensionInputData::EvaluateHMAC(
                           : base::as_byte_span(hmac_secret));
 }
 
+SerializedAttestationObject::SerializedAttestationObject() = default;
+SerializedAttestationObject::SerializedAttestationObject(
+    SerializedAttestationObject&& other) = default;
+SerializedAttestationObject::~SerializedAttestationObject() = default;
+
 std::vector<sync_pb::WebauthnCredentialSpecifics> FilterShadowedCredentials(
     base::span<const sync_pb::WebauthnCredentialSpecifics> passkeys) {
   // Collect all explicitly shadowed credentials.
@@ -187,10 +192,7 @@ std::vector<sync_pb::WebauthnCredentialSpecifics> FilterShadowedCredentials(
       std::make_move_iterator(grouped.end()));
 }
 
-bool IsPasskeyValid(const sync_pb::WebauthnCredentialSpecifics& passkey) {
-  // The maximum byte length of the WebauthnCredentialSpecifics `user_id` field.
-  static constexpr size_t kUserIdMaxLength = 64u;
-
+bool IsGpmPasskeyValid(const sync_pb::WebauthnCredentialSpecifics& passkey) {
   return passkey.sync_id().size() == kSyncIdLength &&
          passkey.credential_id().size() == kCredentialIdLength &&
          !passkey.rp_id().empty() &&
@@ -342,7 +344,7 @@ std::vector<uint8_t> MakeAuthenticatorDataForAssertion(std::string_view rp_id,
       .SerializeToByteArray();
 }
 
-std::vector<uint8_t> MakeAttestationObjectForCreation(
+SerializedAttestationObject MakeAttestationObjectForCreation(
     std::string_view rp_id,
     bool did_complete_uv,
     base::span<const uint8_t> credential_id,
@@ -368,11 +370,17 @@ std::vector<uint8_t> MakeAttestationObjectForCreation(
   device::AuthenticatorData authenticator_data(
       crypto::hash::Sha256(rp_id), flags, kSignatureCounter,
       std::move(attested_credential_data), /*extensions=*/std::nullopt);
+  SerializedAttestationObject serialized_attestation_object;
+  serialized_attestation_object.authenticator_data =
+      authenticator_data.SerializeToByteArray();
+
   device::AttestationObject attestationObject(
       std::move(authenticator_data),
       std::make_unique<device::NoneAttestationStatement>());
+  serialized_attestation_object.attestation_object =
+      cbor::Writer::Write(device::AsCBOR(attestationObject)).value();
 
-  return cbor::Writer::Write(device::AsCBOR(attestationObject)).value();
+  return serialized_attestation_object;
 }
 
 std::optional<std::vector<uint8_t>> GenerateEcSignature(

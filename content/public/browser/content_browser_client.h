@@ -796,7 +796,7 @@ class CONTENT_EXPORT ContentBrowserClient {
 #if !BUILDFLAG(IS_ANDROID)
   // Returns true if the given |url| is for the initial WebUI scheme used
   // by features like the WebUI reload button.
-  virtual bool IsInitialWebUIScheme(const GURL& url);
+  virtual bool IsInitialWebUIURL(const GURL& url);
 #endif  // !BUILDFLAG(IS_ANDROID)
 
   // Allows the embedder to enable access to Isolated Context Web APIs for the
@@ -3156,15 +3156,6 @@ class CONTENT_EXPORT ContentBrowserClient {
       BrowserContext* browser_context,
       blink::WebMediaDeviceInfoArray& infos);
 
-  // Allows the embedder to override the proxy bypass policy used for IP
-  // Protection.
-  // Even if a domain is part of the masked domain list and is
-  // eligible for IP Protection, the embedder can use a certain policy to bypass
-  // certain network requests from IP Protection.
-  // By default, there is no bypass policy used.
-  virtual network::mojom::IpProtectionProxyBypassPolicy
-  GetIpProtectionProxyBypassPolicy();
-
   // Prewarms the HTTP disk cache entries for the given URL and the
   // subresources if possible.
   // `initiator_origin` is the origin that triggers the prewarm request,
@@ -3398,6 +3389,14 @@ class CONTENT_EXPORT ContentBrowserClient {
   // Records a browser-assisted login. This is used to record metrics in the
   // embedder. This covers federated and webauthn assisted logins.
   virtual void RecordAssistedLogin(AssistedLoginType login_type);
+
+  // Determines whether storage quota behavior is overridden by either a user
+  // choice or enterprise policy. True should result in static values being
+  // returned by quota APIs, false in dynamic ones, regardless of command line
+  // flags or launches.
+  // Returns std::nullopt if there is no overridden value.
+  virtual std::optional<bool> GetOverrideValueForStaticStorageQuota(
+      BrowserContext* browser_context);
 };
 
 }  // namespace content

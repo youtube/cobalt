@@ -51,7 +51,24 @@ class PasswordManagerUIHandler : public password_manager::mojom::PageHandler {
   void RevokeActorLoginPermission(
       password_manager::mojom::ActorLoginPermissionPtr site) override;
 
+  void ChangePasswordManagerPin(
+      ChangePasswordManagerPinCallback callback) override;
+
+  void IsPasswordManagerPinAvailable(
+      IsPasswordManagerPinAvailableCallback callback) override;
+
   void ShowAddShortcutDialog() override;
+
+  void IsAccountStorageEnabled(
+      IsAccountStorageEnabledCallback callback) override;
+
+  void SetAccountStorageEnabled(bool enabled) override;
+
+  void ShouldShowAccountStorageSettingToggle(
+      ShouldShowAccountStorageSettingToggleCallback callback) override;
+
+  void SwitchBiometricAuthBeforeFillingState(
+      SwitchBiometricAuthBeforeFillingStateCallback callback) override;
 
  private:
   password_manager::SavedPasswordsPresenter* GetSavedPasswordsPresenter();

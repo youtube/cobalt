@@ -7,29 +7,25 @@
 #import "ios/chrome/browser/shared/ui/symbols/symbols.h"
 #import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
-
-const CGSize kImageInputItemSize = {72.0f, 36.0f};
-const CGSize kTabFileInputItemSize = {136.0f, 36.0f};
+#import "ios/chrome/common/ui/util/constraints_ui_util.h"
 
 namespace {
 // The input item padding.
 const CGFloat kPadding = 10.0;
 // The leading icon size.
 const CGFloat kLeadingIconSize = 16;
-// The preview image corner radius.
-const CGFloat kPreviewImageCornerRadius = 9.0;
+// The close icon size.
+const CGFloat kCloseIconSize = 20;
 // The leading icon corner radius.
 const CGFloat kLeadingIconCornerRadius = 6.0;
 // Labels font size.
 const CGFloat kLabelFontSize = 13.0;
-// The preview image size.
-const CGFloat kPreviewImageSize = 28.0;
-// The preview image top and bottom padding.
-const CGFloat kPreviewImageTopBottomPadding = 4.0;
-/// The fade view width.
+// The fade view width.
 const CGFloat kFadeViewWidth = 20.0f;
-/// The title to button padding.
+// The title to button padding.
 const CGFloat kTitleCloseButtonPadding = 6.0;
+/// The close button trailing.
+const CGFloat kCloseButtonTrailing = 8.0;
 }  // namespace
 
 @interface ComposeboxInputItemView ()
@@ -48,6 +44,10 @@ const CGFloat kTitleCloseButtonPadding = 6.0;
   UILabel* _titleLabel;
   // The fade view for the title label.
   UIView* _fadeView;
+  // The layer representing the fade at the trailing edge of title label.
+  CAGradientLayer* _gradientLayer;
+  // The theme for this view.
+  ComposeboxTheme* _theme;
 }
 
 - (instancetype)initWithFrame:(CGRect)frame {
@@ -56,6 +56,11 @@ const CGFloat kTitleCloseButtonPadding = 6.0;
     [self setupViews];
     [self setupConstraints];
   }
+
+  NSArray<UITrait>* traits =
+      TraitCollectionSetForTraits(@[ UITraitUserInterfaceStyle.class ]);
+  [self registerForTraitChanges:traits withAction:@selector(updateGradient)];
+
   return self;
 }
 
@@ -65,13 +70,25 @@ const CGFloat kTitleCloseButtonPadding = 6.0;
   _fadeView.layer.sublayers.firstObject.frame = _fadeView.bounds;
 }
 
-- (void)configureWithItem:(ComposeboxInputItem*)item {
+- (void)configureWithItem:(ComposeboxInputItem*)item
+                    theme:(ComposeboxTheme*)theme {
   BOOL isImageItem =
       item.type == ComposeboxInputItemType::kComposeboxInputItemTypeImage;
+
+  _theme = theme;
 
   _previewImageView.hidden = !isImageItem;
   _leadingIconImageView.hidden = isImageItem;
   _titleLabel.hidden = isImageItem;
+
+  [self updateGradient];
+
+  UIImage* image = SymbolWithPalette(
+      DefaultSymbolWithPointSize(kXMarkCircleFillSymbol, kCloseIconSize), @[
+        [UIColor colorNamed:kTextSecondaryColor],
+        [theme.inputItemBackgroundColor colorWithAlphaComponent:0.9]
+      ]);
+  [_closeButton setImage:image forState:UIControlStateNormal];
 
   if (isImageItem) {
     _previewImageView.image = item.previewImage;
@@ -133,33 +150,24 @@ const CGFloat kTitleCloseButtonPadding = 6.0;
   _fadeView = [[UIView alloc] init];
   _fadeView.translatesAutoresizingMaskIntoConstraints = NO;
   _fadeView.hidden = YES;
-  CAGradientLayer* gradientLayer = [CAGradientLayer layer];
-  gradientLayer.colors = @[
-    (id)[[UIColor colorNamed:kSecondaryBackgroundColor]
-        colorWithAlphaComponent:0.0]
-        .CGColor,
-    (id)[UIColor colorNamed:kSecondaryBackgroundColor].CGColor
-  ];
-  gradientLayer.startPoint = CGPointMake(0.0, 0.5);
-  gradientLayer.endPoint = CGPointMake(1.0, 0.5);
-  [_fadeView.layer insertSublayer:gradientLayer atIndex:0];
+  _gradientLayer = [CAGradientLayer layer];
+  _gradientLayer.startPoint = CGPointMake(0.0, 0.5);
+  _gradientLayer.endPoint = CGPointMake(1.0, 0.5);
+  [_fadeView.layer insertSublayer:_gradientLayer atIndex:0];
   [self addSubview:_fadeView];
 
   // Leading Image View
   _previewImageView = [[UIImageView alloc] init];
   _previewImageView.translatesAutoresizingMaskIntoConstraints = NO;
   _previewImageView.contentMode = UIViewContentModeScaleAspectFill;
-  _previewImageView.layer.cornerRadius = kPreviewImageCornerRadius;
+  _previewImageView.layer.cornerRadius =
+      composeboxAttachments::kImageInputItemSize.height / 2;
   _previewImageView.clipsToBounds = YES;
   [self addSubview:_previewImageView];
 
   // Close Button
 
   _closeButton = [UIButton buttonWithType:UIButtonTypeSystem];
-  UIImage* image = SymbolWithPalette(
-      DefaultSymbolWithPointSize(kXMarkSymbol, kLeadingIconSize),
-      @[ [UIColor colorNamed:kTextSecondaryColor], UIColor.whiteColor ]);
-  [_closeButton setImage:image forState:UIControlStateNormal];
   _closeButton.translatesAutoresizingMaskIntoConstraints = NO;
 
   [_closeButton
@@ -168,15 +176,18 @@ const CGFloat kTitleCloseButtonPadding = 6.0;
   [self addSubview:_closeButton];
 
   self.backgroundColor = [UIColor colorNamed:kSecondaryBackgroundColor];
-  self.layer.cornerRadius = self.frame.size.height / 2;
+  self.layer.cornerRadius =
+      composeboxAttachments::kTabFileInputItemSize.height / 2;
   self.clipsToBounds = YES;
 }
 
 - (void)setupConstraints {
   [NSLayoutConstraint activateConstraints:@[
-    [self.widthAnchor
-        constraintLessThanOrEqualToConstant:kTabFileInputItemSize.width],
-    [self.heightAnchor constraintEqualToConstant:kTabFileInputItemSize.height],
+    [self.widthAnchor constraintLessThanOrEqualToConstant:
+                          composeboxAttachments::kTabFileInputItemSize.width],
+    [self.heightAnchor
+        constraintEqualToConstant:composeboxAttachments::kTabFileInputItemSize
+                                      .height],
     // leading icon ImageView
     [_leadingIconImageView.leadingAnchor
         constraintEqualToAnchor:self.leadingAnchor
@@ -190,7 +201,7 @@ const CGFloat kTitleCloseButtonPadding = 6.0;
 
     // Close Button
     [_closeButton.trailingAnchor constraintEqualToAnchor:self.trailingAnchor
-                                                constant:-13],
+                                                constant:-kCloseButtonTrailing],
     [_closeButton.centerYAnchor constraintEqualToAnchor:self.centerYAnchor],
 
     // Title Label
@@ -208,22 +219,16 @@ const CGFloat kTitleCloseButtonPadding = 6.0;
     [_fadeView.topAnchor constraintEqualToAnchor:_titleLabel.topAnchor],
     [_fadeView.bottomAnchor constraintEqualToAnchor:_titleLabel.bottomAnchor],
     [_fadeView.widthAnchor constraintEqualToConstant:kFadeViewWidth],
-
-    // Leading Image View
-    [_previewImageView.leadingAnchor constraintEqualToAnchor:self.leadingAnchor
-                                                    constant:kPadding],
-    [_previewImageView.topAnchor
-        constraintEqualToAnchor:self.topAnchor
-                       constant:kPreviewImageTopBottomPadding],
-    [_previewImageView.bottomAnchor
-        constraintEqualToAnchor:self.bottomAnchor
-                       constant:-kPreviewImageTopBottomPadding],
-    [_previewImageView.widthAnchor constraintEqualToConstant:kPreviewImageSize],
-    [_previewImageView.heightAnchor
-        constraintEqualToConstant:kPreviewImageSize],
-    [_previewImageView.centerYAnchor
-        constraintEqualToAnchor:self.centerYAnchor],
   ]];
+
+  AddSameConstraints(_previewImageView, self);
+}
+
+- (void)updateGradient {
+  _gradientLayer.colors = @[
+    (id)[_theme.inputItemBackgroundColor colorWithAlphaComponent:0.0].CGColor,
+    (id)_theme.inputItemBackgroundColor.CGColor
+  ];
 }
 
 @end

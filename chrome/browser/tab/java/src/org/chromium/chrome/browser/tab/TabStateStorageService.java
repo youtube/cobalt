@@ -29,6 +29,14 @@ public class TabStateStorageService {
     }
 
     /**
+     * Boosts the priority of the database operations to USER_BLOCKING until all current pending
+     * operations are complete. This should be used when it is critical to save user data.
+     */
+    public void boostPriority() {
+        TabStateStorageServiceJni.get().boostPriority(mNativeTabStateStorageService);
+    }
+
+    /**
      * Saves the tab state to persistent storage.
      *
      * @param tab The tab to save to storage.
@@ -58,8 +66,15 @@ public class TabStateStorageService {
         TabStateStorageServiceJni.get().clearState(mNativeTabStateStorageService);
     }
 
+    /** Clears all the tabs for a given window from persistent storage. */
+    public void clearWindow(String windowTag) {
+        TabStateStorageServiceJni.get().clearWindow(mNativeTabStateStorageService, windowTag);
+    }
+
     @NativeMethods
     interface Natives {
+        void boostPriority(long nativeTabStateStorageServiceAndroid);
+
         void save(long nativeTabStateStorageServiceAndroid, @JniType("TabAndroid*") Tab tab);
 
         void loadAllData(
@@ -69,5 +84,8 @@ public class TabStateStorageService {
                 Callback<StorageLoadedData> loadedDataCallback);
 
         void clearState(long nativeTabStateStorageServiceAndroid);
+
+        void clearWindow(
+                long nativeTabStateStorageServiceAndroid, @JniType("std::string") String windowTag);
     }
 }

@@ -10,7 +10,6 @@
 #include <string_view>
 
 #include "base/functional/callback.h"
-#include "base/functional/callback_forward.h"
 #include "base/functional/callback_helpers.h"
 #include "base/test/bind.h"
 #include "base/test/metrics/histogram_tester.h"
@@ -135,7 +134,7 @@ TEST_F(TeacherScreenPresenterImplTest, Stop) {
                                   R"({"robotEmail":"robot@email.com"})");
   url_loader_factory_.AddResponse(GetStartReceiverUrl(kReceiverId).spec(),
                                   R"({"connectionId":"id"})");
-  presenter.Start(kReceiverId, teacher_identity_, false,
+  presenter.Start(kReceiverId, "receiverName", teacher_identity_, false,
                   start_future.GetCallback(),
                   base::BindLambdaForTesting([&disconnected_called]() {
                     disconnected_called = true;
@@ -158,8 +157,8 @@ TEST_F(TeacherScreenPresenterImplTest, StopFailsWhenStartInProgress) {
                                        std::move(crd_session_wrapper_),
                                        url_loader_factory_.GetSafeWeakWrapper(),
                                        identity_test_env_.identity_manager());
-  presenter.Start(kReceiverId, teacher_identity_, false, base::DoNothing(),
-                  base::DoNothing());
+  presenter.Start(kReceiverId, "receiverName", teacher_identity_, false,
+                  base::DoNothing(), base::DoNothing());
   presenter.Stop(stop_future.GetCallback());
 
   EXPECT_FALSE(stop_future.Get());
@@ -172,13 +171,27 @@ TEST_F(TeacherScreenPresenterImplTest, OverlapStartShouldFail) {
                                        std::move(crd_session_wrapper_),
                                        url_loader_factory_.GetSafeWeakWrapper(),
                                        identity_test_env_.identity_manager());
-  presenter.Start(kReceiverId, teacher_identity_, false,
+  presenter.Start(kReceiverId, "receiverName", teacher_identity_, false,
                   start_future1.GetCallback(), base::DoNothing());
-  presenter.Start(kReceiverId, teacher_identity_, false,
+  presenter.Start(kReceiverId, "receiverName", teacher_identity_, false,
                   start_future2.GetCallback(), base::DoNothing());
 
   EXPECT_FALSE(start_future2.Get());
   EXPECT_FALSE(start_future1.IsReady());
+}
+
+TEST_F(TeacherScreenPresenterImplTest, DestructorDuringStart) {
+  base::test::TestFuture<bool> start_future;
+  auto presenter = std::make_unique<TeacherScreenPresenterImpl>(
+      kTeacherDeviceId, std::move(crd_session_wrapper_),
+      url_loader_factory_.GetSafeWeakWrapper(),
+      identity_test_env_.identity_manager());
+
+  presenter->Start(kReceiverId, "receiverName", teacher_identity_,
+                   /*is_session_active=*/false, start_future.GetCallback(),
+                   base::DoNothing());
+  presenter.reset();
+  EXPECT_FALSE(start_future.Get());
 }
 
 class StartParamsTeacherScreenPresenterImplTest
@@ -211,8 +224,8 @@ TEST_P(StartParamsTeacherScreenPresenterImplTest, Start) {
   url_loader_factory_.AddResponse(GetStartReceiverUrl(kReceiverId).spec(),
                                   GetParam().start_response,
                                   GetParam().start_status_code);
-  presenter.Start(kReceiverId, teacher_identity_, GetParam().is_in_session,
-                  start_future.GetCallback(),
+  presenter.Start(kReceiverId, "receiverName", teacher_identity_,
+                  GetParam().is_in_session, start_future.GetCallback(),
                   base::BindLambdaForTesting([&disconnected_called]() {
                     disconnected_called = true;
                   }));
@@ -358,8 +371,9 @@ TEST_P(MetricsTeacherScreenPresenterImplTest, StartFailureOnGetConnectionCode) {
                                        identity_test_env_.identity_manager());
   url_loader_factory_.AddResponse(GetReceiverUrl(kReceiverId).spec(),
                                   R"({"robotEmail":"robot@email.com"})");
-  presenter.Start(kReceiverId, teacher_identity_, IsSessionActive(),
-                  start_future.GetCallback(), base::DoNothing());
+  presenter.Start(kReceiverId, "receiverName", teacher_identity_,
+                  IsSessionActive(), start_future.GetCallback(),
+                  base::DoNothing());
 
   EXPECT_FALSE(start_future.Get());
   EXPECT_FALSE(presenter.IsPresenting());
@@ -390,11 +404,13 @@ TEST_P(MetricsTeacherScreenPresenterImplTest, StartFailureAlreadyPresenting) {
                                   R"({"robotEmail":"robot@email.com"})");
   url_loader_factory_.AddResponse(GetStartReceiverUrl(kReceiverId).spec(),
                                   R"({"connectionId":"id"})");
-  presenter.Start(kReceiverId, teacher_identity_, IsSessionActive(),
-                  start_future_1.GetCallback(), base::DoNothing());
+  presenter.Start(kReceiverId, "receiverName", teacher_identity_,
+                  IsSessionActive(), start_future_1.GetCallback(),
+                  base::DoNothing());
 
-  presenter.Start(kReceiverId, teacher_identity_, IsSessionActive(),
-                  start_future_2.GetCallback(), base::DoNothing());
+  presenter.Start(kReceiverId, "receiverName", teacher_identity_,
+                  IsSessionActive(), start_future_2.GetCallback(),
+                  base::DoNothing());
 
   EXPECT_TRUE(start_future_1.Get());
   EXPECT_FALSE(start_future_2.Get());

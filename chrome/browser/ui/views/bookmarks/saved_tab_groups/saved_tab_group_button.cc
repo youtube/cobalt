@@ -12,7 +12,6 @@
 
 #include "base/check.h"
 #include "base/functional/bind.h"
-#include "base/functional/callback_forward.h"
 #include "cc/paint/paint_flags.h"
 #include "chrome/app/vector_icons/vector_icons.h"
 #include "chrome/browser/tab_group_sync/tab_group_sync_service_factory.h"
@@ -21,6 +20,7 @@
 #include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/layout_constants.h"
 #include "chrome/browser/ui/tabs/saved_tab_groups/saved_tab_group_utils.h"
+#include "chrome/browser/ui/tabs/saved_tab_groups/tab_group_menu_utils.h"
 #include "chrome/browser/ui/tabs/tab_group_model.h"
 #include "chrome/browser/ui/tabs/tab_group_theme.h"
 #include "chrome/browser/ui/tabs/tab_strip_model_delegate.h"
@@ -337,7 +337,8 @@ void SavedTabGroupButton::ShowContextMenuForViewImpl(
     return;
   }
 
-  menu_model_ = std::make_unique<STGTabsMenuModel>(browser_);
+  menu_model_ = std::make_unique<STGTabsMenuModel>(
+      browser_, TabGroupMenuContext::SAVED_TAB_GROUP_BUTTON_CONTEXT_MENU);
   menu_model_->Build(
       saved_group.value(),
       base::BindRepeating(&SavedTabGroupButton::GetAndIncrementLatestCommandId,

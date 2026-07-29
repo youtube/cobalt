@@ -14,7 +14,6 @@
 #include "components/safe_browsing/core/browser/password_protection/password_protection_service_base.h"
 #include "components/safe_browsing/core/common/proto/csd.pb.h"
 #include "content/public/browser/commit_deferring_condition.h"
-#include "mojo/public/cpp/bindings/remote.h"
 
 namespace content {
 class NavigationHandle;
@@ -102,8 +101,7 @@ class PasswordProtectionService : public PasswordProtectionServiceBase {
       content::WebContents* web_contents,
       const GURL& main_frame_url,
       const GURL& password_form_action,
-      const GURL& password_form_frame_url,
-      const std::string& hosted_domain);
+      const GURL& password_form_frame_url);
 #endif
 
   virtual void MaybeStartProtectedPasswordEntryRequest(

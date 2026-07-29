@@ -155,8 +155,6 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) CorsURLLoaderFactory final
 
   bool IsValidRequest(const ResourceRequest& request, uint32_t options);
 
-  bool GetAllowAnyCorsExemptHeaderForBrowser() const;
-
   mojo::PendingRemote<mojom::DevToolsObserver> GetDevToolsObserver(
       ResourceRequest& resource_request) const;
 
@@ -236,6 +234,8 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) CorsURLLoaderFactory final
   static bool allow_external_preflights_for_testing_;
 
   base::MetricsSubSampler metrics_subsampler_;
+
+  std::optional<base::UnguessableToken> network_restrictions_id_;
 };
 
 }  // namespace cors

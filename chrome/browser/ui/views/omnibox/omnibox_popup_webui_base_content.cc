@@ -6,6 +6,7 @@
 
 #include <string_view>
 
+#include "base/functional/bind.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/omnibox/omnibox_controller.h"
@@ -23,6 +24,8 @@
 #include "components/input/native_web_keyboard_event.h"
 #include "components/zoom/zoom_controller.h"
 #include "content/public/browser/render_widget_host_view.h"
+#include "third_party/blink/public/common/input/web_gesture_event.h"
+#include "third_party/blink/public/common/input/web_input_event.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/base/mojom/menu_source_type.mojom.h"
 #include "ui/gfx/geometry/rounded_corners_f.h"
@@ -56,20 +59,6 @@ void OmniboxPopupWebUIBaseContent::AddedToWidget() {
       top_rounded_corners_ ? corner_radius : 0,
       top_rounded_corners_ ? corner_radius : 0, corner_radius, corner_radius);
   holder()->SetCornerRadii(rounded_corner_radii);
-
-  // Manually set zoom level, since any zooming is undesirable in the omnibox.
-  auto* zoom_controller =
-      zoom::ZoomController::FromWebContents(GetWebContents());
-  if (!zoom_controller) {
-    // Create ZoomController manually, if not already exists, because it is
-    // not automatically created when the WebUI has not been opened in a tab.
-    zoom_controller =
-        zoom::ZoomController::CreateForWebContents(GetWebContents());
-  }
-  zoom_controller->SetZoomMode(zoom::ZoomController::ZOOM_MODE_ISOLATED);
-  zoom_controller->SetZoomLevel(0);
-
-  OnViewBoundsChanged(location_bar_view_);
 }
 
 void OmniboxPopupWebUIBaseContent::OnViewBoundsChanged(
@@ -87,11 +76,28 @@ void OmniboxPopupWebUIBaseContent::OnViewBoundsChanged(
 }
 
 void OmniboxPopupWebUIBaseContent::CloseUI() {
-  // Must implement this pure-virtual abstract function.
+  // If the popup state is not shown, don't take any action. Closing the UI
+  // multiple times can result in incorrect state transitions from OnClose.
+  if (!is_shown_) {
+    return;
+  }
+
+  is_shown_ = false;
+
+  // Update the popup state manager that the popup is closing.
+  // LocationBarView is subscribed to state changes and will close the widget.
+  controller()->popup_state_manager()->SetPopupState(OmniboxPopupState::kNone);
 }
 
 void OmniboxPopupWebUIBaseContent::ShowUI() {
-  // Must implement this pure-virtual abstract function.
+  // This is a signal from the WebUIContentsWrapper::Host. We use this signal to
+  // check if the renderer crashes. If the renderer process has crashed, reset
+  // the content URL and create a new renderer.
+  if (GetWebContents() && GetWebContents()->IsCrashed()) {
+    LoadContent();
+  }
+
+  is_shown_ = true;
 }
 
 void OmniboxPopupWebUIBaseContent::ShowCustomContextMenu(
@@ -102,7 +108,9 @@ void OmniboxPopupWebUIBaseContent::ShowCustomContextMenu(
       GetWidget(), location_bar_view_->GetOmniboxPopupFileSelector(),
       location_bar_view_->GetOmniboxPopupAimPresenter()
           ->GetWebUIContent()
-          ->GetWebContents());
+          ->GetWebContents(),
+      base::BindRepeating(&OmniboxPopupWebUIBaseContent::OnMenuClosed,
+                          base::Unretained(this)));
   context_menu_->RunMenuAt(point, ui::mojom::MenuSourceType::kMouse);
 }
 
@@ -111,7 +119,7 @@ void OmniboxPopupWebUIBaseContent::ResizeDueToAutoResize(
     const gfx::Size& new_size) {
   WebView::ResizeDueToAutoResize(source, new_size);
   if (GetVisible()) {
-    popup_presenter_->SetWidgetContentHeight(new_size.height());
+    popup_presenter_->SetWidgetBounds(new_size.height());
   }
 }
 
@@ -127,8 +135,14 @@ bool OmniboxPopupWebUIBaseContent::HandleKeyboardEvent(
 }
 
 void OmniboxPopupWebUIBaseContent::SetContentURL(std::string_view url) {
+  content_url_ = GURL(url);
+  LoadContent();
+}
+
+void OmniboxPopupWebUIBaseContent::LoadContent() {
+  DCHECK(!content_url_.is_empty());
   contents_wrapper_ = std::make_unique<WebUIContentsWrapperT<OmniboxPopupUI>>(
-      GURL(url), location_bar_view_->profile(), IDS_TASK_MANAGER_OMNIBOX);
+      content_url_, location_bar_view_->profile(), IDS_TASK_MANAGER_OMNIBOX);
   contents_wrapper_->SetHost(weak_factory_.GetWeakPtr());
   SetWebContents(contents_wrapper_->web_contents());
   webui::SetBrowserWindowInterface(contents_wrapper_->web_contents(),
@@ -137,6 +151,41 @@ void OmniboxPopupWebUIBaseContent::SetContentURL(std::string_view url) {
   OmniboxPopupWebContentsHelper::CreateForWebContents(GetWebContents());
   OmniboxPopupWebContentsHelper::FromWebContents(GetWebContents())
       ->set_omnibox_controller(controller_);
+
+  // Manually set zoom level, since any zooming is undesirable in the omnibox.
+  auto* zoom_controller =
+      zoom::ZoomController::FromWebContents(GetWebContents());
+  if (!zoom_controller) {
+    // Create ZoomController manually, if not already exists, because it is
+    // not automatically created when the WebUI has not been opened in a tab.
+    zoom_controller =
+        zoom::ZoomController::CreateForWebContents(GetWebContents());
+  }
+  zoom_controller->SetZoomMode(zoom::ZoomController::ZOOM_MODE_ISOLATED);
+  zoom_controller->SetZoomLevel(0);
+
+  OnViewBoundsChanged(location_bar_view_);
+}
+
+bool OmniboxPopupWebUIBaseContent::PreHandleGestureEvent(
+    content::WebContents* source,
+    const blink::WebGestureEvent& event) {
+  // Block gestures that will zoom on Mac devices (i.e. pinch to zoom
+  // and double tap to zoom)
+#if BUILDFLAG(IS_MAC)
+  if (blink::WebInputEvent::IsPinchGestureEventType(event.GetType())) {
+    return true;
+  }
+
+  if (event.GetType() == blink::WebInputEvent::Type::kGestureDoubleTap) {
+    return true;
+  }
+#endif
+  return false;
+}
+
+void OmniboxPopupWebUIBaseContent::OnMenuClosed() {
+  std::move(context_menu_).reset();
 }
 
 BEGIN_METADATA(OmniboxPopupWebUIBaseContent)

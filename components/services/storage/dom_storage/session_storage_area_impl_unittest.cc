@@ -79,7 +79,7 @@ class SessionStorageAreaImplTest : public testing::Test {
         metadata_.SetupNewDatabaseForTesting();
     auto map_id = metadata_.RegisterNewMap(
         metadata_.GetOrCreateNamespaceEntry(test_namespace_id1_),
-        test_storage_key1_, &save_tasks);
+        test_storage_key1_);
     DCHECK(map_id->KeyPrefix() == StdStringToUint8Vector("map-0-"));
     leveldb_database_->RunBatchDatabaseTasks(
         RunBatchTasksContext::kTest, std::move(save_tasks), base::DoNothing());
@@ -89,11 +89,7 @@ class SessionStorageAreaImplTest : public testing::Test {
   scoped_refptr<SessionStorageMetadata::MapData> RegisterNewAreaMap(
       SessionStorageMetadata::NamespaceEntry namespace_entry,
       const blink::StorageKey& storage_key) {
-    std::vector<AsyncDomStorageDatabase::BatchDatabaseTask> save_tasks;
-    auto map_data =
-        metadata_.RegisterNewMap(namespace_entry, storage_key, &save_tasks);
-    leveldb_database_->RunBatchDatabaseTasks(
-        RunBatchTasksContext::kTest, std::move(save_tasks), base::DoNothing());
+    auto map_data = metadata_.RegisterNewMap(namespace_entry, storage_key);
     return map_data;
   }
 
@@ -228,12 +224,13 @@ TEST_F(SessionStorageAreaImplTest, Cloning) {
       GetRegisterNewAreaMapCallback());
 
   // Perform a shallow clone.
-  std::vector<AsyncDomStorageDatabase::BatchDatabaseTask> save_tasks;
+  SessionStorageMetadata::NamespaceEntry clone_entry =
+      metadata_.GetOrCreateNamespaceEntry(test_namespace_id2_);
   metadata_.RegisterShallowClonedNamespace(
-      metadata_.GetOrCreateNamespaceEntry(test_namespace_id1_),
-      metadata_.GetOrCreateNamespaceEntry(test_namespace_id2_), &save_tasks);
-  leveldb_database_->RunBatchDatabaseTasks(
-      RunBatchTasksContext::kTest, std::move(save_tasks), base::DoNothing());
+      metadata_.GetOrCreateNamespaceEntry(test_namespace_id1_), clone_entry);
+  leveldb_database_->PutMetadata(
+      SessionStorageMetadata::ToDomStorageMetadata(clone_entry),
+      base::DoNothing());
   auto ss_leveldb_impl2 = ss_leveldb_impl1->Clone(
       metadata_.GetOrCreateNamespaceEntry(test_namespace_id2_));
 
@@ -333,12 +330,13 @@ TEST_F(SessionStorageAreaImplTest, DeleteAllOnShared) {
       GetRegisterNewAreaMapCallback());
 
   // Perform a shallow clone.
-  std::vector<AsyncDomStorageDatabase::BatchDatabaseTask> save_tasks;
+  SessionStorageMetadata::NamespaceEntry clone_entry =
+      metadata_.GetOrCreateNamespaceEntry(test_namespace_id2_);
   metadata_.RegisterShallowClonedNamespace(
-      metadata_.GetOrCreateNamespaceEntry(test_namespace_id1_),
-      metadata_.GetOrCreateNamespaceEntry(test_namespace_id2_), &save_tasks);
-  leveldb_database_->RunBatchDatabaseTasks(
-      RunBatchTasksContext::kTest, std::move(save_tasks), base::DoNothing());
+      metadata_.GetOrCreateNamespaceEntry(test_namespace_id1_), clone_entry);
+  leveldb_database_->PutMetadata(
+      SessionStorageMetadata::ToDomStorageMetadata(clone_entry),
+      base::DoNothing());
   auto ss_leveldb_impl2 = ss_leveldb_impl1->Clone(
       metadata_.GetOrCreateNamespaceEntry(test_namespace_id2_));
 
@@ -422,12 +420,13 @@ TEST_F(SessionStorageAreaImplTest, DeleteAllWithoutBindingOnShared) {
       GetRegisterNewAreaMapCallback());
 
   // Perform a shallow clone.
-  std::vector<AsyncDomStorageDatabase::BatchDatabaseTask> save_tasks;
+  SessionStorageMetadata::NamespaceEntry clone_entry =
+      metadata_.GetOrCreateNamespaceEntry(test_namespace_id2_);
   metadata_.RegisterShallowClonedNamespace(
-      metadata_.GetOrCreateNamespaceEntry(test_namespace_id1_),
-      metadata_.GetOrCreateNamespaceEntry(test_namespace_id2_), &save_tasks);
-  leveldb_database_->RunBatchDatabaseTasks(
-      RunBatchTasksContext::kTest, std::move(save_tasks), base::DoNothing());
+      metadata_.GetOrCreateNamespaceEntry(test_namespace_id1_), clone_entry);
+  leveldb_database_->PutMetadata(
+      SessionStorageMetadata::ToDomStorageMetadata(clone_entry),
+      base::DoNothing());
   auto ss_leveldb_impl2 = ss_leveldb_impl1->Clone(
       metadata_.GetOrCreateNamespaceEntry(test_namespace_id2_));
 

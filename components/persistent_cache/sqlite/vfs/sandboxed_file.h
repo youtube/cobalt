@@ -7,11 +7,13 @@
 
 #include <stdint.h>
 
+#include <optional>
+
 #include "base/component_export.h"
 #include "base/files/file.h"
-#include "base/files/file_path.h"
 #include "base/memory/shared_memory_safety_checker.h"
 #include "base/memory/unsafe_shared_memory_region.h"
+#include "components/persistent_cache/lock_state.h"
 #include "sql/sandboxed_vfs_file.h"
 
 namespace persistent_cache {
@@ -46,12 +48,18 @@ class COMPONENT_EXPORT(PERSISTENT_CACHE) SandboxedFile
  public:
   enum class AccessRights { kReadWrite, kReadOnly };
 
-  // `file_path` is the optional path to the file. It may be omitted when
-  // `access_rights` is `kReadOnly` or if when `access_rights` is `kReadWrite`
-  // and `DuplicateFiles()` will never be used to obtain a read-only handle to
-  // the file.
+  enum class FileType {
+    kMainDb,        // A main .db file.
+    kTempDb,        // A temporary or in-memory database.
+    kTransientDb,   // A database for an ephemeral table.
+    kMainJournal,   // A main rollback journal.
+    kTempJournal,   // A rollback journal for a temporary database.
+    kSubjournal,    // A statement journal file.
+    kSuperJournal,  // A super-journal file.
+    kWal,           // A WAL-mode journal.
+  };
+
   SandboxedFile(base::File file,
-                base::FilePath file_path,
                 AccessRights access_rights,
                 base::WritableSharedMemoryMapping mapped_shared_lock =
                     base::WritableSharedMemoryMapping());
@@ -61,8 +69,9 @@ class COMPONENT_EXPORT(PERSISTENT_CACHE) SandboxedFile
   SandboxedFile& operator=(SandboxedFile&& other) = delete;
   ~SandboxedFile() override;
 
-  // Called by the VFS to take the underlying base::File. Concretely,
-  // this dance occurs when a file is opened:
+  // Called by the VFS to take the underlying base::File. `file_type` indicates
+  // the type of file that is being opened. Concretely, this dance occurs when a
+  // file is opened:
   //
   // SandboxedVfs::Open
   //   -- Acquire the base::File
@@ -71,7 +80,7 @@ class COMPONENT_EXPORT(PERSISTENT_CACHE) SandboxedFile
   //   -- Pass it back to SandboxedFile
   //   SqliteSandboxedVfsDelegate::RetrieveSandboxedVfsFile
   //     SandboxedFile::OnFileOpened  base::File TakeUnderlyingFile();
-  base::File TakeUnderlyingFile();
+  base::File TakeUnderlyingFile(FileType file_type);
 
   // Called by the VFS when the file is successfully opened.
   void OnFileOpened(base::File file);
@@ -85,15 +94,10 @@ class COMPONENT_EXPORT(PERSISTENT_CACHE) SandboxedFile
 
   AccessRights access_rights() const { return access_rights_; }
 
-  // Returns a handle to the file with either read-write or read-only access;
-  // or an invalid File in case of error. To emit a read-only handle from an
-  // instance with read-write access to the file, the path to the underlying
-  // file must have been provided at construction.
-  base::File DuplicateFile(AccessRights access_rights);
-
   // Returns a reference to the instance's file regardless of whether it is
   // open (`IsValid()` returns true) or closed (otherwise). The reference is
   // invalidated upon open/close.
+  const base::File& GetFile() const;
   base::File& GetFile();
 
   // sqlite3_file implementation.
@@ -124,17 +128,24 @@ class COMPONENT_EXPORT(PERSISTENT_CACHE) SandboxedFile
   // Marks this instance as not suitable for use anymore. Once called the effect
   // is permanent. After this call `Lock()` will not succeed anymore and
   // communicate the abandonment through the error code returned which
-  // lets code using the class observe the change.
-  void Abandon();
+  // lets code using the class observe the change. Returns the type of lock
+  // holder left over after abandonment.
+  LockState Abandon();
 
  private:
+  // Returns true if this instance is likely opened for exclusive access.
+  // Take care: this is only valid for FileType::kMainDb files.
+  bool is_single_connection() const { return !mapped_shared_lock_.IsValid(); }
+
   // Returns a pointer to the lock state, which is shared across other instances
   // of SandboxedFile via shared memory.
   SharedAtomicLock& GetSharedAtomicLock();
 
-  // The path to the underlying file. Only set for the creator of the file; not
-  // for other consumers to which it has been shared.
-  const base::FilePath file_path_;
+  // Acquire/release a lock on the underlying file. This is used when the
+  // creator wishes this to be the only connection allowed to the database.
+  bool AcquireSingleConnectionlock();
+  void ReleaseSingleConnectionlock();
+
   base::File underlying_file_;
   base::File opened_file_;
   const AccessRights access_rights_;
@@ -143,9 +154,14 @@ class COMPONENT_EXPORT(PERSISTENT_CACHE) SandboxedFile
   // state of this connection (see: https://www.sqlite.org/lockingv3.html).
   int sqlite_lock_mode_ = SQLITE_LOCK_NONE;
 
-  // The actual shared locks across processes to implement the SQLite algorithm
-  // and from which `sqlite_lock_mode_` is coming from.
+  // If valid, the cross-process shared lock by which the SQLite locking
+  // algorithm is implemented. Otherwise, this file is opened in exclusive mode
+  // so no shared lock is required.
   base::WritableSharedMemoryMapping mapped_shared_lock_;
+
+  // The type of database file this represents. Holds a value only while the
+  // file is open.
+  std::optional<FileType> file_type_;
 };
 
 }  // namespace persistent_cache

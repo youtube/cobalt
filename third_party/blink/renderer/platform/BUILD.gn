@@ -347,10 +347,7 @@ source_set("image_headers") {
 
 component("platform") {
   visibility = []  # Allow re-assignment of list.
-  visibility = [
-    "//third_party/blink/*",
-    "//tools/privacy_budget/font_indexer:*",
-  ]
+  visibility = [ "//third_party/blink/*" ]
   output_name = "blink_platform"
 
   sources = [
@@ -471,6 +468,7 @@ component("platform") {
     "bindings/callback_method_retriever.cc",
     "bindings/callback_method_retriever.h",
     "bindings/cross_thread_copier.h",
+    "bindings/cross_thread_source_location.cc",
     "bindings/cross_thread_source_location.h",
     "bindings/dictionary_base.cc",
     "bindings/dictionary_base.h",
@@ -613,7 +611,6 @@ component("platform") {
     "exported/web_media_player_encrypted_media_client.cc",
     "exported/web_media_player_source.cc",
     "exported/web_media_stream_audio_sink.cc",
-    "exported/web_memory_pressure_listener.cc",
     "exported/web_network_state_notifier.cc",
     "exported/web_runtime_features.cc",
     "exported/web_security_origin.cc",
@@ -859,6 +856,7 @@ component("platform") {
     "geometry/length_point.h",
     "geometry/length_size.h",
     "geometry/logical_direction.h",
+    "geometry/math_functions.cc",
     "geometry/math_functions.h",
     "geometry/path.cc",
     "geometry/path.h",
@@ -1476,8 +1474,6 @@ component("platform") {
     "storage/blink_storage_key.h",
     "storage/blink_storage_key_hash.h",
     "storage/blink_storage_key_mojom_traits.cc",
-    "supplementable.cc",
-    "supplementable.h",
     "text/bidi_paragraph.cc",
     "text/bidi_paragraph.h",
     "text/capitalize.cc",
@@ -1986,10 +1982,7 @@ component("platform") {
 }
 
 static_library("test_support") {
-  visibility += [
-    "//third_party/blink/*",
-    "//tools/privacy_budget/font_indexer:*",
-  ]
+  visibility += [ "//third_party/blink/*" ]
   testonly = true
 
   defines = [ "BLINK_PLATFORM_TEST_IMPLEMENTATION" ]
@@ -2168,6 +2161,7 @@ if (enable_nocompile_tests) {
   nocompile_source_set("blink_platform_nocompile_tests") {
     sources = [
       "heap/test/heap_bind_nocompile.nc",
+      "wtf/cross_thread_functional_nocompile.nc",
       "wtf/functional_nocompile.nc",
       "wtf/text/string_view_nocompile.nc",
     ]
@@ -2213,7 +2207,6 @@ source_set("blink_platform_unittests_sources") {
     "fonts/font_description_test.cc",
     "fonts/font_fallback_iterator_test.cc",
     "fonts/font_family_test.cc",
-    "fonts/font_global_context_test.cc",
     "fonts/font_palette_test.cc",
     "fonts/font_platform_data_test.cc",
     "fonts/font_selection_types_test.cc",

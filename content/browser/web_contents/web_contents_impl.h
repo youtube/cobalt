@@ -427,6 +427,7 @@ class CONTENT_EXPORT WebContentsImpl
                            const std::u16string& title) override;
   SiteInstanceImpl* GetSiteInstance() override;
   bool IsLoading() override;
+  bool IsLoadingExcludingAdSubframes() const override;
   double GetLoadProgress() override;
   bool ShouldShowLoadingUI() override;
   bool IsDocumentOnLoadCompletedInPrimaryMainFrame() override;
@@ -1266,8 +1267,8 @@ class CONTENT_EXPORT WebContentsImpl
   RenderFrameHostImpl* GetProspectiveOuterDocument() override;
   FrameTree* LoadingTree() override;
   void SetFocusedFrame(FrameTreeNode* node, SiteInstanceGroup* source) override;
-  FrameTree* GetOwnedPictureInPictureFrameTree() override;
-  FrameTree* GetPictureInPictureOpenerFrameTree() override;
+  FrameTree* GetOwnedDocumentPictureInPictureFrameTree() override;
+  FrameTree* GetDocumentPictureInPictureOpenerFrameTree() override;
 
   // NavigationControllerDelegate ----------------------------------------------
 
@@ -1280,6 +1281,11 @@ class CONTENT_EXPORT WebContentsImpl
   bool ShouldPreserveAbortedURLs() override;
   void NotifyNavigationStateChangedFromController(
       InvalidateTypes changed_flags) override;
+#if BUILDFLAG(IS_ANDROID)
+  scoped_refptr<viz::RasterContextProvider> GetRasterContextProvider() override;
+  gfx::ColorSpace GetOutputColorSpace(gfx::ContentColorUsage color_usage,
+                                      bool needs_alpha) override;
+#endif  // BUILDFLAG(IS_ANDROID)
 
   //  RenderWidgetHostInputEventRouter::Delegate -------------------------------
   input::TouchEmulator* GetTouchEmulator(bool create_if_necessary) override;
@@ -1592,6 +1598,8 @@ class CONTENT_EXPORT WebContentsImpl
   }
 
   bool IsPopup() const override;
+
+  WebContents* GetDocumentPictureInPictureOpener();
 
  private:
   using FrameTreeIterationCallback = base::FunctionRef<void(FrameTree&)>;

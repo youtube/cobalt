@@ -72,7 +72,6 @@ _TEST_TARGET_ALLOWLIST = [
     '//chrome/browser/mac:install_sh_test',
     '//chrome/browser/metrics/perf:profile_provider_unittest',
     '//chrome/browser/privacy_sandbox/notice:fuzz_tests',
-    '//chrome/browser/ui/views/toolbar:unit_tests',
     '//chrome/browser/web_applications:web_application_fuzztests',
     '//chromecast/media/base:video_plane_controller_test',
     '//chromecast/metrics:cast_metrics_unittest',
@@ -505,7 +504,7 @@ def HaveUserPickFile(paths):
 
   msg = f"""\
 Found multiple paths with that name.
-Hint: Avoid this in subsequent runs using --path-index=$INDEX, or --all.
+Hint: Avoid this in subsequent runs using --path-index=$INDEX, or --run-all.
 
 {path_list}
 
@@ -519,7 +518,7 @@ def HaveUserPickTarget(paths, targets):
 
   msg = f"""\
 Path(s) belong to multiple test targets.
-Hint: Avoid this in subsequent runs using --target-index=$INDEX, or --all.
+Hint: Avoid this in subsequent runs using --target-index=$INDEX, or --run-all.
 
 {target_list}
 

@@ -70,11 +70,6 @@ bool AudioFileReader::OpenDecoder() {
     return false;
   }
 
-  // Store initial sample format to guard against midstream configuration
-  // changes.
-  sample_format_ = AVSampleFormatToSampleFormat(codec_context_->sample_fmt,
-                                                codec_context_->codec_id);
-
   // Under a very specific set of circumstances, we can use the
   // SymphoniaAudioDecoder.
 #if BUILDFLAG(ENABLE_SYMPHONIA)
@@ -193,8 +188,7 @@ size_t AudioFileReader::Read(
 
 void AudioFileReader::OnOutput(scoped_refptr<AudioBuffer> buffer) {
   // Ensure that there are no unsupported midstream configuration changes.
-  if (buffer->sample_format() != sample_format_ ||
-      buffer->sample_rate() != config_->samples_per_second() ||
+  if (buffer->sample_rate() != config_->samples_per_second() ||
       buffer->channel_count() != config_->channels() ||
       buffer->channel_layout() != config_->channel_layout()) {
     DLOG(ERROR) << "Unsupported midstream configuration change! sample_rate="
@@ -203,14 +197,30 @@ void AudioFileReader::OnOutput(scoped_refptr<AudioBuffer> buffer) {
                 << "), channel_layout=" << buffer->channel_layout()
                 << " (expected " << config_->channel_layout()
                 << "), channels=" << buffer->channel_count() << " (expected "
-                << config_->channels() << "), sample_format=\""
-                << SampleFormatToString(buffer->sample_format())
-                << "\" (expected \"" << SampleFormatToString(sample_format_)
-                << "\")";
+                << config_->channels() << "\")";
 
     // This is an unrecoverable error, so bail out.  We'll return
     // whatever we've decoded up to this point.
     on_output_error_ = true;
+    return;
+  }
+
+  // Drop buffers that are entirely before the zero start time.
+  if (buffer->timestamp() + buffer->duration() < base::TimeDelta()) {
+    return;
+  }
+
+  // Trim buffers that start before the zero start time.
+  if (buffer->timestamp() < base::TimeDelta()) {
+    const base::TimeDelta trim_time = base::TimeDelta() - buffer->timestamp();
+    const int frames_to_trim =
+        AudioTimestampHelper::TimeToFrames(trim_time, buffer->sample_rate());
+    buffer->TrimStart(frames_to_trim);
+    buffer->set_timestamp(base::TimeDelta());
+  }
+
+  // If the entire buffer was trimmed, drop it.
+  if (!buffer->frame_count()) {
     return;
   }
 
@@ -371,14 +381,6 @@ bool AudioFileReader::DecodePacket(const ScopedAVPacket& packet) {
 bool AudioFileReader::IsMp3File() {
   return glue_->container() ==
          container_names::MediaContainerName::kContainerMP3;
-}
-
-bool AudioFileReader::SeekForTesting(base::TimeDelta seek_time) {
-  // Use the AVStream's time_base, since |codec_context_| does not have
-  // time_base populated until after OpenDecoder().
-  return av_seek_frame(glue_->format_context(), *stream_index_,
-                       ConvertToTimeBase(stream()->time_base, seek_time),
-                       AVSEEK_FLAG_BACKWARD) >= 0;
 }
 
 const AVStream* AudioFileReader::stream() const {

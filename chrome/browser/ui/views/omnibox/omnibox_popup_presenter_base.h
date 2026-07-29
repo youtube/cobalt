@@ -10,6 +10,7 @@
 
 #include "base/memory/raw_ptr.h"
 #include "chrome/browser/ui/webui/searchbox/webui_omnibox_handler.h"
+#include "content/public/browser/web_contents_observer.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/geometry/size.h"
 #include "ui/views/view.h"
@@ -30,14 +31,14 @@ extern const void* kOmniboxWebUIPopupWidgetId;
 // this class is presentation only, i.e. Views and Widgets.  For omnibox logic
 // concerns and communication between native omnibox code and the WebUI code,
 // work with OmniboxPopupViewWebUI directly.
-class OmniboxPopupPresenterBase {
+class OmniboxPopupPresenterBase : public content::WebContentsObserver {
  public:
   DECLARE_CLASS_ELEMENT_IDENTIFIER_VALUE(kRoundedResultsFrame);
   explicit OmniboxPopupPresenterBase(LocationBarView* location_bar_view);
   OmniboxPopupPresenterBase(const OmniboxPopupPresenterBase&) = delete;
   OmniboxPopupPresenterBase& operator=(const OmniboxPopupPresenterBase&) =
       delete;
-  virtual ~OmniboxPopupPresenterBase();
+  ~OmniboxPopupPresenterBase() override;
 
   // Show or hide the popup widget with web view.
   virtual void Show();
@@ -46,7 +47,10 @@ class OmniboxPopupPresenterBase {
   // Tells whether the popup widget exists.
   bool IsShown() const;
 
-  void SetWidgetContentHeight(int content_height);
+  // Updates the widget's bounds to anchor it to the LocationBarView. The width
+  // is determined by the location bar's width, while the height is
+  // provided by the WebUI content.
+  void SetWidgetBounds(int content_height);
 
   // Returns the currently "active" Popup content, whichever one is visible or
   // going to be visible within the popup.
@@ -63,7 +67,7 @@ class OmniboxPopupPresenterBase {
   void EnsureWidgetCreated();
 
   // Called when the widget has just been destroyed.
-  virtual void WidgetDestroyed() = 0;
+  virtual void WidgetDestroyed() {}
 
   // Returns whether or not the popup should include the location bar cutout.
   virtual bool ShouldShowLocationBarCutout() const;
@@ -89,6 +93,9 @@ class OmniboxPopupPresenterBase {
   // Returns the frame view of the widget if it exists. CHECKs if no widget
   // created
   RoundedOmniboxResultsFrame* GetResultsFrame() const;
+
+  // WebContentsObserver overrides:
+  void OnVisibilityChanged(content::Visibility visibility) override;
 
   // The location bar view that owns `this`.
   const raw_ptr<LocationBarView> location_bar_view_;

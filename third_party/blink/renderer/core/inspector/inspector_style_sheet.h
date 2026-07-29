@@ -188,6 +188,7 @@ class InspectorStyleSheet : public InspectorStyleSheetBase {
                         const String& text,
                         SourceRange* new_range,
                         String* old_selector,
+                        StyleRuleFontFeature::FeatureType* font_feature_type,
                         ExceptionState&);
   CSSMediaRule* SetMediaRuleText(const SourceRange&,
                                  const String& selector,
@@ -230,12 +231,13 @@ class InspectorStyleSheet : public InspectorStyleSheetBase {
                                                                     bool);
   std::unique_ptr<protocol::CSS::CSSPositionTryRule>
   BuildObjectForPositionTryRule(CSSPositionTryRule*, bool active);
-  std::unique_ptr<protocol::CSS::CSSFontPaletteValuesRule>
-  BuildObjectForFontPaletteValuesRule(CSSFontPaletteValuesRule*);
   std::unique_ptr<protocol::CSS::CSSAtRule>
   BuildAtRuleObjectForFontPaletteValuesRule(CSSFontPaletteValuesRule*);
   std::unique_ptr<protocol::CSS::CSSAtRule> BuildAtRuleObjectForFontFaceRule(
       CSSFontFaceRule*);
+  std::unique_ptr<protocol::CSS::CSSStyle> BuildStyleObjectForFontFeatureRule(
+      CSSFontFeatureValuesRule*,
+      StyleRuleFontFeature::FeatureType);
   std::unique_ptr<protocol::CSS::CSSAtRule>
   BuildAtRuleObjectForFontFeatureValuesRule(CSSFontFeatureValuesRule*,
                                             StyleRuleFontFeature::FeatureType);

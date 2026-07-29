@@ -50,10 +50,6 @@
 #include "services/metrics/public/cpp/ukm_recorder.h"
 #include "services/metrics/public/cpp/ukm_source_id.h"
 #include "third_party/blink/public/common/features.h"
-#include "third_party/blink/public/common/privacy_budget/identifiability_metric_builder.h"
-#include "third_party/blink/public/common/privacy_budget/identifiability_metrics.h"
-#include "third_party/blink/public/common/privacy_budget/identifiability_study_settings.h"
-#include "third_party/blink/public/common/privacy_budget/identifiable_surface.h"
 #include "third_party/blink/public/common/thread_safe_browser_interface_broker_proxy.h"
 #include "third_party/blink/public/mojom/gpu/gpu.mojom-blink.h"
 #include "third_party/blink/public/platform/platform.h"
@@ -75,6 +71,7 @@
 #include "third_party/blink/renderer/core/frame/local_frame_client.h"
 #include "third_party/blink/renderer/core/frame/settings.h"
 #include "third_party/blink/renderer/core/frame/web_feature.h"
+#include "third_party/blink/renderer/core/geometry/dom_matrix.h"
 #include "third_party/blink/renderer/core/html/canvas/canvas_async_blob_creator.h"
 #include "third_party/blink/renderer/core/html/canvas/canvas_context_creation_attributes_core.h"
 #include "third_party/blink/renderer/core/html/canvas/canvas_draw_listener.h"
@@ -96,7 +93,9 @@
 #include "third_party/blink/renderer/core/layout/hit_test_canvas_result.h"
 #include "third_party/blink/renderer/core/layout/layout_html_canvas.h"
 #include "third_party/blink/renderer/core/layout/layout_object_inlines.h"
+#include "third_party/blink/renderer/core/layout/layout_replaced.h"
 #include "third_party/blink/renderer/core/layout/layout_view.h"
+#include "third_party/blink/renderer/core/layout/transform_utils.h"
 #include "third_party/blink/renderer/core/loader/render_blocking_resource_manager.h"
 #include "third_party/blink/renderer/core/page/chrome_client.h"
 #include "third_party/blink/renderer/core/page/page.h"
@@ -104,6 +103,7 @@
 #include "third_party/blink/renderer/core/paint/paint_auto_dark_mode.h"
 #include "third_party/blink/renderer/core/paint/paint_layer.h"
 #include "third_party/blink/renderer/core/probe/core_probes.h"
+#include "third_party/blink/renderer/core/resize_observer/resize_observer_utilities.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
 #include "third_party/blink/renderer/platform/fonts/plain_text_painter.h"
 #include "third_party/blink/renderer/platform/graphics/canvas_resource.h"
@@ -123,11 +123,11 @@
 #include "third_party/blink/renderer/platform/heap/thread_state.h"
 #include "third_party/blink/renderer/platform/image-encoders/image_encoder_utils.h"
 #include "third_party/blink/renderer/platform/instrumentation/use_counter.h"
-#include "third_party/blink/renderer/platform/privacy_budget/identifiability_digest_helpers.h"
 #include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 #include "third_party/blink/renderer/platform/wtf/functional.h"
 #include "ui/base/resource/resource_scale_factor.h"
 #include "ui/gfx/geometry/rect_conversions.h"
+#include "ui/gfx/geometry/size_conversions.h"
 #include "ui/gfx/geometry/skia_conversions.h"
 #include "v8/include/v8.h"
 
@@ -553,26 +553,6 @@ void HTMLCanvasElement::RegisterRenderingContextFactory(
       std::move(rendering_context_factory);
 }
 
-void HTMLCanvasElement::RecordIdentifiabilityMetric(
-    IdentifiableSurface surface,
-    IdentifiableToken value) const {
-  blink::IdentifiabilityMetricBuilder(GetDocument().UkmSourceID())
-      .Add(surface, value)
-      .Record(GetDocument().UkmRecorder());
-}
-
-void HTMLCanvasElement::IdentifiabilityReportWithDigest(
-    IdentifiableToken canvas_contents_token) const {
-  if (IdentifiabilityStudySettings::Get()->ShouldSampleType(
-          blink::IdentifiableSurface::Type::kCanvasReadback)) {
-    RecordIdentifiabilityMetric(
-        blink::IdentifiableSurface::FromTypeAndToken(
-            blink::IdentifiableSurface::Type::kCanvasReadback,
-            IdentifiabilityInputDigest(context_)),
-        canvas_contents_token.ToUkmMetricValue());
-  }
-}
-
 CanvasRenderingContext* HTMLCanvasElement::GetCanvasRenderingContext(
     ExecutionContext* execution_context,
     const String& type,
@@ -580,17 +560,6 @@ CanvasRenderingContext* HTMLCanvasElement::GetCanvasRenderingContext(
   auto* old_contents_cc_layer = ContentsCcLayer();
   auto* result =
       GetCanvasRenderingContextInternal(execution_context, type, attributes);
-
-  Document& doc = GetDocument();
-  if (IdentifiabilityStudySettings::Get()->ShouldSampleType(
-          IdentifiableSurface::Type::kCanvasRenderingContext)) {
-    IdentifiabilityMetricBuilder(doc.UkmSourceID())
-        .Add(IdentifiableSurface::FromTypeAndToken(
-                 IdentifiableSurface::Type::kCanvasRenderingContext,
-                 CanvasRenderingContext::RenderingAPIFromId(type)),
-             !!result)
-        .Record(doc.UkmRecorder());
-  }
 
   if (ContentsCcLayer() != old_contents_cc_layer)
     SetNeedsCompositingUpdate();
@@ -954,6 +923,91 @@ void HTMLCanvasElement::ResetLayer() {
   }
 }
 
+gfx::Vector2dF HTMLCanvasElement::PhysicalPixelToCanvasGridScaleFactor() {
+  if (!GetDocument().View()) {
+    return {1., 1.};
+  }
+
+  GetDocument().View()->UpdateAllLifecyclePhasesExceptPaint(
+      DocumentUpdateReason::kCanvasDrawElementImage);
+  if (!GetLayoutBox()) {
+    return {1., 1.};
+  }
+
+  // As a special case, if the canvas is sized to its devicePixelContentBox,
+  // make sure the element's physical pixels are mapped 1:1 to the canvas
+  // grid to avoid any inadverent fuzziness due to rounding.
+  gfx::Size canvas_size = Size();
+  gfx::Size device_pixel_content_box =
+      ResizeObserverUtilities::ComputeSnappedDevicePixelContentBox(
+          LogicalSize(GetLayoutBox()->ContentLogicalWidth(),
+                      GetLayoutBox()->ContentLogicalHeight()),
+          *GetLayoutBox(), GetLayoutBox()->StyleRef());
+  if (canvas_size == device_pixel_content_box) {
+    return gfx::Vector2dF(1., 1.);
+  }
+
+  PhysicalRect content_rect;
+  if (auto* replaced = DynamicTo<LayoutReplaced>(GetLayoutBox())) {
+    content_rect = replaced->ReplacedContentRect();
+  } else {
+    content_rect = GetLayoutBox()->PhysicalContentBoxRect();
+  }
+  return gfx::Vector2dF(canvas_size.width() / content_rect.Width().ToFloat(),
+                        canvas_size.height() / content_rect.Height().ToFloat());
+}
+
+namespace {
+
+// Given a transform at the origin, return an adjusted transform that is
+// equivalent, but can be applied to `element` given the current
+// `transform-origin`.
+DOMMatrix* AdjustTransformByTransformOrigin(const Element* element,
+                                            DOMMatrix* transform) {
+  gfx::Point3F origin_css;
+  if (LayoutBox* box = element ? element->GetLayoutBox() : nullptr) {
+    const PhysicalRect reference_box = ComputeReferenceBox(*box);
+    const ComputedStyle& style = box->StyleRef();
+
+    gfx::Point3F origin_phys;
+    origin_phys.set_x(FloatValueForLength(style.GetTransformOrigin().X(),
+                                          reference_box.Width()));
+    origin_phys.set_y(FloatValueForLength(style.GetTransformOrigin().Y(),
+                                          reference_box.Height()));
+    origin_phys.set_z(style.GetTransformOrigin().Z());
+    origin_css = ScalePoint(origin_phys, 1.0f / style.EffectiveZoom());
+  }
+
+  DOMMatrix* result = DOMMatrix::Create();
+  result->translateSelf(-origin_css.x(), -origin_css.y(), -origin_css.z());
+  result->multiplySelf(*transform);
+  result->translateSelf(origin_css.x(), origin_css.y(), origin_css.z());
+  return result;
+}
+
+}  // namespace
+
+DOMMatrix* HTMLCanvasElement::getElementTransform(
+    Element* element,
+    DOMMatrix* draw_transform,
+    ExceptionState& exception_state) {
+  DOMMatrix* result = DOMMatrix::Create();
+
+  // This is a change of basis for a transform in canvas pixel grid coordinates
+  // to a canvas in css coordinates. The general formula is:
+  // T_css = S_canvas_to_css * T_canvas * S_canvas_to_css-1
+  gfx::Vector2dF physical_to_canvas_grid =
+      PhysicalPixelToCanvasGridScaleFactor();
+  float physical_to_css = 1.0f / element->ComputedStyleRef().EffectiveZoom();
+  float canvas_grid_to_css_x = physical_to_css / physical_to_canvas_grid.x();
+  float canvas_grid_to_css_y = physical_to_css / physical_to_canvas_grid.y();
+  result->scaleSelf(canvas_grid_to_css_x, canvas_grid_to_css_y);
+  result->multiplySelf(*draw_transform);
+  result->scaleSelf(1.0f / canvas_grid_to_css_x, 1.0f / canvas_grid_to_css_y);
+
+  return AdjustTransformByTransformOrigin(element, result);
+}
+
 bool HTMLCanvasElement::PaintsIntoCanvasBuffer() const {
   if (HasOffscreenCanvasFrame()) {
     return false;
@@ -1029,8 +1083,7 @@ void HTMLCanvasElement::NotifyListenersCanvasChanged() {
 
     if (!source_image) {
       SourceImageStatus status;
-      source_image =
-          GetSourceImageForCanvasInternal(FlushReason::kOther, &status);
+      source_image = GetSourceImageForCanvasInternal(&status);
       if (status != kNormalSourceImageStatus)
         continue;
     }
@@ -1164,8 +1217,7 @@ void HTMLCanvasElement::PaintInternal(GraphicsContext& context,
 
   // Grab a snapshot.
   scoped_refptr<StaticBitmapImage> snapshot =
-      context_->PaintRenderingResultsToSnapshot(kFrontBuffer,
-                                                FlushReason::kOther);
+      context_->PaintRenderingResultsToSnapshot(kFrontBuffer);
 
   if (snapshot) {
     SkBlendMode composite_operator =
@@ -1210,7 +1262,6 @@ const AtomicString HTMLCanvasElement::ImageSourceURL() const {
 }
 
 scoped_refptr<StaticBitmapImage> HTMLCanvasElement::Snapshot(
-    FlushReason reason,
     SourceDrawingBuffer source_buffer) const {
   if (Size().IsEmpty()) {
     return nullptr;
@@ -1222,8 +1273,7 @@ scoped_refptr<StaticBitmapImage> HTMLCanvasElement::Snapshot(
     image_bitmap = OffscreenCanvasFrame()->Bitmap();
   } else if (IsWebGL()) {
     if (context_->CreationAttributes().premultiplied_alpha) {
-      image_bitmap =
-          context_->PaintRenderingResultsToSnapshot(source_buffer, reason);
+      image_bitmap = context_->PaintRenderingResultsToSnapshot(source_buffer);
     } else {
       image_bitmap =
           context_->GetRGBAUnacceleratedStaticBitmapImage(source_buffer);
@@ -1231,7 +1281,7 @@ scoped_refptr<StaticBitmapImage> HTMLCanvasElement::Snapshot(
   } else if (context_) {
     DCHECK(IsRenderingContext2D() || IsImageBitmapRenderingContext() ||
            IsWebGPU());
-    image_bitmap = context_->GetImage(reason);
+    image_bitmap = context_->GetImage();
   }
 
   if (!image_bitmap) {
@@ -1292,10 +1342,6 @@ String HTMLCanvasElement::ToDataURLInternal(
       // Currently we only support three encoding types.
       NOTREACHED();
     }
-    IdentifiabilityReportWithDigest(IdentifiabilityBenignStringToken(data_url));
-    TRACE_EVENT_INSTANT(
-        TRACE_DISABLED_BY_DEFAULT("identifiability.high_entropy_api"),
-        "CanvasReadback", "data_url", data_url.Utf8());
     return data_url;
   }
 
@@ -1375,11 +1421,7 @@ void HTMLCanvasElement::toBlob(V8BlobCallback* callback,
     async_creator = MakeGarbageCollected<CanvasAsyncBlobCreator>(
         image_bitmap, options,
         CanvasAsyncBlobCreator::kHTMLCanvasToBlobCallback, callback, start_time,
-        GetExecutionContext(),
-        IdentifiabilityStudySettings::Get()->ShouldSampleType(
-            IdentifiableSurface::Type::kCanvasReadback)
-            ? IdentifiabilityInputDigest(context_)
-            : 0);
+        GetExecutionContext());
   }
 
   if (async_creator) {
@@ -1742,15 +1784,13 @@ void HTMLCanvasElement::ChildrenChanged(const ChildrenChange& change) {
 }
 
 scoped_refptr<Image> HTMLCanvasElement::GetSourceImageForCanvas(
-    FlushReason reason,
     SourceImageStatus* status,
     const gfx::SizeF&) {
-  return GetSourceImageForCanvasInternal(reason, status);
+  return GetSourceImageForCanvasInternal(status);
 }
 
 scoped_refptr<StaticBitmapImage>
-HTMLCanvasElement::GetSourceImageForCanvasInternal(FlushReason reason,
-                                                   SourceImageStatus* status) {
+HTMLCanvasElement::GetSourceImageForCanvasInternal(SourceImageStatus* status) {
   if (ContextHasOpenLayers(context_)) {
     *status = kLayersOpenInCanvasSource;
     return nullptr;
@@ -1781,11 +1821,10 @@ HTMLCanvasElement::GetSourceImageForCanvasInternal(FlushReason reason,
       // Because WebGL/WebGPU sources always require copying the back buffer,
       // we use PaintRenderingResultsToSnapshot instead of GetImage in order to
       // keep a cached copy of the backing in the canvas's resource provider.
-      image = RenderingContext()->PaintRenderingResultsToSnapshot(kBackBuffer,
-                                                                  reason);
+      image = RenderingContext()->PaintRenderingResultsToSnapshot(kBackBuffer);
     } else if (RenderingContext()) {
       // This is either CanvasRenderingContext2D or ImageBitmapRenderingContext.
-      image = RenderingContext()->GetImage(reason);
+      image = RenderingContext()->GetImage();
     }
     if (!image) {
       image = GetTransparentImage();
@@ -1810,8 +1849,7 @@ gfx::SizeF HTMLCanvasElement::ElementSize(
     const gfx::SizeF&,
     const RespectImageOrientationEnum) const {
   if (IsImageBitmapRenderingContext()) {
-    scoped_refptr<Image> image =
-        RenderingContext()->GetImage(FlushReason::kNone);
+    scoped_refptr<Image> image = RenderingContext()->GetImage();
     if (image) {
       return gfx::SizeF(image->width(), image->height());
     }

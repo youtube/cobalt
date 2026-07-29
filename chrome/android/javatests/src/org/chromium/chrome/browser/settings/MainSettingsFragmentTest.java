@@ -151,11 +151,11 @@ import java.util.stream.Stream;
 @RunWith(ChromeJUnit4ClassRunner.class)
 @CommandLineFlags.Add({ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE, "show-autofill-signatures"})
 @DoNotBatch(reason = "Tests cannot run batched because they launch a Settings activity.")
-@DisableFeatures(ChromeFeatureList.DATA_SHARING)
+@DisableFeatures({ChromeFeatureList.DATA_SHARING, ChromeFeatureList.SETTINGS_MULTI_COLUMN})
 public class MainSettingsFragmentTest {
     private static final String SEARCH_ENGINE_SHORT_NAME = "Google";
 
-    private static final int RENDER_TEST_REVISION = 13;
+    private static final int RENDER_TEST_REVISION = 14;
     private static final String RENDER_TEST_DESCRIPTION =
             "Alert icon on identity error for signed in users";
 
@@ -224,6 +224,12 @@ public class MainSettingsFragmentTest {
     @Test
     @LargeTest
     @Feature({"RenderTest"})
+    // TODO(crbug.com/433576895): Re-enable containment and multi-column feature
+    // once the test is fixed.
+    @DisableFeatures({
+        ChromeFeatureList.ANDROID_SETTINGS_CONTAINMENT,
+        ChromeFeatureList.SETTINGS_MULTI_COLUMN
+    })
     public void testRenderSignedOutAccountManagementRows() throws IOException {
         startSettings();
         waitForOptionsMenu();
@@ -246,6 +252,12 @@ public class MainSettingsFragmentTest {
     @LargeTest
     @Feature({"RenderTest"})
     @Policies.Add({@Policies.Item(key = "BrowserSignin", string = "0")})
+    // TODO(crbug.com/433576895): Re-enable containment and multi-column feature
+    // once the test is fixed.
+    @DisableFeatures({
+        ChromeFeatureList.ANDROID_SETTINGS_CONTAINMENT,
+        ChromeFeatureList.SETTINGS_MULTI_COLUMN
+    })
     public void testRenderSigninDisabledByPolicyAccountRow() throws IOException {
         startSettings();
         waitForOptionsMenu();
@@ -469,6 +481,7 @@ public class MainSettingsFragmentTest {
     @Test
     @LargeTest
     @Feature({"RenderTest"})
+    @DisableFeatures(ChromeFeatureList.SETTINGS_MULTI_COLUMN)
     public void testRenderOnIdentityErrorForSignedInUsers() throws IOException {
         FakeSyncServiceImpl fakeSyncService =
                 ThreadUtils.runOnUiThreadBlocking(
@@ -657,7 +670,7 @@ public class MainSettingsFragmentTest {
                                 hasDescendant(withText(R.string.password_manager_settings_title)),
                                 hasDescendant(managedStrMatcher)))
                 .check(matches(isDisplayed()));
-        ;
+
         Assert.assertTrue(mMainSettings.findPreference(MainSettings.PREF_PASSWORDS).isEnabled());
         Assert.assertNotNull(
                 mMainSettings

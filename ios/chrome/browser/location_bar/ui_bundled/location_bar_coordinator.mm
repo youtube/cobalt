@@ -18,6 +18,8 @@
 #import "components/search_engines/util.h"
 #import "components/strings/grit/components_strings.h"
 #import "ios/chrome/browser/autocomplete/model/autocomplete_scheme_classifier_impl.h"
+#import "ios/chrome/browser/autocomplete/model/autocomplete_service.h"
+#import "ios/chrome/browser/autocomplete/model/autocomplete_service_factory.h"
 #import "ios/chrome/browser/badges/ui_bundled/badge_button_factory.h"
 #import "ios/chrome/browser/badges/ui_bundled/badge_delegate.h"
 #import "ios/chrome/browser/badges/ui_bundled/badge_mediator.h"
@@ -327,6 +329,7 @@ const size_t kMaxURLDisplayChars = 32 * 1024;
   // Create button factory that wil be used by the ViewController to get
   // BadgeButtons for a BadgeType.
   BadgeButtonFactory* buttonFactory = [[BadgeButtonFactory alloc] init];
+  buttonFactory.incognito = isIncognito;
   self.badgeViewController =
       [[BadgeViewController alloc] initWithButtonFactory:buttonFactory];
   self.badgeViewController.layoutGuideCenter =
@@ -414,6 +417,18 @@ const size_t kMaxURLDisplayChars = 32 * 1024;
     omniboxPositionBrowserAgent->SetOmniboxStateProvider(self);
   }
 
+  AutocompleteService* autocompleteService =
+      AutocompleteServiceFactory::GetForProfile(self.profile);
+  if (autocompleteService) {
+    __weak __typeof__(self) weakSelf = self;
+    autocompleteService->RegisterWebStateListForPrefetching(
+        IsComposeboxIOSEnabled() ? OmniboxPresentationContext::kComposebox
+                                 : OmniboxPresentationContext::kLocationBar,
+        self.webStateList,
+        base::BindRepeating(^metrics::OmniboxEventProto::PageClassification() {
+          return [weakSelf getPageClassification:YES];
+        }));
+  }
   self.started = YES;
 
   [self setUpDragAndDrop];
@@ -446,6 +461,16 @@ const size_t kMaxURLDisplayChars = 32 * 1024;
 
   // The popup has to be destroyed before the location bar.
   [self.omniboxCoordinator stop];
+  // TODO(crbug.com/462700929): Cleanup the service's objects like when it was
+  // owned by the omnibox. Remove this workaround once the service can be safely
+  // cleaned up during shutdown.
+  AutocompleteService* autocompleteService =
+      AutocompleteServiceFactory::GetForProfile(self.profile);
+  if (autocompleteService) {
+    autocompleteService->UnregisterWebStateListForPrefetching(
+        self.webStateList);
+    autocompleteService->RemoveServices();
+  }
   [self.badgeMediator disconnect];
   self.badgeMediator = nil;
   _locationBar.reset();
@@ -558,18 +583,9 @@ const size_t kMaxURLDisplayChars = 32 * 1024;
     // `loadURL|?  It doesn't seem to be causing major problems.  If we call
     // cancel before load, then any prerendered pages get destroyed before the
     // call to load.
-    web::NavigationManager::WebLoadParams web_params =
-        web_navigation_util::CreateWebLoadParams(url, transition, postContent);
-    if (destination_url_entered_without_scheme) {
-      web_params.https_upgrade_type = web::HttpsUpgradeType::kOmnibox;
-    }
-    NSMutableDictionary<NSString*, NSString*>* combinedExtraHeaders =
-        [web_navigation_util::VariationHeadersForURL(url, self.isOffTheRecord)
-            mutableCopy];
-    [combinedExtraHeaders addEntriesFromDictionary:web_params.extra_headers];
-    web_params.extra_headers = [combinedExtraHeaders copy];
-    UrlLoadParams params = UrlLoadParams::InCurrentTab(web_params);
-    params.disposition = disposition;
+    UrlLoadParams params = CreateOmniboxUrlLoadParams(
+        url, postContent, disposition, transition,
+        destination_url_entered_without_scheme, self.isOffTheRecord);
     UrlLoadingBrowserAgent::FromBrowser(self.browser)->Load(params);
   }
   [self cancelOmniboxEdit];
@@ -820,6 +836,14 @@ const size_t kMaxURLDisplayChars = 32 * 1024;
 
 #pragma mark - Private
 
+- (metrics::OmniboxEventProto::PageClassification)getPageClassification:
+    (BOOL)isPrefetch {
+  if (_locationBarModel) {
+    return _locationBarModel->GetPageClassification(isPrefetch);
+  }
+  return metrics::OmniboxEventProto::INVALID_SPEC;
+}
+
 // Navigate to `query` from omnibox.
 - (void)loadURLForQuery:(const std::u16string&)query {
   GURL searchURL;
@@ -891,6 +915,10 @@ const size_t kMaxURLDisplayChars = 32 * 1024;
   }
 
   [self cancelOmniboxEdit];
+}
+
+- (UIView*)locationBarSteadyViewVisualCopy {
+  return self.viewController.locationBarSteadyViewVisualCopy;
 }
 
 @end

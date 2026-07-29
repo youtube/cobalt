@@ -54,8 +54,6 @@
 #include "third_party/blink/renderer/modules/encryptedmedia/encrypted_media_utils.h"
 #include "third_party/blink/renderer/modules/encryptedmedia/media_key_system_access.h"
 #include "third_party/blink/renderer/modules/encryptedmedia/media_key_system_access_initializer_base.h"
-#include "third_party/blink/renderer/modules/media_capabilities/media_capabilities_identifiability_metrics.h"
-#include "third_party/blink/renderer/modules/media_capabilities_names.h"
 #include "third_party/blink/renderer/modules/mediarecorder/media_recorder_handler.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
 #include "third_party/blink/renderer/platform/bindings/script_state.h"
@@ -153,8 +151,6 @@ CreateResolvedPromiseToDecodingInfoWith(
     ScriptState* script_state,
     const MediaDecodingConfiguration* config) {
   MediaCapabilitiesDecodingInfo* info = CreateDecodingInfoWith(value);
-  media_capabilities_identifiability_metrics::ReportDecodingInfoResult(
-      ExecutionContext::From(script_state), config, info);
   return ToResolvedPromise<MediaCapabilitiesDecodingInfo>(script_state, info);
 }
 
@@ -390,8 +386,8 @@ WebAudioConfiguration ToWebAudioConfiguration(
   DCHECK(!parsed_content_type.GetParameters().HasDuplicatedNames());
 
   web_configuration.mime_type = parsed_content_type.MimeType().LowerASCII();
-  web_configuration.codec = parsed_content_type.ParameterValueForName(
-      media_capabilities_names::kCodecs);
+  web_configuration.codec =
+      parsed_content_type.ParameterValueForName(kCodecsMimeTypeParam);
 
   // |channels| is optional and will be set to a null WebString if not present.
   web_configuration.channels = configuration->hasChannels()
@@ -417,8 +413,8 @@ WebVideoConfiguration ToWebVideoConfiguration(
   DCHECK(parsed_content_type.IsValid());
   DCHECK(!parsed_content_type.GetParameters().HasDuplicatedNames());
   web_configuration.mime_type = parsed_content_type.MimeType().LowerASCII();
-  web_configuration.codec = parsed_content_type.ParameterValueForName(
-      media_capabilities_names::kCodecs);
+  web_configuration.codec =
+      parsed_content_type.ParameterValueForName(kCodecsMimeTypeParam);
 
   DCHECK(configuration->hasWidth());
   web_configuration.width = configuration->width();
@@ -704,7 +700,7 @@ void OnMediaCapabilitiesEncodingInfo(
     return;
   }
 
-  Persistent<MediaCapabilitiesInfo> info(MediaCapabilitiesInfo::Create());
+  auto* info = MediaCapabilitiesInfo::Create();
   info->setSupported(result->supported);
   info->setSmooth(result->smooth);
   info->setPowerEfficient(result->power_efficient);
@@ -725,8 +721,7 @@ bool ParseContentType(const String& content_type,
   }
 
   *mime_type = parsed_content_type.MimeType().LowerASCII();
-  *codec = parsed_content_type.ParameterValueForName(
-      media_capabilities_names::kCodecs);
+  *codec = parsed_content_type.ParameterValueForName(kCodecsMimeTypeParam);
   return true;
 }
 
@@ -745,24 +740,18 @@ const char MediaCapabilities::kWebrtcDecodeSmoothIfPowerEfficientParamName[] =
 const char MediaCapabilities::kWebrtcEncodeSmoothIfPowerEfficientParamName[] =
     "webrtc_encode_smooth_if_power_efficient";
 
-// static
-const unsigned MediaCapabilities::kSupplementIndex =
-    static_cast<unsigned>(NavigatorBase::Supplements::kMediaCapabilities);
-
 MediaCapabilities* MediaCapabilities::mediaCapabilities(
     NavigatorBase& navigator) {
-  MediaCapabilities* supplement =
-      Supplement<NavigatorBase>::From<MediaCapabilities>(navigator);
+  MediaCapabilities* supplement = navigator.GetMediaCapabilities();
   if (!supplement) {
     supplement = MakeGarbageCollected<MediaCapabilities>(navigator);
-    ProvideTo(navigator, supplement);
+    navigator.SetMediaCapabilities(supplement);
   }
   return supplement;
 }
 
 MediaCapabilities::MediaCapabilities(NavigatorBase& navigator)
-    : Supplement<NavigatorBase>(navigator),
-      decode_history_service_(navigator.GetExecutionContext()),
+    : decode_history_service_(navigator.GetExecutionContext()),
       webrtc_history_service_(navigator.GetExecutionContext()) {}
 
 void MediaCapabilities::Trace(blink::Visitor* visitor) const {
@@ -770,18 +759,15 @@ void MediaCapabilities::Trace(blink::Visitor* visitor) const {
   visitor->Trace(webrtc_history_service_);
   visitor->Trace(pending_cb_map_);
   ScriptWrappable::Trace(visitor);
-  Supplement<NavigatorBase>::Trace(visitor);
 }
 
 MediaCapabilities::PendingCallbackState::PendingCallbackState(
     ScriptPromiseResolverBase* resolver,
     MediaKeySystemAccess* access,
-    const base::TimeTicks& request_time,
-    std::optional<IdentifiableToken> input_token)
+    const base::TimeTicks& request_time)
     : resolver(resolver),
       key_system_access(access),
-      request_time(request_time),
-      input_token(input_token) {}
+      request_time(request_time) {}
 
 void MediaCapabilities::PendingCallbackState::Trace(
     blink::Visitor* visitor) const {
@@ -830,7 +816,7 @@ ScriptPromise<MediaCapabilitiesDecodingInfo> MediaCapabilities::decodingInfo(
       pending_cb_map_.insert(
           callback_id,
           MakeGarbageCollected<MediaCapabilities::PendingCallbackState>(
-              resolver, nullptr, request_time, std::nullopt));
+              resolver, nullptr, request_time));
 
       std::optional<webrtc::SdpAudioFormat> sdp_audio_format =
           config->hasAudio()
@@ -909,8 +895,6 @@ ScriptPromise<MediaCapabilitiesDecodingInfo> MediaCapabilities::decodingInfo(
       // MediaKeySystemAccess.
       MediaCapabilitiesDecodingInfo* info =
           CreateEncryptedDecodingInfoWith(false, nullptr);
-      media_capabilities_identifiability_metrics::ReportDecodingInfoResult(
-          ExecutionContext::From(script_state), config, info);
       return ToResolvedPromise<MediaCapabilitiesDecodingInfo>(script_state,
                                                               info);
     }
@@ -1062,7 +1046,7 @@ ScriptPromise<MediaCapabilitiesInfo> MediaCapabilities::encodingInfo(
       pending_cb_map_.insert(
           callback_id,
           MakeGarbageCollected<MediaCapabilities::PendingCallbackState>(
-              resolver, nullptr, request_time, std::nullopt));
+              resolver, nullptr, request_time));
 
       std::optional<webrtc::SdpAudioFormat> sdp_audio_format =
           config->hasAudio()
@@ -1329,8 +1313,6 @@ void MediaCapabilities::GetPerfInfo(
     // Audio-only is always smooth and power efficient.
     MediaCapabilitiesDecodingInfo* info = CreateDecodingInfoWith(true);
     info->setKeySystemAccess(access);
-    media_capabilities_identifiability_metrics::ReportDecodingInfoResult(
-        execution_context, decoding_config, info);
     resolver->Resolve(info);
     return;
   }
@@ -1349,8 +1331,6 @@ void MediaCapabilities::GetPerfInfo(
 
   if (!EnsurePerfHistoryService(execution_context)) {
     MediaCapabilitiesDecodingInfo* info = CreateDecodingInfoWith(true);
-    media_capabilities_identifiability_metrics::ReportDecodingInfoResult(
-        execution_context, decoding_config, info);
     resolver->Resolve(WrapPersistent(info));
     return;
   }
@@ -1359,9 +1339,7 @@ void MediaCapabilities::GetPerfInfo(
   pending_cb_map_.insert(
       callback_id,
       MakeGarbageCollected<MediaCapabilities::PendingCallbackState>(
-          resolver, access, request_time,
-          media_capabilities_identifiability_metrics::
-              ComputeDecodingInfoInputToken(decoding_config)));
+          resolver, access, request_time));
 
   media::mojom::blink::PredictionFeaturesPtr features =
       media::mojom::blink::PredictionFeatures::New(
@@ -1476,8 +1454,7 @@ void MediaCapabilities::ResolveCallbackIfReady(int callback_id) {
     return;
   }
 
-  Persistent<MediaCapabilitiesDecodingInfo> info(
-      MediaCapabilitiesDecodingInfo::Create());
+  auto* info = MediaCapabilitiesDecodingInfo::Create();
   info->setSupported(true);
   info->setKeySystemAccess(pending_cb->key_system_access);
 
@@ -1513,8 +1490,6 @@ void MediaCapabilities::ResolveCallbackIfReady(int callback_id) {
                         process_time);
   }
 
-  media_capabilities_identifiability_metrics::ReportDecodingInfoResult(
-      execution_context, pending_cb->input_token, info);
   pending_cb->resolver->DowncastTo<MediaCapabilitiesDecodingInfo>()->Resolve(
       std::move(info));
   pending_cb_map_.erase(callback_id);

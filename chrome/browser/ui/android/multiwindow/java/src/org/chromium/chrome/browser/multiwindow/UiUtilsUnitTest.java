@@ -6,7 +6,6 @@ package org.chromium.chrome.browser.multiwindow;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -25,7 +24,6 @@ import android.graphics.drawable.Drawable;
 import androidx.annotation.DrawableRes;
 
 import com.google.android.material.textfield.TextInputEditText;
-import com.google.android.material.textfield.TextInputLayout;
 
 import org.junit.Before;
 import org.junit.Rule;
@@ -99,7 +97,7 @@ public class UiUtilsUnitTest {
     }
 
     @Test
-    public void testShowNameWindowDialog_Success() {
+    public void testShowNameWindowDialog_NonEmptyTitle_Success() {
         Activity activity = Robolectric.setupActivity(Activity.class);
         Callback<String> mockCallback = mock(Callback.class);
         String currentTitle = "Window 1";
@@ -120,26 +118,24 @@ public class UiUtilsUnitTest {
     }
 
     @Test
-    public void testShowNameWindowDialog_EmptyTitleError() {
+    public void testShowNameWindowDialog_EmptyTitle_Success() {
         Activity activity = Robolectric.setupActivity(Activity.class);
         Callback<String> mockCallback = mock(Callback.class);
         String currentTitle = "Window 1";
-        doReturn("Error").when(mContext).getString(anyInt());
+        String newTitle = "";
 
         UiUtils.showNameWindowDialog(activity, currentTitle, mockCallback, mNameWindowDialogSource);
 
         Dialog dialog = ShadowDialog.getLatestDialog();
         assertTrue(dialog.isShowing());
 
-        TextInputLayout textInputLayout = dialog.findViewById(R.id.new_window_title);
         TextInputEditText editText = dialog.findViewById(R.id.title_input_text);
-        editText.setText("   "); // Whitespace only.
+        editText.setText(newTitle);
 
         dialog.findViewById(R.id.positive_button).performClick();
 
-        assertTrue(dialog.isShowing());
-        assertNotNull(textInputLayout.getError());
-        verify(mockCallback, never()).onResult(any());
+        assertFalse(dialog.isShowing());
+        verify(mockCallback).onResult(newTitle);
     }
 
     @Test
@@ -616,16 +612,17 @@ public class UiUtilsUnitTest {
     private InstanceInfo mockInstance(
             int taskId, int tabCount, int incognitoTabCount, boolean isIncognito) {
         return new InstanceInfo(
-                1,
+                /* instanceId= */ 1,
                 taskId,
-                0,
+                /* type= */ 0,
                 "https://url.com",
                 TITLE,
                 /* customTitle= */ null,
                 tabCount,
                 incognitoTabCount,
                 isIncognito,
-                0);
+                /* lastAccessedTime= */ 0,
+                /* closedByUser= */ false);
     }
 
     private InstanceInfo mockInstance(
@@ -635,24 +632,46 @@ public class UiUtilsUnitTest {
             boolean isIncognito,
             String customTitle) {
         return new InstanceInfo(
-                1,
-                taskId,
-                0,
+                /* instanceId= */ 1,
+                /* taskId= */ taskId,
+                /* type= */ 0,
                 "https://url.com",
                 TITLE,
                 customTitle,
                 tabCount,
                 incognitoTabCount,
                 isIncognito,
-                0);
+                /* lastAccessedTime= */ 0,
+                /* closedByUser= */ false);
     }
 
     private InstanceInfo mockInstance(int type) {
         return new InstanceInfo(
-                1, 57, type, "https://url.com", TITLE, /* customTitle= */ null, 1, 1, true, 0);
+                /* instanceId= */ 1,
+                /* taskId= */ 57,
+                type,
+                "https://url.com",
+                TITLE,
+                /* customTitle= */ null,
+                /* tabCount= */ 1,
+                /* incognitoTabCount= */ 1,
+                /* isIncognitoSelected= */ true,
+                /* lastAccessedTime= */ 0,
+                /* closedByUser= */ false);
     }
 
     private InstanceInfo mockInstanceBeforeLoadingTab(int type) {
-        return new InstanceInfo(1, 57, type, null, null, /* customTitle= */ null, 1, 0, false, 0);
+        return new InstanceInfo(
+                /* instanceId= */ 1,
+                /* taskId= */ 57,
+                type,
+                /* url= */ null,
+                /* title= */ null,
+                /* customTitle= */ null,
+                /* tabCount= */ 1,
+                /* incognitoTabCount= */ 0,
+                /* isIncognitoSelected= */ false,
+                /* lastAccessedTime= */ 0,
+                /* closedByUser= */ false);
     }
 }

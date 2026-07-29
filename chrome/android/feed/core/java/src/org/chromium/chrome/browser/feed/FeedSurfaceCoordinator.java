@@ -14,6 +14,8 @@ import android.content.res.Configuration;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.drawable.BitmapDrawable;
+import android.graphics.drawable.Drawable;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.SystemClock;
@@ -24,6 +26,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
 import android.widget.ImageButton;
+import android.widget.ImageView;
 import android.widget.TextView;
 
 import androidx.annotation.ColorInt;
@@ -60,7 +63,8 @@ import org.chromium.chrome.browser.ntp_customization.NtpCustomizationCoordinator
 import org.chromium.chrome.browser.ntp_customization.NtpCustomizationCoordinatorFactory;
 import org.chromium.chrome.browser.ntp_customization.NtpCustomizationMetricsUtils;
 import org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils.NtpBackgroundImageType;
-import org.chromium.chrome.browser.ntp_customization.theme.NtpBackgroundImageView;
+import org.chromium.chrome.browser.ntp_customization.theme.NtpBackgroundImageCoordinator;
+import org.chromium.chrome.browser.ntp_customization.theme.chrome_colors.NtpThemeColorInfo;
 import org.chromium.chrome.browser.ntp_customization.theme.upload_image.BackgroundImageInfo;
 import org.chromium.chrome.browser.privacy.settings.PrivacyPreferencesManagerImpl;
 import org.chromium.chrome.browser.profiles.Profile;
@@ -108,6 +112,9 @@ public class FeedSurfaceCoordinator
                 SurfaceCoordinator,
                 HasContentListener,
                 FeedContentFirstLoadWatcher {
+    @Nullable ImageView getRecyclerViewSnapshotOverlayForTesting() {
+        return mRecyclerViewSnapshotOverlay;
+    }
 
     protected final Activity mActivity;
     private final SnackbarManager mSnackbarManager;
@@ -129,7 +136,6 @@ public class FeedSurfaceCoordinator
 
     private FeedSurfaceMediator mMediator;
     private final boolean mIsNtpCustomizationV2Enabled;
-    private @Nullable NtpBackgroundImageView mBackgroundImageView;
     private final UiConfig mUiConfig;
     private final FrameLayout mRootView;
     private boolean mIsActive;
@@ -153,6 +159,7 @@ public class FeedSurfaceCoordinator
     // Feed RecyclerView/xSurface fields.
     private FeedListContentManager mContentManager;
     private final RecyclerView mRecyclerView;
+    private @Nullable ImageView mRecyclerViewSnapshotOverlay;
     private @Nullable FeedSurfaceScope mSurfaceScope;
     private @Nullable FeedSurfaceScopeDependencyProviderImpl mDependencyProvider;
     private HybridListRenderer mHybridListRenderer;
@@ -181,6 +188,7 @@ public class FeedSurfaceCoordinator
     private final boolean mIsNewTabPageCustomizationEnabled;
     private @Nullable ImageButton mNtpCustomizationButton;
     private @Nullable NtpCustomizationConfigManager mNtpCustomizationConfigManager;
+    private @Nullable NtpBackgroundImageCoordinator mNtpBackgroundImageCoordinator;
     private NtpCustomizationConfigManager.@Nullable HomepageStateListener mHomepageStateListener;
 
     /** Provides the additional capabilities needed for the container view. */
@@ -188,7 +196,7 @@ public class FeedSurfaceCoordinator
         /**
          * @param context The context of the application.
          */
-        public RootView(Context context) {
+        RootView(Context context) {
             super(context);
         }
 
@@ -201,6 +209,12 @@ public class FeedSurfaceCoordinator
         @Override
         protected void onSizeChanged(int width, int height, int oldWidth, int oldHeight) {
             super.onSizeChanged(width, height, oldWidth, oldHeight);
+            if (oldWidth != 0 && oldHeight != 0 && mRecyclerViewSnapshotOverlay != null) {
+                // TODO(crbug.com/451422517): This is a temporary solution to make resizing on
+                // large screen devices smoother. Remove this once the long term solution is
+                // implemented.
+                handleResize(width, height);
+            }
             if (ChromeFeatureList.isEnabled(ChromeFeatureList.FEED_CONTAINMENT)) {
                 mRecyclerView.post(mRecyclerView::invalidateItemDecorations);
                 updateNtpHeaderMargins();
@@ -471,7 +485,9 @@ public class FeedSurfaceCoordinator
 
         mIsNtpCustomizationV2Enabled = ChromeFeatureList.sNewTabPageCustomizationV2.isEnabled();
         if (mIsNewTabPageCustomizationEnabled) {
-            addBackgroundImageView();
+            mNtpBackgroundImageCoordinator =
+                    new NtpBackgroundImageCoordinator(
+                            mActivity, mRootView, mUiConfig, mDefaultBackgroundColor);
         }
 
         // Pull-to-refresh set up.
@@ -480,6 +496,15 @@ public class FeedSurfaceCoordinator
             mRootView.addView(mSwipeRefreshLayout);
         } else {
             mRootView.addView(mRecyclerView);
+        }
+        // TODO(crbug.com/451422517): This is a temporary solution to prevent NTP flashing.
+        // The snapshot overlay is added to the RootView to cover the RecyclerView during resize.
+        if (ChromeFeatureList.sFluidResize.isEnabled()
+                && DeviceFormFactor.isNonMultiDisplayContextOnTablet(mActivity)) {
+            mRecyclerViewSnapshotOverlay = new ImageView(mActivity);
+            mRecyclerViewSnapshotOverlay.setVisibility(View.GONE);
+            mRecyclerViewSnapshotOverlay.setScaleType(ImageView.ScaleType.FIT_START);
+            mRootView.addView(mRecyclerViewSnapshotOverlay);
         }
         if (mSwipeRefreshLayout != null) {
             mSwipeRefreshLayout.addOnRefreshListener(this);
@@ -532,7 +557,8 @@ public class FeedSurfaceCoordinator
 
                         @Override
                         public void onBackgroundColorChanged(
-                                int backgroundColor,
+                                @Nullable NtpThemeColorInfo ntpThemeColorInfo,
+                                @ColorInt int backgroundColor,
                                 boolean fromInitialization,
                                 @NtpBackgroundImageType int oldType,
                                 @NtpBackgroundImageType int newType) {
@@ -635,17 +661,56 @@ public class FeedSurfaceCoordinator
         mMediator.updateContent();
     }
 
-    private void addBackgroundImageView() {
-        mBackgroundImageView = new NtpBackgroundImageView(mActivity, mUiConfig);
-        FrameLayout.LayoutParams backgroundLayoutParams =
-                new FrameLayout.LayoutParams(
-                        FrameLayout.LayoutParams.MATCH_PARENT,
-                        FrameLayout.LayoutParams.MATCH_PARENT);
-        mBackgroundImageView.setLayoutParams(backgroundLayoutParams);
+    private void handleResize(int newWidth, int newHeight) {
+        if (mRecyclerViewSnapshotOverlay == null) return;
+        Bitmap snapshot = takeRecyclerViewSnapshot(newWidth, newHeight);
+        if (snapshot == null) return;
 
-        // Applies an opaque background color to prevent any views underneath from being visible.
-        mBackgroundImageView.setBackgroundColor(mDefaultBackgroundColor);
-        mRootView.addView(mBackgroundImageView);
+        mRecyclerViewSnapshotOverlay.setImageBitmap(snapshot);
+
+        mRecyclerViewSnapshotOverlay.setVisibility(View.VISIBLE);
+        mRecyclerView.setVisibility(View.INVISIBLE);
+
+        mHandler.post(
+                () -> {
+                    if (mRecyclerViewSnapshotOverlay == null) return;
+                    mRecyclerView.setVisibility(View.VISIBLE);
+                    mRecyclerViewSnapshotOverlay.setVisibility(View.GONE);
+                    // Recycle the bitmap to free up memory immediately.
+                    Drawable drawable = mRecyclerViewSnapshotOverlay.getDrawable();
+                    if (drawable instanceof BitmapDrawable bitmapDrawable) {
+                        Bitmap bitmap = bitmapDrawable.getBitmap();
+                        if (bitmap != null) {
+                            bitmap.recycle();
+                        }
+                    }
+                    mRecyclerViewSnapshotOverlay.setImageDrawable(null);
+                });
+    }
+
+    private @Nullable Bitmap takeRecyclerViewSnapshot(int newWidth, int newHeight) {
+        int recyclerWidth = newWidth;
+        // The recycler view is padded at the top by the tab strip height.
+        int recyclerHeight = newHeight - mRootView.getPaddingTop();
+
+        if (recyclerWidth <= 0 || recyclerHeight <= 0) {
+            return null;
+        }
+        try {
+            // Manually measure and layout the RecyclerView to the new size.
+            mRecyclerView.measure(
+                    View.MeasureSpec.makeMeasureSpec(recyclerWidth, View.MeasureSpec.EXACTLY),
+                    View.MeasureSpec.makeMeasureSpec(recyclerHeight, View.MeasureSpec.EXACTLY));
+            mRecyclerView.layout(0, 0, recyclerWidth, recyclerHeight);
+
+            Bitmap bitmap =
+                    Bitmap.createBitmap(recyclerWidth, recyclerHeight, Bitmap.Config.ARGB_8888);
+            Canvas canvas = new Canvas(bitmap);
+            ViewUtils.captureBitmap(mRecyclerView, canvas);
+            return bitmap;
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     // Sets the background image for the embedder NTP.
@@ -658,7 +723,7 @@ public class FeedSurfaceCoordinator
         }
 
         mRecyclerView.setBackgroundColor(Color.TRANSPARENT);
-        assumeNonNull(mBackgroundImageView)
+        assumeNonNull(mNtpBackgroundImageCoordinator)
                 .setBackground(originalBitmap, backgroundImageInfo, backgroundType);
     }
 
@@ -669,8 +734,8 @@ public class FeedSurfaceCoordinator
      */
     private void setBackgroundColor(@ColorInt int backgroundColor) {
         mRecyclerView.setBackgroundColor(backgroundColor);
-        if (mBackgroundImageView != null) {
-            mBackgroundImageView.setImageBitmap(null);
+        if (mNtpBackgroundImageCoordinator != null) {
+            mNtpBackgroundImageCoordinator.clearBackground();
         }
 
         if (mNtpHeader != null) {
@@ -802,8 +867,8 @@ public class FeedSurfaceCoordinator
             mNtpCustomizationConfigManager.removeListener(mHomepageStateListener);
             mHomepageStateListener = null;
         }
-        if (mBackgroundImageView != null) {
-            mBackgroundImageView.destroy();
+        if (mNtpBackgroundImageCoordinator != null) {
+            mNtpBackgroundImageCoordinator.destroy();
         }
     }
 
@@ -1448,7 +1513,8 @@ public class FeedSurfaceCoordinator
         return mRootView;
     }
 
-    public void setBackgroundImageViewForTesting(NtpBackgroundImageView backgroundImageView) {
-        mBackgroundImageView = backgroundImageView;
+    public void setBackgroundImageCoordinatorForTesting(
+            NtpBackgroundImageCoordinator backgroundImageCoordinator) {
+        mNtpBackgroundImageCoordinator = backgroundImageCoordinator;
     }
 }

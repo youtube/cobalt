@@ -90,7 +90,6 @@ GetVerifiedAnnotationTargetFrameForPDF(const mojom::ScrollToParams& params,
     return base::unexpected(mojom::ScrollToErrorReason::kNoMatchingDocument);
   }
 
-  // TODO(crbug.com/422728758): Implement url verification for PDFs.
   return &pdf_helper->render_frame_host();
 #else
   return base::unexpected(mojom::ScrollToErrorReason::kNotSupported);
@@ -225,13 +224,14 @@ void GlicAnnotationManager::ScrollTo(
   // selector will set `node_id`.
   CHECK(text_fragment.has_value() || node_id.has_value());
 
-  if (!service_->profile()->GetPrefs()->GetBoolean(
-          prefs::kGlicTabContextEnabled)) {
-    std::move(wrapped_callback)
-        .Run(mojom::ScrollToErrorReason::kTabContextPermissionDisabled);
-    return;
+  if (!base::FeatureList::IsEnabled(features::kGlicDefaultTabContextSetting)) {
+    if (!service_->profile()->GetPrefs()->GetBoolean(
+            prefs::kGlicTabContextEnabled)) {
+      std::move(wrapped_callback)
+          .Run(mojom::ScrollToErrorReason::kTabContextPermissionDisabled);
+      return;
+    }
   }
-
   // Note: `GlicWindowController::IsShowing()` will be false when
   // `GlicWindowController` is running the close animation.
   if (!service_->IsWindowShowing()) {
@@ -248,6 +248,13 @@ void GlicAnnotationManager::ScrollTo(
   content::WebContents* focused_contents =
       focused_tab_data.focus()->GetContents();
   CHECK(focused_contents);
+  if (base::FeatureList::IsEnabled(features::kGlicDefaultTabContextSetting)) {
+    if (!host->IsContextAccessIndicatorEnabled()) {
+      std::move(wrapped_callback)
+          .Run(mojom::ScrollToErrorReason::kTabContextPermissionDisabled);
+      return;
+    }
+  }
   base::expected<content::RenderFrameHost*, mojom::ScrollToErrorReason> result =
       GetVerifiedAnnotationTargetFrame(focused_contents, *params);
   if (!result.has_value()) {
@@ -328,18 +335,22 @@ GlicAnnotationManager::AnnotationTask::AnnotationTask(
       &AnnotationTask::RemoteDisconnected, base::Unretained(this)));
 
   // Listens to the panel-closing notification.
-  if (GlicEnabling::IsMultiInstanceEnabledByFlags()) {
+  if (GlicEnabling::IsMultiInstanceEnabled()) {
     host_->AddPanelStateObserver(this);
   } else {
     service->GetSingleInstanceWindowController().AddStateObserver(this);
   }
 
-  pref_change_registrar_.Init(service->profile()->GetPrefs());
-  // base::Unretained is safe because `this` owns `pref_change_registrar_`.
-  pref_change_registrar_.Add(
-      prefs::kGlicTabContextEnabled,
-      base::BindRepeating(&AnnotationTask::OnTabContextPermissionChanged,
-                          base::Unretained(this)));
+  if (base::FeatureList::IsEnabled(features::kGlicDefaultTabContextSetting)) {
+    host_->AddObserver(this);
+  } else {
+    pref_change_registrar_.Init(service->profile()->GetPrefs());
+    // base::Unretained is safe because `this` owns `pref_change_registrar_`.
+    pref_change_registrar_.Add(
+        prefs::kGlicTabContextEnabled,
+        base::BindRepeating(&AnnotationTask::OnTabContextPermissionChanged,
+                            base::Unretained(this)));
+  }
 }
 
 GlicAnnotationManager::AnnotationTask::~AnnotationTask() {
@@ -348,13 +359,18 @@ GlicAnnotationManager::AnnotationTask::~AnnotationTask() {
     std::move(scroll_to_callback_)
         .Run(mojom::ScrollToErrorReason::kNotSupported);
   }
-  if (GlicEnabling::IsMultiInstanceEnabledByFlags()) {
+  if (GlicEnabling::IsMultiInstanceEnabled()) {
     if (host_) {
       host_->RemovePanelStateObserver(this);
     }
   } else {
     annotation_manager_->service_->GetSingleInstanceWindowController()
         .RemoveStateObserver(this);
+  }
+  if (base::FeatureList::IsEnabled(features::kGlicDefaultTabContextSetting)) {
+    if (host_) {
+      host_->RemoveObserver(this);
+    }
   }
 }
 
@@ -440,7 +456,7 @@ void GlicAnnotationManager::AnnotationTask::ResetConnections() {
   annotation_agent_host_receiver_.reset();
   tab_change_subscription_ = base::CallbackListSubscription();
   content::WebContentsObserver::Observe(nullptr);
-  if (GlicEnabling::IsMultiInstanceEnabledByFlags()) {
+  if (GlicEnabling::IsMultiInstanceEnabled()) {
     if (host_) {
       host_->RemovePanelStateObserver(this);
     }
@@ -449,6 +465,11 @@ void GlicAnnotationManager::AnnotationTask::ResetConnections() {
         .RemoveStateObserver(this);
   }
 
+  if (base::FeatureList::IsEnabled(features::kGlicDefaultTabContextSetting)) {
+    if (host_) {
+      host_->RemoveObserver(this);
+    }
+  }
   pref_change_registrar_.Reset();
 }
 
@@ -532,6 +553,14 @@ void GlicAnnotationManager::AnnotationTask::OnTabContextPermissionChanged(
   CHECK_EQ(pref_name, prefs::kGlicTabContextEnabled);
   if (!annotation_manager_->service_->profile()->GetPrefs()->GetBoolean(
           prefs::kGlicTabContextEnabled)) {
+    FailTaskOrDropAnnotation(
+        mojom::ScrollToErrorReason::kTabContextPermissionDisabled);
+  }
+}
+
+void GlicAnnotationManager::AnnotationTask::ContextAccessIndicatorChanged(
+    bool enabled) {
+  if (!enabled) {
     FailTaskOrDropAnnotation(
         mojom::ScrollToErrorReason::kTabContextPermissionDisabled);
   }

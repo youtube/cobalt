@@ -86,6 +86,21 @@ const base::FeatureParam<double> kCsdCreditCardFormSampleRate{
 const base::FeatureParam<int> kCsdCreditCardFormMaxUserVisit{
     &kClientSideDetectionCreditCardForm, "MaxUserVisit",
     /*default_value=*/1};
+const base::FeatureParam<bool> kCsdCreditCardFormPingOnDetection{
+    &kClientSideDetectionCreditCardForm, "PingOnDetection",
+    /*default_value=*/false};
+const base::FeatureParam<bool> kCsdCreditCardFormPingOnInteraction{
+    &kClientSideDetectionCreditCardForm, "PingOnInteraction",
+    /*default_value=*/false};
+const base::FeatureParam<bool> kCsdCreditCardFormEnableNewSiteFilter{
+    &kClientSideDetectionCreditCardForm, "EnableNewSiteFilter",
+    /*default_value=*/false};
+const base::FeatureParam<bool> kCsdCreditCardFormEnableHeuristicFilter{
+    &kClientSideDetectionCreditCardForm, "EnableHeuristicFilter",
+    /*default_value=*/false};
+const base::FeatureParam<bool> kCsdCreditCardFormEnableReferringAppFilter{
+    &kClientSideDetectionCreditCardForm, "EnableReferringAppFilter",
+    /*default_value=*/false};
 
 BASE_FEATURE(kClientSideDetectionForcedLlamaRedirectChainKillswitch,
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -93,9 +108,6 @@ BASE_FEATURE(kClientSideDetectionForcedLlamaRedirectChainKillswitch,
 BASE_FEATURE(kClientSideDetectionKillswitch, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kClientSideDetectionLlamaForcedTriggerInfoForScamDetection,
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
-BASE_FEATURE(kClientSideDetectionOnlyExtractVisualFeatures,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kClientSideDetectionRedirectChainKillswitch,
@@ -238,6 +250,11 @@ constexpr base::FeatureParam<std::string> kHashPrefixRealTimeLookupsRelayUrl{
     "SafeBrowsingHashPrefixRealTimeLookupsRelayUrl",
     /*default_value=*/
     "https://google-ohttp-relay-safebrowsing.fastly-edge.com/"};
+constexpr base::FeatureParam<std::string> kHashPrefixRealTimeLookupsKeyFetchUrl{
+    &kHashPrefixRealTimeLookups,
+    "SafeBrowsingHashPrefixRealTimeLookupsKeyFetchUrl",
+    /*default_value=*/
+    "https://safebrowsingohttpgateway.googleapis.com/v1/ohttp/hpkekeyconfig"};
 
 BASE_FEATURE(kHashPrefixRealTimeLookupsSamplePing,
              "SafeBrowsingHashPrefixRealTimeLookupsSamplePing",
@@ -361,6 +378,8 @@ base::Value::List GetFeatureStatusList() {
   const base::Feature* kExperimentalFeatures[] = {
       // keep-sorted start
       &kAutoRevokeSuspiciousNotification,
+      &kBundledSecuritySettings,
+      &kClientSideDetectionClipboardCopyApi,
       &kClientSideDetectionForcedLlamaRedirectChainKillswitch,
       &kClientSideDetectionKillswitch,
       &kClientSideDetectionRedirectChainKillswitch,
@@ -370,6 +389,7 @@ base::Value::List GetFeatureStatusList() {
       &kEnhancedFieldsForSecOps,
       &kEnhancedSafeBrowsingPromo,
       &kEnterprisePasswordReuseUiRefresh,
+      &kEsbAsASyncedSetting,
       &kExtensionTelemetryDeclarativeNetRequestActionSignal,
       &kExternalAppRedirectTelemetry,
       &kHashPrefixRealTimeLookups,
@@ -397,6 +417,8 @@ base::Value::List GetFeatureStatusList() {
   // Manually add experimental features that we want param values for.
   param_list.Append(kHashPrefixRealTimeLookupsRelayUrl.Get());
   param_list.Append(kHashPrefixRealTimeLookupsRelayUrl.name);
+  param_list.Append(kHashPrefixRealTimeLookupsKeyFetchUrl.Get());
+  param_list.Append(kHashPrefixRealTimeLookupsKeyFetchUrl.name);
 
   return param_list;
 }

@@ -618,9 +618,13 @@ constexpr CGFloat kLocationBarCompactBottomPadding = 10.0;
   [adaptiveToolbarCoordinator updateToolbarForSideSwipeSnapshot:webState];
   [self updateLocationBarForSideSwipeSnapshot:webState];
 
+  UIView* toolbarView = adaptiveToolbarCoordinator.viewController.view;
+  // The toolbar must be in the view hierarchy to be snapshotted.
+  if (!toolbarView.window) {
+    return nil;
+  }
   UIImage* toolbarSnapshot = CaptureViewWithOption(
-      adaptiveToolbarCoordinator.viewController.view,
-      [[UIScreen mainScreen] scale], kClientSideRendering);
+      toolbarView, [[UIScreen mainScreen] scale], kClientSideRendering);
 
   [adaptiveToolbarCoordinator resetToolbarAfterSideSwipeSnapshot];
   [self resetLocationBarAfterSideSwipeSnapshot];
@@ -902,6 +906,57 @@ constexpr CGFloat kLocationBarCompactBottomPadding = 10.0;
       [self.locationBarCoordinator locationBarAnimatee];
   self.orchestrator.editViewAnimatee =
       [self.locationBarCoordinator editViewAnimatee];
+}
+
+- (void)setEntrypointViewHidden:(BOOL)hidden {
+  AdaptiveToolbarCoordinator* adaptiveToolbarCoordinator =
+      [self coordinatorWithToolbarType:_omniboxPosition];
+  adaptiveToolbarCoordinator.viewController.locationBarContainer.hidden =
+      hidden;
+}
+
+- (UIView*)entrypointViewVisualCopy {
+  if (_omniboxPosition == ToolbarType::kSecondary || [self isNTP]) {
+    return nil;
+  }
+
+  AdaptiveToolbarCoordinator* adaptiveToolbarCoordinator =
+      [self coordinatorWithToolbarType:_omniboxPosition];
+  UIView* locationBarContainer =
+      adaptiveToolbarCoordinator.viewController.locationBarContainer;
+
+  UIView* entrypointCopy = [[UIView alloc] init];
+  entrypointCopy.frame =
+      [locationBarContainer convertRect:locationBarContainer.bounds toView:nil];
+  entrypointCopy.layer.cornerRadius = locationBarContainer.layer.cornerRadius;
+  entrypointCopy.backgroundColor = locationBarContainer.backgroundColor;
+  UIView* locationBarSteadyViewVisualCopy =
+      self.locationBarCoordinator.locationBarSteadyViewVisualCopy;
+  [entrypointCopy addSubview:locationBarSteadyViewVisualCopy];
+  locationBarSteadyViewVisualCopy.translatesAutoresizingMaskIntoConstraints =
+      NO;
+
+  [NSLayoutConstraint activateConstraints:@[
+    [locationBarSteadyViewVisualCopy.centerXAnchor
+        constraintEqualToAnchor:entrypointCopy.centerXAnchor],
+    [locationBarSteadyViewVisualCopy.centerYAnchor
+        constraintEqualToAnchor:entrypointCopy.centerYAnchor],
+    [locationBarSteadyViewVisualCopy.widthAnchor
+        constraintEqualToAnchor:entrypointCopy.widthAnchor],
+    [locationBarSteadyViewVisualCopy.heightAnchor
+        constraintEqualToAnchor:entrypointCopy.heightAnchor],
+  ]];
+
+  return entrypointCopy;
+}
+
+- (BOOL)isNTP {
+  web::WebState* webState =
+      self.browser->GetWebStateList()->GetActiveWebState();
+  if (!webState) {
+    return NO;
+  }
+  return IsVisibleURLNewTabPage(webState);
 }
 
 @end

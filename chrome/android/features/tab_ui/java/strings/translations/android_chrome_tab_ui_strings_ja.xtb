@@ -73,6 +73,7 @@
 <translation id="311432875115153175">タブグループのリストを閉じました</translation>
 <translation id="3194464645767632461">評価</translation>
 <translation id="3269930881809501915">{TABS_COUNT,plural, =1{<ph name="TABS_COUNT_ONE" /> 個のタブをグループに追加}other{<ph name="TABS_COUNT_MANY" /> 個のタブをグループに追加}}</translation>
+<translation id="3293080634164207409">タブを追加</translation>
 <translation id="3328308545011660196">おすすめ: <ph name="NUMBER_OF_TABS" /> 個のタブは関連しているようです。グループ化しますか？</translation>
 <translation id="3330595302841061275">{DAY_COUNT,plural, =1{アクティブでない状態で 1 日経過}other{アクティブでない状態で <ph name="DAY_COUNT_MANY" /> 日経過}}</translation>
 <translation id="358453129938375749">{NUMBER_OF_TABS_ADDED,plural, =1{<ph name="ONE_ADDED" /> 個の新しいタブ}other{<ph name="MANY_ADDED" /> 個の新しいタブ}}</translation>
@@ -81,6 +82,7 @@
 <translation id="3649471731638882002">{TAB_COUNT,plural, =1{アイテムを閉じる}other{アイテムを閉じる}}</translation>
 <translation id="3652027618765638838"><ph name="CURRENT_RATING" /> / <ph name="RATING_BASELINE" /></translation>
 <translation id="374923079891132274">共有シートのプレビューのサムネイル。</translation>
+<translation id="3776329373944672717">タブグループのタイトル <ph name="TITLE_OF_GROUP" /></translation>
 <translation id="3810973564298564668">管理</translation>
 <translation id="3849789634341518784">{TAB_COUNT,plural, =1{タブの固定を解除}other{タブの固定を解除}}</translation>
 <translation id="3940195383040445971">タブで価格をトラッキング</translation>
@@ -193,6 +195,7 @@
 <translation id="7853202427316060426">アクティビティ</translation>
 <translation id="7854360405711302755">{REVIEWS,plural, =1{ <ph name="CURRENT_RATING" /> / <ph name="RATING_BASELINE" /> の評価、<ph name="REVIEWS_COUNT_ONE" /> 件のクチコミ}other{<ph name="CURRENT_RATING" /> / <ph name="RATING_BASELINE" /> の評価、<ph name="REVIEWS_COUNT_MANY" /> 件のクチコミ}}</translation>
 <translation id="7885132941432959125">タブを右に移動</translation>
+<translation id="7887334752153342268">タブを複製</translation>
 <translation id="7939917283308035850"><ph name="COLOR_NAME" /> は選択されていません</translation>
 <translation id="7961015016161918242">使用しない</translation>
 <translation id="7966321538264951561">提案を閉じます。</translation>

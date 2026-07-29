@@ -14,7 +14,6 @@
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/timer/timer.h"
-#include "components/optimization_guide/core/model_execution/feature_keys.h"
 #include "components/optimization_guide/core/model_execution/multimodal_message.h"
 #include "components/optimization_guide/core/model_execution/on_device_capability.h"
 #include "components/optimization_guide/core/model_execution/on_device_context.h"
@@ -27,9 +26,6 @@
 #include "components/optimization_guide/proto/model_quality_metadata.pb.h"
 #include "components/optimization_guide/proto/model_quality_service.pb.h"
 #include "components/optimization_guide/proto/text_safety_model_metadata.pb.h"
-#include "mojo/public/cpp/bindings/pending_remote.h"
-#include "mojo/public/cpp/bindings/receiver.h"
-#include "mojo/public/cpp/bindings/remote.h"
 #include "services/on_device_model/public/mojom/on_device_model.mojom.h"
 
 namespace optimization_guide {
@@ -51,8 +47,8 @@ class SessionImpl : public OnDeviceSession {
     kMaxValue = kFailedConstructingInput,
   };
 
-  SessionImpl(ModelBasedCapabilityKey feature, OnDeviceOptions on_device_opts);
-  SessionImpl(ModelBasedCapabilityKey feature,
+  SessionImpl(mojom::OnDeviceFeature feature, OnDeviceOptions on_device_opts);
+  SessionImpl(mojom::OnDeviceFeature feature,
               const SamplingParams& sampling_params);
   ~SessionImpl() override;
 
@@ -104,7 +100,7 @@ class SessionImpl : public OnDeviceSession {
       OptimizationGuideModelSizeInTokenCallback callback,
       bool want_input_context);
 
-  const ModelBasedCapabilityKey feature_;
+  const mojom::OnDeviceFeature feature_;
 
   MultimodalMessage context_;
   base::TimeTicks context_start_time_;

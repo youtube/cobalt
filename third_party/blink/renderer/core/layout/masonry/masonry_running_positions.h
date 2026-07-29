@@ -32,12 +32,12 @@ class CORE_EXPORT MasonryRunningPositions {
                           const Vector<wtf_size_t>& collapsed_track_indexes)
       : running_positions_(/*size=*/track_collection.EndLineOfImplicitGrid(),
                            LayoutUnit()),
-        auto_placement_cursor_(style.IsReverseMasonryDirection()
+        auto_placement_cursor_(style.IsReverseGridLanesDirection()
                                    ? track_collection.EndLineOfImplicitGrid()
                                    : 0),
         tie_threshold_(tie_threshold),
         is_dense_packing_(style.IsGridAutoFlowAlgorithmDense()),
-        is_reverse_direction_(style.IsReverseMasonryDirection()) {
+        is_reverse_direction_(style.IsReverseGridLanesDirection()) {
     // To avoid placing items in collapsed tracks, set such tracks to the max
     // size.
     for (wtf_size_t index : collapsed_track_indexes) {
@@ -190,11 +190,6 @@ class CORE_EXPORT MasonryRunningPositions {
   // For each track span of size `span_size` in `running_positions_`, compute
   // its max-position and return a vector where the index corresponds to the
   // track number and the value corresponds to the max-position for that track.
-  // When we are calling `GetMaxPositionsForAllTracks` to place a multi-span
-  // item, the vector we create only needs to have entries for the tracks with
-  // starting lines that can accommodate the multi-span item. This means that
-  // the size of the vector we create will have a size of "number of tracks -
-  // `span_size`".
   Vector<LayoutUnit> GetMaxPositionsForAllTracks(wtf_size_t span_size) const;
 
   // Calculate the total size of the tracks across the given span.

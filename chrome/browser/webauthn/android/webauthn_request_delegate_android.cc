@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <iterator>
 #include <memory>
+#include <optional>
 #include <vector>
 
 #include "base/functional/callback.h"
@@ -17,6 +18,7 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/touch_to_fill/password_manager/touch_to_fill_controller.h"
 #include "chrome/browser/touch_to_fill/password_manager/touch_to_fill_controller_webauthn_delegate.h"
+#include "chrome/browser/webauthn/android/credential_sorter_android.h"
 #include "chrome/browser/webauthn/password_credential_fetcher.h"
 #include "chrome/browser/webauthn/webauthn_metrics_util.h"
 #include "components/password_manager/content/browser/content_password_manager_driver.h"
@@ -88,7 +90,8 @@ void WebAuthnRequestDelegateAndroid::OnWebAuthnRequestPending(
             PasskeyCredential::UserId(credential.user.id),
             PasskeyCredential::Username(credential.user.name.value_or("")),
             PasskeyCredential::DisplayName(
-                credential.user.display_name.value_or("")));
+                credential.user.display_name.value_or("")),
+            /*creation_time=*/std::nullopt, credential.last_used_time);
       });
 
   bool is_immediate = false;
@@ -152,8 +155,12 @@ void WebAuthnRequestDelegateAndroid::MaybeShowTouchToFillSheet(
     return;
   }
 
-  std::vector<password_manager::UiCredential> passwords;
-  std::ranges::transform(password_credentials, std::back_inserter(passwords),
+  std::vector<TouchToFillView::Credential> credentials;
+  credentials.reserve(passkey_credentials.size() + password_credentials.size());
+  credentials.insert(credentials.end(), passkey_credentials.begin(),
+                     passkey_credentials.end());
+
+  std::ranges::transform(password_credentials, std::back_inserter(credentials),
                          [=](const auto& password_form) {
                            return password_manager::UiCredential(
                                *password_form,
@@ -171,13 +178,17 @@ void WebAuthnRequestDelegateAndroid::MaybeShowTouchToFillSheet(
         /*grouped_credential_sheet_controller=*/nullptr);
   }
   touch_to_fill_controller_->InitData(
-      passwords, std::move(passkey_credentials),
+      std::move(credentials),
       ContentPasswordManagerDriver::GetForRenderFrameHost(frame_host)
           ->AsWeakPtrImpl());
   bool should_show_hybrid_option = !hybrid_closure_.is_null() && !is_immediate;
   touch_to_fill_controller_->Show(
       std::make_unique<TouchToFillControllerWebAuthnDelegate>(
-          this, should_show_hybrid_option, is_immediate),
+          this,
+          base::BindRepeating<std::vector<TouchToFillView::Credential>(
+              std::vector<TouchToFillView::Credential>, bool)>(
+              webauthn::sorting::SortTouchToFillCredentials),
+          should_show_hybrid_option, is_immediate),
       WebAuthnCredManDelegateFactory::GetFactory(web_contents())
           ->GetRequestDelegate(frame_host));
 }
@@ -214,6 +225,10 @@ void WebAuthnRequestDelegateAndroid::OnWebAuthnAccountSelected(
 
 void WebAuthnRequestDelegateAndroid::OnPasswordCredentialSelected(
     const PasswordCredentialPair& password_credential) {
+  if (password_fetcher_) {
+    password_fetcher_->UpdateDateLastUsed(password_credential.first,
+                                          password_credential.second);
+  }
   if (password_callback_) {
     password_callback_.Run(password_credential.first,
                            password_credential.second);

@@ -172,6 +172,8 @@ public class TabModelImplTest {
 
     @Test
     @SmallTest
+    // TODO(crbug.com/457847264): Change to @Restriction(DeviceFormFactor.PHONE) after launch
+    @DisableFeatures(ChromeFeatureList.ANDROID_OPEN_INCOGNITO_AS_WINDOW)
     public void validIndexAfterRestored_FromPreviousActivity_WithIncognitoTabs() {
         mPage = Journeys.createIncognitoTabsWithWebPages(mPage, List.of(mTestUrl));
 
@@ -281,7 +283,7 @@ public class TabModelImplTest {
                     Tab tab2 = mTabModelJni.getTabAt(2);
                     assertNull(tabToDuplicate.getTabGroupId());
 
-                    Tab duplicatedTab = mTabModelJni.duplicateTabForTesting(tabToDuplicate);
+                    Tab duplicatedTab = mTabModelJni.duplicateTab(tabToDuplicate);
                     // 0:Tab0 | 1:Tab1 (tabToDuplicate) | 2:Tab3 (duplicated) | 3:Tab2
                     assertEquals(4, mTabModelJni.getCount());
                     assertEquals(tabToDuplicate.getId(), duplicatedTab.getParentId());
@@ -297,7 +299,7 @@ public class TabModelImplTest {
                     assertEquals(tab2, mTabModelJni.getTabAt(tabToDuplicateIndex + 2));
 
                     // Duplicate tab again.
-                    Tab newestDuplicatedTab = mTabModelJni.duplicateTabForTesting(tabToDuplicate);
+                    Tab newestDuplicatedTab = mTabModelJni.duplicateTab(tabToDuplicate);
                     // 0:Tab0 | 1:Tab1 (tabToDuplicate), 2:Tab4 (newest), 3:Tab3 (oldest), 4:Tab2
                     assertEquals(5, mTabModelJni.getCount());
                     assertEquals(tabToDuplicate.getId(), newestDuplicatedTab.getParentId());
@@ -332,7 +334,7 @@ public class TabModelImplTest {
                     Tab tab3 = mTabModelJni.getTabAt(3);
                     assertNotNull(tabToDuplicate.getTabGroupId());
 
-                    Tab duplicatedTab = mTabModelJni.duplicateTabForTesting(tabToDuplicate);
+                    Tab duplicatedTab = mTabModelJni.duplicateTab(tabToDuplicate);
                     // 0:Tab0 | Group0: 1:Tab1 (tabToDuplicate), 2:Tab4 (duplicated), 3:Tab2, 4:Tab3
                     assertEquals(5, mTabModelJni.getCount());
                     assertEquals(tabToDuplicate.getId(), duplicatedTab.getParentId());
@@ -348,7 +350,7 @@ public class TabModelImplTest {
                     assertEquals(tab3, mTabModelJni.getTabAt(tabToDuplicateIndex + 3));
 
                     // Duplicate tab again.
-                    Tab newestDuplicatedTab = mTabModelJni.duplicateTabForTesting(tabToDuplicate);
+                    Tab newestDuplicatedTab = mTabModelJni.duplicateTab(tabToDuplicate);
                     // 0:Tab0 | Group0: 1:Tab1 (tabToDuplicate), 2:Tab5 (newest), 3:Tab4 (oldest),
                     // 4:Tab2, 5:Tab3
                     assertEquals(6, mTabModelJni.getCount());
@@ -378,7 +380,7 @@ public class TabModelImplTest {
                     Tab tabToDuplicate = mTabModelJni.getTabAt(tabToDuplicateIndex);
                     assertNotNull(tabToDuplicate.getTabGroupId());
 
-                    Tab duplicatedTab = mTabModelJni.duplicateTabForTesting(tabToDuplicate);
+                    Tab duplicatedTab = mTabModelJni.duplicateTab(tabToDuplicate);
                     //  0:Tab0 | Group0: 1:Tab1, 2:Tab5, 3:Tab4, 4:Tab2, 5:Tab3 (tabToDuplicate),
                     // 6:Tab7 (duplicatedTab) | 7:Tab6
                     assertEquals(8, mTabModelJni.getCount());
@@ -414,7 +416,7 @@ public class TabModelImplTest {
                     assertTrue(tabToDuplicate.getIsPinned());
                     assertTrue(tab0.getIsPinned());
 
-                    Tab duplicatedTab = mTabModelJni.duplicateTabForTesting(tabToDuplicate);
+                    Tab duplicatedTab = mTabModelJni.duplicateTab(tabToDuplicate);
                     // [0:Tab1 (tabToDuplicate)] | [1:Tab2 (duplicatedTab) | [2:Tab0]
                     assertEquals(3, mTabModelJni.getCount());
                     assertEquals(tabToDuplicate.getId(), duplicatedTab.getParentId());
@@ -428,7 +430,7 @@ public class TabModelImplTest {
                     assertEquals(2, mTabModelJni.indexOf(tab0));
 
                     // Duplicate tab again.
-                    Tab newestDuplicatedTab = mTabModelJni.duplicateTabForTesting(tabToDuplicate);
+                    Tab newestDuplicatedTab = mTabModelJni.duplicateTab(tabToDuplicate);
                     // [0:Tab1 (tabToDuplicate)] | [1:Tab3 (newest)] | [2:Tab2 (oldest) | [3:Tab0]
                     assertEquals(4, mTabModelJni.getCount());
                     assertEquals(tabToDuplicate.getId(), newestDuplicatedTab.getParentId());
@@ -1067,6 +1069,8 @@ public class TabModelImplTest {
 
     @Test
     @SmallTest
+    // TODO(crbug.com/457847264): Change to @Restriction(DeviceFormFactor.PHONE) after launch
+    @DisableFeatures(ChromeFeatureList.ANDROID_OPEN_INCOGNITO_AS_WINDOW)
     public void testCloseIncognitoTabSwitchesToNormalModelAndUpdatesIncognitoIndex() {
         TabModel incognitoTabModel =
                 mActivityTestRule.getActivity().getTabModelSelector().getModel(true);
@@ -1567,6 +1571,8 @@ public class TabModelImplTest {
 
     @Test
     @SmallTest
+    // TODO(crbug.com/457847264): Change to @Restriction(DeviceFormFactor.PHONE) after launch
+    @DisableFeatures(ChromeFeatureList.ANDROID_OPEN_INCOGNITO_AS_WINDOW)
     public void testSetMuteSetting_Incognito() {
         WebPageStation page = mPage.loadWebPageProgrammatically(mTestUrl);
         Journeys.createIncognitoTabsWithWebPages(page, List.of(mTestUrl));

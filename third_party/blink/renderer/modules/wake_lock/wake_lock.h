@@ -7,7 +7,6 @@
 
 #include <array>
 
-#include "base/functional/callback.h"
 #include "base/gtest_prod_util.h"
 #include "third_party/blink/public/mojom/permissions/permission.mojom-blink.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
@@ -21,7 +20,6 @@
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_remote.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_wrapper_mode.h"
-#include "third_party/blink/renderer/platform/supplementable.h"
 
 namespace blink {
 
@@ -32,14 +30,11 @@ class WakeLockManager;
 class WakeLockSentinel;
 
 class MODULES_EXPORT WakeLock final : public ScriptWrappable,
-                                      public Supplement<NavigatorBase>,
                                       public ExecutionContextLifecycleObserver,
                                       public PageVisibilityObserver {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
-  static const unsigned kSupplementIndex;
-
   // Getter for navigator.wakelock
   static WakeLock* wakeLock(NavigatorBase&);
 

@@ -16,7 +16,6 @@
 
 #include "base/containers/flat_map.h"
 #include "base/containers/lru_cache.h"
-#include "base/feature_list.h"
 #include "base/logging.h"
 #include "base/memory/discardable_memory.h"
 #include "base/memory/memory_pressure_listener.h"
@@ -557,9 +556,6 @@ class CC_EXPORT GpuImageDecodeCache
   bool ExceedsCacheLimits() const EXCLUSIVE_LOCKS_REQUIRED(lock_);
   void ReduceCacheUsageLocked() EXCLUSIVE_LOCKS_REQUIRED(lock_);
 
-  void InsertTransferCacheEntry(
-      const ClientImageTransferCacheEntry& image_entry,
-      ImageData* image_data) EXCLUSIVE_LOCKS_REQUIRED(lock_);
   bool NeedsDarkModeFilter(const DrawImage& draw_image, ImageData* image_data);
   void DecodeImageAndGenerateDarkModeFilterIfNecessary(
       const DrawImage& draw_image,

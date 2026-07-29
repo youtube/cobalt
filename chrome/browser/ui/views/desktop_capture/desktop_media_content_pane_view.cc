@@ -65,6 +65,16 @@ void DesktopMediaContentPaneView::SetAudioSharingApprovedByUser(bool is_on) {
   share_audio_view_->SetAudioSharingApprovedByUser(is_on);
 }
 
+bool DesktopMediaContentPaneView::IsAudioSharingControlEnabled() const {
+  CHECK(share_audio_view_);
+  return share_audio_view_->GetEnabled();
+}
+
+void DesktopMediaContentPaneView::SetAudioSharingControlEnabled(bool enabled) {
+  CHECK(share_audio_view_);
+  share_audio_view_->SetEnabled(enabled);
+}
+
 std::u16string_view DesktopMediaContentPaneView::GetAudioLabelText() const {
   return share_audio_view_ ? share_audio_view_->GetAudioLabelText()
                            : std::u16string_view();
@@ -73,7 +83,7 @@ std::u16string_view DesktopMediaContentPaneView::GetAudioLabelText() const {
 #if BUILDFLAG(IS_MAC)
 void DesktopMediaContentPaneView::SetAudioWarningVisible(bool visible) {
   if (audio_warning_view_) {
-    audio_warning_view_->SetVisible(visible);
+    audio_warning_view_->SetWarningVisible(visible);
     if (!visible) {
       share_audio_view_->RequestFocus();
     }

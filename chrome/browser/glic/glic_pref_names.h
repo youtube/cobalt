@@ -26,6 +26,11 @@ inline constexpr char kGlicLauncherHotkey[] = "glic.launcher_hotkey";
 // hotkey for toggling focus between Glic and the browser window.
 inline constexpr char kGlicFocusToggleHotkey[] = "glic.focus_toggle_hotkey";
 
+// String pref that keeps track of whether any loaded profile is, or has ever
+// been, of a subscription tier that should enable multi-instance.
+inline constexpr char kGlicMultiInstanceEnabledBySubscriptionTier[] =
+    "glic.multi_instance_enabled_by_tier";
+
 // ************* PROFILE PREFS ***************
 // Prefs below are tied to a user profile
 
@@ -91,6 +96,10 @@ inline constexpr char kGlicPreviousPositionY[] = "glic.previous_bounds.y";
 // Bool pref for the closed captioning setting.
 inline constexpr char kGlicClosedCaptioningEnabled[] =
     "glic.closed_captioning_enabled";
+
+// Bool pref for the daisy chain new tabs setting.
+inline constexpr char kGlicDaisyChainNewTabsEnabled[] =
+    "glic.daisy_chain_new_tabs_enabled";
 
 // Value enums for the "glic.actuation_on_web" pref. Integer pref that
 // determines if glic actuation is enabled. This is controlled from the

@@ -16,6 +16,7 @@
 #include "base/values.h"
 #include "base/version.h"
 #include "chrome/browser/browser_features.h"
+#include "chrome/browser/component_updater/pki_metadata_component_installer_policy.h"
 #include "chrome/browser/net/key_pinning.pb.h"
 #include "components/certificate_transparency/certificate_transparency_config.pb.h"
 #include "components/certificate_transparency/ct_known_logs.h"
@@ -87,7 +88,7 @@ constexpr uint8_t kSpkiHash2[] = {
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 
-constexpr uint64_t kMaxSupportedCTCompatibilityVersion = 3;
+constexpr uint64_t kMaxSupportedCTCompatibilityVersion = 4;
 constexpr uint64_t kMaxSupportedKPCompatibilityVersion = 1;
 
 }  // namespace
@@ -250,11 +251,11 @@ TEST_F(PKIMetadataComponentInstallerTest, TestProtoBytesConversion) {
   std::vector<std::string> repeated_bytes = {bytes_as_string};
 
   EXPECT_EQ(
-      PKIMetadataComponentInstallerPolicy::BytesArrayFromProtoBytesForTesting(
+      PKIMetadataComponentInstallerService::BytesArrayFromProtoBytesForTesting(
           google::protobuf::RepeatedPtrField<std::string>(
               repeated_bytes.begin(), repeated_bytes.end())),
       test_bytes);
-  EXPECT_EQ(PKIMetadataComponentInstallerPolicy::
+  EXPECT_EQ(PKIMetadataComponentInstallerService::
                 SHA256HashValueArrayFromProtoBytesForTesting(
                     google::protobuf::RepeatedPtrField<std::string>(
                         repeated_bytes.begin(), repeated_bytes.end())),

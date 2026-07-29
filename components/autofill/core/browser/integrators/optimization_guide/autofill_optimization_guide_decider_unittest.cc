@@ -42,14 +42,20 @@ namespace autofill {
 
 namespace {
 
+using ::optimization_guide::OptimizationGuideDecision;
 using test::CreateTestCreditCardFormData;
 using test::CreateTestIbanFormData;
 using ::testing::_;
+using ::testing::Contains;
+using ::testing::ElementsAre;
 using ::testing::Eq;
 using ::testing::IsEmpty;
+using ::testing::IsSupersetOf;
 using ::testing::Matcher;
+using ::testing::NiceMock;
 using ::testing::Return;
 using ::testing::UnorderedElementsAre;
+using ::testing::WithArg;
 
 }  // namespace
 
@@ -80,7 +86,7 @@ class AutofillOptimizationGuideDeciderTest : public testing::Test {
 
   void MockFlatRateCreditCardBenefitsBlockedDecisionForUrl(
       const GURL& url,
-      optimization_guide::OptimizationGuideDecision decision) {
+      OptimizationGuideDecision decision) {
     ON_CALL(
         decider(),
         CanApplyOptimization(
@@ -107,7 +113,7 @@ class AutofillOptimizationGuideDeciderTest : public testing::Test {
   test::AutofillUnitTestEnvironment autofill_test_environment_;
   std::unique_ptr<PrefService> pref_service_;
   syncer::TestSyncService sync_service_;
-  optimization_guide::MockOptimizationGuideDecider decider_;
+  NiceMock<optimization_guide::MockOptimizationGuideDecider> decider_;
   TestPaymentsDataManager payments_data_manager_;
   AutofillOptimizationGuideDecider autofill_optimization_guide_;
 };
@@ -126,7 +132,7 @@ TEST_F(AutofillOptimizationGuideDeciderTest,
   test_api(form_structure).SetFieldTypes({IBAN_VALUE}, {IBAN_VALUE});
 
   EXPECT_CALL(decider(),
-              RegisterOptimizationTypes(testing::ElementsAre(
+              RegisterOptimizationTypes(ElementsAre(
                   optimization_guide::proto::IBAN_AUTOFILL_BLOCKED)));
 
   guide().OnDidParseForm(form_structure, payments_data_manager());
@@ -153,7 +159,7 @@ TEST_F(AutofillOptimizationGuideDeciderTest,
       GeoIpCountryCode(""), LanguageCode(""), /*log_manager=*/nullptr);
 
   EXPECT_CALL(decider(),
-              RegisterOptimizationTypes(testing::ElementsAre(
+              RegisterOptimizationTypes(ElementsAre(
                   optimization_guide::proto::VCN_MERCHANT_OPT_OUT_VISA,
                   optimization_guide::proto::VCN_MERCHANT_OPT_OUT_DISCOVER,
                   optimization_guide::proto::VCN_MERCHANT_OPT_OUT_MASTERCARD)));
@@ -263,7 +269,7 @@ TEST_F(AutofillOptimizationGuideDeciderTest,
   payments_data_manager().AddServerCreditCard(GetVcnEnrolledCard());
 
   EXPECT_CALL(decider(),
-              RegisterOptimizationTypes(testing::ElementsAre(
+              RegisterOptimizationTypes(ElementsAre(
                   optimization_guide::proto::IBAN_AUTOFILL_BLOCKED,
                   optimization_guide::proto::VCN_MERCHANT_OPT_OUT_VISA)));
 
@@ -283,8 +289,7 @@ TEST_F(AutofillOptimizationGuideDeciderTest,
           CanApplyOptimization(
               Eq(url), Eq(optimization_guide::proto::IBAN_AUTOFILL_BLOCKED),
               Matcher<optimization_guide::OptimizationMetadata*>(Eq(nullptr))))
-      .WillByDefault(
-          Return(optimization_guide::OptimizationGuideDecision::kFalse));
+      .WillByDefault(Return(OptimizationGuideDecision::kFalse));
 
   EXPECT_TRUE(
       guide().ShouldBlockSingleFieldSuggestions(url, form_structure.field(0)));
@@ -303,8 +308,7 @@ TEST_F(AutofillOptimizationGuideDeciderTest,
           CanApplyOptimization(
               Eq(url), Eq(optimization_guide::proto::IBAN_AUTOFILL_BLOCKED),
               Matcher<optimization_guide::OptimizationMetadata*>(Eq(nullptr))))
-      .WillByDefault(
-          Return(optimization_guide::OptimizationGuideDecision::kTrue));
+      .WillByDefault(Return(OptimizationGuideDecision::kTrue));
 
   EXPECT_FALSE(
       guide().ShouldBlockSingleFieldSuggestions(url, form_structure.field(0)));
@@ -340,8 +344,7 @@ TEST_F(AutofillOptimizationGuideDeciderTest,
           CanApplyOptimization(
               Eq(url), Eq(optimization_guide::proto::VCN_MERCHANT_OPT_OUT_VISA),
               Matcher<optimization_guide::OptimizationMetadata*>(Eq(nullptr))))
-      .WillByDefault(
-          Return(optimization_guide::OptimizationGuideDecision::kFalse));
+      .WillByDefault(Return(OptimizationGuideDecision::kFalse));
 
   EXPECT_TRUE(guide().ShouldBlockFormFieldSuggestion(url, card));
 }
@@ -359,8 +362,7 @@ TEST_F(AutofillOptimizationGuideDeciderTest,
       CanApplyOptimization(
           Eq(url), Eq(optimization_guide::proto::VCN_MERCHANT_OPT_OUT_DISCOVER),
           Matcher<optimization_guide::OptimizationMetadata*>(Eq(nullptr))))
-      .WillByDefault(
-          Return(optimization_guide::OptimizationGuideDecision::kFalse));
+      .WillByDefault(Return(OptimizationGuideDecision::kFalse));
 
   EXPECT_TRUE(guide().ShouldBlockFormFieldSuggestion(url, card));
 }
@@ -378,8 +380,7 @@ TEST_F(AutofillOptimizationGuideDeciderTest,
               Eq(url),
               Eq(optimization_guide::proto::VCN_MERCHANT_OPT_OUT_MASTERCARD),
               Matcher<optimization_guide::OptimizationMetadata*>(Eq(nullptr))))
-      .WillByDefault(
-          Return(optimization_guide::OptimizationGuideDecision::kFalse));
+      .WillByDefault(Return(OptimizationGuideDecision::kFalse));
 
   EXPECT_TRUE(guide().ShouldBlockFormFieldSuggestion(url, card));
 }
@@ -396,8 +397,7 @@ TEST_F(AutofillOptimizationGuideDeciderTest,
           CanApplyOptimization(
               Eq(url), Eq(optimization_guide::proto::VCN_MERCHANT_OPT_OUT_VISA),
               Matcher<optimization_guide::OptimizationMetadata*>(Eq(nullptr))))
-      .WillByDefault(
-          Return(optimization_guide::OptimizationGuideDecision::kTrue));
+      .WillByDefault(Return(OptimizationGuideDecision::kTrue));
 
   EXPECT_FALSE(guide().ShouldBlockFormFieldSuggestion(url, card));
 }
@@ -448,7 +448,7 @@ TEST_F(AutofillOptimizationGuideDeciderTest,
   GURL url("https://example.com/");
 
   MockFlatRateCreditCardBenefitsBlockedDecisionForUrl(
-      url, optimization_guide::OptimizationGuideDecision::kFalse);
+      url, OptimizationGuideDecision::kFalse);
 
   EXPECT_TRUE(guide().ShouldBlockFlatRateBenefitSuggestionLabelsForUrl(url));
 }
@@ -460,7 +460,7 @@ TEST_F(AutofillOptimizationGuideDeciderTest,
   GURL url("https://example.com/");
 
   MockFlatRateCreditCardBenefitsBlockedDecisionForUrl(
-      url, optimization_guide::OptimizationGuideDecision::kTrue);
+      url, OptimizationGuideDecision::kTrue);
 
   EXPECT_FALSE(guide().ShouldBlockFlatRateBenefitSuggestionLabelsForUrl(url));
 }
@@ -476,7 +476,7 @@ TEST_F(AutofillOptimizationGuideDeciderTest,
   payments_data_manager().AddServerCreditCard(card);
 
   MockFlatRateCreditCardBenefitsBlockedDecisionForUrl(
-      url, optimization_guide::OptimizationGuideDecision::kUnknown);
+      url, OptimizationGuideDecision::kUnknown);
 
   EXPECT_FALSE(guide().ShouldBlockFlatRateBenefitSuggestionLabelsForUrl(url));
 }
@@ -542,7 +542,7 @@ TEST_F(
       std::move(flat_rate_benefit));
 
   EXPECT_CALL(decider(),
-              RegisterOptimizationTypes(testing::UnorderedElementsAre(
+              RegisterOptimizationTypes(UnorderedElementsAre(
                   optimization_guide::proto::
                       SHARED_CREDIT_CARD_FLAT_RATE_BENEFITS_BLOCKLIST)));
 
@@ -780,8 +780,7 @@ TEST_P(BuyNowPayLaterAutofillOptimizationGuideDeciderTest,
   base::test::ScopedFeatureList feature_list;
 
   std::vector<base::test::FeatureRef> enabled_features = {
-      features::kAutofillEnableBuyNowPayLaterSyncing,
-      features::kAutofillEnableLoadBnplAllowlistAfterSyncing};
+      features::kAutofillEnableBuyNowPayLaterSyncing};
 
   if (IsBlocklistFlagEnabled()) {
     enabled_features.push_back(
@@ -794,8 +793,8 @@ TEST_P(BuyNowPayLaterAutofillOptimizationGuideDeciderTest,
       test::GetTestLinkedBnplIssuer(BnplIssuer::IssuerId::kBnplAffirm));
 
   // Ensure that on registration the right optimization type is registered.
-  EXPECT_CALL(decider(), RegisterOptimizationTypes(testing::IsSupersetOf(
-                             {GetAffirmOptimizationType()})));
+  EXPECT_CALL(decider(),
+              RegisterOptimizationTypes(Contains(GetAffirmOptimizationType())));
 
   guide().OnPaymentsDataLoaded(payments_data_manager());
 }
@@ -808,8 +807,7 @@ TEST_P(BuyNowPayLaterAutofillOptimizationGuideDeciderTest,
   base::test::ScopedFeatureList feature_list;
 
   std::vector<base::test::FeatureRef> enabled_features = {
-      features::kAutofillEnableBuyNowPayLaterSyncing,
-      features::kAutofillEnableLoadBnplAllowlistAfterSyncing};
+      features::kAutofillEnableBuyNowPayLaterSyncing};
 
   if (IsBlocklistFlagEnabled()) {
     enabled_features.push_back(
@@ -822,8 +820,8 @@ TEST_P(BuyNowPayLaterAutofillOptimizationGuideDeciderTest,
       test::GetTestLinkedBnplIssuer(BnplIssuer::IssuerId::kBnplZip));
 
   // Ensure that on registration the right optimization type is registered.
-  EXPECT_CALL(decider(), RegisterOptimizationTypes(testing::IsSupersetOf(
-                             {GetZipOptimizationType()})));
+  EXPECT_CALL(decider(),
+              RegisterOptimizationTypes(Contains(GetZipOptimizationType())));
 
   guide().OnPaymentsDataLoaded(payments_data_manager());
 }
@@ -836,8 +834,7 @@ TEST_P(BuyNowPayLaterAutofillOptimizationGuideDeciderTest,
   base::test::ScopedFeatureList feature_list;
 
   std::vector<base::test::FeatureRef> enabled_features = {
-      features::kAutofillEnableBuyNowPayLaterSyncing,
-      features::kAutofillEnableLoadBnplAllowlistAfterSyncing};
+      features::kAutofillEnableBuyNowPayLaterSyncing};
 
   if (IsBlocklistFlagEnabled()) {
     enabled_features.push_back(
@@ -850,40 +847,8 @@ TEST_P(BuyNowPayLaterAutofillOptimizationGuideDeciderTest,
       test::GetTestLinkedBnplIssuer(BnplIssuer::IssuerId::kBnplKlarna));
 
   // Ensure that on registration the right optimization type is registered.
-  EXPECT_CALL(decider(), RegisterOptimizationTypes(testing::IsSupersetOf(
-                             {GetKlarnaOptimizationType()})));
-
-  guide().OnPaymentsDataLoaded(payments_data_manager());
-}
-
-// Test the `BUY_NOW_PAY_LATER_ALLOWLIST_KLARNA` optimization type is not
-// registered when there is at least one Klarna BNPL issuer with
-// `OnPaymentsDataLoaded()` call if flag
-// `features::kAutofillEnableLoadBnplAllowlistAfterSyncing` is disabled.
-TEST_P(
-    BuyNowPayLaterAutofillOptimizationGuideDeciderTest,
-    OnPaymentsDataLoaded_BuyNowPayLaterProviderKlarna_LoadAllowListAfterSyncingDisabled) {
-  base::test::ScopedFeatureList feature_list;
-
-  std::vector<base::test::FeatureRef> enabled_features = {
-      features::kAutofillEnableBuyNowPayLaterSyncing};
-
-  if (IsBlocklistFlagEnabled()) {
-    enabled_features.push_back(
-        features::kAutofillPreferBuyNowPayLaterBlocklists);
-  }
-
-  feature_list.InitWithFeatures(
-      enabled_features,
-      {features::kAutofillEnableLoadBnplAllowlistAfterSyncing});
-
-  payments_data_manager().AddBnplIssuer(
-      test::GetTestLinkedBnplIssuer(BnplIssuer::IssuerId::kBnplKlarna));
-
-  // Ensure optimization type for Klarna allowlist is not registered.
-  EXPECT_CALL(decider(), RegisterOptimizationTypes(testing::IsSupersetOf(
-                             {GetKlarnaOptimizationType()})))
-      .Times(0);
+  EXPECT_CALL(decider(),
+              RegisterOptimizationTypes(Contains(GetKlarnaOptimizationType())));
 
   guide().OnPaymentsDataLoaded(payments_data_manager());
 }
@@ -912,8 +877,8 @@ TEST_P(BuyNowPayLaterAutofillOptimizationGuideDeciderTest,
       test::GetTestLinkedBnplIssuer(BnplIssuer::IssuerId::kBnplAffirm));
 
   // Ensure that on registration the right optimization type is registered.
-  EXPECT_CALL(decider(), RegisterOptimizationTypes(testing::IsSupersetOf(
-                             {GetAffirmOptimizationType()})));
+  EXPECT_CALL(decider(),
+              RegisterOptimizationTypes(Contains(GetAffirmOptimizationType())));
   guide().OnDidParseForm(form_structure, payments_data_manager());
 }
 
@@ -931,9 +896,7 @@ TEST_P(BuyNowPayLaterAutofillOptimizationGuideDeciderTest,
         features::kAutofillPreferBuyNowPayLaterBlocklists);
   }
 
-  feature_list.InitWithFeatures(
-      enabled_features,
-      {features::kAutofillEnableLoadBnplAllowlistAfterSyncing});
+  feature_list.InitWithFeatures(enabled_features, {});
 
   FormStructure form_structure{CreateTestCreditCardFormData(
       /*is_https=*/true, /*use_month_type=*/true)};
@@ -944,8 +907,8 @@ TEST_P(BuyNowPayLaterAutofillOptimizationGuideDeciderTest,
       test::GetTestLinkedBnplIssuer(BnplIssuer::IssuerId::kBnplZip));
 
   // Ensure that on registration the right optimization type is registered.
-  EXPECT_CALL(decider(), RegisterOptimizationTypes(testing::IsSupersetOf(
-                             {GetZipOptimizationType()})));
+  EXPECT_CALL(decider(),
+              RegisterOptimizationTypes(Contains(GetZipOptimizationType())));
 
   guide().OnDidParseForm(form_structure, payments_data_manager());
 }
@@ -964,9 +927,7 @@ TEST_P(BuyNowPayLaterAutofillOptimizationGuideDeciderTest,
         features::kAutofillPreferBuyNowPayLaterBlocklists);
   }
 
-  feature_list.InitWithFeatures(
-      enabled_features,
-      {features::kAutofillEnableLoadBnplAllowlistAfterSyncing});
+  feature_list.InitWithFeatures(enabled_features, {});
 
   FormStructure form_structure{CreateTestCreditCardFormData(
       /*is_https=*/true, /*use_month_type=*/true)};
@@ -977,8 +938,8 @@ TEST_P(BuyNowPayLaterAutofillOptimizationGuideDeciderTest,
       test::GetTestLinkedBnplIssuer(BnplIssuer::IssuerId::kBnplKlarna));
 
   // Ensure that on registration the right optimization type is registered.
-  EXPECT_CALL(decider(), RegisterOptimizationTypes(testing::IsSupersetOf(
-                             {GetKlarnaOptimizationType()})));
+  EXPECT_CALL(decider(),
+              RegisterOptimizationTypes(Contains(GetKlarnaOptimizationType())));
   guide().OnDidParseForm(form_structure, payments_data_manager());
 }
 
@@ -997,9 +958,7 @@ TEST_P(BuyNowPayLaterAutofillOptimizationGuideDeciderTest,
         features::kAutofillPreferBuyNowPayLaterBlocklists);
   }
 
-  feature_list.InitWithFeatures(
-      enabled_features,
-      {features::kAutofillEnableLoadBnplAllowlistAfterSyncing});
+  feature_list.InitWithFeatures(enabled_features, {});
 
   FormStructure form_structure{CreateTestCreditCardFormData(
       /*is_https=*/true, /*use_month_type=*/true)};
@@ -1026,8 +985,7 @@ TEST_P(BuyNowPayLaterAutofillOptimizationGuideDeciderTest,
       CanApplyOptimization(
           Eq(GURL("https://www.testurl.test")), Eq(GetAffirmOptimizationType()),
           Matcher<optimization_guide::OptimizationMetadata*>(Eq(nullptr))))
-      .WillByDefault(
-          Return(optimization_guide::OptimizationGuideDecision::kTrue));
+      .WillByDefault(Return(OptimizationGuideDecision::kTrue));
 
   // testurl.test is allowed.
   EXPECT_TRUE(guide().IsUrlEligibleForBnplIssuer(
@@ -1047,8 +1005,7 @@ TEST_P(BuyNowPayLaterAutofillOptimizationGuideDeciderTest,
       CanApplyOptimization(
           Eq(GURL("https://www.testurl.test")), Eq(GetAffirmOptimizationType()),
           Matcher<optimization_guide::OptimizationMetadata*>(Eq(nullptr))))
-      .WillByDefault(
-          Return(optimization_guide::OptimizationGuideDecision::kFalse));
+      .WillByDefault(Return(OptimizationGuideDecision::kFalse));
 
   // testurl.test is not allowed.
   EXPECT_FALSE(guide().IsUrlEligibleForBnplIssuer(
@@ -1068,8 +1025,7 @@ TEST_P(BuyNowPayLaterAutofillOptimizationGuideDeciderTest,
       CanApplyOptimization(
           Eq(GURL("https://www.testurl.test")), Eq(GetZipOptimizationType()),
           Matcher<optimization_guide::OptimizationMetadata*>(Eq(nullptr))))
-      .WillByDefault(
-          Return(optimization_guide::OptimizationGuideDecision::kTrue));
+      .WillByDefault(Return(OptimizationGuideDecision::kTrue));
 
   // testurl.test is allowed.
   EXPECT_TRUE(guide().IsUrlEligibleForBnplIssuer(
@@ -1090,8 +1046,7 @@ TEST_P(BuyNowPayLaterAutofillOptimizationGuideDeciderTest,
       CanApplyOptimization(
           Eq(GURL("https://www.testurl.test")), Eq(GetZipOptimizationType()),
           Matcher<optimization_guide::OptimizationMetadata*>(Eq(nullptr))))
-      .WillByDefault(
-          Return(optimization_guide::OptimizationGuideDecision::kFalse));
+      .WillByDefault(Return(OptimizationGuideDecision::kFalse));
 
   // testurl.test is not allowed.
   EXPECT_FALSE(guide().IsUrlEligibleForBnplIssuer(
@@ -1111,8 +1066,7 @@ TEST_P(BuyNowPayLaterAutofillOptimizationGuideDeciderTest,
       CanApplyOptimization(
           Eq(GURL("https://www.testurl.test")), Eq(GetKlarnaOptimizationType()),
           Matcher<optimization_guide::OptimizationMetadata*>(Eq(nullptr))))
-      .WillByDefault(
-          Return(optimization_guide::OptimizationGuideDecision::kTrue));
+      .WillByDefault(Return(OptimizationGuideDecision::kTrue));
 
   // testurl.test is allowed.
   EXPECT_TRUE(guide().IsUrlEligibleForBnplIssuer(
@@ -1133,8 +1087,7 @@ TEST_P(BuyNowPayLaterAutofillOptimizationGuideDeciderTest,
       CanApplyOptimization(
           Eq(GURL("https://www.testurl.test")), Eq(GetKlarnaOptimizationType()),
           Matcher<optimization_guide::OptimizationMetadata*>(Eq(nullptr))))
-      .WillByDefault(
-          Return(optimization_guide::OptimizationGuideDecision::kFalse));
+      .WillByDefault(Return(OptimizationGuideDecision::kFalse));
 
   // testurl.test is not allowed.
   EXPECT_FALSE(guide().IsUrlEligibleForBnplIssuer(
@@ -1251,7 +1204,7 @@ TEST_F(AutofillOptimizationGuideDeciderTest, AutofillAblation) {
 
   // Ensure that on registration the right optimization types are registered.
   EXPECT_CALL(decider(),
-              RegisterOptimizationTypes(testing::IsSupersetOf(
+              RegisterOptimizationTypes(IsSupersetOf(
                   {optimization_guide::proto::AUTOFILL_ABLATION_SITES_LIST1,
                    optimization_guide::proto::AUTOFILL_ABLATION_SITES_LIST2,
                    optimization_guide::proto::AUTOFILL_ABLATION_SITES_LIST3,
@@ -1265,15 +1218,13 @@ TEST_F(AutofillOptimizationGuideDeciderTest, AutofillAblation) {
           CanApplyOptimization(
               _, _,
               Matcher<optimization_guide::OptimizationMetadata*>(Eq(nullptr))))
-      .WillByDefault(
-          Return(optimization_guide::OptimizationGuideDecision::kFalse));
+      .WillByDefault(Return(OptimizationGuideDecision::kFalse));
   ON_CALL(decider(),
           CanApplyOptimization(
               Eq(GURL("https://www.example.com")),
               Eq(optimization_guide::proto::AUTOFILL_ABLATION_SITES_LIST1),
               Matcher<optimization_guide::OptimizationMetadata*>(Eq(nullptr))))
-      .WillByDefault(
-          Return(optimization_guide::OptimizationGuideDecision::kTrue));
+      .WillByDefault(Return(OptimizationGuideDecision::kTrue));
   EXPECT_CALL(
       decider(),
       CanApplyOptimization(
@@ -1291,6 +1242,27 @@ TEST_F(AutofillOptimizationGuideDeciderTest, AutofillAblation) {
   EXPECT_FALSE(guide().IsEligibleForAblation(
       GURL("https://www.example.com"),
       optimization_guide::proto::AUTOFILL_ABLATION_SITES_LIST2));
+}
+
+// Tests that the optimization guide decision on whether a URL is allowlisted
+// for iframe filling by the actor filling service is queried correctly.
+TEST_F(AutofillOptimizationGuideDeciderTest, IsIframeUrlAllowlistedForActor) {
+  ON_CALL(
+      decider(),
+      CanApplyOptimization(
+          _,
+          Eq(optimization_guide::proto::AUTOFILL_ACTOR_IFRAME_ORIGIN_ALLOWLIST),
+          Matcher<optimization_guide::OptimizationMetadata*>(Eq(nullptr))))
+      .WillByDefault(WithArg<0>([](const GURL& url) {
+        return url == GURL("https://www.example.com")
+                   ? OptimizationGuideDecision::kTrue
+                   : OptimizationGuideDecision::kFalse;
+      }));
+
+  EXPECT_TRUE(
+      guide().IsIframeUrlAllowlistedForActor(GURL("https://www.example.com")));
+  EXPECT_FALSE(guide().IsIframeUrlAllowlistedForActor(
+      GURL("https://www.othersite.com")));
 }
 
 struct BenefitOptimizationToBenefitCategoryTestCase {
@@ -1340,8 +1312,7 @@ TEST_P(BenefitOptimizationToBenefitCategoryTest,
           CanApplyOptimization(
               Eq(url), Eq(expected_benefit_optimization()),
               Matcher<optimization_guide::OptimizationMetadata*>(Eq(nullptr))))
-      .WillByDefault(
-          Return(optimization_guide::OptimizationGuideDecision::kTrue));
+      .WillByDefault(Return(OptimizationGuideDecision::kTrue));
 
   EXPECT_EQ(guide().AttemptToGetEligibleCreditCardBenefitCategory(
                 credit_card().benefit_source(), url),

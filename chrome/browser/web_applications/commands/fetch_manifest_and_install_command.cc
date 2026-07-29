@@ -12,7 +12,6 @@
 #include "base/debug/crash_logging.h"
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
-#include "base/functional/callback_forward.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/strings/to_string.h"
 #include "base/strings/utf_string_conversions.h"
@@ -730,10 +729,10 @@ void FetchManifestAndInstallCommand::OnInstallCompleted(
       command_manager()->LogToInstallManager(
           install_error_log_entry_.TakeErrorDict());
     }
-    base::Value::Dict install_info_dict =
+    base::Value install_info_dict =
         manifest_to_install_info_job_
             ->GetManifestToWebAppInfoGenerationErrors();
-    if (!install_info_dict.empty()) {
+    if (!install_info_dict.is_none()) {
       command_manager()->LogToInstallManager(std::move(install_info_dict));
     }
   }

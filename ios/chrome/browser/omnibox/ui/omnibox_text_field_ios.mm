@@ -72,6 +72,12 @@ NSString* const kOmniboxFadeAnimationKey = @"OmniboxFadeAnimation";
   /// Whether the pasteboard currently has strings.
   BOOL _pasteboardHasStrings;
   OmniboxPresentationContext _presentationContext;
+  /// Whether to force disable the return key.
+  BOOL _forceDisableReturnKey;
+  // The default and custom placeholder texts to be shown when there is no other
+  // text present.
+  NSString* _customPlaceholderText;
+  NSString* _defaultPlaceholderText;
 }
 
 @synthesize omniboxTextInputDelegate = _omniboxTextInputDelegate;
@@ -515,6 +521,9 @@ NSString* const kOmniboxFadeAnimationKey = @"OmniboxFadeAnimation";
 - (BOOL)hasText {
   // Returns YES when `allowsReturnKeyWithEmptyText` to enable the 'Go' key in
   // the keyboard.
+  if (_forceDisableReturnKey) {
+    return NO;
+  }
   return self.allowsReturnKeyWithEmptyText || [super hasText];
 }
 
@@ -803,6 +812,9 @@ NSString* const kOmniboxFadeAnimationKey = @"OmniboxFadeAnimation";
       return ([self isPreEditing] || [self hasAutocompleteText] ||
               [self hasAdditionalText]);
     case kReturnKey: {
+      if (_forceDisableReturnKey) {
+        return NO;
+      }
       NSString* trimmedText =
           [self.text stringByTrimmingCharactersInSet:
                          [NSCharacterSet whitespaceAndNewlineCharacterSet]];
@@ -891,6 +903,15 @@ NSString* const kOmniboxFadeAnimationKey = @"OmniboxFadeAnimation";
 }
 
 #pragma mark - Private methods
+
+- (void)updatePlaceholder {
+  if (_customPlaceholderText) {
+    [self setPlaceholder:_customPlaceholderText];
+    return;
+  }
+
+  [self setPlaceholder:_defaultPlaceholderText];
+}
 
 #pragma mark Font
 
@@ -1124,6 +1145,21 @@ NSString* const kOmniboxFadeAnimationKey = @"OmniboxFadeAnimation";
 
 - (UIResponder<UITextInput>*)scribbleInput {
   return self;
+}
+
+- (void)forceDisableReturnKey:(BOOL)forceDisable {
+  _forceDisableReturnKey = forceDisable;
+  [self reloadInputViews];
+}
+
+- (void)setDefaultPlaceholderText:(NSString*)defaultPlaceholderText {
+  _defaultPlaceholderText = [defaultPlaceholderText copy];
+  [self updatePlaceholder];
+}
+
+- (void)setCustomPlaceholderText:(NSString*)customPlaceholderText {
+  _customPlaceholderText = [customPlaceholderText copy];
+  [self updatePlaceholder];
 }
 
 #pragma mark - UITextFieldDelegate

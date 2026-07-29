@@ -20,6 +20,10 @@
 namespace bookmarks {
 namespace {
 
+constexpr char kLocalOrSyncableIdsReassignedMetricName[] =
+    "Bookmarks.IdsReassigned2.OnProfileLoad.LocalOrSyncable";
+constexpr char kAccountIdsReassignedMetricName[] =
+    "Bookmarks.IdsReassigned2.OnProfileLoad.Account";
 constexpr char kUserFolderCountMetricName[] =
     "Bookmarks.UserFolder.OnProfileLoad.Count";
 constexpr char kUserFolderTopLevelCountMetricName[] =
@@ -83,6 +87,11 @@ TEST(ModelLoaderTest, LoadEmptyModelFromInexistentFile) {
   EXPECT_EQ(2u, details->other_folder_node()->id());
   EXPECT_EQ(3u, details->mobile_folder_node()->id());
 
+  histogram_tester.ExpectTotalCount(kLocalOrSyncableIdsReassignedMetricName,
+                                    /*expected_count=*/0);
+  histogram_tester.ExpectTotalCount(kAccountIdsReassignedMetricName,
+                                    /*expected_count=*/0);
+
   histogram_tester.ExpectTotalCount(kUserFolderCountMetricName,
                                     /*expected_count=*/1);
   histogram_tester.ExpectBucketCount(kUserFolderCountMetricName,
@@ -142,6 +151,12 @@ TEST(ModelLoaderTest, LoadNonEmptyModel) {
   EXPECT_EQ(u"Folder B1", folder_b1->GetTitle());
   EXPECT_EQ(4, folder_b1->id());
 
+  histogram_tester.ExpectUniqueSample(kLocalOrSyncableIdsReassignedMetricName,
+                                      /*sample=*/false,
+                                      /*expected_bucket_count=*/1);
+  histogram_tester.ExpectTotalCount(kAccountIdsReassignedMetricName,
+                                    /*expected_count=*/0);
+
   histogram_tester.ExpectTotalCount(kUserFolderCountMetricName,
                                     /*expected_count=*/1);
   histogram_tester.ExpectBucketCount(kUserFolderCountMetricName,
@@ -183,7 +198,7 @@ TEST(ModelLoaderTest, LoadNonEmptyModelFromOneFileWithInternalIdCollisions) {
 
   EXPECT_TRUE(details->required_recovery());
   EXPECT_TRUE(details->ids_reassigned());
-  EXPECT_EQ(10, details->max_id());
+  EXPECT_EQ(12, details->max_id());
 
   EXPECT_EQ(1u, details->bb_node()->children().size());
   EXPECT_EQ(1u, details->other_folder_node()->children().size());
@@ -194,7 +209,7 @@ TEST(ModelLoaderTest, LoadNonEmptyModelFromOneFileWithInternalIdCollisions) {
   // this case some permanent folders get non-standard IDs assigned.
   EXPECT_EQ(1u, details->bb_node()->id());
   EXPECT_EQ(4u, details->other_folder_node()->id());
-  EXPECT_EQ(7u, details->mobile_folder_node()->id());
+  EXPECT_EQ(10u, details->mobile_folder_node()->id());
 
   EXPECT_EQ("dummy-sync-metadata-1",
             details->local_or_syncable_sync_metadata_str());
@@ -206,7 +221,13 @@ TEST(ModelLoaderTest, LoadNonEmptyModelFromOneFileWithInternalIdCollisions) {
       FindNodeByUuid(uuid_index, "da47f36f-050f-4ac9-aa35-ab0d93d39f95");
   ASSERT_NE(nullptr, folder_b1);
   EXPECT_EQ(u"Folder B1", folder_b1->GetTitle());
-  EXPECT_EQ(5, folder_b1->id());
+  EXPECT_EQ(11, folder_b1->id());
+
+  histogram_tester.ExpectUniqueSample(kLocalOrSyncableIdsReassignedMetricName,
+                                      /*sample=*/true,
+                                      /*expected_bucket_count=*/1);
+  histogram_tester.ExpectTotalCount(kAccountIdsReassignedMetricName,
+                                    /*expected_count=*/0);
 }
 
 TEST(ModelLoaderTest, LoadTwoFilesWithNonCollidingIds) {
@@ -268,6 +289,13 @@ TEST(ModelLoaderTest, LoadTwoFilesWithNonCollidingIds) {
   ASSERT_NE(nullptr, account_folder_b1);
   EXPECT_EQ(u"Folder B1", account_folder_b1->GetTitle());
   EXPECT_EQ(23, account_folder_b1->id());
+
+  histogram_tester.ExpectUniqueSample(kLocalOrSyncableIdsReassignedMetricName,
+                                      /*sample=*/false,
+                                      /*expected_bucket_count=*/1);
+  histogram_tester.ExpectUniqueSample(kAccountIdsReassignedMetricName,
+                                      /*sample=*/false,
+                                      /*expected_bucket_count=*/1);
 
   histogram_tester.ExpectTotalCount(kUserFolderCountMetricName,
                                     /*expected_count=*/1);
@@ -347,6 +375,13 @@ TEST(ModelLoaderTest, LoadTwoFilesWithCollidingIdsAcross) {
   // important, but it is added here as overly-strict requirement to document
   // the behavior.
   EXPECT_EQ(15, local_or_syncable_folder_b1->id());
+
+  histogram_tester.ExpectUniqueSample(kLocalOrSyncableIdsReassignedMetricName,
+                                      /*sample=*/true,
+                                      /*expected_bucket_count=*/1);
+  histogram_tester.ExpectUniqueSample(kAccountIdsReassignedMetricName,
+                                      /*sample=*/false,
+                                      /*expected_bucket_count=*/1);
 }
 
 TEST(ModelLoaderTest, LoadTwoFilesWhereFirstHasInternalIdCollisions) {
@@ -376,11 +411,11 @@ TEST(ModelLoaderTest, LoadTwoFilesWhereFirstHasInternalIdCollisions) {
   ASSERT_NE(nullptr, details->account_other_folder_node());
   ASSERT_NE(nullptr, details->account_mobile_folder_node());
 
-  // ID collisions should have triggered recovery and reassignment of IDs.
+  // ID collisions should have triggered recovery and reassignment of some IDs.
   EXPECT_TRUE(details->required_recovery());
   EXPECT_TRUE(details->ids_reassigned());
 
-  EXPECT_EQ(33, details->max_id());
+  EXPECT_EQ(25, details->max_id());
 
   EXPECT_EQ(1u, details->bb_node()->children().size());
   EXPECT_EQ(1u, details->other_folder_node()->children().size());
@@ -413,7 +448,14 @@ TEST(ModelLoaderTest, LoadTwoFilesWhereFirstHasInternalIdCollisions) {
   EXPECT_EQ(u"Folder B1", local_or_syncable_folder_b1->GetTitle());
   // The node ID gets reassigned. The precise value isn't important, but it is
   // added here as overly-strict requirement to document the behavior.
-  EXPECT_EQ(28, local_or_syncable_folder_b1->id());
+  EXPECT_EQ(24, local_or_syncable_folder_b1->id());
+
+  histogram_tester.ExpectUniqueSample(kLocalOrSyncableIdsReassignedMetricName,
+                                      /*sample=*/true,
+                                      /*expected_bucket_count=*/1);
+  histogram_tester.ExpectUniqueSample(kAccountIdsReassignedMetricName,
+                                      /*sample=*/false,
+                                      /*expected_bucket_count=*/1);
 }
 
 TEST(ModelLoaderTest, LoadTwoFilesWhereSecondHasInternalIdCollisions) {
@@ -443,11 +485,11 @@ TEST(ModelLoaderTest, LoadTwoFilesWhereSecondHasInternalIdCollisions) {
   ASSERT_NE(nullptr, details->account_other_folder_node());
   ASSERT_NE(nullptr, details->account_mobile_folder_node());
 
-  // ID collisions should have triggered recovery and reassignment of IDs.
+  // ID collisions should have triggered recovery and reassignment of some IDs.
   EXPECT_TRUE(details->required_recovery());
   EXPECT_TRUE(details->ids_reassigned());
 
-  EXPECT_EQ(19, details->max_id());
+  EXPECT_EQ(25, details->max_id());
 
   EXPECT_EQ(1u, details->bb_node()->children().size());
   EXPECT_EQ(1u, details->other_folder_node()->children().size());
@@ -471,7 +513,7 @@ TEST(ModelLoaderTest, LoadTwoFilesWhereSecondHasInternalIdCollisions) {
   EXPECT_EQ(u"Folder B1", account_folder_b1->GetTitle());
   // The node ID gets reassigned. The precise value isn't important, but it is
   // added here as overly-strict requirement to document the behavior.
-  EXPECT_EQ(5, account_folder_b1->id());
+  EXPECT_EQ(11, account_folder_b1->id());
 
   const BookmarkNode* local_or_syncable_folder_b1 = FindNodeByUuid(
       local_or_syncable_uuid_index, "da47f36f-050f-4ac9-aa35-ab0d93d39f95");
@@ -479,7 +521,14 @@ TEST(ModelLoaderTest, LoadTwoFilesWhereSecondHasInternalIdCollisions) {
   EXPECT_EQ(u"Folder B1", local_or_syncable_folder_b1->GetTitle());
   // The node ID gets reassigned. The precise value isn't important, but it is
   // added here as overly-strict requirement to document the behavior.
-  EXPECT_EQ(14, local_or_syncable_folder_b1->id());
+  EXPECT_EQ(23, local_or_syncable_folder_b1->id());
+
+  histogram_tester.ExpectUniqueSample(kLocalOrSyncableIdsReassignedMetricName,
+                                      /*sample=*/true,
+                                      /*expected_bucket_count=*/1);
+  histogram_tester.ExpectUniqueSample(kAccountIdsReassignedMetricName,
+                                      /*sample=*/true,
+                                      /*expected_bucket_count=*/1);
 }
 
 TEST(ModelLoaderTest, LoadTwoFilesWhereBothHaveInternalIdCollisions) {
@@ -509,11 +558,11 @@ TEST(ModelLoaderTest, LoadTwoFilesWhereBothHaveInternalIdCollisions) {
   ASSERT_NE(nullptr, details->account_other_folder_node());
   ASSERT_NE(nullptr, details->account_mobile_folder_node());
 
-  // ID collisions should have triggered recovery and reassignment of IDs.
+  // ID collisions should have triggered recovery and reassignment of some IDs.
   EXPECT_TRUE(details->required_recovery());
   EXPECT_TRUE(details->ids_reassigned());
 
-  EXPECT_EQ(19, details->max_id());
+  EXPECT_EQ(21, details->max_id());
 
   EXPECT_EQ(1u, details->bb_node()->children().size());
   EXPECT_EQ(1u, details->other_folder_node()->children().size());
@@ -537,7 +586,7 @@ TEST(ModelLoaderTest, LoadTwoFilesWhereBothHaveInternalIdCollisions) {
   EXPECT_EQ(u"Folder B1", account_folder_b1->GetTitle());
   // The node ID gets reassigned. The precise value isn't important, but it is
   // added here as overly-strict requirement to document the behavior.
-  EXPECT_EQ(5, account_folder_b1->id());
+  EXPECT_EQ(11, account_folder_b1->id());
 
   const BookmarkNode* local_or_syncable_folder_b1 = FindNodeByUuid(
       local_or_syncable_uuid_index, "da47f36f-050f-4ac9-aa35-ab0d93d39f95");
@@ -545,7 +594,14 @@ TEST(ModelLoaderTest, LoadTwoFilesWhereBothHaveInternalIdCollisions) {
   EXPECT_EQ(u"Folder B1", local_or_syncable_folder_b1->GetTitle());
   // The node ID gets reassigned. The precise value isn't important, but it is
   // added here as overly-strict requirement to document the behavior.
-  EXPECT_EQ(14, local_or_syncable_folder_b1->id());
+  EXPECT_EQ(16, local_or_syncable_folder_b1->id());
+
+  histogram_tester.ExpectUniqueSample(kLocalOrSyncableIdsReassignedMetricName,
+                                      /*sample=*/true,
+                                      /*expected_bucket_count=*/1);
+  histogram_tester.ExpectUniqueSample(kAccountIdsReassignedMetricName,
+                                      /*sample=*/true,
+                                      /*expected_bucket_count=*/1);
 }
 
 TEST(ModelLoaderTest, LoadTwoFilesWhereTheLocalOrSyncableFileDoesNotExist) {
@@ -604,6 +660,12 @@ TEST(ModelLoaderTest, LoadTwoFilesWhereTheLocalOrSyncableFileDoesNotExist) {
 
   EXPECT_EQ("", details->local_or_syncable_sync_metadata_str());
   EXPECT_EQ("dummy-sync-metadata-1", details->account_sync_metadata_str());
+
+  histogram_tester.ExpectTotalCount(kLocalOrSyncableIdsReassignedMetricName,
+                                    /*expected_count=*/0);
+  histogram_tester.ExpectUniqueSample(kAccountIdsReassignedMetricName,
+                                      /*sample=*/false,
+                                      /*expected_bucket_count=*/1);
 }
 
 TEST(ModelLoaderTest, LoadModelWithNestedUserFolders) {

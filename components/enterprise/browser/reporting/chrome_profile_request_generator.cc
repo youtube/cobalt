@@ -33,6 +33,8 @@ namespace {
 // The size of the nonce challenge in bytes.
 const int kNonceSizeInBytes = 16;
 
+constexpr char kAttestationFlowName[] = "chrome-signals-sharing";
+
 std::string CreateNonce() {
   std::vector<uint8_t> nonce_buffer(kNonceSizeInBytes);
   base::RandBytes(nonce_buffer);
@@ -105,8 +107,14 @@ void ChromeProfileRequestGenerator::Generate(
   auto request = std::make_unique<ReportRequest>(ReportType::kProfileReport);
   request->GetChromeProfileReportRequest().set_report_type(
       GetReportTypeFromSignalsMode(generation_config.security_signals_mode));
-  if (generation_config.security_signals_mode ==
-      SecuritySignalsMode::kSignalsOnly) {
+
+  bool is_signals_only = generation_config.security_signals_mode ==
+                         SecuritySignalsMode::kSignalsOnly;
+  bool policies_enabled =
+      enterprise_signals::features::IsPolicyDataCollectionEnabled();
+
+  // Early Exit since it's a Signals-Only report with no policies.
+  if (is_signals_only && !policies_enabled) {
     return OnBaseReportsReady(std::move(request), std::move(callback),
                               generation_config,
                               std::make_unique<em::BrowserReport>(),
@@ -122,18 +130,23 @@ void ChromeProfileRequestGenerator::Generate(
                             weak_ptr_factory_.GetWeakPtr(), std::move(request),
                             std::move(callback), generation_config)));
 
-  browser_report_generator_.Generate(
-      ReportType::kProfileReport,
-      base::BindOnce(
-          [](std::unique_ptr<em::BrowserReport> browser_report)
-              -> std::variant<std::unique_ptr<em::BrowserReport>,
-                              std::unique_ptr<em::ChromeUserProfileInfo>> {
-            return std::move(browser_report);
-          })
-          .Then(barrier_callback));
+  if (is_signals_only) {
+    barrier_callback.Run(std::make_unique<em::BrowserReport>());
+  } else {
+    browser_report_generator_.Generate(
+        ReportType::kProfileReport,
+        base::BindOnce(
+            [](std::unique_ptr<em::BrowserReport> browser_report)
+                -> std::variant<std::unique_ptr<em::BrowserReport>,
+                                std::unique_ptr<em::ChromeUserProfileInfo>> {
+              return std::move(browser_report);
+            })
+            .Then(barrier_callback));
+  }
 
   profile_report_generator_.MaybeGenerate(
       profile_path_, ReportType::kProfileReport,
+      generation_config.security_signals_mode,
       base::BindOnce(
           [](std::unique_ptr<em::ChromeUserProfileInfo> profile_report)
               -> std::variant<std::unique_ptr<em::BrowserReport>,
@@ -374,7 +387,7 @@ void ChromeProfileRequestGenerator::OnAggregatedSignalsReceived(
   auto signals_string =
       GetSecuritySignalsInReport(request->GetChromeProfileReportRequest());
   device_attestation_service_->GetAttestationResponse(
-      signals_string, report_timestamp, report_nonce,
+      kAttestationFlowName, signals_string, report_timestamp, report_nonce,
       base::BindOnce(&ChromeProfileRequestGenerator::OnAttestationResultReady,
                      weak_ptr_factory_.GetWeakPtr(), report_timestamp,
                      report_nonce, std::move(callback), std::move(request)));

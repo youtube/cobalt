@@ -8,7 +8,6 @@
 #include <utility>
 
 #include "base/files/file_path.h"
-#include "base/functional/callback_forward.h"
 #include "base/memory/raw_ptr.h"
 #include "base/path_service.h"
 #include "base/run_loop.h"
@@ -17,6 +16,7 @@
 #include "base/test/task_environment.h"
 #include "chrome/services/speech/cros_speech_recognition_recognizer_impl.h"
 #include "chrome/services/speech/speech_recognition_service_impl.h"
+#include "media/base/audio_bus.h"
 #include "media/base/audio_glitch_info.h"
 #include "media/base/audio_timestamp_helper.h"
 #include "media/mojo/mojom/audio_data.mojom.h"

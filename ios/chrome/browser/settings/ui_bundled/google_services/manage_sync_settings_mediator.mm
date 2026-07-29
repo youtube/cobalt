@@ -624,6 +624,7 @@ constexpr CGFloat kBatchUploadSymbolPointSize = 22.;
 - (SettingsImageDetailTextItem*)batchUploadRecommendationItem {
   SettingsImageDetailTextItem* item = [[SettingsImageDetailTextItem alloc]
       initWithType:BatchUploadRecommendationItemType];
+  item.selectionStyle = UITableViewCellSelectionStyleNone;
   item.detailText = [self itemsToUploadRecommendationString];
   item.image = CustomSymbolWithPointSize(kCloudAndArrowUpSymbol,
                                          kBatchUploadSymbolPointSize);
@@ -793,7 +794,7 @@ constexpr CGFloat kBatchUploadSymbolPointSize = 22.;
       break;
     case syncer::UserSelectableType::kPayments:
       itemType = PaymentsDataTypeItemType;
-      textStringID = IDS_SYNC_DATATYPE_PAYMENTS;
+      textStringID = IDS_SYNC_DATATYPE_PAYMENTS_AND_INFO;
       accessibilityIdentifier = kSyncPaymentsIdentifier;
       break;
     case syncer::UserSelectableType::kPreferences:
@@ -1158,6 +1159,7 @@ constexpr CGFloat kBatchUploadSymbolPointSize = 22.;
   SettingsImageDetailTextItem* syncErrorItem =
       [[SettingsImageDetailTextItem alloc]
           initWithType:AccountErrorMessageItemType];
+  syncErrorItem.selectionStyle = UITableViewCellSelectionStyleNone;
   syncErrorItem.detailText = l10n_util::GetNSString(messageID);
   syncErrorItem.image =
       DefaultSymbolWithPointSize(kErrorCircleFillSymbol, kErrorSymbolPointSize);
@@ -1314,6 +1316,9 @@ constexpr CGFloat kBatchUploadSymbolPointSize = 22.;
     case syncer::SyncService::UserActionableError::
         kTrustedVaultRecoverabilityDegradedForEverything:
       return SyncTrustedVaultRecoverabilityDegradedErrorItemType;
+    case syncer::SyncService::UserActionableError::kBookmarksLimitExceeded:
+      // TODO(crbug.com/452968646) Add item for kBookmarksLimitExceeded.
+      return std::nullopt;
     case syncer::SyncService::UserActionableError::kNone:
     // UI not implemented for this case.
     case syncer::SyncService::UserActionableError::kNeedsClientUpgrade:

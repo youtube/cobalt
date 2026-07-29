@@ -14,6 +14,7 @@
 
 #include "base/memory/weak_ptr.h"
 #include "base/types/strong_alias.h"
+#include "content/browser/webauth/authenticator_request_outcome_enums.h"
 #include "content/browser/webauth/client_data_json.h"
 #include "content/common/content_export.h"
 #include "content/public/browser/authenticator_common.h"
@@ -84,36 +85,6 @@ class CONTENT_EXPORT AuthenticatorCommonImpl : public AuthenticatorCommon {
     kWebContents,
   };
 
-  // These values are persisted to logs. Entries should not be renumbered and
-  // numeric values should never be reused.
-  enum class CredentialRequestResult {
-    kTimeout = 0,
-    kUserCancelled = 1,
-
-    kWinNativeSuccess = 2,
-    kWinNativeError = 3,
-
-    kTouchIDSuccess = 4,
-    kTouchIDError = 5,
-
-    kChromeOSSuccess = 6,
-    kChromeOSError = 7,
-
-    kPhoneSuccess = 8,
-    kPhoneError = 9,
-
-    kICloudKeychainSuccess = 10,
-    kICloudKeychainError = 11,
-
-    kEnclaveSuccess = 12,
-    kEnclaveError = 13,
-
-    kOtherSuccess = 14,
-    kOtherError = 15,
-
-    kMaxValue = kOtherError,
-  };
-
   // Creates a new AuthenticatorCommonImpl. Callers must ensure that this
   // instance outlives the RenderFrameHost.
   explicit AuthenticatorCommonImpl(RenderFrameHost* render_frame_host,
@@ -128,11 +99,12 @@ class CONTENT_EXPORT AuthenticatorCommonImpl : public AuthenticatorCommon {
   void MakeCredential(
       url::Origin caller_origin,
       blink::mojom::PublicKeyCredentialCreationOptionsPtr options,
+      blink::mojom::PaymentOptionsPtr payment_options,
       blink::mojom::Authenticator::MakeCredentialCallback callback) override;
   void GetCredential(
       url::Origin caller_origin,
       blink::mojom::GetCredentialOptionsPtr options,
-      blink::mojom::PaymentOptionsPtr payment,
+      blink::mojom::PaymentOptionsPtr payment_options,
       blink::mojom::Authenticator::GetCredentialCallback callback) override;
   void IsUserVerifyingPlatformAuthenticatorAvailable(
       url::Origin caller_origin,
@@ -193,6 +165,7 @@ class CONTENT_EXPORT AuthenticatorCommonImpl : public AuthenticatorCommon {
       RequestKey request_key,
       url::Origin caller_origin,
       blink::mojom::PublicKeyCredentialCreationOptionsPtr options,
+      blink::mojom::PaymentOptionsPtr payment_options,
       bool is_cross_origin_iframe,
       blink::mojom::AuthenticatorStatus rp_id_validation_result);
   void ContinueMakeCredentialAfterBrowserPasskeysAvailabilityCheck(

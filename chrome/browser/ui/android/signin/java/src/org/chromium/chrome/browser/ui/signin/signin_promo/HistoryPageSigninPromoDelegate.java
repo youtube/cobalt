@@ -76,7 +76,7 @@ public class HistoryPageSigninPromoDelegate extends SigninPromoDelegate {
     }
 
     @Override
-    String getTitle(boolean hasAccountsOnDevice) {
+    String getTitle() {
         return mContext.getString(R.string.signin_promo_title_history_page);
     }
 
@@ -114,6 +114,11 @@ public class HistoryPageSigninPromoDelegate extends SigninPromoDelegate {
         boolean wasStateChanged = mPromoState != newState;
         mPromoState = newState;
         return wasStateChanged;
+    }
+
+    @Override
+    boolean isSeamlessSigninAllowed() {
+        return false;
     }
 
     @Override
@@ -159,6 +164,11 @@ public class HistoryPageSigninPromoDelegate extends SigninPromoDelegate {
     @HistorySyncConfig.OptInMode
     int getHistoryOptInMode() {
         return HistorySyncConfig.OptInMode.REQUIRED;
+    }
+
+    @Override
+    boolean shouldDisplaySignedInLayout() {
+        return mPromoState == PromoState.HISTORY_SYNC;
     }
 
     @Override

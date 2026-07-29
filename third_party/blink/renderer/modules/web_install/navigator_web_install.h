@@ -13,7 +13,6 @@
 #include "third_party/blink/renderer/modules/modules_export.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_remote.h"
-#include "third_party/blink/renderer/platform/supplementable.h"
 
 namespace blink {
 
@@ -23,11 +22,8 @@ class ScriptState;
 // NavigatorWebInstall::From() via install().
 class MODULES_EXPORT NavigatorWebInstall final
     : public GarbageCollected<NavigatorWebInstall>,
-      public Supplement<Navigator> {
+      public GarbageCollectedMixin {
  public:
-  static constexpr auto kSupplementIndex =
-      Navigator::Supplements::kNavigatorWebInstall;
-
   explicit NavigatorWebInstall(Navigator& navigator);
   ~NavigatorWebInstall() = default;
 
@@ -67,6 +63,7 @@ class MODULES_EXPORT NavigatorWebInstall final
   bool IsInstallUrlValid(const String& install_url);
   KURL ValidateAndResolveManifestId(const String& manifest_id);
 
+  Member<Navigator> navigator_;
   HeapMojoRemote<mojom::blink::WebInstallService> service_;
 };
 

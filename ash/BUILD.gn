@@ -6,7 +6,6 @@ import("//ash/ambient/resources/resources.gni")
 import("//build/config/chrome_build.gni")
 import("//build/config/ui.gni")
 import("//chromeos/ash/components/assistant/ambient.gni")
-import("//chromeos/ash/components/scalable_iph/scalable_iph.gni")
 import("//mojo/public/tools/bindings/mojom.gni")
 import("//testing/test.gni")
 import("//tools/grit/repack.gni")
@@ -1339,10 +1338,6 @@ component("ash") {
     "rounded_display/rounded_display_host.h",
     "rounded_display/rounded_display_provider.cc",
     "rounded_display/rounded_display_provider.h",
-    "scalable_iph/scalable_iph_ash_notification_view.cc",
-    "scalable_iph/scalable_iph_ash_notification_view.h",
-    "scalable_iph/wallpaper_ash_notification_view.cc",
-    "scalable_iph/wallpaper_ash_notification_view.h",
     "screen_util.cc",
     "screen_util.h",
     "sensor_info/sensor_provider.cc",
@@ -2269,8 +2264,6 @@ component("ash") {
     "system/palette/tools/laser_pointer_mode.h",
     "system/palette/tools/magnifier_mode.cc",
     "system/palette/tools/magnifier_mode.h",
-    "system/palette/tools/marker_mode.cc",
-    "system/palette/tools/marker_mode.h",
     "system/pcie_peripheral/pcie_peripheral_notification_controller.cc",
     "system/pcie_peripheral/pcie_peripheral_notification_controller.h",
     "system/phonehub/app_stream_connection_error_dialog.cc",
@@ -3409,8 +3402,6 @@ component("ash") {
     "//chromeos/ash/components/peripheral_notification",
     "//chromeos/ash/components/phonehub",
     "//chromeos/ash/components/policy",
-    "//chromeos/ash/components/scalable_iph:buildflags",
-    "//chromeos/ash/components/scalable_iph:constants",
     "//chromeos/ash/components/settings",
     "//chromeos/ash/components/specialized_features",
     "//chromeos/ash/components/string_matching",
@@ -4031,8 +4022,6 @@ test("ash_unittests") {
     "rounded_display/rounded_display_gutter_unittest.cc",
     "rounded_display/rounded_display_host_unittest.cc",
     "rounded_display/rounded_display_provider_unittest.cc",
-    "scalable_iph/scalable_iph_ash_notification_view_unittest.cc",
-    "scalable_iph/wallpaper_ash_notification_view_unittest.cc",
     "scanner/scanner_action_handler_unittest.cc",
     "scanner/scanner_controller_unittest.cc",
     "scanner/scanner_disclaimer_unittest.cc",
@@ -4634,7 +4623,6 @@ test("ash_unittests") {
     "//chromeos/ash/components/osauth/test_support",
     "//chromeos/ash/components/phonehub:test_support",
     "//chromeos/ash/components/policy",
-    "//chromeos/ash/components/scalable_iph:constants",
     "//chromeos/ash/components/settings",
     "//chromeos/ash/components/system",
     "//chromeos/ash/experiences/arc:notification_test_support",
@@ -4858,7 +4846,6 @@ test("ash_pixeltests") {
     "login/ui/management_disclosure_dialog_pixeltest.cc",
     "quick_insert/quick_insert_pixeltest.cc",
     "rounded_display/rounded_display_pixeltest.cc",
-    "scalable_iph/scalable_iph_pixeltest.cc",
     "shelf/login_shelf_view_pixeltest.cc",
     "shelf/scrollable_shelf_view_pixeltest.cc",
     "shelf/shelf_layout_manager_pixeltest.cc",

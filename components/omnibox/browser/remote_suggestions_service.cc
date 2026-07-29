@@ -15,6 +15,7 @@
 #include "base/strings/stringprintf.h"
 #include "base/time/time.h"
 #include "base/timer/elapsed_timer.h"
+#include "components/lens/lens_features.h"
 #include "components/lens/proto/server/lens_overlay_response.pb.h"
 #include "components/omnibox/browser/base_search_provider.h"
 #include "components/omnibox/browser/document_suggestions_service.h"
@@ -172,7 +173,9 @@ GURL AddLensOverlaySuggestInputsDataToEndpointUrl(
           metrics::OmniboxEventProto::CONTEXTUAL_SEARCHBOX ||
       search_terms_args.page_classification ==
           metrics::OmniboxEventProto::NTP_REALBOX ||
-      omnibox::IsComposebox(search_terms_args.page_classification)) {
+      (omnibox::IsComposebox(search_terms_args.page_classification) &&
+       search_terms_args.page_classification !=
+           metrics::OmniboxEventProto::LENS_SIDE_PANEL_COMPOSEBOX)) {
     send_request_and_session_ids =
         lens_overlay_suggest_inputs
             ->send_gsession_vsrid_for_contextual_suggest();
@@ -180,24 +183,39 @@ GURL AddLensOverlaySuggestInputsDataToEndpointUrl(
     modified_url =
         net::AppendOrReplaceQueryParameter(modified_url, "gs_ps", "1");
   } else if (search_terms_args.page_classification ==
-             metrics::OmniboxEventProto::LENS_SIDE_PANEL_SEARCHBOX) {
-    if (lens_overlay_suggest_inputs
-            ->send_gsession_vsrid_vit_for_lens_suggest()) {
-      send_request_and_session_ids = true;
-      send_vit = true;
-    }
-    if (lens_overlay_suggest_inputs->has_encoded_image_signals()) {
-      modified_url = net::AppendOrReplaceQueryParameter(
-          modified_url, "iil",
-          lens_overlay_suggest_inputs->encoded_image_signals());
-    }
-    if (lens_overlay_suggest_inputs->send_vsint_for_lens_suggest() &&
-        lens_overlay_suggest_inputs
-            ->has_encoded_visual_search_interaction_log_data()) {
-      modified_url = net::AppendOrReplaceQueryParameter(
-          modified_url, "vsint",
+                 metrics::OmniboxEventProto::LENS_SIDE_PANEL_SEARCHBOX ||
+             search_terms_args.page_classification ==
+                 metrics::OmniboxEventProto::LENS_SIDE_PANEL_COMPOSEBOX) {
+    if (lens::features::GetLensAimSuggestionsType() ==
+        lens::features::LensAimSuggestionsType::kContextual) {
+      send_request_and_session_ids =
           lens_overlay_suggest_inputs
-              ->encoded_visual_search_interaction_log_data());
+              ->send_gsession_vsrid_for_contextual_suggest();
+      send_vit = true;
+    } else {
+      if (lens_overlay_suggest_inputs
+              ->send_gsession_vsrid_vit_for_lens_suggest()) {
+        send_request_and_session_ids = true;
+        send_vit = true;
+      }
+      if (lens_overlay_suggest_inputs->has_encoded_image_signals()) {
+        modified_url = net::AppendOrReplaceQueryParameter(
+            modified_url, "iil",
+            lens_overlay_suggest_inputs->encoded_image_signals());
+      }
+      if (lens_overlay_suggest_inputs->send_vsint_for_lens_suggest() &&
+          lens_overlay_suggest_inputs
+              ->has_encoded_visual_search_interaction_log_data()) {
+        modified_url = net::AppendOrReplaceQueryParameter(
+            modified_url, "vsint",
+            lens_overlay_suggest_inputs
+                ->encoded_visual_search_interaction_log_data());
+      }
+    }
+
+    if (omnibox::IsComposebox(search_terms_args.page_classification)) {
+      modified_url =
+          net::AppendOrReplaceQueryParameter(modified_url, "gs_ps", "1");
     }
   }
 
@@ -300,10 +318,25 @@ GURL RemoteSuggestionsService::EndpointUrl(
     }
     case metrics::OmniboxEventProto::NTP_REALBOX:
     case metrics::OmniboxEventProto::NTP_COMPOSEBOX:
-    case metrics::OmniboxEventProto::LENS_SIDE_PANEL_COMPOSEBOX:
+    case metrics::OmniboxEventProto::NTP_OMNIBOX_COMPOSEBOX:
+    case metrics::OmniboxEventProto::SRP_OMNIBOX_COMPOSEBOX:
+    case metrics::OmniboxEventProto::OTHER_OMNIBOX_COMPOSEBOX:
       if (search_terms_args.lens_overlay_suggest_inputs.has_value()) {
         url = net::AppendOrReplaceQueryParameter(url, "client",
                                                  "chrome-contextual");
+      }
+      break;
+    case metrics::OmniboxEventProto::LENS_SIDE_PANEL_COMPOSEBOX:
+      if (search_terms_args.lens_overlay_suggest_inputs.has_value()) {
+        if (lens::features::GetLensAimSuggestionsType() ==
+            lens::features::LensAimSuggestionsType::kContextual) {
+          url = net::AppendOrReplaceQueryParameter(url, "client",
+                                                   "chrome-contextual");
+        } else if (lens::features::GetLensAimSuggestionsType() ==
+                   lens::features::LensAimSuggestionsType::kMultimodal) {
+          url = net::AppendOrReplaceQueryParameter(url, "client",
+                                                   "chrome-multimodal");
+        }
       }
       break;
     default:
@@ -695,7 +728,7 @@ void RemoteSuggestionsService::OnRequestCompleted(
     metrics::OmniboxEventProto::PageClassification page_classification,
     CompletionCallback completion_callback,
     const network::SimpleURLLoader* source,
-    std::unique_ptr<std::string> response_body) {
+    std::optional<std::string> response_body) {
   const int response_code =
       source->ResponseInfo() && source->ResponseInfo()->headers
           ? source->ResponseInfo()->headers->response_code()
@@ -703,7 +736,7 @@ void RemoteSuggestionsService::OnRequestCompleted(
 
   // Notify the observers that the transfer is done.
   observers_.Notify(&Observer::OnRequestCompleted, request_id, response_code,
-                    response_body);
+                    base::optional_ref(response_body));
   LogResponseCode(request_type, response_code, page_classification);
   LogResponseTimeAndCode(page_classification, request_type,
                          request_timer.Elapsed(), response_code);
@@ -727,14 +760,14 @@ void RemoteSuggestionsService::OnIndexedRequestCompleted(
     IndexedCompletionCallback completion_callback,
     const network::SimpleURLLoader* source,
     int request_index,
-    std::unique_ptr<std::string> response_body) {
+    std::optional<std::string> response_body) {
   const int response_code =
       source->ResponseInfo() && source->ResponseInfo()->headers
           ? source->ResponseInfo()->headers->response_code()
           : 0;
   // Notify the observers that the transfer is done.
   observers_.Notify(&Observer::OnRequestCompleted, request_id, response_code,
-                    response_body);
+                    base::optional_ref(response_body));
   LogResponseCode(request_type, response_code, page_classification);
   LogResponseTimeAndCode(page_classification, request_type,
                          base::TimeTicks::Now() - start_time, response_code);

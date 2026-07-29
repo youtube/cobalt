@@ -9,18 +9,14 @@
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_associated_remote.h"
-#include "third_party/blink/renderer/platform/supplementable.h"
 
 namespace blink {
 
 class MODULES_EXPORT SharedStorageWindowSupplement
     : public GarbageCollected<SharedStorageWindowSupplement>,
-      public Supplement<LocalDOMWindow> {
+      public GarbageCollectedMixin {
  public:
   static SharedStorageWindowSupplement* From(LocalDOMWindow& window);
-
-  static constexpr auto kSupplementIndex =
-      LocalDOMWindow::Supplements::kSharedStorageWindowSupplement;
 
   void Trace(Visitor*) const override;
 
@@ -31,6 +27,7 @@ class MODULES_EXPORT SharedStorageWindowSupplement
   mojom::blink::SharedStorageDocumentService* GetSharedStorageDocumentService();
 
  private:
+  Member<LocalDOMWindow> local_dom_window_;
   HeapMojoAssociatedRemote<mojom::blink::SharedStorageDocumentService>
       shared_storage_document_service_{nullptr};
 };

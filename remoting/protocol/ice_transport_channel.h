@@ -16,14 +16,13 @@
 #include "third_party/webrtc/p2p/base/ice_transport_internal.h"
 #include "third_party/webrtc/p2p/base/p2p_transport_channel.h"
 #include "third_party/webrtc/p2p/base/packet_transport_internal.h"
-#include "third_party/webrtc/rtc_base/third_party/sigslot/sigslot.h"
 
 namespace remoting::protocol {
 
 class P2PDatagramSocket;
 class TransportContext;
 
-class IceTransportChannel : public sigslot::has_slots<> {
+class IceTransportChannel {
  public:
   class Delegate {
    public:
@@ -63,7 +62,7 @@ class IceTransportChannel : public sigslot::has_slots<> {
   IceTransportChannel(const IceTransportChannel&) = delete;
   IceTransportChannel& operator=(const IceTransportChannel&) = delete;
 
-  ~IceTransportChannel() override;
+  ~IceTransportChannel();
 
   // Connects the channel and calls the |callback| after that.
   void Connect(const std::string& name,

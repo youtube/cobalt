@@ -708,6 +708,50 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram
+    name="Mobile.SystemNotification.Permission.Change.{NotificationChannelId}"
+    enum="BooleanEnabled" expires_after="2026-04-26">
+  <owner>wylieb@google.com</owner>
+  <owner>bjfong@google.com</owner>
+  <summary>
+    Records the notification permission state every time Android notifies Chrome
+    of a change, which involves granting/blocking access via the OS settings,
+    for the specified notification channel. {NotificationChannelId}
+  </summary>
+<!-- LINT.IfChange(NotificationChannelId) -->
+
+  <token key="NotificationChannelId">
+    <variant name="Announcement"/>
+    <variant name="Bluetooth"/>
+    <variant name="Browser"/>
+    <variant name="Collaboration"/>
+    <variant name="CompletedDownloads"/>
+    <variant name="ContentSuggestions"/>
+    <variant name="Downloads"/>
+    <variant name="Incognito"/>
+    <variant name="Media"/>
+    <variant name="PermissionRequests"/>
+    <variant name="PermissionRequestsHigh"/>
+    <variant name="ScreenCapture"/>
+    <variant name="SecurityKey"/>
+    <variant name="Serial"/>
+    <variant name="Sharing"/>
+    <variant name="ShoppingPriceDropAlerts"/>
+    <variant name="ShoppingPriceDropAlertsDefault"/>
+    <variant name="Sites"/>
+    <variant name="Tips"/>
+    <variant name="TwaDisclosureInitial"/>
+    <variant name="TwaDisclosureSubsequent"/>
+    <variant name="Updates"/>
+    <variant name="Usb"/>
+    <variant name="Vr"/>
+    <variant name="WebappActions"/>
+    <variant name="WebrtcCamAndMic"/>
+  </token>
+<!-- LINT.ThenChange(//chrome/browser/notifications/android/java/src/org/chromium/chrome/browser/notifications/channels/ChromeChannelDefinitions.java:ChannelId) -->
+
+</histogram>
+
+<histogram
     name="Mobile.SystemNotification.Permission.OneTapUnsubscribe.DuplicatePreUnsubscribeRealDelay"
     units="ms" expires_after="2026-04-26">
   <owner>engedy@chromium.org</owner>
@@ -1015,7 +1059,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="MobileFre.FromLaunch.{Target}" units="ms"
-    expires_after="2026-03-15">
+    expires_after="2026-05-17">
   <owner>skym@chromium.org</owner>
   <owner>wenyufu@chromium.org</owner>
   <summary>
@@ -1032,10 +1076,12 @@ chromium-metrics-reviews@google.com.
                  meaningful paint. Version V2 fixed an issue that previous
                  data was not recording the time duration from FRE launched"/>
     <variant name="FreCompleted" summary="the entire FRE is completed"/>
+    <variant name="InitialLoadCompleted"
+        summary="the initial load is completed"/>
     <variant name="NativeInitialized" summary="the native code is initialized"/>
     <variant name="NativePolicyAndChildStatusLoaded"
-        summary="the native code, policies and child account status are
-                 loaded"/>
+        summary="(Obsolete) The native code, policies and child account
+                 status are loaded"/>
     <variant name="PoliciesLoaded" summary="policies are loaded"/>
     <variant name="TosAccepted" summary="the ToS is accepted"/>
     <variant name="TriggerLayoutInflation"
@@ -1054,7 +1100,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="MobileFre.Progress.{MobileFreEntryType}"
-    enum="MobileFreProgress" expires_after="2026-03-22">
+    enum="MobileFreProgress" expires_after="2026-05-24">
   <owner>bsazonov@chromium.org</owner>
   <owner>samarchehade@google.com</owner>
   <owner>chrome-signin-team@google.com</owner>

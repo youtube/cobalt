@@ -32,8 +32,10 @@
 class Profile;
 namespace actor {
 
-class ExecutionEngine;
+class ActionTrackerForMetrics;
 class ActorKeyedService;
+class ExecutionEngine;
+
 namespace ui {
 class UiEventDispatcher;
 }
@@ -113,9 +115,13 @@ class ActorTask {
     kUserLoadedPreviousChat = 7,
     kMaxValue = kUserLoadedPreviousChat,
   };
-  // LINT.ThenChange(//tools/metrics/histograms/metadata/actor/histograms.xml:StoppedReason)
+  // LINT.ThenChange(//tools/metrics/histograms/metadata/actor/histograms.xml:StoppedReason,
+  // //tools/metrics/histograms/metadata/actor/enums.xml:StoppedReasonEnum)
 
   State GetState() const;
+  // TODO(bokan): This should be private (this class must be in control of its
+  // state) but is used by tests. Make the tests friends (or update the tests)
+  // and remove it from the public interface.
   void SetState(State new_state);
 
   base::Time GetEndTime() const;
@@ -124,6 +130,8 @@ class ActorTask {
            ActCallback callback);
 
   // Sets State to `stop_reason` and cancels any pending actions.
+  // TODO(bokan): It's important that Stop only be called from ActorKeyedService
+  // since that has to clean up actor tasks. Add a PassKey.
   void Stop(StoppedReason stop_reason);
 
   // Pause() is called to indicate that either the actor or user is pausing
@@ -140,7 +148,7 @@ class ActorTask {
   void Interrupt();
 
   // Uninterrupt from waiting on user input.
-  void Uninterrupt();
+  void Uninterrupt(State resumed_state);
 
   // Returns true if the task hasn't completed and is under control of the user.
   // That is, the actor cannot send actions and the user is able to interact
@@ -151,8 +159,9 @@ class ActorTask {
   // actor. That is, the user is unable to interact with the task's tabs.
   bool IsUnderActorControl() const;
 
-  // Returns true if the task has completed, either successfully or canceled.
+  // Returns true if the task has completed, either successfully or cancelled.
   bool IsCompleted() const;
+  static bool IsCompletedState(State state);
 
   ExecutionEngine* GetExecutionEngine() const;
 
@@ -232,17 +241,9 @@ class ActorTask {
                              content::WebContents* old_contents,
                              content::WebContents* new_contents);
 
-  static void OnFinishedAct(
-      base::WeakPtr<ActorTask> actor_task,
-      ActCallback callback,
-      mojom::ActionResultPtr result,
-      std::optional<size_t> index_of_failed_action,
-      std::vector<ActionResultWithLatencyInfo> action_results);
-  void OnFinishedActImpl(
-      ActCallback callback,
-      mojom::ActionResultPtr result,
-      std::optional<size_t> index_of_failed_action,
-      std::vector<ActionResultWithLatencyInfo> action_results);
+  void OnFinishedAct(mojom::ActionResultPtr result,
+                     std::optional<size_t> index_of_failed_action,
+                     std::vector<ActionResultWithLatencyInfo> action_results);
 
   void OnTabWillDetach(tabs::TabInterface* tab,
                        tabs::TabInterface::DetachReason reason);
@@ -264,6 +265,8 @@ class ActorTask {
   // The time at which the task was completed or cancelled.
   base::Time end_time_;
 
+  std::unique_ptr<ActionTrackerForMetrics> action_tracker_for_metrics_;
+
   // There are multiple possible execution engines. For now we only support
   // ExecutionEngine.
   std::unique_ptr<ExecutionEngine> execution_engine_;
@@ -276,6 +279,9 @@ class ActorTask {
 
   // The title does not change for the duration of a task.
   const std::string title_;
+
+  // The callback to notify the client of the result of calling Act().
+  ActCallback callback_for_act_;
 
   // A timer for the current state.
   base::ElapsedTimer current_state_timer_;

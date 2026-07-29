@@ -22,7 +22,6 @@
 #include "build/build_config.h"
 #include "chrome/browser/metrics/incognito_observer.h"
 #include "chrome/browser/metrics/metrics_memory_details.h"
-#include "chrome/browser/privacy_budget/identifiability_study_state.h"
 #include "chrome/browser/profiles/profile_manager_observer.h"
 #include "components/metrics/file_metrics_provider.h"
 #include "components/metrics/metrics_log_uploader.h"
@@ -52,6 +51,10 @@ class PrefRegistrySimple;
 namespace network_time {
 class NetworkTimeTracker;
 }  // namespace network_time
+
+namespace metrics::private_metrics {
+class PumaService;
+}
 
 namespace metrics {
 class MetricsService;
@@ -97,7 +100,7 @@ class ChromeMetricsServiceClient
   metrics::MetricsService* GetMetricsService() override;
   ukm::UkmService* GetUkmService() override;
   metrics::dwa::DwaService* GetDwaService() override;
-  IdentifiabilityStudyState* GetIdentifiabilityStudyState() override;
+  metrics::private_metrics::PumaService* GetPumaService() override;
   metrics::structured::StructuredMetricsService* GetStructuredMetricsService()
       override;
   void SetMetricsClientId(const std::string& client_id) override;
@@ -240,9 +243,6 @@ class ChromeMetricsServiceClient
 
   SEQUENCE_CHECKER(sequence_checker_);
 
-  // Chrome's privacy budget identifiability study state.
-  std::unique_ptr<IdentifiabilityStudyState> identifiability_study_state_;
-
   // Weak pointer to the MetricsStateManager.
   const raw_ptr<metrics::MetricsStateManager> metrics_state_manager_;
 
@@ -273,6 +273,9 @@ class ChromeMetricsServiceClient
 
   // The DwaService that |this| is a client of.
   std::unique_ptr<metrics::dwa::DwaService> dwa_service_;
+
+  // The PumaService that |this| is a client of.
+  std::unique_ptr<metrics::private_metrics::PumaService> puma_service_;
 
   // Listener for changes in incognito activity.
   std::unique_ptr<IncognitoObserver> incognito_observer_;

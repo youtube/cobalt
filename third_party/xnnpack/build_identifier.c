@@ -32,8 +32,8 @@
 // - external/xnnpack+/src/f16-f32acc-gemm/gen/f16-f32acc-gemm-4x16-minmax-avx2-broadcast.c
 // - external/xnnpack+/src/f16-f32acc-igemm/gen/f16-f32acc-igemm-1x16-minmax-avx2-broadcast.c
 // - external/xnnpack+/src/f16-f32acc-igemm/gen/f16-f32acc-igemm-4x16-minmax-avx2-broadcast.c
-// - external/xnnpack+/src/f16-f32acc-rdsum/gen/f16-f32acc-rdsum-7p7x-avx512skx-u64.c
-// - external/xnnpack+/src/f16-f32acc-rdsum/gen/f16-f32acc-rdsum-7p7x-f16c-u32.c
+// - external/xnnpack+/src/f16-f32acc-rdsum/gen/f16-f32acc-rdsum-7p7x-minmax-avx512skx-u64.c
+// - external/xnnpack+/src/f16-f32acc-rdsum/gen/f16-f32acc-rdsum-7p7x-minmax-f16c-u32.c
 // - external/xnnpack+/src/f16-f32acc-rdsum2/gen/f16-f32acc-rdsum2-7p7x-avx512skx.c
 // - external/xnnpack+/src/f16-f32acc-rdsum2/gen/f16-f32acc-rdsum2-7p7x-f16c.c
 // - external/xnnpack+/src/f16-f32acc-rsum/gen/f16-f32acc-rsum-avx512skx-u32-acc2.c
@@ -531,6 +531,7 @@
 // - external/xnnpack+/src/f32-vunary/gen/f32-vsqr-sse2.c
 // - external/xnnpack+/src/log.c
 // - external/xnnpack+/src/microparams-init.c
+// - external/xnnpack+/src/operators/fingerprint_id.c
 // - external/xnnpack+/src/qd8-f16-qb4w-gemm/gen/qd8-f16-qb4w-gemm-1x8c8-minmax-avx2.c
 // - external/xnnpack+/src/qd8-f16-qb4w-gemm/gen/qd8-f16-qb4w-gemm-3x8c8-minmax-avx2.c
 // - external/xnnpack+/src/qd8-f16-qc4w-gemm/gen/qd8-f16-qc4w-gemm-1x8c8-minmax-avx2-madd-prfm.c
@@ -1005,10 +1006,10 @@
 #include <string.h>
 
 static const uint8_t xnn_build_identifier[] = {
-  200, 151, 147,  95, 202, 207,  50,  58,
-  202, 245, 155,  97, 148, 147,  45, 177,
-  246, 139, 214, 200,  50, 126, 242, 110,
-   41, 188, 175,  16, 156,  98, 232,  74
+  165,  29,  77,  82, 254, 190,  37,  83,
+   68, 114, 203, 175, 162, 153,  76, 100,
+  137,  79,  38, 182, 221, 246, 183, 208,
+   11,  15,  90,   8, 251, 150, 194,  74
 };
 
 size_t xnn_experimental_get_build_identifier_size() {

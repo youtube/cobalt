@@ -22,7 +22,6 @@
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
-#include "base/functional/callback_forward.h"
 #include "base/functional/callback_helpers.h"
 #include "base/i18n/time_formatting.h"
 #include "base/logging.h"
@@ -166,7 +165,7 @@ void OnComponentDataReady(PrefService* prefs, base::OnceClosure callback) {
   }
 
   IwaKeyDistributionInfoProvider::GetInstance()
-      .OnMaybeDownloadedComponentDataReady()
+      .OnBestEffortRuntimeDataReady()
       .Post(FROM_HERE, std::move(callback));
 }
 

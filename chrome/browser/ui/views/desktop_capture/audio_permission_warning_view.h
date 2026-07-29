@@ -25,19 +25,21 @@ class AudioPermissionWarningView : public views::View {
   AudioPermissionWarningView& operator=(const AudioPermissionWarningView&) =
       delete;
   ~AudioPermissionWarningView() override;
+  void SetWarningVisible(bool visible);
 
  private:
   void OpenSystemSettings();
 
   // views::View:
   bool AcceleratorPressed(const ui::Accelerator& accelerator) override;
-  void VisibilityChanged(views::View* starting_from, bool is_visible) override;
 
   const base::RepeatingCallback<void()> cancel_callback_;
 
   raw_ptr<views::Label> label_ = nullptr;
   raw_ptr<views::MdTextButton> cancel_button_ = nullptr;
   raw_ptr<views::MdTextButton> system_settings_button_ = nullptr;
+
+  bool system_settings_opened_logged_ = false;
 };
 
 #endif  // CHROME_BROWSER_UI_VIEWS_DESKTOP_CAPTURE_AUDIO_PERMISSION_WARNING_VIEW_H_

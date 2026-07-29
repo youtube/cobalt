@@ -18,6 +18,9 @@ namespace ntp_composebox {
 
 namespace {
 
+const char kConfigParamParseSuccessHistogram[] =
+    "ContextualSearch.ConfigParseSuccess.NewTabPage";
+
 std::string SerializeAndBase64EncodeProto(
     const google::protobuf::MessageLite& proto) {
   std::string serialized_proto;
@@ -69,7 +72,9 @@ TEST_F(NtpComposeboxFieldTrialConfigTest,
   EXPECT_EQ(image_upload.downscale_max_image_width(), 1600);
   EXPECT_EQ(image_upload.downscale_max_image_height(), 1600);
   EXPECT_EQ(image_upload.image_compression_quality(), 40);
-  EXPECT_THAT(image_upload.mime_types_allowed(), "image/*");
+  EXPECT_THAT(image_upload.mime_types_allowed(),
+              "image/avif,image/bmp,image/jpeg,image/png,image/webp,image/"
+              "heif,image/heic");
 
   auto attachment_upload = config.composebox().attachment_upload();
   EXPECT_EQ(attachment_upload.max_size_bytes(), 200000000);
@@ -81,9 +86,9 @@ TEST_F(NtpComposeboxFieldTrialConfigTest,
   EXPECT_EQ(composebox.is_pdf_upload_enabled(), true);
 
   auto placeholder_config = composebox.placeholder_config();
-  EXPECT_EQ(placeholder_config.change_text_animation_interval_ms(), 4000u);
+  EXPECT_EQ(placeholder_config.change_text_animation_interval_ms(), 2000u);
   EXPECT_EQ(placeholder_config.fade_text_animation_duration_ms(), 250u);
-  EXPECT_EQ(placeholder_config.placeholders().size(), 4);
+  EXPECT_EQ(placeholder_config.placeholders().size(), 6);
 
   histogram_tester.ExpectTotalCount(kConfigParamParseSuccessHistogram, 0);
 }
@@ -227,7 +232,8 @@ TEST_F(NtpComposeboxFieldTrialConfigTest,
   omnibox::NTPComposeboxConfig config = scoped_config_.Get().config;
   // Check that both default mime type lists were cleared.
   EXPECT_THAT(config.composebox().image_upload().mime_types_allowed(),
-              "image/*");
+              "image/avif,image/bmp,image/jpeg,image/png,image/webp,"
+              "image/heif,image/heic");
   EXPECT_THAT(config.composebox().attachment_upload().mime_types_allowed(),
               ".pdf,application/pdf");
 

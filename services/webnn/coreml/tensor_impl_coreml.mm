@@ -13,6 +13,7 @@
 #include "base/compiler_specific.h"
 #include "base/functional/callback_helpers.h"
 #include "base/memory/scoped_refptr.h"
+#include "base/memory/weak_ptr.h"
 #include "base/types/expected.h"
 #include "gpu/command_buffer/service/shared_image/shared_image_representation.h"
 #include "mojo/public/cpp/base/big_buffer.h"
@@ -179,7 +180,9 @@ TensorImplCoreml::Create(
           std::move(buffer_content));
   return base::MakeRefCounted<TensorImplCoreml>(
       std::move(receiver), std::move(context), std::move(tensor_info),
-      std::move(buffer_state), /*representation=*/nullptr,
+      std::move(buffer_state),
+      /*representation=*/
+      RepresentationPtr{nullptr, OnTaskRunnerDeleter(nullptr)},
       base::PassKey<TensorImplCoreml>());
 }
 
@@ -189,7 +192,7 @@ TensorImplCoreml::Create(
     mojo::PendingAssociatedReceiver<mojom::WebNNTensor> receiver,
     base::WeakPtr<WebNNContextImpl> context,
     mojom::TensorInfoPtr tensor_info,
-    std::unique_ptr<gpu::WebNNTensorRepresentation> representation) {
+    RepresentationPtr representation) {
   if (tensor_info->descriptor.data_type() != OperandDataType::kFloat16) {
     return base::unexpected(
         mojom::Error::New(mojom::Error::Code::kUnknownError,
@@ -256,7 +259,7 @@ TensorImplCoreml::TensorImplCoreml(
     base::WeakPtr<WebNNContextImpl> context,
     mojom::TensorInfoPtr tensor_info,
     scoped_refptr<QueueableResourceState<BufferContent>> buffer_state,
-    std::unique_ptr<gpu::WebNNTensorRepresentation> representation,
+    RepresentationPtr representation,
     base::PassKey<TensorImplCoreml> /*pass_key*/)
     : WebNNTensorImpl(std::move(receiver),
                       std::move(context),
@@ -355,7 +358,10 @@ TensorImplCoreml::GetBufferState() const {
 
 bool TensorImplCoreml::ImportTensorImpl() {
   CHECK(representation_);
-  representation_access_ = representation_->BeginScopedAccess();
+  // Tensor will own the access.
+  representation_access_ =
+      ScopedAccessPtr(representation_->BeginScopedAccess().release(),
+                      OnTaskRunnerDeleter(context_->main_task_runner()));
   if (!representation_access_) {
     return false;
   }
@@ -364,9 +370,41 @@ bool TensorImplCoreml::ImportTensorImpl() {
   return true;
 }
 
-void TensorImplCoreml::ExportTensorImpl(
-    std::unique_ptr<gpu::WebNNTensorRepresentation::ScopedAccess> access) {
-  // Empty since CoreML requires no device synchronization.
+void TensorImplCoreml::ExportTensorImpl(ScopedAccessPtr access,
+                                        ExportTensorCallback callback) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(gpu_sequence_checker_);
+  // Take an exclusive lock to the buffer contents to wait for all existing
+  // operations to finish.
+  std::vector<scoped_refptr<QueueableResourceStateBase>> exclusive_resources = {
+      buffer_state_};
+
+  auto task = base::MakeRefCounted<ResourceTask>(
+      /*shared_resources=*/
+      std::vector<scoped_refptr<QueueableResourceStateBase>>(),
+      std::move(exclusive_resources),
+      base::BindOnce(
+          [](base::WeakPtr<WebNNContextImpl> context,
+             ExportTensorCallback callback,
+             base::OnceClosure completion_closure) {
+            std::move(completion_closure).Run();
+            if (!context) {
+              return;
+            }
+
+            context->scheduler_task_runner()->PostTask(
+                FROM_HERE,
+                base::BindOnce(
+                    [](base::WeakPtr<WebNNContextImpl> context,
+                       ExportTensorCallback callback) {
+                      if (!context) {
+                        return;
+                      }
+                      std::move(callback).Run(context->GenVerifiedSyncToken());
+                    },
+                    context, std::move(callback)));
+          },
+          context_, std::move(callback)));
+  task->Enqueue();
 }
 
 }  // namespace webnn::coreml

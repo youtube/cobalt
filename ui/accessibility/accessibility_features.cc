@@ -5,6 +5,7 @@
 #include "ui/accessibility/accessibility_features.h"
 
 #include "base/feature_list.h"
+#include "base/metrics/field_trial_params.h"
 #include "build/build_config.h"
 #include "ui/accessibility/ax_features.mojom-features.h"
 
@@ -97,6 +98,7 @@ BASE_FEATURE_ENUM_PARAM(
     "accessibility_performance_group_name",
     AccessibilityPerformanceMeasurementExperimentGroup::kAXModeComplete,
     &kAccessibilityPerformanceMeasurementExperimentParamOptions);
+
 }  // namespace
 
 AccessibilityPerformanceMeasurementExperimentGroup
@@ -147,10 +149,6 @@ bool IsExtensionManifestV3NetworkSpeechSynthesisEnabled() {
       ::features::kExtensionManifestV3NetworkSpeechSynthesis);
 }
 
-BASE_FEATURE(kEnableAriaElementReflection, base::FEATURE_DISABLED_BY_DEFAULT);
-bool IsAriaElementReflectionEnabled() {
-  return base::FeatureList::IsEnabled(::features::kEnableAriaElementReflection);
-}
 
 BASE_FEATURE(kTextBasedAudioDescription, base::FEATURE_DISABLED_BY_DEFAULT);
 bool IsTextBasedAudioDescriptionEnabled() {
@@ -365,18 +363,11 @@ bool IsAccessibilityInlineLineSeparatorsEnabled() {
       ::features::kAccessibilityInlineLineSeparators);
 }
 
-BASE_FEATURE(kAccessibilityMagnificationFollowsInputFocus,
+BASE_FEATURE(kAccessibilityMagnificationFollowsFocus,
              base::FEATURE_DISABLED_BY_DEFAULT);
-bool IsAccessibilityMagnificationFollowsInputEnabled() {
+bool IsAccessibilityMagnificationFollowsFocusEnabled() {
   return base::FeatureList::IsEnabled(
-      ::features::kAccessibilityMagnificationFollowsInputFocus);
-}
-
-BASE_FEATURE(kAccessibilityMagnificationFollowsTextCursor,
-             base::FEATURE_DISABLED_BY_DEFAULT);
-bool IsAccessibilityMagnificationFollowsTextCursorEnabled() {
-  return base::FeatureList::IsEnabled(
-      ::features::kAccessibilityMagnificationFollowsTextCursor);
+      ::features::kAccessibilityMagnificationFollowsFocus);
 }
 
 #endif  // BUILDFLAG(IS_ANDROID)
@@ -413,6 +404,37 @@ bool IsImmersiveReadAnythingEnabled() {
 BASE_FEATURE(kMainNodeAnnotations, base::FEATURE_DISABLED_BY_DEFAULT);
 bool IsMainNodeAnnotationsEnabled() {
   return base::FeatureList::IsEnabled(::features::kMainNodeAnnotations);
+}
+
+BASE_FEATURE(kReadAnythingMenuShuffleExperiment,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+bool IsReadAnythingMenuShuffleExperimentEnabled() {
+  return base::FeatureList::IsEnabled(
+      ::features::kReadAnythingMenuShuffleExperiment);
+}
+
+namespace {
+constexpr base::FeatureParam<ReadAnythingMenuShuffleExperimentGroup>::Option
+    kReadAnythingMenuShuffleExperimentParamOptions[3] = {
+        {ReadAnythingMenuShuffleExperimentGroup::kDefault,
+         "MenuShuffleDefault"},
+        {ReadAnythingMenuShuffleExperimentGroup::kPlaceWithSeparation,
+         "MenuShuffleSeparation"},
+        {ReadAnythingMenuShuffleExperimentGroup::kPlaceAtBottom,
+         "MenuShufflePlaceAtBottom"}};
+
+BASE_FEATURE_ENUM_PARAM(ReadAnythingMenuShuffleExperimentGroup,
+                        kReadAnythingMenuShuffleExperimentParam,
+                        &kReadAnythingMenuShuffleExperiment,
+                        "read_anything_menu_shuffle_group_name",
+                        ReadAnythingMenuShuffleExperimentGroup::kDefault,
+                        &kReadAnythingMenuShuffleExperimentParamOptions);
+}  // namespace
+
+ReadAnythingMenuShuffleExperimentGroup
+GetReadAnythingMenuShuffleExperimentGroup() {
+  CHECK(IsReadAnythingMenuShuffleExperimentEnabled());
+  return kReadAnythingMenuShuffleExperimentParam.Get();
 }
 
 BASE_FEATURE(kReadAnythingReadAloud, base::FEATURE_ENABLED_BY_DEFAULT);

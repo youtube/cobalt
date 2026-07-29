@@ -27,11 +27,11 @@
 #include "chrome/browser/glic/public/glic_enabling.h"
 #include "chrome/browser/glic/public/glic_keyed_service.h"
 #include "chrome/browser/glic/public/glic_keyed_service_factory.h"
-#include "chrome/browser/glic/service/glic_instance_coordinator_metrics.h"
 #include "chrome/browser/glic/service/glic_instance_helper.h"
 #include "chrome/browser/glic/service/glic_instance_impl.h"
-#include "chrome/browser/glic/service/glic_instance_metrics.h"
 #include "chrome/browser/glic/service/glic_ui_embedder.h"
+#include "chrome/browser/glic/service/metrics/glic_instance_coordinator_metrics.h"
+#include "chrome/browser/glic/service/metrics/glic_instance_metrics.h"
 #include "chrome/browser/glic/widget/browser_conditions.h"
 #include "chrome/browser/glic/widget/glic_side_panel_ui.h"
 #include "chrome/browser/glic/widget/glic_view.h"
@@ -64,6 +64,7 @@ constexpr base::TimeDelta kSidePanelMaxRecency = base::Minutes(20);
 constexpr base::TimeDelta kFloatyMaxRecency = base::Hours(3);
 
 BASE_FEATURE(kGlicMaxRecency, base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(kGlicLiveModeOnlyGlow, base::FEATURE_DISABLED_BY_DEFAULT);
 
 constexpr base::FeatureParam<base::TimeDelta> kGlicMaxRecencyValue{
     &kGlicMaxRecency, "duration", base::Minutes(30)};
@@ -142,9 +143,15 @@ void GlicInstanceCoordinatorImpl::NotifyActiveInstanceChanged() {
 
 void GlicInstanceCoordinatorImpl::ComputeContentAccessIndicator() {
   if (active_instance_) {
-    service_->SetContextAccessIndicator(
-        active_instance_->IsShowing() &&
-        active_instance_->host().IsContextAccessIndicatorEnabled());
+    if (base::FeatureList::IsEnabled(kGlicLiveModeOnlyGlow)) {
+      service_->SetContextAccessIndicator(
+          active_instance_->IsShowing() && active_instance_->IsLiveMode() &&
+          active_instance_->host().IsContextAccessIndicatorEnabled());
+    } else {
+      service_->SetContextAccessIndicator(
+          active_instance_->IsShowing() &&
+          active_instance_->host().IsContextAccessIndicatorEnabled());
+    }
   } else {
     service_->SetContextAccessIndicator(false);
   }
@@ -218,6 +225,27 @@ void GlicInstanceCoordinatorImpl::Close() {
   CloseFloaty();
 }
 
+void GlicInstanceCoordinatorImpl::CloseAndShutdownInstanceWithFrame(
+    content::RenderFrameHost* render_frame_host) {
+  for (auto* instance : GetInstances()) {
+    if (instance) {
+      // These calls only have effect if render_frame_host matches.
+      instance->host().Close();
+      instance->host().Shutdown();
+    }
+  }
+}
+
+void GlicInstanceCoordinatorImpl::CloseInstanceWithFrame(
+    content::RenderFrameHost* render_frame_host) {
+  for (auto& [id, instance] : instances_) {
+    if (instance->host().IsWebContentPresentAndMatches(render_frame_host)) {
+      instance->host().Close();
+      return;
+    }
+  }
+}
+
 void GlicInstanceCoordinatorImpl::CloseFloaty() {
   if (auto* floaty_instance = GetInstanceWithFloaty()) {
     floaty_instance->Close(FloatingEmbedderKey{});
@@ -277,10 +305,11 @@ void GlicInstanceCoordinatorImpl::Preload() {
 
 void GlicInstanceCoordinatorImpl::Reload(
     content::RenderFrameHost* render_frame_host) {
-  for (auto iter = instances_.begin(); iter != instances_.end();) {
-    // Advance iterator now, in case Reload deletes the instance.
-    auto& instance = *iter++;
-    instance.second->host().Reload(render_frame_host);
+  for (auto& [id, instance] : instances_) {
+    if (instance->host().IsWebContentPresentAndMatches(render_frame_host)) {
+      instance->host().Reload();
+      return;
+    }
   }
 }
 
@@ -433,7 +462,13 @@ void GlicInstanceCoordinatorImpl::ToggleSidePanel(
   if (!tab) {
     return;
   }
-  auto* instance = GetOrCreateGlicInstanceImplForTab(tab);
+  GlicInstanceImpl* instance = nullptr;
+  if (source == glic::mojom::InvocationSource::kSharedImage) {
+    // kSharedImage currently requires a new instance.
+    instance = CreateGlicInstance();
+  } else {
+    instance = GetOrCreateGlicInstanceImplForTab(tab);
+  }
   instance->Toggle(ShowOptions::ForSidePanel(*tab), prevent_close, source);
 }
 
@@ -469,6 +504,7 @@ void GlicInstanceCoordinatorImpl::SwitchConversation(
       }
     }
   }
+
   if (!target_instance) {
     // No instance exists for this conversation. If the current instance
     // already has a conversation, create a new instance. Otherwise, reuse
@@ -476,10 +512,17 @@ void GlicInstanceCoordinatorImpl::SwitchConversation(
     target_instance = source_instance.conversation_id() ? CreateGlicInstance()
                                                         : &source_instance;
   }
+
+  CHECK(target_instance);
+
+  metrics_.RecordSwitchConversationTarget(
+      info ? std::optional<std::string>(info->conversation_id) : std::nullopt,
+      target_instance->conversation_id(), active_instance_);
+
   if (info) {
     target_instance->RegisterConversation(std::move(info), base::DoNothing());
   }
-  CHECK(target_instance);
+
   target_instance->Show(mutable_options);
   target_instance->metrics()->OnSwitchToConversation(mutable_options);
   std::move(callback).Run(std::nullopt);
@@ -519,6 +562,7 @@ GlicInstanceCoordinatorImpl::GetRecentlyActiveConversations() {
 void GlicInstanceCoordinatorImpl::UnbindTabFromAnyInstance(
     tabs::TabInterface* tab) {
   if (auto* instance = GetInstanceImplForTab(tab)) {
+    // `instance` may be deleted after this call.
     instance->UnbindEmbedder(EmbedderKey(tab));
   }
 }

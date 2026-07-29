@@ -53,8 +53,10 @@ struct TestAccount {
 };
 
 constexpr TestAccount kNonEnterpriseAccount = {"foo@testbar.com", ""};
+#if !BUILDFLAG(IS_CHROMEOS)
 constexpr TestAccount kEnterpriseAccount = {"foo@testenterprise.com",
                                             "testenterprise.com"};
+#endif  // !BUILDFLAG(IS_CHROMEOS)
 }  // namespace
 
 class ActorPolicyCheckerBrowserTestBase : public ActorToolsTest {
@@ -95,16 +97,6 @@ class ActorPolicyCheckerBrowserTestBase : public ActorToolsTest {
     ActorToolsTest::TearDownOnMainThread();
   }
 
-  void SetUpInProcessBrowserTestFixture() override {
-    base::CommandLine::ForCurrentProcess()->AppendSwitch(
-        switches::kNoErrorDialogs);
-    policy_provider_.SetDefaultReturns(
-        /*is_initialization_complete_return=*/true,
-        /*is_first_policy_load_complete_return=*/true);
-    policy::BrowserPolicyConnector::SetPolicyProviderForTesting(
-        &policy_provider_);
-  }
-
   void SetUpBrowserContextKeyedServices(
       content::BrowserContext* context) override {
     IdentityTestEnvironmentProfileAdaptor::
@@ -114,11 +106,6 @@ class ActorPolicyCheckerBrowserTestBase : public ActorToolsTest {
                                      &test_url_loader_factory_));
 
     ActorToolsTest::SetUpBrowserContextKeyedServices(context);
-  }
-
-  void UpdateProviderPolicy(const policy::PolicyMap& policy) {
-    policy::PolicyMap policy_with_defaults = policy.Clone();
-    policy_provider_.UpdateChromePolicy(policy_with_defaults);
   }
 
   void SimulatePrimaryAccountChangedSignIn(const TestAccount* account) {
@@ -170,7 +157,6 @@ class ActorPolicyCheckerBrowserTestBase : public ActorToolsTest {
   bool ShouldForceActOnWeb() override { return false; }
 
  private:
-  ::testing::NiceMock<policy::MockConfigurationPolicyProvider> policy_provider_;
   std::unique_ptr<IdentityTestEnvironmentProfileAdaptor> adaptor_;
   raw_ptr<signin::IdentityManager> identity_manager_;
   raw_ptr<signin::IdentityTestEnvironment> identity_test_env_;
@@ -320,10 +306,7 @@ IN_PROC_BROWSER_TEST_F(ActorPolicyCheckerBrowserTestManagedBrowser,
                    ->GetPolicyChecker()
                    .can_act_on_web());
 
-  // Note: because we explicitly paused the task, the result will be
-  // `ActionResultCode::kError` instead of `ActionResultCode::kTaskWentAway`.
-  // See `ActorTask::OnFinishedAct` for more details.
-  ExpectErrorResult(result, mojom::ActionResultCode::kError);
+  ExpectErrorResult(result, mojom::ActionResultCode::kTaskPaused);
 }
 
 IN_PROC_BROWSER_TEST_F(ActorPolicyCheckerBrowserTestManagedBrowser,
@@ -461,6 +444,8 @@ class ActorPolicyCheckerBrowserTestWithManagedAccount
   base::test::ScopedFeatureList scoped_feature_list_;
 };
 
+// Note: sign-out from enterprise account is not allowed in ChromeOS.
+#if !BUILDFLAG(IS_CHROMEOS)
 IN_PROC_BROWSER_TEST_F(ActorPolicyCheckerBrowserTestWithManagedAccount,
                        CapabilityUpdatedForAccount) {
   // No account is signed in, thus no capability.
@@ -486,6 +471,7 @@ IN_PROC_BROWSER_TEST_F(ActorPolicyCheckerBrowserTestWithManagedAccount,
                   ->GetPolicyChecker()
                   .can_act_on_web());
 }
+#endif  // !BUILDFLAG(IS_CHROMEOS)
 
 IN_PROC_BROWSER_TEST_F(ActorPolicyCheckerBrowserTestWithManagedAccount,
                        GlicUserStatusChanged) {
@@ -512,6 +498,8 @@ IN_PROC_BROWSER_TEST_F(ActorPolicyCheckerBrowserTestWithManagedAccount,
 using ActorPolicyCheckerBrowserTestWithManagedAccountWithPolicy =
     ActorPolicyCheckerBrowserTestManagedBrowser;
 
+// Note: sign-out from enterprise account is not allowed in ChromeOS.
+#if !BUILDFLAG(IS_CHROMEOS)
 IN_PROC_BROWSER_TEST_F(
     ActorPolicyCheckerBrowserTestWithManagedAccountWithPolicy,
     CapabilityUpdatedForAccount) {
@@ -534,5 +522,6 @@ IN_PROC_BROWSER_TEST_F(
                   ->GetPolicyChecker()
                   .can_act_on_web());
 }
+#endif  // !BUILDFLAG(IS_CHROMEOS)
 
 }  // namespace actor

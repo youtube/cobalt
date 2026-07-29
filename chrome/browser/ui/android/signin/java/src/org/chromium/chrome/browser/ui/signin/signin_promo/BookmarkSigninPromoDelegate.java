@@ -78,7 +78,7 @@ public class BookmarkSigninPromoDelegate extends SigninPromoDelegate {
     }
 
     @Override
-    String getTitle(boolean hasAccountsOnDevice) {
+    String getTitle() {
         @SigninFeatureMap.SeamlessSigninStringType
         int seamlessSigninStringType = SigninFeatureMap.getInstance().getSeamlessSigninStringType();
         switch (mPromoState) {
@@ -107,8 +107,6 @@ public class BookmarkSigninPromoDelegate extends SigninPromoDelegate {
         switch (mPromoState) {
             case PromoState.SIGNIN:
                 if (accountEmail == null) {
-                    // TODO(https://crbug.com/451095549): replace this with the correct string for
-                    // the case with no accounts on the device
                     return mContext.getString(R.string.signin_promo_description_bookmarks);
                 }
                 if (seamlessSigninStringType
@@ -175,6 +173,11 @@ public class BookmarkSigninPromoDelegate extends SigninPromoDelegate {
     }
 
     @Override
+    boolean isSeamlessSigninAllowed() {
+        return SigninFeatureMap.isEnabled(SigninFeatures.ENABLE_SEAMLESS_SIGNIN);
+    }
+
+    @Override
     boolean shouldHideSecondaryButton() {
         switch (mPromoState) {
             case PromoState.SIGNIN:
@@ -185,11 +188,6 @@ public class BookmarkSigninPromoDelegate extends SigninPromoDelegate {
             default:
                 throw new IllegalStateException("Forbidden promo type: " + mPromoState);
         }
-    }
-
-    @Override
-    boolean shouldShowSigninSnackbar() {
-        return SigninFeatureMap.isEnabled(SigninFeatures.ENABLE_SEAMLESS_SIGNIN);
     }
 
     @Override
@@ -216,10 +214,10 @@ public class BookmarkSigninPromoDelegate extends SigninPromoDelegate {
     }
 
     @Override
-    void onPrimaryButtonClicked() {
+    void onPrimaryButtonClicked(@Nullable CoreAccountInfo visibleAccount) {
         switch (mPromoState) {
             case PromoState.SIGNIN:
-                super.onPrimaryButtonClicked();
+                super.onPrimaryButtonClicked(visibleAccount);
                 break;
             case PromoState.ACCOUNT_SETTINGS:
                 mOnOpenSettingsClicked.run();
@@ -270,5 +268,10 @@ public class BookmarkSigninPromoDelegate extends SigninPromoDelegate {
             }
         }
         return false;
+    }
+
+    @Override
+    boolean shouldDisplaySignedInLayout() {
+        return mPromoState == PromoState.ACCOUNT_SETTINGS;
     }
 }

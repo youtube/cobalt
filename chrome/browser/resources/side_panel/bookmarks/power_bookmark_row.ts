@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import '//bookmarks-side-panel.top-chrome/shared/sp_list_item_badge.js';
 import 'chrome://resources/cr_elements/cr_checkbox/cr_checkbox.js';
 import 'chrome://resources/cr_elements/cr_icon_button/cr_icon_button.js';
 import 'chrome://resources/cr_elements/cr_expand_button/cr_expand_button.js';
@@ -75,6 +76,8 @@ export class PowerBookmarkRowElement extends CrLitElement {
       hasActiveDrag: {type: Boolean},
       activeFolderPath: {type: Array},
       hasFolders: {type: Boolean, reflect: true},
+      sortedChildren: {type: Array},
+      activeSortIndex: {type: Number},
     };
   }
 
@@ -110,6 +113,8 @@ export class PowerBookmarkRowElement extends CrLitElement {
   accessor hasActiveDrag: boolean = false;
   accessor activeFolderPath: BookmarksTreeNode[] = [];
   accessor hasFolders: boolean = false;
+  accessor sortedChildren: BookmarksTreeNode[] = [];
+  accessor activeSortIndex: number = 0;
 
   accessor listItemSize: CrUrlListItemSize = CrUrlListItemSize.COMPACT;
 
@@ -163,6 +168,10 @@ export class PowerBookmarkRowElement extends CrLitElement {
     if (changedProperties.has('bookmark') &&
         this.bookmark.id !== changedProperties.get('bookmark')?.id) {
       this.toggleExpand = false;
+      this.sortedChildren =
+          this.bookmark.children ? [...this.bookmark.children] : [];
+      this.bookmarksService_.sortBookmarks(
+          this.sortedChildren, this.activeSortIndex);
     }
 
     if (changedProperties.has('activeFolderPath')) {
@@ -181,6 +190,11 @@ export class PowerBookmarkRowElement extends CrLitElement {
         this.style.setProperty(
             '--margin-per-depth', `${NESTED_BOOKMARKS_MARGIN_PER_DEPTH}px`);
       }
+    }
+
+    if (changedProperties.has('activeSortIndex')) {
+      this.bookmarksService_.sortBookmarks(
+          this.sortedChildren, this.activeSortIndex);
     }
   }
 

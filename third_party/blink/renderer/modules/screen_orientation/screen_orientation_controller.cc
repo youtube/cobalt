@@ -7,8 +7,6 @@
 #include <memory>
 #include <utility>
 #include "third_party/blink/public/common/associated_interfaces/associated_interface_provider.h"
-#include "third_party/blink/public/common/privacy_budget/identifiability_metric_builder.h"
-#include "third_party/blink/public/common/privacy_budget/identifiability_study_settings.h"
 #include "third_party/blink/public/platform/task_type.h"
 #include "third_party/blink/renderer/core/dom/events/event.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
@@ -25,29 +23,24 @@ namespace blink {
 
 ScreenOrientationController::~ScreenOrientationController() = default;
 
-const unsigned ScreenOrientationController::kSupplementIndex =
-    static_cast<unsigned>(
-        LocalDOMWindow::Supplements::kScreenOrientationController);
-
 ScreenOrientationController* ScreenOrientationController::From(
     LocalDOMWindow& window) {
   auto* controller = FromIfExists(window);
   if (!controller) {
     controller = MakeGarbageCollected<ScreenOrientationController>(window);
-    Supplement<LocalDOMWindow>::ProvideTo(window, controller);
+    window.SetScreenOrientationController(controller);
   }
   return controller;
 }
 
 ScreenOrientationController* ScreenOrientationController::FromIfExists(
     LocalDOMWindow& window) {
-  return Supplement<LocalDOMWindow>::From<ScreenOrientationController>(window);
+  return window.GetScreenOrientationController();
 }
 
 ScreenOrientationController::ScreenOrientationController(LocalDOMWindow& window)
     : ExecutionContextLifecycleObserver(&window),
       PageVisibilityObserver(window.GetFrame()->GetPage()),
-      Supplement<LocalDOMWindow>(window),
       screen_orientation_service_(&window) {
   Page* page = window.GetFrame()->GetPage();
 
@@ -272,7 +265,6 @@ void ScreenOrientationController::Trace(Visitor* visitor) const {
   visitor->Trace(screen_orientation_service_);
   ExecutionContextLifecycleObserver::Trace(visitor);
   PageVisibilityObserver::Trace(visitor);
-  Supplement<LocalDOMWindow>::Trace(visitor);
 }
 
 void ScreenOrientationController::SetScreenOrientationAssociatedRemoteForTests(
@@ -285,18 +277,6 @@ void ScreenOrientationController::OnLockOrientationResult(
     ScreenOrientationLockResult result) {
   if (!pending_callback_ || request_id != request_id_)
     return;
-
-  if (IdentifiabilityStudySettings::Get()->ShouldSampleSurface(
-          IdentifiableSurface::FromTypeAndToken(
-              IdentifiableSurface::Type::kWebFeature,
-              WebFeature::kScreenOrientationLock))) {
-    auto* context = GetExecutionContext();
-    IdentifiabilityMetricBuilder(context->UkmSourceID())
-        .AddWebFeature(WebFeature::kScreenOrientationLock,
-                       result == ScreenOrientationLockResult::
-                                     SCREEN_ORIENTATION_LOCK_RESULT_SUCCESS)
-        .Record(context->UkmRecorder());
-  }
 
   switch (result) {
     case ScreenOrientationLockResult::SCREEN_ORIENTATION_LOCK_RESULT_SUCCESS:

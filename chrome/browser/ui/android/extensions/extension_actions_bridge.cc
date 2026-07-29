@@ -203,12 +203,6 @@ ExtensionAction::ShowAction ExtensionActionsBridge::RunAction(
   return runner->RunAction(extension, /*grant_tab_permissions=*/true);
 }
 
-bool ExtensionActionsBridge::ExtensionsEnabled(JNIEnv* env) {
-  ExtensionManagement* extension_management =
-      ExtensionManagementFactory::GetForBrowserContext(profile_);
-  return extension_management->ExtensionsEnabledForDesktopAndroid();
-}
-
 jni_zero::ScopedJavaLocalRef<jobject>
 ExtensionActionsBridge::HandleKeyDownEvent(
     JNIEnv* env,
@@ -302,4 +296,14 @@ static ScopedJavaLocalRef<jobject> JNI_ExtensionActionsBridge_Get(
   return bridge->GetJavaObject();
 }
 
+static jboolean JNI_ExtensionActionsBridge_ExtensionsEnabled(JNIEnv* env,
+                                                             Profile* profile) {
+  ExtensionManagement* extension_management =
+      ExtensionManagementFactory::GetForBrowserContext(profile);
+  return extension_management->ExtensionsEnabledForDesktopAndroid();
+}
+
 }  // namespace extensions
+
+DEFINE_JNI(ExtensionAction)
+DEFINE_JNI(ExtensionActionsBridge)

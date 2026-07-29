@@ -20,7 +20,6 @@
 #include "content/public/browser/document_service.h"
 #include "content/public/browser/global_routing_id.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
-#include "mojo/public/cpp/bindings/receiver.h"
 #include "third_party/blink/public/mojom/payments/secure_payment_confirmation_service.mojom.h"
 
 namespace webauthn {
@@ -104,6 +103,13 @@ class SecurePaymentConfirmationService
       ::blink::mojom::MakeCredentialAuthenticatorResponsePtr response,
       ::blink::mojom::WebAuthnDOMExceptionDetailsPtr maybe_exception_details);
 
+  // Called after creating an unbound browser bound key from the store in
+  // MakePaymentCredential.
+  void OnCreateUnboundKey(
+      std::string relying_party_id,
+      blink::mojom::PublicKeyCredentialCreationOptionsPtr options,
+      MakePaymentCredentialCallback callback,
+      std::optional<PasskeyBrowserBinder::UnboundKey> unbound_key);
   bool IsCurrentStateValid() const;
   void RecordFirstSystemPromptResult(
       SecurePaymentConfirmationEnrollSystemPromptResult result);

@@ -7,7 +7,9 @@
 
 #include <map>
 
+#include "base/functional/callback.h"
 #include "base/memory/weak_ptr.h"
+#include "chrome/browser/contextual_tasks/contextual_tasks.mojom.h"
 #include "components/keyed_service/core/keyed_service.h"
 #include "content/public/browser/frame_tree_node_id.h"
 #include "url/gurl.h"
@@ -73,9 +75,17 @@ class ContextualTasksUiService : public KeyedService {
                                 content::WebContents* source_contents,
                                 bool is_to_new_tab);
 
+  // Returns the contextual_task UI for a task.
+  virtual GURL GetContextualTaskUrlForTask(const base::Uuid& task_id);
+
   // Returns the URL that a task was created for. Once this is retrieved, the
   // entry is removed from the cache.
-  virtual GURL GetInitialUrlForTask(const base::Uuid& uuid);
+  virtual std::optional<GURL> GetInitialUrlForTask(const base::Uuid& uuid);
+
+  // Get a thread URL based on the task ID. If no task is found or the task does
+  // not have a thread ID, the default AI URL is returned.
+  virtual void GetThreadUrlFromTaskId(const base::Uuid& task_id,
+                                      base::OnceCallback<void(GURL)> callback);
 
   // Returns the URL for the default AI page. This is the URL that should be
   // loaded in the absence of any other context.
@@ -86,6 +96,7 @@ class ContextualTasksUiService : public KeyedService {
   // for user to create a new task.
   virtual void OnTaskChangedInPanel(
       BrowserWindowInterface* browser_window_interface,
+      content::WebContents* web_contents,
       const base::Uuid& task_id);
 
   // Returns whether the provided URL is to an AI page.
@@ -95,6 +106,16 @@ class ContextualTasksUiService : public KeyedService {
   // main frame or side panel is a contextual task URL.
   void AssociateWebContentsToTask(content::WebContents* web_contents,
                                   const base::Uuid& task_id);
+
+  // Move the WebContents for the given task to a new tab.
+  virtual void MoveTaskUiToToNewTab(const base::Uuid& task_id,
+                                    BrowserWindowInterface* browser);
+
+  // Called when a tab in the sources menu is clicked. Switches to the tab or
+  // reopens the tab depending on whether the tab is already open on tab strip.
+  void OnTabClickedFromSourcesMenu(int32_t tab_id,
+                                   const GURL& url,
+                                   BrowserWindowInterface* browser);
 
  private:
   const raw_ptr<Profile> profile_;

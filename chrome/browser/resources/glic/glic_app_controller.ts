@@ -7,8 +7,8 @@ import {getRequiredElement} from 'chrome://resources/js/util.js';
 
 import type {BrowserProxyImpl} from './browser_proxy.js';
 import {PanelStateKind, PrepareForClientResult, ProfileReadyState, WebUiState} from './glic.mojom-webui.js';
-import type {ApiHostEmbedder} from './glic_api_impl/glic_api_host.js';
-import {WebClientState} from './glic_api_impl/glic_api_host.js';
+import type {ApiHostEmbedder} from './glic_api_impl/host/glic_api_host.js';
+import {WebClientState} from './glic_api_impl/host/glic_api_host.js';
 import type {PageType, WebviewDelegate} from './webview.js';
 import {WebviewController, WebviewPersistentState} from './webview.js';
 
@@ -105,9 +105,12 @@ export class GlicAppController implements WebviewDelegate, ApiHostEmbedder {
 
   private guestResizeEnabled: boolean = false;
 
-  // Width for non-resizable panel.
+  // Width and height for non-resizable panel.
   private defaultWidth: number = 400;
   private defaultHeight: number = 252;
+
+  // Height for floating loading panel.
+  private floatingLoadingHeight: number = 80;
 
   // Last seen width and height of guest panel.
   private lastWidth: number = 400;
@@ -214,7 +217,8 @@ export class GlicAppController implements WebviewDelegate, ApiHostEmbedder {
             unresponsiveDuration);
         this.enteredUnresponsiveTimestampMs = undefined;
       } else {
-        console.error('Unresponsive state exited without an entering timestamp');
+        console.error(
+            'Unresponsive state exited without an entering timestamp');
       }
     }
 
@@ -545,6 +549,14 @@ export class GlicAppController implements WebviewDelegate, ApiHostEmbedder {
       // For the guest webview, use the most recently requested size.
       this.browserProxy.handler.resizeWidget(
           {width: this.lastWidth, height: this.lastHeight}, transitionDuration);
+    }
+    if (id === 'loadingPanel') {
+      this.browserProxy.handler.resizeWidget(
+          {
+            width: this.defaultWidth,
+            height: this.floatingLoadingHeight,
+          },
+          transitionDuration);
     } else {
       this.browserProxy.handler.resizeWidget(
           {

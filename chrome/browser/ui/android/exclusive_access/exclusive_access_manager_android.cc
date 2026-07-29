@@ -99,6 +99,10 @@ void ExclusiveAccessManagerAndroid::CancelKeyboardLockRequest(
   eam_.keyboard_lock_controller()->CancelKeyboardLockRequest(wc);
 }
 
+bool ExclusiveAccessManagerAndroid::IsKeyboardLocked(JNIEnv* env) {
+  return eam_.keyboard_lock_controller()->IsKeyboardLockActive();
+}
+
 void ExclusiveAccessManagerAndroid::RequestPointerLock(
     JNIEnv* env,
     const jni_zero::JavaRef<jobject>& jweb_contents,
@@ -139,11 +143,21 @@ void ExclusiveAccessManagerAndroid::OnTabClosing(
   eam_.OnTabClosing(content::WebContents::FromJavaWebContents(jweb_contents));
 }
 
+bool ExclusiveAccessManagerAndroid::IsPointerLocked(JNIEnv* env) {
+  return eam_.pointer_lock_controller()->IsPointerLocked();
+}
+
+void ExclusiveAccessManagerAndroid::ForceActiveTab(
+    JNIEnv* env,
+    const jni_zero::JavaRef<jobject>& j_tab) {
+  eac_->ForceActiveTab(env, j_tab);
+}
+
 void ExclusiveAccessManagerAndroid::Destroy(JNIEnv* env) {
   delete this;
 }
 
-jlong JNI_ExclusiveAccessManager_Init(
+static jlong JNI_ExclusiveAccessManager_Init(
     JNIEnv* env,
     const jni_zero::JavaParamRef<jobject>& jeam,
     const jni_zero::JavaParamRef<jobject>& j_context,
@@ -153,3 +167,5 @@ jlong JNI_ExclusiveAccessManager_Init(
       env, jeam, j_context, j_fullscreen_manager, j_activity_tab_provider);
   return reinterpret_cast<intptr_t>(content);
 }
+
+DEFINE_JNI(ExclusiveAccessManager)

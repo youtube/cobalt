@@ -35,6 +35,8 @@ public class ContentFeatureList {
     public static final String ACCESSIBILITY_POPULATE_SUPPLEMENTAL_DESCRIPTION_API =
             "AccessibilityPopulateSupplementalDescriptionApi";
 
+    public static final String ACCESSIBILITY_SEQUENTIAL_FOCUS = "AccessibilitySequentialFocus";
+
     public static final String ACCESSIBILITY_SET_SELECTABLE_ON_ALL_NODES_WITH_TEXT =
             "AccessibilitySetSelectableOnAllNodesWithText";
 
@@ -87,10 +89,10 @@ public class ContentFeatureList {
             sAccessibilityDeprecateJavaNodeCacheDisableCache =
                     sAccessibilityDeprecateJavaNodeCache.newBooleanParam("disable_cache", false);
 
-    public static final MutableFlagWithSafeDefault sAccessibilityMagnificationFollowsTextCursor =
+    public static final MutableFlagWithSafeDefault sAccessibilityMagnificationFollowsFocus =
             new MutableFlagWithSafeDefault(
                     ContentFeatureMap.getInstance(),
-                    AccessibilityFeatures.ACCESSIBILITY_MAGNIFICATION_FOLLOWS_TEXT_CURSOR,
+                    AccessibilityFeatures.ACCESSIBILITY_MAGNIFICATION_FOLLOWS_FOCUS,
                     false);
 
     public static final MutableFlagWithSafeDefault sAndroidCaretBrowsing =
@@ -135,6 +137,9 @@ public class ContentFeatureList {
 
     public static final MutableIntParamWithSafeDefault sAndroidDesktopZoomScalingFactor =
             sAndroidDesktopZoomScaling.newIntParam("desktop-zoom-scaling-factor", 100);
+
+    public static final MutableIntParamWithSafeDefault sAndroidMonitorZoomScalingFactor =
+            sAndroidDesktopZoomScaling.newIntParam("monitor-zoom-scaling-factor", 100);
 
     public static final List<CachedFlag> sCachedFlags = List.of(sJavalessRenderers);
 }

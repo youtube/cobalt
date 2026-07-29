@@ -26,10 +26,11 @@ namespace {
 const int kPixelFormatUnknown = 0;
 }  // namespace
 
-jlong JNI_CompositorViewImpl_Init(JNIEnv* env,
-                                  const JavaParamRef<jobject>& obj,
-                                  const JavaParamRef<jobject>& jwindow_android,
-                                  jint java_background_color) {
+static jlong JNI_CompositorViewImpl_Init(
+    JNIEnv* env,
+    const JavaParamRef<jobject>& obj,
+    const JavaParamRef<jobject>& jwindow_android,
+    jint java_background_color) {
   ui::WindowAndroid* window_android =
       ui::WindowAndroid::FromJavaWindowAndroid(jwindow_android);
   auto compositor_view = std::make_unique<CompositorViewImpl>(
@@ -131,3 +132,5 @@ void CompositorViewImpl::UpdateLayerTreeHost() {
 
 }  // namespace android
 }  // namespace thin_webview
+
+DEFINE_JNI(CompositorViewImpl)

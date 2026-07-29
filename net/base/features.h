@@ -632,13 +632,9 @@ NET_EXPORT BASE_DECLARE_FEATURE_PARAM(
     kDeviceBoundSessionsCheckSubdomainRegistration);
 // This feature controls the database schema version for stored sessions.
 NET_EXPORT BASE_DECLARE_FEATURE_PARAM(int, kDeviceBoundSessionsSchemaVersion);
-// This feature will enable breaking changes to Device Bound Session
-// Credentials from after the Origin Trial started. This is disabled by
-// default to facilitate implementation of feedback from the Origin
-// Trial while still being able to get consistent metrics across Chrome
-// releases.
+// This feature controls whether the "aud" field is included in the JWT.
 NET_EXPORT BASE_DECLARE_FEATURE_PARAM(bool,
-                                      kDeviceBoundSessionsOriginTrialFeedback);
+                                      kDeviceBoundSessionsIncludeAudFieldInJwt);
 
 // This feature controls whether DBSC allows federated sessions.
 NET_EXPORT BASE_DECLARE_FEATURE(kDeviceBoundSessionsFederatedRegistration);
@@ -647,6 +643,10 @@ NET_EXPORT BASE_DECLARE_FEATURE(kDeviceBoundSessionsFederatedRegistration);
 NET_EXPORT BASE_DECLARE_FEATURE_PARAM(
     bool,
     kDeviceBoundSessionsFederatedRegistrationCheckWellKnown);
+// Controls whether federated sessions require the key thumbprint to match.
+NET_EXPORT BASE_DECLARE_FEATURE_PARAM(
+    bool,
+    kDeviceBoundSessionFederatedRegistrationRequireThumbprintMatch);
 
 // This feature controls whether to proactively trigger Device
 // Bound Session refreshes when a cookie is soon to expire.
@@ -686,10 +686,9 @@ NET_EXPORT BASE_DECLARE_FEATURE(kFurtherOptimizeParsingDataUrls);
 // Otherwise, unrecognized keys are treated as if the header was invalid.
 NET_EXPORT BASE_DECLARE_FEATURE(kNoVarySearchIgnoreUnrecognizedKeys);
 
-// Kill switch for Static CT Log (aka Tiled Log aka Sunlight)
-// enforcements in Certificate Transparency policy checks. If disabled, SCTs
-// from Static CT Logs will simply be ignored.
-NET_EXPORT BASE_DECLARE_FEATURE(kEnableStaticCTAPIEnforcement);
+// Enables enforcement of One-RFC6962 policy for Certificate Transparency. When
+// disabled, Chrome does not distinguish between SCTs based on log type.
+NET_EXPORT BASE_DECLARE_FEATURE(kEnforceOneRfc6962CtPolicy);
 
 // Finch experiment to select a disk cache backend.
 enum class DiskCacheBackend {
@@ -769,6 +768,10 @@ NET_EXPORT BASE_DECLARE_FEATURE_PARAM(bool,
 // HttpNoVarySearchData::AreEquivalent().
 NET_EXPORT BASE_DECLARE_FEATURE(kHttpNoVarySearchDataUseNewAreEquivalent);
 
+// Whether to skip opening the http cache entry which was marked as "unusable"
+// from the "Cache-Control" header point of view.
+NET_EXPORT BASE_DECLARE_FEATURE(kHttpCacheSkipUnusableEntry);
+
 // Enables sending the CORS Origin header on the POST request for Reporting API
 // report uploads.
 NET_EXPORT BASE_DECLARE_FEATURE(kReportingApiCorsOriginHeader);
@@ -814,6 +817,12 @@ NET_EXPORT BASE_DECLARE_FEATURE(kRestrictAbusePortsOnLocalhost);
 // a TLS extension to help the server serve a certificate that the client will
 // trust.
 NET_EXPORT BASE_DECLARE_FEATURE(kTLSTrustAnchorIDs);
+
+#if BUILDFLAG(CHROME_ROOT_STORE_SUPPORTED)
+// Enables support for Merkle Tree Certificates. `kTLSTrustAnchorIDs` must also
+// be enabled for this to be useful.
+NET_EXPORT BASE_DECLARE_FEATURE(kVerifyMTCs);
+#endif
 
 // Indicates if the client is participating in the TCP socket pool limit
 // randomization trial. The params below define the bounds for the probability.

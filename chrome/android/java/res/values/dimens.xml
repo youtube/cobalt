@@ -259,6 +259,16 @@ found in the LICENSE file.
     <dimen name="custom_tabs_toast_branding_padding">16dp</dimen>
     <dimen name="custom_tabs_max_width_bottom_sheet_elev">3dp</dimen>
 
+    <!-- Tab title won't show up in the caption bar of a popup window if the
+         widest unoccludded rect of the caption bar is narrower than this. -->
+    <dimen name="custom_tabs_popup_title_bar_min_width">48sp</dimen>
+
+    <!-- Minimum height of the title bar to satisfy a11y requirements. -->
+    <dimen name="custom_tabs_popup_title_bar_min_height">@dimen/min_touch_target_size</dimen>
+
+    <!-- Minimum height of the title bar to fit the tab title text. -->
+    <dimen name="custom_tabs_popup_title_bar_text_height">24sp</dimen>
+
     <!-- Search in CCT specific dimensions for presenting interactable Omnibox -->
     <dimen name="custom_tabs_location_bar_active_height">40dp</dimen>
     <dimen name="custom_tabs_url_bar_active_height">48dp</dimen>
@@ -348,11 +358,10 @@ found in the LICENSE file.
     <dimen name="settings_min_multi_column_screen_width">840dp</dimen>
     <dimen name="settings_narrow_header_width">360dp</dimen>
     <dimen name="settings_wide_header_width">412dp</dimen>
-    <dimen name="settings_detail_panel_end_padding">60dp</dimen>
     <dimen name="settings_search_ui_height">48dp</dimen>
-    <dimen name="settings_search_ui_horizontal_margin">16dp</dimen>
     <dimen name="settings_search_icon_padding">16dp</dimen>
     <dimen name="settings_detailed_title_padding">10dp</dimen>
+    <dimen name="settings_detailed_title_height">48dp</dimen>
     <dimen name="settings_multi_column_divider_size">24dp</dimen>
     <dimen name="settings_detailed_title_offset">16dp</dimen>
 
@@ -431,6 +440,7 @@ found in the LICENSE file.
     <!-- Link Hover Status Bar dimensions. -->
     <dimen name="link_hover_status_bar_max_width">300dp</dimen>
     <dimen name="link_hover_status_bar_margin">16dp</dimen>
+    <dimen name="link_hover_status_bar_mouse_padding">20dp</dimen>
 
     <!--  Reader mode prefs dimensions. -->
     <dimen name="reader_mode_prefs_font_style_container_width">280dp</dimen>
@@ -454,4 +464,8 @@ found in the LICENSE file.
     <!-- Caret browsing dimensions -->
     <dimen name="caret_top_padding">18dp</dimen>
     <dimen name="caret_external_margin">16dp</dimen>
+
+    <!-- Auto PiP permission dialog dimensions -->
+    <dimen name="auto_pip_permission_dialog_width">360dp</dimen>
+    <dimen name="auto_pip_permission_dialog_padding">24dp</dimen>
 </resources>

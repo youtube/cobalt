@@ -4,9 +4,11 @@
 
 package org.chromium.chrome.browser.browser_controls;
 
+import android.os.Handler;
 import android.util.SparseIntArray;
 
 import androidx.annotation.IntDef;
+import androidx.annotation.VisibleForTesting;
 
 import org.chromium.base.Callback;
 import org.chromium.base.Log;
@@ -117,10 +119,26 @@ public class TopControlsStacker implements BrowserControlsStateProvider.Observer
                 TopControlType.PROGRESS_BAR,
             };
 
+    /** Helper class used to mark state for {@link #requestLayerUpdatePost(boolean).} */
+    private class PendingRequest implements Runnable {
+        public boolean requireAnimate;
+
+        private PendingRequest(boolean requireAnimate) {
+            this.requireAnimate = requireAnimate;
+        }
+
+        @Override
+        public void run() {
+            TopControlsStacker.this.mPendingRequest = null;
+            updateLayersInternally(requireAnimate, /* shouldUpdateOffsets= */ true);
+        }
+    }
+
     // All controls are stored in a Map and we should only have one of each control type.
     private final Map<@TopControlType Integer, TopControlLayer> mControls;
     private final SparseIntArray mLayerRestingOffsets = new SparseIntArray();
     private final SparseIntArray mLayerYOffset = new SparseIntArray();
+    private final Handler mHandler = new Handler();
 
     private final BrowserControlsSizer mBrowserControlsSizer;
     private final BrowserControlsVisibilityDelegate mBrowserControlsVisibilityDelegate;
@@ -134,6 +152,9 @@ public class TopControlsStacker implements BrowserControlsStateProvider.Observer
     private int mMinHeight;
     private @Nullable BrowserControlsOffsetTagsInfo mTopControlsOffsetTagInfo;
     private boolean mIsMinHeightShrinking;
+    private boolean mHasAnimationLayer;
+
+    private @Nullable PendingRequest mPendingRequest;
 
     /**
      * Constructs the top controls stacker, which is used to calculate heights and offsets for any
@@ -152,7 +173,7 @@ public class TopControlsStacker implements BrowserControlsStateProvider.Observer
 
     /**
      * Adds a new control layer to the list of active top controls. Note that the control's height
-     * will not be recalculated until {@link #requestLayerUpdate(boolean)} is called.
+     * will not be recalculated until {@link #requestLayerUpdateSync(boolean)} is called.
      *
      * @param newControl TopControlLayer to add to the active controls.
      */
@@ -164,7 +185,7 @@ public class TopControlsStacker implements BrowserControlsStateProvider.Observer
 
     /**
      * Removes a control layer from the list of active top controls. Note that the control's height
-     * will not be recalculated until {@link #requestLayerUpdate(boolean)} is called.
+     * will not be recalculated until {@link #requestLayerUpdateSync(boolean)} is called.
      *
      * @param control The TopControlLayer to remove from the active controls.
      */
@@ -176,7 +197,7 @@ public class TopControlsStacker implements BrowserControlsStateProvider.Observer
      * Sets whether scrolling is disabled for the top controls. This call can potentially still
      * change the browser control's shown ratio when minHeight is updated when the controls is
      * scrolled off, or when BrowserControlsState.HIDDEN. Note that the control's height will not be
-     * recalculated until {@link #requestLayerUpdate(boolean)} is called.
+     * recalculated until {@link #requestLayerUpdateSync(boolean)} is called.
      *
      * @param disabled Whether scrolling is disabled.
      */
@@ -206,20 +227,41 @@ public class TopControlsStacker implements BrowserControlsStateProvider.Observer
     }
 
     /**
-     * Trigger the browser controls height update based on the current layer status. If there's
-     * already an animated transition running, this call might cause it to skip to the end state.
+     * Trigger the browser controls height update based on the current layer status.
      *
-     * @param animate Whether animate the browser controls size change.
+     * <p>Note that this call will trigger the layer updates immediately. If there's already an
+     * animated transition running, this call might cause it to skip to the end state.
+     *
+     * @param requireAnimate Whether animate the browser controls size change.
      */
-    public void requestLayerUpdate(boolean animate) {
-        updateLayersInternally(animate, mBrowserControlsSizer.offsetOverridden());
+    public void requestLayerUpdateSync(boolean requireAnimate) {
+        updateLayersInternally(requireAnimate, mBrowserControlsSizer.offsetOverridden());
     }
 
-    private void updateLayersInternally(boolean animate, boolean shouldUpdateOffsets) {
+    /**
+     * Trigger the browser controls height update based on the current layer status.
+     *
+     * <p>This call post the layer update to the handler, so it is already an animated transition
+     * running, this call might cause it to skip to the end state.
+     *
+     * @param requireAnimate Whether animate the browser controls size change.
+     */
+    public void requestLayerUpdatePost(boolean requireAnimate) {
+        if (mPendingRequest != null) {
+            mPendingRequest.requireAnimate |= requireAnimate;
+        } else {
+            mPendingRequest = new PendingRequest(requireAnimate);
+            mHandler.post(mPendingRequest);
+        }
+    }
+
+    @VisibleForTesting
+    void updateLayersInternally(boolean animate, boolean shouldUpdateOffsets) {
         if (!ChromeFeatureList.sTopControlsRefactor.isEnabled()) return;
 
         recalculateHeights();
         recalculateLayerRestingOffsets();
+        prepForAnimation(animate);
         updateTopControlsHeight(animate);
 
         // When reposition happening when browser controls is overriding offsets, we need to
@@ -232,6 +274,27 @@ public class TopControlsStacker implements BrowserControlsStateProvider.Observer
         }
 
         // Add more implementations here when necessary (e.g. offset calculation)
+    }
+
+    /**
+     * Returns whether the given layer is the top most visible layer. Returns true when the layer is
+     * the top most non-hidden layer.
+     *
+     * @param controlType Type of control to query for.
+     * @return Whether or not the control is the top most non-hidden layer.
+     */
+    public boolean isLayerAtTop(@TopControlType int controlType) {
+        if (mControls.get(controlType) == null) return false;
+
+        for (@TopControlType int type : STACK_ORDER) {
+            TopControlLayer layer = mControls.get(type);
+            if (!isLayerHidden(layer)) {
+                return type == controlType;
+            }
+        }
+
+        // No non-hidden layers were found, so this layer cannot be the top.
+        return false;
     }
 
     /**
@@ -288,6 +351,34 @@ public class TopControlsStacker implements BrowserControlsStateProvider.Observer
         mMinHeight = minHeight;
     }
 
+    private void prepForAnimation(boolean requireAnimation) {
+        // We are iterating through the current list to ensure |mHasAnimationLayer| stays consistent
+        // with the layer's visibility. This is needed even when animation is not required.
+        mHasAnimationLayer = false;
+        for (@TopControlType int type : STACK_ORDER) {
+            TopControlLayer layer = mControls.get(type);
+            if (layer == null) continue;
+            mHasAnimationLayer =
+                    layer.getTopControlVisibility() != TopControlVisibility.VISIBLE
+                            && layer.getTopControlVisibility() != TopControlVisibility.HIDDEN;
+            if (mHasAnimationLayer) {
+                break;
+            }
+        }
+
+        // If an animation exists, notify all the layers. This gives then a chance to remove
+        // their offset tags and their latest yOffset before an animation starts.
+        if (mHasAnimationLayer && requireAnimation) {
+            for (@TopControlType int type : STACK_ORDER) {
+                TopControlLayer layer = mControls.get(type);
+                if (layer == null) continue;
+
+                int currentYOffset = mLayerYOffset.get(type, -layer.getTopControlHeight());
+                layer.prepForHeightAdjustmentAnimation(currentYOffset);
+            }
+        }
+    }
+
     // Calculate the layer's resting offsets assuming the top control is fully shown.
     private void recalculateLayerRestingOffsets() {
         int cumulativeHeight = 0;
@@ -311,7 +402,8 @@ public class TopControlsStacker implements BrowserControlsStateProvider.Observer
     }
 
     // Core logic to dispatch offset to top control layers. This handles offsets either during user
-    // scrolling, or a browser or render driven animation is ran.
+    // scrolling, or a browser or render driven animation is ran. This method depends on the
+    // |mHasAnimationLayer|, which is populated in prepForAnimation.
     private void repositionLayers(
             int initialTopOffset,
             int initialTopControlsMinHeightOffset,
@@ -332,18 +424,7 @@ public class TopControlsStacker implements BrowserControlsStateProvider.Observer
         // 0. Checking if we are in animation. Render driven offsets currently cannot handle layer
         // animation at different speed. So if any of the layer attempts to animation, we'll have to
         // let browser take over the offset calculation.
-        boolean hasAnimatingLayer = false;
-        for (@TopControlType int type : STACK_ORDER) {
-            TopControlLayer layer = mControls.get(type);
-            if (layer == null) continue;
-            hasAnimatingLayer =
-                    layer.getTopControlVisibility() != TopControlVisibility.VISIBLE
-                            && layer.getTopControlVisibility() != TopControlVisibility.HIDDEN;
-            if (hasAnimatingLayer) {
-                break;
-            }
-        }
-        offsetsAppliedByBrowser |= hasAnimatingLayer;
+        offsetsAppliedByBrowser |= mHasAnimationLayer;
 
         // 1. Calculate the offset based on the current layer position. In this step, the controls
         // are classified into scrollable and non-scrollable layer, and all the layers are display
@@ -362,7 +443,7 @@ public class TopControlsStacker implements BrowserControlsStateProvider.Observer
         // updates to layer that's changed from visible -> hidden.
 
         // The algorithm adjust layer's offset based on whether the control is showing or hiding.
-        if (hasAnimatingLayer && initialTopOffset != 0) {
+        if (mHasAnimationLayer && initialTopOffset != 0) {
             // When animated size change, the browser controls will try to ensure it snaps to its
             // resting position. We'll use the minHeight as comparison first, then compare the
             // topOffset.
@@ -556,7 +637,7 @@ public class TopControlsStacker implements BrowserControlsStateProvider.Observer
         if (mBrowserControlsState == newState) return;
         mBrowserControlsState = newState;
         if (mScrollingDisabled) {
-            requestLayerUpdate(false);
+            requestLayerUpdateSync(false);
         }
     }
 
@@ -652,6 +733,9 @@ public class TopControlsStacker implements BrowserControlsStateProvider.Observer
 
     /** Tear down |this| and clear all existing controls from the Map. */
     public void destroy() {
+        if (mPendingRequest != null) {
+            mHandler.removeCallbacks(mPendingRequest);
+        }
         mControls.clear();
         mBrowserControlsVisibilityDelegate.removeObserver(mBrowserControlsStateCallback);
         mBrowserControlsSizer.removeObserver(this);

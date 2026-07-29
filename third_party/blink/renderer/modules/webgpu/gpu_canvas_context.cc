@@ -170,7 +170,7 @@ void GPUCanvasContext::Dispose() {
   CanvasRenderingContext::Dispose();
 }
 
-scoped_refptr<StaticBitmapImage> GPUCanvasContext::GetImage(FlushReason) {
+scoped_refptr<StaticBitmapImage> GPUCanvasContext::GetImage() {
   if (!swap_buffers_) {
     return nullptr;
   }
@@ -283,12 +283,11 @@ GPUCanvasContext::PaintRenderingResultsToCanvas(
 
 scoped_refptr<StaticBitmapImage>
 GPUCanvasContext::PaintRenderingResultsToSnapshot(
-    SourceDrawingBuffer source_buffer,
-    FlushReason reason) {
+    SourceDrawingBuffer source_buffer) {
   CanvasResourceProviderSharedImage* provider =
       PaintRenderingResultsToCanvas(source_buffer);
 
-  return provider ? provider->Snapshot(reason) : nullptr;
+  return provider ? provider->Snapshot() : nullptr;
 }
 
 bool GPUCanvasContext::CopyRenderingResultsToVideoFrame(
@@ -1022,7 +1021,7 @@ scoped_refptr<StaticBitmapImage> GPUCanvasContext::SnapshotInternal(
     return nullptr;
   }
 
-  return resource_provider->Snapshot(FlushReason::kNone);
+  return resource_provider->Snapshot();
 }
 
 base::WeakPtr<WebGraphicsContext3DProviderWrapper>

@@ -6,6 +6,7 @@
 
 #include "base/containers/flat_map.h"
 #include "base/metrics/histogram_functions.h"
+#include "base/metrics/puma_histogram_functions.h"
 #include "base/notreached.h"
 #include "base/strings/strcat.h"
 #include "components/country_codes/country_codes.h"
@@ -79,22 +80,37 @@ void RecordProgramAndLocationMatch(
 void RecordFunnelStage(FunnelStage stage) {
   base::UmaHistogramEnumeration("RegionalCapabilities.FunnelStage.Reported",
                                 stage);
+  base::PumaHistogramEnumeration(
+      base::PumaType::kRc, "PUMA.RegionalCapabilities.FunnelStage.Reported",
+      stage);
 }
 
 void RecordEligibilityFunnelStageDetails(
     SearchEngineChoiceScreenConditions conditions) {
   base::UmaHistogramEnumeration("RegionalCapabilities.FunnelStage.Eligibility",
                                 conditions);
+  base::PumaHistogramEnumeration(
+      base::PumaType::kRc, "PUMA.RegionalCapabilities.FunnelStage.Eligibility",
+      conditions);
 }
 
 void RecordTriggeringFunnelStageDetails(
     SearchEngineChoiceScreenConditions conditions) {
   base::UmaHistogramEnumeration("RegionalCapabilities.FunnelStage.Triggering",
                                 conditions);
+  base::PumaHistogramEnumeration(
+      base::PumaType::kRc, "PUMA.RegionalCapabilities.FunnelStage.Triggering",
+      conditions);
 }
 
 void RecordActiveRegionalProgram(
     const absl::flat_hash_set<ActiveRegionalProgram> programs) {
+  base::UmaHistogramBoolean(
+      "RegionalCapabilities.Debug.HasActiveRegionalProgram", !programs.empty());
+  if (programs.empty()) {
+    return;
+  }
+
   auto non_default_programs(programs);
   non_default_programs.erase(ActiveRegionalProgram::kDefault);
 

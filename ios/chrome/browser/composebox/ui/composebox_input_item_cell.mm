@@ -33,7 +33,6 @@ const CGFloat kMaxCellHeight = 36;
 
     _scrimView = [[UIView alloc] init];
     _scrimView.translatesAutoresizingMaskIntoConstraints = NO;
-    _scrimView.backgroundColor = [UIColor colorNamed:kSecondaryBackgroundColor];
     [self.contentView addSubview:_scrimView];
 
     _loadingIndicator = [[UIActivityIndicatorView alloc]
@@ -79,7 +78,7 @@ const CGFloat kMaxCellHeight = 36;
 
 - (void)configureWithItem:(ComposeboxInputItem*)item
                     theme:(ComposeboxTheme*)theme {
-  [_inputItemView configureWithItem:item];
+  [_inputItemView configureWithItem:item theme:theme];
 
   BOOL isLoading = item.state == ComposeboxInputItemState::kLoading ||
                    item.state == ComposeboxInputItemState::kUploading;
@@ -100,6 +99,8 @@ const CGFloat kMaxCellHeight = 36;
                                                  green:0.0
                                                   blue:0.0
                                                  alpha:0.5];
+  } else {
+    _scrimView.backgroundColor = theme.inputItemBackgroundColor;
   }
 
   _inputItemView.backgroundColor = theme.inputItemBackgroundColor;

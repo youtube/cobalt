@@ -34,7 +34,6 @@ THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 
 BROWSER_CONFIG_TO_TARGET_SUFFIX_MAP = {
     'android-chromium': '_android_chrome',
-    'android-chromium-monochrome': '_android_monochrome',
     'android-webview': '_android_webview',
 }
 
@@ -301,9 +300,9 @@ class BBJSONGenerator(object):  # pylint: disable=useless-object-inheritance
 
       @property
       def actual_path(self):
-        if os.path.exists(self.generated_path):
-          return self.generated_path
-        return self.legacy_path
+        if os.path.exists(self.legacy_path):
+          return self.legacy_path
+        return self.generated_path
 
     @functools.cached_property
     def gn_isolate_map_pyl(self):
@@ -986,7 +985,8 @@ class BBJSONGenerator(object):  # pylint: disable=useless-object-inheritance
     gn_entry = self.gn_isolate_map[result['test']]
     result['test_id_prefix'] = 'ninja:%s/' % gn_entry['label']
     result['module_name'] = gn_entry['label']
-    module_scheme = gn_entry.get('module_scheme', None)
+    module_scheme = test_config.get('module_scheme') or gn_entry.get(
+        'module_scheme')
     if module_scheme:
       result['module_scheme'] = module_scheme
 
@@ -1163,7 +1163,11 @@ class BBJSONGenerator(object):  # pylint: disable=useless-object-inheritance
 
           test['test_id_prefix'] = 'ninja:%s/' % label
           test['module_name'] = label
-          module_scheme = gn_entry.get('module_scheme', None)
+          # Allow module_scheme in the test config to override the gn label.
+          # This is useful when a test suite uses a different module scheme
+          # than is supplied by the binary.
+          module_scheme = test.get('module_scheme') or gn_entry.get(
+              'module_scheme')
           if module_scheme:
             test['module_scheme'] = module_scheme
 

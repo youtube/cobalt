@@ -10,6 +10,7 @@
 #include "base/values.h"
 #include "content/browser/webid/flags.h"
 #include "content/browser/webid/request_service.h"
+#include "content/browser/webid/webid_utils.h"
 #include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/render_frame_host.h"
@@ -38,10 +39,11 @@ NavigationInterceptor::NavigationInterceptor(
     NavigationThrottleRegistry& registry)
     : NavigationInterceptor(
           registry,
-          base::BindRepeating([](content::RenderFrameHost* rfh)
-                                  -> blink::mojom::FederatedAuthRequest* {
-            return webid::RequestService::GetOrCreateForCurrentDocument(rfh);
-          })) {}
+          base::BindRepeating(
+              [](content::RenderFrameHost* rfh) -> RequestService* {
+                return webid::RequestService::GetOrCreateForCurrentDocument(
+                    rfh);
+              })) {}
 
 NavigationInterceptor::NavigationInterceptor(
     NavigationThrottleRegistry& registry,
@@ -51,10 +53,32 @@ NavigationInterceptor::NavigationInterceptor(
 
 NavigationInterceptor::~NavigationInterceptor() = default;
 
-content::NavigationThrottle::ThrottleCheckResult
+NavigationThrottle::ThrottleCheckResult
+NavigationInterceptor::WillStartRequest() {
+  // navigation_handle()->GetRenderFrameHost() points to the new RFH that the
+  // navigation would commit to, but we will abort that navigation, so we want
+  // to initiate the request in the current RFH for the target frame, so we look
+  // that up here.
+  content::RenderFrameHost* rfh = RenderFrameHost::FromID(
+      navigation_handle()->GetPreviousRenderFrameHostId());
+  document_ = rfh->GetWeakDocumentPtr();
+  return PROCEED;
+}
+
+NavigationThrottle::ThrottleCheckResult
 NavigationInterceptor::WillProcessResponse() {
+  if (!document_.AsRenderFrameHostIfValid()) {
+    // Some other navigation has happened in the meantime.
+    return PROCEED;
+  }
   if (!navigation_handle()->IsInPrimaryMainFrame()) {
     // Only top level navigations can be intercepted.
+    return PROCEED;
+  }
+
+  // Only intercept user-initiated navigations because we want to use
+  // active mode.
+  if (!DidNavigationHandleHaveActivation(navigation_handle())) {
     return PROCEED;
   }
 
@@ -72,12 +96,15 @@ NavigationInterceptor::WillProcessResponse() {
     return PROCEED;
   }
 
-  content::RenderFrameHost* rfh = navigation_handle()->GetRenderFrameHost();
+  content::RenderFrameHost* rfh = document_.AsRenderFrameHostIfValid();
+
+  if (!rfh) {
+    return PROCEED;
+  }
 
   data_decoder::DataDecoder::ParseStructuredHeaderDictionaryIsolated(
       *header, base::BindOnce(&NavigationInterceptor::OnHeaderParsed,
-                              weak_ptr_factory_.GetWeakPtr(),
-                              rfh->GetWeakDocumentPtr()));
+                              weak_ptr_factory_.GetWeakPtr()));
 
   // TODO(http://crbug.com/455614294): Ideally, we'd like to cancel the
   // navigation early on so that the spinner stops. However, we need to
@@ -88,13 +115,11 @@ NavigationInterceptor::WillProcessResponse() {
 }
 
 void NavigationInterceptor::OnHeaderParsed(
-    content::WeakDocumentPtr doc_ptr,
     base::expected<net::structured_headers::Dictionary, std::string> result) {
-  content::RenderFrameHost* rfh = doc_ptr.AsRenderFrameHostIfValid();
-
+  content::RenderFrameHost* rfh = document_.AsRenderFrameHostIfValid();
   if (!rfh) {
-    // The document is no longer valid, likely because the page initiated a new
-    // navigation in the meantime.
+    // The document is no longer valid, likely because the target frame has
+    // navigated in the meantime.
     // Resume the deferred navigation without cancelling.
     Resume();
     return;
@@ -121,6 +146,7 @@ void NavigationInterceptor::OnHeaderParsed(
   service_builder_.Run(rfh)->RequestToken(
       std::move(*idp_get_params_vector),
       password_manager::CredentialMediationRequirement::kOptional,
+      navigation_handle(),
       base::BindOnce(&NavigationInterceptor::OnTokenResponse,
                      weak_ptr_factory_.GetWeakPtr()));
 }

@@ -96,6 +96,11 @@ bool LegacyAudioFileReader::OpenDecoder() {
     if (codec_context_->sample_fmt == AV_SAMPLE_FMT_S16P)
       codec_context_->request_sample_fmt = AV_SAMPLE_FMT_S16;
 
+    // Request float output for Opus to avoid extra conversion step.
+    if (codec->id == AV_CODEC_ID_OPUS) {
+      codec_context_->request_sample_fmt = AV_SAMPLE_FMT_FLT;
+    }
+
     const int result = avcodec_open2(codec_context_.get(), codec, nullptr);
     if (result < 0) {
       DLOG(WARNING) << "LegacyAudioFileReader::Open() : could not open codec -"
@@ -336,15 +341,6 @@ bool LegacyAudioFileReader::OnNewFrame(
 bool LegacyAudioFileReader::IsMp3File() {
   return glue_->container() ==
          container_names::MediaContainerName::kContainerMP3;
-}
-
-bool LegacyAudioFileReader::SeekForTesting(base::TimeDelta seek_time) {
-  // Use the AVStream's time_base, since |codec_context_| does not have
-  // time_base populated until after OpenDecoder().
-  return av_seek_frame(
-             glue_->format_context(), stream_index_,
-             ConvertToTimeBase(GetAVStreamForTesting()->time_base, seek_time),
-             AVSEEK_FLAG_BACKWARD) >= 0;
 }
 
 const AVStream* LegacyAudioFileReader::GetAVStreamForTesting() const {

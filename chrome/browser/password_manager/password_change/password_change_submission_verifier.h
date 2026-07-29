@@ -26,6 +26,9 @@ class WebContents;
 // Helper class which verifies whether password change was successful or not.
 class PasswordChangeSubmissionVerifier {
  public:
+  static char kPasswordChangeVerificationTimeHistogram[];
+  static char kSubmissionOutcomeHistogramName[];
+
   // These values are persisted to logs. Entries should not be renumbered and
   // numeric values should never be reused.
   //
@@ -49,9 +52,6 @@ class PasswordChangeSubmissionVerifier {
 
   using FormSubmissionResultCallback = base::OnceCallback<void(bool)>;
 
-  static constexpr char kPasswordChangeVerificationTimeHistogram[] =
-      "PasswordManager.PasswordChangeVerificationTime";
-
   PasswordChangeSubmissionVerifier(content::WebContents* web_contents,
                                    ModelQualityLogsUploader* logs_uploader);
   ~PasswordChangeSubmissionVerifier();
@@ -64,7 +64,7 @@ class PasswordChangeSubmissionVerifier {
 
  private:
   void CheckSubmissionSuccessful(
-      std::optional<optimization_guide::AIPageContentResult> page_content);
+      optimization_guide::AIPageContentResultOrError page_content);
   void OnExecutionResponseCallback(
       optimization_guide::OptimizationGuideModelExecutionResult
           execution_result,

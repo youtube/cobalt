@@ -10,12 +10,13 @@
 
 #include "base/metrics/histogram_functions.h"
 #include "base/strings/strcat.h"
+#include "base/strings/to_string.h"
 #include "base/task/thread_pool.h"
+#include "base/trace_event/trace_event.h"
 #include "base/types/optional_util.h"
 #include "components/optimization_guide/core/delivery/optimization_guide_model_provider.h"
-#include "components/optimization_guide/core/model_execution/feature_keys.h"
-#include "components/optimization_guide/core/model_execution/model_execution_features.h"
 #include "components/optimization_guide/core/model_execution/model_execution_util.h"
+#include "components/optimization_guide/core/model_execution/on_device_features.h"
 #include "components/optimization_guide/core/model_execution/on_device_model_feature_adapter.h"
 #include "components/optimization_guide/core/model_execution/on_device_model_service_controller.h"
 #include "components/optimization_guide/core/model_execution/usage_tracker.h"
@@ -26,6 +27,7 @@
 #include "components/optimization_guide/proto/models.pb.h"
 #include "components/optimization_guide/proto/on_device_base_model_metadata.pb.h"
 #include "components/optimization_guide/proto/on_device_model_execution_config.pb.h"
+#include "components/optimization_guide/public/mojom/model_broker.mojom-data-view.h"
 #include "components/prefs/pref_service.h"
 #include "services/on_device_model/public/cpp/model_assets.h"
 
@@ -34,22 +36,24 @@ namespace optimization_guide {
 namespace {
 
 void RecordAdaptationModelAvailability(
-    ModelBasedCapabilityKey feature,
+    mojom::OnDeviceFeature feature,
     OnDeviceModelAdaptationAvailability availability) {
   base::UmaHistogramEnumeration(
       base::StrCat({"OptimizationGuide.ModelExecution."
                     "OnDeviceAdaptationModelAvailability.",
-                    GetStringNameForModelExecutionFeature(feature)}),
+                    GetVariantName(feature)}),
       availability);
 }
 
 base::expected<OnDeviceModelAdaptationMetadata,
                OnDeviceModelAdaptationAvailability>
 CreateAdaptationMetadataFromModelExecutionConfig(
-    ModelBasedCapabilityKey feature,
+    mojom::OnDeviceFeature feature,
     std::unique_ptr<on_device_model::AdaptationAssetPaths> asset_paths,
     int64_t version,
     std::unique_ptr<proto::OnDeviceModelExecutionConfig> execution_config) {
+  TRACE_EVENT("optimization_guide",
+              "CreateAdaptationMetadataFromModelExecutionConfig");
   if (!execution_config) {
     return base::unexpected(OnDeviceModelAdaptationAvailability::
                                 kAdaptationModelExecutionConfigInvalid);
@@ -69,7 +73,7 @@ CreateAdaptationMetadataFromModelExecutionConfig(
 }
 
 MaybeAdaptationMetadata OnDeviceModelAdaptationMetadataCreated(
-    ModelBasedCapabilityKey feature,
+    mojom::OnDeviceFeature feature,
     base::expected<OnDeviceModelAdaptationMetadata,
                    OnDeviceModelAdaptationAvailability> metadata) {
   if (!metadata.has_value()) {
@@ -166,7 +170,7 @@ OnDeviceModelAdaptationMetadata::asset_paths() const {
 AdaptationMetadataMap::AdaptationMetadataMap() = default;
 AdaptationMetadataMap::~AdaptationMetadataMap() = default;
 MaybeAdaptationMetadata& AdaptationMetadataMap::Get(
-    ModelBasedCapabilityKey feature) {
+    mojom::OnDeviceFeature feature) {
   auto it =
       metadata_
           .emplace(feature,
@@ -175,7 +179,7 @@ MaybeAdaptationMetadata& AdaptationMetadataMap::Get(
   return it->second;
 }
 
-bool AdaptationMetadataMap::MaybeUpdate(ModelBasedCapabilityKey feature,
+bool AdaptationMetadataMap::MaybeUpdate(mojom::OnDeviceFeature feature,
                                         MaybeAdaptationMetadata metadata) {
   MaybeAdaptationMetadata& current_metadata = Get(feature);
   if (current_metadata == metadata) {
@@ -188,12 +192,11 @@ bool AdaptationMetadataMap::MaybeUpdate(ModelBasedCapabilityKey feature,
 }
 
 OnDeviceModelAdaptationLoader::OnDeviceModelAdaptationLoader(
-    ModelBasedCapabilityKey feature,
+    mojom::OnDeviceFeature feature,
     OptimizationGuideModelProvider& model_provider,
     OnLoadFn on_load_fn)
     : feature_(feature),
-      target_(
-          *features::internal::GetOptimizationTargetForCapability(feature_)),
+      target_(GetOptimizationTargetForFeature(feature_)),
       background_task_runner_(base::ThreadPool::CreateSequencedTaskRunner(
           {base::MayBlock(), base::TaskPriority::BEST_EFFORT})),
       model_provider_observation_(&model_provider,
@@ -215,6 +218,8 @@ void OnDeviceModelAdaptationLoader::Unregister() {
 void OnDeviceModelAdaptationLoader::MaybeRegisterModelDownload(
     base::optional_ref<const OnDeviceBaseModelSpec> new_spec,
     bool was_feature_recently_used) {
+  TRACE_EVENT("optimization_guide", "MaybeRegisterModelDownload", "feature",
+              base::ToString(feature_));
   if (new_spec && *new_spec == registered_spec_) {
     return;
   }
@@ -256,6 +261,9 @@ void OnDeviceModelAdaptationLoader::MaybeRegisterModelDownload(
 void OnDeviceModelAdaptationLoader::OnModelUpdated(
     proto::OptimizationTarget optimization_target,
     base::optional_ref<const ModelInfo> model_info) {
+  TRACE_EVENT("optimization_guide",
+              "OnDeviceModelAdaptationLoader::OnModelUpdated", "feature",
+              base::ToString(feature_));
   CHECK_EQ(optimization_target, target_);
   CHECK(registered_spec_.has_value());
   if (!model_info.has_value()) {
@@ -299,10 +307,7 @@ void OnDeviceModelAdaptationLoader::OnModelUpdated(
 AdaptationLoaderMap::AdaptationLoaderMap(
     OptimizationGuideModelProvider& provider,
     OnLoadFn on_load_fn) {
-  for (const auto feature : kAllModelBasedCapabilityKeys) {
-    if (!features::internal::GetOptimizationTargetForCapability(feature)) {
-      continue;
-    }
+  for (mojom::OnDeviceFeature feature : OnDeviceFeatureSet::All()) {
     loaders_[feature] = std::make_unique<OnDeviceModelAdaptationLoader>(
         feature, provider, base::BindRepeating(on_load_fn, feature));
   }
@@ -310,7 +315,7 @@ AdaptationLoaderMap::AdaptationLoaderMap(
 AdaptationLoaderMap::~AdaptationLoaderMap() = default;
 
 void AdaptationLoaderMap::MaybeRegisterModelDownload(
-    ModelBasedCapabilityKey feature,
+    mojom::OnDeviceFeature feature,
     base::optional_ref<const OnDeviceBaseModelSpec> spec,
     bool was_feature_recently_used) {
   auto it = loaders_.find(feature);

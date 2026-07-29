@@ -134,6 +134,7 @@
 #if !BUILDFLAG(IS_ANDROID)
 #include "chrome/browser/lifetime/application_lifetime_desktop.h"
 #include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_list.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
@@ -1045,12 +1046,12 @@ IN_PROC_BROWSER_TEST_F(DevToolsBeforeUnloadTest,
   }
   // Try to close browser window.
   {
-    EXPECT_EQ(1u, BrowserList::GetInstance()->size());
+    EXPECT_EQ(1u, chrome::GetTotalBrowserCount());
     chrome::CloseWindow(browser());
     AcceptModalDialog();
     CancelModalDialog();
     base::RunLoop().RunUntilIdle();
-    EXPECT_EQ(1u, BrowserList::GetInstance()->size());
+    EXPECT_EQ(1u, chrome::GetTotalBrowserCount());
   }
   // Try to exit application.
   {
@@ -1892,20 +1893,6 @@ IN_PROC_BROWSER_TEST_F(DevToolsExtensionTest, MAYBE_CantInspectChromeScheme) {
           base::StrCat({kArbitraryPage, "#chrome://version/"}));
 }
 
-// TODO(crbug.com/417938496): Flaky on Linux ASAN, MSAN and debug builds.
-#if BUILDFLAG(IS_LINUX)
-#define MAYBE_CantInspectDevtoolsScheme DISABLED_CantInspectDevtoolsScheme
-#else
-#define MAYBE_CantInspectDevtoolsScheme CantInspectDevtoolsScheme
-#endif
-IN_PROC_BROWSER_TEST_F(DevToolsExtensionTest, MAYBE_CantInspectDevtoolsScheme) {
-  LoadExtension("can_inspect_url");
-  RunTest(
-      "waitForTestResultsAsMessage",
-      base::StrCat({kArbitraryPage,
-                    "#devtools://devtools/bundled/devtools_compatibility.js"}));
-}
-
 // TODO(crbug.com/369074885): Flaky on Linux and slow builders like MSAN/debug.
 #if BUILDFLAG(IS_LINUX) || defined(MEMORY_SANITIZER) || !defined(NDEBUG)
 #define MAYBE_CantInspectViewSourceDevtoolsScheme \
@@ -2169,8 +2156,16 @@ class DevToolsExtensionFileAccessTest : public DevToolsExtensionTest {
   }
 };
 
+// This test is flaky on Linux MSAN.
+// TODO(htt ps://crbug.com/463490299): Enable the test.
+#if BUILDFLAG(IS_LINUX) && defined(MEMORY_SANITIZER)
+#define MAYBE_CanGetFileResourceWithFileAccess \
+  DISABLED_CanGetFileResourceWithFileAccess
+#else
+#define MAYBE_CanGetFileResourceWithFileAccess CanGetFileResourceWithFileAccess
+#endif
 IN_PROC_BROWSER_TEST_F(DevToolsExtensionFileAccessTest,
-                       CanGetFileResourceWithFileAccess) {
+                       MAYBE_CanGetFileResourceWithFileAccess) {
   Run(true, "file:///");
 }
 
@@ -3202,16 +3197,6 @@ IN_PROC_BROWSER_TEST_F(DevToolsTest, DISABLED_DisposeEmptyBrowserContext) {
   CloseDevToolsWindow();
 }
 
-// TODO(crbug.com/40689291): Find a better strategy for testing protocol methods
-// against non-headless Chrome.
-IN_PROC_BROWSER_TEST_F(DevToolsTest, NewWindowFromBrowserContext) {
-  window_ = DevToolsWindowTesting::OpenDiscoveryDevToolsWindowSync(
-      browser()->profile());
-  LoadLegacyFilesInFrontend(window_);
-  RunTestMethod("testNewWindowFromBrowserContext");
-  CloseDevToolsWindow();
-}
-
 IN_PROC_BROWSER_TEST_F(SitePerProcessDevToolsTest, InspectElement) {
   GURL url(embedded_test_server()->GetURL("a.com", "/devtools/oopif.html"));
   GURL iframe_url(
@@ -4088,7 +4073,7 @@ class DevToolsConsoleInsightsTest : public DevToolsTest {
     auto* identity_manager =
         IdentityManagerFactory::GetForProfile(browser()->profile());
     auto account_info = signin::MakePrimaryAccountAvailable(
-        identity_manager, "test@example.com", signin::ConsentLevel::kSync);
+        identity_manager, "test@example.com", signin::ConsentLevel::kSignin);
     AccountCapabilitiesTestMutator mutator(&account_info.capabilities);
     mutator.set_can_use_devtools_generative_ai_features(!is_minor);
     signin::UpdateAccountInfoForAccount(identity_manager, account_info);

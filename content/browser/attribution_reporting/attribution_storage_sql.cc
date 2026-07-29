@@ -1516,14 +1516,7 @@ bool AttributionStorageSql::DeleteReport(AttributionReport::Id report_id) {
     return true;
   }
 
-  bool success = DeleteReportInternal(report_id);
-  if (success) {
-    base::UmaHistogramCustomCounts(
-        "Conversions.DbVersionOnReportSentAndDeleted", kCurrentVersionNumber,
-        /*min=*/58,
-        /*exclusive_max=*/88, /*buckets=*/30);
-  }
-  return success;
+  return DeleteReportInternal(report_id);
 }
 
 bool AttributionStorageSql::DeleteReportInternal(
@@ -2025,11 +2018,6 @@ bool AttributionStorageSql::LazyInit(DbCreationPolicy creation_policy) {
   if (int64_t file_size = GetStorageFileSizeKB(path_to_database_);
       file_size > -1) {
     base::UmaHistogramCounts10M("Conversions.Storage.Sql.FileSize2", file_size);
-    std::optional<int64_t> number_of_sources = NumberOfSources();
-    if (number_of_sources.has_value() && *number_of_sources > 0) {
-      base::UmaHistogramCounts1M("Conversions.Storage.Sql.FileSize2.PerSource",
-                                 file_size * 1024 / *number_of_sources);
-    }
   }
 
   VerifyReports(/*deletion_counts=*/nullptr);
@@ -2039,16 +2027,6 @@ bool AttributionStorageSql::LazyInit(DbCreationPolicy creation_policy) {
                                  /*exclusive_max=*/500, /*buckets=*/50);
 
   return true;
-}
-
-std::optional<int64_t> AttributionStorageSql::NumberOfSources() {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  sql::Statement statement(db_.GetCachedStatement(
-      SQL_FROM_HERE, attribution_queries::kCountSourcesSql));
-  if (!statement.Step()) {
-    return std::nullopt;
-  }
-  return statement.ColumnInt64(0);
 }
 
 // Deletes corrupt sources/reports if `deletion_counts` is not `nullptr`.
@@ -2983,10 +2961,6 @@ AttributionStorageSql::GetAggregatableDebugSourceData(
   };
 }
 
-int64_t AttributionStorageSql::StorageFileSizeKB() {
-  return GetStorageFileSizeKB(path_to_database_);
-}
-
 AggregatableDebugRateLimitTable::Result
 AttributionStorageSql::AggregatableDebugReportAllowedForRateLimit(
     const AggregatableDebugReport& report) {
@@ -3162,14 +3136,6 @@ bool AttributionStorageSql::DeleteAttributionRateLimit(
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   return rate_limit_table_.DeleteAttributionRateLimit(&db_, scope, report_id);
-}
-
-int64_t AttributionStorageSql::CountUniqueReportingOriginsPerSiteForAttribution(
-    const AttributionTrigger& trigger,
-    const base::Time now) {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  return rate_limit_table_.CountUniqueReportingOriginsPerSiteForAttribution(
-      &db_, trigger, now);
 }
 
 }  // namespace content

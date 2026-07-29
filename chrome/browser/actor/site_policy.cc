@@ -8,7 +8,6 @@
 #include <string_view>
 #include <vector>
 
-#include "base/command_line.h"
 #include "base/containers/contains.h"
 #include "base/feature_list.h"
 #include "base/functional/callback.h"
@@ -16,7 +15,7 @@
 #include "base/strings/string_split.h"
 #include "base/task/sequenced_task_runner.h"
 #include "chrome/browser/actor/actor_features.h"
-#include "chrome/browser/actor/actor_switches.h"
+#include "chrome/browser/actor/actor_util.h"
 #include "chrome/browser/actor/aggregated_journal.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/lookalikes/lookalike_url_service.h"
@@ -47,11 +46,6 @@
 namespace actor {
 
 namespace {
-
-bool DisableSafetyChecks() {
-  return base::CommandLine::ForCurrentProcess()->HasSwitch(
-      switches::kDisableActorSafetyChecks);
-}
 
 class DecisionWrapper {
  public:
@@ -150,7 +144,8 @@ void MayActOnUrlInternal(
     Profile* profile,
     const std::optional<absl::flat_hash_set<url::Origin>>& allowed_origins,
     std::unique_ptr<DecisionWrapper> decision_wrapper) {
-  if (net::IsLocalhost(url) || url.IsAboutBlank()) {
+  if ((net::IsLocalhost(url) && url.SchemeIsHTTPOrHTTPS()) ||
+      url.IsAboutBlank()) {
     decision_wrapper->Accept();
     return;
   }
@@ -169,7 +164,7 @@ void MayActOnUrlInternal(
     return;
   }
 
-  if (DisableSafetyChecks()) {
+  if (IsActorSafetyCheckDisabled()) {
     decision_wrapper->Accept();
     return;
   }
@@ -254,7 +249,7 @@ void MayActOnUrlInternal(
   // feature is enabled, and origins the user allowed the actor to interact with
   // will be included in the `allowed_origins` set. If `url` has an origin not
   // in the set, we apply the optimization guide check.
-  if (base::FeatureList::IsEnabled(kGlicCrossOriginNavigationGating) &&
+  if (IsNavigationGatingEnabled() &&
       (!allowed_origins ||
        base::Contains(*allowed_origins, url::Origin::Create(url)))) {
     decision_wrapper->Accept();
@@ -324,7 +319,7 @@ void MayActOnTab(const tabs::TabInterface& tab,
   // Do not act on such a page.
   if (safe_browsing::SafeBrowsingUserInteractionObserver::FromWebContents(
           &web_contents) &&
-      !DisableSafetyChecks()) {
+      !IsActorSafetyCheckDisabled()) {
     decision_wrapper->Reject("Blocked by safebrowsing",
                              MayActOnUrlBlockReason::kSafeBrowsing);
     return;

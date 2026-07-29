@@ -4,11 +4,31 @@
 
 #include "chrome/browser/ui/webui/omnibox_popup/omnibox_popup_aim_handler.h"
 
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/contextual_search/searchbox_context_data.h"
 #include "chrome/browser/ui/views/omnibox/omnibox_aim_popup_webui_content.h"
 #include "chrome/browser/ui/webui/omnibox_popup/omnibox_popup_ui.h"
 #include "chrome/browser/ui/webui/top_chrome/webui_contents_wrapper.h"
+#include "chrome/browser/ui/webui/webui_embedding_context.h"
 #include "components/omnibox/browser/searchbox.mojom.h"
+#include "ui/base/window_open_disposition.h"
+
+namespace {
+
+searchbox::mojom::SearchContextStubPtr ToSearchContext(
+    std::unique_ptr<SearchboxContextData::Context> context) {
+  if (!context) {
+    return nullptr;
+  }
+
+  auto search_context = searchbox::mojom::SearchContextStub::New();
+  search_context->input = context->text;
+  search_context->attachments = std::move(context->file_infos);
+  search_context->tool_mode = context->mode;
+  return search_context;
+}
+
+}  // namespace
 
 OmniboxPopupAimHandler::OmniboxPopupAimHandler(
     mojo::PendingReceiver<omnibox_popup_aim::mojom::PageHandler> receiver,
@@ -22,17 +42,9 @@ OmniboxPopupAimHandler::~OmniboxPopupAimHandler() = default;
 
 void OmniboxPopupAimHandler::OnShow(
     std::unique_ptr<SearchboxContextData::Context> context) {
-  if (!context) {
-    page_->OnShow(nullptr);
-    return;
-  }
-
-  auto search_context = searchbox::mojom::SearchContextStub::New();
-  search_context->input = context->text;
-  search_context->attachments = std::move(context->file_infos);
-  search_context->tool_mode = context->mode;
-
-  page_->OnShow(std::move(search_context));
+  auto page_context = ToSearchContext(std::move(context));
+  CHECK(page_context);
+  page_->OnShow(std::move(page_context));
 }
 
 void OmniboxPopupAimHandler::OnClose() {
@@ -51,6 +63,24 @@ void OmniboxPopupAimHandler::OnClosedCallback(const std::string& input) {
   }
 }
 
+void OmniboxPopupAimHandler::AddContext(
+    std::unique_ptr<SearchboxContextData::Context> context) {
+  auto search_context = ToSearchContext(std::move(context));
+  if (!search_context) {
+    return;
+  }
+  page_->AddContext(std::move(search_context));
+}
+
 void OmniboxPopupAimHandler::Close() {
   omnibox_popup_ui_->embedder()->CloseUI();
+}
+
+void OmniboxPopupAimHandler::NavigateCurrentTab(const GURL& url) {
+  auto* browser_window_interface = webui::GetBrowserWindowInterface(
+      omnibox_popup_ui_->web_ui()->GetWebContents());
+  content::OpenURLParams params(url, content::Referrer(),
+                                WindowOpenDisposition::CURRENT_TAB,
+                                ui::PAGE_TRANSITION_LINK, false);
+  browser_window_interface->OpenURL(params, base::NullCallback());
 }

@@ -41,6 +41,7 @@ namespace content {
 
 class FederatedIdentityAutoReauthnPermissionContextDelegate;
 class FederatedIdentityPermissionContextDelegate;
+class NavigationHandle;
 class RenderFrameHost;
 
 namespace webid {
@@ -110,6 +111,16 @@ class CONTENT_EXPORT RequestService
   // TODO(crbug.com/459135671): Change tests to navigate instead and remove
   // this method.
   void ResetAndDeleteThisForTesting();
+
+  // An overload of the mojo version of RequestToken. If |navigation_handle|
+  // is provided, that handle is checked to see if user activation is present.
+  // This is virtual so that it can be mocked.MockNavigationThrottleRegistry
+  virtual void RequestToken(
+      std::vector<blink::mojom::IdentityProviderGetParametersPtr>
+          idp_get_params_ptrs,
+      MediationRequirement requirement,
+      NavigationHandle* navigation_handle,
+      RequestTokenCallback);
 
   // blink::mojom::FederatedAuthRequest:
   void RequestToken(std::vector<blink::mojom::IdentityProviderGetParametersPtr>
@@ -491,9 +502,6 @@ class CONTENT_EXPORT RequestService
   base::flat_map<GURL, std::vector<IdentityRequestAccountPtr>> idp_accounts_;
   // The accounts to be displayed by the UI.
   std::vector<IdentityRequestAccountPtr> accounts_;
-  // The newly logged in accounts, to be prioritized by the UI. Subset of
-  // `accounts_`.
-  std::vector<IdentityRequestAccountPtr> new_accounts_;
 
   // Contains the set of account IDs of an IDP before a login URL is displayed
   // to the user. Used to compute the account ID of the account that the user

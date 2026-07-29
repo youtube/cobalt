@@ -1529,13 +1529,8 @@ void NavigationURLLoaderImpl::CheckPluginAndCallOnReceiveResponse(
     network::mojom::URLLoaderClientEndpointsPtr url_loader_client_endpoints) {
   // Refresh the plugins.
   PluginService::GetInstance()->GetPlugins();
-
-  bool stale;
-  WebPluginInfo unused_info;
-  bool has_plugin = PluginService::GetInstance()->GetPluginInfo(
-      browser_context_, resource_request_->url, head->mime_type, &stale,
-      &unused_info, nullptr);
-  CHECK(!stale);
+  bool has_plugin = PluginService::GetInstance()->HasPlugin(
+      browser_context_, resource_request_->url, head->mime_type);
 
   bool is_download = !has_plugin;
   CallOnReceivedResponse(std::move(head),

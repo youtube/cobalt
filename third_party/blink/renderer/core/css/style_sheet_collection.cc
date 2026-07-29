@@ -43,16 +43,14 @@
 namespace blink {
 
 static void CreateRuleSets(const StyleEngine& engine,
-                           const MediaQueryEvaluator& medium,
                            const MixinMap& effective_mixins,
                            ActiveStyleSheetVector& active_style_sheets,
                            HeapVector<Member<RuleSetDiff>>& rule_set_diffs);
 
 void StyleSheetCollection::FinishUpdateActiveStyleSheets(
-    const MediaQueryEvaluator& medium,
     const MixinMap& effective_mixins) {
   HeapVector<Member<RuleSetDiff>> rule_set_diffs;
-  CreateRuleSets(GetDocument().GetStyleEngine(), medium, effective_mixins,
+  CreateRuleSets(GetDocument().GetStyleEngine(), effective_mixins,
                  pending_active_style_sheets_, rule_set_diffs);
 
   // We need to clear this before ApplyRuleSetChanges(),
@@ -76,49 +74,35 @@ void StyleSheetCollection::FinishUpdateActiveStyleSheets(
 //
 // Can only be called once.
 static void CreateRuleSets(const StyleEngine& engine,
-                           const MediaQueryEvaluator& medium,
                            const MixinMap& effective_mixins,
                            ActiveStyleSheetVector& active_style_sheets,
                            HeapVector<Member<RuleSetDiff>>& rule_set_diffs) {
-  // Keep track of ensured RuleSets with @layer rules to detect
-  // StyleSheetContents sharing; RuleSets should not be shared
-  // between two equal sheets with @layer rules, since anonymous
-  // layers need to be unique.
-  HeapHashSet<Member<const RuleSet>> layer_rule_sets;
+  // It's possible to add the same StyleSheetContents more than once,
+  // either due to StyleSheetContents being shared between multiple
+  // CSSStyleSheets (see IsContentsShared()), or due to the same CSSStyleSheet
+  // being adopted more than once. When this happens, we may need to create
+  // multiple RuleSet objects for the same contents, because anonymous
+  // @layers must be unique.
+  HeapHashSet<Member<StyleSheetContents>> seen_contents;
 
   for (auto& [css_sheet, rule_set] : active_style_sheets) {
     CHECK_EQ(rule_set, nullptr);
-    rule_set = engine.RuleSetForSheet(*css_sheet, effective_mixins);
 
-    // NOTE: If the user has specified the same CSSStyleSheet object multiple
-    // times (which is only possible for constructible stylesheets, in
-    // adoptedStyleSheets), then we will not deduplicate them here
-    // (HasSingleOwnerNode() returns false, because the StyleSheetContents is
-    // indeed owned by only one CSSStyleSheet; we just send in that
-    // CSSStyleSheet twice). This means we could get confusing layer ordering if
-    // there were other stylesheets with anonymous layers between the
-    // duplicates.
-    //
-    // It is possible that we should change this; our current behavior differs
-    // from both Gecko and WebKit. It does not appear to be clear from the
-    // standard, though.
-    if (rule_set && rule_set->HasCascadeLayers() &&
-        !css_sheet->Contents()->HasSingleOwnerNode() &&
-        !layer_rule_sets.insert(rule_set).is_new_entry) {
-      // The condition above is met for a stylesheet with cascade layers which
-      // shares StyleSheetContents with another stylesheet in this TreeScope.
-      // WillMutateRules() creates a unique StyleSheetContents for this sheet to
-      // avoid incorrectly identifying two separate anonymous layers as the same
-      // layer.
-      //
-      // TODO(sesse): Can we detect this before creating the RuleSet?
-      css_sheet->WillMutateRules();
+    StyleSheetContents* contents = css_sheet->Contents();
+
+    if (!seen_contents.insert(contents).is_new_entry &&
+        contents->HasRuleSet() && contents->GetRuleSet().HasCascadeLayers()) {
+      // We've already seen this StyleSheetContents, but we cannot simply
+      // add its cached RuleSet again; it would cause distinct anonymous
+      // layers to be misidentified as the same layer.
+      rule_set = engine.CreateUnconnectedRuleSet(*css_sheet, effective_mixins);
+    } else {
       rule_set = engine.RuleSetForSheet(*css_sheet, effective_mixins);
     }
 
-    if (css_sheet->Contents()->GetRuleSetDiff()) {
-      rule_set_diffs.push_back(css_sheet->Contents()->GetRuleSetDiff());
-      css_sheet->Contents()->ClearRuleSetDiff();
+    if (contents->GetRuleSetDiff()) {
+      rule_set_diffs.push_back(contents->GetRuleSetDiff());
+      contents->ClearRuleSetDiff();
     }
   }
 }

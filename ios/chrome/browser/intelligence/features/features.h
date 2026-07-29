@@ -6,7 +6,6 @@
 #define IOS_CHROME_BROWSER_INTELLIGENCE_FEATURES_FEATURES_H_
 
 #import "base/feature_list.h"
-#import "base/metrics/field_trial_params.h"
 
 namespace base {
 class TimeDelta;
@@ -47,6 +46,11 @@ extern const char kAskGeminiChipIgnoreCriteria[];
 // Gemini.
 bool IsAskGeminiSnackbarEnabled();
 extern const char kAskGeminiChipUseSnackbar[];
+
+// Returns true if the Ask Gemini chip should prepopulate the Gemini Floaty with
+// a prompt.
+bool IsAskGeminiChipPrepopulateFloatyEnabled();
+extern const char kAskGeminiChipPrepopulateFloaty[];
 
 // Feature flag controlling the cross-tab floaty chat persistence.
 BASE_DECLARE_FEATURE(kGeminiCrossTab);
@@ -218,5 +222,13 @@ bool IsImageContextMenuGeminiEntryPointEnabled();
 // Feature flag for enabling the Gemini eligibility ablation experiment.
 BASE_DECLARE_FEATURE(kGeminiEligibilityAblation);
 bool IsGeminiEligibilityAblationEnabled();
+
+// Feature flag for Gemini Live.
+BASE_DECLARE_FEATURE(kGeminiLive);
+bool IsGeminiLiveEnabled();
+
+// Feature flag for Gemini Personalization.
+BASE_DECLARE_FEATURE(kGeminiPersonalization);
+bool IsGeminiPersonalizationEnabled();
 
 #endif  // IOS_CHROME_BROWSER_INTELLIGENCE_FEATURES_FEATURES_H_

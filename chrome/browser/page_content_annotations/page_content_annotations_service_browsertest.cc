@@ -18,6 +18,7 @@
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service.h"
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service_factory.h"
 #include "chrome/browser/page_content_annotations/page_content_annotations_service_factory.h"
+#include "chrome/browser/page_content_annotations/page_content_annotations_web_contents_observer.h"
 #include "chrome/browser/page_content_annotations/page_content_extraction_service.h"
 #include "chrome/browser/page_content_annotations/page_content_extraction_service_factory.h"
 #include "chrome/browser/page_content_annotations/page_content_extraction_types.h"
@@ -236,7 +237,8 @@ class PageContentAnnotationsServiceBrowserTest : public InProcessBrowserTest {
           {
               {"write_to_history_service", "true"},
           }},
-         {features::kPageVisibilityPageContentAnnotations, {}}},
+         {features::kPageVisibilityPageContentAnnotations, {}},
+         {history::kVisitedLinksOn404, {}}},
         /*disabled_features=*/{
             optimization_guide::features::kPreventLongRunningPredictionModels});
   }
@@ -488,6 +490,25 @@ IN_PROC_BROWSER_TEST_F(PageContentAnnotationsServiceBrowserTest,
       "OptimizationGuide.PageContentAnnotationsService.ContentAnnotated", 0);
 }
 
+IN_PROC_BROWSER_TEST_F(PageContentAnnotationsServiceBrowserTest,
+                       404VisitIgnored) {
+  base::HistogramTester histogram_tester;
+  ukm::TestAutoSetUkmRecorder ukm_recorder;
+
+#if BUILDFLAG(BUILD_WITH_TFLITE_LIB)
+  TestPageContentAnnotator test_annotator;
+  test_annotator.UseVisibilityScores(std::nullopt, {{std::string(), 0.5}});
+  service()->OverridePageContentAnnotatorForTesting(&test_annotator);
+#endif
+
+  GURL url(embedded_test_server()->GetURL("a.test", "/page404.html"));
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
+  base::RunLoop().RunUntilIdle();
+
+  histogram_tester.ExpectTotalCount(
+      "OptimizationGuide.PageContentAnnotationsService.ContentAnnotated", 0);
+}
+
 #if BUILDFLAG(BUILD_WITH_TFLITE_LIB)
 IN_PROC_BROWSER_TEST_F(PageContentAnnotationsServiceBrowserTest,
                        ENPageVisibilityModel_GoldenData) {
@@ -641,6 +662,11 @@ IN_PROC_BROWSER_TEST_F(PageContentAnnotationsServiceBrowserTest,
             observer.last_page_content_annotations_result_->GetType());
   EXPECT_NE(-1.0, observer.last_page_content_annotations_result_
                       ->GetContentVisibilityScore());
+  EXPECT_TRUE(
+      PageContentAnnotationsWebContentsObserver::GetOrCreateForWebContents(
+          browser()->tab_strip_model()->GetActiveWebContents())
+          ->content_visibility_score()
+          .has_value());
 }
 
 class PageContentAnnotationsServiceRemoteMetadataBrowserTest
@@ -801,9 +827,7 @@ class PageContentAnnotationsServiceSalientImageMetadataBrowserTest
  public:
   PageContentAnnotationsServiceSalientImageMetadataBrowserTest() {
     scoped_feature_list_.InitWithFeaturesAndParameters(
-        {{features::kPageContentAnnotations, {}},
-         {features::kPageContentAnnotationsPersistSalientImageMetadata,
-          {{"supported_countries", "*"}, {"supported_locales", "*"}}}},
+        {{features::kPageContentAnnotations, {}}},
         /*disabled_features=*/{});
     set_load_model_on_startup(false);
   }

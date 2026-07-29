@@ -114,17 +114,17 @@ AuditsIssue::GenericIssueErrorTypeToProtocol(
       return protocol::Audits::GenericIssueErrorTypeEnum::
           FormEmptyIdAndNameAttributesForInputError;
     case mojom::blink::GenericIssueErrorType::
-        kFormAriaLabelledByToNonExistingId:
+        kFormAriaLabelledByToNonExistingIdError:
       return protocol::Audits::GenericIssueErrorTypeEnum::
-          FormAriaLabelledByToNonExistingId;
+          FormAriaLabelledByToNonExistingIdError;
     case mojom::blink::GenericIssueErrorType::
         kFormInputAssignedAutocompleteValueToIdOrNameAttributeError:
       return protocol::Audits::GenericIssueErrorTypeEnum::
           FormInputAssignedAutocompleteValueToIdOrNameAttributeError;
     case mojom::blink::GenericIssueErrorType::
-        kFormLabelHasNeitherForNorNestedInput:
+        kFormLabelHasNeitherForNorNestedInputError:
       return protocol::Audits::GenericIssueErrorTypeEnum::
-          FormLabelHasNeitherForNorNestedInput;
+          FormLabelHasNeitherForNorNestedInputError;
     case mojom::blink::GenericIssueErrorType::
         kFormLabelForMatchesNonExistingIdError:
       return protocol::Audits::GenericIssueErrorTypeEnum::
@@ -136,6 +136,9 @@ AuditsIssue::GenericIssueErrorTypeToProtocol(
     case mojom::blink::GenericIssueErrorType::kResponseWasBlockedByORB:
       return protocol::Audits::GenericIssueErrorTypeEnum::
           ResponseWasBlockedByORB;
+    case mojom::blink::GenericIssueErrorType::kNavigationEntryMarkedSkippable:
+      return protocol::Audits::GenericIssueErrorTypeEnum::
+          NavigationEntryMarkedSkippable;
   }
 }
 
@@ -950,6 +953,57 @@ void AuditsIssue::ReportUserReidentificationCanvasNoisedIssue(
                    .setDetails(std::move(protocol_issue_details))
                    .build();
 
+  execution_context->AddInspectorIssue(AuditsIssue(std::move(issue)));
+}
+
+// static
+void AuditsIssue::ReportPermissionElementIssue(
+    ExecutionContext* execution_context,
+    DOMNodeId node_id,
+    protocol::Audits::PermissionElementIssueType issue_type,
+    const String& type,
+    bool is_warning,
+    const String& permissionName,
+    const String& occluderNodeInfo,
+    const String& occluderParentNodeInfo,
+    const String& disableReason) {
+  auto permission_element_issue_details =
+      protocol::Audits::PermissionElementIssueDetails::create()
+          .setIssueType(issue_type)
+          .setIsWarning(is_warning)
+          .build();
+
+  if (node_id != kInvalidDOMNodeId) {
+    permission_element_issue_details->setNodeId(node_id);
+  }
+  if (!type.IsNull()) {
+    permission_element_issue_details->setType(type);
+  }
+  if (!permissionName.IsNull()) {
+    permission_element_issue_details->setPermissionName(permissionName);
+  }
+  if (!occluderNodeInfo.IsNull()) {
+    permission_element_issue_details->setOccluderNodeInfo(occluderNodeInfo);
+  }
+  if (!occluderParentNodeInfo.IsNull()) {
+    permission_element_issue_details->setOccluderParentNodeInfo(
+        occluderParentNodeInfo);
+  }
+  if (!disableReason.IsNull()) {
+    permission_element_issue_details->setDisableReason(disableReason);
+  }
+
+  auto issue_details = protocol::Audits::InspectorIssueDetails::create()
+                           .setPermissionElementIssueDetails(
+                               std::move(permission_element_issue_details))
+                           .build();
+
+  auto issue =
+      protocol::Audits::InspectorIssue::create()
+          .setCode(
+              protocol::Audits::InspectorIssueCodeEnum::PermissionElementIssue)
+          .setDetails(std::move(issue_details))
+          .build();
   execution_context->AddInspectorIssue(AuditsIssue(std::move(issue)));
 }
 

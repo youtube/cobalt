@@ -14,7 +14,6 @@
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_associated_receiver.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_wrapper_mode.h"
-#include "third_party/blink/renderer/platform/supplementable.h"
 #include "third_party/blink/renderer/platform/weborigin/kurl.h"
 #include "third_party/blink/renderer/platform/wtf/vector.h"
 
@@ -28,9 +27,8 @@ class LocalDOMWindow;
 class MODULES_EXPORT WebLaunchServiceImpl final
     : public GarbageCollected<WebLaunchServiceImpl>,
       public mojom::blink::WebLaunchService,
-      public Supplement<LocalDOMWindow> {
+      public GarbageCollectedMixin {
  public:
-  static const unsigned kSupplementIndex;
   static WebLaunchServiceImpl* From(LocalDOMWindow&);
   static void BindReceiver(
       LocalFrame* frame,
@@ -53,6 +51,7 @@ class MODULES_EXPORT WebLaunchServiceImpl final
                            bool navigation_started) override;
 
  private:
+  Member<LocalDOMWindow> local_dom_window_;
   HeapMojoAssociatedReceiver<mojom::blink::WebLaunchService,
                              WebLaunchServiceImpl,
                              HeapMojoWrapperMode::kForceWithoutContextObserver>

@@ -19,6 +19,7 @@
 #include "net/base/net_export.h"
 #include "net/base/network_anonymization_key.h"
 #include "net/base/privacy_mode.h"
+#include "net/base/proxy_chain.h"
 #include "net/base/request_priority.h"
 #include "net/dns/host_resolver.h"
 #include "net/dns/public/secure_dns_policy.h"
@@ -368,9 +369,14 @@ class NET_EXPORT ClientSocketPool : public LowerLayeredPool {
   static base::TimeDelta used_idle_socket_timeout();
   static void set_used_idle_socket_timeout(base::TimeDelta timeout);
 
+  const SocketPoolAdditionalCapacity& AdditionalCapacityForTest() const {
+    return AdditionalCapacity();
+  }
+
  protected:
   ClientSocketPool(size_t socket_soft_cap,
                    SocketPoolAdditionalCapacity additional_capacity,
+                   const ProxyChain& proxy_chain,
                    bool is_for_websockets,
                    const CommonConnectJobParams* common_connect_job_params,
                    std::unique_ptr<ConnectJobFactory> connect_job_factory);
@@ -384,7 +390,6 @@ class NET_EXPORT ClientSocketPool : public LowerLayeredPool {
   std::unique_ptr<ConnectJob> CreateConnectJob(
       GroupId group_id,
       scoped_refptr<SocketParams> socket_params,
-      const ProxyChain& proxy_chain,
       const std::optional<NetworkTrafficAnnotationTag>& proxy_annotation_tag,
       RequestPriority request_priority,
       SocketTag socket_tag,
@@ -392,15 +397,23 @@ class NET_EXPORT ClientSocketPool : public LowerLayeredPool {
 
   size_t SocketSoftCap() const { return socket_soft_cap_; }
 
+  // This should return the sockets the pool considers to be in-use (reserved)
+  // of the overall pool. This won't contain 'stalled' sockets as those have yet
+  // to have space reserved for themselves, but will include those pending
+  // connection, connected, or idle.
+  virtual size_t SocketsInUse() const = 0;
+
   const SocketPoolAdditionalCapacity& AdditionalCapacity() const {
     return additional_capacity_;
   }
 
   SocketPoolState State() const { return state_; }
 
-  void UpdateStateBeforeAllocation(size_t sockets_in_use);
+  void UpdateStateBeforeAllocation();
 
-  void UpdateStateAfterRelease(size_t sockets_in_use);
+  void UpdateStateAfterRelease();
+
+  const ProxyChain& GetProxyChain() const { return proxy_chain_; }
 
  private:
   // This section tracks information related to the overall pool capacity.
@@ -414,6 +427,7 @@ class NET_EXPORT ClientSocketPool : public LowerLayeredPool {
   const SocketPoolAdditionalCapacity additional_capacity_;
   SocketPoolState state_ = SocketPoolState::kUncapped;
 
+  const ProxyChain proxy_chain_;
   const bool is_for_websockets_;
   const raw_ptr<const CommonConnectJobParams> common_connect_job_params_;
   const std::unique_ptr<ConnectJobFactory> connect_job_factory_;

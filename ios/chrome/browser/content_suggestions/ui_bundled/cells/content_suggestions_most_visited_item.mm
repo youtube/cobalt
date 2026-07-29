@@ -5,7 +5,10 @@
 #import "ios/chrome/browser/content_suggestions/ui_bundled/cells/content_suggestions_most_visited_item.h"
 
 #import "base/check.h"
+#import "components/ntp_tiles/tile_source.h"
+#import "ios/chrome/browser/content_suggestions/ui_bundled/cells/content_suggestions_most_visited_tile_view.h"
 #import "ios/chrome/browser/content_suggestions/ui_bundled/cells/most_visited_tiles_commands.h"
+#import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_feature.h"
 #import "ios/chrome/common/ui/favicon/favicon_attributes.h"
 #import "ios/chrome/common/ui/favicon/favicon_view.h"
 #import "ios/chrome/grit/ios_strings.h"
@@ -33,7 +36,9 @@
   UIAccessibilityCustomAction* removeMostVisited =
       [[UIAccessibilityCustomAction alloc]
           initWithName:l10n_util::GetNSString(
-                           IDS_IOS_CONTENT_SUGGESTIONS_REMOVE)
+                           IsContentSuggestionsCustomizable()
+                               ? IDS_IOS_CONTENT_SUGGESTIONS_NEVER_SHOW_SITE
+                               : IDS_IOS_CONTENT_SUGGESTIONS_REMOVE)
                 target:self
               selector:@selector(removeMostVisited)];
 
@@ -43,6 +48,10 @@
   } else {
     return [NSArray arrayWithObjects:openInNewTab, removeMostVisited, nil];
   }
+}
+
+- (BOOL)isPinned {
+  return self.source == ntp_tiles::TileSource::CUSTOM_LINKS;
 }
 
 // Target for custom action.
@@ -64,6 +73,35 @@
   DCHECK(self.commandHandler);
   [self.commandHandler removeMostVisited:self];
   return YES;
+}
+
+#pragma mark - UIContentConfiguration
+
+- (id<UIContentView>)makeContentView {
+  return [[ContentSuggestionsMostVisitedTileView alloc]
+      initWithConfiguration:self];
+}
+
+- (instancetype)updatedConfigurationForState:(id<UIConfigurationState>)state {
+  /// Most visited tile looks the same across different states.
+  return self;
+}
+
+#pragma mark - NSCopying
+
+- (id)copyWithZone:(NSZone*)zone {
+  ContentSuggestionsMostVisitedItem* newCopy =
+      [[ContentSuggestionsMostVisitedItem alloc] init];
+  newCopy.title = self.title;
+  newCopy.URL = self.URL;
+  newCopy.source = self.source;
+  newCopy.titleSource = self.titleSource;
+  newCopy.attributes = self.attributes;
+  newCopy.commandHandler = self.commandHandler;
+  newCopy.incognitoAvailable = self.incognitoAvailable;
+  newCopy.index = self.index;
+  newCopy.menuElementsProvider = self.menuElementsProvider;
+  return newCopy;
 }
 
 @end

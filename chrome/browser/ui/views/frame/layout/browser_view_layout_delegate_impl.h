@@ -6,7 +6,6 @@
 #define CHROME_BROWSER_UI_VIEWS_FRAME_LAYOUT_BROWSER_VIEW_LAYOUT_DELEGATE_IMPL_H_
 
 #include "base/auto_reset.h"
-#include "base/feature_list.h"
 #include "base/memory/raw_ref.h"
 #include "chrome/browser/ui/views/frame/layout/browser_view_layout_delegate.h"
 
@@ -22,12 +21,15 @@ class BrowserViewLayoutDelegateImpl : public BrowserViewLayoutDelegate {
   ~BrowserViewLayoutDelegateImpl() override;
 
   bool ShouldDrawTabStrip() const override;
+  bool ShouldUseTouchableTabstrip() const override;
   bool ShouldDrawVerticalTabStrip() const override;
+  bool ShouldDrawWebAppFrameToolbar() const override;
   bool GetBorderlessModeEnabled() const override;
   gfx::Rect GetBoundsForTabStripRegionInBrowserView() const override;
   gfx::Rect GetBoundsForToolbarInVerticalTabBrowserView() const override;
   gfx::Rect GetBoundsForWebAppFrameToolbarInBrowserView() const override;
-  BrowserLayoutParams GetBrowserLayoutParams() const override;
+  BrowserLayoutParams GetBrowserLayoutParams(
+      bool use_browser_bounds) const override;
   int GetTopInsetInBrowserView() const override;
   void LayoutWebAppWindowTitle(const gfx::Rect& available_space,
                                views::Label& window_title_label) const override;

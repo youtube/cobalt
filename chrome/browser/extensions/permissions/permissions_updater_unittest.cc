@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "chrome/browser/extensions/permissions/permissions_updater.h"
+#include "extensions/browser/permissions/permissions_updater.h"
 
 #include <memory>
 #include <utility>
@@ -19,17 +19,16 @@
 #include "chrome/browser/extensions/chrome_test_extension_loader.h"
 #include "chrome/browser/extensions/extension_service.h"
 #include "chrome/browser/extensions/extension_service_test_base.h"
-#include "chrome/browser/extensions/permissions/permissions_test_util.h"
-#include "chrome/browser/extensions/permissions/scripting_permissions_modifier.h"
 #include "chrome/common/chrome_paths.h"
 #include "chrome/common/extensions/extension_test_util.h"
 #include "chrome/test/base/testing_profile.h"
 #include "components/crx_file/id_util.h"
-#include "components/data_sharing/public/features.h"
 #include "extensions/browser/extension_prefs.h"
 #include "extensions/browser/extension_registrar.h"
 #include "extensions/browser/extension_registry.h"
 #include "extensions/browser/extension_util.h"
+#include "extensions/browser/permissions/permissions_test_util.h"
+#include "extensions/browser/permissions/scripting_permissions_modifier.h"
 #include "extensions/browser/permissions_manager.h"
 #include "extensions/buildflags/buildflags.h"
 #include "extensions/common/extension.h"
@@ -68,17 +67,7 @@ scoped_refptr<const Extension> CreateExtensionWithOptionalPermissions(
       .Build();
 }
 
-class PermissionsUpdaterTest : public ExtensionServiceTestBase {
- public:
-  PermissionsUpdaterTest() {
-    // TODO(b/459532362) : Remove the DataSharingJoinOnly flag from the disable list.
-    scoped_feature_list_.InitAndDisableFeature(
-        data_sharing::features::kDataSharingJoinOnly);
-  }
-
- private:
-  base::test::ScopedFeatureList scoped_feature_list_;
-};
+class PermissionsUpdaterTest : public ExtensionServiceTestBase {};
 
 void AddPattern(URLPatternSet* extent, const std::string& pattern) {
   int schemes = URLPattern::SCHEME_ALL;
@@ -119,7 +108,7 @@ TEST_F(PermissionsUpdaterTest, GrantAndRevokeOptionalPermissions) {
                                     ManifestPermissionSet(),
                                     std::move(default_hosts), URLPatternSet());
 
-  ExtensionPrefs* prefs = ExtensionPrefs::Get(profile_.get());
+  ExtensionPrefs* prefs = ExtensionPrefs::Get(profile());
   std::unique_ptr<const PermissionSet> active_permissions;
   std::unique_ptr<const PermissionSet> granted_permissions;
 
@@ -139,9 +128,9 @@ TEST_F(PermissionsUpdaterTest, GrantAndRevokeOptionalPermissions) {
     PermissionSet delta(apis.Clone(), ManifestPermissionSet(), hosts.Clone(),
                         URLPatternSet());
 
-    PermissionsManagerWaiter waiter(PermissionsManager::Get(profile_.get()));
-    PermissionsUpdater(profile_.get())
-        .GrantOptionalPermissions(*extension, delta, base::DoNothing());
+    PermissionsManagerWaiter waiter(PermissionsManager::Get(profile()));
+    PermissionsUpdater(profile()).GrantOptionalPermissions(*extension, delta,
+                                                           base::DoNothing());
     waiter.WaitForExtensionPermissionsUpdate(base::BindOnce(
         [](scoped_refptr<const Extension> extension, PermissionSet* delta,
            const Extension& actual_extension,
@@ -175,11 +164,9 @@ TEST_F(PermissionsUpdaterTest, GrantAndRevokeOptionalPermissions) {
     PermissionSet delta(apis.Clone(), ManifestPermissionSet(), hosts.Clone(),
                         URLPatternSet());
 
-    PermissionsManagerWaiter waiter(PermissionsManager::Get(profile_.get()));
-    PermissionsUpdater(profile_.get())
-        .RevokeOptionalPermissions(*extension, delta,
-                                   PermissionsUpdater::REMOVE_SOFT,
-                                   base::DoNothing());
+    PermissionsManagerWaiter waiter(PermissionsManager::Get(profile()));
+    PermissionsUpdater(profile()).RevokeOptionalPermissions(
+        *extension, delta, PermissionsUpdater::REMOVE_SOFT, base::DoNothing());
     waiter.WaitForExtensionPermissionsUpdate(base::BindOnce(
         [](scoped_refptr<const Extension> extension, PermissionSet* delta,
            const Extension& actual_extension,

@@ -83,7 +83,6 @@ import org.chromium.chrome.browser.incognito.IncognitoUtilsJni;
 import org.chromium.chrome.browser.incognito.reauth.IncognitoReauthController;
 import org.chromium.chrome.browser.layouts.LayoutStateProvider;
 import org.chromium.chrome.browser.layouts.LayoutType;
-import org.chromium.chrome.browser.multiwindow.MultiInstanceManager.PersistedInstanceType;
 import org.chromium.chrome.browser.multiwindow.MultiWindowModeStateDispatcher;
 import org.chromium.chrome.browser.multiwindow.MultiWindowUtils;
 import org.chromium.chrome.browser.offlinepages.OfflinePageUtils;
@@ -173,7 +172,8 @@ import java.util.List;
 @EnableFeatures({
     ChromeFeatureList.TAB_GROUP_PARITY_BOTTOM_SHEET_ANDROID,
     ChromeFeatureList.TAB_GROUP_ENTRY_POINTS_ANDROID,
-    ChromeFeatureList.SUBMENUS_IN_APP_MENU
+    ChromeFeatureList.SUBMENUS_IN_APP_MENU,
+    ChromeFeatureList.RECENTLY_CLOSED_TABS_AND_WINDOWS
 })
 public class TabbedAppMenuPropertiesDelegateUnitTest {
     // Constants defining flags that determines multi-window menu items visibility.
@@ -670,8 +670,6 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
 
         expectedItems.add(R.id.add_to_group_menu_id);
         expectedTitles.add(R.string.menu_add_tab_to_new_group);
-        expectedItems.add(R.id.pin_tab_menu_id);
-        expectedTitles.add(R.string.menu_pin_tab);
         expectedItems.add(R.id.divider_line_id);
         expectedTitles.add(0);
         expectedItems.add(R.id.open_history_menu_id);
@@ -727,7 +725,6 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
 
     @Test
     @Config(qualifiers = "sw320dp")
-    @EnableFeatures(ChromeFeatureList.ANDROID_PINNED_TABS)
     @DisableFeatures(ChromeFeatureList.ANDROID_OPEN_INCOGNITO_AS_WINDOW)
     public void testPageMenuItems_Phone_RegularPage() {
         testPageMenuItems_RegularPage(/* shouldShowNewIncognitoTab= */ true);
@@ -735,10 +732,7 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
 
     @Test
     @Config(qualifiers = "sw320dp")
-    @EnableFeatures({
-        ChromeFeatureList.ANDROID_PINNED_TABS,
-        ChromeFeatureList.ANDROID_OPEN_INCOGNITO_AS_WINDOW
-    })
+    @EnableFeatures({ChromeFeatureList.ANDROID_OPEN_INCOGNITO_AS_WINDOW})
     public void testPageMenuItems_Phone_RegularPage_incognitoWindowEnabled() {
         testPageMenuItems_RegularPage(/* shouldShowNewIncognitoTab= */ false);
     }
@@ -767,8 +761,6 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
         expectedTitles.add(R.string.menu_new_incognito_tab);
         expectedItems.add(R.id.add_to_group_menu_id);
         expectedTitles.add(R.string.menu_add_tab_to_new_group);
-        expectedItems.add(R.id.pin_tab_menu_id);
-        expectedTitles.add(R.string.menu_pin_tab);
         expectedItems.add(R.id.divider_line_id);
         expectedTitles.add(0);
         if (!isIncognitoWindow) {
@@ -819,17 +811,13 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
     @Test
     @Config(qualifiers = "sw320dp")
     @DisableFeatures({ChromeFeatureList.ANDROID_OPEN_INCOGNITO_AS_WINDOW})
-    @EnableFeatures(ChromeFeatureList.ANDROID_PINNED_TABS)
     public void testPageMenuItems_Phone_IncognitoPage() {
         testPageMenuItems_IncognitoPage(/* isIncognitoWindow= */ false);
     }
 
     @Test
     @Config(qualifiers = "sw320dp")
-    @EnableFeatures({
-        ChromeFeatureList.ANDROID_PINNED_TABS,
-        ChromeFeatureList.ANDROID_OPEN_INCOGNITO_AS_WINDOW
-    })
+    @EnableFeatures({ChromeFeatureList.ANDROID_OPEN_INCOGNITO_AS_WINDOW})
     public void testPageMenuItems_Phone_IncognitoPage_incognitoWindowEnabled() {
         testPageMenuItems_IncognitoPage(/* isIncognitoWindow= */ true);
     }
@@ -1909,11 +1897,13 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
             boolean isInMultiWindowMode,
             boolean isInMultiDisplayMode,
             boolean isMultiInstanceRunning) {
+        for (int i = 0; i < currentWindowInstances; ++i) {
+            createInstance(i, "https://url" + i);
+        }
         mShadowPackageManager.setSystemFeature(PackageManager.FEATURE_AUTOMOTIVE, isAutomotive);
         doReturn(isInstanceSwitcherEnabled)
                 .when(mTabbedAppMenuPropertiesDelegate)
                 .instanceSwitcherWithMultiInstanceEnabled();
-        doReturn(currentWindowInstances).when(mTabbedAppMenuPropertiesDelegate).getInstanceCount();
         doReturn(isTabletSizeScreen).when(mTabbedAppMenuPropertiesDelegate).isTabletSizeScreen();
         doReturn(canEnterMultiWindowMode)
                 .when(mMultiWindowModeStateDispatcher)
@@ -2076,7 +2066,6 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
                         /* isInMultiDisplayMode= */ false,
                         /* isMultiInstanceRunning= */ true));
         verify(mTabbedAppMenuPropertiesDelegate, never()).isTabletSizeScreen();
-        verify(mTabbedAppMenuPropertiesDelegate, never()).getInstanceCount();
     }
 
     @Test
@@ -2093,7 +2082,6 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
                         /* isInMultiDisplayMode= */ false,
                         /* isMultiInstanceRunning= */ false));
         verify(mTabbedAppMenuPropertiesDelegate, atLeastOnce()).isTabletSizeScreen();
-        verify(mTabbedAppMenuPropertiesDelegate, never()).getInstanceCount();
     }
 
     @Test
@@ -2109,7 +2097,6 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
                         /* isInMultiWindowMode= */ true,
                         /* isInMultiDisplayMode= */ false,
                         /* isMultiInstanceRunning= */ false));
-        verify(mTabbedAppMenuPropertiesDelegate, never()).getInstanceCount();
     }
 
     @Test
@@ -2125,7 +2112,6 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
                         /* isInMultiWindowMode= */ false,
                         /* isInMultiDisplayMode= */ true,
                         /* isMultiInstanceRunning= */ false));
-        verify(mTabbedAppMenuPropertiesDelegate, never()).getInstanceCount();
     }
 
     private boolean doTestShouldShowMoveToOtherWindowMenu(
@@ -2142,7 +2128,6 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
         doReturn(isInstanceSwitcherEnabled)
                 .when(mTabbedAppMenuPropertiesDelegate)
                 .instanceSwitcherWithMultiInstanceEnabled();
-        doReturn(currentWindowInstances).when(mTabbedAppMenuPropertiesDelegate).getInstanceCount();
         doReturn(isTabletSizeScreen).when(mTabbedAppMenuPropertiesDelegate).isTabletSizeScreen();
         doReturn(canEnterMultiWindowMode)
                 .when(mMultiWindowModeStateDispatcher)
@@ -2278,48 +2263,6 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
         assertFalse(
                 "AI PDF menu item should not be visible",
                 isMenuVisible(modelList, R.id.ai_pdf_menu_id));
-    }
-
-    @Test
-    @EnableFeatures({
-        ChromeFeatureList.ANDROID_PINNED_TABS_TABLET_TAB_STRIP,
-        ChromeFeatureList.ANDROID_PINNED_TABS
-    })
-    public void testPinTabToggleMenuItem_tabNotPinned_shouldShowPinTabItem() {
-        setUpMocksForPageMenu();
-        when(mTab.getUrl()).thenReturn(JUnitTestGURLs.URL_1);
-        when(mTab.getIsPinned()).thenReturn(false);
-
-        MVCListAdapter.ModelList modelList = mTabbedAppMenuPropertiesDelegate.getMenuItems();
-
-        assertTrue(
-                "Pin tab menu item should be visible",
-                isMenuVisible(modelList, R.id.pin_tab_menu_id));
-
-        assertFalse(
-                "Unpin tab menu item should not be visible",
-                isMenuVisible(modelList, R.id.unpin_tab_menu_id));
-    }
-
-    @Test
-    @EnableFeatures({
-        ChromeFeatureList.ANDROID_PINNED_TABS_TABLET_TAB_STRIP,
-        ChromeFeatureList.ANDROID_PINNED_TABS
-    })
-    public void testPinTabToggleMenuItem_tabPinned_shouldShowUnpinTabItem() {
-        setUpMocksForPageMenu();
-        when(mTab.getUrl()).thenReturn(JUnitTestGURLs.URL_1);
-        when(mTab.getIsPinned()).thenReturn(true);
-
-        MVCListAdapter.ModelList modelList = mTabbedAppMenuPropertiesDelegate.getMenuItems();
-
-        assertTrue(
-                "Unpin tab menu item should be visible",
-                isMenuVisible(modelList, R.id.unpin_tab_menu_id));
-
-        assertFalse(
-                "Pin tab menu item should not be visible",
-                isMenuVisible(modelList, R.id.pin_tab_menu_id));
     }
 
     @Test
@@ -2629,9 +2572,6 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
                 .canEnterMultiWindowMode();
         doReturn(mIsMultiInstance).when(mMultiWindowModeStateDispatcher).isMultiInstanceRunning();
         doReturn(mIsTabletScreen).when(mTabbedAppMenuPropertiesDelegate).isTabletSizeScreen();
-        doReturn(MultiWindowUtils.getInstanceCountWithFallback(PersistedInstanceType.ACTIVE))
-                .when(mMultiWindowModeStateDispatcher)
-                .getInstanceCount();
         doReturn(mIsMoveToOtherWindowSupported)
                 .when(mMultiWindowModeStateDispatcher)
                 .isMoveToOtherWindowSupported(mTabModelSelector);

@@ -338,7 +338,7 @@ void LocationBarView::Init() {
   omnibox_view_ = AddChildView(std::move(omnibox_view));
   omnibox_view_->Init();
 
-  if (base::FeatureList::IsEnabled(omnibox::kWebUIOmniboxAimPopup)) {
+  if (omnibox::IsAimPopupFeatureEnabled()) {
     omnibox_popup_aim_presenter_ = std::make_unique<OmniboxPopupAimPresenter>(
         this, omnibox_controller_.get());
   }
@@ -358,7 +358,7 @@ void LocationBarView::Init() {
         /*omnibox_view=*/omnibox_view_, omnibox_controller_.get(),
         /*location_bar_view=*/this);
   }
-  if (base::FeatureList::IsEnabled(omnibox::kWebUIOmniboxAimPopup)) {
+  if (omnibox::IsAimPopupFeatureEnabled()) {
     omnibox_popup_file_selector_ = std::make_unique<OmniboxPopupFileSelector>();
   }
 
@@ -443,6 +443,10 @@ void LocationBarView::Init() {
     }
   }
 
+  // We don't need to bridge the new page action container with the legacy one
+  // if all page actions (i.e. up to bookmark star) are migrated.
+  const bool should_bridge_containers =
+      !IsPageActionMigrated(PageActionIconType::kBookmarkStar);
   static constexpr int kBetweenIconSpacing = 8;
   const page_actions::PageActionViewParams page_action_params{
       .icon_size = GetLayoutConstant(LOCATION_BAR_TRAILING_ICON_SIZE),
@@ -450,26 +454,12 @@ void LocationBarView::Init() {
       .between_icon_spacing = kBetweenIconSpacing,
       .icon_label_bubble_delegate = this,
       .font_list = &page_action_font_list,
+      .should_bridge_containers = should_bridge_containers,
       .hide_icon_on_space_constraint = false};
   page_action_container_ =
       AddChildView(std::make_unique<page_actions::PageActionContainerView>(
           page_action_items, page_actions::PageActionPropertiesProvider(),
           page_action_params));
-
-  const auto* aim_eligibility_service =
-      AimEligibilityServiceFactory::GetForProfile(profile_);
-  const bool aim_omnibox_entrypoint_enabled =
-      browser_ &&
-      OmniboxFieldTrial::IsAimOmniboxEntrypointEnabled(aim_eligibility_service);
-  if (!page_action_container_->children().empty() &&
-      aim_omnibox_entrypoint_enabled &&
-      IsPageActionMigrated(PageActionIconType::kAiMode)) {
-    auto* first_page_action_view = static_cast<page_actions::PageActionView*>(
-        page_action_container_->children().front());
-    DCHECK(first_page_action_view->GetActionId() == kActionAiMode)
-        << "kActionAiMode must be the first child in PageActionContainerView "
-           "to ensure it's the left-most page action.";
-  }
 
   PageActionIconParams params;
   // |browser_| may be null when LocationBarView is used for non-Browser windows
@@ -536,7 +526,18 @@ void LocationBarView::Init() {
                                 PageActionIconType::kLensOverlayHomework);
   }
 
-  if (aim_omnibox_entrypoint_enabled) {
+  // Because the AIM eligibility service might not be ready on startup,
+  // the AI Mode page action type is always added. Unless the main AIM
+  // omnibox entrypoint Feature is explicitly disabled, which can be used
+  // as a kill switch in case of any unanticipated issues with this
+  // approach.
+  auto* feature_list = base::FeatureList::GetInstance();
+  bool aim_omnibox_entrypoint_explicitly_disabled =
+      feature_list &&
+      feature_list->IsFeatureOverridden(
+          omnibox::kAiModeOmniboxEntryPoint.name) &&
+      !base::FeatureList::IsEnabled(omnibox::kAiModeOmniboxEntryPoint);
+  if (!aim_omnibox_entrypoint_explicitly_disabled) {
     // Position in the leading position, like the entrypoint for
     // kLensOverlayHomework above. While both chips may be enabled, they will
     // not appear at the same time due to different focus behavior. The
@@ -566,7 +567,7 @@ void LocationBarView::Init() {
   page_action_icon_controller_ = page_action_icon_container_->controller();
 
   if (!page_action_icon_container_->children().empty() &&
-      aim_omnibox_entrypoint_enabled &&
+      !aim_omnibox_entrypoint_explicitly_disabled &&
       !IsPageActionMigrated(PageActionIconType::kAiMode)) {
     auto* first_page_action_icon_view = static_cast<PageActionIconView*>(
         page_action_icon_container_->children().front());
@@ -661,7 +662,7 @@ void LocationBarView::SetOmniboxAdjacentText(views::Label* label,
   }
   label->SetText(text);
   label->SetVisible(!text.empty());
-  OnPropertyChanged(&label, views::kPropertyEffectsLayout);
+  OnPropertyChanged(&label, views::PropertyEffects::kLayout);
 }
 
 void LocationBarView::SelectAll() {
@@ -965,8 +966,16 @@ void LocationBarView::Layout(PassKey) {
   // When the AIM page action is shown as the right-most page action in the
   // location bar, it should be positioned flush against the right edge of the
   // location bar.
+  // If all page actions are migrated (i.e. up to bookmark star), then the extra
+  // padding that is usually added to bridge the new and legacy containers can
+  // be discounted.
+  const bool all_page_actions_migrated =
+      IsPageActionMigrated(PageActionIconType::kBookmarkStar);
   const int kTrailingEdgePaddingForAim =
-      IsPageActionMigrated(PageActionIconType::kAiMode) ? -3 : 5;
+      IsPageActionMigrated(PageActionIconType::kAiMode) &&
+              !all_page_actions_migrated
+          ? -3
+          : 5;
   add_trailing_decoration(page_action_icon_container_,
                           /*intra_item_padding=*/0,
                           /*edge_padding=*/
@@ -2004,6 +2013,7 @@ void LocationBarView::OnLocationIconPressed(const ui::MouseEvent& event) {
   }
 
   if (event.IsOnlyMiddleMouseButton() &&
+      ui::Clipboard::IsMiddleClickPasteEnabled() &&
       ui::Clipboard::IsSupportedClipboardBuffer(
           ui::ClipboardBuffer::kSelection)) {
     std::u16string text;

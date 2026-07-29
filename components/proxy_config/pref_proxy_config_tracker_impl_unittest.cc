@@ -514,6 +514,9 @@ TEST_F(PrefProxyConfigOverrideRulesTest, DynamicPolicy) {
                      "https://some.app.com",
                      "https://other.app.com",
                  ],
+                 "ExcludeDestinationMatchers": [
+                     "https://exception.some.app.com",
+                 ],
                  "ProxyList": [
                      "HTTPS proxy.app:443",
                      "DIRECT",
@@ -522,7 +525,7 @@ TEST_F(PrefProxyConfigOverrideRulesTest, DynamicPolicy) {
                      {
                          "DnsProbe": {
                              "Host": "corp.ads",
-                             "Result": "resolves",
+                             "Result": "resolved",
                          },
                      }
                  ]
@@ -536,11 +539,18 @@ TEST_F(PrefProxyConfigOverrideRulesTest, DynamicPolicy) {
   EXPECT_EQ(actual_config.value().proxy_override_rules().size(), 1u);
 
   const auto& rule = actual_config.value().proxy_override_rules().at(0);
-  EXPECT_EQ(rule.destination_matchers.rules().size(), 2u);
+  EXPECT_EQ(rule.destination_matchers.rules().size(), 3u);
   EXPECT_EQ(rule.destination_matchers.rules().at(0)->ToString(),
             "https://some.app.com");
   EXPECT_EQ(rule.destination_matchers.rules().at(1)->ToString(),
             "https://other.app.com");
+  EXPECT_EQ(rule.destination_matchers.rules().at(2)->ToString(), "<-loopback>");
+
+  EXPECT_EQ(rule.exclude_destination_matchers.rules().size(), 2u);
+  EXPECT_EQ(rule.exclude_destination_matchers.rules().at(0)->ToString(),
+            "https://exception.some.app.com");
+  EXPECT_EQ(rule.exclude_destination_matchers.rules().at(1)->ToString(),
+            "<-loopback>");
 
   EXPECT_EQ(rule.proxy_list.size(), 2u);
   EXPECT_EQ(rule.proxy_list.AllChains().at(0),
@@ -552,7 +562,7 @@ TEST_F(PrefProxyConfigOverrideRulesTest, DynamicPolicy) {
   EXPECT_EQ(rule.dns_conditions.at(0).host,
             url::SchemeHostPort(GURL("corp.ads")));
   EXPECT_EQ(rule.dns_conditions.at(0).result,
-            net::ProxyConfig::ProxyOverrideRule::DnsProbeCondition::kResolves);
+            net::ProxyConfig::ProxyOverrideRule::DnsProbeCondition::kResolved);
 
   // Setting the pref again in the same test scope validates the policy is
   // dynamic and that the retrieved config changes appropriately.
@@ -572,7 +582,7 @@ TEST_F(PrefProxyConfigOverrideRulesTest, DynamicPolicy) {
                      {
                          "DnsProbe": {
                              "Host": "corp.ads",
-                             "Result": "resolves",
+                             "Result": "resolved",
                          },
                      },
                      {
@@ -587,6 +597,9 @@ TEST_F(PrefProxyConfigOverrideRulesTest, DynamicPolicy) {
                  "DestinationMatchers": [
                      "https://some.special.app.com",
                  ],
+                 "ExcludeDestinationMatchers": [
+                     "https://exception.some.special.app.com",
+                 ],
                  "ProxyList": [
                      "DIRECT",
                  ],
@@ -600,9 +613,15 @@ TEST_F(PrefProxyConfigOverrideRulesTest, DynamicPolicy) {
   EXPECT_EQ(updated_config.value().proxy_override_rules().size(), 2u);
 
   const auto& rule_0 = updated_config.value().proxy_override_rules().at(0);
-  EXPECT_EQ(rule_0.destination_matchers.rules().size(), 1u);
+  EXPECT_EQ(rule_0.destination_matchers.rules().size(), 2u);
   EXPECT_EQ(rule_0.destination_matchers.rules().at(0)->ToString(),
             "https://some.other.app.com");
+  EXPECT_EQ(rule_0.destination_matchers.rules().at(1)->ToString(),
+            "<-loopback>");
+
+  EXPECT_EQ(rule_0.exclude_destination_matchers.rules().size(), 1u);
+  EXPECT_EQ(rule_0.exclude_destination_matchers.rules().at(0)->ToString(),
+            "<-loopback>");
 
   EXPECT_EQ(rule_0.proxy_list.size(), 4u);
   EXPECT_EQ(rule_0.proxy_list.AllChains().at(0),
@@ -618,16 +637,24 @@ TEST_F(PrefProxyConfigOverrideRulesTest, DynamicPolicy) {
   EXPECT_EQ(rule_0.dns_conditions.at(0).host,
             url::SchemeHostPort(GURL("corp.ads")));
   EXPECT_EQ(rule_0.dns_conditions.at(0).result,
-            net::ProxyConfig::ProxyOverrideRule::DnsProbeCondition::kResolves);
+            net::ProxyConfig::ProxyOverrideRule::DnsProbeCondition::kResolved);
   EXPECT_EQ(rule_0.dns_conditions.at(1).host,
             url::SchemeHostPort(GURL("ads.corps")));
   EXPECT_EQ(rule_0.dns_conditions.at(1).result,
             net::ProxyConfig::ProxyOverrideRule::DnsProbeCondition::kNotFound);
 
   const auto& rule_1 = updated_config.value().proxy_override_rules().at(1);
-  EXPECT_EQ(rule_1.destination_matchers.rules().size(), 1u);
+  EXPECT_EQ(rule_1.destination_matchers.rules().size(), 2u);
   EXPECT_EQ(rule_1.destination_matchers.rules().at(0)->ToString(),
             "https://some.special.app.com");
+  EXPECT_EQ(rule_1.destination_matchers.rules().at(1)->ToString(),
+            "<-loopback>");
+
+  EXPECT_EQ(rule_1.exclude_destination_matchers.rules().size(), 2u);
+  EXPECT_EQ(rule_1.exclude_destination_matchers.rules().at(0)->ToString(),
+            "https://exception.some.special.app.com");
+  EXPECT_EQ(rule_1.exclude_destination_matchers.rules().at(1)->ToString(),
+            "<-loopback>");
 
   EXPECT_EQ(rule_1.proxy_list.size(), 1u);
   EXPECT_EQ(rule_1.proxy_list.AllChains().at(0),
@@ -657,6 +684,69 @@ TEST_F(PrefProxyConfigOverrideRulesTest, DynamicPolicy) {
   EXPECT_EQ(fixed_servers_config.value().proxy_rules().single_proxies.First(),
             net::ProxyUriToProxyChain("http://example.com:3128",
                                       net::ProxyServer::SCHEME_HTTP));
+}
+
+TEST_F(PrefProxyConfigOverrideRulesTest, URLAndPacProxyList) {
+  InitConfigService(net::ProxyConfigService::CONFIG_VALID);
+
+  // The first two entries of the "ProxyList" are ignored due to not being valid
+  // PAC strings or URLs.
+  SetOverrideRules(
+      R"([
+             {
+                 "DestinationMatchers": [
+                     "https://some.app.com",
+                     "https://other.app.com",
+                 ],
+                 "ProxyList": [
+                     "proxy://bad.value",
+                     "some_random_bad_value",
+                     "HTTPS proxy.app:443",
+                     "https://other.app:344",
+                     "DIRECT",
+                 ],
+                 "Conditions": [
+                     {
+                         "DnsProbe": {
+                             "Host": "corp.ads",
+                             "Result": "resolved",
+                         },
+                     }
+                 ]
+             }
+         ])");
+
+  net::ProxyConfigWithAnnotation actual_config;
+  EXPECT_EQ(net::ProxyConfigService::CONFIG_VALID,
+            proxy_config_service_->GetLatestProxyConfig(&actual_config));
+
+  EXPECT_EQ(actual_config.value().proxy_override_rules().size(), 1u);
+
+  const auto& rule = actual_config.value().proxy_override_rules().at(0);
+  EXPECT_EQ(rule.destination_matchers.rules().size(), 3u);
+  EXPECT_EQ(rule.destination_matchers.rules().at(0)->ToString(),
+            "https://some.app.com");
+  EXPECT_EQ(rule.destination_matchers.rules().at(1)->ToString(),
+            "https://other.app.com");
+  EXPECT_EQ(rule.destination_matchers.rules().at(2)->ToString(), "<-loopback>");
+
+  EXPECT_EQ(rule.exclude_destination_matchers.rules().size(), 1u);
+  EXPECT_EQ(rule.exclude_destination_matchers.rules().at(0)->ToString(),
+            "<-loopback>");
+
+  EXPECT_EQ(rule.proxy_list.size(), 3u);
+  EXPECT_EQ(rule.proxy_list.AllChains().at(0),
+            net::PacResultElementToProxyChain("HTTPS proxy.app:443"));
+  EXPECT_EQ(rule.proxy_list.AllChains().at(1),
+            net::PacResultElementToProxyChain("HTTPS other.app:344"));
+  EXPECT_EQ(rule.proxy_list.AllChains().at(2),
+            net::PacResultElementToProxyChain("DIRECT"));
+
+  EXPECT_EQ(rule.dns_conditions.size(), 1u);
+  EXPECT_EQ(rule.dns_conditions.at(0).host,
+            url::SchemeHostPort(GURL("corp.ads")));
+  EXPECT_EQ(rule.dns_conditions.at(0).result,
+            net::ProxyConfig::ProxyOverrideRule::DnsProbeCondition::kResolved);
 }
 
 TEST_F(PrefProxyConfigOverrideRulesTest, NonListValues) {
@@ -698,6 +788,9 @@ TEST_F(PrefProxyConfigOverrideRulesTest, InvalidDictsInList) {
                      "https://some.app.com",
                      "https://other.app.com",
                  ],
+                 "ExcludeDestinationMatchers": [
+                     "https://exception.some.app.com",
+                 ],
                  "ProxyList": [
                      "HTTPS proxy.app:443",
                      "DIRECT",
@@ -706,7 +799,7 @@ TEST_F(PrefProxyConfigOverrideRulesTest, InvalidDictsInList) {
                      {
                          "DnsProbe": {
                              "Host": "corp.ads",
-                             "Result": "resolves",
+                             "Result": "resolved",
                          },
                      }
                  ]
@@ -716,11 +809,14 @@ TEST_F(PrefProxyConfigOverrideRulesTest, InvalidDictsInList) {
                      "https://some.app.com",
                      "https://other.app.com",
                  ],
+                 "ExcludeDestinationMatchers": [
+                     "https://exception.some.app.com",
+                 ],
                  "Conditions": [
                      {
                          "DnsProbe": {
                              "Host": "corp.ads",
-                             "Result": "resolves",
+                             "Result": "resolved",
                          },
                      }
                  ]
@@ -729,6 +825,9 @@ TEST_F(PrefProxyConfigOverrideRulesTest, InvalidDictsInList) {
                  "DestinationMatchers": [
                      "https://some.app.com",
                      "https://other.app.com",
+                 ],
+                 "ExcludeDestinationMatchers": [
+                     "https://exception.some.app.com",
                  ],
                  "ProxyList": [
                      "HTTPS proxy.app:443",
@@ -738,12 +837,15 @@ TEST_F(PrefProxyConfigOverrideRulesTest, InvalidDictsInList) {
                      {
                          "DnsProbe": {
                              "Host": "corp.ads",
-                             "Result": "resolves",
+                             "Result": "resolved",
                          },
                      }
                  ]
              },
              {
+                 "ExcludeDestinationMatchers": [
+                     "https://exception.some.app.com",
+                 ],
                  "ProxyList": [
                      "HTTPS proxy.app:443",
                      "DIRECT",
@@ -752,7 +854,7 @@ TEST_F(PrefProxyConfigOverrideRulesTest, InvalidDictsInList) {
                      {
                          "DnsProbe": {
                              "Host": "corp.ads",
-                             "Result": "resolves",
+                             "Result": "resolved",
                          },
                      }
                  ]
@@ -761,6 +863,9 @@ TEST_F(PrefProxyConfigOverrideRulesTest, InvalidDictsInList) {
                  "DestinationMatchers": [
                      "https://some.app.com",
                      1234,
+                 ],
+                 "ExcludeDestinationMatchers": [
+                     "https://exception.some.app.com",
                  ],
                  "ProxyList": [
                      "HTTPS proxy.app:443",
@@ -779,6 +884,30 @@ TEST_F(PrefProxyConfigOverrideRulesTest, InvalidDictsInList) {
                  "DestinationMatchers": [
                      "https://some.app.com",
                      "https://other.app.com",
+                 ],
+                 "ExcludeDestinationMatchers": [
+                     1234,
+                 ],
+                 "ProxyList": [
+                     "HTTPS proxy.app:443",
+                     "DIRECT",
+                 ],
+                 "Conditions": [
+                     {
+                         "DnsProbe": {
+                             "Host": "corp.ads",
+                             "Result": "resolved",
+                         },
+                     }
+                 ]
+             },
+             {
+                 "DestinationMatchers": [
+                     "https://some.app.com",
+                     "https://other.app.com",
+                 ],
+                 "ExcludeDestinationMatchers": [
+                     "https://exception.some.app.com",
                  ],
                  "ProxyList": [
                      "HTTPS proxy.app:443",
@@ -793,6 +922,9 @@ TEST_F(PrefProxyConfigOverrideRulesTest, InvalidDictsInList) {
                      "https://some.app.com",
                      "https://other.app.com",
                  ],
+                 "ExcludeDestinationMatchers": [
+                     "https://exception.some.app.com",
+                 ],
                  "ProxyList": [
                      "HTTPS proxy.app:443",
                      "DIRECT",
@@ -800,7 +932,7 @@ TEST_F(PrefProxyConfigOverrideRulesTest, InvalidDictsInList) {
                  "Conditions": [
                      {
                          "DnsProbe": {
-                             "Result": "resolves",
+                             "Result": "resolved",
                          },
                      }
                  ]
@@ -809,6 +941,9 @@ TEST_F(PrefProxyConfigOverrideRulesTest, InvalidDictsInList) {
                  "DestinationMatchers": [
                      "https://some.app.com",
                      "https://other.app.com",
+                 ],
+                 "ExcludeDestinationMatchers": [
+                     "https://exception.some.app.com",
                  ],
                  "ProxyList": [
                      "HTTPS proxy.app:443",
@@ -826,6 +961,9 @@ TEST_F(PrefProxyConfigOverrideRulesTest, InvalidDictsInList) {
                  "DestinationMatchers": [
                      "https://some.app.com",
                      "https://other.app.com",
+                 ],
+                 "ExcludeDestinationMatchers": [
+                     "https://exception.some.app.com",
                  ],
                  "ProxyList": [
                      "HTTPS proxy.app:443",
@@ -845,6 +983,9 @@ TEST_F(PrefProxyConfigOverrideRulesTest, InvalidDictsInList) {
                      "https://some.app.com",
                      "https://other.app.com",
                  ],
+                 "ExcludeDestinationMatchers": [
+                     "https://exception.some.app.com",
+                 ],
                  "ProxyList": [
                      "HTTPS proxy.app:443",
                      "DIRECT",
@@ -853,7 +994,7 @@ TEST_F(PrefProxyConfigOverrideRulesTest, InvalidDictsInList) {
                      {
                          "DnsProbe": {
                              "Host": 1234,
-                             "Result": "resolves",
+                             "Result": "resolved",
                          },
                      }
                  ]
@@ -862,6 +1003,9 @@ TEST_F(PrefProxyConfigOverrideRulesTest, InvalidDictsInList) {
                  "DestinationMatchers": [
                      "https://some.app.com",
                      "https://other.app.com",
+                 ],
+                 "ExcludeDestinationMatchers": [
+                     "https://exception.some.app.com",
                  ],
                  "ProxyList": [
                      "HTTPS proxy.app:443",
@@ -884,11 +1028,18 @@ TEST_F(PrefProxyConfigOverrideRulesTest, InvalidDictsInList) {
   EXPECT_EQ(actual_config.value().proxy_override_rules().size(), 1u);
 
   const auto& rule = actual_config.value().proxy_override_rules().at(0);
-  EXPECT_EQ(rule.destination_matchers.rules().size(), 2u);
+  EXPECT_EQ(rule.destination_matchers.rules().size(), 3u);
   EXPECT_EQ(rule.destination_matchers.rules().at(0)->ToString(),
             "https://some.app.com");
   EXPECT_EQ(rule.destination_matchers.rules().at(1)->ToString(),
             "https://other.app.com");
+  EXPECT_EQ(rule.destination_matchers.rules().at(2)->ToString(), "<-loopback>");
+
+  EXPECT_EQ(rule.exclude_destination_matchers.rules().size(), 2u);
+  EXPECT_EQ(rule.exclude_destination_matchers.rules().at(0)->ToString(),
+            "https://exception.some.app.com");
+  EXPECT_EQ(rule.exclude_destination_matchers.rules().at(1)->ToString(),
+            "<-loopback>");
 
   EXPECT_EQ(rule.proxy_list.size(), 2u);
   EXPECT_EQ(rule.proxy_list.AllChains().at(0),
@@ -900,7 +1051,7 @@ TEST_F(PrefProxyConfigOverrideRulesTest, InvalidDictsInList) {
   EXPECT_EQ(rule.dns_conditions.at(0).host,
             url::SchemeHostPort(GURL("corp.ads")));
   EXPECT_EQ(rule.dns_conditions.at(0).result,
-            net::ProxyConfig::ProxyOverrideRule::DnsProbeCondition::kResolves);
+            net::ProxyConfig::ProxyOverrideRule::DnsProbeCondition::kResolved);
 }
 
 }  // namespace

@@ -16,10 +16,6 @@
 #include "base/strings/stringprintf.h"
 #include "base/strings/to_string.h"
 #include "base/task/single_thread_task_runner.h"
-#include "third_party/blink/public/common/privacy_budget/identifiability_metric_builder.h"
-#include "third_party/blink/public/common/privacy_budget/identifiability_study_settings.h"
-#include "third_party/blink/public/common/privacy_budget/identifiable_surface.h"
-#include "third_party/blink/public/common/privacy_budget/identifiable_token_builder.h"
 #include "third_party/blink/public/platform/modules/webrtc/webrtc_logging.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_rtc_encoding_options.h"
@@ -34,7 +30,6 @@
 #include "third_party/blink/renderer/core/streams/readable_stream.h"
 #include "third_party/blink/renderer/core/streams/writable_stream.h"
 #include "third_party/blink/renderer/modules/mediastream/media_stream_track.h"
-#include "third_party/blink/renderer/modules/peerconnection/identifiability_metrics.h"
 #include "third_party/blink/renderer/modules/peerconnection/peer_connection_dependency_factory.h"
 #include "third_party/blink/renderer/modules/peerconnection/peer_connection_features.h"
 #include "third_party/blink/renderer/modules/peerconnection/rtc_dtls_transport.h"
@@ -59,21 +54,11 @@
 #include "third_party/blink/renderer/platform/peerconnection/rtc_encoded_video_stream_transformer.h"
 #include "third_party/blink/renderer/platform/peerconnection/rtc_stats.h"
 #include "third_party/blink/renderer/platform/peerconnection/rtc_void_request.h"
-#include "third_party/blink/renderer/platform/privacy_budget/identifiability_digest_helpers.h"
 #include "third_party/blink/renderer/platform/wtf/functional.h"
 #include "third_party/blink/renderer/platform/wtf/math_extras.h"
 #include "third_party/webrtc/api/video/resolution.h"
 
 namespace blink {
-
-namespace features {
-
-// Killswitch for requesting key frames via setParameterOptions.
-// TODO(crbug.com/1354101): remove after rollout.
-BASE_FEATURE(kWebRtcRequestKeyFrameViaSetParameterOptions,
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
-}  // namespace features
 
 namespace {
 
@@ -483,6 +468,10 @@ ToRtpParameters(ExecutionContext* context,
         degradation_preference =
             webrtc::DegradationPreference::MAINTAIN_RESOLUTION;
         break;
+      case V8RTCDegradationPreference::Enum::kMaintainFramerateAndResolution:
+        degradation_preference =
+            webrtc::DegradationPreference::MAINTAIN_FRAMERATE_AND_RESOLUTION;
+        break;
     }
   }
 
@@ -747,8 +736,10 @@ RTCRtpSendParameters* RTCRtpSender::getParameters() {
         degradation_preference_enum =
             V8RTCDegradationPreference::Enum::kBalanced;
         break;
-      case webrtc::DegradationPreference::DISABLED:
-        NOTREACHED();
+      case webrtc::DegradationPreference::MAINTAIN_FRAMERATE_AND_RESOLUTION:
+        degradation_preference_enum =
+            V8RTCDegradationPreference::Enum::kMaintainFramerateAndResolution;
+        break;
     }
     parameters->setDegradationPreference(degradation_preference_enum);
   }
@@ -862,18 +853,15 @@ ScriptPromise<IDLUndefined> RTCRtpSender::setParameters(
       ToRtpParameters(pc_->GetExecutionContext(), parameters, kind_);
 
   // If present, encode options must match the number of encodings.
-  if (base::FeatureList::IsEnabled(
-          features::kWebRtcRequestKeyFrameViaSetParameterOptions)) {
-    const auto& encoding_options = options->encodingOptions();
-    if (!encoding_options.empty()) {
-      if (encoding_options.size() != encodings.size()) {
-        resolver->RejectWithDOMException(
-            DOMExceptionCode::kInvalidModificationError,
-            "encodingOptions size must match number of encodings.");
-      }
-      for (wtf_size_t i = 0; i < encoding_options.size(); i++) {
-        encodings[i].request_key_frame = encoding_options[i]->keyFrame();
-      }
+  const auto& encoding_options = options->encodingOptions();
+  if (!encoding_options.empty()) {
+    if (encoding_options.size() != encodings.size()) {
+      resolver->RejectWithDOMException(
+          DOMExceptionCode::kInvalidModificationError,
+          "encodingOptions size must match number of encodings.");
+    }
+    for (wtf_size_t i = 0; i < encoding_options.size(); i++) {
+      encodings[i].request_key_frame = encoding_options[i]->keyFrame();
     }
   }
 
@@ -1078,17 +1066,6 @@ RTCRtpCapabilities* RTCRtpSender::getCapabilities(ScriptState* state,
   }
   capabilities->setHeaderExtensions(header_extensions);
 
-  if (IdentifiabilityStudySettings::Get()->ShouldSampleType(
-          IdentifiableSurface::Type::kRtcRtpSenderGetCapabilities)) {
-    IdentifiableTokenBuilder builder;
-    IdentifiabilityAddRTCRtpCapabilitiesToBuilder(builder, *capabilities);
-    IdentifiabilityMetricBuilder(ExecutionContext::From(state)->UkmSourceID())
-        .Add(IdentifiableSurface::FromTypeAndToken(
-                 IdentifiableSurface::Type::kRtcRtpSenderGetCapabilities,
-                 IdentifiabilityBenignStringToken(kind)),
-             builder.GetToken())
-        .Record(ExecutionContext::From(state)->UkmRecorder());
-  }
   return capabilities;
 }
 

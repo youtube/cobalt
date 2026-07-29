@@ -27,15 +27,15 @@
 #include "chrome/browser/ui/contextual_search/searchbox_context_data.h"
 #include "chrome/browser/ui/omnibox/omnibox_controller.h"
 #include "chrome/browser/ui/omnibox/omnibox_edit_model.h"
+#include "chrome/browser/ui/omnibox/omnibox_next_features.h"
 #include "chrome/browser/ui/omnibox/omnibox_popup_state_manager.h"
-#include "chrome/browser/ui/tabs/public/tab_features.h"
 #include "chrome/browser/ui/tabs/tab_renderer_data.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/views/location_bar/omnibox_popup_file_selector.h"
-#include "chrome/browser/ui/webui/new_tab_page/composebox/variations/composebox_fieldtrial.h"
 #include "chrome/browser/ui/webui/omnibox_popup/omnibox_popup_aim_handler.h"
 #include "chrome/browser/ui/webui/omnibox_popup/omnibox_popup_ui.h"
 #include "chrome/browser/ui/webui/omnibox_popup/omnibox_popup_web_contents_helper.h"
+#include "chrome/browser/ui/webui/searchbox/composebox_handler.h"
 #include "chrome/browser/ui/webui/top_chrome/webui_contents_wrapper.h"
 #include "chrome/browser/ui/webui/webui_embedding_context.h"
 #include "chrome/grit/generated_resources.h"
@@ -43,7 +43,6 @@
 #include "components/favicon/core/favicon_service.h"
 #include "components/favicon_base/favicon_types.h"
 #include "components/lens/contextual_input.h"
-#include "components/lens/tab_contextualization_controller.h"
 #include "components/omnibox/browser/searchbox.mojom.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/url_constants.h"
@@ -67,7 +66,7 @@ bool IsValidTab(GURL url) {
 std::optional<lens::ImageEncodingOptions> CreateImageEncodingOptions() {
   // TODO(crbug.com/457815342): Use omnibox fieldtrial when available.
   auto image_upload_config =
-      ntp_composebox::FeatureConfig::Get().config.composebox().image_upload();
+      omnibox::FeatureConfig::Get().config.composebox().image_upload();
   return lens::ImageEncodingOptions{
       .enable_webp_encoding = image_upload_config.enable_webp_encoding(),
       .max_size = image_upload_config.downscale_max_image_size(),
@@ -147,7 +146,16 @@ void OmniboxContextMenuController::AddStaticItems() {
                                      ui::SimpleMenuModel::kDefaultIconSize);
   AddItemWithStringIdAndIcon(IDC_OMNIBOX_CONTEXT_ADD_FILE,
                              IDS_NTP_COMPOSE_ADD_FILE, add_file_icon);
-  AddSeparator();
+
+  auto* browser_window_interface =
+      webui::GetBrowserWindowInterface(web_contents_.get());
+  Profile* profile = browser_window_interface->GetProfile();
+
+  if (omnibox::IsDeepSearchEnabled(profile) ||
+      omnibox::IsCreateImagesEnabled(profile)) {
+    AddSeparator();
+  }
+
   auto deep_search_icon =
       ui::ImageModel::FromVectorIcon(kTravelExploreIcon, ui::kColorMenuIcon,
                                      ui::SimpleMenuModel::kDefaultIconSize);
@@ -249,27 +257,6 @@ void OmniboxContextMenuController::AddTitleWithStringId(int localization_id) {
 }
 
 void OmniboxContextMenuController::AddTabContext(const TabInfo& tab_info) {
-  const tabs::TabHandle handle = tabs::TabHandle(tab_info.tab_id);
-  tabs::TabInterface* const tab = handle.Get();
-  if (!tab) {
-    return;
-  }
-  lens::TabContextualizationController* tab_contextualization_controller =
-      tab->GetTabFeatures()->tab_contextualization_controller();
-  auto token = base::UnguessableToken::Create();
-  auto context_callback =
-      base::BindOnce(&OmniboxContextMenuController::OnGetTabPageContext,
-                     weak_ptr_factory_.GetWeakPtr(), token, tab_info);
-  tab_contextualization_controller->GetPageContext(std::move(context_callback));
-}
-
-void OmniboxContextMenuController::OnGetTabPageContext(
-    const base::UnguessableToken& context_token,
-    const TabInfo& tab_info,
-    std::unique_ptr<lens::ContextualInputData> page_content_data) {
-  GetQueryController()->StartFileUploadFlow(context_token,
-                                            std::move(page_content_data),
-                                            CreateImageEncodingOptions());
   UpdateSearchboxContext(/*tab_info=*/tab_info, /*tool_mode=*/std::nullopt);
   GetEditModel()->OpenAiMode(/*via_keyboard=*/false, /*via_context_menu=*/true);
 }
@@ -315,15 +302,9 @@ void OmniboxContextMenuController::UpdateSearchboxContext(
   if (omnibox_controller &&
       omnibox_controller->popup_state_manager()->popup_state() ==
           OmniboxPopupState::kAim) {
-    if (auto* webui = web_contents_->GetWebUI()) {
-      if (auto* webui_controller = webui->GetController()) {
-        auto* omnibox_popup_ui = webui_controller->GetAs<OmniboxPopupUI>();
-        if (omnibox_popup_ui && omnibox_popup_ui->popup_aim_handler()) {
-          // TODO (crbug.com/460471173): Clean this up and create a method
-          // or other clearly supported way to update context.
-          omnibox_popup_ui->popup_aim_handler()->OnShow(std::move(context));
-        }
-      }
+    auto omnibox_popup_ui = GetOmniboxPopupUI();
+    if (omnibox_popup_ui && omnibox_popup_ui->popup_aim_handler()) {
+      omnibox_popup_ui->popup_aim_handler()->AddContext(std::move(context));
     }
   } else {
     searchbox_context_data->SetPendingContext(std::move(context));
@@ -331,16 +312,33 @@ void OmniboxContextMenuController::UpdateSearchboxContext(
 }
 
 raw_ptr<contextual_search::ContextualSearchContextController>
-OmniboxContextMenuController::GetQueryController() {
-  return ContextualSearchWebContentsHelper::FromWebContents(web_contents_.get())
-      ->session_handle()
-      ->GetController();
+OmniboxContextMenuController::GetQueryController() const {
+  auto* helper =
+      ContextualSearchWebContentsHelper::FromWebContents(web_contents_.get());
+  if (!helper) {
+    return nullptr;
+  }
+  return helper->session_handle()->GetController();
 }
 
 raw_ptr<OmniboxEditModel> OmniboxContextMenuController::GetEditModel() {
-  return OmniboxPopupWebContentsHelper::FromWebContents(web_contents_.get())
-      ->get_omnibox_controller()
-      ->edit_model();
+  auto* helper =
+      OmniboxPopupWebContentsHelper::FromWebContents(web_contents_.get());
+  if (!helper) {
+    return nullptr;
+  }
+  return helper->get_omnibox_controller()->edit_model();
+}
+
+raw_ptr<OmniboxPopupUI> OmniboxContextMenuController::GetOmniboxPopupUI()
+    const {
+  if (auto* webui = web_contents_->GetWebUI()) {
+    auto* omnibox_popup_ui = webui->GetController()->GetAs<OmniboxPopupUI>();
+    if (omnibox_popup_ui && omnibox_popup_ui->popup_aim_handler()) {
+      return omnibox_popup_ui;
+    }
+  }
+  return nullptr;
 }
 
 void OmniboxContextMenuController::ExecuteCommand(int id, int event_flags) {
@@ -358,13 +356,15 @@ void OmniboxContextMenuController::ExecuteCommand(int id, int event_flags) {
       case IDC_OMNIBOX_CONTEXT_ADD_IMAGE: {
         file_selector_->OpenFileUploadDialog(
             web_contents_.get(),
-            /*is_image=*/true, GetQueryController(), GetEditModel());
+            /*is_image=*/true, GetQueryController(), GetEditModel(),
+            CreateImageEncodingOptions());
         break;
       }
       case IDC_OMNIBOX_CONTEXT_ADD_FILE:
         file_selector_->OpenFileUploadDialog(
             web_contents_.get(),
-            /*is_image=*/false, GetQueryController(), GetEditModel());
+            /*is_image=*/false, GetQueryController(), GetEditModel(),
+            CreateImageEncodingOptions());
         break;
       case IDC_OMNIBOX_CONTEXT_DEEP_RESEARCH:
         UpdateSearchboxContext(
@@ -384,4 +384,74 @@ void OmniboxContextMenuController::ExecuteCommand(int id, int event_flags) {
         NOTREACHED();
     }
   }
+}
+
+bool OmniboxContextMenuController::IsCommandIdEnabled(int command_id) const {
+  if (command_id == ui::MenuModel::kTitleId) {
+    return false;
+  }
+
+  auto* browser_window_interface =
+      webui::GetBrowserWindowInterface(web_contents_.get());
+  if (!browser_window_interface) {
+    return false;
+  }
+
+  auto query_controller = GetQueryController();
+  if (!query_controller) {
+    return false;
+  }
+
+  auto omnibox_popup_ui = GetOmniboxPopupUI();
+  if (!omnibox_popup_ui || !omnibox_popup_ui->composebox_handler()) {
+    return false;
+  }
+
+  const omnibox::ChromeAimToolsAndModels aim_tool_mode =
+      omnibox_popup_ui->composebox_handler()->GetAimToolMode();
+  if (aim_tool_mode == omnibox::ChromeAimToolsAndModels::TOOL_MODE_IMAGE_GEN) {
+    return command_id == IDC_OMNIBOX_CONTEXT_ADD_IMAGE;
+  }
+
+  auto file_upload_count =
+      static_cast<int>(query_controller->GetFileInfoList().size());
+  if (file_upload_count > 0) {
+    auto max_num_files =
+        omnibox::FeatureConfig::Get().config.composebox().max_num_files();
+    if (file_upload_count < max_num_files) {
+      return command_id != IDC_OMNIBOX_CONTEXT_DEEP_RESEARCH;
+    } else {
+      // Note: If a file is added, create images should be disabled but this
+      // is handled in the WebUI by disabling the button. This will need to be
+      // updated when multifile upload is added.
+      return command_id == IDC_OMNIBOX_CONTEXT_CREATE_IMAGES;
+    }
+  }
+
+  return true;
+}
+
+bool OmniboxContextMenuController::IsCommandIdVisible(int command_id) const {
+  if (command_id == IDC_OMNIBOX_CONTEXT_DEEP_RESEARCH ||
+      command_id == IDC_OMNIBOX_CONTEXT_CREATE_IMAGES) {
+    auto* browser_window_interface =
+        webui::GetBrowserWindowInterface(web_contents_.get());
+    if (!browser_window_interface) {
+      return false;
+    }
+    Profile* profile = browser_window_interface->GetProfile();
+
+    if (!profile) {
+      return false;
+    }
+
+    if (command_id == IDC_OMNIBOX_CONTEXT_DEEP_RESEARCH) {
+      return omnibox::IsDeepSearchEnabled(profile);
+    }
+    if (command_id == IDC_OMNIBOX_CONTEXT_CREATE_IMAGES) {
+      return omnibox::IsCreateImagesEnabled(profile);
+    }
+  }
+
+  return true;
 }

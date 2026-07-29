@@ -994,6 +994,7 @@ ci.builder(
             "emulator-8-cores",
             "has_native_resultdb_integration",
             "linux-jammy",
+            "retry_only_failed_tests",
             "x86-64",
         ],
     ),
@@ -2324,6 +2325,9 @@ ci.builder(
             "retry_only_failed_tests",
         ],
         per_test_modifications = {
+            "base_unittests_android_death_tests": targets.mixin(
+                ci_only = True,
+            ),
             # If you change this, make similar changes in android-x86-code-coverage
             "android_browsertests": targets.mixin(
                 args = [
@@ -2551,6 +2555,9 @@ ci.builder(
                 swarming = targets.swarming(
                     shards = 2,
                 ),
+            ),
+            "base_unittests_android_death_tests": targets.mixin(
+                ci_only = True,
             ),
             "chrome_public_test_apk": targets.mixin(
                 args = [
@@ -3465,6 +3472,18 @@ ci.builder(
             "linux-jammy",
             "x86-64",
         ],
+        per_test_modifications = {
+            "chrome_public_test_apk": targets.mixin(
+                args = [
+                    "--test-launcher-filter-file=../../testing/buildbot/filters/android.emulator_14_automotive_landscape.chrome_public_test_apk.filter",
+                ],
+            ),
+            "chrome_public_unit_test_apk": targets.mixin(
+                args = [
+                    "--test-launcher-filter-file=../../testing/buildbot/filters/android.emulator_14_automotive_landscape.chrome_public_unit_test_apk.filter",
+                ],
+            ),
+        },
     ),
     targets_settings = targets.settings(
         os_type = targets.os_type.ANDROID,
@@ -3673,6 +3692,9 @@ ci.builder(
                 args = [
                     "--test-launcher-filter-file=../../testing/buildbot/filters/android.emulator_14_15_16.base_unittests.filter",
                 ],
+            ),
+            "base_unittests_android_death_tests": targets.mixin(
+                ci_only = True,
             ),
             "chrome_public_test_apk": targets.mixin(
                 args = [
@@ -4142,6 +4164,9 @@ ci.builder(
                 args = [
                     "--test-launcher-filter-file=../../testing/buildbot/filters/android.emulator_14_15_16.base_unittests.filter",
                 ],
+            ),
+            "base_unittests_android_death_tests": targets.mixin(
+                ci_only = True,
             ),
             "components_browsertests": targets.mixin(
                 swarming = targets.swarming(

@@ -353,14 +353,21 @@ std::string ContextualSearchMetricsRecorder::MimeTypeToString(
       return "Pdf";
     case lens::MimeType::kImage:
       return "Image";
+    case lens::MimeType::kAnnotatedPageContent:
+      return "Tab";
     default:
       return "Other";
   }
 }
 
+// static
 std::string ContextualSearchMetricsRecorder::ContextualSearchSourceToString(
     ContextualSearchSource source) {
   switch (source) {
+    case ContextualSearchSource::kContextualTasks:
+      return "ContextualTasks";
+    case ContextualSearchSource::kLens:
+      return "Lens";
     case ContextualSearchSource::kOmnibox:
       return "Omnibox";
     case ContextualSearchSource::kNewTabPage:
@@ -380,6 +387,16 @@ std::string ContextualSearchMetricsRecorder::SubmissionTypeToString(
     case SubmissionType::kCreateImages:
       return "CreateImages";
   }
+}
+
+// static
+void ContextualSearchMetricsRecorder::RecordConfigParseSuccess(
+    ContextualSearchSource source,
+    bool success) {
+  base::UmaHistogramBoolean(
+      base::StrCat({"ContextualSearch.ConfigParseSuccess", ".",
+                    ContextualSearchSourceToString(source)}),
+      success);
 }
 
 }  // namespace contextual_search

@@ -13,6 +13,7 @@ import androidx.test.uiautomator.UiDevice;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -25,6 +26,7 @@ import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.profiles.ProfileManager;
 import org.chromium.chrome.test.ChromeBrowserTestRule;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
+import org.chromium.components.embedder_support.util.PasswordEchoSettingState;
 import org.chromium.components.user_prefs.UserPrefs;
 
 import java.io.IOException;
@@ -39,6 +41,15 @@ public class PasswordEchoSettingHandlerTest {
     private PasswordEchoSettingHandler mPasswordEchoSettingHandler;
     private UiDevice mDevice;
     private String mInitialShowPasswordValue;
+
+    @BeforeClass
+    public static void setUpClass() {
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    // Disable setting split feature.
+                    PasswordEchoSettingState.setInstanceForTests(false);
+                });
+    }
 
     @Before
     public void setUp() throws ExecutionException, IOException {
@@ -55,22 +66,58 @@ public class PasswordEchoSettingHandlerTest {
 
     @After
     public void tearDown() throws IOException {
-        if (!mInitialShowPasswordValue.equals("null")) {
+        if (mInitialShowPasswordValue.equals("null")) {
+            mDevice.executeShellCommand("settings delete system show_password");
+        } else {
             mDevice.executeShellCommand(
                     "settings put system show_password " + mInitialShowPasswordValue);
         }
     }
 
-    private boolean isPasswordEchoEnabledInPrefService() throws ExecutionException {
+    private boolean isPasswordEchoPhysicalEnabledInPrefService() throws ExecutionException {
         return ThreadUtils.runOnUiThreadBlocking(
-                () -> UserPrefs.get(mProfile).getBoolean(Pref.WEB_KIT_PASSWORD_ECHO_ENABLED));
+                () ->
+                        UserPrefs.get(mProfile)
+                                .getBoolean(Pref.WEB_KIT_PASSWORD_ECHO_ENABLED_PHYSICAL));
+    }
+
+    private boolean isPasswordEchoTouchEnabledInPrefService() throws ExecutionException {
+        return ThreadUtils.runOnUiThreadBlocking(
+                () -> UserPrefs.get(mProfile).getBoolean(Pref.WEB_KIT_PASSWORD_ECHO_ENABLED_TOUCH));
+    }
+
+    private void setSystemPasswordEchoState(boolean enabled)
+            throws ExecutionException, IOException {
+        mDevice.executeShellCommand("settings put system show_password " + (enabled ? "1" : "0"));
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    PasswordEchoSettingState.getInstance()
+                            .getSettingObserver()
+                            .onChange(true, Settings.System.getUriFor("show_password"));
+                });
+    }
+
+    // The physical and touch preference must hold the same value when setting split is disabled.
+    @Test
+    @SmallTest
+    public void testPhysicalAndTouchPreferencesAreEqual() throws ExecutionException, IOException {
+        boolean[] systemSettingsStates = {
+            false, true, false,
+        };
+
+        for (boolean systemEnabled : systemSettingsStates) {
+            setSystemPasswordEchoState(systemEnabled);
+            Assert.assertEquals(
+                    isPasswordEchoPhysicalEnabledInPrefService(),
+                    isPasswordEchoTouchEnabledInPrefService());
+        }
     }
 
     private boolean isPasswordEchoEnabledInSystemSettings() {
         return Settings.System.getInt(
                         ContextUtils.getApplicationContext().getContentResolver(),
                         Settings.System.TEXT_SHOW_PASSWORD,
-                        1)
+                        0)
                 == 1;
     }
 
@@ -83,27 +130,22 @@ public class PasswordEchoSettingHandlerTest {
                             .updatePasswordEchoState();
                 });
         Assert.assertEquals(
-                isPasswordEchoEnabledInPrefService(), isPasswordEchoEnabledInSystemSettings());
-    }
-
-    private void setSystemPasswordEchoAndAssertState(boolean enabled)
-            throws ExecutionException, IOException {
-        mDevice.executeShellCommand("settings put system show_password " + (enabled ? "1" : "0"));
-        ThreadUtils.runOnUiThreadBlocking(
-                () -> {
-                    mPasswordEchoSettingHandler.getPasswordEchoSettingObserver().onChange(true);
-                });
-        Assert.assertEquals(
-                isPasswordEchoEnabledInPrefService(), isPasswordEchoEnabledInSystemSettings());
+                isPasswordEchoPhysicalEnabledInPrefService(),
+                isPasswordEchoEnabledInSystemSettings());
     }
 
     @Test
     @SmallTest
     public void testSettingChangeIsObserved() throws ExecutionException, IOException {
-        setSystemPasswordEchoAndAssertState(false);
+        boolean[] systemSettingsStates = {
+            false, true, false,
+        };
 
-        setSystemPasswordEchoAndAssertState(true);
-
-        setSystemPasswordEchoAndAssertState(false);
+        for (boolean systemEnabled : systemSettingsStates) {
+            setSystemPasswordEchoState(systemEnabled);
+            Assert.assertEquals(
+                    isPasswordEchoPhysicalEnabledInPrefService(),
+                    isPasswordEchoEnabledInSystemSettings());
+        }
     }
 }

@@ -557,7 +557,7 @@ class InspectorCSSAgent::ModifyRuleAction final
                                              nullptr, exception_state);
       case kSetStyleText:
         return style_sheet_->SetStyleText(new_range_, old_text_, nullptr,
-                                          nullptr, exception_state);
+                                          nullptr, nullptr, exception_state);
       case kSetMediaRuleText:
         return style_sheet_->SetMediaRuleText(new_range_, old_text_, nullptr,
                                               nullptr, exception_state);
@@ -589,7 +589,8 @@ class InspectorCSSAgent::ModifyRuleAction final
         break;
       case kSetStyleText:
         css_rule_ = style_sheet_->SetStyleText(
-            old_range_, new_text_, &new_range_, &old_text_, exception_state);
+            old_range_, new_text_, &new_range_, &old_text_, &font_feature_type_,
+            exception_state);
         break;
       case kSetMediaRuleText:
         css_rule_ = style_sheet_->SetMediaRuleText(
@@ -648,6 +649,15 @@ class InspectorCSSAgent::ModifyRuleAction final
       return style_sheet_->BuildObjectForStyle(position_try_rule->style(),
                                                nullptr);
     }
+    if (auto* font_face_rule = DynamicTo<CSSFontFaceRule>(rule)) {
+      return style_sheet_->BuildObjectForStyle(font_face_rule->style(),
+                                               nullptr);
+    }
+    if (auto* font_feature_values_rule =
+            DynamicTo<CSSFontFeatureValuesRule>(rule)) {
+      return style_sheet_->BuildStyleObjectForFontFeatureRule(
+          font_feature_values_rule, font_feature_type_);
+    }
     return nullptr;
   }
 
@@ -679,6 +689,7 @@ class InspectorCSSAgent::ModifyRuleAction final
   String new_text_;
   SourceRange old_range_;
   SourceRange new_range_;
+  StyleRuleFontFeature::FeatureType font_feature_type_;
   Member<CSSRule> css_rule_;
 };
 
@@ -971,7 +982,7 @@ void InspectorCSSAgent::FontsUpdated(
   // so we don't perform null checks here.
   std::unique_ptr<protocol::CSS::FontFace> font_face =
       protocol::CSS::FontFace::create()
-          .setFontFamily(font->family())
+          .setFontFamily(font->familyNameUnquoted())
           .setFontStyle(font->style())
           .setFontVariant(font->variant())
           .setFontWeight(font->weight())
@@ -1215,23 +1226,27 @@ protocol::Response InspectorCSSAgent::getMediaQueries(
 
 std::unique_ptr<protocol::CSS::CSSLayerData>
 InspectorCSSAgent::BuildLayerDataObject(const CascadeLayer* layer,
-                                        unsigned& max_order) {
-  const unsigned order = layer->GetOrder().value_or(0);
-  max_order = max(max_order, order);
+                                        unsigned& order) {
+  // Build sub-layers first, as they are weaker than `layer`, and must
+  // therefore get a smaller `order` value.
+  const HeapVector<Member<CascadeLayer>>& sublayers =
+      layer->GetDirectSubLayers();
+  std::unique_ptr<protocol::Array<protocol::CSS::CSSLayerData>> sublayers_data;
+  if (!sublayers.empty()) {
+    sublayers_data =
+        std::make_unique<protocol::Array<protocol::CSS::CSSLayerData>>();
+    for (const CascadeLayer* sublayer : sublayers) {
+      sublayers_data->emplace_back(BuildLayerDataObject(sublayer, order));
+    }
+  }
   std::unique_ptr<protocol::CSS::CSSLayerData> layer_data =
       protocol::CSS::CSSLayerData::create()
           .setName(layer->GetName())
-          .setOrder(order)
+          .setOrder(order++)
           .build();
-  const auto& sublayers = layer->GetDirectSubLayers();
-  if (sublayers.empty())
-    return layer_data;
-
-  auto sublayers_data =
-      std::make_unique<protocol::Array<protocol::CSS::CSSLayerData>>();
-  for (const CascadeLayer* sublayer : sublayers)
-    sublayers_data->emplace_back(BuildLayerDataObject(sublayer, max_order));
-  layer_data->setSubLayers(std::move(sublayers_data));
+  if (sublayers_data) {
+    layer_data->setSubLayers(std::move(sublayers_data));
+  }
   return layer_data;
 }
 
@@ -1246,7 +1261,7 @@ protocol::Response InspectorCSSAgent::getLayersForNode(
 
   *root_layer = protocol::CSS::CSSLayerData::create()
                     .setName("implicit outer layer")
-                    .setOrder(0)
+                    .setOrder(0)  // Tentative. The final value is set below.
                     .build();
 
   const auto* scoped_resolver =
@@ -1262,12 +1277,17 @@ protocol::Response InspectorCSSAgent::getLayersForNode(
     return protocol::Response::Success();
 
   const CascadeLayer* root = layer_map->GetRootLayer();
-  unsigned max_order = 0;
+  unsigned order = 0;
   auto sublayers_data =
       std::make_unique<protocol::Array<protocol::CSS::CSSLayerData>>();
-  for (const auto& sublayer : root->GetDirectSubLayers())
-    sublayers_data->emplace_back(BuildLayerDataObject(sublayer, max_order));
-  (*root_layer)->setOrder(max_order + 1);
+  for (const auto& sublayer : root->GetDirectSubLayers()) {
+    sublayers_data->emplace_back(BuildLayerDataObject(sublayer, order));
+  }
+  // Note that a mutable reference to `order` was passed to
+  // BuildLayerDataObject() above; its value is now equal to the total
+  // number of layers seen by that call, i.e. bigger than any other
+  // layer order.
+  (*root_layer)->setOrder(order);
   (*root_layer)->setSubLayers(std::move(sublayers_data));
 
   return protocol::Response::Success();
@@ -1425,8 +1445,6 @@ protocol::Response InspectorCSSAgent::getMatchedStylesForNode(
         css_property_rules,
     std::unique_ptr<protocol::Array<protocol::CSS::CSSPropertyRegistration>>*
         css_property_registrations,
-    std::unique_ptr<protocol::CSS::CSSFontPaletteValuesRule>*
-        css_font_palette_values_rule,
     std::unique_ptr<protocol::Array<protocol::CSS::CSSAtRule>>* css_at_rules,
     std::optional<int>* parent_layout_node_id,
     std::unique_ptr<protocol::Array<protocol::CSS::CSSFunctionRule>>*
@@ -1602,10 +1620,6 @@ protocol::Response InspectorCSSAgent::getMatchedStylesForNode(
   }
   *css_position_try_rules =
       PositionTryRulesForElement(element, successful_position_fallback_index);
-
-  if (auto rule = FontPalettesForNode(*element)) {
-    *css_font_palette_values_rule = std::move(rule);
-  }
 
   if (auto rules = FontAtRulesForNodes(elements_to_inspect)) {
     *css_at_rules = std::move(rules);
@@ -2084,39 +2098,6 @@ InspectorCSSAgent::FontAtRulesForNodes(HeapVector<Member<Element>>& elements) {
   }
 
   return result;
-}
-
-// TODO(crbug.com/408969009): Delete this in favor of FontAtRulesForNode once
-// the devtools frontend is updated to use the new method.
-std::unique_ptr<protocol::CSS::CSSFontPaletteValuesRule>
-InspectorCSSAgent::FontPalettesForNode(Element& element) {
-  const ComputedStyle* style = element.EnsureComputedStyle();
-  const FontPalette* palette = style ? style->GetFontPalette() : nullptr;
-  if (!palette || !palette->IsCustomPalette()) {
-    return {};
-  }
-  Document& document = element.GetDocument();
-  StyleRuleFontPaletteValues* rule =
-      document.GetStyleEngine().FontPaletteValuesForNameAndFamily(
-          palette->GetPaletteValuesName(),
-          style->GetFontDescription().Family().FamilyName());
-  if (!rule) {
-    return {};
-  }
-
-  auto style_sheets = document_to_css_style_sheets_.find(&document);
-  if (style_sheets == document_to_css_style_sheets_.end()) {
-    return {};
-  }
-
-  // Find CSSOM wrapper.
-  CSSFontPaletteValuesRule* values_rule =
-      FindFontPaletteValuesRule(*style_sheets->value, rule);
-
-  InspectorStyleSheet* inspector_style_sheet =
-      BindStyleSheet(values_rule->parentStyleSheet());
-  return inspector_style_sheet->BuildObjectForFontPaletteValuesRule(
-      values_rule);
 }
 
 CSSKeyframesRule*
@@ -3147,7 +3128,7 @@ protocol::Response InspectorCSSAgent::setSupportsText(
 protocol::Response InspectorCSSAgent::createStyleSheet(
     const String& frame_id,
     std::optional<bool> force,
-    protocol::CSS::StyleSheetId* out_style_sheet_id) {
+    protocol::DOM::StyleSheetId* out_style_sheet_id) {
   LocalFrame* frame =
       IdentifiersFactory::FrameById(inspected_frames_, frame_id);
   if (!frame)

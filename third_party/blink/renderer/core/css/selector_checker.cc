@@ -576,8 +576,6 @@ SelectorChecker::FeaturelessMatch SelectorChecker::MatchShadowHost(
     case CSSSelector::kPseudoOnlyOfType:
     case CSSSelector::kPseudoOptional:
     case CSSSelector::kPseudoPart:
-    case CSSSelector::kPseudoPermissionElementInvalidStyle:
-    case CSSSelector::kPseudoPermissionElementOccluded:
     case CSSSelector::kPseudoPermissionGranted:
     case CSSSelector::kPseudoPermissionIcon:
     case CSSSelector::kPseudoPlaceholder:
@@ -2752,21 +2750,13 @@ bool SelectorChecker::CheckPseudoClass(const SelectorCheckingContext& context,
     }
     case CSSSelector::kPseudoPermissionGranted: {
       CHECK(RuntimeEnabledFeatures::PermissionElementEnabled(
-          element.GetExecutionContext()));
+                element.GetExecutionContext()) ||
+            RuntimeEnabledFeatures::GeolocationElementEnabled(
+                element.GetExecutionContext()) ||
+            RuntimeEnabledFeatures::UserMediaElementEnabled(
+                element.GetExecutionContext()));
       auto* permission_element = DynamicTo<HTMLPermissionElement>(element);
       return permission_element && permission_element->granted();
-    }
-    case CSSSelector::kPseudoPermissionElementInvalidStyle: {
-      CHECK(RuntimeEnabledFeatures::PermissionElementEnabled(
-          element.GetExecutionContext()));
-      auto* permission_element = DynamicTo<HTMLPermissionElement>(element);
-      return permission_element && permission_element->HasInvalidStyle();
-    }
-    case CSSSelector::kPseudoPermissionElementOccluded: {
-      CHECK(RuntimeEnabledFeatures::PermissionElementEnabled(
-          element.GetExecutionContext()));
-      auto* permission_element = DynamicTo<HTMLPermissionElement>(element);
-      return permission_element && permission_element->IsOccluded();
     }
     case CSSSelector::kPseudoPictureInPicture:
       return PictureInPictureController::IsElementInPictureInPicture(&element);
@@ -3154,6 +3144,10 @@ bool SelectorChecker::CheckPseudoElement(const SelectorCheckingContext& context,
       }
       result.dynamic_pseudo = context.pseudo_id;
       return true;
+    }
+    case CSSSelector::kPseudoOverscrollAreaParent:
+    case CSSSelector::kPseudoOverscrollClientArea: {
+      return element.GetPseudoIdForStyling() == pseudo_id;
     }
     case CSSSelector::kPseudoScrollButton:
       return MatchScrollButton(element, context, result);

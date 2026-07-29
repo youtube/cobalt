@@ -15,9 +15,10 @@
 
 using base::android::JavaParamRef;
 
-void JNI_SiteIsolator_StartIsolatingSite(JNIEnv* env,
-                                         Profile* profile,
-                                         const JavaParamRef<jobject>& j_gurl) {
+static void JNI_SiteIsolator_StartIsolatingSite(
+    JNIEnv* env,
+    Profile* profile,
+    const JavaParamRef<jobject>& j_gurl) {
   GURL gurl = url::GURLAndroid::ToNativeGURL(env, j_gurl);
 
   content::SiteInstance::StartIsolatingSite(
@@ -25,3 +26,5 @@ void JNI_SiteIsolator_StartIsolatingSite(JNIEnv* env,
       content::ChildProcessSecurityPolicy::IsolatedOriginSource::
           USER_TRIGGERED);
 }
+
+DEFINE_JNI(SiteIsolator)

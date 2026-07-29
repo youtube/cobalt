@@ -589,16 +589,16 @@ class AutofillClient {
       EntityType entity_type,
       const base::flat_set<EntityTypeName>& saved_entities);
 
+  // Returns whether there is an active actor task for this client's tab (if
+  // one exists).
+  virtual bool IsActorTaskActive() const;
+
   // Returns true if either Profile or CreditCard Autofill is enabled.
   virtual bool IsAutofillEnabled() const = 0;
 
   // Returns true if the value of the AutofillProfileEnabled pref is true and
   // the client supports Autofill.
   virtual bool IsAutofillProfileEnabled() const = 0;
-
-  // Returns true if the value of the AutofillCreditCardEnabled pref is true
-  // and the client supports Autofill.
-  virtual bool IsAutofillPaymentMethodsEnabled() const = 0;
 
   // Whether the Autocomplete feature of Autofill should be enabled.
   virtual bool IsAutocompleteEnabled() const = 0;

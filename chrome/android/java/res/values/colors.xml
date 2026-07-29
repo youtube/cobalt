@@ -27,6 +27,8 @@ found in the LICENSE file.
 
     <!-- NTP and Home sheet colors. Also used on the bookmarks and recent tabs pages. -->
     <color name="ntp_bg_incognito">@color/default_bg_color_dark</color>
+    <color name="status_bar_background_color_on_ntp_with_toolbar_expanding">@color/default_bg_color_baseline</color>
+    <color name="status_bar_background_color_on_ntp_with_toolbar_collapsed">@color/default_bg_color_dark</color>
 
     <!-- Incognito NTP Colors. -->
     <color name="incognito_emphasis">@android:color/white</color>
@@ -58,6 +60,11 @@ found in the LICENSE file.
 
     <!-- Model selector button background TSR colors -->
     <color name="model_selector_button_bg_color">@color/default_icon_color_inverse_dark</color>
+
+    <!-- Settings -->
+    <color name="settings_search_logo_color_1">@color/material_primary_90</color>
+    <color name="settings_search_logo_color_2">@color/material_primary_60</color>
+    <color name="settings_search_logo_color_3">@color/material_primary_40</color>
 
     <!-- Tab strip button hover background color -->
     <color name="tab_strip_button_hover_bg_color">@color/baseline_neutral_90</color>

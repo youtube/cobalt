@@ -326,7 +326,7 @@ enum class PasskeyUserVerificationStatus {
 - (void)performPasskeyRegistrationWithoutUserInteractionIfPossible:
     (ASPasskeyCredentialRequest*)registrationRequest API_AVAILABLE(ios(18.0)) {
   PasskeyRequestDetails* passkeyRequestDetails =
-      [self passkeyDetailsFromRequest:registrationRequest];
+      [self passkeyDetailsFromConditionalCreateRequest:registrationRequest];
   if (![passkeyRequestDetails
           hasMatchingPassword:self.credentialStore.credentials]) {
     [self exitWithErrorCode:ASExtensionErrorCodeFailed];
@@ -572,12 +572,6 @@ enum class PasskeyUserVerificationStatus {
 
 #pragma mark - ConfirmationAlertActionHandler
 
-- (void)confirmationAlertDismissAction {
-  // Finish the extension. There is no recovery from the stale credentials
-  // state.
-  [self exitWithErrorCode:ASExtensionErrorCodeFailed];
-}
-
 - (void)confirmationAlertPrimaryAction {
   if ([self.presentedViewController
           isKindOfClass:[PasskeyErrorAlertViewController class]]) {
@@ -754,6 +748,11 @@ enum class PasskeyUserVerificationStatus {
 
 #pragma mark - Private
 
+// Finishes the extension.
+- (void)dismissExtension {
+  [self exitWithErrorCode:ASExtensionErrorCodeFailed];
+}
+
 // Returns a PasskeyRequestDetails object created from ASCredentialRequest if
 // possible. May return nil.
 - (PasskeyRequestDetails*)passkeyDetailsFromRequest:
@@ -764,7 +763,22 @@ enum class PasskeyUserVerificationStatus {
 
   return [[PasskeyRequestDetails alloc]
                        initWithRequest:credentialRequest
-      isBiometricAuthenticationEnabled:[self isBiometricAuthenticationEnabled]];
+      isBiometricAuthenticationEnabled:[self isBiometricAuthenticationEnabled]
+                   isConditionalCreate:NO];
+}
+
+// Returns a PasskeyRequestDetails object created from ASCredentialRequest for a
+// conditional registration request. May return nil.
+- (PasskeyRequestDetails*)passkeyDetailsFromConditionalCreateRequest:
+    (id<ASCredentialRequest>)credentialRequest {
+  if (!credentialRequest) {
+    return nil;
+  }
+
+  return [[PasskeyRequestDetails alloc]
+                       initWithRequest:credentialRequest
+      isBiometricAuthenticationEnabled:[self isBiometricAuthenticationEnabled]
+                   isConditionalCreate:YES];
 }
 
 // Returns a PasskeyRequestDetails object created from
@@ -988,13 +1002,18 @@ enum class PasskeyUserVerificationStatus {
 - (void)showStaleCredentials {
   StaleCredentialsViewController* staleCredentialsViewController =
       [[StaleCredentialsViewController alloc] init];
-  staleCredentialsViewController.modalPresentationStyle =
-      UIModalPresentationOverCurrentContext;
   staleCredentialsViewController.actionHandler = self;
-  staleCredentialsViewController.presentationController.delegate = self;
-  [self presentViewController:staleCredentialsViewController
-                     animated:NO
-                   completion:nil];
+  UINavigationController* navigationController = [[UINavigationController alloc]
+      initWithRootViewController:staleCredentialsViewController];
+  staleCredentialsViewController.navigationItem.rightBarButtonItem =
+      [[UIBarButtonItem alloc]
+          initWithBarButtonSystemItem:UIBarButtonSystemItemClose
+                               target:self
+                               action:@selector(dismissExtension)];
+  navigationController.modalPresentationStyle =
+      UIModalPresentationOverCurrentContext;
+  navigationController.presentationController.delegate = self;
+  [self presentViewController:navigationController animated:NO completion:nil];
 }
 
 // Starts the credential list feature.
@@ -1065,7 +1084,7 @@ enum class PasskeyUserVerificationStatus {
 - (void)showSavingDisabledByEnterpriseAlert {
   // TODO(crbug.com/362719658): Check whether it's possible to make the whole
   // VC a half sheet.
-  PasskeyErrorAlertViewController* savingEnterpriseDisabledViewController =
+  UIViewController* savingEnterpriseDisabledViewController =
       [self createPasskeyErrorAlertForErrorType:
                 ErrorType::kEnterpriseDisabledSavingCredentials];
   [self presentViewController:savingEnterpriseDisabledViewController
@@ -1076,7 +1095,7 @@ enum class PasskeyUserVerificationStatus {
 // Displays sheet with information that the user is signed out and needs to sign
 // in to Chrome.
 - (void)showSignedOutUserAlert {
-  PasskeyErrorAlertViewController* signedOutUserViewController =
+  UIViewController* signedOutUserViewController =
       [self createPasskeyErrorAlertForErrorType:ErrorType::kSignedOut];
   [self presentViewController:signedOutUserViewController
                      animated:NO
@@ -1086,7 +1105,7 @@ enum class PasskeyUserVerificationStatus {
 // Displays sheet with information that credential saving has been manually
 // disabled in Password Settings by the user.
 - (void)showSavingManuallyDisabledAlert {
-  PasskeyErrorAlertViewController* savingDisabledInSettingsViewController =
+  UIViewController* savingDisabledInSettingsViewController =
       [self createPasskeyErrorAlertForErrorType:
                 ErrorType::kUserDisabledSavingCredentialsInPasswordSettings];
   [self presentViewController:savingDisabledInSettingsViewController
@@ -1097,7 +1116,7 @@ enum class PasskeyUserVerificationStatus {
 // Displays sheet with information that credential saving to account (sync) is
 // disabled.
 - (void)showSavingToAccountDisabledAlert {
-  PasskeyErrorAlertViewController* savingToAccountDisabledViewController =
+  UIViewController* savingToAccountDisabledViewController =
       [self createPasskeyErrorAlertForErrorType:
                 ErrorType::kUserDisabledSavingCredentialsToAccount];
   [self presentViewController:savingToAccountDisabledViewController
@@ -1111,10 +1130,17 @@ enum class PasskeyUserVerificationStatus {
   GenericErrorViewController* genericErrorViewController =
       [[GenericErrorViewController alloc] init];
   genericErrorViewController.actionHandler = self;
-  genericErrorViewController.presentationController.delegate = self;
-  [self presentViewController:genericErrorViewController
-                     animated:YES
-                   completion:nil];
+  UINavigationController* navigationController = [[UINavigationController alloc]
+      initWithRootViewController:genericErrorViewController];
+
+  genericErrorViewController.navigationItem.rightBarButtonItem =
+      [[UIBarButtonItem alloc]
+          initWithBarButtonSystemItem:UIBarButtonSystemItemClose
+                               target:self
+                               action:@selector(dismissExtension)];
+
+  navigationController.presentationController.delegate = self;
+  [self presentViewController:navigationController animated:YES completion:nil];
 }
 
 // Returns the favicon associated with the rpId if it exists.
@@ -1285,14 +1311,21 @@ enum class PasskeyUserVerificationStatus {
 
 // Creates and configures a PasskeyErrorAlertViewController for the given
 // `errorType`.
-- (PasskeyErrorAlertViewController*)createPasskeyErrorAlertForErrorType:
-    (ErrorType)errorType {
+- (UIViewController*)createPasskeyErrorAlertForErrorType:(ErrorType)errorType {
   PasskeyErrorAlertViewController* passkeyErrorAlertViewController =
       [[PasskeyErrorAlertViewController alloc] initForErrorType:errorType];
   passkeyErrorAlertViewController.actionHandler = self;
-  passkeyErrorAlertViewController.presentationController.delegate = self;
+  UINavigationController* navigationController = [[UINavigationController alloc]
+      initWithRootViewController:passkeyErrorAlertViewController];
+  navigationController.presentationController.delegate = self;
 
-  return passkeyErrorAlertViewController;
+  passkeyErrorAlertViewController.navigationItem.rightBarButtonItem =
+      [[UIBarButtonItem alloc]
+          initWithBarButtonSystemItem:UIBarButtonSystemItemClose
+                               target:self
+                               action:@selector(dismissExtension)];
+
+  return navigationController;
 }
 
 // Creates and presents a PasskeyWelcomeScreenViewController.

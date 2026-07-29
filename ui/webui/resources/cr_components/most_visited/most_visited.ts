@@ -5,6 +5,7 @@
 import '//resources/cr_elements/cr_action_menu/cr_action_menu.js';
 import '//resources/cr_elements/cr_button/cr_button.js';
 import '//resources/cr_elements/cr_dialog/cr_dialog.js';
+import '//resources/cr_elements/cr_icon/cr_icon.js';
 import '//resources/cr_elements/cr_icon_button/cr_icon_button.js';
 import '//resources/cr_elements/cr_input/cr_input.js';
 import '//resources/cr_elements/cr_toast/cr_toast_manager.js';
@@ -33,7 +34,7 @@ import {getHtml} from './most_visited.html.js';
 import type {MostVisitedInfo, MostVisitedPageCallbackRouter, MostVisitedPageHandlerRemote, MostVisitedTheme, MostVisitedTile} from './most_visited.mojom-webui.js';
 import {MostVisitedWindowProxy} from './window_proxy.js';
 
-const MAX_TILES_DEFAULT = 8;
+export const MAX_TILES_DEFAULT = 8;
 export const MAX_TILES_FOR_CUSTOM_LINKS = 10;
 const MAX_TILES_FOR_ENTERPRISE_SHORTCUTS = 10;
 
@@ -168,6 +169,7 @@ export class MostVisitedElement extends MostVisitedElementBase {
       toastSource_: {type: Number, state: true},
 
       expandableTilesEnabled: {type: Boolean, reflect: true},
+      maxTilesBeforeShowMore: {type: Number, reflect: true},
       showAll_: {type: Boolean, state: true},
       showShowMore_: {type: Boolean, state: true},
       showShowLess_: {type: Boolean, state: true},
@@ -183,6 +185,7 @@ export class MostVisitedElement extends MostVisitedElementBase {
   accessor reflowOnOverflow: boolean = false;
   accessor singleRow: boolean = false;
   accessor expandableTilesEnabled: boolean = false;
+  accessor maxTilesBeforeShowMore: number = 0;
   private accessor showAll_: boolean = false;
   protected accessor showShowMore_: boolean = false;
   protected accessor showShowLess_: boolean = false;
@@ -211,7 +214,6 @@ export class MostVisitedElement extends MostVisitedElementBase {
   protected accessor tiles_: MostVisitedTile[] = [];
   protected accessor toastSource_: TileSource = TileSource.CUSTOM_LINKS;
   protected accessor visible_: boolean = false;
-  private maxTilesBeforeShowMore_: number = 5;
   private adding_: boolean = false;
   private callbackRouter_: MostVisitedPageCallbackRouter;
   private pageHandler_: MostVisitedPageHandlerRemote;
@@ -339,10 +341,6 @@ export class MostVisitedElement extends MostVisitedElementBase {
         changedPrivateProperties.has('dialogTileUrl_')) {
       this.dialogSaveDisabled_ = this.computeDialogSaveDisabled_();
     }
-
-    if (changedPrivateProperties.has('expandableTilesEnabled')) {
-      this.maxTilesBeforeShowMore_ = this.computeMaxTilesBeforeShowMore_();
-    }
   }
 
   override firstUpdated() {
@@ -397,15 +395,14 @@ export class MostVisitedElement extends MostVisitedElementBase {
     const canShowShowMore = this.expandableTilesEnabled && this.showShowMore_;
     const canShowShowLess = this.expandableTilesEnabled && this.showShowLess_;
     const visibleShortcutCount =
-        canShowShowMore ? this.maxTilesBeforeShowMore_ + 1 : shortcutCount;
+        canShowShowMore ? this.maxTilesBeforeShowMore + 1 : shortcutCount;
     const totalTileCount = visibleShortcutCount + (canShowAdd ? 1 : 0) +
         (canShowShowMore || canShowShowLess ? 1 : 0);
-    const tileCount = Math.min(this.maxTiles_, totalTileCount);
-    const columnCount = tileCount <= this.maxVisibleColumnCount_ ?
-        tileCount :
+    const columnCount = totalTileCount <= this.maxVisibleColumnCount_ ?
+        totalTileCount :
         Math.min(
             this.maxVisibleColumnCount_,
-            Math.ceil(tileCount / (this.singleRow ? 1 : 2)));
+            Math.ceil(totalTileCount / (this.singleRow ? 1 : 2)));
     return columnCount || 3;
   }
 
@@ -417,7 +414,7 @@ export class MostVisitedElement extends MostVisitedElementBase {
     if (this.reflowOnOverflow && this.tiles_) {
       const visibleShortcutCount =
           this.expandableTilesEnabled && this.showShowMore_ ?
-          this.maxTilesBeforeShowMore_ + 1 :
+          this.maxTilesBeforeShowMore + 1 :
           this.tiles_.length;
       return Math.ceil(
           (visibleShortcutCount + (this.showAdd_ ? 1 : 0) +
@@ -435,7 +432,7 @@ export class MostVisitedElement extends MostVisitedElementBase {
 
   private computeMaxVisibleTiles_(): number {
     if (this.expandableTilesEnabled && this.showShowMore_) {
-      return this.maxTilesBeforeShowMore_ + 1;
+      return this.maxTilesBeforeShowMore + 1;
     }
 
     if (this.reflowOnOverflow) {
@@ -457,33 +454,34 @@ export class MostVisitedElement extends MostVisitedElementBase {
     const customLinkTilesCount =
         this.tiles_.filter(tile => !this.isFromEnterpriseShortcut_(tile.source))
             .length;
-    return this.tiles_.length < this.maxVisibleTiles_ &&
+    return this.tiles_.length < (this.expandableTilesEnabled && this.showAll_ ?
+                                     this.maxTiles_ :
+                                     this.maxVisibleTiles_) &&
         customLinkTilesCount < MAX_TILES_FOR_CUSTOM_LINKS;
-  }
-
-  private computeMaxTilesBeforeShowMore_(): number {
-    return this.expandableTilesEnabled ?
-        loadTimeData.getInteger('maxTilesBeforeShowMore') :
-        5;
   }
 
   private computeShowShowMore_(): boolean {
     return this.expandableTilesEnabled && !this.showAll_ && this.tiles_ &&
-        this.tiles_.length > this.maxTilesBeforeShowMore_;
+        this.tiles_.length > this.maxTilesBeforeShowMore;
   }
 
   private computeShowShowLess_(): boolean {
     return this.expandableTilesEnabled && this.showAll_ && this.tiles_ &&
-        this.tiles_.length > this.maxTilesBeforeShowMore_;
+        this.tiles_.length > this.maxTilesBeforeShowMore;
   }
 
-  protected onShowMoreClick_() {
+  protected async onShowMoreClick_() {
     this.showAll_ = true;
     this.pageHandler_.setMostVisitedExpandedState(this.showAll_);
+    await this.updateComplete;
+    this.tileFocus_(this.maxTilesBeforeShowMore + 1);
   }
-  protected onShowLessClick_() {
+
+  protected async onShowLessClick_() {
     this.showAll_ = false;
     this.pageHandler_.setMostVisitedExpandedState(this.showAll_);
+    await this.updateComplete;
+    this.$.showMore.focus();
   }
 
   private computeDialogSaveDisabled_(): boolean {
@@ -792,6 +790,39 @@ export class MostVisitedElement extends MostVisitedElementBase {
     if (e.key === backKey || e.key === 'ArrowUp') {
       this.tileFocus_(this.tiles_.length - 1);
     }
+
+    const advanceKey = this.isRtl_ ? 'ArrowLeft' : 'ArrowRight';
+    if (e.key === advanceKey || e.key === 'ArrowDown') {
+      if (this.showShowLess_) {
+        this.$.showLess.focus();
+      }
+    }
+  }
+
+  protected onShowMoreKeyDown_(e: KeyboardEvent) {
+    if (hasKeyModifiers(e)) {
+      return;
+    }
+
+    const backKey = this.isRtl_ ? 'ArrowRight' : 'ArrowLeft';
+    if (e.key === backKey || e.key === 'ArrowUp') {
+      this.tileFocus_(this.maxTilesBeforeShowMore);
+    }
+  }
+
+  protected onShowLessKeyDown_(e: KeyboardEvent) {
+    if (hasKeyModifiers(e)) {
+      return;
+    }
+
+    const backKey = this.isRtl_ ? 'ArrowRight' : 'ArrowLeft';
+    if (e.key === backKey || e.key === 'ArrowUp') {
+      if (this.showAdd_) {
+        this.$.addShortcut.focus();
+      } else {
+        this.tileFocus_(this.tiles_.length - 1);
+      }
+    }
   }
 
   protected onDialogCancel_() {
@@ -995,7 +1026,12 @@ export class MostVisitedElement extends MostVisitedElementBase {
 
     const advanceKey = this.isRtl_ ? 'ArrowLeft' : 'ArrowRight';
     const delta = (e.key === advanceKey || e.key === 'ArrowDown') ? 1 : -1;
-    this.tileFocus_(Math.max(0, index + delta));
+    const newIndex = Math.max(0, index + delta);
+    if (this.showShowMore_ && newIndex === this.maxTilesBeforeShowMore + 1) {
+      this.$.showMore.focus();
+    } else {
+      this.tileFocus_(newIndex);
+    }
   }
 
   protected onTileHover_(e: Event) {
@@ -1114,6 +1150,8 @@ export class MostVisitedElement extends MostVisitedElementBase {
       (tileElements[index] as HTMLElement).querySelector('a')!.focus();
     } else if (this.showAdd_ && index === tileElements.length) {
       this.$.addShortcut.focus();
+    } else if (this.showShowLess_ && index === tileElements.length) {
+      this.$.showLess.focus();
     }
   }
 

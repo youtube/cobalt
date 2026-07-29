@@ -80,6 +80,8 @@ public class BookmarkBarCoordinator
     private final ActivityLifecycleDispatcher mActivityLifecycleDispatcher;
     private final SimpleRecyclerViewAdapter mItemsAdapter;
     private final BookmarkBarItemsLayoutManager mBookmarkBarItemsLayoutManager;
+    private final BookmarkButtonItemAnimator mItemAnimator;
+    private final RecyclerView mItemsContainer;
     private final BookmarkBarMediator mMediator;
     private final BookmarkBar mView;
     private final FrameLayout mContentContainer;
@@ -204,20 +206,21 @@ public class BookmarkBarCoordinator
                 BookmarkBarUtils.ViewType.ITEM,
                 this::inflateBookmarkBarButton,
                 BookmarkBarButtonViewBinder::bind);
-        final RecyclerView itemsContainer =
-                mViewResourceFrameLayout.findViewById(R.id.bookmark_bar_items_container);
-        itemsContainer.setAdapter(mItemsAdapter);
+        mItemsContainer = mViewResourceFrameLayout.findViewById(R.id.bookmark_bar_items_container);
+        mItemsContainer.setAdapter(mItemsAdapter);
         mBookmarkBarItemsLayoutManager = new BookmarkBarItemsLayoutManager(activity);
         mBookmarkBarItemsLayoutManager.setItemWidthConstraints(
                 activity.getResources().getDimensionPixelSize(R.dimen.bookmark_bar_item_min_width),
                 activity.getResources().getDimensionPixelSize(R.dimen.bookmark_bar_item_max_width));
-        itemsContainer.setLayoutManager(mBookmarkBarItemsLayoutManager);
+        mItemsContainer.setLayoutManager(mBookmarkBarItemsLayoutManager);
 
         // NOTE: Scrolling isn't supported and items rarely change so item view caching is disabled.
-        itemsContainer.getRecycledViewPool().setMaxRecycledViews(BookmarkBarUtils.ViewType.ITEM, 0);
-        itemsContainer.setItemViewCacheSize(0);
-        itemsContainer.setItemAnimator(
-                new BookmarkButtonItemAnimator(this::handleBookmarkBarChange));
+        mItemAnimator = new BookmarkButtonItemAnimator(this::handleBookmarkBarChange);
+        mItemsContainer
+                .getRecycledViewPool()
+                .setMaxRecycledViews(BookmarkBarUtils.ViewType.ITEM, 0);
+        mItemsContainer.setItemViewCacheSize(0);
+        mItemsContainer.setItemAnimator(mItemAnimator);
 
         Supplier<Pair<Integer, Integer>> controlsHeightSupplier =
                 () ->
@@ -240,7 +243,7 @@ public class BookmarkBarCoordinator
                         currentTab,
                         bookmarkOpener,
                         bookmarkManagerOpenerSupplier,
-                        itemsContainer,
+                        mItemsContainer,
                         mView);
         PropertyModelChangeProcessor.create(model, mView, BookmarkBarViewBinder::bind);
 
@@ -294,6 +297,14 @@ public class BookmarkBarCoordinator
 
     /** Destroys the bookmark bar coordinator. */
     public void destroy() {
+        // Stop all pending animations and remove animator to stop any running async update calls.
+        if (mItemsContainer != null) {
+            mItemsContainer.setItemAnimator(null);
+            if (mItemAnimator != null) {
+                mItemAnimator.destroy();
+            }
+        }
+
         mTopControlsStacker.removeControl(this);
         mItemsAdapter.destroy();
         mMediator.destroy();
@@ -389,6 +400,24 @@ public class BookmarkBarCoordinator
     }
 
     // TopControlLayer implementation:
+
+    @Override
+    public void onBrowserControlsOffsetUpdate(int layerYOffset, boolean reachRestingPosition) {
+        // When we are given yOffsets, we must handle translation of the Android widgets manually.
+        // See comment in {@link TopControlLayer} for full details. The yOffset is the positive
+        // distance from the top of the window. We need to shift the Android widgets up, which is
+        // negative in the Android coordinate system. The amount to shift up is the difference
+        // between the top of the Bookmark Bar (total top controls height minus bookmark bar height)
+        // and the layerYOffset. Therefore we subtract the layerYOffset from the above and negate.
+
+        // TODO(crbug.com/417238089): This assumes that the bookmark bar is the lowest item in the
+        // top controls. We will assume this for now to reconcile one frame animation flash.
+        mView.setTranslationY(
+                -1.0f
+                        * (mBrowserControlsStateProvider.getTopControlsHeight()
+                                - getTopControlHeight()
+                                - layerYOffset));
+    }
 
     @Override
     public @TopControlType int getTopControlType() {
@@ -515,8 +544,13 @@ public class BookmarkBarCoordinator
         // make the SceneLayer visible, except when in full screen, which will account for cases
         // when the bookmark bar is enabled while top controls are offscreen. A change in either the
         // top or bottom controls heights may require resizing the anchored pop-up view if it is
-        // visible, so we provide those updated values as well.
-        updateAndroidWidgetVisibility();
+        // visible, so we provide those updated values as well. In the cases where BCIV can't handle
+        // the scroll, e.g. on NTP, we do not change visibility of the Android widgets or there
+        // would be a quick blinking effect.
+        if (!requestNewFrame && !isVisibilityForced) {
+            updateAndroidWidgetVisibility();
+        }
+
         mMediator.onBrowserControlsChanged(
                 mBrowserControlsStateProvider.getTopControlsHeight(),
                 mBrowserControlsStateProvider.getBottomControlsHeight());
@@ -558,9 +592,13 @@ public class BookmarkBarCoordinator
     @Override
     public void onEnterFullscreen(Tab tab, FullscreenOptions options) {
         // When fullscreen mode is entered, we need to hide the scene layer and Android widgets.
-        mIsInFullscreenMode = true;
-        updateSceneLayerVisibility();
-        updateAndroidWidgetVisibility();
+        // However, if LockTopControls is enabled, we never remove the bookmark bar.
+        if (!ChromeFeatureList.sLockTopControlsOnLargeTablets.isEnabled()
+                && !ChromeFeatureList.sLockTopControlsOnLargeTabletsV2.isEnabled()) {
+            mIsInFullscreenMode = true;
+            updateSceneLayerVisibility();
+            updateAndroidWidgetVisibility();
+        }
     }
 
     @Override
@@ -568,6 +606,13 @@ public class BookmarkBarCoordinator
         // When fullscreen mode is exited, we need to make the scene layer visible again, if needed.
         // It is possible that the bookmarks bar was turned off while in fullscreen mode, so we
         // don't force this to true, but use the current state instead. Same for Android widgets.
+
+        // We should never get into the fullscreen mode state while LockTopControls is enabled.
+        if (ChromeFeatureList.sLockTopControlsOnLargeTablets.isEnabled()
+                || ChromeFeatureList.sLockTopControlsOnLargeTabletsV2.isEnabled()) {
+            assert !mIsInFullscreenMode : "Should not be in fullscreen mode with LockTopControls";
+        }
+
         mIsInFullscreenMode = false;
         updateSceneLayerVisibility();
         updateAndroidWidgetVisibility();
@@ -692,6 +737,7 @@ public class BookmarkBarCoordinator
      */
     private static class BookmarkButtonItemAnimator extends DefaultItemAnimator {
         private final Runnable mPostAnimationRunnable;
+        private boolean mIsDestroyed;
 
         BookmarkButtonItemAnimator(Runnable mPostAnimationRunnable) {
             this.mPostAnimationRunnable = mPostAnimationRunnable;
@@ -700,7 +746,14 @@ public class BookmarkBarCoordinator
         @Override
         public void onAnimationFinished(@NonNull RecyclerView.ViewHolder viewHolder) {
             super.onAnimationFinished(viewHolder);
-            mPostAnimationRunnable.run();
+            if (!mIsDestroyed) {
+                mPostAnimationRunnable.run();
+            }
+        }
+
+        public void destroy() {
+            super.endAnimations();
+            mIsDestroyed = true;
         }
     }
 

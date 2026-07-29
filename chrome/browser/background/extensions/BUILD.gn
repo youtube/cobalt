@@ -11,7 +11,6 @@ source_set("extensions") {
   sources = [
     "background_application_list_model.h",
     "background_mode_manager.h",
-    "background_mode_optimizer.h",
   ]
 
   deps = [
@@ -34,7 +33,6 @@ source_set("impl") {
   sources = [
     "background_application_list_model.cc",
     "background_mode_manager.cc",
-    "background_mode_optimizer.cc",
   ]
   if (is_win) {
     sources += [ "background_mode_manager_win.cc" ]
@@ -60,6 +58,7 @@ source_set("impl") {
     "//chrome/browser/extensions",
     "//chrome/browser/lifetime:termination_notification",
     "//chrome/browser/profiles/keep_alive",
+    "//chrome/browser/startup",
     "//chrome/browser/status_icons",
     "//chrome/browser/ui",
     "//chrome/browser/ui/extensions",
@@ -90,7 +89,6 @@ source_set("unit_tests") {
   sources = [
     "background_application_list_model_unittest.cc",
     "background_mode_manager_unittest.cc",
-    "background_mode_optimizer_unittest.cc",
   ]
 
   deps = [
@@ -98,6 +96,7 @@ source_set("unit_tests") {
     "//base",
     "//chrome/browser:browser_process",
     "//chrome/browser/background",
+    "//chrome/browser/startup",
     "//chrome/browser/status_icons",
     "//chrome/test:test_support",
     "//components/policy/core/common:test_support",

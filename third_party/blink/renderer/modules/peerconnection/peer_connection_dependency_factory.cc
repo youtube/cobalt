@@ -13,7 +13,6 @@
 
 #include "base/feature_list.h"
 #include "base/functional/callback.h"
-#include "base/functional/callback_forward.h"
 #include "base/functional/callback_helpers.h"
 #include "base/location.h"
 #include "base/logging.h"
@@ -108,13 +107,6 @@
 #include "third_party/webrtc_overrides/timer_based_tick_provider.h"
 
 namespace blink {
-
-template <>
-struct CrossThreadCopier<base::RepeatingCallback<void(base::TimeDelta)>>
-    : public CrossThreadCopierPassThrough<
-          base::RepeatingCallback<void(base::TimeDelta)>> {
-  STATIC_ONLY(CrossThreadCopier);
-};
 
 namespace {
 
@@ -669,13 +661,12 @@ void WaitForEncoderSupportReady(
 PeerConnectionDependencyFactory& PeerConnectionDependencyFactory::From(
     ExecutionContext& context) {
   CHECK(!context.IsContextDestroyed());
-  auto* supplement =
-      Supplement<ExecutionContext>::From<PeerConnectionDependencyFactory>(
-          context);
+  PeerConnectionDependencyFactory* supplement =
+      context.GetPeerConnectionDependencyFactory();
   if (!supplement) {
     supplement = MakeGarbageCollected<PeerConnectionDependencyFactory>(
         context, PassKey());
-    ProvideTo(context, supplement);
+    context.SetPeerConnectionDependencyFactory(supplement);
   }
   return *supplement;
 }
@@ -683,8 +674,8 @@ PeerConnectionDependencyFactory& PeerConnectionDependencyFactory::From(
 PeerConnectionDependencyFactory::PeerConnectionDependencyFactory(
     ExecutionContext& context,
     PassKey)
-    : Supplement(context),
-      ExecutionContextLifecycleObserver(&context),
+    : ExecutionContextLifecycleObserver(&context),
+      execution_context_(context),
       context_task_runner_(
           context.GetTaskRunner(TaskType::kInternalMediaRealTime)),
       network_manager_(nullptr),
@@ -701,7 +692,7 @@ PeerConnectionDependencyFactory::PeerConnectionDependencyFactory(
 }
 
 PeerConnectionDependencyFactory::PeerConnectionDependencyFactory()
-    : Supplement(nullptr), ExecutionContextLifecycleObserver(nullptr) {}
+    : ExecutionContextLifecycleObserver(nullptr), execution_context_(nullptr) {}
 
 PeerConnectionDependencyFactory::~PeerConnectionDependencyFactory() = default;
 
@@ -768,7 +759,7 @@ void PeerConnectionDependencyFactory::CreatePeerConnectionFactory() {
     // Note that MdnsResponderAdapter is created on the main thread to have
     // access to the connector to the service manager.
     mdns_responder =
-        std::make_unique<MdnsResponderAdapter>(*GetSupplementable());
+        std::make_unique<MdnsResponderAdapter>(*execution_context_);
   }
 #endif  // BUILDFLAG(ENABLE_MDNS)
   PostCrossThreadTask(
@@ -1294,7 +1285,7 @@ PeerConnectionDependencyFactory::GetGpuFactories() {
 }
 
 void PeerConnectionDependencyFactory::Trace(Visitor* visitor) const {
-  Supplement<ExecutionContext>::Trace(visitor);
+  visitor->Trace(execution_context_);
   ExecutionContextLifecycleObserver::Trace(visitor);
   visitor->Trace(p2p_socket_dispatcher_);
   visitor->Trace(webrtc_video_perf_reporter_);

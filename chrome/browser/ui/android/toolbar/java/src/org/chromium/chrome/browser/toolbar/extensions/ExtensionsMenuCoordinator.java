@@ -18,6 +18,7 @@ import com.google.android.material.divider.MaterialDivider;
 
 import org.chromium.base.lifetime.Destroyable;
 import org.chromium.base.supplier.ObservableSupplier;
+import org.chromium.base.supplier.OneshotSupplier;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.profiles.Profile;
@@ -26,6 +27,7 @@ import org.chromium.chrome.browser.tab.TabLaunchType;
 import org.chromium.chrome.browser.tabmodel.TabCreator;
 import org.chromium.chrome.browser.theme.ThemeColorProvider;
 import org.chromium.chrome.browser.toolbar.MenuBuilderHelper;
+import org.chromium.chrome.browser.ui.browser_window.ChromeAndroidTask;
 import org.chromium.chrome.browser.ui.extensions.R;
 import org.chromium.chrome.browser.ui.theme.BrandedColorScheme;
 import org.chromium.components.embedder_support.util.UrlConstants;
@@ -51,7 +53,7 @@ public class ExtensionsMenuCoordinator implements Destroyable {
     private final ListMenuButton mExtensionsMenuButton;
     private final MaterialDivider mExtensionsMenuTabSwitcherDivider;
     private final ThemeColorProvider mThemeColorProvider;
-    private final ObservableSupplier<Tab> mCurrentTabSupplier;
+    private final ObservableSupplier<@Nullable Tab> mCurrentTabSupplier;
     private final TabCreator mTabCreator;
     private final View mContentView;
     private final PropertyModelChangeProcessor mChangeProcessor;
@@ -71,6 +73,7 @@ public class ExtensionsMenuCoordinator implements Destroyable {
      * @param extensionsMenuTabSwitcherDivider The divider between the extensions menu and the tab
      *     switcher.
      * @param themeColorProvider The provider for theme colors.
+     * @param taskSupplier Supplies the {@link ChromeAndroidTask}.
      * @param profileSupplier Supplies the current {@link Profile}.
      * @param currentTabSupplier Supplies the current {@link Tab}.
      * @param tabCreator {@link TabCreator} to handle a new tab creation.
@@ -80,8 +83,9 @@ public class ExtensionsMenuCoordinator implements Destroyable {
             ListMenuButton extensionsMenuButton,
             MaterialDivider extensionsMenuTabSwitcherDivider,
             ThemeColorProvider themeColorProvider,
-            ObservableSupplier<Profile> profileSupplier,
-            ObservableSupplier<Tab> currentTabSupplier,
+            OneshotSupplier<ChromeAndroidTask> taskSupplier,
+            ObservableSupplier<@Nullable Profile> profileSupplier,
+            ObservableSupplier<@Nullable Tab> currentTabSupplier,
             TabCreator tabCreator) {
         mContext = context;
         mCurrentTabSupplier = currentTabSupplier;
@@ -128,6 +132,7 @@ public class ExtensionsMenuCoordinator implements Destroyable {
         mMediator =
                 new ExtensionsMenuMediator(
                         mContext,
+                        taskSupplier,
                         profileSupplier,
                         mCurrentTabSupplier,
                         mExtensionModels,

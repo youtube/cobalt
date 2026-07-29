@@ -266,8 +266,7 @@ class MockBrowserAutofillManager : public TestBrowserAutofillManager {
   explicit MockBrowserAutofillManager(AutofillDriver* driver)
       : TestBrowserAutofillManager(driver) {
     test_api(*this).set_credit_card_access_manager(
-        std::make_unique<TestCreditCardAccessManager>(
-            this, test_api(*this).credit_card_form_event_logger()));
+        std::make_unique<TestCreditCardAccessManager>(this));
     test_api(*this).set_bnpl_manager(
         std::make_unique<testing::NiceMock<MockBnplManager>>(this));
   }
@@ -319,7 +318,8 @@ class AutofillExternalDelegateTest : public testing::Test,
                                      public WithTestAutofillClientDriverManager<
                                          NiceMock<MockAutofillClient>,
                                          NiceMock<MockAutofillDriver>,
-                                         NiceMock<MockBrowserAutofillManager>> {
+                                         NiceMock<MockBrowserAutofillManager>,
+                                         MockPaymentsAutofillClient> {
  protected:
   void SetUp() override {
     InitAutofillClient();
@@ -433,11 +433,6 @@ class AutofillExternalDelegateTest : public testing::Test,
 
   const FormFieldData& queried_field() {
     return queried_form().fields().front();
-  }
-
-  MockPaymentsAutofillClient& payments_client() {
-    return static_cast<MockPaymentsAutofillClient&>(
-        *autofill_client().GetPaymentsAutofillClient());
   }
 
   void OnSuggestionsReturned(FieldGlobalId field_id,
@@ -903,11 +898,9 @@ TEST_F(AutofillExternalDelegateTest, ExternalDelegateFillsIbanEntry) {
   suggestion.payload = Suggestion::Guid(iban.guid());
   suggestion.labels = {
       {Suggestion::Text(iban.GetIdentifierStringForAutofillDisplay())}};
-  EXPECT_CALL(*autofill_client().GetPaymentsAutofillClient()->GetIbanManager(),
+  EXPECT_CALL(*payments_autofill_client().GetIbanManager(),
               OnSingleFieldSuggestionSelected(suggestion));
-  ON_CALL(
-      *autofill_client().GetPaymentsAutofillClient()->GetIbanAccessManager(),
-      FetchValue)
+  ON_CALL(*payments_autofill_client().GetIbanAccessManager(), FetchValue)
       .WillByDefault([iban](const Suggestion::Payload& payload,
                             IbanAccessManager::OnIbanFetchedCallback callback) {
         std::move(callback).Run(iban.value());
@@ -1045,7 +1038,7 @@ TEST_F(AutofillExternalDelegateTest,
        ExternalDelegateMerchantPromoCodeSuggestionsFooter) {
   IssueOnQuery();
   const GURL gurl{"https://example.com/"};
-  EXPECT_CALL(payments_client(), OpenPromoCodeOfferDetailsURL(gurl));
+  EXPECT_CALL(payments_autofill_client(), OpenPromoCodeOfferDetailsURL(gurl));
 
   external_delegate().DidAcceptSuggestion(
       test::CreateAutofillSuggestion(SuggestionType::kSeePromoCodeDetails,
@@ -1846,9 +1839,8 @@ TEST_F(AutofillExternalDelegateTest,
        AcceptSaveAndFillCreditCardSuggestion_CallsSaveAndFillManager) {
   IssueOnQuery();
 
-  EXPECT_CALL(
-      *autofill_client().GetPaymentsAutofillClient()->GetSaveAndFillManager(),
-      OnDidAcceptCreditCardSaveAndFillSuggestion(_));
+  EXPECT_CALL(*payments_autofill_client().GetSaveAndFillManager(),
+              OnDidAcceptCreditCardSaveAndFillSuggestion(_));
   external_delegate().DidAcceptSuggestion(
       test::CreateAutofillSuggestion(
           SuggestionType::kSaveAndFillCreditCardEntry),
@@ -1859,9 +1851,8 @@ TEST_F(AutofillExternalDelegateTest, AcceptedSaveAndFillEntry_FillForm) {
   IssueOnQuery();
   CreditCard card = test::GetCreditCard();
 
-  EXPECT_CALL(
-      *autofill_client().GetPaymentsAutofillClient()->GetSaveAndFillManager(),
-      OnDidAcceptCreditCardSaveAndFillSuggestion)
+  EXPECT_CALL(*payments_autofill_client().GetSaveAndFillManager(),
+              OnDidAcceptCreditCardSaveAndFillSuggestion)
       .WillOnce([&](MockSaveAndFillManager::FillCardCallback callback) {
         std::move(callback).Run(card);
       });
@@ -1930,7 +1921,7 @@ TEST_F(AutofillExternalDelegateTest, ExternalDelegateUndoPreviewForm) {
 // suggestion to scan a credit card.
 TEST_F(AutofillExternalDelegateTest, ScanCreditCardMenuItem) {
   IssueOnQuery();
-  EXPECT_CALL(payments_client(), ScanCreditCard);
+  EXPECT_CALL(payments_autofill_client(), ScanCreditCard);
   EXPECT_CALL(
       autofill_client(),
       HideAutofillSuggestions(SuggestionHidingReason::kAcceptSuggestion));
@@ -2017,7 +2008,7 @@ TEST_F(AutofillExternalDelegateTest, AutocompleteShown_MetricsEmitted) {
 
 TEST_F(AutofillExternalDelegateTest, ScanCreditCard_FillForm) {
   CreditCard card = test::GetCreditCard();
-  EXPECT_CALL(payments_client(), ScanCreditCard)
+  EXPECT_CALL(payments_autofill_client(), ScanCreditCard)
       .WillOnce(
           [&](MockPaymentsAutofillClient::CreditCardScanCallback callback) {
             std::move(callback).Run(card);
@@ -2148,9 +2139,7 @@ TEST_F(AutofillExternalDelegateTest,
                                  dummy_promo_code_string,
                                  SuggestionType::kMerchantPromoCodeEntry,
                                  std::optional(MERCHANT_PROMO_CODE)));
-  EXPECT_CALL(*autofill_client()
-                   .GetPaymentsAutofillClient()
-                   ->GetMerchantPromoCodeManager(),
+  EXPECT_CALL(*payments_autofill_client().GetMerchantPromoCodeManager(),
               OnSingleFieldSuggestionSelected(suggestion));
 
   external_delegate().DidAcceptSuggestion(
@@ -2175,12 +2164,10 @@ TEST_F(AutofillExternalDelegateTest, ExternalDelegateFillFieldWithValue_Iban) {
                                  HasQueriedFormId(), HasQueriedFieldId(),
                                  iban.value(), SuggestionType::kIbanEntry,
                                  std::optional(IBAN_VALUE)));
-  EXPECT_CALL(*autofill_client().GetPaymentsAutofillClient()->GetIbanManager(),
+  EXPECT_CALL(*payments_autofill_client().GetIbanManager(),
               OnSingleFieldSuggestionSelected(suggestion));
 
-  ON_CALL(
-      *autofill_client().GetPaymentsAutofillClient()->GetIbanAccessManager(),
-      FetchValue)
+  ON_CALL(*payments_autofill_client().GetIbanAccessManager(), FetchValue)
       .WillByDefault([iban](const Suggestion::Payload& payload,
                             IbanAccessManager::OnIbanFetchedCallback callback) {
         std::move(callback).Run(iban.value());

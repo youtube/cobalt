@@ -27,11 +27,13 @@ class LegacyAudioFileReaderTest : public testing::Test {
   LegacyAudioFileReaderTest() : packet_verification_disabled_(false) {}
 
   LegacyAudioFileReaderTest(const LegacyAudioFileReaderTest&) = delete;
-  LegacyAudioFileReaderTest& operator=(const LegacyAudioFileReaderTest&) = delete;
+  LegacyAudioFileReaderTest& operator=(const LegacyAudioFileReaderTest&) =
+      delete;
 
   ~LegacyAudioFileReaderTest() override = default;
 
   void Initialize(const char* filename) {
+    filename_ = filename;
     data_ = ReadTestDataFile(filename);
     protocol_ = std::make_unique<InMemoryUrlProtocol>(*data_, false);
     reader_ = std::make_unique<LegacyAudioFileReader>(protocol_.get());
@@ -57,6 +59,12 @@ class LegacyAudioFileReaderTest : public testing::Test {
     AudioHash audio_hash;
     audio_hash.Update(decoded_audio_data.get(), actual_frames);
     EXPECT_EQ(expected_audio_hash, audio_hash.ToString());
+  }
+
+  void ResetReader() {
+    ASSERT_TRUE(filename_);
+    Initialize(filename_);
+    ASSERT_TRUE(reader_->Open());
   }
 
   // Verify packets are consistent across demuxer runs.  Reads the first few
@@ -92,7 +100,7 @@ class LegacyAudioFileReaderTest : public testing::Test {
 
         av_packet_unref(packet.get());
       }
-      ASSERT_TRUE(reader_->SeekForTesting(start_timestamp));
+      ResetReader();
     }
   }
 
@@ -116,8 +124,9 @@ class LegacyAudioFileReaderTest : public testing::Test {
     } else {
       EXPECT_EQ(reader_->HasKnownDuration(), false);
     }
-    if (!packet_verification_disabled_)
+    if (!packet_verification_disabled_) {
       ASSERT_NO_FATAL_FAILURE(VerifyPackets(packet_reads));
+    }
     ReadAndVerify(hash, expected_frames);
   }
 
@@ -145,6 +154,7 @@ class LegacyAudioFileReaderTest : public testing::Test {
   void disable_packet_verification() { packet_verification_disabled_ = true; }
 
  protected:
+  const char* filename_ = nullptr;
   scoped_refptr<DecoderBuffer> data_;
   std::unique_ptr<InMemoryUrlProtocol> protocol_;
   std::unique_ptr<LegacyAudioFileReader> reader_;
@@ -228,6 +238,16 @@ TEST_F(LegacyAudioFileReaderTest, MidStreamConfigChangesFail) {
 }
 #endif
 
+TEST_F(LegacyAudioFileReaderTest, OpusOutputsF32Samples) {
+  RunTest("bear-opus.ogg", "3.64,0.30,0.34,-0.25,1.70,1.68,", 2, 48000,
+          base::Microseconds(2767022), 132818, 132169);
+}
+
+TEST_F(LegacyAudioFileReaderTest, OpusTrimmingTest) {
+  RunTest("opus-trimming-test.mp4", "-7.27,-6.96,-5.99,-5.58,-5.66,-6.27,", 1,
+          48000, base::Microseconds(12840001), 616321, 550785);
+}
+
 TEST_F(LegacyAudioFileReaderTest, VorbisValidChannelLayout) {
   RunTest("9ch.ogg", "111.68,13.19,59.65,58.66,66.99,20.36,", 9, 48000,
           base::Microseconds(100001), 4801, 4864);
@@ -240,6 +260,11 @@ TEST_F(LegacyAudioFileReaderTest, WaveValidFourChannelLayout) {
 
 TEST_F(LegacyAudioFileReaderTest, ReadPartialMP3) {
   RunTestPartialDecode("sfx.mp3");
+}
+
+TEST_F(LegacyAudioFileReaderTest, OpusDecodeTest) {
+  RunTest("opus-test.opus", "0.67,-0.92,4.13,1.95,4.16,-1.02,", 2, 48000,
+          base::Microseconds(1016480), 48792, 48479);
 }
 
 }  // namespace media

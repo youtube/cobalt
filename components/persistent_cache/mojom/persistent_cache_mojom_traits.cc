@@ -5,27 +5,49 @@
 #include "components/persistent_cache/mojom/persistent_cache_mojom_traits.h"
 
 #include "mojo/public/cpp/base/file_mojom_traits.h"
+#include "mojo/public/cpp/base/read_only_file_mojom_traits.h"
 #include "mojo/public/cpp/base/shared_memory_mojom_traits.h"
 
 namespace mojo {
 
 // static
-bool StructTraits<persistent_cache::mojom::ReadWriteBackendParamsDataView,
-                  persistent_cache::BackendParams>::
-    Read(persistent_cache::mojom::ReadWriteBackendParamsDataView data,
-         persistent_cache::BackendParams* out_backend_params) {
-  out_backend_params->type = persistent_cache::BackendType::kSqlite;
-  if (!data.ReadDbFile(&out_backend_params->db_file)) {
+bool StructTraits<persistent_cache::mojom::PendingReadOnlyBackendDataView,
+                  persistent_cache::PendingBackend>::
+    Read(persistent_cache::mojom::PendingReadOnlyBackendDataView data,
+         persistent_cache::PendingBackend* out_pending_backend) {
+  auto& sqlite_data = out_pending_backend->sqlite_data;
+  if (!data.ReadDbFile(&sqlite_data.db_file)) {
     return false;
   }
-  out_backend_params->db_file_is_writable = true;
-  if (!data.ReadJournalFile(&out_backend_params->journal_file)) {
+  if (!data.ReadJournalFile(&sqlite_data.journal_file)) {
     return false;
   }
-  out_backend_params->journal_file_is_writable = true;
-  if (!data.ReadSharedLock(&out_backend_params->shared_lock)) {
+  if (!data.ReadSharedLock(&sqlite_data.shared_lock)) {
     return false;
   }
+  out_pending_backend->read_write = false;
+  return true;
+}
+
+// static
+bool StructTraits<persistent_cache::mojom::PendingReadWriteBackendDataView,
+                  persistent_cache::PendingBackend>::
+    Read(persistent_cache::mojom::PendingReadWriteBackendDataView data,
+         persistent_cache::PendingBackend* out_pending_backend) {
+  auto& sqlite_data = out_pending_backend->sqlite_data;
+  if (!data.ReadDbFile(&sqlite_data.db_file)) {
+    return false;
+  }
+  if (!data.ReadJournalFile(&sqlite_data.journal_file)) {
+    return false;
+  }
+  if (!data.ReadWalFile(&sqlite_data.wal_file)) {
+    return false;
+  }
+  if (!data.ReadSharedLock(&sqlite_data.shared_lock)) {
+    return false;
+  }
+  out_pending_backend->read_write = true;
   return true;
 }
 

@@ -11,7 +11,6 @@
 #include "third_party/blink/renderer/modules/service_worker/service_worker_registration.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_remote.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_wrapper_mode.h"
-#include "third_party/blink/renderer/platform/supplementable.h"
 
 namespace blink {
 
@@ -24,11 +23,8 @@ class PushSubscription;
 class PushSubscriptionOptions;
 
 class PushProvider final : public GarbageCollected<PushProvider>,
-                           public Supplement<ServiceWorkerRegistration> {
+                           public GarbageCollectedMixin {
  public:
-  static constexpr auto kSupplementIndex =
-      ServiceWorkerRegistration::Supplements::kPushProvider;
-
   explicit PushProvider(ServiceWorkerRegistration& registration);
 
   PushProvider(const PushProvider&) = delete;
@@ -66,6 +62,7 @@ class PushProvider final : public GarbageCollected<PushProvider>,
       mojom::blink::PushGetRegistrationStatus status,
       mojom::blink::PushSubscriptionPtr subscription);
 
+  Member<ServiceWorkerRegistration> service_worker_registration_;
   HeapMojoRemote<mojom::blink::PushMessaging> push_messaging_manager_;
 };
 

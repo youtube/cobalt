@@ -7,7 +7,6 @@
 
 #include "third_party/blink/renderer/modules/service_worker/service_worker_registration.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
-#include "third_party/blink/renderer/platform/supplementable.h"
 
 namespace blink {
 
@@ -15,11 +14,8 @@ class ContentIndex;
 
 class ServiceWorkerRegistrationContentIndex final
     : public GarbageCollected<ServiceWorkerRegistrationContentIndex>,
-      public Supplement<ServiceWorkerRegistration> {
+      public GarbageCollectedMixin {
  public:
-  static constexpr auto kSupplementIndex = ServiceWorkerRegistration::
-      Supplements::kServiceWorkerRegistrationContentIndex;
-
   explicit ServiceWorkerRegistrationContentIndex(
       ServiceWorkerRegistration* registration);
 
@@ -37,6 +33,7 @@ class ServiceWorkerRegistrationContentIndex final
   void Trace(Visitor* visitor) const override;
 
  private:
+  Member<ServiceWorkerRegistration> service_worker_registration_;
   Member<ContentIndex> content_index_;
 };
 

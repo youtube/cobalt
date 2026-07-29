@@ -219,6 +219,14 @@ typedef NS_ENUM(NSInteger, ItemType) {
   [tableView deselectRowAtIndexPath:indexPath animated:NO];
 }
 
+#pragma mark - UIView
+
+- (void)viewDidDisappear:(BOOL)animated {
+  [super viewDidDisappear:animated];
+  [self.presentationDelegate
+      syncEncryptionTableViewControllerDidDisappear:self];
+}
+
 #pragma mark - SettingsControllerProtocol callbacks
 
 - (void)reportDismissalUserAction {
@@ -269,6 +277,7 @@ typedef NS_ENUM(NSInteger, ItemType) {
                        checked:(BOOL)checked
                        enabled:(BOOL)enabled {
   TableViewTextItem* item = [[TableViewTextItem alloc] initWithType:type];
+  item.titleNumberOfLines = 0;
   item.accessibilityTraits |= UIAccessibilityTraitButton;
   item.text = text;
   item.accessoryType = checked ? UITableViewCellAccessoryCheckmark

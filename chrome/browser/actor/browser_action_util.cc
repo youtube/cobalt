@@ -46,6 +46,7 @@
 #include "chrome/common/actor/actor_constants.h"
 #include "chrome/common/actor/actor_logging.h"
 #include "chrome/common/actor/journal_details_builder.h"
+#include "chrome/common/chrome_features.h"
 #include "components/optimization_guide/content/browser/page_content_proto_provider.h"
 #include "components/optimization_guide/proto/features/actions_data.pb.h"
 #include "content/public/browser/browser_context.h"
@@ -455,6 +456,10 @@ std::unique_ptr<ToolRequest> CreateAttemptLoginRequest(
 
 std::unique_ptr<ToolRequest> CreateAttemptFormFillingRequest(
     const AttemptFormFillingAction& action) {
+  if (!base::FeatureList::IsEnabled(features::kGlicActorAutofill)) {
+    return nullptr;
+  }
+
   const tabs::TabHandle tab_handle = GetTabHandle(action);
   if (tab_handle == TabHandle::Null()) {
     return nullptr;
@@ -485,6 +490,10 @@ std::unique_ptr<ToolRequest> CreateAttemptFormFillingRequest(
       case optimization_guide::proto::
           FormFillingRequest_RequestedData_CREDIT_CARD:
         return AttemptFormFillingToolRequest::RequestedData::kCreditCard;
+      case optimization_guide::proto::
+          FormFillingRequest_RequestedData_CONTACT_INFORMATION:
+        return AttemptFormFillingToolRequest::RequestedData::
+            kContactInformation;
       default:
         // A default is needed:
         // 1. To ease importing the actions_data.proto from an external
@@ -754,7 +763,7 @@ void FillInTabObservation(
     }
   }
 
-  if (fetch_result.annotated_page_content_result) {
+  if (fetch_result.annotated_page_content_result.has_value()) {
     *tab_observation.mutable_annotated_page_content() =
         fetch_result.annotated_page_content_result->proto;
     if (fetch_result.annotated_page_content_result->metadata) {
@@ -879,7 +888,9 @@ void BuildActionsResultWithObservations(
           JournalDetailsBuilder()
               .Add("result_code", base::ToString(result_code))
               .Add("index_of_failed_action",
-                   (index_of_failed_action.has_value() ? *index_of_failed_action : -1))
+                   index_of_failed_action.has_value()
+                       ? base::ToString(*index_of_failed_action)
+                       : std::string("<empty>"))
               .Add("skip_async_observation_information",
                    skip_async_observation_information)
               .Add("action_results", action_results.size())

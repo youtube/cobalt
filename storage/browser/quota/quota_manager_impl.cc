@@ -22,7 +22,6 @@
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
-#include "base/functional/callback_forward.h"
 #include "base/functional/callback_helpers.h"
 #include "base/functional/concurrent_callbacks.h"
 #include "base/functional/concurrent_closures.h"
@@ -958,7 +957,8 @@ QuotaManagerImpl::QuotaManagerImpl(
     const base::FilePath& profile_path,
     scoped_refptr<base::SingleThreadTaskRunner> io_thread,
     scoped_refptr<SpecialStoragePolicy> special_storage_policy,
-    const GetQuotaSettingsFunc& get_settings_function)
+    const GetQuotaSettingsFunc& get_settings_function,
+    bool report_static_storage_quota)
     : RefCountedDeleteOnSequence<QuotaManagerImpl>(io_thread),
       is_incognito_(is_incognito),
       profile_path_(profile_path),
@@ -968,7 +968,8 @@ QuotaManagerImpl::QuotaManagerImpl(
       io_thread_(std::move(io_thread)),
       get_settings_function_(get_settings_function),
       special_storage_policy_(std::move(special_storage_policy)),
-      get_volume_info_fn_(&QuotaManagerImpl::GetVolumeInfo) {
+      get_volume_info_fn_(&QuotaManagerImpl::GetVolumeInfo),
+      report_static_storage_quota_(report_static_storage_quota) {
   DCHECK_EQ(settings_.refresh_interval, base::TimeDelta::Max());
   if (!get_settings_function.is_null()) {
     // Reset the interval to ensure we use the get_settings_function
@@ -1242,8 +1243,7 @@ void QuotaManagerImpl::GetUsageAndReportedQuotaWithBreakdown(
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DCHECK(callback);
 
-  if (base::FeatureList::IsEnabled(storage::features::kStaticStorageQuota) &&
-      !IsStorageUnlimited(storage_key)) {
+  if (report_static_storage_quota_ && !IsStorageUnlimited(storage_key)) {
     HandleGetUsageAndQuotaRequest(
         storage_key,
         base::BindOnce(
@@ -1338,7 +1338,7 @@ void QuotaManagerImpl::GetBucketUsageAndReportedQuota(
     UsageAndQuotaCallback callback) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
-  if (base::FeatureList::IsEnabled(storage::features::kStaticStorageQuota)) {
+  if (report_static_storage_quota_) {
     GetBucketById(
         id,
         base::BindOnce(

@@ -4,15 +4,21 @@
 
 package org.chromium.chrome.browser.ui.web_app_header;
 
+import android.animation.Animator;
+import android.animation.AnimatorSet;
+import android.animation.ObjectAnimator;
+import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.res.ColorStateList;
 import android.content.res.Resources;
 import android.graphics.Rect;
 import android.os.Build;
 import android.os.SystemClock;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewStub;
 import android.widget.ImageButton;
+import android.widget.TextView;
 
 import androidx.annotation.RequiresApi;
 import androidx.annotation.VisibleForTesting;
@@ -30,6 +36,7 @@ import org.chromium.chrome.browser.browser_controls.BrowserControlsStateProvider
 import org.chromium.chrome.browser.browser_controls.BrowserStateBrowserControlsVisibilityDelegate;
 import org.chromium.chrome.browser.browserservices.intents.BrowserServicesIntentDataProvider;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
+import org.chromium.chrome.browser.tab.EmptyTabObserver;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tabmodel.IncognitoStateProvider;
 import org.chromium.chrome.browser.theme.ThemeColorProvider;
@@ -43,7 +50,11 @@ import org.chromium.chrome.browser.ui.theme.BrandedColorScheme;
 import org.chromium.chrome.browser.web_app_header.R;
 import org.chromium.components.browser_ui.desktop_windowing.AppHeaderState;
 import org.chromium.components.browser_ui.desktop_windowing.DesktopWindowStateManager;
+import org.chromium.components.browser_ui.widget.animation.CancelAwareAnimatorListener;
 import org.chromium.components.browser_ui.widget.scrim.ScrimManager;
+import org.chromium.components.embedder_support.util.Origin;
+import org.chromium.components.url_formatter.UrlFormatter;
+import org.chromium.content_public.browser.NavigationHandle;
 import org.chromium.ui.base.WindowAndroid;
 import org.chromium.ui.display.DisplayAndroid;
 import org.chromium.ui.display.DisplayUtil;
@@ -51,8 +62,10 @@ import org.chromium.ui.modelutil.PropertyModel;
 import org.chromium.ui.modelutil.PropertyModelChangeProcessor;
 import org.chromium.ui.util.TokenHolder;
 import org.chromium.ui.widget.ChromeImageButton;
+import org.chromium.url.GURL;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
@@ -64,11 +77,15 @@ import java.util.function.Supplier;
  */
 @NullMarked
 @RequiresApi(api = Build.VERSION_CODES.VANILLA_ICE_CREAM)
-public class WebAppHeaderLayoutCoordinator
+public class WebAppHeaderLayoutCoordinator extends EmptyTabObserver
         implements DesktopWindowStateManager.AppHeaderObserver,
                 WebAppHeaderDelegate,
                 BrowserControlsStateProvider.Observer,
                 ThemeColorProvider.TintObserver {
+
+    private static final int ANIMATION_START_DELAY_MS = 500;
+    private static final int ANIMATION_PAUSE_DELAY_MS = 2500;
+    private static final int ANIMATION_DURATION_MS = 800;
 
     private int mHeaderControlButtonWidthDp;
     private int mHeaderButtonPaddingDp;
@@ -107,6 +124,10 @@ public class WebAppHeaderLayoutCoordinator
     private @Nullable View mMenuButtonContainer;
     private final @Nullable String mClientPackageName;
     private @Nullable ChromeImageButton mToggleButtonView;
+    private @Nullable TextView mAppOriginView;
+    private @Nullable String mAppOrigin;
+    private final Callback<@Nullable Tab> mOnTabUpdate;
+    private final BrowserServicesIntentDataProvider mBrowserServicesIntentDataProvider;
 
     /**
      * Creates an instance of {@link WebAppHeaderLayoutCoordinator}.
@@ -134,6 +155,7 @@ public class WebAppHeaderLayoutCoordinator
         assert browserServicesIntentDataProvider.isWebApkActivity()
                 || browserServicesIntentDataProvider.isTrustedWebActivity();
 
+        mBrowserServicesIntentDataProvider = browserServicesIntentDataProvider;
         mIsTWA = browserServicesIntentDataProvider.isTrustedWebActivity();
         mDisplayMode = browserServicesIntentDataProvider.getResolvedDisplayMode();
         mHistoryDelegate = historyDelegate;
@@ -180,11 +202,20 @@ public class WebAppHeaderLayoutCoordinator
         if (appHeaderState != null) {
             onAppHeaderStateChanged(appHeaderState);
         }
+
+        mOnTabUpdate = this::onTabUpdate;
+        mTabSupplier.addObserver(mOnTabUpdate);
     }
 
     @Override
     public void onAppHeaderStateChanged(AppHeaderState newState) {
         ensureInitialized();
+    }
+
+    private void onTabUpdate(@Nullable Tab tab) {
+        if (tab != null) {
+            tab.addObserver(this);
+        }
     }
 
     private void ensureInitialized() {
@@ -221,6 +252,10 @@ public class WebAppHeaderLayoutCoordinator
         onAndroidControlsVisibilityChanged(
                 mBrowserControlsStateProvider.getAndroidControlsVisibility());
 
+        if (mIsTWA && ChromeFeatureList.sAndroidTwaOriginDisplay.isEnabled()) {
+            mAppOriginView = (TextView) mView.findViewById(R.id.origin);
+        }
+
         mMediator.getUnoccludedWidthSupplier().addObserver(mOnUnoccludedWidthCallback);
         if (mDisplayMode == DisplayMode.MINIMAL_UI) {
             initMinUiControls();
@@ -234,6 +269,7 @@ public class WebAppHeaderLayoutCoordinator
         mUIControlsMinWidthPx = calculateUIControlsMinWidth();
     }
 
+    @SuppressLint("ClickableViewAccessibility")
     private void initWCOControls() {
         assert mView != null;
         assert mMediator != null;
@@ -241,12 +277,18 @@ public class WebAppHeaderLayoutCoordinator
         mToggleButtonView = mView.findViewById(R.id.wco_toggle_button);
         mToggleButtonView.setVisibility(View.VISIBLE);
         syncToggleButtonView();
-        mToggleButtonView.setOnClickListener(
-                v -> {
-                    assert mMediator != null;
-                    mMediator.setUserToggleHeaderAsOverlay(
-                            !mMediator.getUserToggleHeaderAsOverlay());
-                    syncToggleButtonView();
+        mToggleButtonView.setOnTouchListener(
+                new View.OnTouchListener() {
+                    @SuppressLint("ClickableViewAccessibility")
+                    @Override
+                    public boolean onTouch(View v, MotionEvent event) {
+                        if (event.getAction() == MotionEvent.ACTION_DOWN) return false;
+                        assert mMediator != null;
+                        mMediator.setUserToggleHeaderAsOverlay(
+                                !mMediator.getUserToggleHeaderAsOverlay());
+                        syncToggleButtonView();
+                        return false;
+                    }
                 });
         mToggleButtonView.setForegroundTintList(mThemeColorProvider.getTint());
 
@@ -286,6 +328,9 @@ public class WebAppHeaderLayoutCoordinator
             @BrandedColorScheme int brandedColorScheme) {
         if (mToggleButtonView != null) {
             mToggleButtonView.setImageTintList(activityFocusTint);
+        }
+        if (mAppOriginView != null) {
+            mAppOriginView.setTextColor(activityFocusTint);
         }
     }
 
@@ -358,6 +403,8 @@ public class WebAppHeaderLayoutCoordinator
 
         if (wasShowingButtons == mShowButtons) return;
 
+        int visibility = mShowButtons ? View.VISIBLE : View.GONE;
+
         if (mReloadButtonCoordinator != null) {
             mReloadButtonCoordinator.setVisibility(mShowButtons);
         }
@@ -367,11 +414,11 @@ public class WebAppHeaderLayoutCoordinator
         if (mMenuButtonCoordinator != null) {
             mMenuButtonCoordinator.setVisibility(mShowButtons);
             if (mMenuButtonContainer != null) {
-                mMenuButtonContainer.setVisibility(mShowButtons ? View.VISIBLE : View.GONE);
+                mMenuButtonContainer.setVisibility(visibility);
             }
         }
         if (mToggleButtonView != null) {
-            mToggleButtonView.setVisibility(mShowButtons ? View.VISIBLE : View.GONE);
+            mToggleButtonView.setVisibility(visibility);
             assert mMediator != null;
             mMediator.didChangeToggleButtonVisiblity(mShowButtons);
         }
@@ -400,6 +447,8 @@ public class WebAppHeaderLayoutCoordinator
 
     @VisibleForTesting
     List<Rect> collectControlPositions() {
+        assert mView != null;
+
         final var areas = new ArrayList<Rect>();
         if (mReloadButtonCoordinator != null && mReloadButtonCoordinator.isVisible()) {
             areas.add(mReloadButtonCoordinator.getHitRect());
@@ -409,16 +458,28 @@ public class WebAppHeaderLayoutCoordinator
             areas.add(mBackButtonCoordinator.getHitRect());
         }
 
+        // getHitRect() provides coordinates relative to its parent View. Use
+        // offsetDescendantRectToMyCoords() to take ancestor(s) into account.
+        View rightAlignedWrapper = mView.findViewById(R.id.right_aligned_wrapper);
         if (mMenuButtonCoordinator != null && mMenuButtonCoordinator.isVisible()) {
-            assert mView != null;
             Rect rect = mMenuButtonCoordinator.getHitRect();
             View menuDescendent = mView.findViewById(R.id.menu_button_wrapper);
             mView.offsetDescendantRectToMyCoords(menuDescendent, rect);
+            mView.offsetDescendantRectToMyCoords(rightAlignedWrapper, rect);
             areas.add(rect);
         }
+
+        if (mAppOriginView != null && mAppOriginView.getVisibility() == View.VISIBLE) {
+            final var rect = new Rect();
+            mAppOriginView.getHitRect(rect);
+            mView.offsetDescendantRectToMyCoords(rightAlignedWrapper, rect);
+            areas.add(rect);
+        }
+
         if (mToggleButtonView != null && mToggleButtonView.getVisibility() == View.VISIBLE) {
             final var rect = new Rect();
             mToggleButtonView.getHitRect(rect);
+            mView.offsetDescendantRectToMyCoords(rightAlignedWrapper, rect);
             areas.add(rect);
         }
 
@@ -449,6 +510,10 @@ public class WebAppHeaderLayoutCoordinator
 
         // Add button padding.
         totalWidthDp += mHeaderButtonPaddingDp;
+
+        if (mAppOriginView != null) {
+            totalWidthDp += mAppOriginView.getWidth();
+        }
 
         if (mToggleButtonView != null) {
             // If mToggleButtonView is non-null, we're in WINDOW_CONTROLS_OVERLAY mode. In addition
@@ -559,6 +624,12 @@ public class WebAppHeaderLayoutCoordinator
             mMenuButtonCoordinator.destroy();
             mMenuButtonCoordinator = null;
         }
+
+        final var tab = mTabSupplier.get();
+        if (tab != null) {
+            tab.removeObserver(this);
+        }
+        mTabSupplier.removeObserver(mOnTabUpdate);
     }
 
     @VisibleForTesting
@@ -578,5 +649,79 @@ public class WebAppHeaderLayoutCoordinator
             }
         }
         mMediator.setBrowserControlsVisible(isVisible);
+    }
+
+    @Override
+    public void onDidFinishNavigationInPrimaryMainFrame(
+            Tab tab, NavigationHandle navigationHandle) {
+        if (mAppOriginView == null) return;
+        if (mBrowserServicesIntentDataProvider == null
+                || mBrowserServicesIntentDataProvider.getAllTrustedWebActivityOrigins() == null)
+            return;
+        GURL origin = navigationHandle.getUrl().getOrigin();
+        boolean isTWAOrigin =
+                mBrowserServicesIntentDataProvider
+                        .getAllTrustedWebActivityOrigins()
+                        .contains(Origin.create(origin.getSpec()));
+        // If the origin is not new or does not belong to the TWA, do nothing.
+        if ((mAppOrigin != null && mAppOrigin.equals(origin.getSpec())) || !isTWAOrigin) {
+            return;
+        }
+
+        mAppOrigin = origin.getSpec();
+        String domain = UrlFormatter.formatUrlForDisplayOmitSchemePathAndTrivialSubdomains(origin);
+        mAppOriginView.setText(domain);
+        setTextThemeColor();
+        runDomainTextAnimation();
+    }
+
+    private void runDomainTextAnimation() {
+        if (mAppOriginView == null) return;
+
+        AnimatorSet animationSet = new AnimatorSet();
+
+        animationSet.playSequentially(
+                Arrays.asList(
+                        animateFadeInView(mAppOriginView), animateFadeOutView(mAppOriginView)));
+        animationSet.start();
+    }
+
+    private Animator animateFadeInView(View view) {
+        ObjectAnimator fadeInAnimation = ObjectAnimator.ofFloat(view, View.ALPHA, 0.0f, 1.0f);
+        fadeInAnimation.setDuration(ANIMATION_DURATION_MS);
+        fadeInAnimation.setStartDelay(ANIMATION_START_DELAY_MS);
+        fadeInAnimation.addListener(
+                new CancelAwareAnimatorListener() {
+                    @Override
+                    public void onStart(Animator animation) {
+                        view.setVisibility(View.VISIBLE);
+                    }
+                });
+        return fadeInAnimation;
+    }
+
+    private Animator animateFadeOutView(View view) {
+        ObjectAnimator fadeOutAnimation = ObjectAnimator.ofFloat(view, View.ALPHA, 1.0f, 0.0f);
+        fadeOutAnimation.setDuration(ANIMATION_DURATION_MS);
+        // Pause before fade out.
+        fadeOutAnimation.setStartDelay(ANIMATION_PAUSE_DELAY_MS);
+        fadeOutAnimation.addListener(
+                new CancelAwareAnimatorListener() {
+                    @Override
+                    public void onEnd(Animator animation) {
+                        view.setVisibility(View.GONE);
+                    }
+                });
+        return fadeOutAnimation;
+    }
+
+    private void setTextThemeColor() {
+        if (mAppOriginView == null) return;
+
+        final ColorStateList textColorList =
+                mThemeColorProvider.getActivityFocusTint() == null
+                        ? mAppOriginView.getTextColors()
+                        : mThemeColorProvider.getActivityFocusTint();
+        mAppOriginView.setTextColor(textColorList);
     }
 }

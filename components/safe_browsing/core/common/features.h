@@ -73,6 +73,21 @@ extern const base::FeatureParam<double> kCsdCreditCardFormSampleRate;
 // If the user has visited more times than this max, then the CSD ping is
 // blocked.
 extern const base::FeatureParam<int> kCsdCreditCardFormMaxUserVisit;
+// Specifies whether to allow pre-classification to continue on a credit card
+// form detection event after logging telemetry.
+extern const base::FeatureParam<bool> kCsdCreditCardFormPingOnDetection;
+// Specifies whether to allow pre-classification to continue on a credit card
+// form interaction event after logging telemetry.
+extern const base::FeatureParam<bool> kCsdCreditCardFormPingOnInteraction;
+// Specifies whether to filter credit card CSD pings based on whether the user
+// is on a new site.
+extern const base::FeatureParam<bool> kCsdCreditCardFormEnableNewSiteFilter;
+// Specifies whether to filter credit card CSD pings based on what heuristic
+// was used to detect the form.
+extern const base::FeatureParam<bool> kCsdCreditCardFormEnableHeuristicFilter;
+// Specifies whether to filter credit card CSD pings based on the referring app.
+extern const base::FeatureParam<bool>
+    kCsdCreditCardFormEnableReferringAppFilter;
 
 // Killswitch for Llama forced trigger info redirect chain check.
 BASE_DECLARE_FEATURE(kClientSideDetectionForcedLlamaRedirectChainKillswitch);
@@ -89,9 +104,6 @@ BASE_DECLARE_FEATURE(kClientSideDetectionKillswitch);
 // RTLookupResponse asks to scan the page.
 BASE_DECLARE_FEATURE(
     kClientSideDetectionLlamaForcedTriggerInfoForScamDetection);
-
-// Extract only the visual features during the phishing classifier.
-BASE_DECLARE_FEATURE(kClientSideDetectionOnlyExtractVisualFeatures);
 
 // Killswitch for force request redirect chain check.
 BASE_DECLARE_FEATURE(kClientSideDetectionRedirectChainKillswitch);
@@ -244,6 +256,10 @@ BASE_DECLARE_FEATURE(kHashPrefixRealTimeLookups);
 // This parameter controls the relay URL that will forward the lookup requests
 // to the Safe Browsing server.
 extern const base::FeatureParam<std::string> kHashPrefixRealTimeLookupsRelayUrl;
+// This parameter controls the key fetch URL that will be used to fetch the HPKE
+// key that will be used to encrypt the lookup requests.
+extern const base::FeatureParam<std::string>
+    kHashPrefixRealTimeLookupsKeyFetchUrl;
 
 // Send sample hash-prefix real-time lookups for real-time lookups to catch
 // "false positives" where real-time lookup says safe but hash-prefix lookup

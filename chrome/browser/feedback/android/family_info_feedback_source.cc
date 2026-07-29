@@ -27,7 +27,7 @@ using base::android::ScopedJavaLocalRef;
 
 namespace chrome::android {
 
-void JNI_FamilyInfoFeedbackSource_Start(
+static void JNI_FamilyInfoFeedbackSource_Start(
     JNIEnv* env,
     const base::android::JavaParamRef<jobject>& obj,
     Profile* profile) {
@@ -107,3 +107,5 @@ void FamilyInfoFeedbackSource::OnComplete() {
 }
 
 }  // namespace chrome::android
+
+DEFINE_JNI(FamilyInfoFeedbackSource)

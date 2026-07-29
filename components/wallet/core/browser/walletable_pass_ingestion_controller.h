@@ -13,6 +13,8 @@
 #include "base/memory/weak_ptr.h"
 #include "components/optimization_guide/proto/features/common_quality_data.pb.h"
 #include "components/optimization_guide/proto/features/walletable_pass_extraction.pb.h"
+#include "components/wallet/core/browser/data_models/walletable_pass.h"
+#include "components/wallet/core/browser/strike_databases/walletable_pass_consent_strike_database.h"
 #include "components/wallet/core/browser/strike_databases/walletable_pass_save_strike_database_by_host.h"
 #include "components/wallet/core/browser/walletable_pass_client.h"
 
@@ -83,12 +85,13 @@ class WalletablePassIngestionController {
 
   // Shows the "Save" bubble to the user, allowing them to save the provided
   // pass.
-  void ShowSaveBubble(const GURL& url,
-                      std::unique_ptr<optimization_guide::proto::WalletablePass>
-                          walletable_pass);
+  void ShowSaveBubble(const GURL& url, WalletablePass walletable_pass);
 
  private:
   friend class WalletablePassIngestionControllerTestApi;
+  void MaybeStartExtraction(
+      const GURL& url,
+      optimization_guide::proto::PassCategory pass_category);
 
   // Callback for when the annotated page content is available.
   void OnGetAnnotatedPageContent(
@@ -114,8 +117,7 @@ class WalletablePassIngestionController {
   // accepts, declines, or dismisses).
   void OnGetSaveBubbleResult(
       const GURL& url,
-      std::unique_ptr<optimization_guide::proto::WalletablePass>
-          walletable_pass,
+      WalletablePass walletable_pass,
       WalletablePassClient::WalletablePassBubbleResult result);
 
   // A raw reference to the client, which owns `this` and therefore outlives
@@ -123,6 +125,8 @@ class WalletablePassIngestionController {
   const raw_ref<WalletablePassClient> client_;
 
   std::unique_ptr<WalletablePassSaveStrikeDatabaseByHost> save_strike_db_;
+
+  std::unique_ptr<WalletablePassConsentStrikeDatabase> consent_strike_db_;
 
   base::WeakPtrFactory<WalletablePassIngestionController> weak_ptr_factory_{
       this};

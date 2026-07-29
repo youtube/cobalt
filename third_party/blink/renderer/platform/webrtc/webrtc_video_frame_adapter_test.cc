@@ -22,7 +22,6 @@ class WebRtcVideoFrameAdapterTest : public ::testing::Test {
  protected:
   void SetUp() override {
     test_sii_ = base::MakeRefCounted<gpu::TestSharedImageInterface>();
-    test_sii_->UseTestGMBInSharedImageCreationWithBufferUsage();
   }
 
   scoped_refptr<gpu::TestSharedImageInterface> test_sii_;

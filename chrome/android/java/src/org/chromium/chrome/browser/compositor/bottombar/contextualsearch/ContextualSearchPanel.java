@@ -230,8 +230,7 @@ public class ContextualSearchPanel extends OverlayPanel {
 
     @Override
     public SceneOverlayLayer getUpdatedSceneOverlayTree(
-            RectF viewport, RectF visibleViewport, ResourceManager resourceManager, float yOffset) {
-        super.getUpdatedSceneOverlayTree(viewport, visibleViewport, resourceManager, yOffset);
+            RectF viewport, RectF visibleViewport, ResourceManager resourceManager) {
         mSceneLayer.update(
                 resourceManager,
                 this,
@@ -493,8 +492,6 @@ public class ContextualSearchPanel extends OverlayPanel {
     public float getBarMarginBottomPx() {
         // When Edge To Edge is enabled and drawing to the bottom edge, pass in the bottom inset
         // to pad the search bar (specifically, the caption's bottom padding). Use 0 otherwise.
-        // TODO(crbug.com/332543636) Remove padding when it's no longer needed in EXPANDED and
-        //  MAXIMIZED states
         @Nullable EdgeToEdgeController edgeToEdgeController = mEdgeToEdgeControllerSupplier.get();
         return edgeToEdgeController != null ? edgeToEdgeController.getBottomInsetPx() : 0;
     }

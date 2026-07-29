@@ -154,17 +154,39 @@ DomStorageDatabase::Value LocalStorageLevelDB::CreateWriteMetaDataValue(
   return ToBytes(metadata.SerializeAsString());
 }
 
+DomStorageDatabase::Key LocalStorageLevelDB::GetMapPrefix(
+    const blink::StorageKey& storage_key) {
+  const std::string serialized_storage_key =
+      storage_key.SerializeForLocalStorage();
+
+  Key map_prefix;
+  map_prefix.reserve(/*kLocalStorageSessionId=*/1 +
+                     serialized_storage_key.size() +
+                     /*kLocalStorageKeyMapSeparator=*/1);
+
+  // Append '_'.
+  static_assert(sizeof(kLocalStorageSessionId) == 2,
+                "kLocalStorageSessionId must use a single character null "
+                "terminated string");
+  map_prefix.push_back(kLocalStorageSessionId[0]);
+
+  // Append `storage_key`.
+  map_prefix.insert(map_prefix.end(), serialized_storage_key.begin(),
+                    serialized_storage_key.end());
+
+  // Append a null byte: '0x00'.
+  map_prefix.push_back(kLocalStorageKeyMapSeparator);
+  return map_prefix;
+}
+
 DomStorageDatabaseLevelDB& LocalStorageLevelDB::GetLevelDB() {
   return *leveldb_;
 }
 
 StatusOr<DomStorageDatabase::Metadata> LocalStorageLevelDB::ReadAllMetadata() {
-  std::vector<DomStorageDatabase::KeyValuePair> leveldb_metadata_entries;
-  DbStatus status =
-      leveldb_->GetPrefixed(kMetaPrefix, &leveldb_metadata_entries);
-  if (!status.ok()) {
-    return base::unexpected(std::move(status));
-  }
+  ASSIGN_OR_RETURN(
+      std::vector<DomStorageDatabase::KeyValuePair> leveldb_metadata_entries,
+      leveldb_->GetPrefixed(kMetaPrefix));
 
   // Each map may have up to two LevelDB metadata entries for a single
   // `StorageKey`: one for "META:" and one for "METAACCESS:". Collapse both of
@@ -255,12 +277,35 @@ DbStatus LocalStorageLevelDB::PutMetadata(Metadata metadata) {
   return batch->Commit();
 }
 
-DbStatus LocalStorageLevelDB::RewriteDB() {
-  return leveldb_->RewriteDB();
+DbStatus LocalStorageLevelDB::DeleteStorageKeysFromSession(
+    std::string session_id,
+    std::vector<blink::StorageKey> storage_keys,
+    absl::flat_hash_set<int64_t> excluded_cloned_map_ids) {
+  // Local storage uses a single global session without clones.
+  CHECK_EQ(session_id, kLocalStorageSessionId);
+  CHECK_EQ(excluded_cloned_map_ids.size(), 0u);
+
+  std::unique_ptr<DomStorageBatchOperationLevelDB> batch =
+      leveldb_->CreateBatchOperation();
+
+  for (const blink::StorageKey& storage_key : storage_keys) {
+    // Erase all map key/value pairs.
+    DbStatus status = batch->DeletePrefixed(GetMapPrefix(storage_key));
+    if (!status.ok()) {
+      return status;
+    }
+
+    // Erase the "METAACCESS:" entry.
+    batch->Delete(CreateAccessMetaDataKey(storage_key));
+
+    // Erase the "META:" entry.
+    batch->Delete(CreateWriteMetaDataKey(storage_key));
+  }
+  return batch->Commit();
 }
 
-bool LocalStorageLevelDB::ShouldFailAllCommits() {
-  return leveldb_->ShouldFailAllCommits();
+DbStatus LocalStorageLevelDB::RewriteDB() {
+  return leveldb_->RewriteDB();
 }
 
 void LocalStorageLevelDB::MakeAllCommitsFailForTesting() {

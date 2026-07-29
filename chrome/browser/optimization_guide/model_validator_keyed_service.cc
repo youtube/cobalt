@@ -16,6 +16,7 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
 #include "components/optimization_guide/core/model_execution/feature_keys.h"
+#include "components/optimization_guide/core/model_execution/on_device_features.h"
 #include "components/optimization_guide/core/model_execution/on_device_model_component.h"
 #include "components/optimization_guide/core/model_execution/on_device_model_execution_proto_descriptors.h"
 #include "components/optimization_guide/core/model_execution/remote_model_executor.h"
@@ -28,6 +29,7 @@
 #include "components/optimization_guide/proto/model_execution.pb.h"
 #include "components/optimization_guide/proto/model_validation.pb.h"
 #include "components/optimization_guide/proto/string_value.pb.h"
+#include "components/optimization_guide/public/mojom/model_broker.mojom-data-view.h"
 
 #if BUILDFLAG(BUILD_WITH_TFLITE_LIB)
 #include "components/optimization_guide/core/inference/model_validator.h"
@@ -149,7 +151,7 @@ void ModelValidatorKeyedService::StartModelExecutionValidation() {
   request.set_value(model_execution_input);
   opt_guide_service->ExecuteModel(
       ModelBasedCapabilityKey::kTest, request,
-      /*execution_timeout=*/std::nullopt,
+      /*options=*/{},
       base::BindOnce(&ModelValidatorKeyedService::OnModelExecuteResponse,
                      weak_ptr_factory_.GetWeakPtr()));
 }
@@ -183,7 +185,7 @@ void ModelValidatorKeyedService::PerformOnDeviceModelExecutionValidation(
   auto request = input->requests(0);
   auto request_copy =
       std::make_unique<optimization_guide::proto::ExecuteRequest>(request);
-  auto capability_key = ToModelBasedCapabilityKey(request.feature());
+  auto capability_key = *ToOnDeviceFeature(request.feature());
 
   auto eligibility =
       opt_guide_service->GetOnDeviceModelEligibility(capability_key);
@@ -226,23 +228,20 @@ void ModelValidatorKeyedService::OnDeviceModelExecuteResponse(
     // Ignore partial responses.
     return;
   }
-  // Complete responses with empty log entry indicate errors.
-  if (!result.execution_info || !result.provided_by_on_device) {
+  if (!result.response.has_value()) {
     LOCAL_HISTOGRAM_BOOLEAN(
         "OptimizationGuide.ModelValidation.OnDevice.DidError", true);
   }
   proto::ModelValidationOutput output;
   optimization_guide::proto::ModelCall* model_call = output.add_model_calls();
   model_call->mutable_request()->CopyFrom(*request);
-  optimization_guide::proto::ModelExecutionInfo* model_execution_info =
-      model_call->mutable_model_execution_info();
+  if (result.execution_info) {
+    *model_call->mutable_model_execution_info() =
+        std::move(*result.execution_info);
+  }
   if (result.response.has_value()) {
     model_call->mutable_response()->CopyFrom(result.response.value().response);
-  } else {
-    model_execution_info->set_model_execution_error_enum(
-        static_cast<uint32_t>(result.response.error().error()));
   }
-  // TODO(crbug.com/372535824): store on-device execution log.
 
   auto out_file = switches::GetOnDeviceValidationWriteToFile();
   if (!out_file) {

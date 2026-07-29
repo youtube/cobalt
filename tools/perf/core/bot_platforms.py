@@ -527,6 +527,12 @@ def _crossbench_embedder(estimated_runtime=20, arguments=None):
                           arguments=arguments)
 
 
+def _devtools_frontend_crossbench(estimated_runtime=60, arguments=()):
+  return CrossbenchConfig('devtools_frontend.crossbench',
+                          'devtools_frontend',
+                          estimated_runtime=estimated_runtime,
+                          arguments=arguments)
+
 _CROSSBENCH_JETSTREAM_SPEEDOMETER = frozenset([
     _jetstream2_crossbench(),
     _speedometer3_crossbench(),
@@ -550,7 +556,6 @@ _CROSSBENCH_ANDROID = frozenset([
     _speedometer3_crossbench(arguments=['--fileserver']),
     _loadline_phone_crossbench(arguments=[
         '--cool-down-threshold=moderate',
-        '--no-splash',
     ]),
 ])
 
@@ -563,7 +568,6 @@ _CROSSBENCH_PIXEL9 = frozenset([
     _speedometer3_a11y_crossbench(arguments=['--fileserver', '--debug']),
     _loadline_phone_crossbench(arguments=[
         '--cool-down-threshold=moderate',
-        '--no-splash',
         '--debug',
     ]),
 ])
@@ -580,7 +584,6 @@ _CROSSBENCH_ANDROID_AL = frozenset([
 _CROSSBENCH_TANGOR = frozenset([
     _loadline_tablet_crossbench(arguments=[
         '--cool-down-threshold=moderate',
-        '--no-splash',
     ]),
 ])
 
@@ -675,6 +678,12 @@ _LINUX_R350_BENCHMARK_CONFIGS = PerfSuite(
         'rendering.desktop.notracing',
         'system_health.common_desktop',
     ])
+# For linux-perf, which runs benchmarks that are skipped on linux-r350-perf.
+_LINUX_GPU_BENCHMARK_CONFIGS = PerfSuite([
+    _GetBenchmarkConfig('rendering.desktop'),
+    _GetBenchmarkConfig('rendering.desktop.notracing'),
+    _GetBenchmarkConfig('system_health.common_desktop'),
+])
 _MAC_INTEL_BENCHMARK_CONFIGS = PerfSuite(OFFICIAL_BENCHMARK_CONFIGS).Remove([
     'v8.runtime_stats.top_25',
     'rendering.desktop',
@@ -885,6 +894,13 @@ _LINUX_PERF_FYI_BENCHMARK_CONFIGS = PerfSuite([
 
 
 # Linux
+LINUX = PerfPlatform('linux-perf',
+                     'Ubuntu-22.04, Precision 3930 Rack, NVIDIA GeForce GTX 1660',
+                     _LINUX_GPU_BENCHMARK_CONFIGS,
+                     7,
+                     'linux',
+                     executables=_LINUX_EXECUTABLE_CONFIGS,
+                     crossbench=_CROSSBENCH_BENCHMARKS_ALL)
 LINUX_PGO = PerfPlatform('linux-perf-pgo',
                          'Ubuntu-18.04, 8 core, NVIDIA Quadro P400',
                          _LINUX_BENCHMARK_CONFIGS,
@@ -904,12 +920,12 @@ LINUX_R350 = PerfPlatform('linux-r350-perf',
                           executables=_LINUX_EXECUTABLE_CONFIGS,
                           crossbench=_CROSSBENCH_BENCHMARKS_ALL)
 LINUX_FALCON_RAK_5070 = PerfPlatform('linux-falcon-rak-5070-perf',
-                          'Linux Falcon RAK 5070',
-                          _FALCON_BENCHMARK_CONFIGS,
-                          1,
-                          'linux',
-                          executables=_FALCON_EXECUTABLE_CONFIGS,
-                          crossbench=_CROSSBENCH_BENCHMARKS_ALL)
+                                     'Linux Falcon RAK 5070',
+                                     _FALCON_BENCHMARK_CONFIGS,
+                                     1,
+                                     'linux',
+                                     executables=_FALCON_EXECUTABLE_CONFIGS,
+                                     crossbench=_CROSSBENCH_BENCHMARKS_ALL)
 
 # Mac
 MAC_INTEL = PerfPlatform('mac-intel-perf',
@@ -955,11 +971,11 @@ MAC_M3_PRO = PerfPlatform('mac-m3-pro-perf',
                           'mac',
                           crossbench=_CROSSBENCH_BENCHMARKS_ALL)
 MAC_M4_MINI = PerfPlatform('mac-m4-mini-perf',
-                          'Mac M4 mini ARM',
-                          _MAC_M4_MINI_BENCHMARK_CONFIGS,
-                          25,
-                          'mac',
-                          crossbench=_CROSSBENCH_BENCHMARKS_ALL)
+                           'Mac M4 mini ARM',
+                           _MAC_M4_MINI_BENCHMARK_CONFIGS,
+                           25,
+                           'mac',
+                           crossbench=_CROSSBENCH_BENCHMARKS_ALL)
 # Win
 WIN_10_LOW_END = PerfPlatform(
     'win-10_laptop_low_end-perf',
@@ -1020,12 +1036,12 @@ WIN_11_PGO = PerfPlatform('win-11-perf-pgo',
                           executables=_WIN_11_EXECUTABLE_CONFIGS,
                           pinpoint_only=True)
 WIN_FALCON_RAK_5070 = PerfPlatform('win-falcon-rak-5070-perf',
-                      'Windows Falcon RAK 5070',
-                      _FALCON_BENCHMARK_CONFIGS,
-                      1,
-                      'win',
-                      executables=_FALCON_EXECUTABLE_CONFIGS,
-                      crossbench=_CROSSBENCH_BENCHMARKS_ALL)
+                                   'Windows Falcon RAK 5070',
+                                   _FALCON_BENCHMARK_CONFIGS,
+                                   1,
+                                   'win',
+                                   executables=_FALCON_EXECUTABLE_CONFIGS,
+                                   crossbench=_CROSSBENCH_BENCHMARKS_ALL)
 WIN_ARM64_SNAPDRAGON_ELITE = PerfPlatform(
     'win-arm64-snapdragon-elite-perf',
     'Windows Dell Snapdragon Elite',
@@ -1126,10 +1142,10 @@ ANDROID_PIXEL_TANGOR = PerfPlatform(
     executables=_ANDROID_DEFAULT_EXECUTABLE_CONFIGS,
     crossbench=_CROSSBENCH_TANGOR)
 ANDROID_GO_WEMBLEY = PerfPlatform('android-go-wembley-perf', 'Android U',
-                                  _ANDROID_GO_BENCHMARK_CONFIGS, 13, 'android')
+                                  _ANDROID_GO_BENCHMARK_CONFIGS, 11, 'android')
 ANDROID_GO_WEMBLEY_WEBVIEW = PerfPlatform(
     'android-go-wembley_webview-perf', 'Android U',
-    _ANDROID_GO_WEBVIEW_BENCHMARK_CONFIGS, 20, 'android')
+    _ANDROID_GO_WEBVIEW_BENCHMARK_CONFIGS, 5, 'android')
 ANDROID_PIXEL9 = PerfPlatform('android-pixel9-perf',
                               'Android B',
                               _ANDROID_PIXEL9_BENCHMARK_CONFIGS,
@@ -1217,7 +1233,8 @@ LINUX_PERF_FYI = PerfPlatform('linux-perf-fyi',
                               _LINUX_PERF_FYI_BENCHMARK_CONFIGS,
                               1,
                               'linux',
-                              crossbench=_CROSSBENCH_BENCHMARKS_ALL,
+                              crossbench=_CROSSBENCH_BENCHMARKS_ALL.union(
+                                  [_devtools_frontend_crossbench()]),
                               is_fyi=True)
 
 ALL_PLATFORMS = {

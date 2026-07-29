@@ -14,6 +14,7 @@
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
 #include "base/functional/bind.h"
+#include "base/functional/callback_helpers.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/stringprintf.h"
 #include "base/task/sequenced_task_runner.h"
@@ -459,9 +460,6 @@ class PredictionManagerTestBase : public testing::Test {
   FakePredictionModelDownloadManager* prediction_model_download_manager()
       const {
     return static_cast<FakePredictionModelDownloadManager*>(
-        local_state_prefs_.get(),
-        base::BindRepeating(&PredictionManager::GetBaseModelDirForDownload,
-                            base::Unretained(prediction_manager())),
         prediction_manager()->prediction_model_download_manager());
   }
 

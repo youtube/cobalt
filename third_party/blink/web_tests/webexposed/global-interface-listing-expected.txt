@@ -122,6 +122,7 @@ interface AnimationTrigger
     attribute @@toStringTag
     method addAnimation
     method constructor
+    method getAnimations
     method removeAnimation
 interface AsyncDisposableStack
     attribute @@toStringTag
@@ -1502,10 +1503,6 @@ interface CookieChangeEvent : Event
     getter changed
     getter deleted
     method constructor
-interface CookieDeprecationLabel
-    attribute @@toStringTag
-    method constructor
-    method getValue
 interface CookieStore : EventTarget
     attribute @@toStringTag
     getter onchange
@@ -2502,7 +2499,6 @@ interface Element : Node
     getter computedRole
     getter containerTiming
     getter containerTimingIgnore
-    getter containerTimingNesting
     getter currentCSSZoom
     getter currentPatch
     getter elementTiming
@@ -2597,6 +2593,7 @@ interface Element : Node
     method setHTMLUnsafe
     method setPointerCapture
     method startViewTransition
+    method streamAppendHTMLUnsafe
     method toggleAttribute
     method webkitMatchesSelector
     method webkitRequestFullScreen
@@ -2658,7 +2655,6 @@ interface Element : Node
     setter className
     setter containerTiming
     setter containerTimingIgnore
-    setter containerTimingNesting
     setter elementTiming
     setter headingOffset
     setter headingReset
@@ -3197,6 +3193,7 @@ interface GPUComputePassEncoder
     method popDebugGroup
     method pushDebugGroup
     method setBindGroup
+    method setImmediates
     method setPipeline
     method writeTimestamp
     setter label
@@ -3302,6 +3299,7 @@ interface GPURenderBundleEncoder
     method popDebugGroup
     method pushDebugGroup
     method setBindGroup
+    method setImmediates
     method setIndexBuffer
     method setPipeline
     method setVertexBuffer
@@ -3325,6 +3323,7 @@ interface GPURenderPassEncoder
     method pushDebugGroup
     method setBindGroup
     method setBlendConstant
+    method setImmediates
     method setIndexBuffer
     method setPipeline
     method setScissorRect
@@ -3384,6 +3383,7 @@ interface GPUSupportedLimits
     getter maxComputeWorkgroupsPerDimension
     getter maxDynamicStorageBuffersPerPipelineLayout
     getter maxDynamicUniformBuffersPerPipelineLayout
+    getter maxImmediateSize
     getter maxInterStageShaderVariables
     getter maxSampledTexturesPerShaderStage
     getter maxSamplersPerShaderStage
@@ -3466,6 +3466,14 @@ interface GamepadHapticActuator
     method constructor
     method playEffect
     method reset
+interface GamepadRawInputChangeEvent : GamepadEvent
+    attribute @@toStringTag
+    getter axesChanged
+    getter buttonsPressed
+    getter buttonsReleased
+    getter buttonsValueChanged
+    getter touchesChanged
+    method constructor
 interface GamepadTouch
     attribute @@toStringTag
     getter position
@@ -3692,6 +3700,7 @@ interface HTMLBodyElement : HTMLElement
     getter onfocus
     getter ongamepadconnected
     getter ongamepaddisconnected
+    getter ongamepadrawinputchanged
     getter onhashchange
     getter onlanguagechange
     getter onload
@@ -3725,6 +3734,7 @@ interface HTMLBodyElement : HTMLElement
     setter onfocus
     setter ongamepadconnected
     setter ongamepaddisconnected
+    setter ongamepadrawinputchanged
     setter onhashchange
     setter onlanguagechange
     setter onload
@@ -3793,6 +3803,7 @@ interface HTMLCanvasElement : HTMLElement
     method configureHighDynamicRange
     method constructor
     method getContext
+    method getElementTransform
     method toBlob
     method toDataURL
     method transferControlToOffscreen
@@ -4258,6 +4269,7 @@ interface HTMLFrameSetElement : HTMLElement
     getter onfocus
     getter ongamepadconnected
     getter ongamepaddisconnected
+    getter ongamepadrawinputchanged
     getter onhashchange
     getter onlanguagechange
     getter onload
@@ -4287,6 +4299,7 @@ interface HTMLFrameSetElement : HTMLElement
     setter onfocus
     setter ongamepadconnected
     setter ongamepaddisconnected
+    setter ongamepadrawinputchanged
     setter onhashchange
     setter onlanguagechange
     setter onload
@@ -4306,18 +4319,28 @@ interface HTMLFrameSetElement : HTMLElement
     setter onunhandledrejection
     setter onunload
     setter rows
-interface HTMLGeolocationElement : HTMLPermissionElement
+interface HTMLGeolocationElement : HTMLElement
     attribute @@toStringTag
     getter accuracymode
     getter autolocate
     getter error
+    getter initialPermissionStatus
+    getter invalidReason
+    getter isValid
     getter onlocation
+    getter onpromptaction
+    getter onpromptdismiss
+    getter onvalidationstatuschange
+    getter permissionStatus
     getter position
     getter watch
     method constructor
     setter accuracymode
     setter autolocate
     setter onlocation
+    setter onpromptaction
+    setter onpromptdismiss
+    setter onvalidationstatuschange
     setter watch
 interface HTMLHRElement : HTMLElement
     attribute @@toStringTag
@@ -4928,18 +4951,14 @@ interface HTMLPermissionElement : HTMLElement
     getter initialPermissionStatus
     getter invalidReason
     getter isValid
-    getter ondismiss
     getter onpromptaction
     getter onpromptdismiss
-    getter onresolve
     getter onvalidationstatuschange
     getter permissionStatus
     getter type
     method constructor
-    setter ondismiss
     setter onpromptaction
     setter onpromptdismiss
-    setter onresolve
     setter onvalidationstatuschange
     setter type
 interface HTMLPictureElement : HTMLElement
@@ -5312,6 +5331,21 @@ interface HTMLUListElement : HTMLElement
 interface HTMLUnknownElement : HTMLElement
     attribute @@toStringTag
     method constructor
+interface HTMLUserMediaElement : HTMLElement
+    attribute @@toStringTag
+    getter initialPermissionStatus
+    getter invalidReason
+    getter isValid
+    getter onpromptaction
+    getter onpromptdismiss
+    getter onvalidationstatuschange
+    getter permissionStatus
+    getter type
+    method constructor
+    setter onpromptaction
+    setter onpromptdismiss
+    setter onvalidationstatuschange
+    setter type
 interface HTMLVideoElement : HTMLMediaElement
     attribute @@toStringTag
     getter disablePictureInPicture
@@ -6772,7 +6806,6 @@ interface Navigator
     getter clipboard
     getter connection
     getter contacts
-    getter cookieDeprecationLabel
     getter cookieEnabled
     getter cpuPerformance
     getter credentials
@@ -7211,8 +7244,6 @@ interface OrientationSensor : Sensor
     method populateMatrix
 interface Origin
     static method from
-    static method fromURL
-    static method parse
     attribute @@toStringTag
     getter opaque
     method constructor
@@ -8360,6 +8391,7 @@ interface RtcTransport
     getter fingerprint
     getter fingerprintDigestAlgorithm
     getter onicecandidate
+    getter onwritablechange
     method addRemoteCandidate
     method constructor
     method getReceivedPackets
@@ -8367,6 +8399,7 @@ interface RtcTransport
     method setRemoteDtlsParameters
     method writable
     setter onicecandidate
+    setter onwritablechange
 interface RtcTransportIceCandidate
     attribute @@toStringTag
     getter address
@@ -9817,6 +9850,7 @@ interface ShadowRoot : DocumentFragment
     method getSelection
     method setHTML
     method setHTMLUnsafe
+    method streamAppendHTMLUnsafe
     setter adoptedStyleSheets
     setter fullscreenElement
     setter innerHTML
@@ -13425,6 +13459,7 @@ namespace console
     getter onformdata
     getter ongamepadconnected
     getter ongamepaddisconnected
+    getter ongamepadrawinputchanged
     getter ongotpointercapture
     getter onhashchange
     getter oninput
@@ -13658,6 +13693,7 @@ namespace console
     setter onformdata
     setter ongamepadconnected
     setter ongamepaddisconnected
+    setter ongamepadrawinputchanged
     setter ongotpointercapture
     setter onhashchange
     setter oninput

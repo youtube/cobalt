@@ -6,15 +6,21 @@
 
 #include <memory>
 
+#include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/top_container_background.h"
+#include "chrome/browser/ui/views/side_panel/side_panel.h"
+#include "chrome/browser/ui/views/side_panel/side_panel_animation_coordinator.h"
+#include "chrome/browser/ui/views/side_panel/side_panel_animation_ids.h"
 #include "third_party/skia/include/core/SkPath.h"
 #include "third_party/skia/include/core/SkPathBuilder.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/compositor/layer.h"
+#include "ui/compositor_extra/shadow.h"
 #include "ui/gfx/geometry/rounded_corners_f.h"
 #include "ui/views/layout/delegating_layout_manager.h"
 #include "ui/views/layout/layout_provider.h"
 #include "ui/views/layout/proposed_layout.h"
+#include "ui/views/view.h"
 #include "ui/views/view_shadow.h"
 
 // Implements the opaque corners that overlay the main area of the browser and
@@ -43,6 +49,11 @@ class ShadowOverlayView::CornerView : public views::View {
   void Layout(PassKey) override {
     LayoutSuperclass<views::View>(this);
     SetClipPath(GetClipPath());
+  }
+
+  void OnThemeChanged() override {
+    views::View::OnThemeChanged();
+    SchedulePaint();
   }
 
  private:
@@ -149,6 +160,14 @@ class ShadowOverlayView::ShadowBox : public views::View {
     }
   }
 
+  void SetShadowOpacity(double opacity) {
+    if (!view_shadow_) {
+      return;
+    }
+
+    view_shadow_->shadow()->shadow_layer()->SetOpacity(opacity);
+  }
+
  private:
   // The shadow and elevation around main_container to visually separate the
   // container from MainRegionBackground when the toolbar_height_side_panel is
@@ -161,7 +180,8 @@ using ShadowBox = ShadowOverlayView::ShadowBox;
 BEGIN_METADATA(ShadowBox)
 END_METADATA
 
-ShadowOverlayView::ShadowOverlayView(BrowserView& browser_view) {
+ShadowOverlayView::ShadowOverlayView(BrowserView& browser_view)
+    : browser_view_(browser_view) {
   SetCanProcessEventsWithinSubtree(false);
   top_leading_corner_ = AddChildView(std::make_unique<CornerView>(
       CornerView::Corner::kTopLeading, browser_view));
@@ -187,7 +207,38 @@ ShadowOverlayView::~ShadowOverlayView() = default;
 void ShadowOverlayView::VisibilityChanged(View* starting_from, bool visible) {
   if (starting_from == this) {
     shadow_box_->SetShadowVisible(visible);
+
+    // Ensure the opacity matches the current animation value in cases where the
+    // panel should not animate but is open such as swapping between tabs.
+    if (side_panel_observer_.IsObserving()) {
+      shadow_box_->SetShadowOpacity(
+          side_panel_observer_.GetSource()
+              ->animation_coordinator()
+              ->GetAnimationValueFor(kShadowOverlayOpacityAnimation));
+    }
   }
+}
+
+void ShadowOverlayView::AddedToWidget() {
+  side_panel_observer_.Observe(browser_view_->toolbar_height_side_panel());
+  side_panel_observer_.GetSource()->animation_coordinator()->AddObserver(
+      kShadowOverlayOpacityAnimation, this);
+}
+
+void ShadowOverlayView::RemovedFromWidget() {
+  if (side_panel_observer_.IsObserving()) {
+    side_panel_observer_.GetSource()->animation_coordinator()->RemoveObserver(
+        kShadowOverlayOpacityAnimation, this);
+    side_panel_observer_.Reset();
+  }
+}
+
+void ShadowOverlayView::OnViewIsDeleting(views::View* observed_view) {
+  CHECK(observed_view == side_panel_observer_.GetSource());
+
+  side_panel_observer_.GetSource()->animation_coordinator()->RemoveObserver(
+      kShadowOverlayOpacityAnimation, this);
+  side_panel_observer_.Reset();
 }
 
 views::ProposedLayout ShadowOverlayView::CalculateProposedLayout(
@@ -239,6 +290,25 @@ views::ProposedLayout ShadowOverlayView::CalculateProposedLayout(
   layout.child_layouts.push_back(bottom_trailing);
 
   return layout;
+}
+
+void ShadowOverlayView::OnAnimationSequenceProgressed(
+    const SidePanelAnimationCoordinator::SidePanelAnimationId& animation_id,
+    double animation_value) {
+  CHECK_EQ(kShadowOverlayOpacityAnimation, animation_id);
+
+  shadow_box_->SetShadowOpacity(animation_value);
+}
+
+void ShadowOverlayView::OnAnimationSequenceEnded(
+    const SidePanelAnimationCoordinator::SidePanelAnimationId& animation_id) {
+  // When the animation ends, set the final opacity based on whether the side
+  // panel is closing or opening.
+  const double ending_opacity =
+      side_panel_observer_.GetSource()->animation_coordinator()->IsClosing()
+          ? 0.0f
+          : 1.0f;
+  shadow_box_->SetShadowOpacity(ending_opacity);
 }
 
 BEGIN_METADATA(ShadowOverlayView)

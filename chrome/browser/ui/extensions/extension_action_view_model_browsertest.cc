@@ -24,9 +24,6 @@
 #include "chrome/browser/extensions/extension_util.h"
 #include "chrome/browser/extensions/extension_view_host.h"
 #include "chrome/browser/extensions/load_error_reporter.h"
-#include "chrome/browser/extensions/permissions/permissions_updater.h"
-#include "chrome/browser/extensions/permissions/scripting_permissions_modifier.h"
-#include "chrome/browser/extensions/permissions/site_permissions_helper.h"
 #include "chrome/browser/extensions/scoped_test_mv2_enabler.h"
 #include "chrome/browser/extensions/test_extension_system.h"
 #include "chrome/browser/extensions/user_script_listener.h"
@@ -49,6 +46,9 @@
 #include "extensions/browser/extension_action_manager.h"
 #include "extensions/browser/extension_registrar.h"
 #include "extensions/browser/extension_registry.h"
+#include "extensions/browser/permissions/permissions_updater.h"
+#include "extensions/browser/permissions/scripting_permissions_modifier.h"
+#include "extensions/browser/permissions/site_permissions_helper.h"
 #include "extensions/browser/permissions_manager.h"
 #include "extensions/browser/test_extension_registry_observer.h"
 #include "extensions/common/api/extension_action/action_info.h"
@@ -99,13 +99,23 @@ class ExtensionActionViewModelBrowserTest : public InProcessBrowserTest {
   }
 
   // Sets whether the given |action| wants to run on the |web_contents|.
-  void SetActionWantsToRunOnTab(extensions::ExtensionAction* action,
+  void SetActionWantsToRunOnTab(const std::string& action_id,
                                 content::WebContents* web_contents,
                                 bool wants_to_run) {
+    Profile* profile = browser()->profile();
+    auto* registry = extensions::ExtensionRegistry::Get(profile);
+    scoped_refptr<const extensions::Extension> extension =
+        registry->enabled_extensions().GetByID(action_id);
+    CHECK(extension);
+    extensions::ExtensionAction* action =
+        extensions::ExtensionActionManager::Get(profile)->GetExtensionAction(
+            *extension);
+    CHECK(action);
+
     action->SetIsVisible(
         sessions::SessionTabHelper::IdForTab(web_contents).id(), wants_to_run);
-    extensions::ExtensionActionDispatcher::Get(browser()->profile())
-        ->NotifyChange(action, web_contents, browser()->profile());
+    extensions::ExtensionActionDispatcher::Get(profile)->NotifyChange(
+        action, web_contents, profile);
   }
 
   // Returns the active WebContents for the primary browser.
@@ -218,7 +228,7 @@ IN_PROC_BROWSER_TEST_P(ExtensionActionViewModelFeatureRolloutBrowserTest,
   EXPECT_TRUE(image_source->grayscale());
   EXPECT_FALSE(image_source->paint_blocked_actions_decoration());
 
-  SetActionWantsToRunOnTab(model->extension_action(), web_contents, true);
+  SetActionWantsToRunOnTab(model->GetId(), web_contents, true);
   image_source = model->GetIconImageSourceForTesting(web_contents, view_size());
   EXPECT_FALSE(image_source->grayscale());
   EXPECT_FALSE(image_source->paint_blocked_actions_decoration());
@@ -240,7 +250,6 @@ IN_PROC_BROWSER_TEST_P(ExtensionActionViewModelFeatureRolloutBrowserTest,
 
   ExtensionActionViewModel* const model = GetViewModelForId(extension->id());
   ASSERT_TRUE(model);
-  EXPECT_EQ(extension.get(), model->extension());
 
   content::WebContents* web_contents = GetActiveWebContents();
   ASSERT_TRUE(web_contents);
@@ -285,7 +294,6 @@ IN_PROC_BROWSER_TEST_P(ExtensionActionViewModelFeatureRolloutBrowserTest,
 
   ExtensionActionViewModel* const model = GetViewModelForId(extension->id());
   ASSERT_TRUE(model);
-  EXPECT_EQ(extension.get(), model->extension());
 
   content::WebContents* web_contents = GetActiveWebContents();
   std::unique_ptr<IconWithBadgeImageSource> image_source =
@@ -340,7 +348,6 @@ IN_PROC_BROWSER_TEST_P(ExtensionActionViewModelFeatureRolloutBrowserTest,
 
   ExtensionActionViewModel* const model = GetViewModelForId(extension->id());
   ASSERT_TRUE(model);
-  EXPECT_EQ(extension.get(), model->extension());
 
   // Initially load on a site that the extension doesn't have permissions to.
   AddTab(browser(), GURL("https://www.chromium.org/"));
@@ -1191,7 +1198,6 @@ IN_PROC_BROWSER_TEST_P(ExtensionActionViewModelFeatureRolloutBrowserTest,
 
   ExtensionActionViewModel* const model = GetViewModelForId(extension->id());
   ASSERT_TRUE(model);
-  EXPECT_EQ(extension.get(), model->extension());
 
   AddTab(browser(), GURL("https://www.chromium.org/"));
   content::WebContents* web_contents = GetActiveWebContents();
@@ -1223,25 +1229,6 @@ IN_PROC_BROWSER_TEST_P(ExtensionActionViewModelFeatureRolloutBrowserTest,
   EXPECT_FALSE(model->IsEnabled(web_contents));
 }
 
-// A fake implementation of ExtensionActionPlatformDelegate that does nothing.
-class FakeExtensionActionPlatformDelegate
-    : public ExtensionActionPlatformDelegate {
- public:
-  void AttachToModel(ExtensionActionViewModel* model) override {}
-  void DetachFromModel() override {}
-  void RegisterCommand() override {}
-  void UnregisterCommand() override {}
-  bool IsShowingPopup() const override { return false; }
-  void HidePopup() override {}
-  gfx::NativeView GetPopupNativeView() override { return gfx::NativeView(); }
-  void TriggerPopup(std::unique_ptr<extensions::ExtensionViewHost> host,
-                    PopupShowAction show_action,
-                    bool by_user,
-                    ShowPopupCallback callback) override {}
-  void ShowContextMenuAsFallback() override {}
-  bool CloseOverflowMenuIfOpen() override { return false; }
-};
-
 // Ensures that the observer is called on navigation.
 IN_PROC_BROWSER_TEST_P(ExtensionActionViewModelFeatureRolloutBrowserTest,
                        ObserverCalledOnNavigation) {
@@ -1250,14 +1237,12 @@ IN_PROC_BROWSER_TEST_P(ExtensionActionViewModelFeatureRolloutBrowserTest,
       CreateAndAddExtension("extension", extensions::ActionInfo::Type::kPage)
           ->id();
 
-  // Create ExtensionActionViewModel that is not associated with the
-  // lifetime of the view.
-  auto action = ExtensionActionViewModel::Create(
-      id, browser(), std::make_unique<FakeExtensionActionPlatformDelegate>());
-
   // Register an observer.
+  ExtensionActionViewModel* const model = GetViewModelForId(id);
+  ASSERT_TRUE(model);
+
   bool observer_called = false;
-  action->SetUpdateObserver(base::BindRepeating(
+  auto registration = model->RegisterUpdateObserver(base::BindRepeating(
       [](bool* observer_called) { *observer_called = true; },
       &observer_called));
 
@@ -1278,4 +1263,70 @@ IN_PROC_BROWSER_TEST_P(ExtensionActionViewModelFeatureRolloutBrowserTest,
   NavigateAndCommitActiveTab(GURL("https://www.example.com/4"));
   EXPECT_TRUE(observer_called);
   observer_called = false;
+}
+
+// A fake implementation of ExtensionActionPlatformDelegate that does nothing.
+class FakeExtensionActionPlatformDelegate
+    : public ExtensionActionPlatformDelegate {
+ public:
+  void AttachToModel(ExtensionActionViewModel* model) override {}
+  void DetachFromModel() override {}
+  void RegisterCommand() override {}
+  void UnregisterCommand() override {}
+  bool IsShowingPopup() const override { return false; }
+  void HidePopup() override {}
+  gfx::NativeView GetPopupNativeView() override { return gfx::NativeView(); }
+  void TriggerPopup(std::unique_ptr<extensions::ExtensionViewHost> host,
+                    PopupShowAction show_action,
+                    bool by_user,
+                    ShowPopupCallback callback) override {}
+  void ShowContextMenuAsFallback() override {}
+  bool CloseOverflowMenuIfOpen() override { return false; }
+};
+
+// Ensures that calling methods for stale extensions does not cause crashes.
+IN_PROC_BROWSER_TEST_P(ExtensionActionViewModelFeatureRolloutBrowserTest,
+                       NoCrashForStaleExtensions) {
+  Init();
+  const std::string id =
+      CreateAndAddExtension("extension", extensions::ActionInfo::Type::kPage)
+          ->id();
+
+  content::WebContents* web_contents = GetActiveWebContents();
+
+  // Create ExtensionActionViewModel that is not associated with the
+  // lifetime of the view.
+  auto action = ExtensionActionViewModel::Create(
+      id, browser(), std::make_unique<FakeExtensionActionPlatformDelegate>());
+
+  extension_registrar()->DisableExtension(
+      id, {extensions::disable_reason::DISABLE_USER_ACTION});
+
+  // GetId() must return a consistent value.
+  EXPECT_EQ(id, action->GetId());
+
+  // Other getters may return undefined values, but never crash.
+  // We expect specific values here, even though they're not in the contract.
+  EXPECT_TRUE(action->GetIcon(web_contents, gfx::Size(12, 12)).IsEmpty());
+  EXPECT_EQ(std::u16string(), action->GetActionName());
+  EXPECT_EQ(std::u16string(), action->GetActionTitle(web_contents));
+  EXPECT_EQ(std::u16string(), action->GetAccessibleName(web_contents));
+  EXPECT_EQ(std::u16string(), action->GetTooltip(web_contents));
+  HoverCardState state = action->GetHoverCardState(web_contents);
+  EXPECT_EQ(HoverCardState::SiteAccess::kExtensionDoesNotWantAccess,
+            state.site_access);
+  EXPECT_EQ(HoverCardState::AdminPolicy::kNone, state.policy);
+  EXPECT_EQ(SiteInteraction::kNone, action->GetSiteInteraction(web_contents));
+  EXPECT_EQ(false, action->IsEnabled(web_contents));
+  EXPECT_EQ(false, action->IsShowingPopup());
+  EXPECT_EQ(gfx::NativeView(), action->GetPopupNativeView());
+  EXPECT_EQ(nullptr,
+            action->GetContextMenu(extensions::ExtensionContextMenuModel::
+                                       ContextMenuSource::kToolbarAction));
+
+  // Calling action methods do not cause crashes.
+  action->HidePopup();
+  action->ExecuteUserAction(
+      ExtensionActionViewModel::InvocationSource::kToolbarButton);
+  action->TriggerPopupForAPI(base::DoNothing());
 }

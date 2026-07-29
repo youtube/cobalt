@@ -465,6 +465,7 @@ base_webview_instrumentation_test_apk("webview_instrumentation_test_apk") {
     "../javatests/src/org/chromium/android_webview/test/AwMediaIntegrityApiTest.java",
     "../javatests/src/org/chromium/android_webview/test/AwMetricsIntegrationTest.java",
     "../javatests/src/org/chromium/android_webview/test/AwMetricsLogUploaderTest.java",
+    "../javatests/src/org/chromium/android_webview/test/AwNavigationClientTest.java",
     "../javatests/src/org/chromium/android_webview/test/AwNetworkConfigurationTest.java",
     "../javatests/src/org/chromium/android_webview/test/AwPacProcessorTest.java",
     "../javatests/src/org/chromium/android_webview/test/AwPageLoadMetricsTest.java",
@@ -842,14 +843,11 @@ test("android_webview_unittests") {
   data = [ "data/" ]
 
   sources = [
-    "../browser/aw_app_defined_websites_unittest.cc",
-    "../browser/aw_asset_domain_list_include_handler_unittest.cc",
     "../browser/aw_browser_context_unittest.cc",
     "../browser/aw_client_hints_controller_delegate_unittest.cc",
     "../browser/aw_content_browser_client_unittest.cc",
     "../browser/aw_contents_client_bridge_unittest.cc",
     "../browser/aw_crash_keys_unittest.cc",
-    "../browser/aw_feature_entries_unittest.cc",
     "../browser/aw_field_trials_unittest.cc",
     "../browser/aw_origin_matched_header_unittest.cc",
     "../browser/aw_pac_processor_unittest.cc",

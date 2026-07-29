@@ -413,7 +413,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Blink.Canvas.MaximumInflightResources"
-    units="canvas resources" expires_after="2026-03-22">
+    units="canvas resources" expires_after="2026-05-24">
   <owner>aaronhk@chromium.org</owner>
   <owner>fserb@chromium.org</owner>
   <summary>
@@ -994,7 +994,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Blink.DecodedImage.AvifDensity.KiBWeighted2"
-    units="0.01 bits per pixel" expires_after="2026-03-22">
+    units="0.01 bits per pixel" expires_after="2026-05-24">
   <owner>wtc@google.com</owner>
   <owner>jzern@google.com</owner>
   <owner>
@@ -1515,7 +1515,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Blink.FedCm.Button.LoadingDialogResult"
-    enum="FedCmLoadingDialogResult" expires_after="2026-03-22">
+    enum="FedCmLoadingDialogResult" expires_after="2026-05-24">
   <owner>tanzachary@chromium.org</owner>
   <owner>web-identity-eng@google.com</owner>
   <summary>
@@ -2504,7 +2504,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Blink.FencedFrame.MaxSameSiteFencedFramesInViewportAtUnload"
-    units="FrameCount" expires_after="2025-12-20">
+    units="FrameCount" expires_after="2026-06-20">
   <owner>averge@chromium.org</owner>
   <owner>shivanisha@chromium.org</owner>
   <owner>chrome-fenced-frames-core@google.com</owner>
@@ -2522,7 +2522,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Blink.FencedFrame.MaxSameSiteFencedFramesInViewportPerPageLoad"
-    units="FrameCount" expires_after="2025-12-20">
+    units="FrameCount" expires_after="2026-06-20">
   <owner>averge@chromium.org</owner>
   <owner>shivanisha@chromium.org</owner>
   <owner>chrome-fenced-frames-core@google.com</owner>
@@ -2561,7 +2561,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Blink.Fetch.RequestResourceTime2{SchemeOrPreload}"
-    units="microseconds" expires_after="2026-03-15">
+    units="microseconds" expires_after="2026-05-17">
   <owner>cduvall@chromium.org</owner>
   <owner>csharrison@chromium.org</owner>
   <owner>chrome-loading@google.com</owner>
@@ -2641,7 +2641,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Blink.Fonts.FontServiceThread.OpenStreamTime"
-    units="microseconds" expires_after="2026-03-01">
+    units="microseconds" expires_after="2026-05-24">
   <owner>nidhijaju@chromium.org</owner>
   <owner>chrome-loading@google.com</owner>
   <summary>
@@ -2657,11 +2657,31 @@ chromium-metrics-reviews@google.com.
   <owner>anthonyvd@chromium.org</owner>
   <owner>chrome-catan@google.com</owner>
   <summary>
+    Obsolete: rebucketed and renamed to LastResortAttemptsUntilStaticMatch2 in
+    M144.
+
     Records how many attempts it took to find a last resort fallback font. This
     is attempted when no other specified font could be instantiated to render a
     character. The last resort font from the FontDescription is tried first, and
     then hardcoded system fonts if needed. This histogram counts those hardcoded
     fonts attempts. If no fallback is found, the overflow bucket is recorded.
+  </summary>
+</histogram>
+
+<histogram name="Blink.Fonts.LastResortAttemptsUntilStaticMatch2"
+    units="attempts" expires_after="2026-05-10">
+  <owner>andresrperez@chromium.org</owner>
+  <owner>anthonyvd@chromium.org</owner>
+  <owner>chrome-catan@google.com</owner>
+  <summary>
+    Records how many attempts it took to find a last resort fallback font. This
+    is attempted when no other specified font could be instantiated to render a
+    character. The last resort font from the FontDescription is tried first, and
+    then hardcoded system fonts if needed. This histogram counts those hardcoded
+    fonts attempts. If no fallback is found, the overflow bucket is recorded.
+
+    Replaced Blink.Fonts.LastResortAttemptsUntilStaticMatch in M144 and is a
+    re-bucketed version of that histogram.
   </summary>
 </histogram>
 
@@ -3655,7 +3675,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Blink.LCPP.NavigationToStartPreload.MainFrame.{SubresourceType}.Time"
-    units="ms" expires_after="2026-03-15">
+    units="ms" expires_after="2026-05-17">
   <owner>chikamune@chromium.org</owner>
   <owner>yyanagisawa@chromium.org</owner>
   <owner>kouhei@chromium.org</owner>
@@ -3863,7 +3883,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Blink.LCPP.PrewarmHttpDiskCacheURL.Count.SameSiteRatio"
-    units="%" expires_after="2026-03-15">
+    units="%" expires_after="2026-05-17">
   <owner>yoichio@chromium.org</owner>
   <owner>
     src/third_party/blink/renderer/core/lcp_critical_path_predictor/OWNERS
@@ -3877,7 +3897,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Blink.LCPP.PrewarmHttpDiskCacheURL.Count.{Site}" units="count"
-    expires_after="2026-03-15">
+    expires_after="2026-05-17">
   <owner>yoichio@chromium.org</owner>
   <owner>
     src/third_party/blink/renderer/core/lcp_critical_path_predictor/OWNERS
@@ -4290,7 +4310,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Blink.Network.ParseDataURLTime{Type}{CharacterCount}"
-    units="microseconds" expires_after="2026-03-22">
+    units="microseconds" expires_after="2026-05-24">
   <owner>nidhijaju@chromium.org</owner>
   <owner>chrome-loading@google.com</owner>
   <summary>
@@ -5585,7 +5605,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Blink.UseCounter.FeaturePolicy.Header"
-    enum="FeaturePolicyFeature" expires_after="2026-03-22">
+    enum="FeaturePolicyFeature" expires_after="2026-05-24">
   <owner>iclelland@chromium.org</owner>
   <owner>feature-control@chromium.org</owner>
   <summary>
@@ -5654,7 +5674,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Blink.UseCounter.PermissionsPolicy.Allow2"
-    enum="FeaturePolicyFeature" expires_after="2026-03-09">
+    enum="FeaturePolicyFeature" expires_after="2026-05-24">
   <owner>iclelland@chromium.org</owner>
   <owner>feature-control@chromium.org</owner>
   <summary>

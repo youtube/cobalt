@@ -38,7 +38,6 @@
 #include "chrome/browser/download/download_core_service.h"
 #include "chrome/browser/download/download_core_service_factory.h"
 #include "chrome/browser/download/download_file_icon_extractor.h"
-#include "chrome/browser/download/download_open_prompt.h"
 #include "chrome/browser/download/download_prefs.h"
 #include "chrome/browser/download/download_test_file_activity_observer.h"
 #include "chrome/browser/extensions/api/downloads/download_extension_errors.h"
@@ -140,16 +139,6 @@ bool IsDownloadExternallyRemoved(download::DownloadItem* item) {
 #if BUILDFLAG(ENABLE_EXTENSIONS)
 
 void OnFileDeleted(bool success) {}
-
-void OnOpenPromptCreated(download::DownloadItem* item,
-                         DownloadOpenPrompt* prompt) {
-  EXPECT_FALSE(item->GetOpened());
-  // Posts a task to accept the DownloadOpenPrompt.
-  content::GetUIThreadTaskRunner({})->PostTask(
-      FROM_HERE,
-      base::BindOnce(&DownloadOpenPrompt::AcceptConfirmationDialogForTesting,
-                     base::Unretained(prompt)));
-}
 
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 
@@ -793,6 +782,7 @@ class DownloadExtensionTest : public ExtensionApiTest {
       // Ensure we have an OTR window and OTR web contents.
       tab = PlatformOpenURLOffTheRecord(current_profile(), GURL("about:blank"));
     }
+    CHECK(tab);
     content::OpenURLParams params(url, content::Referrer(), disposition,
                                   ui::PAGE_TRANSITION_LINK,
                                   /*is_renderer_initiated=*/false);
@@ -817,16 +807,15 @@ class DownloadExtensionTest : public ExtensionApiTest {
                                !IncognitoInfo::IsSplitMode(extension)
                            ? GURL(url::kAboutBlankURL)
                            : extension->GetResourceURL("empty.html");
-      // Watch and wait for the navigation to take place.
-      auto observer = std::make_unique<content::TestNavigationObserver>(url);
-      observer->WatchExistingWebContents();
-      observer->StartWatchingNewWebContents();
       // Recreate the tab each time for insulation.
       content::WebContents* tab =
           LoadURLNoWait(url, WindowOpenDisposition::NEW_FOREGROUND_TAB);
-      observer->WaitForNavigationFinished();
+      CHECK(tab);
+      CHECK(content::WaitForLoadStop(tab));
       function->set_extension(extension);
+      CHECK(tab->GetPrimaryMainFrame());
       function->SetRenderFrameHost(tab->GetPrimaryMainFrame());
+      CHECK(tab->GetPrimaryMainFrame()->GetProcess());
       function->set_source_process_id(
           tab->GetPrimaryMainFrame()->GetProcess()->GetDeprecatedID());
     }
@@ -1045,8 +1034,6 @@ IN_PROC_BROWSER_TEST_F(DownloadExtensionTest, ParseSearchQuery) {
       RunFunction(new DownloadsSearchFunction, "[{\"totalBytesGreater\":2}]"));
 }
 
-#if BUILDFLAG(ENABLE_EXTENSIONS)
-// The open dialog is not yet implemented on desktop Android.
 IN_PROC_BROWSER_TEST_F(DownloadExtensionTest, DownloadExtensionTest_Open) {
   platform_util::internal::DisableShellOperationsForTesting();
 
@@ -1095,9 +1082,11 @@ IN_PROC_BROWSER_TEST_F(DownloadExtensionTest, DownloadExtensionTest_Open) {
   args_list.Append(static_cast<int>(download_item->GetId()));
   open_function->SetArgs(std::move(args_list));
   open_function->set_extension(extension());
-  DownloadsOpenFunction::OnPromptCreatedCallback callback =
-      base::BindOnce(&OnOpenPromptCreated, base::Unretained(download_item));
-  DownloadsOpenFunction::set_on_prompt_created_cb_for_testing(&callback);
+
+  // Auto accept the dialog triggered when opening the download.
+  auto downloads_open_dialog_reset =
+      DownloadsOpenFunction::AcceptDialogForTesting();
+
   api_test_utils::SendResponseHelper response_helper(open_function.get());
   std::unique_ptr<ExtensionFunctionDispatcher> dispatcher(
       new ExtensionFunctionDispatcher(current_profile()));
@@ -1110,7 +1099,6 @@ IN_PROC_BROWSER_TEST_F(DownloadExtensionTest, DownloadExtensionTest_Open) {
   observer.WaitForEvent();
   EXPECT_TRUE(download_item->GetOpened());
 }
-#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 
 IN_PROC_BROWSER_TEST_F(DownloadExtensionTest,
                        DownloadExtensionTest_PauseResumeCancelErase) {
@@ -4633,22 +4621,6 @@ IN_PROC_BROWSER_TEST_F(DownloadExtensionTest,
 
 // TODO(benjhayden) Test that the shelf is shown for download() both with and
 // without a WebContents.
-//
-// Desktop Android does not use the download shelf UI.
-IN_PROC_BROWSER_TEST_F(DownloadExtensionTest,
-                       DownloadExtensionTest_SetUiOptions) {
-  LoadExtension("downloads_split");
-  EXPECT_TRUE(RunFunction(base::MakeRefCounted<DownloadsSetUiOptionsFunction>(),
-                          R"([{"enabled": false}])"));
-  EXPECT_FALSE(
-      DownloadCoreServiceFactory::GetForBrowserContext(current_profile())
-          ->IsDownloadUiEnabled());
-  EXPECT_TRUE(RunFunction(base::MakeRefCounted<DownloadsSetUiOptionsFunction>(),
-                          R"([{"enabled": true}])"));
-  EXPECT_TRUE(
-      DownloadCoreServiceFactory::GetForBrowserContext(current_profile())
-          ->IsDownloadUiEnabled());
-}
 
 void OnDangerPromptCreated(DownloadDangerPrompt* prompt) {
   prompt->InvokeActionForTesting(DownloadDangerPrompt::ACCEPT);
@@ -4851,6 +4823,21 @@ IN_PROC_BROWSER_TEST_F(DownloadExtensionBubbleEnabledTest,
 #endif  // !BUILDFLAG(IS_CHROMEOS) && !BUILDFLAG(IS_ANDROID)
 
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS)
+
+IN_PROC_BROWSER_TEST_F(DownloadExtensionTest,
+                       DownloadExtensionTest_SetUiOptions) {
+  LoadExtension("downloads_split");
+  EXPECT_TRUE(RunFunction(base::MakeRefCounted<DownloadsSetUiOptionsFunction>(),
+                          R"([{"enabled": false}])"));
+  EXPECT_FALSE(
+      DownloadCoreServiceFactory::GetForBrowserContext(current_profile())
+          ->IsDownloadUiEnabled());
+  EXPECT_TRUE(RunFunction(base::MakeRefCounted<DownloadsSetUiOptionsFunction>(),
+                          R"([{"enabled": true}])"));
+  EXPECT_TRUE(
+      DownloadCoreServiceFactory::GetForBrowserContext(current_profile())
+          ->IsDownloadUiEnabled());
+}
 
 class DownloadsApiTest : public ExtensionApiTest {
  public:

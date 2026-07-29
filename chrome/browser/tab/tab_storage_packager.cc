@@ -4,8 +4,11 @@
 
 #include "chrome/browser/tab/tab_storage_packager.h"
 
+#include <cstdint>
 #include <memory>
+#include <string>
 #include <utility>
+#include <vector>
 
 #include "base/strings/utf_string_conversions.h"
 #include "base/token.h"
@@ -14,6 +17,8 @@
 #include "chrome/browser/tab/protocol/children.pb.h"
 #include "chrome/browser/tab/protocol/split_collection_state.pb.h"
 #include "chrome/browser/tab/protocol/tab_group_collection_state.pb.h"
+#include "chrome/browser/tab/protocol/token.pb.h"
+#include "chrome/browser/tab/storage_id.h"
 #include "chrome/browser/tab/storage_id_mapping.h"
 #include "chrome/browser/tab/storage_package.h"
 #include "chrome/browser/tab/tab_group_collection_data.h"
@@ -34,11 +39,13 @@ class ChildProcessor : public DirectChildWalker::Processor {
       : children_proto_(children_proto), mapping_(mapping) {}
 
   void ProcessTab(const TabInterface* tab) override {
-    children_proto_->add_storage_id(mapping_->GetStorageId(tab));
+    tabs_pb::Token* token = children_proto_->add_storage_id();
+    StorageIdToTokenProto(mapping_->GetStorageId(tab), token);
   }
 
   void ProcessCollection(const TabCollection* collection) override {
-    children_proto_->add_storage_id(mapping_->GetStorageId(collection));
+    tabs_pb::Token* token = children_proto_->add_storage_id();
+    StorageIdToTokenProto(mapping_->GetStorageId(collection), token);
   }
 
  private:
@@ -50,7 +57,7 @@ class ChildProcessor : public DirectChildWalker::Processor {
 class EmptyPayload : public Payload {
  public:
   EmptyPayload() = default;
-  std::string SerializePayload() const override { return ""; }
+  std::vector<uint8_t> SerializePayload() const override { return {}; }
 };
 
 // A payload representing the collection children.
@@ -59,8 +66,10 @@ class ChildrenPayload : public Payload {
   explicit ChildrenPayload(tabs_pb::Children children)
       : children_(std::move(children)) {}
 
-  std::string SerializePayload() const override {
-    return children_.SerializeAsString();
+  std::vector<uint8_t> SerializePayload() const override {
+    std::vector<uint8_t> payload_vec(children_.ByteSizeLong());
+    children_.SerializeToArray(payload_vec.data(), payload_vec.size());
+    return payload_vec;
   }
 
  private:
@@ -76,8 +85,11 @@ class SplitCollectionStorageData : public Payload {
 
   ~SplitCollectionStorageData() override = default;
 
-  std::string SerializePayload() const override {
-    return split_collection_state_.SerializeAsString();
+  std::vector<uint8_t> SerializePayload() const override {
+    std::vector<uint8_t> payload_vec(split_collection_state_.ByteSizeLong());
+    split_collection_state_.SerializeToArray(payload_vec.data(),
+                                             payload_vec.size());
+    return payload_vec;
   }
 
  private:
@@ -92,8 +104,10 @@ class TabGroupCollectionStorageData : public Payload {
 
   ~TabGroupCollectionStorageData() override = default;
 
-  std::string SerializePayload() const override {
-    return state_.SerializeAsString();
+  std::vector<uint8_t> SerializePayload() const override {
+    std::vector<uint8_t> payload_vec(state_.ByteSizeLong());
+    state_.SerializeToArray(payload_vec.data(), payload_vec.size());
+    return payload_vec;
   }
 
  private:

@@ -7,11 +7,12 @@
 
 #include <string>
 
+#include "base/callback_list.h"
 #include "base/functional/callback_forward.h"
 #include "chrome/browser/extensions/extension_context_menu_model.h"
-#include "chrome/browser/extensions/permissions/site_permissions_helper.h"
 #include "chrome/browser/ui/extensions/extension_popup_types.h"
 #include "chrome/browser/ui/toolbar/toolbar_action_hover_card_types.h"
+#include "extensions/browser/permissions/site_permissions_helper.h"
 #include "ui/base/models/image_model.h"
 
 namespace content {
@@ -98,8 +99,9 @@ class ToolbarActionViewModel {
   // the extension id; for component actions, this is the name of the component.
   virtual std::string GetId() const = 0;
 
-  // Sets the observer of the view model.
-  virtual void SetUpdateObserver(base::RepeatingClosure observer) = 0;
+  // Registers an update observer of the view model.
+  virtual base::CallbackListSubscription RegisterUpdateObserver(
+      base::RepeatingClosure observer) = 0;
 
   // Returns the icon to use for the given |web_contents| and |size|.
   virtual ui::ImageModel GetIcon(content::WebContents* web_contents,

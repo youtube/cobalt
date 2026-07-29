@@ -73,11 +73,14 @@ void FindInPageBridge::ActivateFindInPageResultForAccessibility(JNIEnv* env) {
 }
 
 // static
-jlong JNI_FindInPageBridge_Init(JNIEnv* env,
-                                const JavaParamRef<jobject>& self,
-                                const JavaParamRef<jobject>& j_web_contents) {
+static jlong JNI_FindInPageBridge_Init(
+    JNIEnv* env,
+    const JavaParamRef<jobject>& self,
+    const JavaParamRef<jobject>& j_web_contents) {
   FindInPageBridge* bridge = new FindInPageBridge(env, self, j_web_contents);
   return reinterpret_cast<intptr_t>(bridge);
 }
 
 }  // namespace find_in_page
+
+DEFINE_JNI(FindInPageBridge)

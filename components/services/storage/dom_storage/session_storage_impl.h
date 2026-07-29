@@ -152,18 +152,6 @@ class SessionStorageImpl : public base::trace_event::MemoryDumpProvider,
  private:
   friend class DOMStorageBrowserTest;
 
-  // These values are written to logs.  New enum values can be added, but
-  // existing enums must never be renumbered or deleted and reused.
-  enum class OpenResult {
-    kDirectoryOpenFailed = 0,
-    kDatabaseOpenFailed = 1,
-    kInvalidVersion = 2,
-    kVersionReadError = 3,
-    kNamespacesReadError = 4,
-    kSuccess = 6,
-    kMaxValue = kSuccess
-  };
-
   scoped_refptr<SessionStorageMetadata::MapData> RegisterNewAreaMap(
       SessionStorageMetadata::NamespaceEntry namespace_entry,
       const blink::StorageKey& storage_key);
@@ -197,43 +185,16 @@ class SessionStorageImpl : public base::trace_event::MemoryDumpProvider,
   // Part of our asynchronous directory opening called from RunWhenConnected().
   void InitiateConnection(bool in_memory_only = false);
   void OnDatabaseOpened(DbStatus status);
-
-  struct ValueAndStatus {
-    ValueAndStatus();
-    ValueAndStatus(ValueAndStatus&&);
-    ~ValueAndStatus();
-    DbStatus status;
-    DomStorageDatabase::Value value;
-  };
-
-  struct KeyValuePairsAndStatus {
-    KeyValuePairsAndStatus();
-    KeyValuePairsAndStatus(KeyValuePairsAndStatus&&);
-    ~KeyValuePairsAndStatus();
-    DbStatus status;
-    std::vector<DomStorageDatabase::KeyValuePair> key_value_pairs;
-  };
-
-  void OnGotDatabaseMetadata(KeyValuePairsAndStatus namespaces,
-                             ValueAndStatus next_map_id);
-
-  struct MetadataParseResult {
-    OpenResult open_result;
-    const char* histogram_name;
-  };
-  MetadataParseResult ParseNamespaces(KeyValuePairsAndStatus namespaces);
-  MetadataParseResult ParseNextMapId(ValueAndStatus next_map_id);
-
+  void OnGotDatabaseMetadata(
+      StatusOr<DomStorageDatabase::Metadata> all_metadata);
   void OnConnectionFinished();
   void PurgeAllNamespaces();
-  void DeleteAndRecreateDatabase(const char* histogram_name);
+  void DeleteAndRecreateDatabase();
   void OnDBDestroyed(bool recreate_in_memory, DbStatus status);
 
   void OnShutdownComplete();
 
   void GetStatistics(size_t* total_cache_size, size_t* unused_areas_count);
-
-  void LogDatabaseOpenResult(OpenResult result);
 
   void OnReceiverDisconnected();
 
@@ -291,9 +252,6 @@ class SessionStorageImpl : public base::trace_event::MemoryDumpProvider,
   // whole database is thrown away.
   int commit_error_count_ = 0;
   bool tried_to_recover_from_commit_errors_ = false;
-
-  // Name of an extra histogram to log open results to, if not null.
-  const char* open_result_histogram_ = nullptr;
 
   base::OnceClosure shutdown_complete_callback_;
 

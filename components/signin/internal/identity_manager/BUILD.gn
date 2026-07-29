@@ -15,8 +15,6 @@ source_set("identity_manager") {
     "account_fetcher_service.h",
     "account_info_fetcher.cc",
     "account_info_fetcher.h",
-    "account_info_serializer.cc",
-    "account_info_serializer.h",
     "account_info_util.cc",
     "account_info_util.h",
     "account_tracker_service.cc",
@@ -27,8 +25,6 @@ source_set("identity_manager") {
     "diagnostics_provider_impl.h",
     "gaia_cookie_manager_service.cc",
     "gaia_cookie_manager_service.h",
-    "oauth_consumer_registry.cc",
-    "oauth_consumer_registry.h",
     "oauth_multilogin_helper.cc",
     "oauth_multilogin_helper.h",
     "oauth_multilogin_token_fetcher.cc",
@@ -67,7 +63,6 @@ source_set("identity_manager") {
   deps = [
     "//components/image_fetcher/core",
     "//components/prefs",
-    "//components/safe_browsing/core/common:features",
     "//components/signin/public/identity_manager:tribool",
     "//components/signin/public/webdata",
     "//components/supervised_user/core/common:features",
@@ -160,7 +155,6 @@ source_set("unit_tests") {
 
   sources = [
     "account_capabilities_fetcher_unittest.cc",
-    "account_info_serializer_unittest.cc",
     "account_info_util_unittest.cc",
     "account_tracker_service_unittest.cc",
     "gaia_cookie_manager_service_unittest.cc",
@@ -262,7 +256,7 @@ static_library("test_support") {
   ]
 
   if (is_android) {
-    sources += [ "account_info_serializer_jni.cc" ]
+    sources += [ "account_info_serializer.cc" ]
     deps = [ "//components/signin/public/android:test_support_jni_headers" ]
   }
 

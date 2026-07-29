@@ -97,12 +97,6 @@ class TabStrip : public views::View,
   // Sets the observer to be notified of changes within this TabStrip.
   void SetTabStripObserver(TabStripObserver* observer);
 
-  // Scroll the tabstrip towards the trailing tabs by an offset
-  void ScrollTowardsTrailingTabs(int offset);
-
-  // Scroll the tabstrip towards the leading tabs by an offset
-  void ScrollTowardsLeadingTabs(int offset);
-
   // Returns true if the specified rect (in TabStrip coordinates) intersects
   // the window caption area of the browser window.
   bool IsRectInWindowCaption(const gfx::Rect& rect);
@@ -179,6 +173,9 @@ class TabStrip : public views::View,
 
   // Destroys the views associated with a recently deleted tab group.
   void OnGroupClosed(const tab_groups::TabGroupId& group);
+
+  void OnTabGroupFocusChanged(
+      std::optional<tab_groups::TabGroupId> new_focused_group);
 
   // Updates the tab slot view split state and animates to bounds.
   void OnSplitCreated(const std::vector<int>& split_indices,
@@ -263,6 +260,7 @@ class TabStrip : public views::View,
 
   // TabContainerController AND TabSlotController:
   bool IsGroupCollapsed(const tab_groups::TabGroupId& group) const override;
+  std::optional<tab_groups::TabGroupId> GetFocusedGroup() const override;
 
   // TabSlotController:
   const ui::ListSelectionModel& GetSelectionModel() const override;

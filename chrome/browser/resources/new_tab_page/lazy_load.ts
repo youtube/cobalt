@@ -12,11 +12,14 @@
 
 import './action_chips/action_chips.js';
 import './action_chips/action_chips_proxy.js';
-import './ntp_promo/ntp_promo_proxy.js';
-import './ntp_promo/individual_promos.js';
+import './lens_upload_dialog.js';
 import './middle_slot_promo.js';
-import './voice_search_overlay.js';
 import './modules/module_descriptors.js';
+import './modules/modules.js';
+import './ntp_promo/individual_promos.js';
+import './ntp_promo/ntp_promo_proxy.js';
+import './ntp_promo/setup_list_module_wrapper.js';
+import './voice_search_overlay.js';
 import 'chrome://resources/cr_components/most_visited/most_visited.js';
 import 'chrome://resources/cr_components/composebox/composebox.js';
 
@@ -30,7 +33,7 @@ export {ComposeboxFileCarouselElement} from 'chrome://resources/cr_components/co
 export {ComposeboxFileThumbnailElement} from 'chrome://resources/cr_components/composebox/file_thumbnail.js';
 export {PageImageServiceBrowserProxy} from 'chrome://resources/cr_components/page_image_service/browser_proxy.js';
 export {PluralStringProxyImpl as NTPPluralStringProxyImpl} from 'chrome://resources/js/plural_string_proxy.js';
-export {ActionChipsElement} from './action_chips/action_chips.js';
+export {ActionChipsElement, ActionChipsRetrievalState} from './action_chips/action_chips.js';
 export {ActionChipsApiProxyImpl} from './action_chips/action_chips_proxy.js';
 export {LensErrorType, LensFormElement, LensSubmitType} from './lens_form.js';
 export {LensUploadDialogAction, LensUploadDialogElement, LensUploadDialogError} from './lens_upload_dialog.js';

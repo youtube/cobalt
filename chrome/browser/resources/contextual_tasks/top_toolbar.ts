@@ -2,15 +2,29 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import '//resources/cr_elements/cr_icon/cr_icon.js';
+import '//resources/cr_elements/cr_icon_button/cr_icon_button.js';
 import '//resources/cr_elements/cr_action_menu/cr_action_menu.js';
 import '//resources/cr_elements/cr_lazy_render/cr_lazy_render_lit.js';
+import '//resources/cr_elements/icons.html.js';
 
 import type {CrActionMenuElement} from 'chrome://resources/cr_elements/cr_action_menu/cr_action_menu.js';
 import type {CrLazyRenderLitElement} from 'chrome://resources/cr_elements/cr_lazy_render/cr_lazy_render_lit.js';
+import {getFaviconForPageURL} from 'chrome://resources/js/icon.js';
 import {CrLitElement} from 'chrome://resources/lit/v3_0/lit.rollup.js';
 
+import type {Tab} from './contextual_tasks.mojom-webui.js';
+import type {BrowserProxy} from './contextual_tasks_browser_proxy.js';
+import {BrowserProxyImpl} from './contextual_tasks_browser_proxy.js';
 import {getCss} from './top_toolbar.css.js';
 import {getHtml} from './top_toolbar.html.js';
+
+export interface TopToolbarElement {
+  $: {
+    menu: CrLazyRenderLitElement<CrActionMenuElement>,
+    sourcesMenu: CrLazyRenderLitElement<CrActionMenuElement>,
+  };
+}
 
 export class TopToolbarElement extends CrLitElement {
   static get is() {
@@ -24,14 +38,13 @@ export class TopToolbarElement extends CrLitElement {
   static override get properties() {
     return {
       title: {type: String},
+      attachedTabs_: {type: Array},
     };
   }
 
   override accessor title: string = '';
-  private get menu_(): CrLazyRenderLitElement<CrActionMenuElement>|null {
-    return this.shadowRoot
-        .querySelector<CrLazyRenderLitElement<CrActionMenuElement>>('#menu');
-  }
+  accessor attachedTabs_: Tab[] = [];
+  private browserProxy_: BrowserProxy = BrowserProxyImpl.getInstance();
 
   override render() {
     return getHtml.bind(this)();
@@ -42,7 +55,9 @@ export class TopToolbarElement extends CrLitElement {
   }
 
   protected onCloseButtonClick_() {
-    this.fire('close-button-click');
+    chrome.metricsPrivate.recordUserAction(
+        'ContextualTasks.WebUI.UserAction.CloseSidePanel');
+    this.browserProxy_.handler.closeSidePanel();
   }
 
   protected onNewThreadClick_() {
@@ -53,28 +68,50 @@ export class TopToolbarElement extends CrLitElement {
     this.fire('thread-history-click');
   }
 
-  protected onMoreClick_(e: MouseEvent) {
-    this.menu_?.get().showAt(e.target as HTMLElement);
+  protected onMoreClick_(e: Event) {
+    this.$.menu.get().showAt(e.target as HTMLElement);
+  }
+
+  protected async onSourcesClick_(e: Event) {
+    const {tabs} = await this.browserProxy_.handler.getAttachedTabs();
+    this.attachedTabs_ = tabs;
+    this.$.sourcesMenu.get().showAt(e.target as HTMLElement);
+  }
+
+  protected onTabClick_(tab: Tab) {
+    this.$.sourcesMenu.get().close();
+    chrome.metricsPrivate.recordUserAction(
+        'ContextualTasks.WebUI.UserAction.TabFromSourcesMenuClicked');
+    this.browserProxy_.handler.onTabClickedFromSourcesMenu(tab.tabId, tab.url);
   }
 
   protected onOpenInNewTabClick_() {
-    this.menu_?.get().close();
-    this.fire('open-in-new-tab-click');
-  }
-
-  protected onOpenChromeSettingsClick_() {
-    this.menu_?.get().close();
-    this.fire('open-chrome-settings-click');
+    this.$.menu.get().close();
+    chrome.metricsPrivate.recordUserAction(
+        'ContextualTasks.WebUI.UserAction.OpenInNewTab');
+    this.browserProxy_.handler.moveTaskUiToToNewTab();
   }
 
   protected onMyActivityClick_() {
-    this.menu_?.get().close();
-    this.fire('my-activity-click');
+    this.$.menu.get().close();
+    chrome.metricsPrivate.recordUserAction(
+        'ContextualTasks.WebUI.UserAction.OpenMyActivity');
+    this.browserProxy_.handler.openMyActivityUi();
   }
 
   protected onHelpClick_() {
-    this.menu_?.get().close();
-    this.fire('help-click');
+    this.$.menu.get().close();
+    chrome.metricsPrivate.recordUserAction(
+        'ContextualTasks.WebUI.UserAction.OpenHelp');
+    this.browserProxy_.handler.openHelpUi();
+  }
+
+  protected faviconUrl_(tab: Tab): string {
+    return getFaviconForPageURL(tab.url.url, false);
+  }
+
+  protected shouldHideSourcesButton_() {
+    return true;
   }
 }
 

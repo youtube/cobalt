@@ -57,6 +57,7 @@
 #include "content/public/test/test_browser_context.h"
 #include "content/test/test_content_browser_client.h"
 #include "net/base/load_flags.h"
+#include "net/base/load_timing_internal_info.h"
 #include "net/base/proxy_chain.h"
 #include "net/base/proxy_server.h"
 #include "net/base/request_priority.h"
@@ -602,6 +603,7 @@ class PrefetchServiceTestBase : public PrefetchingMetricsTestBase {
     head->load_timing.receive_headers_end = base::TimeTicks::Now();
     head->load_timing.request_start = head->load_timing.receive_headers_end -
                                       base::Milliseconds(kHeaderLatency);
+    head->load_timing_internal_info = net::LoadTimingInternalInfo();
 
     head->proxy_chain =
         use_prefetch_proxy
@@ -687,9 +689,15 @@ class PrefetchServiceTestBase : public PrefetchingMetricsTestBase {
     auto head = CreateURLResponseHeadForPrefetch(http_status, mime_type,
                                                  use_prefetch_proxy, headers,
                                                  request->request.url);
+    MakeResponseAndWait(request->request.url, net_error, std::move(head), body);
+  }
+
+  void MakeResponseAndWait(const GURL& url,
+                           net::Error net_error,
+                           network::mojom::URLResponseHeadPtr head,
+                           const std::string& body) {
     network::URLLoaderCompletionStatus status(net_error);
-    test_url_loader_factory_.AddResponse(request->request.url, std::move(head),
-                                         body, status);
+    test_url_loader_factory_.AddResponse(url, std::move(head), body, status);
     task_environment()->RunUntilIdle();
     // Clear responses in the network service so we can inspect the next request
     // that comes in before it is responded to.
@@ -8588,9 +8596,23 @@ TEST_P(PrefetchServiceTest,
   task_environment()->FastForwardBy(
       base::Milliseconds(kAddedToURLRequestStartLatency + kHeaderLatency));
 
-  MakeResponseAndWait(net::HTTP_OK, net::OK, kHTMLMimeType,
-                      /*use_prefetch_proxy=*/false,
-                      {{"X-Testing", "Hello World"}}, kHTMLBody);
+  auto head = CreateURLResponseHeadForPrefetch(
+      net::HTTP_OK, kHTMLMimeType,
+      /*use_prefetch_proxy=*/false, {{"X-Testing", "Hello World"}}, url);
+  constexpr base::TimeDelta url_request_to_domain_lookup =
+      base::Milliseconds(10);
+  head->load_timing.connect_timing.domain_lookup_start =
+      head->load_timing.request_start + url_request_to_domain_lookup;
+  constexpr base::TimeDelta create_stream_delay = base::Milliseconds(11);
+  head->load_timing_internal_info->create_stream_delay = create_stream_delay;
+  constexpr base::TimeDelta connected_callback_delay = base::Milliseconds(12);
+  head->load_timing_internal_info->connected_callback_delay =
+      connected_callback_delay;
+  constexpr base::TimeDelta initialize_stream_delay = base::Milliseconds(13);
+  head->load_timing_internal_info->initialize_stream_delay =
+      initialize_stream_delay;
+
+  MakeResponseAndWait(url, net::OK, std::move(head), kHTMLBody);
 
   // Call `PrefetchContainer::dtor()` to record UMAs.
   handle.reset();
@@ -8610,6 +8632,27 @@ TEST_P(PrefetchServiceTest,
           {"Prefetch.PrefetchContainer.AddedToURLRequestStarted.Embedder_",
            test::kPreloadingEmbedderHistgramSuffixForTesting}),
       kAddedToURLRequestStartLatency, 1);
+  histogram_tester.ExpectUniqueSample(
+      base::StrCat(
+          {"Prefetch.PrefetchContainer.AddedToDomainLookupStarted.Embedder_",
+           test::kPreloadingEmbedderHistgramSuffixForTesting}),
+      kAddedToURLRequestStartLatency +
+          url_request_to_domain_lookup.InMilliseconds(),
+      1);
+  histogram_tester.ExpectUniqueSample(
+      base::StrCat({"Prefetch.PrefetchContainer.CreateStreamDelay.Embedder_",
+                    test::kPreloadingEmbedderHistgramSuffixForTesting}),
+      create_stream_delay.InMilliseconds(), 1);
+  histogram_tester.ExpectUniqueSample(
+      base::StrCat(
+          {"Prefetch.Prefetchcontainer.ConnectedCallbackDelay.Embedder_",
+           test::kPreloadingEmbedderHistgramSuffixForTesting}),
+      connected_callback_delay.InMilliseconds(), 1);
+  histogram_tester.ExpectUniqueSample(
+      base::StrCat(
+          {"Prefetch.Prefetchcontainer.InitializeStreamDelay.Embedder_",
+           test::kPreloadingEmbedderHistgramSuffixForTesting}),
+      initialize_stream_delay.InMilliseconds(), 1);
   histogram_tester.ExpectUniqueSample(
       base::StrCat({"Prefetch.PrefetchContainer."
                     "AddedToHeaderDeterminedSuccessfully.Embedder_",

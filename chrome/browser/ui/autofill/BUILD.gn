@@ -212,6 +212,7 @@ source_set("impl") {
     deps += [
       "//chrome/app:command_ids",
       "//chrome/app/vector_icons",
+      "//chrome/browser/actor",
       "//chrome/browser/apps/platform_apps",
       "//chrome/browser/feedback",
       "//chrome/browser/profiles:profile_util",
@@ -224,6 +225,7 @@ source_set("impl") {
       "//chrome/browser/ui/webauthn",
       "//chrome/browser/ui/webui/signin:login",
       "//components/autofill/core/browser",
+      "//components/desktop_to_mobile_promos",
       "//components/password_manager/core/browser/features:password_features",
       "//components/plus_addresses/core/browser/resources/strings",
       "//extensions/browser",

@@ -84,10 +84,10 @@ SyncErrorInfoBarDelegate::SyncErrorInfoBarDelegate(
     id<SyncPresenter> presenter,
     SyncErrorInfoBarTrigger trigger)
     : profile_(profile), presenter_(presenter), trigger_(trigger) {
-  DCHECK(!profile->IsOffTheRecord());
+  CHECK(!profile->IsOffTheRecord(), base::NotFatalUntil::M151);
   syncer::SyncService* sync_service =
       SyncServiceFactory::GetForProfile(profile_);
-  DCHECK(sync_service);
+  CHECK(sync_service, base::NotFatalUntil::M151);
   // Set all of the UI based on the sync state at the same time to ensure
   // they all correspond to the same sync error.
   error_state_ = sync_service->GetUserActionableError();
@@ -121,18 +121,22 @@ int SyncErrorInfoBarDelegate::GetButtons() const {
 
 std::u16string SyncErrorInfoBarDelegate::GetButtonLabel(
     InfoBarButton button) const {
-  DCHECK(button == BUTTON_OK);
+  CHECK(button == BUTTON_OK, base::NotFatalUntil::M151);
   return button_text_;
 }
 
 bool SyncErrorInfoBarDelegate::Accept() {
+  if (!infobar_is_relevant_) {
+    // The user tapped on Accept while the view was being dismissed or replaced.
+    return false;
+  }
   switch (error_state_) {
     case syncer::SyncService::UserActionableError::kSignInNeedsUpdate:
       [presenter_ showPrimaryAccountReauth];
       break;
 
     case syncer::SyncService::UserActionableError::kNone:
-      DCHECK(ShouldShowSyncSettings(error_state_));
+      CHECK(ShouldShowSyncSettings(error_state_), base::NotFatalUntil::M151);
       [presenter_ showAccountSettings];
       break;
 
@@ -160,6 +164,10 @@ bool SyncErrorInfoBarDelegate::Accept() {
       [presenter_ showTrustedVaultReauthForDegradedRecoverabilityWithTrigger:
                       TrustedVaultTriggerFromInfoBarTrigger(trigger_)];
       break;
+    case syncer::SyncService::UserActionableError::kBookmarksLimitExceeded:
+      // TODO(crbug.com/452968646): Navigate to the concrete help center
+      // article.
+      break;
   }
 
   return false;
@@ -185,6 +193,10 @@ void SyncErrorInfoBarDelegate::OnStateChanged(syncer::SyncService* sync) {
   if (error_state_ == new_error_state) {
     return;
   }
+  // The current infobar was about the previour error state. We should not start
+  // any action based on it. The infobar either is already being removed, or it
+  // will be removed or replaced. No need to do anything more to close the view.
+  infobar_is_relevant_ = false;
   error_state_ = new_error_state;
   if (new_error_state == syncer::SyncService::UserActionableError::kNone) {
     infobar->RemoveSelf();
@@ -223,6 +235,7 @@ bool SyncErrorInfoBarDelegate::DisplayPasswordErrorIcon() const {
         kNeedsTrustedVaultKeyForEverything:
     case syncer::SyncService::UserActionableError::
         kTrustedVaultRecoverabilityDegradedForEverything:
+    case syncer::SyncService::UserActionableError::kBookmarksLimitExceeded:
       return false;
   }
   NOTREACHED();

@@ -11,12 +11,14 @@
 #include "base/functional/bind.h"
 #include "base/hash/sha1.h"
 #include "base/logging.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/strings/string_util.h"
 #include "base/task/task_traits.h"
 #include "base/task/thread_pool.h"
 #include "components/base32/base32.h"
-#include "components/persistent_cache/backend.h"
 #include "components/persistent_cache/backend_storage.h"
+#include "components/persistent_cache/backend_type.h"
+#include "components/persistent_cache/pending_backend.h"
 
 namespace viz {
 
@@ -57,19 +59,22 @@ void DeleteStaleFiles(const base::FilePath& cache_root_dir,
 
   const std::string version_suffix = GetVersionSuffix(product);
 
+  bool deleted_stale_cache = false;
   base::FilePath cache_dir = cache_root_dir.Append(cache_id);
-  if (!base::PathExists(cache_dir)) {
-    return;
-  }
-
-  base::FileEnumerator enumerator(cache_dir, false,
-                                  base::FileEnumerator::DIRECTORIES);
-  for (base::FilePath name = enumerator.Next(); !name.empty();
-       name = enumerator.Next()) {
-    if (name.BaseName().MaybeAsASCII() != version_suffix) {
-      base::DeletePathRecursively(name);
+  if (base::PathExists(cache_dir)) {
+    base::FileEnumerator enumerator(cache_dir, false,
+                                    base::FileEnumerator::DIRECTORIES);
+    for (base::FilePath name = enumerator.Next(); !name.empty();
+         name = enumerator.Next()) {
+      if (name.BaseName().MaybeAsASCII() != version_suffix) {
+        base::DeletePathRecursively(name);
+        deleted_stale_cache = true;
+      }
     }
   }
+
+  base::UmaHistogramBoolean("GPU.PersistentCache.StaleCacheDeleted",
+                            deleted_stale_cache);
 }
 
 bool CreateCacheDirectory(const base::FilePath& cache_dir) {
@@ -126,7 +131,7 @@ PersistentCacheSandboxedFileFactory::PersistentCacheSandboxedFileFactory(
 PersistentCacheSandboxedFileFactory::~PersistentCacheSandboxedFileFactory() =
     default;
 
-std::optional<persistent_cache::BackendParams>
+std::optional<persistent_cache::PendingBackend>
 PersistentCacheSandboxedFileFactory::CreateFiles(const CacheIdString& cache_id,
                                                  const std::string& product) {
   background_task_runner_->PostTask(
@@ -135,15 +140,17 @@ PersistentCacheSandboxedFileFactory::CreateFiles(const CacheIdString& cache_id,
 
   base::FilePath cache_dir =
       GetPersistentCacheDirectory(cache_root_dir_, cache_id, product);
-  auto backend = persistent_cache::BackendStorage(cache_dir).MakeBackend(
-      base::FilePath(FILE_PATH_LITERAL("cache")));
+  persistent_cache::BackendStorage cache_storage(
+      persistent_cache::BackendType::kSqlite, cache_dir);
+  auto backend = cache_storage.MakePendingBackend(
+      base::FilePath(FILE_PATH_LITERAL("cache")), /*single_connection=*/true,
+      /*journal_mode_wal=*/true);
   if (!backend) {
     PLOG(ERROR) << "Failed to open persistent cache files in directory \""
                 << cache_dir << "\"";
-    return std::nullopt;
   }
 
-  return backend->ExportReadWriteParams();
+  return backend;
 }
 
 void PersistentCacheSandboxedFileFactory::CreateFilesAsync(

@@ -11,7 +11,7 @@
 #include "base/time/time.h"
 #include "chrome/browser/glic/glic_profile_manager.h"
 #include "chrome/browser/glic/service/glic_instance_helper.h"
-#include "chrome/browser/glic/service/glic_instance_metrics.h"
+#include "chrome/browser/glic/service/metrics/glic_instance_metrics.h"
 #include "chrome/browser/glic/widget/application_hotkey_delegate.h"
 #include "chrome/browser/glic/widget/glic_inactive_floating_ui.h"
 #include "chrome/browser/glic/widget/glic_panel_hotkey_delegate.h"
@@ -201,6 +201,11 @@ void GlicFloatingUi::EnableDragResize(bool enabled) {
 }
 
 void GlicFloatingUi::MaybeSetWidgetCanResize() {
+  // During teardown, the widget's delegate is null. Just return early.
+  if (!GetGlicWidget()->widget_delegate()) {
+    return;
+  }
+
   if (GetGlicWidget()->widget_delegate()->CanResize() == user_resizable_ ||
       glic_window_animator_->IsAnimating()) {
     // If the resize state is already correct or the widget is animating do not
@@ -358,12 +363,14 @@ void GlicFloatingUi::OnWidgetBoundsChanged(views::Widget* widget,
 
 void GlicFloatingUi::OnWidgetUserResizeStarted() {
   user_resizing_ = true;
+  instance_metrics_->OnUserResizeStarted(GetPanelSize());
   if (GlicWebClientAccess* client = delegate_->host().GetPrimaryWebClient()) {
     client->ManualResizeChanged(true);
   }
 }
 
 void GlicFloatingUi::OnWidgetUserResizeEnded() {
+  instance_metrics_->OnUserResizeEnded(GetPanelSize());
   if (GlicWebClientAccess* client = delegate_->host().GetPrimaryWebClient()) {
     client->ManualResizeChanged(false);
   }

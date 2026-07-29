@@ -53,13 +53,12 @@
 #include "ui/gfx/image/image_unittest_util.h"
 
 #if BUILDFLAG(ENABLE_GLIC)
-#include "chrome/browser/background/startup_launch_manager.h"
 #include "chrome/browser/glic/glic_pref_names.h"
 #include "chrome/browser/glic/public/glic_enabling.h"
 #include "chrome/browser/glic/test_support/glic_test_environment.h"
 #endif
 
-using signin::constants::kNoHostedDomainFound;
+using ::signin::constants::kNoHostedDomainFound;
 using ::testing::Return;
 
 namespace {
@@ -69,32 +68,22 @@ AccountInfo GetValidAccountInfo(std::string email,
                                 std::string given_name,
                                 std::string full_name,
                                 std::string hosted_domain) {
-  AccountInfo account_info;
-  account_info.email = email;
-  account_info.gaia = gaia_id;
-  account_info.account_id = CoreAccountId::FromGaiaId(gaia_id);
-  account_info.given_name = given_name;
-  account_info.full_name = full_name;
-  account_info.hosted_domain = hosted_domain;
-  account_info.locale = email;
-  account_info.picture_url = "example.com";
+  AccountInfo account_info =
+      AccountInfo::Builder(gaia_id, email)
+          .SetAccountId(CoreAccountId::FromGaiaId(gaia_id))
+          .SetGivenName(given_name)
+          .SetFullName(full_name)
+          .SetHostedDomain(hosted_domain)
+          .SetAvatarUrl("https://example.com")
+          .Build();
   AccountCapabilitiesTestMutator(&account_info.capabilities)
-      .set_is_subject_to_enterprise_features(hosted_domain !=
-                                             kNoHostedDomainFound);
+      .set_is_subject_to_enterprise_features(!hosted_domain.empty());
   return account_info;
 }
 
 #if BUILDFLAG(ENABLE_DICE_SUPPORT)
 const char kChromiumOrgDomain[] = "chromium.org";
 #endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
-
-#if BUILDFLAG(ENABLE_GLIC)
-class TestStartupLaunchManager : public StartupLaunchManager {
- public:
-  TestStartupLaunchManager() = default;
-  ~TestStartupLaunchManager() override = default;
-};
-#endif
 
 }  // namespace
 
@@ -113,9 +102,6 @@ class GAIAInfoUpdateServiceTest : public testing::Test {
 
   void SetUp() override {
     testing::Test::SetUp();
-#if BUILDFLAG(ENABLE_GLIC)
-    StartupLaunchManager::SetInstanceForTesting(&startup_launch_manager_);
-#endif
     ASSERT_TRUE(testing_profile_manager_.SetUp());
     TestingBrowserProcess::GetGlobal()->CreateGlobalFeaturesForTesting();
     RecreateGAIAInfoUpdateService();
@@ -143,9 +129,6 @@ class GAIAInfoUpdateServiceTest : public testing::Test {
       ClearGAIAInfoUpdateService();
     }
     TestingBrowserProcess::GetGlobal()->GetFeatures()->Shutdown();
-#if BUILDFLAG(ENABLE_GLIC)
-    StartupLaunchManager::SetInstanceForTesting(nullptr);
-#endif
   }
 
   TestingProfile* profile() {
@@ -200,9 +183,6 @@ class GAIAInfoUpdateServiceTest : public testing::Test {
   sync_preferences::TestingPrefServiceSyncable pref_service_;
   std::unique_ptr<GAIAInfoUpdateService> service_;
   network::TestURLLoaderFactory test_url_loader_factory_;
-#if BUILDFLAG(ENABLE_GLIC)
-  TestStartupLaunchManager startup_launch_manager_;
-#endif
 };
 
 TEST_F(GAIAInfoUpdateServiceTest, SyncOnSyncOff) {
@@ -212,7 +192,7 @@ TEST_F(GAIAInfoUpdateServiceTest, SyncOnSyncOff) {
   signin::SetPrimaryAccount(identity_manager(), info.email,
                             signin::ConsentLevel::kSync);
   info = GetValidAccountInfo(info.email, info.gaia, "Pat", "Pat Foo",
-                             kNoHostedDomainFound);
+                             std::string());
   signin::UpdateAccountInfoForAccount(identity_manager(), info);
   base::RunLoop().RunUntilIdle();
 
@@ -246,7 +226,7 @@ TEST_F(GAIAInfoUpdateServiceTest, RevokeSyncConsent) {
   signin::SetPrimaryAccount(identity_manager(), info.email,
                             signin::ConsentLevel::kSync);
   info = GetValidAccountInfo(info.email, info.gaia, "Pat", "Pat Foo",
-                             kNoHostedDomainFound);
+                             std::string());
   signin::UpdateAccountInfoForAccount(identity_manager(), info);
   base::RunLoop().RunUntilIdle();
 
@@ -277,7 +257,7 @@ TEST_F(GAIAInfoUpdateServiceTest, LogInLogOutLogIn) {
           .Build(email1));
   base::RunLoop().RunUntilIdle();
   info1 = GetValidAccountInfo(info1.email, info1.gaia, "Pat 1",
-                              "Pat Foo The First", kNoHostedDomainFound);
+                              "Pat Foo The First", std::string());
   signin::UpdateAccountInfoForAccount(identity_manager(), info1);
   base::RunLoop().RunUntilIdle();
   ASSERT_EQ(1u, storage()->GetNumberOfProfiles());
@@ -335,7 +315,7 @@ TEST_F(GAIAInfoUpdateServiceTest, MultiLoginAndLogOut) {
       {{info1.email, info1.gaia}, {info2.email, info2.gaia}});
   base::RunLoop().RunUntilIdle();
   info1 = GetValidAccountInfo(info1.email, info1.gaia, "Pat 1",
-                              "Pat Foo The First", kNoHostedDomainFound);
+                              "Pat Foo The First", std::string());
   // Make the second account an enterprise account by setting a hosted domain.
   info2 = GetValidAccountInfo(info2.email, info2.gaia, "Pat 2",
                               "Pat Foo The Second", kChromiumOrgDomain);
@@ -377,7 +357,7 @@ TEST_F(GAIAInfoUpdateServiceTest, ClearGaiaInfoOnStartup) {
   entry->SetGAIAGivenName(u"Pat Foo");
   gfx::Image gaia_picture = gfx::test::CreateImage(256, 256);
   entry->SetGAIAPicture("GAIA_IMAGE_URL_WITH_SIZE", gaia_picture);
-  entry->SetHostedDomain(kNoHostedDomainFound);
+  entry->SetHostedDomain(std::string());
   entry->SetIsManaged(signin::Tribool::kFalse);
 
   // Verify that creating the GAIAInfoUpdateService resets the GAIA related
@@ -576,7 +556,7 @@ TEST_F(GAIAInfoUpdateServiceWithGlicEnablingTest, LogInLogOut) {
   EXPECT_FALSE(
       identity_manager()->HasPrimaryAccount(signin::ConsentLevel::kSync));
   info = GetValidAccountInfo(info.email, info.gaia, "Pat", "Pat Foo",
-                             kNoHostedDomainFound);
+                             std::string());
   MakeProfileGlicEligible();
   signin::UpdateAccountInfoForAccount(identity_manager(), info);
   base::RunLoop().RunUntilIdle();

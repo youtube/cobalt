@@ -50,7 +50,7 @@ const char kGoogleNewsPathPattern[] = "/articles/(.*)";
 
 // Used to free a CaptureResult if it is passed up to Java and cannot be used by
 // the compositior for some reason.
-void JNI_LongScreenshotsTabService_ReleaseCaptureResultPtr(
+static void JNI_LongScreenshotsTabService_ReleaseCaptureResultPtr(
     JNIEnv* env,
     jlong j_capture_result_ptr) {
   // `j_capture_result_ptr` is checked to not be nullptr in Java.
@@ -313,3 +313,5 @@ void LongScreenshotsTabService::LongScreenshotsClosedAndroid(JNIEnv* env) {
   DeleteAllLongScreenshotFiles();
 }
 }  // namespace long_screenshots
+
+DEFINE_JNI(LongScreenshotsTabService)

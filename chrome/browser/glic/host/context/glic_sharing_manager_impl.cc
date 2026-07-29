@@ -17,9 +17,17 @@
 #include "chrome/common/webui_url_constants.h"
 #include "components/prefs/pref_service.h"
 #include "content/public/common/url_constants.h"
+#include "glic_pinned_tab_manager.h"
 #include "third_party/abseil-cpp/absl/functional/overload.h"
 
 namespace glic {
+
+bool IsGlicTabContextEnabled(PrefService* pref_service) {
+  if (base::FeatureList::IsEnabled(features::kGlicDefaultTabContextSetting)) {
+    return true;
+  }
+  return pref_service->GetBoolean(glic::prefs::kGlicTabContextEnabled);
+}
 
 namespace {
 GlicGetContextResult TransformFetcherResult(
@@ -109,20 +117,34 @@ GlicSharingManagerImpl::AddTabPinningStatusChangedCallback(
       std::move(callback));
 }
 
+base::CallbackListSubscription
+GlicSharingManagerImpl::AddTabPinningStatusEventCallback(
+    TabPinningStatusEventCallback callback) {
+  return pinned_tab_manager()->AddTabPinningStatusEventCallback(
+      std::move(callback));
+}
+
 bool GlicSharingManagerImpl::PinTabs(
-    base::span<const tabs::TabHandle> tab_handles) {
+    base::span<const tabs::TabHandle> tab_handles,
+    GlicPinTrigger trigger) {
   CHECK(base::FeatureList::IsEnabled(mojom::features::kGlicMultiTab));
-  return pinned_tab_manager()->PinTabs(tab_handles);
+  return pinned_tab_manager()->PinTabs(tab_handles, trigger);
 }
 
 bool GlicSharingManagerImpl::UnpinTabs(
-    base::span<const tabs::TabHandle> tab_handles) {
+    base::span<const tabs::TabHandle> tab_handles,
+    GlicUnpinTrigger trigger) {
   CHECK(base::FeatureList::IsEnabled(mojom::features::kGlicMultiTab));
-  return pinned_tab_manager()->UnpinTabs(tab_handles);
+  return pinned_tab_manager()->UnpinTabs(tab_handles, trigger);
 }
 
-void GlicSharingManagerImpl::UnpinAllTabs() {
-  pinned_tab_manager()->UnpinAllTabs();
+void GlicSharingManagerImpl::UnpinAllTabs(GlicUnpinTrigger trigger) {
+  pinned_tab_manager()->UnpinAllTabs(trigger);
+}
+
+std::optional<GlicPinnedTabUsage> GlicSharingManagerImpl::GetPinnedTabUsage(
+    tabs::TabHandle tab_handle) {
+  return pinned_tab_manager()->GetPinnedTabUsage(tab_handle);
 }
 
 int32_t GlicSharingManagerImpl::GetMaxPinnedTabs() const {
@@ -229,8 +251,7 @@ void GlicSharingManagerImpl::GetContextFromTab(
   }
 
   const bool is_pinned = pinned_tab_manager()->IsTabPinned(tab_handle);
-  if (!is_pinned &&
-      !profile_->GetPrefs()->GetBoolean(prefs::kGlicTabContextEnabled)) {
+  if (!is_pinned && !IsGlicTabContextEnabled(profile_->GetPrefs())) {
     std::move(callback).Run(base::unexpected(GlicGetContextError{
         GlicGetContextFromTabError::
             kPermissionDeniedContextPermissionNotEnabled,
@@ -276,6 +297,11 @@ void GlicSharingManagerImpl::SubscribeToPinCandidates(
     mojo::PendingRemote<mojom::PinCandidatesObserver> observer) {
   pinned_tab_manager()->SubscribeToPinCandidates(std::move(options),
                                                  std::move(observer));
+}
+
+void GlicSharingManagerImpl::OnConversationTurnSubmitted() {
+  pinned_tab_manager()->OnAllPinnedTabsContextEvent(GlicPinnedTabContextEvent(
+      GlicPinnedTabContextEventType::kConversationTurnSubmitted));
 }
 
 base::WeakPtr<GlicSharingManager> GlicSharingManagerImpl::GetWeakPtr() {

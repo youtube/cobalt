@@ -13,6 +13,8 @@ source_set("coordinator") {
     "composebox_input_plate_coordinator.mm",
     "composebox_input_plate_mediator.h",
     "composebox_input_plate_mediator.mm",
+    "composebox_mode_holder.h",
+    "composebox_mode_holder.mm",
     "composebox_navigation_mediator.h",
     "composebox_navigation_mediator.mm",
     "composebox_omnibox_client.h",
@@ -27,7 +29,9 @@ source_set("coordinator") {
     "web_state_deferred_executor.mm",
   ]
   deps = [
+    ":constants",
     "//components/application_locale_storage",
+    "//components/contextual_search:public",
     "//components/favicon/ios",
     "//components/feature_engagement/public",
     "//components/lens",
@@ -41,6 +45,8 @@ source_set("coordinator") {
     "//ios/chrome/browser/autocomplete/model",
     "//ios/chrome/browser/bookmarks/model",
     "//ios/chrome/browser/bookmarks/model:model_utils",
+    "//ios/chrome/browser/composebox/model",
+    "//ios/chrome/browser/composebox/public:animation",
     "//ios/chrome/browser/composebox/public:features",
     "//ios/chrome/browser/composebox/public:theme",
     "//ios/chrome/browser/composebox/ui",
@@ -70,6 +76,7 @@ source_set("coordinator") {
     "//ios/chrome/browser/shared/model/profile",
     "//ios/chrome/browser/shared/model/url",
     "//ios/chrome/browser/shared/model/url:constants",
+    "//ios/chrome/browser/shared/model/utils",
     "//ios/chrome/browser/shared/model/web_state_list",
     "//ios/chrome/browser/shared/public/commands",
     "//ios/chrome/browser/shared/public/features",
@@ -90,6 +97,7 @@ source_set("coordinator") {
     "//ios/chrome/browser/url_loading/model:url_loading_params_header",
     "//ios/chrome/browser/variations/model/client",
     "//ios/chrome/browser/web/model",
+    "//ios/chrome/browser/web/model:page_placeholder",
     "//ios/chrome/common",
     "//ios/chrome/common:string_conversions",
     "//ios/chrome/common/ui/favicon",
@@ -99,4 +107,12 @@ source_set("coordinator") {
     "//ui/base",
   ]
   frameworks = [ "PDFKit.framework" ]
+}
+
+source_set("constants") {
+  sources = [
+    "composebox_constants.h",
+    "composebox_constants.mm",
+  ]
+  deps = [ "//base" ]
 }

@@ -6,7 +6,7 @@
 
 #include <optional>
 
-#include "base/functional/callback_forward.h"
+#include "base/functional/callback_helpers.h"
 #include "base/metrics/histogram_functions.h"
 #include "third_party/blink/public/mojom/ai/ai_common.mojom-blink.h"
 #include "third_party/blink/public/mojom/ai/model_streaming_responder.mojom-blink.h"
@@ -380,28 +380,6 @@ ReadableStream* CreateEmptyReadableStream(
   ReadableStream* readable_stream = streaming_responder->CreateReadableStream();
   streaming_responder->OnCompletion(/*context_info=*/nullptr);
   return readable_stream;
-}
-
-void ResolvePromiseOnCompletion(
-    ScriptPromiseResolver<IDLString>* resolver,
-    const String& response,
-    mojom::blink::ModelExecutionContextInfoPtr context_info) {
-  resolver->Resolve(response);
-}
-
-void RejectPromiseOnAbort(ScriptPromiseResolver<IDLString>* resolver,
-                          AbortSignal* signal,
-                          ScriptState* script_state) {
-  if (signal) {
-    resolver->Reject(signal->reason(script_state));
-  } else {
-    RejectPromiseWithInternalError(resolver);
-  }
-}
-
-void RejectPromiseOnError(ScriptPromiseResolver<IDLString>* resolver,
-                          DOMException* exception) {
-  resolver->Reject(exception);
 }
 
 }  // namespace blink

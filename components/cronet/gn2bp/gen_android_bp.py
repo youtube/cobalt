@@ -12,7 +12,7 @@ import os
 import re
 import sys
 import copy
-from typing import List, Dict, Set, Union
+from typing import List, Dict, Iterable, Set, Union
 from pathlib import Path
 import hashlib
 import shlex
@@ -306,14 +306,6 @@ cflag_allowlist = [
     "-fno-unwind-tables",
 ]
 
-# Linker flags which are passed through to the blueprint.
-ldflag_allowlist = [
-    # flags to reduce binary size
-    "-Wl,--as-needed",
-    "-Wl,--gc-sections",
-    "-Wl,--icf=all",
-]
-
 
 def get_linker_script_ldflag(script_path):
   return f'-Wl,--script,{tree_path}/{script_path}'
@@ -326,6 +318,7 @@ _RUST_FLAGS_TO_REMOVE = [
     "--edition",  # Added to the appropriate field, must be removed from flags.
     "--sysroot",  # Use AOSP's stdlib so we don't need any hacks for sysroot.
     "-Cembed-bitcode=no",  # Not compatible with Thin-LTO which is added by Soong.
+    "-Clinker-plugin-lto",  # Not compatible with AOSP due to Clang and Rust version difference.
     "--cfg",  # Added to the appropriate field.
     "--extern",  # Soong automatically adds that for us when we use proc_macro
     "@",  # Used by build_script outputs to have rustc load flags from a file.
@@ -504,10 +497,6 @@ def add_rustversion_deps(module, _):
 # depends on. This will be applied to normal and testing targets.
 _builtin_deps = {
     '//buildtools/third_party/libunwind:libunwind':
-    always_disable,
-    # This is a binary module that generates C++ binding files, Skip this
-    # dependency completely as we construct the modules differently.
-    '//third_party/rust/cxxbridge_cmd/v1:cxxbridge':
     always_disable,
     # rustc_print_cfg is used to print rustc compiler default assumption
     # for a specific CPU architecture (e.g. target_feature="ssse3"). Those
@@ -693,6 +682,34 @@ def write_blueprint_key_value(output,
            for line in (value if isinstance(value, list) else [value]))))
 
 
+def sorted_cflags(cflags_object: Iterable[str]) -> list[str]:
+  """Sorts cflags.
+
+  Some cflags are order-dependent (critically, `-U` flags and `-D` flags must
+  have their relative order maintained if they reference the same macro name).
+  This version of `sorted` respects that.
+  """
+
+  # Key creation here is a bit subtle.
+  #
+  # Basically, all `-D` and `-U` macros are trimmed to their macro names (plus
+  # a leading `-D`, regardless of the original prefix). This relies on
+  # Python's `sorted` function keeping a stable order, so an original `-UFOO
+  # -DFOO=1 -UFOO` remains in that same relative order in the output.
+  def flag_to_key(cflag: str) -> str:
+    key = cflag
+    if key.startswith("-U"):
+      key = f"-D{key[2:]}"
+
+    if key.startswith("-D"):
+      # Remove any value this is set to, so that doesn't mess with
+      # ordering.
+      key = key.split("=", 1)[0]
+    return key
+
+  return sorted(cflags_object, key=flag_to_key)
+
+
 class Module:
   """A single module (e.g., cc_binary, cc_test) in a blueprint."""
 
@@ -729,19 +746,19 @@ class Module:
       self._output_field(nested_out, 'static_libs')
       self._output_field(nested_out, 'whole_static_libs')
       self._output_field(nested_out, 'header_libs')
-      self._output_field(nested_out, 'cflags')
+      self._output_field(nested_out, 'cflags', is_cflags_like=True)
       self._output_field(nested_out, 'stl')
-      self._output_field(nested_out, 'cppflags')
+      self._output_field(nested_out, 'cppflags', is_cflags_like=True)
       self._output_field(nested_out, 'include_dirs')
       self._output_field(nested_out, 'generated_headers')
       self._output_field(nested_out, 'export_generated_headers')
-      self._output_field(nested_out, 'ldflags')
+      self._output_field(nested_out, 'ldflags', is_cflags_like=True)
       self._output_field(nested_out, 'compile_multilib')
       self._output_field(nested_out, 'stem')
       self._output_field(nested_out, "edition")
       self._output_field(nested_out, 'cfgs')
       self._output_field(nested_out, 'features')
-      self._output_field(nested_out, 'flags', False)
+      self._output_field(nested_out, 'flags', sort=False)
       self._output_field(nested_out, 'rustlibs')
       self._output_field(nested_out, 'proc_macros')
 
@@ -755,8 +772,12 @@ class Module:
                       output,
                       name,
                       sort=True,
-                      list_to_multiline_string=False):
+                      list_to_multiline_string=False,
+                      is_cflags_like=False):
       value = getattr(self, name)
+      if sort and is_cflags_like:
+        value = sorted_cflags(value)
+        sort = False
       return write_blueprint_key_value(
           output,
           name,
@@ -866,6 +887,7 @@ class Module:
     self.transitive_generated_headers_modules = collections.defaultdict(set)
     self.cargo_env_compat = None
     self.cargo_pkg_version = None
+    self.whole_program_vtables = False
 
   def variant(self, arch_name):
     return self if arch_name == 'common' else self.target[arch_name]
@@ -895,7 +917,7 @@ class Module:
     self._output_field(output, 'export_static_lib_headers')
     self._output_field(output, 'export_header_lib_headers')
     self._output_field(output, 'defaults')
-    self._output_field(output, 'cflags')
+    self._output_field(output, 'cflags', is_cflags_like=True)
     self._output_field(output, 'include_dirs')
     self._output_field(output, 'local_include_dirs')
     self._output_field(output, 'header_libs')
@@ -911,8 +933,8 @@ class Module:
     self._output_field(output, 'test_config')
     self._output_field(output, 'proto')
     self._output_field(output, 'linker_scripts')
-    self._output_field(output, 'ldflags')
-    self._output_field(output, 'cppflags')
+    self._output_field(output, 'ldflags', is_cflags_like=True)
+    self._output_field(output, 'cppflags', is_cflags_like=True)
     self._output_field(output, 'unstable')
     self._output_field(output, 'path')
     self._output_field(output, 'libs')
@@ -943,6 +965,8 @@ class Module:
     self._output_field(output, 'static_inline_library')
     self._output_field(output, 'cargo_env_compat')
     self._output_field(output, 'cargo_pkg_version')
+    if self.whole_program_vtables:
+      self._output_field(output, 'whole_program_vtables')
     if self.rtti:
       self._output_field(output, 'rtti')
     target_out = []
@@ -983,8 +1007,12 @@ class Module:
                     output,
                     name,
                     sort=True,
-                    list_to_multiline_string=False):
+                    list_to_multiline_string=False,
+                    is_cflags_like=False):
     value = getattr(self, name)
+    if sort and is_cflags_like:
+      value = sorted_cflags(value)
+      sort = False
     return write_blueprint_key_value(
         output,
         name,
@@ -1227,7 +1255,7 @@ def get_protoc_module_name(gn):
   return label_to_module_name(protoc_gn_target_name)
 
 
-def create_rust_cxx_modules(_, target):
+def create_rust_cxx_modules(blueprint, gn, target, is_test_target):
   """Generate genrules for a CXX GN target
 
     GN actions are used to dynamically generate files during the build. The
@@ -1244,11 +1272,24 @@ def create_rust_cxx_modules(_, target):
     Returns:
         The source and headers genrule modules.
   """
+
+  def _find_cxx_bridge_binary(deps: Set[str]) -> str:
+    for dep in deps:
+      if re.search(
+          r"^//third_party/rust/cxxbridge_cmd/v.*:cxxbridge(__testing)?$", dep):
+        return dep
+    raise Exception(
+        f"Failed to find a dependency on cxxbridge host binary! Target name: {target.name}, deps: {deps}",
+    )
+
+  cxx_bridge_module_name = create_modules_from_target(
+      blueprint, gn, _find_cxx_bridge_binary(target.deps), target.type,
+      is_test_target)[0].name
   header_genrule = Module("cc_genrule",
                           label_to_module_name(target.name) + "_header",
                           target.name)
-  header_genrule.tools = {"cxxbridge"}
-  header_genrule.cmd = "$(location cxxbridge) $(in) --header > $(out)"
+  header_genrule.tools = {cxx_bridge_module_name}
+  header_genrule.cmd = f"$(location {cxx_bridge_module_name}) $(in) --header > $(out)"
   header_genrule.srcs = {gn_utils.label_to_path(src) for src in target.sources}
   # The output of the cc_genrule is the input + ".h" suffix, this is because
   # the input to a CXX genrule is just one source file.
@@ -1259,8 +1300,8 @@ def create_rust_cxx_modules(_, target):
 
   cc_genrule = Module("cc_genrule", label_to_module_name(target.name),
                       target.name)
-  cc_genrule.tools = {"cxxbridge"}
-  cc_genrule.cmd = "$(location cxxbridge) $(in) > $(out)"
+  cc_genrule.tools = {cxx_bridge_module_name}
+  cc_genrule.cmd = f"$(location {cxx_bridge_module_name}) $(in) > $(out)"
   cc_genrule.srcs = {gn_utils.label_to_path(src) for src in target.sources}
   cc_genrule.genrule_srcs = {f":{cc_genrule.name}"}
   # The output of the cc_genrule is the input + ".cc" suffix, this is because
@@ -2576,6 +2617,16 @@ def create_jni_zero_proxy_only_module(jni_zero_generator_module):
 
 def _get_cflags(cflags, defines):
   cflags = [flag for flag in cflags if flag in cflag_allowlist]
+
+  # Android _may_ set a platform default for _LIBCPP_HARDENING_MODE. If that
+  # conflicts with the level specified on this target, we'll get build errors.
+  #
+  # Allow Android's default to apply to builds where we don't specify one, but
+  # prefer our default for builds that do.
+  libcpp_hardening_flag = "_LIBCPP_HARDENING_MODE"
+  if any(define.startswith(libcpp_hardening_flag) for define in defines):
+    cflags.append(f"-U{libcpp_hardening_flag}")
+
   # Consider proper allowlist or denylist if needed
   cflags.extend(["-D%s" % define.replace("\"", "\\\"") for define in defines])
   return cflags
@@ -2639,13 +2690,74 @@ def _get_cpp_std(cflags: List[str]) -> Union[str, None]:
   return None
 
 
-def configure_cc_module(module, cflags, defines, ldflags, libs, main_module):
+def _extract_linker_script(ldflags):
+  new_ldflags = set()
+  linker_script = None
+  for flag in ldflags:
+    if flag.startswith("-Wl,--version-script="):
+      # Everything after the = is the path and delete all leading ../
+      linker_path = re.sub('^(\.\./)+', '', flag.split("=", maxsplit=2)[1])
+      assert linker_script is None, f"Found two different linker script for a single target! First script: {linker_script}, Second script: {linker_path}"
+      linker_script = linker_path
+    else:
+      new_ldflags.add(flag)
+  return new_ldflags, linker_script
+
+
+def _create_linker_script_filegroup(linker_script_path):
+  filegroup_name = linker_script_path.replace('/', '_').replace('.', '_')
+  filegroup_module = Module("filegroup", f"{filegroup_name}_filegroup",
+                            f"Created to reference {linker_script_path}")
+  filegroup_module.srcs = [linker_script_path]
+  # TODO(aymanm): Change the default for build_file_path to be top-level.
+  filegroup_module.build_file_path = ""
+  return filegroup_module
+
+
+def _is_allowed_ldflag(flag):
+  return all(not flag.startswith(denied_prefix) for denied_prefix in [
+      # Already applied by Soong according to module's attributes.
+      "--sysroot=",
+      # Already applied by Soong.
+      "--target=",
+      # Throws an error for some unknown reason?
+      "--unwindlib=",
+      # Tries to write to disk which is disallowed by Soong. It also
+      # simply controls the caching behaviour of thinLTO which is
+      # not essential.
+      "-Wl,--thinlto-cache-dir=",
+      # Controls the caching behaviour of thinLTO which is
+      # not essential.
+      "-Wl,--thinlto-cache-policy=",
+      # Controls the threading behaviour of thinLTO which is
+      # not essential.
+      "-Wl,--thinlto-jobs=",
+      # Applied by Soong by default
+      "-flto=",
+      # Throws an error currently because GNU_PROPERTY_AARCH64_FEATURE_1_BTI is
+      # not defined in some object files. This requires further investigation
+      # to enable. It's fine to disable for now as it has never been enabled in
+      # HttpEngine.
+      "-Wl,-z,force-bti",
+      # Soong handles this automatically based on the lunch options.
+      "-Wl,-z,max-page-size=",
+      # Let Soong handle the stripping of debug library according to the
+      # lunch configuration.
+      "-Wl,--strip-debug"
+  ])
+
+
+def configure_cc_module(module, cflags, defines, ldflags, libs, main_module,
+                        blueprint):
   module.cflags.extend(_get_cflags(cflags, defines))
-  module.ldflags.update({
-      flag
-      for flag in ldflags
-      if flag in ldflag_allowlist or flag.startswith("-Wl,-wrap,")
-  })
+  ldflags, linker_script = _extract_linker_script(ldflags)
+  module.ldflags.update({flag for flag in ldflags if _is_allowed_ldflag(flag)})
+  if linker_script:
+    # Unfortunately, Soong does not allow accessing linker scripts from parent
+    # path. So create a filegroup at the top-level Android.bp and reference it instead.
+    filegroup_module = _create_linker_script_filegroup(linker_script)
+    blueprint.add_module(filegroup_module)
+    module.version_script = f":{filegroup_module.name}"
   _set_linker_script(module, libs)
   for lib in libs:
     # Generally library names should be mangled as 'libXXX', unless they
@@ -2770,14 +2882,19 @@ def create_modules_from_target(blueprint, gn, gn_target_name, parent_gn_type,
   if target.type == "action" and parent_gn_type == "java_library":
     bp_module_name += "__java"
 
-  if target.type in ["rust_library", "rust_proc_macro"]:
+  target_types_to_hash_module_name = [
+    "rust_executable",
+    "rust_library",
+    "rust_proc_macro",
+  ]
+  if target.type in target_types_to_hash_module_name:
     # "lib{crate_name}" must be a prefix of the module name, this is a Soong
     # restriction.
     # https://cs.android.com/android/_/android/platform/build/soong/+/31934a55a8a1f9e4d56d68810f4a646f12ab6eb5:rust/library.go;l=724;drc=fdec8723d574daf54b956cc0f6dc879087da70a6;bpv=0;bpt=0
     # Use the hash of the module_name instead of the entire name otherwise we will
     # exceed the maximum file name length (b/376452102).
     bp_module_hash = hashlib.sha256(
-        bp_module_name.encode('utf-8')).hexdigest()[:16]
+        bp_module_name.encode('utf-8')).hexdigest()[:2]
     bp_module_name = f"lib{target.crate_name}__{bp_module_hash}"
 
   if bp_module_name in blueprint.modules:
@@ -2858,7 +2975,7 @@ def create_modules_from_target(blueprint, gn, gn_target_name, parent_gn_type,
     modules = (module, )
   elif target.type == 'action_foreach':
     if target.script == "//third_party/rust/cxx/chromium_integration/run_cxxbridge.py":
-      modules = create_rust_cxx_modules(blueprint, target)
+      modules = create_rust_cxx_modules(blueprint, gn, target, is_test_target)
     else:
       modules = create_action_foreach_modules(blueprint, gn, target,
                                               is_test_target)
@@ -2895,13 +3012,13 @@ def create_modules_from_target(blueprint, gn, gn_target_name, parent_gn_type,
 
     if target.type in gn_utils.LINKER_UNIT_TYPES:
       configure_cc_module(module, target.cflags, target.defines, target.ldflags,
-                          target.libs, module)
+                          target.libs, module, blueprint)
       set_module_include_dirs(module, target.cflags, target.include_dirs)
       # TODO: set_module_xxx is confusing, apply similar function to module and target in better way.
       for arch_name, arch in target.get_archs().items():
         # TODO(aymanm): Make libs arch-specific.
         configure_cc_module(module.target[arch_name], arch.cflags, arch.defines,
-                            arch.ldflags, arch.libs, module)
+                            arch.ldflags, arch.libs, module, blueprint)
         # -Xclang -target-feature -Xclang +mte are used to enable MTE (Memory Tagging Extensions).
         # Flags which does not start with '-' could not be in the cflags so enabling MTE by
         # -march and -mcpu Feature Modifiers. MTE is only available on arm64. This is needed for
@@ -2947,7 +3064,7 @@ def create_modules_from_target(blueprint, gn, gn_target_name, parent_gn_type,
       module.target['host'].compile_multilib = '64'
 
     if module.type in ("rust_bindgen", "rust_ffi_static", "cc_genrule",
-                       "cc_library_static", "cc_binary"):
+                       "cc_library_static", "cc_binary", "rust_binary"):
       # If we don't add this, then some types of AOSP builds fail due to an
       # issue with proc_macro2 - see https://crbug.com/392704960.
       # Note: technically we only need this on modules that ultimately depend
@@ -3361,6 +3478,7 @@ def create_cc_defaults_module():
   ]
   defaults.build_file_path = ""
   defaults.include_build_directory = False
+  defaults.whole_program_vtables = True
   defaults.c_std = 'gnu11'
   # Chromium builds do not add a dependency for headers found inside the
   # sysroot, so they are added globally via defaults.

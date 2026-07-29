@@ -3,9 +3,10 @@
 # found in the LICENSE file.
 import("//tools/metrics/private_metrics/gen_private_metrics_builders.gni")
 
-source_set("private_metrics_features") {
+component("private_metrics_features") {
   sources = [ "private_metrics_features.cc" ]
   public = [ "private_metrics_features.h" ]
+  defines = [ "IS_PRIVATE_METRICS_FEATURES_IMPL" ]
   deps = [ "//base" ]
 }
 
@@ -64,12 +65,15 @@ static_library("private_metrics") {
     "dkm_entry_builder.h",
     "dkm_entry_builder_base.cc",
     "dkm_entry_builder_base.h",
-    "private_metrics_pref_names.cc",
     "private_metrics_pref_names.h",
     "private_metrics_reporting_service.cc",
     "private_metrics_reporting_service.h",
     "private_metrics_unsent_log_store_metrics.cc",
     "private_metrics_unsent_log_store_metrics.h",
+    "puma_histogram_encoder.cc",
+    "puma_histogram_encoder.h",
+    "puma_service.cc",
+    "puma_service.h",
   ]
   public_deps = [
     ":dwa_recorder",
@@ -85,6 +89,7 @@ static_library("private_metrics") {
     "//base",
     "//build:buildflag_header_h",
     "//components/metrics",
+    "//components/metrics:library_support",
     "//components/metrics:metrics_pref_names",
     "//components/prefs",
     "//components/version_info",
@@ -103,6 +108,8 @@ source_set("unit_tests") {
     "//components/metrics/dwa/dwa_entry_builder_unittest.cc",
     "//components/metrics/dwa/dwa_recorder_unittest.cc",
     "//components/metrics/dwa/dwa_service_unittest.cc",
+    "//components/metrics/private_metrics/puma_histogram_encoder_unittest.cc",
+    "//components/metrics/private_metrics/puma_service_unittest.cc",
     "data_upload_config_downloader_unittest.cc",
     "dkm_entry_builder_unittest.cc",
   ]

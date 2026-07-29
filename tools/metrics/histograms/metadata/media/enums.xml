@@ -26,6 +26,29 @@ chromium-metrics-reviews@google.com.
 
 <enums>
 
+<enum name="ActiveGpuInfo">
+  <int value="1" label="Intel"/>
+  <int value="2" label="NVIDIA"/>
+  <int value="4" label="AMD"/>
+  <int value="8" label="Other"/>
+  <int value="17" label="Intel | Intel (Non-active)"/>
+  <int value="18" label="NVIDIA | Intel (Non-active)"/>
+  <int value="20" label="AMD | Intel (Non-active)"/>
+  <int value="24" label="Other | Intel (Non-active)"/>
+  <int value="33" label="Intel | NVIDIA (Non-active)"/>
+  <int value="34" label="NVIDIA | NVIDIA (Non-active)"/>
+  <int value="36" label="AMD | NVIDIA (Non-active)"/>
+  <int value="40" label="Other | NVIDIA (Non-active)"/>
+  <int value="65" label="Intel | AMD (Non-active)"/>
+  <int value="66" label="NVIDIA | AMD (Non-active)"/>
+  <int value="68" label="AMD | AMD (Non-active)"/>
+  <int value="72" label="Other | AMD (Non-active)"/>
+  <int value="129" label="Intel | Other (Non-active)"/>
+  <int value="130" label="NVIDIA | Other (Non-active)"/>
+  <int value="132" label="AMD | Other (Non-active)"/>
+  <int value="136" label="Other | Other (Non-active)"/>
+</enum>
+
 <enum name="AdaptationReason">
   <int value="0" label="kUserSelection"/>
   <int value="1" label="kResolutionChange"/>
@@ -101,6 +124,19 @@ chromium-metrics-reviews@google.com.
   <int value="0" label="No error"/>
   <int value="1" label="Error during stream creation"/>
   <int value="2" label="Error during active capture"/>
+</enum>
+
+<enum name="AudioCapturePermissionCheckerInteractions">
+  <int value="0" label="kDisabled"/>
+  <int value="1" label="kEnabled"/>
+  <int value="2" label="kCheckInitiated"/>
+  <int value="3" label="kPermissionGranted"/>
+  <int value="4" label="kPermissionDenied"/>
+  <int value="5" label="kSystemSettingsOpenedAfterDenial"/>
+  <int value="6" label="kCancelSharingAfterDenial"/>
+  <int value="7" label="kShareWindowOrScreenWithAudioAfterDenial"/>
+  <int value="8" label="kShareWindowOrScreenWithoutAudioAfterDenial"/>
+  <int value="9" label="kShareTabAfterDenial"/>
 </enum>
 
 <enum name="AudioCaptureStartupResult">
@@ -1117,6 +1153,14 @@ chromium-metrics-reviews@google.com.
   <int value="0" label="Enum placerholder. See crbug/1179826"/>
 </enum>
 
+<enum name="GetAppMainProcessIdWinResult">
+  <int value="0" label="kSuccess"/>
+  <int value="1" label="kFailedToGetWindowProcessId"/>
+  <int value="2" label="kFailedToOpenWindowProcessHandle"/>
+  <int value="3" label="kFailedToFindUWPAppCoreWindow"/>
+  <int value="4" label="kFailedToGetUWPAppCoreWindowProcessId"/>
+</enum>
+
 <enum name="GetDeviceInfosResult">
   <int value="0" label="SuccessNoRetry"/>
   <int value="1" label="FailureNoRetry"/>
@@ -1211,6 +1255,12 @@ chromium-metrics-reviews@google.com.
   <int value="2" label="ChromeOS system tray"/>
   <int value="3" label="ChromeOS quick settings mini player"/>
   <int value="4" label="ChromeOS quick settings mini player (Cast button)"/>
+</enum>
+
+<enum name="GpuOrDisplayCount">
+  <int value="0" label="Unknown"/>
+  <int value="1" label="One"/>
+  <int value="2" label="Two or more"/>
 </enum>
 
 <enum name="HighlightedTabDiscardStatus">

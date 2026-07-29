@@ -22,6 +22,7 @@
 #include "components/proxy_config/proxy_config_dictionary.h"
 #include "components/proxy_config/proxy_config_pref_names.h"
 #include "net/base/proxy_server.h"
+#include "net/base/proxy_string_util.h"
 #include "net/net_buildflags.h"
 #include "url/gurl.h"
 
@@ -62,7 +63,7 @@ ValueToDnsCondition(const base::Value& value) {
   // {
   //   "DnsProbe": {
   //     "Host": "corp.ads",
-  //     "Result": "resolves", // or "not_found"
+  //     "Result": "resolved", // or "not_found"
   //   }
   // }
   // For now "DnsProbe" is always expected, but eventually other types of
@@ -76,42 +77,68 @@ ValueToDnsCondition(const base::Value& value) {
   const std::string* host_value = dns_probe_value->FindString("Host");
   const std::string* result_value = dns_probe_value->FindString("Result");
   if (!host_value || !result_value ||
-      (*result_value != "resolves" && *result_value != "not_found")) {
+      (*result_value != "resolved" && *result_value != "not_found")) {
     return std::nullopt;
   }
 
   net::ProxyConfig::ProxyOverrideRule::DnsProbeCondition dns_probe_condition;
   dns_probe_condition.host = url::SchemeHostPort(GURL(*host_value));
   dns_probe_condition.result =
-      *result_value == "resolves"
-          ? net::ProxyConfig::ProxyOverrideRule::DnsProbeCondition::kResolves
+      *result_value == "resolved"
+          ? net::ProxyConfig::ProxyOverrideRule::DnsProbeCondition::kResolved
           : net::ProxyConfig::ProxyOverrideRule::DnsProbeCondition::kNotFound;
   return dns_probe_condition;
 }
 
-// Returns false if an unexpected value was found in the passed `value`.
-bool AddDestinationMatchers(const base::Value::Dict& value,
-                            net::ProxyConfig::ProxyOverrideRule& rule) {
+// Generic parser for a list of URL patterns to populate into the passed
+// `rules`. Returns false if an unexpected value was found in the passed
+// `value`. `optional_field` indicates if the matcher list is required to be
+// present in the rule or not, and will be returned directly if `value` doesn't
+// have an entry for `key`.
+//
+// Implicit rules are not applied to URL pattern listsof the
+// "ProxyOverrideRules" policy, so on a valid `value` there is always an extra
+// rule added to subtract them from the matcher evaluation.
+bool AddUrlMatcher(const base::Value::Dict& value,
+                   net::ProxyHostMatchingRules& rules,
+                   const std::string& key,
+                   bool optional_field) {
   // Expected schema:
   // {
   //   ...
-  //   "DestinationMatchers": [ "https://app1.com", "https://app2.com" ],
+  //   "<key>": [ "https://app1.com", "https://app2.com" ],
   //   ...
   // }
-  auto* destination_matchers_value = value.FindList("DestinationMatchers");
-  if (!destination_matchers_value) {
-    return false;
+  auto* matchers_value = value.FindList(key);
+  if (!matchers_value) {
+    rules.AddRulesToSubtractImplicit();
+    return optional_field;
   }
 
-  for (const auto& matcher : *destination_matchers_value) {
+  for (const auto& matcher : *matchers_value) {
     if (matcher.is_string()) {
-      rule.destination_matchers.AddRuleFromString(matcher.GetString());
+      rules.AddRuleFromString(matcher.GetString());
     } else {
       return false;
     }
   }
 
+  rules.AddRulesToSubtractImplicit();
   return true;
+}
+
+// Returns false if an unexpected value was found in the passed `value`.
+bool AddDestinationMatchers(const base::Value::Dict& value,
+                            net::ProxyConfig::ProxyOverrideRule& rule) {
+  return AddUrlMatcher(value, rule.destination_matchers, "DestinationMatchers",
+                       /*optional_field=*/false);
+}
+
+// Returns false if an unexpected value was found in the passed `value`.
+bool AddExcludeDestinationMatchers(const base::Value::Dict& value,
+                                   net::ProxyConfig::ProxyOverrideRule& rule) {
+  return AddUrlMatcher(value, rule.exclude_destination_matchers,
+                       "ExcludeDestinationMatchers", /*optional_field=*/true);
 }
 
 // Returns false if an unexpected value was found in the passed `value`, or if
@@ -124,21 +151,44 @@ bool AddProxyChain(const base::Value::Dict& value,
   //   "ProxyList": [ "HTTPS proxy.app:443", "DIRECT" ],
   //   ...
   // }
-  auto* proxy_chain_value = value.FindList("ProxyList");
-  if (!proxy_chain_value) {
+  //
+  // The entries of the list can have the PAC format as above, or a regular URL
+  // format of "scheme://host:port".
+  auto* proxy_list_value = value.FindList("ProxyList");
+  if (!proxy_list_value) {
     return false;
   }
 
-  std::vector<std::string> list_entries;
-  for (const auto& entry : *proxy_chain_value) {
+  // Invalid entries don't return false since it's possible the received policy
+  // is meant for a future version of Chrome, so they are just discarded.
+  for (const auto& entry : *proxy_list_value) {
     if (!entry.is_string()) {
       return false;
     }
-    list_entries.push_back(entry.GetString());
-  }
-  rule.proxy_list.SetFromPacString(base::JoinString(list_entries, ";"));
 
-  return true;
+    net::ProxyChain chain;
+    GURL url(entry.GetString());
+    if (url.is_valid()) {
+      net::ProxyServer::Scheme scheme =
+          net::GetSchemeFromUriScheme(url.scheme());
+      if (scheme == net::ProxyServer::SCHEME_INVALID) {
+        continue;
+      }
+      chain = net::ProxyChain::FromSchemeHostAndPort(scheme, url.host(),
+                                                     url.port());
+    } else {
+      chain = net::PacResultElementToProxyChain(entry.GetString());
+    }
+
+    if (chain.IsValid()) {
+      rule.proxy_list.AddProxyChain(std::move(chain));
+    }
+  }
+
+  // If none of the entries of `proxy_list_value` were valid, then the overall
+  // rule is not considered valid as it cannot be applied even if other fields
+  // are present.
+  return !rule.proxy_list.IsEmpty();
 }
 
 // Returns false if an unexpected value was found in the passed `value`.
@@ -151,7 +201,7 @@ bool AddConditions(const base::Value::Dict& value,
   //        {
   //            "DnsProbe": {
   //                "Host": "corp.ads",
-  //                "Result": "resolves"
+  //                "Result": "resolved"
   //            }
   //        }
   //   ]
@@ -184,12 +234,13 @@ std::optional<net::ProxyConfig::ProxyOverrideRule> ValueToOverrideRule(
   // Expected schema:
   // {
   //   "DestinationMatchers": [ "https://app1.com", "https://app2.com" ],
+  //   "ExcludeDestinationMatchers: ["https://exception.com"],
   //   "ProxyList": [ "HTTPS proxy.app:443", "DIRECT" ],
   //   "Conditions": [
   //        {
   //            "DnsProbe": {
   //                "Host": "corp.ads",
-  //                "Result": "resolves"
+  //                "Result": "resolved"
   //            }
   //        }
   //   ]
@@ -197,8 +248,9 @@ std::optional<net::ProxyConfig::ProxyOverrideRule> ValueToOverrideRule(
   const base::Value::Dict& dict = value.GetDict();
   net::ProxyConfig::ProxyOverrideRule rule;
 
-  if (!AddDestinationMatchers(dict, rule) || !AddProxyChain(dict, rule) ||
-      !AddConditions(dict, rule)) {
+  if (!AddDestinationMatchers(dict, rule) ||
+      !AddExcludeDestinationMatchers(dict, rule) ||
+      !AddProxyChain(dict, rule) || !AddConditions(dict, rule)) {
     return std::nullopt;
   }
 
@@ -248,7 +300,7 @@ bool SetProxyOverrideRules(const PrefService* pref_service,
 
 }  // namespace
 
-BASE_FEATURE(kEnableProxyOverrideRules, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kEnableProxyOverrideRules, base::FEATURE_ENABLED_BY_DEFAULT);
 
 //============================= ProxyConfigServiceImpl =======================
 

@@ -549,44 +549,31 @@ bool IsPlatformAuthenticatorForInvalidStateError(
   }
 }
 
-AuthenticatorCommonImpl::CredentialRequestResult
-CredentialRequestResultFromCode(bool success, device::AuthenticatorType type) {
+CredentialRequestResult CredentialRequestResultFromCode(
+    bool success,
+    device::AuthenticatorType type) {
   switch (type) {
     case device::AuthenticatorType::kChromeOS:
-      return success ? AuthenticatorCommonImpl::CredentialRequestResult::
-                           kChromeOSSuccess
-                     : AuthenticatorCommonImpl::CredentialRequestResult::
-                           kChromeOSError;
+      return success ? CredentialRequestResult::kChromeOSSuccess
+                     : CredentialRequestResult::kChromeOSError;
     case device::AuthenticatorType::kEnclave:
-      return success ? AuthenticatorCommonImpl::CredentialRequestResult::
-                           kEnclaveSuccess
-                     : AuthenticatorCommonImpl::CredentialRequestResult::
-                           kEnclaveError;
+      return success ? CredentialRequestResult::kEnclaveSuccess
+                     : CredentialRequestResult::kEnclaveError;
     case device::AuthenticatorType::kICloudKeychain:
-      return success ? AuthenticatorCommonImpl::CredentialRequestResult::
-                           kICloudKeychainSuccess
-                     : AuthenticatorCommonImpl::CredentialRequestResult::
-                           kICloudKeychainError;
+      return success ? CredentialRequestResult::kICloudKeychainSuccess
+                     : CredentialRequestResult::kICloudKeychainError;
     case device::AuthenticatorType::kOther:
-      return success ? AuthenticatorCommonImpl::CredentialRequestResult::
-                           kOtherSuccess
-                     : AuthenticatorCommonImpl::CredentialRequestResult::
-                           kOtherError;
+      return success ? CredentialRequestResult::kOtherSuccess
+                     : CredentialRequestResult::kOtherError;
     case device::AuthenticatorType::kPhone:
-      return success ? AuthenticatorCommonImpl::CredentialRequestResult::
-                           kPhoneSuccess
-                     : AuthenticatorCommonImpl::CredentialRequestResult::
-                           kPhoneError;
+      return success ? CredentialRequestResult::kPhoneSuccess
+                     : CredentialRequestResult::kPhoneError;
     case device::AuthenticatorType::kTouchID:
-      return success ? AuthenticatorCommonImpl::CredentialRequestResult::
-                           kTouchIDSuccess
-                     : AuthenticatorCommonImpl::CredentialRequestResult::
-                           kTouchIDError;
+      return success ? CredentialRequestResult::kTouchIDSuccess
+                     : CredentialRequestResult::kTouchIDError;
     case device::AuthenticatorType::kWinNative:
-      return success ? AuthenticatorCommonImpl::CredentialRequestResult::
-                           kWinNativeSuccess
-                     : AuthenticatorCommonImpl::CredentialRequestResult::
-                           kWinNativeError;
+      return success ? CredentialRequestResult::kWinNativeSuccess
+                     : CredentialRequestResult::kWinNativeError;
   }
 }
 
@@ -747,10 +734,7 @@ base::flat_set<device::FidoTransportProtocol> GetTransportsAllowedByRP(
   return transports;
 }
 
-void MaybeRecordBrowserAssistedLogin(
-    AuthenticatorCommonImpl::CredentialRequestResult request_result) {
-  using CredentialRequestResult =
-      AuthenticatorCommonImpl::CredentialRequestResult;
+void MaybeRecordBrowserAssistedLogin(CredentialRequestResult request_result) {
   using AssistedLoginType = ContentBrowserClient::AssistedLoginType;
   std::optional<AssistedLoginType> login_type;
 
@@ -1070,6 +1054,7 @@ bool AuthenticatorCommonImpl::IsFocused() const {
 void AuthenticatorCommonImpl::MakeCredential(
     url::Origin caller_origin,
     blink::mojom::PublicKeyCredentialCreationOptionsPtr options,
+    blink::mojom::PaymentOptionsPtr payment_options,
     MakeCredentialCallback callback) {
   base::RecordAction(base::UserMetricsAction("WebAuthn.MakeCredential.Start"));
   callback = base::BindOnce(
@@ -1153,7 +1138,8 @@ void AuthenticatorCommonImpl::MakeCredential(
           base::BindOnce(
               &AuthenticatorCommonImpl::ContinueMakeCredentialAfterRpIdCheck,
               weak_factory_.GetWeakPtr(), GetRequestKey(), caller_origin,
-              std::move(options), is_cross_origin_iframe));
+              std::move(options), std::move(payment_options),
+              is_cross_origin_iframe));
 
   // If `remote_validation` is nullptr then the request may already have
   // completed.
@@ -1166,6 +1152,7 @@ void AuthenticatorCommonImpl::ContinueMakeCredentialAfterRpIdCheck(
     RequestKey request_key,
     url::Origin caller_origin,
     blink::mojom::PublicKeyCredentialCreationOptionsPtr options,
+    blink::mojom::PaymentOptionsPtr payment_options,
     bool is_cross_origin_iframe,
     blink::mojom::AuthenticatorStatus rp_id_validation_result) {
   if (!CheckRequestKey(request_key)) {
@@ -1359,8 +1346,9 @@ void AuthenticatorCommonImpl::ContinueMakeCredentialAfterRpIdCheck(
     client_data_json_params.is_cross_origin_iframe =
         !options->remote_desktop_client_override->same_origin_with_ancestors;
   }
-  req_state_->client_data_json =
-      BuildClientDataJson(std::move(client_data_json_params));
+  req_state_->client_data_json = BuildClientDataJsonWithPayment(
+      std::move(client_data_json_params), std::move(payment_options),
+      /*payment_rp=*/"");
 
   req_state_->ctap_request = device::CtapMakeCredentialRequest(
       req_state_->client_data_json, options->relying_party, options->user,

@@ -384,6 +384,7 @@ public class BottomSheetSigninAndHistorySyncCoordinator
                         signinManager,
                         mConfig.bottomSheetStrings,
                         accountPickerMode,
+                        mConfig.withAccountSigninMode == WithAccountSigninMode.SEAMLESS_SIGNIN,
                         mSigninAccessPoint,
                         mConfig.selectedCoreAccountId);
         mDidShowSigninStep = true;
@@ -505,7 +506,7 @@ public class BottomSheetSigninAndHistorySyncCoordinator
             SigninSnackbarController.showUndoSnackbarIfNeeded(
                     mActivity,
                     assertNonNull(mProfileSupplier.get()),
-                    assertNonNull(mSnackbarManager),
+                    mSnackbarManager,
                     this,
                     result);
         }

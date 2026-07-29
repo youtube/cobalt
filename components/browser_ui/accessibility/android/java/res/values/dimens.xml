@@ -21,15 +21,22 @@ found in the LICENSE file.
     <dimen name="page_zoom_slider_track_height">10dp</dimen>
 
     <!-- Page zoom Indicator dimensions -->
-    <dimen name="page_zoom_indicator_popup_width">248dp</dimen>
+    <dimen name="page_zoom_indicator_popup_width">279dp</dimen>
     <dimen name="page_zoom_indicator_popup_height">56dp</dimen>
-    <dimen name="zoom_percentage_width">68dp</dimen>
-    <dimen name="zoom_percentage_padding">6dp</dimen>
+    <dimen name="page_zoom_indicator_popup_padding_start">16dp</dimen>
+    <dimen name="page_zoom_indicator_popup_padding_end">8dp</dimen>
+    <dimen name="page_zoom_indicator_popup_dropdown_offset">48dp</dimen>
+    <dimen name="zoom_percentage_width">82dp</dimen>
+    <dimen name="zoom_buttons_margin_outwards">6dp</dimen>
+    <dimen name="zoom_buttons_margin_inwards">10dp</dimen>
+    <dimen name="reset_button_width">85dp</dimen>
+    <dimen name="reset_button_height">48dp</dimen>
+    <dimen name="reset_button_padding">4dp</dimen>
 
     <!-- Page zoom item dimensions -->
     <dimen name="symbol_padding">2dp</dimen>
     <dimen name="zoom_percentage_menu_item_margin">10dp</dimen>
-    <dimen name="zoom_percentage_menu_item_width">42dp</dimen>
+    <dimen name="zoom_percentage_menu_item_width">44dp</dimen>
     <dimen name="zoom_menu_item_divider_width">1dp</dimen>
     <dimen name="zoom_menu_item_divider_margin">10dp</dimen>
 </resources>

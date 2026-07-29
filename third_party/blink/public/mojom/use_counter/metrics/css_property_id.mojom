@@ -808,11 +808,13 @@ enum CSSSampleId {
     kWhiteSpaceCollapse = 749,
     kScrollTimelineAttachment = 750,
     kViewTimelineAttachment = 751,
-    kScrollStartBlock = 752,
-    kScrollStartInline = 753,
-    kScrollStartX = 754,
-    kScrollStartY = 755,
-    kScrollStart = 756,
+    // scroll-start is deprecated:
+    // https://github.com/w3c/csswg-drafts/issues/6985#issuecomment-2166073296
+    // kScrollStartBlock = 752,
+    // kScrollStartInline = 753,
+    // kScrollStartX = 754,
+    // kScrollStartY = 755,
+    // kScrollStart = 756,
     // kScrollStartTargetBlock = 757,
     // kScrollStartTargetInline = 758,
     // kScrollStartTargetX = 759,
@@ -868,9 +870,9 @@ enum CSSSampleId {
     kCaretAnimation = 809,
     // kViewTransitionCaptureMode = 810,
     kInteractivity = 811,
-    kMasonryFill = 812,
-    kMasonryDirection = 813,
-    kMasonryFlow = 814,
+    kGridLanesFill = 812,
+    kGridLanesDirection = 813,
+    kGridLanesFlow = 814,
     // kMasonryAutoTracks = 815,
     kResult = 816,
     // NOTE(crbug.com/429392773): kAnimationTrigger* entries are deprecated.
@@ -938,7 +940,7 @@ enum CSSSampleId {
     kTimelineTriggerExitRangeEnd = 876,
     kTimelineTriggerSource = 877,
     kTimelineTrigger = 878,
-    kMasonry = 879,
+    kGridLanes = 879,
     kContinue = 880,
     kMaxLines = 881,
     kBlockEllipsis = 882,
@@ -958,6 +960,8 @@ enum CSSSampleId {
     kRowRuleEdgeEndInset = 896,
     kRowRuleInteriorStartInset = 897,
     kRowRuleInteriorEndInset = 898,
+    kTimelineTriggerRange = 899,
+    kTimelineTriggerExitRange = 900,
 
     // 1. Add new features above this line (don't change the assigned numbers of
     //    the existing items).

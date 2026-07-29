@@ -4,6 +4,7 @@
 
 #import "ios/chrome/browser/file_upload_panel/coordinator/file_upload_panel_coordinator.h"
 
+#import <PhotosUI/PhotosUI.h>
 #import <UIKit/UIKit.h>
 
 #import "base/metrics/histogram_functions.h"
@@ -24,6 +25,8 @@
 @interface FileUploadPanelCoordinator () <
     UIContextMenuInteractionDelegate,
     UINavigationControllerDelegate,
+    UIDocumentPickerDelegate,
+    PHPickerViewControllerDelegate,
     UIImagePickerControllerDelegate,
     UIAdaptivePresentationControllerDelegate>
 
@@ -33,6 +36,8 @@
   FileUploadPanelMediator* _mediator;
   ContextMenuPresenter* _contextMenuPresenter;
   UIImagePickerController* _cameraPicker;
+  UIDocumentPickerViewController* _filePicker;
+  PHPickerViewController* _photoPicker;
 }
 
 #pragma mark - ChromeCoordinator
@@ -77,6 +82,8 @@
 - (void)stop {
   [_mediator disconnect];
   _mediator = nil;
+  [self hideFilePicker];
+  [self hidePhotoPicker];
   [self hideCamera];
   [self hideContextMenu];
 }
@@ -181,7 +188,7 @@
 
 - (void)doContextMenuInteractionEndAnimationCompletion {
   [self hideContextMenu];
-  if (!_cameraPicker) {
+  if (!_cameraPicker && !_filePicker && !_photoPicker) {
     [_mediator cancelFileSelection];
   }
 }
@@ -190,15 +197,68 @@
 
 // Returns the label to use for the file picker action in the context menu.
 - (NSString*)filePickerActionLabel {
-  // TODO(crbug.com/441659098): Use a plural label if multiple files can be
-  // selected.
+  if (_mediator.allowsMultipleSelection) {
+    return l10n_util::GetNSString(
+        IDS_IOS_FILE_UPLOAD_PANEL_CHOOSE_FILES_ACTION_LABEL);
+  }
   return l10n_util::GetNSString(
       IDS_IOS_FILE_UPLOAD_PANEL_CHOOSE_FILE_ACTION_LABEL);
 }
 
 // Shows a file picker to select one or several files on the device.
 - (void)showFilePicker {
-  // TODO(crbug.com/441659098): Show a file picker.
+  _filePicker = [[UIDocumentPickerViewController alloc]
+      initForOpeningContentTypes:_mediator.acceptedDocumentTypes
+                          asCopy:!_mediator.allowsDirectorySelection];
+  _filePicker.allowsMultipleSelection = _mediator.allowsMultipleSelection;
+  _filePicker.delegate = self;
+  _filePicker.presentationController.delegate = self;
+  [self.baseViewController presentViewController:_filePicker
+                                        animated:YES
+                                      completion:nil];
+}
+
+- (void)hideFilePicker {
+  [_filePicker.presentingViewController dismissViewControllerAnimated:YES
+                                                           completion:nil];
+  _filePicker = nil;
+}
+
+#pragma mark - UIDocumentPickerDelegate
+
+- (void)documentPicker:(UIDocumentPickerViewController*)controller
+    didPickDocumentsAtURLs:(NSArray<NSURL*>*)urls {
+  base::UmaHistogramBoolean("IOS.FileUploadPanel.FilePicker.Result", true);
+  base::UmaHistogramCounts100("IOS.FileUploadPanel.FilePicker.FileCount",
+                              urls.count);
+  NSURL* securityScopedResource = nil;
+  if (_mediator.allowsDirectorySelection) {
+    CHECK_EQ(urls.count, 1u);
+    securityScopedResource = urls.firstObject;
+    if (![securityScopedResource startAccessingSecurityScopedResource]) {
+      // If access to a security scoped resource was required but could not be
+      // granted, cancelling file selection.
+      base::UmaHistogramEnumeration(
+          "IOS.FileUploadPanel.SecurityScopedResource.AccessState",
+          FileUploadPanelSecurityScopedResourceAccessState::kStartFailed);
+      [_mediator cancelFileSelection];
+      return;
+    }
+  }
+  [_mediator submitFileSelection:urls];
+  // After submitting selection, the coordinator may have stopped and the
+  // mediator may have been disconnected. Access to security scoped resources
+  // should still be stopped if necessary.
+  [securityScopedResource stopAccessingSecurityScopedResource];
+  if (securityScopedResource) {
+    base::UmaHistogramEnumeration(
+        "IOS.FileUploadPanel.SecurityScopedResource.AccessState",
+        FileUploadPanelSecurityScopedResourceAccessState::kStartedAndStopped);
+  }
+}
+
+- (void)documentPickerWasCancelled:(UIDocumentPickerViewController*)controller {
+  base::UmaHistogramBoolean("IOS.FileUploadPanel.FilePicker.Result", false);
   [_mediator cancelFileSelection];
 }
 
@@ -211,8 +271,45 @@
 
 // Shows a photo picker to select one or several photos/videos on the device.
 - (void)showPhotoPicker {
-  // TODO(crbug.com/441659098): Show a photo picker.
-  [_mediator cancelFileSelection];
+  PHPickerConfiguration* configuration = [[PHPickerConfiguration alloc] init];
+  configuration.selectionLimit = _mediator.allowsMultipleSelection ? 0 : 1;
+  configuration.preferredAssetRepresentationMode =
+      PHPickerConfigurationAssetRepresentationModeCurrent;
+  if (_mediator.allowsImageSelection && !_mediator.allowsVideoSelection) {
+    configuration.filter = PHPickerFilter.imagesFilter;
+  } else if (_mediator.allowsVideoSelection &&
+             !_mediator.allowsImageSelection) {
+    configuration.filter = PHPickerFilter.videosFilter;
+  }
+
+  _photoPicker =
+      [[PHPickerViewController alloc] initWithConfiguration:configuration];
+  _photoPicker.delegate = self;
+  _photoPicker.presentationController.delegate = self;
+  [self.baseViewController presentViewController:_photoPicker
+                                        animated:YES
+                                      completion:nil];
+}
+
+- (void)hidePhotoPicker {
+  [_photoPicker.presentingViewController dismissViewControllerAnimated:YES
+                                                            completion:nil];
+  _photoPicker = nil;
+}
+
+#pragma mark - PHPickerViewControllerDelegate
+
+- (void)picker:(PHPickerViewController*)picker
+    didFinishPicking:(NSArray<PHPickerResult*>*)results {
+  base::UmaHistogramBoolean("IOS.FileUploadPanel.PhotoPicker.Result",
+                            results.count > 0);
+  if (results.count == 0) {
+    [_mediator cancelFileSelection];
+  } else {
+    base::UmaHistogramCounts100("IOS.FileUploadPanel.PhotoPicker.FileCount",
+                                results.count);
+    [_mediator submitFileSelectionWithPickerResults:results];
+  }
 }
 
 #pragma mark - Private (Camera)
@@ -267,12 +364,12 @@
 - (void)imagePickerController:(UIImagePickerController*)picker
     didFinishPickingMediaWithInfo:
         (NSDictionary<UIImagePickerControllerInfoKey, id>*)info {
-  base::UmaHistogramBoolean("IOS.FileUploadPanel.CameraResult", true);
+  base::UmaHistogramBoolean("IOS.FileUploadPanel.Camera.Result", true);
   [_mediator submitFileSelectionWithMediaInfo:info];
 }
 
 - (void)imagePickerControllerDidCancel:(UIImagePickerController*)picker {
-  base::UmaHistogramBoolean("IOS.FileUploadPanel.CameraResult", false);
+  base::UmaHistogramBoolean("IOS.FileUploadPanel.Camera.Result", false);
   [_mediator cancelFileSelection];
 }
 

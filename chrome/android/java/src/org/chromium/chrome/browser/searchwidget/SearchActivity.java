@@ -56,6 +56,7 @@ import org.chromium.chrome.browser.metrics.StartupMetricsTracker;
 import org.chromium.chrome.browser.metrics.UmaActivityObserver;
 import org.chromium.chrome.browser.omnibox.BackKeyBehaviorDelegate;
 import org.chromium.chrome.browser.omnibox.LocationBarCoordinator;
+import org.chromium.chrome.browser.omnibox.LocationBarEmbedder;
 import org.chromium.chrome.browser.omnibox.LocationBarEmbedderUiOverrides;
 import org.chromium.chrome.browser.omnibox.OmniboxActionDelegateImpl;
 import org.chromium.chrome.browser.omnibox.UrlFocusChangeListener;
@@ -80,7 +81,6 @@ import org.chromium.chrome.browser.ui.searchactivityutils.SearchActivityExtras.S
 import org.chromium.chrome.browser.ui.system.StatusBarColorController;
 import org.chromium.components.browser_ui.modaldialog.AppModalPresenter;
 import org.chromium.components.metrics.OmniboxEventProtos.OmniboxEventProto.PageClassification;
-import org.chromium.components.omnibox.AutocompleteRequestType;
 import org.chromium.components.omnibox.OmniboxFeatures;
 import org.chromium.ui.base.ActivityKeyboardVisibilityDelegate;
 import org.chromium.ui.base.ActivityWindowAndroid;
@@ -373,6 +373,7 @@ public class SearchActivity extends AsyncInitializationActivity
                         backPressManager,
                         /* omniboxSuggestionsDropdownScrollListener= */ null,
                         /* tabModelSelectorSupplier= */ new ObservableSupplierImpl<>(),
+                        new LocationBarEmbedder() {},
                         mLocationBarUiOverrides,
                         findViewById(R.id.control_container),
                         /* bottomWindowPaddingSupplier */ () -> 0,
@@ -381,7 +382,9 @@ public class SearchActivity extends AsyncInitializationActivity
                         /* isToolbarPositionCustomizationEnabled= */ false,
                         /* pageZoomManager= */ null,
                         TabFavicon::getBitmap,
-                        /* multiInstanceManager= */ null);
+                        /* multiInstanceManager= */ null,
+                        mSnackbarManager,
+                        findViewById(R.id.bottom_container));
         mLocationBarCoordinator.setUrlBarFocusable(true);
         mLocationBarCoordinator.setShouldShowMicButtonWhenUnfocused(true);
         assumeNonNull(mLocationBarCoordinator.getOmniboxStub()).addUrlFocusChangeListener(this);
@@ -487,8 +490,7 @@ public class SearchActivity extends AsyncInitializationActivity
     /** Translate current intent origin and extras to a PageClassification. */
     @VisibleForTesting
     /* package */ void refinePageClassWithProfile(Profile profile) {
-        int pageClass =
-                mSearchBoxDataProvider.getPageClassification(AutocompleteRequestType.SEARCH);
+        int pageClass = mSearchBoxDataProvider.getPageClassification(/* prefetch= */ false);
 
         // Verify if the PageClassification can be refined.
         var url = SearchActivityUtils.getIntentUrl(getIntent());
@@ -662,7 +664,7 @@ public class SearchActivity extends AsyncInitializationActivity
         boolean isIncognito = mSearchBoxDataProvider.isIncognitoBranded();
         @StringRes
         int regularHintTextRes =
-                OmniboxFeatures.sAndroidHubSearchTabGroups.isEnabled()
+                OmniboxFeatures.sAndroidHubSearchEnableTabGroupStrings.getValue()
                         ? R.string.hub_search_empty_hint_with_tab_groups
                         : R.string.hub_search_empty_hint;
         @StringRes

@@ -62,6 +62,8 @@ class ChromeSigninClient : public SigninClient {
       signin_metrics::ProfileSignout signout_source_metric) override;
   scoped_refptr<network::SharedURLLoaderFactory> GetURLLoaderFactory() override;
   network::mojom::CookieManager* GetCookieManager() override;
+  network::mojom::DeviceBoundSessionManager* GetDeviceBoundSessionManager()
+      const override;
   network::mojom::NetworkContext* GetNetworkContext() override;
   bool AreSigninCookiesAllowed() override;
   bool AreSigninCookiesDeletedOnExit() override;
@@ -80,6 +82,8 @@ class ChromeSigninClient : public SigninClient {
 
   std::unique_ptr<signin::BoundSessionOAuthMultiLoginDelegate>
   CreateBoundSessionOAuthMultiloginDelegate() const override;
+  signin::OAuthConsumer GetOAuthConsumerFromId(
+      signin::OAuthConsumerId oauth_consumer_id) const override;
 
   // Adds the users to a synthetic field trial for user that were shown the
   // Bookmarks Bubble sign in/sync promo. Only adds user that are part of the
@@ -150,6 +154,9 @@ class ChromeSigninClient : public SigninClient {
 
   scoped_refptr<network::SharedURLLoaderFactory>
       url_loader_factory_for_testing_;
+
+  // Used to convert OAuthConsumerIds to OAuthConsumers.
+  std::unique_ptr<signin::OAuthConsumerRegistry> oauth_consumer_registry_;
 };
 
 #endif  // CHROME_BROWSER_SIGNIN_CHROME_SIGNIN_CLIENT_H_

@@ -48,6 +48,7 @@
 #include "third_party/blink/renderer/core/css/selector_checker-inl.h"
 #include "third_party/blink/renderer/core/css/selector_checker.h"
 #include "third_party/blink/renderer/core/css/selector_filter.h"
+#include "third_party/blink/renderer/core/css/style_rule.h"
 #include "third_party/blink/renderer/core/css/style_rule_import.h"
 #include "third_party/blink/renderer/core/css/style_rule_nested_declarations.h"
 #include "third_party/blink/renderer/core/css/style_sheet_contents.h"
@@ -279,6 +280,8 @@ bool ShouldStopExtractingAtPseudoElement(
     case CSSSelector::kPseudoViewTransitionNew:
     case CSSSelector::kPseudoViewTransitionOld:
     case CSSSelector::kPseudoScrollMarkerGroup:
+    case CSSSelector::kPseudoOverscrollAreaParent:
+    case CSSSelector::kPseudoOverscrollClientArea:
       return true;
     case CSSSelector::kPseudoCue:
     case CSSSelector::kPseudoFirstLine:
@@ -892,9 +895,9 @@ static void AddRuleToIntervals(const T* value,
   intervals.push_back(RuleSet::Interval<T>(value, position));
 }
 
-void RuleSet::AddPageRule(StyleRulePage* rule) {
+void RuleSet::AddPageRule(StyleRulePage* rule, const CascadeLayer* layer) {
   need_compaction_ = true;
-  page_rules_.push_back(rule);
+  page_rules_.push_back(CascadeLayered<StyleRulePage>(rule, layer));
 }
 
 void RuleSet::AddRouteRule(StyleRuleRoute* rule) {
@@ -902,24 +905,29 @@ void RuleSet::AddRouteRule(StyleRuleRoute* rule) {
   route_rules_.push_back(rule);
 }
 
-void RuleSet::AddFontFaceRule(StyleRuleFontFace* rule) {
+void RuleSet::AddFontFaceRule(StyleRuleFontFace* rule,
+                              const CascadeLayer* layer) {
   need_compaction_ = true;
-  font_face_rules_.push_back(rule);
+  font_face_rules_.push_back(CascadeLayered<StyleRuleFontFace>(rule, layer));
 }
 
-void RuleSet::AddKeyframesRule(StyleRuleKeyframes* rule) {
+void RuleSet::AddKeyframesRule(StyleRuleKeyframes* rule,
+                               const CascadeLayer* layer) {
   need_compaction_ = true;
-  keyframes_rules_.push_back(rule);
+  keyframes_rules_.push_back(CascadeLayered<StyleRuleKeyframes>(rule, layer));
 }
 
-void RuleSet::AddPropertyRule(StyleRuleProperty* rule) {
+void RuleSet::AddPropertyRule(StyleRuleProperty* rule,
+                              const CascadeLayer* layer) {
   need_compaction_ = true;
-  property_rules_.push_back(rule);
+  property_rules_.push_back(CascadeLayered<StyleRuleProperty>(rule, layer));
 }
 
-void RuleSet::AddCounterStyleRule(StyleRuleCounterStyle* rule) {
+void RuleSet::AddCounterStyleRule(StyleRuleCounterStyle* rule,
+                                  const CascadeLayer* layer) {
   need_compaction_ = true;
-  counter_style_rules_.push_back(rule);
+  counter_style_rules_.push_back(
+      CascadeLayered<StyleRuleCounterStyle>(rule, layer));
 }
 
 void RuleSet::AddFontPaletteValuesRule(StyleRuleFontPaletteValues* rule) {
@@ -927,24 +935,31 @@ void RuleSet::AddFontPaletteValuesRule(StyleRuleFontPaletteValues* rule) {
   font_palette_values_rules_.push_back(rule);
 }
 
-void RuleSet::AddFontFeatureValuesRule(StyleRuleFontFeatureValues* rule) {
+void RuleSet::AddFontFeatureValuesRule(StyleRuleFontFeatureValues* rule,
+                                       const CascadeLayer* layer) {
   need_compaction_ = true;
-  font_feature_values_rules_.push_back(rule);
+  font_feature_values_rules_.push_back(
+      CascadeLayered<StyleRuleFontFeatureValues>(rule, layer));
 }
 
-void RuleSet::AddPositionTryRule(StyleRulePositionTry* rule) {
+void RuleSet::AddPositionTryRule(StyleRulePositionTry* rule,
+                                 const CascadeLayer* layer) {
   need_compaction_ = true;
-  position_try_rules_.push_back(rule);
+  position_try_rules_.push_back(
+      CascadeLayered<StyleRulePositionTry>(rule, layer));
 }
 
-void RuleSet::AddFunctionRule(StyleRuleFunction* rule) {
+void RuleSet::AddFunctionRule(StyleRuleFunction* rule,
+                              const CascadeLayer* layer) {
   need_compaction_ = true;
-  function_rules_.push_back(rule);
+  function_rules_.push_back((CascadeLayered<StyleRuleFunction>(rule, layer)));
 }
 
-void RuleSet::AddViewTransitionRule(StyleRuleViewTransition* rule) {
+void RuleSet::AddViewTransitionRule(StyleRuleViewTransition* rule,
+                                    const CascadeLayer* layer) {
   need_compaction_ = true;
-  view_transition_rules_.push_back(rule);
+  view_transition_rules_.push_back(
+      CascadeLayered<StyleRuleViewTransition>(rule, layer));
 }
 
 void RuleSet::AddChildRules(StyleRule* parent_rule,
@@ -962,8 +977,7 @@ void RuleSet::AddChildRules(StyleRule* parent_rule,
                    apply_mixins_stack, container_query, cascade_layer,
                    style_scope);
     } else if (auto* page_rule = DynamicTo<StyleRulePage>(rule)) {
-      page_rule->SetCascadeLayer(cascade_layer);
-      AddPageRule(page_rule);
+      AddPageRule(page_rule, cascade_layer);
     } else if (auto* route_rule = DynamicTo<StyleRuleRoute>(rule)) {
       const RouteQuery& query = route_rule->GetRouteQuery();
       if (query.Evaluate(medium.GetMediaValues().GetDocument())) {
@@ -978,8 +992,7 @@ void RuleSet::AddChildRules(StyleRule* parent_rule,
                       style_scope, apply_mixins_stack);
       }
     } else if (auto* font_face_rule = DynamicTo<StyleRuleFontFace>(rule)) {
-      font_face_rule->SetCascadeLayer(cascade_layer);
-      AddFontFaceRule(font_face_rule);
+      AddFontFaceRule(font_face_rule, cascade_layer);
     } else if (auto* font_palette_values_rule =
                    DynamicTo<StyleRuleFontPaletteValues>(rule)) {
       // TODO(https://crbug.com/1170794): Handle cascade layers for
@@ -987,29 +1000,22 @@ void RuleSet::AddChildRules(StyleRule* parent_rule,
       AddFontPaletteValuesRule(font_palette_values_rule);
     } else if (auto* font_feature_values_rule =
                    DynamicTo<StyleRuleFontFeatureValues>(rule)) {
-      font_feature_values_rule->SetCascadeLayer(cascade_layer);
-      AddFontFeatureValuesRule(font_feature_values_rule);
+      AddFontFeatureValuesRule(font_feature_values_rule, cascade_layer);
     } else if (auto* keyframes_rule = DynamicTo<StyleRuleKeyframes>(rule)) {
-      keyframes_rule->SetCascadeLayer(cascade_layer);
-      AddKeyframesRule(keyframes_rule);
+      AddKeyframesRule(keyframes_rule, cascade_layer);
     } else if (auto* property_rule = DynamicTo<StyleRuleProperty>(rule)) {
-      property_rule->SetCascadeLayer(cascade_layer);
-      AddPropertyRule(property_rule);
+      AddPropertyRule(property_rule, cascade_layer);
     } else if (auto* counter_style_rule =
                    DynamicTo<StyleRuleCounterStyle>(rule)) {
-      counter_style_rule->SetCascadeLayer(cascade_layer);
-      AddCounterStyleRule(counter_style_rule);
+      AddCounterStyleRule(counter_style_rule, cascade_layer);
     } else if (auto* view_transition_rule =
                    DynamicTo<StyleRuleViewTransition>(rule)) {
-      view_transition_rule->SetCascadeLayer(cascade_layer);
-      AddViewTransitionRule(view_transition_rule);
+      AddViewTransitionRule(view_transition_rule, cascade_layer);
     } else if (auto* position_try_rule =
                    DynamicTo<StyleRulePositionTry>(rule)) {
-      position_try_rule->SetCascadeLayer(cascade_layer);
-      AddPositionTryRule(position_try_rule);
+      AddPositionTryRule(position_try_rule, cascade_layer);
     } else if (auto* function_rule = DynamicTo<StyleRuleFunction>(rule)) {
-      function_rule->SetCascadeLayer(cascade_layer);
-      AddFunctionRule(function_rule);
+      AddFunctionRule(function_rule, cascade_layer);
     } else if (auto* supports_rule = DynamicTo<StyleRuleSupports>(rule)) {
       if (supports_rule->ConditionIsSupported()) {
         AddChildRules(parent_rule, supports_rule->ChildRules(), medium, mixins,
@@ -1057,41 +1063,29 @@ void RuleSet::AddChildRules(StyleRule* parent_rule,
                  apply_mixins_stack);
     } else if (auto* contents_rule =
                    DynamicTo<StyleRuleContentsStatement>(rule)) {
-      const StyleRuleMixin* mixin = apply_mixins_stack.back().mixin;
       StyleRuleApplyMixin* apply =
           apply_mixins_stack.back().invoking_apply_rule;
       const MixinParameterBindings* mixin_parameter_bindings =
           apply_mixins_stack.back().mixin_parameter_bindings;
 
-      // Verify that the mixin actually has a @contents parameter.
-      // Otherwise, @contents is illegal and ignored.
-      const bool has_contents_parameter = std::ranges::any_of(
-          mixin->GetParameters(),
-          [](const StyleRuleFunction::Parameter& parameter) {
-            return parameter.name == "@contents";
-          });
-
-      if (has_contents_parameter) {
-        // Try first the parameter from @apply, then the fallback block given in
-        // @contents, and if neither exists, nothing happens.
-        StyleRule* rules_to_add = nullptr;
-        if (apply->FakeParentRuleForDeclarations()) {
-          rules_to_add =
-              To<StyleRuleApplyMixin>(
-                  apply->Clone(parent_rule, mixin_parameter_bindings))
-                  ->FakeParentRuleForDeclarations();
-        } else if (contents_rule->FakeParentRuleForFallback() &&
-                   contents_rule->FakeParentRuleForFallback()->ChildRules()) {
-          rules_to_add =
-              To<StyleRuleContentsStatement>(
-                  contents_rule->Clone(parent_rule, mixin_parameter_bindings))
-                  ->FakeParentRuleForFallback();
-        }
-        if (rules_to_add && rules_to_add->ChildRules()) {
-          AddChildRules(parent_rule, *rules_to_add->ChildRules(), medium,
-                        mixins, add_rule_flags, container_query, cascade_layer,
-                        style_scope, apply_mixins_stack);
-        }
+      // Try first the parameter from @apply, then the fallback block given in
+      // @contents, and if neither exists, nothing happens.
+      StyleRule* rules_to_add = nullptr;
+      if (apply->FakeParentRuleForDeclarations()) {
+        rules_to_add = To<StyleRuleApplyMixin>(
+                           apply->Clone(parent_rule, mixin_parameter_bindings))
+                           ->FakeParentRuleForDeclarations();
+      } else if (contents_rule->FakeParentRuleForFallback() &&
+                 contents_rule->FakeParentRuleForFallback()->ChildRules()) {
+        rules_to_add =
+            To<StyleRuleContentsStatement>(
+                contents_rule->Clone(parent_rule, mixin_parameter_bindings))
+                ->FakeParentRuleForFallback();
+      }
+      if (rules_to_add && rules_to_add->ChildRules()) {
+        AddChildRules(parent_rule, *rules_to_add->ChildRules(), medium, mixins,
+                      add_rule_flags, container_query, cascade_layer,
+                      style_scope, apply_mixins_stack);
       }
     } else if (auto* nested_declarations =
                    DynamicTo<StyleRuleNestedDeclarations>(rule)) {

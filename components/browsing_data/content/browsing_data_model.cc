@@ -15,6 +15,7 @@
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
+#include "base/functional/callback_helpers.h"
 #include "base/memory/weak_ptr.h"
 #include "components/attribution_reporting/features.h"
 #include "components/browsing_data/content/browsing_data_quota_helper.h"
@@ -392,7 +393,7 @@ void StorageRemoverHelper::Visitor::operator()<
     const net::device_bound_sessions::SessionKey& data_key) {
   CHECK(types.Has(BrowsingDataModel::StorageType::kDeviceBoundSession));
   helper->storage_partition_->GetDeviceBoundSessionManager()->DeleteSession(
-      net::device_bound_sessions::kClearBrowsingData, data_key);
+      net::device_bound_sessions::DeletionReason::kClearBrowsingData, data_key);
 }
 
 void StorageRemoverHelper::RemoveDataKeyEntries(
@@ -430,8 +431,9 @@ void StorageRemoverHelper::BackendFinished() {
   DCHECK(callbacks_expected_ > callbacks_seen_);
   callbacks_seen_++;
 
-  if (callbacks_seen_ == callbacks_expected_)
+  if (callbacks_seen_ == callbacks_expected_) {
     std::move(completed_).Run();
+  }
 }
 
 // Only websafe state is considered browsing data.
@@ -446,8 +448,9 @@ void OnTrustTokenIssuanceInfoLoaded(
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
 
   for (const auto& token : tokens) {
-    if (token->count == 0)
+    if (token->count == 0) {
       continue;
+    }
 
     model->AddBrowsingData(token->issuer,
                            BrowsingDataModel::StorageType::kTrustTokens,
@@ -765,8 +768,9 @@ BrowsingDataModel::Iterator& BrowsingDataModel::Iterator::operator++() {
   }
   if (inner_iterator_ == outer_iterator_->second.end()) {
     outer_iterator_++;
-    if (outer_iterator_ != outer_end_iterator_)
+    if (outer_iterator_ != outer_end_iterator_) {
       inner_iterator_ = outer_iterator_->second.begin();
+    }
   }
   return *this;
 }

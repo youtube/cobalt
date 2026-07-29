@@ -14,6 +14,7 @@ import androidx.annotation.VisibleForTesting;
 import org.chromium.base.Callback;
 import org.chromium.base.CallbackController;
 import org.chromium.base.CallbackUtils;
+import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.base.supplier.ObservableSupplierImpl;
 import org.chromium.base.supplier.OneshotSupplier;
@@ -22,6 +23,7 @@ import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.app.tabmodel.HeadlessBrowserControlsStateProvider;
 import org.chromium.chrome.browser.app.tabwindow.TabWindowManagerSingleton;
 import org.chromium.chrome.browser.browser_controls.BrowserControlsStateProvider;
+import org.chromium.chrome.browser.omnibox.fusebox.FuseboxTabUtils;
 import org.chromium.chrome.browser.page_content_annotations.PageContentExtractionService;
 import org.chromium.chrome.browser.page_content_annotations.PageContentExtractionServiceFactory;
 import org.chromium.chrome.browser.profiles.Profile;
@@ -62,6 +64,8 @@ public class TabItemPickerCoordinator {
     private final SnackbarManager mSnackbarManager;
     private final OnBackPressedCallback mBackPressCallback;
     private final Callback<Boolean> mBackPressEnabledObserver;
+    private final ArrayList<Integer> mPreselectedTabIds;
+    private final int mAllowedSelectionCount;
     private @Nullable TabModelSelector mTabModelSelector;
     private @Nullable TabListEditorCoordinator mTabListEditorCoordinator;
     private @Nullable ItemPickerNavigationProvider mNavigationProvider;
@@ -72,7 +76,9 @@ public class TabItemPickerCoordinator {
             Activity activity,
             SnackbarManager snackbarManager,
             ViewGroup rootView,
-            ViewGroup containerView) {
+            ViewGroup containerView,
+            ArrayList<Integer> preselectedTabIds,
+            int allowedSelectionCount) {
 
         mProfileSupplier = profileSupplier;
         mWindowId = windowId;
@@ -80,6 +86,8 @@ public class TabItemPickerCoordinator {
         mSnackbarManager = snackbarManager;
         mRootView = rootView;
         mContainerView = containerView;
+        mPreselectedTabIds = preselectedTabIds;
+        mAllowedSelectionCount = allowedSelectionCount;
 
         mBackPressCallback =
                 new OnBackPressedCallback(/* enabled= */ false) {
@@ -155,7 +163,7 @@ public class TabItemPickerCoordinator {
     private void refreshTabsToShow() {
         // TODO(crbug.com/457858995): Use common tab filters.
         Profile profile = mProfileSupplier.get();
-        if (profile == null) {
+        if (profile == null || profile.isIncognitoBranded()) {
             onCachedTabIdsRetrieved(new long[0]);
             return;
         }
@@ -165,24 +173,31 @@ public class TabItemPickerCoordinator {
         pageContentExtractionService.getAllCachedTabIds(this::onCachedTabIdsRetrieved);
     }
 
-    private void onCachedTabIdsRetrieved(long[] tabIds) {
+    private void onCachedTabIdsRetrieved(long[] cachedTabIds) {
         if (mTabModelSelector == null) return;
 
-        List<Tab> allTabs =
-                TabModelUtils.convertTabListToListOfTabs(mTabModelSelector.getModel(false));
-        if (tabIds == null || tabIds.length == 0) {
-            showEditorUi(allTabs);
+        Profile profile = mProfileSupplier.get();
+        if (profile == null) {
+            showEditorUi(new ArrayList<>());
             return;
         }
 
+        List<Tab> allTabs =
+                TabModelUtils.convertTabListToListOfTabs(
+                        mTabModelSelector.getModel(profile.isIncognitoBranded()));
+
         List<Tab> tabsToShow = new ArrayList<>();
-        Set<Integer> tabIdsSet = new HashSet<>();
-        for (long id : tabIds) {
-            tabIdsSet.add((int) id);
+        Set<Integer> cachedTabIdsSet = new HashSet<>();
+        if (cachedTabIds != null) {
+            for (long id : cachedTabIds) {
+                cachedTabIdsSet.add((int) id);
+            }
         }
         for (Tab tab : allTabs) {
             // TODO(crbug.com/458152854): Allow reloading of tabs.
-            if (tab.getWebContents() != null || tabIdsSet.contains(tab.getId())) {
+            boolean isActiveOrCachedTab =
+                    FuseboxTabUtils.isTabActive(tab) || cachedTabIdsSet.contains(tab.getId());
+            if (FuseboxTabUtils.isTabEligibleForAttachment(tab) && isActiveOrCachedTab) {
                 tabsToShow.add(tab);
             }
         }
@@ -194,6 +209,9 @@ public class TabItemPickerCoordinator {
 
         TabListEditorController controller = mTabListEditorCoordinator.getController();
 
+        RecordHistogram.recordCount100Histogram(
+                "Android.TabItemPicker.SelectableTabs.Count", tabs.size());
+
         if (mActivity instanceof ComponentActivity componentActivity) {
             // Add the callback to the Dispatcher
             componentActivity
@@ -203,13 +221,27 @@ public class TabItemPickerCoordinator {
 
         controller.getHandleBackPressChangedSupplier().addObserver(mBackPressEnabledObserver);
 
-        int currentTabIndex = mTabModelSelector.getModel(/* incognito= */ false).index();
+        Profile profile = mProfileSupplier.get();
+        int currentTabIndex =
+                mTabModelSelector
+                        .getModel(profile == null ? false : profile.isIncognitoBranded())
+                        .index();
         RecyclerViewPosition position = new RecyclerViewPosition(currentTabIndex, 0);
 
         controller.show(
                 tabs,
                 /* tabGroupSyncIds= */ Collections.emptyList(),
                 /* recyclerViewPosition= */ position);
+        if (mPreselectedTabIds.isEmpty()) return;
+        Set<TabListEditorItemSelectionId> selectionSet = new HashSet<>();
+        for (Integer id : mPreselectedTabIds) {
+            if (id == null) continue;
+            @Nullable Tab tab = mTabModelSelector.getTabById(id);
+            if (tab != null) {
+                selectionSet.add(TabListEditorItemSelectionId.createTabId(tab.getId()));
+            }
+        }
+        controller.preselectTabs(selectionSet);
     }
 
     public interface ItemPickerSelectionHandler {
@@ -250,11 +282,13 @@ public class TabItemPickerCoordinator {
 
         @Override
         public void finishSelection(List<TabListEditorItemSelectionId> selectedItems) {
+            RecordHistogram.recordCount100Histogram(
+                    "Android.TabItemPicker.SelectedTabs.Count", selectedItems.size());
             mController.hideByAction();
 
             // Route the result to the Activity's success handler.
             if (mActivity instanceof ChromeItemPickerActivity cipa) {
-                cipa.finishWithSelectedItems(new HashSet<>(selectedItems));
+                cipa.finishWithSelectedItems(selectedItems);
             } else {
                 mActivity.finish();
             }
@@ -264,10 +298,12 @@ public class TabItemPickerCoordinator {
     /** Creates a TabGroupModelFilter instance required by the TabListEditorCoordinator. */
     private ObservableSupplier<@Nullable TabGroupModelFilter> createTabGroupModelFilterSupplier(
             TabModelSelector tabModelSelector) {
+        Profile profile = mProfileSupplier.get();
         return new ObservableSupplierImpl<@Nullable TabGroupModelFilter>(
                 tabModelSelector
                         .getTabGroupModelFilterProvider()
-                        .getTabGroupModelFilter(/* isIncognito= */ false));
+                        .getTabGroupModelFilter(
+                                profile == null ? false : profile.isIncognitoBranded()));
     }
 
     /** Creates a TabContentManager instance required by the TabListEditorCoordinator. */
@@ -326,7 +362,8 @@ public class TabItemPickerCoordinator {
                         /* edgeToEdgeSupplier= */ null,
                         CreationMode.ITEM_PICKER,
                         /* undoBarExplicitTrigger= */ null,
-                        /* componentName= */ "TabItemPickerCoordinator");
+                        /* componentName= */ "TabItemPickerCoordinator",
+                        mAllowedSelectionCount);
 
         mNavigationProvider =
                 new ItemPickerNavigationProvider(

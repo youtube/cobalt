@@ -17,8 +17,13 @@
 #include "chrome/browser/ui/views/infobars/infobar_container_view.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_view.h"
 #include "chrome/browser/ui/views/web_apps/frame_toolbar/web_app_frame_toolbar_view.h"
+#include "chrome/common/buildflags.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/views/view.h"
+
+#if BUILDFLAG(ENABLE_WEBUI_TAB_STRIP)
+#include "chrome/browser/ui/views/frame/webui_tab_strip_container_view.h"
+#endif
 
 BrowserViewLayoutDelegateImpl::BrowserViewLayoutDelegateImpl(
     BrowserView& browser_view)
@@ -29,6 +34,16 @@ bool BrowserViewLayoutDelegateImpl::ShouldDrawTabStrip() const {
   return browser_view_->ShouldDrawTabStrip();
 }
 
+bool BrowserViewLayoutDelegateImpl::ShouldUseTouchableTabstrip() const {
+#if BUILDFLAG(ENABLE_WEBUI_TAB_STRIP)
+  return WebUITabStripContainerView::UseTouchableTabStrip(
+             browser_view_->browser()) &&
+         browser_view_->GetSupportsTabStrip();
+#else
+  return false;
+#endif
+}
+
 bool BrowserViewLayoutDelegateImpl::ShouldDrawVerticalTabStrip() const {
   return ShouldDrawTabStrip() && tabs::IsVerticalTabsFeatureEnabled() &&
          browser_view_->browser()
@@ -37,18 +52,24 @@ bool BrowserViewLayoutDelegateImpl::ShouldDrawVerticalTabStrip() const {
              ->ShouldDisplayVerticalTabs();
 }
 
+bool BrowserViewLayoutDelegateImpl::ShouldDrawWebAppFrameToolbar() const {
+  return !GetBorderlessModeEnabled() &&
+         GetFrameView()->ShouldShowWebAppFrameToolbar();
+}
+
 bool BrowserViewLayoutDelegateImpl::GetBorderlessModeEnabled() const {
   return browser_view_->IsBorderlessModeEnabled();
 }
 
-BrowserLayoutParams BrowserViewLayoutDelegateImpl::GetBrowserLayoutParams()
-    const {
+BrowserLayoutParams BrowserViewLayoutDelegateImpl::GetBrowserLayoutParams(
+    bool use_browser_bounds) const {
   const auto params = GetFrameView()->GetBrowserLayoutParams();
   if (params.IsEmpty()) {
     // This can happen sometimes right after a browser is created.
     return params;
   }
-  return params.InLocalCoordinates(browser_view_->bounds());
+  return params.InLocalCoordinates(
+      use_browser_bounds ? browser_view_->bounds() : params.visual_client_area);
 }
 
 int BrowserViewLayoutDelegateImpl::GetTopInsetInBrowserView() const {

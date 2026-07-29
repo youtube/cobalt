@@ -53,6 +53,8 @@ import java.io.IOException;
 @CommandLineFlags.Add({ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE})
 @EnableFeatures({ChromeFeatureList.RELATED_WEBSITE_SETS_UI})
 public class CookieSettingsTest {
+    private static final int RENDER_TEST_REVISION = 1;
+
     @Rule
     public SettingsActivityTestRule<SingleCategorySettings> mSettingsActivityTestRule =
             new SettingsActivityTestRule<>(SingleCategorySettings.class);
@@ -60,6 +62,7 @@ public class CookieSettingsTest {
     @Rule
     public ChromeRenderTestRule mRenderTestRule =
             ChromeRenderTestRule.Builder.withPublicCorpus()
+                    .setRevision(RENDER_TEST_REVISION)
                     .setBugComponent(Component.UI_BROWSER_MOBILE_SETTINGS)
                     .build();
 
@@ -133,6 +136,7 @@ public class CookieSettingsTest {
     @Test
     @SmallTest
     @Feature({"RenderTest"})
+    @DisableFeatures(ChromeFeatureList.SETTINGS_MULTI_COLUMN)
     public void renderAllowDescriptionWhenAuxButtonClicked() throws IOException {
         onView(withId(R.id.block_third_party_incognito_with_aux)).perform(click());
         onView(
@@ -149,6 +153,7 @@ public class CookieSettingsTest {
     @Test
     @SmallTest
     @Feature({"RenderTest"})
+    @DisableFeatures(ChromeFeatureList.SETTINGS_MULTI_COLUMN)
     public void renderBlockDescriptionAndRwsToggleWhenAuxButtonClicked() throws IOException {
         onView(withId(R.id.block_third_party_with_aux)).perform(click());
         onView(
@@ -165,7 +170,10 @@ public class CookieSettingsTest {
     @Test
     @SmallTest
     @Feature({"RenderTest"})
-    @DisableFeatures({ChromeFeatureList.RELATED_WEBSITE_SETS_UI})
+    @DisableFeatures({
+        ChromeFeatureList.RELATED_WEBSITE_SETS_UI,
+        ChromeFeatureList.SETTINGS_MULTI_COLUMN
+    })
     public void renderBlockDescriptionWhenAuxButtonClicked() throws IOException {
         onView(withId(R.id.block_third_party_with_aux)).perform(click());
         onView(

@@ -38,8 +38,11 @@
 #include "chrome/browser/renderer_context_menu/render_view_context_menu_test_util.h"
 #include "chrome/browser/search_engines/template_url_service_factory.h"
 #include "chrome/browser/sync/sync_service_factory.h"
+#include "chrome/browser/translate/chrome_translate_client.h"
 #include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/chrome_pages.h"
+#include "chrome/browser/ui/lens/lens_overlay_entry_point_controller.h"
 #include "chrome/browser/ui/passwords/ui_utils.h"
 #include "chrome/browser/user_education/user_education_service.h"
 #include "chrome/browser/user_education/user_education_service_factory.h"
@@ -73,6 +76,8 @@
 #include "components/proxy_config/proxy_config_pref_names.h"
 #include "components/search_engines/template_url_service.h"
 #include "components/sync/test/test_sync_service.h"
+#include "components/translate/core/browser/language_state.h"
+#include "components/translate/core/browser/translate_manager.h"
 #include "components/user_education/common/user_education_features.h"
 #include "content/public/browser/global_routing_id.h"
 #include "content/public/browser/preconnect_manager.h"
@@ -91,8 +96,10 @@
 #include "extensions/common/url_pattern.h"
 #include "services/network/test/test_shared_url_loader_factory.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/blink/public/common/context_menu_data/edit_flags.h"
 #include "third_party/blink/public/common/navigation/impression.h"
 #include "third_party/blink/public/mojom/context_menu/context_menu.mojom.h"
+#include "ui/accessibility/accessibility_features.h"
 #include "ui/base/clipboard/clipboard.h"
 #include "url/gurl.h"
 
@@ -1316,6 +1323,39 @@ TEST_F(RenderViewContextMenuPrefsTest, LensRegionSearchChromeUIScheme) {
 
   EXPECT_FALSE(menu.IsItemPresent(IDC_CONTENT_CONTEXT_LENS_REGION_SEARCH));
 }
+
+// Test that the context menu item for translate is shown, and has an icon on
+// relevant platforms.
+TEST_F(RenderViewContextMenuPrefsTest, TranslateContextMenuHasIcon) {
+  NavigateAndCommit(GURL("https://www.example.com"));
+
+  ChromeTranslateClient::CreateForWebContents(web_contents());
+  ChromeTranslateClient* chrome_translate_client =
+      ChromeTranslateClient::FromWebContents(web_contents());
+  ASSERT_TRUE(chrome_translate_client);
+  translate::TranslateManager* translate_manager =
+      chrome_translate_client->GetTranslateManager();
+  translate_manager->GetLanguageState()->LanguageDetermined("fr", true);
+
+  content::ContextMenuParams params = CreateParams(0);
+  params.edit_flags = blink::ContextMenuDataEditFlags::kCanTranslate;
+  TestRenderViewContextMenu menu(*web_contents()->GetPrimaryMainFrame(),
+                                 params);
+  menu.SetBrowser(GetBrowser());
+  menu.Init();
+  size_t index = 0;
+  raw_ptr<ui::MenuModel> model = nullptr;
+  EXPECT_TRUE(menu.IsItemPresent(IDC_CONTENT_CONTEXT_TRANSLATE));
+  ASSERT_TRUE(menu.GetMenuModelAndItemIndex(IDC_CONTENT_CONTEXT_TRANSLATE,
+                                            &model, &index));
+// Context menu items typically do not have icons on Mac.
+#if BUILDFLAG(IS_MAC)
+  EXPECT_TRUE(model->GetIconAt(index).IsEmpty());
+#else
+  EXPECT_FALSE(model->GetIconAt(index).IsEmpty());
+#endif
+}
+
 // Verify that the adding the Lens image search option to the menu
 // issues a preconnection request to lens.google.com.
 TEST_F(RenderViewContextMenuPrefsTest,
@@ -1778,3 +1818,100 @@ TEST_F(FencedFrameRenderViewContextMenuTest,
   content::test::RevokeFencedFrameUntrustedNetwork(fenced_frame_rfh);
   EXPECT_FALSE(menu->IsCommandIdEnabled(IDC_CONTENT_CONTEXT_GOTOURL));
 }
+
+class RenderViewContextMenuReadAnythingTest
+    : public RenderViewContextMenuPrefsTest,
+      public ::testing::WithParamInterface<std::tuple<std::string>> {
+ public:
+  RenderViewContextMenuReadAnythingTest() {
+    const auto& params = GetParam();
+    const std::string& group = std::get<0>(params);
+
+    std::vector<base::test::FeatureRefAndParams> enabled_features;
+
+    enabled_features.push_back(
+        {features::kReadAnythingMenuShuffleExperiment,
+         {{"read_anything_menu_shuffle_group_name", group}}});
+
+    feature_list_.InitWithFeaturesAndParameters(enabled_features, {});
+  }
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
+};
+
+TEST_P(RenderViewContextMenuReadAnythingTest, AppendPageItems) {
+  const auto& params = GetParam();
+  const std::string& group = std::get<0>(params);
+
+  content::ContextMenuParams menu_params = CreateParams(MenuItem::PAGE);
+  TestRenderViewContextMenu menu(*web_contents()->GetPrimaryMainFrame(),
+                                 menu_params);
+
+  ASSERT_TRUE(GetBrowser());
+  const bool enable_region_search = GetBrowser()
+                                        ->GetFeatures()
+                                        .lens_overlay_entry_point_controller()
+                                        ->IsEnabled();
+  if (enable_region_search) {
+    SetUserSelectedDefaultSearchProvider("https://www.google.com",
+                                         /*supports_image_search=*/true);
+  }
+  menu.SetBrowser(GetBrowser());
+  menu.Init();
+
+  const ui::MenuModel& model = menu.menu_model();
+
+  std::optional<size_t> read_anything_index;
+  std::optional<size_t> region_search_index;
+
+  for (size_t i = 0; i < model.GetItemCount(); ++i) {
+    int command_id = model.GetCommandIdAt(i);
+
+    if (command_id == IDC_CONTENT_CONTEXT_OPEN_IN_READING_MODE) {
+      read_anything_index = i;
+    } else if (command_id == IDC_CONTENT_CONTEXT_LENS_REGION_SEARCH) {
+      region_search_index = i;
+    }
+  }
+
+  ASSERT_TRUE(read_anything_index.has_value());
+  if (enable_region_search) {
+    ASSERT_TRUE(region_search_index.has_value());
+  } else {
+    ASSERT_FALSE(region_search_index.has_value());
+  }
+
+  if (group == "MenuShuffleDefault") {
+    if (enable_region_search) {
+      // Read anything is after region search, without a separator in between.
+      EXPECT_LT(region_search_index.value(), read_anything_index.value());
+      EXPECT_EQ(model.GetCommandIdAt(read_anything_index.value() - 1),
+                IDC_CONTENT_CONTEXT_LENS_REGION_SEARCH);
+    } else {
+      // No separator before read anything if region search is not present.
+      EXPECT_NE(model.GetTypeAt(read_anything_index.value() - 1),
+                ui::MenuModel::TYPE_SEPARATOR);
+      EXPECT_NE(model.GetItemCount() - 1, read_anything_index.value());
+    }
+  } else if (group == "MenuShuffleSeparation") {
+    // Separator is right before read anything.
+    EXPECT_EQ(model.GetTypeAt(read_anything_index.value() - 1),
+              ui::MenuModel::TYPE_SEPARATOR);
+    if (enable_region_search) {
+      // And region search is right before that separator.
+      EXPECT_EQ(model.GetCommandIdAt(read_anything_index.value() - 2),
+                IDC_CONTENT_CONTEXT_LENS_REGION_SEARCH);
+    }
+    EXPECT_NE(model.GetItemCount() - 1, read_anything_index.value());
+  } else if (group == "MenuShufflePlaceAtBottom") {
+    // Read anything is after translate.
+    EXPECT_EQ(model.GetItemCount() - 1, read_anything_index.value());
+  }
+}
+
+INSTANTIATE_TEST_SUITE_P(All,
+                         RenderViewContextMenuReadAnythingTest,
+                         testing::Values("MenuShuffleDefault",
+                                         "MenuShuffleSeparation",
+                                         "MenuShufflePlaceAtBottom"));

@@ -140,7 +140,6 @@ UseCounterMetricsRecorder::GetAllowedUkmFeatures() {
           WebFeature::kThirdPartyFileSystem,
           WebFeature::kThirdPartyIndexedDb,
           WebFeature::kThirdPartyCacheStorage,
-          WebFeature::kDeclarativeShadowRoot,
           WebFeature::kOverlayPopup,
           WebFeature::kOverlayPopupAd,
           WebFeature::kTrustTokenXhr,
@@ -460,6 +459,7 @@ UseCounterMetricsRecorder::GetAllowedUkmFeatures() {
           WebFeature::kXSLProcessingInstruction,
           WebFeature::kXSLTProcessor,
           WebFeature::kXMLExternalResourceLoad,
+          WebFeature::kXMLExternalResourceLoadEntitiesOnly,
           WebFeature::kProofreader_Create,
           WebFeature::kProofreader_Proofread,
           WebFeature::kDeviceBoundSessionRegistered,
@@ -467,6 +467,9 @@ UseCounterMetricsRecorder::GetAllowedUkmFeatures() {
           WebFeature::kDeviceBoundSessionRequestDeferral,
           WebFeature::kFedCmErrorCodeAttribute,
           WebFeature::kFedCmErrorErrorAttribute,
+          WebFeature::kWebRTCLocalNetworkAccessPublicToLocal,
+          WebFeature::kWebRTCLocalNetworkAccessPublicToLoopback,
+          WebFeature::kWebRTCLocalNetworkAccessLocalToLoopback,
           // NOTE: before adding new use counters here, verify in UMA that
           // their emissions are very rare, e.g. <1% of page loads.
       }));

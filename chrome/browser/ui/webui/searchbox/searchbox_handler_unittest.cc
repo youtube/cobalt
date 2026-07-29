@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "searchbox_handler.h"
+#include "chrome/browser/ui/webui/cr_components/searchbox/searchbox_handler.h"
 
 #include "base/memory/raw_ptr.h"
 #include "base/test/metrics/histogram_tester.h"
@@ -202,7 +202,7 @@ TEST_F(RealboxHandlerTest, GetPlaceholderConfig) {
   auto config = future.Take();
 
   ASSERT_GT(config->texts.size(), 0u);
-  ASSERT_EQ(config->change_text_animation_interval.InMilliseconds(), 4000u);
+  ASSERT_EQ(config->change_text_animation_interval.InMilliseconds(), 2000u);
   ASSERT_EQ(config->fade_text_animation_duration.InMilliseconds(), 250u);
 }
 

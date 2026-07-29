@@ -228,7 +228,7 @@ Hesap değiştirmeden önce birkaç dakika beklemeyi deneyin. Hesabı şimdi de�
 <translation id="6481963882741794338">Kişiselleştirme ve diğer amaçlar için Chrome ile diğer Google hizmetlerini bağlayın</translation>
 <translation id="6484712497741564393"><ph name="EMAIL" /> olarak oturum açtınız.
 
-Verileriniz parolanızla şifrelenir. Chrome verilerini kullanmak ve Google Hesabınıza kaydetmek için bu kodu girin.</translation>
+Verileriniz parolanızla şifrelenir. Chrome verilerini kullanmak ve Google Hesabınıza kaydetmek için parolanızı girin.</translation>
 <translation id="6511034852811155835">Chrome'unuzu yanınızda taşıyın</translation>
 <translation id="6533470733797826516">Chrome otomatik doldurma özelliğiyle daha hızlı oturum açın</translation>
 <translation id="6536544321553662809">Bağlantıları kolayca paylaşmak ve açmak için Chrome'u varsayılan tarayıcınız olarak ayarlayın</translation>
@@ -304,6 +304,7 @@ Veri kullanarak Chrome deneyiminizi iyileştiren daha fazla ayar görmek için <
 <translation id="787226752901403048">Sekme gruplarını paylaşmak, bunlara katılmak ve fikirler üzerinde birlikte çalışmak için Chrome'da oturum açın</translation>
 <translation id="7897703007638178753">Chrome'daki Son Sekmeleri Göster</translation>
 <translation id="7948283758957877064">Chrome'daki Yenilikler</translation>
+<translation id="7996707498590516621">Chrome'da Gemini ile görüntü oluşturun</translation>
 <translation id="8000174216052461231">Chrome İpucu: Chrome'un en güçlü güvenlik özelliğinden yararlanın</translation>
 <translation id="8006014511203279255">Mesajlardaki veya diğer uygulamalardaki bağlantılara her dokunduğunuzda Chrome'u kullanın.</translation>
 <translation id="8014670471808569312">Chrome, şifrenizi kaydetmeyi önerir.</translation>
@@ -332,7 +333,7 @@ Sadece parolanıza sahip olan kişiler şifrelenmiş verilerinizi okuyabilir. Pa
 <translation id="84594714173170813">Google Hesabınızdaki Chrome verilerini kullanmaya devam edin</translation>
 <translation id="8491300088149538575"><ph name="EMAIL" /> olarak oturum açtınız.
 
-Verileriniz <ph name="TIME" /> tarihinde parolanızla şifrelendi. Chrome verilerini kullanmak ve Google Hesabınıza kaydetmek için bu kodu girin.</translation>
+Verileriniz <ph name="TIME" /> tarihinde parolanızla şifrelendi. Chrome verilerini kullanmak ve Google Hesabınıza kaydetmek için parolanızı girin.</translation>
 <translation id="8540666473246803645">Google Chrome</translation>
 <translation id="8544583291890527417">Chrome'un sizin için tespit ettiği tüm gizlilik veya güvenlik sorunlarıyla ilgili uyarılar.</translation>
 <translation id="855027533751209304">Chrome İpucu: Gördüklerinizi arayın</translation>

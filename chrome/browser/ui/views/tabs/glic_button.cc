@@ -7,7 +7,6 @@
 #include <utility>
 
 #include "base/functional/bind.h"
-#include "base/functional/callback_forward.h"
 #include "base/notimplemented.h"
 #include "chrome/app/chrome_command_ids.h"
 #include "chrome/app/vector_icons/vector_icons.h"
@@ -46,6 +45,11 @@
 #include "ui/views/view_class_properties.h"
 
 namespace glic {
+
+// TODO(crbug.com/461326322): Remove this flag when crbug.com/461326322 is
+// resolved.
+BASE_FEATURE(kGlicButtonHideLabelOnTaskNudge, base::FEATURE_ENABLED_BY_DEFAULT);
+
 namespace {
 
 constexpr int kHighlightMargin = 2;
@@ -71,6 +75,8 @@ constexpr int kIconSize = 16;
 // This should mirror the tween used for TabStripNudgeAnimationSession.
 constexpr gfx::Tween::Type kSlidingTextTween =
     gfx::Tween::Type::ACCEL_20_DECEL_100;
+
+constexpr int kMinTargetWidthForAnimatingText = 41;
 
 bool EntrypointVariationsEnabled() {
   return base::FeatureList::IsEnabled(features::kGlicEntrypointVariations);
@@ -241,6 +247,10 @@ void GlicButton::SetNudgeLabel(std::string label) {
 }
 
 void GlicButton::ShowDefaultLabel() {
+  if (!base::FeatureList::IsEnabled(kGlicButtonHideLabelOnTaskNudge)) {
+    return;
+  }
+
   is_animating_text_ = true;
   StartSlidingTextAnimation(/*show=*/true);
 
@@ -259,6 +269,12 @@ void GlicButton::ShowDefaultLabel() {
 }
 
 void GlicButton::SuppressLabel() {
+  if (!base::FeatureList::IsEnabled(kGlicButtonHideLabelOnTaskNudge)) {
+    return;
+  }
+
+  is_animating_text_ = true;
+
   StartSlidingTextAnimation(/*show=*/false);
 
   label()->SetPaintToLayer();
@@ -280,18 +296,6 @@ void GlicButton::RestoreDefaultLabel() {
 void GlicButton::SetGlicPanelIsOpen(bool open) {
   glic_panel_is_open_ = open;
   UpdateTextAndBackgroundColors();
-}
-
-void GlicButton::SetGlicDetached(bool detached) {
-  if (EntrypointVariationsEnabled()) {
-    // TODO(crbug.com/450117879): Determine whether this icon update is still needed and
-    // implement it for the revamped GlicButton if so.
-    return;
-  }
-
-  SetVectorIcon(GlicVectorIconManager::GetVectorIcon(
-      detached ? IDR_GLIC_ATTACH_BUTTON_VECTOR_ICON
-               : IDR_GLIC_BUTTON_VECTOR_ICON));
 }
 
 void GlicButton::OnFreWebUiStateChanged(mojom::FreWebUiState new_state) {
@@ -345,9 +349,8 @@ gfx::Size GlicButton::CalculatePreferredSize(
           .height();
 
   if (is_animating_text_) {
-    const int min_target_width = 41;
-    const int width =
-        std::lerp(min_target_width, default_label_width_, GetWidthFactor());
+    const int width = std::lerp(kMinTargetWidthForAnimatingText,
+                                default_label_width_, GetWidthFactor());
     return gfx::Size(width, height);
   }
 
@@ -474,7 +477,14 @@ void GlicButton::AnimationEnded(const gfx::Animation* animation) {
 
     expansion_animation_done_callback_.Run();
   }
-  is_animating_text_ = false;
+  if (is_animating_text_) {
+    is_animating_text_ = false;
+
+    // Makes sure the transition of the frames from is_animating_text_ to
+    // !is_animating_text_ in CalculatePreferredSize() is smooth.
+    initial_width_ = kMinTargetWidthForAnimatingText;
+    expanded_width_ = CalculateExpandedWidth();
+  }
 }
 
 void GlicButton::AnimationCanceled(const gfx::Animation* animation) {
@@ -739,8 +749,13 @@ void GlicButton::StartExpansionAnimations(
   }
   expansion_animation_->SetSlideDuration(overall_duration);
   if (show) {
+    // Makes sure the animation value always goes from 0 to 1 for show and 1 to
+    // 0 for hide.
+    SetWidthFactor(0.f);
+    expansion_animation_->Reset(0);
     expansion_animation_->Show();
   } else {
+    SetWidthFactor(1.f);
     expansion_animation_->Reset(1);
     expansion_animation_->Hide();
   }

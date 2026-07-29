@@ -10,26 +10,48 @@
 #include "components/optimization_guide/proto/features/walletable_pass_extraction.pb.h"
 #include "components/optimization_guide/proto/hints.pb.h"
 #include "components/strike_database/strike_database_base.h"
+#include "components/wallet/core/browser/data_models/walletable_pass.h"
+#include "components/wallet/core/browser/walletable_pass_client.h"
+#include "components/wallet/core/browser/walletable_permission_utils.h"
+#include "third_party/abseil-cpp/absl/functional/overload.h"
 #include "url/gurl.h"
 
 namespace wallet {
 namespace {
 
 using optimization_guide::proto::PassCategory;
-using optimization_guide::proto::WalletablePass;
 using enum WalletablePassClient::WalletablePassBubbleResult;
 using enum optimization_guide::proto::PassCategory;
 
-std::string GetWalletablePassCategory(const WalletablePass& walletable_pass) {
-  switch (walletable_pass.pass_case()) {
-    case WalletablePass::kLoyaltyCard:
+PassCategory GetPassCategory(const WalletablePass& walletable_pass) {
+  return std::visit(
+      absl::Overload(
+          [](const LoyaltyCard&) { return PASS_CATEGORY_LOYALTY_CARD; },
+          [](const EventPass&) { return PASS_CATEGORY_EVENT_PASS; },
+          [](const TransitTicket&) { return PASS_CATEGORY_TRANSIT_TICKET; },
+          [](const BoardingPass&) {
+            // TODO(crbug.com/463515055): Create enum for boarding pass.
+            return PASS_CATEGORY_UNSPECIFIED;
+          }),
+      walletable_pass.pass_data);
+}
+
+std::string GetPassCategoryString(PassCategory pass_category) {
+  switch (pass_category) {
+    case PASS_CATEGORY_LOYALTY_CARD:
       return "LoyaltyCard";
-    case WalletablePass::kEventPass:
+    case PASS_CATEGORY_EVENT_PASS:
       return "EventPass";
-    case WalletablePass::PASS_NOT_SET:
-      // Should be handled by the caller before this function is invoked.
+    case PASS_CATEGORY_TRANSIT_TICKET:
+      return "TransitTicket";
+    case PASS_CATEGORY_UNSPECIFIED:
+    default:
       NOTREACHED();
   }
+}
+
+std::string GetPassCategoryString(const WalletablePass& walletable_pass) {
+  return GetPassCategoryString(GetPassCategory(walletable_pass));
 }
 
 }  // namespace
@@ -38,6 +60,8 @@ WalletablePassIngestionController::WalletablePassIngestionController(
     WalletablePassClient* client)
     : client_(CHECK_DEREF(client)),
       save_strike_db_(std::make_unique<WalletablePassSaveStrikeDatabaseByHost>(
+          client->GetStrikeDatabase())),
+      consent_strike_db_(std::make_unique<WalletablePassConsentStrikeDatabase>(
           client->GetStrikeDatabase())) {
   RegisterOptimizationTypes();
 }
@@ -52,12 +76,22 @@ void WalletablePassIngestionController::RegisterOptimizationTypes() {
 
 void WalletablePassIngestionController::StartWalletablePassDetectionFlow(
     const GURL& url) {
+  if (!IsEligibleForWalletablePassDetection(client_->GetIdentityManager(),
+                                            client_->GetGeoIpCountryCode())) {
+    return;
+  }
+
   std::optional<PassCategory> pass_category = GetPassCategoryForURL(url);
   if (!pass_category) {
     return;
   }
 
-  // TODO(crbug.com/444148314): Request user consent if not consented yet.
+  if (GetWalletablePassDetectionOptInStatus(client_->GetPrefService(),
+                                            client_->GetIdentityManager())) {
+    MaybeStartExtraction(url, *pass_category);
+    return;
+  }
+
   ShowConsentBubble(url, *pass_category);
 }
 
@@ -85,10 +119,14 @@ WalletablePassIngestionController::GetPassCategoryForURL(
 void WalletablePassIngestionController::ShowConsentBubble(
     const GURL& url,
     PassCategory pass_category) {
-  // TODO(crbug.com/444147446): Check strike before showing the consent bubble.
-  client_->ShowWalletablePassConsentBubble(base::BindOnce(
-      &WalletablePassIngestionController::OnGetConsentBubbleResult,
-      weak_ptr_factory_.GetWeakPtr(), url, pass_category));
+  if (consent_strike_db_->ShouldBlockFeature()) {
+    return;
+  }
+  client_->ShowWalletablePassConsentBubble(
+      pass_category,
+      base::BindOnce(
+          &WalletablePassIngestionController::OnGetConsentBubbleResult,
+          weak_ptr_factory_.GetWeakPtr(), url, pass_category));
 }
 
 void WalletablePassIngestionController::OnGetConsentBubbleResult(
@@ -97,21 +135,40 @@ void WalletablePassIngestionController::OnGetConsentBubbleResult(
     WalletablePassClient::WalletablePassBubbleResult result) {
   switch (result) {
     case kAccepted:
-      // TODO(crbug.com/444148314): Write consent result to local storage
-      GetAnnotatedPageContent(base::BindOnce(
-          &WalletablePassIngestionController::OnGetAnnotatedPageContent,
-          weak_ptr_factory_.GetWeakPtr(), url, pass_category));
+      SetWalletablePassDetectionOptInStatus(client_->GetPrefService(),
+                                            client_->GetIdentityManager(),
+                                            /*opt_in_status=*/true);
+      consent_strike_db_->ClearStrikes();
+      MaybeStartExtraction(url, pass_category);
       break;
     case kDeclined:
     case kClosed:
       // Add strikes for cases where user rejects explicitly
+      consent_strike_db_->AddStrikes(
+          WalletablePassConsentStrikeDatabaseTraits::kMaxStrikeLimit);
       // TODO(crbug.com/452779539): Report user rejects explicitly to UMA.
       break;
     case kLostFocus:
     case kUnknown:
+    case kDiscarded:
+      consent_strike_db_->AddStrike();
       // TODO(crbug.com/452779539): Report other outcomes to UMA.
       break;
   }
+}
+
+void WalletablePassIngestionController::MaybeStartExtraction(
+    const GURL& url,
+    PassCategory pass_category) {
+  if (save_strike_db_->ShouldBlockFeature(
+          WalletablePassSaveStrikeDatabaseByHost::GetId(
+              GetPassCategoryString(pass_category), url.GetHost()))) {
+    // TODO(crbug.com/452779539): Report save bubble blocked to UMA
+    return;
+  }
+  GetAnnotatedPageContent(base::BindOnce(
+      &WalletablePassIngestionController::OnGetAnnotatedPageContent,
+      weak_ptr_factory_.GetWeakPtr(), url, pass_category));
 }
 
 void WalletablePassIngestionController::OnGetAnnotatedPageContent(
@@ -143,7 +200,7 @@ void WalletablePassIngestionController::ExtractWalletablePass(
   client_->GetRemoteModelExecutor()->ExecuteModel(
       optimization_guide::ModelBasedCapabilityKey::kWalletablePassExtraction,
       std::move(request),
-      /*execution_timeout=*/std::nullopt,
+      /*options=*/{},
       base::BindOnce(
           &WalletablePassIngestionController::OnExtractWalletablePass,
           weak_ptr_factory_.GetWeakPtr(), url));
@@ -174,40 +231,39 @@ void WalletablePassIngestionController::OnExtractWalletablePass(
   }
 
   if (parsed_response->walletable_pass(0).pass_case() ==
-      WalletablePass::PASS_NOT_SET) {
+      optimization_guide::proto::WalletablePass::PASS_NOT_SET) {
     // TODO(crbug.com/441892746): Report invalid walletable pass found to UMA
     return;
   }
 
-  auto walletable_pass =
-      std::make_unique<WalletablePass>(parsed_response->walletable_pass(0));
-  ShowSaveBubble(url, std::move(walletable_pass));
+  std::optional<WalletablePass> walletable_pass =
+      WalletablePass::FromProto(parsed_response->walletable_pass(0));
+  if (!walletable_pass) {
+    return;
+  }
+  ShowSaveBubble(url, std::move(*walletable_pass));
 }
 
 void WalletablePassIngestionController::ShowSaveBubble(
     const GURL& url,
-    std::unique_ptr<WalletablePass> walletable_pass) {
-  const std::string category = GetWalletablePassCategory(*walletable_pass);
-  if (save_strike_db_->ShouldBlockFeature(
-          WalletablePassSaveStrikeDatabaseByHost::GetId(category,
-                                                        url.GetHost()))) {
-    // TODO(crbug.com/452779539): Report save bubble blocked to UMA
-    return;
-  }
+    WalletablePass walletable_pass) {
+  const std::string category = GetPassCategoryString(walletable_pass);
 
-  WalletablePass* pass_ptr = walletable_pass.get();
+  // Create a copy of walletable_pass for the callback to avoid use-after-move.
+  WalletablePass walletable_pass_for_callback = walletable_pass;
+
   client_->ShowWalletablePassSaveBubble(
-      *pass_ptr,
+      std::move(walletable_pass),
       base::BindOnce(&WalletablePassIngestionController::OnGetSaveBubbleResult,
                      weak_ptr_factory_.GetWeakPtr(), url,
-                     std::move(walletable_pass)));
+                     std::move(walletable_pass_for_callback)));
 }
 
 void WalletablePassIngestionController::OnGetSaveBubbleResult(
     const GURL& url,
-    std::unique_ptr<WalletablePass> walletable_pass,
+    WalletablePass walletable_pass,
     WalletablePassClient::WalletablePassBubbleResult result) {
-  const std::string category = GetWalletablePassCategory(*walletable_pass);
+  const std::string category = GetPassCategoryString(walletable_pass);
   switch (result) {
     case kAccepted:
       // TODO(crbug.com/452579752): Save pass to Wallet.
@@ -224,6 +280,7 @@ void WalletablePassIngestionController::OnGetSaveBubbleResult(
       break;
     case kLostFocus:
     case kUnknown:
+    case kDiscarded:
       // TODO(crbug.com/452779539): Report other outcomes to UMA.
       break;
   }

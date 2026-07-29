@@ -65,6 +65,7 @@ source_set("impl") {
     "//base",
     "//chrome/app:branded_strings",
     "//chrome/app:generated_resources",
+    "//chrome/browser:browser_process",
     "//chrome/browser/profiles:profile",
     "//chrome/browser/search",
     "//chrome/browser/search_engines",
@@ -226,6 +227,7 @@ if (!is_android) {
 
     if (!is_chromeos) {
       sources += [
+        "account_settings_page_pixel_browsertest.cc",
         "chrome_signout_confirmation_prompt_browsertest.cc",
         "cookie_clear_on_exit_migration_notice_browsertest.cc",
       ]

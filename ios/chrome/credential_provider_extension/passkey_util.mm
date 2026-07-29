@@ -4,15 +4,16 @@
 
 #import "ios/chrome/credential_provider_extension/passkey_util.h"
 
-#import <AuthenticationServices/AuthenticationServices.h>
-
 #import "base/apple/foundation_util.h"
 #import "base/containers/span.h"
 #import "base/strings/string_number_conversions.h"
 #import "base/strings/sys_string_conversions.h"
 #import "base/time/time.h"
 #import "components/sync/protocol/webauthn_credential_specifics.pb.h"
+#import "components/webauthn/core/browser/gpm_user_verification_policy.h"
 #import "components/webauthn/core/browser/passkey_model_utils.h"
+#import "device/fido/fido_types.h"
+#import "device/fido/fido_user_verification_requirement.h"
 #import "ios/chrome/common/app_group/app_group_constants.h"
 #import "ios/chrome/common/credential_provider/ASPasskeyCredentialIdentity+credential.h"
 #import "ios/chrome/common/credential_provider/archivable_credential+passkey.h"
@@ -139,34 +140,6 @@ void SaveToIdentityStore(id<Credential> credential,
       getCredentialIdentityStoreStateWithCompletion:stateCompletion];
 }
 
-// Returns the UserVerificationPreference based on the provided
-// `user_verification_preference_string`. The passed string is expected to match
-// one of the user verification preference options made available by the
-// WebAuthn API.
-UserVerificationPreference UserVerificationPreferenceFromString(
-    ASAuthorizationPublicKeyCredentialUserVerificationPreference
-        user_verification_preference_string) {
-  if ([user_verification_preference_string
-          isEqualToString:
-              ASAuthorizationPublicKeyCredentialUserVerificationPreferenceRequired]) {
-    return UserVerificationPreference::kRequired;
-  } else if (
-      [user_verification_preference_string
-          isEqualToString:
-              ASAuthorizationPublicKeyCredentialUserVerificationPreferencePreferred]) {
-    return UserVerificationPreference::kPreferred;
-  } else if (
-      [user_verification_preference_string
-          isEqualToString:
-              ASAuthorizationPublicKeyCredentialUserVerificationPreferenceDiscouraged]) {
-    return UserVerificationPreference::kDiscouraged;
-  } else {
-    // Either indicates that the WebAuthn API changed, or that the website
-    // provided an unexpected/empty string.
-    return UserVerificationPreference::kOther;
-  }
-}
-
 }  // namespace
 
 std::optional<sync_pb::WebauthnCredentialSpecifics_Encrypted>
@@ -229,32 +202,30 @@ PasskeyCreationOutput PerformPasskeyCreation(
   webauthn::passkey_model_utils::ExtensionOutputData extension_output_data;
 
   // Generate a key pair containing the webauthn specifics and the public key.
-  std::pair<sync_pb::WebauthnCredentialSpecifics, std::vector<uint8_t>>
-      generated_passkey =
-          webauthn::passkey_model_utils::GeneratePasskeyAndEncryptSecrets(
-              rp_id_str,
-              webauthn::PasskeyModel::UserEntity(user_id, user_name_str,
-                                                 user_name_str),
-              trusted_vault_key, /*trusted_vault_key_version=*/0,
-              extension_input_data, &extension_output_data);
-  sync_pb::WebauthnCredentialSpecifics passkey = generated_passkey.first;
-  std::vector<uint8_t> public_key_spki_der = generated_passkey.second;
+  auto [passkey, public_key_spki_der] =
+      webauthn::passkey_model_utils::GeneratePasskeyAndEncryptSecrets(
+          rp_id_str,
+          webauthn::PasskeyModel::UserEntity(user_id, user_name_str,
+                                             user_name_str),
+          trusted_vault_key, /*trusted_vault_key_version=*/0,
+          extension_input_data, &extension_output_data);
 
   base::span<const uint8_t> cred_id =
       base::as_byte_span(passkey.credential_id());
-  NSData* credential_id = [NSData dataWithBytes:cred_id.data()
-                                         length:cred_id.size()];
-  std::vector<uint8_t> attestation_object_for_creation =
-      webauthn::passkey_model_utils::MakeAttestationObjectForCreation(
-          rp_id_str, did_complete_uv, cred_id, public_key_spki_der);
-  NSData* attestation_object =
-      [NSData dataWithBytes:attestation_object_for_creation.data()
-                     length:attestation_object_for_creation.size()];
+  webauthn::passkey_model_utils::SerializedAttestationObject
+      serialized_attestation_object =
+          webauthn::passkey_model_utils::MakeAttestationObjectForCreation(
+              rp_id_str, did_complete_uv, cred_id, public_key_spki_der);
 
   SavePasskeyCredential([[ArchivableCredential alloc] initWithFavicon:nil
                                                                  gaia:gaia
                                                               passkey:passkey]);
 
+  NSData* credential_id = [NSData dataWithBytes:cred_id.data()
+                                         length:cred_id.size()];
+  NSData* attestation_object = [NSData
+      dataWithBytes:serialized_attestation_object.attestation_object.data()
+             length:serialized_attestation_object.attestation_object.size()];
   return {[ASPasskeyRegistrationCredential
               credentialWithRelyingParty:rp_id
                           clientDataHash:client_data_hash
@@ -318,21 +289,20 @@ PasskeyAssertionOutput PerformPasskeyAssertion(
 BOOL ShouldPerformUserVerificationForPreference(
     ASAuthorizationPublicKeyCredentialUserVerificationPreference
         user_verification_preference_string,
-    BOOL is_biometric_authentication_enabled) {
-  UserVerificationPreference user_verification_preference =
-      UserVerificationPreferenceFromString(user_verification_preference_string);
-
-  switch (user_verification_preference) {
-    case UserVerificationPreference::kRequired:
-      return YES;
-    case UserVerificationPreference::kPreferred:
-    case UserVerificationPreference::kOther:  // Fall back to the default
-                                              // preference as per the WebAuthn
-                                              // spec.
-      return is_biometric_authentication_enabled;
-    case UserVerificationPreference::kDiscouraged:
-      return NO;
+    BOOL is_biometric_authentication_enabled,
+    BOOL is_conditional_create) {
+  if (is_conditional_create) {
+    return NO;
   }
+
+  // Fall back to the `kPreferred` UV requirement as per the WebAuthn spec.
+  std::string user_verification_requirement_string =
+      SysNSStringToUTF8(user_verification_preference_string);
+  return webauthn::GpmWillDoUserVerification(
+      device::ConvertToUserVerificationRequirement(
+          user_verification_requirement_string)
+          .value_or(device::UserVerificationRequirement::kPreferred),
+      is_biometric_authentication_enabled);
 }
 
 void SavePasskeyCredential(id<Credential> credential) {

@@ -374,6 +374,9 @@
       <message name="IDS_IOS_AI_PROTOTYPING_MODEL_PICKER" translateable="false" desc="Model picker button text for the AI prototyping menu [Length: unlimited].">
         Choose A Model (unspecified uses the default)
       </message>
+      <message name="IDS_IOS_AI_PROTOTYPING_MQLS_SWITCH" translateable="false" desc="Switch indicating whether logs is uploaded to Chrome Model Quality Logging Service (MQLS) server [Length: unlimited].">
+        Upload to MQLS
+      </message>
       <message name="IDS_IOS_AI_PROTOTYPING_ON_DEVICE_SUBMIT" translateable="false" desc="On device submit button text for AI prototyping menu [Length: unlimited].">
         On Device Submit
       </message>
@@ -388,6 +391,9 @@
       </message>
       <message name="IDS_IOS_AI_PROTOTYPING_SERVER_SIDE_SUBMIT" translateable="false" desc="Server side submit button text for AI prototyping menu [Length: unlimited].">
         Server Side Submit
+      </message>
+      <message name="IDS_IOS_AI_PROTOTYPING_STORE_PAGE_CONTEXT_SWITCH" translateable="false" desc="Switch indicating whether PageContext is stored locally [Length: unlimited].">
+        Store page context locally
       </message>
       <message name="IDS_IOS_AI_PROTOTYPING_SYSTEM_INSTRUCTIONS_PLACEHOLDER" translateable="false" desc="System instructions placeholder text for AI prototyping menu [Length: unlimited].">
         Insert system instructions... (Optional)
@@ -560,6 +566,15 @@
       </message>
       <message name="IDS_IOS_AUTOFILL_INPUT_BAR_DONE" desc="The title for the button above the keyboard used to dismiss it. [6em]">
         Done
+      </message>
+      <message name="IDS_IOS_AUTOFILL_INVALID_CARDHOLDER_NAME_ACCESSIBILITY_ANNOUNCEMENT" desc="The accessibility announcement read by Voice Over when the credit card holder name is invalid. [iOS only]">
+        Invalid cardholder name
+      </message>
+      <message name="IDS_IOS_AUTOFILL_INVALID_CVC_ACCESSIBILITY_ANNOUNCEMENT" desc="The accessibility announcement read by Voice Over when the credit card security code is invalid. [iOS only]">
+        Invalid security code
+      </message>
+      <message name="IDS_IOS_AUTOFILL_INVALID_EXPIRATION_DATE_ACCESSIBILITY_ANNOUNCEMENT" desc="The accessibility announcement read by Voice Over when the credit card expiration date is invalid. [iOS only]">
+        Invalid expiration date
       </message>
       <message name="IDS_IOS_AUTOFILL_NICKNAME" desc="Title of the field representing the user defined nickname of a credit card. [Length: 15em] [iOS only]">
         Card nickname
@@ -1365,6 +1380,50 @@
       <message name="IDS_IOS_COLLAPSED_PRIMARY_TOOLBAR_BUTTON" desc="The accessibility label for the collapsed toolbar button in primary toolbar. [iOS only].">
         Collapsed primary toolbar button
       </message>
+      <message name="IDS_IOS_COMPOSEBOX_ADD_CURRENT_TAB_ACTION" desc="The contextual menu option for attaching the current tab. [iOS only].">
+        Add current tab
+      </message>
+      <message name="IDS_IOS_COMPOSEBOX_AIM_ACTION" desc="The contextual menu option for starting AI Mode. [iOS only].">
+        AI Mode
+      </message>
+      <message name="IDS_IOS_COMPOSEBOX_AIM_ENABLED_PLACEHOLDER" desc="The placeholder to show when AIM is enabled and no user text was added.">
+        Ask Google anything
+      </message>
+      <message name="IDS_IOS_COMPOSEBOX_CAMERA_ACTION" desc="The contextual menu option for opening the camera. [iOS only].">
+        Camera
+      </message>
+      <message name="IDS_IOS_COMPOSEBOX_CANNOT_RELOAD_TAB_ERROR" desc="Message displayed in a snackbar when reloading a tab fails. [iOS only].">
+        Can’t reload tabs
+      </message>
+      <message name="IDS_IOS_COMPOSEBOX_CREATE_IMAGE_ACTION" desc="The contextual menu option instructing the input plate to use the image generation tool. [iOS only].">
+        Create image
+      </message>
+      <message name="IDS_IOS_COMPOSEBOX_FILES_ACTION" desc="The contextual menu option for opening the file picker. [iOS only].">
+        Files
+      </message>
+      <message name="IDS_IOS_COMPOSEBOX_GALLERY_ACTION" desc="The contextual menu option for opening the gallery picker. [iOS only].">
+        Gallery
+      </message>
+      <message name="IDS_IOS_COMPOSEBOX_IMAGE_GEN_PLACEHOLDER" desc="The placeholder displayed in the compose box when the nano banana or image generation mode is enabled. [iOS only].">
+        Describe your image
+      </message>
+      <message name="IDS_IOS_COMPOSEBOX_MAXIMUM_ATTACHMENTS_REACHED" desc="Message displayed in a snackbar when the user tries to attach more than the maximum allowed number of attachments. [iOS only].">
+        {COUNT, plural,
+        =1 {Add up to 1 file, tab, or image}
+        other {Add up to {COUNT} files, tabs, or images}}
+      </message>
+      <message name="IDS_IOS_COMPOSEBOX_MENU_TITLE" desc="Title for the contextual menu, the menu allows the user to attach images, tabs, files to their query. [iOS only].">
+        Ask Google about tabs and more
+      </message>
+      <message name="IDS_IOS_COMPOSEBOX_SELECT_TAB_ACTION" desc="The contextual menu option for opening the tab picker for selection. [iOS only].">
+        Tabs
+      </message>
+      <message name="IDS_IOS_COMPOSEBOX_TAB_PICKER_ADD_TABS_TITLE" desc="Title for the Composebox tab picker when no tabs are selected.">
+        Add recent tabs
+      </message>
+      <message name="IDS_IOS_COMPOSEBOX_UNABLE_TO_ADD_ATTACHMENT" desc="Message displayed in a snackbar when a file upload fails. [iOS only].">
+        Unable to add attachments
+      </message>
       <message name="IDS_IOS_COMPROMISED_PASSWORD_ISSUES_DESCRIPTION" desc="Header displayed on the password manager screen displaying credentials that have been leaked or phished [iOS only]">
         Some of your saved passwords were exposed in a non-Google data breach. <ph name="BEGIN_LINK">BEGIN_LINK</ph>Learn more<ph name="END_LINK">END_LINK</ph>
       </message>
@@ -1591,8 +1650,14 @@
       <message name="IDS_IOS_CONTENT_SUGGESTIONS_ACCESSIBILITY_LABEL_SUGGESTION" desc="The accessibility label of a suggestion. Summarizes fields in the reading list entry (title, publisher informations, status and informations). Read by Text-to-Speech.">
         <ph name="TITLE"><ex>Learn about the new Chromium projects</ex>$1</ph>, <ph name="PUBLISHER_INFORMATION"><ex>The Chromium organization</ex>$2</ph>, <ph name="PUBLICATION_DATE"><ex>January 1 2017</ex>$3</ph>
       </message>
+      <message name="IDS_IOS_CONTENT_SUGGESTIONS_ADD_PINNED_SITE" desc="The title of the button to add a pinned site on the new tab page [Length: 10em]">
+        Add Site
+      </message>
       <message name="IDS_IOS_CONTENT_SUGGESTIONS_BOOKMARKS" desc="The Bookmarks title on the new tab page [Length: 10em]">
         Bookmarks
+      </message>
+      <message name="IDS_IOS_CONTENT_SUGGESTIONS_EDIT_PINNED_SITE" desc="The name of the 'Edit Site' command in the Content Suggestions articles context menu to edit a pinned site">
+        Edit Site
       </message>
       <message name="IDS_IOS_CONTENT_SUGGESTIONS_FOOTER_TITLE" desc="The title of the footer of the sections of Content Suggestions">
         More
@@ -1612,8 +1677,14 @@
       <message name="IDS_IOS_CONTENT_SUGGESTIONS_MOST_VISITED_MODULE_TITLE" desc="The Most Visited module title on the new tab page [Length: 10em]">
         Your top sites
       </message>
+      <message name="IDS_IOS_CONTENT_SUGGESTIONS_NEVER_SHOW_SITE" desc="The name of the 'Never Show this Site' command in the Content Suggestions articles context menu">
+        Never Show This Site
+      </message>
       <message name="IDS_IOS_CONTENT_SUGGESTIONS_PARCEL_TRACKING_MODULE_PACKAGE_UNDELIVERABLE_STATUS" desc="The Parcel Tracking module package delivery undeliverable status description on the Home surface [Length: 10em]">
         Your package can't be delivered
+      </message>
+      <message name="IDS_IOS_CONTENT_SUGGESTIONS_PIN_SITE" desc="The name of the 'Pin Site' command in the Content Suggestions articles context menu">
+        Pin site
       </message>
       <message name="IDS_IOS_CONTENT_SUGGESTIONS_PRICE_TRACKING_PROMO_ALLOW" desc="Label indicating user can allow price tracking notifications">
           Allow price tracking notifications…
@@ -1785,6 +1856,9 @@
       </message>
       <message name="IDS_IOS_CONTENT_SUGGESTIONS_TRENDING_QUERIES_MODULE_TITLE" desc="The Trending Queries module title on the new tab page [Length: 10em]">
         Trending searches
+      </message>
+      <message name="IDS_IOS_CONTENT_SUGGESTIONS_UNPIN_SITE" desc="The name of the 'Unpin Site' command in the Content Suggestions articles context menu">
+        Unpin site
       </message>
       <message name="IDS_IOS_CONTENT_SUGGESTIONS_WHATS_NEW" desc="The What's New title on the new tab page [Length: 10em]">
         What's New
@@ -2637,7 +2711,7 @@
         Your passwords will be visible to anyone who can see the exported file.
       </message>
       <message name="IDS_IOS_EXPORT_PASSWORDS_AND_PASSKEYS" desc="Button that the user can press to export passwords and passkeys. [iOS only]">
-        Export passwords and passkeys…
+        Export data
       </message>
       <message name="IDS_IOS_EXPORT_PASSWORDS_AND_PASSKEYS_COUNT" desc="Text displaying the number of items currently selected. [iOS Only]">
         {count, plural,
@@ -2706,6 +2780,9 @@
       </message>
       <message name="IDS_IOS_FEED_SWIPE_IPH" desc="Text for the in-product help bubble highlighting scrolling on the Feed.">
         You can swipe up to see more content tailored to you.
+      </message>
+      <message name="IDS_IOS_FILE_UPLOAD_PANEL_CHOOSE_FILES_ACTION_LABEL" desc="Title for a multiple files chooser button used in HTML forms. [iOS only]">
+        Choose Files
       </message>
       <message name="IDS_IOS_FILE_UPLOAD_PANEL_CHOOSE_FILE_ACTION_LABEL" desc="Title for a single file chooser button used in HTML forms. [iOS only]">
         Choose File
@@ -4298,6 +4375,9 @@
       </message>
       <message name="IDS_IOS_OPEN_IOS_SETTINGS" desc="Text of the primary button to open iOS settings page. [iOS only]">
         Go to Settings…
+      </message>
+      <message name="IDS_IOS_OPEN_NEW_TAB" desc="Text of the primary button to open a new tab. [iOS only]">
+        Open New Tab
       </message>
       <message name="IDS_IOS_OPEN_PASSWORD_MANAGER" desc="Text of the primary button to open chrome password manager. [iOS only]">
         Open Password Manager
@@ -5936,6 +6016,12 @@ Handoff must also be enabled in the General section of Settings, and your device
       <message name="IDS_IOS_SAFETY_CHECK_TITLE_UPDATE_CHROME" desc="Tag label title displayed for the Safety Check module in the Magic Stack when the Update Chrome check finds an issue. [iOS only]">
         Update your Browser
       </message>
+      <message name="IDS_IOS_SAFE_BROWSING_ENHANCED_OFF_INFOBAR_TITLE" desc="The title to display in an infobar when Enhanced protection is disabled by sync.">
+        Enhanced protection is off
+      </message>
+      <message name="IDS_IOS_SAFE_BROWSING_ENHANCED_ON_INFOBAR_TITLE" desc="The title to display in an infobar when Enhanced protection is enabled by sync.">
+        Enhanced protection is on
+      </message>
       <message name="IDS_IOS_SAFE_BROWSING_ENHANCED_PROTECTION_ACCOUNT_ICON_DESCRIPTION" desc="Description for Safe Browsing enhanced protection account icon.">
         When you're signed in, this data is linked to your Google Account to protect you across Google services, for example increasing protection in Gmail after a security incident.
       </message>
@@ -5958,7 +6044,9 @@ Handoff must also be enabled in the General section of Settings, and your device
         When you're signed in, protects you across Google services.
       </message>
       <message name="IDS_IOS_SAFE_BROWSING_ENHANCED_PROTECTION_INFOBAR_BUTTON_TEXT" desc="The Enhanced Safe Browsing infobar promo button's text. When the button is clicked, the user is navigated to the Safe Browsing settings page.">Turn on…</message>
-      <message name="IDS_IOS_SAFE_BROWSING_ENHANCED_PROTECTION_INFOBAR_TITLE" desc="The Enhanced Safe Browsing infobar promo's title.">Get more security</message>
+      <message name="IDS_IOS_SAFE_BROWSING_ENHANCED_PROTECTION_INFOBAR_TITLE" desc="The Enhanced Safe Browsing infobar promo's title.">
+        Get more security
+      </message>
       <message name="IDS_IOS_SAFE_BROWSING_ENHANCED_PROTECTION_INLINE_PROMO_BUTTON_TEXT" desc="The Enhanced Safe Browsing inline promo button's text. When the button is clicked, the user isnavigated to the Safe Browsing settings page.">
         Turn on Enhanced Protection…
       </message>
@@ -7917,9 +8005,6 @@ Handoff must also be enabled in the General section of Settings, and your device
       <message name="IDS_IOS_WELCOME_BACK_TITLE_SIGNED_IN" desc="The title of the Welcome Back promo for users who are signed in">
         Welcome back, <ph name="USER_NAME">$1<ex>John</ex></ph>
       </message>
-      <message name="IDS_IOS_WHATS_HOW_TO_ENABLE_TITLE" desc="Title of a section in What's New that show users the instructions to enable the feature.">
-        How do I enable this feature?
-      </message>
       <message name="IDS_IOS_WHATS_NEW_CALENDAR_SCREENSHOT_TEXT_ADD_TITLE" desc="Text in image displaying a placeholder for the title of the Google calendar event. [iOS only]">
         Add title
       </message>
@@ -8073,8 +8158,8 @@ Handoff must also be enabled in the General section of Settings, and your device
       <message name="IDS_IOS_WHATS_NEW_SECTION_NEW_TITLE" desc="Title of a section in a table view to inform users about new features.">
         New
       </message>
-      <message name="IDS_IOS_WHATS_NEW_SHOW_INSTRUCTIONS_TITLE" desc="Title of a secondary button in What's New to show instructions.">
-        Show instructions
+      <message name="IDS_IOS_WHATS_NEW_SHOW_INSTRUCTIONS_TITLE" desc="Title used for both the secondary button and the section header in the What's New screen that displays instructions on how to enable the feature.">
+        Show me how
       </message>
       <message name="IDS_IOS_WHATS_NEW_TITLE" desc="Title of the What's new Feature">
         What's New

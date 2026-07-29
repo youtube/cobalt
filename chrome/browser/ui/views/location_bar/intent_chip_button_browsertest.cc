@@ -9,7 +9,6 @@
 
 #include "base/cfi_buildflags.h"
 #include "base/functional/callback.h"
-#include "base/functional/callback_forward.h"
 #include "base/scoped_observation.h"
 #include "base/strings/strcat.h"
 #include "base/strings/utf_string_conversions.h"
@@ -141,10 +140,8 @@ class IntentChipButtonBrowserTest
   Browser* ClickIntentChip(bool wait_for_browser) {
     ui_test_utils::BrowserCreatedObserver browser_created_observer;
 
-    views::test::ButtonTestApi test_api(GetIntentChip(browser()));
-    ui::MouseEvent e(ui::EventType::kMousePressed, gfx::Point(), gfx::Point(),
-                     ui::EventTimeForNow(), 0, 0);
-    test_api.NotifyClick(e);
+    views::test::ButtonTestApi(GetIntentChip(browser()))
+        .NotifyDefaultMouseClick();
 
     if (wait_for_browser) {
       return browser_created_observer.Wait();

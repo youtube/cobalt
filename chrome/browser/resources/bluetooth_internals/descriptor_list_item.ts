@@ -41,7 +41,7 @@ export class DescriptorListItemElement extends CustomElement {
     this.characteristicId_ = characteristicId;
 
     const fieldSet =
-        this.shadowRoot!.querySelector<HTMLElement>('object-field-set');
+        this.shadowRoot!.querySelector<HTMLElement>('object-fieldset');
     assert(fieldSet);
     fieldSet.dataset['nameMap'] = JSON.stringify(INFO_PROPERTY_NAMES);
     fieldSet.dataset['value'] = JSON.stringify({
@@ -69,3 +69,9 @@ export class DescriptorListItemElement extends CustomElement {
 }
 
 customElements.define('descriptor-list-item', DescriptorListItemElement);
+
+declare global {
+  interface HTMLElementTagNameMap {
+    'descriptor-list-item': DescriptorListItemElement;
+  }
+}

@@ -26,6 +26,8 @@
 namespace wallet {
 namespace {
 
+using enum optimization_guide::proto::PassCategory;
+
 constexpr int kBubbleWidth = 320;
 constexpr int kSubTitleBottomMargin = 16;
 
@@ -41,7 +43,9 @@ WalletablePassConsentBubbleView::WalletablePassConsentBubbleView(
     views::View* anchor_view,
     content::WebContents* web_contents,
     WalletablePassConsentBubbleController* controller)
-    : WalletablePassBubbleViewBase(anchor_view, web_contents, controller) {
+    : WalletablePassBubbleViewBase(anchor_view, web_contents, controller),
+      pass_category_(controller->pass_category()),
+      controller_(controller->GetWeakPtr()) {
   set_fixed_width(kBubbleWidth);
   SetLayoutManager(std::make_unique<views::FlexLayout>())
       ->SetOrientation(views::LayoutOrientation::kVertical);
@@ -96,9 +100,10 @@ WalletablePassConsentBubbleView::GetSubtitleActionLabel() {
       {learn_more_text}, &offsets);
 
   gfx::Range learn_more_range(offsets[0], offsets[0] + learn_more_text.size());
-  auto learn_more = views::StyledLabel::RangeStyleInfo::CreateForLink(
-      base::BindRepeating(&WalletablePassConsentBubbleView::OnLearnMoreClicked,
-                          base::Unretained(this)));
+  auto learn_more =
+      views::StyledLabel::RangeStyleInfo::CreateForLink(base::BindRepeating(
+          &WalletablePassConsentBubbleController::OnLearnMoreClicked,
+          controller_));
 
   return views::Builder<views::StyledLabel>()
       .SetText(std::move(formatted_text))
@@ -116,7 +121,7 @@ void WalletablePassConsentBubbleView::AddedToWidget() {
   // TODO(crbug.com/445826875): Replace with wallet-specific lottie image.
   std::unique_ptr<views::ImageView> image_view =
       std::make_unique<views::ImageView>(
-          bundle.GetThemedLottieImageNamed(IDR_AUTOFILL_SAVE_VEHICLE_LOTTIE));
+          bundle.GetThemedLottieImageNamed(GetHeaderImageResourceId()));
   image_view->GetViewAccessibility().SetIsInvisible(true);
 
   GetBubbleFrameView()->SetHeaderView(std::move(image_view));
@@ -127,8 +132,19 @@ void WalletablePassConsentBubbleView::AddedToWidget() {
           IDS_WALLET_WALLETABLE_PASS_CONSENT_DIALOG_TITLE)));
 }
 
-void WalletablePassConsentBubbleView::OnLearnMoreClicked() {
-  // TODO(crbug.com/445826875): Implement the learn more link action.
+int WalletablePassConsentBubbleView::GetHeaderImageResourceId() const {
+  switch (pass_category_) {
+    case PASS_CATEGORY_LOYALTY_CARD:
+      return IDR_WALLET_PASS_SAVE_LOYALTY_CARD_LOTTIE;
+    case PASS_CATEGORY_EVENT_PASS:
+      return IDR_WALLET_PASS_SAVE_EVENT_TICKET_LOTTIE;
+    case PASS_CATEGORY_TRANSIT_TICKET:
+      return IDR_WALLET_PASS_SAVE_TRANSPORT_TICKET_LOTTIE;
+    case PASS_CATEGORY_UNSPECIFIED:
+    default:
+      NOTREACHED() << "Not supported walletable pass category: "
+                   << pass_category_;
+  }
 }
 
 BEGIN_METADATA(WalletablePassConsentBubbleView)

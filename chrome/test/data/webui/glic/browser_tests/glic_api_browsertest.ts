@@ -1653,6 +1653,97 @@ class ApiTests extends ApiTestFixtureBase {
     }
   }
 
+  async testSwitchConversationToOldConversationNewInstance() {
+    assertDefined(this.host.switchConversation);
+    await this.host.switchConversation(
+        {conversationId: 'A', conversationTitle: 'Title A'});
+  }
+
+  async testSwitchConversationToNewConversationNewInstance() {
+    assertDefined(this.host.switchConversation);
+    await this.host.switchConversation();
+  }
+
+  async testSwitchConversationToLastActiveConversation() {
+    assertDefined(this.host.registerConversation);
+    assertDefined(this.host.switchConversation);
+    if (this.testParams === 'step1') {
+      await this.host.registerConversation(
+          {conversationId: 'A', conversationTitle: 'Title A'});
+      await this.advanceToNextStep();
+    } else if (this.testParams === 'step2') {
+      // Return and then switch conversation to ensure that ExecuteJsTest
+      // completes before the instance is deleted. The instance is deleted
+      // during the `switchConversation` call.
+      sleep(100).then(() => {
+        assertDefined(this.host.switchConversation);
+        this.host.switchConversation(
+            {conversationId: 'A', conversationTitle: 'Title A'});
+      });
+    }
+  }
+
+  async testSwitchConversationToOldConversationInOldInstance() {
+    assertDefined(this.host.registerConversation);
+    assertDefined(this.host.switchConversation);
+    if (this.testParams === 'step1') {
+      await this.host.registerConversation(
+          {conversationId: 'A', conversationTitle: 'Title A'});
+      await this.advanceToNextStep();
+    } else if (this.testParams === 'step2') {
+      sleep(100).then(() => {
+        assertDefined(this.host.switchConversation);
+        this.host.switchConversation(
+            {conversationId: 'B', conversationTitle: 'Title B'});
+      });
+    } else if (this.testParams === 'step3') {
+      // Return and then switch conversation to ensure that ExecuteJsTest
+      // completes before the instance is deleted. The instance is deleted
+      // during the `switchConversation` call.
+      sleep(100).then(() => {
+        assertDefined(this.host.switchConversation);
+        this.host.switchConversation(
+            {conversationId: 'A', conversationTitle: 'Title A'});
+      });
+    }
+  }
+
+  async testTabSwitchDoesNotLogActivationMetric() {
+    assertDefined(this.host.registerConversation);
+    assertDefined(this.host.switchConversation);
+    if (this.testParams === 'first') {
+      await this.host.registerConversation(
+          {conversationId: 'A', conversationTitle: 'Title A'});
+      this.advanceToNextStep();
+    } else if (this.testParams === 'second') {
+      // Return and then switch conversation to ensure that ExecuteJsTest
+      // completes before the instance is deleted. The instance is deleted
+      // during the `switchConversation` call.
+      sleep(100).then(() => {
+        assertDefined(this.host.switchConversation);
+        this.host.switchConversation(
+            {conversationId: 'A', conversationTitle: 'Title A'});
+      });
+    }
+  }
+
+  async testDetachDoesNotLogActivationMetric() {
+    assertDefined(this.host.registerConversation);
+    assertDefined(this.host.detachPanel);
+    assertDefined(this.host.getPanelState);
+
+    if (this.testParams === 'registerAndDetach') {
+      await this.host.registerConversation(
+          {conversationId: 'A', conversationTitle: 'Title A'});
+      const panelStates = observeSequence(this.host.getPanelState());
+      await panelStates.waitFor(
+          state => state.kind === PanelStateKind.ATTACHED);
+
+      this.host.detachPanel();
+      await panelStates.waitFor(
+          state => state.kind === PanelStateKind.DETACHED);
+    }
+  }
 
   async testReloadWebUi() {}
 
@@ -1694,6 +1785,11 @@ class ApiTests extends ApiTestFixtureBase {
     assertDefined(conversationChangeRequest.desiredView);
     assertEquals(
         conversationChangeRequest.desiredView, ClientView.CONVERSATION);
+  }
+
+  async testRemoveBlankInstanceOnClose() {
+    assertDefined(this.host.closePanel);
+    await this.host.closePanel();
   }
 
   async testJournal() {
@@ -2086,7 +2182,7 @@ class ApiTests extends ApiTestFixtureBase {
         assertTrue(context.tabId!.length > 0);
         assertDefined(context.frameUrl);
         assertTrue(context.frameUrl!.length > 0);
-        assertEquals(context.parts.length, 5);
+        assertEquals(context.parts.length, 6);
 
         const part1 = context.parts[0]!;
         assertDefined(part1.data);
@@ -2119,6 +2215,12 @@ class ApiTests extends ApiTestFixtureBase {
         const pdfText = await new Response(part5.pdf!.pdfData!).text();
         assertEquals(pdfText, 'pdf');
 
+        const part6 = context.parts[5]!;
+        assertDefined(part6.tabContext);
+        assertDefined(part6.tabContext!.tabData);
+        assertEquals(part6.tabContext!.tabData!.tabId, '1');
+        assertEquals(part6.tabContext!.tabData!.windowId, '2');
+        assertEquals(part6.tabContext!.tabData!.url, 'https://google.com/');
         resolve();
       });
     });
@@ -2282,10 +2384,15 @@ class ApiTests extends ApiTestFixtureBase {
       assertEquals(
           undefined,
           this.client.panelOpenData.getCurrentValue()?.conversationId);
-      await this.host.switchConversation(
-          {conversationTitle: 'Hello', conversationId: 'id_hello'});
-      // Note that switchConversation does resolve, even though this instance
-      // will be destroyed very soon.
+
+      // Return and then switch conversation to ensure that ExecuteJsTest
+      // completes before the instance is deleted. The instance is deleted
+      // during the `switchConversation` call.
+      sleep(100).then(() => {
+        assertDefined(this.host.switchConversation);
+        this.host.switchConversation(
+            {conversationTitle: 'Hello', conversationId: 'id_hello'});
+      });
     }
   }
 

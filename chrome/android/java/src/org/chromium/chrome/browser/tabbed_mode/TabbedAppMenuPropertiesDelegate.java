@@ -24,7 +24,6 @@ import org.chromium.base.CallbackController;
 import org.chromium.base.DeviceInfo;
 import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.base.supplier.OneshotSupplier;
-import org.chromium.build.annotations.Contract;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.R;
@@ -44,6 +43,7 @@ import org.chromium.chrome.browser.image_descriptions.ImageDescriptionsControlle
 import org.chromium.chrome.browser.incognito.IncognitoUtils;
 import org.chromium.chrome.browser.incognito.reauth.IncognitoReauthController;
 import org.chromium.chrome.browser.layouts.LayoutStateProvider;
+import org.chromium.chrome.browser.multiwindow.MultiInstanceManager.PersistedInstanceType;
 import org.chromium.chrome.browser.multiwindow.MultiWindowModeStateDispatcher;
 import org.chromium.chrome.browser.multiwindow.MultiWindowUtils;
 import org.chromium.chrome.browser.offlinepages.OfflinePageUtils;
@@ -66,6 +66,7 @@ import org.chromium.chrome.browser.ui.appmenu.AppMenuItemProperties;
 import org.chromium.chrome.browser.ui.extensions.ExtensionUi;
 import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
 import org.chromium.chrome.browser.ui.native_page.NativePage;
+import org.chromium.components.browser_ui.accessibility.AccessibilityFeatureMap;
 import org.chromium.components.browser_ui.accessibility.PageZoomManager;
 import org.chromium.components.browser_ui.accessibility.PageZoomMenuItemCoordinator;
 import org.chromium.components.browser_ui.accessibility.PageZoomProperties;
@@ -253,11 +254,6 @@ public class TabbedAppMenuPropertiesDelegate extends AppMenuPropertiesDelegateIm
 
         // Add to Group
         if (shouldShowAddToGroup()) modelList.add(buildAddToGroupItem(currentTab));
-
-        // Pin/Unpin tab.
-        if (shouldShowTogglePinTabItem(currentTab)) {
-            modelList.add(buildTogglePinTabItem(currentTab));
-        }
 
         // New Window
         if (shouldShowNewWindow()) modelList.add(buildNewWindowItem());
@@ -580,26 +576,6 @@ public class TabbedAppMenuPropertiesDelegate extends AppMenuPropertiesDelegateIm
         return new MVCListAdapter.ListItem(AppMenuHandler.AppMenuItemType.STANDARD, model);
     }
 
-    @Contract("null -> false")
-    private boolean shouldShowTogglePinTabItem(Tab currentTab) {
-        return (ChromeFeatureList.sAndroidPinnedTabsTabletTabStrip.isEnabled()
-                        || ChromeFeatureList.sAndroidPinnedTabs.isEnabled())
-                && currentTab != null;
-    }
-
-    private MVCListAdapter.ListItem buildTogglePinTabItem(Tab currentTab) {
-        assert shouldShowTogglePinTabItem(currentTab);
-        boolean isPinned = currentTab.getIsPinned();
-        int menuId = isPinned ? R.id.unpin_tab_menu_id : R.id.pin_tab_menu_id;
-        int titleId = isPinned ? R.string.menu_unpin_tab : R.string.menu_pin_tab;
-        int iconId = isPinned ? R.drawable.ic_keep_off_24dp : R.drawable.ic_keep_24dp;
-
-        return new MVCListAdapter.ListItem(
-                AppMenuHandler.AppMenuItemType.STANDARD,
-                buildModelForStandardMenuItem(
-                        menuId, titleId, shouldShowIconBeforeItem() ? iconId : 0));
-    }
-
     private MVCListAdapter.ListItem buildNewWindowItem() {
         assert shouldShowNewWindow();
         return new MVCListAdapter.ListItem(
@@ -757,7 +733,7 @@ public class TabbedAppMenuPropertiesDelegate extends AppMenuPropertiesDelegateIm
     }
 
     private boolean shouldShowLFFPageZoomItem() {
-        return ChromeFeatureList.sAndroidZoomIndicator.isEnabled()
+        return AccessibilityFeatureMap.sAndroidZoomIndicator.isEnabled()
                 && DeviceFormFactor.isNonMultiDisplayContextOnTablet(mContext);
     }
 
@@ -1124,7 +1100,8 @@ public class TabbedAppMenuPropertiesDelegate extends AppMenuPropertiesDelegateIm
 
         if (instanceSwitcherWithMultiInstanceEnabled()) {
             // Hide the menu if we already have the maximum number of windows.
-            if (getInstanceCount() >= MultiWindowUtils.getMaxInstances()) return false;
+            if (MultiWindowUtils.getInstanceCountWithFallback(PersistedInstanceType.ACTIVE)
+                    >= MultiWindowUtils.getMaxInstances()) return false;
 
             // On phones, show the menu only when in split-screen, with a single instance
             // running on the foreground.
@@ -1151,15 +1128,6 @@ public class TabbedAppMenuPropertiesDelegate extends AppMenuPropertiesDelegateIm
         }
 
         return shouldShowNewWindow();
-    }
-
-    /**
-     * @return The number of Chrome instances either running alive or dormant but the state is
-     *     present for restoration.
-     */
-    @VisibleForTesting
-    int getInstanceCount() {
-        return mMultiWindowModeStateDispatcher.getInstanceCount();
     }
 
     /**

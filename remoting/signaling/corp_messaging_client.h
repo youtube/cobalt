@@ -40,13 +40,15 @@ class ScopedProtobufHttpRequest;
 // A class for sending and receiving messages via the Corp messaging API.
 class CorpMessagingClient final {
  public:
-  using MessageCallback = base::RepeatingCallback<void(
-      const internal::SimpleMessageStruct& message)>;
+  using MessageCallback =
+      base::RepeatingCallback<void(const internal::PeerMessageStruct& message)>;
   using MessageCallbackList = base::RepeatingCallbackList<void(
-      const internal::SimpleMessageStruct& message)>;
+      const internal::PeerMessageStruct& message)>;
   using StatusCallback = base::OnceCallback<void(const HttpStatus& status)>;
 
   CorpMessagingClient(
+      const std::string& username,
+      const std::string& public_key,
       scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
       std::unique_ptr<net::ClientCertStore> client_cert_store);
 
@@ -58,9 +60,13 @@ class CorpMessagingClient final {
   base::CallbackListSubscription RegisterMessageCallback(
       const MessageCallback& callback);
 
-  void SendMessage(const internal::EndpointIdStruct& destination_id,
+  void SendMessage(const std::string& messaging_authz_token,
                    const std::string& payload,
                    StatusCallback on_done);
+
+  void SendTestMessage(const std::string& messaging_authz_token,
+                       internal::SystemTestStruct system_test_struct,
+                       StatusCallback on_done);
 
   void StartReceivingMessages(base::OnceClosure on_ready,
                               StatusCallback on_closed);
@@ -81,15 +87,17 @@ class CorpMessagingClient final {
   void OnSendMessageResponse(
       StatusCallback on_done,
       const HttpStatus& status,
-      std::unique_ptr<internal::SendHostMessageResponse> response);
+      std::unique_ptr<internal::HostSendMessageResponse> response);
 
   std::unique_ptr<ScopedProtobufHttpRequest> OpenReceiveMessagesStream(
       base::OnceClosure on_channel_ready,
       const CorpMessageChannelStrategy::MessageReceivedCallback& on_message,
       StatusCallback on_channel_closed);
 
-  void OnMessageReceived(const internal::SimpleMessageStruct& message);
+  void OnMessageReceived(const internal::PeerMessageStruct& message);
 
+  std::string username_;
+  std::string public_key_;
   std::unique_ptr<ProtobufHttpClient> client_;
   std::unique_ptr<MessageChannel> message_channel_;
   MessageCallbackList callback_list_;

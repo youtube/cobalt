@@ -9,7 +9,6 @@
 #import "base/logging.h"
 #import "components/favicon/core/large_icon_service.h"
 #import "components/omnibox/common/omnibox_features.h"
-#import "ios/chrome/browser/content_suggestions/ui_bundled/cells/content_suggestions_tile_layout_util.h"
 #import "ios/chrome/browser/favicon/ui_bundled/favicon_attributes_provider.h"
 #import "ios/chrome/browser/favicon/ui_bundled/favicon_attributes_with_payload.h"
 #import "ios/chrome/browser/net/model/crurl.h"
@@ -20,7 +19,6 @@
 #import "ios/chrome/browser/omnibox/public/omnibox_ui_features.h"
 #import "ios/chrome/browser/omnibox/ui/popup/carousel/carousel_item.h"
 #import "ios/chrome/browser/omnibox/ui/popup/carousel/omnibox_popup_carousel_cell.h"
-#import "ios/chrome/browser/omnibox/ui/popup/content_providing.h"
 #import "ios/chrome/browser/omnibox/ui/popup/omnibox_popup_mutator.h"
 #import "ios/chrome/browser/omnibox/ui/popup/row/actions/omnibox_popup_actions_row_content_configuration.h"
 #import "ios/chrome/browser/omnibox/ui/popup/row/actions/omnibox_popup_actions_row_delegate.h"
@@ -176,6 +174,13 @@ const CGFloat kCloseButtonPadding = 16.0f;
                         object:nil];
   }
   return self;
+}
+
+// Sets the additional vertical content inset for the suggestion list.
+- (void)setAdditionalVerticalContentInset:
+    (CGFloat)additionalVerticalContentInset {
+  self.tableView.contentInset =
+      UIEdgeInsetsMake(kTopPadding + additionalVerticalContentInset, 0, 0, 0);
 }
 
 - (void)toggleOmniboxDebuggerView {
@@ -902,7 +907,8 @@ const CGFloat kCloseButtonPadding = 16.0f;
 
       DCHECK(cell);
       DCHECK(configuration);
-      configuration.useBottomOmniboxInPopup = self.useBottomOmniboxInPopup;
+      configuration.refineQueryArrowDirectionDown =
+          self.useBottomOmniboxInPopup;
       configuration.suggestion = suggestion;
       configuration.delegate = self;
       configuration.indexPath = indexPath;
@@ -1037,8 +1043,6 @@ const CGFloat kCloseButtonPadding = 16.0f;
   self.shouldUpdateVisibleSuggestionCount = YES;
 }
 
-#pragma mark - ContentProviding
-
 - (BOOL)hasContent {
   return self.tableView.numberOfSections > 0 &&
          [self.tableView numberOfRowsInSection:0] > 0;
@@ -1053,7 +1057,11 @@ const CGFloat kCloseButtonPadding = 16.0f;
 #pragma mark - Private Methods
 
 - (BOOL)showCloseButton {
-  return _useBottomOmniboxInPopup && IsPortrait(self.view.window);
+  BOOL allowedInContext =
+      _presentationContext != OmniboxPresentationContext::kComposebox &&
+      _presentationContext != OmniboxPresentationContext::kLensOverlay;
+  return _useBottomOmniboxInPopup && IsPortrait(self.view.window) &&
+         allowedInContext;
 }
 
 - (void)updateCloseButtonVisibility {

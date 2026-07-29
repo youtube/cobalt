@@ -22,6 +22,7 @@ import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewTreeObserver;
+import android.widget.LinearLayout;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.VisibleForTesting;
@@ -40,13 +41,16 @@ import org.chromium.base.CallbackUtils;
 import org.chromium.base.DeviceInfo;
 import org.chromium.base.Log;
 import org.chromium.base.metrics.RecordHistogram;
+import org.chromium.base.metrics.RecordUserAction;
 import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.base.supplier.OneshotSupplierImpl;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
+import org.chromium.build.annotations.RequiresNonNull;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.ChromeBaseAppCompatActivity;
 import org.chromium.chrome.browser.back_press.BackPressHelper;
+import org.chromium.chrome.browser.back_press.BackPressHelper.OnKeyDownHandler;
 import org.chromium.chrome.browser.feedback.HelpAndFeedbackLauncherImpl;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.init.ChromeBrowserInitializer;
@@ -136,6 +140,9 @@ public class SettingsActivity extends ChromeBaseAppCompatActivity
     private final OneshotSupplierImpl<SnackbarManager> mSnackbarManagerSupplier =
             new OneshotSupplierImpl<>();
 
+    // Number of popback requested after the fragment manager saved its state.
+    private int mPendingPopBackCount;
+
     // An intent that was received in onNewIntent and would cause fragment transactions, but is
     // pending for processing in the next onResume call. See onNewIntent for why we can not directly
     // process those intents in onNewIntent.
@@ -161,6 +168,9 @@ public class SettingsActivity extends ChromeBaseAppCompatActivity
     private final Map<Fragment, ContainmentItemDecoration> mItemDecorations = new HashMap<>();
 
     private @Nullable SettingsSearchCoordinator mSearchCoordinator;
+
+    private @Nullable OnKeyDownHandler mMainFragmentKeyDownHandler;
+    private @Nullable OnKeyDownHandler mBottomSheetKeyDownHandler;
 
     // Update handler of the Settings activity title. mTitleUpdater is used (i.e. nonnull)
     // in multi-column mode is disabled, and mMultiColumnTitleUpdater is used iff
@@ -280,23 +290,10 @@ public class SettingsActivity extends ChromeBaseAppCompatActivity
                             fragmentManager.findFragmentByTag(MULTI_COLUMN_FRAGMENT_TAG);
         }
 
-        if (ChromeFeatureList.sSearchInSettings.isEnabled()) {
-            mSearchCoordinator =
-                    new SettingsSearchCoordinator(
-                            this, this::getUseMultiColumn, mMultiColumnSettings, mItemDecorations);
-            mSearchCoordinator.initializeSearchUi();
-        }
-
         if (!mStandalone) {
             if (isMultiColumnSettingEnabled()) {
                 assert mMultiColumnSettings != null;
-                mMultiColumnTitleUpdater =
-                        new MultiColumnTitleUpdater(
-                                mMultiColumnSettings,
-                                actionBar.getContext(),
-                                findViewById(R.id.settings_detailed_pane_title),
-                                this::setTitle);
-                mMultiColumnSettings.addObserver(mMultiColumnTitleUpdater);
+                createMultiColumnTitleUpdater();
             } else {
                 mTitleUpdater = new TitleUpdater();
                 fragmentManager.registerFragmentLifecycleCallbacks(
@@ -341,6 +338,65 @@ public class SettingsActivity extends ChromeBaseAppCompatActivity
             return true;
         }
         return result;
+    }
+
+    @RequiresNonNull("mMultiColumnSettings")
+    private void createMultiColumnTitleUpdater() {
+        if (!ChromeFeatureList.sSearchInSettings.isEnabled()) {
+            createMultiColumTitleUpdaterInternal(findViewById(R.id.settings_detailed_pane_title));
+        } else {
+            getSupportFragmentManager()
+                    .registerFragmentLifecycleCallbacks(
+                            new FragmentManager.FragmentLifecycleCallbacks() {
+
+                                @Override
+                                public void onFragmentViewCreated(
+                                        @NonNull FragmentManager fm,
+                                        @NonNull Fragment f,
+                                        @NonNull View v,
+                                        @Nullable Bundle savedInstanceState) {
+                                    assert mMultiColumnSettings != null;
+                                    createMultiColumTitleUpdaterInternal(
+                                            v.findViewById(R.id.settings_title_in_detailed_pane));
+                                    fm.unregisterFragmentLifecycleCallbacks(this);
+                                    createSearchCoordinator();
+                                }
+                            },
+                            false);
+        }
+    }
+
+    @RequiresNonNull("mMultiColumnSettings")
+    private void createMultiColumTitleUpdaterInternal(LinearLayout titleContainer) {
+        mMultiColumnTitleUpdater =
+                new MultiColumnTitleUpdater(
+                        mMultiColumnSettings,
+                        titleContainer.getContext(),
+                        titleContainer,
+                        this::setTitle,
+                        this::onTitleTapped);
+        mMultiColumnSettings.addObserver(mMultiColumnTitleUpdater);
+    }
+
+    private void createSearchCoordinator() {
+        assert ChromeFeatureList.sSearchInSettings.isEnabled();
+        Callback<Integer> updateFirstVisibleTitle =
+                isMultiColumnSettingEnabled()
+                        ? assumeNonNull(mMultiColumnTitleUpdater)::setFirstVisibleTitleIndex
+                        : CallbackUtils.emptyCallback();
+        mSearchCoordinator =
+                new SettingsSearchCoordinator(
+                        this,
+                        this::getUseMultiColumn,
+                        mMultiColumnSettings,
+                        mItemDecorations,
+                        mProfile,
+                        updateFirstVisibleTitle);
+        mSearchCoordinator.initializeSearchUi();
+    }
+
+    private void onTitleTapped(@Nullable String entryName) {
+        if (mSearchCoordinator != null) mSearchCoordinator.onTitleTapped(entryName);
     }
 
     /**
@@ -466,6 +522,12 @@ public class SettingsActivity extends ChromeBaseAppCompatActivity
                     .applyStyle(R.style.ThemeOverlay_Chromium_Settings_MainPanel, true);
             applyMainSettingsFragmentDecoration((MainSettings) fragment);
             return;
+        }
+
+        // Here, if fragment is MainSettings, this is running in single-column layout.
+        // So, we should disable selection highlight.
+        if (fragment instanceof MainSettings mainSettings) {
+            mainSettings.setMultiColumnSettings(null, null);
         }
 
         fragment.requireContext()
@@ -653,6 +715,27 @@ public class SettingsActivity extends ChromeBaseAppCompatActivity
 
         checkForMissingDeviceLockOnAutomotive();
 
+        if (ChromeFeatureList.sSettingsSingleActivity.isEnabled()) {
+            if (mPendingPopBackCount > 0) {
+                RecordHistogram.recordCount100Histogram(
+                        "Android.Settings.PendingPopBackWorked", mPendingPopBackCount);
+                FragmentManager fragmentManager =
+                        mMultiColumnSettings == null
+                                ? getSupportFragmentManager()
+                                : mMultiColumnSettings.getChildFragmentManager();
+                if (fragmentManager.getBackStackEntryCount() <= mPendingPopBackCount) {
+                    finish();
+                } else {
+                    var entry =
+                            fragmentManager.getBackStackEntryAt(
+                                    fragmentManager.getBackStackEntryCount()
+                                            - mPendingPopBackCount);
+                    fragmentManager.popBackStack(
+                            entry.getId(), FragmentManager.POP_BACK_STACK_INCLUSIVE);
+                }
+                mPendingPopBackCount = 0;
+            }
+        }
         // If there is a pending intent to process from onNewIntent, process it now.
         if (mPendingNewIntent != null) {
             // If multi-column is enabled, fragment instantiation is handled in MultiColumnSettings.
@@ -730,6 +813,9 @@ public class SettingsActivity extends ChromeBaseAppCompatActivity
         if (mTitleUpdater != null) {
             getSupportFragmentManager().unregisterFragmentLifecycleCallbacks(mTitleUpdater);
         }
+        if (ChromeFeatureList.sSearchInSettings.isEnabled()) {
+            assumeNonNull(mSearchCoordinator).destroy();
+        }
         super.onDestroy();
     }
 
@@ -767,6 +853,8 @@ public class SettingsActivity extends ChromeBaseAppCompatActivity
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         if (ChromeFeatureList.sSearchInSettings.isEnabled()) {
+            assert mSearchCoordinator != null;
+            assumeNonNull(mSearchCoordinator).hideHelpAndFeedbackIcon();
             return false;
         }
         // By default, every screen in Settings shows a "Help & feedback" menu item.
@@ -798,6 +886,9 @@ public class SettingsActivity extends ChromeBaseAppCompatActivity
     public boolean onOptionsItemSelected(MenuItem item) {
         Fragment mainFragment = getMainFragment();
         if (mainFragment != null && mainFragment.onOptionsItemSelected(item)) {
+            if (item.getItemId() == R.id.menu_id_targeted_help) {
+                RecordUserAction.record("Settings.MobileHelpAndFeedback");
+            }
             return true;
         }
 
@@ -812,6 +903,7 @@ public class SettingsActivity extends ChromeBaseAppCompatActivity
             finishCurrentSettings(mainFragment);
             return true;
         } else if (item.getItemId() == R.id.menu_id_general_help) {
+            RecordUserAction.record("Settings.MobileHelpAndFeedback");
             HelpAndFeedbackLauncherImpl.getForProfile(mProfile)
                     .show(this, getString(R.string.help_context_settings), null);
             return true;
@@ -827,6 +919,15 @@ public class SettingsActivity extends ChromeBaseAppCompatActivity
 
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
+        if (mMainFragmentKeyDownHandler != null
+                && mMainFragmentKeyDownHandler.onKeyDown(keyCode, event)) {
+            return true;
+        }
+        if (mBottomSheetKeyDownHandler != null
+                && mBottomSheetKeyDownHandler.onKeyDown(keyCode, event)) {
+            return true;
+        }
+
         // Finish the current settings when the ESC key is pressed.
         if (keyCode == KeyEvent.KEYCODE_ESCAPE) {
             Fragment mainFragment = getMainFragment();
@@ -849,18 +950,20 @@ public class SettingsActivity extends ChromeBaseAppCompatActivity
             // We do not support embeddable fragments to implement BackPressHandler as it requires
             // keeping track of the main fragment while there is no real use case for it.
             assert !ChromeFeatureList.sSettingsSingleActivity.isEnabled() || mStandalone;
-            BackPressHelper.create(
-                    activeFragment.getViewLifecycleOwner(),
-                    getOnBackPressedDispatcher(),
-                    (BackPressHandler) activeFragment);
+            mMainFragmentKeyDownHandler =
+                    BackPressHelper.create(
+                            activeFragment.getViewLifecycleOwner(),
+                            getOnBackPressedDispatcher(),
+                            (BackPressHandler) activeFragment);
         }
     }
 
     private void registerBottomSheetBackPressHandler() {
-        BackPressHelper.create(
-                this,
-                getOnBackPressedDispatcher(),
-                mManagedBottomSheetController.getBottomSheetBackPressHandler());
+        mBottomSheetKeyDownHandler =
+                BackPressHelper.create(
+                        this,
+                        getOnBackPressedDispatcher(),
+                        mManagedBottomSheetController.getBottomSheetBackPressHandler());
     }
 
     @Override
@@ -957,7 +1060,11 @@ public class SettingsActivity extends ChromeBaseAppCompatActivity
             if (fragmentManager.getBackStackEntryCount() == 0) {
                 finish();
             } else {
-                fragmentManager.popBackStack();
+                if (fragmentManager.isStateSaved()) {
+                    ++mPendingPopBackCount;
+                } else {
+                    fragmentManager.popBackStack();
+                }
             }
         } else {
             finish();
@@ -1027,7 +1134,8 @@ public class SettingsActivity extends ChromeBaseAppCompatActivity
         @Override
         public void onFragmentAttached(
                 FragmentManager fragmentManager, Fragment fragment, Context context) {
-            if (!MAIN_FRAGMENT_TAG.equals(fragment.getTag())) {
+            if (!(fragment instanceof SettingsFragment)
+                    && !MAIN_FRAGMENT_TAG.equals(fragment.getTag())) {
                 return;
             }
 

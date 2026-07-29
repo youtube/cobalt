@@ -610,6 +610,7 @@ void BrowserAccessibilityManagerWin::FireGeneratedEvent(
     case AXEventGenerator::Event::AUTOFILL_AVAILABILITY_CHANGED:
     case AXEventGenerator::Event::CARET_BOUNDS_CHANGED:
     case AXEventGenerator::Event::CHECKED_STATE_DESCRIPTION_CHANGED:
+    case AXEventGenerator::Event::DEFAULT_ACTION_VERB_CHANGED:
     case AXEventGenerator::Event::DETAILS_CHANGED:
     case AXEventGenerator::Event::DOCUMENT_TITLE_CHANGED:
     case AXEventGenerator::Event::FOCUS_CHANGED:
@@ -708,7 +709,8 @@ void BrowserAccessibilityManagerWin::FireUiaAccessibilityEvent(
   }
 
   auto* provider = ToBrowserAccessibilityWin(node)->GetCOM();
-  if (!provider->HasEventListenerForEvent(uia_event)) {
+  if (!provider->AlwaysFireUIAEvent(uia_event) &&
+      !provider->HasEventListenerForEvent(uia_event)) {
     return;
   }
 

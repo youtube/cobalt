@@ -7,16 +7,13 @@
 
 #include <string>
 
+#include "base/values.h"
 #include "net/base/net_export.h"
 #include "net/base/proxy_server.h"
 #include "net/proxy_resolution/proxy_host_matching_rules.h"
 #include "net/proxy_resolution/proxy_list.h"
 #include "url/gurl.h"
 #include "url/scheme_host_port.h"
-
-namespace base {
-class Value;
-}
 
 namespace net {
 
@@ -176,9 +173,12 @@ class NET_EXPORT ProxyConfig {
     // be used. Each condition includes a `host` to try to resolve, and the rule
     // only applies if host resolution matches the expected `result`.
     struct NET_EXPORT DnsProbeCondition {
-      enum Result { kNotFound, kResolves };
+      enum Result { kNotFound, kResolved };
 
       bool operator==(const DnsProbeCondition& other) const;
+
+      // Creates a Value::Dict dump of this condition.
+      base::Value::Dict ToDict() const;
 
       url::SchemeHostPort host;
       Result result = kNotFound;
@@ -194,7 +194,17 @@ class NET_EXPORT ProxyConfig {
     // Returns true if `this` has the same serialized list of rules as `other`.
     bool operator==(const ProxyOverrideRule& other) const;
 
+    // Creates a Value::Dict dump of this override rule.
+    base::Value::Dict ToDict() const;
+
+    // Returns true if `url` matches `destination_matchers` without matching
+    // `exclude_destination_matchers`. This should be used instead of directly
+    // accessing the matcher members for evaluating if the rule is applicable or
+    // not.
+    bool MatchesDestination(const GURL& url) const;
+
     ProxyHostMatchingRules destination_matchers;
+    ProxyHostMatchingRules exclude_destination_matchers;
     std::vector<DnsProbeCondition> dns_conditions;
 
     ProxyList proxy_list;

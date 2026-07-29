@@ -73,6 +73,7 @@ import org.chromium.chrome.browser.tab.TabId;
 import org.chromium.chrome.browser.tab.TabLaunchType;
 import org.chromium.chrome.browser.tab.TabObserver;
 import org.chromium.chrome.browser.tab.TabSelectionType;
+import org.chromium.chrome.browser.tab.TabUtils;
 import org.chromium.chrome.browser.tab.state.ShoppingPersistedTabData;
 import org.chromium.chrome.browser.tab_group_sync.TabGroupSyncFeatures;
 import org.chromium.chrome.browser.tab_group_sync.TabGroupSyncServiceFactory;
@@ -105,6 +106,8 @@ import org.chromium.chrome.browser.tasks.tab_management.TabProperties.TabActionS
 import org.chromium.chrome.browser.tasks.tab_management.TabProperties.UiType;
 import org.chromium.chrome.browser.tasks.tab_management.TabSwitcherMessageManager.MessageType;
 import org.chromium.chrome.browser.tasks.tab_management.TabUiMetricsHelper.TabListEditorActionMetricGroups;
+import org.chromium.chrome.browser.ui.messages.snackbar.Snackbar;
+import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
 import org.chromium.chrome.browser.undo_tab_close_snackbar.UndoBarExplicitTrigger;
 import org.chromium.chrome.tab_ui.R;
 import org.chromium.components.browser_ui.util.motion.MotionEventInfo;
@@ -337,7 +340,10 @@ class TabListMediator implements TabListNotificationHandler {
     private final TabActionListener mTabClosedListener;
     private final TabGridItemTouchHelperCallback mTabGridItemTouchHelperCallback;
     private final @Nullable UndoBarExplicitTrigger mUndoBarExplicitTrigger;
+    private final @Nullable SnackbarManager mSnackbarManager;
+    private final int mAllowedSelectionCount;
 
+    private int mCurrentSelectionCount;
     private int mNextTabId = Tab.INVALID_TAB_ID;
     private int mLastSelectedTabListModelIndex = TabList.INVALID_TAB_INDEX;
     private boolean mActionsOnAllRelatedTabs;
@@ -441,22 +447,31 @@ class TabListMediator implements TabListNotificationHandler {
             new TabActionListener() {
                 @Override
                 public void run(View view, int tabId, @Nullable MotionEventInfo triggeringMotion) {
+                    @Nullable PropertyModel model = mModelList.getModelFromTabId(tabId);
+                    if (model == null) return;
+
+                    boolean selected = model.get(TabProperties.IS_SELECTED);
+                    if (!selected
+                            && mAllowedSelectionCount > 0
+                            && mCurrentSelectionCount >= mAllowedSelectionCount) {
+                        showLimitSnackbar();
+                        return;
+                    }
+                    dismissLimitSnackbar();
                     SelectionDelegate<TabListEditorItemSelectionId> selectionDelegate =
                             getTabSelectionDelegate();
                     assert selectionDelegate != null;
                     selectionDelegate.toggleSelectionForItem(
                             TabListEditorItemSelectionId.createTabId(tabId));
 
-                    @Nullable PropertyModel model = mModelList.getModelFromTabId(tabId);
-                    if (model == null) return;
-
-                    boolean selected = model.get(TabProperties.IS_SELECTED);
                     if (selected) {
                         TabUiMetricsHelper.recordSelectionEditorActionMetrics(
                                 TabListEditorActionMetricGroups.UNSELECTED);
+                        mCurrentSelectionCount -= 1;
                     } else {
                         TabUiMetricsHelper.recordSelectionEditorActionMetrics(
                                 TabListEditorActionMetricGroups.SELECTED);
+                        mCurrentSelectionCount += 1;
                     }
                     model.set(TabProperties.IS_SELECTED, !selected);
                     // Reset thumbnail to ensure the color of the blank tab slots is correct.
@@ -599,7 +614,7 @@ class TabListMediator implements TabListNotificationHandler {
                             model = mModelList.get(indexAndTab.first).model;
                         }
                     }
-                    if (tab != null && model != null) {
+                    if (TabUtils.isValid(tab) && model != null) {
                         model.set(TabProperties.URL_DOMAIN, getDomainForTab(tab));
                         // Changing URL will result in a thumbnail invalidation if the on-disk
                         // thumbnail doesn't match.
@@ -615,7 +630,9 @@ class TabListMediator implements TabListNotificationHandler {
 
                     @Nullable PropertyModel model;
                     Tab representativeTab = updatedTab;
-                    if (mActionsOnAllRelatedTabs && isTabInTabGroup(updatedTab)) {
+                    boolean isTabGroupTabGrid =
+                            mActionsOnAllRelatedTabs && isTabInTabGroup(updatedTab);
+                    if (isTabGroupTabGrid) {
                         Token tabGroupId = updatedTab.getTabGroupId();
                         assumeNonNull(tabGroupId);
                         @Nullable Pair<Integer, Tab> indexAndTab =
@@ -627,10 +644,15 @@ class TabListMediator implements TabListNotificationHandler {
                         model = mModelList.getModelFromTabId(updatedTab.getId());
                     }
 
-                    if (model == null) return;
+                    if (model == null || model.get(TabProperties.USE_SHRINK_CLOSE_ANIMATION)) {
+                        return;
+                    }
                     model.set(
                             TabProperties.MEDIA_INDICATOR,
                             getTabGridMediaIndicator(representativeTab));
+                    if (isTabGroupTabGrid) {
+                        updateDescriptionString(representativeTab, model);
+                    }
                 }
 
                 @Override
@@ -1016,6 +1038,8 @@ class TabListMediator implements TabListNotificationHandler {
      * @param dataSharingTabManager The service used to initiate data sharing.
      * @param onTabGroupCreation Should be run when the UI is used to create a tab group.
      * @param undoBarExplicitTrigger Interface to explicitly trigger the undo closure snackbar.
+     * @param snackbarManager The manager to show snackbars.
+     * @param allowedSelectionCount The maximum number of tabs that can be selected at once.
      */
     TabListMediator(
             Activity activity,
@@ -1035,7 +1059,9 @@ class TabListMediator implements TabListNotificationHandler {
             @TabActionState int initialTabActionState,
             @Nullable DataSharingTabManager dataSharingTabManager,
             @Nullable Runnable onTabGroupCreation,
-            @Nullable UndoBarExplicitTrigger undoBarExplicitTrigger) {
+            @Nullable UndoBarExplicitTrigger undoBarExplicitTrigger,
+            @Nullable SnackbarManager snackbarManager,
+            int allowedSelectionCount) {
         mActivity = activity;
         mModelList = modelList;
         mMode = mode;
@@ -1053,6 +1079,8 @@ class TabListMediator implements TabListNotificationHandler {
         mDataSharingTabManager = dataSharingTabManager;
         mOnTabGroupCreation = onTabGroupCreation;
         mUndoBarExplicitTrigger = undoBarExplicitTrigger;
+        mSnackbarManager = snackbarManager;
+        mAllowedSelectionCount = allowedSelectionCount;
 
         mTabModelObserver =
                 new TabModelObserver() {
@@ -2330,6 +2358,7 @@ class TabListMediator implements TabListNotificationHandler {
                             TabGroupColorPickerUtils
                                     .getTabGroupColorPickerItemColorAccessibilityString(colorId);
                     String colorDesc = res.getString(colorDescRes);
+                    String description;
                     if (TabUiUtils.isDataSharingFunctionalityEnabled() && hasCollaboration(tab)) {
                         TabCardLabelData tabCardLabelData =
                                 model.get(TabProperties.TAB_CARD_LABEL_DATA);
@@ -2340,53 +2369,61 @@ class TabListMediator implements TabListNotificationHandler {
                                             context);
                         }
                         if (TextUtils.isEmpty(tabCardLabelDesc)) {
-                            return TextUtils.isEmpty(title)
-                                    ? res.getQuantityString(
-                                            R.plurals
-                                                    .accessibility_expand_shared_tab_group_with_color,
-                                            numOfRelatedTabs,
-                                            numOfRelatedTabs,
-                                            colorDesc)
-                                    : res.getQuantityString(
-                                            R.plurals
-                                                    .accessibility_expand_shared_tab_group_with_group_name_with_color,
-                                            numOfRelatedTabs,
-                                            title,
-                                            numOfRelatedTabs,
-                                            colorDesc);
+                            description =
+                                    TextUtils.isEmpty(title)
+                                            ? res.getQuantityString(
+                                                    R.plurals
+                                                            .accessibility_expand_shared_tab_group_with_color,
+                                                    numOfRelatedTabs,
+                                                    numOfRelatedTabs,
+                                                    colorDesc)
+                                            : res.getQuantityString(
+                                                    R.plurals
+                                                            .accessibility_expand_shared_tab_group_with_group_name_with_color,
+                                                    numOfRelatedTabs,
+                                                    title,
+                                                    numOfRelatedTabs,
+                                                    colorDesc);
                         } else {
-                            return TextUtils.isEmpty(title)
-                                    ? res.getQuantityString(
-                                            R.plurals
-                                                    .accessibility_expand_shared_tab_group_with_color_with_card_label,
-                                            numOfRelatedTabs,
-                                            numOfRelatedTabs,
-                                            colorDesc,
-                                            tabCardLabelDesc)
-                                    : res.getQuantityString(
-                                            R.plurals
-                                                    .accessibility_expand_shared_tab_group_with_group_name_with_color_with_card_label,
-                                            numOfRelatedTabs,
-                                            title,
-                                            numOfRelatedTabs,
-                                            colorDesc,
-                                            tabCardLabelDesc);
+                            description =
+                                    TextUtils.isEmpty(title)
+                                            ? res.getQuantityString(
+                                                    R.plurals
+                                                            .accessibility_expand_shared_tab_group_with_color_with_card_label,
+                                                    numOfRelatedTabs,
+                                                    numOfRelatedTabs,
+                                                    colorDesc,
+                                                    tabCardLabelDesc)
+                                            : res.getQuantityString(
+                                                    R.plurals
+                                                            .accessibility_expand_shared_tab_group_with_group_name_with_color_with_card_label,
+                                                    numOfRelatedTabs,
+                                                    title,
+                                                    numOfRelatedTabs,
+                                                    colorDesc,
+                                                    tabCardLabelDesc);
                         }
                     } else {
-                        return TextUtils.isEmpty(title)
-                                ? res.getQuantityString(
-                                        R.plurals.accessibility_expand_tab_group_with_color,
-                                        numOfRelatedTabs,
-                                        numOfRelatedTabs,
-                                        colorDesc)
-                                : res.getQuantityString(
-                                        R.plurals
-                                                .accessibility_expand_tab_group_with_group_name_with_color,
-                                        numOfRelatedTabs,
-                                        title,
-                                        numOfRelatedTabs,
-                                        colorDesc);
+                        description =
+                                TextUtils.isEmpty(title)
+                                        ? res.getQuantityString(
+                                                R.plurals.accessibility_expand_tab_group_with_color,
+                                                numOfRelatedTabs,
+                                                numOfRelatedTabs,
+                                                colorDesc)
+                                        : res.getQuantityString(
+                                                R.plurals
+                                                        .accessibility_expand_tab_group_with_group_name_with_color,
+                                                numOfRelatedTabs,
+                                                title,
+                                                numOfRelatedTabs,
+                                                colorDesc);
                     }
+                    String mediaStateString = getMediaStateAccessibilityString(tab, res);
+                    if (!TextUtils.isEmpty(mediaStateString)) {
+                        description += " " + mediaStateString;
+                    }
+                    return description;
                 };
         model.set(TabProperties.CONTENT_DESCRIPTION_TEXT_RESOLVER, contentDescriptionResolver);
     }
@@ -3382,6 +3419,38 @@ class TabListMediator implements TabListNotificationHandler {
         } else {
             provider.setTabGroupId(groupId);
             provider.setTabGroupColorId(colorId);
+        }
+    }
+
+    private void showLimitSnackbar() {
+        if (mSnackbarManager == null) return;
+        Snackbar snackbar =
+                Snackbar.make(
+                        mActivity.getString(R.string.tab_item_picker_limit_reached),
+                        null,
+                        Snackbar.TYPE_NOTIFICATION,
+                        Snackbar.UMA_TAB_PICKER_LIMIT_REACHED);
+        mSnackbarManager.showSnackbar(snackbar);
+    }
+
+    private void dismissLimitSnackbar() {
+        if (mSnackbarManager == null) return;
+        mSnackbarManager.dismissAllSnackbars();
+    }
+
+    private String getMediaStateAccessibilityString(Tab tab, Resources res) {
+        @MediaState int mediaState = getTabGridMediaIndicator(tab);
+        switch (mediaState) {
+            case MediaState.AUDIBLE:
+                return res.getString(R.string.accessibility_tab_group_audible);
+            case MediaState.MUTED:
+                return res.getString(R.string.accessibility_tab_group_muted);
+            case MediaState.RECORDING:
+                return res.getString(R.string.accessibility_tab_group_recording);
+            case MediaState.SHARING:
+                return res.getString(R.string.accessibility_tab_group_sharing);
+            default:
+                return "";
         }
     }
 

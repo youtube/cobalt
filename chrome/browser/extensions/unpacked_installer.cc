@@ -18,7 +18,6 @@
 #include "build/build_config.h"
 #include "chrome/browser/extensions/extension_management.h"
 #include "chrome/browser/extensions/load_error_reporter.h"
-#include "chrome/browser/extensions/permissions/permissions_updater.h"
 #include "chrome/browser/lifetime/termination_notification.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/common/extensions/manifest_handlers/settings_overrides_handler.h"
@@ -37,6 +36,7 @@
 #include "extensions/browser/install_flag.h"
 #include "extensions/browser/install_prefs_helper.h"
 #include "extensions/browser/path_util.h"
+#include "extensions/browser/permissions/permissions_updater.h"
 #include "extensions/browser/policy_check.h"
 #include "extensions/browser/preload_check_group.h"
 #include "extensions/browser/requirements_checker.h"
@@ -132,10 +132,10 @@ bool UnpackedInstaller::LoadFromCommandLine(const base::FilePath& path_in,
     return false;
   }
 
-  std::string error;
+  std::u16string error;
   if (!LoadExtension(mojom::ManifestLocation::kCommandLine, GetFlags(),
                      &error)) {
-    ReportExtensionLoadError(error);
+    ReportExtensionLoadError(base::UTF16ToUTF8(error));
     return false;
   }
 
@@ -265,7 +265,7 @@ int UnpackedInstaller::GetFlags() {
 
 bool UnpackedInstaller::LoadExtension(mojom::ManifestLocation location,
                                       int flags,
-                                      std::string* error) {
+                                      std::u16string* error) {
   // Clean up the kMetadataFolder if necessary. This prevents spurious
   // warnings/errors and ensures we don't treat a user provided file as one by
   // the Extension system.
@@ -288,7 +288,7 @@ bool UnpackedInstaller::LoadExtension(mojom::ManifestLocation location,
          IndexAndPersistRulesIfNeeded(error);
 }
 
-bool UnpackedInstaller::IndexAndPersistRulesIfNeeded(std::string* error) {
+bool UnpackedInstaller::IndexAndPersistRulesIfNeeded(std::u16string* error) {
   DCHECK(extension());
 
   base::expected<base::Value::Dict, std::string> index_result =
@@ -296,7 +296,7 @@ bool UnpackedInstaller::IndexAndPersistRulesIfNeeded(std::string* error) {
           IndexAndPersistRulesOnInstall(*extension_);
 
   if (!index_result.has_value()) {
-    *error = std::move(index_result.error());
+    *error = base::UTF8ToUTF16(index_result.error());
     return false;
   }
 
@@ -343,13 +343,13 @@ void UnpackedInstaller::CheckExtensionFileAccess() {
 }
 
 void UnpackedInstaller::LoadWithFileAccessOnFileThread(int flags) {
-  std::string error;
+  std::u16string error;
   if (!LoadExtension(mojom::ManifestLocation::kUnpacked, flags, &error)) {
     // Set priority explicitly to avoid unwanted task priority inheritance.
     content::GetUIThreadTaskRunner({base::TaskPriority::USER_BLOCKING})
         ->PostTask(FROM_HERE,
                    base::BindOnce(&UnpackedInstaller::ReportExtensionLoadError,
-                                  this, error));
+                                  this, base::UTF16ToUTF8(error)));
     return;
   }
 
@@ -359,16 +359,20 @@ void UnpackedInstaller::LoadWithFileAccessOnFileThread(int flags) {
                  base::BindOnce(&UnpackedInstaller::StartInstallChecks, this));
 }
 
+// TODO(crbug.com/41317803): Continue removing std::string error and
+// replacing with std::u16string.
 void UnpackedInstaller::ReportExtensionLoadError(const std::string &error) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
 
   if (profile_) {
     LoadErrorReporter::GetInstance()->ReportLoadError(
-        extension_path_, error, profile_, be_noisy_on_failure_);
+        extension_path_, base::UTF8ToUTF16(error), profile_,
+        be_noisy_on_failure_);
   }
 
   if (!callback_.is_null())
-    std::move(callback_).Run(nullptr, extension_path_, error);
+    std::move(callback_).Run(nullptr, extension_path_,
+                             base::UTF8ToUTF16(error));
 }
 
 void UnpackedInstaller::InstallExtension() {
@@ -404,7 +408,7 @@ void UnpackedInstaller::InstallExtension() {
   RecordCommandLineMetrics();
 
   if (!callback_.is_null())
-    std::move(callback_).Run(extension(), extension_path_, std::string());
+    std::move(callback_).Run(extension(), extension_path_, std::u16string());
 }
 
 void UnpackedInstaller::RecordCommandLineMetrics() {

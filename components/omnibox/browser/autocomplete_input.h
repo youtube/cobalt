@@ -148,15 +148,6 @@ class AutocompleteInput {
   };
   static FeaturedKeywordMode GetFeaturedKeywordMode(std::u16string_view text);
 
-  // If the input is in the keyword mode for a starter pack engine, returns the
-  // starter pack's `TemplateURL` or nullptr. E.g. for "@Gemini text", Gemini
-  // `TemplateURL` is returned. If the matching keyword was found, updates
-  // `input` with the keyword stripped.
-  // `model` must be non-null.
-  static const TemplateURL* AdjustInputForStarterPackEngines(
-      TemplateURLService* model,
-      AutocompleteInput* input);
-
   // Returns the matching substituting keyword for `input`, or NULL if there
   // is no keyword for the specified input.  If the matching keyword was found,
   // updates `input`'s text and cursor position.
@@ -256,6 +247,9 @@ class AutocompleteInput {
         return SearchTermsData::RequestSource::LENS_OVERLAY;
       case metrics::OmniboxEventProto::NTP_COMPOSEBOX:
       case metrics::OmniboxEventProto::LENS_SIDE_PANEL_COMPOSEBOX:
+      case metrics::OmniboxEventProto::NTP_OMNIBOX_COMPOSEBOX:
+      case metrics::OmniboxEventProto::SRP_OMNIBOX_COMPOSEBOX:
+      case metrics::OmniboxEventProto::OTHER_OMNIBOX_COMPOSEBOX:
         return SearchTermsData::RequestSource::NTP_COMPOSEBOX;
       default:
         return SearchTermsData::RequestSource::SEARCHBOX;
@@ -366,6 +360,15 @@ class AutocompleteInput {
       const lens::proto::LensOverlaySuggestInputs&
           lens_overlay_suggest_inputs) {
     lens_overlay_suggest_inputs_ = lens_overlay_suggest_inputs;
+  }
+
+  // Variant of the set_lens_overlay_suggest_inputs that doesn't make copies
+  // and is better aligned with the value returned by ComposeboxQueryController.
+  void set_lens_overlay_suggest_inputs(
+      std::unique_ptr<lens::proto::LensOverlaySuggestInputs>
+          lens_overlay_suggest_inputs) {
+    lens_overlay_suggest_inputs_.emplace(
+        std::move(*lens_overlay_suggest_inputs.release()));
   }
 
   omnibox::ChromeAimToolsAndModels aim_tool_mode() const {

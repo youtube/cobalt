@@ -284,12 +284,12 @@ IN_PROC_BROWSER_TEST_F(SettingsTest, Languages) {
   RunTest("settings/languages_test.js", "mocha.run()");
 }
 
-IN_PROC_BROWSER_TEST_F(SettingsTest, LiveCaptionSection) {
-  RunTest("settings/live_caption_section_test.js", "mocha.run()");
+IN_PROC_BROWSER_TEST_F(SettingsTest, LiveCaption) {
+  RunTest("settings/live_caption_test.js", "mocha.run()");
 }
 
-IN_PROC_BROWSER_TEST_F(SettingsTest, LiveTranslateSection) {
-  RunTest("settings/live_translate_section_test.js", "mocha.run()");
+IN_PROC_BROWSER_TEST_F(SettingsTest, LiveTranslate) {
+  RunTest("settings/live_translate_test.js", "mocha.run()");
 }
 #endif
 
@@ -1567,12 +1567,6 @@ IN_PROC_BROWSER_TEST_F(SettingsSecurityPageTest, FlagsDisabled) {
   RunTest("settings/security_page_test.js", "runMochaSuite('FlagsDisabled')");
 }
 
-IN_PROC_BROWSER_TEST_F(SettingsSecurityPageTest,
-                       SecurityPageHappinessTrackingSurveys) {
-  RunTest("settings/security_page_test.js",
-          "runMochaSuite('SecurityPageHappinessTrackingSurveys')");
-}
-
 IN_PROC_BROWSER_TEST_F(SettingsSecurityPageTest, JavascriptOptimizer) {
   RunTest("settings/security_page_test.js",
           "runMochaSuite('JavascriptOptimizer')");
@@ -1594,6 +1588,12 @@ using SettingsSecurityPageV2Test = SettingsBrowserTest;
 
 IN_PROC_BROWSER_TEST_F(SettingsSecurityPageV2Test, Main) {
   RunTest("settings/security_page_v2_test.js", "runMochaSuite('Main')");
+}
+
+IN_PROC_BROWSER_TEST_F(SettingsSecurityPageV2Test,
+                       SecurityPageHappinessTrackingSurveys) {
+  RunTest("settings/security_page_v2_test.js",
+          "runMochaSuite('SecurityPageV2HappinessTrackingSurveys')");
 }
 
 #if !BUILDFLAG(IS_CHROMEOS)

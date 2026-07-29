@@ -23,7 +23,6 @@
 #include "components/page_load_metrics/browser/observers/assert_page_load_metrics_observer.h"
 #include "components/page_load_metrics/browser/page_load_metrics_embedder_interface.h"
 #include "components/page_load_metrics/browser/page_load_metrics_forward_observer.h"
-#include "components/page_load_metrics/browser/page_load_metrics_memory_tracker.h"
 #include "components/page_load_metrics/browser/page_load_metrics_observer.h"
 #include "components/page_load_metrics/browser/page_load_metrics_util.h"
 #include "components/page_load_metrics/common/page_load_timing.h"
@@ -646,15 +645,20 @@ void PageLoadTracker::DidCommitSameDocumentNavigation(
     parent_tracker_->DidFinishSubFrameNavigation(navigation_handle);
   }
 
-  // Update soft navigation URL and UKM source id;
-  // A same-document navigation may not be a soft navigation. But when a soft
-  // navigation updates comes in later, the URL and source id updated here would
-  // correspond to that soft navigation.
+  // For main frame same document navigations, maintain a mapping to their UKM
+  // Source ID. This allows us to later record soft navigations with their
+  // correct URL. We use the same document metrics token for this mapping
+  // because we may only learn of the soft navigation when |navigation_handle|
+  // is already destroyed, yet we do need to record toward that UKM Source ID to
+  // get the URL correct.
   if (navigation_handle->IsInMainFrame()) {
-    previous_soft_navigation_source_id_ = potential_soft_navigation_source_id_;
-    potential_soft_navigation_source_id_ =
-        ukm::ConvertToSourceId(navigation_handle->GetNavigationId(),
-                               ukm::SourceIdObj::Type::NAVIGATION_ID);
+    std::optional<base::UnguessableToken> token =
+        navigation_handle->GetSameDocumentMetricsToken();
+    CHECK(token);
+    CHECK(!token->is_empty());
+    source_id_by_same_document_metrics_token_.try_emplace(
+        *token, ukm::ConvertToSourceId(navigation_handle->GetNavigationId(),
+                                       ukm::SourceIdObj::Type::NAVIGATION_ID));
   }
 
   for (const auto& observer : observers_) {
@@ -1379,12 +1383,14 @@ mojom::SoftNavigationMetrics& PageLoadTracker::GetSoftNavigationMetrics()
   return *soft_navigation_metrics_;
 }
 
-ukm::SourceId PageLoadTracker::GetUkmSourceIdForSoftNavigation() const {
-  return potential_soft_navigation_source_id_;
-}
-
-ukm::SourceId PageLoadTracker::GetPreviousUkmSourceIdForSoftNavigation() const {
-  return previous_soft_navigation_source_id_;
+ukm::SourceId PageLoadTracker::GetUkmSourceIdForSameDocumentNavigation(
+    base::UnguessableToken same_document_metrics_token) const {
+  auto it = source_id_by_same_document_metrics_token_.find(
+      same_document_metrics_token);
+  if (it != source_id_by_same_document_metrics_token_.end()) {
+    return it->second;
+  }
+  return ukm::kInvalidSourceId;
 }
 
 bool PageLoadTracker::IsFirstNavigationInWebContents() const {
@@ -1457,13 +1463,6 @@ void PageLoadTracker::OnRestoreFromBackForwardCache(
   // no longer accurate, so reset that as well.
   page_end_reason_ = END_NONE;
   page_end_time_ = base::TimeTicks();
-}
-
-void PageLoadTracker::OnV8MemoryChanged(
-    const std::vector<MemoryUpdate>& memory_updates) {
-  for (const auto& observer : observers_) {
-    observer->OnV8MemoryChanged(memory_updates);
-  }
 }
 
 void PageLoadTracker::OnSharedStorageWorkletHostCreated() {

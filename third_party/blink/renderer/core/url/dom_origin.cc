@@ -49,9 +49,6 @@ DOMOriginUtils* GetDOMOriginUtilsFromV8Object(v8::Isolate* i,
   if (auto* p = V8HTMLAreaElement::ToWrappable(i, o)) {
     return p;
   }
-  if (auto* p = V8Location::ToWrappable(i, o)) {
-    return p;
-  }
   if (auto* p = V8MessageEvent::ToWrappable(i, o)) {
     return p;
   }
@@ -62,9 +59,6 @@ DOMOriginUtils* GetDOMOriginUtilsFromV8Object(v8::Isolate* i,
     return p;
   }
   if (auto* p = V8WorkerGlobalScope::ToWrappable(i, o)) {
-    return p;
-  }
-  if (auto* p = V8WorkerLocation::ToWrappable(i, o)) {
     return p;
   }
 
@@ -82,31 +76,6 @@ DOMOrigin* DOMOrigin::Create() {
 DOMOrigin* DOMOrigin::Create(scoped_refptr<const SecurityOrigin> origin) {
   return MakeGarbageCollected<DOMOrigin>(base::PassKey<DOMOrigin>(),
                                          std::move(origin));
-}
-
-// static
-DOMOrigin* DOMOrigin::parse(const String& value) {
-  scoped_refptr<const SecurityOrigin> security_origin =
-      SecurityOrigin::CreateFromString(value);
-
-  // SecurityOrigin::CreateFromString will accept a wide variety of inputs, as
-  // it routes things through URL parsing before minting an origin out of the
-  // result. We'd like to ensure that the web-facing API requires a properly
-  // serialized origin, so we check here to verify that the value we provided
-  // matches the serialization of the SecurityOrigin we received.
-  if (security_origin->ToString() != value) {
-    return nullptr;
-  }
-  return DOMOrigin::Create(std::move(security_origin));
-}
-
-// static
-DOMOrigin* DOMOrigin::fromURL(const String& serialized_url) {
-  KURL url(serialized_url);
-  if (!url.IsValid()) {
-    return nullptr;
-  }
-  return DOMOrigin::Create(SecurityOrigin::Create(url));
 }
 
 // static
@@ -175,16 +144,6 @@ DOMOrigin* DOMOrigin::from(ScriptState* script_state,
   // to extract an origin from that object, throw an exception:
   exception_state.ThrowTypeError(
       "An origin cannot be extracted from the given parameter.");
-  return nullptr;
-}
-
-DOMOrigin* DOMOrigin::Create(const String& value,
-                             ExceptionState& exception_state) {
-  if (DOMOrigin* dom_origin = DOMOrigin::parse(value)) {
-    return dom_origin;
-  }
-
-  exception_state.ThrowTypeError("Invalid serialized origin");
   return nullptr;
 }
 

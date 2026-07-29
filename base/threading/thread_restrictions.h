@@ -165,7 +165,6 @@ bool HasWaylandDisplay(base::Environment* env);
 namespace android_webview {
 class AwBrowserContext;
 class AwBrowserContextStore;
-class AwFormDatabaseService;
 class AwMetricsServiceClient;
 class CookieManager;
 class JsSandboxIsolate;
@@ -304,6 +303,7 @@ bool InitializeStaticGLBindings(GLImplementationParts);
 namespace gpu {
 class MappableBufferAHB;
 class MappableBufferDXGI;
+class GpuPersistentCache;
 }
 namespace history_report {
 class HistoryReportJniBridge;
@@ -759,6 +759,7 @@ class BASE_EXPORT ScopedAllowBaseSyncPrimitives {
   friend class content::ServiceWorkerContextClient;
   friend class device::UsbContext;
   friend class enterprise_connectors::LinuxKeyRotationCommand;
+  friend class gpu::GpuPersistentCache;
   friend class history_report::HistoryReportJniBridge;
   friend class internal::TaskTracker;
   friend class leveldb::port::CondVar;
@@ -831,8 +832,6 @@ class BASE_EXPORT
   friend class ::KeyStorageLinux;
   friend class ::NativeDesktopMediaList;
   friend class android::JavaHandlerThread;
-  friend class android_webview::
-      AwFormDatabaseService;  // http://crbug.com/904431
   friend class android_webview::CookieManager;
   friend class android_webview::VizCompositorThreadRunnerWebView;
   friend class audio::OutputDevice;

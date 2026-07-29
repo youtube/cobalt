@@ -19,15 +19,15 @@
 
 // Taps the primary action button on a PromoStyleViewController.
 - (void)tapPrimaryActionButton {
-  [[EarlGrey selectElementWithMatcher:chrome_test_util::
-                                          PromoScreenPrimaryButtonMatcher()]
+  [[EarlGrey
+      selectElementWithMatcher:chrome_test_util::ButtonStackPrimaryButton()]
       performAction:grey_tap()];
 }
 
 // Taps the secondary action button on a PromoStyleViewController.
 - (void)tapSecondaryActionButton {
-  [[EarlGrey selectElementWithMatcher:chrome_test_util::
-                                          PromoScreenSecondaryButtonMatcher()]
+  [[EarlGrey
+      selectElementWithMatcher:chrome_test_util::ButtonStackSecondaryButton()]
       performAction:grey_tap()];
 }
 
@@ -151,9 +151,9 @@
       performAction:grey_swipeFastInDirection(kGREYDirectionDown)];
   [ChromeEarlGrey waitForUIElementToDisappearWithMatcher:instructions];
 
-  // Tap Done Button.
+  // Tap Close Button.
   [[EarlGrey
-      selectElementWithMatcher:chrome_test_util::NavigationBarDoneButton()]
+      selectElementWithMatcher:chrome_test_util::NavigationBarCloseButton()]
       performAction:grey_tap()];
   GREYAssert([ChromeCoordinatorAppInterface
                  selectorWasDispatched:@"dismissSearchWhatYouSeePromo"],

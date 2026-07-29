@@ -43,6 +43,7 @@
 #include "pdf/pdf_features.h"
 #include "pdf/pdf_ink_annotation_mode.h"
 #include "pdf/test/fake_annotation_agent_host.h"
+#include "pdf/test/input_event_util.h"
 #include "pdf/test/mock_web_associated_url_loader.h"
 #include "pdf/test/mouse_event_builder.h"
 #include "pdf/test/test_helpers.h"
@@ -1853,18 +1854,32 @@ TEST_F(PdfViewWebPluginTest, OnRendererPreferencesUpdated) {
                      .Set("type", "rendererPreferencesUpdated")
                      .Set("caretBrowsingEnabled", false);
 
-  EXPECT_CALL(*engine_ptr_, SetCaretBrowsingEnabled(false));
+  InSequence seq;
+
   EXPECT_CALL(*client_ptr_, PostMessage(Eq(std::ref(message))));
+  EXPECT_CALL(*engine_ptr_, SetCaretBrowsingEnabled(false));
+  EXPECT_CALL(*engine_ptr_,
+              SetCaretBlinkInterval(PdfCaret::kDefaultBlinkInterval));
 
   blink::RendererPreferences prefs;
   plugin_->OnRendererPreferencesUpdated(prefs);
 
   message.Set("caretBrowsingEnabled", true);
 
-  EXPECT_CALL(*engine_ptr_, SetCaretBrowsingEnabled(true));
   EXPECT_CALL(*client_ptr_, PostMessage(Eq(std::ref(message))));
+  EXPECT_CALL(*engine_ptr_, SetCaretBrowsingEnabled(true));
+  constexpr base::TimeDelta kBlinkInterval = base::Milliseconds(300);
+  EXPECT_CALL(*engine_ptr_, SetCaretBlinkInterval(kBlinkInterval));
 
   prefs.caret_browsing_enabled = true;
+  prefs.caret_blink_interval = kBlinkInterval;
+  plugin_->OnRendererPreferencesUpdated(prefs);
+
+  EXPECT_CALL(*client_ptr_, PostMessage(Eq(std::ref(message))));
+  EXPECT_CALL(*engine_ptr_, SetCaretBrowsingEnabled(true));
+  EXPECT_CALL(*engine_ptr_, SetCaretBlinkInterval(base::TimeDelta()));
+
+  prefs.caret_blink_interval = base::TimeDelta();
   plugin_->OnRendererPreferencesUpdated(prefs);
 }
 
@@ -2944,6 +2959,17 @@ class PdfViewWebPluginInkTest
   }
 
  protected:
+  static constexpr gfx::PointF kDiagonalStrokeStartPosition{95.0f, 85.0f};
+  static constexpr gfx::PointF kDiagonalStrokeMiddlePosition{72.5f, 65.0f};
+  static constexpr gfx::PointF kDiagonalStrokeEndPosition{50.0f, 45.0f};
+
+  struct DiagonalStrokeEvents {
+    blink::WebTouchEvent start_event;
+    blink::WebTouchEvent move_event1;
+    blink::WebTouchEvent move_event2;
+    blink::WebTouchEvent end_event;
+  };
+
   bool UseTextAnnotations() const { return GetParam().use_text_annotations; }
   bool UseTextHighlighting() const { return GetParam().use_text_highlighting; }
 
@@ -2963,12 +2989,10 @@ class PdfViewWebPluginInkTest
     // Draw some trivial strokes.
     plugin_->OnMessage(
         CreateSetAnnotationModeMessageForTesting(InkAnnotationMode::kDraw));
-    TestSendInputEvent(
-        MouseEventBuilder().CreateLeftClickAtPosition({10, 10}).Build(),
-        blink::WebInputEventResult::kHandledApplication);
-    TestSendInputEvent(
-        MouseEventBuilder().CreateLeftMouseUpAtPosition({20, 20}).Build(),
-        blink::WebInputEventResult::kHandledApplication);
+    TestSendInputEvent(CreateLeftClickWebMouseEventAtPosition({10, 10}),
+                       blink::WebInputEventResult::kHandledApplication);
+    TestSendInputEvent(CreateLeftClickWebMouseUpEventAtPosition({20, 20}),
+                       blink::WebInputEventResult::kHandledApplication);
   }
 
   void SendThumbnail(std::string_view message_id, const gfx::SizeF& page_size) {
@@ -2994,9 +3018,11 @@ class PdfViewWebPluginInkTest
               ink_module_client->VisiblePageIndexFromPoint(point));
   }
 
-  void TestInProgressDraw(base::FilePath::StringViewType expected_filename,
-                          const gfx::PointF& start_position,
-                          const gfx::PointF& end_position) {
+  void TestInProgressDraw(
+      base::FilePath::StringViewType expected_filename,
+      const blink::WebInputEvent& down_event,
+      base::span<const blink::WebInputEvent* const> move_events,
+      const blink::WebInputEvent& up_event) {
     plugin_->set_in_paint_for_testing(true);
     constexpr gfx::Rect kScreenRect(kCanvasSize);
     constexpr gfx::SizeF kPageSizeInPoints(
@@ -3025,16 +3051,12 @@ class PdfViewWebPluginInkTest
     EXPECT_CALL(*engine_ptr_, ApplyStroke(_, _, _)).Times(0);
     // The final imaging for a stroke saved to a PDF should match what was final
     // drawn result when it was in-progress.
-    TestSendInputEvent(
-        MouseEventBuilder().CreateLeftClickAtPosition(start_position).Build(),
-        blink::WebInputEventResult::kHandledApplication);
-    TestSendInputEvent(
-        MouseEventBuilder()
-            .SetType(blink::WebInputEvent::Type::kMouseMove)
-            .SetPosition(end_position)
-            .SetButton(blink::WebPointerProperties::Button::kLeft)
-            .Build(),
-        blink::WebInputEventResult::kHandledApplication);
+    TestSendInputEvent(down_event,
+                       blink::WebInputEventResult::kHandledApplication);
+    for (const auto* move_event : move_events) {
+      TestSendInputEvent(*move_event,
+                         blink::WebInputEventResult::kHandledApplication);
+    }
 
     // Draw the canvas for the in-progress stroke.
     plugin_->Paint(canvas_.sk_canvas(), kScreenRect);
@@ -3048,9 +3070,8 @@ class PdfViewWebPluginInkTest
     // callback to be applied to a PDF page.
     testing::Mock::VerifyAndClearExpectations(engine_ptr_);
     EXPECT_CALL(*engine_ptr_, ApplyStroke(/*page_index=*/0, InkStrokeId(0), _));
-    TestSendInputEvent(
-        MouseEventBuilder().CreateLeftMouseUpAtPosition(end_position).Build(),
-        blink::WebInputEventResult::kHandledApplication);
+    TestSendInputEvent(up_event,
+                       blink::WebInputEventResult::kHandledApplication);
 
     // Updating of `PdfViewWebPlugin::snapshot_` does not happen automatically
     // on the invalidate call, but later after the tasks PaintManager posted
@@ -3075,6 +3096,47 @@ class PdfViewWebPluginInkTest
     EXPECT_TRUE(cc::MatchesBitmap(canvas_.GetBitmap(), blank_bitmap,
                                   cc::ExactPixelComparator()));
     EXPECT_FALSE(plugin_->HasInkInputsSnapshotForTesting());
+  }
+
+  // TODO(thestig): Deduplicate with CreateTouchEvent() code in other tests.
+  static blink::WebTouchEvent CreateTouchEvent(blink::WebInputEvent::Type type,
+                                               const gfx::PointF& point) {
+    constexpr int kNoModifiers = 0;
+    blink::WebTouchEvent touch_event(
+        type, kNoModifiers, blink::WebInputEvent::GetStaticTimeStampForTests());
+    touch_event.touches[0].SetPositionInWidget(point);
+    touch_event.touches_length = 1;
+    return touch_event;
+  }
+
+  static blink::WebTouchEvent CreatePenEvent(blink::WebInputEvent::Type type,
+                                             const gfx::PointF& point) {
+    blink::WebTouchEvent pen_event = CreateTouchEvent(type, point);
+    pen_event.touches[0].pointer_type =
+        blink::WebPointerProperties::PointerType::kPen;
+    return pen_event;
+  }
+
+  DiagonalStrokeEvents CreateInputsForDiagonalInProgressStrokeTest(
+      bool is_touch) {
+    auto create_func = is_touch ? &PdfViewWebPluginInkTest::CreateTouchEvent
+                                : &PdfViewWebPluginInkTest::CreatePenEvent;
+    DiagonalStrokeEvents events{
+        .start_event = create_func(blink::WebInputEvent::Type::kTouchStart,
+                                   kDiagonalStrokeStartPosition),
+        .move_event1 = create_func(blink::WebInputEvent::Type::kTouchMove,
+                                   kDiagonalStrokeMiddlePosition),
+        .move_event2 = create_func(blink::WebInputEvent::Type::kTouchMove,
+                                   kDiagonalStrokeEndPosition),
+        .end_event = create_func(blink::WebInputEvent::Type::kTouchEnd,
+                                 kDiagonalStrokeEndPosition)};
+    events.move_event1.SetTimeStamp(events.start_event.TimeStamp() +
+                                    base::Seconds(0.1f));
+    events.move_event2.SetTimeStamp(events.move_event1.TimeStamp() +
+                                    base::Seconds(0.5f));
+    events.end_event.SetTimeStamp(events.move_event2.TimeStamp() +
+                                  base::Seconds(0.1f));
+    return events;
   }
 
  private:
@@ -3443,10 +3505,73 @@ TEST_P(PdfViewWebPluginInkTest, AnnotationModeSetsFormAndClearsText) {
 TEST_P(PdfViewWebPluginInkTest, DrawInProgressStroke) {
   plugin_->OnMessage(
       CreateSetAnnotationModeMessageForTesting(InkAnnotationMode::kDraw));
+  blink::WebMouseEvent start_event =
+      CreateLeftClickWebMouseEventAtPosition(kDiagonalStrokeStartPosition);
+  blink::WebMouseEvent move_event =
+      CreateLeftClickWebMouseMoveEventAtPosition(kDiagonalStrokeEndPosition);
+  blink::WebMouseEvent end_event =
+      CreateLeftClickWebMouseUpEventAtPosition(kDiagonalStrokeEndPosition);
   TestInProgressDraw(
       /*expected_filename=*/FILE_PATH_LITERAL("diagonal_stroke.png"),
-      /*start_position=*/gfx::PointF(95, 85),
-      /*end_position=*/gfx::PointF(50, 45));
+      start_event, {&move_event}, end_event);
+}
+
+TEST_P(PdfViewWebPluginInkTest, DrawInProgressStrokeWithTouchWithoutPressure) {
+  plugin_->OnMessage(
+      CreateSetAnnotationModeMessageForTesting(InkAnnotationMode::kDraw));
+  DiagonalStrokeEvents events =
+      CreateInputsForDiagonalInProgressStrokeTest(/*is_touch=*/true);
+  TestInProgressDraw(
+      /*expected_filename=*/FILE_PATH_LITERAL(
+          "diagonal_stroke_pen_without_pressure.png"),
+      events.start_event, {&events.move_event1, &events.move_event2},
+      events.end_event);
+}
+
+TEST_P(PdfViewWebPluginInkTest,
+       DrawInProgressStrokeWithTouchWithIgnoredPressure) {
+  plugin_->OnMessage(
+      CreateSetAnnotationModeMessageForTesting(InkAnnotationMode::kDraw));
+  DiagonalStrokeEvents events =
+      CreateInputsForDiagonalInProgressStrokeTest(/*is_touch=*/true);
+  events.start_event.touches[0].force = 0.1f;
+  events.move_event1.touches[0].force = 1.0f;
+  events.move_event2.touches[0].force = 1.0f;
+  events.end_event.touches[0].force = 0.1f;
+  TestInProgressDraw(
+      /*expected_filename=*/FILE_PATH_LITERAL(
+          "diagonal_stroke_pen_without_pressure.png"),
+      events.start_event, {&events.move_event1, &events.move_event2},
+      events.end_event);
+}
+
+TEST_P(PdfViewWebPluginInkTest, DrawInProgressStrokeWithPenWithoutPressure) {
+  plugin_->OnMessage(
+      CreateSetAnnotationModeMessageForTesting(InkAnnotationMode::kDraw));
+  DiagonalStrokeEvents events =
+      CreateInputsForDiagonalInProgressStrokeTest(/*is_touch=*/false);
+  TestInProgressDraw(
+      /*expected_filename=*/FILE_PATH_LITERAL(
+          "diagonal_stroke_pen_without_pressure.png"),
+      events.start_event, {&events.move_event1, &events.move_event2},
+      events.end_event);
+}
+
+TEST_P(PdfViewWebPluginInkTest, DrawInProgressStrokeWithPenWithPressure) {
+  plugin_->OnMessage(
+      CreateSetAnnotationModeMessageForTesting(InkAnnotationMode::kDraw));
+  DiagonalStrokeEvents events =
+      CreateInputsForDiagonalInProgressStrokeTest(/*is_touch=*/false);
+  events.start_event.touches[0].force = 0.1f;
+  events.move_event1.touches[0].force = 1.0f;
+  events.move_event2.touches[0].force = 1.0f;
+  events.end_event.touches[0].force = 0.1f;
+
+  TestInProgressDraw(
+      /*expected_filename=*/FILE_PATH_LITERAL(
+          "diagonal_stroke_pen_with_pressure.png"),
+      events.start_event, {&events.move_event1, &events.move_event2},
+      events.end_event);
 }
 
 class PdfViewWebPluginInkTextHighlightTest : public PdfViewWebPluginInkTest {
@@ -3490,15 +3615,11 @@ TEST_P(PdfViewWebPluginInkTextHighlightTest, SelectionDoesNotChange) {
       "highlighter", &kLightGreenBrushParams));
 
   SetUpMouseDownMoveTextTestExpectations();
-  TestSendInputEvent(
-      MouseEventBuilder().CreateLeftClickAtPosition(kStartTextPosition).Build(),
-      blink::WebInputEventResult::kHandledApplication);
-  TestSendInputEvent(MouseEventBuilder()
-                         .SetType(blink::WebInputEvent::Type::kMouseMove)
-                         .SetPosition(kEndTextPosition)
-                         .SetButton(blink::WebPointerProperties::Button::kLeft)
-                         .Build(),
+  TestSendInputEvent(CreateLeftClickWebMouseEventAtPosition(kStartTextPosition),
                      blink::WebInputEventResult::kHandledApplication);
+  TestSendInputEvent(
+      CreateLeftClickWebMouseMoveEventAtPosition(kEndTextPosition),
+      blink::WebInputEventResult::kHandledApplication);
 
   EXPECT_CALL(*client_ptr_, TextSelectionChanged(_, _, _)).Times(0);
 
@@ -3519,10 +3640,17 @@ TEST_P(PdfViewWebPluginInkTextHighlightTest, DrawInProgressTextHighlight) {
 
   SetUpMouseDownMoveTextTestExpectations();
 
+  static constexpr gfx::PointF kStartPosition{55.0f, 60.0f};
+  static constexpr gfx::PointF kEndPosition{75.0f, 65.0f};
+  blink::WebMouseEvent start_event =
+      CreateLeftClickWebMouseEventAtPosition(kStartPosition);
+  blink::WebMouseEvent move_event =
+      CreateLeftClickWebMouseMoveEventAtPosition(kEndPosition);
+  blink::WebMouseEvent end_event =
+      CreateLeftClickWebMouseUpEventAtPosition(kEndPosition);
   TestInProgressDraw(
       /*expected_filename=*/FILE_PATH_LITERAL("text_highlight_stroke.png"),
-      /*start_position=*/gfx::PointF(55.0f, 60.0f),
-      /*end_position=*/gfx::PointF(75.0f, 65.0f));
+      start_event, {&move_event}, end_event);
 }
 
 class PdfViewWebPluginInk2SaveTest : public PdfViewWebPluginSaveTest {

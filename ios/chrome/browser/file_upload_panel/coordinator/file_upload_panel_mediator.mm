@@ -9,14 +9,20 @@
 
 #import "base/apple/foundation_util.h"
 #import "base/check.h"
+#import "base/files/file.h"
 #import "base/files/file_path.h"
 #import "base/files/file_util.h"
+#import "base/functional/callback_helpers.h"
+#import "base/ios/block_types.h"
+#import "base/location.h"
 #import "base/metrics/histogram_functions.h"
 #import "base/scoped_observation.h"
 #import "base/strings/string_util.h"
 #import "base/strings/sys_string_conversions.h"
 #import "base/task/thread_pool.h"
 #import "base/uuid.h"
+#import "ios/chrome/browser/file_upload_panel/coordinator/file_upload_panel_media_item.h"
+#import "ios/chrome/browser/file_upload_panel/coordinator/file_upload_panel_picker_result_loader.h"
 #import "ios/chrome/browser/shared/public/commands/file_upload_panel_commands.h"
 #import "ios/chrome/browser/web/model/choose_file/choose_file_controller.h"
 #import "ios/chrome/browser/web/model/choose_file/choose_file_controller_observer_bridge.h"
@@ -59,19 +65,6 @@ NSSet<NSString*>* MediaTypeIdentifiersForMIMETypes(
   return type_identifiers;
 }
 
-// Returns whether `type_identifiers` contains a type conforming to
-// `target_type`.
-BOOL SetContainsTypeThatConformsToTarget(NSSet<NSString*>* type_identifiers,
-                                         UTType* target_type) {
-  for (NSString* type_identifier in type_identifiers) {
-    UTType* type = [UTType typeWithIdentifier:type_identifier];
-    if ([type conformsToType:target_type]) {
-      return YES;
-    }
-  }
-  return NO;
-}
-
 // Returns all media types available for the camera for which at least one
 // element in `accepted_types` conforms to that type. If `accepted_types` is
 // empty then returns all media types available for the camera.
@@ -92,7 +85,7 @@ NSArray<NSString*>* CameraTypesAcceptedBySet(NSSet<NSString*>* accepted_types) {
         // conforms to it.
         UTType* camera_type =
             [UTType typeWithIdentifier:camera_type_identifier];
-        if (SetContainsTypeThatConformsToTarget(accepted_types, camera_type)) {
+        if (FindTypeConformingToTarget(accepted_types, camera_type)) {
           [accepted_camera_types addObject:camera_type_identifier];
         }
       }
@@ -115,20 +108,13 @@ std::optional<base::FilePath> WriteImageToTemporaryLocationForTab(
   if (!jpeg_representation) {
     return std::nullopt;
   }
-  std::optional<base::FilePath> web_state_directory =
-      GetTabChooseFileDirectory(web_state_id);
-  if (!web_state_directory) {
-    return std::nullopt;
-  }
-  const std::string image_parent_directory_name =
-      base::Uuid::GenerateRandomV4().AsLowercaseString();
-  const base::FilePath image_parent_directory =
-      web_state_directory->Append(base::FilePath(image_parent_directory_name));
-  if (!CreateDirectory(image_parent_directory)) {
+  std::optional<base::FilePath> directory =
+      CreateTabChooseFileSubdirectory(web_state_id);
+  if (!directory) {
     return std::nullopt;
   }
   const base::FilePath image_file_path =
-      image_parent_directory.Append(kCameraImageFileName);
+      directory->Append(kCameraImageFileName);
   if (base::WriteFile(image_file_path,
                       base::apple::NSDataToSpan(jpeg_representation))) {
     return image_file_path;
@@ -151,6 +137,9 @@ std::optional<base::FilePath> WriteImageToTemporaryLocationForTab(
   ChooseFileCaptureType _eventCaptureType;
   NSSet<NSString*>* _acceptedMediaTypes;
   NSArray<NSString*>* _acceptedMediaTypesAvailableForCamera;
+  NSArray<UTType*>* _acceptedDocumentTypes;
+  web::WebStateID _webStateID;
+  std::unique_ptr<FileUploadPanelPickerResultLoader> _pickerResultLoader;
 }
 
 #pragma mark - Initialization
@@ -167,6 +156,8 @@ std::optional<base::FilePath> WriteImageToTemporaryLocationForTab(
         _chooseFileControllerObserverBridge.get());
     _chooseFileControllerObservation->Observe(controller);
     _eventCaptureType = _chooseFileController->GetChooseFileEvent().capture;
+    _webStateID = _chooseFileController->GetChooseFileEvent()
+                      .web_state->GetUniqueIdentifier();
   }
   return self;
 }
@@ -202,6 +193,34 @@ std::optional<base::FilePath> WriteImageToTemporaryLocationForTab(
   return _acceptedMediaTypes;
 }
 
+- (NSArray<UTType*>*)acceptedDocumentTypes {
+  if (!_acceptedDocumentTypes) {
+    if (self.allowsDirectorySelection) {
+      // If the input allows directory selection, then folders should be the
+      // only accepted document type.
+      _acceptedDocumentTypes = @[ UTTypeFolder ];
+    } else if (self.acceptedMediaTypes.count == 0) {
+      // If the list of accepted media types is empty, then any document type
+      // can be selected.
+      _acceptedDocumentTypes = @[ UTTypeItem ];
+    } else {
+      // If directories cannot be selected and the list of accepted media types
+      // is not empty, then the accepted document types are the accepted media
+      // types.
+      NSMutableArray<UTType*>* acceptedDocumentTypes = [NSMutableArray array];
+      for (NSString* acceptedMediaTypeIdentifier in self.acceptedMediaTypes) {
+        UTType* acceptedMediaType =
+            [UTType typeWithIdentifier:acceptedMediaTypeIdentifier];
+        if (acceptedMediaType) {
+          [acceptedDocumentTypes addObject:acceptedMediaType];
+        }
+      }
+      _acceptedDocumentTypes = acceptedDocumentTypes;
+    }
+  }
+  return _acceptedDocumentTypes;
+}
+
 - (NSArray<NSString*>*)acceptedMediaTypesAvailableForCamera {
   if (!_acceptedMediaTypesAvailableForCamera) {
     _acceptedMediaTypesAvailableForCamera =
@@ -227,14 +246,12 @@ std::optional<base::FilePath> WriteImageToTemporaryLocationForTab(
 
 - (BOOL)allowsImageSelection {
   return self.acceptedMediaTypes.count == 0 ||
-         SetContainsTypeThatConformsToTarget(self.acceptedMediaTypes,
-                                             UTTypeImage);
+         FindTypeConformingToTarget(self.acceptedMediaTypes, UTTypeImage);
 }
 
 - (BOOL)allowsVideoSelection {
   return self.acceptedMediaTypes.count == 0 ||
-         SetContainsTypeThatConformsToTarget(self.acceptedMediaTypes,
-                                             UTTypeMovie);
+         FindTypeConformingToTarget(self.acceptedMediaTypes, UTTypeMovie);
 }
 
 - (BOOL)allowsMediaSelection {
@@ -243,6 +260,10 @@ std::optional<base::FilePath> WriteImageToTemporaryLocationForTab(
 
 - (BOOL)allowsDirectorySelection {
   return self.event.only_allow_directory;
+}
+
+- (BOOL)allowsMultipleSelection {
+  return self.event.allow_multiple_files;
 }
 
 #pragma mark - Public
@@ -284,19 +305,18 @@ std::optional<base::FilePath> WriteImageToTemporaryLocationForTab(
   CHECK_NE(nil, image)
       << "FileUploadPanelMediator: Image should have image data.";
 
-  web::WebState* webState = self.event.web_state.get();
-  if (!webState) {
-    [self cancelFileSelection];
-    return;
-  }
-  web::WebStateID webStateID = webState->GetUniqueIdentifier();
   __weak __typeof(self) weakSelf = self;
   base::ThreadPool::PostTaskAndReplyWithResult(
       FROM_HERE, {base::MayBlock(), base::TaskPriority::USER_VISIBLE},
-      base::BindOnce(WriteImageToTemporaryLocationForTab, image, webStateID),
+      base::BindOnce(WriteImageToTemporaryLocationForTab, image, _webStateID),
       base::BindOnce(^(std::optional<base::FilePath> imageFilePath) {
         [weakSelf submitFileSelectionWithImageFilePath:imageFilePath];
       }));
+}
+
+- (void)submitFileSelectionWithPickerResults:
+    (NSArray<PHPickerResult*>*)results {
+  [self loadAndTranscodeAndSubmitPickerResults:results];
 }
 
 - (void)submitFileSelection:(NSArray<NSURL*>*)fileURLs {
@@ -315,6 +335,7 @@ std::optional<base::FilePath> WriteImageToTemporaryLocationForTab(
   // If the controller still exists when the UI is being disconnect, cancel the
   // selection.
   [self cancelFileSelection];
+  _pickerResultLoader.reset();
 }
 
 #pragma mark - ChooseFileControllerObserving
@@ -345,6 +366,30 @@ std::optional<base::FilePath> WriteImageToTemporaryLocationForTab(
   } else {
     [self cancelFileSelection];
   }
+}
+
+// Asynchronously loads, transcodes and submits picker results.
+- (void)loadAndTranscodeAndSubmitPickerResults:
+    (NSArray<PHPickerResult*>*)results {
+  __weak __typeof(self) weakSelf = self;
+  _pickerResultLoader =
+      std::make_unique<FileUploadPanelPickerResultLoader>(results, _webStateID);
+  _pickerResultLoader->Load(
+      base::BindOnce(^(NSArray<FileUploadPanelMediaItem*>* loadedItems) {
+        [weakSelf handlePickerResultLoaderOutput:loadedItems];
+      }));
+}
+
+// Submits the file selection for a list of transcoded items, if any.
+// Cancels file selection if `loadedItems` is nil.
+- (void)handlePickerResultLoaderOutput:
+    (NSArray<FileUploadPanelMediaItem*>*)loadedItems {
+  const auto loader = std::move(_pickerResultLoader);
+  if (!loadedItems) {
+    [self cancelFileSelection];
+    return;
+  }
+  // TODO(crbug.com/441659098): Transcode and submit media items.
 }
 
 @end

@@ -1534,6 +1534,10 @@ TabDragController::DetachIntoNewBrowserAndRunMoveLoop(
 #endif
 
 #if BUILDFLAG(IS_CHROMEOS)
+  dragged_widget->GetNativeWindow()->SetProperty(
+      ash::kTabDraggingSourceWindowKey,
+      attached_context_->GetWidget()->GetNativeWindow());
+
   // On ChromeOS, Detach should release capture; `can_release_capture_` is
   // false on ChromeOS because it can cancel touches, but for this cases
   // the touches are already transferred, so releasing is fine. Without
@@ -1782,6 +1786,8 @@ void TabDragController::EndDragImpl(EndDragType type) {
 void TabDragController::RevertDrag() {
   CHECK(attached_context_);
   CHECK(source_context_);
+
+  dragging_tabs_session_ = nullptr;
 
   // If we're dragging a saved tab group, suspend tracking during the revert.
   // Otherwise, the group will get emptied out as we revert all the tabs.

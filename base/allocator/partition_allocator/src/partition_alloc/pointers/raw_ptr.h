@@ -21,7 +21,6 @@
 #include "partition_alloc/partition_alloc_base/augmentations/compiler_specific.h"
 #include "partition_alloc/partition_alloc_base/compiler_specific.h"
 #include "partition_alloc/partition_alloc_base/component_export.h"
-#include "partition_alloc/partition_alloc_base/cxx20_is_constant_evaluated.h"
 #include "partition_alloc/partition_alloc_base/types/same_as_any.h"
 #include "partition_alloc/partition_alloc_config.h"
 #include "partition_alloc/partition_alloc_forward.h"
@@ -128,11 +127,6 @@ enum class RawPtrTraits : unsigned {
   // Don't use directly, use AllowPtrArithmetic instead.
   kAllowPtrArithmetic = (1 << 3),
 
-  // This pointer has BRP disabled for experimental rewrites of containers.
-  //
-  // Don't use directly.
-  kDisableBRP = (1 << 4),
-
   // Uninitialized pointers are discouraged and disabled by default.
   //
   // Don't use directly, use AllowUninitialized instead.
@@ -153,7 +147,7 @@ enum class RawPtrTraits : unsigned {
   // Test only.
   kDummyForTest = (1 << 11),
 
-  kAllMask = kMayDangle | kDisableHooks | kAllowPtrArithmetic | kDisableBRP |
+  kAllMask = kMayDangle | kDisableHooks | kAllowPtrArithmetic |
              kAllowUninitialized | kUseCountingImplForTest | kDummyForTest,
 };
 // Template specialization to use |PA_DEFINE_OPERATORS_FOR_FLAGS| without
@@ -246,10 +240,7 @@ template <RawPtrTraits Traits>
 using UnderlyingImplForTraits = internal::RawPtrBackupRefImpl<
     /*AllowDangling=*/partition_alloc::internal::ContainsFlags(
         Traits,
-        RawPtrTraits::kMayDangle),
-    /*DisableBRP=*/partition_alloc::internal::ContainsFlags(
-        Traits,
-        RawPtrTraits::kDisableBRP)>;
+        RawPtrTraits::kMayDangle)>;
 
 #elif PA_BUILDFLAG(USE_RAW_PTR_ASAN_UNOWNED_IMPL)
 template <RawPtrTraits Traits>

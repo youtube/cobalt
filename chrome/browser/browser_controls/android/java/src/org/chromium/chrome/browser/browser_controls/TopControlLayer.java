@@ -52,6 +52,13 @@ public interface TopControlLayer {
     default void onTopControlLayerHeightChanged(int topControlsHeight, int topControlsMinHeight) {}
 
     /**
+     * Called when Android controls visibility is changed.
+     *
+     * @see BrowserControlsStateProvider.Observer#onAndroidControlsVisibilityChanged(int)
+     */
+    default void onAndroidControlsVisibilityChanged(int visibility) {}
+
+    /**
      * Interface method to receive OffsetTag updates. Unlike bottom controls, top controls does not
      * have layers that has additional height that draws beyond its allocated height.
      *
@@ -121,4 +128,16 @@ public interface TopControlLayer {
      *     or hidden. This is used when layer is showing / hiding, so it can change its visibility.
      */
     default void onBrowserControlsOffsetUpdate(int layerYOffset, boolean reachRestingPosition) {}
+
+    /**
+     * Interface method to dispatch a signal that the browser controls is expecting an animated
+     * height update. This is dispatched in the same loop when a layer has updated their height, and
+     * before any {@link #onBrowserControlsOffsetUpdate} is called.
+     *
+     * <p>This is useful for an layer that need to respond to animation e.g. by removing the offset
+     * tags from the scene layer.
+     *
+     * @param latestYOffset The last Y offset of the current layer known by the stacker.
+     */
+    default void prepForHeightAdjustmentAnimation(int latestYOffset) {}
 }

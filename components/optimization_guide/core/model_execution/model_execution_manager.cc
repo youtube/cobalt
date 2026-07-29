@@ -17,7 +17,7 @@
 #include "components/optimization_guide/core/delivery/optimization_guide_model_provider.h"
 #include "components/optimization_guide/core/model_execution/feature_keys.h"
 #include "components/optimization_guide/core/model_execution/model_execution_features.h"
-#include "components/optimization_guide/core/model_execution/model_execution_fetcher.h"
+#include "components/optimization_guide/core/model_execution/model_execution_fetcher_impl.h"
 #include "components/optimization_guide/core/model_execution/model_execution_util.h"
 #include "components/optimization_guide/core/model_execution/on_device_model_adaptation_loader.h"
 #include "components/optimization_guide/core/model_execution/on_device_model_metadata.h"
@@ -91,22 +91,13 @@ size_t GetMaxParallelFeatureExecutions(ModelBasedCapabilityKey feature) {
     case ModelBasedCapabilityKey::kTabOrganization:
     case ModelBasedCapabilityKey::kWallpaperSearch:
     case ModelBasedCapabilityKey::kTest:
-    case ModelBasedCapabilityKey::kTextSafety:
-    case ModelBasedCapabilityKey::kPromptApi:
     case ModelBasedCapabilityKey::kHistorySearch:
-    case ModelBasedCapabilityKey::kSummarize:
-    case ModelBasedCapabilityKey::kHistoryQueryIntent:
     case ModelBasedCapabilityKey::kBlingPrototyping:
     case ModelBasedCapabilityKey::kPasswordChangeSubmission:
-    case ModelBasedCapabilityKey::kScamDetection:
-    case ModelBasedCapabilityKey::kPermissionsAi:
-    case ModelBasedCapabilityKey::kProofreaderApi:
-    case ModelBasedCapabilityKey::kWritingAssistanceApi:
     case ModelBasedCapabilityKey::kEnhancedCalendar:
     case ModelBasedCapabilityKey::kZeroStateSuggestions:
     case ModelBasedCapabilityKey::kWalletablePassExtraction:
     case ModelBasedCapabilityKey::kAmountExtraction:
-    case ModelBasedCapabilityKey::kOnDeviceSpeechRecognition:
     case ModelBasedCapabilityKey::kIosSmartTabGrouping:
       return 1;
     case ModelBasedCapabilityKey::kFormsClassifications:
@@ -124,6 +115,7 @@ using ModelExecutionError =
 ModelExecutionManager::ModelExecutionManager(
     scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
     signin::IdentityManager* identity_manager,
+    std::unique_ptr<Delegate> delegate,
     OptimizationGuideLogger* optimization_guide_logger,
     base::WeakPtr<ModelQualityLogsUploaderService>
         model_quality_uploader_service)
@@ -133,6 +125,7 @@ ModelExecutionManager::ModelExecutionManager(
           switches::GetModelExecutionServiceURL(),
           "key",
           features::GetOptimizationGuideServiceAPIKey())),
+      delegate_(std::move(delegate)),
       url_loader_factory_(url_loader_factory),
       identity_manager_(identity_manager) {}
 
@@ -158,6 +151,7 @@ void ModelExecutionManager::ExecuteModel(
     const google::protobuf::MessageLite& request_metadata,
     std::optional<base::TimeDelta> timeout,
     std::unique_ptr<proto::LogAiDataRequest> log_ai_data_request,
+    ModelExecutionServiceType service_type,
     OptimizationGuideModelExecutionResultCallback callback) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
@@ -215,15 +209,32 @@ void ModelExecutionManager::ExecuteModel(
     fetchers_for_feature.erase(fetchers_for_feature.begin());
   }
   FetcherId fetcher_id = next_model_execution_fetcher_id++;
+  // Currently only ZSS is supported by legion. Update or remove this CHECK when
+  // other features are supported too.
+  CHECK(service_type != ModelExecutionServiceType::kLegion ||
+        feature == ModelBasedCapabilityKey::kZeroStateSuggestions)
+      << feature;
   auto fetcher_it = fetchers_for_feature.emplace(
-      std::piecewise_construct, std::forward_as_tuple(fetcher_id),
-      std::forward_as_tuple(url_loader_factory_, model_execution_service_url_,
-                            optimization_guide_logger_));
-  fetcher_it.first->second.ExecuteModel(
+      fetcher_id, CreateModelExecutionFetcher(service_type));
+  fetcher_it.first->second->ExecuteModel(
       feature, identity_manager_, request_metadata, timeout,
       base::BindOnce(&ModelExecutionManager::OnModelExecuteResponse,
                      weak_ptr_factory_.GetWeakPtr(), feature, fetcher_id,
                      std::move(log_ai_data_request), std::move(callback)));
+}
+
+std::unique_ptr<ModelExecutionFetcher>
+ModelExecutionManager::CreateModelExecutionFetcher(
+    ModelExecutionServiceType service_type) {
+  switch (service_type) {
+    case ModelExecutionServiceType::kDefault:
+      return std::make_unique<ModelExecutionFetcherImpl>(
+          url_loader_factory_, model_execution_service_url_,
+          optimization_guide_logger_);
+    case ModelExecutionServiceType::kLegion:
+      CHECK(delegate_);
+      return delegate_->CreateLegionFetcher();
+  }
 }
 
 void ModelExecutionManager::OnModelExecuteResponse(

@@ -2,11 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
-#pragma allow_unsafe_buffers
-#endif
-
 #include "chrome/app/chrome_main_delegate.h"
 
 #include <stddef.h>
@@ -17,6 +12,7 @@
 #include "base/base_paths.h"
 #include "base/check.h"
 #include "base/command_line.h"
+#include "base/compiler_specific.h"
 #include "base/cpu.h"
 #include "base/dcheck_is_on.h"
 #include "base/features.h"
@@ -40,7 +36,6 @@
 #include "base/threading/hang_watcher.h"
 #include "base/time/time.h"
 #include "base/timer/timer.h"
-#include "base/trace_event/trace_event_impl.h"
 #include "build/build_config.h"
 #include "chrome/browser/buildflags.h"
 #include "chrome/browser/chrome_content_browser_client.h"
@@ -367,15 +362,16 @@ bool HandleCreditsSwitch(const base::CommandLine& command_line) {
 bool HandleVersionSwitches(const base::CommandLine& command_line) {
 #if !BUILDFLAG(IS_MAC)
   if (command_line.HasSwitch(switches::kProductVersion)) {
-    printf("%s\n", version_info::GetVersionNumber().data());
+    UNSAFE_TODO(printf("%s\n", version_info::GetVersionNumber().data()));
     return true;
   }
 #endif
 
   if (command_line.HasSwitch(switches::kVersion)) {
-    printf("%s %s %s\n", version_info::GetProductName().data(),
-           version_info::GetVersionNumber().data(),
-           chrome::GetChannelName(chrome::WithExtendedStable(true)).c_str());
+    UNSAFE_TODO(printf(
+        "%s %s %s\n", version_info::GetProductName().data(),
+        version_info::GetVersionNumber().data(),
+        chrome::GetChannelName(chrome::WithExtendedStable(true)).c_str()));
     return true;
   }
 
@@ -398,7 +394,7 @@ void HandleHelpSwitches(const base::CommandLine& command_line) {
 void SIGTERMProfilingShutdown(int signal) {
   content::Profiling::Stop();
   struct sigaction sigact;
-  memset(&sigact, 0, sizeof(sigact));
+  UNSAFE_TODO(memset(&sigact, 0, sizeof(sigact)));
   sigact.sa_handler = SIG_DFL;
   CHECK_EQ(sigaction(SIGTERM, &sigact, nullptr), 0);
   raise(signal);
@@ -1519,8 +1515,10 @@ std::variant<int, content::MainFunctionParams> ChromeMainDelegate::RunProcess(
   };
 
   for (size_t i = 0; i < std::size(kMainFunctions); ++i) {
-    if (process_type == kMainFunctions[i].name)
-      return kMainFunctions[i].function(std::move(main_function_params));
+    if (process_type == UNSAFE_TODO(kMainFunctions[i]).name) {
+      return UNSAFE_TODO(kMainFunctions[i])
+          .function(std::move(main_function_params));
+    }
   }
 #endif  // BUILDFLAG(IS_MAC)
 
@@ -1641,12 +1639,6 @@ std::optional<int> ChromeMainDelegate::PreBrowserMain() {
 
   // Initialize NSApplication using the custom subclass.
   chrome_browser_application_mac::RegisterBrowserCrApp();
-
-  // Perform additional initialization when running in headless mode: hide
-  // dock icon and menu bar.
-  if (headless::IsHeadlessMode()) {
-    chrome_browser_application_mac::InitializeHeadlessMode();
-  }
 
   if (l10n_util::GetLocaleOverride().empty()) {
     // The browser process only wants to support the language Cocoa will use,

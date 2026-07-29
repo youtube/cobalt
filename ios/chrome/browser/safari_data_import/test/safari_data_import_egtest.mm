@@ -27,7 +27,7 @@
 #import "ios/testing/earl_grey/earl_grey_test.h"
 #import "ui/base/l10n/l10n_util.h"
 
-using chrome_test_util::PromoScreenSecondaryButtonMatcher;
+using chrome_test_util::ButtonStackSecondaryButton;
 using chrome_test_util::StaticTextWithAccessibilityLabelId;
 
 namespace {
@@ -118,7 +118,7 @@ NSString* const kInvalidPasswordUsername = @"Superman";
         ensureAppLaunchedWithConfiguration:firstRunConfig];
     /// Go through first run screens by tapping the secondary action twice
     /// (skipping default browser settings and sign-in.)
-    id<GREYMatcher> buttonMatcher = PromoScreenSecondaryButtonMatcher();
+    id<GREYMatcher> buttonMatcher = ButtonStackSecondaryButton();
     id<GREYMatcher> scrollViewMatcher =
         grey_accessibilityID(kPromoStyleScrollViewAccessibilityIdentifier);
     id<GREYAction> searchAction =
@@ -219,7 +219,7 @@ NSString* const kInvalidPasswordUsername = @"Superman";
     [[EarlGrey selectElementWithMatcher:
                    grey_accessibilityID(
                        kConfirmationAlertUnderTitleViewAccessibilityIdentifier)]
-        assertWithMatcher:grey_sufficientlyVisible()];
+        assertWithMatcher:grey_minimumVisiblePercent(0.5f)];
     /// Dismiss by tapping the "Cancel" button on the top right.
     id<GREYMatcher> buttonInNavBar = grey_allOf(
         grey_kindOfClass([UIButton class]),

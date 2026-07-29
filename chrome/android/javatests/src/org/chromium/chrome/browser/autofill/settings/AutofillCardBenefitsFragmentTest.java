@@ -141,6 +141,7 @@ public class AutofillCardBenefitsFragmentTest {
     // Test to verify that the Preference screen is displayed and its title is visible as expected.
     @Test
     @MediumTest
+    @DisableFeatures(ChromeFeatureList.SETTINGS_MULTI_COLUMN)
     public void testCardBenefitsPreferenceScreen_shownWithTitle() throws Exception {
         SettingsActivity activity = mSettingsActivityTestRule.startSettingsActivity();
 
@@ -289,6 +290,8 @@ public class AutofillCardBenefitsFragmentTest {
     // text for issuer terms, and card icon.
     @Test
     @MediumTest
+    // TODO(crbug.com/433576895): Re-enable containment feature once the test is fixed.
+    @DisableFeatures(ChromeFeatureList.ANDROID_SETTINGS_CONTAINMENT)
     public void testCardBenefitsPreferenceScreen_displayNetworkAndTerm() throws Exception {
         mAutofillTestHelper.addServerCreditCard(SAMPLE_CARD_AMERICAN_EXPRESS_WITH_BENEFIT);
 

@@ -344,26 +344,16 @@ const NSUInteger kSearchCharacterLimit = 1000;
 
 - (void)executeInAppWithCommand:(AppGroupCommand*)command
                          gaiaID:(NSString*)gaiaID {
-  if (app_group::MultiProfileShareExtensionEnabled()) {
-    [command executeInAppWithGaiaID:gaiaID];
-  } else {
-    [command executeInApp];
-  }
+  [command executeInAppWithGaiaID:gaiaID];
 }
 
 - (void)loadAvailableAccounts {
-  if (!app_group::MultiProfileShareExtensionEnabled()) {
-    return;
-  }
   NSUserDefaults* sharedDefaults = app_group::GetGroupUserDefaults();
   NSString* primaryAccount =
       [sharedDefaults stringForKey:app_group::kPrimaryAccount];
   NSDictionary* accounts = base::apple::ObjCCast<NSDictionary>(
       [sharedDefaults dictionaryForKey:app_group::kAccountsOnDevice]);
 
-  if (!accounts) {
-    return;
-  }
   NSURL* avatarsFolderPath = app_group::WidgetsAvatarFolder();
 
   NSMutableArray* loadedAccounts = [[NSMutableArray alloc] init];
@@ -386,7 +376,7 @@ const NSUInteger kSearchCharacterLimit = 1000;
     }
   }
 
-  if (!primaryAccount || ![primaryAccount length]) {
+  if (!self.shareSheet.selectedAccountInfo) {
     AccountInfo* accountInfo = [[AccountInfo alloc] init];
     accountInfo.gaiaIDString = app_group::kNoAccount;
     self.shareSheet.selectedAccountInfo = accountInfo;
@@ -749,7 +739,6 @@ const NSUInteger kSearchCharacterLimit = 1000;
                     action:(app_group::ShareExtensionItemType)actionType
                     cancel:(BOOL)cancel
                 completion:(ProceduralBlock)completion {
-  CHECK(app_group::MultiProfileShareExtensionEnabled());
   CHECK(gaiaID && [gaiaID length]);
   NSURL* readingListURL = app_group::ExternalCommandsItemsFolder();
   if (![[NSFileManager defaultManager]
@@ -916,7 +905,7 @@ const NSUInteger kSearchCharacterLimit = 1000;
 - (void)handleAddingToBookmarkWithGaiaID:(NSString*)gaiaID {
   self.shareSheet.dismissedFromSheetAction = YES;
   __weak ExtendedShareViewController* weakSelf = self;
-  if (app_group::MultiProfileShareExtensionEnabled()) {
+  if (gaiaID && gaiaID.length) {
     [self queueActionItemURL:_shareURL
                        title:_shareTitle
                       gaiaID:gaiaID
@@ -941,7 +930,7 @@ const NSUInteger kSearchCharacterLimit = 1000;
 - (void)handleAddingToReadingListWithGaiaID:(NSString*)gaiaID {
   self.shareSheet.dismissedFromSheetAction = YES;
   __weak ExtendedShareViewController* weakSelf = self;
-  if (app_group::MultiProfileShareExtensionEnabled()) {
+  if (gaiaID && gaiaID.length) {
     [self queueActionItemURL:_shareURL
                        title:_shareTitle
                       gaiaID:gaiaID

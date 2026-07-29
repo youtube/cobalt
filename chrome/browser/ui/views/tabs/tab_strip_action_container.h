@@ -45,7 +45,7 @@ class TabStripActionContainer : public views::View,
  public:
   class TabStripNudgeAnimationSession {
    public:
-    enum class AnimationSessionType { SHOW, HIDE };
+    enum class AnimationSessionType { kShow, kHide };
 
     TabStripNudgeAnimationSession(TabStripNudgeButton* button,
                                   TabStripActionContainer* container,
@@ -141,7 +141,6 @@ class TabStripActionContainer : public views::View,
 
   // GlicButtonControllerDelegate:
   void SetGlicShowState(bool show) override;
-  void SetGlicDetached(bool detached) override;
   void SetGlicPanelIsOpen(bool open) override;
 
   // UI Controls for the GlicActorTaskIcon:
@@ -150,6 +149,7 @@ class TabStripActionContainer : public views::View,
   bool GetIsShowingGlicActorTaskIconNudge();
 #if BUILDFLAG(ENABLE_GLIC)
   void TriggerGlicActorNudge(const std::u16string nudge_text);
+  void ShowGlicActorNudge(const std::u16string nudge_text);
 #endif
 
   // UI controls for updating buttons based on the floaty view state:

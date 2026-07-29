@@ -6,8 +6,9 @@
 
 #include "base/barrier_closure.h"
 #include "base/check.h"
+#include "base/feature_list.h"
 #include "base/functional/bind.h"
-#include "base/functional/callback_forward.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/single_thread_task_runner.h"
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service_factory.h"
@@ -19,6 +20,7 @@
 #include "components/optimization_guide/core/model_quality/model_execution_logging_wrappers.h"
 #include "components/optimization_guide/proto/features/password_change_submission.pb.h"
 #include "components/password_manager/core/browser/browser_save_password_progress_logger.h"
+#include "components/password_manager/core/browser/features/password_features.h"
 #include "components/password_manager/core/browser/password_form_manager.h"
 #include "components/password_manager/core/browser/password_manager_client.h"
 #include "content/public/browser/web_contents.h"
@@ -36,9 +38,14 @@ blink::mojom::AIPageContentOptionsPtr GetAIPageContentOptions() {
   // WebContents where password change is happening is hidden, and renderer
   // won't capture a snapshot unless it becomes visible again or
   // on_critical_path is set to true.
-  auto options = optimization_guide::DefaultAIPageContentOptions(
+  if (base::FeatureList::IsEnabled(
+          password_manager::features::
+              kUseActionablesForImprovedPasswordChange)) {
+    return optimization_guide::ActionableAIPageContentOptions(
+        /*on_critical_path =*/true);
+  }
+  return optimization_guide::DefaultAIPageContentOptions(
       /*on_critical_path =*/true);
-  return options;
 }
 
 std::unique_ptr<Logger> GetLoggerIfAvailable(
@@ -55,6 +62,19 @@ std::unique_ptr<Logger> GetLoggerIfAvailable(
   return nullptr;
 }
 
+password_manager::PasswordFormManager* LogPasswordFormDetectedMetric(
+    base::Time time_of_creation,
+    password_manager::PasswordFormManager* form_manager) {
+  base::UmaHistogramBoolean("PasswordManager.ChangePasswordFormDetected",
+                            form_manager);
+  if (form_manager) {
+    base::UmaHistogramMediumTimes(
+        "PasswordManager.ChangePasswordFormDetectionTime",
+        base::Time::Now() - time_of_creation);
+  }
+  return form_manager;
+}
+
 }  // namespace
 
 ChangePasswordFormFinder::ChangePasswordFormFinder(
@@ -65,8 +85,10 @@ ChangePasswordFormFinder::ChangePasswordFormFinder(
     : creation_time_(base::Time::Now()),
       web_contents_(web_contents),
       client_(client),
-      logs_uploader_(logs_uploader),
-      callback_(std::move(callback)) {
+      logs_uploader_(logs_uploader) {
+  // Record metrics if form has been detected and the time it took.
+  callback_ = base::BindOnce(&LogPasswordFormDetectedMetric, creation_time_)
+                  .Then(std::move(callback));
   CHECK(logs_uploader_);
   capture_annotated_page_content_ =
       base::BindOnce(&optimization_guide::GetAIPageContent, web_contents,
@@ -134,7 +156,7 @@ void ChangePasswordFormFinder::OnFormFoundInitially(
 }
 
 void ChangePasswordFormFinder::OnPageContentReceived(
-    std::optional<optimization_guide::AIPageContentResult> content) {
+    optimization_guide::AIPageContentResultOrError content) {
   CHECK(web_contents_);
   CHECK(callback_);
 
@@ -144,7 +166,7 @@ void ChangePasswordFormFinder::OnPageContentReceived(
         content.has_value());
   }
 
-  if (!content) {
+  if (!content.has_value()) {
     LogPageContentCaptureFailure(
         password_manager::metrics_util::PasswordChangeFlowStep::kOpenFormStep);
     std::move(callback_).Run(nullptr);

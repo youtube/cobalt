@@ -1094,7 +1094,7 @@ void RenderViewContextMenu::InitMenu() {
     // Add "Copy Link Address" menu option for Glic Multi instance. Link
     // options are not supported by default (since Glic uses WebView's context
     // menu).
-    if (glic::GlicEnabling::IsMultiInstanceEnabledByFlags() &&
+    if (glic::GlicEnabling::IsMultiInstanceEnabled() &&
         IsGlicWindow(this, browser_context_) && !params_.link_url.is_empty()) {
       AppendCopyLinkLocationItem();
       menu_model_.AddSeparator(ui::NORMAL_SEPARATOR);
@@ -1312,6 +1312,13 @@ void RenderViewContextMenu::InitMenu() {
   if (autofill_client) {
     autofill_client->HideAutofillSuggestions(
         autofill::SuggestionHidingReason::kContextMenuOpened);
+  }
+
+  if (features::IsReadAnythingMenuShuffleExperimentEnabled() &&
+      features::GetReadAnythingMenuShuffleExperimentGroup() ==
+          features::ReadAnythingMenuShuffleExperimentGroup::kPlaceAtBottom &&
+      content_type_->SupportsGroup(ContextMenuContentType::ITEM_GROUP_PAGE)) {
+    AppendReadAnythingItem();
   }
 }
 
@@ -2247,10 +2254,31 @@ void RenderViewContextMenu::AppendPageItems() {
   menu_model_.AddItemWithStringId(IDC_PRINT, IDS_CONTENT_CONTEXT_PRINT);
   AppendLiveCaptionItem();
   AppendMediaRouterItem();
-  if (IsRegionSearchEnabled()) {
-    AppendRegionSearchItem();
+
+  if (features::IsReadAnythingMenuShuffleExperimentEnabled()) {
+    // This will be set to false in AppendRegionSearchItem() if it is called.
+    const auto experiment_group =
+        features::GetReadAnythingMenuShuffleExperimentGroup();
+
+    if (IsRegionSearchEnabled()) {
+      AppendRegionSearchItem();
+    }
+
+    if (experiment_group ==
+        features::ReadAnythingMenuShuffleExperimentGroup::kDefault) {
+      AppendReadAnythingItem();
+    } else if (experiment_group ==
+               features::ReadAnythingMenuShuffleExperimentGroup::
+                   kPlaceWithSeparation) {
+      menu_model_.AddSeparator(ui::NORMAL_SEPARATOR);
+      AppendReadAnythingItem();
+    }
+  } else {  // No ReadAnythingMenuShuffleExperiment -- keep default code.
+    if (IsRegionSearchEnabled()) {
+      AppendRegionSearchItem();
+    }
+    AppendReadAnythingItem();
   }
-  AppendReadAnythingItem();
 
   // Note: `has_sharing_menu_items = true` also implies a separator was added
   // for sharing section.
@@ -2358,11 +2386,13 @@ void RenderViewContextMenu::AppendPartialTranslateItem() {
 }
 
 void RenderViewContextMenu::AppendTranslateItem() {
-  menu_model_.AddItem(
+  menu_model_.AddItemWithIcon(
       IDC_CONTENT_CONTEXT_TRANSLATE,
       l10n_util::GetStringFUTF16(
           IDS_CONTENT_CONTEXT_TRANSLATE,
-          GetTargetLanguageDisplayName(/*is_full_page_translation=*/true)));
+          GetTargetLanguageDisplayName(/*is_full_page_translation=*/true)),
+      ui::ImageModel::FromVectorIcon(vector_icons::kTranslateIcon,
+                                     ui::kColorMenuIcon, kTabMenuIconSize));
 }
 
 void RenderViewContextMenu::AppendMediaRouterItem() {
@@ -3386,7 +3416,7 @@ void RenderViewContextMenu::ExecuteCommand(int id, int event_flags) {
         auto* glic_service = glic::GlicKeyedService::Get(browser_context_);
         if (glic_service) {
           // TODO(crbug.com/454112198): Clean up after multi-instance launches.
-          if (glic::GlicEnabling::IsMultiInstanceEnabledByFlags()) {
+          if (glic::GlicEnabling::IsMultiInstanceEnabled()) {
             if (auto* rfh = GetRenderFrameHost()) {
               glic_service->Close(rfh->GetOutermostMainFrame());
             }

@@ -21,7 +21,6 @@
 #include "base/memory/raw_ref.h"
 #include "base/observer_list.h"
 #include "base/path_service.h"
-#include "base/run_loop.h"
 #include "base/strings/string_util.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/test/metrics/histogram_tester.h"
@@ -362,8 +361,7 @@ class DownloadTargetDeterminerTest : public ChromeRenderViewHostTestHarness {
   // will be created for each test case and destroyed when the test case is
   // complete.
   void RunTestCasesWithActiveItem(
-      base::span<const DownloadTestCase> test_cases,
-      size_t spanification_suspected_redundant_test_case_count);
+      base::span<const DownloadTestCase> test_cases);
 
   // Verifies that |target_path|, |disposition|, |expected_danger_type| and
   // |intermediate_path| matches the expectations of |test_case|. Posts
@@ -548,14 +546,8 @@ DownloadTargetDeterminerTest::RunDownloadTargetDeterminer(
 }
 
 void DownloadTargetDeterminerTest::RunTestCasesWithActiveItem(
-    base::span<const DownloadTestCase> test_cases,
-    size_t spanification_suspected_redundant_test_case_count) {
-  // TODO(crbug.com/431824301): Remove unneeded parameter once validated to be
-  // redundant in M143.
-  CHECK(spanification_suspected_redundant_test_case_count == test_cases.size(),
-        base::NotFatalUntil::M143);
-  for (size_t i = 0; i < spanification_suspected_redundant_test_case_count;
-       ++i) {
+    base::span<const DownloadTestCase> test_cases) {
+  for (size_t i = 0; i < test_cases.size(); ++i) {
     std::unique_ptr<download::MockDownloadItem> item =
         CreateActiveDownloadItem(i, test_cases[i]);
     SCOPED_TRACE(testing::Message() << "Running test case " << i);
@@ -719,7 +711,7 @@ TEST_F(DownloadTargetDeterminerTest, Basic) {
       DownloadFileType::ALLOW_ON_USER_GESTURE,
       safe_browsing::FileTypePolicies::GetInstance()->GetFileDangerLevel(
           base::FilePath(FILE_PATH_LITERAL("foo.kindabad")), GURL{}, nullptr));
-  RunTestCasesWithActiveItem(kBasicTestCases, std::size(kBasicTestCases));
+  RunTestCasesWithActiveItem(kBasicTestCases);
 }
 
 TEST_F(DownloadTargetDeterminerTest, CancelSaveAs) {
@@ -735,8 +727,7 @@ TEST_F(DownloadTargetDeterminerTest, CancelSaveAs) {
   ON_CALL(*delegate(), RequestConfirmation_(_, _, _, _))
       .WillByDefault(WithArg<3>(ScheduleCallback2(
           DownloadConfirmationResult::CANCELED, ui::SelectedFileInfo())));
-  RunTestCasesWithActiveItem(kCancelSaveAsTestCases,
-                             std::size(kCancelSaveAsTestCases));
+  RunTestCasesWithActiveItem(kCancelSaveAsTestCases);
 }
 
 // The SafeBrowsing check is performed early. Make sure that a download item
@@ -805,8 +796,7 @@ TEST_F(DownloadTargetDeterminerTest, DangerousUrl) {
   ON_CALL(*delegate(), CheckDownloadUrl_(_, _, _))
       .WillByDefault(WithArg<2>(
           ScheduleCallback(download::DOWNLOAD_DANGER_TYPE_DANGEROUS_URL)));
-  RunTestCasesWithActiveItem(kSafeBrowsingTestCases,
-                             std::size(kSafeBrowsingTestCases));
+  RunTestCasesWithActiveItem(kSafeBrowsingTestCases);
 }
 
 // The SafeBrowsing check is performed early. Make sure that a download item
@@ -862,8 +852,7 @@ TEST_F(DownloadTargetDeterminerTest, MaybeDangerousContent) {
   ON_CALL(*delegate(), CheckDownloadUrl_(_, _, _))
       .WillByDefault(WithArg<2>(ScheduleCallback(
           download::DOWNLOAD_DANGER_TYPE_MAYBE_DANGEROUS_CONTENT)));
-  RunTestCasesWithActiveItem(kSafeBrowsingTestCases,
-                             std::size(kSafeBrowsingTestCases));
+  RunTestCasesWithActiveItem(kSafeBrowsingTestCases);
 }
 
 TEST_F(DownloadTargetDeterminerTest,
@@ -926,8 +915,7 @@ TEST_F(DownloadTargetDeterminerTest,
     ON_CALL(*delegate(), CheckDownloadUrl_(_, _, _))
         .WillByDefault(WithArg<2>(ScheduleCallback(
             download::DOWNLOAD_DANGER_TYPE_MAYBE_DANGEROUS_CONTENT)));
-    RunTestCasesWithActiveItem(kSafeBrowsingTestCases,
-                               std::size(kSafeBrowsingTestCases));
+    RunTestCasesWithActiveItem(kSafeBrowsingTestCases);
   }
 }
 
@@ -989,8 +977,7 @@ TEST_F(DownloadTargetDeterminerTest, LastSavePath) {
     EXPECT_CALL(*delegate(),
                 RequestConfirmation_(_, prompt_path,
                                      DownloadConfirmationReason::SAVE_AS, _));
-    RunTestCasesWithActiveItem(kLastSavePathTestCasesPre,
-                               std::size(kLastSavePathTestCasesPre));
+    RunTestCasesWithActiveItem(kLastSavePathTestCasesPre);
   }
 
   // Try with a non-empty last save path.
@@ -1003,8 +990,7 @@ TEST_F(DownloadTargetDeterminerTest, LastSavePath) {
     EXPECT_CALL(*delegate(),
                 RequestConfirmation_(_, prompt_path,
                                      DownloadConfirmationReason::SAVE_AS, _));
-    RunTestCasesWithActiveItem(kLastSavePathTestCasesPost,
-                               std::size(kLastSavePathTestCasesPost));
+    RunTestCasesWithActiveItem(kLastSavePathTestCasesPost);
   }
 
   // And again, but this time use a virtual directory.
@@ -1021,8 +1007,7 @@ TEST_F(DownloadTargetDeterminerTest, LastSavePath) {
         .WillOnce(WithArg<2>(ScheduleCallback2(
             GetPathInDownloadDir(FILE_PATH_LITERAL("bar.txt")),
             base::FilePath())));
-    RunTestCasesWithActiveItem(kLastSavePathTestCasesVirtual,
-                               std::size(kLastSavePathTestCasesVirtual));
+    RunTestCasesWithActiveItem(kLastSavePathTestCasesVirtual);
   }
 }
 
@@ -1051,7 +1036,7 @@ TEST_F(DownloadTargetDeterminerTest, DefaultVirtual) {
             GetPathInDownloadDir(FILE_PATH_LITERAL("foo-local.txt")),
             base::FilePath())));
     RunTestCasesWithActiveItem(
-        base::span_from_ref(kAutomaticDownloadToVirtualDir), 1);
+        base::span_from_ref(kAutomaticDownloadToVirtualDir));
   }
 
   {
@@ -1079,7 +1064,7 @@ TEST_F(DownloadTargetDeterminerTest, DefaultVirtual) {
             DownloadConfirmationResult::CONFIRMED,
             ui::SelectedFileInfo(
                 test_virtual_dir().AppendASCII("prompted.txt")))));
-    RunTestCasesWithActiveItem(base::span_from_ref(kSaveAsToVirtualDir), 1);
+    RunTestCasesWithActiveItem(base::span_from_ref(kSaveAsToVirtualDir));
   }
 
   // "Save as" is not supported on Android.
@@ -1104,7 +1089,7 @@ TEST_F(DownloadTargetDeterminerTest, DefaultVirtual) {
             DownloadConfirmationResult::CONFIRMED,
             ui::SelectedFileInfo(
                 GetPathInDownloadDir(FILE_PATH_LITERAL("foo-x.txt"))))));
-    RunTestCasesWithActiveItem(base::span_from_ref(kSaveAsToLocalDir), 1);
+    RunTestCasesWithActiveItem(base::span_from_ref(kSaveAsToLocalDir));
   }
 
   {
@@ -1121,13 +1106,12 @@ TEST_F(DownloadTargetDeterminerTest, DefaultVirtual) {
         DownloadItem::TARGET_DISPOSITION_OVERWRITE,
 
         EXPECT_LOCAL_PATH};
-    RunTestCasesWithActiveItem(base::span_from_ref(kForcedSafe), 1);
+    RunTestCasesWithActiveItem(base::span_from_ref(kForcedSafe));
   }
 }
 
 #if BUILDFLAG(ENABLE_PLUGINS)
-TEST_F(DownloadTargetDeterminerTest,
-       DetermineIfHandledSafelyHelperSynchronous) {
+TEST_F(DownloadTargetDeterminerTest, DetermineIfHandledSafelyHelper) {
   const char16_t kPluginName[] = u"PDF";
   const char kPdfMimeType[] = "application/pdf";
   const char kPdfFileType[] = "pdf";
@@ -1137,8 +1121,7 @@ TEST_F(DownloadTargetDeterminerTest,
   plugin_info.name = kPluginName;
   plugin_info.mime_types.emplace_back(kPdfMimeType, kPdfFileType,
                                       std::string());
-  content::PluginService::GetInstance()->RegisterInternalPlugin(plugin_info,
-                                                                false);
+  content::PluginService::GetInstance()->RegisterInternalPlugin(plugin_info);
 
   const DownloadTestCase download_test_case = {
       AUTOMATIC,
@@ -1153,9 +1136,8 @@ TEST_F(DownloadTargetDeterminerTest,
   std::unique_ptr<download::MockDownloadItem> item =
       CreateActiveDownloadItem(1, download_test_case);
 
-  EXPECT_TRUE(
-      DownloadTargetDeterminer::DetermineIfHandledSafelyHelperSynchronous(
-          item.get(), base::FilePath(), kPdfMimeType));
+  EXPECT_TRUE(DownloadTargetDeterminer::DetermineIfHandledSafelyHelper(
+      item.get(), base::FilePath(), kPdfMimeType));
 }
 #endif
 
@@ -1280,8 +1262,7 @@ TEST_F(DownloadTargetDeterminerTest, LocalPathFailed) {
           _, GetPathInDownloadDir(FILE_PATH_LITERAL("virtual/foo.txt")), _))
       .WillOnce(
           WithArg<2>(ScheduleCallback2(base::FilePath(), base::FilePath())));
-  RunTestCasesWithActiveItem(kLocalPathFailedCases,
-                             std::size(kLocalPathFailedCases));
+  RunTestCasesWithActiveItem(kLocalPathFailedCases);
 }
 
 // Downloads that have a danger level of ALLOW_ON_USER_GESTURE should be marked
@@ -1351,8 +1332,7 @@ TEST_F(DownloadTargetDeterminerTest, VisitedReferrer) {
   ASSERT_TRUE(history_service);
   history_service->AddPage(url, time_of_visit, history::SOURCE_BROWSED);
 
-  RunTestCasesWithActiveItem(kVisitedReferrerCases,
-                             std::size(kVisitedReferrerCases));
+  RunTestCasesWithActiveItem(kVisitedReferrerCases);
 }
 
 TEST_F(DownloadTargetDeterminerTest, TransitionType) {
@@ -1502,7 +1482,7 @@ TEST_F(DownloadTargetDeterminerTest, PromptAlways_SafeAutomatic) {
               RequestConfirmation_(
                   _, GetPathInDownloadDir(FILE_PATH_LITERAL("automatic.txt")),
                   DownloadConfirmationReason::PREFERENCE, _));
-  RunTestCasesWithActiveItem(base::span_from_ref(kSafeAutomatic), 1);
+  RunTestCasesWithActiveItem(base::span_from_ref(kSafeAutomatic));
 }
 
 TEST_F(DownloadTargetDeterminerTest, PromptAlways_SafeSaveAs) {
@@ -1525,7 +1505,7 @@ TEST_F(DownloadTargetDeterminerTest, PromptAlways_SafeSaveAs) {
               RequestConfirmation_(
                   _, GetPathInDownloadDir(FILE_PATH_LITERAL("save-as.txt")),
                   DownloadConfirmationReason::SAVE_AS, _));
-  RunTestCasesWithActiveItem(base::span_from_ref(kSafeSaveAs), 1);
+  RunTestCasesWithActiveItem(base::span_from_ref(kSafeSaveAs));
 }
 
 TEST_F(DownloadTargetDeterminerTest, PromptAlways_SafeForced) {
@@ -1544,7 +1524,7 @@ TEST_F(DownloadTargetDeterminerTest, PromptAlways_SafeForced) {
       EXPECT_LOCAL_PATH};
 
   SetPromptForDownload(true);
-  RunTestCasesWithActiveItem(base::span_from_ref(kSafeForced), 1);
+  RunTestCasesWithActiveItem(base::span_from_ref(kSafeForced));
 }
 
 TEST_F(DownloadTargetDeterminerTest, PromptAlways_AutoOpen) {
@@ -1565,7 +1545,7 @@ TEST_F(DownloadTargetDeterminerTest, PromptAlways_AutoOpen) {
   SetPromptForDownload(true);
   EnableAutoOpenByUserBasedOnExtension(
       base::FilePath(FILE_PATH_LITERAL("dummy.dummy")));
-  RunTestCasesWithActiveItem(base::span_from_ref(kAutoOpen), 1);
+  RunTestCasesWithActiveItem(base::span_from_ref(kAutoOpen));
 }
 
 // If an embedder responds to a RequestConfirmation with a new path and a
@@ -1591,7 +1571,7 @@ TEST_F(DownloadTargetDeterminerTest, ContinueWithoutConfirmation_SaveAs) {
           DownloadConfirmationResult::CONTINUE_WITHOUT_CONFIRMATION,
           ui::SelectedFileInfo(
               GetPathInDownloadDir(FILE_PATH_LITERAL("foo.kindabad"))))));
-  RunTestCasesWithActiveItem(base::span_from_ref(kTestCase), 1);
+  RunTestCasesWithActiveItem(base::span_from_ref(kTestCase));
 }
 
 // Same as ContinueWithoutConfirmation_SaveAs, but the embedder response
@@ -1618,7 +1598,7 @@ TEST_F(DownloadTargetDeterminerTest, ContinueWithConfirmation_SaveAs) {
           DownloadConfirmationResult::CONFIRMED,
           ui::SelectedFileInfo(
               GetPathInDownloadDir(FILE_PATH_LITERAL("foo.kindabad"))))));
-  RunTestCasesWithActiveItem(base::span_from_ref(kTestCase), 1);
+  RunTestCasesWithActiveItem(base::span_from_ref(kTestCase));
 }
 
 #if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
@@ -1651,8 +1631,7 @@ TEST_F(DownloadTargetDeterminerTest, PromptAlways_NonTrustedExtension) {
   };
 
   SetPromptForDownload(true);
-  RunTestCasesWithActiveItem(kPromptingTestCases,
-                             std::size(kPromptingTestCases));
+  RunTestCasesWithActiveItem(kPromptingTestCases);
 }
 
 // Trusted extension download should not cause prompting.
@@ -1684,8 +1663,7 @@ TEST_F(DownloadTargetDeterminerTest, PromptAlways_TrustedExtension) {
   auto allow_offstore_install =
       download_crx_util::OverrideOffstoreInstallAllowedForTesting(true);
   SetPromptForDownload(true);
-  RunTestCasesWithActiveItem(kPromptingTestCases,
-                             std::size(kPromptingTestCases));
+  RunTestCasesWithActiveItem(kPromptingTestCases);
 }
 
 TEST_F(DownloadTargetDeterminerTest, DownloadRestrictions_TrustedExtension) {
@@ -1717,13 +1695,11 @@ TEST_F(DownloadTargetDeterminerTest, DownloadRestrictions_TrustedExtension) {
 
   profile()->GetTestingPrefService()->SetInteger(
         policy::policy_prefs::kDownloadRestrictions, 1);
-  RunTestCasesWithActiveItem(kPromptingTestCases,
-                             std::size(kPromptingTestCases));
+  RunTestCasesWithActiveItem(kPromptingTestCases);
 
   profile()->GetTestingPrefService()->SetInteger(
         policy::policy_prefs::kDownloadRestrictions, 2);
-  RunTestCasesWithActiveItem(kPromptingTestCases,
-                             std::size(kPromptingTestCases));
+  RunTestCasesWithActiveItem(kPromptingTestCases);
 }
 
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS_CORE)
@@ -1753,8 +1729,7 @@ TEST_F(DownloadTargetDeterminerTest, ManagedPath) {
 
   SetManagedDownloadPath(test_download_dir());
   ASSERT_TRUE(download_prefs()->IsDownloadPathManaged());
-  RunTestCasesWithActiveItem(kManagedPathTestCases,
-                             std::size(kManagedPathTestCases));
+  RunTestCasesWithActiveItem(kManagedPathTestCases);
 }
 
 // Test basic blocking functionality via GetInsecureDownloadStatus.
@@ -1769,8 +1744,7 @@ TEST_F(DownloadTargetDeterminerTest, BlockDownloads) {
   ON_CALL(*delegate(), GetInsecureDownloadStatus_(_, _, _))
       .WillByDefault(WithArg<2>(ScheduleCallback(
           download::DownloadItem::InsecureDownloadStatus::SILENT_BLOCK)));
-  RunTestCasesWithActiveItem(kBlockDownloadsTestCases,
-                             std::size(kBlockDownloadsTestCases));
+  RunTestCasesWithActiveItem(kBlockDownloadsTestCases);
 }
 
 // Test basic functionality supporting extensions that want to override download
@@ -1831,8 +1805,7 @@ TEST_F(DownloadTargetDeterminerTest, NotifyExtensionsSafe) {
 
   ON_CALL(*delegate(), NotifyExtensions_(_, _, _))
       .WillByDefault(&NotifyExtensionsOverridePath);
-  RunTestCasesWithActiveItem(kNotifyExtensionsTestCases,
-                             std::size(kNotifyExtensionsTestCases));
+  RunTestCasesWithActiveItem(kNotifyExtensionsTestCases);
 }
 
 // Test that filenames provided by extensions are passed into SafeBrowsing
@@ -1866,12 +1839,12 @@ TEST_F(DownloadTargetDeterminerTest, NotifyExtensionsUnsafe) {
 
   ON_CALL(*delegate(), NotifyExtensions_(_, _, _))
       .WillByDefault(&NotifyExtensionsOverridePath);
-  RunTestCasesWithActiveItem(base::span_from_ref(kNotHandledBySafeBrowsing), 1);
+  RunTestCasesWithActiveItem(base::span_from_ref(kNotHandledBySafeBrowsing));
 
   ON_CALL(*delegate(), CheckDownloadUrl_(_, _, _))
       .WillByDefault(WithArg<2>(ScheduleCallback(
           download::DOWNLOAD_DANGER_TYPE_MAYBE_DANGEROUS_CONTENT)));
-  RunTestCasesWithActiveItem(base::span_from_ref(kHandledBySafeBrowsing), 1);
+  RunTestCasesWithActiveItem(base::span_from_ref(kHandledBySafeBrowsing));
 }
 
 // Test that conflict actions set by extensions are passed correctly into
@@ -1974,8 +1947,7 @@ TEST_F(DownloadTargetDeterminerTest, NotifyExtensionsLocalFile) {
   EXPECT_CALL(*delegate(), NotifyExtensions_(_, _, _))
       .WillRepeatedly(WithArg<2>(ScheduleCallback2(
           overridden_path, DownloadPathReservationTracker::UNIQUIFY)));
-  RunTestCasesWithActiveItem(kNotifyExtensionsTestCases,
-                             std::size(kNotifyExtensionsTestCases));
+  RunTestCasesWithActiveItem(kNotifyExtensionsTestCases);
 }
 
 TEST_F(DownloadTargetDeterminerTest, InitialVirtualPathUnsafe) {
@@ -2742,18 +2714,11 @@ TEST_F(DownloadTargetDeterminerTest, TestSanitizeEnvVariable) {
 
        EXPECT_CRDOWNLOAD}};
 
-  RunTestCasesWithActiveItem(kSaveEnvPathTestCases,
-                             std::size(kSaveEnvPathTestCases));
+  RunTestCasesWithActiveItem(kSaveEnvPathTestCases);
 }
 #endif  // BUILDFLAG(IS_WIN)
 
 #if BUILDFLAG(ENABLE_PLUGINS)
-
-void DummyGetPluginsCallback(
-    base::OnceClosure closure,
-    const std::vector<content::WebPluginInfo>& plugins) {
-  std::move(closure).Run();
-}
 
 void ForceRefreshOfPlugins() {
 #if !BUILDFLAG(IS_WIN)
@@ -2761,10 +2726,7 @@ void ForceRefreshOfPlugins() {
   // unit_tests since /proc/self/exe can't be run as a utility process.
   content::RenderProcessHost::SetRunRendererInProcess(true);
 #endif
-  base::RunLoop run_loop;
-  content::PluginService::GetInstance()->GetPluginsAsync(
-      base::BindOnce(&DummyGetPluginsCallback, run_loop.QuitClosure()));
-  run_loop.Run();
+  content::PluginService::GetInstance()->GetPlugins();
 #if !BUILDFLAG(IS_WIN)
   content::RenderProcessHost::SetRunRendererInProcess(false);
 #endif
@@ -2802,14 +2764,12 @@ class ScopedRegisterInternalPlugin {
     plugin_info.mime_types.push_back(plugin_mime_type);
     plugin_info.type = type;
 
-    plugin_service->RegisterInternalPlugin(plugin_info, true);
-    plugin_service->RefreshPlugins();
+    plugin_service->RegisterInternalPlugin(plugin_info);
     ForceRefreshOfPlugins();
   }
 
   ~ScopedRegisterInternalPlugin() {
     plugin_service_->UnregisterInternalPlugin(plugin_path_);
-    plugin_service_->RefreshPlugins();
     ForceRefreshOfPlugins();
   }
 
@@ -2877,8 +2837,7 @@ TEST_F(DownloadTargetDeterminerTestWithPlugin, CheckForSecureHandling_PPAPI) {
   {
     ForceRefreshOfPlugins();
     std::vector<content::WebPluginInfo> info;
-    ASSERT_FALSE(plugin_service->GetPluginInfoArray(GURL(), kTestMIMEType,
-                                                    &info, nullptr));
+    plugin_service->GetPluginInfoArray(GURL(), kTestMIMEType, &info, nullptr);
     ASSERT_EQ(0u, info.size())
         << "Name: " << info[0].name << ", Path: " << info[0].path.value();
   }
@@ -2944,8 +2903,7 @@ TEST_F(DownloadTargetDeterminerTestWithPlugin,
   {
     ForceRefreshOfPlugins();
     std::vector<content::WebPluginInfo> info;
-    ASSERT_FALSE(plugin_service->GetPluginInfoArray(GURL(), kTestMIMEType,
-                                                    &info, nullptr));
+    plugin_service->GetPluginInfoArray(GURL(), kTestMIMEType, &info, nullptr);
     ASSERT_EQ(0u, info.size())
         << "Name: " << info[0].name << ", Path: " << info[0].path.value();
   }
@@ -3122,7 +3080,7 @@ TEST_F(DownloadTargetDeterminerDlpTest, InvalidUrl) {
                   _, GetPathInDownloadDir(FILE_PATH_LITERAL("download.txt")),
                   DownloadConfirmationReason::DLP_BLOCKED, _));
   EXPECT_CALL(*mock_files_controller_, ShouldPromptBeforeDownload).Times(0);
-  RunTestCasesWithActiveItem(base::span_from_ref(kManagedPathTestCase), 1);
+  RunTestCasesWithActiveItem(base::span_from_ref(kManagedPathTestCase));
 }
 
 // Even if the download path is managed, we should prompt if the download path
@@ -3151,7 +3109,7 @@ TEST_F(DownloadTargetDeterminerDlpTest, ManagedPath_ShouldPrompt) {
                   DownloadConfirmationReason::DLP_BLOCKED, _));
   EXPECT_CALL(*mock_files_controller_, ShouldPromptBeforeDownload)
       .WillOnce(testing::Return(true));
-  RunTestCasesWithActiveItem(base::span_from_ref(kManagedPathTestCase), 1);
+  RunTestCasesWithActiveItem(base::span_from_ref(kManagedPathTestCase));
 }
 
 // Even if "Prompt for download" user preference is set to false, we should
@@ -3179,7 +3137,7 @@ TEST_F(DownloadTargetDeterminerDlpTest, PromptAlways_SafeAutomatic) {
               RequestConfirmation_(
                   _, GetPathInDownloadDir(FILE_PATH_LITERAL("automatic.txt")),
                   DownloadConfirmationReason::DLP_BLOCKED, _));
-  RunTestCasesWithActiveItem(base::span_from_ref(kSafeAutomatic), 1);
+  RunTestCasesWithActiveItem(base::span_from_ref(kSafeAutomatic));
 }
 #endif
 

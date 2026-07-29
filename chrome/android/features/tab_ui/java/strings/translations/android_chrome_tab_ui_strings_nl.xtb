@@ -73,6 +73,7 @@
 <translation id="311432875115153175">Lijst met tabbladgroepen gesloten</translation>
 <translation id="3194464645767632461">beoordeling</translation>
 <translation id="3269930881809501915">{TABS_COUNT,plural, =1{<ph name="TABS_COUNT_ONE" /> tabblad toevoegen aan groep}other{<ph name="TABS_COUNT_MANY" /> tabbladen toevoegen aan groep}}</translation>
+<translation id="3293080634164207409">Tabbladen toevoegen</translation>
 <translation id="3328308545011660196">Suggestie: <ph name="NUMBER_OF_TABS" /> tabbladen lijken gerelateerd. Wil je deze groeperen?</translation>
 <translation id="3330595302841061275">{DAY_COUNT,plural, =1{Na 1 dag inactiviteit}other{Na <ph name="DAY_COUNT_MANY" /> dagen inactiviteit}}</translation>
 <translation id="358453129938375749">{NUMBER_OF_TABS_ADDED,plural, =1{<ph name="ONE_ADDED" /> nieuw tabblad}other{<ph name="MANY_ADDED" /> nieuwe tabbladen}}</translation>
@@ -81,6 +82,7 @@
 <translation id="3649471731638882002">{TAB_COUNT,plural, =1{Item sluiten}other{Items sluiten}}</translation>
 <translation id="3652027618765638838"><ph name="CURRENT_RATING" />/<ph name="RATING_BASELINE" /></translation>
 <translation id="374923079891132274">Thumbnail voor voorbeeld van blad delen.</translation>
+<translation id="3776329373944672717">Titel van tabbladgroep: <ph name="TITLE_OF_GROUP" /></translation>
 <translation id="3810973564298564668">Beheren</translation>
 <translation id="3849789634341518784">{TAB_COUNT,plural, =1{Tabblad losmaken}other{Tabbladen losmaken}}</translation>
 <translation id="3940195383040445971">Prijzen volgen op tabbladen</translation>
@@ -193,6 +195,7 @@
 <translation id="7853202427316060426">Activiteit</translation>
 <translation id="7854360405711302755">{REVIEWS,plural, =1{ <ph name="CURRENT_RATING" />/<ph name="RATING_BASELINE" /> beoordeling, <ph name="REVIEWS_COUNT_ONE" /> review}other{<ph name="CURRENT_RATING" />/<ph name="RATING_BASELINE" /> beoordeling, <ph name="REVIEWS_COUNT_MANY" /> reviews}}</translation>
 <translation id="7885132941432959125">Tabblad naar rechts verplaatsen</translation>
+<translation id="7887334752153342268">Dupliceren</translation>
 <translation id="7939917283308035850"><ph name="COLOR_NAME" /> is niet geselecteerd</translation>
 <translation id="7961015016161918242">Nooit</translation>
 <translation id="7966321538264951561">Sluit de suggesties.</translation>
@@ -216,6 +219,7 @@
 <translation id="8428213095426709021">Instellingen</translation>
 <translation id="855081842937141170">Tabblad vastzetten</translation>
 <translation id="8633025649649592204">Recente activiteit</translation>
+<translation id="8635822281281406185">Voeg maximaal 10 bestanden, tabbladen of afbeeldingen toe</translation>
 <translation id="8712637175834984815">Begrepen</translation>
 <translation id="8714939927607906138">Lagere prijs</translation>
 <translation id="8730621377337864115">Klaar</translation>

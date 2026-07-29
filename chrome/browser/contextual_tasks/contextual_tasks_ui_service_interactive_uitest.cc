@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "base/test/metrics/histogram_tester.h"
 #include "base/test/test_future.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_context_controller.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_context_controller_factory.h"
@@ -74,6 +75,8 @@ class TabStripModelObserverImpl : public TabStripModelObserver {
 
 IN_PROC_BROWSER_TEST_F(ContextualTasksUiServiceInteractiveUiTest,
                        OnThreadLinkClicked_CreatesNewTabAndAssociates) {
+  base::HistogramTester histogram_tester;
+
   // Add a new tab.
   chrome::AddTabAt(browser(), GURL(chrome::kChromeUISettingsURL), -1, false);
 
@@ -120,6 +123,9 @@ IN_PROC_BROWSER_TEST_F(ContextualTasksUiServiceInteractiveUiTest,
         EXPECT_TRUE(observer.was_inserted());
       }));
   browser()->tab_strip_model()->RemoveObserver(&observer);
+
+  histogram_tester.ExpectUniqueSample(
+      "ContextualTasks.AiResponse.UserAction.LinkClicked.Tab", true, 1);
 }
 
 IN_PROC_BROWSER_TEST_F(
@@ -157,7 +163,7 @@ IN_PROC_BROWSER_TEST_F(
 
   // Call OnTaskChangedInPanel and verify that both tabs are now associated with
   // the second task.
-  service->OnTaskChangedInPanel(browser(), task2.GetTaskId());
+  service->OnTaskChangedInPanel(browser(), nullptr, task2.GetTaskId());
   EXPECT_EQ(task2.GetTaskId(),
             contextual_tasks_controller->GetContextualTaskForTab(tab1_id)
                 ->GetTaskId());
@@ -200,7 +206,7 @@ IN_PROC_BROWSER_TEST_F(ContextualTasksUiServiceInteractiveUiTest,
 
   // Call OnTaskChangedInPanel and verify that the first tab is now associated
   // with an empty task.
-  service->OnTaskChangedInPanel(browser(), base::Uuid());
+  service->OnTaskChangedInPanel(browser(), nullptr, base::Uuid());
   std::optional<ContextualTask> empty_task =
       contextual_tasks_controller->GetContextualTaskForTab(tab1_id);
 

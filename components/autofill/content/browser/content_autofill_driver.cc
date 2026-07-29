@@ -438,9 +438,14 @@ ukm::SourceId ContentAutofillDriver::GetPageUkmSourceId() const {
   return render_frame_host_->GetPageUkmSourceId();
 }
 
-bool ContentAutofillDriver::HasSharedAutofillPermission() const {
+bool ContentAutofillDriver::IsPolicyControlledFeatureAutofillEnabled() const {
   return render_frame_host_->IsFeatureEnabled(
-      network::mojom::PermissionsPolicyFeature::kSharedAutofill);
+      network::mojom::PermissionsPolicyFeature::kAutofill);
+}
+
+bool ContentAutofillDriver::IsPolicyControlledFeatureManualTextEnabled() const {
+  return render_frame_host_->IsFeatureEnabled(
+      network::mojom::PermissionsPolicyFeature::kManualText);
 }
 
 bool ContentAutofillDriver::CanShowAutofillUi() const {

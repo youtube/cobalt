@@ -9,6 +9,10 @@
 
 class Profile;
 
+namespace content {
+class WebContents;
+}  // namespace content
+
 namespace site_protection {
 
 // Returns whether v8-optimizations are disabled by default on sites which are
@@ -21,6 +25,24 @@ bool AreV8OptimizationsDisabledOnUnfamiliarSites(Profile* profile);
 // exceptions.
 content_settings::JavascriptOptimizerSetting
 ComputeDefaultJavascriptOptimizerSetting(Profile* profile);
+
+// Checks if V8 optimizations are disabled in the renderer process of the given
+// WebContents. Returns nullopt if the web_contents or the associated renderer
+// process are not available.
+std::optional<bool> AreV8OptimizationsDisabled(
+    content::WebContents* web_contents);
+
+// Returns the source of the optimizer setting in the given WebContents, or
+// nullopt if the content settings map or current URL is not available.
+std::optional<content_settings::SettingSource>
+GetJavascriptOptimizerSettingSource(content::WebContents* web_contents);
+
+// Enables the v8 optimizations content setting for the current URL in the
+// given WebContents. Does nothing if the content settings map or current URL
+// is not available.
+// Note: the updated setting won't take effect until a new browsing instance
+// is started (e.g. a new tab is opened).
+void EnableV8Optimizations(content::WebContents* web_contents);
 
 }  // namespace site_protection
 

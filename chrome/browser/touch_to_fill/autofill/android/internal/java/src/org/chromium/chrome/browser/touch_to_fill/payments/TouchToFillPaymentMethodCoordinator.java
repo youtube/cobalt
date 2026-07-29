@@ -119,9 +119,12 @@ public class TouchToFillPaymentMethodCoordinator implements TouchToFillPaymentMe
     }
 
     @Override
-    public void updateBnplPaymentMethod(
-            Long extractedAmount, boolean isAmountSupportedByAnyIssuer) {
-        mMediator.updateBnplPaymentMethod(extractedAmount, isAmountSupportedByAnyIssuer);
+    public void onPurchaseAmountExtracted(
+            List<BnplIssuerContext> bnplIssuerContexts,
+            Long extractedAmount,
+            boolean isAmountSupportedByAnyIssuer) {
+        mMediator.onPurchaseAmountExtracted(
+                bnplIssuerContexts, extractedAmount, isAmountSupportedByAnyIssuer);
     }
 
     @Override
@@ -249,7 +252,7 @@ public class TouchToFillPaymentMethodCoordinator implements TouchToFillPaymentMe
                 .with(CURRENT_SCREEN, HOME_SCREEN)
                 .with(FOCUSED_VIEW_ID_FOR_ACCESSIBILITY, 0)
                 .with(SHEET_ITEMS, new ModelList())
-                .with(BACK_PRESS_HANDLER, mediator::showHomeScreen)
+                .with(BACK_PRESS_HANDLER, mediator::onBackButtonPressed)
                 .with(DISMISS_HANDLER, mediator::onDismissed)
                 .build();
     }

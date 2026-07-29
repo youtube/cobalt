@@ -8,6 +8,7 @@
 #import "base/apple/bundle_locations.h"
 #import "base/at_exit.h"
 #import "base/debug/crash_logging.h"
+#import "base/feature_list.h"
 #import "base/memory/page_size.h"
 #import "base/memory/safety_checks.h"
 #import "base/strings/sys_string_conversions.h"
@@ -108,7 +109,10 @@ int ChromeMain(int argc, char* argv[]) {
   DumpSandboxIfRequested();
 #endif  // BUILDFLAG(IOS_ENABLE_SANDBOX_DUMP)
 
-  tests_hook::WipeProfileIfRequested(argc, argv);
+  // SAFETY: according to the C++ standard, main() `argv` contains at least
+  // `argc` elements.
+  tests_hook::WipeProfileIfRequested(
+      UNSAFE_BUFFERS(base::span(argv, static_cast<size_t>(argc))));
 
   // Set NSUserDefaults keys to force pseudo-RTL if needed.
   SetTextDirectionIfPseudoRTLEnabled();

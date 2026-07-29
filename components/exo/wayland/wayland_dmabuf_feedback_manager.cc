@@ -353,13 +353,11 @@ WaylandDmabufFeedbackManager::WaylandDmabufFeedbackManager(Display* display)
     base::flat_map<size_t, uint64_t> modifier_entries;
     modifier_entries.emplace(format_table_index++, DRM_FORMAT_MOD_INVALID);
 
-    if (base::FeatureList::IsEnabled(ash::features::kExoLinuxDmabufModifiers)) {
-      for (uint64_t modifier : modifiers) {
-        // Check for generic blocking first then format specific blocking.
-        if (!modifier_block_list.contains({DRM_FORMAT_INVALID, modifier}) &&
-            !modifier_block_list.contains({drm_format, modifier})) {
-          modifier_entries.emplace(format_table_index++, modifier);
-        }
+    for (uint64_t modifier : modifiers) {
+      // Check for generic blocking first then format specific blocking.
+      if (!modifier_block_list.contains({DRM_FORMAT_INVALID, modifier}) &&
+          !modifier_block_list.contains({drm_format, modifier})) {
+        modifier_entries.emplace(format_table_index++, modifier);
       }
     }
 
@@ -385,13 +383,7 @@ WaylandDmabufFeedbackManager::WaylandDmabufFeedbackManager(Display* display)
     return;
   }
 
-  if (!base::FeatureList::IsEnabled(ash::features::kExoLinuxDmabufV4)) {
-    version_ = ZWP_LINUX_BUFFER_PARAMS_V1_CREATE_IMMED_SINCE_VERSION;
-    return;
-  }
-
-  if (!base::FeatureList::IsEnabled(ash::features::kExoLinuxDmabufV4) ||
-      !caps.drm_device_id) {
+  if (!caps.drm_device_id) {
     version_ = ZWP_LINUX_DMABUF_V1_MODIFIER_SINCE_VERSION;
     return;
   }

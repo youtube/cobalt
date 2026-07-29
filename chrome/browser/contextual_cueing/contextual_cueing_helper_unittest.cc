@@ -27,6 +27,10 @@
 #include "content/public/test/mock_navigation_handle.h"
 #include "content/public/test/navigation_simulator.h"
 
+#if BUILDFLAG(IS_CHROMEOS)
+#include "chrome/browser/ash/test/glic_user_session_test_helper.h"
+#endif  // BUILDFLAG(IS_CHROMEOS)
+
 namespace contextual_cueing {
 namespace {
 
@@ -64,6 +68,11 @@ class ContextualCueingHelperTest : public ChromeRenderViewHostTestHarness {
         TestingBrowserProcess::GetGlobal());
     ASSERT_TRUE(profile_manager_->SetUp());
     TestingBrowserProcess::GetGlobal()->CreateGlobalFeaturesForTesting();
+#if BUILDFLAG(IS_CHROMEOS)
+    glic_user_session_test_helper_.PreProfileSetUp(
+        profile_manager_->profile_manager());
+#endif  // BUILDFLAG(IS_CHROMEOS)
+
     ChromeRenderViewHostTestHarness::SetUp();
 
     // Bypass glic eligibility check.
@@ -73,8 +82,39 @@ class ContextualCueingHelperTest : public ChromeRenderViewHostTestHarness {
   }
 
   void TearDown() override {
+    // Delete profile earlier since it must be destroyed before TaskEnvironment
+    // is destroyed. NOTE: In production profile is deleted with ProfileManager.
+    {
+      DeleteContents();
+      profile_ = nullptr;
+      profile_manager_->DeleteAllTestingProfiles();
+    }
+
     ChromeRenderViewHostTestHarness::TearDown();
     TestingBrowserProcess::GetGlobal()->GetFeatures()->Shutdown();
+
+    profile_manager_.reset();
+
+#if BUILDFLAG(IS_CHROMEOS)
+    glic_user_session_test_helper_.PostProfileTearDown();
+#endif  // BUILDFLAG(IS_CHROMEOS)
+  }
+
+  std::unique_ptr<TestingProfile> CreateTestingProfile() override {
+    CHECK(!profile_);
+    profile_ = profile_manager_->CreateTestingProfile(
+        TestingProfile::kDefaultProfileUserName, GetTestingFactories());
+    CHECK(profile_);
+
+    // NOTE: The new profile is owned by TestingProfileManager, so this cannot
+    // return it. It is returned by `GetBrowserContext()` instead.
+    return nullptr;
+  }
+
+  // content::RenderViewHostTestHarness override:
+  content::BrowserContext* GetBrowserContext() override {
+    CHECK(profile_);
+    return profile_.get();
   }
 
   TestingProfile::TestingFactories GetTestingFactories() const override {
@@ -92,8 +132,12 @@ class ContextualCueingHelperTest : public ChromeRenderViewHostTestHarness {
 
  private:
   glic::GlicUnitTestEnvironment glic_test_env_;
-  std::unique_ptr<TestingProfileManager> profile_manager_;
   base::test::ScopedFeatureList scoped_feature_list_;
+  std::unique_ptr<TestingProfileManager> profile_manager_;
+#if BUILDFLAG(IS_CHROMEOS)
+  ash::GlicUserSessionTestHelper glic_user_session_test_helper_;
+#endif  // BUILDFLAG(IS_CHROMEOS)
+  raw_ptr<TestingProfile> profile_ = nullptr;
 };
 
 TEST_F(ContextualCueingHelperTest, TabHelperStartsUp) {

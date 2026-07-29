@@ -22,6 +22,7 @@ enum class ContextualTaskContextSource {
   kFaviconService,
   kHistoryService,
   kTabStrip,
+  kPendingContextDecorator,
 };
 
 class ContextualTask;
@@ -61,6 +62,14 @@ struct UrlAttachmentDecoratorData {
     bool is_open_in_tab_strip = false;
   };
   TabStripData tab_strip_data;
+
+  // Filled in by ContextualTaskContextSource::kPendingContextDecorator.
+  struct ContextualSearchContextData {
+    std::u16string title;
+    // From SessionTabHelper.
+    SessionID tab_session_id = SessionID::InvalidValue();
+  };
+  ContextualSearchContextData contextual_search_context_data;
 };
 
 // Represents a URL that is attached to a `ContextualTask`. This struct contains
@@ -75,6 +84,8 @@ struct UrlAttachment {
   std::u16string GetTitle() const;
   gfx::Image GetFavicon() const;
   bool IsOpen() const;
+  // The tab SessionID of the tab that was the source of this attachment.
+  SessionID GetTabSessionId() const;
 
   // Gives access to internal data sources.
   UrlAttachmentDecoratorData& GetMutableDecoratorDataForTesting();

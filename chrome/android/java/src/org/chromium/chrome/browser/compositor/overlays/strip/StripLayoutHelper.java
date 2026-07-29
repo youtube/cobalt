@@ -204,7 +204,6 @@ public class StripLayoutHelper
             DateUtils.MINUTE_IN_MILLIS;
 
     // Reorder Drag Threshold Constants
-    // TODO(crbug.com/382122020): Revisit and update if needed.
     private static final float INITIATE_REORDER_DRAG_THRESHOLD = 30.f;
 
     // Scrolling constants.
@@ -410,7 +409,9 @@ public class StripLayoutHelper
                     // Foreground the pinned/unpinned tab to start animation.
                     stripTab.setIsForegrounded(/* isForegrounded= */ true);
                     mTabDelegate.setIsTabNonDragReordering(
-                            stripTab, /* isNonDragReordering= */ true);
+                            stripTab,
+                            /* isNonDragReordering= */ !stripTab.getIsSelected()
+                                    && !stripTab.getIsMultiSelected());
                     List<Animator> pinnedAnimations =
                             computeAndUpdateTabWidth(
                                     /* animate= */ true, /* deferAnimations= */ true);
@@ -1054,7 +1055,10 @@ public class StripLayoutHelper
     }
 
     private boolean doPinnedTabsOccupyEntireVisibleArea() {
-        return getAvailableTabWidthForResizing() < mCachedTabWidthSupplier.get();
+        // Return false if tab strip is still initializing and `mWidth` is 0.
+        if (mWidth == 0) return false;
+        return getStripWidthForResizing() - getTotalPinnedTabsWidth()
+                < mCachedTabWidthSupplier.get();
     }
 
     /**
@@ -1542,7 +1546,7 @@ public class StripLayoutHelper
                 && !mIsPinnedOnlyStripRecorded
                 && doPinnedTabsOccupyEntireVisibleArea()) {
             mIsPinnedOnlyStripRecorded = true;
-            RecordUserAction.record("MobileToolbarPinnedOnlyTabStrip");
+            RecordUserAction.record("MobileToolbarPinnedOnlyTabStripSkipInit");
         }
     }
 
@@ -4837,11 +4841,10 @@ public class StripLayoutHelper
         computeIdealViewPositions();
 
         // 3. Calculate view stacking - update view draw properties and visibility.
-        float stripWidth =
-                getVisibleRightBound(/* clampToUnpinnedViews= */ false)
-                        - getVisibleLeftBound(/* clampToUnpinnedViews= */ false);
         mStripStacker.pushDrawPropertiesToViews(
-                mStripViews, getVisibleLeftBound(/* clampToUnpinnedViews= */ false), stripWidth);
+                mStripViews,
+                getVisibleLeftBound(/* clampToUnpinnedViews= */ false),
+                getVisibleRightBound(/* clampToUnpinnedViews= */ false));
         mStripStacker.pushDrawPropertiesToButtons(
                 mNewTabButton,
                 mStripTabs,
@@ -5054,6 +5057,17 @@ public class StripLayoutHelper
         if (mTabAtPositionForTesting != null) {
             return mTabAtPositionForTesting;
         }
+
+        // Views are only hidden once they're completely out of the visible region. Since tabs are
+        // wider than the NTB (which is roughly where the end-fade begins), it is possible for a tab
+        // to be visible while having its touch target partially past the NTB. Visible tabs are
+        // considered clickable, so manually suppress clicks beyond the NTB to prevent this.
+        if (LocalizationUtils.isLayoutRtl()) {
+            if (x <= mNewTabButton.getDrawX() + mNewTabButton.getWidth()) return null;
+        } else {
+            if (x >= mNewTabButton.getDrawX()) return null;
+        }
+
         return StripLayoutUtils.findViewAtPositionX(mStripViews, x, includeGroupTitles);
     }
 

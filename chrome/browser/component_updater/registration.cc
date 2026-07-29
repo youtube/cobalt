@@ -4,7 +4,6 @@
 
 #include "chrome/browser/component_updater/registration.h"
 
-#include "afp_blocked_domain_list_component_installer.h"
 #include "base/feature_list.h"
 #include "base/files/file_path.h"
 #include "base/functional/bind.h"
@@ -15,6 +14,7 @@
 #include "build/build_config.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/buildflags.h"
+#include "chrome/browser/component_updater/afp_blocked_domain_list_component_remover.h"
 #include "chrome/browser/component_updater/app_provisioning_component_installer.h"
 #include "chrome/browser/component_updater/chrome_origin_trials_component_installer.h"
 #include "chrome/browser/component_updater/commerce_heuristics_component_installer.h"
@@ -144,7 +144,6 @@ void RegisterComponentsForUpdate() {
   RegisterTrustTokenKeyCommitmentsComponentIfTrustTokensEnabled(cus);
   RegisterFirstPartySetsComponent(cus);
   RegisterPrivacySandboxAttestationsComponent(cus);
-  RegisterAntiFingerprintingBlockedDomainListComponent(cus);
   if (history_embeddings::IsHistoryEmbeddingsFeatureEnabled()) {
     RegisterHistorySearchStringsComponent(cus);
   }
@@ -162,6 +161,11 @@ void RegisterComponentsForUpdate() {
     if (!history_embeddings::IsHistoryEmbeddingsFeatureEnabled()) {
       DeleteHistorySearchStringsComponent(path);
     }
+
+    // Clean up any remaining state for the blocked domain list component.
+    //
+    // TODO(crbug.com/456488732): Delete this call in M156.
+    UnregisterAntiFingerprintingBlockedDomainListComponent(cus, path);
 
 #if BUILDFLAG(IS_CHROMEOS)
     // Lacros is sunsetted. While rootfs Lacros was already taken care of,

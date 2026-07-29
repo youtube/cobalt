@@ -4,11 +4,6 @@
 //
 // This file declares util functions for setup project.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
-#pragma allow_unsafe_buffers
-#endif
-
 #include "chrome/installer/setup/setup_util.h"
 
 #include <objbase.h>
@@ -16,7 +11,6 @@
 #include <windows.h>
 
 #include <stddef.h>
-#include <wtsapi32.h>
 
 #include <algorithm>
 #include <initializer_list>
@@ -30,6 +24,7 @@
 #include "base/base64.h"
 #include "base/check.h"
 #include "base/command_line.h"
+#include "base/compiler_specific.h"
 #include "base/cpu.h"
 #include "base/files/file.h"
 #include "base/files/file_enumerator.h"
@@ -64,7 +59,6 @@
 #include "chrome/installer/util/util_constants.h"
 #include "chrome/installer/util/work_item.h"
 #include "chrome/installer/util/work_item_list.h"
-#include "third_party/abseil-cpp/absl/cleanup/cleanup.h"
 
 namespace installer {
 
@@ -267,8 +261,9 @@ bool ContainsUnsupportedSwitch(const base::CommandLine& cmd_line) {
       "app-launcher",
   };
   for (size_t i = 0; i < std::size(kLegacySwitches); ++i) {
-    if (cmd_line.HasSwitch(kLegacySwitches[i]))
+    if (cmd_line.HasSwitch(UNSAFE_TODO(kLegacySwitches[i]))) {
       return true;
+    }
   }
   return false;
 }
@@ -534,30 +529,6 @@ void DoLegacyCleanups(const InstallerState& installer_state,
   RemoveBinariesVersionKey(installer_state);
   RemoveAppLauncherVersionKey(installer_state);
   RemoveLegacyChromeAppCommands(installer_state);
-}
-
-base::Time GetConsoleSessionStartTime() {
-  constexpr DWORD kInvalidSessionId = 0xFFFFFFFF;
-  DWORD console_session_id = ::WTSGetActiveConsoleSessionId();
-  if (console_session_id == kInvalidSessionId)
-    return base::Time();
-  wchar_t* buffer = nullptr;
-  DWORD buffer_size = 0;
-  if (!::WTSQuerySessionInformation(WTS_CURRENT_SERVER_HANDLE,
-                                    console_session_id, WTSSessionInfo, &buffer,
-                                    &buffer_size)) {
-    return base::Time();
-  }
-  absl::Cleanup wts_deleter = [buffer] { ::WTSFreeMemory(buffer); };
-
-  WTSINFO* wts_info = nullptr;
-  if (buffer_size < sizeof(*wts_info))
-    return base::Time();
-
-  wts_info = reinterpret_cast<WTSINFO*>(buffer);
-  FILETIME filetime = {wts_info->LogonTime.u.LowPart,
-                       static_cast<DWORD>(wts_info->LogonTime.u.HighPart)};
-  return base::Time::FromFileTime(filetime);
 }
 
 std::optional<std::string> DecodeDMTokenSwitchValue(

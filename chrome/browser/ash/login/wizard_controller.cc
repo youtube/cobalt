@@ -1636,6 +1636,22 @@ void WizardController::OnSamlConfirmPasswordScreenExit(
   OnScreenExit(SamlConfirmPasswordView::kScreenId,
                SamlConfirmPasswordScreen::GetResultString(result));
   switch (result) {
+    case SamlConfirmPasswordScreen::Result::kSuccess:
+      switch (wizard_context_->knowledge_factor_setup.auth_setup_flow) {
+        case WizardContext::AuthChangeFlow::kInitialSetup:
+          // TODO: b/445665662 - Move the SAML confirm password screen to after
+          // Cryptohome is mounted for initial setup.
+          [[fallthrough]];
+        case WizardContext::AuthChangeFlow::kReauthentication:
+          // During reauthentication the SAML confirm password screen is only
+          // shown before Cryptohome is mounted.
+          CompleteLogin();
+          break;
+        case WizardContext::AuthChangeFlow::kRecovery:
+          NOTREACHED() << "SAML confirm password screen should not be shown "
+                          "during recovery.";
+      }
+      break;
     case SamlConfirmPasswordScreen::Result::kCancel:
       LoginDisplayHost::default_host()->StartSignInScreen();
       return;
@@ -2458,13 +2474,9 @@ void WizardController::OnCryptohomeRecoverySetupScreenExit(
     CryptohomeRecoverySetupScreen::Result result) {
   OnScreenExit(CryptohomeRecoverySetupScreenView::kScreenId,
                CryptohomeRecoverySetupScreen::GetResultString(result));
-  if (features::IsAllowPasswordlessSetupEnabled()) {
-    // First step of the AuthFactor setup flow. Offer PIN as a main factor. If
-    // there isn't hardware support, the screen exits gracefully.
-    ShowPinSetupScreenAsMainFactor();
-  } else {
-    ShowPasswordSelectionScreen();
-  }
+  // First step of the AuthFactor setup flow. Offer PIN as a main factor. If
+  // there isn't hardware support, the screen exits gracefully.
+  ShowPinSetupScreenAsMainFactor();
 }
 
 void WizardController::OnPasswordSelectionScreenExit(
@@ -2490,7 +2502,6 @@ void WizardController::OnPasswordSelectionScreenExit(
       CHECK_EQ(wizard_context_->knowledge_factor_setup.auth_setup_flow,
                WizardContext::AuthChangeFlow::kRecovery)
           << "PasswordSelection exited with PIN_RESET result outside recovery.";
-      CHECK(features::IsAllowPasswordlessRecoveryEnabled());
       ShowPinSetupScreenForRecovery();
       return;
     }
@@ -2667,49 +2678,44 @@ void WizardController::OnFingerprintSetupScreenExit(
 void WizardController::OnPinSetupScreenExit(PinSetupScreen::Result result) {
   OnScreenExit(PinSetupScreenView::kScreenId,
                PinSetupScreen::GetResultString(result));
-  if (features::IsAllowPasswordlessSetupEnabled()) {
-    switch (result) {
-      // PIN as a main factor is not supported or not wanted. In both cases,
-      // proceed to the PasswordSelectionScreen.
-      case PinSetupScreen::Result::kUserChosePassword:
-        // The user does not wish to have a PIN as their main authentication
-        // factor. Setting this setup mode ensures that the screen is not
-        // resurfaced later in the flow a second time, and that a back button
-        // will be shown on PasswordSelectionScreen for the user to go back.
-        wizard_context_->knowledge_factor_setup.pin_setup_mode =
-            WizardContext::PinSetupMode::kUserChosePasswordInstead;
-        [[fallthrough]];
-      case PinSetupScreen::Result::kNotApplicableAsPrimaryFactor:
-        ShowPasswordSelectionScreen();
-        return;
-      case PinSetupScreen::Result::kDoneAsMainFactor:
-        wizard_context_->knowledge_factor_setup.pin_setup_mode =
-            WizardContext::PinSetupMode::kAlreadyPerformed;
-        ShowFingerprintSetupScreen();
-        return;
-      // These are emitted when the screen is surfaced at the end of the flow,
-      // offering PIN as an additional factor.
-      case PinSetupScreen::Result::kDoneAsSecondaryFactor:
-      case PinSetupScreen::Result::kUserSkip:
-      case PinSetupScreen::Result::kNotApplicable:
-      case PinSetupScreen::Result::kTimedOut:
-        FinishAuthFactorsSetup();
-        return;
-      // Proceed into session when PIN is reset via recovery.
-      case PinSetupScreen::Result::kDoneRecoveryReset:
-        CHECK_EQ(wizard_context_->knowledge_factor_setup.auth_setup_flow,
-                 WizardContext::AuthChangeFlow::kRecovery);
-        CHECK(features::IsAllowPasswordlessRecoveryEnabled());
+  switch (result) {
+    // PIN as a main factor is not supported or not wanted. In both cases,
+    // proceed to the PasswordSelectionScreen.
+    case PinSetupScreen::Result::kUserChosePassword:
+      // The user does not wish to have a PIN as their main authentication
+      // factor. Setting this setup mode ensures that the screen is not
+      // resurfaced later in the flow a second time, and that a back button
+      // will be shown on PasswordSelectionScreen for the user to go back.
+      wizard_context_->knowledge_factor_setup.pin_setup_mode =
+          WizardContext::PinSetupMode::kUserChosePasswordInstead;
+      [[fallthrough]];
+    case PinSetupScreen::Result::kNotApplicableAsPrimaryFactor:
+      ShowPasswordSelectionScreen();
+      return;
+    case PinSetupScreen::Result::kDoneAsMainFactor:
+      wizard_context_->knowledge_factor_setup.pin_setup_mode =
+          WizardContext::PinSetupMode::kAlreadyPerformed;
+      ShowFingerprintSetupScreen();
+      return;
+    // These are emitted when the screen is surfaced at the end of the flow,
+    // offering PIN as an additional factor.
+    case PinSetupScreen::Result::kDoneAsSecondaryFactor:
+    case PinSetupScreen::Result::kUserSkip:
+    case PinSetupScreen::Result::kNotApplicable:
+    case PinSetupScreen::Result::kTimedOut:
+      FinishAuthFactorsSetup();
+      return;
+    // Proceed into session when PIN is reset via recovery.
+    case PinSetupScreen::Result::kDoneRecoveryReset:
+      CHECK_EQ(wizard_context_->knowledge_factor_setup.auth_setup_flow,
+               WizardContext::AuthChangeFlow::kRecovery);
 
-        if (features::IsRecoveryFlowReorderEnabled()) {
-          ObtainContextAndFinalizeAuth();
-          return;
-        }
-        ObtainContextAndLoginAuthenticated();
+      if (features::IsRecoveryFlowReorderEnabled()) {
+        ObtainContextAndFinalizeAuth();
         return;
-    }
-  } else {
-    FinishAuthFactorsSetup();
+      }
+      ObtainContextAndLoginAuthenticated();
+      return;
   }
 }
 
@@ -2749,6 +2755,13 @@ void WizardController::ObtainContextAndAttemptLocalAuthentication() {
       *token,
       base::BindOnce(&WizardController::AttemptLocalAuthenticationWithContext,
                      weak_factory_.GetWeakPtr()));
+}
+
+void WizardController::CompleteLogin() {
+  CHECK(wizard_context_->user_context);
+  auto user_context = std::move(wizard_context_->user_context);
+  LoginDisplayHost::default_host()->CompleteLogin(*user_context);
+  wizard_context_->user_context = nullptr;
 }
 
 void WizardController::LoginAuthenticatedWithContext(

@@ -9,8 +9,6 @@
 #include "base/metrics/user_metrics_action.h"
 #include "chrome/browser/extensions/extension_action_runner.h"
 #include "chrome/browser/extensions/extension_tab_util.h"
-#include "chrome/browser/extensions/permissions/active_tab_permission_granter.h"
-#include "chrome/browser/extensions/permissions/site_permissions_helper.h"
 #include "chrome/browser/extensions/tab_helper.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
@@ -23,6 +21,8 @@
 #include "content/public/browser/web_contents.h"
 #include "extensions/browser/extension_registry.h"
 #include "extensions/browser/extension_system.h"
+#include "extensions/browser/permissions/active_tab_permission_granter.h"
+#include "extensions/browser/permissions/site_permissions_helper.h"
 #include "extensions/common/permissions/permissions_data.h"
 
 namespace {
@@ -373,6 +373,8 @@ ExtensionsMenuViewModel::ExtensionsMenuViewModel(
   permissions_manager_observation_.Observe(
       extensions::PermissionsManager::Get(browser_->GetProfile()));
   toolbar_model_observation_.Observe(toolbar_model_.get());
+  auto* tab_list = TabListInterface::From(browser);
+  tab_list_interface_observation_.Observe(tab_list);
 }
 
 ExtensionsMenuViewModel::~ExtensionsMenuViewModel() {
@@ -456,7 +458,7 @@ void ExtensionsMenuViewModel::GrantSiteAccess(
       current_site_access, current_site_interaction, web_contents,
       GetSiteAccessToggleState(*extension, *profile, *toolbar_model,
                                *web_contents));
-  CHECK_EQ(current_site_access, PermissionsManager::UserSiteAccess::kOnClick);
+  DCHECK_EQ(current_site_access, PermissionsManager::UserSiteAccess::kOnClick);
 
   // Update site access when extension requested host permissions for the
   // current site (that is, site access was withheld).
@@ -689,6 +691,17 @@ void ExtensionsMenuViewModel::OnToolbarModelInitialized() {
 
 void ExtensionsMenuViewModel::OnToolbarPinnedActionsChanged() {
   platform_delegate_->OnToolbarPinnedActionsChanged();
+}
+
+void ExtensionsMenuViewModel::OnActiveTabChanged(tabs::TabInterface* tab) {
+  auto* web_contents = tab->GetContents();
+  platform_delegate_->OnActiveWebContentsChanged(web_contents);
+}
+
+void ExtensionsMenuViewModel::DidFinishNavigation(
+    content::NavigationHandle* handle) {
+  auto* web_contents = GetActiveWebContents();
+  platform_delegate_->OnActiveWebContentsChanged(web_contents);
 }
 
 content::WebContents* ExtensionsMenuViewModel::GetActiveWebContents() {

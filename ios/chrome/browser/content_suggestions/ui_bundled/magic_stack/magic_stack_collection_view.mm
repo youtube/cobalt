@@ -11,7 +11,6 @@
 #import "base/metrics/histogram_macros.h"
 #import "base/numerics/safe_conversions.h"
 #import "components/segmentation_platform/public/features.h"
-#import "ios/chrome/browser/content_suggestions/ui_bundled/cells/content_suggestions_tile_layout_util.h"
 #import "ios/chrome/browser/content_suggestions/ui_bundled/content_suggestions_constants.h"
 #import "ios/chrome/browser/content_suggestions/ui_bundled/magic_stack/edit_button_config.h"
 #import "ios/chrome/browser/content_suggestions/ui_bundled/magic_stack/magic_stack_collection_view_audience.h"
@@ -22,7 +21,7 @@
 #import "ios/chrome/browser/content_suggestions/ui_bundled/magic_stack/magic_stack_module_container.h"
 #import "ios/chrome/browser/content_suggestions/ui_bundled/magic_stack/magic_stack_utils.h"
 #import "ios/chrome/browser/content_suggestions/ui_bundled/magic_stack/placeholder_config.h"
-#import "ios/chrome/browser/content_suggestions/ui_bundled/shop_card/shop_card_item.h"
+#import "ios/chrome/browser/content_suggestions/ui_bundled/shop_card/ui/shop_card_item.h"
 #import "ios/chrome/browser/ntp/shared/metrics/home_metrics.h"
 #import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
 
@@ -393,8 +392,7 @@ typedef NSDiffableDataSourceSnapshot<NSString*, MagicStackModule*>
                intoSectionWithIdentifier:kMagicStackEditSectionIdentifier];
   }
 
-  [self.diffableDataSource applySnapshot:snapshot
-                    animatingDifferences:!isPlaceholder];
+  [self.diffableDataSource applySnapshotUsingReloadData:snapshot];
 }
 
 // Determines the final page offset given the scroll `offset` and the `velocity`

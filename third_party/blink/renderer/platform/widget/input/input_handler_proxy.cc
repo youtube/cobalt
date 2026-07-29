@@ -388,6 +388,23 @@ void InputHandlerProxy::HandleInputEventWithLatencyInfo(
       base::SampleMetadataScope::kProcess);
   const auto& gesture_event =
       static_cast<const WebGestureEvent&>(event_with_callback->event());
+
+  if (gesture_event.GetType() == WebGestureEvent::Type::kGestureScrollUpdate) {
+    // To estimate the impact of empty GestureScrollUpdates on predictor
+    // output quality, some experiment arms will skip them.
+    const bool should_filter_out_event =
+        (::features::kSendEmptyGestureScrollUpdateFilterOutEmptyUpdates.Get() &&
+         gesture_event.data.scroll_update.delta_x == 0 &&
+         gesture_event.data.scroll_update.delta_y == 0);
+    if (should_filter_out_event) {
+      event_with_callback->RunCallbacks(
+          InputHandlerProxy::DID_HANDLE, event_with_callback->latency_info(),
+          /*did_overscroll_params=*/nullptr,
+          /*attribution=*/WebInputEventAttribution());
+      return;
+    }
+  }
+
   const bool is_first_gesture_scroll_update =
       !has_seen_first_gesture_scroll_update_after_begin_ &&
       gesture_event.GetType() == WebGestureEvent::Type::kGestureScrollUpdate;
@@ -413,17 +430,6 @@ void InputHandlerProxy::HandleInputEventWithLatencyInfo(
       // dispatching if `event_with_callback` is too old, and if we expect a
       // newer input event to still arrive in time.
       enqueue_scroll_events_ = true;
-
-      // To estimate the impact of empty GestureScrollUpdates on predictor
-      // output quality, some experiment arms will skip them.
-      const bool should_filter_out_event =
-          (::features::kSendEmptyGestureScrollUpdateFilterOutEmptyUpdates
-               .Get() &&
-           gesture_event.data.scroll_update.delta_x == 0 &&
-           gesture_event.data.scroll_update.delta_y == 0);
-      if (should_filter_out_event) {
-        return;
-      }
 
       if (scroll_predictor_) {
         std::unique_ptr<EventWithCallback> event_to_dispatch =
@@ -657,8 +663,9 @@ bool InputHandlerProxy::HasQueuedEventsReadyForDispatch(
 
   if (base::FeatureList::IsEnabled(
           features::kRefactorCompositorThreadEventQueue)) {
-    // Don't dispatch events that are for a future frame.
-    if (compositor_event_queue_->PeekTimestamp() > sample_time) {
+    // We delegate the check to the queue, which knows if the next event is
+    // forced (backlog) or valid based on time.
+    if (!compositor_event_queue_->IsNextEventReady(sample_time)) {
       return false;
     }
   }
@@ -835,9 +842,15 @@ InputHandlerProxy::RouteToTypeSpecificHandler(
   if (event_with_callback->metrics()) {
     event_with_callback->WillStartProcessingForMetrics();
     done_callback = base::BindOnce(
-        [](EventWithCallback* event) {
+        [](EventWithCallback* event, bool handled) {
           event->DidCompleteProcessingForMetrics();
-          return event->TakeMetrics();
+          bool keep_metrics =
+              handled ||
+              cc::EventMetrics::ShouldKeepEvenWithoutCausingFrameUpdate(
+                  event->metrics()->type());
+          std::unique_ptr<cc::EventMetrics> result =
+              keep_metrics ? event->TakeMetrics() : nullptr;
+          return result;
         },
         event_with_callback);
   }
@@ -1212,8 +1225,9 @@ InputHandlerProxy::EventDisposition InputHandlerProxy::HandleGestureScrollBegin(
   // TODO(bokan): Should we really be calling this in cases like DROP_EVENT and
   // DID_NOT_HANDLE_NON_BLOCKING_DUE_TO_FLING? I think probably not.
   if (elastic_overscroll_controller_ && result != DID_NOT_HANDLE) {
-    HandleScrollElasticityOverscroll(gesture_event,
-                                     cc::InputHandlerScrollResult());
+    HandleScrollElasticityOverscroll(
+        gesture_event, cc::InputHandlerScrollResult(),
+        input_handler_->LatchedScrollerElementId());
   }
 
   return result;
@@ -1248,9 +1262,12 @@ InputHandlerProxy::HandleGestureScrollUpdate(
       "input", "DeltaUnits", TRACE_EVENT_SCOPE_THREAD, "unit",
       static_cast<int>(gesture_event.data.scroll_update.delta_units));
 
+  const cc::ElementId latched_element_id =
+      input_handler_->LatchedScrollerElementId();
   bool is_overscroll =
       (elastic_overscroll_controller_ &&
-       !elastic_overscroll_controller_->StretchAmount().IsZero());
+       !elastic_overscroll_controller_->StretchAmount(latched_element_id)
+            .IsZero());
   if (snap_fling_controller_->HandleGestureScrollUpdate(
           GetGestureScrollUpdateInfo(gesture_event, is_overscroll))) {
     handling_gesture_on_impl_thread_ = false;
@@ -1262,6 +1279,12 @@ InputHandlerProxy::HandleGestureScrollUpdate(
 
   cc::InputHandlerScrollResult scroll_result =
       input_handler_->ScrollUpdate(cc::ScrollState(scroll_state_data), delay);
+
+  if (is_only_empty_gsu_in_queue_) {
+    UMA_HISTOGRAM_BOOLEAN("Event.ScrollJank.EmptyGestureScrollUpdateFrame",
+                          scroll_result.did_scroll);
+  }
+  is_only_empty_gsu_in_queue_ = false;
 
   TRACE_EVENT(
       "input,input.scrolling",
@@ -1284,8 +1307,11 @@ InputHandlerProxy::HandleGestureScrollUpdate(
   HandleOverscroll(gesture_event.PositionInWidget(), scroll_result,
                    gesture_event.SourceDevice());
 
-  if (elastic_overscroll_controller_)
-    HandleScrollElasticityOverscroll(gesture_event, scroll_result);
+  if (elastic_overscroll_controller_) {
+    HandleScrollElasticityOverscroll(
+        gesture_event, scroll_result,
+        input_handler_->LatchedScrollerElementId());
+  }
 
   if (metrics && scroll_result.needs_main_thread_repaint)
     metrics->set_requires_main_thread_update();
@@ -1300,6 +1326,9 @@ InputHandlerProxy::HandleGestureScrollUpdate(
 InputHandlerProxy::EventDisposition InputHandlerProxy::HandleGestureScrollEnd(
     const WebGestureEvent& gesture_event) {
   TRACE_EVENT0("input", "InputHandlerProxy::HandleGestureScrollEnd");
+
+  const cc::ElementId latched_element_id =
+      input_handler_->LatchedScrollerElementId();
 
   if (scroll_sequence_ignored_) {
     DCHECK(!currently_active_gesture_device_.has_value());
@@ -1321,8 +1350,8 @@ InputHandlerProxy::EventDisposition InputHandlerProxy::HandleGestureScrollEnd(
 
   InputHandlerScrollEnd();
   if (elastic_overscroll_controller_) {
-    HandleScrollElasticityOverscroll(gesture_event,
-                                     cc::InputHandlerScrollResult());
+    HandleScrollElasticityOverscroll(
+        gesture_event, cc::InputHandlerScrollResult(), latched_element_id);
   }
 
   return DID_HANDLE;
@@ -1715,7 +1744,21 @@ void InputHandlerProxy::DeliverInputForBeginFrame(
       GenerateSyntheticScrollPredictionFromFutureEvent(args);
     }
   }
+
+  if (compositor_event_queue_->size() == 1) {
+    const WebInputEvent* event = compositor_event_queue_->FirstOriginalEvent();
+    is_only_empty_gsu_in_queue_ = static_cast<const WebGestureEvent*>(event)
+                                          ->data.scroll_update.delta_x == 0 &&
+                                  static_cast<const WebGestureEvent*>(event)
+                                          ->data.scroll_update.delta_y == 0;
+  }
+
   ProcessQueuedEventsUpToSampleTime(args, sample_time);
+
+  if (base::FeatureList::IsEnabled(
+          features::kRefactorCompositorThreadEventQueue)) {
+    compositor_event_queue_->DidFinishDispatch();
+  }
 
   if (!queue_flushed_callback_.is_null()) {
     std::move(queue_flushed_callback_).Run();
@@ -1754,7 +1797,7 @@ void InputHandlerProxy::ProcessQueuedEventsUpToSampleTime(
   if (base::FeatureList::IsEnabled(
           features::kRefactorCompositorThreadEventQueue)) {
     // Coalesce scroll and pinch events in the |compositor_event_queue_| till
-    // sample_time.
+    // sample_time. It automatically includes the backlog.
     compositor_event_queue_->CoalesceEvents(sample_time);
   }
 
@@ -1882,6 +1925,9 @@ void InputHandlerProxy::FlushQueuedEventsForTesting() {
   CHECK(compositor_event_queue_->empty());
 }
 
+cc::ElementId InputHandlerProxy::LatchedScrollerElementId() const {
+  return input_handler_->LatchedScrollerElementId();
+}
 void InputHandlerProxy::HandleOverscroll(
     const gfx::PointF& causal_event_viewport_point,
     const cc::InputHandlerScrollResult& scroll_result,
@@ -1912,10 +1958,12 @@ void InputHandlerProxy::RequestAnimation() {
 
 void InputHandlerProxy::HandleScrollElasticityOverscroll(
     const WebGestureEvent& gesture_event,
-    const cc::InputHandlerScrollResult& scroll_result) {
+    const cc::InputHandlerScrollResult& scroll_result,
+    cc::ElementId latched_element_id) {
   DCHECK(elastic_overscroll_controller_);
-  elastic_overscroll_controller_->ObserveGestureEventAndResult(gesture_event,
-                                                               scroll_result);
+
+  elastic_overscroll_controller_->ObserveGestureEventAndResult(
+      latched_element_id, gesture_event, scroll_result);
 }
 
 void InputHandlerProxy::SetTickClockForTesting(

@@ -194,9 +194,6 @@ void DownloadTargetDeterminer::DoLoop() {
       case STATE_DETERMINE_MIME_TYPE:
         result = DoDetermineMimeType();
         break;
-      case STATE_DETERMINE_IF_HANDLED_SAFELY_BY_BROWSER:
-        result = DoDetermineIfHandledSafely();
-        break;
       case STATE_CHECK_DOWNLOAD_URL:
         result = DoCheckDownloadUrl();
         break;
@@ -745,7 +742,7 @@ DownloadTargetDeterminer::Result
   DCHECK(!local_path_.empty());
   DCHECK(mime_type_.empty());
 
-  next_state_ = STATE_DETERMINE_IF_HANDLED_SAFELY_BY_BROWSER;
+  next_state_ = STATE_CHECK_DOWNLOAD_URL;
   if (virtual_path_ == local_path_
 #if BUILDFLAG(IS_ANDROID)
       || local_path_.IsContentUri()
@@ -765,157 +762,40 @@ void DownloadTargetDeterminer::DetermineMimeTypeDone(
     const std::string& mime_type) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   DVLOG(20) << "MIME type: " << mime_type;
-  DCHECK_EQ(STATE_DETERMINE_IF_HANDLED_SAFELY_BY_BROWSER, next_state_);
+  DCHECK_EQ(STATE_CHECK_DOWNLOAD_URL, next_state_);
+  DCHECK(!local_path_.empty());
+  DCHECK(!is_filetype_handled_safely_);
 
   mime_type_ = mime_type;
+  if (!mime_type_.empty()) {
+    is_filetype_handled_safely_ =
+        DetermineIfHandledSafelyHelper(download_, local_path_, mime_type_);
+    DVLOG(20) << "Is file type handled safely: " << is_filetype_handled_safely_;
+  }
+
   DoLoop();
 }
 
-#if BUILDFLAG(ENABLE_PLUGINS)
-// The code below is used by DoDetermineIfHandledSafely to determine if the
-// file type is handled by a sandboxed plugin.
-namespace {
-
-void InvokeClosureAfterGetPluginCallback(
-    base::OnceClosure closure,
-    const std::vector<content::WebPluginInfo>& unused) {
-  std::move(closure).Run();
-}
-
-enum ActionOnStalePluginList {
-  RETRY_IF_STALE_PLUGIN_LIST,
-  IGNORE_IF_STALE_PLUGIN_LIST
-};
-
-void IsHandledBySafePlugin(content::BrowserContext* browser_context,
-                           const GURL& url,
-                           const std::string& mime_type,
-                           ActionOnStalePluginList stale_plugin_action,
-                           base::OnceCallback<void(bool)> callback) {
-  DCHECK_CURRENTLY_ON(BrowserThread::UI);
-  DCHECK(!mime_type.empty());
-  using content::WebPluginInfo;
-
-  std::string actual_mime_type;
-  bool is_stale = false;
-  WebPluginInfo plugin_info;
-
-  content::PluginService* plugin_service =
-      content::PluginService::GetInstance();
-  bool plugin_found =
-      plugin_service->GetPluginInfo(browser_context, url, mime_type, &is_stale,
-                                    &plugin_info, &actual_mime_type);
-  if (is_stale && stale_plugin_action == RETRY_IF_STALE_PLUGIN_LIST) {
-    // The GetPluginsAsync call causes the plugin list to be refreshed. Once
-    // that's done we can retry the GetPluginInfo call. We break out of this
-    // cycle after a single retry in order to avoid retrying indefinitely.
-    plugin_service->GetPluginsAsync(base::BindOnce(
-        &InvokeClosureAfterGetPluginCallback,
-        base::BindOnce(&IsHandledBySafePlugin, browser_context, url, mime_type,
-                       IGNORE_IF_STALE_PLUGIN_LIST, std::move(callback))));
-    return;
-  }
-  // In practice, we assume that retrying once is enough.
-  DCHECK(!is_stale);
-  content::GetUIThreadTaskRunner({})->PostTask(
-      FROM_HERE, base::BindOnce(std::move(callback),
-                                /*is_handled_safely=*/plugin_found));
-}
-
-bool IsHandledBySafePluginSynchronous(content::BrowserContext* browser_context,
-                                      const GURL& url,
-                                      const std::string& mime_type) {
-  DCHECK_CURRENTLY_ON(BrowserThread::UI);
-  DCHECK(!mime_type.empty());
-  using content::WebPluginInfo;
-
-  std::string actual_mime_type;
-  bool is_stale = false;
-  WebPluginInfo plugin_info;
-
-  content::PluginService* plugin_service =
-      content::PluginService::GetInstance();
-  bool plugin_found =
-      plugin_service->GetPluginInfo(browser_context, url, mime_type, &is_stale,
-                                    &plugin_info, &actual_mime_type);
-  if (is_stale) {
-    plugin_service->GetPlugins();
-    plugin_found = plugin_service->GetPluginInfo(
-        browser_context, url, mime_type, &is_stale, &plugin_info,
-        &actual_mime_type);
-  }
-  // In practice, we assume that retrying once is enough.
-  DCHECK(!is_stale);
-  return plugin_found;
-}
-
-}  // namespace
-#endif  // BUILDFLAG(ENABLE_PLUGINS)
-
-void DownloadTargetDeterminer::DetermineIfHandledSafelyHelper(
-    download::DownloadItem* download,
-    const base::FilePath& local_path,
-    const std::string& mime_type,
-    base::OnceCallback<void(bool)> callback) {
-  if (blink::IsSupportedMimeType(mime_type)) {
-    std::move(callback).Run(true);
-    return;
-  }
-
-#if BUILDFLAG(ENABLE_PLUGINS)
-  IsHandledBySafePlugin(content::DownloadItemUtils::GetBrowserContext(download),
-                        net::FilePathToFileURL(local_path), mime_type,
-                        RETRY_IF_STALE_PLUGIN_LIST, std::move(callback));
-
-#else
-  std::move(callback).Run(false);
-#endif
-}
-
-bool DownloadTargetDeterminer::DetermineIfHandledSafelyHelperSynchronous(
+bool DownloadTargetDeterminer::DetermineIfHandledSafelyHelper(
     download::DownloadItem* download,
     const base::FilePath& local_path,
     const std::string& mime_type) {
+  DCHECK_CURRENTLY_ON(BrowserThread::UI);
+
   if (blink::IsSupportedMimeType(mime_type)) {
     return true;
   }
 
 #if BUILDFLAG(ENABLE_PLUGINS)
-  return IsHandledBySafePluginSynchronous(
+  DCHECK(!mime_type.empty());
+  auto* plugin_service = content::PluginService::GetInstance();
+  plugin_service->GetPlugins();
+  return plugin_service->HasPlugin(
       content::DownloadItemUtils::GetBrowserContext(download),
       net::FilePathToFileURL(local_path), mime_type);
-
 #else
   return false;
 #endif
-}
-
-DownloadTargetDeterminer::Result
-    DownloadTargetDeterminer::DoDetermineIfHandledSafely() {
-  DCHECK_CURRENTLY_ON(BrowserThread::UI);
-  DCHECK(!virtual_path_.empty());
-  DCHECK(!local_path_.empty());
-  DCHECK(!is_filetype_handled_safely_);
-
-  next_state_ = STATE_CHECK_DOWNLOAD_URL;
-
-  if (mime_type_.empty())
-    return CONTINUE;
-
-  DetermineIfHandledSafelyHelper(
-      download_, local_path_, mime_type_,
-      base::BindOnce(&DownloadTargetDeterminer::DetermineIfHandledSafelyDone,
-                     weak_ptr_factory_.GetWeakPtr()));
-  return QUIT_DOLOOP;
-}
-
-void DownloadTargetDeterminer::DetermineIfHandledSafelyDone(
-    bool is_handled_safely) {
-  DCHECK_CURRENTLY_ON(BrowserThread::UI);
-  DVLOG(20) << "Is file type handled safely: " << is_filetype_handled_safely_;
-  DCHECK_EQ(STATE_CHECK_DOWNLOAD_URL, next_state_);
-  is_filetype_handled_safely_ = is_handled_safely;
-  DoLoop();
 }
 
 DownloadTargetDeterminer::Result

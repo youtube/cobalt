@@ -6,6 +6,7 @@
 
 #import "ios/chrome/browser/lens_overlay/coordinator/lens_overlay_availability.h"
 #import "ios/chrome/browser/shared/ui/symbols/symbols.h"
+#import "ios/chrome/common/ui/button_stack/button_stack_configuration.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
 #import "ios/chrome/common/ui/promo_style/utils.h"
 #import "ios/chrome/common/ui/util/button_util.h"
@@ -35,7 +36,7 @@ const CGFloat kPauseButtonBottomPadding = 14;
 const CGFloat kLensOverlayOnboaridingSymbolSize = 22;
 // The height of the invariant items of the dialog
 // (e.g. bottom action buttons, the padding).
-const CGFloat kDialogFixedItemsHeight = 160;
+const CGFloat kDialogFixedItemsHeight = 180;
 // The width of the dialog in regular display size.
 const CGFloat kDialogWidthInRegularDisplaySize = 540;
 
@@ -58,7 +59,6 @@ const CGFloat kDialogWidthInRegularDisplaySize = 540;
 @dynamic delegate;
 
 - (void)viewDidLoad {
-  self.layoutBehindNavigationBar = YES;
   self.shouldHideBanner = YES;
   self.headerImageType = PromoStyleImageType::kNone;
 
@@ -69,9 +69,9 @@ const CGFloat kDialogWidthInRegularDisplaySize = 540;
   _contentStack = [self createContentStack];
   [self.specificContentView addSubview:_contentStack];
 
-  self.primaryActionString = l10n_util::GetNSString(
+  self.configuration.primaryActionString = l10n_util::GetNSString(
       IDS_IOS_LENS_OVERLAY_CONSENT_ACCEPT_TERMS_BUTTON_TITLE);
-  self.secondaryActionString = l10n_util::GetNSString(
+  self.configuration.secondaryActionString = l10n_util::GetNSString(
       IDS_IOS_LENS_OVERLAY_CONSENT_DENY_TERMS_BUTTON_TITLE);
 
   [super viewDidLoad];

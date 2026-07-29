@@ -18,7 +18,6 @@
 #include "content/common/content_export.h"
 #include "content/public/browser/devtools_agent_host_client.h"
 #include "content/public/browser/devtools_agent_host_observer.h"
-#include "mojo/public/cpp/bindings/pending_remote.h"
 #include "url/gurl.h"
 
 namespace base {
@@ -45,6 +44,18 @@ class ServiceWorkerContext;
 class CONTENT_EXPORT DevToolsAgentHost
     : public base::RefCounted<DevToolsAgentHost> {
  public:
+  // Mode for the remote debugging server
+  // started by StartRemoteDebuggingServer.
+  enum RemoteDebuggingServerMode {
+    // The default mode started by command-line flags like
+    // --remote-debugging-port.
+    // The server does not require explicit user approval for debugging.
+    kDefault,
+    // Each debugging connection will be rejected until the user explicitly
+    // approves it.
+    kWithApprovalOnly,
+  };
+
   static const char kTypeTab[];
   static const char kTypePage[];
   static const char kTypeFrame[];
@@ -142,8 +153,12 @@ class CONTENT_EXPORT DevToolsAgentHost
   static void StartRemoteDebuggingServer(
       std::unique_ptr<DevToolsSocketFactory> server_socket_factory,
       const base::FilePath& active_port_output_directory,
-      const base::FilePath& debug_frontend_dir);
+      const base::FilePath& debug_frontend_dir,
+      RemoteDebuggingServerMode mode = RemoteDebuggingServerMode::kDefault);
   static void StopRemoteDebuggingServer();
+  // Returns the address of the remote debugging server, if started.
+  // Returns empty string if server is not started.
+  static std::string GetRemoteDebuggingServerAddress();
 
   // Starts remote debugging for browser target for the given fd=3
   // for reading and fd=4 for writing remote debugging messages.

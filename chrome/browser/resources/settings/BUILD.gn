@@ -254,7 +254,7 @@ build_webui("build") {
     "site_settings/web_printing_page.ts",
     "site_settings/window_management_page.ts",
     "site_settings/zoom_levels.ts",
-    "your_saved_info_page/account_card_element.ts",
+    "your_saved_info_page/account_card.ts",
     "your_saved_info_page/category_reference_card.ts",
     "your_saved_info_page/collapsible_autofill_settings_card.ts",
     "your_saved_info_page/identity_docs_page.ts",
@@ -272,8 +272,8 @@ build_webui("build") {
 
   if (!is_chromeos) {
     web_component_files += [
-      "a11y_page/live_caption_section.ts",
-      "a11y_page/live_translate_section.ts",
+      "a11y_page/live_caption.ts",
+      "a11y_page/live_translate.ts",
       "clear_browsing_data_dialog/clear_browsing_data_account_indicator.ts",
       "default_browser_page/default_browser_page.ts",
       "languages_page/add_languages_dialog.ts",
@@ -301,7 +301,7 @@ build_webui("build") {
   }
 
   if (is_linux) {
-    web_component_files += [ "a11y_page/captions_subpage.ts" ]
+    web_component_files += [ "a11y_page/captions_page.ts" ]
   }
 
   if (is_mac) {
@@ -339,7 +339,6 @@ build_webui("build") {
     "ensure_lazy_loaded.ts",
     "focus_config.ts",
     "global_scroll_target_mixin.ts",
-    "hats_browser_proxy.ts",
     "i18n_setup.ts",
     "lazy_load.ts",
     "metrics_browser_proxy.ts",
@@ -350,9 +349,11 @@ build_webui("build") {
     "performance_page/performance_browser_proxy.ts",
     "performance_page/performance_metrics_proxy.ts",
     "performance_page/tab_discard/exception_validation_mixin.ts",
+    "privacy_page/hats_browser_proxy.ts",
     "privacy_page/privacy_guide/constants.ts",
     "privacy_page/privacy_guide/privacy_guide_availability_mixin.ts",
     "privacy_page/privacy_guide/privacy_guide_browser_proxy.ts",
+    "privacy_page/safe_browsing_types.ts",
     "privacy_page/security/cr_lottie.html.ts",
     "privacy_page/security/cr_lottie.ts",
     "privacy_page/security/security_keys_browser_proxy.ts",

@@ -92,16 +92,16 @@ const char kDeleteComp[] = "|";
 // This template is currently used only for the 8-bit case, and the strlen
 // causes it to fail in other cases. It is left a template in case we have
 // tests for wide replacements.
-template<typename CHAR>
+template <typename CHAR>
 void SetupReplComp(
-    void (Replacements<CHAR>::*set)(const CHAR*, const Component&),
+    void (Replacements<CHAR>::*set)(std::basic_string_view<CHAR>),
     void (Replacements<CHAR>::*clear)(),
     Replacements<CHAR>* rep,
     const CHAR* str) {
   if (str && str[0] == kDeleteComp[0]) {
     (rep->*clear)();
   } else if (str) {
-    (rep->*set)(str, Component(0, static_cast<int>(strlen(str))));
+    (rep->*set)(str);
   }
 }
 
@@ -317,14 +317,11 @@ TEST_F(URLCanonTest, Scheme) {
   std::string out_str;
 
   for (const auto& scheme_case : scheme_cases) {
-    int url_len = static_cast<int>(strlen(scheme_case.input));
-    Component in_comp(0, url_len);
     Component out_comp;
 
     out_str.clear();
     StdStringCanonOutput output1(&out_str);
-    bool success = CanonicalizeScheme(
-        in_comp.as_string_view_on(scheme_case.input), &output1, &out_comp);
+    bool success = CanonicalizeScheme(scheme_case.input, &output1, &out_comp);
     output1.Complete();
 
     EXPECT_EQ(scheme_case.expected_success, success);
@@ -337,9 +334,7 @@ TEST_F(URLCanonTest, Scheme) {
     StdStringCanonOutput output2(&out_str);
 
     std::u16string wide_input(base::UTF8ToUTF16(scheme_case.input));
-    in_comp.len = static_cast<int>(wide_input.length());
-    success =
-        CanonicalizeScheme(in_comp.AsViewOn(wide_input), &output2, &out_comp);
+    success = CanonicalizeScheme(wide_input, &output2, &out_comp);
     output2.Complete();
 
     EXPECT_EQ(scheme_case.expected_success, success);
@@ -1270,15 +1265,16 @@ TEST_F(URLCanonTest, UserInfo) {
   };
 
   for (const auto& user_info_case : user_info_cases) {
-    Parsed parsed = ParseStandardUrl(user_info_case.input);
+    std::string_view input_view(user_info_case.input);
+    Parsed parsed = ParseStandardUrl(input_view);
     Component out_user, out_pass;
     std::string out_str;
     StdStringCanonOutput output1(&out_str);
 
-    bool success = CanonicalizeUserInfo(
-        parsed.username.maybe_as_string_view_on(user_info_case.input),
-        parsed.password.maybe_as_string_view_on(user_info_case.input), &output1,
-        &out_user, &out_pass);
+    bool success =
+        CanonicalizeUserInfo(parsed.username.MaybeAsViewOn(input_view),
+                             parsed.password.MaybeAsViewOn(input_view),
+                             &output1, &out_user, &out_pass);
     output1.Complete();
 
     EXPECT_EQ(user_info_case.expected_success, success);
@@ -1454,33 +1450,28 @@ using CanonFunc16Bit = bool (*)(std::optional<std::u16string_view>,
                                 CanonOutput*,
                                 Component*);
 void DoPathTest(base::span<const DualComponentCase> path_cases,
-                size_t spanification_suspected_redundant_num_cases,
                 CanonFunc8Bit canon_func_8,
                 CanonFunc16Bit canon_func_16) {
-  // TODO(crbug.com/431824301): Remove unneeded parameter once validated to be
-  // redundant in M143.
-  CHECK(spanification_suspected_redundant_num_cases == path_cases.size(),
-        base::NotFatalUntil::M143);
-  for (size_t i = 0; i < spanification_suspected_redundant_num_cases; i++) {
+  for (const auto& path_case : path_cases) {
     testing::Message scope_message;
-    scope_message << path_cases[i].input8 << "," << path_cases[i].input16;
+    scope_message << path_case.input8 << "," << path_case.input16;
     SCOPED_TRACE(scope_message);
-    if (path_cases[i].input8) {
+    if (path_case.input8) {
       Component out_comp;
       std::string out_str;
       StdStringCanonOutput output(&out_str);
-      bool success = canon_func_8(path_cases[i].input8, &output, &out_comp);
+      bool success = canon_func_8(path_case.input8, &output, &out_comp);
       output.Complete();
 
-      EXPECT_EQ(path_cases[i].expected_success, success);
-      EXPECT_EQ(path_cases[i].expected_component.begin, out_comp.begin);
-      EXPECT_EQ(path_cases[i].expected_component.len, out_comp.len);
-      EXPECT_EQ(path_cases[i].expected, out_str);
+      EXPECT_EQ(path_case.expected_success, success);
+      EXPECT_EQ(path_case.expected_component.begin, out_comp.begin);
+      EXPECT_EQ(path_case.expected_component.len, out_comp.len);
+      EXPECT_EQ(path_case.expected, out_str);
     }
 
-    if (path_cases[i].input16) {
+    if (path_case.input16) {
       std::u16string input16(
-          test_utils::TruncateWStringToUTF16(path_cases[i].input16));
+          test_utils::TruncateWStringToUTF16(path_case.input16));
       Component out_comp;
       std::string out_str;
       StdStringCanonOutput output(&out_str);
@@ -1488,18 +1479,18 @@ void DoPathTest(base::span<const DualComponentCase> path_cases,
       bool success = canon_func_16(input16, &output, &out_comp);
       output.Complete();
 
-      EXPECT_EQ(path_cases[i].expected_success, success);
-      EXPECT_EQ(path_cases[i].expected_component.begin, out_comp.begin);
-      EXPECT_EQ(path_cases[i].expected_component.len, out_comp.len);
-      EXPECT_EQ(path_cases[i].expected, out_str);
+      EXPECT_EQ(path_case.expected_success, success);
+      EXPECT_EQ(path_case.expected_component.begin, out_comp.begin);
+      EXPECT_EQ(path_case.expected_component.len, out_comp.len);
+      EXPECT_EQ(path_case.expected, out_str);
     }
   }
 }
 
 TEST_F(URLCanonTest, SpecialPath) {
   // Common test cases
-  DoPathTest(kCommonPathCases, std::size(kCommonPathCases),
-             CanonicalizeSpecialPath, CanonicalizeSpecialPath);
+  DoPathTest(kCommonPathCases, CanonicalizeSpecialPath,
+             CanonicalizeSpecialPath);
 
   // Manual test: embedded NULLs should be escaped and the URL should be marked
   // as valid.
@@ -1524,14 +1515,14 @@ TEST_F(URLCanonTest, SpecialPath) {
       {"/a\\.\\b", L"/a\\.\\b", "/a/b", Component(0, 4), true},
   };
 
-  DoPathTest(special_path_cases, std::size(special_path_cases),
-             CanonicalizeSpecialPath, CanonicalizeSpecialPath);
+  DoPathTest(special_path_cases, CanonicalizeSpecialPath,
+             CanonicalizeSpecialPath);
 }
 
 TEST_F(URLCanonTest, NonSpecialPath) {
   // Common test cases
-  DoPathTest(kCommonPathCases, std::size(kCommonPathCases),
-             CanonicalizeNonSpecialPath, CanonicalizeNonSpecialPath);
+  DoPathTest(kCommonPathCases, CanonicalizeNonSpecialPath,
+             CanonicalizeNonSpecialPath);
 
   // Test cases specific on non-special URLs.
   DualComponentCase non_special_path_cases[] = {
@@ -1542,8 +1533,8 @@ TEST_F(URLCanonTest, NonSpecialPath) {
       {"/a\\./b", L"/a\\./b", "/a\\./b", Component(0, 6), true},
   };
 
-  DoPathTest(non_special_path_cases, std::size(non_special_path_cases),
-             CanonicalizeNonSpecialPath, CanonicalizeNonSpecialPath);
+  DoPathTest(non_special_path_cases, CanonicalizeNonSpecialPath,
+             CanonicalizeNonSpecialPath);
 }
 
 TEST_F(URLCanonTest, PartialPath) {
@@ -1551,10 +1542,10 @@ TEST_F(URLCanonTest, PartialPath) {
       {".html", L".html", ".html", Component(0, 5), true},
       {"", L"", "", Component(0, 0), true},
   };
-  DoPathTest(kCommonPathCases, std::size(kCommonPathCases),
-             CanonicalizePartialPath, CanonicalizePartialPath);
-  DoPathTest(partial_path_cases, std::size(partial_path_cases),
-             CanonicalizePartialPath, CanonicalizePartialPath);
+  DoPathTest(kCommonPathCases, CanonicalizePartialPath,
+             CanonicalizePartialPath);
+  DoPathTest(partial_path_cases, CanonicalizePartialPath,
+             CanonicalizePartialPath);
 }
 
 TEST_F(URLCanonTest, Query) {
@@ -1587,13 +1578,9 @@ TEST_F(URLCanonTest, Query) {
     Component out_comp;
 
     if (query_case.input8) {
-      int len = static_cast<int>(strlen(query_case.input8));
-      Component in_comp(0, len);
       std::string out_str;
-
       StdStringCanonOutput output(&out_str);
-      CanonicalizeQuery(in_comp.as_string_view_on(query_case.input8), nullptr,
-                        &output, &out_comp);
+      CanonicalizeQuery(query_case.input8, nullptr, &output, &out_comp);
       output.Complete();
 
       EXPECT_EQ(query_case.expected, out_str);
@@ -1659,14 +1646,11 @@ TEST_F(URLCanonTest, Ref) {
   for (const auto& ref_case : ref_cases) {
     // 8-bit input
     if (ref_case.input8) {
-      int len = static_cast<int>(strlen(ref_case.input8));
-      Component in_comp(0, len);
       Component out_comp;
 
       std::string out_str;
       StdStringCanonOutput output(&out_str);
-      CanonicalizeRef(in_comp.maybe_as_string_view_on(ref_case.input8), &output,
-                      &out_comp);
+      CanonicalizeRef(ref_case.input8, &output, &out_comp);
       output.Complete();
 
       EXPECT_EQ(ref_case.expected_component.begin, out_comp.begin);
@@ -1695,13 +1679,11 @@ TEST_F(URLCanonTest, Ref) {
 
   // Try one with an embedded NULL. It should be stripped.
   const char null_input[5] = "ab\x00z";
-  Component null_input_component(0, 4);
   Component out_comp;
 
   std::string out_str;
   StdStringCanonOutput output(&out_str);
-  CanonicalizeRef(null_input_component.as_string_view_on(null_input), &output,
-                  &out_comp);
+  CanonicalizeRef(std::string_view(null_input, 4u), &output, &out_comp);
   output.Complete();
 
   EXPECT_EQ(1, out_comp.begin);
@@ -1941,14 +1923,14 @@ TEST_F(URLCanonTest, ReplaceStandardUrl) {
 
     // Note that for the scheme we pass in a different clear function since
     // there is no function to clear the scheme.
-    SetupReplComp(&R::SetScheme, &R::ClearRef, &r, cur.scheme);
-    SetupReplComp(&R::SetUsername, &R::ClearUsername, &r, cur.username);
-    SetupReplComp(&R::SetPassword, &R::ClearPassword, &r, cur.password);
-    SetupReplComp(&R::SetHost, &R::ClearHost, &r, cur.host);
-    SetupReplComp(&R::SetPort, &R::ClearPort, &r, cur.port);
-    SetupReplComp(&R::SetPath, &R::ClearPath, &r, cur.path);
-    SetupReplComp(&R::SetQuery, &R::ClearQuery, &r, cur.query);
-    SetupReplComp(&R::SetRef, &R::ClearRef, &r, cur.ref);
+    SetupReplComp(&R::SetSchemeStr, &R::ClearRef, &r, cur.scheme);
+    SetupReplComp(&R::SetUsernameStr, &R::ClearUsername, &r, cur.username);
+    SetupReplComp(&R::SetPasswordStr, &R::ClearPassword, &r, cur.password);
+    SetupReplComp(&R::SetHostStr, &R::ClearHost, &r, cur.host);
+    SetupReplComp(&R::SetPortStr, &R::ClearPort, &r, cur.port);
+    SetupReplComp(&R::SetPathStr, &R::ClearPath, &r, cur.path);
+    SetupReplComp(&R::SetQueryStr, &R::ClearQuery, &r, cur.query);
+    SetupReplComp(&R::SetRefStr, &R::ClearRef, &r, cur.ref);
 
     std::string out_str;
     StdStringCanonOutput output(&out_str);
@@ -1969,7 +1951,8 @@ TEST_F(URLCanonTest, ReplaceStandardUrl) {
     // Replace the path to 0 length string. By using 1 as the string address,
     // the test should get an access violation if it tries to dereference it.
     Replacements<char> r;
-    r.SetPath(reinterpret_cast<char*>(0x00000001), Component(0, 0));
+    r.SetPath(std::string_view(reinterpret_cast<char*>(0x00000001), 1u),
+              Component(0, 0));
     std::string out_str1;
     StdStringCanonOutput output1(&out_str1);
     Parsed new_parsed;
@@ -1980,7 +1963,8 @@ TEST_F(URLCanonTest, ReplaceStandardUrl) {
     EXPECT_STREQ("http://www.google.com/", out_str1.c_str());
 
     // Same with an "invalid" path.
-    r.SetPath(reinterpret_cast<char*>(0x00000001), Component());
+    r.SetPath(std::string_view(reinterpret_cast<char*>(0x00000001), 1u),
+              Component());
     std::string out_str2;
     StdStringCanonOutput output2(&out_str2);
     ReplaceStandardUrl(src, parsed, r,
@@ -2034,14 +2018,14 @@ TEST_F(URLCanonTest, ReplaceFileUrl) {
 
     Replacements<char> r;
     typedef Replacements<char> R;  // Clean up syntax.
-    SetupReplComp(&R::SetScheme, &R::ClearRef, &r, cur.scheme);
-    SetupReplComp(&R::SetUsername, &R::ClearUsername, &r, cur.username);
-    SetupReplComp(&R::SetPassword, &R::ClearPassword, &r, cur.password);
-    SetupReplComp(&R::SetHost, &R::ClearHost, &r, cur.host);
-    SetupReplComp(&R::SetPort, &R::ClearPort, &r, cur.port);
-    SetupReplComp(&R::SetPath, &R::ClearPath, &r, cur.path);
-    SetupReplComp(&R::SetQuery, &R::ClearQuery, &r, cur.query);
-    SetupReplComp(&R::SetRef, &R::ClearRef, &r, cur.ref);
+    SetupReplComp(&R::SetSchemeStr, &R::ClearRef, &r, cur.scheme);
+    SetupReplComp(&R::SetUsernameStr, &R::ClearUsername, &r, cur.username);
+    SetupReplComp(&R::SetPasswordStr, &R::ClearPassword, &r, cur.password);
+    SetupReplComp(&R::SetHostStr, &R::ClearHost, &r, cur.host);
+    SetupReplComp(&R::SetPortStr, &R::ClearPort, &r, cur.port);
+    SetupReplComp(&R::SetPathStr, &R::ClearPath, &r, cur.path);
+    SetupReplComp(&R::SetQueryStr, &R::ClearQuery, &r, cur.query);
+    SetupReplComp(&R::SetRefStr, &R::ClearRef, &r, cur.ref);
 
     std::string out_str;
     StdStringCanonOutput output(&out_str);
@@ -2100,14 +2084,14 @@ TEST_F(URLCanonTest, ReplaceFileSystemUrl) {
 
     Replacements<char> r;
     typedef Replacements<char> R;  // Clean up syntax.
-    SetupReplComp(&R::SetScheme, &R::ClearRef, &r, cur.scheme);
-    SetupReplComp(&R::SetUsername, &R::ClearUsername, &r, cur.username);
-    SetupReplComp(&R::SetPassword, &R::ClearPassword, &r, cur.password);
-    SetupReplComp(&R::SetHost, &R::ClearHost, &r, cur.host);
-    SetupReplComp(&R::SetPort, &R::ClearPort, &r, cur.port);
-    SetupReplComp(&R::SetPath, &R::ClearPath, &r, cur.path);
-    SetupReplComp(&R::SetQuery, &R::ClearQuery, &r, cur.query);
-    SetupReplComp(&R::SetRef, &R::ClearRef, &r, cur.ref);
+    SetupReplComp(&R::SetSchemeStr, &R::ClearRef, &r, cur.scheme);
+    SetupReplComp(&R::SetUsernameStr, &R::ClearUsername, &r, cur.username);
+    SetupReplComp(&R::SetPasswordStr, &R::ClearPassword, &r, cur.password);
+    SetupReplComp(&R::SetHostStr, &R::ClearHost, &r, cur.host);
+    SetupReplComp(&R::SetPortStr, &R::ClearPort, &r, cur.port);
+    SetupReplComp(&R::SetPathStr, &R::ClearPath, &r, cur.path);
+    SetupReplComp(&R::SetQueryStr, &R::ClearQuery, &r, cur.query);
+    SetupReplComp(&R::SetRefStr, &R::ClearRef, &r, cur.ref);
 
     std::string out_str;
     StdStringCanonOutput output(&out_str);
@@ -2141,14 +2125,14 @@ TEST_F(URLCanonTest, ReplacePathUrl) {
 
     Replacements<char> r;
     typedef Replacements<char> R;  // Clean up syntax.
-    SetupReplComp(&R::SetScheme, &R::ClearRef, &r, cur.scheme);
-    SetupReplComp(&R::SetUsername, &R::ClearUsername, &r, cur.username);
-    SetupReplComp(&R::SetPassword, &R::ClearPassword, &r, cur.password);
-    SetupReplComp(&R::SetHost, &R::ClearHost, &r, cur.host);
-    SetupReplComp(&R::SetPort, &R::ClearPort, &r, cur.port);
-    SetupReplComp(&R::SetPath, &R::ClearPath, &r, cur.path);
-    SetupReplComp(&R::SetQuery, &R::ClearQuery, &r, cur.query);
-    SetupReplComp(&R::SetRef, &R::ClearRef, &r, cur.ref);
+    SetupReplComp(&R::SetSchemeStr, &R::ClearRef, &r, cur.scheme);
+    SetupReplComp(&R::SetUsernameStr, &R::ClearUsername, &r, cur.username);
+    SetupReplComp(&R::SetPasswordStr, &R::ClearPassword, &r, cur.password);
+    SetupReplComp(&R::SetHostStr, &R::ClearHost, &r, cur.host);
+    SetupReplComp(&R::SetPortStr, &R::ClearPort, &r, cur.port);
+    SetupReplComp(&R::SetPathStr, &R::ClearPath, &r, cur.path);
+    SetupReplComp(&R::SetQueryStr, &R::ClearQuery, &r, cur.query);
+    SetupReplComp(&R::SetRefStr, &R::ClearRef, &r, cur.ref);
 
     std::string out_str;
     StdStringCanonOutput output(&out_str);
@@ -2201,14 +2185,14 @@ TEST_F(URLCanonTest, ReplaceMailtoUrl) {
 
     Replacements<char> r;
     typedef Replacements<char> R;
-    SetupReplComp(&R::SetScheme, &R::ClearRef, &r, cur.scheme);
-    SetupReplComp(&R::SetUsername, &R::ClearUsername, &r, cur.username);
-    SetupReplComp(&R::SetPassword, &R::ClearPassword, &r, cur.password);
-    SetupReplComp(&R::SetHost, &R::ClearHost, &r, cur.host);
-    SetupReplComp(&R::SetPort, &R::ClearPort, &r, cur.port);
-    SetupReplComp(&R::SetPath, &R::ClearPath, &r, cur.path);
-    SetupReplComp(&R::SetQuery, &R::ClearQuery, &r, cur.query);
-    SetupReplComp(&R::SetRef, &R::ClearRef, &r, cur.ref);
+    SetupReplComp(&R::SetSchemeStr, &R::ClearRef, &r, cur.scheme);
+    SetupReplComp(&R::SetUsernameStr, &R::ClearUsername, &r, cur.username);
+    SetupReplComp(&R::SetPasswordStr, &R::ClearPassword, &r, cur.password);
+    SetupReplComp(&R::SetHostStr, &R::ClearHost, &r, cur.host);
+    SetupReplComp(&R::SetPortStr, &R::ClearPort, &r, cur.port);
+    SetupReplComp(&R::SetPathStr, &R::ClearPath, &r, cur.path);
+    SetupReplComp(&R::SetQueryStr, &R::ClearQuery, &r, cur.query);
+    SetupReplComp(&R::SetRefStr, &R::ClearRef, &r, cur.ref);
 
     std::string out_str;
     StdStringCanonOutput output(&out_str);
@@ -2880,9 +2864,8 @@ TEST_F(URLCanonTest, ReplacementOverflow) {
     new_query.push_back('a');
 
   std::u16string new_path(test_utils::TruncateWStringToUTF16(L"/foo"));
-  repl.SetPath(new_path.c_str(), Component(0, 4));
-  repl.SetQuery(new_query.c_str(),
-                Component(0, static_cast<int>(new_query.length())));
+  repl.SetPathStr(new_path);
+  repl.SetQueryStr(new_query);
 
   // Call ReplaceComponents on the string. It doesn't matter if we call it for
   // standard URLs, file URLs, etc, since they will go to the same replacement

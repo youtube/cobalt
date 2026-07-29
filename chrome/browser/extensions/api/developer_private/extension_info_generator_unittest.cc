@@ -31,9 +31,6 @@
 #include "chrome/browser/extensions/extension_util.h"
 #include "chrome/browser/extensions/manifest_v2_experiment_manager.h"
 #include "chrome/browser/extensions/mv2_experiment_stage.h"
-#include "chrome/browser/extensions/permissions/permissions_test_util.h"
-#include "chrome/browser/extensions/permissions/permissions_updater.h"
-#include "chrome/browser/extensions/permissions/scripting_permissions_modifier.h"
 #include "chrome/browser/extensions/signin_test_util.h"
 #include "chrome/browser/extensions/sync/account_extension_tracker.h"
 #include "chrome/browser/extensions/sync/extension_sync_util.h"
@@ -54,6 +51,9 @@
 #include "extensions/browser/extension_prefs.h"
 #include "extensions/browser/extension_registrar.h"
 #include "extensions/browser/extension_registry.h"
+#include "extensions/browser/permissions/permissions_test_util.h"
+#include "extensions/browser/permissions/permissions_updater.h"
+#include "extensions/browser/permissions/scripting_permissions_modifier.h"
 #include "extensions/browser/supervised_user_extensions_delegate.h"
 #include "extensions/buildflags/buildflags.h"
 #include "extensions/common/api/extension_action/action_info.h"
@@ -993,7 +993,7 @@ TEST_F(ExtensionInfoGeneratorUnitTest,
   std::unique_ptr<const PermissionSet> active_permissions;
   {
     // Grant the optional API permissions
-    PermissionsManagerWaiter waiter(PermissionsManager::Get(profile_.get()));
+    PermissionsManagerWaiter waiter(PermissionsManager::Get(profile()));
     updater.GrantOptionalPermissions(*extension, delta, base::DoNothing());
     waiter.WaitForExtensionPermissionsUpdate();
     // Make sure the extension's active permissions reflect the change.
@@ -1006,7 +1006,7 @@ TEST_F(ExtensionInfoGeneratorUnitTest,
   {
     // Revoking the optional permissions should remove the granted API
     // permission from the active set.
-    PermissionsManagerWaiter waiter(PermissionsManager::Get(profile_.get()));
+    PermissionsManagerWaiter waiter(PermissionsManager::Get(profile()));
     updater.RevokeOptionalPermissions(
         *extension, delta, PermissionsUpdater::REMOVE_SOFT, base::DoNothing());
     waiter.WaitForExtensionPermissionsUpdate();
@@ -1073,7 +1073,7 @@ TEST_F(ExtensionInfoGeneratorUnitTest, RevokedOptionalHostPermissionsInfoTest) {
     PermissionSet delta(apis.Clone(), ManifestPermissionSet(),
                         URLPatternSet({host}), URLPatternSet());
 
-    PermissionsManagerWaiter waiter(PermissionsManager::Get(profile_.get()));
+    PermissionsManagerWaiter waiter(PermissionsManager::Get(profile()));
     updater.GrantOptionalPermissions(*extension, delta, base::DoNothing());
     waiter.WaitForExtensionPermissionsUpdate();
 
@@ -1092,7 +1092,7 @@ TEST_F(ExtensionInfoGeneratorUnitTest, RevokedOptionalHostPermissionsInfoTest) {
     PermissionSet delta(apis.Clone(), ManifestPermissionSet(),
                         URLPatternSet({host}), URLPatternSet());
 
-    PermissionsManagerWaiter waiter(PermissionsManager::Get(profile_.get()));
+    PermissionsManagerWaiter waiter(PermissionsManager::Get(profile()));
     updater.RevokeOptionalPermissions(
         *extension, delta, PermissionsUpdater::REMOVE_SOFT, base::DoNothing());
     waiter.WaitForExtensionPermissionsUpdate();

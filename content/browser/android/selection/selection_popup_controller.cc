@@ -73,7 +73,7 @@ JNI_SelectionPopupControllerImpl_IsMagnifierWithSurfaceControlSupported(
   return enabled;
 }
 
-jlong JNI_SelectionPopupControllerImpl_Init(
+static jlong JNI_SelectionPopupControllerImpl_Init(
     JNIEnv* env,
     const JavaParamRef<jobject>& obj,
     const JavaParamRef<jobject>& jweb_contents) {
@@ -378,3 +378,5 @@ void SelectionPopupController::ChildLocalSurfaceIdChanged() {
 }
 
 }  // namespace content
+
+DEFINE_JNI(SelectionPopupControllerImpl)

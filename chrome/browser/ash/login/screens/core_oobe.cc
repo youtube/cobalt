@@ -8,7 +8,6 @@
 #include "ash/public/cpp/shelf_config.h"
 #include "ash/shell.h"
 #include "base/functional/bind.h"
-#include "base/functional/callback_forward.h"
 #include "build/branding_buildflags.h"
 #include "chrome/browser/ash/login/configuration_keys.h"
 #include "chrome/browser/ash/system/input_device_settings.h"
@@ -83,7 +82,7 @@ void CoreOobe::ShowScreenWithData(const OobeScreenId& screen,
       return;
     case CoreOobeView::UiState::kPriorityScreensLoaded:
       // Priority screens can be shown at this point. All others are deferred.
-      if (!is_priority_screen || !features::IsOobeLazyLoadingEnabled()) {
+      if (!is_priority_screen) {
         pending_calls_.show_screen_with_data =
             base::BindOnce(&CoreOobe::ShowScreenWithData,
                            base::Unretained(this), screen, std::move(data));
@@ -226,9 +225,7 @@ void CoreOobe::UpdateUiInitState(CoreOobeView::UiState state) {
     case CoreOobeView::UiState::kPriorityScreensLoaded:
       CHECK(ui_init_state_ == CoreOobeView::UiState::kCoreHandlerInitialized);
       ui_init_state_ = CoreOobeView::UiState::kPriorityScreensLoaded;
-      if (features::IsOobeLazyLoadingEnabled()) {
-        MaybeShowPriorityScreen();
-      }
+      MaybeShowPriorityScreen();
       break;
     case CoreOobeView::UiState::kFullyInitialized:
       // OOBE is fully loaded.
@@ -269,7 +266,6 @@ void CoreOobe::ExecutePendingCalls() {
 }
 
 void CoreOobe::MaybeShowPriorityScreen() {
-  CHECK(features::IsOobeLazyLoadingEnabled());
   CHECK(ui_init_state_ == CoreOobeView::UiState::kPriorityScreensLoaded);
   // Run any pending show screen call. If the screen is not supported for
   // prioritization, ShowScreenWithData will defer it and it will be shown

@@ -237,6 +237,7 @@ void AwFieldTrials::RegisterFeatureOverrides(base::FeatureList* feature_list) {
   // function and the webview permission manager cannot support it.
   aw_feature_overrides.DisableFeature(blink::features::kPermissionElement);
   aw_feature_overrides.DisableFeature(blink::features::kGeolocationElement);
+  aw_feature_overrides.DisableFeature(blink::features::kUserMediaElement);
   aw_feature_overrides.DisableFeature(blink::features::kInstallElement);
 
   // Delete Incidental Party State (DIPS) feature is not yet supported on
@@ -305,4 +306,8 @@ void AwFieldTrials::RegisterFeatureOverrides(base::FeatureList* feature_list) {
 
   // SystemTracing is enabled by default only in WebView for now.
   aw_feature_overrides.EnableFeature(features::kEnablePerfettoSystemTracing);
+
+  // Deemed that performance benefit is not worth the stability cost.
+  // See crbug.com/1309151.
+  aw_feature_overrides.DisableFeature(::features::kGpuShaderDiskCache);
 }

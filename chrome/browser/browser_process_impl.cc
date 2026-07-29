@@ -60,6 +60,7 @@
 #include "chrome/browser/lifetime/application_lifetime.h"
 #include "chrome/browser/lifetime/browser_shutdown.h"
 #include "chrome/browser/lifetime/switch_utils.h"
+#include "chrome/browser/media/audio_process_ml_model_forwarder.h"
 #include "chrome/browser/media/chrome_media_session_client.h"
 #include "chrome/browser/media/router/providers/cast/dual_media_sink_service.h"
 #include "chrome/browser/media/webrtc/webrtc_event_log_manager.h"
@@ -71,6 +72,7 @@
 #include "chrome/browser/net/system_network_context_manager.h"
 #include "chrome/browser/notifications/notification_platform_bridge.h"
 #include "chrome/browser/notifications/system_notification_helper.h"
+#include "chrome/browser/optimization_guide/model_execution/optimization_guide_global_state.h"
 #include "chrome/browser/permissions/chrome_permissions_client.h"
 #include "chrome/browser/policy/chrome_browser_policy_connector.h"
 #include "chrome/browser/prefs/browser_prefs.h"
@@ -106,9 +108,6 @@
 #include "components/component_updater/timer_update_scheduler.h"
 #include "components/crash/core/common/crash_key.h"
 #include "components/embedder_support/origin_trials/origin_trials_settings_storage.h"
-#include "components/fingerprinting_protection_filter/browser/fingerprinting_protection_ruleset_publisher.h"
-#include "components/fingerprinting_protection_filter/common/fingerprinting_protection_filter_constants.h"
-#include "components/fingerprinting_protection_filter/common/fingerprinting_protection_filter_features.h"
 #include "components/gcm_driver/gcm_driver.h"
 #include "components/keep_alive_registry/keep_alive_types.h"
 #include "components/language/core/browser/pref_names.h"
@@ -156,6 +155,7 @@
 #include "ui/base/idle/idle.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/ui_base_features.h"
+#include "ui/base/unowned_user_data/unowned_user_data_host.h"
 
 #if BUILDFLAG(IS_WIN)
 #include "base/win/windows_version.h"
@@ -310,6 +310,15 @@ BrowserProcessImpl::BrowserProcessImpl(StartupData* startup_data)
   DCHECK(local_state_);
   DCHECK(startup_data);
   // Most work should be done in Init().
+}
+
+ui::UnownedUserDataHost& BrowserProcessImpl::GetUnownedUserDataHost() {
+  return unowned_user_data_host_;
+}
+
+const ui::UnownedUserDataHost& BrowserProcessImpl::GetUnownedUserDataHost()
+    const {
+  return unowned_user_data_host_;
 }
 
 void BrowserProcessImpl::Init() {
@@ -1181,6 +1190,7 @@ void BrowserProcessImpl::RegisterPrefs(PrefRegistrySimple* registry) {
   registry->RegisterBooleanPref(metrics::prefs::kMetricsReportingEnabled,
                                 GoogleUpdateSettings::GetCollectStatsConsent());
   registry->RegisterBooleanPref(prefs::kDevToolsRemoteDebuggingAllowed, true);
+  registry->RegisterBooleanPref(prefs::kDevToolsRemoteDebuggingEnabled, false);
 
 #if BUILDFLAG(IS_LINUX)
   os_crypt_async::SecretPortalKeyProvider::RegisterLocalPrefs(registry);
@@ -1240,17 +1250,6 @@ BrowserProcessImpl::subresource_filter_ruleset_service() {
   if (!created_subresource_filter_ruleset_service_)
     CreateSubresourceFilterRulesetService();
   return subresource_filter_ruleset_service_.get();
-}
-
-subresource_filter::RulesetService*
-BrowserProcessImpl::fingerprinting_protection_ruleset_service() {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  if (!created_fingerprinting_protection_ruleset_service_ &&
-      fingerprinting_protection_filter::features::
-          IsFingerprintingProtectionFeatureEnabled()) {
-    CreateFingerprintingProtectionRulesetService();
-  }
-  return fingerprinting_protection_ruleset_service_.get();
 }
 
 StartupData* BrowserProcessImpl::startup_data() {
@@ -1499,6 +1498,13 @@ void BrowserProcessImpl::PreMainMessageLoopRun() {
   } else {
     breadcrumbs::DeleteBreadcrumbFiles(user_data_dir);
   }
+
+  if (features_->audio_process_ml_model_forwarder()) {
+    // TODO(crbug.com/454930933): Once the model provider is available from
+    // PreCreateThreads, move this init to GlobalFeatures initialization.
+    features_->audio_process_ml_model_forwarder()->Initialize(
+        features_->optimization_guide_global_feature()->GetModelProvider());
+  }
 }
 
 void BrowserProcessImpl::CreateIconManager() {
@@ -1594,24 +1600,6 @@ void BrowserProcessImpl::CreateSubresourceFilterRulesetService() {
           subresource_filter::kSafeBrowsingRulesetConfig, local_state(),
           user_data_dir,
           subresource_filter::SafeBrowsingRulesetPublisher::Factory());
-}
-
-void BrowserProcessImpl::CreateFingerprintingProtectionRulesetService() {
-  CHECK(!fingerprinting_protection_ruleset_service_);
-  // Set this to true so that we don't retry indefinitely to
-  // create the service if there was an error.
-  created_fingerprinting_protection_ruleset_service_ = true;
-
-  base::FilePath user_data_dir;
-  base::PathService::Get(chrome::DIR_USER_DATA, &user_data_dir);
-
-  fingerprinting_protection_ruleset_service_ =
-      subresource_filter::RulesetService::Create(
-          fingerprinting_protection_filter::
-              kFingerprintingProtectionRulesetConfig,
-          local_state(), user_data_dir,
-          fingerprinting_protection_filter::
-              FingerprintingProtectionRulesetPublisher::Factory());
 }
 
 #if !BUILDFLAG(IS_ANDROID)

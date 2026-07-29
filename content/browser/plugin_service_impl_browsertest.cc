@@ -38,18 +38,9 @@ class PluginServiceImplBrowserTest : public ContentBrowserTest {
     fake_info.path = plugin_path_;
 
     PluginServiceImpl* service = PluginServiceImpl::GetInstance();
-    service->RegisterInternalPlugin(fake_info, true);
+    service->RegisterInternalPlugin(fake_info);
     service->Init();
-
-    // Force plugins to load and wait for completion.
-    base::RunLoop run_loop;
-    service->GetPluginsAsync(base::BindOnce(
-        [](base::OnceClosure callback,
-           const std::vector<WebPluginInfo>& ignore) {
-          std::move(callback).Run();
-        },
-        run_loop.QuitClosure()));
-    run_loop.Run();
+    service->GetPlugins();
   }
 
   base::FilePath plugin_path_;

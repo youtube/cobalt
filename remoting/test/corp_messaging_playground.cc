@@ -6,6 +6,8 @@
 
 #include <iostream>
 #include <memory>
+#include <set>
+#include <variant>
 
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
@@ -19,19 +21,30 @@
 #include "base/task/bind_post_task.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/task/thread_pool.h"
+#include "base/time/time.h"
+#include "base/timer/timer.h"
+#include "base/uuid.h"
 #include "net/ssl/client_cert_store.h"
 #include "remoting/base/certificate_helpers.h"
 #include "remoting/base/http_status.h"
 #include "remoting/base/internal_headers.h"
+#include "remoting/base/rsa_key_pair.h"
 #include "remoting/base/url_request_context_getter.h"
 #include "remoting/signaling/corp_messaging_client.h"
-#include "remoting/test/ping_pong_helper.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
 #include "services/network/transitional_url_loader_factory_owner.h"
+#include "third_party/abseil-cpp/absl/functional/overload.h"
 
 namespace remoting {
 
 namespace {
+
+using internal::BurstStruct;
+using internal::EncryptedStruct;
+using internal::PingPongStruct;
+using internal::ShareSessionTokenStruct;
+using internal::SimpleStruct;
+
 // Squirrel-related messaging constants.
 constexpr char kSquirrel[] = "🐿️";
 constexpr int kSquirrelCount = 1000000;
@@ -83,7 +96,7 @@ void CorpMessagingPlayground::Core::Start() {
   }
 }
 
-CorpMessagingPlayground::CorpMessagingPlayground() {
+CorpMessagingPlayground::CorpMessagingPlayground(const std::string& username) {
   auto url_request_context_getter =
       base::MakeRefCounted<URLRequestContextGetter>(
           base::SingleThreadTaskRunner::GetCurrentDefault());
@@ -91,6 +104,7 @@ CorpMessagingPlayground::CorpMessagingPlayground() {
       std::make_unique<network::TransitionalURLLoaderFactoryOwner>(
           url_request_context_getter, /* is_trusted= */ true);
   client_ = std::make_unique<CorpMessagingClient>(
+      username, key_pair_->GetPublicKey(),
       url_loader_factory_owner_->GetURLLoaderFactory(),
       CreateClientCertStoreInstance());
   core_ = std::make_unique<Core>(base::BindPostTask(
@@ -107,7 +121,7 @@ void CorpMessagingPlayground::Start() {
   // `callback_subscription` is automatically unregistered after `run_loop_`
   // completes and this function goes out of scope.
   auto callback_subscription = client_->RegisterMessageCallback(
-      base::BindRepeating(&CorpMessagingPlayground::OnSimpleMessageReceived,
+      base::BindRepeating(&CorpMessagingPlayground::OnPeerMessageReceived,
                           base::Unretained(this)));
   client_->StartReceivingMessages(
       base::BindOnce(&CorpMessagingPlayground::OnStreamOpened,
@@ -133,40 +147,141 @@ void CorpMessagingPlayground::OnStreamClosed(const HttpStatus& status) {
   run_loop_->Quit();
 }
 
-void CorpMessagingPlayground::OnSimpleMessageReceived(
-    const internal::SimpleMessageStruct& message) {
-  // `create_time` is not used because it is set on the client and may be out of
-  // sync with the time values set by the server.
-  auto routing_latency = message.deliver_time - message.receive_time;
-  LOG(INFO) << "SimpleMessage received: sender=" << message.sender_id.username
-            << ", routing_latency=" << routing_latency.InMilliseconds()
-            << "ms, payload=" << message.payload;
-  last_sender_id_ = message.sender_id;
-
-  if (IsPongMessage(message.payload)) {
-    auto rtt = base::Time::Now() - last_ping_sent_time_;
-    ping_total_rtt_ += rtt;
-    LOG(INFO) << "Current RTT: " << rtt.InMilliseconds()
-              << "ms, Total RTT: " << ping_total_rtt_.InMilliseconds() << "ms";
-    // Now respond with a ping unless we've reached our max count.
-    std::optional<std::string> ping_payload =
-        OnPingPongMessageReceived(message.payload);
-    if (ping_payload.has_value()) {
-      last_ping_sent_time_ = base::Time::Now();
-      client_->SendMessage(last_sender_id_, *ping_payload, base::DoNothing());
-    } else {
-      LOG(INFO) << "Ping-pong exchange finished. Total RTT: "
-                << ping_total_rtt_.InMilliseconds() << "ms";
-    }
-  } else if (IsPingMessage(message.payload)) {
-    std::optional<std::string> pong_payload =
-        OnPingPongMessageReceived(message.payload);
-    if (pong_payload.has_value()) {
-      client_->SendMessage(last_sender_id_, *pong_payload, base::DoNothing());
-    } else {
-      LOG(ERROR) << "Failed to generate response for Ping: " << message.payload;
-    }
+void CorpMessagingPlayground::OnPeerMessageReceived(
+    const internal::PeerMessageStruct& message) {
+  const auto* system_test =
+      std::get_if<internal::SystemTestStruct>(&message.payload);
+  if (!system_test) {
+    LOG(WARNING) << "Received message with unsupported payload type.";
+    return;
   }
+
+  std::visit(absl::Overload(
+                 [this](const PingPongStruct& message) {
+                   if (message.type == PingPongStruct::Type::PONG) {
+                     auto rtt = base::Time::Now() - last_ping_sent_time_;
+                     ping_total_rtt_ += rtt;
+                     LOG(INFO) << "Current RTT: " << rtt.InMilliseconds()
+                               << "ms, Total RTT: "
+                               << ping_total_rtt_.InMilliseconds() << "ms";
+
+                     if (message.current_count >= message.exchange_count) {
+                       LOG(INFO) << "Ping-pong exchange finished. Total RTT: "
+                                 << ping_total_rtt_.InMilliseconds() << "ms";
+                       return;
+                     }
+
+                     // Send next PING.
+                     internal::PingPongStruct ping_pong;
+                     ping_pong.type = PingPongStruct::Type::PING;
+                     ping_pong.rally_id = message.rally_id;
+                     ping_pong.current_count = message.current_count + 1;
+                     ping_pong.exchange_count = message.exchange_count;
+
+                     internal::SystemTestStruct response_message;
+                     response_message.test_message = std::move(ping_pong);
+
+                     last_ping_sent_time_ = base::Time::Now();
+                     client_->SendTestMessage(messaging_authz_token_,
+                                              std::move(response_message),
+                                              base::DoNothing());
+                   } else if (message.type == PingPongStruct::Type::PING) {
+                     // Send PONG.
+                     internal::PingPongStruct ping_pong;
+                     ping_pong.type = PingPongStruct::Type::PONG;
+                     ping_pong.rally_id = message.rally_id;
+                     ping_pong.current_count = message.current_count;
+                     ping_pong.exchange_count = message.exchange_count;
+
+                     internal::SystemTestStruct response_message;
+                     response_message.test_message = std::move(ping_pong);
+
+                     client_->SendTestMessage(messaging_authz_token_,
+                                              std::move(response_message),
+                                              base::DoNothing());
+                   } else {
+                     NOTREACHED();
+                   }
+                 },
+                 [this](const BurstStruct& message) {
+                   if (expected_burst_count_ != message.burst_count) {
+                     // This is the first message of a new burst, or a different
+                     // burst has started.
+                     if (burst_check_timer_.IsRunning()) {
+                       burst_check_timer_.Stop();
+                     }
+                     ResetBurstState();
+
+                     burst_start_time_ = base::TimeTicks::Now();
+                     expected_burst_count_ = message.burst_count;
+                     burst_check_timer_.Start(
+                         FROM_HERE, base::Seconds(1), this,
+                         &CorpMessagingPlayground::OnBurstCheckTimerFired);
+                     LOG(INFO) << "Receiving a new burst of "
+                               << message.burst_count << " messages.";
+                   }
+
+                   auto [_, inserted] =
+                       received_burst_indices_.insert(message.index);
+
+                   if (inserted) {
+                     LOG(INFO)
+                         << "Burst message received: index=" << message.index
+                         << " (" << received_burst_indices_.size() << "/"
+                         << expected_burst_count_ << ")";
+                   } else {
+                     LOG(WARNING) << "Duplicate burst message received: index="
+                                  << message.index;
+                   }
+
+                   if (received_burst_indices_.size() ==
+                       static_cast<size_t>(expected_burst_count_)) {
+                     auto total_time =
+                         base::TimeTicks::Now() - burst_start_time_;
+                     LOG(INFO) << "All " << expected_burst_count_
+                               << " burst messages received in "
+                               << total_time.InMilliseconds() << "ms.";
+                     burst_check_timer_.Stop();
+                     ResetBurstState();
+                   }
+                 },
+                 [](const SimpleStruct& simple_message) {
+                   LOG(INFO) << "PeerMessage received: payload="
+                             << simple_message.payload;
+                 },
+                 [](const EncryptedStruct& encrypted_struct) {
+                   LOG(INFO) << "Encrypted PeerMessage received: payload="
+                             << encrypted_struct.payload << ", "
+                             << encrypted_struct.unencrypted_payload;
+                   // TODO: joedow - Decrypt the payload.
+                 },
+                 [this](const ShareSessionTokenStruct& message) {
+                   LOG(INFO) << "ShareSessionToken received.";
+                   messaging_authz_token_ = message.messaging_authz_token;
+                 }),
+             system_test->test_message);
+}
+
+void CorpMessagingPlayground::OnBurstCheckTimerFired() {
+  burst_timer_check_count_++;
+  if (burst_timer_check_count_ >= 5) {
+    LOG(WARNING) << "Burst message receipt timed out after 5 seconds.";
+    burst_check_timer_.Stop();
+    ResetBurstState();
+    return;
+  }
+
+  if (expected_burst_count_ > 0) {
+    size_t remaining = expected_burst_count_ - received_burst_indices_.size();
+    LOG(INFO) << "Waiting for " << remaining << " more burst messages...";
+  }
+}
+
+void CorpMessagingPlayground::ResetBurstState() {
+  received_burst_indices_.clear();
+  expected_burst_count_ = 0;
+  burst_start_time_ = base::TimeTicks();
+  burst_timer_check_count_ = 0;
 }
 
 void CorpMessagingPlayground::OnCharacterInput(char c) {
@@ -181,7 +296,7 @@ void CorpMessagingPlayground::OnCharacterInput(char c) {
       SendMessage(100);
       break;
     case '4':
-      StartPingPongMatch();
+      StartPingPongRally();
       break;
     case '5':
       SendLargeMessage();
@@ -193,31 +308,53 @@ void CorpMessagingPlayground::OnCharacterInput(char c) {
 }
 
 void CorpMessagingPlayground::SendMessage(int count) {
-  if (last_sender_id_.username.empty()) {
-    LOG(WARNING) << "No message received yet, destination ID is unknown.";
+  if (messaging_authz_token_.empty()) {
+    LOG(WARNING) << "No authz token received yet, cannot send message.";
     return;
   }
-  for (int i = 0; i < count; i++) {
-    client_->SendMessage(last_sender_id_, "Hello from the playground!",
-                         base::DoNothing());
-  }
-}
 
-void CorpMessagingPlayground::StartPingPongMatch() {
-  if (last_sender_id_.username.empty()) {
-    LOG(WARNING) << "No message received yet, destination ID is unknown.";
+  if (count > 1) {
+    for (int i = 0; i < count; i++) {
+      internal::SystemTestStruct message;
+      internal::BurstStruct burst;
+      burst.index = i;
+      burst.burst_count = count;
+      burst.payload = "Burst message #" + base::NumberToString(i + 1) + " of " +
+                      base::NumberToString(count);
+      message.test_message = std::move(burst);
+      client_->SendTestMessage(messaging_authz_token_, std::move(message),
+                               base::DoNothing());
+    }
     return;
   }
-  LOG(INFO) << "Starting a new Ping-Pong match.";
-  ping_total_rtt_ = {};
-  last_ping_sent_time_ = base::Time::Now();
-  client_->SendMessage(last_sender_id_, CreatePingMessage(1),
+  client_->SendMessage(messaging_authz_token_, "Hello from the playground!",
                        base::DoNothing());
 }
 
+void CorpMessagingPlayground::StartPingPongRally() {
+  if (messaging_authz_token_.empty()) {
+    LOG(WARNING) << "No authz token received yet, cannot start ping-pong.";
+    return;
+  }
+  LOG(INFO) << "Starting a new Ping-Pong rally.";
+  // TODO: joedow - Use a map to track RTTs for concurrent rallies.
+  ping_total_rtt_ = {};
+  last_ping_sent_time_ = base::Time::Now();
+  internal::SystemTestStruct message;
+  internal::PingPongStruct ping_pong;
+  ping_pong.type = PingPongStruct::Type::PING;
+  ping_pong.rally_id = "chromium-playground-rally-" +
+                       base::Uuid::GenerateRandomV4().AsLowercaseString();
+  ping_pong.current_count = 1;
+  ping_pong.exchange_count = 10;
+  message.test_message = std::move(ping_pong);
+  client_->SendTestMessage(messaging_authz_token_, std::move(message),
+                           base::DoNothing());
+}
+
 void CorpMessagingPlayground::SendLargeMessage() {
-  if (last_sender_id_.username.empty()) {
-    LOG(WARNING) << "No message received yet, destination ID is unknown.";
+  if (messaging_authz_token_.empty()) {
+    LOG(WARNING) << "No authz token received yet, cannot send large message.";
     return;
   }
 
@@ -230,7 +367,7 @@ void CorpMessagingPlayground::SendLargeMessage() {
   }
   payload += kSquirrelMsgEnd;
 
-  client_->SendMessage(last_sender_id_, payload, base::DoNothing());
+  client_->SendMessage(messaging_authz_token_, payload, base::DoNothing());
 }
 
 }  // namespace remoting

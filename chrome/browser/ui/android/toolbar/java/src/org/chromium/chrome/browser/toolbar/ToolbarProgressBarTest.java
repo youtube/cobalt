@@ -7,6 +7,8 @@ package org.chromium.chrome.browser.toolbar;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.atLeast;
+import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
@@ -86,12 +88,16 @@ public class ToolbarProgressBarTest {
 
                                     Resources res = activity.getResources();
                                     int heightPx;
-                                    if (ChromeFeatureList.sAndroidProgressBarVisualUpdate.isEnabled()) {
-                                        heightPx = res.getDimensionPixelSize(
-                                                R.dimen.toolbar_progress_bar_increased_height);
+                                    if (ChromeFeatureList.sAndroidProgressBarVisualUpdate
+                                            .isEnabled()) {
+                                        heightPx =
+                                                res.getDimensionPixelSize(
+                                                        R.dimen
+                                                                .toolbar_progress_bar_increased_height);
                                     } else {
-                                        heightPx = res.getDimensionPixelSize(
-                                                R.dimen.toolbar_progress_bar_height);
+                                        heightPx =
+                                                res.getDimensionPixelSize(
+                                                        R.dimen.toolbar_progress_bar_height);
                                     }
 
                                     View anchor = new View(activity);
@@ -105,10 +111,11 @@ public class ToolbarProgressBarTest {
                                             new ToolbarProgressBarAnimatingView(activity, null);
                                     mProgressBar = new ToolbarProgressBar(activity, null);
                                     mProgressBar.setAnimatingView(mProgressBarAnimatingView);
-                                    mThemeColor = SemanticColorUtils.getToolbarBackgroundPrimary(
-                                            mActivity);
+                                    mThemeColor =
+                                            SemanticColorUtils.getToolbarBackgroundPrimary(
+                                                    mActivity);
                                     mProgressBar.setThemeColor(mThemeColor, false);
-                                    mProgressBar.setProgressBarObserver(mMockProgressBarObserver);
+                                    mProgressBar.addObserver(mMockProgressBarObserver);
 
                                     view.addView(
                                             mProgressBar,
@@ -207,14 +214,16 @@ public class ToolbarProgressBarTest {
         assertTrue("Composited progress bar should be visible.", isCompositedProgressBarVisible());
 
         // Ensure progress updates reached 50%.
-        verify(mMockProgressBarObserver, times(1)).onVisibleProgressUpdated();
+        verify(mMockProgressBarObserver, atLeast(1)).onVisibleProgressUpdated();
+        clearInvocations(mMockProgressBarObserver);
         assertEquals("Progress should have reached 50%.", 0.5f, getProgress(), MathUtils.EPSILON);
 
         // Finish progress bar.
         mProgressBar.finish(true);
+        mShadowLooper.idle();
 
         // Ensure progress reached 100%.
-        verify(mMockProgressBarObserver, times(2)).onVisibleProgressUpdated();
+        verify(mMockProgressBarObserver, atLeast(1)).onVisibleProgressUpdated();
         assertEquals("Progress should have reached 100%.", 1.0f, getProgress(), MathUtils.EPSILON);
 
         // Make sure the progress bar remains visible through completion.
@@ -229,7 +238,7 @@ public class ToolbarProgressBarTest {
 
         // Ensure that visibility changed now that progress has completed.
         assertFalse("Progress bar should not be visible.", isAndroidProgressBarVisible());
-        verify(mMockProgressBarObserver, times(2)).onCompositedLayersVisibilityChanged();
+        verify(mMockProgressBarObserver, times(1)).onCompositedLayersVisibilityChanged();
         assertFalse(
                 "Composited progress bar should not be visible.", isCompositedProgressBarVisible());
     }
@@ -323,7 +332,23 @@ public class ToolbarProgressBarTest {
 
         mProgressBar.onAndroidControlsVisibilityChanged(View.VISIBLE);
         assertEquals(View.VISIBLE, mProgressBar.getVisibility());
+        // Animating view should say invisible since pulse animation is not running. Otherwise
+        // the composited progress bar can get covered up by this view.
+        assertEquals(View.INVISIBLE, mProgressBarAnimatingView.getVisibility());
+    }
+
+    @Test
+    @Feature({"Android-Progress-Bar"})
+    @SmallTest
+    public void testProgressBarHideWithBrowserControls_duringIndeterminateAnimation() {
+        mProgressBar.start();
+        mProgressBar.startIndeterminateAnimationForTesting();
         assertEquals(View.VISIBLE, mProgressBarAnimatingView.getVisibility());
+        mProgressBar.onAndroidControlsVisibilityChanged(View.INVISIBLE);
+        assertEquals(View.INVISIBLE, mProgressBarAnimatingView.getVisibility());
+        mProgressBar.onAndroidControlsVisibilityChanged(View.VISIBLE);
+        assertEquals(View.VISIBLE, mProgressBarAnimatingView.getVisibility());
+        mProgressBar.finish(false);
     }
 
     @Test

@@ -90,11 +90,10 @@ inline constexpr base::FeatureParam<PreloadTopChromeWebUIMode>::Option
          kPreloadTopChromeWebUIModePreloadOnMakeContentsName}};
 
 inline constexpr base::FeatureParam<PreloadTopChromeWebUIMode>
-    kPreloadTopChromeWebUIMode(
-        &kPreloadTopChromeWebUI,
-        kPreloadTopChromeWebUIModeName,
-        PreloadTopChromeWebUIMode::kPreloadOnWarmup,
-        &kPreloadTopChromeWebUIModeOptions);
+    kPreloadTopChromeWebUIMode(&kPreloadTopChromeWebUI,
+                               kPreloadTopChromeWebUIModeName,
+                               PreloadTopChromeWebUIMode::kPreloadOnWarmup,
+                               &kPreloadTopChromeWebUIModeOptions);
 
 // If smart preload is enabled, the preload WebUI is determined by historical
 // engagement scores and whether a WebUI is currently being shown.
@@ -222,6 +221,19 @@ bool IsSideBySideKeyboardShortcutEnabled();
 
 BASE_DECLARE_FEATURE(kSideBySideFocusClearing);
 
+enum class SidePanelRelativeAlignment {
+  // Shows the toolbar and content height side panels on the same side.
+  kShowPanelsOnSameSide,
+  // Shows the toolbar and content height side panels on opposite sides.
+  kShowPanelsOnOppositeSides,
+};
+BASE_DECLARE_FEATURE_PARAM(SidePanelRelativeAlignment,
+                           kSidePanelRelativeAlignment);
+
+BASE_DECLARE_FEATURE(kAppBrowserUseNewLayout);
+
+BASE_DECLARE_FEATURE(kPopupBrowserUseNewLayout);
+
 BASE_DECLARE_FEATURE(kTabbedBrowserUseNewLayout);
 
 BASE_DECLARE_FEATURE(kTabDuplicateMetrics);
@@ -230,8 +242,6 @@ BASE_DECLARE_FEATURE(kTabScrollingButtonPosition);
 
 inline constexpr char kTabScrollingButtonPositionParameterName[] =
     "buttonPosition";
-
-BASE_DECLARE_FEATURE(kSidePanelSearchCompanion);
 
 BASE_DECLARE_FEATURE(kTabGroupsCollapseFreezing);
 BASE_DECLARE_FEATURE(kTabGroupHoverCards);
@@ -338,10 +348,13 @@ BASE_DECLARE_FEATURE(kThreeButtonPasswordSaveDialog);
 // of the browser.
 BASE_DECLARE_FEATURE(kToolbarHeightSidePanel);
 
+// TODO(crbug.com/460764864): Cleanup all the enterprise badging feature flags.
 BASE_DECLARE_FEATURE(kEnterpriseProfileBadgingForMenu);
 BASE_DECLARE_FEATURE(kEnterpriseBadgingForNtpFooter);
 BASE_DECLARE_FEATURE(kEnterpriseBadgingForLocalManagemenetNtpFooter);
+BASE_DECLARE_FEATURE(kEnterpriseBadgingForNtpFooterWithOverThreePolicies);
 BASE_DECLARE_FEATURE(kNTPFooterBadgingPolicies);
+
 BASE_DECLARE_FEATURE(kEnterpriseManagementDisclaimerUsesCustomLabel);
 BASE_DECLARE_FEATURE(kManagedProfileRequiredInterstitial);
 
@@ -409,6 +422,8 @@ BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationVirtualCard);
 BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationFilledCardInformation);
 BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationReadingMode);
 BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationSavePayments);
+BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationLensOverlayHomework);
+BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationBookmarkStar);
 
 // Determines whether the "save password" page action displays different UI if
 // the user has said to never save passwords for that site.
@@ -462,6 +477,8 @@ bool IsAndroidAnimatedProgressBarInBrowserEnabled();
 
 // Controls whether the updated What's New page is enabled.
 BASE_DECLARE_FEATURE(kWhatsNewDesktopRefresh);
+
+BASE_DECLARE_FEATURE(kTabGroupsFocusing);
 
 }  // namespace features
 

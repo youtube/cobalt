@@ -3044,11 +3044,6 @@ IN_PROC_BROWSER_TEST_F(
   injector.set_fake_receiver_for_next_commit(
       std::move(interface_broker_receiver_with_pending_receiver));
 
-  // Expect that by the time the interface request for FrameHostTestInterface is
-  // dispatched to the RenderFrameHost, WebContentsObserver::DidFinishNavigation
-  // will have already been invoked.
-  bool did_finish_navigation = false;
-
   // Start the same-process navigation.
   TestNavigationManager navigation_manager(web_contents(), second_url);
   shell()->LoadURL(second_url);
@@ -3057,18 +3052,20 @@ IN_PROC_BROWSER_TEST_F(
       NavigationRequest::From(navigation_manager.GetNavigationHandle())
           ->GetRenderFrameHost();
 
-  DidFinishNavigationObserver navigation_finish_observer(
-      committing_rfh,
-      base::BindLambdaForTesting([&did_finish_navigation](NavigationHandle*) {
-        did_finish_navigation = true;
-      }));
-
+  // The run loop will exit once WebContentsObserver::DidFinishNavigation is
+  // complete and the ScopedInterfaceRequestMonitor has had its interface
+  // request dispatched to the RenderFrameHost. Note that the
+  // ScopedInterfaceRequestMonitor is attached after the navigation is finished
+  // as the BrowserInterfaceBrokerReceiver instance may have changed during the
+  // navigation.
   base::RunLoop wait_until_interface_request_is_dispatched;
-  ScopedInterfaceRequestMonitor monitor(
-      committing_rfh, mojom::FrameHostTestInterface::Name_,
-      base::BindLambdaForTesting([&]() {
-        EXPECT_TRUE(did_finish_navigation);
-        wait_until_interface_request_is_dispatched.Quit();
+  std::optional<ScopedInterfaceRequestMonitor> monitor;
+  DidFinishNavigationObserver navigation_finish_observer(
+      committing_rfh, base::BindLambdaForTesting([&](NavigationHandle*) {
+        monitor.emplace(committing_rfh, mojom::FrameHostTestInterface::Name_,
+                        base::BindLambdaForTesting([&]() {
+                          wait_until_interface_request_is_dispatched.Quit();
+                        }));
       }));
 
   // Finish the navigation.
@@ -3129,13 +3126,12 @@ IN_PROC_BROWSER_TEST_F(RenderFrameHostImplBrowserTest,
 
   // Set up |dispatched_interface_request_callback| that would be invoked if the
   // interface receiver for FrameHostTestInterface was ever dispatched to the
-  // RenderFrameHostImpl.
+  // RenderFrameHostImpl. This is set on `monitor` below after the navigation
+  // commits, as the BrowserInterfaceBrokerReceiver instance may have changed
+  // during the navigation.
   base::MockCallback<base::RepeatingClosure>
       dispatched_interface_request_callback;
   auto* main_rfh = web_contents()->GetPrimaryMainFrame();
-  ScopedInterfaceRequestMonitor monitor(
-      main_rfh, mojom::FrameHostTestInterface::Name_,
-      dispatched_interface_request_callback.Get());
 
   // Set up the |test_interface request| to arrive on the BrowserInterfaceBroker
   // connection corresponding to the old document in the middle of the firing of
@@ -3146,8 +3142,15 @@ IN_PROC_BROWSER_TEST_F(RenderFrameHostImplBrowserTest,
   // Also set up |navigation_finished_callback| to be invoked afterwards, as a
   // sanity check to ensure that the request injection is actually executed.
   base::MockCallback<base::RepeatingClosure> navigation_finished_callback;
+  std::optional<ScopedInterfaceRequestMonitor> monitor;
   DidFinishNavigationObserver navigation_finish_observer(
-      main_rfh, base::BindLambdaForTesting([&](NavigationHandle*) {
+      main_rfh,
+      base::BindLambdaForTesting([&](NavigationHandle* navigation_handle) {
+        monitor.emplace(static_cast<RenderFrameHostImpl*>(
+                            navigation_handle->GetRenderFrameHost()),
+                        mojom::FrameHostTestInterface::Name_,
+                        dispatched_interface_request_callback.Get());
+
         interface_broker->GetInterface(std::move(test_interface_receiver));
         std::move(navigation_finished_callback).Run();
       }));
@@ -3165,6 +3168,9 @@ IN_PROC_BROWSER_TEST_F(RenderFrameHostImplBrowserTest,
   // DidFinishNavigation callback will be invoked.
   EXPECT_CALL(dispatched_interface_request_callback, Run()).Times(0);
   EXPECT_CALL(navigation_finished_callback, Run());
+  // Reset the monitor to avoid its destructor expecting the same browser
+  // interface broker as it may change during the next navigation.
+  monitor.reset();
 
   // Start the same-process navigation.
   ASSERT_TRUE(NavigateToURLAndDoNotWaitForLoadStop(shell(), second_url));
@@ -9319,5 +9325,174 @@ IN_PROC_BROWSER_TEST_P(RenderFrameHostImplUrgentNavigationIPCBrowserTest,
 INSTANTIATE_TEST_SUITE_P(All,
                          RenderFrameHostImplUrgentNavigationIPCBrowserTest,
                          /*RenderDocumentEnabled()*/ testing::Bool());
+class RenderFrameHostImplConnectionAllowlistBrowserTest
+    : public RenderFrameHostImplBrowserTest {
+ public:
+  RenderFrameHostImplConnectionAllowlistBrowserTest() {
+    scoped_feature_list_.InitAndEnableFeature(
+        network::features::kConnectionAllowlists);
+  }
+
+ protected:
+  void SetUpOnMainThread() override {
+    url_loader_interceptor_ = std::make_unique<
+        URLLoaderInterceptor>(base::BindRepeating(
+        &RenderFrameHostImplConnectionAllowlistBrowserTest::InterceptURLRequest,
+        base::Unretained(this)));
+    RenderFrameHostImplBrowserTest::SetUpOnMainThread();
+  }
+
+  void TearDownOnMainThread() override {
+    url_loader_interceptor_.reset();
+    RenderFrameHostImplBrowserTest::TearDownOnMainThread();
+  }
+
+ private:
+  bool InterceptURLRequest(URLLoaderInterceptor::RequestParams* params) {
+    const std::string path = std::string(params->url_request.url.path());
+    if (path == "/title1.html") {
+      std::string headers = "HTTP/1.1 200 OK\nContent-Type: text/html\n";
+      // The special value is `(response-origin)` which is a keyword.
+      base::StrAppend(&headers, {"Connection-Allowlist: (response-origin)\n"});
+      std::string body = "<html>This is title1.html</html>";
+      URLLoaderInterceptor::WriteResponse(headers, body, params->client.get());
+      return true;
+    }
+    if (path == "/title3.html") {
+      std::string headers = "HTTP/1.1 200 OK\nContent-Type: text/html\n";
+      base::StrAppend(&headers, {"Connection-Allowlist: ()\n"});
+      std::string body = "<html>This is title3.html</html>";
+      URLLoaderInterceptor::WriteResponse(headers, body, params->client.get());
+      return true;
+    }
+    return false;
+  }
+
+  base::test::ScopedFeatureList scoped_feature_list_;
+  std::unique_ptr<URLLoaderInterceptor> url_loader_interceptor_;
+};
+
+IN_PROC_BROWSER_TEST_F(RenderFrameHostImplConnectionAllowlistBrowserTest,
+                       ConnectionAllowlist) {
+  GURL url(embedded_test_server()->GetURL("/title1.html"));
+  EXPECT_TRUE(NavigateToURL(shell(), url));
+  WebContents* web_contents = shell()->web_contents();
+
+  GURL fetch_url(embedded_test_server()->GetURL("/cors-ok.txt"));
+  std::string fetch_resource = JsReplace(
+      "(async () => {"
+      "  let resp = (await fetch($1, { mode: 'cors', credential: 'omit'}));"
+      "  return resp.status; })();",
+      fetch_url);
+
+  EXPECT_EQ(200, EvalJs(web_contents->GetPrimaryMainFrame(), fetch_resource));
+
+  // now fetch a cross-origin resource. It should be disallowed.
+  GURL d_url = embedded_test_server()->GetURL("d.com", "/cors-ok.txt");
+  std::string cross_origin_fetch_resource = JsReplace(
+      "(async () => {"
+      "  let resp = (await fetch($1, { mode: 'cors', credential: 'omit'}));"
+      "  return resp.status; })();",
+      d_url);
+  ASSERT_FALSE(
+      ExecJs(web_contents->GetPrimaryMainFrame(), cross_origin_fetch_resource));
+
+  // Perform a same-origin cross-document navigation.
+  GURL same_origin_cross_document_url =
+      embedded_test_server()->GetURL("/title2.html");
+  EXPECT_TRUE(NavigateToURL(shell(), same_origin_cross_document_url));
+
+  // In the new document, attempt a cross-origin fetch. This should pass as it
+  // does not have the Connection-Allowlist header.
+  EXPECT_EQ(200, EvalJs(web_contents->GetPrimaryMainFrame(),
+                        cross_origin_fetch_resource));
+}
+
+IN_PROC_BROWSER_TEST_F(RenderFrameHostImplConnectionAllowlistBrowserTest,
+                       EmptyIframeInjectedScriptFetch) {
+  GURL main_url = embedded_test_server()->GetURL("/title1.html");
+  EXPECT_TRUE(NavigateToURL(shell(), main_url));
+
+  RenderFrameHostImpl* main_rfh = web_contents()->GetPrimaryMainFrame();
+
+  // Create an empty iframe
+  EXPECT_TRUE(ExecJs(main_rfh,
+                     "let child = document.createElement('iframe');"
+                     "document.body.appendChild(child);"));
+  EXPECT_TRUE(WaitForLoadStop(web_contents()));
+
+  EXPECT_EQ(1U, main_rfh->child_count());
+  RenderFrameHostImpl* iframe = main_rfh->child_at(0)->current_frame_host();
+  EXPECT_TRUE(iframe->IsRenderFrameLive());
+
+  // Inject JavaScript into the iframe to fetch a cross-origin resource.
+  GURL d_url = embedded_test_server()->GetURL("d.com", "/cors-ok.txt");
+  std::string fetch_resource_in_iframe = JsReplace(
+      "(async () => {"
+      "  try {"
+      "    let resp = await fetch($1, { mode: 'cors', credential: 'omit'});"
+      "    domAutomationController.send(String(resp.status));"
+      "  } catch (e) {"
+      "    domAutomationController.send('Error: ' + e.message);"
+      "  }"
+      "})();",
+      d_url);
+
+  DOMMessageQueue message_queue(web_contents());
+  EXPECT_TRUE(ExecJs(iframe, fetch_resource_in_iframe));
+
+  std::string message;
+  EXPECT_TRUE(message_queue.WaitForMessage(&message));
+  // Expecting a network error or CORS error, so the status won't be 200.
+  // The exact error message might vary, so checking for a string that indicates
+  // failure.
+  EXPECT_THAT(message, testing::HasSubstr("\"Error:"));
+
+  // Inject JavaScript into the iframe to fetch a same-origin resource.
+  GURL same_origin_url = embedded_test_server()->GetURL("/cors-ok.txt");
+  std::string fetch_same_origin_resource_in_iframe = JsReplace(
+      "(async () => {"
+      "  try {"
+      "    let resp = await fetch($1, { mode: 'cors', credential: 'omit'});"
+      "    domAutomationController.send(String(resp.status));"
+      "  } catch (e) {"
+      "    domAutomationController.send('Error: ' + e.message);"
+      "  }"
+      "})();",
+      same_origin_url);
+
+  EXPECT_TRUE(ExecJs(iframe, fetch_same_origin_resource_in_iframe));
+
+  std::string same_origin_message;
+  EXPECT_TRUE(message_queue.WaitForMessage(&same_origin_message));
+  EXPECT_EQ("\"200\"", same_origin_message);
+}
+
+IN_PROC_BROWSER_TEST_F(RenderFrameHostImplConnectionAllowlistBrowserTest,
+                       ConnectionAllowlistEmpty) {
+  GURL url(embedded_test_server()->GetURL("/title3.html"));
+  EXPECT_TRUE(NavigateToURL(shell(), url));
+  WebContents* web_contents = shell()->web_contents();
+
+  // now fetch same-origin and cross-origin resources, both should be
+  // disallowed.
+  GURL fetch_url(embedded_test_server()->GetURL("/cors-ok.txt"));
+  std::string fetch_resource = JsReplace(
+      "(async () => {"
+      "  let resp = (await fetch($1, { mode: 'cors', credential: 'omit'}));"
+      "  return resp.status; })();",
+      fetch_url);
+
+  ASSERT_FALSE(ExecJs(web_contents->GetPrimaryMainFrame(), fetch_resource));
+
+  GURL d_url = embedded_test_server()->GetURL("d.com", "/cors-ok.txt");
+  std::string cross_origin_fetch_resource = JsReplace(
+      "(async () => {"
+      "  let resp = (await fetch($1, { mode: 'cors', credential: 'omit'}));"
+      "  return resp.status; })();",
+      d_url);
+  ASSERT_FALSE(
+      ExecJs(web_contents->GetPrimaryMainFrame(), cross_origin_fetch_resource));
+}
 
 }  // namespace content

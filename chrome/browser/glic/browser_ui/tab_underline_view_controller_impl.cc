@@ -4,6 +4,7 @@
 
 #include "chrome/browser/glic/browser_ui/tab_underline_view_controller_impl.h"
 
+#include "base/containers/contains.h"
 #include "base/debug/crash_logging.h"
 #include "chrome/browser/glic/browser_ui/tab_underline_view.h"
 #include "chrome/browser/glic/public/context/glic_sharing_manager.h"
@@ -14,18 +15,28 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/views/tabs/tab.h"
+#include "components/tabs/public/tab_interface.h"
 
 namespace glic {
 
 TabUnderlineViewControllerImpl::TabUnderlineViewControllerImpl() = default;
 
 TabUnderlineViewControllerImpl::~TabUnderlineViewControllerImpl() {
-  if (glic_service_ && !GlicEnabling::IsMultiInstanceEnabledByFlags()) {
+  if (glic_service_ && !GlicEnabling::IsMultiInstanceEnabled()) {
     glic_service_->GetSingleInstanceWindowController().RemoveStateObserver(
         this);
   }
 }
 
+// This implementation makes many references to "pinned" tabs. All of these
+// refer to tabs that are selected to be shared with Gemini under the glic
+// multitab feature. This is different from the older existing notion of
+// "pinned" tabs in the tabstrip, which is the UI treatment that fixes a Tab
+// view to one side with a reduced visual. Separate terminology should be used
+// for the glic multitab concept in order to disambiguate, but landed code
+// already adopts the "pinning" term and so that continues to be used here.
+// TODO(crbug.com/433131600): update glic multitab sharing code to use less
+// conflicting terminology.
 void TabUnderlineViewControllerImpl::Initialize(
     TabUnderlineView* underline_view,
     Browser* browser) {
@@ -36,7 +47,7 @@ void TabUnderlineViewControllerImpl::Initialize(
 
   GlicSharingManager& sharing_manager = glic_service_->sharing_manager();
 
-  if (!GlicEnabling::IsMultiInstanceEnabledByFlags()) {
+  if (!GlicEnabling::IsMultiInstanceEnabled()) {
     // Subscribe to changes in the focused tab.
     focus_change_subscription_ =
         sharing_manager.AddFocusedTabChangedCallback(base::BindRepeating(
@@ -152,6 +163,23 @@ void TabUnderlineViewControllerImpl::OnPinnedTabsChanged(
       UpdateUnderlineReason::kPinnedTabsChanged_TabNotInPinnedSet);
 }
 
+void TabUnderlineViewControllerImpl::OnContextTabsChanged(
+    const std::set<tabs::TabHandle>& context_tabs) {
+  auto tab_interface = GetTabInterface();
+  if (!tab_interface) {
+    // If the TabInterface is invalid at this point, there is no relevant UI
+    // to handle.
+    return;
+  }
+
+  bool should_underline =
+      base::Contains(context_tabs, tab_interface->GetHandle());
+  UpdateUnderlineView(
+      should_underline
+          ? UpdateUnderlineReason::kContextualTask_TabInContext
+          : UpdateUnderlineReason::kContextualTask_TabNotInContext);
+}
+
 void TabUnderlineViewControllerImpl::PanelStateChanged(
     const glic::mojom::PanelState& panel_state,
     const GlicWindowController::PanelStateContext& context) {
@@ -214,8 +242,7 @@ void TabUnderlineViewControllerImpl::UpdateUnderlineView(
       // Underline should be hidden, with exception to pinned tabs while the
       // glic panel remains open.
       if (IsUnderlineTabPinned() &&
-          (GlicEnabling::IsMultiInstanceEnabledByFlags() ||
-           IsGlicWindowShowing())) {
+          (GlicEnabling::IsMultiInstanceEnabled() || IsGlicWindowShowing())) {
         break;
       }
       HideUnderline();
@@ -264,7 +291,7 @@ void TabUnderlineViewControllerImpl::UpdateUnderlineView(
       }
       break;
     case UpdateUnderlineReason::kPinnedTabsChanged_TabInPinnedSet:
-      if (GlicEnabling::IsMultiInstanceEnabledByFlags()) {
+      if (GlicEnabling::IsMultiInstanceEnabled()) {
         ShowAndAnimateUnderline();
       } else {
         // If `underline_view_` is not visible, then this tab was just added
@@ -311,6 +338,14 @@ void TabUnderlineViewControllerImpl::UpdateUnderlineView(
         AnimateUnderline();
       }
       break;
+    case UpdateUnderlineReason::kContextualTask_TabInContext:
+      if (!underline_view_->IsShowing()) {
+        ShowAndAnimateUnderline();
+      }
+      break;
+    case UpdateUnderlineReason::kContextualTask_TabNotInContext:
+      HideUnderline();
+      break;
   }
 }
 
@@ -342,7 +377,7 @@ void TabUnderlineViewControllerImpl::ShowOrAnimatePinnedUnderline() {
   }
   // For multi-instance, we rely on the umbrella sharing manager behavior to
   // determine when to show or not show underlines via the pinned tabs api.
-  if (!GlicEnabling::IsMultiInstanceEnabledByFlags()) {
+  if (!GlicEnabling::IsMultiInstanceEnabled()) {
     // Pinned underlines should never be visible if the glic window is closed.
     if (!IsGlicWindowShowing()) {
       return;
@@ -388,6 +423,10 @@ std::string TabUnderlineViewControllerImpl::UpdateReasonToString(
       return "TabInPinnedSet";
     case UpdateUnderlineReason::kPinnedTabsChanged_TabNotInPinnedSet:
       return "TabNotInPinnedSet";
+    case UpdateUnderlineReason::kContextualTask_TabInContext:
+      return "TabInContext";
+    case UpdateUnderlineReason::kContextualTask_TabNotInContext:
+      return "TabNotInContext";
     case UpdateUnderlineReason::kPanelStateChanged_PanelShowing:
       return "PanelShowing";
     case UpdateUnderlineReason::kPanelStateChanged_PanelHidden:

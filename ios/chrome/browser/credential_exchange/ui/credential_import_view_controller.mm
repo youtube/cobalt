@@ -4,11 +4,14 @@
 
 #import "ios/chrome/browser/credential_exchange/ui/credential_import_view_controller.h"
 
+#import "base/notreached.h"
 #import "base/strings/utf_string_conversions.h"
 #import "components/strings/grit/components_strings.h"
+#import "ios/chrome/browser/credential_exchange/public/credential_import_stage.h"
 #import "ios/chrome/browser/data_import/public/import_data_item.h"
 #import "ios/chrome/browser/data_import/public/import_data_item_consumer.h"
 #import "ios/chrome/browser/data_import/ui/import_data_item_table_view.h"
+#import "ios/chrome/common/ui/button_stack/button_stack_configuration.h"
 #import "ios/chrome/grit/ios_branded_strings.h"
 #import "ios/chrome/grit/ios_strings.h"
 #import "ui/base/l10n/l10n_util.h"
@@ -30,7 +33,7 @@ constexpr int kExpectedItemCount = 2;
   self.bannerName = @"safari_data_import";
   self.titleText =
       l10n_util::GetNSString(IDS_IOS_CREDENTIAL_EXCHANGE_IMPORT_TITLE);
-  self.primaryActionString = l10n_util::GetNSString(IDS_CONTINUE);
+  self.configuration.primaryActionString = l10n_util::GetNSString(IDS_CONTINUE);
   self.navigationItem.rightBarButtonItem = [[UIBarButtonItem alloc]
       initWithBarButtonSystemItem:UIBarButtonSystemItemCancel
                            target:self
@@ -54,17 +57,29 @@ constexpr int kExpectedItemCount = 2;
                               base::UTF8ToUTF16(userEmail));
 }
 
-- (void)importStarted {
-  self.navigationItem.rightBarButtonItem = nil;
-  self.primaryButtonEnabled = NO;
-  [_tableView notifyImportStart];
+- (void)transitionToImportStage:(CredentialImportStage)importStage {
+  switch (importStage) {
+    case CredentialImportStage::kNotStarted:
+      NOTREACHED();
+    case CredentialImportStage::kImporting:
+      self.navigationItem.rightBarButtonItem = nil;
+      self.configuration.primaryActionEnabled = NO;
+      [self reloadConfiguration];
+      [_tableView notifyImportStart];
+      break;
+    case CredentialImportStage::kImported:
+      self.configuration.primaryActionString = l10n_util::GetNSString(IDS_DONE);
+      self.configuration.primaryActionEnabled = YES;
+      [self reloadConfiguration];
+      break;
+  }
 }
 
 #pragma mark - Actions
 
 // Invoked when the user taps the "Cancel" button.
 - (void)cancelButtonTapped {
-  // TODO(crbug.com/450982128): Handle button taps.
+  [self.delegate didTapDismissButton];
 }
 
 #pragma mark - Private

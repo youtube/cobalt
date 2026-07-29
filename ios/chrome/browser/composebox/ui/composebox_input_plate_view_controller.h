@@ -8,11 +8,13 @@
 #import <UIKit/UIKit.h>
 
 #import "ios/chrome/browser/composebox/public/composebox_theme.h"
-#import "ios/chrome/browser/composebox/ui/composebox_animation_context_provider.h"
+#import "ios/chrome/browser/composebox/ui/composebox_animation_context.h"
 #import "ios/chrome/browser/composebox/ui/composebox_input_plate_consumer.h"
 #import "ios/chrome/browser/composebox/ui/composebox_input_plate_mutator.h"
+#import "ios/chrome/browser/composebox/ui/composebox_metrics_recorder.h"
 
 @protocol ComposeboxInputPlateMutator;
+@class ComposeboxMetricsRecorder;
 @class ComposeboxInputPlateViewController;
 @protocol TextFieldViewContaining;
 
@@ -41,6 +43,14 @@
 /// Informs the delegate that a user did tap on the attach tabs button.
 - (void)composeboxViewControllerDidTapAttachTabsButton:
     (ComposeboxInputPlateViewController*)composeboxViewController;
+/// Informs the delegate that a user did tap on the AI button.
+- (void)composeboxViewControllerDidTapAIMButton:
+            (ComposeboxInputPlateViewController*)composeboxViewController
+                               activationSource:
+                                   (AiModeActivationSource)activationSource;
+/// Informs the delegate that a user did tap on the image generation button.
+- (void)composeboxViewControllerDidTapImageGenerationButton:
+    (ComposeboxInputPlateViewController*)composeboxViewController;
 /// Informs the delegate that a user did tap on the lens button.
 - (void)composeboxViewController:
             (ComposeboxInputPlateViewController*)composeboxViewController
@@ -49,8 +59,7 @@
 
 /// View controller for the composebox composebox.
 @interface ComposeboxInputPlateViewController
-    : UIViewController <ComposeboxAnimationContextProvider,
-                        ComposeboxInputPlateConsumer>
+    : UIViewController <ComposeboxInputPlateConsumer>
 
 @property(nonatomic, weak) id<ComposeboxInputPlateViewControllerDelegate>
     delegate;
@@ -58,6 +67,19 @@
 
 /// Height of the input view.
 @property(nonatomic, readonly) CGFloat inputHeight;
+@property(nonatomic, readonly) CGFloat keyboardHeight;
+
+// The input plate view to be used in animations.
+@property(nonatomic, readonly) UIView* inputPlateViewForAnimation;
+
+// Whether the UI is in compact (single line) mode.
+@property(nonatomic, readonly, getter=isCompact) BOOL compact;
+
+/// The button to toggle AI mode.
+@property(nonatomic, strong) UIButton* aimButton;
+
+/// The button to toggle Image Generation mode.
+@property(nonatomic, strong) UIButton* imageGenerationButton;
 
 // Initializes a new instance with a given theme.
 - (instancetype)initWithTheme:(ComposeboxTheme*)theme;

@@ -21,7 +21,6 @@
 #include "components/viz/common/resources/shared_image_format_utils.h"
 #include "components/viz/test/test_gles2_interface.h"
 #include "components/viz/test/test_raster_interface.h"
-#include "gpu/command_buffer/client/raster_implementation_gles.h"
 #include "gpu/command_buffer/common/shared_image_capabilities.h"
 #include "gpu/config/skia_limits.h"
 #include "third_party/skia/include/gpu/ganesh/gl/GrGLInterface.h"
@@ -126,14 +125,13 @@ class TestGLES2InterfaceForContextProvider : public TestGLES2Interface {
 }  // namespace
 
 // static
-scoped_refptr<TestContextProvider> TestContextProvider::Create(
+scoped_refptr<TestContextProvider> TestContextProvider::CreateGLES(
     std::string additional_extensions) {
   constexpr bool support_locking = false;
   return new TestContextProvider(
       std::make_unique<TestContextSupport>(),
       std::make_unique<TestGLES2InterfaceForContextProvider>(
           std::move(additional_extensions)),
-      /*raster=*/nullptr,
       /*sii=*/nullptr, support_locking);
 }
 
@@ -181,16 +179,6 @@ scoped_refptr<TestContextProvider> TestContextProvider::CreateWorker(
   return worker_context_provider;
 }
 
-// static
-scoped_refptr<TestContextProvider> TestContextProvider::Create(
-    std::unique_ptr<TestGLES2Interface> gl) {
-  DCHECK(gl);
-  constexpr bool support_locking = false;
-  return new TestContextProvider(std::make_unique<TestContextSupport>(),
-                                 std::move(gl), /*raster=*/nullptr,
-                                 /*sii=*/nullptr, support_locking);
-}
-
 TestContextProvider::TestContextProvider(
     std::unique_ptr<TestContextSupport> support,
     std::unique_ptr<TestRasterInterface> raster,
@@ -220,12 +208,10 @@ TestContextProvider::TestContextProvider(
 TestContextProvider::TestContextProvider(
     std::unique_ptr<TestContextSupport> support,
     std::unique_ptr<TestGLES2Interface> gl,
-    std::unique_ptr<gpu::raster::RasterInterface> raster,
     scoped_refptr<gpu::TestSharedImageInterface> sii,
     bool support_locking)
     : support_(std::move(support)),
       context_gl_(std::move(gl)),
-      raster_interface_gles_(std::move(raster)),
       support_locking_(support_locking) {
   DCHECK(main_thread_checker_.CalledOnValidThread());
   DCHECK(context_gl_);
@@ -310,7 +296,7 @@ gpu::gles2::GLES2Interface* TestContextProvider::ContextGL() {
 }
 
 gpu::raster::RasterInterface* TestContextProvider::RasterInterface() {
-  return raster_context_ ? raster_context_.get() : raster_interface_gles_.get();
+  return raster_context_.get();
 }
 
 gpu::ContextSupport* TestContextProvider::ContextSupport() {

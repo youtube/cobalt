@@ -30,6 +30,7 @@
 #include "components/optimization_guide/core/optimization_guide_enums.h"
 #include "components/optimization_guide/core/optimization_guide_features.h"
 #include "components/optimization_guide/core/optimization_guide_switches.h"
+#include "components/optimization_guide/public/mojom/model_broker.mojom-data-view.h"
 #include "components/prefs/testing_pref_service.h"
 #include "services/on_device_model/public/cpp/cpu.h"
 #include "services/on_device_model/public/cpp/features.h"
@@ -81,7 +82,7 @@ class OnDeviceModelComponentTest : public testing::Test {
   void SetUp() override {
     broker_.service_settings().performance_class = PerformanceClass::kLow;
     model_execution::prefs::RecordFeatureUsage(
-        &broker_.local_state(), ModelBasedCapabilityKey::kCompose);
+        &broker_.local_state(), mojom::OnDeviceFeature::kCompose);
   }
 
   void TearDown() override {
@@ -355,8 +356,7 @@ TEST_F(OnDeviceModelComponentTest, UninstallNeededDueToDiskSpace) {
                                 base::Time::Now());
 
   // 10gb is the default in `IsFreeDiskSpaceTooLowForOnDeviceModelInstall`.
-  broker_.component_state().SetFreeDiskSpace(base::GiB(10) -
-                                             base::ByteCount(1));
+  broker_.component_state().SetFreeDiskSpace(base::GiB(5) - base::ByteCount(1));
 
   // Should uninstall right away. Unlike most install requirements, the disk
   // space requirement is not subject to `GetOnDeviceModelRetentionTime()`.
@@ -507,7 +507,7 @@ TEST_F(OnDeviceModelComponentTest, InstallAfterEligibleFeatureWasUsed) {
   ASSERT_FALSE(WaitForUnexpectedInstallerRegistered());
 
   broker_.GetOrCreateBrokerState().usage_tracker().OnDeviceEligibleFeatureUsed(
-      ModelBasedCapabilityKey::kCompose);
+      mojom::OnDeviceFeature::kCompose);
   EXPECT_TRUE(WaitUntilInstallerRegistered());
 }
 
@@ -519,7 +519,7 @@ TEST_F(OnDeviceModelComponentTest, LogsStatusOnUse) {
   EXPECT_TRUE(WaitUntilInstallerRegistered());
 
   broker_.GetOrCreateBrokerState().usage_tracker().OnDeviceEligibleFeatureUsed(
-      ModelBasedCapabilityKey::kCompose);
+      mojom::OnDeviceFeature::kCompose);
 
   histograms_.ExpectBucketCount(
       "OptimizationGuide.ModelExecution.OnDeviceModelStatusAtUseTime",

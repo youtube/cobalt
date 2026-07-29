@@ -320,6 +320,9 @@ chromium-metrics-reviews@google.com.
       label="Site-scoped session has mismatch between host pattern and site"/>
   <int value="77" label="Signing quota exceeded"/>
   <int value="78" label="Invalid configuration JSON"/>
+  <int value="79"
+      label="Federated session invalid due to failure to restore session
+             provider key"/>
 </enum>
 
 <!-- LINT.ThenChange(//net/device_bound_sessions/session_error.h:DeviceBoundSessionError) -->
@@ -580,6 +583,7 @@ chromium-metrics-reviews@google.com.
   <int value="3" label="No Rejection Non-Read-Write-Mode"/>
   <int value="4" label="No Rejection Skip Cache Validation"/>
   <int value="5" label="No Rejection Load Only From Cache"/>
+  <int value="6" label="No Rejection Hint disabled"/>
 </enum>
 
 <!-- LINT.ThenChange(//net/http/http_cache_transaction.h:HttpCacheEntryRejectionStatus) -->
@@ -3332,6 +3336,8 @@ Called by update_net_trust_anchors.py.-->
   <int value="7" label="Rejected by authorizer (check cookie settings?)"/>
 </enum>
 
+<!-- LINT.IfChange(UnexportableKeyServiceResult) -->
+
 <enum name="UnexportableKeyServiceResult">
   <int value="0" label="Success"/>
   <int value="1" label="Crypto API failed"/>
@@ -3341,7 +3347,13 @@ Called by update_net_trust_anchors.py.-->
   <int value="5" label="Algorithm not supported"/>
   <int value="6" label="Key not ready"/>
   <int value="7" label="Verify signature failed"/>
+  <int value="8" label="Operation not supported"/>
 </enum>
+
+<!-- LINT.ThenChange(
+    /components/unexportable_keys/mojom/unexportable_key_service.mojom:ServiceError,
+    /components/unexportable_keys/service_error.h:ServiceError
+) -->
 
 <enum name="UnsolicitedHttpsRecordStatus">
   <int value="0" label="Malformed"/>

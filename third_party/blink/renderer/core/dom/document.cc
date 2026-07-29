@@ -65,8 +65,6 @@
 #include "services/network/public/mojom/web_sandbox_flags.mojom-blink.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/common/permissions_policy/document_policy_features.h"
-#include "third_party/blink/public/common/privacy_budget/identifiability_sample_collector.h"
-#include "third_party/blink/public/common/privacy_budget/identifiability_study_settings.h"
 #include "third_party/blink/public/common/thread_safe_browser_interface_broker_proxy.h"
 #include "third_party/blink/public/mojom/css/preferred_color_scheme.mojom-blink.h"
 #include "third_party/blink/public/mojom/css/preferred_contrast.mojom-blink.h"
@@ -214,7 +212,6 @@
 #include "third_party/blink/renderer/core/frame/csp/content_security_policy.h"
 #include "third_party/blink/renderer/core/frame/dom_visual_viewport.h"
 #include "third_party/blink/renderer/core/frame/event_handler_registry.h"
-#include "third_party/blink/renderer/core/frame/font_matching_metrics.h"
 #include "third_party/blink/renderer/core/frame/frame_console.h"
 #include "third_party/blink/renderer/core/frame/history.h"
 #include "third_party/blink/renderer/core/frame/intervention.h"
@@ -2351,16 +2348,6 @@ void Document::DidChangeVisibilityState() {
     interactive_detector->OnPageHiddenChanged(hidden());
   }
 
-  // Don't create a |ukm_recorder_| and |ukm_source_id_| unless necessary.
-  if (hidden() && IdentifiabilityStudySettings::Get()->IsActive()) {
-    // Flush UKM data here in addition to Document::Shutdown(). We want to flush
-    // the UKM data before this document becomes invisible (e.g. before entering
-    // back/forward cache) because we want to send the UKM data before the
-    // renderer process is killed.
-    IdentifiabilitySampleCollector::Get()->FlushSource(UkmRecorder(),
-                                                       UkmSourceID());
-  }
-
   GetViewTransitions().DidChangeVisibilityState();
 }
 
@@ -3462,12 +3449,6 @@ void Document::Shutdown() {
 
   lifecycle_.AdvanceTo(DocumentLifecycle::kStopped);
   DCHECK(!View()->IsAttached());
-
-  // Don't create a |ukm_recorder_| and |ukm_source_id_| unless necessary.
-  if (IdentifiabilityStudySettings::Get()->IsActive()) {
-    IdentifiabilitySampleCollector::Get()->FlushSource(UkmRecorder(),
-                                                       UkmSourceID());
-  }
 
   mime_handler_view_before_unload_event_listener_ = nullptr;
 
@@ -7467,11 +7448,10 @@ static ParseQualifiedNameResult ParseQualifiedNameInternal(
     prefix = g_null_atom;
     local_name = qualified_name;
   } else {
-    auto [prefix_span, rest] = characters.split_at(colon_pos);
-    prefix = AtomicString(prefix_span);
+    prefix = AtomicString(characters.take_first(colon_pos));
     if (prefix.empty())
       return ParseQualifiedNameResult(kQNEmptyPrefix);
-    local_name = AtomicString(rest.subspan(1u));
+    local_name = AtomicString(characters.template subspan<1u>());
   }
 
   if (local_name.empty())
@@ -8433,16 +8413,6 @@ ukm::SourceId Document::UkmSourceID() const {
   return ukm_source_id_;
 }
 
-FontMatchingMetrics* Document::GetFontMatchingMetrics() {
-  if (Lifecycle().GetState() >= DocumentLifecycle::LifecycleState::kStopping) {
-    return nullptr;
-  }
-  if (font_matching_metrics_)
-    return font_matching_metrics_.get();
-  font_matching_metrics_ = std::make_unique<FontMatchingMetrics>(dom_window_);
-  return font_matching_metrics_.get();
-}
-
 void Document::MaybeRecordSvgImageProcessingTime(
     int data_change_count,
     base::TimeDelta data_change_elapsed_time) const {
@@ -8567,14 +8537,6 @@ const ScriptRegexp& Document::EnsureEmailRegexp() const {
         EmailInputType::CreateEmailRegexp(GetAgent().isolate());
   }
   return *data_->email_regexp_;
-}
-
-void Document::SetMediaFeatureEvaluated(int feature) {
-  evaluated_media_features_ |= (1 << feature);
-}
-
-bool Document::WasMediaFeatureEvaluated(int feature) {
-  return (evaluated_media_features_ >> feature) & 1;
 }
 
 void Document::AddConsoleMessage(ConsoleMessage* message,
@@ -10341,8 +10303,6 @@ CustomElementRegistry* Document::EffectiveGlobalCustomElementRegistry() const {
   }
   return nullptr;
 }
-
-template class CORE_TEMPLATE_EXPORT Supplement<Document>;
 
 }  // namespace blink
 

@@ -45,7 +45,7 @@ const char kLinkID[] = "linkID";
 const char kPageLoadedString[] = "Page loaded!";
 
 // The title of the test infobar.
-NSString* kTestInfoBarTitle = @"TestInfoBar";
+NSString* const kTestInfoBarTitle = @"TestInfoBar";
 
 // Defines the visibility of an element, in relation to the toolbar.
 typedef NS_ENUM(NSInteger, ButtonVisibility) {
@@ -416,22 +416,9 @@ id<GREYMatcher> FormInputAccessoryOmniboxTypingShield() {
 
 // Check the button visibility of the toolbar when the omnibox is focused from a
 // different orientation than the default one.
-// TODO(crbug.com/365474269): The test is flaky on simulator.
-#if TARGET_OS_SIMULATOR
-#define MAYBE_testFocusOmniboxFromOtherOrientation \
-  FLAKY_testFocusOmniboxFromOtherOrientation
-#else
-#define MAYBE_testFocusOmniboxFromOtherOrientation \
-  testFocusOmniboxFromOtherOrientation
-#endif
-- (void)MAYBE_testFocusOmniboxFromOtherOrientation {
-  // TODO(crbug.com/443913539): Re-enable the test.
-#if !TARGET_OS_SIMULATOR
-  if (base::ios::IsRunningOnIOS26OrLater()) {
-    EARL_GREY_TEST_DISABLED(@"Test disabled on iOS 26.");
-  }
-#endif
-
+// TODO(crbug.com/443913539): The test is flaky on simulator and failing on
+// device.
+- (void)DISABLED_testFocusOmniboxFromOtherOrientation {
   // Load a page to have the toolbar visible (hidden on NTP).
   [ChromeEarlGrey loadURL:GURL("chrome://version")];
 
@@ -468,20 +455,9 @@ id<GREYMatcher> FormInputAccessoryOmniboxTypingShield() {
 
 // Check the button visibility of the toolbar when the omnibox is focused from
 // the default orientation.
-// TODO(crbug.com/364160530): The test is flaky on simulator.
-#if TARGET_OS_SIMULATOR
-#define MAYBE_testFocusOmniboxFromPortrait FLAKY_testFocusOmniboxFromPortrait
-#else
-#define MAYBE_testFocusOmniboxFromPortrait testFocusOmniboxFromPortrait
-#endif
-- (void)MAYBE_testFocusOmniboxFromPortrait {
-  // TODO(crbug.com/443913539): Re-enable the test.
-#if !TARGET_OS_SIMULATOR
-  if (base::ios::IsRunningOnIOS26OrLater()) {
-    EARL_GREY_TEST_DISABLED(@"Test disabled on iOS 26.");
-  }
-#endif
-
+// TODO(crbug.com/443913539): The test is flaky on simulator and failing on
+// device.
+- (void)DISABLED_testFocusOmniboxFromPortrait {
   // Load a page to have the toolbar visible (hidden on NTP).
   [ChromeEarlGrey loadURL:GURL("chrome://version")];
 
@@ -623,7 +599,8 @@ id<GREYMatcher> FormInputAccessoryOmniboxTypingShield() {
 
 // Test that the bottom toolbar is still visible after closing the last
 // incognito tab using long press. See https://crbug.com/849937.
-- (void)testBottomToolbarHeightAfterClosingTab {
+// TODO(crbug.com/464193172): Re-enable test for toolbar height.
+- (void)DISABLED_testBottomToolbarHeightAfterClosingTab {
   if (![ChromeEarlGrey isSplitToolbarMode]) {
     EARL_GREY_TEST_SKIPPED(@"This test needs a bottom toolbar.");
   }

@@ -60,7 +60,7 @@ AwComponentUpdateService* AwComponentUpdateService::GetInstance() {
 }
 
 // static
-void JNI_AwComponentUpdateService_StartComponentUpdateService(
+static void JNI_AwComponentUpdateService_StartComponentUpdateService(
     JNIEnv* env,
     const base::android::JavaParamRef<jobject>& j_finished_callback,
     jboolean j_on_demand_update) {
@@ -342,3 +342,6 @@ base::FilePath AwComponentUpdateService::GetComponentsProviderServiceDirectory(
 }
 
 }  // namespace android_webview
+
+DEFINE_JNI(AwComponentUpdateService)
+DEFINE_JNI(ComponentsProviderPathUtil)

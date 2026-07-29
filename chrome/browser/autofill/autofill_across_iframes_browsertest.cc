@@ -357,7 +357,7 @@ class AutofillAcrossIframesTest : public InProcessBrowserTest {
 
   test::AutofillBrowserTestEnvironment autofill_test_environment_;
   base::test::ScopedFeatureList feature_list_{
-      features::kAutofillSharedAutofill};
+      features::kAutofillPolicyControlledFeatureAutofill};
   content::ContentMockCertVerifier cert_verifier_;
   // Maps relative paths to HTML content.
   std::map<std::string, std::string> pages_;
@@ -365,7 +365,7 @@ class AutofillAcrossIframesTest : public InProcessBrowserTest {
 };
 
 // Test fixture for basic filling, in particular for testing the security policy
-// (same-origin policy and shared-autofill).
+// (same-origin policy and cross-origin-autofill).
 class AutofillAcrossIframesTest_Simple : public AutofillAcrossIframesTest {
  public:
   // Creates a simple form
@@ -375,7 +375,7 @@ class AutofillAcrossIframesTest_Simple : public AutofillAcrossIframesTest {
   //     <iframe><input autocomplete=cc-exp></iframe>
   //     <iframe><input autocomplete=cc-csc></iframe>
   //   </form>
-  // where the hostnames and attributes, such as "allow=shared-autofill" or
+  // where the hostnames and attributes, such as "allow=autofill" or
   // "sandbox", can be configured.
   [[nodiscard]] const FormStructure* LoadForm(
       std::array<const char*, 4> hostnames = {"$1", "$1", "$1", "$1"},
@@ -449,32 +449,32 @@ IN_PROC_BROWSER_TEST_F(AutofillAcrossIframesTest_Simple,
               ElementsAre("", kNumber, "", ""));
 }
 
-// Test fixture for "shared-autofill". The parameter indicates whether or not
-// shared-autofill has the "relaxed" semantics.
-class AutofillAcrossIframesTest_SharedAutofill
+// Test fixture for the policy-controlled feature "autofill".
+class AutofillAcrossIframesTest_PolicyControlledFeature
     : public AutofillAcrossIframesTest_Simple {
  private:
   base::test::ScopedFeatureList feature_list_{
-      features::kAutofillSharedAutofill};
+      features::kAutofillPolicyControlledFeatureAutofill};
 };
 
 // Tests that autofilling on a main-origin field also fills cross-origin fields
-// whose frames have shared-autofill enabled.
-IN_PROC_BROWSER_TEST_F(AutofillAcrossIframesTest_SharedAutofill,
+// whose frames have the policy-controlled feature "autofill" enabled.
+IN_PROC_BROWSER_TEST_F(AutofillAcrossIframesTest_PolicyControlledFeature,
                        FillWhenTriggeredOnMainOrigin) {
   const FormStructure* form =
-      LoadForm({"$1", "$2", "$3", "$4"}, {"", "", "", "allow=shared-autofill"});
+      LoadForm({"$1", "$2", "$3", "$4"}, {"", "", "", "allow=autofill"});
   ASSERT_TRUE(form);
   EXPECT_THAT(FillForm(*form, *form->field(0)),
               ElementsAre(kNameFull, "", "", kCvc));
 }
 
 // Tests that autofilling on a cross-origin field does not fill cross-origin
-// fields, even if shared-autofill in their document.
-IN_PROC_BROWSER_TEST_F(AutofillAcrossIframesTest_SharedAutofill,
+// fields, even if the policy-controlled feature "autofill" is enabled in their
+// document.
+IN_PROC_BROWSER_TEST_F(AutofillAcrossIframesTest_PolicyControlledFeature,
                        FillWhenTriggeredOnNonMainOriginIffRelaxed) {
   const FormStructure* form =
-      LoadForm({"$1", "$2", "$3", "$4"}, {"", "", "", "allow=shared-autofill"});
+      LoadForm({"$1", "$2", "$3", "$4"}, {"", "", "", "allow=autofill"});
   ASSERT_TRUE(form);
   EXPECT_THAT(FillForm(*form, *form->field(1)),
               ElementsAre(kNameFull, kNumber, "", ""));

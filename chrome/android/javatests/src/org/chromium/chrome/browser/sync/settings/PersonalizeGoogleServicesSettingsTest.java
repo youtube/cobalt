@@ -29,7 +29,9 @@ import org.chromium.base.test.util.Batch;
 import org.chromium.base.test.util.CommandLineFlags;
 import org.chromium.base.test.util.DisabledTest;
 import org.chromium.base.test.util.Feature;
+import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.chrome.R;
+import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.browser.settings.SettingsActivityTestRule;
 import org.chromium.chrome.browser.sync.SyncTestRule;
@@ -43,7 +45,7 @@ import org.chromium.ui.test.util.RenderTestRule;
 @Batch(Batch.PER_CLASS)
 @CommandLineFlags.Add({ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE})
 public class PersonalizeGoogleServicesSettingsTest {
-    private static final int RENDER_TEST_REVISION = 0;
+    private static final int RENDER_TEST_REVISION = 1;
 
     private final SyncTestRule mSyncTestRule = new SyncTestRule();
 
@@ -77,6 +79,7 @@ public class PersonalizeGoogleServicesSettingsTest {
     @Test
     @SmallTest
     @Feature({"RenderTest", "PersonalizedGoogleServices"})
+    @DisableFeatures(ChromeFeatureList.SETTINGS_MULTI_COLUMN)
     public void testLayout() throws Exception {
         mSyncTestRule.setUpAccountAndSignInForTesting();
         mSettingsActivityTestRule.startSettingsActivity();

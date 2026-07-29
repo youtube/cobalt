@@ -14,17 +14,21 @@
 #include "ui/base/unowned_user_data/user_data_factory.h"
 
 class AskBeforeHttpDialogController;
+class BookmarkPageActionController;
 class CollaborationMessagingPageActionController;
+class ContextualTasksPageActionController;
 class CookieControlsPageActionController;
 class FileSystemAccessPageActionController;
 class FromGWSNavigationAndKeepAliveRequestObserver;
 class IntentPickerViewPageActionController;
 class LensOverlayController;
+class LensOverlayHomeworkPageActionController;
 class LensSearchController;
 class MemorySaverChipTabHelper;
 class PinnedTranslateActionListener;
 class Profile;
 class PwaInstallPageActionController;
+class JsOptimizationsPageActionController;
 class ReadAnythingController;
 class ReadAnythingSidePanelController;
 class RollBackModeBInfoBarController;
@@ -105,6 +109,7 @@ class SyncSessionsRouterTabHelper;
 
 namespace tab_groups {
 class SavedTabGroupWebContentsListener;
+class SavedTabGroupOnCloseHelper;
 }  // namespace tab_groups
 
 namespace page_actions {
@@ -201,10 +206,20 @@ class TabFeatures {
     return saved_tab_group_web_contents_listener_.get();
   }
 
+  tab_groups::SavedTabGroupOnCloseHelper* saved_tab_group_on_close_helper()
+      const {
+    return saved_tab_group_on_close_helper_.get();
+  }
+
   TabDialogManager* tab_dialog_manager() { return tab_dialog_manager_.get(); }
 
   page_actions::PageActionController* page_action_controller() {
     return page_action_controller_.get();
+  }
+
+  JsOptimizationsPageActionController*
+  js_optimizations_page_action_controller() {
+    return js_optimizations_page_action_controller_.get();
   }
 
   IntentPickerViewPageActionController*
@@ -233,16 +248,6 @@ class TabFeatures {
 
   memory_saver::MemorySaverChipController* memory_saver_chip_controller() {
     return memory_saver_chip_controller_.get();
-  }
-
-  commerce::PriceInsightsPageActionViewController*
-  commerce_price_insights_page_action_view_controller() {
-    return commerce_price_insights_page_action_view_controller_.get();
-  }
-
-  commerce::DiscountsPageActionViewController*
-  commerce_discounts_page_action_view_controller() {
-    return commerce_discounts_page_action_view_controller_.get();
   }
 
   LensOverlayController* lens_overlay_controller();
@@ -281,6 +286,9 @@ class TabFeatures {
   autofill::BubbleManager* autofill_bubble_manager() {
     return autofill_bubble_manager_.get();
   }
+
+  autofill::BubbleManager* SetBubbleManagerForTesting(
+      std::unique_ptr<autofill::BubbleManager> bubble_manager);
 
   AskBeforeHttpDialogController* ask_before_http_dialog_controller() {
     return ask_before_http_dialog_controller_.get();
@@ -359,6 +367,9 @@ class TabFeatures {
   std::unique_ptr<tab_groups::SavedTabGroupWebContentsListener>
       saved_tab_group_web_contents_listener_;
 
+  std::unique_ptr<tab_groups::SavedTabGroupOnCloseHelper>
+      saved_tab_group_on_close_helper_;
+
 #if BUILDFLAG(IS_CHROMEOS)
   // Manages the protocol handler picker dialog on ChromeOS. Must be destroyed
   // after the `tab_dialog_manager_`.
@@ -403,6 +414,10 @@ class TabFeatures {
   // Responsible for managing the "Zoom" page action and bubble.
   std::unique_ptr<zoom::ZoomViewController> zoom_view_controller_;
 
+  // Responsible for managing the "JS Optimizations" page action.
+  std::unique_ptr<JsOptimizationsPageActionController>
+      js_optimizations_page_action_controller_;
+
   // Responsible for managing the commerce "Price insights" page action.
   std::unique_ptr<commerce::PriceInsightsPageActionViewController>
       commerce_price_insights_page_action_view_controller_;
@@ -415,6 +430,11 @@ class TabFeatures {
   std::unique_ptr<tab_groups::CollaborationMessagingTabData>
       collaboration_messaging_tab_data_;
 
+  // Controller to trigger when the contextual task page action chip to
+  // show/hide.
+  std::unique_ptr<ContextualTasksPageActionController>
+      contextual_tasks_page_action_controller_;
+
   // Responsible for managing the "Show Collaboration History" page action.
   std::unique_ptr<CollaborationMessagingPageActionController>
       collaboration_messaging_page_action_controller_;
@@ -422,6 +442,14 @@ class TabFeatures {
   // Manages the Cookie Controls page action.
   std::unique_ptr<CookieControlsPageActionController>
       cookie_controls_page_action_controller_;
+
+  // Manages the Lens Overlay Homework page action.
+  std::unique_ptr<LensOverlayHomeworkPageActionController>
+      lens_overlay_homework_page_action_controller_;
+
+  // Manages the Bookmark page action.
+  std::unique_ptr<BookmarkPageActionController>
+      bookmark_page_action_controller_;
 
 #if BUILDFLAG(ENABLE_GLIC)
   std::unique_ptr<glic::GlicInstanceHelper> glic_instance_helper_;

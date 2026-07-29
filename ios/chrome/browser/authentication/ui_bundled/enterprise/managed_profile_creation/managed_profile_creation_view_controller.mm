@@ -15,6 +15,7 @@
 #import "ios/chrome/browser/shared/ui/table_view/content_configuration/table_view_cell_content_configuration.h"
 #import "ios/chrome/browser/shared/ui/table_view/table_view_utils.h"
 #import "ios/chrome/common/string_util.h"
+#import "ios/chrome/common/ui/button_stack/button_stack_configuration.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
 #import "ios/chrome/common/ui/util/constraints_ui_util.h"
 #import "ios/chrome/grit/ios_branded_strings.h"
@@ -23,7 +24,6 @@
 
 namespace {
 CGFloat constexpr kTableViewCornerRadius = 10;
-CGFloat constexpr kTableViewSeparatorInsetHide = 10000;
 
 // Section identifiers in the browsing data page table view.
 typedef NS_ENUM(NSInteger, SectionIdentifier) {
@@ -103,12 +103,12 @@ typedef NS_ENUM(NSInteger, ItemIdentifier) {
 
   // If _multiProfileForceMigration is YES, the user cannot refuse the
   // migration, and the secondary button is hidden.
-  self.primaryActionString =
+  self.configuration.primaryActionString =
       _multiProfileForceMigration
           ? l10n_util::GetNSString(IDS_IOS_ENTERPRISE_PROFILE_CREATION_GOTIT)
           : l10n_util::GetNSString(
                 IDS_IOS_ENTERPRISE_PROFILE_CREATION_CONTINUE);
-  self.secondaryActionString =
+  self.configuration.secondaryActionString =
       _multiProfileForceMigration
           ? nil
           : l10n_util::GetNSString(IDS_IOS_ENTERPRISE_PROFILE_CREATION_CANCEL);
@@ -178,8 +178,6 @@ typedef NS_ENUM(NSInteger, ItemIdentifier) {
   cell.accessoryType = UITableViewCellAccessoryDisclosureIndicator;
   cell.selectionStyle = UITableViewCellSelectionStyleNone;
   cell.backgroundColor = [UIColor colorNamed:kSecondaryBackgroundColor];
-  cell.separatorInset =
-      UIEdgeInsetsMake(0.f, kTableViewSeparatorInsetHide, 0.f, 0.f);
   cell.contentConfiguration = configuration;
   return cell;
 }
@@ -189,6 +187,8 @@ typedef NS_ENUM(NSInteger, ItemIdentifier) {
   UITableView* tableView =
       [[UITableView alloc] initWithFrame:CGRectZero
                                    style:UITableViewStylePlain];
+  tableView.tableFooterView =
+      [[UIView alloc] initWithFrame:CGRectMake(0, 0, 0, CGFLOAT_MIN)];
   tableView.estimatedRowHeight = UITableViewAutomaticDimension;
   tableView.layer.cornerRadius = kTableViewCornerRadius;
   tableView.scrollEnabled = NO;
@@ -196,7 +196,6 @@ typedef NS_ENUM(NSInteger, ItemIdentifier) {
   tableView.delegate = self;
   tableView.userInteractionEnabled = YES;
   tableView.translatesAutoresizingMaskIntoConstraints = NO;
-  tableView.separatorInset = UIEdgeInsetsZero;
   _tableViewHeightConstraint =
       [tableView.heightAnchor constraintEqualToConstant:0];
   _tableViewHeightConstraint.active = YES;

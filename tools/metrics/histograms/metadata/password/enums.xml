@@ -326,17 +326,6 @@ chromium-metrics-reviews@google.com.
 
 <!-- LINT.ThenChange(/chrome/browser/password_manager/password_change_delegate.h) -->
 
-<enum name="CredentialEntryAction">
-  <int value="0" label="Deleted"/>
-  <int value="1" label="Copied username"/>
-  <int value="2" label="Unmasked password"/>
-  <int value="3" label="Masked password"/>
-  <int value="4" label="Copied password"/>
-  <int value="5" label="Edit username and save"/>
-  <int value="6" label="Edit password and save"/>
-  <int value="7" label="Edit username and password and save"/>
-</enum>
-
 <!-- LINT.IfChange(CredentialManagerAndroidGetResult) -->
 
 <enum name="CredentialManagerAndroidGetResult">
@@ -833,9 +822,11 @@ chromium-metrics-reviews@google.com.
   <int value="7" label="OTP detected"/>
   <int value="8" label="Canceled by the user"/>
   <int value="9" label="No state. The feature wasn't offered"/>
-  <int value="10" label="Login form detected in an ongoing flow"/>
+  <int value="10"
+      label="Login is unfinished. Prompting user to complete sign in."/>
   <int value="11"
-      label="Login form detected in an ongoing flow. Continue button shown."/>
+      label="Login form detected in an ongoing flow. Continue button shown.
+             (Deprecated)"/>
 </enum>
 
 <!-- LINT.ThenChange(/chrome/browser/password_manager/password_change_delegate.h) -->
@@ -867,6 +858,7 @@ chromium-metrics-reviews@google.com.
   <int value="1" label="Canceled"/>
   <int value="2" label="Continue"/>
   <int value="3" label="Open password change tab"/>
+  <int value="4" label="Retry"/>
 </enum>
 
 <!-- LINT.ThenChange(/chrome/browser/ui/passwords/password_change_ui_controller.h:PasswordChangeToastEvent) -->
@@ -907,13 +899,6 @@ chromium-metrics-reviews@google.com.
   <int value="3" label="Password Breach Dialog"/>
   <int value="4" label="More passwords to fix bubble"/>
   <int value="5" label="Unsafe state bubble"/>
-</enum>
-
-<enum name="PasswordCheckReferrerAndroid">
-  <int value="0" label="Password Settings"/>
-  <int value="1" label="Safety Check"/>
-  <int value="2" label="Password Breach Dialog"/>
-  <int value="3" label="PhishGuard Dialog"/>
 </enum>
 
 <enum name="PasswordCheckResolutionAction">

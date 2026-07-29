@@ -5,11 +5,9 @@
 import {html} from '//resources/lit/v3_0/lit.rollup.js';
 
 import type {SearchAnimatedGlowElement} from './animated_glow.js';
+import {GlowAnimationState} from './constants.js';
 
 export function getHtml(this: SearchAnimatedGlowElement) {
-  // TODO(crbug.com/454730356): replace
-  // drop string with translatable string.
-
   /*
    * Note: this does not include ::before and
    * ::after notes. See .css file comments for more details on impl.
@@ -25,8 +23,10 @@ export function getHtml(this: SearchAnimatedGlowElement) {
    * creating an opaque snake effect.
    * - Gradient is the gradient border and inner glow, depending
    * on the Background styling.
-   * - Background is to apply a frosted glass effect in drag and drop mode,
-   * and to act as an overlay to help create the gradient border.
+   * - Background and its ::before apply a frosted glass effect in drag and
+   * drop mode, and act as overlay to help create the gradient border
+   * and background colorin composebox.
+   * - Audio wave provides the voice animation to show browser is listening
    */
 
   // clang-format off
@@ -37,6 +37,13 @@ export function getHtml(this: SearchAnimatedGlowElement) {
     <div class="double-gradient-mask"></div>
     <div class="gradient"></div>
     <div class="background"></div>
+    ${this.requiresVoice ? html`
+      <audio-wave
+          ?is-listening="${this.animationState === GlowAnimationState.LISTENING}"
+          .transcript="${this.transcript}"
+          .receivedSpeech="${this.receivedSpeech}">
+      </audio-wave>
+    ` : ''}
   <!--_html_template_end_-->`;
   // clang-format on
 }

@@ -229,6 +229,8 @@ All changes to this list should go through Blink's feature review process: http:
     grid-auto-rows
     grid-column-end
     grid-column-start
+    grid-lanes-direction
+    grid-lanes-fill
     grid-row-end
     grid-row-start
     grid-template-areas
@@ -282,8 +284,6 @@ All changes to this list should go through Blink's feature review process: http:
     mask-repeat
     mask-size
     mask-type
-    masonry-direction
-    masonry-fill
     math-depth
     math-shift
     math-style
@@ -392,10 +392,6 @@ All changes to this list should go through Blink's feature review process: http:
     scroll-snap-align
     scroll-snap-stop
     scroll-snap-type
-    scroll-start-block
-    scroll-start-inline
-    scroll-start-x
-    scroll-start-y
     scroll-target-group
     scroll-timeline-axis
     scroll-timeline-name
@@ -766,6 +762,14 @@ All changes to this list should go through Blink's feature review process: http:
     grid-column
         grid-column-end
         grid-column-start
+    grid-lanes
+        grid-lanes-direction
+        grid-lanes-fill
+        grid-template-areas
+        grid-template-columns
+    grid-lanes-flow
+        grid-lanes-direction
+        grid-lanes-fill
     grid-row
         grid-row-end
         grid-row-start
@@ -823,14 +827,6 @@ All changes to this list should go through Blink's feature review process: http:
     mask-position
         -webkit-mask-position-x
         -webkit-mask-position-y
-    masonry
-        grid-template-areas
-        grid-template-columns
-        masonry-direction
-        masonry-fill
-    masonry-flow
-        masonry-direction
-        masonry-fill
     offset
         offset-anchor
         offset-distance
@@ -935,9 +931,6 @@ All changes to this list should go through Blink's feature review process: http:
     scroll-padding-inline
         scroll-padding-inline-end
         scroll-padding-inline-start
-    scroll-start
-        scroll-start-block
-        scroll-start-inline
     scroll-timeline
         scroll-timeline-axis
         scroll-timeline-name
@@ -965,6 +958,12 @@ All changes to this list should go through Blink's feature review process: http:
         timeline-trigger-range-end
         timeline-trigger-range-start
         timeline-trigger-source
+    timeline-trigger-exit-range
+        timeline-trigger-exit-range-end
+        timeline-trigger-exit-range-start
+    timeline-trigger-range
+        timeline-trigger-range-end
+        timeline-trigger-range-start
     transition
         transition-behavior
         transition-delay

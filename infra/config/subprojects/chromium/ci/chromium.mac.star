@@ -588,6 +588,7 @@ ci.thin_tester(
         ],
         mixins = [
             "mac_15_vm_optional",
+            "retry_only_failed_tests",
         ],
         per_test_modifications = {
             # TODO(crbug.com/436628295): test fails on VM
@@ -1038,6 +1039,7 @@ ci.thin_tester(
         mixins = [
             "mac_15_x64",
             "isolate_profile_data",
+            "retry_only_failed_tests",
         ],
         per_test_modifications = {
             "blink_web_tests": targets.mixin(
@@ -1067,7 +1069,6 @@ ci.thin_tester(
                 # Only retry the individual failed tests instead of rerunning
                 # entire shards.
                 # crbug.com/1475852
-                retry_only_failed_tests = True,
                 swarming = targets.swarming(
                     shards = 12,
                 ),
@@ -1274,6 +1275,7 @@ ios_builder(
             "mac_default_arm64",
             "mac_toolchain",
             "out_dir_arg",
+            "retry_only_failed_tests",
             "xcode_26_main",
             "xctest",
         ],

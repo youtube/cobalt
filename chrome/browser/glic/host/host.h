@@ -208,10 +208,8 @@ class Host : public GlicSharingManagerProvider {
   // Delete the owned web contents and prepare for destruction.
   void Shutdown();
 
-  // Request panel closing if the web contents is present and matches.
-  void Close(content::RenderFrameHost* outermost_render_frame_host);
-  // Reload the web contents, if it is present and matches.
-  void Reload(content::RenderFrameHost* render_frame_host);
+  // Request panel closing.
+  void Close();
   // Reload the web contents.
   void Reload();
 
@@ -358,6 +356,7 @@ class Host : public GlicSharingManagerProvider {
   void RequestToShowUserConfirmationDialog(
       actor::TaskId task_id,
       const url::Origin& navigation_origin,
+      bool for_blocklisted_origin,
       actor::ActorTaskDelegate::UserConfirmationDialogCallback callback);
 
   void RequestToConfirmNavigation(
@@ -372,6 +371,10 @@ class Host : public GlicSharingManagerProvider {
 
   void FloatingPanelCanAttachChanged(bool can_attach);
 
+  // Returns if the outer frame matches either the WebUI frame or the guest
+  // frame.
+  bool IsWebContentPresentAndMatches(content::RenderFrameHost* rfh);
+
  private:
   friend class HostManager;
 
@@ -380,9 +383,6 @@ class Host : public GlicSharingManagerProvider {
   GlicKeyedService& glic_service();
   GlicPageHandler* page_handler() const;
   bool IsGlicWebUiHost(content::RenderProcessHost* host) const;
-  // Returns if the outer frame matches either the WebUI frame or the guest
-  // frame.
-  bool IsWebContentPresentAndMatches(content::RenderFrameHost* rfh);
 
   // Information about the page handler which is cleared when the page handler
   // goes away.

@@ -5,7 +5,6 @@
 #include "chrome/browser/ui/views/passwords/password_change/successful_password_change_view.h"
 
 #include "base/functional/bind.h"
-#include "base/functional/callback_forward.h"
 #include "chrome/browser/ui/layout_constants.h"
 #include "chrome/browser/ui/passwords/bubble_controllers/password_change/successful_password_change_bubble_controller.h"
 #include "chrome/browser/ui/passwords/passwords_model_delegate.h"
@@ -181,7 +180,7 @@ std::unique_ptr<views::View> CreateManagePasswordsView(
 
 SuccessfulPasswordChangeView::SuccessfulPasswordChangeView(
     content::WebContents* web_contents,
-    views::View* anchor_view)
+    views::BubbleAnchor anchor_view)
     : PasswordBubbleViewBase(web_contents,
                              anchor_view,
                              /*easily_dismissable=*/false),

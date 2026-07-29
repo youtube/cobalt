@@ -13,6 +13,7 @@
 #include "base/check_op.h"
 #include "base/containers/contains.h"
 #include "base/containers/flat_set.h"
+#include "base/feature_list.h"
 #include "base/hash/hash.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/notreached.h"
@@ -862,10 +863,6 @@ void FormFiller::FillOrPreviewForm(
       continue;
     }
 
-    if (could_attempt_refill) {
-      refill_context->type_groups_originally_filled.insert_all(
-          autofill_field.Type().GetGroups());
-    }
     std::string failure_to_fill;  // Reason for failing to fill.
     const std::map<FieldGlobalId, ValueAndType>& forced_fill_values =
         refill_context ? refill_context->forced_fill_values
@@ -895,6 +892,9 @@ void FormFiller::FillOrPreviewForm(
     } else if (!is_newly_autofilled_or_emptied) {
       skip_reasons[form.fields()[i].global_id()].insert(
           FieldFillingSkipReason::kNoValueToFill);
+    } else if (could_attempt_refill) {
+      refill_context->type_groups_originally_filled.insert_all(
+          autofill_field.Type().GetGroups());
     }
 
     if (filled_field_type) {
@@ -1026,16 +1026,27 @@ void FormFiller::MaybeTriggerRefill(
       // Since we won't schedule another refill, we should be cautious not to
       // prematurely schedule refills.
       if (refill_context->filled_form &&
-          std::ranges::equal(refill_context->filled_form->fields(),
-                             form_structure.fields(),
-                             [](const FormFieldData& f,
-                                const std::unique_ptr<AutofillField>& g) {
-                               return FormFieldData::DeepEqual(f, *g);
-                             })) {
+          std::ranges::equal(
+              refill_context->filled_form->fields(), form_structure.fields(),
+              [](const FormFieldData& f,
+                 const std::unique_ptr<AutofillField>& g) {
+                return FormFieldData::IdenticalAndEquivalentDomElements(
+                    f, *g, {FormFieldData::Exclusion::kValue});
+              })) {
         return;
       }
       break;
     case RefillTriggerReason::kSelectOptionsChanged:
+      if (const bool allow_refill =
+              field && field->IsSelectElement() &&
+              field->Type().GetGroups().contains_any(
+                  refill_context->type_groups_originally_filled);
+          !allow_refill && base::FeatureList::IsEnabled(
+                               features::kAutofillFewerTrivialRefills)) {
+        // The element in question is not fillable as a result of this signal.
+        // Do not trigger a refill as it would most likely be a trivial one.
+        return;
+      }
       break;
     case RefillTriggerReason::kExpirationDateFormatted:
       CHECK(field && old_value);

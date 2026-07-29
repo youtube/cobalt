@@ -37,17 +37,9 @@ BlobWriteCallback CreateBlobWriteCallback(
     base::OnceClosure on_done = base::DoNothing()) {
   *succeeded = false;
   return base::BindOnce(
-      [](bool* succeeded, base::OnceClosure on_done, BlobWriteResult result,
-         storage::mojom::WriteBlobToFileResult error) {
-        switch (result) {
-          case BlobWriteResult::kFailure:
-            NOTREACHED();
-          case BlobWriteResult::kRunPhaseTwoAsync:
-          case BlobWriteResult::kRunPhaseTwoAndReturnResult:
-            CHECK_EQ(error, storage::mojom::WriteBlobToFileResult::kSuccess);
-            *succeeded = true;
-            break;
-        }
+      [](bool* succeeded, base::OnceClosure on_done,
+         StatusOr<BlobWriteResult> result) {
+        *succeeded = result.has_value();
         std::move(on_done).Run();
         return Status::OK();
       },
@@ -252,7 +244,7 @@ class DatabaseConnectionCorruptionTest : public DatabaseConnectionTest {
     StatusOr<IndexedDBValue> value = read_value();
 
     ASSERT_TRUE(value.has_value());
-    EXPECT_EQ(value.value().bits, kValue.bits);
+    EXPECT_EQ(base::span(value.value().bits), base::span(kValue.bits));
 
     StatusOr<base::DictValue> contents_before_corruption =
         SnapshotDatabase(*db);
@@ -296,7 +288,8 @@ class DatabaseConnectionCorruptionTest : public DatabaseConnectionTest {
       // Read works because the DB was recovered (or, on Fuchsia, was deleted,
       // recreated, and the record inserted again).
       ASSERT_TRUE(recovered_value.has_value());
-      EXPECT_EQ(recovered_value.value().bits, kValue.bits);
+      EXPECT_EQ(base::span(recovered_value.value().bits),
+                base::span(kValue.bits));
     };
     verify_recovery();
 

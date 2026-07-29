@@ -64,8 +64,13 @@ export class ComposeboxMatchElement extends CrLitElement {
 
   override connectedCallback() {
     super.connectedCallback();
-    this.addEventListener('click', (event) => this.onMatchClick_(event));
+    // Use mousedown to avoid clicks being swallowed by focusin.
+    this.addEventListener('click', (event) => this.onMouseClick_(event));
     this.addEventListener('focusin', () => this.onMatchFocusin_());
+
+    // Prevent default mousedown behavior (e.g., focus) to avoid layout shifts
+    // that could interfere with click events, especially for ZPS suggestions.
+    this.addEventListener('mousedown', (event) => event.preventDefault());
   }
 
   protected computeContents_(): string {
@@ -86,7 +91,7 @@ export class ComposeboxMatchElement extends CrLitElement {
     });
   }
 
-  private onMatchClick_(e: MouseEvent) {
+  private onMouseClick_(e: MouseEvent) {
     if (e.button > 1) {
       // Only handle main (generally left) and middle button presses.
       return;

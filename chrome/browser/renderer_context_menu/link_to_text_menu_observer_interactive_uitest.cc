@@ -5,7 +5,6 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
-#include "build/build_config.h"
 #include "chrome/app/chrome_command_ids.h"
 #include "chrome/browser/enterprise/data_controls/desktop_data_controls_dialog_test_helper.h"
 #include "chrome/browser/extensions/extension_browsertest.h"
@@ -252,14 +251,7 @@ IN_PROC_BROWSER_TEST_F(LinkToTextMenuObserverTest, CopiesLinkToText) {
   EXPECT_EQ(u"http://foo.com/#:~:text=hello%20world", text);
 }
 
-// TODO(crbug.com/410751413): Flaky on Windows.
-#if BUILDFLAG(IS_WIN)
-#define MAYBE_CopiesLinkForEmptySelector DISABLED_CopiesLinkForEmptySelector
-#else
-#define MAYBE_CopiesLinkForEmptySelector CopiesLinkForEmptySelector
-#endif
-IN_PROC_BROWSER_TEST_F(LinkToTextMenuObserverTest,
-                       MAYBE_CopiesLinkForEmptySelector) {
+IN_PROC_BROWSER_TEST_F(LinkToTextMenuObserverTest, CopiesLinkForEmptySelector) {
   content::BrowserTestClipboardScope test_clipboard_scope;
   content::ContextMenuParams params;
   params.page_url = GURL("http://foo.com/");
@@ -382,16 +374,8 @@ IN_PROC_BROWSER_TEST_F(LinkToTextMenuObserverTest,
       1);
 }
 
-// TODO(crbug.com/410751413): Flaky on Windows.
-#if BUILDFLAG(IS_WIN)
-#define MAYBE_LinkGenerationCopiedLinkTypeMetric_ReShare \
-  DISABLED_LinkGenerationCopiedLinkTypeMetric_ReShare
-#else
-#define MAYBE_LinkGenerationCopiedLinkTypeMetric_ReShare \
-  LinkGenerationCopiedLinkTypeMetric_ReShare
-#endif
 IN_PROC_BROWSER_TEST_F(LinkToTextMenuObserverTest,
-                       MAYBE_LinkGenerationCopiedLinkTypeMetric_ReShare) {
+                       LinkGenerationCopiedLinkTypeMetric_ReShare) {
   base::HistogramTester histogram_tester;
 
   content::BrowserTestClipboardScope test_clipboard_scope;
@@ -439,16 +423,8 @@ IN_PROC_BROWSER_TEST_F(LinkToTextMenuObserverTest,
       "SharedHighlights.LinkGenerated.RequestedBeforeReady", 0);
 }
 
-// TODO(crbug.com/410751413): Flaky on Windows.
-#if BUILDFLAG(IS_WIN)
-#define MAYBE_LinkGenerationRequestedMetric_Success_WithDelay \
-  DISABLED_LinkGenerationRequestedMetric_Success_WithDelay
-#else
-#define MAYBE_LinkGenerationRequestedMetric_Success_WithDelay \
-  LinkGenerationRequestedMetric_Success_WithDelay
-#endif
 IN_PROC_BROWSER_TEST_F(LinkToTextMenuObserverTest,
-                       MAYBE_LinkGenerationRequestedMetric_Success_WithDelay) {
+                       LinkGenerationRequestedMetric_Success_WithDelay) {
   base::HistogramTester histogram_tester;
 
   content::BrowserTestClipboardScope test_clipboard_scope;
@@ -499,16 +475,8 @@ IN_PROC_BROWSER_TEST_F(LinkToTextMenuObserverTest,
       "SharedHighlights.LinkGenerated.RequestedBeforeReady", 0);
 }
 
-// TODO(crbug.com/410751413): Flaky on Windows.
-#if BUILDFLAG(IS_WIN)
-#define MAYBE_LinkGenerationRequestedMetric_Failure_WithDelay \
-  DISABLED_LinkGenerationRequestedMetric_Failure_WithDelay
-#else
-#define MAYBE_LinkGenerationRequestedMetric_Failure_WithDelay \
-  LinkGenerationRequestedMetric_Failure_WithDelay
-#endif
 IN_PROC_BROWSER_TEST_F(LinkToTextMenuObserverTest,
-                       MAYBE_LinkGenerationRequestedMetric_Failure_WithDelay) {
+                       LinkGenerationRequestedMetric_Failure_WithDelay) {
   base::HistogramTester histogram_tester;
 
   content::BrowserTestClipboardScope test_clipboard_scope;
@@ -533,16 +501,8 @@ IN_PROC_BROWSER_TEST_F(LinkToTextMenuObserverTest,
       "SharedHighlights.LinkGenerated.RequestedAfterReady", 0);
 }
 
-// TODO(crbug.com/410751413): Flaky on Windows.
-#if BUILDFLAG(IS_WIN)
-#define MAYBE_CopiesLinkToTextWithExistingFragments \
-  DISABLED_CopiesLinkToTextWithExistingFragments
-#else
-#define MAYBE_CopiesLinkToTextWithExistingFragments \
-  CopiesLinkToTextWithExistingFragments
-#endif
 IN_PROC_BROWSER_TEST_F(LinkToTextMenuObserverTest,
-                       MAYBE_CopiesLinkToTextWithExistingFragments) {
+                       CopiesLinkToTextWithExistingFragments) {
   content::BrowserTestClipboardScope test_clipboard_scope;
   content::ContextMenuParams params;
   params.page_url = GURL("http://foo.com/#bar");
@@ -577,17 +537,9 @@ IN_PROC_BROWSER_TEST_F(LinkToTextMenuObserverTest,
   EXPECT_EQ(u"http://foo.com/#bar:~:text=hello%20world", text);
 }
 
-// TODO(crbug.com/410751413): Flaky on Windows.
-#if BUILDFLAG(IS_WIN)
-#define MAYBE_CopiesLinkToTextWithExistingFragmentsWithMultipleTextSelections \
-  DISABLED_CopiesLinkToTextWithExistingFragmentsWithMultipleTextSelections
-#else
-#define MAYBE_CopiesLinkToTextWithExistingFragmentsWithMultipleTextSelections \
-  CopiesLinkToTextWithExistingFragmentsWithMultipleTextSelections
-#endif
 IN_PROC_BROWSER_TEST_F(
     LinkToTextMenuObserverTest,
-    MAYBE_CopiesLinkToTextWithExistingFragmentsWithMultipleTextSelections) {
+    CopiesLinkToTextWithExistingFragmentsWithMultipleTextSelections) {
   content::BrowserTestClipboardScope test_clipboard_scope;
   content::ContextMenuParams params;
   params.page_url = GURL("http://foo.com/#bar:~:text=baz&text=qux");
@@ -625,14 +577,7 @@ IN_PROC_BROWSER_TEST_F(
             text);
 }
 
-// TODO(crbug.com/410751413): Flaky on Windows.
-#if BUILDFLAG(IS_WIN)
-#define MAYBE_BlocksCopyingLinkToText DISABLED_BlocksCopyingLinkToText
-#else
-#define MAYBE_BlocksCopyingLinkToText BlocksCopyingLinkToText
-#endif
-IN_PROC_BROWSER_TEST_F(LinkToTextMenuObserverTest,
-                       MAYBE_BlocksCopyingLinkToText) {
+IN_PROC_BROWSER_TEST_F(LinkToTextMenuObserverTest, BlocksCopyingLinkToText) {
   data_controls::SetDataControls(browser()->profile()->GetPrefs(), {R"({
                                    "name": "rule_name",
                                    "rule_id": "rule_id",
@@ -701,15 +646,8 @@ IN_PROC_BROWSER_TEST_F(LinkToTextMenuObserverTest,
   EXPECT_TRUE(text.empty());
 }
 
-// TODO(crbug.com/410751413): Flaky on Windows.
-#if BUILDFLAG(IS_WIN)
-#define MAYBE_WarnsCopyingLinkToTextAndBypass \
-  DISABLED_WarnsCopyingLinkToTextAndBypass
-#else
-#define MAYBE_WarnsCopyingLinkToTextAndBypass WarnsCopyingLinkToTextAndBypass
-#endif
 IN_PROC_BROWSER_TEST_F(LinkToTextMenuObserverTest,
-                       MAYBE_WarnsCopyingLinkToTextAndBypass) {
+                       WarnsCopyingLinkToTextAndBypass) {
   data_controls::SetDataControls(browser()->profile()->GetPrefs(), {R"({
                                    "name": "rule_name",
                                    "rule_id": "rule_id",
@@ -743,14 +681,7 @@ IN_PROC_BROWSER_TEST_F(LinkToTextMenuObserverTest,
   EXPECT_EQ(u"http://foo.com/#:~:text=hello%20world", text);
 }
 
-// TODO(crbug.com/410751413): Flaky on Windows.
-#if BUILDFLAG(IS_WIN)
-#define MAYBE_ReplacesCopyingLinkToText DISABLED_ReplacesCopyingLinkToText
-#else
-#define MAYBE_ReplacesCopyingLinkToText ReplacesCopyingLinkToText
-#endif
-IN_PROC_BROWSER_TEST_F(LinkToTextMenuObserverTest,
-                       MAYBE_ReplacesCopyingLinkToText) {
+IN_PROC_BROWSER_TEST_F(LinkToTextMenuObserverTest, ReplacesCopyingLinkToText) {
   data_controls::SetDataControls(browser()->profile()->GetPrefs(), {R"({
                                    "name": "rule_name",
                                    "rule_id": "rule_id",
@@ -794,16 +725,8 @@ IN_PROC_BROWSER_TEST_F(LinkToTextMenuObserverTest, ShowsToastOnCopyingLink) {
   EXPECT_TRUE(browser()->GetFeatures().toast_controller()->IsShowingToast());
 }
 
-// TODO(crbug.com/410751413): Flaky on Windows.
-#if BUILDFLAG(IS_WIN)
-#define MAYBE_AddsRemoveMenuItemForGlicHighlight \
-  DISABLED_AddsRemoveMenuItemForGlicHighlight
-#else
-#define MAYBE_AddsRemoveMenuItemForGlicHighlight \
-  AddsRemoveMenuItemForGlicHighlight
-#endif
 IN_PROC_BROWSER_TEST_F(LinkToTextMenuObserverTest,
-                       MAYBE_AddsRemoveMenuItemForGlicHighlight) {
+                       AddsRemoveMenuItemForGlicHighlight) {
   content::ContextMenuParams params;
   params.page_url = GURL("http://foo.com/");
   params.annotation_type = blink::mojom::AnnotationType::kGlic;

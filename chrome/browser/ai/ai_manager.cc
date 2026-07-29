@@ -14,7 +14,6 @@
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
-#include "base/functional/callback_forward.h"
 #include "base/functional/callback_helpers.h"
 #include "base/memory/weak_ptr.h"
 #include "base/notreached.h"
@@ -25,7 +24,6 @@
 #include "base/types/pass_key.h"
 #include "chrome/browser/ai/ai_context_bound_object.h"
 #include "chrome/browser/ai/ai_context_bound_object_set.h"
-#include "chrome/browser/ai/ai_create_on_device_session_task.h"
 #include "chrome/browser/ai/ai_crx_component.h"
 #include "chrome/browser/ai/ai_language_model.h"
 #include "chrome/browser/ai/ai_never_load_component.h"
@@ -46,6 +44,7 @@
 #include "components/optimization_guide/core/optimization_guide_enums.h"
 #include "components/optimization_guide/core/optimization_guide_features.h"
 #include "components/optimization_guide/core/optimization_guide_switches.h"
+#include "components/optimization_guide/public/mojom/model_broker.mojom-data-view.h"
 #include "components/policy/core/common/policy_pref_names.h"
 #include "components/prefs/pref_service.h"
 #include "content/public/browser/browser_context.h"
@@ -95,17 +94,18 @@ BASE_FEATURE(kBuiltInAIEagerInit, base::FEATURE_DISABLED_BY_DEFAULT);
 blink::mojom::ModelAvailabilityCheckResult
 ConvertOnDeviceModelEligibilityReasonToModelAvailabilityCheckResult(
     optimization_guide::OnDeviceModelEligibilityReason
-        on_device_model_eligibility_reason,
-    bool is_downloading) {
+        on_device_model_eligibility_reason) {
   auto availability = optimization_guide::AvailabilityFromEligibilityReason(
       on_device_model_eligibility_reason);
   if (availability ==
       optimization_guide::mojom::ModelUnavailableReason::kPendingAssets) {
-    if (is_downloading) {
-      return blink::mojom::ModelAvailabilityCheckResult::kDownloading;
-    }
+    return blink::mojom::ModelAvailabilityCheckResult::kDownloading;
+  }
+  if (availability ==
+      optimization_guide::mojom::ModelUnavailableReason::kPendingUsage) {
     return blink::mojom::ModelAvailabilityCheckResult::kDownloadable;
   }
+
   switch (on_device_model_eligibility_reason) {
     case optimization_guide::OnDeviceModelEligibilityReason::kUnknown:
       return blink::mojom::ModelAvailabilityCheckResult::kUnavailableUnknown;
@@ -159,10 +159,8 @@ ConvertOnDeviceModelEligibilityReasonToModelAvailabilityCheckResult(
         kModelToBeInstalled:
     case optimization_guide::OnDeviceModelEligibilityReason::
         kNoOnDeviceFeatureUsed:
-      if (is_downloading) {
-        return blink::mojom::ModelAvailabilityCheckResult::kDownloading;
-      }
-      return blink::mojom::ModelAvailabilityCheckResult::kDownloadable;
+      // Shouldn't reach here since it's handled by checking `availability`.
+      NOTREACHED();
     case optimization_guide::OnDeviceModelEligibilityReason::
         kDeprecatedModelNotAvailable:
     case optimization_guide::OnDeviceModelEligibilityReason::kSuccess:
@@ -170,65 +168,6 @@ ConvertOnDeviceModelEligibilityReasonToModelAvailabilityCheckResult(
   }
   NOTREACHED();
 }
-
-// TODO(crbug.com/402442890): Move this to `ai_create_on_device_session_task.cc`
-template <typename ClientRemoteInterface>
-class CreateWritingAssistanceSessionTask : public CreateOnDeviceSessionTask {
- public:
-  // TODO(crbug.com/394841624): Using the model execution config instead
-  // of using the hardcoded list.
-  // Set of supported (base) languages for writing assistance tasks.
-  static constexpr auto kSupportedBaseLanguages =
-      base::MakeFixedFlatSet<std::string_view>({"en", "ja", "es"});
-  using WritingAssistanceSessionTaskCallback = base::OnceCallback<void(
-      mojo::Remote<ClientRemoteInterface>,
-      std::unique_ptr<optimization_guide::OnDeviceSession>)>;
-
-  static void CreateAndStart(
-      content::BrowserContext* browser_context,
-      optimization_guide::ModelBasedCapabilityKey feature,
-      AIContextBoundObjectSet& context_bound_object_set,
-      WritingAssistanceSessionTaskCallback callback,
-      mojo::PendingRemote<ClientRemoteInterface> client) {
-    auto task = std::make_unique<CreateWritingAssistanceSessionTask>(
-        base::PassKey<CreateWritingAssistanceSessionTask>(), browser_context,
-        feature, context_bound_object_set, std::move(callback),
-        std::move(client));
-    task->Start();
-    if (task->IsPending()) {
-      // Put `task` to AIContextBoundObjectSet to continue observing the model
-      // availability.
-      context_bound_object_set.AddContextBoundObject(std::move(task));
-    }
-  }
-
-  CreateWritingAssistanceSessionTask(
-      base::PassKey<CreateWritingAssistanceSessionTask>,
-      content::BrowserContext* browser_context,
-      optimization_guide::ModelBasedCapabilityKey feature,
-      AIContextBoundObjectSet& context_bound_object_set,
-      WritingAssistanceSessionTaskCallback callback,
-      mojo::PendingRemote<ClientRemoteInterface> client)
-      : CreateOnDeviceSessionTask(context_bound_object_set,
-                                  browser_context,
-                                  feature),
-        callback_(std::move(callback)),
-        client_remote_(std::move(client)) {
-    client_remote_.set_disconnect_handler(base::BindOnce(
-        &CreateWritingAssistanceSessionTask::Cancel, base::Unretained(this)));
-  }
-  ~CreateWritingAssistanceSessionTask() override = default;
-
- protected:
-  void OnFinish(
-      std::unique_ptr<optimization_guide::OnDeviceSession> session) override {
-    std::move(callback_).Run(std::move(client_remote_), std::move(session));
-  }
-
- private:
-  WritingAssistanceSessionTaskCallback callback_;
-  mojo::Remote<ClientRemoteInterface> client_remote_;
-};
 
 // Get the capabilities specified from the expected input or output types.
 on_device_model::Capabilities GetExpectedCapabilities(
@@ -246,6 +185,10 @@ on_device_model::Capabilities GetExpectedCapabilities(
           break;
         case blink::mojom::AILanguageModelPromptType::kAudio:
           capabilities.Put(on_device_model::CapabilityFlags::kAudioInput);
+          break;
+        case blink::mojom::AILanguageModelPromptType::kToolCall:
+        case blink::mojom::AILanguageModelPromptType::kToolResponse:
+          // TODO(crbug.com/422803232): Implement tool capabilities.
           break;
       }
     }
@@ -452,7 +395,7 @@ void AIManager::CanCreateLanguageModel(
     return;
   }
 
-  CanCreateSession(optimization_guide::ModelBasedCapabilityKey::kPromptApi,
+  CanCreateSession(optimization_guide::mojom::OnDeviceFeature::kPromptApi,
                    input_capabilities, std::move(callback));
 }
 
@@ -480,8 +423,7 @@ void AIManager::CreateLanguageModel(
     return;
   }
   model_broker_client_
-      ->GetSubscriber(
-          optimization_guide::mojom::ModelBasedCapabilityKey::kPromptApi)
+      ->GetSubscriber(optimization_guide::mojom::OnDeviceFeature::kPromptApi)
       .WaitForClient(base::BindOnce(&AIManager::CreateLanguageModelInternal,
                                     weak_factory_.GetWeakPtr(),
                                     std::move(client), std::move(options)));
@@ -551,7 +493,7 @@ void AIManager::CreateLanguageModelInternal(
 
   context_bound_object_set_.AddContextBoundObject(std::move(model));
 
-  tried_init_.insert(optimization_guide::ModelBasedCapabilityKey::kPromptApi);
+  tried_init_.insert(optimization_guide::mojom::OnDeviceFeature::kPromptApi);
   // Eagerly initialize other features, now that one successfully initialized.
   MaybeTryEagerInit();
 }
@@ -570,7 +512,7 @@ void AIManager::CanCreateSummarizer(
                                 kUnavailableUnsupportedLanguage);
     return;
   }
-  CanCreateSession(optimization_guide::ModelBasedCapabilityKey::kSummarize,
+  CanCreateSession(optimization_guide::mojom::OnDeviceFeature::kSummarize,
                    on_device_model::Capabilities(), std::move(callback));
 }
 
@@ -586,6 +528,16 @@ void AIManager::CreateSummarizer(
         blink::mojom::AIManagerCreateClientError::kUnsupportedLanguage);
     return;
   }
+
+  if (!model_broker_client_) {
+    mojo::Remote<blink::mojom::AIManagerCreateSummarizerClient> client_remote(
+        std::move(client));
+    AIUtils::SendClientRemoteError(
+        client_remote,
+        blink::mojom::AIManagerCreateClientError::kUnableToCreateSession);
+    return;
+  }
+
   std::optional<optimization_guide::MultimodalMessage> initial_request;
   if (options->shared_context.has_value() &&
       !options->shared_context.value().empty()) {
@@ -599,14 +551,11 @@ void AIManager::CreateSummarizer(
           blink::mojom::AIManagerCreateSummarizerClient,
           blink::mojom::AISummarizerCreateOptionsPtr>,
       weak_factory_.GetWeakPtr(), std::ref(context_bound_object_set_),
-      std::move(options), std::move(initial_request));
-  tried_init_.insert(optimization_guide::ModelBasedCapabilityKey::kSummarize);
-  CreateWritingAssistanceSessionTask<
-      blink::mojom::AIManagerCreateSummarizerClient>::
-      CreateAndStart(browser_context_,
-                     optimization_guide::ModelBasedCapabilityKey::kSummarize,
-                     context_bound_object_set_, std::move(callback),
-                     std::move(client));
+      std::move(options), std::move(initial_request), std::move(client));
+  tried_init_.insert(optimization_guide::mojom::OnDeviceFeature::kSummarize);
+  model_broker_client_->CreateSession(
+      optimization_guide::mojom::OnDeviceFeature::kSummarize,
+      ::optimization_guide::SessionConfigParams{}, std::move(callback));
 }
 
 void AIManager::CanCreateProofreader(
@@ -622,7 +571,7 @@ void AIManager::CanCreateProofreader(
                                 kUnavailableUnsupportedLanguage);
     return;
   }
-  CanCreateSession(optimization_guide::ModelBasedCapabilityKey::kProofreaderApi,
+  CanCreateSession(optimization_guide::mojom::OnDeviceFeature::kProofreaderApi,
                    on_device_model::Capabilities(), std::move(callback));
 }
 
@@ -639,6 +588,16 @@ void AIManager::CreateProofreader(
         blink::mojom::AIManagerCreateClientError::kUnsupportedLanguage);
     return;
   }
+
+  if (!model_broker_client_) {
+    mojo::Remote<blink::mojom::AIManagerCreateProofreaderClient> client_remote(
+        std::move(client));
+    AIUtils::SendClientRemoteError(
+        client_remote,
+        blink::mojom::AIManagerCreateClientError::kUnableToCreateSession);
+    return;
+  }
+
   auto callback =
       base::BindOnce(&AIManager::OnSessionCreated<
                          AIProofreader, blink::mojom::AIProofreader,
@@ -646,15 +605,12 @@ void AIManager::CreateProofreader(
                          blink::mojom::AIProofreaderCreateOptionsPtr>,
                      weak_factory_.GetWeakPtr(),
                      std::ref(context_bound_object_set_), std::move(options),
-                     /*initial_request=*/std::nullopt);
+                     /*initial_request=*/std::nullopt, std::move(client));
   tried_init_.insert(
-      optimization_guide::ModelBasedCapabilityKey::kProofreaderApi);
-  CreateWritingAssistanceSessionTask<
-      blink::mojom::AIManagerCreateProofreaderClient>::
-      CreateAndStart(
-          browser_context_,
-          optimization_guide::ModelBasedCapabilityKey::kProofreaderApi,
-          context_bound_object_set_, std::move(callback), std::move(client));
+      optimization_guide::mojom::OnDeviceFeature::kProofreaderApi);
+  model_broker_client_->CreateSession(
+      optimization_guide::mojom::OnDeviceFeature::kProofreaderApi,
+      ::optimization_guide::SessionConfigParams{}, std::move(callback));
 }
 
 blink::mojom::AILanguageModelParamsPtr AIManager::GetLanguageModelParams() {
@@ -671,7 +627,7 @@ blink::mojom::AILanguageModelParamsPtr AIManager::GetLanguageModelParams() {
     return model_info;
   }
   auto sampling_params_config = service->GetSamplingParamsConfig(
-      optimization_guide::ModelBasedCapabilityKey::kPromptApi);
+      optimization_guide::mojom::OnDeviceFeature::kPromptApi);
 
   if (!sampling_params_config.has_value()) {
     return model_info;
@@ -683,7 +639,7 @@ blink::mojom::AILanguageModelParamsPtr AIManager::GetLanguageModelParams() {
       sampling_params_config->default_temperature;
 
   auto metadata = service->GetFeatureMetadata(
-      optimization_guide::ModelBasedCapabilityKey::kPromptApi);
+      optimization_guide::mojom::OnDeviceFeature::kPromptApi);
   if (metadata.has_value()) {
     auto parsed_metadata = AILanguageModel::ParseMetadata(metadata.value());
     if (parsed_metadata.has_max_sampling_params()) {
@@ -721,7 +677,7 @@ void AIManager::CanCreateWriter(blink::mojom::AIWriterCreateOptionsPtr options,
     return;
   }
   CanCreateSession(
-      optimization_guide::ModelBasedCapabilityKey::kWritingAssistanceApi,
+      optimization_guide::mojom::OnDeviceFeature::kWritingAssistanceApi,
       on_device_model::Capabilities(), std::move(callback));
 }
 
@@ -737,6 +693,16 @@ void AIManager::CreateWriter(
         blink::mojom::AIManagerCreateClientError::kUnsupportedLanguage);
     return;
   }
+
+  if (!model_broker_client_) {
+    mojo::Remote<blink::mojom::AIManagerCreateWriterClient> client_remote(
+        std::move(client));
+    AIUtils::SendClientRemoteError(
+        client_remote,
+        blink::mojom::AIManagerCreateClientError::kUnableToCreateSession);
+    return;
+  }
+
   std::optional<optimization_guide::MultimodalMessage> initial_request;
   if (options->shared_context.has_value() &&
       !options->shared_context.value().empty()) {
@@ -749,15 +715,12 @@ void AIManager::CreateWriter(
                                    blink::mojom::AIManagerCreateWriterClient,
                                    blink::mojom::AIWriterCreateOptionsPtr>,
       weak_factory_.GetWeakPtr(), std::ref(context_bound_object_set_),
-      std::move(options), std::move(initial_request));
+      std::move(options), std::move(initial_request), std::move(client));
   tried_init_.insert(
-      optimization_guide::ModelBasedCapabilityKey::kWritingAssistanceApi);
-  CreateWritingAssistanceSessionTask<
-      blink::mojom::AIManagerCreateWriterClient>::
-      CreateAndStart(
-          browser_context_,
-          optimization_guide::ModelBasedCapabilityKey::kWritingAssistanceApi,
-          context_bound_object_set_, std::move(callback), std::move(client));
+      optimization_guide::mojom::OnDeviceFeature::kWritingAssistanceApi);
+  model_broker_client_->CreateSession(
+      optimization_guide::mojom::OnDeviceFeature::kWritingAssistanceApi,
+      ::optimization_guide::SessionConfigParams{}, std::move(callback));
 }
 
 void AIManager::CanCreateRewriter(
@@ -775,7 +738,7 @@ void AIManager::CanCreateRewriter(
     return;
   }
   CanCreateSession(
-      optimization_guide::ModelBasedCapabilityKey::kWritingAssistanceApi,
+      optimization_guide::mojom::OnDeviceFeature::kWritingAssistanceApi,
       on_device_model::Capabilities(), std::move(callback));
 }
 
@@ -791,6 +754,16 @@ void AIManager::CreateRewriter(
         blink::mojom::AIManagerCreateClientError::kUnsupportedLanguage);
     return;
   }
+
+  if (!model_broker_client_) {
+    mojo::Remote<blink::mojom::AIManagerCreateRewriterClient> client_remote(
+        std::move(client));
+    AIUtils::SendClientRemoteError(
+        client_remote,
+        blink::mojom::AIManagerCreateClientError::kUnableToCreateSession);
+    return;
+  }
+
   std::optional<optimization_guide::MultimodalMessage> initial_request;
   if (options->shared_context.has_value() &&
       !options->shared_context.value().empty()) {
@@ -803,19 +776,16 @@ void AIManager::CreateRewriter(
                                    blink::mojom::AIManagerCreateRewriterClient,
                                    blink::mojom::AIRewriterCreateOptionsPtr>,
       weak_factory_.GetWeakPtr(), std::ref(context_bound_object_set_),
-      std::move(options), std::move(initial_request));
+      std::move(options), std::move(initial_request), std::move(client));
   tried_init_.insert(
-      optimization_guide::ModelBasedCapabilityKey::kWritingAssistanceApi);
-  CreateWritingAssistanceSessionTask<
-      blink::mojom::AIManagerCreateRewriterClient>::
-      CreateAndStart(
-          browser_context_,
-          optimization_guide::ModelBasedCapabilityKey::kWritingAssistanceApi,
-          context_bound_object_set_, std::move(callback), std::move(client));
+      optimization_guide::mojom::OnDeviceFeature::kWritingAssistanceApi);
+  model_broker_client_->CreateSession(
+      optimization_guide::mojom::OnDeviceFeature::kWritingAssistanceApi,
+      ::optimization_guide::SessionConfigParams{}, std::move(callback));
 }
 
 void AIManager::CanCreateSession(
-    optimization_guide::ModelBasedCapabilityKey capability,
+    optimization_guide::mojom::OnDeviceFeature capability,
     on_device_model::Capabilities capabilities,
     CanCreateLanguageModelCallback callback) {
   auto model_path =
@@ -851,7 +821,7 @@ void AIManager::CanCreateSession(
 }
 
 void AIManager::FinishCanCreateSession(
-    optimization_guide::ModelBasedCapabilityKey capability,
+    optimization_guide::mojom::OnDeviceFeature capability,
     on_device_model::Capabilities capabilities,
     CanCreateLanguageModelCallback callback,
     optimization_guide::OnDeviceModelEligibilityReason eligibility) {
@@ -863,16 +833,9 @@ void AIManager::FinishCanCreateSession(
   // the reason.
   if (eligibility !=
       optimization_guide::OnDeviceModelEligibilityReason::kSuccess) {
-    // If context_bound_object_set_ size or model_download_progress_manager_
-    // reporters are non-zero, it implies that a download is pending.
-    // TODO(crbug.com/444320307): Make this more robust by actually checking
-    // opt-guide download status.
-    bool is_downloading =
-        model_download_progress_manager_.GetNumberOfReporters() >= 1 ||
-        context_bound_object_set_.GetSize() >= 1;
     std::move(callback).Run(
         ConvertOnDeviceModelEligibilityReasonToModelAvailabilityCheckResult(
-            eligibility, is_downloading));
+            eligibility));
     return;
   }
 
@@ -895,8 +858,10 @@ void AIManager::OnSessionCreated(
     AIContextBoundObjectSet& context_bound_object_set,
     CreateOptionsPtrType options,
     std::optional<optimization_guide::MultimodalMessage> initial_request,
-    mojo::Remote<ClientRemoteInterface> client_remote,
+    mojo::PendingRemote<ClientRemoteInterface> client,
     std::unique_ptr<optimization_guide::OnDeviceSession> session) {
+  mojo::Remote<ClientRemoteInterface> client_remote(std::move(client));
+
   if (!session) {
     AIUtils::AIUtils::SendClientRemoteError(
         client_remote,
@@ -963,16 +928,18 @@ void AIManager::MaybeTryEagerInit() {
   // and other features just need lightweight configuration downloads to become
   // readily available for usage on this device.
   AIContextBoundObjectSet empty(on_device_model::mojom::Priority::kBackground);
-  for (optimization_guide::ModelBasedCapabilityKey key :
-       {optimization_guide::ModelBasedCapabilityKey::kPromptApi,
-        optimization_guide::ModelBasedCapabilityKey::kSummarize,
-        optimization_guide::ModelBasedCapabilityKey::kWritingAssistanceApi,
-        optimization_guide::ModelBasedCapabilityKey::kProofreaderApi}) {
+  for (optimization_guide::mojom::OnDeviceFeature feature :
+       {optimization_guide::mojom::OnDeviceFeature::kPromptApi,
+        optimization_guide::mojom::OnDeviceFeature::kSummarize,
+        optimization_guide::mojom::OnDeviceFeature::kWritingAssistanceApi,
+        optimization_guide::mojom::OnDeviceFeature::kProofreaderApi}) {
     // TODO(crbug.com/442015822): Gate on availability state.
     // TODO(crbug.com/447192715): Gate on runtime determined component size.
-    if (tried_init_.insert(key).second) {
+    if (tried_init_.insert(feature).second) {
       // TODO(crbug.com/447174556): Init features without creating sessions.
-      CreateOnDeviceSessionTask(empty, browser_context_, key).Start();
+      model_broker_client_->CreateSession(
+          feature, ::optimization_guide::SessionConfigParams{},
+          base::DoNothing());
     }
   }
 }

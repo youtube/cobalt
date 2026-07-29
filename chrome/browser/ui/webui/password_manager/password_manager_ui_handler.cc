@@ -8,11 +8,16 @@
 
 #include "base/strings/utf_string_conversions.h"
 #include "chrome/browser/extensions/api/passwords_private/passwords_private_delegate.h"
+#include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/sync/sync_service_factory.h"
 #include "chrome/browser/ui/webui/password_manager/password_manager.mojom-forward.h"
 #include "chrome/browser/ui/webui/password_manager/password_manager.mojom.h"
 #include "components/password_manager/core/browser/password_ui_utils.h"
 #include "components/password_manager/core/browser/ui/actor_login_permission.h"
+#include "components/password_manager/core/browser/ui/credential_ui_entry.h"
 #include "components/password_manager/core/browser/ui/saved_passwords_presenter.h"
+#include "content/public/browser/browser_context.h"
+#include "content/public/browser/web_contents.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "mojo/public/cpp/bindings/remote.h"
 
@@ -55,14 +60,15 @@ void PasswordManagerUIHandler::RemoveBackupPassword(int id) {
 void PasswordManagerUIHandler::GetActorLoginPermissions(
     GetActorLoginPermissionsCallback callback) {
   std::vector<password_manager::mojom::ActorLoginPermissionPtr> result;
+  syncer::SyncService* sync_service = SyncServiceFactory::GetForProfile(
+      Profile::FromBrowserContext(web_contents_->GetBrowserContext()));
   for (const auto& site :
-       GetSavedPasswordsPresenter()->GetActorLoginPermissions()) {
-    auto url = password_manager::mojom::FormattedUrl::New(
-        /*human_readable_url=*/password_manager::GetShownOrigin(
-            url::Origin::Create(site.url)),
-        /*link=*/site.url.spec());
+       GetSavedPasswordsPresenter()->GetActorLoginPermissions(sync_service)) {
+    auto url = password_manager::mojom::DomainInfo::New(
+        site.domain_info.name, site.domain_info.url,
+        site.domain_info.signon_realm);
     result.push_back(password_manager::mojom::ActorLoginPermission::New(
-        std::move(url), base::UTF16ToUTF8(site.username)));
+        std::move(url), site.favicon_url, base::UTF16ToUTF8(site.username)));
   }
   std::move(callback).Run(std::move(result));
 }
@@ -70,9 +76,19 @@ void PasswordManagerUIHandler::GetActorLoginPermissions(
 void PasswordManagerUIHandler::RevokeActorLoginPermission(
     password_manager::mojom::ActorLoginPermissionPtr site) {
   GetSavedPasswordsPresenter()->RevokeActorLoginPermission(
-      password_manager::ActorLoginPermission{
-          .url = GURL(site->url->link),
-          .username = base::UTF8ToUTF16(site->username)});
+      base::UTF8ToUTF16(site->username), site->domain_info->signon_realm);
+}
+
+void PasswordManagerUIHandler::ChangePasswordManagerPin(
+    ChangePasswordManagerPinCallback callback) {
+  passwords_private_delegate_->ChangePasswordManagerPin(web_contents_,
+                                                        std::move(callback));
+}
+
+void PasswordManagerUIHandler::IsPasswordManagerPinAvailable(
+    IsPasswordManagerPinAvailableCallback callback) {
+  passwords_private_delegate_->IsPasswordManagerPinAvailable(
+      web_contents_, std::move(callback));
 }
 
 void PasswordManagerUIHandler::ShowAddShortcutDialog() {
@@ -82,4 +98,26 @@ void PasswordManagerUIHandler::ShowAddShortcutDialog() {
 password_manager::SavedPasswordsPresenter*
 PasswordManagerUIHandler::GetSavedPasswordsPresenter() {
   return passwords_private_delegate_->GetSavedPasswordsPresenter();
+}
+
+void PasswordManagerUIHandler::IsAccountStorageEnabled(
+    IsAccountStorageEnabledCallback callback) {
+  bool result = passwords_private_delegate_->IsAccountStorageEnabled();
+  std::move(callback).Run(result);
+}
+
+void PasswordManagerUIHandler::SetAccountStorageEnabled(bool enabled) {
+  passwords_private_delegate_->SetAccountStorageEnabled(enabled, web_contents_);
+}
+
+void PasswordManagerUIHandler::ShouldShowAccountStorageSettingToggle(
+    ShouldShowAccountStorageSettingToggleCallback callback) {
+  std::move(callback).Run(
+      passwords_private_delegate_->ShouldShowAccountStorageSettingToggle());
+}
+
+void PasswordManagerUIHandler::SwitchBiometricAuthBeforeFillingState(
+    SwitchBiometricAuthBeforeFillingStateCallback callback) {
+  passwords_private_delegate_->SwitchBiometricAuthBeforeFillingState(
+      web_contents_, std::move(callback));
 }

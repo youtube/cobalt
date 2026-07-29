@@ -43,6 +43,7 @@ import org.chromium.cc.input.BrowserControlsState;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.browser_controls.BrowserControlsOffsetTagsInfo;
 import org.chromium.chrome.browser.browser_controls.BrowserControlsStateProvider;
+import org.chromium.chrome.browser.browser_controls.BrowserControlsUtils;
 import org.chromium.chrome.browser.compositor.LayerTitleCache;
 import org.chromium.chrome.browser.compositor.layouts.LayoutManagerHost;
 import org.chromium.chrome.browser.compositor.layouts.LayoutManagerImpl;
@@ -89,12 +90,12 @@ import org.chromium.chrome.browser.tabmodel.TabModelSelector;
 import org.chromium.chrome.browser.tabmodel.TabModelSelectorObserver;
 import org.chromium.chrome.browser.tabmodel.TabModelSelectorTabModelObserver;
 import org.chromium.chrome.browser.tabmodel.TabModelSelectorTabObserver;
+import org.chromium.chrome.browser.tabstrip.TabStripSceneLayerHolder;
 import org.chromium.chrome.browser.tasks.tab_management.TabGroupListBottomSheetCoordinator;
 import org.chromium.chrome.browser.tasks.tab_management.TabUiThemeUtil;
 import org.chromium.chrome.browser.toolbar.ToolbarFeatures;
 import org.chromium.chrome.browser.toolbar.ToolbarManager;
 import org.chromium.chrome.browser.toolbar.top.tab_strip.StripVisibilityState;
-import org.chromium.chrome.browser.toolbar.top.tab_strip.TabStripTransitionCoordinator.TabStripTransitionDelegate;
 import org.chromium.chrome.browser.ui.desktop_windowing.AppHeaderUtils;
 import org.chromium.chrome.browser.ui.system.StatusBarColorController;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
@@ -127,7 +128,7 @@ import java.util.function.Supplier;
 public class StripLayoutHelperManager
         implements SceneOverlay,
                 PauseResumeWithNativeObserver,
-                TabStripTransitionDelegate,
+                TabStripSceneLayerHolder,
                 TopResumedActivityChangedObserver,
                 AppHeaderObserver {
     /**
@@ -204,6 +205,7 @@ public class StripLayoutHelperManager
     private final LayoutManagerHost mManagerHost;
     private final LayoutUpdateHost mUpdateHost;
     private final LayoutRenderHost mRenderHost;
+    private @Nullable ResourceManager mResourceManager;
 
     // Event Filters
     private @Nullable AreaMotionEventFilter mEventFilter;
@@ -240,6 +242,8 @@ public class StripLayoutHelperManager
     private final ViewStub mTabHoverCardViewStub;
     private float mModelSelectorWidth;
     private float mLastVisibleViewportOffsetY;
+    private float mSceneLayerYOffset;
+    private float mSceneLayerVisibleHeight; // Used during height transition.
 
     /**
      * Whether the current activity is the top resumed activity. This is only relevant for use in
@@ -807,8 +811,25 @@ public class StripLayoutHelperManager
 
     @Override
     public SceneOverlayLayer getUpdatedSceneOverlayTree(
-            RectF viewport, RectF visibleViewport, ResourceManager resourceManager, float yOffset) {
+            RectF viewport, RectF visibleViewport, ResourceManager resourceManager) {
         assert mTabStripTreeProvider != null;
+        mResourceManager = resourceManager;
+
+        // When refactor is enabled, the mSceneLayerYOffset / mSceneLayerVisibleHeight wil be
+        // calculated externally, so we can skip the adjustment here.
+        if (!BrowserControlsUtils.isTopControlsRefactorOffsetEnabled()) {
+            float topControlOffsetDp =
+                    mBrowserControlsStateProvider.getTopControlOffset() / mDensity;
+            mSceneLayerVisibleHeight = getVisibleHeightDp(topControlOffsetDp);
+            mSceneLayerYOffset = getAdjustedYOffset(topControlOffsetDp);
+        }
+
+        pushAndUpdateStrip(mSceneLayerYOffset, mSceneLayerVisibleHeight);
+        return mTabStripTreeProvider;
+    }
+
+    private void pushAndUpdateStrip(float yOffsetDp, float visibleHeightDp) {
+        if (mResourceManager == null) return;
 
         setStripVisibilityState(
                 StripVisibilityState.HIDDEN_BY_SCROLL,
@@ -825,43 +846,24 @@ public class StripLayoutHelperManager
                         ? TabModel.INVALID_TAB_INDEX
                         : getActiveStripLayoutHelper().getLastHoveredTab().getTabId();
 
-        // When tab strip is hiding, animation will trigger the toolbar moving up and tab
-        // strip fade-out in place. In this case the tab strip should not move at all.
+        // When tab strip is hiding, animation will trigger the toolbar moving up and tab strip
+        // fade-out in place. We use the visible height to decide the transition progress then
+        // update the scrim opacity.
         if (duringTabStripHeightTransition()) {
-            // During tab strip transition, make the yOffset stick to the top of the browser
-            // controls. This assumes on tablet there are no other components on top of the control
-            // container.
-            float visibleHeight = yOffset;
-            if (visibleHeight < 0) visibleHeight += getHeight();
-
             // The fade-out is implemented by adding a scrim layer on top of the tab strip, with the
             // same bg as the toolbar background color.
-            calculateScrimOpacityDuringHeightTransition(visibleHeight);
+            calculateScrimOpacityDuringHeightTransition(visibleHeightDp);
             mStatusBarColorController.setTabStripColorOverlay(
                     getStripTransitionScrimColor(), mStripTransitionScrimOpacity);
-
-            yOffset = 0;
-        } else if ((getStripVisibilityStateSupplier().get()
-                        & StripVisibilityState.HIDDEN_BY_HEIGHT_TRANSITION)
-                != 0) {
-            // When the tab strip is hidden by a height transition, the stable offset of this scene
-            // layer should be a negative value.
-            yOffset -= getHeight();
-        } else if (ChromeFeatureList.sBrowserControlsInViz.isEnabled()
-                && !mBrowserControlsStateProvider.isVisibilityForced()) {
-            // With bciv, as long as if the visibility isn't forced by the browser, and if the
-            // tabstrip isn't hidden, the composited layers should positioned at their fully visible
-            // positions.
-            yOffset = 0;
         }
 
         mTabStripTreeProvider.pushAndUpdateStrip(
                 this,
                 mLayerTitleCacheSupplier.get(),
-                resourceManager,
+                mResourceManager,
                 getActiveStripLayoutHelper().getStripLayoutTabsToRender(),
                 getActiveStripLayoutHelper().getStripLayoutGroupTitlesToRender(),
-                yOffset,
+                yOffsetDp,
                 selectedTabId,
                 hoveredTabId,
                 getStripTransitionScrimColor(),
@@ -869,7 +871,43 @@ public class StripLayoutHelperManager
                 getActiveStripLayoutHelper().getLeftPaddingToDraw(),
                 getActiveStripLayoutHelper().getRightPaddingToDraw(),
                 mTopPadding);
-        return mTabStripTreeProvider;
+    }
+
+    private float getVisibleHeightDp(float topControlOffsetDp) {
+        if (!duringTabStripHeightTransition()) return getHeight();
+
+        // During tab strip transition, make the yOffset stick to the top of the browser
+        // controls. This assumes on tablet there are no other components on top of the control
+        // container.
+        float visibleHeightDp = topControlOffsetDp;
+        if (visibleHeightDp < 0) visibleHeightDp += getHeight();
+        return visibleHeightDp;
+    }
+
+    private float getAdjustedYOffset(float topControlsOffset) {
+        // When tab strip is hiding, animation will trigger the toolbar moving up and tab
+        // strip fade-out in place. In this case the tab strip should not move at all.
+        if (duringTabStripHeightTransition()) {
+            return 0;
+        }
+
+        if ((getStripVisibilityStateSupplier().get()
+                        & StripVisibilityState.HIDDEN_BY_HEIGHT_TRANSITION)
+                != 0) {
+            // When the tab strip is hidden by a height transition, the stable offset of this scene
+            // layer should be a negative value.
+            return topControlsOffset - getHeight();
+        }
+
+        if (ChromeFeatureList.sBrowserControlsInViz.isEnabled()
+                && !mBrowserControlsStateProvider.isVisibilityForced()) {
+            // With bciv, as long as if the visibility isn't forced by the browser, and if the
+            // tabstrip isn't hidden, the composited layers should positioned at their fully visible
+            // positions.
+            return 0;
+        }
+
+        return topControlsOffset;
     }
 
     @Override
@@ -980,6 +1018,19 @@ public class StripLayoutHelperManager
     }
 
     @Override
+    public void onLayerYOffsetChanged(int yOffsetPx, int visibleHeightPx) {
+        float yOffsetDp = yOffsetPx / mDensity;
+        float visibleHeightDp = visibleHeightPx / mDensity;
+
+        // If yOffset does not change (e.g. other layers are moving), no need to push for update.
+        if (mSceneLayerYOffset != yOffsetDp || mSceneLayerVisibleHeight != visibleHeightDp) {
+            mSceneLayerYOffset = yOffsetDp;
+            mSceneLayerVisibleHeight = visibleHeightDp;
+            pushAndUpdateStrip(mSceneLayerYOffset, mSceneLayerVisibleHeight);
+        }
+    }
+
+    @Override
     public void onFadeTransitionRequested(float newOpacity, int durationMs) {
         // Opacity is already the desired value, return early.
         if (newOpacity == mStripTransitionScrimOpacity) return;
@@ -1039,7 +1090,7 @@ public class StripLayoutHelperManager
     }
 
     @Override
-    public void onHeightTransitionFinished() {
+    public void onHeightTransitionFinished(boolean success) {
         if (!mIsHeightTransitioning) return;
 
         assert !isFadeTransitionRunning()
@@ -1116,6 +1167,17 @@ public class StripLayoutHelperManager
         }
 
         return mStripTransitionScrimOpacity;
+    }
+
+    @Override
+    public void updateOffsetTagsInfo(@Nullable BrowserControlsOffsetTagsInfo offsetTagsInfo) {
+        if (ChromeFeatureList.sBrowserControlsInViz.isEnabled() && offsetTagsInfo != null) {
+            // Use the content OffsetTag here, because the tab strip and content are part of
+            // the same subtree and move together with the same offset.
+            mTabStripTreeProvider.updateOffsetTag(offsetTagsInfo.getContentOffsetTag());
+        } else {
+            mTabStripTreeProvider.updateOffsetTag(null);
+        }
     }
 
     @Override
@@ -1533,12 +1595,7 @@ public class StripLayoutHelperManager
                             BrowserControlsOffsetTagsInfo oldOffsetTagsInfo,
                             BrowserControlsOffsetTagsInfo offsetTagsInfo,
                             @BrowserControlsState int constraints) {
-                        if (ChromeFeatureList.sBrowserControlsInViz.isEnabled()) {
-                            // Use the content OffsetTag here, because the tab strip and content
-                            // are part of the same subtree and move together with the same offset.
-                            mTabStripTreeProvider.updateOffsetTag(
-                                    offsetTagsInfo.getContentOffsetTag());
-                        }
+                        updateOffsetTagsInfo(offsetTagsInfo);
                     }
 
                     @Override

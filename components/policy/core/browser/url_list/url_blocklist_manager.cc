@@ -51,7 +51,7 @@ namespace {
 // a more specific filter e.g. "chrome-extension://*".
 // The schemes are hardcoded here to avoid dependencies on //extensions and
 // //chrome.
-const char* kBypassBlocklistWildcardForSchemes[] = {
+constexpr const char* kBypassBlocklistWildcardForSchemes[] = {
     // For internal extension URLs e.g. the Bookmark Manager and the File
     // Manager on Chrome OS.
     "chrome-extension",
@@ -388,11 +388,6 @@ void URLBlocklistManager::RegisterProfilePrefs(
   registry->RegisterIntegerPref(
       policy_prefs::kSafeSitesFilterBehavior,
       static_cast<int>(SafeSitesFilterBehavior::kSafeSitesFilterDisabled));
-#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN) || \
-    BUILDFLAG(IS_MAC)
-  registry->RegisterListPref(policy_prefs::kPasswordManagerBlocklist);
-#endif  // BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN) ||
-        // BUILDFLAG(IS_MAC)
 }
 
 void URLBlocklistManager::SetOverrideBlockListSource(

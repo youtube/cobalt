@@ -47,7 +47,6 @@
 #include "third_party/blink/renderer/platform/bindings/name_client.h"
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_hash_set.h"
 #include "third_party/blink/renderer/platform/image-decoders/image_decoder.h"
-#include "third_party/blink/renderer/platform/supplementable.h"
 #include "third_party/skia/include/core/SkRefCnt.h"
 #include "ui/gfx/geometry/rect.h"
 
@@ -63,12 +62,10 @@ class ScriptState;
 
 class MODULES_EXPORT ImageBitmapFactories final
     : public GarbageCollected<ImageBitmapFactories>,
-      public Supplement<ExecutionContext>,
-      public NameClient {
+      public NameClient,
+      public GarbageCollectedMixin {
  public:
-  static const unsigned kSupplementIndex;
-
-  explicit ImageBitmapFactories(ExecutionContext& context);
+  ImageBitmapFactories() = default;
 
   static ScriptPromise<ImageBitmap> CreateImageBitmap(
       ScriptState*,

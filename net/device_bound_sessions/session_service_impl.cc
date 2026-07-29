@@ -185,9 +185,6 @@ void SessionServiceImpl::RegisterBoundSession(
     const IsolationInfo& isolation_info,
     const NetLogWithSource& net_log,
     const std::optional<url::Origin>& original_request_initiator) {
-  Session* federated_provider_session = nullptr;
-  bool is_google_subdomain_for_histograms = IsSubdomainOf(
-      registration_params.registration_endpoint().host(), "google.com");
   if (registration_params.provider_session_id().has_value()) {
     if (!base::FeatureList::IsEnabled(
             features::kDeviceBoundSessionsFederatedRegistration)) {
@@ -196,17 +193,55 @@ void SessionServiceImpl::RegisterBoundSession(
       return;
     }
 
-    base::expected<Session*, SessionError> provider_session_or_error =
-        GetFederatedProviderSessionIfValid(registration_params);
-    if (!provider_session_or_error.has_value()) {
-      OnRegistrationComplete(
-          std::move(on_access_callback), is_google_subdomain_for_histograms,
-          /*fetcher=*/nullptr,
-          RegistrationResult(std::move(provider_session_or_error.error())));
-      return;
-    }
+    // RegistrationFetcherParam::ParseItem ensures that all three of
+    // these are present.
+    GURL provider_url = *registration_params.provider_url();
+    Session::Id provider_session_id =
+        *registration_params.provider_session_id();
+    std::string provider_key_thumbprint = *registration_params.provider_key();
+    GetFederatedProviderSessionIfValid(
+        std::move(provider_url), std::move(provider_session_id),
+        std::move(provider_key_thumbprint), on_access_callback,
+        base::BindOnce(&SessionServiceImpl::RegisterBoundSessionInternal,
+                       weak_factory_.GetWeakPtr(), on_access_callback,
+                       std::move(registration_params),
+                       std::move(isolation_info), std::move(net_log),
+                       std::move(original_request_initiator)));
+    return;
+  }
 
-    federated_provider_session = provider_session_or_error.value();
+  RegisterBoundSessionInternal(std::move(on_access_callback),
+                               std::move(registration_params),
+                               std::move(isolation_info), std::move(net_log),
+                               std::move(original_request_initiator),
+                               /*federated_provider_session=*/nullptr);
+}
+
+void SessionServiceImpl::RegisterBoundSessionInternal(
+    OnAccessCallback on_access_callback,
+    RegistrationFetcherParam registration_params,
+    const IsolationInfo& isolation_info,
+    const NetLogWithSource& net_log,
+    const std::optional<url::Origin>& original_request_initiator,
+    base::expected<Session*, SessionError> federated_provider_session) {
+  bool is_google_subdomain_for_histograms = IsSubdomainOf(
+      registration_params.registration_endpoint().host(), "google.com");
+
+  // A federated session was attempted but had an error.
+  if (!federated_provider_session.has_value()) {
+    OnRegistrationComplete(
+        std::move(on_access_callback), is_google_subdomain_for_histograms,
+        /*fetcher=*/nullptr,
+        RegistrationResult(std::move(federated_provider_session.error())));
+    return;
+  }
+
+  if (*federated_provider_session) {
+    SessionKey provider_session_key{
+        SchemefulSite(*registration_params.provider_url()),
+        *registration_params.provider_session_id()};
+    NotifySessionAccess(on_access_callback, SessionAccess::AccessType::kUpdate,
+                        provider_session_key, **federated_provider_session);
   }
 
   net::NetLogSource net_log_source_for_registration = net::NetLogSource(
@@ -231,9 +266,9 @@ void SessionServiceImpl::RegisterBoundSession(
   auto callback = base::BindOnce(
       &SessionServiceImpl::OnRegistrationComplete, weak_factory_.GetWeakPtr(),
       std::move(on_access_callback), is_google_subdomain_for_histograms);
-  if (federated_provider_session) {
+  if (*federated_provider_session) {
     fetcher_raw->StartFetchWithFederatedKey(
-        request_params, *federated_provider_session->unexportable_key_id(),
+        request_params, *(*federated_provider_session)->unexportable_key_id(),
         *provider_url, std::move(callback));
     // `fetcher_raw` may be deleted.
   } else {
@@ -243,29 +278,67 @@ void SessionServiceImpl::RegisterBoundSession(
   }
 }
 
-base::expected<Session*, SessionError>
-SessionServiceImpl::GetFederatedProviderSessionIfValid(
-    const RegistrationFetcherParam& registration_params) {
+void SessionServiceImpl::GetFederatedProviderSessionIfValid(
+    GURL provider_url,
+    Session::Id provider_session_id,
+    std::string provider_key_thumbprint,
+    OnAccessCallback on_access_callback,
+    base::OnceCallback<void(base::expected<Session*, SessionError>)> callback) {
   // This is a federated session registration.
-  GURL provider_url = *registration_params.provider_url();
   if (!provider_url.is_valid() || url::Origin::Create(provider_url).opaque()) {
-    return base::unexpected(
-        SessionError(SessionError::kInvalidFederatedSessionUrl));
+    std::move(callback).Run(base::unexpected(
+        SessionError(SessionError::kInvalidFederatedSessionUrl)));
+    return;
   }
 
-  SessionKey provider_key{SchemefulSite(provider_url),
-                          *registration_params.provider_session_id()};
-  Session* provider_session = GetSession(provider_key);
-
+  SessionKey provider_session_key{SchemefulSite(provider_url),
+                                  provider_session_id};
+  Session* provider_session = GetSession(provider_session_key);
   if (!provider_session) {
-    // Provider session not found, fail the registration.
-    return base::unexpected(SessionError(
-        SessionError::kInvalidFederatedSessionProviderSessionMissing));
+    std::move(callback).Run(base::unexpected(SessionError(
+        SessionError::kInvalidFederatedSessionProviderSessionMissing)));
+    return;
   }
 
   if (url::Origin::Create(provider_url) != provider_session->origin()) {
-    return base::unexpected(SessionError(
-        SessionError::kInvalidFederatedSessionWrongProviderOrigin));
+    std::move(callback).Run(base::unexpected(SessionError(
+        SessionError::kInvalidFederatedSessionWrongProviderOrigin)));
+    return;
+  }
+
+  if (!provider_session->unexportable_key_id().has_value()) {
+    RestoreSessionKey(
+        provider_session_key, on_access_callback,
+        base::BindOnce(&SessionServiceImpl::CheckFederatedProviderKey,
+                       weak_factory_.GetWeakPtr(), provider_session_key,
+                       std::move(provider_key_thumbprint),
+                       std::move(callback)));
+    return;
+  }
+
+  CheckFederatedProviderKey(
+      std::move(provider_session_key), std::move(provider_key_thumbprint),
+      std::move(callback), *provider_session->unexportable_key_id());
+}
+
+void SessionServiceImpl::CheckFederatedProviderKey(
+    SessionKey provider_session_key,
+    std::string provider_key_thumbprint,
+    base::OnceCallback<void(base::expected<Session*, SessionError>)> callback,
+    std::optional<unexportable_keys::UnexportableKeyId> provider_key) {
+  if (!provider_key) {
+    // Failed to restore provider key.
+    std::move(callback).Run(base::unexpected(SessionError(
+        SessionError::kInvalidFederatedSessionProviderFailedToRestoreKey)));
+    return;
+  }
+
+  Session* provider_session = GetSession(provider_session_key);
+  if (!provider_session) {
+    // Provider session not found, fail the registration.
+    std::move(callback).Run(base::unexpected(SessionError(
+        SessionError::kInvalidFederatedSessionProviderSessionMissing)));
+    return;
   }
 
   unexportable_keys::ServiceErrorOr<
@@ -273,23 +346,30 @@ SessionServiceImpl::GetFederatedProviderSessionIfValid(
       algorithm =
           key_service_->GetAlgorithm(*provider_session->unexportable_key_id());
   if (!algorithm.has_value()) {
-    return base::unexpected(SessionError(SessionError::kInvalidFederatedKey));
+    std::move(callback).Run(
+        base::unexpected(SessionError(SessionError::kInvalidFederatedKey)));
+    return;
   }
 
   unexportable_keys::ServiceErrorOr<std::vector<uint8_t>> pub_key =
       key_service_->GetSubjectPublicKeyInfo(
           *provider_session->unexportable_key_id());
   if (!pub_key.has_value()) {
-    return base::unexpected(SessionError(SessionError::kInvalidFederatedKey));
+    std::move(callback).Run(
+        base::unexpected(SessionError(SessionError::kInvalidFederatedKey)));
+    return;
   }
 
   std::string thumbprint = CreateJwkThumbprint(*algorithm, *pub_key);
-  if (thumbprint != *registration_params.provider_key()) {
-    return base::unexpected(
-        SessionError(SessionError::kFederatedKeyThumbprintMismatch));
+  if (features::kDeviceBoundSessionFederatedRegistrationRequireThumbprintMatch
+          .Get() &&
+      thumbprint != provider_key_thumbprint) {
+    std::move(callback).Run(base::unexpected(
+        SessionError(SessionError::kFederatedKeyThumbprintMismatch)));
+    return;
   }
 
-  return provider_session;
+  std::move(callback).Run(provider_session);
 }
 
 SessionServiceImpl::Observer::Observer(
@@ -463,13 +543,12 @@ void SessionServiceImpl::DeferRequestForRefresh(
   const Session::KeyIdOrError& key_id = session->unexportable_key_id();
   if (!key_id.has_value()) {
     if (key_id.error() == unexportable_keys::ServiceError::kKeyNotReady) {
-      // Unwrap key and then try to refresh
-      session_store_->RestoreSessionBindingKey(
-          session_key,
-          base::BindOnce(&SessionServiceImpl::OnSessionKeyRestored,
-                         weak_factory_.GetWeakPtr(), request->GetWeakPtr(),
-                         session_key,
-                         request->device_bound_session_access_callback()));
+      RestoreSessionKey(
+          session_key, request->device_bound_session_access_callback(),
+          base::BindOnce(&SessionServiceImpl::RefreshSessionInternal,
+                         weak_factory_.GetWeakPtr(),
+                         RefreshTrigger::kMissingCookie, request->GetWeakPtr(),
+                         session_key));
     } else {
       UnblockDeferredRequests(session_key, RefreshResult::kFatalError);
       DeleteSessionAndNotify(DeletionReason::kFailedToRestoreKey, session_key,
@@ -479,8 +558,8 @@ void SessionServiceImpl::DeferRequestForRefresh(
     return;
   }
 
-  RefreshSessionInternal(RefreshTrigger::kMissingCookie, request, session_key,
-                         session, *key_id);
+  RefreshSessionInternal(RefreshTrigger::kMissingCookie, request->GetWeakPtr(),
+                         session_key, *key_id);
 }
 
 void SessionServiceImpl::OnRefreshRequestCompletion(
@@ -627,8 +706,7 @@ void SessionServiceImpl::SetChallengeForBoundSession(
     return;
   }
 
-  if (features::kDeviceBoundSessionsOriginTrialFeedback.Get() &&
-      !session->CanSetBoundCookie(request, first_party_set_metadata)) {
+  if (!session->CanSetBoundCookie(request, first_party_set_metadata)) {
     return;
   }
 
@@ -936,19 +1014,34 @@ SessionError::ErrorType SessionServiceImpl::OnRefreshRequestCompletionInternal(
                                         : SessionError::kSuccess;
 }
 
-void SessionServiceImpl::OnSessionKeyRestored(
-    base::WeakPtr<URLRequest> request,
+void SessionServiceImpl::RestoreSessionKey(
     const SessionKey& session_key,
     OnAccessCallback on_access_callback,
-    Session::KeyIdOrError key_id_or_error) {
-  if (!request) {
-    return;
+    base::OnceCallback<
+        void(std::optional<unexportable_keys::UnexportableKeyId>)> callback) {
+  if (session_store_) {
+    session_store_->RestoreSessionBindingKey(
+        session_key, base::BindOnce(&SessionServiceImpl::OnSessionKeyRestored,
+                                    weak_factory_.GetWeakPtr(), session_key,
+                                    on_access_callback, std::move(callback)));
+  } else {
+    OnSessionKeyRestored(
+        session_key, on_access_callback, std::move(callback),
+        base::unexpected(unexportable_keys::ServiceError::kKeyNotReady));
   }
+}
 
+void SessionServiceImpl::OnSessionKeyRestored(
+    const SessionKey& session_key,
+    OnAccessCallback on_access_callback,
+    base::OnceCallback<
+        void(std::optional<unexportable_keys::UnexportableKeyId>)> callback,
+    Session::KeyIdOrError key_id_or_error) {
   if (!key_id_or_error.has_value()) {
     UnblockDeferredRequests(session_key, RefreshResult::kFatalError);
     DeleteSessionAndNotify(DeletionReason::kFailedToUnwrapKey, session_key,
                            on_access_callback);
+    std::move(callback).Run(std::nullopt);
     return;
   }
 
@@ -959,26 +1052,31 @@ void SessionServiceImpl::OnSessionKeyRestored(
   }
 
   session->set_unexportable_key_id(key_id_or_error);
-
-  RefreshSessionInternal(RefreshTrigger::kMissingCookie, request.get(),
-                         session_key, session, *key_id_or_error);
+  std::move(callback).Run(*key_id_or_error);
 }
 
 void SessionServiceImpl::RefreshSessionInternal(
     RefreshTrigger trigger,
-    URLRequest* request,
+    base::WeakPtr<URLRequest> request,
     const SessionKey& session_key,
-    Session* session,
-    unexportable_keys::UnexportableKeyId key_id) {
+    std::optional<unexportable_keys::UnexportableKeyId> key_id) {
+  if (!request || !key_id) {
+    return;
+  }
+
   net::NetLogSource net_log_source_for_refresh = net::NetLogSource(
       net::NetLogSourceType::URL_REQUEST, net::NetLog::Get()->NextID());
   request->net_log().AddEventReferencingSource(
       net::NetLogEventType::DBSC_REFRESH_REQUEST, net_log_source_for_refresh);
 
-  if (!features::kDeviceBoundSessionsOriginTrialFeedback.Get() ||
-      !base::FeatureList::IsEnabled(
+  if (!base::FeatureList::IsEnabled(
           features::kDeviceBoundSessionSigningQuotaAndCaching)) {
     refresh_times_[session_key.site].push_back(base::TimeTicks::Now());
+  }
+
+  Session* session = GetSession(session_key);
+  if (!session) {
+    return;
   }
 
   auto registration_param =
@@ -995,14 +1093,13 @@ void SessionServiceImpl::RefreshSessionInternal(
           request->initiator());
   RegistrationFetcher* fetcher_raw = fetcher.get();
   registration_fetchers_.insert(std::move(fetcher));
-  fetcher_raw->StartFetchWithExistingKey(registration_param, key_id,
+  fetcher_raw->StartFetchWithExistingKey(registration_param, *key_id,
                                          std::move(callback));
   // `fetcher_raw` may be deleted.
 }
 
 bool SessionServiceImpl::RefreshQuotaExceeded(const SchemefulSite& site) {
-  if (features::kDeviceBoundSessionsOriginTrialFeedback.Get() &&
-      base::FeatureList::IsEnabled(
+  if (base::FeatureList::IsEnabled(
           features::kDeviceBoundSessionSigningQuotaAndCaching)) {
     return false;
   }
@@ -1037,8 +1134,7 @@ bool SessionServiceImpl::RefreshQuotaExceeded(const SchemefulSite& site) {
 }
 
 bool SessionServiceImpl::SigningQuotaExceeded(const SchemefulSite& site) {
-  if (!features::kDeviceBoundSessionsOriginTrialFeedback.Get() ||
-      !base::FeatureList::IsEnabled(
+  if (!base::FeatureList::IsEnabled(
           features::kDeviceBoundSessionSigningQuotaAndCaching)) {
     return false;
   }
@@ -1155,8 +1251,8 @@ void SessionServiceImpl::MaybeStartProactiveRefresh(
   NotifySessionAccess(per_request_callback, SessionAccess::AccessType::kUpdate,
                       session_key, *session);
   LogProactiveRefreshAttempt(ProactiveRefreshAttempt::kAttempted);
-  RefreshSessionInternal(RefreshTrigger::kProactive, request, session_key,
-                         session, *session->unexportable_key_id());
+  RefreshSessionInternal(RefreshTrigger::kProactive, request->GetWeakPtr(),
+                         session_key, *session->unexportable_key_id());
 }
 
 }  // namespace net::device_bound_sessions

@@ -851,7 +851,7 @@ void TabAndroid::SetTabGroupId(
   Java_TabImpl_setTabGroupId(env, weak_java_tab_.get(env), java_token);
 }
 
-base::android::ScopedJavaLocalRef<jobject> JNI_TabImpl_FromWebContents(
+static base::android::ScopedJavaLocalRef<jobject> JNI_TabImpl_FromWebContents(
     JNIEnv* env,
     const JavaParamRef<jobject>& jweb_contents) {
   base::android::ScopedJavaLocalRef<jobject> jtab;
@@ -882,3 +882,5 @@ static void JNI_TabImpl_Init(JNIEnv* env,
   // This will automatically bind to the Java object and pass ownership there.
   new TabAndroid(env, obj, profile, id);
 }
+
+DEFINE_JNI(TabImpl)

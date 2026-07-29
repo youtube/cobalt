@@ -33,6 +33,15 @@ constexpr auto kPageActionProperties =
             },
         },
         {
+            kActionLensOverlayHomework,
+            {
+                .histogram_name = "LensOverlayHomework",
+                .type = PageActionIconType::kLensOverlayHomework,
+                .element_identifier =
+                    kLensOverlayHomeworkPageActionIconElementId,
+            },
+        },
+        {
             kActionShowTranslate,
             {
                 .histogram_name = "Translate",
@@ -45,6 +54,14 @@ constexpr auto kPageActionProperties =
                 .histogram_name = "MemorySaver",
                 .type = PageActionIconType::kMemorySaver,
                 .element_identifier = kMemorySaverChipElementId,
+            },
+        },
+        {
+            kActionShowJsOptimizationsIcon,
+            {
+                .histogram_name = "JsOptimizations",
+                .type = PageActionIconType::kJsOptimizations,
+                .element_identifier = kJsOptimizationsIconElementId,
             },
         },
         {
@@ -189,6 +206,23 @@ constexpr auto kPageActionProperties =
                 // Therefore, we should rely on feature level metrics for this
                 // particular page action.
                 .type = PageActionIconType::kSaveCard,
+            },
+        },
+        {
+            kActionSidePanelShowContextualTasks,
+            {
+                .histogram_name = "ContextualSidePanel",
+                .type = PageActionIconType::kContextualSidePanel,
+                .element_identifier = kContextualTasksPageActionElementId,
+            },
+        },
+        {
+            kActionBookmarkThisTab,
+            {
+                .histogram_name = "BookmarksStar",
+                .is_ephemeral = false,
+                .type = PageActionIconType::kBookmarkStar,
+                .element_identifier = kBookmarkStarViewElementId,
             },
         },
     });

@@ -75,21 +75,15 @@ inline constexpr base::FeatureParam<size_t> kSyncBookmarksLimitValue{
 // last initial merge is reset after a certain period.
 BASE_DECLARE_FEATURE(kSyncResetBookmarksInitialMergeLimitExceededError);
 
+// If enabled, shows a user-actionable error when the bookmarks count limit is
+// exceeded.
+BASE_DECLARE_FEATURE(kSyncShowBookmarksLimitExceededError);
+
 BASE_DECLARE_FEATURE(kSyncEnableContactInfoDataTypeForCustomPassphraseUsers);
 BASE_DECLARE_FEATURE(kSyncEnableContactInfoDataTypeForDasherUsers);
 
-// Wrapper flag to control the nudge delay of the #tab-groups-save feature.
-BASE_DECLARE_FEATURE(kTabGroupsSaveNudgeDelay);
-
 // If enabled, keeps local and account search engines separate.
 BASE_DECLARE_FEATURE(kSeparateLocalAndAccountSearchEngines);
-
-// If provided, changes the amount of time before we send messages to the sync
-// service.
-inline constexpr base::FeatureParam<base::TimeDelta>
-    kTabGroupsSaveCustomNudgeDelay(&kTabGroupsSaveNudgeDelay,
-                                   "TabGroupsSaveCustomNudgeDelay",
-                                   base::Seconds(11));
 
 // Feature flag to replace all sync-related UI with sign-in ones.
 BASE_DECLARE_FEATURE(kReplaceSyncPromosWithSignInPromos);

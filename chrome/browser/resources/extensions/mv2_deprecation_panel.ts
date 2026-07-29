@@ -2,7 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import 'chrome://resources/cr_elements/cr_action_menu/cr_action_menu.js';
 import 'chrome://resources/cr_elements/cr_button/cr_button.js';
+import 'chrome://resources/cr_elements/cr_icon_button/cr_icon_button.js';
 import 'chrome://resources/cr_elements/cr_icon/cr_icon.js';
 
 import {I18nMixinLit} from '//resources/cr_elements/i18n_mixin_lit.js';
@@ -398,7 +400,6 @@ export class ExtensionsMv2DeprecationPanelElement extends
             'Extensions.Mv2Deprecation.Disabled.DismissedForExtension');
         break;
       case Mv2ExperimentStage.UNSUPPORTED:
-        // TODO(crbug.com/339061151): Handle button for this stage.
         assertNotReached();
     }
 

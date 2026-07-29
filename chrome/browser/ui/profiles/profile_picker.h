@@ -8,7 +8,6 @@
 #include <optional>
 #include <variant>
 
-#include "base/feature_list.h"
 #include "base/files/file_path.h"
 #include "base/functional/callback.h"
 #include "base/functional/callback_forward.h"
@@ -264,6 +263,8 @@ class ProfilePicker {
     // Whether we are recording timing metrics about loading the profile and
     // opening the first web content.
     bool should_record_startup_metrics = false;
+    // Whether to exit the flow after the profile is picked.
+    bool exit_flow_after_profile_picked = true;
   };
 
   // Picks the profile with `profile_path`.

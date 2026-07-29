@@ -7,6 +7,7 @@
     --aim-header-height: 66px;
     --context-carousel-inline-end-spacing: 24px;
     --context-carousel-inline-start-spacing: 24px;
+    --composebox-container-height: calc(var(--composebox-height) + var(--composebox-margin-bottom));
 
     background-color: var(--search-background-color);
     display: flex;
@@ -17,11 +18,13 @@
   /* Light mode not on AIM results */
   :host(:not([is-on-aim-results]):not([dark-mode])) {
     --cr-composebox-background-color: #f3f5f6;
+    --cr-composebox-submit-button-hover-color: #e9ebf01a;
     --color-composebox-cancel-button: #0a0a0a;
     --color-composebox-font: #0a0a0a;
     --color-composebox-hover: #e9ebf0;
     --color-composebox-lens-button: #0a0a0a;
     --search-background-color: white;
+    --search-background-color-rgb: 255, 255, 255;
     --color-composebox-font-light: #0a0a0a;
     --color-composebox-font-dark: #0a0a0a;
   }
@@ -29,11 +32,13 @@
   /* Light mode on AIM results */
   :host([is-on-aim-results]:not([dark-mode])) {
     --cr-composebox-background-color: #f3f5f6;
+    --cr-composebox-submit-button-hover-color: #e9ebf01a;
     --color-composebox-cancel-button: #0a0a0a;
     --color-composebox-font: #0a0a0a;
     --color-composebox-hover: #e9ebf0;
     --color-composebox-lens-button: #0a0a0a;
     --search-background-color: white;
+    --search-background-color-rgb: 255, 255, 255;
     --color-composebox-font-light: #0a0a0a;
     --color-composebox-font-dark: #0a0a0a;
   }
@@ -41,6 +46,7 @@
   /* Dark mode not on AIM results */
   :host(:not([is-on-aim-results])[dark-mode]) {
     --cr-composebox-background-color: #28292a;
+    --cr-composebox-submit-button-hover-color: #3e3f431a;
     --color-composebox-cancel-button: #bfbfbf;
     --color-composebox-hover: #3e3f43;
     --color-composebox-input-icon: var(--color-searchbox-results-icon);
@@ -50,11 +56,13 @@
     --color-composebox-font-dark: #e6e8f0;
     --color-searchbox-results-background-hovered: #3c4043;
     --search-background-color: #1f1f1f;
+    --search-background-color-rgb: 36, 36, 36;
   }
 
   /* Dark mode on AIM results */
   :host([is-on-aim-results][dark-mode]) {
     --cr-composebox-background-color: #1d1e26;
+    --cr-composebox-submit-button-hover-color: #3e3f431a;
     --color-composebox-font: #e6e8f0;
     --color-composebox-hover: #3e3f43;
     --color-composebox-input-icon: var(--color-searchbox-results-icon);
@@ -64,6 +72,7 @@
     --color-composebox-font-dark: #e6e8f0;
     --color-searchbox-results-background-hovered: #3c4043;
     --search-background-color: #101218;
+    --search-background-color-rgb: 36, 36, 36;
   }
 
   :host([is-on-aim-results]) {
@@ -146,6 +155,10 @@
     margin-inline-end: 14px;
     margin-block-end: 8px;
     margin-inline-start: 14px;
+  }
+
+  #searchbox::part(animated-glow) {
+    display: none;
   }
 
   :host([is-back-arrow-visible]) #searchbox {
@@ -264,6 +277,7 @@
 
   /* Composebox default colors are for light mode on AIM results. */
   #composeboxContainer {
+    --composebox-container-height: calc(var(--composebox-height) + var(--composebox-dropdown-height) + var(--composebox-margin-bottom));
     --color-composebox-scrim-background: var(--search-background-color);
     display: none;
     inset-block-end: 0;
@@ -344,9 +358,20 @@
   /* When the gradient is enabled, the container only spans the height of the composebox and dropdown. */
   :host([enable-lens-aim-suggestions][enable-lens-aim-suggestions-gradient-background][is-composebox-focused])
     #composeboxContainer:has(#composebox[show-dropdown_]) {
-    height: calc(var(--composebox-height) + var(--composebox-dropdown-height) + var(--composebox-margin-bottom));
+    height: var(--composebox-container-height);
     background-color: var(--search-background-color);
     inset-block-start: auto;
+  }
+
+  :host([enable-lens-aim-suggestions][enable-lens-aim-suggestions-gradient-background][is-composebox-focused])
+    #composeboxContainer:has(#composebox[show-dropdown_])::before {
+    /* The gradient should have more spread when the dropdown is showing. */
+      background: linear-gradient(to top,
+        rgba(var(--search-background-color-rgb), 1) 65vh,
+        rgba(var(--search-background-color-rgb), 0.9) 75vh,
+        transparent);
+    /* Calculates the height between the header and the composebox container. */
+    inset: calc(-1 * (100vh - var(--aim-header-height) - var(--composebox-container-height))) 0 0;
   }
 
   :host([enable-lens-aim-suggestions][is-composebox-focused])
@@ -368,6 +393,10 @@
     margin-bottom: var(--composebox-margin-bottom);
   }
 
+  #composebox::part(error-scrim) {
+    display: none;
+  }
+
   #composebox::part(text-container) {
     padding: 0;
     max-height: 40vh;
@@ -384,6 +413,15 @@
 
   #composebox::part(carousel-divider) {
     display: none;
+  }
+
+  #composebox::part(carousel-container) {
+    opacity: 0;
+  }
+
+  #composebox[show-file-carousel_][expanding_]::part(carousel-container) {
+    opacity: 1;
+    transition: var(--icon-entry-transition);
   }
 
   #composebox:not([expanding_])[show-file-carousel_]::part(cr-composebox-file-carousel) {
@@ -445,6 +483,7 @@
   }
 
   :host([show-submit-button]) #composebox::part(submit) {
+    --cr-composebox-submit-container-size: 52px;
     --cr-icon-button-size: 48px;
     display: block;
   }
@@ -454,6 +493,7 @@
   }
 
   :host([enable-lens-aim-suggestions]) #composebox::part(dropdown) {
+    --cr-composebox-match-height: 54px;
     background-color: var(--search-background-color);
     /* Stack the dropdown on top of the other elements in the composebox. */
     order: -1;
@@ -463,6 +503,26 @@
     flex-direction: column-reverse;
     bottom: 0;
     transform: translateY(calc(-1 * (var(--composebox-height) + var(--composebox-margin-bottom))));
+  }
+
+  /* Hide the dropdown when the dropdown is not enabled, the dropdown is not showable,
+   or when the composebox is not focused. */
+  :host(:not([enable-lens-aim-suggestions])) #composeboxContainer #composebox::part(dropdown),
+  :host(:not([is-composebox-focused])) #composeboxContainer #composebox::part(dropdown),
+  #composeboxContainer:has(#composebox:not([show-dropdown_])) #composebox::part(dropdown) {
+    display: none;
+  }
+
+  #composebox::part(context-entrypoint) {
+    transition-delay: 0ms;
+  }
+
+  :host([enable-lens-aim-suggestions]) #composebox::part(match-text-container) {
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    display: -webkit-box;
+    line-height: 20px;
+    white-space: normal;
   }
 
 

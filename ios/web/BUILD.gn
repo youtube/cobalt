@@ -67,7 +67,6 @@ source_set("web") {
     "browser_state_utils.mm",
     "browser_url_rewriter_impl.h",
     "browser_url_rewriter_impl.mm",
-    "crw_navigation_item_storage.mm",
     "network_context_owner.cc",
     "web_client.mm",
   ]
@@ -232,7 +231,6 @@ source_set("ios_web_general_unittests") {
 
   sources = [
     "browser_state_unittest.mm",
-    "crw_navigation_item_storage_unittest.mm",
     "history_state_util_unittest.mm",
     "network_context_owner_unittest.cc",
     "test/web_test_unittest.mm",
@@ -289,7 +287,6 @@ source_set("ios_web_navigation_unittests") {
   sources = [
     "navigation/crw_error_page_helper_unittest.mm",
     "navigation/crw_navigation_item_holder_unittest.mm",
-    "navigation/crw_session_storage_unittest.mm",
     "navigation/crw_wk_navigation_states_unittest.mm",
     "navigation/navigation_context_impl_unittest.mm",
     "navigation/navigation_item_impl_unittest.mm",
@@ -371,6 +368,7 @@ source_set("ios_web_web_state_unittests") {
     "//base/test:test_support",
     "//components/sessions:session_id",
     "//components/url_formatter",
+    "//ios/components/enterprise/data_controls:metrics",
     "//ios/net",
     "//ios/testing:ocmock_support",
     "//ios/web",
@@ -399,6 +397,7 @@ source_set("ios_web_web_state_unittests") {
     "//ios/web/test:test_support",
     "//ios/web/test/fakes",
     "//ios/web/web_state",
+    "//ios/web/web_state:data_controls",
     "//ios/web/web_state:policy_decision_state_tracker",
     "//ios/web/web_state:test_util",
     "//ios/web/web_state:web_state_impl_header",
@@ -414,6 +413,7 @@ source_set("ios_web_web_state_unittests") {
   ]
 
   sources = [
+    "web_state/crw_web_view_data_controls_unittest.mm",
     "web_state/data_controls_protocol_smoke_unittest.mm",
     "web_state/policy_decision_state_tracker_unittest.mm",
     "web_state/web_state_context_menu_bridge_unittest.mm",

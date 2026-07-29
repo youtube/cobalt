@@ -14,12 +14,9 @@
 #include "base/logging.h"
 #include "base/notreached.h"
 #include "cc/base/math_util.h"
-#include "cc/debug/debug_colors.h"
 #include "cc/layers/append_quads_data.h"
-#include "cc/tiles/tiling_set_coverage_iterator.h"
 #include "cc/trees/layer_tree_impl.h"
 #include "components/viz/client/client_resource_provider.h"
-#include "components/viz/common/quads/debug_border_draw_quad.h"
 #include "components/viz/common/quads/solid_color_draw_quad.h"
 #include "components/viz/common/quads/tile_draw_quad.h"
 
@@ -29,33 +26,34 @@ namespace {
 
 class TilingOrder {
  public:
-  bool operator()(const std::unique_ptr<TileDisplayLayerImpl::Tiling>& left,
-                  const std::unique_ptr<TileDisplayLayerImpl::Tiling>& right) {
+  bool operator()(const std::unique_ptr<TileDisplayLayerTiling>& left,
+                  const std::unique_ptr<TileDisplayLayerTiling>& right) {
     return left->contents_scale_key() > right->contents_scale_key();
   }
 };
 
 }  // namespace
 
-TileDisplayLayerImpl::Tile::Tile(TileDisplayLayerImpl& layer,
-                                 const TileContents& contents)
+TileDisplayLayerTile::TileDisplayLayerTile(
+    TileDisplayLayerImpl& layer,
+    const TileDisplayLayerTileContents& contents)
     : layer_(layer), contents_(contents) {}
 
-TileDisplayLayerImpl::Tile::Tile(Tile&&) = default;
+TileDisplayLayerTile::TileDisplayLayerTile(TileDisplayLayerTile&&) = default;
 
-TileDisplayLayerImpl::Tile::~Tile() {
-  if (auto* resource = std::get_if<TileResource>(&contents_)) {
+TileDisplayLayerTile::~TileDisplayLayerTile() {
+  if (auto* resource = std::get_if<TileDisplayLayerTileResource>(&contents_)) {
     layer_->DiscardResource(resource->resource_id);
   }
 }
 
-TileDisplayLayerImpl::Tiling::Tiling(TileDisplayLayerImpl& layer,
-                                     float scale_key)
+TileDisplayLayerTiling::TileDisplayLayerTiling(TileDisplayLayerImpl& layer,
+                                               float scale_key)
     : layer_(layer), scale_key_(scale_key) {}
 
-TileDisplayLayerImpl::Tiling::~Tiling() = default;
+TileDisplayLayerTiling::~TileDisplayLayerTiling() = default;
 
-TileDisplayLayerImpl::Tile* TileDisplayLayerImpl::Tiling::TileAt(
+TileDisplayLayerTile* TileDisplayLayerTiling::TileAt(
     const TileIndex& index) const {
   auto it = tiles_.find(index);
   if (it == tiles_.end()) {
@@ -64,13 +62,13 @@ TileDisplayLayerImpl::Tile* TileDisplayLayerImpl::Tiling::TileAt(
   return it->second.get();
 }
 
-void TileDisplayLayerImpl::Tiling::SetRasterTransform(
+void TileDisplayLayerTiling::SetRasterTransform(
     const gfx::AxisTransform2d& transform) {
   DCHECK_EQ(std::max(transform.scale().x(), transform.scale().y()), scale_key_);
   raster_transform_ = transform;
 }
 
-void TileDisplayLayerImpl::Tiling::SetTileSize(const gfx::Size& size) {
+void TileDisplayLayerTiling::SetTileSize(const gfx::Size& size) {
   if (size == tiling_data_.max_texture_size()) {
     return;
   }
@@ -78,7 +76,7 @@ void TileDisplayLayerImpl::Tiling::SetTileSize(const gfx::Size& size) {
   tiling_data_.SetMaxTextureSize(size);
 }
 
-void TileDisplayLayerImpl::Tiling::SetTilingRect(const gfx::Rect& rect) {
+void TileDisplayLayerTiling::SetTilingRect(const gfx::Rect& rect) {
   if (rect == tiling_data_.tiling_rect()) {
     return;
   }
@@ -86,9 +84,10 @@ void TileDisplayLayerImpl::Tiling::SetTilingRect(const gfx::Rect& rect) {
   tiling_data_.SetTilingRect(rect);
 }
 
-void TileDisplayLayerImpl::Tiling::SetTileContents(const TileIndex& key,
-                                                   const TileContents& contents,
-                                                   bool update_damage) {
+void TileDisplayLayerTiling::SetTileContents(
+    const TileIndex& key,
+    const TileDisplayLayerTileContents& contents,
+    bool update_damage) {
   if (update_damage) {
     // Full tree updates receive damage as part of the LayerImpl::update_rect.
     // For incremental tile updates on an Active tree, we need to record the
@@ -101,8 +100,8 @@ void TileDisplayLayerImpl::Tiling::SetTileContents(const TileIndex& key,
   }
 
   std::unique_ptr<Tile> old_tile;
-  if (std::holds_alternative<NoContents>(contents)) {
-    const auto& no_contents = std::get<NoContents>(contents);
+  if (std::holds_alternative<TileDisplayLayerNoContents>(contents)) {
+    const auto& no_contents = std::get<TileDisplayLayerNoContents>(contents);
     if (no_contents.reason == mojom::MissingTileReason::kTileDeleted) {
       tiles_.erase(key);
     } else {
@@ -115,10 +114,14 @@ void TileDisplayLayerImpl::Tiling::SetTileContents(const TileIndex& key,
   }
 }
 
-TileDisplayLayerImpl::DisplayTilingCoverageIterator
-TileDisplayLayerImpl::Tiling::Cover(const gfx::Rect& coverage_rect,
-                                    float coverage_scale) const {
+DisplayTilingCoverageIterator TileDisplayLayerTiling::Cover(
+    const gfx::Rect& coverage_rect,
+    float coverage_scale) const {
   return DisplayTilingCoverageIterator(this, coverage_scale, coverage_rect);
+}
+
+gfx::Size TileDisplayLayerTiling::raster_size() const {
+  return layer_->bounds();
 }
 
 TileDisplayLayerImpl::TileDisplayLayerImpl(LayerTreeImpl& tree, int id)
@@ -126,8 +129,8 @@ TileDisplayLayerImpl::TileDisplayLayerImpl(LayerTreeImpl& tree, int id)
 
 TileDisplayLayerImpl::~TileDisplayLayerImpl() = default;
 
-TileDisplayLayerImpl::Tiling&
-TileDisplayLayerImpl::GetOrCreateTilingFromScaleKey(float scale_key) {
+TileDisplayLayerTiling& TileDisplayLayerImpl::GetOrCreateTilingFromScaleKey(
+    float scale_key) {
   auto it = std::find_if(tilings_.begin(), tilings_.end(),
                          [scale_key](const auto& tiling) {
                            return tiling->contents_scale_key() == scale_key;
@@ -136,8 +139,9 @@ TileDisplayLayerImpl::GetOrCreateTilingFromScaleKey(float scale_key) {
     return **it;
   }
 
-  tilings_.push_back(std::make_unique<Tiling>(*this, scale_key));
-  Tiling& tiling = *tilings_.back();
+  tilings_.push_back(
+      std::make_unique<TileDisplayLayerTiling>(*this, scale_key));
+  TileDisplayLayerTiling& tiling = *tilings_.back();
   std::sort(tilings_.begin(), tilings_.end(), TilingOrder());
   return tiling;
 }
@@ -152,7 +156,7 @@ void TileDisplayLayerImpl::RemoveTiling(float scale_key) {
   }
 }
 
-const TileDisplayLayerImpl::Tiling* TileDisplayLayerImpl::GetTilingForTesting(
+const TileDisplayLayerTiling* TileDisplayLayerImpl::GetTilingForTesting(
     float scale_key) const {
   auto it = std::find_if(tilings_.begin(), tilings_.end(),
                          [scale_key](const auto& tiling) {
@@ -181,7 +185,6 @@ void TileDisplayLayerImpl::AppendQuadsSpecialization(
     viz::SharedQuadState* shared_quad_state,
     const Occlusion& scaled_occlusion,
     const gfx::Vector2d& quad_offset) {
-  const float device_scale_factor = layer_tree_impl()->device_scale_factor();
   const float max_contents_scale = GetMaximumContentsScaleForUseInAppendQuads();
 
   // Keep track of the tilings that were used so that tilings that are
@@ -203,73 +206,13 @@ void TileDisplayLayerImpl::AppendQuadsSpecialization(
     }
   }
 
-  const auto ideal_scale = GetIdealContentsScale();
-  const float ideal_scale_key = std::max(ideal_scale.x(), ideal_scale.y());
+  const float ideal_scale_key = GetIdealContentsScaleKey();
   const gfx::Rect scaled_recorded_bounds =
       gfx::ScaleToEnclosingRect(recorded_bounds_, max_contents_scale);
 
-  gfx::Rect debug_border_rect(shared_quad_state->quad_layer_rect);
-  debug_border_rect.Offset(quad_offset);
-
-  // Append debug borders for the quads in this layer.
-  if (ShowDebugBorders(DebugBorderType::LAYER)) {
-    for (auto iter = TilingSetCoverageIterator<Tiling>(
-             tilings_, shared_quad_state->visible_quad_layer_rect,
-             max_contents_scale, ideal_scale_key);
-         iter; ++iter) {
-      SkColor4f color;
-      float width;
-      if (*iter && iter->IsReadyToDraw()) {
-        if (iter->solid_color()) {
-          color = DebugColors::SolidColorTileBorderColor();
-          width = DebugColors::SolidColorTileBorderWidth(device_scale_factor);
-        } else if (iter->resource()) {
-          // NOTE: This is not exactly the same computation as is used by
-          // PictureLayerImpl, as high resolution tiles within PictureLayerImpl
-          // use `raster_contents_scale_`, which is not necessarily the ideal
-          // scale. However, we don't have the former field here, so use the
-          // ideal scale as an approximation.
-          // TODO(crbug.com/450651370): Determine whether we want to fix this.
-          if (MathUtil::IsFloatNearlyTheSame(
-                  iter.CurrentTiling()->contents_scale_key(),
-                  ideal_scale_key)) {
-            color = DebugColors::HighResTileBorderColor();
-            width = DebugColors::HighResTileBorderWidth(device_scale_factor);
-          } else if (iter.CurrentTiling()->contents_scale_key() >
-                     ideal_scale_key) {
-            color = DebugColors::AboveHighResTileBorderColor();
-            width =
-                DebugColors::AboveHighResTileBorderWidth(device_scale_factor);
-          } else {
-            color = DebugColors::BelowHighResTileBorderColor();
-            width =
-                DebugColors::BelowHighResTileBorderWidth(device_scale_factor);
-          }
-        } else if (iter->is_oom()) {
-          color = DebugColors::OOMTileBorderColor();
-          width = DebugColors::OOMTileBorderWidth(device_scale_factor);
-        } else {
-          NOTREACHED();
-        }
-      } else {
-        color = DebugColors::MissingTileBorderColor();
-        width = DebugColors::MissingTileBorderWidth(device_scale_factor);
-      }
-
-      auto* debug_border_quad =
-          render_pass->CreateAndAppendDrawQuad<viz::DebugBorderDrawQuad>();
-      gfx::Rect geometry_rect = iter.geometry_rect();
-      geometry_rect.Offset(quad_offset);
-      gfx::Rect visible_geometry_rect = geometry_rect;
-      debug_border_quad->SetNew(shared_quad_state, geometry_rect,
-                                visible_geometry_rect, color, width);
-    }
-  }
-
   // Append quads for the tiles in this layer.
-  for (auto iter = TilingSetCoverageIterator<Tiling>(
-           tilings_, shared_quad_state->visible_quad_layer_rect,
-           max_contents_scale, ideal_scale_key);
+  for (auto iter = Cover(shared_quad_state->visible_quad_layer_rect,
+                         max_contents_scale, ideal_scale_key);
        iter; ++iter) {
     const gfx::Rect geometry_rect = iter.geometry_rect();
     if (!scaled_recorded_bounds.Intersects(geometry_rect)) {
@@ -368,11 +311,8 @@ void TileDisplayLayerImpl::GetContentsResourceId(
   const float max_contents_scale = tilings_.front()->contents_scale_key();
   gfx::Rect content_rect =
       gfx::ScaleToEnclosingRect(gfx::Rect(bounds()), max_contents_scale);
-  const auto ideal_scale = GetIdealContentsScale();
-  const float ideal_scale_key = std::max(ideal_scale.x(), ideal_scale.y());
-
-  auto iter = TilingSetCoverageIterator<Tiling>(
-      tilings_, content_rect, max_contents_scale, ideal_scale_key);
+  auto iter = TilingSetCoverageIterator<TileDisplayLayerTiling>(
+      tilings_, content_rect, max_contents_scale, GetIdealContentsScaleKey());
 
   // We cannot do anything if the mask resource was not provided.
   if (!iter || !*iter || !iter->resource()) {
@@ -431,6 +371,11 @@ std::vector<float> TileDisplayLayerImpl::GetSafeToDeleteTilings() {
   return safe_to_delete_scales;
 }
 
+float TileDisplayLayerImpl::GetIdealContentsScaleKey() const {
+  const auto ideal_scale = GetIdealContentsScale();
+  return std::max(ideal_scale.x(), ideal_scale.y());
+}
+
 void TileDisplayLayerImpl::AppendQuadsForResourcelessSoftwareDraw(
     const AppendQuadsContext& context,
     viz::CompositorRenderPass* render_pass,
@@ -441,6 +386,34 @@ void TileDisplayLayerImpl::AppendQuadsForResourcelessSoftwareDraw(
   // and its handling is thus specific to the renderer-side PictureLayerImpl. It
   // should never be propagated to the Viz side.
   NOTREACHED();
+}
+
+TilingSetCoverageIterator<TileDisplayLayerTiling> TileDisplayLayerImpl::Cover(
+    const gfx::Rect& coverage_rect,
+    float coverage_scale,
+    float ideal_contents_scale) {
+  return TilingSetCoverageIterator<TileDisplayLayerTiling>(
+      tilings_, coverage_rect, coverage_scale, ideal_contents_scale);
+}
+
+TileBasedLayerImpl<TileDisplayLayerTiling>::TilingResolution
+TileDisplayLayerImpl::GetTilingResolutionForDebugBorders(
+    const TileDisplayLayerTiling* tiling) const {
+  const float ideal_scale_key = GetIdealContentsScaleKey();
+  if (MathUtil::IsFloatNearlyTheSame(tiling->contents_scale_key(),
+                                     ideal_scale_key)) {
+    // NOTE: The above check is not exactly the same computation as is
+    // used by PictureLayerImpl, as high resolution tiles within
+    // PictureLayerImpl use `raster_contents_scale_`, which is not
+    // necessarily the ideal scale. However, we don't have the former
+    // field here, so use the ideal scale as an approximation.
+    // TODO(crbug.com/450651370): Determine whether we want to fix this.
+    return TilingResolution::kHigh;
+  }
+  if (tiling->contents_scale_key() > ideal_scale_key) {
+    return TilingResolution::kAboveHigh;
+  }
+  return TilingResolution::kBelowHigh;
 }
 
 }  // namespace cc

@@ -204,13 +204,13 @@ void PrerenderHost::PrerenderFrameTreeDelegate::SetFocusedFrame(
   NOTREACHED();
 }
 
-FrameTree*
-PrerenderHost::PrerenderFrameTreeDelegate::GetOwnedPictureInPictureFrameTree() {
+FrameTree* PrerenderHost::PrerenderFrameTreeDelegate::
+    GetOwnedDocumentPictureInPictureFrameTree() {
   return nullptr;
 }
 
 FrameTree* PrerenderHost::PrerenderFrameTreeDelegate::
-    GetPictureInPictureOpenerFrameTree() {
+    GetDocumentPictureInPictureOpenerFrameTree() {
   return nullptr;
 }
 
@@ -230,6 +230,21 @@ void PrerenderHost::PrerenderFrameTreeDelegate::
 bool PrerenderHost::PrerenderFrameTreeDelegate::ShouldPreserveAbortedURLs() {
   return false;
 }
+
+#if BUILDFLAG(IS_ANDROID)
+
+scoped_refptr<viz::RasterContextProvider>
+PrerenderHost::PrerenderFrameTreeDelegate::GetRasterContextProvider() {
+  NOTREACHED();
+}
+
+gfx::ColorSpace PrerenderHost::PrerenderFrameTreeDelegate::GetOutputColorSpace(
+    gfx::ContentColorUsage color_usage,
+    bool needs_alpha) {
+  NOTREACHED();
+}
+
+#endif  // BUILDFLAG(IS_ANDROID)
 
 PrerenderHost::LoadingOutcome
 PrerenderHost::PrerenderFrameTreeDelegate::WaitForLoadStopForTesting() {
@@ -1546,10 +1561,11 @@ void PrerenderHost::OnAcceptClientHintChanged(
 void PrerenderHost::GetAllowedClientHintsOnPage(
     const url::Origin& origin,
     blink::EnabledClientHints* client_hints) const {
-  if (!client_hints_type_.contains(origin)) {
+  auto it = client_hints_type_.find(origin);
+  if (it == client_hints_type_.end()) {
     return;
   }
-  for (const auto& hint : client_hints_type_.at(origin)) {
+  for (const auto& hint : it->second) {
     client_hints->SetIsEnabled(hint, true);
   }
 }

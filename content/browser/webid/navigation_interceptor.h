@@ -22,6 +22,7 @@ class NavigationThrottleRegistry;
 class RenderFrameHost;
 
 namespace webid {
+class RequestService;
 
 // The NavigationInterceptor enables Identity Providers to control
 // navigations to their endpoints by cancelling it and replacing it
@@ -45,8 +46,7 @@ class CONTENT_EXPORT NavigationInterceptor
   };
 
   using RequestServiceBuilder =
-      base::RepeatingCallback<blink::mojom::FederatedAuthRequest*(
-          content::RenderFrameHost* rfh)>;
+      base::RepeatingCallback<RequestService*(content::RenderFrameHost* rfh)>;
 
   explicit NavigationInterceptor(NavigationThrottleRegistry& registry);
   NavigationInterceptor(NavigationThrottleRegistry& registry,
@@ -57,6 +57,7 @@ class CONTENT_EXPORT NavigationInterceptor
   NavigationInterceptor& operator=(const NavigationInterceptor&) = delete;
 
   // content::NavigationThrottle overrides:
+  ThrottleCheckResult WillStartRequest() override;
   ThrottleCheckResult WillProcessResponse() override;
   const char* GetNameForLogging() override;
 
@@ -64,7 +65,6 @@ class CONTENT_EXPORT NavigationInterceptor
 
  private:
   void OnHeaderParsed(
-      content::WeakDocumentPtr doc_ptr,
       base::expected<net::structured_headers::Dictionary, std::string> result);
   void OnTokenResponse(
       blink::mojom::RequestTokenStatus status,
@@ -74,7 +74,12 @@ class CONTENT_EXPORT NavigationInterceptor
       bool is_auto_selected);
 
   RequestServiceBuilder service_builder_;
-  mojo::Remote<blink::mojom::FederatedAuthRequest> remote_;
+  // Tracks the document present in the target RenderFrameHost at the time the
+  // relevant navigation began. This will be navigated to complete the FedCM
+  // flow after the initiating navigation is canceled and replaced. A
+  // WeakDocumentPtr is used so that the FedCM flow will not continue if the
+  // target frame otherwise navigates in the meantime.
+  WeakDocumentPtr document_;
   base::WeakPtrFactory<NavigationInterceptor> weak_ptr_factory_{this};
 };
 

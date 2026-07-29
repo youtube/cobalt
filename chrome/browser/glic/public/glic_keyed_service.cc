@@ -10,7 +10,6 @@
 #include "base/command_line.h"
 #include "base/containers/flat_set.h"
 #include "base/feature_list.h"
-#include "base/functional/callback_forward.h"
 #include "base/location.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
@@ -97,7 +96,7 @@ base::TimeDelta GetWarmingDelay() {
 }
 
 bool UseDefaultWindowController() {
-  return !GlicEnabling::IsMultiInstanceEnabledByFlags();
+  return !GlicEnabling::IsMultiInstanceEnabled();
 }
 
 std::unique_ptr<GlicWindowController> CreateWindowController(
@@ -106,6 +105,13 @@ std::unique_ptr<GlicWindowController> CreateWindowController(
     GlicKeyedService* glic_service,
     GlicEnabling* glic_enabling,
     contextual_cueing::ContextualCueingService* contextual_cueing_service) {
+  // Update the eligibility state for future runs of Chrome in case this
+  // newly loaded profile was not captured in the initial eligibility check.
+  // This will not affect the multi-instance eligibiltiy state of the current
+  // run.
+  GlicEnabling::GetAndUpdateEligibilityForGlicMultiInstanceTieredRollout(
+      profile);
+
   if (UseDefaultWindowController()) {
     return std::make_unique<GlicWindowControllerImpl>(
         profile, identity_manager, glic_service, glic_enabling);
@@ -228,7 +234,7 @@ GlicKeyedService* GlicKeyedService::Get(content::BrowserContext* context) {
 }
 
 void GlicKeyedService::Shutdown() {
-  if (GlicEnabling::IsMultiInstanceEnabledByFlags()) {
+  if (GlicEnabling::IsMultiInstanceEnabled()) {
     window_controller().Shutdown();
     fre_controller_->Shutdown();
   } else {
@@ -292,10 +298,15 @@ void GlicKeyedService::OpenFreDialogInNewTab(BrowserWindowInterface* bwi,
 }
 
 void GlicKeyedService::CloseAndShutdown() {
-  CHECK(!GlicEnabling::IsMultiInstanceEnabledByFlags());
+  CHECK(!GlicEnabling::IsMultiInstanceEnabled());
   window_controller().Shutdown();
   host_manager().Shutdown();
   fre_controller_->Shutdown();
+}
+
+void GlicKeyedService::CloseAndShutdown(
+    content::RenderFrameHost* render_frame_host) {
+  window_controller().CloseAndShutdownInstanceWithFrame(render_frame_host);
 }
 
 void GlicKeyedService::CloseFloatingPanel() {
@@ -612,12 +623,6 @@ void GlicKeyedService::TryPreloadAfterDelay() {
 }
 
 void GlicKeyedService::TryPreloadFre(GlicPrewarmingFreSource source) {
-  if (!base::FeatureList::IsEnabled(features::kGlicFreWarming)) {
-    // Early/duplicate FRE warming enabling check just to record this metric.
-    base::UmaHistogramEnumeration(
-        "Glic.PrewarmingFre.DisabledShouldNotPreloadFreForSource", source);
-    return;
-  }
   GlicProfileManager* glic_profile_manager = GlicProfileManager::GetInstance();
   CHECK(glic_profile_manager);
 
@@ -645,7 +650,7 @@ void GlicKeyedService::OnMemoryPressure(base::MemoryPressureLevel level) {
       (this == GlicProfileManager::GetInstance()->GetLastActiveGlic())) {
     return;
   }
-  if (!GlicEnabling::IsMultiInstanceEnabledByFlags()) {
+  if (!GlicEnabling::IsMultiInstanceEnabled()) {
     CloseAndShutdown();
   }
   // TODO(crbug.com/453747043): Handle Multi Instance.
@@ -678,16 +683,20 @@ void GlicKeyedService::FinishPreload(GlicPrewarmingChecksResult result) {
 }
 
 void GlicKeyedService::FinishPreloadFre(GlicPrewarmingFreSource source,
-                                        bool should_preload) {
-  if (!should_preload) {
+                                        GlicPrewarmingChecksResult result) {
+  if (result != GlicPrewarmingChecksResult::kSuccess) {
+    // If FRE preloading was rejected, log error metrics and return.
     base::UmaHistogramEnumeration(
         "Glic.PrewarmingFre.ShouldNotPreloadFreForSource", source);
+    if (result == GlicPrewarmingChecksResult::kWarmingDisabled) {
+      base::UmaHistogramEnumeration(
+          "Glic.PrewarmingFre.DisabledShouldNotPreloadFreForSource", source);
+    }
     return;
   }
 
   base::UmaHistogramEnumeration("Glic.PrewarmingFre.ShouldPreloadFreForSource",
                                 source);
-
   fre_controller().TryPreload();
 }
 
@@ -730,11 +739,7 @@ void GlicKeyedService::SendAdditionalContext(
 
 void GlicKeyedService::Close(
     content::RenderFrameHost* outermost_render_frame_host) {
-  for (auto* instance : window_controller().GetInstances()) {
-    if (instance) {
-      instance->host().Close(outermost_render_frame_host);
-    }
-  }
+  window_controller().CloseInstanceWithFrame(outermost_render_frame_host);
 }
 
 void GlicKeyedService::OnWebClientCleared() {
@@ -769,12 +774,13 @@ void GlicKeyedService::RequestToShowCredentialSelectionDialog(
 void GlicKeyedService::RequestToShowUserConfirmationDialog(
     actor::TaskId task_id,
     const url::Origin& navigation_origin,
+    bool for_blocklisted_origin,
     actor::ActorTaskDelegate::UserConfirmationDialogCallback callback) {
   CHECK(UseDefaultWindowController());
   auto* window_controller_impl =
       static_cast<GlicWindowControllerImpl*>(window_controller_.get());
   window_controller_impl->host().RequestToShowUserConfirmationDialog(
-      task_id, navigation_origin, std::move(callback));
+      task_id, navigation_origin, for_blocklisted_origin, std::move(callback));
 }
 
 void GlicKeyedService::RequestToConfirmNavigation(

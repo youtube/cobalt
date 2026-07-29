@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "base/containers/to_vector.h"
+#include "base/functional/callback_helpers.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/task/sequenced_task_runner.h"
@@ -554,14 +555,15 @@ ShareRanking::Ranking ShareRanking::GetDefaultInitialRankingForType(
 
 #if BUILDFLAG(IS_ANDROID)
 
-void JNI_ShareRankingBridge_Rank(JNIEnv* env,
-                                 Profile* profile,
-                                 std::string& type,
-                                 std::vector<std::string>& available,
-                                 jint jfold,
-                                 jint jlength,
-                                 jboolean jpersist,
-                                 const JavaParamRef<jobject>& jcallback) {
+static void JNI_ShareRankingBridge_Rank(
+    JNIEnv* env,
+    Profile* profile,
+    std::string& type,
+    std::vector<std::string>& available,
+    jint jfold,
+    jint jlength,
+    jboolean jpersist,
+    const JavaParamRef<jobject>& jcallback) {
   base::android::ScopedJavaGlobalRef<jobject> callback(jcallback);
 
   if (profile->IsOffTheRecord()) {
@@ -590,3 +592,7 @@ void JNI_ShareRankingBridge_Rank(JNIEnv* env,
 }
 
 #endif  // BUILDFLAG(IS_ANDROID)
+
+#if BUILDFLAG(IS_ANDROID)
+DEFINE_JNI(ShareRankingBridge)
+#endif

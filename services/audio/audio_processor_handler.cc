@@ -7,9 +7,11 @@
 #include <algorithm>
 
 #include "base/memory/raw_ptr.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/trace_event/trace_event.h"
 #include "media/base/audio_bus.h"
 #include "media/base/audio_parameters.h"
+#include "media/base/media_switches.h"
 #include "services/audio/ml_model_manager.h"
 
 namespace audio {
@@ -25,7 +27,10 @@ AudioProcessorHandler::AudioProcessorHandler(
         controls_receiver,
     media::AecdumpRecordingManager* aecdump_recording_manager,
     raw_ptr<MlModelManager> ml_model_manager)
-    : audio_processor_(media::AudioProcessor::Create(
+    : residual_echo_estimation_model_handle_(
+          ml_model_manager ? ml_model_manager->GetResidualEchoEstimationModel()
+                           : nullptr),
+      audio_processor_(media::AudioProcessor::Create(
           // Unretained is safe because this class owns audio_processor_, so it
           // will be destroyed first.
           base::BindRepeating(&AudioProcessorHandler::DeliverProcessedAudio,
@@ -34,8 +39,9 @@ AudioProcessorHandler::AudioProcessorHandler(
           settings,
           input_format,
           output_format,
-          ml_model_manager ? ml_model_manager->GetResidualEchoEstimationModel()
-                           : nullptr)),
+          residual_echo_estimation_model_handle_
+              ? residual_echo_estimation_model_handle_->Get()
+              : nullptr)),
       deliver_processed_audio_callback_(
           std::move(deliver_processed_audio_callback)),
       reference_stream_error_callback_(
@@ -45,6 +51,17 @@ AudioProcessorHandler::AudioProcessorHandler(
   DCHECK(settings.NeedWebrtcAudioProcessing());
   if (aecdump_recording_manager_) {
     aecdump_recording_manager->RegisterAecdumpSource(this);
+  }
+  if (media::IsAudioProcessMlModelUsageEnabled() &&
+      settings.echo_cancellation) {
+    // Only log model availability when model management is enabled and echo
+    // cancellation is requested, in order to avoid diluting the metric.
+    // We log it here, in the audio service, because lower layers are also
+    // used from render processes where this feature is not available.
+    bool is_model_available = residual_echo_estimation_model_handle_ != nullptr;
+    base::UmaHistogramBoolean(
+        "Media.Audio.Capture.NeuralResidualEchoEstimationModelAvailable",
+        is_model_available);
   }
 }
 

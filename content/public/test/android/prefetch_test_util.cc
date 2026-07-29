@@ -14,7 +14,7 @@
 
 namespace content {
 
-void JNI_PrefetchTestUtil_WaitUntilPrefetchResponseCompleted(
+static void JNI_PrefetchTestUtil_WaitUntilPrefetchResponseCompleted(
     JNIEnv* env,
     GURL& url,
     const base::android::JavaParamRef<jobject>& callback) {
@@ -32,3 +32,5 @@ void JNI_PrefetchTestUtil_WaitUntilPrefetchResponseCompleted(
 }
 
 }  // namespace content
+
+DEFINE_JNI(PrefetchTestUtil)

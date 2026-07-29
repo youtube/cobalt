@@ -276,8 +276,14 @@ struct BLINK_COMMON_EXPORT StructTraits<blink::mojom::WebPreferencesDataView,
     return r.block_mixed_plugin_content;
   }
 
-  static bool password_echo_enabled(const blink::web_pref::WebPreferences& r) {
-    return r.password_echo_enabled;
+  static bool password_echo_enabled_physical(
+      const blink::web_pref::WebPreferences& r) {
+    return r.password_echo_enabled_physical;
+  }
+
+  static bool password_echo_enabled_touch(
+      const blink::web_pref::WebPreferences& r) {
+    return r.password_echo_enabled_touch;
   }
 
   static bool should_clear_document_background(
@@ -822,11 +828,6 @@ struct BLINK_COMMON_EXPORT StructTraits<blink::mojom::WebPreferencesDataView,
   static bool payment_request_enabled(
       const blink::web_pref::WebPreferences& r) {
     return r.payment_request_enabled;
-  }
-
-  static bool content_based_fingerprinting_protection_enabled(
-      const blink::web_pref::WebPreferences& r) {
-    return r.content_based_fingerprinting_protection_enabled;
   }
 
   static bool ai_prompt_api_enabled(const blink::web_pref::WebPreferences& r) {

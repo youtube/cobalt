@@ -14,7 +14,6 @@
 #include "components/country_codes/country_codes.h"
 #include "components/keyed_service/core/keyed_service.h"
 #include "components/regional_capabilities/program_settings.h"
-#include "components/search_engines/search_engine_choice/search_engine_choice_utils.h"
 
 namespace policy {
 class ManagementService;
@@ -40,9 +39,20 @@ class PrefRegistrySyncable;
 
 class PrefRegistrySimple;
 class PrefService;
+class SearchTermsData;
+class TemplateURL;
 class TemplateURLService;
 
 namespace search_engines {
+
+class ChoiceScreenData;
+class SearchEngineChoiceService;
+enum class ChoiceMadeLocation;
+enum class SearchEngineChoiceScreenConditions;
+enum class SearchEngineChoiceScreenEvents;
+enum class SearchEngineChoiceWipeReason;
+struct ChoiceCompletionMetadata;
+struct ChoiceScreenDisplayState;
 
 // `KeyedService` for managing the state related to Search Engine Choice (mostly
 // for the country information).
@@ -163,17 +173,11 @@ class SearchEngineChoiceService : public KeyedService {
 
   // Records metrics about what was displayed on the choice screen for this
   // profile, as captured by `display_state`.
-  // `is_from_cached_state` being `true` indicates that this is not the first
-  // time the method has been called for this profile, and that we are now
-  // calling it with some `display_state` that was cached from a previous
-  // attempt due to a mismatch between the Variations country and the one
-  // associated with the profile. Some metrics can be logged right away, while
-  // some others are logged only when the countries match.
-  // Note that due to various constraints, this might end up being a no-op and
-  // not record anything.
+  // If due to various constraints, the metrics can't be fully recorded, the
+  // state is cached and the service will attempt it the next time it is
+  // initialized.
   void MaybeRecordChoiceScreenDisplayState(
-      const ChoiceScreenDisplayState& display_state,
-      bool is_from_cached_state = false);
+      const ChoiceScreenDisplayState& display_state);
 
   // Clear state e.g. when a guest session is closed.
   void ResetState();
@@ -290,6 +294,10 @@ class SearchEngineChoiceService : public KeyedService {
 
   base::WeakPtrFactory<SearchEngineChoiceService> weak_ptr_factory_{this};
 };
+
+void MarkSearchEngineChoiceCompletedForTesting(
+    PrefService& prefs,
+    ChoiceCompletionMetadata metadata);
 
 void MarkSearchEngineChoiceCompletedForTesting(
     PrefService& prefs,

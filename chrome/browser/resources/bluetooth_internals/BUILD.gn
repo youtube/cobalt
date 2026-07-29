@@ -13,36 +13,35 @@ build_webui("build") {
     "menu.svg",
   ]
 
-  # TODO(crbug.com/40848285): Migrate to TypeScript.
   web_component_files = [
     "characteristic_list_item.ts",
     "descriptor_list_item.ts",
-    "device_table.js",
+    "device_table.ts",
     "expandable_list.ts",
     "expandable_list_item.ts",
     "object_fieldset.ts",
     "service_list_item.ts",
-    "snackbar.js",
-    "value_control.js",
+    "snackbar.ts",
+    "value_control.ts",
   ]
 
   ts_files = [
-    "adapter_broker.js",
+    "adapter_broker.ts",
     "adapter_page.ts",
-    "bluetooth_internals.js",
+    "bluetooth_internals.ts",
     "characteristic_list.ts",
-    "debug_log_page.js",
+    "debug_log_page.ts",
     "descriptor_list.ts",
     "device_broker.ts",
-    "device_collection.js",
-    "device_details_page.js",
+    "device_collection.ts",
+    "device_details_page.ts",
     "device_utils.ts",
     "devices_page.ts",
     "main.ts",
-    "page.js",
-    "page_manager.js",
+    "page.ts",
+    "page_manager.ts",
     "service_list.ts",
-    "sidebar.js",
+    "sidebar.ts",
   ]
 
   mojo_files_deps = [

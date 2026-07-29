@@ -19,6 +19,7 @@
 #import "base/strings/sys_string_conversions.h"
 #import "ios/chrome/browser/commerce/ui_bundled/price_card/price_card_data_source.h"
 #import "ios/chrome/browser/commerce/ui_bundled/price_card/price_card_item.h"
+#import "ios/chrome/browser/drag_and_drop/model/drag_item_util.h"
 #import "ios/chrome/browser/menu/ui_bundled/menu_histograms.h"
 #import "ios/chrome/browser/shared/model/url/url_util.h"
 #import "ios/chrome/browser/shared/public/commands/tab_grid_commands.h"
@@ -84,7 +85,7 @@ CGFloat const kCellMaxHeightForEmptyThumbnailCenteredPortraitLayout = 275;
 // create/add to a group.
 // TODO(crbug.com/450613202): Define a fixed point margin for different device
 // size support.
-CGFloat kDragReorderMargin = 0.2;
+constexpr CGFloat kDragReorderMargin = 0.2;
 
 // Returns the accessibility identifier to set on a GroupGridCell when
 // positioned at the given index.
@@ -207,8 +208,6 @@ typedef NS_ENUM(NSInteger, DragEntrySide) {
 #pragma mark - UIViewController
 
 - (void)loadView {
-  self.overrideUserInterfaceStyle = UIUserInterfaceStyleDark;
-
   GridLayout* gridLayout = [[GridLayout alloc] init];
   self.gridLayout = gridLayout;
 
@@ -711,7 +710,8 @@ typedef NS_ENUM(NSInteger, DragEntrySide) {
     // This is important to prevent cells from animating indefinitely. This is
     // safe because the animation state of GridCells is set in
     // `configureCell:withItem:atIndex:` whenever a cell is used.
-    [ObjCCastStrict<GridCell>(cell) hideActivityIndicator];
+    [ObjCCastStrict<GridCell>(cell) hideFaviconActivityIndicator];
+    [ObjCCastStrict<GridCell>(cell) hideSnapshotActivityIndicator];
   }
 }
 
@@ -926,13 +926,20 @@ typedef NS_ENUM(NSInteger, DragEntrySide) {
         initWithDropOperation:UIDropOperationForbidden
                        intent:UICollectionViewDropIntentUnspecified];
   }
-
+  UIDragItem* dragItem = session.localDragSession.items.firstObject;
   CGPoint locationInCollectionView = [session locationInView:collectionView];
   NSIndexPath* destinationItemIndexPath =
       [collectionView indexPathForItemAtPoint:locationInCollectionView];
   NSIndexPath* draggedItemIndexPath = [self.diffableDataSource
       indexPathForItemIdentifier:_draggedItemIdentifier];
-  if (IsTabGridDragAndDropEnabled() && destinationItemIndexPath &&
+  BOOL isSharedGroup = NO;
+  if ([dragItem.localObject isKindOfClass:[TabGroupInfo class]]) {
+    TabGroupInfo* tabGroupInfo =
+        static_cast<TabGroupInfo*>(dragItem.localObject);
+    isSharedGroup = [self.dragDropHandler isGroupShared:tabGroupInfo];
+  }
+  if (IsTabGridDragAndDropEnabled() && !isSharedGroup &&
+      destinationItemIndexPath &&
       draggedItemIndexPath != destinationItemIndexPath) {
     // If the drag goes into a different cell's frame, either highlight or allow
     // for reorder depending on location.
@@ -957,17 +964,11 @@ typedef NS_ENUM(NSInteger, DragEntrySide) {
     if (shouldGroup) {
       [self highlightCellAtIndexPath:destinationItemIndexPath];
       return [[UICollectionViewDropProposal alloc]
-          initWithDropOperation:UIDropOperationCopy
-                         intent:
-                             UICollectionViewDropIntentInsertIntoDestinationIndexPath];
-    } else {
-      [self clearCurrentlyHighlightedCell];
-      return [[UICollectionViewDropProposal alloc]
           initWithDropOperation:UIDropOperationMove
                          intent:
-                             UICollectionViewDropIntentInsertAtDestinationIndexPath];
+                             UICollectionViewDropIntentInsertIntoDestinationIndexPath];
     }
-  } else {
+  }
     if (IsTabGridDragAndDropEnabled()) {
       [self clearCurrentlyHighlightedCell];
     }
@@ -981,7 +982,6 @@ typedef NS_ENUM(NSInteger, DragEntrySide) {
         initWithDropOperation:dropOperation
                        intent:
                            UICollectionViewDropIntentInsertAtDestinationIndexPath];
-  }
 }
 
 - (void)collectionView:(UICollectionView*)collectionView
@@ -1012,7 +1012,10 @@ typedef NS_ENUM(NSInteger, DragEntrySide) {
     }
     _isGroupBeingCreatedFromDragAndDrop = YES;
     TabInfo* tabInfo = static_cast<TabInfo*>(dropItem.dragItem.localObject);
-    if ([destinationCell isKindOfClass:[GroupGridCell class]]) {
+    if (sourceItem.tabGroupItem) {
+      [self.mutator mergeGroup:sourceItem.tabGroupItem
+           intoDestinationItem:destinationItem];
+    } else if ([destinationCell isKindOfClass:[GroupGridCell class]]) {
       [self.mutator addDroppedTab:tabInfo
                        sourceItem:sourceItem
                           toGroup:destinationItem.tabGroupItem.tabGroup];
@@ -1902,8 +1905,9 @@ typedef NS_ENUM(NSInteger, DragEntrySide) {
     // item.
     if ([cell.itemIdentifier.tabSwitcherItem isEqual:innerItem]) {
       cell.icon = tabSnapshotAndFavicon.favicon;
-      cell.snapshot =
-          innerItem.hidesSnapshot ? nil : tabSnapshotAndFavicon.snapshot;
+      BOOL shouldShowSnapshot =
+          [self.gridProvider shouldShowSnapshotForItem:cell.itemIdentifier];
+      cell.snapshot = shouldShowSnapshot ? tabSnapshotAndFavicon.snapshot : nil;
     }
   };
   [self.snapshotAndfaviconDataSource fetchTabSnapshotAndFavicon:item
@@ -1924,9 +1928,12 @@ typedef NS_ENUM(NSInteger, DragEntrySide) {
                   }];
   cell.opacity = 1.0f;
   if (item.showsActivity) {
-    [cell showActivityIndicator];
+    cell.snapshot = nil;
+    [cell showSnapshotActivityIndicator];
+    [cell showFaviconActivityIndicator];
   } else {
-    [cell hideActivityIndicator];
+    [cell hideSnapshotActivityIndicator];
+    [cell hideFaviconActivityIndicator];
   }
 
   cell.activityLabelData =

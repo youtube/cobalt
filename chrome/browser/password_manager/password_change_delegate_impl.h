@@ -34,6 +34,7 @@ class PasswordFormManager;
 class ChangePasswordFormFillingSubmissionHelper;
 class ChangePasswordFormFinder;
 class CrossOriginNavigationObserver;
+enum class LoginCheckResult;
 class LoginStateChecker;
 class PasswordChangeHats;
 class Profile;
@@ -43,10 +44,9 @@ class Profile;
 // generation and form submission.
 class PasswordChangeDelegateImpl : public PasswordChangeDelegate {
  public:
-  static constexpr char kFinalPasswordChangeStatusHistogram[] =
-      "PasswordManager.FinalPasswordChangeStatus";
-  static constexpr char kCoarseFinalPasswordChangeStatusHistogram[] =
-      "PasswordManager.CoarseFinalPasswordChangeStatus";
+  static char kFinalPasswordChangeStatusHistogram[];
+  static char kCoarseFinalPasswordChangeStatusHistogram[];
+  static char kPasswordChangeTimeOverallHistogram[];
 
   PasswordChangeDelegateImpl(GURL change_password_url,
                              password_manager::PasswordForm credentials,
@@ -96,7 +96,7 @@ class PasswordChangeDelegateImpl : public PasswordChangeDelegate {
   void OnPasswordFormSubmission(content::WebContents* web_contents) override;
   void OnPrivacyNoticeAccepted() override;
   void OnPasswordChangeDeclined() override;
-  void OnUserSkippedLoginCheck() override;
+  void RetryLoginCheck() override;
   void AddObserver(PasswordChangeDelegate::Observer* observer) override;
   void RemoveObserver(PasswordChangeDelegate::Observer* observer) override;
 
@@ -107,7 +107,7 @@ class PasswordChangeDelegateImpl : public PasswordChangeDelegate {
   void OnTabWillDetach(tabs::TabInterface* tab_interface,
                        tabs::TabInterface::DetachReason reason);
 
-  void OnLoginStateCheckResult(bool is_logged_in);
+  void OnLoginStateCheckResult(LoginCheckResult login_status);
   // Updates `current_state_` and notifies `observers_`.
   void UpdateState(State new_state);
 
@@ -157,12 +157,8 @@ class PasswordChangeDelegateImpl : public PasswordChangeDelegate {
   base::ObserverList<PasswordChangeDelegate::Observer, /*check_empty=*/true>
       observers_;
 
-  // The time when the initial dialog was displayed to the user.
-  base::Time leak_dialog_display_time_;
   // The time when the user started the password change flow.
   base::Time flow_start_time_;
-  // The time when the password change form was found.
-  base::Time change_password_form_found_time_;
 
   // The controller for password change views.
   std::unique_ptr<PasswordChangeUIController> ui_controller_;

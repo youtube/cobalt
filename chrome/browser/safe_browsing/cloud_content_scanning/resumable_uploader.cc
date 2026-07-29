@@ -10,6 +10,7 @@
 #include "base/files/file_path.h"
 #include "base/files/memory_mapped_file.h"
 #include "base/functional/bind.h"
+#include "base/functional/callback_helpers.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/strings/strcat.h"
@@ -32,7 +33,8 @@ namespace safe_browsing {
 
 namespace {
 
-using enterprise_connectors::ConnectorDataPipeGetter;
+using ::enterprise_connectors::ConnectorDataPipeGetter;
+using ::enterprise_connectors::ConnectorUploadRequest;
 
 // HTTP headers for resumable upload requests
 constexpr char kUploadProtocolHeader[] = "X-Goog-Upload-Protocol";
@@ -50,6 +52,8 @@ constexpr char kUploadIntermediateHeader[] =
 constexpr char kUploadContentType[] = "application/octet-stream";
 // Content type of metadata.
 constexpr char kMetadataContentType[] = "application/json";
+// Content type of pasted images.
+constexpr char kImageContentType[] = "image/png";
 
 std::unique_ptr<ConnectorDataPipeGetter> CreateFileDataPipeGetterBlocking(
     const base::FilePath& path,
@@ -161,9 +165,10 @@ void ResumableUploadRequest::SetMetadataRequestHeaders(
   request->headers.SetHeader(kUploadCommandHeader, "start");
   request->headers.SetHeader(kUploadHeaderContentLengthHeader,
                              base::NumberToString(data_size_));
-  request->headers.SetHeader(kUploadHeaderContentTypeHeader,
-                             kUploadContentType);
-
+  // `STRING` is only used for resumable requests for image pasting.
+  request->headers.SetHeader(
+      kUploadHeaderContentTypeHeader,
+      data_source_ == STRING ? kImageContentType : kUploadContentType);
   if (!access_token_.empty()) {
     LogAuthenticatedCookieResets(
         *request, SafeBrowsingAuthenticatedEndpoint::kDeepScanning);
@@ -438,7 +443,7 @@ void ResumableUploadRequest::SendContentNow(
   url_loader_->SetAllowHttpErrorResults(true);
 
   if (!data_pipe_getter_) {
-    url_loader_->AttachStringForUpload(data_, kUploadContentType);
+    url_loader_->AttachStringForUpload(data_, kImageContentType);
   }
 
   url_loader_->DownloadToStringOfUnboundedSizeUntilCrashAndDie(

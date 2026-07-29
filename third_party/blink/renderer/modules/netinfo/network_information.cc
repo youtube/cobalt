@@ -19,7 +19,6 @@
 #include "third_party/blink/renderer/modules/event_target_modules.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/runtime_enabled_features.h"
-#include "third_party/blink/renderer/platform/supplementable.h"
 #include "third_party/blink/renderer/platform/weborigin/kurl.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 
@@ -290,24 +289,19 @@ void NetworkInformation::StopObserving() {
   }
 }
 
-const unsigned NetworkInformation::kSupplementIndex =
-    static_cast<unsigned>(NavigatorBase::Supplements::kNetworkInformation);
-
 NetworkInformation* NetworkInformation::connection(NavigatorBase& navigator) {
   if (!navigator.GetExecutionContext())
     return nullptr;
-  NetworkInformation* supplement =
-      Supplement<NavigatorBase>::From<NetworkInformation>(navigator);
+  NetworkInformation* supplement = navigator.GetNetworkInformation();
   if (!supplement) {
     supplement = MakeGarbageCollected<NetworkInformation>(navigator);
-    ProvideTo(navigator, supplement);
+    navigator.SetNetworkInformation(supplement);
   }
   return supplement;
 }
 
 NetworkInformation::NetworkInformation(NavigatorBase& navigator)
     : ActiveScriptWrappable<NetworkInformation>({}),
-      Supplement<NavigatorBase>(navigator),
       ExecutionContextLifecycleObserver(navigator.GetExecutionContext()),
       web_holdback_console_message_shown_(false),
       context_stopped_(false) {
@@ -327,7 +321,6 @@ NetworkInformation::NetworkInformation(NavigatorBase& navigator)
 
 void NetworkInformation::Trace(Visitor* visitor) const {
   EventTarget::Trace(visitor);
-  Supplement<NavigatorBase>::Trace(visitor);
   ExecutionContextLifecycleObserver::Trace(visitor);
 }
 

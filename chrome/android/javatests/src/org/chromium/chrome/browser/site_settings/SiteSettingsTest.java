@@ -174,12 +174,15 @@ import java.util.concurrent.TimeoutException;
     ContentSwitches.HOST_RESOLVER_RULES + "=MAP * 127.0.0.1",
     "ignore-certificate-errors"
 })
+// TODO(https://crbug.com/464016211): these tests could be flaky because of AnimatedProgressBar.
 @DisableFeatures({
     ChromeFeatureList.EDGE_TO_EDGE_EVERYWHERE,
+    ChromeFeatureList.SETTINGS_MULTI_COLUMN,
+    ChromeFeatureList.ANDROID_ANIMATED_PROGRESS_BAR_IN_BROWSER
 })
 // TODO(crbug.com/344672098): Failing when batched, batch this again.
 public class SiteSettingsTest {
-
+    private static final int RENDER_TEST_REVISION = 5;
     @ClassRule public static PermissionTestRule mPermissionRule = new PermissionTestRule(true);
 
     @Rule public final MockitoRule mMockitoRule = MockitoJUnit.rule();
@@ -187,7 +190,7 @@ public class SiteSettingsTest {
     @Rule
     public RenderTestRule mRenderTestRule =
             RenderTestRule.Builder.withPublicCorpus()
-                    .setRevision(4)
+                    .setRevision(RENDER_TEST_REVISION)
                     .setBugComponent(Component.UI_BROWSER_MOBILE_SETTINGS)
                     .build();
 
@@ -244,6 +247,9 @@ public class SiteSettingsTest {
                     };
     private static final String[] CLEAR_BROWSING_DATA_LINK =
             new String[] {"clear_browsing_data_link", "clear_browsing_divider"};
+
+    private static final String[] CLEAR_BROWSING_DATA_LINK_WITH_CONTAINMENT =
+            new String[] {"clear_browsing_data_link"};
     private static final String[] ANTI_ABUSE_PREF_KEYS = {
         "anti_abuse_when_on_header",
         "anti_abuse_when_on_section_one",
@@ -1389,8 +1395,18 @@ public class SiteSettingsTest {
     @Test
     @SmallTest
     @Feature({"Preferences"})
+    @DisableFeatures(ChromeFeatureList.ANDROID_SETTINGS_CONTAINMENT)
     public void testOnlyExpectedPreferencesAllSites() {
         checkPreferencesForCategory(SiteSettingsCategory.Type.ALL_SITES, CLEAR_BROWSING_DATA_LINK);
+    }
+
+    @Test
+    @SmallTest
+    @Feature({"Preferences"})
+    @EnableFeatures(ChromeFeatureList.ANDROID_SETTINGS_CONTAINMENT)
+    public void testOnlyExpectedPreferencesAllSites_ContainmentEnabled() {
+        checkPreferencesForCategory(
+                SiteSettingsCategory.Type.ALL_SITES, CLEAR_BROWSING_DATA_LINK_WITH_CONTAINMENT);
     }
 
     @Test
@@ -2313,13 +2329,13 @@ public class SiteSettingsTest {
         ChromeFeatureList.PERMISSION_SITE_SETTING_RADIO_BUTTON
     })
     public void testOnlyExpectedPreferencesNotificationsWithToggle() {
-        String[] notifications_enabled = new String[] {"binary_toggle", "notifications_quiet_ui"};
-        String[] notifications_disabled = BINARY_TOGGLE;
+        String[] notificationsEnabled = new String[] {"binary_toggle", "notifications_quiet_ui"};
+        String[] notificationsDisabled = BINARY_TOGGLE;
 
         testExpectedPreferences(
                 SiteSettingsCategory.Type.NOTIFICATIONS,
-                notifications_disabled,
-                notifications_enabled);
+                notificationsDisabled,
+                notificationsEnabled);
     }
 
     @Test
@@ -2331,14 +2347,14 @@ public class SiteSettingsTest {
     })
     @DisableFeatures(ChromeFeatureList.PERMISSION_DEDICATED_CPSS_SETTING_ANDROID)
     public void testOnlyExpectedPreferencesNotifications() {
-        String[] notifications_enabled =
+        String[] notificationsEnabled =
                 new String[] {"info_text", "binary_radio_button", "notifications_quiet_ui"};
-        String[] notifications_disabled = BINARY_RADIO_BUTTON_AND_INFO_TEXT;
+        String[] notificationsDisabled = BINARY_RADIO_BUTTON_AND_INFO_TEXT;
 
         testExpectedPreferences(
                 SiteSettingsCategory.Type.NOTIFICATIONS,
-                notifications_disabled,
-                notifications_enabled);
+                notificationsDisabled,
+                notificationsEnabled);
     }
 
     @Test
@@ -2815,6 +2831,8 @@ public class SiteSettingsTest {
         ChromeFeatureList.PERMISSION_SITE_SETTING_RADIO_BUTTON,
         PermissionsAndroidFeatureList.APPROXIMATE_GEOLOCATION_PERMISSION
     })
+    // TODO(crbug.com/433576895): Re-enable containment feature once the test is fixed.
+    @DisableFeatures(ChromeFeatureList.ANDROID_SETTINGS_CONTAINMENT)
     public void testChangeGeolocationWithOptions() {
         String url = "https://example.com";
         LocationSettingsTestUtil.setSystemLocationSettingEnabled(true);

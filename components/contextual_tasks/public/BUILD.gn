@@ -12,6 +12,8 @@ source_set("feature_list") {
 
 source_set("public") {
   sources = [
+    "context_decoration_params.cc",
+    "context_decoration_params.h",
     "context_decorator.cc",
     "context_decorator.h",
     "contextual_task.cc",
@@ -31,6 +33,23 @@ source_set("public") {
   ]
 
   public_deps = [ ":feature_list" ]
+}
+
+source_set("test_support") {
+  testonly = true
+
+  sources = [
+    "mock_contextual_tasks_service.cc",
+    "mock_contextual_tasks_service.h",
+  ]
+
+  deps = [
+    ":public",
+    "//base",
+    "//components/sessions:session_id",
+    "//testing/gmock",
+    "//url",
+  ]
 }
 
 source_set("unit_tests") {

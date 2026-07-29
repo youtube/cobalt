@@ -14,7 +14,7 @@
 
 using base::android::JavaParamRef;
 
-int JNI_PolicyAuditor_GetCertificateFailure(
+static int JNI_PolicyAuditor_GetCertificateFailure(
     JNIEnv* env,
     const JavaParamRef<jobject>& java_web_contents) {
   // This function is similar to
@@ -65,3 +65,5 @@ int JNI_PolicyAuditor_GetCertificateFailure(
   }
   return NONE;
 }
+
+DEFINE_JNI(PolicyAuditor)

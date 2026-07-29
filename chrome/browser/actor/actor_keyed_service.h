@@ -71,14 +71,11 @@ class ActorKeyedService : public KeyedService,
   TaskId AddActiveTask(std::unique_ptr<ActorTask> task);
 
   const std::map<TaskId, const ActorTask*> GetActiveTasks() const;
-  const std::map<TaskId, const ActorTask*> GetInactiveTasks() const;
 
   std::vector<TaskId> FindTaskIdsInActive(
       base::FunctionRef<bool(const ActorTask&)> predicate) const;
-  std::vector<TaskId> FindTaskIdsInInactive(
-      base::FunctionRef<bool(const ActorTask&)> predicate) const;
 
-  // Stop and clear all active and inactive tasks for testing only.
+  // Stop and clear all active tasks for testing only.
   void ResetForTesting();
 
   // Starts a new task with an execution engine and returns the new task's id.
@@ -136,11 +133,11 @@ class ActorKeyedService : public KeyedService,
       base::OnceCallback<void(TabObservationResult)> callback);
 
   using TaskStateChangedCallback =
-      base::RepeatingCallback<void(const ActorTask&)>;
+      base::RepeatingCallback<void(TaskId, ActorTask::State)>;
   base::CallbackListSubscription AddTaskStateChangedCallback(
       TaskStateChangedCallback callback);
 
-  void NotifyTaskStateChanged(const ActorTask& task);
+  void NotifyTaskStateChanged(TaskId task_id, ActorTask::State state);
   void OnActOnWebCapabilityChanged(bool can_act_on_web);
 
   using ActOnWebCapabilityChangedCallback = base::RepeatingCallback<void(bool)>;
@@ -194,14 +191,12 @@ class ActorKeyedService : public KeyedService,
   std::unique_ptr<ui::ActorUiStateManagerInterface> actor_ui_state_manager_;
 
   std::map<TaskId, std::unique_ptr<ActorTask>> active_tasks_;
-  // Stores completed tasks. May want to add cancelled tasks in the future.
-  std::map<TaskId, std::unique_ptr<ActorTask>> inactive_tasks_;
 
   TaskId::Generator next_task_id_;
 
   std::unique_ptr<ActorPolicyChecker> policy_checker_;
 
-  base::RepeatingCallbackList<void(const ActorTask&)>
+  base::RepeatingCallbackList<void(TaskId, ActorTask::State)>
       tab_state_change_callback_list_;
 
   base::RepeatingCallbackList<ActOnWebCapabilityChangedCallback::RunType>

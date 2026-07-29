@@ -2,15 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
-#pragma allow_unsafe_buffers
-#endif
-
 #import "ios/chrome/browser/sessions/model/session_restoration_service_impl.h"
 
+#import <array>
 #import <map>
 #import <set>
+#import <string_view>
 
 #import "base/barrier_closure.h"
 #import "base/check_op.h"
@@ -71,7 +68,7 @@ const char kIdentifier1[] = "browser1";
 const char kIdentifier2[] = "browser2";
 
 // List of URLs that are loaded in the session.
-constexpr std::string_view kURLs[] = {
+constexpr std::array<std::string_view, 3> kURLs = {
     "chrome://version",
     "chrome://flags",
     "chrome://credits",
@@ -212,17 +209,10 @@ class FileModificationTracker {
  private:
   using PathToTimeMap = std::map<base::FilePath, base::Time>;
 
-  // Returns a mapping of session files.
+  // Returns a mapping of files to their last modified time.
   PathToTimeMap EnumerateFiles() const {
     PathToTimeMap result;
-    EnumerateFilesInDirectory(result, root_.Append(kLegacySessionsDirname));
-    EnumerateFilesInDirectory(result, root_.Append(kLegacyWebSessionsDirname));
-    EnumerateFilesInDirectory(result, root_.Append(kSessionRestorationDirname));
-    return result;
-  }
-
-  // Returns a mapping of files to their last modified time in `dir`.
-  void EnumerateFilesInDirectory(PathToTimeMap& map, base::FilePath dir) const {
+    const base::FilePath dir = root_.Append(kSessionRestorationDirname);
     base::FileEnumerator e(dir, true, base::FileEnumerator::FileType::FILES);
     for (base::FilePath name = e.Next(); !name.empty(); name = e.Next()) {
       // Workaround for the fact that base::FileEnumerator::FileInfo drops the
@@ -231,8 +221,9 @@ class FileModificationTracker {
       base::File::Info info;
       info.FromStat(e.GetInfo().stat());
 
-      map.insert(std::make_pair(name, info.last_modified));
+      result.insert(std::make_pair(name, info.last_modified));
     }
+    return result;
   }
 
   const base::FilePath root_;
@@ -406,7 +397,7 @@ class SessionRestorationServiceImplTest : public PlatformTest {
                           base::span<const std::string_view> urls) {
     base::RunLoop run_loop;
     ScopedTestWebStateObserver web_state_observer(
-        base::BarrierClosure(std::size(urls), run_loop.QuitClosure()));
+        base::BarrierClosure(urls.size(), run_loop.QuitClosure()));
 
     WebStateList* web_state_list = browser.GetWebStateList();
     for (std::string_view url : urls) {
@@ -515,7 +506,7 @@ TEST_F(SessionRestorationServiceImplTest, LoadSession) {
     EXPECT_FALSE(observer.restore_started());
 
     // Insert a few WebState in the Browser's WebStateList.
-    InsertTabsWithUrls(browser, base::span(kURLs));
+    InsertTabsWithUrls(browser, kURLs);
 
     // Check that the session was written to disk.
     WaitForSessionSaveComplete();
@@ -552,10 +543,10 @@ TEST_F(SessionRestorationServiceImplTest, LoadSession) {
 
     EXPECT_TRUE(observer.restore_started());
     EXPECT_EQ(observer.restored_web_states_count(),
-              static_cast<int>(std::size(kURLs)));
+              static_cast<int>(kURLs.size()));
 
     WebStateList* web_state_list = browser.GetWebStateList();
-    EXPECT_EQ(web_state_list->count(), static_cast<int>(std::size(kURLs)));
+    EXPECT_EQ(web_state_list->count(), static_cast<int>(kURLs.size()));
     EXPECT_EQ(web_state_list->active_index(), web_state_list->count() - 1);
     for (int index = 0; index < web_state_list->count(); ++index) {
       web::WebState* web_state = web_state_list->GetWebStateAt(index);
@@ -631,7 +622,7 @@ TEST_F(SessionRestorationServiceImplTest, SaveSessionOfModifiedBrowser) {
   service()->SetSessionID(&browser1, kIdentifier1);
 
   // Insert a few WebState in browser1's WebStateList.
-  InsertTabsWithUrls(browser1, base::span(kURLs));
+  InsertTabsWithUrls(browser1, kURLs);
 
   // Check that only browser1's session was written to disk.
   WaitForSessionSaveComplete();
@@ -650,7 +641,7 @@ TEST_F(SessionRestorationServiceImplTest, SaveSessionChangesOnlyRequiredFiles) {
   // Create a Browser and add a few WebStates to it.
   TestBrowser browser = TestBrowser(profile());
   service()->SetSessionID(&browser, kIdentifier0);
-  InsertTabsWithUrls(browser, base::span(kURLs));
+  InsertTabsWithUrls(browser, kURLs);
 
   // Check that the session was written to disk.
   WaitForSessionSaveComplete();
@@ -696,7 +687,7 @@ TEST_F(SessionRestorationServiceImplTest, AdoptUnrealizedWebStateOnMove) {
     service()->SetSessionID(&browser, kIdentifier0);
 
     // Insert a few WebState in the Browser's WebStateList.
-    InsertTabsWithUrls(browser, base::span(kURLs));
+    InsertTabsWithUrls(browser, kURLs);
 
     // Check that the session was written to disk.
     WaitForSessionSaveComplete();
@@ -731,7 +722,7 @@ TEST_F(SessionRestorationServiceImplTest, AdoptUnrealizedWebStateOnMove) {
 
   WebStateList* list0 = browser0.GetWebStateList();
   WebStateList* list1 = browser1.GetWebStateList();
-  ASSERT_EQ(list0->count(), static_cast<int>(std::size(kURLs)));
+  ASSERT_EQ(list0->count(), static_cast<int>(kURLs.size()));
   ASSERT_EQ(list1->count(), 0);
 
   // Check that the WebState are not realized.
@@ -769,7 +760,7 @@ TEST_F(SessionRestorationServiceImplTest, AdoptUnrealizedWebStateOnMove) {
       WebStateList::InsertionParams::AtIndex(old_active_index).Activate());
 
   ASSERT_EQ(list0->count(), 0);
-  ASSERT_EQ(list1->count(), static_cast<int>(std::size(kURLs)));
+  ASSERT_EQ(list1->count(), static_cast<int>(kURLs.size()));
 
   // Check that no files were deleted, the metadata for both session updated
   // and the WebState's storage copied from one Browser storage to the other.
@@ -794,7 +785,7 @@ TEST_F(SessionRestorationServiceImplTest, SavePendingChangesOnDisconnect) {
   // Create a Browser and add a few WebStates to it.
   TestBrowser browser = TestBrowser(profile());
   service()->SetSessionID(&browser, kIdentifier0);
-  InsertTabsWithUrls(browser, base::span(kURLs));
+  InsertTabsWithUrls(browser, kURLs);
 
   // Inserting the tabs may take more time than the save delay. Always
   // wait for the state to be saved so that the test is deterministic.
@@ -846,7 +837,7 @@ TEST_F(SessionRestorationServiceImplTest, DeleteObsoleteFilesOnLoadSession) {
     // Create a Browser and add a few WebStates to it.
     TestBrowser browser = TestBrowser(profile());
     service()->SetSessionID(&browser, kIdentifier0);
-    InsertTabsWithUrls(browser, base::span(kURLs));
+    InsertTabsWithUrls(browser, kURLs);
 
     // Inserting the tabs may take more time than the save delay. Always
     // wait for the state to be saved so that the test is deterministic.
@@ -896,7 +887,7 @@ TEST_F(SessionRestorationServiceImplTest, DeleteObsoleteFilesOnLoadSession) {
   // Check that the expected content was loaded and no files deleted yet (the
   // deletion is scheduled on the background sequence).
   EXPECT_EQ(browser.GetWebStateList()->count(),
-            static_cast<int>(std::size(kURLs)) - 1);
+            static_cast<int>(kURLs.size()) - 1);
   EXPECT_EQ(DeletedFiles(), FilePathSet{});
 
   // Wait for background processing to complete and check that the obsolete
@@ -917,7 +908,7 @@ TEST_F(SessionRestorationServiceImplTest, DeleteDataOnClose) {
     TestBrowser browser = TestBrowser(profile());
     service()->SetSessionID(&browser, kIdentifier0);
 
-    InsertTabsWithUrls(browser, base::span(kURLs));
+    InsertTabsWithUrls(browser, kURLs);
     WaitForSessionSaveComplete();
 
     service()->Disconnect(&browser);
@@ -961,7 +952,7 @@ TEST_F(SessionRestorationServiceImplTest, DeleteDataOnClose_AfterMove) {
     TestBrowser browser = TestBrowser(profile());
     service()->SetSessionID(&browser, kIdentifier0);
 
-    InsertTabsWithUrls(browser, base::span(kURLs));
+    InsertTabsWithUrls(browser, kURLs);
     WaitForSessionSaveComplete();
 
     service()->Disconnect(&browser);
@@ -1013,7 +1004,7 @@ TEST_F(SessionRestorationServiceImplTest, RecordHistograms) {
     // pending scheduled tasks to complete.
     TestBrowser browser = TestBrowser(profile());
     service()->SetSessionID(&browser, kIdentifier0);
-    InsertTabsWithUrls(browser, base::span(kURLs));
+    InsertTabsWithUrls(browser, kURLs);
     WaitForSessionSaveComplete();
 
     // Check that session is saved and histogram is recorded when making
@@ -1040,8 +1031,7 @@ TEST_F(SessionRestorationServiceImplTest, RecordHistograms) {
   service()->LoadSession(&browser);
 
   // Check that the expected content was loaded.
-  EXPECT_EQ(browser.GetWebStateList()->count(),
-            static_cast<int>(std::size(kURLs)));
+  EXPECT_EQ(browser.GetWebStateList()->count(), static_cast<int>(kURLs.size()));
   histogram_tester.ExpectTotalCount(kSessionHistogramLoadingTime, 1);
 
   // Disconnect the Browser before destroying it.
@@ -1112,7 +1102,7 @@ TEST_F(SessionRestorationServiceImplTest, SaveSessionsCallableAtAnyTime) {
   // to automatically be saved (this is because loading the pages will
   // take time and may cause automatically saving the session).
   {
-    InsertTabsWithUrls(browser0, base::span(kURLs));
+    InsertTabsWithUrls(browser0, kURLs);
     WaitForSessionSaveComplete();
 
     EXPECT_EQ(ModifiedFiles(),
@@ -1308,7 +1298,7 @@ TEST_F(SessionRestorationServiceImplTest, DeleteDataForDiscardedSessions) {
   // Insert a few WebStage in one of the Browser and wait for the changes
   // to automatically be saved (this is because loading the pages will
   // take time and may cause automatically saving the session).
-  InsertTabsWithUrls(browser, base::span(kURLs));
+  InsertTabsWithUrls(browser, kURLs);
   WaitForSessionSaveComplete();
 
   // Record the file that make the storage for `browser`.
@@ -1366,7 +1356,7 @@ TEST_F(SessionRestorationServiceImplTest, LoadWebStateData) {
     TestBrowser browser = TestBrowser(profile());
     service()->SetSessionID(&browser, kIdentifier0);
 
-    InsertTabsWithUrls(browser, base::span(kURLs));
+    InsertTabsWithUrls(browser, kURLs);
     WaitForSessionSaveComplete();
 
     service()->Disconnect(&browser);
@@ -1413,7 +1403,7 @@ TEST_F(SessionRestorationServiceImplTest, LoadWebStateData_Disconnected) {
     TestBrowser browser = TestBrowser(profile());
     service()->SetSessionID(&browser, kIdentifier0);
 
-    InsertTabsWithUrls(browser, base::span(kURLs));
+    InsertTabsWithUrls(browser, kURLs);
     WaitForSessionSaveComplete();
 
     service()->Disconnect(&browser);
@@ -1632,7 +1622,7 @@ TEST_F(SessionRestorationServiceImplTest, AttachBackup) {
     TestBrowser browser = TestBrowser(profile());
     service()->SetSessionID(&browser, kIdentifier0);
 
-    InsertTabsWithUrls(browser, base::span(kURLs));
+    InsertTabsWithUrls(browser, kURLs);
     WaitForSessionSaveComplete();
 
     service()->Disconnect(&browser);
@@ -1786,7 +1776,7 @@ TEST_F(SessionRestorationServiceImplTest, LoadDataFromStorage) {
     TestBrowser browser = TestBrowser(profile());
     service()->SetSessionID(&browser, kIdentifier0);
 
-    InsertTabsWithUrls(browser, base::span(kURLs));
+    InsertTabsWithUrls(browser, kURLs);
     WaitForSessionSaveComplete();
 
     expected_times = CollectLastCommittedItemTimestampFromWebStateList(

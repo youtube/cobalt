@@ -144,6 +144,9 @@ declare namespace chrome {
     // the selected text.
     function getTextContent(nodeId: number): string;
 
+    // Returns the text content that precedes the provided node id.
+    function getPrefixText(nodeId: number): string;
+
     // Returns the text direction of the AXNode for the provided AXNodeID.
     function getTextDirection(nodeId: number): string;
 
@@ -249,6 +252,9 @@ declare namespace chrome {
     // Called when a user collapses the selection. This is usually accomplished
     // by clicking.
     function onCollapseSelection(): void;
+
+    // Called when distillation completes with the word count.
+    function onDistilled(wordCount: number): void;
 
     // Called when the number of words seen by a reading mode user changes.
     function updateWordsSeen(wordsSeen: number): void;

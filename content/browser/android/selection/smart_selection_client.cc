@@ -39,7 +39,7 @@ class UserData : public base::SupportsUserData::Data {
 };
 }
 
-jlong JNI_SmartSelectionClient_Init(
+static jlong JNI_SmartSelectionClient_Init(
     JNIEnv* env,
     const JavaParamRef<jobject>& obj,
     const JavaParamRef<jobject>& jweb_contents) {
@@ -108,3 +108,5 @@ void SmartSelectionClient::OnSurroundingTextReceived(int callback_data,
 }
 
 }  // namespace content
+
+DEFINE_JNI(SmartSelectionClient)

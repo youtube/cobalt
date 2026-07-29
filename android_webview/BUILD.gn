@@ -464,7 +464,6 @@ if (_is_default_toolchain) {
   android_library("browser_java") {
     sources = [
       "java/src/org/chromium/android_webview/AndroidProtocolHandler.java",
-      "java/src/org/chromium/android_webview/AppDefinedDomains.java",
       "java/src/org/chromium/android_webview/AwActionModeCallback.java",
       "java/src/org/chromium/android_webview/AwBackForwardCacheSettings.java",
       "java/src/org/chromium/android_webview/AwBrowserContext.java",
@@ -498,6 +497,7 @@ if (_is_default_toolchain) {
       "java/src/org/chromium/android_webview/AwLayoutSizer.java",
       "java/src/org/chromium/android_webview/AwMediaIntegrityApiStatusConfig.java",
       "java/src/org/chromium/android_webview/AwNavigation.java",
+      "java/src/org/chromium/android_webview/AwNavigationClient.java",
       "java/src/org/chromium/android_webview/AwNavigationListener.java",
       "java/src/org/chromium/android_webview/AwNavigationParams.java",
       "java/src/org/chromium/android_webview/AwNetLogsConnection.java",
@@ -1038,7 +1038,6 @@ if (_is_default_toolchain) {
       "java/res/layout/aw_context_menu_fullscreen_container.xml",
       "java/res/layout/aw_context_menu_header.xml",
       "java/res/layout/aw_context_menu_row.xml",
-      "java/res/values/styles.xml",
     ]
     deps = [ ":strings_grd" ]
   }
@@ -1210,7 +1209,6 @@ generate_jni("common_jni") {
 generate_jni("browser_jni_headers") {
   sources = [
     "java/src/org/chromium/android_webview/AndroidProtocolHandler.java",
-    "java/src/org/chromium/android_webview/AppDefinedDomains.java",
     "java/src/org/chromium/android_webview/AwBackForwardCacheSettings.java",
     "java/src/org/chromium/android_webview/AwBrowserContext.java",
     "java/src/org/chromium/android_webview/AwBrowserContextStore.java",

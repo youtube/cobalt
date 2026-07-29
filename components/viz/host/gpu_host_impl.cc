@@ -185,7 +185,11 @@ GpuHostImpl::GpuHostImpl(Delegate* delegate,
       use_shader_cache_shm_count_.CloneRegion(), std::move(gpu_service_params));
   MaybeSendFontRenderParams();
 
-  InitPersistentCache();
+  // The persistent cache is not used by the GPU process for info collection.
+  // Avoid loading the cache files multiple times.
+  if (!params_.info_collection_gpu_process) {
+    InitPersistentCache();
+  }
 
 #if BUILDFLAG(IS_OZONE)
   InitOzone();
@@ -478,13 +482,14 @@ void GpuHostImpl::InitPersistentCache() {
         GraphiteDawnCacheVersion(),
         base::BindOnce(
             [](base::WeakPtr<GpuHostImpl> gpu_host,
-               std::optional<persistent_cache::BackendParams> backend_params) {
+               std::optional<persistent_cache::PendingBackend>
+                   pending_backend) {
               TRACE_EVENT0("gpu", "GpuHostImpl::InitPersistentCacheCallback");
               if (!gpu_host) {
                 return;
               }
               gpu_host->graphite_dawn_persistent_cache_files_ =
-                  std::move(backend_params);
+                  std::move(pending_backend);
               if (gpu_host
                       ->pending_graphite_dawn_persistent_cache_files_request_) {
                 // If channel is already initialized, we send the files to the
@@ -492,7 +497,7 @@ void GpuHostImpl::InitPersistentCache() {
                 gpu_host
                     ->pending_graphite_dawn_persistent_cache_files_request_ =
                     false;
-                gpu_host->SetChannelPersistentCacheParams(
+                gpu_host->SetChannelPersistentCachePendingBackend(
                     gpu::kGraphiteDawnClientId,
                     gpu::kGraphiteDawnGpuDiskCacheHandle,
                     std::move(gpu_host->graphite_dawn_persistent_cache_files_));
@@ -504,17 +509,17 @@ void GpuHostImpl::InitPersistentCache() {
 #endif  // BUILDFLAG(SKIA_USE_DAWN)
 }
 
-void GpuHostImpl::SetChannelPersistentCacheParams(
+void GpuHostImpl::SetChannelPersistentCachePendingBackend(
     int client_id,
     const gpu::GpuDiskCacheHandle& handle,
-    std::optional<persistent_cache::BackendParams> backend_params) {
-  if (!backend_params) {
+    std::optional<persistent_cache::PendingBackend> pending_backend) {
+  if (!pending_backend) {
     return;
   }
-  TRACE_EVENT2("gpu", "GpuHostImpl::SetChannelPersistentCacheParams",
+  TRACE_EVENT2("gpu", "GpuHostImpl::SetChannelPersistentCachePendingBackend",
                "client_id", client_id, "handle_type", GetHandleType(handle));
-  gpu_service()->SetChannelPersistentCacheParams(client_id, handle,
-                                                 *std::move(backend_params));
+  gpu_service()->SetChannelPersistentCachePendingBackend(
+      client_id, handle, *std::move(pending_backend));
 }
 
 std::string GpuHostImpl::GetShaderPrefixKey() {
@@ -629,7 +634,7 @@ void GpuHostImpl::DidInitialize(
         // available.
         pending_graphite_dawn_persistent_cache_files_request_ = true;
       } else {
-        SetChannelPersistentCacheParams(
+        SetChannelPersistentCachePendingBackend(
             gpu::kGraphiteDawnClientId, gpu::kGraphiteDawnGpuDiskCacheHandle,
             std::move(graphite_dawn_persistent_cache_files_));
       }
@@ -797,8 +802,7 @@ void GpuHostImpl::ClearGrShaderDiskCache() {
 #if BUILDFLAG(IS_WIN)
 void GpuHostImpl::EnsureWebNNExecutionProvidersReady(
     EnsureWebNNExecutionProvidersReadyCallback cb) {
-  auto* initializer = webnn::ExecutionProviderInitializer::GetInstance();
-  initializer->EnsureExecutionProvidersReady(std::move(cb));
+  webnn::EnsureExecutionProvidersReady(std::move(cb));
 }
 #endif
 

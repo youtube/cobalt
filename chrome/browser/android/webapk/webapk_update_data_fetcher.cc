@@ -52,7 +52,7 @@ bool IsInScope(const GURL& url, const GURL& scope) {
 
 }  // anonymous namespace
 
-jlong JNI_WebApkUpdateDataFetcher_Initialize(
+static jlong JNI_WebApkUpdateDataFetcher_Initialize(
     JNIEnv* env,
     const JavaParamRef<jobject>& obj,
     std::string& java_start_url,
@@ -311,3 +311,5 @@ void WebApkUpdateDataFetcher::OnGotIconMurmur2Hashes(
       base::android::ToJavaArrayOfStringArray(env, shortcuts),
       base::android::ToJavaArrayOfByteArray(env, shortcut_icon_data));
 }
+
+DEFINE_JNI(WebApkUpdateDataFetcher)

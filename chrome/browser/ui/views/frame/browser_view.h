@@ -12,6 +12,7 @@
 #include <vector>
 
 #include "base/callback_list.h"
+#include "base/containers/enum_set.h"
 #include "base/gtest_prod_util.h"
 #include "base/memory/raw_ptr.h"
 #include "base/scoped_observation.h"
@@ -199,6 +200,14 @@ class BrowserView : public BrowserWindow,
   // to determine the height of the title bar.
   // Returns an empty size if this browser is not for a web app.
   gfx::Size GetWebAppFrameToolbarPreferredSize() const;
+
+  // Adds provided |content| as a child of BrowserView so that layout can be
+  // handled by BrowserViewLayout. Used when opening the side panel using
+  // SidePanelUI::ShowFrom which animates the side panel content from provided
+  // bounds.
+  void SetSidePanelAnimationContent(views::View* content);
+  // Returns side panel content if it is currently parented to the BrowserView.
+  views::View* GetSidePanelAnimationContent();
 
   // Returns all the ContentsContainerViews that belong to this browser.
   std::vector<ContentsContainerView*> GetContentsContainerViews();
@@ -451,11 +460,6 @@ class BrowserView : public BrowserWindow,
   bool window_management_permission_granted_for_testing() const {
     return window_management_permission_granted_;
   }
-
-  // Update the side panel's horizontal alignment when
-  // prefs::kSidePanelHorizontalAlignment is changed from the appearance
-  // settings page.
-  void UpdateSidePanelHorizontalAlignment();
 
   void UpdateWebAppStatusIconsVisiblity();
 
@@ -788,6 +792,9 @@ class BrowserView : public BrowserWindow,
   views::View* GetSidePanelRoundedCornerForTesting() {
     return side_panel_rounded_corner_;
   }
+  BrowserViewLayout* GetBrowserViewLayoutForTesting() {
+    return GetBrowserViewLayout();
+  }
 
   // Returns all the NativeViewHosts attached to this BrowserView which should
   // be transformed as part of the TopControlsSlide behavior with touch scroll
@@ -868,6 +875,17 @@ class BrowserView : public BrowserWindow,
   FRIEND_TEST_ALL_PREFIXES(PermissionChipUnitTest, AccessibleName);
 
   class AccessibilityModeObserver;
+
+  // Modes that require reparenting of views. For example, tab strip and web app
+  // views must be reparented to top_container in certain modes. This state is
+  // track which combination of states the browser is in so we only reparent in
+  // the appropriate situations.
+  enum class TabStripAndWebAppViewsReparentedState {
+    kImmersiveMode = 0,
+    kMinValue = kImmersiveMode,
+    kTouchMode = 1,
+    kMaxValue = kTouchMode,
+  };
 
   // Sets or clears the flags to force showing bookmark bar.
   void SetForceShowBookmarkBarFlag(BookmarkBarController::ForceShowFlag flag);
@@ -1036,6 +1054,17 @@ class BrowserView : public BrowserWindow,
   // Reparents |top_container_| to |main_container_|.
   void ReparentTopContainerForEndOfImmersive();
 
+  // In certain situations, such as immersive mode and touch ui mode on
+  // ChromeOS, the tab strip and PWA views must be parented to the top container
+  // in order for layout and animations to work properly.
+  void ReparentTabStripAndWebAppViewsToTopContainer(
+      TabStripAndWebAppViewsReparentedState mode);
+
+  // Reparent the tab strip and PWA views back to browser_view at the same index
+  // in the tree as they was before leaving browser_view.
+  void ReparentTabStripAndWebAppViewsToBrowserView(
+      TabStripAndWebAppViewsReparentedState mode);
+
   // Ensures that the correct focus order is set for child views, regardless of
   // the actual child order.
   void EnsureFocusOrder();
@@ -1103,6 +1132,9 @@ class BrowserView : public BrowserWindow,
   // `frame_timing_details` contains the paint timing information of the frame.
   void OnFirstPresentation(const viz::FrameTimingDetails& frame_timing_details);
 
+  // TODO(crbug.com/461955649): Move ExclusiveAccessContextImpl out of
+  // BrowserView and make it shared so BrowserWindowFeatures can own it
+  // directly.
   class ExclusiveAccessContextImpl;
   std::unique_ptr<ExclusiveAccessContextImpl> exclusive_access_context_;
 
@@ -1394,6 +1426,13 @@ class BrowserView : public BrowserWindow,
   ui::OmniboxPopupCloser omnibox_popup_closer_{this};
 
   base::CallbackListSubscription vertical_tab_subscription_;
+
+  // Bitmask of current combination of reparenting states, e.g. immersive and
+  // ChromeOS tablet modes.
+  base::EnumSet<TabStripAndWebAppViewsReparentedState,
+                TabStripAndWebAppViewsReparentedState::kMinValue,
+                TabStripAndWebAppViewsReparentedState::kMaxValue>
+      tab_strip_web_apps_reparented_state_;
 
   mutable base::WeakPtrFactory<BrowserView> weak_ptr_factory_{this};
 };

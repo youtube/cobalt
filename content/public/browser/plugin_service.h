@@ -9,7 +9,6 @@
 #include <string>
 #include <vector>
 
-#include "base/functional/callback.h"
 #include "build/build_config.h"
 #include "content/common/content_export.h"
 #include "content/public/common/buildflags.h"
@@ -33,9 +32,6 @@ struct WebPluginInfo;
 // This class lives on the UI thread.
 class CONTENT_EXPORT PluginService {
  public:
-  using GetPluginsCallback =
-      base::OnceCallback<void(const std::vector<WebPluginInfo>&)>;
-
   // Returns the PluginService singleton.
   static PluginService* GetInstance();
 
@@ -50,52 +46,40 @@ class CONTENT_EXPORT PluginService {
   // Must be called on the instance to finish initialization.
   virtual void Init() = 0;
 
-  // Gets the plugin in the list of plugins that matches the given url and mime
-  // type. Returns true if the data is from a stale plugin list, false if it is
-  // up to date.
-  virtual bool GetPluginInfoArray(
+  // Gets the plugin in the list of plugins that matches the given URL and mime
+  // type.
+  virtual void GetPluginInfoArray(
       const GURL& url,
       const std::string& mime_type,
       std::vector<WebPluginInfo>* info,
       std::vector<std::string>* actual_mime_types) = 0;
 
-  // Gets plugin info for an individual plugin and filters the plugins using
-  // the |browser_context|. This will report whether the data is stale via
-  // |is_stale| and returns whether or not the plugin can be found.
-  virtual bool GetPluginInfo(content::BrowserContext* browser_context,
-                             const GURL& url,
-                             const std::string& mime_type,
-                             bool* is_stale,
-                             WebPluginInfo* info,
-                             std::string* actual_mime_type) = 0;
+  // Filters the plugins list using `browser_context` and returns if there
+  // exists a plugin that matches the given URL and mime type.
+  virtual bool HasPlugin(content::BrowserContext* browser_context,
+                         const GURL& url,
+                         const std::string& mime_type) = 0;
 
   // Gets plugin info by plugin path (including disabled plugins). This will use
   // cached data in the plugin list.
   virtual std::optional<WebPluginInfo> GetPluginInfoByPathForTesting(
       const base::FilePath& plugin_path) = 0;
 
-  // Asynchronously loads plugins if necessary and then calls back to the
-  // provided function on the calling sequence on completion.
-  virtual void GetPluginsAsync(GetPluginsCallback callback) = 0;
-
   // Synchronously loads plugins if necessary and returns the list of plugin
   // infos. This does not block and is safe to call on the UI thread.
+  // Since this refreshes the list of plugins, callers can ignore the result if
+  // they just want to refresh the list.
   virtual const std::vector<WebPluginInfo>& GetPlugins() = 0;
 
   virtual void SetFilter(PluginServiceFilter* filter) = 0;
   virtual PluginServiceFilter* GetFilter() = 0;
 
-  // Cause the plugin list to refresh next time they are accessed, regardless
-  // of whether they are already loaded.
-  virtual void RefreshPlugins() = 0;
-
   // Register an internal plugin with the specified plugin information.
   // An internal plugin must be registered before it can
   // be loaded using PluginList::LoadPlugin().
-  // If |add_at_beginning| is true the plugin will be added earlier in
-  // the list so that it can override the MIME types of older registrations.
-  virtual void RegisterInternalPlugin(const WebPluginInfo& info,
-                                      bool add_at_beginning) = 0;
+  // New plugins get added earlier in the list so that they can override the
+  // MIME types of older registrations.
+  virtual void RegisterInternalPlugin(const WebPluginInfo& info) = 0;
 
   // Removes a specified internal plugin from the list. The search will match
   // on the path from the version info previously registered.

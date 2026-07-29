@@ -29,8 +29,6 @@ BASE_DECLARE_FEATURE(kActorLoginReauthTaskRefocus);
 BASE_DECLARE_FEATURE(kActorLoginQualityLogs);
 // Enables finding and filling forms in same-site iframes for actor login.
 BASE_DECLARE_FEATURE(kActorLoginSameSiteIframeSupport);
-// Enables Actor Login permissions UI in Password Manager settings
-BASE_DECLARE_FEATURE(kEnableActorLoginPermissions);
 #endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
 
 #if BUILDFLAG(IS_ANDROID)
@@ -77,10 +75,6 @@ BASE_DECLARE_FEATURE(kCheckIfSubmittedFormIdenticalToObserved);
 // the form in the ChangePasswordFormWaiter.
 BASE_DECLARE_FEATURE(kCheckVisibilityInChangePasswordFormWaiter);
 
-// Identifies if the user is fully signed in in the main tab
-// before starting the Automated Password Change flow.
-BASE_DECLARE_FEATURE(kCheckLoginStateBeforePasswordChange);
-
 // Delete undecryptable passwords from the login database.
 BASE_DECLARE_FEATURE(kClearUndecryptablePasswords);
 
@@ -110,6 +104,9 @@ BASE_DECLARE_FEATURE(kEnablePasswordManagerMojoApi);
 // Fetches change password url if the credential has been identified as leaked.
 // Later change password url is used during password change.
 BASE_DECLARE_FEATURE(kFetchChangePasswordUrlForPasswordChange);
+
+// Enables filling of change password form by typing.
+BASE_DECLARE_FEATURE(kFillChangePasswordFormByTyping);
 
 // Enables the experiment for the password manager to only fill on account
 // selection, rather than autofilling on page load, with highlighting of fields.
@@ -174,9 +171,6 @@ BASE_DECLARE_FEATURE(kPasswordManagerLogToTerminal);
 BASE_DECLARE_FEATURE(kRestartToGainAccessToKeychain);
 #endif  // BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 
-// Sets request criticality when calling leak check service to detect leaked
-// passwords.
-BASE_DECLARE_FEATURE(kSetLeakCheckRequestCriticality);
 
 // Shows recovery password for the improved password change flow in the
 // management UI.
@@ -203,12 +197,6 @@ BASE_DECLARE_FEATURE(kTriggerPasswordResyncAfterDeletingUndecryptablePasswords);
 
 // Starts passwords resync when undecryptable passwords are detected.
 BASE_DECLARE_FEATURE(kTriggerPasswordResyncWhenUndecryptablePasswordsDetected);
-
-#if BUILDFLAG(IS_ANDROID)
-// The feature flag for the Identity Check feature. The feature makes biometric
-// authentication mandatory before password filling in untrusted locations.
-BASE_DECLARE_FEATURE(kBiometricAuthIdentityCheck);
-#endif  // BUILDFLAG(IS_ANDROID)
 
 // Improves PSL matching capabilities by utilizing PSL-extension list from
 // affiliation service. It fixes problem with incorrect password suggestions on
@@ -239,6 +227,11 @@ BASE_DECLARE_FEATURE(kReloadPasswordsOnTrustedVaultEncryptionChange);
 // trusted vault error in the keyboard accessory.
 BASE_DECLARE_FEATURE(kRetrieveTrustedVaultKeyKeyboardAccessoryAction);
 #endif  // BUILDFLAG(IS_ANDROID)
+
+// Updates password change flow to use the refined prompt on Open form step. The
+// prompt uses the list of interactable actionables on the web page to identify
+// the button, which opens the password change form.
+BASE_DECLARE_FEATURE(kUseActionablesForImprovedPasswordChange);
 
 inline constexpr base::FeatureParam<std::string>
     kPasswordChangeSuccessSurveyTriggerId{

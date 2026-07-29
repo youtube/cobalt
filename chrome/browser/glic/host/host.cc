@@ -84,31 +84,22 @@ void Host::Shutdown() {
 }
 
 bool Host::IsWebContentPresentAndMatches(
-    content::RenderFrameHost* outermost_rfh) {
+    content::RenderFrameHost* render_frame_host) {
   auto* contents = webui_contents();
-  if (contents && contents->GetOuterWebContentsFrame() == outermost_rfh) {
+  if (contents && contents->GetPrimaryMainFrame() == render_frame_host) {
     return true;
   }
   auto* handler = page_handler();
   if (handler) {
-    if (handler->GetGuestMainFrame() == outermost_rfh) {
+    if (handler->GetGuestMainFrame() == render_frame_host) {
       return true;
     }
   }
   return false;
 }
 
-void Host::Close(content::RenderFrameHost* outermost_render_frame_host) {
-  if (IsWebContentPresentAndMatches(outermost_render_frame_host)) {
-    delegate_->ClosePanel();
-  }
-}
-
-void Host::Reload(content::RenderFrameHost* render_frame_host) {
-  if (IsWebContentPresentAndMatches(
-          render_frame_host->GetOutermostMainFrame())) {
-    Reload();
-  }
+void Host::Close() {
+  delegate_->ClosePanel();
 }
 
 void Host::Reload() {
@@ -550,6 +541,7 @@ void Host::RequestToShowCredentialSelectionDialog(
 void Host::RequestToShowUserConfirmationDialog(
     actor::TaskId task_id,
     const url::Origin& navigation_origin,
+    bool for_blocklisted_origin,
     actor::ActorTaskDelegate::UserConfirmationDialogCallback callback) {
   if (!IsReady()) {
     std::move(callback).Run(
@@ -559,7 +551,7 @@ void Host::RequestToShowUserConfirmationDialog(
     return;
   }
   handler_info_->web_client->RequestToShowUserConfirmationDialog(
-      task_id, navigation_origin, std::move(callback));
+      task_id, navigation_origin, for_blocklisted_origin, std::move(callback));
 }
 
 void Host::RequestToConfirmNavigation(
@@ -676,7 +668,7 @@ Host* HostManager::WebUIPageHandlerAdded(GlicPageHandler* page_handler) {
   // In multi-instance mode, no instance is used for now. We should consider
   // just creating new instances for these hosts.
   GlicInstance* glic_instance = nullptr;
-  if (!GlicEnabling::IsMultiInstanceEnabledByFlags()) {
+  if (!GlicEnabling::IsMultiInstanceEnabled()) {
     glic_instance =
         static_cast<GlicWindowControllerInterface*>(window_controller_.get());
   }

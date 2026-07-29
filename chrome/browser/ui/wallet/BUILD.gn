@@ -22,6 +22,7 @@ source_set("wallet") {
 
   deps = [
     "//base",
+    "//chrome/browser/signin",
     "//chrome/browser/ui/autofill",
     "//chrome/browser/ui/views/location_bar",
     "//components/wallet/core/browser",
@@ -30,4 +31,20 @@ source_set("wallet") {
   ]
 
   public_deps = [ "//chrome/browser:browser_public_dependencies" ]
+}
+
+source_set("unit_tests") {
+  testonly = true
+  sources = [ "walletable_pass_save_bubble_controller_unittest.cc" ]
+
+  deps = [
+    ":wallet",
+    "//base",
+    "//base/test:test_support",
+    "//chrome/test:test_support",
+    "//components/tabs:test_support",
+    "//components/wallet/core/browser",
+    "//testing/gmock",
+    "//testing/gtest",
+  ]
 }

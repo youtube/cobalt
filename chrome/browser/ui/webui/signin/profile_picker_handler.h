@@ -40,6 +40,17 @@ enum class ProfilePickerAction {
 };
 // LINT.ThenChange(//tools/metrics/histograms/metadata/profile/enums.xml:ProfilePickerAction)
 
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
+//
+// LINT.IfChange(ProfilePickerOpenAllProfilesButtonAction)
+enum class ProfilePickerOpenAllProfilesButtonAction {
+  kShown = 0,
+  kClicked = 1,
+  kMaxValue = kClicked,
+};
+// LINT.ThenChange(//tools/metrics/histograms/metadata/profile/enums.xml:ProfilePickerOpenAllProfilesButtonAction)
+
 void RecordProfilePickerAction(ProfilePickerAction action);
 
 // The handler for Javascript messages related to the profile picker main view.
@@ -98,6 +109,8 @@ class ProfilePickerHandler : public content::WebUIMessageHandler,
   void HandleLaunchSelectedProfile(bool open_settings,
                                    const base::Value::List& args);
   void HandleLaunchGuestProfile(const base::Value::List& args);
+  void HandleLaunchAllProfiles(const base::Value::List& args);
+  void HandleRecordOpenAllProfilesButtonShown(const base::Value::List& args);
   void HandleAskOnStartupChanged(const base::Value::List& args);
   void HandleRemoveProfile(const base::Value::List& args);
   void HandleGetProfileStatistics(const base::Value::List& args);

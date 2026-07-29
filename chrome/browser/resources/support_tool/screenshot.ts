@@ -6,6 +6,7 @@ import './icons.html.js';
 import './support_tool_shared.css.js';
 import 'chrome://resources/cr_elements/cr_button/cr_button.js';
 import 'chrome://resources/cr_elements/cr_dialog/cr_dialog.js';
+import 'chrome://resources/cr_elements/cr_icon/cr_icon.js';
 
 import type {CrDialogElement} from 'chrome://resources/cr_elements/cr_dialog/cr_dialog.js';
 import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
@@ -19,7 +20,7 @@ const ScreenshotElementBase = SupportToolPageMixin(PolymerElement);
 
 export class ScreenshotElement extends ScreenshotElementBase {
   static get is() {
-    return 'screenshot-element';
+    return 'support-tool-screenshot';
   }
 
   static get template() {
@@ -232,7 +233,7 @@ export class ScreenshotElement extends ScreenshotElementBase {
 
 declare global {
   interface HTMLElementTagNameMap {
-    'screenshot-element': ScreenshotElement;
+    'support-tool-screenshot': ScreenshotElement;
   }
 }
 

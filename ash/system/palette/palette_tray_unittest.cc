@@ -39,7 +39,6 @@
 #include "components/prefs/pref_service.h"
 #include "components/session_manager/session_manager_types.h"
 #include "ui/base/l10n/l10n_util.h"
-#include "ui/compositor/scoped_animation_duration_scale_mode.h"
 #include "ui/display/manager/display_manager.h"
 #include "ui/display/test/display_manager_test_api.h"
 #include "ui/events/base_event_utils.h"
@@ -48,6 +47,7 @@
 #include "ui/events/devices/stylus_state.h"
 #include "ui/events/event.h"
 #include "ui/events/test/event_generator.h"
+#include "ui/gfx/scoped_animation_duration_scale_mode.h"
 #include "ui/views/accessibility/view_accessibility.h"
 
 namespace ash {
@@ -898,19 +898,29 @@ TEST_F(PaletteTrayTestWithAnnotator,
       test_api_->palette_tool_manager()->GetActiveTool(PaletteGroup::MODE),
       PaletteToolId::LASER_POINTER);
 
-  // Activate marker tool.
-  test_api_->palette_tool_manager()->ActivateTool(PaletteToolId::MARKER_MODE);
   // Simulate activating marker in the controller.
   annotator_controller()->OnCanvasInitialized(true);
+  annotator_controller()->RegisterView(Shell::GetPrimaryRootWindow());
+  annotator_controller()->CreateAnnotationOverlayForMarkerMode(
+      Shell::GetPrimaryRootWindow());
   annotator_controller()->EnableAnnotatorTool();
 
-  // Verify annotation tray is shown, palette tray is hidden, and the active
-  // tool is marker mode.
+  // Verify annotation tray is shown, palette tray is hidden.
   EXPECT_FALSE(palette_tray_->GetVisible());
+  EXPECT_TRUE(annotation_tray()->visible_preferred());
+
+  // Reset Marker, verify annotation tray is hidden, both marker and palette
+  // tray is shown and the active tool is none.
+  annotator_controller()->ResetTools();
+  EXPECT_TRUE(annotation_tray()->visible_preferred());
+  EXPECT_TRUE(palette_tray_->GetVisible());
   EXPECT_EQ(
       test_api_->palette_tool_manager()->GetActiveTool(PaletteGroup::MODE),
-      PaletteToolId::MARKER_MODE);
-  EXPECT_TRUE(annotation_tray()->visible_preferred());
+      PaletteToolId::NONE);
+
+  // Enable marker tools again.
+  annotator_controller()->OnCanvasInitialized(true);
+  annotator_controller()->EnableAnnotatorTool();
 
   // Disable annotator. Verify annotation tray is hidden, palette tray is shown
   // and the active tool is none.

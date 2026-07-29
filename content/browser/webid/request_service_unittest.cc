@@ -11,7 +11,6 @@
 #include <utility>
 #include <vector>
 
-#include "base/functional/callback_forward.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
@@ -637,7 +636,6 @@ class TestDialogController
       const std::vector<IdentityProviderDataPtr>& idp_list,
       const std::vector<IdentityRequestAccountPtr>& accounts,
       blink::mojom::RpMode rp_mode,
-      const std::vector<IdentityRequestAccountPtr>& new_accounts,
       IdentityRequestDialogController::AccountSelectionCallback on_selected,
       IdentityRequestDialogController::LoginToIdPCallback on_add_account,
       IdentityRequestDialogController::DismissCallback dismiss_callback,
@@ -652,7 +650,13 @@ class TestDialogController
     state_->sign_in_mode = SignInMode::kExplicit;
     state_->rp_context = idp_list[0]->rp_context;
 
-    state_->new_accounts = new_accounts;
+    state_->new_accounts.clear();
+    for (const auto& account : accounts) {
+      if (account->display_priority ==
+          IdentityRequestAccount::DisplayPriority::kNew) {
+        state_->new_accounts.push_back(account);
+      }
+    }
 
     state_->all_accounts_for_display = accounts;
     for (const auto& idp_data : idp_list) {
@@ -3771,7 +3775,6 @@ class DisableApiWhenDialogShownDialogController : public TestDialogController {
       const std::vector<IdentityProviderDataPtr>& idp_list,
       const std::vector<IdentityRequestAccountPtr>& accounts,
       blink::mojom::RpMode rp_mode,
-      const std::vector<IdentityRequestAccountPtr>& new_accounts,
       IdentityRequestDialogController::AccountSelectionCallback on_selected,
       IdentityRequestDialogController::LoginToIdPCallback on_add_account,
       IdentityRequestDialogController::DismissCallback dismiss_callback,
@@ -3783,9 +3786,9 @@ class DisableApiWhenDialogShownDialogController : public TestDialogController {
 
     // Call parent class method in order to store callback parameters.
     return TestDialogController::ShowAccountsDialog(
-        std::move(rp_data), idp_list, accounts, rp_mode, new_accounts,
-        std::move(on_selected), std::move(on_add_account),
-        std::move(dismiss_callback), std::move(accounts_displayed_callback));
+        std::move(rp_data), idp_list, accounts, rp_mode, std::move(on_selected),
+        std::move(on_add_account), std::move(dismiss_callback),
+        std::move(accounts_displayed_callback));
   }
 
  private:
@@ -7804,7 +7807,6 @@ class TestDialogControllerWithImmediateDismiss : public TestDialogController {
       const std::vector<IdentityProviderDataPtr>& idp_list,
       const std::vector<IdentityRequestAccountPtr>& accounts,
       blink::mojom::RpMode rp_mode,
-      const std::vector<IdentityRequestAccountPtr>& new_accounts,
       IdentityRequestDialogController::AccountSelectionCallback on_selected,
       IdentityRequestDialogController::LoginToIdPCallback on_add_account,
       IdentityRequestDialogController::DismissCallback dismiss_callback,
@@ -7888,6 +7890,13 @@ TEST_F(RequestServiceTest, UseOtherAccountAccountOrder) {
         // accounts, kAccountIdNicolas, kAccountIdPeter and kAccountIdZach,
         // in that order.
         test_network_request_manager_->accounts_list_ = kMultipleAccounts;
+        for (const auto& account :
+             test_network_request_manager_->accounts_list_) {
+          if (account->id == kAccountIdPeter) {
+            account->display_priority =
+                IdentityRequestAccount::DisplayPriority::kNew;
+          }
+        }
         federated_auth_request_impl_->OnIdpSigninStatusReceived(
             OriginFromString(kProviderUrlFull), true);
         return modal.get();
@@ -7939,6 +7948,14 @@ TEST_F(RequestServiceTest, UseOtherAccountMultipleNewAccounts) {
         // that order.
         test_network_request_manager_->accounts_list_ = {
             kSingleAccount[0], kTwoAccounts[0], kTwoAccounts[1]};
+        for (const auto& account :
+             test_network_request_manager_->accounts_list_) {
+          if (account->id == kTwoAccounts[0]->id ||
+              account->id == kTwoAccounts[1]->id) {
+            account->display_priority =
+                IdentityRequestAccount::DisplayPriority::kNew;
+          }
+        }
         federated_auth_request_impl_->OnIdpSigninStatusReceived(
             OriginFromString(kProviderUrlFull), true);
         return modal.get();
@@ -8446,6 +8463,29 @@ TEST_F(RequestServiceTest, NonPrimaryPageMetrics) {
   histogram_tester_.ExpectUniqueSample(
       "Blink.FedCm.LifecycleStateFailureReason",
       LifecycleStateFailureReason::kInBackForwardCache, 1);
+}
+
+// Test that if there are multiple IdPs, the UI should not be suppressed even if
+// configuration.suppressed_by_segmentation_platform is set to true.
+TEST_F(RequestServiceTest, SuppressedBySegmentationPlatformButMultipleIdps) {
+  // Use IdpNetworkRequestManagerParamChecker to validate passed-in parameters
+  // to IdpNetworkRequestManager methods.
+  std::unique_ptr<IdpNetworkRequestManagerParamChecker> checker =
+      std::make_unique<IdpNetworkRequestManagerParamChecker>();
+  SetNetworkRequestManager(std::move(checker));
+
+  RequestExpectations expectations = kExpectationSuccess;
+  // Since the first IDP does not set the login state of the account but the
+  // second IDP has one with state set to SignIn, selecting the first account
+  // means that the second IDP is the one that is selected.
+  expectations.selected_idp_config_url = kProviderTwoUrlFull;
+  MockConfiguration config = kConfigurationMultiIdpValid;
+  config.suppressed_by_segmentation_platform = true;
+  RunAuthTest(kDefaultMultiIdpRequestParameters, expectations, config);
+
+  EXPECT_TRUE(DidFetch(FetchedEndpoint::ACCOUNTS));
+  histogram_tester_.ExpectUniqueSample("Blink.FedCm.DidShowUI", true, 1);
+  ExpectUkmValueInEntry("DidShowUI", FedCmEntry::kEntryName, true);
 }
 
 }  // namespace content::webid

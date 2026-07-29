@@ -31,6 +31,8 @@ using SessionId = base::UnguessableToken;
 class ContextualSearchService;
 using AddFileContextCallback =
     base::OnceCallback<void(const ::base::UnguessableToken&)>;
+using AddTabContextCallback =
+    base::OnceCallback<void(const ::base::UnguessableToken&)>;
 
 // RAII handle for managing the lifetime of a ComposeboxQueryController.
 class ContextualSearchSessionHandle {
@@ -42,6 +44,11 @@ class ContextualSearchSessionHandle {
   ContextualSearchSessionHandle& operator=(ContextualSearchSessionHandle&&) =
       delete;
   ~ContextualSearchSessionHandle();
+
+  // Provides a WeakPtr to this instance. The caller is responsible to only use
+  // this on the same sequence that the `ContextualSearchSessionHandle` is
+  // destructed on.
+  base::WeakPtr<ContextualSearchSessionHandle> AsWeakPtr();
 
   base::UnguessableToken session_id() const { return session_id_; }
 
@@ -68,6 +75,15 @@ class ContextualSearchSessionHandle {
                       std::optional<lens::ImageEncodingOptions> image_options,
                       AddFileContextCallback callback);
 
+  // Adds a tab context to the context controller, generating a token and adding
+  // it to the list of uploaded context tokens. A followup call to
+  // `StartTabContextUploadFlow`, using the token returned in the callback,
+  // is required to start the upload with the
+  // contextual input data.
+  // TODO(crbug.com/461869881): Pass more metadata than just the tab id for
+  //  being able to return the list of attached tabs.
+  void AddTabContext(int32_t tab_id, AddTabContextCallback callback);
+
   // Starts the tab context upload flow for the given file token using the
   // tab context stored in the contextual input data.
   void StartTabContextUploadFlow(
@@ -83,11 +99,25 @@ class ContextualSearchSessionHandle {
   void ClearFiles();
 
   // Returns the search url for a new query for opening.
-  // TODO(crbug.com/458081018): Create another method for returning a query
-  // payload for followup turns.
   GURL CreateSearchUrl(
       std::unique_ptr<contextual_search::ContextualSearchContextController::
                           CreateSearchUrlRequestInfo> search_url_request_info);
+
+  // Returns the client to aim message for a new query for posting.
+  lens::ClientToAimMessage CreateClientToAimRequest(
+      std::unique_ptr<contextual_search::ContextualSearchContextController::
+                          CreateClientToAimRequestInfo>
+          create_client_to_aim_request_info);
+
+  // Returns the list of uploaded but not yet committed context tokens for this
+  // particular instance of the session.
+  std::vector<base::UnguessableToken> GetUploadedContextTokens() const;
+
+  // Returns the list of uploaded but not yet committed context tokens for this
+  // particular instance of the session, editable for testing.
+  std::vector<base::UnguessableToken>& GetUploadedContextTokensForTesting() {
+    return uploaded_context_tokens_;
+  }
 
  private:
   friend class ContextualSearchService;
@@ -95,10 +125,20 @@ class ContextualSearchSessionHandle {
   ContextualSearchSessionHandle(base::WeakPtr<ContextualSearchService> service,
                                 const SessionId& session_id);
 
+  // The list of uploaded but not yet committed context tokens for this
+  // particular instance of the session. This list is unique to this instance of
+  // the session handle, meaning that it is unique per instance of the
+  // contextual tasks ui.
+  std::vector<base::UnguessableToken> uploaded_context_tokens_;
+
   // The service that vended this handle. This is a weak pointer because a
   // handle may outlive the service.
   const base::WeakPtr<ContextualSearchService> service_;
   const base::UnguessableToken session_id_;
+
+  // This needs to be the last member to ensure all outstanding WeakPtrs are
+  // invalidated before the rest of the members.
+  base::WeakPtrFactory<ContextualSearchSessionHandle> weak_ptr_factory_{this};
 };
 
 }  // namespace contextual_search

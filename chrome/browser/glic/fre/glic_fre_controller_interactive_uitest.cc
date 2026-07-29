@@ -37,7 +37,9 @@ namespace {
 
 using glic::test::internal::kGlicFreShowingDialogState;
 
+#if !BUILDFLAG(IS_CHROMEOS)
 DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kFirstTab);
+#endif  // !BUILDFLAG(IS_CHROMEOS)
 DEFINE_LOCAL_STATE_IDENTIFIER_VALUE(ui::test::PollingStateObserver<GURL>,
                                     kOpenedTabUrlState);
 
@@ -298,6 +300,11 @@ IN_PROC_BROWSER_TEST_F(GlicFreControllerUiTest, PressContinueButton) {
       }));
 }
 
+// Note: ChromeOS maintains auth tokens as a part of OS User sessions,
+// and so reauth flow is not expected.
+// TODO(crbug.com/450629835): Revisit if we figure out actual flow we need
+// reauth.
+#if !BUILDFLAG(IS_CHROMEOS)
 IN_PROC_BROWSER_TEST_F(GlicFreControllerUiTest,
                        InvalidatedAccountSignInOnGlicFreOpenFlow) {
   auto server_running = fre_server().StartAcceptingConnectionsAndReturnHandle();
@@ -315,6 +322,7 @@ IN_PROC_BROWSER_TEST_F(GlicFreControllerUiTest,
                   WaitForState(kFreWebUiState, mojom::FreWebUiState::kReady),
                   StopObservingState(kFreWebUiState));
 }
+#endif  // !BUILDFLAG(IS_CHROMEOS)
 
 IN_PROC_BROWSER_TEST_F(GlicFreControllerUiTest,
                        ShowsErrorPanelOnCookieSyncFailure) {

@@ -6,7 +6,6 @@
 
 #include <utility>
 
-#include "base/functional/callback_forward.h"
 #include "base/metrics/histogram_macros.h"
 #include "components/autofill/content/browser/content_autofill_client.h"
 #include "components/autofill/content/browser/content_autofill_driver.h"
@@ -413,6 +412,12 @@ void ContentPasswordManagerDriver::CheckViewAreaVisible(
   if (const auto& agent = GetPasswordAutofillAgent()) {
     agent->CheckViewAreaVisible(field_id, std::move(callback));
   }
+}
+
+autofill::AutofillDriver* ContentPasswordManagerDriver::GetAutofillDriver()
+    const {
+  return autofill::ContentAutofillDriver::GetForRenderFrameHost(
+      render_frame_host());
 }
 
 void ContentPasswordManagerDriver::AnnotateFieldsWithParsingResult(

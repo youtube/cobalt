@@ -8,7 +8,6 @@
 
 #include "base/check_op.h"
 #include "base/functional/bind.h"
-#include "base/functional/callback_forward.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/user_metrics.h"
 #include "base/notreached.h"
@@ -73,7 +72,8 @@ DiceTabHelper::GetEnableSyncCallbackForBrowser() {
     bool is_sync_promo =
         access_point ==
             signin_metrics::AccessPoint::kAvatarBubbleSignInWithSyncPromo ||
-        access_point == signin_metrics::AccessPoint::kSettings;
+        access_point == signin_metrics::AccessPoint::kSettings ||
+        access_point == signin_metrics::AccessPoint::kSettingsYourSavedInfo;
     TurnSyncOnHelper::SigninAbortedMode abort_mode =
         is_sync_promo ? TurnSyncOnHelper::SigninAbortedMode::KEEP_ACCOUNT
                       : TurnSyncOnHelper::SigninAbortedMode::REMOVE_ACCOUNT;

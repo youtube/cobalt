@@ -179,9 +179,6 @@ BASE_DECLARE_FEATURE(kPrivacySandboxActivityTypeStorage);
 COMPONENT_EXPORT(PRIVACY_SANDBOX_FEATURES)
 extern const char kPrivacySandboxActivityTypeStorageLastNLaunchesName[];
 
-// GetRequiredPrompt returns the NoticeService's output.
-COMPONENT_EXPORT(PRIVACY_SANDBOX_FEATURES)
-BASE_DECLARE_FEATURE(kPrivacySandboxGetPromptFromNoticeService);
 
 // Enables chrome://privacy-sandbox-internals/private-state-tokens DevUI
 // page. Relies on PrivacySandboxInternalsDevUI also being enabled.
@@ -230,14 +227,6 @@ extern const base::FeatureParam<int> kPrivacySandboxDebouncingDelayMilliseconds;
 // If true, displays the Ads APIs UX Enancements.
 COMPONENT_EXPORT(PRIVACY_SANDBOX_FEATURES)
 BASE_DECLARE_FEATURE(kPrivacySandboxAdsApiUxEnhancements);
-
-// If true, will not block prompt when third party cookies are blocked.
-COMPONENT_EXPORT(PRIVACY_SANDBOX_FEATURES)
-BASE_DECLARE_FEATURE(kPrivacySandboxAllowPromptForBlocked3PCookies);
-
-// If true, migrates Privacy Sandbox Notice & Consent prefs to V2.
-COMPONENT_EXPORT(PRIVACY_SANDBOX_FEATURES)
-BASE_DECLARE_FEATURE(kPrivacySandboxMigratePrefsToSchemaV2);
 
 // If true, enable showing notices through the notice framework.
 COMPONENT_EXPORT(PRIVACY_SANDBOX_FEATURES)

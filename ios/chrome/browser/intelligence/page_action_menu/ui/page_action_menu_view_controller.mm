@@ -34,7 +34,7 @@ const CGFloat kMenuCornerRadiusIOS26 = 28;
 const CGFloat kMenuCornerRadius = 20;
 
 // The spacing between elements in the menu.
-const CGFloat kStackViewMargins = 16;
+const CGFloat kStackViewMargins = 20;
 
 // The padding surrounding the menu's content.
 const CGFloat kMenuSidePadding = 16;
@@ -90,9 +90,6 @@ const CGFloat kFeatureRowHorizontalPadding = 16;
 
 // The vertical padding within feature rows.
 const CGFloat kFeatureRowVerticalPadding = 12;
-
-// The animation duration for permissions feature row change.
-const CGFloat kPermissionsFeatureAnimationDuration = 0.3;
 
 // The width for the veritical feature row divider.
 const CGFloat kDividerWidth = 1.0;
@@ -201,19 +198,6 @@ const CGFloat kDividerWidth = 1.0;
 
 - (void)pageLoadStatusChanged {
   [self updateButton:_BWGButton enabled:[self.mutator isGeminiAvailable]];
-}
-
-- (void)updateFeatureRowsAvailability {
-  CHECK(IsProactiveSuggestionsFrameworkEnabled());
-  [self rebuildFeatureRows];
-
-  // Animate the layout change.
-  [self.view setNeedsLayout];
-  __weak __typeof(self) weakSelf = self;
-  [UIView animateWithDuration:kPermissionsFeatureAnimationDuration
-                   animations:^{
-                     [weakSelf.view layoutIfNeeded];
-                   }];
 }
 
 #pragma mark - Private
@@ -754,7 +738,7 @@ const CGFloat kDividerWidth = 1.0;
   for (PageActionMenuFeature* feature in activeFeatures) {
     UIView* featureRow = [self createFeatureRowWithData:feature];
     [_featureRowsStackView addArrangedSubview:featureRow];
-    [_featureRowsStackView setCustomSpacing:kStackViewMargins
+    [_featureRowsStackView setCustomSpacing:kFeatureRowVerticalPadding
                                   afterView:featureRow];
     lastView = featureRow;
   }
@@ -893,6 +877,12 @@ const CGFloat kDividerWidth = 1.0;
                          action:@selector(handleFeatureButton:)
                forControlEvents:UIControlEventTouchUpInside];
         [stackView addArrangedSubview:actionButton];
+
+        // Add chevron for price tracking.
+        if (feature.featureType == PageActionMenuPriceTracking) {
+          UIImageView* chevronIcon = [self createNavigationChevron];
+          [stackView addArrangedSubview:chevronIcon];
+        }
       }
       break;
     }
@@ -901,9 +891,13 @@ const CGFloat kDividerWidth = 1.0;
       break;
   }
 
+  BOOL hasNavigation = (feature.actionType == PageActionMenuSettingsAction ||
+                        feature.featureType == PageActionMenuPriceTracking);
+  CGFloat rowHeight = hasNavigation ? kSmallButtonHeight : kFeatureRowHeight;
+
   [NSLayoutConstraint activateConstraints:@[
     [containerView.heightAnchor
-        constraintGreaterThanOrEqualToConstant:kFeatureRowHeight],
+        constraintGreaterThanOrEqualToConstant:rowHeight],
 
     [stackView.leadingAnchor
         constraintEqualToAnchor:containerView.leadingAnchor
@@ -936,7 +930,7 @@ const CGFloat kDividerWidth = 1.0;
       PreferredFontForTextStyle(UIFontTextStyleFootnote, UIFontWeightRegular);
   label.textColor = [UIColor colorNamed:kTextSecondaryColor];
   label.numberOfLines = 0;
-  label.textAlignment = NSTextAlignmentCenter;
+  label.textAlignment = NSTextAlignmentLeft;
   return label;
 }
 
@@ -958,7 +952,7 @@ const CGFloat kDividerWidth = 1.0;
   PageActionMenuFeatureType featureType =
       (PageActionMenuFeatureType)toggleSwitch.tag;
 
-  [self.mutator revokePermission:featureType];
+  [self.mutator updatePermission:toggleSwitch.isOn forFeature:featureType];
 }
 
 // Handles button taps for action-based features like translate and popup
@@ -970,14 +964,16 @@ const CGFloat kDividerWidth = 1.0;
   switch (featureType) {
     case PageActionMenuTranslate:
       [self.mutator revertTranslation];
+      [self.pageActionMenuHandler dismissPageActionMenuWithCompletion:nil];
       break;
     case PageActionMenuPopupBlocker:
       [self.mutator allowBlockedPopups];
       break;
     case PageActionMenuPriceTracking: {
-      __weak PageActionMenuViewController* weakSelf = self;
+      // Capture the mutator before dismissal.
+      id<PageActionMenuMutator> mutator = self.mutator;
       [self.pageActionMenuHandler dismissPageActionMenuWithCompletion:^{
-        [weakSelf.mutator openPriceInsightsPanel];
+        [mutator openPriceInsightsPanel];
       }];
       break;
     }
@@ -1169,7 +1165,7 @@ const CGFloat kDividerWidth = 1.0;
         constraintEqualToAnchor:containerView.bottomAnchor],
 
     [containerView.heightAnchor
-        constraintGreaterThanOrEqualToConstant:kFeatureRowHeight],
+        constraintGreaterThanOrEqualToConstant:kSmallButtonHeight],
   ]];
 
   UIStackView* labelsStack = buttonContentStack.arrangedSubviews[1];

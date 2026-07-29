@@ -274,9 +274,8 @@ scoped_refptr<gfx::NativePixmap> WaylandSurfaceFactory::CreateNativePixmap(
         base::MakeRefCounted<GbmPixmapWayland>(buffer_manager_);
 
     auto native_usage = BufferUsageToNativePixmapUsage(usage);
-    if (!pixmap->InitializeBuffer(widget, size,
-                                  viz::SharedImageFormatToBufferFormat(format),
-                                  native_usage, framebuffer_size)) {
+    if (!pixmap->InitializeBuffer(widget, size, format, native_usage,
+                                  framebuffer_size)) {
       return nullptr;
     }
     return pixmap;
@@ -297,9 +296,8 @@ WaylandSurfaceFactory::CreateNativePixmapFromHandle(
                         GetFourCCFormatFromSharedImageFormat(format))) {
     scoped_refptr<GbmPixmapWayland> pixmap =
         base::MakeRefCounted<GbmPixmapWayland>(buffer_manager_);
-    if (pixmap->InitializeBufferFromHandle(
-            widget, size, viz::SharedImageFormatToBufferFormat(format),
-            std::move(handle))) {
+    if (pixmap->InitializeBufferFromHandle(widget, size, format,
+                                           std::move(handle))) {
       return pixmap;
     }
   } else {

@@ -34,6 +34,7 @@ import org.chromium.chrome.browser.browser_controls.BrowserStateBrowserControlsV
 import org.chromium.chrome.browser.layouts.LayoutStateProvider;
 import org.chromium.chrome.browser.omnibox.LocationBar;
 import org.chromium.chrome.browser.omnibox.LocationBarCoordinator;
+import org.chromium.chrome.browser.omnibox.LocationBarEmbedder;
 import org.chromium.chrome.browser.omnibox.NewTabPageDelegate;
 import org.chromium.chrome.browser.omnibox.UrlBarData;
 import org.chromium.chrome.browser.profiles.Profile;
@@ -76,7 +77,7 @@ import java.util.function.Supplier;
  */
 @NullMarked
 public abstract class ToolbarLayout extends FrameLayout
-        implements Destroyable, TintObserver, ThemeColorObserver {
+        implements Destroyable, TintObserver, ThemeColorObserver, LocationBarEmbedder {
     private @Nullable ToolbarColorObserver mToolbarColorObserver;
 
     private final int[] mTempPosition = new int[2];
@@ -853,8 +854,16 @@ public abstract class ToolbarLayout extends FrameLayout
         }
     }
 
+    /** Notifies the observer that the toolbar starts expanding or has collapsed. */
+    protected void notifyToolbarExpandingOnNtp(boolean isExpanding) {
+        if (mToolbarColorObserver != null) {
+            mToolbarColorObserver.onToolbarExpandingOnNtp(isExpanding);
+        }
+    }
+
     /**
      * This method sets the toolbar hairline visibility.
+     *
      * @param isHairlineVisible whether the toolbar hairline should be visible.
      */
     public void setHairlineVisibility(boolean isHairlineVisible) {

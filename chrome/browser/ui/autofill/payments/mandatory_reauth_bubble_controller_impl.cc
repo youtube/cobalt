@@ -281,7 +281,7 @@ void MandatoryReauthBubbleControllerImpl::DoShowBubble() {
 }
 
 bool MandatoryReauthBubbleControllerImpl::CanBeReshown() const {
-  return current_bubble_type_ != MandatoryReauthBubbleType::kInactive;
+  return current_bubble_type_ == MandatoryReauthBubbleType::kOptIn;
 }
 
 BubbleType MandatoryReauthBubbleControllerImpl::GetBubbleType() const {
@@ -309,3 +309,7 @@ MandatoryReauthBubbleControllerImpl::GetJavaControllerBridge() {
 WEB_CONTENTS_USER_DATA_KEY_IMPL(MandatoryReauthBubbleControllerImpl);
 
 }  // namespace autofill
+
+#if BUILDFLAG(IS_ANDROID)
+DEFINE_JNI(MandatoryReauthOptInBottomSheetControllerBridge)
+#endif

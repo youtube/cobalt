@@ -13,7 +13,6 @@
 #include <vector>
 
 #include "base/functional/callback.h"
-#include "base/functional/callback_helpers.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/types/expected.h"
@@ -43,12 +42,15 @@
 #include "ui/base/mojom/window_show_state.mojom-forward.h"
 #include "ui/base/ui_base_types.h"
 #include "ui/base/window_open_disposition.h"
-#include "ui/gfx/geometry/rect_f.h"
 #include "ui/gfx/native_ui_types.h"
 
 #if BUILDFLAG(IS_ANDROID)
 #include "base/android/scoped_java_ref.h"
 #include "content/public/browser/back_forward_transition_animation_manager.h"
+
+namespace base {
+class ScopedClosureRunner;
+}  // namespace base
 
 namespace base::android {
 class ScopedHardwareBufferHandle;
@@ -77,6 +79,7 @@ class GeolocationContext;
 
 namespace gfx {
 class Rect;
+class RectF;
 class Size;
 }  // namespace gfx
 
@@ -860,6 +863,13 @@ class CONTENT_EXPORT WebContentsDelegate {
   // later time.
   virtual bool MaybeCopyContentAreaAsBitmap(
       base::OnceCallback<void(const SkBitmap&)> callback);
+
+  // Gets the page content annotations for the given WebContents.
+  // The callback gets a serialized AnnotatedPageContent proto.
+  virtual void GetAIPageContent(
+      WebContents* web_contents,
+      bool include_actionable_elements,
+      base::OnceCallback<void(const std::string&)> callback);
 
 #if BUILDFLAG(IS_ANDROID)
   // Allow delegate to override how to take a snapshot of this WebContents into

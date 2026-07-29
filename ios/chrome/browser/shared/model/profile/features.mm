@@ -63,11 +63,4 @@ bool IsMultiProfilePushNotificationHandlingEnabled() {
          base::FeatureList::IsEnabled(kIOSPushNotificationMultiProfile);
 }
 
-BASE_FEATURE(kShareExtensionForMultiprofile, base::FEATURE_ENABLED_BY_DEFAULT);
-
-bool IsShareExtensionForMultiprofileEnabled() {
-  return base::FeatureList::IsEnabled(kShareExtensionForMultiprofile) &&
-         AreSeparateProfilesForManagedAccountsEnabled();
-}
-
 BASE_FEATURE(kDestroyOTRProfileEarly, base::FEATURE_DISABLED_BY_DEFAULT);

@@ -8,24 +8,31 @@
 #include "base/feature_list.h"
 #include "base/memory/raw_ref.h"
 #include "base/uuid.h"
+#include "chrome/browser/contextual_search/contextual_search_service_factory.h"
+#include "chrome/browser/contextual_search/contextual_search_web_contents_helper.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_composebox_handler.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_context_controller.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_context_controller_factory.h"
+#include "chrome/browser/contextual_tasks/contextual_tasks_context_service_factory.h"
+#include "chrome/browser/contextual_tasks/contextual_tasks_internals_page_handler.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_page_handler.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_side_panel_coordinator.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_ui_service.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_ui_service_factory.h"
+#include "chrome/browser/optimization_guide/optimization_guide_keyed_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
-#include "chrome/browser/ui/webui/searchbox/searchbox_handler.h"
+#include "chrome/browser/ui/webui/cr_components/searchbox/searchbox_handler.h"
+#include "chrome/browser/ui/webui/new_tab_page/composebox/variations/composebox_fieldtrial.h"
 #include "chrome/browser/ui/webui/webui_embedding_context.h"
 #include "chrome/common/webui_url_constants.h"
 #include "chrome/grit/branded_strings.h"
 #include "chrome/grit/contextual_tasks_resources.h"
 #include "chrome/grit/contextual_tasks_resources_map.h"
 #include "chrome/grit/generated_resources.h"
+#include "components/contextual_search/contextual_search_metrics_recorder.h"
 #include "components/contextual_tasks/public/contextual_task.h"
 #include "components/contextual_tasks/public/features.h"
 #include "components/lens/lens_features.h"
@@ -85,26 +92,43 @@ ContextualTasksUI::ContextualTasksUI(content::WebUI* web_ui)
 
   static constexpr webui::LocalizedString kLocalizedStrings[] = {
       {"openInNewTab", IDS_CONTEXTUAL_TASKS_MENU_OPEN_IN_NEW_TAB},
-      {"openChromeSettings", IDS_CONTEXTUAL_TASKS_MENU_OPEN_CHROME_SETTINGS},
       {"myActivity", IDS_CONTEXTUAL_TASKS_MENU_MY_ACTIVITY},
       {"help", IDS_CONTEXTUAL_TASKS_MENU_HELP},
+      {"sourcesMenuTabsHeader", IDS_CONTEXTUAL_TASKS_SOURCES_MENU_TABS_HEADER},
   };
   source->AddLocalizedStrings(kLocalizedStrings);
+  source->AddLocalizedString(
+      "lensSearchButtonLabel",
+      IDS_TOOLTIP_LENS_REINVOKE_VISUAL_SELECTION_A11Y_LABEL);
 
-  // Support no file types.
-  source->AddString("composeboxImageFileTypes", "");
-  source->AddString("composeboxAttachmentFileTypes", "");
-  source->AddInteger("composeboxFileMaxSize", 0);
-  source->AddInteger("composeboxFileMaxCount", 0);
+  source->AddString(
+      "composeboxImageFileTypes",
+      contextual_tasks::kContextualTasksNextboxImageFileTypes.Get());
+  source->AddString(
+      "composeboxAttachmentFileTypes",
+      contextual_tasks::kContextualTasksNextboxAttachmentFileTypes.Get());
+  source->AddInteger(
+      "composeboxFileMaxSize",
+      contextual_tasks::kContextualTasksNextboxMaxFileSize.Get());
+  source->AddInteger(
+      "composeboxFileMaxCount",
+      contextual_tasks::kContextualTasksNextboxMaxFileCount.Get());
+  source->AddBoolean("composeboxNoFlickerSuggestionsFix", false);
   // Enable typed suggest.
-  source->AddBoolean("composeboxShowTypedSuggest", true);
+  source->AddBoolean("composeboxShowTypedSuggest", false);
   source->AddBoolean("composeboxShowTypedSuggestWithContext", false);
   // Disable ZPS.
-  source->AddBoolean("composeboxShowZps", false);
+  source->AddBoolean(
+      "composeboxShowZps",
+      contextual_tasks::GetIsContextualTasksSuggestionsEnabled());
   // Disable image context suggestions.
-  source->AddBoolean("composeboxShowImageSuggest", false);
+  source->AddBoolean(
+      "composeboxShowImageSuggest",
+      contextual_tasks::GetIsContextualTasksSuggestionsEnabled());
   // Disable context menu and related features.
-  source->AddBoolean("composeboxShowContextMenu", false);
+  source->AddBoolean(
+      "composeboxShowContextMenu",
+      contextual_tasks::GetIsContextualTasksNextboxContextMenuEnabled());
   source->AddBoolean("composeboxShowContextMenuDescription", true);
   // Send event when escape is pressed.
   source->AddBoolean("composeboxCloseByEscape", true);
@@ -137,6 +161,39 @@ ContextualTasksUI::ContextualTasksUI(content::WebUI* web_ui)
   source->AddBoolean("expandedComposeboxShowVoiceSearch", false);
   source->AddBoolean("composeboxShowContextMenuTabPreviews", false);
   source->AddBoolean("composeboxContextMenuEnableMultiTabSelection", false);
+  source->AddString(
+      "composeboxSource",
+      contextual_search::ContextualSearchMetricsRecorder::
+          ContextualSearchSourceToString(
+              contextual_search::ContextualSearchSource::kContextualTasks));
+
+  source->AddString("userAgentSuffix",
+                    contextual_tasks::GetContextualTasksUserAgentSuffix());
+
+  // Set up chrome://contextual-tasks/internals debug UI.
+  source->AddResourcePath(
+      "internals",
+      IDR_CONTEXTUAL_TASKS_INTERNALS_CONTEXTUAL_TASKS_INTERNALS_HTML);
+  source->AddResourcePath(
+      "internals/",
+      IDR_CONTEXTUAL_TASKS_INTERNALS_CONTEXTUAL_TASKS_INTERNALS_HTML);
+
+  // Create a session handle on the web contents if it doesn't already exist.
+  // TODO(crbug.com/462193737): Pass the session handle from the omnibox
+  // or NTP through the web contents helper.
+  if (auto* contextual_search_web_contents_helper =
+          ContextualSearchWebContentsHelper::GetOrCreateForWebContents(
+              web_ui->GetWebContents());
+      !contextual_search_web_contents_helper->session_handle()) {
+    Profile* profile = Profile::FromWebUI(web_ui);
+    auto* contextual_search_service =
+        ContextualSearchServiceFactory::GetForProfile(profile);
+    auto contextual_session_handle = contextual_search_service->CreateSession(
+        ntp_composebox::CreateQueryControllerConfigParams(),
+        contextual_search::ContextualSearchSource::kNewTabPage);
+    contextual_search_web_contents_helper->set_session_handle(
+        std::move(contextual_session_handle));
+  }
 }
 
 ContextualTasksUI::~ContextualTasksUI() = default;
@@ -144,9 +201,9 @@ ContextualTasksUI::~ContextualTasksUI() = default;
 void ContextualTasksUI::CreatePageHandler(
     mojo::PendingRemote<contextual_tasks::mojom::Page> page,
     mojo::PendingReceiver<contextual_tasks::mojom::PageHandler> page_handler) {
+  page_.Bind(std::move(page));
   page_handler_ = std::make_unique<ContextualTasksPageHandler>(
-      std::move(page_handler), web_ui(), this, ui_service_);
-  page_ = mojo::Remote(std::move(page));
+      std::move(page_handler), this, ui_service_);
 }
 
 const std::optional<base::Uuid>& ContextualTasksUI::GetTaskId() {
@@ -182,6 +239,10 @@ bool ContextualTasksUI::IsShownInTab() {
 
 BrowserWindowInterface* ContextualTasksUI::GetBrowser() {
   return FromWebContents(web_ui()->GetWebContents());
+}
+
+content::WebContents* ContextualTasksUI::GetWebUIWebContents() {
+  return web_ui()->GetWebContents();
 }
 
 void ContextualTasksUI::CloseSidePanel() {
@@ -224,12 +285,17 @@ void ContextualTasksUI::CreatePageHandler(
     mojo::PendingRemote<searchbox::mojom::Page> pending_searchbox_page,
     mojo::PendingReceiver<searchbox::mojom::PageHandler>
         pending_searchbox_handler) {
-  DCHECK(pending_page.is_valid());
   composebox_handler_ = std::make_unique<ContextualTasksComposeboxHandler>(
-      Profile::FromWebUI(web_ui()), web_ui()->GetWebContents(),
+      this, Profile::FromWebUI(web_ui()), web_ui()->GetWebContents(),
       std::move(pending_page_handler), std::move(pending_page),
       std::move(pending_searchbox_handler));
   composebox_handler_->SetPage(std::move(pending_searchbox_page));
+}
+
+void ContextualTasksUI::PostMessageToWebview(
+    const lens::ClientToAimMessage& message) {
+  CHECK(page_handler_);
+  page_handler_->PostMessageToWebview(message);
 }
 
 void ContextualTasksUI::OnInnerWebContentsCreated(
@@ -245,6 +311,40 @@ void ContextualTasksUI::OnSidePanelStateChanged() {
   page_->OnSidePanelStateChanged();
 }
 
+void ContextualTasksUI::OnActiveTabContextStatusChanged(
+    TabContextStatus status) {
+  if (!composebox_handler_) {
+    return;
+  }
+
+  if (status != TabContextStatus::kNotUploaded) {
+    composebox_handler_->UpdateSuggestedTabContext(nullptr);
+    return;
+  }
+
+  tabs::TabInterface* tab = GetBrowser()->GetActiveTabInterface();
+  if (!tab) {
+    composebox_handler_->UpdateSuggestedTabContext(nullptr);
+    return;
+  }
+
+  content::WebContents* web_contents = tab->GetContents();
+  GURL last_committed_url = web_contents->GetLastCommittedURL();
+
+  if (!last_committed_url.is_valid() || last_committed_url.is_empty()) {
+    composebox_handler_->UpdateSuggestedTabContext(nullptr);
+    return;
+  }
+
+  auto tab_data = searchbox::mojom::TabInfo::New();
+  tab_data->tab_id = tab->GetHandle().raw_value();
+  tab_data->title = base::UTF16ToUTF8(web_contents->GetTitle());
+  tab_data->url = last_committed_url;
+  tab_data->last_active = std::max(web_contents->GetLastActiveTimeTicks(),
+                                   web_contents->GetLastInteractionTimeTicks());
+  composebox_handler_->UpdateSuggestedTabContext(std::move(tab_data));
+}
+
 ContextualTasksUI::FrameNavObserver::FrameNavObserver(
     content::WebContents* web_contents,
     contextual_tasks::ContextualTasksUiService* ui_service,
@@ -253,8 +353,7 @@ ContextualTasksUI::FrameNavObserver::FrameNavObserver(
     : content::WebContentsObserver(web_contents),
       ui_service_(ui_service),
       context_controller_(context_controller),
-      task_info_delegate_(CHECK_DEREF(task_info_delegate)) {
-}
+      task_info_delegate_(CHECK_DEREF(task_info_delegate)) {}
 
 void ContextualTasksUI::FrameNavObserver::DidFinishNavigation(
     content::NavigationHandle* navigation_handle) {
@@ -275,42 +374,45 @@ void ContextualTasksUI::FrameNavObserver::DidFinishNavigation(
     return;
   }
 
-  // Almost everything is keyed off of the thread ID - if one isn't in the URL,
-  // wait until it is. This state also implies the task and thread we're
-  // tracking changed.
   std::string url_thread_id;
   if (!net::GetValueForKeyInQuery(url, "mtid", &url_thread_id)) {
-    task_info_delegate_->SetTaskId(std::nullopt);
-    task_info_delegate_->SetThreadId(std::nullopt);
-    task_info_delegate_->SetThreadTitle(std::nullopt);
-    if (!task_info_delegate_->IsShownInTab() &&
-        task_info_delegate_->GetBrowser()) {
-      ui_service_->OnTaskChangedInPanel(task_info_delegate_->GetBrowser(),
-                                        base::Uuid());
-    }
     return;
   }
 
   auto webui_thread_id = task_info_delegate_->GetThreadId();
+  bool task_changed = false;
+
+  // Avoid creating a new task if there's a task ID without a thread ID.
+  bool is_pending_task =
+      task_info_delegate_->GetTaskId().has_value() && !webui_thread_id;
 
   // In cases where the webui doesn't know about an existing threaad ID or
   // there's a mismatch, either create a new task or update to use an existing
   // one (if it exists).
-  if (!webui_thread_id || (webui_thread_id.value() != url_thread_id)) {
+  if (!is_pending_task &&
+      (!webui_thread_id || (webui_thread_id.value() != url_thread_id))) {
     // Check if there's an existing task for the thread.
     std::optional<contextual_tasks::ContextualTask> existing_task =
         context_controller_->GetTaskFromServerId(
             contextual_tasks::ThreadType::kAiMode, url_thread_id);
 
     if (existing_task) {
+      task_changed =
+          task_info_delegate_->GetTaskId() &&
+          existing_task.value().GetTaskId() == task_info_delegate_->GetTaskId();
       task_info_delegate_->SetTaskId(existing_task.value().GetTaskId());
       task_info_delegate_->SetThreadTitle(existing_task.value().GetTitle());
     } else {
+      task_changed = true;
       auto task = context_controller_->CreateTaskFromUrl(url);
       task_info_delegate_->SetTaskId(task.GetTaskId());
     }
   }
   task_info_delegate_->SetThreadId(url_thread_id);
+
+  // TODO(crbug.com/456793138): Update the contextual search session handle on
+  // the webcontents, reusing sessions if the thread already has a corresponding
+  // session entry, based on the mtid, once mtid is reliably set by the server.
 
   // If we don't yet have a title, try to pull one from the query.
   if (!task_info_delegate_->GetThreadTitle()) {
@@ -331,10 +433,12 @@ void ContextualTasksUI::FrameNavObserver::DidFinishNavigation(
       contextual_tasks::ThreadType::kAiMode, url_thread_id, mstk,
       task_info_delegate_->GetThreadTitle());
 
-  if (!task_info_delegate_->IsShownInTab() &&
+  if (task_changed && !task_info_delegate_->IsShownInTab() &&
       task_info_delegate_->GetBrowser()) {
-    ui_service_->OnTaskChangedInPanel(task_info_delegate_->GetBrowser(),
-                                      task_info_delegate_->GetTaskId().value());
+    ui_service_->OnTaskChangedInPanel(
+        task_info_delegate_->GetBrowser(),
+        task_info_delegate_->GetWebUIWebContents(),
+        task_info_delegate_->GetTaskId().value());
   }
 }
 
@@ -351,6 +455,32 @@ void ContextualTasksUI::InnerFrameCreationObvserver::InnerWebContentsCreated(
     content::WebContents* inner_web_contents) {
   CHECK(callback_);
   std::move(callback_).Run(inner_web_contents);
+}
+
+void ContextualTasksUI::BindInterface(
+    mojo::PendingReceiver<contextual_tasks_internals::mojom::
+                              ContextualTasksInternalsPageHandlerFactory>
+        receiver) {
+  contextual_tasks_internals_page_handler_receiver_.reset();
+  contextual_tasks_internals_page_handler_receiver_.Bind(std::move(receiver));
+}
+
+void ContextualTasksUI::CreatePageHandler(
+    mojo::PendingRemote<
+        contextual_tasks_internals::mojom::ContextualTasksInternalsPage> page,
+    mojo::PendingReceiver<
+        contextual_tasks_internals::mojom::ContextualTasksInternalsPageHandler>
+        receiver) {
+  Profile* profile = Profile::FromWebUI(web_ui());
+  auto* context_service =
+      contextual_tasks::ContextualTasksContextServiceFactory::GetForProfile(
+          profile);
+  auto* optimization_guide_keyed_service =
+      OptimizationGuideKeyedServiceFactory::GetForProfile(profile);
+  contextual_tasks_internals_page_handler_ =
+      std::make_unique<ContextualTasksInternalsPageHandler>(
+          context_service, optimization_guide_keyed_service,
+          std::move(receiver), std::move(page));
 }
 
 WEB_UI_CONTROLLER_TYPE_IMPL(ContextualTasksUI)

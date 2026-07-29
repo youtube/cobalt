@@ -9,7 +9,6 @@
 
 #include "base/containers/fixed_flat_set.h"
 #include "base/feature_list.h"
-#include "base/functional/callback_forward.h"
 #include "base/notreached.h"
 #include "base/time/time.h"
 #include "components/strings/grit/components_strings.h"
@@ -39,6 +38,7 @@ bool IsAllowedActionableAlert(const base::Feature& promo_feature) {
       base::MakeFixedFlatSet<std::string_view>({
           "IPH_DownloadEsbPromo",
           "IPH_HighEfficiencyMode",
+          "IPH_iOSEnhancedBrowsingDesktop",
           "IPH_SignInBenefits",
           "IPH_SupervisedUserProfileSignin",
           "IPH_TabSearchToolbarButton",
@@ -83,7 +83,8 @@ bool IsAllowedCustomUiPromo(const base::Feature& promo_feature) {
   // Add the text names of allowlisted rotating promos here:
   static constexpr auto kAllowedPromoNames =
       base::MakeFixedFlatSet<std::string_view>(
-          {"IPH_ExtensionsZeroStatePromo", "IPH_iOSLensPromoDesktop"});
+          {"IPH_ExtensionsZeroStatePromo", "IPH_iOSEnhancedBrowsingDesktop",
+           "IPH_iOSLensPromoDesktop", "IPH_iOSPasswordPromoDesktop"});
   return kAllowedPromoNames.contains(promo_feature.name);
 }
 
@@ -514,7 +515,8 @@ FeaturePromoSpecification& FeaturePromoSpecification::SetPromoSubtype(
       CHECK(IsAllowedLegalNotice(*feature_));
       break;
     case PromoSubtype::kActionableAlert:
-      CHECK_EQ(promo_type_, PromoType::kCustomAction);
+      CHECK(promo_type_ == PromoType::kCustomAction ||
+            promo_type_ == PromoType::kCustomUi);
       CHECK(feature_);
       CHECK(IsAllowedActionableAlert(*feature_));
       break;

@@ -219,8 +219,8 @@ ukm::SourceId AutofillDriverIOS::GetPageUkmSourceId() const {
   return ukm::GetSourceIdForWebStateDocument(web_state_);
 }
 
-bool AutofillDriverIOS::HasSharedAutofillPermission() const {
-  // Give the shared-autofill permission to the main frame of the webstate by
+bool AutofillDriverIOS::IsPolicyControlledFeatureAutofillEnabled() const {
+  // Give the "autofill" permission to the main frame of the webstate by
   // default.
   if (!web_frame() || web_frame()->IsMainFrame()) {
     return true;
@@ -236,6 +236,10 @@ bool AutofillDriverIOS::HasSharedAutofillPermission() const {
 
   // Return false as share-autofill is not allowed.
   return false;
+}
+
+bool AutofillDriverIOS::IsPolicyControlledFeatureManualTextEnabled() const {
+  return true;
 }
 
 bool AutofillDriverIOS::CanShowAutofillUi() const {

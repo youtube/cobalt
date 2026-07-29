@@ -11,6 +11,7 @@
 #include "third_party/blink/renderer/core/animation/animation_test_helpers.h"
 #include "third_party/blink/renderer/core/animation/document_timeline.h"
 #include "third_party/blink/renderer/core/animation/element_animations.h"
+#include "third_party/blink/renderer/core/css/active_style_sheets.h"
 #include "third_party/blink/renderer/core/css/cascade_layer_map.h"
 #include "third_party/blink/renderer/core/css/css_flip_revert_value.h"
 #include "third_party/blink/renderer/core/css/css_image_set_value.h"
@@ -145,6 +146,26 @@ class StyleResolverTest : public PageTestBase {
 
   size_t GetCurrentOldStylesCount() {
     return PostStyleUpdateScope::CurrentAnimationData()->old_styles_.size();
+  }
+
+  // Create unconnected RuleSets for each active stylesheet to observe
+  // the side effects (which should be nothing).
+  void CreateUnconnectedRuleSets(
+      const ActiveStyleSheetVector& active_stylesheets) {
+    for (const ActiveStyleSheet& active_stylesheet : active_stylesheets) {
+      CSSStyleSheet* sheet = active_stylesheet.first.Get();
+      ASSERT_TRUE(sheet);
+      RuleSet* unconnected_ruleset =
+          GetStyleEngine().CreateUnconnectedRuleSet(*sheet, /*mixins=*/{});
+      ASSERT_TRUE(unconnected_ruleset);
+    }
+  }
+
+  void SetInnerText(const char* selector, const char* text) {
+    HTMLElement* element = DynamicTo<HTMLElement>(
+        GetDocument().QuerySelector(AtomicString(selector)));
+    DCHECK(element);
+    element->setInnerText(text);
   }
 };
 
@@ -1524,6 +1545,275 @@ TEST_F(StyleResolverTest, QuietlySwapActiveStyleSheets_ImplicitScope) {
   EXPECT_EQ(1u, outer->GetStyleScopeData()->GetTriggeredScopes().size());
 }
 
+TEST_F(StyleResolverTest, CreateUnconnectedRuleSets_LayeredPageRule) {
+  GetDocument().body()->SetInnerHTMLWithoutTrustedTypes(R"HTML(
+    <style>
+      @layer foo, bar;
+    </style>
+    <style id=style></style>
+    <style>
+      @layer bar {
+        @page { margin-top: 100px; }
+      }
+      @layer foo {
+        @page { margin-top: 50px; }
+      }
+    </style>
+  )HTML");
+  UpdateAllLifecyclePhasesForTest();
+
+  gfx::SizeF page_size(400, 400);
+  GetDocument().GetFrame()->StartPrinting(WebPrintParams(page_size));
+  GetDocument().View()->UpdateLifecyclePhasesForPrinting();
+
+  // "bar" wins:
+  EXPECT_EQ(100, GetDocument().GetPageDescription(/*page_index=*/0).margin_top);
+  GetDocument().GetFrame()->EndPrinting();
+  UpdateAllLifecyclePhasesForTest();
+
+  ScopedStyleResolver* scoped_resolver = GetDocument().GetScopedStyleResolver();
+  ASSERT_TRUE(scoped_resolver);
+
+  // This should have no side effects.
+  CreateUnconnectedRuleSets(scoped_resolver->GetActiveStyleSheets());
+
+  // Add a layer that should not matter.
+  SetInnerText("#style", "@layer { div {} }");
+
+  // The result should be the same if we print again:
+  GetDocument().GetFrame()->StartPrinting(WebPrintParams(page_size));
+  GetDocument().View()->UpdateLifecyclePhasesForPrinting();
+  EXPECT_EQ(100, GetDocument().GetPageDescription(/*page_index=*/0).margin_top);
+}
+
+TEST_F(StyleResolverTest, CreateUnconnectedRuleSets_LayeredFontFaceRule) {
+  GetDocument().body()->SetInnerHTMLWithoutTrustedTypes(R"HTML(
+    <style>
+      @layer foo, bar;
+    </style>
+    <style id=style></style>
+    <style>
+      @layer bar {
+        @font-face { font-family: foo; src: url('a.woff'); }
+      }
+      @layer foo {
+        @font-face { font-family: foo; src: url('b.woff'); }
+      }
+    </style>
+  )HTML");
+  UpdateAllLifecyclePhasesForTest();
+  ScopedStyleResolver* scoped_resolver = GetDocument().GetScopedStyleResolver();
+  ASSERT_TRUE(scoped_resolver);
+  // This should have no side effects:
+  CreateUnconnectedRuleSets(scoped_resolver->GetActiveStyleSheets());
+  // Add a layer that causes a rebuild of the CascadeLayer map:
+  SetInnerText("#style", "@layer { div {} }");
+  // Don't crash:
+  UpdateAllLifecyclePhasesForTest();
+}
+
+TEST_F(StyleResolverTest, CreateUnconnectedRuleSets_LayeredFontFeatureValues) {
+  GetDocument().body()->SetInnerHTMLWithoutTrustedTypes(R"HTML(
+    <style>
+      @layer foo, bar;
+    </style>
+    <style id=style></style>
+    <style>
+      @layer bar {
+        @font-feature-values name { fancy: 1; }
+      }
+      @layer foo {
+        @font-feature-values name { fancy: 2; }
+      }
+    </style>
+  )HTML");
+  UpdateAllLifecyclePhasesForTest();
+  ScopedStyleResolver* scoped_resolver = GetDocument().GetScopedStyleResolver();
+  ASSERT_TRUE(scoped_resolver);
+  // This should have no side effects:
+  CreateUnconnectedRuleSets(scoped_resolver->GetActiveStyleSheets());
+  // Add a layer that causes a rebuild of the CascadeLayer map:
+  SetInnerText("#style", "@layer { div {} }");
+  // Don't crash:
+  UpdateAllLifecyclePhasesForTest();
+}
+
+TEST_F(StyleResolverTest, CreateUnconnectedRuleSets_LayeredKeyframes) {
+  GetDocument().body()->SetInnerHTMLWithoutTrustedTypes(R"HTML(
+    <style>
+      @layer foo, bar;
+    </style>
+    <style id=style></style>
+    <style>
+      @layer bar {
+        @keyframes anim {}
+      }
+      @layer foo {
+        @keyframes anim {}
+      }
+    </style>
+  )HTML");
+  UpdateAllLifecyclePhasesForTest();
+  ScopedStyleResolver* scoped_resolver = GetDocument().GetScopedStyleResolver();
+  ASSERT_TRUE(scoped_resolver);
+  // This should have no side effects:
+  CreateUnconnectedRuleSets(scoped_resolver->GetActiveStyleSheets());
+  // Add a layer that causes a rebuild of the CascadeLayer map:
+  SetInnerText("#style", "@layer { div {} }");
+  // Don't crash:
+  UpdateAllLifecyclePhasesForTest();
+}
+
+TEST_F(StyleResolverTest, CreateUnconnectedRuleSets_LayeredPropertyRules) {
+  GetDocument().body()->SetInnerHTMLWithoutTrustedTypes(R"HTML(
+    <style>
+      @layer foo, bar;
+    </style>
+    <style id=style></style>
+    <style>
+      @layer bar {
+        @property --x {
+          syntax: "<length>";
+          inherits: false;
+          initial-value: 0px;
+        }
+      }
+      @layer foo {
+        @property --x {
+          syntax: "<length>";
+          inherits: false;
+          initial-value: 1px;
+        }
+      }
+    </style>
+  )HTML");
+  UpdateAllLifecyclePhasesForTest();
+  ScopedStyleResolver* scoped_resolver = GetDocument().GetScopedStyleResolver();
+  ASSERT_TRUE(scoped_resolver);
+  // This should have no side effects:
+  CreateUnconnectedRuleSets(scoped_resolver->GetActiveStyleSheets());
+  // Add a layer that causes a rebuild of the CascadeLayer map:
+  SetInnerText("#style", "@layer { div {} }");
+  // Don't crash:
+  UpdateAllLifecyclePhasesForTest();
+}
+
+TEST_F(StyleResolverTest, CreateUnconnectedRuleSets_CounterStyleRules) {
+  GetDocument().body()->SetInnerHTMLWithoutTrustedTypes(R"HTML(
+    <style>
+      @layer foo, bar;
+    </style>
+    <style id=style></style>
+    <style>
+      @layer bar {
+        @counter-style cs {
+          system: fixed;
+          symbols: A B C;
+          suffix: " ";
+        }
+      }
+      @layer foo {
+        @counter-style cs {
+          system: fixed;
+          symbols: X Y Z;
+          suffix: " ";
+        }
+      }
+    </style>
+  )HTML");
+  UpdateAllLifecyclePhasesForTest();
+  ScopedStyleResolver* scoped_resolver = GetDocument().GetScopedStyleResolver();
+  ASSERT_TRUE(scoped_resolver);
+  // This should have no side effects:
+  CreateUnconnectedRuleSets(scoped_resolver->GetActiveStyleSheets());
+  // Add a layer that causes a rebuild of the CascadeLayer map:
+  SetInnerText("#style", "@layer { div {} }");
+  // Don't crash:
+  UpdateAllLifecyclePhasesForTest();
+}
+
+TEST_F(StyleResolverTest, CreateUnconnectedRuleSets_ViewTransitionRules) {
+  GetDocument().body()->SetInnerHTMLWithoutTrustedTypes(R"HTML(
+    <style>
+      @layer foo, bar;
+    </style>
+    <style id=style></style>
+    <style>
+      @layer bar {
+        @view-transition {
+          types: --foo;
+        }
+      }
+      @layer foo {
+        @view-transition {
+          types: --bar;
+        }
+      }
+    </style>
+  )HTML");
+  UpdateAllLifecyclePhasesForTest();
+  ScopedStyleResolver* scoped_resolver = GetDocument().GetScopedStyleResolver();
+  ASSERT_TRUE(scoped_resolver);
+  // This should have no side effects:
+  CreateUnconnectedRuleSets(scoped_resolver->GetActiveStyleSheets());
+  // Add a layer that causes a rebuild of the CascadeLayer map:
+  SetInnerText("#style", "@layer { div {} }");
+  // Don't crash:
+  UpdateAllLifecyclePhasesForTest();
+}
+
+TEST_F(StyleResolverTest, CreateUnconnectedRuleSets_PositionTryRules) {
+  GetDocument().body()->SetInnerHTMLWithoutTrustedTypes(R"HTML(
+    <style>
+      @layer foo, bar;
+    </style>
+    <style id=style></style>
+    <style>
+      @layer bar {
+        @position-try --pt { left: 1px; }
+      }
+      @layer foo {
+        @position-try --pt { left: 2px; }
+      }
+    </style>
+  )HTML");
+  UpdateAllLifecyclePhasesForTest();
+  ScopedStyleResolver* scoped_resolver = GetDocument().GetScopedStyleResolver();
+  ASSERT_TRUE(scoped_resolver);
+  // This should have no side effects:
+  CreateUnconnectedRuleSets(scoped_resolver->GetActiveStyleSheets());
+  // Add a layer that causes a rebuild of the CascadeLayer map:
+  SetInnerText("#style", "@layer { div {} }");
+  // Don't crash:
+  UpdateAllLifecyclePhasesForTest();
+}
+
+TEST_F(StyleResolverTest, CreateUnconnectedRuleSets_FunctionRules) {
+  GetDocument().body()->SetInnerHTMLWithoutTrustedTypes(R"HTML(
+    <style>
+      @layer foo, bar;
+    </style>
+    <style id=style></style>
+    <style>
+      @layer bar {
+        @function --a() { result: 1; }
+      }
+      @layer foo {
+        @function --a() { result: 2; }
+      }
+    </style>
+  )HTML");
+  UpdateAllLifecyclePhasesForTest();
+  ScopedStyleResolver* scoped_resolver = GetDocument().GetScopedStyleResolver();
+  ASSERT_TRUE(scoped_resolver);
+  // This should have no side effects:
+  CreateUnconnectedRuleSets(scoped_resolver->GetActiveStyleSheets());
+  // Add a layer that causes a rebuild of the CascadeLayer map:
+  SetInnerText("#style", "@layer { div {} }");
+  // Don't crash:
+  UpdateAllLifecyclePhasesForTest();
+}
+
 TEST_F(StyleResolverTest, InheritStyleImagesFromDisplayContents) {
   GetDocument().documentElement()->SetInnerHTMLWithoutTrustedTypes(R"HTML(
     <style>
@@ -2342,6 +2632,79 @@ TEST_F(StyleResolverTest, CascadeLayersAddLayersWithImportantDeclarations) {
                         CSSPropertyID::kFontSize));
   EXPECT_EQ(1u, properties[1].data_.layer_order);
   EXPECT_EQ(properties[1].data_.origin, CascadeOrigin::kAuthor);
+}
+
+TEST_F(StyleResolverTest, CascadeLayeredPageRule) {
+  GetDocument().documentElement()->SetInnerHTMLWithoutTrustedTypes(R"HTML(
+    <style>
+      @layer foo, bar;
+      @layer bar {
+        @page { margin-top: 100px; }
+      }
+      @layer foo {
+        @page { margin-top: 50px; }
+      }
+    </style>
+  )HTML");
+
+  gfx::SizeF page_size(400, 400);
+  GetDocument().GetFrame()->StartPrinting(WebPrintParams(page_size));
+  GetDocument().View()->UpdateLifecyclePhasesForPrinting();
+
+  WebPrintPageDescription description =
+      GetDocument().GetPageDescription(/*page_index=*/0);
+
+  // "bar" wins:
+  EXPECT_EQ(100, description.margin_top);
+}
+
+TEST_F(StyleResolverTest, CascadeLayeredPageRuleVsSpecificity) {
+  GetDocument().documentElement()->SetInnerHTMLWithoutTrustedTypes(R"HTML(
+    <style>
+      @layer foo {
+        @page { margin-top: 50px; }
+      }
+      @layer foo {
+        @page :first { margin-top: 100px; }
+      }
+    </style>
+  )HTML");
+
+  gfx::SizeF page_size(400, 400);
+  GetDocument().GetFrame()->StartPrinting(WebPrintParams(page_size));
+  GetDocument().View()->UpdateLifecyclePhasesForPrinting();
+
+  WebPrintPageDescription description =
+      GetDocument().GetPageDescription(/*page_index=*/0);
+
+  // The rules are in the same layer, but the latter one has higher
+  // specificity.
+  EXPECT_EQ(100, description.margin_top);
+}
+
+// Same as previous test, but the first rule has higher specificity.
+TEST_F(StyleResolverTest, CascadeLayeredPageRuleVsSpecificity_Reverse) {
+  GetDocument().documentElement()->SetInnerHTMLWithoutTrustedTypes(R"HTML(
+    <style>
+      @layer foo {
+        @page :first { margin-top: 100px; }
+      }
+      @layer foo {
+        @page { margin-top: 50px; }
+      }
+    </style>
+  )HTML");
+
+  gfx::SizeF page_size(400, 400);
+  GetDocument().GetFrame()->StartPrinting(WebPrintParams(page_size));
+  GetDocument().View()->UpdateLifecyclePhasesForPrinting();
+
+  WebPrintPageDescription description =
+      GetDocument().GetPageDescription(/*page_index=*/0);
+
+  // The rules are in the same layer, but the former one has higher
+  // specificity.
+  EXPECT_EQ(100, description.margin_top);
 }
 
 TEST_F(StyleResolverTest, BodyPropagationLayoutImageContain) {
@@ -3833,16 +4196,16 @@ TEST_F(StyleResolverTest, ScopedPositionAnchor) {
 
   EXPECT_EQ(*MakeGarbageCollected<ScopedCSSName>(AtomicString("--outer"),
                                                  &GetDocument()),
-            *outer_anchor->ComputedStyleRef().PositionAnchor());
+            outer_anchor->ComputedStyleRef().PositionAnchor().GetName());
   EXPECT_EQ(
       *MakeGarbageCollected<ScopedCSSName>(AtomicString("--host"), shadow),
-      *host->ComputedStyleRef().PositionAnchor());
+      host->ComputedStyleRef().PositionAnchor().GetName());
   EXPECT_EQ(*MakeGarbageCollected<ScopedCSSName>(AtomicString("--part"),
                                                  &GetDocument()),
-            *part->ComputedStyleRef().PositionAnchor());
+            part->ComputedStyleRef().PositionAnchor().GetName());
   EXPECT_EQ(
       *MakeGarbageCollected<ScopedCSSName>(AtomicString("--inner"), shadow),
-      *inner_anchor->ComputedStyleRef().PositionAnchor());
+      inner_anchor->ComputedStyleRef().PositionAnchor().GetName());
 }
 
 TEST_F(StyleResolverTest, NoAnchorFunction) {
@@ -4200,6 +4563,7 @@ TEST_F(StyleResolverTest, UseCountPseudoElementImplicitAnchor) {
   set_sheet_text(R"HTML(
     #div::before {
       content: "";
+      position-anchor: auto;
       position-area: top left;
       left: anchor(right);
     }
@@ -4211,6 +4575,7 @@ TEST_F(StyleResolverTest, UseCountPseudoElementImplicitAnchor) {
     #div::before {
       content: "";
       position: absolute;
+      position-anchor: auto;
       position-anchor: --a;
       position-area: top left;
       left: anchor(right);
@@ -4222,6 +4587,7 @@ TEST_F(StyleResolverTest, UseCountPseudoElementImplicitAnchor) {
   set_sheet_text(R"HTML(
     #div::before {
       position: absolute;
+      position-anchor: auto;
       position-area: top left;
       left: anchor(right);
     }
@@ -4233,6 +4599,7 @@ TEST_F(StyleResolverTest, UseCountPseudoElementImplicitAnchor) {
     #div::before {
       content: "";
       position: absolute;
+      position-anchor: auto;
       justify-self: anchor-center;
     }
   )HTML");
@@ -4243,6 +4610,7 @@ TEST_F(StyleResolverTest, UseCountPseudoElementImplicitAnchor) {
     #div::before {
       content: "";
       position: fixed;
+      position-anchor: auto;
       position-area: inline-start;
     }
   )HTML");
@@ -4253,6 +4621,7 @@ TEST_F(StyleResolverTest, UseCountPseudoElementImplicitAnchor) {
     #div::before {
       content: "";
       position: fixed;
+      position-anchor: auto;
       top: anchor(bottom);
     }
   )HTML");
@@ -4264,10 +4633,26 @@ TEST_F(StyleResolverTest, UseCountPseudoElementImplicitAnchor) {
     #div::before {
       content: "";
       position: absolute;
+      position-anchor: auto;
       top: anchor(--a bottom);
     }
   )HTML");
   EXPECT_TRUE(IsUseCounted(WebFeature::kCSSPseudoElementUsesImplicitAnchor));
+
+  // If position-anchor is initial, we aren't using the implicit anchor (with
+  // the CSSPositionAnchorNone feature enabled).
+  set_sheet_text(R"HTML(
+    #div::before {
+      content: "";
+      position: absolute;
+      left: anchor(right);
+    }
+  )HTML");
+  if (RuntimeEnabledFeatures::CSSPositionAnchorNoneEnabled()) {
+    EXPECT_FALSE(IsUseCounted(WebFeature::kCSSPseudoElementUsesImplicitAnchor));
+  } else {
+    EXPECT_TRUE(IsUseCounted(WebFeature::kCSSPseudoElementUsesImplicitAnchor));
+  }
 }
 
 TEST_F(StyleResolverTest, FindContainerForElement_LayoutSiblings) {

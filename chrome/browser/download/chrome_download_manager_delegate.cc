@@ -1931,6 +1931,7 @@ void ChromeDownloadManagerDelegate::CheckSavePackageScanningDone(
     case safe_browsing::DownloadCheckResult::BLOCKED_TOO_LARGE:
     case safe_browsing::DownloadCheckResult::SENSITIVE_CONTENT_BLOCK:
     case safe_browsing::DownloadCheckResult::BLOCKED_SCAN_FAILED:
+    case safe_browsing::DownloadCheckResult::FORCE_SAVE_TO_GDRIVE:
       enterprise_connectors::RunSavePackageScanningCallback(item,
                                                             /*allowed*/ false);
       break;
@@ -2429,4 +2430,8 @@ void ChromeDownloadManagerDelegate::RequestIncognitoSavePackageConfirmationDone(
       url, suggested_path,
       base::BindOnce(&OnDetermineSavePackagePathDone, std::move(callback)));
 }
+#endif
+
+#if BUILDFLAG(IS_ANDROID)
+DEFINE_JNI(PdfUtils)
 #endif

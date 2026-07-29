@@ -24,6 +24,7 @@
 #include "chrome/browser/ui/views/side_panel/side_panel_entry_id.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_entry_key.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_entry_waiter.h"
+#include "chrome/browser/ui/views/side_panel/side_panel_enums.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_header.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_header_controller.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_registry.h"
@@ -52,14 +53,10 @@ void SidePanelCoordinator::Init(Browser* browser) {
 
 void SidePanelCoordinator::TearDownPreBrowserWindowDestruction() {
   for (auto panel_type : SidePanelEntry::PanelTypes::All()) {
-    Close(/*suppress_animations=*/true, panel_type);
+    Close(panel_type, SidePanelEntryHideReason::kSidePanelClosed,
+          /*suppress_animations=*/true);
   }
   side_panel_toolbar_pinning_controller_.reset();
-}
-
-void SidePanelCoordinator::Close(SidePanelEntry::PanelType panel_type) {
-  Close(/*suppress_animations=*/false, panel_type,
-        SidePanelEntryHideReason::kSidePanelClosed);
 }
 
 void SidePanelCoordinator::Toggle(
@@ -90,10 +87,15 @@ void SidePanelCoordinator::Toggle(
   }
 }
 
-void SidePanelCoordinator::ShowFrom(SidePanelEntryKey entry_key,
-                                    gfx::Rect starting_bounds) {
-  // TODO(crbug.com/445453126): Trigger an animation to show from the provided
-  // starting_bounds.
+void SidePanelCoordinator::ShowFrom(
+    SidePanelEntryKey entry_key,
+    gfx::Rect starting_bounds_in_browser_coordinates) {
+  std::optional<UniqueKey> unique_key = GetUniqueKeyForKey(entry_key);
+  CHECK(unique_key.has_value());
+  SidePanelEntry* entry = GetEntryForUniqueKey(unique_key.value());
+  SidePanel* side_panel = GetSidePanelFor(entry->type());
+  side_panel->set_animation_starting_bounds_for_content(
+      starting_bounds_in_browser_coordinates);
   SidePanelUI::Show(entry_key);
 }
 
@@ -138,13 +140,14 @@ void SidePanelCoordinator::Show(
     SidePanelUtil::RecordSidePanelOpen(entry->type(), open_trigger);
 
     // If opening the toolbar height side panel, make sure the content height
-    // side panel is closed.
-    if (entry->type() == SidePanelEntry::PanelType::kToolbar &&
-        IsSidePanelShowing(SidePanelEntry::PanelType::kContent)) {
-      Close(/*suppress_animations=*/true, SidePanelEntry::PanelType::kContent,
-            SidePanelEntryHideReason::kSidePanelClosed);
+    // side panel is closed and vice versa.
+    if (auto other_type = entry->type() == SidePanelEntry::PanelType::kContent
+                              ? SidePanelEntry::PanelType::kToolbar
+                              : SidePanelEntry::PanelType::kContent;
+        IsSidePanelShowing(other_type)) {
+      Close(other_type, SidePanelEntryHideReason::kSidePanelClosed,
+            /*suppress_animations=*/true);
     }
-
     if (entry->type() == SidePanelEntry::PanelType::kContent) {
       // Record usage for side panel promo.
       feature_engagement::TrackerFactory::GetForBrowserContext(
@@ -213,14 +216,19 @@ void SidePanelCoordinator::Show(
 //   (4) At the moment that this comment was written, if this class is showing
 //   a window-scoped side-panel entry, and the window is closed via any
 //   mechanism, this method is not called.
-void SidePanelCoordinator::Close(bool suppress_animations,
-                                 SidePanelEntry::PanelType panel_type,
-                                 SidePanelEntryHideReason reason) {
+void SidePanelCoordinator::Close(SidePanelEntry::PanelType panel_type,
+                                 SidePanelEntryHideReason reason,
+                                 bool suppress_animations) {
   SidePanel* const side_panel = GetSidePanelFor(panel_type);
   if (!IsSidePanelShowing(panel_type) ||
       (!suppress_animations && side_panel->IsClosing())) {
     return;
   }
+
+  // If we are currently animating the side panel contents so it is parented to
+  // the BrowserView, reparent it now so that the entry will be notified it is
+  // hidden.
+  side_panel->ResetSidePanelAnimationContent();
 
   if (browser_view_->toolbar()->pinned_toolbar_actions_container()) {
     side_panel_toolbar_pinning_controller_->UpdateActiveState(
@@ -270,13 +278,16 @@ void SidePanelCoordinator::PopulateSidePanel(
   DCHECK(content_wrapper->children().size() <= 1);
 
   content_wrapper->SetVisible(true);
-  side_panel->Open(/*animated=*/!suppress_animations);
+
+  // If we are currently animating the side panel contents so it is parented to
+  // the BrowserView, reparent it now so that the entry will be notified it is
+  // hidden.
+  side_panel->ResetSidePanelAnimationContent();
 
   SidePanelEntry* previous_entry =
       IsSidePanelShowing(entry->type())
           ? GetEntryForUniqueKey(*current_key(entry->type()))
           : nullptr;
-
   if (content_wrapper->children().size()) {
     if (previous_entry) {
       if (open_trigger.has_value() &&
@@ -304,6 +315,7 @@ void SidePanelCoordinator::PopulateSidePanel(
   if (auto* contextual_registry = GetActiveContextualRegistry()) {
     contextual_registry->ResetActiveEntryFor(entry->type());
   }
+  side_panel->Open(/*animated=*/!suppress_animations);
   SetCurrentKey(entry->type(), unique_key);
   if (browser_view_->toolbar()->pinned_toolbar_actions_container()) {
     side_panel_toolbar_pinning_controller_->UpdateActiveState(
@@ -371,8 +383,8 @@ void SidePanelCoordinator::MaybeShowEntryOnTabStripModelChanged(
               content_wrapper->children().front());
           (*active_entry)->CacheView(std::move(current_entry_view));
         }
-        Close(/*suppress_animations=*/true, type,
-              SidePanelEntryHideReason::kBackgrounded);
+        Close(type, SidePanelEntryHideReason::kBackgrounded,
+              /*suppress_animations=*/true);
       }
     } else if (auto active_entry =
                    new_contextual_registry

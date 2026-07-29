@@ -46,6 +46,7 @@
 #include "base/numerics/safe_conversions.h"
 #include "base/time/default_tick_clock.h"
 #include "base/types/optional_util.h"
+#include "base/unguessable_token.h"
 #include "base/uuid.h"
 #include "build/build_config.h"
 #include "net/storage_access_api/status.h"
@@ -446,7 +447,6 @@ struct SameSizeAsDocumentLoader
   const std::optional<base::UnguessableToken> browsing_context_group_token;
   const base::flat_map<mojom::blink::RuntimeFeature, bool>
       modified_runtime_features;
-  AtomicString cookie_deprecation_label;
   mojom::RendererContentSettingsPtr content_settings;
   int64_t body_size_from_service_worker;
   const std::optional<
@@ -614,7 +614,6 @@ DocumentLoader::DocumentLoader(
       storage_access_api_status_(params_->load_with_storage_access),
       browsing_context_group_token_(params_->browsing_context_group_token),
       modified_runtime_features_(std::move(params_->modified_runtime_features)),
-      cookie_deprecation_label_(params_->cookie_deprecation_label),
       content_settings_(std::move(params_->content_settings)),
       initial_permission_statuses_(ConvertPermissionStatusFlatMapToHashMap(
           params_->initial_permission_statuses)),
@@ -660,8 +659,6 @@ DocumentLoader::DocumentLoader(
       document_load_timing_.SetFetchStart(timings.fetch_start);
     }
   }
-  document_load_timing_.SetSystemEntropyAtNavigationStart(
-      params_->navigation_timings.system_entropy_at_navigation_start);
 
   document_load_timing_.SetCriticalCHRestart(
       params_->navigation_timings.critical_ch_restart);
@@ -774,11 +771,14 @@ DocumentLoader::CreateWebNavigationParamsToCloneDocument() {
   params->navigation_delivery_type = navigation_delivery_type_;
   params->load_with_storage_access = storage_access_api_status_;
   params->modified_runtime_features = modified_runtime_features_;
-  params->cookie_deprecation_label = cookie_deprecation_label_;
   params->visited_link_salt = visited_link_salt_;
   params->content_settings = content_settings_->Clone();
 
   if (RuntimeEnabledFeatures::PermissionElementEnabled(
+          frame_->DomWindow()->GetExecutionContext()) ||
+      RuntimeEnabledFeatures::GeolocationElementEnabled(
+          frame_->DomWindow()->GetExecutionContext()) ||
+      RuntimeEnabledFeatures::UserMediaElementEnabled(
           frame_->DomWindow()->GetExecutionContext())) {
     params->initial_permission_statuses =
         ConvertPermissionStatusHashMapToFlatMap(
@@ -1098,9 +1098,16 @@ void DocumentLoader::UpdateForSameDocumentNavigation(
   frame_->GetFrameScheduler()->DidCommitProvisionalLoad(
       commit_type == kWebHistoryInertCommit,
       FrameScheduler::NavigationType::kSameDocument);
+  // We attach this token to the committed navigation so that the browser-side
+  // has it and may later record soft navigation metrics to the correct UKM
+  // Source id for this same document navigation, in case it turns out to be a
+  // soft navigation as well. To make this work, we also pass this token to
+  // heuristics->SameDocumentNavigationCommitted (see below).
+  auto same_document_metrics_token = base::UnguessableToken::Create();
   GetLocalFrameClient().DidFinishSameDocumentNavigation(
       commit_type, is_synchronously_committed, same_document_navigation_type,
-      is_client_redirect_, is_browser_initiated, should_skip_screenshot);
+      is_client_redirect_, is_browser_initiated, should_skip_screenshot,
+      same_document_metrics_token);
   probe::DidNavigateWithinDocument(frame_, same_document_navigation_type);
 
   // If intercept() was called during this same-document navigation's
@@ -1193,8 +1200,8 @@ void DocumentLoader::UpdateForSameDocumentNavigation(
     //
     // TODO(crbug.com/1521100): `heuristics` existing does not imply this
     // navigation was initiated in the main world.
-    heuristics->SameDocumentNavigationCommitted(new_url,
-                                                soft_navigation_context);
+    heuristics->SameDocumentNavigationCommitted(
+        new_url, same_document_metrics_token, soft_navigation_context);
   }
 }
 
@@ -2724,8 +2731,12 @@ void DocumentLoader::InitializeWindow(Document* owner_document) {
   }
 
   if (initial_permission_statuses_ &&
-      RuntimeEnabledFeatures::PermissionElementEnabled(
-          frame_->DomWindow()->GetExecutionContext())) {
+      (RuntimeEnabledFeatures::PermissionElementEnabled(
+           frame_->DomWindow()->GetExecutionContext()) ||
+       RuntimeEnabledFeatures::GeolocationElementEnabled(
+           frame_->DomWindow()->GetExecutionContext()) ||
+       RuntimeEnabledFeatures::UserMediaElementEnabled(
+           frame_->DomWindow()->GetExecutionContext()))) {
     CachedPermissionStatus::From(frame_->DomWindow())
         ->SetPermissionStatusMap(
             std::move(initial_permission_statuses_).value());
@@ -3778,7 +3789,7 @@ CodeCacheHost* DocumentLoader::GetCodeCacheHost() {
     mojo::Remote<mojom::blink::CodeCacheHost> remote;
     frame_->GetBrowserInterfaceBroker().GetInterface(
         remote.BindNewPipeAndPassReceiver());
-    code_cache_host_ = std::make_unique<CodeCacheHost>(std::move(remote));
+    code_cache_host_ = CodeCacheHost::Create(std::move(remote));
   }
   return code_cache_host_.get();
 }
@@ -3815,7 +3826,7 @@ void DocumentLoader::SetCodeCacheHost(
   // can be a nullptr. When this feature is turned off the CodeCacheHost
   // interface is requested via BrowserBrokerInterface when required.
   if (code_cache_host) {
-    code_cache_host_ = std::make_unique<CodeCacheHost>(
+    code_cache_host_ = CodeCacheHost::Create(
         mojo::Remote<mojom::blink::CodeCacheHost>(std::move(code_cache_host)));
   }
 

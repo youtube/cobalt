@@ -26,6 +26,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/values.h"
 #include "build/build_config.h"
@@ -462,8 +463,9 @@ void ChromeAuthenticatorRequestDelegate::RegisterActionCallbacks(
   dialog_controller_->SetRequestBlePermissionCallback(
       request_ble_permission_callback);
   if (password_ui_controller_) {
-    password_ui_controller_->SetPasswordSelectedCallback(
-        password_selected_callback_);
+    password_ui_controller_->SetPasswordSelectedCallback(base::BindRepeating(
+        &ChromeAuthenticatorRequestDelegate::OnPasswordSelected,
+        weak_ptr_factory_.GetWeakPtr()));
   }
 }
 
@@ -1132,10 +1134,16 @@ void ChromeAuthenticatorRequestDelegate::FilterRecognizedCredentials(
 std::optional<int> ChromeAuthenticatorRequestDelegate::DaysSinceDate(
     const std::string& formatted_date,
     const base::Time now) {
+  std::vector<std::string> parts = base::SplitString(
+      formatted_date, "-", base::TRIM_WHITESPACE, base::SPLIT_WANT_ALL);
+  if (parts.size() != 3) {
+    return std::nullopt;
+  }
+
   int year, month, day_of_month;
-  // sscanf will ignore trailing garbage, but we don't need to be strict here.
-  if (UNSAFE_TODO(sscanf(formatted_date.c_str(), "%u-%u-%u", &year, &month,
-                         &day_of_month)) != 3) {
+  if (!base::StringToInt(parts[0], &year) ||
+      !base::StringToInt(parts[1], &month) ||
+      !base::StringToInt(parts[2], &day_of_month)) {
     return std::nullopt;
   }
 
@@ -1254,9 +1262,21 @@ void ChromeAuthenticatorRequestDelegate::ConfigureICloudKeychain(
 
 #endif
 
+void ChromeAuthenticatorRequestDelegate::OnPasswordSelected(
+    password_manager::CredentialInfo info) {
+  if (password_fetcher_) {
+    password_fetcher_->UpdateDateLastUsed(
+        info.id.value_or(std::u16string()),
+        info.password.value_or(std::u16string()));
+    password_fetcher_.reset();
+  }
+  if (password_selected_callback_) {
+    password_selected_callback_.Run(info);
+  }
+}
+
 void ChromeAuthenticatorRequestDelegate::OnPasswordCredentialsReceived(
     PasswordCredentials credentials) {
-  password_fetcher_.reset();
   pending_password_credentials_ =
       std::make_unique<PasswordCredentials>(std::move(credentials));
   TryToShowUI();

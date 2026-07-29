@@ -32,6 +32,7 @@
 #include "base/types/optional_ref.h"
 #include "build/build_config.h"
 #include "build/buildflag.h"
+#include "components/unexportable_keys/unexportable_key_service.h"
 #include "net/base/net_export.h"
 #include "net/base/network_delegate.h"
 #include "net/base/network_handle.h"
@@ -392,10 +393,6 @@ class NET_EXPORT URLRequestContextBuilder {
     client_socket_factory_ = std::move(client_socket_factory);
   }
 
-  void set_cookie_deprecation_label(const std::string& label) {
-    cookie_deprecation_label_ = label;
-  }
-
 #if BUILDFLAG(ENABLE_DEVICE_BOUND_SESSIONS)
   void set_device_bound_session_service(
       std::unique_ptr<device_bound_sessions::SessionService>
@@ -405,6 +402,17 @@ class NET_EXPORT URLRequestContextBuilder {
   void set_has_device_bound_session_service(bool enable) {
 #if BUILDFLAG(ENABLE_DEVICE_BOUND_SESSIONS)
     has_device_bound_session_service_ = enable;
+#else
+    NOTREACHED();
+#endif  // BUILDFLAG(ENABLE_DEVICE_BOUND_SESSIONS)
+  }
+
+  // Must be called in conjunction with
+  // `set_has_device_bound_session_service(true)`.
+  void set_unexportable_key_service(
+      std::unique_ptr<unexportable_keys::UnexportableKeyService> uks) {
+#if BUILDFLAG(ENABLE_DEVICE_BOUND_SESSIONS)
+    unexportable_key_service_ = std::move(uks);
 #else
     NOTREACHED();
 #endif  // BUILDFLAG(ENABLE_DEVICE_BOUND_SESSIONS)
@@ -482,8 +490,6 @@ class NET_EXPORT URLRequestContextBuilder {
   std::string user_agent_;
   std::unique_ptr<HttpUserAgentSettings> http_user_agent_settings_;
 
-  std::optional<std::string> cookie_deprecation_label_;
-
   bool http_cache_enabled_ = true;
   bool cookie_store_set_by_client_ = false;
   bool suppress_setting_socket_performance_watcher_factory_for_testing_ = false;
@@ -531,6 +537,8 @@ class NET_EXPORT URLRequestContextBuilder {
       protocol_handlers_;
 #if BUILDFLAG(ENABLE_DEVICE_BOUND_SESSIONS)
   bool has_device_bound_session_service_ = false;
+  std::unique_ptr<unexportable_keys::UnexportableKeyService>
+      unexportable_key_service_;
   std::unique_ptr<device_bound_sessions::SessionService>
       device_bound_session_service_;
   base::FilePath device_bound_sessions_file_path_;

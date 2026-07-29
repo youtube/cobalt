@@ -74,24 +74,6 @@ chromium-metrics-reviews@google.com.
   <int value="8" label="onLowMemory()"/>
 </enum>
 
-<enum name="AndroidApiLevel">
-  <int value="16" label="JELLY_BEAN"/>
-  <int value="17" label="JELLY_BEAN_MR1"/>
-  <int value="18" label="JELLY_BEAN_MR2"/>
-  <int value="19" label="KITKAT"/>
-  <int value="20" label="KITKAT_WATCH"/>
-  <int value="21" label="LOLLIPOP"/>
-  <int value="22" label="LOLLIPOP_MR1"/>
-  <int value="23" label="M"/>
-  <int value="24" label="N"/>
-  <int value="25" label="N_MR1"/>
-  <int value="26" label="O"/>
-  <int value="27" label="O_MR1"/>
-  <int value="28" label="P"/>
-  <int value="29" label="Q"/>
-  <int value="30" label="R"/>
-</enum>
-
 <enum name="AndroidAutoDarkModeSettingsChangeSource">
   <summary>See Android.DarkTheme.AutoDarkMode.SettingsChangeSource.*</summary>
   <int value="0" label="Theme settings"/>
@@ -847,8 +829,9 @@ chromium-metrics-reviews@google.com.
   <int value="5" label="Not enrolled"/>
   <int value="6" label="Security update required"/>
   <int value="7" label="(obsolete) Android version not supported"/>
-  <int value="8" label="Biometric auth is mandatory"/>
-  <int value="9" label="Biometric auth is mandatory, but has an error"/>
+  <int value="8" label="(obsolete) Biometric auth is mandatory"/>
+  <int value="9"
+      label="(obsolete) Biometric auth is mandatory, but has an error"/>
 </enum>
 
 <enum name="BooleanGranted">
@@ -1320,7 +1303,7 @@ chromium-metrics-reviews@google.com.
   <int value="48" label="PermissionBlocked"/>
   <int value="49" label="SaveCardFailure"/>
   <int value="50" label="VirtualCardEnrollFailure"/>
-  <int value="51" label="PromptHatsQuickDelete"/>
+  <int value="51" label="DEPRECATED: PromptHatsQuickDelete"/>
   <int value="52" label="DEPRECATED: PromptHatsSafetyHub"/>
   <int value="53" label="DefaultBrowserPromo"/>
   <int value="54" label="TabRemovedThroughCollaboration"/>
@@ -1328,13 +1311,14 @@ chromium-metrics-reviews@google.com.
   <int value="56" label="CollaborationMemberAdded"/>
   <int value="57" label="CollaborationRemoved"/>
   <int value="58" label="CctAccountMismatchNotice"/>
-  <int value="59" label="PromptHatsClearBrowsingData"/>
+  <int value="59" label="DEPRECATED: PromptHatsClearBrowsingData"/>
   <int value="60" label="OsAdvancedProtectionSettingChangedMessage"/>
   <int value="61" label="MultiInstanceRestorationOnDowngradedLimit"/>
   <int value="62" label="UpdateChromeForTabGroupShare"/>
   <int value="63" label="ModeBRollbackMessage"/>
   <int value="64" label="ReloadPage"/>
   <int value="65" label="MultiInstanceCreationLimit"/>
+  <int value="66" label="PermissionPromptLoud"/>
 </enum>
 
 <!-- LINT.ThenChange(//components/messages/android/message_enums.h:MessageIdentifier) -->

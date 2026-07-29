@@ -73,6 +73,7 @@
 <translation id="311432875115153175">Skirtukų grupių sąrašas uždarytas</translation>
 <translation id="3194464645767632461">įvertinimas</translation>
 <translation id="3269930881809501915">{TABS_COUNT,plural, =1{Pridėti <ph name="TABS_COUNT_ONE" /> skirtuką prie grupės}one{Pridėti <ph name="TABS_COUNT_MANY" /> skirtuką prie grupės}few{Pridėti <ph name="TABS_COUNT_MANY" /> skirtukus prie grupės}many{Pridėti <ph name="TABS_COUNT_MANY" /> skirtuko prie grupės}other{Pridėti <ph name="TABS_COUNT_MANY" /> skirtukų prie grupės}}</translation>
+<translation id="3293080634164207409">Pridėkite skirtukų</translation>
 <translation id="3328308545011660196">Pasiūlymas: skirtukai (iš viso: <ph name="NUMBER_OF_TABS" />) atrodo susiję. Grupuoti juos?</translation>
 <translation id="3330595302841061275">{DAY_COUNT,plural, =1{Po vienos neaktyvumo dienos}one{Po <ph name="DAY_COUNT_MANY" /> neaktyvumo dienos}few{Po <ph name="DAY_COUNT_MANY" /> neaktyvumo dienų}many{Po <ph name="DAY_COUNT_MANY" /> neaktyvumo dienos}other{Po <ph name="DAY_COUNT_MANY" /> neaktyvumo dienų}}</translation>
 <translation id="358453129938375749">{NUMBER_OF_TABS_ADDED,plural, =1{<ph name="ONE_ADDED" /> naujas skirtukas}one{<ph name="MANY_ADDED" /> naujas skirtukas}few{<ph name="MANY_ADDED" /> nauji skirtukai}many{<ph name="MANY_ADDED" /> naujo skirtuko}other{<ph name="MANY_ADDED" /> naujų skirtukų}}</translation>
@@ -81,6 +82,7 @@
 <translation id="3649471731638882002">{TAB_COUNT,plural, =1{Uždaryti elementą}one{Uždaryti elementus}few{Uždaryti elementus}many{Uždaryti elementus}other{Uždaryti elementus}}</translation>
 <translation id="3652027618765638838"><ph name="CURRENT_RATING" /> iš <ph name="RATING_BASELINE" /></translation>
 <translation id="374923079891132274">Bendrinimo lapo peržiūros miniatiūra.</translation>
+<translation id="3776329373944672717">Skirtukų grupės pavadinimas „<ph name="TITLE_OF_GROUP" />“</translation>
 <translation id="3810973564298564668">Tvarkyti</translation>
 <translation id="3849789634341518784">{TAB_COUNT,plural, =1{Atsegti skirtuką}one{Atsegti skirtukus}few{Atsegti skirtukus}many{Atsegti skirtukus}other{Atsegti skirtukus}}</translation>
 <translation id="3940195383040445971">Stebėti kainas skirtukuose</translation>
@@ -193,6 +195,7 @@
 <translation id="7853202427316060426">Veikla</translation>
 <translation id="7854360405711302755">{REVIEWS,plural, =1{ Įvertinimas: <ph name="CURRENT_RATING" /> iš <ph name="RATING_BASELINE" />, <ph name="REVIEWS_COUNT_ONE" /> atsiliepimas}one{Įvertinimas: <ph name="CURRENT_RATING" /> iš <ph name="RATING_BASELINE" />, <ph name="REVIEWS_COUNT_MANY" /> atsiliepimas}few{Įvertinimas: <ph name="CURRENT_RATING" /> iš <ph name="RATING_BASELINE" />, <ph name="REVIEWS_COUNT_MANY" /> atsiliepimai}many{Įvertinimas: <ph name="CURRENT_RATING" /> iš <ph name="RATING_BASELINE" />, <ph name="REVIEWS_COUNT_MANY" /> atsiliepimo}other{Įvertinimas: <ph name="CURRENT_RATING" /> iš <ph name="RATING_BASELINE" />, <ph name="REVIEWS_COUNT_MANY" /> atsiliepimų}}</translation>
 <translation id="7885132941432959125">Perkelti skirtuką į dešinę</translation>
+<translation id="7887334752153342268">Dubliuoti</translation>
 <translation id="7939917283308035850">Nepasirinkta: <ph name="COLOR_NAME" /></translation>
 <translation id="7961015016161918242">Niekada</translation>
 <translation id="7966321538264951561">Atsisakyti pasiūlymo.</translation>
@@ -216,6 +219,7 @@
 <translation id="8428213095426709021">Nustatymai</translation>
 <translation id="855081842937141170">Pažymėti skirtuką</translation>
 <translation id="8633025649649592204">Naujausia veikla</translation>
+<translation id="8635822281281406185">Pridėkite ne daugiau kaip 10 failų, skirtukų arba vaizdų</translation>
 <translation id="8712637175834984815">Supratau</translation>
 <translation id="8714939927607906138">Žemesnė kaina</translation>
 <translation id="8730621377337864115">Atlikta</translation>

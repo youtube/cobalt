@@ -150,6 +150,8 @@ chromium-metrics-reviews@google.com.
   <int value="6" label="Direct Gpu Memory Buffer"/>
   <int value="7" label="Passthrough"/>
   <int value="8" label="Swap Chain"/>
+  <int value="9" label="Deprecated"/>
+  <int value="10" label="External Bitmap"/>
 </enum>
 
 <enum name="CanvasResourceProviderUsage">
@@ -1729,8 +1731,8 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="1425" label="TextAreaMinLength"/>
   <int value="1426" label="TopNavigationFromSubFrame"/>
   <int value="1427" label="PrefixedElementRequestFullscreenInShadow"/>
-  <int value="1428" label="MediaSourceAbortRemove"/>
-  <int value="1429" label="MediaSourceDurationTruncatingBuffered"/>
+  <int value="1428" label="OBSOLETE_MediaSourceAbortRemove"/>
+  <int value="1429" label="OBSOLETE_MediaSourceDurationTruncatingBuffered"/>
   <int value="1430" label="AudioContextCrossOriginIframe"/>
   <int value="1431" label="OBSOLETE_PointerEventSetCapture"/>
   <int value="1432" label="OBSOLETE_PointerEventDispatch"/>
@@ -3613,7 +3615,7 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="3193" label="ThirdPartyCacheStorage"/>
   <int value="3194" label="ThirdPartyLocalStorage"/>
   <int value="3195" label="ThirdPartySessionStorage"/>
-  <int value="3196" label="DeclarativeShadowRoot"/>
+  <int value="3196" label="OBSOLETE_DeclarativeShadowRoot"/>
   <int value="3197" label="CrossOriginOpenerPolicySameOrigin"/>
   <int value="3198" label="CrossOriginOpenerPolicySameOriginAllowPopups"/>
   <int value="3199" label="CrossOriginEmbedderPolicyRequireCorp"/>
@@ -4897,7 +4899,7 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="4413" label="ImageSet"/>
   <int value="4414" label="WindowCloseHistoryLengthOne"/>
   <int value="4415" label="OBSOLETE_CreateNSResolverWithNonElements"/>
-  <int value="4416" label="CSSValueAppearanceNonStandard"/>
+  <int value="4416" label="OBSOLETE_CSSValueAppearanceNonStandard"/>
   <int value="4417" label="OBSOLETE_CSSGetComputedAnimationDelayZero"/>
   <int value="4418" label="GetEffectTimingDelayZero"/>
   <int value="4419" label="Scrollend"/>
@@ -5071,7 +5073,7 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="4569" label="V8FileSystemFileHandle_GetFile_Method"/>
   <int value="4570" label="V8FileSystemHandle_GetUniqueId_Method"/>
   <int value="4571" label="V8FileSystemHandle_Remove_Method"/>
-  <int value="4572" label="PerformanceNavigateSystemEntropy"/>
+  <int value="4572" label="OBSOLETE_PerformanceNavigateSystemEntropy"/>
   <int value="4573" label="V8InvalidatedNumberStringNotRegexpLikeProtector"/>
   <int value="4574" label="CriticalCHRestartNavigationTiming"/>
   <int value="4575" label="TopLevelDocumentWithEmbeddedCredentials"/>
@@ -6352,6 +6354,18 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="5718" label="AttributionReportingXhr"/>
   <int value="5719" label="DidUseServerHttpAuthOnCrossPartitionRequest"/>
   <int value="5720" label="LcpCandidateRemovedWhilePaintTimePending"/>
+  <int value="5721" label="GetBBoxForElementWithZeroWidthOrHeight"/>
+  <int value="5722" label="GetBBoxForNestedSVGElementWithZeroWidthOrHeight"/>
+  <int value="5723" label="XMLExternalResourceLoadEntitiesOnly"/>
+  <int value="5724" label="V8Origin_IsSameOrigin_Method"/>
+  <int value="5725" label="V8Origin_IsSameSite_Method"/>
+  <int value="5726" label="V8Origin_From_Method"/>
+  <int value="5727" label="V8Origin_FromURL_Method"/>
+  <int value="5728" label="V8Origin_Parse_Method"/>
+  <int value="5729" label="ExtendedTextMetrics"/>
+  <int value="5730" label="UseCssSizingProperties"/>
+  <int value="5731" label="SharedStorageAPIAll"/>
+  <int value="5732" label="GamepadRawInputChangeEventListener"/>
 </enum>
 
 <!-- LINT.ThenChange(//third_party/blink/public/mojom/use_counter/metrics/web_feature.mojom:WebFeature) -->
@@ -6445,7 +6459,7 @@ Called by update_permissions_policy_enum.py.-->
   <int value="80" label="OTPCredentials"/>
   <int value="81" label="DisplayCapture"/>
   <int value="82" label="Deprecated: InterestCohort"/>
-  <int value="83" label="SharedAutofill"/>
+  <int value="83" label="Autofill"/>
   <int value="84" label="DirectSockets"/>
   <int value="85" label="ClientHintPrefersColorScheme"/>
   <int value="86" label="WindowManagement"/>
@@ -6505,6 +6519,7 @@ Called by update_permissions_policy_enum.py.-->
   <int value="140" label="AriaNotify"/>
   <int value="141" label="DigitalCredentialsCreate"/>
   <int value="142" label="MulticastInDirectSockets"/>
+  <int value="143" label="ManualText"/>
 </enum>
 
 <!-- LINT.IfChange(FedCmAccountChooserResult) -->
@@ -8012,11 +8027,11 @@ Called by update_use_counter_css.py.-->
   <int value="749" label="white-space-collapse"/>
   <int value="750" label="scroll-timeline-attachment"/>
   <int value="751" label="view-timeline-attachment"/>
-  <int value="752" label="scroll-start-block"/>
-  <int value="753" label="scroll-start-inline"/>
-  <int value="754" label="scroll-start-x"/>
-  <int value="755" label="scroll-start-y"/>
-  <int value="756" label="scroll-start"/>
+  <int value="752" label="scroll-start-block (obsolete)"/>
+  <int value="753" label="scroll-start-inline (obsolete)"/>
+  <int value="754" label="scroll-start-x (obsolete)"/>
+  <int value="755" label="scroll-start-y (obsolete)"/>
+  <int value="756" label="scroll-start (obsolete)"/>
   <int value="757" label="scroll-start-target-block (obsolete)"/>
   <int value="758" label="scroll-start-target-inline (obsolete)"/>
   <int value="759" label="scroll-start-target-x (obsolete)"/>
@@ -8072,9 +8087,9 @@ Called by update_use_counter_css.py.-->
   <int value="809" label="caret-animation"/>
   <int value="810" label="view-transition-capture-mode (obsolete)"/>
   <int value="811" label="interactivity"/>
-  <int value="812" label="masonry-fill"/>
-  <int value="813" label="masonry-direction"/>
-  <int value="814" label="masonry-flow"/>
+  <int value="812" label="grid-lanes-fill"/>
+  <int value="813" label="grid-lanes-direction"/>
+  <int value="814" label="grid-lanes-flow"/>
   <int value="815" label="masonry-auto-tracks (obsolete)"/>
   <int value="816" label="result"/>
   <int value="817" label="animation-trigger-type (obsolete)"/>
@@ -8139,7 +8154,7 @@ Called by update_use_counter_css.py.-->
   <int value="876" label="timeline-trigger-exit-range-end"/>
   <int value="877" label="timeline-trigger-source"/>
   <int value="878" label="timeline-trigger"/>
-  <int value="879" label="masonry"/>
+  <int value="879" label="grid-lanes"/>
   <int value="880" label="continue"/>
   <int value="881" label="max-lines"/>
   <int value="882" label="block-ellipsis"/>
@@ -8159,6 +8174,8 @@ Called by update_use_counter_css.py.-->
   <int value="896" label="row-rule-edge-end-inset"/>
   <int value="897" label="row-rule-interior-start-inset"/>
   <int value="898" label="row-rule-interior-end-inset"/>
+  <int value="899" label="timeline-trigger-range"/>
+  <int value="900" label="timeline-trigger-exit-range"/>
 </enum>
 
 <!-- LINT.ThenChange(//third_party/blink/public/mojom/use_counter/metrics/css_property_id.mojom:CSSSampleId) -->
@@ -8590,7 +8607,7 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="305" label="AppShortcuts"/>
   <int value="306" label="Fetchlater"/>
   <int value="307" label="DRAFT_WasmBranchHinting"/>
-  <int value="308" label="DRAFT_ExplicitResourceManagement"/>
+  <int value="308" label="ExplicitResourceManagement"/>
   <int value="309" label="AppLaunchHandler"/>
   <int value="310" label="Function"/>
   <int value="311" label="If"/>

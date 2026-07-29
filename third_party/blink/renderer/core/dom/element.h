@@ -117,6 +117,7 @@ class KURL;
 class Locale;
 class MutableCSSPropertyValueSet;
 class NamedNodeMap;
+class OverscrollAreaTracker;
 class Patch;
 class PointerLockOptions;
 class PopoverData;
@@ -1697,12 +1698,23 @@ class CORE_EXPORT Element : public ContainerNode, public Animatable {
 
   // Manages the element's ad-related status.
   //
-  // `HTMLFrameOwnerElement` manages its ad status separately. Therefore:
-  // 1. `SetIsAdRelated()` should not be called on a frame owner.
-  // 2. `IsAdRelated()` is overridden by `HTMLFrameOwnerElement` to return its
-  //    own frame-derived status.
+  // NOTE: `HTMLFrameOwnerElement` manages its ad status separately by
+  // deriving it from its frame. It overrides these virtual methods, and
+  // `SetIsAdRelated()` should not be called on it directly.
+
+  // Marks this element as being ad-related.
   void SetIsAdRelated();
+
+  // Returns true if the element is considered ad-related.
   virtual bool IsAdRelated() const;
+
+  // Returns true if a paint-time ad highlight should be drawn.
+  // This is the authoritative check for painters, encapsulating:
+  // 1. The element's ad status (i.e., `IsAdRelated()`).
+  // 2. The "Highlight ads" DevTools setting.
+  // 3. Logic to exclude nested ads (e.g., in an ad iframe) to avoid redundant,
+  // overlapping highlights.
+  virtual bool ShouldHighlightAd() const;
 
   void NotifyInlineStyleMutation();
 
@@ -1943,6 +1955,9 @@ class CORE_EXPORT Element : public ContainerNode, public Animatable {
   // Returns true if this element supports base appearance given a value for the
   // appearance property, such as `base` or `base-select`.
   bool SupportsBaseAppearance(AppearanceValue) const;
+
+  OverscrollAreaTracker& EnsureOverscrollAreaTracker();
+  OverscrollAreaTracker* OverscrollAreaTracker() const;
 
  protected:
   bool HasElementData() const { return static_cast<bool>(element_data_); }
@@ -2205,7 +2220,7 @@ class CORE_EXPORT Element : public ContainerNode, public Animatable {
   // when there is no StyleRecalcContext available.
   void UpdateFirstLetterPseudoElement(StyleUpdatePhase);
 
-  inline PseudoElement* CreatePseudoElementIfNeeded(
+  ALWAYS_INLINE PseudoElement* CreatePseudoElementIfNeeded(
       PseudoId,
       const StyleRecalcContext&,
       const AtomicString& pseudo_argument = g_null_atom);

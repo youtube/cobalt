@@ -85,14 +85,23 @@ void LogEchoCancellationMode(EchoCancellationMode mode) {
       "Media.MediaDevices.GetUserMedia.EchoCancellationMode", mode);
 }
 
-void UpdateRequestResult(UserMediaRequestType media_type,
+void UpdateRequestResult(UserMediaRequest* request,
                          MediaStreamRequestResult result) {
+  UserMediaRequestType media_type = request->MediaRequestType();
   switch (media_type) {
-    case UserMediaRequestType::kUserMedia:
-      base::UmaHistogramEnumeration(
-          "WebRTC.UserMediaRequest.GetUserMedia.Result", result,
-          mojom::blink::MediaStreamRequestResult::NUM_MEDIA_REQUEST_RESULTS);
-      return;
+    case UserMediaRequestType::kUserMedia: {
+      if (request->IsGumExtensionRequest()) {
+        base::UmaHistogramEnumeration(
+            "WebRTC.UserMediaRequest.GetUserMedia.Extension.Result", result,
+            mojom::blink::MediaStreamRequestResult::NUM_MEDIA_REQUEST_RESULTS);
+        return;
+      } else {
+        base::UmaHistogramEnumeration(
+            "WebRTC.UserMediaRequest.GetUserMedia.DeviceCapture.Result", result,
+            mojom::blink::MediaStreamRequestResult::NUM_MEDIA_REQUEST_RESULTS);
+        return;
+      }
+    }
     case UserMediaRequestType::kDisplayMedia:
       base::UmaHistogramEnumeration(
           "WebRTC.UserMediaRequest.GetDisplayMedia.Result", result,
@@ -132,6 +141,8 @@ const char* MediaStreamRequestResultToString(MediaStreamRequestResult value) {
       return "TRACK_START_FAILURE_AUDIO";
     case MediaStreamRequestResult::TRACK_START_FAILURE_VIDEO:
       return "TRACK_START_FAILURE_VIDEO";
+    case MediaStreamRequestResult::MULTI_CAPTURE_NOT_SUPPORTED:
+      return "MULTI_CAPTURE_NOT_SUPPORTED";
     case MediaStreamRequestResult::NOT_SUPPORTED:
       return "NOT_SUPPORTED";
     case MediaStreamRequestResult::FAILED_DUE_TO_SHUTDOWN:
@@ -154,6 +165,24 @@ const char* MediaStreamRequestResultToString(MediaStreamRequestResult value) {
       return "NO_TRANSIENT_ACTIVATION";
     case MediaStreamRequestResult::CAPTURE_NOT_ALLOWED_BY_POLICY:
       return "CAPTURE_NOT_ALLOWED_BY_POLICY";
+    case MediaStreamRequestResult::INVALID_DISPLAY_CAPTURE_CONSTRAINTS:
+      return "INVALID_DISPLAY_CAPTURE_CONSTRAINTS";
+    case MediaStreamRequestResult::INVALID_GUM_TAB_CAPTURE_CONSTRAINTS:
+      return "INVALID_GUM_TAB_CAPTURE_CONSTRAINTS";
+    case MediaStreamRequestResult::INVALID_GUM_SCREEN_CAPTURE_CONSTRAINTS:
+      return "INVALID_GUM_SCREEN_CAPTURE_CONSTRAINTS";
+    case MediaStreamRequestResult::INVALID_VIDEO_DEVICE_ID:
+      return "INVALID_VIDEO_DEVICE_ID";
+    case MediaStreamRequestResult::STREAM_NOT_FOUND_IN_REGISTRY:
+      return "STREAM_NOT_FOUND_IN_REGISTRY";
+    case MediaStreamRequestResult::ANDROID_CANT_REQUEST_PERMISSION:
+      return "ANDROID_CANT_REQUEST_PERMISSION";
+    case MediaStreamRequestResult::PERMISSION_DENIED_BY_EMBEDDER_CONTEXT:
+      return "PERMISSION_DENIED_BY_EMBEDDER_CONTEXT";
+    case MediaStreamRequestResult::DLP_PERMISSION_DENIED:
+      return "DLP_PERMISSION_DENIED";
+    case MediaStreamRequestResult::REGISTRY_REQUEST_UNVERIFIED:
+      return "REGISTRY_REQUEST_UNVERIFIED";
     case MediaStreamRequestResult::NUM_MEDIA_REQUEST_RESULTS:
       break;
   }
@@ -310,17 +339,23 @@ String ErrorCodeToString(MediaStreamRequestResult result) {
     case MediaStreamRequestResult::OK:
       return "OK";
     case MediaStreamRequestResult::PERMISSION_DENIED:
+    case MediaStreamRequestResult::ANDROID_CANT_REQUEST_PERMISSION:
     case MediaStreamRequestResult::CAPTURE_NOT_ALLOWED_BY_POLICY:
+    case MediaStreamRequestResult::PERMISSION_DENIED_BY_EMBEDDER_CONTEXT:
+    case MediaStreamRequestResult::DLP_PERMISSION_DENIED:
       return "Permission denied";
     case MediaStreamRequestResult::PERMISSION_DISMISSED:
       return "Permission dismissed";
     case MediaStreamRequestResult::INVALID_STATE:
+    case MediaStreamRequestResult::INVALID_VIDEO_DEVICE_ID:
+    case MediaStreamRequestResult::REGISTRY_REQUEST_UNVERIFIED:
       return "Invalid state";
     case MediaStreamRequestResult::NO_HARDWARE:
       return "Requested device not found";
     case MediaStreamRequestResult::INVALID_SECURITY_ORIGIN:
       return "Invalid security origin";
     case MediaStreamRequestResult::TAB_CAPTURE_FAILURE:
+    case MediaStreamRequestResult::STREAM_NOT_FOUND_IN_REGISTRY:
       return "Error starting tab capture";
     case MediaStreamRequestResult::SCREEN_CAPTURE_FAILURE:
       return "Error starting screen capture";
@@ -330,6 +365,7 @@ String ErrorCodeToString(MediaStreamRequestResult result) {
       return "Could not start audio source";
     case MediaStreamRequestResult::TRACK_START_FAILURE_VIDEO:
       return "Could not start video source";
+    case MediaStreamRequestResult::MULTI_CAPTURE_NOT_SUPPORTED:
     case MediaStreamRequestResult::NOT_SUPPORTED:
       return "Not supported";
     case MediaStreamRequestResult::FAILED_DUE_TO_SHUTDOWN:
@@ -352,6 +388,10 @@ String ErrorCodeToString(MediaStreamRequestResult result) {
       return "Audio device socket error";
     case MediaStreamRequestResult::NO_TRANSIENT_ACTIVATION:
       return "No transient activation";
+    case MediaStreamRequestResult::INVALID_DISPLAY_CAPTURE_CONSTRAINTS:
+    case MediaStreamRequestResult::INVALID_GUM_TAB_CAPTURE_CONSTRAINTS:
+    case MediaStreamRequestResult::INVALID_GUM_SCREEN_CAPTURE_CONSTRAINTS:
+      return "Invalid capture constraints";
     case MediaStreamRequestResult::NUM_MEDIA_REQUEST_RESULTS:
       break;  // Not a valid enum value.
   }
@@ -1872,9 +1912,9 @@ MediaStreamSource* UserMediaProcessor::InitializeAudioSourceObject(
                             std::max(fallback_latency, max_latency)};
   }
 
-  capabilities.device_id = blink::WebString::FromUTF8(device.id);
+  capabilities.device_id = String::FromUTF8(device.id);
   if (device.group_id) {
-    capabilities.group_id = blink::WebString::FromUTF8(*device.group_id);
+    capabilities.group_id = String::FromUTF8(*device.group_id);
   }
 
   MediaStreamSource* source =
@@ -2179,8 +2219,7 @@ void UserMediaProcessor::DelayedGetUserMediaRequestSucceeded(
       "DelayedGetUserMediaRequestSucceeded({request_id=%d}, {result=%s})",
       request_id,
       MediaStreamRequestResultToString(MediaStreamRequestResult::OK)));
-  UpdateRequestResult(user_media_request->MediaRequestType(),
-                      MediaStreamRequestResult::OK);
+  UpdateRequestResult(user_media_request, MediaStreamRequestResult::OK);
   DeleteUserMediaRequest(user_media_request);
   if (!user_media_request->IsTransferredTrackRequest()) {
     // For transferred tracks, user_media_request has already been resolved in
@@ -2220,7 +2259,7 @@ void UserMediaProcessor::DelayedGetUserMediaRequestFailed(
     MediaStreamRequestResult result,
     const String& constraint_name) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  UpdateRequestResult(user_media_request->MediaRequestType(), result);
+  UpdateRequestResult(user_media_request, result);
   SendLogMessage(base::StringPrintf(
       "DelayedGetUserMediaRequestFailed({request_id=%d}, {result=%s})",
       request_id, MediaStreamRequestResultToString(result)));
@@ -2363,7 +2402,7 @@ bool UserMediaProcessor::CancelRequest(UserMediaRequest* user_media_request) {
         // might cause issues.
         break;
     }
-    UpdateRequestResult(user_media_request->MediaRequestType(),
+    UpdateRequestResult(user_media_request,
                         MediaStreamRequestResult::FAILED_DUE_TO_SHUTDOWN);
     return true;
   }
@@ -2384,8 +2423,7 @@ void UserMediaProcessor::StopAllProcessing() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   if (current_request_info_) {
     auto result = MediaStreamRequestResult::FAILED_DUE_TO_SHUTDOWN;
-    UpdateRequestResult(current_request_info_->request()->MediaRequestType(),
-                        result);
+    UpdateRequestResult(current_request_info_->request(), result);
     switch (current_request_info_->state()) {
       case RequestInfo::State::kSentForGeneration:
         // Let the browser process know that the previously sent request must be

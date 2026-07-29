@@ -88,10 +88,6 @@ struct AIPageContentGeometry {
   // An empty array indicates that the node is not fragmented or is entirely
   // offscreen. Relative to viewport origin.
   array<gfx.mojom.Rect> fragment_visible_bounding_boxes;
-
-  // Whether the content node is fixed or sticky position. This may suggest
-  // that the node is a header, footer, or sidebar.
-  bool is_fixed_or_sticky_position;
 };
 
 // Represents a selection in the page. This is a frame-level concept.
@@ -534,6 +530,11 @@ struct AIPageContentPopup {
 
   // Unique identifier for the DOM node in the frame which opened this popup.
   int32 opener_dom_node_id;
+
+  // The bounding box of the popup window relative to the viewport. The popup
+  // is not clipped by any ancestor except the viewport clipping the
+  // screenshot.
+  gfx.mojom.Rect visible_bounding_box;
 };
 
 // Represents the parsed content of a page. This captures data for a local root.

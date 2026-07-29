@@ -6,6 +6,7 @@ import 'chrome://omnibox-popup.top-chrome/omnibox_popup.js';
 
 import {createAutocompleteMatch, SearchboxBrowserProxy} from 'chrome://omnibox-popup.top-chrome/omnibox_popup.js';
 import type {OmniboxPopupAppElement} from 'chrome://omnibox-popup.top-chrome/omnibox_popup.js';
+import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 import {PageCallbackRouter, PageHandlerRemote} from 'chrome://resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
 import type {AutocompleteMatch, AutocompleteResult, PageRemote} from 'chrome://resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
 import {assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
@@ -130,5 +131,56 @@ suite('AppTest', function() {
 
     // Ensure dropdown hides.
     assertFalse(isVisible(app.$.matches));
+  });
+
+  suite('TallSearchbox', () => {
+    let localApp: OmniboxPopupAppElement;
+
+    setup(async () => {
+      // Use setup instead of suiteSetup to ensure a clean state for each test.
+      document.body.innerHTML = window.trustedTypes!.emptyHTML;
+      loadTimeData.overrideValues({
+        searchboxLayoutMode: 'TallTopContext',
+        showContextMenuEntrypoint: true,
+      });
+
+      localApp = document.createElement('omnibox-popup-app');
+      document.body.appendChild(localApp);
+      await microtasksFinished();
+    });
+
+    test('ContextMenuEntrypointHiddenWhenDisabled', async () => {
+      loadTimeData.overrideValues({
+        searchboxLayoutMode: 'TallTopContext',
+        showContextMenuEntrypoint: false,
+      });
+      localApp.remove();
+      localApp = document.createElement('omnibox-popup-app');
+      document.body.appendChild(localApp);
+      await microtasksFinished();
+
+      const carousel = localApp.shadowRoot?.querySelector(
+          'contextual-entrypoint-and-carousel');
+      assertFalse(!!carousel);
+    });
+
+    test('KeywordModeUpdatesCarouselVisibility', async () => {
+      let carousel = localApp.shadowRoot?.querySelector(
+          'contextual-entrypoint-and-carousel');
+      assertTrue(!!carousel);
+      assertTrue(isVisible(carousel));
+
+      // Enter keyword mode.
+      testProxy.page.setKeywordSelected(true);
+      await microtasksFinished();
+      assertFalse(isVisible(carousel));
+
+      // Exit keyword mode.
+      testProxy.page.setKeywordSelected(false);
+      await microtasksFinished();
+      carousel = localApp.shadowRoot?.querySelector(
+          'contextual-entrypoint-and-carousel');
+      assertTrue(isVisible(carousel));
+    });
   });
 });

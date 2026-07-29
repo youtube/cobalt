@@ -22,6 +22,7 @@
 #import "components/component_updater/component_updater_service.h"
 #import "components/component_updater/installer_policies/autofill_states_component_installer.h"
 #import "components/content_settings/core/browser/host_content_settings_map.h"
+#import "components/contextual_search/contextual_search_service.h"
 #import "components/dom_distiller/core/distilled_page_prefs.h"
 #import "components/enterprise/browser/identifiers/identifiers_prefs.h"
 #import "components/enterprise/browser/reporting/common_pref_names.h"
@@ -105,9 +106,9 @@
 #import "ios/chrome/browser/bookmarks/ui_bundled/bookmark_path_cache.h"
 #import "ios/chrome/browser/bookmarks/ui_bundled/home/bookmarks_home_mediator.h"
 #import "ios/chrome/browser/content_suggestions/ui_bundled/content_suggestions_mediator.h"
-#import "ios/chrome/browser/content_suggestions/ui_bundled/price_tracking_promo/price_tracking_promo_prefs.h"
-#import "ios/chrome/browser/content_suggestions/ui_bundled/safety_check/safety_check_prefs.h"
-#import "ios/chrome/browser/content_suggestions/ui_bundled/shop_card/shop_card_prefs.h"
+#import "ios/chrome/browser/content_suggestions/ui_bundled/price_tracking_promo/model/price_tracking_promo_prefs.h"
+#import "ios/chrome/browser/content_suggestions/ui_bundled/safety_check/model/safety_check_prefs.h"
+#import "ios/chrome/browser/content_suggestions/ui_bundled/shop_card/model/shop_card_prefs.h"
 #import "ios/chrome/browser/cross_platform_promos/model/cross_platform_promos_service.h"
 #import "ios/chrome/browser/download/model/auto_deletion/auto_deletion_service.h"
 #import "ios/chrome/browser/drive/model/drive_policy.h"
@@ -703,6 +704,7 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
   autofill::prefs::RegisterProfilePrefs(registry);
   collaboration::prefs::RegisterProfilePrefs(registry);
   commerce::RegisterProfilePrefs(registry);
+  contextual_search::ContextualSearchService::RegisterProfilePrefs(registry);
   AimEligibilityService::RegisterProfilePrefs(registry);
   cross_device::RegisterProfilePrefs(registry);
   CrossPlatformPromosService::RegisterProfilePrefs(registry);
@@ -1387,4 +1389,14 @@ void MigrateObsoleteUserDefault() {
 
   // Added 03/2025.
   [defaults removeObjectForKey:@"PreviousSessionInfoConnectedSceneSessionIDs"];
+
+  // Added 10/2025.
+  [defaults removeObjectForKey:@"TimestampTriggerCriteriaExperimentStarted"];
+  [defaults removeObjectForKey:@"AllTimestampsAppLaunchColdStart"];
+  [defaults removeObjectForKey:@"AllTimestampsAppLaunchWarmStart"];
+  [defaults removeObjectForKey:@"AllTimestampsAppLaunchIndirectStart"];
+  [defaults removeObjectForKey:@"AutofillUseCount"];
+  [defaults removeObjectForKey:@"SpecialTabUseCount"];
+  [defaults removeObjectForKey:@"OmniboxUseCount"];
+  [defaults removeObjectForKey:@"BookmarkUseCount"];
 }

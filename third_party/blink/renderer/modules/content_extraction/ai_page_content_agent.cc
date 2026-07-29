@@ -55,6 +55,7 @@
 #include "third_party/blink/renderer/core/layout/table/layout_table_section.h"
 #include "third_party/blink/renderer/core/page/chrome_client.h"
 #include "third_party/blink/renderer/core/page/page.h"
+#include "third_party/blink/renderer/core/page/page_animator.h"
 #include "third_party/blink/renderer/core/paint/clip_path_clipper.h"
 #include "third_party/blink/renderer/core/script_tools/model_context_supplement.h"
 #include "third_party/blink/renderer/core/style/computed_style.h"
@@ -130,16 +131,20 @@ gfx::Rect ComputeVisibleBoundingBox(const LayoutObject& object) {
 
   gfx::Rect visible_box_in_viewport_coords = ToEnclosingRect(object_rect);
 
-#if DCHECK_IS_ON() && !defined(OFFICIAL_BUILD)
-  // The visible bounding box should always have non-negative coordinates since
-  // it's relative to the viewport. Negative coordinates would indicate a bug
-  // in the coordinate transformation.
-  DCHECK_GE(visible_box_in_viewport_coords.x(), 0)
-      << "Visible bounding box should be viewport-relative with x >= 0, got: "
-      << visible_box_in_viewport_coords.ToString() << " for object: " << object;
-  DCHECK_GE(visible_box_in_viewport_coords.y(), 0)
-      << "Visible bounding box should be viewport-relative with y >= 0, got: "
-      << visible_box_in_viewport_coords.ToString() << " for object: " << object;
+#if DCHECK_IS_ON()
+  if (RuntimeEnabledFeatures::AIPageContentCheckGeometryEnabled()) {
+    // The visible bounding box should always have non-negative coordinates
+    // since it's relative to the viewport. Negative coordinates would indicate
+    // a bug in the coordinate transformation.
+    CHECK_GE(visible_box_in_viewport_coords.x(), 0)
+        << "Visible bounding box should be viewport-relative with x >= 0, got: "
+        << visible_box_in_viewport_coords.ToString()
+        << " for object: " << object;
+    CHECK_GE(visible_box_in_viewport_coords.y(), 0)
+        << "Visible bounding box should be viewport-relative with y >= 0, got: "
+        << visible_box_in_viewport_coords.ToString()
+        << " for object: " << object;
+  }
 #endif
 
   return visible_box_in_viewport_coords;
@@ -210,7 +215,7 @@ void ComputeFragmentBoundingBoxes(
 // differences
 // 2. Floating-point to integer conversions can introduce small rounding errors
 // 3. CSS transforms can cause complex geometric relationships
-#if DCHECK_IS_ON() && !defined(OFFICIAL_BUILD)
+#if DCHECK_IS_ON()
 void ValidateBoundingBoxes(const gfx::Rect& outer_box_in_absolute_coords,
                            const gfx::Rect& visible_box_in_viewport_coords,
                            const LayoutObject& object) {
@@ -886,6 +891,28 @@ AIPageContentAgent* AIPageContentAgent::GetOrCreateForTesting(
   return agent;
 }
 
+#if DCHECK_IS_ON()
+// static
+void AIPageContentAgent::
+    EnableAutomaticActionableExtractionOnPageLoadForTesting(LocalFrame& frame) {
+  // The caller, InstallSupplements(), runs right after a LocalDOMWindow
+  // installs its Document, so `frame` should always expose one here.
+  Document* document = frame.GetDocument();
+  DCHECK(document);
+  auto* agent = AIPageContentAgent::GetOrCreateForTesting(*document);
+  if (!agent->is_auto_actionable_extraction_pending_) {
+    agent->is_auto_actionable_extraction_pending_ = true;
+    agent->EnsureLifecycleObserverRegistered();
+    // Ensure that we get a lifecycle update no matter what.
+    LocalFrameView* frame_view = document->View();
+    Page* page = document->GetPage();
+    if (frame_view && page && !page->Animator().IsServicingAnimations()) {
+      page->Animator().ScheduleVisualUpdate(&frame);
+    }
+  }
+}
+#endif
+
 AIPageContentAgent::AIPageContentAgent(base::PassKey<AIPageContentAgent>,
                                        LocalFrame& frame)
     : document_(*frame.GetDocument()), receiver_set_(this, frame.DomWindow()) {
@@ -911,6 +938,9 @@ void AIPageContentAgent::DidFinishPostLifecycleSteps(const LocalFrameView&) {
     std::move(task).Run();
   }
   async_extraction_tasks_.clear();
+#if DCHECK_IS_ON()
+  MaybeRunAutomaticActionableExtraction();
+#endif
 }
 
 void AIPageContentAgent::GetAIPageContent(
@@ -929,10 +959,7 @@ void AIPageContentAgent::GetAIPageContent(
     return;
   }
 
-  if (!is_registered_) {
-    is_registered_ = true;
-    view->RegisterForLifecycleNotifications(this);
-  }
+  EnsureLifecycleObserverRegistered();
 
   // We don't expect many overlapping calls to this service as the browser will
   // only issue one request at a time.
@@ -958,6 +985,41 @@ void AIPageContentAgent::GetAIPageContentSync(
                        document_->GetFrame()->IsOutermostMainFrame(), *options);
   std::move(callback).Run(std::move(content));
 }
+
+void AIPageContentAgent::EnsureLifecycleObserverRegistered() {
+  if (is_lifecycle_observer_registered_) {
+    return;
+  }
+  DCHECK(document_);
+  if (auto* view = document_->View()) {
+    view->RegisterForLifecycleNotifications(this);
+    is_lifecycle_observer_registered_ = true;
+  }
+}
+
+#if DCHECK_IS_ON()
+void AIPageContentAgent::MaybeRunAutomaticActionableExtraction() {
+  if (!is_auto_actionable_extraction_pending_) {
+    return;
+  }
+
+  if (!document_->LoadEventFinished()) {
+    return;
+  }
+  LocalFrame* frame = document_->GetFrame();
+  if (!frame) {
+    return;
+  }
+
+  is_auto_actionable_extraction_pending_ = false;
+
+  mojom::blink::AIPageContentOptions options;
+  options.on_critical_path = true;
+  options.mode = mojom::blink::AIPageContentMode::kActionableElements;
+
+  GetAIPageContentInternal(options);
+}
+#endif
 
 String AIPageContentAgent::DumpContentNodeTreeForTest() {
   mojom::blink::AIPageContentOptions options;
@@ -1627,9 +1689,11 @@ void AIPageContentAgent::ContentBuilder::AddNodeGeometry(
 
   // Validate the relationship between outer and visible bounding boxes
   // TODO(aleventhal): restore for Canary builds.
-#if DCHECK_IS_ON() && !defined(OFFICIAL_BUILD)
-  ValidateBoundingBoxes(geometry.outer_bounding_box,
-                        geometry.visible_bounding_box, object);
+#if DCHECK_IS_ON()
+  if (RuntimeEnabledFeatures::AIPageContentCheckGeometryEnabled()) {
+    ValidateBoundingBoxes(geometry.outer_bounding_box,
+                          geometry.visible_bounding_box, object);
+  }
 #endif
 
   // Compute fragment bounding boxes for objects that split across multiple
@@ -1639,10 +1703,6 @@ void AIPageContentAgent::ContentBuilder::AddNodeGeometry(
   //
   // Fragment boxes help understand the visual layout of split content.
   ComputeFragmentBoundingBoxes(object, geometry);
-
-  geometry.is_fixed_or_sticky_position =
-      object.Style()->GetPosition() == EPosition::kFixed ||
-      object.Style()->GetPosition() == EPosition::kSticky;
 }
 
 void AIPageContentAgent::ContentBuilder::ComputeHitTestableNodesInViewport(
@@ -1860,12 +1920,15 @@ void AIPageContentAgent::ContentBuilder::MaybeAddPopupData(
   WalkChildren(*web_popup_layout_view, *web_popup_root_node,
                *web_popup_layout_view->Style());
 
-  // Offset the geometry relative to the main frame.
-  gfx::Rect main_frame_view_rect_dips = options_->main_frame_view_rect_in_dips;
+  // Currently the geometry for popup nodes is relative to the popup, offset to
+  // relative to the main frame.
+  gfx::Rect main_frame_view_rect_in_dips =
+      options_->main_frame_view_rect_in_dips;
   gfx::Rect popup_view_rect_in_dips =
       static_cast<WebPagePopup*>(web_popup)->ViewRect();
-  gfx::Vector2d offset_in_dips = popup_view_rect_in_dips.OffsetFromOrigin() -
-                                 main_frame_view_rect_dips.OffsetFromOrigin();
+  gfx::Vector2d offset_in_dips =
+      popup_view_rect_in_dips.OffsetFromOrigin() -
+      main_frame_view_rect_in_dips.OffsetFromOrigin();
 
   FrameWidget* local_frame_widget = frame.GetWidgetForLocalRoot();
   CHECK(local_frame_widget);
@@ -1873,6 +1936,16 @@ void AIPageContentAgent::ContentBuilder::MaybeAddPopupData(
       gfx::ToFlooredPoint(local_frame_widget->DIPsToBlinkSpace(
           gfx::PointF(gfx::Point() + offset_in_dips)));
   OffsetNodeGeometry(*web_popup_root_node, offset_in_pixels.OffsetFromOrigin());
+
+  // The view_rect is relative to the screen while geometry in APC is relative
+  // to the web content's viewport, i.e, the origin where the main frame's
+  // content starts rendering. Therefore offsetting to be relative to the main
+  // frame.
+  popup_view_rect_in_dips.Offset(
+      -main_frame_view_rect_in_dips.OffsetFromOrigin());
+  mojom_popup->visible_bounding_box =
+      ToEnclosingRect(local_frame_widget->DIPsToBlinkSpace(
+          gfx::RectF(popup_view_rect_in_dips)));
 
   mojom_popup->root_node = std::move(web_popup_root_node);
 

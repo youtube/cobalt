@@ -250,11 +250,6 @@ const char kCookieDeprecationLabelName[] = "label";
 
 const char kCookieDeprecationTestingDisableAdsAPIsName[] = "disable_ads_apis";
 
-// Kill switch for Cookie Deprecation labels, also gated on
-// kCookieDeprecationFacilitatedTesting.
-BASE_FEATURE(kCookieDeprecationFacilitatedTestingLabels,
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
 // Adiitional FeatureParams for CookieDeprecationFacilitatedTesting are defined
 // in chrome/browser/tpcd/experiment/tpcd_experiment_features.cc.
 
@@ -393,6 +388,11 @@ BASE_FEATURE(kWebContentsDiscard,
              base::FEATURE_DISABLED_BY_DEFAULT
 #endif
 );
+
+// Enables fast-shutdown to ignore workers during urgent discards on certain
+// platforms.
+const base::FeatureParam<bool> kUrgentDiscardIgnoreWorkers{
+    &kWebContentsDiscard, "urgent_discard_ignore_workers", false};
 
 // When this feature is enabled, partial storage cleanup will be
 // disabled for the GPU disk cache. (Performance improvement)
@@ -602,6 +602,12 @@ BASE_FEATURE(kIsolateFencedFrames, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kIsolateOrigins, base::FEATURE_DISABLED_BY_DEFAULT);
 const char kIsolateOriginsFieldTrialParamName[] = "OriginsList";
 
+// When enabled, creation of the BrowserInterfaceBroker on RenderFrameHostImpls
+// becomes lazy. i.e. the BrowserInterfaceBroker is constructed only when it is
+// needed, typically when a renderer process becomes associated with the frame.
+// See https://crbug.com/450912216 for more details.
+BASE_FEATURE(kLazyBrowserInterfaceBroker, base::FEATURE_DISABLED_BY_DEFAULT);
+
 // If this is enabled, LoadingPredictor restricts the number of preconnects for
 // the same destination to one.
 BASE_FEATURE(kLoadingPredictorLimitPreconnectSocketCount,
@@ -724,52 +730,11 @@ BASE_FEATURE_PARAM(bool,
 // within these APIs.
 BASE_FEATURE(kPrivacySandboxAdsAPIsOverride, base::FEATURE_DISABLED_BY_DEFAULT);
 
-// Enables Private Network Access checks for all types of web workers.
-//
-// This affects initial worker script fetches, fetches initiated by workers
-// themselves, and service worker update fetches.
-//
-// The exact checks run are the same as for other document subresources, and
-// depend on the state of other Private Network Access feature flags:
-//
-//  - `kBlockInsecurePrivateNetworkRequests`
-//
-BASE_FEATURE(kPrivateNetworkAccessForWorkers, base::FEATURE_ENABLED_BY_DEFAULT);
-
-// Enables Private Network Access checks in warning mode for all types of web
-// workers.
-//
-// Does nothing if `kPrivateNetworkAccessForWorkers` is disabled.
-//
-// If both this and `kPrivateNetworkAccessForWorkers` are enabled, then PNA
-// preflight requests for workers are not required to succeed. If one fails, a
-// warning is simply displayed in DevTools.
-BASE_FEATURE(kPrivateNetworkAccessForWorkersWarningOnly,
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
-// Enables Private Network Access checks for navigations.
-//
-// The exact checks run are the same as for document subresources, and depend on
-// the state of other Private Network Access feature flags:
-//  - `kBlockInsecurePrivateNetworkRequests`
-BASE_FEATURE(kPrivateNetworkAccessForNavigations,
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
-// Enables Private Network Access checks in warning mode for navigations.
-//
-// Does nothing if `kPrivateNetworkAccessForNavigations` is disabled.
-//
-// If both this and `kPrivateNetworkAccessForNavigations` are enabled, then PNA
-// preflight requests for navigations are not required to succeed. If
-// one fails, a warning is simply displayed in DevTools.
-BASE_FEATURE(kPrivateNetworkAccessForNavigationsWarningOnly,
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
 // When enabled, ProcessSelectionDeferringConditions will be run. This allows
 // the embedder to provide conditions that may delay the final process selection
 // until the conditions have their results.
 BASE_FEATURE(kProcessSelectionDeferringConditions,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enables origin-keyed processes by default, unless origins opt out using
 // Origin-Agent-Cluster: ?0. This feature only takes effect if the Blink feature
@@ -1037,22 +1002,6 @@ const base::FeatureParam<base::TimeDelta>
         &kSiteIsolationForCrossOriginOpenerPolicy, "expiration_timeout",
         base::Days(7)};
 
-// This feature controls whether the renderer should use FontDataManager to
-// fetch fonts from the Browser's FontDataService. It is currently scoped to
-// just Windows. See crbug.com/335680565.
-#if BUILDFLAG(IS_WIN)
-BASE_FEATURE(kFontDataServiceAllWebContents, base::FEATURE_DISABLED_BY_DEFAULT);
-const base::FeatureParam<FontDataServiceTypefaceType>::Option
-    font_data_service_typeface[] = {
-        {FontDataServiceTypefaceType::kDwrite, "DWrite"},
-        {FontDataServiceTypefaceType::kFreetype, "Freetype"},
-        {FontDataServiceTypefaceType::kFontations, "Fontations"}};
-const base::FeatureParam<FontDataServiceTypefaceType>
-    kFontDataServiceTypefaceType{&kFontDataServiceAllWebContents, "typeface",
-                                 FontDataServiceTypefaceType::kDwrite,
-                                 &font_data_service_typeface};
-#endif  // BUILDFLAG(IS_WIN)
-
 // When enabled, OOPIFs will not try to reuse compatible processes from
 // unrelated tabs.
 BASE_FEATURE(kDisableProcessReuse, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -1068,7 +1017,7 @@ BASE_FEATURE(kStrictOriginIsolation, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // When enabled, RenderWidgetHost in BFCache doesn't contribute to the priority
 // of the renderer process.
-BASE_FEATURE(kSubframePriorityContribution, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kSubframePriorityContribution, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Disallows window.{alert, prompt, confirm} if triggered inside a subframe that
 // is not same origin with the main frame.
@@ -1291,6 +1240,14 @@ BASE_FEATURE(kAccessibilityDeprecateTypeAnnounce,
 BASE_FEATURE(kAccessibilityImproveLiveRegionAnnounce,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+// When this feature is enabled, the accessibility tree will be requested to
+// layout based on the actions that are performed on the renderer side. In
+// particular this will be used to determine whether or not a node is clickable
+// or not.
+BASE_FEATURE(kAccessibilityRequestLayoutBasedActions,
+             "AccessibilityRequestLayoutBasedActions",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // Enables the second iteration of AccessibilityPageZoom, which continues
 // the work completed in the first experiment and the subsequent fast-follow.
 // This version of the experiment explores enabling OS-level adjustments.
@@ -1300,6 +1257,10 @@ BASE_FEATURE(kAccessibilityPageZoomV2, base::FEATURE_DISABLED_BY_DEFAULT);
 // Android supplemental description API.
 BASE_FEATURE(kAccessibilityPopulateSupplementalDescriptionApi,
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Enables the reactive synchronization of accessibility and keyboard focus,
+// relying on new Android framework behavior.
+BASE_FEATURE(kAccessibilitySequentialFocus, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // When enabled, set selectable on all nodes with text, and support
 // ACTION_SET_SELECTION.
@@ -1319,6 +1280,8 @@ BASE_FEATURE(kAccessibilityManageBroadcastReceiverOnBackground,
 BASE_FEATURE(kAndroidDesktopZoomScaling, base::FEATURE_DISABLED_BY_DEFAULT);
 const base::FeatureParam<int> kAndroidDesktopZoomScalingFactor{
     &kAndroidDesktopZoomScaling, "desktop-zoom-scaling-factor", 100};
+const base::FeatureParam<int> kAndroidMonitorZoomScalingFactor{
+    &kAndroidDesktopZoomScaling, "monitor-zoom-scaling-factor", 100};
 
 // Enable open PDF inline on Android.
 BASE_FEATURE(kAndroidOpenPdfInline, base::FEATURE_ENABLED_BY_DEFAULT);

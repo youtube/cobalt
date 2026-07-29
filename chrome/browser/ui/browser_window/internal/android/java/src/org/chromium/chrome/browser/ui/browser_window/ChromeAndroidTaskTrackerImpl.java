@@ -13,6 +13,7 @@ import android.util.ArrayMap;
 import androidx.annotation.GuardedBy;
 
 import org.chromium.base.ContextUtils;
+import org.chromium.base.IntentUtils;
 import org.chromium.base.JniOnceCallback;
 import org.chromium.base.ResettersForTesting;
 import org.chromium.build.annotations.NullMarked;
@@ -20,7 +21,6 @@ import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.multiwindow.MultiInstanceManager;
 import org.chromium.chrome.browser.ui.browser_window.ChromeAndroidTask.PendingTaskInfo;
 import org.chromium.ui.base.ActivityWindowAndroid;
-import org.chromium.ui.mojom.WindowShowState;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -126,9 +126,6 @@ final class ChromeAndroidTaskTrackerImpl implements ChromeAndroidTaskTracker {
                     new PendingTaskInfo(pendingId, createParams, newWindowIntent, callback);
             var pendingTask = new ChromeAndroidTaskImpl(pendingTaskInfo);
             mPendingTasks.put(pendingId, pendingTask);
-
-            // Apply a non-default initial show state if needed.
-            setInitialShowState(pendingTask, createParams.getInitialShowState());
 
             // Launch the required Activity based on |createParams|.
             if (!sPausePendingTaskActivityCreationForTesting) {
@@ -337,25 +334,6 @@ final class ChromeAndroidTaskTrackerImpl implements ChromeAndroidTaskTracker {
         return nativeBrowserWindowPtrs;
     }
 
-    private static void setInitialShowState(
-            ChromeAndroidTask pendingTask, @WindowShowState.EnumType int showState) {
-        switch (showState) {
-            case WindowShowState.MAXIMIZED:
-                pendingTask.maximize();
-                break;
-            case WindowShowState.MINIMIZED:
-                pendingTask.minimize();
-                break;
-            case WindowShowState.DEFAULT:
-            case WindowShowState.NORMAL:
-                // No pending action needed.
-                break;
-            default:
-                throw new UnsupportedOperationException(
-                        "Attempting to apply an unsupported initial show state.");
-        }
-    }
-
     @GuardedBy("mTasksLock")
     private @Nullable Intent createNewWindowIntentLocked(
             AndroidBrowserWindowCreateParams createParams) {
@@ -369,6 +347,40 @@ final class ChromeAndroidTaskTrackerImpl implements ChromeAndroidTaskTracker {
                     }
                 }
                 return null;
+            case BrowserWindowType.POPUP:
+                if (createParams.getProfile().isIncognitoBranded()) {
+                    return null;
+                }
+                // The following code is a copy of
+                // PopupCreator#initializePopupIntent().
+                //
+                // As of Nov 17, 2025, we couldn't use PopupCreator directly
+                // as it was at the "glue" (top) layer, but this class is in
+                // a modular target.
+                //
+                // TODO(crbug.com/461576965) Refactor away the hardcoded values.
+                try {
+                    var intent =
+                            new Intent(
+                                    ContextUtils.getApplicationContext(),
+                                    Class.forName(
+                                            "org.chromium.chrome.browser.customtabs.CustomTabActivity"));
+                    intent.setFlags(
+                            Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_MULTIPLE_TASK);
+                    intent.putExtra(
+                            "org.chromium.chrome.browser.customtabs.EXTRA_UI_TYPE",
+                            9 /* CustomTabsUiType.POPUP */);
+                    // TODO: Use AndroidBrowserWindowCreateParams#getInitialBounds() create a
+                    // WindowFeatures and set this extra.
+                    // intent.putExtra(
+                    //      "chrome.browser.app.tab_activity_glue.PopupCreator.EXTRA_REQUESTED_WINDOW_FEATURES",
+                    //      new WindowFeatures().toBundle()
+                    // );
+                    IntentUtils.addTrustedIntentExtras(intent);
+                    return intent;
+                } catch (ClassNotFoundException e) {
+                    return null;
+                }
             default:
                 return null;
         }

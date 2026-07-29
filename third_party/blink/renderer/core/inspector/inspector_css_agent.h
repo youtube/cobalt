@@ -56,6 +56,7 @@ namespace probe {
 class RecalculateStyle;
 }  // namespace probe
 
+class CascadeLayer;
 class CSSConditionRule;
 class CSSContainerRule;
 class CSSFunctionRule;
@@ -192,7 +193,6 @@ class CORE_EXPORT InspectorCSSAgent final
       std::optional<int>*,
       std::unique_ptr<protocol::Array<protocol::CSS::CSSPropertyRule>>*,
       std::unique_ptr<protocol::Array<protocol::CSS::CSSPropertyRegistration>>*,
-      std::unique_ptr<protocol::CSS::CSSFontPaletteValuesRule>*,
       std::unique_ptr<protocol::Array<protocol::CSS::CSSAtRule>>*,
       std::optional<int>* parent_layout_node_id,
       std::unique_ptr<protocol::Array<protocol::CSS::CSSFunctionRule>>*)
@@ -403,8 +403,6 @@ class CORE_EXPORT InspectorCSSAgent final
       std::unique_ptr<protocol::Array<protocol::CSS::CSSPropertyRule>>,
       std::unique_ptr<protocol::Array<protocol::CSS::CSSPropertyRegistration>>>
   CustomPropertiesForNode(Element* element);
-  std::unique_ptr<protocol::CSS::CSSFontPaletteValuesRule> FontPalettesForNode(
-      Element& element);
   std::unique_ptr<protocol::Array<protocol::CSS::CSSAtRule>>
   FontAtRulesForNodes(HeapVector<Member<Element>>& elements);
 
@@ -479,7 +477,7 @@ class CORE_EXPORT InspectorCSSAgent final
 
   std::unique_ptr<protocol::CSS::CSSLayerData> BuildLayerDataObject(
       const CascadeLayer* layer,
-      unsigned& max_order);
+      unsigned& order);
 
   // Layers at-rule implementation
   std::unique_ptr<protocol::CSS::CSSLayer> BuildLayerObject(

@@ -18,6 +18,7 @@
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_type.h"
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_type_names.h"
 #include "components/autofill/core/browser/foundations/autofill_client.h"
+#include "components/autofill/core/common/autofill_debug_features.h"
 #include "components/autofill/core/common/autofill_features.h"
 #include "components/autofill/core/common/autofill_prefs.h"
 #include "components/feature_engagement/public/feature_constants.h"
@@ -139,7 +140,6 @@ void MaybeOutputReason(std::string* out, std::string_view message) {
 [[nodiscard]] bool IsRelevantForDataTransparency(AutofillAiAction action) {
   switch (action) {
     case AutofillAiAction::kAddLocalEntityInstanceInSettings:
-    case AutofillAiAction::kAddServerEntityInstanceInSettings:
     case AutofillAiAction::kCrowdsourcingVote:
     case AutofillAiAction::kFilling:
     case AutofillAiAction::kImport:
@@ -170,9 +170,6 @@ void MaybeOutputReason(std::string* out, std::string_view message) {
   }
 
   switch (action) {
-    case AutofillAiAction::kAddServerEntityInstanceInSettings:
-      return is_enabled(features::kAutofillAiWalletVehicleRegistration) ||
-             is_enabled(features::kAutofillAiWalletFlightReservation);
     case AutofillAiAction::kIphForOptIn:
       return is_enabled(feature_engagement::kIPHAutofillAiOptInFeature);
     case AutofillAiAction::kServerClassificationModel:
@@ -201,7 +198,6 @@ void MaybeOutputReason(std::string* out, std::string_view message) {
     const syncer::SyncService* sync_service,
     std::string* debug_message) {
   switch (action) {
-    case AutofillAiAction::kAddServerEntityInstanceInSettings:
     case AutofillAiAction::kImportToWallet:
       return sync_service &&
              sync_service->GetUserSettings()->GetSelectedTypes().Has(
@@ -279,7 +275,6 @@ void MaybeOutputReason(std::string* out, std::string_view message) {
     case AutofillAiAction::kServerClassificationModel:
     case AutofillAiAction::kUseCachedServerClassificationModelResults:
     case AutofillAiAction::kAddLocalEntityInstanceInSettings:
-    case AutofillAiAction::kAddServerEntityInstanceInSettings:
     case AutofillAiAction::kCrowdsourcingVote:
     case AutofillAiAction::kEditAndDeleteEntityInstanceInSettings:
     case AutofillAiAction::kListEntityInstancesInSettings:
@@ -343,7 +338,6 @@ void MaybeOutputReason(std::string* out, std::string_view message) {
     case AutofillAiAction::kServerClassificationModel:
     case AutofillAiAction::kUseCachedServerClassificationModelResults:
       return policy_pref_enabled && user_opted_in;
-    case AutofillAiAction::kAddServerEntityInstanceInSettings:
     case AutofillAiAction::kImportToWallet:
       return policy_pref_enabled && user_opted_in &&
              client.IsWalletStorageEnabled();
@@ -400,7 +394,6 @@ void MaybeOutputReason(std::string* out, std::string_view message) {
     }
     switch (action) {
       case AutofillAiAction::kAddLocalEntityInstanceInSettings:
-      case AutofillAiAction::kAddServerEntityInstanceInSettings:
       case AutofillAiAction::kCrowdsourcingVote:
       case AutofillAiAction::kEditAndDeleteEntityInstanceInSettings:
       case AutofillAiAction::kFilling:
@@ -440,7 +433,6 @@ void MaybeOutputReason(std::string* out, std::string_view message) {
   // Off-the-record.
   switch (action) {
     case AutofillAiAction::kAddLocalEntityInstanceInSettings:
-    case AutofillAiAction::kAddServerEntityInstanceInSettings:
     case AutofillAiAction::kCrowdsourcingVote:
     case AutofillAiAction::kEditAndDeleteEntityInstanceInSettings:
     case AutofillAiAction::kImport:
@@ -464,7 +456,6 @@ void MaybeOutputReason(std::string* out, std::string_view message) {
 
   // Wallet-supported country.
   switch (action) {
-    case AutofillAiAction::kAddServerEntityInstanceInSettings:
     case AutofillAiAction::kImportToWallet:
       if (!IsWalletSupportedCountry(country_code)) {
         return false;
@@ -574,6 +565,25 @@ bool GetAutofillAiOptInStatus(const PrefService* prefs,
     return false;
   }
 
+  if (base::FeatureList::IsEnabled(features::debug::kAutofillAiForceOptIn)) {
+    return true;
+  }
+
+  if (base::FeatureList::IsEnabled(
+          features::kAutofillAiSetSyncablePrefFromAccountPref)) {
+    return prefs::IsAutofillAiSyncedOptInStatusEnabled(prefs);
+  }
+
+  return GetAutofillAiOptInStatusFromNonSyncingPref(prefs, identity_manager);
+}
+
+bool GetAutofillAiOptInStatusFromNonSyncingPref(
+    const PrefService* prefs,
+    const signin::IdentityManager* identity_manager) {
+  if (!prefs) {
+    return false;
+  }
+
   // Check the account-independent opt-in setting.
   if (const base::Value* value = syncer::GetAccountKeyedPrefValue(
           prefs, prefs::kAutofillAiOptInStatus, GetDefaultGaiaIdHash());
@@ -598,6 +608,13 @@ bool SetAutofillAiOptInStatus(AutofillClient& client,
     return false;
   }
 
+  if (base::FeatureList::IsEnabled(
+          features::kAutofillAiSetSyncablePrefFromAccountPref)) {
+    prefs::SetAutofillAiSyncedOptInStatus(
+        client.GetPrefs(), opt_in_status == AutofillAiOptInStatus::kOptedIn);
+  }
+
+  // Still set the old pref in case of a rollback.
   const std::optional<GaiaIdHash> signed_in_hash =
       GetAccountGaiaIdHash(client.GetIdentityManager());
   if (signed_in_hash) {

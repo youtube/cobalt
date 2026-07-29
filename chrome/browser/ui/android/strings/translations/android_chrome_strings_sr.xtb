@@ -223,7 +223,6 @@
 <translation id="1959679933317802873">Чека се садржај</translation>
 <translation id="1960290143419248813">Chrome ажурирања више нису подржана за ову верзију Android-а</translation>
 <translation id="1962061488333185936"><ph name="TAB_TITLE" />, вишеструко изабрана картица са звуком</translation>
-<translation id="1963056249988316027">Провера идентитета је укључена и не може да потврди да сте то ви</translation>
 <translation id="1963976881984600709">Стандардна заштита</translation>
 <translation id="1966710179511230534">Ажурирајте податке за пријављивање.</translation>
 <translation id="1969037871259811890">Брисањем података прегледања не одјављујете се са Google налога. Да бисте то урадили, <ph name="BEGIN_LINK1" />одјавите се из Chrome-а<ph name="END_LINK1" />.</translation>
@@ -248,7 +247,6 @@
 <translation id="2065944887543506430">{FILE_COUNT,plural, =1{1 преузимање није успело}one{# преузимање није успело}few{# преузимања нису успела}other{# преузимања није успело}}</translation>
 <translation id="2067805253194386918">текст</translation>
 <translation id="2072027001582274150">Некоришћене или дупле картице</translation>
-<translation id="2074527029802029717">Откачи картицу</translation>
 <translation id="2079545284768500474">Опозови</translation>
 <translation id="2082238445998314030"><ph name="RESULT_NUMBER" />. од <ph name="TOTAL_RESULTS" /> резултата</translation>
 <translation id="2088833076121753253">Да бисте довршили подешавање аутоматског попуњавања, рестартујте Chrome. Картице ће се аутоматски поново отворити.</translation>
@@ -336,6 +334,7 @@
 <translation id="2461822463642141190">Актуелно</translation>
 <translation id="2466378451804467735"><ph name="TAB_TITLE" />, вишеструко изабрана картица са искљученим звуком</translation>
 <translation id="2468444275314013497">Прегледач делује у реду</translation>
+<translation id="2471632347767899461">Пробајте да претражите центар за помоћ</translation>
 <translation id="2472163211318554013">Пријавите се да бисте искористили Chrome на најбољи начин</translation>
 <translation id="247737702124049222">Описи слика су укључени</translation>
 <translation id="2479148705183875116">Иди у Подешавања</translation>
@@ -363,6 +362,7 @@
 <translation id="2546283357679194313">Колачићи и подаци о сајтовима</translation>
 <translation id="2547843573592965873">Закључавање профила штити податке у аутомобилу, укључујући лозинке, плаћања и друго сачувано на Google налогу.</translation>
 <translation id="254973855621628293">Лозинке су сачуване на овом уређају</translation>
+<translation id="2553962148913791095">Неки обележивачи нису сачувани</translation>
 <translation id="2566471851103108967">{FILE_COUNT,plural, =1{Опасно преузимање је блокирано}one{# опасно преузимање је блокирано}few{# опасна преузимања су блокирана}other{# опасних преузимања је блокирано}}</translation>
 <translation id="2569733278091928697">Моћи ћете лако да управљате контролама медија, сесијама без архивирања, преузимањима и другим садржајем</translation>
 <translation id="2571711316400087311">Понуди слање страница на другим језицима у Google преводилац</translation>
@@ -496,6 +496,7 @@
 <translation id="3114507951000454849">Читајте данашње вести <ph name="NEWS_ICON" /></translation>
 <translation id="3122883569442693641">Још детаља</translation>
 <translation id="3123734510202723619">Саопштења</translation>
+<translation id="3134385238404760368">Нема недавних картица</translation>
 <translation id="314939179385989105">Chrome почетна страница</translation>
 <translation id="3158667104057012316">Сортира се по ручном редоследу</translation>
 <translation id="3159335509547415276">Сазнајте више о блокираним налозима</translation>
@@ -600,7 +601,6 @@
 <translation id="3623240789707551553">{DOMAIN_COUNT,plural, =1{и још 1 сајт}one{и још # сајт}few{и још # сајта}other{и још # сајтова}}</translation>
 <translation id="3625870480639975468">Враћање зума на почетне вредности</translation>
 <translation id="3631987586758005671">Дели се са: <ph name="DEVICE_NAME" /></translation>
-<translation id="363484704507524488">Провером идентитета можете да управљате у подешавањима заштите од крађе. <ph name="BEGIN_LINK" />Иди у подешавања<ph name="END_LINK" /></translation>
 <translation id="3635073343384702370">Chrome може да проверава лозинке када их сачувате</translation>
 <translation id="3636940436873918441">Жељени језици</translation>
 <translation id="3637744895182738742">Ако сте заборавили приступну фразу или желите да промените ово подешавање, <ph name="BEGIN_LINK" />избришите Chrome податке на налогу<ph name="END_LINK" />.</translation>
@@ -622,6 +622,7 @@
 <translation id="3710560693796335511">Сарадња</translation>
 <translation id="3718765429352682176">Можете да видите историју из других апликација које отварају линкове у Chrome-у.</translation>
 <translation id="3721119614952978349">Ви и Google</translation>
+<translation id="3727000368239390918">Пријавите се да бисте приступали картицама и другом садржају на свим уређајима</translation>
 <translation id="3737319253362202215">Подешавања превода</translation>
 <translation id="3738139272394829648">Додирни за претрагу</translation>
 <translation id="3739455665973395693">Нема угрожених лозинки на Google налогу</translation>
@@ -656,6 +657,7 @@
 <translation id="3870908470613821006">Сви ће одмах изгубити приступ групи картица <ph name="GROUP_NAME" /> и она ће бити избрисана са свих уређаја</translation>
 <translation id="3873174561423636563">Да бисте наставили, <ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /> ће делити <ph name="FIELDS_STRING" /> са овим сајтом. Погледајте <ph name="BEGIN_LINK1" />услове коришћења услуге<ph name="END_LINK1" /> за овај сајт.</translation>
 <translation id="3892148308691398805">Копирај текст</translation>
+<translation id="3893858854379998374">Да бисте сачували обележиваче на налогу, избришите обележиваче које не користите</translation>
 <translation id="3898498281932368596">Блокирај и изађи</translation>
 <translation id="3899682235662194879">Затвори све картице без архивирања</translation>
 <translation id="3900966090527141178">Извезите лозинке</translation>
@@ -719,6 +721,7 @@
 <translation id="4170011742729630528">Услуга није доступна. Пробајте поново касније.</translation>
 <translation id="4177222230309051052">Преузмите све обележиваче</translation>
 <translation id="4177501066905053472">Теме огласа</translation>
+<translation id="417865198503699526">Потражите подешавање</translation>
 <translation id="4180726336228139707">Само на овом уређају</translation>
 <translation id="4181841719683918333">Језици</translation>
 <translation id="4188221736490993796">Сортирај од Z до A</translation>
@@ -815,6 +818,7 @@ Google налог можда има друге облике историје п�
 <translation id="4577115723294378384">Сортирај од A до Z</translation>
 <translation id="4578289292431526768">Идемо</translation>
 <translation id="4583164079174244168">{MINUTES,plural, =1{Пре # минута}one{Пре # минута}few{Пре # минута}other{Пре # минута}}</translation>
+<translation id="4585751637295612750">Отворите нову картицу да бисте је додали у питање</translation>
 <translation id="4587589328781138893">Сајтови</translation>
 <translation id="4594952190837476234">Ова офлајн страница је од <ph name="CREATION_TIME" /> и може да се разликује од онлајн верзије.</translation>
 <translation id="4595237294768457124">Отворите страницу нове картице</translation>
@@ -1127,7 +1131,6 @@ Google налог можда има друге облике историје п�
 <translation id="5869522115854928033">Сачуване лозинке</translation>
 <translation id="5870416898561279542">Дуплe картицe и групe или оне које се не користе <ph name="DAYS_INACTIVE" /> дана премештају се овде<ph name="AUTODELETE_SECTION" />. То можете да промените у било ком тренутку у одељку <ph name="DECLUTTER_SETTINGS_TITLE" />.</translation>
 <translation id="587735546353481577">Да бисте пратили сајт, идите на њега, отворите Chrome мени и додирните Прати.</translation>
-<translation id="5883855034004058011">Биометрија није успела превише пута. Закључајте и откључајте уређај да бисте пробали поново.</translation>
 <translation id="5885378508678660271">Обавештења <ph name="SEPARATOR" /> Chrome је уклонио ове дозволе јер је овај сајт опасан</translation>
 <translation id="5899667542927581604">Ниједна табела са приступним кључевима није затворена</translation>
 <translation id="5907542076239273525">Обележивач је сачуван у фолдеру <ph name="FOLDER_NAME" /></translation>
@@ -1266,6 +1269,7 @@ Google налог можда има друге облике историје п�
 <translation id="641643625718530986">Штампај...</translation>
 <translation id="6433501201775827830">Изаберите претраживач</translation>
 <translation id="6434309073475700221">Одбаци</translation>
+<translation id="6435307030888827407">Останите одјављени</translation>
 <translation id="6437162790453527153">Пријавите се да бисте приступали обележивачима и другом садржају на свим уређајима</translation>
 <translation id="6437478888915024427">Информације о страници</translation>
 <translation id="6440291723980579689">Странице се учитавају тек када их отворите</translation>
@@ -1336,7 +1340,7 @@ Google налог можда има друге облике историје п�
 <translation id="670498945988402717">Проверено јуче</translation>
 <translation id="6710213216561001401">Претходно</translation>
 <translation id="671481426037969117">Тајмер апликације <ph name="FQDN" /> је истекао. Почеће поново сутра.</translation>
-<translation id="671928215901716392">Закључај екран</translation>
+<translation id="6716434912087331834">Да бисте вратили нови прозор, смањите укупан број активних прозора на <ph name="MAX_WINDOW_COUNT_MINUS_ONE" /> или мање. Неактивни прозори се бришу после 6 месеци.</translation>
 <translation id="6723740634201835758">На Google налогу</translation>
 <translation id="6734310707649923383">Можете да видите странице које сте посетили или да их избришете из историје</translation>
 <translation id="6737429434215739253"><ph name="TAB_TITLE" />, закачена картица без архивирања за снимање</translation>
@@ -1501,6 +1505,7 @@ Google налог можда има друге облике историје п�
 <translation id="7293429513719260019">Изаберите језик</translation>
 <translation id="7298319215489933099"><ph name="TAB_TITLE" />, изабрана закачена картица за дељење</translation>
 <translation id="7304072650267745798">Android уређај може да има слично подешавање. Ако је ово подешавање укључено у Chrome-у и на Android уређају, компанија можда може да мери ефикасност огласа на свим веб-сајтовима које посећујете и у апликацијама које користите.</translation>
+<translation id="7311244614769792472">Није пронађен ниједан резултат</translation>
 <translation id="7313188324932846546">Додирните да бисте подесили синхронизацију</translation>
 <translation id="7314734791127433392">Провера лозинки није успела</translation>
 <translation id="7324354302972299151">Пошаљите захтев „Do Not Track“</translation>
@@ -1604,6 +1609,7 @@ Google налог можда има друге облике историје п�
 <translation id="7708994397325774423">Преузмите све лозинке</translation>
 <translation id="7714077993070342304">Отворите Chrome мени</translation>
 <translation id="7733878270780732638">Нема довољно простора на уређају.</translation>
+<translation id="7740287852186792672">Резултати претраге</translation>
 <translation id="774403695779169686"><ph name="TAB_TITLE" />, изабрана картица без архивирања за дељење</translation>
 <translation id="774876555279732384">Услугама аутоматског попуњавања управља се и у <ph name="BEGIN_LINK" />Android подешавањима<ph name="END_LINK" />.</translation>
 <translation id="7759809451544302770">Опционално</translation>
@@ -1641,7 +1647,6 @@ Google налог можда има друге облике историје п�
 <translation id="7876243839304621966">Уклони све</translation>
 <translation id="7886917304091689118">Покренуто је у Chrome-у</translation>
 <translation id="7887174313503389866">Крените у обилазак кључних контрола приватности и безбедности. Више опција потражите у појединачним подешавањима.</translation>
-<translation id="7907478394153853634">Lorem Ipsum</translation>
 <translation id="7913993612870913335">{FILE_COUNT,plural, =1{1 блокира организација}one{# блокира организација}few{# блокира организација}other{# блокира организација}}</translation>
 <translation id="7914399737746719723">Апликација је инсталирана</translation>
 <translation id="7917574899775263813">Прелазак на последњу картицу</translation>
@@ -1653,6 +1658,7 @@ Google налог можда има друге облике историје п�
 <translation id="7942131818088350342">Производ <ph name="PRODUCT_NAME" /> је застарео.</translation>
 <translation id="7944772052836377867">Синхронизација мора да потврди да сте то ви</translation>
 <translation id="7951102827450076904">Увек отварај преузете PDF-ове</translation>
+<translation id="7952479614398473176">Да бисте отворили нови прозор, смањите укупан број активних прозора на <ph name="MAX_WINDOW_COUNT_MINUS_ONE" /> или мање.</translation>
 <translation id="7957413488482743710">Виртуелна картица крије вашу стварну картицу да би вас заштитила од потенцијалне преваре. <ph name="BEGIN_LINK1" />Сазнајте више о виртуелним картицама<ph name="END_LINK1" /></translation>
 <translation id="7959485987650214982">Картице на овом уређају</translation>
 <translation id="7961926449547174351">Онемогућили сте приступ меморијском простору. Идите у Подешавања да бисте га омогућили.</translation>
@@ -1805,7 +1811,6 @@ Google налог можда има друге облике историје п�
 <translation id="8540136935098276800">Унесите исправно форматиран URL</translation>
 <translation id="854522910157234410">Отвори ову страницу</translation>
 <translation id="8547466829003330976">Прегледајте PDF помоћу AI-ja</translation>
-<translation id="855081842937141170">Закачи картицу</translation>
 <translation id="8551513938758868521">Закључај картице без архивирања после затварања Chrome-а</translation>
 <translation id="8559961053328923750">Chrome ограничава укупну количину података коју сајтови могу да деле преко прегледача да би мерили учинак огласа</translation>
 <translation id="8559990750235505898">Понуди превод страница на друге језике</translation>
@@ -1868,6 +1873,7 @@ Google налог можда има друге облике историје п�
 <translation id="8840953339110955557">Ова страница може да се разликује од онлајн верзије.</translation>
 <translation id="8847988622838149491">USB</translation>
 <translation id="8849001918648564819">Скривено</translation>
+<translation id="8849164661359544855"><ph name="URL" /> жели да аутоматски улази у слику у слици</translation>
 <translation id="8854223127042600341">Погледајте офлајн датотеке</translation>
 <translation id="885480114717186641">Можете да затражите верзију сајта за рачунар за <ph name="HOST_NAME" /></translation>
 <translation id="8856607253650333758">Преузимај описе</translation>
@@ -1925,6 +1931,7 @@ Google налог можда има друге облике историје п�
 <translation id="9081543426177426948">Сајтови које посећујете се не чувају у режиму без архивирања</translation>
 <translation id="9086302186042011942">Синхронизовање</translation>
 <translation id="9086455579313502267">Не можемо да приступимо мрежи</translation>
+<translation id="9093915805850895575">Отвори у Chrome прозору</translation>
 <translation id="909756639352028172">Да бисте имали најперсонализованији доживљај, уврстите Chrome у активности на вебу и у апликацијама и повезане Google услуге</translation>
 <translation id="9099220545925418560">На основу историје прегледања. Ово подешавање је искључено.</translation>
 <translation id="9100610230175265781">Потребна је приступна фраза</translation>

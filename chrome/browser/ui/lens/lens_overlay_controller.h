@@ -32,6 +32,7 @@
 #include "chrome/browser/ui/lens/lens_overlay_languages_controller.h"
 #include "chrome/browser/ui/lens/lens_overlay_query_controller.h"
 #include "chrome/browser/ui/lens/lens_overlay_translate_options.h"
+#include "chrome/browser/ui/lens/lens_query_flow_router.h"
 #include "chrome/browser/ui/omnibox/omnibox_tab_helper.h"
 #include "chrome/browser/ui/views/frame/immersive_mode_controller.h"
 #include "chrome/browser/ui/webui/searchbox/lens_searchbox_client.h"
@@ -76,6 +77,7 @@ class LensSessionMetricsLogger;
 class LensOverlayQueryController;
 class LensOverlaySidePanelCoordinator;
 class LensPermissionBubbleController;
+class LensResultsPanelRouter;
 class LensSearchboxController;
 class LensSearchContextualizationController;
 struct SearchQuery;
@@ -436,11 +438,6 @@ class LensOverlayController : public lens::mojom::LensPageHandler,
     return preselection_widget_.get();
   }
 
-  lens::LensOverlayQueryController*
-  get_lens_overlay_query_controller_for_testing() {
-    return lens_overlay_query_controller_.get();
-  }
-
  protected:
   friend class LensSearchController;
   friend class lens::LensSearchboxController;
@@ -450,8 +447,7 @@ class LensOverlayController : public lens::mojom::LensPageHandler,
   // is not kOff. This has no effect if the tab is not in the foreground. If the
   // overlay is successfully invoked, then the value of `invocation_source` will
   // be recorded in the relevant metrics.
-  void ShowUI(lens::LensOverlayInvocationSource invocation_sourc,
-              lens::LensOverlayQueryController* lens_overlay_query_controller);
+  void ShowUI(lens::LensOverlayInvocationSource invocation_source);
 
   // Issues a text search request for Lens to fulfill, which may or may not be
   // contextualized.
@@ -461,7 +457,6 @@ class LensOverlayController : public lens::mojom::LensPageHandler,
   void IssueTextSearchRequest(
       std::string query_text,
       std::map<std::string, std::string> additional_query_parameters,
-      lens::LensOverlayQueryController* lens_overlay_query_controller,
       AutocompleteMatchType::Type match_type,
       bool is_zero_prefix_suggestion,
       lens::LensOverlayInvocationSource invocation_source);
@@ -471,7 +466,6 @@ class LensOverlayController : public lens::mojom::LensPageHandler,
   // image bytes to use for the search instead of cropping the region from the
   // viewport.
   void ShowUIWithPendingRegion(
-      lens::LensOverlayQueryController* lens_overlay_query_controller,
       lens::LensOverlayInvocationSource invocation_source,
       lens::mojom::CenterRotatedBoxPtr region,
       const SkBitmap& region_bitmap);
@@ -690,7 +684,6 @@ class LensOverlayController : public lens::mojom::LensPageHandler,
       base::Time query_start_time,
       std::string query_text,
       std::map<std::string, std::string> additional_query_parameters,
-      lens::LensOverlayQueryController* lens_overlay_query_controller,
       AutocompleteMatchType::Type match_type,
       bool is_zero_prefix_suggestion,
       lens::LensOverlayInvocationSource invocation_source);
@@ -977,6 +970,15 @@ class LensOverlayController : public lens::mojom::LensPageHandler,
   // Shorthand to grab the LensOverlaySidePanelCoordinator for this instance of Lens.
   lens::LensOverlaySidePanelCoordinator* GetLensOverlaySidePanelCoordinator();
 
+  // Shorthand to grab the LensResultsPanelRouter for this instance of Lens.
+  lens::LensResultsPanelRouter* GetLensResultsPanelRouter();
+
+  // Shorthand to grab the LensOverlayQueryController for this instance of Lens.
+  lens::LensOverlayQueryController* GetLensOverlayQueryController();
+
+  // Shorthand to grab the LensQueryFlowRouter for this instance of Lens.
+  lens::LensQueryFlowRouter* GetLensQueryFlowRouter();
+
   // Shorthand to grab the LensSearchContextualizationController for this
   // instance of Lens.
   lens::LensSearchContextualizationController* GetContextualizationController();
@@ -1034,10 +1036,6 @@ class LensOverlayController : public lens::mojom::LensPageHandler,
   // Observer for the WebContents of the associated tab. Only valid while the
   // overlay view is showing.
   std::unique_ptr<UnderlyingWebContentsObserver> tab_contents_observer_;
-
-  // Query controller. Owned by the search controller, guaranteed to be alive
-  // until the overlay is closed.
-  raw_ptr<lens::LensOverlayQueryController> lens_overlay_query_controller_;
 
   // Owned by Profile, and thus guaranteed to outlive this instance.
   raw_ptr<variations::VariationsClient> variations_client_;

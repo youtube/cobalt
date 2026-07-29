@@ -148,13 +148,17 @@ TEST(ProxyConfigTraitsTest, ProxyOverrideRules) {
   rule.destination_matchers.AddRuleFromString("www.google.com");
   rule.destination_matchers.AddRuleFromString("http://www.google.com");
 
+  rule.exclude_destination_matchers.AddRuleFromString("*.org:123");
+  rule.exclude_destination_matchers.AddRuleFromString("www.mailgoogle.com");
+  rule.exclude_destination_matchers.AddRuleFromString("http://mail.google.com");
+
   rule.proxy_list.SetFromPacString("HTTPS foo:333; DIRECT");
 
   rule.dns_conditions = {
       net::ProxyConfig::ProxyOverrideRule::DnsProbeCondition{
           .host = url::SchemeHostPort("https", "corp.ads", 123),
           .result = net::ProxyConfig::ProxyOverrideRule::DnsProbeCondition::
-              Result::kResolves,
+              Result::kResolved,
       },
       net::ProxyConfig::ProxyOverrideRule::DnsProbeCondition{
           .host = url::SchemeHostPort("https", "ads.corps", 321),
@@ -179,7 +183,7 @@ TEST(ProxyConfigTraitsTest, ProxyOverrideRules_EmptyDestinationMatchers) {
       net::ProxyConfig::ProxyOverrideRule::DnsProbeCondition{
           .host = url::SchemeHostPort("https", "corp.ads", 123),
           .result = net::ProxyConfig::ProxyOverrideRule::DnsProbeCondition::
-              Result::kResolves,
+              Result::kResolved,
       },
       net::ProxyConfig::ProxyOverrideRule::DnsProbeCondition{
           .host = url::SchemeHostPort("https", "ads.corps", 321),
@@ -211,7 +215,7 @@ TEST(ProxyConfigTraitsTest, ProxyOverrideRules_EmptyProxyList) {
       net::ProxyConfig::ProxyOverrideRule::DnsProbeCondition{
           .host = url::SchemeHostPort("https", "corp.ads", 123),
           .result = net::ProxyConfig::ProxyOverrideRule::DnsProbeCondition::
-              Result::kResolves,
+              Result::kResolved,
       },
       net::ProxyConfig::ProxyOverrideRule::DnsProbeCondition{
           .host = url::SchemeHostPort("https", "ads.corps", 321),

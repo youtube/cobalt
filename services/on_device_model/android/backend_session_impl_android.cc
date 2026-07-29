@@ -185,15 +185,15 @@ void BackendSessionImplAndroid::OnCompleteOnSequence(
   responder_.reset();
 }
 
-void JNI_AiCoreSessionWrapper_OnComplete(JNIEnv* env,
-                                         jlong backend_session,
-                                         jint j_generate_result) {
+static void JNI_AiCoreSessionWrapper_OnComplete(JNIEnv* env,
+                                                jlong backend_session,
+                                                jint j_generate_result) {
   reinterpret_cast<BackendSessionImplAndroid*>(backend_session)
       ->OnComplete(static_cast<BackendSessionImplAndroid::GenerateResult>(
           j_generate_result));
 }
 
-void JNI_AiCoreSessionWrapper_OnResponse(
+static void JNI_AiCoreSessionWrapper_OnResponse(
     JNIEnv* env,
     jlong backend_session,
     const jni_zero::JavaParamRef<jstring>& j_response) {
@@ -202,3 +202,7 @@ void JNI_AiCoreSessionWrapper_OnResponse(
 }
 
 }  // namespace on_device_model
+
+DEFINE_JNI(AiCoreSessionWrapper)
+DEFINE_JNI(GenerateOptionsHelper)
+DEFINE_JNI(InputPieceHelper)

@@ -104,7 +104,6 @@ using ::privacy_sandbox::CanonicalTopic;
 using PromptAction = ::PrivacySandboxService::PromptAction;
 using PromptSuppressedReason = ::PrivacySandboxService::PromptSuppressedReason;
 using PromptType = ::PrivacySandboxService::PromptType;
-using PromptTypeCombination = ::PrivacySandboxService::PromptTypeCombination;
 using EligibilityLevel = ::privacy_sandbox::EligibilityLevel;
 using SurfaceType = ::PrivacySandboxService::SurfaceType;
 using NoticeSurfaceType = ::privacy_sandbox::SurfaceType;
@@ -331,8 +330,6 @@ class MockPrivacySandboxCountries : public PrivacySandboxCountries {
 
 class PrivacySandboxServiceTest : public testing::Test {
  public:
-  static constexpr std::string_view kPromptMigrationHistogram =
-      "PrivacySandbox.Notice.Migration.PromptTypeCombination";
   PrivacySandboxServiceTest()
       : browser_task_environment_(
             base::test::TaskEnvironment::TimeSource::MOCK_TIME),
@@ -2455,95 +2452,6 @@ TEST_F(PrivacySandboxServiceM1DelayCreation,
             static_cast<int>(PromptSuppressedReason::kRestricted));
 }
 
-TEST_F(PrivacySandboxServiceM1DelayCreation,
-       ActivateAllowPromptForBlocked3PCookiesWhenPrefSet) {
-  // Setup
-  base::FieldTrial* trial(
-      base::FieldTrialList::CreateFieldTrial("AllowPromptFor3PCStudy", "A"));
-
-  auto local_feature_list = std::make_unique<base::FeatureList>();
-  local_feature_list->RegisterFieldTrialOverride(
-      privacy_sandbox::kPrivacySandboxAllowPromptForBlocked3PCookies.name,
-      base::FeatureList::OVERRIDE_ENABLE_FEATURE, trial);
-  feature_list()->InitWithFeatureList(std::move(local_feature_list));
-
-  prefs()->SetBoolean(prefs::kPrivacySandboxAllowNoticeFor3PCBlockedTrial,
-                      true);
-
-  // Action
-  CreateService();
-
-  // Verification
-  auto* field_trial = base::FeatureList::GetFieldTrial(
-      privacy_sandbox::kPrivacySandboxAllowPromptForBlocked3PCookies);
-
-  ASSERT_TRUE(field_trial);
-  EXPECT_TRUE(base::FieldTrialList::IsTrialActive(field_trial->trial_name()));
-}
-
-TEST_F(PrivacySandboxServiceM1DelayCreation,
-       DoNotActivateAllowPromptForBlocked3PCookiesWhenPrefNotSet) {
-  // Setup
-  base::FieldTrial* trial(
-      base::FieldTrialList::CreateFieldTrial("AllowPromptFor3PCStudy", "A"));
-
-  auto local_feature_list = std::make_unique<base::FeatureList>();
-  local_feature_list->RegisterFieldTrialOverride(
-      privacy_sandbox::kPrivacySandboxAllowPromptForBlocked3PCookies.name,
-      base::FeatureList::OVERRIDE_DISABLE_FEATURE, trial);
-  feature_list()->InitWithFeatureList(std::move(local_feature_list));
-
-  prefs()->SetBoolean(prefs::kPrivacySandboxAllowNoticeFor3PCBlockedTrial,
-                      false);
-
-  // Action
-  CreateService();
-
-  // Verification
-  auto* field_trial = base::FeatureList::GetFieldTrial(
-      privacy_sandbox::kPrivacySandboxAllowPromptForBlocked3PCookies);
-
-  ASSERT_TRUE(field_trial);
-  EXPECT_FALSE(base::FieldTrialList::IsTrialActive(field_trial->trial_name()));
-}
-
-TEST_F(
-    PrivacySandboxServiceM1DelayCreation,
-    ThirdPartyCookieBlockedSuppressReasonClearedWhenAllowPromptFeatureEnabled) {
-  feature_list()->InitAndEnableFeature(
-      privacy_sandbox::kPrivacySandboxAllowPromptForBlocked3PCookies);
-
-  prefs()->SetInteger(
-      prefs::kPrivacySandboxM1PromptSuppressed,
-      static_cast<int>(PromptSuppressedReason::kThirdPartyCookiesBlocked));
-
-  CreateService();
-
-  EXPECT_EQ(prefs()->GetValue(prefs::kPrivacySandboxM1PromptSuppressed),
-            static_cast<int>(PromptSuppressedReason::kNone));
-  EXPECT_TRUE(
-      prefs()->GetBoolean(prefs::kPrivacySandboxAllowNoticeFor3PCBlockedTrial));
-}
-
-TEST_F(
-    PrivacySandboxServiceM1DelayCreation,
-    ThirdPartyCookieBlockedSuppressReasonClearedWhenAllowPromptFeatureDisabled) {
-  feature_list()->InitAndDisableFeature(
-      privacy_sandbox::kPrivacySandboxAllowPromptForBlocked3PCookies);
-
-  prefs()->SetInteger(
-      prefs::kPrivacySandboxM1PromptSuppressed,
-      static_cast<int>(PromptSuppressedReason::kThirdPartyCookiesBlocked));
-
-  CreateService();
-
-  EXPECT_EQ(
-      prefs()->GetValue(prefs::kPrivacySandboxM1PromptSuppressed),
-      static_cast<int>(PromptSuppressedReason::kThirdPartyCookiesBlocked));
-  EXPECT_TRUE(
-      prefs()->GetBoolean(prefs::kPrivacySandboxAllowNoticeFor3PCBlockedTrial));
-}
-
 class PrivacySandboxServiceM1DelayCreationRestricted
     : public PrivacySandboxServiceM1DelayCreation {
  public:
@@ -2618,8 +2526,7 @@ class PrivacySandboxServiceM1PromptTest : public PrivacySandboxServiceTest {
             "true"},
            {privacy_sandbox::kPrivacySandboxSettings4NoticeRequiredName,
             "false"}}}},
-        {privacy_sandbox::kPrivacySandboxAllowPromptForBlocked3PCookies,
-         privacy_sandbox::kDisablePrivacySandboxPrompts});
+        {privacy_sandbox::kDisablePrivacySandboxPrompts});
   }
 };
 
@@ -2637,8 +2544,6 @@ TEST_F(PrivacySandboxServiceM1PromptTest, DeviceLocalAccountUser) {
       privacy_sandbox_service()->GetRequiredPromptType(SurfaceType::kDesktop),
       PromptType::kNone);
 
-  histogram_tester_.ExpectBucketCount(kPromptMigrationHistogram,
-                                      PromptTypeCombination::kPSNone_NSNone, 1);
 
   // A prompt should be shown for a regular user.
   ash::LoginState::Get()->SetLoggedInState(
@@ -2647,10 +2552,6 @@ TEST_F(PrivacySandboxServiceM1PromptTest, DeviceLocalAccountUser) {
   EXPECT_EQ(
       privacy_sandbox_service()->GetRequiredPromptType(SurfaceType::kDesktop),
       PromptType::kM1Consent);
-
-  histogram_tester_.ExpectBucketCount(
-      kPromptMigrationHistogram, PromptTypeCombination::kPSConsent_NSConsent,
-      1);
 
   // No prompt should be shown for a web kiosk account.
   chromeos::SetUpFakeChromeAppKioskSession();
@@ -2670,8 +2571,6 @@ TEST_F(PrivacySandboxServiceM1PromptTest, NonChromeBuildPrompt) {
               TestOutput{{kPromptType, static_cast<int>(PromptType::kNone)},
                          {kM1PromptSuppressedReason,
                           static_cast<int>(PromptSuppressedReason::kNone)}});
-  histogram_tester.ExpectBucketCount(kPromptMigrationHistogram,
-                                     PromptTypeCombination::kPSNone_NSNone, 1);
 }
 #endif
 
@@ -2688,8 +2587,6 @@ TEST_F(PrivacySandboxServiceM1PromptTest, ThirdPartyCookiesBlockedPostTP3PC) {
                  {kM1PromptSuppressedReason,
                   static_cast<int>(
                       PromptSuppressedReason::kThirdPartyCookiesBlocked)}});
-  histogram_tester_.ExpectBucketCount(kPromptMigrationHistogram,
-                                      PromptTypeCombination::kPSNone_NSNone, 1);
 }
 
 TEST_F(PrivacySandboxServiceM1PromptTest, ThirdPartyCookiesBlockedPreTP3PC) {
@@ -2706,8 +2603,6 @@ TEST_F(PrivacySandboxServiceM1PromptTest, ThirdPartyCookiesBlockedPreTP3PC) {
                  {kM1PromptSuppressedReason,
                   static_cast<int>(
                       PromptSuppressedReason::kThirdPartyCookiesBlocked)}});
-  histogram_tester_.ExpectBucketCount(kPromptMigrationHistogram,
-                                      PromptTypeCombination::kPSNone_NSNone, 1);
 }
 
 TEST_F(PrivacySandboxServiceM1PromptTest, RestrictedPrompt) {
@@ -2721,8 +2616,6 @@ TEST_F(PrivacySandboxServiceM1PromptTest, RestrictedPrompt) {
       TestOutput{{kPromptType, static_cast<int>(PromptType::kNone)},
                  {kM1PromptSuppressedReason,
                   static_cast<int>(PromptSuppressedReason::kRestricted)}});
-  histogram_tester.ExpectBucketCount(kPromptMigrationHistogram,
-                                     PromptTypeCombination::kPSNone_NSNone, 1);
 
   // After being restricted, even if the restriction is removed, no prompt
   // should be shown. No call should even need to be made to see if the
@@ -2735,8 +2628,6 @@ TEST_F(PrivacySandboxServiceM1PromptTest, RestrictedPrompt) {
       TestOutput{{kPromptType, static_cast<int>(PromptType::kNone)},
                  {kM1PromptSuppressedReason,
                   static_cast<int>(PromptSuppressedReason::kRestricted)}});
-  histogram_tester.ExpectBucketCount(kPromptMigrationHistogram,
-                                     PromptTypeCombination::kPSNone_NSNone, 2);
 }
 
 class PrivacySandboxServiceM1ConsentPromptTest
@@ -2758,9 +2649,6 @@ TEST_F(PrivacySandboxServiceM1ConsentPromptTest, SuppressedConsent) {
         TestInput{{kForceChromeBuild, true}},
         TestOutput{{kPromptType, static_cast<int>(expected_prompt)},
                    {kM1PromptSuppressedReason, suppressed_reason}});
-    histogram_tester_.ExpectBucketCount(
-        kPromptMigrationHistogram, PromptTypeCombination::kPSConsent_NSConsent,
-        1);
   }
 }
 
@@ -2780,8 +2668,6 @@ TEST_F(PrivacySandboxServiceM1ConsentPromptTest, TrialsConsentDeclined) {
           {kPromptType, static_cast<int>(PromptType::kNone)},
           {kM1PromptSuppressedReason,
            static_cast<int>(PromptSuppressedReason::kTrialsConsentDeclined)}});
-  histogram_tester_.ExpectBucketCount(kPromptMigrationHistogram,
-                                      PromptTypeCombination::kPSNone_NSNone, 1);
 }
 
 TEST_F(PrivacySandboxServiceM1ConsentPromptTest, M1ConsentDecisionNotMade) {
@@ -2795,9 +2681,6 @@ TEST_F(PrivacySandboxServiceM1ConsentPromptTest, M1ConsentDecisionNotMade) {
       TestOutput{{kPromptType, static_cast<int>(PromptType::kM1Consent)},
                  {kM1PromptSuppressedReason,
                   static_cast<int>(PromptSuppressedReason::kNone)}});
-  histogram_tester_.ExpectBucketCount(
-      kPromptMigrationHistogram, PromptTypeCombination::kPSConsent_NSConsent,
-      1);
 }
 
 TEST_F(PrivacySandboxServiceM1ConsentPromptTest,
@@ -2812,16 +2695,11 @@ TEST_F(PrivacySandboxServiceM1ConsentPromptTest,
       TestOutput{{kPromptType, static_cast<int>(PromptType::kM1NoticeEEA)},
                  {kM1PromptSuppressedReason,
                   static_cast<int>(PromptSuppressedReason::kNone)}});
-  histogram_tester_.ExpectBucketCount(
-      kPromptMigrationHistogram,
-      PromptTypeCombination::kPSNoticeEEA_NSNoticeEEA, 1);
 }
 
-TEST_F(PrivacySandboxServiceTest,
-       UserMigratesToEEAAfterRowAckWithNoticeServiceEnabled) {
+TEST_F(PrivacySandboxServiceTest, UserMigratesToEEAAfterRowAck) {
   feature_list()->InitWithFeatureStates(
-      {{privacy_sandbox::kPrivacySandboxGetPromptFromNoticeService, true},
-       {privacy_sandbox::kDisablePrivacySandboxPrompts, false}});
+      {{privacy_sandbox::kDisablePrivacySandboxPrompts, false}});
   // User starts in ROW.
   MoveToROW();
 
@@ -2851,41 +2729,6 @@ TEST_F(PrivacySandboxServiceTest,
                   static_cast<int>(PromptSuppressedReason::kNone)}});
 }
 
-TEST_F(PrivacySandboxServiceTest,
-       UserMigratesToEEAAfterRowAckWithNoticeServiceDisabled) {
-  feature_list()->InitWithFeatureStates(
-      {{privacy_sandbox::kPrivacySandboxGetPromptFromNoticeService, false},
-       {privacy_sandbox::kDisablePrivacySandboxPrompts, false}});
-  // User starts in ROW.
-  MoveToROW();
-
-  // A ROW notice is shown.
-  RunTestCase(
-      TestState{}, TestInput{{kForceChromeBuild, true}},
-      TestOutput{{kPromptType, static_cast<int>(PromptType::kM1NoticeROW)},
-                 {kM1PromptSuppressedReason,
-                  static_cast<int>(PromptSuppressedReason::kNone)}});
-
-  // User acknowledges the notice.
-  RunTestCase(TestState{},
-              TestInput{{kForceChromeBuild, true},
-                        {kPromptAction, static_cast<int>(kNoticeAcknowledge)}},
-              TestOutput{{kPromptType, static_cast<int>(PromptType::kNone)},
-                         {kM1PromptSuppressedReason,
-                          static_cast<int>(PromptSuppressedReason::kNone)}});
-
-  // User moves to EEA.
-  MoveToEEA();
-
-  // A consent prompt should be shown, but isn't. This is a known bug in the PS
-  // implementation. The fix is to be deployed using the
-  // kPrivacySandboxGetPromptFromNoticeService above.
-  RunTestCase(TestState{}, TestInput{{kForceChromeBuild, true}},
-              TestOutput{{kPromptType, static_cast<int>(PromptType::kNone)},
-                         {kM1PromptSuppressedReason,
-                          static_cast<int>(PromptSuppressedReason::kNone)}});
-}
-
 TEST_F(PrivacySandboxServiceM1ConsentPromptTest,
        M1ConsentDecisionMadeAndEEANoticeAcknowledged) {
   // If m1 consent decision has been made and the eea notice has been
@@ -2898,8 +2741,6 @@ TEST_F(PrivacySandboxServiceM1ConsentPromptTest,
               TestOutput{{kPromptType, static_cast<int>(PromptType::kNone)},
                          {kM1PromptSuppressedReason,
                           static_cast<int>(PromptSuppressedReason::kNone)}});
-  histogram_tester_.ExpectUniqueSample(
-      kPromptMigrationHistogram, PromptTypeCombination::kPSNone_NSNone, 1);
 }
 
 TEST_F(PrivacySandboxServiceM1ConsentPromptTest, ROWNoticeAckTopicsDisabled) {
@@ -2917,8 +2758,6 @@ TEST_F(PrivacySandboxServiceM1ConsentPromptTest, ROWNoticeAckTopicsDisabled) {
            static_cast<int>(
                PromptSuppressedReason::
                    kROWFlowCompletedAndTopicsDisabledBeforeEEAMigration)}});
-  histogram_tester_.ExpectUniqueSample(
-      kPromptMigrationHistogram, PromptTypeCombination::kPSNone_NSNone, 1);
 }
 
 TEST_F(PrivacySandboxServiceM1ConsentPromptTest, PromptAction_ConsentAccepted) {
@@ -3041,8 +2880,6 @@ TEST_F(PrivacySandboxServiceM1NoticePromptTest, TrialsDisabledAfterNotice) {
                  {kM1PromptSuppressedReason,
                   static_cast<int>(
                       PromptSuppressedReason::kTrialsDisabledAfterNotice)}});
-  histogram_tester_.ExpectUniqueSample(
-      kPromptMigrationHistogram, PromptTypeCombination::kPSNone_NSNone, 1);
 }
 
 TEST_F(PrivacySandboxServiceM1NoticePromptTest, M1NoticeNotAcknowledged) {
@@ -3057,9 +2894,6 @@ TEST_F(PrivacySandboxServiceM1NoticePromptTest, M1NoticeNotAcknowledged) {
       TestOutput{{kPromptType, static_cast<int>(PromptType::kM1NoticeROW)},
                  {kM1PromptSuppressedReason,
                   static_cast<int>(PromptSuppressedReason::kNone)}});
-  histogram_tester.ExpectBucketCount(
-      kPromptMigrationHistogram,
-      PromptTypeCombination::kPSNoticeROW_NSNoticeROW, 1);
 }
 
 TEST_F(PrivacySandboxServiceM1NoticePromptTest, M1NoticeAcknowledged) {
@@ -3073,8 +2907,6 @@ TEST_F(PrivacySandboxServiceM1NoticePromptTest, M1NoticeAcknowledged) {
               TestOutput{{kPromptType, static_cast<int>(PromptType::kNone)},
                          {kM1PromptSuppressedReason,
                           static_cast<int>(PromptSuppressedReason::kNone)}});
-  histogram_tester.ExpectBucketCount(kPromptMigrationHistogram,
-                                     PromptTypeCombination::kPSNone_NSNone, 1);
 }
 
 TEST_F(PrivacySandboxServiceM1NoticePromptTest, M1EEAFlowInterrupted) {
@@ -3083,11 +2915,7 @@ TEST_F(PrivacySandboxServiceM1NoticePromptTest, M1EEAFlowInterrupted) {
   // consent but not yet acknowledged the notice, return kM1NoticeROW.
   // If the notice is served from the NoticeService, this will return
   // kM1NoticeEEA as Topics doesn't need to be re acked.
-  PromptType expected =
-      base::FeatureList::IsEnabled(
-          privacy_sandbox::kPrivacySandboxGetPromptFromNoticeService)
-          ? PromptType::kM1NoticeEEA
-          : PromptType::kM1NoticeROW;
+  PromptType expected = PromptType::kM1NoticeEEA;
   RunTestCase(TestState{{kM1PromptPreviouslySuppressedReason,
                          static_cast<int>(PromptSuppressedReason::kNone)},
                         {kM1ConsentDecisionPreviouslyMade, true},
@@ -3096,12 +2924,6 @@ TEST_F(PrivacySandboxServiceM1NoticePromptTest, M1EEAFlowInterrupted) {
               TestOutput{{kPromptType, static_cast<int>(expected)},
                          {kM1PromptSuppressedReason,
                           static_cast<int>(PromptSuppressedReason::kNone)}});
-  // The Histogram Mismatch here is known, and is expected. This is because
-  // Topics is already addressed in a previous notice, and the Notice Service
-  // will not include notices that would present it again.
-  histogram_tester.ExpectBucketCount(
-      kPromptMigrationHistogram,
-      PromptTypeCombination::kPSNoticeROW_NSNoticeEEA, 1);
 }
 
 TEST_F(PrivacySandboxServiceM1NoticePromptTest, M1EEAFlowCompleted) {
@@ -3119,8 +2941,6 @@ TEST_F(PrivacySandboxServiceM1NoticePromptTest, M1EEAFlowCompleted) {
           {kM1PromptSuppressedReason,
            static_cast<int>(
                PromptSuppressedReason::kEEAFlowCompletedBeforeRowMigration)}});
-  histogram_tester.ExpectBucketCount(kPromptMigrationHistogram,
-                                     PromptTypeCombination::kPSNone_NSNone, 1);
 }
 
 TEST_F(PrivacySandboxServiceM1NoticePromptTest,
@@ -3155,8 +2975,6 @@ TEST_F(PrivacySandboxServiceTest, DisablePrivacySandboxPromptPolicy) {
                          static_cast<int>(PromptSuppressedReason::kPolicy)}},
               TestInput{{kForceChromeBuild, true}},
               TestOutput{{kPromptType, static_cast<int>(PromptType::kNone)}});
-  histogram_tester.ExpectBucketCount(kPromptMigrationHistogram,
-                                     PromptTypeCombination::kPSNone_NSNone, 1);
 }
 
 TEST_F(PrivacySandboxServiceTest, DisablePrivacySandboxTopicsPolicy) {
@@ -3169,8 +2987,6 @@ TEST_F(PrivacySandboxServiceTest, DisablePrivacySandboxTopicsPolicy) {
                          {kM1PromptSuppressedReason,
                           static_cast<int>(PromptSuppressedReason::kNone)},
                          {kIsTopicsAllowed, false}});
-  histogram_tester.ExpectBucketCount(kPromptMigrationHistogram,
-                                     PromptTypeCombination::kPSNone_NSNone, 1);
 }
 
 TEST_F(PrivacySandboxServiceTest, DisablePrivacySandboxFledgePolicy) {
@@ -3187,8 +3003,6 @@ TEST_F(PrivacySandboxServiceTest, DisablePrivacySandboxFledgePolicy) {
                          {kM1PromptSuppressedReason,
                           static_cast<int>(PromptSuppressedReason::kNone)},
                          {kIsFledgeJoinAllowed, false}});
-  histogram_tester.ExpectBucketCount(kPromptMigrationHistogram,
-                                     PromptTypeCombination::kPSNone_NSNone, 1);
 }
 
 TEST_F(PrivacySandboxServiceTest, DisablePrivacySandboxAdMeasurementPolicy) {
@@ -3205,8 +3019,6 @@ TEST_F(PrivacySandboxServiceTest, DisablePrivacySandboxAdMeasurementPolicy) {
                          {kM1PromptSuppressedReason,
                           static_cast<int>(PromptSuppressedReason::kNone)},
                          {kIsAttributionReportingAllowed, false}});
-  histogram_tester.ExpectBucketCount(kPromptMigrationHistogram,
-                                     PromptTypeCombination::kPSNone_NSNone, 1);
 }
 
 // TODO(crbug.com/40262246): consider parameterizing other tests for the various
@@ -3246,9 +3058,6 @@ TEST_F(PrivacySandboxServiceM1RestrictedNoticePromptTest, RestrictedNotice) {
                           static_cast<int>(PromptType::kM1NoticeRestricted)},
                          {kM1PromptSuppressedReason,
                           static_cast<int>(PromptSuppressedReason::kNone)}});
-  histogram_tester.ExpectBucketCount(
-      kPromptMigrationHistogram,
-      PromptTypeCombination::kPSNoticeRestricted_NSNoticeRestricted, 1);
 }
 
 TEST_F(PrivacySandboxServiceM1RestrictedNoticePromptTest,
@@ -3264,8 +3073,6 @@ TEST_F(PrivacySandboxServiceM1RestrictedNoticePromptTest,
               TestOutput{{kPromptType, static_cast<int>(PromptType::kNone)},
                          {kM1PromptSuppressedReason,
                           static_cast<int>(PromptSuppressedReason::kNone)}});
-  histogram_tester.ExpectBucketCount(kPromptMigrationHistogram,
-                                     PromptTypeCombination::kPSNone_NSNone, 1);
 }
 
 TEST_F(PrivacySandboxServiceM1RestrictedNoticePromptTest,
@@ -3280,8 +3087,6 @@ TEST_F(PrivacySandboxServiceM1RestrictedNoticePromptTest,
               TestOutput{{kPromptType, static_cast<int>(PromptType::kNone)},
                          {kM1PromptSuppressedReason,
                           static_cast<int>(PromptSuppressedReason::kNone)}});
-  histogram_tester.ExpectBucketCount(kPromptMigrationHistogram,
-                                     PromptTypeCombination::kPSNone_NSNone, 1);
 }
 
 TEST_F(PrivacySandboxServiceM1RestrictedNoticePromptTest,
@@ -3302,8 +3107,6 @@ TEST_F(PrivacySandboxServiceM1RestrictedNoticePromptTest,
           {kM1PromptSuppressedReason,
            static_cast<int>(
                PromptSuppressedReason::kEEAFlowCompletedBeforeRowMigration)}});
-  histogram_tester.ExpectBucketCount(kPromptMigrationHistogram,
-                                     PromptTypeCombination::kPSNone_NSNone, 1);
 }
 
 TEST_F(PrivacySandboxServiceM1RestrictedNoticePromptTest,
@@ -3605,8 +3408,6 @@ TEST_F(PrivacySandboxServiceM1RestrictedNoticePromptTest,
                          {kM1AdMeasurementEnabled, false},
                          {kM1PromptSuppressedReason,
                           static_cast<int>(PromptSuppressedReason::kNone)}});
-  histogram_tester.ExpectBucketCount(kPromptMigrationHistogram,
-                                     PromptTypeCombination::kPSNone_NSNone, 1);
 }
 
 class PrivacySandboxServiceM1RestrictedNoticeShownToGuardianTest
@@ -3649,8 +3450,6 @@ TEST_F(PrivacySandboxServiceM1RestrictedNoticeShownToGuardianTest,
           {kM1PromptSuppressedReason,
            static_cast<int>(PromptSuppressedReason::kNoticeShownToGuardian)},
           {kM1AdMeasurementEnabled, true}});
-  histogram_tester.ExpectBucketCount(kPromptMigrationHistogram,
-                                     PromptTypeCombination::kPSNone_NSNone, 1);
 }
 
 TEST_F(PrivacySandboxServiceM1RestrictedNoticeShownToGuardianTest,
@@ -3669,8 +3468,6 @@ TEST_F(PrivacySandboxServiceM1RestrictedNoticeShownToGuardianTest,
           {kM1AdMeasurementEnabled, false},
           {kM1PromptSuppressedReason,
            static_cast<int>(PromptSuppressedReason::kNoticeShownToGuardian)}});
-  histogram_tester.ExpectBucketCount(kPromptMigrationHistogram,
-                                     PromptTypeCombination::kPSNone_NSNone, 1);
 }
 
 class PrivacySandboxServiceM1RestrictedNoticeEnabledNoRestrictionsTest
@@ -3713,9 +3510,6 @@ TEST_F(PrivacySandboxServiceM1RestrictedNoticeEnabledNoRestrictionsTest,
       TestOutput{{kPromptType, static_cast<int>(PromptType::kM1NoticeROW)},
                  {kM1PromptSuppressedReason,
                   static_cast<int>(PromptSuppressedReason::kNone)}});
-  histogram_tester.ExpectBucketCount(
-      kPromptMigrationHistogram,
-      PromptTypeCombination::kPSNoticeROW_NSNoticeROW, 1);
 }
 
 class PrivacySandboxNoticeFrameworkResultCallbackUnitTest

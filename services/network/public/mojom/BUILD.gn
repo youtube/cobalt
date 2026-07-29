@@ -1732,6 +1732,7 @@ mojom("mojom_permissions_policy") {
 mojom("mojom") {
   generate_java = true
   sources = [
+    "cache_encryption_provider.mojom",
     "cert_verifier_service.mojom",
     "cert_verifier_service_updater.mojom",
     "connection_change_observer_client.mojom",
@@ -1788,8 +1789,8 @@ mojom("mojom") {
     ":url_loader_base",
     ":websocket_mojom",
     "//components/content_settings/core/common:mojo_bindings",
-    "//components/ip_protection/mojom",
     "//components/os_crypt/async/common:common_mojom",
+    "//components/unexportable_keys/mojom",
     "//mojo/public/mojom/base",
     "//mojo/public/mojom/base:protobuf_support",
     "//sandbox/policy/mojom",

@@ -7,6 +7,7 @@
 #include <utility>
 
 #include "base/android/jni_bytebuffer.h"
+#include "base/base64.h"
 #include "base/containers/span.h"
 #include "base/time/time.h"
 #include "base/unguessable_token.h"
@@ -19,36 +20,44 @@
 #include "chrome/browser/ui/tabs/public/tab_features.h"
 #include "chrome/browser/ui/webui/new_tab_page/composebox/variations/composebox_fieldtrial.h"
 #include "chrome/common/channel_info.h"
+#include "components/contextual_search/contextual_search_types.h"
 #include "components/lens/contextual_input.h"
 #include "components/lens/lens_bitmap_processing.h"
+#include "components/lens/lens_url_utils.h"
 #include "components/lens/tab_contextualization_controller.h"
 #include "components/omnibox/browser/aim_eligibility_service.h"
 #include "components/omnibox/browser/omnibox_field_trial.h"
+#include "components/page_content_annotations/core/page_content_annotations_features.h"
 #include "components/page_content_annotations/core/page_content_cache.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/web_contents.h"
+#include "net/base/url_util.h"
 #include "ui/base/unowned_user_data/user_data_factory.h"
+#include "ui/gfx/codec/png_codec.h"
 #include "url/android/gurl_android.h"
 #include "url/gurl.h"
 
 // Must come after all headers that specialize FromJniType() / ToJniType().
 #include "chrome/browser/ui/android/omnibox/jni_headers/ComposeBoxQueryControllerBridge_jni.h"
 
-static jlong JNI_ComposeBoxQueryControllerBridge_Init(JNIEnv* env,
-                                                      Profile* profile) {
+static jlong JNI_ComposeBoxQueryControllerBridge_Init(
+    JNIEnv* env,
+    Profile* profile,
+    const base::android::JavaParamRef<jobject>& java_obj) {
   auto* aim_service = AimEligibilityServiceFactory::GetForProfile(profile);
   if (!aim_service || !aim_service->IsAimEligible()) {
     return 0L;
   }
 
   ComposeboxQueryControllerBridge* instance =
-      new ComposeboxQueryControllerBridge(profile);
+      new ComposeboxQueryControllerBridge(profile, java_obj);
   return reinterpret_cast<intptr_t>(instance);
 }
 
 ComposeboxQueryControllerBridge::ComposeboxQueryControllerBridge(
-    Profile* profile)
-    : profile_{profile} {
+    Profile* profile,
+    const base::android::JavaParamRef<jobject>& java_obj)
+    : profile_{profile}, java_obj_(java_obj) {
   auto query_controller_config_params = std::make_unique<
       contextual_search::ContextualSearchContextController::ConfigParams>();
   query_controller_config_params->send_lns_surface = false;
@@ -70,6 +79,11 @@ ComposeboxQueryControllerBridge::~ComposeboxQueryControllerBridge() = default;
 void ComposeboxQueryControllerBridge::Destroy(JNIEnv* env) {
   query_controller_->RemoveObserver(this);
   delete this;
+}
+
+base::WeakPtr<ComposeboxQueryControllerBridge>
+ComposeboxQueryControllerBridge::AsWeakPtr() {
+  return weak_ptr_factory_.GetWeakPtr();
 }
 
 void ComposeboxQueryControllerBridge::NotifySessionStarted(JNIEnv* env) {
@@ -179,28 +193,36 @@ ComposeboxQueryControllerBridge::AddTabContextFromCache(JNIEnv* env,
   return base::android::ConvertUTF8ToJavaString(env, file_token.ToString());
 }
 
-GURL ComposeboxQueryControllerBridge::GetAimUrl(JNIEnv* env,
-                                                std::string& query_text) {
-  // TODO(crbug.com/448149357): Update the bridge interface to take in
-  // additional params for the create search url request info.
+std::unique_ptr<ComposeboxQueryController::CreateSearchUrlRequestInfo>
+ComposeboxQueryControllerBridge::CreateSearchUrlRequestInfoFromUrl(GURL url) {
   std::unique_ptr<ComposeboxQueryController::CreateSearchUrlRequestInfo>
       search_url_request_info = std::make_unique<
           ComposeboxQueryController::CreateSearchUrlRequestInfo>();
-  search_url_request_info->query_text = query_text;
+  net::GetValueForKeyInQuery(url, "q", &search_url_request_info->query_text);
+  search_url_request_info->additional_params =
+      lens::GetParametersMapWithoutQuery(url);
   search_url_request_info->query_start_time = base::Time::Now();
+  // Read the list of tokens from the fileinfo map in the contextual search
+  // controller.
+  // TODO(crbug.com/455952553): Rely on the contextual search session handle
+  // to track uploaded context tokens.
+  for (const contextual_search::FileInfo* file_info :
+       query_controller_->GetFileInfoList()) {
+    search_url_request_info->file_tokens.push_back(file_info->file_token);
+  }
+  return search_url_request_info;
+}
+
+GURL ComposeboxQueryControllerBridge::GetAimUrl(JNIEnv* env, GURL url) {
+  auto search_url_request_info =
+      CreateSearchUrlRequestInfoFromUrl(std::move(url));
   return query_controller_->CreateSearchUrl(std::move(search_url_request_info));
 }
 
-GURL ComposeboxQueryControllerBridge::GetImageGenerationUrl(
-    JNIEnv* env,
-    std::string& query_text) {
-  // TODO(crbug.com/448149357): Update the bridge interface to take in
-  // additional params for the create search url request info.
-  std::unique_ptr<ComposeboxQueryController::CreateSearchUrlRequestInfo>
-      search_url_request_info = std::make_unique<
-          ComposeboxQueryController::CreateSearchUrlRequestInfo>();
-  search_url_request_info->query_text = query_text;
-  search_url_request_info->query_start_time = base::Time::Now();
+GURL ComposeboxQueryControllerBridge::GetImageGenerationUrl(JNIEnv* env,
+                                                            GURL url) {
+  auto search_url_request_info =
+      CreateSearchUrlRequestInfoFromUrl(std::move(url));
   search_url_request_info->additional_params["imgn"] = "1";
   return query_controller_->CreateSearchUrl(std::move(search_url_request_info));
 }
@@ -227,16 +249,52 @@ bool ComposeboxQueryControllerBridge::IsCreateImagesEligible(JNIEnv* env) {
   return aim_service && aim_service->IsCreateImagesEligible();
 }
 
+std::unique_ptr<lens::proto::LensOverlaySuggestInputs>
+ComposeboxQueryControllerBridge::CreateLensOverlaySuggestInputs() const {
+  auto tokens = std::vector<base::UnguessableToken>();
+  // Read the list of tokens from the fileinfo list in the contextual search
+  // controller.
+  // TODO(crbug.com/455843962): Rely on the contextual search session handle
+  // to track uploaded context tokens.
+  for (const contextual_search::FileInfo* file_info :
+       query_controller_->GetFileInfoList()) {
+    tokens.push_back(file_info->file_token);
+  }
+  return query_controller_->CreateSuggestInputs(tokens);
+}
+
 void ComposeboxQueryControllerBridge::OnFileUploadStatusChanged(
     const base::UnguessableToken& file_token,
     lens::MimeType mime_type,
     contextual_search::FileUploadStatus file_upload_status,
-    const std::optional<contextual_search::FileUploadErrorType>& error_type) {}
+    const std::optional<contextual_search::FileUploadErrorType>& error_type) {
+  if (file_upload_status ==
+      contextual_search::FileUploadStatus::kProcessingSuggestSignalsReady) {
+    if (lens_signals_ready_callback_) {
+      lens_signals_ready_callback_.Run();
+    }
+  }
+
+  JNIEnv* env = base::android::AttachCurrentThread();
+  Java_ComposeBoxQueryControllerBridge_onFileUploadStatusChanged(
+      env, java_obj_,
+      base::android::ConvertUTF8ToJavaString(env, file_token.ToString()),
+      static_cast<int>(file_upload_status));
+}
 
 void ComposeboxQueryControllerBridge::OnGetTabPageContext(
     JNIEnv* env,
     const base::UnguessableToken& context_token,
     std::unique_ptr<lens::ContextualInputData> page_content_data) {
+  if (!page_content_data->context_input.has_value() ||
+      page_content_data->context_input->size() <= 0) {
+    OnFileUploadStatusChanged(
+        context_token, lens::MimeType::kUnknown,
+        contextual_search::FileUploadStatus::kValidationFailed,
+        contextual_search::FileUploadErrorType::kBrowserProcessingError);
+    return;
+  }
+
   std::optional<lens::ImageEncodingOptions> image_options =
       lens::ImageEncodingOptions{.enable_webp_encoding = false,
                                  .max_size = 1500000,
@@ -284,5 +342,19 @@ void ComposeboxQueryControllerBridge::OnGetPageContentFromCache(
         lens::MimeType::kAnnotatedPageContent);
   }
 
+  if (page_content_annotations::features::kPageContentCacheEnableScreenshot
+          .Get() &&
+      page_context->has_tab_screenshot()) {
+    const std::string& base64_string = page_context->tab_screenshot();
+    std::string png_data_string;
+
+    if (base::Base64Decode(base64_string, &png_data_string)) {
+      input_data->viewport_screenshot_bytes =
+          std::vector<uint8_t>(png_data_string.begin(), png_data_string.end());
+    }
+  }
+
   OnGetTabPageContext(env, context_token, std::move(input_data));
 }
+
+DEFINE_JNI(ComposeBoxQueryControllerBridge)

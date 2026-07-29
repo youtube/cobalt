@@ -9,6 +9,8 @@
 #import "base/check_deref.h"
 #import "base/containers/span.h"
 #import "base/functional/callback.h"
+#import "base/functional/callback_helpers.h"
+#import "base/notimplemented.h"
 #import "components/autofill/core/browser/autofill_progress_dialog_type.h"
 #import "components/autofill/core/browser/data_manager/payments/payments_data_manager.h"
 #import "components/autofill/core/browser/data_model/payments/bnpl_issuer.h"
@@ -25,6 +27,7 @@
 #import "components/autofill/core/browser/ui/payments/bnpl_tos_controller.h"
 #import "components/autofill/core/browser/ui/payments/card_unmask_otp_input_dialog_controller.h"
 #import "components/autofill/core/browser/ui/payments/card_unmask_prompt_controller.h"
+#import "components/autofill/core/common/autofill_prefs.h"
 #import "components/prefs/pref_service.h"
 #import "ios/web/public/web_state.h"
 #import "ios/web_view/internal/autofill/cwv_autofill_prefs.h"
@@ -332,6 +335,14 @@ void IOSWebViewPaymentsAutofillClient::ShowMandatoryReauthOptInPrompt(
 
 void IOSWebViewPaymentsAutofillClient::ShowMandatoryReauthOptInConfirmation() {}
 
+bool IOSWebViewPaymentsAutofillClient::IsAutofillPaymentMethodsEnabled() const {
+  return autofill::prefs::IsAutofillPaymentMethodsEnabled(GetPrefService());
+}
+
+void IOSWebViewPaymentsAutofillClient::DisablePaymentsAutofill() {
+  NOTIMPLEMENTED();
+}
+
 IbanManager* IOSWebViewPaymentsAutofillClient::GetIbanManager() {
   return nullptr;
 }
@@ -382,10 +393,14 @@ bool IOSWebViewPaymentsAutofillClient::ShowTouchToFillLoyaltyCard(
   return false;
 }
 
-bool IOSWebViewPaymentsAutofillClient::UpdateTouchToFillBnplPaymentMethod(
+bool IOSWebViewPaymentsAutofillClient::OnPurchaseAmountExtracted(
+    base::span<const payments::BnplIssuerContext> bnpl_issuer_contexts,
     std::optional<int64_t> extracted_amount,
-    bool is_amount_supported_by_any_issuer) {
-  return false;
+    bool is_amount_supported_by_any_issuer,
+    const std::optional<std::string>& app_locale,
+    base::OnceCallback<void(BnplIssuer)> selected_issuer_callback,
+    base::OnceClosure cancel_callback) {
+  NOTREACHED();
 }
 
 bool IOSWebViewPaymentsAutofillClient::ShowTouchToFillProgress(

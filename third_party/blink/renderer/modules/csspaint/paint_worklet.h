@@ -22,8 +22,7 @@ class CSSPaintImageGeneratorImpl;
 
 // Manages a paint worklet:
 // https://drafts.css-houdini.org/css-paint-api/#dom-css-paintworklet
-class MODULES_EXPORT PaintWorklet : public Worklet,
-                                    public Supplement<LocalDOMWindow> {
+class MODULES_EXPORT PaintWorklet : public Worklet {
  public:
   static const unsigned kSupplementIndex;
 
@@ -73,7 +72,7 @@ class MODULES_EXPORT PaintWorklet : public Worklet,
   void RegisterMainThreadDocumentPaintDefinition(
       const String& name,
       Vector<CSSPropertyID> native_properties,
-      Vector<String> custom_properties,
+      Vector<AtomicString> custom_properties,
       Vector<CSSSyntaxDefinition> input_argument_types,
       double alpha);
 

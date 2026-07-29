@@ -4,8 +4,6 @@
 
 #import "components/webauthn/ios/passkey_java_script_feature.h"
 
-#import <AuthenticationServices/AuthenticationServices.h>
-
 #import "base/base64.h"
 #import "base/no_destructor.h"
 #import "base/strings/strcat.h"
@@ -13,10 +11,23 @@
 #import "base/values.h"
 #import "components/webauthn/ios/features.h"
 #import "components/webauthn/ios/passkey_tab_helper.h"
+#import "device/fido/fido_user_verification_requirement.h"
 #import "ios/web/public/js_messaging/java_script_feature.h"
 #import "ios/web/public/js_messaging/java_script_feature_util.h"
 #import "ios/web/public/js_messaging/script_message.h"
 #import "ios/web/public/js_messaging/web_frames_manager.h"
+
+namespace webauthn {
+
+using PasskeyTabHelper::WebAuthenticationIOSContentAreaEvent::kCreateRequested;
+using PasskeyTabHelper::WebAuthenticationIOSContentAreaEvent::
+    kCreateResolvedGpm;
+using PasskeyTabHelper::WebAuthenticationIOSContentAreaEvent::
+    kCreateResolvedNonGpm;
+using PasskeyTabHelper::WebAuthenticationIOSContentAreaEvent::kGetRequested;
+using PasskeyTabHelper::WebAuthenticationIOSContentAreaEvent::kGetResolvedGpm;
+using PasskeyTabHelper::WebAuthenticationIOSContentAreaEvent::
+    kGetResolvedNonGpm;
 
 namespace {
 
@@ -33,11 +44,20 @@ constexpr char kEvent[] = "event";
 // Message event types.
 constexpr char kHandleGetRequest[] = "handleGetRequest";
 constexpr char kHandleCreateRequest[] = "handleCreateRequest";
-constexpr char kGetRequested[] = "getRequested";
-constexpr char kCreateRequested[] = "createRequested";
-constexpr char kCreateResolvedGpm[] = "createResolvedGpm";
-constexpr char kCreateResolvedNonGpm[] = "createResolvedNonGpm";
-constexpr char kGetResolved[] = "getResolved";
+constexpr char kLogGetRequest[] = "logGetRequest";
+constexpr char kLogCreateRequest[] = "logCreateRequest";
+constexpr char kLogGetResolved[] = "logGetResolved";
+constexpr char kLogCreateResolved[] = "logCreateResolved";
+
+// Parameters of the "logGetResolved" event.
+constexpr char kCredentialId[] = "credentialId";
+constexpr char kRpId[] = "rpId";
+
+// Parameter for the "logCreateResolved" event.
+constexpr char kIsGpm[] = "isGpm";
+
+// Request ID associated with deferred promises.
+constexpr char kRequestId[] = "requestId";
 
 // Frame ID for handle* events.
 constexpr char kFrameId[] = "frameId";
@@ -67,10 +87,6 @@ constexpr char kDisplayName[] = "displayName";
 // Member of the credential descriptors array.
 constexpr char kType[] = "type";
 constexpr char kTransports[] = "transports";
-
-// Parameters of the "getResolved" event.
-constexpr char kCredentialId[] = "credential_id";
-constexpr char kRpId[] = "rp_id";
 
 // Returns the placeholder replacements for the JavaScript feature script.
 web::JavaScriptFeature::FeatureScript::PlaceholderReplacements
@@ -103,6 +119,38 @@ std::vector<uint8_t> Base64Decode(const std::string* base_64_string) {
   }
 
   return decoded_data;
+}
+
+// Extracts the type of log event received.
+// Returns std::nullopt on any non log event or invalid log event.
+std::optional<PasskeyTabHelper::WebAuthenticationIOSContentAreaEvent>
+ExtractLogEventType(const std::string& event,
+                    const base::Value::Dict& dict,
+                    const PasskeyTabHelper& tab_helper) {
+  if (event == kLogGetRequest) {
+    return kGetRequested;
+  } else if (event == kLogCreateRequest) {
+    return kCreateRequested;
+  } else if (event == kLogGetResolved) {
+    const std::string* credential_id = dict.FindString(kCredentialId);
+    const std::string* rp_id = dict.FindString(kRpId);
+    if (!credential_id || credential_id->empty() || !rp_id || rp_id->empty()) {
+      return std::nullopt;
+    }
+
+    bool isGpm = tab_helper.HasCredential(*rp_id, *credential_id);
+    return isGpm ? kGetResolvedGpm : kGetResolvedNonGpm;
+  } else if (event == kLogCreateResolved) {
+    // Parameter for the "logCreateResolved" event.
+    std::optional<bool> isGpm = dict.FindBool(kIsGpm);
+    if (!isGpm.has_value()) {
+      return std::nullopt;
+    }
+
+    return *isGpm ? kCreateResolvedGpm : kCreateResolvedNonGpm;
+  }
+
+  return std::nullopt;
 }
 
 // Extracts all parameters required to build a PublicKeyCredentialUserEntity
@@ -158,38 +206,15 @@ device::PublicKeyCredentialRpEntity ExtractRpEntity(
 // Converts the provided string to a UserVerificationRequirement enum.
 device::UserVerificationRequirement ExtractUserVerification(
     const std::string* user_verification) {
-  // TODO(crbug.com/385174410): Verifiy that this is the correct default value.
-  device::UserVerificationRequirement user_verification_requirement =
-      device::UserVerificationRequirement::kPreferred;
-
-  if (!user_verification || user_verification->empty()) {
-    return user_verification_requirement;
+  if (!user_verification) {
+    // Fall back to the `kPreferred` UV requirement as per the WebAuthn spec.
+    return device::UserVerificationRequirement::kPreferred;
   }
 
-  // TODO(crbug.com/385174410): Merge this code with
-  // UserVerificationPreferenceFromString().
-  NSString* user_verification_preference_string =
-      base::SysUTF8ToNSString(*user_verification);
-  if ([user_verification_preference_string
-          isEqualToString:
-              ASAuthorizationPublicKeyCredentialUserVerificationPreferenceRequired]) {
-    user_verification_requirement =
-        device::UserVerificationRequirement::kRequired;
-  } else if (
-      [user_verification_preference_string
-          isEqualToString:
-              ASAuthorizationPublicKeyCredentialUserVerificationPreferencePreferred]) {
-    user_verification_requirement =
-        device::UserVerificationRequirement::kPreferred;
-  } else if (
-      [user_verification_preference_string
-          isEqualToString:
-              ASAuthorizationPublicKeyCredentialUserVerificationPreferenceDiscouraged]) {
-    user_verification_requirement =
-        device::UserVerificationRequirement::kDiscouraged;
-  }
-
-  return user_verification_requirement;
+  // TODO(crbug.com/460484682): Merge this code with
+  // ShouldPerformUserVerificationForPreference().
+  return device::ConvertToUserVerificationRequirement(*user_verification)
+      .value_or(device::UserVerificationRequirement::kPreferred);
 }
 
 // Reads a list of PublicKeyCredentialDescriptor from the provided list.
@@ -223,8 +248,7 @@ std::vector<device::PublicKeyCredentialDescriptor> ExtractCredentials(
         std::optional<device::FidoTransportProtocol> fidoTransportProtocol =
             device::ConvertToFidoTransportProtocol(transport.GetString());
         if (fidoTransportProtocol.has_value()) {
-          credential_descriptor.transports.insert(
-              *fidoTransportProtocol);
+          credential_descriptor.transports.insert(*fidoTransportProtocol);
         }
       }
     }
@@ -235,42 +259,69 @@ std::vector<device::PublicKeyCredentialDescriptor> ExtractCredentials(
   return credential_descriptors;
 }
 
-// Extracts all parameters required to build a RequestParams object from the
-// provided dictionary.
-PasskeyTabHelper::RequestParams ExtractRequestParams(
-    const base::Value::Dict* dict) {
-  if (!dict) {
-    return PasskeyTabHelper::RequestParams();
+// Extracts all parameters required to build a PasskeyRequestParams object from
+// the provided dictionary.
+PasskeyRequestParams ExtractRequestParams(const base::Value::Dict& dict) {
+  const std::string* frame_id = dict.FindString(kFrameId);
+  const std::string* request_id = dict.FindString(kRequestId);
+  const base::Value::Dict* request_dict = dict.FindDict(kRequest);
+  if (!frame_id || !request_id || !request_dict) {
+    return PasskeyRequestParams();
   }
 
-  const std::string* frame_id = dict->FindString(kFrameId);
-
-  return PasskeyTabHelper::RequestParams(
-      frame_id ? *frame_id : "", ExtractRpEntity(dict->FindDict(kRpEntity)),
-      Base64Decode(dict->FindString(kChallenge)),
-      ExtractUserVerification(dict->FindString(kUserVerification)));
+  return PasskeyRequestParams(
+      *frame_id, *request_id, ExtractRpEntity(dict.FindDict(kRpEntity)),
+      Base64Decode(request_dict->FindString(kChallenge)),
+      ExtractUserVerification(request_dict->FindString(kUserVerification)));
 }
 
 // Extracts all parameters required to build an ExtractAssertionRequestParams
 // object from the provided dictionary.
-PasskeyTabHelper::AssertionRequestParams ExtractAssertionRequestParams(
+AssertionRequestParams ExtractAssertionRequestParams(
     const base::Value::Dict& dict) {
-  return PasskeyTabHelper::AssertionRequestParams(
-      ExtractRequestParams(dict.FindDict(kRequest)),
+  return AssertionRequestParams(
+      ExtractRequestParams(dict),
       ExtractCredentials(dict.FindList(kAllowCredentials)));
 }
 
 // Extracts all parameters required to build a RegistrationRequestParams object
 // from the provided dictionary.
-PasskeyTabHelper::RegistrationRequestParams ExtractRegistrationRequestParams(
+RegistrationRequestParams ExtractRegistrationRequestParams(
     const base::Value::Dict& dict) {
-  return PasskeyTabHelper::RegistrationRequestParams(
-      ExtractRequestParams(dict.FindDict(kRequest)),
-      ExtractUserEntity(dict.FindDict(kUserEntity)),
+  return RegistrationRequestParams(
+      ExtractRequestParams(dict), ExtractUserEntity(dict.FindDict(kUserEntity)),
       ExtractCredentials(dict.FindList(kExcludeCredentials)));
 }
 
 }  // namespace
+
+PasskeyJavaScriptFeature::AttestationData::AttestationData(
+    std::vector<uint8_t> attestation_object,
+    std::vector<uint8_t> authenticator_data,
+    std::vector<uint8_t> public_key_spki_der,
+    std::string client_data_json)
+    : attestation_object(std::move(attestation_object)),
+      authenticator_data(std::move(authenticator_data)),
+      public_key_spki_der(std::move(public_key_spki_der)),
+      client_data_json(std::move(client_data_json)) {}
+
+PasskeyJavaScriptFeature::AttestationData::AttestationData(
+    PasskeyJavaScriptFeature::AttestationData&& other) = default;
+PasskeyJavaScriptFeature::AttestationData::~AttestationData() = default;
+
+PasskeyJavaScriptFeature::AssertionData::AssertionData(
+    std::vector<uint8_t> signature,
+    std::vector<uint8_t> authenticator_data,
+    std::vector<uint8_t> user_handle,
+    std::string client_data_json)
+    : signature(std::move(signature)),
+      authenticator_data(std::move(authenticator_data)),
+      user_handle(std::move(user_handle)),
+      client_data_json(std::move(client_data_json)) {}
+
+PasskeyJavaScriptFeature::AssertionData::AssertionData(
+    PasskeyJavaScriptFeature::AssertionData&& other) = default;
+PasskeyJavaScriptFeature::AssertionData::~AssertionData() = default;
 
 // static
 PasskeyJavaScriptFeature* PasskeyJavaScriptFeature::GetInstance() {
@@ -295,8 +346,42 @@ PasskeyJavaScriptFeature::PasskeyJavaScriptFeature()
 
 PasskeyJavaScriptFeature::~PasskeyJavaScriptFeature() = default;
 
-void PasskeyJavaScriptFeature::DeferToRenderer(web::WebFrame* web_frame) {
-  CallJavaScriptFunction(web_frame, "passkey.deferToRenderer", {});
+void PasskeyJavaScriptFeature::DeferToRenderer(web::WebFrame* web_frame,
+                                               std::string_view request_id) {
+  CallJavaScriptFunction(web_frame, "passkey.deferToRenderer",
+                         base::Value::List().Append(request_id));
+}
+
+void PasskeyJavaScriptFeature::ResolveAttestationRequest(
+    web::WebFrame* web_frame,
+    std::string_view request_id,
+    std::string_view credential_id,
+    AttestationData attestation_data) {
+  CallJavaScriptFunction(
+      web_frame, "passkey.resolveAttestationRequest",
+      base::Value::List()
+          .Append(request_id)
+          .Append(base::Base64Encode(credential_id))
+          .Append(base::Base64Encode(attestation_data.attestation_object))
+          .Append(base::Base64Encode(attestation_data.authenticator_data))
+          .Append(base::Base64Encode(attestation_data.public_key_spki_der))
+          .Append(attestation_data.client_data_json));
+}
+
+void PasskeyJavaScriptFeature::ResolveAssertionRequest(
+    web::WebFrame* web_frame,
+    std::string_view request_id,
+    std::string_view credential_id,
+    AssertionData assertion_data) {
+  CallJavaScriptFunction(
+      web_frame, "passkey.resolveAssertionRequest",
+      base::Value::List()
+          .Append(request_id)
+          .Append(base::Base64Encode(credential_id))
+          .Append(base::Base64Encode(assertion_data.authenticator_data))
+          .Append(assertion_data.client_data_json)
+          .Append(base::Base64Encode(assertion_data.signature))
+          .Append(base::Base64Encode(assertion_data.user_handle)));
 }
 
 std::optional<std::string>
@@ -341,7 +426,8 @@ void PasskeyJavaScriptFeature::ScriptMessageReceived(
       return;
     }
 
-    passkey_tab_helper->LogEventFromString(kGetRequested);
+    passkey_tab_helper->LogEvent(
+        PasskeyTabHelper::WebAuthenticationIOSContentAreaEvent::kGetRequested);
     passkey_tab_helper->HandleGetRequestedEvent(
         ExtractAssertionRequestParams(dict));
     return;
@@ -351,28 +437,20 @@ void PasskeyJavaScriptFeature::ScriptMessageReceived(
       return;
     }
 
-    passkey_tab_helper->LogEventFromString(kCreateRequested);
+    passkey_tab_helper->LogEvent(
+        PasskeyTabHelper::WebAuthenticationIOSContentAreaEvent::
+            kCreateRequested);
     passkey_tab_helper->HandleCreateRequestedEvent(
         ExtractRegistrationRequestParams(dict));
     return;
-  } else if (*event == kGetRequested || *event == kCreateRequested ||
-             *event == kCreateResolvedGpm || *event == kCreateResolvedNonGpm) {
-    // For those events there are no more expected arguments.
-    passkey_tab_helper->LogEventFromString(*event);
-    return;
   }
 
-  // Expected arguments for "getResolved" event:
-  // credential_id: (string) base64url encoded identifer of the credential.
-  // rp_id: (string) The relying party's identifier.
-  if (*event == kGetResolved) {
-    const std::string* credential_id = dict.FindString(kCredentialId);
-    const std::string* rp_id = dict.FindString(kRpId);
-    if (credential_id && !credential_id->empty() && rp_id && !rp_id->empty()) {
-      passkey_tab_helper->HandleGetResolvedEvent(*credential_id, *rp_id);
-    }
-    return;
-  }
+  std::optional<PasskeyTabHelper::WebAuthenticationIOSContentAreaEvent>
+      log_event_type = ExtractLogEventType(*event, dict, *passkey_tab_helper);
 
-  // TODO(crbug.com/369629469): Handle other types of events.
+  if (log_event_type.has_value()) {
+    passkey_tab_helper->LogEvent(*log_event_type);
+  }
 }
+
+}  // namespace webauthn

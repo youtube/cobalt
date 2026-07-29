@@ -775,7 +775,7 @@ bool BrowserCommandController::ExecuteCommandWithDisposition(
       break;
 #endif  // !BUILDFLAG(IS_CHROMEOS)
     case IDC_SHOW_CONTEXTUAL_TASKS_SIDE_PANEL:
-      ShowContextualTasksSidePanel(browser_);
+      ToggleContextualTasksSidePanel(browser_);
       break;
     case IDC_TURN_ON_SYNC:
       signin_ui_util::EnableSyncFromSingleAccountPromo(
@@ -802,6 +802,9 @@ bool BrowserCommandController::ExecuteCommandWithDisposition(
       break;
     case IDC_SHOW_ADDRESSES:
       ShowAddresses(browser_);
+      break;
+    case IDC_SHOW_CONTACT_INFO:
+      ShowContactInfo(browser_);
       break;
     case IDC_SHOW_IDENTITY_DOCS:
       ShowIdentityDocs(browser_);
@@ -1592,6 +1595,7 @@ void BrowserCommandController::InitCommandState() {
   command_updater_.UpdateCommandEnabled(IDC_SHOW_SIGNIN_WHEN_PAUSED, true);
   command_updater_.UpdateCommandEnabled(IDC_SHOW_SIGNIN, true);
   command_updater_.UpdateCommandEnabled(IDC_SHOW_ADDRESSES, !guest_session);
+  command_updater_.UpdateCommandEnabled(IDC_SHOW_CONTACT_INFO, !guest_session);
   command_updater_.UpdateCommandEnabled(IDC_SHOW_IDENTITY_DOCS, !guest_session);
   command_updater_.UpdateCommandEnabled(IDC_SHOW_TRAVEL, !guest_session);
   command_updater_.UpdateCommandEnabled(IDC_HELP_MENU, true);

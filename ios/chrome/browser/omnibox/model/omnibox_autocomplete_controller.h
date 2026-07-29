@@ -63,10 +63,11 @@ struct OmniboxTextModel;
 @property(nonatomic, assign, readonly)
     AutocompleteProviderClient* autocompleteProviderClient;
 
-- (instancetype)initWithOmniboxClient:(OmniboxClient*)omniboxClient
-                     omniboxTextModel:(OmniboxTextModel*)omniboxTextModel
-                  presentationContext:
-                      (OmniboxPresentationContext)presentationContext
+- (instancetype)
+     initWithOmniboxClient:(OmniboxClient*)omniboxClient
+    autocompleteController:(AutocompleteController*)autocompleteController
+          omniboxTextModel:(OmniboxTextModel*)omniboxTextModel
+       presentationContext:(OmniboxPresentationContext)presentationContext
     NS_DESIGNATED_INITIALIZER;
 
 - (instancetype)init NS_UNAVAILABLE;
@@ -133,6 +134,10 @@ struct OmniboxTextModel;
             isFirstUpdate:(BOOL)isFirstUpdate;
 
 #pragma mark - OmniboxText events
+
+/// Clears the omnibox suggestions and starts autocomplete with the current
+/// input text.
+- (void)clearAndRestartAutocomplete;
 
 /// Starts autocomplete with `text`.
 - (void)startAutocompleteWithText:(const std::u16string&)text

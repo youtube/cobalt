@@ -103,7 +103,11 @@ class GlicClientView : public views::ClientView {
 };
 
 bool ShouldCreateNonClientView() {
+#if BUILDFLAG(IS_CHROMEOS)
+  return base::FeatureList::IsEnabled(features::kGlicUseNonClient);
+#else
   return base::FeatureList::IsEnabled(features::kGlicWindowDragRegions);
+#endif
 }
 
 display::Display GetDisplayForOpeningDetached() {
@@ -271,6 +275,8 @@ std::unique_ptr<GlicWidget> GlicWidget::Create(views::WidgetDelegate* delegate,
   // Don't change this name. This is used by other code to identify the glic
   // window. See b/404947780.
   params.name = "GlicWidget";
+  params.layer_type = ui::LAYER_NOT_DRAWN;
+
   // Support of rounded corners varies across platforms. See
   // Widget::InitParams::rounded_corners. DO NOT apply this radius using
   // views::Background or in the web client because it will mismatch with
@@ -300,7 +306,7 @@ std::unique_ptr<GlicWidget> GlicWidget::Create(views::WidgetDelegate* delegate,
   if (!base::FeatureList::IsEnabled(features::kGlicZOrderChanges)) {
     params.dont_show_in_taskbar = true;
   }
-  if (!base::FeatureList::IsEnabled(features::kGlicWindowDragRegions)) {
+  if (!ShouldCreateNonClientView()) {
     params.force_system_menu_for_frameless = true;
   }
 #endif  // BUILDFLAG(IS_WIN)
@@ -312,8 +318,6 @@ std::unique_ptr<GlicWidget> GlicWidget::Create(views::WidgetDelegate* delegate,
   params.wayland_app_id = params.wm_class_class + "-glic";
 #endif  // BUILDFLAG(IS_LINUX)
 #if BUILDFLAG(IS_CHROMEOS)
-  // TODO(b:452406346): Use a `LAYER_NOT_DRAWN` for all the platforms.
-  params.layer_type = ui::LAYER_NOT_DRAWN;
   params.shadow_type = views::Widget::InitParams::ShadowType::kDrop;
   params.init_properties_container.SetProperty(
       chromeos::kShouldHaveHighlightBorderOverlay, true);

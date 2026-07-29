@@ -229,20 +229,34 @@ class NET_EXPORT SessionServiceImpl : public SessionService {
       RegistrationFetcher* fetcher,
       RegistrationResult result);
 
+  // Helper for restoring the key for the session identified by
+  // `session_key`. If restoring the key succeeds, calls `callback` with
+  // the key. If restoring the key fails, deletes the session and calls
+  // `callback` with `std::nullopt`.
+  void RestoreSessionKey(
+      const SessionKey& session_key,
+      OnAccessCallback on_access_callback,
+      base::OnceCallback<
+          void(std::optional<unexportable_keys::UnexportableKeyId>)> callback);
+
   // Callback after unwrapping a session key. `on_access_callback` is
   // used to notify the browser that this request led to usage of a
-  // session.
-  void OnSessionKeyRestored(base::WeakPtr<URLRequest> request,
-                            const SessionKey& session_key,
-                            OnAccessCallback on_access_callback,
-                            Session::KeyIdOrError key_id_or_error);
+  // session. If restoring the key succeeds, calls `callback` with
+  // the key. If restoring the key fails, deletes the session and calls
+  // `callback` with `std::nullopt`.
+  void OnSessionKeyRestored(
+      const SessionKey& session_key,
+      OnAccessCallback on_access_callback,
+      base::OnceCallback<
+          void(std::optional<unexportable_keys::UnexportableKeyId>)> callback,
+      Session::KeyIdOrError key_id_or_error);
 
   // Helper function for starting a refresh
-  void RefreshSessionInternal(RefreshTrigger trigger,
-                              URLRequest* request,
-                              const SessionKey& session_key,
-                              Session* session,
-                              unexportable_keys::UnexportableKeyId key_id);
+  void RefreshSessionInternal(
+      RefreshTrigger trigger,
+      base::WeakPtr<URLRequest> request,
+      const SessionKey& session_key,
+      std::optional<unexportable_keys::UnexportableKeyId> key_id);
 
   // Whether the site has exceeded its refresh quota.
   bool RefreshQuotaExceeded(const SchemefulSite& site);
@@ -255,10 +269,24 @@ class NET_EXPORT SessionServiceImpl : public SessionService {
   // null, does nothing.
   void RemoveFetcher(RegistrationFetcher* fetcher);
 
-  // Get the federated provider session specified by
+  // Asynchronously get the federated provider session specified by
   // `registration_params`, if allowed.
-  base::expected<Session*, SessionError> GetFederatedProviderSessionIfValid(
-      const RegistrationFetcherParam& registration_params);
+  void GetFederatedProviderSessionIfValid(
+      GURL provider_url,
+      Session::Id provider_session_id,
+      std::string provider_key_thumbprint,
+      OnAccessCallback on_access_callback,
+      base::OnceCallback<void(base::expected<Session*, SessionError>)>
+          callback);
+
+  // Helper for getting the federated provider session. Checks that the
+  // key thumbprints maps and runs `callback` with the resulting
+  // provider session or an error on mismatch.
+  void CheckFederatedProviderKey(
+      SessionKey provider_session_key,
+      std::string provider_key_thumbprint,
+      base::OnceCallback<void(base::expected<Session*, SessionError>)> callback,
+      std::optional<unexportable_keys::UnexportableKeyId> provider_key);
 
   void OnAddSessionKeyRestored(
       const SchemefulSite& site,
@@ -275,7 +303,18 @@ class NET_EXPORT SessionServiceImpl : public SessionService {
       const SessionKey& session_key,
       base::TimeDelta minimum_cookie_lifetime);
 
-  // Whether we are waiting on the initial load of saved sessions to complete.
+  // Helper function for common behavior from federated and regular
+  // session registration.
+  void RegisterBoundSessionInternal(
+      OnAccessCallback on_access_callback,
+      RegistrationFetcherParam registration_params,
+      const IsolationInfo& isolation_info,
+      const NetLogWithSource& net_log,
+      const std::optional<url::Origin>& original_request_initiator,
+      base::expected<Session*, SessionError> federated_provider_session);
+
+  // Whether we are waiting on the initial load of saved sessions to
+  // complete.
   bool pending_initialization_ = false;
   // Functions to call once initialization completes.
   std::vector<base::OnceClosure> queued_operations_;

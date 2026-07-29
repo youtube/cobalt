@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "base/barrier_callback.h"
+#include "base/barrier_closure.h"
 #include "base/compiler_specific.h"
 #include "base/run_loop.h"
 #include "base/strings/string_number_conversions.h"
@@ -231,17 +232,9 @@ std::string set_up_client_side_model() {
 }  // namespace
 
 class ClientSideDetectionHostPrerenderBrowserTest
-    : public InProcessBrowserTest,
-      public ::testing::WithParamInterface<bool> {
+    : public InProcessBrowserTest {
  public:
   ClientSideDetectionHostPrerenderBrowserTest() {
-    if (GetParam()) {
-      scoped_feature_list_.InitWithFeatures(
-          {kClientSideDetectionOnlyExtractVisualFeatures}, {});
-    } else {
-      scoped_feature_list_.InitWithFeatures(
-          {}, {kClientSideDetectionOnlyExtractVisualFeatures});
-    }
     prerender_helper_ = std::make_unique<content::test::PrerenderTestHelper>(
         base::BindRepeating(
             &ClientSideDetectionHostPrerenderBrowserTest::GetWebContents,
@@ -326,11 +319,7 @@ class ClientSideDetectionHostPrerenderExclusiveAccessBrowserTest
   std::string flatbuffer_model_str_;
 };
 
-INSTANTIATE_TEST_SUITE_P(All,
-                         ClientSideDetectionHostPrerenderBrowserTest,
-                         testing::Bool());
-
-IN_PROC_BROWSER_TEST_P(ClientSideDetectionHostPrerenderBrowserTest,
+IN_PROC_BROWSER_TEST_F(ClientSideDetectionHostPrerenderBrowserTest,
                        PrerenderShouldNotAffectClientSideDetection) {
   if (base::FeatureList::IsEnabled(kClientSideDetectionKillswitch)) {
     GTEST_SKIP();
@@ -384,7 +373,7 @@ IN_PROC_BROWSER_TEST_P(ClientSideDetectionHostPrerenderBrowserTest,
       .Run(page_url, true, net::HTTP_OK, std::nullopt);
 }
 
-IN_PROC_BROWSER_TEST_P(ClientSideDetectionHostPrerenderBrowserTest,
+IN_PROC_BROWSER_TEST_F(ClientSideDetectionHostPrerenderBrowserTest,
                        ClassifyPrerenderedPageAfterActivation) {
   if (base::FeatureList::IsEnabled(kClientSideDetectionKillswitch)) {
     GTEST_SKIP();
@@ -433,7 +422,7 @@ IN_PROC_BROWSER_TEST_P(ClientSideDetectionHostPrerenderBrowserTest,
       .Run(prerender_url, true, net::HTTP_OK, std::nullopt);
 }
 
-IN_PROC_BROWSER_TEST_P(
+IN_PROC_BROWSER_TEST_F(
     ClientSideDetectionHostPrerenderBrowserTest,
     ClassifyPrerenderedPageAfterActivationAndCheckDebuggingMetadataCache) {
   if (base::FeatureList::IsEnabled(kClientSideDetectionKillswitch)) {
@@ -501,7 +490,7 @@ IN_PROC_BROWSER_TEST_P(
   EXPECT_TRUE(debugging_metadata->local_model_detects_phishing());
 }
 
-IN_PROC_BROWSER_TEST_P(
+IN_PROC_BROWSER_TEST_F(
     ClientSideDetectionHostPrerenderBrowserTest,
     CheckDebuggingMetadataCacheAfterClearingCacheAfterNavigation) {
   if (base::FeatureList::IsEnabled(kClientSideDetectionKillswitch)) {
@@ -1335,8 +1324,12 @@ class ClientSideDetectionHostCreditCardFormTest : public InProcessBrowserTest {
   ClientSideDetectionHostCreditCardFormTest() {
     scoped_feature_list_.InitAndEnableFeatureWithParameters(
         kClientSideDetectionCreditCardForm,
-        {{kCsdCreditCardFormHCAcceptanceRate.name, "0.0"},
-         {kCsdCreditCardFormSampleRate.name, "1.0"}});
+        {
+            {kCsdCreditCardFormPingOnDetection.name, "true"},
+            {kCsdCreditCardFormPingOnInteraction.name, "true"},
+            {kCsdCreditCardFormHCAcceptanceRate.name, "0.0"},
+            {kCsdCreditCardFormSampleRate.name, "1.0"},
+        });
   }
 
   ClientSideDetectionHostCreditCardFormTest(
@@ -1412,26 +1405,23 @@ IN_PROC_BROWSER_TEST_F(ClientSideDetectionHostCreditCardFormTest,
   histogram_tester.ExpectTotalCount(
       "SBClientPhishing.PreClassificationCheckResult.CreditCardForm", 0);
 
-  // Navigation will trigger preclassification on credit card form detection.
+  // Navigation trigger preclassification on credit card form detection.
+  // Form focus will trigger preclassification on credit card form interaction.
   base::RunLoop run_loop;
+  base::RepeatingClosure barrier =
+      base::BarrierClosure(2, run_loop.QuitClosure());
   csd_host->set_preclassification_done_callback_for_testing(
       base::BindLambdaForTesting([&](ClientSideDetectionType detection_type) {
         if (detection_type == ClientSideDetectionType::CREDIT_CARD_FORM) {
-          run_loop.Quit();
+          barrier.Run();
         }
       }));
   NavigateToCreditCardForm();
+  FocusOnCreditCardNumberField();
   run_loop.Run();
 
   histogram_tester.ExpectTotalCount(
-      "SBClientPhishing.PreClassificationCheckResult.CreditCardForm", 1);
-
-  // Interaction with the form will trigger preclassification that exits early
-  // because of URL deduplication.
-  FocusOnCreditCardNumberField();
-
-  histogram_tester.ExpectTotalCount(
-      "SBClientPhishing.PreClassificationCheckResult.CreditCardForm", 1);
+      "SBClientPhishing.PreClassificationCheckResult.CreditCardForm", 2);
 }
 
 IN_PROC_BROWSER_TEST_F(ClientSideDetectionHostCreditCardFormTest,
@@ -1473,7 +1463,6 @@ IN_PROC_BROWSER_TEST_F(ClientSideDetectionHostCreditCardFormTest,
   csd_host->set_preclassification_started_callback_for_testing(
       base::BarrierCallback<ClientSideDetectionType>(2, future.GetCallback()));
   GURL url = NavigateToCreditCardForm();
-  FocusOnCreditCardNumberField();
   EXPECT_THAT(future.Take(),
               testing::Contains(ClientSideDetectionType::CREDIT_CARD_FORM));
 

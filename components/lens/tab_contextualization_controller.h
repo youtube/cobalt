@@ -9,15 +9,16 @@
 #include <optional>
 
 #include "base/callback_list.h"
+#include "base/functional/callback_helpers.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/task/task_runner.h"
 #include "components/lens/contextual_input.h"
 #include "components/lens/lens_bitmap_processing.h"
+#include "components/optimization_guide/content/browser/page_content_proto_provider.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/render_widget_host.h"
 #include "content/public/browser/web_contents_observer.h"
-#include "mojo/public/cpp/bindings/associated_remote.h"
 #include "pdf/buildflags.h"
 #include "ui/base/unowned_user_data/scoped_unowned_user_data.h"
 
@@ -32,7 +33,6 @@ struct CopyOutputBitmapWithMetadata;
 
 namespace optimization_guide {
 class PageContextEligibility;
-struct AIPageContentResult;
 }  // namespace optimization_guide
 
 namespace lens {
@@ -53,11 +53,11 @@ class TabContextualizationController : public content::WebContentsObserver {
   // retrieved. The frame metadata will be empty if the page is not eligible.
   using GetApcResultCallback = base::OnceCallback<void(
       bool page_context_eligible,
-      std::optional<optimization_guide::AIPageContentResult> apc)>;
+      optimization_guide::AIPageContentResultOrError apc)>;
 
   // Callback type alias for when the annotated page content is retrieved.
-  using GetAnnotatedPageContentCallback = base::OnceCallback<void(
-      std::optional<optimization_guide::AIPageContentResult> result)>;
+  using GetAnnotatedPageContentCallback =
+      optimization_guide::OnAIPageContentDone;
 
   // Callback type alias for when the screenshot is captured.
   using CaptureScreenshotCallback = base::OnceCallback<void(const SkBitmap&)>;
@@ -78,9 +78,8 @@ class TabContextualizationController : public content::WebContentsObserver {
   virtual void GetPageContext(GetPageContextCallback callback);
 
   // Updates current page eligibility once received.
-  void OnEligibilityChecked(
-      bool is_page_context_eligible,
-      std::optional<optimization_guide::AIPageContentResult> apc);
+  void OnEligibilityChecked(bool is_page_context_eligible,
+                            optimization_guide::AIPageContentResultOrError apc);
 
   // Starts the steps needed to update the page context eligibility.
   void UpdatePageContextEligibility(GetApcResultCallback callback);
@@ -114,7 +113,7 @@ class TabContextualizationController : public content::WebContentsObserver {
   // page is eligible and returns the result to the callback.
   void OnAnnotatedPageContentReceived(
       GetApcResultCallback callback,
-      std::optional<optimization_guide::AIPageContentResult> result);
+      optimization_guide::AIPageContentResultOrError result);
 
   // GetApcResultCallback for when the APC and eligibility are received
   // for the GetPageContext flow. Adds the APC to the contextual input data and
@@ -123,7 +122,7 @@ class TabContextualizationController : public content::WebContentsObserver {
       GetPageContextCallback callback,
       std::unique_ptr<lens::ContextualInputData> data,
       bool page_context_eligible,
-      std::optional<optimization_guide::AIPageContentResult> result);
+      optimization_guide::AIPageContentResultOrError result);
 
 #if BUILDFLAG(ENABLE_PDF)
   // Callback for when the PDF bytes are received. Triggers the PDF page

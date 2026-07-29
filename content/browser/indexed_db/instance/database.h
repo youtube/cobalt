@@ -96,13 +96,17 @@ class CONTENT_EXPORT Database {
   Status RunTasks();
   void RegisterAndScheduleTransaction(Transaction* transaction);
 
-  // The database object (this object) must be kept alive for the duration of
-  // this call. This means the caller should own an
-  // BucketContextHandle while calling this methods.
-  Status ForceCloseAndRunTasks(const std::string& message);
+  // This closes connections and their transactions, and tells the connection
+  // coordinator to cancel pending open requests. However, pending delete
+  // requests are honored (synchronously). This requires an rvalue reference
+  // because it should only be called right before destruction, by its owner
+  // (BucketContext).
+  Status ForceClose(const std::string& message) &&;
 
   void ScheduleOpenConnection(std::unique_ptr<PendingConnection> connection);
 
+  // `on_deletion_complete` is called only if the database existed and was
+  // actually deleted.
   void ScheduleDeleteDatabase(
       mojo::AssociatedRemote<blink::mojom::IDBFactoryClient> factory_client,
       base::OnceClosure on_deletion_complete);
@@ -110,7 +114,7 @@ class CONTENT_EXPORT Database {
   // Number of connections that have progressed passed initial open call.
   size_t ConnectionCount() const { return connections_.size(); }
 
-  bool IsAcceptingConnections() const { return !force_closing_; }
+  bool force_closing() const { return force_closing_; }
 
   // Number of active open/delete calls (running or blocked on other
   // connections).
@@ -180,7 +184,7 @@ class CONTENT_EXPORT Database {
       int64_t index_id,
       blink::IndexedDBKeyRange key_range,
       blink::mojom::IDBGetAllResultType result_type,
-      int64_t max_count,
+      uint32_t max_count,
       blink::mojom::IDBCursorDirection direction,
       blink::mojom::IDBDatabase::GetAllCallback callback,
       Transaction* transaction);
@@ -259,7 +263,7 @@ class CONTENT_EXPORT Database {
                          int64_t index_id,
                          blink::IndexedDBKeyRange key_range,
                          blink::mojom::IDBGetAllResultType result_type,
-                         int64_t max_count,
+                         uint32_t max_count,
                          blink::mojom::IDBCursorDirection direction,
                          std::unique_ptr<GetAllResultSinkWrapper> result_sink,
                          Transaction* transaction);

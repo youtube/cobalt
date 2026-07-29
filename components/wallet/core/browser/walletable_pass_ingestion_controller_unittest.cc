@@ -7,13 +7,21 @@
 #include <memory>
 
 #include "base/test/protobuf_matchers.h"
+#include "base/test/scoped_feature_list.h"
+#include "base/test/task_environment.h"
 #include "base/types/expected.h"
 #include "components/optimization_guide/core/hints/mock_optimization_guide_decider.h"
 #include "components/optimization_guide/core/model_execution/test/mock_remote_model_executor.h"
 #include "components/optimization_guide/core/optimization_guide_proto_util.h"
+#include "components/prefs/testing_pref_service.h"
+#include "components/signin/public/identity_manager/identity_test_environment.h"
 #include "components/strike_database/test_inmemory_strike_database.h"
+#include "components/sync_preferences/testing_pref_service_syncable.h"
 #include "components/wallet/core/browser/walletable_pass_client.h"
 #include "components/wallet/core/browser/walletable_pass_ingestion_controller_test_api.h"
+#include "components/wallet/core/browser/walletable_permission_utils.h"
+#include "components/wallet/core/common/wallet_features.h"
+#include "components/wallet/core/common/wallet_prefs.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "url/gurl.h"
@@ -23,8 +31,8 @@ using optimization_guide::ModelBasedCapabilityKey::kWalletablePassExtraction;
 using optimization_guide::OptimizationGuideDecision::kFalse;
 using optimization_guide::OptimizationGuideDecision::kTrue;
 using optimization_guide::proto::WALLETABLE_PASS_DETECTION_LOYALTY_ALLOWLIST;
-using optimization_guide::proto::WalletablePass;
 using testing::_;
+using testing::Eq;
 using testing::Return;
 using testing::WithArgs;
 using enum optimization_guide::proto::PassCategory;
@@ -45,18 +53,22 @@ class MockWalletablePassClient : public WalletablePassClient {
   MOCK_METHOD(
       void,
       ShowWalletablePassConsentBubble,
-      (WalletablePassClient::WalletablePassBubbleResultCallback callback),
+      (optimization_guide::proto::PassCategory pass_category,
+       WalletablePassClient::WalletablePassBubbleResultCallback callback),
       (override));
   MOCK_METHOD(
       void,
       ShowWalletablePassSaveBubble,
-      (const optimization_guide::proto::WalletablePass& pass,
+      (WalletablePass pass,
        WalletablePassClient::WalletablePassBubbleResultCallback callback),
       (override));
   MOCK_METHOD(strike_database::StrikeDatabaseBase*,
               GetStrikeDatabase,
               (),
               (override));
+  MOCK_METHOD(PrefService*, GetPrefService, (), (override));
+  MOCK_METHOD(signin::IdentityManager*, GetIdentityManager, (), (override));
+  MOCK_METHOD(GeoIpCountryCode, GetGeoIpCountryCode, (), (override));
 };
 
 // Mock implementation of WalletablePassIngestionController that provides mocks
@@ -79,12 +91,22 @@ class WalletablePassIngestionControllerTest : public testing::Test {
   WalletablePassIngestionControllerTest() = default;
 
   void SetUp() override {
+    scoped_feature_list_.InitAndEnableFeatureWithParameters(
+        kWalletablePassDetection,
+        {{"walletable_supported_country_allowlist", "US"}});
+    wallet::prefs::RegisterProfilePrefs(test_pref_service().registry());
     ON_CALL(mock_client_, GetOptimizationGuideDecider())
         .WillByDefault(Return(&mock_decider_));
     ON_CALL(mock_client_, GetRemoteModelExecutor())
         .WillByDefault(Return(&mock_model_executor_));
     ON_CALL(mock_client_, GetStrikeDatabase())
         .WillByDefault(Return(&test_strike_database_));
+    ON_CALL(mock_client_, GetPrefService())
+        .WillByDefault(Return(&test_pref_service()));
+    ON_CALL(mock_client_, GetIdentityManager())
+        .WillByDefault(Return(test_identity_environment().identity_manager()));
+    ON_CALL(mock_client_, GetGeoIpCountryCode())
+        .WillByDefault(Return(GeoIpCountryCode("US")));
     controller_ =
         std::make_unique<MockWalletablePassIngestionController>(&mock_client_);
   }
@@ -104,10 +126,20 @@ class WalletablePassIngestionControllerTest : public testing::Test {
     return test_strike_database_;
   }
 
+  sync_preferences::TestingPrefServiceSyncable& test_pref_service() {
+    return test_pref_service_;
+  }
+
+  signin::IdentityTestEnvironment& test_identity_environment() {
+    return test_identity_environment_;
+  }
+
   WalletablePass CreateLoyaltyCard(
-      const std::string& memeber_id = "test_member_id") {
+      const std::string& member_id = "test_member_id") {
     WalletablePass walletable_pass;
-    walletable_pass.mutable_loyalty_card()->set_member_id(memeber_id);
+    LoyaltyCard loyalty_card;
+    loyalty_card.member_id = member_id;
+    walletable_pass.pass_data = std::move(loyalty_card);
     return walletable_pass;
   }
 
@@ -115,7 +147,18 @@ class WalletablePassIngestionControllerTest : public testing::Test {
       const WalletablePass& expected_pass,
       WalletablePassClient::WalletablePassBubbleResultCallback* out_callback) {
     EXPECT_CALL(mock_client(),
-                ShowWalletablePassSaveBubble(EqualsProto(expected_pass), _))
+                ShowWalletablePassSaveBubble(Eq(expected_pass), _))
+        .WillOnce(WithArgs<1>(
+            [out_callback](
+                WalletablePassClient::WalletablePassBubbleResultCallback
+                    callback) { *out_callback = std::move(callback); }));
+  }
+
+  void ExpectConsentBubbleOnClient(
+      optimization_guide::proto::PassCategory expected_category,
+      WalletablePassClient::WalletablePassBubbleResultCallback* out_callback) {
+    EXPECT_CALL(mock_client(),
+                ShowWalletablePassConsentBubble(Eq(expected_category), _))
         .WillOnce(WithArgs<1>(
             [out_callback](
                 WalletablePassClient::WalletablePassBubbleResultCallback
@@ -123,11 +166,15 @@ class WalletablePassIngestionControllerTest : public testing::Test {
   }
 
  private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+  base::test::TaskEnvironment task_environment_;
   testing::NiceMock<optimization_guide::MockOptimizationGuideDecider>
       mock_decider_;
   testing::NiceMock<optimization_guide::MockRemoteModelExecutor>
       mock_model_executor_;
   strike_database::TestInMemoryStrikeDatabase test_strike_database_;
+  sync_preferences::TestingPrefServiceSyncable test_pref_service_;
+  signin::IdentityTestEnvironment test_identity_environment_;
   testing::NiceMock<MockWalletablePassClient> mock_client_;
 
   std::unique_ptr<MockWalletablePassIngestionController> controller_;
@@ -193,19 +240,9 @@ TEST_F(WalletablePassIngestionControllerTest,
 }
 
 TEST_F(WalletablePassIngestionControllerTest,
-       StartWalletablePassDetectionFlow_NotEligible) {
-  GURL url("https://example.com");
-  EXPECT_CALL(mock_decider(),
-              CanApplyOptimization(
-                  url, WALLETABLE_PASS_DETECTION_LOYALTY_ALLOWLIST, nullptr))
-      .WillOnce(Return(kFalse));
-
-  EXPECT_CALL(*controller(), GetAnnotatedPageContent(_)).Times(0);
-  test_api(controller()).StartWalletablePassDetectionFlow(url);
-}
-
-TEST_F(WalletablePassIngestionControllerTest,
        StartWalletablePassDetectionFlow_Eligible) {
+  test_identity_environment().MakePrimaryAccountAvailable(
+      "test@gmail.com", signin::ConsentLevel::kSignin);
   GURL url("https://example.com");
   EXPECT_CALL(mock_decider(),
               CanApplyOptimization(
@@ -214,18 +251,14 @@ TEST_F(WalletablePassIngestionControllerTest,
 
   // Expect ShowWalletablePassConsentBubble to be called.
   WalletablePassClient::WalletablePassBubbleResultCallback consent_callback;
-  EXPECT_CALL(mock_client(), ShowWalletablePassConsentBubble(_))
-      .WillOnce(WithArgs<0>(
-          [&consent_callback](
-              WalletablePassClient::WalletablePassBubbleResultCallback
-                  callback) { consent_callback = std::move(callback); }));
+  ExpectConsentBubbleOnClient(PASS_CATEGORY_LOYALTY_CARD, &consent_callback);
 
   test_api(controller()).StartWalletablePassDetectionFlow(url);
   ASSERT_TRUE(consent_callback);
 
   // Expect GetAnnotatedPageContent to be called, and simulate a successful
   // response.
-  EXPECT_CALL(*controller(), GetAnnotatedPageContent(_))
+  EXPECT_CALL(*controller(), GetAnnotatedPageContent)
       .WillOnce(WithArgs<0>(
           [](MockWalletablePassIngestionController::AnnotatedPageContentCallback
                  callback) {
@@ -234,7 +267,7 @@ TEST_F(WalletablePassIngestionControllerTest,
           }));
 
   // Expect that the model executor is called when the content is retrieved.
-  EXPECT_CALL(*controller(), GetPageTitle()).WillOnce(Return("title"));
+  EXPECT_CALL(*controller(), GetPageTitle).WillOnce(Return("title"));
   EXPECT_CALL(mock_model_executor(),
               ExecuteModel(kWalletablePassExtraction, _, _, _));
 
@@ -244,26 +277,200 @@ TEST_F(WalletablePassIngestionControllerTest,
 }
 
 TEST_F(WalletablePassIngestionControllerTest,
+       StartWalletablePassDetectionFlow_Eligible_OptedIn) {
+  test_identity_environment().MakePrimaryAccountAvailable(
+      "test@gmail.com", signin::ConsentLevel::kSignin);
+  GURL url("https://example.com");
+  EXPECT_CALL(mock_decider(),
+              CanApplyOptimization(
+                  url, WALLETABLE_PASS_DETECTION_LOYALTY_ALLOWLIST, nullptr))
+      .WillOnce(Return(kTrue));
+
+  // Set OptIn status to true.
+  SetWalletablePassDetectionOptInStatus(
+      &test_pref_service(), test_identity_environment().identity_manager(),
+      true);
+
+  // Expect GetAnnotatedPageContent to be called directly.
+  EXPECT_CALL(*controller(), GetAnnotatedPageContent)
+      .WillOnce(WithArgs<0>(
+          [](MockWalletablePassIngestionController::AnnotatedPageContentCallback
+                 callback) {
+            optimization_guide::proto::AnnotatedPageContent content;
+            std::move(callback).Run(std::move(content));
+          }));
+
+  // Expect ShowWalletablePassConsentBubble NOT to be called.
+  EXPECT_CALL(mock_client(), ShowWalletablePassConsentBubble).Times(0);
+
+  // Expect model executor call.
+  EXPECT_CALL(*controller(), GetPageTitle).WillOnce(Return("title"));
+  EXPECT_CALL(mock_model_executor(),
+              ExecuteModel(kWalletablePassExtraction, _, _, _));
+
+  test_api(controller()).StartWalletablePassDetectionFlow(url);
+}
+TEST_F(WalletablePassIngestionControllerTest,
+       StartWalletablePassDetectionFlow_NotEligible_UrlNotAllowlisted) {
+  test_identity_environment().MakePrimaryAccountAvailable(
+      "test@gmail.com", signin::ConsentLevel::kSignin);
+  GURL url("https://example.com");
+  EXPECT_CALL(mock_decider(),
+              CanApplyOptimization(
+                  url, WALLETABLE_PASS_DETECTION_LOYALTY_ALLOWLIST, nullptr))
+      .WillOnce(Return(kFalse));
+
+  EXPECT_CALL(*controller(), GetAnnotatedPageContent).Times(0);
+  test_api(controller()).StartWalletablePassDetectionFlow(url);
+}
+
+TEST_F(WalletablePassIngestionControllerTest,
+       StartWalletablePassDetectionFlow_NotEligible_NotAllowedCountryCode) {
+  test_identity_environment().MakePrimaryAccountAvailable(
+      "test@gmail.com", signin::ConsentLevel::kSignin);
+  GURL url("https://example.com");
+
+  // Set country code to something not in allowlist (allowlist is US).
+  EXPECT_CALL(mock_client(), GetGeoIpCountryCode)
+      .WillRepeatedly(Return(GeoIpCountryCode("CA")));
+
+  // Expect no consent bubble and no page content extraction.
+  EXPECT_CALL(mock_client(), ShowWalletablePassConsentBubble).Times(0);
+  EXPECT_CALL(*controller(), GetAnnotatedPageContent).Times(0);
+
+  test_api(controller()).StartWalletablePassDetectionFlow(url);
+}
+
+TEST_F(WalletablePassIngestionControllerTest,
+       StartWalletablePassDetectionFlow_NotEligible_NotSignedIn) {
+  GURL url("https://example.com");
+
+  EXPECT_CALL(mock_client(), ShowWalletablePassConsentBubble).Times(0);
+  EXPECT_CALL(*controller(), GetAnnotatedPageContent).Times(0);
+
+  test_api(controller()).StartWalletablePassDetectionFlow(url);
+}
+
+TEST_F(WalletablePassIngestionControllerTest,
        ShowConsentBubble_Accepted_GetsPageContent) {
+  test_identity_environment().MakePrimaryAccountAvailable(
+      "test@gmail.com", signin::ConsentLevel::kSignin);
   GURL url("https://example.com");
 
   // Expect ShowWalletablePassConsentBubble to be called.
   WalletablePassClient::WalletablePassBubbleResultCallback consent_callback;
-  EXPECT_CALL(mock_client(), ShowWalletablePassConsentBubble(_))
-      .WillOnce(WithArgs<0>(
-          [&consent_callback](
-              WalletablePassClient::WalletablePassBubbleResultCallback
-                  callback) { consent_callback = std::move(callback); }));
+  ExpectConsentBubbleOnClient(PASS_CATEGORY_LOYALTY_CARD, &consent_callback);
 
   test_api(controller()).ShowConsentBubble(url, PASS_CATEGORY_LOYALTY_CARD);
   ASSERT_TRUE(consent_callback);
 
   // Expect GetAnnotatedPageContent to be called when consent is accepted.
-  EXPECT_CALL(*controller(), GetAnnotatedPageContent(_));
+  EXPECT_CALL(*controller(), GetAnnotatedPageContent);
 
   // Simulate accepting the consent bubble.
   std::move(consent_callback)
       .Run(WalletablePassClient::WalletablePassBubbleResult::kAccepted);
+}
+
+TEST_F(WalletablePassIngestionControllerTest,
+       ShowConsentBubble_StrikesExceed_BubbleNotShown) {
+  GURL url("https://example.com");
+  test_strike_database().SetStrikeData("WalletablePassConsent__shared_id", 2);
+
+  EXPECT_CALL(mock_client(), ShowWalletablePassConsentBubble(_, _)).Times(0);
+
+  test_api(controller()).ShowConsentBubble(url, PASS_CATEGORY_LOYALTY_CARD);
+}
+
+TEST_F(WalletablePassIngestionControllerTest,
+       ShowConsentBubble_Accepted_ClearsStrikes) {
+  GURL url("https://example.com");
+  test_strike_database().SetStrikeData("WalletablePassConsent__shared_id", 1);
+
+  WalletablePassClient::WalletablePassBubbleResultCallback consent_callback;
+  ExpectConsentBubbleOnClient(PASS_CATEGORY_LOYALTY_CARD, &consent_callback);
+
+  test_api(controller()).ShowConsentBubble(url, PASS_CATEGORY_LOYALTY_CARD);
+  ASSERT_TRUE(consent_callback);
+
+  EXPECT_CALL(*controller(), GetAnnotatedPageContent(_));
+  std::move(consent_callback)
+      .Run(WalletablePassClient::WalletablePassBubbleResult::kAccepted);
+
+  EXPECT_EQ(
+      test_strike_database().GetStrikes("WalletablePassConsent__shared_id"), 0);
+}
+
+TEST_F(WalletablePassIngestionControllerTest,
+       ShowConsentBubble_Declined_AddsMaxStrikes) {
+  GURL url("https://example.com");
+  test_strike_database().SetStrikeData("WalletablePassConsent__shared_id", 0);
+
+  WalletablePassClient::WalletablePassBubbleResultCallback consent_callback;
+  ExpectConsentBubbleOnClient(PASS_CATEGORY_LOYALTY_CARD, &consent_callback);
+
+  test_api(controller()).ShowConsentBubble(url, PASS_CATEGORY_LOYALTY_CARD);
+  ASSERT_TRUE(consent_callback);
+
+  std::move(consent_callback)
+      .Run(WalletablePassClient::WalletablePassBubbleResult::kDeclined);
+
+  EXPECT_EQ(
+      test_strike_database().GetStrikes("WalletablePassConsent__shared_id"), 2);
+}
+
+TEST_F(WalletablePassIngestionControllerTest,
+       ShowConsentBubble_Closed_AddsMaxStrikes) {
+  GURL url("https://example.com");
+  test_strike_database().SetStrikeData("WalletablePassConsent__shared_id", 0);
+
+  WalletablePassClient::WalletablePassBubbleResultCallback consent_callback;
+  ExpectConsentBubbleOnClient(PASS_CATEGORY_LOYALTY_CARD, &consent_callback);
+
+  test_api(controller()).ShowConsentBubble(url, PASS_CATEGORY_LOYALTY_CARD);
+  ASSERT_TRUE(consent_callback);
+
+  std::move(consent_callback)
+      .Run(WalletablePassClient::WalletablePassBubbleResult::kClosed);
+
+  EXPECT_EQ(
+      test_strike_database().GetStrikes("WalletablePassConsent__shared_id"), 2);
+}
+
+TEST_F(WalletablePassIngestionControllerTest,
+       ShowConsentBubble_LostFocus_AddsOneStrike) {
+  GURL url("https://example.com");
+  test_strike_database().SetStrikeData("WalletablePassConsent__shared_id", 0);
+
+  WalletablePassClient::WalletablePassBubbleResultCallback consent_callback;
+  ExpectConsentBubbleOnClient(PASS_CATEGORY_LOYALTY_CARD, &consent_callback);
+
+  test_api(controller()).ShowConsentBubble(url, PASS_CATEGORY_LOYALTY_CARD);
+  ASSERT_TRUE(consent_callback);
+
+  std::move(consent_callback)
+      .Run(WalletablePassClient::WalletablePassBubbleResult::kLostFocus);
+
+  EXPECT_EQ(
+      test_strike_database().GetStrikes("WalletablePassConsent__shared_id"), 1);
+}
+
+TEST_F(WalletablePassIngestionControllerTest,
+       ShowConsentBubble_Unknown_AddsOneStrike) {
+  GURL url("https://example.com");
+  test_strike_database().SetStrikeData("WalletablePassConsent__shared_id", 0);
+
+  WalletablePassClient::WalletablePassBubbleResultCallback consent_callback;
+  ExpectConsentBubbleOnClient(PASS_CATEGORY_LOYALTY_CARD, &consent_callback);
+
+  test_api(controller()).ShowConsentBubble(url, PASS_CATEGORY_LOYALTY_CARD);
+  ASSERT_TRUE(consent_callback);
+
+  std::move(consent_callback)
+      .Run(WalletablePassClient::WalletablePassBubbleResult::kUnknown);
+
+  EXPECT_EQ(
+      test_strike_database().GetStrikes("WalletablePassConsent__shared_id"), 1);
 }
 
 TEST_F(WalletablePassIngestionControllerTest,
@@ -272,17 +479,13 @@ TEST_F(WalletablePassIngestionControllerTest,
 
   // Expect ShowWalletablePassConsentBubble to be called.
   WalletablePassClient::WalletablePassBubbleResultCallback consent_callback;
-  EXPECT_CALL(mock_client(), ShowWalletablePassConsentBubble(_))
-      .WillOnce(WithArgs<0>(
-          [&consent_callback](
-              WalletablePassClient::WalletablePassBubbleResultCallback
-                  callback) { consent_callback = std::move(callback); }));
+  ExpectConsentBubbleOnClient(PASS_CATEGORY_LOYALTY_CARD, &consent_callback);
 
   test_api(controller()).ShowConsentBubble(url, PASS_CATEGORY_LOYALTY_CARD);
   ASSERT_TRUE(consent_callback);
 
   // Expect GetAnnotatedPageContent NOT to be called when consent is declined.
-  EXPECT_CALL(*controller(), GetAnnotatedPageContent(_)).Times(0);
+  EXPECT_CALL(*controller(), GetAnnotatedPageContent).Times(0);
 
   // Simulate declining the consent bubble.
   std::move(consent_callback)
@@ -290,18 +493,21 @@ TEST_F(WalletablePassIngestionControllerTest,
 }
 
 TEST_F(WalletablePassIngestionControllerTest,
-       ShowSaveBubble_StrikesExceed_BubbleNotShown) {
+       MaybeStartExtraction_StrikesExceed_ExtractionNotStarted) {
   GURL url("https://example.com");
-  WalletablePass walletable_pass = CreateLoyaltyCard();
   test_strike_database().SetStrikeData(
       "WalletablePassSaveByHost__LoyaltyCard;example.com", 3);
 
-  EXPECT_CALL(mock_client(),
-              ShowWalletablePassSaveBubble(EqualsProto(walletable_pass), _))
-      .Times(0);
+  EXPECT_CALL(*controller(), GetAnnotatedPageContent).Times(0);
 
-  test_api(controller())
-      .ShowSaveBubble(url, std::make_unique<WalletablePass>(walletable_pass));
+  test_api(controller()).MaybeStartExtraction(url, PASS_CATEGORY_LOYALTY_CARD);
+}
+
+TEST_F(WalletablePassIngestionControllerTest,
+       MaybeStartExtraction_NoStrikes_ExtractionStarted) {
+  GURL url("https://example.com");
+  EXPECT_CALL(*controller(), GetAnnotatedPageContent);
+  test_api(controller()).MaybeStartExtraction(url, PASS_CATEGORY_LOYALTY_CARD);
 }
 
 TEST_F(WalletablePassIngestionControllerTest,
@@ -314,8 +520,7 @@ TEST_F(WalletablePassIngestionControllerTest,
   WalletablePassClient::WalletablePassBubbleResultCallback bubble_callback;
   ExpectSaveBubbleOnClient(walletable_pass, &bubble_callback);
 
-  test_api(controller())
-      .ShowSaveBubble(url, std::make_unique<WalletablePass>(walletable_pass));
+  test_api(controller()).ShowSaveBubble(url, walletable_pass);
 
   // Simulate accepting the bubble.
   std::move(bubble_callback)
@@ -337,8 +542,7 @@ TEST_F(WalletablePassIngestionControllerTest,
   WalletablePassClient::WalletablePassBubbleResultCallback bubble_callback;
   ExpectSaveBubbleOnClient(walletable_pass, &bubble_callback);
 
-  test_api(controller())
-      .ShowSaveBubble(url, std::make_unique<WalletablePass>(walletable_pass));
+  test_api(controller()).ShowSaveBubble(url, walletable_pass);
 
   // Simulate declining the bubble.
   std::move(bubble_callback)
@@ -360,8 +564,7 @@ TEST_F(WalletablePassIngestionControllerTest,
   WalletablePassClient::WalletablePassBubbleResultCallback bubble_callback;
   ExpectSaveBubbleOnClient(walletable_pass, &bubble_callback);
 
-  test_api(controller())
-      .ShowSaveBubble(url, std::make_unique<WalletablePass>(walletable_pass));
+  test_api(controller()).ShowSaveBubble(url, walletable_pass);
 
   // Simulate lost focus.
   std::move(bubble_callback)

@@ -370,7 +370,7 @@ static jlong JNI_FeedSurfaceRendererBridge_GetLastFetchTimeMs(JNIEnv* env,
       .InMillisecondsFSinceUnixEpoch();
 }
 
-std::vector<std::string> JNI_FeedSurfaceRendererBridge_GetFeedUrls(
+static std::vector<std::string> JNI_FeedSurfaceRendererBridge_GetFeedUrls(
     JNIEnv* env,
     Profile* profile,
     jint surface_id) {
@@ -483,3 +483,5 @@ JNI_FeedSurfaceRendererBridge_ReportContentSliceVisibleTimeForGoodVisits(
 }
 
 }  // namespace feed::android
+
+DEFINE_JNI(FeedSurfaceRendererBridge)
