@@ -12,6 +12,7 @@
 
 namespace ui {
 
+class KeyEventAndroid;
 class MotionEventAndroid;
 class ViewAndroid;
 
@@ -34,9 +35,7 @@ class UI_ANDROID_EXPORT EventForwarder {
 
   ~EventForwarder();
 
-  base::android::ScopedJavaLocalRef<jobject> GetJavaWindowAndroid(
-      JNIEnv* env,
-      const base::android::JavaParamRef<jobject>& obj);
+  base::android::ScopedJavaLocalRef<jobject> GetJavaWindowAndroid(JNIEnv* env);
 
   // |oldest_event_time| and |latest_event_time| would be same for a MotionEvent
   // without any historical events attached to it. For cases when there are
@@ -46,7 +45,6 @@ class UI_ANDROID_EXPORT EventForwarder {
   // MotionEvent.getEventTimeNanos().
   jboolean OnTouchEvent(
       JNIEnv* env,
-      const base::android::JavaParamRef<jobject>& obj,
       const base::android::JavaParamRef<jobject>& motion_event,
       jlong oldest_event_time_ns,
       jlong latest_event_time_ns,
@@ -82,7 +80,7 @@ class UI_ANDROID_EXPORT EventForwarder {
       jboolean is_latest_event_time_resampled);
 
   void OnMouseEvent(JNIEnv* env,
-                    const base::android::JavaParamRef<jobject>& obj,
+                    const base::android::JavaParamRef<jobject>& motion_event,
                     jlong time_ns,
                     jint android_action,
                     jfloat x,
@@ -97,7 +95,6 @@ class UI_ANDROID_EXPORT EventForwarder {
                     jint tool_type);
 
   void OnDragEvent(JNIEnv* env,
-                   const base::android::JavaParamRef<jobject>& jobj,
                    jint action,
                    jfloat x,
                    jfloat y,
@@ -111,46 +108,34 @@ class UI_ANDROID_EXPORT EventForwarder {
                    const base::android::JavaParamRef<jstring>& j_url);
 
   jboolean OnGestureEvent(JNIEnv* env,
-                          const base::android::JavaParamRef<jobject>& jobj,
                           jint type,
                           jlong time_ms,
                           jfloat scale);
 
   jboolean OnGenericMotionEvent(
       JNIEnv* env,
-      const base::android::JavaParamRef<jobject>& obj,
       const base::android::JavaParamRef<jobject>& motion_event,
       jlong event_time_ns,
       jlong down_time_ms);
 
-  jboolean OnKeyUp(JNIEnv* env,
-                   const base::android::JavaParamRef<jobject>& obj,
-                   const base::android::JavaParamRef<jobject>& key_event,
-                   jint key_code);
+  jboolean OnKeyUp(JNIEnv* env, const ui::KeyEventAndroid& key_event);
 
-  jboolean DispatchKeyEvent(
-      JNIEnv* env,
-      const base::android::JavaParamRef<jobject>& obj,
-      const base::android::JavaParamRef<jobject>& motion_event);
+  jboolean DispatchKeyEvent(JNIEnv* env, const ui::KeyEventAndroid& key_event);
 
   void ScrollBy(JNIEnv* env,
-                const base::android::JavaParamRef<jobject>& jobj,
                 jfloat delta_x,
                 jfloat delta_y);
 
   void ScrollTo(JNIEnv* env,
-                const base::android::JavaParamRef<jobject>& jobj,
                 jfloat x,
                 jfloat y);
 
   void DoubleTap(JNIEnv* env,
-                 const base::android::JavaParamRef<jobject>& jobj,
                  jlong time_ms,
                  jint x,
                  jint y);
 
   void StartFling(JNIEnv* env,
-                  const base::android::JavaParamRef<jobject>& jobj,
                   jlong time_ms,
                   jfloat velocity_x,
                   jfloat velocity_y,
@@ -158,7 +143,6 @@ class UI_ANDROID_EXPORT EventForwarder {
                   jboolean prevent_boosting);
 
   void CancelFling(JNIEnv* env,
-                   const base::android::JavaParamRef<jobject>& jobj,
                    jlong time_ms,
                    jboolean prevent_boosting);
 

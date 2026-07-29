@@ -6,6 +6,7 @@
 #include <utility>
 #include <vector>
 
+#include "base/files/file_util.h"
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
 #include "base/test/bind.h"
@@ -228,8 +229,7 @@ class ServiceWorkerIdTrackingBrowserTest
     // completely shutting down the render process (which is another way that
     // eventually removes the worker from `WorkerIdSet`).
     SCOPED_TRACE("Loading extension tab for test extension");
-    NavigateInNewTab(
-        extension_->ResolveExtensionURL("extension_page_tab.html"));
+    NavigateInNewTab(extension_->GetResourceURL("extension_page_tab.html"));
   }
 
   void LoadServiceWorkerExtensionAndOpenExtensionTab() {

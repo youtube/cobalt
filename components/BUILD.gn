@@ -10,7 +10,6 @@ import("//components/compose/features.gni")
 import("//components/enterprise/buildflags/buildflags.gni")
 import("//components/guest_contents/common/buildflags.gni")
 import("//components/guest_view/buildflags/buildflags.gni")
-import("//components/nacl/features.gni")
 import("//components/optimization_guide/features.gni")
 import("//components/safe_browsing/buildflags.gni")
 import("//components/services/on_device_translation/buildflags/features.gni")
@@ -424,10 +423,6 @@ test("components_unittests") {
     deps += [ "//components/ui_devtools/views:unit_tests" ]
   }
 
-  if (enable_nacl) {
-    deps += [ "//components/nacl/browser:unit_tests" ]
-  }
-
   if (is_fuchsia) {
     deps += [
       "//components/fuchsia_component_support:unit_tests",
@@ -572,7 +567,9 @@ test("components_unittests") {
       "//components/autofill/ios/form_util:unit_tests",
       "//components/commerce/ios/browser:unit_tests",
       "//components/crash/core/app:unit_tests",
+      "//components/dom_distiller/ios:unit_tests",
       "//components/feed/core/v2/public/ios:feed_ios_unit_tests",
+      "//components/fingerprinting_protection_filter/ios:unit_tests",
       "//components/image_fetcher/ios:unit_tests",
       "//components/language/ios/browser:unit_tests",
       "//components/password_manager/core/common:unit_tests",
@@ -618,10 +615,6 @@ test("components_unittests") {
       "//components/spellcheck/browser:unit_tests",
       "//components/spellcheck/renderer:unit_tests",
     ]
-
-    if (!is_win) {  #!iOS and!Windows
-      deps += [ "//components/cast:unit_tests" ]
-    }
 
     if (!is_fuchsia) {  #!iOS and!Fuchsia
       deps += [
@@ -934,6 +927,7 @@ test("components_unittests") {
       "//components/signin/public/identity_manager/objc:unit_tests",
       "//components/translate/ios/browser:unit_tests",
       "//components/ukm/ios:unit_tests",
+      "//components/user_data_importer/utility:unit_tests",
       "//components/webauthn/ios:unit_tests",
     ]
   }
@@ -1150,14 +1144,8 @@ if (use_blink) {
       deps += [ "//components/constrained_window:browser_tests" ]
     }
 
-    if (is_ios) {
+    if (is_ios && target_platform == "iphoneos") {
       entitlements_path = "//content/app/ios/appex/app.entitlements"
-      deps += [
-        "//components/test:optimization_guide_test_bundle_data",
-        "//content/test/ios/appex:test_content_process_bundle",
-        "//content/test/ios/appex:test_gpu_process_bundle",
-        "//content/test/ios/appex:test_network_process_bundle",
-      ]
       bundle_deps = [
         ":components_tests_distiller_bundle_data",
         ":components_tests_pak_bundle_data",
@@ -1166,6 +1154,15 @@ if (use_blink) {
         "//content/test:content_test_bundle_data",
         "//testing/buildbot/filters:components_browsertests_use_blink_filters_bundle_data",
       ]
+
+      if (target_platform == "iphoneos") {
+        deps += [
+          "//components/test:optimization_guide_test_bundle_data",
+          "//content/test/ios/appex:test_content_process_bundle",
+          "//content/test/ios/appex:test_gpu_process_bundle",
+          "//content/test/ios/appex:test_network_process_bundle",
+        ]
+      }
     }
 
     if (enable_pdf) {

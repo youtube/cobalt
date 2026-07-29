@@ -195,10 +195,6 @@ const char kGenericPaymentMethodNotSupportedMessage[] =
 const char kNoLinkHeader[] =
     "No \"Link: rel=payment-method-manifest\" HTTP header found at \"$1\".";
 
-const char kNoContentAndNoLinkHeader[] =
-    "No content and no \"Link: rel=payment-method-manifest\" HTTP header found "
-    "at \"$1\".";
-
 const char kNoContentInPaymentManifest[] =
     "No content found in payment manifest \"$1\".";
 
@@ -242,6 +238,10 @@ const char kNonUtf8InstrumentDetailsString[] =
     "The \"secure-payment-confirmation\" method requires the "
     "\"instrument.details\" field to be UTF8.";
 
+const char kEmptyInstrumentDetailsString[] =
+    "The \"secure-payment-confirmation\" method requires the "
+    "\"instrument.details\" field, if present, to be non-empty.";
+
 const char kTooLongInstrumentDetailsString[] =
     "The \"secure-payment-confirmation\" method requires the "
     "\"instrument.details\" field to be at most 4096 characters long.";
@@ -257,22 +257,6 @@ const char kPayeeOriginOrPayeeNameRequired[] =
 const char kPayeeOriginMustBeHttps[] =
     "The \"secure-payment-confirmation\" method requires that the "
     "\"payeeOrigin\" field must be https.";
-
-const char kNetworkNameRequired[] =
-    "The \"secure-payment-confirmation\" method requires a non-empty "
-    "\"networkInfo.name\" field.";
-
-const char kValidNetworkIconRequired[] =
-    "The \"secure-payment-confirmation\" method requires a valid URL in the "
-    "\"networkInfo.icon\" field.";
-
-const char kIssuerNameRequired[] =
-    "The \"secure-payment-confirmation\" method requires a non-empty "
-    "\"issuerInfo.name\" field.";
-
-const char kValidIssuerIconRequired[] =
-    "The \"secure-payment-confirmation\" method requires a valid URL in the "
-    "\"issuerInfo.icon\" field.";
 
 const char kNonNullPaymentEntityLogoRequired[] =
     "The \"secure-payment-confirmation\" method requires that each entry in "

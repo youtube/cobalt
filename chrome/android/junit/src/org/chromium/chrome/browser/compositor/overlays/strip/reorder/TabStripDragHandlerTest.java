@@ -707,6 +707,7 @@ public class TabStripDragHandlerTest {
         doReturn(mhtmlTabTitle).when(mGroupedTab1).getTitle();
         mTabGroupMetadata =
                 TabGroupMetadataExtractor.extractTabGroupMetadata(
+                        mTabGroupModelFilter,
                         mTabGroupBeingDragged,
                         /* sourceWindowIndex= */ -1,
                         mGroupedTab1.getId(),
@@ -1070,7 +1071,8 @@ public class TabStripDragHandlerTest {
                 .dragExit(mSourceInstance)
                 .end(false);
 
-        verifyToast(ContextUtils.getApplicationContext().getString(R.string.max_number_of_windows));
+        verifyToast(
+                ContextUtils.getApplicationContext().getString(R.string.max_number_of_windows, 5));
         if (!isGroupDrag) {
             histogramExpectation.assertExpected();
         }
@@ -1617,6 +1619,7 @@ public class TabStripDragHandlerTest {
         mTabGroupBeingDragged.add(mGroupedTab2);
         mTabGroupMetadata =
                 TabGroupMetadataExtractor.extractTabGroupMetadata(
+                        mTabGroupModelFilter,
                         mTabGroupBeingDragged,
                         /* sourceWindowIndex= */ -1,
                         mGroupedTab1.getId(),

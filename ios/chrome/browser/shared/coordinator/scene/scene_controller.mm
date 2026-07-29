@@ -126,7 +126,7 @@
 #import "ios/chrome/browser/promos_manager/ui_bundled/promos_manager_scene_agent.h"
 #import "ios/chrome/browser/promos_manager/ui_bundled/utils.h"
 #import "ios/chrome/browser/reading_list/model/reading_list_browser_agent.h"
-#import "ios/chrome/browser/safari_data_import/coordinator/safari_data_import_coordinator.h"
+#import "ios/chrome/browser/safari_data_import/coordinator/safari_data_import_main_coordinator.h"
 #import "ios/chrome/browser/scoped_ui_blocker/ui_bundled/scoped_ui_blocker.h"
 #import "ios/chrome/browser/screenshot/model/screenshot_delegate.h"
 #import "ios/chrome/browser/sessions/model/session_restoration_service.h"
@@ -387,7 +387,7 @@ void OnListFamilyMembersResponse(
                                PasswordCheckupCoordinatorDelegate,
                                PolicyWatcherBrowserAgentObserving,
                                ProfileStateObserver,
-                               SafariDataImportCoordinatorDelegate,
+                               SafariDataImportMainCoordinatorDelegate,
                                SceneUIProvider,
                                SceneURLLoadingServiceDelegate,
                                SettingsNavigationControllerDelegate,
@@ -422,7 +422,7 @@ void OnListFamilyMembersResponse(
   AccountMenuCoordinator* _accountMenuCoordinator;
 
   // The coordinator that manages the workflow importing data from Safari.
-  SafariDataImportCoordinator* _safariImportCoordinator;
+  SafariDataImportMainCoordinator* _safariImportCoordinator;
 }
 
 // Navigation View controller for the settings.
@@ -931,20 +931,18 @@ void OnListFamilyMembersResponse(
   return accountChanges > 1 ? YES : NO;
 }
 
-- (BOOL)URLEligibleForAccountChange:(NSURL*)URL {
-  if (IsWidgetsForMultiprofileEnabled()) {
-    return [URL.scheme isEqualToString:@"chromewidgetkit"];
-  }
+- (BOOL)widgetURLEligibleForAccountChange:(NSURL*)URL {
+  return (IsWidgetsForMultiprofileEnabled() &&
+          [URL.scheme isEqualToString:@"chromewidgetkit"]);
+}
 
-  if (IsShareExtensionForMultiprofileEnabled()) {
-    return [URL.path
-        isEqualToString:
-            [NSString
-                stringWithFormat:@"/%s",
-                                 app_group::kChromeAppGroupXCallbackCommand]];
-  }
-
-  return NO;
+- (BOOL)shareExtensionURLEligibleForAccountChange:(NSURL*)URL {
+  return IsShareExtensionForMultiprofileEnabled() &&
+         [URL.path
+             isEqualToString:
+                 [NSString
+                     stringWithFormat:
+                         @"/%s", app_group::kChromeAppGroupXCallbackCommand]];
 }
 
 - (WidgetContext*)findContextRequiringAccountChange:
@@ -953,7 +951,8 @@ void OnListFamilyMembersResponse(
 
   for (UIOpenURLContext* context : URLContexts) {
     // Check that this URL is coming from a widget.
-    if (![self URLEligibleForAccountChange:context.URL]) {
+    if (!([self widgetURLEligibleForAccountChange:context.URL] ||
+          [self shareExtensionURLEligibleForAccountChange:context.URL])) {
       continue;
     }
     std::string newGaia;
@@ -2387,8 +2386,8 @@ using UserFeedbackDataCallback =
     return;
   }
   CHECK(base::FeatureList::IsEnabled(kImportPasswordsFromSafari));
-  SafariDataImportCoordinator* safariDataImportCoordinator =
-      [[SafariDataImportCoordinator alloc]
+  SafariDataImportMainCoordinator* safariDataImportCoordinator =
+      [[SafariDataImportMainCoordinator alloc]
           initWithBaseViewController:self.activeViewController
                              browser:self.currentInterface.browser];
   safariDataImportCoordinator.delegate = self;
@@ -4469,7 +4468,7 @@ using UserFeedbackDataCallback =
 #pragma mark - SafariImportCoordinatorDelegate
 
 - (void)safariImportWorkflowDidEndForCoordinator:
-    (SafariDataImportCoordinator*)coordinator {
+    (SafariDataImportMainCoordinator*)coordinator {
   CHECK_EQ(coordinator, _safariImportCoordinator);
   [_safariImportCoordinator stop];
   _safariImportCoordinator = nil;

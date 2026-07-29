@@ -17,6 +17,7 @@ import androidx.annotation.StringRes;
 import androidx.recyclerview.widget.RecyclerView;
 
 import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.touch_to_fill.TouchToFillProperties.ItemType;
 import org.chromium.chrome.browser.touch_to_fill.common.ItemDividerBase;
 import org.chromium.chrome.browser.touch_to_fill.common.TouchToFillViewBase;
@@ -34,12 +35,6 @@ class TouchToFillView extends TouchToFillViewBase {
     private static class HorizontalDividerItemDecoration extends ItemDividerBase {
         HorizontalDividerItemDecoration(Context context) {
             super(context);
-        }
-
-        @Override
-        protected int selectBackgroundDrawable(
-                int position, boolean containsFillButton, int itemCount) {
-            return super.selectBackgroundDrawable(position, containsFillButton, itemCount);
         }
 
         @Override
@@ -112,6 +107,12 @@ class TouchToFillView extends TouchToFillViewBase {
     @Override
     protected View getHandlebar() {
         return getContentView().findViewById(R.id.drag_handlebar);
+    }
+
+    @Override
+    protected @Nullable View getHeaderView() {
+        // Credential filling bottom sheet doesn't have a static header view.
+        return null;
     }
 
     @Override

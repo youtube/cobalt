@@ -9,6 +9,7 @@
 #include "ui/accessibility/platform/ax_platform_for_test.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
+#include "ui/views/accessibility/ax_virtual_view.h"
 #include "ui/views/test/views_test_base.h"
 
 namespace views::test {
@@ -359,6 +360,147 @@ TEST_F(ViewAccessibilityTest, CantSetRelativeBoundsInLazyLoading) {
       relative_bounds;
   EXPECT_DCHECK_DEATH(
       lazy_loading_view->GetViewAccessibility().CompleteCacheInitialization());
+}
+
+TEST_F(ViewAccessibilityTest, EmptyWhenNoChildren) {
+  auto view = std::make_unique<TestView>();
+  auto children = view->GetViewAccessibility().GetChildren();
+  EXPECT_TRUE(children.empty());
+}
+
+TEST_F(ViewAccessibilityTest, ReturnsVirtualChildrenOnly) {
+  auto view = std::make_unique<TestView>();
+  auto virtual_view_1 = std::make_unique<AXVirtualView>();
+  auto virtual_view_2 = std::make_unique<AXVirtualView>();
+
+  auto virtual_view_1_id = virtual_view_1->ViewAccessibility::GetUniqueId();
+  auto virtual_view_2_id = virtual_view_2->ViewAccessibility::GetUniqueId();
+
+  view->GetViewAccessibility().AddVirtualChildView(std::move(virtual_view_1));
+  view->GetViewAccessibility().AddVirtualChildView(std::move(virtual_view_2));
+
+  auto children = view->GetViewAccessibility().GetChildren();
+  ASSERT_EQ(children.size(), 2u);
+  EXPECT_EQ(children[0]->GetUniqueId(), virtual_view_1_id);
+  EXPECT_EQ(children[1]->GetUniqueId(), virtual_view_2_id);
+}
+
+TEST_F(ViewAccessibilityTest, ReturnsRealViewChildren) {
+  auto parent_view = std::make_unique<TestView>();
+  auto child_view_1 = std::make_unique<TestView>();
+  auto child_view_2 = std::make_unique<TestView>();
+
+  auto child_view_1_id = child_view_1->GetViewAccessibility().GetUniqueId();
+  auto child_view_2_id = child_view_2->GetViewAccessibility().GetUniqueId();
+
+  parent_view->AddChildView(std::move(child_view_1));
+  parent_view->AddChildView(std::move(child_view_2));
+
+  auto children = parent_view->GetViewAccessibility().GetChildren();
+  ASSERT_EQ(children.size(), 2u);
+  EXPECT_EQ(children[0]->GetUniqueId(), child_view_1_id);
+  EXPECT_EQ(children[1]->GetUniqueId(), child_view_2_id);
+}
+
+TEST_F(ViewAccessibilityTest, VirtualChildrenOverrideRealOnes) {
+  auto view = std::make_unique<TestView>();
+  auto virtual_view = std::make_unique<AXVirtualView>();
+  auto child_view = std::make_unique<TestView>();
+
+  auto virtual_view_id = virtual_view->ViewAccessibility::GetUniqueId();
+
+  view->GetViewAccessibility().AddVirtualChildView(std::move(virtual_view));
+  view->AddChildView(std::move(child_view));
+
+  auto children = view->GetViewAccessibility().GetChildren();
+  ASSERT_EQ(children.size(), 1u);
+  EXPECT_EQ(children[0]->GetUniqueId(), virtual_view_id);
+}
+
+TEST_F(ViewAccessibilityTest, EmptyWhenIsLeaf) {
+  auto view = std::make_unique<TestView>();
+  auto virtual_view = std::make_unique<AXVirtualView>();
+  auto child_view = std::make_unique<TestView>();
+  view->AddChildView(std::move(child_view));
+  view->GetViewAccessibility().AddVirtualChildView(std::move(virtual_view));
+
+  view->GetViewAccessibility().SetIsLeaf(true);
+
+  auto children = view->GetViewAccessibility().GetChildren();
+  ASSERT_EQ(children.size(), 0u);
+}
+
+TEST_F(ViewAccessibilityTest, GetParent_ReturnsImmediateParent) {
+  EXPECT_EQ(child_view()->GetViewAccessibility().GetViewAccessibilityParent(),
+            &view()->GetViewAccessibility());
+}
+
+TEST_F(ViewAccessibilityTest, GetParent_NoParent) {
+  auto lone = std::make_unique<TestView>();
+  EXPECT_EQ(lone->GetViewAccessibility().GetViewAccessibilityParent(), nullptr);
+}
+
+TEST_F(ViewAccessibilityTest, GetUnignoredParent_NoParent) {
+  auto lone = std::make_unique<TestView>();
+  EXPECT_EQ(lone->GetViewAccessibility().GetUnignoredParent(), nullptr);
+}
+
+TEST_F(ViewAccessibilityTest, GetUnignoredParent_ImmediateNotIgnored) {
+  auto parent = std::make_unique<TestView>();
+  auto* child = parent->AddChildView(std::make_unique<TestView>());
+  EXPECT_EQ(child->GetViewAccessibility().GetUnignoredParent(),
+            &parent->GetViewAccessibility());
+}
+
+TEST_F(ViewAccessibilityTest, GetUnignoredParent_SkipIgnoredToGrandparent) {
+  auto grand = std::make_unique<TestView>();
+  auto* parent = grand->AddChildView(std::make_unique<TestView>());
+  auto* child = parent->AddChildView(std::make_unique<TestView>());
+  parent->GetViewAccessibility().SetIsIgnored(true);
+  EXPECT_EQ(child->GetViewAccessibility().GetUnignoredParent(),
+            &grand->GetViewAccessibility());
+}
+
+TEST_F(ViewAccessibilityTest, AXVirtualView_GetParent_NoParent) {
+  AXVirtualView v;
+  EXPECT_EQ(v.GetViewAccessibilityParent(), nullptr);
+}
+
+TEST_F(ViewAccessibilityTest,
+       AXVirtualView_GetParent_ImmediateVirtualViewNotIgnored) {
+  AXVirtualView parent;
+  auto child = std::make_unique<AXVirtualView>();
+  auto* child_ptr = child.get();
+  parent.AddChildView(std::move(child));
+
+  EXPECT_EQ(child_ptr->GetViewAccessibilityParent(), &parent);
+}
+
+TEST_F(ViewAccessibilityTest,
+       AXVirtualView_GetUnignoredParent_SkipIgnoredToGrandparentVirtualView) {
+  AXVirtualView grand;
+  auto parent = std::make_unique<AXVirtualView>();
+  parent->SetIsIgnored(true);
+  auto child = std::make_unique<AXVirtualView>();
+  auto* child_ptr = child.get();
+
+  parent->AddChildView(std::move(child));
+  grand.AddChildView(std::move(parent));
+
+  EXPECT_EQ(child_ptr->GetUnignoredParent(), &grand);
+}
+
+TEST_F(ViewAccessibilityTest,
+       AXVirtualView_GetUnignoredParent_VirtualIfNoReal) {
+  auto view = std::make_unique<TestView>();
+  auto parent = std::make_unique<AXVirtualView>();
+  parent->SetIsIgnored(true);
+  auto child = std::make_unique<AXVirtualView>();
+  auto* child_ptr = child.get();
+  parent->AddChildView(std::move(child));
+  view->GetViewAccessibility().AddVirtualChildView(std::move(parent));
+
+  EXPECT_EQ(child_ptr->GetUnignoredParent(), &view->GetViewAccessibility());
 }
 
 }  // namespace views::test

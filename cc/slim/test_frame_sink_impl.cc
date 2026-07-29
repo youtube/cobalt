@@ -37,17 +37,12 @@ class TestFrameSinkImpl::TestMojoCompositorFrameSink
     last_frame_ = std::move(frame);
     hit_test_region_list_ = std::move(hit_test_region_list);
   }
-  void SubmitCompositorFrameSync(
-      const viz::LocalSurfaceId& local_surface_id,
-      viz::CompositorFrame frame,
-      std::optional<::viz::HitTestRegionList> hit_test_region_list,
-      uint64_t submit_time,
-      SubmitCompositorFrameSyncCallback callback) override {}
   void DidNotProduceFrame(const viz::BeginFrameAck& ack) override {
     did_not_produce_frame_ = true;
   }
   void BindLayerContext(viz::mojom::PendingLayerContextPtr context,
-                        bool draw_mode_is_gpu) override {}
+                        viz::mojom::LayerContextSettingsPtr settings) override {
+  }
   void NotifyNewLocalSurfaceIdExpectedWhilePaused() override {}
 #if BUILDFLAG(IS_ANDROID)
   void SetThreads(const std::vector<viz::Thread>& threads) override {}

@@ -11,11 +11,6 @@
 // chrome/tools/ipclist/ipclist.cc.
 
 #include "build/build_config.h"
-#include "components/nacl/common/buildflags.h"
 #include "printing/buildflags/buildflags.h"
 
 #include "chrome/common/common_message_generator.h"
-
-#if BUILDFLAG(ENABLE_NACL)
-#include "components/nacl/common/nacl_messages.h"
-#endif

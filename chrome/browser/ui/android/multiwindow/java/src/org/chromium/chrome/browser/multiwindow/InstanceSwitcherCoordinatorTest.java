@@ -7,7 +7,6 @@ package org.chromium.chrome.browser.multiwindow;
 import static androidx.test.espresso.Espresso.onData;
 import static androidx.test.espresso.Espresso.onView;
 import static androidx.test.espresso.action.ViewActions.click;
-import static androidx.test.espresso.assertion.ViewAssertions.doesNotExist;
 import static androidx.test.espresso.assertion.ViewAssertions.matches;
 import static androidx.test.espresso.contrib.RecyclerViewActions.actionOnItemAtPosition;
 import static androidx.test.espresso.matcher.RootMatchers.isDialog;
@@ -196,14 +195,8 @@ public class InstanceSwitcherCoordinatorTest {
     public void testRestoreWindow_InstanceSwitcherV2() throws Exception {
         // Initialize instance list with 2 active instances and 1 inactive instance.
         InstanceInfo[] instances =
-                new InstanceInfo[] {
-                    new InstanceInfo(
-                            0, 57, InstanceInfo.Type.CURRENT, "url0", "title0", 1, 0, false, 0),
-                    new InstanceInfo(
-                            1, 58, InstanceInfo.Type.OTHER, "ur11", "title1", 2, 0, false, 0),
-                    new InstanceInfo(
-                            2, -1, InstanceInfo.Type.OTHER, "url2", "title2", 0, 0, false, 0)
-                };
+                createPersistedInstances(
+                        /* numActiveInstances= */ 2, /* numInactiveInstances= */ 1);
         final CallbackHelper itemClickCallbackHelper = new CallbackHelper();
         final int itemClickCount = itemClickCallbackHelper.getCallCount();
         Callback<InstanceInfo> openCallback = (item) -> itemClickCallbackHelper.notifyCalled();
@@ -246,6 +239,55 @@ public class InstanceSwitcherCoordinatorTest {
                 .check(matches(isEnabled()))
                 .perform(click());
         itemClickCallbackHelper.waitForCallback(itemClickCount);
+    }
+
+    @Test
+    @SmallTest
+    @EnableFeatures(ChromeFeatureList.INSTANCE_SWITCHER_V2)
+    public void testBlockInstanceRestorationAtLimit_InstanceSwitcherV2() throws Exception {
+        // Initialize instance list with MAX_INSTANCE_COUNT active instances, 1 inactive instance.
+        InstanceInfo[] instances =
+                createPersistedInstances(
+                        /* numActiveInstances= */ MAX_INSTANCE_COUNT,
+                        /* numInactiveInstances= */ 1);
+
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    InstanceSwitcherCoordinator.showDialog(
+                            mActivityTestRule.getActivity(),
+                            mModalDialogManager,
+                            mIconBridge,
+                            null,
+                            null,
+                            null,
+                            MAX_INSTANCE_COUNT,
+                            Arrays.asList(instances));
+                });
+
+        // Verify that the active list is showing when the menu is initially displayed.
+        onView(withId(R.id.active_instance_list)).inRoot(isDialog()).check(matches(isDisplayed()));
+        onView(allOf(withId(R.id.positive_button), withText(R.string.open)))
+                .inRoot(isDialog())
+                .check(matches(not(isEnabled())));
+
+        // Switch to the inactive list.
+        onView(allOf(withText("Inactive (1)"), isDescendantOfA(withId(R.id.tabs))))
+                .perform(click());
+
+        // Verify that the "Restore" button is disabled before a selection is made.
+        onView(allOf(withId(R.id.positive_button), withText(R.string.restore)))
+                .inRoot(isDialog())
+                .check(matches(not(isEnabled())));
+
+        // Click on the inactive list item.
+        onView(withId(R.id.inactive_instance_list))
+                .inRoot(isDialog())
+                .perform(actionOnItemAtPosition(0, click()));
+
+        // Verify that the "Restore" button is still disabled.
+        onView(allOf(withId(R.id.positive_button), withText(R.string.restore)))
+                .inRoot(isDialog())
+                .check(matches(not(isEnabled())));
     }
 
     @Test
@@ -391,10 +433,15 @@ public class InstanceSwitcherCoordinatorTest {
 
         // Verify that we show a info message that users can have up to 5 windows when there are
         // already maximum number of windows.
+        String text =
+                mActivityTestRule
+                        .getActivity()
+                        .getResources()
+                        .getString(R.string.max_number_of_windows, MAX_INSTANCE_COUNT);
         onData(anything())
                 .inRoot(isDialog())
                 .atPosition(5)
-                .onChildView(withText(R.string.max_number_of_windows))
+                .onChildView(withText(text))
                 .check(matches(isDisplayed()));
     }
 
@@ -429,10 +476,15 @@ public class InstanceSwitcherCoordinatorTest {
 
         // Verify that we show info message that users can have up to 5 windows when there are more
         // than maximum number of windows.
+        String text =
+                mActivityTestRule
+                        .getActivity()
+                        .getResources()
+                        .getString(R.string.max_number_of_windows, MAX_INSTANCE_COUNT);
         onData(anything())
                 .inRoot(isDialog())
                 .atPosition(6)
-                .onChildView(withText(R.string.max_number_of_windows))
+                .onChildView(withText(text))
                 .check(matches(isDisplayed()));
 
         // Close an instance.
@@ -443,7 +495,7 @@ public class InstanceSwitcherCoordinatorTest {
         onData(anything())
                 .inRoot(isDialog())
                 .atPosition(5)
-                .onChildView(withText(R.string.max_number_of_windows))
+                .onChildView(withText(text))
                 .check(matches(isDisplayed()));
 
         // Close another instance.
@@ -490,49 +542,119 @@ public class InstanceSwitcherCoordinatorTest {
                         .getActivity()
                         .getString(
                                 R.string.max_number_of_windows_instance_switcher_v2_active_tab,
-                                5,
-                                4);
-        onView(withText(activeMaxInfoText)).inRoot(isDialog()).check(matches(isDisplayed()));
+                                MAX_INSTANCE_COUNT - 1);
 
-        // Verify + new window command is not added to the dialog.
-        onView(withId(R.id.new_window)).inRoot(isDialog()).check(doesNotExist());
+        // Verify that we show the max info message for the active tab.
+        onView(withId(R.id.max_instance_info))
+                .inRoot(isDialog())
+                .check(matches(withText(activeMaxInfoText)))
+                .check(matches(isDisplayed()));
 
-        // Switch to the inactive instance tab, verify we show max instance info message in inactive
-        // list and close the inactive instance.
+        // Verify the "+ New window" command is not displayed.
+        onView(withId(R.id.new_window))
+                .inRoot(isDialog())
+                .check(matches(withEffectiveVisibility(GONE)));
+
+        // Generate the expected max info text for the inactive tab.
         String inactiveMaxInfoText =
                 mActivityTestRule
                         .getActivity()
                         .getString(
                                 R.string.max_number_of_windows_instance_switcher_v2_inactive_tab,
-                                5,
-                                4);
-        onView(allOf(withText("Inactive (1)"), isDescendantOfA(withId(R.id.tabs))))
+                                MAX_INSTANCE_COUNT - 1);
+
+        // Switch to the inactive instance tab.
+        onView(
+                        allOf(
+                                withText(String.format("Inactive (%d)", 1)),
+                                isDescendantOfA(withId(R.id.tabs))))
                 .perform(click());
-        onView(withText(inactiveMaxInfoText)).inRoot(isDialog()).check(matches(isDisplayed()));
+
+        // Verify we show the max instance info message in the inactive list.
+        onView(withId(R.id.max_instance_info))
+                .inRoot(isDialog())
+                .check(matches(withText(inactiveMaxInfoText)))
+                .check(matches(isDisplayed()));
+
         closeInstanceAt(0, /* isActiveInstance= */ false, closeCallbackHelper);
 
-        // Verify that we show max instance info message on the active instance tab.
-        onView(allOf(withText("Active (5)"), isDescendantOfA(withId(R.id.tabs)))).perform(click());
-        activeMaxInfoText =
-                mActivityTestRule
-                        .getActivity()
-                        .getString(
-                                R.string.max_number_of_windows_instance_switcher_v2_active_tab,
-                                5,
-                                4);
-        onView(withText(activeMaxInfoText)).inRoot(isDialog()).check(matches(isDisplayed()));
+        // Switch to the active instance tab.
+        onView(
+                        allOf(
+                                withText(String.format("Active (%d)", MAX_INSTANCE_COUNT)),
+                                isDescendantOfA(withId(R.id.tabs))))
+                .perform(click());
 
-        // Close an active instance.
+        // Close an active instance (e.g., the third one, at index 2).
         closeInstanceAt(2, /* isActiveInstance= */ true, closeCallbackHelper);
 
         // Verify max instance info message is gone.
-        onView(withText(activeMaxInfoText)).inRoot(isDialog()).check(matches(not(isDisplayed())));
+        onView(withId(R.id.max_instance_info))
+                .inRoot(isDialog())
+                .check(matches(not(isDisplayed())));
 
-        // List positions 0 ~ 3: instances. 4: 'new window' command.
+        // Verify the "+ New window" command is now displayed and click it.
+        onView(withId(R.id.new_window))
+                .inRoot(isDialog())
+                .check(matches(isDisplayed())) // Assert it's now visible
+                .perform(click());
+        newWindowCallbackHelper.waitForCallback(newWindowClickCount);
+    }
+
+    @Test
+    @SmallTest
+    @EnableFeatures(ChromeFeatureList.INSTANCE_SWITCHER_V2)
+    public void testDeselectWindow() throws Exception {
+        InstanceInfo[] instances =
+                createPersistedInstances(
+                        /* numActiveInstances= */ 3, /* numInactiveInstances= */ 0);
+        final CallbackHelper itemClickCallbackHelper = new CallbackHelper();
+        final int itemClickCount = itemClickCallbackHelper.getCallCount();
+        Callback<InstanceInfo> openCallback = (item) -> itemClickCallbackHelper.notifyCalled();
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    InstanceSwitcherCoordinator.showDialog(
+                            mActivityTestRule.getActivity(),
+                            mModalDialogManager,
+                            mIconBridge,
+                            openCallback,
+                            null,
+                            null,
+                            MAX_INSTANCE_COUNT,
+                            Arrays.asList(instances));
+                });
+
+        // Verify "Open" button is disabled before a selection is made.
+        onView(allOf(withId(R.id.positive_button), withText(R.string.open)))
+                .inRoot(isDialog())
+                .check(matches(not(isEnabled())));
+
+        // Select the second item.
         onView(withId(R.id.active_instance_list))
                 .inRoot(isDialog())
-                .perform(actionOnItemAtPosition(4, click()));
-        newWindowCallbackHelper.waitForCallback(newWindowClickCount);
+                .perform(actionOnItemAtPosition(1, click()));
+
+        // Select the same item again, this should deselect the item.
+        onView(withId(R.id.active_instance_list))
+                .inRoot(isDialog())
+                .perform(actionOnItemAtPosition(1, click()));
+
+        // Verify "Open" button is now disabled.
+        onView(allOf(withId(R.id.positive_button), withText(R.string.open)))
+                .inRoot(isDialog())
+                .check(matches(not(isEnabled())));
+
+        // Select the same item again.
+        onView(withId(R.id.active_instance_list))
+                .inRoot(isDialog())
+                .perform(actionOnItemAtPosition(1, click()));
+
+        // Verify "Open" button is now enabled and open the selected instance.
+        onView(allOf(withId(R.id.positive_button), withText(R.string.open)))
+                .inRoot(isDialog())
+                .check(matches(isEnabled()))
+                .perform(click());
+        itemClickCallbackHelper.waitForCallback(itemClickCount);
     }
 
     @Test

@@ -40,6 +40,13 @@ BASE_FEATURE(kAutofillAddressSuggestionsOnTyping,
              "AutofillAddressSuggestionsOnTyping",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+// Feature flag controlling the display of surveys when a user declines the
+// save prompt of Autofill address and a user does not have any address stored.
+// The goal is to understand the reason and work towards improving acceptance.
+BASE_FEATURE(kAutofillAddressUserDeclinedSaveSurvey,
+             "AutofillAddressUserDeclinedSaveSurvey",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // Feature flag to control the displaying of an ongoing hats survey that
 // measures users perception of Autofill. Differently from other surveys,
 // the Autofill user perception survey will not have a specific target
@@ -50,6 +57,13 @@ BASE_FEATURE(kAutofillAddressSuggestionsOnTyping,
 BASE_FEATURE(kAutofillAddressUserPerceptionSurvey,
              "AutofillAddressUserPerceptionSurvey",
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+// If enabled, this makes the autofill classification logic prefer the
+// AutofillAi predictions sent via the server response over local heuristic
+// predictions.
+BASE_FEATURE(kAutofillAiPreferModelResponseOverHeuristics,
+             "AutofillAiPreferModelResponseOverHeuristics",
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // If enabled (and if `AutofillAiServerModel` is also enabled), this ignores
 // the `may_run_server_model` boolean sent by the Autofill server and, instead,
@@ -72,10 +86,14 @@ BASE_FEATURE(kAutofillAiCreateEntityDataManager,
 #endif
 );
 
-// If enabled, no GeoIp requirements are imposed for AutfillAi. Intended for
-// Dogfood and testing only.
+// If enabled, no GeoIp requirements are imposed for AutofillAi.
 BASE_FEATURE(kAutofillAiIgnoreGeoIp,
              "AutofillAiIgnoreGeoIp",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// If enabled, no locale requirements are imposed for AutfillAi.
+BASE_FEATURE(kAutofillAiIgnoreLocale,
+             "AutofillAiIgnoreLocale",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 // If enabled, `*_TAG` types are replaced with dynamic attribute assignments.
@@ -280,6 +298,12 @@ BASE_FEATURE(kAutofillEnableEmailOrLoyaltyCardsFilling,
              "AutofillEnableEmailOrLoyaltyCardsFilling",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+// If enabled, the Blink renderer extracts forms only on admissible URLs.
+// TODO(crbug.com/409401613): Remove after M142 branch point (2025-09-29).
+BASE_FEATURE(kAutofillExtractOnlyOnAdmissibleUrls,
+             "AutofillExtractOnlyOnAdmissibleUrls",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
 // If enabled, only non-ad frames are extracted.
 // Otherwise, non-ad frames as well as *visible* ad frames are extracted.
 // "Extracted" means that FormFieldData::child_frames is populated, which is
@@ -289,6 +313,16 @@ BASE_FEATURE(kAutofillEnableEmailOrLoyaltyCardsFilling,
 BASE_FEATURE(kAutofillExtractOnlyNonAdFrames,
              "AutofillExtractOnlyNonAdFrames",
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+// LINT.IfChange(autofill_ignore_checkable_elements)
+// If enabled, checkboxes and radio buttons aren't extracted anymore.
+// TODO(crbug.com/40283901): Remove once launched. Also remove
+// - autofill::FormControlType::kInputCheckbox
+// - autofill::FormControlType::kInputRadio
+BASE_FEATURE(kAutofillIgnoreCheckableElements,
+             "AutofillIgnoreCheckableElements",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+// LINT.ThenChange(//components/autofill/ios/form_util/resources/autofill_form_features.ts:autofill_ignore_checkable_elements)
 
 // When enabled, address field swapping suggestions will not include a
 // suggestion matching the field's current value. This decreases noises in the
@@ -317,12 +351,6 @@ BASE_FEATURE(kAutofillOptimizeFormExtraction,
 BASE_FEATURE(kAutofillFixSplitCreditCardImport,
              "AutofillFixSplitCreditCardImport",
              base::FEATURE_DISABLED_BY_DEFAULT);
-
-// If enabled, empty autofill settings fields will be correctly saved.
-// TODO: crbug.com/402020076 - Clean up when confirmed that this is safe.
-BASE_FEATURE(kAutofillFixEmptyFieldAndroidSettingsBug,
-             "AutofillFixEmptyFieldAndroidSettingsBug",
-             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // If enabled, autofill will use FormFieldData::DeepEqual instead of deprecated
 // SameFieldAs().
@@ -424,8 +452,9 @@ BASE_FEATURE(kAutofillReplaceFormElementObserver,
              "AutofillReplaceFormElementObserver",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-// If enabled, FormFieldData::is_visible is a heuristic for actual visibility.
-// Otherwise, it's an alias for FormFieldData::is_focusable.
+// If enabled, FormFieldData::is_visible is a heuristic for actual visibility on
+// Blink platforms.
+// Otherwise and on iOS, it's an alias for FormFieldData::is_focusable.
 // TODO(crbug.com/324199622) When abandoned, remove FormFieldData::is_visible.
 BASE_FEATURE(kAutofillDetectFieldVisibility,
              "AutofillDetectFieldVisibility",
@@ -671,6 +700,13 @@ const base::FeatureParam<std::string> kAutofillUKMExperimentalFieldsBucket4{
 COMPONENT_EXPORT(AUTOFILL)
 BASE_FEATURE(kAutofillGreekRegexes,
              "AutofillGreekRegexes",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Enables uploading of more data to the Autofill server to use for computing
+// signatures: go/autofill-signatures-more-data.
+COMPONENT_EXPORT(AUTOFILL)
+BASE_FEATURE(kAutofillServerUploadMoreData,
+             "AutofillServerUploadMoreData",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 // When enabled, the field classification model uses runtime caching to not run

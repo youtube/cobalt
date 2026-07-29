@@ -40,6 +40,7 @@
 <translation id="5596627076506792578">Más opciones</translation>
 <translation id="565342223183747919">Presiona para cambiar el modo de reproducción</translation>
 <translation id="5694491020339060116">Menú de velocidad de reproducción</translation>
+<translation id="5961164658295696940">Presiona para expandir el reproductor y ver más opciones</translation>
 <translation id="5965409657393819302">Problema técnico</translation>
 <translation id="6218961554829577610">No me gustó la voz</translation>
 <translation id="6315170314923504164">Voz</translation>
@@ -52,7 +53,6 @@
 <translation id="6846298663435243399">Cargando…</translation>
 <translation id="6889157801232138307">Reproductor "Escuchar esta página"</translation>
 <translation id="7051308646573997571">Coral</translation>
-<translation id="7112750136794557642">Presiona para expandir el reproductor y ver más opciones.</translation>
 <translation id="7138678301420049075">Otros</translation>
 <translation id="7221920857098237570">Suave</translation>
 <translation id="7237590978482584900">Jovial</translation>
@@ -67,5 +67,6 @@
 <translation id="8481839122437406573">Calmado</translation>
 <translation id="8756370108715456837">La información no es correcta</translation>
 <translation id="8953618380150219653">El reproductor "Escuchar esta página" está totalmente abierto.</translation>
+<translation id="9087782179025630211">Control de búsqueda. <ph name="ELAPSED" /> de <ph name="TOTAL" />.</translation>
 <translation id="978117257931832348">Tono grave</translation>
 </translationbundle>

@@ -41,6 +41,7 @@ Bəzi funksiyalar əlçatmaz ola bilər ki, nəticədə tərcihlərə edilən d�
 <translation id="1547469039832541117">Vurğulanan tapşırığı sonlandırır.</translation>
 <translation id="1553461853655228091">Chromium ətrafınızın 3D xəritəsini yaratmaq üçün kameranıza giriş icazəsi tələb edir</translation>
 <translation id="1555494096857516577">{NUM_EXTENSIONS,plural, =1{Bu artırma artıq dəstəklənmir. Chromium onu silməyinizi tövsiyə edir.}other{Bu artırmalar artıq dəstəklənmir. Chromium onları silməyinizi tövsiyə edir.}}</translation>
+<translation id="1562320819937089394">Chromium-u bərkidin</translation>
 <translation id="1574377791422810894">Chromium-un güvənlik alətləri</translation>
 <translation id="1594928384848033697">Chromium Parol Meneceri datanızı silmək istəyir. İcazə vermək üçün Windows parolunu yazın.</translation>
 <translation id="1607715478322902680">{COUNT,plural, =0{Administrator güncəlləməni tətbiq etmək üçün Chromium'u yenidən başlatmanızı tələb edir}=1{Administrator güncəlləməni tətbiq etmək üçün Chromium'u yenidən başlatmanızı tələb edir. Anonim pəncərəniz yenidən açılmayacaq.}other{Administrator güncəlləməni tətbiq etmək üçün Chromium'u yenidən başlatmanızı tələb edir. # Anonim pəncərəniz yenidən açılmayacaq.}}</translation>
@@ -247,6 +248,7 @@ Bəzi funksiyalar əlçatmaz ola bilər ki, nəticədə tərcihlərə edilən d�
 <translation id="4281844954008187215">Xidmət Şərtləri</translation>
 <translation id="4285930937574705105">Naməlum xəta üzündən quraşdırmaq alınmadı. Əgər Chromium hazırda işləyirsə, lütfən, qapadın və yenidən cəhd edin.</translation>
 <translation id="4304713468139749426">Parol Meneceri</translation>
+<translation id="4334241893986177674">Bu skrinşotu axtarın</translation>
 <translation id="4334294535648607276">Endirmə tamamlandı.</translation>
 <translation id="439358628917130594"><ph name="MANAGER" /> bu cihazı istifadə etməzdən əvvəl aşağıdakı Xidmət Şərtlərini oxumağınızı və qəbul etməyinizi tələb edir. Bu şərtlər ChromiumOS Şərtlərini artırmır, dəyişdirmir və ya məhdudlaşdırmır.</translation>
 <translation id="4407044323746248786">Chromium'dan istənilən halda çıxılsın?</translation>
@@ -518,6 +520,7 @@ Bəzi funksiyalar əlçatmaz ola bilər. Xüsusi profil direktoriyası göstəri
 <translation id="8004582292198964060">Brauzer</translation>
 <translation id="8010081455002666927">Avto-aşkarlama</translation>
 <translation id="8013436988911883588">Chromium'un giriş imkanı olduqda veb saytlar giriş üçün Sizdən icazə istəyəcək.</translation>
+<translation id="8031714377769448844">İstənilən vaxt tez daxil olmaq üçün Chromium-u tapşırıqlar panelinə bərkidin</translation>
 <translation id="80471789339884597">Quraşdırdığınız üçün təşəkkür edirik. <ph name="BUNDLE_NAME" /> istifadə etməzdən əvvəl bütün brauzerlərinizi yenidən başlatmalısınız.</translation>
 <translation id="8054112667659782652">Şəkil Axtarışı qısayolunu həmişə göstərin</translation>
 <translation id="8077498902115777962">Tətbiqlər üçün arxa fonda işləyən Chromium-u deaktiv edin</translation>
@@ -573,6 +576,7 @@ Bəzi funksiyalar əlçatmaz ola bilər. Xüsusi profil direktoriyası göstəri
 <translation id="8704119203788522458">Bu, Sizin Chromium'dur</translation>
 <translation id="8719993436687031146">Chromium-a daxil olunsun?</translation>
 <translation id="8747073452963259673">axtarış sahəsinin aşağı sol küncü: <ph name="LEFT" />% sol, <ph name="BOTTOM" />% aşağı</translation>
+<translation id="8768722695577490596">Parollar yalnız Chromium xaricində silinə bilər</translation>
 <translation id="878572486461146056">Quraşdırma xətası: Şəbəkə administratoru quraşdırmanın qarşısını alan Qrup Siyasəti tətbiq edib: <ph name="INSTALL_ERROR" /></translation>
 <translation id="8796602469536043152">Chromium bu sayt üçün kamera və mikrofona giriş icazəsi tələb edir</translation>
 <translation id="8818550178040858407">Chromium-a daxil olursunuz?</translation>

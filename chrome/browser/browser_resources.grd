@@ -29,6 +29,15 @@
         <structure type="lottie" name="IDR_WEBAUTHN_GPM_INCOGNITO" file="resources/webauthn/gpm_incognito.json" compress="brotli" />
         <structure type="lottie" name="IDR_WEBAUTHN_GPM_PIN_LOCKED_LIGHT" file="resources/webauthn/gpm_pin_locked_light.json" compress="brotli" />
         <structure type="lottie" name="IDR_WEBAUTHN_GPM_PIN_LOCKED_DARK" file="resources/webauthn/gpm_pin_locked_dark.json" compress="brotli" />
+
+        <!-- Autofill Lottie resources -->
+        <structure type="lottie" name="IDR_AUTOFILL_SAVE_PASSWORD_LOTTIE" file="resources/autofill/autofill_save_password.json" compress="brotli"/>
+        <structure type="lottie" name="IDR_AUTOFILL_SAVE_ADDRESS_LOTTIE" file="resources/autofill/autofill_save_address.json" compress="brotli"/>
+        <structure type="lottie" name="IDR_AUTOFILL_VIRTUAL_CARD_ENROLL_DIALOG_LOTTIE" file="resources/autofill/autofill_virtual_card_enroll_dialog.json" compress="brotli"/>
+        <structure type="lottie" name="IDR_AUTOFILL_AI_FFR_BANNER_LOTTIE" file="resources/autofill/autofill_ai_ffr_banner.json" compress="brotli"/>
+        <structure type="lottie" name="IDR_AUTOFILL_SAVE_DRIVERS_LICENSE_LOTTIE" file="resources/autofill/autofill_save_drivers_license.json" compress="brotli"/>
+        <structure type="lottie" name="IDR_AUTOFILL_SAVE_PASSPORT_LOTTIE" file="resources/autofill/autofill_save_passport.json" compress="brotli"/>
+        <structure type="lottie" name="IDR_AUTOFILL_SAVE_VEHICLE_LOTTIE" file="resources/autofill/autofill_save_vehicle.json" compress="brotli"/>
       </if>
     </structures>
     <includes>
@@ -38,7 +47,7 @@
         <include name="IDR_ABOUT_CONFLICTS_WARNING_SVG" file="resources\conflicts\warning.svg" type="BINDATA" />
       </if>
       <include name="IDR_AD_NETWORK_HASHES" file="resources\ad_networks.dat" type="BINDATA" />
-      <if expr="chromeos_ash">
+      <if expr="is_chromeos">
         <include name="IDR_CHROME_APP_MANIFEST" file="resources\chrome_app\manifest.json" type="BINDATA" />
         <include name="IDR_URL_MOJOM_LITE_JS" file="${root_gen_dir}\url\mojom\url.mojom-lite.js" use_base_dir="false" type="BINDATA" />
 
@@ -189,16 +198,13 @@
       </if>
 
       <!-- Desk API extension, enabled on managed ChromeOS devices -->
-      <if expr="chromeos_ash">
+      <if expr="is_chromeos">
         <include name="IDR_DESK_API_MANIFEST" file="resources\chromeos\desk_api\manifest.json" type="BINDATA" />
       </if>
 
       <include name="IDR_NETWORK_SPEECH_SYNTHESIS_MANIFEST" file="resources\network_speech_synthesis\manifest.json" type="BINDATA" />
       <include name="IDR_NETWORK_SPEECH_SYNTHESIS_MANIFEST_MV3" file="resources\network_speech_synthesis\mv3\manifest.json" type="BINDATA" />
       <include name="IDR_READING_MODE_GDOCS_HELPER_MANIFEST" file="resources\reading_mode_gdocs_helper\manifest.json" type="BINDATA" />
-      <if expr="not is_chromeos">
-        <include name="IDR_TTS_ENGINE_MANIFEST" file="resources\tts_engine\manifest.json" type="BINDATA" />
-      </if>
 
       <if expr="enable_pdf">
         <include name="IDR_PDF_MANIFEST" file="resources\pdf\manifest.json" type="BINDATA" />

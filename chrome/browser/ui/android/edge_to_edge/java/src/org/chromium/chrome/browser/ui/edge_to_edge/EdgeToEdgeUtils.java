@@ -126,6 +126,11 @@ public class EdgeToEdgeUtils {
         return ChromeFeatureList.sEdgeToEdgeBottomChin.isEnabled();
     }
 
+    /** Whether it is allowed to use other insets as a backup for missing navigation bar insets. */
+    public static boolean isUseBackupNavbarInsetsEnabled() {
+        return ChromeFeatureList.sEdgeToEdgeUseBackupNavbarInsets.isEnabled();
+    }
+
     /**
      * Returns whether the configuration of the device should allow Edge To Edge bottom chin. Note
      * the results are false-positive, if the method is called before the |activity|'s decor view
@@ -134,7 +139,7 @@ public class EdgeToEdgeUtils {
     public static boolean isEdgeToEdgeBottomChinEnabled(Activity activity) {
         // Make sure we test SDK version before checking the Feature so Field Trials only collect
         // from qualifying devices.
-        if (!EdgeToEdgeFieldTrial.getBottomChinOverrides().isEnabledForManufacturerVersion()) {
+        if (!EdgeToEdgeFieldTrialImpl.getBottomChinOverrides().isEnabledForManufacturerVersion()) {
             return false;
         }
 
@@ -146,8 +151,9 @@ public class EdgeToEdgeUtils {
             return false;
         }
 
-        // Not supported on tablet unless the flag is on.
-        if (!isEdgeToEdgeTabletEnabled() && isSupportedTablet(activity)) {
+        // Not supported on tablet unless the flag is on and it meets the minimum screen size.
+        if (DeviceFormFactor.isNonMultiDisplayContextOnTablet(activity)
+                && (!isEdgeToEdgeTabletEnabled() || !EdgeToEdgeUtils.isSupportedTablet(activity))) {
             return false;
         }
 
@@ -176,13 +182,33 @@ public class EdgeToEdgeUtils {
         return ChromeFeatureList.sEdgeToEdgeTablet.isEnabled();
     }
 
-    /** Whether the device is a tablet and supports edge-to-edge. */
+    /**
+     * Whether the device is a tablet and supports edge-to-edge.
+     *
+     * <ul>
+     *   <li>width < MinWidthThreshold: e2e disabled.
+     *   <li>MinWidthThreshold <= width < InvisibleBottomChinMinWidth: e2e enabled and the bottom
+     *       chin is visible by default. Same as behavior on phone.
+     *   <li>InvisibleBottomChinMinWidth <= width: fully e2e and the bottom chin is invisible by
+     *       default.
+     * </ul>
+     */
     public static boolean isSupportedTablet(Context context) {
         int widthThreshold = ChromeFeatureList.sEdgeToEdgeTabletMinWidthThreshold.getValue();
         if (widthThreshold == -1) {
-            return DeviceFormFactor.isNonMultiDisplayContextOnTablet(context);
+            return true;
         }
         return DisplayUtil.getCurrentSmallestScreenWidth(context) >= widthThreshold;
+    }
+
+    /** Whether the device is a tablet and supports edge-to-edge. */
+    public static boolean defaultVisibilityOfBottomChinOnTablet(Context context) {
+        int widthThreshold =
+                ChromeFeatureList.sEdgeToEdgeTabletInvisibleBottomChinMinWidth.getValue();
+        if (widthThreshold == -1) {
+            return false;
+        }
+        return DisplayUtil.getCurrentSmallestScreenWidth(context) < widthThreshold;
     }
 
     /**
@@ -196,11 +222,11 @@ public class EdgeToEdgeUtils {
     /** Whether edge-to-edge should be enabled everywhere. */
     @OptIn(markerClass = BuildCompat.PrereleaseSdkCheck.class)
     public static boolean isEdgeToEdgeEverywhereEnabled() {
-        if (!EdgeToEdgeFieldTrial.getEverywhereOverrides().isEnabledForManufacturerVersion()) {
+        if (!EdgeToEdgeFieldTrialImpl.getEverywhereOverrides().isEnabledForManufacturerVersion()) {
             return false;
         }
 
-        if (BuildInfo.getInstance().isAutomotive || BuildInfo.getInstance().isDesktop) {
+        if (BuildInfo.getInstance().isAutomotive) {
             return false;
         }
 
@@ -263,8 +289,9 @@ public class EdgeToEdgeUtils {
                     IneligibilityReason.NUM_TYPES);
         }
 
-        if (!EdgeToEdgeUtils.isEdgeToEdgeTabletEnabled()
-                && EdgeToEdgeUtils.isSupportedTablet(activity)) {
+        // Not supported on tablet unless the flag is on and it meets the minimum screen size.
+        if (DeviceFormFactor.isNonMultiDisplayContextOnTablet(activity)
+                && (!isEdgeToEdgeTabletEnabled() || !EdgeToEdgeUtils.isSupportedTablet(activity))) {
             eligible = false;
             RecordHistogram.recordEnumeratedHistogram(
                     INELIGIBLE_REASON_HISTOGRAM,

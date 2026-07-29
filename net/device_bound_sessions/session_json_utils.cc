@@ -78,6 +78,7 @@ std::vector<SessionParams::Credential> ParseCredentials(
 base::expected<SessionParams, SessionError> ParseSessionInstructionJson(
     GURL fetcher_url,
     unexportable_keys::UnexportableKeyId key_id,
+    std::optional<std::string> expected_session_id,
     std::string_view response_json) {
   // TODO(kristianm): Skip XSSI-escapes, see for example:
   // https://hg.mozilla.org/mozilla-central/rev/4cee9ec9155e
@@ -92,8 +93,7 @@ base::expected<SessionParams, SessionError> ParseSessionInstructionJson(
       response_json, base::JSON_PARSE_RFC, /*max_depth=*/5u);
   if (!maybe_root) {
     return base::unexpected(
-        SessionError{SessionError::ErrorType::kInvalidConfigJson, fetcher_site,
-                     /*session_id=*/std::nullopt});
+        SessionError{SessionError::ErrorType::kInvalidConfigJson});
   }
 
   base::Value::Dict* scope_dict = maybe_root->FindDict("scope");
@@ -101,15 +101,18 @@ base::expected<SessionParams, SessionError> ParseSessionInstructionJson(
   std::string* session_id = maybe_root->FindString("session_identifier");
   if (!session_id || session_id->empty()) {
     return base::unexpected(
-        SessionError{SessionError::ErrorType::kInvalidSessionId, fetcher_site,
-                     /*session_id=*/std::nullopt});
+        SessionError{SessionError::ErrorType::kInvalidSessionId});
+  }
+
+  if (expected_session_id.has_value() && *expected_session_id != *session_id) {
+    return base::unexpected(
+        SessionError{SessionError::ErrorType::kMismatchedSessionId});
   }
 
   std::optional<bool> continue_value = maybe_root->FindBool("continue");
   if (continue_value.has_value() && *continue_value == false) {
     return base::unexpected(
-        SessionError{SessionError::ErrorType::kServerRequestedTermination,
-                     fetcher_site, *session_id});
+        SessionError{SessionError::ErrorType::kServerRequestedTermination});
   }
 
   std::string* refresh_url = maybe_root->FindString("refresh_url");
@@ -123,8 +126,7 @@ base::expected<SessionParams, SessionError> ParseSessionInstructionJson(
 
   if (credentials.empty()) {
     return base::unexpected(
-        SessionError{SessionError::ErrorType::kInvalidCredentials, fetcher_site,
-                     /*session_id=*/std::nullopt});
+        SessionError{SessionError::ErrorType::kInvalidCredentials});
   }
 
   return SessionParams(

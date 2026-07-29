@@ -11,6 +11,7 @@ import android.view.MotionEvent;
 import androidx.annotation.VisibleForTesting;
 
 import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.ui.util.MotionEventUtils;
 
 /**
@@ -31,7 +32,7 @@ public class AreaMotionEventFilter extends MotionEventFilter {
     private boolean mHoverExitedArea;
 
     /** The handler for this instance that is used to notify owner of events/actions. */
-    private final MotionEventHandler mHandler;
+    private final AreaMotionEventHandler mHandler;
 
     /**
      * Creates a {@link AreaMotionEventFilter}.
@@ -44,8 +45,8 @@ public class AreaMotionEventFilter extends MotionEventFilter {
      */
     public AreaMotionEventFilter(
             Context context,
-            MotionEventHandler handler,
-            RectF triggerRect,
+            AreaMotionEventHandler handler,
+            @Nullable RectF triggerRect,
             boolean autoOffset,
             boolean useDefaultLongPress) {
         super(context, handler, autoOffset, useDefaultLongPress);
@@ -56,7 +57,7 @@ public class AreaMotionEventFilter extends MotionEventFilter {
     /**
      * @param rect The area that events should be stolen from in dp.
      */
-    public void setEventArea(RectF rect) {
+    public void setEventArea(@Nullable RectF rect) {
         if (rect == null) {
             mTriggerRect.setEmpty();
         } else {
@@ -94,17 +95,28 @@ public class AreaMotionEventFilter extends MotionEventFilter {
 
     @Override
     public boolean onHoverEventInternal(MotionEvent e) {
+        MotionEvent eventToHandle;
+
         // |mHoverExitedArea| determines whether a hover event within the parent view in which
         // |mTriggerRect| is present causes a hover out of this rect; in this case, we will process
         // this action as an ACTION_HOVER_EXIT from the rect area.
         if (mHoverExitedArea) {
             mHoverExitedArea = false;
-            MotionEvent exitEvent = MotionEvent.obtain(e);
-            exitEvent.setAction(MotionEvent.ACTION_HOVER_EXIT);
-            exitEvent.recycle();
-            return super.onHoverEventInternal(exitEvent);
+            eventToHandle = MotionEvent.obtain(e);
+            eventToHandle.setAction(MotionEvent.ACTION_HOVER_EXIT);
+            eventToHandle.recycle();
+        } else {
+            eventToHandle = e;
         }
-        return super.onHoverEventInternal(e);
+
+        // If handling a hover exit, include whether or not the event occurred in the trigger area.
+        if (eventToHandle.getActionMasked() == MotionEvent.ACTION_HOVER_EXIT) {
+            mHandler.onHoverExit(isMotionEventInArea(eventToHandle));
+            return true;
+        }
+
+        // Otherwise, fallback to default implementation.
+        return super.onHoverEventInternal(eventToHandle);
     }
 
     @Override

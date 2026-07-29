@@ -26,8 +26,7 @@ class CORE_EXPORT LargestContentfulPaint final : public PerformanceEntry {
                          const AtomicString& id,
                          const String& url,
                          Element* element,
-                         DOMWindow* source,
-                         bool is_triggered_by_soft_navigation);
+                         DOMWindow* source);
   ~LargestContentfulPaint() override;
 
   const AtomicString& entryType() const override;

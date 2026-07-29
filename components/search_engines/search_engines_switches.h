@@ -32,14 +32,6 @@ BASE_DECLARE_FEATURE(kInvalidateSearchEngineChoiceOnDeviceRestoreDetection);
 COMPONENT_EXPORT(SEARCH_ENGINES_SWITCHES)
 extern const base::FeatureParam<bool> kInvalidateChoiceOnRestoreIsRetroactive;
 
-COMPONENT_EXPORT(SEARCH_ENGINES_SWITCHES)
-BASE_DECLARE_FEATURE(kSearchEngineChoiceTrigger);
-
-#if BUILDFLAG(IS_ANDROID)
-COMPONENT_EXPORT(SEARCH_ENGINES_SWITCHES)
-BASE_DECLARE_FEATURE(kRemoveSearchEngineChoiceAttribution);
-#endif
-
 // The string that's passed to
 // `switches::kSearchEngineChoiceTriggerRepromptParams` so that we don't
 // reprompt users with the choice screen.
@@ -55,25 +47,12 @@ inline constexpr char kSearchEngineChoiceNoRepromptString[] = "NO_REPROMPT";
 // 5, and users in all other countries who made the choice strictly before
 // version 2.
 COMPONENT_EXPORT(SEARCH_ENGINES_SWITCHES)
+BASE_DECLARE_FEATURE(kSearchEngineChoiceTriggerReprompt);
+COMPONENT_EXPORT(SEARCH_ENGINES_SWITCHES)
 extern const base::FeatureParam<std::string>
     kSearchEngineChoiceTriggerRepromptParams;
 
-#if BUILDFLAG(IS_IOS)
-// Maximum number of time the search engine choice screen can be skipped
-// because the application is started via an external intent. Once this
-// count is reached, the search engine choice screen is presented on all
-// restart until the user has made a decision.
-COMPONENT_EXPORT(SEARCH_ENGINES_SWITCHES)
-extern const base::FeatureParam<int> kSearchEngineChoiceMaximumSkipCount;
-
-#endif
-
 #if BUILDFLAG(IS_ANDROID)
-// Enables the blocking dialog that directs users to complete their choice of
-// default apps (for Browser & Search) in Android.
-COMPONENT_EXPORT(SEARCH_ENGINES_SWITCHES)
-BASE_DECLARE_FEATURE(kClayBlocking);
-
 // Enables showing a snackbar when users change their default search engine in
 // Android.
 COMPONENT_EXPORT(SEARCH_ENGINES_SWITCHES)

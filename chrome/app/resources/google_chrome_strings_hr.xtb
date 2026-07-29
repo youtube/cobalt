@@ -35,6 +35,7 @@
 <translation id="141901961143729572">Podijelite svoje misli</translation>
 <translation id="1425903838053942728">{COUNT,plural, =0{Chrome je ažuriran. Možete upotrijebiti najnoviju verziju čim ponovno pokrenete preglednik. Nakon toga vaše će se trenutačne kartice ponovno otvoriti.}=1{Chrome je ažuriran. Možete upotrijebiti najnoviju verziju čim ponovno pokrenete preglednik. Nakon toga vaše će se trenutačne kartice ponovno otvoriti. Anonimni se prozor neće ponovno otvoriti.}one{Chrome je ažuriran. Možete upotrijebiti najnoviju verziju čim ponovno pokrenete preglednik. Nakon toga vaše će se trenutačne kartice ponovno otvoriti. Vaš # anonimni prozor neće se ponovno otvoriti.}few{Chrome je ažuriran. Možete upotrijebiti najnoviju verziju čim ponovno pokrenete preglednik. Nakon toga vaše će se trenutačne kartice ponovno otvoriti. Vaša # anonimna prozora neće se ponovno otvoriti.}other{Chrome je ažuriran. Možete upotrijebiti najnoviju verziju čim ponovno pokrenete preglednik. Nakon toga vaše će se trenutačne kartice ponovno otvoriti. Vaših # anonimnih prozora neće se ponovno otvoriti.}}</translation>
 <translation id="1434626383986940139">Aplikacije kanala Chrome Canary</translation>
+<translation id="1439793550875056299">Prikvači Chrome</translation>
 <translation id="146866447420868597">Želite li se prijaviti u Chrome?</translation>
 <translation id="1492280395845991349">Ponovno pokrenite da biste dovršili ažuriranje Chromea</translation>
 <translation id="1497802159252041924">Instalacijska pogreška: <ph name="INSTALL_ERROR" /></translation>
@@ -120,6 +121,7 @@
 <translation id="2569974318947988067">Chrome će pokušati nadograditi kretanja na HTTPS</translation>
 <translation id="2571392474191184472">Vaša organizacija upravlja Chromeom</translation>
 <translation id="2574930892358684005">Korisnik <ph name="EXISTING_USER" /> već je prijavljen na taj profil u Chromeu. Da bi vaše pregledavanje ostalo odvojeno, Chrome vam može izraditi vlastiti profil.</translation>
+<translation id="2579190314336775785">Zaporke se mogu izbrisati samo izvan Chromea</translation>
 <translation id="2580411288591421699">Nije moguće instalirati istu verziju programa Google Chrome koja je trenutačno pokrenuta. Zatvorite Google Chrome i pokušajte ponovo.</translation>
 <translation id="2586406160782125153">Time će se izbrisati podaci o pregledavanju s uređaja. Da biste kasnije dohvatili svoje podatke, prijavite se na Chrome kao <ph name="USER_EMAIL" />.</translation>
 <translation id="259935314519650377">Spremanje preuzetog alata za instalaciju u predmemoriju nije uspjelo. Pogreška: <ph name="UNPACK_CACHING_ERROR_CODE" />.</translation>
@@ -268,6 +270,7 @@
 <translation id="4326552909330437744">{NUM_TABS,plural, =1{Chrome preporučuje pauziranje kartice koja usporava preglednik}one{Chrome preporučuje pauziranje kartica koje usporavaju preglednik}few{Chrome preporučuje pauziranje kartica koje usporavaju preglednik}other{Chrome preporučuje pauziranje kartica koje usporavaju preglednik}}</translation>
 <translation id="4328355335528187361">Google Chrome Dev (mDNS-In)</translation>
 <translation id="4329315893554541805">Da biste dobili personalizaciju i druge značajke, uključite Chrome u aktivnost na webu i u aplikacijama te povezane Googleove usluge</translation>
+<translation id="4334241893986177674">Pretražite ovu snimku zaslona</translation>
 <translation id="4334294535648607276">Preuzimanje je dovršeno.</translation>
 <translation id="4337324600316876133">Da biste primali buduća ažuriranja Google Chromea, trebat će vam macOS 12 ili novija verzija. Na ovom se računalu upotrebljava macOS 11.</translation>
 <translation id="4343195214584226067">Proširenje <ph name="EXTENSION_NAME" /> dodano je u Chrome</translation>
@@ -351,6 +354,7 @@
 <translation id="5566025111015594046">Google Chrome (mDNS-In)</translation>
 <translation id="5579324208890605088">Pogreška pri pokretanju: pokrenite instalacijski program kao običan korisnik, a ne kao administrator.</translation>
 <translation id="5596627076506792578">Više opcija</translation>
+<translation id="5600352656975192682">Prikvačite Chrome na traku zadataka da biste mu brzo pristupili kad god želite</translation>
 <translation id="5602351063754773347">Chrome preporučuje da ga uklonite. <ph name="BEGIN_LINK" />Saznajte više o podržanim proširenjima<ph name="END_LINK" /></translation>
 <translation id="5649156266046089790">Chromeovi profili omogućuju vam da razdvojite sve svoje sadržaje u Chromeu. Izradite profile za prijatelje i obitelj ili odvojite posao i zabavu.</translation>
 <translation id="565744775970812598">Datoteka <ph name="FILE_NAME" /> mogla bi biti opasna, pa ju je Chrome blokirao.</translation>

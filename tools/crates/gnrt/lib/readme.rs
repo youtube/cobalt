@@ -5,7 +5,7 @@
 use crate::config::BuildConfig;
 use crate::group::Group;
 use crate::paths::{self, get_build_dir_for_package, get_vendor_dir_for_package};
-use anyhow::{bail, format_err, Result};
+use anyhow::{bail, ensure, format_err, Context, Result};
 use guppy::graph::PackageMetadata;
 use guppy::PackageId;
 use itertools::Itertools;
@@ -58,14 +58,21 @@ pub fn readme_files_from_packages<'a>(
             &mut find_group,
             &mut find_security_critical,
             &mut find_shipped,
-        )?;
+        )
+        .with_context(|| {
+            format!(
+                "Can't generate a `README.chromium` file for `{name}-{version}`.",
+                name = package.name(),
+                version = package.version(),
+            )
+        })?;
         map.insert(dir, readme);
     }
 
     Ok(map)
 }
 
-pub fn readme_file_from_package<'a>(
+fn readme_file_from_package<'a>(
     package: PackageMetadata<'a>,
     paths: &paths::ChromiumPaths,
     extra_config: &BuildConfig,
@@ -103,17 +110,32 @@ pub fn readme_file_from_package<'a>(
         }
     };
 
-    let license_files = if let Some(config_license_files) = crate_config.and_then(|config| {
-        if config.license_files.is_empty() {
+    let config_license_files = crate_config.and_then(|config| {
+        let config_license_files = config
+            .license_files
+            .iter()
+            .map(Path::new)
+            .map(|p| crate_vendor_dir.join(p))
+            .collect::<Vec<_>>();
+        if config_license_files.is_empty() {
             None
         } else {
-            Some(config.license_files.iter().map(Path::new))
+            Some(config_license_files)
         }
-    }) {
+    });
+    let license_files = if let Some(config_license_files) = config_license_files {
+        for path in config_license_files.iter() {
+            ensure!(
+                does_license_file_exist(path)?,
+                "`gnrt_config.toml` for `{crate_name}` crate listed \
+                 a license file that doesn't actually exist: {path}",
+                crate_name = package.name(),
+                path = path.display(),
+            );
+        }
         config_license_files
-            .map(|p| {
-                format!("//{}", paths::normalize_unix_path_separator(&crate_vendor_dir.join(p)))
-            })
+            .into_iter()
+            .map(|p| format!("//{}", paths::normalize_unix_path_separator(&p)))
             .collect()
     } else if let Some(pkg_license) = package.license() {
         let license_kinds = parse_license_string(pkg_license)?;
@@ -124,14 +146,25 @@ pub fn readme_file_from_package<'a>(
 
     if license_files.is_empty() {
         bail!(
-            "License file not found for crate {name}.\n
-             \n
-             You can specify the `license_files` in `crate.{name}]` \
-             section of the `gnrt_config.toml` to manually point out \
-             a license file relative to the crate's root. \
-             (Alternatively you can tweak `gnrt`'s source code to improve \
-             its ability to recognize license files based on their name).",
-            name = package.name()
+            r#"License file not found for crate `{name}-{version}`.
+
+* If a license file exists but `gnrt` can't find it under
+  `{crate_vendor_dir}` then,
+    * Specify `license_files` in `[crate.{name}]`
+      section of `chromium_crates_io/gnrt_config.toml`
+    * Or tweak the `LICENSE_KIND_TO_LICENSE_FILES` map in
+      `tools/crates/gnrt/lib/readme.rs` to teach `gnrt`
+      about alternative filenames
+* If the crate didn't publish the license, then this may need
+  to be fixed upstream before the crate can be imported.
+  See also:
+    - https://crbug.com/369075726
+    - https://github.com/brendanzab/codespan/pull/355
+    - https://github.com/rust-lang/rustc-demangle/issues/72
+    - https://github.com/udoprog/relative-path/pull/60"#,
+            name = package.name(),
+            version = package.version(),
+            crate_vendor_dir = crate_vendor_dir.display(),
         );
     }
 
@@ -289,7 +322,16 @@ static LICENSE_KIND_TO_LICENSE_FILES: LazyLock<HashMap<LicenseKind, Vec<&'static
 /// Converts a license string from Cargo.toml into a Vec of LicenseKinds.
 fn parse_license_string(pkg_license: &str) -> Result<Vec<LicenseKind>> {
     LICENSE_STRING_TO_LICENSE_KIND.get(pkg_license).cloned().ok_or_else(|| {
-        format_err!("License '{}' not in LICENSE_STRING_TO_LICENSE_KIND", pkg_license)
+        format_err!(
+            "License '{pkg_license}' not found in the `LICENSE_STRING_TO_LICENSE_KIND` \
+             map.  Please consider teaching `gnrt` about this license kind \
+             by editing //tools/crates/gnrt/lib/readme.rs` and adding the \
+             license to `enum LicenseKinds`, `LICENSE_STRING_TO_LICENSE_KIND`, \
+             and `LICENSE_KIND_TO_LICENSE_FILES`.  Note that this will require \
+             an additional review whether the new license kind can be used in \
+             Chromium - for more details see \
+             `//tools/crates/gnrt/lib/readme.rs-third-party-license-review.md`."
+        )
     })
 }
 
@@ -315,7 +357,7 @@ fn find_license_files_for_kinds(
         // Try each possible file in priority order.
         for file in possible_files {
             let path = crate_vendor_dir.join(file);
-            if path.try_exists()? {
+            if does_license_file_exist(&path)? {
                 let normalized_path = format!("//{}", paths::normalize_unix_path_separator(&path));
                 found_files.push(normalized_path);
                 break; // Found highest priority file for this license kind.
@@ -329,4 +371,9 @@ fn find_license_files_for_kinds(
     }
 
     Ok(found_files)
+}
+
+fn does_license_file_exist(path: &Path) -> Result<bool> {
+    path.try_exists()
+        .with_context(|| format!("Failed to check if a license file exists at {}", path.display()))
 }

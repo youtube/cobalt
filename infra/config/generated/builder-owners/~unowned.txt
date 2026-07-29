@@ -7,7 +7,6 @@ ci/Mac ASAN Release Media
 ci/Mac Builder Next
 ci/Mac deterministic
 ci/Mac deterministic (dbg)
-ci/Oreo Phone Tester
 ci/Site Isolation Android
 ci/Win 10 Fast Ring
 ci/android-11-x86-fyi-rel
@@ -124,7 +123,6 @@ try/android-deterministic-dbg
 try/android-deterministic-rel
 try/android-fieldtrial-rel
 try/android-perfetto-rel
-try/android-pie-arm64-dbg
 try/android-rust-arm32-rel
 try/android-rust-arm64-dbg
 try/android-rust-arm64-rel
@@ -226,7 +224,6 @@ try/linux-ubsan-rel
 try/linux-ubsan-vptr-rel
 try/linux-v4l2-codec-rel
 try/linux-viz-rel
-try/linux-wayland-rel
 try/linux_chromium_archive_rel_ng
 try/linux_chromium_asan_rel_ng
 try/linux_chromium_asan_rel_ng-compilator
@@ -314,25 +311,3 @@ try/win_chromium_compile_rel_ng
 try/win_chromium_x64_rel_ng
 try/win_upload_clang
 try/win_upload_rust
-webrtc.fyi/WebRTC Chromium FYI Android Builder
-webrtc.fyi/WebRTC Chromium FYI Android Builder ARM64 (dbg)
-webrtc.fyi/WebRTC Chromium FYI Android Tests ARM64 (dbg)
-webrtc.fyi/WebRTC Chromium FYI Linux Builder
-webrtc.fyi/WebRTC Chromium FYI Linux Builder (dbg)
-webrtc.fyi/WebRTC Chromium FYI Linux Tester
-webrtc.fyi/WebRTC Chromium FYI Mac Builder
-webrtc.fyi/WebRTC Chromium FYI Mac Builder (dbg)
-webrtc.fyi/WebRTC Chromium FYI Mac Tester
-webrtc.fyi/WebRTC Chromium FYI Win Builder
-webrtc.fyi/WebRTC Chromium FYI Win Builder (dbg)
-webrtc.fyi/WebRTC Chromium FYI Win10 Tester
-webrtc.fyi/WebRTC Chromium FYI ios-device
-webrtc.fyi/WebRTC Chromium FYI ios-simulator
-webrtc/WebRTC Chromium Android Builder
-webrtc/WebRTC Chromium Android Tester
-webrtc/WebRTC Chromium Linux Builder
-webrtc/WebRTC Chromium Linux Tester
-webrtc/WebRTC Chromium Mac Builder
-webrtc/WebRTC Chromium Mac Tester
-webrtc/WebRTC Chromium Win Builder
-webrtc/WebRTC Chromium Win10 Tester

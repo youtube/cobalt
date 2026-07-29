@@ -808,6 +808,8 @@ void AddGlicStrings(content::WebUIDataSource* html_source) {
   html_source->AddBoolean(
       "glicUserStatusCheckFeatureEnabled",
       base::FeatureList::IsEnabled(features::kGlicUserStatusCheck));
+  html_source->AddBoolean("glicAssetsV2Enabled", base::FeatureList::IsEnabled(
+                                                     features::kGlicAssetsV2));
 }
 #endif  // BUILDFLAG(ENABLE_GLIC)
 
@@ -1561,9 +1563,7 @@ void AddSignOutDialogStrings(content::WebUIDataSource* html_source,
           IDS_SETTINGS_TURN_OFF_SYNC_MANAGED_PROFILE_EXPLANATION, u"$1",
           base::ASCIIToUTF16(sync_dashboard_url)));
 
-  if (base::FeatureList::IsEnabled(
-          supervised_user::kCustomProfileStringsForSupervisedUsers) &&
-      profile->IsChild()) {
+  if (profile->IsChild()) {
     static constexpr webui::LocalizedString kTurnOffStrings[] = {
         {"syncDisconnect", IDS_SETTINGS_PEOPLE_SYNC_TURN_OFF},
         {"syncDisconnectTitle",
@@ -2455,6 +2455,8 @@ void AddSearchEnginesStrings(content::WebUIDataSource* html_source) {
        IDS_SETTINGS_SEARCH_ENGINES_ADD_SITE_SEARCH},
       {"searchEnginesEditSearchEngine",
        IDS_SETTINGS_SEARCH_ENGINES_EDIT_SEARCH_ENGINE},
+      {"searchEnginesViewSearchEngine",
+       IDS_SETTINGS_SEARCH_ENGINES_VIEW_SEARCH_ENGINE},
       {"searchEnginesEditSiteSearch",
        IDS_SETTINGS_SEARCH_ENGINES_EDIT_SITE_SEARCH},
       {"searchEnginesViewSiteSearch",
@@ -2823,8 +2825,12 @@ void AddSiteSettingsStrings(content::WebUIDataSource* html_source,
       {"siteSettingsActionAsk", IDS_SETTINGS_SITE_SETTINGS_ASK_MENU},
       {"siteSettingsActionMute", IDS_SETTINGS_SITE_SETTINGS_MUTE_MENU},
       {"siteSettingsActionReset", IDS_SETTINGS_SITE_SETTINGS_RESET_MENU},
+      {"siteSettingsActionResetFromListA11y",
+        IDS_SETTINGS_SITE_SETTINGS_RESET_FROM_LIST_A11Y},
       {"siteSettingsActionSessionOnly",
        IDS_SETTINGS_SITE_SETTINGS_SESSION_ONLY_MENU},
+      {"siteSettingsActionViewFromListA11y",
+       IDS_SETTINGS_SITE_SETTINGS_VIEW_FROM_LIST_A11Y},
       {"siteSettingsUsage", IDS_SETTINGS_SITE_SETTINGS_USAGE},
       {"siteSettingsUsageNone", IDS_SETTINGS_SITE_SETTINGS_USAGE_NONE},
       {"siteSettingsPermissions", IDS_SETTINGS_SITE_SETTINGS_PERMISSIONS},

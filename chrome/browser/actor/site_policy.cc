@@ -8,6 +8,7 @@
 #include <string_view>
 #include <vector>
 
+#include "base/command_line.h"
 #include "base/containers/contains.h"
 #include "base/feature_list.h"
 #include "base/functional/callback.h"
@@ -15,6 +16,7 @@
 #include "base/strings/string_split.h"
 #include "base/task/sequenced_task_runner.h"
 #include "chrome/browser/actor/actor_features.h"
+#include "chrome/browser/actor/actor_switches.h"
 #include "chrome/browser/actor/aggregated_journal.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/lookalikes/lookalike_url_service.h"
@@ -43,15 +45,21 @@ namespace actor {
 
 namespace {
 
+bool DisableSafetyChecks() {
+  return base::CommandLine::ForCurrentProcess()->HasSwitch(
+      switches::kDisableActorSafetyChecks);
+}
+
 class DecisionWrapper {
  public:
   DecisionWrapper(AggregatedJournal& journal,
                   const GURL& url,
                   TaskId task_id,
+                  std::string_view event_name,
                   DecisionCallback callback)
       : callback_(std::move(callback)),
         journal_entry_(
-            journal.CreatePendingAsyncEntry(url, task_id, "MayActOnTab", "")) {}
+            journal.CreatePendingAsyncEntry(url, task_id, event_name, "")) {}
 
   void Reject(std::string_view reason) {
     journal_entry_->EndEntry(reason);
@@ -119,6 +127,11 @@ void MayActOnUrl(const GURL& url,
 
   if (!url.SchemeIs(url::kHttpsScheme) || url.HostIsIPAddress()) {
     decision_wrapper->Reject("Wrong scheme");
+    return;
+  }
+
+  if (DisableSafetyChecks()) {
+    decision_wrapper->Accept();
     return;
   }
 
@@ -230,7 +243,7 @@ void MayActOnTab(const tabs::TabInterface& tab,
 
   const GURL& url = web_contents.GetPrimaryMainFrame()->GetLastCommittedURL();
   std::unique_ptr<DecisionWrapper> decision_wrapper =
-      std::make_unique<DecisionWrapper>(journal, url, task_id,
+      std::make_unique<DecisionWrapper>(journal, url, task_id, "MayActOnTab",
                                         std::move(callback));
 
   if (web_contents.GetPrimaryMainFrame()->IsErrorDocument()) {
@@ -244,7 +257,8 @@ void MayActOnTab(const tabs::TabInterface& tab,
   // it'll have a user interaction observer attached.
   // Do not act on such a page.
   if (safe_browsing::SafeBrowsingUserInteractionObserver::FromWebContents(
-          &web_contents)) {
+          &web_contents) &&
+      !DisableSafetyChecks()) {
     decision_wrapper->Reject("Blocked by safebrowsing");
     return;
   }
@@ -253,6 +267,17 @@ void MayActOnTab(const tabs::TabInterface& tab,
   MayActOnUrl(url,
               Profile::FromBrowserContext(web_contents.GetBrowserContext()),
               std::move(decision_wrapper));
+}
+
+void MayActOnUrl(const GURL& url,
+                 Profile* profile,
+                 AggregatedJournal& journal,
+                 TaskId task_id,
+                 DecisionCallback callback) {
+  std::unique_ptr<DecisionWrapper> decision_wrapper =
+      std::make_unique<DecisionWrapper>(journal, url, task_id, "MayActOnUrl",
+                                        std::move(callback));
+  MayActOnUrl(url, profile, std::move(decision_wrapper));
 }
 
 }  // namespace actor

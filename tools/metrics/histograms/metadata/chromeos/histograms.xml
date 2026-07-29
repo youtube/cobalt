@@ -284,7 +284,7 @@ and mapped to the variant by `StatisticNameToMachineStatisticVariant()` -->
 <histogram name="ChromeOS.Apps.IntentPickerDestinationPlatform"
     enum="ArcIntentHandlerDestinationPlatform" expires_after="2025-09-14">
   <owner>ovn@google.com</owner>
-  <owner>cros-web-apps-team@google.com</owner>
+  <owner>lt-web-apps-team@google.com</owner>
   <summary>
     Records the app platform shown as the result of link intent handling.
     Recorded when the user makes a choice in the Intent Picker dialog, and when
@@ -1531,7 +1531,7 @@ and mapped to the variant by `StatisticNameToMachineStatisticVariant()` -->
 </histogram>
 
 <histogram name="ChromeOS.FeatureUsage.{FeatureName}" enum="FeatureUsageEvent"
-    expires_after="2025-10-26">
+    expires_after="2025-12-28">
   <owner>antrim@chromium.org</owner>
   <owner>cros-oac@google.com</owner>
   <summary>
@@ -1543,7 +1543,7 @@ and mapped to the variant by `StatisticNameToMachineStatisticVariant()` -->
 </histogram>
 
 <histogram name="ChromeOS.FeatureUsage.{FeatureName}.Usetime" units="ms"
-    expires_after="2025-10-26">
+    expires_after="2025-12-28">
   <owner>antrim@chromium.org</owner>
   <owner>cros-oac@google.com</owner>
   <summary>
@@ -1677,7 +1677,7 @@ and mapped to the variant by `StatisticNameToMachineStatisticVariant()` -->
 </histogram>
 
 <histogram name="ChromeOS.Gaia.CreateAccount.IsFirstUser" enum="Boolean"
-    expires_after="2025-10-05">
+    expires_after="2025-12-21">
   <owner>thv@google.com</owner>
   <owner>cros-growth@google.com</owner>
   <summary>
@@ -1794,7 +1794,7 @@ and mapped to the variant by `StatisticNameToMachineStatisticVariant()` -->
 </histogram>
 
 <histogram name="ChromeOS.HaTS.{Survey}" enum="HaTSSurvey"
-    expires_after="2025-10-26">
+    expires_after="2025-12-28">
   <owner>aalsum@chromium.org</owner>
   <owner>jackshira@google.com</owner>
   <owner>iby@chromium.org</owner>
@@ -2129,7 +2129,7 @@ and mapped to the variant by `StatisticNameToMachineStatisticVariant()` -->
 </histogram>
 
 <histogram name="ChromeOS.Inputs.InternalKeyboard.NumberOfTopRowKeys"
-    units="keys" expires_after="2025-10-28">
+    units="keys" expires_after="2025-12-28">
   <owner>jimmyxgong@chromium.org</owner>
   <owner>wangdanny@google.com</owner>
   <owner>cros-device-enablement@google.com</owner>
@@ -2192,7 +2192,7 @@ and mapped to the variant by `StatisticNameToMachineStatisticVariant()` -->
 </histogram>
 
 <histogram name="ChromeOS.Inputs.Keyboard.{FunctionKeyPressed}"
-    enum="InputKeyEventToFunctionKey" expires_after="2025-10-28">
+    enum="InputKeyEventToFunctionKey" expires_after="2025-12-28">
   <owner>jimmyxgong@chromium.org</owner>
   <owner>cros-device-enablement@google.com</owner>
   <summary>
@@ -2219,7 +2219,7 @@ and mapped to the variant by `StatisticNameToMachineStatisticVariant()` -->
 </histogram>
 
 <histogram name="ChromeOS.Inputs.KeyUsage.Internal.{KeyboardKey}"
-    enum="KeyUsageCategory" expires_after="2025-10-28">
+    enum="KeyUsageCategory" expires_after="2025-12-28">
   <owner>jimmyxgong@chromium.org</owner>
   <owner>cros-device-enablement@google.com</owner>
   <summary>
@@ -2407,7 +2407,7 @@ and mapped to the variant by `StatisticNameToMachineStatisticVariant()` -->
 <histogram name="ChromeOS.Intents.IntentPickerAction"
     enum="IntentPickerDialogAction" expires_after="2025-06-01">
   <owner>ovn@google.com</owner>
-  <owner>cros-web-apps-team@google.com</owner>
+  <owner>lt-web-apps-team@google.com</owner>
   <summary>
     The intent picker dialog is shown (either automatically, or though a page
     action button) when the user navigates to a page whose URL can be handled by
@@ -2419,7 +2419,7 @@ and mapped to the variant by `StatisticNameToMachineStatisticVariant()` -->
 <histogram name="ChromeOS.Intents.IntentPickerIconEvent"
     enum="IntentPickerIconEvent" expires_after="2025-06-01">
   <owner>ovn@google.com</owner>
-  <owner>cros-web-apps-team@google.com</owner>
+  <owner>lt-web-apps-team@google.com</owner>
   <summary>
     Records events associated with the intent picker icon in the omnibox.
     Recorded when the icon is shown or interacted with.
@@ -2438,25 +2438,6 @@ and mapped to the variant by `StatisticNameToMachineStatisticVariant()` -->
     Replaces ChromeOS.Intents.LinkCapturingEvent, which incorrectly recorded
     events when the user changed settings to stay in Chrome.
   </summary>
-</histogram>
-
-<histogram name="ChromeOS.Intents.LinkCapturingEvent2.{AppType}App"
-    enum="LinkCapturingEvent" expires_after="2023-03-12">
-  <owner>vpao@google.com</owner>
-  <owner>chromeos-apps-foundation-team@google.com</owner>
-  <summary>
-    Records when the link capturing entry point is shown for the {AppType} app
-    type, when a link is successfully captured and results in opening a/ an
-    {AppType} app, and when the user changes their settings to automatically
-    capture similar links in the future.
-
-    Replaces ChromeOS.Intents.LinkCapturingEvent.{AppType}App, which incorrectly
-    recorded events when the user changed settings to stay in Chrome.
-  </summary>
-  <token key="AppType">
-    <variant name="Arc"/>
-    <variant name="Web"/>
-  </token>
 </histogram>
 
 <histogram name="ChromeOS.IsLacrosBrowser" enum="Boolean" expires_after="never">
@@ -2485,7 +2466,7 @@ and mapped to the variant by `StatisticNameToMachineStatisticVariant()` -->
 </histogram>
 
 <histogram name="ChromeOS.Kcer.KcerPkcs12ImportEvent"
-    enum="KcerPkcs12ImportEvent" expires_after="2025-10-26">
+    enum="KcerPkcs12ImportEvent" expires_after="2025-12-28">
   <owner>miersh@google.com</owner>
   <owner>olsa@google.com</owner>
   <summary>Tracks events related to the import of PKCS#12 files.</summary>
@@ -2800,7 +2781,7 @@ and mapped to the variant by `StatisticNameToMachineStatisticVariant()` -->
 </histogram>
 
 <histogram name="ChromeOS.MachineStatistic.{MachineStatistic}.LoadingTime"
-    units="ms" expires_after="2025-10-26">
+    units="ms" expires_after="2025-12-28">
   <owner>asumaneev@google.com</owner>
   <owner>chromeos-commercial-remote-management@google.com</owner>
   <summary>
@@ -2894,7 +2875,7 @@ and mapped to the variant by `StatisticNameToMachineStatisticVariant()` -->
 </histogram>
 
 <histogram name="ChromeOS.Mahi.ContextMenuView.ElucidationState"
-    enum="SelectedTextState" expires_after="2025-10-26">
+    enum="SelectedTextState" expires_after="2025-12-28">
   <owner>alanlxl@chromium.org</owner>
   <owner>chrome-knowledge-eng@google.com</owner>
   <summary>
@@ -3053,7 +3034,7 @@ and mapped to the variant by `StatisticNameToMachineStatisticVariant()` -->
 <histogram name="ChromeOS.PrintManagement.PrinterSettingsLaunchSource"
     enum="PrintManagementLaunchSourceType" expires_after="2024-01-23">
   <owner>ashleydp@google.com</owner>
-  <owner>gavinwill@chromium.org</owner>
+  <owner>gavinwill@google.com</owner>
   <owner>cros-device-enablement@chromium.org</owner>
   <summary>
     Tracks the source element that triggers navigation to Printer settings from
@@ -3065,7 +3046,7 @@ and mapped to the variant by `StatisticNameToMachineStatisticVariant()` -->
 </histogram>
 
 <histogram name="ChromeOS.PrivacyHub.Geolocation.AccessLevelChanged.{Source}"
-    enum="GeolocationAccessLevel" expires_after="2025-10-26">
+    enum="GeolocationAccessLevel" expires_after="2025-12-28">
   <owner>zauri@google.com</owner>
   <owner>chromeos-privacyhub@google.com</owner>
   <summary>
@@ -3099,7 +3080,7 @@ and mapped to the variant by `StatisticNameToMachineStatisticVariant()` -->
 </histogram>
 
 <histogram name="ChromeOS.PrivacyHub.Opened" enum="PrivacyHubNavigationOrigin"
-    expires_after="2025-10-26">
+    expires_after="2025-12-28">
   <owner>zauri@google.com</owner>
   <owner>chromeos-privacyhub@google.com</owner>
   <summary>
@@ -3208,7 +3189,7 @@ and mapped to the variant by `StatisticNameToMachineStatisticVariant()` -->
 </histogram>
 
 <histogram name="ChromeOS.SAML.APIError" enum="ChromeOSSamlApiError"
-    expires_after="2025-10-26">
+    expires_after="2025-12-28">
   <owner>andreydav@google.com</owner>
   <owner>cros-3pidp@google.com</owner>
   <summary>Recorded when the Credentials Passing API call fails.</summary>
@@ -3258,7 +3239,7 @@ and mapped to the variant by `StatisticNameToMachineStatisticVariant()` -->
 </histogram>
 
 <histogram name="ChromeOS.SAML.Scraping.PasswordCountAll" units="passwords"
-    expires_after="2025-10-26">
+    expires_after="2025-12-28">
   <owner>mslus@chromium.org</owner>
   <owner>emaxx@chromium.org</owner>
   <summary>
@@ -3282,7 +3263,7 @@ and mapped to the variant by `StatisticNameToMachineStatisticVariant()` -->
 </histogram>
 
 <histogram name="ChromeOS.Sandboxing.NoNewPrivsProcPercentage" units="%"
-    expires_after="2025-10-26">
+    expires_after="2025-12-28">
   <owner>enlightened@chromium.org</owner>
   <owner>chromeos-hardening@google.com</owner>
   <summary>
@@ -3296,7 +3277,7 @@ and mapped to the variant by `StatisticNameToMachineStatisticVariant()` -->
 </histogram>
 
 <histogram name="ChromeOS.Sandboxing.NonInitNsProcPercentage" units="%"
-    expires_after="2025-10-26">
+    expires_after="2025-12-28">
   <owner>enlightened@chromium.org</owner>
   <owner>chromeos-hardening@google.com</owner>
   <summary>
@@ -3310,7 +3291,7 @@ and mapped to the variant by `StatisticNameToMachineStatisticVariant()` -->
 </histogram>
 
 <histogram name="ChromeOS.Sandboxing.NonRootProcPercentage" units="%"
-    expires_after="2025-10-26">
+    expires_after="2025-12-28">
   <owner>enlightened@chromium.org</owner>
   <owner>chromeos-hardening@google.com</owner>
   <summary>
@@ -3324,7 +3305,7 @@ and mapped to the variant by `StatisticNameToMachineStatisticVariant()` -->
 </histogram>
 
 <histogram name="ChromeOS.Sandboxing.SecCompCoverage" units="%"
-    expires_after="2025-10-26">
+    expires_after="2025-12-28">
   <owner>enlightened@chromium.org</owner>
   <owner>chromeos-hardening@google.com</owner>
   <summary>
@@ -3338,7 +3319,7 @@ and mapped to the variant by `StatisticNameToMachineStatisticVariant()` -->
 </histogram>
 
 <histogram name="ChromeOS.Sandboxing.UnprivProcPercentage" units="%"
-    expires_after="2025-10-26">
+    expires_after="2025-12-28">
   <owner>enlightened@chromium.org</owner>
   <owner>chromeos-hardening@google.com</owner>
   <summary>
@@ -4426,7 +4407,7 @@ and mapped to the variant by `StatisticNameToMachineStatisticVariant()` -->
 <histogram name="ChromeOS.Sharesheet.AppCount2.{AppType}" units="apps"
     expires_after="2025-06-01">
   <owner>ovn@google.com</owner>
-  <owner>cros-web-apps-team@google.com</owner>
+  <owner>lt-web-apps-team@google.com</owner>
   <summary>
     Records number of {AppType} apps found for a given intent in the Sharesheet
     when the sharesheet is invoked. Has 100 exponential buckets. (The original
@@ -4444,7 +4425,7 @@ and mapped to the variant by `StatisticNameToMachineStatisticVariant()` -->
 <histogram name="ChromeOS.Sharesheet.FileCount" units="files"
     expires_after="2025-06-01">
   <owner>ovn@google.com</owner>
-  <owner>cros-web-apps-team@google.com</owner>
+  <owner>lt-web-apps-team@google.com</owner>
   <summary>
     Records the number of files a user is trying to share from the Sharesheet
     when the sharesheet is invoked.
@@ -4454,7 +4435,7 @@ and mapped to the variant by `StatisticNameToMachineStatisticVariant()` -->
 <histogram name="ChromeOS.Sharesheet.LaunchSource"
     enum="ChromeOSSharesheetLaunchSource" expires_after="2025-06-01">
   <owner>ovn@google.com</owner>
-  <owner>cros-web-apps-team@google.com</owner>
+  <owner>lt-web-apps-team@google.com</owner>
   <summary>
     Records the source from which the Sharesheet is invoked.
 
@@ -4465,14 +4446,14 @@ and mapped to the variant by `StatisticNameToMachineStatisticVariant()` -->
 <histogram name="ChromeOS.Sharesheet.UserAction"
     enum="ChromeOSSharesheetAction" expires_after="2025-11-09">
   <owner>ovn@google.com</owner>
-  <owner>cros-web-apps-team@google.com</owner>
+  <owner>lt-web-apps-team@google.com</owner>
   <summary>Records user action on sharesheet invocations.</summary>
 </histogram>
 
 <histogram name="ChromeOS.Sharesheet.{Location}.MimeType"
     enum="ChromeOSSharesheetMimeType" expires_after="2024-09-22">
   <owner>ovn@google.com</owner>
-  <owner>cros-web-apps-team@google.com</owner>
+  <owner>lt-web-apps-team@google.com</owner>
   <summary>
     Records the mime type of the content being copied at the {Location} point in
     the Sharesheet flow.
@@ -4490,7 +4471,7 @@ and mapped to the variant by `StatisticNameToMachineStatisticVariant()` -->
 </histogram>
 
 <histogram name="ChromeOS.Stability.{Severity}" enum="CrashSeverityProductType"
-    expires_after="2025-10-26">
+    expires_after="2025-12-28">
   <owner>iby@chromium.org</owner>
   <owner>chromeos-data-eng@google.com</owner>
   <summary>
@@ -4894,7 +4875,7 @@ and mapped to the variant by `StatisticNameToMachineStatisticVariant()` -->
 </histogram>
 
 <histogram name="ChromeOS.UserTypeByDeviceType.LogSegment"
-    enum="UserDeviceMatrix" expires_after="2025-10-26">
+    enum="UserDeviceMatrix" expires_after="2025-12-28">
   <owner>bmalcolm@chromium.org</owner>
   <owner>cros-client-wa@google.com</owner>
   <summary>
@@ -4911,7 +4892,7 @@ and mapped to the variant by `StatisticNameToMachineStatisticVariant()` -->
 <histogram name="ChromeOS.WebAPK.{InstallType}.Result"
     enum="WebApkInstallResultChromeOS" expires_after="2024-04-28">
   <owner>ovn@google.com</owner>
-  <owner>cros-web-apps-team@google.com</owner>
+  <owner>lt-web-apps-team@google.com</owner>
   <summary>
     Records the overall final state of a WebAPK {InstallType} operation on
     ChromeOS. A WebAPK is generated and installed when a PWA which supports Web

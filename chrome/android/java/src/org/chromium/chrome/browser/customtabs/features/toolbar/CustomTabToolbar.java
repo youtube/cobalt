@@ -63,6 +63,7 @@ import androidx.core.widget.ImageViewCompat;
 import org.chromium.base.Callback;
 import org.chromium.base.CallbackController;
 import org.chromium.base.ObserverList;
+import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.metrics.RecordUserAction;
 import org.chromium.base.supplier.ObservableSupplierImpl;
 import org.chromium.base.supplier.Supplier;
@@ -193,7 +194,8 @@ public class CustomTabToolbar extends ToolbarLayout implements View.OnLongClickL
     private boolean mShouldHighlightCookieControlsIcon;
     private int mBlockingStatus3pcd;
     private BrowserServicesIntentDataProvider mIntentDataProvider;
-    private Supplier<AppMenuHandler> mAppMenuHandler;
+    private Supplier<AppMenuHandler> mAppMenuHandler = () -> null;
+    private AppMenuObserver mAppMenuObserver;
 
     private final Handler mTaskHandler = new Handler();
     private final ButtonVisibilityRule mButtonVisibilityRule =
@@ -821,7 +823,8 @@ public class CustomTabToolbar extends ToolbarLayout implements View.OnLongClickL
 
         // 2) Optional button view may be made hidden due to width constraint.
         View optionalButtonContainer = findViewById(R.id.optional_toolbar_button_container);
-        return optionalButtonContainer.getVisibility() == View.VISIBLE;
+        return optionalButtonContainer != null
+                && optionalButtonContainer.getVisibility() == View.VISIBLE;
     }
 
     private boolean hasMultipleDevButtons() {
@@ -835,6 +838,19 @@ public class CustomTabToolbar extends ToolbarLayout implements View.OnLongClickL
         if (!mIntentDataProvider.isOptionalButtonSupported()) return;
 
         mLocationBar.updateOptionalButton(buttonData);
+    }
+
+    @Override
+    protected void hideOptionalButton() {
+        if (ChromeFeatureList.sCctToolbarRefactor.isEnabled()) return;
+        if (!mIntentDataProvider.isOptionalButtonSupported()) return;
+
+        mLocationBar.hideOptionalButton();
+    }
+
+    /** Resets optional button internal state. */
+    public void resetOptionalButtonState() {
+        mLocationBar.resetOptionalButtonState(/* resetFallbackMenu= */ true);
     }
 
     @Override
@@ -1182,7 +1198,7 @@ public class CustomTabToolbar extends ToolbarLayout implements View.OnLongClickL
         super.onConfigurationChanged(newConfig);
         mLocationBar.addButtonsVisibilityUpdater();
         mLocationBarModel.notifyTitleChanged();
-        mLocationBarModel.notifyUrlChanged();
+        mLocationBarModel.notifyUrlChanged(false);
         mLocationBarModel.notifyPrimaryColorChanged();
     }
 
@@ -1420,6 +1436,22 @@ public class CustomTabToolbar extends ToolbarLayout implements View.OnLongClickL
                 minimizeHighlighted);
     }
 
+    /**
+     * Record the histogram for fallback UI used instead of the hidden adaptive toolbar button.
+     *
+     * @param variant Toolbar button type.
+     */
+    public void maybeRecordHistogramForAdaptiveToolbarButtonFallbackUi(
+            @AdaptiveToolbarButtonVariant int variant) {
+        if (variant != mLocationBar.mVariantForFallbackMenu) return;
+
+        RecordHistogram.recordEnumeratedHistogram(
+                "CustomTab.AdaptiveToolbarButton.FallbackUi",
+                variant,
+                AdaptiveToolbarButtonVariant.MAX_VALUE);
+        mLocationBar.mVariantForFallbackMenu = AdaptiveToolbarButtonVariant.UNKNOWN;
+    }
+
     /** Custom tab-specific implementation of the LocationBar interface. */
     @VisibleForTesting
     public class CustomTabLocationBar
@@ -1480,6 +1512,7 @@ public class CustomTabToolbar extends ToolbarLayout implements View.OnLongClickL
         private ToolbarBrandingOverlayCoordinator mBrandingOverlayCoordinator;
 
         private OptionalButtonCoordinator mOptionalButtonCoordinator;
+        private @AdaptiveToolbarButtonVariant int mVariantForFallbackMenu;
         private final ObservableSupplierImpl<Tracker> mTrackerSupplier =
                 new ObservableSupplierImpl<>();
 
@@ -1487,11 +1520,21 @@ public class CustomTabToolbar extends ToolbarLayout implements View.OnLongClickL
         private boolean initializeOptionalButton() {
             if (mOptionalButtonCoordinator != null) return true;
 
-            if (!ChromeFeatureList.sCctAdaptiveButton.isEnabled()
-                    || hasMultipleDevButtons()
-                    || CustomTabsConnection.getInstance()
-                            .shouldEnableOmniboxForIntent(mIntentDataProvider)) {
+            if (!ChromeFeatureList.sCctAdaptiveButton.isEnabled()) return false;
+            if (hasMultipleDevButtons()) {
+                RecordHistogram.recordEnumeratedHistogram(
+                        "CustomTabs.AdaptiveToolbarButton.HiddenReason",
+                        CustomTabMtbHiddenReason.NO_BUTTON_SPACE,
+                        CustomTabMtbHiddenReason.COUNT);
+                return false;
+            }
+            if (CustomTabsConnection.getInstance()
+                    .shouldEnableOmniboxForIntent(mIntentDataProvider)) {
                 // We disable the optional button when omnibox in CCT is on.
+                RecordHistogram.recordEnumeratedHistogram(
+                        "CustomTabs.AdaptiveToolbarButton.HiddenReason",
+                        CustomTabMtbHiddenReason.OMNIBOX_ENABLED,
+                        CustomTabMtbHiddenReason.COUNT);
                 return false;
             }
 
@@ -1593,13 +1636,27 @@ public class CustomTabToolbar extends ToolbarLayout implements View.OnLongClickL
         }
 
         private void updateOptionalButton(ButtonData buttonData) {
-            if ((mOptionalButtonCoordinator == null && !initializeOptionalButton())
-                    || mButtonVisibilityRule.isSuppressed(ButtonId.MTB)) {
-                // See if we should show an indicator if optional button cannot be shown. This check
-                // needs to be invoked _after_ optional button initialization is attempted, in order
-                // to determine its visibility in case it gets hidden due to toolbar width/button
-                // count constraints.
-                maybeShowActionMenuIndicator(buttonData.getButtonSpec().getButtonVariant());
+            boolean showOptionalButton = true;
+            if (mOptionalButtonCoordinator == null) showOptionalButton = initializeOptionalButton();
+            if (showOptionalButton && mButtonVisibilityRule.isSuppressed(ButtonId.MTB)) {
+                showOptionalButton = false;
+                RecordHistogram.recordEnumeratedHistogram(
+                        "CustomTabs.AdaptiveToolbarButton.HiddenReason",
+                        CustomTabMtbHiddenReason.TOOLBAR_WIDTH_LIMIT,
+                        CustomTabMtbHiddenReason.COUNT);
+            }
+            var buttonVariant = buttonData.getButtonSpec().getButtonVariant();
+            if (showOptionalButton) {
+                RecordHistogram.recordEnumeratedHistogram(
+                        "CustomTab.AdaptiveToolbarButton.Shown",
+                        buttonVariant,
+                        AdaptiveToolbarButtonVariant.MAX_VALUE);
+            } else {
+                // See if we should show an indicator (a dot) if optional button cannot be shown.
+                // This check needs to be invoked _after_ optional button initialization is
+                // attempted, in order to determine its visibility in case it gets hidden due to
+                // toolbar width/button count constraints.
+                maybeShowActionMenuIndicator(buttonVariant);
                 return;
             }
             Tab tab = getCurrentTab();
@@ -1608,6 +1665,14 @@ public class CustomTabToolbar extends ToolbarLayout implements View.OnLongClickL
             }
             mOptionalButtonCoordinator.updateButton(buttonData, isIncognitoBranded());
             setOptionalButtonBackgroundInset();
+        }
+
+        private void hideOptionalButton() {
+            if (mOptionalButtonCoordinator == null
+                    || mOptionalButtonCoordinator.getViewVisibility() == View.GONE) {
+                return;
+            }
+            mOptionalButtonCoordinator.hideButton();
         }
 
         // Modify the inset of the optional background drawable to match that of the icon secondary
@@ -1634,32 +1699,31 @@ public class CustomTabToolbar extends ToolbarLayout implements View.OnLongClickL
                 return;
             }
 
+            View indicator = mMenuButton.findViewById(R.id.menu_dot);
             boolean show =
                     AdaptiveToolbarFeatures.isDynamicAction(buttonVariant)
                             && buttonVariant != AdaptiveToolbarButtonVariant.READER_MODE;
-            mMenuButton.findViewById(R.id.menu_dot).setVisibility(show ? View.VISIBLE : View.GONE);
+            indicator.setVisibility(show ? View.VISIBLE : View.GONE);
             if (!show) return;
 
+            mVariantForFallbackMenu = buttonVariant;
             int menuId = getHighlightMenuId(buttonVariant);
-            if (menuId < 0) return;
+            assert menuId > 0 : "Menu item for the optional toolbar action should be found";
 
             mAppMenuHandler.get().setMenuHighlight(menuId, false);
-            AppMenuObserver menuObserver =
+            if (mAppMenuObserver != null) mAppMenuHandler.get().removeObserver(mAppMenuObserver);
+            mAppMenuObserver =
                     new AppMenuObserver() {
                         @Override
                         public void onMenuVisibilityChanged(boolean isVisible) {
-                            // TODO(crbug.com/424807997): Do this toggling in MenuButton MVC. Do it
-                            // upon page navigation as well.
-                            if (isVisible) {
-                                mMenuButton.findViewById(R.id.menu_dot).setVisibility(View.GONE);
-                                mAppMenuHandler.get().removeObserver(this);
-                            }
+                            // TODO(crbug.com/424807997): Do this toggling in MenuButton MVC.
+                            if (isVisible) resetOptionalButtonState(/* resetFallbackMenu= */ false);
                         }
 
                         @Override
                         public void onMenuHighlightChanged(boolean highlighting) {}
                     };
-            mAppMenuHandler.get().addObserver(menuObserver);
+            mAppMenuHandler.get().addObserver(mAppMenuObserver);
         }
 
         private int getHighlightMenuId(@AdaptiveToolbarButtonVariant int buttonVariant) {
@@ -1693,6 +1757,27 @@ public class CustomTabToolbar extends ToolbarLayout implements View.OnLongClickL
                 } else if (mIntentDataProvider.getColorProvider().hasCustomToolbarColor()) {
                     ImageViewCompat.setImageTintList(menuDot, mTint);
                 }
+            }
+        }
+
+        /**
+         * Resets optional button internal state regarding the fallback UI indicator for CPA.
+         *
+         * @param resetFallbackMenu {@code true} if the CPA type for which a fallback menu is shown
+         *     should be reset.
+         */
+        public void resetOptionalButtonState(boolean resetFallbackMenu) {
+            if (mAppMenuHandler.get() == null) return;
+
+            // Hides the menu dot, and turns off the highlight on the fallback menu item.
+            View indicator = mMenuButton.findViewById(R.id.menu_dot);
+            indicator.setVisibility(View.GONE);
+            if (resetFallbackMenu) {
+                mVariantForFallbackMenu = AdaptiveToolbarButtonVariant.UNKNOWN;
+            }
+            if (mAppMenuObserver != null) {
+                mAppMenuHandler.get().removeObserver(mAppMenuObserver);
+                mAppMenuObserver = null;
             }
         }
 
@@ -2045,7 +2130,7 @@ public class CustomTabToolbar extends ToolbarLayout implements View.OnLongClickL
         }
 
         @Override
-        public void onUrlChanged() {
+        public void onUrlChanged(boolean isTabChanging) {
             updateUrlBar();
         }
 
@@ -2609,5 +2694,10 @@ public class CustomTabToolbar extends ToolbarLayout implements View.OnLongClickL
 
     OptionalButtonCoordinator getOptionalButtonCoordinatorForTesting() {
         return mLocationBar.mOptionalButtonCoordinator;
+    }
+
+    @AdaptiveToolbarButtonVariant
+    int getVariantForFallbackMenuForTesting() {
+        return mLocationBar.mVariantForFallbackMenu;
     }
 }

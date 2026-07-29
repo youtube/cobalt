@@ -17,6 +17,8 @@
 #include "components/prefs/pref_service.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/navigation_entry.h"
+#include "content/public/browser/navigation_handle.h"
+#include "content/public/common/url_constants.h"
 
 namespace new_tab_footer {
 
@@ -27,7 +29,15 @@ namespace {
 // LINT.IfChange(WillShowFooter)
 bool WillShowFooter(const GURL& url,
                     content::WebContents* web_contents,
-                    Profile* profile) {
+                    Profile* profile,
+                    bool skip_error_page_check) {
+  const bool is_error_page =
+      web_contents->GetSiteInstance()->GetSiteURL().SchemeIs(
+          content::kChromeErrorScheme);
+  if (is_error_page && !skip_error_page_check) {
+    return false;
+  }
+
   const bool will_show_extension =
       ntp_footer::IsExtensionNtp(url, profile) &&
       profile->GetPrefs()->GetBoolean(
@@ -61,6 +71,16 @@ NewTabFooterController::NewTabFooterController(BrowserWindowInterface* browser,
       base::BindRepeating(&NewTabFooterController::UpdateFooterVisibility,
                           weak_factory_.GetWeakPtr(),
                           /*log_on_load_metric=*/false));
+  local_state_pref_change_registrar_.Add(
+      prefs::kEnterpriseCustomLabelForBrowser,
+      base::BindRepeating(&NewTabFooterController::UpdateFooterVisibility,
+                          weak_factory_.GetWeakPtr(),
+                          /*log_on_load_metric=*/false));
+  local_state_pref_change_registrar_.Add(
+      prefs::kEnterpriseLogoUrlForBrowser,
+      base::BindRepeating(&NewTabFooterController::UpdateFooterVisibility,
+                          weak_factory_.GetWeakPtr(),
+                          /*log_on_load_metric=*/false));
 #endif
 
   tab_activation_subscription_ = browser_->RegisterActiveTabDidChange(
@@ -81,7 +101,10 @@ void NewTabFooterController::TearDown() {
 
 void NewTabFooterController::DidFinishNavigation(
     content::NavigationHandle* navigation_handle) {
-  UpdateFooterVisibility(/*log_on_load_metric=*/true);
+  if (navigation_handle->HasCommitted() &&
+      navigation_handle->IsInPrimaryMainFrame()) {
+    UpdateFooterVisibility(/*log_on_load_metric=*/true);
+  }
 }
 
 void NewTabFooterController::UpdateFooterVisibility(bool log_on_load_metric) {
@@ -97,7 +120,8 @@ void NewTabFooterController::UpdateFooterVisibility(bool log_on_load_metric) {
     url = web_contents()->GetController().GetVisibleEntry()->GetURL();
   }
 
-  const bool show = WillShowFooter(url, web_contents(), profile_);
+  const bool show = WillShowFooter(url, web_contents(), profile_,
+                                   skip_error_page_check_for_testing_);
   if (show) {
     footer_->ShowUI(load_start_timestamp, url);
   } else {

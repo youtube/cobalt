@@ -13,7 +13,6 @@
 #include <vector>
 
 #include "base/containers/map_util.h"
-#include "base/scoped_observation.h"
 #include "base/strings/strcat.h"
 #include "build/build_config.h"
 #include "ui/base/interaction/element_identifier.h"
@@ -23,12 +22,12 @@
 #include "ui/base/interaction/interaction_test_util.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/native_widget_types.h"
-#include "ui/views/focus/widget_focus_manager.h"
+#include "ui/native_window_tracker/native_window_tracker.h"
 #include "ui/views/interaction/element_tracker_views.h"
 #include "ui/views/interaction/interaction_test_util_mouse.h"
 #include "ui/views/interaction/widget_focus_observer.h"
-#include "ui/views/native_window_tracker.h"
 #include "ui/views/test/widget_test.h"
+#include "ui/views/widget/any_widget_observer.h"
 #include "ui/views/widget/widget.h"
 
 #if BUILDFLAG(IS_CHROMEOS)
@@ -41,52 +40,30 @@ namespace {
 
 // Basic observer for low-level activation changes. Relays when a widget
 // receives focus.
-class NativeViewWidgetFocusSupplier : public WidgetFocusSupplier,
-                                      public WidgetFocusChangeListener {
+class NativeViewWidgetFocusSupplier : public WidgetFocusSupplier {
  public:
-  NativeViewWidgetFocusSupplier() {
-    observation_.Observe(WidgetFocusManager::GetInstance());
+  NativeViewWidgetFocusSupplier() : observer_(test::AnyWidgetTestPasskey{}) {
+    observer_.set_activated_callback(
+        base::BindRepeating(&NativeViewWidgetFocusSupplier::OnWidgetActivated,
+                            base::Unretained(this)));
   }
   ~NativeViewWidgetFocusSupplier() override = default;
 
   DECLARE_FRAMEWORK_SPECIFIC_METADATA()
 
-  void OnNativeFocusChanged(gfx::NativeView focused_now) override {
-    // TODO(dfried): There's an order-of-operations issue on some platforms
-    // where focus transfers between two native views, and the blur for the old
-    // view is received after the focus for the new view. This results in
-    // `focused_now` being null rather than the currently-focused view.
-    //
-    // While it's slightly less correct, ignore blur events until this can be
-    // fixed. In general, one would not expect windows not from the application
-    // under test to become focused, so this will be a valid choice most of the
-    // time.
-    if (focused_now) {
-      OnWidgetFocusChanged(focused_now);
-    }
+  void OnWidgetActivated(Widget* widget) {
+    // OnAnyWidgetActivated is only called for activation, so we don't have to
+    // worry about spurious nullptrs from deactivation.
+    OnWidgetFocusChanged(widget);
   }
 
  protected:
   Widget::Widgets GetAllWidgets() const override {
-#if BUILDFLAG(IS_CHROMEOS)
-    // On Ash, WidgetTest::GetAllWidgets() requires special test utils to be set
-    // up that are incompatible with browser tests. If a test helper has been
-    // set up, then use it, otherwise assume that the browser version will
-    // handle fetching the widgets.
-    Widget::Widgets result;
-    if (aura::test::AuraTestHelper* const aura_test_helper =
-            aura::test::AuraTestHelper::GetInstance()) {
-      result.merge(Widget::GetAllChildWidgets(aura_test_helper->GetContext()));
-    }
-    return result;
-#else
     return WidgetTest::GetAllWidgets();
-#endif
   }
 
  private:
-  base::ScopedObservation<WidgetFocusManager, WidgetFocusChangeListener>
-      observation_{this};
+  AnyWidgetObserver observer_;
 };
 
 DEFINE_FRAMEWORK_SPECIFIC_METADATA(NativeViewWidgetFocusSupplier)
@@ -256,12 +233,12 @@ class InteractiveViewsTestPrivate::WindowHintCacheEntry {
       return;
     }
     window_ = window;
-    tracker_ = window ? views::NativeWindowTracker::Create(window) : nullptr;
+    tracker_ = window ? ui::NativeWindowTracker::Create(window) : nullptr;
   }
 
  private:
   gfx::NativeWindow window_ = gfx::NativeWindow();
-  std::unique_ptr<NativeWindowTracker> tracker_;
+  std::unique_ptr<ui::NativeWindowTracker> tracker_;
 };
 
 InteractiveViewsTestPrivate::InteractiveViewsTestPrivate(

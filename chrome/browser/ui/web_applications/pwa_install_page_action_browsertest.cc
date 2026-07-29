@@ -91,6 +91,7 @@
 #include "ui/color/color_provider.h"
 #include "ui/gfx/color_utils.h"
 #include "ui/views/accessibility/view_accessibility.h"
+#include "ui/views/animation/ink_drop.h"
 #include "ui/views/test/dialog_test.h"
 #include "ui/views/test/views_test_utils.h"
 #include "ui/views/test/widget_test.h"
@@ -133,7 +134,8 @@ class PwaInstallIconChangeWaiter : public views::ViewObserver {
 
   // ViewObserver
   void OnViewVisibilityChanged(views::View* observation_view,
-                               views::View* starting_view) override {
+                               views::View* starting_view,
+                               bool visible) override {
     run_loop_.Quit();
   }
 
@@ -556,6 +558,37 @@ IN_PROC_BROWSER_TEST_P(
   EXPECT_FALSE(GetPageActionView()->GetVisible());
 }
 
+// Tests that the icon's highlight is updated when the dialog is shown and
+// hidden.
+IN_PROC_BROWSER_TEST_P(PwaInstallViewBrowserTest, IconHighlightUpdated) {
+  auto scoped_mode = gfx::AnimationTestApi::SetRichAnimationRenderMode(
+      gfx::Animation::RichAnimationRenderMode::FORCE_DISABLED);
+  content::WebContents* installable_web_contents;
+  {
+    OpenTabResult result = OpenTab(GetInstallableAppURL());
+    installable_web_contents = result.web_contents;
+    ASSERT_TRUE(result.installable);
+  }
+
+  views::InkDropHost* const ink_drop =
+      views::InkDrop::Get(GetPageActionView()->ink_drop_view());
+
+  ASSERT_EQ(installable_web_contents, GetCurrentTab());
+  EXPECT_TRUE(GetPageActionView()->GetVisible());
+  EXPECT_FALSE(ink_drop->GetHighlighted());
+
+  views::Widget* pwa_install_widget =
+      ClickPWAInstallIconAndWaitForBubbleShown();
+  EXPECT_NE(pwa_install_widget, nullptr);
+  EXPECT_TRUE(ink_drop->GetHighlighted());
+
+  views::test::WidgetDestroyedWaiter destroy_waiter(pwa_install_widget);
+  pwa_install_widget->CloseWithReason(
+      views::Widget::ClosedReason::kEscKeyPressed);
+  destroy_waiter.Wait();
+  EXPECT_FALSE(ink_drop->GetHighlighted());
+}
+
 // Tests that the install icon updates its visibility when tab crashes.
 IN_PROC_BROWSER_TEST_P(PwaInstallViewBrowserTest,
                        IconVisibilityAfterTabCrashed) {
@@ -827,18 +860,22 @@ IN_PROC_BROWSER_TEST_P(PwaInstallViewBrowserTest,
   bool installable = OpenTab(app_url).installable;
   ASSERT_TRUE(installable);
 
+  auto* const user_education = BrowserUserEducationInterface::From(browser());
+
   // IPH is not shown when the site is not highly engaged.
-  EXPECT_FALSE(browser()->window()->IsFeaturePromoActive(
+  EXPECT_FALSE(user_education->IsFeaturePromoActive(
       feature_engagement::kIPHDesktopPwaInstallFeature));
 
   // Manually set engagement score to be above IPH triggering threshold.
   site_engagement::SiteEngagementService::Get(profile())->AddPointsForTesting(
       app_url, web_app::kIphFieldTrialParamDefaultSiteEngagementThreshold + 1);
   OpenTab(app_url);
-  EXPECT_TRUE(browser()->window()->IsFeaturePromoQueued(
+  EXPECT_TRUE(user_education->IsFeaturePromoQueued(
                   feature_engagement::kIPHDesktopPwaInstallFeature) ||
-              browser()->window()->IsFeaturePromoActive(
+              user_education->IsFeaturePromoActive(
                   feature_engagement::kIPHDesktopPwaInstallFeature));
+  // TODO(crbug.com/40796769): Once the above logic is deflaked, we should also
+  // check that the highlights on the icon are appropriately set.
 }
 
 IN_PROC_BROWSER_TEST_P(PwaInstallViewBrowserTest, PwaIntallIphIgnored) {
@@ -855,8 +892,9 @@ IN_PROC_BROWSER_TEST_P(PwaInstallViewBrowserTest, PwaIntallIphIgnored) {
   ASSERT_TRUE(installable);
 
   // IPH is not shown when the IPH is ignored recently.
-  EXPECT_FALSE(browser()->window()->IsFeaturePromoActive(
-      feature_engagement::kIPHDesktopPwaInstallFeature));
+  EXPECT_FALSE(
+      BrowserUserEducationInterface::From(browser())->IsFeaturePromoActive(
+          feature_engagement::kIPHDesktopPwaInstallFeature));
 }
 
 IN_PROC_BROWSER_TEST_P(PwaInstallViewBrowserTest, IconViewAccessibleName) {

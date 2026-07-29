@@ -606,7 +606,6 @@ Ansonsten wird das integrierte Touchpad in <ph name="TIMEOUT_SECONDS" /> wieder 
 <translation id="3033545621352269033">An</translation>
 <translation id="3033912566804961911">Mit <ph name="DESK_NAME" /> zusammenführen</translation>
 <translation id="3036649622769666520">Dateien öffnen</translation>
-<translation id="3038571455154067151">Wenn du dich anmelden möchtest, gib deinen Eltern-Zugangscode für Family Link ein</translation>
 <translation id="3039939407102840004">Der Akku des Eingabestifts ist bei <ph name="PERCENTAGE" /> %.</translation>
 <translation id="304097922505898963">App „Tastenkombinationen“ öffnen</translation>
 <translation id="304417730895741346">Deine angepinnten und geöffneten Apps sind in der Ablage. Um eine App in der Ablage anzupinnen, klicke mit der rechten Maustaste auf die App oder tippe mit zwei Fingern auf das Touchpad.</translation>
@@ -1944,7 +1943,7 @@ Neuinstallation</translation>
 <translation id="7340731148882810149">Menü „Automatische Klicks“</translation>
 <translation id="7346909386216857016">Ok</translation>
 <translation id="7348093485538360975">Bildschirmtastatur</translation>
-<translation id="7352651011704765696">Ein Problem ist aufgetreten.</translation>
+<translation id="7352651011704765696">Ein Problem ist aufgetreten</translation>
 <translation id="735745346212279324">VPN-Verbindung getrennt</translation>
 <translation id="7360036564632145207">Möglicherweise kannst du die Leistung optimieren, indem du die Einstellungen für den Schutz vor Datenzugriff durch Peripheriegeräte änderst</translation>
 <translation id="736045644501761622">Hintergrund und Stil festlegen</translation>

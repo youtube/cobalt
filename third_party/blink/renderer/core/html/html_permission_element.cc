@@ -104,6 +104,14 @@ constexpr float kIntersectionThreshold = 1.0f;
 constexpr float kDefaultSmallFontSize = 13;     // Default 'small' font size.
 constexpr float kDefaultXxxLargeFontSize = 48;  // Default 'xxxlarge' font size.
 
+// These display styles are not allowed for permission elements as they can mess
+// with the layout in unsupported ways. Additionally, all "table" styles are
+// also not allowed.
+constexpr EDisplay kInvalidDisplayStyles[] = {
+    EDisplay::kContents, EDisplay::kInline,   EDisplay::kListItem,
+    EDisplay::kRuby,     EDisplay::kRubyText,
+};
+
 PermissionDescriptorPtr CreatePermissionDescriptor(PermissionName name) {
   auto descriptor = PermissionDescriptor::New();
   descriptor->name = name;
@@ -165,7 +173,7 @@ uint16_t GetTranslatedMessageID(uint16_t message_id,
     return message_id;
   }
 
-  StringUTF8Adaptor lang_adaptor(language_string);
+  StringUtf8Adaptor lang_adaptor(language_string);
   std::string_view lang_utf8 = lang_adaptor.AsStringView();
   if (auto mapped_id = GetPermissionElementMessageId(lang_utf8, message_id);
       mapped_id.has_value()) {
@@ -584,11 +592,12 @@ bool HTMLPermissionElement::IsOccluded() const {
 }
 
 bool HTMLPermissionElement::IsRenderered() const {
-  LayoutObject* layout_object = GetLayoutObject();
-  if (!layout_object) {
-    return false;
+  if (GetComputedStyle() &&
+      GetComputedStyle()->Visibility() == EVisibility::kVisible) {
+    return true;
   }
-  return layout_object->StyleRef().Visibility() == EVisibility::kVisible;
+
+  return false;
 }
 
 // static
@@ -756,9 +765,9 @@ void HTMLPermissionElement::AttributeChanged(
     CHECK(permission_descriptors_.empty());
     permission_descriptors_ = ParsePermissionDescriptorsFromString(GetType());
     if (permission_descriptors_.empty()) {
-      AddConsoleError("The permission type '" + GetType().GetString() +
-                      "' is not supported by the "
-                      "permission element.");
+      AddConsoleError(
+          StrCat({"The permission type '", GetType().GetString(),
+                  "' is not supported by the permission element."}));
       EnableFallbackMode();
       return;
     }
@@ -840,11 +849,6 @@ void HTMLPermissionElement::AdjustStyle(ComputedStyleBuilder& builder) {
                            kMaximumWordSpacingToFontSizeRatio);
   } else if (builder.GetFontDescription().WordSpacing() < 0) {
     builder.SetWordSpacing(0);
-  }
-
-  if (builder.GetDisplayStyle().Display() != EDisplay::kNone &&
-      builder.GetDisplayStyle().Display() != EDisplay::kInlineBlock) {
-    builder.SetDisplay(EDisplay::kInlineBlock);
   }
 
   if (builder.GetFontDescription().LetterSpacing() >
@@ -954,6 +958,11 @@ void HTMLPermissionElement::AdjustStyle(ComputedStyleBuilder& builder) {
   if (builder.BorderRightWidth() > builder.FontSize()) {
     builder.SetBorderRightWidth(builder.FontSize());
   }
+
+  // The base `text-decoration` property must be reset for each `<permission>`
+  // element. This prevents any `text-decoration` from a parent element from
+  // being propagated to the `<permission>` element.
+  builder.SetBaseTextDecorationData(nullptr);
 
   // Cursor only allows 'pointer' (default) and 'not-allowed'. No custom images.
   builder.ClearCursorList();
@@ -1500,14 +1509,28 @@ void HTMLPermissionElement::OnIntersectionChanged(
 }
 
 bool HTMLPermissionElement::IsStyleValid() {
+  const ComputedStyle* style = GetComputedStyle();
+
   // No computed style when using `display: none`.
-  if (!GetComputedStyle()) {
+  if (!style) {
     base::UmaHistogramEnumeration("Blink.PermissionElement.InvalidStyleReason",
                                   InvalidStyleReason::kNoComputedStyle);
     return false;
   }
 
-  if (AreColorsNonOpaque(GetComputedStyle())) {
+  if (base::Contains(kInvalidDisplayStyles,
+                     style->GetDisplayStyle().Display()) ||
+      style->IsDisplayTableType()) {
+    AddConsoleWarning(StrCat(
+        {"Invalid display style of the permission element ", GetType(),
+         ". Values which result in an unsupported layout are not allowed. "
+         "Consider using 'inline-block', 'block', or 'flex' instead."}));
+    base::UmaHistogramEnumeration("Blink.PermissionElement.InvalidStyleReason",
+                                  InvalidStyleReason::kInvalidDisplayProperty);
+    return false;
+  }
+
+  if (AreColorsNonOpaque(style)) {
     AddConsoleWarning(
         StrCat({"Color or background color of the permission element '",
                 GetType(), "' is non-opaque"}));
@@ -1517,8 +1540,7 @@ bool HTMLPermissionElement::IsStyleValid() {
     return false;
   }
 
-  if (ContrastBetweenColorAndBackgroundColor(GetComputedStyle()) <
-      kMinimumAllowedContrast) {
+  if (ContrastBetweenColorAndBackgroundColor(style) < kMinimumAllowedContrast) {
     AddConsoleWarning(
         StrCat({"Contrast between color and background color of the permission "
                 "element '",
@@ -1541,11 +1563,9 @@ bool HTMLPermissionElement::IsStyleValid() {
       GetDocument().GetFrame()->LocalFrameRoot().LayoutZoomFactor() /
       GetDocument().GetFrame()->LocalFrameRoot().CssZoomFactor();
 
-  float font_size_dip =
-      GetComputedStyle()->ComputedFontSize() / non_css_layout_zoom_factor;
+  float font_size_dip = style->ComputedFontSize() / non_css_layout_zoom_factor;
 
-  bool is_font_monospace =
-      GetComputedStyle()->GetFontDescription().IsMonospace();
+  bool is_font_monospace = style->GetFontDescription().IsMonospace();
 
   // The min size is what `font-size:small` looks like when rendered in the
   // document element of the local root frame, without any intervening
@@ -1697,7 +1717,13 @@ gfx::Rect HTMLPermissionElement::ComputeIntersectionRectWithViewport(
 
   gfx::Rect viewport_in_root_frame =
       ToEnclosingRect(page->GetVisualViewport().VisibleRect());
-  PhysicalRect rect = To<LayoutBox>(layout_object)->PhysicalBorderBoxRect();
+
+  LayoutBox* layout_box = DynamicTo<LayoutBox>(layout_object);
+  if (!layout_box) {
+    return gfx::Rect();
+  }
+
+  PhysicalRect rect = layout_box->PhysicalBorderBoxRect();
   // `MapToVisualRectInAncestorSpace` with a null `ancestor` argument will
   // mutate `rect` to visible rect in the root frame's coordinate space.
   layout_object->MapToVisualRectInAncestorSpace(/*ancestor*/ nullptr, rect);

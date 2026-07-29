@@ -4,8 +4,6 @@
 
 #include "chrome/browser/ui/android/extensions/extension_keybinding_registry_android.h"
 
-#include <jni.h>
-
 #include "base/containers/contains.h"
 #include "base/functional/bind.h"
 #include "chrome/browser/extensions/commands/command_service.h"
@@ -20,42 +18,51 @@
 #include "ui/events/keycodes/keyboard_codes.h"
 #include "ui/events/platform_event.h"
 
-// Must come after all headers that specialize FromJniType() / ToJniType().
-#include "chrome/browser/ui/android/extensions/jni_headers/ExtensionKeybindingRegistryAndroid_jni.h"
-
 namespace extensions {
 
 ExtensionKeybindingRegistryAndroid::ExtensionKeybindingRegistryAndroid(
-    content::BrowserContext* context,
-    ExtensionFilter extension_filter,
-    Delegate* delegate)
-    : ExtensionKeybindingRegistry(context, extension_filter, delegate) {}
+    content::BrowserContext* context)
+    : ExtensionKeybindingRegistry(context,
+                                  ExtensionFilter::ALL_EXTENSIONS,
+                                  nullptr) {}
 
 ExtensionKeybindingRegistryAndroid::~ExtensionKeybindingRegistryAndroid() =
     default;
 
 bool ExtensionKeybindingRegistryAndroid::PopulateCommands(
-    const extensions::Extension* extension,
+    const Extension* extension,
     ui::CommandMap* commands) {
-  extensions::CommandService* command_service =
-      extensions::CommandService::Get(browser_context());
-  if (!command_service->GetNamedCommands(
-          extension->id(), extensions::CommandService::ACTIVE,
-          extensions::CommandService::REGULAR, commands)) {
-    return false;
+  CommandService* command_service = CommandService::Get(browser_context());
+  bool populated_named_commands =
+      command_service->GetNamedCommands(extension->id(), CommandService::ACTIVE,
+                                        CommandService::REGULAR, commands);
+
+  Command cmd;
+  bool populated_action_command = command_service->GetExtensionActionCommand(
+      extension->id(), ActionInfo::Type::kAction,
+      CommandService::QueryType::ACTIVE, &cmd, /*active=*/nullptr);
+  if (populated_action_command) {
+    (*commands)[cmd.command_name()] = cmd;
   }
-  return true;
+
+  return populated_named_commands || populated_action_command;
 }
 
 bool ExtensionKeybindingRegistryAndroid::RegisterAccelerator(
-    const ui::Accelerator& accelerator) {
+    const ui::Accelerator& accelerator,
+    const ExtensionId& extension_id,
+    const std::string& command_name) {
   active_accelerators_.insert(accelerator);
+  if (Command::IsActionRelatedCommand(command_name)) {
+    active_action_accelerators_[accelerator] = extension_id;
+  }
   return true;
 }
 
 void ExtensionKeybindingRegistryAndroid::UnregisterAccelerator(
     const ui::Accelerator& accelerator) {
   active_accelerators_.erase(accelerator);
+  active_action_accelerators_.erase(accelerator);
 }
 
 void ExtensionKeybindingRegistryAndroid::OnShortcutHandlingSuspended(
@@ -63,23 +70,14 @@ void ExtensionKeybindingRegistryAndroid::OnShortcutHandlingSuspended(
   is_shortcut_handling_suspended_ = suspended;
 }
 
-// JNI functions
-
-static jlong JNI_ExtensionKeybindingRegistryAndroid_Init(JNIEnv* env,
-                                                         Profile* profile) {
-  ExtensionKeybindingRegistryAndroid* instance =
-      new ExtensionKeybindingRegistryAndroid(
-          profile, extensions::ExtensionKeybindingRegistry::ALL_EXTENSIONS,
-          nullptr);
-  return reinterpret_cast<jlong>(instance);
+bool ExtensionKeybindingRegistryAndroid::ShouldIgnoreCommand(
+    const std::string& command) const {
+  // This class supports action related commands, so ignore nothing.
+  return false;
 }
 
-void ExtensionKeybindingRegistryAndroid::Destroy(JNIEnv* env) {
-  delete this;
-}
-
-bool ExtensionKeybindingRegistryAndroid::HandleKeyEvent(
-    JNIEnv* env,
+std::variant<bool, std::string>
+ExtensionKeybindingRegistryAndroid::HandleKeyDownEvent(
     const ui::KeyEventAndroid& key_event) {
   if (is_shortcut_handling_suspended_) {
     return false;
@@ -90,6 +88,10 @@ bool ExtensionKeybindingRegistryAndroid::HandleKeyEvent(
 
   if (!active_accelerators_.contains(accelerator)) {
     return false;
+  }
+  auto it = active_action_accelerators_.find(accelerator);
+  if (it != active_action_accelerators_.end()) {
+    return it->second;
   }
 
   return NotifyEventTargets(accelerator);

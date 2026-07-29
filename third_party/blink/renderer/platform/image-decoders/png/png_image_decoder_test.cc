@@ -13,7 +13,6 @@
 #include "base/test/scoped_feature_list.h"
 #include "base/time/time.h"
 #include "png.h"
-#include "skia/buildflags.h"
 #include "skia/rusty_png_feature.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/renderer/platform/graphics/color_behavior.h"
@@ -1808,7 +1807,8 @@ TEST_P(PNGTests, cicp) {
   ASSERT_TRUE(transform);  // Guaranteed by `HasEmbeddedColorProfile`.
   const skcms_ICCProfile* png_profile = transform->SrcProfile();
   ASSERT_TRUE(png_profile);
-  EXPECT_TRUE(skcms_TransferFunction_isPQish(&png_profile->trc[0].parametric));
+  EXPECT_TRUE(skcms_TransferFunction_isPQ(&png_profile->trc[0].parametric) ||
+              skcms_TransferFunction_isPQish(&png_profile->trc[0].parametric));
 }
 
 TEST_P(PNGTests, IgnoringColorProfile) {
@@ -1998,7 +1998,6 @@ TEST_P(PNGTests, RecoveringToReadFirstFrameAfterSecondFrameFailure) {
   }
 }
 
-#if BUILDFLAG(SKIA_BUILD_RUST_PNG)
 INSTANTIATE_TEST_SUITE_P(RustEnabled,
                          AnimatedPNGTests,
                          ::testing::Values(RustFeatureState::kRustEnabled));
@@ -2008,7 +2007,6 @@ INSTANTIATE_TEST_SUITE_P(RustEnabled,
 INSTANTIATE_TEST_SUITE_P(RustEnabled,
                          StaticPNGTests,
                          ::testing::Values(RustFeatureState::kRustEnabled));
-#endif
 
 INSTANTIATE_TEST_SUITE_P(RustDisabled,
                          AnimatedPNGTests,

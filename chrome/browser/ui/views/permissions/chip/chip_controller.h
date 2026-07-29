@@ -11,6 +11,8 @@
 #include "base/check_is_test.h"
 #include "base/functional/callback_helpers.h"
 #include "base/memory/raw_ptr.h"
+#include "base/observer_list.h"
+#include "base/observer_list_types.h"
 #include "base/timer/timer.h"
 #include "chrome/browser/ui/views/permissions/chip/permission_chip_view.h"
 #include "components/permissions/permission_prompt.h"
@@ -43,6 +45,15 @@ class ChipController : public permissions::PermissionRequestManager::Observer,
                        public BubbleOwnerDelegate,
                        public PermissionChipView::Observer {
  public:
+  class Observer : public base::CheckedObserver {
+   public:
+    // Triggered when the permission prompt shows.
+    virtual void OnPermissionPromptShown() = 0;
+
+    // Triggered when the permission prompt hides.
+    virtual void OnPermissionPromptHidden() = 0;
+  };
+
   ChipController(
       LocationBarView* location_bar_view,
       PermissionChipView* chip_view,
@@ -86,6 +97,9 @@ class ChipController : public permissions::PermissionRequestManager::Observer,
   void OnChipVisibilityChanged(bool is_visible) override;
   void OnExpandAnimationEnded() override;
   void OnCollapseAnimationEnded() override;
+
+  void AddObserver(Observer* observer);
+  void RemoveObserver(Observer* observer);
 
   // Initializes the permission prompt model as well as the permission request
   // manager and observes the prompt bubble.
@@ -241,9 +255,6 @@ class ChipController : public permissions::PermissionRequestManager::Observer,
   // `PermissionDashboardController` is an owner of this.
   raw_ptr<PermissionDashboardController> permission_dashboard_controller_;
 
-  // The time when the request chip was displayed.
-  base::TimeTicks request_chip_shown_time_;
-
   // A timer used to dismiss the permission request after it's been collapsed
   // for a while.
   base::OneShotTimer dismiss_timer_;
@@ -275,6 +286,8 @@ class ChipController : public permissions::PermissionRequestManager::Observer,
 
   base::ScopedObservation<PermissionChipView, PermissionChipView::Observer>
       observation_{this};
+
+  base::ObserverList<Observer> permission_prompt_observers_;
 
   base::WeakPtrFactory<ChipController> weak_factory_{this};
 };

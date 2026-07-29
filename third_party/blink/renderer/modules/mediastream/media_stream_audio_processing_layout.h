@@ -31,21 +31,33 @@ class MODULES_EXPORT MediaStreamAudioProcessingLayout {
       const AudioProcessingProperties& properties,
       int channels);
 
+  static MediaStreamAudioProcessingLayout MakeForUnprocessedLocalSource(
+      const AudioProcessingProperties& properties,
+      int available_platform_effects);
+
+  static MediaStreamAudioProcessingLayout MakeForUnprocessedLocalSourceForTests(
+      bool platform_aec,
+      int available_platform_effects);
+
   MediaStreamAudioProcessingLayout(const AudioProcessingProperties& properties,
                                    int available_platform_effects,
                                    int channels);
 
   const AudioProcessingProperties& properties() const { return properties_; }
 
-  const media::AudioProcessingSettings webrtc_processing_settings() const {
+  const media::AudioProcessingSettings& webrtc_processing_settings() const {
     return webrtc_processing_settings_;
   }
 
   int platform_effects() const { return platform_effects_; }
 
-  bool run_apm_in_audio_service() const { return run_apm_in_audio_service_; }
+  bool NeedApmInAudioService() const;
 
   bool NeedWebrtcAudioProcessing() const;
+
+  bool AecIsPlatformProvided() const {
+    return echo_canceller_.IsPlatformProvided();
+  }
 
   bool NoiseSuppressionInTandem() const;
 
@@ -53,14 +65,20 @@ class MODULES_EXPORT MediaStreamAudioProcessingLayout {
 
  private:
   MediaStreamAudioProcessingLayout(const AudioProcessingProperties& properties,
+                                   const EchoCanceller& echo_canceller,
                                    int available_platform_effects,
-                                   int channels,
-                                   bool run_apm_in_audio_service);
+                                   int channels);
+
+  MediaStreamAudioProcessingLayout(
+      const AudioProcessingProperties& properties,
+      const EchoCanceller& echo_canceller,
+      int platform_effects,
+      const media::AudioProcessingSettings& webrtc_processing_settings);
 
   const AudioProcessingProperties properties_;
+  const EchoCanceller echo_canceller_;
   const int platform_effects_ = 0;
   const media::AudioProcessingSettings webrtc_processing_settings_;
-  const bool run_apm_in_audio_service_ = false;
 };
 
 }  // namespace blink

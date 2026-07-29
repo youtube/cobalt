@@ -12,6 +12,7 @@
 #include "base/containers/contains.h"
 #include "build/build_config.h"
 #include "ipc/ipc_message_start.h"
+#include "ppapi/buildflags/buildflags.h"
 
 // Include once to get the type definitions
 #include "tools/ipc_fuzzer/message_lib/all_messages.h"
@@ -36,7 +37,7 @@ static msginfo msgtable[] = {
 };
 #define MSGTABLE_SIZE (sizeof(msgtable)/sizeof(msgtable[0]))
 
-#if !BUILDFLAG(ENABLE_NACL) && !BUILDFLAG(ENABLE_PPAPI)
+#if !BUILDFLAG(ENABLE_PPAPI)
 static_assert(MSGTABLE_SIZE == 0, "There should be no messages");
 #else
 static_assert(MSGTABLE_SIZE, "check your headers for an extra semicolon");
@@ -54,15 +55,6 @@ static bool check_msgtable() {
   // include message files used inside the actual chrome browser in this list.
   exemptions.push_back(TestMsgStart);
   exemptions.push_back(WorkerMsgStart);    // Now only used by tests.
-
-#if !BUILDFLAG(ENABLE_NACL)
-  exemptions.push_back(NaClMsgStart);
-  exemptions.push_back(NaClHostMsgStart);
-#endif  // !BUILDFLAG(ENABLE_NACL)
-
-#if !BUILDFLAG(ENABLE_PPAPI)
-  exemptions.push_back(PpapiMsgStart);
-#endif  // !BUILDFLAG(ENABLE_PPAPI)
 
   for (size_t i = 0; i < MSGTABLE_SIZE; ++i) {
     int class_id = IPC_MESSAGE_ID_CLASS(msgtable[i].id);

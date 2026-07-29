@@ -67,7 +67,7 @@ class CompositingTest : public PaintTestConfigurations, public testing::Test {
 
   // Both sets the inner html and runs the document lifecycle.
   void InitializeWithHTML(LocalFrame& frame, const String& html_content) {
-    frame.GetDocument()->body()->setInnerHTML(html_content);
+    frame.GetDocument()->body()->SetInnerHTMLWithoutTrustedTypes(html_content);
     frame.GetDocument()->View()->UpdateAllLifecyclePhasesForTest();
   }
 
@@ -624,7 +624,7 @@ TEST_P(CompositingTest,
 
   EXPECT_EQ(paint_artifact_compositor()->NeedsUpdate(),
             PaintArtifactCompositor::UpdateType::kNone);
-  GetElementById("scroll")->scrollTo(0, 2);
+  GetElementById("scroll")->scrollToForTesting(0, 2);
   UpdateAllLifecyclePhasesExceptPaint();
   EXPECT_EQ(paint_artifact_compositor()->NeedsUpdate(),
             PaintArtifactCompositor::UpdateType::kFull);
@@ -646,7 +646,7 @@ TEST_P(CompositingTest,
 
   EXPECT_EQ(paint_artifact_compositor()->NeedsUpdate(),
             PaintArtifactCompositor::UpdateType::kNone);
-  GetElementById("scroll")->scrollTo(0, 2);
+  GetElementById("scroll")->scrollToForTesting(0, 2);
   UpdateAllLifecyclePhasesExceptPaint();
   EXPECT_EQ(paint_artifact_compositor()->NeedsUpdate(),
             PaintArtifactCompositor::UpdateType::kFull);
@@ -1014,20 +1014,17 @@ TEST_P(ScrollingContentsCullRectTest, Basics) {
   CheckCullRect("long-composited-scroller", gfx::Rect(20, 20, 400, 4400));
   CheckCullRect("narrow-non-composited-scroller", std::nullopt);
   CheckCullRect("wide-non-composited-scroller", gfx::Rect(20, 20, 4400, 400));
-  if (RuntimeEnabledFeatures::ScrollCullRectFromContainerRectEnabled()) {
-    CheckCullRect("composited-under-clip", gfx::Rect(20, 20, 4400, 400));
-    CheckCullRect("non-composited-under-clip", gfx::Rect(20, 20, 4400, 400));
-  } else {
-    CheckCullRect("composited-under-clip", std::nullopt);
-    CheckCullRect("non-composited-under-clip", std::nullopt);
-  }
+  CheckCullRect("composited-under-clip", gfx::Rect(20, 20, 4400, 400));
+  CheckCullRect("non-composited-under-clip", gfx::Rect(20, 20, 4400, 400));
 
-  GetElementById("short-composited-scroller")->scrollTo(5000, 5000);
-  GetElementById("long-composited-scroller")->scrollTo(5000, 5000);
-  GetElementById("narrow-non-composited-scroller")->scrollTo(5000, 5000);
-  GetElementById("wide-non-composited-scroller")->scrollTo(5000, 5000);
-  GetElementById("composited-under-clip")->scrollTo(5000, 5000);
-  GetElementById("non-composited-under-clip")->scrollTo(5000, 5000);
+  GetElementById("short-composited-scroller")->scrollToForTesting(5000, 5000);
+  GetElementById("long-composited-scroller")->scrollToForTesting(5000, 5000);
+  GetElementById("narrow-non-composited-scroller")
+      ->scrollToForTesting(5000, 5000);
+  GetElementById("wide-non-composited-scroller")
+      ->scrollToForTesting(5000, 5000);
+  GetElementById("composited-under-clip")->scrollToForTesting(5000, 5000);
+  GetElementById("non-composited-under-clip")->scrollToForTesting(5000, 5000);
 
   UpdateAllLifecyclePhasesExceptPaint();
   if (RuntimeEnabledFeatures::RasterInducingScrollEnabled()) {
@@ -1056,13 +1053,8 @@ TEST_P(ScrollingContentsCullRectTest, Basics) {
   CheckCullRect("narrow-non-composited-scroller", std::nullopt);
   CheckCullRect("wide-non-composited-scroller", gfx::Rect(1020, 20, 8400, 400));
   CheckCullRect("wide-non-composited-scroller", gfx::Rect(1020, 20, 8400, 400));
-  if (RuntimeEnabledFeatures::ScrollCullRectFromContainerRectEnabled()) {
-    CheckCullRect("composited-under-clip", gfx::Rect(1020, 20, 8400, 400));
-    CheckCullRect("non-composited-under-clip", gfx::Rect(1020, 20, 8400, 400));
-  } else {
-    CheckCullRect("composited-under-clip", std::nullopt);
-    CheckCullRect("non-composited-under-clip", std::nullopt);
-  }
+  CheckCullRect("composited-under-clip", gfx::Rect(1020, 20, 8400, 400));
+  CheckCullRect("non-composited-under-clip", gfx::Rect(1020, 20, 8400, 400));
 }
 
 TEST_P(ScrollingContentsCullRectTest, RepaintOnlyScroll) {
@@ -1086,7 +1078,7 @@ TEST_P(ScrollingContentsCullRectTest, RepaintOnlyScroll) {
   EXPECT_TRUE(CcLayerByDOMElementId("scroller"));
   CheckCullRect("scroller", gfx::Rect(0, 0, 400, 4400));
 
-  GetElementById("scroller")->scrollTo(0, 3000);
+  GetElementById("scroller")->scrollToForTesting(0, 3000);
   UpdateAllLifecyclePhasesExceptPaint();
   EXPECT_EQ(paint_artifact_compositor()->NeedsUpdate(),
             PaintArtifactCompositor::UpdateType::kNone);
@@ -1098,7 +1090,7 @@ TEST_P(ScrollingContentsCullRectTest, RepaintOnlyScroll) {
   // Now the cull rect covers all scrolling contents.
   CheckCullRect("scroller", std::nullopt);
 
-  scroller->scrollTo(0, 5000);
+  scroller->scrollToForTesting(0, 5000);
   scroller->GetLayoutBox()->Layer()->SetNeedsRepaint();
   // Force a repaint to proactively update cull rect.
   UpdateAllLifecyclePhasesExceptPaint();

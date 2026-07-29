@@ -23,6 +23,7 @@
 #include "chrome/browser/ui/safety_hub/disruptive_notification_permissions_manager.h"
 #include "chrome/browser/ui/safety_hub/mock_safe_browsing_database_manager.h"
 #include "chrome/browser/ui/safety_hub/revoked_permissions_service_factory.h"
+#include "chrome/browser/ui/safety_hub/safety_hub_result.h"
 #include "chrome/browser/ui/safety_hub/safety_hub_test_util.h"
 #include "chrome/browser/ui/safety_hub/safety_hub_util.h"
 #include "chrome/common/chrome_features.h"
@@ -566,12 +567,11 @@ IN_PROC_BROWSER_TEST_F(
       Optional(Field(&DisruptiveNotificationRevocationEntry::revocation_state,
                      DisruptiveNotificationRevocationState::kProposed)));
   ASSERT_EQ(GetRevokedUnusedPermissions(hcsm).size(), 0u);
-  std::optional<std::unique_ptr<SafetyHubService::Result>> opt_result =
+  std::optional<std::unique_ptr<SafetyHubResult>> opt_result =
       service->GetCachedResult();
   ASSERT_TRUE(opt_result.has_value());
   auto* result =
-      static_cast<RevokedPermissionsService::RevokedPermissionsResult*>(
-          opt_result.value().get());
+      static_cast<RevokedPermissionsResult*>(opt_result.value().get());
   EXPECT_EQ(result->GetRevokedPermissions().size(), 0u);
   EXPECT_EQ(
       CONTENT_SETTING_ALLOW,
@@ -670,12 +670,11 @@ IN_PROC_BROWSER_TEST_F(DisruptiveNotificationPermissionsRevocationBrowserTest,
       Optional(Field(&DisruptiveNotificationRevocationEntry::revocation_state,
                      DisruptiveNotificationRevocationState::kRevoked)));
 
-  std::optional<std::unique_ptr<SafetyHubService::Result>> opt_result =
+  std::optional<std::unique_ptr<SafetyHubResult>> opt_result =
       service->GetCachedResult();
   ASSERT_TRUE(opt_result.has_value());
   auto* result =
-      static_cast<RevokedPermissionsService::RevokedPermissionsResult*>(
-          opt_result.value().get());
+      static_cast<RevokedPermissionsResult*>(opt_result.value().get());
   EXPECT_EQ(result->GetRevokedPermissions().size(), 1u);
   EXPECT_EQ(
       CONTENT_SETTING_ASK,
@@ -741,12 +740,11 @@ IN_PROC_BROWSER_TEST_F(
   safety_hub_test_util::UpdateRevokedPermissionsServiceAsync(service);
   // Both disruptive notifications and unused permissions were revoked for the
   // URL.
-  std::optional<std::unique_ptr<SafetyHubService::Result>> opt_result =
+  std::optional<std::unique_ptr<SafetyHubResult>> opt_result =
       service->GetCachedResult();
   ASSERT_TRUE(opt_result.has_value());
   auto* result =
-      static_cast<RevokedPermissionsService::RevokedPermissionsResult*>(
-          opt_result.value().get());
+      static_cast<RevokedPermissionsResult*>(opt_result.value().get());
   EXPECT_EQ(result->GetRevokedPermissions().size(), 1u);
 
   revocation_entry =

@@ -174,6 +174,14 @@ NET_EXPORT BASE_DECLARE_FEATURE(kSplitCodeCacheByNetworkIsolationKey);
 // See https://github.com/MattMenke2/Explainer---Partition-Network-State.
 NET_EXPORT BASE_DECLARE_FEATURE(kPartitionConnectionsByNetworkIsolationKey);
 
+// "__Http-" prefix for cookies.
+// https://github.com/httpwg/http-extensions/pull/3110
+NET_EXPORT BASE_DECLARE_FEATURE(kPrefixCookieHttp);
+
+// "__HostHttp-" prefix for cookies.
+// https://github.com/httpwg/http-extensions/issues/3111
+NET_EXPORT BASE_DECLARE_FEATURE(kPrefixCookieHostHttp);
+
 // Changes the interval between two search engine preconnect attempts.
 NET_EXPORT BASE_DECLARE_FEATURE(kSearchEnginePreconnectInterval);
 
@@ -703,9 +711,6 @@ NET_EXPORT BASE_DECLARE_FEATURE(kSimdutfBase64Support);
 
 // Further optimize parsing data: URLs.
 NET_EXPORT BASE_DECLARE_FEATURE(kFurtherOptimizeParsingDataUrls);
-
-// Keep whitespace for non-base64 encoded data: URLs.
-NET_EXPORT BASE_DECLARE_FEATURE(kKeepWhitespaceForDataUrls);
 
 // If enabled, unrecognized keys in a No-Vary-Search header will be ignored.
 // Otherwise, unrecognized keys are treated as if the header was invalid.

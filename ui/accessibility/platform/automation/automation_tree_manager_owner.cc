@@ -700,8 +700,9 @@ std::vector<int> AutomationTreeManagerOwner::GetChildIDs(
     for (AXNode* child_root : child_roots)
       child_ids.push_back(child_root->id());
   } else {
-    for (auto iter = node->UnignoredChildrenBegin();
-         iter != node->UnignoredChildrenEnd(); ++iter) {
+    for (auto iter = node->UnignoredChildrenBegin(),
+              end = node->UnignoredChildrenEnd();
+         iter != end; ++iter) {
       child_ids.push_back(iter->id());
       *result_tree_id = iter->tree()->GetAXTreeID();
     }
@@ -951,7 +952,7 @@ bool AutomationTreeManagerOwner::CalculateNodeState(const AXTreeID& tree_id,
   if (!node)
     return false;
 
-  *node_state = node->data().state;
+  *node_state = node->data().state.value();
 
   AutomationAXTreeWrapper* top_tree_wrapper = nullptr;
   AutomationAXTreeWrapper* walker = tree_wrapper;

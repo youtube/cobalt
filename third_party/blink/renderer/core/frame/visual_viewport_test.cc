@@ -1911,7 +1911,7 @@ TEST_P(VisualViewportTest, WindowDimensionsOnLoad) {
   Element* output =
       GetFrame()->GetDocument()->getElementById(AtomicString("output"));
   DCHECK(output);
-  EXPECT_EQ("1600x1200", output->innerHTML());
+  EXPECT_EQ("1600x1200", output->GetInnerHTMLString());
 }
 
 // Similar to above but make sure the initial scale is updated with the content
@@ -1927,7 +1927,7 @@ TEST_P(VisualViewportTest, WindowDimensionsOnLoadWideContent) {
   Element* output =
       GetFrame()->GetDocument()->getElementById(AtomicString("output"));
   DCHECK(output);
-  EXPECT_EQ("2000x1500", output->innerHTML());
+  EXPECT_EQ("2000x1500", output->GetInnerHTMLString());
 }
 
 TEST_P(VisualViewportTest, ResizeWithScrollAnchoring) {
@@ -2438,7 +2438,9 @@ TEST_F(VisualViewportScrollIntoViewTest, ScrollingToFixed) {
 TEST_F(VisualViewportScrollIntoViewTest, ScrollingToFixedFromJavascript) {
   VisualViewport& visual_viewport = WebView().GetPage()->GetVisualViewport();
   EXPECT_EQ(0.f, visual_viewport.GetScrollOffset().y());
-  GetDocument().getElementById(AtomicString("bottom"))->scrollIntoView();
+  GetDocument()
+      .getElementById(AtomicString("bottom"))
+      ->scrollIntoViewForTesting();
   EXPECT_EQ(100.f, visual_viewport.GetScrollOffset().y());
 }
 

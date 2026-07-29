@@ -573,6 +573,12 @@ NSString* CapitalizeFirstLetter(NSString* string) {
                      IDS_IOS_CLEAR_BROWSING_DATA_TIME_RANGE_SELECTOR_TITLE))]
       performAction:grey_tap()];
 
+  // TODO(crbug.com/428928323): Investigate why the keyboard appears and remove
+  // this workaround when it's not needed anymore.
+  // On iOS 26, the keyboard appears when the 'Time Range' button is tapped and
+  // it hides the elements behind. Close the keyboard by typing a return key.
+  [ChromeEarlGrey simulatePhysicalKeyboardEvent:@"\\n" flags:0];
+
   // Tap on the last 15 minutes option on the popup menu.
   [[EarlGrey
       selectElementWithMatcher:
@@ -1082,6 +1088,10 @@ NSString* CapitalizeFirstLetter(NSString* string) {
   if (![ChromeEarlGrey areMultipleWindowsSupported]) {
     EARL_GREY_TEST_DISABLED(@"Multiple windows can't be opened.");
   }
+  if (@available(iOS 19.0, *)) {
+    // TODO(crbug.com/427699033): Re-enable test on iOS 26.
+    EARL_GREY_TEST_DISABLED(@"Test disabled on iOS 26.");
+  }
 
   // Set pref to close tabs.
   [ChromeEarlGrey setBoolValue:true
@@ -1132,6 +1142,10 @@ NSString* CapitalizeFirstLetter(NSString* string) {
 - (void)testTimeRangeSelectionUpdatesInMultiwindow {
   if (![ChromeEarlGrey areMultipleWindowsSupported]) {
     EARL_GREY_TEST_DISABLED(@"Multiple windows can't be opened.");
+  }
+  if (@available(iOS 19.0, *)) {
+    // TODO(crbug.com/427699033): Re-enable test on iOS 26.
+    EARL_GREY_TEST_DISABLED(@"Test disabled on iOS 26.");
   }
 
   // Set time range pref to the last hour.
@@ -1716,6 +1730,10 @@ NSString* CapitalizeFirstLetter(NSString* string) {
 - (void)testPrefChangeUpdatesInMultiwindow {
   if (![ChromeEarlGrey areMultipleWindowsSupported]) {
     EARL_GREY_TEST_DISABLED(@"Multiple windows can't be opened.");
+  }
+  if (@available(iOS 19.0, *)) {
+    // TODO(crbug.com/427699033): Re-enable test on iOS 26.
+    EARL_GREY_TEST_DISABLED(@"Test disabled on iOS 26.");
   }
 
   // Set the cache preference to true.

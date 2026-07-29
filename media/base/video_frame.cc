@@ -18,6 +18,8 @@
 #include <utility>
 
 #include "base/bits.h"
+#include "base/debug/crash_logging.h"
+#include "base/debug/dump_without_crashing.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/logging.h"
@@ -64,20 +66,6 @@ VideoFrame::ID GetNextID() {
 gfx::Rect Intersection(gfx::Rect a, const gfx::Rect& b) {
   a.Intersect(b);
   return a;
-}
-
-void ReleaseMailboxAndDropGpuMemoryBuffer(
-    VideoFrame::ReleaseMailboxCB cb,
-    const gpu::SyncToken& sync_token,
-    std::unique_ptr<gfx::GpuMemoryBuffer> gpu_memory_buffer) {
-  std::move(cb).Run(sync_token);
-}
-
-VideoFrame::ReleaseMailboxAndGpuMemoryBufferCB WrapReleaseMailboxCB(
-    VideoFrame::ReleaseMailboxCB cb) {
-  if (cb.is_null())
-    return VideoFrame::ReleaseMailboxAndGpuMemoryBufferCB();
-  return base::BindOnce(&ReleaseMailboxAndDropGpuMemoryBuffer, std::move(cb));
 }
 
 }  // namespace
@@ -380,7 +368,7 @@ VideoFrame::CreateFrameForGpuMemoryBufferOrMappableSIInternal(
     std::unique_ptr<gfx::GpuMemoryBuffer> gpu_memory_buffer,
     scoped_refptr<gpu::ClientSharedImage> shared_image,
     const bool enable_mappable_si,
-    ReleaseMailboxAndGpuMemoryBufferCB mailbox_holder_and_gmb_release_cb,
+    ReleaseMailboxCB mailbox_holder_release_cb,
     base::TimeDelta timestamp) {
   if (enable_mappable_si) {
     CHECK(shared_image && !gpu_memory_buffer);
@@ -469,8 +457,11 @@ VideoFrame::CreateFrameForGpuMemoryBufferOrMappableSIInternal(
     return nullptr;
   }
   frame->gpu_memory_buffer_ = std::move(gpu_memory_buffer);
-  frame->mailbox_holder_and_gmb_release_cb_ =
-      std::move(mailbox_holder_and_gmb_release_cb);
+  if (enable_mappable_si) {
+    frame->mailbox_holder_release_cb_ = std::move(mailbox_holder_release_cb);
+  } else {
+    CHECK(mailbox_holder_release_cb.is_null());
+  }
   frame->is_mappable_si_enabled_ = enable_mappable_si;
   return frame;
 }
@@ -494,9 +485,19 @@ scoped_refptr<VideoFrame> VideoFrame::WrapSharedImage(
   if (shared_image) {
     frame->acquire_sync_token_ = sync_token;
     frame->shared_image_ = shared_image->MakeUnowned();
+    if (coded_size != shared_image->size()) {
+      SCOPED_CRASH_KEY_STRING64("video_frame", "si_size",
+                                shared_image->size().ToString());
+      SCOPED_CRASH_KEY_STRING64("video_frame", "coded_size",
+                                coded_size.ToString());
+      SCOPED_CRASH_KEY_STRING64("video_frame", "si_label",
+                                shared_image->debug_label());
+      DUMP_WILL_BE_CHECK(false) << "coded_size (" << coded_size.ToString()
+                                << ") does not match shared_image size ("
+                                << shared_image->size().ToString() << ")";
+    }
   }
-  frame->mailbox_holder_and_gmb_release_cb_ =
-      WrapReleaseMailboxCB(std::move(mailbox_holder_release_cb));
+  frame->mailbox_holder_release_cb_ = std::move(mailbox_holder_release_cb);
 
   DCHECK(frame->HasSharedImage());
 
@@ -506,7 +507,7 @@ scoped_refptr<VideoFrame> VideoFrame::WrapSharedImage(
 scoped_refptr<VideoFrame> VideoFrame::WrapMappableSharedImage(
     scoped_refptr<gpu::ClientSharedImage> shared_image,
     gpu::SyncToken sync_token,
-    ReleaseMailboxAndGpuMemoryBufferCB mailbox_holder_and_gmb_release_cb,
+    ReleaseMailboxCB mailbox_holder_release_cb,
     const gfx::Rect& visible_rect,
     const gfx::Size& natural_size,
     base::TimeDelta timestamp) {
@@ -515,8 +516,8 @@ scoped_refptr<VideoFrame> VideoFrame::WrapMappableSharedImage(
       CreateFrameForGpuMemoryBufferOrMappableSIInternal(
           visible_rect, natural_size, /*gpu_memory_buffer=*/nullptr,
           shared_image,
-          /*enable_mappable_si=*/true,
-          std::move(mailbox_holder_and_gmb_release_cb), timestamp);
+          /*enable_mappable_si=*/true, std::move(mailbox_holder_release_cb),
+          timestamp);
   if (!frame) {
     return nullptr;
   }
@@ -601,30 +602,6 @@ scoped_refptr<VideoFrame> VideoFrame::WrapExternalDataWithLayout(
   }
 
   return frame;
-}
-
-// static
-scoped_refptr<VideoFrame> VideoFrame::WrapExternalYuvData(
-    VideoPixelFormat format,
-    const gfx::Size& coded_size,
-    const gfx::Rect& visible_rect,
-    const gfx::Size& natural_size,
-    size_t y_stride,
-    size_t u_stride,
-    size_t v_stride,
-    const uint8_t* y_data,
-    const uint8_t* u_data,
-    const uint8_t* v_data,
-    base::TimeDelta timestamp) {
-  auto layout = VideoFrameLayout::CreateWithStrides(
-      format, coded_size, {y_stride, u_stride, v_stride});
-  if (!layout) {
-    DLOG(ERROR) << "Invalid layout.";
-    return nullptr;
-  }
-
-  return WrapExternalYuvDataWithLayout(*layout, visible_rect, natural_size,
-                                       y_data, u_data, v_data, timestamp);
 }
 
 // static
@@ -831,14 +808,12 @@ scoped_refptr<VideoFrame> VideoFrame::WrapExternalGpuMemoryBuffer(
     std::unique_ptr<gfx::GpuMemoryBuffer> gpu_memory_buffer,
     scoped_refptr<gpu::ClientSharedImage> shared_image,
     const gpu::SyncToken& sync_token,
-    ReleaseMailboxAndGpuMemoryBufferCB mailbox_holder_and_gmb_release_cb,
     base::TimeDelta timestamp) {
   scoped_refptr<VideoFrame> frame =
       CreateFrameForGpuMemoryBufferOrMappableSIInternal(
           visible_rect, natural_size, std::move(gpu_memory_buffer),
           /*shared_image=*/nullptr,
-          /*enable_mappable_si=*/false,
-          std::move(mailbox_holder_and_gmb_release_cb), timestamp);
+          /*enable_mappable_si=*/false, base::NullCallback(), timestamp);
   if (!frame) {
     return nullptr;
   }
@@ -882,8 +857,7 @@ scoped_refptr<VideoFrame> VideoFrame::WrapExternalDmabufs(
     return nullptr;
   }
 
-  frame->mailbox_holder_and_gmb_release_cb_ =
-      ReleaseMailboxAndGpuMemoryBufferCB();
+  frame->mailbox_holder_release_cb_ = ReleaseMailboxCB();
   frame->dmabuf_fds_ = std::move(dmabuf_fds);
   DCHECK(frame->HasDmaBufs());
 
@@ -1565,18 +1539,17 @@ int VideoFrame::GetDmabufFd(size_t i) const {
 
 void VideoFrame::SetReleaseMailboxCB(ReleaseMailboxCB release_mailbox_cb) {
   DCHECK(release_mailbox_cb);
-  DCHECK(!mailbox_holder_and_gmb_release_cb_);
+  DCHECK(!mailbox_holder_release_cb_);
   // We don't relay SetReleaseMailboxCB to |wrapped_frame_| because the method
   // is not thread safe.  This method should only be called by the owner of
   // |wrapped_frame_| directly.
   DCHECK(!wrapped_frame_);
-  mailbox_holder_and_gmb_release_cb_ =
-      WrapReleaseMailboxCB(std::move(release_mailbox_cb));
+  mailbox_holder_release_cb_ = std::move(release_mailbox_cb);
 }
 
 bool VideoFrame::HasReleaseMailboxCB() const {
   return wrapped_frame_ ? wrapped_frame_->HasReleaseMailboxCB()
-                        : !!mailbox_holder_and_gmb_release_cb_;
+                        : !!mailbox_holder_release_cb_;
 }
 
 void VideoFrame::AddDestructionObserver(base::OnceClosure callback) {
@@ -1592,7 +1565,7 @@ gpu::SyncToken VideoFrame::UpdateReleaseSyncToken(SyncTokenClient* client) {
   }
   base::AutoLock locker(release_sync_token_lock_);
   // Must wait on the previous sync point before inserting a new sync point so
-  // that |mailbox_holder_and_gmb_release_cb_| guarantees the previous sync
+  // that |mailbox_holder_release_cb_| guarantees the previous sync
   // point occurred when it waits on |release_sync_token_|.
   if (release_sync_token_.HasData())
     client->WaitSyncToken(release_sync_token_);
@@ -1648,7 +1621,7 @@ VideoFrame::VideoFrame(base::PassKey<VideoFrame>,
 }
 
 VideoFrame::~VideoFrame() {
-  if (mailbox_holder_and_gmb_release_cb_) {
+  if (mailbox_holder_release_cb_) {
     gpu::SyncToken release_sync_token;
     {
       // To ensure that changes to |release_sync_token_| are visible on this
@@ -1656,8 +1629,7 @@ VideoFrame::~VideoFrame() {
       base::AutoLock locker(release_sync_token_lock_);
       release_sync_token = release_sync_token_;
     }
-    std::move(mailbox_holder_and_gmb_release_cb_)
-        .Run(release_sync_token, std::move(gpu_memory_buffer_));
+    std::move(mailbox_holder_release_cb_).Run(release_sync_token);
   }
 
   // Prevents dangling raw ptr, see https://docs.google.com/document/d/156O7kBZqIhe1dUcqTMcN5T-6YEAcg0yNnj5QlnZu9xU/edit?usp=sharing.
@@ -1951,6 +1923,12 @@ uint8_t* VideoFrame::ScopedMapping::Memory(uint32_t plane_index) {
       gpu_memory_buffer_
           ? gpu_memory_buffer_->memory(plane_index)
           : scoped_mapping_->GetMemoryForPlane(plane_index).data());
+}
+
+base::span<uint8_t> VideoFrame::ScopedMapping::GetMemoryAsSpan(
+    uint32_t plane_index) {
+  return gpu_memory_buffer_ ? gpu_memory_buffer_->memory_span(plane_index)
+                            : scoped_mapping_->GetMemoryForPlane(plane_index);
 }
 
 size_t VideoFrame::ScopedMapping::Stride(uint32_t plane_index) {

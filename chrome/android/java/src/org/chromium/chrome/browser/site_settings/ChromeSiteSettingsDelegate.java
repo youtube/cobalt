@@ -20,11 +20,11 @@ import org.jni_zero.NativeMethods;
 
 import org.chromium.base.Callback;
 import org.chromium.base.CommandLine;
+import org.chromium.base.DeviceInfo;
 import org.chromium.base.IntentUtils;
 import org.chromium.base.supplier.OneshotSupplier;
 import org.chromium.base.task.PostTask;
 import org.chromium.base.task.TaskTraits;
-import org.chromium.build.BuildConfig;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.LaunchIntentDispatcher;
 import org.chromium.chrome.browser.browserservices.intents.BrowserServicesIntentDataProvider.CustomTabsUiType;
@@ -64,6 +64,7 @@ import org.chromium.content_public.common.ContentFeatures;
 import org.chromium.content_public.common.ContentSwitches;
 import org.chromium.device.DeviceFeatureList;
 import org.chromium.device.DeviceFeatureMap;
+import org.chromium.ui.base.UiAndroidFeatureList;
 import org.chromium.url.GURL;
 
 import java.util.List;
@@ -164,11 +165,13 @@ public class ChromeSiteSettingsDelegate implements SiteSettingsDelegate {
                 return PermissionUtil.handTrackingNeedsAdditionalPermissions();
             case SiteSettingsCategory.Type.REQUEST_DESKTOP_SITE:
                 // Desktop Android always requests desktop sites, so hide the category.
-                return !BuildConfig.IS_DESKTOP_ANDROID;
+                return !DeviceInfo.isDesktop();
             case SiteSettingsCategory.Type.SERIAL_PORT:
                 return DeviceFeatureMap.isEnabled(DeviceFeatureList.BLUETOOTH_RFCOMM_ANDROID);
             case SiteSettingsCategory.Type.LOCAL_NETWORK_ACCESS:
                 return ChromeFeatureList.isEnabled(ChromeFeatureList.LOCAL_NETWORK_ACCESS);
+            case SiteSettingsCategory.Type.WINDOW_MANAGEMENT:
+                return UiAndroidFeatureList.sAndroidWindowManagementWebApi.isEnabled();
             default:
                 return true;
         }

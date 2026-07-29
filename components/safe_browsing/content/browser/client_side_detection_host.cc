@@ -79,7 +79,9 @@ const float kProbabilityForSendingSampleRequest = 0.000001;
 // Probability value used to accept the high confidence allowlist match for
 // trigger and force request types. More information on why this value was
 // chosen can be found at go/crca-cspp-expand-allowlist.
-const float kProbabilityForAcceptingHCAllowlistTrigger = 0.95;
+const float kProbabilityForAcceptingHCAllowlistTrigger = 0.9999;
+// Threshold value used to skip the on-device model inquiry.
+const int kInnerTextMinThresholdBytes = 5;
 
 void WriteFeaturesToDisk(const ClientPhishingRequest& features,
                          const base::FilePath& base_path) {
@@ -634,10 +636,8 @@ class ClientSideDetectionHost::ShouldClassifyUrlRequest {
 
     switch (phishing_detection_request_type_) {
       case ClientSideDetectionType::TRIGGER_MODELS:
-        return base::FeatureList::IsEnabled(
-                   kClientSideDetectionAcceptHCAllowlist) &&
-               base::RandDouble() <=
-                   probability_for_accepting_hc_allowlist_trigger_;
+        return base::RandDouble() <=
+               probability_for_accepting_hc_allowlist_trigger_;
       default:
         return false;
     }
@@ -764,7 +764,7 @@ void ClientSideDetectionHost::MaybeStartPreClassification(
   }
 
   // Cancel any ongoing on device sessions.
-  csd_service_->ResetOnDeviceSession(/*inquiry_complete=*/false);
+  intelligent_scan_delegate_->ResetOnDeviceSession(/*inquiry_complete=*/false);
 
   // If we navigate away and there currently is a pending phishing report
   // request we have to cancel it to make sure we don't display an interstitial
@@ -1061,7 +1061,8 @@ void ClientSideDetectionHost::MaybeSendClientPhishingRequest(
   gfx::Size size;
   content::RenderWidgetHostView* view =
       web_contents()->GetRenderWidgetHostView();
-  if (view) {
+  // native view can be null in tests.
+  if (view && view->GetNativeView()) {
     gfx::SizeF viewport = view->GetNativeView()->viewport_size();
     size = gfx::Size(static_cast<int>(viewport.width()),
                      static_cast<int>(viewport.height()));
@@ -1297,8 +1298,9 @@ void ClientSideDetectionHost::MaybeInquireOnDeviceForScamDetection(
       return;
     }
 
-    bool on_device_model_available = csd_service_->IsOnDeviceModelAvailable(
-        /*log_failed_eligibility_reason=*/true);
+    bool on_device_model_available =
+        intelligent_scan_delegate_->IsOnDeviceModelAvailable(
+            /*log_failed_eligibility_reason=*/true);
 
     base::UmaHistogramBoolean(
         "SBClientPhishing.IsOnDeviceModelAvailableAtInquiryTime",
@@ -1339,9 +1341,15 @@ void ClientSideDetectionHost::OnInnerTextComplete(
       "SBClientPhishing.OnDeviceModelInnerTextSize." +
           GetRequestTypeName(verdict->client_side_detection_type()),
       inner_text.size());
-  if (inner_text.empty()) {
+  if (inner_text.size() <= kInnerTextMinThresholdBytes) {
     IntelligentScanInfo intelligent_scan_info;
-    intelligent_scan_info.set_no_info_reason(IntelligentScanInfo::EMPTY_TEXT);
+    if (inner_text.empty()) {
+      intelligent_scan_info.set_no_info_reason(IntelligentScanInfo::EMPTY_TEXT);
+
+    } else {
+      intelligent_scan_info.set_no_info_reason(
+          IntelligentScanInfo::TEXT_TOO_SHORT);
+    }
     *verdict->mutable_intelligent_scan_info() =
         std::move(intelligent_scan_info);
     MaybeGetAccessToken(std::move(verdict),
@@ -1349,7 +1357,7 @@ void ClientSideDetectionHost::OnInnerTextComplete(
     return;
   }
 
-  csd_service_->InquireOnDeviceModel(
+  intelligent_scan_delegate_->InquireOnDeviceModel(
       inner_text,
       base::BindOnce(&ClientSideDetectionHost::OnInquireOnDeviceModelDone,
                      weak_factory_.GetWeakPtr(), std::move(verdict),
@@ -1359,7 +1367,7 @@ void ClientSideDetectionHost::OnInnerTextComplete(
 void ClientSideDetectionHost::OnInquireOnDeviceModelDone(
     std::unique_ptr<ClientPhishingRequest> verdict,
     std::optional<bool> did_match_high_confidence_allowlist,
-    std::optional<optimization_guide::proto::ScamDetectionResponse> response) {
+    std::optional<IntelligentScanDelegate::IntelligentScanResult> response) {
   base::UmaHistogramBoolean(
       "SBClientPhishing.OnDeviceModelHasSuccessfulResponse",
       response.has_value());
@@ -1369,8 +1377,8 @@ void ClientSideDetectionHost::OnInquireOnDeviceModelDone(
       response.has_value());
   IntelligentScanInfo intelligent_scan_info;
   if (response.has_value()) {
-    intelligent_scan_info.set_brand(response->brand());
-    intelligent_scan_info.set_intent(response->intent());
+    intelligent_scan_info.set_brand(response->brand);
+    intelligent_scan_info.set_intent(response->intent);
   } else {
     intelligent_scan_info.set_no_info_reason(
         IntelligentScanInfo::ON_DEVICE_MODEL_OUTPUT_MISSING);

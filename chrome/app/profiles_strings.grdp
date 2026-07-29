@@ -932,6 +932,9 @@
     <message name="IDS_PROFILE_PICKER_PROFILE_CREATION_FLOW_PROFILE_TYPE_CHOICE_SUBTITLE_UNO"
       desc="Profile picker profile type choice subtitle"> Sign in to get your passwords and more on all your devices
     </message>
+    <message name="IDS_PROFILE_PICKER_PROFILE_CREATION_FLOW_PROFILE_TYPE_CHOICE_SUBTITLE_UNO_BOOKMARKS"
+      desc="Profile picker profile type choice subtitle"> Sign in to get your bookmarks, passwords and more on all your devices
+    </message>
 
     <!-- First Run Experience strings -->
     <message name="IDS_FRE_SIGN_IN_SUBTITLE_0"
@@ -1141,7 +1144,7 @@
       You can stop syncing anytime in settings. Google may personalize Search and other services based on your history.
     </message>
     <message translateable="false" name="IDS_HISTORY_SYNC_OPT_IN_ACCEPT_BUTTON" desc="">
-      Yes, I 'm in
+      Yes, I'm in
     </message>
     <message translateable="false" name="IDS_HISTORY_SYNC_OPT_IN_REJECT_BUTTON" desc="">
       No thanks

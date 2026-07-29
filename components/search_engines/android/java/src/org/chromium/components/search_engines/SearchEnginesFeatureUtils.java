@@ -4,8 +4,6 @@
 
 package org.chromium.components.search_engines;
 
-import androidx.annotation.VisibleForTesting;
-
 import org.chromium.base.CommandLine;
 import org.chromium.base.ResettersForTesting;
 import org.chromium.build.annotations.NullMarked;
@@ -17,12 +15,6 @@ public class SearchEnginesFeatureUtils {
 
     static final String ENABLE_CHOICE_APIS_DEBUG_SWITCH = "enable-choice-apis-debug";
     static final String ENABLE_CHOICE_APIS_FAKE_BACKEND_SWITCH = "enable-choice-apis-fake-backend";
-
-    /**
-     * Delay in milliseconds after which the blocking dialog will time out and stop blocking. The
-     * timer starts when the dialog is actually shown.
-     */
-    public static final int CHOICE_DIALOG_TIMEOUT_MILLIS = 60_000;
 
     /**
      * Millis after the OS default browser choice has been made during which Chrome should not offer
@@ -73,28 +65,9 @@ public class SearchEnginesFeatureUtils {
         return CommandLine.getInstance().hasSwitch(ENABLE_CHOICE_APIS_FAKE_BACKEND_SWITCH);
     }
 
-    /**
-     * Number of blocked Chrome sessions after which we suppress the blocking dialog. This is
-     * intended as an escape hatch for initial iterations of the feature, to mitigate potential
-     * bugs.
-     */
-    public int clayBlockingEscapeHatchBlockLimit() {
-        return clayBlockingFeatureParamAsInt("escape_hatch_block_limit", 10);
-    }
-
     /** Number of times a failed backend call will be retried. */
     public int choiceApisConnectionMaxRetries() {
         return CHOICE_APIS_CONNECTION_MAX_RETRIES;
-    }
-
-    @VisibleForTesting
-    static int clayBlockingFeatureParamAsInt(String param, int defaultValue) {
-        assert SearchEnginesFeatures.isEnabled(SearchEnginesFeatures.CLAY_BLOCKING)
-                : "Avoid accessing params on disabled features!";
-
-        return SearchEnginesFeatureMap.getInstance()
-                .getFieldTrialParamByFeatureAsInt(
-                        SearchEnginesFeatures.CLAY_BLOCKING, param, defaultValue);
     }
 
     // Do not instantiate this class.

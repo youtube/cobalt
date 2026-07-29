@@ -206,6 +206,14 @@ inline constexpr char kVariationsLimitedEntropySyntheticTrialSeedV2[] =
     "variations_limited_entropy_synthetic_trial_seed_v2";
 inline constexpr char kGaiaCookiePeriodicReportTimeDeprecated[] =
     "gaia_cookie.periodic_report_time";
+inline constexpr char kSyncedDefaultSearchProviderGUID[] =
+    "default_search_provider.synced_guid";
+
+// Deprecated 07/2025.
+inline constexpr char kFirstSyncCompletedInFullSyncMode[] =
+    "sync.first_full_sync_completed";
+inline constexpr char kGoogleServicesSecondLastSyncingGaiaId[] =
+    "google.services.second_last_gaia_id";
 
 // Migrates a boolean pref from source to target PrefService.
 void MigrateBooleanPref(std::string_view pref_name,
@@ -598,7 +606,6 @@ void RegisterLocalStatePrefs(PrefRegistrySimple* registry) {
 
   registry->RegisterIntegerPref(prefs::kAddressBarSettingsNewBadgeShownCount,
                                 0);
-  registry->RegisterIntegerPref(prefs::kNTPLensEntryPointNewBadgeShownCount, 0);
 
   registry->RegisterIntegerPref(
       prefs::kProminenceNotificationAlertImpressionCount, 0);
@@ -606,9 +613,6 @@ void RegisterLocalStatePrefs(PrefRegistrySimple* registry) {
   registry->RegisterIntegerPref(prefs::kChromeDataRegionSetting, 0);
 
   registry->RegisterBooleanPref(prefs::kYoutubeIncognitoHasBeenShown, false);
-
-  registry->RegisterIntegerPref(
-      prefs::kNTPHomeCustomizationNewBadgeImpressionCount, 0);
 
   registry->RegisterBooleanPref(prefs::kHasSwitchedAccountsViaWebFlow, false);
 
@@ -688,6 +692,11 @@ void RegisterLocalStatePrefs(PrefRegistrySimple* registry) {
   // Deprecated 06/2025.
   registry->RegisterBooleanPref(
       prefs::kIosCredentialProviderPromoHasRegisteredWithPromoManager, false);
+
+  // Deprecated 06/2025.
+  registry->RegisterIntegerPref(prefs::kNTPLensEntryPointNewBadgeShownCount, 0);
+  registry->RegisterIntegerPref(
+      prefs::kNTPHomeCustomizationNewBadgeImpressionCount, 0);
 }
 
 void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
@@ -1030,6 +1039,8 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
   registry->RegisterBooleanPref(prefs::kProvisionalNotificationsAllowedByPolicy,
                                 true);
 
+  registry->RegisterDictionaryPref(prefs::kBwgSessionMap);
+
   registry->RegisterBooleanPref(prefs::kIOSBwgConsent, false);
 
   registry->RegisterBooleanPref(prefs::kIOSBWGManualPromo, false);
@@ -1069,7 +1080,7 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
   registry->RegisterStringPref(kContextualSearchEnabled, std::string());
   registry->RegisterInt64Pref(kNtpShownBookmarksFolder, 3);
 
-  // Deprecated 11/2024
+  // Deprecated 11/2024.
   registry->RegisterBooleanPref(kEnableDoNotTrackIos, false);
 
   // Deprecated 12/2024.
@@ -1098,6 +1109,12 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
 
   // Deprecated 06/2025.
   registry->RegisterDoublePref(kGaiaCookiePeriodicReportTimeDeprecated, 0);
+  registry->RegisterStringPref(kSyncedDefaultSearchProviderGUID, std::string());
+
+  // Deprecated 07/2025.
+  registry->RegisterBooleanPref(kFirstSyncCompletedInFullSyncMode, false);
+  registry->RegisterStringPref(kGoogleServicesSecondLastSyncingGaiaId,
+                               std::string());
 }
 
 // This method should be periodically pruned of year+ old migrations.
@@ -1147,6 +1164,10 @@ void MigrateObsoleteLocalStatePrefs(PrefService* prefs) {
   // Added 06/2025.
   prefs->ClearPref(
       prefs::kIosCredentialProviderPromoHasRegisteredWithPromoManager);
+
+  // Added 06/2025.
+  prefs->ClearPref(prefs::kNTPLensEntryPointNewBadgeShownCount);
+  prefs->ClearPref(prefs::kNTPHomeCustomizationNewBadgeImpressionCount);
 }
 
 // This method should be periodically pruned of year+ old migrations.
@@ -1279,7 +1300,7 @@ void MigrateObsoleteProfilePrefs(PrefService* prefs) {
   // Added 04/2025.
   prefs->ClearPref(kMixedContentAutoupgradeEnabled);
 
-  // Added 04/2025
+  // Added 04/2025.
   MigrateBooleanFromUserDefaultsToProfilePrefs(
       @"SyncDisabledAlertShown", policy::policy_prefs::kSyncDisabledAlertShown,
       prefs);
@@ -1304,6 +1325,11 @@ void MigrateObsoleteProfilePrefs(PrefService* prefs) {
   // Added 06/2025.
   prefs->ClearPref(safety_check_prefs::kSafetyCheckInMagicStackDisabledPref);
   prefs->ClearPref(tab_resumption_prefs::kTabResumptionDisabledPref);
+  prefs->ClearPref(kSyncedDefaultSearchProviderGUID);
+
+  // Added 07/2025.
+  prefs->ClearPref(kFirstSyncCompletedInFullSyncMode);
+  prefs->ClearPref(kGoogleServicesSecondLastSyncingGaiaId);
 }
 
 void MigrateObsoleteUserDefault() {

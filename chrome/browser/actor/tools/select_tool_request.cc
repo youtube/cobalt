@@ -4,6 +4,7 @@
 
 #include "chrome/browser/actor/tools/select_tool_request.h"
 
+#include "chrome/browser/actor/tools/tool_request_visitor_functor.h"
 #include "chrome/common/actor.mojom.h"
 
 namespace actor {
@@ -17,6 +18,10 @@ SelectToolRequest::SelectToolRequest(TabHandle tab_handle,
 
 SelectToolRequest::~SelectToolRequest() = default;
 
+void SelectToolRequest::Apply(ToolRequestVisitorFunctor& f) const {
+  f.Apply(*this);
+}
+
 std::string SelectToolRequest::JournalEvent() const {
   return "Select";
 }
@@ -24,7 +29,6 @@ std::string SelectToolRequest::JournalEvent() const {
 mojom::ToolActionPtr SelectToolRequest::ToMojoToolAction() const {
   auto select = mojom::SelectAction::New();
 
-  select->target = PageToolRequest::ToMojoToolTarget(GetTarget());
   select->value = value_;
 
   return mojom::ToolAction::NewSelect(std::move(select));

@@ -34,9 +34,10 @@
 #include "base/containers/contains.h"
 #include "base/debug/dump_without_crashing.h"
 #include "base/feature_list.h"
+#include "base/metrics/histogram_functions.h"
 #include "services/network/public/cpp/features.h"
 #include "services/network/public/cpp/web_sandbox_flags.h"
-#include "services/network/public/mojom/content_security_policy.mojom-blink-forward.h"
+#include "services/network/public/mojom/content_security_policy.mojom-blink.h"
 #include "services/network/public/mojom/integrity_algorithm.mojom-blink.h"
 #include "services/network/public/mojom/web_sandbox_flags.mojom-blink.h"
 #include "third_party/blink/public/common/features.h"
@@ -346,9 +347,13 @@ void ContentSecurityPolicy::ReportUseCounters(
       Count(WebFeature::kCSPWithStrictDynamic);
     }
 
+    // This use counter is for the 'unsafe-eval' keyword. We pass an empty array
+    // of hashes so this is logged if and only if 'unsafe-eval' is set,
+    // regardless of hashes.
     if (CSPDirectiveListAllowEval(*policy, this,
                                   ReportingDisposition::kSuppressReporting,
-                                  kWillNotThrowException, g_empty_string)) {
+                                  kWillNotThrowException, g_empty_string,
+                                  /*script_hash_values=*/{})) {
       Count(WebFeature::kCSPWithUnsafeEval);
     }
 
@@ -512,6 +517,9 @@ void ContentSecurityPolicy::ComputeInternalStateForParsedPolicy(
         for (const auto& hash_source : directive.value->hashes) {
           UsesHashAlgorithm(hash_source->algorithm);
         }
+        for (const auto& hash_source : directive.value->eval_hashes) {
+          UsesHashAlgorithm(hash_source->algorithm);
+        }
         break;
       // Images, fonts, etc. do not support integrity checks, so we can skip
       // them here.
@@ -548,6 +556,9 @@ void ContentSecurityPolicy::ComputeInternalStateForParsedPolicy(
     if (disallow_script_for_synthetic_response_ &&
         csp.header->source == ContentSecurityPolicySource::kMeta) {
       disallow_script_for_synthetic_response_ = false;
+      base::UmaHistogramCounts100(
+          kSyntheticResponseBlockedResourceCountHistogramName,
+          blocked_count_for_synthetic_response_);
     }
   }
 }
@@ -606,6 +617,10 @@ bool ContentSecurityPolicy::AllowInline(
         break;
     }
     if (!message.empty()) {
+      blocked_count_for_synthetic_response_++;
+      base::UmaHistogramEnumeration(
+          kSyntheticResponseBlockedInlineResourceTypeHistogramName,
+          inline_type);
       LogToConsole(StrCat(
           {"Refused to ", message, kWarningMessageForSyntheticResponse}));
       return false;
@@ -661,9 +676,12 @@ bool ContentSecurityPolicy::AllowEval(
     ContentSecurityPolicy::ExceptionStatus exception_status,
     const String& script_content) {
   bool is_allowed = true;
+  Vector<network::mojom::blink::CSPHashSourcePtr> csp_hash_values;
+  FillInCSPHashValues(script_content, hash_algorithms_used_, csp_hash_values);
   for (const auto& policy : policies_) {
     is_allowed &= CSPDirectiveListAllowEval(
-        *policy, this, reporting_disposition, exception_status, script_content);
+        *policy, this, reporting_disposition, exception_status, script_content,
+        csp_hash_values);
   }
   return is_allowed;
 }
@@ -913,13 +931,20 @@ bool ContentSecurityPolicy::AllowFromSource(
   else if (type == CSPDirectiveName::StyleSrcElem)
     area = SchemeRegistry::kPolicyAreaStyle;
 
-  if (disallow_script_for_synthetic_response_ &&
-      (type == CSPDirectiveName::ScriptSrcElem ||
-       type == CSPDirectiveName::WorkerSrc)) {
-    LogToConsole(
-
-        StrCat({"The script from ", url.GetString(), " was blocked.",
-                kWarningMessageForSyntheticResponse}));
+  if (disallow_script_for_synthetic_response_) {
+    SyntheticResponseBlockedSrcType blocked_src_type =
+        type == CSPDirectiveName::ScriptSrcElem
+            ? SyntheticResponseBlockedSrcType::kScriptSrcElm
+        : type == CSPDirectiveName::WorkerSrc
+            ? SyntheticResponseBlockedSrcType::kWorkerSrc
+            : SyntheticResponseBlockedSrcType::kUnspecified;
+    if (blocked_src_type != SyntheticResponseBlockedSrcType::kUnspecified) {
+      blocked_count_for_synthetic_response_++;
+      base::UmaHistogramEnumeration(
+          kSyntheticResponseBlockedSrcTypeHistogramName, blocked_src_type);
+      LogToConsole(StrCat({"The script from ", url.GetString(), " was blocked.",
+                           kWarningMessageForSyntheticResponse}));
+    }
     return false;
   }
 

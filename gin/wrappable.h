@@ -10,8 +10,12 @@
 #include "gin/converter.h"
 #include "gin/gin_export.h"
 #include "gin/public/wrapper_info.h"
+#include "v8/include/cppgc/garbage-collected.h"
+#include "v8/include/v8-sandbox.h"
 
 namespace gin {
+
+class NamedPropertyInterceptor;
 
 // Wrappable is a base class for C++ objects that have corresponding v8 wrapper
 // objects. To retain a Wrappable object on the stack, use a gin::Handle.
@@ -22,6 +26,8 @@ namespace gin {
 //  public:
 //   static WrapperInfo kWrapperInfo;
 //
+//   WrapperInfo* wrapper_info() const override { return &kWrapperInfo; }
+//
 //   // Optional, only required if non-empty template should be used.
 //   virtual gin::ObjectTemplateBuilder GetObjectTemplateBuilder(
 //       v8::Isolate* isolate);
@@ -29,7 +35,7 @@ namespace gin {
 // };
 //
 // // my_class.cc
-// WrapperInfo MyClass::kWrapperInfo = {kEmbedderNativeGin};
+// WrapperInfo MyClass::kWrapperInfo = {{kEmbedderNativeGin}, kMyClass};
 //
 // gin::ObjectTemplateBuilder MyClass::GetObjectTemplateBuilder(
 //     v8::Isolate* isolate) {
@@ -52,23 +58,108 @@ namespace gin {
 
 namespace internal {
 
+static_assert(sizeof(v8::CppHeapPointerTag) == sizeof(WrappablePointerTag),
+              "WrappablePointerTag defines a subrange of v8::CppHeapPointerTag "
+              "which is used for subclasses of gin::Wrappable. They should "
+              "therefore have the same underlying type.");
+
 GIN_EXPORT void* FromV8Impl(v8::Isolate* isolate,
                             v8::Local<v8::Value> val,
-                            WrapperInfo* info);
+                            DeprecatedWrapperInfo* info);
 
 }  // namespace internal
 
 class ObjectTemplateBuilder;
 
 // Non-template base class to share code between templates instances.
-class GIN_EXPORT WrappableBase {
+class GIN_EXPORT WrappableBase : public v8::Object::Wrappable {
  public:
   WrappableBase(const WrappableBase&) = delete;
   WrappableBase& operator=(const WrappableBase&) = delete;
 
+  void Trace(cppgc::Visitor*) const override;
+
+  // We use a virtual getter for the WrapperInfo instead of just accessing the
+  // static object because we need the virtual dispatch for a type check. If we
+  // unwrap an object of the wrong type, then we detect the issue by comparing
+  // the static object with the WrapperInfo from the virtual dispatch.
+  virtual WrapperInfo* wrapper_info() const = 0;
+
+  v8::MaybeLocal<v8::Object> GetWrapper(v8::Isolate* isolate);
+
  protected:
-  WrappableBase();
-  virtual ~WrappableBase();
+  explicit WrappableBase() = default;
+
+  // Overrides of this method should be declared final and not overridden again.
+  virtual ObjectTemplateBuilder GetObjectTemplateBuilder(v8::Isolate* isolate);
+
+ private:
+  v8::TracedReference<v8::Object> wrapper_;
+};
+
+template <typename T>
+class Wrappable : public WrappableBase {
+ public:
+  Wrappable(const Wrappable&) = delete;
+  Wrappable& operator=(const Wrappable&) = delete;
+
+ protected:
+  Wrappable() = default;
+};
+
+// This converter handles any subclass of Wrappable.
+template <typename T>
+  requires(std::is_convertible_v<T*, WrappableBase*>)
+struct Converter<T*> {
+  static v8::MaybeLocal<v8::Value> ToV8(v8::Isolate* isolate, T* val) {
+    if (val == nullptr) {
+      return v8::Null(isolate);
+    }
+    v8::Local<v8::Object> wrapper;
+    if (!val->GetWrapper(isolate).ToLocal(&wrapper)) {
+      return v8::MaybeLocal<v8::Value>();
+    }
+    return v8::MaybeLocal<v8::Value>(wrapper);
+  }
+
+  static bool FromV8(v8::Isolate* isolate, v8::Local<v8::Value> val, T** out) {
+    if (!val->IsObject()) {
+      *out = nullptr;
+      return false;
+    }
+    v8::Local<v8::Object> obj = v8::Local<v8::Object>::Cast(val);
+    if (!obj->IsApiWrapper()) {
+      *out = nullptr;
+      return false;
+    }
+
+    auto tag = static_cast<v8::CppHeapPointerTag>(T::kWrapperInfo.pointer_tag);
+    WrappableBase* wrappable =
+        v8::Object::Unwrap<WrappableBase>(isolate, obj, {tag, tag});
+    if (!wrappable) {
+      *out = nullptr;
+      return false;
+    }
+    if (wrappable->wrapper_info() != &T::kWrapperInfo) {
+      *out = nullptr;
+      return false;
+    }
+    *out = static_cast<T*>(wrappable);
+    return *out != nullptr;
+  }
+};
+
+// Non-template base class to share code between templates instances.
+class GIN_EXPORT DeprecatedWrappableBase {
+ public:
+  DeprecatedWrappableBase(const DeprecatedWrappableBase&) = delete;
+  DeprecatedWrappableBase& operator=(const DeprecatedWrappableBase&) = delete;
+
+  virtual NamedPropertyInterceptor* GetNamedPropertyInterceptor();
+
+ protected:
+  DeprecatedWrappableBase();
+  virtual ~DeprecatedWrappableBase();
 
   // Overrides of this method should be declared final and not overridden again.
   virtual ObjectTemplateBuilder GetObjectTemplateBuilder(v8::Isolate* isolate);
@@ -77,25 +168,25 @@ class GIN_EXPORT WrappableBase {
   // default implementation returns nullptr, which results in a generic error.
   virtual const char* GetTypeName();
 
-  v8::MaybeLocal<v8::Object> GetWrapperImpl(v8::Isolate* isolate,
-                                            WrapperInfo* wrapper_info);
+  v8::MaybeLocal<v8::Object> GetWrapperImpl(
+      v8::Isolate* isolate,
+      DeprecatedWrapperInfo* wrapper_info);
 
  private:
   static void FirstWeakCallback(
-      const v8::WeakCallbackInfo<WrappableBase>& data);
+      const v8::WeakCallbackInfo<DeprecatedWrappableBase>& data);
   static void SecondWeakCallback(
-      const v8::WeakCallbackInfo<WrappableBase>& data);
+      const v8::WeakCallbackInfo<DeprecatedWrappableBase>& data);
 
   bool dead_ = false;
   v8::Global<v8::Object> wrapper_;  // Weak
 };
 
-
-template<typename T>
-class Wrappable : public WrappableBase {
+template <typename T>
+class DeprecatedWrappable : public DeprecatedWrappableBase {
  public:
-  Wrappable(const Wrappable&) = delete;
-  Wrappable& operator=(const Wrappable&) = delete;
+  DeprecatedWrappable(const DeprecatedWrappable&) = delete;
+  DeprecatedWrappable& operator=(const DeprecatedWrappable&) = delete;
 
   // Retrieve (or create) the v8 wrapper object corresponding to this object.
   v8::MaybeLocal<v8::Object> GetWrapper(v8::Isolate* isolate) {
@@ -103,13 +194,13 @@ class Wrappable : public WrappableBase {
   }
 
  protected:
-  Wrappable() = default;
-  ~Wrappable() override = default;
+  DeprecatedWrappable() = default;
+  ~DeprecatedWrappable() override = default;
 };
 
-// This converter handles any subclass of Wrappable.
+// This converter handles any subclass of DeprecatedWrappable.
 template <typename T>
-  requires(std::is_convertible_v<T*, WrappableBase*>)
+  requires(std::is_convertible_v<T*, DeprecatedWrappableBase*>)
 struct Converter<T*> {
   static v8::MaybeLocal<v8::Value> ToV8(v8::Isolate* isolate, T* val) {
     if (val == nullptr)
@@ -121,7 +212,7 @@ struct Converter<T*> {
   }
 
   static bool FromV8(v8::Isolate* isolate, v8::Local<v8::Value> val, T** out) {
-    *out = static_cast<T*>(static_cast<WrappableBase*>(
+    *out = static_cast<T*>(static_cast<DeprecatedWrappableBase*>(
         internal::FromV8Impl(isolate, val, &T::kWrapperInfo)));
     return *out != NULL;
   }

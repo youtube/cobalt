@@ -65,7 +65,6 @@
 #include "mojo/public/cpp/bindings/unique_receiver_set.h"
 #include "mojo/public/cpp/system/invitation.h"
 #include "net/base/network_isolation_key.h"
-#include "ppapi/buildflags/buildflags.h"
 #include "services/network/public/mojom/p2p.mojom-forward.h"
 #include "services/network/public/mojom/url_loader_factory.mojom-forward.h"
 #include "services/resource_coordinator/public/mojom/memory_instrumentation/memory_instrumentation.mojom.h"
@@ -151,7 +150,6 @@ class InProcessChildThreadParams;
 class IsolationContext;
 class MediaStreamTrackMetricsHost;
 class P2PSocketDispatcherHost;
-class PepperRendererConnection;
 class PermissionServiceContext;
 class PluginRegistryImpl;
 class ProcessLock;
@@ -286,9 +284,6 @@ class CONTENT_EXPORT RenderProcessHostImpl
   void SetSuddenTerminationAllowed(bool enabled) override;
   bool SuddenTerminationAllowed() override;
   IPC::ChannelProxy* GetChannel() override;
-#if BUILDFLAG(CONTENT_ENABLE_LEGACY_IPC)
-  void AddFilter(BrowserMessageFilter* filter) override;
-#endif
   bool FastShutdownStarted() override;
   base::TimeDelta GetChildProcessIdleTime() override;
   viz::GpuClient* GetGpuClient();
@@ -858,12 +853,6 @@ class CONTENT_EXPORT RenderProcessHostImpl
   void SetIpcSendWatcherForTesting(IpcSendWatcher watcher) {
     ipc_send_watcher_for_testing_ = std::move(watcher);
   }
-
-#if BUILDFLAG(ENABLE_PPAPI)
-  PepperRendererConnection* pepper_renderer_connection() {
-    return pepper_renderer_connection_.get();
-  }
-#endif
 
 #if BUILDFLAG(IS_ANDROID)
   // Notifies the renderer process of memory pressure level.
@@ -1551,10 +1540,6 @@ class CONTENT_EXPORT RenderProcessHostImpl
 #if BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_ANDROID)
   // For the render process to connect to the system tracing service.
   std::unique_ptr<tracing::SystemTracingService> system_tracing_service_;
-#endif
-
-#if BUILDFLAG(ENABLE_PPAPI)
-  scoped_refptr<PepperRendererConnection> pepper_renderer_connection_;
 #endif
 
   // The memory size that the renderer has allocated. On Android

@@ -27,6 +27,9 @@ import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 import static org.chromium.chrome.browser.flags.ActivityType.CUSTOM_TAB;
+import static org.chromium.chrome.browser.toolbar.adaptive.AdaptiveToolbarButtonVariant.PRICE_INSIGHTS;
+import static org.chromium.chrome.browser.toolbar.adaptive.AdaptiveToolbarButtonVariant.TRANSLATE;
+import static org.chromium.chrome.browser.toolbar.adaptive.AdaptiveToolbarButtonVariant.UNKNOWN;
 
 import android.app.Activity;
 import android.content.res.Resources;
@@ -74,6 +77,7 @@ import org.chromium.base.task.test.ShadowPostTask;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.Features.EnableFeatures;
+import org.chromium.base.test.util.HistogramWatcher;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.browser_controls.BrowserStateBrowserControlsVisibilityDelegate;
 import org.chromium.chrome.browser.browserservices.intents.BrowserServicesIntentDataProvider;
@@ -263,7 +267,7 @@ public class CustomTabToolbarUnitTest {
 
         // Attempt to update title and URL, should noop since location bar is still in empty state.
         mLocationBar.onTitleChanged();
-        mLocationBar.onUrlChanged();
+        mLocationBar.onUrlChanged(false);
         verify(mLocationBarModel, never()).notifySecurityStateChanged();
 
         mLocationBar.showRegularToolbar();
@@ -331,7 +335,7 @@ public class CustomTabToolbarUnitTest {
         when(mTab.getUrl()).thenReturn(JUnitTestGURLs.RED_1);
         UrlBarData urlBarData = UrlBarData.forUrl(JUnitTestGURLs.RED_1);
         when(mLocationBarModel.getUrlBarData()).thenReturn(urlBarData);
-        mLocationBar.onUrlChanged();
+        mLocationBar.onUrlChanged(false);
         result = mToolbar.isReadyForTextureCapture();
         assertTrue(result.isReady);
         assertEquals(ToolbarSnapshotDifference.URL_TEXT, result.snapshotDifference);
@@ -371,7 +375,7 @@ public class CustomTabToolbarUnitTest {
     public void testAboutBlankUrlIsShown() {
         setUpForAboutBlank();
         ShadowLooper.idleMainLooper();
-        mLocationBar.onUrlChanged();
+        mLocationBar.onUrlChanged(false);
         assertEquals("The url bar should be visible.", View.VISIBLE, mUrlBar.getVisibility());
         assertEquals(
                 "The url bar should show about:blank",
@@ -384,7 +388,7 @@ public class CustomTabToolbarUnitTest {
         setUpForAboutBlank();
         mLocationBar.setShowTitle(true);
         ShadowLooper.idleMainLooper();
-        mLocationBar.onUrlChanged();
+        mLocationBar.onUrlChanged(false);
         assertEquals("The title should be gone.", View.GONE, mTitleBar.getVisibility());
     }
 
@@ -393,7 +397,7 @@ public class CustomTabToolbarUnitTest {
         setUpForAboutBlank();
         mLocationBar.setUrlBarHidden(true);
         ShadowLooper.idleMainLooper();
-        mLocationBar.onUrlChanged();
+        mLocationBar.onUrlChanged(false);
         assertEquals("The url bar should be visible.", View.VISIBLE, mUrlBar.getVisibility());
         assertEquals(
                 "The url bar should show about:blank",
@@ -705,7 +709,13 @@ public class CustomTabToolbarUnitTest {
     @Test
     @EnableFeatures(ChromeFeatureList.CCT_ADAPTIVE_BUTTON)
     public void testOptionalButton_notEnabledForWidthConstraint() {
-        mToolbar.setToolbarWidthForTesting(48 + 68);
+        int urlBarWidth =
+                mActivity.getResources().getDimensionPixelSize(R.dimen.location_bar_min_url_width);
+        int buttonWidth =
+                mActivity.getResources().getDimensionPixelSize(R.dimen.toolbar_button_width);
+        // Set the toolbar width small enough (just a single button and the url bar will fit) to
+        // have MTB hidden.
+        mToolbar.setToolbarWidthForTesting(urlBarWidth + buttonWidth);
         mToolbar.updateOptionalButton(getDataForPriceInsightsIconButton());
 
         // For MTB hidden due to width constraint, |OptionButtonCoordinator| is instantiated
@@ -714,6 +724,55 @@ public class CustomTabToolbarUnitTest {
         // start showing.
         assertNotNull(mToolbar.getOptionalButtonCoordinatorForTesting());
         assertEquals(View.VISIBLE, mToolbar.findViewById(R.id.menu_dot).getVisibility());
+        assertEquals(
+                "Fallback UI should be set",
+                PRICE_INSIGHTS,
+                mToolbar.getVariantForFallbackMenuForTesting());
+
+        // Tapping non-fallback menu item like 'Translate...' has no effect.
+        var watcher =
+                HistogramWatcher.newBuilder()
+                        .expectNoRecords("CustomTab.AdaptiveToolbarButton.FallbackUi")
+                        .build();
+        mToolbar.maybeRecordHistogramForAdaptiveToolbarButtonFallbackUi(TRANSLATE);
+        watcher.assertExpected();
+
+        // Tapping the matching menu item leads to logging the histogram.
+        watcher =
+                HistogramWatcher.newSingleRecordWatcher(
+                        "CustomTab.AdaptiveToolbarButton.FallbackUi", PRICE_INSIGHTS);
+        mToolbar.maybeRecordHistogramForAdaptiveToolbarButtonFallbackUi(PRICE_INSIGHTS);
+        watcher.assertExpected();
+        assertEquals(
+                "Fallback UI should be reset",
+                UNKNOWN,
+                mToolbar.getVariantForFallbackMenuForTesting());
+    }
+
+    @Test
+    @EnableFeatures(ChromeFeatureList.CCT_ADAPTIVE_BUTTON)
+    public void testOptionalButton_resetsOptionalButtonState() {
+        int urlBarWidth =
+                mActivity.getResources().getDimensionPixelSize(R.dimen.location_bar_min_url_width);
+        int buttonWidth =
+                mActivity.getResources().getDimensionPixelSize(R.dimen.toolbar_button_width);
+        // Set the toolbar width small enough (just a single button and the url bar will fit) to
+        // have MTB hidden.
+        mToolbar.setToolbarWidthForTesting(urlBarWidth + buttonWidth);
+        mToolbar.updateOptionalButton(getDataForPriceInsightsIconButton());
+
+        assertNotNull(mToolbar.getOptionalButtonCoordinatorForTesting());
+        assertEquals(View.VISIBLE, mToolbar.findViewById(R.id.menu_dot).getVisibility());
+        assertEquals(
+                "Fallback UI should be set",
+                PRICE_INSIGHTS,
+                mToolbar.getVariantForFallbackMenuForTesting());
+        mToolbar.resetOptionalButtonState();
+        assertEquals(
+                "Fallback UI should be reset",
+                UNKNOWN,
+                mToolbar.getVariantForFallbackMenuForTesting());
+        assertEquals(View.GONE, mToolbar.findViewById(R.id.menu_dot).getVisibility());
     }
 
     private void assertUrlAndTitleVisible(boolean titleVisible, boolean urlVisible) {

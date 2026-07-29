@@ -34,8 +34,8 @@ NewTabFooterWebView::~NewTabFooterWebView() {
 }
 
 void NewTabFooterWebView::ShowUI(base::TimeTicks load_start, GURL url) {
+  attached_tab_url_ = url;
   ShowUI();
-  contents_wrapper_->GetWebUIController()->AttachedTabStateUpdated(url);
   base::UmaHistogramMediumTimes("NewTabPage.Footer.ShownTime",
                                 base::TimeTicks::Now() - load_start);
 }
@@ -52,6 +52,12 @@ void NewTabFooterWebView::ShowUI() {
                                      browser_);
   }
 
+  if (!contents_wrapper_->GetWebUIController()) {
+    return;
+  }
+
+  contents_wrapper_->GetWebUIController()->AttachedTabStateUpdated(
+      attached_tab_url_);
   SetVisible(true);
   contents_wrapper_->web_contents()->WasShown();
 }
@@ -70,7 +76,9 @@ void NewTabFooterWebView::ShowCustomContextMenu(
   context_menu_model_ = std::move(menu_model);
   context_menu_runner_ = std::make_unique<views::MenuRunner>(
       context_menu_model_.get(),
-      views::MenuRunner::HAS_MNEMONICS | views::MenuRunner::CONTEXT_MENU);
+      views::MenuRunner::HAS_MNEMONICS | views::MenuRunner::CONTEXT_MENU,
+      base::BindRepeating(&NewTabFooterWebView::HideCustomContextMenu,
+                          weak_factory_.GetWeakPtr()));
   context_menu_runner_->RunMenuAt(
       GetWidget(), nullptr, gfx::Rect(point, gfx::Size()),
       views::MenuAnchorPosition::kTopLeft, ui::mojom::MenuSourceType::kMouse,
@@ -78,9 +86,11 @@ void NewTabFooterWebView::ShowCustomContextMenu(
 }
 
 void NewTabFooterWebView::HideCustomContextMenu() {
-  if (context_menu_runner_) {
+  if (context_menu_runner_ && context_menu_runner_->IsRunning()) {
     context_menu_runner_->Cancel();
   }
+  context_menu_runner_.reset();
+  context_menu_model_.reset();
 }
 
 bool NewTabFooterWebView::HandleKeyboardEvent(

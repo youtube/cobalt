@@ -40,6 +40,7 @@
 <translation id="5596627076506792578">その他のオプション</translation>
 <translation id="565342223183747919">タップして再生モードを切り替える</translation>
 <translation id="5694491020339060116">再生速度メニュー</translation>
+<translation id="5961164658295696940">タップするとプレーヤーが開き、その他のオプションが表示されます</translation>
 <translation id="5965409657393819302">技術的な問題</translation>
 <translation id="6218961554829577610">声が気に入らなかった</translation>
 <translation id="6315170314923504164">音声</translation>
@@ -52,7 +53,6 @@
 <translation id="6846298663435243399">読み込んでいます…</translation>
 <translation id="6889157801232138307">「このページを読み上げ」プレーヤー</translation>
 <translation id="7051308646573997571">コーラル</translation>
-<translation id="7112750136794557642">タップするとプレーヤーが開き、その他のオプションが表示されます。</translation>
 <translation id="7138678301420049075">その他</translation>
 <translation id="7221920857098237570">優しい</translation>
 <translation id="7237590978482584900">爽やか</translation>
@@ -67,5 +67,6 @@
 <translation id="8481839122437406573">穏やか</translation>
 <translation id="8756370108715456837">事実と異なる</translation>
 <translation id="8953618380150219653">「このページを読み上げ」プレーヤーが画面全体に表示されています。</translation>
+<translation id="9087782179025630211">スライダー。<ph name="TOTAL" /> のうち <ph name="ELAPSED" /> 経過。</translation>
 <translation id="978117257931832348">低ピッチ</translation>
 </translationbundle>

@@ -347,7 +347,7 @@ class AXTreeTestWithMultipleUTFEncodings
 
 }  // namespace
 
-using ::testing::ElementsAre;
+using ::testing::UnorderedElementsAre;
 
 // A macro for testing that a std::optional has both a value and that its value
 // is set to a particular expectation.
@@ -541,10 +541,10 @@ TEST(AXTreeTest, DuplicateChildIdFails) {
   update.nodes[1].id = 2;
 #if AX_FAIL_FAST_BUILD()
   EXPECT_DEATH_IF_SUPPORTED(tree.Unserialize(update),
-                            "Node 1 has duplicate child id 2");
+                            "Node 1 has 1 duplicate child ids");
 #else
   EXPECT_FALSE(tree.Unserialize(update));
-  ASSERT_EQ("Node 1 has duplicate child id 2", tree.error());
+  ASSERT_EQ("Node 1 has 1 duplicate child ids", tree.error());
   histogram_tester.ExpectUniqueSample(
       "Accessibility.Reliability.Tree.UnserializeError",
       AXTreeUnserializeError::kDuplicateChild, 1);
@@ -1044,16 +1044,13 @@ TEST(AXTreeTest, TreeObserverIsCalled) {
   TestAXTreeObserver test_observer(&tree);
   ASSERT_TRUE(tree.Unserialize(update));
 
-  ASSERT_EQ(2U, test_observer.deleted_ids().size());
-  EXPECT_EQ(1, test_observer.deleted_ids()[0]);
-  EXPECT_EQ(2, test_observer.deleted_ids()[1]);
+  EXPECT_THAT(test_observer.deleted_ids(), UnorderedElementsAre(1, 2));
 
   ASSERT_EQ(1U, test_observer.subtree_deleted_ids().size());
   EXPECT_EQ(1, test_observer.subtree_deleted_ids()[0]);
 
   ASSERT_EQ(2U, test_observer.created_ids().size());
-  EXPECT_EQ(3, test_observer.created_ids()[0]);
-  EXPECT_EQ(4, test_observer.created_ids()[1]);
+  EXPECT_THAT(test_observer.created_ids(), UnorderedElementsAre(3, 4));
 
   ASSERT_EQ(1U, test_observer.subtree_creation_finished_ids().size());
   EXPECT_EQ(3, test_observer.subtree_creation_finished_ids()[0]);
@@ -1192,7 +1189,7 @@ TEST(AXTreeTest, NodeToClearUpdatesParentUnignoredCount) {
   update.node_id_to_clear = 2;
   update.root_id = 1;
   update.nodes[0] = initial_state.nodes[1];
-  update.nodes[0].state = 0;
+  update.nodes[0].state = AXStates(0U);
   update.nodes[0].child_ids.resize(0);
   EXPECT_TRUE(tree.Unserialize(update)) << tree.error();
 
@@ -1273,10 +1270,10 @@ TEST(AXTreeTest, BogusAXTree2) {
   AXTree tree;
 #if AX_FAIL_FAST_BUILD()
   EXPECT_DEATH_IF_SUPPORTED(tree.Unserialize(initial_state),
-                            "Node 1 has duplicate child id 1");
+                            "Node 1 has 1 duplicate child ids");
 #else
   EXPECT_FALSE(tree.Unserialize(initial_state));
-  EXPECT_EQ("Node 1 has duplicate child id 1", tree.error());
+  EXPECT_EQ("Node 1 has 1 duplicate child ids", tree.error());
 #endif
 }
 
@@ -1297,10 +1294,10 @@ TEST(AXTreeTest, BogusAXTree3) {
   AXTree tree;
 #if AX_FAIL_FAST_BUILD()
   EXPECT_DEATH_IF_SUPPORTED(tree.Unserialize(initial_state),
-                            "Node 1 has duplicate child id 2");
+                            "Node 1 has 1 duplicate child ids");
 #else
   EXPECT_FALSE(tree.Unserialize(initial_state));
-  EXPECT_EQ("Node 1 has duplicate child id 2", tree.error());
+  EXPECT_EQ("Node 1 has 1 duplicate child ids", tree.error());
 #endif
 }
 
@@ -1327,12 +1324,11 @@ TEST(AXTreeTest, RoleAndStateChangeCallbacks) {
   update.nodes[0].AddState(ax::mojom::State::kVisited);
   EXPECT_TRUE(tree.Unserialize(update));
 
-  const std::vector<std::string>& change_log =
-      test_observer.attribute_change_log();
-  ASSERT_EQ(3U, change_log.size());
-  EXPECT_EQ("Role changed from button to checkBox", change_log[0]);
-  EXPECT_EQ("visited changed to true", change_log[1]);
-  EXPECT_EQ("checkedState changed from 2 to 1", change_log[2]);
+  EXPECT_THAT(
+      test_observer.attribute_change_log(),
+      testing::UnorderedElementsAre("Role changed from button to checkBox",
+                                    "visited changed to true",
+                                    "checkedState changed from 2 to 1"));
 }
 
 TEST(AXTreeTest, AttributeChangeCallbacks) {
@@ -1382,18 +1378,15 @@ TEST(AXTreeTest, AttributeChangeCallbacks) {
   update0.nodes[0].AddIntAttribute(ax::mojom::IntAttribute::kScrollXMin, 2);
   EXPECT_TRUE(tree.Unserialize(update0));
 
-  const std::vector<std::string>& change_log =
-      test_observer.attribute_change_log();
-  ASSERT_EQ(9U, change_log.size());
-  EXPECT_EQ("name changed from N1 to N2", change_log[0]);
-  EXPECT_EQ("description changed from D1 to D2", change_log[1]);
-  EXPECT_EQ("liveAtomic changed to false", change_log[2]);
-  EXPECT_EQ("busy changed to true", change_log[3]);
-  EXPECT_EQ("minValueForRange changed from 1 to 2", change_log[4]);
-  EXPECT_EQ("maxValueForRange changed from 10 to 9", change_log[5]);
-  EXPECT_EQ("stepValueForRange changed from 3 to 0.5", change_log[6]);
-  EXPECT_EQ("scrollX changed from 5 to 6", change_log[7]);
-  EXPECT_EQ("scrollXMin changed from 1 to 2", change_log[8]);
+  EXPECT_THAT(
+      test_observer.attribute_change_log(),
+      testing::UnorderedElementsAre(
+          "name changed from N1 to N2", "description changed from D1 to D2",
+          "liveAtomic changed to false", "busy changed to true",
+          "minValueForRange changed from 1 to 2",
+          "maxValueForRange changed from 10 to 9",
+          "stepValueForRange changed from 3 to 0.5",
+          "scrollX changed from 5 to 6", "scrollXMin changed from 1 to 2"));
 
   TestAXTreeObserver test_observer2(&tree);
 
@@ -1414,20 +1407,16 @@ TEST(AXTreeTest, AttributeChangeCallbacks) {
   update1.nodes[0].AddIntAttribute(ax::mojom::IntAttribute::kScrollXMax, 10);
   EXPECT_TRUE(tree.Unserialize(update1));
 
-  const std::vector<std::string>& change_log2 =
-      test_observer2.attribute_change_log();
-  ASSERT_EQ(11U, change_log2.size());
-  EXPECT_EQ("description changed from D2 to D3", change_log2[0]);
-  EXPECT_EQ("name changed from N2 to ", change_log2[1]);
-  EXPECT_EQ("value changed from  to V3", change_log2[2]);
-  EXPECT_EQ("busy changed to false", change_log2[3]);
-  EXPECT_EQ("modal changed to true", change_log2[4]);
-  EXPECT_EQ("valueForRange changed from 0 to 5", change_log2[5]);
-  EXPECT_EQ("minValueForRange changed from 2 to 0", change_log2[6]);
-  EXPECT_EQ("stepValueForRange changed from 0.5 to 0", change_log2[7]);
-  EXPECT_EQ("scrollX changed from 6 to 7", change_log2[8]);
-  EXPECT_EQ("scrollXMin changed from 2 to 0", change_log2[9]);
-  EXPECT_EQ("scrollXMax changed from 0 to 10", change_log2[10]);
+  EXPECT_THAT(
+      test_observer2.attribute_change_log(),
+      testing::UnorderedElementsAre(
+          "description changed from D2 to D3", "name changed from N2 to ",
+          "value changed from  to V3", "busy changed to false",
+          "modal changed to true", "valueForRange changed from 0 to 5",
+          "minValueForRange changed from 2 to 0",
+          "stepValueForRange changed from 0.5 to 0",
+          "scrollX changed from 6 to 7", "scrollXMin changed from 2 to 0",
+          "scrollXMax changed from 0 to 10"));
 }
 
 TEST(AXTreeTest, BoolAttributeChangeCallbacks) {
@@ -1543,11 +1532,10 @@ TEST(AXTreeTest, IntListChangeCallbacks) {
       ax::mojom::IntListAttribute::kRadioGroupIds, three);
   EXPECT_TRUE(tree.Unserialize(update0));
 
-  const std::vector<std::string>& change_log =
-      test_observer.attribute_change_log();
-  ASSERT_EQ(2U, change_log.size());
-  EXPECT_EQ("controlsIds changed from 1 to 2,2", change_log[0]);
-  EXPECT_EQ("radioGroupIds changed from 2,2 to 3", change_log[1]);
+  EXPECT_THAT(
+      test_observer.attribute_change_log(),
+      testing::UnorderedElementsAre("controlsIds changed from 1 to 2,2",
+                                    "radioGroupIds changed from 2,2 to 3"));
 
   TestAXTreeObserver test_observer2(&tree);
 
@@ -1562,12 +1550,11 @@ TEST(AXTreeTest, IntListChangeCallbacks) {
                                        three);
   EXPECT_TRUE(tree.Unserialize(update1));
 
-  const std::vector<std::string>& change_log2 =
-      test_observer2.attribute_change_log();
-  ASSERT_EQ(3U, change_log2.size());
-  EXPECT_EQ("controlsIds changed from 2,2 to ", change_log2[0]);
-  EXPECT_EQ("flowtoIds changed from  to 3", change_log2[1]);
-  EXPECT_EQ("radioGroupIds changed from 3 to 2,2", change_log2[2]);
+  EXPECT_THAT(
+      test_observer2.attribute_change_log(),
+      testing::UnorderedElementsAre("controlsIds changed from 2,2 to ",
+                                    "flowtoIds changed from  to 3",
+                                    "radioGroupIds changed from 3 to 2,2"));
 }
 
 // Create a very simple tree and make sure that we can get the bounds of
@@ -3333,13 +3320,11 @@ TEST_P(AXTreeTestWithMultipleUTFEncodings, ComputedNodeData) {
     EXPECT_EQ(18, tree.root()->GetChildAtIndex(1)->GetTextContentLengthUTF16());
   }
 
-  const std::vector<std::string>& change_log =
-      test_observer.attribute_change_log();
-  EXPECT_THAT(change_log,
-              ElementsAre("IsIgnored changed on node ID 5 to true",
-                          "IsIgnored changed on node ID 8 to false",
-                          "IsIgnored changed on node ID 9 to false",
-                          "IsIgnored changed on node ID 10 to true"));
+  EXPECT_THAT(test_observer.attribute_change_log(),
+              UnorderedElementsAre("IsIgnored changed on node ID 5 to true",
+                                   "IsIgnored changed on node ID 8 to false",
+                                   "IsIgnored changed on node ID 9 to false",
+                                   "IsIgnored changed on node ID 10 to true"));
 }
 
 INSTANTIATE_TEST_SUITE_P(MultipleUTFEncodingTest,
@@ -4786,9 +4771,8 @@ TEST(AXTreeTest, OnNodeHasBeenDeleted) {
   ASSERT_TRUE(tree.Unserialize(update));
 
   EXPECT_EQ(3U, test_observer.deleted_ids().size());
-  EXPECT_EQ(3, test_observer.deleted_ids()[0]);
-  EXPECT_EQ(5, test_observer.deleted_ids()[1]);
-  EXPECT_EQ(6, test_observer.deleted_ids()[2]);
+  EXPECT_THAT(test_observer.deleted_ids(),
+              testing::UnorderedElementsAre(3, 5, 6));
 
   // Verify that the nodes we intend to delete in the update are actually
   // absent from the tree.

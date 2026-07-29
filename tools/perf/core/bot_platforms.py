@@ -588,6 +588,7 @@ _CROSSBENCH_WEBVIEW = frozenset([
         estimated_runtime=900,
         arguments=[
             '--wpr=crossbench_android_embedder_000.wprgo',
+            '--skip-wpr-script-injection',
             '--embedder=com.google.android.googlequicksearchbox',
             '--splashscreen=skip',
             '--cuj-config=../../third_party/crossbench/config/team/woa/embedder_cuj_config.hjson',
@@ -669,15 +670,19 @@ _MAC_M1_MINI_2020_BENCHMARK_CONFIGS = PerfSuite(
         'v8.runtime_stats.top_25',
     ]).Add([
         'jetstream2-minorms',
+        'jetstream2-no-field-trials',
         'speedometer2-minorms',
         'speedometer3-minorms',
+        'speedometer3-no-field-trials',
     ]).Repeat([
         'speedometer2',
         'rendering.desktop.notracing',
     ], 2).Repeat([
         'speedometer3',
+        'speedometer3-no-field-trials',
     ], 6).Repeat([
         'jetstream2',
+        'jetstream2-no-field-trials',
     ], 11)
 _MAC_M1_MINI_2020_PGO_BENCHMARK_CONFIGS = PerfSuite([
     _GetBenchmarkConfig('jetstream2', pageset_repeat=11),
@@ -1110,8 +1115,22 @@ FUCHSIA_PERF_NELSON = PerfPlatform('fuchsia-perf-nsn',
                                    1,
                                    'fuchsia',
                                    is_fyi=True)
+FUCHSIA_PERF_NELSON_PGO = PerfPlatform(
+    'fuchsia-perf-nsn-pgo',
+    '',
+    _FUCHSIA_PERF_SMARTDISPLAY_BENCHMARK_CONFIGS,
+    1,
+    'fuchsia',
+    is_fyi=True)
 FUCHSIA_PERF_SHERLOCK = PerfPlatform(
     'fuchsia-perf-shk',
+    '',
+    _FUCHSIA_PERF_SMARTDISPLAY_BENCHMARK_CONFIGS,
+    1,
+    'fuchsia',
+    is_fyi=True)
+FUCHSIA_PERF_SHERLOCK_PGO = PerfPlatform(
+    'fuchsia-perf-shk-pgo',
     '',
     _FUCHSIA_PERF_SMARTDISPLAY_BENCHMARK_CONFIGS,
     1,

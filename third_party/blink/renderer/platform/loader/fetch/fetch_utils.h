@@ -10,15 +10,11 @@
 #include "third_party/blink/public/mojom/fetch/fetch_api_request.mojom-blink.h"
 #include "third_party/blink/renderer/platform/platform_export.h"
 #include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/forward.h"
 
 namespace network {
 struct ResourceRequest;
 }  // namespace network
-
-namespace WTF {
-class AtomicString;
-class String;
-}  // namespace WTF
 
 namespace blink {
 class PLATFORM_EXPORT FetchUtils {
@@ -27,7 +23,7 @@ class PLATFORM_EXPORT FetchUtils {
  public:
   static bool IsForbiddenMethod(const WTF::String& method);
   static bool IsForbiddenResponseHeaderName(const WTF::String& name);
-  static WTF::AtomicString NormalizeMethod(const WTF::AtomicString& method);
+  static AtomicString NormalizeMethod(const AtomicString& method);
   static WTF::String NormalizeHeaderValue(const WTF::String& value);
 
   static net::NetworkTrafficAnnotationTag GetTrafficAnnotationTag(

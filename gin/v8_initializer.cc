@@ -391,6 +391,10 @@ void SetFeatureFlags() {
     SetV8FlagsFormatted("--preconfigured-old-space-size=%i",
                         features::kV8PreconfigureOldGenSize.Get());
   }
+  if (base::FeatureList::IsEnabled(features::kV8HighEndAndroid)) {
+    SetV8FlagsFormatted("--high-end-android-physical-memory-threshold=%i",
+                        features::kV8HighEndAndroidMemoryThreshold.Get());
+  }
   SetV8FlagsIfOverridden(features::kV8IncrementalMarkingStartUserVisible,
                          "--incremental-marking-start-user-visible",
                          "--no-incremental-marking-start-user-visible");
@@ -526,13 +530,7 @@ void SetFeatureFlags() {
   SetV8FlagsIfOverridden(features::kJavaScriptPromiseTry, "--js-promise-try",
                          "--no-js-promise-try");
 
-  // WebAssembly features.
-
-  SetV8FlagsIfOverridden(features::kWebAssemblyDeopt, "--wasm-deopt",
-                         "--no-wasm-deopt");
-  SetV8FlagsIfOverridden(features::kWebAssemblyInliningCallIndirect,
-                         "--wasm-inlining-call-indirect",
-                         "--no-wasm-inlining-call-indirect");
+  // WebAssembly features (currently none).
 }
 
 }  // namespace

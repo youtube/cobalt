@@ -6,6 +6,7 @@
 
 #import "build/branding_buildflags.h"
 #import "ios/chrome/browser/intelligence/page_action_menu/utils/ai_hub_constants.h"
+#import "ios/chrome/browser/intelligence/page_action_menu/utils/ai_hub_metrics.h"
 #import "ios/chrome/browser/reader_mode/model/features.h"
 #import "ios/chrome/browser/shared/public/commands/bwg_commands.h"
 #import "ios/chrome/browser/shared/public/commands/lens_overlay_commands.h"
@@ -44,6 +45,9 @@ const CGFloat kButtonsCornerRadius = 16;
 
 // The height of the menu's header.
 const CGFloat kMenuHeaderHeight = 58;
+
+// The padding between the image and text of the large button.
+const CGFloat kLargeButtonImagePadding = 8;
 
 }  // namespace
 
@@ -148,7 +152,7 @@ const CGFloat kMenuHeaderHeight = 58;
 
 - (void)presentationControllerDidDismiss:
     (UIPresentationController*)presentationController {
-  [self.pageActionMenuHandler dismissPageActionMenuWithCompletion:nil];
+  [self dismissPageActionMenu];
 }
 
 #pragma mark - Private
@@ -165,6 +169,7 @@ const CGFloat kMenuHeaderHeight = 58;
 
 // Dismisses the page action menu.
 - (void)dismissPageActionMenu {
+  RecordAIHubAction(IOSAIHubAction::kDismiss);
   [self.pageActionMenuHandler dismissPageActionMenuWithCompletion:nil];
 }
 
@@ -189,12 +194,11 @@ const CGFloat kMenuHeaderHeight = 58;
 
   // Add the logo.
 #if BUILDFLAG(IOS_USE_BRANDED_SYMBOLS)
-  // TODO(crbug.com/419246126): Use Chrome branded logo.
   UIImageView* logoIcon = [[UIImageView alloc]
-      initWithImage:[UIImage imageNamed:@"page_action_menu_header_chromium"]];
+      initWithImage:[UIImage imageNamed:kChromeAIHubHeaderImage]];
 #else
   UIImageView* logoIcon = [[UIImageView alloc]
-      initWithImage:[UIImage imageNamed:@"page_action_menu_header_chromium"]];
+      initWithImage:[UIImage imageNamed:kChromiumSigninPromoLogoImage]];
 #endif
   logoIcon.translatesAutoresizingMaskIntoConstraints = NO;
   [topBar addSubview:logoIcon];
@@ -250,12 +254,10 @@ const CGFloat kMenuHeaderHeight = 58;
                forControlEvents:UIControlEventTouchUpInside];
     [stackView addArrangedSubview:readerModeButton];
   } else {
-    // TODO(crbug.com/419067173): Update the icon.
     UIButton* BWGSmallButton =
-        [self createSmallButtonWithIcon:DefaultSymbolWithPointSize(
-                                            @"sparkle", kSmallButtonIconSize)
+        [self createSmallButtonWithIcon:[self askGeminiIcon]
                                   title:l10n_util::GetNSString(
-                                            IDS_IOS_AI_HUB_BWG_LABEL)
+                                            IDS_IOS_AI_HUB_GEMINI_LABEL)
                             destructive:NO];
     [BWGSmallButton addTarget:self
                        action:@selector(handleBWGTapped:)
@@ -278,6 +280,9 @@ const CGFloat kMenuHeaderHeight = 58;
   UIButtonConfiguration* buttonConfiguration =
       [UIButtonConfiguration filledButtonConfiguration];
   buttonConfiguration.background = backgroundConfig;
+  buttonConfiguration.image = [self askGeminiIcon];
+  buttonConfiguration.imagePlacement = NSDirectionalRectEdgeLeading;
+  buttonConfiguration.imagePadding = kLargeButtonImagePadding;
 
   // Set the font and text color as attributes.
   UIFont* font = PreferredFontForTextStyle(UIFontTextStyleHeadline);
@@ -285,7 +290,7 @@ const CGFloat kMenuHeaderHeight = 58;
     NSFontAttributeName : font,
   };
   NSMutableAttributedString* string = [[NSMutableAttributedString alloc]
-      initWithString:l10n_util::GetNSString(IDS_IOS_AI_HUB_BWG_LABEL)];
+      initWithString:l10n_util::GetNSString(IDS_IOS_AI_HUB_GEMINI_LABEL)];
   [string addAttributes:titleAttributes range:NSMakeRange(0, string.length)];
   buttonConfiguration.attributedTitle = string;
 
@@ -343,8 +348,20 @@ const CGFloat kMenuHeaderHeight = 58;
   return button;
 }
 
+// Returns the symbol for the Ask Gemini button.
+- (UIImage*)askGeminiIcon {
+#if BUILDFLAG(IOS_USE_BRANDED_SYMBOLS)
+  return CustomSymbolWithPointSize(kGeminiBrandedLogoImage,
+                                   kSmallButtonIconSize);
+#else
+  return DefaultSymbolWithPointSize(kGeminiNonBrandedLogoImage,
+                                    kSmallButtonIconSize);
+#endif
+}
+
 // Dismisses this view controller and starts the BWG overlay.
 - (void)handleBWGTapped:(UIButton*)button {
+  RecordAIHubAction(IOSAIHubAction::kGemini);
   PageActionMenuViewController* __weak weakSelf = self;
   [self.pageActionMenuHandler dismissPageActionMenuWithCompletion:^{
     [weakSelf.BWGHandler startBWGFlow];
@@ -352,6 +369,7 @@ const CGFloat kMenuHeaderHeight = 58;
 }
 
 - (void)handleLensEntryPointTapped:(UIButton*)button {
+  RecordAIHubAction(IOSAIHubAction::kLens);
   PageActionMenuViewController* __weak weakSelf = self;
   [self.pageActionMenuHandler dismissPageActionMenuWithCompletion:^{
     [weakSelf.lensOverlayHandler
@@ -362,6 +380,7 @@ const CGFloat kMenuHeaderHeight = 58;
 }
 
 - (void)handleReaderModeTapped:(UIButton*)button {
+  RecordAIHubAction(IOSAIHubAction::kReaderMode);
   PageActionMenuViewController* __weak weakSelf = self;
   [self.pageActionMenuHandler dismissPageActionMenuWithCompletion:^{
     weakSelf.readerModeActive ? [weakSelf.readerModeHandler hideReaderMode]

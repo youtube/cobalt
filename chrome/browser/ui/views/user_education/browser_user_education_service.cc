@@ -48,6 +48,7 @@
 #include "chrome/browser/ui/views/toolbar/pinned_action_toolbar_button.h"
 #include "chrome/browser/ui/views/user_education/autofill_help_bubble_factory.h"
 #include "chrome/browser/ui/views/user_education/browser_help_bubble.h"
+#include "chrome/browser/ui/views/user_education/impl/browser_feature_promo_controller.h"
 #include "chrome/browser/ui/views/user_education/impl/browser_feature_promo_controller_20.h"
 #include "chrome/browser/ui/views/user_education/impl/browser_feature_promo_controller_25.h"
 #include "chrome/browser/ui/views/user_education/impl/browser_feature_promo_preconditions.h"
@@ -56,6 +57,7 @@
 #include "chrome/browser/ui/webui/password_manager/password_manager_ui.h"
 #include "chrome/browser/ui/webui/settings/settings_ui.h"
 #include "chrome/browser/ui/webui/side_panel/customize_chrome/customize_chrome_ui.h"
+#include "chrome/browser/user_education/ntp_promo_identifiers.h"
 #include "chrome/browser/user_education/tutorial_identifiers.h"
 #include "chrome/browser/user_education/user_education_service.h"
 #include "chrome/browser/user_education/user_education_service_factory.h"
@@ -80,6 +82,7 @@
 #include "components/strings/grit/components_strings.h"
 #include "components/strings/grit/privacy_sandbox_strings.h"
 #include "components/supervised_user/core/common/supervised_user_constants.h"
+#include "components/user_education/common/feature_promo/feature_promo_controller.h"
 #include "components/user_education/common/feature_promo/feature_promo_handle.h"
 #include "components/user_education/common/feature_promo/feature_promo_precondition.h"
 #include "components/user_education/common/feature_promo/feature_promo_registry.h"
@@ -1807,6 +1810,11 @@ CreateUserEducationResources(BrowserView* browser_view) {
   MaybeRegisterChromeNewBadges(*user_education_service->new_badge_registry());
   user_education_service->new_badge_controller()->InitData();
 
+  // Registry is valid if the NTP promo feature is enabled.
+  if (user_education_service->ntp_promo_registry()) {
+    MaybeRegisterNtpPromos(*user_education_service->ntp_promo_registry());
+  }
+
   if (user_education::features::IsUserEducationV25()) {
     auto result = std::make_unique<BrowserFeaturePromoController25>(
         browser_view,
@@ -1830,6 +1838,26 @@ CreateUserEducationResources(BrowserView* browser_view) {
         &user_education_service->tutorial_service(),
         &user_education_service->product_messaging_controller());
   }
+}
+
+void MaybeRegisterNtpPromos(user_education::NtpPromoRegistry& registry) {
+  using user_education::NtpPromoContent;
+  using user_education::NtpPromoSpecification;
+
+  if (registry.AreAnyPromosRegistered()) {
+    return;
+  }
+
+  registry.AddPromo(NtpPromoSpecification(
+      kNtpSignInPromoId, NtpPromoContent("", IDS_NTP_SIGN_IN_PROMO, 0),
+      base::BindRepeating([](Profile* profile) {
+        return NtpPromoSpecification::Eligibility::kEligible;
+      }),
+      base::BindRepeating([](Browser* browser) {}),
+      /*show_after=*/{},
+      user_education::Metadata(
+          141, "cjgrant@google.com",
+          "Promotes sign-in capability on the New Tab Page")));
 }
 
 void QueueLegalAndPrivacyNotices(Profile* profile) {

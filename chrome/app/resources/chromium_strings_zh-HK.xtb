@@ -40,6 +40,7 @@
 <translation id="1547469039832541117">結束所選工作。</translation>
 <translation id="1553461853655228091">Chromium 需要取得權限，才能存取相機以建立您身處環境的 3D 地圖</translation>
 <translation id="1555494096857516577">{NUM_EXTENSIONS,plural, =1{Chromium 不再支援此擴充程式，因此建議你移除。}other{Chromium 不再支援這些擴充程式，因此建議你移除。}}</translation>
+<translation id="1562320819937089394">固定 Chromium</translation>
 <translation id="1574377791422810894">Chromium 的安全工具</translation>
 <translation id="1594928384848033697">Chromium 想刪除你的「密碼管理工具」資料。如果允許，請輸入 Windows 密碼。</translation>
 <translation id="1607715478322902680">{COUNT,plural, =0{管理員要求您重新啟動 Chromium，以套用更新}=1{管理員要求您重新啟動 Chromium，以套用更新。您的無痕式視窗不會重新開啟。}other{管理員要求您重新啟動 Chromium，以套用更新。您的 # 個無痕式視窗不會重新開啟。}}</translation>
@@ -248,6 +249,7 @@
 <translation id="4281844954008187215">服務條款</translation>
 <translation id="4285930937574705105">不明錯誤導致安裝失敗。如果目前 Chromium 正在執行，請關閉 Chromium，然後再試一次。</translation>
 <translation id="4304713468139749426">密碼管理工具</translation>
+<translation id="4334241893986177674">搵呢張螢幕截圖</translation>
 <translation id="4334294535648607276">下載完成。</translation>
 <translation id="439358628917130594">在使用這部裝置前，<ph name="MANAGER" /> 要求您仔細閱讀並接受下列《服務條款》。這些條款不會擴展、修改或限制《Chromium 作業系統條款》。</translation>
 <translation id="4407044323746248786">仍要結束 Chromium 嗎？</translation>
@@ -521,6 +523,7 @@ Chromium 無法復原您的設定。</translation>
 <translation id="8004582292198964060">瀏覽器</translation>
 <translation id="8010081455002666927">自動偵測</translation>
 <translation id="8013436988911883588">Chromium 獲得存取權後，網站便可向您要求存取權。</translation>
+<translation id="8031714377769448844">將 Chromium 固定至工作列，隨時都能快速存取</translation>
 <translation id="80471789339884597">多謝安裝。您必須先重新啟動所有瀏覽器，才能使用 <ph name="BUNDLE_NAME" />。</translation>
 <translation id="8054112667659782652">一律顯示「圖片搜尋」捷徑</translation>
 <translation id="8077498902115777962">停用 Chromium 在應用程式背景執行的功能</translation>
@@ -576,6 +579,7 @@ Chromium 無法復原您的設定。</translation>
 <translation id="8704119203788522458">這是您專屬的 Chromium</translation>
 <translation id="8719993436687031146">要登入 Chromium 嗎？</translation>
 <translation id="8747073452963259673">搜尋區域嘅左下角：距左側 <ph name="LEFT" />%，距底部 <ph name="BOTTOM" />%</translation>
+<translation id="8768722695577490596">密碼只可以在 Chromium 以外刪除</translation>
 <translation id="878572486461146056">安裝錯誤：網絡管理員已套用防止安裝的群組政策：<ph name="INSTALL_ERROR" /></translation>
 <translation id="8796602469536043152">Chromium 需要取得權限，才能讓這個網站存取您的相機和麥克風</translation>
 <translation id="8818550178040858407">要登入 Chromium 嗎？</translation>

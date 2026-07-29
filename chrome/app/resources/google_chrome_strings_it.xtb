@@ -35,6 +35,7 @@
 <translation id="141901961143729572">Condividi le tue opinioni</translation>
 <translation id="1425903838053942728">{COUNT,plural, =0{Chrome ha terminato l'aggiornamento. Puoi utilizzare l'ultima versione non appena eseguirai il riavvio. Dopodiché verranno riaperte le schede correnti.}=1{Chrome ha terminato l'aggiornamento. Puoi utilizzare l'ultima versione non appena eseguirai il riavvio. Dopodiché verranno riaperte le schede correnti. La finestra di navigazione in incognito non verrà riaperta.}other{Chrome ha terminato l'aggiornamento. Puoi utilizzare l'ultima versione non appena eseguirai il riavvio. Dopodiché verranno riaperte le schede correnti. # finestre di navigazione in incognito non verranno riaperte.}}</translation>
 <translation id="1434626383986940139">Applicazioni Chrome Canary</translation>
+<translation id="1439793550875056299">Fissa Chrome</translation>
 <translation id="146866447420868597">Accedere a Chrome?</translation>
 <translation id="1492280395845991349">Riavvia per completare l'aggiornamento di Chrome</translation>
 <translation id="1497802159252041924">Errore di installazione: <ph name="INSTALL_ERROR" /></translation>
@@ -120,6 +121,7 @@
 <translation id="2569974318947988067">Chrome proverà a eseguire l'upgrade delle navigazioni a HTTPS</translation>
 <translation id="2571392474191184472">La tua organizzazione gestisce Chrome</translation>
 <translation id="2574930892358684005"><ph name="EXISTING_USER" /> ha già eseguito l'accesso a questo profilo Chrome. Per tenere separata la tua navigazione, Chrome può creare per te il tuo profilo personale.</translation>
+<translation id="2579190314336775785">Le password possono essere eliminate solo al di fuori di Chrome</translation>
 <translation id="2580411288591421699">Impossibile installare la stessa versione di Google Chrome attualmente in esecuzione. Chiudi Google Chrome e riprova.</translation>
 <translation id="2586406160782125153">Verranno eliminati i tuoi dati di navigazione da questo dispositivo. Per recuperare i dati in un secondo momento, accedi a Chrome come <ph name="USER_EMAIL" />.</translation>
 <translation id="259935314519650377">Impossibile memorizzare nella cache il programma di installazione scaricato. Errore: <ph name="UNPACK_CACHING_ERROR_CODE" />.</translation>
@@ -182,7 +184,7 @@
 <translation id="3161522574479303604">Tutte le lingue</translation>
 <translation id="319199214552513804">Accedi a Chrome per trovare questa estensione e altro su tutti i tuoi computer</translation>
 <translation id="3196187562065225381">Chrome ha bloccato questo download perché il file è pericoloso</translation>
-<translation id="3222857603094643834">Cerca ciò che vuoi su questa pagina con Google Lens</translation>
+<translation id="3222857603094643834">Cerca ciò che vedi su questa pagina con Google Lens</translation>
 <translation id="3226612997184048185">Se salvi anche i preferiti nel tuo Account Google, puoi monitorare i prezzi dei prodotti in Chrome e ricevere notifiche quando il prezzo scende</translation>
 <translation id="3242123554343253302">Aggiungi profilo Chrome</translation>
 <translation id="3245429137663807393">Se condividi anche report sull'utilizzo di Chrome, tali report includono gli URL visitati</translation>
@@ -267,6 +269,7 @@
 <translation id="4326552909330437744">{NUM_TABS,plural, =1{Chrome consiglia di mettere in pausa la scheda che rallenta il browser}other{Chrome consiglia di mettere in pausa le schede che rallentano il browser}}</translation>
 <translation id="4328355335528187361">Google Chrome Dev (mDNS-In)</translation>
 <translation id="4329315893554541805">Per accedere alla personalizzazione e ad altre funzionalità, includi Chrome in Attività web e app e nei servizi Google collegati</translation>
+<translation id="4334241893986177674">Cerca questo screenshot</translation>
 <translation id="4334294535648607276">Download completato.</translation>
 <translation id="4337324600316876133">Per ricevere gli aggiornamenti futuri di Google Chrome, devi avere macOS 12 o versioni successive. Su questo computer è installato macOS 11.</translation>
 <translation id="4343195214584226067">L'estensione <ph name="EXTENSION_NAME" /> è stata aggiunta a Chrome</translation>
@@ -350,6 +353,7 @@
 <translation id="5566025111015594046">Google Chrome (mDNS-In)</translation>
 <translation id="5579324208890605088">Errore di avvio: esegui il programma di installazione come utente normale, non come amministratore.</translation>
 <translation id="5596627076506792578">Altre opzioni</translation>
+<translation id="5600352656975192682">Fissa Chrome alla barra delle app per accedervi rapidamente in qualsiasi momento</translation>
 <translation id="5602351063754773347">Chrome consiglia di rimuoverla. <ph name="BEGIN_LINK" />Scopri di più sulle estensioni supportate<ph name="END_LINK" /></translation>
 <translation id="5649156266046089790">Con i profili Chrome puoi separare tutti i tuoi contenuti di Chrome. Crea profili per amici e familiari oppure dividi i dati di lavoro e i contenuti di svago.</translation>
 <translation id="565744775970812598"><ph name="FILE_NAME" /> potrebbe essere pericoloso, pertanto è stato bloccato da Chrome.</translation>

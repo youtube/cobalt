@@ -34,7 +34,8 @@ constexpr char kPropertyName[] = "postMessage";
 }  // namespace
 
 // static
-gin::WrapperInfo PostMessageReceiver::kWrapperInfo = {gin::kEmbedderNativeGin};
+gin::DeprecatedWrapperInfo PostMessageReceiver::kWrapperInfo = {
+    gin::kEmbedderNativeGin};
 
 // static
 v8::Local<v8::Object> PostMessageReceiver::Create(
@@ -57,8 +58,7 @@ PostMessageReceiver::PostMessageReceiver(
     base::WeakPtr<V8ValueConverter> v8_value_converter,
     base::WeakPtr<Client> client,
     scoped_refptr<base::SequencedTaskRunner> client_task_runner)
-    : gin::NamedPropertyInterceptor(isolate, this),
-      v8_value_converter_(std::move(v8_value_converter)),
+    : v8_value_converter_(std::move(v8_value_converter)),
       isolate_(isolate),
       client_(std::move(client)),
       client_task_runner_(std::move(client_task_runner)) {}
@@ -78,7 +78,8 @@ gin::ObjectTemplateBuilder PostMessageReceiver::GetObjectTemplateBuilder(
   // treated like a static method for all other instances.
   //
   // An interceptor allows for the creation of a function template per instance.
-  return gin::Wrappable<PostMessageReceiver>::GetObjectTemplateBuilder(isolate)
+  return gin::DeprecatedWrappable<
+             PostMessageReceiver>::GetObjectTemplateBuilder(isolate)
       .AddNamedPropertyInterceptor();
 }
 

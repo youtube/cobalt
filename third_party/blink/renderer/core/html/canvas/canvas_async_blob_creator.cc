@@ -36,6 +36,7 @@
 #include "third_party/blink/renderer/platform/wtf/cross_thread_functional.h"
 #include "third_party/blink/renderer/platform/wtf/functional.h"
 #include "third_party/blink/renderer/platform/wtf/text/base64.h"
+#include "third_party/blink/renderer/platform/wtf/text/strcat.h"
 #include "third_party/skia/include/core/SkSurface.h"
 #include "third_party/skia/include/encode/SkPngEncoder.h"
 
@@ -309,7 +310,7 @@ void CanvasAsyncBlobCreator::ScheduleAsyncBlobCreation(const double& quality) {
   // not implemented, so the idle task can take a long time even when the thread
   // is not busy.
   bool use_idle_encoding =
-      WTF::IsMainThread() && (mime_type_ != kMimeTypeWebp) &&
+      IsMainThread() && (mime_type_ != kMimeTypeWebp) &&
       (enforce_idle_encoding_for_test_ ||
        !RuntimeEnabledFeatures::NoIdleEncodingForWebTestsEnabled());
 
@@ -521,8 +522,8 @@ void CanvasAsyncBlobCreator::TraceCanvasContent(
       [&](perfetto::EventContext ctx) {
         String data = "data:";
         if (encoded_image) {
-          data = data + ImageEncoderUtils::MimeTypeName(mime_type_) +
-                 ";base64," + Base64Encode(*encoded_image);
+          data = StrCat({data, ImageEncoderUtils::MimeTypeName(mime_type_),
+                         ";base64,", Base64Encode(*encoded_image)});
         }
         ctx.AddDebugAnnotation("data_url", data.Utf8());
         ctx.AddDebugAnnotation(

@@ -6,16 +6,20 @@
 
 #import <memory>
 
+#import "base/notreached.h"
 #import "base/strings/utf_string_conversions.h"
 #import "components/dom_distiller/core/extraction_utils.h"
+#import "ios/chrome/browser/dom_distiller/model/distiller_service_factory.h"
 #import "ios/chrome/browser/reader_mode/model/features.h"
 #import "ios/chrome/browser/reader_mode/model/reader_mode_java_script_feature.h"
 #import "ios/chrome/browser/reader_mode/model/reader_mode_tab_helper.h"
+#import "ios/chrome/browser/snapshots/model/snapshot_tab_helper.h"
 #import "ios/web/js_messaging/java_script_feature_manager.h"
 #import "ios/web/public/js_messaging/web_frame.h"
 #import "ios/web/public/js_messaging/web_frames_manager.h"
 #import "ios/web/public/test/fakes/fake_navigation_context.h"
 #import "ios/web/public/test/fakes/fake_web_state.h"
+#import "ios/web/public/web_state.h"
 #import "third_party/dom_distiller_js/dom_distiller.pb.h"
 #import "third_party/dom_distiller_js/dom_distiller_json_converter.h"
 
@@ -34,7 +38,20 @@ std::unique_ptr<web::FakeWebState> ReaderModeTest::CreateWebState() {
   std::unique_ptr<web::FakeWebState> web_state =
       std::make_unique<web::FakeWebState>();
   web_state->SetBrowserState(profile_.get());
+
+  // Attach tab helpers
+  ReaderModeTabHelper::CreateForWebState(
+      web_state.get(), DistillerServiceFactory::GetForProfile(profile()));
+
   return web_state;
+}
+
+void ReaderModeTest::EnableReaderMode(web::WebState* web_state) {
+  ReaderModeTabHelper::FromWebState(web_state)->SetActive(true);
+}
+
+void ReaderModeTest::DisableReaderMode(web::WebState* web_state) {
+  ReaderModeTabHelper::FromWebState(web_state)->SetActive(false);
 }
 
 void ReaderModeTest::LoadWebpage(web::FakeWebState* web_state,
@@ -63,6 +80,10 @@ void ReaderModeTest::SetReaderModeState(web::FakeWebState* web_state,
   web_state->SetWebFramesManager(web::ContentWorld::kIsolatedWorld,
                                  std::move(frames_manager));
   web_frames_manager->AddWebFrame(std::move(main_frame));
+
+  if (base::FeatureList::IsEnabled(kEnableReadabilityHeuristic)) {
+    AddReadabilityHeuristicResultToFrame(result, web_frame);
+  }
 
   // Set up the fake web frame to return a custom result after executing
   // the DOM distiller Javascript.
@@ -94,4 +115,27 @@ void ReaderModeTest::WaitForReaderModeContentReady() {
   // `kReaderModeDistillerPageLoadDelay` after the page is loaded.
   task_environment_.AdvanceClock(base::Seconds(1));
   task_environment_.RunUntilIdle();
+}
+
+void ReaderModeTest::AddReadabilityHeuristicResultToFrame(
+    ReaderModeHeuristicResult result,
+    web::FakeWebFrame* web_frame) {
+  std::u16string readability_heuristic_script =
+      base::UTF8ToUTF16(dom_distiller::GetReadabilityTriggeringScript());
+  switch (result) {
+    case ReaderModeHeuristicResult::kReaderModeEligible:
+      readability_heuristic_value_ = std::make_unique<base::Value>(true);
+      break;
+    case ReaderModeHeuristicResult::kMalformedResponse:
+      readability_heuristic_value_ = std::make_unique<base::Value>();
+      break;
+    case ReaderModeHeuristicResult::kReaderModeNotEligibleContentAndLength:
+      readability_heuristic_value_ = std::make_unique<base::Value>(false);
+      break;
+    case ReaderModeHeuristicResult::kReaderModeNotEligibleContentOnly:
+    case ReaderModeHeuristicResult::kReaderModeNotEligibleContentLength:
+      NOTREACHED();
+  }
+  web_frame->AddResultForExecutedJs(readability_heuristic_value_.get(),
+                                    readability_heuristic_script);
 }

@@ -500,6 +500,8 @@
   E(kActionUnpinActionFromToolbar) \
   /*Commerce*/ \
   E(kActionCommercePriceInsights) \
+  E(kActionCommerceDiscounts) \
+  E(kActionCommerceProductSpecifications) \
 
 #if BUILDFLAG(IS_CHROMEOS)
 #define CHROME_PLATFORM_SPECIFIC_ACTION_IDS \
@@ -530,6 +532,7 @@
   E(kActionSidePanelShowAssistant) \
   E(kActionSidePanelShowBookmarks, IDC_SHOW_BOOKMARK_SIDE_PANEL) \
   E(kActionSidePanelShowCustomizeChrome) \
+  E(kActionSidePanelShowCustomizeChromeFooter) \
   E(kActionSidePanelShowCustomizeChromeToolbar) \
   E(kActionSidePanelShowFeed) \
   E(kActionSidePanelShowHistoryCluster) \

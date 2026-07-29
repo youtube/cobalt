@@ -107,6 +107,10 @@ struct MEDIA_EXPORT RawStr : SubstitutingParser<RawStr, ResolvedSourceString> {
   static ParseStatus::Or<ResolvedSourceString> Parse(ResolvedSourceString str);
 };
 
+struct MEDIA_EXPORT RawInt : SubstitutingParser<RawInt, DecimalInteger> {
+  static ParseStatus::Or<DecimalInteger> Parse(ResolvedSourceString str);
+};
+
 struct MEDIA_EXPORT YesOrNo : SubstitutingParser<YesOrNo, bool> {
   static ParseStatus::Or<bool> Parse(ResolvedSourceString str);
 };
@@ -114,6 +118,10 @@ struct MEDIA_EXPORT YesOrNo : SubstitutingParser<YesOrNo, bool> {
 // Parser struct for floating point representations of TimeDelta instances.
 struct MEDIA_EXPORT TimeDelta : SubstitutingParser<TimeDelta, base::TimeDelta> {
   static ParseStatus::Or<base::TimeDelta> Parse(ResolvedSourceString str);
+};
+
+struct MEDIA_EXPORT ISO8601Date : SubstitutingParser<ISO8601Date, base::Time> {
+  static ParseStatus::Or<base::Time> Parse(ResolvedSourceString str);
 };
 
 // A `ByteRangeExpression` represents the 'length[@offset]' syntax that appears
@@ -132,6 +140,30 @@ struct MEDIA_EXPORT ByteRangeExpression
   // previous segment. The previous segment must be a subrange of the same
   // resource.
   std::optional<types::DecimalInteger> offset;
+};
+
+template <typename T>
+struct MEDIA_EXPORT EnumeratedStringList
+    : SubstitutingParser<EnumeratedStringList<T>,
+                         std::vector<typename T::ParseInto>> {
+  static ParseStatus::Or<std::vector<typename T::ParseInto>> Parse(
+      ResolvedSourceString str) {
+    auto maybe_unquoted = Quoted<RawStr>::Parse(str);
+    if (!maybe_unquoted.has_value()) {
+      return std::move(maybe_unquoted).error();
+    }
+    std::vector<typename T::ParseInto> result;
+    auto unquoted = std::move(maybe_unquoted).value();
+    while (!unquoted.Empty()) {
+      const auto value = unquoted.ConsumeDelimiter(',');
+      auto maybe_parse = T::Parse(value);
+      if (!maybe_parse.has_value()) {
+        return std::move(maybe_parse).error();
+      }
+      result.emplace_back(std::move(maybe_parse).value());
+    }
+    return std::move(result);
+  }
 };
 
 // Calculate chunk sizes for the hex parser. This needs to be separated so that

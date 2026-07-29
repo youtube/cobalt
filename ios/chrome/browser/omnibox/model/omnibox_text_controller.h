@@ -11,10 +11,10 @@
 
 #import "ios/chrome/browser/omnibox/model/omnibox_text_model.h"
 
+class AutocompleteController;
 @protocol AutocompleteSuggestion;
 @class OmniboxAutocompleteController;
-class OmniboxControllerIOS;
-class OmniboxEditModelIOS;
+class OmniboxClient;
 @protocol OmniboxFocusDelegate;
 @protocol OmniboxTextControllerDelegate;
 @class OmniboxTextFieldIOS;
@@ -39,11 +39,9 @@ class OmniboxEditModelIOS;
 @property(nonatomic, assign, readonly) NSRange currentSelection;
 
 /// Temporary initializer, used during the refactoring. crbug.com/390409559
-- (instancetype)initWithOmniboxController:
-                    (OmniboxControllerIOS*)omniboxController
-                         omniboxEditModel:(OmniboxEditModelIOS*)omniboxEditModel
-                         omniboxTextModel:(OmniboxTextModel*)omniboxTextModel
-                            inLensOverlay:(BOOL)inLensOverlay
+- (instancetype)initWithOmniboxClient:(OmniboxClient*)omniboxClient
+                     omniboxTextModel:(OmniboxTextModel*)omniboxTextModel
+                        inLensOverlay:(BOOL)inLensOverlay
     NS_DESIGNATED_INITIALIZER;
 - (instancetype)init NS_UNAVAILABLE;
 
@@ -90,6 +88,42 @@ class OmniboxEditModelIOS;
 /// is closed, the match is generated from the autocomplete classifier.
 - (void)getInfoForCurrentText:(AutocompleteMatch*)match
        alternateNavigationURL:(GURL*)alternateNavigationURL;
+
+/// Sets the user_text_ to `text`. Also enters user-input-in-progress mode.
+/// Virtual for testing.
+- (void)setUserText:(const std::u16string&)text;
+
+/// Returns the match for the current text. If the user has not edited the text
+/// this is the match corresponding to the permanent text. Returns the
+/// alternate nav URL, if `alternateNavURL` is non-NULL and there is such a
+/// URL.
+- (AutocompleteMatch)currentMatch:(GURL*)alternateNavURL;
+
+/// Invoked any time the text may have changed in the edit.
+- (void)onTextChanged;
+
+/// Called when any relevant data changes.  This rolls together several
+/// separate pieces of data into one call so we can update all the UI
+/// efficiently. Specifically, it's invoked for autocompletion.
+///   `inline_autocompletion` is the autocompletion.
+///   `additional_text` is additional omnibox text to be displayed adjacent to
+///     the omnibox view.
+///   `new_match` is the selected match when the user is changing selection,
+///    the default match if the user is typing, or an empty match when
+///    selecting a header.
+- (void)onPopupDataChanged:(const std::u16string&)inlineAutocompletion
+            additionalText:(const std::u16string&)additionalText
+                  newMatch:(const AutocompleteMatch&)newMatch;
+
+/// Resets the permanent display texts `url_for_editing` to those provided by
+/// the controller. Returns true if the display text shave changed and the
+/// change should be immediately user-visible, because either the user is not
+/// editing or the edit does not have focus.
+- (bool)resetDisplayTexts;
+
+/// Sets the autocompleteController.
+- (void)setAutocompleteController:
+    (AutocompleteController*)autocompleteController;
 
 #pragma mark - Autocomplete event
 

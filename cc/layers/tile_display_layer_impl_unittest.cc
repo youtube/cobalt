@@ -166,6 +166,21 @@ TEST_F(TileDisplayLayerImplTest,
       false);
 }
 
+// Verifies that GetContentsResourceId() handles the error case of being called
+// when the layer has no tiles, setting the resource ID to invalid in that case.
+TEST_F(TileDisplayLayerImplTest, GetContentsResourceIdHandlesLackOfTiles) {
+  auto layer = std::make_unique<TileDisplayLayerImpl>(
+      CHECK_DEREF(host_impl()->active_tree()), /*id=*/42);
+  layer->SetIsBackdropFilterMask(true);
+
+  viz::ResourceId mask_resource_id = viz::ResourceId(42);
+  gfx::Size mask_texture_size;
+  gfx::SizeF mask_uv_size;
+  layer->GetContentsResourceId(&mask_resource_id, &mask_texture_size,
+                               &mask_uv_size);
+  EXPECT_EQ(mask_resource_id, viz::kInvalidResourceId);
+}
+
 class TileDisplayLayerImplWithEdgeAADisabledTest
     : public TileDisplayLayerImplTest {
  public:
@@ -177,7 +192,7 @@ class TileDisplayLayerImplWithEdgeAADisabledTest
 };
 
 TEST_F(TileDisplayLayerImplWithEdgeAADisabledTest,
-       EnableEdgeAntiAliasingIsHonored) {
+       EnableEdgeAntiAliasingIsHonoredForPictureQuads) {
   constexpr gfx::Size kLayerBounds(1300, 1900);
   constexpr gfx::Rect kLayerRect(kLayerBounds);
   constexpr float kOpacity = 1.0;
@@ -216,6 +231,42 @@ TEST_F(TileDisplayLayerImplWithEdgeAADisabledTest,
   EXPECT_EQ(viz::TileDrawQuad::MaterialCast(render_pass->quad_list.front())
                 ->force_anti_aliasing_off,
             true);
+}
+
+TEST_F(TileDisplayLayerImplWithEdgeAADisabledTest,
+       EnableEdgeAntiAliasingIsHonoredForSolidColorQuads) {
+  constexpr gfx::Size kLayerBounds(1300, 1900);
+  constexpr gfx::Rect kLayerRect(kLayerBounds);
+  constexpr float kOpacity = 1.0;
+  constexpr SkColor4f kTileColor = SkColors::kRed;
+
+  auto layer = std::make_unique<TileDisplayLayerImpl>(
+      CHECK_DEREF(host_impl()->active_tree()), /*id=*/42);
+  auto* raw_layer = layer.get();
+  host_impl()->active_tree()->AddLayer(std::move(layer));
+
+  raw_layer->SetBounds(kLayerBounds);
+  raw_layer->draw_properties().visible_layer_rect = kLayerRect;
+  raw_layer->draw_properties().opacity = kOpacity;
+
+  auto& tiling = raw_layer->GetOrCreateTilingFromScaleKey(1.0);
+  tiling.SetTileSize(kLayerBounds);
+  tiling.SetTilingRect(kLayerRect);
+
+  tiling.SetTileContents(TileIndex{0, 0}, kTileColor, /*update_damage=*/true);
+
+  SetupRootProperties(host_impl()->active_tree()->root_layer());
+
+  auto render_pass = viz::CompositorRenderPass::Create();
+  AppendQuadsData data;
+  raw_layer->AppendQuads(AppendQuadsContext{DRAW_MODE_SOFTWARE, {}, false},
+                         render_pass.get(), &data);
+
+  EXPECT_EQ(render_pass->quad_list.size(), 1u);
+  EXPECT_EQ(
+      viz::SolidColorDrawQuad::MaterialCast(render_pass->quad_list.front())
+          ->force_anti_aliasing_off,
+      true);
 }
 
 }  // namespace cc

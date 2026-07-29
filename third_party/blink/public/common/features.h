@@ -383,6 +383,9 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(
 
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kDropInputEventsWhilePaintHolding);
 
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(
+    kEnableDevtoolsDeepLinkViaExtensibilityApi);
+
 // Enables establishing the GPU channel asnchronously when requesting a new
 // layer tree frame sink.
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kEstablishGpuChannelAsync);
@@ -663,6 +666,10 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(
     kFrequencyCappingForOverlayPopupDetection);
 
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kGMSCoreEmoji);
+
+// If enabled, then display audio track permission failures are ignored.
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(
+    kGetDisplayMediaIgnoreAudioPermissionFailures);
 
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_CHROMEOS) && !BUILDFLAG(IS_FUCHSIA)
 // Defers device selection until after permission is granted.
@@ -1753,6 +1760,8 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kUnloadBlocklisted);
 
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kUrgentMainFrameForInput);
 
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kUseCommitUrlInsteadOfRedirectUrl);
+
 // Uses page viewport instead of frame viewport in the Largest Contentful Paint
 // heuristic where images occupying the full viewport are ignored.
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kUsePageViewportInLCP);
@@ -1836,6 +1845,10 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kNoReferrerForPreloadFromSubresource);
 // Kill switch for crbug.com/407785197
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(
     kWebRtcAllowDataChannelRecordingInWebrtcInternals);
+
+// Kill switch for https://crbug.com/427866914,
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(
+    kRespectUserAgentOverrideInSearchPrefetch);
 
 // When adding new features or constants for features, please keep the features
 // sorted by identifier name (e.g. `kAwesomeFeature`), and the constants for

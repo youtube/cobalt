@@ -39,9 +39,6 @@
 
 namespace WTF {
 
-class SegmentedBuffer;
-class String;
-
 template <typename T>
 struct CrossThreadCopierPassThrough {
   STATIC_ONLY(CrossThreadCopierPassThrough);
@@ -113,8 +110,8 @@ struct CrossThreadCopier<SegmentedBuffer>
 };
 
 template <>
-struct CrossThreadCopier<AtomicString>
-    : public CrossThreadCopierPassThrough<AtomicString> {
+struct CrossThreadCopier<blink::AtomicString>
+    : public CrossThreadCopierPassThrough<blink::AtomicString> {
   STATIC_ONLY(CrossThreadCopier);
 };
 

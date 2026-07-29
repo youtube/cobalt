@@ -36,6 +36,7 @@
 <translation id="1409338233051621926">点按“应用”，然后点按“默认应用”</translation>
 <translation id="1415402041810619267">网址被截断了</translation>
 <translation id="1415855080660575082">允许 Chrome 与您的设备分享您近期打开的标签页，以便在设备的应用列表和搜索结果中查看这些标签页。您可以在 Chrome 设置中开启或关闭此功能。</translation>
+<translation id="1432650420699700107">网站可以请求连接到本地网络上的任何设备</translation>
 <translation id="1448064542941920355">缩小</translation>
 <translation id="1464044141348608623">不允许网站了解您何时在主动使用自己的设备</translation>
 <translation id="146867109637325312">{COUNT,plural, =1{<ph name="SITE_COUNT" /> 个网站}other{<ph name="SITE_COUNT" /> 个网站}}</translation>
@@ -60,6 +61,7 @@
 <translation id="1703666494654169921">不允许网站使用虚拟现实设备或数据</translation>
 <translation id="1704230497453185209">不允许网站播放声音</translation>
 <translation id="1717218214683051432">移动传感器</translation>
+<translation id="1717996979683942279">开启此设置后，网站可以询问能否管理所有显示屏上的窗口。关闭此设置后，网站无法管理所有显示屏上的窗口。</translation>
 <translation id="1743802530341753419">需先询问，得到许可后才允许网站连接设备（推荐）</translation>
 <translation id="1777815584158991902">探索信息流底部动作条</translation>
 <translation id="1779089405699405702">图片解码器</translation>
@@ -68,6 +70,7 @@
 <translation id="1799920918471566157">Chrome 提示</translation>
 <translation id="1816835383954230954">启用此设置后，Chrome 的运行速度会更快，并且使用 JavaScript 的功能能按预期运行。关闭此设置会降低性能，但提高 V8 防范攻击的能力。</translation>
 <translation id="1818308510395330587">若要允许 <ph name="APP_NAME" /> 使用 AR 功能，您还需在 <ph name="BEGIN_LINK" />Android 设置<ph name="END_LINK" />中开启摄像头。</translation>
+<translation id="1881806992065048905">“新标签页”页面外观底部动作条</translation>
 <translation id="1887786770086287077">此设备的位置信息使用权已关闭；若想开启这项权限，请转到 <ph name="BEGIN_LINK" />Android 设置<ph name="END_LINK" />。</translation>
 <translation id="1906181697255754968">网站通常会访问您设备上的文件和文件夹以实现某些功能（例如自动保存您的工作成果）</translation>
 <translation id="1915307458270490472">中止</translation>
@@ -116,6 +119,7 @@
 <translation id="2402980924095424747"><ph name="MEGABYTES" /> MB</translation>
 <translation id="2404630663942400771">{PERMISSIONS_SUMMARY_ALLOWED,plural, =1{已授予“<ph name="PERMISSION_1" />”权限、“<ph name="PERMISSION_2" />”权限和另外 <ph name="NUM_MORE" /> 项权限}other{已授予“<ph name="PERMISSION_1" />”权限、“<ph name="PERMISSION_2" />”权限和另外 <ph name="NUM_MORE" /> 项权限}}</translation>
 <translation id="2410940059315936967">您访问的网站可以嵌入其他网站的内容，例如图片、广告和文字。由这类其他网站设置的 Cookie 称为第三方 Cookie。</translation>
+<translation id="2433507940547922241">外观</translation>
 <translation id="2434158240863470628">下载完成 <ph name="SEPARATOR" /> <ph name="BYTES_DOWNLOADED" /></translation>
 <translation id="2438120137003069591">您暂时允许了此网站使用第三方 Cookie，这意味着您选择采用较低级别的浏览保护措施，但网站功能更有可能会按预期运行。<ph name="BEGIN_LINK" />发送反馈<ph name="END_LINK" /></translation>
 <translation id="244264527810019436">在无痕模式下，某些网站上的功能可能会无法正常运行</translation>
@@ -128,6 +132,7 @@
 <translation id="2490684707762498678">由 <ph name="APP_NAME" /> 管理</translation>
 <translation id="2498359688066513246">帮助和反馈</translation>
 <translation id="2501278716633472235">返回</translation>
+<translation id="2533138527374486328">开启后，网站可以请求连接到本地网络上的任何设备。关闭后，网站无法连接到本地网络上的设备。</translation>
 <translation id="2546283357679194313">Cookie 和网站数据</translation>
 <translation id="2570922361219980984">此设备的位置信息使用权也已关闭；若想开启这项权限，请转到 <ph name="BEGIN_LINK" />Android 设置<ph name="END_LINK" />。</translation>
 <translation id="257931822824936280">已展开 - 点击此处即可收起。</translation>
@@ -151,6 +156,7 @@
 <translation id="2789132527330338807">网站可以请求为您的周边环境创建 3D 地图或跟踪摄像头位置</translation>
 <translation id="2790501146643349491">开启此设置后，最近关闭的网站可以完成数据收发操作。关闭此设置后，最近关闭的网站无法完成数据收发操作。</translation>
 <translation id="2795716239552913152">网站通常会使用您的位置信息以实现相关功能或提供相关信息（例如本地新闻或附近的商店）</translation>
+<translation id="2800760947029405028">上传图片</translation>
 <translation id="2802908157808345702">不允许网站显示弹出式窗口和使用重定向</translation>
 <translation id="2814830417943086299">Chrome 现在会在设备的应用列表和搜索结果中显示您近期打开的标签页。您可以随时在 Chrome 设置中关闭此功能。</translation>
 <translation id="2822354292072154809">确定要重置<ph name="CHOSEN_OBJECT_NAME" />的所有网站权限吗？</translation>
@@ -166,6 +172,7 @@
 <translation id="2968755619301702150">证书查看器</translation>
 <translation id="2979365474350987274">第三方 Cookie 受到限制</translation>
 <translation id="2990583317361835189">不允许网站使用移动传感器</translation>
+<translation id="3004438526346162184">网站可以使用此功能管理所有显示屏上的窗口</translation>
 <translation id="3008272652534848354">重置权限</translation>
 <translation id="301521992641321250">已被自动禁止</translation>
 <translation id="3064871050034234884">网站可以播放声音</translation>
@@ -236,6 +243,7 @@
 <translation id="3779154269823594982">更改密码</translation>
 <translation id="3797520601150691162">不对特定网站应用深色主题</translation>
 <translation id="3803367742635802571">您访问的网站可能会停止按预期运行</translation>
+<translation id="3816118180265633665">Chrome 颜色</translation>
 <translation id="381841723434055211">电话号码</translation>
 <translation id="3826050100957962900">第三方登录</translation>
 <translation id="3835233591525155343">您的设备使用情况</translation>
@@ -254,6 +262,7 @@
 <translation id="3955321697524543127">不允许网站连接到 USB 设备</translation>
 <translation id="3965467402665811906">网站可以请求使用其保存的与您相关的信息</translation>
 <translation id="3967822245660637423">下载完毕</translation>
+<translation id="3969869202926863008">本地网络访问权限</translation>
 <translation id="3981465354637804599">网站通常会显示广告，以便能够免费提供内容或服务。但据我们所知，有些网站会展示侵扰性或误导性广告。</translation>
 <translation id="3987993985790029246">复制链接</translation>
 <translation id="3991845972263764475">已下载 <ph name="BYTES_DOWNLOADED_WITH_UNITS" />，总大小不明</translation>
@@ -320,6 +329,7 @@
 <translation id="4882919381756638075">网站通常会使用您的麦克风以实现通信功能（例如视频聊天）</translation>
 <translation id="4883854917563148705">无法重置受管理的设置</translation>
 <translation id="4887024562049524730">需先询问，得到许可后才允许网站使用您的虚拟现实设备和数据（推荐）</translation>
+<translation id="4934780484581617878">窗口管理</translation>
 <translation id="4936863036653376783">您可以在所有设备的“标签页分组”部分找到您的分组</translation>
 <translation id="4945443401464700059"><ph name="SITE" /> 已被禁止使用您在以下网站上的信息</translation>
 <translation id="4953688446973710931">开启此设置后，网站可以请求自动下载多个文件。关闭此设置后，网站无法自动下载多个文件。</translation>
@@ -327,6 +337,7 @@
 <translation id="4972737347717125191">网站可以请求使用虚拟现实设备和数据</translation>
 <translation id="497421865427891073">前进</translation>
 <translation id="4976702386844183910">上次访问日期：<ph name="DATE" /></translation>
+<translation id="4978178243417029856">详细了解探索信息流</translation>
 <translation id="4994033804516042629">找不到任何联系人</translation>
 <translation id="4996978546172906250">分享方式</translation>
 <translation id="5001526427543320409">第三方 Cookie</translation>
@@ -422,6 +433,7 @@
 <translation id="5968921426641056619">输入网址</translation>
 <translation id="5975083100439434680">缩小</translation>
 <translation id="5976059395673079613"><ph name="PERMISSION" /> - <ph name="WARNING_MESSAGE" /></translation>
+<translation id="5998071268779572583">开启探索信息流</translation>
 <translation id="6015775454662021376">控制此网站对您的设备的访问权限</translation>
 <translation id="6040143037577758943">关闭</translation>
 <translation id="6042308850641462728">展开</translation>
@@ -429,6 +441,7 @@
 <translation id="6071501408666570960">您可能已从此网站上退出账号</translation>
 <translation id="6085954183010297841">要撤消文件修改权限吗？<ph name="FILE" /></translation>
 <translation id="6120483543004435978">开启此设置后，网站可以请求监测您是否正在使用设备。关闭此设置后，网站无法得知您是否正在使用设备。</translation>
+<translation id="615886654739818377">不允许网站管理所有显示屏上的窗口</translation>
 <translation id="6165508094623778733">了解详情</translation>
 <translation id="6171020522141473435">开启此设置后，网站可以请求使用蓝牙设备。关闭此设置后，网站无法使用蓝牙设备。</translation>
 <translation id="6177128806592000436">您与此网站之间建立的连接不安全</translation>
@@ -450,6 +463,7 @@
 <translation id="6398765197997659313">退出全屏模式</translation>
 <translation id="640163077447496506">今天过期</translation>
 <translation id="6405650995156823521"><ph name="FIRST_PART" /> • <ph name="SECOND_PART" /></translation>
+<translation id="6413980879783180524">主题集合</translation>
 <translation id="6439114592976064011">禁止网站使用您的虚拟现实设备和数据</translation>
 <translation id="6447842834002726250">Cookie</translation>
 <translation id="6452138246455930388">您打开的标签页中有降价，原价为 <ph name="OLD_PRICE" />，现价为 <ph name="NEW_PRICE" />”，<ph name="PRODUCT_NAME" />，<ph name="DOMAIN_NAME" /></translation>
@@ -461,8 +475,10 @@
 <translation id="6545864417968258051">蓝牙扫描</translation>
 <translation id="6552800053856095716">{PERMISSIONS_SUMMARY_BLOCKED,plural, =1{已禁用“<ph name="PERMISSION_1" />”权限、“<ph name="PERMISSION_2" />”权限和另外 <ph name="NUM_MORE" /> 项权限}other{已禁用“<ph name="PERMISSION_1" />”权限、“<ph name="PERMISSION_2" />”权限和另外 <ph name="NUM_MORE" /> 项权限}}</translation>
 <translation id="6554732001434021288">上次访问时间：<ph name="NUM_DAYS" /> 天前</translation>
+<translation id="6557290421156335491">我的快捷方式</translation>
 <translation id="656065428026159829">查看更多</translation>
 <translation id="6561560012278703671">改用干扰性更低的提示方式（禁止网站发送通知，以免干扰）</translation>
+<translation id="6565144332292237355">网站可以使用此功能查找并连接到本地网络上的任何设备</translation>
 <translation id="6593061639179217415">桌面版网站</translation>
 <translation id="659938948789980540">{COUNT,plural, =1{允许 <ph name="RWS_MEMBERS_COUNT" /> 个 <ph name="RWS_OWNER" /> 网站使用 Cookie}other{允许 <ph name="RWS_MEMBERS_COUNT" /> 个 <ph name="RWS_OWNER" /> 网站使用 Cookie}}</translation>
 <translation id="6608650720463149374"><ph name="GIGABYTES" /> GB</translation>
@@ -508,8 +524,10 @@
 <translation id="7188508872042490670">设备端网站数据</translation>
 <translation id="7201549776650881587">此操作会删除 <ph name="ORIGIN" /> 下属所有网站或其在主屏幕中安装的应用存储的全部数据和 Cookie</translation>
 <translation id="7203150201908454328">已展开</translation>
+<translation id="7213166370492037743">不允许网站连接到本地网络上的任何设备</translation>
 <translation id="7219254577985949841">删除网站数据？</translation>
 <translation id="723171743924126238">选择图片</translation>
+<translation id="7243246278722455312">自定义新标签页页面底部动作条</translation>
 <translation id="7243308994586599757">选项在靠近屏幕底部的位置</translation>
 <translation id="7250468141469952378">已选择 <ph name="ITEM_COUNT" /> 项</translation>
 <translation id="7260727271532453612">已授予“<ph name="PERMISSION_1" />”权限和“<ph name="PERMISSION_2" />”权限</translation>
@@ -549,6 +567,7 @@
 <translation id="7791543448312431591">添加</translation>
 <translation id="780301667611848630">不用了，谢谢</translation>
 <translation id="7804248752222191302">有一个网站正在使用您的摄像头</translation>
+<translation id="7805832099057502789">“新标签页”页面外观底部动作条已按最大高度显示</translation>
 <translation id="7807060072011926525">由 Google 提供</translation>
 <translation id="7815680994978050279">已屏蔽危险的下载内容</translation>
 <translation id="7835852323729233924">正在播放媒体</translation>
@@ -568,9 +587,11 @@
 <translation id="802154636333426148">下载失败</translation>
 <translation id="8042586301629853791">排序方式：</translation>
 <translation id="8051193500142930381">所有需要使用摄像头的功能都将无法正常运行</translation>
+<translation id="8056330801132235235">Chrome 默认选项</translation>
 <translation id="8067883171444229417">播放视频</translation>
 <translation id="8068648041423924542">无法选择证书。</translation>
 <translation id="8077120325605624147">您访问的任何网站都可向您展示任何广告</translation>
+<translation id="80798452873915119">网站可以询问能否管理您的所有显示屏上的窗口</translation>
 <translation id="8087000398470557479">此内容来自 <ph name="DOMAIN_NAME" />（由 Google 提供）。</translation>
 <translation id="8088603949666785339">“<ph name="BANNER_TITLE" />”中的更多选项</translation>
 <translation id="8112925981674547014">查看应用列表中的标签页</translation>

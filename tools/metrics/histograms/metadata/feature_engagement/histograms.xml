@@ -295,6 +295,12 @@ chromium-metrics-reviews@google.com.
       summary="Showing the static Feed Swipe IPH on iOS."/>
   <variant name="IPH_iOSHistoryOnOverflowMenuFeature"
       summary="history item on the overflow menu on iOS"/>
+  <variant name="IPH_iOSHomepageCustomizationNewBadge"
+      summary="showing the new badge IPH on the homepage customization menu
+               button"/>
+  <variant name="IPH_iOSHomepageLensNewBadge"
+      summary="showing the new badge IPH on the Lens entrypoint in the
+               homepage Omnibox"/>
   <variant name="IPH_iOSInlineEnhancedSafeBrowsingPromoFeature"
       summary="Showing the Enhanced Safe Browsing Promo on iOS"/>
   <variant name="IPH_iOSLensOverlayEntrypointTip"
@@ -403,6 +409,8 @@ chromium-metrics-reviews@google.com.
   <variant name="IPH_LongPressToolbarTip" summary="LongPress toolbar"/>
   <variant name="IPH_MerchantTrust" summary="Merchant Trust"/>
   <variant name="IPH_MicToolbar" summary="the mic button in the toolbar"/>
+  <variant name="IPH_MostVisitedTilesCustomizationPin"
+      summary="informing user of context menu to pin a shortcut on MVT"/>
   <variant name="IPH_NewTab" summary="new tab"/>
   <variant name="IPH_NewTabPageHomeButton"
       summary="(obsolete) new tab page button"/>
@@ -656,6 +664,8 @@ chromium-metrics-reviews@google.com.
       summary="tab switcher floating action button"/>
   <variant name="IPH_ToolbarManagementButton"
       summary="toolbar management button"/>
+  <variant name="IPH_TouchToSearchCallout"
+      summary="Touch to search IPH feature"/>
   <variant name="IPH_TrackingProtectionOffboarding"
       summary="(obsolete) tracking protection offboarding notice"/>
   <variant name="IPH_TrackingProtectionOnboarding"
@@ -758,7 +768,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="InProductHelp.Gestural.DismissalReason.iOS"
-    enum="InProductHelpDismissalReason" expires_after="2025-10-19">
+    enum="InProductHelpDismissalReason" expires_after="2025-12-21">
   <owner>ginnyhuang@chromium.org</owner>
   <owner>adamta@google.com</owner>
   <summary>
@@ -790,7 +800,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="InProductHelp.ShownTime.{IPHFeature}" units="ms"
-    expires_after="2025-10-19">
+    expires_after="2025-12-21">
   <owner>lpromero@google.com</owner>
   <owner>gambard@chromium.org</owner>
   <summary>
@@ -803,7 +813,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="InProductHelp.ShownTime2.{IPHFeature}" units="ms"
-    expires_after="2025-10-26">
+    expires_after="2025-12-28">
   <owner>gayane@google.com</owner>
   <owner>lpromero@google.com</owner>
   <owner>gambard@chromium.org</owner>

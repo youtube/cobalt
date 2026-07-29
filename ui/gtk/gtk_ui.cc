@@ -61,6 +61,7 @@
 #include "ui/gfx/image/image.h"
 #include "ui/gfx/image/image_skia_rep.h"
 #include "ui/gfx/image/image_skia_source.h"
+#include "ui/gfx/linux/fontconfig_util.h"
 #include "ui/gfx/skbitmap_operations.h"
 #include "ui/gtk/gtk_color_mixers.h"
 #include "ui/gtk/gtk_compat.h"
@@ -216,13 +217,19 @@ GtkUiPlatform* GtkUi::GetPlatform() {
 }
 
 bool GtkUi::Initialize() {
-  if (!LoadGtk() || !GtkCheckVersion(3, 20)) {
+  const auto* delegate = ui::LinuxUiDelegate::GetInstance();
+  DCHECK(delegate);
+  const auto backend = delegate->GetBackend();
+
+  if (!LoadGtk(backend) || !GtkCheckVersion(3, 20)) {
     return false;
   }
 
-  auto* delegate = ui::LinuxUiDelegate::GetInstance();
-  DCHECK(delegate);
-  platform_ = CreateGtkUiPlatform(delegate->GetBackend());
+  // Gtk initialization through pango may call FcInit() before we get to that.
+  // Retrieve global FontConfig config here to call FcInit() with configuration we control.
+  gfx::GetGlobalFontConfig();
+
+  platform_ = CreateGtkUiPlatform(backend);
 
   // Avoid GTK initializing atk-bridge, and let AuraLinux implementation
   // do it once it is ready.

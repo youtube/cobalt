@@ -25,11 +25,13 @@
 #include "chrome/browser/ui/bookmarks/bookmark_utils.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_action_prefs_listener.h"
+#include "chrome/browser/ui/browser_command_controller.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/commerce/commerce_ui_tab_helper.h"
+#include "chrome/browser/ui/customize_chrome/side_panel_controller.h"
 #include "chrome/browser/ui/intent_picker_tab_helper.h"
 #include "chrome/browser/ui/lens/lens_overlay_controller.h"
 #include "chrome/browser/ui/lens/lens_overlay_entry_point_controller.h"
@@ -44,6 +46,8 @@
 #include "chrome/browser/ui/toolbar/cast/cast_toolbar_button_util.h"
 #include "chrome/browser/ui/toolbar/chrome_labs/chrome_labs_utils.h"
 #include "chrome/browser/ui/ui_features.h"
+#include "chrome/browser/ui/views/commerce/discounts_page_action_view_controller.h"
+#include "chrome/browser/ui/views/commerce/product_specifications_page_action_view_controller.h"
 #include "chrome/browser/ui/views/download/bubble/download_toolbar_ui_controller.h"
 #include "chrome/browser/ui/views/file_system_access/file_system_access_bubble_controller.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
@@ -63,9 +67,11 @@
 #include "chrome/browser/ui/views/zoom/zoom_view_controller.h"
 #include "chrome/browser/ui/web_applications/app_browser_controller.h"
 #include "chrome/browser/ui/web_applications/web_app_dialog_utils.h"
+#include "chrome/browser/ui/webui/side_panel/customize_chrome/customize_chrome_section.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/grit/branded_strings.h"
 #include "chrome/grit/generated_resources.h"
+#include "components/commerce/core/metrics/discounts_metric_collector.h"
 #include "components/lens/lens_features.h"
 #include "components/media_router/browser/media_router_dialog_controller.h"
 #include "components/media_router/browser/media_router_metrics.h"
@@ -368,6 +374,60 @@ void BrowserActions::InitializeBrowserActions() {
               vector_icons::kShoppingBagRefreshIcon))
           .Build());
 
+  root_action_item_->AddChild(
+      actions::ActionItem::Builder(
+          base::BindRepeating(
+              [](Browser* browser, actions::ActionItem* item,
+                 actions::ActionInvocationContext context) {
+                auto* tab_features =
+                    browser->GetActiveTabInterface()->GetTabFeatures();
+                CHECK(tab_features);
+
+                tab_features->commerce_discounts_page_action_view_controller()
+                    ->MaybeShowBubble(/*from_user=*/true);
+
+                auto* commerce_ui_tab_helper =
+                    tab_features->commerce_ui_tab_helper();
+                CHECK(commerce_ui_tab_helper);
+
+                commerce::metrics::DiscountsMetricCollector::
+                    RecordDiscountsPageActionIconClicked(
+                        commerce_ui_tab_helper->IsPageActionIconExpanded(
+                            PageActionIconType::kDiscounts),
+                        commerce_ui_tab_helper->GetDiscounts());
+              },
+              base::Unretained(browser)))
+          .SetActionId(kActionCommerceDiscounts)
+          .SetText(l10n_util::GetStringUTF16(IDS_DISCOUNT_ICON_EXPANDED_TEXT))
+          .SetTooltipText(
+              l10n_util::GetStringUTF16(IDS_DISCOUNT_ICON_EXPANDED_TEXT))
+          .SetImage(
+              ui::ImageModel::FromVectorIcon(vector_icons::kShoppingmodeIcon))
+          .Build());
+
+  root_action_item_->AddChild(
+      actions::ActionItem::Builder(
+          base::BindRepeating(
+              [](Browser* browser, actions::ActionItem* item,
+                 actions::ActionInvocationContext context) {
+                auto* tab_features =
+                    browser->GetActiveTabInterface()->GetTabFeatures();
+                CHECK(tab_features);
+
+                tab_features
+                    ->commerce_product_specifications_page_action_view_controller()
+                    ->ShowConfirmationToast();
+              },
+              base::Unretained(browser)))
+          .SetActionId(kActionCommerceProductSpecifications)
+          .SetText(
+              l10n_util::GetStringUTF16(IDS_COMPARE_PAGE_ACTION_ADD_DEFAULT))
+          .SetTooltipText(
+              l10n_util::GetStringUTF16(IDS_COMPARE_PAGE_ACTION_ADD_DEFAULT))
+          .SetImage(ui::ImageModel::FromVectorIcon(
+              omnibox::kProductSpecificationsAddIcon))
+          .Build());
+
   //------- Chrome Menu Actions --------//
   root_action_item_->AddChild(
       ChromeMenuAction(base::BindRepeating(
@@ -660,30 +720,28 @@ void BrowserActions::InitializeBrowserActions() {
               !sharing_hub::SharingIsDisabledByPolicy(browser->profile()))
           .Build());
 
-  if (base::FeatureList::IsEnabled(features::kPinnedCastButton)) {
-    actions::ActionItem* media_router_action;
-    root_action_item_->AddChild(
-        StatefulChromeMenuAction(
-            base::BindRepeating(
-                [](Browser* browser, actions::ActionItem* item,
-                   actions::ActionInvocationContext context) {
-                  // TODO(crbug.com/356468503): Figure out how to capture
-                  // action invocation location.
-                  auto* cast_browser_controller =
-                      browser->browser_window_features()
-                          ->cast_browser_controller();
-                  if (cast_browser_controller) {
-                    cast_browser_controller->ToggleDialog();
-                  }
-                },
-                base::Unretained(browser)),
-            kActionRouteMedia, IDS_MEDIA_ROUTER_MENU_ITEM_TITLE,
-            IDS_MEDIA_ROUTER_ICON_TOOLTIP_TEXT, kCastChromeRefreshIcon)
-            .SetEnabled(chrome::CanRouteMedia(browser))
-            .CopyAddressTo(&media_router_action)
-            .Build());
-    CastToolbarButtonUtil::AddCastChildActions(media_router_action, browser);
-  }
+  actions::ActionItem* media_router_action;
+  root_action_item_->AddChild(
+      StatefulChromeMenuAction(
+          base::BindRepeating(
+              [](Browser* browser, actions::ActionItem* item,
+                 actions::ActionInvocationContext context) {
+                // TODO(crbug.com/356468503): Figure out how to capture
+                // action invocation location.
+                auto* cast_browser_controller =
+                    browser->browser_window_features()
+                        ->cast_browser_controller();
+                if (cast_browser_controller) {
+                  cast_browser_controller->ToggleDialog();
+                }
+              },
+              base::Unretained(browser)),
+          kActionRouteMedia, IDS_MEDIA_ROUTER_MENU_ITEM_TITLE,
+          IDS_MEDIA_ROUTER_ICON_TOOLTIP_TEXT, kCastChromeRefreshIcon)
+          .SetEnabled(chrome::CanRouteMedia(browser))
+          .CopyAddressTo(&media_router_action)
+          .Build());
+  CastToolbarButtonUtil::AddCastChildActions(media_router_action, browser);
 
   if (download::IsDownloadBubbleEnabled()) {
     root_action_item_->AddChild(
@@ -827,6 +885,17 @@ void BrowserActions::InitializeBrowserActions() {
               },
               base::Unretained(browser)))
           .SetActionId(actions::kActionPaste)
+          .Build());
+  root_action_item_->AddChild(
+      actions::ActionItem::Builder(
+          base::BindRepeating(
+              [](Browser* browser, actions::ActionItem* item,
+                 actions::ActionInvocationContext context) {
+                browser->command_controller()->ShowCustomizeChromeSidePanel(
+                    CustomizeChromeSection::kFooter);
+              },
+              base::Unretained(browser)))
+          .SetActionId(kActionSidePanelShowCustomizeChromeFooter)
           .Build());
 
   AddListeners();

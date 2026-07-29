@@ -3,7 +3,9 @@
 // found in the LICENSE file.
 
 #include <algorithm>
+#include <memory>
 
+#include "base/memory/raw_ptr.h"
 #include "base/run_loop.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/time/time.h"
@@ -104,6 +106,33 @@ class ChipExpansionObserver : PermissionChipView::Observer {
   base::RunLoop loop_;
 };
 
+class ChipPromptWaiter : public ChipController::Observer {
+ public:
+  explicit ChipPromptWaiter(ChipController* chip_controller)
+      : chip_controller_(chip_controller) {
+    show_run_loop_ = std::make_unique<base::RunLoop>(
+        base::RunLoop::Type::kNestableTasksAllowed);
+    hide_run_loop_ = std::make_unique<base::RunLoop>(
+        base::RunLoop::Type::kNestableTasksAllowed);
+    chip_controller_->AddObserver(this);
+  }
+
+  ~ChipPromptWaiter() override { chip_controller_->RemoveObserver(this); }
+
+  void OnPermissionPromptShown() override { show_run_loop_->Quit(); }
+
+  void WaitForShow() { show_run_loop_->Run(); }
+
+  // Triggered when the permission prompt hides.
+  void OnPermissionPromptHidden() override { hide_run_loop_->Quit(); }
+
+  void WaitForHide() { hide_run_loop_->Run(); }
+
+ private:
+  raw_ptr<ChipController> chip_controller_ = nullptr;
+  std::unique_ptr<base::RunLoop> show_run_loop_;
+  std::unique_ptr<base::RunLoop> hide_run_loop_;
+};
 }  // namespace
 
 class PermissionChipInteractiveUITest : public InProcessBrowserTest {
@@ -161,14 +190,6 @@ class PermissionChipInteractiveUITest : public InProcessBrowserTest {
     views::test::ButtonTestApi(chip).NotifyClick(
         ui::MouseEvent(ui::EventType::kMousePressed, gfx::Point(), gfx::Point(),
                        ui::EventTimeForNow(), ui::EF_LEFT_MOUSE_BUTTON, 0));
-    base::RunLoop().RunUntilIdle();
-  }
-
-  void ClickOnLock() {
-    views::test::ButtonTestApi(GetLocationBarView()->location_icon_view())
-        .NotifyClick(ui::MouseEvent(ui::EventType::kMousePressed, gfx::Point(),
-                                    gfx::Point(), ui::EventTimeForNow(),
-                                    ui::EF_LEFT_MOUSE_BUTTON, 0));
     base::RunLoop().RunUntilIdle();
   }
 
@@ -380,71 +401,6 @@ IN_PROC_BROWSER_TEST_F(ConfirmationChipEnabledInteractiveTest,
   base::RunLoop().RunUntilIdle();
 
   ASSERT_FALSE(GetChip()->GetVisible());
-}
-
-class ConfirmationChipUmaInteractiveTest
-    : public PermissionChipInteractiveUITest {
- public:
-  ConfirmationChipUmaInteractiveTest() = default;
-};
-
-IN_PROC_BROWSER_TEST_F(ConfirmationChipUmaInteractiveTest, VerifyUmaMetrics) {
-  base::HistogramTester histograms;
-
-  ClickOnLock();
-
-  metrics::SubprocessMetricsProvider::MergeHistogramDeltasForTesting();
-  histograms.ExpectBucketCount(
-      "Permissions.ConfirmationChip.PageInfoDialogAccessType",
-      static_cast<int>(permissions::PageInfoDialogAccessType::LOCK_CLICK), 1);
-
-  ASSERT_TRUE(ui_test_utils::SendKeyPressSync(browser(), ui::VKEY_ESCAPE, false,
-                                              false, false, false));
-  base::RunLoop().RunUntilIdle();
-
-  RequestPermission(permissions::RequestType::kGeolocation);
-  test_api_->manager()->Accept();
-
-  ClickOnChip(GetChip());
-
-  metrics::SubprocessMetricsProvider::MergeHistogramDeltasForTesting();
-  histograms.ExpectBucketCount(
-      "Permissions.ConfirmationChip.PageInfoDialogAccessType",
-      static_cast<int>(
-          permissions::PageInfoDialogAccessType::CONFIRMATION_CHIP_CLICK),
-      1);
-
-  ASSERT_TRUE(ui_test_utils::SendKeyPressSync(browser(), ui::VKEY_ESCAPE, false,
-                                              false, false, false));
-
-  base::RunLoop().RunUntilIdle();
-
-  GetLocationBarView()->SetConfirmationChipShownTimeForTesting(
-      base::TimeTicks::Now() - base::Seconds(10));
-
-  ClickOnLock();
-
-  metrics::SubprocessMetricsProvider::MergeHistogramDeltasForTesting();
-  histograms.ExpectBucketCount(
-      "Permissions.ConfirmationChip.PageInfoDialogAccessType",
-      static_cast<int>(permissions::PageInfoDialogAccessType::
-                           LOCK_CLICK_SHORTLY_AFTER_CONFIRMATION_CHIP),
-      1);
-
-  ASSERT_TRUE(ui_test_utils::SendKeyPressSync(browser(), ui::VKEY_ESCAPE, false,
-                                              false, false, false));
-
-  base::RunLoop().RunUntilIdle();
-
-  GetLocationBarView()->SetConfirmationChipShownTimeForTesting(
-      base::TimeTicks::Now() - base::Seconds(21));
-
-  ClickOnLock();
-
-  metrics::SubprocessMetricsProvider::MergeHistogramDeltasForTesting();
-  histograms.ExpectBucketCount(
-      "Permissions.ConfirmationChip.PageInfoDialogAccessType",
-      static_cast<int>(permissions::PageInfoDialogAccessType::LOCK_CLICK), 2);
 }
 
 class PageInfoChangedWithin1mUmaTest : public PermissionChipInteractiveUITest {
@@ -1578,6 +1534,17 @@ IN_PROC_BROWSER_TEST_F(PermissionChipInteractiveUITest,
   manager->Accept();
 
   EXPECT_TRUE(content::EvalJs(main_rfh, kCheckNotifications).value.GetBool());
+}
+
+IN_PROC_BROWSER_TEST_F(PermissionChipInteractiveUITest,
+                       ObserverListensToPromptBubbleEvents) {
+  auto permission_prompt_waiter =
+      std::make_unique<ChipPromptWaiter>(GetChipController());
+  RequestPermission(permissions::RequestType::kGeolocation);
+  permission_prompt_waiter->WaitForShow();
+
+  GetChipController()->GetBubbleWidget()->Close();
+  permission_prompt_waiter->WaitForHide();
 }
 
 class TestWebContentsObserver : content::WebContentsObserver {

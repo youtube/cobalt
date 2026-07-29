@@ -139,8 +139,10 @@ class GpuMemoryBufferVideoFramePool::PoolImpl
   // and prone to leakage. Switch this to pass around std::unique_ptr
   // such that callers own resource explicitly.
   struct FrameResource {
-    explicit FrameResource(const gfx::Size& size, gfx::BufferUsage usage)
-        : size(size), usage(usage) {}
+    explicit FrameResource(const gfx::Size& size,
+                           gfx::BufferUsage usage,
+                           const gfx::ColorSpace& color_space)
+        : size(size), usage(usage), color_space(color_space) {}
     void MarkUsed() {
       is_used_ = true;
       last_use_time_ = base::TimeTicks();
@@ -154,6 +156,7 @@ class GpuMemoryBufferVideoFramePool::PoolImpl
 
     const gfx::Size size;
     const gfx::BufferUsage usage;
+    const gfx::ColorSpace color_space;
 
     int32_t buffer_id = -1;
     scoped_refptr<gpu::ClientSharedImage> shared_image;
@@ -224,15 +227,16 @@ class GpuMemoryBufferVideoFramePool::PoolImpl
       const gfx::Size& natural_size,
       const gfx::ColorSpace& color_space,
       base::TimeDelta timestamp,
-      bool video_frame_allow_overlay,
-      const std::optional<gpu::VulkanYCbCrInfo>& ycbcr_info);
+      bool video_frame_allow_overlay);
 
   // Return true if |resource| can be used to represent a frame for
-  // specific |format| and |size|.
+  // specific |format|, |size| and |color_space|.
   static bool IsFrameResourceCompatible(const FrameResource* resource,
                                         const gfx::Size& size,
-                                        gfx::BufferUsage usage) {
-    return size == resource->size && usage == resource->usage;
+                                        gfx::BufferUsage usage,
+                                        const gfx::ColorSpace& color_space) {
+    return size == resource->size && usage == resource->usage &&
+           color_space == resource->color_space;
   }
 
   // Get the resource needed for a frame out of the pool, or create it if
@@ -652,7 +656,7 @@ void GpuMemoryBufferVideoFramePool::PoolImpl::CreateHardwareFrame(
 #endif
 
   bool passthrough = false;
-#if BUILDFLAG(IS_MAC)
+#if BUILDFLAG(IS_APPLE)
   if (!IOSurfaceCanSetColorSpace(video_frame->ColorSpace()))
     passthrough = true;
 #endif
@@ -787,10 +791,6 @@ void GpuMemoryBufferVideoFramePool::PoolImpl::OnCopiesDone(
     FrameResource* frame_resource) {
   if (!copy_failed && frame_resource->scoped_mapping) {
     frame_resource->scoped_mapping.reset();
-#if BUILDFLAG(IS_MAC)
-      frame_resource->shared_image->SetColorSpaceOnNativeBuffer(
-          video_frame->ColorSpace());
-#endif
   }
 
   TRACE_EVENT_NESTABLE_ASYNC_END0(
@@ -998,8 +998,7 @@ void GpuMemoryBufferVideoFramePool::PoolImpl::OnCopiesDoneOnMediaThread(
       frame_resource, CodedSize(video_frame.get(), output_format_),
       gfx::Rect(video_frame->visible_rect().size()),
       video_frame->natural_size(), video_frame->ColorSpace(),
-      video_frame->timestamp(), video_frame->metadata().allow_overlay,
-      video_frame->ycbcr_info());
+      video_frame->timestamp(), video_frame->metadata().allow_overlay);
   if (!frame) {
     CompleteCopyRequestAndMaybeStartNextCopy(std::move(video_frame));
     return;
@@ -1023,8 +1022,7 @@ scoped_refptr<VideoFrame> GpuMemoryBufferVideoFramePool::PoolImpl::
         const gfx::Size& natural_size,
         const gfx::ColorSpace& color_space,
         base::TimeDelta timestamp,
-        bool video_frame_allow_overlay,
-        const std::optional<gpu::VulkanYCbCrInfo>& ycbcr_info) {
+        bool video_frame_allow_overlay) {
   DCHECK(media_task_runner_->RunsTasksInCurrentSequence());
   gpu::SharedImageInterface* sii = gpu_factories_->SharedImageInterface();
   if (!sii) {
@@ -1090,10 +1088,6 @@ scoped_refptr<VideoFrame> GpuMemoryBufferVideoFramePool::PoolImpl::
 
   frame->set_color_space(frame_resource->shared_image->color_space());
 
-  if (ycbcr_info) {
-    frame->set_ycbcr_info(ycbcr_info);
-  }
-
   bool allow_overlay = false;
   if (frame_resource->shared_image->usage().Has(
           gpu::SHARED_IMAGE_USAGE_SCANOUT)) {
@@ -1112,7 +1106,7 @@ scoped_refptr<VideoFrame> GpuMemoryBufferVideoFramePool::PoolImpl::
         break;
       case GpuVideoAcceleratorFactories::OutputFormat::XR30:
       case GpuVideoAcceleratorFactories::OutputFormat::XB30:
-#if BUILDFLAG(IS_MAC)
+#if BUILDFLAG(IS_APPLE)
         allow_overlay = IOSurfaceCanSetColorSpace(color_space);
 #else
         // TODO(crbug.com/41350508): Enable this for ChromeOS.
@@ -1174,7 +1168,7 @@ GpuMemoryBufferVideoFramePool::PoolImpl::GetOrCreateFrameResource(
   while (it != resources_pool_.end()) {
     FrameResource* frame_resource = *it;
     if (!frame_resource->is_used()) {
-      if (IsFrameResourceCompatible(frame_resource, size, usage)) {
+      if (IsFrameResourceCompatible(frame_resource, size, usage, color_space)) {
         frame_resource->MarkUsed();
         return frame_resource;
       } else {
@@ -1188,7 +1182,7 @@ GpuMemoryBufferVideoFramePool::PoolImpl::GetOrCreateFrameResource(
   }
 
   // Create the resource.
-  FrameResource* frame_resource = new FrameResource(size, usage);
+  FrameResource* frame_resource = new FrameResource(size, usage, color_space);
   resources_pool_.push_back(frame_resource);
   // Update the |buffer_id| to be used by memory dumps.
   frame_resource->buffer_id = ++buffer_id_;

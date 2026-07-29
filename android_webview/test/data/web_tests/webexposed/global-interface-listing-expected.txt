@@ -117,12 +117,12 @@ interface AnimationTimeline
     method getCurrentTime
 interface AnimationTrigger
     attribute @@toStringTag
+    getter behavior
     getter exitRangeEnd
     getter exitRangeStart
     getter rangeEnd
     getter rangeStart
     getter timeline
-    getter type
     method addAnimation
     method constructor
     method removeAnimation
@@ -1178,6 +1178,7 @@ interface CanvasRenderingContext2D
     getter fontVariantCaps
     getter globalAlpha
     getter globalCompositeOperation
+    getter globalHDRHeadroom
     getter imageSmoothingEnabled
     getter imageSmoothingQuality
     getter lang
@@ -1264,6 +1265,7 @@ interface CanvasRenderingContext2D
     setter fontVariantCaps
     setter globalAlpha
     setter globalCompositeOperation
+    setter globalHDRHeadroom
     setter imageSmoothingEnabled
     setter imageSmoothingQuality
     setter lang
@@ -2883,6 +2885,7 @@ interface FontFace
     getter style
     getter unicodeRange
     getter variant
+    getter variationSettings
     getter weight
     method constructor
     method load
@@ -2897,6 +2900,7 @@ interface FontFace
     setter style
     setter unicodeRange
     setter variant
+    setter variationSettings
     setter weight
 interface FontFaceSetLoadEvent : Event
     attribute @@toStringTag
@@ -2935,7 +2939,6 @@ interface GPUAdapter
     attribute @@toStringTag
     getter features
     getter info
-    getter isFallbackAdapter
     getter limits
     method constructor
     method requestDevice
@@ -3360,7 +3363,7 @@ interface HTMLAnchorElement : HTMLElement
     getter hostname
     getter href
     getter hreflang
-    getter interestTargetElement
+    getter interestForElement
     getter name
     getter origin
     getter password
@@ -3389,7 +3392,7 @@ interface HTMLAnchorElement : HTMLElement
     setter hostname
     setter href
     setter hreflang
-    setter interestTargetElement
+    setter interestForElement
     setter name
     setter password
     setter pathname
@@ -3416,7 +3419,7 @@ interface HTMLAreaElement : HTMLElement
     getter host
     getter hostname
     getter href
-    getter interestTargetElement
+    getter interestForElement
     getter noHref
     getter origin
     getter password
@@ -3441,7 +3444,7 @@ interface HTMLAreaElement : HTMLElement
     setter host
     setter hostname
     setter href
-    setter interestTargetElement
+    setter interestForElement
     setter noHref
     setter password
     setter pathname
@@ -3546,7 +3549,7 @@ interface HTMLButtonElement : HTMLElement
     getter formMethod
     getter formNoValidate
     getter formTarget
-    getter interestTargetElement
+    getter interestForElement
     getter labels
     getter name
     getter popoverTargetAction
@@ -3568,7 +3571,7 @@ interface HTMLButtonElement : HTMLElement
     setter formMethod
     setter formNoValidate
     setter formTarget
-    setter interestTargetElement
+    setter interestForElement
     setter name
     setter popoverTargetAction
     setter popoverTargetElement
@@ -5441,6 +5444,18 @@ interface IntegrityViolationReportBody : ReportBody
     getter reportOnly
     method constructor
     method toJSON
+interface InteractionContentfulPaint : PerformanceEntry
+    attribute @@toStringTag
+    getter element
+    getter id
+    getter loadTime
+    getter paintTime
+    getter presentationTime
+    getter renderTime
+    getter size
+    getter url
+    method constructor
+    method toJSON
 interface InterestEvent : Event
     attribute @@toStringTag
     getter source
@@ -6657,6 +6672,7 @@ interface OffscreenCanvasRenderingContext2D
     getter fontVariantCaps
     getter globalAlpha
     getter globalCompositeOperation
+    getter globalHDRHeadroom
     getter imageSmoothingEnabled
     getter imageSmoothingQuality
     getter lang
@@ -6740,6 +6756,7 @@ interface OffscreenCanvasRenderingContext2D
     setter fontVariantCaps
     setter globalAlpha
     setter globalCompositeOperation
+    setter globalHDRHeadroom
     setter imageSmoothingEnabled
     setter imageSmoothingQuality
     setter lang
@@ -7761,12 +7778,12 @@ interface Response
 interface SVGAElement : SVGGraphicsElement
     attribute @@toStringTag
     getter href
-    getter interestTargetElement
+    getter interestForElement
     getter rel
     getter relList
     getter target
     method constructor
-    setter interestTargetElement
+    setter interestForElement
     setter rel
     setter relList
 interface SVGAngle
@@ -8975,17 +8992,20 @@ interface ScreenDetailed : Screen
     getter devicePixelRatio
     getter greenPrimaryX
     getter greenPrimaryY
+    getter hdrHeadroom
     getter highDynamicRangeHeadroom
     getter isInternal
     getter isPrimary
     getter label
     getter left
+    getter onhdrheadroomchange
     getter redPrimaryX
     getter redPrimaryY
     getter top
     getter whitePointX
     getter whitePointY
     method constructor
+    setter onhdrheadroomchange
 interface ScreenDetails : EventTarget
     attribute @@toStringTag
     getter currentScreen
@@ -9299,11 +9319,6 @@ interface SpeechRecognition : EventTarget
     setter onstart
     setter phrases
     setter processLocally
-interface SpeechRecognitionContext
-    attribute @@toStringTag
-    getter phrases
-    method constructor
-    setter phrases
 interface SpeechRecognitionErrorEvent : Event
     attribute @@toStringTag
     getter error
@@ -10671,7 +10686,6 @@ interface WebGL2RenderingContext
     method clearStencil
     method clientWaitSync
     method colorMask
-    method commit
     method compileShader
     method compressedTexImage2D
     method compressedTexImage3D
@@ -11223,7 +11237,6 @@ interface WebGLRenderingContext
     method clearDepth
     method clearStencil
     method colorMask
-    method commit
     method compileShader
     method compressedTexImage2D
     method compressedTexSubImage2D
@@ -12438,3 +12451,4 @@ namespace console
     setter toolbar
     setter visualViewport
 TEST FINISHED
+

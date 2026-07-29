@@ -5,6 +5,8 @@
 #ifndef BASE_MEMORY_SAFETY_CHECKS_H_
 #define BASE_MEMORY_SAFETY_CHECKS_H_
 
+#include <stdint.h>
+
 #include <new>
 #include <type_traits>
 
@@ -315,6 +317,11 @@ NOINLINE void HandleMemorySafetyCheckedOperatorDelete(
 // This is useful if you want to investigate crashes at `free()`,
 // to know which point at execution it goes wrong.
 BASE_EXPORT void CheckHeapIntegrity(const void* ptr);
+
+// The function here is called right before crashing with
+// `DoubleFreeOrCorruptionDetected()`. We provide an address for the slot start
+// to the function, and it may use that for debugging purpose.
+void SetDoubleFreeOrCorruptionDetectedFn(void (*fn)(uintptr_t));
 
 // Utility class to exclude deallocation from optional safety checks when an
 // instance is on the stack. Can be applied to performance critical functions.

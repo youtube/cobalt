@@ -40,7 +40,6 @@ target(link_target_type, "renderer_sources") {
     "render_frame_visitor.h",
     "render_thread.cc",
     "render_thread.h",
-    "render_thread_observer.cc",
     "render_thread_observer.h",
     "v8_value_converter.h",
     "window_features_converter.cc",
@@ -83,15 +82,6 @@ target(link_target_type, "renderer_sources") {
 
   if (enable_plugins) {
     sources += [ "plugin_ax_tree_action_target_adapter.h" ]
-  }
-
-  if (enable_ppapi) {
-    sources += [
-      "pepper_plugin_instance.h",
-      "ppapi_gfx_conversion.h",
-      "renderer_ppapi_host.h",
-    ]
-    deps += [ "//ppapi/c" ]
   }
 
   if (is_android) {

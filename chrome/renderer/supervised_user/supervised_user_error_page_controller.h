@@ -21,9 +21,9 @@ class SupervisedUserErrorPageControllerDelegate;
 // interstitials when committed interstitials are on. It is bound to the
 // JavaScript window.certificateErrorPageController object.
 class SupervisedUserErrorPageController
-    : public gin::Wrappable<SupervisedUserErrorPageController> {
+    : public gin::DeprecatedWrappable<SupervisedUserErrorPageController> {
  public:
-  static gin::WrapperInfo kWrapperInfo;
+  static gin::DeprecatedWrapperInfo kWrapperInfo;
 
   SupervisedUserErrorPageController(const SupervisedUserErrorPageController&) =
       delete;
@@ -53,6 +53,10 @@ class SupervisedUserErrorPageController
 #endif  // BUILDFLAG(IS_ANDROID)
 
   void OnRequestUrlAccessRemote(bool success);
+
+#if BUILDFLAG(IS_ANDROID)
+  void OnLearnMore();
+#endif  // BUILDFLAG(IS_ANDROID)
 
   // gin::WrappableBase
   gin::ObjectTemplateBuilder GetObjectTemplateBuilder(

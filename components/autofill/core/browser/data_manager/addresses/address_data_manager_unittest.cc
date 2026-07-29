@@ -307,12 +307,10 @@ TEST_F(AddressDataManagerTest, GetProfiles_Order) {
               testing::ElementsAre(Pointee(profile1), Pointee(profile2),
                                    Pointee(profile3)));
 
-  // `profile2` is first because it is a Home address.
-  // `profile1` is second because it is a Work address.
-  // `profile3` is last, even though it has the highest use count.
+  // For suggestions, H/W are always last.
   EXPECT_THAT(address_data_manager().GetProfilesToSuggest(),
-              testing::ElementsAre(Pointee(profile2), Pointee(profile1),
-                                   Pointee(profile3)));
+              testing::ElementsAre(Pointee(profile3), Pointee(profile2),
+                                   Pointee(profile1)));
 }
 
 // Test that profiles are not shown if |kAutofillProfileEnabled| is set to
@@ -374,8 +372,10 @@ TEST_F(AddressDataManagerTest, GetProfilesToSuggest_NoProfilesAddedIfDisabled) {
 }
 
 // Tests that `GetProfilesForSettings()` orders by descending modification
-// dates.
+// dates, but with Home and Work at the bottom.
 TEST_F(AddressDataManagerTest, GetProfilesForSettings) {
+  base::test::ScopedFeatureList feature(
+      features::kAutofillEnableSupportForHomeAndWork);
   AutofillProfile account_profile = test::GetFullProfile();
   test_api(account_profile)
       .set_record_type(AutofillProfile::RecordType::kAccount);
@@ -388,9 +388,16 @@ TEST_F(AddressDataManagerTest, GetProfilesForSettings) {
   local_profile.usage_history().set_modification_date(kSomeLaterTime);
   AddProfileToAddressDataManager(local_profile);
 
-  EXPECT_THAT(address_data_manager().GetProfilesForSettings(),
-              testing::ElementsAre(testing::Pointee(local_profile),
-                                   testing::Pointee(account_profile)));
+  AutofillProfile home_profile = test::GetFullCanadianProfile();
+  test_api(home_profile)
+      .set_record_type(AutofillProfile::RecordType::kAccountHome);
+  home_profile.usage_history().set_modification_date(kMuchLaterTime);
+  AddProfileToAddressDataManager(home_profile);
+
+  EXPECT_THAT(
+      address_data_manager().GetProfilesForSettings(),
+      testing::ElementsAre(Pointee(local_profile), Pointee(account_profile),
+                           Pointee(home_profile)));
 }
 
 // Adding, updating, removing operations without waiting in between.

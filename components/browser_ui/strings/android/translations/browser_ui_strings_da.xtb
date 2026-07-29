@@ -36,6 +36,7 @@ Avanceret beskyttelse styrer disse Chrome-indstillinger:
 <translation id="1409338233051621926">Tryk på Apps og derefter på Standardapps</translation>
 <translation id="1415402041810619267">Webadressen er forkortet</translation>
 <translation id="1415855080660575082">Få Chrome til at dele dine seneste faner med din enhed for at se dem på din enheds appliste og i søgeresultaterne. Du kan slå dette til eller fra i Chrome-indstillingerne.</translation>
+<translation id="1432650420699700107">Websites kan anmode om at oprette tilknytning til enhver enhed på dit lokale netværk</translation>
 <translation id="1448064542941920355">Zoom ud</translation>
 <translation id="1464044141348608623">Tillad ikke, at websites ved, hvornår du aktivt bruger din enhed</translation>
 <translation id="146867109637325312">{COUNT,plural, =1{<ph name="SITE_COUNT" /> website}one{<ph name="SITE_COUNT" /> website}other{<ph name="SITE_COUNT" /> websites}}</translation>
@@ -60,6 +61,7 @@ Avanceret beskyttelse styrer disse Chrome-indstillinger:
 <translation id="1703666494654169921">Tillad ikke, at websites bruger virtual reality-enheder eller -data</translation>
 <translation id="1704230497453185209">Tillad ikke, at websites afspiller lyd</translation>
 <translation id="1717218214683051432">Bevægelsessensorer</translation>
+<translation id="1717996979683942279">Når denne indstilling er aktiveret, kan websites anmode om tilladelse til at administrere vinduer på alle dine skærme. Når denne indstilling er deaktiveret, kan websites ikke administrere vinduer på alle dine skærme.</translation>
 <translation id="1743802530341753419">Spørg, før websites opretter forbindelse til en enhed (anbefales)</translation>
 <translation id="1777815584158991902">Felt i bunden med Discover-feedet</translation>
 <translation id="1779089405699405702">Værktøj til afkodning af billeder</translation>
@@ -68,6 +70,7 @@ Avanceret beskyttelse styrer disse Chrome-indstillinger:
 <translation id="1799920918471566157">Tips til Chrome</translation>
 <translation id="1816835383954230954">Når denne indstilling er aktiveret, kører Chrome hurtigere, og funktioner, der anvender JavaScript, bør fungere som forventet. Når denne indstilling er deaktiveret, reducerer den ydeevnen, men gør V8 mere modstandsdygtig over for angreb.</translation>
 <translation id="1818308510395330587">Aktivér også kameraet i <ph name="BEGIN_LINK" />Android-indstillingerne<ph name="END_LINK" /> for at give <ph name="APP_NAME" /> tilladelse til at bruge AR.</translation>
+<translation id="1881806992065048905">Feltet i bunden, der viser udseendet af siden Ny fane</translation>
 <translation id="1887786770086287077">Lokationsadgang er deaktiveret for denne enhed. Aktivér det under <ph name="BEGIN_LINK" />indstillinger for Android<ph name="END_LINK" />.</translation>
 <translation id="1906181697255754968">Websites får normalt adgang til filer og mapper på din enhed for at kunne gemme dit arbejde automatisk</translation>
 <translation id="1915307458270490472">Læg på</translation>
@@ -116,6 +119,7 @@ Avanceret beskyttelse styrer disse Chrome-indstillinger:
 <translation id="2402980924095424747"><ph name="MEGABYTES" /> MB</translation>
 <translation id="2404630663942400771">{PERMISSIONS_SUMMARY_ALLOWED,plural, =1{<ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> og <ph name="NUM_MORE" /> mere er tilladt}one{<ph name="PERMISSION_1" />, <ph name="PERMISSION_2" />, and <ph name="NUM_MORE" /> more allowed}other{<ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> og <ph name="NUM_MORE" /> mere er tilladt}}</translation>
 <translation id="2410940059315936967">Et website, du besøger, kan indlejre indhold fra andre websites, f.eks. billeder, annoncer og tekst. Cookies, der gemmes af disse andre websites, kaldes tredjepartscookies.</translation>
+<translation id="2433507940547922241">Udseende</translation>
 <translation id="2434158240863470628">Downloaden er fuldført <ph name="SEPARATOR" /> <ph name="BYTES_DOWNLOADED" /></translation>
 <translation id="2438120137003069591">Du har givet dette website midlertidig tilladelse til at bruge tredjepartscookies, hvilket betyder, at browserbeskyttelsen er mindre, men at der er større sandsynlighed for, at websitefunktionerne fungerer som forventet. <ph name="BEGIN_LINK" />Send feedback<ph name="END_LINK" /></translation>
 <translation id="244264527810019436">Funktioner på visse websites fungerer muligvis ikke i inkognitotilstand</translation>
@@ -128,6 +132,7 @@ Avanceret beskyttelse styrer disse Chrome-indstillinger:
 <translation id="2490684707762498678">Administreret af <ph name="APP_NAME" /></translation>
 <translation id="2498359688066513246">Hjælp og feedback</translation>
 <translation id="2501278716633472235">Gå tilbage</translation>
+<translation id="2533138527374486328">Når denne indstilling er aktiveret, kan websites anmode om at oprette tilknytning til enhver enhed på dit lokale netværk. Når denne indstilling er deaktiveret, kan websites ikke oprette tilknytning til enheder på dit lokale netværk.</translation>
 <translation id="2546283357679194313">Cookies og websitedata</translation>
 <translation id="2570922361219980984">Lokationsadgang er også deaktiveret for denne enhed. Aktivér det under <ph name="BEGIN_LINK" />indstillinger for Android<ph name="END_LINK" />.</translation>
 <translation id="257931822824936280">Udvidet – klik for at skjule.</translation>
@@ -151,6 +156,7 @@ Avanceret beskyttelse styrer disse Chrome-indstillinger:
 <translation id="2789132527330338807">Websites kan anmode om at oprette et 3D-kort over dine omgivelser eller registrere kamerapositionen</translation>
 <translation id="2790501146643349491">Når dette er slået til, kan nyligt lukkede websites gennemføre afsendelse og modtagelse af data. Når dette er slået fra, kan nyligt lukkede websites ikke sende eller modtage data.</translation>
 <translation id="2795716239552913152">Websites bruger normalt din lokation til relevante formål eller oplysninger om lokale nyheder eller butikker i nærheden</translation>
+<translation id="2800760947029405028">Upload et billede</translation>
 <translation id="2802908157808345702">Tillad ikke, at websites sender pop op-vinduer og anvender omdirigeringer</translation>
 <translation id="2814830417943086299">Chrome viser nu dine seneste faner på din enheds appliste og i søgeresultaterne. Du kan til enhver tid deaktivere dette i Chrome-indstillingerne.</translation>
 <translation id="2822354292072154809">Er du sikker på, at du vil nulstille alle websitetilladelser for <ph name="CHOSEN_OBJECT_NAME" />?</translation>
@@ -166,6 +172,7 @@ Avanceret beskyttelse styrer disse Chrome-indstillinger:
 <translation id="2968755619301702150">Certifikatfremviser</translation>
 <translation id="2979365474350987274">Tredjepartscookies er begrænsede</translation>
 <translation id="2990583317361835189">Tillad ikke, at websites anvender bevægelsessensorer</translation>
+<translation id="3004438526346162184">Websites kan bruge denne funktion til at administrere vinduer på alle dine skærme</translation>
 <translation id="3008272652534848354">Nulstil tilladelser</translation>
 <translation id="301521992641321250">Automatisk blokering</translation>
 <translation id="3064871050034234884">Websites kan afspille lyd</translation>
@@ -236,6 +243,7 @@ Avanceret beskyttelse styrer disse Chrome-indstillinger:
 <translation id="3779154269823594982">Skift adgangskoder</translation>
 <translation id="3797520601150691162">Anvend ikke Mørkt tema på et bestemt website</translation>
 <translation id="3803367742635802571">Websites, du besøger, holder muligvis op med at fungere som forventet</translation>
+<translation id="3816118180265633665">Chrome-farver</translation>
 <translation id="381841723434055211">Telefonnumre</translation>
 <translation id="3826050100957962900">Tredjepartslogin</translation>
 <translation id="3835233591525155343">Din enhedsbrug</translation>
@@ -254,6 +262,7 @@ Avanceret beskyttelse styrer disse Chrome-indstillinger:
 <translation id="3955321697524543127">Tillad ikke, at websites opretter forbindelse til USB-enheder</translation>
 <translation id="3965467402665811906">Websites kan anmode om at bruge oplysninger, de har gemt om dig</translation>
 <translation id="3967822245660637423">Download fuldført</translation>
+<translation id="3969869202926863008">Lokal netværksadgang</translation>
 <translation id="3981465354637804599">Websites viser normalt annoncer, så de kan levere indhold eller tjenester uden beregning. Nogle websites er dog kendt for at vise påtrængende eller vildledende annoncer.</translation>
 <translation id="3987993985790029246">Kopiér linket</translation>
 <translation id="3991845972263764475"><ph name="BYTES_DOWNLOADED_WITH_UNITS" />/?</translation>
@@ -320,6 +329,7 @@ Avanceret beskyttelse styrer disse Chrome-indstillinger:
 <translation id="4882919381756638075">Websites bruger normalt din mikrofon til kommunikationsformål såsom videochat</translation>
 <translation id="4883854917563148705">Administrerede indstillinger kan ikke nulstilles</translation>
 <translation id="4887024562049524730">Spørg, inden websites kan anvende dine virtual reality-enheder og -data (anbefales)</translation>
+<translation id="4934780484581617878">Vinduesstyring</translation>
 <translation id="4936863036653376783">Du finder dine grupper i sektionen for fanegrupper på alle dine enheder</translation>
 <translation id="4945443401464700059"><ph name="SITE" /> er blokeret, så det ikke kan bruge dine oplysninger på</translation>
 <translation id="4953688446973710931">Når dette er slået til, kan websites anmode om tilladelse til automatisk at downloade flere filer. Når dette er slået fra, kan websites ikke downloade flere filer automatisk.</translation>
@@ -327,6 +337,7 @@ Avanceret beskyttelse styrer disse Chrome-indstillinger:
 <translation id="4972737347717125191">Websites kan anmode om tilladelse til at bruge virtual reality-enheder og -data</translation>
 <translation id="497421865427891073">Gå fremad</translation>
 <translation id="4976702386844183910">Senest besøgt <ph name="DATE" /></translation>
+<translation id="4978178243417029856">Få flere oplysninger om Discover-feedet</translation>
 <translation id="4994033804516042629">Der blev ikke fundet nogen kontakter</translation>
 <translation id="4996978546172906250">Del via</translation>
 <translation id="5001526427543320409">Tredjepartscookies</translation>
@@ -422,6 +433,7 @@ Avanceret beskyttelse styrer disse Chrome-indstillinger:
 <translation id="5968921426641056619">Angiv webadresse</translation>
 <translation id="5975083100439434680">Zoom ud</translation>
 <translation id="5976059395673079613"><ph name="PERMISSION" /> – <ph name="WARNING_MESSAGE" /></translation>
+<translation id="5998071268779572583">Aktivér Discover-feed</translation>
 <translation id="6015775454662021376">Styr dette websites adgang til din enhed</translation>
 <translation id="6040143037577758943">Luk</translation>
 <translation id="6042308850641462728">Mere</translation>
@@ -429,6 +441,7 @@ Avanceret beskyttelse styrer disse Chrome-indstillinger:
 <translation id="6071501408666570960">Du bliver muligvis logget ud af dette website</translation>
 <translation id="6085954183010297841">Vil du slette tilladelsen til filredigering? <ph name="FILE" /></translation>
 <translation id="6120483543004435978">Når dette er slået til, kan websites anmode om tilladelse til at blive underrettet, når du aktivt bruger din enhed. Når dette er slået fra, kan websites ikke se, hvornår du aktivt bruger din enhed.</translation>
+<translation id="615886654739818377">Tillad ikke, at websites administrerer vinduer på alle dine skærme</translation>
 <translation id="6165508094623778733">Flere oplysninger</translation>
 <translation id="6171020522141473435">Når dette er slået til, kan websites anmode om tilladelse til at bruge Bluetooth-enheder. Når dette er slået fra, kan websites ikke bruge Bluetooth-enheder.</translation>
 <translation id="6177128806592000436">Din forbindelse til dette website er ikke sikker.</translation>
@@ -450,6 +463,7 @@ Avanceret beskyttelse styrer disse Chrome-indstillinger:
 <translation id="6398765197997659313">Afslut fuld skærm</translation>
 <translation id="640163077447496506">Udløber i dag</translation>
 <translation id="6405650995156823521"><ph name="FIRST_PART" /> • <ph name="SECOND_PART" /></translation>
+<translation id="6413980879783180524">Temasamlinger</translation>
 <translation id="6439114592976064011">Bloker websites fra at benytte dine virtual reality-enheder og -data</translation>
 <translation id="6447842834002726250">Cookies</translation>
 <translation id="6452138246455930388">Prisfald på din åbne fane fra <ph name="OLD_PRICE" /> til <ph name="NEW_PRICE" />, <ph name="PRODUCT_NAME" />, <ph name="DOMAIN_NAME" /></translation>
@@ -461,8 +475,10 @@ Avanceret beskyttelse styrer disse Chrome-indstillinger:
 <translation id="6545864417968258051">Bluetooth-scanning</translation>
 <translation id="6552800053856095716">{PERMISSIONS_SUMMARY_BLOCKED,plural, =1{<ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> og <ph name="NUM_MORE" /> mere er blokeret}one{<ph name="PERMISSION_1" />, <ph name="PERMISSION_2" />, and <ph name="NUM_MORE" /> more blocked}other{<ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> og <ph name="NUM_MORE" /> mere er blokeret}}</translation>
 <translation id="6554732001434021288">Senest besøgt for <ph name="NUM_DAYS" /> dage siden</translation>
+<translation id="6557290421156335491">Mine genveje</translation>
 <translation id="656065428026159829">Se mere</translation>
 <translation id="6561560012278703671">Få lydløse meddelelser (dette sørger for, at dine notifikationer ikke forstyrrer dig)</translation>
+<translation id="6565144332292237355">Websites kan bruge denne funktion til at søge efter og oprette tilknytning til enheder på dit lokale netværk</translation>
 <translation id="6593061639179217415">Standardwebsite</translation>
 <translation id="659938948789980540">{COUNT,plural, =1{Cookies er tilladt for <ph name="RWS_MEMBERS_COUNT" /> website tilhørende <ph name="RWS_OWNER" />}one{Cookies er tilladt for <ph name="RWS_MEMBERS_COUNT" /> website tilhørende <ph name="RWS_OWNER" />}other{Cookies er tilladt for <ph name="RWS_MEMBERS_COUNT" /> websites tilhørende <ph name="RWS_OWNER" />}}</translation>
 <translation id="6608650720463149374"><ph name="GIGABYTES" /> GB</translation>
@@ -508,8 +524,10 @@ Avanceret beskyttelse styrer disse Chrome-indstillinger:
 <translation id="7188508872042490670">Websitedata på enheden</translation>
 <translation id="7201549776650881587">Denne handling sletter alle data og cookies, som er gemt af alle websites i gruppen <ph name="ORIGIN" /> eller den tilhørende app på din startside</translation>
 <translation id="7203150201908454328">Udvidet</translation>
+<translation id="7213166370492037743">Tillad ikke, at websites opretter tilknytning til enheder på dit lokale netværk</translation>
 <translation id="7219254577985949841">Vil du slette websitedata?</translation>
 <translation id="723171743924126238">Vælg billeder</translation>
+<translation id="7243246278722455312">Feltet i bunden med tilpasning af siden Ny fane</translation>
 <translation id="7243308994586599757">Du finder indstillingerne nederst på skærmen</translation>
 <translation id="7250468141469952378"><ph name="ITEM_COUNT" /> er markeret</translation>
 <translation id="7260727271532453612"><ph name="PERMISSION_1" /> og <ph name="PERMISSION_2" /> blev tilladt</translation>
@@ -549,6 +567,7 @@ Avanceret beskyttelse styrer disse Chrome-indstillinger:
 <translation id="7791543448312431591">Tilføj</translation>
 <translation id="780301667611848630">Nej tak</translation>
 <translation id="7804248752222191302">Et website anvender dit kamera</translation>
+<translation id="7805832099057502789">Feltet i bunden, der viser udseendet af siden Ny fane, er åbnet i fuld højde</translation>
 <translation id="7807060072011926525">Leveret af Google</translation>
 <translation id="7815680994978050279">En farlig download blev blokeret</translation>
 <translation id="7835852323729233924">Afspilning af medier</translation>
@@ -568,9 +587,11 @@ Avanceret beskyttelse styrer disse Chrome-indstillinger:
 <translation id="802154636333426148">Download mislykkedes</translation>
 <translation id="8042586301629853791">Sortér efter:</translation>
 <translation id="8051193500142930381">Funktioner, der skal bruge et kamera, fungerer ikke</translation>
+<translation id="8056330801132235235">Standard i Chrome</translation>
 <translation id="8067883171444229417">Afspil video</translation>
 <translation id="8068648041423924542">Certifikatet kunne ikke vælges.</translation>
 <translation id="8077120325605624147">Ethvert website, du besøger, kan vise dig en hvilken som helst annonce</translation>
+<translation id="80798452873915119">Websites kan anmode om tilladelse til at administrere vinduer på alle dine skærme</translation>
 <translation id="8087000398470557479">Dette indhold er fra <ph name="DOMAIN_NAME" />, som leveres af Google.</translation>
 <translation id="8088603949666785339">Flere valgmuligheder i <ph name="BANNER_TITLE" /></translation>
 <translation id="8112925981674547014">Se faner på din appliste</translation>

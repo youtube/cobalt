@@ -36,7 +36,7 @@
 
           <template is="dom-if" if="[[allowNavigateToSiteDetail_]]">
             <cr-icon-button class="subpage-arrow"
-                aria-label$="[[computeAriaLabel_(model)]]"
+                aria-label$="[[computeViewButtonAriaLabel_(model)]]"
                 aria-describedby="siteDescription"
                 aria-roledescription="$i18n{subpageArrowRoleDescription}"
                 focus-type="site-details" focus-row-control></cr-icon-button>
@@ -66,9 +66,8 @@
           <div role="gridcell">
             <cr-icon-button id="resetSite" class="icon-delete-gray"
                 on-click="onResetButtonClick_"
-                aria-label="$i18n{siteSettingsActionReset}
-                    [[computeDisplayName_(model)]]" focus-row-control
-                focus-type="reset"></cr-icon-button>
+                aria-label="[[computeRemoveButtonAriaLabel_(model)]]"
+                focus-row-control focus-type="reset"></cr-icon-button>
           </div>
         </template>
         <template is="dom-if"

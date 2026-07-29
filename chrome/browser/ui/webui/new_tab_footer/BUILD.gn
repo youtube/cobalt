@@ -62,6 +62,7 @@ source_set("test_support") {
   public_deps = [
     ":new_tab_footer",
     "//base/test:test_support",
+    "//chrome/browser/ui:ui_features",
     "//chrome/test:test_support",
   ]
 }
@@ -69,17 +70,20 @@ source_set("test_support") {
 source_set("browser_tests") {
   testonly = true
   defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
-  sources = [ "new_tab_footer_handler_browsertest.cc" ]
-  deps = [ ":test_support" ]
+  sources = [
+    "footer_context_menu_browsertest.cc",
+    "new_tab_footer_handler_browsertest.cc",
+  ]
+  deps = [
+    ":test_support",
+    "//chrome/browser/ui/webui:webui_util",
+  ]
 }
 
 source_set("unit_tests") {
   testonly = true
   sources = [ "new_tab_footer_handler_unittest.cc" ]
-  deps = [
-    ":test_support",
-    "//chrome/browser/ui:ui_features",
-  ]
+  deps = [ ":test_support" ]
 }
 
 mojom("mojo_bindings") {

@@ -179,6 +179,8 @@ class ManagePasswordsUIController
   bool BubbleIsManualFallbackForSaving() const override;
   bool GpmPinCreatedDuringRecentPasskeyCreation() const override;
   const std::string& PasskeyRpId() const override;
+  const std::u16string& PasswordChangeUsername() const override;
+  const std::u16string& PasswordChangeNewPassword() const override;
   void OnBubbleShown() override;
   void OnBubbleHidden() override;
   void OnNoInteraction() override;
@@ -223,9 +225,13 @@ class ManagePasswordsUIController
   }
 #endif  // defined(UNIT_TEST)
 
-  // Hides/Shows the bubble if opened. Mocked in the tests.
+  // Hides the bubble if opened. Mocked in the tests.
   virtual void HidePasswordBubble();
-  virtual void ShowChangePasswordBubble();
+
+  // Opens change password bubble and passes `username` and `new_password` that
+  // should be displayed on it.
+  void ShowChangePasswordBubble(const std::u16string& username,
+                                const std::u16string& new_password);
 
   bool IsShowingBubble() const {
     return bubble_status_ == BubbleStatus::SHOWN ||
@@ -383,6 +389,10 @@ class ManagePasswordsUIController
 
   // Used to bypass user authentication in integration tests.
   bool bypass_user_auth_for_testing_ = false;
+
+  password_manager::ui::State last_page_action_state_ =
+      password_manager::ui::INACTIVE_STATE;
+  bool last_page_action_is_blocklisted_ = false;
 
 #if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_CHROMEOS)
   bool was_biometric_authentication_for_filling_promo_shown_ = false;

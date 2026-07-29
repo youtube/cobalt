@@ -59,6 +59,7 @@
 #include "third_party/blink/public/mojom/scroll/scroll_enums.mojom-blink.h"
 #include "third_party/blink/public/mojom/scroll/scroll_into_view_params.mojom-blink.h"
 #include "third_party/blink/public/platform/task_type.h"
+#include "third_party/blink/renderer/bindings/modules/v8/v8_canvas_2d_draw_element_option.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_union_rendering_context.h"
 #include "third_party/blink/renderer/core/accessibility/ax_object_cache.h"
 #include "third_party/blink/renderer/core/css/css_property_names.h"
@@ -247,8 +248,10 @@ void CanvasRenderingContext2D::Trace(Visitor* visitor) const {
   SVGResourceClient::Trace(visitor);
 }
 
-void CanvasRenderingContext2D::WillDrawImage(CanvasImageSource* source) const {
-  canvas()->WillDrawImageInCanvas2D(source);
+void CanvasRenderingContext2D::WillDrawImage(
+    CanvasImageSource* source,
+    bool image_is_texture_backed) const {
+  canvas()->WillDrawImageInCanvas2D(source, image_is_texture_backed);
 }
 
 bool CanvasRenderingContext2D::WritePixels(const SkImageInfo& orig_info,
@@ -486,8 +489,7 @@ bool CanvasRenderingContext2D::ResolveFont(const String& new_font) {
   HTMLCanvasElement* const element = canvas();
   Document& document = element->GetDocument();
   CanvasFontCache* canvas_font_cache = document.GetCanvasFontCache();
-  bool use_locale = RuntimeEnabledFeatures::CanvasTextLangEnabled();
-  const LayoutLocale* locale = use_locale ? LocaleFromLang() : nullptr;
+  const LayoutLocale* locale = LocaleFromLang();
 
   // Map the <canvas> font into the text style. If the font uses keywords like
   // larger/smaller, these will work relative to the canvas.
@@ -497,7 +499,7 @@ bool CanvasRenderingContext2D::ResolveFont(const String& new_font) {
     if (i != fonts_resolved_using_current_style_.end()) {
       auto add_result = font_lru_list_.PrependOrMoveToFirst(new_font);
       DCHECK(!add_result.is_new_entry);
-      if (use_locale && i->value.Locale() != locale) {
+      if (i->value.Locale() != locale) {
         i->value.SetLocale(locale);
       }
       GetState().SetFont(i->value, Host()->GetFontSelector());
@@ -510,9 +512,7 @@ bool CanvasRenderingContext2D::ResolveFont(const String& new_font) {
           document.GetStyleResolver().CreateComputedStyleBuilder();
       FontDescription element_font_description(
           computed_style->GetFontDescription());
-      if (use_locale) {
-        element_font_description.SetLocale(locale);
-      }
+      element_font_description.SetLocale(locale);
       // Reset the computed size to avoid inheriting the zoom factor from the
       // <canvas> element.
       element_font_description.SetComputedSize(
@@ -548,9 +548,7 @@ bool CanvasRenderingContext2D::ResolveFont(const String& new_font) {
     // We need to reset Computed and Adjusted size so we skip zoom and
     // minimum font size for detached canvas.
     FontDescription final_description(resolved_font->GetFontDescription());
-    if (use_locale) {
-      final_description.SetLocale(locale);
-    }
+    final_description.SetLocale(locale);
     final_description.SetComputedSize(final_description.SpecifiedSize());
     final_description.SetAdjustedSize(final_description.SpecifiedSize());
     GetState().SetFont(final_description, Host()->GetFontSelector());
@@ -642,7 +640,24 @@ int CanvasRenderingContext2D::Height() const {
   return Host()->Size().height();
 }
 
-bool CanvasRenderingContext2D::CanCreateCanvas2dResourceProvider() const {
+bool CanvasRenderingContext2D::IsCanvas2DResourceValid() {
+  if (Host()->IsHibernating()) {
+    return true;
+  }
+
+  if (isContextLost()) {
+    return false;
+  }
+
+  if (canvas()->GetResourceProviderForCanvas2D() &&
+      !canvas()->GetResourceProviderForCanvas2D()->IsValid()) {
+    return false;
+  }
+
+  return !!canvas()->GetOrCreateCanvasResourceProviderForCanvas2D();
+}
+
+bool CanvasRenderingContext2D::CanCreateCanvas2dResourceProvider() {
   return canvas()->GetOrCreateCanvasResourceProviderForCanvas2D();
 }
 
@@ -661,12 +676,12 @@ scoped_refptr<StaticBitmapImage> blink::CanvasRenderingContext2D::GetImage(
         canvas()->GetHibernationHandler()->GetImage());
   }
 
-  if (!canvas()->IsCanvas2DResourceValid()) {
+  if (!IsCanvas2DResourceValid()) {
     return nullptr;
   }
   // GetOrCreateResourceProvider needs to be called before FlushRecording, to
   // make sure "hint" is properly taken into account.
-  auto* provider = Host()->GetOrCreateCanvasResourceProviderForCanvas2D();
+  auto* provider = canvas()->GetOrCreateCanvasResourceProviderForCanvas2D();
   if (!provider) {
     return nullptr;
   }
@@ -692,8 +707,9 @@ ImageData* CanvasRenderingContext2D::getImageDataInternal(
 void CanvasRenderingContext2D::drawElement(Element* element,
                                            double x,
                                            double y,
+                                           Canvas2DDrawElementOption* options,
                                            ExceptionState& exception_state) {
-  DrawElementInternal(element, x, y, std::nullopt, std::nullopt,
+  DrawElementInternal(element, x, y, std::nullopt, std::nullopt, options,
                       exception_state);
 }
 
@@ -702,8 +718,9 @@ void CanvasRenderingContext2D::drawElement(Element* element,
                                            double y,
                                            double dwidth,
                                            double dheight,
+                                           Canvas2DDrawElementOption* options,
                                            ExceptionState& exception_state) {
-  DrawElementInternal(element, x, y, dwidth, dheight, exception_state);
+  DrawElementInternal(element, x, y, dwidth, dheight, options, exception_state);
 }
 
 void CanvasRenderingContext2D::setHitTestRegions(
@@ -723,12 +740,17 @@ void CanvasRenderingContext2D::setHitTestRegions(
   HostAsHTMLCanvasElement()->SetHitTestRegions(std::move(result));
 }
 
+void CanvasRenderingContext2D::EnableAccelerationIfPossible() {
+  canvas()->EnableAccelerationForCanvas2D();
+}
+
 void CanvasRenderingContext2D::DrawElementInternal(
     Element* element,
     double x,
     double y,
     std::optional<double> dwidth,
     std::optional<double> dheight,
+    Canvas2DDrawElementOption*,
     ExceptionState& exception_state) {
   CHECK(RuntimeEnabledFeatures::CanvasDrawElementEnabled());
 
@@ -1076,9 +1098,9 @@ bool CanvasRenderingContext2D::ShouldDisableAccelerationBecauseOfReadback()
   return canvas()->ShouldDisableAccelerationBecauseOfReadback();
 }
 
-bool CanvasRenderingContext2D::IsCanvas2DBufferValid() const {
+bool CanvasRenderingContext2D::IsCanvas2DBufferValid() {
   if (IsPaintable()) {
-    return canvas()->IsCanvas2DResourceValid();
+    return IsCanvas2DResourceValid();
   }
   return false;
 }

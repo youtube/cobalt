@@ -12,9 +12,62 @@
 
 namespace tab_groups {
 namespace {
-bool IsVersionOutOfDate() {
-  return base::FeatureList::IsEnabled(
+
+// Represents various possible version states based on feature flags.
+enum class VersionState {
+  // Version is out of date. Versioning messages to update chrome can be shown.
+  // Feature flags:
+  // data_sharing::features::kSharedDataTypesKillSwitch ENABLED,
+  // data_sharing::features::kDataSharingEnableUpdateChromeUI ENABLED.
+  kOutOfDate,
+
+  // Version is out of date. However, no specific versioning message should be
+  // shown.
+  // Feature flags:
+  // data_sharing::features::kSharedDataTypesKillSwitch ENABLED,
+  // data_sharing::features::kDataSharingEnableUpdateChromeUI DISABLED.
+  kNoMessage,
+
+  // Version is up-to-date.
+  // Feature flags:
+  // data_sharing::features::kSharedDataTypesKillSwitch DISABLED,
+  // data_sharing::features::kDataSharingEnableUpdateChromeUI DISABLED.
+  kUpToDate,
+
+  // Invalid combination of feature flags. No specific versioning message should
+  // be shown.
+  // Feature flags:
+  // data_sharing::features::kSharedDataTypesKillSwitch DISABLED,
+  // data_sharing::features::kDataSharingEnableUpdateChromeUI ENABLED.
+  kInvalidCombination,
+
+  // Data sharing main feature flags are disabled. No versioning message should
+  // be shown and we shouldn't even bother to set or reset pref state. This
+  // state can be cleaned up after data sharing feature launch.
+  // Feature flags:
+  // data_sharing::features::IsDataSharingFunctionalityEnabled() => false
+  // data_sharing::features::kSharedDataTypesKillSwitch ANY STATE,
+  // data_sharing::features::kDataSharingEnableUpdateChromeUI ANY STATE.
+  kDataSharingFunctionalityDisabled,
+};
+
+// Returns the current version state based on combination of feature flags.
+VersionState GetVersionState() {
+  if (!data_sharing::features::IsDataSharingFunctionalityEnabled()) {
+    return VersionState::kDataSharingFunctionalityDisabled;
+  }
+  const bool is_shared_data_types_enabled = !base::FeatureList::IsEnabled(
+      data_sharing::features::kSharedDataTypesKillSwitch);
+  const bool is_update_chrome_ui_enabled = base::FeatureList::IsEnabled(
       data_sharing::features::kDataSharingEnableUpdateChromeUI);
+
+  if (is_shared_data_types_enabled) {
+    return is_update_chrome_ui_enabled ? VersionState::kInvalidCombination
+                                       : VersionState::kUpToDate;
+  } else {
+    return is_update_chrome_ui_enabled ? VersionState::kOutOfDate
+                                       : VersionState::kNoMessage;
+  }
 }
 
 bool HasCurrentSharedTabGroups(TabGroupSyncService* tab_group_sync_service) {
@@ -45,64 +98,84 @@ void VersioningMessageControllerImpl::ComputePrefsOnStartup() {
   // On startup, read and compute the state of the prefs based on the feature
   // flag and number of shared tab groups in the previous session.
 
-  if (IsVersionOutOfDate()) {
-    // Version is out-of-date. If there were shared tab groups last session,
-    // that means that the version just switched. Compute the pref states
-    // accordingly.
+  switch (GetVersionState()) {
+    case VersionState::kOutOfDate: {
+      // Version is out-of-date. If there were shared tab groups last session,
+      // that means that the version just switched. Compute the pref states
+      // accordingly.
 
-    // Determine if previous session had shared tab groups that make
-    // it eligible for the instant/persistent message.
-    const bool had_open_shared_tab_groups =
-        tab_group_sync_service_->HadSharedTabGroupsLastSession(
-            /*open_shared_tab_groups=*/true);
-    const bool had_any_shared_tab_groups =
-        tab_group_sync_service_->HadSharedTabGroupsLastSession(
-            /*open_shared_tab_groups=*/false);
+      // Determine if previous session had shared tab groups that make
+      // it eligible for the instant/persistent message.
+      const bool had_open_shared_tab_groups =
+          tab_group_sync_service_->HadSharedTabGroupsLastSession(
+              /*open_shared_tab_groups=*/true);
+      const bool had_any_shared_tab_groups =
+          tab_group_sync_service_->HadSharedTabGroupsLastSession(
+              /*open_shared_tab_groups=*/false);
 
-    if (had_open_shared_tab_groups) {
+      if (had_open_shared_tab_groups) {
+        pref_service_->SetBoolean(
+            prefs::kEligibleForVersionOutOfDateInstantMessage, true);
+      }
+
+      if (had_any_shared_tab_groups) {
+        pref_service_->SetBoolean(
+            prefs::kEligibleForVersionOutOfDatePersistentMessage, true);
+      }
+
+      // Always reset the 'updated' message eligibility when out of date.
+      pref_service_->SetBoolean(prefs::kEligibleForVersionUpdatedMessage,
+                                false);
+      break;
+    }
+    case VersionState::kUpToDate: {
+      // Version is up-to-date. Determine if eligible for the 'version updated'
+      // message.
+      const bool had_any_out_of_date_messages_before =
+          pref_service_->GetBoolean(prefs::kHasShownAnyVersionOutOfDateMessage);
+
+      if (had_any_out_of_date_messages_before) {
+        pref_service_->SetBoolean(prefs::kEligibleForVersionUpdatedMessage,
+                                  true);
+      }
+
+      // Always reset the 'out-of-date' message eligibilities when up to date.
       pref_service_->SetBoolean(
-          prefs::kEligibleForVersionOutOfDateInstantMessage, true);
-    }
-
-    if (had_any_shared_tab_groups) {
+          prefs::kEligibleForVersionOutOfDateInstantMessage, false);
+      pref_service_->SetBoolean(prefs::kHasShownAnyVersionOutOfDateMessage,
+                                false);
       pref_service_->SetBoolean(
-          prefs::kEligibleForVersionOutOfDatePersistentMessage, true);
+          prefs::kEligibleForVersionOutOfDatePersistentMessage, false);
+      break;
     }
-
-    // Always reset the 'updated' message eligibility when out of date.
-    pref_service_->SetBoolean(prefs::kEligibleForVersionUpdatedMessage, false);
-  } else {  // Version is up-to-date.
-
-    // Determine if eligible for the 'version updated' message.
-    const bool had_any_out_of_date_messages_before =
-        pref_service_->GetBoolean(prefs::kHasShownAnyVersionOutOfDateMessage);
-
-    if (had_any_out_of_date_messages_before) {
-      pref_service_->SetBoolean(prefs::kEligibleForVersionUpdatedMessage, true);
+    case VersionState::kNoMessage:
+    case VersionState::kInvalidCombination:
+    case VersionState::kDataSharingFunctionalityDisabled: {
+      // In these states, no specific versioning messages are tied to the
+      // feature flag combination. The prefs should carry over their previous
+      // state or default values if not explicitly set elsewhere.
+      break;
     }
-
-    // Always reset the 'out-of-date' message eligibilities when up to date.
-    pref_service_->SetBoolean(prefs::kEligibleForVersionOutOfDateInstantMessage,
-                              false);
-    pref_service_->SetBoolean(prefs::kHasShownAnyVersionOutOfDateMessage,
-                              false);
-    pref_service_->SetBoolean(
-        prefs::kEligibleForVersionOutOfDatePersistentMessage, false);
   }
 }
 
 bool VersioningMessageControllerImpl::ShouldShowMessageUi(
     MessageType message_type) {
   CHECK(is_initialized_);
+
+  VersionState current_version_state = GetVersionState();
   switch (message_type) {
     case MessageType::VERSION_OUT_OF_DATE_INSTANT_MESSAGE:
-      return pref_service_->GetBoolean(
-          prefs::kEligibleForVersionOutOfDateInstantMessage);
+      return current_version_state == VersionState::kOutOfDate &&
+             pref_service_->GetBoolean(
+                 prefs::kEligibleForVersionOutOfDateInstantMessage);
     case MessageType::VERSION_OUT_OF_DATE_PERSISTENT_MESSAGE:
-      return pref_service_->GetBoolean(
-          prefs::kEligibleForVersionOutOfDatePersistentMessage);
+      return current_version_state == VersionState::kOutOfDate &&
+             pref_service_->GetBoolean(
+                 prefs::kEligibleForVersionOutOfDatePersistentMessage);
     case MessageType::VERSION_UPDATED_MESSAGE:
-      return pref_service_->GetBoolean(
+      return current_version_state == VersionState::kUpToDate &&
+             pref_service_->GetBoolean(
                  prefs::kEligibleForVersionUpdatedMessage) &&
              HasCurrentSharedTabGroups(tab_group_sync_service_);
     default:

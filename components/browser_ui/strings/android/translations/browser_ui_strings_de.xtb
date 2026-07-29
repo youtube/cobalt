@@ -36,6 +36,7 @@ Diese Chrome-Einstellungen werden durch das erweiterte Sicherheitsprogramm geste
 <translation id="1409338233051621926">Tippe auf „Apps“ und dann auf „Standard-Apps“</translation>
 <translation id="1415402041810619267">URL abgeschnitten</translation>
 <translation id="1415855080660575082">Erlaube Chrome, deine zuletzt geöffneten Tabs mit deinem Gerät zu teilen, damit sie dort in der App-Liste und in den Suchergebnissen angezeigt werden können. Diese Funktion lässt sich in den Chrome-Einstellungen aktivieren oder deaktivieren.</translation>
+<translation id="1432650420699700107">Websites können nachfragen, ob eine Verbindung mit einem beliebigen Gerät in deinem lokalen Netzwerk hergestellt werden darf</translation>
 <translation id="1448064542941920355">Herauszoomen</translation>
 <translation id="1464044141348608623">Websites dürfen keine Informationen zu meiner aktiven Nutzung dieses Geräts abrufen</translation>
 <translation id="146867109637325312">{COUNT,plural, =1{<ph name="SITE_COUNT" /> Website}other{<ph name="SITE_COUNT" /> Websites}}</translation>
@@ -60,6 +61,7 @@ Diese Chrome-Einstellungen werden durch das erweiterte Sicherheitsprogramm geste
 <translation id="1703666494654169921">Websites dürfen keine Virtual-Reality-Geräte oder ‑Daten verwenden</translation>
 <translation id="1704230497453185209">Websites dürfen keinen Ton wiedergeben</translation>
 <translation id="1717218214683051432">Bewegungssensoren</translation>
+<translation id="1717996979683942279">Wenn diese Option aktiviert ist, können Websites anfragen, ob sie Fenster auf allen deinen Bildschirmen verwalten dürfen. Falls die Option deaktiviert ist, können Websites keine Fenster auf deinen Bildschirmen verwalten.</translation>
 <translation id="1743802530341753419">Nachfragen, bevor Websites eine Verbindung zu einem Gerät herstellen (empfohlen)</translation>
 <translation id="1777815584158991902">Ansicht des Discover-Feeds am unteren Rand</translation>
 <translation id="1779089405699405702">Bild-Decodierer</translation>
@@ -68,6 +70,7 @@ Diese Chrome-Einstellungen werden durch das erweiterte Sicherheitsprogramm geste
 <translation id="1799920918471566157">Chrome-Tipps</translation>
 <translation id="1816835383954230954">Wenn diese Option aktiviert ist, wird Chrome schneller ausgeführt und Funktionen, die JavaScript verwenden, sollten wie vorgesehen laufen. Ist sie deaktiviert, wird die Leistung reduziert, V8 ist dafür aber widerstandsfähiger gegen Angriffe.</translation>
 <translation id="1818308510395330587">Damit <ph name="APP_NAME" /> AR verwenden kann, muss die Kameraberechtigung auch in den <ph name="BEGIN_LINK" />Android-Einstellungen<ph name="END_LINK" /> aktiviert sein.</translation>
+<translation id="1881806992065048905">Ansicht am unteren Rand – Darstellung „Neuer Tab“-Seite</translation>
 <translation id="1887786770086287077">Der Standortzugriff ist für dieses Gerät deaktiviert. Du kannst ihn in den <ph name="BEGIN_LINK" />Android-Einstellungen<ph name="END_LINK" /> aktivieren.</translation>
 <translation id="1906181697255754968">Websites greifen normalerweise auf Dateien und Ordner auf deinem Gerät zu, um Funktionen wie die automatische Speicherung deiner Arbeit umsetzen zu können</translation>
 <translation id="1915307458270490472">Auflegen</translation>
@@ -116,6 +119,7 @@ Diese Chrome-Einstellungen werden durch das erweiterte Sicherheitsprogramm geste
 <translation id="2402980924095424747"><ph name="MEGABYTES" /> MB</translation>
 <translation id="2404630663942400771">{PERMISSIONS_SUMMARY_ALLOWED,plural, =1{<ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> und <ph name="NUM_MORE" /> weitere zugelassen}other{<ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> und <ph name="NUM_MORE" /> weitere zugelassen}}</translation>
 <translation id="2410940059315936967">Auf einer Website, die du besuchst, können Inhalte von anderen Websites eingebettet sein, z. B. Bilder, Werbung und Text. Cookies, die von diesen anderen Websites gesetzt werden, werden als Drittanbieter-Cookies bezeichnet.</translation>
+<translation id="2433507940547922241">Darstellung</translation>
 <translation id="2434158240863470628">Download abgeschlossen <ph name="SEPARATOR" /> <ph name="BYTES_DOWNLOADED" /></translation>
 <translation id="2438120137003069591">Du hast dieser Website vorübergehend erlaubt, Drittanbieter-Cookies zu verwenden. Das bedeutet zwar weniger Schutz beim Surfen, aber dadurch erhöht sich die Wahrscheinlichkeit, dass Websites wie erwartet funktionieren. <ph name="BEGIN_LINK" />Feedback geben<ph name="END_LINK" /></translation>
 <translation id="244264527810019436">Einige Websites funktionieren im Inkognitomodus möglicherweise nicht richtig</translation>
@@ -128,6 +132,7 @@ Diese Chrome-Einstellungen werden durch das erweiterte Sicherheitsprogramm geste
 <translation id="2490684707762498678">Über <ph name="APP_NAME" /> verwaltet</translation>
 <translation id="2498359688066513246">Hilfe &amp; Feedback</translation>
 <translation id="2501278716633472235">Zurück</translation>
+<translation id="2533138527374486328">Wenn diese Option aktiviert ist, können Websites anfragen, ob eine Verbindung mit einem beliebigen Gerät in deinem lokalen Netzwerk hergestellt werden darf. Ist sie deaktiviert, können Websites keine Verbindung zu Geräten in deinem lokalen Netzwerk herstellen.</translation>
 <translation id="2546283357679194313">Cookies und Websitedaten</translation>
 <translation id="2570922361219980984">Der Standortzugriff ist für dieses Gerät ebenfalls deaktiviert. Du kannst ihn in den <ph name="BEGIN_LINK" />Android-Einstellungen<ph name="END_LINK" /> aktivieren.</translation>
 <translation id="257931822824936280">Maximiert – zum Minimieren klicken</translation>
@@ -151,6 +156,7 @@ Diese Chrome-Einstellungen werden durch das erweiterte Sicherheitsprogramm geste
 <translation id="2789132527330338807">Websites dürfen nachfragen, ob sie eine 3D-Karte meiner Umgebung erstellen oder die Kameraposition erfassen können</translation>
 <translation id="2790501146643349491">Wenn dieser Schalter aktiviert ist, können vor Kurzem geschlossene Websites das Senden und Empfangen von Daten abschließen. Wenn er deaktiviert ist, können vor Kurzem geschlossene Websites das Senden oder Empfangen von Daten nicht abschließen.</translation>
 <translation id="2795716239552913152">Websites verwenden deinen Standort normalerweise für relevante Funktionen oder Informationen, wie etwa Lokalnachrichten oder Geschäfte in deiner Nähe</translation>
+<translation id="2800760947029405028">Bild hochladen</translation>
 <translation id="2802908157808345702">Websites dürfen weder Pop-up-Fenster senden noch Weiterleitungen verwenden</translation>
 <translation id="2814830417943086299">Chrome zeigt deine zuletzt geöffneten Tabs jetzt in der App-Liste und in den Suchergebnissen deines Geräts an. Diese Funktion lässt sich jederzeit in den Chrome-Einstellungen deaktivieren.</translation>
 <translation id="2822354292072154809">Möchtest du wirklich alle Websiteberechtigungen für <ph name="CHOSEN_OBJECT_NAME" /> zurücksetzen?</translation>
@@ -166,6 +172,7 @@ Diese Chrome-Einstellungen werden durch das erweiterte Sicherheitsprogramm geste
 <translation id="2968755619301702150">Zertifikats-Viewer</translation>
 <translation id="2979365474350987274">Drittanbieter-Cookies sind eingeschränkt</translation>
 <translation id="2990583317361835189">Websites dürfen keine Bewegungssensoren verwenden</translation>
+<translation id="3004438526346162184">Websites können diese Funktion verwenden, um Fenster auf allen deinen Bildschirmen zu verwalten</translation>
 <translation id="3008272652534848354">Berechtigungen zurücksetzen</translation>
 <translation id="301521992641321250">Automatisch blockiert</translation>
 <translation id="3064871050034234884">Websites dürfen Ton wiedergeben</translation>
@@ -236,6 +243,7 @@ Diese Chrome-Einstellungen werden durch das erweiterte Sicherheitsprogramm geste
 <translation id="3779154269823594982">Passwörter ändern</translation>
 <translation id="3797520601150691162">Dunkles Design auf eine bestimmte Website nicht anwenden</translation>
 <translation id="3803367742635802571">Websites funktionieren möglicherweise nicht mehr erwartungsgemäß</translation>
+<translation id="3816118180265633665">Chrome-Farben</translation>
 <translation id="381841723434055211">Telefonnummern</translation>
 <translation id="3826050100957962900">Anmeldung über Drittanbieter</translation>
 <translation id="3835233591525155343">Meine Gerätenutzung</translation>
@@ -254,6 +262,7 @@ Diese Chrome-Einstellungen werden durch das erweiterte Sicherheitsprogramm geste
 <translation id="3955321697524543127">Websites dürfen keine Verbindung mit USB-Geräten herstellen</translation>
 <translation id="3965467402665811906">Websites dürfen darum bitten, Informationen verwenden zu dürfen, die sie zu deiner Person gespeichert haben</translation>
 <translation id="3967822245660637423">Download abgeschlossen</translation>
+<translation id="3969869202926863008">Zugriff auf lokales Netzwerk</translation>
 <translation id="3981465354637804599">Websites zeigen für gewöhnlich Werbung an, um Inhalte oder Dienste kostenlos anbieten zu können. Allerdings gibt es auch Websites, auf denen bekanntermaßen aufdringliche oder irreführende Werbung erscheint.</translation>
 <translation id="3987993985790029246">Link kopieren</translation>
 <translation id="3991845972263764475"><ph name="BYTES_DOWNLOADED_WITH_UNITS" /> von ?</translation>
@@ -320,6 +329,7 @@ Diese Chrome-Einstellungen werden durch das erweiterte Sicherheitsprogramm geste
 <translation id="4882919381756638075">Websites verwenden normalerweise dein Mikrofon für Kommunikationsfunktionen wie Videochats</translation>
 <translation id="4883854917563148705">Verwaltete Einstellungen können nicht zurückgesetzt werden</translation>
 <translation id="4887024562049524730">Nachfragen, bevor Websites erlaubt wird, mein Virtual-Reality-Gerät und meine Virtual-Reality-Daten zu verwenden (empfohlen)</translation>
+<translation id="4934780484581617878">Fensterverwaltung</translation>
 <translation id="4936863036653376783">Du findest deine Gruppen auf allen deinen Geräten im Bereich „Tabgruppen“</translation>
 <translation id="4945443401464700059"><ph name="SITE" /> wird daran gehindert, deine Informationen zu nutzen auf</translation>
 <translation id="4953688446973710931">Wenn dieser Schalter aktiviert ist, können Websites anfragen, ob sie automatisch mehrere Dateien herunterladen dürfen. Wenn er deaktiviert ist, können Websites nicht automatisch mehrere Dateien herunterladen.</translation>
@@ -327,6 +337,7 @@ Diese Chrome-Einstellungen werden durch das erweiterte Sicherheitsprogramm geste
 <translation id="4972737347717125191">Websites dürfen nachfragen, wenn sie Virtual-Reality-Geräte und -Daten verwenden möchten</translation>
 <translation id="497421865427891073">Weiter</translation>
 <translation id="4976702386844183910">Zuletzt besucht am <ph name="DATE" /></translation>
+<translation id="4978178243417029856">Informationen zum Discover-Feed</translation>
 <translation id="4994033804516042629">Keine Kontakte gefunden</translation>
 <translation id="4996978546172906250">Teilen über</translation>
 <translation id="5001526427543320409">Drittanbieter-Cookies</translation>
@@ -422,6 +433,7 @@ Diese Chrome-Einstellungen werden durch das erweiterte Sicherheitsprogramm geste
 <translation id="5968921426641056619">Webadresse eingeben</translation>
 <translation id="5975083100439434680">Verkleinern</translation>
 <translation id="5976059395673079613"><ph name="PERMISSION" /> – <ph name="WARNING_MESSAGE" /></translation>
+<translation id="5998071268779572583">Discover-Feed aktivieren</translation>
 <translation id="6015775454662021376">Zugriff dieser Website auf dein Gerät steuern</translation>
 <translation id="6040143037577758943">Schließen</translation>
 <translation id="6042308850641462728">Mehr</translation>
@@ -429,6 +441,7 @@ Diese Chrome-Einstellungen werden durch das erweiterte Sicherheitsprogramm geste
 <translation id="6071501408666570960">Du wirst möglicherweise von dieser Website abgemeldet</translation>
 <translation id="6085954183010297841">Berechtigung zur Dateibearbeitung widerrufen? <ph name="FILE" /></translation>
 <translation id="6120483543004435978">Wenn dieser Schalter aktiviert ist, können Websites anfragen, ob sie ermitteln dürfen, wann du dein Gerät aktiv nutzt. Wenn er deaktiviert ist, können Websites nicht ermitteln, wann du dein Gerät aktiv nutzt.</translation>
+<translation id="615886654739818377">Nicht zulassen, dass Websites Fenster auf allen deinen Bildschirmen verwalten</translation>
 <translation id="6165508094623778733">Weitere Informationen</translation>
 <translation id="6171020522141473435">Wenn dieser Schalter aktiviert ist, können Websites anfragen, ob sie Bluetooth-Geräte verwenden dürfen. Wenn er deaktiviert ist, können Websites keine Bluetooth-Geräte verwenden.</translation>
 <translation id="6177128806592000436">Die Verbindung zu dieser Website ist nicht sicher</translation>
@@ -450,6 +463,7 @@ Diese Chrome-Einstellungen werden durch das erweiterte Sicherheitsprogramm geste
 <translation id="6398765197997659313">Vollbildmodus beenden</translation>
 <translation id="640163077447496506">Läuft heute ab</translation>
 <translation id="6405650995156823521"><ph name="FIRST_PART" /> • <ph name="SECOND_PART" /></translation>
+<translation id="6413980879783180524">Designsammlungen</translation>
 <translation id="6439114592976064011">Websites daran hindern, mein Virtual-Reality-Gerät und meine Virtual-Reality-Daten zu verwenden</translation>
 <translation id="6447842834002726250">Cookies</translation>
 <translation id="6452138246455930388">Preissenkung auf dem geöffneten Tab von <ph name="OLD_PRICE" /> auf <ph name="NEW_PRICE" />, <ph name="PRODUCT_NAME" />, <ph name="DOMAIN_NAME" /></translation>
@@ -461,8 +475,10 @@ Diese Chrome-Einstellungen werden durch das erweiterte Sicherheitsprogramm geste
 <translation id="6545864417968258051">Bluetooth-Suche</translation>
 <translation id="6552800053856095716">{PERMISSIONS_SUMMARY_BLOCKED,plural, =1{<ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> und <ph name="NUM_MORE" /> weitere blockiert}other{<ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> und <ph name="NUM_MORE" /> weitere blockiert}}</translation>
 <translation id="6554732001434021288">Vor <ph name="NUM_DAYS" /> Tagen zuletzt besucht</translation>
+<translation id="6557290421156335491">Meine Verknüpfungen</translation>
 <translation id="656065428026159829">Mehr anzeigen</translation>
 <translation id="6561560012278703671">Unaufdringlichere Benachrichtigungen verwenden (störende Aufforderungen zum Annehmen von Benachrichtigungen werden blockiert)</translation>
+<translation id="6565144332292237355">Websites können diese Funktion verwenden, um nach Geräten in deinem lokalen Netzwerk zu suchen und sich mit ihnen zu verbinden</translation>
 <translation id="6593061639179217415">Desktopwebsite</translation>
 <translation id="659938948789980540">{COUNT,plural, =1{Cookies zugelassen für <ph name="RWS_MEMBERS_COUNT" /> Website von <ph name="RWS_OWNER" />}other{Cookies zugelassen für <ph name="RWS_MEMBERS_COUNT" /> Websites von <ph name="RWS_OWNER" />}}</translation>
 <translation id="6608650720463149374"><ph name="GIGABYTES" /> GB</translation>
@@ -508,8 +524,10 @@ Diese Chrome-Einstellungen werden durch das erweiterte Sicherheitsprogramm geste
 <translation id="7188508872042490670">Websitedaten auf dem Gerät</translation>
 <translation id="7201549776650881587">Durch diese Aktion werden alle Daten und Cookies gelöscht, die von allen Websites unter <ph name="ORIGIN" /> oder von der zugehörigen App auf dem Startbildschirm gespeichert wurden</translation>
 <translation id="7203150201908454328">Erweitert</translation>
+<translation id="7213166370492037743">Websites nicht erlauben, eine Verbindung zu Geräten in deinem lokalen Netzwerk herzustellen</translation>
 <translation id="7219254577985949841">Websitedaten löschen?</translation>
 <translation id="723171743924126238">Bilder auswählen</translation>
+<translation id="7243246278722455312">Ansicht am unteren Rand für „Seite ‚Neuer Tab‘ anpassen“</translation>
 <translation id="7243308994586599757">Optionen unten auf dem Bildschirm verfügbar</translation>
 <translation id="7250468141469952378"><ph name="ITEM_COUNT" /> ausgewählt</translation>
 <translation id="7260727271532453612"><ph name="PERMISSION_1" /> und <ph name="PERMISSION_2" /> zugelassen</translation>
@@ -549,6 +567,7 @@ Diese Chrome-Einstellungen werden durch das erweiterte Sicherheitsprogramm geste
 <translation id="7791543448312431591">Hinzufügen</translation>
 <translation id="780301667611848630">Nein, danke</translation>
 <translation id="7804248752222191302">Eine Website verwendet deine Kamera</translation>
+<translation id="7805832099057502789">Ansicht am unteren Rand – Darstellung „Neuer Tab“-Seite – in vollständiger Höhe geöffnet</translation>
 <translation id="7807060072011926525">Von Google bereitgestellt</translation>
 <translation id="7815680994978050279">Gefährlicher Download blockiert</translation>
 <translation id="7835852323729233924">Medien werden wiedergegeben</translation>
@@ -568,9 +587,11 @@ Diese Chrome-Einstellungen werden durch das erweiterte Sicherheitsprogramm geste
 <translation id="802154636333426148">Downloadfehler</translation>
 <translation id="8042586301629853791">Sortieren nach:</translation>
 <translation id="8051193500142930381">Funktionen, die eine Kamera benötigen, funktionieren dann nicht</translation>
+<translation id="8056330801132235235">Chrome-Standardeinstellung</translation>
 <translation id="8067883171444229417">Video ansehen</translation>
 <translation id="8068648041423924542">Zertifikat kann nicht ausgewählt werden.</translation>
 <translation id="8077120325605624147">Jede Website, die du besuchst, kann dir beliebige Werbung präsentieren</translation>
+<translation id="80798452873915119">Zulassen, dass Websites Fenster auf allen deinen Bildschirmen verwalten</translation>
 <translation id="8087000398470557479">Dieser Inhalt ist von <ph name="DOMAIN_NAME" /> und wurde von Google bereitgestellt.</translation>
 <translation id="8088603949666785339">Weitere Optionen in „<ph name="BANNER_TITLE" />“</translation>
 <translation id="8112925981674547014">Tabs in App-Liste anzeigen</translation>

@@ -61,10 +61,7 @@ GinJavaBridgeObject::GinJavaBridgeObject(
     v8::Isolate* isolate,
     const base::WeakPtr<GinJavaBridgeDispatcher>& dispatcher,
     GinJavaBridgeDispatcher::ObjectID object_id)
-    : gin::NamedPropertyInterceptor(isolate, this),
-      dispatcher_(dispatcher),
-      object_id_(object_id),
-      template_cache_(isolate) {
+    : dispatcher_(dispatcher), object_id_(object_id), template_cache_(isolate) {
   dispatcher_->GetRemoteObjectHost()->GetObject(
       object_id, remote_.BindNewPipeAndPassReceiver());
 }
@@ -77,7 +74,8 @@ GinJavaBridgeObject::~GinJavaBridgeObject() {
 
 gin::ObjectTemplateBuilder GinJavaBridgeObject::GetObjectTemplateBuilder(
     v8::Isolate* isolate) {
-  return gin::Wrappable<GinJavaBridgeObject>::GetObjectTemplateBuilder(isolate)
+  return gin::DeprecatedWrappable<
+             GinJavaBridgeObject>::GetObjectTemplateBuilder(isolate)
       .AddNamedPropertyInterceptor();
 }
 
@@ -135,6 +133,7 @@ mojom::GinJavaBridgeRemoteObject* GinJavaBridgeObject::GetRemote() {
   return remote_.get();
 }
 
-gin::WrapperInfo GinJavaBridgeObject::kWrapperInfo = {gin::kEmbedderNativeGin};
+gin::DeprecatedWrapperInfo GinJavaBridgeObject::kWrapperInfo = {
+    gin::kEmbedderNativeGin};
 
 }  // namespace content

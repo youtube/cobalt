@@ -230,10 +230,12 @@ if (is_android) {
       "//components/browser_ui/styles/android:java_resources",
       "//components/data_sharing/public:public_java",
       "//components/data_sharing/public/protocol:proto_java",
+      "//google_apis/gaia/android:java",
       "//third_party/android_deps:protobuf_lite_runtime_java",
       "//third_party/android_sdk:android_window_extensions_java",
       "//third_party/androidx:androidx_annotation_annotation_java",
       "//third_party/jni_zero:jni_zero_java",
+      "//ui/android:ui_utils_java",
       "//url:url_java",
     ]
   }
@@ -260,6 +262,25 @@ if (is_android) {
       "//components/data_sharing/public:public_java",
       "//components/tab_groups:tab_groups_java",
       "//third_party/androidx:androidx_annotation_annotation_java",
+      "//third_party/androidx:androidx_core_core_java",
+      "//ui/android:ui_no_recycler_view_java",
+    ]
+  }
+
+  android_library("versioning_java") {
+    resources_package = "org.chromium.chrome.browser.data_sharing.ui.versioning"
+    sources = [
+      "android/java/src/org/chromium/chrome/browser/data_sharing/ui/versioning/VersioningMessageBanner.java",
+      "android/java/src/org/chromium/chrome/browser/data_sharing/ui/versioning/VersioningModalDialog.java",
+    ]
+    deps = [
+      "//base:callback_java",
+      "//base:supplier_java",
+      "//chrome/android:chrome_app_java_resources",
+      "//chrome/browser/profiles/android:java",
+      "//chrome/browser/tab_group_sync:factory_java",
+      "//components/messages/android:java",
+      "//components/saved_tab_groups/public:java",
       "//third_party/androidx:androidx_core_core_java",
       "//ui/android:ui_no_recycler_view_java",
     ]
@@ -308,12 +329,15 @@ if (is_android) {
       "android/java/src/org/chromium/chrome/browser/data_sharing/DataSharingTabGroupUtilsUnitTest.java",
       "android/java/src/org/chromium/chrome/browser/data_sharing/InstantMessageDelegateImplUnitTest.java",
       "android/java/src/org/chromium/chrome/browser/data_sharing/ui/shared_image_tiles/SharedImageTilesCoordinatorUnitTest.java",
+      "android/java/src/org/chromium/chrome/browser/data_sharing/ui/versioning/VersioningMessageBannerUnitTest.java",
+      "android/java/src/org/chromium/chrome/browser/data_sharing/ui/versioning/VersioningModalDialogUnitTest.java",
     ]
     deps = [
       ":data_sharing_public_java",
       ":internal_library_java",
       ":java",
       ":shared_image_tiles_java",
+      ":versioning_java",
       "//base:base_java",
       "//base:base_java_test_support",
       "//base:base_junit_test_support",

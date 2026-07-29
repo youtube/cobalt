@@ -28,16 +28,17 @@
 #define THIRD_PARTY_BLINK_RENDERER_PLATFORM_WTF_TEXT_TEXT_CODEC_ICU_H_
 
 #include <unicode/utypes.h>
+
 #include <memory>
+
 #include "base/gtest_prod_util.h"
 #include "third_party/blink/renderer/platform/wtf/text/text_codec.h"
 #include "third_party/blink/renderer/platform/wtf/text/text_encoding.h"
+#include "third_party/blink/renderer/platform/wtf/text/wtf_uchar.h"
 
 using UConverter = struct UConverter;
 
 namespace blink {
-
-class TextCodecInput;
 
 class TextCodecIcu final : public TextCodec {
  public:
@@ -57,20 +58,16 @@ class TextCodecIcu final : public TextCodec {
   std::string Encode(base::span<const UChar>, UnencodableHandling) override;
   std::string Encode(base::span<const LChar>, UnencodableHandling) override;
 
-  template <typename CharType>
-  std::string EncodeCommon(base::span<const CharType>, UnencodableHandling);
-  std::string EncodeInternal(const TextCodecInput&, UnencodableHandling);
+  std::string EncodeCommon(base::span<const UChar>, UnencodableHandling);
+  std::string EncodeInternal(base::span<const UChar>, UnencodableHandling);
 
   void CreateIcuConverter() const;
   void ReleaseIcuConverter() const;
 
-  int DecodeToBuffer(UChar* buffer,
-                     UChar* buffer_limit,
-                     const char*& source,
-                     const char* source_limit,
-                     int32_t* offsets,
-                     bool flush,
-                     UErrorCode&);
+  size_t DecodeToBuffer(base::span<UChar> target,
+                        base::span<const char>& source,
+                        bool flush,
+                        UErrorCode&);
 
   TextEncoding encoding_;
   mutable UConverter* converter_icu_ = nullptr;

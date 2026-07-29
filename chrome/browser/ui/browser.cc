@@ -119,7 +119,6 @@
 #include "chrome/browser/ui/global_error/global_error_service.h"
 #include "chrome/browser/ui/global_error/global_error_service_factory.h"
 #include "chrome/browser/ui/location_bar/location_bar.h"
-#include "chrome/browser/ui/overscroll_pref_manager.h"
 #include "chrome/browser/ui/page_action/page_action_icon_type.h"
 #include "chrome/browser/ui/sad_tab.h"
 #include "chrome/browser/ui/search/search_tab_helper.h"
@@ -234,7 +233,6 @@
 #include "extensions/common/extension.h"
 #include "extensions/common/manifest_handlers/background_info.h"
 #include "net/base/filename_util.h"
-#include "ppapi/buildflags/buildflags.h"
 #include "third_party/blink/public/common/security/protocol_handler_security_level.h"
 #include "third_party/blink/public/mojom/frame/blocked_navigation_types.mojom.h"
 #include "third_party/blink/public/mojom/frame/frame.mojom.h"
@@ -274,10 +272,6 @@
 #include "components/captive_portal/content/captive_portal_tab_helper.h"
 #endif
 
-#if BUILDFLAG(ENABLE_EXTENSIONS)
-#include "chrome/browser/extensions/extension_browser_window_helper.h"
-#endif
-
 #if BUILDFLAG(ENABLE_PRINTING)
 #include "components/printing/browser/print_composite_client.h"
 #endif
@@ -306,6 +300,10 @@
 #include "chrome/browser/glic/glic_enabling.h"
 #include "chrome/browser/glic/glic_keyed_service.h"
 #endif
+
+#if defined(USE_AURA)
+#include "chrome/browser/ui/overscroll_pref_manager.h"
+#endif  // defined(USE_AURA)
 
 using base::UserMetricsAction;
 using content::NavigationController;
@@ -472,7 +470,7 @@ bool IsActorExecutionEngineActingOnTab(Profile* profile,
 #endif
   auto* actor_service = actor::ActorKeyedService::Get(profile);
   if (actor_service) {
-    for (auto& [task_id, task] : actor_service->GetTasks()) {
+    for (auto& [task_id, task] : actor_service->GetActiveTasks()) {
       if (task->GetExecutionEngine()->HasTaskForTab(tab)) {
         return true;
       }
@@ -677,17 +675,7 @@ Browser::Browser(const CreateParams& params)
       breadcrumb_manager_browser_agent_(
           breadcrumbs::IsEnabled(g_browser_process->local_state())
               ? std::make_unique<BreadcrumbManagerBrowserAgent>(this)
-              : nullptr)
-#if BUILDFLAG(ENABLE_EXTENSIONS)
-      ,
-      extension_browser_window_helper_(
-          std::make_unique<extensions::ExtensionBrowserWindowHelper>(this))
-#endif
-#if defined(USE_AURA)
-      ,
-      overscroll_pref_manager_(std::make_unique<OverscrollPrefManager>(this))
-#endif
-{
+              : nullptr) {
   browser_actions_->InitializeBrowserActions();
 
   if (!profile_->IsOffTheRecord()) {
@@ -722,7 +710,7 @@ Browser::Browser(const CreateParams& params)
   // BrowserWindowFeatures need to be initialized before browser window
   // creation, so that the features can be used in creating components
   // in browser window.
-  features_ = BrowserWindowFeatures::CreateBrowserWindowFeatures();
+  features_ = std::make_unique<BrowserWindowFeatures>();
   features_->Init(this);
 
   SessionServiceBase* session_service =
@@ -770,7 +758,6 @@ Browser::~Browser() {
   // with destruction. Profile destruction will unload extensions and reentrant
   // calls to Browser:: should be avoided while it is being torn down.
   ThemeServiceFactory::GetForProfile(profile_)->RemoveObserver(this);
-  extension_browser_window_helper_.reset();
 
   // The tab strip should not have any tabs at this point.
   //
@@ -1307,10 +1294,6 @@ BrowserWindowInterface::Type Browser::GetType() const {
   return type_;
 }
 
-BrowserUserEducationInterface* Browser::GetUserEducationInterface() {
-  return window();
-}
-
 web_app::AppBrowserController* Browser::GetAppBrowserController() {
   return app_controller_.get();
 }
@@ -1511,7 +1494,10 @@ void Browser::FullscreenTopUIStateChanged() {
 }
 
 void Browser::OnFindBarVisibilityChanged() {
-  window()->UpdatePageActionIcon(PageActionIconType::kFind);
+  if (!IsPageActionMigrated(PageActionIconType::kFind)) {
+    window()->UpdatePageActionIcon(PageActionIconType::kFind);
+  }
+
   command_controller_->FindBarVisibilityChanged();
 }
 
@@ -1835,9 +1821,7 @@ void Browser::SetTopControlsGestureScrollInProgress(bool in_progress) {
 
 bool Browser::CanOverscrollContent() {
 #if defined(USE_AURA)
-  return !is_type_devtools() &&
-         base::FeatureList::IsEnabled(features::kOverscrollHistoryNavigation) &&
-         overscroll_pref_manager_->IsOverscrollHistoryNavigationEnabled();
+  return GetFeatures().overscroll_pref_manager()->CanOverscrollContent();
 #else
   return false;
 #endif
@@ -2693,12 +2677,6 @@ blink::mojom::DisplayMode Browser::GetDisplayMode(
 
 blink::ProtocolHandlerSecurityLevel Browser::GetProtocolHandlerSecurityLevel(
     content::RenderFrameHost* requesting_frame) {
-  // WARNING: This must match the logic of
-  // ChromeContentRendererClient::GetProtocolHandlerSecurityLevel().
-  if (requesting_frame->GetLastCommittedOrigin().scheme() ==
-      chrome::kIsolatedAppScheme) {
-    return blink::ProtocolHandlerSecurityLevel::kSameOrigin;
-  }
   content::BrowserContext* context = requesting_frame->GetBrowserContext();
   extensions::ProcessMap* process_map = extensions::ProcessMap::Get(context);
   const Extension* owner_extension =

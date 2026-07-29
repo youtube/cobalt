@@ -4,19 +4,29 @@
 
 package org.chromium.chrome.test.transit;
 
+import android.os.Build;
+
+import com.google.errorprone.annotations.CheckReturnValue;
+
+import org.chromium.base.test.transit.Station;
+import org.chromium.base.test.transit.TripBuilder;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.browser.ChromeTabbedActivity;
+import org.chromium.chrome.browser.infobar.InfoBarContainer;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TabLaunchType;
 import org.chromium.chrome.browser.ui.appmenu.AppMenuCoordinator;
 import org.chromium.chrome.test.ChromeTabbedActivityTestRule;
+import org.chromium.chrome.test.util.ChromeApplicationTestUtils;
+import org.chromium.components.infobars.InfoBar;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.net.test.EmbeddedTestServer;
 import org.chromium.net.test.EmbeddedTestServerRule;
 import org.chromium.ui.KeyboardVisibilityDelegate;
 import org.chromium.url.GURL;
 
+import java.util.List;
 import java.util.concurrent.TimeoutException;
 
 /** Base class for integration tests that start {@link ChromeTabbedActivity}. */
@@ -151,7 +161,12 @@ class BaseCtaTransitTestRule {
         mActivityTestRule.waitForActivityCompletelyLoaded();
     }
 
-    // TODO(crbug.com/406324209): Support recreate() in Public Transit.
+    // TODO(crbug.com/406324209): Support finishActivity() in Public Transit.
+    public void finishActivity() {
+        mActivityTestRule.finishActivity();
+    }
+
+    // TODO(crbug.com/406324209): Support recreateActivity() in Public Transit.
     public void recreateActivity() {
         mActivityTestRule.recreateActivity();
     }
@@ -163,5 +178,42 @@ class BaseCtaTransitTestRule {
     // TODO(crbug.com/406324209): Use OmniboxFacility#typeText().
     public void typeInOmnibox(String text, boolean oneCharAtATime) throws InterruptedException {
         mActivityTestRule.typeInOmnibox(text, oneCharAtATime);
+    }
+
+    /** Pause the Activity going to home screen, then resume it. */
+    @CheckReturnValue
+    public TripBuilder pauseAndResumeActivityTo(Station<?> currentStation) {
+        return currentStation.runTo(
+                () -> {
+                    ChromeTabbedActivity cta = getActivity();
+                    ChromeApplicationTestUtils.fireHomeScreenIntent(cta);
+                    try {
+                        resumeMainActivityFromLauncher();
+                    } catch (Exception e) {
+                        throw new RuntimeException(e);
+                    }
+
+                    // crbug.com/324106495: Add an extra sleep in Android 12+ because
+                    // SnapshotStartingWindow occludes the ChromeActivity and any input is
+                    // considered an untrusted input until the SnapshotStartingWindow disappears.
+                    // Since it is a system window being drawn on top, we don't have access to any
+                    // signals that the SnapshotStartingWindow disappeared that we can wait for.
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                        try {
+                            Thread.sleep(200);
+                        } catch (InterruptedException e) {
+                        }
+                    }
+                });
+    }
+
+    // TODO(crbug.com/406324209): Cleanup infobars or support them in Public Transit.
+    public List<InfoBar> getInfoBars() {
+        return mActivityTestRule.getInfoBars();
+    }
+
+    // TODO(crbug.com/406324209): Cleanup infobars or support them in Public Transit.
+    public InfoBarContainer getInfoBarContainer() {
+        return mActivityTestRule.getInfoBarContainer();
     }
 }

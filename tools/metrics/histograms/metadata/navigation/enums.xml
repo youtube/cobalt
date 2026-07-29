@@ -228,6 +228,7 @@ chromium-metrics-reviews@google.com.
              terminated"/>
   <int value="70" label="Cache limit pruned on moderate memory pressure"/>
   <int value="71" label="Cache limit pruned on critical memory pressure"/>
+  <int value="72" label="Message from SharedWorker to a page in BFCache"/>
 </enum>
 
 <!-- LINT.ThenChange(//content/public/browser/back_forward_cache.h:NotRestoredReason) -->
@@ -1869,6 +1870,17 @@ chromium-metrics-reviews@google.com.
   <int value="3" label="Prerender hit finished"/>
 </enum>
 
+<!-- LINT.IfChange(PrerenderProcessReuseAvailability) -->
+
+<enum name="PrerenderProcessReuseAvailability">
+  <int value="0" label="Has matchable hosts"/>
+  <int value="1" label="Has same origin hosts"/>
+  <int value="2" label="Has same site hosts"/>
+  <int value="3" label="No same origin or same site hosts"/>
+</enum>
+
+<!-- LINT.ThenChange(//content/browser/preloading/prerender/prerender_host_registry.h:PrerenderProcessReuseAvailability) -->
+
 <!-- LINT.IfChange(PrerenderWaitingForHeadersFinishedReason) -->
 
 <enum name="PrerenderWaitingForHeadersFinishedReason">
@@ -1940,8 +1952,10 @@ chromium-metrics-reviews@google.com.
   <int value="5" label="kWasted_NowUseNewSpeculativeRFH"/>
 </enum>
 
+<!-- LINT.IfChange(WebSchedulerTrackedFeature)-->
+
 <enum name="WebSchedulerTrackedFeature">
-<!-- Generated from third_party/blink/public/common/scheduler/web_scheduler_tracked_feature.h.
+<!-- Generated from third_party/blink/public/mojom/scheduler/web_scheduler_tracked_feature.mojom.
 Called by update_scheduler_enums.py.-->
 
   <int value="0" label="WebSocket"/>
@@ -2003,7 +2017,7 @@ Called by update_scheduler_enums.py.-->
   <int value="56" label="MediaSessionImplOnServiceCreated"/>
   <int value="57" label="WebTransport"/>
   <int value="58" label="Dummy"/>
-  <int value="59" label="Keepalive request"/>
+  <int value="59" label="KeepaliveRequest"/>
   <int value="60" label="JsNetworkRequestReceivedCacheControlNoStoreResource"/>
   <int value="61" label="IndexedDBEvent"/>
   <int value="62" label="WebSerial"/>
@@ -2014,7 +2028,11 @@ Called by update_scheduler_enums.py.-->
   <int value="67" label="UnloadHandler"/>
   <int value="68" label="ParserAborted"/>
   <int value="69" label="WebBluetooth"/>
+  <int value="70" label="WebAuthentication"/>
+  <int value="71" label="SharedWorkerMessage"/>
 </enum>
+
+<!-- LINT.ThenChange(//third_party/blink/public/mojom/scheduler/web_scheduler_tracked_feature.mojom:WebSchedulerTrackedFeature)-->
 
 </enums>
 

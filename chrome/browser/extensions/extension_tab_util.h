@@ -28,7 +28,6 @@
 #endif
 
 class Browser;
-class ChromeExtensionFunctionDetails;
 class ExtensionFunction;
 class GURL;
 class Profile;
@@ -48,6 +47,7 @@ class TabGroupVisualData;
 }  // namespace tab_groups
 
 namespace extensions {
+class ChromeExtensionFunctionDetails;
 class Extension;
 class WindowController;
 
@@ -85,9 +85,9 @@ class ExtensionTabUtil {
       "Cannot navigate to a chrome-untrusted:// page.";
   static constexpr char kFileUrlsNotAllowedInExtensionNavigations[] =
       "Cannot navigate to a file URL without local file access.";
+#endif  // !BUILDFLAG(IS_ANDROID)
 
   static constexpr char kTabsKey[] = "tabs";
-#endif  // !BUILDFLAG(IS_ANDROID)
 
   enum ScrubTabBehaviorType {
     kScrubTabFully,
@@ -130,9 +130,9 @@ class ExtensionTabUtil {
 #endif  // !BUILDFLAG(IS_ANDROID)
 
   static int GetTabId(const content::WebContents* web_contents);
+  static int GetWindowIdOfTab(const content::WebContents* web_contents);
 
 #if !BUILDFLAG(IS_ANDROID)
-  static int GetWindowIdOfTab(const content::WebContents* web_contents);
   static base::Value::List CreateTabList(Browser* browser,
                                          const Extension* extension,
                                          mojom::ContextType context);

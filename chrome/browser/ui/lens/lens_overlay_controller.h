@@ -183,8 +183,8 @@ class LensOverlayController : public lens::mojom::LensPageHandler,
     kOverlayAndResults,
 
     // Showing results with the overlay hidden and live page showing.
-    // TODO(b/357121367): Live page with results is no longer related to the
-    // overlay and therefore should not exist as a state of the overlay
+    // TODO(crbug.com/428208291): Live page with results is no longer related to
+    // the overlay and therefore should not exist as a state of the overlay
     // controller. Remove once we have a parent class that can handle this flow.
     kLivePageAndResults,
 
@@ -305,6 +305,12 @@ class LensOverlayController : public lens::mojom::LensPageHandler,
 
   // Updates the metrics related to navigations for the current page.
   void UpdateNavigationMetrics();
+
+  // Clears any selections currently made in the overlay.
+  void ClearAllSelections();
+
+  // Handles a new region thumbnail being created.
+  void HandleRegionBitmapCreated(const SkBitmap& region_bitmap);
 
   // Testing function to issue a Lens region selection request.
   void IssueLensRegionRequestForTesting(lens::mojom::CenterRotatedBoxPtr region,
@@ -453,7 +459,7 @@ class LensOverlayController : public lens::mojom::LensPageHandler,
       const SkBitmap& region_bitmap);
 
   // Plays the overlay close animation and then invokes the callback.
-  void TriggerOverlayCloseAnimation(base::OnceClosure callback);
+  void TriggerOverlayFadeOutAnimation(base::OnceClosure callback);
 
   // Closes the overlay UI and sets state to kOff. This method is the final
   // cleanup of closing the overlay UI. This resets all state internal to the
@@ -488,9 +494,6 @@ class LensOverlayController : public lens::mojom::LensPageHandler,
 
   // Clears the selected region.
   void ClearRegionSelection();
-
-  // Clears any selections currently made in the overlay.
-  void ClearAllSelections();
 
   // Called by the searchbox controller when the focus on the searchbox changes.
   void OnSearchboxFocusChanged(bool focused);
@@ -549,6 +552,13 @@ class LensOverlayController : public lens::mojom::LensPageHandler,
   // Handles the progress of the page content upload. Notifies the side panel
   // to update the progress bar.
   void HandlePageContentUploadProgress(uint64_t position, uint64_t total);
+
+  // Hides the overlay view and restores input to the tab contents web view.
+  void HideOverlay();
+
+  // Hides the overlay, but also sets the state to kLivePageAndResults if the
+  // side panel is bound.
+  void HideOverlayAndMaybeSetLivePageState();
 
  private:
   // Data class for constructing overlay and storing overlay state for
@@ -717,9 +727,6 @@ class LensOverlayController : public lens::mojom::LensPageHandler,
   // Called when the UI needs to show the overlay via a view that is a child of
   // the tab contents view.
   void ShowOverlay();
-
-  // Hides the overlay view and restores input to the tab contents web view.
-  void HideOverlay();
 
   // Hide the shared overlay view if it is not being used by another tab. This
   // is determined by checking if any of the children of the overlay view are

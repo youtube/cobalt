@@ -335,7 +335,13 @@ https://chromium.googlesource.com/chromium/src/+/main/build/android/docs/lint.md
     <ignore regexp="The resource `R.string.collaboration_cancel` appears to be unused"/>
     <ignore regexp="The resource `R.string.collaboration_something_went_wrong_header` appears to be unused"/>
     <ignore regexp="The resource `R.string.collaboration_something_went_wrong_body` appears to be unused"/>
+    <ignore regexp="The resource `R.string.collaboration_chrome_out_of_date_error_dialog_header` appears to be unused"/>
+    <ignore regexp="The resource `R.string.collaboration_chrome_out_of_date_error_dialog_update_button` appears to be unused"/>
+    <ignore regexp="The resource `R.string.collaboration_chrome_out_of_date_error_dialog_not_now_button` appears to be unused"/>
+    <ignore regexp="The resource `R.string.collaboration_chrome_out_of_date_error_dialog_continue_body` appears to be unused"/>
+    <ignore regexp="The resource `R.string.collaboration_shared_tab_groups_panel_out_of_date_message_cell_text` appears to be unused"/>
     <ignore regexp="The resource `R.string.data_sharing_recent_activity_bottom_sheet_title` appears to be unused"/>
+    <ignore regexp="The resource `R.string.update` appears to be unused"/>
 
     <!-- TODO(crbug.com/380086456): Remove this once a decision is made to use either the short or the long version of the strings. -->
     <ignore regexp="The resource `R.string.auxiliary_search_module_content_short` appears to be unused"/>
@@ -347,8 +353,14 @@ https://chromium.googlesource.com/chromium/src/+/main/build/android/docs/lint.md
     <ignore regexp="The resource `R.string.feed_setting_option` appears to be unused"/>
     <ignore regexp="The resource `R.string.feed_section_on` appears to be unused"/>
 
-    <!-- TODO(crbug.com/424217546): 1 string: Remove once these are used. -->
-    <ignore regexp="The resource `R.string.ntp_custom_links_help_pin` appears to be unused"/>
+    <!-- TODO(https://crbug.com/423579377): Remove the following 3 lines after the NTP appearance bottom sheet is implemented. -->
+    <ignore regexp="The resource `R.string.ntp_customization_theme_bottom_sheet_opened_full` appears to be unused"/>
+    <ignore regexp="The resource `R.string.ntp_customization_theme_bottom_sheet` appears to be unused"/>
+    <ignore regexp="The resource `R.string.ntp_customization_theme_title` appears to be unused"/>
+    <ignore regexp="The resource `R.string.ntp_customization_theme_bottom_sheet_default_option` appears to be unused"/>
+    <ignore regexp="The resource `R.string.ntp_customization_theme_bottom_sheet_upload_image_option` appears to be unused"/>
+    <ignore regexp="The resource `R.string.ntp_customization_theme_bottom_sheet_chrome_colors_option` appears to be unused"/>
+    <ignore regexp="The resource `R.string.ntp_customization_theme_bottom_sheet_theme_collections_option` appears to be unused"/>
 
     <!-- Endnote: Please specify number of suppressions when adding more -->
   </issue>

@@ -422,6 +422,11 @@ BookmarkNodeIDSet GetBookmarkNodeIDSet(
 
   // Place the search bar in the navigation bar.
   self.navigationItem.searchController = self.searchController;
+#if defined(__IPHONE_26_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_26_0
+  if (@available(iOS 26, *)) {
+    self.navigationItem.searchBarPlacementAllowsToolbarIntegration = NO;
+  }
+#endif
   self.navigationItem.hidesSearchBarWhenScrolling = NO;
 
   self.searchTerm = @"";
@@ -1493,12 +1498,9 @@ BookmarkNodeIDSet GetBookmarkNodeIDSet(
 
 - (UIBarButtonItem*)customizedDoneButton {
   UIBarButtonItem* doneButton = [[UIBarButtonItem alloc]
-      initWithTitle:GetNSString(IDS_IOS_NAVIGATION_BAR_DONE_BUTTON)
-              style:UIBarButtonItemStyleDone
-             target:self
-             action:@selector(navigationBarCancel:)];
-  doneButton.accessibilityLabel =
-      GetNSString(IDS_IOS_NAVIGATION_BAR_DONE_BUTTON);
+      initWithBarButtonSystemItem:UIBarButtonSystemItemDone
+                           target:self
+                           action:@selector(navigationBarCancel:)];
   doneButton.accessibilityIdentifier =
       kBookmarksHomeNavigationBarDoneButtonIdentifier;
   return doneButton;

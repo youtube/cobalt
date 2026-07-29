@@ -142,6 +142,7 @@ import org.chromium.chrome.browser.toolbar.back_button.BackButtonCoordinator;
 import org.chromium.chrome.browser.toolbar.bottom.BottomControlsContentDelegate;
 import org.chromium.chrome.browser.toolbar.bottom.BottomControlsCoordinator;
 import org.chromium.chrome.browser.toolbar.bottom.ScrollingBottomViewResourceFrameLayout;
+import org.chromium.chrome.browser.toolbar.extensions.ExtensionToolbarCoordinator;
 import org.chromium.chrome.browser.toolbar.home_button.HomeButtonCoordinator;
 import org.chromium.chrome.browser.toolbar.home_page_button.HomePageButtonsCoordinator;
 import org.chromium.chrome.browser.toolbar.load_progress.LoadProgressCoordinator;
@@ -171,7 +172,6 @@ import org.chromium.chrome.browser.ui.appmenu.AppMenuCoordinator;
 import org.chromium.chrome.browser.ui.appmenu.AppMenuDelegate;
 import org.chromium.chrome.browser.ui.appmenu.MenuButtonDelegate;
 import org.chromium.chrome.browser.ui.edge_to_edge.EdgeToEdgeController;
-import org.chromium.chrome.browser.ui.extensions.ExtensionService;
 import org.chromium.chrome.browser.ui.native_page.NativePage;
 import org.chromium.chrome.browser.ui.system.StatusBarColorController;
 import org.chromium.chrome.browser.ui.theme.BrandedColorScheme;
@@ -179,7 +179,6 @@ import org.chromium.chrome.browser.undo_tab_close_snackbar.UndoBarThrottle;
 import org.chromium.chrome.browser.user_education.UserEducationHelper;
 import org.chromium.chrome.browser.util.BrowserUiUtils;
 import org.chromium.chrome.browser.util.BrowserUiUtils.ModuleTypeOnStartAndNtp;
-import org.chromium.chrome.browser.util.ChromeAccessibilityUtil;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
 import org.chromium.components.browser_ui.desktop_windowing.DesktopWindowStateManager;
 import org.chromium.components.browser_ui.widget.ClipDrawableProgressBar.DrawingInfo;
@@ -243,7 +242,7 @@ public class ToolbarManager
     private final ObservableSupplierImpl<Boolean> mHomepageNonNtpSupplier =
             new ObservableSupplierImpl<>();
     private final ObservableSupplier<Boolean> mOmniboxFocusStateSupplier;
-    private final ObservableSupplierImpl<Boolean> mIsNtpShowingSupplier =
+    private final ObservableSupplierImpl<Boolean> mIsNtpWithFakeboxShowingSupplier =
             new ObservableSupplierImpl<>();
     private final ObservableSupplierImpl<Boolean> mFindInPageShowingSupplier =
             new ObservableSupplierImpl<>(false);
@@ -318,9 +317,9 @@ public class ToolbarManager
 
     private HomeButtonCoordinator mHomeButtonCoordinator;
     private HomePageButtonsCoordinator mHomePageButtonsCoordinator;
-
     private ToggleTabStackButtonCoordinator mTabSwitcherButtonCoordinator;
     private @Nullable BackButtonCoordinator mBackButtonCoordinator;
+    private @Nullable ExtensionToolbarCoordinator mExtensionToolbarCoordinator;
 
     private final BrowserStateBrowserControlsVisibilityDelegate mControlsVisibilityDelegate;
     private int mFullscreenFocusToken = TokenHolder.INVALID_TOKEN;
@@ -759,7 +758,6 @@ public class ToolbarManager
             ActivityTabProvider tabProvider,
             ScrimManager scrimManager,
             ToolbarActionModeCallback toolbarActionModeCallback,
-            @Nullable ExtensionService extensionService,
             FindToolbarManager findToolbarManager,
             ObservableSupplier<Profile> profileSupplier,
             ObservableSupplier<BookmarkModel> bookmarkModelSupplier,
@@ -1052,6 +1050,19 @@ public class ToolbarManager
                             /* isWebApp= */ false);
         }
 
+        ViewStub extensionToolbarStub =
+                controlContainer.findViewById(R.id.extension_toolbar_container_stub);
+        if (extensionToolbarStub != null) {
+            mExtensionToolbarCoordinator =
+                    ExtensionToolbarCoordinator.maybeCreate(
+                            mActivity,
+                            extensionToolbarStub,
+                            windowAndroid,
+                            profileSupplier,
+                            tabProvider,
+                            browsingModeThemeColorProvider);
+        }
+
         mToolbarLongPressMenuHandler =
                 new ToolbarLongPressMenuHandler(
                         /* context= */ mActivity,
@@ -1220,7 +1231,7 @@ public class ToolbarManager
                         onBackForwardTransitionAnimationChange();
                         mBackGestureInProgress = false;
                         if (tab == null) {
-                            mLocationBarModel.notifyUrlChanged();
+                            mLocationBarModel.notifyUrlChanged(false);
                             return;
                         }
                         // Switching tabs.
@@ -1252,7 +1263,7 @@ public class ToolbarManager
 
                         assert tab == mLocationBarModel.getTab();
                         mLocationBarModel.notifySecurityStateChanged();
-                        mLocationBarModel.notifyUrlChanged();
+                        mLocationBarModel.notifyUrlChanged(false);
                     }
 
                     @Override
@@ -1309,7 +1320,7 @@ public class ToolbarManager
                         mLocationBarModel.notifyContentChanged();
                         checkIfNtpLoaded();
                         mToolbar.onTabContentViewChanged();
-                        maybeShowOrClearCursorInLocationBar();
+                        mLocationBar.maybeShowOrClearCursorInLocationBar();
                         // Paint preview status might have been changed. Update the omnibox chip.
                         mLocationBarModel.notifySecurityStateChanged();
                         onBackPressStateChanged();
@@ -1321,7 +1332,7 @@ public class ToolbarManager
                         onBackPressStateChanged();
                         if (!didStartLoad) return;
                         mLocationBarModel.notifyWebContentsSwapped();
-                        mLocationBarModel.notifyUrlChanged();
+                        mLocationBarModel.notifyUrlChanged(false);
                         mLocationBarModel.notifySecurityStateChanged();
                     }
 
@@ -1424,6 +1435,10 @@ public class ToolbarManager
                         onBackPressStateChanged();
                         mLocationBarModel.notifyDidStartNavigation(
                                 navigationHandle.isSameDocument());
+                        if (mIsCustomTab) {
+                            ToolbarLayout toolbarLayout = mActivity.findViewById(R.id.toolbar);
+                            ((CustomTabToolbar) toolbarLayout).resetOptionalButtonState();
+                        }
                     }
 
                     @Override
@@ -1586,7 +1601,7 @@ public class ToolbarManager
 
                             if (DeviceFormFactor.isNonMultiDisplayContextOnTablet(mActivity)) {
                                 checkIfNtpLoaded();
-                                maybeShowOrClearCursorInLocationBar();
+                                mLocationBar.maybeShowOrClearCursorInLocationBar();
                             }
                         }
                     }
@@ -1652,19 +1667,6 @@ public class ToolbarManager
                 };
         mWindowAndroid.setProgressBarConfigProvider(mProgressBarConfigProvider);
         initializeToolbarPositionController();
-
-        if (extensionService != null) {
-            ViewStub extensionToolbarStub =
-                    controlContainer.findViewById(R.id.extension_toolbar_container_stub);
-            if (extensionToolbarStub != null) {
-                extensionService.inflateExtensionToolbar(
-                        mActivity,
-                        extensionToolbarStub,
-                        windowAndroid,
-                        tabProvider,
-                        browsingModeThemeColorProvider);
-            }
-        }
 
         mXrSpaceModeObservableSupplier = xrSpaceModeObservableSupplier;
         if (mXrSpaceModeObservableSupplier != null) {
@@ -1742,7 +1744,9 @@ public class ToolbarManager
             return;
         }
 
-        mIsNtpShowingSupplier.set(getNewTabPageForCurrentTab() != null);
+        mIsNtpWithFakeboxShowingSupplier.set(
+                getNewTabPageForCurrentTab() != null
+                        && getNewTabPageForCurrentTab().isLocationBarShownInNtp());
         mIsTabSwitcherFinishedShowingSupplier.set(
                 mLayoutStateProvider != null
                         ? mLayoutStateProvider.getActiveLayoutType() == LayoutType.TAB_SWITCHER
@@ -1759,7 +1763,7 @@ public class ToolbarManager
                 new ToolbarPositionController(
                         mBrowserControlsSizer,
                         ContextUtils.getAppSharedPreferences(),
-                        mIsNtpShowingSupplier,
+                        mIsNtpWithFakeboxShowingSupplier,
                         mIsTabSwitcherFinishedShowingSupplier,
                         mOmniboxFocusStateSupplier,
                         mFormFieldFocusedSupplier,
@@ -2487,6 +2491,11 @@ public class ToolbarManager
             mTabSwitcherButtonCoordinator = null;
         }
 
+        if (mExtensionToolbarCoordinator != null) {
+            mExtensionToolbarCoordinator.destroy();
+            mExtensionToolbarCoordinator = null;
+        }
+
         if (mCallbackController != null) {
             mCallbackController.destroy();
             mCallbackController = null;
@@ -2942,15 +2951,6 @@ public class ToolbarManager
             if (tab != null) {
                 mToolbar.onNavigatedToDifferentPage();
             }
-
-            // Ensure the URL bar loses focus if the tab it was interacting with is changed from
-            // underneath it.
-            setUrlBarFocus(false, OmniboxFocusReason.UNFOCUS);
-
-            // Place the cursor in the Omnibox if applicable.  We always clear the focus above to
-            // ensure the shield placed over the content is dismissed when switching tabs.  But if
-            // needed, we will refocus the omnibox and make the cursor visible here.
-            maybeShowOrClearCursorInLocationBar();
         }
 
         updateButtonStatus();
@@ -2986,9 +2986,10 @@ public class ToolbarManager
     private void checkIfNtpShowingWithNoPendingLoad() {
         boolean isNtpUrl = UrlUtilities.isNtpUrl(mLocationBarModel.getCurrentGurl());
         if (isNtpUrl && getNewTabPageForCurrentTab() != null) {
-            mIsNtpShowingSupplier.set(true);
+            mIsNtpWithFakeboxShowingSupplier.set(
+                    getNewTabPageForCurrentTab().isLocationBarShownInNtp());
         } else {
-            mIsNtpShowingSupplier.set(false);
+            mIsNtpWithFakeboxShowingSupplier.set(false);
             maybeShowBottomToolbarIph();
         }
     }
@@ -3042,7 +3043,7 @@ public class ToolbarManager
 
         mLocationBarModel.notifySecurityStateChanged();
         if (updateUrl) {
-            mLocationBarModel.notifyUrlChanged();
+            mLocationBarModel.notifyUrlChanged(false);
             updateButtonStatus();
             checkIfNtpShowingWithNoPendingLoad();
         }
@@ -3063,41 +3064,6 @@ public class ToolbarManager
     /** Returns the app menu coordinator. */
     public @Nullable MenuButtonCoordinator getOverviewModeMenuButtonCoordinator() {
         return mOverviewModeMenuButtonCoordinator;
-    }
-
-    /**
-     * Called whenever the NTP could have been entered or exited (e.g. tab content changed, tab
-     * navigated to from the tab strip/tab switcher, etc.). If the user is on a tablet and indeed
-     * entered or exited from the NTP, we will check the following cases:
-     *   1. If a11y is enabled, we will request a11y focus on the omnibox (e.g. for TalkBack) on the
-     * NTP.
-     *   2. If a keyboard is plugged in, we will show the URL bar cursor (without focus animations)
-     * on entering the NTP.
-     *   3. If a keyboard is plugged in, we will clear focus established in #2 above on exiting
-     * from the NTP.
-     */
-    private void maybeShowOrClearCursorInLocationBar() {
-        if (!DeviceFormFactor.isNonMultiDisplayContextOnTablet(mActivity)) return;
-        Tab tab = mLocationBarModel.getTab();
-        if (tab == null) return;
-        NativePage nativePage = tab.getNativePage();
-        boolean onNtp = UrlUtilities.isNtpUrl(tab.getUrl());
-
-        if (ChromeAccessibilityUtil.get().isAccessibilityEnabled()
-                && nativePage instanceof NewTabPage) {
-            mLocationBar.requestUrlBarAccessibilityFocus();
-        }
-
-        // While a hardware keyboard is connected, loading the NTP should cause the URL bar to gain
-        // focus with a blinking cursor and without focus animations. Loading a non-NTP URL should
-        // clear such focus if it exists.
-        if (mActivity.getResources().getConfiguration().keyboard == Configuration.KEYBOARD_QWERTY) {
-            if (onNtp) {
-                mLocationBar.showUrlBarCursorWithoutFocusAnimations();
-            } else {
-                mLocationBar.clearUrlBarCursorWithoutFocusAnimations();
-            }
-        }
     }
 
     private void maybeShowUrlBarCursorIfHardwareKeyboardAvailable() {
@@ -3254,5 +3220,13 @@ public class ToolbarManager
         mSuppressToolbarSceneLayerSupplier.set(isFsm);
         setToolbarShadowVisibility(isFsm ? View.INVISIBLE : View.VISIBLE);
         getToolbar().getProgressBar().setVisibility(isFsm ? View.INVISIBLE : View.VISIBLE);
+    }
+
+    /**
+     * @return The {@link ExtensionToolbarCoordinator} that manages the extension toolbar UI. null
+     *     if extensions are not supported on this build.
+     */
+    public @Nullable ExtensionToolbarCoordinator getExtensionToolbarCoordinator() {
+        return mExtensionToolbarCoordinator;
     }
 }

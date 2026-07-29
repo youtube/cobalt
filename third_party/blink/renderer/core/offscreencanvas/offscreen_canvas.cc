@@ -104,18 +104,6 @@ OffscreenCanvas::~OffscreenCanvas() {
   external_memory_accounter_.Decrease(v8::Isolate::GetCurrent(), memory_usage_);
 }
 
-void OffscreenCanvas::Commit(scoped_refptr<CanvasResource>&& canvas_resource,
-                             const SkIRect& damage_rect) {
-  if (!HasPlaceholderCanvas() || !canvas_resource)
-    return;
-  RecordCanvasSizeToUMA();
-
-  current_frame_damage_rect_.join(damage_rect);
-  GetOrCreateResourceDispatcher()->DispatchFrameSync(
-      std::move(canvas_resource), current_frame_damage_rect_, IsOpaque());
-  current_frame_damage_rect_ = SkIRect::MakeEmpty();
-}
-
 void OffscreenCanvas::Dispose() {
   // We need to drop frame dispatcher, to prevent mojo calls from completing.
   disposing_ = true;
@@ -177,7 +165,7 @@ void OffscreenCanvas::SetSize(gfx::Size size) {
     return;
   }
 
-  CanvasResourceHost::SetSize(size);
+  CanvasRenderingContextHost::SetSize(size);
   UpdateMemoryUsage();
   current_frame_damage_rect_ = SkIRect::MakeWH(Size().width(), Size().height());
 
@@ -478,21 +466,23 @@ bool OffscreenCanvas::OriginClean() const {
   return origin_clean_ && !disable_reading_from_canvas_;
 }
 
-bool OffscreenCanvas::EnableAccelerationForCanvas2D() {
+std::unique_ptr<CanvasResourceProvider>
+OffscreenCanvas::ReplaceResourceProviderForCanvas2D(
+    std::unique_ptr<CanvasResourceProvider> new_resource_provider) {
   CHECK(IsRenderingContext2D());
-
-  // Unlike HTML canvases, offscreen canvases don't automatically shift between
-  // CPU and GPU. Instead, we just return true if the canvas exists on GPU, or
-  // false if the canvas is CPU-bound. If the canvas' resource provider doesn't
-  // exist yet, we create it here.
-  // Note that `OffscreenCanvas::IsAccelerated` above is not equivalent! This
-  // returns false if the canvas resource provider doesn't exist yet, even if it
-  // will be an accelerated canvas once it has been created.
-  CanvasResourceProvider* provider = GetOrCreateResourceProviderForCanvas2D();
-  if (!provider) {
-    return false;
+  std::unique_ptr<CanvasResourceProvider> old_resource_provider =
+      std::move(resource_provider_for_canvas2d_);
+  resource_provider_for_canvas2d_ = std::move(new_resource_provider);
+  UpdateMemoryUsage();
+  if (old_resource_provider) {
+    old_resource_provider->SetDelegate(nullptr);
   }
-  return provider->IsAccelerated();
+  return old_resource_provider;
+}
+
+void OffscreenCanvas::DiscardResources() {
+  resource_provider_for_canvas2d_ = nullptr;
+  UpdateMemoryUsage();
 }
 
 bool OffscreenCanvas::HasPlaceholderCanvas() const {
@@ -527,188 +517,6 @@ CanvasResourceDispatcher* OffscreenCanvas::GetOrCreateResourceDispatcher() {
       frame_dispatcher_->SetPlaceholderCanvasDispatcher(placeholder_canvas_id_);
   }
   return frame_dispatcher_.get();
-}
-
-CanvasResourceProvider*
-OffscreenCanvas::GetOrCreateResourceProviderForImageBitmap() {
-  CHECK(IsImageBitmapRenderingContext());
-  if (!context_ ||
-      (context_->isContextLost() && !context_->IsContextBeingRestored())) {
-    return nullptr;
-  }
-
-  if (CanvasResourceProvider* provider = GetResourceProviderForImageBitmap()) {
-    if (!provider->IsValid()) {
-      // The canvas context is not lost but the provider is invalid. This
-      // happens if the GPU process dies in the middle of a render task. The
-      // canvas is notified of GPU context losses via the `NotifyGpuContextLost`
-      // callback and restoration happens in `TryRestoreContextEvent`. Both
-      // callbacks are executed in their own separate task. If the GPU context
-      // goes invalid in the middle of a render task, the canvas won't
-      // immediately know about it and canvas APIs will continue using the
-      // provider that is now invalid. We can early return here, trying to
-      // re-create the provider right away would just fail. We need to let
-      // `TryRestoreContextEvent` wait for the GPU process to up again.
-      return nullptr;
-    }
-    return provider;
-  }
-
-  if (!IsValidImageSize() && !Size().IsEmpty()) {
-    context_->LoseContext(CanvasRenderingContext::kInvalidCanvasSize);
-    return nullptr;
-  }
-
-  std::unique_ptr<CanvasResourceProvider> provider;
-  gfx::Size surface_size(width(), height());
-  const SkAlphaType alpha_type = GetRenderingContextAlphaType();
-  const viz::SharedImageFormat format = GetRenderingContextFormat();
-  const gfx::ColorSpace color_space = GetRenderingContextColorSpace();
-  if (SharedGpuContext::IsGpuCompositingEnabled()) {
-    provider = CanvasResourceProvider::CreateSharedImageProvider(
-        Size(), format, alpha_type, color_space,
-        CanvasResourceProvider::ShouldInitialize::kCallClear,
-        SharedGpuContext::ContextProviderWrapper(), RasterMode::kGPU,
-        gpu::SHARED_IMAGE_USAGE_DISPLAY_READ, this);
-  } else if (HasPlaceholderCanvas()) {
-    base::WeakPtr<CanvasResourceDispatcher> dispatcher_weakptr =
-        GetOrCreateResourceDispatcher()->GetWeakPtr();
-    provider =
-        CanvasResourceProvider::CreateSharedImageProviderForSoftwareCompositor(
-            Size(), format, alpha_type, color_space,
-            CanvasResourceProvider::ShouldInitialize::kCallClear,
-            SharedGpuContext::SharedImageInterfaceProvider(), this);
-  }
-
-  if (!provider) {
-    // Last resort fallback is to use the bitmap provider. Using this
-    // path is normal for software-rendered OffscreenCanvases that have no
-    // placeholder canvas. If there is a placeholder, its content will not be
-    // visible on screen, but at least readbacks will work. Failure to create
-    // another type of resource prover above is a sign that the graphics
-    // pipeline is in a bad state (e.g. gpu process crashed, out of memory)
-    provider = CanvasResourceProvider::CreateBitmapProvider(
-        Size(), format, alpha_type, color_space,
-        CanvasResourceProvider::ShouldInitialize::kCallClear, this);
-  }
-
-  SetResourceProviderForImageBitmap(std::move(provider));
-
-  if (GetResourceProviderForImageBitmap() &&
-      GetResourceProviderForImageBitmap()->IsValid()) {
-    // todo(crbug.com/1064363)  Add a separate UMA for Offscreen Canvas usage
-    // and understand if the if (ResourceProvider() &&
-    // ResourceProvider()->IsValid()) is really needed.
-    base::UmaHistogramBoolean(
-        "Blink.Canvas.ResourceProviderIsAccelerated",
-        GetResourceProviderForImageBitmap()->IsAccelerated());
-    base::UmaHistogramEnumeration(
-        "Blink.Canvas.ResourceProviderType",
-        GetResourceProviderForImageBitmap()->GetType());
-    DidDraw();
-  }
-  return GetResourceProviderForImageBitmap();
-}
-
-CanvasResourceProvider*
-OffscreenCanvas::GetOrCreateResourceProviderForCanvas2D() {
-  CHECK(IsRenderingContext2D());
-  if (!context_ ||
-      (context_->isContextLost() && !context_->IsContextBeingRestored())) {
-    return nullptr;
-  }
-
-  if (CanvasResourceProvider* provider = GetResourceProviderForCanvas2D()) {
-    if (!provider->IsValid()) {
-      // The canvas context is not lost but the provider is invalid. This
-      // happens if the GPU process dies in the middle of a render task. The
-      // canvas is notified of GPU context losses via the `NotifyGpuContextLost`
-      // callback and restoration happens in `TryRestoreContextEvent`. Both
-      // callbacks are executed in their own separate task. If the GPU context
-      // goes invalid in the middle of a render task, the canvas won't
-      // immediately know about it and canvas APIs will continue using the
-      // provider that is now invalid. We can early return here, trying to
-      // re-create the provider right away would just fail. We need to let
-      // `TryRestoreContextEvent` wait for the GPU process to up again.
-      return nullptr;
-    }
-    return provider;
-  }
-
-  if (!IsValidImageSize() && !Size().IsEmpty()) {
-    context_->LoseContext(CanvasRenderingContext::kInvalidCanvasSize);
-    return nullptr;
-  }
-
-  std::unique_ptr<CanvasResourceProvider> provider;
-  gfx::Size surface_size(width(), height());
-  const bool can_use_gpu =
-      SharedGpuContext::IsGpuCompositingEnabled() &&
-      RuntimeEnabledFeatures::Accelerated2dCanvasEnabled() &&
-      !(context_->CreationAttributes().will_read_frequently ==
-        CanvasContextCreationAttributesCore::WillReadFrequently::kTrue);
-  const bool use_shared_image =
-      can_use_gpu ||
-      (HasPlaceholderCanvas() && SharedGpuContext::IsGpuCompositingEnabled());
-  const bool use_scanout =
-      use_shared_image && HasPlaceholderCanvas() &&
-      SharedGpuContext::MaySupportImageChromium() &&
-      RuntimeEnabledFeatures::Canvas2dImageChromiumEnabled();
-
-  gpu::SharedImageUsageSet shared_image_usage_flags =
-      gpu::SHARED_IMAGE_USAGE_DISPLAY_READ;
-  if (use_scanout) {
-    shared_image_usage_flags |= gpu::SHARED_IMAGE_USAGE_SCANOUT;
-  }
-
-  const SkAlphaType alpha_type = GetRenderingContextAlphaType();
-  const viz::SharedImageFormat format = GetRenderingContextFormat();
-  const gfx::ColorSpace color_space = GetRenderingContextColorSpace();
-  if (use_shared_image) {
-    provider = CanvasResourceProvider::CreateSharedImageProvider(
-        Size(), format, alpha_type, color_space,
-        CanvasResourceProvider::ShouldInitialize::kCallClear,
-        SharedGpuContext::ContextProviderWrapper(),
-        can_use_gpu ? RasterMode::kGPU : RasterMode::kCPU,
-        shared_image_usage_flags, this);
-  } else if (HasPlaceholderCanvas()) {
-    // using the software compositor
-    base::WeakPtr<CanvasResourceDispatcher> dispatcher_weakptr =
-        GetOrCreateResourceDispatcher()->GetWeakPtr();
-    provider =
-        CanvasResourceProvider::CreateSharedImageProviderForSoftwareCompositor(
-            Size(), format, alpha_type, color_space,
-            CanvasResourceProvider::ShouldInitialize::kCallClear,
-            SharedGpuContext::SharedImageInterfaceProvider(), this);
-  }
-
-  if (!provider) {
-    // Last resort fallback is to use the bitmap provider. Using this
-    // path is normal for software-rendered OffscreenCanvases that have no
-    // placeholder canvas. If there is a placeholder, its content will not be
-    // visible on screen, but at least readbacks will work. Failure to create
-    // another type of resource prover above is a sign that the graphics
-    // pipeline is in a bad state (e.g. gpu process crashed, out of memory)
-    provider = CanvasResourceProvider::CreateBitmapProvider(
-        Size(), format, alpha_type, color_space,
-        CanvasResourceProvider::ShouldInitialize::kCallClear, this);
-  }
-
-  SetResourceProviderForCanvas2D(std::move(provider));
-
-  if (GetResourceProviderForCanvas2D() &&
-      GetResourceProviderForCanvas2D()->IsValid()) {
-    // todo(crbug/1064363)  Add a separate UMA for Offscreen Canvas usage and
-    // understand if the if (ResourceProvider() &&
-    // ResourceProvider()->IsValid()) is really needed.
-    base::UmaHistogramBoolean(
-        "Blink.Canvas.ResourceProviderIsAccelerated",
-        GetResourceProviderForCanvas2D()->IsAccelerated());
-    base::UmaHistogramEnumeration("Blink.Canvas.ResourceProviderType",
-                                  GetResourceProviderForCanvas2D()->GetType());
-    DidDraw();
-  }
-  return GetResourceProviderForCanvas2D();
 }
 
 void OffscreenCanvas::DidDraw(const SkIRect& rect) {

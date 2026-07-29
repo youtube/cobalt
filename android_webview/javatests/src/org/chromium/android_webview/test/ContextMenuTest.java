@@ -15,7 +15,6 @@ import android.app.Activity;
 import android.app.Instrumentation;
 import android.content.Context;
 import android.content.Intent;
-import android.util.Pair;
 
 import androidx.activity.ComponentDialog;
 import androidx.test.espresso.intent.Intents;
@@ -329,9 +328,9 @@ public class ContextMenuTest extends AwParameterizedTest {
                         params,
                         /* usePopupWindow= */ false);
 
-        List<Pair<Integer, ModelList>> contextMenuState = populator.buildContextMenu();
+        List<ModelList> contextMenuState = populator.buildContextMenu();
 
-        ModelList items = contextMenuState.get(0).second;
+        ModelList items = contextMenuState.get(0);
         Integer[] actualItems = new Integer[items.size()];
 
         for (int i = 0; i < items.size(); i++) {
@@ -472,8 +471,8 @@ public class ContextMenuTest extends AwParameterizedTest {
                         /* triggeringTouchYDp= */ 0,
                         /* sourceType= */ 0,
                         /* openedFromHighlight= */ false,
-                        /* openedFromInterestTarget= */ false,
-                        /* interestTargetNodeID= */ 0,
+                        /* openedFromInterestFor= */ false,
+                        /* interestForNodeID= */ 0,
                         /* additionalNavigationParams= */ null);
 
         AwContextMenuHelper helper = AwContextMenuHelper.create(mAwContents.getWebContents());
@@ -503,8 +502,8 @@ public class ContextMenuTest extends AwParameterizedTest {
                 0,
                 MenuSourceType.TOUCH,
                 false,
-                /* openedFromInterestTarget= */ false,
-                /* interestTargetNodeID= */ 0,
+                /* openedFromInterestFor= */ false,
+                /* interestForNodeID= */ 0,
                 /* additionalNavigationParams= */ null);
     }
 }

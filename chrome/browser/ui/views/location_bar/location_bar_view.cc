@@ -17,7 +17,6 @@
 #include "base/i18n/rtl.h"
 #include "base/metrics/field_trial_params.h"
 #include "base/strings/utf_string_conversions.h"
-#include "base/time/time.h"
 #include "build/build_config.h"
 #include "chrome/app/chrome_command_ids.h"
 #include "chrome/app/vector_icons/vector_icons.h"
@@ -74,6 +73,7 @@
 #include "chrome/browser/ui/views/page_action/page_action_icon_params.h"
 #include "chrome/browser/ui/views/page_action/page_action_properties_provider.h"
 #include "chrome/browser/ui/views/page_action/page_action_view_params.h"
+#include "chrome/browser/ui/views/page_info/page_info_bubble_specification.h"
 #include "chrome/browser/ui/views/page_info/page_info_bubble_view.h"
 #include "chrome/browser/ui/views/passwords/manage_passwords_icon_views.h"
 #include "chrome/browser/ui/views/permissions/chip/permission_chip_view.h"
@@ -1651,47 +1651,22 @@ bool LocationBarView::ShowPageInfoDialog() {
 
   DCHECK(GetWidget());
 
-  auto initialized_callback =
-      GetPageInfoDialogCreatedCallbackForTesting()
-          ? std::move(GetPageInfoDialogCreatedCallbackForTesting())
-          : base::DoNothing();
-
-  views::BubbleDialogDelegateView* bubble =
-      PageInfoBubbleView::CreatePageInfoBubble(
-          this, gfx::Rect(), GetWidget()->GetNativeWindow(), contents,
-          entry->GetVirtualURL(), std::move(initialized_callback),
-          base::BindOnce(&LocationBarView::OnPageInfoBubbleClosed,
-                         weak_factory_.GetWeakPtr()),
-          /*allow_extended_site_info=*/true);
+  std::unique_ptr<PageInfoBubbleSpecification> specification =
+      PageInfoBubbleSpecification::Builder(this, GetWidget()->GetNativeWindow(),
+                                           contents, entry->GetVirtualURL())
+          .AddInitializedCallback(
+              GetPageInfoDialogCreatedCallbackForTesting()
+                  ? std::move(GetPageInfoDialogCreatedCallbackForTesting())
+                  : base::DoNothing())
+          .AddPageInfoClosingCallback(
+              base::BindOnce(&LocationBarView::OnPageInfoBubbleClosed,
+                             weak_factory_.GetWeakPtr()))
+          .Build();
+  views::BubbleDialogDelegateView* const bubble =
+      PageInfoBubbleView::CreatePageInfoBubble(std::move(specification));
   bubble->SetHighlightedButton(location_icon_view_);
   bubble->GetWidget()->Show();
-  RecordPageInfoMetrics();
   return true;
-}
-
-void LocationBarView::RecordPageInfoMetrics() {
-  if (GetChipController()) {
-    bool confirmation_chip_collapsed_recently =
-        base::TimeTicks::Now() - confirmation_chip_collapsed_time_ <=
-        permissions::kConfirmationConsiderationDurationForUma;
-
-    if (!GetChipController()->chip()->GetVisible() &&
-        !confirmation_chip_collapsed_recently) {
-      permissions::PermissionUmaUtil::RecordPageInfoDialogAccessType(
-          permissions::PageInfoDialogAccessType::LOCK_CLICK);
-    } else if (GetChipController()->chip()->GetVisible()) {
-      permissions::PermissionUmaUtil::RecordPageInfoDialogAccessType(
-          permissions::PageInfoDialogAccessType::
-              LOCK_CLICK_DURING_CONFIRMATION_CHIP);
-    } else {
-      permissions::PermissionUmaUtil::RecordPageInfoDialogAccessType(
-          permissions::PageInfoDialogAccessType::
-              LOCK_CLICK_SHORTLY_AFTER_CONFIRMATION_CHIP);
-    }
-  } else {
-    permissions::PermissionUmaUtil::RecordPageInfoDialogAccessType(
-        permissions::PageInfoDialogAccessType::LOCK_CLICK);
-  }
 }
 
 ui::ImageModel LocationBarView::GetLocationIcon(

@@ -70,15 +70,26 @@ chromium-metrics-reviews@google.com.
     <variant name="ClosePanel"/>
     <variant name="ClosePanelAndShutdown"/>
     <variant name="CreateTab"/>
+    <variant name="CreateTask"/>
     <variant name="DetachPanel"/>
     <variant name="DropScrollToHighlight"/>
     <variant name="EnableDragResize"/>
     <variant name="GetContextFromFocusedTab"/>
     <variant name="GetContextFromTab"/>
     <variant name="GetOsMicrophonePermissionStatus"/>
+    <variant name="GetPinCandidates"/>
     <variant name="GetUserProfileInfo"/>
+    <variant name="GetZeroStateSuggestions"/>
     <variant name="GetZeroStateSuggestionsForFocusedTab"/>
+    <variant name="JournalClear"/>
+    <variant name="JournalSnapshot"/>
+    <variant name="JournalStart"/>
+    <variant name="JournalStop"/>
+    <variant name="LogBeginAsyncEvent"/>
+    <variant name="LogEndAsyncEvent"/>
+    <variant name="LogInstantEvent"/>
     <variant name="MaybeRefreshUserStatus"/>
+    <variant name="OnClosedCaptionsShown"/>
     <variant name="OnRequestStarted"/>
     <variant name="OnResponseRated"/>
     <variant name="OnResponseStarted"/>
@@ -88,6 +99,7 @@ chromium-metrics-reviews@google.com.
     <variant name="OpenGlicSettingsPage"/>
     <variant name="OpenOsPermissionSettingsMenu"/>
     <variant name="PauseActorTask"/>
+    <variant name="PerformActions"/>
     <variant name="PinTabs"/>
     <variant name="RefreshSignInCookies"/>
     <variant name="ResizeWindow"/>
@@ -186,6 +198,28 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Glic.Fre.WidgetClosedReason" enum="WidgetClosedReason"
+    expires_after="2026-07-01">
+  <owner>birnie@google.com</owner>
+  <owner>cuianthony@google.com</owner>
+  <summary>
+    The FRE widget is configured to synchronously close the widget in response
+    to a few specific browser actions. This histogram records the reason why the
+    FRE widget was closed by the browser in such scenarios. This is logged by
+    GlicFreController::CloseWithReason().
+  </summary>
+</histogram>
+
+<histogram name="Glic.FreErrorStateReason" enum="FreErrorStateReason"
+    expires_after="2026-01-15">
+  <owner>birnie@google.com</owner>
+  <owner>cuianthony@google.com</owner>
+  <summary>
+    Records the reason the error panel was shown. This is recorded either before
+    the FRE is shown if its an issue during auth, or after loading times out.
+  </summary>
+</histogram>
+
 <histogram name="Glic.FreModalWebUiState.FinishState2" enum="FreWebUiState"
     expires_after="2026-01-15">
   <owner>cuianthony@google.com</owner>
@@ -200,6 +234,30 @@ chromium-metrics-reviews@google.com.
   <owner>baranerf@google.com</owner>
   <summary>
     Records the time taken for content to load after the FRE window appears.
+  </summary>
+</histogram>
+
+<histogram name="Glic.FreToFirstQueryTime" units="ms"
+    expires_after="2026-07-01">
+  <owner>birnie@google.com</owner>
+  <owner>cuianthony@google.com</owner>
+  <summary>
+    Records the time elapsed between the successful completion of the FRE and
+    the first submitted query. This is logged only once per profile that
+    accepted the FRE, when the user submits their first glic request (without
+    restarting Chrome in between).
+  </summary>
+</histogram>
+
+<histogram name="Glic.FreToFirstQueryTimeMax24H" units="ms"
+    expires_after="2026-07-01">
+  <owner>birnie@google.com</owner>
+  <owner>cuianthony@google.com</owner>
+  <summary>
+    Records the time elapsed between the successful completion of the FRE and
+    the first submitted query. This records the same information as
+    Glic.FreToFirstQueryTime but here we have a max time bucket of 24 hours
+    instead of 1 hour.
   </summary>
 </histogram>
 
@@ -508,6 +566,17 @@ chromium-metrics-reviews@google.com.
     When glic returns a response to user input, whether glic was attached or
     detached at the time the response started. Only emitted if glic was visible
     when the response started.
+  </summary>
+</histogram>
+
+<histogram name="Glic.Response.ClosedCaptionsShown" enum="Boolean"
+    expires_after="2026-01-15">
+  <owner>sanaakbani@google.com</owner>
+  <owner>carlosk@chromium.org</owner>
+  <summary>
+    Records if closed captions were being shown at the moment when glic returns
+    a response to the user. Records true if the closed captions pref was enabled
+    by the user; records false otherwise (an error condition).
   </summary>
 </histogram>
 

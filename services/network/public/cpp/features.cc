@@ -167,6 +167,12 @@ BASE_FEATURE(kOpaqueResponseBlockingErrorsForAllFetches,
 // https://tools.ietf.org/html/draft-davidben-http-client-hint-reliability-02#section-4.3
 BASE_FEATURE(kAcceptCHFrame, "AcceptCHFrame", base::FEATURE_ENABLED_BY_DEFAULT);
 
+// Enable offloading the network layer to check enabled client hints.
+// See crbug.com/406407746 for details.
+BASE_FEATURE(kOffloadAcceptCHFrameCheck,
+             "OffloadAcceptCHFrameCheck",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // https://fetch.spec.whatwg.org/#cors-non-wildcard-request-header-name
 BASE_FEATURE(kCorsNonWildcardRequestHeadersSupport,
              "CorsNonWildcardRequestHeadersSupport",
@@ -200,13 +206,13 @@ BASE_FEATURE(kReduceAcceptLanguageHTTP,
 // See: https://wicg.github.io/private-network-access/#cors-preflight
 BASE_FEATURE(kPrivateNetworkAccessPreflightShortTimeout,
              "PrivateNetworkAccessPreflightShortTimeout",
-             base::FEATURE_ENABLED_BY_DEFAULT);
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // When kPrivateNetworkAccessPermissionPrompt is enabled, public secure websites
 // are allowed to access private insecure subresources with user's permission.
 BASE_FEATURE(kPrivateNetworkAccessPermissionPrompt,
              "PrivateNetworkAccessPermissionPrompt",
-             base::FEATURE_ENABLED_BY_DEFAULT);
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enables Local Network Access checks.
 // Blocks local network requests without user permission to prevent exploitation
@@ -227,6 +233,16 @@ BASE_FEATURE_PARAM(bool,
                    &kLocalNetworkAccessChecks,
                    /*name=*/"LocalNetworkAccessChecksWarn",
                    /*default_value=*/true);
+
+// Enables Local Network Access checks for WebRTC.
+// Blocks local network requests without user permission to prevent exploitation
+// of vulnerable local devices.
+//
+// Public explainer:
+// https://github.com/explainers-by-googlers/local-network-access
+BASE_FEATURE(kLocalNetworkAccessChecksWebRTC,
+             "LocalNetworkAccessChecksWebRTC",
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // If enabled, then the network service will parse the Cookie-Indices header.
 // This does not currently control changing cache behavior according to the
@@ -604,6 +620,10 @@ BASE_FEATURE(kDeviceBoundSessionAccessObserverSharedRemote,
 
 BASE_FEATURE(kCSPScriptSrcV2, "ScriptSrcV2", base::FEATURE_DISABLED_BY_DEFAULT);
 
+BASE_FEATURE(kCSPScriptSrcHashesInV1,
+             "ScriptSrcHashesV1",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 BASE_FEATURE(kCacheSharingForPervasiveScripts,
              "CacheSharingForPervasiveScripts",
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -629,8 +649,13 @@ BASE_FEATURE_PARAM(size_t,
                    /*name=*/"max_size",
                    1'000'000);
 
-BASE_FEATURE(kNetworkServiceScheduler,
-             "NetworkServiceScheduler",
+BASE_FEATURE(kNetworkServiceTaskScheduler,
+             "NetworkServiceTaskScheduler",
              base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE_PARAM(bool,
+                   kNetworkServiceTaskSchedulerURLLoader,
+                   &kNetworkServiceTaskScheduler,
+                   "url_loader",
+                   false);
 
 }  // namespace network::features

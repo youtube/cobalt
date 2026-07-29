@@ -55,6 +55,7 @@ import org.robolectric.annotation.Implementation;
 import org.robolectric.annotation.Implements;
 import org.robolectric.shadows.ShadowLooper;
 
+import org.chromium.base.UserDataHost;
 import org.chromium.base.supplier.ObservableSupplierImpl;
 import org.chromium.base.supplier.OneshotSupplierImpl;
 import org.chromium.base.test.BaseRobolectricTestRunner;
@@ -64,6 +65,8 @@ import org.chromium.base.test.util.HistogramWatcher;
 import org.chromium.build.BuildConfig;
 import org.chromium.chrome.browser.browser_controls.BrowserControlsStateProvider;
 import org.chromium.chrome.browser.browser_controls.BrowserControlsStateProvider.ControlsPosition;
+import org.chromium.chrome.browser.composeplate.ComposeplateUtils;
+import org.chromium.chrome.browser.composeplate.ComposeplateUtilsJni;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.lens.LensController;
 import org.chromium.chrome.browser.locale.LocaleManager;
@@ -218,6 +221,7 @@ public class LocationBarMediatorTest {
     @Captor private ArgumentCaptor<Runnable> mRunnableCaptor;
     @Captor private ArgumentCaptor<LoadUrlParams> mLoadUrlParamsCaptor;
     @Captor private ArgumentCaptor<TabObserver> mTabObserverCaptor;
+    @Mock private ComposeplateUtils.Natives mMockComposeplateUtilsJni;
 
     private Context mContext;
     private final ObservableSupplierImpl<Profile> mProfileSupplier = new ObservableSupplierImpl<>();
@@ -254,6 +258,9 @@ public class LocationBarMediatorTest {
                 new OneshotSupplierImpl<>();
         templateUrlServiceSupplier.set(mTemplateUrlService);
         mUiOverrides = new LocationBarEmbedderUiOverrides();
+        ComposeplateUtilsJni.setInstanceForTesting(mMockComposeplateUtilsJni);
+        when(mMockComposeplateUtilsJni.isEnabledByPolicy(eq(mProfile))).thenReturn(true);
+
         mMediator =
                 new LocationBarMediator(
                         mContext,
@@ -970,13 +977,13 @@ public class LocationBarMediatorTest {
 
     @Test
     public void testOnUrlFocusChange_shouldNotRetainOmniboxOnFocus() {
-        OmniboxFeatures.setShouldRetainOmniboxOnFocusForTesting(Boolean.FALSE);
+        OmniboxFeatures.setShouldRetainOmniboxOnFocusForTesting(false);
         testOnUrlFocusChange(/* expectRetainOmniboxOnFocus= */ false);
     }
 
     @Test
     public void testOnUrlFocusChange_shouldRetainOmniboxOnFocus() {
-        OmniboxFeatures.setShouldRetainOmniboxOnFocusForTesting(Boolean.TRUE);
+        OmniboxFeatures.setShouldRetainOmniboxOnFocusForTesting(true);
         testOnUrlFocusChange(/* expectRetainOmniboxOnFocus= */ true);
     }
 
@@ -1568,29 +1575,14 @@ public class LocationBarMediatorTest {
     @Test
     @EnableFeatures(ChromeFeatureList.ANDROID_COMPOSEPLATE)
     public void testButtonVisibility_showComposeplateUnfocused() {
-        VoiceRecognitionHandler voiceRecognitionHandler = mock(VoiceRecognitionHandler.class);
-        mMediator.setVoiceRecognitionHandlerForTesting(voiceRecognitionHandler);
-        mMediator.onFinishNativeInitialization();
-        mMediator.setShouldShowMicButtonWhenUnfocusedForPhone(true);
-        doReturn(true).when(voiceRecognitionHandler).isVoiceSearchEnabled();
-        assertTrue(mMediator.shouldShowMicButton());
-
-        mMediator.resetLastCachedIsLensOnOmniboxEnabledForTesting();
-        doReturn(true).when(mLensController).isLensEnabled(any());
-        mUiOverrides.setLensEntrypointAllowed(true);
-        mMediator.setShouldShowLensButtonWhenUnfocusedForPhone(true);
-        mMediator.setLensControllerForTesting(mLensController);
-        assertTrue(mMediator.shouldShowLensButton());
-
-        mMediator.setUrlFocusChangeFraction(
-                /* ntpSearchBoxScrollFraction= */ 1.0f, /* urlFocusChangeFraction= */ 0f);
+        mProfileSupplier.set(mProfile);
+        enableBothVoiceAndLensButtons();
         assertTrue(
                 mMediator.shouldShowComposeplateButton(
                         /* shouldShowMicButton= */ true, /* shouldShowLensButton= */ true));
 
         // Verifies that the composeplate button is shown when the url bar is unfocused, and both
         // mic and lens buttons are hidden.
-        Mockito.reset(mLocationBarLayout);
         mMediator.updateButtonVisibility();
         verify(mLocationBarLayout).setMicButtonVisibility(eq(false));
         verify(mLocationBarLayout).setLensButtonVisibility(eq(false));
@@ -1599,29 +1591,32 @@ public class LocationBarMediatorTest {
 
     @Test
     @EnableFeatures(ChromeFeatureList.ANDROID_COMPOSEPLATE)
+    public void testButtonVisibility_dontShowComposeplateUnfocused_disabledByPolicy() {
+        when(mMockComposeplateUtilsJni.isEnabledByPolicy(eq(mProfile))).thenReturn(false);
+        mProfileSupplier.set(mProfile);
+
+        enableBothVoiceAndLensButtons();
+        assertFalse(
+                mMediator.shouldShowComposeplateButton(
+                        /* shouldShowMicButton= */ true, /* shouldShowLensButton= */ true));
+
+        // Verifies that the composeplate button isn't visible if disabled by policy.
+        mMediator.updateButtonVisibility();
+        verify(mLocationBarLayout).setMicButtonVisibility(eq(true));
+        verify(mLocationBarLayout).setLensButtonVisibility(eq(true));
+        verify(mLocationBarLayout, never()).setComposeplateButtonVisibility(anyBoolean());
+    }
+
+    @Test
+    @EnableFeatures(ChromeFeatureList.ANDROID_COMPOSEPLATE)
     public void testButtonVisibility_dontShowComposeplateFocused() {
-        VoiceRecognitionHandler voiceRecognitionHandler = mock(VoiceRecognitionHandler.class);
-        mMediator.setVoiceRecognitionHandlerForTesting(voiceRecognitionHandler);
-        mMediator.onFinishNativeInitialization();
-        mMediator.setShouldShowMicButtonWhenUnfocusedForPhone(true);
-        doReturn(true).when(voiceRecognitionHandler).isVoiceSearchEnabled();
-        assertTrue(mMediator.shouldShowMicButton());
-
-        mMediator.resetLastCachedIsLensOnOmniboxEnabledForTesting();
-        doReturn(true).when(mLensController).isLensEnabled(any());
-        mUiOverrides.setLensEntrypointAllowed(true);
-        mMediator.setShouldShowLensButtonWhenUnfocusedForPhone(true);
-        mMediator.setLensControllerForTesting(mLensController);
-        assertTrue(mMediator.shouldShowLensButton());
-
-        mMediator.setUrlFocusChangeFraction(
-                /* ntpSearchBoxScrollFraction= */ 1.0f, /* urlFocusChangeFraction= */ 0f);
+        mProfileSupplier.set(mProfile);
+        enableBothVoiceAndLensButtons();
         assertTrue(
                 mMediator.shouldShowComposeplateButton(
                         /* shouldShowMicButton= */ true, /* shouldShowLensButton= */ true));
 
         // Verifies that the composeplate button is hidden when url bar is focused.
-        Mockito.reset(mLocationBarLayout);
         mMediator.onUrlFocusChange(/* hasFocus= */ true);
         verify(mLocationBarLayout).setMicButtonVisibility(eq(true));
         verify(mLocationBarLayout).setLensButtonVisibility(eq(true));
@@ -1656,5 +1651,72 @@ public class LocationBarMediatorTest {
             UrlBarData expected = UrlBarData.forNonUrlText(query);
             return TextUtils.equals(actual.displayText, expected.displayText);
         };
+    }
+
+    private void enableBothVoiceAndLensButtons() {
+        VoiceRecognitionHandler voiceRecognitionHandler = mock(VoiceRecognitionHandler.class);
+        mMediator.setVoiceRecognitionHandlerForTesting(voiceRecognitionHandler);
+        mMediator.onFinishNativeInitialization();
+        mMediator.setShouldShowMicButtonWhenUnfocusedForPhone(true);
+        doReturn(true).when(voiceRecognitionHandler).isVoiceSearchEnabled();
+        assertTrue(mMediator.shouldShowMicButton());
+
+        mMediator.resetLastCachedIsLensOnOmniboxEnabledForTesting();
+        doReturn(true).when(mLensController).isLensEnabled(any());
+        mUiOverrides.setLensEntrypointAllowed(true);
+        mMediator.setShouldShowLensButtonWhenUnfocusedForPhone(true);
+        mMediator.setLensControllerForTesting(mLensController);
+        assertTrue(mMediator.shouldShowLensButton());
+
+        mMediator.setUrlFocusChangeFraction(
+                /* ntpSearchBoxScrollFraction= */ 1.0f, /* urlFocusChangeFraction= */ 0f);
+
+        Mockito.reset(mLocationBarLayout);
+    }
+
+    @Test
+    public void testRestoringText() {
+        OmniboxFeatures.setShouldRetainOmniboxOnFocusForTesting(true);
+        NewTabPageDelegate newTabPageDelegate = mock(NewTabPageDelegate.class);
+        doReturn(newTabPageDelegate).when(mLocationBarDataProvider).getNewTabPageDelegate();
+
+        UserDataHost tabUserDataHost = new UserDataHost();
+        doReturn(tabUserDataHost).when(mTab).getUserDataHost();
+
+        // Prepare a state to be restored for mTab.
+        String newText = "new text";
+        LocationBarMediator.LocationBarState newState =
+                LocationBarMediator.LocationBarState.from(mTab);
+        newState.userText = newText;
+        newState.isUrlBarFocused = true;
+
+        Tab previousTab = Mockito.mock(Tab.class);
+        doReturn(mProfile).when(previousTab).getProfile();
+        UserDataHost previousTabUserDataHost = new UserDataHost();
+        doReturn(previousTabUserDataHost).when(previousTab).getUserDataHost();
+
+        // Emulate a state where the omnibox is focused and user has typed a text.
+        mTabletMediator.onUrlFocusChange(true);
+        String previousText = "previous text";
+        doReturn(previousText).when(mUrlCoordinator).getTextWithoutAutocomplete();
+        doReturn(previousText).when(mUrlCoordinator).getTextWithAutocomplete();
+
+        // Emulate a tab switch from previousTab to mTab.
+        doReturn(mTab).when(mLocationBarDataProvider).getTab();
+        mTabletMediator.onTabChanged(previousTab);
+        mTabletMediator.onUrlChanged(true);
+
+        // The state for mTab was restored.
+        verify(mUrlCoordinator)
+                .setUrlBarData(
+                        argThat(matchesUrlBarDataForQuery(newText)),
+                        eq(UrlBar.ScrollType.NO_SCROLL),
+                        eq(SelectionState.SELECT_END));
+
+        // The state for previousTab was saved.
+        LocationBarMediator.LocationBarState previousState =
+                LocationBarMediator.LocationBarState.from(previousTab);
+        assertTrue(previousState.isUrlBarFocused);
+        assertEquals(previousText, previousState.userText);
     }
 }

@@ -95,9 +95,6 @@ BASE_DECLARE_FEATURE(kSegmentationPlatformAndroidHomeModuleRankerV2);
 // Feature flag for controlling sampling of training data collection.
 BASE_DECLARE_FEATURE(kSegmentationPlatformTimeDelaySampling);
 
-// Feature flag for enabling data collection for tab ranking.
-BASE_DECLARE_FEATURE(kSegmentationPlatformCollectTabRankData);
-
 // Feature flag for intoroducing delay while initializing models at startup.
 BASE_DECLARE_FEATURE(kSegmentationPlatformModelInitializationDelay);
 
@@ -194,6 +191,10 @@ extern const base::FeatureParam<int> kMaxAuxiliarySearchCardImpressions;
 
 // Feature flag for enabling FedCM user segment.
 BASE_DECLARE_FEATURE(kSegmentationPlatformFedCmUser);
+
+// Feature flag enabling checking a propensity model before showing a default
+// browser promo.
+BASE_DECLARE_FEATURE(kDefaultBrowserPromoPropensityModel);
 
 }  // namespace segmentation_platform::features
 

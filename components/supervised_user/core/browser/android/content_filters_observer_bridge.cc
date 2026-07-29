@@ -11,11 +11,34 @@
 #include "base/android/jni_android.h"
 #include "base/logging.h"
 #include "components/supervised_user/core/common/features.h"
+#include "components/supervised_user/core/common/supervised_user_constants.h"
 
 // Include last. Requires declarations from includes above.
 #include "components/supervised_user/android/jni_headers/ContentFiltersObserverBridge_jni.h"
 
 namespace supervised_user {
+
+namespace {
+// Each of the content filters have their own kill switch. This function
+// returns true if the feature is enabled for the given setting.
+bool IsFeatureEnabledForSetting(std::string_view setting_name) {
+  if (!base::FeatureList::IsEnabled(
+          kPropagateDeviceContentFiltersToSupervisedUser)) {
+    return false;
+  }
+
+  if (setting_name == kBrowserContentFiltersSettingName) {
+    return base::FeatureList::IsEnabled(
+        kSupervisedUserBrowserContentFiltersKillSwitch);
+  } else if (setting_name == kSearchContentFiltersSettingName) {
+    return base::FeatureList::IsEnabled(
+        kSupervisedUserSearchContentFiltersKillSwitch);
+  } else {
+    NOTREACHED() << "Unsupported setting name: " << setting_name;
+  }
+}
+}  // namespace
+
 std::unique_ptr<ContentFiltersObserverBridge>
 ContentFiltersObserverBridge::Create(std::string_view setting_name,
                                      base::RepeatingClosure on_enabled,
@@ -45,13 +68,13 @@ void ContentFiltersObserverBridge::OnChange(JNIEnv* env, bool enabled) {
   LOG(INFO) << "ContentFiltersObserverBridge received onChange for setting "
             << setting_name_ << " with value "
             << (enabled ? "enabled" : "disabled");
-  if (!base::FeatureList::IsEnabled(
-          kPropagateDeviceContentFiltersToSupervisedUser)) {
+  if (!IsFeatureEnabledForSetting(setting_name_)) {
     LOG(INFO)
         << "ContentFiltersObserverBridge change ignored: feature disabled";
     return;
   }
 
+  enabled_ = enabled;
   if (enabled) {
     on_enabled_.Run();
   } else {
@@ -60,6 +83,12 @@ void ContentFiltersObserverBridge::OnChange(JNIEnv* env, bool enabled) {
 }
 
 void ContentFiltersObserverBridge::Init() {
+  if (!IsFeatureEnabledForSetting(setting_name_)) {
+    LOG(INFO)
+        << "ContentFiltersObserverBridge not initialized: feature disabled";
+    return;
+  }
+
   JNIEnv* env = base::android::AttachCurrentThread();
   bridge_ = Java_ContentFiltersObserverBridge_Constructor(
       env, reinterpret_cast<jlong>(this),
@@ -67,19 +96,22 @@ void ContentFiltersObserverBridge::Init() {
 }
 
 void ContentFiltersObserverBridge::Shutdown() {
+  if (!IsFeatureEnabledForSetting(setting_name_)) {
+    LOG(INFO) << "ContentFiltersObserverBridge not shutdown: feature disabled";
+    return;
+  }
+
   Java_ContentFiltersObserverBridge_destroy(
       base::android::AttachCurrentThread(), bridge_);
   bridge_ = nullptr;
 }
 
 bool ContentFiltersObserverBridge::IsEnabled() const {
-  if (!base::FeatureList::IsEnabled(
-          kPropagateDeviceContentFiltersToSupervisedUser)) {
-    return false;
-  }
+  return enabled_;
+}
 
-  JNIEnv* env = base::android::AttachCurrentThread();
-  return Java_ContentFiltersObserverBridge_isEnabled(env, bridge_);
+void ContentFiltersObserverBridge::SetEnabled(bool enabled) {
+  enabled_ = enabled;
 }
 
 }  // namespace supervised_user

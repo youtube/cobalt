@@ -10,13 +10,16 @@ source_set("unowned_user_data") {
   public = [
     "scoped_unowned_user_data.h",
     "unowned_user_data_host.h",
-    "unowned_user_data_interface.h",
+    "user_data_factory.h",
   ]
 
   sources = [
-    "scoped_unowned_user_data.cc",
     "unowned_user_data_host.cc",
+    "user_data_factory.cc",
   ]
 
-  public_deps = [ "//base" ]
+  public_deps = [
+    "//base",
+    "//ui/base",
+  ]
 }

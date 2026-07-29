@@ -175,6 +175,7 @@ bool ShouldBeInlinified(const Element* element) {
 
 void StyleAdjuster::AdjustStyleForSvgElement(
     const SVGElement& element,
+    const SVGElement* styled_element,
     ComputedStyleBuilder& builder,
     const ComputedStyle& layout_parent_style) {
   if (builder.Display() != EDisplay::kNone) {
@@ -191,7 +192,12 @@ void StyleAdjuster::AdjustStyleForSvgElement(
     builder.SetTextUnderlinePosition(TextUnderlinePosition::kAuto);
   }
 
-  bool is_svg_root = element.IsOutermostSVGSVGElement();
+  // Only the root <svg> element in an SVG document fragment tree, honors the
+  // CSS position, all other inner <svg> elements has to have position as static
+  // as they don't follow CSS box model. This also includes when a <use> element
+  // refers an <svg> root element, in that case, we need to consider the
+  // styled_element itself to set its position CSS property.
+  bool is_svg_root = styled_element->IsOutermostSVGSVGElement();
   if (!is_svg_root) {
     // Only the root <svg> element in an SVG document fragment tree honors css
     // position.
@@ -604,9 +610,11 @@ static void AdjustStyleForHTMLElement(ComputedStyleBuilder& builder,
     return;
   }
 
-  if (IsA<HTMLUListElement>(element) || IsA<HTMLOListElement>(element)) {
-    builder.SetIsInsideListElement();
-    return;
+  if (!RuntimeEnabledFeatures::ListStylePositionQuirkStandardEnabled()) {
+    if (IsA<HTMLUListElement>(element) || IsA<HTMLOListElement>(element)) {
+      builder.SetIsInsideListElement();
+      return;
+    }
   }
 
   if (builder.Display() == EDisplay::kContents) {
@@ -1184,8 +1192,7 @@ void StyleAdjuster::AdjustComputedStyle(StyleResolverState& state,
   // The computed value of currentColor for highlight pseudos is the
   // color that would have been used if no highlights were applied,
   // i.e. the originating element's color.
-  if (state.UsesHighlightPseudoInheritance() &&
-      state.OriginatingElementStyle()) {
+  if (state.IsForHighlight() && state.OriginatingElementStyle()) {
     const ComputedStyle* originating_style = state.OriginatingElementStyle();
     if (builder.ColorIsCurrentColor()) {
       builder.SetColor(originating_style->Color());
@@ -1212,7 +1219,9 @@ void StyleAdjuster::AdjustComputedStyle(StyleResolverState& state,
   AdjustStyleForEditing(builder, element);
 
   if (auto* svg_element = DynamicTo<SVGElement>(element); svg_element) {
-    AdjustStyleForSvgElement(*svg_element, builder, layout_parent_style);
+    auto* styled_element = DynamicTo<SVGElement>(state.GetStyledElement());
+    AdjustStyleForSvgElement(*svg_element, styled_element, builder,
+                             layout_parent_style);
   } else if (IsA<MathMLElement>(element)) {
     if (builder.Display() == EDisplay::kContents) {
       // https://drafts.csswg.org/css-display/#unbox-mathml

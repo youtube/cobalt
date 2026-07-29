@@ -164,9 +164,12 @@ function addPrivacyChildRoutes(r: Partial<SettingsRoutes>) {
 function createRoutes(): SettingsRoutes {
   const r: Partial<SettingsRoutes> = {};
 
-  // Root pages.
+  // Root page.
   r.BASIC = new Route('/');
-  r.ABOUT = new Route('/help', loadTimeData.getString('aboutPageTitle'));
+
+  r.ABOUT = r.BASIC.createSection(
+      '/help', 'about', loadTimeData.getString('aboutPageTitle'));
+  r.ABOUT.hasMigratedToPlugin = true;
 
   r.SEARCH = r.BASIC.createSection(
       '/search', 'search', loadTimeData.getString('searchPageTitle'));
@@ -269,37 +272,47 @@ function createRoutes(): SettingsRoutes {
     r.LANGUAGES = r.ADVANCED.createSection(
         '/languages', 'languages',
         loadTimeData.getString('languagesPageTitle'));
-    r.SPELL_CHECK = r.LANGUAGES.createSection('/spellCheck', 'spellCheck');
+    r.LANGUAGES.hasMigratedToPlugin = true;
+    r.SPELL_CHECK = r.LANGUAGES.createSection('/spellCheck', 'languages');
+    r.SPELL_CHECK.hasMigratedToPlugin = true;
     // <if expr="not chromeos_ash and not is_macosx">
     r.EDIT_DICTIONARY = r.SPELL_CHECK.createChild('/editDictionary');
+    r.EDIT_DICTIONARY.hasMigratedToPlugin = true;
     // </if>
 
     if (visibility.downloads !== false) {
       r.DOWNLOADS = r.ADVANCED.createSection(
           '/downloads', 'downloads',
           loadTimeData.getString('downloadsPageTitle'));
+      r.DOWNLOADS.hasMigratedToPlugin = true;
     }
 
     r.ACCESSIBILITY = r.ADVANCED.createSection(
         '/accessibility', 'a11y', loadTimeData.getString('a11yPageTitle'));
+    r.ACCESSIBILITY.hasMigratedToPlugin = true;
 
     // <if expr="is_linux">
     r.CAPTIONS = r.ACCESSIBILITY.createChild('/captions');
+    r.CAPTIONS.hasMigratedToPlugin = true;
     // </if>
 
     // <if expr="not chromeos_ash">
     r.SYSTEM = r.ADVANCED.createSection(
         '/system', 'system', loadTimeData.getString('systemPageTitle'));
+    r.SYSTEM.hasMigratedToPlugin = true;
     // </if>
 
     if (visibility.reset !== false) {
       r.RESET = r.ADVANCED.createSection(
           '/reset', 'reset', loadTimeData.getString('resetPageTitle'));
+      r.RESET.hasMigratedToPlugin = true;
       r.RESET_DIALOG = r.RESET.createChild('/resetProfileSettings');
+      r.RESET_DIALOG.hasMigratedToPlugin = true;
       r.RESET_DIALOG.isNavigableDialog = true;
       r.TRIGGERED_RESET_DIALOG =
           r.RESET.createChild('/triggeredResetProfileSettings');
       r.TRIGGERED_RESET_DIALOG.isNavigableDialog = true;
+      r.TRIGGERED_RESET_DIALOG.hasMigratedToPlugin = true;
     }
 
     if (visibility.performance !== false) {

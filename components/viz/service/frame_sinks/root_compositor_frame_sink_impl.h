@@ -122,15 +122,9 @@ class VIZ_SERVICE_EXPORT RootCompositorFrameSinkImpl
       std::optional<HitTestRegionList> hit_test_region_list,
       uint64_t submit_time) override;
   void DidNotProduceFrame(const BeginFrameAck& begin_frame_ack) override;
-  void SubmitCompositorFrameSync(
-      const LocalSurfaceId& local_surface_id,
-      CompositorFrame frame,
-      std::optional<HitTestRegionList> hit_test_region_list,
-      uint64_t submit_time,
-      SubmitCompositorFrameSyncCallback callback) override;
   void NotifyNewLocalSurfaceIdExpectedWhilePaused() override;
   void BindLayerContext(mojom::PendingLayerContextPtr context,
-                        bool draw_mode_is_gpu) override;
+                        mojom::LayerContextSettingsPtr settings) override;
 #if BUILDFLAG(IS_ANDROID)
   void SetThreads(const std::vector<Thread>& threads) override;
 #endif

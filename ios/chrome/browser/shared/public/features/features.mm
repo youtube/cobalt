@@ -43,10 +43,6 @@ BASE_FEATURE(kIOSKeyboardAccessoryUpgradeForIPad,
              "IOSKeyboardAccessoryUpgradeForIPad",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-BASE_FEATURE(kIOSKeyboardAccessoryUpgradeShortManualFillMenu,
-             "IOSKeyboardAccessoryUpgradeShortManualFillMenu",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
 BASE_FEATURE(kTestFeature, "TestFeature", base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kSafetyCheckMagicStack,
@@ -262,6 +258,8 @@ const char kNTPMIAEntrypointParamOmniboxContainedInline[] =
     "kNTPMIAEntrypointParamOmniboxContainedInline";
 const char kNTPMIAEntrypointParamOmniboxContainedEnlargedFakebox[] =
     "kNTPMIAEntrypointParamOmniboxContainedEnlargedFakebox";
+const char kNTPMIAEntrypointParamEnlargedFakeboxNoIncognito[] =
+    "kNTPMIAEntrypointParamEnlargedFakeboxNoIncognito";
 
 // Feature flag to change the MIA entrypoint in NTP.
 BASE_FEATURE(kNTPMIAEntrypoint,
@@ -442,7 +440,7 @@ BASE_FEATURE(kIOSChooseFromDrive,
 
 BASE_FEATURE(kIOSChooseFromDriveSimulatedClick,
              "IOSChooseFromDriveSimulatedClick",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kIOSDownloadNoUIUpdateInBackground,
              "IOSDownloadNoUIUpdateInBackground",
@@ -502,24 +500,13 @@ BASE_FEATURE(kFullscreenImprovement,
              "FullscreenImprovement",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-BASE_FEATURE(kTabGroupSync, "TabGroupSync", base::FEATURE_DISABLED_BY_DEFAULT);
-
 bool IsTabGroupSyncEnabled() {
-  if (ui::GetDeviceFormFactor() == ui::DEVICE_FORM_FACTOR_TABLET) {
-    return base::FeatureList::IsEnabled(kTabGroupSync);
-  }
   return true;
 }
 
-BASE_FEATURE(kTabGroupIndicator,
-             "TabGroupIndicator",
-             base::FEATURE_DISABLED_BY_DEFAULT);
 
 bool IsTabGroupIndicatorEnabled() {
-  if (ui::GetDeviceFormFactor() != ui::DEVICE_FORM_FACTOR_TABLET) {
-    return true;
-  }
-  return base::FeatureList::IsEnabled(kTabGroupIndicator);
+  return true;
 }
 
 BASE_FEATURE(kNewSyncOptInIllustration,
@@ -533,6 +520,15 @@ bool IsNewSyncOptInIllustration() {
 BASE_FEATURE(kDisableLensCamera,
              "DisableLensCamera",
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kDownloadAutoDeletionClearFilesOnEveryStartup,
+             "DownloadAutoDeletionClearFilesOnEveryStartup",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+bool isDownloadAutoDeletionTestingFeatureEnabled() {
+  return base::FeatureList::IsEnabled(
+      kDownloadAutoDeletionClearFilesOnEveryStartup);
+}
 
 BASE_FEATURE(kDownloadAutoDeletionFeatureEnabled,
              "DownloadAutoDeletionFeatureEnabled",
@@ -752,12 +748,6 @@ bool IsKeyboardAccessoryUpgradeEnabled() {
          base::FeatureList::IsEnabled(kIOSKeyboardAccessoryUpgradeForIPad);
 }
 
-bool IsKeyboardAccessoryUpgradeWithShortManualFillMenuEnabled() {
-  return (ui::GetDeviceFormFactor() != ui::DEVICE_FORM_FACTOR_TABLET) &&
-         base::FeatureList::IsEnabled(
-             kIOSKeyboardAccessoryUpgradeShortManualFillMenu);
-}
-
 // Feature disabled by default.
 BASE_FEATURE(kMagicStack, "MagicStack", base::FEATURE_ENABLED_BY_DEFAULT);
 
@@ -924,6 +914,16 @@ bool IsBlueDotOnToolsMenuButtoneEnabled() {
 
 BASE_FEATURE(kSeparateProfilesForManagedAccounts,
              "SeparateProfilesForManagedAccounts",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Feature parameter for kSeparateProfilesForManagedAccountsForceMigration.
+constexpr base::FeatureParam<base::TimeDelta> kMultiProfileMigrationGracePeriod{
+    &kSeparateProfilesForManagedAccountsForceMigration,
+    /*name=*/"MultiProfileMigrationGracePeriod",
+    /*default_value=*/base::Days(90)};
+
+BASE_FEATURE(kSeparateProfilesForManagedAccountsForceMigration,
+             "SeparateProfilesForManagedAccountsForceMigration",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kSeparateProfilesForManagedAccountsKillSwitch,
@@ -1196,7 +1196,7 @@ constexpr base::FeatureParam<double>
 
 BASE_FEATURE(kIOSOneTapMiniMapRemoveSectionsBreaks,
              "IOSOneTapMiniMapRemoveSectionsBreaks",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kIOSMiniMapUniversalLink,
              "IOSMiniMapUniversalLink",
@@ -1232,7 +1232,7 @@ bool IsNTPBackgroundCustomizationEnabled() {
 
 BASE_FEATURE(kRunDefaultStatusCheck,
              "RunDefaultStatusCheck",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 bool IsRunDefaultStatusCheckEnabled() {
   return base::FeatureList::IsEnabled(kRunDefaultStatusCheck);
@@ -1290,10 +1290,7 @@ bool IsFeedbackIncludeGWSVariationsEnabled() {
   return base::FeatureList::IsEnabled(kFeedbackIncludeGWSVariations);
 }
 
-BASE_FEATURE(kDefaultBrowserPromoPropensityModel,
-             "DefaultBrowserPromoPropensityModel",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
 bool IsDefaultBrowserPromoPropensityModelEnabled() {
-  return base::FeatureList::IsEnabled(kDefaultBrowserPromoPropensityModel);
+  return base::FeatureList::IsEnabled(
+      segmentation_platform::features::kDefaultBrowserPromoPropensityModel);
 }

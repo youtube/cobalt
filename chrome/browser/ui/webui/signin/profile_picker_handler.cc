@@ -11,7 +11,6 @@
 #include "base/check_deref.h"
 #include "base/check_op.h"
 #include "base/debug/dump_without_crashing.h"
-#include "base/feature_list.h"
 #include "base/files/file_path.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
@@ -56,7 +55,6 @@
 #include "components/signin/public/identity_manager/account_info.h"
 #include "components/signin/public/identity_manager/tribool.h"
 #include "components/startup_metric_utils/browser/startup_metric_utils.h"
-#include "components/supervised_user/core/common/features.h"
 #include "content/public/browser/url_data_source.h"
 #include "content/public/browser/web_ui.h"
 #include "third_party/skia/include/core/SkBitmap.h"
@@ -169,9 +167,7 @@ base::Value::Dict CreateProfileEntry(const ProfileAttributesEntry* entry,
   if (entry->GetIsManaged() == signin::Tribool::kTrue) {
     profile_entry.Set("avatarBadge", "cr:domain");
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
-  } else if (base::FeatureList::IsEnabled(
-                 supervised_user::kShowKiteForSupervisedUsers) &&
-             entry->IsSupervised()) {
+  } else if (entry->IsSupervised()) {
     profileCardButtonLabel = l10n_util::GetStringFUTF16(
         IDS_PROFILE_PICKER_PROFILE_CARD_LABEL_SUPERVISED, local_profile_name);
     profile_entry.Set("avatarBadge", "cr:kite");
@@ -539,12 +535,7 @@ void ProfilePickerHandler::HandleContinueWithoutAccount(
   RecordProfilePickerAction(ProfilePickerAction::kLaunchNewProfile);
   ProfileMetrics::LogProfileAddNewUser(
       ProfileMetrics::ADD_NEW_PROFILE_PICKER_LOCAL);
-  ProfilePicker::SwitchToSignedOutPostIdentityFlow(
-      profile_color,
-      base::BindOnce(&ProfilePickerHandler::OnProfileCreationFinished,
-                     // `OnProfileCreationFinished` is called when we want to
-                     // close the profile picker.
-                     weak_factory_.GetWeakPtr()));
+  ProfilePicker::SwitchToSignedOutPostIdentityFlow(profile_color);
 }
 
 void ProfilePickerHandler::HandleGetSwitchProfile(
@@ -588,11 +579,6 @@ void ProfilePickerHandler::HandleConfirmProfileSwitch(
 void ProfilePickerHandler::HandleCancelProfileSwitch(
     const base::Value::List& args) {
   ProfilePicker::CancelSignedInFlow();
-}
-
-void ProfilePickerHandler::OnProfileCreationFinished(
-    bool finished_successfully) {
-  FireWebUIListener("create-profile-finished", base::Value());
 }
 
 void ProfilePickerHandler::HandleRecordSignInPromoImpression(

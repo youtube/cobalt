@@ -138,7 +138,6 @@
 #include "extensions/buildflags/buildflags.h"
 #include "media/media_buildflags.h"
 #include "pdf/buildflags.h"
-#include "ppapi/buildflags/buildflags.h"
 #include "printing/buildflags/buildflags.h"
 
 #if BUILDFLAG(IS_ANDROID)
@@ -1933,6 +1932,9 @@ const PolicyToPreferenceMapEntry kSimplePolicyMap[] = {
   { key::kProfileSeparationSettings,
     prefs::kProfileSeparationSettings,
     base::Value::Type::INTEGER },
+  { key::kLiveCaptionEnabled,
+    prefs::kLiveCaptionEnabled,
+    base::Value::Type::BOOLEAN },
   { key::kLiveTranslateEnabled,
     prefs::kLiveTranslateEnabled,
     base::Value::Type::BOOLEAN },
@@ -2335,14 +2337,12 @@ const PolicyToPreferenceMapEntry kSimplePolicyMap[] = {
   { key::kLocalNetworkAccessRestrictionsEnabled,
     prefs::kManagedLocalNetworkAccessRestrictionsEnabled,
     base::Value::Type::BOOLEAN },
-#if !BUILDFLAG(IS_ANDROID)
   { key::kLocalNetworkAccessAllowedForUrls,
     prefs::kManagedLocalNetworkAccessAllowedForUrls,
     base::Value::Type::LIST },
   { key::kLocalNetworkAccessBlockedForUrls,
     prefs::kManagedLocalNetworkAccessBlockedForUrls,
     base::Value::Type::LIST },
-#endif  // !BUILDFLAG(IS_ANDROID)
 #if !BUILDFLAG(IS_CHROMEOS)
   { key::kCAPlatformIntegrationEnabled,
     prefs::kCAPlatformIntegrationEnabled,
@@ -3349,8 +3349,6 @@ std::unique_ptr<ConfigurationPolicyHandlerList> BuildHandlerList(
   gen_ai_default_policies.emplace_back(
       key::kTabCompareSettings,
       optimization_guide::prefs::kProductSpecificationsEnterprisePolicyAllowed);
-  gen_ai_default_policies.emplace_back(key::kGenAiLensOverlaySettings,
-                                       lens::prefs::kGenAiLensOverlaySettings);
   gen_ai_default_policies.emplace_back(
       key::kGeminiSettings, prefs::kGeminiSettings,
       GenAiDefaultSettingsPolicyHandler::PolicyValueToPrefMap(
@@ -3377,6 +3375,12 @@ std::unique_ptr<ConfigurationPolicyHandlerList> BuildHandlerList(
       key::kGenAIInlineImageSettings,
       ash::prefs::kLobsterEnterprisePolicySettings);
 #endif  // BUILDFLAG(IS_CHROMEOS)
+#if !BUILDFLAG(IS_ANDROID)
+  gen_ai_default_policies.emplace_back(
+      key::kLensOverlaySettings, lens::prefs::kLensOverlaySettings,
+      GenAiDefaultSettingsPolicyHandler::PolicyValueToPrefMap(
+          {{0, 0}, {1, 0}, {2, 1}}));
+#endif
   gen_ai_default_policies.emplace_back(
       key::kAIModeSettings, omnibox::kAIModeSettings,
       GenAiDefaultSettingsPolicyHandler::PolicyValueToPrefMap(

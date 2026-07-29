@@ -9,9 +9,7 @@ import("//build/config/locales.gni")
 import("//build/config/ozone.gni")
 import("//build/config/ui.gni")
 import("//chrome/common/features.gni")
-import("//components/nacl/features.gni")
 import("//crypto/features.gni")
-import("//ppapi/buildflags/buildflags.gni")
 import("//tools/grit/grit_rule.gni")
 import("//tools/ipc_fuzzer/ipc_fuzzer.gni")
 
@@ -145,7 +143,6 @@ static_library("test_support") {
     "//components/crash/core/app:test_support",
     "//components/devtools/devtools_pipe",
     "//components/memory_system",
-    "//components/nacl/common:buildflags",
     "//components/startup_metric_utils",
     "//components/webui/about",
     "//content/public/app",
@@ -198,12 +195,5 @@ static_library("test_support") {
     if (is_linux) {
       deps += [ "//ui/linux:display_server_utils" ]
     }
-  }
-
-  if (enable_plugins && enable_nacl) {
-    deps += [
-      "//components/nacl/browser",
-      "//components/nacl/renderer/plugin:nacl_trusted_plugin",
-    ]
   }
 }

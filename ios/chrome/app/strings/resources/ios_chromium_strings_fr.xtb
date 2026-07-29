@@ -9,6 +9,7 @@
 <translation id="1115463765356382667">Suivez les suggestions ci-dessous pour profiter pleinement de Chromium.</translation>
 <translation id="1140315115515116765">Utilisez Chromium par défaut pour obtenir facilement des tendances de prix</translation>
 <translation id="1185134272377778587">À propos de Chromium</translation>
+<translation id="1229234641991056119">Utilisez vos mots de passe, votre historique, vos favoris et vos cartes de crédit Safari dans Chromium</translation>
 <translation id="1257458525759135959">Pour enregistrer une image, appuyez sur "Paramètres" afin que Chromium puisse l'ajouter à vos photos</translation>
 <translation id="1260702988262336471">Ouvrir le menu Chromium</translation>
 <translation id="12739128458173458">Pour envoyer cet onglet à un autre appareil, connectez-vous à Chromium sur les deux appareils.</translation>
@@ -174,6 +175,7 @@ Pour modifier ce paramètre, <ph name="BEGIN_LINK" />supprimez les données Chro
 <translation id="5203244847421322551">Enregistrez et saisissez automatiquement les mots de passe dans Chromium</translation>
 <translation id="5224391634244552924">Aucun mot de passe enregistré. Chromium ne peut vérifier vos mots de passe que si vous les enregistrez.</translation>
 <translation id="5259423875997548710">Recherchez des images dans Chromium.</translation>
+<translation id="5284913972719948193">Importez vos données pour utiliser vos mots de passe, votre historique, vos favoris et vos cartes de crédit dans Chromium</translation>
 <translation id="5308226104666789935">Chromium ne parvient pas à rechercher les mises à jour</translation>
 <translation id="5311557153294205270">Ajoute les URL saisies à vos favoris dans Chromium.</translation>
 <translation id="5383251701169024761">Pour retrouver facilement vos mots de passe enregistrés dans d'autres applis, choisissez Chromium pour la saisie automatique.</translation>
@@ -307,6 +309,7 @@ Seule une personne connaissant votre phrase secrète peut lire vos données chif
 <translation id="865600487977764604">Vous protège dans Chrome et peut servir à renforcer votre sécurité dans d'autres applis Google lorsque vous êtes connecté.</translation>
 <translation id="8663480472502753423">Garder Chromium à jour</translation>
 <translation id="8685813584220679697">Connectez-vous à ce site et à Chromium.</translation>
+<translation id="8698780336333802489">Importer dans Chromium</translation>
 <translation id="8730503818204408000">Ouvre le paramètre Chromium permettant de définir Chromium comme navigateur par défaut.</translation>
 <translation id="8754966941001340678">Chromium recommande une protection renforcée</translation>
 <translation id="8759037115129007407">Le membre de votre famille ne peut pas recevoir de mots de passe pour le moment. Demandez-lui de mettre à jour Chromium et de synchroniser ses mots de passe. <ph name="BEGIN_LINK" />En savoir plus<ph name="END_LINK" /></translation>

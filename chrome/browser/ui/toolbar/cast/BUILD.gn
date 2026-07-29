@@ -6,7 +6,6 @@ assert(is_win || is_mac || is_linux || is_chromeos)
 
 source_set("cast") {
   sources = [
-    "cast_contextual_menu.h",
     "cast_toolbar_button_controller.h",
     "cast_toolbar_button_util.h",
   ]
@@ -23,7 +22,6 @@ source_set("cast") {
 
 source_set("impl") {
   sources = [
-    "cast_contextual_menu.cc",
     "cast_toolbar_button_controller.cc",
     "cast_toolbar_button_util.cc",
   ]
@@ -54,28 +52,39 @@ source_set("impl") {
   public_deps = [ "//chrome/browser:browser_public_dependencies" ]
 }
 
-source_set("unit_tests") {
-  testonly = true
-  sources = [
-    "cast_contextual_menu_unittest.cc",
-    "mock_cast_toolbar_button_controller.cc",
-    "mock_cast_toolbar_button_controller.h",
-  ]
-  deps = [
-    ":cast",
-    "//base/test:test_support",
-    "//chrome/app:branded_strings",
-    "//chrome/app:command_ids",
-    "//chrome/app:generated_resources",
-    "//chrome/browser/extensions:test_support",
-    "//chrome/browser/media/router",
-    "//chrome/browser/media/router:media_router_feature",
-    "//chrome/browser/ui:ui_features",
-    "//chrome/browser/ui/media_router",
-    "//chrome/common:constants",
-    "//chrome/test:test_support",
-    "//components/media_router/browser:test_support",
-    "//components/media_router/common",
-    "//components/signin/public/identity_manager",
-  ]
+if (!is_android) {
+  source_set("browser_tests") {
+    testonly = true
+    defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
+    sources = [
+      "cast_contextual_menu_browsertest.cc",
+      "cast_toolbar_button_controller_browsertest.cc",
+    ]
+    deps = [
+      ":cast",
+      "//base",
+      "//base/test:test_support",
+      "//build:branding_buildflags",
+      "//chrome/browser/media/router:media_router_feature",
+      "//chrome/browser/profiles:profile",
+      "//chrome/browser/ui:ui_features",
+      "//chrome/browser/ui/actions:actions_headers",
+      "//chrome/browser/ui/toolbar/pinned_toolbar",
+      "//chrome/browser/ui/views/toolbar",
+      "//chrome/common:constants",
+      "//chrome/test:test_support",
+      "//chrome/test:test_support_ui",
+      "//components/media_router/browser:test_support",
+      "//components/media_router/common",
+      "//components/policy:generated",
+      "//components/policy:policy_code_generate",
+      "//components/policy/core/browser",
+      "//components/policy/core/common",
+      "//components/policy/core/common:test_support",
+      "//content/test:test_support",
+      "//testing/gmock",
+      "//ui/actions:actions_headers",
+      "//ui/views:test_support",
+    ]
+  }
 }

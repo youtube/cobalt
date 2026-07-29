@@ -251,7 +251,7 @@ void LensSearchController::CloseLensAsync(
     // Also trigger the overlay fade out animation, but don't pass a callback
     // to finish the closing process since the side panel will call
     // the finish closing process callback in OnSidePanelHidden().
-    lens_overlay_controller_->TriggerOverlayCloseAnimation(base::DoNothing());
+    lens_overlay_controller_->TriggerOverlayFadeOutAnimation(base::DoNothing());
     return;
   }
   state_ = State::kClosing;
@@ -260,7 +260,7 @@ void LensSearchController::CloseLensAsync(
   // fade out. Play the fade out animation and then clean up the rest of the UI
   // afterwards.
   if (lens_overlay_controller_->state() != LensOverlayController::State::kOff) {
-    lens_overlay_controller_->TriggerOverlayCloseAnimation(
+    lens_overlay_controller_->TriggerOverlayFadeOutAnimation(
         base::BindOnce(&LensSearchController::CloseLensPart2,
                        weak_ptr_factory_.GetWeakPtr(), dismissal_source));
   } else {
@@ -275,6 +275,21 @@ void LensSearchController::CloseLensSync(
   }
   state_ = State::kClosing;
   CloseLensPart2(dismissal_source);
+}
+
+void LensSearchController::HideOverlay(
+    lens::LensOverlayDismissalSource dismissal_source) {
+  if (state() == State::kOff) {
+    return;
+  }
+
+  // If the overlay is showing, the overlay needs to fade out. Play the fade out
+  // animation and then clean up the rest of the UI afterwards.
+  if (lens_overlay_controller_->state() != LensOverlayController::State::kOff) {
+    lens_overlay_controller_->TriggerOverlayFadeOutAnimation(
+        base::BindOnce(&LensSearchController::OnOverlayHidden,
+                       weak_ptr_factory_.GetWeakPtr(), dismissal_source));
+  }
 }
 
 void LensSearchController::MaybeLaunchSurvey() {
@@ -568,6 +583,20 @@ void LensSearchController::CloseLensPart2(
   state_ = State::kOff;
 }
 
+void LensSearchController::OnOverlayHidden(
+    lens::LensOverlayDismissalSource dismissal_source) {
+  // If the side panel is not open, end the session.
+  if (lens_overlay_side_panel_coordinator_->state() ==
+      lens::LensOverlaySidePanelCoordinator::State::kOff) {
+    CloseLensPart2(dismissal_source);
+    return;
+  }
+
+  // Since the side panel is open and the overlay has smoothly faded out, hide
+  // the overlay to restore state to the live page.
+  lens_overlay_controller_->HideOverlayAndMaybeSetLivePageState();
+}
+
 void LensSearchController::OnSidePanelWillHide(
     SidePanelEntryHideReason reason) {
   // If the tab is not in the foreground, this is not relevant.
@@ -630,7 +659,9 @@ void LensSearchController::HandlePageContentUploadProgress(uint64_t position,
 }
 
 void LensSearchController::HandleThumbnailCreated(
-    const std::string& thumbnail_bytes) {
+    const std::string& thumbnail_bytes,
+    const SkBitmap& region_bitmap) {
+  lens_overlay_controller_->HandleRegionBitmapCreated(region_bitmap);
   lens_searchbox_controller_->HandleThumbnailCreated(thumbnail_bytes);
 }
 

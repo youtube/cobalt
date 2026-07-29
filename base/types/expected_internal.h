@@ -15,6 +15,7 @@
 #include <variant>
 
 #include "base/check.h"
+#include "base/notreached.h"
 
 // This header defines type traits and aliases used for the implementation of
 // base::expected.
@@ -27,7 +28,7 @@ template <typename E>
 class unexpected;
 
 struct unexpect_t {
-  explicit unexpect_t() = default;
+  unexpect_t() = default;
 };
 
 // in-place construction of unexpected values
@@ -171,9 +172,9 @@ class ExpectedImpl : public ExpectedBase {
       : state_(State::kValue), storage_(kValTag, std::forward<Args>(args)...) {}
 
   template <typename U, typename... Args>
-  constexpr explicit ExpectedImpl(decltype(kValTag),
-                                  std::initializer_list<U> il,
-                                  Args&&... args) noexcept
+  constexpr ExpectedImpl(decltype(kValTag),
+                         std::initializer_list<U> il,
+                         Args&&... args) noexcept
       : state_(State::kValue),
         storage_(kValTag, il, std::forward<Args>(args)...) {}
 
@@ -182,9 +183,9 @@ class ExpectedImpl : public ExpectedBase {
       : state_(State::kError), storage_(kErrTag, std::forward<Args>(args)...) {}
 
   template <typename U, typename... Args>
-  constexpr explicit ExpectedImpl(decltype(kErrTag),
-                                  std::initializer_list<U> il,
-                                  Args&&... args) noexcept
+  constexpr ExpectedImpl(decltype(kErrTag),
+                         std::initializer_list<U> il,
+                         Args&&... args) noexcept
       : state_(State::kError),
         storage_(kErrTag, il, std::forward<Args>(args)...) {}
 
@@ -204,14 +205,15 @@ class ExpectedImpl : public ExpectedBase {
       switch (rhs.state_) {
         case State::kValue:
           emplace_value(rhs.storage_.value);
-          break;
+          return *this;
         case State::kError:
           emplace_error(rhs.storage_.error);
-          break;
+          return *this;
         case State::kMovedFromValue:
         case State::kMovedFromError:
-          CHECK(false);
+          break;
       }
+      NOTREACHED();
     }
     return *this;
   }
@@ -222,15 +224,16 @@ class ExpectedImpl : public ExpectedBase {
         case State::kValue:
           rhs.state_ = State::kMovedFromValue;
           emplace_value(std::move(rhs.storage_.value));
-          break;
+          return *this;
         case State::kError:
           rhs.state_ = State::kMovedFromError;
           emplace_error(std::move(rhs.storage_.error));
-          break;
+          return *this;
         case State::kMovedFromValue:
         case State::kMovedFromError:
-          CHECK(false);
+          break;
       }
+      NOTREACHED();
     }
     return *this;
   }
@@ -288,9 +291,9 @@ class ExpectedImpl : public ExpectedBase {
         case State::kMovedFromError:
           // This should never be reached; this condition should already be
           // caught above.
-          CHECK(false);
+          break;
       }
-      return;
+      NOTREACHED();
     }
     ExpectedImpl tmp = std::move(*this);
     *this = std::move(rhs);
@@ -345,18 +348,18 @@ class ExpectedImpl : public ExpectedBase {
     constexpr explicit Storage(decltype(kValTag), Args&&... args)
         : value(std::forward<Args>(args)...) {}
     template <typename U, typename... Args>
-    constexpr explicit Storage(decltype(kValTag),
-                               std::initializer_list<U> il,
-                               Args&&... args)
+    constexpr Storage(decltype(kValTag),
+                      std::initializer_list<U> il,
+                      Args&&... args)
         : value(il, std::forward<Args>(args)...) {}
 
     template <typename... Args>
     constexpr explicit Storage(decltype(kErrTag), Args&&... args)
         : error(std::forward<Args>(args)...) {}
     template <typename U, typename... Args>
-    constexpr explicit Storage(decltype(kErrTag),
-                               std::initializer_list<U> il,
-                               Args&&... args)
+    constexpr Storage(decltype(kErrTag),
+                      std::initializer_list<U> il,
+                      Args&&... args)
         : error(il, std::forward<Args>(args)...) {}
 
     T value;
@@ -372,8 +375,9 @@ class ExpectedImpl : public ExpectedBase {
         return Storage(kErrTag, rhs.storage_.error);
       case State::kMovedFromValue:
       case State::kMovedFromError:
-        CHECK(false);
+        break;
     }
+    NOTREACHED();
   }
 
   template <typename U, typename G>
@@ -387,8 +391,9 @@ class ExpectedImpl : public ExpectedBase {
         return Storage(kErrTag, std::move(rhs.storage_.error));
       case State::kMovedFromValue:
       case State::kMovedFromError:
-        CHECK(false);
+        break;
     }
+    NOTREACHED();
   }
 
   constexpr bool is_moved_from() const noexcept {

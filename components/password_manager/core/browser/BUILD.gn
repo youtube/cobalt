@@ -163,6 +163,8 @@ static_library("browser") {
     "store_metrics_reporter.h",
     "sync_credentials_filter.cc",
     "sync_credentials_filter.h",
+    "undo_password_change_controller.cc",
+    "undo_password_change_controller.h",
     "votes_uploader.cc",
     "votes_uploader.h",
     "webauthn_credentials_delegate.h",
@@ -381,6 +383,8 @@ static_library("test_support") {
   sources = [
     "fake_form_fetcher.cc",
     "fake_form_fetcher.h",
+    "fake_password_manager_settings_service.cc",
+    "fake_password_manager_settings_service.h",
     "mock_password_feature_manager.cc",
     "mock_password_feature_manager.h",
     "mock_password_form_cache.cc",
@@ -506,6 +510,7 @@ source_set("unit_tests") {
     "possible_username_data_unittest.cc",
     "store_metrics_reporter_unittest.cc",
     "sync_credentials_filter_unittest.cc",
+    "undo_password_change_controller_unittest.cc",
     "vote_uploads_test_matchers.h",
     "votes_uploader_unittest.cc",
   ]

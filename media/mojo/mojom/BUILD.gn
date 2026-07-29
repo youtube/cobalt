@@ -218,6 +218,9 @@ mojom("mojom") {
   if (is_linux || is_chromeos) {
     video_frame_mojom_traits_public_deps += [ "//media/gpu:buffer_validation" ]
   }
+  if (is_chromeos) {
+    video_frame_mojom_traits_public_deps += [ "//ui/ozone" ]
+  }
 
   cpp_typemaps = [
     {
@@ -305,6 +308,11 @@ mojom("mojom") {
           mojom = "media.mojom.CdmConfig"
           cpp = "::media::CdmConfig"
         },
+      ]
+      traits_headers = [ "cdm_config_mojom_traits.h" ]
+    },
+    {
+      types = [
         {
           mojom = "media.mojom.CdmPromiseResult.Exception"
           cpp = "::media::CdmPromise::Exception"

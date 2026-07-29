@@ -23,7 +23,7 @@ chromium-metrics-reviews@google.com.
 <histograms>
 
 <histogram name="PDF.Actions" enum="ChromePDFViewerActions"
-    expires_after="2025-10-19">
+    expires_after="2025-12-21">
   <owner>andyphan@chromium.org</owner>
   <owner>thestig@chromium.org</owner>
   <summary>
@@ -94,7 +94,7 @@ chromium-metrics-reviews@google.com.
   <summary>Recorded every time the PDF infobar is shown.</summary>
 </histogram>
 
-<histogram name="PDF.InfoBar.UserInteraction" units="PDFInfoBarUserInteraction"
+<histogram name="PDF.InfoBar.UserInteraction" enum="PDFInfoBarUserInteraction"
     expires_after="2026-04-25">
   <owner>jessemckenna@google.com</owner>
   <owner>davidbienvenu@chromium.org</owner>
@@ -222,7 +222,7 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="PDF.PageCount" units="pages" expires_after="2025-10-19">
+<histogram name="PDF.PageCount" units="pages" expires_after="2025-12-21">
   <owner>andyphan@chromium.org</owner>
   <owner>thestig@chromium.org</owner>
   <summary>
@@ -269,13 +269,15 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="PDF.SearchifySuccessful" enum="Boolean"
+<histogram name="PDF.SearchifySuccessful2" enum="Boolean"
     expires_after="2025-11-01">
   <owner>rhalavati@chromium.org</owner>
   <owner>thestig@chromium.org</owner>
   <summary>
     Tracks the number of PDF documents that Searchify is run on, and whether
-    Searchify could add any text to them or not.
+    Searchify could add any text to them or not. Previous metric
+    (PDF.SearchifySuccessful) overcounted cases where searchify was run and did
+    not add any results.
   </summary>
 </histogram>
 

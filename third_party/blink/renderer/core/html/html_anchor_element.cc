@@ -209,8 +209,8 @@ static void AppendServerMapMousePosition(StringBuilder& url, Event* event) {
   if (!mouse_event)
     return;
 
-  DCHECK(event->RawTarget());
-  Node* target = event->RawTarget()->ToNode();
+  DCHECK(event->target());
+  Node* target = event->target()->ToNode();
   DCHECK(target);
   auto* image_element = DynamicTo<HTMLImageElement>(target);
   if (!image_element || !image_element->IsServerMap())
@@ -619,19 +619,19 @@ void HTMLAnchorElementBase::NavigateToHyperlink(
   }
 }
 
-Element* HTMLAnchorElementBase::InterestTargetElement() const {
-  if (!RuntimeEnabledFeatures::HTMLInterestTargetAttributeEnabled(
+Element* HTMLAnchorElementBase::InterestForElement() const {
+  if (!RuntimeEnabledFeatures::HTMLInterestForAttributeEnabled(
           GetDocument().GetExecutionContext())) {
     return nullptr;
   }
   // Anchor elements that don't have the `href` attribute are not interactive,
-  // so they can't support `interesttarget`.
+  // so they can't support `interestfor`.
   if (!IsInTreeScope() || !IsLink()) {
     return nullptr;
   }
 
   return GetElementAttributeResolvingReferenceTarget(
-      html_names::kInteresttargetAttr);
+      html_names::kInterestforAttr);
 }
 
 void HTMLAnchorElementBase::HandleClick(MouseEvent& event) {

@@ -1975,7 +1975,7 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="1658" label="OffscreenCanvasTransferToImageBitmap2D"/>
   <int value="1659" label="OffscreenCanvasTransferToImageBitmapWebGL"/>
   <int value="1660" label="OBSOLETE_OffscreenCanvasCommit2D"/>
-  <int value="1661" label="OffscreenCanvasCommitWebGL"/>
+  <int value="1661" label="OBSOLETE_OffscreenCanvasCommitWebGL"/>
   <int value="1662" label="RTCConfigurationIceTransportPolicy"/>
   <int value="1663" label="RTCConfigurationIceTransportPolicyNone"/>
   <int value="1664" label="RTCConfigurationIceTransports"/>
@@ -3835,7 +3835,7 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="3402" label="OBSOLETE_BluetoothRemoteGATTCharacteristic_Uuid"/>
   <int value="3403" label="OBSOLETE_BluetoothRemoteGATTDescriptor_Uuid"/>
   <int value="3404" label="OBSOLETE_BluetoothRemoteGATTService_Uuid"/>
-  <int value="3405" label="GPUAdapter_Name"/>
+  <int value="3405" label="OBSOLETE_GPUAdapter_Name"/>
   <int value="3406" label="OBSOLETE_WindowScreenInternal"/>
   <int value="3407" label="OBSOLETE_WindowScreenPrimary"/>
   <int value="3408" label="ThirdPartyCookieRead"/>
@@ -5005,7 +5005,7 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="4499" label="SpeculationRulesExplicitEagerness"/>
   <int value="4500" label="SpeculationRulesEagernessConservative"/>
   <int value="4501" label="SpeculationRulesEagernessModerate"/>
-  <int value="4502" label="SpeculationRulesEagernessEager"/>
+  <int value="4502" label="SpeculationRulesEagernessImmediate"/>
   <int value="4503" label="OBSOLETE_URLSetPortCheckOverflow"/>
   <int value="4504" label="V8Animation_RangeStart_AttributeGetter"/>
   <int value="4505" label="V8Animation_RangeStart_AttributeSetter"/>
@@ -5993,7 +5993,7 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="5370" label="OBSOLETE_V8AIWriter_MeasureInputUsage_Method"/>
   <int value="5371" label="OBSOLETE_V8AIWriter_InputQuota_AttributeGetter"/>
   <int value="5372" label="SpeculationRulesTargetHintBlank"/>
-  <int value="5373" label="InterestTarget"/>
+  <int value="5373" label="InterestFor"/>
   <int value="5374" label="TextAutoSizingDisabledOnFlexbox"/>
   <int value="5375" label="AriaLabeledByAlternativeSpelling"/>
   <int value="5376" label="CanvasTextNg"/>
@@ -6085,7 +6085,8 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="5457" label="Summarizer_SharedContext"/>
   <int value="5458" label="Summarizer_Type"/>
   <int value="5459" label="CrossOriginSameSiteCookieAccessViaStorageAccessAPI"/>
-  <int value="5460" label="V8GPUAdapter_IsFallbackAdapter_AttributeGetter"/>
+  <int value="5460"
+      label="OBSOLETE_V8GPUAdapter_IsFallbackAdapter_AttributeGetter"/>
   <int value="5461" label="LanguageDetector_ExpectedInputLanguages"/>
   <int value="5462" label="ServiceWorkerPushEventListener"/>
   <int value="5463" label="ServiceWorkerPushSubscriptionChangeEventListener"/>
@@ -6226,6 +6227,14 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="5594" label="SelectMultipleSizeOne"/>
   <int value="5595" label="WebGPUFeatureLevelCompatibility"/>
   <int value="5596" label="OverscrollBehaviorOnNonScrollableScrollContainer"/>
+  <int value="5597" label="InteractiveContentSummaryDescendant"/>
+  <int value="5598" label="SpeculationRulesEagernessEager"/>
+  <int value="5599" label="CSSSelectorPseudoNot"/>
+  <int value="5600" label="CSSCustomMedia"/>
+  <int value="5601" label="HTMLCanvasElementLowLatency_2D"/>
+  <int value="5602" label="HTMLCanvasElementLowLatency_WebGL"/>
+  <int value="5603" label="HTMLCanvasElementLowLatency_WebGL_Preserve"/>
+  <int value="5604" label="HTMLCanvasElementLowLatency_WebGL_Discard"/>
 </enum>
 
 <!-- LINT.ThenChange(//third_party/blink/public/mojom/use_counter/metrics/web_feature.mojom:WebFeature) -->
@@ -7776,17 +7785,17 @@ Called by update_use_counter_css.py.-->
   <int value="814" label="masonry-flow"/>
   <int value="815" label="masonry-auto-tracks (obsolete)"/>
   <int value="816" label="result"/>
-  <int value="817" label="animation-trigger-type"/>
+  <int value="817" label="animation-trigger-type (obsolete)"/>
   <int value="818" label="animation-trigger-timeline"/>
   <int value="819" label="animation-trigger-range-start"/>
   <int value="820" label="animation-trigger-range-end"/>
   <int value="821" label="animation-trigger-exit-range-start"/>
   <int value="822" label="animation-trigger-exit-range-end"/>
-  <int value="823" label="interest-target-show-delay"/>
-  <int value="824" label="interest-target-hide-delay"/>
+  <int value="823" label="interest-show-delay"/>
+  <int value="824" label="interest-hide-delay"/>
   <int value="825" label="animation-trigger-range"/>
   <int value="826" label="animation-trigger-exit-range"/>
-  <int value="827" label="interest-target-delay"/>
+  <int value="827" label="interest-delay"/>
   <int value="828" label="animation-trigger"/>
   <int value="829" label="column-rule-break"/>
   <int value="830" label="row-rule-break"/>
@@ -7829,6 +7838,14 @@ Called by update_use_counter_css.py.-->
   <int value="867" label="corner-inline-end-shape"/>
   <int value="868" label="corners"/>
   <int value="869" label="border-shape"/>
+  <int value="870" label="animation-trigger-behavior"/>
+  <int value="871" label="timeline-trigger-name"/>
+  <int value="872" label="timeline-trigger-behavior"/>
+  <int value="873" label="timeline-trigger-range-start"/>
+  <int value="874" label="timeline-trigger-range-end"/>
+  <int value="875" label="timeline-trigger-exit-range-start"/>
+  <int value="876" label="timeline-trigger-exit-range-end"/>
+  <int value="877" label="timeline-trigger-timeline"/>
 </enum>
 
 <!-- LINT.ThenChange(//third_party/blink/public/mojom/use_counter/metrics/css_property_id.mojom:CSSSampleId) -->
@@ -7852,6 +7869,7 @@ Called by update_use_counter_css.py.-->
   <int value="2" label="Low constrast between color and background color"/>
   <int value="3" label="Too small font size"/>
   <int value="4" label="Too large font size"/>
+  <int value="5" label="Invalid display property"/>
 </enum>
 
 <!-- LINT.ThenChange(//third_party/blink/renderer/core/html/html_permission_element.h:InvalidStyleReason) -->
@@ -8294,6 +8312,10 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="340" label="LinkRelExpect"/>
   <int value="341" label="UaClientHints"/>
   <int value="342" label="CustomizableSelect"/>
+  <int value="343" label="Not"/>
+  <int value="344" label="Scripting"/>
+  <int value="345" label="AlignContentBlock"/>
+  <int value="346" label="SizesAuto"/>
 </enum>
 
 <!-- LINT.ThenChange(//third_party/blink/public/mojom/use_counter/metrics/webdx_feature.mojom:WebDXFeature) -->

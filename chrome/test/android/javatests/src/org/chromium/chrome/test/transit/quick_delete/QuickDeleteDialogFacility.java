@@ -115,9 +115,9 @@ public class QuickDeleteDialogFacility extends ModalDialogFacility {
 
     /** Click the "More options" button to open the in Settings. */
     public SettingsStation<ClearBrowsingDataFragment> clickMoreOptions() {
-        return mHostStation.travelToSync(
-                new SettingsStation<>(ClearBrowsingDataFragment.class),
-                moreOptionsElement.getClickTrigger());
+        return moreOptionsElement
+                .clickTo()
+                .arriveAt(new SettingsStation<>(ClearBrowsingDataFragment.class));
     }
 
     public void expectSearchHistoryDisambiguation(boolean shown) {
@@ -128,7 +128,7 @@ public class QuickDeleteDialogFacility extends ModalDialogFacility {
         } else {
             facility.declareNoView(spec);
         }
-        mHostStation.enterFacilitySync(facility, /* trigger= */ null);
+        noopTo().enterFacility(facility);
     }
 
     public void expectMoreOnSyncedDevices(boolean shown) {
@@ -140,7 +140,7 @@ public class QuickDeleteDialogFacility extends ModalDialogFacility {
         } else {
             facility.declareNoView(spec);
         }
-        mHostStation.enterFacilitySync(facility, /* trigger= */ null);
+        noopTo().enterFacility(facility);
     }
 
     private class TimePeriodSelectedCondition extends UiThreadCondition {

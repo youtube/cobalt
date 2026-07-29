@@ -48,7 +48,7 @@ constexpr int kWriteToDiskOnBackgroundDelayMSecs = 100;
 // is left.
 constexpr uint32_t kEvictionMarginDivisor = 20;
 
-constexpr uint32_t kBytesInKb = 1024;
+constexpr uint32_t kBytesInMiB = 1024 * 1024;
 
 // This is added to the size of each entry before using the size
 // to determine which entries to evict first. It's basically an
@@ -110,7 +110,7 @@ EntryMetadata::EntryMetadata(base::Time last_used_time,
   SetLastUsedTime(last_used_time);
 }
 
-EntryMetadata::EntryMetadata(int32_t trailer_prefetch_size,
+EntryMetadata::EntryMetadata(uint32_t trailer_prefetch_size,
                              base::StrictNumeric<uint64_t> entry_size)
     : trailer_prefetch_size_(0),
       entry_size_256b_chunks_(0),
@@ -131,7 +131,7 @@ base::Time EntryMetadata::GetLastUsedTime() const {
          base::Seconds(last_used_time_seconds_since_epoch_);
 }
 
-void EntryMetadata::SetLastUsedTime(const base::Time& last_used_time) {
+void EntryMetadata::SetLastUsedTime(base::Time last_used_time) {
   // Preserve nullity.
   if (last_used_time.is_null()) {
     last_used_time_seconds_since_epoch_ = 0;
@@ -145,13 +145,15 @@ void EntryMetadata::SetLastUsedTime(const base::Time& last_used_time) {
     last_used_time_seconds_since_epoch_ = 1;
 }
 
-int32_t EntryMetadata::GetTrailerPrefetchSize() const {
+uint32_t EntryMetadata::GetTrailerPrefetchSize() const {
   return trailer_prefetch_size_;
 }
 
-void EntryMetadata::SetTrailerPrefetchSize(int32_t size) {
-  if (size <= 0)
+void EntryMetadata::SetTrailerPrefetchSize(uint32_t size) {
+  if (size == 0) {
     return;
+  }
+
   trailer_prefetch_size_ = size;
 }
 
@@ -216,8 +218,8 @@ bool EntryMetadata::Deserialize(net::CacheType cache_type,
 
   if (cache_type == net::APP_CACHE) {
     if (app_cache_has_trailer_prefetch_size) {
-      int32_t trailer_prefetch_size = 0;
-      base::CheckedNumeric<int32_t> numeric_size(tmp_time_or_prefetch_size);
+      uint32_t trailer_prefetch_size = 0;
+      base::CheckedNumeric<uint32_t> numeric_size(tmp_time_or_prefetch_size);
       if (numeric_size.AssignIfValid(&trailer_prefetch_size)) {
         SetTrailerPrefetchSize(trailer_prefetch_size);
       }
@@ -556,10 +558,11 @@ void SimpleIndex::SetTrailerPrefetchSize(uint64_t entry_hash, int32_t size) {
   auto it = entries_set_.find(entry_hash);
   if (it == entries_set_.end())
     return;
-  int32_t original_size = it->second.GetTrailerPrefetchSize();
+  uint32_t original_size = it->second.GetTrailerPrefetchSize();
   it->second.SetTrailerPrefetchSize(size);
-  if (original_size != it->second.GetTrailerPrefetchSize())
+  if (original_size != it->second.GetTrailerPrefetchSize()) {
     PostponeWritingToDisk();
+  }
 }
 
 bool SimpleIndex::UpdateEntrySize(uint64_t entry_hash,
@@ -677,11 +680,11 @@ void SimpleIndex::MergeInitializingSet(
   SIMPLE_CACHE_UMA(CUSTOM_COUNTS, "IndexNumEntriesOnInit", cache_type_,
                    entries_set_.size(), 0, 100000, 50);
   SIMPLE_CACHE_UMA(
-      MEMORY_KB, "CacheSizeOnInit", cache_type_,
-      static_cast<base::HistogramBase::Sample32>(cache_size_ / kBytesInKb));
+      MEMORY_MEDIUM_MB, "CacheSizeOnInit2", cache_type_,
+      static_cast<base::HistogramBase::Sample32>(cache_size_ / kBytesInMiB));
   SIMPLE_CACHE_UMA(
-      MEMORY_KB, "MaxCacheSizeOnInit", cache_type_,
-      static_cast<base::HistogramBase::Sample32>(max_size_ / kBytesInKb));
+      MEMORY_MEDIUM_MB, "MaxCacheSizeOnInit2", cache_type_,
+      static_cast<base::HistogramBase::Sample32>(max_size_ / kBytesInMiB));
 
   // Run all callbacks waiting for the index to come up.
   for (auto& callback : to_run_when_initialized_) {

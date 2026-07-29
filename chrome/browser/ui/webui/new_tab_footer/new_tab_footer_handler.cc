@@ -127,12 +127,14 @@ void NewTabFooterHandler::OpenManagementPage() {
 }
 
 void NewTabFooterHandler::ShowContextMenu(const gfx::Point& point) {
-  const bool is_managed =
-      enterprise_util::CanShowEnterpriseBadgingForNTPFooter(profile_);
-  // TODO(crbug.com/424878134): Add managed-specific behavior.
-  if (embedder_ && !is_managed) {
+  if (!embedder_) {
+    return;
+  }
+
+  auto* browser = webui::GetBrowserWindowInterface(web_contents_);
+  if (browser) {
     embedder_->ShowContextMenu(point,
-                               std::make_unique<FooterContextMenu>(profile_));
+                               std::make_unique<FooterContextMenu>(browser));
   }
 }
 

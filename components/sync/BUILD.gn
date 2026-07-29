@@ -283,7 +283,6 @@ source_set("unit_tests") {
     "//components/version_info",
     "//components/version_info:generate_version_info",
     "//components/version_info:version_string",
-    "//extensions/buildflags",
     "//google_apis:test_support",
     "//google_apis/gcm:gcm",
     "//net",
@@ -311,6 +310,21 @@ source_set("unit_tests") {
     deps += [
       "//components/policy:generated",
       "//components/policy/core/browser",
+    ]
+  }
+}
+
+if (!is_android && !is_ios && !is_fuchsia) {
+  test("sync_full_proto_unittests") {
+    sources =
+        [ "protocol/shared_tab_group_data_specifics_full_proto_unittest.cc" ]
+
+    deps = [
+      "//base",
+      "//components/sync/protocol:full_proto",
+      "//testing/gtest",
+      "//testing/gtest:gtest_main",
+      "//third_party/protobuf:protobuf_full",
     ]
   }
 }

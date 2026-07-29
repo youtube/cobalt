@@ -35,6 +35,7 @@
 <translation id="141901961143729572">Podziel się swoimi wrażeniami</translation>
 <translation id="1425903838053942728">{COUNT,plural, =0{Przeglądarka Chrome została zaktualizowana. Uruchom ją ponownie, aby zacząć używać najnowszej wersji. Zostaną przywrócone Twoje bieżące karty.}=1{Przeglądarka Chrome została zaktualizowana. Uruchom ją ponownie, aby zacząć używać najnowszej wersji. Zostaną przywrócone Twoje bieżące karty. Okno incognito nie otworzy się ponownie.}few{Przeglądarka Chrome została zaktualizowana. Uruchom ją ponownie, aby zacząć używać najnowszej wersji. Zostaną przywrócone Twoje bieżące karty. # okna incognito nie otworzą się ponownie.}many{Przeglądarka Chrome została zaktualizowana. Uruchom ją ponownie, aby zacząć używać najnowszej wersji. Zostaną przywrócone Twoje bieżące karty. # okien incognito nie otworzy się ponownie.}other{Przeglądarka Chrome została zaktualizowana. Uruchom ją ponownie, aby zacząć używać najnowszej wersji. Zostaną przywrócone Twoje bieżące karty. # okna incognito nie otworzy się ponownie.}}</translation>
 <translation id="1434626383986940139">Aplikacje Chrome w wersji poglądowej</translation>
+<translation id="1439793550875056299">Przypnij Chrome</translation>
 <translation id="146866447420868597">Chcesz zalogować się w Chrome?</translation>
 <translation id="1492280395845991349">Uruchom ponownie, aby dokończyć aktualizację Chrome</translation>
 <translation id="1497802159252041924">Błąd instalacji: <ph name="INSTALL_ERROR" /></translation>
@@ -120,6 +121,7 @@
 <translation id="2569974318947988067">Chrome spróbuje uaktualnić elementy nawigacyjne do HTTPS</translation>
 <translation id="2571392474191184472">Przeglądarką Chrome zarządza Twoja organizacja</translation>
 <translation id="2574930892358684005">W tym profilu Chrome jest już zalogowany użytkownik <ph name="EXISTING_USER" />. Aby umożliwić Ci przeglądanie osobno, Chrome może utworzyć dla Ciebie nowy profil.</translation>
+<translation id="2579190314336775785">Hasła można usuwać tylko poza Chrome</translation>
 <translation id="2580411288591421699">Nie można zainstalować tej samej wersji przeglądarki Google Chrome co obecnie uruchomiona. Zamknij przeglądarkę Google Chrome i spróbuj ponownie.</translation>
 <translation id="2586406160782125153">Spowoduje to usunięcie danych przeglądania z tego urządzenia. Aby później odzyskać dane, zaloguj się w Chrome jako <ph name="USER_EMAIL" />.</translation>
 <translation id="259935314519650377">Pobranego instalatora nie udało się załadować do pamięci podręcznej. Błąd: <ph name="UNPACK_CACHING_ERROR_CODE" />.</translation>
@@ -267,6 +269,7 @@
 <translation id="4326552909330437744">{NUM_TABS,plural, =1{Chrome zaleca wstrzymanie karty, która spowalnia przeglądarkę}few{Chrome zaleca wstrzymanie kart, które spowalniają przeglądarkę}many{Chrome zaleca wstrzymanie kart, które spowalniają przeglądarkę}other{Chrome zaleca wstrzymanie kart, które spowalniają przeglądarkę}}</translation>
 <translation id="4328355335528187361">Wersja deweloperska Google Chrome (mDNS-In)</translation>
 <translation id="4329315893554541805">Aby korzystać z personalizacji i innych funkcji, uwzględnij Chrome w Aktywności w internecie i aplikacjach oraz w połączonych usługach Google</translation>
+<translation id="4334241893986177674">Przeszukaj ten zrzut ekranu</translation>
 <translation id="4334294535648607276">Pobieranie ukończone.</translation>
 <translation id="4337324600316876133">Aby otrzymywać w przyszłości aktualizacje Google Chrome, musisz mieć system macOS 12 lub nowszy. Na tym komputerze jest zainstalowany system macOS 11.</translation>
 <translation id="4343195214584226067"><ph name="EXTENSION_NAME" /> – dodano do Chrome</translation>
@@ -350,6 +353,7 @@
 <translation id="5566025111015594046">Google Chrome (mDNS-In)</translation>
 <translation id="5579324208890605088">Błąd uruchamiania: uruchom instalator jako zwykły użytkownik, a nie jako administrator.</translation>
 <translation id="5596627076506792578">Więcej opcji</translation>
+<translation id="5600352656975192682">Przypnij przeglądarkę Chrome do paska zadań, aby mieć do niej szybki dostęp</translation>
 <translation id="5602351063754773347">Chrome zaleca jego usunięcie. <ph name="BEGIN_LINK" />Więcej informacji o obsługiwanych rozszerzeniach<ph name="END_LINK" /></translation>
 <translation id="5649156266046089790">Dzięki profilom Chrome wszystkie swoje dane z tej przeglądarki możesz przechowywać osobno. Utwórz profile dla znajomych i rodziny albo oddziel pracę od rozrywki.</translation>
 <translation id="565744775970812598">Plik <ph name="FILE_NAME" /> może być niebezpieczny, dlatego został zablokowany przez Chrome.</translation>

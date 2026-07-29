@@ -7,15 +7,17 @@ package org.chromium.chrome.browser.native_page;
 import android.view.View;
 
 import androidx.annotation.IntDef;
-import androidx.annotation.Nullable;
 import androidx.annotation.StringRes;
 
 import org.chromium.base.metrics.RecordUserAction;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.offlinepages.OfflinePageBridge;
 import org.chromium.chrome.browser.suggestions.tile.TileUtils;
 import org.chromium.chrome.browser.ui.native_page.TouchEnabledDelegate;
 import org.chromium.components.browser_ui.widget.BrowserUiListMenuUtils;
+import org.chromium.components.browser_ui.widget.ListItemBuilder;
 import org.chromium.ui.listmenu.ListMenu;
 import org.chromium.ui.listmenu.ListMenuDelegate;
 import org.chromium.ui.listmenu.ListMenuHost;
@@ -36,6 +38,7 @@ import java.lang.annotation.RetentionPolicy;
  * download, remove, and learn more. Clients control which items are shown using {@link
  * Delegate#isItemSupported(int)}.
  */
+@NullMarked
 public class ContextMenuManager {
     @IntDef({
         ContextMenuItemId.SEARCH,
@@ -43,12 +46,15 @@ public class ContextMenuManager {
         ContextMenuItemId.OPEN_IN_NEW_TAB_IN_GROUP,
         ContextMenuItemId.OPEN_IN_INCOGNITO_TAB,
         ContextMenuItemId.OPEN_IN_NEW_WINDOW,
+        ContextMenuItemId.OPEN_ALL,
         ContextMenuItemId.SAVE_FOR_OFFLINE,
         ContextMenuItemId.ADD_TO_MY_APPS,
         ContextMenuItemId.REMOVE,
+        ContextMenuItemId.REMOVE_ALL,
         ContextMenuItemId.PIN_THIS_SHORTCUT,
         ContextMenuItemId.EDIT_SHORTCUT,
         ContextMenuItemId.UNPIN,
+        ContextMenuItemId.HIDE_ALL,
     })
     @Retention(RetentionPolicy.SOURCE)
     public @interface ContextMenuItemId {
@@ -60,21 +66,24 @@ public class ContextMenuManager {
         int OPEN_IN_NEW_TAB_IN_GROUP = 2;
         int OPEN_IN_INCOGNITO_TAB = 3;
         int OPEN_IN_NEW_WINDOW = 4;
-        int SAVE_FOR_OFFLINE = 5;
-        int ADD_TO_MY_APPS = 6;
-        int REMOVE = 7;
-        int PIN_THIS_SHORTCUT = 8;
-        int EDIT_SHORTCUT = 9;
-        int UNPIN = 10;
+        int OPEN_ALL = 5;
+        int SAVE_FOR_OFFLINE = 6;
+        int ADD_TO_MY_APPS = 7;
+        int REMOVE = 8;
+        int REMOVE_ALL = 9;
+        int PIN_THIS_SHORTCUT = 10;
+        int EDIT_SHORTCUT = 11;
+        int UNPIN = 12;
+        int HIDE_ALL = 13;
 
-        int NUM_ENTRIES = 11;
+        int NUM_ENTRIES = 14;
     }
 
     private final NativePageNavigationDelegate mNavigationDelegate;
     private final TouchEnabledDelegate mTouchEnabledDelegate;
     private final Runnable mCloseContextMenuCallback;
     private final String mUserActionPrefix;
-    private View mAnchorView;
+    private @Nullable View mAnchorView;
 
     // Not null after showListContextMenu.
     private @Nullable ListMenuHost mListContextMenu;
@@ -87,8 +96,14 @@ public class ContextMenuManager {
         /** Opens the current item the way specified by {@code windowDisposition} in a group. */
         void openItemInGroup(int windowDisposition);
 
+        /** Opens all items. */
+        void openAllItems();
+
         /** Remove the current item. */
         void removeItem();
+
+        /** Remove all items. */
+        void removeAllItems();
 
         /** Pins the current item. */
         void pinItem();
@@ -103,15 +118,13 @@ public class ContextMenuManager {
          * @return the URL of the current item for saving offline, or null if the item can't be
          *     saved offline.
          */
-        @Nullable
-        GURL getUrl();
+        @Nullable GURL getUrl();
 
         /**
          * @return Title to be displayed in the context menu when applicable, or null if no title
          *     should be displayed.
          */
-        @Nullable
-        String getContextMenuTitle();
+        @Nullable String getContextMenuTitle();
 
         /**
          * @returns Whether the given menu item is supported.
@@ -125,6 +138,9 @@ public class ContextMenuManager {
 
         /** Called when a context menu has been created. */
         void onContextMenuCreated();
+
+        /** Hides all items. */
+        void hideAllItems();
     }
 
     /**
@@ -139,7 +155,13 @@ public class ContextMenuManager {
         public void openItemInGroup(int windowDisposition) {}
 
         @Override
+        public void openAllItems() {}
+
+        @Override
         public void removeItem() {}
+
+        @Override
+        public void removeAllItems() {}
 
         @Override
         public void pinItem() {}
@@ -151,12 +173,12 @@ public class ContextMenuManager {
         public void editItem() {}
 
         @Override
-        public GURL getUrl() {
+        public @Nullable GURL getUrl() {
             return null;
         }
 
         @Override
-        public String getContextMenuTitle() {
+        public @Nullable String getContextMenuTitle() {
             return null;
         }
 
@@ -172,6 +194,9 @@ public class ContextMenuManager {
 
         @Override
         public void onContextMenuCreated() {}
+
+        @Override
+        public void hideAllItems() {}
     }
 
     /**
@@ -206,11 +231,8 @@ public class ContextMenuManager {
         for (@ContextMenuItemId int itemId = 0; itemId < ContextMenuItemId.NUM_ENTRIES; itemId++) {
             if (!shouldShowItem(itemId, delegate)) continue;
 
-            menuModel.add(
-                    BrowserUiListMenuUtils.buildMenuListItem(
-                            /* titleId= */ getResourceIdForMenuItem(itemId),
-                            /* menuId= */ itemId,
-                            /* startIconId= */ 0));
+            int titleId = getResourceIdForMenuItem(itemId);
+            menuModel.add(new ListItemBuilder().withTitleRes(titleId).withMenuId(itemId).build());
         }
 
         if (menuModel.isEmpty()) {
@@ -308,12 +330,16 @@ public class ContextMenuManager {
                 return mNavigationDelegate.isOpenInIncognitoEnabled();
             case ContextMenuItemId.OPEN_IN_NEW_WINDOW:
                 return mNavigationDelegate.isOpenInNewWindowEnabled();
+            case ContextMenuItemId.OPEN_ALL:
+                return true;
             case ContextMenuItemId.SAVE_FOR_OFFLINE:
                 {
                     GURL itemUrl = delegate.getUrl();
                     return itemUrl != null && OfflinePageBridge.canSavePage(itemUrl);
                 }
             case ContextMenuItemId.REMOVE:
+                return true;
+            case ContextMenuItemId.REMOVE_ALL:
                 return true;
             case ContextMenuItemId.PIN_THIS_SHORTCUT:
                 {
@@ -325,6 +351,8 @@ public class ContextMenuManager {
                 return true;
             case ContextMenuItemId.ADD_TO_MY_APPS:
                 return false;
+            case ContextMenuItemId.HIDE_ALL:
+                return true;
             default:
                 assert false;
                 return false;
@@ -344,16 +372,22 @@ public class ContextMenuManager {
                 return R.string.contextmenu_open_in_incognito_tab;
             case ContextMenuItemId.OPEN_IN_NEW_WINDOW:
                 return R.string.contextmenu_open_in_other_window;
+            case ContextMenuItemId.OPEN_ALL:
+                return R.string.recent_tabs_open_all_menu_option;
             case ContextMenuItemId.SAVE_FOR_OFFLINE:
                 return R.string.contextmenu_save_link;
             case ContextMenuItemId.REMOVE:
                 return R.string.remove;
+            case ContextMenuItemId.REMOVE_ALL:
+                return R.string.remove_all;
             case ContextMenuItemId.PIN_THIS_SHORTCUT:
                 return R.string.contextmenu_pin_this_shortcut;
             case ContextMenuItemId.EDIT_SHORTCUT:
                 return R.string.contextmenu_edit_shortcut;
             case ContextMenuItemId.UNPIN:
                 return R.string.contextmenu_unpin;
+            case ContextMenuItemId.HIDE_ALL:
+                return R.string.recent_tabs_hide_menu_option;
         }
         assert false;
         return 0;
@@ -384,6 +418,10 @@ public class ContextMenuManager {
                 delegate.openItem(WindowOpenDisposition.NEW_WINDOW);
                 RecordUserAction.record(mUserActionPrefix + ".ContextMenu.OpenItemInNewWindow");
                 return true;
+            case ContextMenuItemId.OPEN_ALL:
+                delegate.openAllItems();
+                RecordUserAction.record(mUserActionPrefix + ".ContextMenu.OpenAllItems");
+                return true;
             case ContextMenuItemId.SAVE_FOR_OFFLINE:
                 delegate.openItem(WindowOpenDisposition.SAVE_TO_DISK);
                 RecordUserAction.record(mUserActionPrefix + ".ContextMenu.DownloadItem");
@@ -391,6 +429,10 @@ public class ContextMenuManager {
             case ContextMenuItemId.REMOVE:
                 delegate.removeItem();
                 RecordUserAction.record(mUserActionPrefix + ".ContextMenu.RemoveItem");
+                return true;
+            case ContextMenuItemId.REMOVE_ALL:
+                delegate.removeAllItems();
+                RecordUserAction.record(mUserActionPrefix + ".ContextMenu.RemoveAllItems");
                 return true;
             case ContextMenuItemId.PIN_THIS_SHORTCUT:
                 delegate.pinItem();
@@ -404,12 +446,16 @@ public class ContextMenuManager {
                 delegate.unpinItem();
                 RecordUserAction.record(mUserActionPrefix + ".ContextMenu.UnpinItem");
                 return true;
+            case ContextMenuItemId.HIDE_ALL:
+                delegate.hideAllItems();
+                RecordUserAction.record(mUserActionPrefix + ".ContextMenu.HideAllItems");
+                return true;
             default:
                 return false;
         }
     }
 
-    public ListMenuHost getListMenuForTesting() {
+    public @Nullable ListMenuHost getListMenuForTesting() {
         return mListContextMenu;
     }
 }

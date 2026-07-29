@@ -40,6 +40,7 @@
 <translation id="5596627076506792578">Weitere Optionen</translation>
 <translation id="565342223183747919">Zum Wechseln des Wiedergabemodus tippen</translation>
 <translation id="5694491020339060116">Menü für Wiedergabegeschwindigkeit</translation>
+<translation id="5961164658295696940">Wenn du weitere Optionen aufrufen möchtest, tippe auf den Player</translation>
 <translation id="5965409657393819302">Technisches Problem</translation>
 <translation id="6218961554829577610">Stimme gefällt mir nicht</translation>
 <translation id="6315170314923504164">Stimme</translation>
@@ -52,7 +53,6 @@
 <translation id="6846298663435243399">Wird geladen…</translation>
 <translation id="6889157801232138307">Player für „Diese Seite anhören“</translation>
 <translation id="7051308646573997571">Korallenrot</translation>
-<translation id="7112750136794557642">Tippe, um den Player zu maximieren und weitere Optionen aufzurufen.</translation>
 <translation id="7138678301420049075">Sonstiges</translation>
 <translation id="7221920857098237570">Sanft</translation>
 <translation id="7237590978482584900">Lebhaft</translation>
@@ -67,5 +67,6 @@
 <translation id="8481839122437406573">Ruhig</translation>
 <translation id="8756370108715456837">Faktisch nicht korrekt</translation>
 <translation id="8953618380150219653">Der Player „Diese Seite anhören“ ist vollständig geöffnet.</translation>
+<translation id="9087782179025630211">Steuerleiste. <ph name="ELAPSED" /> von <ph name="TOTAL" /> verstrichen.</translation>
 <translation id="978117257931832348">Tiefe Stimmlage</translation>
 </translationbundle>

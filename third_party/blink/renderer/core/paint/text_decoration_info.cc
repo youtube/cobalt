@@ -6,6 +6,7 @@
 
 #include <math.h>
 
+#include "base/types/optional_util.h"
 #include "build/build_config.h"
 #include "third_party/blink/renderer/core/layout/text_decoration_offset.h"
 #include "third_party/blink/renderer/core/paint/decoration_line_painter.h"
@@ -13,8 +14,6 @@
 #include "third_party/blink/renderer/core/paint/text_paint_style.h"
 #include "third_party/blink/renderer/core/style/computed_style.h"
 #include "third_party/blink/renderer/platform/geometry/length_functions.h"
-#include "third_party/blink/renderer/platform/graphics/graphics_context.h"
-#include "third_party/blink/renderer/platform/graphics/styled_stroke_data.h"
 #include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 
 namespace blink {
@@ -71,13 +70,11 @@ inline bool ShouldUseDecoratingBox(const ComputedStyle& style) {
   return true;
 }
 
-static float ComputeDecorationThickness(
-    const TextDecorationThickness text_decoration_thickness,
+float ComputeDecorationThickness(
+    const TextDecorationThickness& text_decoration_thickness,
     float computed_font_size,
-    float minimum_thickness,
     const SimpleFontData* font_data) {
-  float auto_underline_thickness =
-      std::max(minimum_thickness, computed_font_size / 10.f);
+  const float auto_underline_thickness = computed_font_size / 10.f;
 
   if (text_decoration_thickness.IsAuto())
     return auto_underline_thickness;
@@ -92,20 +89,15 @@ static float ComputeDecorationThickness(
   if (text_decoration_thickness.IsFromFont()) {
     std::optional<float> font_underline_thickness =
         font_data->GetFontMetrics().UnderlineThickness();
-
-    if (!font_underline_thickness)
-      return auto_underline_thickness;
-
-    return std::max(minimum_thickness, font_underline_thickness.value());
+    return font_underline_thickness.value_or(auto_underline_thickness);
   }
 
   DCHECK(!text_decoration_thickness.IsFromFont());
 
   const Length& thickness_length = text_decoration_thickness.Thickness();
-  float text_decoration_thickness_pixels =
+  const float text_decoration_thickness_pixels =
       FloatValueForLength(thickness_length, computed_font_size);
-
-  return std::max(minimum_thickness, roundf(text_decoration_thickness_pixels));
+  return roundf(text_decoration_thickness_pixels);
 }
 
 static enum StrokeStyle TextDecorationStyleToStrokeStyle(
@@ -123,6 +115,19 @@ static enum StrokeStyle TextDecorationStyleToStrokeStyle(
       return kWavyStroke;
   }
 }
+
+#if !BUILDFLAG(IS_APPLE)
+WaveDefinition MakeSpellingGrammarWave(float effective_zoom) {
+  const float wavelength = 6 * effective_zoom;
+  return {
+      .wavelength = wavelength,
+      .control_point_distance = 5 * effective_zoom,
+      // Offset by a quarter of a wavelength, to get a result closer to
+      // Microsoft Word circa 2021.
+      .phase = -0.75f * wavelength,
+  };
+}
+#endif
 
 }  // namespace
 
@@ -270,17 +275,17 @@ void TextDecorationInfo::SetLineData(TextDecorationLine line,
                                      float line_offset) {
   const float double_offset_from_thickness = ResolvedThickness() + 1.0f;
   float double_offset;
-  int wavy_offset_factor;
+  float wavy_offset;
   switch (line) {
     case TextDecorationLine::kUnderline:
     case TextDecorationLine::kSpellingError:
     case TextDecorationLine::kGrammarError:
       double_offset = double_offset_from_thickness;
-      wavy_offset_factor = 1;
+      wavy_offset = double_offset_from_thickness;
       break;
     case TextDecorationLine::kOverline:
       double_offset = -double_offset_from_thickness;
-      wavy_offset_factor = 1;
+      wavy_offset = -double_offset_from_thickness;
       break;
     case TextDecorationLine::kLineThrough:
       // Floor double_offset in order to avoid double-line gap to appear
@@ -288,25 +293,25 @@ void TextDecorationInfo::SetLineData(TextDecorationLine line,
       // is drawn because of rounding downstream in
       // GraphicsContext::DrawLineForText.
       double_offset = floorf(double_offset_from_thickness);
-      wavy_offset_factor = 0;
+      wavy_offset = 0;
       break;
     case TextDecorationLine::kNone:
     case TextDecorationLine::kBlink:
       NOTREACHED();
   }
 
-  const bool is_spelling_or_grammar =
-      line == TextDecorationLine::kSpellingError ||
-      line == TextDecorationLine::kGrammarError;
-
   StrokeStyle style;
+  std::optional<WaveDefinition> spelling_wave;
   bool antialias = antialias_;
-  if (is_spelling_or_grammar) {
+  if (line == TextDecorationLine::kSpellingError ||
+      line == TextDecorationLine::kGrammarError) {
 #if BUILDFLAG(IS_APPLE)
     style = kDottedStroke;
     antialias = true;
 #else
     style = kWavyStroke;
+    spelling_wave =
+        MakeSpellingGrammarWave(decorating_box_style_->EffectiveZoom());
 #endif
   } else {
     DCHECK(applied_text_decoration_);
@@ -317,8 +322,7 @@ void TextDecorationInfo::SetLineData(TextDecorationLine line,
       gfx::PointF(local_origin_) + gfx::Vector2dF(0, line_offset);
   line_geometry_ = DecorationGeometry::Make(
       style, gfx::RectF(start_point, gfx::SizeF(width_, ResolvedThickness())),
-      decorating_box_style_->EffectiveZoom(), double_offset, wavy_offset_factor,
-      is_spelling_or_grammar, LineColor());
+      double_offset, wavy_offset, base::OptionalToPtr(spelling_wave));
   line_geometry_.antialias = antialias;
 }
 
@@ -432,39 +436,32 @@ float TextDecorationInfo::ComputeThickness() const {
     return 1.f * decorating_box_style_->EffectiveZoom();
 #endif
   }
-  return ComputeUnderlineThickness(decoration.Thickness(),
-                                   decorating_box_style_);
+  return ComputeUnderlineThickness(decoration.Thickness());
 }
 
 float TextDecorationInfo::ComputeUnderlineThickness(
-    const TextDecorationThickness& applied_decoration_thickness,
-    const ComputedStyle* decorating_box_style) const {
-  const float minimum_thickness = minimum_thickness_is_one_ ? 1.0f : 0.0f;
+    const TextDecorationThickness& applied_decoration_thickness) const {
   float thickness = 0;
-  if (flipped_underline_position_ ==
+  if (RuntimeEnabledFeatures::
+          SvgTextCentralBaselineTextDecorationFixEnabled() ||
+      flipped_underline_position_ ==
           ResolvedUnderlinePosition::kNearAlphabeticBaselineAuto ||
       flipped_underline_position_ ==
-          ResolvedUnderlinePosition::kNearAlphabeticBaselineFromFont) {
+          ResolvedUnderlinePosition::kNearAlphabeticBaselineFromFont ||
+      !decorating_box_style_) {
     thickness = ComputeDecorationThickness(applied_decoration_thickness,
-                                           computed_font_size_,
-                                           minimum_thickness, font_data_);
+                                           computed_font_size_, font_data_);
   } else {
     // Compute decorating box. Position and thickness are computed from the
     // decorating box.
     // Only for non-Roman for now for the performance implications.
     // https:// drafts.csswg.org/css-text-decor-3/#decorating-box
-    if (decorating_box_style) {
-      thickness = ComputeDecorationThickness(
-          applied_decoration_thickness,
-          decorating_box_style->ComputedFontSize(), minimum_thickness,
-          decorating_box_style->GetFont()->PrimaryFont());
-    } else {
-      thickness = ComputeDecorationThickness(applied_decoration_thickness,
-                                             computed_font_size_,
-                                             minimum_thickness, font_data_);
-    }
+    thickness = ComputeDecorationThickness(
+        applied_decoration_thickness, decorating_box_style_->ComputedFontSize(),
+        decorating_box_style_->GetFont()->PrimaryFont());
   }
-  return thickness;
+  const float minimum_thickness = minimum_thickness_is_one_ ? 1.0f : 0.0f;
+  return std::max(minimum_thickness, thickness);
 }
 
 gfx::RectF TextDecorationInfo::Bounds() const {

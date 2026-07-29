@@ -40,6 +40,7 @@
 <translation id="1547469039832541117">강조 표시된 작업을 종료합니다.</translation>
 <translation id="1553461853655228091">Chromium에서 주변 3D 지도를 만들려면 카메라 액세스 권한이 필요합니다.</translation>
 <translation id="1555494096857516577">{NUM_EXTENSIONS,plural, =1{이 확장 프로그램은 더 이상 지원되지 않습니다. Chromium에서는 삭제할 것을 권장합니다.}other{이 확장 프로그램은 더 이상 지원되지 않습니다. Chromium에서는 삭제할 것을 권장합니다.}}</translation>
+<translation id="1562320819937089394">Chromium 고정</translation>
 <translation id="1574377791422810894">Chromium의 안전 도구</translation>
 <translation id="1594928384848033697">Chromium에서 비밀번호 관리자 데이터를 삭제하려고 합니다. 허용하려면 Windows 비밀번호를 입력하세요.</translation>
 <translation id="1607715478322902680">{COUNT,plural, =0{관리자의 요구에 따라 업데이트를 적용하려면 Chromium을 다시 실행해야 합니다.}=1{관리자의 요구에 따라 업데이트를 적용하려면 Chromium을 다시 실행해야 합니다. 시크릿 창이 다시 열리지 않습니다.}other{관리자의 요구에 따라 업데이트를 적용하려면 Chromium을 다시 실행해야 합니다. 시크릿 창 #개가 다시 열리지 않습니다.}}</translation>
@@ -248,6 +249,7 @@
 <translation id="4281844954008187215">서비스 약관</translation>
 <translation id="4285930937574705105">확인되지 않은 오류로 설치에 실패했습니다. Chromium이 실행 중인 경우 종료한 후 다시 실행하세요.</translation>
 <translation id="4304713468139749426">비밀번호 관리자</translation>
+<translation id="4334241893986177674">이 스크린샷을 검색합니다.</translation>
 <translation id="4334294535648607276">다운로드가 완료되었습니다.</translation>
 <translation id="439358628917130594">기기를 사용하기 전에 <ph name="MANAGER" />에서 다음 서비스 약관을 읽고 이에 동의해야 합니다. 이 약관은 ChromiumOS 약관을 확대, 수정 또는 제한하지 않습니다</translation>
 <translation id="4407044323746248786">Chromium을 종료하시겠습니까?</translation>
@@ -521,6 +523,7 @@ Chromium에서 설정을 복구할 수 없습니다.</translation>
 <translation id="8004582292198964060">브라우저</translation>
 <translation id="8010081455002666927">자동 감지</translation>
 <translation id="8013436988911883588">Chromium에 액세스 권한을 부여하면 웹사이트에서 액세스 권한을 요청할 수 있게 됩니다.</translation>
+<translation id="8031714377769448844">언제든지 빠르게 액세스할 수 있도록 Chromium을 작업 표시줄에 고정하세요.</translation>
 <translation id="80471789339884597">설치해 주셔서 감사합니다. <ph name="BUNDLE_NAME" />을(를) 사용하려면 모든 브라우저를 다시 시작해야 합니다.</translation>
 <translation id="8054112667659782652">이미지 검색 바로가기 항상 표시</translation>
 <translation id="8077498902115777962">앱에서 백그라운드 실행 중인 Chromium 사용 중지</translation>
@@ -576,6 +579,7 @@ Chromium에서 설정을 복구할 수 없습니다.</translation>
 <translation id="8704119203788522458">나만의 Chromium</translation>
 <translation id="8719993436687031146">Chromium에 로그인하시겠습니까?</translation>
 <translation id="8747073452963259673">검색 영역의 왼쪽 하단: 왼쪽 <ph name="LEFT" />%, 하단 <ph name="BOTTOM" />%</translation>
+<translation id="8768722695577490596">비밀번호는 Chromium 외부에서만 삭제할 수 있습니다</translation>
 <translation id="878572486461146056">설치 오류: 네트워크 관리자가 설치를 방지하는 그룹 정책을 적용했습니다: <ph name="INSTALL_ERROR" /></translation>
 <translation id="8796602469536043152">이 사이트에서 카메라와 마이크에 액세스하려면 Chromium에 권한이 필요합니다</translation>
 <translation id="8818550178040858407">Chromium에 로그인하시겠습니까?</translation>

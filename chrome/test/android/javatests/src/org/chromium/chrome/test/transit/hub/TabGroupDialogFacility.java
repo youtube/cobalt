@@ -141,28 +141,41 @@ public class TabGroupDialogFacility<
     public RegularNewTabPageStation openNewRegularTab() {
         assert !mHostStation.isIncognito();
 
-        RegularNewTabPageStation page =
-                RegularNewTabPageStation.newBuilder()
-                        .withIsOpeningTabs(1)
-                        .withIsSelectingTabs(1)
-                        .build();
-        return mHostStation.travelToSync(page, newTabButtonElement.getClickTrigger());
+        return newTabButtonElement
+                .clickTo()
+                .arriveAt(RegularNewTabPageStation.newBuilder().initOpeningNewTab().build());
     }
 
     /** Create a new incognito tab and transition to the associated IncognitoNewTabPageStation. */
     public IncognitoNewTabPageStation openNewIncognitoTab() {
         assert mHostStation.isIncognito();
 
-        IncognitoNewTabPageStation page =
-                IncognitoNewTabPageStation.newBuilder()
-                        .withIsOpeningTabs(1)
-                        .withIsSelectingTabs(1)
-                        .build();
-        return mHostStation.travelToSync(page, newTabButtonElement.getClickTrigger());
+        return newTabButtonElement
+                .clickTo()
+                .arriveAt(IncognitoNewTabPageStation.newBuilder().initOpeningNewTab().build());
     }
 
     /** Press back to exit the facility. */
     public void pressBackArrowToExit() {
-        mHostStation.exitFacilitySync(this, backButtonElement.getClickTrigger());
+        backButtonElement.clickTo().exitFacility();
+    }
+
+    /**
+     * Clicks the color icon to open the color picker palette.
+     *
+     * @return The newly opened {@link TabGroupColorPickerFacility}.
+     */
+    public TabGroupColorPickerFacility<HostStationT> openColorPicker() {
+        return colorIconElement.clickTo().enterFacility(new TabGroupColorPickerFacility<>(this));
+    }
+
+    /** Returns {@link List<Integer>} containing the tab ids in the group. */
+    public List<Integer> getTabIdsInGroup() {
+        return mTabIdsInGroup;
+    }
+
+    /** Returns {@link String} containing the title of the group. */
+    public String getTitle() {
+        return mTitle;
     }
 }

@@ -20,7 +20,6 @@
 #include "content/public/common/buildflags.h"
 #include "extensions/buildflags/buildflags.h"
 #include "pdf/buildflags.h"
-#include "ppapi/buildflags/buildflags.h"
 #include "printing/buildflags/buildflags.h"
 #include "rlz/buildflags/buildflags.h"
 
@@ -961,11 +960,6 @@ inline constexpr char kSecondEolWarningDismissed[] =
 inline constexpr char kEolNotificationDismissed[] =
     "eol_notification_dismissed";
 
-inline constexpr char kEolApproachingIncentiveNotificationDismissed[] =
-    "approaching_eol_incentive_dismissed";
-inline constexpr char kEolPassedFinalIncentiveDismissed[] =
-    "passed_eol_incentive_dismissed";
-
 // A boolean pref that controls whether the PIN autosubmit feature is enabled.
 // This feature, when enabled, exposes the user's PIN length by showing how many
 // digits are necessary to unlock the device. Can be recommended.
@@ -1531,7 +1525,7 @@ inline constexpr char kPartitionPerHostZoomLevels[] =
 inline constexpr char kPinnedTabs[] = "pinned_tabs";
 #endif  // !BUILDFLAG(IS_ANDROID)
 
-// Preference to disable 3D APIs (WebGL, Pepper 3D).
+// Preference to disable 3D APIs (WebGL).
 inline constexpr char kDisable3DAPIs[] = "disable_3d_apis";
 
 // Preference to enable SwiftShader for WebGL fallback.

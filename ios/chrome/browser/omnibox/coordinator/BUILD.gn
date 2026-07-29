@@ -16,7 +16,6 @@ source_set("coordinator") {
   deps = [
     "//base",
     "//components/feature_engagement/public",
-    "//components/omnibox/browser",
     "//components/omnibox/common",
     "//components/open_from_clipboard",
     "//components/search_engines",
@@ -29,8 +28,8 @@ source_set("coordinator") {
     "//ios/chrome/browser/net/model:crurl",
     "//ios/chrome/browser/omnibox/coordinator/popup",
     "//ios/chrome/browser/omnibox/model",
-    "//ios/chrome/browser/omnibox/model:placeholder_service",
-    "//ios/chrome/browser/omnibox/model:ui_bundled_interface",
+    "//ios/chrome/browser/omnibox/model/placeholder_service",
+    "//ios/chrome/browser/omnibox/model/suggestions",
     "//ios/chrome/browser/omnibox/public",
     "//ios/chrome/browser/omnibox/public:features",
     "//ios/chrome/browser/omnibox/ui:model_interface",

@@ -4,7 +4,7 @@
 
 #include "content/browser/indexed_db/instance/sqlite/backing_store_database_impl.h"
 
-#include "base/notimplemented.h"
+#include "base/notreached.h"
 #include "content/browser/indexed_db/instance/sqlite/backing_store_transaction_impl.h"
 #include "content/browser/indexed_db/instance/sqlite/database_connection.h"
 #include "content/browser/indexed_db/status.h"
@@ -19,10 +19,14 @@ BackingStoreDatabaseImpl::~BackingStoreDatabaseImpl() = default;
 
 const blink::IndexedDBDatabaseMetadata&
 BackingStoreDatabaseImpl::GetMetadata() {
-  return db_->metadata();
+  if (db_) {
+    return db_->metadata();
+  }
+
+  return placeholder_metadata_;
 }
 
-PartitionedLockId BackingStoreDatabaseImpl::GetLockId(
+std::string BackingStoreDatabaseImpl::GetObjectStoreLockIdKey(
     int64_t object_store_id) const {
   NOTREACHED();
 }
@@ -37,9 +41,13 @@ BackingStoreDatabaseImpl::CreateTransaction(
 Status BackingStoreDatabaseImpl::DeleteDatabase(
     std::vector<PartitionedLock> locks,
     base::OnceClosure on_complete) {
-  db_->DeleteIdbDatabase(PassKey());
-  CHECK(!db_);
-  std::move(on_complete).Run();
+  // Deletion of a non-existent database counts as success. This condition is
+  // hit when the database is deleted twice in a row.
+  if (db_) {
+    db_->DeleteIdbDatabase(PassKey());
+    CHECK(!db_);
+    std::move(on_complete).Run();
+  }
   return Status::OK();
 }
 

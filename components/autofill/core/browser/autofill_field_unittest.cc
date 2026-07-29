@@ -113,6 +113,21 @@ TEST_F(AutofillFieldTest, IsFieldFillable) {
   EXPECT_TRUE(field.IsFieldFillable());
 }
 
+TEST_F(AutofillFieldTest, LoyaltyCardPredictionsIgnoredIfFlagIsDisabled) {
+  base::test::ScopedFeatureList feature_;
+  feature_.InitAndDisableFeature(
+      features::kAutofillEnableEmailOrLoyaltyCardsFilling);
+
+  AutofillField field;
+  EXPECT_EQ(UNKNOWN_TYPE, field.Type().GetStorableType());
+
+  // Both types set.
+  field.set_heuristic_type(GetActiveHeuristicSource(), NAME_FIRST);
+  field.set_server_predictions({CreateFieldPrediction(LOYALTY_MEMBERSHIP_ID)});
+
+  EXPECT_EQ(NAME_FIRST, field.Type().GetStorableType());
+}
+
 TEST_F(AutofillFieldTest, NoPredictions) {
   AutofillField field;
   EXPECT_EQ(field.Type().GetStorableType(), UNKNOWN_TYPE);
@@ -563,8 +578,8 @@ INSTANTIATE_TEST_SUITE_P(
             .html_field_type = HtmlFieldType::kUnspecified,
             .server_type = PASSPORT_NAME_TAG,
             .heuristic_type = NAME_FIRST,
-            .expected_result = NAME_FIRST,
-            .expected_source = AutofillPredictionSource::kHeuristics},
+            .expected_result = PASSPORT_NAME_TAG,
+            .expected_source = AutofillPredictionSource::kServerCrowdsourcing},
         AutofillLocalHeuristicsOverridesParams{
             .html_field_type = HtmlFieldType::kUnspecified,
             .server_type = PASSPORT_NAME_TAG,

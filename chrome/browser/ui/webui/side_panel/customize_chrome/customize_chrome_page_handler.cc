@@ -15,6 +15,8 @@
 #include "base/metrics/user_metrics_action.h"
 #include "base/strings/escape.h"
 #include "base/strings/utf_string_conversions.h"
+#include "chrome/browser/browser_process.h"
+#include "chrome/browser/enterprise/util/managed_browser_utils.h"
 #include "chrome/browser/extensions/settings_api_helpers.h"
 #include "chrome/browser/new_tab_page/new_tab_page_util.h"
 #include "chrome/browser/profiles/profile.h"
@@ -138,6 +140,21 @@ CustomizeChromePageHandler::CustomizeChromePageHandler(
       prefs::kNtpFooterVisible,
       base::BindRepeating(&CustomizeChromePageHandler::UpdateFooterSettings,
                           base::Unretained(this)));
+  pref_change_registrar_.Add(
+      prefs::kNTPFooterExtensionAttributionEnabled,
+      base::BindRepeating(&CustomizeChromePageHandler::UpdateFooterSettings,
+                          base::Unretained(this)));
+
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+  PrefService* local_state = g_browser_process->local_state();
+  if (local_state) {
+    browser_pref_change_registrar_.Init(local_state);
+    browser_pref_change_registrar_.Add(
+        prefs::kNTPFooterManagementNoticeEnabled,
+        base::BindRepeating(&CustomizeChromePageHandler::UpdateFooterSettings,
+                            base::Unretained(this)));
+  }
+#endif
 
   ntp_custom_background_service_observation_.Observe(
       ntp_custom_background_service_.get());
@@ -182,6 +199,9 @@ void CustomizeChromePageHandler::ScrollToSection(
       break;
     case CustomizeChromeSection::kToolbar:
       mojo_section = side_panel::mojom::CustomizeChromeSection::kToolbar;
+      break;
+    case CustomizeChromeSection::kFooter:
+      mojo_section = side_panel::mojom::CustomizeChromeSection::kFooter;
       break;
   }
   page_->ScrollToSection(mojo_section);
@@ -480,7 +500,10 @@ void CustomizeChromePageHandler::SetFooterVisible(bool visible) {
 
 void CustomizeChromePageHandler::UpdateFooterSettings() {
   page_->SetFooterSettings(
-      profile_->GetPrefs()->GetBoolean(prefs::kNtpFooterVisible));
+      profile_->GetPrefs()->GetBoolean(prefs::kNtpFooterVisible),
+      enterprise_util::CanShowEnterpriseBadgingForNTPFooter(profile_),
+      profile_->GetPrefs()->GetBoolean(
+          prefs::kNTPFooterExtensionAttributionEnabled));
 }
 
 void CustomizeChromePageHandler::SetModulesVisible(bool visible) {

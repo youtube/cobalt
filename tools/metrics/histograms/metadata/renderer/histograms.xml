@@ -169,7 +169,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Renderer.DelegatedInkTrail.LatencyImprovement.{Renderer}.{Prediction}"
-    units="ms" expires_after="2025-08-01">
+    units="ms" expires_after="2026-08-01">
   <owner>jonross@chromium.org</owner>
   <owner>sahir.vellani@microsoft.com</owner>
   <owner>gastonr@microsoft.com</owner>
@@ -193,7 +193,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Renderer.DelegatedInkTrail.Prediction.{Direction}Prediction"
-    units="pixels" expires_after="2025-08-01">
+    units="pixels" expires_after="2026-08-01">
   <owner>jonross@chromium.org</owner>
   <owner>sahir.vellani@microsoft.com</owner>
   <owner>gastonr@microsoft.com</owner>
@@ -211,7 +211,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Renderer.DelegatedInkTrail.Prediction.{Type}Jitter"
-    units="pixels" expires_after="2025-08-01">
+    units="pixels" expires_after="2026-08-01">
   <owner>jonross@chromium.org</owner>
   <owner>sahir.vellani@microsoft.com</owner>
   <owner>gastonr@microsoft.com</owner>
@@ -231,7 +231,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Renderer.DelegatedInkTrail.{Renderer}.OutstandingPointsToDraw"
-    units="count" expires_after="2025-08-01">
+    units="count" expires_after="2026-08-01">
   <owner>jonross@chromium.org</owner>
   <owner>gastonr@microsoft.com</owner>
   <owner>gerchiko@microsoft.com</owner>
@@ -247,7 +247,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Renderer.DelegatedInkTrail.{Renderer}.TimeFromDelegatedInkToApiPaint"
-    units="ms" expires_after="2025-08-01">
+    units="ms" expires_after="2026-08-01">
   <owner>jonross@chromium.org</owner>
   <owner>gastonr@microsoft.com</owner>
   <owner>gerchiko@microsoft.com</owner>
@@ -266,7 +266,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Renderer.DelegatedInkTrail.{Renderer}.TimeToDrawPointsMillis"
-    units="ms" expires_after="2025-08-01">
+    units="ms" expires_after="2026-08-01">
   <owner>jonross@chromium.org</owner>
   <owner>gastonr@microsoft.com</owner>
   <owner>gerchiko@microsoft.com</owner>
@@ -355,7 +355,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Renderer.HungRendererDialog.UserAction"
-    enum="HungRendererDialogUserAction" expires_after="2025-10-26">
+    enum="HungRendererDialogUserAction" expires_after="2025-12-28">
   <owner>kerenzhu@chromium.org</owner>
   <owner>chrome-views-alerts@google.com</owner>
   <summary>
@@ -447,7 +447,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Renderer.PaintPreview.Capture.MainFrameBlinkCaptureDuration"
-    units="ms" expires_after="2025-08-10">
+    units="ms" expires_after="2026-02-10">
   <owner>ckitagawa@chromium.org</owner>
   <owner>fredmello@chromium.org</owner>
   <owner>chrome-fdt@google.com</owner>
@@ -458,7 +458,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Renderer.PaintPreview.Capture.MainFrameSuccess"
-    enum="BooleanSuccess" expires_after="2025-10-12">
+    enum="BooleanSuccess" expires_after="2026-02-10">
   <owner>ckitagawa@chromium.org</owner>
   <owner>fredmello@chromium.org</owner>
   <owner>chrome-fdt@google.com</owner>
@@ -468,7 +468,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Renderer.PaintPreview.Capture.SubframeBlinkCaptureDuration"
-    units="ms" expires_after="2025-08-10">
+    units="ms" expires_after="2026-02-10">
   <owner>ckitagawa@chromium.org</owner>
   <owner>fredmello@chromium.org</owner>
   <owner>chrome-fdt@google.com</owner>
@@ -479,7 +479,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Renderer.PaintPreview.Capture.SubframeSuccess"
-    enum="BooleanSuccess" expires_after="2025-08-10">
+    enum="BooleanSuccess" expires_after="2026-02-10">
   <owner>ckitagawa@chromium.org</owner>
   <owner>fredmello@chromium.org</owner>
   <owner>chrome-fdt@google.com</owner>
@@ -521,7 +521,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Renderer.Preload.UnusedResourceCount" units="count"
-    expires_after="2025-10-26">
+    expires_after="2025-12-28">
   <owner>sisidovski@chromium.org</owner>
   <owner>chrome-loading@google.com</owner>
   <summary>
@@ -678,7 +678,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="RendererScheduler.RendererMainThreadLoad6" units="%"
-    expires_after="2025-10-19">
+    expires_after="2025-12-21">
   <owner>lizeb@chromium.org</owner>
   <owner>shaseley@chromium.org</owner>
   <summary>
@@ -693,7 +693,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="RendererScheduler.RendererMainThreadLoad6.Foreground"
-    units="%" expires_after="2025-10-19">
+    units="%" expires_after="2025-12-21">
   <owner>lizeb@chromium.org</owner>
   <owner>shaseley@chromium.org</owner>
   <summary>

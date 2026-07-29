@@ -64,6 +64,18 @@ class DatabaseConnection {
 
   base::WeakPtr<DatabaseConnection> GetWeakPtr();
 
+  // Gets the version of the database that is actually committed. This can be
+  // different from the version in `metadata_` during a version change
+  // transaction.
+  int64_t GetCommittedVersion() const;
+
+  // True when the database is in an early, partially initialized state,
+  // containing schema but no data. This will be true when the database is first
+  // created as well as when it's been deleted, but held open due to active blob
+  // references. Note that in the latter case, the database will contain data
+  // corresponding to active blobs, but no object stores, records, etc.
+  bool IsZygotic() const;
+
   // Exposed to `BackingStoreDatabaseImpl`.
   std::unique_ptr<BackingStoreTransactionImpl> CreateTransaction(
       base::PassKey<BackingStoreDatabaseImpl>,
@@ -92,9 +104,19 @@ class DatabaseConnection {
                            bool auto_increment);
   Status DeleteObjectStore(base::PassKey<BackingStoreTransactionImpl>,
                            int64_t object_store_id);
+  Status RenameObjectStore(base::PassKey<BackingStoreTransactionImpl>,
+                           int64_t object_store_id,
+                           const std::u16string& new_name);
   Status CreateIndex(base::PassKey<BackingStoreTransactionImpl>,
                      int64_t object_store_id,
                      blink::IndexedDBIndexMetadata index);
+  Status DeleteIndex(base::PassKey<BackingStoreTransactionImpl>,
+                     int64_t object_store_id,
+                     int64_t index_id);
+  Status RenameIndex(base::PassKey<BackingStoreTransactionImpl>,
+                     int64_t object_store_id,
+                     int64_t index_id,
+                     const std::u16string& new_name);
 
   StatusOr<int64_t> GetKeyGeneratorCurrentNumber(
       base::PassKey<BackingStoreTransactionImpl>,
@@ -120,6 +142,8 @@ class DatabaseConnection {
       const blink::IndexedDBKey& key,
       IndexedDBValue value);
   Status DeleteRange(int64_t object_store_id, const blink::IndexedDBKeyRange&);
+  Status ClearObjectStore(base::PassKey<BackingStoreTransactionImpl>,
+                          int64_t object_store_id);
   StatusOr<uint32_t> GetObjectStoreKeyCount(
       base::PassKey<BackingStoreTransactionImpl>,
       int64_t object_store_id,
@@ -187,13 +211,6 @@ class DatabaseConnection {
                      std::unique_ptr<sql::MetaTable> meta_table,
                      blink::IndexedDBDatabaseMetadata metadata,
                      BackingStoreImpl& backing_store);
-
-  // True when the database is in an early, partially initialized state,
-  // containing schema but no data. This will be true when the database is first
-  // created as well as when it's been deleted, but held open due to active blob
-  // references. Note that in the latter case, the database will contain data
-  // corresponding to active blobs, but no object stores, records, etc.
-  bool IsZygotic() const;
 
   bool HasActiveVersionChangeTransaction() const {
     return metadata_snapshot_.has_value();

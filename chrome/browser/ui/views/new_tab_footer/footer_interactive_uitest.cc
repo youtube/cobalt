@@ -29,6 +29,7 @@
 
 namespace {
 DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kNewTabElementId);
+DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kLocalFooterElementId);
 
 using DeepQuery = WebContentsInteractionTestUtil::DeepQuery;
 const DeepQuery kCustomizeChromeButton{
@@ -83,7 +84,6 @@ class FooterInteractiveTest
                    chrome::ExecuteCommand(browser(),
                                           IDC_SHOW_CUSTOMIZE_CHROME_SIDE_PANEL);
                  })),
-                 WaitForShow(kCustomizeChromeSidePanelWebViewElementId),
                  InstrumentNonTabWebView(
                      contents_id, kCustomizeChromeSidePanelWebViewElementId));
   }
@@ -102,6 +102,29 @@ class FooterInteractiveTest
         EnsurePresent(kSidePanelElementId),
         ExecuteJsAt(contents_id, kCustomizeChromeButton, "el => el.click()"),
         WaitForHide(kSidePanelElementId));
+  }
+
+  InteractiveTestApi::MultiStep OpenContextMenuAndSelect(
+      const ui::ElementIdentifier& menu_item_id) {
+    // Disable the "NTP overridden" dialog as it can interfere with this
+    // test.
+    extensions::SetNtpPostInstallUiEnabledForTesting(false);
+    const DeepQuery kFooterContainer = {"new-tab-footer-app", "#container"};
+    return Steps(InstrumentNonTabWebView(kLocalFooterElementId, kNtpFooterId),
+                 MoveMouseTo(kLocalFooterElementId, kFooterContainer),
+                 ClickMouse(ui_controls::RIGHT), WaitForShow(menu_item_id),
+                 SelectMenuItem(menu_item_id, InputType::kMouse));
+  }
+
+  InteractiveTestApi::MultiStep WaitForElementExists(
+      const ui::ElementIdentifier& contents_id,
+      const DeepQuery& element) {
+    DEFINE_LOCAL_CUSTOM_ELEMENT_EVENT_TYPE(kElementExists);
+    StateChange element_exists;
+    element_exists.type = StateChange::Type::kExists;
+    element_exists.where = element;
+    element_exists.event = kElementExists;
+    return WaitForStateChange(contents_id, element_exists);
   }
 
   new_tab_footer::NewTabFooterWebView* GetFooterView() {
@@ -181,31 +204,43 @@ IN_PROC_BROWSER_TEST_F(FooterInteractiveTest, OpenAndCloseCustomizeChrome) {
       CloseSidePanel(kFooterElementId1));
 }
 
-// Test is flaky on Mac, possibly due to the Mac handling of context menus.
+// Context menu tests flaky on Mac, possibly due to the Mac handling of context
+// menus.
 #if !BUILDFLAG(IS_MAC)
 IN_PROC_BROWSER_TEST_F(FooterInteractiveTest, ContextMenuHidesFooter) {
-  DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kLocalFooterElementId);
-
-  const DeepQuery kFooterContainer = {"new-tab-footer-app", "#container"};
-
-  // Disable the "NTP overridden" dialog as it can interfere with this
-  // test.
-  extensions::SetNtpPostInstallUiEnabledForTesting(false);
   // Override the ntp with an extension.
   LoadNtpOverridingExtension();
   RunTestSequence(
       // Open extension ntp.
       AddInstrumentedTab(kNewTabElementId, GURL(chrome::kChromeUINewTabURL)),
-      // Right click on footer to open context menu.
-      Steps(InstrumentNonTabWebView(kLocalFooterElementId, kNtpFooterId),
-            MoveMouseTo(kLocalFooterElementId, kFooterContainer),
-            ClickMouse(ui_controls::RIGHT)),
-      // Select the "hide footer" option.
-      Steps(WaitForShow(FooterContextMenu::kHideFooterIdForTesting),
-            SelectMenuItem(FooterContextMenu::kHideFooterIdForTesting,
-                           InputType::kMouse)),
+      // Open context menu and select "hide footer" option.
+      OpenContextMenuAndSelect(FooterContextMenu::kHideFooterIdForTesting),
       // Ensure footer hides.
       WaitForHide(kLocalFooterElementId));
+}
+
+IN_PROC_BROWSER_TEST_F(FooterInteractiveTest, ContextMenuOpensCustomizeChrome) {
+  DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kLocalCustomizeChromeElementId);
+  const DeepQuery kFooterSection = {"customize-chrome-app", "#footer",
+                                    "customize-chrome-footer",
+                                    "#showToggleContainer"};
+
+  // Override the ntp with an extension.
+  LoadNtpOverridingExtension();
+  RunTestSequence(
+      // Open extension ntp.
+      AddInstrumentedTab(kNewTabElementId, GURL(chrome::kChromeUINewTabURL)),
+      // Open context menu and select "customize chrome" option.
+      OpenContextMenuAndSelect(
+          FooterContextMenu::kShowCustomizeChromeIdForTesting),
+      // Ensure customize chrome opens to footer section.
+      Steps(
+          InstrumentNonTabWebView(kLocalCustomizeChromeElementId,
+                                  kCustomizeChromeSidePanelWebViewElementId,
+                                  false),
+          WaitForElementExists(kLocalCustomizeChromeElementId, kFooterSection),
+          WaitForElementToRender(kLocalCustomizeChromeElementId,
+                                 kFooterSection)));
 }
 #endif  // !BUILDFLAG(IS_MAC)
 
@@ -270,6 +305,36 @@ IN_PROC_BROWSER_TEST_F(FooterEnterpriseInteractiveTest,
       Do([=]() {
         g_browser_process->local_state()->SetBoolean(
             prefs::kNTPFooterManagementNoticeEnabled, false);
+      }),
+      // Ensure footer hides.
+      WaitForHide(kNtpFooterId));
+}
+
+IN_PROC_BROWSER_TEST_F(FooterEnterpriseInteractiveTest,
+                       CustomizationTogglesVisibility) {
+  RunTestSequence(
+      // Open NTP.
+      AddInstrumentedTab(kNewTabElementId, GURL(chrome::kChromeUINewTabURL)),
+      // Ensure footer shows.
+      WaitForShow(kNtpFooterId),
+      // Toggle off visibility.
+      Do([=, this]() {
+        browser()->GetProfile()->GetPrefs()->SetBoolean(
+            prefs::kNtpFooterVisible, false);
+      }),
+      // Ensure footer hides.
+      WaitForHide(kNtpFooterId),
+      // Set a custom label policy.
+      Do([=]() {
+        g_browser_process->local_state()->SetString(
+            prefs::kEnterpriseCustomLabelForBrowser, "Custom Label");
+      }),
+      // Ensure footer shows
+      WaitForShow(kNtpFooterId),
+      // Unset the custom label policy.
+      Do([=]() {
+        g_browser_process->local_state()->SetString(
+            prefs::kEnterpriseCustomLabelForBrowser, "");
       }),
       // Ensure footer hides.
       WaitForHide(kNtpFooterId));

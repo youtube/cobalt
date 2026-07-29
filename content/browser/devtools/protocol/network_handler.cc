@@ -47,6 +47,7 @@
 #include "content/browser/loader/url_loader_factory_utils.h"
 #include "content/browser/renderer_host/frame_tree_node.h"
 #include "content/browser/renderer_host/navigation_request.h"
+#include "content/browser/renderer_host/render_frame_host_csp_context.h"
 #include "content/browser/renderer_host/render_frame_host_impl.h"
 #include "content/browser/storage_partition_impl.h"
 #include "content/browser/url_loader_factory_params_helper.h"
@@ -58,6 +59,7 @@
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/browsing_data_remover.h"
 #include "content/public/browser/content_browser_client.h"
+#include "content/public/browser/devtools_agent_host_client.h"
 #include "content/public/browser/global_request_id.h"
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/network_service_instance.h"
@@ -1204,7 +1206,8 @@ NetworkHandler::NetworkHandler(
     const base::UnguessableToken& devtools_token,
     DevToolsIOContext* io_context,
     base::RepeatingClosure update_loader_factories_callback,
-    DevToolsAgentHostClient* client)
+    DevToolsAgentHostClient* client,
+    base::OnceClosure cleanup_after_modifications_callback)
     : DevToolsDomainHandler(Network::Metainfo::domainName),
       host_id_(host_id),
       devtools_token_(devtools_token),
@@ -1220,7 +1223,9 @@ NetworkHandler::NetworkHandler(
       bypass_service_worker_(false),
       cache_disabled_(false),
       update_loader_factories_callback_(
-          std::move(update_loader_factories_callback)) {
+          std::move(update_loader_factories_callback)),
+      cleanup_after_modifications_callback_(
+          std::move(cleanup_after_modifications_callback)) {
   DCHECK(io_context_);
   static bool have_configured_service_worker_context = false;
   if (have_configured_service_worker_context)
@@ -1228,7 +1233,11 @@ NetworkHandler::NetworkHandler(
   have_configured_service_worker_context = true;
 }
 
-NetworkHandler::~NetworkHandler() = default;
+NetworkHandler::~NetworkHandler() {
+  if (did_modifications_ && cleanup_after_modifications_callback_) {
+    std::move(cleanup_after_modifications_callback_).Run();
+  }
+}
 
 // static
 std::unique_ptr<Array<Network::Cookie>> NetworkHandler::BuildCookieArray(
@@ -3063,6 +3072,7 @@ void NetworkHandler::ContinueInterceptedRequest(
   if (!url_loader_interceptor_)
     return;
 
+  did_modifications_ = true;
   url_loader_interceptor_->ContinueInterceptedRequest(
       interception_id, std::move(modifications), std::move(callback));
 }
@@ -3611,6 +3621,19 @@ void NetworkHandler::LoadNetworkResource(
       return;
     }
 
+    RenderFrameHostCSPContext csp_context(frame);
+
+    network::CSPCheckResult result = csp_context.IsAllowedByCsp(
+        frame->policy_container_host()->policies().content_security_policies,
+        network::mojom::CSPDirectiveName::ConnectSrc, gurl, gurl,
+        /*has_followed_redirect=*/false, /*source_location=*/nullptr,
+        network::CSPContext::CHECK_ENFORCED_CSP,
+        /*is_form_submission=*/false);
+    if (!result.IsAllowed()) {
+      callback->sendFailure(Response::ServerError("CSP violation"));
+      return;
+    }
+
     auto params = URLLoaderFactoryParamsHelper::CreateForFrame(
         frame, frame->GetLastCommittedOrigin(),
         frame->GetIsolationInfoForSubresources(),
@@ -3642,6 +3665,7 @@ void NetworkHandler::LoadNetworkResource(
       DevToolsAgentHostImpl::GetForId(host_id_);
   if (host) {
     // TODO(sigurds): Support dedicated workers.
+    // TODO(mkwst): Check CSP for non-frame targets.
     auto info = host->CreateNetworkFactoryParamsForDevTools();
     auto factory = CreateNetworkFactoryForDevTools(
         gurl.scheme(), host->GetProcessHost(), MSG_ROUTING_NONE, info.origin,
@@ -3826,8 +3850,8 @@ String NetworkHandler::BuildPrivateNetworkRequestPolicy(
 String NetworkHandler::BuildIpAddressSpace(
     network::mojom::IPAddressSpace space) {
   switch (space) {
-    case network::mojom::IPAddressSpace::kLocal:
-      return protocol::Network::IPAddressSpaceEnum::Local;
+    case network::mojom::IPAddressSpace::kLoopback:
+      return protocol::Network::IPAddressSpaceEnum::Loopback;
     case network::mojom::IPAddressSpace::kPrivate:
       return protocol::Network::IPAddressSpaceEnum::Private;
     case network::mojom::IPAddressSpace::kPublic:

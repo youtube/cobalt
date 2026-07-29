@@ -82,9 +82,6 @@ DumpAccessibilityTreeTest::~DumpAccessibilityTreeTest() {}
 void DumpAccessibilityTreeTest::SetUpCommandLine(
     base::CommandLine* command_line) {
   DumpAccessibilityTestBase::SetUpCommandLine(command_line);
-  // Enable KeyboardFocusableScrollers, used by AccessibilityScrollableOverflow.
-  command_line->AppendSwitchASCII(switches::kEnableBlinkFeatures,
-                                  "KeyboardFocusableScrollers");
   // Enable AccessibilityAriaVirtualContent.
   command_line->AppendSwitchASCII(switches::kEnableBlinkFeatures,
                                   "AccessibilityAriaVirtualContent");
@@ -1970,17 +1967,13 @@ IN_PROC_BROWSER_TEST_P(DumpAccessibilityTreeTest,
   RunAriaTest(FILE_PATH_LITERAL("aria-tree-discontinuous.html"));
 }
 
-// TODO(crbug.com/367650908): Flaky on Linux and sanitizer bots.
-#if BUILDFLAG(IS_LINUX) || defined(ADDRESS_SANITIZER) || \
-    defined(LEAK_SANITIZER) || defined(MEMORY_SANITIZER)
-#define MAYBE_AccessibilityAriaTreeitemNestedInLists \
-  DISABLED_AccessibilityAriaTreeitemNestedInLists
-#else
-#define MAYBE_AccessibilityAriaTreeitemNestedInLists \
-  AccessibilityAriaTreeitemNestedInLists
-#endif
 IN_PROC_BROWSER_TEST_P(DumpAccessibilityTreeTest,
-                       MAYBE_AccessibilityAriaTreeitemNestedInLists) {
+                       AccessibilityAriaTreeitemNestedInLists) {
+  RunAriaTest(FILE_PATH_LITERAL("aria-treeitem-nested-in-lists.html"));
+}
+
+IN_PROC_BROWSER_TEST_P(YieldingParserDumpAccessibilityTreeTest,
+                       AccessibilityAriaTreeitemNestedInLists) {
   RunAriaTest(FILE_PATH_LITERAL("aria-treeitem-nested-in-lists.html"));
 }
 
@@ -2902,8 +2895,8 @@ IN_PROC_BROWSER_TEST_P(DumpAccessibilityTreeTest, AccessibilityImgMimeType) {
   RunHtmlTest(FILE_PATH_LITERAL("img-mime-type.png"));  // Open an image file.
 }
 
-IN_PROC_BROWSER_TEST_P(DumpAccessibilityTreeTest, AccessibilityInterestTarget) {
-  RunPopoverHintTest(FILE_PATH_LITERAL("interest-target.html"));
+IN_PROC_BROWSER_TEST_P(DumpAccessibilityTreeTest, AccessibilityInterestFor) {
+  RunPopoverHintTest(FILE_PATH_LITERAL("interest-for.html"));
 }
 
 IN_PROC_BROWSER_TEST_P(DumpAccessibilityTreeTest, AccessibilityInPageLinks) {
@@ -3405,8 +3398,6 @@ IN_PROC_BROWSER_TEST_P(DumpAccessibilityTreeTest, AccessibilityMinRole) {
 
 IN_PROC_BROWSER_TEST_P(DumpAccessibilityTreeTest,
                        AccessibilityMinRoleTabbableGroup) {
-  base::CommandLine::ForCurrentProcess()->AppendSwitchASCII(
-      switches::kEnableBlinkFeatures, "KeyboardFocusableScrollers");
   base::CommandLine::ForCurrentProcess()->AppendSwitchASCII(
       switches::kEnableBlinkFeatures, "AccessibilityMinRoleTabbable");
   RunHtmlTest(FILE_PATH_LITERAL("min-role-tabbable-group.html"));

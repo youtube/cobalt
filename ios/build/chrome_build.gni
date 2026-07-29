@@ -9,6 +9,9 @@ import("//build/config/features.gni")
 import("//build/config/ios/config.gni")
 import("//build/config/ios/ios_sdk.gni")
 
+assert(target_platform == "iphoneos",
+       "This file must be included only on iOS phone builds.")
+
 # LINT.IfChange
 
 # Xcode 16.0 or higher is required to build Chromium on iOS. This file should
@@ -77,7 +80,7 @@ declare_args() {
   ios_enable_background_mode = true
 
   # Disable iOS 26 liquid glass until reasonably supported.
-  ios_enable_liquid_glass = false
+  ios_enable_liquid_glass = true
 
   # Value of the encryption export compliance code. See "Cryptography and
   # U.S. Export Compliance" in "Submitting the App to App Review" in the

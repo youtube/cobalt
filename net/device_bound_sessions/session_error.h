@@ -33,13 +33,12 @@ struct NET_EXPORT SessionError {
     kScopeOriginSameSiteMismatch = 15,
     kRefreshUrlSameSiteMismatch = 16,
     kInvalidScopeOrigin = 17,
-    kMaxValue = kInvalidScopeOrigin
+    kMismatchedSessionId = 18,
+    kMaxValue = kMismatchedSessionId
   };
   // LINT.ThenChange(//tools/metrics/histograms/metadata/net/enums.xml:DeviceBoundSessionError)
 
-  SessionError(ErrorType type,
-               net::SchemefulSite site,
-               std::optional<std::string> session_id);
+  explicit SessionError(ErrorType type);
   ~SessionError();
 
   SessionError(const SessionError&) = delete;
@@ -54,8 +53,6 @@ struct NET_EXPORT SessionError {
   bool IsServerError() const;
 
   ErrorType type;
-  net::SchemefulSite site;
-  std::optional<std::string> session_id;
 };
 
 }  // namespace net::device_bound_sessions

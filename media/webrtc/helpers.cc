@@ -131,10 +131,10 @@ void StopEchoCancellationDump(webrtc::AudioProcessing* audio_processing) {
   audio_processing->DetachAecDump();
 }
 
-webrtc::scoped_refptr<webrtc::AudioProcessing>
+std::pair<webrtc::scoped_refptr<webrtc::AudioProcessing>, base::TimeDelta>
 CreateWebRtcAudioProcessingModule(const AudioProcessingSettings& settings) {
   if (!settings.NeedWebrtcAudioProcessing())
-    return nullptr;
+    return {nullptr, base::TimeDelta()};
 
   webrtc::AudioProcessing::Config apm_config;
   apm_config.pipeline.multi_channel_render = true;
@@ -150,10 +150,11 @@ CreateWebRtcAudioProcessingModule(const AudioProcessingSettings& settings) {
 
   webrtc::BuiltinAudioProcessingBuilder apm_builder(apm_config);
 
-  // TODO(crbug.com/412581642): Plumb this as a parameter, this should not be
-  // used in the Renderer.
-  std::optional<base::TimeDelta> added_delay = media::GetAecAddedDelay();
-  if (added_delay.has_value()) {
+  base::TimeDelta added_delay;
+#if BUILDFLAG(SYSTEM_LOOPBACK_AS_AEC_REFERENCE)
+  if (settings.use_loopback_aec_reference) {
+    added_delay = media::GetAecAddedDelay();
+    int num_filters = media::GetAecDelayNumFilters();
     webrtc::EchoCanceller3Config config;
     webrtc::EchoCanceller3Config multichannel_config =
         webrtc::EchoCanceller3Config::CreateDefaultMultichannelConfig();
@@ -161,15 +162,18 @@ CreateWebRtcAudioProcessingModule(const AudioProcessingSettings& settings) {
     // signal so that the reference signal arrives before the capture signal.
     // AEC considers the delay to be provided at 16 kHz sample rate.
     config.delay.fixed_capture_delay_samples =
-        added_delay->InMilliseconds() * 16;
+        added_delay.InMilliseconds() * 16;
+    config.delay.num_filters = num_filters;
     multichannel_config.delay.fixed_capture_delay_samples =
         config.delay.fixed_capture_delay_samples;
+    multichannel_config.delay.num_filters = config.delay.num_filters;
     std::unique_ptr<webrtc::EchoControlFactory> aec3_factory =
         std::make_unique<webrtc::EchoCanceller3Factory>(config,
                                                         multichannel_config);
     apm_builder.SetEchoControlFactory(std::move(aec3_factory));
   }
+#endif  // BUILDFLAG(SYSTEM_LOOPBACK_AS_AEC_REFERENCE)
 
-  return apm_builder.Build(WebRtcEnvironment());
+  return {apm_builder.Build(WebRtcEnvironment()), added_delay};
 }
 }  // namespace media

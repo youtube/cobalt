@@ -133,13 +133,14 @@ blink::WebPluginContainer::TouchEventRequestType ParseTouchEventRequestType(
   return blink::WebPluginContainer::kTouchEventRequestTypeNone;
 }
 
-class ScriptableObject : public gin::Wrappable<ScriptableObject>,
-                         public gin::NamedPropertyInterceptor {
+class ScriptableObject
+    : public gin::DeprecatedWrappableWithNamedPropertyInterceptor<
+          ScriptableObject> {
  public:
-  static gin::WrapperInfo kWrapperInfo;
+  static gin::DeprecatedWrapperInfo kWrapperInfo;
 
   static v8::Local<v8::Object> Create(v8::Isolate* isolate) {
-    ScriptableObject* scriptable_object = new ScriptableObject(isolate);
+    ScriptableObject* scriptable_object = new ScriptableObject();
     return gin::CreateHandle(isolate, scriptable_object)
         .ToV8()
         .As<v8::Object>();
@@ -156,19 +157,20 @@ class ScriptableObject : public gin::Wrappable<ScriptableObject>,
   }
 
  private:
-  explicit ScriptableObject(v8::Isolate* isolate)
-      : gin::NamedPropertyInterceptor(isolate, this) {}
+  explicit ScriptableObject() = default;
 
-  // gin::Wrappable
+  // gin::DeprecatedWrappable
   gin::ObjectTemplateBuilder GetObjectTemplateBuilder(
       v8::Isolate* isolate) override {
-    return gin::Wrappable<ScriptableObject>::GetObjectTemplateBuilder(isolate)
+    return gin::DeprecatedWrappable<ScriptableObject>::GetObjectTemplateBuilder(
+               isolate)
         .AddNamedPropertyInterceptor();
   }
 };
 
 // static
-gin::WrapperInfo ScriptableObject::kWrapperInfo = {gin::kEmbedderNativeGin};
+gin::DeprecatedWrapperInfo ScriptableObject::kWrapperInfo = {
+    gin::kEmbedderNativeGin};
 
 }  // namespace
 
@@ -371,14 +373,15 @@ bool TestPlugin::PrepareTransferableResource(
   if (!content_changed_)
     return false;
 
-  *resource = viz::TransferableResource::Make(
-      shared_image_, viz::TransferableResource::ResourceSource::kCanvas,
-      sync_token_);
-  // We pass ownership of the shared image to the callback.
-  *release_callback = base::BindOnce(&ReleaseSharedImage,
-                                     std::exchange(shared_image_, nullptr));
-
-  sync_token_ = gpu::SyncToken();
+  if (shared_image_) {
+    *resource = viz::TransferableResource::Make(
+        shared_image_, viz::TransferableResource::ResourceSource::kCanvas,
+        sync_token_);
+    // We pass ownership of the shared image to the callback.
+    *release_callback = base::BindOnce(&ReleaseSharedImage,
+                                       std::exchange(shared_image_, nullptr));
+    sync_token_ = gpu::SyncToken();
+  }
 
   content_changed_ = false;
   return true;

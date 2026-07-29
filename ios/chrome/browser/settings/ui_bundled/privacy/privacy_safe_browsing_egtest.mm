@@ -112,9 +112,9 @@ namespace {
       WaitForWarningAlert(l10n_util::GetNSString(
           IDS_IOS_SAFE_BROWSING_NO_PROTECTION_CONFIRMATION_DIALOG_CONFIRM)),
       @"The No Protection pop-up did not show up");
-  [[EarlGrey
-      selectElementWithMatcher:ButtonWithAccessibilityLabelId(IDS_CANCEL)]
-      performAction:grey_tap()];
+  [[EarlGrey selectElementWithMatcher:
+                 chrome_test_util::ActionSheetItemWithAccessibilityLabelId(
+                     IDS_CANCEL)] performAction:grey_tap()];
   GREYAssertFalse([ChromeEarlGrey userBooleanPref:prefs::kSafeBrowsingEnhanced],
                   @"Failed to keep Enhanced Safe Browsing off");
   GREYAssertTrue([ChromeEarlGrey userBooleanPref:prefs::kSafeBrowsingEnabled],
@@ -152,6 +152,10 @@ namespace {
 - (void)testPrivacySafeBrowsingMultiWindow {
   if (![ChromeEarlGrey areMultipleWindowsSupported]) {
     EARL_GREY_TEST_DISABLED(@"Multiple windows can't be opened.");
+  }
+  if (@available(iOS 19.0, *)) {
+    // TODO(crbug.com/427699033): Re-enable test on iOS 26.
+    EARL_GREY_TEST_DISABLED(@"Test disabled on iOS 26.");
   }
 
   [self openPrivacySafeBrowsingSettings];
@@ -464,7 +468,7 @@ namespace {
       @"The No Protection pop-up did not show up");
   [[EarlGrey
       selectElementWithMatcher:
-          ButtonWithAccessibilityLabelId(
+          chrome_test_util::ActionSheetItemWithAccessibilityLabelId(
               IDS_IOS_SAFE_BROWSING_NO_PROTECTION_CONFIRMATION_DIALOG_CONFIRM)]
       performAction:grey_tap()];
   GREYAssertFalse([ChromeEarlGrey userBooleanPref:prefs::kSafeBrowsingEnabled],

@@ -21,6 +21,7 @@
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/web_contents.h"
+#include "mojo/public/cpp/bindings/binder_map.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 
 namespace performance_manager {
@@ -99,14 +100,13 @@ void Binders::ExposeInterfacesToRendererProcess(
 
 void Binders::ExposeInterfacesToBrowserChildProcess(
     mojo::BinderMapWithContext<content::BrowserChildProcessHost*>* map) {
-  map->Add<mojom::ChildProcessCoordinationUnit>(base::BindRepeating(
-      &BindChildProcessCoordinationUnitForBrowserChildProcessHost));
+  map->Add<mojom::ChildProcessCoordinationUnit>(
+      &BindChildProcessCoordinationUnitForBrowserChildProcessHost);
 }
 
 void Binders::ExposeInterfacesToRenderFrame(
     mojo::BinderMapWithContext<content::RenderFrameHost*>* map) {
-  map->Add<mojom::DocumentCoordinationUnit>(
-      base::BindRepeating(&BindDocumentCoordinationUnit));
+  map->Add<mojom::DocumentCoordinationUnit>(&BindDocumentCoordinationUnit);
 }
 
 }  // namespace performance_manager

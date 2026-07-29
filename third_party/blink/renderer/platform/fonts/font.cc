@@ -38,6 +38,7 @@
 #include "third_party/blink/renderer/platform/fonts/text_fragment_paint_info.h"
 #include "third_party/blink/renderer/platform/fonts/text_run_paint_info.h"
 #include "third_party/blink/renderer/platform/geometry/layout_unit.h"
+#include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 #include "third_party/blink/renderer/platform/text/bidi_paragraph.h"
 #include "third_party/blink/renderer/platform/text/character.h"
 #include "third_party/blink/renderer/platform/text/text_run.h"
@@ -90,37 +91,6 @@ bool Font::operator==(const Font& other) const {
 
   return GetFontSelector() == other.GetFontSelector() &&
          font_description_ == other.font_description_;
-}
-
-void Font::DeprecatedDrawText(cc::PaintCanvas* canvas,
-                              const TextRun& run,
-                              const gfx::PointF& point,
-                              const cc::PaintFlags& flags,
-                              DrawType draw_type) const {
-  DeprecatedDrawText(canvas, run, point, cc::kInvalidNodeId, flags, draw_type);
-}
-
-void Font::DeprecatedDrawText(cc::PaintCanvas* canvas,
-                              const TextRun& run,
-                              const gfx::PointF& point,
-                              cc::NodeId node_id,
-                              const cc::PaintFlags& flags,
-                              DrawType draw_type) const {
-  // Don't draw anything while we are using custom fonts that are in the process
-  // of loading.
-  if (ShouldSkipDrawing())
-    return;
-
-  CachingWordShaper word_shaper(*this);
-  ShapeResultBuffer buffer;
-  word_shaper.FillResultBuffer(run, &buffer);
-  TextRunPaintInfo run_info(run);
-  ShapeResultBloberizer::FillGlyphs bloberizer(
-      GetFontDescription(), run_info, buffer,
-      draw_type == Font::DrawType::kGlyphsOnly
-          ? ShapeResultBloberizer::Type::kNormal
-          : ShapeResultBloberizer::Type::kEmitText);
-  DrawTextBlobs(bloberizer.Blobs(), *canvas, point, flags, node_id);
 }
 
 void Font::DrawText(cc::PaintCanvas* canvas,
@@ -395,39 +365,6 @@ void Font::GetTextIntercepts(const TextFragmentPaintInfo& text_info,
   GetTextInterceptsInternal(bloberizer.Blobs(), flags, bounds, intercepts);
 }
 
-static inline gfx::RectF PixelSnappedSelectionRect(const gfx::RectF& rect) {
-  // Using roundf() rather than ceilf() for the right edge as a compromise to
-  // ensure correct caret positioning.
-  float rounded_x = roundf(rect.x());
-  return gfx::RectF(rounded_x, rect.y(), roundf(rect.right() - rounded_x),
-                    rect.height());
-}
-
-gfx::RectF Font::DeprecatedSelectionRectForText(const TextRun& run,
-                                                const gfx::PointF& point,
-                                                float height,
-                                                int from,
-                                                int to) const {
-  to = (to == -1 ? run.length() : to);
-
-  FontCachePurgePreventer purge_preventer;
-
-  CachingWordShaper shaper(*this);
-  CharacterRange range = shaper.GetCharacterRange(run, from, to);
-
-  return PixelSnappedSelectionRect(
-      gfx::RectF(point.x() + range.start, point.y(), range.Width(), height));
-}
-
-int Font::DeprecatedOffsetForPosition(const TextRun& run,
-                                      float x_float,
-                                      IncludePartialGlyphsOption partial_glyphs,
-                                      BreakGlyphsOption break_glyphs) const {
-  FontCachePurgePreventer purge_preventer;
-  CachingWordShaper shaper(*this);
-  return shaper.OffsetForPosition(run, x_float, partial_glyphs, break_glyphs);
-}
-
 base::span<const FontFeatureRange> Font::GetFontFeatures() const {
   return EnsureFontFallbackList()->GetFontFeatures(font_description_);
 }
@@ -535,7 +472,13 @@ float Font::TabWidth(const SimpleFontData* font_data,
   if (!base_tab_width)
     return GetFontDescription().LetterSpacing();
 
-  float distance_to_tab_stop = base_tab_width - fmodf(position, base_tab_width);
+  float modulized_position = fmodf(position, base_tab_width);
+  if (RuntimeEnabledFeatures::TabWidthNegativePositionEnabled() &&
+      modulized_position < 0) [[unlikely]] {
+    modulized_position += base_tab_width;
+  }
+
+  float distance_to_tab_stop = base_tab_width - modulized_position;
 
   // Let the minimum width be the half of the space width so that it's always
   // recognizable.  if the distance to the next tab stop is less than that,
@@ -554,8 +497,14 @@ LayoutUnit Font::TabWidth(const TabSize& tab_size, LayoutUnit position) const {
   if (!base_tab_width)
     return LayoutUnit::FromFloatCeil(GetFontDescription().LetterSpacing());
 
-  LayoutUnit distance_to_tab_stop = LayoutUnit::FromFloatFloor(
-      base_tab_width - fmodf(position, base_tab_width));
+  float modulized_position = fmodf(position, base_tab_width);
+  if (RuntimeEnabledFeatures::TabWidthNegativePositionEnabled() &&
+      modulized_position < 0) [[unlikely]] {
+    modulized_position += base_tab_width;
+  }
+
+  LayoutUnit distance_to_tab_stop =
+      LayoutUnit::FromFloatFloor(base_tab_width - modulized_position);
 
   // Let the minimum width be the half of the space width so that it's always
   // recognizable.  if the distance to the next tab stop is less than that,

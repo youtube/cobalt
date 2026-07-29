@@ -267,6 +267,9 @@ public final class ProductionSupportedFlagList {
                 AutofillFeatures.AUTOFILL_IMPROVE_CITY_FIELD_CLASSIFICATION,
                 "Reduces city field false positive classifications"),
         Flag.baseFeature(
+                AutofillFeatures.AUTOFILL_IGNORE_CHECKABLE_ELEMENTS,
+                "Does not extract checkboxes and radio buttons"),
+        Flag.baseFeature(
                 AutofillFeatures.AUTOFILL_OPTIMIZE_FORM_EXTRACTION,
                 "Makes Autofill spend less time on extracting forms."),
         Flag.baseFeature(
@@ -504,9 +507,6 @@ public final class ProductionSupportedFlagList {
                         + "subresource notifications only if the user has allowed"
                         + "HTTPS-related exceptions."),
         Flag.baseFeature("CanvasColorCache"),
-        Flag.baseFeature(
-                BlinkFeatures.KEYBOARD_FOCUSABLE_SCROLLERS,
-                "When enabled, can focus on a scroller element using the keyboard."),
         Flag.commandLine(
                 AwSwitches.WEBVIEW_ENABLE_TRUST_TOKENS_COMPONENT,
                 "Enables downloading TrustTokenKeyCommitmentsComponent by the component"
@@ -557,11 +557,13 @@ public final class ProductionSupportedFlagList {
                 TracingServiceFeatures.ENABLE_PERFETTO_SYSTEM_TRACING,
                 "When enabled, WebView exports trace events to the Android Perfetto service."
                         + " This works only for Android Q+."),
+        Flag.baseFeature(
+                TracingServiceFeatures.ENABLE_PERFETTO_SYSTEM_BACKGROUND_TRACING,
+                "When enabled, WebView can write data in background during system tracing."),
         Flag.baseFeature(UiAndroidFeatures.ANDROID_HDR, "Enables HDR support"),
         Flag.baseFeature(
                 UiAndroidFeatures.DEPRECATED_EXTERNAL_PICKER_FUNCTION,
                 "Deprecates old external file picker function."),
-        Flag.baseFeature(BaseFeatures.THREAD_POOL_CAP2, "Sets a fixed thread pool cap"),
         Flag.baseFeature("ThreadGroupSemaphore"),
         Flag.baseFeature(
                 ContentFeatures.QUEUE_NAVIGATIONS_WHILE_WAITING_FOR_COMMIT,
@@ -587,7 +589,7 @@ public final class ProductionSupportedFlagList {
         Flag.baseFeature("IncreaseCoookieAccesCacheSize"),
         Flag.baseFeature("AvoidScheduleWorkDuringNativeEventProcessing"),
         Flag.baseFeature("AvoidEntryCreationForNoStore"),
-        Flag.baseFeature("ChangeDiskCacheSize"),
+        Flag.baseFeature("ChangeGeneratedCodeCacheSize"),
         Flag.baseFeature("RaiseDisplayCriticalThreadPriority"),
         Flag.baseFeature("BatchNativeEventsInMessagePumpEpoll"),
         Flag.baseFeature(
@@ -645,9 +647,6 @@ public final class ProductionSupportedFlagList {
                 GwpAsanFeatures.EXTREME_LIGHTWEIGHT_UAF_DETECTOR,
                 "Enables the Extreme Lightweight UAF Detector."),
         Flag.baseFeature(
-                CcFeatures.USE_MAP_RECT_FOR_PIXEL_MOVEMENT,
-                "Enables the usage of MapRect for computing filter pixel movement."),
-        Flag.baseFeature(
                 "UseAAudioInput",
                 "Enables the use of AAudio for capturing audio input. (Android Q+ only)"),
         Flag.baseFeature(
@@ -657,20 +656,19 @@ public final class ProductionSupportedFlagList {
         Flag.baseFeature("UseRustJsonParser"),
         Flag.baseFeature("V8BaselineBatchCompilation"),
         Flag.baseFeature("V8ConcurrentSparkplug"),
+        Flag.baseFeature("V8Flag_large_page_pool"),
         Flag.baseFeature("V8Flag_late_heap_limit_check"),
         Flag.baseFeature("V8Flag_minor_gc_task_with_lower_priority"),
+        Flag.baseFeature("V8FlushBaselineCode"),
         Flag.baseFeature("V8FlushCodeBasedOnTabVisibility"),
         Flag.baseFeature("V8FlushCodeBasedOnTime"),
+        Flag.baseFeature("V8HighEndAndroid"),
         Flag.baseFeature("V8MemoryReducer"),
         Flag.baseFeature("V8MinorMS"),
         Flag.baseFeature("V8PreconfigureOldGen"),
         Flag.baseFeature("V8ScavengerHigherCapacity"),
         Flag.baseFeature("V8IncrementalMarkingStartUserVisible"),
         Flag.baseFeature("V8ExternalMemoryAccountedInGlobalLimit"),
-        Flag.baseFeature("WebAssemblyTurboshaft"),
-        Flag.baseFeature("WebAssemblyTurboshaftInstructionSelection"),
-        Flag.baseFeature("WebAssemblyDeopt"),
-        Flag.baseFeature("WebAssemblyInliningCallIndirect"),
         Flag.baseFeature(
                 AwFeatures.WEBVIEW_MEDIA_INTEGRITY_API_BLINK_EXTENSION,
                 "Enable the WebView Media Integrity API as a Blink extension. Only works if"
@@ -737,10 +735,6 @@ public final class ProductionSupportedFlagList {
                 "MojoBindingsInlineSLS",
                 "Enable small value optimization for current Mojo dispatch context storage"),
         Flag.baseFeature(
-                BlinkFeatures.FORM_CONTROLS_VERTICAL_WRITING_MODE_DIRECTION_SUPPORT,
-                "Enables support for CSS direction ltr and rtl on vertical slider elements"
-                        + " progress, meter and range."),
-        Flag.baseFeature(
                 BlinkFeatures.BOOST_IMAGE_SET_LOADING_TASK_PRIORITY,
                 "If enabled, image set loading tasks have higher priority on visible pages"),
         Flag.baseFeature(
@@ -760,9 +754,6 @@ public final class ProductionSupportedFlagList {
         Flag.baseFeature(
                 MediaFeatures.BUILT_IN_HLS_PLAYER,
                 "Switches the HLS demuxer implementation from MediaPlayer to an internal one"),
-        Flag.baseFeature(
-                MediaFeatures.BUILT_IN_HLS_MP4,
-                "Enabled the playback of HLS renditions which use the mp4 container"),
         Flag.baseFeature(
                 MediaFeatures.LIBVPX_USE_CHROME_THREADS,
                 "Attaches libvpx threads to the chromium thread system."),
@@ -944,7 +935,6 @@ public final class ProductionSupportedFlagList {
         Flag.baseFeature(
                 "AsyncFastCheckout", "When enabled, run FastCheckoutTabHelper asynchronously."),
         Flag.baseFeature("Prerender2FallbackPrefetchSpecRules"),
-        Flag.baseFeature("PrefetchReusable"),
         Flag.baseFeature(
                 "LCPTimingPredictorPrerender2",
                 "When enabled, Prerender2 by Speculation Rules API is delayed until LCP is"
@@ -971,9 +961,6 @@ public final class ProductionSupportedFlagList {
                 BlinkFeatures.SPECULATIVE_IMAGE_DECODES,
                 "Start decoding in-viewport images as soon as they have loaded, "
                         + "rather than waiting for them to appear in a raster task."),
-        Flag.baseFeature(
-                BlinkFeatures.STANDARDIZED_TIMER_CLAMPING,
-                "Clamp nested timers according to the spec."),
         Flag.baseFeature(
                 MediaFeatures.MEDIA_CODEC_BLOCK_MODEL,
                 "Controls use of MediaCodec's LinearBlock mode."),
@@ -1069,6 +1056,7 @@ public final class ProductionSupportedFlagList {
         Flag.baseFeature("TimedHTMLParserBudget"),
         Flag.baseFeature("ServiceWorkerBackgroundUpdateForRegisteredStorageKeys"),
         Flag.baseFeature("ServiceWorkerBackgroundUpdateForServiceWorkerScopeCache"),
+        Flag.baseFeature("ServiceWorkerBackgroundUpdateForFindRegistrationForClientUrl"),
         Flag.baseFeature(
                 "ServiceWorkerBackgroundUpdateForRegisteredStorageKeysFieldTrialControlled"),
         Flag.baseFeature(
@@ -1077,6 +1065,14 @@ public final class ProductionSupportedFlagList {
         Flag.baseFeature("PrefetchUseContentRefactor"),
         Flag.baseFeature("LowPriorityAsyncScriptExecution"),
         Flag.baseFeature("WebViewPrefetchHighestPrefetchPriority"),
+        Flag.baseFeature(
+                BlinkFeatures.BLINK_LIFECYCLE_SCRIPT_FORBIDDEN,
+                "Disallow script execution during blink lifecycle update."),
+        Flag.commandLine(
+                AwSwitches.WEBVIEW_USE_STARTUP_TASKS_LOGIC_P2,
+                "Enables phase 2 of using startup tasks logic for webview chromium initialization"
+                    + " which also starts browser processes asynchronously, when starting webview"
+                    + " asynchronously."),
         // Add new commandline switches and features above. The final entry should have a
         // trailing comma for cleaner diffs.
     };

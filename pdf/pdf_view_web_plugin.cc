@@ -16,7 +16,6 @@
 
 #include "base/auto_reset.h"
 #include "base/check_op.h"
-#include "base/compiler_specific.h"
 #include "base/containers/fixed_flat_map.h"
 #include "base/containers/queue.h"
 #include "base/containers/span.h"
@@ -30,6 +29,7 @@
 #include "base/logging.h"
 #include "base/memory/raw_ptr.h"
 #include "base/no_destructor.h"
+#include "base/notimplemented.h"
 #include "base/notreached.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/strings/escape.h"
@@ -1023,6 +1023,16 @@ void PdfViewWebPlugin::ImeFinishComposingTextForPlugin(
   HandleImeCommit(composition_text_);
 }
 
+bool PdfViewWebPlugin::SupportsAnnotation() const {
+  return true;
+}
+
+void PdfViewWebPlugin::BindAnnotationAgentContainer(
+    blink::CrossVariantMojoReceiver<
+        blink::mojom::AnnotationAgentContainerInterfaceBase> pending_receiver) {
+  annotation_agent_container_receiver_.Bind(std::move(pending_receiver));
+}
+
 void PdfViewWebPlugin::ProposeDocumentLayout(const DocumentLayout& layout) {
   base::Value::List page_dimensions;
   page_dimensions.reserve(layout.page_count());
@@ -1748,11 +1758,9 @@ void PdfViewWebPlugin::HandleGetNamedDestinationMessage(
     std::ostringstream view_stream;
     view_stream << named_destination->view;
     if (named_destination->xyz_params.empty()) {
-      UNSAFE_TODO({
-        for (unsigned long i = 0; i < named_destination->num_params; ++i) {
-          view_stream << "," << named_destination->params[i];
-        }
-      });
+      for (unsigned long i = 0; i < named_destination->num_params; ++i) {
+        view_stream << "," << named_destination->params[i];
+      }
     } else {
       view_stream << "," << named_destination->xyz_params;
     }
@@ -2922,6 +2930,28 @@ void PdfViewWebPlugin::LoadNextPreviewPage() {
 
 void PdfViewWebPlugin::SendPrintPreviewLoadedNotification() {
   client_->PostMessage(base::Value::Dict().Set("type", "printPreviewLoaded"));
+}
+
+void PdfViewWebPlugin::CreateAgent(
+    mojo::PendingRemote<blink::mojom::AnnotationAgentHost> host_remote,
+    mojo::PendingReceiver<blink::mojom::AnnotationAgent> agent_receiver,
+    blink::mojom::AnnotationType type,
+    blink::mojom::SelectorPtr selector,
+    std::optional<int> search_range_start_node_id) {
+  // TODO(crbug.com/395859365): Implement this.
+}
+
+void PdfViewWebPlugin::CreateAgentFromSelection(
+    blink::mojom::AnnotationType type,
+    CreateAgentFromSelectionCallback callback) {
+  // Currently, there is no immediate plan to support the "Copy Link to
+  // Highlight" context menu.
+  NOTIMPLEMENTED();
+}
+
+void PdfViewWebPlugin::RemoveAgentsOfType(blink::mojom::AnnotationType type) {
+  // TODO(crbug.com/395859365): Implement the "Remove highlight" from the
+  // right-click's context menu.
 }
 
 void PdfViewWebPlugin::SendThumbnailForTesting(base::Value::Dict reply,

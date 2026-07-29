@@ -5,7 +5,9 @@
 #include "net/device_bound_sessions/cookie_craving.h"
 
 #include "base/strings/string_util.h"
+#include "base/test/scoped_feature_list.h"
 #include "base/unguessable_token.h"
+#include "net/base/features.h"
 #include "net/cookies/canonical_cookie.h"
 #include "net/cookies/cookie_constants.h"
 #include "net/cookies/cookie_partition_key.h"
@@ -285,6 +287,10 @@ TEST(CookieCravingTest, CreateFailBadPartitioned) {
 }
 
 TEST(CookieCravingTest, CreateFailInvalidPrefix) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitWithFeatures(
+      {features::kPrefixCookieHttp, features::kPrefixCookieHostHttp}, {});
+
   // __Host- with insecure URL.
   std::optional<CookieCraving> cc =
       CookieCraving::Create(GURL("http://insecure.test"), "__Host-blah",
@@ -325,6 +331,35 @@ TEST(CookieCravingTest, CreateFailInvalidPrefix) {
   EXPECT_FALSE(cc);
   // Missing Secure.
   cc = CookieCraving::Create(GURL(kUrlString), "__SeCuRe-blah", "",
+                             kCreationTime, std::nullopt);
+  EXPECT_FALSE(cc);
+
+  cc = CookieCraving::Create(GURL(kUrlString), "__http-blah", "Path=/",
+                             kCreationTime, std::nullopt);
+  EXPECT_FALSE(cc);
+  cc = CookieCraving::Create(GURL(kUrlString), "__http-blah", "secure;Path=/",
+                             kCreationTime, std::nullopt);
+  EXPECT_FALSE(cc);
+  cc = CookieCraving::Create(GURL(kUrlString), "__http-blah",
+                             "secure;Path=/;httpOnly", kCreationTime,
+                             std::nullopt);
+  EXPECT_TRUE(cc);
+  cc = CookieCraving::Create(GURL(kUrlString), "__hosthttp-blah", "Path=/",
+                             kCreationTime, std::nullopt);
+  EXPECT_FALSE(cc);
+  cc = CookieCraving::Create(GURL(kUrlString), "__hosthttp-blah",
+                             "secure;Path=/", kCreationTime, std::nullopt);
+  EXPECT_FALSE(cc);
+  cc = CookieCraving::Create(GURL(kUrlString), "__hosthttp-blah",
+                             "secure;Path=/;httpOnly", kCreationTime,
+                             std::nullopt);
+  EXPECT_TRUE(cc);
+  cc = CookieCraving::Create(GURL(kUrlString), "__hosthttp-blah",
+                             "secure;Path=/cookies/;httpOnly", kCreationTime,
+                             std::nullopt);
+  EXPECT_FALSE(cc);
+  cc = CookieCraving::Create(GURL(kUrlString), "__hosthttp-blah",
+                             "secure;Path=/;httpOnly;Domain=example.test",
                              kCreationTime, std::nullopt);
   EXPECT_FALSE(cc);
 }

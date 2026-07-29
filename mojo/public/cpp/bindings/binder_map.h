@@ -46,6 +46,9 @@ class BinderMapWithContext {
   template <typename Interface>
   using BinderType = typename Traits::template BinderType<Interface>;
 
+  template <typename Interface>
+  using FuncType = typename Traits::template FuncType<Interface>;
+
   BinderMapWithContext() = default;
   BinderMapWithContext(const BinderMapWithContext&) = default;
   BinderMapWithContext(BinderMapWithContext&&) = default;
@@ -61,14 +64,32 @@ class BinderMapWithContext {
   //
   // more easily.
   //
-  // If |Add()| is called multiple times for the same interface, the most
-  // recent one replaces any existing binder.
+  // If Add() is called multiple times for the same interface, the most recent
+  // one replaces any existing binder.
   template <typename Interface>
-  void Add(std::common_type_t<BinderType<Interface>> binder,
+  void Add(std::type_identity_t<BinderType<Interface>> binder,
            scoped_refptr<base::SequencedTaskRunner> task_runner = nullptr) {
-    binders_[Interface::Name_] = std::make_unique<
-        internal::GenericCallbackBinderWithContext<ContextType>>(
-        Traits::MakeGenericBinder(std::move(binder)), std::move(task_runner));
+    Add(internal::StaticString(Interface::Name_),
+        internal::GenericCallbackBinderWithContext<ContextType>(
+            Traits::MakeGenericBinder(std::move(binder)),
+            std::move(task_runner)));
+  }
+
+  // Adds a new binder specifically for Interface functors. This exists for the
+  // convenience of being able to register strongly-typed functors like:
+  //
+  //   void OnBindFoo(mojo::PendingReceiver<Foo> receiver) { ... }
+  //
+  // more easily.
+  //
+  // If Add() is called multiple times for the same interface, the most recent
+  // one replaces any existing binder.
+  template <typename Interface>
+  void Add(std::type_identity_t<FuncType<Interface>>* func,
+           scoped_refptr<base::SequencedTaskRunner> task_runner = nullptr) {
+    Add(internal::StaticString(Interface::Name_),
+        internal::GenericCallbackBinderWithContext<ContextType>(
+            Traits::MakeGenericBinder(func), std::move(task_runner)));
   }
 
   // Returns true if this map contains a binder for `Interface` receivers.
@@ -95,7 +116,7 @@ class BinderMapWithContext {
     if (it == binders_.end())
       return false;
 
-    it->second->BindInterface(receiver->PassPipe());
+    it->second.BindInterface(receiver->PassPipe());
     return true;
   }
 
@@ -110,7 +131,7 @@ class BinderMapWithContext {
     if (it == binders_.end())
       return default_binder_ && default_binder_.Run(context, *receiver);
 
-    it->second->BindInterface(std::move(context), receiver->PassPipe());
+    it->second.BindInterface(std::move(context), receiver->PassPipe());
     return true;
   }
 
@@ -135,9 +156,21 @@ class BinderMapWithContext {
  private:
   using IsVoidContext = std::is_same<ContextType, void>;
 
-  std::map<
-      std::string_view,
-      std::unique_ptr<internal::GenericCallbackBinderWithContext<ContextType>>>
+  void Add(internal::StaticString name,
+           internal::GenericCallbackBinderWithContext<ContextType>&& binder) {
+    // This is not a public method because it is not safe to use with a
+    // non-static `name`. The map key is a `string_view` which would result in
+    // a dangling pointer if the underlying string were to be freed.
+    // While it may be possible to make this safe by using `std::string` as the
+    // key, this is explicitly not supported, as we want to avoid the overhead
+    // of copying strings at runtime.
+    auto key = std::string_view(name);
+    binders_.erase(key);
+    binders_.try_emplace(key, std::move(binder));
+  }
+
+  std::map<std::string_view,
+           internal::GenericCallbackBinderWithContext<ContextType>>
       binders_;
   DefaultBinder default_binder_;
 };

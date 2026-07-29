@@ -169,14 +169,8 @@ class CORE_EXPORT HTMLSelectElement final
   // they are associated with. An ancestor <select> will not be returned in some
   // cases, such as nested <option>s, in order to match the logic in
   // RecalcListItems and OptionList.
-  // `insertion_point` and `passed_insertion_point` are optional parameters used
-  // by HTMLOptionElement::InsertedInto. If `insertion_point` is encountered
-  // during the ancestor traversal, then `passed_insertion_point` will be set to
-  // true.
   static HTMLSelectElement* NearestAncestorSelectNoNesting(
-      const Element& element,
-      ContainerNode* insertion_point = nullptr,
-      bool* passed_insertion_point = nullptr);
+      const Element& element);
 
   void AccessKeyAction(SimulatedClickCreationScope creation_scope) override;
   void SelectOptionByAccessKey(HTMLOptionElement*);
@@ -354,6 +348,10 @@ class CORE_EXPORT HTMLSelectElement final
   void DefaultEventHandler(Event&) override;
 
   void UpdateAllSelectedcontents(HTMLOptionElement* selected_option);
+
+  // Returns the localized "X selected" text used for MenuList multiple select
+  // elements.
+  String MultipleOptionsSelectedText(unsigned selected_count) const;
 
  private:
   mojom::blink::FormControlType FormControlType() const override;

@@ -35,6 +35,7 @@
 <translation id="141901961143729572">Spune-ți părerea</translation>
 <translation id="1425903838053942728">{COUNT,plural, =0{Chrome s-a actualizat. Poți folosi cea mai recentă versiune după ce relansezi browserul. Apoi, filele actuale se vor redeschide.}=1{Chrome s-a actualizat. Poți folosi cea mai recentă versiune după ce relansezi browserul. Apoi, filele actuale se vor redeschide. Fereastra incognito nu se va mai deschide.}few{Chrome s-a actualizat. Poți folosi cea mai recentă versiune după ce relansezi browserul. Apoi, filele actuale se vor redeschide. Cele # ferestre incognito nu se vor mai deschide.}other{Chrome s-a actualizat. Poți folosi cea mai recentă versiune după ce relansezi browserul. Apoi, filele actuale se vor redeschide. Cele # de ferestre incognito nu se vor mai deschide.}}</translation>
 <translation id="1434626383986940139">Aplicații Chrome Canary</translation>
+<translation id="1439793550875056299">Fixează Chrome</translation>
 <translation id="146866447420868597">Te conectezi la Chrome?</translation>
 <translation id="1492280395845991349">Relansează ca să finalizezi actualizarea pentru Chrome</translation>
 <translation id="1497802159252041924">Eroare la instalare: <ph name="INSTALL_ERROR" /></translation>
@@ -120,6 +121,7 @@
 <translation id="2569974318947988067">Chrome va încerca să facă upgrade navigărilor la HTTPS</translation>
 <translation id="2571392474191184472">Organizația ta gestionează Chrome</translation>
 <translation id="2574930892358684005"><ph name="EXISTING_USER" /> s-a conectat deja la acest profil Chrome. Ca să separi navigarea, poți crea propriul profil în Chrome.</translation>
+<translation id="2579190314336775785">Parolele pot fi șterse doar în afara browserului Chrome</translation>
 <translation id="2580411288591421699">Nu se poate instala aceeași versiune Google Chrome care rulează în prezent. Închide Google Chrome și încearcă din nou.</translation>
 <translation id="2586406160782125153">Astfel, se vor șterge datele de navigare de pe acest dispozitiv. Pentru a recupera datele mai târziu, conectează-te la Chrome ca <ph name="USER_EMAIL" />.</translation>
 <translation id="259935314519650377">Programul de instalare descărcat nu a putut fi stocat în memoria cache. Eroare: <ph name="UNPACK_CACHING_ERROR_CODE" />.</translation>
@@ -268,6 +270,7 @@
 <translation id="4326552909330437744">{NUM_TABS,plural, =1{Chrome recomandă să întrerupi fila care încetinește browserul}few{Chrome recomandă să întrerupi filele care încetinesc browserul}other{Chrome recomandă să întrerupi filele care încetinesc browserul}}</translation>
 <translation id="4328355335528187361">Google Chrome Dev (mDNS-In)</translation>
 <translation id="4329315893554541805">Pentru a beneficia de personalizare și alte funcții, include Chrome în Activitatea de pe web și din aplicații și în serviciile Google conectate</translation>
+<translation id="4334241893986177674">Caută în această captură de ecran</translation>
 <translation id="4334294535648607276">Descărcarea a fost finalizată.</translation>
 <translation id="4337324600316876133">Pentru a primi actualizările Google Chrome viitoare, vei avea nevoie de macOS 12 sau o versiune ulterioară. Acest computer folosește macOS 11.</translation>
 <translation id="4343195214584226067">Extensia <ph name="EXTENSION_NAME" /> a fost adăugată la Chrome</translation>
@@ -351,6 +354,7 @@
 <translation id="5566025111015594046">Google Chrome (mDNS-In)</translation>
 <translation id="5579324208890605088">Eroare la pornire: rulează programul de instalare ca utilizator obișnuit, nu ca administrator.</translation>
 <translation id="5596627076506792578">Mai multe opțiuni</translation>
+<translation id="5600352656975192682">Fixează Chrome în bara de activități pentru a-l accesa rapid oricând</translation>
 <translation id="5602351063754773347">Chrome recomandă să o elimini. <ph name="BEGIN_LINK" />Află mai multe despre extensiile acceptate<ph name="END_LINK" /></translation>
 <translation id="5649156266046089790">Cu ajutorul profilurilor Chrome, poți separa toate informațiile din Chrome. Creează profiluri pentru prieteni și familie sau pentru muncă și timp liber.</translation>
 <translation id="565744775970812598">Este posibil ca <ph name="FILE_NAME" /> să fie periculos, așadar Chrome l-a blocat.</translation>

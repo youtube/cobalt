@@ -70,6 +70,7 @@ const base::Feature* const kAllFeatures[] = {
     &kIPHLowUserEngagementDetectorFeature,
     &kIPHMicToolbarFeature,
     &kIPHMenuAddToGroup,
+    &kIPHMostVisitedTilesCustomizationPinFeature,
     &kIPHPageInfoFeature,
     &kIPHPageInfoStoreInfoFeature,
     &kIPHPageZoomFeature,
@@ -99,6 +100,7 @@ const base::Feature* const kAllFeatures[] = {
     &kIPHTabSwitcherAddToGroup,
     &kIPHTabSwitcherButtonFeature,
     &kIPHTabSwitcherButtonSwitchIncognitoFeature,
+    &kIPHTouchToSearchCalloutFeature,
     &kIPHTranslateMenuButtonFeature,
     &kIPHVideoTutorialNTPChromeIntroFeature,
     &kIPHVideoTutorialNTPDownloadFeature,
@@ -190,6 +192,8 @@ const base::Feature* const kAllFeatures[] = {
     &kIPHIOSBWGPromoFeature,
     &kIPHiOSSafariImportFeature,
     &kIPHIOSPageActionMenu,
+    &kIPHiOSHomepageLensNewBadge,
+    &kIPHiOSHomepageCustomizationNewBadge,
 #endif  // BUILDFLAG(IS_IOS)
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_APPLE) || BUILDFLAG(IS_LINUX) || \
     BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_FUCHSIA)

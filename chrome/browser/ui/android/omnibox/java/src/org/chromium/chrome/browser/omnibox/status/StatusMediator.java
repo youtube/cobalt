@@ -358,15 +358,6 @@ public class StatusMediator
     }
 
     /**
-     * Sets the visibility of the status icon background.
-     *
-     * @param show True to make it visible.
-     */
-    void setStatusIconBackgroundVisibility(boolean show) {
-        mModel.set(StatusProperties.SHOW_STATUS_ICON_BACKGROUND, show);
-    }
-
-    /**
      * Set the url focus change percent.
      *
      * @param percent The current focus percent.
@@ -888,7 +879,7 @@ public class StatusMediator
                 mModel.get(StatusProperties.VERBOSE_STATUS_TEXT_VISIBLE));
     }
 
-    public void onUrlChanged() {
+    public void onUrlChanged(boolean isTabChanging) {
         var currentTab = mLocationBarDataProvider.getTab();
         if (mProfileSupplier.hasValue() && currentTab != null) {
             WebContents webContents = currentTab.getWebContents();

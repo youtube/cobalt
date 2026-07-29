@@ -11,12 +11,12 @@
 #import "components/data_sharing/public/features.h"
 #import "components/data_sharing/public/group_data.h"
 #import "components/data_sharing/test_support/test_utils.h"
+#import "components/strings/grit/components_strings.h"
 #import "components/sync/base/command_line_switches.h"
 #import "ios/chrome/browser/authentication/ui_bundled/signin_earl_grey.h"
 #import "ios/chrome/browser/authentication/ui_bundled/signin_earl_grey_ui_test_util.h"
 #import "ios/chrome/browser/share_kit/model/test_constants.h"
 #import "ios/chrome/browser/shared/model/url/chrome_url_constants.h"
-#import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/signin/model/fake_system_identity.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/tab_groups/recent_activity_constants.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/tab_groups/tab_group_app_interface.h"
@@ -58,6 +58,7 @@ using chrome_test_util::FakeShareFlowView;
 using chrome_test_util::KeepSharedConfirmationButton;
 using chrome_test_util::LeaveSharedGroupButton;
 using chrome_test_util::LeaveSharedGroupConfirmationButton;
+using chrome_test_util::LongPressTabGroupCellAtIndex;
 using chrome_test_util::ManageGroupButton;
 using chrome_test_util::NavigationBarCancelButton;
 using chrome_test_util::NavigationBarSaveButton;
@@ -119,14 +120,6 @@ void LongPressOn(id<GREYMatcher> matcher) {
              @"Long press failed.");
 }
 
-// Long presses a tab group cell.
-void LongPressTabGroupCellAtIndex(unsigned int index) {
-  // Make sure the cell has appeared. Otherwise, long pressing can be flaky.
-  [ChromeEarlGrey
-      waitForUIElementToAppearWithMatcher:TabGridGroupCellAtIndex(index)];
-  LongPressOn(TabGridGroupCellAtIndex(index));
-}
-
 // Shares the group at `index`.
 void ShareGroupAtIndex(unsigned int index) {
   // Share the first group.
@@ -167,8 +160,6 @@ void AddSharedGroup(BOOL owner) {
 AppLaunchConfiguration SharedTabGroupAppLaunchConfiguration(
     bool join_only = false) {
   AppLaunchConfiguration config;
-  config.features_enabled.push_back(kTabGroupSync);
-  config.features_enabled.push_back(kTabGroupIndicator);
   config.features_enabled.push_back(
       collaboration::features::kCollaborationMessaging);
   if (join_only) {
@@ -758,8 +749,9 @@ void WaitForFakeJoinFlowView() {
   [[EarlGrey selectElementWithMatcher:KeepSharedConfirmationButton()]
       assertWithMatcher:grey_sufficientlyVisible()];
   // Cancel.
-  [[EarlGrey selectElementWithMatcher:chrome_test_util::CancelButton()]
-      performAction:grey_tap()];
+  [[EarlGrey selectElementWithMatcher:
+                 chrome_test_util::AlertItemWithAccessibilityLabelId(
+                     IDS_CANCEL)] performAction:grey_tap()];
   [ChromeEarlGrey waitForMainTabCount:1];
 
   // Close the tab by using the context menu and check the alert.
@@ -773,8 +765,9 @@ void WaitForFakeJoinFlowView() {
   [[EarlGrey selectElementWithMatcher:KeepSharedConfirmationButton()]
       assertWithMatcher:grey_sufficientlyVisible()];
   // Cancel.
-  [[EarlGrey selectElementWithMatcher:chrome_test_util::CancelButton()]
-      performAction:grey_tap()];
+  [[EarlGrey selectElementWithMatcher:
+                 chrome_test_util::AlertItemWithAccessibilityLabelId(
+                     IDS_CANCEL)] performAction:grey_tap()];
   [ChromeEarlGrey waitForMainTabCount:1];
 
   // Open the tab and try to close it with the tab grid icon context menu.
@@ -791,8 +784,9 @@ void WaitForFakeJoinFlowView() {
   [[EarlGrey selectElementWithMatcher:KeepSharedConfirmationButton()]
       assertWithMatcher:grey_sufficientlyVisible()];
   // Cancel.
-  [[EarlGrey selectElementWithMatcher:chrome_test_util::CancelButton()]
-      performAction:grey_tap()];
+  [[EarlGrey selectElementWithMatcher:
+                 chrome_test_util::AlertItemWithAccessibilityLabelId(
+                     IDS_CANCEL)] performAction:grey_tap()];
   [ChromeEarlGrey waitForMainTabCount:1];
 }
 
@@ -884,6 +878,10 @@ void WaitForFakeJoinFlowView() {
   if (@available(iOS 17, *)) {
   } else if ([ChromeEarlGrey isIPadIdiom]) {
     EARL_GREY_TEST_SKIPPED(@"Only available on iOS 17+ on iPad.");
+  }
+  if (@available(iOS 19.0, *)) {
+    // TODO(crbug.com/427699033): Re-enable test on iOS 26.
+    EARL_GREY_TEST_DISABLED(@"Test disabled on iOS 26.");
   }
   // Load regular tab 1 on the first window.
   AddSharedGroup(/*owner=*/NO);

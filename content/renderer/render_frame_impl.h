@@ -68,7 +68,6 @@
 #include "mojo/public/cpp/bindings/receiver_set.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "mojo/public/cpp/system/data_pipe.h"
-#include "ppapi/buildflags/buildflags.h"
 #include "services/network/public/cpp/permissions_policy/permissions_policy_declaration.h"
 #include "services/network/public/mojom/url_loader_factory.mojom.h"
 #include "services/network/public/mojom/url_response_head.mojom-forward.h"
@@ -129,10 +128,6 @@
 #include "url/origin.h"
 #include "v8/include/v8-forward.h"
 
-#if BUILDFLAG(ENABLE_PPAPI)
-#include "content/common/pepper_plugin.mojom.h"
-#endif
-
 #if BUILDFLAG(IS_ANDROID)
 #include "content/common/gin_java_bridge.mojom.h"
 #endif
@@ -177,8 +172,6 @@ class DocumentState;
 class MediaPermissionDispatcher;
 class MHTMLPartsGenerationDelegateImpl;
 class NavigationClient;
-class PepperPluginInstanceImpl;
-class RendererPpapiHost;
 class RenderAccessibilityManager;
 class RenderFrameObserver;
 
@@ -259,11 +252,6 @@ class CONTENT_EXPORT RenderFrameImpl
       const blink::DocumentToken& document_token,
       blink::mojom::PolicyContainerPtr policy_container,
       bool is_for_nested_main_frame);
-
-#if BUILDFLAG(CONTENT_ENABLE_LEGACY_IPC)
-  // Returns the RenderFrameImpl for the given routing ID.
-  static RenderFrameImpl* FromRoutingID(int routing_id);
-#endif
 
   // Just like RenderFrame::FromWebFrame but returns the implementation.
   static RenderFrameImpl* FromWebFrame(blink::WebFrame* web_frame);
@@ -347,58 +335,20 @@ class CONTENT_EXPORT RenderFrameImpl
   // gone, and clean up code that depends on it.
   bool in_frame_tree() { return in_frame_tree_; }
 
-#if BUILDFLAG(ENABLE_PPAPI)
-  mojom::PepperHost* GetPepperHost();
-
-  // Notification that a PPAPI plugin has been created.
-  void PepperPluginCreated(RendererPpapiHost* host);
-
-  // Informs the render view that a PPAPI plugin has changed text input status.
-  void PepperTextInputTypeChanged(PepperPluginInstanceImpl* instance);
-  void PepperCaretPositionChanged(PepperPluginInstanceImpl* instance);
-
-  // Cancels current composition.
-  void PepperCancelComposition(PepperPluginInstanceImpl* instance);
-
-  // Informs the render view that a PPAPI plugin has changed selection.
-  void PepperSelectionChanged(PepperPluginInstanceImpl* instance);
-
-#endif  // BUILDFLAG(ENABLE_PPAPI)
-
-#if BUILDFLAG(CONTENT_ENABLE_LEGACY_IPC)
-  // IPC::Sender
-  bool Send(IPC::Message* msg) override;
-
-  // IPC::Listener
-  bool OnMessageReceived(const IPC::Message& msg) override;
-
-#define LEGACY_IPC_OVERRIDE override
-#else
-#define LEGACY_IPC_OVERRIDE
-#endif
-
   void OnAssociatedInterfaceRequest(const std::string& interface_name,
-                                    mojo::ScopedInterfaceEndpointHandle handle)
-      LEGACY_IPC_OVERRIDE;
-
-#undef LEGACY_IPC_OVERRIDE
+                                    mojo::ScopedInterfaceEndpointHandle handle);
 
   // RenderFrame implementation:
   RenderFrame* GetMainRenderFrame() override;
   RenderAccessibility* GetRenderAccessibility() override;
   std::unique_ptr<AXTreeSnapshotter> CreateAXTreeSnapshotter(
       ui::AXMode ax_mode) override;
-#if BUILDFLAG(CONTENT_ENABLE_LEGACY_IPC)
-  int GetRoutingID() override;
-#endif
   blink::WebLocalFrame* GetWebFrame() override;
   const blink::WebLocalFrame* GetWebFrame() const override;
   blink::WebView* GetWebView() override;
   const blink::WebView* GetWebView() const override;
   const blink::web_pref::WebPreferences& GetBlinkPreferences() override;
   void ShowVirtualKeyboard() override;
-  blink::WebPlugin* CreatePlugin(const WebPluginInfo& info,
-                                 const blink::WebPluginParams& params) override;
   void ExecuteJavaScript(const std::u16string& javascript) override;
   bool IsMainFrame() override;
   bool IsInFencedFrameTree() const override;
@@ -512,6 +462,7 @@ class CONTENT_EXPORT RenderFrameImpl
       std::unique_ptr<blink::PendingURLLoaderFactoryBundle>
           subresource_loader_factories,
       const blink::DocumentToken& document_token,
+      const base::UnguessableToken& devtools_navigation_token,
       blink::mojom::PolicyContainerPtr policy_container,
       mojom::AlternativeErrorPageOverrideInfoPtr alternative_error_page_info,
       mojom::NavigationClient::CommitFailedNavigationCallback
@@ -713,14 +664,12 @@ class CONTENT_EXPORT RenderFrameImpl
       const base::UnguessableToken& input_stream_id,
       const std::string& output_device_id) override;
   void DidMeaningfulLayout(blink::WebMeaningfulLayout layout_type) override;
-  void DidCommitAndDrawCompositorFrame() override;
   void WasHidden() override;
   void WasShown() override;
   void OnFrameVisibilityChanged(
       blink::mojom::FrameVisibility render_status) override;
 
-  void SetUpSharedMemoryForUkms(
-      base::ReadOnlySharedMemoryRegion smoothness_memory,
+  void SetUpSharedMemoryForDroppedFrames(
       base::ReadOnlySharedMemoryRegion dropped_frames_memory) override;
 
   blink::WebURL LastCommittedUrlForUKM() override;
@@ -788,30 +737,6 @@ class CONTENT_EXPORT RenderFrameImpl
 
   void NotifyObserversOfFailedProvisionalLoad();
 
-  // Plugin-related functions --------------------------------------------------
-
-#if BUILDFLAG(ENABLE_PPAPI)
-  PepperPluginInstanceImpl* focused_pepper_plugin() {
-    return focused_pepper_plugin_;
-  }
-  // Indicates that the given instance has been created.
-  void PepperInstanceCreated(
-      PepperPluginInstanceImpl* instance,
-      mojo::PendingAssociatedRemote<mojom::PepperPluginInstance> mojo_instance,
-      mojo::PendingAssociatedReceiver<mojom::PepperPluginInstanceHost>
-          mojo_host);
-
-  // Indicates that the given instance is being destroyed. This is called from
-  // the destructor, so it's important that the instance is not dereferenced
-  // from this call.
-  void PepperInstanceDeleted(PepperPluginInstanceImpl* instance);
-
-  // Notification that the given plugin is focused or unfocused.
-  void PepperFocusChanged(PepperPluginInstanceImpl* instance, bool focused);
-
-  void OnSetPepperVolume(int32_t pp_instance, double volume);
-#endif  // BUILDFLAG(ENABLE_PPAPI)
-
   const blink::RendererPreferences& GetRendererPreferences() const;
 
   // Called when an ongoing renderer-initiated navigation was dropped by the
@@ -827,8 +752,6 @@ class CONTENT_EXPORT RenderFrameImpl
                            const network::URLLoaderCompletionStatus& status);
   void DidCancelResponse(int request_id);
   void DidReceiveTransferSizeUpdate(int request_id, int received_data_length);
-
-  bool GetCaretBoundsFromFocusedPlugin(gfx::Rect& rect) override;
 
   // Used in tests to install a fake URLLoaderFactory via
   // RenderViewTest::CreateFakeURLLoaderFactory().
@@ -1125,7 +1048,8 @@ class CONTENT_EXPORT RenderFrameImpl
       ui::PageTransition transition,
       const network::ParsedPermissionsPolicy& permissions_policy_header,
       const blink::DocumentPolicyFeatureState& document_policy_header,
-      const std::optional<base::UnguessableToken>& embedding_token);
+      const std::optional<base::UnguessableToken>& embedding_token,
+      std::optional<blink::PageState> previous_page_state);
 
   // Updates the navigation history depending on the passed parameters.
   // This could result either in the creation of a new entry or a modification
@@ -1303,10 +1227,6 @@ class CONTENT_EXPORT RenderFrameImpl
 
   blink::LocalFrameToken frame_token_;
 
-#if BUILDFLAG(CONTENT_ENABLE_LEGACY_IPC)
-  const int routing_id_;
-#endif
-
   const int process_label_id_;
 
   // Keeps track of which future subframes the browser process has history items
@@ -1366,18 +1286,6 @@ class CONTENT_EXPORT RenderFrameImpl
   // It lives on its own sequence so that it can serve (rare) sync requests.
   base::SequenceBound<content::LocalResourceURLLoaderFactory>
       local_resource_loader_;
-
-  // Plugins -------------------------------------------------------------------
-#if BUILDFLAG(ENABLE_PPAPI)
-  typedef std::set<raw_ptr<PepperPluginInstanceImpl, SetExperimental>>
-      PepperPluginSet;
-  PepperPluginSet active_pepper_instances_;
-
-  // Whether or not the focus is on a PPAPI plugin
-  raw_ptr<PepperPluginInstanceImpl> focused_pepper_plugin_;
-
-  mojo::AssociatedRemote<mojom::PepperHost> pepper_host_remote_;
-#endif
 
   using AutoplayOriginAndFlags = std::pair<url::Origin, int32_t>;
   AutoplayOriginAndFlags autoplay_flags_;

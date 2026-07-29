@@ -6,6 +6,8 @@
 
 #import "ios/chrome/browser/share_kit/model/share_kit_avatar_primitive.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
+#import "ios/chrome/browser/shared/ui/elements/extended_touch_target_button.h"
+#import "ios/chrome/browser/shared/ui/symbols/symbols.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/tab_groups/tab_groups_constants.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
 #import "ios/chrome/common/ui/util/constraints_ui_util.h"
@@ -23,11 +25,23 @@ const CGFloat kContainerSubstractredStroke = 2;
 // Font size of `plusXLabel`.
 const CGFloat kPlusXlabelFontSize = 9;
 
-// horizontal inner margin in for the `_plusXLabelContainer`.
+// horizontal inner margin in for the `_plusXLabel`.
 const CGFloat kPlusXlabelContainerHorizontalInnerMargin = 6;
 
-// Alpha value of the `_plusXLabelContainer` background color.
-const CGFloat kPlusXlabelContainerBackgroundAlpha = 0.2;
+// Alpha value of the non-avatar view background color.
+const CGFloat kNonAvatarContainerBackgroundAlpha = 0.2;
+
+// Proportion of the "person waiting" icon compared to the avatar size.
+const CGFloat kPersonWaitingProportion = 0.55;
+
+// Vertical margin for the "person waiting" icon.
+const CGFloat kPersonWaitingVerticalMargin = 1.5;
+
+// Share button constants.
+const CGFloat kShareElementSpacing = 7;
+const CGFloat kShareHorizontalInset = 8;
+const CGFloat kShareVerticalInset = 5;
+const CGFloat kShareSymbolPointSize = 12.5;
 
 }  // namespace
 
@@ -36,16 +50,21 @@ const CGFloat kPlusXlabelContainerBackgroundAlpha = 0.2;
   NSArray<id<ShareKitAvatarPrimitive>>* _avatars;
   // A UIStackView to arrange and display the individual avatar views.
   UIStackView* _facesStackView;
-  // Label to display text when the face pile is empty.
-  UILabel* _emptyFacePileLabel;
   // Sets the background color for the face pile, visible in gaps and as an
   // outer stroke.
   UIColor* _facePileBackgroundColor;
   // Size of avatar faces, in points.
   CGFloat _avatarSize;
+  // Container for the non-avatar element.
+  UIView* _nonAvatarContainer;
+  // Container for the people waiting image.
+  UIImageView* _peopleWaitingImageView;
   // Label to display the "+X" person in the group.
-  UIView* _plusXLabelContainer;
   UILabel* _plusXLabel;
+  // The number of members in the shared group.
+  CGFloat _membersCount;
+  // View to display when the face pile is empty.
+  UIButton* _shareViewContainer;
 }
 
 - (instancetype)init {
@@ -64,15 +83,38 @@ const CGFloat kPlusXlabelContainerBackgroundAlpha = 0.2;
   return self;
 }
 
+#pragma mark - Getters
+
+- (CGFloat)optimalWidth {
+  NSInteger containerCount = _membersCount < 3 ? 2 : 3;
+  CGFloat containerSize = _avatarSize + kContainerSubstractredStroke * 2;
+
+  CGFloat width = (containerCount - 1) * kAvatarSpacing;
+  width += containerCount * containerSize;
+
+  if (_membersCount > 3) {
+    // Subtract the width of the last avatar, as it's replaced by the "+X"
+    // container.
+    width -= _avatarSize;
+    width +=
+        [_plusXLabel.text sizeWithAttributes:@{
+          NSFontAttributeName : [UIFont systemFontOfSize:kPlusXlabelFontSize
+                                                  weight:UIFontWeightMedium]
+        }]
+            .width;
+    width += 2 * kPlusXlabelContainerHorizontalInnerMargin;
+  }
+
+  return width;
+}
+
 #pragma mark - FacePileConsumer
 
-- (void)setShowsTextWhenEmpty:(BOOL)showsTextWhenEmpty {
-  if (showsTextWhenEmpty) {
-    [self addEmptyFacePileLabel];
-    _emptyFacePileLabel.hidden = ![self isEmpty];
-  } else {
-    [_emptyFacePileLabel removeFromSuperview];
-    _emptyFacePileLabel = nil;
+- (void)setSharedButtonWhenEmpty:(BOOL)showsShareButtonWhenEmpty {
+  [_shareViewContainer removeFromSuperview];
+  _shareViewContainer = nil;
+  if (showsShareButtonWhenEmpty && [self isEmpty]) {
+    [self addShareButtonView];
   }
 }
 
@@ -86,83 +128,17 @@ const CGFloat kPlusXlabelContainerBackgroundAlpha = 0.2;
 
 - (void)updateWithFaces:(NSArray<id<ShareKitAvatarPrimitive>>*)faces
             totalNumber:(NSInteger)totalNumber {
-  // Remove all existing avatar views from the stack.
-  for (UIView* view in _facesStackView.arrangedSubviews) {
-    [view removeFromSuperview];
-  }
-
   _avatars = faces;
-  CGFloat containerSize = _avatarSize + kContainerSubstractredStroke * 2;
-  NSInteger avatarsCount = static_cast<NSUInteger>(_avatars.count);
+  _membersCount = totalNumber;
 
-  for (NSInteger index = 0; index < avatarsCount; index++) {
-    id<ShareKitAvatarPrimitive> avatar = _avatars[index];
-    [avatar resolve];
-
-    // Create a container view to act as the border for the avatar.
-    // This is needed to avoid anti-aliasing artifacts around the border itself.
-    UIView* avatarContainerView =
-        [self createCircularContainerWithSize:containerSize];
-    UIView* avatarView = [avatar view];
-    avatarView.translatesAutoresizingMaskIntoConstraints = NO;
-    [avatarContainerView addSubview:avatarView];
-
-    // Apply an overlapping mask to all avatar containers except if it's the
-    // last displayed container.
-    if (index + 1 < totalNumber) {
-      [self applyOverlappingCircleMaskToContainer:avatarContainerView];
-    }
-
-    [NSLayoutConstraint activateConstraints:@[
-      [avatarContainerView.widthAnchor constraintEqualToConstant:containerSize],
-      [avatarContainerView.heightAnchor constraintEqualToConstant:containerSize]
-    ]];
-    AddSameCenterConstraints(avatarView, avatarContainerView);
-
-    [_facesStackView addArrangedSubview:avatarContainerView];
-  }
-
-  // Update the `_emptyFacePileLabel` visibility.
-  _emptyFacePileLabel.hidden = ![self isEmpty];
-
-  // Display the `plusXLabel` if needed.
-  NSInteger remainingCount = totalNumber - _avatars.count;
-  if (remainingCount > 0) {
-    UIView* plusXLabel =
-        [self createPlusXLabelWithRemainingCount:remainingCount];
-
-    // Create a container view to act as the border for the plusXLabel.
-    // This is needed to avoid anti-aliasing artifacts around the border itself.
-    UIView* plusXContainerView =
-        [self createCircularContainerWithSize:containerSize];
-    [UIView performWithoutAnimation:^{
-      plusXContainerView.layer.cornerRadius = containerSize / 2.0;
-    }];
-    [plusXContainerView addSubview:plusXLabel];
-
-    [_facesStackView addArrangedSubview:plusXContainerView];
-
-    [NSLayoutConstraint activateConstraints:@[
-      [plusXLabel.widthAnchor
-          constraintGreaterThanOrEqualToConstant:_avatarSize],
-      [plusXLabel.heightAnchor constraintEqualToConstant:_avatarSize],
-      [plusXLabel.leadingAnchor
-          constraintEqualToAnchor:plusXContainerView.leadingAnchor
-                         constant:kContainerSubstractredStroke],
-      [plusXLabel.trailingAnchor
-          constraintEqualToAnchor:plusXContainerView.trailingAnchor
-                         constant:-kContainerSubstractredStroke],
-
-      [plusXContainerView.heightAnchor constraintEqualToConstant:containerSize]
-    ]];
-    AddSameCenterConstraints(plusXLabel, plusXContainerView);
-  }
+  __weak __typeof(self) weakSelf = self;
+  [UIView performWithoutAnimation:^{
+    [weakSelf setupStackView];
+  }];
 }
 
 - (void)setAvatarSize:(CGFloat)avatarSize {
   _avatarSize = avatarSize;
-  CGFloat containerSize = _avatarSize + kContainerSubstractredStroke * 2;
-  self.layer.cornerRadius = containerSize / 2.0;
 }
 
 #pragma mark - Private
@@ -172,19 +148,23 @@ const CGFloat kPlusXlabelContainerBackgroundAlpha = 0.2;
   BOOL isDarkMode =
       self.traitCollection.userInterfaceStyle == UIUserInterfaceStyleDark;
   if (_facePileBackgroundColor) {
-    _plusXLabelContainer.backgroundColor =
+    _nonAvatarContainer.backgroundColor =
         [isDarkMode ? [UIColor colorNamed:kSolidWhiteColor]
                     : [UIColor colorNamed:kSolidBlackColor]
-            colorWithAlphaComponent:kPlusXlabelContainerBackgroundAlpha];
+            colorWithAlphaComponent:kNonAvatarContainerBackgroundAlpha];
+    _nonAvatarContainer.tintColor = [UIColor colorNamed:kSolidWhiteColor];
     _plusXLabel.textColor = [UIColor colorNamed:kSolidWhiteColor];
     return;
   }
   if (isDarkMode) {
-    _plusXLabelContainer.backgroundColor =
+    _nonAvatarContainer.backgroundColor =
         [UIColor colorNamed:kTertiaryBackgroundColor];
+    _peopleWaitingImageView.tintColor = [UIColor colorNamed:kTextPrimaryColor];
     _plusXLabel.textColor = [UIColor colorNamed:kTextPrimaryColor];
   } else {
-    _plusXLabelContainer.backgroundColor = [UIColor colorNamed:kGrey100Color];
+    _nonAvatarContainer.backgroundColor = [UIColor colorNamed:kGrey100Color];
+    _peopleWaitingImageView.tintColor =
+        [UIColor colorNamed:kTextSecondaryColor];
     _plusXLabel.textColor = [UIColor colorNamed:kTextSecondaryColor];
   }
 }
@@ -197,6 +177,7 @@ const CGFloat kPlusXlabelContainerBackgroundAlpha = 0.2;
   container.translatesAutoresizingMaskIntoConstraints = NO;
   container.backgroundColor = _facePileBackgroundColor;
   container.layer.masksToBounds = YES;
+  container.layer.cornerRadius = size / 2.0;
   return container;
 }
 
@@ -243,9 +224,7 @@ const CGFloat kPlusXlabelContainerBackgroundAlpha = 0.2;
   // label.
   UIView* plusXLabelContainer = [[UIView alloc] init];
   plusXLabelContainer.translatesAutoresizingMaskIntoConstraints = NO;
-  [UIView performWithoutAnimation:^{
-    plusXLabelContainer.layer.cornerRadius = _avatarSize / 2.0;
-  }];
+  plusXLabelContainer.layer.cornerRadius = _avatarSize / 2.0;
   plusXLabelContainer.layer.masksToBounds = YES;
   [plusXLabelContainer addSubview:plusXLabel];
 
@@ -260,23 +239,181 @@ const CGFloat kPlusXlabelContainerBackgroundAlpha = 0.2;
   AddSameCenterConstraints(plusXLabelContainer, plusXLabel);
 
   _plusXLabel = plusXLabel;
-  _plusXLabelContainer = plusXLabelContainer;
+  _nonAvatarContainer = plusXLabelContainer;
 
   [self updateColors];
-  return _plusXLabelContainer;
+  return _nonAvatarContainer;
 }
 
 // Adds and configures the `_emptyFacePileLabel`.
-- (void)addEmptyFacePileLabel {
-  _emptyFacePileLabel = [[UILabel alloc] init];
-  _emptyFacePileLabel.translatesAutoresizingMaskIntoConstraints = NO;
-  [self addSubview:_emptyFacePileLabel];
-  AddSameConstraints(self, _emptyFacePileLabel);
+- (void)addShareButtonView {
+  UIBackgroundConfiguration* backgroundConfiguration =
+      [UIBackgroundConfiguration clearConfiguration];
+  backgroundConfiguration.visualEffect = [UIBlurEffect
+      effectWithStyle:UIBlurEffectStyleSystemUltraThinMaterialDark];
+  backgroundConfiguration.backgroundColor = TabGroupViewButtonBackgroundColor();
+
+  UIImage* shareSymbol = DefaultSymbolWithConfiguration(
+      kPersonFillBadgePlusSymbol,
+      [UIImageSymbolConfiguration
+          configurationWithPointSize:kShareSymbolPointSize
+                              weight:UIImageSymbolWeightBold
+                               scale:UIImageSymbolScaleMedium]);
+
+  UIButtonConfiguration* configuration =
+      [UIButtonConfiguration plainButtonConfiguration];
+  configuration.cornerStyle = UIButtonConfigurationCornerStyleCapsule;
+  configuration.baseForegroundColor = UIColor.whiteColor;
+  configuration.background = backgroundConfiguration;
+  configuration.image = shareSymbol;
+  configuration.imagePadding = kShareElementSpacing;
+  configuration.contentInsets =
+      NSDirectionalEdgeInsetsMake(kShareVerticalInset, kShareHorizontalInset,
+                                  kShareVerticalInset, kShareHorizontalInset);
+  configuration.titleLineBreakMode = NSLineBreakByClipping;
+
+  UIFont* font = [UIFont preferredFontForTextStyle:UIFontTextStyleFootnote];
+  NSDictionary* attributes = @{NSFontAttributeName : font};
+  NSMutableAttributedString* string = [[NSMutableAttributedString alloc]
+      initWithString:l10n_util::GetNSString(
+                         IDS_IOS_SHARED_GROUP_SHARE_GROUP_BUTTON_TEXT)];
+  [string addAttributes:attributes range:NSMakeRange(0, string.length)];
+  configuration.attributedTitle = string;
+
+  // To ensure design consistency with other buttons, create a disabled button
+  // here. Its action is handled elsewhere.
+  _shareViewContainer = [UIButton buttonWithConfiguration:configuration
+                                            primaryAction:nil];
+  _shareViewContainer.translatesAutoresizingMaskIntoConstraints = NO;
+  _shareViewContainer.userInteractionEnabled = NO;
+
+  [self addSubview:_shareViewContainer];
+  AddSameConstraints(self, _shareViewContainer);
 }
 
 // Returns whether this facepile is empty.
 - (BOOL)isEmpty {
   return _facesStackView.arrangedSubviews.count == 0;
+}
+
+// Configures and populates the stack view with avatar representations.
+// Clears any previously subviews, then adds individual avatars, a "plus X"
+// label, or a placeholder as needed.
+- (void)setupStackView {
+  // Remove all existing avatar views from the stack.
+  for (UIView* view in _facesStackView.arrangedSubviews) {
+    [view removeFromSuperview];
+  }
+
+  CGFloat containerSize = _avatarSize + kContainerSubstractredStroke * 2;
+  NSInteger avatarsCount = static_cast<NSUInteger>(_avatars.count);
+  self.layer.cornerRadius = containerSize / 2.0;
+
+  for (NSInteger index = 0; index < avatarsCount; index++) {
+    id<ShareKitAvatarPrimitive> avatar = _avatars[index];
+    [avatar resolve];
+
+    // Create a container view to act as the border for the avatar.
+    // This is needed to avoid anti-aliasing artifacts around the border itself.
+    UIView* avatarContainerView =
+        [self createCircularContainerWithSize:containerSize];
+    UIView* avatarView = [avatar view];
+    avatarView.translatesAutoresizingMaskIntoConstraints = NO;
+    [avatarContainerView addSubview:avatarView];
+
+    // Apply an overlapping mask to all avatar containers except if it's the
+    // last displayed container.
+    if (index + 1 < _membersCount || _membersCount == 1) {
+      [self applyOverlappingCircleMaskToContainer:avatarContainerView];
+    }
+
+    [NSLayoutConstraint activateConstraints:@[
+      [avatarContainerView.widthAnchor constraintEqualToConstant:containerSize],
+      [avatarContainerView.heightAnchor constraintEqualToConstant:containerSize]
+    ]];
+    AddSameCenterConstraints(avatarView, avatarContainerView);
+
+    [_facesStackView addArrangedSubview:avatarContainerView];
+  }
+
+  // Update the `_shareViewContainer` visibility.
+  _shareViewContainer.hidden = ![self isEmpty];
+
+  if (_membersCount == 1) {
+    // Create a container view to act as the border.
+    // This is needed to avoid anti-aliasing artifacts around the border itself.
+    UIView* containerView =
+        [self createCircularContainerWithSize:containerSize];
+    [_facesStackView addArrangedSubview:containerView];
+
+    [NSLayoutConstraint activateConstraints:@[
+      [containerView.widthAnchor constraintEqualToConstant:containerSize],
+      [containerView.heightAnchor constraintEqualToConstant:containerSize]
+    ]];
+
+    _nonAvatarContainer = [[UIView alloc] init];
+    _nonAvatarContainer.translatesAutoresizingMaskIntoConstraints = NO;
+    _nonAvatarContainer.layer.cornerRadius = _avatarSize / 2.0;
+    _nonAvatarContainer.layer.masksToBounds = YES;
+    [NSLayoutConstraint activateConstraints:@[
+      [_nonAvatarContainer.widthAnchor constraintEqualToConstant:_avatarSize],
+      [_nonAvatarContainer.heightAnchor constraintEqualToConstant:_avatarSize]
+    ]];
+
+    [containerView addSubview:_nonAvatarContainer];
+    AddSameCenterConstraints(_nonAvatarContainer, containerView);
+
+    UIImage* peopleWaitingImage = DefaultSymbolWithPointSize(
+        kPersonClockFillSymbol, _avatarSize * kPersonWaitingProportion);
+    _peopleWaitingImageView =
+        [[UIImageView alloc] initWithImage:peopleWaitingImage];
+    _peopleWaitingImageView.contentMode = UIViewContentModeCenter;
+    _peopleWaitingImageView.translatesAutoresizingMaskIntoConstraints = NO;
+
+    [_nonAvatarContainer addSubview:_peopleWaitingImageView];
+    [NSLayoutConstraint activateConstraints:@[
+      [_peopleWaitingImageView.centerXAnchor
+          constraintEqualToAnchor:_nonAvatarContainer.centerXAnchor],
+      [_peopleWaitingImageView.centerYAnchor
+          constraintEqualToAnchor:_nonAvatarContainer.centerYAnchor
+                         constant:-kPersonWaitingVerticalMargin],
+    ]];
+
+    [self updateColors];
+
+    return;
+  }
+
+  // Display the `plusXLabel` if needed.
+  NSInteger remainingCount = _membersCount - _avatars.count;
+  if (remainingCount > 0) {
+    UIView* plusXLabel =
+        [self createPlusXLabelWithRemainingCount:remainingCount];
+
+    // Create a container view to act as the border for the plusXLabel.
+    // This is needed to avoid anti-aliasing artifacts around the border itself.
+    UIView* plusXContainerView =
+        [self createCircularContainerWithSize:containerSize];
+    plusXContainerView.layer.cornerRadius = containerSize / 2.0;
+    [plusXContainerView addSubview:plusXLabel];
+
+    [_facesStackView addArrangedSubview:plusXContainerView];
+
+    [NSLayoutConstraint activateConstraints:@[
+      [plusXLabel.widthAnchor
+          constraintGreaterThanOrEqualToConstant:_avatarSize],
+      [plusXLabel.heightAnchor constraintEqualToConstant:_avatarSize],
+      [plusXLabel.leadingAnchor
+          constraintEqualToAnchor:plusXContainerView.leadingAnchor
+                         constant:kContainerSubstractredStroke],
+      [plusXLabel.trailingAnchor
+          constraintEqualToAnchor:plusXContainerView.trailingAnchor
+                         constant:-kContainerSubstractredStroke],
+
+      [plusXContainerView.heightAnchor constraintEqualToConstant:containerSize]
+    ]];
+    AddSameCenterConstraints(plusXLabel, plusXContainerView);
+  }
 }
 
 @end

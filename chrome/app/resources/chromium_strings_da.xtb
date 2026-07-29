@@ -39,6 +39,7 @@
 <translation id="1547469039832541117">Afslutter den fremhævede opgave.</translation>
 <translation id="1553461853655228091">Chromium skal have adgangstilladelse til dit kamera for at oprette et 3D-kort over dine omgivelser</translation>
 <translation id="1555494096857516577">{NUM_EXTENSIONS,plural, =1{Denne udvidelse understøttes ikke længere. Chromium anbefaler, at du fjerner den.}one{Denne udvidelse understøttes ikke længere. Chromium anbefaler, at du fjerner den.}other{Disse udvidelser understøttes ikke længere. Chromium anbefaler, at du fjerner dem.}}</translation>
+<translation id="1562320819937089394">Fastgør Chromium</translation>
 <translation id="1574377791422810894">Chromiums sikkerhedsværktøjer</translation>
 <translation id="1594928384848033697">Chromium anmoder om tilladelse til at slette dine data i Adgangskodeadministrator. Angiv din Windows-adgangskode for at tillade dette.</translation>
 <translation id="1607715478322902680">{COUNT,plural, =0{Din administrator kræver, at du genstarter Chromium for at anvende en opdatering}=1{Din administrator kræver, at du genstarter Chromium for at anvende en opdatering. Dit inkognitovindue åbnes ikke igen.}one{Din administrator kræver, at du genstarter Chromium for at anvende en opdatering. # inkognitovindue åbnes ikke igen.}other{Din administrator kræver, at du genstarter Chromium for at anvende en opdatering. Dine # inkognitovinduer åbnes ikke igen.}}</translation>
@@ -247,6 +248,7 @@
 <translation id="4281844954008187215">Servicevilkår</translation>
 <translation id="4285930937574705105">Installationen mislykkedes på grund af en ikke-specificeret fejl. Hvis Chromium kører, skal du lukke programmet og prøve igen.</translation>
 <translation id="4304713468139749426">Adgangs­kode­admin­istrator</translation>
+<translation id="4334241893986177674">Søg i dette screenshot</translation>
 <translation id="4334294535648607276">Download fuldført.</translation>
 <translation id="439358628917130594"><ph name="MANAGER" /> kræver, at du læser og accepterer følgende servicevilkår, inden du bruger denne enhed. Disse vilkår udvider, ændrer eller begrænser på ingen måde vilkårene for Chromium OS.</translation>
 <translation id="4407044323746248786">Vil du afslutte Chromium alligevel?</translation>
@@ -290,7 +292,7 @@
 <translation id="4814736265800133385">Brug Chromium uden en konto</translation>
 <translation id="4888717733111232871">Indgående regel for Chromium om at tillade mDNS-trafik.</translation>
 <translation id="4893347770495441059">Genstart og opdater &amp;Chromium</translation>
-<translation id="4918844574251943176">Billedet er blevet kopieret</translation>
+<translation id="4918844574251943176">Billedet er kopieret</translation>
 <translation id="4943838377383847465">Chromium kører i baggrunden.</translation>
 <translation id="494490797786467921">Klik for at lukke dialogboksen til login i Chromium</translation>
 <translation id="4950660488495335294">Du kan organisere alle dine ting i Chromium ved hjælp af Chromium-profiler. Opret profiler til venner og familie, eller brug dem til at holde arbejde og fornøjelse adskilt.</translation>
@@ -520,6 +522,7 @@ Chromium kan ikke gendanne dine præferencer.</translation>
 <translation id="8004582292198964060">Browser</translation>
 <translation id="8010081455002666927">Automatisk registrering</translation>
 <translation id="8013436988911883588">Når Chromium har adgang, kan websites bede dig om adgang.</translation>
+<translation id="8031714377769448844">Fastgør Chromium til proceslinjen, så du hurtigt kan få adgang til den</translation>
 <translation id="80471789339884597">Tak for installationen. Du skal genstarte alle dine browsere, før du bruger <ph name="BUNDLE_NAME" />.</translation>
 <translation id="8054112667659782652">Vis altid genvejen til billedsøgning</translation>
 <translation id="8077498902115777962">Deaktiver, at Chromium-apps kører i baggrunden</translation>
@@ -575,6 +578,7 @@ Chromium kan ikke gendanne dine præferencer.</translation>
 <translation id="8704119203788522458">Dette er din Chromium-browser</translation>
 <translation id="8719993436687031146">Vil du logge ind i Chromium?</translation>
 <translation id="8747073452963259673">nederste venstre hjørne af søgeområdet: venstre <ph name="LEFT" /> %, nederste <ph name="BOTTOM" /> %</translation>
+<translation id="8768722695577490596">Adgangskoder kan kun slettes uden for Chromium</translation>
 <translation id="878572486461146056">Installationsfejl: Din netværksadministrator anvender en gruppepolitik, der forhindrer installationen: <ph name="INSTALL_ERROR" /></translation>
 <translation id="8796602469536043152">Chromium skal have tilladelse til at bruge dit kamera og din mikrofon på dette website</translation>
 <translation id="8818550178040858407">Vil du logge ind i Chromium?</translation>

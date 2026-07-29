@@ -25,14 +25,9 @@
 #include "ui/gfx/color_space.h"
 #include "ui/gfx/gpu_memory_buffer.h"
 
-namespace media {
-class GpuMemoryBufferTrackerWin;
-}
-
 namespace gpu {
 
-class GpuMemoryBufferManager;
-class GpuMemoryBufferSupport;
+class ClientSharedImage;
 
 // Implementation of GPU memory buffer based on dxgi textures.
 class GPU_IPC_COMMON_EXPORT GpuMemoryBufferImplDXGI
@@ -45,6 +40,16 @@ class GPU_IPC_COMMON_EXPORT GpuMemoryBufferImplDXGI
 
   static constexpr gfx::GpuMemoryBufferType kBufferType =
       gfx::DXGI_SHARED_HANDLE;
+
+  static std::unique_ptr<GpuMemoryBufferImplDXGI> CreateFromHandleForTesting(
+      gfx::GpuMemoryBufferHandle handle,
+      const gfx::Size& size,
+      gfx::BufferFormat format,
+      gfx::BufferUsage usage,
+      DestructionCallback callback) {
+    return CreateFromHandle(std::move(handle), size, format, usage,
+                            std::move(callback));
+  }
 
   static base::OnceClosure AllocateForTesting(
       const gfx::Size& size,
@@ -78,9 +83,7 @@ class GPU_IPC_COMMON_EXPORT GpuMemoryBufferImplDXGI
   const gfx::DXGIHandleToken& GetToken() const;
 
  private:
-  // TODO(crbug.com/40264379): Remove the need for this.
-  friend media::GpuMemoryBufferTrackerWin;
-  friend GpuMemoryBufferSupport;
+  friend ClientSharedImage;
 
   static std::unique_ptr<GpuMemoryBufferImplDXGI> CreateFromHandle(
       gfx::GpuMemoryBufferHandle handle,
@@ -88,16 +91,18 @@ class GPU_IPC_COMMON_EXPORT GpuMemoryBufferImplDXGI
       gfx::BufferFormat format,
       gfx::BufferUsage usage,
       DestructionCallback callback,
-      gpu::GpuMemoryBufferManager* gpu_memory_buffer_manager,
-      scoped_refptr<base::UnsafeSharedMemoryPool> pool);
+      CopyNativeBufferToShMemCallback copy_native_buffer_to_shmem_callback =
+          CopyNativeBufferToShMemCallback(),
+      scoped_refptr<base::UnsafeSharedMemoryPool> pool = nullptr);
 
-  GpuMemoryBufferImplDXGI(gfx::GpuMemoryBufferId id,
-                          const gfx::Size& size,
-                          gfx::BufferFormat format,
-                          DestructionCallback callback,
-                          gfx::DXGIHandle dxgi_handle,
-                          GpuMemoryBufferManager* gpu_memory_buffer_manager,
-                          scoped_refptr<base::UnsafeSharedMemoryPool> pool);
+  GpuMemoryBufferImplDXGI(
+      gfx::GpuMemoryBufferId id,
+      const gfx::Size& size,
+      gfx::BufferFormat format,
+      DestructionCallback callback,
+      gfx::DXGIHandle dxgi_handle,
+      CopyNativeBufferToShMemCallback copy_native_buffer_to_shmem_callback,
+      scoped_refptr<base::UnsafeSharedMemoryPool> pool);
 
   // Returns callback for reporting early result.
   // `DoMapAsync` can't invoke it directly as it holds a mapping lock.
@@ -120,7 +125,7 @@ class GPU_IPC_COMMON_EXPORT GpuMemoryBufferImplDXGI
   // from it.
   base::WritableSharedMemoryMapping region_mapping_;
 
-  raw_ptr<GpuMemoryBufferManager> gpu_memory_buffer_manager_;
+  CopyNativeBufferToShMemCallback copy_native_buffer_to_shmem_callback_;
 
   std::vector<base::OnceCallback<void(bool)>> map_callbacks_
       GUARDED_BY(map_lock_);

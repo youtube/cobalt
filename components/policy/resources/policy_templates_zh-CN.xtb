@@ -134,6 +134,11 @@
 <translation id="1077675271127011209">禁止报告与使用情况和崩溃情况相关的数据</translation>
 <translation id="1079498696402787191">使用已允许在 TLS 握手时使用的哈希的默认值。</translation>
 <translation id="1079801999187584280">禁止使用开发者工具</translation>
+<translation id="1081263326166769685">如果此政策已启用，<ph name="PRODUCT_OS_NAME" /> 便会将使用情况指标和诊断数据（包括崩溃报告）反馈给 Google。如果此政策已停用，系统会关闭指标和诊断数据报告功能。
+
+对于受管设备，此政策默认处于启用状态，并且会向 Google 发送指标。
+
+对于非受管设备，如果此政策未设置，用户可以决定是否发送指标。</translation>
 <translation id="1082802595100075771">允许用户选择使用匿名 Google 服务为无标签图片提供自动说明</translation>
 <translation id="1084697375611053264">以列表形式指定允许哪些第三方 Web 应用网域使用 <ph name="DESK_API_NAME" /> 控制 <ph name="PRODUCT_OS_NAME" /> 桌面。这些网址格式应遵循 https://developer.chrome.com/docs/extensions/mv3/manifest/externally_connectable/#reference 页面中为“matches”属性定义的格式</translation>
 <translation id="1087057100912843460">允许更新</translation>
@@ -268,8 +273,6 @@
       如果您不设置此政策，则不存在自动登录。</translation>
 <translation id="1193653806129988688">阻止用户通过注册 <ph name="PRODUCT_OS_NAME" /> 来兑换优惠</translation>
 <translation id="1197437816436565375">您无法强制 Android 应用使用代理。一小部分代理设置已可供 Android 应用使用，此类应用可能会主动选择使用这些设置。有关详情，请参阅 <ph name="PROXY_MODE_POLICY_NAME" /> 政策。</translation>
-<translation id="1198183996903759302">如果此政策设为 True（或者 <ph name="HARDWARE_ACCELERATION_MODE_ENABLED_POLICY_NAME" /> 设为 False），网页会无法访问 WebGL API，而且插件会无法使用 Pepper 3D API。
-      如果此政策设为 False 或未设置，网页可以使用 WebGL API，而且插件可以使用 Pepper 3D API，但浏览器的默认设置可能仍然要求在使用这些 API 前先传递命令行参数。</translation>
 <translation id="1198458955128279215">使用功能发布计划的默认行为。</translation>
 <translation id="1202216683470826356">在“新标签页”页面上显示卡片</translation>
 <translation id="1203676252390737801">WebRTC 网址级 IP 处理</translation>
@@ -277,6 +280,7 @@
 <translation id="1207301487141109411">禁止从本地文件系统、相机和 Google 个人资料中选择用户头像</translation>
 <translation id="1209096923317019235">分配应用以用作所指定文件扩展名的默认处理程序</translation>
 <translation id="120937472976628837">报告风扇信息</translation>
+<translation id="1211037010406094410">允许使用 SwiftShader 进行软件 WebGL 回退</translation>
 <translation id="1214639335214075459">启用 GPU 硬件视频解码</translation>
 <translation id="1214942205301731697">不允许在扩展程序页面上使用开发者模式</translation>
 <translation id="1216919699175573511">启用 Signed HTTP Exchange (SXG) 支持</translation>
@@ -810,6 +814,11 @@ First-Party Set 中的所有网站都必须是采用 HTTPS 协议的可注册网
       如果您没有为某个网站设置此政策，系统便会将 <ph name="DEFAULT_WINDOW_PLACEMENT_SETTING_POLICY_NAME" /> 中的政策（若已设置）应用于该网站，或者让该网站遵循浏览器的默认权限设置并允许用户按网站选择这项权限。</translation>
 <translation id="1574258262373444557">不使用“<ph name="AES_KL_NAME" />”作为加密算法进行用户存储加密</translation>
 <translation id="1575015449587326319">OnFileDownloaded Chrome Enterprise Connector 的配置政策</translation>
+<translation id="1575714464739424740">此政策用于控制是否为您的用户在无痕模式下启用 <ph name="PRIVACY_SANDBOX_NAME" /> 数字“指纹”收集保护设置。
+
+如果此政策已停用，那么系统会为您的用户关闭数字“指纹”收集保护功能设置。
+如果此政策已启用，那么系统会为您的用户在无痕模式下开启数字“指纹”收集保护功能设置。
+如果此政策未设置，用户将能够在界面设置中为无痕模式开启或关闭数字“指纹”收集保护功能。默认状态为 false 或已停用，这表示将关闭数字“指纹”收集保护功能。</translation>
 <translation id="1576797364335927541">停用“<ph name="ALR_FEATURE_NAME" />”功能</translation>
 <translation id="1577162851453388235">Direct Sockets API 允许使用 TCP 和 UDP 与任意端点通信。
 如需了解详情，请参阅 https://github.com/WICG/direct-sockets。
@@ -837,6 +846,11 @@ First-Party Set 中的所有网站都必须是采用 HTTPS 协议的可注册网
 <translation id="1595013560176869154">如果此政策已启用，系统会允许使用安全系数低的 PIN 码。安全系数低的 PIN 码的一些特征：由同一个数字构成 (1111)、数字以 1 为单位递增 (1234)、数字以 1 为单位递减 (4321)，以及常用的 PIN 码。如果此政策已停用，用户将无法设置安全系数低且易被猜中的 PIN 码。
 
       如果此政策未设置，当系统认为 PIN 码的安全系数偏低时，就会向用户显示警告（而非错误消息）。</translation>
+<translation id="1596396758769156412">如果此政策已停用或未设置，您的 <ph name="PRODUCT_OS_NAME" /> 设备将拒绝附近蓝牙外围设备发起的“Just Works”配对请求。
+
+如果此政策已启用，您的 <ph name="PRODUCT_OS_NAME" /> 设备将接受附近蓝牙外围设备发起的“Just Works”配对请求。
+
+注意：此政策仅在用户登录后才会生效，不适用于登录界面。</translation>
 <translation id="1597684038583138808">启用快速解答定义功能</translation>
 <translation id="1598258379228800626">允许在登录屏幕上使用键盘焦点突出显示</translation>
 <translation id="1599424828227887013">在 Android 设备上为指定的来源启用网站隔离功能</translation>
@@ -1052,6 +1066,15 @@ First-Party Set 中的所有网站都必须是采用 HTTPS 协议的可注册网
       如需详细了解有效的<ph name="URL_LABEL" />格式，请访问 https://cloud.google.com/docs/chrome-enterprise/policies/url-patterns。<ph name="WILDCARD_VALUE" /> 不是此政策可接受的值。</translation>
 <translation id="1755310913456007816">使用现有的在线撤消检查设置</translation>
 <translation id="1760951637494635692">允许在这些网站上使用 Serial API</translation>
+<translation id="1764415246330773476">此政策用于控制是否在“新标签页”页面 (NTP) 的页脚中显示管理通知。默认情况下，当浏览器由组织管理时，NTP 页脚会显示相关信息（由建筑物图标和“由 [域名] 管理”表示）。您可以使用 <ph name="ENTERPRISE_CUSTOM_LABEL_FOR_BROWSER" /> 和 <ph name="ENTERPRISE_LOGO_URL_FOR_BROWSER" /> 政策对此进行自定义。
+
+如果此政策未设置或设为 true，受管浏览器将会显示带有图标的“受…管理”通知。
+
+如果此政策设为 false，管理通知将会隐藏。
+
+请注意，此政策仅适用于受管浏览器，对使用非受管浏览器的受管用户没有影响。在 <ph name="MS_WIN_NAME" /> 上，此政策仅适用于已加入 <ph name="MS_AD_NAME" /> 网域的实例、已加入 <ph name="MS_AAD_NAME" /> 的实例或已在 <ph name="CHROME_ENTERPRISE_CORE_NAME" />中注册的实例。
+
+在 <ph name="MAC_OS_NAME" /> 上，此政策仅适用于通过 MDM 进行管理的实例、已通过 MCX 加入网域的实例或已在 <ph name="CHROME_ENTERPRISE_CORE_NAME" />中注册的实例。</translation>
 <translation id="1765503534110351026">此政策已被弃用，请改用 <ph name="PROXY_SETTINGS_POLICY_NAME" />。
 
        如果您设置了此政策，<ph name="PRODUCT_NAME" /> 会绕过此列表指定的域名，不对其使用任何代理。若要使此政策生效，您必须确保未指定 <ph name="PROXY_SETTINGS_POLICY_NAME" /> 政策并为 <ph name="PROXY_MODE_POLICY_NAME" /> 指定了 <ph name="PROXY_MODE_ENUM_FIXED_SERVERS" /> 或 <ph name="PROXY_MODE_ENUM_PAC_SCRIPT" />。
@@ -1088,7 +1111,6 @@ First-Party Set 中的所有网站都必须是采用 HTTPS 协议的可注册网
       该列表将按同样的顺序显示在 chrome://settings/languages 页面内的“根据您的偏好设置对语言进行排序”部分中。用户将无法移除或重新排列此政策设定的语言，但能在这些语言下方添加语言。此外，用户还能完全控制浏览器的界面语言和翻译/拼写检查设置，除非其他政策已强制执行这些设置。
 
       如果此政策未设置，用户便可操控整个首选语言列表。</translation>
-<translation id="180243155313050440">此政策可控制用于标识受管浏览器的自定义标签。对于受管浏览器，此标签会显示在“新标签页”页面页脚的管理免责声明中。系统不会翻译此自定义标签。应用此政策后，任何超过 16 个字符的字符串都会被截断，并在末尾添加“…”。请避免使用过长的名称。请注意，此政策仅适用于受管浏览器，对使用非受管浏览器的受管用户没有影响。在 <ph name="MS_WIN_NAME" /> 上，此政策仅适用于已加入 <ph name="MS_AD_NAME" /> 网域的实例、已加入 <ph name="MS_AAD_NAME" /> 的实例，或已注册 <ph name="CHROME_ENTERPRISE_CORE_NAME" />的实例。在 <ph name="MAC_OS_NAME" /> 上，此政策仅适用于通过 MDM 进行管理的实例、已通过 MCX 加入网域的实例或已在 <ph name="CHROME_ENTERPRISE_CORE_NAME" />中注册的实例。</translation>
 <translation id="1803646570632580723">要在启动程序中显示的固定应用的列表</translation>
 <translation id="1808715480127969042">在这些网站上阻止 Cookie</translation>
 <translation id="1810261428246410396">允许使用即时网络共享功能。</translation>
@@ -1445,15 +1467,6 @@ First-Party Set 中的所有网站都必须是采用 HTTPS 协议的可注册网
         如果此政策已启用或未设置，系统将允许在会话期间更新自助服务终端 Chrome 应用。
         </translation>
 <translation id="2082205219176343977">为设备配置允许使用的最低 Chrome 版本。</translation>
-<translation id="2083016623552073519">启用实时字幕翻译功能。系统会将字幕发送给 Google 进行翻译。
-
-如果此政策已启用，“实时翻译”功能将始终处于开启状态。
-
-如果此政策已停用，“实时翻译”功能将始终处于关闭状态。
-
-如果您将此政策设为强制性要求，用户便无法更改或覆盖它。
-
-如果未设置此政策，则“实时翻译”功能最初会处于停用状态，但用户可以随时启用该功能。</translation>
 <translation id="20838788335877967">停用关于用户标识信息的报告</translation>
 <translation id="208566302163036794">禁用已停用的功能</translation>
 <translation id="2086040449830622332">启用打印 LPAC 沙盒</translation>
@@ -1608,6 +1621,7 @@ First-Party Set 中的所有网站都必须是采用 HTTPS 协议的可注册网
 <translation id="2180958780733364832">控制对无头模式的使用权限</translation>
 <translation id="2182291258410176649">用户可决定是否启用备份和恢复服务</translation>
 <translation id="2183338188392346527">不报告设备运行时计数器数据</translation>
+<translation id="2187361040843865450">接受“Just Works”蓝牙配对请求</translation>
 <translation id="2187372280917024033">此政策用于指定所需 DNS-over-HTTPS 解析器的 URI 模板。若要指定多个 DNS-over-HTTPS 解析器，请使用空格分隔相应的 URI 模板。此政策与 <ph name="DOH_TEMPLATES_POLICY_NAME" /> 非常相似，并会覆盖后者（若已指定）。
 与 <ph name="DOH_TEMPLATES_POLICY_NAME" /> 政策相反，此政策支持指定身份信息。
 标识符使用变量占位符指定，这些占位符会在 <ph name="PRODUCT_NAME" /> 中替换为用户或设备信息。这些标识符不会以纯文本形式发送到 DNS 服务器；而是使用 <ph name="SHA256" /> 算法进行哈希处理，并使用大写十六进制编码。
@@ -1673,6 +1687,7 @@ IPv4 地址的前缀为 0010；IPv6 地址的前缀为 0020。对于双栈网络
 
       如果将此政策设置为 <ph name="VARIATIONS_DISABLED_OPTION_NAME" />（值为 2），则任何变体都不会在登录屏幕应用于浏览器。请注意，我们不建议您使用此模式，因为它可能会妨碍 <ph name="PRODUCT_OS_NAME" />开发者及时提供重要的安全性修复程序。</translation>
 <translation id="2215746393279570703">流动单点登录设置</translation>
+<translation id="2219724363635419721">停用实时字幕</translation>
 <translation id="2221779615493499989">报告已注册的设备上的用户网络状态。
 
       如果此政策设为 false，系统将不会报告这些信息。
@@ -1903,6 +1918,15 @@ IPv4 地址的前缀为 0010；IPv6 地址的前缀为 0020。对于双栈网络
 <translation id="2377059627106831967">允许使用生成式 AI 概览窗口分组功能，但不用其改进 AI 模型。</translation>
 <translation id="2377109572344699022">控制对 Direct Sockets API 的使用</translation>
 <translation id="2382672620906337383">在达到某个更高的嵌套阈值之后，JavaScript setTimeout() 才会被强制设为下限值。</translation>
+<translation id="2383521405943565490">此政策用于控制系统是否默认允许第三方存储分区。
+
+如果此政策设为 1（即 AllowPartitioning）或未设置，系统会默认允许第三方存储分区。您可以通过其他方式为特定顶级源覆盖此默认值。
+
+如果此政策设为 2（即 BlockPartitioning），系统会为所有上下文停用第三方存储分区。
+
+使用 <ph name="THIRD_PARTY_STORAGE_PARTITIONING_BLOCKED_FOR_ORIGINS_POLICY_NAME" /> 为特定顶级源停用第三方存储分区。如需详细了解第三方存储分区，请访问 https://developers.google.com/privacy-sandbox/cookies/storage-partitioning。
+
+此方法将在 Chrome 145 中移除，建议改用 requestStorageAccess 方法：https://developer.mozilla.org/en-US/docs/Web/API/Document/requestStorageAccess。您可以在 https://crbug.com/425248669 上提供反馈。</translation>
 <translation id="2386362615870139244">允许使用屏幕唤醒锁定</translation>
 <translation id="2387469539700985783">此政策对 Android 完成的报告没有任何影响。</translation>
 <translation id="2388701318721126001">如果此政策处于停用状态，用户将无法从 Google 相册中的相册选择<ph name="PRODUCT_OS_NAME" />壁纸图片。
@@ -2679,6 +2703,7 @@ IPv4 地址的前缀为 0010；IPv6 地址的前缀为 0020。对于双栈网络
 <translation id="2987155890997901449">启用 ARC</translation>
 <translation id="2987227569419001736">控制对 Web Bluetooth API 的使用</translation>
 <translation id="2989404644164421834">重新加载页面</translation>
+<translation id="299127280603727143">一组与“本地网络访问权限”设置相关的政策。请参阅 https://developer.chrome.com/blog/local-network-access</translation>
 <translation id="299446489108785864">以列表形式指定 <ph name="AUTO_OPEN_FILE_TYPES_POLICY_NAME" /> 会应用于哪些网址。此政策对用户设定的自动打开值没有任何影响。
 
       如果您设置了此政策，那么仅当文件的网址包含在列表中且文件类型已列在 <ph name="AUTO_OPEN_FILE_TYPES_POLICY_NAME" /> 中时，相应文件才会依照此政策自动打开。如果不符合上述任一条件，下载内容便不会依照此政策自动打开。
@@ -2898,6 +2923,7 @@ IPv4 地址的前缀为 0010；IPv6 地址的前缀为 0020。对于双栈网络
       如需详细了解有效的<ph name="URL_LABEL" />格式，请访问 https://cloud.google.com/docs/chrome-enterprise/policies/url-patterns。此政策只能根据来源进行匹配，因此网址格式中的任何路径都会被忽略。</translation>
 <translation id="3112501357749061018"><ph name="PRODUCT_NAME" /> 在验证服务器身份时应信任的 TLS 证书列表（在证书外部添加了限制条件）。如果没有特定类型的限制条件，则允许该类型的任何名称。
 证书应采用 base64 编码。必须为每个证书至少指定一项限制条件。</translation>
+<translation id="3113283011165145080">允许 <ph name="PRODUCT_NAME" /> 决定</translation>
 <translation id="3118552207903834734">允许用户配置其设备主机名</translation>
 <translation id="3122082892722698079">控制对不安全内容例外情况的使用</translation>
 <translation id="3125472566440502628">停用随选朗读</translation>
@@ -3223,6 +3249,15 @@ Microsoft Outlook 卡片需要由管理员进行额外配置。如需详细了�
       如需查看可用变量的列表，请访问 https://support.google.com/chrome/a?p=Supported_directory_variables。
 
       如果您未设置此政策，系统将会使用默认的个人资料路径，而用户可以使用“--user-data-dir”命令行标记来替换此路径。</translation>
+<translation id="3375276983689987930">选择将涵盖的用户 Chrome 企业版数据存储在特定地理位置。
+
+如果此政策未设置或设为 <ph name="DATA_REGION_SETTING_NO_PREFERENCE_OPTION_NAME" />（值为 0），则涵盖的数据可能会存储在任何地理位置。
+
+如果此政策设为 <ph name="DATA_REGION_SETTING_UNITED_STATES_OPTION_NAME" />（值为 1），则涵盖的数据将存储在美国。
+
+如果此政策设为 <ph name="DATA_REGION_SETTING_EUROPE_OPTION_NAME" />（值为 2），则涵盖的数据将存储在欧盟。
+
+此设置只能在 <ph name="GOOGLE_ADMIN_CONSOLE_PRODUCT_NAME" />中设置，方法是依次前往“数据”&gt;“法规遵从”&gt;“数据区域”&gt;“区域”&gt;“静态数据”。</translation>
 <translation id="3379326579027180941">允许网站请求用户授予通过 WebPrinting API 访问本地打印机的权限</translation>
 <translation id="3379368498958498146">启用或停用实体键盘的预测性撰写功能。
 
@@ -3240,6 +3275,15 @@ Microsoft Outlook 卡片需要由管理员进行额外配置。如需详细了�
 <translation id="3387999258705169775">为嵌套的 setTimeout() 函数强制限制值的默认行为。</translation>
 <translation id="3388628790024977864">禁止 <ph name="GOOGLE_DRIVE_NAME" />和 <ph name="GOOGLE_WORKSPACE_NAME" /> 使用<ph name="CLOUD_UPLOAD_NAME" />流程</translation>
 <translation id="3389088527709746815">针对远程访问主机启用 gnubby 身份验证</translation>
+<translation id="3393332712712388726">以列表形式指定一系列网址格式。从匹配源所提供网站中发起的请求不会受到<ph name="LOCAL_NETWORK_ACCESS" />检查机制的约束。
+
+如果某个源同时受此政策和 LocalNetworkAccessBlockedForUrls 政策的约束，则优先适用 LocalNetworkAccessBlockedForUrls 政策。
+
+对于与此处所列格式不匹配的源，系统会应用用户的个人配置。
+
+如需详细了解有效网址格式，请访问 https://cloud.google.com/docs/chrome-enterprise/policies/url-patterns。
+
+如需了解<ph name="LOCAL_NETWORK_ACCESS" />限制，请访问 https://github.com/explainers-by-googlers/local-network-access。</translation>
 <translation id="3395744872155955051">允许直接从 <ph name="GOOGLE_DRIVE_NAME" />选择文件</translation>
 <translation id="3397883909301547525">不在 <ph name="PRODUCT_OS_NAME" /> 启动器中显示推荐的应用</translation>
 <translation id="3398051852031115795">默认的系统行为（具体取决于屏幕大小）</translation>
@@ -3299,7 +3343,6 @@ Microsoft Outlook 卡片需要由管理员进行额外配置。如需详细了�
       日后，当内嵌登录全面支持所有 SSO 登录流程时，该实验性设置将会取消。</translation>
 <translation id="3435178885391813398">不允许使用扫描仪。</translation>
 <translation id="3435796032110614169">允许删除打印任务记录</translation>
-<translation id="3435896845095436175">启用</translation>
 <translation id="3436217793443508863">当使用电池供电时系统应在设备闲置多久（以毫秒为单位）后锁定屏幕</translation>
 <translation id="3437924696598384725">允许用户管理 VPN 连接</translation>
 <translation id="3441664787678256816">允许企业与这台计算机建立远程支持连接</translation>
@@ -3449,11 +3492,6 @@ Microsoft Outlook 卡片需要由管理员进行额外配置。如需详细了�
       如果此政策未设置，系统将不会应用任何限制条件。</translation>
 <translation id="3531084733660068324">家长监督设置</translation>
 <translation id="3532827558833318911">清除密码登录信息</translation>
-<translation id="353291262171579310">此政策用于控制是否在“新标签页”页面 (NTP) 的页脚中显示管理通知。默认情况下，当浏览器由组织管理时，NTP 页脚会显示相关信息（由建筑物图标和“由 [域名] 管理”表示）。您可以使用 <ph name="ENTERPRISE_CUSTOM_LABEL_FOR_BROWSER" /> 和 <ph name="ENTERPRISE_LOGO_URL_FOR_BROWSER" /> 政策对此进行自定义。
-
-如果此政策未设置或设为 true，受管理的浏览器将会显示带有图标的“受…管理”通知。
-
-如果此政策设为 false，管理通知将会隐藏。</translation>
 <translation id="353611922042274900">始终在登录屏幕上显示系统信息</translation>
 <translation id="3536263244905016305">停用网络代理自动发现 (WPAD) 优化设置</translation>
 <translation id="3539103206548425861">如果您设置了此政策，<ph name="PRODUCT_NAME" /> 中带有音频内容的视频可以自动播放（无需经过用户同意）。如果 <ph name="AUTOPLAY_ALLOWED_POLICY_NAME" /> 政策设为 True，此政策不会产生任何效力。如果 <ph name="AUTOPLAY_ALLOWED_POLICY_NAME" /> 设为 False，此政策中设置的任何网址格式都仍可自动播放视频。如果此政策在 <ph name="PRODUCT_NAME" /> 运行期间发生了更改，相应更改将仅适用于新打开的标签页。
@@ -3570,6 +3608,15 @@ Microsoft Outlook 卡片需要由管理员进行额外配置。如需详细了�
 
 如需详细了解生成式 AI 功能的数据处理机制，请访问 https://support.google.com/chrome/a?p=generative_ai_settings。</translation>
 <translation id="3606571057705314194">在浏览器启动时停用个人资料选择器</translation>
+<translation id="3607797531311171116">此政策控制在无法使用硬件 GPU 加速时，是否将 SwiftShader 用作 WebGL 回退方案。
+
+SwiftShader 曾用于在没有 GPU 加速的系统（例如无头系统或虚拟机）上支持 WebGL，但由于存在安全问题，该功能已被弃用。从 M139 开始，如果 WebGL 上下文创建操作原本会使用 SwiftShader，那么创建操作将失败。此政策允许浏览器或管理员暂时推迟弃用。
+
+如果此政策已启用，SwiftShader 将用作软件 WebGL 回退方案。
+
+如果此政策已停用或未设置，当硬件 GPU 加速不可用时，WebGL 上下文创建操作可能会失败。如果网页无法优雅地处理 WebGL 上下文创建失败的情况，则可能会出现异常行为。
+
+此政策只是暂时性政策，日后会被移除。</translation>
 <translation id="3608206578291537084">启用加密报告管道</translation>
 <translation id="3608281460204780443">在 <ph name="PRODUCT_OS_NAME" /> 启动器和新标签页中显示 Chrome 应用商店的图标</translation>
 <translation id="3612482251405108708">在锁屏上自动启动在线重新身份验证</translation>
@@ -3748,6 +3795,7 @@ Microsoft Outlook 卡片需要由管理员进行额外配置。如需详细了�
       如果您未设置这些政策，用户将可以自行选择代理设置。</translation>
 <translation id="3758249152301468420">停用开发者工具</translation>
 <translation id="3758910737665387561">允许设备使用 PluginVm</translation>
+<translation id="3759342194253299115">允许用户在设备上的无痕模式下开启或关闭 <ph name="PRIVACY_SANDBOX_NAME" /> 数字“指纹”收集保护设置。</translation>
 <translation id="3759650373178711405">您可以通过设置 <ph name="COOKIES_SESSION_ONLY_FOR_URLS_POLICY_NAME" /> 创建一个网址格式列表，从而指定哪些网站可以/无法为单个会话设置 Cookie，除非 <ph name="RESTORE_ON_STARTUP_POLICY_NAME" /> 政策设为一律恢复先前会话中的网址。
 
       如果您未设置此政策，那么，倘若 <ph name="DEFAULT_COOKIES_SETTINGS_POLICY_NAME" /> 已设置，系统便会将它应用于所有网站，否则就会应用用户的个人设置。指定的格式未涵盖的网址也会导致系统使用默认设置。
@@ -3918,6 +3966,7 @@ Microsoft Outlook 卡片需要由管理员进行额外配置。如需详细了�
 
       如果未设置此政策，将可以使用 SPDY 协议。</translation>
 <translation id="3885896818093825047">允许设置 <ph name="MICROSOFT_ONE_DRIVE_NAME" /></translation>
+<translation id="388940400023402072">在无痕模式下启用 <ph name="PRIVACY_SANDBOX_NAME" /> 数字“指纹”收集保护功能。</translation>
 <translation id="3889458462150559611">允许网站以不安全的方式向任何网络端点发送请求。</translation>
 <translation id="388999630001435491">允许 <ph name="PRODUCT_NAME" /> 仅连接到位于专用 IP 地址的设备</translation>
 <translation id="3891175633496805812">停用 Wilco 诊断和遥测控制器</translation>
@@ -4035,7 +4084,6 @@ Microsoft Outlook 卡片需要由管理员进行额外配置。如需详细了�
 <translation id="3982849521386211220">允许您配置可以发送企业报告的 Reporting API 端点[1] 列表。
 
 [1] https://www.w3.org/TR/reporting-1/#endpoint</translation>
-<translation id="398294729592983401">允许用户在设备上开启或关闭 <ph name="PRIVACY_SANDBOX_NAME" /> 数字“指纹”收集保护设置。</translation>
 <translation id="3983162212222338509">系统 DNS 解析可能在网络进程中运行，也可能在网络进程外运行，或部分在网络进程中、部分在网络进程外运行，具体取决于系统配置和功能标志。</translation>
 <translation id="3986700049001404598">允许用户通过 Chrome 任务管理器终止进程</translation>
 <translation id="398884292557092447">如果此政策设为 True 或未设置，则用户可以控制界面中的信用卡信息自动填充建议。
@@ -4553,7 +4601,6 @@ Microsoft Outlook 卡片需要由管理员进行额外配置。如需详细了�
 <translation id="4389073105055031853">允许用户管理所有证书</translation>
 <translation id="4389091865841123886">通过 TPM 机制配置远程认证。</translation>
 <translation id="4389113579547582722">允许显示弹出式提醒“App Store 评分”</translation>
-<translation id="4394049700291259645">停用</translation>
 <translation id="4395619678972620537">如果已启用此政策，WebRTC 对等连接可以降级至已过时的 TLS/DTLS（DTLS 1.0、TLS 1.0 和 TLS 1.1）协议版本。
       如果已停用或未设置此政策，这些 TLS/DTLS 版本会被停用。
 
@@ -4772,6 +4819,7 @@ Microsoft Outlook 卡片需要由管理员进行额外配置。如需详细了�
 
       如果未设置此政策，则用户可以停用系统中安装的任何插件。</translation>
 <translation id="4549695018986780856">启用 Manifest V2</translation>
+<translation id="4549729301485728119">默认值由其他因素决定</translation>
 <translation id="4554651132977135445">用户政策环回处理模式</translation>
 <translation id="4554991346503872538">一律不提供翻译</translation>
 <translation id="4555850956567117258">为该用户启用远程认证</translation>
@@ -4884,6 +4932,7 @@ Microsoft Outlook 卡片需要由管理员进行额外配置。如需详细了�
       * 如果 <ph name="FILTER_PLACEHOLDER" /> 设为 <ph name="EMPTY_DICTIONARY" />，系统在选择客户端证书时便不会受到额外限制。请注意，网络服务器提供的过滤条件仍然适用。
 
       如果此政策未设置，系统将不会为任何网站自动选择证书。</translation>
+<translation id="4607499333275488034">在无痕模式下停用 <ph name="PRIVACY_SANDBOX_NAME" /> 数字“指纹”收集保护功能。</translation>
 <translation id="4611983465824842867">不在不安全的表单中显示警告，也不停用自动填充功能</translation>
 <translation id="4615003180013429835">Sitelist 解析模式</translation>
 <translation id="4615436471607987736">自 M131 起，此政策已被弃用。此政策为用户提供一个临时选项，用于对 beforeunload 事件所触发的确认对话框的行为停用两个相关的修复项。
@@ -5018,11 +5067,6 @@ Microsoft Outlook 卡片需要由管理员进行额外配置。如需详细了�
 <translation id="468822697351680932">使用 Internet Explorer SiteList 政策作为规则来源</translation>
 <translation id="4693190628432874457">启用设备位置信息报告功能</translation>
 <translation id="4693779768620889402">基于扩展程序的目的地</translation>
-<translation id="4693861751987983072">如果此政策已启用，<ph name="PRODUCT_OS_NAME" /> 便会将使用情况指标和诊断数据（包括崩溃报告）反馈给 Google。如果此政策已停用，系统会关闭指标和诊断数据报告功能。
-
-对于受管设备，此政策默认处于启用状态，并且会向 Google 发送指标。
-
-对于非受管设备，用户可以决定是否发送指标。</translation>
 <translation id="4694138212536142867">启用设备硬件状态报告功能</translation>
 <translation id="4697581738794063407">控制网址参数过滤功能</translation>
 <translation id="4698895924806859508">不报告网络事件</translation>
@@ -5048,6 +5092,7 @@ Microsoft Outlook 卡片需要由管理员进行额外配置。如需详细了�
 <translation id="471269469779289997">允许使用内嵌图片功能，但不改进 AI 模型。</translation>
 <translation id="471360812659157054">window.webkitStorageInfo 将无法使用。</translation>
 <translation id="4715773950737036924">控制能否使用 Chrome 应用商店中处于未发布状态的扩展程序。</translation>
+<translation id="4716374625338793065">“本地网络访问权限”设置</translation>
 <translation id="4722122254122249791">为指定的来源启用网站隔离功能</translation>
 <translation id="4722761845551711583">当为登录屏幕设定的屏保有多张可显示的图片时，此政策可用于指定图片显示的间隔时间（以秒为单位）。
 
@@ -5318,6 +5363,7 @@ Microsoft Outlook 卡片需要由管理员进行额外配置。如需详细了�
           如果您设置了此政策，用户将无法更改或覆盖它。
 
           如果此政策未设置，“单声道音频”在登录屏幕上最初会处于停用状态，但用户可以随时启用它。</translation>
+<translation id="493253860646951791">启用对不安全的 SwiftShader WebGL 回退方案的支持</translation>
 <translation id="4933301190614090397">控制在浏览器关闭时系统对 keepalive 请求的处理时长（以秒为单位）。
 
       如果您指定了此政策，系统在关闭浏览器时便可延迟所设秒数之久，以处理 keepalive (https://fetch.spec.whatwg.org/#request-keepalive-flag) 请求。
@@ -5396,6 +5442,15 @@ Microsoft Outlook 卡片需要由管理员进行额外配置。如需详细了�
 
 如果您没有为某个网站设置此政策，那么，倘若 <ph name="DEFAULT_JAVA_SCRIPT_OPTIMIZER_SETTING_POLICY_NAME" /> 中的政策已设置，系统便会将它应用于该网站，否则就会为该网站启用 JavaScript 优化功能。</translation>
 <translation id="4960597185231686653">一个布尔值标记，用于表明屏幕键盘能否提供语音输入功能。</translation>
+<translation id="49677896192199414">启用实时字幕。
+
+如果此政策已启用，实时字幕将始终处于开启状态。
+
+如果此政策已停用，实时字幕将始终处于关闭状态。
+
+如果您将此政策设为强制性要求，用户便无法更改或覆盖它。
+
+如果此政策未设置，则实时字幕最初会处于停用状态，但用户可以随时启用该功能。</translation>
 <translation id="4970046075219007744">允许 Web 应用通过 File Handling API 请求用户授权其访问各类文件</translation>
 <translation id="4970855112942626932">禁止登录浏览器</translation>
 <translation id="4974091268178043378">ChromeOS 颜色模式</translation>
@@ -5475,6 +5530,7 @@ Microsoft Outlook 卡片需要由管理员进行额外配置。如需详细了�
 在 <ph name="MAC_OS_NAME" /> 上，此政策仅适用于通过 MDM 进行管理的实例、已通过 MCX 加入网域的实例或已在 <ph name="CHROME_ENTERPRISE_CORE_NAME" />中注册的实例。</translation>
 <translation id="5037749623252479780">PageUp/PageDown 设置已停用</translation>
 <translation id="5039110755072335605">对 CORS 非通配符式请求标头的支持情况</translation>
+<translation id="5039804452771397117">允许</translation>
 <translation id="504116558738617678">仅在相应设备不受管理或只有 1 个用户时显示磁盘空间不足警告</translation>
 <translation id="5041315457555330432">允许 <ph name="PRODUCT_NAME" /> 仅连接到位于专用 IP 地址的设备，除非 CastAllowAllIPs 功能已开启。</translation>
 <translation id="504689994545234073">允许在本地存储用户文件</translation>
@@ -5657,6 +5713,27 @@ Microsoft Outlook 卡片需要由管理员进行额外配置。如需详细了�
 
 如果您停用此政策，系统会停用二维码生成器功能。</translation>
 <translation id="5170018694841697392">不强制在 Google 搜索中使用安全搜索功能</translation>
+<translation id="5172109919208094208">此政策列出了用户可在地址栏中使用快捷字词迅速搜索的网站。用户只需在地址栏中输入快捷字词或 @快捷字词（例如 @work），然后按空格键或 Tab 键，即可发起搜索。
+
+对于每个网站，都必须填写以下字段：<ph name="NAME_SITE_SEARCH_SETTINGS_FIELD" />、<ph name="SHORTCUT_SITE_SEARCH_SETTINGS_FIELD" /> 和 <ph name="URL_SITE_SEARCH_SETTINGS_FIELD" />。
+
+<ph name="NAME_SITE_SEARCH_SETTINGS_FIELD" /> 字段对应于要在地址栏中向用户显示的网站或搜索引擎的名称。
+
+<ph name="SHORTCUT_SITE_SEARCH_SETTINGS_FIELD" /> 可以包含纯文字和字符，但不得包含空格，也不得以 @ 符号开头。快捷字词不得重复。
+
+对于每个条目，<ph name="URL_SITE_SEARCH_SETTINGS_FIELD" /> 字段用于指定使用相应关键字进行搜索时所用搜索引擎的网址。该网址必须包含字符串 <ph name="SEARCH_TERM_MARKER" />；当用户执行查询时，系统会将此字符串替换成用户的搜索字词。无效条目和包含重复快捷字词的条目会被忽略。
+
+当用户输入“@”时，配置为“默认选用”的网站搜索条目会显示在地址栏中。最多可选择 3 个条目作为默认选用的条目。
+
+对于 <ph name="ALLOW_USER_OVERRIDE_SITE_SEARCH_SETTINGS_FIELD" /> 为 true 的网站搜索条目，用户可以修改或停用该条目。不过，默认选用的引擎（以“@”开头）只能停用。如果用户修改了此政策最初创建的条目，该条目将不再受政策管理，而会被视为用户创建的快捷字词。如果网站搜索条目的 <ph name="ALLOW_USER_OVERRIDE_SITE_SEARCH_SETTINGS_FIELD" /> 为 false 或未指定，用户将无法修改或停用该条目。只有 M139 及更高版本允许用户覆盖设置；较早版本将默认禁止用户覆盖。
+
+用户无法使用之前通过此政策创建的快捷字词来创建新的网站搜索条目，除非 <ph name="ALLOW_USER_OVERRIDE_SITE_SEARCH_SETTINGS_FIELD" /> 已针对该网站搜索条目设为 true。
+
+如果与用户之前创建的快捷字词冲突，系统会优先使用用户设置。不过，用户仍然可以在搜索栏中输入“@”来触发由此政策创建的选项。例如，如果用户已将“work”定义为 URL1 的快捷字词，并且此政策将“work”定义为 URL2 的快捷字词，则在搜索栏中输入“work”将会触发对 URL1 的搜索，但在搜索栏中输入“@work”会触发对 URL2 的搜索。
+
+在 <ph name="MS_WIN_NAME" /> 上，此政策仅适用于已加入 <ph name="MS_AD_NAME" /> 网域的实例、已加入 <ph name="MS_AAD_NAME" /> 的实例或已在 <ph name="CHROME_ENTERPRISE_CORE_NAME" />中注册的实例。
+
+在 <ph name="MAC_OS_NAME" /> 上，此政策仅适用于通过 MDM 进行管理的实例、已通过 MCX 加入网域的实例或已在 <ph name="CHROME_ENTERPRISE_CORE_NAME" />中注册的实例。</translation>
 <translation id="5172841243186654432">您可以通过设置 <ph name="COOKIES_SESSION_ONLY_FOR_URLS_POLICY_NAME" /> 创建一个网址格式列表，从而指定哪些网站可以/无法为单个会话设置 Cookie，除非 <ph name="RESTORE_ON_STARTUP_POLICY_NAME" /> 政策设为一律恢复先前会话中的网址。
 
       如果您未设置此政策，那么，倘若 <ph name="DEFAULT_COOKIES_SETTINGS_POLICY_NAME" /> 已设置，系统便会将它应用于所有网站，否则就会应用用户的个人设置。指定的格式未涵盖的网址也会导致系统使用默认设置。
@@ -6140,8 +6217,18 @@ Microsoft Outlook 卡片需要由管理员进行额外配置。如需详细了�
 <translation id="5476152378885134514">禁止这些网站使用剪贴板</translation>
 <translation id="5479841110985196412">启用无障碍虚拟键盘</translation>
 <translation id="5480380613778757009">如果此政策已停用或未设置，系统将会在受管理访客会话完成后立即重置该会话中已设置的所有显示设置。如果此政策设为 True，系统将会在退出受管理访客会话后保留该会话的显示属性。</translation>
+<translation id="548137908954174608">启用实时字幕</translation>
 <translation id="5483012943408894695">针对不安全来源的安全性限制不适用于哪些来源或主机名模式</translation>
 <translation id="5483065054530244863">允许使用由本地信任锚颁发的 SHA-1 签名证书</translation>
+<translation id="5485491014653571963">此设置会控制 Gemini 应用集成。
+
+0/未设置表示用户可以集成 Gemini。
+
+1 表示用户无法集成 Gemini。
+
+如果此政策未设置，其行为将由 <ph name="GEN_AI_DEFAULT_SETTINGS_POLICY_NAME" /> 政策决定。
+
+如需了解详情，请参阅帮助中心文章 https://support.google.com/chrome/a?p=gemini_in_chrome。</translation>
 <translation id="5486352219019836984">如果已启用此政策，匿名报告功能会默认处于启用状态（推荐），自动向 Google 报告与 <ph name="PRODUCT_NAME" /> 的使用情况和崩溃情况相关的数据。用户将仍能更改此设置。
 
 如果已停用此政策，匿名报告功能会处于停用状态，不向 Google 发送任何与使用情况或崩溃情况相关的数据。用户将无法更改此设置。
@@ -6337,17 +6424,6 @@ Microsoft SharePoint 和 OneDrive 卡片需要由管理员进行额外配置。�
 如果此政策未设置，系统会禁止所有网域在 PDF 查看器中访问 file:// 网址。</translation>
 <translation id="5585424654425017599">允许集成</translation>
 <translation id="5586942249556966598">不执行任何操作</translation>
-<translation id="5595355842329604596">此政策用于为其涵盖的所有生成式 AI 功能定义默认设置。例如，如果此政策的值设为 1，则 1 将是其涵盖的所有生成式 AI 功能的默认设置。这不会影响任何手动设置的政策值。此设置将为 <ph name="GEMINI_SETTINGS_POLICY_NAME" /> 和受此政策约束的 Chrome 生成式 AI 功能定义默认值。如需查看此政策涵盖的功能列表，请访问 https://support.google.com/chrome/a?p=generative_ai_settings。
-
-0 表示允许使用此功能，同时允许 Google 使用相关数据改进其 AI 模型。相关数据可能包括提示、输入、输出、素材和书面反馈，具体取决于相应功能。工作人员也可能会审核这些数据，以改进 AI 模型。除非下文另有说明，否则默认值是 0。
-
-1 表示允许使用此功能，但不允许 Google 使用用户内容（包括提示、输入、输出、素材和书面反馈）改进模型。对于受 <ph name="GOOGLE_ADMIN_CONSOLE_PRODUCT_NAME" />管理的企业用户和受 <ph name="GOOGLE_WORKSPACE_PRODUCT_NAME" /> 管理的教育版账号，默认值是 1。
-
-2 表示不允许使用此功能。
-
-如果此政策涵盖的 Chrome 功能没有对应的政策值，系统将使用最接近的较高值。某些政策（例如 <ph name="GEMINI_SETTINGS_POLICY_NAME" />）仅支持“允许”和“不允许”状态。如果 <ph name="GEN_AI_DEFAULT_SETTINGS_POLICY_NAME" /> 政策设为 0 或 1，系统将允许使用此功能。如果此政策设为 2，系统将禁止使用此功能。请查看各功能的文档，详细了解各功能如何与此政策中的值相互作用。
-
-如需详细了解生成式 AI 功能的数据处理机制，请访问 https://support.google.com/chrome/a?p=generative_ai_settings。</translation>
 <translation id="5597542113049786516">此政策控制网页是否可以使用内置的 AI API（例如 <ph name="LANGUAGE_MODEL_API_NAME" />、<ph name="SUMMARIZATION_API_NAME" />、<ph name="WRITER_API_NAME" /> 和 <ph name="REWRITER_API_NAME" />）。
 
 如果此政策已启用或未设置，则这些 API 将被启用。
@@ -6506,7 +6582,6 @@ Microsoft SharePoint 和 OneDrive 卡片需要由管理员进行额外配置。�
 <translation id="5670249935663090320">如果此政策已启用或未设置，系统将会开启 <ph name="PRODUCT_NAME" /> 以供用户从以下位置启动：应用菜单、页面上下文菜单、支持 Cast 的网站上的媒体控件，以及（如果显示的话）Cast 工具栏图标。
 
 如果此政策已停用，系统会关闭 <ph name="PRODUCT_NAME" />。</translation>
-<translation id="5673254755365419402">启用 <ph name="PRIVACY_SANDBOX_NAME" /> 数字“指纹”收集保护功能。</translation>
 <translation id="567377007899266033">如果此政策设为 True，系统便会向 Google 报告由政策触发的主要扩展程序安装事件。将此政策设为 False 意味着系统不会记录任何事件。如果此政策未设置，系统会将默认值设为 True。</translation>
 <translation id="5673780539191375049">设置在 <ph name="PRODUCT_OS_NAME" /> 设备上自动重新加载用户身份验证流程的时间间隔（以分钟为单位）。我们引入此政策的目的是应对设备处于空闲状态一段时间后，身份验证流程中使用的某些服务的过期问题。
 
@@ -6570,6 +6645,7 @@ Microsoft SharePoint 和 OneDrive 卡片需要由管理员进行额外配置。�
 <translation id="5722577409367087850">加载该扩展程序</translation>
 <translation id="5728154254076636808">允许创建 <ph name="PRODUCT_NAME" /> 个人资料数据的漫游副本</translation>
 <translation id="5729308727912841256">Kerberos 密码。占位符 <ph name="PASSWORD_PLACEHOLDER" /> 会被登录密码取代。</translation>
+<translation id="5730610899971390601">拒绝“Just Works”蓝牙配对请求</translation>
 <translation id="5732972008943405952">首次运行时，从默认浏览器导入自动填充表单数据</translation>
 <translation id="5733040281451845496">如果此政策已启用，仅当在会话内察觉到首项用户活动后，系统才会开始应用电源管理延迟时间和会话时长限制。
 
@@ -6596,6 +6672,9 @@ Microsoft SharePoint 和 OneDrive 卡片需要由管理员进行额外配置。�
 <translation id="5740636973289452345">启用关于扩展程序和插件信息的报告</translation>
 <translation id="5740716956489996914">在确定网站能否向本地网络端点发送请求时使用默认行为</translation>
 <translation id="5741110260062082926">停用 Orca</translation>
+<translation id="5746126833785204233">如果此政策已启用，当设备运行自助服务终端应用时，系统会收集此类应用级别的日志，且涵盖所有类型的自助服务终端应用。
+这些日志会存储在单独的 kiosk_apps.log 文件中。
+如果此政策未设置或已停用，系统将不会收集自助服务终端应用级别的日志。</translation>
 <translation id="5746149754419996562">允许在 <ph name="PRODUCT_OS_NAME" /> 上显示 Glanceables widget。具体来说就是，可通过任务栏上的条状日期标签访问这些 widget。
 如果此政策已启用，系统会在 <ph name="PRODUCT_OS_NAME" /> 上启用 Glanceables。
 如果此政策已停用或未设置，系统不会在 <ph name="PRODUCT_OS_NAME" /> 上启用 Glanceables。</translation>
@@ -6715,6 +6794,17 @@ Microsoft SharePoint 和 OneDrive 卡片需要由管理员进行额外配置。�
 <translation id="5860010874344790473">如果此政策已启用，系统会将系统日志发送到管理服务器以供管理员监控。
 
       如果此政策已停用或未设置，系统将不会报告任何系统日志。</translation>
+<translation id="5860520143792505638">以列表形式指定一系列网址格式。从匹配源所提供网站中发起的请求将无法发出<ph name="LOCAL_NETWORK_ACCESS" />请求。
+
+如果源同时受此政策和 LocalNetworkAccessAllowedForUrls 政策的约束，则优先适用此政策。
+
+根据<ph name="LOCAL_NETWORK_ACCESS" />的推出阶段，可能还需要启用 LocalNetworkAccessRestrictionsEnabled，才能让此政策屏蔽<ph name="LOCAL_NETWORK_ACCESS" />请求。
+
+对于与此处所列格式不匹配的源，系统会应用用户的个人配置。
+
+如需详细了解有效网址格式，请访问 https://cloud.google.com/docs/chrome-enterprise/policies/url-patterns。
+
+如需了解<ph name="LOCAL_NETWORK_ACCESS" />限制，请访问 https://github.com/explainers-by-googlers/local-network-access。</translation>
 <translation id="5861856285460256766">家长访问码配置</translation>
 <translation id="5864898931148094192">控制是否在“新标签页”页面上显示扩展程序来源信息</translation>
 <translation id="5868414965372171132">用户级网络配置</translation>
@@ -6923,7 +7013,6 @@ Microsoft SharePoint 和 OneDrive 卡片需要由管理员进行额外配置。�
 如需了解详情，请参阅 <ph name="DEFAULT_DIRECT_SOCKETS_SETTING_POLICY_NAME" />、<ph name="DIRECT_SOCKETS_ALLOWED_FOR_URLS_POLICY_NAME" /> 和 <ph name="DIRECT_SOCKETS_BLOCKED_FOR_URLS_POLICY_NAME" />。
 
 此政策仅适用于新的连接尝试，不会使现有连接失效。</translation>
-<translation id="5981932073854958705">选择是否启用 <ph name="PRIVACY_SANDBOX_NAME" /> 数字“指纹”收集保护功能。</translation>
 <translation id="5983274643567559194">为“Delete”操作设置快捷键的功能已停用。</translation>
 <translation id="5984099692320899605">不使用 NTLM 身份验证</translation>
 <translation id="5984237109586500246">接受通过 Signed HTTP Exchange (SXG) 提供的网络内容</translation>
@@ -7048,6 +7137,7 @@ Microsoft SharePoint 和 OneDrive 卡片需要由管理员进行额外配置。�
 我们正在取消对该 API 的支持，如果在这个过程中遇到问题，可以使用此政策。如果您必须使用此政策，请在 crbug.com 上提交 bug 以说明您的使用情形并抄送 {blundell, vasilyt}@chromium.org。此政策的有效期会一直持续到 <ph name="PRODUCT_NAME" /> 114 版，之后我们将无条件地取消对该 API 的支持。
 
 注意：在浏览器运行期间，只有新启动的渲染程序进程才会反映对此政策的更改。</translation>
+<translation id="6083281887050888160">启用“Just Works”蓝牙配对</translation>
 <translation id="6083631234867522991">Windows（Windows 客户端）：</translation>
 <translation id="6087413944876892918">使用 <ph name="HAPPY_EYEBALLS_V3" /> 算法</translation>
 <translation id="608788685013546076">设定用电高峰转移电量阈值（以百分比表示）</translation>
@@ -7366,15 +7456,6 @@ Origin-Agent-Cluster HTTP 标头可控制是将某个文档隔离在以源为键
 源必须对应于使用 <ph name="WEB_APP_INSTALL_FORCE_LIST_POLICY_NAME" /> 或 <ph name="ISOLATED_WEB_APP_INSTALL_FORCE_LIST_POLICY_NAME" />（自 125 版起）政策强制安装的 Web 应用或设置为自助服务终端应用。如需了解 Device Attributes API 规范，请参阅 https://wicg.github.io/WebApiDevice/device_attributes。
 
 如需详细了解有效的<ph name="URL_LABEL" />格式（自 127 版起），请参阅 https://cloud.google.com/docs/chrome-enterprise/policies/url-patterns。<ph name="WILDCARD_VALUE" /> 不是此政策可接受的值。</translation>
-<translation id="6286385444341934784">此设置会控制 Gemini 应用集成。
-
-0/未设置表示用户可以集成 Gemini。
-
-1 表示用户无法集成 Gemini。
-
-如果此政策未设置，其行为将由 <ph name="GEN_AI_DEFAULT_SETTINGS_POLICY_NAME" /> 政策决定。
-
-如需了解详情，请查看企业版版本说明 (https://support.google.com/chrome/a/answer/7679408)。</translation>
 <translation id="6287128640500683781">允许任何用户登录</translation>
 <translation id="6287310684159482272">Cookie 设置</translation>
 <translation id="6287742528823584153">启用<ph name="PRODUCT_NAME" />服务，且登录时启动远程桌面</translation>
@@ -7515,13 +7596,6 @@ Origin-Agent-Cluster HTTP 标头可控制是将某个文档隔离在以源为键
 <translation id="6371005337713685988">Related Website Sets 设置</translation>
 <translation id="6371561334154580937">在用户关闭最后一个窗口时显示让用户确认退出登录的对话框。</translation>
 <translation id="6372105930898423193">允许重新启用 AppCache 功能，即使此功能默认处于关闭状态。</translation>
-<translation id="6372676668820850849">此政策用于控制系统是否默认允许第三方存储分区。
-
-如果此政策设为 1（即 AllowPartitioning）或未设置，系统会默认允许第三方存储分区。您可以通过其他方式为特定顶级源覆盖此默认值。
-
-如果此政策设为 2（即 BlockPartitioning），系统会为所有上下文停用第三方存储分区。
-
-使用 <ph name="THIRD_PARTY_STORAGE_PARTITIONING_BLOCKED_FOR_ORIGINS_POLICY_NAME" /> 为特定顶级源停用第三方存储分区。如需详细了解第三方存储分区，请访问 https://developers.google.com/privacy-sandbox/cookies/storage-partitioning。</translation>
 <translation id="6373299801585455337">启用设备 CPU 信息报告功能</translation>
 <translation id="6374945506685352202">扩展程序安装类型的屏蔽名单</translation>
 <translation id="6376540107659524656">停用终端系统应用中的 SSH</translation>
@@ -7649,11 +7723,6 @@ Origin-Agent-Cluster HTTP 标头可控制是将某个文档隔离在以源为键
 <translation id="6440051664870270040">允许网站在导航的同时打开弹出式窗口</translation>
 <translation id="6441781723322254041">允许使用被截断的 Cookie</translation>
 <translation id="6446366416439249472">禁止在连接移动网络的情况下进行 Google 云端硬盘同步</translation>
-<translation id="6447628816682315403">此政策用于控制是否为您的用户启用 <ph name="PRIVACY_SANDBOX_NAME" /> 数字“指纹”收集保护设置。
-
-如果此政策已停用，那么系统会为您的用户关闭数字“指纹”收集保护功能设置。
-如果此政策已启用，那么系统会为您的用户开启数字“指纹”收集保护功能设置。
-如果未设置此政策，用户将能够在界面设置中开启或关闭数字“指纹”收集保护功能。默认状态为 false 或已停用，这表示将关闭数字“指纹”收集保护功能。</translation>
 <translation id="6447948611083700881">已停用备份和恢复服务</translation>
 <translation id="6449476513004303784">禁止用户管理证书</translation>
 <translation id="6449541189334851559">启用 <ph name="GOOGLE_CALENDAR_NAME" />集成，以便 <ph name="PRODUCT_OS_NAME" /> 用户从 <ph name="GOOGLE_CALENDAR_NAME" />提取活动来填充系统状态栏中的 <ph name="PRODUCT_OS_NAME" /> 日历微件。
@@ -7792,6 +7861,7 @@ Origin-Agent-Cluster HTTP 标头可控制是将某个文档隔离在以源为键
 <translation id="6513453889192806240">HTTPS 延迟</translation>
 <translation id="6515357889978918016"><ph name="PLUGIN_VM_NAME" /> 图片</translation>
 <translation id="6518102411616460786">为实现版本降级，等待当前版本有可用的稳定版</translation>
+<translation id="6518286606938091609">停用对不安全的 SwiftShader WebGL 回退方案的支持</translation>
 <translation id="6518894783486860562">出于安全考虑，调用 <ph name="SHOW_SUBAPPS_APP_API_NAME" />、<ph name="SHOW_SUBAPPS_REMOVE_API_NAME" /> 和 <ph name="SHOW_SUBAPPS_LIST_API_NAME" /> Web API 需要使用以往用户手势（“暂时激活”），否则会失败。此外，用户还需要通过确认对话框确认相应操作。
 
 如果此政策已设置，管理员可以指定哪些源不需要使用以往用户手势，也无需请求用户确认，即可调用这些 API。
@@ -8012,6 +8082,7 @@ Origin-Agent-Cluster HTTP 标头可控制是将某个文档隔离在以源为键
 <translation id="6665670272107384733">指定用户必须按什么样的频率输入密码才能使用快速解锁功能</translation>
 <translation id="6667586534922258705">在登录屏幕和锁定的屏幕上显示“显示密码”按钮</translation>
 <translation id="6667636336079341367">允许使用扫描仪，但不改进 AI 模型。</translation>
+<translation id="6669244130218275293">选择是否在无痕模式下启用 <ph name="PRIVACY_SANDBOX_NAME" /> 数字“指纹”收集保护功能。</translation>
 <translation id="6669691206059842248">为每个扩展程序配置额外的 OAuth 重定向网址</translation>
 <translation id="6669700740683748046">此功能可让系统在地址栏中显示完整网址。
       如果此政策设为 True，系统将会在地址栏中显示包含协议和子网域的完整网址。
@@ -8034,6 +8105,15 @@ Origin-Agent-Cluster HTTP 标头可控制是将某个文档隔离在以源为键
 
 如果此政策设为 False，系统会禁止将端口转发到 Crostini 容器。</translation>
 <translation id="6677291257287862684">为登录屏幕启用粘滞键</translation>
+<translation id="6677886356657067286">此政策允许您设置一个网址格式列表，用于指定哪些顶级源应停用第三方存储分区（即跨源 iframe 存储分区）。
+
+如果此政策未设置或顶级源与其中一个网址格式不匹配，系统将会应用 <ph name="DEFAULT_THIRD_PARTY_STORAGE_PARTITIONING_SETTING_POLICY_NAME" />。
+
+如需详细了解有效的格式，请访问 https://cloud.google.com/docs/chrome-enterprise/policies/url-patterns。请注意，您在此处列出的格式会被系统视为源（而非网址），因此您不应指定路径。
+
+如需详细了解第三方存储分区，请访问 https://developers.google.com/privacy-sandbox/cookies/storage-partitioning。
+
+此方法将在 Chrome 145 中移除，建议改用 requestStorageAccess 方法：https://developer.mozilla.org/en-US/docs/Web/API/Document/requestStorageAccess。您可以在 https://crbug.com/425248669 上提供反馈。</translation>
 <translation id="668153983584136017">此政策已被弃用，因为自 M103 起，新版 GREASE 算法已默认处于启用状态。
 启用用户代理客户端提示 GREASE 更新功能后，此功能会按照最新规范来更新用户代理 GREASE 算法。
      如果某些网站限制了请求中可包含的字符，更新后的规范可能会导致这些网站无法正常运作。如需了解详情，请参阅规范：https://wicg.github.io/ua-client-hints/#grease
@@ -8362,6 +8442,7 @@ Origin-Agent-Cluster HTTP 标头可控制是将某个文档隔离在以源为键
 <translation id="6907778402784621686">禁止在这些网站上显示不安全内容</translation>
 <translation id="6908335885425855120">使用进程外 iframe PDF 查看器</translation>
 <translation id="6908640907898649429">配置默认搜索服务提供商。您可以指定用户会使用的默认搜索服务提供商，或选择停用默认搜索。</translation>
+<translation id="6910715067772088598">停用自助服务终端应用日志</translation>
 <translation id="6913068954484253496">允许 <ph name="PRODUCT_NAME" /> 连接到位于所有 IP 地址的 Cast 设备。</translation>
 <translation id="6915493311660114995">如果此政策已启用，<ph name="PRODUCT_NAME" /> 将允许在 TLS 证书含有错误的网站（即，那些被视为不安全的网站）上发出网络身份验证请求。
 
@@ -8437,6 +8518,7 @@ Origin-Agent-Cluster HTTP 标头可控制是将某个文档隔离在以源为键
       若未设置，便不存在任何设备打印机，同时其他 <ph name="DEVICE_PRINTERS_POLICY_PATTERN" /> 政策会被忽略。</translation>
 <translation id="69525503251220566">用来为默认搜索服务提供商提供图片搜索功能的参数</translation>
 <translation id="6953102253399571439">默认启用 PIN 码打印</translation>
+<translation id="695532899547292238">启用自助服务终端应用日志收集功能</translation>
 <translation id="6956272732789158625">不允许任何网站使用密钥生成功能</translation>
 <translation id="6960996423652450945">禁止在登录屏幕上使用插入符号突出显示</translation>
 <translation id="6961602002757991199">如果此政策设为一个有效网址，<ph name="PRODUCT_NAME" /> 就会从该网址下载网站列表，并参照 <ph name="BROWSER_SWITCHER_URL_GREYLIST_POLICY_NAME" /> 政策的设定应用相应规则。这些政策会阻止 <ph name="PRODUCT_NAME" /> 和备用浏览器互相打开。
@@ -8587,6 +8669,11 @@ Origin-Agent-Cluster HTTP 标头可控制是将某个文档隔离在以源为键
 <translation id="7046113122884041950">不允许使用 Smart Lock</translation>
 <translation id="7046997898355294677">显示隐私权通知，直到被用户关闭</translation>
 <translation id="7047495632846973438">指定是让系统遵循还是忽略显示面截取权限政策。</translation>
+<translation id="7053807509123417914">此政策可控制用于标识受管浏览器的自定义标签。对于受管浏览器，此标签会显示在“新标签页”页面页脚的管理免责声明中。系统不会翻译该自定义标签。
+
+请注意，此政策仅适用于受管浏览器，对使用非受管浏览器的受管用户没有影响。在 <ph name="MS_WIN_NAME" /> 上，此政策仅适用于已加入 <ph name="MS_AD_NAME" /> 网域的实例、已加入 <ph name="MS_AAD_NAME" /> 的实例或已在 <ph name="CHROME_ENTERPRISE_CORE_NAME" />中注册的实例。
+
+在 <ph name="MAC_OS_NAME" /> 上，此政策仅适用于通过 MDM 进行管理的实例、已通过 MCX 加入网域的实例或已在 <ph name="CHROME_ENTERPRISE_CORE_NAME" />中注册的实例。</translation>
 <translation id="7055022222176591388">禁止使用已过时的 <ph name="FLASH_PLUGIN_NAME" /></translation>
 <translation id="7056040036973126753">系统可能会根据 Chrome 用户指标 (UMA) 政策将网域可靠性数据发送给 Google</translation>
 <translation id="7062803946218028349">允许启用 Phone Hub</translation>
@@ -8733,6 +8820,11 @@ Origin-Agent-Cluster HTTP 标头可控制是将某个文档隔离在以源为键
 
       系统可识别的连接类型标识符包括 <ph name="CONNECTION_TYPE_ETHERNET_NAME" />、<ph name="CONNECTION_TYPE_WIFI_NAME" /> 和 <ph name="CONNECTION_TYPE_CELLULAR_NAME" />。</translation>
 <translation id="7150722575502017208">不要求本地用户的名称和远程访问主机所有者的名称一致</translation>
+<translation id="7150775293604912624">如果此政策设为 True，<ph name="PRODUCT_NAME" /> 将会自动播放媒体。如果此政策设为 False，<ph name="PRODUCT_NAME" /> 不会自动播放媒体。
+
+如果此政策未设置，<ph name="PRODUCT_NAME" /> 不会自动播放媒体。但是，对于某些网址格式，您可以使用 <ph name="AUTOPLAY_ALLOWLIST_POLICY_NAME" /> 政策更改此设置。
+
+如果此政策在 <ph name="PRODUCT_NAME" /> 运行期间发生了更改，相应更改将仅适用于新打开的标签页。</translation>
 <translation id="7151366515472588710">客户端不应解释此数据，而应一字不差地转发它。DMServer 使用 policy_version 验证 DMServer 的政策视图是否与 Chrome 操作系统设备的视图匹配。</translation>
 <translation id="7152640356717355643">启用设备网络接口报告功能</translation>
 <translation id="7153786895642570081">此政策用于控制 EphemeralNetworkPolicies 功能的启用状态。
@@ -8929,6 +9021,7 @@ Origin-Agent-Cluster HTTP 标头可控制是将某个文档隔离在以源为键
 
       此政策仅适用于向 ARCVM 迁移的 ARM 设备。</translation>
 <translation id="731208205557053914">报告 VPD 信息</translation>
+<translation id="7312630060538223455">允许网站向本地网络端点发送请求。</translation>
 <translation id="7313672174502374994">相应壁纸图片的 SHA-256 哈希值。</translation>
 <translation id="7317472245305274219">控制是否默认在 iCloud 钥匙串中创建通行密钥。</translation>
 <translation id="7318503436349210241">已启用：CSS 缩放将遵循标准规范。</translation>
@@ -9084,13 +9177,6 @@ Origin-Agent-Cluster HTTP 标头可控制是将某个文档隔离在以源为键
 <translation id="7463934096276667908">启用带前缀的视频全屏 API</translation>
 <translation id="7464058117970792805">启用打印预览</translation>
 <translation id="7464991223784276288">仅在当前会话中使用来自相符网址的 Cookie</translation>
-<translation id="7467748623079596345">此政策允许您设置一个网址格式列表，用于指定哪些顶级源应停用第三方存储分区（即跨源 iframe 存储分区）。
-
-如果此政策未设置或顶级源与其中一个网址格式不匹配，系统将会应用 <ph name="DEFAULT_THIRD_PARTY_STORAGE_PARTITIONING_SETTING_POLICY_NAME" />。
-
-如需详细了解有效的格式，请访问 https://cloud.google.com/docs/chrome-enterprise/policies/url-patterns。请注意，您在此处列出的格式会被系统视为源（而非网址），因此您不应指定路径。
-
-如需详细了解第三方存储分区，请访问 https://developers.google.com/privacy-sandbox/cookies/storage-partitioning。</translation>
 <translation id="7468182772656807573">通过设置此政策，您可决定监控网络数据包的发送频率（以毫秒为单位）。时间间隔应介于 30 秒到 24 小时之间。任何不在此范围内的值都会被强制改为距其较近的那个限值（上限值或下限值）。
 
       如果此政策未设置，系统会应用默认时间间隔（3 分钟）。</translation>
@@ -9237,6 +9323,7 @@ Origin-Agent-Cluster HTTP 标头可控制是将某个文档隔离在以源为键
 <translation id="7586199729147257934">为受管理的浏览器启用客户端证书配置</translation>
 <translation id="7587345076013230465">当登录屏幕上有多份客户端证书与自动选择政策匹配时，提示用户做出选择</translation>
 <translation id="7587921466180902617">为 Family Link 用户启用“屏幕录制”功能 dogfood</translation>
+<translation id="7588140323025689972">启用自助服务终端应用日志</translation>
 <translation id="7595074040612182185">通过设置此政策，您可以创建一个网址格式列表，从而指定哪些网站可以显示图片。
 
       如果您未设置此政策，那么，倘若 <ph name="DEFAULT_IMAGES_SETTING_ENABLED_POLICY_NAME" /> 已设置，系统便会将它应用于所有网站，否则就会应用用户的个人设置。
@@ -9549,6 +9636,9 @@ Origin-Agent-Cluster HTTP 标头可控制是将某个文档隔离在以源为键
 <translation id="7841883965249733328">禁止混合内容自动升级</translation>
 <translation id="7845130996290850593">启用 Kerberos</translation>
 <translation id="7846952520291088817">在 WebRTC ICE 候选路径中显示本地 IP 的网址</translation>
+<translation id="7847374643492493038">如果此政策设为 True（或者 <ph name="HARDWARE_ACCELERATION_MODE_ENABLED_POLICY_NAME" /> 设为 False），网页会无法访问 WebGL API。
+
+      如果此政策设为 False 或未设置，网页可以使用 WebGL API，但浏览器的默认设置可能仍然要求在使用这些 API 前先传递命令行参数。</translation>
 <translation id="7848641140449742406">操作系统设置</translation>
 <translation id="7850846808758624237">如果此政策已启用，当首次运行浏览器时，系统将会从先前的默认浏览器导入主页。如果此政策已停用或未设置，当首次运行浏览器时，系统不会导入主页。
 
@@ -10221,6 +10311,7 @@ Related Website Set 中的所有网站都必须是采用 HTTPS 协议的可注�
 
       应以毫秒为单位指定此政策的值。</translation>
 <translation id="8330437518362176921">下载和更新自助服务终端 Chrome 应用时仅使用政策提供的更新网址</translation>
+<translation id="8331421240786531350">禁止网站向本地网络端点发送请求。</translation>
 <translation id="8331479227794770304">启用粘滞键</translation>
 <translation id="8332822245414537447">停用 RSA 密钥用法检查</translation>
 <translation id="8334685561819743286">在用户输入内容时停用实体键盘自动更正功能</translation>
@@ -10239,6 +10330,7 @@ Related Website Set 中的所有网站都必须是采用 HTTPS 协议的可注�
           如果您未设置此政策，更具体政策的行为便不会受到影响。</translation>
 <translation id="8350643689940867542">停用关于政策数据的报告</translation>
 <translation id="835283681355955417">报告外围设备详情</translation>
+<translation id="8353189903603611009">不允许 Chrome 自动播放媒体，除非在 <ph name="AUTOPLAY_ALLOWLIST_POLICY_NAME" /> 政策中指定了相应网址</translation>
 <translation id="8354001669131263433">从 M132 开始，此政策将被移除，同时带前缀的视频专用全屏 API 也将被移除。
 
 如果此政策设为 <ph name="ENABLED_VALUE_NAME" />，系统会允许在 JavaScript 中使用带前缀的视频专用全屏 API，例如 Video.webkitEnterFullscreen()。
@@ -10360,7 +10452,7 @@ Related Website Set 中的所有网站都必须是采用 HTTPS 协议的可注�
       <ph name="MS_WIN_NAME" /> 管理员需要注意：只能在运行 Windows 7 的设备中开启此设置。在运行更高版本的设备中，您必须部署一个“默认应用关联”文件，使 <ph name="PRODUCT_NAME" /> 成为 <ph name="HTTPS_PROTOCOL" /> 和 <ph name="HTTP_PROTOCOL" /> 协议的处理程序（也可成为 <ph name="FTP_PROTOCOL" /> 协议和其他文件格式的处理程序）。请参阅 Chrome 帮助文章 ( https://support.google.com/chrome?p=make_chrome_default_win )。</translation>
 <translation id="8437836857126992452">让您能够指定禁止用户安装的扩展程序。系统会停用被屏蔽的已安装扩展程序，而且用户无法以任何方式启用这些扩展程序。从屏蔽名单中移除某个因被列入屏蔽名单而遭停用的扩展程序后，系统会自动重新启用该扩展程序。
 
-          屏蔽名单值“*”表示所有扩展程序都已被默认屏蔽。如果扩展程序已签名（已打包），则系统会允许使用许可名单中明确列出的扩展程序。所有未打包的扩展程序都已被屏蔽。
+          屏蔽名单值“*”表示所有扩展程序都已被默认屏蔽。系统会允许列入许可名单且已签名（已打包）的扩展程序。所有未打包的扩展程序会被屏蔽。
 
           如果此政策未设置，用户便能在 <ph name="PRODUCT_NAME" /> 中安装任一款扩展程序。</translation>
 <translation id="8441105784056442638">启用“完全还原”功能</translation>
@@ -10514,7 +10606,6 @@ Related Website Set 中的所有网站都必须是采用 HTTPS 协议的可注�
 <translation id="8544465954173828789">允许将短信从手机同步到 Chromebook。</translation>
 <translation id="8549906780629620346">启用账号恢复服务</translation>
 <translation id="855182606166519378">用户无法启动固件更新</translation>
-<translation id="855291439519960768">停用 <ph name="PRIVACY_SANDBOX_NAME" /> 数字“指纹”收集保护功能。</translation>
 <translation id="8553491595730354263">允许远程访问主机在接受客户端连接时使用 PIN 码和配对身份验证方法</translation>
 <translation id="8553955290407912156">通过设置此政策，您可以罗列一些网址格式，从而指定哪些网站无法请求用户授权其访问 HID 设备。
 
@@ -10604,6 +10695,7 @@ Related Website Set 中的所有网站都必须是采用 HTTPS 协议的可注�
           指定的政策值应以毫秒为单位。</translation>
 <translation id="8592363656632862875">不下载模型</translation>
 <translation id="859579553230883285">为您的用户停用 <ph name="PRIVACY_SANDBOX_NAME" /> 网站建议采用的广告设置。</translation>
+<translation id="8596784129804979039">对网络服务沙盒使用默认配置</translation>
 <translation id="8597758693275075382">要在安装过程中向虚拟机传递的 SMBIOS OEM 字符串。默认为空列表。</translation>
 <translation id="8598786284856179541">启用关于版本信息的报告</translation>
 <translation id="859937827887158048">不允许点对点下载自动更新</translation>
@@ -10711,12 +10803,6 @@ Related Website Set 中的所有网站都必须是采用 HTTPS 协议的可注�
 
       如需详细了解 JavaScript/ECMAScript 媒体类型，请参阅 https://html.spec.whatwg.org/multipage/scripting.html#scriptingLanguage。
       </translation>
-<translation id="8668202868357089313">智能镜头叠加功能可让用户与叠加在实际 Web 内容上的当前网页的屏幕截图进行交互，以发起 Google 搜索。
-
-此功能不受用户设置控制，通常面向所有将 Google 设为默认搜索引擎的用户提供，除非此政策已将其停用。
-
-如果此政策设为 0 - 已启用或未设置，用户将可以使用此功能。
-如果此政策设为 1 - 已停用，此功能将不可用。</translation>
 <translation id="8668928485126473293">让您能够设置 <ph name="PRODUCT_NAME" /> 是否将在运行 v8 JavaScript 引擎时启用更高级的 JavaScript 优化功能。
 
 停用 JavaScript 优化功能（通过将此政策的值设为 2）后，<ph name="PRODUCT_NAME" /> 渲染 Web 内容的速度可能会变慢。
@@ -10744,11 +10830,6 @@ Related Website Set 中的所有网站都必须是采用 HTTPS 协议的可注�
 此政策是配置 ID 到虚拟机配置的映射。通过某项配置安装的虚拟机会与相应配置 ID 永久关联，并且该配置中的所有运行时政策均适用于此虚拟机。您可以通过同一部设备上的同一项配置安装多个虚拟机。</translation>
 <translation id="8685018726115727387">禁止在首次运行时导入浏览记录</translation>
 <translation id="8685024486845674965">重复使用密码可触发密码保护服务警告功能</translation>
-<translation id="8685680544554917389">如果此政策设为 True，<ph name="PRODUCT_NAME" /> 将会自动播放媒体。如果此政策设为 False，<ph name="PRODUCT_NAME" /> 不会自动播放媒体。
-
-       默认情况下，<ph name="PRODUCT_NAME" /> 不会自动播放媒体。但是，对于某些网址格式，您可以使用 <ph name="AUTOPLAY_ALLOWLIST_POLICY_NAME" /> 政策来更改此设置。
-
-      如果此政策在 <ph name="PRODUCT_NAME" /> 运行期间发生了更改，相应更改将仅适用于新打开的标签页。</translation>
 <translation id="8685748277907759932">阻止用户使用“轻触搜索”功能</translation>
 <translation id="8686700500128191717">启用设备用户报告功能</translation>
 <translation id="8687958770985542440">重新启用 Web Components v0 API 直至 M84。</translation>
@@ -10781,6 +10862,17 @@ Related Website Set 中的所有网站都必须是采用 HTTPS 协议的可注�
 <translation id="8705895771006864851">如果此政策设为 True，<ph name="PRODUCT_NAME" /> 将会显示一个集成式翻译工具栏，并且在用户点击鼠标右键时，出现的上下文菜单中会显示翻译选项，以便适时地向用户提供翻译功能。将此政策设为 False 会关闭所有内置的翻译功能。
 
       如果您设置了此政策，用户将无法更改这项功能。如果此政策未设置，用户便可以更改此设置。</translation>
+<translation id="8707290517123095787">启用实时字幕翻译功能。系统会将字幕发送给 Google 进行翻译。
+
+如果此政策已启用，实时翻译将始终处于开启状态。
+
+如果此政策已停用，实时翻译将始终处于关闭状态。
+
+如果您将此政策设为强制性要求，用户便无法更改或覆盖它。
+
+如果此政策未设置，则实时翻译最初会处于停用状态，但用户可以随时启用该功能。
+
+如果 <ph name="LIVE_CAPTION_ENABLED_POLICY_NAME" /> 已停用，无论此政策如何设置，实时翻译都会停用。</translation>
 <translation id="8707790573162457301">在登录期间运行“自动清理磁盘”功能</translation>
 <translation id="8712609946151927008">排定每周暂停间隔时间</translation>
 <translation id="8713535263782304771">停用安全浏览功能</translation>
@@ -10933,6 +11025,7 @@ Related Website Set 中的所有网站都必须是采用 HTTPS 协议的可注�
 <translation id="8840243776706727185">已停用 NewBaseUrlInheritanceBehavior 功能</translation>
 <translation id="8842208363354615697">允许启用纯 HTTPS 模式</translation>
 <translation id="8843331294082716286">不向用户显示 <ph name="PRIVACY_SANDBOX_NAME" /> 提示。</translation>
+<translation id="884855199714673326">允许远程访问主机做出决定</translation>
 <translation id="885147810817138322">向用户显示推荐的媒体内容</translation>
 <translation id="8852579753940989645">启用“渲染程序代码完整性”</translation>
 <translation id="8854571659927427063">如果此政策已启用，当首次运行浏览器时，系统将会从先前的默认浏览器导入书签。如果此政策已停用或未设置，当首次运行浏览器时，系统不会导入任何书签。

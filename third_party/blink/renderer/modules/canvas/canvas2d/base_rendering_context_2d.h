@@ -149,7 +149,7 @@ class MODULES_EXPORT BaseRenderingContext2D : public CanvasRenderingContext,
   // before `transferToGPUTexture` is first called.
   V8GPUTextureFormat getTextureFormat() const;
 
-  virtual bool CanCreateCanvas2dResourceProvider() const = 0;
+  virtual bool CanCreateCanvas2dResourceProvider() = 0;
 
   String lang() const;
   void setLang(const String&);
@@ -273,12 +273,6 @@ class MODULES_EXPORT BaseRenderingContext2D : public CanvasRenderingContext,
   void TryRestoreContextEvent(TimerBase*);
   void RestoreFromInvalidSizeIfNeeded() override;
 
-  // `CanvasRenderingContext2D` and `OffscreenCanvasRenderingContext2D` do not
-  // create resource providers the same way. Thus, `BaseRenderingContext2D`
-  // needs a dedicated function to create the provider the right way. Returns
-  // `nullptr` while the context is lost.
-  // TODO(crbug.com/346766781): Remove once HTML and Offscreen provider creation
-  // are unified.
   virtual CanvasResourceProvider* GetOrCreateCanvas2DResourceProvider() = 0;
 
   static const char kInheritString[];
@@ -294,6 +288,7 @@ class MODULES_EXPORT BaseRenderingContext2D : public CanvasRenderingContext,
   bool context_restorable_{true};
 
  private:
+  virtual void EnableAccelerationIfPossible() {}
   void DrawTextInternal(const String& text,
                         double x,
                         double y,
@@ -308,7 +303,7 @@ class MODULES_EXPORT BaseRenderingContext2D : public CanvasRenderingContext,
   void PutByteArray(const SkPixmap& source,
                     const gfx::Rect& source_rect,
                     const gfx::Vector2d& dest_offset);
-  virtual bool IsCanvas2DBufferValid() const { NOTREACHED(); }
+  virtual bool IsCanvas2DBufferValid() { NOTREACHED(); }
 
   void WillUseCurrentFont() const;
 

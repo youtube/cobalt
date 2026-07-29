@@ -24,7 +24,7 @@ import("//chrome/process_version_rc_template.gni")
 import("//components/optimization_guide/features.gni")
 import("//extensions/buildflags/buildflags.gni")
 import("//media/media_options.gni")
-import("//ppapi/buildflags/buildflags.gni")
+import("//services/shape_detection/features.gni")
 import("//third_party/angle/gni/angle.gni")
 import("//third_party/blink/public/public_features.gni")
 import("//third_party/widevine/cdm/widevine.gni")
@@ -431,7 +431,6 @@ if (is_win) {
       "//headless:headless_non_renderer",
       "//headless:headless_shell_browser_lib",
       "//net:net_resources",
-      "//ppapi/buildflags",
       "//sandbox/win:sandbox",
       "//third_party/cld_3/src/src:cld_3",
       "//third_party/wtl",
@@ -1427,10 +1426,6 @@ group("dependencies") {
     "//v8:v8_headers",
   ]
 
-  if (enable_ppapi) {
-    public_deps += [ "//ppapi/host" ]
-  }
-
   if (enable_printing) {
     public_deps += [ "//printing" ]
   }
@@ -1689,6 +1684,9 @@ if (is_linux || is_chromeos) {
       if (build_with_internal_optimization_guide) {
         deps += [ ":optimization_guide_symbols" ]
       }
+      if (build_with_internal_shape_detection) {
+        deps += [ ":shape_detection_symbols" ]
+      }
       if (!use_static_angle) {
         deps += [
           ":angle_egl_symbols",
@@ -1785,6 +1783,21 @@ if (is_linux || is_chromeos) {
         }
 
         deps = [ "//components/optimization_guide/internal:optimization_guide_internal" ]
+      }
+    }
+    if (build_with_internal_shape_detection) {
+      extract_symbols("shape_detection_symbols") {
+        binary = "$root_out_dir/libshape_detection_internal.so"
+        if (current_cpu == "x86") {
+          # GYP used "ia32" so keep that naming for back-compat.
+          symbol_file = "$root_out_dir/shape_detection_internal.breakpad.ia32"
+        } else {
+          symbol_file =
+              "$root_out_dir/shape_detection_internal.breakpad.$current_cpu"
+        }
+
+        deps =
+            [ "//services/shape_detection/internal:shape_detection_internal" ]
       }
     }
   }

@@ -33,6 +33,10 @@ class AutofillFormFeaturesJavaScriptFeature : public web::JavaScriptFeature {
   // AutofillAcrossIframes in `frame`.
   void SetAutofillAcrossIframesThrottling(web::WebFrame* frame, bool enabled);
 
+  // Enables/disables whether checkboxes and radio buttons are ignored during
+  // form extraction.
+  void SetAutofillIgnoreCheckableElements(web::WebFrame* frame, bool enabled);
+
   // Enables/disables the renderer side behaviours in `frame` needed for
   // Autofill features to work in an isolated content world.
   void SetAutofillIsolatedContentWorld(web::WebFrame* frame, bool enabled);
@@ -52,6 +56,11 @@ class AutofillFormFeaturesJavaScriptFeature : public web::JavaScriptFeature {
   // Enables/disables reporting form submission errors.
   void SetAutofillReportFormSubmissionErrors(web::WebFrame* frame,
                                              bool enabled);
+
+  // Enables/disables reporting form submission events that occur in the
+  // renderer.
+  void SetAutofillCountFormSubmissionInRenderer(web::WebFrame* frame,
+                                                bool enabled);
 
  private:
   friend class base::NoDestructor<AutofillFormFeaturesJavaScriptFeature>;

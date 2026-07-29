@@ -80,6 +80,16 @@ enum class GetDisplayMediaIncludeExcludeConstraint {
 
 // These values are persisted to logs. Entries should not be renumbered and
 // numeric values should never be reused.
+enum class GetDisplayMediaSystemWindowOrExcludeConstraint {
+  kNotSpecified = 0,
+  kSystem = 1,
+  kWindow = 2,
+  kExclude = 3,
+  kMaxValue = kExclude
+};
+
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
 enum class GetDisplayMediaConstraintsDisplaySurface {
   kNotSpecified = 0,
   kTab = 1,
@@ -296,6 +306,28 @@ void RecordGetDisplayMediaIncludeExcludeConstraintUma(
   base::UmaHistogramEnumeration(histogram_name, value);
 }
 
+void RecordGetDisplayMediaSystemWindowOrExcludeConstraintUma(
+    std::optional<V8DisplayMediaSystemWindowOrExclude::Enum>
+        system_window_or_exclude,
+    const std::string& histogram_name) {
+  GetDisplayMediaSystemWindowOrExcludeConstraint value =
+      GetDisplayMediaSystemWindowOrExcludeConstraint::kNotSpecified;
+  if (system_window_or_exclude.has_value()) {
+    switch (system_window_or_exclude.value()) {
+      case V8DisplayMediaSystemWindowOrExclude::Enum::kExclude:
+        value = GetDisplayMediaSystemWindowOrExcludeConstraint::kExclude;
+        break;
+      case V8DisplayMediaSystemWindowOrExclude::Enum::kWindow:
+        value = GetDisplayMediaSystemWindowOrExcludeConstraint::kWindow;
+        break;
+      case V8DisplayMediaSystemWindowOrExclude::Enum::kSystem:
+        value = GetDisplayMediaSystemWindowOrExcludeConstraint::kSystem;
+        break;
+    }
+  }
+  base::UmaHistogramEnumeration(histogram_name, value);
+}
+
 void RecordPreferredDisplaySurfaceConstraintUma(
     const mojom::blink::PreferredDisplaySurface preferred_display_surface) {
   switch (preferred_display_surface) {
@@ -315,16 +347,13 @@ void RecordPreferredDisplaySurfaceConstraintUma(
   NOTREACHED();
 }
 
-void RecordSuppressLocalAudioPlaybackConstraintUma(
-    std::optional<bool> suppress_local_audio_playback) {
+void RecordBooleanConstraintUma(std::optional<bool> boolean,
+                                const std::string& histogram_name) {
   const GetDisplayMediaBooleanConstraint value =
-      (!suppress_local_audio_playback.has_value()
-           ? GetDisplayMediaBooleanConstraint::kNotSpecified
-       : suppress_local_audio_playback.value()
-           ? GetDisplayMediaBooleanConstraint::kTrue
-           : GetDisplayMediaBooleanConstraint::kFalse);
-  base::UmaHistogramEnumeration(
-      "Media.GetDisplayMedia.Constraints.SuppressLocalAudioPlayback", value);
+      (!boolean.has_value() ? GetDisplayMediaBooleanConstraint::kNotSpecified
+       : boolean.value()    ? GetDisplayMediaBooleanConstraint::kTrue
+                            : GetDisplayMediaBooleanConstraint::kFalse);
+  base::UmaHistogramEnumeration(histogram_name, value);
 }
 
 MediaConstraints ParseOptions(
@@ -503,6 +532,41 @@ UserMediaRequest* UserMediaRequest::Create(
       options->hasSystemAudio() &&
       options->systemAudio().AsEnum() ==
           V8DisplayMediaIncludeOrExclude::Enum::kExclude);
+
+  if (RuntimeEnabledFeatures::GetDisplayMediaWindowAudioCaptureEnabled()) {
+    // Default is kSystem
+    mojom::blink::WindowAudioPreference value =
+        mojom::blink::WindowAudioPreference::kSystem;
+    if (options->hasWindowAudio()) {
+      switch (options->windowAudio().AsEnum()) {
+        case V8DisplayMediaSystemWindowOrExclude::Enum::kExclude:
+          value = mojom::blink::WindowAudioPreference::kExclude;
+          break;
+        case V8DisplayMediaSystemWindowOrExclude::Enum::kWindow:
+          value = mojom::blink::WindowAudioPreference::kWindow;
+          break;
+        case V8DisplayMediaSystemWindowOrExclude::Enum::kSystem:
+          value = mojom::blink::WindowAudioPreference::kSystem;
+          break;
+      }
+    }
+    result->set_window_audio_preference(value);
+    if (media_type == UserMediaRequestType::kDisplayMedia) {
+      std::optional<V8DisplayMediaSystemWindowOrExclude::Enum>
+          window_audio_preference;
+      if (options->hasWindowAudio()) {
+        window_audio_preference = options->windowAudio().AsEnum();
+      }
+      RecordGetDisplayMediaSystemWindowOrExcludeConstraintUma(
+          window_audio_preference,
+          "Media.GetDisplayMedia.Constraints.WindowAudio");
+    }
+  } else {
+    // if the feature is not enabled, we'll set kExclude to never share audio
+    // when sharing windows.
+    result->set_window_audio_preference(
+        mojom::blink::WindowAudioPreference::kExclude);
+  }
   if (media_type == UserMediaRequestType::kDisplayMedia) {
     std::optional<V8DisplayMediaIncludeOrExclude::Enum> include_or_exclude;
     if (options->hasSystemAudio()) {
@@ -587,10 +651,18 @@ UserMediaRequest* UserMediaRequest::Create(
 
   result->set_suppress_local_audio_playback(
       suppress_local_audio_playback.value_or(false));
-  result->set_restrict_own_audio(restrict_own_audio.value_or(false));
   if (media_type == UserMediaRequestType::kDisplayMedia) {
-    RecordSuppressLocalAudioPlaybackConstraintUma(
-        suppress_local_audio_playback);
+    RecordBooleanConstraintUma(
+        suppress_local_audio_playback,
+        "Media.GetDisplayMedia.Constraints.SuppressLocalAudioPlayback");
+  }
+  result->set_restrict_own_audio(restrict_own_audio.value_or(false));
+  if (RuntimeEnabledFeatures::RestrictOwnAudioEnabled()) {
+    if (media_type == UserMediaRequestType::kDisplayMedia) {
+      RecordBooleanConstraintUma(
+          restrict_own_audio,
+          "Media.GetDisplayMedia.Constraints.RestrictOwnAudio");
+    }
   }
 
   return result;
@@ -598,9 +670,13 @@ UserMediaRequest* UserMediaRequest::Create(
 
 UserMediaRequest* UserMediaRequest::CreateForTesting(
     const MediaConstraints& audio,
-    const MediaConstraints& video) {
+    const MediaConstraints& video,
+    bool is_user_media) {
   return MakeGarbageCollected<UserMediaRequest>(
-      nullptr, nullptr, UserMediaRequestType::kUserMedia, audio, video,
+      nullptr, nullptr,
+      is_user_media ? UserMediaRequestType::kUserMedia
+                    : UserMediaRequestType::kDisplayMedia,
+      audio, video,
       /*should_prefer_current_tab=*/false,
       /*capture_controller=*/nullptr, /*callbacks=*/nullptr,
       IdentifiableSurface());

@@ -13,6 +13,7 @@ import '/strings.m.js';
 import '//resources/cr_elements/cr_button/cr_button.js';
 import '//resources/cr_elements/cr_toast/cr_toast.js';
 
+import type {CrIconButtonElement} from '//resources/cr_elements/cr_icon_button/cr_icon_button.js';
 import {I18nMixin} from '//resources/cr_elements/i18n_mixin.js';
 import {assert} from '//resources/js/assert.js';
 import {EventTracker} from '//resources/js/event_tracker.js';
@@ -56,6 +57,12 @@ export const CURSOR_SIZE_PIXEL = 32;
 // The cursor image url css variable name.
 export const CURSOR_IMG_URL = '--cursor-img-url';
 
+// Returns true if the event is a keystroke that should not activate a control.
+function shouldIgnoreKeyboardEvent(event: Event|undefined): boolean {
+  return event instanceof KeyboardEvent &&
+      !(event.key === 'Enter' || event.key === ' ');
+}
+
 export interface CursorData {
   cursor: CursorType;
 }
@@ -93,6 +100,7 @@ export interface SelectedRegionContextMenuData {
 export interface SelectionOverlayElement {
   $: {
     backgroundImageCanvas: HTMLCanvasElement,
+    closeButton: CrIconButtonElement,
     cursor: HTMLElement,
     initialFlashScrim: HTMLElement,
     objectSelectionLayer: ObjectLayerElement,
@@ -102,6 +110,7 @@ export interface SelectionOverlayElement {
     selectedRegionContextMenu: HTMLElement,
     selectedTextContextMenu: HTMLElement,
     selectionOverlay: HTMLElement,
+    selectTextContextMenuItem: HTMLElement,
   };
 }
 
@@ -239,6 +248,16 @@ export class SelectionOverlayElement extends SelectionOverlayElementBase {
       selectionOverlayRect: Object,
       isSearchboxFocused: Boolean,
       areLanguagePickersOpen: Boolean,
+      isBackToPageEnabled: {
+        type: Boolean,
+        value: () => loadTimeData.getBoolean('isBackToPageEnabled'),
+        reflectToAttribute: true,
+      },
+      sidePanelOpened: {
+        type: Boolean,
+        reflectToAttribute: true,
+        value: false,
+      },
     };
   }
 
@@ -272,6 +291,8 @@ export class SelectionOverlayElement extends SelectionOverlayElementBase {
   // Whether any of the language pickers are currently open. Passed in from
   // parent.
   declare private areLanguagePickersOpen: boolean;
+  // Whether the back to page button is enabled.
+  declare private isBackToPageEnabled: boolean;
 
   // The selected region on which the context menu is being displayed. Used as
   // argument for copy and save as image calls.
@@ -283,7 +304,7 @@ export class SelectionOverlayElement extends SelectionOverlayElementBase {
   private detectedTextStartIndex: number = -1;
   private detectedTextEndIndex: number = -1;
   declare private isPointerInside;
-  private isPointerInsideContextMenu = false;
+  private isPointerInsideButton = false;
   // The current gesture event. The coordinate values are only accurate if a
   // gesture has started.
   declare private currentGesture: GestureEvent;
@@ -300,6 +321,9 @@ export class SelectionOverlayElement extends SelectionOverlayElementBase {
   declare private shimmerOnSegmentation: boolean;
   declare private shimmerFadeOutComplete: boolean;
   declare private simplifiedSelectionEnabled: boolean;
+  // Whether the side panel is currently opened.
+  declare private sidePanelOpened: boolean;
+
   // The text selection layer rendered on the selection overlay if it exists.
   private textSelectionLayer: TextLayerBase;
   // The border glow layer rendered on the selection overlay if it exists.
@@ -344,6 +368,8 @@ export class SelectionOverlayElement extends SelectionOverlayElementBase {
       }),
       this.browserProxy.callbackRouter.onCopyCommand.addListener(
           this.onCopyCommand.bind(this)),
+      this.browserProxy.callbackRouter.notifyResultsPanelOpened.addListener(
+          this.onNotifyResultsPanelOpened.bind(this)),
     ];
     ScreenshotBitmapBrowserProxyImpl.getInstance().fetchScreenshot(
         this.screenshotDataReceived.bind(this));
@@ -654,7 +680,7 @@ export class SelectionOverlayElement extends SelectionOverlayElementBase {
 
   private handlePointerEnter() {
     this.isPointerInside = true;
-    if (!this.isPointerInsideContextMenu) {
+    if (!this.isPointerInsideButton) {
       this.dispatchEvent(
           new CustomEvent<CursorTooltipData>('set-cursor-tooltip', {
             bubbles: true,
@@ -1039,7 +1065,8 @@ export class SelectionOverlayElement extends SelectionOverlayElementBase {
         this.shadowRoot!.elementsFromPoint(event.clientX, event.clientY);
     // Do not intercept events that should go to the following elements.
     if (elementsAtPoint.includes(this.$.selectedTextContextMenu) ||
-        elementsAtPoint.includes(this.$.selectedRegionContextMenu)) {
+        elementsAtPoint.includes(this.$.selectedRegionContextMenu) ||
+        elementsAtPoint.includes(this.$.closeButton)) {
       return true;
     }
     // Ignore multi touch events and non-left/right click events.
@@ -1121,7 +1148,10 @@ export class SelectionOverlayElement extends SelectionOverlayElementBase {
   // This handles the copying of currently selected text on the overlay. This
   // differs from handleCopyDetectedText() since text must be selected in order
   // to copy.
-  private handleCopy() {
+  private handleCopy(event?: Event) {
+    if (shouldIgnoreKeyboardEvent(event)) {
+      return;
+    }
     this.copyText(
         this.textSelectionStartIndex, this.textSelectionEndIndex,
         this.highlightedText);
@@ -1130,7 +1160,10 @@ export class SelectionOverlayElement extends SelectionOverlayElementBase {
   // This handles the copying of detected text on the overlay within a selected
   // region. This differs from handleCopy() since text does not need to be
   // selected to support this copy.
-  private handleCopyDetectedText() {
+  private handleCopyDetectedText(event?: Event) {
+    if (shouldIgnoreKeyboardEvent(event)) {
+      return;
+    }
     if (this.simplifiedSelectionEnabled) {
       this.setShowSelectedRegionContextMenu(false);
     }
@@ -1154,13 +1187,19 @@ export class SelectionOverlayElement extends SelectionOverlayElementBase {
     this.setShowSelectedRegionContextMenu(false);
   }
 
-  private handleSelectText() {
+  private handleSelectText(event?: Event) {
+    if (shouldIgnoreKeyboardEvent(event)) {
+      return;
+    }
     this.getTextSelectionLayer().selectAndSendWords(
         this.detectedTextStartIndex, this.detectedTextEndIndex);
     this.$.postSelectionRenderer.clearSelection();
   }
 
-  private handleTranslateDetectedText() {
+  private handleTranslateDetectedText(event?: Event) {
+    if (shouldIgnoreKeyboardEvent(event)) {
+      return;
+    }
     this.getTextSelectionLayer().selectAndTranslateWords(
         this.detectedTextStartIndex, this.detectedTextEndIndex);
 
@@ -1173,7 +1212,10 @@ export class SelectionOverlayElement extends SelectionOverlayElementBase {
     this.$.postSelectionRenderer.clearSelection();
   }
 
-  private handleTranslate() {
+  private handleTranslate(event?: Event) {
+    if (shouldIgnoreKeyboardEvent(event)) {
+      return;
+    }
     BrowserProxyImpl.getInstance().handler.issueTranslateSelectionRequest(
         this.highlightedText.replaceAll('\r\n', ' '), this.contentLanguage,
         this.textSelectionStartIndex, this.textSelectionEndIndex);
@@ -1181,7 +1223,10 @@ export class SelectionOverlayElement extends SelectionOverlayElementBase {
     recordLensOverlayInteraction(INVOCATION_SOURCE, UserAction.kTranslateText);
   }
 
-  private handleCopyAsImage() {
+  private handleCopyAsImage(event?: Event) {
+    if (shouldIgnoreKeyboardEvent(event)) {
+      return;
+    }
     BrowserProxyImpl.getInstance().handler.copyImage(
         this.selectedRegionContextMenuBox);
     this.setShowSelectedRegionContextMenu(false);
@@ -1192,17 +1237,20 @@ export class SelectionOverlayElement extends SelectionOverlayElementBase {
     }));
   }
 
-  private handleSaveAsImage() {
+  private handleSaveAsImage(event?: Event) {
+    if (shouldIgnoreKeyboardEvent(event)) {
+      return;
+    }
     BrowserProxyImpl.getInstance().handler.saveAsImage(
         this.selectedRegionContextMenuBox);
     this.setShowSelectedRegionContextMenu(false);
     recordLensOverlayInteraction(INVOCATION_SOURCE, UserAction.kSaveAsImage);
   }
 
-  // Make the cursor disappear over the context menu, as if leaving the overlay.
-  private handlePointerEnterContextMenu() {
+  // Make the cursor disappear when entering selectable buttons, as if leaving the overlay.
+  private handlePointerEnterButton() {
     this.isPointerInside = false;
-    this.isPointerInsideContextMenu = true;
+    this.isPointerInsideButton = true;
     // Hide the cursor tooltip.
     this.dispatchEvent(
         new CustomEvent<CursorTooltipData>('set-cursor-tooltip', {
@@ -1212,9 +1260,9 @@ export class SelectionOverlayElement extends SelectionOverlayElementBase {
         }));
   }
 
-  private handlePointerLeaveContextMenu() {
+  private handlePointerLeaveButton() {
     this.isPointerInside = true;
-    this.isPointerInsideContextMenu = false;
+    this.isPointerInsideButton = false;
     // Reshow the cursor tooltip.
     this.dispatchEvent(
         new CustomEvent<CursorTooltipData>('set-cursor-tooltip', {
@@ -1369,6 +1417,14 @@ export class SelectionOverlayElement extends SelectionOverlayElementBase {
     this.showDetectedTextContextMenuOptions =
         this.detectedTextStartIndex !== -1 && this.detectedTextEndIndex !== -1;
     this.highlightedText = data.text ?? this.highlightedText;
+  }
+
+  private onNotifyResultsPanelOpened() {
+    this.sidePanelOpened = true;
+  }
+
+  private onCloseButtonClick() {
+    this.browserProxy.handler.closeRequestedByOverlayCloseButton();
   }
 
   /**

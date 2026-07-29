@@ -9,7 +9,6 @@
 
 #include <map>
 #include <memory>
-#include <set>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -20,7 +19,6 @@
 #include "build/build_config.h"
 #include "chrome/common/media/webrtc_logging.mojom.h"
 #include "chrome/services/speech/buildflags/buildflags.h"
-#include "components/nacl/common/buildflags.h"
 #include "components/safe_browsing/buildflags.h"
 #include "components/spellcheck/spellcheck_buildflags.h"
 #include "content/public/renderer/content_renderer_client.h"
@@ -68,16 +66,6 @@ struct WebContentSecurityPolicyHeader;
 namespace chrome {
 class WebRtcLoggingAgentImpl;
 }  // namespace chrome
-
-namespace content {
-struct WebPluginInfo;
-}  // namespace content
-
-#if BUILDFLAG(ENABLE_NACL)
-namespace extensions {
-class Extension;
-}
-#endif
 
 namespace fingerprinting_protection_filter {
 class UnverifiedRulesetDealer;
@@ -177,8 +165,6 @@ class ChromeContentRendererClient
                                   uint64_t salt) override;
   std::unique_ptr<blink::WebPrescientNetworking> CreatePrescientNetworking(
       content::RenderFrame* render_frame) override;
-  bool IsExternalPepperPlugin(const std::string& module_name) override;
-  bool IsOriginIsolatedPepperPlugin(const base::FilePath& plugin_path) override;
   std::unique_ptr<blink::WebSocketHandshakeThrottleProvider>
   CreateWebSocketHandshakeThrottleProvider() override;
   bool ShouldUseCodeCacheWithHashing(
@@ -195,7 +181,6 @@ class ChromeContentRendererClient
   std::unique_ptr<media::KeySystemSupportRegistration> GetSupportedKeySystems(
       content::RenderFrame* render_frame,
       media::GetSupportedKeySystemsCB cb) override;
-  bool IsPluginAllowedToUseCameraDeviceAPI(const GURL& url) override;
   void RunScriptsAtDocumentStart(content::RenderFrame* render_frame) override;
   void RunScriptsAtDocumentEnd(content::RenderFrame* render_frame) override;
   void RunScriptsAtDocumentIdle(content::RenderFrame* render_frame) override;
@@ -230,7 +215,10 @@ class ChromeContentRendererClient
       blink::URLLoaderThrottleProviderType provider_type) override;
   blink::WebFrame* FindFrame(blink::WebLocalFrame* relative_to_frame,
                              const std::string& name) override;
-  bool IsSafeRedirectTarget(const GURL& from_url, const GURL& to_url) override;
+  bool IsSafeRedirectTarget(
+      const GURL& from_url,
+      const GURL& to_url,
+      const std::optional<url::Origin>& request_initiator) override;
   void DidSetUserAgent(const std::string& user_agent) override;
   void AppendContentSecurityPolicy(
       const blink::WebURL& url,
@@ -243,12 +231,6 @@ class ChromeContentRendererClient
       content::RenderFrame* render_frame,
       const blink::WebPluginParams& params,
       const chrome::mojom::PluginInfo& plugin_info);
-#endif
-
-#if BUILDFLAG(ENABLE_PLUGINS) && BUILDFLAG(ENABLE_EXTENSIONS)
-  static bool IsExtensionOrSharedModuleAllowed(
-      const GURL& url,
-      const std::set<std::string>& allowlist);
 #endif
 
 #if BUILDFLAG(ENABLE_SPELLCHECK)
@@ -268,25 +250,12 @@ class ChromeContentRendererClient
   FRIEND_TEST_ALL_PREFIXES(ChromeContentRendererClientTest,
                            ShouldSuppressErrorPage);
 
-  static GURL GetNaClContentHandlerURL(const std::string& actual_mime_type,
-                                       const content::WebPluginInfo& plugin);
-
   // service_manager::LocalInterfaceProvider:
   void GetInterface(const std::string& name,
                     mojo::ScopedMessagePipeHandle request_handle) override;
 
   void BindWebRTCLoggingAgent(
       mojo::PendingReceiver<chrome::mojom::WebRtcLoggingAgent> receiver);
-
-#if BUILDFLAG(ENABLE_NACL)
-  // Determines if a page/app/extension is allowed to run native (non-PNaCl)
-  // NaCl modules.
-  static bool IsNativeNaClAllowed(const GURL& app_url,
-                                  bool is_nacl_unrestricted,
-                                  const extensions::Extension* extension);
-  static void ReportNaClAppType(bool is_pnacl,
-                                const extensions::Extension* extension);
-#endif
 
 #if BUILDFLAG(IS_WIN)
   // Observes module load events and notifies the ModuleDatabase in the browser
@@ -309,9 +278,6 @@ class ChromeContentRendererClient
       subresource_filter_ruleset_dealer_;
   std::unique_ptr<fingerprinting_protection_filter::UnverifiedRulesetDealer>
       fingerprinting_protection_ruleset_dealer_;
-#if BUILDFLAG(ENABLE_PLUGINS)
-  std::set<std::string> allowed_camera_device_origins_;
-#endif
 #if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
   std::unique_ptr<safe_browsing::PhishingModelSetterImpl>
       phishing_model_setter_;

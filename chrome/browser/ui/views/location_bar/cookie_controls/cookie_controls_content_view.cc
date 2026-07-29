@@ -266,10 +266,15 @@ void CookieControlsContentView::AddFeedbackSection() {
 }
 
 void CookieControlsContentView::SetTrackingProtectionsButtonReloadingState() {
-  tracking_protections_button_->SetSpinnerVisible(true);
   tracking_protections_button_->SetText(l10n_util::GetStringUTF16(
       IDS_TRACKING_PROTECTIONS_BUBBLE_RELOADING_SITE_LABEL));
   tracking_protections_button_->SetEnabled(false);
+  tracking_protections_button_->SetSpinnerVisible(true);
+}
+
+views::MdTextButtonWithSpinner*
+CookieControlsContentView::GetTrackingProtectionsButton() {
+  return tracking_protections_button_;
 }
 
 void CookieControlsContentView::UpdateContentLabels(

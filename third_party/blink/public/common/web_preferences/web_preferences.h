@@ -82,7 +82,6 @@ struct BLINK_COMMON_EXPORT WebPreferences {
   bool allow_file_access_from_file_urls = false;
   bool webgl1_enabled = true;
   bool webgl2_enabled = true;
-  bool pepper_3d_enabled = false;
   bool privileged_webgl_extensions_enabled = false;
   bool webgl_errors_to_console_enabled = true;
   bool hide_scrollbars = false;
@@ -136,8 +135,6 @@ struct BLINK_COMMON_EXPORT WebPreferences {
   bool sync_xhr_in_documents_enabled = true;
   // TODO(https://crbug.com/1163644): Remove once Chrome Apps are deprecated.
   bool target_blank_implies_no_opener_enabled_will_be_removed = true;
-  // TODO(https://crbug.com/1172495): Remove once Chrome Apps are deprecated.
-  bool allow_non_empty_navigator_plugins = false;
   // TODO(https://crbug.com/404106817): Remove once Chrome Apps are deprecated.
   bool ignore_permission_for_device_changed_event = false;
   int number_of_cpu_cores = 1;

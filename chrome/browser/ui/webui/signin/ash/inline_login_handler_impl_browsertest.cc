@@ -177,6 +177,7 @@ std::unique_ptr<InProcessBrowserTestMixin> CreateLoginMixin(
     case user_manager::UserType::kKioskChromeApp:
     case user_manager::UserType::kKioskWebApp:
     case user_manager::UserType::kKioskIWA:
+    case user_manager::UserType::kKioskArcvmApp:
       NOTREACHED();
   }
 }
@@ -262,7 +263,7 @@ class InlineLoginHandlerTest
 
     // Setup fake Gaia.
     FakeGaia::Configuration params;
-    params.email = kSecondaryAccount1Email;
+    params.emails = {kSecondaryAccount1Email};
     params.refresh_token = kSecondaryAccountRefreshToken;
     params.auth_code = kSecondaryAccountOAuthCode;
     fake_gaia_.UpdateConfiguration(params);

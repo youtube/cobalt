@@ -183,7 +183,6 @@ class CORE_EXPORT ComputedStyleUtils {
   static CSSValue* ValueForAnimationPlayState(EAnimPlayState);
   static CSSValue* ValueForAnimationRangeList(
       const Vector<std::optional<TimelineOffset>>& range_list,
-      const CSSAnimationData* animation_data,
       const ComputedStyle& style,
       const Length& default_offset);
   static CSSValue* ValueForAnimationTimingFunction(
@@ -229,7 +228,6 @@ class CORE_EXPORT ComputedStyleUtils {
       const Length& default_offset);
   static CSSValue* ValueForAnimationTriggerExitRangeList(
       const Vector<TimelineOffsetOrAuto>& range_list,
-      const CSSAnimationData* animation_data,
       const ComputedStyle& style,
       const Length& default_offset);
   static CSSValue* ValueForAnimationTriggerExitRangeStartList(
@@ -238,8 +236,25 @@ class CORE_EXPORT ComputedStyleUtils {
   static CSSValue* ValueForAnimationTriggerExitRangeEndList(
       const CSSAnimationData* animation_data,
       const ComputedStyle& style);
-  static CSSValue* ValueForAnimationTriggerType(const EAnimationTriggerType);
-  static CSSValue* ValueForAnimationTriggerTypeList(const CSSAnimationData*);
+  static CSSValue* ValueForAnimationTriggerBehavior(
+      const EAnimationTriggerBehavior);
+  static CSSValue* ValueForAnimationTriggerBehaviorList(
+      const CSSAnimationData*);
+  static CSSValue* ValueForTimelineTriggerBehaviorList(const CSSAnimationData*);
+  static CSSValue* ValueForTimelineTriggerRangeStartList(
+      const CSSAnimationData* animation_data,
+      const ComputedStyle& style);
+  static CSSValue* ValueForTimelineTriggerRangeEndList(
+      const CSSAnimationData* animation_data,
+      const ComputedStyle& style);
+  static CSSValue* ValueForTimelineTriggerExitRangeStartList(
+      const CSSAnimationData* animation_data,
+      const ComputedStyle& style);
+  static CSSValue* ValueForTimelineTriggerExitRangeEndList(
+      const CSSAnimationData* animation_data,
+      const ComputedStyle& style);
+  static CSSValue* ValueForTimelineTriggerTimelineList(const CSSAnimationData*,
+                                                       const ComputedStyle&);
   static CSSValue* ValueForAnimationTriggerTimelineList(const CSSAnimationData*,
                                                         const ComputedStyle&);
   static CSSValueList* ValuesForBorderRadiusCorner(const LengthSize&,
@@ -395,11 +410,10 @@ class CORE_EXPORT ComputedStyleUtils {
                                                const LayoutObject*,
                                                bool allow_visited_style,
                                                CSSValuePhase value_phase);
-  static CSSValue* ValuesForInterestTargetDelayShorthand(
-      const ComputedStyle&,
-      const LayoutObject*,
-      bool allow_visited_style,
-      CSSValuePhase value_phase);
+  static CSSValue* ValuesForInterestDelayShorthand(const ComputedStyle&,
+                                                   const LayoutObject*,
+                                                   bool allow_visited_style,
+                                                   CSSValuePhase value_phase);
   static CSSValue* ValuesForFontVariantProperty(const ComputedStyle&,
                                                 const LayoutObject*,
                                                 bool allow_visited_style,

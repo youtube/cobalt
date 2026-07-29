@@ -8,11 +8,14 @@ import '//resources/cr_elements/cr_collapse/cr_collapse.js';
 import '//resources/cr_elements/cr_expand_button/cr_expand_button.js';
 import '//resources/cr_elements/cr_input/cr_input.js';
 import '//resources/cr_elements/cr_textarea/cr_textarea.js';
+import '/strings.m.js';
 
 import type {CrInputElement} from '//resources/cr_elements/cr_input/cr_input.js';
 import {assert} from '//resources/js/assert.js';
 import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
 import type {PropertyValues} from '//resources/lit/v3_0/lit.rollup.js';
+import type {FilePath} from '//resources/mojo/mojo/public/mojom/base/file_path.mojom-webui.js';
+import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 
 import {BrowserProxy} from './browser_proxy.js';
 import type {AudioData, Capabilities, InputPiece, ResponseChunk, ResponseSummary} from './on_device_model.mojom-webui.js';
@@ -83,6 +86,16 @@ function textToInputPieces(text: string): InputPiece[] {
   return input;
 }
 
+function filePathToString(filePath: FilePath): string {
+  if (typeof filePath.path === 'string') {
+    return filePath.path;
+  }
+
+  const decoder = new TextDecoder('utf-16');
+  const buffer = new Uint16Array(filePath.path);
+  return decoder.decode(buffer);
+}
+
 class OnDeviceInternalsToolsElement extends CrLitElement {
   static get is() {
     return 'on-device-internals-tools';
@@ -107,6 +120,7 @@ class OnDeviceInternalsToolsElement extends CrLitElement {
       responses_: {type: Array},
       model_: {type: Object},
       performanceClassText_: {type: String},
+      usePlatformModel_: {type: Boolean},
       contextExpanded_: {type: Boolean},
       contextLength_: {type: Number},
       contextText_: {type: String},
@@ -132,6 +146,9 @@ class OnDeviceInternalsToolsElement extends CrLitElement {
   private accessor modelPath_: string = '';
   protected accessor model_: OnDeviceModelRemote|null = null;
   protected accessor performanceClassText_: string = 'Loading...';
+  protected showPlatformModelCheckbox_: boolean =
+      loadTimeData.getBoolean('useChromeOSModelService');
+  protected accessor usePlatformModel_: boolean = false;
   protected accessor responses_: Response[] = [];
   protected accessor temperature_: number = 0;
   protected accessor text_: string = '';
@@ -183,7 +200,24 @@ class OnDeviceInternalsToolsElement extends CrLitElement {
   }
 
   protected onLoadClick_() {
-    this.onModelSelected_();
+    const modelPathString = this.$.modelInput.value;
+    // <if expr="is_win">
+    // Windows file paths are std::wstring, so use Array<Number>.
+    const processedPath = Array.from(modelPathString, (c) => c.charCodeAt(0));
+    // </if>
+    // <if expr="not is_win">
+    const processedPath = modelPathString;
+    // </if>
+    this.onModelSelected_({path: processedPath});
+  }
+
+  protected async onLoadDefaultClick_() {
+    const defaultModelPath = await this.proxy_.handler.getDefaultModelPath();
+    if (defaultModelPath.modelPath === null) {
+      this.error_ = 'Unable to get default model path.';
+      return;
+    }
+    this.onModelSelected_(defaultModelPath.modelPath);
   }
 
   protected onAddImageClick_() {
@@ -239,8 +273,7 @@ class OnDeviceInternalsToolsElement extends CrLitElement {
     }
   }
 
-
-  private async onModelSelected_() {
+  private async onModelSelected_(modelPath: FilePath) {
     this.error_ = '';
     if (this.model_) {
       this.model_.$.close();
@@ -255,18 +288,23 @@ class OnDeviceInternalsToolsElement extends CrLitElement {
     this.loadModelStart_ = new Date().getTime();
     const performanceHint = ModelPerformanceHint[(
         this.performanceHint_ as keyof typeof ModelPerformanceHint)];
-    const modelPath = this.$.modelInput.value;
-    // <if expr="is_win">
-    // Windows file paths are std::wstring, so use Array<Number>.
-    const processedPath = Array.from(modelPath, (c) => c.charCodeAt(0));
-    // </if>
-    // <if expr="not is_win">
-    const processedPath = modelPath;
-    // </if>
     const newModel = new OnDeviceModelRemote();
-    const {result, capabilities} = await this.proxy_.handler.loadModel(
-        {path: processedPath}, performanceHint,
-        newModel.$.bindNewPipeAndPassReceiver());
+
+    let result: LoadModelResult;
+    let capabilities: Capabilities;
+    if (this.usePlatformModel_) {
+      const loadedData = await this.proxy_.handler.loadPlatformModel(
+          modelPath, newModel.$.bindNewPipeAndPassReceiver());
+      result = loadedData.result;
+      capabilities = {imageInput: false, audioInput: false};
+    } else {
+      const loadedData = await this.proxy_.handler.loadModel(
+          modelPath, performanceHint,
+          newModel.$.bindNewPipeAndPassReceiver());
+      result = loadedData.result;
+      capabilities = loadedData.capabilities;
+    }
+
     if (result !== LoadModelResult.kSuccess) {
       this.error_ =
           'Unable to load model. Specify a correct and absolute path.';
@@ -277,7 +315,7 @@ class OnDeviceInternalsToolsElement extends CrLitElement {
         this.onServiceCrashed_();
       });
       this.startNewSession_();
-      this.modelPath_ = modelPath;
+      this.modelPath_ = filePathToString(modelPath);
       this.loadedPerformanceHint_ = performanceHint;
     }
   }
@@ -499,6 +537,10 @@ class OnDeviceInternalsToolsElement extends CrLitElement {
 
   protected onTemperatureChanged_(e: CustomEvent<{value: number}>) {
     this.temperature_ = e.detail.value;
+  }
+
+  protected onUsePlatformModelChanged_(e: CustomEvent<{value: boolean}>) {
+    this.usePlatformModel_ = e.detail.value;
   }
 }
 

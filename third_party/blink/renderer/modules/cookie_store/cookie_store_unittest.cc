@@ -8,7 +8,9 @@
 #include "base/task/task_runner.h"
 #include "base/test/bind.h"
 #include "base/test/run_until.h"
+#include "base/test/scoped_feature_list.h"
 #include "base/test/test_future.h"
+#include "net/base/features.h"
 #include "net/base/isolation_info.h"
 #include "net/cookies/canonical_cookie.h"
 #include "net/cookies/cookie_monster.h"
@@ -197,6 +199,100 @@ TEST_F(CookieStoreTest, SetWithMixedCaseDomain) {
   EXPECT_EQ("cookie-name", got[0].Name());
   EXPECT_EQ("cookie-value", got[0].Value());
   EXPECT_EQ(".example.com", got[0].Domain());
+}
+
+TEST_F(CookieStoreTest, SetWithHttpPrefix) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(net::features::kPrefixCookieHttp);
+
+  V8TestingScope v8_testing_scope((KURL(kDefaultUrl)));
+  CookieStore* cookie_store = CreateCookieStore(v8_testing_scope);
+
+  ScriptState* script_state = v8_testing_scope.GetScriptState();
+  ASSERT_TRUE(script_state);
+  DummyExceptionStateForTesting exception_state;
+
+  std::vector<net::CanonicalCookie> got = GetAllCookies();
+  EXPECT_TRUE(got.empty());
+
+  CookieInit* set_options = CookieInit::Create();
+  set_options->setName("__HtTp-name");
+  set_options->setValue("cookie-value");
+  set_options->setDomain("ExAmPlE.CoM");
+
+  ScriptPromise<IDLUndefined> promise =
+      cookie_store->set(script_state, set_options, exception_state);
+  ScriptPromiseTester promise_tester(script_state, promise, &exception_state);
+  promise_tester.WaitUntilSettled();
+  EXPECT_TRUE(exception_state.HadException());
+  EXPECT_EQ(
+      "Cookies with \"__Http-\" prefix cannot be set using the CookieStore "
+      "API.",
+      exception_state.Message());
+  EXPECT_TRUE(promise_tester.IsRejected());
+  got = GetAllCookies();
+  EXPECT_EQ(0u, got.size());
+}
+
+TEST_F(CookieStoreTest, SetWithHostHttpPrefix) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(net::features::kPrefixCookieHostHttp);
+
+  V8TestingScope v8_testing_scope((KURL(kDefaultUrl)));
+  CookieStore* cookie_store = CreateCookieStore(v8_testing_scope);
+
+  ScriptState* script_state = v8_testing_scope.GetScriptState();
+  ASSERT_TRUE(script_state);
+  DummyExceptionStateForTesting exception_state;
+
+  std::vector<net::CanonicalCookie> got = GetAllCookies();
+  EXPECT_TRUE(got.empty());
+
+  CookieInit* set_options = CookieInit::Create();
+  set_options->setName("__HoStHtTp-name");
+  set_options->setValue("cookie-value");
+  set_options->setDomain("ExAmPlE.CoM");
+
+  ScriptPromise<IDLUndefined> promise =
+      cookie_store->set(script_state, set_options, exception_state);
+  ScriptPromiseTester promise_tester(script_state, promise, &exception_state);
+  promise_tester.WaitUntilSettled();
+  EXPECT_TRUE(exception_state.HadException());
+  EXPECT_EQ(
+      "Cookies with \"__HostHttp-\" prefix cannot be set using the CookieStore "
+      "API.",
+      exception_state.Message());
+  EXPECT_TRUE(promise_tester.IsRejected());
+  got = GetAllCookies();
+  EXPECT_EQ(0u, got.size());
+}
+
+TEST_F(CookieStoreTest, SetWithHostPrefixAndDomain) {
+  V8TestingScope v8_testing_scope((KURL(kDefaultUrl)));
+  CookieStore* cookie_store = CreateCookieStore(v8_testing_scope);
+
+  ScriptState* script_state = v8_testing_scope.GetScriptState();
+  ASSERT_TRUE(script_state);
+  DummyExceptionStateForTesting exception_state;
+
+  std::vector<net::CanonicalCookie> got = GetAllCookies();
+  EXPECT_TRUE(got.empty());
+
+  CookieInit* set_options = CookieInit::Create();
+  set_options->setName("__HosT-name");
+  set_options->setValue("cookie-value");
+  set_options->setDomain("ExAmPlE.CoM");
+
+  ScriptPromise<IDLUndefined> promise =
+      cookie_store->set(script_state, set_options, exception_state);
+  ScriptPromiseTester promise_tester(script_state, promise, &exception_state);
+  promise_tester.WaitUntilSettled();
+  EXPECT_TRUE(exception_state.HadException());
+  EXPECT_EQ("Cookies with \"__Host-\" prefix cannot have a domain",
+            exception_state.Message());
+  EXPECT_TRUE(promise_tester.IsRejected());
+  got = GetAllCookies();
+  EXPECT_EQ(0u, got.size());
 }
 
 }  // namespace

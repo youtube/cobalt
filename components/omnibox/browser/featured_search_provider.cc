@@ -308,6 +308,7 @@ void FeaturedSearchProvider::AddFeaturedKeywordMatches(
     } else if (turl->featured_by_policy() &&
                IsEnterpriseSearchAggregatorTemplateURLEnabled(
                    *turl, client_->IsOffTheRecord()) &&
+               turl->is_active() == TemplateURLData::ActiveStatus::kTrue &&
                enterprise_count < kMaxEnterpriseSuggestions) {
       AddFeaturedEnterpriseSearchMatch(*turl, input);
       enterprise_count++;
@@ -346,7 +347,7 @@ void FeaturedSearchProvider::AddStarterPackMatch(
       {0, ACMatchClassification::NONE},
       {template_url.keyword().size(), ACMatchClassification::DIM}};
   match.contents.clear();
-  match.contents_class = {{}};
+  match.contents_class = {};
   match.allowed_to_be_default_match = false;
   match.keyword = template_url.keyword();
   matches_.push_back(match);
@@ -404,7 +405,7 @@ void FeaturedSearchProvider::AddFeaturedEnterpriseSearchMatch(
       {0, ACMatchClassification::NONE},
       {template_url.keyword().size(), ACMatchClassification::DIM}};
   match.contents.clear();
-  match.contents_class = {{}};
+  match.contents_class = {};
   match.allowed_to_be_default_match = false;
   match.keyword = template_url.keyword();
   if (template_url.CreatedByEnterpriseSearchAggregatorPolicy()) {
@@ -503,14 +504,16 @@ void FeaturedSearchProvider::AddEnterpriseSearchAggregatorIPHMatch() {
 bool FeaturedSearchProvider::ShouldShowFeaturedEnterpriseSiteSearchIPHMatch()
     const {
   // Conditions to show the IPH for featured Enterprise search:
-  // - There is at least one featured site search engine set by policy.
+  // - There is at least one active featured site search engine set by policy.
   // - The user has not deleted the IPH suggestion and we have not shown it more
   //   than the accepted limit during this session.
   // - The user has not successfully used at least one featured engine.
   TemplateURLService::TemplateURLVector featured_engines;
   for (TemplateURL* turl :
        template_url_service_->GetFeaturedEnterpriseSiteSearchEngines()) {
-    featured_engines.push_back(turl);
+    if (turl->is_active() == TemplateURLData::ActiveStatus::kTrue) {
+      featured_engines.push_back(turl);
+    }
   }
   return !featured_engines.empty() &&
          ShouldShowIPH(IphType::kFeaturedEnterpriseSiteSearch) &&
@@ -523,7 +526,9 @@ void FeaturedSearchProvider::AddFeaturedEnterpriseSiteSearchIPHMatch() {
   std::vector<std::string> sites;
   for (const TemplateURL* turl :
        template_url_service_->GetFeaturedEnterpriseSiteSearchEngines()) {
-    sites.push_back(url_formatter::StripWWW(GURL(turl->url()).host()));
+    if (turl->is_active() == TemplateURLData::ActiveStatus::kTrue) {
+      sites.push_back(url_formatter::StripWWW(GURL(turl->url()).host()));
+    }
   }
   std::ranges::sort(sites);
   AddIPHMatch(IphType::kFeaturedEnterpriseSiteSearch,

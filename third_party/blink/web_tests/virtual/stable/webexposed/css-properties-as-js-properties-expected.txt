@@ -116,6 +116,7 @@ breakBefore
 breakInside
 bufferedRendering
 captionSide
+caretAnimation
 caretColor
 clear
 clip
@@ -461,6 +462,7 @@ tableLayout
 textAlign
 textAlignLast
 textAnchor
+textAutospace
 textBox
 textBoxEdge
 textBoxTrim

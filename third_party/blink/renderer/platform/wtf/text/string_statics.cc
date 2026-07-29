@@ -23,24 +23,21 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
-#pragma allow_unsafe_buffers
-#endif
-
 #include "third_party/blink/renderer/platform/wtf/text/string_statics.h"
 
 #include <algorithm>
 
+#include "base/containers/span.h"
 #include "third_party/blink/renderer/platform/wtf/dynamic_annotations.h"
 #include "third_party/blink/renderer/platform/wtf/static_constructors.h"
 #include "third_party/blink/renderer/platform/wtf/text/atomic_string.h"
 #include "third_party/blink/renderer/platform/wtf/text/convert_to_8bit_hash_reader.h"
 #include "third_party/blink/renderer/platform/wtf/text/string_builder.h"
 #include "third_party/blink/renderer/platform/wtf/text/string_impl.h"
+#include "third_party/blink/renderer/platform/wtf/text/wtf_uchar.h"
 #include "third_party/blink/renderer/platform/wtf/wtf.h"
 
-namespace WTF {
+namespace blink {
 
 DEFINE_GLOBAL(WTF_EXPORT, AtomicString, g_null_atom);
 DEFINE_GLOBAL(WTF_EXPORT, AtomicString, g_empty_atom);
@@ -64,51 +61,10 @@ alignas(String) char g_canonical_whitespace_table_storage[sizeof(
     NewlineThenWhitespaceStringsTable::TableType)];
 }
 
-WTF_EXPORT unsigned ComputeHashForWideString(const UChar* str,
-                                             unsigned length) {
-  bool is_all_latin1 = true;
-  for (unsigned i = 0; i < length; ++i) {
-    if (str[i] & 0xff00) {
-      is_all_latin1 = false;
-      break;
-    }
-  }
-  if (is_all_latin1) {
-    return StringHasher::ComputeHashAndMaskTop8Bits<ConvertTo8BitHashReader>(
-        (char*)str, length);
-  } else {
-    return StringHasher::ComputeHashAndMaskTop8Bits((char*)str, length * 2);
-  }
-}
-
 WTF_EXPORT const NewlineThenWhitespaceStringsTable::TableType&
     NewlineThenWhitespaceStringsTable::g_table_ =
         *reinterpret_cast<NewlineThenWhitespaceStringsTable::TableType*>(
             g_canonical_whitespace_table_storage);
-
-NOINLINE unsigned StringImpl::HashSlowCase() const {
-  if (Is8Bit()) {
-    // This is the common case, so we take the size penalty
-    // of the inlining here.
-    SetHash(StringHasher::ComputeHashAndMaskTop8BitsInline((char*)Characters8(),
-                                                           length_));
-  } else {
-    SetHash(ComputeHashForWideString(Characters16(), length_));
-  }
-  return ExistingHash();
-}
-
-void AtomicString::Init() {
-  DCHECK(IsMainThread());
-
-  new (base::NotNullTag::kNotNull, (void*)&g_null_atom) AtomicString;
-  new (base::NotNullTag::kNotNull, (void*)&g_empty_atom) AtomicString("");
-}
-
-scoped_refptr<StringImpl> AddStaticASCIILiteral(
-    base::span<const char> literal) {
-  return base::AdoptRef(StringImpl::CreateStatic(literal));
-}
 
 void NewlineThenWhitespaceStringsTable::Init() {
   char whitespace_buffer[kTableSize + 1] = {'\n'};
@@ -119,7 +75,7 @@ void NewlineThenWhitespaceStringsTable::Init() {
     auto* string_impl =
         StringImpl::CreateStatic(base::span(whitespace_buffer).first(length));
     new (base::NotNullTag::kNotNull, (void*)(&g_table_[length]))
-        String(AtomicString(string_impl).GetString());
+        String(blink::AtomicString(string_impl).GetString());
   }
 }
 
@@ -139,30 +95,79 @@ bool NewlineThenWhitespaceStringsTable::IsNewlineThenWhitespaces(
                              [](UChar ch) { return ch == ' '; });
 }
 
-void StringStatics::Init() {
+WTF_EXPORT unsigned ComputeHashForWideString(base::span<const UChar> str) {
+  bool is_all_latin1 = true;
+  for (UChar ch : str) {
+    if (ch & 0xff00) {
+      is_all_latin1 = false;
+      break;
+    }
+  }
+  if (is_all_latin1) {
+    return StringHasher::ComputeHashAndMaskTop8Bits<
+        WTF::ConvertTo8BitHashReader>(reinterpret_cast<const char*>(str.data()),
+                                      str.size());
+  } else {
+    return StringHasher::ComputeHashAndMaskTop8Bits(
+        reinterpret_cast<const char*>(str.data()), str.size() * 2);
+  }
+}
+
+NOINLINE unsigned StringImpl::HashSlowCase() const {
+  if (Is8Bit()) {
+    // This is the common case, so we take the size penalty
+    // of the inlining here.
+    SetHash(StringHasher::ComputeHashAndMaskTop8BitsInline(Span8()));
+  } else {
+    SetHash(ComputeHashForWideString(Span16()));
+  }
+  return ExistingHash();
+}
+
+void AtomicString::Init() {
   DCHECK(IsMainThread());
 
-  StringImpl::InitStatics();
-  new (base::NotNullTag::kNotNull, (void*)&g_empty_string)
-      String(StringImpl::empty_);
-  new (base::NotNullTag::kNotNull, (void*)&g_empty_string16_bit)
-      String(StringImpl::empty16_bit_);
+  new (base::NotNullTag::kNotNull, (void*)&g_null_atom) AtomicString;
+  new (base::NotNullTag::kNotNull, (void*)&g_empty_atom) AtomicString("");
+}
 
+}  // namespace blink
+namespace WTF {
+
+scoped_refptr<StringImpl> AddStaticASCIILiteral(
+    base::span<const char> literal) {
+  return base::AdoptRef(StringImpl::CreateStatic(literal));
+}
+
+void StringStatics::Init() {
+  DCHECK(blink::IsMainThread());
+
+  StringImpl::InitStatics();
+
+  new (base::NotNullTag::kNotNull, const_cast<String*>(&blink::g_empty_string))
+      String(StringImpl::empty_);
+  new (base::NotNullTag::kNotNull,
+       const_cast<String*>(&blink::g_empty_string16_bit))
+      String(StringImpl::empty16_bit_);
+  new (base::NotNullTag::kNotNull,
+       const_cast<String*>(&blink::g_xmlns_with_colon)) String("xmlns:");
+
+  using blink::AtomicString;
   // FIXME: These should be allocated at compile time.
-  new (base::NotNullTag::kNotNull, (void*)&g_star_atom) AtomicString("*");
-  new (base::NotNullTag::kNotNull, (void*)&g_xml_atom)
+  new (base::NotNullTag::kNotNull, (void*)&blink::g_star_atom)
+      AtomicString("*");
+  new (base::NotNullTag::kNotNull, (void*)&blink::g_xml_atom)
       AtomicString(AddStaticASCIILiteral(base::span_from_cstring("xml")));
-  new (base::NotNullTag::kNotNull, (void*)&g_xmlns_atom)
+  new (base::NotNullTag::kNotNull, (void*)&blink::g_xmlns_atom)
       AtomicString(AddStaticASCIILiteral(base::span_from_cstring("xmlns")));
-  new (base::NotNullTag::kNotNull, (void*)&g_xlink_atom)
+  new (base::NotNullTag::kNotNull, (void*)&blink::g_xlink_atom)
       AtomicString(AddStaticASCIILiteral(base::span_from_cstring("xlink")));
-  new (base::NotNullTag::kNotNull, (void*)&g_xmlns_with_colon) String("xmlns:");
-  new (base::NotNullTag::kNotNull, (void*)&g_http_atom)
+  new (base::NotNullTag::kNotNull, (void*)&blink::g_http_atom)
       AtomicString(AddStaticASCIILiteral(base::span_from_cstring("http")));
-  new (base::NotNullTag::kNotNull, (void*)&g_https_atom)
+  new (base::NotNullTag::kNotNull, (void*)&blink::g_https_atom)
       AtomicString(AddStaticASCIILiteral(base::span_from_cstring("https")));
 
-  NewlineThenWhitespaceStringsTable::Init();
+  blink::NewlineThenWhitespaceStringsTable::Init();
 }
 
 }  // namespace WTF

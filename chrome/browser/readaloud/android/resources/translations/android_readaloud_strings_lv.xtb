@@ -40,6 +40,7 @@
 <translation id="5596627076506792578">Citas opcijas</translation>
 <translation id="565342223183747919">Pieskarieties, lai pārslēgtu atskaņošanas režīmu</translation>
 <translation id="5694491020339060116">Atskaņošanas ātruma izvēlne</translation>
+<translation id="5961164658295696940">Pieskarieties, lai izvērstu atskaņotāju un skatītu citas opcijas.</translation>
 <translation id="5965409657393819302">Tehniska problēma</translation>
 <translation id="6218961554829577610">Nepatika balss</translation>
 <translation id="6315170314923504164">Balss</translation>
@@ -52,7 +53,6 @@
 <translation id="6846298663435243399">Notiek ielāde…</translation>
 <translation id="6889157801232138307">Atskaņotājs “Klausīties šo lapu”</translation>
 <translation id="7051308646573997571">Koraļļu</translation>
-<translation id="7112750136794557642">Pieskarieties, lai izvērstu atskaņotāju un skatītu citas opcijas.</translation>
 <translation id="7138678301420049075">Cits</translation>
 <translation id="7221920857098237570">Maigs</translation>
 <translation id="7237590978482584900">Brāzmains</translation>
@@ -67,5 +67,6 @@
 <translation id="8481839122437406573">Mierīgs tonis</translation>
 <translation id="8756370108715456837">Neatbilda faktiem</translation>
 <translation id="8953618380150219653">Atskaņotājs “Klausīties šo lapu” ir atvērts pilna ekrāna augstumā.</translation>
+<translation id="9087782179025630211">Meklēšanas vadīkla. Pagājušais laiks: <ph name="ELAPSED" /> (no <ph name="TOTAL" />).</translation>
 <translation id="978117257931832348">Zems tonis</translation>
 </translationbundle>

@@ -36,7 +36,7 @@
 <translation id="1634522710245925681">‏برای دریافت آسان‌تر اطلاعات آماری قیمت، Chrome را به‌عنوان مرورگر پیش‌فرض تنظیم کنید</translation>
 <translation id="1646463005043273333">‏«تنظیمات Chrome» را برای تنظیم کردن Chrome به‌عنوان مرورگر پیش‌فرض باز می‌کند.</translation>
 <translation id="1670609221633730681">‏نکته Chrome: موقعیت نوار نشانی را انتخاب کنید</translation>
-<translation id="1683863426423719967">‏برای دریافت «یادآورهای برگه» از Chrome، اعلان‌ها را در «تنظیمات» iOS روشن کنید.</translation>
+<translation id="1683863426423719967">‏برای دریافت «یادآورهای زبانه» از Chrome، اعلان‌ها را در «تنظیمات» iOS روشن کنید.</translation>
 <translation id="1759842336958782510">Chrome</translation>
 <translation id="1784567647421309104">‏گذرواژه‌هایتان را در Chrome ذخیره کنید</translation>
 <translation id="1790080846677398234">‏نشانی‌های وب واردشده را به نشانک‌های شما در Chrome اضافه می‌کند.</translation>
@@ -90,6 +90,7 @@
 <translation id="2957447865124070833">‏<ph name="BEGIN_BOLD" />Chrome<ph name="END_BOLD" /> را انتخاب کنید</translation>
 <translation id="2986402782150919988">‏افزودن نشانک به Chrome</translation>
 <translation id="3030414234702425231">‏ازآنجایی‌که درحال خارج شدن از حسابی هستید که <ph name="SIGNOUT_MANAGED_DOMAIN" /> آن را مدیریت می‌کند، داده‌های Chrome شما از این دستگاه حذف خواهد شد. داده‌هایتان در حساب Google شما باقی می‌ماند.</translation>
+<translation id="3042447686908081308">‏وارد کردن در Chrome</translation>
 <translation id="3051521853355903257">‏مدیریت کردن گذرواژه‌ها در Chrome</translation>
 <translation id="309672519329227863">‏در سایر برنامه‌ها به گذرواژه‌های Chrome و موارد دیگر دسترسی داشته باشید.</translation>
 <translation id="3109170945534582468">‏کنش‌های Chrome</translation>
@@ -316,6 +317,7 @@
 <translation id="855027533751209304">‏نکته Chrome: جستجوی آنچه می‌بینید</translation>
 <translation id="8558480467877843976">‏اکنون هرزمان بخواهید می‌توانید با مرور کردن یا ضربه زدن روی پیوندهای موجود در پیام‌ها، اسناد، و دیگر برنامه‌ها، از Chrome استفاده کنید.</translation>
 <translation id="8603022514504485810">‏«مدیر گذرواژه Google» نتوانست همه گذرواژه‌ها را بررسی کند. فردا دوباره امتحان کنید یا <ph name="BEGIN_LINK" />گذرواژه‌ها را در «حساب Google» خود بررسی کنید.<ph name="END_LINK" /></translation>
+<translation id="8610372330814566250">‏از گذرواژه‌ها، سابقه، نشانک‌ها، و کارت‌های اعتباری Safari خود در Chrome استفاده کنید</translation>
 <translation id="8630122478628016441">‏«قفل کردن برگه‌های ناشناس هنگام بستن Chrome» را روشن کنید.</translation>
 <translation id="8673726683583791503">‏خرید کردن با «لنز Google»</translation>
 <translation id="8765470054473112089">‏وقتی در نوار نشانی یا چارگوش جستجو تایپ می‌کنید، Chrome آنچه تایپ می‌کنید را به موتور جستجوی پیش‌فرض شما ارسال می‌کند تا پیشنهادهای بهتری دریافت کند. این ویژگی در «حالت ناشناس» خاموش است.</translation>
@@ -337,6 +339,7 @@
 <translation id="9176561303811134420">‏مدیریت کردن روش‌های پرداخت در Chrome</translation>
 <translation id="9181628561061032322">‏برگه‌های اخیر Chrome را باز می‌کند.</translation>
 <translation id="948597495737267756">‏صفحه «سابقه Chrome» را باز می‌کند.</translation>
+<translation id="954347330803595209">‏برای استفاده از گذرواژه‌ها، سابقه، نشانک‌ها، و کارت‌های اعتباری در Chrome، داده‌هایتان را وارد کنید</translation>
 <translation id="97300214378190234">‏با ضربه زدن روی پیوندهای موجود در برنامه‌های دیگر، از Chrome استفاده کنید.</translation>
 <translation id="997929539742564806">‏بااستفاده از تکمیل خودکار گذرواژه‌ها و گذرکلیدها در Chrome، سریع‌تر به سیستم برنامه‌ها و سایت‌ها وارد شوید</translation>
 <translation id="998677222109959694">‏مدیریت تنظیمات Chrome</translation>

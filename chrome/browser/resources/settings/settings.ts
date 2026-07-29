@@ -44,7 +44,6 @@ export {AboutPageBrowserProxy, AboutPageBrowserProxyImpl, UpdateStatus} from './
 export {PromoteUpdaterStatus} from './about_page/about_page_browser_proxy.js';
 // </if>
 // clang-format on
-export {SettingsA11yPageElement, ToastAlertLevel} from './a11y_page/a11y_page.js';
 export {SettingsAiInfoCardElement} from './ai_page/ai_info_card.js';
 export {SettingsAiLoggingInfoBullet} from './ai_page/ai_logging_info_bullet.js';
 export {SettingsAiPageElement} from './ai_page/ai_page.js';
@@ -112,7 +111,9 @@ export {SettingsSearchPageElement} from './search_page/search_page.js';
 export {getSearchManager, SearchManager, SearchRequest, setSearchManagerForTesting} from './search_settings.js';
 export {SettingsMainElement} from './settings_main/settings_main.js';
 export {SettingsMenuElement} from './settings_menu/settings_menu.js';
+export {SearchableViewContainerMixin} from './settings_page/searchable_view_container_mixin.js';
 export {SettingsSectionElement} from './settings_page/settings_section.js';
+export {SettingsViewMixin} from './settings_page/settings_view_mixin.js';
 export {SettingsUiElement} from './settings_ui/settings_ui.js';
 export {SiteFaviconElement} from './site_favicon.js';
 export {convertDateToWindowsEpoch} from './time.js';

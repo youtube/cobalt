@@ -123,6 +123,7 @@ class MockTestClient : public TestClient {
   }
 
   MOCK_METHOD(void, ProposeDocumentLayout, (const DocumentLayout&), (override));
+  MOCK_METHOD(void, Invalidate, (const gfx::Rect&), (override));
   MOCK_METHOD(void, ScrollToPage, (int), (override));
   MOCK_METHOD(void,
               NavigateTo,
@@ -1237,6 +1238,39 @@ TEST_P(PDFiumEngineTest, ClearTextSelection) {
   // Clear selected text.
   engine->ClearTextSelection();
   EXPECT_THAT(engine->GetSelectedText(), IsEmpty());
+}
+
+TEST_P(PDFiumEngineTest, GetScreenRectsForChar) {
+  NiceMock<MockTestClient> client;
+  std::unique_ptr<PDFiumEngine> engine =
+      InitializeEngine(&client, FILE_PATH_LITERAL("hello_world2.pdf"));
+  ASSERT_TRUE(engine);
+  ASSERT_EQ(2, engine->GetNumberOfPages());
+  ASSERT_EQ(30, engine->GetCharCount(0));
+  ASSERT_EQ(30, engine->GetCharCount(1));
+
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
+  constexpr gfx::Rect kExpectedRect1{32, 186, 12, 22};
+  constexpr gfx::Rect kExpectedRect2{67, 186, 5, 22};
+  constexpr gfx::Rect kExpectedRect3{43, 466, 8, 22};
+#else
+  constexpr gfx::Rect kExpectedRect1{32, 188, 12, 19};
+  constexpr gfx::Rect kExpectedRect2{67, 188, 5, 19};
+  constexpr gfx::Rect kExpectedRect3{43, 468, 8, 19};
+#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
+  EXPECT_THAT(engine->GetScreenRectsForChar(0, 0), ElementsAre(kExpectedRect1));
+  EXPECT_THAT(engine->GetScreenRectsForChar(0, 5), ElementsAre(kExpectedRect2));
+  EXPECT_THAT(engine->GetScreenRectsForChar(1, 1), ElementsAre(kExpectedRect3));
+}
+
+TEST_P(PDFiumEngineTest, InvalidateRect) {
+  NiceMock<MockTestClient> client;
+  std::unique_ptr<PDFiumEngine> engine =
+      InitializeEngine(&client, FILE_PATH_LITERAL("hello_world2.pdf"));
+  ASSERT_TRUE(engine);
+
+  EXPECT_CALL(client, Invalidate(gfx::Rect(1, 2, 3, 4)));
+  engine->InvalidateRect(gfx::Rect(1, 2, 3, 4));
 }
 
 INSTANTIATE_TEST_SUITE_P(All, PDFiumEngineTest, testing::Bool());
@@ -2697,6 +2731,99 @@ TEST_P(PDFiumEngineInkDrawTest, RotatedPdf) {
 // Don't be concerned about any slight rendering differences in AGG vs. Skia,
 // covering one of these is sufficient for checking how data is written out.
 INSTANTIATE_TEST_SUITE_P(All, PDFiumEngineInkDrawTest, testing::Values(false));
+
+using PDFiumEngineInkPrintTest = PDFiumTestBase;
+
+TEST_P(PDFiumEngineInkPrintTest, InkStrokes) {
+  NiceMock<MockTestClient> client;
+  std::unique_ptr<PDFiumEngine> engine =
+      InitializeEngine(&client, FILE_PATH_LITERAL("blank.pdf"));
+  ASSERT_TRUE(engine);
+
+  // Draw a stroke.
+  static constexpr auto kInputs = std::to_array<PdfInkInputData>({
+      {{5.0f, 5.0f}, base::Seconds(0.0f)},
+      {{50.0f, 5.0f}, base::Seconds(0.1f)},
+  });
+  std::optional<ink::StrokeInputBatch> batch = CreateInkInputBatch(kInputs);
+  ASSERT_TRUE(batch.has_value());
+  auto brush = std::make_unique<PdfInkBrush>(PdfInkBrush::Type::kPen,
+                                             SK_ColorRED, /*size=*/4.0f);
+  ink::Stroke stroke(brush->ink_brush(), batch.value());
+  static constexpr std::array<int, 1> kPagesToPrint = {0};
+  static constexpr InkStrokeId kStrokeId(0);
+  engine->ApplyStroke(kPagesToPrint[0], kStrokeId, stroke);
+
+  blink::WebPrintParams print_params = GetDefaultPrintParams();
+  print_params.printable_area_in_css_pixels = kPrintableAreaRect;
+  print_params.print_scaling_option =
+      printing::mojom::PrintScalingOption::kFitToPaper;
+
+  engine->PrintBegin();
+  std::vector<uint8_t> pdf_data =
+      engine->PrintPages(kPagesToPrint, print_params);
+  engine->PrintEnd();
+
+  base::FilePath expected_output = GetInkTestDataFilePath(
+      FILE_PATH_LITERAL("applied_stroke_printed_fit_to_page.png"));
+  CheckPdfRendering(pdf_data, kPagesToPrint[0], {612, 792}, expected_output);
+}
+
+// Don't be concerned about any slight rendering differences in AGG vs. Skia,
+// covering one of these is sufficient for checking how data is written out.
+INSTANTIATE_TEST_SUITE_P(All, PDFiumEngineInkPrintTest, testing::Values(false));
+
+class PDFiumEngineCaretTest : public PDFiumDrawSelectionTestBase {
+ public:
+  PDFiumEngineCaretTest() = default;
+  PDFiumEngineCaretTest(const PDFiumEngineCaretTest&) = delete;
+  PDFiumEngineCaretTest& operator=(const PDFiumEngineCaretTest&) = delete;
+  ~PDFiumEngineCaretTest() override = default;
+
+  void SetUp() override {
+    PDFiumDrawSelectionTestBase::SetUp();
+
+    feature_list_.InitAndEnableFeatureWithParameters(
+        features::kPdfInk2,
+        {{features::kPdfInk2TextHighlighting.name, "true"}});
+  }
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
+};
+
+TEST_P(PDFiumEngineCaretTest, Draw) {
+  NiceMock<MockTestClient> client;
+  std::unique_ptr<PDFiumEngine> engine =
+      InitializeEngine(&client, FILE_PATH_LITERAL("hello_world2.pdf"));
+  ASSERT_TRUE(engine);
+
+  engine->PluginSizeUpdated({500, 500});
+
+  DrawCaretAndCompareWithPlatformExpectations(*engine, /*page_index=*/0,
+                                              "hello_world_caret.png");
+}
+
+TEST_P(PDFiumEngineCaretTest, DrawOnGeometryChange) {
+  NiceMock<MockTestClient> client;
+  std::unique_ptr<PDFiumEngine> engine =
+      InitializeEngine(&client, FILE_PATH_LITERAL("hello_world2.pdf"));
+  ASSERT_TRUE(engine);
+
+  engine->PluginSizeUpdated({500, 500});
+
+  engine->ScrolledToXPosition(20);
+
+  DrawCaretAndCompareWithPlatformExpectations(
+      *engine, /*page_index=*/0, "hello_world_caret_on_geometry_change_0.png");
+
+  engine->ScrolledToYPosition(40);
+
+  DrawCaretAndCompareWithPlatformExpectations(
+      *engine, /*page_index=*/0, "hello_world_caret_on_geometry_change_1.png");
+}
+
+INSTANTIATE_TEST_SUITE_P(All, PDFiumEngineCaretTest, testing::Bool());
 
 #endif  // BUILDFLAG(ENABLE_PDF_INK2)
 

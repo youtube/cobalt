@@ -8,6 +8,7 @@ import static org.chromium.chrome.browser.tabwindow.TabWindowManager.INVALID_WIN
 
 import android.app.Activity;
 import android.content.ClipDescription;
+import android.content.Context;
 import android.view.DragEvent;
 import android.view.View;
 import android.view.View.DragShadowBuilder;
@@ -234,10 +235,12 @@ public abstract class TabDragHandlerBase implements View.OnDragListener, Destroy
     }
 
     protected ChromeDropDataAndroid prepareGroupDropData(Token tabGroupId, boolean isGroupShared) {
-        List<Tab> groupedTabs = getCurrentTabGroupModelFilter().getTabsInGroup(tabGroupId);
+        TabGroupModelFilter filter = getCurrentTabGroupModelFilter();
+        List<Tab> groupedTabs = filter.getTabsInGroup(tabGroupId);
         int windowId = TabWindowManagerSingleton.getInstance().getIdForWindow(getActivity());
         TabGroupMetadata metadata =
                 TabGroupMetadataExtractor.extractTabGroupMetadata(
+                        filter,
                         groupedTabs,
                         windowId,
                         getTabModelSelector().getCurrentTabId(),
@@ -302,9 +305,13 @@ public abstract class TabDragHandlerBase implements View.OnDragListener, Destroy
                     DragDropResult.SUCCESS, mIsAppInDesktopWindowSupplier.get(), isTabGroupDrop);
             DragDropMetricUtils.recordDragDropClosedWindow(didCloseWindow, isTabGroupDrop);
         } else if (MultiWindowUtils.getInstanceCount() >= MultiWindowUtils.getMaxInstances()) {
+            Context context = getActivity().getWindow().getContext();
             Toast.makeText(
-                            getActivity().getWindow().getContext(),
-                            R.string.max_number_of_windows,
+                            context,
+                            context.getResources()
+                                    .getString(
+                                            R.string.max_number_of_windows,
+                                            MultiWindowUtils.getMaxInstances()),
                             Toast.LENGTH_LONG)
                     .show();
             ChromeDragDropUtils.recordTabOrGroupDragToCreateInstanceFailureCount();

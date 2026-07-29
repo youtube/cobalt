@@ -174,10 +174,12 @@ void CaretDisplayItemClient::UpdateStyleAndLayoutIfNeeded(
     previous_layout_block_ = layout_block_.Get();
 
   CaretShape caret_shape = CaretShape::kBar;
-  if (caret_position.AnchorNode()) {
-    caret_shape = GetCaretShapeFromComputedStyle(
-        *GetComputedStyleForElementOrLayoutObject(
-            *caret_position.AnchorNode()));
+  bool is_caret_color_auto = false;
+  if (caret_position.AnchorNode() && IsEditable(*caret_position.AnchorNode())) {
+    const ComputedStyle* style =
+        GetComputedStyleForElementOrLayoutObject(*caret_position.AnchorNode());
+    is_caret_color_auto = style->IsCaretColorAuto();
+    caret_shape = GetCaretShapeFromComputedStyle(*style);
   }
 
   CaretRectAndPainterBlock rect_and_block =
@@ -220,15 +222,14 @@ void CaretDisplayItemClient::UpdateStyleAndLayoutIfNeeded(
   if (new_color != color_) {
     needs_paint_invalidation_ = true;
     color_ = new_color;
-  }
-
-  // TODO(https://crbug.com/353713061):
-  // https://drafts.csswg.org/css-ui/#caret-color When caret-shape is block,
-  // ensuring good visibility and contrast is best achieved with a UA-determined
-  // color other than currentColor.
-  if (caret_shape == CaretShape::kBlock) {
-    // Temporarily setting opacity to 0.5.
-    color_.SetAlpha(0.5);
+    // TODO(https://crbug.com/353713061):
+    // https://drafts.csswg.org/css-ui/#caret-color When caret-shape is block,
+    // ensuring good visibility and contrast is best achieved with a
+    // UA-determined color other than currentColor.
+    if (is_caret_color_auto && caret_shape == CaretShape::kBlock) {
+      // Temporarily setting opacity to 0.5.
+      color_.SetAlpha(0.5);
+    }
   }
   auto new_local_rect = rect_and_block.caret_rect;
   // TODO(crbug.com/1123630): Avoid paint invalidation on caret movement.
@@ -336,7 +337,7 @@ void CaretDisplayItemClient::RecordSelection(GraphicsContext& context,
   // For the caret, the start and end selection bounds are recorded as
   // the same edges, with the type marked as CENTER or HIDDEN.
   PaintedSelectionBound start = {type, paint_rect.origin(),
-                                 paint_rect.bottom_left(), false};
+                                 paint_rect.bottom_left()};
   PaintedSelectionBound end = start;
 
   // Get real world data to help debug crbug.com/1441243.

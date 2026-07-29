@@ -23,9 +23,6 @@
 namespace gin {
 
 class V8IdleTaskRunner;
-class IndexedPropertyInterceptor;
-class NamedPropertyInterceptor;
-class WrappableBase;
 
 // There is one instance of PerIsolateData per v8::Isolate managed by Gin. This
 // class stores all the Gin-related data that varies per isolate.
@@ -57,33 +54,27 @@ class GIN_EXPORT PerIsolateData {
   // Each isolate is associated with a collection of v8::ObjectTemplates and
   // v8::FunctionTemplates. Typically these template objects are created
   // lazily.
+  void DeprecatedSetObjectTemplate(
+      DeprecatedWrapperInfo* info,
+      v8::Local<v8::ObjectTemplate> object_template);
+
   void SetObjectTemplate(WrapperInfo* info,
                          v8::Local<v8::ObjectTemplate> object_template);
-  void SetFunctionTemplate(WrapperInfo* info,
+
+  void SetFunctionTemplate(DeprecatedWrapperInfo* info,
                            v8::Local<v8::FunctionTemplate> function_template);
 
   // These are low-level functions for retrieving object or function templates
   // stored in this object. Because these templates are often created lazily,
   // most clients should call higher-level functions that know how to populate
   // these templates if they haven't already been created.
+  v8::Local<v8::ObjectTemplate> DeprecatedGetObjectTemplate(
+      DeprecatedWrapperInfo* info);
+
   v8::Local<v8::ObjectTemplate> GetObjectTemplate(WrapperInfo* info);
-  v8::Local<v8::FunctionTemplate> GetFunctionTemplate(WrapperInfo* info);
 
-  // We maintain a map from Wrappable objects that derive from one of the
-  // interceptor interfaces to the interceptor interface pointers.
-  void SetIndexedPropertyInterceptor(WrappableBase* base,
-                                     IndexedPropertyInterceptor* interceptor);
-  void SetNamedPropertyInterceptor(WrappableBase* base,
-                                   NamedPropertyInterceptor* interceptor);
-
-  void ClearIndexedPropertyInterceptor(WrappableBase* base,
-                                       IndexedPropertyInterceptor* interceptor);
-  void ClearNamedPropertyInterceptor(WrappableBase* base,
-                                     NamedPropertyInterceptor* interceptor);
-
-  IndexedPropertyInterceptor* GetIndexedPropertyInterceptor(
-      WrappableBase* base);
-  NamedPropertyInterceptor* GetNamedPropertyInterceptor(WrappableBase* base);
+  v8::Local<v8::FunctionTemplate> GetFunctionTemplate(
+      DeprecatedWrapperInfo* info);
 
   void AddDisposeObserver(DisposeObserver* observer);
   void RemoveDisposeObserver(DisposeObserver* observer);
@@ -103,25 +94,20 @@ class GIN_EXPORT PerIsolateData {
   }
 
  private:
-  typedef std::map<
-      WrapperInfo*, v8::Eternal<v8::ObjectTemplate> > ObjectTemplateMap;
-  typedef std::map<
-      WrapperInfo*, v8::Eternal<v8::FunctionTemplate> > FunctionTemplateMap;
-  typedef std::map<WrappableBase*,
-                   raw_ptr<IndexedPropertyInterceptor, CtnExperimental>>
-      IndexedPropertyInterceptorMap;
-  typedef std::map<WrappableBase*,
-                   raw_ptr<NamedPropertyInterceptor, CtnExperimental>>
-      NamedPropertyInterceptorMap;
+  typedef std::map<DeprecatedWrapperInfo*, v8::Eternal<v8::ObjectTemplate>>
+      DeprecatedObjectTemplateMap;
+  typedef std::map<WrapperInfo*, v8::Eternal<v8::ObjectTemplate>>
+      ObjectTemplateMap;
+  typedef std::map<DeprecatedWrapperInfo*, v8::Eternal<v8::FunctionTemplate>>
+      FunctionTemplateMap;
 
   // PerIsolateData doesn't actually own |isolate_|. Instead, the isolate is
   // owned by the IsolateHolder, which also owns the PerIsolateData.
   raw_ptr<v8::Isolate, AcrossTasksDanglingUntriaged> isolate_;
   raw_ptr<v8::ArrayBuffer::Allocator, DanglingUntriaged> allocator_;
+  DeprecatedObjectTemplateMap deprecated_object_templates_;
   ObjectTemplateMap object_templates_;
   FunctionTemplateMap function_templates_;
-  IndexedPropertyInterceptorMap indexed_interceptors_;
-  NamedPropertyInterceptorMap named_interceptors_;
   base::ObserverList<DisposeObserver> dispose_observers_;
   std::shared_ptr<V8ForegroundTaskRunnerBase> task_runner_;
   std::shared_ptr<V8ForegroundTaskRunnerBase> user_visible_task_runner_;

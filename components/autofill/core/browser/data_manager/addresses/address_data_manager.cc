@@ -12,6 +12,7 @@
 #include "base/check_op.h"
 #include "base/containers/contains.h"
 #include "base/containers/to_vector.h"
+#include "base/feature_list.h"
 #include "base/functional/callback.h"
 #include "base/memory/weak_ptr.h"
 #include "base/notreached.h"
@@ -177,34 +178,57 @@ std::vector<const AutofillProfile*> AddressDataManager::GetProfiles(
 std::vector<const AutofillProfile*> AddressDataManager::GetProfilesByRecordType(
     AutofillProfile::RecordType record_type,
     ProfileOrder order) const {
+  return GetProfilesByRecordType(DenseSet({record_type}), order);
+}
+
+std::vector<const AutofillProfile*> AddressDataManager::GetProfilesByRecordType(
+    DenseSet<AutofillProfile::RecordType> record_types,
+    ProfileOrder order) const {
   std::vector<const AutofillProfile*> profiles = GetProfiles(order);
   std::erase_if(profiles, [&](const AutofillProfile* p) {
-    return p->record_type() != record_type;
+    return !record_types.contains(p->record_type());
   });
+  return profiles;
+}
+
+std::vector<const AutofillProfile*>
+AddressDataManager::GetProfilesWithDeprioritizedHomeAndWork(
+    ProfileOrder order) const {
+  DenseSet<AutofillProfile::RecordType> kHomeAndWorkRecordTypes = {
+      AutofillProfile::RecordType::kAccountHome,
+      AutofillProfile::RecordType::kAccountWork};
+  auto record_types = DenseSet<AutofillProfile::RecordType>::all();
+  record_types.erase_all(kHomeAndWorkRecordTypes);
+  std::vector<const AutofillProfile*> profiles =
+      GetProfilesByRecordType(record_types, order);
+  if (!base::FeatureList::IsEnabled(
+          features::kAutofillEnableSupportForHomeAndWork)) {
+    return profiles;
+  }
+  // Ensure that Home is above Work.
+  static_assert(AutofillProfile::RecordType::kAccountHome <
+                AutofillProfile::RecordType::kAccountWork);
+  for (AutofillProfile::RecordType record_type : kHomeAndWorkRecordTypes) {
+    std::vector<const AutofillProfile*> profile =
+        GetProfilesByRecordType(record_type);
+    profiles.insert(profiles.end(), profile.begin(), profile.end());
+  }
   return profiles;
 }
 
 std::vector<const AutofillProfile*> AddressDataManager::GetProfilesToSuggest()
     const {
   if (!IsAutofillProfileEnabled()) {
-    return std::vector<const AutofillProfile*>{};
+    return {};
   }
-  std::vector<const AutofillProfile*> profiles =
-      GetProfiles(ProfileOrder::kHighestFrecencyDesc);
-  // H/W addresses are prioritized for suggestion purposes.
-  std::ranges::stable_partition(profiles,
-                                &AutofillProfile::IsHomeAndWorkProfile);
-  if (profiles.size() >= 2 &&
-      profiles[0]->record_type() == AutofillProfile::RecordType::kAccountWork &&
-      profiles[1]->record_type() == AutofillProfile::RecordType::kAccountHome) {
-    std::swap(profiles[0], profiles[1]);
-  }
-  return profiles;
+  return GetProfilesWithDeprioritizedHomeAndWork(
+      ProfileOrder::kHighestFrecencyDesc);
 }
 
 std::vector<const AutofillProfile*> AddressDataManager::GetProfilesForSettings()
     const {
-  return GetProfiles(ProfileOrder::kMostRecentlyModifiedDesc);
+  return GetProfilesWithDeprioritizedHomeAndWork(
+      ProfileOrder::kMostRecentlyModifiedDesc);
 }
 
 const AutofillProfile* AddressDataManager::GetProfileByGUID(

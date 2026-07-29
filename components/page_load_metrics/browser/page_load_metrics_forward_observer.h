@@ -113,6 +113,12 @@ class PageLoadMetricsForwardObserver final
   void OnFirstMeaningfulPaintInMainFrameDocument(
       const mojom::PageLoadTiming& timing) override;
   void OnFirstInputInPage(const mojom::PageLoadTiming& timing) override;
+  void OnUserTimingMarkFullyLoaded(
+      const mojom::PageLoadTiming& timing) override;
+  void OnUserTimingMarkFullyVisible(
+      const mojom::PageLoadTiming& timing) override;
+  void OnUserTimingMarkInteractive(
+      const mojom::PageLoadTiming& timing) override;
   void OnLoadingBehaviorObserved(content::RenderFrameHost* rfh,
                                  int behavior_flags) override;
   void OnJavaScriptFrameworksObserved(
@@ -121,8 +127,7 @@ class PageLoadMetricsForwardObserver final
   void OnFeaturesUsageObserved(
       content::RenderFrameHost* rfh,
       const std::vector<blink::UseCounterFeature>& features) override;
-  void SetUpSharedMemoryForUkms(
-      const base::ReadOnlySharedMemoryRegion& smoothness_memory,
+  void SetUpSharedMemoryForDroppedFrames(
       const base::ReadOnlySharedMemoryRegion& dropped_frames_memory) override;
   void OnResourceDataUseObserved(
       content::RenderFrameHost* rfh,

@@ -53,12 +53,11 @@ polymorphic.launcher(
     os = os.LINUX_DEFAULT,
     runner = "reviver/runner",
     target_builders = [
-        "ci/android-oreo-x86-rel",
-        "ci/android-pie-x86-rel",
         "ci/android-10-x86-rel",
         "ci/android-12-x64-rel",
         "ci/android-13-x64-rel",
         "ci/android-15-x64-rel",
+        "ci/android-16-x64-rel",
     ],
 )
 

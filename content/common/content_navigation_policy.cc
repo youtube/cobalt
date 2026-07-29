@@ -11,6 +11,7 @@
 #include "base/system/sys_info.h"
 #include "build/build_config.h"
 #include "content/common/features.h"
+#include "content/public/common/content_client.h"
 #include "content/public/common/content_features.h"
 #include "content/public/common/content_switches.h"
 #include "net/base/features.h"
@@ -93,7 +94,12 @@ constexpr base::FeatureParam<RenderDocumentLevel>::Option
         {RenderDocumentLevel::kAllFrames, "all-frames"}};
 const base::FeatureParam<RenderDocumentLevel> render_document_level{
     &features::kRenderDocument, kRenderDocumentLevelParameterName,
-    RenderDocumentLevel::kSubframe, &render_document_levels};
+#if BUILDFLAG(IS_ANDROID)
+    RenderDocumentLevel::kAllFrames,
+#else
+    RenderDocumentLevel::kSubframe,
+#endif
+    &render_document_levels};
 
 RenderDocumentLevel GetRenderDocumentLevel() {
   if (base::FeatureList::IsEnabled(features::kRenderDocument))
@@ -178,7 +184,8 @@ bool ShouldCreateSiteInstanceForDataUrls() {
 }
 
 bool ShouldUseDefaultSiteInstanceGroup() {
-  return base::FeatureList::IsEnabled(features::kDefaultSiteInstanceGroups);
+  return GetContentClient()->ShouldAllowDefaultSiteInstanceGroup() &&
+         base::FeatureList::IsEnabled(features::kDefaultSiteInstanceGroups);
 }
 
 }  // namespace content

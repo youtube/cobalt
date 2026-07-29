@@ -9,6 +9,7 @@
 <translation id="1115463765356382667">Làm theo các đề xuất dưới đây để tận dụng tối đa Chromium.</translation>
 <translation id="1140315115515116765">Dùng Chromium làm trình duyệt mặc định để dễ dàng xem thông tin chi tiết về giá</translation>
 <translation id="1185134272377778587">Giới thiệu về Chromium</translation>
+<translation id="1229234641991056119">Sử dụng mật khẩu, nhật ký, dấu trang và thẻ tín dụng từ Safari trong Chromium</translation>
 <translation id="1257458525759135959">Để lưu hình ảnh, hãy nhấn vào Cài đặt để cho phép Chromium thêm vào ảnh của bạn</translation>
 <translation id="1260702988262336471">Mở trình đơn Chromium</translation>
 <translation id="12739128458173458">Để gửi thẻ này tới một thiết bị khác, hãy đăng nhập vào Chromium trên cả hai thiết bị.</translation>
@@ -137,7 +138,7 @@ Dữ liệu của bạn được mã hoá bằng cụm mật khẩu. Nhập cụ
 <translation id="4302397443352897529">Cài đặt Chromium</translation>
 <translation id="4408912345039114853">Chạy quy trình Kiểm tra an toàn trên Chromium</translation>
 <translation id="4432744876818348753">Đăng nhập để khai thác tối đa Chromium.</translation>
-<translation id="4445228361214254027">Tổ chức của bạn đã tắt tính năng sử dụng và lưu dữ liệu Chromium vào Tài khoản Google. Dấu trang, mật khẩu mới và các nội dung khác sẽ chỉ được lưu vào thiết bị này.</translation>
+<translation id="4445228361214254027">Tổ chức của bạn đã tắt tính năng sử dụng và lưu dữ liệu Chromium vào Tài khoản Google. Dấu trang, mật khẩu mới và các nội dung khác sẽ chỉ được lưu trên thiết bị này.</translation>
 <translation id="4498832288620833153">Thêm các URL đã nhập vào danh sách đọc trong Chromium.</translation>
 <translation id="4508268628669724828">Quay lại đây để xem thêm các mẹo hữu ích giúp khai thác tối đa Chromium.</translation>
 <translation id="452436063477828504">Đảm bảo bạn luôn có thể sử dụng dữ liệu Chromium trong Tài khoản Google của mình</translation>
@@ -174,6 +175,7 @@ Dữ liệu của bạn được mã hoá bằng cụm mật khẩu. Nhập cụ
 <translation id="5203244847421322551">Lưu và tự động điền mật khẩu trong Chromium</translation>
 <translation id="5224391634244552924">Bạn chưa lưu mật khẩu nào. Chromium có thể kiểm tra các mật khẩu của bạn khi bạn lưu các mật khẩu đó.</translation>
 <translation id="5259423875997548710">Tìm kiếm hình ảnh trong Chromium.</translation>
+<translation id="5284913972719948193">Nhập dữ liệu để sử dụng mật khẩu, nhật ký, dấu trang và thẻ tín dụng của bạn trên Chromium</translation>
 <translation id="5308226104666789935">Chromium không thể kiểm tra xem có bản cập nhật mới nào không</translation>
 <translation id="5311557153294205270">Thêm các URL đã nhập vào danh sách dấu trang trong Chromium.</translation>
 <translation id="5383251701169024761">Để dễ dàng sử dụng mật khẩu đã lưu trong các ứng dụng khác, hãy chọn tính năng Tự động điền trong Chromium.</translation>
@@ -300,13 +302,14 @@ Chỉ những người có cụm mật khẩu mới đọc được dữ liệu 
 <translation id="830951810931292870">Mở các URL đã nhập bằng chế độ Ẩn danh trong Chromium.</translation>
 <translation id="8390323835464055390">Đăng nhập bằng mật khẩu và khoá truy cập đã lưu từ mọi ứng dụng bằng cách sử dụng Chromium làm dịch vụ tự động điền</translation>
 <translation id="8409374867500149834">Chromium sở hữu khả năng bảo mật mạnh nhất để bảo vệ bạn trước các trang web có hại</translation>
-<translation id="8543509361021925846">{THRESHOLD,plural, =1{Việc này diễn ra sau {THRESHOLD} phút bạn không dùng đến Chromium. Những dữ liệu chỉ được lưu vào thiết bị này khi bạn đăng nhập sẽ bị xoá. Dữ liệu này có thể bao gồm nhật ký và mật khẩu.}other{Việc này diễn ra sau {THRESHOLD} phút bạn không dùng đến Chromium. Những dữ liệu chỉ được lưu vào thiết bị này khi bạn đăng nhập sẽ bị xoá. Dữ liệu này có thể bao gồm nhật ký và mật khẩu.}}</translation>
+<translation id="8543509361021925846">{THRESHOLD,plural, =1{Việc này diễn ra sau {THRESHOLD} phút bạn không dùng đến Chromium. Những dữ liệu chỉ được lưu trên thiết bị này khi bạn đăng nhập sẽ bị xoá. Dữ liệu này có thể bao gồm nhật ký và mật khẩu.}other{Việc này diễn ra sau {THRESHOLD} phút bạn không dùng đến Chromium. Những dữ liệu chỉ được lưu trên thiết bị này khi bạn đăng nhập sẽ bị xoá. Dữ liệu này có thể bao gồm nhật ký và mật khẩu.}}</translation>
 <translation id="858114650497379505">Bạn có thể sử dụng mật khẩu đã lưu vào Trình quản lý mật khẩu trong ứng dụng khác trên iPhone.</translation>
 <translation id="8586442755830160949">Bản quyền <ph name="YEAR" /> Tác giả Chromium. Mọi quyền được bảo lưu.</translation>
 <translation id="8602103377623855616">Trang Chromium</translation>
 <translation id="865600487977764604">Giữ cho bạn an toàn trên Chromium và có thể dùng để cải thiện mức độ bảo mật trên các ứng dụng khác của Google khi bạn đăng nhập.</translation>
 <translation id="8663480472502753423">Giữ cho Chromium luôn cập nhật</translation>
 <translation id="8685813584220679697">Đăng nhập vào trang web này và Chromium.</translation>
+<translation id="8698780336333802489">Nhập vào Chromium</translation>
 <translation id="8730503818204408000">Mở phần cài đặt Chromium để đặt Chromium làm trình duyệt mặc định.</translation>
 <translation id="8754966941001340678">Chromium khuyên dùng chế độ bảo vệ nâng cao</translation>
 <translation id="8759037115129007407">Thành viên gia đình bạn hiện không thể nhận mật khẩu. Hãy đề nghị họ cập nhật Chromium và đồng bộ hoá mật khẩu của họ. <ph name="BEGIN_LINK" />Tìm hiểu thêm<ph name="END_LINK" /></translation>
@@ -324,7 +327,7 @@ Chỉ những người có cụm mật khẩu mới đọc được dữ liệu 
 <translation id="8975812008711371178">Tìm kiếm bằng giọng nói trong Chromium.</translation>
 <translation id="900560297598578021">Bạn đã đăng nhập bằng <ph name="EMAIL" />.
 
-Dữ liệu của bạn đã được mã hoá bằng cụm mật khẩu vào <ph name="TIME" />. Nhập cụm mật khẩu để sử dụng và lưu dữ liệu Chromium vào Tài khoản Google của bạn.</translation>
+Dữ liệu của bạn đã được mã hoá bằng cụm mật khẩu vào <ph name="TIME" />. Nhập cụm mật khẩu để sử dụng và lưu dữ liệu trên Chromium vào Tài khoản Google của bạn.</translation>
 <translation id="9022552996538154597">Đăng nhập vào Chromium</translation>
 <translation id="9031260906956926157">Một số dữ liệu Chromium của bạn chưa được lưu vào Tài khoản Google.
 Trước khi đăng xuất, hãy đợi một vài phút. Nếu bạn đăng xuất ngay, dữ liệu này sẽ bị xoá.</translation>

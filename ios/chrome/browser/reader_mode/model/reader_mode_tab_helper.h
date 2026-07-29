@@ -10,9 +10,9 @@
 #import "base/scoped_observation.h"
 #import "base/timer/timer.h"
 #import "ios/chrome/browser/dom_distiller/model/distiller_service.h"
-#import "ios/chrome/browser/dom_distiller/model/offline_page_distiller_viewer.h"
 #import "ios/chrome/browser/reader_mode/model/constants.h"
 #import "ios/chrome/browser/reader_mode/model/reader_mode_content_delegate.h"
+#import "ios/chrome/browser/reader_mode/model/reader_mode_distiller_viewer.h"
 #import "ios/web/public/web_state_observer.h"
 #import "ios/web/public/web_state_user_data.h"
 
@@ -55,6 +55,7 @@ class ReaderModeTabHelper : public web::WebStateObserver,
 
   // Returns whether Reader mode is active in the current tab. If so, the Reader
   // mode UI should be presented.
+  // GetReaderModeWebState() may still return null.
   bool IsActive() const;
   // Activates/deactivates Reader mode in the current tab.
   void SetActive(bool active);
@@ -67,9 +68,6 @@ class ReaderModeTabHelper : public web::WebStateObserver,
   // Returns the Reader mode content view. A precondition for calling this
   // method is for `IsReaderModeContentAvailable()` to be true.
   web::WebState* GetReaderModeWebState();
-
-  // Shows the Reader mode options UI.
-  void ShowReaderModeOptions();
 
   // Returns whether the current page supports Reading mode.
   bool CurrentPageSupportsReaderMode() const;
@@ -115,6 +113,11 @@ class ReaderModeTabHelper : public web::WebStateObserver,
 
  private:
   friend class web::WebStateUserData<ReaderModeTabHelper>;
+
+  // Handles the result from the Readability JavaScript heuristic triggering
+  // logic.
+  void HandleReadabilityHeuristicResult(const GURL& url,
+                                        const base::Value* result);
 
   // Trigger the heuristic to determine reader mode eligibility.
   void TriggerReaderModeHeuristic(const GURL& url);
@@ -169,7 +172,7 @@ class ReaderModeTabHelper : public web::WebStateObserver,
       web_state_observation_{this};
   raw_ptr<DistillerService> distiller_service_;
 
-  std::unique_ptr<OfflinePageDistillerViewer> distiller_viewer_;
+  std::unique_ptr<ReaderModeDistillerViewer> distiller_viewer_;
 
   base::ObserverList<Observer, true> observers_;
 

@@ -3482,27 +3482,6 @@
           }
         ]
       },
-      "Linux Tests (Wayland)": {
-        "contact_team_email": "chrome-linux-engprod@google.com",
-        "problem_specs": [
-          {
-            "name": "Unhealthy",
-            "period_days": 7,
-            "score": 5,
-            "thresholds": {
-              "_default": "_default"
-            }
-          },
-          {
-            "name": "Low Value",
-            "period_days": 90,
-            "score": 1,
-            "thresholds": {
-              "_default": "_default"
-            }
-          }
-        ]
-      },
       "Linux Tests (dbg)(1)": {
         "contact_team_email": "chrome-linux-engprod@google.com",
         "problem_specs": [
@@ -4303,26 +4282,6 @@
       },
       "Network Service Linux": {
         "contact_team_email": "chrome-linux-engprod@google.com",
-        "problem_specs": [
-          {
-            "name": "Unhealthy",
-            "period_days": 7,
-            "score": 5,
-            "thresholds": {
-              "_default": "_default"
-            }
-          },
-          {
-            "name": "Low Value",
-            "period_days": 90,
-            "score": 1,
-            "thresholds": {
-              "_default": "_default"
-            }
-          }
-        ]
-      },
-      "Oreo Phone Tester": {
         "problem_specs": [
           {
             "name": "Unhealthy",
@@ -7700,27 +7659,6 @@
           }
         ]
       },
-      "android-oreo-x86-rel": {
-        "contact_team_email": "clank-engprod@google.com",
-        "problem_specs": [
-          {
-            "name": "Unhealthy",
-            "period_days": 7,
-            "score": 5,
-            "thresholds": {
-              "_default": "_default"
-            }
-          },
-          {
-            "name": "Low Value",
-            "period_days": 90,
-            "score": 1,
-            "thresholds": {
-              "_default": "_default"
-            }
-          }
-        ]
-      },
       "android-perfetto-rel": {
         "problem_specs": [
           {
@@ -7741,49 +7679,7 @@
           }
         ]
       },
-      "android-pie-arm64-dbg": {
-        "contact_team_email": "clank-engprod@google.com",
-        "problem_specs": [
-          {
-            "name": "Unhealthy",
-            "period_days": 7,
-            "score": 5,
-            "thresholds": {
-              "_default": "_default"
-            }
-          },
-          {
-            "name": "Low Value",
-            "period_days": 90,
-            "score": 1,
-            "thresholds": {
-              "_default": "_default"
-            }
-          }
-        ]
-      },
       "android-pie-x86-fyi-rel": {
-        "problem_specs": [
-          {
-            "name": "Unhealthy",
-            "period_days": 7,
-            "score": 5,
-            "thresholds": {
-              "_default": "_default"
-            }
-          },
-          {
-            "name": "Low Value",
-            "period_days": 90,
-            "score": 1,
-            "thresholds": {
-              "_default": "_default"
-            }
-          }
-        ]
-      },
-      "android-pie-x86-rel": {
-        "contact_team_email": "clank-engprod@google.com",
         "problem_specs": [
           {
             "name": "Unhealthy",
@@ -10444,6 +10340,27 @@
         ]
       },
       "linux-wayland-mutter-rel-tests": {
+        "contact_team_email": "chrome-linux-engprod@google.com",
+        "problem_specs": [
+          {
+            "name": "Unhealthy",
+            "period_days": 7,
+            "score": 5,
+            "thresholds": {
+              "_default": "_default"
+            }
+          },
+          {
+            "name": "Low Value",
+            "period_days": 90,
+            "score": 1,
+            "thresholds": {
+              "_default": "_default"
+            }
+          }
+        ]
+      },
+      "linux-wayland-weston-rel-tests": {
         "contact_team_email": "chrome-linux-engprod@google.com",
         "problem_specs": [
           {

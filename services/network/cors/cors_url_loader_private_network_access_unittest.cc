@@ -765,14 +765,14 @@ TEST_F(CorsURLLoaderPrivateNetworkAccessTest, CachesPreflightResult) {
   RunUntilComplete();
 
   // Send the same request again. This time the initial connection observes a
-  // private network access to a different IP address space: `kLocal`.
+  // private network access to a different IP address space: `kLoopback`.
   // A preflight request should be sent with its `target_ip_address_space` set
-  // to `kLocal`.  CreateLoaderAndStart(request);
+  // to `kLoopback`.  CreateLoaderAndStart(request);
   CreateLoaderAndStart(request);
   RunUntilCreateLoaderAndStartCalled();
   NotifyLoaderClientOnComplete(CorsErrorStatus(
       mojom::CorsError::kUnexpectedPrivateNetworkAccess,
-      mojom::IPAddressSpace::kUnknown, mojom::IPAddressSpace::kLocal));
+      mojom::IPAddressSpace::kUnknown, mojom::IPAddressSpace::kLoopback));
 
   RunUntilCreateLoaderAndStartCalled();
 
@@ -887,81 +887,6 @@ TEST_F(CorsURLLoaderPrivateNetworkAccessTest, PolicyWarnSimpleNetError) {
 
   RunUntilCreateLoaderAndStartCalled();
   NotifyLoaderClientOnComplete(net::ERR_INVALID_ARGUMENT);
-
-  RunUntilCreateLoaderAndStartCalled();
-  NotifyLoaderClientOnReceiveResponse();
-  NotifyLoaderClientOnComplete(net::OK);
-  RunUntilComplete();
-
-  EXPECT_EQ(client().response_head()->private_network_access_preflight_result,
-            mojom::PrivateNetworkAccessPreflightResult::kWarning);
-
-  EXPECT_EQ(client().completion_status().error_code, net::OK);
-  EXPECT_EQ(
-      client().completion_status().private_network_access_preflight_result,
-      mojom::PrivateNetworkAccessPreflightResult::kNone);
-
-  devtools_observer.WaitUntilCorsError();
-
-  const MockDevToolsObserver::OnCorsErrorParams& error_params =
-      *devtools_observer.cors_error_params();
-  EXPECT_EQ(error_params.status,
-            CorsErrorStatus(mojom::CorsError::kInvalidResponse,
-                            mojom::IPAddressSpace::kPrivate,
-                            mojom::IPAddressSpace::kPrivate));
-  EXPECT_TRUE(error_params.is_warning);
-  ASSERT_TRUE(error_params.client_security_state);
-  EXPECT_TRUE(error_params.client_security_state->is_web_secure_context);
-  EXPECT_EQ(error_params.client_security_state->private_network_request_policy,
-            mojom::PrivateNetworkRequestPolicy::kPreflightWarn);
-  EXPECT_EQ(error_params.client_security_state->ip_address_space,
-            mojom::IPAddressSpace::kPublic);
-}
-
-// This test verifies that when:
-//
-//  - the private network request policy is set to `kPreflightWarn`
-//  - a simple request detects a private network request
-//  - the following PNA preflight response takes forever to arrive
-//
-// ... a short timeout is applied, the error ignored and the request proceeds.
-TEST_F(CorsURLLoaderPrivateNetworkAccessTest, PolicyWarnSimpleTimeout) {
-  auto initiator_origin = url::Origin::Create(GURL("https://example.com"));
-
-  ResetFactoryParams factory_params;
-  factory_params.is_trusted = true;
-  ResetFactory(initiator_origin, kRendererProcessId, factory_params);
-
-  MockDevToolsObserver devtools_observer;
-  ResourceRequest request;
-  request.method = "GET";
-  request.mode = mojom::RequestMode::kCors;
-  request.url = GURL("https://example.com/");
-  request.request_initiator = initiator_origin;
-  request.trusted_params =
-      RequestTrustedParamsBuilder()
-          .WithClientSecurityState(
-              ClientSecurityStateBuilder()
-                  .WithPrivateNetworkRequestPolicy(
-                      mojom::PrivateNetworkRequestPolicy::kPreflightWarn)
-                  .WithIsSecureContext(true)
-                  .WithIPAddressSpace(mojom::IPAddressSpace::kPublic)
-                  .Build())
-          .WithDevToolsObserver(devtools_observer.Bind())
-          .Build();
-  request.devtools_request_id = "devtools";
-
-  base::HistogramTester histogram_tester;
-
-  CreateLoaderAndStart(request);
-  RunUntilCreateLoaderAndStartCalled();
-  NotifyLoaderClientOnComplete(CorsErrorStatus(
-      mojom::CorsError::kUnexpectedPrivateNetworkAccess,
-      mojom::IPAddressSpace::kUnknown, mojom::IPAddressSpace::kPrivate));
-
-  RunUntilCreateLoaderAndStartCalled();
-  // Here we intentionally wait for PreflightLoader to be timed out instead
-  // of calling OnComplete.
 
   RunUntilCreateLoaderAndStartCalled();
   NotifyLoaderClientOnReceiveResponse();

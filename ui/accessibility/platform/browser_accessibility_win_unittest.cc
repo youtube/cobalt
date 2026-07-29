@@ -1018,7 +1018,7 @@ TEST_F(BrowserAccessibilityWinTest, TestCreateEmptyDocument) {
   BrowserAccessibility* root = manager->GetBrowserAccessibilityRoot();
   EXPECT_EQ(kInitialEmptyDocumentRootNodeID, root->GetId());
   EXPECT_EQ(ax::mojom::Role::kRootWebArea, root->GetRole());
-  EXPECT_EQ(ax::mojom::State::kNone, root->GetState());
+  EXPECT_EQ(AXStates(0U), root->GetStates());
 
   // Tree with a child textfield.
   AXNodeData tree1_1;
@@ -1099,7 +1099,7 @@ TEST_F(BrowserAccessibilityWinTest, EmptyDocHasUniqueIdWin) {
   BrowserAccessibility* root = manager->GetBrowserAccessibilityRoot();
   EXPECT_EQ(kInitialEmptyDocumentRootNodeID, root->GetId());
   EXPECT_EQ(ax::mojom::Role::kRootWebArea, root->GetRole());
-  EXPECT_EQ(ax::mojom::State::kNone, root->GetState());
+  EXPECT_EQ(AXStates(0U), root->GetStates());
 
   BrowserAccessibilityWin* win_root = ToBrowserAccessibilityWin(root);
 
@@ -3253,7 +3253,7 @@ TEST_F(BrowserAccessibilityWinTest, UIACreateExtraAnnouncementNodesFails) {
           MakeAXTreeUpdateForTesting(root_data, button), node_id_delegate_,
           test_browser_accessibility_delegate_.get()));
   manager->FireAriaNotificationEvent(
-      manager->GetBrowserAccessibilityRoot(), "This is an announcement",
+      manager->GetFromID(2), "This is an announcement",
       ax::mojom::AriaNotificationPriority::kNormal,
       ax::mojom::AriaNotificationInterrupt::kNone, "" /*type */);
 

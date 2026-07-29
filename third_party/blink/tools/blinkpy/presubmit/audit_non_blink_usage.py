@@ -777,8 +777,17 @@ _CONFIG = [
             'net::CookieSameSite',
             'net::CookieSourceScheme',
 
+            # Cookie prefix feature flags.
+            'net::features::kPrefixCookieHttp',
+            'net::features::kPrefixCookieHostHttp',
+
             # HTTP status codes
+            'net::OK',
+
+            # Net error codes
             'net::ERR_.*',
+
+            # HTTP status codes
             'net::HTTP_.+',
 
             # For ConnectionInfo enumeration
@@ -1647,9 +1656,13 @@ _CONFIG = [
         'paths': [
             'third_party/blink/renderer/modules/webgl/webgl_rendering_context_base.cc',
         ],
-        # This class needs access to a GPU driver bug workaround entry.
+        # This class needs access to various GPU-related functionality.
         'allowed': [
+            'gfx::BufferFormat',
             'gpu::ENABLE_WEBGL_TIMER_QUERY_EXTENSIONS',
+            'gpu::IsImageFromGpuMemoryBufferFormatSupported',
+            'gpu::IsImageSizeValidForGpuMemoryBufferFormat',
+            'viz::SinglePlaneSharedImageFormatToBufferFormat',
         ],
     },
     {
@@ -2055,7 +2068,7 @@ _CONFIG = [
             # liburlpattern API.
             "base::IsStringASCII",
 
-            # Needed to use part of the StringUTF8Adaptor API.
+            # Needed to use part of the StringUtf8Adaptor API.
             "base::StringPiece",
 
             # //third_party/liburlpattern
@@ -2145,7 +2158,6 @@ _CONFIG = [
             # base::OnceClosure, base::RepeatingClosure, base::CurrentThread and
             # base::RetainedRef.
             'base::Bind.*',
-            'base::MD5.*',
             'base::CurrentThread',
             'base::.*Closure',
             'base::PowerObserver',
@@ -2156,6 +2168,7 @@ _CONFIG = [
             # TODO(crbug.com/787254): Replace base::Thread with the appropriate Blink class.
             'base::Thread',
             'base::WrapRefCounted',
+            'crypto::hash::Sha256',
             'cricket::.*',
             'webrtc::ThreadWrapper',
             # TODO(crbug.com/787254): Remove GURL usage.
@@ -2439,6 +2452,15 @@ _CONFIG = [
         'allowed': [
             'attribution_reporting::.*',
         ]
+    },
+    {
+        'paths': [
+            'third_party/blink/renderer/core/frame/web_frame_widget_impl.cc',
+        ],
+        'allowed': [
+            # Temporarily added to generate the value of a crash key.
+            'base::NumberToString',
+        ],
     },
     {
         'paths': [

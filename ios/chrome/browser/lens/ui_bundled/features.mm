@@ -62,7 +62,7 @@ BASE_FEATURE(kLensGestureTextSelectionDisabled,
 
 BASE_FEATURE(kLensVsintParamEnabled,
              "LensVsintParamEnabled",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kLensUnaryClientDataHeaderEnabled,
              "LensUnaryClientDataHeaderEnabled",
@@ -90,4 +90,24 @@ BASE_FEATURE(kLensQRCodeParsingFix,
 
 BASE_FEATURE(kLensExactMatchesEnabled,
              "LensExactMatchesEnabled",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kLensCameraNoStillOutputRequired,
+             "LensCameraNoStillOutputRequired",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kLensCameraUnbinnedCaptureFormatsPreferred,
+             "LensCameraUnbinnedCaptureFormatsPreferred",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kLensContinuousZoomEnabled,
+             "LensContinuousZoomEnabled",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kLensInitialLvfZoomLevel90Percent,
+             "LensInitialLvfZoomLevel90Percent",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kLensTripleCameraEnabled,
+             "LensTripleCameraEnabled",
              base::FEATURE_DISABLED_BY_DEFAULT);

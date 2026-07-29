@@ -9,7 +9,9 @@ import android.content.Context;
 import androidx.annotation.VisibleForTesting;
 
 import org.chromium.base.MathUtils;
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.browser.compositor.layouts.phone.stack.StackScroller;
+import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.ui.base.LocalizationUtils;
 
 /**
@@ -83,6 +85,7 @@ import org.chromium.ui.base.LocalizationUtils;
  * documented above, so it requires time and effort to migrate this class to the <b>static</b>
  * window coordinate system that doesn't change due to layout configurations (LTR/RTL).
  */
+@NullMarked
 public class ScrollDelegate {
     // Constants.
     private static final int SCROLL_DURATION_MS = 250;
@@ -196,14 +199,15 @@ public class ScrollDelegate {
             if (view.isDraggedOffStrip()) continue;
 
             if (view instanceof final StripLayoutTab tab) {
-                if (tab.isCollapsed()) {
-                    // Need to use real width here (which gets animated to effectively 0), so we
-                    // don't "jump", but instead smoothly scroll when collapsing near the end of a
-                    // full tab strip.
-                    totalViewWidth += tab.getWidth() - tabOverlapWidth;
-                } else if (!tab.isClosed()) {
-                    totalViewWidth += cachedTabWidth - tabOverlapWidth;
-                }
+                if (tab.isClosed()) continue;
+
+                // Need to use real width (which gets animated to effectively 0) to smoothly scroll
+                // when (collapsing) or (using updated animations) near the end of a full tab strip.
+                boolean useRealWidth =
+                        tab.isCollapsed() || ChromeFeatureList.sTabletTabStripAnimation.isEnabled();
+                float tabWidth = useRealWidth ? tab.getWidth() : cachedTabWidth;
+
+                totalViewWidth += (tabWidth - tabOverlapWidth);
             } else if (view instanceof StripLayoutGroupTitle groupTitle) {
                 totalViewWidth += (groupTitle.getWidth() - groupTitleOverlapWidth);
             }

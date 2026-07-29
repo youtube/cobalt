@@ -4,9 +4,9 @@
 
 // clang-format off
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
-import type {SettingsAboutPageElement, SettingsRoutes} from 'chrome://settings/settings.js';
-import {AboutPageBrowserProxyImpl, LifetimeBrowserProxyImpl, Route, Router, resetRouterForTesting} from 'chrome://settings/settings.js';
-import {assertTrue} from 'chrome://webui-test/chai_assert.js';
+import type {SettingsAboutPageElement} from 'chrome://settings/settings.js';
+import {AboutPageBrowserProxyImpl, LifetimeBrowserProxyImpl, Router, routes} from 'chrome://settings/settings.js';
+import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
 
 import {TestAboutPageBrowserProxy} from './test_about_page_browser_proxy.js';
 import {TestLifetimeBrowserProxy} from './test_lifetime_browser_proxy.js';
@@ -25,25 +25,10 @@ import type {PromoteUpdaterStatus} from 'chrome://settings/settings.js';
 // <if expr="not is_chromeos">
 import {UpdateStatus} from 'chrome://settings/settings.js';
 import {webUIListenerCallback} from 'chrome://resources/js/cr.js';
-import {assertFalse, assertNotEquals} from 'chrome://webui-test/chai_assert.js';
+import {assertNotEquals} from 'chrome://webui-test/chai_assert.js';
 import {isVisible, eventToPromise} from 'chrome://webui-test/test_util.js';
 // </if>
-
-// <if expr="_google_chrome or not is_chromeos">
-import {assertEquals} from 'chrome://webui-test/chai_assert.js';
-// </if>
-
 // clang-format on
-
-function setupRouter(): SettingsRoutes {
-  const routes = {
-    ABOUT: new Route('/help'),
-    ADVANCED: new Route('/advanced'),
-    BASIC: new Route('/'),
-  } as unknown as SettingsRoutes;
-  resetRouterForTesting(new Router(routes));
-  return routes;
-}
 
 // <if expr="not is_chromeos">
 function fireStatusChanged(
@@ -61,15 +46,12 @@ suite('AllBuilds', function() {
   let aboutBrowserProxy: TestAboutPageBrowserProxy;
   let lifetimeBrowserProxy: TestLifetimeBrowserProxy;
 
-  let testRoutes: SettingsRoutes;
-
   setup(function() {
     loadTimeData.overrideValues({
       aboutObsoleteNowOrSoon: false,
       aboutObsoleteEndOfTheLine: false,
     });
 
-    testRoutes = setupRouter();
     lifetimeBrowserProxy = new TestLifetimeBrowserProxy();
     LifetimeBrowserProxyImpl.setInstance(lifetimeBrowserProxy);
 
@@ -87,7 +69,7 @@ suite('AllBuilds', function() {
     lifetimeBrowserProxy.reset();
     document.body.innerHTML = window.trustedTypes!.emptyHTML;
     page = document.createElement('settings-about-page');
-    Router.getInstance().navigateTo(testRoutes.ABOUT);
+    Router.getInstance().navigateTo(routes.ABOUT);
     document.body.appendChild(page);
     // <if expr="is_chromeos">
     return Promise.resolve();
@@ -341,6 +323,18 @@ suite('AllBuilds', function() {
     page.shadowRoot!.querySelector<HTMLElement>('#help')!.click();
     return aboutBrowserProxy.whenCalled('openHelpPage');
   });
+
+  test('searchContents', async function() {
+    let result = await page.searchContents('foo');
+    assertFalse(result.canceled);
+    assertEquals(0, result.matchCount);
+    assertFalse(result.wasClearSearch);
+
+    result = await page.searchContents('');
+    assertFalse(result.canceled);
+    assertEquals(0, result.matchCount);
+    assertTrue(result.wasClearSearch);
+  });
 });
 
 // <if expr="_google_chrome">
@@ -348,17 +342,15 @@ suite('OfficialBuild', function() {
   let page: SettingsAboutPageElement;
   let browserProxy: TestAboutPageBrowserProxy;
   let openWindowProxy: TestOpenWindowProxy;
-  let testRoutes: SettingsRoutes;
 
   setup(function() {
-    testRoutes = setupRouter();
     browserProxy = new TestAboutPageBrowserProxy();
     AboutPageBrowserProxyImpl.setInstance(browserProxy);
     openWindowProxy = new TestOpenWindowProxy();
     OpenWindowProxyImpl.setInstance(openWindowProxy);
     document.body.innerHTML = window.trustedTypes!.emptyHTML;
     page = document.createElement('settings-about-page');
-    Router.getInstance().navigateTo(testRoutes.ABOUT);
+    Router.getInstance().navigateTo(routes.ABOUT);
     document.body.appendChild(page);
     return flushTasks();
   });

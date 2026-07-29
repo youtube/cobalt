@@ -7,6 +7,7 @@
 #import "ios/chrome/browser/app_launcher/model/app_launcher_tab_helper.h"
 #import "ios/chrome/browser/autofill/model/autofill_tab_helper.h"
 #import "ios/chrome/browser/autofill/model/bottom_sheet/autofill_bottom_sheet_tab_helper.h"
+#import "ios/chrome/browser/autofill/model/form_suggestion_tab_helper.h"
 #import "ios/chrome/browser/browser_container/model/edit_menu_tab_helper.h"
 #import "ios/chrome/browser/commerce/model/price_notifications/price_notifications_tab_helper.h"
 #import "ios/chrome/browser/contextual_panel/model/contextual_panel_tab_helper.h"
@@ -14,6 +15,7 @@
 #import "ios/chrome/browser/download/model/download_manager_tab_helper.h"
 #import "ios/chrome/browser/download/model/pass_kit_tab_helper.h"
 #import "ios/chrome/browser/follow/model/follow_tab_helper.h"
+#import "ios/chrome/browser/intelligence/bwg/model/bwg_tab_helper.h"
 #import "ios/chrome/browser/itunes_urls/model/itunes_urls_handler_tab_helper.h"
 #import "ios/chrome/browser/lens/model/lens_tab_helper.h"
 #import "ios/chrome/browser/mini_map/model/mini_map_tab_helper.h"
@@ -28,6 +30,7 @@
 #import "ios/chrome/browser/shared/model/profile/profile_ios.h"
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
 #import "ios/chrome/browser/shared/public/commands/autofill_commands.h"
+#import "ios/chrome/browser/shared/public/commands/bwg_commands.h"
 #import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
 #import "ios/chrome/browser/shared/public/commands/contextual_sheet_commands.h"
 #import "ios/chrome/browser/shared/public/commands/help_commands.h"
@@ -44,29 +47,29 @@
 #import "ios/chrome/browser/ssl/model/captive_portal_tab_helper.h"
 #import "ios/chrome/browser/supervised_user/model/supervised_user_error_container.h"
 #import "ios/chrome/browser/tab_insertion/model/tab_insertion_browser_agent.h"
+#import "ios/chrome/browser/tabs/model/tabs_dependency_installer.h"
+#import "ios/chrome/browser/tabs/model/tabs_dependency_installer_bridge.h"
 #import "ios/chrome/browser/web/model/annotations/annotations_tab_helper.h"
 #import "ios/chrome/browser/web/model/print/print_tab_helper.h"
 #import "ios/chrome/browser/web/model/repost_form_tab_helper.h"
 #import "ios/chrome/browser/web/model/repost_form_tab_helper_delegate.h"
-#import "ios/chrome/browser/web_state_list/model/web_state_dependency_installation_observer.h"
-#import "ios/chrome/browser/web_state_list/model/web_state_dependency_installer_bridge.h"
 #import "ios/chrome/browser/webui/model/net_export_tab_helper.h"
 #import "ios/chrome/browser/webui/model/net_export_tab_helper_delegate.h"
 #import "ios/public/provider/chrome/browser/lens/lens_api.h"
 #import "ui/base/device_form_factor.h"
 
-@interface TabLifecycleMediator () <DependencyInstalling>
+@interface TabLifecycleMediator () <TabsDependencyInstalling>
 @end
 
 @implementation TabLifecycleMediator {
   // Bridge to observe the web state list from Objective-C.
-  std::unique_ptr<WebStateDependencyInstallerBridge> _dependencyInstallerBridge;
+  std::unique_ptr<TabsDependencyInstallerBridge> _dependencyInstallerBridge;
 }
 
 - (instancetype)initWithWebStateList:(WebStateList*)webStateList {
   if ((self = [super init])) {
     _dependencyInstallerBridge =
-        std::make_unique<WebStateDependencyInstallerBridge>(self, webStateList);
+        std::make_unique<TabsDependencyInstallerBridge>(self, webStateList);
   }
   return self;
 }
@@ -77,7 +80,7 @@
   _dependencyInstallerBridge.reset();
 }
 
-#pragma mark - DependencyInstalling
+#pragma mark - TabsDependencyInstalling
 
 - (void)installDependencyForWebState:(web::WebState*)webState {
   // If there is a prerender service, this webstate shouldn't be a prerendered
@@ -90,6 +93,11 @@
   DCHECK(_snapshotGeneratorDelegate);
   SnapshotTabHelper::FromWebState(webState)->SetDelegate(
       _snapshotGeneratorDelegate);
+
+  FormSuggestionTabHelper::CreateForWebState(webState, @[
+    PasswordTabHelper::FromWebState(webState)->GetSuggestionProvider(),
+    AutofillTabHelper::FromWebState(webState)->GetSuggestionProvider(),
+  ]);
 
   PasswordTabHelper* passwordTabHelper =
       PasswordTabHelper::FromWebState(webState);
@@ -218,6 +226,13 @@
   if (editMenuTabHelper) {
     editMenuTabHelper->SetEditMenuBuilder(self.editMenuBuilder);
   }
+
+  BwgTabHelper* BWGTabHelper = BwgTabHelper::FromWebState(webState);
+  if (BWGTabHelper) {
+    id<BWGCommands> BWGCommandsHandler =
+        HandlerForProtocol(_commandDispatcher, BWGCommands);
+    BWGTabHelper->SetBwgCommandsHandler(BWGCommandsHandler);
+  }
 }
 
 - (void)uninstallDependencyForWebState:(web::WebState*)webState {
@@ -313,6 +328,13 @@
       EditMenuTabHelper::FromWebState(webState);
   if (editMenuTabHelper) {
     editMenuTabHelper->SetEditMenuBuilder(nil);
+  }
+
+  FormSuggestionTabHelper::RemoveFromWebState(webState);
+
+  BwgTabHelper* BWGTabHelper = BwgTabHelper::FromWebState(webState);
+  if (BWGTabHelper) {
+    BWGTabHelper->SetBwgCommandsHandler(nil);
   }
 }
 

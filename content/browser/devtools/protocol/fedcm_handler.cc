@@ -7,6 +7,7 @@
 #include <optional>
 
 #include "base/strings/string_number_conversions.h"
+#include "content/browser/devtools/devtools_agent_host_impl.h"
 #include "content/browser/renderer_host/render_frame_host_impl.h"
 #include "content/browser/webid/federated_auth_request_impl.h"
 #include "content/browser/webid/federated_auth_request_page_data.h"
@@ -104,7 +105,8 @@ void FedCmHandler::DidShowDialog() {
       FedCm::LoginState login_state;
       std::optional<std::string> tos_url;
       std::optional<std::string> pp_url;
-      switch (*account->login_state) {
+      switch (account->idp_claimed_login_state.value_or(
+          account->browser_trusted_login_state)) {
         case IdentityRequestAccount::LoginState::kSignUp:
           login_state = FedCm::LoginStateEnum::SignUp;
           // Because TOS and PP URLs are only used when the login state is
@@ -219,8 +221,7 @@ DispatchResponse FedCmHandler::OpenUrl(
   } else {
     return DispatchResponse::InvalidParams("Invalid account URL type");
   }
-  if (!url.is_valid() ||
-      account->login_state != IdentityRequestAccount::LoginState::kSignUp) {
+  if (!url.is_valid() || account->fields.empty()) {
     return DispatchResponse::InvalidParams(
         "Account does not have requested URL");
   }

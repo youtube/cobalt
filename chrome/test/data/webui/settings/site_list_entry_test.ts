@@ -268,4 +268,69 @@ suite('SiteListEntry', function() {
     const siteDescription = testElement.$$('#siteDescription')!;
     assertEquals('foo', siteDescription.textContent);
   });
+
+  test('the reset button aria-label includes the section header', function() {
+    testElement.model = {
+      category: ContentSettingsTypes.GEOLOCATION,
+      controlledBy: chrome.settingsPrivate.ControlledBy.OWNER,
+      displayName: 'example.com',
+      embeddingOrigin: 'http://bar',
+      description: 'foo',
+      enforcement: null,
+      incognito: false,
+      isEmbargoed: true,
+      origin: 'https://example.com',
+      setting: ContentSetting.ALLOW,
+    };
+    testElement.setSectionHeaderForTest(
+        loadTimeData.getString('siteSettingsLocationAllowedExceptions'));
+    flush();
+
+    const resetSite = testElement.shadowRoot!.querySelector('#resetSite');
+    assertTrue(!!resetSite);
+
+    assertEquals(
+        loadTimeData.getStringF(
+            'siteSettingsActionResetFromListA11y', 'example.com',
+            loadTimeData.getString('siteSettingsLocationAllowedExceptions')),
+        resetSite.getAttribute('aria-label'));
+  });
+
+  test(
+      'the view details button aria-label includes the section header',
+      async function() {
+        browserProxy.setIsOriginValid(true);
+        testElement.model = {
+          category: ContentSettingsTypes.GEOLOCATION,
+          controlledBy: chrome.settingsPrivate.ControlledBy.OWNER,
+          displayName: 'example.com',
+          embeddingOrigin: 'http://bar',
+          description: 'foo',
+          enforcement: null,
+          incognito: false,
+          isEmbargoed: true,
+          origin: 'https://example.com',
+          setting: ContentSetting.ALLOW,
+        };
+        testElement.setSectionHeaderForTest(
+            loadTimeData.getString('siteSettingsLocationAllowedExceptions'));
+
+        Router.getInstance().navigateTo(routes.SITE_SETTINGS);
+        // Wait for the `isOriginValid` call to set `allowNavigateToSiteDetail_`
+        // to true, otherwise the subpage-arrow button will not be shown.
+        const args = await browserProxy.whenCalled('isOriginValid');
+        assertEquals('https://example.com', args);
+        flush();
+
+        const subpageArrow =
+            testElement.shadowRoot!.querySelector('.subpage-arrow');
+        assertTrue(!!subpageArrow);
+
+        assertEquals(
+            loadTimeData.getStringF(
+                'siteSettingsActionViewFromListA11y', 'example.com',
+                loadTimeData.getString(
+                    'siteSettingsLocationAllowedExceptions')),
+            subpageArrow.getAttribute('aria-label'));
+      });
 });

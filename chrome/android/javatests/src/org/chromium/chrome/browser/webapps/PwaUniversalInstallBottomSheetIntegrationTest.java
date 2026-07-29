@@ -39,7 +39,9 @@ import org.chromium.base.test.util.Feature;
 import org.chromium.base.test.util.HistogramWatcher;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
-import org.chromium.chrome.test.ChromeTabbedActivityTestRule;
+import org.chromium.chrome.test.transit.ChromeTransitTestRules;
+import org.chromium.chrome.test.transit.FreshCtaTransitTestRule;
+import org.chromium.chrome.test.transit.page.WebPageStation;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetControllerProvider;
 import org.chromium.components.webapps.AppType;
@@ -55,8 +57,8 @@ public class PwaUniversalInstallBottomSheetIntegrationTest {
     @Rule public final MockitoRule mMockitoRule = MockitoJUnit.rule();
 
     @Rule
-    public final ChromeTabbedActivityTestRule mActivityTestRule =
-            new ChromeTabbedActivityTestRule();
+    public final FreshCtaTransitTestRule mActivityTestRule =
+            ChromeTransitTestRules.freshChromeTabbedActivityRule();
 
     private static final String TAG = "PwaUniInstallIntegrTest";
 
@@ -79,12 +81,13 @@ public class PwaUniversalInstallBottomSheetIntegrationTest {
     private final CallbackHelper mOnInstallCallback = new CallbackHelper();
     private final CallbackHelper mOnAddShortcutCallback = new CallbackHelper();
     private final CallbackHelper mOnOpenAppCallback = new CallbackHelper();
+    private WebPageStation mPage;
 
     @Before
     public void setUp() throws Exception {
         PwaUniversalInstallBottomSheetCoordinator.sEnableManualIconFetchingForTesting = true;
 
-        mActivityTestRule.startMainActivityOnBlankPage();
+        mPage = mActivityTestRule.startOnBlankPage();
         runOnUiThreadBlocking(
                 () -> {
                     mBottomSheetController =
@@ -117,13 +120,14 @@ public class PwaUniversalInstallBottomSheetIntegrationTest {
         return Pair.create(bitmap, /* maskable= */ false);
     }
 
-    /*
+    /**
      * Shows the Universal Install Bottom Sheet.
+     *
      * @param showBeforeAppTypeKnown When true, this will show the dialog synchronously from the
-     * ctor. This can be used to simulate what happens if the app type check finishes after the
-     * dialog has appeared (timeout).
+     *     ctor. This can be used to simulate what happens if the app type check finishes after the
+     *     dialog has appeared (timeout).
      * @param webAppAlreadyInstalled When true, the dialog will behave as if the app has already
-     * been installed.
+     *     been installed.
      */
     private void showPwaUniversalInstallBottomSheet(
             boolean showBeforeAppTypeKnown, boolean webAppAlreadyInstalled) throws Exception {

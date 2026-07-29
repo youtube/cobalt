@@ -5,34 +5,38 @@
 # Generate extra functionality for protobuf messages, including:
 # - Serialization to base::DictValue.
 # - Stream operator support for C++ printing.
-# - (future) equality operator support
+# - equality operator support
 # - (future) gtest matchers.
 # This does not directly generate the protobuf bindings for any language, so
-# callers must include the build target for C++ bindings in the deps.
-#
-# This is a wrapper around proto_library that adds the proto_extras plugin. It
+# callers must include the build target for C++ bindings in the deps. It
 # is intended to be used in conjunction with proto_library, not on its own.
 #
-# Conversion to base::Value support:
+# Conversion to `base::DictValue` support:
 # - The generated method is `Serialize(const ProtoMessage& message)`, and
 #   resides in the namespace of the proto message.
 # - Include via <name>.to_value.h.
-# - Disable via `omit_to_value_serialization` (default is false).
+# - Disable via `omit_to_value_serialization` (default is false)
+# - Caveats:
+#   - Integer types in the proto that are not compatible with base::Value are
+#     serialized as strings (e.g. uint64_t).
+#   - Map field scalar keys (numbers) are always converted to a string, as
+#     base::DictValue does not support other types as keys.
 #
-# Stream operator support:
+# Stream operator (<<) support:
 # - The generated operator resides in the namespace of the proto message.
 # - Include via <name>.ostream.h.
 # - Disable via `omit_stream_operators` (default is false).
 #
-# Equality operator support:
+# Equality operator (==) support:
 # - The generated operator resides in the namespace of the proto message.
 # - Include via <name>.equal.h.
 # - Disable via `omit_equality` (default is false).
 #
-# The proto_extras template supports the following other properties:
-# - extras_deps: These are the proto_extras targets for any proto dependencies.
-# - sources: The .proto files to generate from.
+# The proto_extras template reads the following other properties:
+# - sources (required): The .proto files to generate from.
+# - proto_in_dir: The directory to find the proto files in. Defaults to "//".
 # - deps: These should be proto_library targets.
+# - extras_deps: These are the proto_extras targets for any proto dependencies.
 # - defines: This is forwarded to all generated targets.
 # - visibility: This is forwarded to all generated targets.
 #
@@ -49,16 +53,11 @@
 # requires the `use_fuzzing_engine_with_lpm` build flag to be set.
 # This option is relevant for base::Value serialization and equality.
 #
-# Caveats:
-# - Integer types in the proto that are not compatible with base::Value are
-#   serialized as strings (e.g. uint64_t).
-#
 # Example:
 #   proto_extras("foo_extras") {
 #     sources = [
 #       "foo.proto",
 #     ]
-#
 #     deps = [
 #       ":foo",                    # The target generating foo.pb.h
 #       ":foo_dependency",         # The target generating foo_dependency.pb.h
@@ -97,6 +96,10 @@ template("proto_extras") {
       use_fuzzing_engine_with_lpm) {
     _protobuf_full_support = true
   }
+  _proto_in_dir = "//"
+  if (defined(invoker.proto_in_dir)) {
+    _proto_in_dir = invoker.proto_in_dir
+  }
 
   assert(
       !_generate_ostream || _generate_to_value,
@@ -117,7 +120,7 @@ template("proto_extras") {
   if (_generate_to_value) {
     _all_targets += [ _to_value_target_name ]
     proto_library(_to_value_target_name) {
-      proto_in_dir = "//"
+      proto_in_dir = _proto_in_dir
       sources = invoker.sources
       forward_variables_from(invoker,
                              [
@@ -154,7 +157,7 @@ template("proto_extras") {
     _ostream_target_name = "${target_name}_ostream"
     _all_targets += [ _ostream_target_name ]
     proto_library(_ostream_target_name) {
-      proto_in_dir = "//"
+      proto_in_dir = _proto_in_dir
       sources = invoker.sources
       forward_variables_from(invoker,
                              [
@@ -180,7 +183,7 @@ template("proto_extras") {
     _equality_target_name = "${target_name}_equal"
     _all_targets += [ _equality_target_name ]
     proto_library(_equality_target_name) {
-      proto_in_dir = "//"
+      proto_in_dir = _proto_in_dir
       sources = invoker.sources
       forward_variables_from(invoker,
                              [

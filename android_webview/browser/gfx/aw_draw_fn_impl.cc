@@ -232,25 +232,19 @@ AwDrawFnImpl::AwDrawFnImpl()
 
 AwDrawFnImpl::~AwDrawFnImpl() = default;
 
-void AwDrawFnImpl::ReleaseHandle(
-    JNIEnv* env,
-    const base::android::JavaParamRef<jobject>& obj) {
+void AwDrawFnImpl::ReleaseHandle(JNIEnv* env) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   --g_instance_count;
   render_thread_manager_.RemoveFromCompositorFrameProducerOnUI();
   g_draw_fn_function_table->release_functor(functor_handle_);
 }
 
-jint AwDrawFnImpl::GetFunctorHandle(
-    JNIEnv* env,
-    const base::android::JavaParamRef<jobject>& obj) {
+jint AwDrawFnImpl::GetFunctorHandle(JNIEnv* env) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   return functor_handle_;
 }
 
-jlong AwDrawFnImpl::GetCompositorFrameConsumer(
-    JNIEnv* env,
-    const base::android::JavaParamRef<jobject>& obj) {
+jlong AwDrawFnImpl::GetCompositorFrameConsumer(JNIEnv* env) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   return reinterpret_cast<intptr_t>(GetCompositorFrameConsumer());
 }
@@ -271,7 +265,7 @@ void AwDrawFnImpl::OnContextDestroyed() {
     RenderThreadManager::InsideHardwareReleaseReset release_reset(
         &render_thread_manager_);
     render_thread_manager_.DestroyHardwareRendererOnRT(
-        false /* save_restore */, false /* abandon_context */);
+        false /* abandon_context */);
   }
 
   vulkan_context_provider_.reset();
@@ -283,7 +277,7 @@ void AwDrawFnImpl::DrawGL(AwDrawFn_DrawGLParams* params) {
       CreateHRDrawParams(params, color_space.get());
   OverlaysParams overlays_params = CreateOverlaysParams(params);
   render_thread_manager_.DrawOnRT(
-      /*save_restore=*/false, hr_params, overlays_params,
+      hr_params, overlays_params,
       base::BindOnce(&AwDrawFnImpl::ReportRenderingThreads, functor_handle_));
 }
 
@@ -332,7 +326,7 @@ void AwDrawFnImpl::DrawVk(AwDrawFn_DrawVkParams* params) {
   scoped_secondary_cb_draw_.emplace(vulkan_context_provider_.get(),
                                     std::move(draw_context));
   render_thread_manager_.DrawOnRT(
-      false /* save_restore */, hr_params, overlays_params,
+      hr_params, overlays_params,
       base::BindOnce(&AwDrawFnImpl::ReportRenderingThreads, functor_handle_));
 }
 

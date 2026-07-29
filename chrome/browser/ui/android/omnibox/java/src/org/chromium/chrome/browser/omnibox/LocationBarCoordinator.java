@@ -561,6 +561,11 @@ public class LocationBarCoordinator
         mStatusCoordinator.setHideStatusIconForSecureOrigins(hideStatusIconForSecureOrigins);
     }
 
+    @Override
+    public void maybeShowOrClearCursorInLocationBar() {
+        mLocationBarMediator.maybeShowOrClearCursorInLocationBar();
+    }
+
     // AutocompleteDelegate implementation.
     @Override
     public void onUrlTextChanged() {
@@ -778,13 +783,6 @@ public class LocationBarCoordinator
         mLocationBarMediator.updateButtonVisibility();
     }
 
-    /**
-     * @param show Whether the status icon background should be shown.
-     */
-    public void setStatusIconBackgroundVisibility(boolean show) {
-        mStatusCoordinator.setStatusIconBackgroundVisibility(show);
-    }
-
     /** Returns whether the layout is RTL. */
     public boolean isLayoutRtl() {
         return mLocationBarLayout.getLayoutDirection() == View.LAYOUT_DIRECTION_RTL;
@@ -865,7 +863,7 @@ public class LocationBarCoordinator
     }
 
     public void onUrlChangedForTesting() {
-        mLocationBarMediator.onUrlChanged();
+        mLocationBarMediator.onUrlChanged(false);
     }
 
     public void setLensControllerForTesting(LensController lensController) {

@@ -86,6 +86,7 @@
 #include "services/network/public/cpp/weak_wrapper_shared_url_loader_factory.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/blink/public/common/features.h"
 #include "ui/base/l10n/l10n_util.h"
 
 #if BUILDFLAG(IS_WIN)
@@ -112,6 +113,27 @@
 namespace {
 
 using trusted_vault::MockTrustedVaultThrottlingConnection;
+
+static constexpr char kMakeCredentialLargeBlob[] = R"((() => {
+  return navigator.credentials.create({ publicKey: {
+    rp: { name: "www.example.com" },
+    user: { id: new Uint8Array([0]), name: "foo", displayName: "" },
+    pubKeyCredParams: [{ type: "public-key", alg: -7 }],
+    challenge: new Uint8Array([0]),
+    timeout: 10000,
+    authenticatorSelection: {
+      userVerification: "discouraged",
+      requireResidentKey: true
+    },
+    // Ask for large-blob support at registration time.
+    extensions: { largeBlob: { support: "preferred" } },
+  }}).then(c => {
+    const lb = c.getClientExtensionResults().largeBlob;
+    // Pass back the value we care about.
+    window.domAutomationController.send(
+        "largeblob " + (lb ? lb.supported : lb));
+  }, e => window.domAutomationController.send("error " + e));
+})())";
 
 static constexpr char kMakeCredentialUvDiscouraged[] = R"((() => {
   return navigator.credentials.create({ publicKey: {
@@ -929,6 +951,12 @@ IN_PROC_BROWSER_TEST_F(EnclaveAuthenticatorBrowserTest,
 }
 
 IN_PROC_BROWSER_TEST_F(EnclaveAuthenticatorBrowserTest, NonWebauthnRequest) {
+  if (base::FeatureList::IsEnabled(
+          blink::features::kSecurePaymentConfirmationBrowserBoundKeys)) {
+    GTEST_SKIP() << "With kSecurePaymentConfirmationBrowserBoundKeys the "
+                    "SecurePaymentConfirmationService directs the request to "
+                    "the internal authenticator.";
+  }
   if (!base::FeatureList::IsEnabled(features::kSecurePaymentConfirmation)) {
     // SPC is not enabled in this configuration and so the `payment` extension
     // in the Javascript will be ignored.
@@ -2030,6 +2058,10 @@ IN_PROC_BROWSER_TEST_F(EnclaveAuthenticatorWithTimeout,
   // normally.
   SetVaultConnectionToTimeout();
 
+  // Ensure the enclave state is loaded before proceeding. Otherwise the
+  // timer could be advanced before the timeout is set.
+  WaitForEnclaveLoaded();
+
   // Wait for the transport availability to be enumerated. The UI won't be shown
   // yet because the enclave is not ready.
   content::ExecuteScriptAsync(web_contents, kMakeCredentialUvDiscouraged);
@@ -2080,6 +2112,10 @@ IN_PROC_BROWSER_TEST_F(EnclaveAuthenticatorWithTimeout,
       browser()->tab_strip_model()->GetActiveWebContents();
   content::DOMMessageQueue message_queue(web_contents);
   content::ExecuteScriptAsync(web_contents, kMakeCredentialUvDiscouraged);
+
+  // Ensure the enclave state is loaded before proceeding. Otherwise the
+  // timer could be advanced before the timeout is set.
+  WaitForEnclaveLoaded();
 
   // Wait for the transport availability to be enumerated. The UI won't be shown
   // yet because the enclave is not ready.
@@ -4066,6 +4102,32 @@ IN_PROC_BROWSER_TEST_F(EnclaveAuthenticatorImmediateMediationBrowserTest,
       "WebAuthentication.GetAssertion.Immediate.EnclaveReady",
       /*sample=*/false,
       /*expected_bucket_count=*/1);
+}
+
+IN_PROC_BROWSER_TEST_F(EnclaveAuthenticatorBrowserTest,
+                       MakeCredential_LargeBlobSupported) {
+  // New empty vault.
+  SetTrustedVaultEmpty();
+
+  content::WebContents* const web_contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+
+  // Start JS create() call.
+  content::DOMMessageQueue queue(web_contents);
+  content::ExecuteScriptAsync(web_contents, kMakeCredentialLargeBlob);
+
+  delegate_observer()->WaitForUI();
+  EXPECT_EQ(dialog_model()->step(),
+            AuthenticatorRequestDialogModel::Step::kGPMCreatePasskey);
+  dialog_model()->OnGPMCreatePasskey();
+  EXPECT_EQ(dialog_model()->step(),
+            AuthenticatorRequestDialogModel::Step::kGPMCreatePin);
+  dialog_model()->OnGPMPinEntered(u"123456");
+
+  // Collect the JS result and verify the extension bit.
+  std::string script_result;
+  ASSERT_TRUE(queue.WaitForMessage(&script_result));
+  EXPECT_EQ(script_result, "\"largeblob true\"");
 }
 
 }  // namespace

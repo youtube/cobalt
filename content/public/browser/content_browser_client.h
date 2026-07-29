@@ -59,7 +59,6 @@
 #include "media/base/picture_in_picture_events_info.h"
 #include "media/mojo/mojom/media_service.mojom-forward.h"
 #include "media/mojo/mojom/remoting.mojom-forward.h"
-#include "mojo/public/cpp/bindings/binder_map.h"
 #include "mojo/public/cpp/bindings/generic_pending_receiver.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
@@ -235,7 +234,6 @@ class BluetoothDelegate;
 class BrowserChildProcessHost;
 class BrowserContext;
 class BrowserMainParts;
-class BrowserPpapiHost;
 class BrowserURLHandler;
 class ClientCertificateDelegate;
 class ControllerPresentationServiceDelegate;
@@ -273,7 +271,6 @@ class URLLoaderRequestInterceptor;
 class UsbDelegate;
 class VideoOverlayWindow;
 class VideoPictureInPictureWindowController;
-class VpnServiceProxy;
 class WebAuthenticationDelegate;
 class WebContents;
 class WebContentsViewDelegate;
@@ -284,7 +281,6 @@ struct GlobalRequestID;
 struct OpenURLParams;
 struct Referrer;
 struct ServiceWorkerVersionBaseInfo;
-struct SocketPermissionRequest;
 
 #if BUILDFLAG(IS_ANDROID)
 class TtsEnvironmentAndroid;
@@ -1508,35 +1504,6 @@ class CONTENT_EXPORT ContentBrowserClient {
   // Returns the path to Local Traces directory.
   virtual std::optional<base::FilePath> GetLocalTracesDirectory();
 
-  // Notification that a pepper plugin has just been spawned. This allows the
-  // embedder to add filters onto the host to implement interfaces.
-  // This is called on the IO thread.
-  virtual void DidCreatePpapiPlugin(BrowserPpapiHost* browser_host) {}
-
-  // Gets the host for an external out-of-process plugin.
-  virtual BrowserPpapiHost* GetExternalBrowserPpapiHost(int plugin_child_id);
-
-  // Returns true if the socket operation specified by |params| is allowed from
-  // the given |browser_context| and |url|. If |params| is nullptr, this method
-  // checks the basic "socket" permission, which is for those operations that
-  // don't require a specific socket permission rule.
-  // |private_api| indicates whether this permission check is for the private
-  // Pepper socket API or the public one.
-  virtual bool AllowPepperSocketAPI(BrowserContext* browser_context,
-                                    const GURL& url,
-                                    bool private_api,
-                                    const SocketPermissionRequest* params);
-
-  // Returns true if the "vpnProvider" permission is allowed from the given
-  // |browser_context| and |url|.
-  virtual bool IsPepperVpnProviderAPIAllowed(BrowserContext* browser_context,
-                                             const GURL& url);
-
-  // Creates a new VpnServiceProxy. The caller owns the returned value. It's
-  // valid to return nullptr.
-  virtual std::unique_ptr<VpnServiceProxy> GetVpnServiceProxy(
-      BrowserContext* browser_context);
-
   // Returns an implementation of a file selecition policy. Can return null.
   virtual std::unique_ptr<ui::SelectFilePolicy> CreateSelectFilePolicy(
       WebContents* web_contents);
@@ -1597,17 +1564,6 @@ class CONTENT_EXPORT ContentBrowserClient {
   // Whether system-wide performance trace collection using the external system
   // tracing service is enabled.
   virtual bool IsSystemWideTracingEnabled();
-
-  // Returns true if plugin referred to by the url can use
-  // pp::FileIO::RequestOSFileHandle.
-  virtual bool IsPluginAllowedToCallRequestOSFileHandle(
-      BrowserContext* browser_context,
-      const GURL& url);
-
-  // Returns true if dev channel APIs are available for plugins.
-  virtual bool IsPluginAllowedToUseDevChannelAPIs(
-      BrowserContext* browser_context,
-      const GURL& url);
 
   // Allows to register browser interfaces exposed through the
   // RenderProcessHost. Note that interface factory callbacks added to
@@ -3209,10 +3165,11 @@ class CONTENT_EXPORT ContentBrowserClient {
       RenderFrameHost* rfh,
       mojo::PendingReceiver<blink::mojom::AIManager> receiver);
 
-  // Binds the TranslationManager for the given `browser_context`,
-  // `context_user_data` and `origin` to `receiver`. The created
-  // TranslationManager will be owned by the `context_user_data`.
+  // Binds the TranslationManager for the given `process_host`,
+  // `browser_context`, `context_user_data` and `origin` to `receiver`. The
+  // created TranslationManager will be owned by the `context_user_data`.
   virtual void BindTranslationManager(
+      RenderProcessHost* process_host,
       BrowserContext* browser_context,
       base::SupportsUserData* context_user_data,
       const url::Origin& origin,

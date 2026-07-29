@@ -98,6 +98,7 @@
 #include "content/browser/renderer_host/navigation_request.h"
 #include "content/browser/renderer_host/navigation_state_keep_alive.h"
 #include "content/browser/service_worker/service_worker_client.h"
+#include "content/browser/service_worker/service_worker_context_core.h"
 #include "content/browser/service_worker/service_worker_context_wrapper.h"
 #include "content/browser/shared_storage/shared_storage_header_observer.h"
 #include "content/browser/shared_storage/shared_storage_runtime_manager.h"
@@ -1472,7 +1473,7 @@ void StoragePartitionImpl::Initialize(
 
   if (blink::features::IsKeepAliveURLLoaderServiceEnabled()) {
     keep_alive_url_loader_service_ =
-        std::make_unique<KeepAliveURLLoaderService>(browser_context_);
+        std::make_unique<KeepAliveURLLoaderService>(this);
   }
 
   cookie_store_manager_ =
@@ -3205,6 +3206,7 @@ void StoragePartitionImpl::DataDeletionHelper::ClearDataOnUIThread(
   if (remove_mask_ & REMOVE_DATA_MASK_DEVICE_BOUND_SESSIONS &&
       device_bound_session_manager) {
     device_bound_session_manager->DeleteAllSessions(
+        net::device_bound_sessions::DeletionReason::kStoragePartitionCleared,
         begin, end,
         filter_builder ? filter_builder->BuildNetworkServiceFilter() : nullptr,
         mojo::WrapCallbackWithDefaultInvokeIfNotRun(CreateTaskCompletionClosure(
@@ -3811,6 +3813,36 @@ StoragePartitionImpl::GetRenderFrameHostIdFromNetworkContext() {
   // not `kRenderFrameHostContext`.
   return render_frame_host ? render_frame_host->GetGlobalId()
                            : GlobalRenderFrameHostId();
+}
+
+void StoragePartitionImpl::IncrementActiveDocumentCount(
+    const net::NetworkIsolationKey& nik) {
+  if (active_document_per_nik_count_.contains(nik)) {
+    active_document_per_nik_count_[nik]++;
+    CHECK_GT(active_document_per_nik_count_[nik], 1);
+  } else {
+    active_document_per_nik_count_[nik] = 1;
+    if (keep_alive_url_loader_service_) {
+      keep_alive_url_loader_service_->DidObserveNewlyActiveDocumentWithNIK(nik);
+    }
+  }
+}
+
+void StoragePartitionImpl::DecrementActiveDocumentCount(
+    const net::NetworkIsolationKey& nik) {
+  CHECK(active_document_per_nik_count_.contains(nik));
+  active_document_per_nik_count_[nik]--;
+  if (active_document_per_nik_count_[nik] == 0) {
+    active_document_per_nik_count_.erase(nik);
+  }
+}
+
+int StoragePartitionImpl::GetActiveDocumentCount(
+    const net::NetworkIsolationKey& nik) {
+  if (!active_document_per_nik_count_.contains(nik)) {
+    return 0;
+  }
+  return active_document_per_nik_count_[nik];
 }
 
 StoragePartitionImpl::URLLoaderNetworkContext::URLLoaderNetworkContext(

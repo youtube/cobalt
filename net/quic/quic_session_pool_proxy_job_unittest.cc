@@ -246,7 +246,9 @@ TEST_P(QuicSessionPoolProxyJobTest, DoubleProxiedQuicSession) {
   // The browser ACKs the OK response packet.
   socket_data.AddWrite(
       "proxy1 ack ok",
-      ConstructAckPacket(to_proxy1, to_proxy1_packet_num++, 1, 2, 1));
+      ConstructAckPacket(to_proxy1, to_proxy1_packet_num++,
+                         /*packet_num_received=*/1, /*largest_received=*/2,
+                         /*smallest_received=*/1));
 
   // The browser sends initial settings and a CONNECT-UDP request to proxy2 via
   // proxy1.
@@ -436,7 +438,7 @@ TEST_P(QuicSessionPoolProxyJobTest, PoolDeletedDuringSessionCreation) {
 
   // Drop the QuicSessionPool, destroying all pending requests. This should not
   // crash (see crbug.com/374777473).
-  factory_.reset();
+  pool_.reset();
 }
 
 TEST_P(QuicSessionPoolProxyJobTest, CreateProxySessionFails) {
@@ -525,8 +527,8 @@ TEST_P(QuicSessionPoolProxyJobTest, CreateSessionFails) {
 
   // Oops, the session went away. This generates an error
   // from `QuicSessionPool::CreateSessionOnProxyStream`.
-  factory_->CloseAllSessions(ERR_QUIC_HANDSHAKE_FAILED,
-                             quic::QuicErrorCode::QUIC_INTERNAL_ERROR);
+  pool_->CloseAllSessions(ERR_QUIC_HANDSHAKE_FAILED,
+                          quic::QuicErrorCode::QUIC_INTERNAL_ERROR);
 
   ASSERT_EQ(ERR_QUIC_HANDSHAKE_FAILED, callback_.WaitForResult());
 

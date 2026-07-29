@@ -100,6 +100,7 @@ enum CustomizeChromeSection {
   kModules,
   kWallpaperSearch,
   kToolbar,
+  kFooter,
 };
 
 enum ChromeWebStoreCollection {
@@ -227,8 +228,9 @@ interface CustomizeChromePage {
       bool visible);
   // Sets the visibility of NTP tiles and whether custom links are enabled.
   SetMostVisitedSettings(bool custom_links_enabled, bool visible);
-  // Sets the visibility of the NTP Footer.
-  SetFooterSettings(bool visible);
+  // Sets the visibility and disabled state of the NTP Footer.
+  SetFooterSettings(bool visible, bool disable,
+                    bool extension_attribution_enabled);
   // Sets the current theme.
   SetTheme(Theme theme);
   // Sets whether edit theme should be enabled.

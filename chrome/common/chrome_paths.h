@@ -45,6 +45,8 @@ enum {
                                // "Downloads". (Linux)
   DIR_DEFAULT_DOWNLOADS,       // Directory for a user's downloads.
   DIR_INTERNAL_PLUGINS,        // Directory where internal plugins reside.
+                               // TODO(thestig): Consider removing this, since
+                               // this directory does not exist anymore.
   DIR_COMPONENTS,              // Directory where built-in implementations of
                                // component-updated libraries or data reside.
 #if BUILDFLAG(IS_MAC)
@@ -80,9 +82,6 @@ enum {
   FILE_RECORDED_SCRIPT,  // Full path to the script.log file that
                          // contains recorded browser events for
                          // playback.
-  DIR_PNACL_BASE,        // Full path to the base dir for PNaCl.
-  DIR_PNACL_COMPONENT,   // Full path to the latest PNaCl version
-                         // (subdir of DIR_PNACL_BASE).
 #if BUILDFLAG(ENABLE_WIDEVINE)
   DIR_BUNDLED_WIDEVINE_CDM,  // Full path to the directory containing the
                              // bundled Widevine CDM.

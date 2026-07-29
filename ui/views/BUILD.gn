@@ -86,7 +86,9 @@ component("views") {
     "accessibility/ax_update_notifier.h",
     "accessibility/ax_update_observer.h",
     "accessibility/ax_virtual_view.h",
+    "accessibility/tree/view_accessibility_ax_tree_source.h",
     "accessibility/tree/widget_ax_manager.h",
+    "accessibility/tree/widget_view_ax_cache.h",
     "accessibility/view_accessibility.h",
     "accessibility/view_accessibility_utils.h",
     "accessible_pane_view.h",
@@ -236,7 +238,7 @@ component("views") {
     "focus/focus_manager_delegate.h",
     "focus/focus_manager_factory.h",
     "focus/focus_search.h",
-    "focus/widget_focus_manager.h",
+    "focus/native_view_focus_manager.h",
     "input_event_activation_protector.h",
     "interaction/element_tracker_views.h",
     "interaction/interaction_sequence_views.h",
@@ -265,7 +267,6 @@ component("views") {
     "mouse_watcher.h",
     "mouse_watcher_view_host.h",
     "native_theme_delegate.h",
-    "native_window_tracker.h",
     "paint_info.h",
     "painter.h",
     "rect_based_targeting_utils.h",
@@ -336,7 +337,9 @@ component("views") {
     "accessibility/ax_update_notifier.cc",
     "accessibility/ax_update_observer.cc",
     "accessibility/ax_virtual_view.cc",
+    "accessibility/tree/view_accessibility_ax_tree_source.cc",
     "accessibility/tree/widget_ax_manager.cc",
+    "accessibility/tree/widget_view_ax_cache.cc",
     "accessibility/view_accessibility.cc",
     "accessibility/view_accessibility_utils.cc",
     "accessible_pane_view.cc",
@@ -468,7 +471,7 @@ component("views") {
     "focus/focus_manager.cc",
     "focus/focus_manager_factory.cc",
     "focus/focus_search.cc",
-    "focus/widget_focus_manager.cc",
+    "focus/native_view_focus_manager.cc",
     "input_event_activation_protector.cc",
     "interaction/element_tracker_views.cc",
     "interaction/interaction_sequence_views.cc",
@@ -676,8 +679,6 @@ component("views") {
       "cocoa/native_widget_mac_event_monitor.h",
       "cocoa/native_widget_mac_event_monitor.mm",
       "cocoa/native_widget_mac_ns_window_host.mm",
-      "cocoa/native_window_tracker_cocoa.h",
-      "cocoa/native_window_tracker_cocoa.mm",
       "cocoa/text_input_host.h",
       "cocoa/text_input_host.mm",
       "cocoa/tooltip_manager_mac.h",
@@ -790,7 +791,6 @@ component("views") {
       "corewm/tooltip_state_manager.h",
       "corewm/tooltip_view_aura.h",
       "event_monitor_aura.h",
-      "native_window_tracker_aura.h",
       "touchui/touch_selection_controller_impl.h",
       "view_constants_aura.h",
       "widget/focus_manager_event_handler.h",
@@ -823,7 +823,6 @@ component("views") {
       "drag_utils_aura.cc",
       "event_monitor_aura.cc",
       "metrics_aura.cc",
-      "native_window_tracker_aura.cc",
       "touchui/touch_selection_controller_impl.cc",
       "view_constants_aura.cc",
       "widget/focus_manager_event_handler.cc",
@@ -998,6 +997,7 @@ if (is_win || is_mac || is_linux || is_chromeos) {
 source_set("test_support") {
   testonly = true
   sources = [
+    "accessibility/tree/view_accessibility_ax_tree_source_test_api.h",
     "accessibility/tree/widget_ax_manager_test_api.h",
     "animation/test/flood_fill_ink_drop_ripple_test_api.cc",
     "animation/test/flood_fill_ink_drop_ripple_test_api.h",
@@ -1139,6 +1139,7 @@ source_set("test_support") {
     "//ui/gfx",
     "//ui/gfx/geometry",
     "//ui/gl:test_support",
+    "//ui/native_window_tracker",
   ]
   public_deps = [
     "//testing/gmock",
@@ -1436,7 +1437,9 @@ test("views_unittests") {
     sources += [
       "accessibility/atomic_view_ax_tree_manager_unittest.cc",
       "accessibility/ax_virtual_view_unittest.cc",
+      "accessibility/tree/view_accessibility_ax_tree_source_unittest.cc",
       "accessibility/tree/widget_ax_manager_unittest.cc",
+      "accessibility/tree/widget_view_ax_cache_unittest.cc",
       "accessibility/view_accessibility_unittest.cc",
       "accessibility/view_ax_platform_node_delegate_unittest.cc",
     ]
@@ -1590,7 +1593,10 @@ if (enable_nocompile_tests) {
 source_set("views_interactive_ui_tests") {
   testonly = true
 
-  sources = [ "widget/widget_interactive_uitest.cc" ]
+  sources = [
+    "widget/any_widget_observer_uitest.cc",
+    "widget/widget_interactive_uitest.cc"
+  ]
 
   deps = [
     ":test_support",

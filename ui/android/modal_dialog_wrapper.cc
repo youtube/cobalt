@@ -72,6 +72,24 @@ ScopedJavaLocalRef<jstring> GetButtonLabel(JNIEnv* env,
                               : label_text);
 }
 
+std::u16string getMessageParagraph(DialogModelField* field) {
+  const DialogModelLabel& label = field->AsParagraph()->label();
+
+  std::u16string text;
+  auto replacements = label.replacements();
+  if (replacements.empty()) {
+    text = label.GetString();
+  } else {
+    std::vector<std::u16string> string_replacements;
+    for (auto replacement : replacements) {
+      string_replacements.push_back(replacement.text());
+    }
+    text = l10n_util::GetStringFUTF16(label.message_id(), string_replacements,
+                                      nullptr);
+  }
+  return text;
+}
+
 }  // anonymous namespace
 
 ModalDialogWrapper::ModalDialogButtonStyles
@@ -138,29 +156,31 @@ void ModalDialogWrapper::BuildPropertyModel() {
       env, java_obj_, title, ok_button_label, cancel_button_label,
       (int)buttonStyles);
 
-  int paragraph_count = 0;
+  std::u16string checkbox_text;
+  jboolean checked = false;
+  std::vector<std::u16string> paragraphs;
   for (const auto& field :
        dialog_model_->fields(DialogModelHost::GetPassKey())) {
     switch (field->type()) {
       case DialogModelField::kParagraph: {
-        // TODO(joelhockey): Add multi-paragraph support - clank supports 2.
-        CHECK_EQ(++paragraph_count, 1) << "Only single paragraph supported. "
-                                          "Fix me if you need multi-paragraph,";
-        std::u16string text;
-        const DialogModelLabel& label = field->AsParagraph()->label();
-        auto replacements = label.replacements();
-        if (replacements.empty()) {
-          text = label.GetString();
-        } else {
-          std::vector<std::u16string> string_replacements;
-          for (auto replacement : replacements) {
-            string_replacements.push_back(replacement.text());
-          }
-          text = l10n_util::GetStringFUTF16(label.message_id(),
-                                            string_replacements, nullptr);
-        }
-        Java_ModalDialogWrapper_withParagraph1(
-            env, java_obj_, ConvertUTF16ToJavaString(env, text));
+        paragraphs.push_back(getMessageParagraph(field.get()));
+        break;
+      }
+      case DialogModelField::kCheckbox: {
+        // TODO(crbug.com/428048190): A dialog should not have more than one
+        // checkbox.
+        CHECK(checkbox_text.empty())
+            << "Dialogs with more than one checkbox are "
+               "not supported on Android.";
+        DialogModelCheckbox* checkbox_field = field->AsCheckbox();
+
+        const DialogModelLabel& label = checkbox_field->label();
+        // Checkboxes with replacements (links) are not supported on Android.
+        CHECK(label.replacements().empty());
+
+        checkbox_text = label.GetString();
+        checked = checkbox_field->is_checked();
+        checkbox_id_ = checkbox_field->id();
         break;
       }
       default:
@@ -168,6 +188,21 @@ void ModalDialogWrapper::BuildPropertyModel() {
                      << ". Support should be added before this dialog is used "
                         "in android";
     }
+  }
+
+  if (paragraphs.size() > 0) {
+    ScopedJavaLocalRef<jobjectArray> java_paragraphs_array =
+        base::android::ToJavaArrayOfStrings(env, paragraphs);
+
+    Java_ModalDialogWrapper_withMessageParagraphs(env, java_obj_,
+                                                  java_paragraphs_array);
+  }
+
+  if (!checkbox_text.empty()) {
+    ScopedJavaLocalRef<jstring> java_checkbox_label =
+        ConvertUTF16ToJavaString(env, checkbox_text);
+    Java_ModalDialogWrapper_withCheckbox(env, java_obj_, java_checkbox_label,
+                                         checked);
   }
 }
 
@@ -177,6 +212,15 @@ void ModalDialogWrapper::PositiveButtonClicked(JNIEnv* env) {
 
 void ModalDialogWrapper::NegativeButtonClicked(JNIEnv* env) {
   dialog_model_->OnDialogCancelAction(DialogModelHost::GetPassKey());
+}
+
+void ModalDialogWrapper::CheckboxToggled(JNIEnv* env, jboolean is_checked) {
+  if (!checkbox_id_) {
+    return;
+  }
+  dialog_model_->GetCheckboxByUniqueId(checkbox_id_)
+      ->OnChecked(DialogModelFieldHost::GetPassKey(),
+                  static_cast<bool>(is_checked));
 }
 
 void ModalDialogWrapper::Dismissed(JNIEnv* env) {
