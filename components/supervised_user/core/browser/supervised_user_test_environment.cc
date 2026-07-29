@@ -7,14 +7,16 @@
 #include <memory>
 #include <ostream>
 #include <string_view>
+#include <utility>
 
-#include "components/prefs/pref_notifier_impl.h"
 #include "components/policy/core/common/policy_pref_names.h"
+#include "components/prefs/pref_notifier_impl.h"
 #include "components/prefs/pref_service.h"
 #include "components/safe_search_api/fake_url_checker_client.h"
 #include "components/supervised_user/core/browser/supervised_user_metrics_service.h"
 #include "components/supervised_user/core/browser/supervised_user_pref_store.h"
 #include "components/supervised_user/core/browser/supervised_user_url_filter.h"
+#include "components/supervised_user/core/common/supervised_user_constants.h"
 #include "components/supervised_user/test_support/supervised_user_url_filter_test_utils.h"
 #include "components/sync/base/data_type.h"
 #include "components/sync/model/sync_change_processor.h"
@@ -116,18 +118,25 @@ SupervisedUserPrefStoreTestEnvironment::
   SupervisedUserMetricsService::RegisterProfilePrefs(
       syncable_pref_service_->registry());
 
-  // Supervised user infra is not owning this pref but is using it: enable
-  // conditionally to avoid double registration.
+  // Supervised user infra is not owning these prefs but is using them: enable
+  // conditionally only if not already registered (to avoid double
+  // registration).
   if (syncable_pref_service_->FindPreference(
           policy::policy_prefs::kIncognitoModeAvailability) == nullptr) {
     syncable_pref_service_->registry()->RegisterIntegerPref(
         policy::policy_prefs::kIncognitoModeAvailability,
         static_cast<int>(policy::IncognitoModeAvailability::kEnabled));
   }
+  if (syncable_pref_service_->FindPreference(
+          policy::policy_prefs::kForceGoogleSafeSearch) == nullptr) {
+    syncable_pref_service_->registry()->RegisterBooleanPref(
+        policy::policy_prefs::kForceGoogleSafeSearch, false);
+  }
 }
 
 SupervisedUserPrefStoreTestEnvironment::
     ~SupervisedUserPrefStoreTestEnvironment() = default;
+
 void SupervisedUserPrefStoreTestEnvironment::Shutdown() {
   settings_service_.Shutdown();
 }
@@ -153,7 +162,13 @@ SupervisedUserTestEnvironment::SupervisedUserTestEnvironment() {
       std::make_unique<SupervisedUserURLFilter>(
           *pref_store_environment_.pref_service(),
           std::make_unique<FakeURLFilterDelegate>(), std::move(client)),
-      std::make_unique<FakePlatformDelegate>());
+      std::make_unique<FakePlatformDelegate>()
+#if BUILDFLAG(IS_ANDROID)
+          ,
+      base::BindRepeating(&SupervisedUserTestEnvironment::CreateBridge,
+                          base::Unretained(this))
+#endif  // BUILDFLAG(IS_ANDROID)
+  );
   metrics_service_ = std::make_unique<SupervisedUserMetricsService>(
       pref_store_environment_.pref_service(), *service_.get(),
       std::make_unique<SupervisedUserMetricsServiceExtensionDelegateFake>());
@@ -261,5 +276,57 @@ safe_search_api::FakeURLCheckerClient*
 SupervisedUserTestEnvironment::url_checker_client() {
   return url_checker_client_.get();
 }
+
+#if BUILDFLAG(IS_ANDROID)
+
+std::unique_ptr<ContentFiltersObserverBridge>
+SupervisedUserTestEnvironment::CreateBridge(
+    std::string_view setting_name,
+    base::RepeatingClosure on_enabled,
+    base::RepeatingClosure on_disabled) {
+  std::unique_ptr<FakeContentFiltersObserverBridge> bridge =
+      std::make_unique<FakeContentFiltersObserverBridge>(
+          setting_name, on_enabled, on_disabled);
+  if (setting_name == kBrowserContentFiltersSettingName) {
+    browser_content_filters_observer_ = bridge.get();
+  } else if (setting_name == kSearchContentFiltersSettingName) {
+    search_content_filters_observer_ = bridge.get();
+  }
+  return bridge;
+}
+
+FakeContentFiltersObserverBridge*
+SupervisedUserTestEnvironment::browser_content_filters_observer() {
+  return browser_content_filters_observer_.get();
+}
+FakeContentFiltersObserverBridge*
+SupervisedUserTestEnvironment::search_content_filters_observer() {
+  return search_content_filters_observer_.get();
+}
+
+FakeContentFiltersObserverBridge::FakeContentFiltersObserverBridge(
+    std::string_view setting_name,
+    base::RepeatingClosure on_enabled,
+    base::RepeatingClosure on_disabled)
+    : ContentFiltersObserverBridge(setting_name, on_enabled, on_disabled) {}
+FakeContentFiltersObserverBridge::~FakeContentFiltersObserverBridge() = default;
+
+void FakeContentFiltersObserverBridge::Init() {
+  // Do nothing, specifically do not initialize the java bridge from super.
+}
+void FakeContentFiltersObserverBridge::Shutdown() {
+  // Do nothing, specifically do not destroy the java bridge from super.
+}
+
+bool FakeContentFiltersObserverBridge::IsEnabled() const {
+  return enabled_;
+}
+
+void FakeContentFiltersObserverBridge::SetEnabled(bool enabled) {
+  enabled_ = enabled;
+  // This is fine: JNIEnv is not used, because OnChange notifies native code.
+  OnChange(/*env=*/nullptr, enabled);
+}
+#endif  // BUILDFLAG(IS_ANDROID)
 
 }  // namespace supervised_user

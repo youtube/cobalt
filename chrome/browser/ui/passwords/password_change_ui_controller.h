@@ -5,6 +5,7 @@
 #ifndef CHROME_BROWSER_UI_PASSWORDS_PASSWORD_CHANGE_UI_CONTROLLER_H_
 #define CHROME_BROWSER_UI_PASSWORDS_PASSWORD_CHANGE_UI_CONTROLLER_H_
 
+#include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "chrome/browser/password_manager/password_change_delegate.h"
 #include "chrome/browser/ui/views/passwords/password_change/password_change_toast.h"
@@ -62,6 +63,9 @@ class PasswordChangeUIController {
 
   // View displaying the progress of password change.
   raw_ptr<PasswordChangeToast> toast_view_;
+
+  // Delegate for the `toast_widget_`.
+  std::unique_ptr<views::WidgetDelegate> toast_delegate_;
 
   // Widget containing the currently open toast, if any.
   std::unique_ptr<views::Widget> toast_widget_;

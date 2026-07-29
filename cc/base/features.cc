@@ -219,7 +219,7 @@ BASE_FEATURE(kFastPathNoRaster,
 
 BASE_FEATURE(kExportFrameTimingAfterFrameDone,
              "ExportFrameTimingAfterFrameDone",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kInternalBeginFrameSourceOnManyDidNotProduceFrame,
              "InternalBeginFrameSourceOnManyDidNotProduceFrame",
@@ -269,4 +269,11 @@ BASE_FEATURE_PARAM(base::TimeDelta,
                    "max_animation_duration",
                    base::Milliseconds(700));
 
+BASE_FEATURE(kSlimDirectReceiverIpc,
+             "SlimDirectReceiverIpc",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kOverscrollBehaviorRespectedOnAllScrollContainers,
+             "OverscrollBehaviorRespectedOnAllScrollContainers",
+             base::FEATURE_DISABLED_BY_DEFAULT);
 }  // namespace features

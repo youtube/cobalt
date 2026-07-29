@@ -70,6 +70,7 @@ class VideoFrame;
 
 namespace blink {
 
+class CanvasResourceProvider;
 class CanvasElementHitTestRegion;
 class ComputedStyle;
 class Document;
@@ -180,6 +181,7 @@ class CORE_EXPORT CanvasRenderingContext
 
   virtual scoped_refptr<StaticBitmapImage> GetImage(FlushReason) = 0;
   virtual bool IsComposited() const = 0;
+  virtual bool IsAccelerated() const = 0;
 
   // Called when the entire tab is backgrounded or unbackgrounded.
   // The page's visibility status can be queried at any time via
@@ -189,6 +191,7 @@ class CORE_EXPORT CanvasRenderingContext
   // which are being rendered to, just not being displayed in the
   // page.
   virtual void PageVisibilityChanged() = 0;
+  virtual void SizeChanged() {}
   virtual bool isContextLost() const { return true; }
   bool IsContextBeingRestored() const { return is_context_being_restored_; }
   // TODO(fserb): remove AsV8RenderingContext and AsV8OffscreenRenderingContext.
@@ -204,6 +207,11 @@ class CORE_EXPORT CanvasRenderingContext
                    draw_type);
   }
   void DidDraw(const SkIRect& dirty_rect, CanvasPerformanceMonitor::DrawType);
+
+  virtual std::unique_ptr<CanvasResourceProvider>
+  CreateCanvasResourceProvider() {
+    NOTREACHED();
+  }
 
   // Returns a StaticBitmapImage containing the current content, or nullptr if
   // it was not possible to obtain that content.

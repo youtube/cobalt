@@ -10,9 +10,9 @@
 
 #include "base/memory/raw_ptr.h"
 
-class Profile;
-
 namespace ash {
+
+class ExtensionConsoleErrorObserver;
 
 namespace test {
 class SpeechMonitor;
@@ -21,7 +21,9 @@ class SpeechMonitor;
 // A class that can be used to exercise ChromeVox in browsertests.
 class ChromeVoxTestUtils {
  public:
-  explicit ChromeVoxTestUtils(Profile* profile);
+  ChromeVoxTestUtils();
+  // TODO(crbug.com/388867840): Turn off ChromeVox below in the destructor or
+  // introduce a separate method called DisableChromeVox.
   ~ChromeVoxTestUtils();
   ChromeVoxTestUtils(const ChromeVoxTestUtils&) = delete;
   ChromeVoxTestUtils& operator=(const ChromeVoxTestUtils&) = delete;
@@ -32,6 +34,10 @@ class ChromeVoxTestUtils {
   // allows tests to call directly into various ChromeVox methods.
   void GlobalizeModule(const std::string& name);
   void DisableEarcons();
+  void WaitForReady();
+  void WaitForValidRange();
+
+  void ExecuteCommandHandlerCommand(std::string command);
 
   // Runs the given script in the ChromeVox background page.
   void RunJS(const std::string& script);
@@ -39,8 +45,8 @@ class ChromeVoxTestUtils {
   test::SpeechMonitor* sm() { return sm_.get(); }
 
  private:
-  raw_ptr<Profile> profile_;
   std::unique_ptr<test::SpeechMonitor> sm_;
+  std::unique_ptr<ExtensionConsoleErrorObserver> console_observer_;
 };
 
 }  // namespace ash

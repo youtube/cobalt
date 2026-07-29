@@ -1899,7 +1899,7 @@ TEST_P(TemplateURLServiceTest,
   // Modify a starter pack template URL. Verify load does NOT modify the title
   // if current version is compatible (>= to first compatible version).
   const int first_compatible_version =
-      TemplateURLStarterPackData::GetFirstCompatibleDataVersion();
+      template_url_starter_pack_data::GetFirstCompatibleDataVersion();
   test_util()->web_data_service()->SetStarterPackKeywordVersion(
       first_compatible_version);
 
@@ -2862,7 +2862,7 @@ TEST_P(TemplateURLServiceTest, TemplateURLCountsOnStartupHistogram) {
   test_util()->ResetModel(true);
   VerifyTemplateUrlCountsHistograms(
       histogram_tester,
-      {{".StarterPack", 5},
+      {{".StarterPack", 6},
        {".Prepopulated", 5},
        {".SearchEngineSetByExtension", 0},
        {".NonFeaturedSiteSearchSetByPolicy", 1},

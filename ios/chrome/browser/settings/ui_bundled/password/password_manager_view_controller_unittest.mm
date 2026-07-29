@@ -15,6 +15,7 @@
 #import "base/test/metrics/histogram_tester.h"
 #import "base/test/scoped_feature_list.h"
 #import "components/affiliations/core/browser/fake_affiliation_service.h"
+#import "components/application_locale_storage/application_locale_storage.h"
 #import "components/feature_engagement/public/feature_constants.h"
 #import "components/google/core/common/google_util.h"
 #import "components/keyed_service/core/service_access_type.h"
@@ -1453,6 +1454,65 @@ TEST_F(PasswordManagerViewControllerTest,
   [GetPasswordManagerViewController() settingsWillBeDismissed];
 }
 
+TEST_F(PasswordManagerViewControllerTest,
+       TestTrustedVaultPromoIsNotPresentedWhileSearching) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeature(
+      password_manager::features::kIOSEnablePasswordManagerTrustedVaultWidget);
+
+  root_view_controller_ = [[UIViewController alloc] init];
+  scoped_window_.Get().rootViewController = root_view_controller_;
+
+  PasswordManagerViewController* passwords_controller =
+      GetPasswordManagerViewController();
+
+  [passwords_controller setUserEmail:u"test@egmail.com"];
+  passwords_controller.shouldShowTrustedVaultWidgetPromo = YES;
+
+  // Add a saved password so the empty state isn't shown.
+  AddSavedForm1();
+
+  // Present the view controller.
+  __block bool presentation_finished = NO;
+  UINavigationController* navigation_controller =
+      [[UINavigationController alloc]
+          initWithRootViewController:passwords_controller];
+  [root_view_controller_ presentViewController:navigation_controller
+                                      animated:NO
+                                    completion:^{
+                                      presentation_finished = YES;
+                                    }];
+  EXPECT_TRUE(base::test::ios::WaitUntilConditionOrTimeout(
+      base::test::ios::kWaitForUIElementTimeout, ^bool {
+        return presentation_finished;
+      }));
+
+  EXPECT_TRUE([passwords_controller.tableViewModel
+      hasSectionForSectionIdentifier:SectionIdentifierTrustedVaultWidgetPromo]);
+
+  passwords_controller.navigationItem.searchController.active = YES;
+
+  EXPECT_FALSE([passwords_controller.tableViewModel
+      hasSectionForSectionIdentifier:SectionIdentifierTrustedVaultWidgetPromo]);
+
+  passwords_controller.navigationItem.searchController.active = NO;
+
+  EXPECT_TRUE([passwords_controller.tableViewModel
+      hasSectionForSectionIdentifier:SectionIdentifierTrustedVaultWidgetPromo]);
+
+  // Dismiss the view controller and wait for the dismissal to finish.
+  __block bool dismissal_finished = NO;
+  [passwords_controller settingsWillBeDismissed];
+  [root_view_controller_ dismissViewControllerAnimated:NO
+                                            completion:^{
+                                              dismissal_finished = YES;
+                                            }];
+  EXPECT_TRUE(base::test::ios::WaitUntilConditionOrTimeout(
+      base::test::ios::kWaitForUIElementTimeout, ^bool {
+        return dismissal_finished;
+      }));
+}
+
 // Tests that the content of the ManageAccountHeader is being updated when
 // `setSavingPasswordsToAccount` changes.
 TEST_F(PasswordManagerViewControllerTest, ManageAccountHeaderIsBeingUpdated) {
@@ -1481,7 +1541,9 @@ TEST_F(PasswordManagerViewControllerTest, ManageAccountHeaderIsBeingUpdated) {
   CrURL* expectedHeaderUrl = [[CrURL alloc]
       initWithGURL:google_util::AppendGoogleLocaleParam(
                        GURL(password_manager::kPasswordManagerHelpCenteriOSURL),
-                       GetApplicationContext()->GetApplicationLocale())];
+                       GetApplicationContext()
+                           ->GetApplicationLocaleStorage()
+                           ->Get())];
   EXPECT_NSEQ(header.urls[0].nsurl, expectedHeaderUrl.nsurl);
 
   [GetPasswordManagerViewController() settingsWillBeDismissed];

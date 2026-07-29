@@ -613,7 +613,7 @@ chromium-metrics-reviews@google.com.
   <int value="2" label="Password Context Manu"/>
   <int value="3" label="Password Dropdown"/>
   <int value="4" label="Password Generation Confirmation"/>
-  <int value="5" label="Profile Chooser"/>
+  <int value="5" label="(DEPRECATED - 06/25) Profile Chooser"/>
   <int value="6" label="Passwords Accessory Sheet"/>
   <int value="7" label="Touch To Fill"/>
   <int value="8" label="Safe state bubble"/>
@@ -1697,11 +1697,6 @@ chromium-metrics-reviews@google.com.
   <int value="2" label="Somewhat guessable password"/>
   <int value="3" label="Safely unguessable password"/>
   <int value="4" label="Very unguessable password"/>
-</enum>
-
-<enum name="PostPasswordMigrationSheetOutcome">
-  <int value="0" label="The sheet was acknowledged"/>
-  <int value="1" label="The sheet was dismissed"/>
 </enum>
 
 <enum name="ProactivePasswordGenerationBottomSheetTransitionType">

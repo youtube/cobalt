@@ -745,6 +745,8 @@ class GraphBuilderTflite final {
   std::optional<TensorInfo> CanFuseQuantizeAndGetOutput(const mojom::Elu& elu);
   std::optional<TensorInfo> CanFuseQuantizeAndGetOutput(
       const mojom::Gather& gather);
+  std::optional<TensorInfo> CanFuseQuantizeAndGetOutput(
+      const mojom::Gemm& gemm);
   std::optional<TensorInfo> CanFuseQuantizeAndGetOutput(const mojom::Pad& pad);
   std::optional<TensorInfo> CanFuseQuantizeAndGetOutput(
       const mojom::Pool2d& pool2d);
@@ -775,6 +777,12 @@ class GraphBuilderTflite final {
   template <typename OpType>
   std::optional<std::pair<OperationId, QuantizateParametersOffset>>
   CanFuseQuantizeForActivationOperation(const OpType& op);
+  // Helper for element-wise logical operations to check if specific fusion
+  // criteria required by TFLite are met. The output data type of element-wise
+  // logical operations is uint8, so the next operation isn't quantizeLinear,
+  // but `dq -> op` can be fused to quantized op.
+  bool CanFuseDequantizeForLogicalElementWiseBinary(
+      const mojom::ElementWiseBinary& binary);
   bool IsDequantizeOutput(OperandId operand_id);
   // Get the dequantize op by its output operand id.
   const mojom::DequantizeLinear& GetDequantizeOp(OperandId operand_id);
@@ -815,10 +823,13 @@ class GraphBuilderTflite final {
              std::is_same_v<OpType, mojom::QuantizeLinear>)
   bool IsInts8AndScalarScale(const OpType& op);
 
-  // Helper for QDQ fusion to check if input and output have same
+  // Helper for QDQ fusion to check if `dequantize` and `op` have same
   // scale and zero_point.
-  bool IsSameScaleAndZeroPoint(const mojom::DequantizeLinear& input_dequantize,
-                               const mojom::QuantizeLinear& output_quantize);
+  template <typename OpType>
+    requires(std::is_same_v<OpType, mojom::DequantizeLinear> ||
+             std::is_same_v<OpType, mojom::QuantizeLinear>)
+  bool IsSameScaleAndZeroPoint(const mojom::DequantizeLinear& dequantize,
+                               const OpType& op);
 
   bool IsSerializedWithMismatchQuantizeParameters(
       OperandId operand_id,

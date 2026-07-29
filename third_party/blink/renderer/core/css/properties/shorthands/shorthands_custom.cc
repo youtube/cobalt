@@ -12,6 +12,7 @@
 #include "third_party/blink/renderer/core/css/css_numeric_literal_value.h"
 #include "third_party/blink/renderer/core/css/css_pending_system_font_value.h"
 #include "third_party/blink/renderer/core/css/css_property_value.h"
+#include "third_party/blink/renderer/core/css/css_superellipse_value.h"
 #include "third_party/blink/renderer/core/css/css_value_pair.h"
 #include "third_party/blink/renderer/core/css/parser/css_parser_context.h"
 #include "third_party/blink/renderer/core/css/parser/css_parser_fast_paths.h"
@@ -1377,6 +1378,83 @@ const CSSValue* Container::CSSValueFromComputedStyleInternal(
     CSSValuePhase value_phase) const {
   return ComputedStyleUtils::ValuesForContainerShorthand(
       style, layout_object, allow_visited_style, value_phase);
+}
+
+const CSSValue* Corners::CSSValueFromComputedStyleInternal(
+    const ComputedStyle& style,
+    const LayoutObject*,
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
+  std::array<std::pair<LengthSize, Superellipse>, 4> corners = {
+      std::make_pair(style.BorderTopLeftRadius(), style.CornerTopLeftShape()),
+      std::make_pair(style.BorderTopRightRadius(), style.CornerTopRightShape()),
+      std::make_pair(style.BorderBottomRightRadius(),
+                     style.CornerBottomRightShape()),
+      std::make_pair(style.BorderBottomLeftRadius(),
+                     style.CornerBottomLeftShape())};
+
+  CSSValueList* result = CSSValueList::CreateSlashSeparated();
+  const bool show_bottom_left = corners[1] != corners[3];
+  const bool show_bottom_right = show_bottom_left || corners[0] != corners[2];
+  const bool show_top_right = show_bottom_right || corners[0] != corners[1];
+
+  const std::array<bool, 4> show_sides = {true, show_top_right,
+                                          show_bottom_right, show_bottom_left};
+
+  for (size_t i = 0; i < 4 && show_sides[i]; ++i) {
+    if (corners[i].first.Width().IsZero() &&
+        corners[i].first.Height().IsZero() &&
+        corners[i].second == Superellipse::Round()) {
+      result->Append(*CSSIdentifierValue::Create(CSSValueID::kNormal));
+    } else {
+      result->Append(*MakeGarbageCollected<CSSValuePair>(
+          ComputedStyleUtils::ValueForBorderRadiusCorner(corners[i].first,
+                                                         style),
+          ComputedStyleUtils::ValueForCornerShape(corners[i].second),
+          CSSValuePair::kKeepIdenticalValues));
+    }
+  }
+
+  return result;
+}
+
+bool Corners::ParseShorthand(
+    bool important,
+    CSSParserTokenStream& stream,
+    const CSSParserContext& context,
+    const CSSParserLocalContext& local_context,
+    HeapVector<CSSPropertyValue, 64>& properties) const {
+  std::array<CSSValue*, 4> radii = {nullptr, nullptr, nullptr, nullptr};
+  std::array<CSSValue*, 4> shapes = {nullptr, nullptr, nullptr, nullptr};
+  for (size_t i = 0; i < 4; ++i) {
+    if (!css_parsing_utils::ConsumeCorner(stream, context, radii[i],
+                                          shapes[i])) {
+      return false;
+    }
+    if (i == 3 || !css_parsing_utils::ConsumeSlashIncludingWhitespace(stream)) {
+      break;
+    }
+  }
+
+  CHECK(radii[0]);
+  CHECK(shapes[0]);
+
+  css_parsing_utils::Complete4Sides(radii);
+  css_parsing_utils::Complete4Sides(shapes);
+  const StylePropertyShorthand::Properties& shorthand_properties =
+      cornersShorthand().properties();
+  DCHECK_EQ(shorthand_properties.size(), 8u);
+  for (size_t i = 0; i < 4; ++i) {
+    AddProperty(shorthand_properties[i * 2]->PropertyID(),
+                CSSPropertyID::kCorners, *radii[i], important,
+                css_parsing_utils::IsImplicitProperty::kNotImplicit,
+                properties);
+    AddProperty(shorthand_properties[i * 2 + 1]->PropertyID(),
+                CSSPropertyID::kCorners, *shapes[i], important,
+                css_parsing_utils::IsImplicitProperty::kNotImplicit,
+                properties);
+  }
+  return true;
 }
 
 bool CornerShape::ParseShorthand(
@@ -2971,43 +3049,6 @@ const CSSValue* MasonryFlow::CSSValueFromComputedStyleInternal(
       value_phase);
 }
 
-bool MasonryTrack::ParseShorthand(
-    bool important,
-    CSSParserTokenStream& stream,
-    const CSSParserContext& context,
-    const CSSParserLocalContext&,
-    HeapVector<CSSPropertyValue, 64>& properties) const {
-  const auto& shorthand = shorthandForProperty(CSSPropertyID::kMasonryTrack);
-  DCHECK_EQ(shorthand.length(), 2u);
-
-  CSSValue *start_value = nullptr, *end_value = nullptr;
-  if (!css_parsing_utils::ConsumeGridItemPositionShorthand(
-          important, stream, context, start_value, end_value)) {
-    return false;
-  }
-
-  css_parsing_utils::AddProperty(
-      shorthand.properties()[0]->PropertyID(), CSSPropertyID::kMasonryTrack,
-      *start_value, important,
-      css_parsing_utils::IsImplicitProperty::kNotImplicit, properties);
-  css_parsing_utils::AddProperty(
-      shorthand.properties()[1]->PropertyID(), CSSPropertyID::kMasonryTrack,
-      *end_value, important,
-      css_parsing_utils::IsImplicitProperty::kNotImplicit, properties);
-
-  return true;
-}
-
-const CSSValue* MasonryTrack::CSSValueFromComputedStyleInternal(
-    const ComputedStyle& style,
-    const LayoutObject* layout_object,
-    bool allow_visited_style,
-    CSSValuePhase value_phase) const {
-  return ComputedStyleUtils::ValuesForGridLineShorthand(
-      masonryTrackShorthand(), style, layout_object, allow_visited_style,
-      value_phase);
-}
-
 bool Offset::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
@@ -3098,24 +3139,6 @@ const CSSValue* Offset::CSSValueFromComputedStyleInternal(
     CSSValuePhase value_phase) const {
   return ComputedStyleUtils::ValueForOffset(style, layout_object,
                                             allow_visited_style, value_phase);
-}
-
-bool OriginTrialTestShorthand::ParseShorthand(
-    bool important,
-    CSSParserTokenStream& stream,
-    const CSSParserContext& context,
-    const CSSParserLocalContext&,
-    HeapVector<CSSPropertyValue, 64>& properties) const {
-  const CSSIdentifierValue* ident =
-      css_parsing_utils::ConsumeIdent<CSSValueID::kNormal, CSSValueID::kNone>(
-          stream);
-  if (!ident) {
-    return false;
-  }
-  AddProperty(CSSPropertyID::kOriginTrialTestShorthand,
-              CSSPropertyID::kOriginTrialTestProperty, *ident, important,
-              css_parsing_utils::IsImplicitProperty::kNotImplicit, properties);
-  return true;
 }
 
 bool Outline::ParseShorthand(

@@ -56,6 +56,7 @@ import org.chromium.chrome.browser.tab.TabId;
 import org.chromium.chrome.browser.tab_ui.RecyclerViewPosition;
 import org.chromium.chrome.browser.tab_ui.TabContentManager;
 import org.chromium.chrome.browser.tab_ui.TabSwitcherCustomViewManager;
+import org.chromium.chrome.browser.tab_ui.TabSwitcherGroupSuggestionService;
 import org.chromium.chrome.browser.tabmodel.TabGroupModelFilter;
 import org.chromium.chrome.browser.tabmodel.TabList;
 import org.chromium.chrome.browser.tasks.tab_management.TabGridContextMenuCoordinator.ShowTabListEditor;
@@ -180,6 +181,7 @@ public class TabSwitcherPaneCoordinator implements BackPressHandler {
     private @Nullable EdgeToEdgePadAdjuster mEdgeToEdgePadAdjuster;
 
     private @Nullable TabListCoordinator.DragObserver mDragObserver;
+    private @Nullable TabSwitcherGroupSuggestionService mTabSwitcherGroupSuggestionService;
 
     private int mEdgeToEdgeBottomInsets;
 
@@ -323,7 +325,8 @@ public class TabSwitcherPaneCoordinator implements BackPressHandler {
                             isVisibleSupplier,
                             isAnimatingSupplier,
                             onTabClickCallback,
-                            this::getNthTabIndexInModel);
+                            this::getNthTabIndexInModel,
+                            bottomSheetController);
 
             mMultiThumbnailCardProvider =
                     new MultiThumbnailCardProvider(
@@ -465,6 +468,16 @@ public class TabSwitcherPaneCoordinator implements BackPressHandler {
             mIsContextMenuFocusableSupplier.set(CONTEXT_MENU_FOCUSABLE);
             mIsContextMenuFocusableSupplier.addObserver(mOnContextMenuFocusableChanged);
             tabListCoordinator.addDragObserver(mDragObserver);
+
+            if (ChromeFeatureList.sTabSwitcherGroupSuggestionsAndroid.isEnabled()) {
+                mTabSwitcherGroupSuggestionService =
+                        TabSwitcherGroupSuggestionServiceFactory.build(
+                                activity,
+                                mTabGroupModelFilterSupplier,
+                                profile,
+                                mTabListCoordinator.getTabListHighlighter(),
+                                messageManager.getTabGroupSuggestionMessageService());
+            }
         }
     }
 
@@ -496,6 +509,9 @@ public class TabSwitcherPaneCoordinator implements BackPressHandler {
         mTabGroupModelFilterSupplier.removeObserver(mOnFilterChange);
         if (mTabGroupListBottomSheetCoordinator != null) {
             mTabGroupListBottomSheetCoordinator.destroy();
+        }
+        if (mTabSwitcherGroupSuggestionService != null) {
+            mTabSwitcherGroupSuggestionService.destroy();
         }
     }
 
@@ -731,6 +747,15 @@ public class TabSwitcherPaneCoordinator implements BackPressHandler {
     }
 
     private void onTabSwitcherShown() {
+        if (ChromeFeatureList.sTabSwitcherGroupSuggestionsAndroid.isEnabled()) {
+            assert mTabSwitcherGroupSuggestionService != null;
+            if (ChromeFeatureList.sTabSwitcherGroupSuggestionsTestModeAndroid.isEnabled()) {
+                mTabSwitcherGroupSuggestionService.forceTabGroupSuggestion();
+            } else {
+                mTabSwitcherGroupSuggestionService.maybeShowSuggestions();
+            }
+        }
+
         mTabListCoordinator.attachEmptyView();
     }
 
@@ -765,6 +790,10 @@ public class TabSwitcherPaneCoordinator implements BackPressHandler {
             mMessageManager.unbind(mTabListCoordinator);
             updateBottomPadding();
             mTabListCoordinator.postHiding();
+
+            if (mTabSwitcherGroupSuggestionService != null) {
+                mTabSwitcherGroupSuggestionService.clearSuggestions();
+            }
         }
     }
 

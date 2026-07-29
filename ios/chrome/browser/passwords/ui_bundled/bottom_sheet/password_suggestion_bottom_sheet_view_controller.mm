@@ -44,15 +44,6 @@ CGFloat const kSpacingBetweenCellLabels = 2;
 // Returns the username to display for the given `suggestion`.
 NSString* GetSuggestionDisplayUsername(FormSuggestion* suggestion) {
   NSString* username = suggestion.value;
-
-  // If present, remove the ' ••••••••' suffix appended to the username in the
-  // suggestion.
-  if ([username containsString:kPasswordFormSuggestionSuffix]) {
-    username = [username
-        stringByReplacingOccurrencesOfString:kPasswordFormSuggestionSuffix
-                                  withString:@""];
-  }
-
   return ([username length] == 0)
              ? l10n_util::GetNSString(IDS_IOS_PASSWORD_BOTTOM_SHEET_NO_USERNAME)
              : username;
@@ -217,7 +208,8 @@ NSString* GetSuggestionDisplayUsername(FormSuggestion* suggestion) {
       // passwords as they are not displayed in the Password Manager for now.
       FormSuggestion* formSuggestion =
           [strongSelf.suggestions objectAtIndex:indexPath.row];
-      if (!formSuggestion.metadata.is_recovery_password) {
+      if (formSuggestion.type !=
+          autofill::SuggestionType::kBackupPasswordEntry) {
         [menuElements
             addObject:[UIMenu
                           menuWithTitle:@""
@@ -353,7 +345,7 @@ NSString* GetSuggestionDisplayUsername(FormSuggestion* suggestion) {
   TableViewURLCell* URLCell =
       base::apple::ObjCCastStrict<TableViewURLCell>(cell);
 
-  if (suggestion.metadata.is_recovery_password) {
+  if (suggestion.type == autofill::SuggestionType::kBackupPasswordEntry) {
     [URLCell replaceFaviconWithSymbol:kHistorySymbol];
   } else {
     auto faviconLoadedBlock = ^(FaviconAttributes* attributes) {
@@ -430,7 +422,7 @@ NSString* GetSuggestionDisplayUsername(FormSuggestion* suggestion) {
   cell.URLLabel.lineBreakMode = NSLineBreakByTruncatingMiddle;
   cell.URLLabel.numberOfLines = 1;
   cell.URLLabel.hidden = NO;
-  if (formSuggestion.metadata.is_recovery_password) {
+  if (formSuggestion.type == autofill::SuggestionType::kBackupPasswordEntry) {
     cell.thirdRowLabel.text = l10n_util::GetNSString(
         IDS_IOS_PASSWORD_BOTTOM_SHEET_RECOVERY_PASSWORD_LABEL);
     cell.thirdRowLabel.hidden = NO;

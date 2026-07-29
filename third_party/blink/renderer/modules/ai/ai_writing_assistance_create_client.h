@@ -10,6 +10,7 @@
 #include "third_party/blink/renderer/core/dom/quota_exceeded_error.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context_lifecycle_observer.h"
+#include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/modules/ai/ai_context_observer.h"
 #include "third_party/blink/renderer/modules/ai/ai_interface_proxy.h"
 #include "third_party/blink/renderer/modules/ai/ai_utils.h"
@@ -111,9 +112,9 @@ class AIWritingAssistanceCreateClient
       }
     }
 
-    if (GetExecutionContext() && pending_remote) {
+    if (pending_remote) {
       this->GetResolver()->Resolve(MakeGarbageCollected<V8SessionObjectType>(
-          GetExecutionContext(), task_runner_, std::move(pending_remote),
+          this->GetScriptState(), task_runner_, std::move(pending_remote),
           options_));
     } else {
       this->GetResolver()->RejectWithDOMException(

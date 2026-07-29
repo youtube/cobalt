@@ -25,6 +25,7 @@
 #include "base/metrics/histogram_macros.h"
 #include "base/metrics/user_metrics.h"
 #include "base/no_destructor.h"
+#include "base/notimplemented.h"
 #include "base/strings/escape.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
@@ -1857,6 +1858,14 @@ void DevToolsUIBindings::GetHostConfig(DispatchCallback callback) {
                        ::features::kDevToolsAnimationStylesInStylesTab));
     response_dict.Set("devToolsAnimationStylesInStylesTab",
                       std::move(devtools_animation_styles_in_styles_tab_dict));
+  }
+
+  if (net::features::kIpPrivacyEnableIppInDevTools.Get()) {
+    base::Value::Dict devtools_ip_protection_dict;
+    devtools_ip_protection_dict.Set(
+        "enabled", net::features::kIpPrivacyEnableIppInDevTools.Get());
+    response_dict.Set("devToolsIpProtectionInDevTools",
+                      std::move(devtools_ip_protection_dict));
   }
 
   base::Value::Dict css_value_tracing_dict;

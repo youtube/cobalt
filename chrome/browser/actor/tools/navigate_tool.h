@@ -22,7 +22,10 @@ namespace actor {
 // Navigates a the primary main frame in a WebContents to the given URL.
 class NavigateTool : public Tool, content::WebContentsObserver {
  public:
-  NavigateTool(content::WebContents& web_contents, const GURL& url);
+  NavigateTool(TaskId task_id,
+               AggregatedJournal& journal,
+               content::WebContents& web_contents,
+               const GURL& url);
   ~NavigateTool() override;
 
   // actor::Tool
@@ -30,6 +33,8 @@ class NavigateTool : public Tool, content::WebContentsObserver {
   void Invoke(InvokeCallback callback) override;
   std::string DebugString() const override;
   std::string JournalEvent() const override;
+  std::unique_ptr<ObservationDelayController> GetObservationDelayer()
+      const override;
 
   // content::WebContentsObserver
   void DidFinishNavigation(

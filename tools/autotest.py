@@ -72,15 +72,6 @@ _TEST_TARGET_ALLOWLIST = [
     '//chrome/browser/web_applications:web_application_fuzztests',
     '//chromecast/media/base:video_plane_controller_test',
     '//chromecast/metrics:cast_metrics_unittest',
-    '//chromecast/starboard/media/cdm:starboard_decryptor_cast_test',
-    '//chromecast/starboard/media/cdm:starboard_drm_key_tracker_test',
-    '//chromecast/starboard/media/cdm:starboard_drm_wrapper_test',
-    '//chromecast/starboard/media/media:media_pipeline_backend_starboard_test',
-    '//chromecast/starboard/media/media:mime_utils_test',
-    '//chromecast/starboard/media/media:starboard_audio_decoder_test',
-    '//chromecast/starboard/media/media:starboard_resampler_test',
-    '//chromecast/starboard/media/media:starboard_video_decoder_test',
-    '//chromecast/starboard/media/media:starboard_video_plane_test',
     '//chrome/enterprise_companion:enterprise_companion_integration_tests',
     '//chrome/enterprise_companion:enterprise_companion_tests',
     '//chrome/installer/gcapi:gcapi_test',
@@ -274,15 +265,24 @@ def RunCommand(cmd, **kwargs):
     raise CommandError(e.cmd, e.returncode, e.output) from None
 
 
-def BuildTestTargets(out_dir, targets, dry_run):
+def BuildTestTargets(out_dir, targets, dry_run, quiet):
   """Builds the specified targets with ninja"""
   cmd = gn_helpers.CreateBuildCommand(out_dir) + targets
   print('Building: ' + shlex.join(cmd))
   if (dry_run):
     return True
-  try:
-    subprocess.check_call(cmd)
-  except subprocess.CalledProcessError as e:
+  completed_process = subprocess.run(cmd,
+                                     capture_output=quiet,
+                                     encoding='utf-8')
+  if completed_process.returncode != 0:
+    if quiet:
+      before, _, after = completed_process.stdout.partition('stderr:')
+      if not after:
+        before, _, after = completed_process.stdout.partition('stdout:')
+      if after:
+        print(after)
+      else:
+        print(before)
     return False
   return True
 
@@ -665,6 +665,11 @@ def main():
       action='store_true',
       help='Print ninja and test run commands without executing them.')
   parser.add_argument(
+      '--quiet',
+      '-q',
+      action='store_true',
+      help='Do not print while building, only print if build fails.')
+  parser.add_argument(
       '--no-try-android-wrappers',
       '--no_try_android_wrappers',
       action='store_true',
@@ -707,7 +712,7 @@ def main():
     pref_mapping_filter = BuildPrefMappingTestFilter(filenames)
 
   assert targets
-  build_ok = BuildTestTargets(out_dir, targets, args.dry_run)
+  build_ok = BuildTestTargets(out_dir, targets, args.dry_run, args.quiet)
 
   # If we used the target cache, it's possible we chose the wrong target because
   # a gn file was changed. The build step above will check for gn modifications
@@ -721,7 +726,7 @@ def main():
       # Note that this can happen, for example, if you rename a test target.
       print('gn config was changed, trying to build again', file=sys.stderr)
       targets = new_targets
-      build_ok = BuildTestTargets(out_dir, targets, args.dry_run)
+      build_ok = BuildTestTargets(out_dir, targets, args.dry_run, args.quiet)
 
   if not build_ok: sys.exit(1)
 

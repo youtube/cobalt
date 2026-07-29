@@ -153,8 +153,6 @@ class SafeBrowsingPrivateEventRouterTestBase : public testing::Test {
             GURL("https://phishing.com/"), "user_name_1",
             /*is_phishing_url*/ true, warning_shown);
 
-    // TODO(mxlg): Move the tests related to the ReportingEventRouter to its own
-    // unit tests file.
     enterprise_connectors::ReportingEventRouterFactory::GetForBrowserContext(
         profile_)
         ->OnPasswordReuse(GURL("https://phishing.com/"), "user_name_1",
@@ -165,8 +163,6 @@ class SafeBrowsingPrivateEventRouterTestBase : public testing::Test {
     SafeBrowsingPrivateEventRouterFactory::GetForProfile(profile_)
         ->OnPolicySpecifiedPasswordChanged("user_name_2");
 
-    // TODO(crbug.com/410855312):  Move the tests related to the
-    // ReportingEventRouter to its own unit tests file.
     enterprise_connectors::ReportingEventRouterFactory::GetForBrowserContext(
         profile_)
         ->OnPasswordChanged("user_name_2");
@@ -187,8 +183,6 @@ class SafeBrowsingPrivateEventRouterTestBase : public testing::Test {
     SafeBrowsingPrivateEventRouterFactory::GetForProfile(profile_)
         ->OnSecurityInterstitialShown(GURL("https://phishing.com/"), "PHISHING",
                                       0);
-    // TODO(mxlg): Move the tests related to the ReportingEventRouter to its own
-    // unit tests file.
     safe_browsing::ReferrerChain referrer_chain;
     enterprise_connectors::ReportingEventRouterFactory::GetForBrowserContext(
         profile_)
@@ -200,7 +194,6 @@ class SafeBrowsingPrivateEventRouterTestBase : public testing::Test {
     SafeBrowsingPrivateEventRouterFactory::GetForProfile(profile_)
         ->OnSecurityInterstitialProceeded(GURL("https://phishing.com/"),
                                           "PHISHING", -201);
-    // TODO(mxlg): Move the ReportingEventRouter test code to its own unit test.
     safe_browsing::ReferrerChain referrer_chain;
     enterprise_connectors::ReportingEventRouterFactory::GetForBrowserContext(
         profile_)
@@ -249,7 +242,7 @@ class SafeBrowsingPrivateEventRouterTestBase : public testing::Test {
             GURL(kUrl), GURL(kTabUrl), kSource, kDestination,
             "sensitive_data.txt", "sha256_of_data", "text/plain",
             SafeBrowsingPrivateEventRouter::kTriggerFileUpload, "scan_id",
-            "content_transfer_method",
+            "content_transfer_method", "source_email",
             safe_browsing::DeepScanAccessPoint::UPLOAD, result, 12345,
             referrer_chain, event_result);
   }
@@ -903,6 +896,13 @@ TEST_F(SafeBrowsingPrivateEventRouterTest, TestOnSensitiveDataEvent_Allowed) {
             *event->FindString(SafeBrowsingPrivateEventRouter::kKeyFileName));
   EXPECT_EQ(SafeBrowsingPrivateEventRouter::kTriggerFileUpload,
             *event->FindString(SafeBrowsingPrivateEventRouter::kKeyTrigger));
+  EXPECT_EQ("content_transfer_method",
+            *event->FindString(
+                SafeBrowsingPrivateEventRouter::kKeyContentTransferMethod));
+  EXPECT_EQ(
+      "source_email",
+      *event->FindString(
+          SafeBrowsingPrivateEventRouter::kKeySourceWebAppSignedInAccount));
 
   const base::Value::List* triggered_rule_info =
       event->FindList(SafeBrowsingPrivateEventRouter::kKeyTriggeredRuleInfo);
@@ -964,6 +964,13 @@ TEST_F(SafeBrowsingPrivateEventRouterTest, TestOnSensitiveDataEvent_Blocked) {
             *event->FindString(SafeBrowsingPrivateEventRouter::kKeyFileName));
   EXPECT_EQ(SafeBrowsingPrivateEventRouter::kTriggerFileUpload,
             *event->FindString(SafeBrowsingPrivateEventRouter::kKeyTrigger));
+  EXPECT_EQ("content_transfer_method",
+            *event->FindString(
+                SafeBrowsingPrivateEventRouter::kKeyContentTransferMethod));
+  EXPECT_EQ(
+      "source_email",
+      *event->FindString(
+          SafeBrowsingPrivateEventRouter::kKeySourceWebAppSignedInAccount));
 
   const base::Value::List* triggered_rule_info =
       event->FindList(SafeBrowsingPrivateEventRouter::kKeyTriggeredRuleInfo);

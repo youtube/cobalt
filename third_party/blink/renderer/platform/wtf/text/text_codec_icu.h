@@ -47,9 +47,8 @@ class TextCodecIcu final : public TextCodec {
   ~TextCodecIcu() override;
 
  private:
-  explicit TextCodecIcu(const WTF::TextEncoding&);
-  WTF_EXPORT static std::unique_ptr<TextCodec> Create(const WTF::TextEncoding&,
-                                                      const void*);
+  explicit TextCodecIcu(const TextEncoding&);
+  WTF_EXPORT static std::unique_ptr<TextCodec> Create(const TextEncoding&);
 
   String Decode(base::span<const uint8_t> data,
                 FlushBehavior,
@@ -73,7 +72,7 @@ class TextCodecIcu final : public TextCodec {
                      bool flush,
                      UErrorCode&);
 
-  WTF::TextEncoding encoding_;
+  TextEncoding encoding_;
   mutable UConverter* converter_icu_ = nullptr;
 #if defined(USING_SYSTEM_ICU)
   mutable bool needs_gbk_fallbacks_ = false;

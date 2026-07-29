@@ -426,7 +426,8 @@ CalculationExpressionOperationNode::CreateSimplified(Children&& children,
         float progress_px = operand_pixels[0];
         float from_px = operand_pixels[1];
         float to_px = operand_pixels[2];
-        float progress = (progress_px - from_px) / (to_px - from_px);
+        float progress_value = (progress_px - from_px) / (to_px - from_px);
+        float progress = std::clamp(progress_value, 0.f, 1.f);
         return MakeGarbageCollected<CalculationExpressionPixelsAndPercentNode>(
             PixelsAndPercent(progress));
       }
@@ -452,8 +453,6 @@ CalculationExpressionOperationNode::CreateSimplified(Children&& children,
       return MakeGarbageCollected<CalculationExpressionOperationNode>(
           std::move(children), op);
     }
-    case CalculationOperator::kInvalid:
-      NOTREACHED();
     case CalculationOperator::kAtan2: {
       DCHECK_EQ(children.size(), 2u);
       const auto* a =
@@ -627,7 +626,8 @@ float CalculationExpressionOperationNode::Evaluate(
       float progress = children_[0]->Evaluate(max_value, input);
       float from = children_[1]->Evaluate(max_value, input);
       float to = children_[2]->Evaluate(max_value, input);
-      return (progress - from) / (to - from);
+      float progress_value = (progress - from) / (to - from);
+      return std::clamp(progress_value, 0.f, 1.f);
     }
     case CalculationOperator::kPow: {
       DCHECK_EQ(children_.size(), 2u);
@@ -653,8 +653,6 @@ float CalculationExpressionOperationNode::Evaluate(
               : std::nullopt;
       return EvaluateTrigonometricFunction(operator_, a, b);
     }
-    case CalculationOperator::kInvalid:
-      break;
       // TODO(crbug.com/1284199): Support other math functions.
   }
   NOTREACHED();
@@ -735,8 +733,6 @@ const CalculationExpressionNode* CalculationExpressionOperationNode::Zoom(
         cloned_operands.push_back(child->Zoom(factor));
       return CreateSimplified(std::move(cloned_operands), operator_);
     }
-    case CalculationOperator::kInvalid:
-      NOTREACHED();
   }
 }
 

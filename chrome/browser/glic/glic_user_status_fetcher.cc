@@ -84,8 +84,21 @@ GlicUserStatusFetcher::GlicUserStatusFetcher(Profile* profile,
   endpoint_ = GURL(features::kGlicUserStatusUrl.Get());
   oauth2_scope_ = features::kGeminiOAuth2Scope.Get();
 
+  signin::IdentityManager* identity_manager =
+      IdentityManagerFactory::GetForProfile(profile_);
+  identity_manager_observation_.Observe(identity_manager);
+
+  pref_change_registrar_.Init(profile_->GetPrefs());
+  pref_change_registrar_.Add(
+      ::prefs::kGeminiSettings,
+      base::BindRepeating(&GlicUserStatusFetcher::OnGeminiSettingsChanged,
+                          base::Unretained(this)));
+  cached_gemini_settings_value_ = glic::prefs::SettingsPolicyState{
+      profile_->GetPrefs()->GetInteger(::prefs::kGeminiSettings)};
+
   // if it has passed default delay after last update time,
   // run immediately. Otherwise, wait until the default delay.
+  const base::Time now = base::Time::Now();
   base::Time next_update_time;
   if (auto cached_user_status =
           GlicUserStatusFetcher::GetCachedUserStatus(profile);
@@ -94,15 +107,15 @@ GlicUserStatusFetcher::GlicUserStatusFetcher(Profile* profile,
     // now + 24hrs.
     next_update_time = std::min(cached_user_status->last_updated +
                                     features::kGlicUserStatusRequestDelay.Get(),
-                                base::Time::Now() + base::Hours(24));
+                                now + base::Hours(24));
   }
 
   // If when Chrome starts and user has already signed-in, we also send a
   // request to check user status.
-  if (next_update_time <= base::Time::Now()) {
-    UpdateUserStatus();
+  if (next_update_time <= now) {
+    UpdateUserStatusAndScheduleNextRefresh();
   } else {
-    ScheduleUserStatusUpdate(next_update_time - base::Time::Now());
+    ScheduleUserStatusUpdate(next_update_time - now);
   }
 }
 
@@ -147,22 +160,6 @@ std::optional<CachedUserStatus> GlicUserStatusFetcher::GetCachedUserStatus(
       last_updated_default_value};
 }
 
-bool GlicUserStatusFetcher::IsEnterpriseAccount() {
-  if (profile_->GetPrefs()->GetInteger(::prefs::kGeminiSettings) ==
-      static_cast<int>(glic::prefs::SettingsPolicyState::kDisabled)) {
-    return false;
-  }
-
-  // Only update user status for enterprise accounts.
-  policy::ManagementService* management_service =
-      policy::ManagementServiceFactory::GetForProfile(profile_);
-  // It's possible in theory though very rare that IsAccountManaged returns
-  // false because policy fetching is not complete. In this case we check if an
-  // RPC was sent for this account previously.
-  return (management_service && management_service->IsAccountManaged()) ||
-         GlicUserStatusFetcher::GetCachedUserStatus(profile_).has_value();
-}
-
 void GlicUserStatusFetcher::InvalidateCachedStatus() {
   profile_->GetPrefs()->ClearPref(glic::prefs::kGlicUserStatus);
 }
@@ -175,8 +172,10 @@ void GlicUserStatusFetcher::UpdateUserStatusIfNeeded() {
 }
 
 void GlicUserStatusFetcher::UpdateUserStatus() {
-  if (refresh_status_timer_.IsRunning()) {
-    refresh_status_timer_.Stop();
+  // If the admin has disabled Gemini, we don't need to send the request.
+  if (profile_->GetPrefs()->GetInteger(::prefs::kGeminiSettings) ==
+      static_cast<int>(glic::prefs::SettingsPolicyState::kDisabled)) {
+    return;
   }
 
   signin::IdentityManager* identity_manager =
@@ -193,8 +192,69 @@ void GlicUserStatusFetcher::UpdateUserStatus() {
     return;
   }
 
+  // We may need to wait for the account managed status to be determined.
+  // `OnAccountManagedStatusFound` will call `UpdateUserStatus` when it is
+  // ready.
+  if (features::kGlicUserStatusEnterpriseCheckStrategy.Get() ==
+          features::GlicEnterpriseCheckStrategy::kManaged &&
+      account_managed_status_ ==
+          signin::AccountManagedStatusFinderOutcome::kPending &&
+      !account_managed_status_finder_) {
+    account_managed_status_finder_ =
+        std::make_unique<signin::AccountManagedStatusFinder>(
+            identity_manager,
+            identity_manager->GetPrimaryAccountInfo(
+                signin::ConsentLevel::kSignin),
+            base::BindOnce(&GlicUserStatusFetcher::OnAccountManagedStatusFound,
+                           weak_ptr_factory_.GetWeakPtr()));
+    account_managed_status_ = account_managed_status_finder_->GetOutcome();
+    if (account_managed_status_ ==
+        signin::AccountManagedStatusFinderOutcome::kPending) {
+      return;
+    }
+    account_managed_status_finder_.reset();
+  }
+
   // Only send the RPC for enterprise account.
-  if (!IsEnterpriseAccount()) {
+  bool is_managed;
+  switch (features::kGlicUserStatusEnterpriseCheckStrategy.Get()) {
+    case features::GlicEnterpriseCheckStrategy::kManaged:
+      switch (account_managed_status_) {
+        case signin::AccountManagedStatusFinderOutcome::kPending:
+        case signin::AccountManagedStatusFinderOutcome::kConsumerGmail:
+        case signin::AccountManagedStatusFinderOutcome::kConsumerWellKnown:
+        case signin::AccountManagedStatusFinderOutcome::kConsumerNotWellKnown:
+          is_managed = false;
+          break;
+        case signin::AccountManagedStatusFinderOutcome::kEnterpriseGoogleDotCom:
+        case signin::AccountManagedStatusFinderOutcome::kEnterprise:
+          is_managed = true;
+          break;
+        case signin::AccountManagedStatusFinderOutcome::kError:
+        case signin::AccountManagedStatusFinderOutcome::kTimeout:
+          // kError can only occur if the account is absent or has no refresh
+          // token (both are checked above).
+          // kTimeout can only occur if a finite timeout is used, which is not
+          // the case.
+          NOTREACHED(base::NotFatalUntil::M141)
+              << "Unexpected account managed status: "
+              << static_cast<int>(account_managed_status_);
+          return;
+      }
+      break;
+    case features::GlicEnterpriseCheckStrategy::kPolicy: {
+      // Only update user status for enterprise accounts.
+      policy::ManagementService* management_service =
+          policy::ManagementServiceFactory::GetForProfile(profile_);
+      // It's possible in theory though very rare that IsAccountManaged returns
+      // false because policy fetching is not complete. In this case we check if
+      // an RPC was sent for this account previously.
+      is_managed =
+          (management_service && management_service->IsAccountManaged()) ||
+          GlicUserStatusFetcher::GetCachedUserStatus(profile_).has_value();
+    }
+  }
+  if (!is_managed) {
     return;
   }
 
@@ -202,11 +262,17 @@ void GlicUserStatusFetcher::UpdateUserStatus() {
   // finished.
   CancelUserStatusUpdateIfNeeded();
 
-  // schedule next run regardless.
-  ScheduleUserStatusUpdate(features::kGlicUserStatusRequestDelay.Get());
-
   auto gaia_id_hash = GetGaiaIdHashForPrimaryAccount(profile_);
   if (!gaia_id_hash.has_value()) {
+    return;
+  }
+
+  auto callback = base::BindOnce(&GlicUserStatusFetcher::ProcessResponse,
+                                 weak_ptr_factory_.GetWeakPtr(),
+                                 gaia_id_hash.value().ToBase64());
+
+  if (fetch_override_for_test_) {
+    fetch_override_for_test_.Run(std::move(callback));
     return;
   }
 
@@ -224,10 +290,7 @@ void GlicUserStatusFetcher::UpdateUserStatus() {
       /*custom_user_agent=*/std::string(), kTrafficAnnotation);
 
   auto request = std::make_unique<GlicUserStatusRequest>(
-      request_sender_.get(), endpoint_,
-      base::BindOnce(&GlicUserStatusFetcher::ProcessResponse,
-                     weak_ptr_factory_.GetWeakPtr(),
-                     gaia_id_hash.value().ToBase64()));
+      request_sender_.get(), endpoint_, std::move(callback));
   cancel_closure_ =
       request_sender_->StartRequestWithAuthRetry(std::move(request));
 }
@@ -245,9 +308,8 @@ void GlicUserStatusFetcher::ScheduleUserStatusUpdate(
       base::Time::Now() + jitter_factor * time_to_next_update;
 
   refresh_status_timer_.Start(
-      FROM_HERE, scheduled_time,
-      base::BindOnce(&GlicUserStatusFetcher::UpdateUserStatus,
-                     base::Unretained(this)));
+      FROM_HERE, scheduled_time, this,
+      &GlicUserStatusFetcher::UpdateUserStatusAndScheduleNextRefresh);
 }
 
 std::optional<signin::GaiaIdHash>
@@ -270,8 +332,108 @@ void GlicUserStatusFetcher::CancelUserStatusUpdateIfNeeded() {
   }
 }
 
-void GlicUserStatusFetcher::ProcessResponse(const std::string& account_id_hash,
-                                            CachedUserStatus user_status) {
+void GlicUserStatusFetcher::UpdateUserStatusAndScheduleNextRefresh() {
+  UpdateUserStatus();
+  ScheduleUserStatusUpdate(features::kGlicUserStatusRequestDelay.Get());
+}
+
+void GlicUserStatusFetcher::UpdateUserStatusWithThrottling() {
+  // If it has been less than the throttle interval since the last update,
+  // don't update the user status immediately but schedule it to run after
+  // the throttle interval.
+  //
+  // This limits the rate at which certain kinds of potentially frequent
+  // events can cause requests to be sent, while still making the update
+  // immediate most of the time.
+  if (!throttle_timer_.IsRunning()) {
+    UpdateUserStatus();
+
+    const base::TimeDelta throttle_interval =
+        features::kGlicUserStatusThrottleInterval.Get();
+    base::OnceClosure update_cb = base::BindOnce(
+        [](GlicUserStatusFetcher* self) {
+          if (self->update_was_throttled_) {
+            self->update_was_throttled_ = false;
+            self->UpdateUserStatusWithThrottling();
+          }
+        },
+        base::Unretained(this));
+    throttle_timer_.Start(FROM_HERE, throttle_interval, std::move(update_cb));
+  } else {
+    update_was_throttled_ = true;
+  }
+}
+
+void GlicUserStatusFetcher::OnAccountManagedStatusFound() {
+  account_managed_status_ = account_managed_status_finder_->GetOutcome();
+  account_managed_status_finder_.reset();
+  UpdateUserStatus();
+}
+
+void GlicUserStatusFetcher::OnPrimaryAccountChanged(
+    const signin::PrimaryAccountChangeEvent& event_details) {
+  switch (event_details.GetEventTypeFor(signin::ConsentLevel::kSignin)) {
+    case signin::PrimaryAccountChangeEvent::Type::kSet:
+      account_managed_status_ =
+          signin::AccountManagedStatusFinderOutcome::kPending;
+      account_managed_status_finder_.reset();
+      UpdateUserStatus();
+      break;
+    case signin::PrimaryAccountChangeEvent::Type::kCleared:
+      account_managed_status_ =
+          signin::AccountManagedStatusFinderOutcome::kPending;
+      account_managed_status_finder_.reset();
+      InvalidateCachedStatus();
+      CancelUserStatusUpdateIfNeeded();
+      break;
+    case signin::PrimaryAccountChangeEvent::Type::kNone:
+      break;
+  }
+}
+
+void GlicUserStatusFetcher::OnRefreshTokenUpdatedForAccount(
+    const CoreAccountInfo& account_info) {
+  // It happens that when the request is sent upon sign-in, the refresh token is
+  // not available yet, the request would hence be cancelled. In such cases, we
+  // resend the request when refresh token becomes available.
+  if (is_user_status_waiting_for_refresh_token_) {
+    is_user_status_waiting_for_refresh_token_ = false;
+    UpdateUserStatus();
+  }
+}
+
+void GlicUserStatusFetcher::OnErrorStateOfRefreshTokenUpdatedForAccount(
+    const CoreAccountInfo& account_info,
+    const GoogleServiceAuthError& error,
+    signin_metrics::SourceForRefreshTokenOperation token_operation_source) {
+  if (error.state() != GoogleServiceAuthError::NONE) {
+    CancelUserStatusUpdateIfNeeded();
+  }
+}
+
+void GlicUserStatusFetcher::OnIdentityManagerShutdown(
+    signin::IdentityManager* identity_manager) {
+  account_managed_status_finder_.reset();
+  CancelUserStatusUpdateIfNeeded();
+}
+
+void GlicUserStatusFetcher::OnGeminiSettingsChanged() {
+  // If the policy changed from either not set or Disabled to Enabled, trigger a
+  // rpc fetch to update the possible user status change sooner.
+  glic::prefs::SettingsPolicyState updated_gemini_settings_value{
+      profile_->GetPrefs()->GetInteger(::prefs::kGeminiSettings)};
+  if (cached_gemini_settings_value_ !=
+          glic::prefs::SettingsPolicyState::kEnabled &&
+      updated_gemini_settings_value ==
+          glic::prefs::SettingsPolicyState::kEnabled) {
+    UpdateUserStatus();
+  }
+  cached_gemini_settings_value_ = updated_gemini_settings_value;
+}
+
+void GlicUserStatusFetcher::ProcessResponse(
+    const std::string& account_id_hash,
+    const CachedUserStatus& user_status) {
   // We don't overwrite the previous GlicUserStatus when UserStatusCode is
   // SERVER_UNAVAILABLE.
   if (user_status.user_status_code != UserStatusCode::SERVER_UNAVAILABLE) {
@@ -284,6 +446,9 @@ void GlicUserStatusFetcher::ProcessResponse(const std::string& account_id_hash,
 
     profile_->GetPrefs()->SetDict(glic::prefs::kGlicUserStatus,
                                   std::move(data));
+
+    // Given this was a successful refresh, we can delay the normal refresh.
+    ScheduleUserStatusUpdate(features::kGlicUserStatusRequestDelay.Get());
   }
   if (callback_) {
     callback_.Run();

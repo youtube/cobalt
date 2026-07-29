@@ -18,6 +18,7 @@
 #import "components/omnibox/browser/clipboard_provider.h"
 #import "components/omnibox/browser/omnibox_client.h"
 #import "components/omnibox/browser/omnibox_popup_selection.h"
+#import "components/omnibox/browser/page_classification_functions.h"
 #import "components/open_from_clipboard/clipboard_recent_content.h"
 #import "ios/chrome/browser/omnibox/model/autocomplete_controller_observer_bridge.h"
 #import "ios/chrome/browser/omnibox/model/autocomplete_result_wrapper.h"
@@ -26,6 +27,7 @@
 #import "ios/chrome/browser/omnibox/model/omnibox_controller_ios.h"
 #import "ios/chrome/browser/omnibox/model/omnibox_edit_model_ios.h"
 #import "ios/chrome/browser/omnibox/model/omnibox_text_controller.h"
+#import "ios/chrome/browser/omnibox/model/omnibox_text_model.h"
 #import "ios/chrome/browser/shared/model/application_context/application_context.h"
 #import "ios/chrome/browser/shared/model/prefs/pref_backed_boolean.h"
 #import "ios/chrome/browser/shared/model/prefs/pref_names.h"
@@ -53,6 +55,8 @@ using base::UserMetricsAction;
   raw_ptr<OmniboxControllerIOS> _omniboxController;
   /// Omnibox edit model. Should only be used for autocomplete interactions.
   raw_ptr<OmniboxEditModelIOS> _omniboxEditModel;
+  /// Omnibox text model.
+  raw_ptr<OmniboxTextModel> _omniboxTextModel;
 
   /// Autocomplete controller observer.
   std::unique_ptr<AutocompleteControllerObserverBridge>
@@ -63,13 +67,15 @@ using base::UserMetricsAction;
   metrics::OmniboxEventProto::OmniboxPosition _preferredOmniboxPosition;
 }
 
-- (instancetype)
-    initWithOmniboxController:(OmniboxControllerIOS*)omniboxController
-             omniboxEditModel:(OmniboxEditModelIOS*)omniboxEditModel {
+- (instancetype)initWithOmniboxController:
+                    (OmniboxControllerIOS*)omniboxController
+                         omniboxEditModel:(OmniboxEditModelIOS*)omniboxEditModel
+                         omniboxTextModel:(OmniboxTextModel*)omniboxTextModel {
   self = [super init];
   if (self) {
     _omniboxController = omniboxController;
     _omniboxEditModel = omniboxEditModel;
+    _omniboxTextModel = omniboxTextModel;
 
     _autocompleteControllerObserverBridge =
         std::make_unique<AutocompleteControllerObserverBridge>(self);
@@ -102,6 +108,7 @@ using base::UserMetricsAction;
   _autocompleteResultWrapper = nil;
   _omniboxEditModel = nullptr;
   _omniboxController = nullptr;
+  _omniboxTextModel = nullptr;
 }
 
 - (AutocompleteController*)autocompleteController {
@@ -126,6 +133,16 @@ using base::UserMetricsAction;
                                                isFocusing:isFocusing];
     [self.debuggerDelegate omniboxAutocompleteController:self
                        didUpdateWithSuggestionsAvailable:self.hasSuggestions];
+  }
+}
+
+- (void)stopAutocompleteWithClearSuggestions:(BOOL)clearSuggestions {
+  TRACE_EVENT0("omnibox", "OmniboxAutocompleteController::StopAutocomplete");
+  if (AutocompleteController* autocompleteController =
+          self.autocompleteController) {
+    autocompleteController->Stop(clearSuggestions
+                                     ? AutocompleteStopReason::kClobbered
+                                     : AutocompleteStopReason::kInteraction);
   }
 }
 
@@ -312,10 +329,87 @@ using base::UserMetricsAction;
 
 #pragma mark - OmniboxText events
 
-- (void)closeOmniboxPopup {
-  if (_omniboxController) {
-    _omniboxController->StopAutocomplete(/*clear_result=*/true);
+- (void)startAutocompleteWithText:(const std::u16string&)text
+                   cursorPosition:(size_t)cursorPosition
+        preventInlineAutocomplete:(bool)preventInlineAutocomplete {
+  OmniboxClient* client = self.client;
+  if (!client || !_omniboxTextModel) {
+    return;
   }
+
+  // Use text_model()->input during the refactoring while the edit model is
+  // still using it crbug.com/390409559.
+  _omniboxTextModel->input =
+      AutocompleteInput(text, cursorPosition,
+                        client->GetPageClassification(/*is_prefetch=*/false),
+                        client->GetSchemeClassifier(),
+                        client->ShouldDefaultTypedNavigationsToHttps(),
+                        client->GetHttpsPortForTesting(),
+                        client->IsUsingFakeHttpsForHttpsUpgradeTesting());
+  AutocompleteInput& input = _omniboxTextModel->input;
+  input.set_current_url(client->GetURL());
+  input.set_current_title(client->GetTitle());
+  input.set_prevent_inline_autocomplete(preventInlineAutocomplete);
+  if (std::optional<lens::proto::LensOverlaySuggestInputs> suggestInputs =
+          client->GetLensOverlaySuggestInputs()) {
+    input.set_lens_overlay_suggest_inputs(*suggestInputs);
+  }
+
+  [self startAutocompleteWithInput:input];
+}
+
+- (void)startZeroSuggestRequestWithText:(const std::u16string&)text
+                          userClobbered:(BOOL)userClobberedPermanentText {
+  AutocompleteController* autocompleteController = self.autocompleteController;
+  OmniboxClient* client = self.client;
+  if (!autocompleteController || !client || !_omniboxTextModel) {
+    return;
+  }
+
+  // Early exit if a query is already in progress or the popup is already open.
+  // This is what allows this method to be called multiple times in multiple
+  // code locations without harm.
+  if (!autocompleteController->done() || self.hasSuggestions) {
+    return;
+  }
+
+  // Early exit if the page has not loaded yet, so we don't annoy users.
+  if (!client->CurrentPageExists()) {
+    return;
+  }
+
+  // Early exit if the user already has a navigation or search query in mind.
+  if (_omniboxTextModel->user_input_in_progress &&
+      !userClobberedPermanentText) {
+    return;
+  }
+
+  TRACE_EVENT0("omnibox",
+               "OmniboxTextController::startZeroSuggestRequestWithClobber");
+
+  // Send the textfield contents exactly as-is, as otherwise the verbatim
+  // match can be wrong. The full page URL is anyways in set_current_url().
+  // Don't attempt to use https as the default scheme for these requests.
+  _omniboxTextModel->input = AutocompleteInput(
+      text, client->GetPageClassification(/*is_prefetch=*/false),
+      client->GetSchemeClassifier(),
+      /*should_use_https_as_default_scheme=*/false,
+      client->GetHttpsPortForTesting(),
+      client->IsUsingFakeHttpsForHttpsUpgradeTesting());
+  AutocompleteInput& input = _omniboxTextModel->input;
+  input.set_current_url(client->GetURL());
+  input.set_current_title(client->GetTitle());
+  input.set_focus_type(metrics::OmniboxFocusType::INTERACTION_FOCUS);
+  // Set the lens overlay suggest inputs, if available.
+  if (std::optional<lens::proto::LensOverlaySuggestInputs> suggestInputs =
+          client->GetLensOverlaySuggestInputs()) {
+    input.set_lens_overlay_suggest_inputs(*suggestInputs);
+  }
+  [self startAutocompleteWithInput:input];
+}
+
+- (void)closeOmniboxPopup {
+  [self stopAutocompleteWithClearSuggestions:YES];
 }
 
 - (void)setTextAlignment:(NSTextAlignment)alignment {
@@ -339,6 +433,42 @@ using base::UserMetricsAction;
                                   isFirstUpdate:isFirstUpdate];
 }
 
+#pragma mark - Prefetch events
+
+- (void)startZeroSuggestPrefetch {
+  TRACE_EVENT0("omnibox",
+               "OmniboxAutocompleteController::StartZeroSuggestPrefetch");
+
+  AutocompleteController* autocompleteController = self.autocompleteController;
+  OmniboxClient* client = self.client;
+  if (!autocompleteController || !client) {
+    return;
+  }
+
+  auto page_classification =
+      client->GetPageClassification(/*is_prefetch=*/true);
+  GURL currentURL = client->GetURL();
+  std::u16string text = base::UTF8ToUTF16(currentURL.spec());
+
+  if (omnibox::IsNTPPage(page_classification)) {
+    text.clear();
+  }
+
+  AutocompleteInput input(text, page_classification,
+                          client->GetSchemeClassifier());
+  input.set_current_url(currentURL);
+  input.set_focus_type(metrics::OmniboxFocusType::INTERACTION_FOCUS);
+  autocompleteController->StartPrefetch(input);
+}
+
+- (void)setBackgroundStateForProviders:(BOOL)inBackground {
+  if (AutocompleteController* autocompleteController =
+          self.autocompleteController) {
+    autocompleteController->autocomplete_provider_client()
+        ->set_in_background_state(inBackground);
+  }
+}
+
 #pragma mark - Private
 
 /// Opens a match created outside of autocomplete controller.
@@ -360,6 +490,16 @@ using base::UserMetricsAction;
       [self.autocompleteResultWrapper wrapAutocompleteResultInGroups:results];
   [self.delegate omniboxAutocompleteController:self
                     didUpdateSuggestionsGroups:suggestionGroups];
+}
+
+/// Starts autocomplete with `input`.
+- (void)startAutocompleteWithInput:(const AutocompleteInput&)input {
+  TRACE_EVENT0("omnibox", "OmniboxAutocompleteController::StartAutocomplete");
+
+  if (AutocompleteController* autocompleteController =
+          self.autocompleteController) {
+    autocompleteController->Start(input);
+  }
 }
 
 #pragma mark Clipboard match handling

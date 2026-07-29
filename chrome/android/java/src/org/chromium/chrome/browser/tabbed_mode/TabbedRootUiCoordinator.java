@@ -278,6 +278,7 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
     private @Nullable BookmarkBarCoordinator mBookmarkBarCoordinator;
     private @Nullable BookmarkBarVisibilityProvider mBookmarkBarVisibilityProvider;
     private @Nullable BookmarkBarVisibilityObserver mBookmarkBarVisibilityObserver;
+    private @Nullable Supplier<Integer> mBookmarkBarHeightSupplier;
     private @Nullable LoadingFullscreenCoordinator mLoadingFullscreenCoordinator;
     private @Nullable BookmarkOpener mBookmarkOpener;
     private final @NonNull ObservableSupplier<BookmarkManagerOpener> mBookmarkManagerOpenerSupplier;
@@ -1137,13 +1138,11 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
         // Initializes Privacy Sandbox related logic
         recordPrivacySandboxActivityType(profile);
 
-        boolean didTriggerPromo = maybeShowRequiredPromptsAndPromos(profile, intentWithEffect);
-
-        if (!didTriggerPromo) {
-            didTriggerPromo =
-                    RequestDesktopUtils.maybeShowDefaultEnableGlobalSettingMessage(
-                            profile, mMessageDispatcher, mActivity);
-        }
+        boolean didTriggerPromo =
+                maybeShowRequiredPromptsAndPromos(profile, intentWithEffect)
+                        || mMultiInstanceManager.showInstanceRestorationMessage(mMessageDispatcher)
+                        || RequestDesktopUtils.maybeShowDefaultEnableGlobalSettingMessage(
+                                profile, mMessageDispatcher, mActivity);
 
         if (!didTriggerPromo) {
             mToolbarButtonInProductHelpController.showColdStartIph();
@@ -1275,9 +1274,7 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
                         : 0;
         final int tabStripHeight = mToolbarManager.getTabStripHeightSupplier().get();
         final int bookmarkBarHeight =
-                mBookmarkBarCoordinator != null
-                        ? mBookmarkBarCoordinator.getHeightSupplier().get()
-                        : 0;
+                mBookmarkBarCoordinator != null ? mBookmarkBarCoordinator.getHeight() : 0;
         topControlsNewHeight =
                 bookmarkBarHeight + toolbarHeight + tabStripHeight + mStatusIndicatorHeight;
         if (tabStripHeight > 0 && !isTablet) {
@@ -1756,7 +1753,7 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
                     new BookmarkBarCoordinator(
                             mActivity,
                             mBrowserControlsManager,
-                            /* heightChangeCallback= */ (height) -> updateTopControlsHeight(),
+                            /* heightChangeCallback= */ result -> updateTopControlsHeight(),
                             mProfileSupplier,
                             /* viewStub= */ mActivity.findViewById(R.id.bookmark_bar_stub),
                             mActivityTabProvider.get(),
@@ -1766,11 +1763,11 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
             if (mBookmarkBarVisibilityProvider != null) {
                 mBookmarkBarVisibilityProvider.addObserver(mBookmarkBarCoordinator);
             }
+            mBookmarkBarHeightSupplier = mBookmarkBarCoordinator::getHeight;
         }
 
         if (mToolbarManager != null) {
-            mToolbarManager.setBookmarkBarHeightSupplier(
-                    mBookmarkBarCoordinator.getHeightSupplier());
+            mToolbarManager.setBookmarkBarHeightSupplier(mBookmarkBarHeightSupplier);
         }
     }
 
@@ -1787,7 +1784,6 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
         }
 
         if (mBookmarkOpener != null) {
-            mBookmarkOpener.destroy();
             mBookmarkOpener = null;
         }
 

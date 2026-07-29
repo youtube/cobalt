@@ -966,18 +966,6 @@ TemplateURLService::GetChoiceScreenData() {
       search_terms_data());
 }
 
-TemplateURLService::TemplateURLVector
-TemplateURLService::GetFeaturedEnterpriseSearchEngines() const {
-  TemplateURLVector result;
-  for (const auto& turl : template_urls_) {
-    if (turl->CreatedByNonDefaultSearchProviderPolicy() &&
-        turl->featured_by_policy()) {
-      result.push_back(turl.get());
-    }
-  }
-  return result;
-}
-
 TemplateURL* TemplateURLService::GetEnterpriseSearchAggregatorEngine() const {
   auto it = std::ranges::find_if(
       enterprise_search_keyword_to_turl_, [](const auto& keyword_and_turl) {
@@ -988,9 +976,21 @@ TemplateURL* TemplateURLService::GetEnterpriseSearchAggregatorEngine() const {
 }
 
 bool TemplateURLService::IsShortcutRequiredForSearchAggregatorEngine() const {
-  return enterprise_search_manager_
-             ? enterprise_search_manager_->GetRequireShortcutValue()
-             : false;
+  return enterprise_search_manager_ &&
+         enterprise_search_manager_->GetRequireShortcutValue();
+}
+
+TemplateURLService::TemplateURLVector
+TemplateURLService::GetFeaturedEnterpriseSiteSearchEngines() const {
+  TemplateURLVector result;
+  for (const auto& turl : template_urls_) {
+    if (turl->CreatedByNonDefaultSearchProviderPolicy() &&
+        !turl->CreatedByEnterpriseSearchAggregatorPolicy() &&
+        turl->featured_by_policy()) {
+      result.push_back(turl.get());
+    }
+  }
+  return result;
 }
 
 #if BUILDFLAG(IS_ANDROID)
@@ -1464,7 +1464,7 @@ void TemplateURLService::RepairStarterPackEngines() {
   Scoper scoper(this);
 
   std::vector<std::unique_ptr<TemplateURLData>> starter_pack_engines =
-      TemplateURLStarterPackData::GetStarterPackEngines();
+      template_url_starter_pack_data::GetStarterPackEngines();
   DCHECK(!starter_pack_engines.empty());
   ActionsFromCurrentData actions(CreateActionsFromCurrentStarterPackData(
       &starter_pack_engines, template_urls_));
@@ -1783,25 +1783,6 @@ void TemplateURLService::OnWebDataServiceRequestDone(
           SEARCH_ENGINE_MAX);
     }
   }
-}
-
-std::u16string TemplateURLService::GetKeywordShortName(
-    const std::u16string& keyword,
-    bool* is_omnibox_api_extension_keyword,
-    bool* is_gemini_keyword) const {
-  const TemplateURL* template_url = GetTemplateURLForKeyword(keyword);
-
-  // TODO(sky): Once LocationBarView adds a listener to the TemplateURLService
-  // to track changes to the model, this should become a DCHECK.
-  if (template_url) {
-    *is_gemini_keyword =
-        template_url->starter_pack_id() == TemplateURLStarterPackData::kGemini;
-    *is_omnibox_api_extension_keyword =
-        template_url->type() == TemplateURL::OMNIBOX_API_EXTENSION;
-    return template_url->AdjustedShortNameForLocaleDirection();
-  }
-  *is_omnibox_api_extension_keyword = false;
-  return std::u16string();
 }
 
 void TemplateURLService::OnHistoryURLVisited(const URLVisitedDetails& details) {
@@ -2379,7 +2360,7 @@ TemplateURLService::CreateTemplateURLFromTemplateURLAndSyncData(
   // might happen occasionally when the starter pack gets new entries that are
   // not yet supported in this version of Chrome.
   if (specifics.starter_pack_id() >=
-      TemplateURLStarterPackData::kMaxStarterPackID) {
+      template_url_starter_pack_data::kMaxStarterPackId) {
     return nullptr;
   }
 

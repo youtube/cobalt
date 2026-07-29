@@ -41,7 +41,6 @@
 #include "components/services/storage/dom_storage/local_storage_database.pb.h"
 #include "components/services/storage/dom_storage/storage_area_impl.h"
 #include "components/services/storage/public/cpp/constants.h"
-#include "components/services/storage/storage_service_impl.h"
 #include "mojo/public/cpp/bindings/self_owned_receiver.h"
 #include "storage/common/database/database_identifier.h"
 #include "third_party/blink/public/common/storage_key/storage_key.h"
@@ -336,11 +335,11 @@ class LocalStorageImpl::StorageAreaHolder final
 };
 
 LocalStorageImpl::LocalStorageImpl(
-    StorageServiceImpl& service,
     const base::FilePath& storage_root,
     scoped_refptr<base::SequencedTaskRunner> task_runner,
+    DestructLocalStorageCallback destruct_callback,
     mojo::PendingReceiver<mojom::LocalStorageControl> receiver)
-    : service_(service),
+    : destruct_callback_(std::move(destruct_callback)),
       directory_(storage_root.empty() ? storage_root
                                       : storage_root.Append(kLocalStoragePath)),
       database_task_runner_(base::ThreadPool::CreateSequencedTaskRunner(
@@ -608,13 +607,11 @@ void LocalStorageImpl::ForceFakeOpenStorageAreaForTesting(
 LocalStorageImpl::~LocalStorageImpl() {
   DCHECK_EQ(connection_state_, CONNECTION_SHUTDOWN);
   // ShutDown() should run before this destructor and clear `areas_`. If this
-  // didn't occur, collect a crash dump to help diagnose the issue.
-  // TODO(crbug.com/396030877): Remove this DWOC and workaround once the issue
-  // is resolved.
+  // didn't occur, as a workaround, we clear the `areas_`to avoid a UaF crash
+  // in the StorageAreaHolder d'tor which tries to access `this`'s state.
+  // TODO(crbug.com/396030877): Remove this workaround once the issue is
+  // resolved.
   if (!areas_.empty()) {
-    base::debug::DumpWithoutCrashing();
-    // Clear `areas_`to avoid a UaF crash in the StorageAreaHolder d'tor which
-    // tries to access `this`'s state.
     areas_.clear();
   }
   base::trace_event::MemoryDumpManager::GetInstance()->UnregisterDumpProvider(
@@ -1097,8 +1094,7 @@ void LocalStorageImpl::OnGotMetaDataToDeleteStaleStorageAreas(
 }
 
 void LocalStorageImpl::OnReceiverDisconnected() {
-  ShutDown(base::DoNothing());
-  service_->RemoveLocalStorage(this);
+  std::move(destruct_callback_).Run(this);
 }
 
 }  // namespace storage

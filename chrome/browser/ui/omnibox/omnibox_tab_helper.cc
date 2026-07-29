@@ -21,7 +21,10 @@
 #include "components/omnibox/browser/lens_suggest_inputs_utils.h"
 #include "components/omnibox/browser/omnibox_view.h"
 #include "components/omnibox/common/omnibox_feature_configs.h"
+#include "components/omnibox/common/omnibox_focus_state.h"
 #include "content/public/browser/render_frame_host.h"
+#include "services/service_manager/public/cpp/interface_provider.h"
+#include "third_party/blink/public/common/features.h"
 #include "third_party/metrics_proto/omnibox_event.pb.h"
 
 WEB_CONTENTS_USER_DATA_KEY_IMPL(OmniboxTabHelper);
@@ -69,10 +72,17 @@ OmniboxTabHelper::OmniboxTabHelper(content::WebContents* contents,
                                    Profile* profile)
     : content::WebContentsUserData<OmniboxTabHelper>(*contents),
       content::WebContentsObserver(contents) {
-  // Only fetch the APC paywall signal if the feature flag is enabled.
-  if (omnibox_feature_configs::ContextualSearch::Get().use_apc_paywall_signal) {
+  // Only fetch the entire APC if the paywall signal feature flag is enabled AND
+  // the faster FrameMetadataObserver push service is disabled.
+  if (omnibox_feature_configs::ContextualSearch::Get().use_apc_paywall_signal &&
+      !base::FeatureList::IsEnabled(blink::features::kFrameMetadataObserver)) {
     if (auto* service = page_content_annotations::
             PageContentExtractionServiceFactory::GetForProfile(profile)) {
+      // TODO(crbug.com/426665820): There are currently two ways the paywall
+      // signal is being fetched. This uses the PageContentExtractionService
+      // which takes a while to run, but has been around longer so is safer.
+      // Eventually, once FrameMetadataObserver is well tested, this should be
+      // cleaned up in favor of that.
       page_content_service_observation_.Observe(service);
     }
   }
@@ -100,6 +110,7 @@ void OmniboxTabHelper::OnInputInProgress(bool in_progress) {
 
 void OmniboxTabHelper::OnFocusChanged(OmniboxFocusState state,
                                       OmniboxFocusChangeReason reason) {
+  focus_state_ = state;
   for (auto& observer : observers_) {
     observer.OnOmniboxFocusChanged(state, reason);
   }
@@ -120,6 +131,10 @@ void OmniboxTabHelper::OnPopupVisibilityChanged(
 
 std::optional<bool> OmniboxTabHelper::IsPagePaywalled() {
   return page_has_apc_paywall_signal_;
+}
+
+OmniboxFocusState OmniboxTabHelper::focus_state() const {
+  return focus_state_;
 }
 
 void OmniboxTabHelper::OnPageContentExtracted(
@@ -147,6 +162,30 @@ void OmniboxTabHelper::PrimaryPageChanged(content::Page& page) {
   logged_current_navigation_timings_ = false;
 
   primary_page_changed_time_ = base::ElapsedTimer();
+
+  AddMetadataObserver(page);
+}
+
+void OmniboxTabHelper::AddMetadataObserver(content::Page& page) {
+  if (!base::FeatureList::IsEnabled(blink::features::kFrameMetadataObserver) ||
+      !omnibox_feature_configs::ContextualSearch::Get()
+           .use_apc_paywall_signal) {
+    return;
+  }
+
+  frame_metadata_observer_receiver_.reset();
+
+  mojo::Remote<blink::mojom::FrameMetadataObserverRegistry>
+      frame_metadata_observer_registry;
+  auto& render_frame_host = page.GetMainDocument();
+  render_frame_host.GetRemoteInterfaces()->GetInterface(
+      frame_metadata_observer_registry.BindNewPipeAndPassReceiver());
+
+  mojo::PendingRemote<blink::mojom::FrameMetadataObserver> remote;
+  frame_metadata_observer_receiver_.Bind(
+      remote.InitWithNewPipeAndPassReceiver());
+
+  frame_metadata_observer_registry->AddObserver(std::move(remote));
 }
 
 void OmniboxTabHelper::PrimaryMainDocumentElementAvailable() {
@@ -196,11 +235,16 @@ void OmniboxTabHelper::MaybeLogNavigationToPopupShownTimings(
 void OmniboxTabHelper::MaybeLogPaywallSignal() {
   // If the page content service is not observing, then the paywall signal is
   // unavailable to be fetched.
-  if (!page_content_service_observation_.IsObserving()) {
+  if (!page_content_service_observation_.IsObserving() &&
+      !frame_metadata_observer_receiver_.is_bound()) {
     return;
   }
 
   const auto paywall_signal = ToPaywallSignal(page_has_apc_paywall_signal_);
   base::UmaHistogramEnumeration("Omnibox.OnPopupOpen.PaywallSignal",
                                 paywall_signal);
+}
+
+void OmniboxTabHelper::OnPaidContentMetadataChanged(bool has_paid_content) {
+  page_has_apc_paywall_signal_ = has_paid_content;
 }

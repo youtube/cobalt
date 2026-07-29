@@ -99,11 +99,11 @@ Vector<uint8_t> EncodeEucJp(StringView string, UnencodableHandling handling) {
       result.push_back(code_point);
       continue;
     }
-    if (code_point == kYenSignCharacter) {
+    if (code_point == uchar::kYenSign) {
       result.push_back(0x5C);
       continue;
     }
-    if (code_point == kOverlineCharacter) {
+    if (code_point == uchar::kOverline) {
       result.push_back(0x7E);
       continue;
     }
@@ -112,8 +112,9 @@ Vector<uint8_t> EncodeEucJp(StringView string, UnencodableHandling handling) {
       result.push_back(code_point - 0xFF61 + 0xA1);
       continue;
     }
-    if (code_point == kMinusSignCharacter)
+    if (code_point == uchar::kMinusSign) {
       code_point = 0xFF0D;
+    }
 
     auto pointer =
         FindFirstInSortedPairs(EnsureJis0208EncodeIndexForEncode(), code_point);
@@ -182,7 +183,7 @@ class Iso2022JpEncoder {
     if ((state_ == State::kAscii || state_ == State::kRoman) &&
         (code_point == 0x000E || code_point == 0x000F ||
          code_point == 0x001B)) {
-      StatefulUnencodableHandler(kReplacementCharacter);
+      StatefulUnencodableHandler(uchar::kReplacementCharacter);
       return;
     }
     if (state_ == State::kAscii && IsASCII(code_point)) {
@@ -194,11 +195,11 @@ class Iso2022JpEncoder {
         result_.push_back(code_point);
         return;
       }
-      if (code_point == kYenSignCharacter) {
+      if (code_point == uchar::kYenSign) {
         result_.push_back(0x5C);
         return;
       }
-      if (code_point == kOverlineCharacter) {
+      if (code_point == uchar::kOverline) {
         result_.push_back(0x7E);
         return;
       }
@@ -208,14 +209,15 @@ class Iso2022JpEncoder {
       ParseCodePoint(code_point);
       return;
     }
-    if ((code_point == kYenSignCharacter || code_point == kOverlineCharacter) &&
+    if ((code_point == uchar::kYenSign || code_point == uchar::kOverline) &&
         state_ != State::kRoman) {
       ChangeStateToRoman();
       ParseCodePoint(code_point);
       return;
     }
-    if (code_point == kMinusSignCharacter)
+    if (code_point == uchar::kMinusSign) {
       code_point = 0xFF0D;
+    }
     if (code_point >= 0xFF61 && code_point <= 0xFF9F) {
       code_point = kIso2022JpKatakana[code_point - 0xFF61];
     }
@@ -270,11 +272,11 @@ Vector<uint8_t> EncodeShiftJis(StringView string,
       result.push_back(code_point);
       continue;
     }
-    if (code_point == kYenSignCharacter) {
+    if (code_point == uchar::kYenSign) {
       result.push_back(0x5C);
       continue;
     }
-    if (code_point == kOverlineCharacter) {
+    if (code_point == uchar::kOverline) {
       result.push_back(0x7E);
       continue;
     }
@@ -282,8 +284,9 @@ Vector<uint8_t> EncodeShiftJis(StringView string,
       result.push_back(code_point - 0xFF61 + 0xA1);
       continue;
     }
-    if (code_point == kMinusSignCharacter)
+    if (code_point == uchar::kMinusSign) {
       code_point = 0xFF0D;
+    }
 
     auto range =
         FindInSortedPairs(EnsureJis0208EncodeIndexForEncode(), code_point);
@@ -591,7 +594,7 @@ class Iso2022JpDecoder : public TextCodecCjk::Decoder {
         ParseByte(*std::exchange(prepended_byte_, std::nullopt), result) ==
             SawError::kYes) {
       saw_error = true;
-      result.Append(kReplacementCharacter);
+      result.Append(uchar::kReplacementCharacter);
       if (stop_on_error) {
         lead_ = 0x00;
         return result.ToString();
@@ -602,7 +605,7 @@ class Iso2022JpDecoder : public TextCodecCjk::Decoder {
                   result) == SawError::kYes &&
         stop_on_error) {
       saw_error = true;
-      result.Append(kReplacementCharacter);
+      result.Append(uchar::kReplacementCharacter);
       if (stop_on_error) {
         lead_ = 0x00;
         return result.ToString();
@@ -611,7 +614,7 @@ class Iso2022JpDecoder : public TextCodecCjk::Decoder {
     for (size_t i = 0; i < bytes.size(); ++i) {
       if (ParseByte(bytes[i], result) == SawError::kYes) {
         saw_error = true;
-        result.Append(kReplacementCharacter);
+        result.Append(uchar::kReplacementCharacter);
         if (stop_on_error) {
           lead_ = 0x00;
           return result.ToString();
@@ -621,7 +624,7 @@ class Iso2022JpDecoder : public TextCodecCjk::Decoder {
           ParseByte(*std::exchange(prepended_byte_, std::nullopt), result) ==
               SawError::kYes) {
         saw_error = true;
-        result.Append(kReplacementCharacter);
+        result.Append(uchar::kReplacementCharacter);
         if (stop_on_error) {
           lead_ = 0x00;
           return result.ToString();
@@ -632,7 +635,7 @@ class Iso2022JpDecoder : public TextCodecCjk::Decoder {
                     result) == SawError::kYes &&
           stop_on_error) {
         saw_error = true;
-        result.Append(kReplacementCharacter);
+        result.Append(uchar::kReplacementCharacter);
         if (stop_on_error) {
           lead_ = 0x00;
           return result.ToString();
@@ -652,11 +655,11 @@ class Iso2022JpDecoder : public TextCodecCjk::Decoder {
           [[fallthrough]];
         case State::kEscapeStart:
           saw_error = true;
-          result.Append(kReplacementCharacter);
+          result.Append(uchar::kReplacementCharacter);
           break;
         case State::kEscape:
           saw_error = true;
-          result.Append(kReplacementCharacter);
+          result.Append(uchar::kReplacementCharacter);
           if (lead_) {
             DCHECK(IsASCII(lead_));
             result.Append(std::exchange(lead_, 0x00));
@@ -690,12 +693,12 @@ class Iso2022JpDecoder : public TextCodecCjk::Decoder {
         }
         if (byte == 0x5C) {
           output_ = false;
-          result.Append(static_cast<UChar>(kYenSignCharacter));
+          result.Append(uchar::kYenSign);
           break;
         }
         if (byte == 0x7E) {
           output_ = false;
-          result.Append(static_cast<UChar>(kOverlineCharacter));
+          result.Append(uchar::kOverline);
           break;
         }
         if (byte <= 0x7F && byte != 0x0E && byte != 0x0F && byte != 0x1B &&
@@ -899,17 +902,17 @@ class Gb18030Decoder : public TextCodecCjk::Decoder {
     if (third_) {
       if (byte < 0x30 || byte > 0x39) {
         *saw_error_ = true;
-        result.Append(kReplacementCharacter);
+        result.Append(uchar::kReplacementCharacter);
         first_ = 0x00;
         uint8_t second = std::exchange(second_, 0x00);
         uint8_t third = std::exchange(third_, 0x00);
         if (ParseByte(second, result) == SawError::kYes) {
           *saw_error_ = true;
-          result.Append(kReplacementCharacter);
+          result.Append(uchar::kReplacementCharacter);
         }
         if (ParseByte(third, result) == SawError::kYes) {
           *saw_error_ = true;
-          result.Append(kReplacementCharacter);
+          result.Append(uchar::kReplacementCharacter);
         }
         return ParseByte(byte, result);
       }
@@ -930,11 +933,11 @@ class Gb18030Decoder : public TextCodecCjk::Decoder {
         return SawError::kNo;
       }
       *saw_error_ = true;
-      result.Append(kReplacementCharacter);
+      result.Append(uchar::kReplacementCharacter);
       first_ = 0x00;
       if (ParseByte(std::exchange(second_, 0x00), result) == SawError::kYes) {
         *saw_error_ = true;
-        result.Append(kReplacementCharacter);
+        result.Append(uchar::kReplacementCharacter);
       }
       return ParseByte(byte, result);
     }
@@ -978,7 +981,7 @@ class Gb18030Decoder : public TextCodecCjk::Decoder {
       second_ = 0x00;
       third_ = 0x00;
       *saw_error_ = true;
-      result.Append(kReplacementCharacter);
+      result.Append(uchar::kReplacementCharacter);
     }
   }
 
@@ -1043,13 +1046,11 @@ void TextCodecCjk::RegisterEncodingNames(EncodingNameRegistrar registrar) {
 
 void TextCodecCjk::RegisterCodecs(TextCodecRegistrar registrar) {
   for (auto* name : kSupportedCanonicalNames) {
-    registrar(name, Create, nullptr);
+    registrar(name, Create);
   }
 }
 
-std::unique_ptr<TextCodec> TextCodecCjk::Create(
-    const WTF::TextEncoding& encoding,
-    const void*) {
+std::unique_ptr<TextCodec> TextCodecCjk::Create(const TextEncoding& encoding) {
   const AtomicString& name = encoding.GetName();
 
   // To keep the `TextCodecCjk` constructor private, we intend to `new`
@@ -1087,7 +1088,7 @@ String TextCodecCjk::Decoder::Decode(base::span<const uint8_t> bytes,
       ParseByte(*std::exchange(prepended_byte_, std::nullopt), result) ==
           SawError::kYes) {
     saw_error = true;
-    result.Append(kReplacementCharacter);
+    result.Append(uchar::kReplacementCharacter);
     if (stop_on_error) {
       lead_ = 0x00;
       return result.ToString();
@@ -1096,7 +1097,7 @@ String TextCodecCjk::Decoder::Decode(base::span<const uint8_t> bytes,
   for (size_t i = 0; i < bytes.size(); ++i) {
     if (ParseByte(bytes[i], result) == SawError::kYes) {
       saw_error = true;
-      result.Append(kReplacementCharacter);
+      result.Append(uchar::kReplacementCharacter);
       if (stop_on_error) {
         lead_ = 0x00;
         return result.ToString();
@@ -1106,7 +1107,7 @@ String TextCodecCjk::Decoder::Decode(base::span<const uint8_t> bytes,
         ParseByte(*std::exchange(prepended_byte_, std::nullopt), result) ==
             SawError::kYes) {
       saw_error = true;
-      result.Append(kReplacementCharacter);
+      result.Append(uchar::kReplacementCharacter);
       if (stop_on_error) {
         lead_ = 0x00;
         return result.ToString();
@@ -1117,7 +1118,7 @@ String TextCodecCjk::Decoder::Decode(base::span<const uint8_t> bytes,
   if (flush && lead_) {
     lead_ = 0x00;
     saw_error = true;
-    result.Append(kReplacementCharacter);
+    result.Append(uchar::kReplacementCharacter);
   }
 
   Finalize(flush, result);

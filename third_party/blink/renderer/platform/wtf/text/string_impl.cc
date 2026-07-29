@@ -168,9 +168,9 @@ void StringImpl::DestroyIfNeeded() const {
 }
 
 unsigned StringImpl::ComputeASCIIFlags() const {
-  ASCIIStringAttributes ascii_attributes = VisitCharacters(
-      *this, [](auto chars) { return CharacterAttributes(chars); });
-  uint32_t new_flags = ASCIIStringAttributesToFlags(ascii_attributes);
+  blink::AsciiStringAttributes ascii_attributes = VisitCharacters(
+      *this, [](auto chars) { return blink::CharacterAttributes(chars); });
+  uint32_t new_flags = AsciiStringAttributesToFlags(ascii_attributes);
   const uint32_t previous_flags =
       hash_and_flags_.fetch_or(new_flags, std::memory_order_relaxed);
   static constexpr uint32_t mask =
@@ -340,12 +340,12 @@ scoped_refptr<StringImpl> StringImpl::Create(
 
 scoped_refptr<StringImpl> StringImpl::Create(
     base::span<const LChar> characters,
-    ASCIIStringAttributes ascii_attributes) {
+    blink::AsciiStringAttributes ascii_attributes) {
   scoped_refptr<StringImpl> ret = Create(characters);
   if (!characters.empty()) {
     // If length is 0 then `ret` is empty_ and should not have its
     // attributes calculated or changed.
-    uint32_t new_flags = ASCIIStringAttributesToFlags(ascii_attributes);
+    uint32_t new_flags = AsciiStringAttributesToFlags(ascii_attributes);
     ret->hash_and_flags_.fetch_or(new_flags, std::memory_order_relaxed);
   }
 
@@ -447,11 +447,13 @@ class StringImplAllocator {
 };
 
 scoped_refptr<StringImpl> StringImpl::LowerASCII() {
-  return ConvertASCIICase(*this, LowerConverter(), StringImplAllocator());
+  return blink::ConvertAsciiCase(*this, blink::LowerConverter(),
+                                 StringImplAllocator());
 }
 
 scoped_refptr<StringImpl> StringImpl::UpperASCII() {
-  return ConvertASCIICase(*this, UpperConverter(), StringImplAllocator());
+  return blink::ConvertAsciiCase(*this, blink::UpperConverter(),
+                                 StringImplAllocator());
 }
 
 scoped_refptr<StringImpl> StringImpl::Fill(UChar character) {
@@ -510,16 +512,16 @@ scoped_refptr<StringImpl> StringImpl::FoldCase() {
 
   // Do a slower implementation for cases that include non-ASCII characters.
   bool error;
-  const int32_t real_length = unicode::FoldCase(
+  const int32_t real_length = blink::unicode::FoldCase(
       data16.data(), static_cast<int32_t>(data16.size()), source16.data(),
       static_cast<int32_t>(source16.size()), &error);
   if (!error && real_length == static_cast<int32_t>(data16.size())) {
     return new_impl;
   }
   new_impl = CreateUninitialized(real_length, data16);
-  unicode::FoldCase(data16.data(), static_cast<int32_t>(data16.size()),
-                    source16.data(), static_cast<int32_t>(source16.size()),
-                    &error);
+  blink::unicode::FoldCase(data16.data(), static_cast<int32_t>(data16.size()),
+                           source16.data(),
+                           static_cast<int32_t>(source16.size()), &error);
   if (error)
     return this;
   return new_impl;
@@ -872,7 +874,7 @@ bool DeprecatedEqualIgnoringCase(base::span<const UChar> a,
   if (a.data() == b.data()) {
     return true;
   }
-  return !unicode::Umemcasecmp(a.data(), b.data(), length);
+  return !blink::unicode::Umemcasecmp(a.data(), b.data(), length);
 }
 
 bool DeprecatedEqualIgnoringCase(base::span<const UChar> a,

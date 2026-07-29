@@ -70,6 +70,10 @@ chromium-metrics-reviews@google.com.
   <variant name="IPH_AutofillBnplAffirmOrZipSuggestion"
       summary="message shown when users see the Autofill BNPL chip to educate
                users that they can now pay over time using Affirm or Zip."/>
+  <variant name="IPH_AutofillBnplAffirmZipOrKlarnaSuggestion"
+      summary="message shown when users see the Autofill BNPL chip to educate
+               users that they can now pay over time using Affirm, Zip, or
+               Klarna."/>
   <variant name="IPH_AutofillCardInfoRetrievalSuggestion"
       summary="message shown in the Autofill dropdown to educate users that a
                card info retrieval card appears because their account with
@@ -194,7 +198,6 @@ chromium-metrics-reviews@google.com.
   <variant name="IPH_DownloadToolbarButton" summary="download toolbar button"/>
   <variant name="IPH_EphemeralTab"
       summary="new label on the context menu for Ephemeral Tab"/>
-  <variant name="IPH_ExperimentalAIPromo" summary="Experimental AI promo"/>
   <variant name="IPH_ExplicitBrowserSigninPreferenceRemembered"
       summary="Confirmation message that the explicit browser signin
                preference was remembered"/>
@@ -739,6 +742,18 @@ chromium-metrics-reviews@google.com.
   <owner>gambard@chromium.org</owner>
   <summary>
     Records how the in-product help bubble was dismissed on iOS.
+  </summary>
+</histogram>
+
+<histogram name="InProductHelp.EventStorageMigration.Status"
+    enum="InProductHelpEventStorageMigrationStatus" expires_after="2025-12-01">
+  <owner>cheickcisse@google.com</owner>
+  <owner>shaktisahu@chromium.org</owner>
+  <summary>
+    Records the status of the migration of events from profile storage to event
+    storage. This is recorded once per profile on startup. It is not recorded if
+    the OnDeviceStorage feature flag is not enabled, and this feature is only
+    enabled for iOS.
   </summary>
 </histogram>
 

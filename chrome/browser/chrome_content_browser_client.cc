@@ -32,6 +32,7 @@
 #include "base/metrics/field_trial_params.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/no_destructor.h"
+#include "base/notimplemented.h"
 #include "base/notreached.h"
 #include "base/path_service.h"
 #include "base/stl_util.h"
@@ -232,6 +233,7 @@
 #include "components/enterprise/common/proto/connectors.pb.h"
 #include "components/enterprise/content/clipboard_restriction_service.h"
 #include "components/enterprise/content/pref_names.h"
+#include "components/enterprise/data_controls/content/browser/last_replaced_clipboard_data.h"
 #include "components/error_page/common/error.h"
 #include "components/error_page/common/error_page_switches.h"
 #include "components/error_page/common/localized_error.h"
@@ -344,7 +346,6 @@
 #include "content/public/common/origin_util.h"
 #include "content/public/common/url_utils.h"
 #include "content/public/common/window_container_type.mojom-shared.h"
-#include "device/fido/features.h"
 #include "device/vr/buildflags/buildflags.h"
 #include "extensions/browser/browser_frame_context_data.h"
 #include "extensions/buildflags/buildflags.h"
@@ -1406,12 +1407,7 @@ void ChromeContentBrowserClient::RegisterLocalStatePrefs(
   registry->RegisterIntegerPref(prefs::kSCTAuditingHashdanceReportCount, 0);
   registry->RegisterBooleanPref(prefs::kDataURLWhitespacePreservationEnabled,
                                 true);
-#if BUILDFLAG(IS_CHROMEOS)
-  registry->RegisterBooleanPref(prefs::kNativeClientForceAllowed, false);
-  registry->RegisterBooleanPref(prefs::kDeviceNativeClientForceAllowed, false);
-  registry->RegisterBooleanPref(prefs::kDeviceNativeClientForceAllowedCache,
-                                false);
-#endif  // BUILDFLAG(IS_CHROMEOS)
+  registry->RegisterBooleanPref(prefs::kEnableUnsafeSwiftShader, false);
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_ANDROID)
   registry->RegisterBooleanPref(prefs::kOutOfProcessSystemDnsResolutionEnabled,
                                 true);
@@ -2617,9 +2613,8 @@ bool ChromeContentBrowserClient::IsIsolatedContextAllowedForUrl(
 void ChromeContentBrowserClient::CheckGetAllScreensMediaAllowed(
     content::RenderFrameHost* render_frame_host,
     base::OnceCallback<void(bool)> callback) {
-  capture_policy::CheckGetAllScreensMediaAllowed(
-      render_frame_host->GetMainFrame()->GetLastCommittedOrigin().GetURL(),
-      std::move(callback));
+  std::move(callback).Run(capture_policy::IsMultiScreenCaptureAllowed(
+      render_frame_host->GetMainFrame()->GetLastCommittedOrigin().GetURL()));
 }
 
 bool ChromeContentBrowserClient::IsFileAccessAllowed(
@@ -2904,9 +2899,7 @@ void ChromeContentBrowserClient::AppendExtraCommandLineSwitches(
       // Make the WebAuthenticationRemoteDesktopAllowedOrigins policy enable the
       // experimental WebAuthenticationRemoteDesktopSupport Blink runtime
       // feature.
-      if (base::FeatureList::IsEnabled(
-              device::kWebAuthnRemoteDesktopAllowedOriginsPolicy) &&
-          !prefs->GetList(webauthn::pref_names::kRemoteDesktopAllowedOrigins)
+      if (!prefs->GetList(webauthn::pref_names::kRemoteDesktopAllowedOrigins)
                .empty()) {
         command_line->AppendSwitch(switches::kWebAuthRemoteDesktopSupport);
       }
@@ -2937,6 +2930,7 @@ void ChromeContentBrowserClient::AppendExtraCommandLineSwitches(
         extensions::switches::kDisableExtensionsHttpThrottling,
         extensions::switches::kEnableExperimentalExtensionApis,
         extensions::switches::kExtensionsOnChromeURLs,
+        extensions::switches::kExtensionsOnExtensionURLs,
         extensions::switches::kSetExtensionThrottleTestParams,  // For tests
                                                                 // only.
         extensions::switches::kAllowlistedExtensionID,
@@ -4797,6 +4791,12 @@ void ChromeContentBrowserClient::OverrideWebPreferences(
   web_prefs->always_show_context_menu_on_touch =
       base::FeatureList::IsEnabled(::features::kContextMenuEmptySpace);
 #endif
+
+  web_prefs->api_based_fingerprinting_interventions_enabled =
+      base::FeatureList::IsEnabled(
+          features::kIncognitoFingerprintingInterventions) &&
+      Profile::FromBrowserContext(web_contents->GetBrowserContext())
+          ->IsIncognitoProfile();
 }
 
 bool ChromeContentBrowserClientParts::OverrideWebPreferencesAfterNavigation(
@@ -7670,15 +7670,12 @@ ChromeContentBrowserClient::ShouldOverridePrivateNetworkRequestPolicy(
   }
 #endif
 
-// TODO(crbug.com/400455013): Add LNA support on Android
-#if !BUILDFLAG(IS_ANDROID)
   Profile* profile = Profile::FromBrowserContext(browser_context);
   if (profile->GetPrefs()->GetBoolean(
           prefs::kManagedLocalNetworkAccessRestrictionsEnabled)) {
     return content::ContentBrowserClient::PrivateNetworkRequestPolicyOverride::
         kBlockInsteadOfWarn;
   }
-#endif
 
   return content::ContentBrowserClient::PrivateNetworkRequestPolicyOverride::
       kDefault;
@@ -8806,4 +8803,17 @@ ChromeContentBrowserClient::MaybeCreateKeepAliveRequestTracker(
         is_context_detached_callback) {
   return ChromeKeepAliveRequestTracker::MaybeCreateKeepAliveRequestTracker(
       request, ukm_source_id, std::move(is_context_detached_callback));
+}
+
+std::optional<std::vector<std::u16string>>
+ChromeContentBrowserClient::GetClipboardTypesIfPolicyApplied(
+    const ui::ClipboardSequenceNumberToken& seqno) {
+  const data_controls::LastReplacedClipboardData& last_replaced_data =
+      data_controls::GetLastReplacedClipboardData();
+
+  if (last_replaced_data.seqno == seqno) {
+    return last_replaced_data.GetAvailableTypes();
+  }
+
+  return std::nullopt;
 }

@@ -55,10 +55,12 @@
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/shell_integration.h"
+#include "chrome/browser/ui/actions/chrome_action_id.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_list.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/exclusive_access/exclusive_access_manager.h"
 #include "chrome/browser/ui/intent_picker_tab_helper.h"
 #include "chrome/browser/ui/startup/startup_browser_creator.h"
@@ -72,6 +74,7 @@
 #include "chrome/browser/ui/views/location_bar/custom_tab_bar_view.h"
 #include "chrome/browser/ui/views/location_bar/intent_chip_button.h"
 #include "chrome/browser/ui/views/page_action/page_action_icon_view.h"
+#include "chrome/browser/ui/views/page_action/page_action_view.h"
 #include "chrome/browser/ui/views/page_info/page_info_bubble_view.h"
 #include "chrome/browser/ui/views/page_info/page_info_view_factory.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_view.h"
@@ -150,7 +153,6 @@
 #include "extensions/browser/extension_dialog_auto_confirm.h"
 #include "net/dns/mock_host_resolver.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
-#include "services/network/public/cpp/ip_address_space_overrides_test_utils.h"
 #include "services/network/public/cpp/network_switches.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -160,6 +162,7 @@
 #include "third_party/boringssl/src/include/openssl/curve25519.h"
 #include "third_party/re2/src/re2/re2.h"
 #include "ui/accessibility/ax_action_data.h"
+#include "ui/views/controls/button/button.h"
 #include "ui/views/controls/button/image_button.h"
 #include "ui/views/test/dialog_test.h"
 #include "ui/views/test/widget_test.h"
@@ -1210,8 +1213,10 @@ void WebAppIntegrationTestDriver::EnterFullScreenApp() {
   if (!BeforeStateChangeAction(__FUNCTION__)) {
     return;
   }
-  FullscreenController* fullscreen_controller =
-      app_browser()->exclusive_access_manager()->fullscreen_controller();
+  FullscreenController* fullscreen_controller = app_browser()
+                                                    ->GetFeatures()
+                                                    .exclusive_access_manager()
+                                                    ->fullscreen_controller();
   ASSERT_FALSE(fullscreen_controller->IsFullscreenForBrowser());
   ui_test_utils::ToggleFullscreenModeAndWait(app_browser());
   ASSERT_TRUE(fullscreen_controller->IsFullscreenForBrowser());
@@ -1222,8 +1227,10 @@ void WebAppIntegrationTestDriver::ExitFullScreenApp() {
   if (!BeforeStateChangeAction(__FUNCTION__)) {
     return;
   }
-  FullscreenController* fullscreen_controller =
-      app_browser()->exclusive_access_manager()->fullscreen_controller();
+  FullscreenController* fullscreen_controller = app_browser()
+                                                    ->GetFeatures()
+                                                    .exclusive_access_manager()
+                                                    ->fullscreen_controller();
   ASSERT_TRUE(fullscreen_controller->IsFullscreenForBrowser());
   ui_test_utils::ToggleFullscreenModeAndWait(app_browser());
   ASSERT_FALSE(fullscreen_controller->IsFullscreenForBrowser());
@@ -4717,7 +4724,15 @@ PageActionIconView* WebAppIntegrationTestDriver::pwa_install_view() {
   return pwa_install_view;
 }
 
-IntentChipButton* WebAppIntegrationTestDriver::intent_chip_view() {
+views::Button* WebAppIntegrationTestDriver::intent_chip_view() {
+  if (IsPageActionMigrated(PageActionIconType::kIntentPicker)) {
+    page_actions::PageActionView* intent_chip_button =
+        BrowserView::GetBrowserViewForBrowser(browser())
+            ->toolbar_button_provider()
+            ->GetPageActionView(kActionShowIntentPicker);
+    CHECK(intent_chip_button);
+    return intent_chip_button;
+  }
   IntentChipButton* intent_chip_button = GetIntentPickerIcon(browser());
   CHECK(intent_chip_button);
   return intent_chip_button;
@@ -4772,8 +4787,6 @@ void WebAppIntegrationTest::TearDownOnMainThread() {
 
 void WebAppIntegrationTest::SetUpCommandLine(base::CommandLine* command_line) {
   ASSERT_TRUE(embedded_test_server()->Start());
-  network::AddPublicIpAddressSpaceOverrideToCommandLine(*embedded_test_server(),
-                                                        *command_line);
 }
 
 Browser* WebAppIntegrationTest::CreateBrowser(Profile* profile) {

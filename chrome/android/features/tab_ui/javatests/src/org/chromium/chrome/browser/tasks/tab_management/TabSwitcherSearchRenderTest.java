@@ -8,8 +8,6 @@ import static android.content.res.Configuration.ORIENTATION_LANDSCAPE;
 
 import static org.chromium.ui.base.DeviceFormFactor.PHONE;
 
-import android.os.Build;
-
 import androidx.test.filters.MediumTest;
 
 import org.junit.After;
@@ -25,7 +23,7 @@ import org.chromium.base.test.ActivityFinisher;
 import org.chromium.base.test.params.ParameterAnnotations;
 import org.chromium.base.test.params.ParameterizedRunner;
 import org.chromium.base.test.util.CommandLineFlags;
-import org.chromium.base.test.util.DisableIf;
+import org.chromium.base.test.util.DisabledTest;
 import org.chromium.base.test.util.Feature;
 import org.chromium.base.test.util.Features;
 import org.chromium.base.test.util.Restriction;
@@ -64,10 +62,6 @@ import java.util.concurrent.ExecutionException;
     ChromeFeatureList.GRID_TAB_SWITCHER_UPDATE,
     ChromeFeatureList.ANDROID_THEME_MODULE
 })
-// Disable in Pie because search box does not get focus automatically.
-@DisableIf.Build(
-        sdk_is_greater_than = Build.VERSION_CODES.O_MR1,
-        sdk_is_less_than = Build.VERSION_CODES.Q)
 public class TabSwitcherSearchRenderTest {
     private static final int SERVER_PORT = 13245;
 
@@ -129,6 +123,7 @@ public class TabSwitcherSearchRenderTest {
     @MediumTest
     @Feature({"RenderTest"})
     @Restriction(PHONE)
+    @DisabledTest(message = "https://crbug.com/426664421")
     public void testHubSearchBox_Phone_Incognito() throws IOException {
         List<String> urlsToOpen = Arrays.asList("/chrome/test/data/android/navigate/one.html");
         IncognitoTabSwitcherStation tabSwitcher =

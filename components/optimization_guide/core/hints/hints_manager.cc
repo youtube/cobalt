@@ -830,25 +830,18 @@ void HintsManager::FetchHintsForActiveTabs() {
       &HintsManager::FetchHintsForActiveTabsInternal,
       weak_ptr_factory_.GetWeakPtr(), top_hosts, active_tab_urls_to_refresh,
       proto::CONTEXT_BATCH_UPDATE_ACTIVE_TABS,
-      /*skip_cache=*/false, std::move(hints_fetched_callback),
-      /*request_context_metadata=*/std::nullopt);
-  if (HasPersonalizableTypesRegistered()) {
-    RequestAccessToken(
-        identity_manager_,
-        {GaiaConstants::kOptimizationGuideServiceGetHintsOAuth2Scope},
-        std::move(do_fetch_callback));
-  } else {
-    std::move(do_fetch_callback).Run(/*access_token=*/std::string());
-  }
+      std::move(hints_fetched_callback));
+  HandleTokenRequestFlow(
+      HasPersonalizableTypesRegistered(), identity_manager_,
+      {GaiaConstants::kOptimizationGuideServiceGetHintsOAuth2Scope},
+      std::move(do_fetch_callback));
 }
 
 void HintsManager::FetchHintsForActiveTabsInternal(
     const std::vector<std::string>& top_hosts,
     const std::vector<GURL>& active_tab_urls_to_refresh,
     optimization_guide::proto::RequestContext request_context,
-    bool skip_cache,
     HintsFetchedCallback hints_fetched_callback,
-    std::optional<proto::RequestContextMetadata> request_context_metadata,
     const std::string& access_token) {
   if (!active_tabs_batch_update_hints_fetcher_) {
     DCHECK(hints_fetcher_factory_);
@@ -1019,6 +1012,22 @@ void HintsManager::FetchHintsForURLs(const std::vector<GURL>& urls,
                              target_urls.vector(), target_hosts.vector(),
                              optimization_guide_logger_);
 
+  auto do_fetch_callback = base::BindOnce(
+      &HintsManager::FetchHintsForURLsInternal, weak_ptr_factory_.GetWeakPtr(),
+      target_hosts, target_urls, request_context);
+  HandleTokenRequestFlow(
+      HasPersonalizableTypesRegistered(), identity_manager_,
+      {GaiaConstants::kOptimizationGuideServiceGetHintsOAuth2Scope},
+      base::BindOnce(&HintsManager::FetchHintsForURLsInternal,
+                     weak_ptr_factory_.GetWeakPtr(), target_hosts, target_urls,
+                     request_context));
+}
+
+void HintsManager::FetchHintsForURLsInternal(
+    const InsertionOrderedSet<std::string>& target_hosts,
+    const InsertionOrderedSet<GURL>& target_urls,
+    optimization_guide::proto::RequestContext request_context,
+    const std::string& access_token) {
   std::pair<int32_t, HintsFetcher*> request_id_and_fetcher =
       CreateAndTrackBatchUpdateHintsFetcher();
 
@@ -1030,7 +1039,7 @@ void HintsManager::FetchHintsForURLs(const std::vector<GURL>& urls,
   request_id_and_fetcher.second->FetchOptimizationGuideServiceHints(
       target_hosts.vector(), target_urls.vector(),
       registered_optimization_types_, request_context, application_locale_,
-      /*access_token=*/std::string(),
+      access_token,
       /*skip_cache=*/false,
       base::BindOnce(
           &HintsManager::OnBatchUpdateHintsFetched,
@@ -1201,21 +1210,14 @@ void HintsManager::CanApplyOptimizationOnDemand(
       request_context_metadata = std::nullopt;
     }
   }
-  if (allowed_contexts_for_personalized_metadata_.Has(request_context)) {
-    // Request access token before fetching hints.
-    RequestAccessToken(
-        identity_manager_,
-        {GaiaConstants::kOptimizationGuideServiceGetHintsOAuth2Scope},
-        base::BindOnce(&HintsManager::FetchOptimizationGuideServiceBatchHints,
-                       weak_ptr_factory_.GetWeakPtr(), hosts_to_fetch,
-                       urls_to_fetch, optimization_types, request_context,
-                       callback, request_context_metadata));
-  } else {
-    FetchOptimizationGuideServiceBatchHints(hosts_to_fetch, urls_to_fetch,
-                                            optimization_types, request_context,
-                                            callback, request_context_metadata,
-                                            /*access_token=*/std::string());
-  }
+  HandleTokenRequestFlow(
+      allowed_contexts_for_personalized_metadata_.Has(request_context),
+      identity_manager_,
+      {GaiaConstants::kOptimizationGuideServiceGetHintsOAuth2Scope},
+      base::BindOnce(&HintsManager::FetchOptimizationGuideServiceBatchHints,
+                     weak_ptr_factory_.GetWeakPtr(), hosts_to_fetch,
+                     urls_to_fetch, optimization_types, request_context,
+                     callback, request_context_metadata));
 }
 
 void HintsManager::FetchOptimizationGuideServiceBatchHints(
@@ -1730,18 +1732,12 @@ void HintsManager::OnNavigationStartOrRedirect(
     return;
   }
 
-  if (HasPersonalizableTypesRegistered()) {
-    // Request access token before fetching hints.
-    RequestAccessToken(
-        identity_manager_,
-        {GaiaConstants::kOptimizationGuideServiceGetHintsOAuth2Scope},
-        base::BindOnce(&HintsManager::MaybeFetchHintsForNavigation,
-                       weak_ptr_factory_.GetWeakPtr(),
-                       navigation_data->GetWeakPtr()));
-  } else {
-    MaybeFetchHintsForNavigation(navigation_data->GetWeakPtr(),
-                                 /*access_token=*/std::string());
-  }
+  HandleTokenRequestFlow(
+      HasPersonalizableTypesRegistered(), identity_manager_,
+      {GaiaConstants::kOptimizationGuideServiceGetHintsOAuth2Scope},
+      base::BindOnce(&HintsManager::MaybeFetchHintsForNavigation,
+                     weak_ptr_factory_.GetWeakPtr(),
+                     navigation_data->GetWeakPtr()));
 }
 
 void HintsManager::MaybeFetchHintsForNavigation(

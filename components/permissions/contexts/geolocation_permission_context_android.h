@@ -86,12 +86,11 @@ class GeolocationPermissionContextAndroid
   void UserMadePermissionDecision(const PermissionRequestID& id,
                                   const GURL& requesting_origin,
                                   const GURL& embedding_origin,
-                                  ContentSetting content_setting) override;
+                                  PermissionDecision decision) override;
   void NotifyPermissionSet(const PermissionRequestData& request_data,
                            BrowserPermissionCallback callback,
                            bool persist,
-                           ContentSetting content_setting,
-                           bool is_one_time,
+                           PermissionDecision decision,
                            bool is_final_decision) override;
   content::PermissionResult UpdatePermissionStatusWithDeviceStatus(
       content::WebContents* web_contents,
@@ -136,8 +135,7 @@ class GeolocationPermissionContextAndroid
       const GURL& requesting_origin,
       const GURL& embedding_origin,
       bool persist,
-      ContentSetting content_setting,
-      bool is_one_time,
+      PermissionDecision decision,
       LocationSettingsDialogOutcome prompt_outcome);
 
   void FinishNotifyPermissionSet(const PermissionRequestID& id,
@@ -145,8 +143,7 @@ class GeolocationPermissionContextAndroid
                                  const GURL& embedding_origin,
                                  BrowserPermissionCallback callback,
                                  bool persist,
-                                 ContentSetting content_setting,
-                                 bool is_one_time);
+                                 PermissionDecision decision);
 
   std::unique_ptr<LocationSettings> location_settings_;
 

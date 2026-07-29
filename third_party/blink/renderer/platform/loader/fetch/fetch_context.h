@@ -34,6 +34,7 @@
 #include <memory>
 #include <optional>
 
+#include "base/notimplemented.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/types/optional_ref.h"
 #include "components/subresource_filter/core/common/scoped_rule.h"
@@ -108,6 +109,8 @@ class PLATFORM_EXPORT FetchContext : public GarbageCollected<FetchContext> {
                               ResourceLoaderOptions&,
                               WebScopedVirtualTimePauser& virtual_time_pauser,
                               ResourceType);
+
+  virtual void FillInitiatorInfo(FetchInitiatorInfo& initiator_info) {}
 
   virtual void AddResourceTiming(mojom::blink::ResourceTimingInfoPtr,
                                  const AtomicString& initiator_type);

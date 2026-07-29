@@ -27,7 +27,6 @@ class FakeCanvasResourceHost : public CanvasResourceHost {
   bool IsContextLost() const override { return false; }
   void SetNeedsCompositingUpdate() override {}
   void InitializeForRecording(cc::PaintCanvas*) const override {}
-  void UpdateMemoryUsage() override {}
   bool PrintedInCurrentTask() const override { return false; }
   bool IsPageVisible() const override { return page_visible_; }
   bool IsHibernating() const override { return is_hibernating_; }
@@ -36,51 +35,40 @@ class FakeCanvasResourceHost : public CanvasResourceHost {
   }
 
   CanvasResourceProvider* GetResourceProviderForCanvas2D() const override {
-    return GetResourceProviderWithoutContextCheck();
+    return resource_provider_.get();
+  }
+  std::unique_ptr<CanvasResourceProvider> ReplaceResourceProviderForCanvas2D(
+      std::unique_ptr<CanvasResourceProvider> provider) override {
+    auto old_provider = std::move(resource_provider_);
+    resource_provider_ = std::move(provider);
+    return old_provider;
   }
 
-  size_t GetMemoryUsage() const override { return 0; }
-  CanvasResourceProvider* GetOrCreateCanvasResourceProviderForCanvas2D()
-      override {
+  CanvasResourceProvider* GetOrCreateCanvasResourceProviderForCanvas2D() {
     if (GetResourceProviderForCanvas2D()) {
       return GetResourceProviderForCanvas2D();
     }
     constexpr auto kShouldInitialize =
         CanvasResourceProvider::ShouldInitialize::kCallClear;
-    std::unique_ptr<CanvasResourceProvider> provider;
     constexpr gpu::SharedImageUsageSet kSharedImageUsageFlags =
         gpu::SHARED_IMAGE_USAGE_DISPLAY_READ | gpu::SHARED_IMAGE_USAGE_SCANOUT;
-    provider = CanvasResourceProvider::CreateSharedImageProvider(
+    resource_provider_ = CanvasResourceProvider::CreateSharedImageProvider(
         Size(), GetN32FormatForCanvas(), kPremul_SkAlphaType,
         gfx::ColorSpace::CreateSRGB(), kShouldInitialize,
         SharedGpuContext::ContextProviderWrapper(), RasterMode::kGPU,
         kSharedImageUsageFlags, this);
-    if (!provider) {
-      provider = CanvasResourceProvider::
-          CreateSharedImageProviderForSoftwareCompositor(
-              Size(), GetN32FormatForCanvas(), kPremul_SkAlphaType,
-              gfx::ColorSpace::CreateSRGB(), kShouldInitialize,
-              SharedGpuContext::SharedImageInterfaceProvider(), this);
-    }
-    if (!provider) {
-      provider = CanvasResourceProvider::CreateBitmapProvider(
-          Size(), GetN32FormatForCanvas(), kPremul_SkAlphaType,
-          gfx::ColorSpace::CreateSRGB(), kShouldInitialize, this);
-    }
 
-    ReplaceResourceProvider(std::move(provider));
-
-    return GetResourceProviderForCanvas2D();
+    return resource_provider_.get();
   }
 
   void SetPageVisible(bool visible) {
     if (page_visible_ != visible) {
       page_visible_ = visible;
-      PageVisibilityChanged();
     }
   }
 
  private:
+  std::unique_ptr<CanvasResourceProvider> resource_provider_;
   bool page_visible_ = true;
   bool is_hibernating_ = false;
 };

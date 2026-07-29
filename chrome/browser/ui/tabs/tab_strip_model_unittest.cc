@@ -1814,6 +1814,23 @@ TEST_F(TabStripModelTest, CommandCloseOtherTabs) {
   EXPECT_EQ("0p 1", GetTabStripStateString(tabstrip()));
   tabstrip()->CloseAllTabs();
   EXPECT_TRUE(tabstrip()->empty());
+
+  // Unselected split tab.
+  ASSERT_NO_FATAL_FAILURE(
+      PrepareTabstripForSelectionTest(tabstrip(), 4, 1, {1}));
+  tabstrip()->AddToNewSplit({2}, split_tabs::SplitTabVisualData());
+  tabstrip()->ActivateTabAt(3);
+  ASSERT_EQ("0p 1s 2s 3", GetTabStripStateString(tabstrip()));
+  EXPECT_TRUE(tabstrip()->IsContextMenuCommandEnabled(
+      1, TabStripModel::CommandCloseOtherTabs));
+  EXPECT_TRUE(tabstrip()->IsContextMenuCommandEnabled(
+      2, TabStripModel::CommandCloseOtherTabs));
+  tabstrip()->ExecuteContextMenuCommand(1,
+                                        TabStripModel::CommandCloseOtherTabs);
+  // The pinned tab and the other tab in the split shouldn't be closed.
+  EXPECT_EQ("0p 1s 2s", GetTabStripStateString(tabstrip()));
+  tabstrip()->CloseAllTabs();
+  EXPECT_TRUE(tabstrip()->empty());
 }
 
 // Tests IsContextMenuCommandEnabled and ExecuteContextMenuCommand with
@@ -1832,6 +1849,23 @@ TEST_F(TabStripModelTest, CommandCloseTabsToRight) {
   tabstrip()->ExecuteContextMenuCommand(0,
                                         TabStripModel::CommandCloseTabsToRight);
   EXPECT_EQ("0", GetTabStripStateString(tabstrip()));
+  tabstrip()->CloseAllTabs();
+  EXPECT_TRUE(tabstrip()->empty());
+
+  // Unselected split tab.
+  ASSERT_NO_FATAL_FAILURE(
+      PrepareTabstripForSelectionTest(tabstrip(), 4, 1, {1}));
+  tabstrip()->AddToNewSplit({2}, split_tabs::SplitTabVisualData());
+  tabstrip()->ActivateTabAt(3);
+  ASSERT_EQ("0p 1s 2s 3", GetTabStripStateString(tabstrip()));
+  EXPECT_TRUE(tabstrip()->IsContextMenuCommandEnabled(
+      1, TabStripModel::CommandCloseTabsToRight));
+  EXPECT_TRUE(tabstrip()->IsContextMenuCommandEnabled(
+      2, TabStripModel::CommandCloseTabsToRight));
+  tabstrip()->ExecuteContextMenuCommand(1,
+                                        TabStripModel::CommandCloseTabsToRight);
+  // The pinned tab and the other tab in the split shouldn't be closed.
+  EXPECT_EQ("0p 1s 2s", GetTabStripStateString(tabstrip()));
   tabstrip()->CloseAllTabs();
   EXPECT_TRUE(tabstrip()->empty());
 }
@@ -2178,13 +2212,12 @@ TEST_F(TabStripModelTest, ReplaceActiveTabInSplit) {
       0, TabStripUserGestureDetails(
              TabStripUserGestureDetails::GestureType::kOther));
 
-  split_tabs::SplitTabId split_tab_id =
-      tabstrip()->AddToNewSplit({3}, split_tabs::SplitTabVisualData());
+  tabstrip()->AddToNewSplit({3}, split_tabs::SplitTabVisualData());
 
   EXPECT_EQ("0ps 3ps 1p 2 4", GetTabStripStateString(tabstrip()));
 
-  tabstrip()->UpdateActiveTabInSplit(split_tab_id, 3,
-                                     TabStripModel::SplitUpdateType::kReplace);
+  tabstrip()->UpdateTabInSplit(tabstrip()->GetTabAtIndex(0), 3,
+                               TabStripModel::SplitUpdateType::kReplace);
   EXPECT_EQ("2ps 3ps 1p 4", GetTabStripStateString(tabstrip()));
 
   tabstrip()->CloseAllTabs();
@@ -2200,13 +2233,12 @@ TEST_F(TabStripModelTest, SwapActiveTabInSplit) {
       0, TabStripUserGestureDetails(
              TabStripUserGestureDetails::GestureType::kOther));
 
-  split_tabs::SplitTabId split_tab_id =
-      tabstrip()->AddToNewSplit({3}, split_tabs::SplitTabVisualData());
+  tabstrip()->AddToNewSplit({3}, split_tabs::SplitTabVisualData());
 
   EXPECT_EQ("0ps 3ps 1p 2 4", GetTabStripStateString(tabstrip()));
 
-  tabstrip()->UpdateActiveTabInSplit(split_tab_id, 3,
-                                     TabStripModel::SplitUpdateType::kSwap);
+  tabstrip()->UpdateTabInSplit(tabstrip()->GetTabAtIndex(0), 3,
+                               TabStripModel::SplitUpdateType::kSwap);
   EXPECT_EQ("2ps 3ps 1p 0 4", GetTabStripStateString(tabstrip()));
 
   tabstrip()->CloseAllTabs();
@@ -2222,15 +2254,14 @@ TEST_F(TabStripModelTest, SwapActiveTabInSplitWithOnlyTabInGroup) {
       0, TabStripUserGestureDetails(
              TabStripUserGestureDetails::GestureType::kOther));
 
-  split_tabs::SplitTabId split_tab_id =
-      tabstrip()->AddToNewSplit({3}, split_tabs::SplitTabVisualData());
+  tabstrip()->AddToNewSplit({3}, split_tabs::SplitTabVisualData());
 
   EXPECT_EQ("0ps 3ps 1p 2 4", GetTabStripStateString(tabstrip()));
 
   tab_groups::TabGroupId update_group_id = tabstrip()->AddToNewGroup({3});
 
-  tabstrip()->UpdateActiveTabInSplit(split_tab_id, 3,
-                                     TabStripModel::SplitUpdateType::kSwap);
+  tabstrip()->UpdateTabInSplit(tabstrip()->GetTabAtIndex(0), 3,
+                               TabStripModel::SplitUpdateType::kSwap);
   EXPECT_EQ("2ps 3ps 1p 0 4", GetTabStripStateString(tabstrip()));
   EXPECT_EQ(tabstrip()->GetTabGroupForTab(3), update_group_id);
   tabstrip()->CloseAllTabs();
@@ -2284,8 +2315,8 @@ TEST_F(TabStripModelTest, ReverseAndReplaceTabsInSplit) {
   tabstrip()->ReverseTabsInSplit(split_tab_id);
   EXPECT_EQ("0 2s 1s", GetTabStripStateString(tabstrip()));
 
-  tabstrip()->UpdateActiveTabInSplit(split_tab_id, 0,
-                                     TabStripModel::SplitUpdateType::kReplace);
+  tabstrip()->UpdateTabInSplit(tabstrip()->GetTabAtIndex(1), 0,
+                               TabStripModel::SplitUpdateType::kReplace);
   EXPECT_EQ("0s 1s", GetTabStripStateString(tabstrip()));
 
   tabstrip()->CloseAllTabs();

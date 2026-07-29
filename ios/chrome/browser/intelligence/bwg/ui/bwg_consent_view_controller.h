@@ -11,11 +11,22 @@
 
 @protocol BWGConsentMutator;
 
-// BWG consent View Controller.
-@interface BWGConsentViewController : PromoStyleViewController
+// BWG consent View Controller (VC).
+@interface BWGConsentViewController : UIViewController
+
+// Initializer for the VC whether the account is managed.
+- (instancetype)initWithIsAccountManaged:(BOOL)isAccountManaged;
+
+- (instancetype)init NS_UNAVAILABLE;
+- (instancetype)initWithNibName:(NSString*)nibNameOrNil
+                         bundle:(NSBundle*)nibBundleOrNil NS_UNAVAILABLE;
+- (instancetype)initWithCoder:(NSCoder*)coder NS_UNAVAILABLE;
 
 // The mutator for this view controller to communicate to the mediator.
 @property(nonatomic, weak) id<BWGConsentMutator> mutator;
+
+// Content height of the bottom sheet.
+- (CGFloat)contentHeight;
 
 @end
 

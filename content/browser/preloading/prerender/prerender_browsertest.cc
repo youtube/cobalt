@@ -1631,7 +1631,7 @@ IN_PROC_BROWSER_TEST_F(NoVarySearchPrerenderBrowserTest,
       PreloadingFailureReason::kUnspecified,
       /*accurate=*/true,
       /*ready_time=*/kMockElapsedTime,
-      blink::mojom::SpeculationEagerness::kEager)});
+      blink::mojom::SpeculationEagerness::kImmediate)});
 
   histogram_tester().ExpectUniqueSample(
       "Prerender.Experimental.MatchableHostCountOnActivation", 1, 1);
@@ -2007,7 +2007,7 @@ IN_PROC_BROWSER_TEST_F(NoVarySearchPrerenderBrowserTest, ExactUrlMatch) {
       PreloadingFailureReason::kUnspecified,
       /*accurate=*/true,
       /*ready_time=*/kMockElapsedTime,
-      blink::mojom::SpeculationEagerness::kEager)});
+      blink::mojom::SpeculationEagerness::kImmediate)});
 }
 
 // Tests that the speculationrules trigger works in the presence of
@@ -2054,7 +2054,7 @@ IN_PROC_BROWSER_TEST_F(NoVarySearchPrerenderBrowserTest, InexactUrlMatch) {
       PreloadingFailureReason::kUnspecified,
       /*accurate=*/true,
       /*ready_time=*/kMockElapsedTime,
-      blink::mojom::SpeculationEagerness::kEager)});
+      blink::mojom::SpeculationEagerness::kImmediate)});
 }
 
 // Tests that the speculationrules trigger works in the presence of
@@ -2105,7 +2105,7 @@ IN_PROC_BROWSER_TEST_F(NoVarySearchPrerenderBrowserTest,
       PreloadingFailureReason::kUnspecified,
       /*accurate=*/true,
       /*ready_time=*/kMockElapsedTime,
-      blink::mojom::SpeculationEagerness::kEager)});
+      blink::mojom::SpeculationEagerness::kImmediate)});
 }
 
 // Tests that the speculationrules trigger works in the presence of
@@ -2166,7 +2166,7 @@ IN_PROC_BROWSER_TEST_F(NoVarySearchPrerenderBrowserTest,
       PreloadingFailureReason::kUnspecified,
       /*accurate=*/true,
       /*ready_time=*/kMockElapsedTime,
-      blink::mojom::SpeculationEagerness::kEager)});
+      blink::mojom::SpeculationEagerness::kImmediate)});
 }
 
 // Tests that the speculationrules trigger works in the presence of
@@ -2219,7 +2219,7 @@ IN_PROC_BROWSER_TEST_F(NoVarySearchPrerenderBrowserTest,
       PreloadingFailureReason::kUnspecified,
       /*accurate=*/true,
       /*ready_time=*/kMockElapsedTime,
-      blink::mojom::SpeculationEagerness::kEager)});
+      blink::mojom::SpeculationEagerness::kImmediate)});
 }
 
 // Tests that the speculationrules trigger works.
@@ -2286,7 +2286,7 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, SpeculationRulesPrerender) {
         PreloadingFailureReason::kUnspecified,
         /*accurate=*/true,
         /*ready_time=*/kMockElapsedTime,
-        blink::mojom::SpeculationEagerness::kEager)});
+        blink::mojom::SpeculationEagerness::kImmediate)});
 
     ExpectPreloadingPredictionUkm({prediction_ukm_entry_builder().BuildEntry(
         ukm_source_id,
@@ -2469,7 +2469,7 @@ IN_PROC_BROWSER_TEST_F(AutoSpeculationRulesPrerenderBrowserTest, Metrics) {
         PreloadingFailureReason::kUnspecified,
         /*accurate=*/true,
         /*ready_time=*/kMockElapsedTime,
-        blink::mojom::SpeculationEagerness::kEager)});
+        blink::mojom::SpeculationEagerness::kImmediate)});
 
     ExpectPreloadingPredictionUkm({prediction_ukm_entry_builder().BuildEntry(
         ukm_source_id,
@@ -2529,7 +2529,7 @@ IN_PROC_BROWSER_TEST_F(AutoSpeculationRulesPrerenderBrowserTestWithHoldback,
         PreloadingFailureReason::kUnspecified,
         /*accurate=*/true,
         /*ready_time=*/std::nullopt,
-        blink::mojom::SpeculationEagerness::kEager)});
+        blink::mojom::SpeculationEagerness::kImmediate)});
 
     ExpectPreloadingPredictionUkm({prediction_ukm_entry_builder().BuildEntry(
         ukm_source_id,
@@ -2744,7 +2744,7 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, SpeculationInitiatorNavigateAway) {
       PreloadingFailureReason::kUnspecified,
       /*accurate=*/false,
       /*ready_time=*/kMockElapsedTime,
-      blink::mojom::SpeculationEagerness::kEager)});
+      blink::mojom::SpeculationEagerness::kImmediate)});
   ExpectPreloadingPredictionUkm({prediction_ukm_entry_builder().BuildEntry(
       ukm_source_id, /*confidence=*/100,
       /*accurate_prediction=*/false)});
@@ -2825,6 +2825,61 @@ class PrerenderTargetHintEnabledBrowserTest : public PrerenderBrowserTest {
 
   void TestActivateOnWindowOpen(std::string_view window_features);
 
+  std::string SpeculationRulesInsertionScriptWithBothTargetHint(GURL url) {
+    constexpr char add_speculationrules_with_both_target_hints[] = R"({
+      var script = document.createElement('script');
+      script.type = 'speculationrules';
+      script.text = `{"prerender": [
+          {"target_hint": "_self", "urls": ["$1"]},
+          {"target_hint": "_blank", "urls": ["$1"]}
+        ]
+      }`;
+      document.head.appendChild(script);
+    })";
+
+    return base::ReplaceStringPlaceholders(
+        add_speculationrules_with_both_target_hints, {url.spec()}, nullptr);
+  }
+
+  std::string SpeculationRulesInsertionScriptWithOneSelfAndTwoBlankTargetHint(
+      GURL url) {
+    constexpr char add_speculationrules_with_both_target_hints[] = R"({
+      var script = document.createElement('script');
+      script.type = 'speculationrules';
+      script.text = `{"prerender": [
+          {"target_hint": "_self", "urls": ["$1"]},
+          {"target_hint": "_blank", "urls": ["$1"]},
+          {"target_hint": "_blank", "urls": ["$1"]}
+        ]
+      }`;
+      document.head.appendChild(script);
+    })";
+
+    return base::ReplaceStringPlaceholders(
+        add_speculationrules_with_both_target_hints, {url.spec()}, nullptr);
+  }
+
+  std::string SpeculationRulesWithIdAndTargetHint(GURL url,
+                                                  std::string id,
+                                                  std::string target_hint) {
+    constexpr char add_speculationrules_with_id_and_target_hint[] = R"({
+      var script = document.createElement('script');
+      script.type = 'speculationrules';
+      script.id = '$1';
+      script.text = `{"prerender":
+                      [{
+                        "target_hint": "$2",
+                        "urls": ["$3"]
+                      }]
+      }`;
+      document.head.appendChild(script);
+    })";
+
+    return base::ReplaceStringPlaceholders(
+        add_speculationrules_with_id_and_target_hint,
+        {id, target_hint, url.spec()}, nullptr);
+  }
+
  private:
   base::test::ScopedFeatureList feature_list_;
 };
@@ -2872,7 +2927,7 @@ IN_PROC_BROWSER_TEST_F(PrerenderTargetHintEnabledBrowserTest,
       PreloadingFailureReason::kUnspecified,
       /*accurate=*/true,
       /*ready_time=*/kMockElapsedTime,
-      blink::mojom::SpeculationEagerness::kEager)});
+      blink::mojom::SpeculationEagerness::kImmediate)});
 
   ExpectPreloadingPredictionUkm({prediction_ukm_entry_builder().BuildEntry(
       ukm_source_id,
@@ -3032,7 +3087,7 @@ IN_PROC_BROWSER_TEST_F(
       PreloadingFailureReason::kUnspecified,
       /*accurate=*/true,
       /*ready_time=*/kMockElapsedTime,
-      blink::mojom::SpeculationEagerness::kEager)});
+      blink::mojom::SpeculationEagerness::kImmediate)});
 
   ExpectPreloadingPredictionUkm({prediction_ukm_entry_builder().BuildEntry(
       ukm_source_id,
@@ -3232,7 +3287,7 @@ IN_PROC_BROWSER_TEST_F(
       PreloadingFailureReason::kUnspecified,
       /*accurate=*/true,
       /*ready_time=*/kMockElapsedTime,
-      blink::mojom::SpeculationEagerness::kEager)});
+      blink::mojom::SpeculationEagerness::kImmediate)});
 
   ExpectPreloadingPredictionUkm({prediction_ukm_entry_builder().BuildEntry(
       ukm_source_id,
@@ -3355,7 +3410,7 @@ IN_PROC_BROWSER_TEST_F(
           PreloadingFailureReason::kUnspecified,
           /*accurate=*/false,
           /*ready_time=*/kMockElapsedTime,
-          blink::mojom::SpeculationEagerness::kEager));
+          blink::mojom::SpeculationEagerness::kImmediate));
   ExpectPreloadingPredictioPreviousPrimaryPageUkm(
       {prediction_previous_ukm_entry_builder().BuildEntry(
           triggering_primary_page_source_id,
@@ -3406,11 +3461,280 @@ void PrerenderTargetHintEnabledBrowserTest::TestActivateOnWindowOpen(
       PreloadingFailureReason::kUnspecified,
       /*accurate=*/true,
       /*ready_time=*/kMockElapsedTime,
-      blink::mojom::SpeculationEagerness::kEager)});
+      blink::mojom::SpeculationEagerness::kImmediate)});
 
   // The navigation occurred in a new WebContents, so the original WebContents
   // should still be showing the initial trigger page.
   EXPECT_EQ(web_contents()->GetLastCommittedURL(), initial_url);
+}
+
+// Tests that adding speculation rules with both target_hint and removes
+// target_hint=_self won't affect prerender activation on target_hint=_blank.
+IN_PROC_BROWSER_TEST_F(PrerenderTargetHintEnabledBrowserTest,
+                       PrerenderBothTargetHintButRemovesTargetHintSelf) {
+  const GURL initial_url = GetUrl("/simple_links.html");
+  const GURL prerendering_url = GetUrl("/title2.html");
+
+  const std::string add_speculation_rules_target_hint_self_script =
+      SpeculationRulesWithIdAndTargetHint(prerendering_url, "self_specrules",
+                                          "_self");
+  const std::string add_speculation_rules_target_hint_blank_script =
+      SpeculationRulesWithIdAndTargetHint(prerendering_url, "blank_specrules",
+                                          "_blank");
+
+  // Navigate to an initial page which has a link to `prerendering_url`.
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
+
+  // Adding speculation rules with target_hint=_self.
+  EXPECT_TRUE(
+      ExecJs(web_contents(), add_speculation_rules_target_hint_self_script));
+  prerender_helper()->WaitForPrerenderLoadCompletion(*web_contents(),
+                                                     prerendering_url);
+
+  // Adding speculation rules with target_hint=_blank.
+  WebContents* new_tab_prerender_web_contents = nullptr;
+  base::RunLoop run_loop;
+
+  auto creation_subscription = RegisterWebContentsCreationCallback(
+      base::BindLambdaForTesting([&](content::WebContents* web_contents) {
+        new_tab_prerender_web_contents = web_contents;
+        run_loop.QuitClosure().Run();
+      }));
+
+  EXPECT_TRUE(
+      ExecJs(web_contents(), add_speculation_rules_target_hint_blank_script));
+  // Wait for the new tab prerender.
+  run_loop.Run();
+
+  prerender_helper()->WaitForPrerenderLoadCompletion(
+      *new_tab_prerender_web_contents, prerendering_url);
+
+  ASSERT_NE(new_tab_prerender_web_contents, web_contents_impl());
+  ExpectWebContentsIsForNewTabPrerendering(*new_tab_prerender_web_contents);
+
+  ASSERT_TRUE(
+      ExecJs(web_contents_impl()->GetPrimaryMainFrame(),
+             "document.querySelector('script[id=self_specrules]').remove()"));
+
+  // Speculationrules removal for the initiator tab shouldn't cancel the
+  // prerender in the new WebContents.
+  EXPECT_FALSE(HasHostForUrl(*web_contents(), prerendering_url));
+  EXPECT_TRUE(HasHostForUrl(*new_tab_prerender_web_contents, prerendering_url));
+
+  // Open a new window with "_blank" and `noopener`. This should activate
+  // the prerendered page.
+  test::PrerenderHostObserver new_tab_prerender_observer(
+      *new_tab_prerender_web_contents, prerendering_url);
+
+  {
+    const std::string new_tab_opener_script =
+        "window.open(\"title2.html\", \"_blank\", \"noopener\")";
+    EXPECT_TRUE(ExecJs(web_contents(), new_tab_opener_script));
+    new_tab_prerender_observer.WaitForActivation();
+    EXPECT_EQ(new_tab_prerender_web_contents->GetLastCommittedURL(),
+              prerendering_url);
+    EXPECT_FALSE(
+        HasHostForUrl(*new_tab_prerender_web_contents, prerendering_url));
+  }
+}
+
+// Tests that adding speculation rules with both target_hint and removes
+// target_hint=_blank won't affect prerender activation on target_hint=_self.
+IN_PROC_BROWSER_TEST_F(PrerenderTargetHintEnabledBrowserTest,
+                       PrerenderBothTargetHintButRemovesTargetHintBlank) {
+  const GURL initial_url = GetUrl("/simple_links.html");
+  const GURL prerendering_url = GetUrl("/title2.html");
+
+  const std::string add_speculation_rules_target_hint_self_script =
+      SpeculationRulesWithIdAndTargetHint(prerendering_url, "self_specrules",
+                                          "_self");
+  const std::string add_speculation_rules_target_hint_blank_script =
+      SpeculationRulesWithIdAndTargetHint(prerendering_url, "blank_specrules",
+                                          "_blank");
+
+  // Navigate to an initial page which has a link to `prerendering_url`.
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
+
+  // Adding speculation rules with target_hint=_self.
+  EXPECT_TRUE(
+      ExecJs(web_contents(), add_speculation_rules_target_hint_self_script));
+  prerender_helper()->WaitForPrerenderLoadCompletion(*web_contents(),
+                                                     prerendering_url);
+  // Adding speculation rules with target_hint=_blank.
+  WebContents* new_tab_prerender_web_contents = nullptr;
+  base::RunLoop run_loop;
+
+  auto creation_subscription = RegisterWebContentsCreationCallback(
+      base::BindLambdaForTesting([&](content::WebContents* web_contents) {
+        new_tab_prerender_web_contents = web_contents;
+        run_loop.QuitClosure().Run();
+      }));
+
+  EXPECT_TRUE(
+      ExecJs(web_contents(), add_speculation_rules_target_hint_blank_script));
+  // Wait for the new tab prerender.
+  run_loop.Run();
+
+  prerender_helper()->WaitForPrerenderLoadCompletion(
+      *new_tab_prerender_web_contents, prerendering_url);
+
+  ASSERT_NE(new_tab_prerender_web_contents, web_contents_impl());
+  ExpectWebContentsIsForNewTabPrerendering(*new_tab_prerender_web_contents);
+  FrameTreeNodeId new_tab_host_id = test::PrerenderTestHelper::GetHostForUrl(
+      *new_tab_prerender_web_contents, prerendering_url);
+
+  test::PrerenderHostObserver new_tab_prerender_observer(
+      *new_tab_prerender_web_contents, new_tab_host_id);
+
+  ASSERT_TRUE(
+      ExecJs(web_contents_impl()->GetPrimaryMainFrame(),
+             "document.querySelector('script[id=blank_specrules]').remove()"));
+
+  // Speculationrules removal for the new tab shouldn't cancel the prerender in
+  // the initial WebContents.
+  EXPECT_TRUE(HasHostForUrl(*web_contents(), prerendering_url));
+  new_tab_prerender_observer.WaitForDestroyed();
+
+  test::PrerenderHostObserver prerender_observer(*web_contents(),
+                                                 prerendering_url);
+
+  // The prerender in the initial WebContents should be able to be activated.
+  {
+    ASSERT_TRUE(ExecJs(web_contents()->GetPrimaryMainFrame(),
+                       JsReplace("location = $1", prerendering_url)));
+    prerender_observer.WaitForActivation();
+  }
+}
+
+// Tests that speculation rules with both target_hint in one script section can
+// be prerendered and activated correctly.
+IN_PROC_BROWSER_TEST_F(PrerenderTargetHintEnabledBrowserTest,
+                       ActivateOnBothTargetHint) {
+  const GURL initial_url = GetUrl("/simple_links.html");
+  const GURL prerendering_url = GetUrl("/title2.html");
+
+  const std::string add_speculation_rules_script =
+      SpeculationRulesInsertionScriptWithBothTargetHint(prerendering_url);
+
+  // Navigate to an initial page which has a link to `prerendering_url`.
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
+
+  // Start prerendering `prerendering_url`.
+  WebContents* new_tab_prerender_web_contents = nullptr;
+  base::RunLoop run_loop;
+
+  auto creation_subscription = RegisterWebContentsCreationCallback(
+      base::BindLambdaForTesting([&](content::WebContents* web_contents) {
+        new_tab_prerender_web_contents = web_contents;
+        run_loop.QuitClosure().Run();
+      }));
+
+  EXPECT_TRUE(ExecJs(web_contents(), add_speculation_rules_script));
+  // Wait for the new tab prerender.
+  run_loop.Run();
+
+  prerender_helper()->WaitForPrerenderLoadCompletion(*web_contents(),
+                                                     prerendering_url);
+  prerender_helper()->WaitForPrerenderLoadCompletion(
+      *new_tab_prerender_web_contents, prerendering_url);
+
+  ASSERT_NE(new_tab_prerender_web_contents, web_contents_impl());
+  ExpectWebContentsIsForNewTabPrerendering(*new_tab_prerender_web_contents);
+
+  // Open a new window with "_blank" and `noopener`. This should activate
+  // the prerendered page.
+  test::PrerenderHostObserver new_tab_prerender_observer(
+      *new_tab_prerender_web_contents, prerendering_url);
+  test::PrerenderHostObserver prerender_observer(*web_contents(),
+                                                 prerendering_url);
+
+  {
+    const std::string new_tab_opener_script =
+        "window.open(\"title2.html\", \"_blank\", \"noopener\")";
+    EXPECT_TRUE(ExecJs(web_contents(), new_tab_opener_script));
+    new_tab_prerender_observer.WaitForActivation();
+    EXPECT_EQ(new_tab_prerender_web_contents->GetLastCommittedURL(),
+              prerendering_url);
+
+    // Prerender activation in the new tab shouldn't cancel the prerender in
+    // the initial WebContents.
+    EXPECT_TRUE(HasHostForUrl(*web_contents(), prerendering_url));
+    EXPECT_FALSE(
+        HasHostForUrl(*new_tab_prerender_web_contents, prerendering_url));
+  }
+
+  // The prerender in the initial WebContents should be able to be activated.
+  {
+    ASSERT_TRUE(ExecJs(web_contents()->GetPrimaryMainFrame(),
+                       JsReplace("location = $1", prerendering_url)));
+    prerender_observer.WaitForActivation();
+  }
+}
+
+// Tests that speculation rules with 1 _self and 2 _blank target_hints in one
+// script section can be prerendered and activated correctly.
+IN_PROC_BROWSER_TEST_F(PrerenderTargetHintEnabledBrowserTest,
+                       ActivateOnOneSelfAndTwoBlankTargetHint) {
+  const GURL initial_url = GetUrl("/simple_links.html");
+  const GURL prerendering_url = GetUrl("/title2.html");
+
+  const std::string add_speculation_rules_script =
+      SpeculationRulesInsertionScriptWithOneSelfAndTwoBlankTargetHint(
+          prerendering_url);
+
+  // Navigate to an initial page which has a link to `prerendering_url`.
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
+
+  // Start prerendering `prerendering_url`.
+  WebContents* new_tab_prerender_web_contents = nullptr;
+  base::RunLoop run_loop;
+
+  auto creation_subscription = RegisterWebContentsCreationCallback(
+      base::BindLambdaForTesting([&](content::WebContents* web_contents) {
+        new_tab_prerender_web_contents = web_contents;
+        run_loop.QuitClosure().Run();
+      }));
+
+  EXPECT_TRUE(ExecJs(web_contents(), add_speculation_rules_script));
+  // Wait for the new tab prerender.
+  run_loop.Run();
+
+  prerender_helper()->WaitForPrerenderLoadCompletion(*web_contents(),
+                                                     prerendering_url);
+  prerender_helper()->WaitForPrerenderLoadCompletion(
+      *new_tab_prerender_web_contents, prerendering_url);
+
+  ASSERT_NE(new_tab_prerender_web_contents, web_contents_impl());
+  ExpectWebContentsIsForNewTabPrerendering(*new_tab_prerender_web_contents);
+
+  // Open a new window with "_blank" and `noopener`. This should activate
+  // the prerendered page.
+  test::PrerenderHostObserver new_tab_prerender_observer(
+      *new_tab_prerender_web_contents, prerendering_url);
+  test::PrerenderHostObserver prerender_observer(*web_contents(),
+                                                 prerendering_url);
+
+  {
+    const std::string new_tab_opener_script =
+        "window.open(\"title2.html\", \"_blank\", \"noopener\")";
+    EXPECT_TRUE(ExecJs(web_contents(), new_tab_opener_script));
+    new_tab_prerender_observer.WaitForActivation();
+    EXPECT_EQ(new_tab_prerender_web_contents->GetLastCommittedURL(),
+              prerendering_url);
+
+    // Prerender activation in the new tab shouldn't cancel the prerender in
+    // the initial WebContents.
+    EXPECT_TRUE(HasHostForUrl(*web_contents(), prerendering_url));
+    EXPECT_FALSE(
+        HasHostForUrl(*new_tab_prerender_web_contents, prerendering_url));
+  }
+
+  // The prerender in the initial WebContents should be able to be activated.
+  {
+    ASSERT_TRUE(ExecJs(web_contents()->GetPrimaryMainFrame(),
+                       JsReplace("location = $1", prerendering_url)));
+    prerender_observer.WaitForActivation();
+  }
 }
 
 // Tests that window.open() annotated with "_blank" and "noopener" can activate
@@ -3798,7 +4122,7 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, CancelOnAuthRequested) {
       ToPreloadingFailureReason(PrerenderFinalStatus::kLoginAuthRequested),
       /*accurate=*/false,
       /*ready_time=*/std::nullopt,
-      blink::mojom::SpeculationEagerness::kEager)});
+      blink::mojom::SpeculationEagerness::kImmediate)});
 
   // Cancellation must have occurred due to authentication request.
   ExpectFinalStatusForSpeculationRule(
@@ -3973,7 +4297,7 @@ IN_PROC_BROWSER_TEST_F(
           PreloadingFailureReason::kUnspecified,
           /*accurate=*/false,
           /*ready_time=*/kMockElapsedTime,
-          blink::mojom::SpeculationEagerness::kEager));
+          blink::mojom::SpeculationEagerness::kImmediate));
 }
 
 IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
@@ -4329,7 +4653,7 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, SameOriginRedirection) {
       PreloadingFailureReason::kUnspecified,
       /*accurate=*/true,
       /*ready_time=*/kMockElapsedTime,
-      blink::mojom::SpeculationEagerness::kEager)});
+      blink::mojom::SpeculationEagerness::kImmediate)});
 }
 
 IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, CrossSiteRedirection) {
@@ -7501,7 +7825,7 @@ IN_PROC_BROWSER_TEST_F(PrerenderLowMemoryBrowserTest, NoPrerender) {
       PreloadingFailureReason::kUnspecified,
       /*accurate=*/true,
       /*ready_time=*/std::nullopt,
-      blink::mojom::SpeculationEagerness::kEager)});
+      blink::mojom::SpeculationEagerness::kImmediate)});
 }
 
 class PrerenderSequentialPrerenderingBrowserTest : public PrerenderBrowserTest {
@@ -7796,7 +8120,7 @@ IN_PROC_BROWSER_TEST_F(PrerenderSequentialPrerenderingBrowserTest,
           PreloadingFailureReason::kUnspecified,
           /*accurate=*/false,
           /*ready_time=*/std::nullopt,
-          blink::mojom::SpeculationEagerness::kEager),
+          blink::mojom::SpeculationEagerness::kImmediate),
       attempt_ukm_entry_builder().BuildEntry(
           ukm_source_id, PreloadingType::kPrerender,
           PreloadingEligibility::kEligible, PreloadingHoldbackStatus::kAllowed,
@@ -7804,7 +8128,7 @@ IN_PROC_BROWSER_TEST_F(PrerenderSequentialPrerenderingBrowserTest,
           PreloadingFailureReason::kUnspecified,
           /*accurate=*/true,
           /*ready_time=*/std::nullopt,
-          blink::mojom::SpeculationEagerness::kEager),
+          blink::mojom::SpeculationEagerness::kImmediate),
   });
 }
 
@@ -7822,7 +8146,8 @@ IN_PROC_BROWSER_TEST_F(PrerenderSequentialPrerenderingBrowserTest,
 
   for (int i = 0;
        i <
-       PrerenderHostRegistry::kMaxRunningSpeculationRulesEagerPrerenders + 1;
+       PrerenderHostRegistry::kMaxRunningSpeculationRulesImmediatePrerenders +
+           1;
        i++) {
     prerender_urls.push_back(embedded_test_server()->GetURL(
         "/empty.html?prerender" + base::NumberToString(i)));
@@ -7846,7 +8171,7 @@ IN_PROC_BROWSER_TEST_F(PrerenderSequentialPrerenderingBrowserTest,
   // from speculation rules exceeds its limit.
   histogram_tester().ExpectUniqueSample(
       "Prerender.Experimental.PrerenderHostFinalStatus.SpeculationRule",
-      PrerenderFinalStatus::kMaxNumOfRunningEagerPrerendersExceeded, 1);
+      PrerenderFinalStatus::kMaxNumOfRunningImmediatePrerendersExceeded, 1);
 }
 
 // Test that the requests from embedder are handled immediately regardless of
@@ -8099,7 +8424,7 @@ IN_PROC_BROWSER_TEST_F(PrerenderSequentialPrerenderingBrowserTest,
           PreloadingFailureReason::kUnspecified,
           /*accurate=*/true,
           /*ready_time=*/kMockElapsedTime,
-          blink::mojom::SpeculationEagerness::kEager),
+          blink::mojom::SpeculationEagerness::kImmediate),
       attempt_ukm_entry_builder().BuildEntry(
           ukm_source_id, PreloadingType::kPrerender,
           PreloadingEligibility::kEligible, PreloadingHoldbackStatus::kAllowed,
@@ -8107,7 +8432,7 @@ IN_PROC_BROWSER_TEST_F(PrerenderSequentialPrerenderingBrowserTest,
           PreloadingFailureReason::kUnspecified,
           /*accurate=*/false,
           /*ready_time=*/std::nullopt,
-          blink::mojom::SpeculationEagerness::kEager),
+          blink::mojom::SpeculationEagerness::kImmediate),
   });
 }
 
@@ -8159,7 +8484,7 @@ IN_PROC_BROWSER_TEST_F(
           PreloadingFailureReason::kUnspecified,
           /*accurate=*/true,
           /*ready_time=*/kMockElapsedTime,
-          blink::mojom::SpeculationEagerness::kEager),
+          blink::mojom::SpeculationEagerness::kImmediate),
       attempt_ukm_entry_builder().BuildEntry(
           ukm_source_id, PreloadingType::kPrerender,
           PreloadingEligibility::kEligible, PreloadingHoldbackStatus::kAllowed,
@@ -8167,7 +8492,7 @@ IN_PROC_BROWSER_TEST_F(
           PreloadingFailureReason::kUnspecified,
           /*accurate=*/false,
           /*ready_time=*/std::nullopt,
-          blink::mojom::SpeculationEagerness::kEager),
+          blink::mojom::SpeculationEagerness::kImmediate),
       attempt_ukm_entry_builder().BuildEntry(
           ukm_source_id, PreloadingType::kPrerender,
           PreloadingEligibility::kEligible, PreloadingHoldbackStatus::kAllowed,
@@ -8175,7 +8500,7 @@ IN_PROC_BROWSER_TEST_F(
           PreloadingFailureReason::kUnspecified,
           /*accurate=*/false,
           /*ready_time=*/std::nullopt,
-          blink::mojom::SpeculationEagerness::kEager),
+          blink::mojom::SpeculationEagerness::kImmediate),
   });
 }
 
@@ -8190,8 +8515,8 @@ IN_PROC_BROWSER_TEST_F(PrerenderSequentialPrerenderingBrowserTest,
   const GURL kInitialUrl = embedded_test_server()->GetURL("/empty.html");
 
   // This test only makes sense if we don't hit the limit.
-  ASSERT_GE(PrerenderHostRegistry::kMaxRunningSpeculationRulesEagerPrerenders,
-            4);
+  ASSERT_GE(
+      PrerenderHostRegistry::kMaxRunningSpeculationRulesImmediatePrerenders, 4);
 
   std::vector<GURL> prerender_urls;
   for (int i = 1; i <= 4; i++) {
@@ -8255,7 +8580,7 @@ IN_PROC_BROWSER_TEST_F(PrerenderSequentialPrerenderingBrowserTest,
           PreloadingFailureReason::kUnspecified,
           /*accurate=*/true,
           /*ready_time=*/kMockElapsedTime,
-          blink::mojom::SpeculationEagerness::kEager),
+          blink::mojom::SpeculationEagerness::kImmediate),
       attempt_ukm_entry_builder().BuildEntry(
           ukm_source_id, PreloadingType::kPrerender,
           PreloadingEligibility::kEligible, PreloadingHoldbackStatus::kAllowed,
@@ -8263,7 +8588,7 @@ IN_PROC_BROWSER_TEST_F(PrerenderSequentialPrerenderingBrowserTest,
           PreloadingFailureReason::kUnspecified,
           /*accurate=*/false,
           /*ready_time=*/kMockElapsedTime,
-          blink::mojom::SpeculationEagerness::kEager),
+          blink::mojom::SpeculationEagerness::kImmediate),
       attempt_ukm_entry_builder().BuildEntry(
           ukm_source_id, PreloadingType::kPrerender,
           PreloadingEligibility::kEligible, PreloadingHoldbackStatus::kAllowed,
@@ -8271,7 +8596,7 @@ IN_PROC_BROWSER_TEST_F(PrerenderSequentialPrerenderingBrowserTest,
           PreloadingFailureReason::kUnspecified,
           /*accurate=*/false,
           /*ready_time=*/std::nullopt,
-          blink::mojom::SpeculationEagerness::kEager),
+          blink::mojom::SpeculationEagerness::kImmediate),
       attempt_ukm_entry_builder().BuildEntry(
           ukm_source_id, PreloadingType::kPrerender,
           PreloadingEligibility::kEligible, PreloadingHoldbackStatus::kAllowed,
@@ -8279,7 +8604,7 @@ IN_PROC_BROWSER_TEST_F(PrerenderSequentialPrerenderingBrowserTest,
           PreloadingFailureReason::kUnspecified,
           /*accurate=*/false,
           /*ready_time=*/std::nullopt,
-          blink::mojom::SpeculationEagerness::kEager),
+          blink::mojom::SpeculationEagerness::kImmediate),
   });
 }
 
@@ -10445,10 +10770,10 @@ class PreloadingDeciderObserverForPrerenderTesting
 
 }  // namespace
 
-// Tests speculation rules prerendering where the eagerness is "eager".
-// The default eagerness of list rules is "eager", so its behavior should be
+// Tests speculation rules prerendering where the eagerness is "immediate".
+// The default eagerness of list rules is "immediate", so its behavior should be
 // same to normal speculation rules prerendering.
-IN_PROC_BROWSER_TEST_F(PrerenderEagernessBrowserTest, kEager) {
+IN_PROC_BROWSER_TEST_F(PrerenderEagernessBrowserTest, kImmediate) {
   const GURL initial_url = GetUrl("/empty.html");
   const GURL prerendering_url = GetUrl("/empty.html?prerender");
 
@@ -10461,11 +10786,11 @@ IN_PROC_BROWSER_TEST_F(PrerenderEagernessBrowserTest, kEager) {
       PreloadingDecider::GetOrCreateForCurrentDocument(rfh);
 
   // Add speculation rules with the eagerness.
-  // When the eagerness is "eager", speculation candidates will never be kept in
-  // the |on_standby_candidates_| on |PreloadingDecider|, and |PrerenderHost|
-  // will be created immediately.
-  AddPrerenderWithEagernessAsync(prerendering_url,
-                                 blink::mojom::SpeculationEagerness::kEager);
+  // When the eagerness is "immediate", speculation candidates will never be
+  // kept in the |on_standby_candidates_| on |PreloadingDecider|, and
+  // |PrerenderHost| will be created immediately.
+  AddPrerenderWithEagernessAsync(
+      prerendering_url, blink::mojom::SpeculationEagerness::kImmediate);
   WaitForPrerenderLoadCompletion(prerendering_url);
   EXPECT_TRUE(HasHostForUrl(prerendering_url));
   EXPECT_FALSE(preloading_decider->IsOnStandByForTesting(
@@ -10496,10 +10821,10 @@ IN_PROC_BROWSER_TEST_F(PrerenderEagernessBrowserTest, kModerate) {
       PreloadingDecider::GetOrCreateForCurrentDocument(rfh);
 
   // Add speculation rules with the eagerness.
-  // When the eagerness is not "eager", speculation candidates will be kept in
-  // the |on_standby_candidates_| on |PreloadingDecider|. |PrerenderHost| will
-  // not be created at this time, waiting for user interaction(pointer hovering
-  // for the "moderate").
+  // When the eagerness is not "immediate", speculation candidates will be kept
+  // in the |on_standby_candidates_| on |PreloadingDecider|. |PrerenderHost|
+  // will not be created at this time, waiting for user interaction(pointer
+  // hovering for the "moderate").
   AddPrerenderWithEagernessAsync(prerendering_url,
                                  blink::mojom::SpeculationEagerness::kModerate);
   preloading_decider_observer.WaitUpdateSpeculationCandidates();
@@ -10541,10 +10866,10 @@ IN_PROC_BROWSER_TEST_F(PrerenderEagernessBrowserTest, kConservative) {
       PreloadingDecider::GetOrCreateForCurrentDocument(rfh);
 
   // Add speculation rules with the eagerness.
-  // When the eagerness is not "eager", speculation candidates will be kept in
-  // the |on_standby_candidates_| on |PreloadingDecider|. |PrerenderHost| will
-  // not be created at this time, waiting for user interaction(pointer clicking
-  // for the "conservative").
+  // When the eagerness is not "immediate", speculation candidates will be kept
+  // in the |on_standby_candidates_| on |PreloadingDecider|. |PrerenderHost|
+  // will not be created at this time, waiting for user interaction(pointer
+  // clicking for the "conservative").
   AddPrerenderWithEagernessAsync(
       prerendering_url, blink::mojom::SpeculationEagerness::kConservative);
   preloading_decider_observer.WaitUpdateSpeculationCandidates();
@@ -10595,31 +10920,31 @@ IN_PROC_BROWSER_TEST_F(PrerenderEagernessBrowserTest,
   // Nothing should have been recoreded yet.
   EXPECT_THAT(GetAllSamples("Total"), testing::IsEmpty());
 
-  // Start one eager prerender.
+  // Start one immediate prerender.
   const GURL prerendering_url = GetUrl("/empty.html?prerender");
   AddPrerender(prerendering_url);
 
   // Navigate to the another url.
-  // Expect that the categories "Total" and "Egaer" record 1 and others record
-  // 0, as there was one eager prerender of the previous page.
+  // Expect that the categories "Total" and "Immediate" record 1 and others
+  // record 0, as there was one immediate prerender of the previous page.
   const GURL next_url = GetUrl("/empty.html?next");
   ASSERT_TRUE(NavigateToURL(shell(), next_url));
   EXPECT_THAT(GetAllSamples("Conservative"),
               base::BucketsAre(base::Bucket(0, 1)));
   EXPECT_THAT(GetAllSamples("Moderate"), base::BucketsAre(base::Bucket(0, 1)));
-  EXPECT_THAT(GetAllSamples("Eager"), base::BucketsAre(base::Bucket(1, 1)));
+  EXPECT_THAT(GetAllSamples("Immediate"), base::BucketsAre(base::Bucket(1, 1)));
 
   // Next, try to trigger followings:
-  // a) 4 prerenders whose eagerness is eager
+  // a) 4 prerenders whose eagerness is immediate
   // b) 2 prerenders whose eagerness is moderate
   // c) 1 prerenders whose eagerness is conservative
   // Then, try to activate the one of the URL(choosing conservative one).
 
   // a)
   for (int i = 0; i < 4; ++i) {
-    GURL prerendering_url_eager =
-        GetUrl("/empty.html?prerender_eager_" + base::NumberToString(i));
-    AddPrerender(prerendering_url_eager);
+    GURL prerendering_url_immediate =
+        GetUrl("/empty.html?prerender_immediate_" + base::NumberToString(i));
+    AddPrerender(prerendering_url_immediate);
   }
 
   // b)
@@ -10652,7 +10977,7 @@ IN_PROC_BROWSER_TEST_F(PrerenderEagernessBrowserTest,
   ASSERT_TRUE(activation_manager.was_activated());
 
   // Expect our results:
-  EXPECT_THAT(GetAllSamples("Eager"),
+  EXPECT_THAT(GetAllSamples("Immediate"),
               base::BucketsAre(base::Bucket(1, 1), base::Bucket(4, 1)));
   EXPECT_THAT(GetAllSamples("Moderate"),
               base::BucketsAre(base::Bucket(0, 1), base::Bucket(2, 1)));
@@ -10661,12 +10986,12 @@ IN_PROC_BROWSER_TEST_F(PrerenderEagernessBrowserTest,
 }
 
 IN_PROC_BROWSER_TEST_F(PrerenderEagernessBrowserTest,
-                       NonEagerPrerendersCanBeRetriggeredAfterTimeout) {
+                       NonImmediatePrerendersCanBeRetriggeredAfterTimeout) {
   // Navigate to an initial page.
   const GURL initial_url = GetUrl("/empty.html");
   ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
-  // Add a non-eager speculation rule.
+  // Add a non-immediate speculation rule.
   const GURL prerendering_url = GetUrl("/empty.html?prerender");
   InsertAnchor(prerendering_url);
   AddPrerenderWithEagernessAsync(prerendering_url,
@@ -10717,7 +11042,7 @@ IN_PROC_BROWSER_TEST_F(PrerenderEagernessBrowserTest,
 }
 
 IN_PROC_BROWSER_TEST_P(PrerenderTargetAgnosticBrowserTest,
-                       ResetForNonEagerPrerender) {
+                       ResetForNonImmediatePrerender) {
 #if !BUILDFLAG(IS_ANDROID)
   const GURL initial_url = GetUrl("/empty.html");
   std::vector<GURL> prerendering_urls;
@@ -10731,7 +11056,8 @@ IN_PROC_BROWSER_TEST_P(PrerenderTargetAgnosticBrowserTest,
   // hovering, and the oldest started prerender should be canceled and removed
   // from the registry for the limit after the last prerender is started.
   int num_of_attempts =
-      PrerenderHostRegistry::kMaxRunningSpeculationRulesNonEagerPrerenders + 1;
+      PrerenderHostRegistry::kMaxRunningSpeculationRulesNonImmediatePrerenders +
+      1;
   for (int i = 0; i < num_of_attempts; i++) {
     PreloadingDeciderObserverForPrerenderTesting preloading_decider_observer(
         current_frame_host());
@@ -11012,7 +11338,7 @@ class PrerenderBackForwardCacheRestorationBrowserTest
 INSTANTIATE_TEST_SUITE_P(
     All,
     PrerenderBackForwardCacheRestorationBrowserTest,
-    testing::Values(blink::mojom::SpeculationEagerness::kEager,
+    testing::Values(blink::mojom::SpeculationEagerness::kImmediate,
                     blink::mojom::SpeculationEagerness::kModerate,
                     blink::mojom::SpeculationEagerness::kConservative),
     [](const testing::TestParamInfo<blink::mojom::SpeculationEagerness>& info) {
@@ -11021,13 +11347,13 @@ INSTANTIATE_TEST_SUITE_P(
 
 // Test whether speculation rules prerendering is processed again on pages
 // restored from BFCache via forward navigation.
-// When the eagerness is kEager(default), speculation rules prerendering will no
-// longer be processed after restoration.
-// For non-eager cases (kModerate, kConservative), candidates are stored between
-// restoration unless they were triggered by user action (This test scenario
-// reproduces only this case). However, once after processed by user action,
-// then they will not be processed again until they are retriggered
-// (crbug.com/1449163 for more information).
+// When the eagerness is kImmediate(default), speculation rules prerendering
+// will no longer be processed after restoration. For non-immediate cases
+// (kModerate, kConservative), candidates are stored between restoration unless
+// they were triggered by user action (This test scenario reproduces only this
+// case). However, once after processed by user action, then they will not be
+// processed again until they are retriggered (crbug.com/1449163 for more
+// information).
 IN_PROC_BROWSER_TEST_P(PrerenderBackForwardCacheRestorationBrowserTest,
                        RestoredViaForwardNavigation) {
   const GURL initial_url = GetUrl("/empty.html");
@@ -11049,7 +11375,8 @@ IN_PROC_BROWSER_TEST_P(PrerenderBackForwardCacheRestorationBrowserTest,
 
   // Add speculation rules and wait to be loaded.
   AddPrerenderWithEagernessAsync(prerendering_url, GetSpeculationEagerness());
-  if (GetSpeculationEagerness() == blink::mojom::SpeculationEagerness::kEager) {
+  if (GetSpeculationEagerness() ==
+      blink::mojom::SpeculationEagerness::kImmediate) {
     WaitForPrerenderLoadCompletion(prerendering_url);
     ASSERT_TRUE(HasHostForUrl(prerendering_url));
   } else {
@@ -11070,7 +11397,8 @@ IN_PROC_BROWSER_TEST_P(PrerenderBackForwardCacheRestorationBrowserTest,
   ASSERT_EQ(web_contents()->GetLastCommittedURL(), next_url);
   ExpectRestored(FROM_HERE);
 
-  if (GetSpeculationEagerness() == blink::mojom::SpeculationEagerness::kEager) {
+  if (GetSpeculationEagerness() ==
+      blink::mojom::SpeculationEagerness::kImmediate) {
     // Prerendering will be processed by retriggering.
     WaitForPrerenderLoadCompletion(prerendering_url);
     FrameTreeNodeId host_id_retriggered = GetHostForUrl(prerendering_url);
@@ -11086,12 +11414,12 @@ IN_PROC_BROWSER_TEST_P(PrerenderBackForwardCacheRestorationBrowserTest,
   } else {
     ASSERT_FALSE(HasHostForUrl(prerendering_url));
 
-    // |on_standby_candidates_| holds the non-eager candidates if the candidates
-    // were not processed by user interaction.
+    // |on_standby_candidates_| holds the non-immediate candidates if the
+    // candidates were not processed by user interaction.
     EXPECT_TRUE(preloading_decider->IsOnStandByForTesting(
         prerendering_url, blink::mojom::SpeculationAction::kPrerender));
 
-    // Trigger and activate the non-eager prerender.
+    // Trigger and activate the non-immediate prerender.
     {
       TestActivationManager activation_manager(web_contents(),
                                                prerendering_url);
@@ -11105,12 +11433,12 @@ IN_PROC_BROWSER_TEST_P(PrerenderBackForwardCacheRestorationBrowserTest,
 
 // Test whether speculation rules prerendering is processed again on pages
 // restored from BFCache via backward navigation.
-// When the eagerness is kEager(default), speculation rules prerendering will no
-// longer be processed after restoration.
-// For non-eager cases (kModerate, kConservative), candidates are stored between
-// restoration unless they were triggered by user action. However, once after
-// processed by user action, then they will not be processed again until they
-// are retriggered (crbug.com/1449163 for more information).
+// When the eagerness is kImmediate(default), speculation rules prerendering
+// will no longer be processed after restoration. For non-immediate cases
+// (kModerate, kConservative), candidates are stored between restoration unless
+// they were triggered by user action. However, once after processed by user
+// action, then they will not be processed again until they are retriggered
+// (crbug.com/1449163 for more information).
 IN_PROC_BROWSER_TEST_P(PrerenderBackForwardCacheRestorationBrowserTest,
                        RestoredViaBackwardNavigation) {
   const GURL initial_url = GetUrl("/empty.html");
@@ -11123,7 +11451,8 @@ IN_PROC_BROWSER_TEST_P(PrerenderBackForwardCacheRestorationBrowserTest,
   InsertAnchor(prerendering_url_a);
   InsertAnchor(prerendering_url_b);
 
-  if (GetSpeculationEagerness() == blink::mojom::SpeculationEagerness::kEager) {
+  if (GetSpeculationEagerness() ==
+      blink::mojom::SpeculationEagerness::kImmediate) {
     // Add speculation rules and wait to be loaded.
     AddPrerenderWithEagernessAsync(prerendering_url_a,
                                    GetSpeculationEagerness());
@@ -11204,18 +11533,18 @@ IN_PROC_BROWSER_TEST_P(PrerenderBackForwardCacheRestorationBrowserTest,
     ASSERT_EQ(web_contents()->GetLastCommittedURL(), initial_url);
     ExpectRestored(FROM_HERE);
 
-    // |on_standby_candidates_| holds the non-eager candidates if the candidates
-    // were not processed by user interaction so that the the Page B's candidate
-    // should be in the |on_standby_candidates_|.
+    // |on_standby_candidates_| holds the non-immediate candidates if the
+    // candidates were not processed by user interaction so that the the Page
+    // B's candidate should be in the |on_standby_candidates_|.
     EXPECT_TRUE(preloading_decider->IsOnStandByForTesting(
         prerendering_url_b, blink::mojom::SpeculationAction::kPrerender));
 
-    // TODO(crbug.com/40273826): In the current implementation, non-eager
+    // TODO(crbug.com/40273826): In the current implementation, non-immediate
     // candidates that are once processed by user interaction will no
     // longer be stored in |on_standby_candidates_| when retriggered (more
     // specifically, |UpdateSpeculationCandidates| is (re)invoked) and instead
-    // |PrerenderHost| will be created immediately, as with eager candidates.
-    // See crbug description for more details.
+    // |PrerenderHost| will be created immediately, as with immediate
+    // candidates. See crbug description for more details.
     {
       WaitForPrerenderLoadCompletion(prerendering_url_a);
       EXPECT_TRUE(HasHostForUrl(prerendering_url_a));
@@ -11255,7 +11584,7 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, StartByEmbeddersMultipleTimes) {
   histogram_tester().ExpectBucketCount(
       "Prerender.Experimental.PrerenderHostFinalStatus.Embedder_"
       "EmbedderSuffixForTest",
-      PrerenderFinalStatus::kMaxNumOfRunningEagerPrerendersExceeded, 0);
+      PrerenderFinalStatus::kMaxNumOfRunningImmediatePrerendersExceeded, 0);
 
   // Start prerendering by embedder triggered prerendering; this should be
   // trigger successfully.
@@ -11299,7 +11628,7 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
   // successfully.
   histogram_tester().ExpectBucketCount(
       "Prerender.Experimental.PrerenderHostFinalStatus.SpeculationRule",
-      PrerenderFinalStatus::kMaxNumOfRunningEagerPrerendersExceeded, 0);
+      PrerenderFinalStatus::kMaxNumOfRunningImmediatePrerendersExceeded, 0);
 
   histogram_tester().ExpectBucketCount(
       "Prerender.Experimental.PrerenderHostFinalStatus.Embedder_"
@@ -11498,7 +11827,8 @@ IN_PROC_BROWSER_TEST_F(MultiplePrerendersBrowserTest,
   ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
 
   for (int i = 0;
-       i < PrerenderHostRegistry::kMaxRunningSpeculationRulesEagerPrerenders;
+       i <
+       PrerenderHostRegistry::kMaxRunningSpeculationRulesImmediatePrerenders;
        i++) {
     GURL prerendering_url =
         GetUrl("/empty.html?prerender" + base::NumberToString(i));
@@ -11520,7 +11850,7 @@ IN_PROC_BROWSER_TEST_F(MultiplePrerendersBrowserTest,
   EXPECT_FALSE(HasHostForUrl(kExceededPrerenderingUrl));
 
   ExpectFinalStatusForSpeculationRule(
-      PrerenderFinalStatus::kMaxNumOfRunningEagerPrerendersExceeded);
+      PrerenderFinalStatus::kMaxNumOfRunningImmediatePrerendersExceeded);
 
   const GURL kEmbedderTriggeredPrerenderingUrl =
       GetUrl("/empty.html?embedder-triggered-prerender");
@@ -11604,7 +11934,7 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, SkipCrossSitePrerender) {
       PreloadingFailureReason::kUnspecified,
       /*accurate=*/true,
       /*ready_time=*/std::nullopt,
-      blink::mojom::SpeculationEagerness::kEager)});
+      blink::mojom::SpeculationEagerness::kImmediate)});
 }
 
 // Tests that same-site cross-origin navigation by speculation rules is not
@@ -11869,7 +12199,7 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
       PreloadingFailureReason::kUnspecified,
       /*accurate=*/true,
       /*ready_time=*/kMockElapsedTime,
-      blink::mojom::SpeculationEagerness::kEager)});
+      blink::mojom::SpeculationEagerness::kImmediate)});
 }
 
 // Tests that multiple same-site cross-origin redirections by speculation rules
@@ -11935,7 +12265,7 @@ IN_PROC_BROWSER_TEST_F(
       PreloadingFailureReason::kUnspecified,
       /*accurate=*/true,
       /*ready_time=*/kMockElapsedTime,
-      blink::mojom::SpeculationEagerness::kEager)});
+      blink::mojom::SpeculationEagerness::kImmediate)});
 }
 
 void PrerenderBrowserTest::TestEmbedderTriggerWithUnsupportedScheme(
@@ -12720,7 +13050,7 @@ IN_PROC_BROWSER_TEST_F(PrerenderRequestHeadersBrowserTest,
 }
 
 IN_PROC_BROWSER_TEST_F(PrerenderRequestHeadersBrowserTest,
-                       SpeculationRulesTagsMergingForEagerCandidates) {
+                       SpeculationRulesTagsMergingForImmediateCandidates) {
   const GURL initial_url =
       GetUrl("/prerender/multiple_prerender_with_tags.html");
   const GURL prerender_url = GetUrl("/prerender/empty.html");
@@ -12773,7 +13103,7 @@ IN_PROC_BROWSER_TEST_F(PrerenderRequestHeadersBrowserTest, Prefetch) {
 
 // Test that there is no tags merging if both of the candidates are enacted.
 IN_PROC_BROWSER_TEST_F(PrerenderRequestHeadersBrowserTest,
-                       SpeculationRulesTagsMergingForNonEagerCandidates) {
+                       SpeculationRulesTagsMergingForNonImmediateCandidates) {
 #if !BUILDFLAG(IS_ANDROID)
   const GURL initial_url = GetUrl(
       "/prerender/multiple_prerender_with_tags_and_different_eagerness.html");
@@ -12795,7 +13125,7 @@ IN_PROC_BROWSER_TEST_F(PrerenderRequestHeadersBrowserTest,
 
 // Test that there is no tags merging if only one of the candidates is enacted.
 IN_PROC_BROWSER_TEST_F(PrerenderRequestHeadersBrowserTest,
-                       SpeculationRulesTagsNoMergingForNonEagerCandidates) {
+                       SpeculationRulesTagsNoMergingForNonImmediateCandidates) {
 #if !BUILDFLAG(IS_ANDROID)
   const GURL initial_url = GetUrl(
       "/prerender/multiple_prerender_with_tags_and_different_eagerness.html");
@@ -13135,7 +13465,7 @@ IN_PROC_BROWSER_TEST_F(PrerenderSpeculationRulesHoldbackBrowserTest,
       PreloadingFailureReason::kUnspecified,
       /*accurate=*/true,
       /*ready_time=*/std::nullopt,
-      blink::mojom::SpeculationEagerness::kEager)});
+      blink::mojom::SpeculationEagerness::kImmediate)});
 }
 
 class PrerenderFencedFrameBrowserTest : public PrerenderBrowserTest {
@@ -14123,7 +14453,7 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, SlowNetwork) {
       PreloadingFailureReason::kUnspecified,
       /*accurate=*/true,
       /*ready_time=*/std::nullopt,
-      blink::mojom::SpeculationEagerness::kEager)});
+      blink::mojom::SpeculationEagerness::kImmediate)});
 }
 
 class V8OptimizerContentBrowserClient

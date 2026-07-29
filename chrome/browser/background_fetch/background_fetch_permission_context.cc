@@ -83,13 +83,11 @@ void BackgroundFetchPermissionContext::NotifyPermissionSet(
     const permissions::PermissionRequestData& request_data,
     permissions::BrowserPermissionCallback callback,
     bool persist,
-    ContentSetting content_setting,
-    bool is_one_time,
+    PermissionDecision decision,
     bool is_final_decision) {
   DCHECK(!persist);
   DCHECK(is_final_decision);
 
   permissions::ContentSettingPermissionContextBase::NotifyPermissionSet(
-      request_data, std::move(callback), persist, content_setting, is_one_time,
-      is_final_decision);
+      request_data, std::move(callback), persist, decision, is_final_decision);
 }

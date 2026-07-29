@@ -14,11 +14,11 @@
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/unsafe_shared_memory_pool.h"
 #include "base/task/single_thread_task_runner.h"
+#include "gpu/command_buffer/client/gpu_command_buffer_client_export.h"
 #include "gpu/command_buffer/client/gpu_memory_buffer_manager.h"
 #include "gpu/command_buffer/client/shared_image_interface.h"
 #include "gpu/command_buffer/common/mailbox.h"
 #include "gpu/command_buffer/common/shared_image_trace_utils.h"
-#include "gpu/gpu_export.h"
 #include "gpu/ipc/common/exported_shared_image.mojom-shared.h"
 #include "gpu/ipc/common/gpu_memory_buffer_handle_info.h"
 #include "third_party/skia/include/core/SkImageInfo.h"
@@ -26,9 +26,22 @@
 #include "ui/gfx/color_space.h"
 #include "ui/gfx/gpu_memory_buffer_handle.h"
 
+namespace base::trace_event {
+class ProcessMemoryDump;
+class MemoryAllocatorDumpGuid;
+}  // namespace base::trace_event
+
+namespace gfx {
+class GpuMemoryBuffer;
+}
+
 namespace media {
 class VideoFrame;
 }  // namespace media
+
+namespace viz {
+class CopyOutputTextureResult;
+}  // namespace viz
 
 namespace gpu {
 
@@ -45,14 +58,15 @@ class TestSharedImageInterface;
 
 struct ExportedSharedImage;
 
-class GPU_EXPORT ClientSharedImage
+// Wrapper around Mailbox and metadata for efficient sharing between threads
+class GPU_COMMAND_BUFFER_CLIENT_EXPORT ClientSharedImage
     : public base::RefCountedThreadSafe<ClientSharedImage> {
  public:
   // Provides access to the CPU visible memory for the SharedImage if it is
   // being used for CPU READ/WRITE and underlying resource(native buffers/shared
   // memory) is CPU mappable. Memory and strides can be requested for each
   // plane.
-  class GPU_EXPORT ScopedMapping {
+  class GPU_COMMAND_BUFFER_CLIENT_EXPORT ScopedMapping {
    public:
     virtual ~ScopedMapping() = default;
 
@@ -119,7 +133,7 @@ class GPU_EXPORT ClientSharedImage
   const Mailbox& mailbox() { return mailbox_; }
   viz::SharedImageFormat format() const { return metadata_.format; }
   gfx::Size size() const { return metadata_.size; }
-  gfx::ColorSpace color_space() const { return metadata_.color_space; }
+  const gfx::ColorSpace& color_space() const { return metadata_.color_space; }
   GrSurfaceOrigin surface_origin() const { return metadata_.surface_origin; }
   SkAlphaType alpha_type() const { return metadata_.alpha_type; }
   SharedImageUsageSet usage() const { return metadata_.usage; }
@@ -132,10 +146,7 @@ class GPU_EXPORT ClientSharedImage
   // Returns a clone of the GpuMemoryBufferHandle associated with this ClientSI.
   // Valid to call only if this instance was created with a non-null
   // GpuMemoryBuffer.
-  gfx::GpuMemoryBufferHandle CloneGpuMemoryBufferHandle() const {
-    CHECK(gpu_memory_buffer_);
-    return gpu_memory_buffer_->CloneHandle();
-  }
+  gfx::GpuMemoryBufferHandle CloneGpuMemoryBufferHandle() const;
 
 #if BUILDFLAG(IS_APPLE)
   // Sets the color space in which the native buffer backing this SharedImage
@@ -216,14 +227,7 @@ class GPU_EXPORT ClientSharedImage
       const SyncToken& sync_token,
       std::unique_ptr<gfx::GpuMemoryBuffer> gpu_memory_buffer,
       gfx::BufferUsage buffer_usage,
-      scoped_refptr<SharedImageInterfaceHolder> sii_holder) {
-    SharedImageInfo info(metadata, "CSICreateForTesting");
-    auto client_si = base::MakeRefCounted<ClientSharedImage>(
-        mailbox, info, sync_token, sii_holder, gpu_memory_buffer->GetType());
-    client_si->gpu_memory_buffer_ = std::move(gpu_memory_buffer);
-    client_si->buffer_usage_ = buffer_usage;
-    return client_si;
-  }
+      scoped_refptr<SharedImageInterfaceHolder> sii_holder);
 
   const SyncToken& creation_sync_token() const { return creation_sync_token_; }
 
@@ -279,15 +283,6 @@ class GPU_EXPORT ClientSharedImage
     ~HelperGpuMemoryBufferManager() override;
 
     // GpuMemoryBufferManager interface implementation.
-    // This method should not be used via this interface. Hence marking it as
-    // NOTREACHED.
-    std::unique_ptr<gfx::GpuMemoryBuffer> CreateGpuMemoryBuffer(
-        const gfx::Size& size,
-        gfx::BufferFormat format,
-        gfx::BufferUsage usage,
-        gpu::SurfaceHandle surface_handle,
-        base::WaitableEvent* shutdown_event) final;
-
     void CopyGpuMemoryBufferAsync(
         gfx::GpuMemoryBufferHandle buffer_handle,
         base::UnsafeSharedMemoryRegion memory_region,
@@ -344,29 +339,24 @@ class GPU_EXPORT ClientSharedImage
   // SharedImageInterface.
   explicit ClientSharedImage(ExportedSharedImage exported_si);
 
+  friend class ::viz::CopyOutputTextureResult;
+  // Creates unowned (no `sii_holder`) `ClientSharedImage`
+  explicit ClientSharedImage(const Mailbox& mailbox,
+                             const SharedImageInfo& info);
+
   // VideoFrame needs this info currently for MappableSI.
   // TODO(crbug.com/40263579): Once MappableSI is fully launched for VideoFrame,
   // VF can be refactored to behave like OPAQUE storage which does not need
   // layout info and hence stride. This method will then no longer needed and
   // can be removed.
-  size_t GetStrideForVideoFrame(uint32_t plane_index) const {
-    CHECK(gpu_memory_buffer_);
-    return gpu_memory_buffer_->stride(plane_index);
-  }
+  size_t GetStrideForVideoFrame(uint32_t plane_index) const;
 
   // Returns whether the underlying resource is shared memory without needing to
   // Map() the shared image. This method is supposed to be used by VideoFrame
   // temporarily as mentioned above in ::GetStrideForVideoFrame().
-  bool IsSharedMemoryForVideoFrame() const {
-    CHECK(gpu_memory_buffer_);
-    return gpu_memory_buffer_->GetType() ==
-           gfx::GpuMemoryBufferType::SHARED_MEMORY_BUFFER;
-  }
+  bool IsSharedMemoryForVideoFrame() const;
 
-  bool AsyncMappingIsNonBlocking() const {
-    CHECK(gpu_memory_buffer_);
-    return gpu_memory_buffer_->AsyncMappingIsNonBlocking();
-  }
+  bool AsyncMappingIsNonBlocking() const;
 
   // This pair of functions are used by SharedImageTexture to notify
   // ClientSharedImage of the beginning and the end of a scoped access.
@@ -399,7 +389,7 @@ class GPU_EXPORT ClientSharedImage
   base::Lock lock_;
 };
 
-struct GPU_EXPORT ExportedSharedImage {
+struct GPU_COMMAND_BUFFER_CLIENT_EXPORT ExportedSharedImage {
  public:
   ExportedSharedImage();
   ~ExportedSharedImage();
@@ -437,9 +427,9 @@ struct GPU_EXPORT ExportedSharedImage {
   uint32_t texture_target_ = 0;
 };
 
-class GPU_EXPORT SharedImageTexture {
+class GPU_COMMAND_BUFFER_CLIENT_EXPORT SharedImageTexture {
  public:
-  class GPU_EXPORT ScopedAccess {
+  class GPU_COMMAND_BUFFER_CLIENT_EXPORT ScopedAccess {
    public:
     ScopedAccess(const ScopedAccess&) = delete;
     ScopedAccess& operator=(const ScopedAccess&) = delete;
@@ -489,7 +479,7 @@ class GPU_EXPORT SharedImageTexture {
   bool has_active_access_ = false;
 };
 
-class GPU_EXPORT RasterScopedAccess {
+class GPU_COMMAND_BUFFER_CLIENT_EXPORT RasterScopedAccess {
  public:
   RasterScopedAccess(const RasterScopedAccess&) = delete;
   RasterScopedAccess& operator=(const RasterScopedAccess&) = delete;

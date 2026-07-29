@@ -33,6 +33,8 @@
 #include "components/omnibox/browser/autocomplete_provider_listener.h"
 #include "components/omnibox/browser/lens_suggest_inputs_utils.h"
 #include "components/omnibox/browser/match_compare.h"
+#include "components/omnibox/browser/omnibox_field_trial.h"
+#include "components/omnibox/browser/omnibox_prefs.h"
 #include "components/omnibox/browser/page_classification_functions.h"
 #include "components/omnibox/browser/remote_suggestions_service.h"
 #include "components/omnibox/browser/search_suggestion_parser.h"
@@ -40,6 +42,7 @@
 #include "components/omnibox/browser/zero_suggest_provider.h"
 #include "components/omnibox/common/omnibox_feature_configs.h"
 #include "components/omnibox/common/omnibox_features.h"
+#include "components/search/search.h"
 #include "components/search_engines/search_engine_type.h"
 #include "components/search_engines/template_url_service.h"
 #include "components/search_engines/template_url_starter_pack_data.h"
@@ -102,33 +105,30 @@ void ContextualSearchProvider::Start(
   // matches the behavior of the `ZeroSuggestProvider`.
   Stop(AutocompleteStopReason::kClobbered);
 
-  if (client()->IsOffTheRecord()) {
-    done_ = true;
-    return;
-  }
-
   const auto [input, starter_pack_engine] = AdjustInputForStarterPackKeyword(
       autocomplete_input, client()->GetTemplateURLService());
   const bool toolbelted = MaybeAddToolbeltMatch(input, starter_pack_engine);
-  if (!starter_pack_engine) {
-    // Note, the dedicated entrypoint match is not added if the toolbelt is
-    // included because the toolbelt will already have an action to serve
-    // as the Lens entrypoint.
-    if (!toolbelted && IsLensEntrypointAvailable(input, client())) {
-      AddLensEntrypointMatch(input);
-    }
+
+  // Note, the dedicated entrypoint match is not added if the toolbelt is
+  // included because the toolbelt will already have an action to serve as the
+  // Lens entrypoint.
+  if (!starter_pack_engine && !toolbelted &&
+      IsLensEntrypointAvailable(input, client())) {
+    AddLensEntrypointMatch(input);
+  }
+
+  if (!starter_pack_engine || client()->IsOffTheRecord()) {
     return;
   }
+
   input_keyword_ = starter_pack_engine->keyword();
-
   AddDefaultVerbatimMatch(input);
-
   // Exit early if the input is not in ZPS keyword mode or the autocomplete
   // input is not allowed to make asynchronous requests.
   if (!input.text().empty() || autocomplete_input.omit_asynchronous_matches()) {
-    done_ = true;
     return;
   }
+
   done_ = false;
   StartSuggestRequest(std::move(input));
 }
@@ -387,11 +387,19 @@ void ContextualSearchProvider::AddDefaultVerbatimMatch(
 bool ContextualSearchProvider::MaybeAddToolbeltMatch(
     const AutocompleteInput& input,
     const TemplateURL* input_starter_pack_engine) {
+  if (input.current_page_classification() ==
+      metrics::OmniboxEventProto::NTP_REALBOX) {
+    return false;
+  }
   const auto& config = omnibox_feature_configs::Toolbelt::Get();
   if (!config.enabled ||
       (!config.keep_toolbelt_after_input && !input.IsZeroSuggest())) {
     return false;
   }
+  if (!client()->GetPrefs()->GetBoolean(omnibox::kShowSearchTools)) {
+    return false;
+  }
+
   AutocompleteMatch match(this, omnibox::kToolbeltRelevance, false,
                           AutocompleteMatchType::NULL_RESULT_MESSAGE);
   match.transition = ui::PAGE_TRANSITION_GENERATED;
@@ -403,8 +411,16 @@ bool ContextualSearchProvider::MaybeAddToolbeltMatch(
     match.description_class = {{0, ACMatchClassification::NONE}};
   }
 
-  if (config.always_include_lens_action ||
-      IsLensEntrypointAvailable(input, client())) {
+  // AI and contextual search are only allowed if the DSE is google and locale
+  // is EN.
+  auto* turl_service = client()->GetTemplateURLService();
+  bool google_dse = search::DefaultSearchProviderIsGoogle(turl_service);
+  bool english_locale =
+      l10n_util::GetLanguage(client()->GetApplicationLocale()) == "en";
+
+  if (config.show_lens_action && google_dse && english_locale &&
+      (config.always_include_lens_action ||
+       IsLensEntrypointAvailable(input, client()))) {
     match.actions.push_back(
         base::MakeRefCounted<ContextualSearchOpenLensAction>());
   }
@@ -412,21 +428,26 @@ bool ContextualSearchProvider::MaybeAddToolbeltMatch(
   // Add the starter pack entry actions only if the given starter pack keyword
   // is enabled.
   auto check_and_add = [&]<typename T>(int starter_pack_id) {
-    if (const TemplateURL* turl =
-            client()->GetTemplateURLService()->FindStarterPackTemplateURL(
-                starter_pack_id)) {
-      if (turl->is_active() == TemplateURLData::ActiveStatus::kTrue) {
-        match.actions.push_back(base::MakeRefCounted<T>());
-      }
-    }
+    const TemplateURL* turl =
+        turl_service->FindStarterPackTemplateURL(starter_pack_id);
+    if (!turl)
+      return;
+    if (turl->is_active() != TemplateURLData::ActiveStatus::kTrue)
+      return;
+    match.actions.push_back(base::MakeRefCounted<T>());
   };
-  check_and_add.operator()<StarterPackBookmarksAction>(
-      TemplateURLStarterPackData::StarterPackID::kBookmarks);
-  check_and_add.operator()<StarterPackTabsAction>(
-      TemplateURLStarterPackData::StarterPackID::kTabs);
-  check_and_add.operator()<StarterPackHistoryAction>(
-      TemplateURLStarterPackData::StarterPackID::kHistory);
-
+  if (config.show_history_action) {
+    check_and_add.operator()<StarterPackHistoryAction>(
+        template_url_starter_pack_data::StarterPackId::kHistory);
+  }
+  if (config.show_bookmarks_action) {
+    check_and_add.operator()<StarterPackBookmarksAction>(
+        template_url_starter_pack_data::StarterPackId::kBookmarks);
+  }
+  if (config.show_tabs_action) {
+    check_and_add.operator()<StarterPackTabsAction>(
+        template_url_starter_pack_data::StarterPackId::kTabs);
+  }
   matches_.push_back(match);
   return true;
 }

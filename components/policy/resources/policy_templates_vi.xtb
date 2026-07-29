@@ -5058,6 +5058,27 @@ Việc đặt <ph name="CHROME_OS_RELEASE_CHANNEL_POLICY_NAME" /> chỉ có hi�
 
       Nếu một chính sách nằm trong danh sách và có xung đột giữa các nguồn, phạm vi hoặc cấp độ, thì chính sách có mức độ ưu tiên cao nhất sẽ được áp dụng.</translation>
 <translation id="4646739075621507361">Báo cáo lệnh in</translation>
+<translation id="4649231830965908577">Chính sách này cho phép quản trị viên thiết lập một công cụ chuyên biệt để tổng hợp nội dung tìm kiếm cho doanh nghiệp. Công cụ này sẽ cung cấp cụm từ tìm kiếm được đề xuất và kết quả tìm kiếm trong thanh địa chỉ và hộp tìm kiếm trên trang Thẻ mới.
+
+Theo mặc định, các cụm từ tìm kiếm được đề xuất cho doanh nghiệp sẽ kết hợp và xuất hiện cùng với các đề xuất <ph name="PRODUCT_NAME" /> thông thường. Người dùng có thể chỉ định rõ phạm vi tìm kiếm của họ chỉ trong công cụ tổng hợp nội dung tìm kiếm dành cho doanh nghiệp bằng cách nhập từ khoá được chỉ định trong trường <ph name="SHORTCUT_SEARCH_AGGREGATOR_SETTINGS_FIELD" /> (có thể dùng hoặc không dùng tiền tố @, ví dụ: <ph name="SHORTCUT_EXAMPLE_SEARCH_AGGREGATOR_SETTINGS" />) rồi nhấn phím cách hoặc phím Tab trong thanh địa chỉ. Hiện tại, tính năng tìm kiếm theo phạm vi cho doanh nghiệp (được kích hoạt bằng một từ khoá) chỉ được hỗ trợ trong thanh địa chỉ, chứ không được hỗ trợ trong hộp tìm kiếm trên trang Thẻ mới.
+
+Các trường sau đây là trường bắt buộc: <ph name="NAME_SEARCH_AGGREGATOR_SETTINGS_FIELD" />, <ph name="SHORTCUT_SEARCH_AGGREGATOR_SETTINGS_FIELD" />, <ph name="SEARCH_URL_SEARCH_AGGREGATOR_SETTINGS_FIELD" />, <ph name="SUGGEST_URL_SEARCH_AGGREGATOR_SETTINGS_FIELD" />.
+
+Trường <ph name="NAME_SEARCH_AGGREGATOR_SETTINGS_FIELD" /> tương ứng với tên công cụ tìm kiếm hiển thị cho người dùng trong thanh địa chỉ.
+
+Trường <ph name="SHORTCUT_SEARCH_AGGREGATOR_SETTINGS_FIELD" /> tương ứng với từ khoá mà người dùng nhập để kích hoạt quá trình tìm kiếm. Lối tắt có thể chứa các từ và ký tự thuần tuý, nhưng không được chứa dấu cách hoặc bắt đầu bằng ký hiệu @. Lối tắt không được trùng lặp.
+
+Trường <ph name="SEARCH_URL_SEARCH_AGGREGATOR_SETTINGS_FIELD" /> chỉ định URL nơi quá trình tìm kiếm sẽ diễn ra. Nhập địa chỉ web cho trang kết quả của công cụ tìm kiếm và sử dụng <ph name="SEARCH_TERM_MARKER" /> thay cho cụm từ tìm kiếm.
+
+Trường <ph name="SUGGEST_URL_SEARCH_AGGREGATOR_SETTINGS_FIELD" /> chỉ định URL cung cấp cụm từ tìm kiếm được đề xuất. Chrome sẽ gửi một yêu cầu POST và cụm từ tìm kiếm của người dùng sẽ được truyền trong các thông số POST theo khoá <ph name="SEARCH_SUGGEST_POST_PARAMS_QUERY_KEY" />.
+
+Trường <ph name="ICON_URL_SEARCH_AGGREGATOR_SETTINGS_FIELD" /> chỉ định URL đến một hình ảnh sẽ được dùng cho các cụm từ tìm kiếm được đề xuất. Nếu bạn không thiết lập trường này, hệ thống sẽ dùng một biểu tượng mặc định. Bạn nên sử dụng biểu tượng trang web (ví dụ: <ph name="ICON_URL_EXAMPLE" />). Hệ thống hỗ trợ các định dạng tệp hình ảnh sau: JPEG, PNG và ICO.
+
+Trường <ph name="REQUIRE_SHORTCUT_SEARCH_AGGREGATOR_SETTINGS_FIELD" /> chỉ định việc có bắt buộc phải có thanh địa chỉ <ph name="SHORTCUT_SEARCH_AGGREGATOR_SETTINGS_FIELD" /> để xem cụm từ tìm kiếm được đề xuất hay không. Nếu cần, hệ thống sẽ không hiển thị đề xuất trong hộp tìm kiếm trên trang Thẻ mới, nhưng sẽ tiếp tục hiển thị trong thanh địa chỉ ở chế độ tìm kiếm theo phạm vi. Nếu bạn không thiết lập trường này thì không bắt buộc phải có thanh địa chỉ <ph name="SHORTCUT_SEARCH_AGGREGATOR_SETTINGS_FIELD" />.
+
+Trên <ph name="MS_WIN_NAME" />, chính sách này chỉ có trên các phiên bản đã liên kết với một miền <ph name="MS_AD_NAME" />, <ph name="MS_AAD_NAME" /> hoặc đã đăng ký <ph name="CHROME_ENTERPRISE_CORE_NAME" />.
+
+Trên <ph name="MAC_OS_NAME" />, chính sách này chỉ có trên các phiên bản được quản lý qua MDM (Quản lý thiết bị di động), đã liên kết với một miền qua MCX hoặc đã đăng ký <ph name="CHROME_ENTERPRISE_CORE_NAME" />.</translation>
 <translation id="4649395978608361979">Đích máy in cục bộ</translation>
 <translation id="4650044303940238102">Chế độ cài đặt Phông chữ trên máy</translation>
 <translation id="4650759511838826572">Tắt lược đồ giao thức URL</translation>
@@ -6160,25 +6181,6 @@ Nếu bạn đặt giá trị này thành true (đúng) hoặc không đặt, th
 
 Nếu bạn đặt chính sách này thành false (sai), thì người dùng sẽ không thể truy cập vào tính năng này.</translation>
 <translation id="5377606826822211923">Kiểm soát việc người dùng sử dụng ứng dụng Android từ những nguồn không tin cậy</translation>
-<translation id="5377826248281933035">Chính sách này cung cấp một danh sách trang web mà người dùng có thể nhanh chóng tìm kiếm bằng cách sử dụng lối tắt trong thanh địa chỉ. Người dùng có thể bắt đầu tìm kiếm bằng cách nhập lối tắt hoặc @lốitắt (ví dụ: @côngviệc) vào thanh địa chỉ, sau đó nhấn phím cách hoặc phím Tab.
-
-Các trường sau đây là trường bắt buộc cho mỗi trang web: <ph name="NAME_SITE_SEARCH_SETTINGS_FIELD" />, <ph name="SHORTCUT_SITE_SEARCH_SETTINGS_FIELD" />, <ph name="URL_SITE_SEARCH_SETTINGS_FIELD" />.
-
-Trường <ph name="NAME_SITE_SEARCH_SETTINGS_FIELD" /> tương ứng với tên trang web hoặc tên công cụ tìm kiếm sẽ hiển thị cho người dùng trong thanh địa chỉ.
-
-<ph name="SHORTCUT_SITE_SEARCH_SETTINGS_FIELD" /> có thể chứa các từ và ký tự thuần tuý, nhưng không được chứa dấu cách hoặc bắt đầu bằng ký hiệu @. Lối tắt cũng phải là lối tắt duy nhất.
-
-Đối với mỗi mục nhập, trường <ph name="URL_SITE_SEARCH_SETTINGS_FIELD" /> chỉ định URL của công cụ tìm kiếm được dùng trong quá trình tìm kiếm với từ khoá tương ứng. URL đó phải chứa chuỗi <ph name="SEARCH_TERM_MARKER" />. Chuỗi này sẽ được thay bằng cụm từ tìm kiếm của người dùng trong truy vấn. Các mục nhập không hợp lệ và các mục nhập có lối tắt trùng lặp sẽ bị bỏ qua.
-
-Các mục nhập tìm kiếm trên trang web được định cấu hình là mục nổi bật sẽ hiển thị trong thanh địa chỉ khi người dùng nhập "@". Có thể chọn tối đa ba mục nhập làm mục nổi bật.
-
-Người dùng không thể chỉnh sửa hoặc vô hiệu hoá các mục nhập tìm kiếm trên trang web do chính sách đặt, nhưng có thể thêm lối tắt mới cho cùng một URL. Ngoài ra, người dùng không thể tạo mục nhập tìm kiếm mới trên trang web bằng lối tắt đã được tạo trước đó thông qua chính sách này.
-
-Trong trường hợp xung đột với lối tắt mà người dùng đã tạo trước đó, thì chế độ cài đặt của người dùng sẽ được ưu tiên. Tuy nhiên, người dùng vẫn có thể kích hoạt lựa chọn do chính sách tạo bằng cách nhập "@" vào thanh tìm kiếm. Ví dụ: Nếu người dùng đã xác định "côngviệc" là lối tắt đến URL1 và chính sách xác định "côngviệc" là lối tắt đến URL2, thì việc nhập "côngviệc" vào thanh tìm kiếm sẽ kích hoạt thao tác tìm kiếm đến URL1 nhưng việc nhập "@côngviệc" vào thanh tìm kiếm sẽ kích hoạt thao tác tìm kiếm đến URL2.
-
-Trên <ph name="MS_WIN_NAME" />, chính sách này chỉ có trên các phiên bản đã liên kết với một miền <ph name="MS_AD_NAME" />, <ph name="MS_AAD_NAME" /> hoặc đã đăng ký <ph name="CHROME_ENTERPRISE_CORE_NAME" />.
-
-Trên <ph name="MAC_OS_NAME" />, chính sách này chỉ có trên các phiên bản được quản lý qua MDM (Quản lý thiết bị di động), đã liên kết với một miền qua MCX hoặc đã đăng ký <ph name="CHROME_ENTERPRISE_CORE_NAME" />.</translation>
 <translation id="537786648513450280">Kiểm soát việc thiết bị dùng ứng dụng Android từ các nguồn không tin cậy</translation>
 <translation id="5378885577701865339">Tắt tính năng bảng nhớ tạm dùng chung</translation>
 <translation id="538108065117008131">Cho phép <ph name="PRODUCT_FRAME_NAME" /> xử lý các loại nội dung sau.</translation>
@@ -6790,6 +6792,9 @@ Trên <ph name="MS_WIN_NAME" />, chính sách này chỉ có trên các phiên b
 <translation id="5740636973289452345">Bật chính sách báo cáo thông tin về tiện ích và trình bổ trợ</translation>
 <translation id="5740716956489996914">Sử dụng hành vi mặc định khi xác định xem các trang web có thể gửi yêu cầu đến thiết bị đầu cuối trên mạng cục bộ hay không</translation>
 <translation id="5741110260062082926">Tắt Orca</translation>
+<translation id="5746126833785204233">Nếu bạn đặt chính sách này thành Bật, nhật ký ở cấp ứng dụng kiosk sẽ được thu thập khi một ứng dụng kiosk chạy trên thiết bị. Nhật ký sẽ được thu thập cho tất cả các loại ứng dụng kiosk.
+Các nhật ký này sẽ được lưu trữ trong một tệp kiosk_apps.log riêng.
+Nếu bạn không đặt chính sách này hoặc đặt chính sách này thành Tắt, thì hệ thống sẽ không thu thập nhật ký cấp ứng dụng Kiosk.</translation>
 <translation id="5746149754419996562">Cho phép Tiện ích xem nhanh hiện diện trên <ph name="PRODUCT_OS_NAME" />. Cụ thể, người dùng sẽ có thể truy cập các tiện ích này qua khối ngày trên kệ.
 Khi bạn bật chính sách này, Tiện ích xem nhanh sẽ bật trên <ph name="PRODUCT_OS_NAME" />.
 Khi bạn tắt hoặc không đặt chính sách này, Tiện ích xem nhanh sẽ không bật trên <ph name="PRODUCT_OS_NAME" />.</translation>
@@ -8465,6 +8470,11 @@ Trên <ph name="MS_WIN_NAME" />, chính sách này chỉ có trên các phiên b
 <translation id="6802412020718145539">Trình xem PDF sử dụng cấu trúc OOPIF.</translation>
 <translation id="68031099365512050">Báo cáo trạng thái âm thanh</translation>
 <translation id="680356860463873420">Không cho phép người dùng sử dụng PluginVm</translation>
+<translation id="6807707420322335446">Nếu bạn đặt chính sách này thành Bật, các phần tử trang web không thuộc miền trong thanh địa chỉ của trình duyệt sẽ không thể đặt cookie. Nếu bạn đặt chính sách này thành Tắt, các phần tử trang web đó sẽ có thể đặt cookie và người dùng sẽ không thể thay đổi chế độ cài đặt này.
+
+      Nếu không đặt chính sách này, bạn sẽ cho phép cookie của bên thứ ba nhưng người dùng có thể thay đổi chế độ cài đặt này.
+
+      Lưu ý: Chính sách này không áp dụng trong chế độ ẩn danh. Ở chế độ ẩn danh, cookie của bên thứ ba sẽ bị chặn và bạn chỉ có thể cho phép ở cấp trang web. Để cho phép cookie ở cấp trang web, hãy sử dụng chính sách <ph name="COOKIES_ALLOWED_FOR_URLS_POLICY_NAME" />.</translation>
 <translation id="6810445994095397827">Chặn JavaScript trên các trang web này</translation>
 <translation id="6813263547126514821">Bật và tắt nguồn</translation>
 <translation id="681446116407619279">Các giao thức xác thực được hỗ trợ</translation>
@@ -8607,6 +8617,7 @@ Nếu bạn không đặt chính sách <ph name="DEVICE_POWER_BATTERY_CHARGING_O
 <translation id="6907778402784621686">Chặn nội dung không an toàn trên các trang web này</translation>
 <translation id="6908335885425855120">Dùng Trình xem PDF sử dụng iframe ngoài quy trình</translation>
 <translation id="6908640907898649429">Định cấu hình nhà cung cấp dịch vụ tìm kiếm mặc định. Bạn có thể chỉ định nhà cung cấp dịch vụ tìm kiếm mặc định mà người dùng sẽ sử dụng hoặc chọn tắt tìm kiếm mặc định.</translation>
+<translation id="6910715067772088598">Tắt nhật ký ứng dụng Kiosk</translation>
 <translation id="6913068954484253496">Cho phép <ph name="PRODUCT_NAME" /> kết nối với Thiết bị truyền trên tất cả các địa chỉ IP.</translation>
 <translation id="6915493311660114995">Nếu bạn đặt chính sách này thành Bật, <ph name="PRODUCT_NAME" /> sẽ
 cho phép yêu cầu Xác thực web trên các trang web có chứng chỉ TLS kèm theo
@@ -8685,6 +8696,7 @@ Chính sách này sẽ bị xoá trong tương lai, sau khi chúng tôi triển 
       Nếu bạn không đặt chính sách này, sẽ không có máy in nào trên thiết bị, đồng thời, các chính sách <ph name="DEVICE_PRINTERS_POLICY_PATTERN" /> sẽ bị bỏ qua.</translation>
 <translation id="69525503251220566">Tham số cung cấp tính năng tìm theo hình ảnh cho nhà cung cấp dịch vụ tìm kiếm mặc định</translation>
 <translation id="6953102253399571439">Cho phép in mã PIN theo mặc định</translation>
+<translation id="695532899547292238">Bật tính năng thu thập nhật ký ứng dụng kiosk</translation>
 <translation id="6956272732789158625">Không cho phép bất kỳ trang web nào sử dụng tạo khóa</translation>
 <translation id="6960996423652450945">Tắt tính năng làm nổi bật con nháy trên màn hình đăng nhập</translation>
 <translation id="6961602002757991199">Nếu bạn đặt chính sách này thành một URL hợp lệ, thì <ph name="PRODUCT_NAME" /> sẽ tải danh sách trang web xuống từ URL đó, rồi áp dụng các quy tắc như thể các quy tắc đó được định cấu hình bằng chính sách <ph name="BROWSER_SWITCHER_URL_GREYLIST_POLICY_NAME" />. Các chính sách này ngăn <ph name="PRODUCT_NAME" /> mở trình duyệt thay thế và ngược lại.
@@ -9493,6 +9505,7 @@ Nếu bạn để trống chính sách này, <ph name="FLOATING_SSO_DOMAIN_BLOCK
 <translation id="7586199729147257934">Bật tính năng cấp chứng chỉ máy khách cho trình duyệt được quản lý</translation>
 <translation id="7587345076013230465">Nhắc người dùng chọn chứng chỉ máy khách mỗi khi chính sách tự động chọn khớp với nhiều chứng chỉ trên màn hình đăng nhập</translation>
 <translation id="7587921466180902617">Bật thử nghiệm nội bộ Screencast cho người dùng Family Link</translation>
+<translation id="7588140323025689972">Bật nhật ký ứng dụng Kiosk</translation>
 <translation id="7595074040612182185">Khi đặt chính sách này, bạn có thể tạo danh sách các mẫu URL để chỉ định những trang web được phép hiển thị hình ảnh.
 
       Khi bạn không đặt giá trị cho chính sách này, <ph name="DEFAULT_IMAGES_SETTING_ENABLED_POLICY_NAME" /> (nếu được đặt) sẽ áp dụng cho mọi trang web. Nếu không, chế độ cài đặt do người dùng chọn sẽ được áp dụng.
@@ -10294,13 +10307,6 @@ lỗi tương ứng sẽ xảy ra.
 Trên <ph name="MS_WIN_NAME" />, chính sách này chỉ có trên các phiên bản đã liên kết với một miền <ph name="MS_AD_NAME" />, <ph name="MS_AAD_NAME" /> hoặc đã đăng ký <ph name="CHROME_ENTERPRISE_CORE_NAME" />.
 
 Trên <ph name="MAC_OS_NAME" />, chính sách này chỉ có trên các phiên bản được quản lý qua MDM (Quản lý thiết bị di động), đã liên kết với một miền qua MCX hoặc đã đăng ký <ph name="CHROME_ENTERPRISE_CORE_NAME" />.</translation>
-<translation id="8213475033260328041">Chọn lưu trữ dữ liệu được áp dụng từ <ph name="PRODUCT_NAME" /> ở một vị trí địa lý cụ thể.
-
-Nếu bạn không đặt chính sách này hoặc đặt thành <ph name="DATA_REGION_SETTING_NO_PREFERENCE_OPTION_NAME" /> (giá trị 0) thì dữ liệu được áp dụng có thể được lưu trữ ở vị trí địa lý bất kỳ.
-
-Nếu bạn đặt chính sách này thành <ph name="DATA_REGION_SETTING_UNITED_STATES_OPTION_NAME" /> (giá trị 1) thì dữ liệu được áp dụng sẽ được lưu trữ ở Hoa Kỳ.
-
-Nếu bạn đặt chính sách này thành <ph name="DATA_REGION_SETTING_EUROPE_OPTION_NAME" /> (giá trị 2) thì dữ liệu được áp dụng sẽ được lưu trữ ở Châu Âu.</translation>
 <translation id="8213770777756919897">Lưu ý rằng chúng tôi không dùng chính sách này nữa và sẽ xóa khỏi <ph name="PRODUCT_OS_NAME" /> phiên bản 85. Thay vào đó, vui lòng sử dụng <ph name="POWER_MANAGEMENT_IDLE_SETTINGS_POLICY_NAME" />.
 
           Khi bạn đặt, chính sách này sẽ chỉ định hành động mà <ph name="PRODUCT_OS_NAME" /> thực hiện khi người dùng tạm vắng trong khoảng thời gian cho trước theo thời gian chờ khi tạm vắng. Bạn có thể định cấu hình riêng biệt khoảng thời gian này.
@@ -10660,6 +10666,11 @@ Nếu bạn đặt chính sách này thành <ph name="PROVISION_MANAGED_CLIENT_C
       Nếu bạn không đặt chính sách này, thì <ph name="PRODUCT_NAME" /> sẽ cho phép người dùng kiểm soát xem đây có phải là trình duyệt mặc định hay không; nếu không phải là trình duyệt mặc định, thì có hiển thị thông báo cho người dùng hay không.
 
       Lưu ý: Đối với quản trị viên <ph name="MS_WIN_NAME" />, thao tác bật tùy chọn cài đặt này chỉ thực hiện được trên máy chạy Windows 7. Đối với các phiên bản mới, bạn phải triển khai tệp "liên kết ứng dụng mặc định" để đặt <ph name="PRODUCT_NAME" /> làm trình xử lý cho giao thức <ph name="HTTPS_PROTOCOL" /> và <ph name="HTTP_PROTOCOL" /> (và giao thức <ph name="FTP_PROTOCOL" /> cũng như các định dạng tệp khác (không bắt buộc)). Xem phần Trợ giúp về Chrome (https://support.google.com/chrome?p=make_chrome_default_win).</translation>
+<translation id="8437836857126992452">Cho phép bạn chỉ định những tiện ích mà người dùng KHÔNG THỂ cài đặt. Những tiện ích đã cài đặt sẽ tắt nếu bị chặn. Người dùng không có cách nào để bật những tiện ích đó. Sau khi bạn xoá một tiện ích (bị tắt do thuộc danh sách chặn) khỏi danh sách chặn, thì tiện ích này sẽ tự động được bật lại.
+
+          Giá trị danh sách chặn là "*" có nghĩa là tất cả tiện ích đều bị chặn theo mặc định. Các tiện ích có tên rõ ràng trong danh sách cho phép sẽ được cho phép nếu ở định dạng có chữ ký (nén). Tất cả tiện ích không được nén đều bị chặn.
+
+          Nếu bạn không đặt chính sách này thì người dùng có thể cài đặt bất kỳ tiện ích nào trong <ph name="PRODUCT_NAME" />.</translation>
 <translation id="8441105784056442638">Bật tính năng khôi phục hoàn toàn</translation>
 <translation id="844322176712318428">Cho phép Translator API</translation>
 <translation id="8444157920689124099">Bật tính năng Mã hoá liên kết ứng dụng</translation>

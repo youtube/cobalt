@@ -1534,6 +1534,9 @@ inline constexpr char kPinnedTabs[] = "pinned_tabs";
 // Preference to disable 3D APIs (WebGL, Pepper 3D).
 inline constexpr char kDisable3DAPIs[] = "disable_3d_apis";
 
+// Preference to enable SwiftShader for WebGL fallback.
+inline constexpr char kEnableUnsafeSwiftShader[] = "enable_unsafe_swiftshader";
+
 // Whether to enable hyperlink auditing ("<a ping>").
 inline constexpr char kEnableHyperlinkAuditing[] = "enable_a_ping";
 
@@ -1583,16 +1586,6 @@ inline constexpr char kImportDialogSavedPasswords[] =
     "import_dialog_saved_passwords";
 inline constexpr char kImportDialogSearchEngine[] =
     "import_dialog_search_engine";
-
-#if BUILDFLAG(IS_CHROMEOS)
-// Boolean controlling whether native client is force allowed by policy.
-inline constexpr char kNativeClientForceAllowed[] =
-    "native_client_force_allowed";
-inline constexpr char kDeviceNativeClientForceAllowed[] =
-    "device_native_client_force_allowed";
-inline constexpr char kDeviceNativeClientForceAllowedCache[] =
-    "device_native_client_force_allowed_cache";
-#endif
 
 // Profile avatar and name
 inline constexpr char kProfileAvatarIndex[] = "profile.avatar_index";

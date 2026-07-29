@@ -4,6 +4,7 @@
 
 static_library("browser") {
   sources = [
+    "device_delegate.h",
     "facilitated_payments_api_client.h",
     "facilitated_payments_client.cc",
     "facilitated_payments_client.h",
@@ -19,6 +20,8 @@ static_library("browser") {
     "network_api/facilitated_payments_initiate_payment_response_details.h",
     "network_api/facilitated_payments_network_interface.cc",
     "network_api/facilitated_payments_network_interface.h",
+    "network_api/get_details_for_pix_account_linking_request.cc",
+    "network_api/get_details_for_pix_account_linking_request.h",
     "network_api/multiple_request_facilitated_payments_network_interface.cc",
     "network_api/multiple_request_facilitated_payments_network_interface.h",
     "payment_link_manager.cc",
@@ -53,6 +56,7 @@ source_set("unit_tests") {
     "network_api/facilitated_payments_initiate_payment_request_details_unittest.cc",
     "network_api/facilitated_payments_initiate_payment_request_unittest.cc",
     "network_api/facilitated_payments_network_interface_unittest.cc",
+    "network_api/get_details_for_pix_account_linking_request_unittest.cc",
     "network_api/multiple_request_facilitated_payments_network_interface_unittest.cc",
     "payment_link_manager_unittest.cc",
     "pix_account_linking_manager_unittest.cc",
@@ -80,6 +84,8 @@ source_set("unit_tests") {
 static_library("test_support") {
   testonly = true
   sources = [
+    "mock_device_delegate.cc",
+    "mock_device_delegate.h",
     "mock_facilitated_payments_api_client.cc",
     "mock_facilitated_payments_api_client.h",
     "mock_facilitated_payments_client.cc",

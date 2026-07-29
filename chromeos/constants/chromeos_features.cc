@@ -236,6 +236,12 @@ BASE_FEATURE(kFeatureManagementRoundedWindows,
              "FeatureManagementRoundedWindows",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+// Enables the reworked implementation of usage indicators for the
+// `getAllScreensMedia` API.
+BASE_FEATURE(kMultiCaptureReworkedUsageIndicators,
+             "MultiCaptureReworkedUsageIndicators",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // Enables the first wave of new features for the chrome.enterprise.platformKeys
 // API. That includes:
 //   - a new key type (RSA-OAEP) with a new allowed key usage (unwrapKey).
@@ -385,6 +391,11 @@ BASE_FEATURE(kNotebookLmAppShelfPin,
 BASE_FEATURE(kNotebookLmAppShelfPinReset,
              "NotebookLmAppShelfPinReset",
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Enables support for protocols handlers registered via web app manifest.
+BASE_FEATURE(kWebAppManifestProtocolHandlerSupport,
+             "WebAppManifestProtocolHandlerSupport",
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 const char kRoundedWindowsRadius[] = "window_radius";
 
@@ -594,6 +605,10 @@ int RoundedWindowsRadius() {
   return base::GetFieldTrialParamByFeatureAsInt(kRoundedWindows,
                                                 kRoundedWindowsRadius,
                                                 /*default_value=*/12);
+}
+
+bool IsWebAppManifestProtocolHandlerSupportEnabled() {
+  return base::FeatureList::IsEnabled(kWebAppManifestProtocolHandlerSupport);
 }
 
 }  // namespace chromeos::features

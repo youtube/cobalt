@@ -167,9 +167,12 @@ AutofillField* GetBestPossibleCVCFieldForUpload(
 // Returns the FieldTypes for some given EntityInstance defines a non-empty
 // value.
 //
+// If kAutofillAiNoTagTypes is disabled:
 // This may not just include Autofill AI types like PASSPORT_NUMBER but
 // also tag types like PASSPORT_NAME_TAG together with the refined type like
 // NAME_FIRST.
+// TODO(crbug.com/422563282): Remove comment when cleaning up
+// kAutofillAiNoTagTypes.
 FieldTypeSet GetAvailableAutofillAiFieldTypes(
     base::span<const EntityInstance> entities,
     const std::string& app_locale) {
@@ -182,7 +185,9 @@ FieldTypeSet GetAvailableAutofillAiFieldTypes(
         bool is_empty = comparator.HasOnlySkippableCharacters(attribute.GetInfo(
             field_type, comparator.app_locale(), std::nullopt));
         if (!is_empty) {
-          types.insert(attribute.type().field_type());
+          if (!base::FeatureList::IsEnabled(features::kAutofillAiNoTagTypes)) {
+            types.insert(attribute.type().field_type());
+          }
           types.insert(field_type);
         }
       }
@@ -194,9 +199,12 @@ FieldTypeSet GetAvailableAutofillAiFieldTypes(
 // Returns the FieldTypes for some given EntityInstance has an attribute whose
 // value matches `value_u16`.
 //
+// If kAutofillAiNoTagTypes is disabled:
 // This may not just include Autofill AI types like PASSPORT_NUMBER but
 // also tag types like PASSPORT_NAME_TAG together with the refined type like
 // NAME_FIRST.
+// TODO(crbug.com/422563282): Remove comment when cleaning up
+// kAutofillAiNoTagTypes.
 FieldTypeSet GetPossibleAutofillAiFieldTypes(
     base::span<const EntityInstance> entities,
     std::u16string_view value_u16,
@@ -220,7 +228,9 @@ FieldTypeSet GetPossibleAutofillAiFieldTypes(
                               std::nullopt),
             AutofillProfileComparator::DISCARD_WHITESPACE);
         if (matches) {
-          types.insert(attribute.type().field_type());
+          if (!base::FeatureList::IsEnabled(features::kAutofillAiNoTagTypes)) {
+            types.insert(attribute.type().field_type());
+          }
           types.insert(field_type);
         }
       }

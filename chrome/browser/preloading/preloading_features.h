@@ -13,6 +13,12 @@ namespace features {
 // DSE Prewarm tracked at https://crbug.com/406378765.
 BASE_DECLARE_FEATURE(kPrewarm);
 BASE_DECLARE_FEATURE_PARAM(std::string, kPrewarmUrl);
+BASE_DECLARE_FEATURE_PARAM(bool, kPrewarmZeroSuggestTrigger);
+
+// If enabled, requests the compositor warm-up (crbug.com/41496019) for
+// each prerender trigger.
+BASE_DECLARE_FEATURE(kPrerender2WarmUpCompositorForBookmarkBar);
+BASE_DECLARE_FEATURE(kPrerender2WarmUpCompositorForNewTabPage);
 
 }  // namespace features
 

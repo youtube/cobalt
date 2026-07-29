@@ -4849,6 +4849,26 @@ Kyber の提供には下位互換性があります。既存の TLS サーバー
 
       ポリシーがリストになく、ソース、スコープ、レベル間で矛盾がある場合は、優先度の最も高いポリシーが適用されます。</translation>
 <translation id="4646739075621507361">印刷ジョブを報告する</translation>
+<translation id="4649231830965908577">このポリシーでは、管理者がエンタープライズ検索アグリゲータを設定できます。アグリゲータは、アドレスバーと新しいタブページの検索ボックスに検索候補と検索結果を表示します。
+
+デフォルトでは、エンタープライズ検索の候補は、通常の <ph name="PRODUCT_NAME" /> の候補と合わせて表示されます。ユーザーは、<ph name="SHORTCUT_SEARCH_AGGREGATOR_SETTINGS_FIELD" /> フィールドで指定されたキーワードまたはこれに @ 接頭辞（<ph name="SHORTCUT_EXAMPLE_SEARCH_AGGREGATOR_SETTINGS" /> など）を付けてアドレスバーに入力し、Space キーまたは Tab キーを押すことで、エンタープライズ検索アグリゲータのみを検索対象として明示的に指定できます。対象を限定したエンタープライズ検索（キーワードでトリガーされる）は、現在のところアドレスバーでのみサポートされており、新しいタブページの検索ボックスではサポートされていません。
+<ph name="NAME_SEARCH_AGGREGATOR_SETTINGS_FIELD" />、<ph name="SHORTCUT_SEARCH_AGGREGATOR_SETTINGS_FIELD" />、<ph name="SEARCH_URL_SEARCH_AGGREGATOR_SETTINGS_FIELD" />、<ph name="SUGGEST_URL_SEARCH_AGGREGATOR_SETTINGS_FIELD" /> のフィールドは必須です。
+
+<ph name="NAME_SEARCH_AGGREGATOR_SETTINGS_FIELD" /> フィールドには、アドレスバーに表示する検索エンジン名を指定します。
+
+<ph name="SHORTCUT_SEARCH_AGGREGATOR_SETTINGS_FIELD" /> フィールドには、ユーザーが検索を開始するために入力するキーワードを指定します。ショートカットには通常の単語や文字を指定できますが、スペースを含めたり、先頭に「@」記号を付けたりすることはできません。ショートカットは一意である必要があります。
+
+<ph name="SEARCH_URL_SEARCH_AGGREGATOR_SETTINGS_FIELD" /> フィールドには、検索する URL を指定します。検索結果ページのウェブアドレスを入力します。検索語句の部分は「<ph name="SEARCH_TERM_MARKER" />」に置き換えます。
+
+<ph name="SUGGEST_URL_SEARCH_AGGREGATOR_SETTINGS_FIELD" /> フィールドには、検索候補を提供する URL を指定します。この URL に POST リクエストが送信され、ユーザーの検索語句は <ph name="SEARCH_SUGGEST_POST_PARAMS_QUERY_KEY" /> キーの POST パラメータで渡されます。
+
+<ph name="ICON_URL_SEARCH_AGGREGATOR_SETTINGS_FIELD" /> フィールドには、検索候補に表示する画像の URL を指定します。このフィールドが設定されていない場合は、デフォルトのアイコンが使用されます。ファビコン（例: <ph name="ICON_URL_EXAMPLE" />）を使用することをおすすめします。サポートされている画像ファイル形式は、JPEG、PNG、ICO です。
+
+<ph name="REQUIRE_SHORTCUT_SEARCH_AGGREGATOR_SETTINGS_FIELD" /> フィールドでは、検索候補の表示にアドレスバーの <ph name="SHORTCUT_SEARCH_AGGREGATOR_SETTINGS_FIELD" /> を必要とするかどうかを指定します。必要とするよう指定した場合、候補は新しいタブページの検索ボックスには表示されませんが、対象を限定した検索モードではアドレスバーに表示されます。このフィールドが設定されていない場合、アドレスバーの <ph name="SHORTCUT_SEARCH_AGGREGATOR_SETTINGS_FIELD" /> は必要とされません。
+
+<ph name="MS_WIN_NAME" /> では、<ph name="MS_AD_NAME" /> ドメインに追加されたインスタンス、<ph name="MS_AAD_NAME" /> に追加されたインスタンス、または <ph name="CHROME_ENTERPRISE_CORE_NAME" /> に登録されているインスタンスでのみこのポリシーを使用できます。
+
+<ph name="MAC_OS_NAME" /> では、MDM を介して管理されるインスタンス、MCX を介してドメインに追加されたインスタンス、または <ph name="CHROME_ENTERPRISE_CORE_NAME" /> に登録されているインスタンスでのみこのポリシーを使用できます。</translation>
 <translation id="4649395978608361979">ローカル プリンタの送信先</translation>
 <translation id="4650044303940238102">ローカル フォントの設定</translation>
 <translation id="4650759511838826572">URL プロトコル スキームを無効にする</translation>
@@ -5832,25 +5852,6 @@ URL パターンと処理タイプの組み合わせのリストを指定しま�
 
 false に設定した場合、教師はこの機能にアクセスできません。</translation>
 <translation id="5377606826822211923">信頼できない提供元の Android アプリの使用をユーザー単位で管理する</translation>
-<translation id="5377826248281933035">このポリシーでは、ユーザーがアドレスバーでショートカットを使用してすばやく検索できるサイトのリストを指定します。ユーザーはアドレスバーにショートカットまたは @ショートカット（「@仕事」など）を入力し、Space キーまたは Tab キーを押して検索を開始できます。
-
-サイトごとに、<ph name="NAME_SITE_SEARCH_SETTINGS_FIELD" />、<ph name="SHORTCUT_SITE_SEARCH_SETTINGS_FIELD" />、<ph name="URL_SITE_SEARCH_SETTINGS_FIELD" /> のフィールドを指定する必要があります。
-
-<ph name="NAME_SITE_SEARCH_SETTINGS_FIELD" /> フィールドには、アドレスバーに表示するサイト名または検索エンジン名を指定します。
-
-<ph name="SHORTCUT_SITE_SEARCH_SETTINGS_FIELD" /> には通常の単語や文字を指定できますが、スペースを含めたり、先頭に「@」記号を付けたりすることはできません。また、ショートカットは一意にする必要があります。
-
-各エントリの <ph name="URL_SITE_SEARCH_SETTINGS_FIELD" /> フィールドには、対応するキーワードでの検索に使用する検索エンジンの URL を指定します。この URL には <ph name="SEARCH_TERM_MARKER" /> という文字列を含める必要があります。この文字列は、クエリの送信時にユーザーが指定した検索キーワードに置き換えられます。無効なエントリや、ショートカットが重複しているエントリは無視されます。
-
-ユーザーがアドレスバーに「@」と入力すると、おすすめに設定したサイト内検索のエントリが表示されます。おすすめのエントリは 3 つまで選択できます。
-
-ユーザーは、ポリシーで設定されたサイト内検索のエントリを編集したり無効にしたりすることはできませんが、同じ URL に新しいショートカットを追加することはできます。また、ユーザーは、このポリシーで作成したショートカットを使用して、サイト内検索のエントリを新たに作成することはできません。
-
-ユーザーが事前に作成したショートカットと競合する場合は、ユーザーの設定が優先されます。ただし、ユーザーが検索バーに「@」と入力すると、ポリシーで作成したオプションがトリガーされます。たとえば、ユーザーが「仕事」を URL1 のショートカットにすでに定義していて、ポリシーで「仕事」を URL2 のショートカットに定義した場合、検索バーに「仕事」と入力すると URL1 の検索がトリガーされますが、「@仕事」と入力すると、URL2 の検索がトリガーされます。
-
-<ph name="MS_WIN_NAME" /> では、<ph name="MS_AD_NAME" /> ドメインに追加されたインスタンス、<ph name="MS_AAD_NAME" /> に追加されたインスタンス、または <ph name="CHROME_ENTERPRISE_CORE_NAME" /> に登録されているインスタンスでのみこのポリシーを使用できます。
-
-<ph name="MAC_OS_NAME" /> では、MDM を介して管理されるインスタンス、MCX を介してドメインに追加されたインスタンス、または <ph name="CHROME_ENTERPRISE_CORE_NAME" /> に登録されているインスタンスでのみこのポリシーを使用できます。</translation>
 <translation id="537786648513450280">信頼できない提供元の Android アプリの使用をデバイス単位で管理する</translation>
 <translation id="5378885577701865339">クリップボードの共有機能を無効にする</translation>
 <translation id="538108065117008131"><ph name="PRODUCT_FRAME_NAME" /> に対して次のコンテンツ タイプの処理を許可する</translation>
@@ -6420,6 +6421,9 @@ URL パターンは、<ph name="DIRECT_SOCKETS_PRIVATE_NETWORK_ACCESS_BLOCKED_FO
 <translation id="5740636973289452345">拡張機能とプラグインの情報のレポートを有効にする</translation>
 <translation id="5740716956489996914">ウェブサイトからローカル ネットワーク エンドポイントにリクエストできるかどうかを判断する際にデフォルトの動作を使用する</translation>
 <translation id="5741110260062082926">Orca を無効にする</translation>
+<translation id="5746126833785204233">このポリシーを有効に設定した場合、キオスク アプリケーションがデバイスで実行されているときに、キオスク アプリケーション レベルのログが収集されます。ログは、すべてのキオスク アプリケーション タイプについて収集されます。
+これらのログは、個別の kiosk_apps.log ファイルに保存されます。
+このポリシーを未設定のままにするか無効に設定した場合、キオスク アプリケーション レベルのログは収集されません。</translation>
 <translation id="5746149754419996562"><ph name="PRODUCT_OS_NAME" /> で Glanceable ウィジェットの表示を有効にします。具体的には、シェルフの日付チップからアクセスできるウィジェットです。
 このポリシーを有効にすると、Glanceables は <ph name="PRODUCT_OS_NAME" /> で有効になります。
 このポリシーを無効にするか未設定のままにした場合、Glanceables は <ph name="PRODUCT_OS_NAME" /> で有効になりません。</translation>
@@ -7985,6 +7989,11 @@ Chrome 114 までは、このポリシーを使用するには <ph name="SYNC_DI
 <translation id="6802412020718145539">PDF ビューアで OOPIF アーキテクチャを使用する。</translation>
 <translation id="68031099365512050">音声の状態を報告する</translation>
 <translation id="680356860463873420">ユーザーに PluginVm の使用を許可しない</translation>
+<translation id="6807707420322335446">このポリシーを有効に設定した場合、ブラウザのアドレスバーに表示されているドメイン以外のウェブページ要素からは、Cookie を設定できなくなります。このポリシーを無効に設定した場合、これらの要素による Cookie の設定が許可され、ユーザーはこの設定を変更できません。
+
+      このポリシーを未設定のままにした場合、サードパーティ Cookie は許可されますが、ユーザーはこの設定を変更できます。
+
+      注: このポリシーはシークレット モードには適用されません。シークレット モードでは、サードパーティ Cookie はブロックされ、サイトレベルでのみ許可できます。サイトレベルで Cookie を許可するには、<ph name="COOKIES_ALLOWED_FOR_URLS_POLICY_NAME" /> ポリシーを使用します。</translation>
 <translation id="6810445994095397827">これらのサイトの JavaScript をブロックする</translation>
 <translation id="6813263547126514821">電源とシャットダウン</translation>
 <translation id="681446116407619279">サポートされる認証スキーム</translation>
@@ -8121,6 +8130,7 @@ false に設定するか未設定のままにした場合、このレイアウ�
 <translation id="6907778402784621686">指定サイトで安全でないコンテンツをブロックする</translation>
 <translation id="6908335885425855120">プロセス外の iframe PDF ビューアを使用する</translation>
 <translation id="6908640907898649429">デフォルトの検索プロバイダを設定します。ユーザーが使用するデフォルトの検索プロバイダを指定するか、既定の検索を無効にすることができます。</translation>
+<translation id="6910715067772088598">キオスク アプリケーションのログを無効にする</translation>
 <translation id="6913068954484253496">すべての IP アドレスのキャスト デバイスに接続することを <ph name="PRODUCT_NAME" /> に許可する</translation>
 <translation id="6915493311660114995">有効に設定した場合、<ph name="PRODUCT_NAME" /> では、TLS 証明書にエラーがあるウェブサイト（ウェブサイトが安全でないと判断されるなど）でウェブ認証リクエストを許可します。このポリシーを無効に設定するか未設定のままにした場合、このようなリクエストをブロックするデフォルトの動作が適用されます。</translation>
 <translation id="6915524162137327111">管理ラベルを 30 秒間表示する</translation>
@@ -8192,6 +8202,7 @@ URL パターンは、<ph name="CONTROLLED_FRAME_ALLOWED_FOR_URLS_POLICY_NAME" /
       未設定の場合、デバイス プリンタは存在しないことになり、他の <ph name="DEVICE_PRINTERS_POLICY_PATTERN" /> ポリシーは無視されます。</translation>
 <translation id="69525503251220566">既定の検索プロバイダに画像検索機能を提供するパラメータ</translation>
 <translation id="6953102253399571439">デフォルトで PIN の印刷を有効にします</translation>
+<translation id="695532899547292238">キオスク アプリケーションのログの収集を有効にする</translation>
 <translation id="6956272732789158625">すべてのサイトにキー生成の使用を許可しない</translation>
 <translation id="6960996423652450945">ログイン画面でテキスト カーソルによるハイライト表示を無効にする</translation>
 <translation id="6961602002757991199">このポリシーが有効な URL に設定されている場合、<ph name="PRODUCT_NAME" /> はその URL からサイトリストをダウンロードし、<ph name="BROWSER_SWITCHER_URL_GREYLIST_POLICY_NAME" /> ポリシーで設定されているものとしてルールを適用します。このポリシーにより、<ph name="PRODUCT_NAME" /> と代替ブラウザの双方で互いに他方を開くことができなくなります。
@@ -8939,6 +8950,7 @@ EphemeralNetworkPolicies 機能がデフォルトで有効になると、この�
 <translation id="7586199729147257934">管理対象ブラウザのクライアント証明書のプロビジョニングを有効にする</translation>
 <translation id="7587345076013230465">ログイン画面で自動選択ポリシーが複数の証明書と一致した場合に、クライアント証明書を選択するよう求めるメッセージを常にユーザーに表示する</translation>
 <translation id="7587921466180902617">ファミリー リンクのユーザーに対してスクリーンキャスト dogfood を有効にする</translation>
+<translation id="7588140323025689972">キオスク アプリケーションのログを有効にする</translation>
 <translation id="7595074040612182185">このポリシーでは、画像を表示できるサイトを指定する URL パターンのリストを設定できます。
 
       このポリシーを未設定のままにした場合、<ph name="DEFAULT_IMAGES_SETTING_ENABLED_POLICY_NAME" /> が設定されていればその設定がすべてのサイトで使用され、設定されていなければユーザーの個人設定が適用されます。
@@ -9689,13 +9701,6 @@ false に設定した場合、管理対象のネットワークに接続され�
 <ph name="MS_WIN_NAME" /> では、<ph name="MS_AD_NAME" /> ドメインに追加されたインスタンス、<ph name="MS_AAD_NAME" /> に追加されたインスタンス、または <ph name="CHROME_ENTERPRISE_CORE_NAME" /> に登録されているインスタンスでのみこのポリシーを使用できます。
 
 <ph name="MAC_OS_NAME" /> では、MDM を介して管理されるインスタンス、MCX を介してドメインに追加されたインスタンス、または <ph name="CHROME_ENTERPRISE_CORE_NAME" /> に登録されているインスタンスでのみこのポリシーを使用できます。</translation>
-<translation id="8213475033260328041"><ph name="PRODUCT_NAME" /> の対象となるデータを保存する地理的位置を設定します。
-
-このポリシーを未設定のままにするか <ph name="DATA_REGION_SETTING_NO_PREFERENCE_OPTION_NAME" />（値 0）に設定した場合、対象となるデータはどの地理的位置にも保存できます。
-
-このポリシーを <ph name="DATA_REGION_SETTING_UNITED_STATES_OPTION_NAME" />（値 1）に設定した場合、対象となるデータは米国に保存されます。
-
-このポリシーを <ph name="DATA_REGION_SETTING_EUROPE_OPTION_NAME" />（値 2）に設定した場合、対象となるデータはヨーロッパに保存されます。</translation>
 <translation id="8213770777756919897">このポリシーはサポートが終了しており、<ph name="PRODUCT_OS_NAME" /> バージョン 85 で削除されます。代わりに <ph name="POWER_MANAGEMENT_IDLE_SETTINGS_POLICY_NAME" /> を使用してください。
 
           このポリシーを設定した場合は、アイドル状態になってから一定の時間（アイドル待ちとして指定された時間）が経過すると、<ph name="PRODUCT_OS_NAME" /> で指定の操作が行われます。アイドル待ちの時間は別途設定できます。
@@ -10048,6 +10053,11 @@ URL が <ph name="SERIAL_BLOCKED_FOR_URLS_POLICY_NAME" /> の URL パターン�
 <translation id="8433769814000220721">おすすめのコンテンツを有効にする</translation>
 <translation id="8435304381855818385">デフォルトの動的コードの設定</translation>
 <translation id="843609873781525167">このポリシーを True に設定すると、<ph name="PRODUCT_NAME" /> で起動時にデフォルトのブラウザであるかが常に確認され、可能であれば自動的に登録されます。このポリシーを False に設定した場合、<ph name="PRODUCT_NAME" /> でデフォルトであるかどうかが確認されなくなり、このオプションに対するユーザー制御がオフになります。このポリシーを未設定のままにした場合は、<ph name="PRODUCT_NAME" /> でデフォルトに指定するかどうかをユーザーが制御でき、またデフォルトにしない場合はユーザー通知が表示されるかどうかを制御できます。注: <ph name="MS_WIN_NAME" /> 管理者の場合は、Windows 7 が稼働するマシンについてのみ、この設定をオンにできます。それ以後のバージョンについては、<ph name="PRODUCT_NAME" /> を <ph name="HTTPS_PROTOCOL" /> プロトコルと <ph name="HTTP_PROTOCOL" /> プロトコル（必要に応じて <ph name="FTP_PROTOCOL" /> プロトコルとその他のファイル形式）のハンドラにする、「デフォルトのアプリケーション関連付け」ファイルをデプロイする必要があります。Chrome ヘルプ（https://support.google.com/chrome?p=make_chrome_default_win）をご覧ください。</translation>
+<translation id="8437836857126992452">ユーザーがインストールできない拡張機能を指定できます。すでにインストールされている拡張機能をブロック設定した場合、その拡張機能は無効になり、ユーザーが有効にすることはできません。拒否リストに登録して無効になった拡張機能は、拒否リストから削除すると自動的に再度有効になります。
+
+          拒否リストの値が「*」の場合、すべての拡張機能がデフォルトでブロック対象となります。許可リストに明示的に登録されている拡張機能は、署名されている（パッケージ化されている）場合に許可されます。パッケージ化されていない拡張機能はすべてブロックされます。
+
+          このポリシーを未設定のままにした場合、ユーザーは <ph name="PRODUCT_NAME" /> にあらゆる拡張機能をインストールできます。</translation>
 <translation id="8441105784056442638">完全復元機能を有効にする</translation>
 <translation id="844322176712318428">Translator API を許可する</translation>
 <translation id="8444157920689124099">アプリケーションにバインドされた暗号化を有効にする</translation>

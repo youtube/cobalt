@@ -11,6 +11,7 @@
 #include "base/files/file_path.h"
 #include "base/functional/callback.h"
 #include "base/functional/callback_helpers.h"
+#include "base/notimplemented.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/test/bind.h"
 #include "chrome/browser/ui/web_applications/web_app_run_on_os_login_notification.h"
@@ -214,6 +215,15 @@ void FakeWebAppUiManager::TriggerInstallDialogForBackgroundInstall(
     const GURL& install_url,
     const std::optional<GURL>& manifest_id,
     InstallCallback callback) {
+  NOTIMPLEMENTED();
+}
+
+void FakeWebAppUiManager::TriggerLaunchDialogForBackgroundInstall(
+    content::WebContents* initiating_web_contents,
+    const webapps::AppId& app_id,
+    Profile* profile,
+    const std::string& app_name,
+    base::OnceCallback<void(bool accepted)> callback) {
   NOTIMPLEMENTED();
 }
 

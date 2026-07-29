@@ -12,14 +12,17 @@
 #include <memory>
 
 #include "base/apple/scoped_cftyperef.h"
-#include "gpu/gpu_export.h"
+#include "gpu/ipc/common/gpu_ipc_common_export.h"
 #include "gpu/ipc/common/gpu_memory_buffer_impl.h"
 #include "ui/gfx/color_space.h"
 
 namespace gpu {
 
+class GpuMemoryBufferSupport;
+
 // Implementation of GPU memory buffer based on IO surfaces.
-class GPU_EXPORT GpuMemoryBufferImplIOSurface : public GpuMemoryBufferImpl {
+class GPU_IPC_COMMON_EXPORT GpuMemoryBufferImplIOSurface
+    : public GpuMemoryBufferImpl {
  public:
   GpuMemoryBufferImplIOSurface(const GpuMemoryBufferImplIOSurface&) = delete;
   GpuMemoryBufferImplIOSurface& operator=(const GpuMemoryBufferImplIOSurface&) =
@@ -29,13 +32,6 @@ class GPU_EXPORT GpuMemoryBufferImplIOSurface : public GpuMemoryBufferImpl {
 
   static constexpr gfx::GpuMemoryBufferType kBufferType =
       gfx::IO_SURFACE_BUFFER;
-
-  static std::unique_ptr<GpuMemoryBufferImplIOSurface> CreateFromHandle(
-      const gfx::GpuMemoryBufferHandle& handle,
-      const gfx::Size& size,
-      gfx::BufferFormat format,
-      gfx::BufferUsage usage,
-      DestructionCallback callback);
 
   static base::OnceClosure AllocateForTesting(
       const gfx::Size& size,
@@ -53,6 +49,15 @@ class GPU_EXPORT GpuMemoryBufferImplIOSurface : public GpuMemoryBufferImpl {
   gfx::GpuMemoryBufferHandle CloneHandle() const override;
 
  private:
+  friend GpuMemoryBufferSupport;
+
+  static std::unique_ptr<GpuMemoryBufferImplIOSurface> CreateFromHandle(
+      const gfx::GpuMemoryBufferHandle& handle,
+      const gfx::Size& size,
+      gfx::BufferFormat format,
+      gfx::BufferUsage usage,
+      DestructionCallback callback);
+
   GpuMemoryBufferImplIOSurface(gfx::GpuMemoryBufferId id,
                                const gfx::Size& size,
                                gfx::BufferFormat format,

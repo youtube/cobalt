@@ -26,7 +26,7 @@
         },
         "swarming": {
           "dimensions": {
-            "device_os": "PQ3A.190801.002",
+            "device_os": "QQ1A.191205.008",
             "device_os_flavor": "google",
             "device_os_type": "userdebug",
             "device_type": "walleye",
@@ -71,7 +71,7 @@
         },
         "swarming": {
           "dimensions": {
-            "device_os": "PQ3A.190801.002",
+            "device_os": "QQ1A.191205.008",
             "device_os_flavor": "google",
             "device_os_type": "userdebug",
             "device_type": "walleye",
@@ -107,7 +107,7 @@
         },
         "swarming": {
           "dimensions": {
-            "device_os": "PQ3A.190801.002",
+            "device_os": "QQ1A.191205.008",
             "device_os_flavor": "google",
             "device_os_type": "userdebug",
             "device_type": "walleye",
@@ -143,7 +143,7 @@
         },
         "swarming": {
           "dimensions": {
-            "device_os": "PQ3A.190801.002",
+            "device_os": "QQ1A.191205.008",
             "device_os_flavor": "google",
             "device_os_type": "userdebug",
             "device_type": "walleye",
@@ -188,7 +188,7 @@
         },
         "swarming": {
           "dimensions": {
-            "device_os": "PQ3A.190801.002",
+            "device_os": "QQ1A.191205.008",
             "device_os_flavor": "google",
             "device_os_type": "userdebug",
             "device_type": "walleye",
@@ -225,7 +225,7 @@
         },
         "swarming": {
           "dimensions": {
-            "device_os": "PQ3A.190801.002",
+            "device_os": "QQ1A.191205.008",
             "device_os_flavor": "google",
             "device_os_type": "userdebug",
             "device_type": "walleye",
@@ -261,7 +261,7 @@
         },
         "swarming": {
           "dimensions": {
-            "device_os": "PQ3A.190801.002",
+            "device_os": "QQ1A.191205.008",
             "device_os_flavor": "google",
             "device_os_type": "userdebug",
             "device_type": "walleye",
@@ -298,7 +298,7 @@
         },
         "swarming": {
           "dimensions": {
-            "device_os": "PQ3A.190801.002",
+            "device_os": "QQ1A.191205.008",
             "device_os_flavor": "google",
             "device_os_type": "userdebug",
             "device_type": "walleye",
@@ -336,7 +336,7 @@
         },
         "swarming": {
           "dimensions": {
-            "device_os": "PQ3A.190801.002",
+            "device_os": "QQ1A.191205.008",
             "device_os_flavor": "google",
             "device_os_type": "userdebug",
             "device_type": "walleye",
@@ -629,6 +629,38 @@
           "--gerrit-patchset=${patch_set}",
           "--buildbucket-id=${buildbucket_build_id}"
         ],
+        "resultdb": {
+          "enable": true,
+          "has_native_resultdb_integration": true
+        },
+        "swarming": {
+          "dimensions": {
+            "gpu": "10de:2184-440.100",
+            "os": "Ubuntu-18.04.5|Ubuntu-18.04.6",
+            "pool": "chromium.tests.gpu"
+          },
+          "idempotent": false,
+          "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
+        },
+        "test": "telemetry_gpu_integration_test",
+        "test_id_prefix": "ninja://chrome/test:telemetry_gpu_integration_test/"
+      },
+      {
+        "args": [
+          "webcodecs",
+          "--show-stdout",
+          "--browser=release",
+          "--passthrough",
+          "-v",
+          "--stable-jobs",
+          "--extra-browser-args=--enable-logging=stderr --js-flags=--expose-gc",
+          "--enforce-browser-version",
+          "--jobs=4"
+        ],
+        "merge": {
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "name": "webcodecs_tests",
         "resultdb": {
           "enable": true,
           "has_native_resultdb_integration": true
@@ -986,6 +1018,38 @@
           "--gerrit-patchset=${patch_set}",
           "--buildbucket-id=${buildbucket_build_id}"
         ],
+        "resultdb": {
+          "enable": true,
+          "has_native_resultdb_integration": true
+        },
+        "swarming": {
+          "dimensions": {
+            "gpu": "10de:2184-440.100",
+            "os": "Ubuntu-18.04.5|Ubuntu-18.04.6",
+            "pool": "chromium.tests.gpu"
+          },
+          "idempotent": false,
+          "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
+        },
+        "test": "telemetry_gpu_integration_test",
+        "test_id_prefix": "ninja://chrome/test:telemetry_gpu_integration_test/"
+      },
+      {
+        "args": [
+          "webcodecs",
+          "--show-stdout",
+          "--browser=release",
+          "--passthrough",
+          "-v",
+          "--stable-jobs",
+          "--extra-browser-args=--enable-logging=stderr --js-flags=--expose-gc",
+          "--enforce-browser-version",
+          "--jobs=4"
+        ],
+        "merge": {
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "name": "webcodecs_tests",
         "resultdb": {
           "enable": true,
           "has_native_resultdb_integration": true

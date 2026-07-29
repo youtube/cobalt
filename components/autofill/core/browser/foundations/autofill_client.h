@@ -21,7 +21,7 @@
 #include "build/build_config.h"
 #include "components/autofill/core/browser/autofill_trigger_source.h"
 #include "components/autofill/core/browser/country_type.h"
-#include "components/autofill/core/browser/data_manager/valuables/valuables_data_manager.h"
+#include "components/autofill/core/browser/data_model/autofill_ai/entity_instance.h"
 #include "components/autofill/core/browser/filling/filling_product.h"
 #include "components/autofill/core/browser/integrators/fast_checkout/fast_checkout_client.h"
 #include "components/autofill/core/browser/integrators/identity_credential/identity_credential_delegate.h"
@@ -93,7 +93,7 @@ class AutofillSnackbarControllerImpl;
 #endif  // BUILDFLAG(IS_ANDROID)
 class AutofillSuggestionDelegate;
 class AutofillPlusAddressDelegate;
-class AutofillAiDelegate;
+class AutofillAiManager;
 class AutofillAiModelCache;
 class AutofillAiModelExecutor;
 class AutofillProfile;
@@ -104,6 +104,7 @@ class LogManager;
 class PersonalDataManager;
 class SingleFieldFillRouter;
 class StrikeDatabase;
+class ValuablesDataManager;
 class VotesUploader;
 struct Suggestion;
 enum class WebauthnDialogState;
@@ -329,10 +330,10 @@ class AutofillClient {
       std::optional<optimization_guide::proto::AnnotatedPageContent>)>;
   virtual void GetAiPageContent(GetAiPageContentCallback callback);
 
-  // Returns the `AutofillAiDelegate` instance for the tab of this client.
+  // Returns the `AutofillAiManager` instance for the tab of this client.
   // Returns `nullptr` if, at the time of the AutofillClient's construction, the
   // Autofill AI feature is unsupported.
-  virtual AutofillAiDelegate* GetAutofillAiDelegate();
+  virtual AutofillAiManager* GetAutofillAiManager();
 
   // Returns the per-profile `AutofillAiModelCache`. Returns `nullptr` if the
   // `kAutofillAiServerModel` is not enabled.

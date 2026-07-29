@@ -353,7 +353,7 @@ void MaybeRegisterChromeFeaturePromos(
           .SetMetadata(100, "siyua@chromium.org",
                        "Triggered after autofill popup appears.")));
 
-  // kIPHAutofillBnplSuggestionFeature:
+  // kIPHAutofillBnplAffirmOrZipSuggestionFeature:
   registry.RegisterFeature(std::move(
       FeaturePromoSpecification::CreateForToastPromo(
           feature_engagement::kIPHAutofillBnplAffirmOrZipSuggestionFeature,
@@ -363,7 +363,24 @@ void MaybeRegisterChromeFeaturePromos(
           FeaturePromoSpecification::AcceleratorInfo())
           .SetBubbleArrow(HelpBubbleArrow::kLeftCenter)
           .SetMetadata(137, "yiwenqian@google.com",
-                       "Triggered when users see the BNPL chip.")));
+                       "Triggered when users see the BNPL chip. Used when the "
+                       "possible available BNPL issuers are Affirm and Zip.")));
+
+  // kIPHAutofillBnplAffirmZipOrKlarnaSuggestionFeature:
+  registry.RegisterFeature(std::move(
+      FeaturePromoSpecification::CreateForToastPromo(
+          feature_engagement::
+              kIPHAutofillBnplAffirmZipOrKlarnaSuggestionFeature,
+          autofill::PopupViewViews::
+              kAutofillBnplAffirmZipOrKlarnaSuggestionElementId,
+          IDS_AUTOFILL_CARD_BNPL_AFFIRM_ZIP_OR_KLARNA_SUGGESTION_IPH_BUBBLE_LABEL_DESKTOP,
+          IDS_AUTOFILL_CARD_BNPL_AFFIRM_ZIP_OR_KLARNA_SUGGESTION_IPH_BUBBLE_LABEL_DESKTOP_SCREENREADER,
+          FeaturePromoSpecification::AcceleratorInfo())
+          .SetBubbleArrow(HelpBubbleArrow::kLeftCenter)
+          .SetMetadata(
+              139, "wilsonlow@google.com",
+              "Triggered when users see the BNPL chip. Used when the possible "
+              "available BNPL issuers are Affirm, Zip, and Klarna.")));
 
   // kIPHAutofillCardInfoRetrievalSuggestionFeature:
   registry.RegisterFeature(std::move(
@@ -566,30 +583,6 @@ void MaybeRegisterChromeFeaturePromos(
           .SetMetadata(122, "romanarora@chromium.org",
                        "Triggered when there is atleast one "
                        "new module on the NTP page.")));
-
-  // kIPHExperimentalAIPromoFeature:
-  registry.RegisterFeature(std::move(
-      FeaturePromoSpecification::CreateForCustomAction(
-          feature_engagement::kIPHExperimentalAIPromoFeature,
-          kToolbarAppMenuButtonElementId, IDS_IPH_EXPERIMENTAL_AI_PROMO_BODY,
-          IDS_IPH_EXPERIMENTAL_AI_PROMO_BUTTON_CONTINUE,
-          base::BindRepeating(
-              [](ui::ElementContext ctx,
-                 user_education::FeaturePromoHandle promo_handle) {
-                auto* browser = chrome::FindBrowserWithUiElementContext(ctx);
-                if (!browser) {
-                  return;
-                }
-                chrome::ShowSettingsSubPage(
-                    browser, chrome::kExperimentalAISettingsSubPage);
-                base::RecordAction(base::UserMetricsAction(
-                    "ExperimentalAI_IPHPromo_SettingsPageOpened"));
-              }))
-          .SetBubbleTitleText(IDS_IPH_EXPERIMENTAL_AI_PROMO)
-          .SetCustomActionDismissText(IDS_NO_THANKS)
-          .SetBubbleArrow(HelpBubbleArrow::kTopRight)
-          .SetCustomActionIsDefault(true)
-          .OverrideFocusOnShow(false)));
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)
   // kIPHExtensionsMenuFeature:

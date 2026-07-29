@@ -10,7 +10,7 @@ import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.Mockito.eq;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -47,7 +47,10 @@ public class TabCollectionTabModelImplUnitTest {
     @Mock private Profile mOtrProfile;
     @Mock private TabCreator mRegularTabCreator;
     @Mock private TabCreator mIncognitoTabCreator;
+    @Mock private TabModelOrderController mOrderController;
     @Mock private TabModelDelegate mTabModelDelegate;
+    @Mock private AsyncTabParamsManager mAsyncTabParamsManager;
+    @Mock private TabRemover mTabRemover;
     @Mock private TabModelObserver mTabModelObserver;
 
     private TabCollectionTabModelImpl mTabModel;
@@ -82,7 +85,10 @@ public class TabCollectionTabModelImplUnitTest {
                         /* isArchivedTabModel= */ false,
                         mRegularTabCreator,
                         mIncognitoTabCreator,
-                        mTabModelDelegate);
+                        mOrderController,
+                        mTabModelDelegate,
+                        mAsyncTabParamsManager,
+                        mTabRemover);
         mTabModel.addObserver(mTabModelObserver);
     }
 
@@ -91,6 +97,11 @@ public class TabCollectionTabModelImplUnitTest {
         mTabModel.destroy();
         verify(mTabModelJniBridgeJni).destroy(eq(TAB_MODEL_JNI_BRIDGE_PTR), any());
         verify(mTabCollectionTabModelImplJni).destroy(eq(TAB_COLLECTION_TAB_MODEL_IMPL_PTR));
+    }
+
+    @Test
+    public void testGetTabRemover() {
+        assertEquals(mTabRemover, mTabModel.getTabRemover());
     }
 
     @Test
@@ -132,6 +143,7 @@ public class TabCollectionTabModelImplUnitTest {
     public void testAddTabBasic() {
         @TabId int tabId = 789;
         MockTab tab = MockTab.createAndInitialize(tabId, mProfile);
+        tab.setIsInitialized(true);
         mTabModel.addTab(
                 tab,
                 /* index= */ 0,
@@ -145,6 +157,7 @@ public class TabCollectionTabModelImplUnitTest {
     public void testAddTabDuplicate() {
         @TabId int tabId = 789;
         MockTab tab = MockTab.createAndInitialize(tabId, mProfile);
+        tab.setIsInitialized(true);
         mTabModel.addTab(
                 tab,
                 /* index= */ 0,
@@ -164,6 +177,7 @@ public class TabCollectionTabModelImplUnitTest {
     public void testAddTabWrongModel() {
         @TabId int tabId = 789;
         MockTab otrTab = MockTab.createAndInitialize(tabId, mOtrProfile);
+        otrTab.setIsInitialized(true);
         assertThrows(
                 IllegalStateException.class,
                 () ->

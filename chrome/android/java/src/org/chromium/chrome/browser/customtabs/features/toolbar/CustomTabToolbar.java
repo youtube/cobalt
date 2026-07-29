@@ -22,6 +22,7 @@ import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
+import android.graphics.drawable.LayerDrawable;
 import android.os.Handler;
 import android.os.Looper;
 import android.text.SpannableString;
@@ -152,6 +153,7 @@ import org.chromium.url.GURL;
 
 import java.util.Optional;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 /** The Toolbar layout to be used for a custom tab. This is used for both phone and tablet UIs. */
 public class CustomTabToolbar extends ToolbarLayout implements View.OnLongClickListener {
@@ -208,6 +210,7 @@ public class CustomTabToolbar extends ToolbarLayout implements View.OnLongClickL
     private int mToolbarWidth;
     private FrameLayout mCustomButtonsParent;
     private ImageButton mSideSheetMaximizeButton;
+    private View mOptionalButton;
 
     /** Listener interface to be notified when the toolbar is measured with a new width. */
     public interface OnNewWidthMeasuredListener {
@@ -215,6 +218,19 @@ public class CustomTabToolbar extends ToolbarLayout implements View.OnLongClickL
     }
 
     private @Nullable OnNewWidthMeasuredListener mOnNewWidthMeasuredListener;
+
+    /** Observer interface to be notified when the toolbar color scheme changes. */
+    public interface OnColorSchemeChangedObserver {
+        /**
+         * Called when the toolbar color scheme changes.
+         *
+         * @param toolbarColor The new toolbar color.
+         * @param colorScheme The {@link BrandedColorScheme}.
+         */
+        void onColorSchemeChanged(@ColorInt int toolbarColor, @BrandedColorScheme int colorScheme);
+    }
+
+    private @Nullable OnColorSchemeChangedObserver mOnColorSchemeChangedObserver;
 
     public static final class OmniboxParams {
         /** The {@link SearchActivityClient} instance used to request Omnibox. */
@@ -226,13 +242,22 @@ public class CustomTabToolbar extends ToolbarLayout implements View.OnLongClickL
         /** A handler for taps on the omnibox, or null if the default handler should be used. */
         @Nullable public Consumer<Tab> tapHandler;
 
+        /**
+         * A handler for taps on the omnibox.
+         * The function returns true if the tap was handled, false otherwise.
+         */
+        public Function<Tab, Boolean> tapHandlerWithVerification;
+
+
         public OmniboxParams(
                 SearchActivityClient searchClient,
                 String clientPackageName,
-                @Nullable Consumer<Tab> tapHandler) {
+                @Nullable Consumer<Tab> tapHandler,
+                Function<Tab, Boolean> tapHandlerWithVerification) {
             this.searchClient = searchClient;
             this.clientPackageName = clientPackageName;
             this.tapHandler = tapHandler;
+            this.tapHandlerWithVerification = tapHandlerWithVerification;
         }
     }
 
@@ -309,6 +334,12 @@ public class CustomTabToolbar extends ToolbarLayout implements View.OnLongClickL
     public void onNativeLibraryReady() {
         super.onNativeLibraryReady();
         mLocationBar.onNativeLibraryReady();
+    }
+
+    /** Returns the incognito image view. */
+    @Nullable
+    ImageView getIncognitoImageView() {
+        return mIncognitoImageView;
     }
 
     /** Returns the incognito image view, inflating it first if necessary. */
@@ -403,6 +434,22 @@ public class CustomTabToolbar extends ToolbarLayout implements View.OnLongClickL
         return mCustomButtonsParent;
     }
 
+    /** Returns the optional button, inflating it first if necessary. */
+    View ensureOptionalButtonInflated() {
+        if (mOptionalButton != null) {
+            return mOptionalButton;
+        }
+
+        LayoutInflater.from(getContext()).inflate(R.layout.optional_button_layout, this, true);
+        mOptionalButton = findViewById(R.id.optional_button);
+        return mOptionalButton;
+    }
+
+    @Nullable
+    View getOptionalButton() {
+        return mOptionalButton;
+    }
+
     /**
      * Sets an {@link OnNewWidthMeasuredListener}.
      *
@@ -413,10 +460,26 @@ public class CustomTabToolbar extends ToolbarLayout implements View.OnLongClickL
     }
 
     /**
-     * initialize the toolbar with menu,.
+     * Sets an {@link OnColorSchemeChangedObserver}.
+     *
+     * @param observer The {@link OnColorSchemeChangedObserver}. A null value clears the observer.
+     */
+    public void setOnColorSchemeChangedObserver(@Nullable OnColorSchemeChangedObserver observer) {
+        mOnColorSchemeChangedObserver = observer;
+    }
+
+    private void notifyColorSchemeChanged() {
+        if (mOnColorSchemeChangedObserver != null) {
+            mOnColorSchemeChangedObserver.onColorSchemeChanged(
+                    getBackground().getColor(), mBrandedColorScheme);
+        }
+    }
+
+    /**
+     * Initialize the toolbar with menu.
      *
      * @param activity The {@link Activity} that the toolbar is attached to.
-     * @param appMenuHandler Supplief of {@link AppMenuHandler}.
+     * @param appMenuHandler Supplier of {@link AppMenuHandler}.
      * @param intentDataProvider {@link BrowserServicesIntentDataProvider} for accessing CCT intent
      *     data.
      */
@@ -539,10 +602,19 @@ public class CustomTabToolbar extends ToolbarLayout implements View.OnLongClickL
 
     @Override
     protected void updateCustomActionButton(int index, Drawable drawable, String description) {
-        // |index| -> childIndex should ignore the optional button always present at the end.
-        int childIndex = mCustomActionButtons.getChildCount() - 2 - index;
-        assert 0 <= childIndex && childIndex <= mCustomActionButtons.getChildCount() - 2;
-        ImageButton button = (ImageButton) mCustomActionButtons.getChildAt(childIndex);
+        ImageButton button;
+
+        if (ChromeFeatureList.sCctToolbarRefactor.isEnabled()) {
+            button =
+                    (ImageButton)
+                            mCustomButtonsParent.getChildAt(
+                                    mCustomButtonsParent.getChildCount() - 1 - index);
+        } else {
+            // |index| -> childIndex should ignore the optional button always present at the end.
+            int childIndex = mCustomActionButtons.getChildCount() - 2 - index;
+            assert 0 <= childIndex && childIndex <= mCustomActionButtons.getChildCount() - 2;
+            button = (ImageButton) mCustomActionButtons.getChildAt(childIndex);
+        }
         assert button != null;
         updateCustomActionButtonVisuals(button, drawable, description);
     }
@@ -759,7 +831,8 @@ public class CustomTabToolbar extends ToolbarLayout implements View.OnLongClickL
 
     @Override
     protected void updateOptionalButton(ButtonData buttonData) {
-        if (!ChromeFeatureList.sCctAdaptiveButton.isEnabled()) return;
+        if (ChromeFeatureList.sCctToolbarRefactor.isEnabled()) return;
+        if (!mIntentDataProvider.isOptionalButtonSupported()) return;
 
         mLocationBar.updateOptionalButton(buttonData);
     }
@@ -1118,6 +1191,10 @@ public class CustomTabToolbar extends ToolbarLayout implements View.OnLongClickL
         return (ColorDrawable) super.getBackground();
     }
 
+    public @BrandedColorScheme int getBrandedColorScheme() {
+        return mBrandedColorScheme;
+    }
+
     /**
      * For extending classes to override and carry out the changes related with the primary color
      * for the current tab changing.
@@ -1186,6 +1263,7 @@ public class CustomTabToolbar extends ToolbarLayout implements View.OnLongClickL
         mLocationBar.updateColors();
         setToolbarHairlineColor(background);
         notifyToolbarColorChanged(background);
+        notifyColorSchemeChanged();
     }
 
     @Override
@@ -1447,14 +1525,6 @@ public class CustomTabToolbar extends ToolbarLayout implements View.OnLongClickL
             View background = optionalButton.findViewById(R.id.swappable_icon_secondary_background);
             background.setPaddingRelative(paddingStart, paddingVert, paddingEnd, paddingVert);
 
-            // Update dev button spacing if present.
-            View firstButton = mCustomActionButtons.getChildAt(0);
-            if (firstButton != optionalButton) {
-                // Give 24dp/0dp padding to the first button to have even 16dp spacing.
-                paddingStart = getDimensionPx(R.dimen.custom_tabs_toolbar_button_spacer_24);
-                firstButton.setPaddingRelative(
-                        paddingStart, /* top= */ 0, /* end= */ 0, /* bottom= */ 0);
-            }
             mOptionalButtonCoordinator =
                     new OptionalButtonCoordinator(
                             optionalButton,
@@ -1489,6 +1559,24 @@ public class CustomTabToolbar extends ToolbarLayout implements View.OnLongClickL
                     optionalButtonContainer,
                     true,
                     mOptionalButtonCoordinator::setCanChangeVisibility);
+
+            // Update the spacing between dev button and the menu icon if present.
+            View firstButton = mCustomActionButtons.getChildAt(0);
+            if (firstButton != optionalButton
+                    && !mButtonVisibilityRule.isSuppressed(ButtonId.MTB)) {
+                // Give 24dp/0dp padding to the first button to have even 16dp spacing.
+                paddingStart = getDimensionPx(R.dimen.custom_tabs_toolbar_button_spacer_24);
+                firstButton.setPaddingRelative(
+                        paddingStart, /* top= */ 0, /* end= */ 0, /* bottom= */ 0);
+            }
+            if (ChromeFeatureList.getFieldTrialParamByFeatureAsBoolean(
+                    ChromeFeatureList.CCT_ADAPTIVE_BUTTON_TEST_SWITCH, "always-animate", false)) {
+                mOptionalButtonCoordinator.setAlwaysShowActionChip(true);
+            }
+            if (ChromeFeatureList.getFieldTrialParamByFeatureAsBoolean(
+                    ChromeFeatureList.CCT_ADAPTIVE_BUTTON_TEST_SWITCH, "hide-button", false)) {
+                mButtonVisibilityRule.setHidingOptionalButton();
+            }
             return true;
         }
 
@@ -1519,6 +1607,23 @@ public class CustomTabToolbar extends ToolbarLayout implements View.OnLongClickL
                 mTrackerSupplier.set(TrackerFactory.getTrackerForProfile(tab.getProfile()));
             }
             mOptionalButtonCoordinator.updateButton(buttonData, isIncognitoBranded());
+            setOptionalButtonBackgroundInset();
+        }
+
+        // Modify the inset of the optional background drawable to match that of the icon secondary
+        // background.
+        private void setOptionalButtonBackgroundInset() {
+            View optionalButton = findViewById(R.id.optional_toolbar_button);
+            LayerDrawable backgroundDrawable = (LayerDrawable) optionalButton.getBackground();
+            int height = getDimensionPixelSize(R.dimen.custom_tabs_adaptive_button_bg_height);
+            int left = getDimensionPixelSize(R.dimen.custom_tabs_adaptive_button_bg_padding_start);
+            int right = getDimensionPixelSize(R.dimen.custom_tabs_adaptive_button_bg_padding_end);
+            backgroundDrawable.setLayerHeight(/* index= */ 0, height);
+            backgroundDrawable.setLayerInset(/* index= */ 0, left, /* t= */ 0, right, /* b= */ 0);
+        }
+
+        private int getDimensionPixelSize(@DimenRes int dimenId) {
+            return getResources().getDimensionPixelSize(dimenId);
         }
 
         // Display a (blue) dot on the overflow menu icon for the optional button that cannot be
@@ -2447,6 +2552,9 @@ public class CustomTabToolbar extends ToolbarLayout implements View.OnLongClickL
                     v -> {
                         RecordUserAction.record("CustomTabs.OmniboxClicked");
                         var tab = getCurrentTab();
+                        if (omniboxParams.tapHandlerWithVerification.apply(tab)) {
+                            return;
+                        }
                         if (omniboxParams.tapHandler != null) {
                             omniboxParams.tapHandler.accept(tab);
                         } else {

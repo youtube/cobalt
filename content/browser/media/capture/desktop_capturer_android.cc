@@ -71,9 +71,6 @@ void DesktopCapturerAndroid::CaptureFrame() {
     return;
   }
 
-  // TODO(crbug.com/352187279): `DesktopCaptureDevice` expects results in ARGB
-  // but Android generally produces results in ABGR. We should add
-  // `webrtc::FourCC` info to the `DesktopCapturer` interface to handle this.
   callback_->OnCaptureResult(webrtc::DesktopCapturer::Result::SUCCESS,
                              std::move(next_frame_));
   next_frame_.reset();
@@ -86,6 +83,7 @@ bool DesktopCapturerAndroid::SelectSource(SourceId id) {
 void DesktopCapturerAndroid::OnRgbaFrameAvailable(
     JNIEnv* env,
     const base::android::JavaRef<jobject>& release_cb,
+    jlong timestamp_ns,
     const base::android::JavaRef<jobject>& buf,
     jint unchecked_pixel_stride,
     jint unchecked_row_stride,
@@ -108,9 +106,9 @@ void DesktopCapturerAndroid::OnRgbaFrameAvailable(
   // It's guaranteed that `this` is valid here because destruction is blocked
   // until all JNI methods are complete.
   task_runner_->PostTask(
-      FROM_HERE,
-      base::BindOnce(&DesktopCapturerAndroid::ProcessRgbaFrame,
-                     weak_ptr_factory_.GetWeakPtr(), std::move(plane)));
+      FROM_HERE, base::BindOnce(&DesktopCapturerAndroid::ProcessRgbaFrame,
+                                weak_ptr_factory_.GetWeakPtr(), timestamp_ns,
+                                std::move(plane)));
 }
 
 void DesktopCapturerAndroid::OnStop(JNIEnv* env) {
@@ -128,7 +126,31 @@ void DesktopCapturerAndroid::Shutdown() {
   finishing_ = true;
 }
 
-void DesktopCapturerAndroid::ProcessRgbaFrame(PlaneInfo plane) {
+namespace {
+
+// TODO(crbug.com/352187279): `DesktopCaptureDevice` expects results in ARGB
+// but Android generally produces results in ABGR. We should add
+// `webrtc::FourCC` info to the `DesktopCapturer` interface to handle this.
+void RgbaToBgra(webrtc::DesktopFrame& frame) {
+  static_assert(webrtc::DesktopFrame::kBytesPerPixel == 4,
+                "kBytesPerPixel must be 4");
+  uint8_t* data = frame.data();
+  for (int r = 0; r < frame.size().height(); ++r) {
+    for (int c = 2; c < frame.stride();
+         c += webrtc::DesktopFrame::kBytesPerPixel) {
+      // SAFETY: `c - 2` is non-negative and c is less than the stride.
+      UNSAFE_BUFFERS(std::swap(data[c - 2], data[c]));
+    }
+    // SAFETY: It's guaranteed that the size of the memory pointed to by
+    // `frame.data()` is at least height * stride.
+    UNSAFE_BUFFERS(data += frame.stride());
+  }
+}
+
+}  // namespace
+
+void DesktopCapturerAndroid::ProcessRgbaFrame(int64_t timestamp_ns,
+                                              PlaneInfo plane) {
   CHECK(task_runner_);
   CHECK(task_runner_->RunsTasksInCurrentSequence());
 
@@ -161,9 +183,17 @@ void DesktopCapturerAndroid::ProcessRgbaFrame(PlaneInfo plane) {
   // implementing `MouseCursorMonitor`.
   next_frame_->set_may_contain_cursor(true);
 
-  // TODO(crbug.com/352187279): Determine capture_time_ms based on
-  // `CaptureFrame()` callback and timestamp from Android.
-  next_frame_->set_capture_time_ms(0);
+  // Calculate the time delta from the previous frame's timestamp. It does not
+  // seem guaranteed that the timestamp we get from Android is always monotonic,
+  // and there's no guarantee about how it is not monotonic (e.g. unsigned
+  // wrapping), so don't provide a timestamp in this case.
+  if (last_frame_time_ns_ == 0 || timestamp_ns <= last_frame_time_ns_) {
+    next_frame_->set_capture_time_ms(0);
+  } else {
+    next_frame_->set_capture_time_ms((timestamp_ns - last_frame_time_ns_) /
+                                     base::Time::kNanosecondsPerMillisecond);
+  }
+  last_frame_time_ns_ = timestamp_ns;
 
   // TODO(crbug.com/352187279): Create `DesktopCapturerId` for Android.
   next_frame_->set_capturer_id(webrtc::DesktopCapturerId::kUnknown);
@@ -193,6 +223,8 @@ void DesktopCapturerAndroid::ProcessRgbaFrame(PlaneInfo plane) {
       span.get_at(offset.ValueOrDie()),
       static_cast<uint32_t>(plane.row_stride.ValueOrDie()),
       webrtc::DesktopRect::MakeSize(size));
+
+  RgbaToBgra(*next_frame_);
 
   base::android::RunRunnableAndroid(plane.release_cb);
 }

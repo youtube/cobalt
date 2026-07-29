@@ -38,7 +38,6 @@
 #include "cc/input/scrollbar_animation_controller.h"
 #include "cc/layers/layer_collections.h"
 #include "cc/metrics/average_lag_tracking_manager.h"
-#include "cc/metrics/dropped_frame_counter.h"
 #include "cc/metrics/event_latency_tracker.h"
 #include "cc/metrics/event_metrics.h"
 #include "cc/metrics/events_metrics_manager.h"
@@ -269,6 +268,10 @@ class CC_EXPORT LayerTreeHostImpl : public TileManagerClient,
     return viewport_damage_rect_;
   }
 
+  void ResetViewportDamageRectForTesting() {
+    viewport_damage_rect_ = gfx::Rect();
+  }
+
   virtual void WillSendBeginMainFrame() {}
   virtual void BeginMainFrameAborted(
       CommitEarlyOutReason reason,
@@ -277,7 +280,6 @@ class CC_EXPORT LayerTreeHostImpl : public TileManagerClient,
       bool next_bmf,
       bool scroll_and_viewport_changes_synced);
   virtual void ReadyToCommit(
-      const viz::BeginFrameArgs& commit_args,
       bool scroll_and_viewport_changes_synced,
       const BeginMainFrameMetrics* begin_main_frame_metrics,
       bool commit_timeout);
@@ -512,8 +514,7 @@ class CC_EXPORT LayerTreeHostImpl : public TileManagerClient,
   std::unique_ptr<RasterTilePriorityQueue> BuildRasterQueue(
       TreePriority tree_priority,
       RasterTilePriorityQueue::Type type) override;
-  std::unique_ptr<EvictionTilePriorityQueue> BuildEvictionQueue(
-      TreePriority tree_priority) override;
+  std::unique_ptr<EvictionTilePriorityQueue> BuildEvictionQueue() override;
   void SetIsLikelyToRequireADraw(bool is_likely_to_require_a_draw) override;
   std::unique_ptr<TilesWithResourceIterator> CreateTilesWithResourceIterator()
       override;
@@ -689,9 +690,6 @@ class CC_EXPORT LayerTreeHostImpl : public TileManagerClient,
   std::unique_ptr<CompositorCommitData> ProcessCompositorDeltas(
       const MutatorHost* main_thread_mutator_host);
 
-  DroppedFrameCounter* dropped_frame_counter() {
-    return &dropped_frame_counter_;
-  }
   FrameSorter* frame_sorter() { return &frame_sorter_; }
   MemoryHistory* memory_history() { return memory_history_.get(); }
   DebugRectHistory* debug_rect_history() { return debug_rect_history_.get(); }
@@ -870,9 +868,6 @@ class CC_EXPORT LayerTreeHostImpl : public TileManagerClient,
 
   Viewport& viewport() const { return *viewport_.get(); }
 
-  DroppedFrameCounter* dropped_frame_counter_for_testing() {
-    return &dropped_frame_counter_;
-  }
   FrameSorter* frame_sorter_for_testing() { return &frame_sorter_; }
 
   // Returns true if the client is currently compositing synchronously.
@@ -1154,10 +1149,6 @@ class CC_EXPORT LayerTreeHostImpl : public TileManagerClient,
   base::WritableSharedMemoryMapping ukm_smoothness_mapping_;
   base::WritableSharedMemoryMapping ukm_dropped_frames_mapping_;
 
-  // `dropped_frame_counter_` holds a pointer `to ukm_smoothness_mapping_` so
-  // it must be declared last and deleted first;
-  DroppedFrameCounter dropped_frame_counter_;
-
   std::unique_ptr<MemoryHistory> memory_history_;
   std::unique_ptr<DebugRectHistory> debug_rect_history_;
 
@@ -1272,8 +1263,8 @@ class CC_EXPORT LayerTreeHostImpl : public TileManagerClient,
 
   PresentationTimeCallbackBuffer presentation_time_callbacks_;
 
-  // `compositor_frame_reporting_controller_` has a dependency on
-  // `dropped_frame_counter_` so it must be declared last and deleted first.
+  // `compositor_frame_reporting_controller_` is an observer of
+  // `frame_sorter_` so it must be declared last and deleted first.
   FrameSorter frame_sorter_;
   std::unique_ptr<CompositorFrameReportingController>
       compositor_frame_reporting_controller_;
@@ -1316,10 +1307,6 @@ class CC_EXPORT LayerTreeHostImpl : public TileManagerClient,
   DelayedUniqueNotifier has_input_resetter_;
   bool has_non_fling_input_since_last_frame_ = false;
   bool has_observed_first_scroll_delay_ = false;
-
-  // True if we are measuring smoothness in DroppedFrameCounter.
-  // Currently true when first contentful paint is done.
-  bool is_measuring_smoothness_ = false;
 
   // Cache for the results of calls to gfx::ColorSpace::Contains() on sRGB. This
   // computation is deterministic for a given color space, can be called

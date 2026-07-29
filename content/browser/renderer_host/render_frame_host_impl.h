@@ -202,9 +202,12 @@
 #if BUILDFLAG(IS_ANDROID)
 #include "base/containers/id_map.h"
 #include "content/browser/webauth/webauth_request_security_checker.h"
-#include "services/device/public/mojom/nfc.mojom.h"
 #else
 #include "third_party/blink/public/mojom/hid/hid.mojom-forward.h"
+#endif
+
+#if BUILDFLAG(IS_ANDROID) || (BUILDFLAG(IS_IOS) && !BUILDFLAG(IS_IOS_TVOS))
+#include "services/device/public/mojom/nfc.mojom.h"
 #endif
 
 #if BUILDFLAG(IS_CHROMEOS)
@@ -254,9 +257,6 @@ class UkmRecorder;
 }
 
 namespace features {
-
-// Feature to evict when accessibility events occur while in back/forward cache.
-CONTENT_EXPORT BASE_DECLARE_FEATURE(kEvictOnAXEvents);
 
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kDoNotEvictOnAXLocationChange);
 
@@ -674,15 +674,12 @@ class CONTENT_EXPORT RenderFrameHostImpl
   // RenderFrameHostDelegate::OnTextCopiedToClipboard.
   void OnTextCopiedToClipboard(const std::u16string& copied_text);
 
-  // This is called when accessibility events arrive from renderer to browser.
-  // This could cause eviction if the page is in back/forward cache. Returns
-  // true if the eviction happens, and otherwise calls
-  // |RenderFrameHost::IsInactiveAndDisallowActivation()| and returns the value
-  // from there. This is only called when the flag to evict on accessibility
-  // events is on. When the flag is off, we do not evict the entry and keep
-  // processing the events, thus do not call this function.
-  bool IsInactiveAndDisallowActivationForAXEvents(
-      const std::vector<ui::AXEvent>& events);
+  // If the clipboard has been modified due to an enterprise data controls
+  // policy, return the original clipboard types. The implementation delegates
+  // to RenderFrameHostDelegate::GetClipboardTypesIfPolicyApplied(). See the
+  // description of the latter method for complete details.
+  std::optional<std::vector<std::u16string>> GetClipboardTypesIfPolicyApplied(
+    const ui::ClipboardSequenceNumberToken& seqno);
 
   void SendAccessibilityEventsToManager(ui::AXUpdatesAndEvents& details);
   void ExerciseAccessibilityForTest();
@@ -2158,7 +2155,7 @@ class CONTENT_EXPORT RenderFrameHostImpl
       const net::NetworkIsolationKey& nik,
       const blink::StorageKey& storage_key);
 
-#if BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_ANDROID) || (BUILDFLAG(IS_IOS) && !BUILDFLAG(IS_IOS_TVOS))
   void BindNFCReceiver(mojo::PendingReceiver<device::mojom::NFC> receiver);
 #endif
 

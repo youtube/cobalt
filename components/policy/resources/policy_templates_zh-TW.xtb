@@ -4872,6 +4872,25 @@ Microsoft Outlook 資訊卡需要額外的管理員設定。想進一步瞭解�
 
       如果某項政策不在清單中，且發生來源、範圍或層級衝突，系統就會套用優先順序最高的政策。</translation>
 <translation id="4646739075621507361">回報列印工作</translation>
+<translation id="4649231830965908577">這項政策可讓系統管理員設定指定的企業搜尋聚合器，在網址列和新分頁的搜尋框內提供搜尋建議和結果。根據預設，企業搜尋建議會與一般 <ph name="PRODUCT_NAME" /> 建議混合顯示。使用者只要在網址列輸入「<ph name="SHORTCUT_SEARCH_AGGREGATOR_SETTINGS_FIELD" />」欄位指定的關鍵字 (不論是否加上 @ 前置字串，例如 <ph name="SHORTCUT_EXAMPLE_SEARCH_AGGREGATOR_SETTINGS" />)，接著按下空格鍵或 Tab 鍵，即可明確將搜尋範圍限定在企業搜尋聚合器。目前只能在網址列中執行由關鍵字觸發的企業搜尋，新分頁的搜尋框則不支援。
+
+必填欄位包括：<ph name="NAME_SEARCH_AGGREGATOR_SETTINGS_FIELD" />、<ph name="SHORTCUT_SEARCH_AGGREGATOR_SETTINGS_FIELD" />、<ph name="SEARCH_URL_SEARCH_AGGREGATOR_SETTINGS_FIELD" /> 和 <ph name="SUGGEST_URL_SEARCH_AGGREGATOR_SETTINGS_FIELD" />。
+
+「<ph name="NAME_SEARCH_AGGREGATOR_SETTINGS_FIELD" />」欄位對應到使用者在網址列中看到的搜尋引擎名稱。
+
+「<ph name="SHORTCUT_SEARCH_AGGREGATOR_SETTINGS_FIELD" />」欄位對應到使用者啟動搜尋時輸入的關鍵字。捷徑可包含純文字和半形字元，但不得含有空格，開頭也不能是 @ 符號。捷徑不得重複。
+
+「<ph name="SEARCH_URL_SEARCH_AGGREGATOR_SETTINGS_FIELD" />」欄位指定要執行搜尋的網址。請輸入搜尋引擎結果頁面的網址，並將查詢內容換成 <ph name="SEARCH_TERM_MARKER" />。
+
+「<ph name="SUGGEST_URL_SEARCH_AGGREGATOR_SETTINGS_FIELD" />」欄位指定提供搜尋建議的網址。Chrome 會發出 POST 要求，並透過 POST 參數的 <ph name="SEARCH_SUGGEST_POST_PARAMS_QUERY_KEY" /> 鍵傳送使用者的查詢。
+
+「<ph name="ICON_URL_SEARCH_AGGREGATOR_SETTINGS_FIELD" />」欄位指定用於搜尋建議的圖片網址。如果未設定這個欄位，系統會使用預設圖示。建議使用網站小圖示 (例如 <ph name="ICON_URL_EXAMPLE" />)，支援的圖片檔案格式為 JPEG、PNG 和 ICO。
+
+「<ph name="REQUIRE_SHORTCUT_SEARCH_AGGREGATOR_SETTINGS_FIELD" />」欄位指定是否要使用網址列<ph name="SHORTCUT_SEARCH_AGGREGATOR_SETTINGS_FIELD" />，才能查看搜尋建議。如有需要，系統不會在新分頁的搜尋框中顯示建議，但會在限定範圍搜尋模式下的網址列中繼續顯示。如果未設定這個欄位，就不需要網址列<ph name="SHORTCUT_SEARCH_AGGREGATOR_SETTINGS_FIELD" />。
+
+<ph name="MS_WIN_NAME" /> 執行個體必須加入 <ph name="MS_AD_NAME" /> 網域或 <ph name="MS_AAD_NAME" />，或者註冊 <ph name="CHROME_ENTERPRISE_CORE_NAME" />，才能使用這項政策。
+
+<ph name="MAC_OS_NAME" /> 執行個體必須透過行動裝置管理 (MDM) 軟體管理、透過 MCX 加入網域，或者註冊 <ph name="CHROME_ENTERPRISE_CORE_NAME" />，才能使用這項政策。</translation>
 <translation id="4649395978608361979">本機印表機目的地</translation>
 <translation id="4650044303940238102">本機字型設定</translation>
 <translation id="4650759511838826572">停用網址通訊協定機制</translation>
@@ -5917,25 +5936,6 @@ Microsoft Outlook 資訊卡需要額外的管理員設定。想進一步瞭解�
 
 如果設為 False，老師就無法存取這項功能。</translation>
 <translation id="5377606826822211923">控管使用者是否可使用來源不受信任的 Android 應用程式</translation>
-<translation id="5377826248281933035">這項政策提供網站清單，指定使用者可以在網址列中使用捷徑，快速搜尋哪些網站的內容。使用者只要在網址列中輸入捷徑或 @&lt;捷徑&gt; (例如 @work)，接著按下空格鍵或 Tab 鍵，即可啟動搜尋。
-
-每個網站的必填欄位如下：「<ph name="NAME_SITE_SEARCH_SETTINGS_FIELD" />」、「<ph name="SHORTCUT_SITE_SEARCH_SETTINGS_FIELD" />」、「<ph name="URL_SITE_SEARCH_SETTINGS_FIELD" />」。
-
-「<ph name="NAME_SITE_SEARCH_SETTINGS_FIELD" />」欄位對應至要在網址列中向使用者顯示的網站或搜尋引擎名稱。
-
-「<ph name="SHORTCUT_SITE_SEARCH_SETTINGS_FIELD" />」可包含純文字和半形字元，但不得含有空格，開頭也不能是 @ 符號。捷徑也不得重複。
-
-每個項目的「<ph name="URL_SITE_SEARCH_SETTINGS_FIELD" />」欄位會指定執行對應關鍵字搜尋時使用的搜尋引擎網址。網址必須含有「<ph name="SEARCH_TERM_MARKER" />」字串，系統會在使用者查詢時將字串替換成搜尋字詞。系統會忽略無效項目和含有重複捷徑的項目。
-
-使用者輸入「@」時，網址列會顯示精選的網站搜尋項目 (最多可設定三個精選項目)。
-
-使用者無法編輯或停用政策設定的網站搜尋項目，但可以新增使用相同網址的捷徑。此外，使用者無法使用先前透過這項政策建立的捷徑，設定新的網站搜尋項目。
-
-如果與使用者先前建立的捷徑發生衝突，系統會優先採用使用者設定的捷徑。不過，使用者仍可在搜尋列中輸入「@」，選用政策建立的捷徑。舉例來說，假設使用者已將「work」定義為網址 1 的捷徑，而這項政策將「work」定義為網址 2 的捷徑，則在搜尋列中輸入「work」會搜尋網址 1，輸入「@work」會搜尋網址 2。
-
-<ph name="MS_WIN_NAME" /> 執行個體必須加入 <ph name="MS_AD_NAME" /> 網域或 <ph name="MS_AAD_NAME" />，或者註冊 <ph name="CHROME_ENTERPRISE_CORE_NAME" />，才能使用這項政策。
-
-<ph name="MAC_OS_NAME" /> 執行個體必須透過行動裝置管理 (MDM) 軟體管理、透過 MCX 加入網域，或者註冊 <ph name="CHROME_ENTERPRISE_CORE_NAME" />，才能使用這項政策。</translation>
 <translation id="537786648513450280">控管裝置是否可使用來源不受信任的 Android 應用程式</translation>
 <translation id="5378885577701865339">停用剪貼簿共用功能</translation>
 <translation id="538108065117008131">允許 <ph name="PRODUCT_FRAME_NAME" /> 處理下列內容類型。</translation>
@@ -8120,6 +8120,11 @@ Origin-Agent-Cluster HTTP 標頭會控制文件要在 origin-keyed 代理程式�
 <translation id="6802412020718145539">PDF 檢視器採用 OOPIF 架構。</translation>
 <translation id="68031099365512050">回報音訊狀態</translation>
 <translation id="680356860463873420">不允許使用者使用 PluginVm</translation>
+<translation id="6807707420322335446">如果將這項政策設為啟用，網頁元素只要不屬於瀏覽器網址列中的網域，就無法設定 Cookie。如果將這項政策設為停用，這類元素將可設定 Cookie，且使用者無法變更這項設定。
+
+      如果不設定這項政策，則允許第三方 Cookie，但使用者可以變更這項設定。
+
+      注意：這項政策不適用於無痕模式，因為在無痕模式下，系統會封鎖第三方 Cookie，且只能在網站層級允許使用。如要在網站層級允許 Cookie，請使用 <ph name="COOKIES_ALLOWED_FOR_URLS_POLICY_NAME" /> 政策。</translation>
 <translation id="6810445994095397827">封鎖這些網站的 JavaScript</translation>
 <translation id="6813263547126514821">電源與關機</translation>
 <translation id="681446116407619279">支援的驗證機制</translation>
@@ -9880,13 +9885,6 @@ Origin-Agent-Cluster HTTP 標頭會控制文件要在 origin-keyed 代理程式�
 <ph name="MS_WIN_NAME" /> 執行個體必須加入 <ph name="MS_AD_NAME" /> 網域或 <ph name="MS_AAD_NAME" />，或者註冊 <ph name="CHROME_ENTERPRISE_CORE_NAME" />，才能使用這項政策。
 
 <ph name="MAC_OS_NAME" /> 執行個體必須透過行動裝置管理 (MDM) 軟體管理、透過 MCX 加入網域，或者註冊 <ph name="CHROME_ENTERPRISE_CORE_NAME" />，才能使用這項政策。</translation>
-<translation id="8213475033260328041">選擇將 <ph name="PRODUCT_NAME" /> 的涵蓋資料儲存在特定地理位置。
-
-如果不設定這項政策，或是設為「<ph name="DATA_REGION_SETTING_NO_PREFERENCE_OPTION_NAME" />」(值 0)，涵蓋資料可能會儲存在任何地理位置。
-
-如果將這項政策設為「<ph name="DATA_REGION_SETTING_UNITED_STATES_OPTION_NAME" />」(值 1)，涵蓋資料會儲存在美國。
-
-如果將這項政策設為「<ph name="DATA_REGION_SETTING_EUROPE_OPTION_NAME" />」(值 2)，涵蓋資料會儲存在歐洲。</translation>
 <translation id="8213770777756919897">請注意，這項政策已遭淘汰，並將在 <ph name="PRODUCT_OS_NAME" />第 85 版中移除。請改用 <ph name="POWER_MANAGEMENT_IDLE_SETTINGS_POLICY_NAME" />。
 
           如果設定這項政策，當使用者的閒置時間已達閒置延遲時間指定的長度 (可另行設定)，<ph name="PRODUCT_OS_NAME" />會採取這項政策指定的動作。
@@ -10235,6 +10233,11 @@ https://developers.google.com/privacy-sandbox/cookies/storage-partitioning。</t
       如果未設定這項政策，<ph name="PRODUCT_NAME" /> 將允許使用者決定其是否為預設瀏覽器，並在不是預設瀏覽器時允許使用者控制是否要顯示使用者通知。
 
       注意：<ph name="MS_WIN_NAME" /> 的系統管理員只能在搭載 Windows 7 的電腦上開啟這項設定。如果是較新版本的電腦，系統管理員必須部署「預設應用程式關聯」檔案，將 <ph name="PRODUCT_NAME" /> 做為 <ph name="HTTPS_PROTOCOL" /> 和 <ph name="HTTP_PROTOCOL" /> 通訊協定的處理常式 (也可以一併做為 <ph name="FTP_PROTOCOL" /> 通訊協定和其他檔案格式的處理常式)。請參閱 Chrome 說明文章：https://support.google.com/chrome?p=make_chrome_default_win。</translation>
+<translation id="8437836857126992452">你可以透過這項政策，指定禁止使用者安裝的擴充功能。如果封鎖已安裝的擴充功能，系統會將其停用，使用者無法以任何方式啟用。加入封鎖清單中的擴充功能就會停用，只要從清單中移除，就會自動啟用。
+
+          如果封鎖清單的值是「*」，系統預設會封鎖所有擴充功能。擴充功能明確列入許可清單後，只要完成簽署 (封裝)，就允許執行。系統會封鎖所有未封裝的擴充功能。
+
+          如果不設定這項政策，使用者就能在 <ph name="PRODUCT_NAME" /> 中安裝任何擴充功能。</translation>
 <translation id="8441105784056442638">啟用完整還原功能</translation>
 <translation id="844322176712318428">允許 Translator API</translation>
 <translation id="8444157920689124099">啟用應用程式繫結加密</translation>

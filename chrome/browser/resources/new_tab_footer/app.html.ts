@@ -13,16 +13,19 @@ export function getHtml(this: NewTabFooterAppElement) {
 Container for housing the items in the center of the footer that are
 separated from each other by a divider.
 -->
-<div id="container">
+<div id="container" @contextmenu="${this.onContextMenu_}">
   <div id="infoContainer">
   ${this.managementNotice_ ?
       html`<div id="managementNoticeContainer" class="notice-item"
         title="${this.managementNotice_.text}">
         <div id="managementNoticeLogoContainer"
-             class=${this.managementNotice_.isCustomLogo ?
+             class=${this.managementNotice_.customBitmapDataUrl ?
              'custom_logo' : ''}>
-          <img id="managementNoticeLogo" alt=""
-               src="${this.managementNotice_.bitmapDataUrl.url}">
+          ${this.managementNotice_.customBitmapDataUrl ? html`
+            <img id="managementNoticeLogo" alt=""
+                src="${this.managementNotice_.customBitmapDataUrl.url}">`: html`
+            <cr-icon icon="cr:domain" alt="" id="managementNoticeLogo" >
+            </cr-icon>`}
         </div>
         <button @click="${this.onManagementNoticeClick_}" role="link"
             aria-label="${this.managementNotice_.text}"
@@ -39,6 +42,20 @@ separated from each other by a divider.
           ${this.extensionName_}
         </button>
       </div>` : ''}
+    ${this.showBackgroundAttribution_ ? html`
+      ${this.backgroundAttributionLink_ && this.backgroundAttributionLink_.url ?  html`
+        <div id="backgroundAttributionContainer" class="notice-item"
+          title="${this.backgroundAttributionText_}"">
+          <button @click="${this.onBackgroundAttributionClick_}" role="link"
+              aria-label="${this.backgroundAttributionText_}"
+              aria-description="$i18n{backgroundAttributionDesc}">
+            ${this.backgroundAttributionText_}
+          </button>
+        </div>` : html`
+        <div id="backgroundAttributionContainer" class="notice-item">
+          <p>${this.backgroundAttributionText_}</p>
+        </div>`}`
+      : ''}
   </div>
   ${this.showCustomizeButtons_ ? html`
     <ntp-customize-buttons id="customizeButtons"

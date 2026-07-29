@@ -340,7 +340,8 @@ bool HasStringsForLocale(std::string_view locale,
   // under a system locale Chrome is not localized to (e.g. Farsi on Linux),
   // but it'd slow down the start up time a little bit for locales Chrome is
   // localized to. So, we don't call it here.
-  return ui::ResourceBundle::LocaleDataPakExists(locale);
+  return ui::ResourceBundle::LocaleDataPakExists(
+      locale, ui::ResourceBundle::Gender::kDefault);
 }
 
 // On Linux, the text layout engine Pango determines paragraph directionality
@@ -968,7 +969,7 @@ const std::vector<std::string>& GetAvailableICULocales() {
   return g_available_locales.Get();
 }
 
-bool IsUserFacingUILocale(const std::string& locale) {
+bool IsUserFacingUILocale(std::string_view locale) {
   // As there are many callers of IsUserFacingUILocale and
   // GetUserFacingUILocaleList from threads where I/O is prohibited, do not
   // perform I/O here.
@@ -1005,9 +1006,8 @@ const std::vector<std::string>& GetUserFacingUILocaleList() {
   static base::NoDestructor<std::vector<std::string>> available_locales([] {
     std::vector<std::string> locales;
     for (std::string_view accept_language : kAcceptLanguageList) {
-      std::string locale(accept_language);
-      if (IsUserFacingUILocale(locale)) {
-        locales.push_back(locale);
+      if (IsUserFacingUILocale(accept_language)) {
+        locales.emplace_back(accept_language);
       }
     }
     return locales;
@@ -1038,8 +1038,8 @@ bool IsPossibleAcceptLanguage(std::string_view locale) {
   return kAcceptLanguageList.contains(locale);
 }
 
-bool IsAcceptLanguageDisplayable(const std::string& display_locale,
-                                 const std::string& locale) {
+bool IsAcceptLanguageDisplayable(std::string_view display_locale,
+                                 std::string_view locale) {
   return IsPossibleAcceptLanguage(locale) &&
          l10n_util::IsLocaleNameTranslated(locale, display_locale);
 }

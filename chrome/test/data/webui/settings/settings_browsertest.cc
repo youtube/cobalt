@@ -478,6 +478,56 @@ IN_PROC_BROWSER_TEST_F(SettingsGlicPageClosedCaptionsToggleTest,
   RunTest("settings/glic_page_test.js",
           "runMochaSuite('GlicPage ClosedCaptionsToggleEnabled')");
 }
+
+class SettingsGlicPageDataProtectionTest : public SettingsBrowserTest {
+ public:
+  SettingsGlicPageDataProtectionTest() {
+    scoped_feature_list_.InitWithFeaturesAndParameters(
+        {{features::kGlicUserStatusCheck, {}},
+         {features::kGlicLearnMoreURLConfig,
+          {
+              {features::kGlicTabAccessToggleLearnMoreURL.name,
+               "https://example.com/tab-access"},
+              {features::kGlicTabAccessToggleLearnMoreURLDataProtected.name,
+               "https://example.com/data-protection"},
+          }}},
+        {});
+  }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+IN_PROC_BROWSER_TEST_F(SettingsGlicPageDataProtectionTest, Strings) {
+  RunTest("settings/glic_page_test.js",
+          "runMochaSuite('GlicPage DataProtection_UserStatusCheckEnabled')");
+}
+
+class SettingsGlicPageDataProtectionTest_UserStatusCheckDisabled
+    : public SettingsBrowserTest {
+ public:
+  SettingsGlicPageDataProtectionTest_UserStatusCheckDisabled() {
+    scoped_feature_list_.InitWithFeaturesAndParameters(
+        {{features::kGlicLearnMoreURLConfig,
+          {
+              {features::kGlicTabAccessToggleLearnMoreURL.name,
+               "https://example.com/tab-access"},
+              {features::kGlicTabAccessToggleLearnMoreURLDataProtected.name,
+               "https://example.com/data-protection"},
+          }}},
+        {features::kGlicUserStatusCheck});
+  }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+IN_PROC_BROWSER_TEST_F(
+    SettingsGlicPageDataProtectionTest_UserStatusCheckDisabled,
+    Strings) {
+  RunTest("settings/glic_page_test.js",
+          "runMochaSuite('GlicPage DataProtection_UserStatusCheckDisabled')");
+}
 #endif
 
 class PeoplePageSyncPageTest : public SettingsBrowserTest {
@@ -564,23 +614,6 @@ IN_PROC_BROWSER_TEST_F(SettingsTest, SecureDns) {
   RunTest("settings/secure_dns_test.js", "runMochaSuite('SettingsSecureDns')");
 }
 
-// TODO(crbug.com/372493822): remove when hybrid linking is disabled by default.
-class HybridDisabledSettingsTest : public SettingsTest {
- public:
-  HybridDisabledSettingsTest() {
-    scoped_feature_list_.InitWithFeatures(
-        /*enabled_features=*/{},
-        /*disabled_features=*/{device::kWebAuthnHybridLinking});
-  }
-
- protected:
-  base::test::ScopedFeatureList scoped_feature_list_;
-};
-
-IN_PROC_BROWSER_TEST_F(HybridDisabledSettingsTest, SecurityKeysSubpage) {
-  RunTest("settings/security_keys_subpage_test.js", "mocha.run()");
-}
-
 IN_PROC_BROWSER_TEST_F(SettingsTest, SecurityKeysBioEnrollment) {
   RunTest("settings/security_keys_bio_enrollment_test.js", "mocha.run()");
 }
@@ -588,10 +621,6 @@ IN_PROC_BROWSER_TEST_F(SettingsTest, SecurityKeysBioEnrollment) {
 IN_PROC_BROWSER_TEST_F(SettingsTest, SecurityKeysCredentialManagement) {
   RunTest("settings/security_keys_credential_management_test.js",
           "mocha.run()");
-}
-
-IN_PROC_BROWSER_TEST_F(SettingsTest, SecurityKeysPhonesSubpage) {
-  RunTest("settings/security_keys_phones_subpage_test.js", "mocha.run()");
 }
 
 IN_PROC_BROWSER_TEST_F(SettingsTest, SecurityKeysResetDialog) {
@@ -1013,8 +1042,13 @@ IN_PROC_BROWSER_TEST_F(SettingsPrivacyGuideTest, MAYBE_3pcdOff) {
 }
 
 // Privacy guide integration tests.
-// TODO(crbug.com/424171352); Re-enable this test.
-IN_PROC_BROWSER_TEST_F(SettingsBrowserTest, DISABLED_Integration) {
+// TODO(crbug.com/424171352): Flaky, supposedly due to timeouts on debug builds.
+#if !defined(NDEBUG)
+#define MAYBE_Integration DISABLED_Integration
+#else
+#define MAYBE_Integration Integration
+#endif
+IN_PROC_BROWSER_TEST_F(SettingsBrowserTest, MAYBE_Integration) {
   RunTest("settings/privacy_guide_integration_test.js", "mocha.run()");
 }
 
@@ -1404,11 +1438,7 @@ IN_PROC_BROWSER_TEST_F(SettingsRouteTest, MAYBE_NonExistentRoute) {
   RunTest("settings/route_test.js", "runMochaSuite('NonExistentRoute')");
 }
 
-class SettingsSafetyHubTest : public SettingsBrowserTest {
- private:
-  base::test::ScopedFeatureList scoped_feature_list_{
-      safe_browsing::kSafetyHubAbusiveNotificationRevocation};
-};
+using SettingsSafetyHubTest = SettingsBrowserTest;
 
 IN_PROC_BROWSER_TEST_F(SettingsSafetyHubTest, SafetyHubCard) {
   RunTest("settings/safety_hub_card_test.js", "mocha.run()");

@@ -25,6 +25,7 @@
 #include "cc/layers/heads_up_display_layer_impl.h"
 #include "cc/layers/layer_impl.h"
 #include "cc/layers/mirror_layer_impl.h"
+#include "cc/layers/nine_patch_layer_impl.h"
 #include "cc/layers/nine_patch_thumb_scrollbar_layer_impl.h"
 #include "cc/layers/painted_scrollbar_layer_impl.h"
 #include "cc/layers/picture_layer_impl.h"
@@ -765,6 +766,18 @@ void SerializeViewTransitionContentLayerExtra(
   extra->max_extents_rect = layer.max_extents_rect();
 }
 
+void SerializeNinePatchLayerExtra(NinePatchLayerImpl& layer,
+                                  viz::mojom::NinePatchLayerExtraPtr& extra) {
+  extra->image_aperture = layer.quad_generator().image_aperture();
+  extra->border = layer.quad_generator().border();
+  extra->layer_occlusion = layer.quad_generator().output_occlusion();
+  extra->fill_center = layer.quad_generator().fill_center();
+  extra->ui_resource_id = layer.ui_resource_id();
+  extra->image_bounds = layer.image_bounds();
+  extra->uv_top_left = layer.uv_top_left();
+  extra->uv_bottom_right = layer.uv_bottom_right();
+}
+
 void SerializeSurfaceLayerExtra(SurfaceLayerImpl& layer,
                                 viz::mojom::SurfaceLayerExtraPtr& extra) {
   extra->surface_range = layer.range();
@@ -848,6 +861,14 @@ void SerializeLayer(LayerImpl& layer,
               std::move(nine_patch_thumb_scrollbar_layer_extra));
       break;
     }
+    case mojom::LayerType::kNinePatch: {
+      auto nine_patch_layer_extra = viz::mojom::NinePatchLayerExtra::New();
+      SerializeNinePatchLayerExtra(static_cast<NinePatchLayerImpl&>(layer),
+                                   nine_patch_layer_extra);
+      wire.layer_extra = viz::mojom::LayerExtra::NewNinePatchLayerExtra(
+          std::move(nine_patch_layer_extra));
+      break;
+    }
     case mojom::LayerType::kPaintedScrollbar: {
       auto painted_scrollbar_layer_extra =
           viz::mojom::PaintedScrollbarLayerExtra::New();
@@ -893,6 +914,9 @@ void SerializeLayer(LayerImpl& layer,
       }
       tile_display_extra->is_backdrop_filter_mask =
           picture_layer.is_backdrop_filter_mask();
+      tile_display_extra->is_directly_composited_image =
+          picture_layer.IsDirectlyCompositedImage();
+      tile_display_extra->nearest_neighbor = picture_layer.nearest_neighbor();
       wire.layer_extra = viz::mojom::LayerExtra::NewTileDisplayLayerExtra(
           std::move(tile_display_extra));
       SerializePictureLayerTileUpdates(picture_layer, resource_provider,
@@ -1246,9 +1270,12 @@ void VizLayerContext::UpdateDisplayTreeFrom(
   update->background_color = tree.background_color();
 
   const ViewportPropertyIds& property_ids = tree.viewport_property_ids();
+  update->elastic_overscroll = tree.elastic_overscroll()->Current(true);
   update->overscroll_elasticity_transform =
       property_ids.overscroll_elasticity_transform;
   update->page_scale_transform = property_ids.page_scale_transform;
+  update->display_transform_hint = tree.display_transform_hint();
+  update->max_safe_area_inset_bottom = tree.max_safe_area_inset_bottom();
   update->inner_scroll = property_ids.inner_scroll;
   update->outer_clip = property_ids.outer_clip;
   update->outer_scroll = property_ids.outer_scroll;

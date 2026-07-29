@@ -17,6 +17,7 @@
 #include "components/content_settings/core/browser/content_settings_observer.h"
 #include "components/content_settings/core/common/content_settings.h"
 #include "components/content_settings/core/common/content_settings_types.h"
+#include "components/permissions/permission_decision.h"
 #include "components/permissions/permission_request.h"
 #include "components/permissions/permission_request_data.h"
 #include "components/permissions/resolvers/permission_resolver.h"
@@ -56,7 +57,8 @@ static constexpr base::TimeDelta kOneTimePermissionTimeout = base::Minutes(5);
 static constexpr base::TimeDelta kOneTimePermissionMaximumLifetime =
     base::Hours(16);
 
-using BrowserPermissionCallback = base::OnceCallback<void(ContentSetting)>;
+using BrowserPermissionCallback =
+    base::OnceCallback<void(blink::mojom::PermissionStatus)>;
 
 // This base class contains common operations for granting permissions.
 // It offers the following functionality:
@@ -175,6 +177,8 @@ class PermissionContextBase : public content_settings::Observer {
   }
 
  protected:
+  // Retrieves the current permission status. |render_frame_host| may be
+  // nullptr.
   virtual base::Value GetPermissionStatusInternal(
       content::RenderFrameHost* render_frame_host,
       const GURL& requesting_origin,
@@ -191,8 +195,7 @@ class PermissionContextBase : public content_settings::Observer {
   virtual void NotifyPermissionSet(const PermissionRequestData& request_data,
                                    BrowserPermissionCallback callback,
                                    bool persist,
-                                   ContentSetting decision,
-                                   bool is_one_time,
+                                   PermissionDecision decision,
                                    bool is_final_decision);
 
   // Implementors can override this method to update the icons on the
@@ -219,7 +222,7 @@ class PermissionContextBase : public content_settings::Observer {
   virtual void UserMadePermissionDecision(const PermissionRequestID& id,
                                           const GURL& requesting_origin,
                                           const GURL& embedding_origin,
-                                          ContentSetting decision);
+                                          PermissionDecision decision);
 
   // content_settings::Observer:
   void OnContentSettingChanged(
@@ -266,8 +269,7 @@ class PermissionContextBase : public content_settings::Observer {
 
   // This is the callback for PermissionRequest and is called once the user
   // allows/blocks/dismisses a permission prompt.
-  void PermissionDecided(ContentSetting decision,
-                         bool is_one_time,
+  void PermissionDecided(PermissionDecision decision,
                          bool is_final_decision,
                          const PermissionRequestData& request_data);
 

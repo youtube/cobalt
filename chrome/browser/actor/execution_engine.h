@@ -45,6 +45,7 @@ class Origin;
 namespace actor {
 
 class ActorTask;
+class ToolRequest;
 
 // Coordinates the execution of a multi-step task.
 class ExecutionEngine {
@@ -170,7 +171,12 @@ class ExecutionEngine {
   // Owns `this`.
   raw_ptr<ActorTask> task_;
 
-  ToolController tool_controller_;
+  // Tool request currently being invoked.
+  std::unique_ptr<ToolRequest> active_tool_request_;
+
+  // Created when task_ is set. Handles execution details for an individual tool
+  // request.
+  std::unique_ptr<ToolController> tool_controller_;
 
   // A sequence of actions that the model has requested. When it is finished
   // being processed it is reset.

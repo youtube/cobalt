@@ -23,6 +23,7 @@
 #include "chrome/browser/glic/glic_enums.h"
 #include "chrome/browser/glic/glic_keyed_service_factory.h"
 #include "chrome/browser/glic/glic_metrics.h"
+#include "chrome/browser/glic/glic_occlusion_notifier.h"
 #include "chrome/browser/glic/glic_pref_names.h"
 #include "chrome/browser/glic/glic_profile_manager.h"
 #include "chrome/browser/glic/host/auth_controller.h"
@@ -98,13 +99,15 @@ GlicKeyedService::GlicKeyedService(
                                                      enabling_.get())),
       sharing_manager_(
           std::make_unique<GlicSharingManagerImpl>(profile,
-                                                   *window_controller_,
+                                                   window_controller_.get(),
                                                    host_.get(),
                                                    metrics_.get())),
       screenshot_capturer_(std::make_unique<GlicScreenshotCapturer>()),
       auth_controller_(std::make_unique<AuthController>(profile,
                                                         identity_manager,
                                                         /*use_for_fre=*/false)),
+      occlusion_notifier_(
+          std::make_unique<GlicOcclusionNotifier>(*window_controller_)),
       contextual_cueing_service_(contextual_cueing_service) {
   CHECK(GlicEnabling::IsProfileEligible(Profile::FromBrowserContext(profile)));
   host_->Initialize(window_controller_.get());
@@ -169,7 +172,8 @@ void GlicKeyedService::ToggleUI(BrowserWindowInterface* bwi,
   window_controller_->Toggle(bwi, prevent_close, source);
 }
 
-void GlicKeyedService::OpenFreDialogInNewTab(BrowserWindowInterface* bwi) {
+void GlicKeyedService::OpenFreDialogInNewTab(BrowserWindowInterface* bwi,
+                                             mojom::InvocationSource source) {
   // Glic may be disabled for certain user profiles (the user is browsing in
   // incognito or guest mode, policy, etc). In those cases, the entry points to
   // this method should already have been removed.
@@ -179,7 +183,7 @@ void GlicKeyedService::OpenFreDialogInNewTab(BrowserWindowInterface* bwi) {
   if (glic_profile_manager) {
     glic_profile_manager->SetActiveGlic(this);
   }
-  window_controller_->fre_controller()->OpenFreDialogInNewTab(bwi);
+  window_controller_->fre_controller()->OpenFreDialogInNewTab(bwi, source);
 }
 
 void GlicKeyedService::CloseUI() {
@@ -220,6 +224,7 @@ void GlicKeyedService::OnZeroStateSuggestionsFetched(
 
 void GlicKeyedService::FetchZeroStateSuggestions(
     bool is_first_run,
+    std::optional<std::vector<std::string>> supported_tools,
     mojom::WebClientHandler::GetZeroStateSuggestionsForFocusedTabCallback
         callback) {
   auto* active_web_contents =
@@ -232,7 +237,7 @@ void GlicKeyedService::FetchZeroStateSuggestions(
     suggestions->tab_id = GetTabId(active_web_contents);
     suggestions->tab_url = active_web_contents->GetLastCommittedURL();
     contextual_cueing_service_->GetContextualGlicZeroStateSuggestions(
-        active_web_contents, is_first_run,
+        active_web_contents, is_first_run, supported_tools,
         mojo::WrapCallbackWithDefaultInvokeIfNotRun(
             base::BindOnce(&GlicKeyedService::OnZeroStateSuggestionsFetched,
                            GetWeakPtr(), std::move(suggestions),
@@ -356,8 +361,7 @@ void GlicKeyedService::ActInFocusedTab(
   }
 
   CHECK(actor_controller_);
-  actor_controller_->Act(sharing_manager_->GetFocusedTabData(), action, options,
-                         std::move(callback));
+  actor_controller_->Act(action, options, std::move(callback));
 }
 
 void GlicKeyedService::StopActorTask(actor::TaskId task_id) {

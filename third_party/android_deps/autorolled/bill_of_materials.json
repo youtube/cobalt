@@ -2,7 +2,7 @@
     {
         "name": "activity",
         "group": "androidx.activity",
-        "version": "1.12.0-alpha02"
+        "version": "1.12.0-alpha03"
     },
     {
         "name": "activity-compose",
@@ -347,7 +347,7 @@
     {
         "name": "core",
         "group": "androidx.core",
-        "version": "1.17.0-SNAPSHOT"
+        "version": "1.17.0-alpha01"
     },
     {
         "name": "core-animation",
@@ -362,7 +362,7 @@
     {
         "name": "core-ktx",
         "group": "androidx.core",
-        "version": "1.17.0-SNAPSHOT"
+        "version": "1.17.0-alpha01"
     },
     {
         "name": "core-viewtree",
@@ -382,7 +382,7 @@
     {
         "name": "credentials",
         "group": "androidx.credentials",
-        "version": "1.6.0-alpha02"
+        "version": "1.6.0-alpha03"
     },
     {
         "name": "credentials-play-services-auth",
@@ -757,12 +757,12 @@
     {
         "name": "navigationevent",
         "group": "androidx.navigationevent",
-        "version": "1.0.0-alpha02"
+        "version": "1.0.0-alpha03"
     },
     {
         "name": "navigationevent-android",
         "group": "androidx.navigationevent",
-        "version": "1.0.0-alpha02"
+        "version": "1.0.0-alpha03"
     },
     {
         "name": "navigationevent-compose",
@@ -1122,7 +1122,7 @@
     {
         "name": "lottie",
         "group": "com.airbnb.android",
-        "version": "6.6.6"
+        "version": "6.6.7"
     },
     {
         "name": "sqlite4java",
@@ -1287,7 +1287,7 @@
     {
         "name": "material",
         "group": "com.google.android.material",
-        "version": "1.14.0-alpha01"
+        "version": "1.14.0-alpha02"
     },
     {
         "name": "core-common",
@@ -1767,17 +1767,17 @@
     {
         "name": "annotations",
         "group": "org.robolectric",
-        "version": "4.15-beta-1"
+        "version": "4.15.1"
     },
     {
         "name": "junit",
         "group": "org.robolectric",
-        "version": "4.15-beta-1"
+        "version": "4.15.1"
     },
     {
         "name": "nativeruntime",
         "group": "org.robolectric",
-        "version": "4.15-beta-1"
+        "version": "4.15.1"
     },
     {
         "name": "nativeruntime-dist-compat",
@@ -1787,47 +1787,47 @@
     {
         "name": "pluginapi",
         "group": "org.robolectric",
-        "version": "4.15-beta-1"
+        "version": "4.15.1"
     },
     {
         "name": "plugins-maven-dependency-resolver",
         "group": "org.robolectric",
-        "version": "4.15-beta-1"
+        "version": "4.15.1"
     },
     {
         "name": "resources",
         "group": "org.robolectric",
-        "version": "4.15-beta-1"
+        "version": "4.15.1"
     },
     {
         "name": "robolectric",
         "group": "org.robolectric",
-        "version": "4.15-beta-1"
+        "version": "4.15.1"
     },
     {
         "name": "sandbox",
         "group": "org.robolectric",
-        "version": "4.15-beta-1"
+        "version": "4.15.1"
     },
     {
         "name": "shadowapi",
         "group": "org.robolectric",
-        "version": "4.15-beta-1"
+        "version": "4.15.1"
     },
     {
         "name": "shadows-framework",
         "group": "org.robolectric",
-        "version": "4.15-beta-1"
+        "version": "4.15.1"
     },
     {
         "name": "utils",
         "group": "org.robolectric",
-        "version": "4.15-beta-1"
+        "version": "4.15.1"
     },
     {
         "name": "utils-reflector",
         "group": "org.robolectric",
-        "version": "4.15-beta-1"
+        "version": "4.15.1"
     },
     {
         "name": "snakeyaml",

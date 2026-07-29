@@ -4349,6 +4349,9 @@ should be able to be added at any place in this file.
 </action>
 
 <action name="Assistant.NewEntryPoint.Launcher">
+  <obsolete>
+    Deprecated in M139. Replaced with Apps.AppList.GeminiSearchBoxIcon.
+  </obsolete>
   <owner>yawano@google.com</owner>
   <owner>assistive-eng@google.com</owner>
   <description>
@@ -7338,6 +7341,15 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
+<action name="Commerce.PriceInsights.BottomSheetOpened">
+  <owner>jinsukkim@chromium.org</owner>
+  <owner>mdjones@chromium.org</owner>
+  <owner>chrome-shopping@google.com</owner>
+  <description>
+    Records the price insights bottom sheet being opened through any UI.
+  </description>
+</action>
+
 <action name="Commerce.PriceInsights.HistoryGraphInteraction">
   <owner>zhiyuancai@chromium.org</owner>
   <owner>chrome-shopping@google.com</owner>
@@ -9478,6 +9490,15 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
+<action name="CustomTabsMenuPriceInsights">
+  <owner>jinsukkim@chromium.org</owner>
+  <owner>mdjones@chromium.org</owner>
+  <owner>chrome-shopping@google.com</owner>
+  <description>
+    User pressed/clicked the &quot;Price Insights&quot; item in the app menu.
+  </description>
+</action>
+
 <action name="CustomTabsMenuReadItLater">
   <obsolete>Deprecated as of 10/2016, this feature was removed.</obsolete>
   <owner>ianwen@chromium.org</owner>
@@ -9944,6 +9965,12 @@ should be able to be added at any place in this file.
     User opened the site exception edit dialog by clicking on a site in the
     SingleCategoryPreferences page for Desktop site. Android only.
   </description>
+</action>
+
+<action name="DesktopSplitView_Create">
+  <owner>agale@google.com</owner>
+  <owner>chrome-desktop-ui@google.com</owner>
+  <description>Recorded when the user creates a split view.</description>
 </action>
 
 <action name="Destination_Application_Edit">
@@ -12560,6 +12587,14 @@ should be able to be added at any place in this file.
   <owner>erikchen@chromium.org</owner>
   <description>
     Logged anytime glic is unpinned from the tabstrip, regardless of source.
+  </description>
+</action>
+
+<action name="Glic.Widget.ResetPositionOnOpen">
+  <owner>perrier@chromium.org</owner>
+  <description>
+    Logged eachtime the position of the glic widget is reset when reopening
+    before a minimum delay is reached.
   </description>
 </action>
 
@@ -24619,6 +24654,14 @@ should be able to be added at any place in this file.
   <description>User pressed 'Listen to this page' in the app menu.</description>
 </action>
 
+<action name="MobileMenuReaderMode">
+  <owner>jinsukkim@chromium.org</owner>
+  <owner>wylieb@chromium.org</owner>
+  <description>
+    User pressed/clicked the &quot;Show Reading Mode&quot; item in the app menu.
+  </description>
+</action>
+
 <action name="MobileMenuReadingList">
   <owner>gambard@chromium.org</owner>
   <description>User pressed 'Reading List' in the app menu.</description>
@@ -25154,7 +25197,7 @@ should be able to be added at any place in this file.
   </obsolete>
   <owner>ianwen@chromium.org</owner>
   <description>
-    Action indicating the user has clicked the boomkark button on NTP to swith
+    Action indicating the user has clicked the bookmark button on NTP to switch
     to the bookmark manager.
   </description>
 </action>
@@ -25890,6 +25933,12 @@ should be able to be added at any place in this file.
 <action name="MobileQRScannerTorchOn">
   <owner>jif@chromium.org</owner>
   <description>User switched on torch in the QR Scanner.</description>
+</action>
+
+<action name="MobileReaderModeActivated">
+  <owner>mdjones@chromium.org</owner>
+  <owner>jinsukkim@chromium.org</owner>
+  <description>Recorded when reader mode gets activated.</description>
 </action>
 
 <action name="MobileReadingListAccessibilityClose">
@@ -26651,11 +26700,29 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
+<action name="MobileSyncPassphraseSettingsCancel">
+  <owner>arthurmilchior@chromium.org</owner>
+  <owner>chrome-signin-mobile-team@google.com</owner>
+  <description>
+    The user tapped on Cancel in the Sync Encryption or Sync Passphrase Settings
+    UI. iOS only.
+  </description>
+</action>
+
 <action name="MobileSyncPassphraseSettingsClose">
   <owner>jlebel@chromium.org</owner>
   <owner>fernandex@google.com</owner>
   <description>
     Sync Passphrase Settings UI was dismissed. iOS only.
+  </description>
+</action>
+
+<action name="MobileSyncPassphraseSettingsEnter">
+  <owner>arthurmilchior@chromium.org</owner>
+  <owner>chrome-signin-mobile-team@google.com</owner>
+  <description>
+    The user entered a passphrase and tapped or pressed &quot;Enter&quot; in the
+    Sync Encryption or Sync Passphrase Settings UI. iOS only.
   </description>
 </action>
 
@@ -39280,6 +39347,42 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
+<action name="Signin_AddAccount_Cancelled">
+  <owner>arthurmilchior@chromium.org</owner>
+  <owner>chrome-signin-mobile-team@google.com</owner>
+  <description>
+    Recorded when the user cancel the Add Account flow. Recorded for iOS only.
+  </description>
+</action>
+
+<action name="Signin_AddAccount_Error">
+  <owner>arthurmilchior@chromium.org</owner>
+  <owner>chrome-signin-mobile-team@google.com</owner>
+  <description>
+    Recorded when an error caused the Add Account flow to fail. Recorded for iOS
+    only.
+  </description>
+</action>
+
+<action name="Signin_AddAccount_Interrupted">
+  <owner>arthurmilchior@chromium.org</owner>
+  <owner>chrome-signin-mobile-team@google.com</owner>
+  <description>
+    Recorded when the Add Account flow was interrupted, as requested by the
+    coordinator’s owner. It may or may not be triggered by an action from the
+    user. Recorded for iOS only.
+  </description>
+</action>
+
+<action name="Signin_AddAccount_Success">
+  <owner>arthurmilchior@chromium.org</owner>
+  <owner>chrome-signin-mobile-team@google.com</owner>
+  <description>
+    Recorded when the user succesfully added an account through the Add Account
+    flow. Recorded for iOS only.
+  </description>
+</action>
+
 <action name="Signin_AddAccountToDevice">
   <owner>gogerald@chromium.org</owner>
   <description>Recorded when the add account dialog is opened.</description>
@@ -46085,6 +46188,14 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
+<action name="TrackingProtections.Bubble.ReloadingTimeout">
+  <owner>michelleabreo@google.com</owner>
+  <owner>koilos@google.com</owner>
+  <description>
+    Tracking protections bubble closed due to reloading timeout.
+  </description>
+</action>
+
 <action name="TrackingProtections.Bubble.SendFeedback">
   <owner>michelleabreo@google.com</owner>
   <owner>koilos@google.com</owner>
@@ -49167,6 +49278,8 @@ should be able to be added at any place in this file.
   <suffix name="AutofillAiOptIn" label="For AutofillAiOptIn feature."/>
   <suffix name="AutofillBnplAffirmOrZipSuggestion"
       label="For AutofillBnplAffirmOrZipSuggestion IPH feature."/>
+  <suffix name="AutofillBnplAffirmZipOrKlarnaSuggestion"
+      label="For AutofillBnplAffirmZipOrKlarnaSuggestion IPH feature."/>
   <suffix name="AutofillCardInfoRetrievalSuggestion"
       label="For AutofillCardInfoRetrievalSuggestion feature."/>
   <suffix name="AutofillCreditCardBenefit"

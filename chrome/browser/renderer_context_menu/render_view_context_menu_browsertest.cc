@@ -130,7 +130,6 @@
 #include "net/test/embedded_test_server/http_response.h"
 #include "pdf/buildflags.h"
 #include "pdf/pdf_features.h"
-#include "services/network/public/cpp/ip_address_space_overrides_test_utils.h"
 #include "services/network/public/cpp/weak_wrapper_shared_url_loader_factory.h"
 #include "services/service_manager/public/cpp/interface_provider.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -349,7 +348,7 @@ class ContextMenuBrowserTestBase : public MixinBasedInProcessBrowserTest {
   }
 
   void OpenImagePageAndContextMenu(std::string image_path) {
-    ASSERT_TRUE(embedded_test_server()->Started());
+    ASSERT_TRUE(embedded_test_server()->Start());
     GURL image_url(embedded_test_server()->GetURL(image_path));
     GURL page("data:text/html,<img src='" + image_url.spec() + "'>");
     ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), page));
@@ -476,68 +475,12 @@ class ContextMenuBrowserTest
 #endif
   }
 
-  void SetUpCommandLine(base::CommandLine* command_line) override {
-    ContextMenuBrowserTestBase::SetUpCommandLine(command_line);
-    ASSERT_TRUE(embedded_test_server()->Start());
-    // Treat the test server as public to bypass Local Network Access checks.
-    network::AddPublicIpAddressSpaceOverrideToCommandLine(
-        *embedded_test_server(), *command_line);
-  }
-
- private:
-  base::test::ScopedFeatureList scoped_feature_list_;
-};
-
-// Like ContextMenuBrowserTest, but doesn't set up
-// embedded_test_server()-Start() because a few tests need to do special setup.
-class ContextMenuBrowserNoEmbeddedServerStartTest
-    : public ContextMenuBrowserTestBase,
-      public ::testing::WithParamInterface</*is_preview_enabled*/ bool> {
- protected:
-  ContextMenuBrowserNoEmbeddedServerStartTest() {
-    if (IsPreviewEnabled()) {
-      scoped_feature_list_.InitWithFeatures(
-          {blink::features::kLinkPreview,
-#if BUILDFLAG(ENABLE_GLIC)
-           features::kGlic,
-#endif  // BUILDFLAG(ENABLE_GLIC)
-           media::kContextMenuSaveVideoFrameAs,
-           media::kContextMenuSearchForVideoFrame},
-          {});
-    } else {
-      scoped_feature_list_.InitWithFeatures(
-          {
-#if BUILDFLAG(ENABLE_GLIC)
-              features::kGlic,
-#endif  // BUILDFLAG(ENABLE_GLIC)
-              media::kContextMenuSaveVideoFrameAs,
-              media::kContextMenuSearchForVideoFrame},
-          {blink::features::kLinkPreview});
-    }
-  }
-
-  bool IsPreviewEnabled() {
-#if BUILDFLAG(IS_ANDROID)
-    return false;
-#else
-    return GetParam();
-#endif
-  }
-
  private:
   base::test::ScopedFeatureList scoped_feature_list_;
 };
 
 INSTANTIATE_TEST_SUITE_P(All,
                          ContextMenuBrowserTest,
-                         testing::Bool(),
-                         [](const testing::TestParamInfo<bool>& info) {
-                           return info.param ? "LinkPreviewEnabled"
-                                             : "LinkPreviewDisabled";
-                         });
-
-INSTANTIATE_TEST_SUITE_P(All,
-                         ContextMenuBrowserNoEmbeddedServerStartTest,
                          testing::Bool(),
                          [](const testing::TestParamInfo<bool>& info) {
                            return info.param ? "LinkPreviewEnabled"
@@ -800,6 +743,8 @@ IN_PROC_BROWSER_TEST_P(ContextMenuBrowserTest,
 // Verifies "Save as" is not enabled for links blocked via policy.
 IN_PROC_BROWSER_TEST_P(ContextMenuBrowserTest,
                        SaveAsEntryIsDisabledForBlockedUrls) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+
   auto initial_url = embedded_test_server()->GetURL("/empty.html");
   browser()->profile()->GetPrefs()->SetList(
       policy::policy_prefs::kUrlBlocklist,
@@ -819,6 +764,8 @@ IN_PROC_BROWSER_TEST_P(ContextMenuBrowserTest,
 // Verifies "Save as" is enabled for links that are not blocked via policy.
 IN_PROC_BROWSER_TEST_P(ContextMenuBrowserTest,
                        SaveAsEntryIsNotDisabledForNonBlockedUrls) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+
   auto initial_url = embedded_test_server()->GetURL("/empty.html");
   browser()->profile()->GetPrefs()->SetList(
       policy::policy_prefs::kUrlBlocklist,
@@ -1643,6 +1590,7 @@ IN_PROC_BROWSER_TEST_P(ContextMenuBrowserTest, RealMenu) {
 
 IN_PROC_BROWSER_TEST_P(ContextMenuBrowserTest,
                        OpenNewTabInChromeFromWebAppWithAnOpenBrowser) {
+  ASSERT_TRUE(embedded_test_server()->Start());
   GURL title1(embedded_test_server()->GetURL("/title1.html"));
   GURL title2(embedded_test_server()->GetURL("/title2.html"));
 
@@ -1686,6 +1634,7 @@ IN_PROC_BROWSER_TEST_P(ContextMenuBrowserTest,
 
 IN_PROC_BROWSER_TEST_P(ContextMenuBrowserTest,
                        OpenNewTabInChromeFromWebAppWithoutAnOpenBrowser) {
+  ASSERT_TRUE(embedded_test_server()->Start());
   GURL title1(embedded_test_server()->GetURL("/title1.html"));
 
   const AppId app_id = InstallTestWebApp(
@@ -1734,6 +1683,7 @@ IN_PROC_BROWSER_TEST_P(ContextMenuBrowserTest,
 IN_PROC_BROWSER_TEST_P(ContextMenuBrowserTest, OpenAboutBlankInNewTab) {
   ui_test_utils::AllBrowserTabAddedWaiter add_tab;
 
+  ASSERT_TRUE(embedded_test_server()->Start());
   GURL page(embedded_test_server()->GetURL("/title1.html"));
 
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), page));
@@ -1759,6 +1709,7 @@ IN_PROC_BROWSER_TEST_P(ContextMenuBrowserTest, OpenAboutBlankInNewTab) {
 IN_PROC_BROWSER_TEST_P(ContextMenuBrowserTest, OpenDataURLInNewTab) {
   ui_test_utils::AllBrowserTabAddedWaiter add_tab;
 
+  ASSERT_TRUE(embedded_test_server()->Start());
   GURL page(embedded_test_server()->GetURL("/title1.html"));
 
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), page));
@@ -1783,6 +1734,7 @@ IN_PROC_BROWSER_TEST_P(ContextMenuBrowserTest, OpenDataURLInNewTab) {
 IN_PROC_BROWSER_TEST_P(ContextMenuBrowserTest, OpenInNewTabReferrer) {
   ui_test_utils::AllBrowserTabAddedWaiter add_tab;
 
+  ASSERT_TRUE(embedded_test_server()->Start());
   GURL echoheader(embedded_test_server()->GetURL("/echoheader?Referer"));
 
   // Go to a |page| with a link to echoheader URL.
@@ -1821,6 +1773,7 @@ IN_PROC_BROWSER_TEST_P(ContextMenuBrowserTest, OpenInNewTabReferrer) {
 IN_PROC_BROWSER_TEST_P(ContextMenuBrowserTest, OpenIncognitoNoneReferrer) {
   ui_test_utils::AllBrowserTabAddedWaiter add_tab;
 
+  ASSERT_TRUE(embedded_test_server()->Start());
   GURL echoheader(embedded_test_server()->GetURL("/echoheader?Referer"));
 
   // Go to a |page| with a link to echoheader URL.
@@ -1856,6 +1809,7 @@ IN_PROC_BROWSER_TEST_P(ContextMenuBrowserTest, SuggestedFileName) {
   // Register observer.
   ContextMenuWaiter menu_observer;
 
+  ASSERT_TRUE(embedded_test_server()->Start());
   GURL url(embedded_test_server()->GetURL("/download-anchor-same-origin.html"));
 
   // Go to a page with a link having download attribute.
@@ -1893,6 +1847,7 @@ IN_PROC_BROWSER_TEST_P(ContextMenuBrowserTest, SuggestedFileName) {
 // frame.  This is a regression test for https://crbug.com/1085040.
 IN_PROC_BROWSER_TEST_P(ContextMenuBrowserTest,
                        MenuContentsVerification_MainFrame) {
+  ASSERT_TRUE(embedded_test_server()->Start());
   GURL url(embedded_test_server()->GetURL("/iframe.html"));
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
 
@@ -1940,6 +1895,7 @@ IN_PROC_BROWSER_TEST_P(ContextMenuBrowserTest,
 // subframe.
 IN_PROC_BROWSER_TEST_P(ContextMenuBrowserTest,
                        MenuContentsVerification_Subframe) {
+  ASSERT_TRUE(embedded_test_server()->Start());
   GURL url(embedded_test_server()->GetURL("/iframe.html"));
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
   content::WebContents* tab =
@@ -1998,6 +1954,7 @@ IN_PROC_BROWSER_TEST_P(ContextMenuBrowserTest,
 // with height more than visual viewport bounds.
 IN_PROC_BROWSER_TEST_P(ContextMenuBrowserTest,
                        NonLocatedContextMenuOnLargeImageElement) {
+  ASSERT_TRUE(embedded_test_server()->Start());
   GURL image_url(
       "data:text/html,<html><img src=\"http://example.test/cat.jpg\" "
       "width=\"200\" height=\"10000\" tabindex=\"-1\" /></html>");
@@ -2082,6 +2039,7 @@ IN_PROC_BROWSER_TEST_P(ContextMenuBrowserTest, SuggestedFileNameCrossOrigin) {
   // Register observer.
   ContextMenuWaiter menu_observer;
 
+  ASSERT_TRUE(embedded_test_server()->Start());
   GURL url(
       embedded_test_server()->GetURL("/download-anchor-cross-origin.html"));
 
@@ -2314,6 +2272,7 @@ IN_PROC_BROWSER_TEST_P(ContextMenuBrowserTest, MAYBE_OpenLinkInProfile) {
     }
   }
 
+  ASSERT_TRUE(embedded_test_server()->Start());
   GURL url(embedded_test_server()->GetURL("/"));
 
   std::unique_ptr<TestRenderViewContextMenu> menu(
@@ -2359,6 +2318,7 @@ IN_PROC_BROWSER_TEST_P(ContextMenuBrowserTest, OpenProfileNoneReferrer) {
       profile, chrome::startup::IsProcessStartup::kNo,
       chrome::startup::IsFirstRun::kNo, false);
 
+  ASSERT_TRUE(embedded_test_server()->Start());
 
   GURL echoheader(embedded_test_server()->GetURL("/echoheader?Referer"));
   // Go to a |page| with a link to echoheader URL.
@@ -2688,9 +2648,10 @@ class LensOverlayBrowserTest : public LensBrowserBaseTest {
   void SetUpOnMainThread() override {
     InProcessBrowserTest::SetUpOnMainThread();
 
-    // Permits sharing the page screenshot by default.
+    // Permits sharing the page screenshot and content by default.
     PrefService* prefs = browser()->profile()->GetPrefs();
     prefs->SetBoolean(lens::prefs::kLensSharingPageScreenshotEnabled, true);
+    prefs->SetBoolean(lens::prefs::kLensSharingPageContentEnabled, true);
   }
 
   void TearDownOnMainThread() override {
@@ -2880,8 +2841,10 @@ IN_PROC_BROWSER_TEST_P(PdfPluginContextMenuBrowserTestWithOopifOverride,
   ASSERT_TRUE(menu->IsCommandIdEnabled(IDC_CONTENT_CONTEXT_ROTATECCW));
 
   // Set to tab fullscreen, and test that 'Rotate' items are disabled.
-  FullscreenController* fullscreen_controller =
-      browser()->exclusive_access_manager()->fullscreen_controller();
+  FullscreenController* fullscreen_controller = browser()
+                                                    ->GetFeatures()
+                                                    .exclusive_access_manager()
+                                                    ->fullscreen_controller();
   fullscreen_controller->set_is_tab_fullscreen_for_testing(true);
 
   ASSERT_FALSE(menu->IsCommandIdEnabled(IDC_CONTENT_CONTEXT_ROTATECW));
@@ -3362,6 +3325,7 @@ IN_PROC_BROWSER_TEST_P(ContextMenuBrowserTest, OpenInReadingMode) {
 // Ensure that the context menu can tolerate changes to session history that
 // happen between menu initialization and command execution.
 IN_PROC_BROWSER_TEST_P(ContextMenuBrowserTest, BackAfterBackEntryRemoved) {
+  ASSERT_TRUE(embedded_test_server()->Start());
 
   WebContents* web_contents =
       browser()->tab_strip_model()->GetActiveWebContents();
@@ -3449,8 +3413,7 @@ static std::string BuildCrossOriginChildFrameHTML(const GURL& link) {
                                          nullptr);
 }
 
-IN_PROC_BROWSER_TEST_P(ContextMenuBrowserNoEmbeddedServerStartTest,
-                       SubframeNewTabInitiator) {
+IN_PROC_BROWSER_TEST_P(ContextMenuBrowserTest, SubframeNewTabInitiator) {
   // If a frame on example.com opens a subframe with a different opaque origin,
   // the subframe origin should be passed through to a context menu on that
   // initiator, so:
@@ -3566,6 +3529,31 @@ IN_PROC_BROWSER_TEST_P(ContextMenuBrowserTest, OpenLinkInNewSplitTab) {
   EXPECT_EQ(tab_strip_model->active_index(), 1);
   EXPECT_TRUE(tab_strip_model->GetActiveTab()->IsSplit());
   EXPECT_TRUE(tab_strip_model->GetTabAtIndex(0)->IsSplit());
+}
+
+IN_PROC_BROWSER_TEST_P(ContextMenuBrowserTest, OpenLinkInNewPinnedSplitTab) {
+  const GURL test_url("http://www.example.com/");
+  const GURL wrong_url("http://www.example.com/wrong");
+  std::unique_ptr<TestRenderViewContextMenu> menu =
+      CreateContextMenuMediaTypeNone(test_url, test_url);
+
+  EXPECT_TRUE(menu->IsItemPresent(IDC_CONTENT_CONTEXT_OPENLINKSPLITVIEW));
+
+  TabStripModel* const tab_strip_model = browser()->tab_strip_model();
+  tab_strip_model->SetTabPinned(0, true);
+  tab_strip_model->delegate()->AddTabAt(wrong_url, 1, false, std::nullopt);
+  tab_strip_model->SetTabPinned(1, true);
+  tab_strip_model->delegate()->AddTabAt(wrong_url, 2, false, std::nullopt);
+  tab_strip_model->SetTabPinned(2, true);
+  ASSERT_EQ(tab_strip_model->count(), 3);
+  menu->ExecuteCommand(IDC_CONTENT_CONTEXT_OPENLINKSPLITVIEW, 0);
+  ASSERT_EQ(tab_strip_model->count(), 4);
+  EXPECT_EQ(test_url,
+            tab_strip_model->GetTabAtIndex(1)->GetContents()->GetURL());
+  EXPECT_EQ(tab_strip_model->active_index(), 1);
+  EXPECT_TRUE(tab_strip_model->GetActiveTab()->IsSplit());
+  EXPECT_EQ(tab_strip_model->GetActiveTab()->GetSplit(),
+            tab_strip_model->GetTabAtIndex(0)->GetSplit());
 }
 
 IN_PROC_BROWSER_TEST_P(ContextMenuBrowserTest, OpenLinkInExistingSplitTab) {

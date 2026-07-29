@@ -29,10 +29,12 @@ class ChromeLabsCoordinator;
 class CookieControlsBubbleCoordinator;
 class DesktopBrowserWindowCapabilities;
 class DownloadToolbarUIController;
+class ExclusiveAccessManager;
 class FindBarController;
 class HistorySidePanelCoordinator;
 class LocationBarModel;
 class MemorySaverOptInIPHController;
+class ProfileMenuCoordinator;
 class ReadingListSidePanelCoordinator;
 class SidePanelCoordinator;
 class SidePanelUI;
@@ -44,6 +46,10 @@ class TabStripServiceRegister;
 class ToastController;
 class ToastService;
 class TranslateBubbleController;
+
+#if BUILDFLAG(IS_WIN)
+class WindowsTaskbarIconUpdater;
+#endif
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
 namespace pdf::infobar {
@@ -99,6 +105,10 @@ class MostRecentSharedTabUpdateStore;
 namespace send_tab_to_self {
 class SendTabToSelfToolbarBubbleController;
 }  // namespace send_tab_to_self
+
+namespace split_tabs {
+class SplitTabScrimController;
+}  // namespace split_tabs
 
 // This class owns the core controllers for features that are scoped to a given
 // browser window on desktop. It can be subclassed by tests to perform
@@ -284,12 +294,24 @@ class BrowserWindowFeatures {
     return new_tab_footer_controller_.get();
   }
 
+  split_tabs::SplitTabScrimController* split_tab_scrim_controller() {
+    return split_tab_scrim_controller_.get();
+  }
+
+  ProfileMenuCoordinator* profile_menu_coordinator() {
+    return profile_menu_coordinator_.get();
+  }
+
   // Get the FindBarController for this browser window, creating it if it does
   // not yet exist.
   FindBarController* GetFindBarController();
 
   // Returns true if a FindBarController exists for this browser window.
   bool HasFindBarController() const;
+
+  ExclusiveAccessManager* exclusive_access_manager() {
+    return exclusive_access_manager_.get();
+  }
 
  protected:
   BrowserWindowFeatures();
@@ -315,6 +337,8 @@ class BrowserWindowFeatures {
 
   std::unique_ptr<commerce::ProductSpecificationsEntryPointController>
       product_specifications_entry_point_controller_;
+
+  std::unique_ptr<ExclusiveAccessManager> exclusive_access_manager_;
 
   std::unique_ptr<lens::LensOverlayEntryPointController>
       lens_overlay_entry_point_controller_;
@@ -404,6 +428,8 @@ class BrowserWindowFeatures {
   std::unique_ptr<extensions::BrowserExtensionWindowController>
       extension_window_controller_;
 
+  std::unique_ptr<ProfileMenuCoordinator> profile_menu_coordinator_;
+
   // This is an experimental API that interacts with the TabStripModel.
   std::unique_ptr<TabStripServiceRegister> tab_strip_service_;
 
@@ -413,6 +439,13 @@ class BrowserWindowFeatures {
 
   // TODO(crbug.com/423956131): Remove this.
   raw_ptr<BrowserWindowInterface> browser_ = nullptr;
+
+  std::unique_ptr<split_tabs::SplitTabScrimController>
+      split_tab_scrim_controller_;
+
+#if BUILDFLAG(IS_WIN)
+  std::unique_ptr<WindowsTaskbarIconUpdater> windows_taskbar_icon_updater_;
+#endif
 };
 
 #endif  // CHROME_BROWSER_UI_BROWSER_WINDOW_PUBLIC_BROWSER_WINDOW_FEATURES_H_

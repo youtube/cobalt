@@ -65,10 +65,12 @@ ContextProperties ContextImplOrt::GetContextProperties() {
        /*clamp_input=*/
        {DataTypeConstraint::kAllDataTypesAtLeast8bits, kMaxRank},
        /*concat_inputs=*/{},
-       /*conv2d_input=*/{},
-       /*conv2d_bias=*/{},
-       /*conv_transpose2d_input=*/{},
-       /*conv_transpose2d_bias=*/{},
+       /*conv2d_input=*/{DataTypeConstraint::kFloat16To32, {3, 8}},
+       /*conv2d_bias=*/
+       {DataTypeConstraint::kFloat16To32, SupportedRanks::Exactly(1)},
+       /*conv_transpose2d_input=*/{DataTypeConstraint::kFloat16To32, {3, 8}},
+       /*conv_transpose2d_bias=*/
+       {DataTypeConstraint::kFloat16To32, SupportedRanks::Exactly(1)},
        /*cumulative_sum_input=*/{},
        /*dequantize_linear_input=*/{},
        /*dequantize_linear_scale=*/{},
@@ -112,7 +114,8 @@ ContextProperties ContextImplOrt::GetContextProperties() {
        /*sqrt_input=*/{DataTypeConstraint::kFloat16To32, kMaxRank},
        /*tan_input=*/{DataTypeConstraint::kFloat16To32, kMaxRank},
        /*elu_input=*/{},
-       /*expand_input=*/{},
+       /*expand_input=*/
+       {DataTypeConstraint::kAllDataTypesAtLeast8bits, kMaxRank},
        /*gather_input=*/{},
        /*gather_indices=*/{},
        /*gather_elements_input=*/{},
@@ -133,7 +136,7 @@ ContextProperties ContextImplOrt::GetContextProperties() {
        /*instance_normalization_input=*/{},
        /*instance_normalization_scale=*/{},
        /*layer_normalization_input=*/{},
-       /*leaky_relu_input=*/{},
+       /*leaky_relu_input=*/{DataTypeConstraint::kFloat16To32, kMaxRank},
        /*linear_input=*/{},
        /*lstm_input=*/{},
        /*lstm_bias=*/{},
@@ -147,7 +150,7 @@ ContextProperties ContextImplOrt::GetContextProperties() {
        {DataTypeConstraint::kFloat16To32, {3, 8}},
        /*max_pool2d_input=*/
        {kInts8Float16To32, {3, 8}},
-       /*prelu_input=*/{},
+       /*prelu_input=*/{DataTypeConstraint::kFloat16To32Ints32To64, kMaxRank},
        /*quantize_linear_input=*/{},
        /*quantize_linear_zero_point=*/{},
        /*reduce_l1_input=*/{},
@@ -162,7 +165,11 @@ ContextProperties ContextImplOrt::GetContextProperties() {
        /*reduce_sum_square_input=*/{},
        /*relu_input=*/{DataTypeConstraint::kFloat16To32Int8To64, kMaxRank},
        /*resample2d_input=*/{},
-       /*reshape_input=*/{},
+       // TODO(crbug.com/425151000): Add int4/uint4 support for reshape once the
+       // related ORT issue is fixed.
+       // https://github.com/microsoft/onnxruntime/issues/24285
+       /*reshape_input=*/
+       {DataTypeConstraint::kAllDataTypesAtLeast8bits, kMaxRank},
        /*reverse_input=*/{},
        /*scatter_elements_input=*/{},
        /*scatter_elements_indices=*/{},

@@ -388,6 +388,11 @@ inline constexpr char kIosSaveToDriveDownloadManagerPolicySettings[] =
 inline constexpr char kIosChooseFromDriveFilePickerPolicySettings[] =
     "ios.choose_from_drive.file_picker_policy";
 
+// Preference to store the current ThemeSpecificsIos for the user's background
+// choices.
+inline constexpr char kIosSavedThemeSpecificsIos[] =
+    "ios.saved_theme_specifics_ios";
+
 // String preference containing the default account to use for saving images to
 // Google Photos.
 inline constexpr char kIosSaveToPhotosDefaultGaiaId[] =
@@ -618,10 +623,6 @@ inline constexpr char kLastBackgroundedTime[] = "ios.last_backgrounded_time";
 // browser policy.
 inline constexpr char kLastSigninTimestamp[] = "signin.last_signin_timestamp";
 
-// Integer that represents the value of BrowserSigninPolicy. Values are defined
-// in ios/chrome/browser/policy/model/policy_util.h.
-inline constexpr char kBrowserSigninPolicy[] = "signin.browser_signin_policy";
-
 // Bool that represents whether iCloud backups are allowed by policy.
 inline constexpr char kAllowChromeDataInBackups[] =
     "ios.allow_chrome_data_in_backups";
@@ -778,6 +779,15 @@ inline constexpr char kIOSBWGManualPromo[] = "ios.bwg.manual_promo";
 // to trigger forced migration after some grace period.
 inline constexpr char kWaitingForMultiProfileForcedMigrationTimestamp[] =
     "ios.waiting_for_multi_profile_forced_migration_timestamp";
+
+// A time object storing when the sign-in promo should be displayed again.
+// The value is set on the first cold start to make sure sign-in promo is not
+// triggered right after the FRE.
+inline constexpr char kNextSSORecallTime[] = "ios.next_sso_recall_time";
+
+// An integer determining the enabled status of Gemini by policy.
+// 0 means Gemini is enabled (default), and 1 means it's disabled.
+inline constexpr char kGeminiEnabledByPolicy[] = "ios.gemini_enabled_by_policy";
 
 }  // namespace prefs
 

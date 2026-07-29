@@ -8,9 +8,9 @@
 #         mac highsierra mojave catalina bigsur monterey ventura sonoma sequoia
 #         win win8 win10 win11 ]
 # Devices
-# tags: [ android-nexus-5x android-pixel-2 android-pixel-4
-#             android-pixel-6 android-shield-android-tv android-sm-a137f
-#             android-sm-a236b android-sm-s911u1
+# tags: [ android-pixel-2 android-pixel-4 android-pixel-6
+#             android-shield-android-tv android-sm-a137f android-sm-a236b
+#             android-sm-s911u1
 #         android-brya android-corsola
 #         chromeos-board-amd64-generic chromeos-board-eve chromeos-board-jacuzzi
 #             chromeos-board-octopus chromeos-board-volteer
@@ -108,6 +108,7 @@
 # Failures/Flakes #
 ###################
 # Non-"Skip" expectations go here to suppress regular flakes/failures.
+crbug.com/426232297 [ mac intel-0x3e9b angle-metal asan ] HardwareAcceleratedFeature_2d_canvas_accelerated [ Slow ]
 
 #######################################################################
 # Automated Entries After This Point - Do Not Manually Add Below Here #

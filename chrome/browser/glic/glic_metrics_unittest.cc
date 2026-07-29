@@ -53,12 +53,17 @@ class MockDelegate : public GlicMetrics::Delegate {
   bool IsWindowAttached() const override { return attached_; }
   gfx::Size GetWindowSize() const override { return gfx::Size(); }
   content::WebContents* GetContents() override { return contents_.get(); }
+  ActiveTabSharingState GetActiveTabSharingState() override {
+    return tab_sharing_state_;
+  }
 
   void SetWebContents(content::WebContents* contents) { contents_ = contents; }
   raw_ptr<content::WebContents> contents_;
 
   bool showing_ = false;
   bool attached_ = false;
+  ActiveTabSharingState tab_sharing_state_ =
+      ActiveTabSharingState::kActiveTabIsShared;
 };
 
 class MockStatusIcon : public StatusIcon {
@@ -190,6 +195,9 @@ TEST_F(GlicMetricsTest, Basic) {
       "Glic.Session.InputSubmit.BrowserActiveState", 5 /*kBrowserHidden*/, 1);
   histogram_tester_.ExpectUniqueSample(
       "Glic.Session.ResponseStart.BrowserActiveState", 5 /*kBrowserHidden*/, 1);
+  histogram_tester_.ExpectUniqueSample(
+      "Glic.Sharing.ActiveTabSharingState.OnUserInputSubmitted",
+      ActiveTabSharingState::kActiveTabIsShared, 1);
 
   EXPECT_EQ(user_action_tester_.GetActionCount("GlicResponseInputSubmit"), 1);
   EXPECT_EQ(user_action_tester_.GetActionCount("GlicResponseStart"), 1);
@@ -638,6 +646,51 @@ TEST_F(GlicMetricsTest, PositionOnOpenAndClose) {
   metrics_->OnGlicWindowShown(std::nullopt, gfx::Point(50, 50));
   histogram_tester_.ExpectBucketCount("Glic.PositionOnDisplay.OnOpen",
                                       DisplayPosition::kUnknown, 2);
+}
+
+TEST_F(GlicMetricsTest, TabFocusStateReporting) {
+  delegate_->tab_sharing_state_ = ActiveTabSharingState::kActiveTabIsShared;
+  // Should not record samples on denying tab access or with the panel not
+  // considered open.
+  profile_->GetPrefs()->SetBoolean(prefs::kGlicTabContextEnabled, false);
+  profile_->GetPrefs()->SetBoolean(prefs::kGlicTabContextEnabled, true);
+
+  // Marks the panel as open.
+  metrics_->OnGlicWindowOpen(/*attached=*/true,
+                             mojom::InvocationSource::kOsButton);
+  // Enable OnGlicWindowOpenAndReady to record metrics.
+  metrics_->set_show_start_time(base::TimeTicks::Now());
+  // Records a sample of *.OnPanelOpenAndReady.
+  metrics_->OnGlicWindowOpenAndReady();
+
+  delegate_->tab_sharing_state_ = ActiveTabSharingState::kCannotShareActiveTab;
+  // Granting tab access records a sample of *.OnTabContextPermissionGranted.
+  profile_->GetPrefs()->SetBoolean(prefs::kGlicTabContextEnabled, false);
+  profile_->GetPrefs()->SetBoolean(prefs::kGlicTabContextEnabled, true);
+  // Should not record a sample as the user is granting a different permission.
+  profile_->GetPrefs()->SetBoolean(prefs::kGlicGeolocationEnabled, false);
+  profile_->GetPrefs()->SetBoolean(prefs::kGlicGeolocationEnabled, true);
+
+  delegate_->tab_sharing_state_ = ActiveTabSharingState::kNoTabCanBeShared;
+  // Records a sample of *.OnUserInputSubmitted.
+  metrics_->OnUserInputSubmitted(mojom::WebClientMode::kText);
+
+  // Marks the panel as closed.
+  metrics_->OnGlicWindowClose(std::nullopt, gfx::Point());
+  // Should not record samples on denying tab access or with the panel not
+  // considered open.
+  profile_->GetPrefs()->SetBoolean(prefs::kGlicTabContextEnabled, false);
+  profile_->GetPrefs()->SetBoolean(prefs::kGlicTabContextEnabled, true);
+
+  histogram_tester_.ExpectUniqueSample(
+      "Glic.Sharing.ActiveTabSharingState.OnPanelOpenAndReady",
+      ActiveTabSharingState::kActiveTabIsShared, 1);
+  histogram_tester_.ExpectUniqueSample(
+      "Glic.Sharing.ActiveTabSharingState.OnTabContextPermissionGranted",
+      ActiveTabSharingState::kCannotShareActiveTab, 1);
+  histogram_tester_.ExpectUniqueSample(
+      "Glic.Sharing.ActiveTabSharingState.OnUserInputSubmitted",
+      ActiveTabSharingState::kNoTabCanBeShared, 1);
 }
 
 }  // namespace

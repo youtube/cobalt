@@ -434,6 +434,35 @@ BASE_FEATURE_PARAM(double,
                    &kGlicUserStatusCheck,
                    "glic-user-status-request-delay-jitter",
                    0.005);
+
+constexpr base::FeatureParam<GlicEnterpriseCheckStrategy>::Option
+    kGlicEnterpriseCheckStrategyOptions[] = {
+        {GlicEnterpriseCheckStrategy::kPolicy, "policy"},
+        {GlicEnterpriseCheckStrategy::kManaged, "managed"},
+};
+BASE_FEATURE_ENUM_PARAM(GlicEnterpriseCheckStrategy,
+                        kGlicUserStatusEnterpriseCheckStrategy,
+                        &kGlicUserStatusCheck,
+                        "glic-user-status-enterprise-check-strategy",
+                        GlicEnterpriseCheckStrategy::kManaged,
+                        &kGlicEnterpriseCheckStrategyOptions);
+
+// When true, the Glic API exposes a method to propose refreshing the
+// user status.
+BASE_FEATURE_PARAM(bool,
+                   kGlicUserStatusRefreshApi,
+                   &kGlicUserStatusCheck,
+                   "glic-user-status-refresh-api",
+                   true);
+
+// The minimum time between user status update requests, when triggered by
+// the Glic API (or another reason that might occur frequently).
+BASE_FEATURE_PARAM(base::TimeDelta,
+                   kGlicUserStatusThrottleInterval,
+                   &kGlicUserStatusCheck,
+                   "glic-user-status-throttle-interval",
+                   base::Seconds(5));
+
 BASE_FEATURE(kGlicFreURLConfig,
              "GlicFreURLConfig",
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -471,6 +500,12 @@ BASE_FEATURE_PARAM(std::string,
                    &kGlicLearnMoreURLConfig,
                    "glic-shortcuts-tab-access-toggle-learn-more-url",
                    "");
+BASE_FEATURE_PARAM(
+    std::string,
+    kGlicTabAccessToggleLearnMoreURLDataProtected,
+    &kGlicLearnMoreURLConfig,
+    "glic-shortcuts-tab-access-toggle-learn-more-url-data-protected",
+    "");
 BASE_FEATURE_PARAM(std::string,
                    kGlicSettingsPageLearnMoreURL,
                    &kGlicLearnMoreURLConfig,
@@ -594,13 +629,9 @@ BASE_FEATURE(kGlicExplicitBackgroundColor,
 // Features to experiment with resetting the panel default location.
 BASE_FEATURE(kGlicPanelResetTopChromeButton,
              "GlicPanelResetTopChromeButton",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-const base::FeatureParam<bool> kGlicPanelResetTopChromeButtonOnOpen{
-    &kGlicPanelResetTopChromeButton, "glic-panel-reset-on-open", true};
-const base::FeatureParam<bool> kGlicPanelResetTopChromeButtonAnimate{
-    &kGlicPanelResetTopChromeButton, "glic-panel-reset-animate", false};
+             base::FEATURE_ENABLED_BY_DEFAULT);
 const base::FeatureParam<int> kGlicPanelResetTopChromeButtonDelayMs{
-    &kGlicPanelResetTopChromeButton, "glic-panel-reset-delay-ms", 2000};
+    &kGlicPanelResetTopChromeButton, "glic-panel-reset-delay-ms", 2500};
 BASE_FEATURE(kGlicPanelResetOnStart,
              "GlicPanelResetOnStart",
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -612,7 +643,7 @@ BASE_FEATURE(kGlicPanelResetOnSessionTimeout,
              base::FEATURE_DISABLED_BY_DEFAULT);
 const base::FeatureParam<int> kGlicPanelResetOnSessionTimeoutDelayH{
     &kGlicPanelResetOnSessionTimeout,
-    "glic-panel-reset-session-timeout-delay-h", 0};
+    "glic-panel-reset-session-timeout-delay-h", 24};
 
 BASE_FEATURE(kGlicWebClientUnresponsiveMetrics,
              "GlicWebClientUnresponsiveMetrics",
@@ -620,6 +651,24 @@ BASE_FEATURE(kGlicWebClientUnresponsiveMetrics,
 
 BASE_FEATURE(kGlicTabGlow, "GlicTabGlow", base::FEATURE_DISABLED_BY_DEFAULT);
 
+BASE_FEATURE(kGlicParameterizedShader,
+             "GlicParameterizedShader",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+extern const base::FeatureParam<std::string> kGlicParameterizedShaderColors{
+    &kGlicParameterizedShader, "glic-parameterized-shader-colors", ""};
+extern const base::FeatureParam<std::string> kGlicParameterizedShaderFloats{
+    &kGlicParameterizedShader, "glic-parameterized-shader-floats", ""};
+
+BASE_FEATURE(kGlicTabFocusDataDedupDebounce,
+             "GlicTabFocusDataDedupDebounce",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+const base::FeatureParam<int> kGlicTabFocusDataDebounceDelayMs{
+    &kGlicTabFocusDataDedupDebounce, "glic-tab-focus-data-debounce-delay-ms",
+    5};
+const base::FeatureParam<int> kGlicTabFocusDataMaxDebounces{
+    &kGlicTabFocusDataDedupDebounce, "glic-tab-focus-data-max-debounces", 5};
+
+BASE_FEATURE(kGlicAssetsV2, "GlicAssetsV2", base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(ENABLE_GLIC)
 
 // Force Privacy Guide to be available even if it would be unavailable
@@ -939,6 +988,12 @@ BASE_FEATURE(kImmersiveFullscreenPWAs,
              base::FEATURE_ENABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_MAC)
 
+// If enabled, enables API-specific interventions for web content rendered in
+// Incognito profiles.
+BASE_FEATURE(kIncognitoFingerprintingInterventions,
+             "IncognitoFingerprintingInterventions",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 #if BUILDFLAG(IS_WIN)
 // A feature that controls whether Chrome warns about incompatible applications.
 // This feature requires Windows 10 or higher to work because it depends on
@@ -1118,11 +1173,6 @@ BASE_FEATURE(kOverridePrefetchOnSingleton,
 #endif
 
 #if BUILDFLAG(IS_CHROMEOS)
-// Skips requesting the Parent Access Code for reauth.
-BASE_FEATURE(kSkipParentAccessCodeForReauth,
-             "SkipParentAccessCodeForReauth",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 // Enable support for "Plugin VMs" on Chrome OS.
 BASE_FEATURE(kPluginVm, "PluginVm", base::FEATURE_DISABLED_BY_DEFAULT);
 #endif
@@ -1784,10 +1834,6 @@ BASE_FEATURE(kWin10AcceleratedDefaultBrowserFlow,
 #endif  // BUILDFLAG(IS_WIN)
 
 #if BUILDFLAG(IS_CHROMEOS)
-bool IsParentAccessCodeForReauthEnabled() {
-  return !base::FeatureList::IsEnabled(kSkipParentAccessCodeForReauth);
-}
-
 // A feature to indicate whether setting wake time >24hours away is supported by
 // the platform's RTC.
 // TODO(b/187516317): Remove when the issue is resolved in FW.

@@ -359,6 +359,7 @@ ci.builder(
         chromium_config = builder_config.chromium_config(
             config = "chromium",
             apply_configs = [
+                "clobber",
                 "mb",
             ],
             build_config = builder_config.build_config.RELEASE,
@@ -395,9 +396,7 @@ ci.builder(
             "ipc_tests",
             "media_unittests",
             "message_center_unittests",
-            "nacl_loader_unittests",
             "net_unittests",
-            "ppapi_unittests",
             "printing_unittests",
             "remoting_unittests",
             "sandbox_linux_unittests",

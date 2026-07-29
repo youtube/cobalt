@@ -47,6 +47,12 @@
 #include "ui/base/window_open_disposition.h"
 #include "url/gurl.h"
 
+#if BUILDFLAG(ENABLE_GLIC)
+#include "chrome/browser/glic/glic_keyed_service_factory.h"
+#include "chrome/browser/glic/host/glic_features.mojom.h"
+#include "chrome/browser/glic/test_support/glic_test_environment.h"
+#endif
+
 using testing::_;
 
 namespace {
@@ -345,9 +351,8 @@ IN_PROC_BROWSER_TEST_F(TabStripModelBrowserTest,
   tab_groups::TabGroupId group_id = tab_strip_model->AddToNewGroup({4});
   tab_strip_model->ActivateTabAt(1);
 
-  tab_strip_model->UpdateActiveTabInSplit(
-      tab_strip_model->GetTabAtIndex(0)->GetSplit().value(), 4,
-      TabStripModel::SplitUpdateType::kReplace);
+  tab_strip_model->UpdateTabInSplit(tab_strip_model->GetTabAtIndex(1), 4,
+                                    TabStripModel::SplitUpdateType::kReplace);
 
   // Make sure the dialog is shown, and fake clicking the button.
   tab_groups::DeletionDialogController* deletion_dialog_controller =
@@ -428,25 +433,6 @@ IN_PROC_BROWSER_TEST_F(TabStripModelBrowserTest,
   EXPECT_TRUE(tab_strip_model->GetTabAtIndex(4)->GetSplit().has_value());
 }
 
-IN_PROC_BROWSER_TEST_F(TabStripModelBrowserTest, CommandSwapWithActiveSplit) {
-  TabStripModel* const tab_strip_model = browser()->tab_strip_model();
-  AddTabs(3);
-  tab_strip_model->ActivateTabAt(0);
-  tab_strip_model->AddToNewSplit({1}, split_tabs::SplitTabVisualData());
-
-  EXPECT_TRUE(tab_strip_model->IsContextMenuCommandEnabled(
-      2, TabStripModel::CommandSwapWithActiveSplit));
-
-  tabs::TabInterface* tab_outside_split = tab_strip_model->GetTabAtIndex(2);
-
-  tab_strip_model->ExecuteContextMenuCommand(
-      2, TabStripModel::CommandSwapWithActiveSplit);
-
-  EXPECT_TRUE(tab_strip_model->GetTabAtIndex(0)->IsSplit());
-  EXPECT_TRUE(tab_strip_model->GetTabAtIndex(1)->IsSplit());
-  EXPECT_EQ(tab_outside_split, tab_strip_model->GetTabAtIndex(0));
-}
-
 // Calling duplicate on a tab that isn't selected doesn't affect selected tabs.
 IN_PROC_BROWSER_TEST_F(TabStripModelBrowserTest, CommandDuplicate) {
   TabStripModel* const tab_strip_model = browser()->tab_strip_model();
@@ -512,3 +498,93 @@ IN_PROC_BROWSER_TEST_F(TabStripModelBrowserTest, CommandDuplicateSelected) {
   EXPECT_EQ("0p 1p -1p 2ps 3ps 4ps 5ps -1ps -1ps 6 7 -1 8s 9s 10s 11s -1s -1s",
             GetTabStripStateString(tab_strip_model));
 }
+
+#if BUILDFLAG(ENABLE_GLIC)
+class TabStripModelGlicMultiTabBrowserTest : public TabStripModelBrowserTest {
+ public:
+  TabStripModelGlicMultiTabBrowserTest() {
+    scoped_feature_list_.InitAndEnableFeature(
+        glic::mojom::features::kGlicMultiTab);
+  }
+
+ protected:
+  TabStripModel* tab_strip() { return browser()->tab_strip_model(); }
+
+  glic::GlicSharingManager& sharing_manager() {
+    return glic::GlicKeyedServiceFactory::GetGlicKeyedService(
+               browser()->profile())
+        ->sharing_manager();
+  }
+
+  tabs::TabHandle TabHandleAtIndex(int index) {
+    return tab_strip()->GetTabAtIndex(index)->GetHandle();
+  }
+
+  glic::GlicTestEnvironment glic_test_environment_;
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+IN_PROC_BROWSER_TEST_F(TabStripModelGlicMultiTabBrowserTest, StartSharing) {
+  AddTabs(3);
+  tab_strip()->ActivateTabAt(0);
+  tab_strip()->SelectTabAt(1);
+  tab_strip()->SelectTabAt(2);
+  EXPECT_TRUE(tab_strip()->IsContextMenuCommandEnabled(
+      1, TabStripModel::CommandGlicStartShare));
+  tab_strip()->ExecuteContextMenuCommand(1,
+                                         TabStripModel::CommandGlicStartShare);
+  for (int i = 0; i < 3; ++i) {
+    EXPECT_TRUE(sharing_manager().IsTabPinned(TabHandleAtIndex(i)));
+  }
+}
+
+IN_PROC_BROWSER_TEST_F(TabStripModelGlicMultiTabBrowserTest,
+                       StartSharingSubset) {
+  AddTabs(3);
+  tab_strip()->ActivateTabAt(0);
+  tab_strip()->SelectTabAt(1);
+  tab_strip()->SelectTabAt(2);
+  sharing_manager().PinTabs({TabHandleAtIndex(1)});
+  EXPECT_TRUE(tab_strip()->IsContextMenuCommandEnabled(
+      1, TabStripModel::CommandGlicStartShare));
+  tab_strip()->ExecuteContextMenuCommand(1,
+                                         TabStripModel::CommandGlicStartShare);
+  for (int i = 0; i < 3; ++i) {
+    EXPECT_TRUE(sharing_manager().IsTabPinned(TabHandleAtIndex(i)))
+        << "with tab index: " << i;
+  }
+}
+
+IN_PROC_BROWSER_TEST_F(TabStripModelGlicMultiTabBrowserTest, StopSharing) {
+  AddTabs(2);
+  tab_strip()->ActivateTabAt(0);
+  tab_strip()->SelectTabAt(1);
+  sharing_manager().PinTabs({TabHandleAtIndex(0), TabHandleAtIndex(1)});
+  EXPECT_TRUE(tab_strip()->IsContextMenuCommandEnabled(
+      1, TabStripModel::CommandGlicStopShare));
+  tab_strip()->ExecuteContextMenuCommand(1,
+                                         TabStripModel::CommandGlicStopShare);
+  for (int i = 0; i < 2; ++i) {
+    EXPECT_FALSE(sharing_manager().IsTabPinned(TabHandleAtIndex(i)))
+        << "with tab index: " << i;
+  }
+}
+
+IN_PROC_BROWSER_TEST_F(TabStripModelGlicMultiTabBrowserTest, ShareLimit) {
+  const int limit = sharing_manager().GetMaxPinnedTabs();
+  AddTabs(limit);
+  for (int i = 0; i < limit; ++i) {
+    sharing_manager().PinTabs({TabHandleAtIndex(i)});
+  }
+  EXPECT_FALSE(tab_strip()->IsContextMenuCommandEnabled(
+      1, TabStripModel::CommandGlicShareLimit));
+
+  tab_strip()->SelectTabAt(0);
+  tab_strip()->CloseSelectedTabs();
+  EXPECT_EQ(limit - 1, sharing_manager().GetNumPinnedTabs());
+
+  sharing_manager().UnpinAllTabs();
+  EXPECT_EQ(0, sharing_manager().GetNumPinnedTabs());
+}
+
+#endif  // BUILDFLAG(ENABLE_GLIC)

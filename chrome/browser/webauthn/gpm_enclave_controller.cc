@@ -552,8 +552,31 @@ GPMEnclaveController::account_state_for_testing() const {
   return account_state_;
 }
 
-bool GPMEnclaveController::is_account_ready() const {
-  return account_state_ == AccountState::kReady;
+GPMEnclaveController::AccountReadyState
+GPMEnclaveController::account_ready_state() const {
+  switch (account_state_) {
+    case AccountState::kLoading:
+    case AccountState::kChecking:
+      return AccountReadyState::kLoading;
+    case AccountState::kReady:
+      return AccountReadyState::kReady;
+    case AccountState::kNone:
+    case AccountState::kRecoverable:
+    case AccountState::kIrrecoverable:
+    case AccountState::kEmpty:
+      return AccountReadyState::kNotReady;
+  }
+}
+
+void GPMEnclaveController::RunWhenAccountReady(base::OnceClosure callback) {
+  if (account_state_ != AccountState::kLoading &&
+      account_state_ != AccountState::kChecking) {
+    std::move(callback).Run();
+    return;
+  }
+
+  CHECK(!waiting_for_account_state_);
+  waiting_for_account_state_ = std::move(callback);
 }
 
 void GPMEnclaveController::OnEnclaveLoaded() {
@@ -1096,23 +1119,15 @@ void GPMEnclaveController::OnGPMPasskeySelected(
       break;
 
     case AccountState::kNone:
-      if (model_->priority_phone_name.has_value()) {
-        model_->ContactPriorityPhone();
-      } else {
-        // This can happen if a passkey is selected after the enclave times out.
-        model_->SetStep(Step::kGPMError);
-      }
+      // This can happen if a passkey is selected after the enclave times out.
+      model_->SetStep(Step::kGPMError);
       break;
 
     case AccountState::kEmpty:
-      if (model_->priority_phone_name.has_value()) {
-        model_->ContactPriorityPhone();
-      } else {
-        // The security domain is empty but there were
-        // sync entities. Most like the security domain was reset without
-        // clearing the entities, thus they are unusable.
-        model_->SetStep(Step::kGPMError);
-      }
+      // The security domain is empty but there were
+      // sync entities. Most like the security domain was reset without
+      // clearing the entities, thus they are unusable.
+      model_->SetStep(Step::kGPMError);
       break;
   }
 }

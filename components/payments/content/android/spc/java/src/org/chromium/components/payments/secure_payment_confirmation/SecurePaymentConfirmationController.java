@@ -20,7 +20,10 @@ import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetControllerProvider;
+import org.chromium.components.payments.PaymentApp.PaymentEntityLogo;
 import org.chromium.components.payments.R;
+import org.chromium.components.payments.SPCTransactionMode;
+import org.chromium.components.payments.secure_payment_confirmation.SecurePaymentConfirmationBottomSheetObserver.ControllerDelegate;
 import org.chromium.components.payments.secure_payment_confirmation.SecurePaymentConfirmationProperties.ItemProperties;
 import org.chromium.components.payments.ui.CurrencyFormatter;
 import org.chromium.components.payments.ui.InputProtector;
@@ -41,6 +44,7 @@ import org.chromium.url.Origin;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
+import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 
@@ -51,8 +55,7 @@ import java.util.Objects;
  * component that needs to interact with another component does that through this controller.
  */
 @NullMarked
-public class SecurePaymentConfirmationController
-        implements SecurePaymentConfirmationBottomSheetObserver.ControllerDelegate {
+public class SecurePaymentConfirmationController implements ControllerDelegate {
     /** There is only a single model/view for SPC items so only a single item type is needed. */
     private static final int SPC_ITEM_TYPE = 0;
 
@@ -77,8 +80,9 @@ public class SecurePaymentConfirmationController
     private final SecurePaymentConfirmationView mView;
     private final PropertyModel mModel;
     private final BottomSheetController mBottomSheetController;
-    private final Callback<Integer> mResponseCallback;
     private final Boolean mInformOnly;
+    private final Callback<Integer> mResponseCallback;
+    private final @SPCTransactionMode int mTransactionMode;
     private SecurePaymentConfirmationBottomSheetObserver mBottomSheetObserver;
     private InputProtector mInputProtector = new InputProtector();
 
@@ -88,7 +92,7 @@ public class SecurePaymentConfirmationController
      * @param window The WindowAndroid of the merchant.
      * @param payeeName The name of the payee, or null if not specified.
      * @param payeeOrigin The origin of the payee, or null if not specified.
-     * @param paymentInstrumentLabel The label to display for the payment instrument.
+     * @param paymentInstrumentLabelPrimary The label to display for the payment instrument.
      * @param paymentItem The payment item of the transaction containing total payment information.
      * @param paymentIcon The icon of the payment instrument.
      * @param issuerIcon The icon of the issuer.
@@ -97,20 +101,22 @@ public class SecurePaymentConfirmationController
      * @param showOptOut Whether to show the opt out UX to the user.
      * @param informOnly Whether to show the inform-only UX.
      * @param responseCallback The function to call on sheet dismiss; called with SpcResponseStatus.
+     * @param transactionMode The automation transaction mode; NONE when not under automation.
      */
     public SecurePaymentConfirmationController(
             WindowAndroid window,
+            List<PaymentEntityLogo> paymentEntityLogos,
             @Nullable String payeeName,
             @Nullable Origin payeeOrigin,
-            String paymentInstrumentLabel,
+            String paymentInstrumentLabelPrimary,
+            @Nullable String paymentInstrumentLabelSecondary,
             PaymentItem paymentItem,
             Drawable paymentIcon,
-            @Nullable Drawable issuerIcon,
-            @Nullable Drawable networkIcon,
             String relyingPartyId,
             boolean showOptOut,
             boolean informOnly,
-            Callback<Integer> responseCallback) {
+            Callback<Integer> responseCallback,
+            @SPCTransactionMode int transactionMode) {
         Context context = assertNonNull(window.getContext().get());
         BottomSheetController bottomSheetController =
                 assertNonNull(BottomSheetControllerProvider.from(window));
@@ -118,6 +124,7 @@ public class SecurePaymentConfirmationController
         mBottomSheetController = bottomSheetController;
         mInformOnly = informOnly;
         mResponseCallback = responseCallback;
+        mTransactionMode = transactionMode;
         mInputProtector.markShowTime();
 
         ModelList itemList = new ModelList();
@@ -173,7 +180,10 @@ public class SecurePaymentConfirmationController
                         SPC_ITEM_TYPE,
                         new PropertyModel.Builder(ItemProperties.ALL_KEYS)
                                 .with(ItemProperties.ICON, paymentIcon)
-                                .with(ItemProperties.PRIMARY_TEXT, paymentInstrumentLabel)
+                                .with(ItemProperties.PRIMARY_TEXT, paymentInstrumentLabelPrimary)
+                                .with(
+                                        ItemProperties.SECONDARY_TEXT,
+                                        paymentInstrumentLabelSecondary)
                                 .build()));
 
         // Convert the total value to the local currency amount.
@@ -229,8 +239,6 @@ public class SecurePaymentConfirmationController
                                     new ChromeClickableSpan(context, (widget) -> onOptOut())));
         }
 
-        boolean showsIssuerNetworkIcons = issuerIcon != null && networkIcon != null;
-
         SpannableString footnote = null;
         if (!mInformOnly) {
             footnote =
@@ -246,11 +254,7 @@ public class SecurePaymentConfirmationController
         mView = new SecurePaymentConfirmationView(context);
         mModel =
                 new PropertyModel.Builder(SecurePaymentConfirmationProperties.ALL_KEYS)
-                        .with(
-                                SecurePaymentConfirmationProperties.SHOWS_ISSUER_NETWORK_ICONS,
-                                showsIssuerNetworkIcons)
-                        .with(SecurePaymentConfirmationProperties.ISSUER_ICON, issuerIcon)
-                        .with(SecurePaymentConfirmationProperties.NETWORK_ICON, networkIcon)
+                        .with(SecurePaymentConfirmationProperties.HEADER_LOGOS, paymentEntityLogos)
                         .with(
                                 SecurePaymentConfirmationProperties.TITLE,
                                 mInformOnly
@@ -290,6 +294,34 @@ public class SecurePaymentConfirmationController
     public boolean show() {
         if (mBottomSheetController.requestShowContent(mContent, /* animate= */ true)) {
             mBottomSheetObserver.begin(this);
+
+            // For browser automation use-cases (such as WebDriver), SPC can be placed in
+            // transaction mode where it will immediately take some action on the dialog without
+            // user interaction.  We deliberately wait until after the dialog is created and shown
+            // to handle this, in order to keep the automation codepath close to the real one.
+            //
+            // https://w3c.github.io/secure-payment-confirmation/#sctn-transaction-ux-test-automation
+            switch (mTransactionMode) {
+                case SPCTransactionMode.AUTOACCEPT:
+                    onContinue();
+                    break;
+                case SPCTransactionMode.AUTOAUTHANOTHERWAY:
+                    // To best mimic the underlying dialog, in mInformOnly mode we still click on
+                    // the 'Continue' button.
+                    if (mInformOnly) {
+                        onContinue();
+                    } else {
+                        onVerifyAnotherWay();
+                    }
+                    break;
+                case SPCTransactionMode.AUTOOPTOUT:
+                    onOptOut();
+                    break;
+                case SPCTransactionMode.AUTOREJECT:
+                    onCancel();
+                    break;
+            }
+
             return true;
         }
         return false;
@@ -302,7 +334,11 @@ public class SecurePaymentConfirmationController
     }
 
     private void onContinue() {
-        if (!mInputProtector.shouldInputBeProcessed()) return;
+        if (!mInputProtector.shouldInputBeProcessed()
+                && mTransactionMode == SPCTransactionMode.NONE) {
+            return;
+        }
+
         hide();
         if (mInformOnly) {
             mResponseCallback.onResult(SpcResponseStatus.ANOTHER_WAY);
@@ -313,19 +349,28 @@ public class SecurePaymentConfirmationController
 
     @Override
     public void onCancel() {
-        if (!mInputProtector.shouldInputBeProcessed()) return;
+        if (!mInputProtector.shouldInputBeProcessed()
+                && mTransactionMode == SPCTransactionMode.NONE) {
+            return;
+        }
         hide();
         mResponseCallback.onResult(SpcResponseStatus.CANCEL);
     }
 
     private void onVerifyAnotherWay() {
-        if (!mInputProtector.shouldInputBeProcessed()) return;
+        if (!mInputProtector.shouldInputBeProcessed()
+                && mTransactionMode == SPCTransactionMode.NONE) {
+            return;
+        }
         hide();
         mResponseCallback.onResult(SpcResponseStatus.ANOTHER_WAY);
     }
 
     private void onOptOut() {
-        if (!mInputProtector.shouldInputBeProcessed()) return;
+        if (!mInputProtector.shouldInputBeProcessed()
+                && mTransactionMode == SPCTransactionMode.NONE) {
+            return;
+        }
         hide();
         mResponseCallback.onResult(SpcResponseStatus.OPT_OUT);
     }

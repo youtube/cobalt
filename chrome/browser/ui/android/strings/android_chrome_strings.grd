@@ -555,11 +555,17 @@ For more settings that use data to improve your Chrome experience, go to <ph nam
       <message name="IDS_AUTOFILL_CARD_HOLDER_NAME" desc="Label for text input field containing the name on a credit card. [CHAR_LIMIT=32]">
         Cardholder name
       </message>
-      <message name="IDS_AUTOFILL_CREDIT_CARD_EDITOR_NUMBER" desc="Label for text input field containing a card number. This can be a credit, debit, or prepaid card. [CHAR_LIMIT=32]">
-        Card number
+      <message name="IDS_AUTOFILL_CREDIT_CARD_EDITOR_NUMBER" desc="Label for text input field containing a card number. This can be a credit, debit, or prepaid card. The asterisk '*' indicates that this field is required and should not be removed. [CHAR_LIMIT=32]">
+        Card number*
       </message>
-      <message name="IDS_AUTOFILL_CREDIT_CARD_EDITOR_EXPIRATION_DATE" desc="Label for text input field containing a credit card expiration date. [CHAR_LIMIT=32]">
-        Expiration date
+      <message name="IDS_AUTOFILL_CREDIT_CARD_EDITOR_NUMBER_CONTENT_DESCRIPTION" desc="Accessible content description and label for text input field containing a card number. This can be a credit, debit, or prepaid card. This field is required for cards. [CHAR_LIMIT=64]">
+        Card number, required
+      </message>
+      <message name="IDS_AUTOFILL_CREDIT_CARD_EDITOR_EXPIRATION_DATE" desc="Label for text input field containing a credit card expiration date. The asterisk '*' indicates that this field is required and should not be removed. [CHAR_LIMIT=32]">
+        Expiration date*
+      </message>
+      <message name="IDS_AUTOFILL_CREDIT_CARD_EDITOR_EXPIRATION_DATE_CONTENT_DESCRIPTION" desc="Accessible content description and label for text input field containing a credit card expiration date. This field is required for cards. [CHAR_LIMIT=64]">
+        Expiration date, required
       </message>
       <message name="IDS_AUTOFILL_CREDIT_CARD_EDITOR_BILLING_ADDRESS" desc="Label for a spinner input field containing a list of billing addresses for a credit card. [CHAR_LIMIT=32]">
         Billing address
@@ -2367,6 +2373,9 @@ Your Google account may have other forms of browsing history like searches and a
       <message name="IDS_DOWNLOAD_WARNING_BYPASS_DIALOG_ACTION_LEARN_MORE" desc="Label for the button to open a help page about download warnings.">
         Learn more
       </message>
+      <message name="IDS_DOWNLOAD_WARNING_BYPASS_DIALOG_ACTION_LEARN_MORE_ACCESSIBILITY_DESCRIPTION" desc="Accessibility description for the button to open a help page about download warnings.">
+        Learn more about why Chrome blocks some files
+      </message>
 
       <!-- Download Home dangerous warning -->
       <message name="IDS_DOWNLOAD_WARNING_HEED_MENU_ACTION_DELETE" desc="Label for the menu item to heed a download warning shown in the downloads list by removing the file from download history.">
@@ -2691,70 +2700,65 @@ Your Google account may have other forms of browsing history like searches and a
       <message name="IDS_SIGN_OUT" desc="Sign out button, visible if the user has authenticated. Clicking this clears authentication credentials and returns the web-app to the initial 'unauthenticated' state.">
         Sign out
       </message>
-      <message name="IDS_ACCOUNT_SETTINGS_BULK_UPLOAD_SECTION_SAVE_BUTTON" desc="This message appears in a user's settings for signing in to Chrome with their Google Account. The text appears on button in a temporary card to inform them that there is some local data, like passwords, saved to their device, but the data hasn't been saved to their Google Account yet. The user can click 'Save in Account' to enter a flow where they review the data and choose to save it in their account. When data is saved to the user's Google Account, it's backed up safely and is available on any device where they're signed in to Chrome.">
-        Save in account
-      </message>
-      <message name="IDS_ACCOUNT_SETTINGS_BULK_UPLOAD_SECTION_DESCRIPTION_PASSWORD" desc="This message appears in a user's settings for signing in to Chrome with their Google Account. The text appears in a temporary card to inform them that there is some local data (passwords) saved to their device, but the data hasn't been saved to their Google Account yet. The user can click 'Save in Account' (find the corresponding string by IDS_ACCOUNT_SETTINGS_BULK_UPLOAD_SECTION_SAVE_BUTTON name) to enter a flow where they review the data and choose to save it in their account. When data is saved to the user's Google Account, it's backed up safely and is available on any device where they're signed in to Chrome.">
+      <message name="IDS_BATCH_UPLOAD_CARD_DESCRIPTION_PASSWORD" desc="This message appears in a user's settings for signing in to Chrome with their Google Account. The text appears in a temporary card to inform them that there is some local data (passwords) saved to their device, but the data hasn't been saved to their Google Account yet. The user can click 'Save in Account' to enter a flow where they review the data and choose to save it in their account. When data is saved to the user's Google Account, it's backed up safely and is available on any device where they're signed in to Chrome.">
         {PASSWORDS_COUNT, plural,
-          =1 {1 password is saved only to this device. To use it on your other devices, save it in your Google Account, <ph name="ACCOUNT_EMAIL">%2$s<ex>elisa.g.beckett@gmail.com</ex></ph>.}
-          other {# passwords are saved only to this device. To use them on your other devices, save them in your Google Account, <ph name="ACCOUNT_EMAIL">%2$s<ex>elisa.g.beckett@gmail.com</ex></ph>.}}
+          =1 {1 password is saved only to this device. To use it on your other devices, save it in your Google Account.}
+          other {# passwords are saved only to this device. To use them on your other devices, save them in your Google Account.}}
       </message>
-      <message name="IDS_ACCOUNT_SETTINGS_BULK_UPLOAD_SECTION_DESCRIPTION_PASSWORD_AND_OTHER" desc="This message appears in a user's settings for signing in to Chrome with their Google Account. The text appears in a temporary card to inform them that there is some local data (bookmarks, or other data) saved to their device, but the data hasn't been saved to their Google Account yet. The user can click 'Save in Account' (find the corresponding string by IDS_ACCOUNT_SETTINGS_BULK_UPLOAD_SECTION_SAVE_BUTTON name) to enter a flow where they review the data and choose to save it in their account. When data is saved to the user's Google Account, it's backed up safely and is available on any device where they're signed in to Chrome.">
+      <message name="IDS_BATCH_UPLOAD_CARD_DESCRIPTION_PASSWORD_AND_OTHER" desc="This message appears in a user's settings for signing in to Chrome with their Google Account. The text appears in a temporary card to inform them that there is some local data (bookmarks, or other data) saved to their device, but the data hasn't been saved to their Google Account yet. The user can click 'Save in Account' to enter a flow where they review the data and choose to save it in their account. When data is saved to the user's Google Account, it's backed up safely and is available on any device where they're signed in to Chrome.">
         {PASSWORDS_COUNT, plural,
-          =1 {1 password and other items are saved only to this device. To use them on your other devices, save them in your Google Account, <ph name="ACCOUNT_EMAIL">%2$s<ex>elisa.g.beckett@gmail.com</ex></ph>.}
-          other {# passwords and other items are saved only to this device. To use them on your other devices, save them in your Google Account, <ph name="ACCOUNT_EMAIL">%2$s<ex>elisa.g.beckett@gmail.com</ex></ph>.}}
+          =1 {1 password and other items are saved only to this device. To use them on your other devices, save them in your Google Account.}
+          other {# passwords and other items are saved only to this device. To use them on your other devices, save them in your Google Account.}}
       </message>
-      <message name="IDS_ACCOUNT_SETTINGS_BULK_UPLOAD_SECTION_DESCRIPTION_OTHER" desc="This message appears in a user's settings for signing in to Chrome with their Google Account. The text appears in a temporary card to inform them that there is some local data (passwords, bookmarks, or other data) saved to their device, but the data hasn't been saved to their Google Account yet. The user can click 'Save in Account' (find the corresponding string by IDS_ACCOUNT_SETTINGS_BULK_UPLOAD_SECTION_SAVE_BUTTON name) to enter a flow where they review the data and choose to save it in their account. When data is saved to the user's Google Account, it's backed up safely and is available on any device where they're signed in to Chrome.">
+      <message name="IDS_BATCH_UPLOAD_CARD_DESCRIPTION_OTHER" desc="This message appears either in user's account settings or bookmark manager. The text appears in a temporary card to inform them that there is some local data (in case of the account settings card the local data does not include passwords, and in case of the bookmark manager card the local data does not include bookmarks) saved to their device, but the data hasn't been saved to their Google Account yet. The user can click 'Save in Account' to enter a flow where they review the data and choose to save it in their account. When data is saved to the user's Google Account, it's backed up safely and is available on any device where they're signed in to Chrome.">
         {ITEMS_COUNT, plural,
-          =1 {1 item is saved only to this device. To use it on your other devices, save it in your Google Account, <ph name="ACCOUNT_EMAIL">%2$s<ex>elisa.g.beckett@gmail.com</ex></ph>.}
-          other {# items are saved only to this device. To use them on your other devices, save them in your Google Account, <ph name="ACCOUNT_EMAIL">%2$s<ex>elisa.g.beckett@gmail.com</ex></ph>.}}
+          =1 {1 item is saved only to this device. To use it on your other devices, save it in your Google Account.}
+          other {# items are saved only to this device. To use them on your other devices, save them in your Google Account.}}
       </message>
       <message name="IDS_BATCH_UPLOAD_CARD_SAVE_BUTTON" desc="This message appears on a button in a temporary card to inform the user that there is some local data saved to their device, but the data hasn't been saved to their Google Account yet. The user can click 'Save in Account' to enter a flow where they review the data and choose to save it in their account. When data is saved to the user's Google Account, it's backed up safely and is available on any device where they're signed in to Chrome.">
         Save in account
       </message>
-      <message name="IDS_BOOKMARKS_LEFT_BEHIND_BOOKMARK"  desc="This message appears in a user's bookmark manager. The text appears in a temporary card to inform them that there is some local data (bookmarks) saved to their device, but the data hasn't been saved to their Google Account yet. The user can click 'Save in Account' to enter a flow where they review the data and choose to save it in their account. When data is saved to the user's Google Account, it's backed up safely and is available on any device where they're signed in to Chrome.">
+      <message name="IDS_BATCH_UPLOAD_CARD_DESCRIPTION_BOOKMARK"  desc="This message appears in a user's bookmark manager. The text appears in a temporary card to inform them that there is some local data (bookmarks) saved to their device, but the data hasn't been saved to their Google Account yet. The user can click 'Save in Account' to enter a flow where they review the data and choose to save it in their account. When data is saved to the user's Google Account, it's backed up safely and is available on any device where they're signed in to Chrome.">
         {BOOKMARKS_COUNT, plural,
-          =1 {1 bookmark is saved only to this device. To use it on your other devices, save it in your Google Account, <ph name="ACCOUNT_EMAIL">%2$s<ex>elisa.g.beckett@gmail.com</ex></ph>.}
-          other {# bookmarks are saved only to this device. To use them on your other devices, save them in your Google Account, <ph name="ACCOUNT_EMAIL">%2$s<ex>elisa.g.beckett@gmail.com</ex></ph>.}}
+          =1 {1 bookmark is saved only to this device. To use it on your other devices, save it in your Google Account.}
+          other {# bookmarks are saved only to this device. To use them on your other devices, save them in your Google Account.}}
       </message>
-      <message name="IDS_BOOKMARKS_LEFT_BEHIND_BOOKMARK_AND_OTHER"  desc="This message appears in a user's bookmark manager. The text appears in a temporary card to inform them that there is some local data (bookmarks and some other data) saved to their device, but the data hasn't been saved to their Google Account yet. The user can click 'Save in Account' to enter a flow where they review the data and choose to save it in their account. When data is saved to the user's Google Account, it's backed up safely and is available on any device where they're signed in to Chrome.">
+      <message name="IDS_BATCH_UPLOAD_CARD_DESCRIPTION_BOOKMARK_AND_OTHER"  desc="This message appears in a user's bookmark manager. The text appears in a temporary card to inform them that there is some local data (bookmarks and some other data) saved to their device, but the data hasn't been saved to their Google Account yet. The user can click 'Save in Account' to enter a flow where they review the data and choose to save it in their account. When data is saved to the user's Google Account, it's backed up safely and is available on any device where they're signed in to Chrome.">
         {BOOKMARKS_COUNT, plural,
-          =1 {1 bookmark and other items are saved only to this device. To use them on your other devices, save them in your Google Account, <ph name="ACCOUNT_EMAIL">%2$s<ex>elisa.g.beckett@gmail.com</ex></ph>.}
-          other {# bookmarks and other items are saved only to this device. To use them on your other devices, save them in your Google Account, <ph name="ACCOUNT_EMAIL">%2$s<ex>elisa.g.beckett@gmail.com</ex></ph>.}}
+          =1 {1 bookmark and other items are saved only to this device. To use them on your other devices, save them in your Google Account.}
+          other {# bookmarks and other items are saved only to this device. To use them on your other devices, save them in your Google Account.}}
       </message>
-      <message name="IDS_BOOKMARKS_LEFT_BEHIND_OTHER"  desc="This message appears in a user's bookmark manager. The text appears in a temporary card to inform them that there is some local data (something other than bookmarks) saved to their device, but the data hasn't been saved to their Google Account yet. The user can click 'Save in Account' to enter a flow where they review the data and choose to save it in their account. When data is saved to the user's Google Account, it's backed up safely and is available on any device where they're signed in to Chrome.">
-        {ITEMS_COUNT, plural,
-          =1 {1 item is saved only to this device. To use it on your other devices, save it in your Google Account, <ph name="ACCOUNT_EMAIL">%2$s<ex>elisa.g.beckett@gmail.com</ex></ph>.}
-          other {# items are saved only to this device. To use them on your other devices, save them in your Google Account, <ph name="ACCOUNT_EMAIL">%2$s<ex>elisa.g.beckett@gmail.com</ex></ph>.}}
-      </message>
-      <message name="IDS_ACCOUNT_SETTINGS_BULK_UPLOAD_DIALOG_TITLE" desc="The text appears as the title of a confirmation dialog where the user can choose to save some data to their Google Account. When data is saved to the Google Account, it's backed up safely and is available on any device where they're signed in to Chrome.">
+      <message name="IDS_BATCH_UPLOAD_DIALOG_TITLE" desc="The text appears as the title of a confirmation dialog where the user can choose to save some data to their Google Account. When data is saved to the Google Account, it's backed up safely and is available on any device where they're signed in to Chrome.">
         Save data in your Google Account
       </message>
-      <message name="IDS_ACCOUNT_SETTINGS_BULK_UPLOAD_DIALOG_DESCRIPTION" desc="The text appears as a note in a confirmation dialog where the user can choose to save some data to their Google Account. When data is saved to the Google Account, it's backed up safely and is available on any device where they're signed in to Chrome. This note explains where the user can go to view and manage individual items. like individual bookmarks or passwords.">
-        You can also view and manage these items in your bookmarks, reading list, or password manager
+      <message name="IDS_BATCH_UPLOAD_DIALOG_DESCRIPTION" desc="The text appears as a note in a confirmation dialog where the user can choose to save some data to their Google Account. When data is saved to the Google Account, it's backed up safely and is available on any device where they're signed in to Chrome. This note explains where the user can go to view and manage individual items. like individual bookmarks or passwords.">
+        You can choose what data to save in your Google Account, <ph name="ACCOUNT_EMAIL">%1$s<ex>elisa.g.beckett@gmail.com</ex></ph>.\nYou can also view and manage these items in your bookmarks, reading list, or password manager.
       </message>
-      <message name="IDS_ACCOUNT_SETTINGS_BULK_UPLOAD_DIALOG_BOOKMARKS" desc="One of the data types that we allow uploading through a confirmation dialog where the user can choose to save some data to their Google Account. When data is saved to the Google Account, it's backed up safely and is available on any device where they're signed in to Chrome.">
+      <message name="IDS_BATCH_UPLOAD_DIALOG_DESCRIPTION_NON_DISPLAYABLE_PROFILE_DATA" desc="The text appears as a note in a confirmation dialog where the user can choose to save some data to their Google Account. When data is saved to the Google Account, it's backed up safely and is available on any device where they're signed in to Chrome. This note explains where the user can go to view and manage individual items. like individual bookmarks or passwords.">
+        You can choose what data to save in your Google Account.\nYou can also view and manage these items in your bookmarks, reading list, or password manager.
+      </message>
+      <message name="IDS_BATCH_UPLOAD_DIALOG_BOOKMARKS" desc="One of the data types that we allow uploading through a confirmation dialog where the user can choose to save some data to their Google Account. When data is saved to the Google Account, it's backed up safely and is available on any device where they're signed in to Chrome.">
         {ITEMS_COUNT, plural,
           =1 {1 bookmark}
           other {# bookmarks}}
       </message>
-      <message name="IDS_ACCOUNT_SETTINGS_BULK_UPLOAD_DIALOG_PASSWORDS" desc="One of the data types that we allow uploading through a confirmation dialog where the user can choose to save some data to their Google Account. When data is saved to the Google Account, it's backed up safely and is available on any device where they're signed in to Chrome.">
+      <message name="IDS_BATCH_UPLOAD_DIALOG_PASSWORDS" desc="One of the data types that we allow uploading through a confirmation dialog where the user can choose to save some data to their Google Account. When data is saved to the Google Account, it's backed up safely and is available on any device where they're signed in to Chrome.">
         {ITEMS_COUNT, plural,
           =1 {1 password}
           other {# passwords}}
       </message>
-      <message name="IDS_ACCOUNT_SETTINGS_BULK_UPLOAD_DIALOG_READING_LIST" desc="One of the data types that we allow uploading through a confirmation dialog where the user can choose to save some data to their Google Account. When data is saved to the Google Account, it's backed up safely and is available on any device where they're signed in to Chrome.">
+      <message name="IDS_BATCH_UPLOAD_DIALOG_READING_LIST" desc="One of the data types that we allow uploading through a confirmation dialog where the user can choose to save some data to their Google Account. When data is saved to the Google Account, it's backed up safely and is available on any device where they're signed in to Chrome.">
         {ITEMS_COUNT, plural,
           =1 {1 page on your reading list}
           other {# pages on your reading list}}
       </message>
-      <message name="IDS_ACCOUNT_SETTINGS_BULK_UPLOAD_DIALOG_SAVE_BUTTON" desc="The text is the primary button in a confirmation dialog where the user can choose to save some data to their Google Account. When data is saved to the Google Account, it's backed up safely and is available on any device where they're signed in to Chrome.">
+      <message name="IDS_BATCH_UPLOAD_DIALOG_SAVE_BUTTON" desc="The text is the primary button in a confirmation dialog where the user can choose to save some data to their Google Account. When data is saved to the Google Account, it's backed up safely and is available on any device where they're signed in to Chrome.">
         Save in account
       </message>
-      <message name="IDS_ACCOUNT_SETTINGS_BULK_UPLOAD_DIALOG_CANCEL_BUTTON" desc="Text for the cancel button belonging to the batch upload confirmation dialog where the user can choose to save some data to their Google Account. When data is saved to the Google Account, it's backed up safely and is available on any device where they're signed in to Chrome.">
+      <message name="IDS_BATCH_UPLOAD_DIALOG_CANCEL_BUTTON" desc="Text for the cancel button belonging to the batch upload confirmation dialog where the user can choose to save some data to their Google Account. When data is saved to the Google Account, it's backed up safely and is available on any device where they're signed in to Chrome.">
         Cancel
       </message>
-      <message name="IDS_ACCOUNT_SETTINGS_BULK_UPLOAD_SAVED_SNACKBAR_MESSAGE" desc="The message appears in a small confirmation bubble with limited space after the user chose to save some data to their Google Account.">
+      <message name="IDS_BATCH_UPLOAD_SAVED_SNACKBAR_MESSAGE" desc="The message appears in a small confirmation bubble with limited space after the user chose to save some data to their Google Account.">
         {ITEMS_COUNT, plural,
           =1 {Item saved in your Google Account, <ph name="ACCOUNT_EMAIL">%1$s<ex>elisa.g.beckett@gmail.com</ex></ph>.}
           other {Items saved in your Google Account, <ph name="ACCOUNT_EMAIL">%1$s<ex>elisa.g.beckett@gmail.com</ex></ph>.}}
@@ -4392,6 +4396,12 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       <message name="IDS_MENU_MOVE_TO_OTHER_WINDOW" desc="Menu item for moving the current tab into the other window. [CHAR_LIMIT=27]">
         Move to other window
       </message>
+      <message name="IDS_MENU_MOVE_TAB_TO_OTHER_WINDOW" desc="Menu item for moving the current tab into another window. [CHAR_LIMIT=27]">
+        Move tab to another window
+      </message>
+      <message name="IDS_MENU_MOVE_GROUP_TO_OTHER_WINDOW" desc="Menu item for moving the current tab group into another window. [CHAR_LIMIT=27]">
+        Move group to another window
+      </message>
       <message name="IDS_MENU_MANAGE_ALL_WINDOWS" desc="Menu item for bringing up instance switcher UI. [CHAR_LIMIT=27]">
         Manage windows (<ph name="INSTANCE_COUNTS">%1$d<ex>3</ex></ph>)
       </message>
@@ -4537,6 +4547,9 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       </message>
       <message name="IDS_MENU_PIN_TAB" desc="Menu item for pinning a tab.">
         Pin tab
+      </message>
+      <message name="IDS_MENU_ITEM_CONTENT_FILTER_HELP_CENTER_LINK" desc="Menu item to explain that the content filter is on and to direct the user to the help center article about content filters. Only available when the content filter is on.">
+        Content filter is on
       </message>
 
       <!-- Bookmarks strings -->
@@ -4941,17 +4954,17 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       <message name="IDS_MENU_OPEN_IN_PRODUCT_DEFAULT" desc="Default title for menu item for opening link in browser. [CHAR_LIMIT=30]">
         Open in browser
       </message>
-      <message name="IDS_READER_VIEW_TEXT_ALT" desc='Message shown on the reader mode button bar, to invite the user to tap to open a reader mode. Reader mode extracts content and removes clutter from a web page and puts the result in a panel making it easier to read. This is used when "Reader Mode for Accessibility" is available.'>
+      <message name="IDS_SHOW_READING_MODE_TEXT" desc='Message shown on the reader mode button bar, to invite the user to tap to open a reading mode. Reading mode extracts content and removes clutter from a web page and puts the result in a panel making it easier to read. This is used when "Reader Mode for Accessibility" is available.'>
         Show Reading Mode
       </message>
-      <message name="IDS_READER_MODE_MESSAGE_TITLE" desc="Message shown on the reader mode prompt, to invite the user to tap to open a reader mode.">
+      <message name="IDS_HIDE_READING_MODE_TEXT" desc='Message shown on the reader mode button bar, to invite the user to tap to close reading mode. Returns user to a non-distilled version of the same web page.'>
+        Hide Reading Mode
+      </message>
+      <message name="IDS_READER_MODE_MESSAGE_TITLE" desc="Message shown on the reader mode prompt, to invite the user to tap to open a reading mode.">
         View Reading Mode?
       </message>
       <message name="IDS_READER_MODE_MESSAGE_BUTTON" desc="The label for the button to open the current page in reader mode.">
         View
-      </message>
-      <message name="IDS_READER_MODE_ACTION_CHIP_LABEL_SIMPLIFY_PAGE" desc="The label for the action chip shown on the toolbar to open the current page in reading mode. [CHAR_LIMIT=27]">
-        Reading Mode
       </message>
       <message name="IDS_CONTENT_PROVIDER_SEARCH_DESCRIPTION" desc="Description for Chrome's entry in QSB's list of search suggestion providers [CHAR_LIMIT=32]">
         Bookmarks and web history
@@ -5330,11 +5343,11 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       <message name="IDS_MAX_NUMBER_OF_WINDOWS" desc="Toast message for when the user has tried to start more than 5 instances of Chrome window.">
         You can have up to 5 windows.
       </message>
-      <message name="IDS_MAX_NUMBER_OF_WINDOWS_INSTANCE_SWITCHER_V2" desc="Message to notify the user that the total number of persisted instances exceeds the window limit.">
-        You can have up to <ph name="MAX_WINDOW_COUNT">%1$d</ph> total windows. To restore a window, close <ph name="WINDOW_COUNT">%2$d</ph> active or inactive windows.
+      <message name="IDS_MAX_NUMBER_OF_WINDOWS_INSTANCE_SWITCHER_V2_ACTIVE_TAB" desc="Message to notify the user that a new window cannot be created because the total number of persisted instances exceeds the window limit.">
+        You can have up to <ph name="MAX_WINDOW_COUNT">%1$d</ph> total windows. To open a new window, reduce the total number of windows across active and inactive to <ph name="MAX_WINDOW_COUNT_MINUS_ONE">%2$d</ph> or fewer.
       </message>
-      <message name="IDS_PERSISTED_INSTANCE_DELETION_MESSAGE" desc="Message to notify the user about permanent deletion of persisted instances.">
-        Inactive windows are permanently deleted after 6 months of being inactive.
+      <message name="IDS_MAX_NUMBER_OF_WINDOWS_INSTANCE_SWITCHER_V2_INACTIVE_TAB" desc="Message to notify the user thata window cannot be restored because the total number of persisted instances exceeds the window limit.">
+        You can have up to <ph name="MAX_WINDOW_COUNT">%1$d</ph> total windows. To restore a new window, reduce the total number of windows across active and inactive to <ph name="MAX_WINDOW_COUNT_MINUS_ONE">%2$d</ph> or fewer. Inactive windows are deleted after 6 months.
       </message>
       <message name="IDS_TAB_DROPPED_DIFFERENT_MODEL" desc="Toast that appears when a tab is dropped into tab strip with a different profile (regular v.s. incognito).">
         You can find all open tabs in the tab switcher
@@ -7226,6 +7239,12 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       <message name="IDS_DEFAULT_BROWSER_PROMO_MESSAGE_SETTINGS_BUTTON" desc="Text that displayed on button that allows the user to open Android settings to set a default browser.">
         Settings
       </message>
+
+      <!-- Tab group suggestions -->
+      <message name="IDS_TAB_GROUP_SUGGESTION_ACTION_CHIP_LABEL" desc="The label for the action chip for tab group suggestions in the top toolbar.">
+        Group tabs
+      </message>
+
     </messages>
   </release>
 </grit>

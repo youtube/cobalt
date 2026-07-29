@@ -1187,7 +1187,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.BrowsingDataModel.ModelDestructionTime" units="ms"
-    expires_after="2025-10-12">
+    expires_after="2025-12-14">
   <owner>alimariam@google.com</owner>
   <owner>dullweber@chromium.org</owner>
   <owner>chrome-browser-privacy-team@google.com</owner>
@@ -1235,6 +1235,21 @@ chromium-metrics-reviews@google.com.
     exclusive; thus total count is meaningless. Counts can be compared with each
     other, or need to be normalized with something else (eg number of child
     process launches).
+  </summary>
+</histogram>
+
+<histogram name="Android.ChildProcessConnection.OnServiceConnectedCounts"
+    units="count" expires_after="M143">
+  <owner>boliu@chromium.org</owner>
+  <owner>kawasin@chromium.org</owner>
+  <owner>yfriedman@chromium.org</owner>
+  <summary>
+    Record the accumulated count of
+    ChildServiceConnectionDelegate.onServiceConnected. This is recorded every
+    time the callback is triggered. The metric with number more than 1 indicates
+    that the child process is restarted after the service process connected.
+    Note that the lower buckets double-counts the higher buckets since this is
+    recorded at each restart (e.g. when 4 is recorded, 1,2,3 are also recorded).
   </summary>
 </histogram>
 
@@ -1449,7 +1464,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.DefaultBrowserPromo.Outcome.{CurrentState}"
-    enum="AndroidDefaultBrowserPromoOutcomeType" expires_after="2025-10-12">
+    enum="AndroidDefaultBrowserPromoOutcomeType" expires_after="2025-12-14">
   <owner>lazzzis@google.com</owner>
   <owner>twellington@chromium.org</owner>
   <summary>
@@ -1920,7 +1935,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.DynamicTopChrome.TabStripTransition.Finished"
-    enum="Boolean" expires_after="2025-10-12">
+    enum="Boolean" expires_after="2025-12-14">
   <owner>wenyufu@chromium.org</owner>
   <owner>clank-large-form-factors@google.com</owner>
   <summary>
@@ -2011,6 +2026,24 @@ chromium-metrics-reviews@google.com.
     Records once during the initialization of the EdgeToEdgeControllerImpl
     whether there were no navigation bar insets at all, which may indicate an
     incorrect value from the OS.
+  </summary>
+</histogram>
+
+<histogram name="Android.EdgeToEdge.NavigationBarMandatoryGesturesMismatch"
+    enum="HasSeenNonZeroNavBarState" expires_after="2025-12-01">
+  <owner>clhager@google.com</owner>
+  <owner>wenyufu@chromium.org</owner>
+  <owner>edge-to-edge@chromium.org</owner>
+  <summary>
+    Records when insets are updated and the mandatory system gestures insets
+    seem to indicate the presence of a navigation bar, but the navigation bar
+    insets (ignoring visibility) are zero. This is recorded up to three times
+    per session: once if there's a mismatch in the first insets received by the
+    app, once on the first time those mismatched insets are corrected (non-zero
+    navbar insets), and once if insets are mismatched after non-zero navbar
+    insets have been seen during the current session. The enum value also tracks
+    the navigation mode (gesture, tappable) indicated by the insets, or if the
+    insets are giving mixed signals on the navigation mode.
   </summary>
 </histogram>
 
@@ -2348,7 +2381,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.Hub.PaneFocused.PaneSwitcher" enum="HubPaneId"
-    expires_after="2025-10-12">
+    expires_after="2025-12-14">
   <owner>ckitagawa@chromium.org</owner>
   <owner>clank-hub-dev@google.com</owner>
   <summary>
@@ -2374,7 +2407,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.HubSearch.SearchBoxEntrypointV2"
-    enum="HubSearchEntrypoint" expires_after="2025-10-12">
+    enum="HubSearchEntrypoint" expires_after="2025-12-14">
   <owner>bjfong@google.com</owner>
   <owner>wylieb@google.com</owner>
   <owner>clank-hub-dev@google.com</owner>
@@ -2386,7 +2419,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.IncognitoNotification.FileNotDeleted" enum="Boolean"
-    expires_after="2025-10-13">
+    expires_after="2025-12-14">
   <owner>arabm@google.com</owner>
   <owner>chrome-incognito@google.com</owner>
   <summary>
@@ -2465,7 +2498,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.InputDevice.Keyboard.Active" enum="Boolean"
-    expires_after="2025-10-13">
+    expires_after="2025-12-14">
   <owner>aishwaryarj@google.com</owner>
   <owner>clank-large-form-factors@google.com</owner>
   <summary>
@@ -2474,14 +2507,14 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.InputDevice.Mouse.Active" enum="Boolean"
-    expires_after="2025-10-13">
+    expires_after="2025-12-14">
   <owner>aishwaryarj@google.com</owner>
   <owner>clank-large-form-factors@google.com</owner>
   <summary>Emitted when a mouse is connected or disconnected.</summary>
 </histogram>
 
 <histogram name="Android.InputHintChecker.InitializationResult"
-    enum="InputHintInitializationResult" expires_after="2025-10-12">
+    enum="InputHintInitializationResult" expires_after="2025-12-14">
   <owner>pasko@chromium.org</owner>
   <owner>mthiesse@chromium.org</owner>
   <summary>
@@ -2524,7 +2557,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.InputOnViz.Browser.EventTypesInDroppedSequence"
-    enum="MotionEventAction" expires_after="2025-10-12">
+    enum="MotionEventAction" expires_after="2025-12-14">
   <owner>kartarsingh@google.com</owner>
   <owner>woa-performance-team@google.com</owner>
   <summary>
@@ -2535,7 +2568,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.InputOnViz.Browser.NumEventsInDroppedSequence"
-    units="counts" expires_after="2025-10-12">
+    units="counts" expires_after="2025-12-14">
   <owner>kartarsingh@google.com</owner>
   <owner>woa-performance-team@google.com</owner>
   <summary>
@@ -2546,7 +2579,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.InputOnViz.Browser.SequenceDroppedReason"
-    enum="InputOnVizSequenceDroppedReason" expires_after="2025-10-12">
+    enum="InputOnVizSequenceDroppedReason" expires_after="2025-12-14">
   <owner>kartarsingh@google.com</owner>
   <owner>woa-performance-team@google.com</owner>
   <summary>
@@ -4676,7 +4709,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.PredictiveGestureNavigation{Transition}"
-    enum="PredictiveNavTransitionPhase" expires_after="2025-10-12">
+    enum="PredictiveNavTransitionPhase" expires_after="2025-12-14">
   <owner>lazzzis@google.com</owner>
   <owner>clank-app-team@google.com</owner>
   <summary>
@@ -4717,7 +4750,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Android.PredictiveNavigationTransition.NTPFeedRestorationDuration"
-    units="ms" expires_after="2025-10-12">
+    units="ms" expires_after="2025-12-14">
   <owner>lazzzis@google.com</owner>
   <owner>clank-app-team@google.com</owner>
   <summary>
@@ -4728,7 +4761,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Android.PredictiveNavigationTransition.NTPSmoothTransitionByFallback"
-    enum="Boolean" expires_after="2025-10-12">
+    enum="Boolean" expires_after="2025-12-14">
   <owner>lazzzis@google.com</owner>
   <owner>clank-app-team@google.com</owner>
   <summary>
@@ -4824,7 +4857,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.RequestDesktopSite.UserSwitchToDesktop" enum="Boolean"
-    expires_after="2025-10-12">
+    expires_after="2025-12-14">
   <owner>gangwu@chromium.org</owner>
   <owner>fgorski@chromium.org</owner>
   <summary>
@@ -5068,7 +5101,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.SelectFileDialogContentSelected"
-    enum="SelectFileDialogContent" expires_after="2025-10-12">
+    enum="SelectFileDialogContent" expires_after="2025-12-14">
   <owner>finnur@chromium.org</owner>
   <owner>peter@chromium.org</owner>
   <summary>
@@ -5548,7 +5581,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.TabStrip.TimeToSwitchTab" units="ms"
-    expires_after="2025-10-12">
+    expires_after="2025-12-14">
   <owner>gauravjj@google.com</owner>
   <owner>twellington@chromium.org</owner>
   <owner>clank-large-form-factors@google.com</owner>
@@ -6847,7 +6880,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.WebView.DigitalAssetLinks.AssetIncludes.FileSize"
-    units="bytes" expires_after="2025-07-26">
+    units="bytes" expires_after="2026-06-01">
   <owner>bewise@chromium.org</owner>
   <owner>pbirk@chromium.org</owner>
   <owner>src/android_webview/OWNERS</owner>
@@ -6866,7 +6899,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Android.WebView.DigitalAssetLinks.AssetIncludes.LinksInManifest"
-    units="statements" expires_after="2025-07-26">
+    units="statements" expires_after="2026-06-01">
   <owner>bewise@chromium.org</owner>
   <owner>pbirk@chromium.org</owner>
   <owner>src/android_webview/OWNERS</owner>
@@ -6886,7 +6919,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Android.WebView.DigitalAssetLinks.AssetIncludes.NetworkLoadResult"
-    enum="BooleanSuccess" expires_after="2025-07-26">
+    enum="BooleanSuccess" expires_after="2026-06-01">
   <owner>bewise@chromium.org</owner>
   <owner>pbirk@chromium.org</owner>
   <owner>src/android_webview/OWNERS</owner>
@@ -6903,7 +6936,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.WebView.DigitalAssetLinks.AssetIncludes.ParseSuccess"
-    enum="BooleanSuccess" expires_after="2025-07-26">
+    enum="BooleanSuccess" expires_after="2026-06-01">
   <owner>bewise@chromium.org</owner>
   <owner>pbirk@chromium.org</owner>
   <owner>src/android_webview/OWNERS</owner>
@@ -6922,7 +6955,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.WebView.DigitalAssetLinks.AssetIncludes.ValidJson"
-    enum="BooleanSuccess" expires_after="2025-07-26">
+    enum="BooleanSuccess" expires_after="2026-06-01">
   <owner>bewise@chromium.org</owner>
   <owner>pbirk@chromium.org</owner>
   <owner>src/android_webview/OWNERS</owner>
@@ -8106,6 +8139,16 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Android.WebView.SetLayoutAlgorithm"
+    enum="WebViewLayoutAlgorithm" expires_after="2027-12-01">
+  <owner>torne@chromium.org</owner>
+  <owner>src/android_webview/OWNERS</owner>
+  <summary>
+    Records the layout algorithm requested in each call to
+    WebSettings.setLayoutAlgorithm().
+  </summary>
+</histogram>
+
 <histogram
     name="Android.WebView.ShouldInterceptRequest.Async.CallbackLeakedWithoutResponse"
     enum="Boolean" expires_after="2026-03-10">
@@ -8613,7 +8656,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.WebView.SupportLibrary.ClientIsCompat"
-    enum="WebViewClientTypeEnum" expires_after="2025-07-31">
+    enum="WebViewClientTypeEnum" expires_after="2026-06-01">
   <owner>pbirk@chromium.org</owner>
   <owner>src/android_webview/OWNERS</owner>
   <summary>

@@ -280,8 +280,8 @@ void RuleSet::AddToRuleSet(HeapVector<RuleData>& rules,
 
 namespace {
 
-// Pseudo elements that should stop extracting bucketing information
-// from selector after themselves, as they allow some pseudo classes after them
+// Pseudo-elements that should stop extracting bucketing information
+// from selector after themselves, as they allow some pseudo-classes after them
 // in selector, which can confuse bucketing (for now, if you have to add a new
 // PseudoType here, the rule is: if it creates a PseudoElement object - return
 // true, otherwise - return false).
@@ -333,7 +333,7 @@ bool ShouldStopExtractingAtPseudoElement(
       return false;
     default:
       NOTREACHED()
-          << "Don't forget to add new pseudo element type in this switch "
+          << "Don't forget to add new pseudo-element type in this switch "
           << static_cast<wtf_size_t>(pseudo_type);
   }
 }
@@ -341,7 +341,7 @@ bool ShouldStopExtractingAtPseudoElement(
 }  // namespace
 
 // The return value indicates if extracting can continue
-// or should be stopped due to reaching some pseudo element
+// or should be stopped due to reaching some pseudo-element
 // that doesn't allow extracting bucketing rules after itself
 // in selector.
 static bool ExtractSelectorValues(const CSSSelector* selector,
@@ -367,8 +367,8 @@ static bool ExtractSelectorValues(const CSSSelector* selector,
       tag_name = selector->TagQName().LocalName();
       break;
     case CSSSelector::kPseudoElement:
-      // TODO(403505399): We shouldn't allow bucketing of pseudo classes
-      // after pseudo elements for now, as it confuses bucketing.
+      // TODO(403505399): We shouldn't allow bucketing of pseudo-classes
+      // after pseudo-elements for now, as it confuses bucketing.
       if (ShouldStopExtractingAtPseudoElement(selector->GetPseudoType())) {
         return false;
       }
@@ -393,6 +393,11 @@ static bool ExtractSelectorValues(const CSSSelector* selector,
         case CSSSelector::kPseudoSlotted:
         case CSSSelector::kPseudoSelectorFragmentAnchor:
         case CSSSelector::kPseudoRoot:
+        case CSSSelector::kPseudoScrollbarButton:
+        case CSSSelector::kPseudoScrollbarCorner:
+        case CSSSelector::kPseudoScrollbarThumb:
+        case CSSSelector::kPseudoScrollbarTrack:
+        case CSSSelector::kPseudoScrollbarTrackPiece:
           pseudo_type = selector->GetPseudoType();
           break;
         case CSSSelector::kPseudoWebKitCustomElement:
@@ -598,6 +603,14 @@ void RuleSet::FindBestRuleSetAndAdd(CSSSelector& component,
         });
       }
       AddToRuleSet(focus_visible_pseudo_class_rules_, rule_data);
+      return;
+    }
+    if (pseudo_type == CSSSelector::kPseudoScrollbarButton ||
+        pseudo_type == CSSSelector::kPseudoScrollbarCorner ||
+        pseudo_type == CSSSelector::kPseudoScrollbarThumb ||
+        pseudo_type == CSSSelector::kPseudoScrollbarTrack ||
+        pseudo_type == CSSSelector::kPseudoScrollbarTrackPiece) {
+      AddToRuleSet(scrollbar_rules_, rule_data);
       return;
     }
   }
@@ -1208,6 +1221,8 @@ void RuleSet::AddFilteredRulesFromOtherSet(
     AddFilteredRulesFromOtherBucket(
         other, other.focus_visible_pseudo_class_rules_, only_include,
         &focus_visible_pseudo_class_rules_);
+    AddFilteredRulesFromOtherBucket(other, other.scrollbar_rules_, only_include,
+                                    &scrollbar_rules_);
     AddFilteredRulesFromOtherBucket(other, other.universal_rules_, only_include,
                                     &universal_rules_);
     AddFilteredRulesFromOtherBucket(other, other.shadow_host_rules_,
@@ -1550,6 +1565,7 @@ void RuleSet::CompactRules() {
   focus_pseudo_class_rules_.shrink_to_fit();
   selector_fragment_anchor_rules_.shrink_to_fit();
   focus_visible_pseudo_class_rules_.shrink_to_fit();
+  scrollbar_rules_.shrink_to_fit();
   universal_rules_.shrink_to_fit();
   shadow_host_rules_.shrink_to_fit();
   part_pseudo_rules_.shrink_to_fit();
@@ -1625,6 +1641,7 @@ void RuleSet::AssertRuleListsSorted() const {
   DCHECK(IsRuleListSorted(focus_pseudo_class_rules_));
   DCHECK(IsRuleListSorted(selector_fragment_anchor_rules_));
   DCHECK(IsRuleListSorted(focus_visible_pseudo_class_rules_));
+  DCHECK(IsRuleListSorted(scrollbar_rules_));
   DCHECK(IsRuleListSorted(universal_rules_));
   DCHECK(IsRuleListSorted(shadow_host_rules_));
   DCHECK(IsRuleListSorted(part_pseudo_rules_));
@@ -1671,6 +1688,7 @@ void RuleSet::Trace(Visitor* visitor) const {
   visitor->Trace(focus_pseudo_class_rules_);
   visitor->Trace(selector_fragment_anchor_rules_);
   visitor->Trace(focus_visible_pseudo_class_rules_);
+  visitor->Trace(scrollbar_rules_);
   visitor->Trace(universal_rules_);
   visitor->Trace(shadow_host_rules_);
   visitor->Trace(part_pseudo_rules_);

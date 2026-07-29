@@ -13,8 +13,6 @@
 #import "components/prefs/pref_change_registrar.h"
 #import "ios/chrome/browser/push_notification/model/push_notification_client.h"
 
-class Browser;
-@class CommandDispatcher;
 class PrefRegistrySimple;
 enum class TipsNotificationType;
 enum class TipsNotificationUserType;
@@ -83,20 +81,7 @@ class TipsNotificationClient : public PushNotificationClient {
   void OnNotificationRequested(TipsNotificationType type, NSError* error);
 
   // Returns `true` if there is foreground active browser.
-  bool IsSceneLevelForegroundActive();
-
-  // Helpers to handle notification interactions.
-  void ShowUIForNotificationType(TipsNotificationType type, Browser* browser);
-  void ShowDefaultBrowserPromo(Browser* browser);
-  void ShowWhatsNew(Browser* browser);
-  void ShowSignin(Browser* browser);
-  void ShowSetUpListContinuation(Browser* browser);
-  void ShowDocking(Browser* browser);
-  void ShowOmniboxPosition(Browser* browser);
-  void ShowLensPromo(Browser* browser);
-  void ShowEnhancedSafeBrowsingPromo(Browser* browser);
-  void ShowCPEPromo(Browser* browser);
-  void ShowLensOverlayPromo(Browser* browser);
+  bool IsSceneLevelForegroundActive() const;
 
   // Helpers to store state in local state prefs.
   void MarkNotificationTypeSent(TipsNotificationType type);
@@ -112,11 +97,11 @@ class TipsNotificationClient : public PushNotificationClient {
   void OnGetDeliveredNotifications(NSArray<UNNotification*>* notifications);
 
   // Returns true if Tips notifications are permitted.
-  bool IsPermitted();
+  bool IsPermitted() const;
 
   // Returns true if the app has provisional notification authorization and the
   // IOSReactivationNotifications feature is enabled.
-  bool CanSendReactivation();
+  bool CanSendReactivation() const;
 
   // Updates the instance variable that stores whether provisional
   // notifications are allowed by policy.
