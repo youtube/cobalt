@@ -53,8 +53,12 @@
 #include "content/browser/devtools/devtools_instrumentation.h"
 #include "content/browser/devtools/network_service_devtools_observer.h"
 #include "content/browser/download/download_manager_impl.h"
-#include "content/browser/fenced_frame/fenced_frame_url_mapping.h"
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
+#include "content/browser/fenced_frame/fenced_frame_url_mapping.h"  // nogncheck
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 #include "content/browser/interest_group/ad_auction_headers_util.h"
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 #include "content/browser/loader/browser_initiated_resource_request.h"
 #include "content/browser/loader/cached_navigation_url_loader.h"
 #include "content/browser/loader/navigation_early_hints_manager.h"
@@ -871,6 +875,7 @@ struct TopicsHeaderValueResult {
 // Returns the topics header for a navigation request. Returns std::nullopt if
 // the request isn't eligible for topics. This should align with the handling in
 // `GetTopicsHeaderValueForSubresourceRequest()`.
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 TopicsHeaderValueResult GetTopicsHeaderValueForNavigationRequest(
     FrameTreeNode* frame_tree_node,
     const GURL& url) {
@@ -939,6 +944,7 @@ TopicsHeaderValueResult GetTopicsHeaderValueForNavigationRequest(
       .topics_eligible = topics_eligible,
       .header_value = DeriveTopicsHeaderValue(topics, num_versions_in_epochs)};
 }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 
 ukm::SourceId GetPageUkmSourceId(FrameTreeNode* frame_tree_node) {
   CHECK(frame_tree_node);
@@ -1740,10 +1746,12 @@ NavigationRequest::NavigationRequest(
       is_pdf_(is_pdf),
       is_embedder_initiated_fenced_frame_navigation_(
           is_embedder_initiated_fenced_frame_navigation),
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
       fenced_frame_properties_(
           is_embedder_initiated_fenced_frame_navigation
               ? std::make_optional(FencedFrameProperties(common_params_->url))
               : std::nullopt),
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
       embedder_shared_storage_context_(embedder_shared_storage_context),
       has_ad_auction_headers_attribute_(frame_tree_node->ad_auction_headers()),
       request_method_(common_params_->method) {
@@ -2050,6 +2058,7 @@ NavigationRequest::NavigationRequest(
       }
     }
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
     TopicsHeaderValueResult topics_header_value_result =
         GetTopicsHeaderValueForNavigationRequest(frame_tree_node,
                                                  common_params_->url);
@@ -2067,6 +2076,7 @@ NavigationRequest::NavigationRequest(
       ad_auction_headers_eligible_ = true;
       headers.SetHeader(kAdAuctionRequestHeaderKey, "?1");
     }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
   }
 
   begin_params_->headers = headers.ToString();
@@ -2297,10 +2307,12 @@ NavigationRequest::~NavigationRequest() {
     navigation_handle_proxy_->DidFinish();
 #endif
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   if (is_deferred_on_fenced_frame_url_mapping_) {
     CHECK(NeedFencedFrameURLMapping());
     GetFencedFrameURLMap().RemoveObserverForURN(common_params_->url, this);
   }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 
   RecordEarlyRenderFrameHostSwapMetrics();
 
@@ -2436,6 +2448,7 @@ void NavigationRequest::BeginNavigation() {
   // In long term, navigation support for urn::uuid in iframes will be
   // deprecated. Currently we issue a console warning when navigation starts.
   // TODO(crbug.com/40060657)
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   if (NeedFencedFrameURLMapping()) {
     if (!is_fenced_frame) {
       // Iframes with urn::uuid.
@@ -2491,6 +2504,7 @@ void NavigationRequest::BeginNavigation() {
     base::UmaHistogramEnumeration(blink::kFencedFrameTopNavigationHistogram,
                                   blink::FencedFrameNavigationState::kBegin);
   }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 
   BeginNavigationImpl();
 }
@@ -2619,15 +2633,18 @@ void NavigationRequest::OnPrerenderingActivationChecksComplete(
   is_running_potential_prerender_activation_checks_ = false;
   commit_deferrer_.reset();
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   // We can only activate top-level pages, which can never be at a fenced frame
   // URN that needs to be mapped.
   CHECK(!NeedFencedFrameURLMapping());
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 
   BeginNavigationImpl();
   // DO NOT ADD CODE after this. The previous call to
   // BeginNavigationImpl may cause the destruction of the NavigationRequest.
 }
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 FencedFrameURLMapping& NavigationRequest::GetFencedFrameURLMap() {
   // The usual case here is a fenced frame root navigating to a URNs, in which
   // case we need to consult the `FencedFrameURLMapping` in the *outer*
@@ -2736,6 +2753,7 @@ void NavigationRequest::OnFencedFrameURLMappingComplete(
   BeginNavigationImpl();  // DO NOT ADD CODE after this, because it might have
                           // destroyed `this`.
 }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 
 void NavigationRequest::BeginNavigationImpl() {
   TRACE_EVENT_WITH_FLOW0("navigation", "NavigationRequest::BeginNavigationImpl",
@@ -5771,6 +5789,7 @@ void NavigationRequest::OnRedirectChecksComplete(
   // regardless of cross-origin-ness, the timestamp can also affect the
   // candidate epochs where the topics are derived from, thus resulting in
   // different topics across redirects.
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
   if (topics_eligible_) {
     topics_eligible_ = false;
 
@@ -5806,6 +5825,7 @@ void NavigationRequest::OnRedirectChecksComplete(
     ad_auction_headers_eligible_ = false;
     removed_headers.push_back(kAdAuctionRequestHeaderKey);
   }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 
   if (shared_storage_writable_opted_in_) {
     // On a redirect, the PermissionsPolicy may change the status of this
@@ -6260,7 +6280,9 @@ void NavigationRequest::CommitErrorPage(
     }
   }
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
   topics_eligible_ = false;
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 
   ad_auction_headers_eligible_ = false;
 
@@ -6435,6 +6457,7 @@ void NavigationRequest::CommitNavigation() {
   commit_params_->storage_key = GetRenderFrameHost()->CalculateStorageKey(
       origin_to_commit, base::OptionalToPtr(nonce));
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
   if (topics_eligible_) {
     topics_eligible_ = false;
 
@@ -6452,6 +6475,7 @@ void NavigationRequest::CommitNavigation() {
   } else if (has_ad_auction_headers_attribute_) {
     RemoveAdAuctionResponseHeaders(response() ? response()->headers : nullptr);
   }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 
   RenderFrameHostImpl* old_frame_host =
       frame_tree_node_->render_manager()->current_frame_host();
@@ -6673,6 +6697,7 @@ void NavigationRequest::CommitNavigation() {
   commit_params_->modified_runtime_features =
       runtime_feature_state_context_.GetFeatureOverrides();
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   // Documents loaded from fenced frame configs can opt into allowing
   // cross-origin subframes to use their reporting metadata to send
   // `reportEvent()` beacons. The cross-origin subframes still require a
@@ -6737,6 +6762,7 @@ void NavigationRequest::CommitNavigation() {
     commit_params_->fenced_frame_properties =
         computed_fenced_frame_properties->RedactFor(entity);
   }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 
   commit_params_->load_with_storage_access = ShouldLoadWithStorageAccess(
       begin_params(), common_params(), frame_tree_node()->current_frame_host(),
@@ -7206,10 +7232,23 @@ net::Error NavigationRequest::CheckCSPDirectives(
       // overridden by the checks below.
       error = net::ERR_ABORTED;
     }
+#if BUILDFLAG(IS_COBALT)
+    // [cobalt-location-src] or [h5vcc-location-src]
+    if (!IsAllowedByCSPDirective(
+            initiator_policies->content_security_policies, &initiator_context,
+            network::mojom::CSPDirectiveName::CobaltLocationSrc,
+            has_followed_redirect, url_upgraded_after_redirect,
+            /*is_opaque_fenced_frame=*/false,
+            disposition)) {
+      error = net::ERR_ABORTED;
+      return error;
+    }
+#endif
   }
 
   // [frame-src] or [fenced-frame-src]
   if (parent_policies) {
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
     bool is_opaque_fenced_frame_root_navigation =
         frame_tree_node_->IsFencedFrameRoot() &&
         fenced_frame_properties_.has_value() &&
@@ -7217,6 +7256,9 @@ net::Error NavigationRequest::CheckCSPDirectives(
         !fenced_frame_properties_->mapped_url()
              ->GetValueForEntity(FencedFrameEntity::kEmbedder)
              .has_value();
+#else
+    bool is_opaque_fenced_frame_root_navigation = false;
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
     if (!IsAllowedByCSPDirective(
             parent_policies->content_security_policies, &parent_context,
             frame_tree_node_->IsFencedFrameRoot()
@@ -8650,6 +8692,7 @@ void NavigationRequest::ReadyToCommitNavigation(bool is_error) {
   // For fenced frames, update the mapped URL to be the URL from navigation
   // commit (after redirects), because we want future same-origin checks to be
   // performed with respect to the first origin committed in the fenced frame.
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   if (is_embedder_initiated_fenced_frame_navigation_) {
     // In certain circumstances, the FencedFrameProperties will not have a
     // mapped url.
@@ -8674,6 +8717,7 @@ void NavigationRequest::ReadyToCommitNavigation(bool is_error) {
           GetParentFrameOrOuterDocument()->GetLastCommittedOrigin());
     }
   }
+#endif
 
   if (ready_to_commit_callback_for_testing_)
     std::move(ready_to_commit_callback_for_testing_).Run();
@@ -9876,6 +9920,7 @@ bool NavigationRequest::IsFencedFrameRequiredPolicyFeatureAllowed(
 
 bool NavigationRequest::CheckPermissionsPoliciesForFencedFrames(
     const url::Origin& origin) {
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   // These checks only apply to fenced frames.
   if (!frame_tree_node_->IsFencedFrameRoot())
     return true;
@@ -9911,6 +9956,9 @@ bool NavigationRequest::CheckPermissionsPoliciesForFencedFrames(
     }
   }
   return true;
+#else
+  return true;
+#endif
 }
 
 std::unique_ptr<viz::PeakGpuMemoryTracker>
@@ -10572,6 +10620,7 @@ bool NavigationRequest::ShouldReplaceCurrentEntryForFailedNavigation() const {
               frame_tree_node_->current_frame_host()));
 }
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 const std::optional<FencedFrameProperties>&
 NavigationRequest::ComputeFencedFrameProperties(
     FencedFramePropertiesNodeSource node_source) const {
@@ -10590,9 +10639,11 @@ NavigationRequest::ComputeFencedFrameProperties(
 
   return frame_tree_node_->GetFencedFrameProperties(node_source);
 }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 
 const std::optional<base::UnguessableToken>
 NavigationRequest::ComputeFencedFrameNonce() const {
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   // For partition nonce, all nested frame inside a fenced frame tree should
   // operate on the partition nonce of the frame tree root.
   const std::optional<FencedFrameProperties>& computed_fenced_frame_properties =
@@ -10610,6 +10661,9 @@ NavigationRequest::ComputeFencedFrameNonce() const {
   }
   return computed_fenced_frame_properties->partition_nonce()
       ->GetValueIgnoringVisibility();
+#else
+  return std::nullopt;
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 }
 
 void NavigationRequest::RenderFallbackContentForObjectTag() {
@@ -10956,6 +11010,7 @@ bool NavigationRequest::IsDisabledEmbedderInitiatedFencedFrameNavigation() {
   // `is_embedder_initiated_fenced_frame_navigation_` being true includes fenced
   // frame and urn iframe embedder initiated navigations, so we need the
   // additional `IsFencedFrameRoot` check.
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   if (frame_tree_node_->IsFencedFrameRoot() &&
       is_embedder_initiated_fenced_frame_navigation_ &&
       base::FeatureList::IsEnabled(
@@ -10995,6 +11050,7 @@ bool NavigationRequest::IsDisabledEmbedderInitiatedFencedFrameNavigation() {
       return true;
     }
   }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 
   return false;
 }

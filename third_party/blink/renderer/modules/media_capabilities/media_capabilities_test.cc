@@ -654,6 +654,55 @@ TEST(MediaCapabilitiesTests, BasicAudio) {
   EXPECT_TRUE(info->powerEfficient());
 }
 
+#if BUILDFLAG(IS_COBALT)
+TEST(MediaCapabilitiesTests, CobaltExtraMimeParameters) {
+  test::TaskEnvironment task_environment;
+
+  // Test 'codecs' parameter in various position permutations (first, middle, last).
+  const char* const kValidCobaltMimeTypes[] = {
+      // codecs first
+      "audio/webm; codecs=\"opus\"; "
+      "enableflushduringseek=true; enableresetaudiodecoder=true",
+      // codecs in middle
+      "audio/webm; enableflushduringseek=true; "
+      "codecs=\"opus\"; enableresetaudiodecoder=true",
+      // codecs last
+      "audio/webm; enableflushduringseek=true; enableresetaudiodecoder=true; "
+      "codecs=\"opus\""};
+
+  for (const char* mime_type : kValidCobaltMimeTypes) {
+    MediaCapabilitiesTestContext context;
+
+    MediaDecodingConfiguration* decoding_config =
+        CreateAudioConfig<MediaDecodingConfiguration>(mime_type,
+                                                      "media-source");
+
+    MediaCapabilitiesInfo* info = DecodingInfo(decoding_config, &context);
+    EXPECT_TRUE(info->supported())
+        << "Failed for MIME type parameter order: " << mime_type;
+  }
+}
+
+TEST(MediaCapabilitiesTests, CobaltMissingCodecsWithParameters) {
+  test::TaskEnvironment task_environment;
+  MediaCapabilitiesTestContext context;
+
+  // MIME type with parameters, but NO codecs parameter (should fail validation).
+  const char kInvalidCobaltMimeType[] =
+      "audio/webm; enableflushduringseek=true; enableresetaudiodecoder=true";
+
+  MediaDecodingConfiguration* decoding_config =
+      CreateAudioConfig<MediaDecodingConfiguration>(kInvalidCobaltMimeType,
+                                                    "media-source");
+
+  context.GetMediaCapabilities()->decodingInfo(
+      context.GetScriptState(), decoding_config,
+      context.GetExceptionState());
+
+  EXPECT_TRUE(context.GetExceptionState().HadException());
+}
+#endif  // BUILDFLAG(IS_COBALT)
+
 // Other tests will assume these match. Test to be sure they stay in sync.
 TEST(MediaCapabilitiesTests, ConfigMatchesFeatures) {
   test::TaskEnvironment task_environment;
