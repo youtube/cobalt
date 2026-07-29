@@ -15,6 +15,7 @@
 #include "base/task/single_thread_task_runner.h"
 #include "base/time/time.h"
 #include "base/trace_event/memory_allocator_dump.h"
+#include "build/buildflag.h"
 #include "base/trace_event/process_memory_dump.h"
 #include "base/trace_event/trace_event.h"
 #include "third_party/blink/public/common/features.h"
@@ -173,6 +174,15 @@ base::TimeDelta ParkableStringManager::AgingInterval() {
              ? kLessAggressiveAgingInterval
              : kAgingInterval;
 }
+
+#if BUILDFLAG(IS_COBALT)
+// static
+base::TimeDelta ParkableStringManager::FirstParkingDelay() {
+  return base::FeatureList::IsEnabled(features::kLessAggressiveParkableString)
+             ? kFirstParkingDelay
+             : kCobaltFirstParkingDelay;
+}
+#endif
 
 scoped_refptr<ParkableStringImpl> ParkableStringManager::Add(
     scoped_refptr<StringImpl>&& string,
@@ -447,7 +457,11 @@ void ParkableStringManager::ScheduleAgingTaskIfNeeded() {
   // Delay the first aging tick, since this renderer may be short-lived, we do
   // not want to waste CPU time compressing memory that is going away soon.
   if (!first_string_aging_was_delayed_) {
+#if BUILDFLAG(IS_COBALT)
+    delay = FirstParkingDelay();
+#else
     delay = kFirstParkingDelay;
+#endif
     first_string_aging_was_delayed_ = true;
   }
 

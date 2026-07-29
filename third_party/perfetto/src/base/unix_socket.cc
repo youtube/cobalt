@@ -236,7 +236,7 @@ SockaddrAny MakeSockAddr(SockFamily family, const std::string& socket_name) {
       addr.svm_family = AF_VSOCK;
       addr.svm_cid = *base::StringToUInt32(parts[0]);
       addr.svm_port = *base::StringToUInt32(parts[1]);
-#if PERFETTO_BUILDFLAG(PERFETTO_OS_ANDROID)
+#if PERFETTO_BUILDFLAG(PERFETTO_OS_ANDROID) && !defined(STARBOARD)
       if (IsVirtualized()) {
         // VM-to-VM VSOCK communication requires messages to be
         // routed through the host.

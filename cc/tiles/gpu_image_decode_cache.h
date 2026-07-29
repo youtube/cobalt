@@ -27,6 +27,7 @@
 #include "base/time/time.h"
 #include "base/timer/timer.h"
 #include "base/trace_event/memory_dump_provider.h"
+#include "build/build_config.h"
 #include "cc/cc_export.h"
 #include "cc/paint/image_transfer_cache_entry.h"
 #include "cc/tiles/image_decode_cache.h"
@@ -152,6 +153,10 @@ class CC_EXPORT GpuImageDecodeCache
                                SkColorType color_type,
                                size_t max_working_set_bytes,
                                int max_texture_size,
+#if BUILDFLAG(IS_COBALT)
+                               size_t max_persistent_cache_items,
+                               size_t max_persistent_cache_memory_size,
+#endif  // BUILDFLAG(IS_COBALT)
                                RasterDarkModeFilter* const dark_mode_filter);
   ~GpuImageDecodeCache() override;
 
@@ -742,6 +747,13 @@ class CC_EXPORT GpuImageDecodeCache
   void UnrefImageDecode(const DrawImage& draw_image,
                         const InUseCacheKey& cache_key)
       EXCLUSIVE_LOCKS_REQUIRED(lock_);
+#if BUILDFLAG(IS_COBALT)
+  // Ref-counting helpers for in-process image transfer caching where only
+  // `ImageData*` is available, keeping the underlying decoded memory pinned
+  // until texture upload completes on the GPU thread.
+  void RefImageDecode(ImageData* image_data) EXCLUSIVE_LOCKS_REQUIRED(lock_);
+  void UnrefImageDecode(ImageData* image_data) EXCLUSIVE_LOCKS_REQUIRED(lock_);
+#endif  // BUILDFLAG(IS_COBALT)
   void RefImage(const DrawImage& draw_image, const InUseCacheKey& cache_key)
       EXCLUSIVE_LOCKS_REQUIRED(lock_);
   void UnrefImageInternal(const DrawImage& draw_image,
@@ -752,6 +764,10 @@ class CC_EXPORT GpuImageDecodeCache
   // to ref-count or to orphaned status.
   void OwnershipChanged(const DrawImage& draw_image, ImageData* image_data)
       EXCLUSIVE_LOCKS_REQUIRED(lock_);
+#if BUILDFLAG(IS_COBALT)
+  void OwnershipChanged(ImageData* image_data)
+      EXCLUSIVE_LOCKS_REQUIRED(lock_);
+#endif  // BUILDFLAG(IS_COBALT)
 
   // Ensures that the working set can hold an element of |required_size|,
   // freeing unreferenced cache entries to make room.
@@ -763,6 +779,10 @@ class CC_EXPORT GpuImageDecodeCache
   void InsertTransferCacheEntry(
       const ClientImageTransferCacheEntry& image_entry,
       ImageData* image_data) EXCLUSIVE_LOCKS_REQUIRED(lock_);
+#if BUILDFLAG(IS_COBALT)
+  void OnInProcessImageTransferCompleted(
+      scoped_refptr<ImageData> image_data);
+#endif  // BUILDFLAG(IS_COBALT)
   bool NeedsDarkModeFilter(const DrawImage& draw_image, ImageData* image_data);
   void DecodeImageAndGenerateDarkModeFilterIfNecessary(
       const DrawImage& draw_image,
@@ -980,6 +1000,11 @@ class CC_EXPORT GpuImageDecodeCache
   size_t working_set_items_ GUARDED_BY(lock_) = 0;
   bool aggressively_freeing_resources_ GUARDED_BY(lock_) = false;
 
+#if BUILDFLAG(IS_COBALT)
+  const size_t max_persistent_cache_items_;
+  const size_t max_persistent_cache_memory_size_;
+#endif  // BUILDFLAG(IS_COBALT)
+
   // This field is not a raw_ptr<> because of incompatibilities with tracing
   // (TRACE_EVENT*), perfetto::TracedDictionary::Add and gmock/EXPECT_THAT.
   RAW_PTR_EXCLUSION RasterDarkModeFilter* const dark_mode_filter_;
@@ -1001,6 +1026,14 @@ class CC_EXPORT GpuImageDecodeCache
   std::vector<uint32_t> ids_pending_deletion_;
 
   std::unique_ptr<base::AsyncMemoryPressureListener> memory_pressure_listener_;
+#if BUILDFLAG(IS_COBALT)
+  // `weak_ptr_factory_.GetWeakPtr()` must be called on the sequence that
+  // created the factory (the compositor thread) to avoid sequence checker
+  // assertions. Pre-creating `weak_ptr_` in the constructor allows worker
+  // threads to safely copy and pass it to in-process image transfer completion
+  // callbacks.
+  base::WeakPtr<GpuImageDecodeCache> weak_ptr_;
+#endif  // BUILDFLAG(IS_COBALT)
   base::WeakPtrFactory<GpuImageDecodeCache> weak_ptr_factory_{this};
 };
 

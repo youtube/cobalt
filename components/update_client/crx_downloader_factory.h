@@ -10,6 +10,9 @@
 
 #include "base/files/file_path.h"
 #include "base/memory/ref_counted.h"
+#if BUILDFLAG(IS_STARBOARD)
+#include "components/update_client/configurator.h"
+#endif
 
 namespace update_client {
 
@@ -25,8 +28,13 @@ class CrxDownloaderFactory
   CrxDownloaderFactory(const CrxDownloaderFactory&) = delete;
   CrxDownloaderFactory& operator=(const CrxDownloaderFactory&) = delete;
 
+#if BUILDFLAG(IS_STARBOARD)
+  virtual scoped_refptr<CrxDownloader> MakeCrxDownloader(
+      scoped_refptr<Configurator> config) const = 0;
+#else
   virtual scoped_refptr<CrxDownloader> MakeCrxDownloader(
       bool background_download_enabled) const = 0;
+#endif
 
  protected:
   friend class base::RefCountedThreadSafe<CrxDownloaderFactory>;

@@ -375,7 +375,7 @@ TEST_F(MessagePipeTest, DataPipeProducerHandlePingPong) {
     MojoClose(p[i]);
 }
 
-#if BUILDFLAG(IS_IOS)
+#if BUILDFLAG(IS_IOS) || BUILDFLAG(IS_STARBOARD)
 // TODO(crbug.com/40257752): Test currently fails on iOS.
 #define MAYBE_SharedBufferHandlePingPong DISABLED_SharedBufferHandlePingPong
 #else

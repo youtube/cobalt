@@ -231,8 +231,10 @@
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
 #include <sys/resource.h>
 
+#if !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 #include "components/services/font/public/mojom/font_service.mojom.h"  // nogncheck
 #include "content/browser/font_service.h"  // nogncheck
+#endif
 #include "third_party/blink/public/mojom/memory_usage_monitor_linux.mojom.h"  // nogncheck
 
 #include "content/browser/child_thread_type_switcher_linux.h"
@@ -1698,7 +1700,22 @@ RenderProcessHostImpl::~RenderProcessHostImpl() {
 
   // Make sure to clean up the in-process renderer before the channel, otherwise
   // it may still run and have its IPCs fail, causing asserts.
+#if BUILDFLAG(IS_STARBOARD)
+  // In single-process mode on Starboard, RenderProcessHostImpl is destroyed only
+  // during final application termination. When the application is suspended or
+  // concealed, Blink's WebThreadScheduler pauses/throttles its renderer task
+  // queues, preventing the thread from processing the quit task posted by
+  // base::Thread::Stop() and causing PlatformThread::Join to hang indefinitely.
+  // Unpausing the renderer scheduler during teardown is risky because executing
+  // queued JS/DOM tasks while Browser and GPU IPC channels are closing can
+  // trigger synchronous IPC deadlocks and Mojo assertions. Releasing the thread
+  // object here allows the process to terminate cleanly via exit(0). Because
+  // RenderProcessHostImpl is never recreated during steady-state suspend/resume,
+  // this causes no accumulated memory leaks.
+  std::ignore = in_process_renderer_.release();
+#else
   in_process_renderer_.reset();
+#endif
   g_in_process_thread = nullptr;
 
   ChildProcessSecurityPolicyImpl::GetInstance()->Remove(GetDeprecatedID());
@@ -1836,6 +1853,15 @@ bool RenderProcessHostImpl::Init() {
         base::checked_cast<int32_t>(id_.GetUnsafeValue())));
 
     base::Thread::Options options;
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+    // When "ReduceAndroidThreadStackSize" is enabled, the default stack size for
+    // helper threads is reduced to 256KB to save virtual memory. However, the
+    // in-process renderer thread is a high-risk thread that can use a
+    // significant portion of its stack (observed up to 252KB RSS in testing).
+    // We explicitly set it to 1MB to exclude it from the reduction and prevent
+    // stack overflow crashes.
+    options.stack_size = 1024 * 1024;
+#endif
 #if BUILDFLAG(IS_WIN) && !BUILDFLAG(IS_MAC)
     // In-process plugins require this to be a UI message loop.
     options.message_pump_type = base::MessagePumpType::UI;
@@ -5434,7 +5460,9 @@ uint64_t RenderProcessHostImpl::GetPrivateMemoryFootprint() {
   auto dump = memory_instrumentation::mojom::RawOSMemDump::New();
   dump->platform_private_footprint =
       memory_instrumentation::mojom::PlatformPrivateFootprint::New();
-#if BUILDFLAG(IS_APPLE) && !BUILDFLAG(IS_IOS_TVOS)
+#if BUILDFLAG(IS_STARBOARD)
+  bool success = false;
+#elif BUILDFLAG(IS_APPLE) && !BUILDFLAG(IS_IOS_TVOS)
   bool success = memory_instrumentation::OSMetrics::FillOSMemoryDump(
       GetProcess().Handle(), {}, ChildProcessTaskPortProvider::GetInstance(),
       dump.get());
@@ -5689,7 +5717,9 @@ void RenderProcessHostImpl::OnProcessLaunched() {
     // Not all platforms launch processes in the same backgrounded state. Make
     // sure |priority_.visible| reflects this platform's initial process
     // state.
-#if BUILDFLAG(IS_APPLE) && !BUILDFLAG(IS_IOS_TVOS)
+#if BUILDFLAG(IS_STARBOARD)
+    priority_.visible = true;
+#elif BUILDFLAG(IS_APPLE) && !BUILDFLAG(IS_IOS_TVOS)
     priority_.visible = child_process_launcher_->GetProcess().GetPriority(
                             ChildProcessTaskPortProvider::GetInstance()) ==
                         base::Process::Priority::kUserBlocking;

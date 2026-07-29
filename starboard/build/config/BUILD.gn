@@ -1,0 +1,107 @@
+# Copyright 2021 The Cobalt Authors. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import("//build/config/compiler/compiler.gni")
+import("//starboard/build/config/toolchain_variables.gni")
+
+# TODO(b/212641065): Scope global defines migrated from
+# cobalt_configuration.gypi to only the targets they're necessary in.
+config("starboard") {
+  if (is_starboardized_toolchain) {
+    defines = [
+      "COBALT",  # TODO: See if this can be replaced by STARBOARD macro.
+    ]
+    if (is_starboard) {
+      defines += [ "STARBOARD" ]
+    }
+
+    if (!is_gold) {
+      defines += [
+        "ENABLE_DEBUGGER",
+        "ENABLE_DEBUG_COMMAND_LINE_SWITCHES",
+        "ENABLE_TEST_RUNNER",
+        "ENABLE_IGNORE_CERTIFICATE_ERRORS",
+      ]
+    }
+
+    if (is_internal_build) {
+      defines += [ "COBALT_INTERNAL_BUILD" ]
+    }
+
+    if (sb_enable_lib) {
+      defines += [ "SB_IS_LIBRARY=1" ]
+    }
+
+    if (sb_is_modular) {
+      defines += [ "SB_IS_MODULAR=1" ]
+    }
+
+    if (sb_is_evergreen) {
+      defines += [ "SB_IS_EVERGREEN=1" ]
+    }
+
+    if (sb_evergreen_compatible_use_libunwind) {
+      defines += [ "SB_IS_EVERGREEN_COMPATIBLE_LIBUNWIND=1" ]
+    }
+
+    defines += [ "STARBOARD_CONFIGURATION_INCLUDE=\"$starboard_path/configuration_public.h\"" ]
+  }
+
+  # b/432642933: The rpath option causes lld to fail when targeting tvOS
+  # because -rpath=/path/to/something is not a valid linker option (and
+  # everything works fine without it anyway).
+  # Check for |target_os| because this also affects the host (macOS) side.
+  if (target_os != "ios") {
+    sb_out_dir =
+        get_label_info("//starboard($starboard_toolchain)", "root_out_dir")
+    ldflags = [ "-Wl,-rpath=" + rebase_path("$sb_out_dir") ]
+  }
+}
+
+config("starboard_implementation") {
+  # This allows the benchmarks to include internal only header files.
+  defines = [ "STARBOARD_IMPLEMENTATION" ]
+  if (current_cpu == "arm64" || (current_cpu == "arm" && arm_use_neon)) {
+    defines += [ "USE_NEON" ]
+  }
+}
+
+config("cpp20_supported_config") {
+  if (current_toolchain == default_toolchain) {
+    if (sb_is_modular || is_android) {
+      configs = [ ":modular_cpp20_config" ]
+    } else if (is_linux) {
+      configs = [ ":linux_non_modular_cpp20_config" ]
+    } else if (is_apple) {
+      configs = [ ":apple_cpp20_config" ]
+    } else {
+      assert(
+          false,
+          "One of the above compiler c++ standard flags must be applicable while building with default toolchain.")
+    }
+  }
+}
+
+config("apple_cpp20_config") {
+  cflags_cc = [ "-std=gnu++20" ]
+  cflags_objcc = [ "-std=gnu++20" ]
+}
+
+config("linux_non_modular_cpp20_config") {
+  cflags_cc = [ "-std=gnu++20" ]
+}
+
+config("modular_cpp20_config") {
+  cflags_cc = [ "-std=c++20" ]
+}
