@@ -16,7 +16,6 @@ import androidx.core.content.ContextCompat;
 import org.chromium.base.Callback;
 import org.chromium.base.CallbackController;
 import org.chromium.base.supplier.ObservableSupplier;
-import org.chromium.base.supplier.OneshotSupplier;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.R;
@@ -30,6 +29,7 @@ import org.chromium.chrome.browser.lifecycle.DestroyObserver;
 import org.chromium.chrome.browser.lifecycle.TopResumedActivityChangedObserver;
 import org.chromium.chrome.browser.ntp.NewTabPage;
 import org.chromium.chrome.browser.ntp_customization.NtpCustomizationConfigManager;
+import org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils.NtpBackgroundImageType;
 import org.chromium.chrome.browser.omnibox.UrlFocusChangeListener;
 import org.chromium.chrome.browser.omnibox.suggestions.OmniboxSuggestionsDropdownScrollListener;
 import org.chromium.chrome.browser.status_indicator.StatusIndicatorCoordinator;
@@ -97,6 +97,7 @@ public class StatusBarColorController
     private final @ColorInt int mIncognitoScrolledOmniboxColor;
     private final ObservableSupplier<Integer> mOverviewColorSupplier;
     private final Callback<Integer> mOverviewColorObserver = ignored -> updateStatusBarColor();
+    private final @Nullable DesktopWindowStateManager mDesktopWindowStateManager;
     private boolean mToolbarColorChanged;
     private @ColorInt int mToolbarColor;
     private @ColorInt int mBackgroundColorForNtp;
@@ -121,7 +122,6 @@ public class StatusBarColorController
     private boolean mAllowToolbarColorOnTablets;
 
     // Desktop window states.
-    private @Nullable DesktopWindowStateManager mDesktopWindowStateManager;
     private boolean mIsTopResumedActivity;
 
     private NtpCustomizationConfigManager.@Nullable HomepageStateListener mHomepageStateListener;
@@ -149,7 +149,7 @@ public class StatusBarColorController
      * @param tabProvider The {@link ActivityTabProvider} to get current tab of the activity.
      * @param topUiThemeColorProvider The {@link ThemeColorProvider} for top UI.
      * @param edgeToEdgeSystemBarColorHelper Draws status bar color for Edge to Edge.
-     * @param desktopWindowStateManagerSupplier Supplier to retrieve desktop window information.
+     * @param desktopWindowStateManager Instance to retrieve desktop window information.
      * @param overviewColorSupplier Notifies when the overview color changes.
      * @param supportEdgeToEdge Whether to support making NTPs edge-to-edge.
      */
@@ -163,7 +163,7 @@ public class StatusBarColorController
             ActivityTabProvider tabProvider,
             TopUiThemeColorProvider topUiThemeColorProvider,
             EdgeToEdgeSystemBarColorHelper edgeToEdgeSystemBarColorHelper,
-            OneshotSupplier<DesktopWindowStateManager> desktopWindowStateManagerSupplier,
+            @Nullable DesktopWindowStateManager desktopWindowStateManager,
             ObservableSupplier<Integer> overviewColorSupplier,
             boolean supportEdgeToEdge) {
         mWindow = window;
@@ -273,13 +273,10 @@ public class StatusBarColorController
         mTopUiThemeColor = topUiThemeColorProvider;
         mToolbarColorChanged = false;
         mEdgeToEdgeSystemBarColorHelper = edgeToEdgeSystemBarColorHelper;
-        desktopWindowStateManagerSupplier.runSyncOrOnAvailable(
-                desktopWindowStateManager -> {
-                    mDesktopWindowStateManager = desktopWindowStateManager;
-                    mIsTopResumedActivity =
-                            !mDesktopWindowStateManager.isInUnfocusedDesktopWindow();
-                    updateStatusBarColor();
-                });
+        mDesktopWindowStateManager = desktopWindowStateManager;
+        if (mDesktopWindowStateManager != null) {
+            mIsTopResumedActivity = !mDesktopWindowStateManager.isInUnfocusedDesktopWindow();
+        }
         mOverviewColorSupplier.addObserver(mOverviewColorObserver);
 
         if (supportEdgeToEdge) {
@@ -287,7 +284,10 @@ public class StatusBarColorController
                     new NtpCustomizationConfigManager.HomepageStateListener() {
                         @Override
                         public void onBackgroundColorChanged(
-                                int backgroundColor, boolean fromInitialization) {
+                                int backgroundColor,
+                                boolean fromInitialization,
+                                @NtpBackgroundImageType int oldType,
+                                @NtpBackgroundImageType int newType) {
                             if (mBackgroundColorForNtp == backgroundColor) return;
 
                             mBackgroundColorForNtp = backgroundColor;

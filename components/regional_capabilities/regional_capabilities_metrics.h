@@ -53,8 +53,14 @@ enum class SearchEngineChoiceScreenConditions {
   // The user made the choice in the guest session and opted to save it across
   // guest sessions.
   kUsingPersistedGuestSessionChoice = 17,
+  // The user's current location is not compatible with the regional scope *and*
+  // the regional program requires restricting to its associated countries.
+  kIncompatibleCurrentLocation = 18,
+  // The user is not eligible to make the choice because of their account
+  // capabilities.
+  kAccountNotEligible = 19,
 
-  kMaxValue = kUsingPersistedGuestSessionChoice,
+  kMaxValue = kAccountNotEligible,
 };
 // LINT.ThenChange(/tools/metrics/histograms/metadata/search/enums.xml:SearchEngineChoiceScreenConditions)
 }  // namespace search_engines
@@ -144,6 +150,19 @@ void RecordTriggeringFunnelStageDetails(
 // responsible for aggregating these into a single histogram.
 void RecordActiveRegionalProgram(
     const absl::flat_hash_set<ActiveRegionalProgram> programs);
+
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
+//
+// LINT.IfChange(ProgramSpecificExclusion)
+enum class ProgramSpecificExclusion {
+  kNotRecordingChoiceFromSettings = 0,
+  kNotPreservingChoiceFromOtherProgram = 1,
+  kMaxValue = kNotPreservingChoiceFromOtherProgram,
+};
+// LINT.ThenChange(/tools/metrics/histograms/metadata/regional_capabilities/enums.xml:RegionalProgramSpecificExclusion)
+
+void RecordProgramSpecificExclusion(ProgramSpecificExclusion exclusion);
 
 }  // namespace regional_capabilities
 

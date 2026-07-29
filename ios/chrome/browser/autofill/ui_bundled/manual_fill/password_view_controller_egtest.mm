@@ -421,12 +421,6 @@ void CheckKeyboardIsUpAndNotCovered() {
 // Tests that the Password Manager is dismissed when local authentication fails
 // after tapping "Manage Passwords...".
 - (void)testManagePasswordsActionWithFailedAuthDismissesPasswordManager {
-// TODO(crbug.com/436459761): Re-enable the test on iOS26.
-#if defined(__IPHONE_26_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_26_0
-  if (base::ios::IsRunningOnIOS26OrLater()) {
-    EARL_GREY_TEST_DISABLED(@"Test disabled on iOS 26.");
-  }
-#endif
   CheckPasswordManagerUIDismissesAfterFailedAuthentication(
       manual_fill::ManagePasswordsMatcher());
 
@@ -589,11 +583,10 @@ void CheckKeyboardIsUpAndNotCovered() {
 // Tests that the other password list can be dismissed with a swipe down.
 - (void)testClosingOtherPasswordListViaSwipeDown {
 // TODO(crbug.com/435134454): Re-enable the test on iOS26.
-#if defined(__IPHONE_26_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_26_0
+
   if (iOS26_OR_ABOVE()) {
     EARL_GREY_TEST_DISABLED(@"Test disabled on iOS 26.");
   }
-#endif
 
   [self openOtherPasswords];
 
@@ -647,12 +640,6 @@ void CheckKeyboardIsUpAndNotCovered() {
 // Tests that the "Select Password..." UI is dismissed after failed local
 // authentication.
 - (void)testOtherPasswordListUIDismissedAfterFailedAuth {
-// TODO(crbug.com/436457807): Re-enable the test on iOS26.
-#if defined(__IPHONE_26_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_26_0
-  if (base::ios::IsRunningOnIOS26OrLater()) {
-    EARL_GREY_TEST_DISABLED(@"Test disabled on iOS 26.");
-  }
-#endif
   // Setup failed authentication.
   [PasswordSettingsAppInterface mockReauthenticationModuleExpectedResult:
                                     ReauthenticationResult::kFailure];

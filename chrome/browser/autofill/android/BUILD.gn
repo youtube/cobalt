@@ -9,7 +9,7 @@ java_cpp_enum("autofill_generated_enums") {
   sources = [
     "//chrome/browser/autofill/android/android_autofill_availability_status.h",
     "//chrome/browser/autofill/android/autofill_profile_bridge.h",
-    "//chrome/browser/autofill/android/save_update_address_profile_prompt_view.h",
+    "//chrome/browser/autofill/android/save_update_address_profile_prompt_mode.h",
   ]
 }
 
@@ -292,6 +292,7 @@ robolectric_library("junit") {
     "//third_party/androidx:androidx_test_core_java",
     "//third_party/androidx:androidx_test_ext_junit_java",
     "//third_party/androidx:androidx_test_runner_java",
+    "//third_party/google-truth:google_truth_java",
     "//third_party/hamcrest:hamcrest_java",
     "//third_party/jni_zero:jni_zero_java",
     "//third_party/junit",

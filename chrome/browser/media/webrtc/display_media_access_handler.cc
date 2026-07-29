@@ -43,8 +43,8 @@
 #include "third_party/blink/public/mojom/mediastream/media_stream.mojom.h"
 
 #if defined(TOOLKIT_VIEWS)
-#include "chrome/browser/ui/views/frame/browser_frame.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
+#include "chrome/browser/ui/views/frame/browser_widget.h"
 #endif  // defined(TOOLKIT_VIEWS)
 
 #if BUILDFLAG(IS_CHROMEOS)
@@ -63,9 +63,7 @@
 #include "chrome/browser/glic/host/guest_util.h"
 #endif
 
-BASE_FEATURE(kDisplayMediaRejectLongDomains,
-             "DisplayMediaRejectLongDomains",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kDisplayMediaRejectLongDomains, base::FEATURE_DISABLED_BY_DEFAULT);
 
 namespace {
 using ::blink::mojom::MediaStreamRequestResult;

@@ -242,16 +242,6 @@ void maybeShowSettingsIPH(Browser* browser) {
   [super stop];
 }
 
-#pragma mark - BuggyAuthenticationViewOwner
-
-- (BOOL)viewWillPersist {
-  // This coordinator has no view of its own. The view may only have disappeared
-  // if it owns a started coordinator whose view silently disappeared. The only
-  // coordinator for which this is possible is the add account one.
-  return !_addAccountSigninCoordinator ||
-         _addAccountSigninCoordinator.viewWillPersist;
-}
-
 #pragma mark - UIAdaptivePresentationControllerDelegate
 
 - (BOOL)presentationControllerShouldDismiss:
@@ -540,10 +530,12 @@ void maybeShowSettingsIPH(Browser* browser) {
 
 - (void)closeSettings {
   [self stopManageAccountsNavigationController];
+  [self.mediator accountMenuIsUsable];
 }
 
 - (void)settingsWasDismissed {
   [self stopManageAccountsNavigationController];
+  [self.mediator accountMenuIsUsable];
 }
 
 #pragma mark - Private
@@ -581,6 +573,7 @@ void maybeShowSettingsIPH(Browser* browser) {
 
 - (void)resetAccountDetailsControllerDismissCallback {
   _accountDetailsControllerDismissCallback.Reset();
+  [self.mediator accountMenuIsUsable];
 }
 
 - (void)configureHandlersForRootViewController:

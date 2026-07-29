@@ -817,7 +817,7 @@ Regular profiles start at bucket 1, we don't consider non-regular profiles. -->
 
 <histogram name="PrivacySandbox.AggregationService.KeyFetcher.Status2"
     enum="PrivacySandboxAggregationServiceKeyFetcherStatus"
-    expires_after="2026-01-04">
+    expires_after="2026-03-08">
   <owner>alexmt@chromium.org</owner>
   <owner>linnan@chromium.org</owner>
   <summary>
@@ -1125,7 +1125,7 @@ Regular profiles start at bucket 1, we don't consider non-regular profiles. -->
 </histogram>
 
 <histogram name="PrivacySandbox.AggregationService.UnscheduledRequests.Status"
-    enum="AggregationServiceObserverReportStatus" expires_after="2026-01-04">
+    enum="AggregationServiceObserverReportStatus" expires_after="2026-03-08">
   <owner>alexmt@chromium.org</owner>
   <owner>linnan@chromium.org</owner>
   <summary>
@@ -1329,7 +1329,7 @@ Regular profiles start at bucket 1, we don't consider non-regular profiles. -->
 <histogram
     name="PrivacySandbox.CookieDeprecationFacilitatedTesting.ReasonForEligibilityStoredInPrefs"
     enum="CookieDeprecationFacilitatedTestingProfileEligibility"
-    expires_after="2026-01-04">
+    expires_after="2026-03-08">
   <owner>linnan@chromium.org</owner>
   <owner>measurement-api-dev+metrics@google.com</owner>
   <summary>
@@ -1575,7 +1575,7 @@ Regular profiles start at bucket 1, we don't consider non-regular profiles. -->
 
 <histogram
     name="PrivacySandbox.PrivateAggregation.Budgeter.NumReportingOriginsStoredPerSite"
-    units="counts" expires_after="2026-01-04">
+    units="counts" expires_after="2026-03-08">
   <owner>alexmt@chromium.org</owner>
   <owner>linnan@chromium.org</owner>
   <owner>measurement-api-dev+metrics@google.com</owner>
@@ -1909,6 +1909,16 @@ Regular profiles start at bucket 1, we don't consider non-regular profiles. -->
     Records the amount of times each survey was attempted to be shown on Clank.
     Values do not indicate the amount of surveys shown as each attempt can fail
     due to various factors.
+  </summary>
+</histogram>
+
+<histogram name="PrivacySandbox.WhatsNewSurvey.Status"
+    enum="PrivacySandboxWhatsNewSurveyStatus" expires_after="2026-02-26">
+  <owner>michalhoffmann@google.com</owner>
+  <owner>polonium@google.com</owner>
+  <summary>
+    Records the status when attempting to surface the ACT What's New survey. The
+    ACT What's New survey is triggered on the What's New page with a delay.
   </summary>
 </histogram>
 

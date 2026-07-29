@@ -1280,6 +1280,8 @@ base::TimeTicks VizLayerContext::UpdateDisplayTreeFrom(
   }
   DCHECK_NE(host_impl_->next_frame_token(), viz::kInvalidFrameToken);
   update->next_frame_token = host_impl_->next_frame_token();
+  update->send_frame_token_to_embedder =
+      host_impl_->send_frame_token_to_embedder();
   update->background_color = tree.background_color();
 
   const ViewportPropertyIds& property_ids = tree.viewport_property_ids();
@@ -1291,6 +1293,10 @@ base::TimeTicks VizLayerContext::UpdateDisplayTreeFrom(
   update->browser_controls_params = tree.browser_controls_params();
   update->browser_controls_offset_tag_modifications =
       host_impl_->browser_controls_manager()->GetOffsetTagModifications();
+  update->top_controls_shown_ratio =
+      host_impl_->browser_controls_manager()->TopControlsShownRatio();
+  update->bottom_controls_shown_ratio =
+      host_impl_->browser_controls_manager()->BottomControlsShownRatio();
   update->inner_scroll = property_ids.inner_scroll;
   update->outer_clip = property_ids.outer_clip;
   update->outer_scroll = property_ids.outer_scroll;

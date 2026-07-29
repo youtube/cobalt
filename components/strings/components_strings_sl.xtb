@@ -36,6 +36,7 @@
 <translation id="1062407476771304334">Zamenjaj</translation>
 <translation id="1063822554756965137">Datoteke so bile uspešno izbrisane</translation>
 <translation id="1064054731605354900">A3x5</translation>
+<translation id="1065369186007547872">Chrome meni, da ne želite prejemati obvestil s tega spletnega mesta. Zato so zahteve skrite, da bi bilo manj prekinitev.</translation>
 <translation id="1066528211000788800">JSON</translation>
 <translation id="1067029985695494416">Podrobnosti o iskalniku</translation>
 <translation id="1068467933609179019">Nastavitve storitev samodejnega izpolnjevanja</translation>
@@ -129,6 +130,7 @@ V nasprotnem primeru bodo to blokirale nastavitve zasebnosti. S tem bo vsebina, 
 <translation id="1212527389003717329">Prenos se je začel. Če si ga želite ogledati, pridržite |<ph name="ACCELERATOR" />|.</translation>
 <translation id="1215738931000958575">Uporabite podatke, shranjene v računu Google, za samodejno izpolnjevanje gesel, ključev za dostop, naslovov, plačilnih sredstev in drugih podatkov</translation>
 <translation id="1219129156119358924">Varnost sistema</translation>
+<translation id="1219134100826635117">Skrbnik je blokiral to dejanje</translation>
 <translation id="1222060260947439312">Desni pladenj</translation>
 <translation id="1224330468394120478">A3x6</translation>
 <translation id="1225240795350945817">Številka kartice:</translation>
@@ -532,7 +534,6 @@ V nasprotnem primeru bodo to blokirale nastavitve zasebnosti. S tem bo vsebina, 
 <translation id="1863257867908022953">Pladenj 12</translation>
 <translation id="1864927262126810325">Iz: <ph name="SOURCE_NAME" /></translation>
 <translation id="186539747722034544">Ponudniki kabelskih in satelitskih storitev</translation>
-<translation id="1866757068250903512">Upravljajte naprave za preverjanje pristnosti z imenom <ph name="READERNAME" /> in pametne kartice, ki jih uporabljate z njimi</translation>
 <translation id="1870473978371099486">Storitve zasebnih inštrukcij</translation>
 <translation id="1871208020102129563">Proxy je nastavljen na uporabo stalnih strežnikov proxy, ne na URL skripta .pac.</translation>
 <translation id="1871284979644508959">Obvezno polje</translation>
@@ -639,7 +640,6 @@ V nasprotnem primeru bodo to blokirale nastavitve zasebnosti. S tem bo vsebina, 
 <translation id="2066969741541525119">Vaša organizacija je blokirala spletno mesto, ki sledi</translation>
 <translation id="2069913043427250781">Varnost vozil in prometna varnost</translation>
 <translation id="2071156619270205202">Ta kartica ni ustrezna za številko virtualne kartice.</translation>
-<translation id="2071692954027939183">Obvestila so bila samodejno blokirana, ker jih običajno ne dovolite.</translation>
 <translation id="2071852865256799872">Brskalnik upravlja vaša organizacija, vaš profil pa upravlja domena <ph name="PROFILE_DOMAIN" /></translation>
 <translation id="2072011841331007013">Google Jamboard</translation>
 <translation id="2074733626795553847">Odblokiranje teme <ph name="TOPIC" /></translation>
@@ -716,6 +716,7 @@ V nasprotnem primeru bodo to blokirale nastavitve zasebnosti. S tem bo vsebina, 
 <translation id="2173302385160625112">Preverite internetno povezavo</translation>
 <translation id="2174875517416416684">Transakcija ni bila izvedena. Z vašega računa sredstva niso bila dvignjena.</translation>
 <translation id="2175630235841878061">Datoteke, večje od 100 MB, niso na voljo za prenos</translation>
+<translation id="217631816678106981">Ne prilepi</translation>
 <translation id="2178665390943006934">Gumb za posodobitev Chroma, aktivirajte, če želite posodobiti Chrome v Chromovih nastavitvah</translation>
 <translation id="2178904466768126352">Napadalci lahko na spletnem mestu, ki ste ga poskušali obiskati, namestijo škodljivo programsko opremo, ki ukrade ali izbriše stvari, kot so gesla, fotografije, sporočila ali številke kreditnih kartic.</translation>
 <translation id="2179003720612888584"><ph name="SITE_TITLE" /> na <ph name="SITE_DOMAIN_NAME" /></translation>
@@ -843,6 +844,7 @@ V nasprotnem primeru bodo to blokirale nastavitve zasebnosti. S tem bo vsebina, 
 <translation id="23703388716193220">Oprema za golf</translation>
 <translation id="2370368710215137370">Nalaganje datotek</translation>
 <translation id="2370739752330685659">Morda pozneje</translation>
+<translation id="2371084566192454134">Zavihki in skupine zavihkov</translation>
 <translation id="2374629208601905275">Chrome na podlagi zakonodaje na vašem območju zahteva, da izberete privzeti iskalnik. Ti iskalniki so priljubljeni na vašem območju in so prikazani v naključnem vrstnem redu.</translation>
 <translation id="2376455483361831781">Nova tabela</translation>
 <translation id="2377241607395428273">Programska oprema za grafiko in animacije</translation>
@@ -938,7 +940,6 @@ V nasprotnem primeru bodo to blokirale nastavitve zasebnosti. S tem bo vsebina, 
 <translation id="2527451058878391043">Koda CVC je na sprednji strani kartice. To je 4-mestna koda v zgornjem desnem kotu nad številko kartice.</translation>
 <translation id="2529899080962247600">V tem polju je lahko največ toliko vnosov: <ph name="MAX_ITEMS_LIMIT" />. Vsi nadaljnji vnosi bodo prezrti.</translation>
 <translation id="2530042584066815841">Zaklepanje in uporaba miške</translation>
-<translation id="2533649878691950253">Temu spletnemu mestu je onemogočen dostop do vaše natančne lokacije, ker običajno tega ne dovolite.</translation>
 <translation id="253493526287553278">Ogled podrobnosti o promocijskih kodah</translation>
 <translation id="2535585790302968248">Odpiranje novega anonimnega zavihka za zasebno brskanje</translation>
 <translation id="2535659140340599600">{COUNT,plural, =1{in še 1}one{in še #}two{in še #}few{in še #}other{in še #}}</translation>
@@ -1062,6 +1063,7 @@ V nasprotnem primeru bodo to blokirale nastavitve zasebnosti. S tem bo vsebina, 
 <translation id="2731220418440848219">Preberite več o iskalniku v Chromiumu</translation>
 <translation id="2731382536835015353">44 x 68 palcev</translation>
 <translation id="2734319753272419592">Naj Google uporabi vaše nakupovalne vozičke za iskanje osebno prilagojenih popustov. Popusti bodo samodejno prikazani na vozičkih, ko bodo na voljo.</translation>
+<translation id="2734797989819862638">Ne kopiraj</translation>
 <translation id="273785062888389088">Sistemi za ogrevanje, prezračevanje in klimatizacijo</translation>
 <translation id="2740531572673183784">V redu</translation>
 <translation id="2742128390261873684">Avtomatizacija doma</translation>
@@ -1624,6 +1626,7 @@ V nasprotnem primeru bodo to blokirale nastavitve zasebnosti. S tem bo vsebina, 
 <translation id="3678529606614285348">Odpiranje strani v novem anonimnem oknu (Ctrl + Shift + N)</translation>
 <translation id="3678914302246317895">Vnesite <ph name="OTP_LENGTH" />-mestno kodo za preverjanje</translation>
 <translation id="3681007416295224113">Informacije o potrdilu</translation>
+<translation id="3681191721636073359">Chrome meni, da na tem spletnem mestu ne želite uporabljati lokacije. Zato so zahteve skrite, da bi bilo manj prekinitev.</translation>
 <translation id="3681421644246505351">Chrome beleži teme zanimanja na podlagi nedavne zgodovine brskanja.</translation>
 <translation id="3681841880472207951">Videoposnetek QuickTime</translation>
 <translation id="3682094733650754138">Izbrana je bila možnost za izpolnitev naslova</translation>
@@ -1744,6 +1747,8 @@ V nasprotnem primeru bodo to blokirale nastavitve zasebnosti. S tem bo vsebina, 
 <translation id="3869939189466884821">Lokalne datoteke bodo izbrisane čez <ph name="MINUTES" /> min</translation>
 <translation id="3872834068356954457">Znanost</translation>
 <translation id="3875783148670536197">Postopek</translation>
+<translation id="3877603629930976930">Ne deli</translation>
+<translation id="3878445208930547646">Kopiranje s tega spletnega mesta ni dovoljeno</translation>
 <translation id="3879748587602334249">Upravitelj prenosov</translation>
 <translation id="3880456882942693779">Umetnost in zabava</translation>
 <translation id="3880589673277376494">Internet in telekomunikacije</translation>
@@ -2112,6 +2117,7 @@ V nasprotnem primeru bodo to blokirale nastavitve zasebnosti. S tem bo vsebina, 
 <translation id="4466576951214254884">Študentska posojila in financiranje študija</translation>
 <translation id="4467821340016922962">Če želite zapreti celozaslonski način in si ogledati prenos, pritisnite |<ph name="ACCELERATOR" />|</translation>
 <translation id="4473643328224505070"><ph name="BEGIN_ENHANCED_PROTECTION_LINK" />Vklopite izboljšano zaščito<ph name="END_ENHANCED_PROTECTION_LINK" />, če si želite zagotoviti Chromovo najvišjo raven varnosti</translation>
+<translation id="4475299370877036544">To dejanje morda krši pravilnike vaše organizacije</translation>
 <translation id="447665707681730621"><ph name="BUBBLE_MESSAGE" />. <ph name="LEARN_MORE_TEXT" /></translation>
 <translation id="4476953670630786061">Ta obrazec ni varen. Samodejno izpolnjevanje je izklopljeno.</translation>
 <translation id="4477350412780666475">Naslednja skladba</translation>
@@ -3657,6 +3663,7 @@ V nasprotnem primeru bodo to blokirale nastavitve zasebnosti. S tem bo vsebina, 
 <translation id="70705239631109039">Povezava ni v celoti varna</translation>
 <translation id="7071122206197538392">Nova primerjalna tabela</translation>
 <translation id="7075452647191940183">Zahteva je prevelika</translation>
+<translation id="7075896597860500885">Kopiranje s tega spletnega mesta ni priporočljivo</translation>
 <translation id="7078665357168027058">RA3</translation>
 <translation id="7079699498125013497">\u0020\u2022\u0020</translation>
 <translation id="7079783554682867524">S spletnega mesta <ph name="TYPE_1" /> (več v sinhroniziranih napravah)</translation>
@@ -3692,6 +3699,7 @@ V nasprotnem primeru bodo to blokirale nastavitve zasebnosti. S tem bo vsebina, 
 <translation id="7129809579943936035"><ph name="VALUE_PROP" /> <ph name="DETAILS" /></translation>
 <translation id="7130775116821607281">Blokirano nalaganje</translation>
 <translation id="7132939140423847331">Skrbnik je prepovedal kopiranje teh podatkov.</translation>
+<translation id="7134653428559514680">Deljenje s tega spletnega mesta ni priporočljivo</translation>
 <translation id="7135130955892390533">Prikaz stanja</translation>
 <translation id="7135814714616751706">Iskanje bližnjic</translation>
 <translation id="7136009930065337683">Preberite več o anonimnem načinu</translation>
@@ -3780,6 +3788,7 @@ Dodatne podrobnosti:
 <translation id="7275334191706090484">Upravljani zaznamki</translation>
 <translation id="7275808129217605899">Zdrava prehrana</translation>
 <translation id="7285654172857511148"><ph name="CHANGE_GOOGLE_PASSWORD_FOCUSED_FRIENDLY_MATCH_TEXT" />, pritisnite tabulatorko, nato Enter, če želite spremeniti geslo za račun Google</translation>
+<translation id="7286908876112207905">Lepljenje te vsebine na to spletno mesto ni dovoljeno</translation>
 <translation id="7291578327729322058">Dodajanje vozniškega dovoljenja</translation>
 <translation id="7292031607255951991">Ime prejemnika</translation>
 <translation id="7298195798382681320">Priporočeni</translation>
@@ -3820,6 +3829,7 @@ Dodatne podrobnosti:
 <translation id="7366117520888504990">198 x 275 mm</translation>
 <translation id="7366362069757178916">Rutine za obravnavo plačil</translation>
 <translation id="7366594738862061263">Preberite več o tem, kako Chrome ščiti gesla</translation>
+<translation id="7370751048350026847">Lepljenje te vsebine na to spletno mesto ni priporočljivo</translation>
 <translation id="7372526636730851647">Photo (Glossy)</translation>
 <translation id="7372973238305370288">rezultat iskanja</translation>
 <translation id="7374461526650987610">Rutine za obravnavanje protokolov</translation>
@@ -3893,6 +3903,7 @@ Dodatne podrobnosti:
 <translation id="745640750744109667">A0x3</translation>
 <translation id="7457071735008326060">Tovornjaki in priklopniki</translation>
 <translation id="7461924472993315131">Pripni</translation>
+<translation id="7463068149674892185">To dejanje ni priporočljivo</translation>
 <translation id="746329643760972486">macOS</translation>
 <translation id="746412105358554870">Optimizacija in varnost za JavaScript</translation>
 <translation id="7465036432780054056">Spletno mesto <ph name="EMBEDDED_URL" /> bo vedelo, da ste obiskali <ph name="TOP_LEVEL_URL" /></translation>
@@ -4586,6 +4597,7 @@ Dodatne podrobnosti:
 <translation id="8624354461147303341">Prejmite popuste</translation>
 <translation id="8634957317623797170">54 x 86 mm</translation>
 <translation id="8637362707224133343">Chrome ima vgrajene varnostne funkcije, ki vas ščitijo med brskanjem, na primer Google Varno brskanje, ki je na spletnem mestu, ki ste ga poskušali obiskati, <ph name="BEGIN_LINK" />nedavno našlo lažno predstavljanje<ph name="END_LINK" />. Spletna mesta z lažnim predstavljanjem se pretvarjajo, da so druga spletna mesta, in vas tako zavedejo.<ph name="NEW_LINE" />Tudi spletna mesta, ki so običajno varna, včasih ogrozijo napadalci. <ph name="BEGIN_ERROR_LINK" />Sporočite nam<ph name="END_ERROR_LINK" />, če menite, da je prišlo do napake in da to spletno mesto ne predstavlja nevarnosti.</translation>
+<translation id="8640996933372643759">Če želite deliti zavihke in sodelovati z drugimi, morate biti zmožni prijaviti se v Chrome</translation>
 <translation id="8641131559425911240">Envelope (Bond)</translation>
 <translation id="8643409044755049933">Kuverta Kaku 3</translation>
 <translation id="8643846627971610148">Ko je skupina zaprta, je omejeno, kdo se lahko pridruži</translation>
@@ -4912,6 +4924,7 @@ Dodatne podrobnosti:
 <translation id="9183425211371246419">Spletno mesto <ph name="HOST_NAME" /> uporablja nepodprt protokol.</translation>
 <translation id="918454845714257218">Preverite kodo tukaj: <ph name="SIDE_OF_CARD" />, nato poskusite znova.</translation>
 <translation id="9186203289258525843">Gumb za nastavite Chroma kot privzeti brskalnik, aktivirajte, če želite nastaviti Chrome kot privzeti brskalnik sistema</translation>
+<translation id="9186371298532546532">Uporabite ta naslov na več mestih</translation>
 <translation id="9189468832660648522">Oseba <ph name="MEMBER_FIRST_NAME" /> je spremenila ta zavihek</translation>
 <translation id="9189789270972826888">Kliknite podrobnosti kartice spodaj, če želite kopirati in prilepiti, če ni bila izpolnjena. <ph name="IDS_AUTOFILL_FILLED_CARD_INFORMATION_BUBBLE_LEARN_MORE_LINK_LABEL" /></translation>
 <translation id="9190557999028587593">Teme, starejše od 4 tednov, so samodejno izbrisane</translation>
@@ -4927,6 +4940,7 @@ Dodatne podrobnosti:
 <translation id="920643408853370361">Potovalno zavarovanje</translation>
 <translation id="9207861905230894330">Članka ni bilo mogoče dodati.</translation>
 <translation id="9209339767782560829">Težava pri uporabi potrdila za prijavo.</translation>
+<translation id="9210152531668884481">Sem za</translation>
 <translation id="9210825002219699214">Letalska potovanja</translation>
 <translation id="9213433120051936369">Prilagajanje videza</translation>
 <translation id="9215416866750762878">Aplikacija Chromu preprečuje vzpostavitev varne povezave s tem mestom</translation>

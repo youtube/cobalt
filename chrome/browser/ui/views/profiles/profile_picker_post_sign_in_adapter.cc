@@ -32,6 +32,7 @@
 #include "components/signin/public/identity_manager/account_info.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
 #include "components/signin/public/identity_manager/tribool.h"
+#include "components/sync/base/features.h"
 #include "content/public/browser/context_menu_params.h"
 #include "content/public/browser/render_frame_host.h"
 #include "ui/base/window_open_disposition.h"
@@ -111,8 +112,9 @@ void ProfilePickerPostSignInAdapter::Init(
       base::BindOnce(&ProfilePickerPostSignInAdapter::FinishAndOpenBrowser,
                      weak_ptr_factory_.GetWeakPtr(), PostHostClearedCallback());
 
-  if (base::FeatureList::IsEnabled(switches::kEnableHistorySyncOptin)) {
-    history_sync_optin_helper_ = std::make_unique<HistorySyncOptinHelper>(
+  if (base::FeatureList::IsEnabled(
+          syncer::kReplaceSyncPromosWithSignInPromos)) {
+    history_sync_optin_helper_ = HistorySyncOptinHelper::Create(
         identity_manager, profile_, account_info, /*delegate=*/this,
         HistorySyncOptinHelper::LaunchContext::kInProfilePicker);
     history_sync_optin_helper_->StartHistorySyncOptinFlow();
@@ -130,7 +132,15 @@ void ProfilePickerPostSignInAdapter::Init(
       std::move(on_sync_screen_closed_closure_));
 }
 
-void ProfilePickerPostSignInAdapter::ShowHistorySyncOptinScreen() {
+void ProfilePickerPostSignInAdapter::ShowHistorySyncOptinScreen(
+    Profile*,
+    base::OnceClosure history_optin_completed_closure) {
+  CHECK(history_optin_completed_closure);
+  CHECK(on_sync_screen_closed_closure_);
+  on_sync_screen_closed_closure_ =
+      std::move(on_sync_screen_closed_closure_)
+          .Then(std::move(history_optin_completed_closure));
+
   // Finishes the sign-in process by moving to the history sync optin screen.
   CHECK(IsInitialized());
   host_->ShowScreen(

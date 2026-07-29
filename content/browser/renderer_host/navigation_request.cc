@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#define TODO_BASE_FEATURE_MACROS_NEED_MIGRATION
-
 #include "content/browser/renderer_host/navigation_request.h"
 
 #include <memory>
@@ -241,7 +239,7 @@ namespace {
 // Kill-switch for the fix to copy item_sequence_number and
 // document_sequence_number from a prerender navigation entry during prerender
 // activation (https://crbug.com/442618062).
-BASE_FEATURE(PrerenderFixSequenceNumbers, base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(kPrerenderFixSequenceNumbers, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Default timeout for the READY_TO_COMMIT -> COMMIT transition. Chosen
 // initially based on the Navigation.ReadyToCommitUntilCommit UMA, and then
@@ -263,7 +261,7 @@ const char kSecSharedStorageWritableRequestHeaderKey[] =
 // Flag to control whether redirect URLs are being sanitized before sending
 // them to the renderer process as part of the navigation.
 // See https://crbug.com/40095391.
-BASE_FEATURE(SanitizeRedirectUrlsDuringNavigation,
+BASE_FEATURE(kSanitizeRedirectUrlsDuringNavigation,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 const base::FeatureParam<bool> kDeferSpeculativeRFHWaitUntilFinalResponse{
@@ -4419,8 +4417,20 @@ void NavigationRequest::OnResponseStarted(
     SubresourceLoaderParams subresource_loader_params,
     EarlyHints early_hints) {
   receive_response_time_ = base::TimeTicks::Now();
-  TRACE_EVENT("navigation", "NavigationRequest::OnResponseStarted",
-              perfetto::Flow::FromPointer(this));
+  const int32_t http_response_code =
+      response_head->headers ? response_head->headers->response_code()
+                             : -1 /* no http_response_code */;
+  TRACE_EVENT(
+      "navigation", "NavigationRequest::OnResponseStarted",
+      perfetto::Flow::FromPointer(this), [&](perfetto::EventContext ctx) {
+        auto* event = ctx.event<perfetto::protos::pbzero::ChromeTrackEvent>();
+        auto* response_info = event->set_response_info();
+        if (http_response_code != -1) {
+          response_info->set_response_code(http_response_code);
+        }
+        response_info->set_was_http_cache(response_head->was_fetched_via_cache);
+      });
+
   ScopedCrashKeys crash_keys(*this);
 
   // The |loader_|'s job is finished. It must not call the NavigationRequest
@@ -4524,9 +4534,7 @@ void NavigationRequest::OnResponseStarted(
   UpdateNavigationHandleTimingsOnResponseReceived(/*is_redirect=*/false,
                                                   is_first_response);
 
-  commit_params_->http_response_code =
-      response_head_->headers ? response_head_->headers->response_code()
-                              : -1 /* no http_response_code */;
+  commit_params_->http_response_code = http_response_code;
 
   // Update fetch start timing. While NavigationRequest updates fetch start
   // timing for redirects, it's not aware of service worker interception so
@@ -7082,10 +7090,15 @@ void NavigationRequest::UpdateNavigationHandleTimingsOnResponseReceived(
         response_head_->load_timing_internal_info->connected_callback_delay;
     navigation_handle_timing_.initialize_stream_delay =
         response_head_->load_timing_internal_info->initialize_stream_delay;
-    navigation_handle_timing_.session_source =
-        response_head_->load_timing_internal_info->session_source;
-    // Reset `load_timing_internal_info` to make sure that isn't exposed.
-    response_head_->load_timing_internal_info.reset();
+    navigation_handle_timing_.session_details = {
+        .session_source =
+            response_head_->load_timing_internal_info->session_source,
+        .advertised_alt_svc_state =
+            response_head_->load_timing_internal_info->advertised_alt_svc_state,
+        .http_network_session_quic_enabled =
+            response_head_->load_timing_internal_info
+                ->http_network_session_quic_enabled,
+    };
   }
 
   final_receive_headers_end_time_ =

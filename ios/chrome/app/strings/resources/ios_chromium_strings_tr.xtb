@@ -4,7 +4,6 @@
 <translation id="1000436330784933699">Lens'i buradan açabilirsiniz.</translation>
 <translation id="1042296835509784301">Chromium'da Şifre Yöneticisi'ni açar.</translation>
 <translation id="1047130070405668746">Chromium'u seçin</translation>
-<translation id="1086486568852410168">Google Lens ile ara</translation>
 <translation id="1091252999271033193">Bu durumda Chromium her seferinde mobil siteyi ister.</translation>
 <translation id="1115463765356382667">Chromium'dan en iyi şekilde yararlanmak için aşağıdaki önerilen işlemleri tamamlayın.</translation>
 <translation id="1185134272377778587">Chromium hakkında</translation>
@@ -43,6 +42,7 @@
 <ph name="BEGIN_LINK" />Daha fazla bilgi<ph name="END_LINK" /></translation>
 <translation id="1847960401032164406">Chromium'da Haritalar</translation>
 <translation id="1867772173333403444">4. Chromium'u seçin</translation>
+<translation id="1965068424387304464">Chromium İpucu: Şifreleri Kaydedin</translation>
 <translation id="2006345422933397527">Chromium, güncellemeleri denetleyemedi. İnternet bağlantınızı kontrol etmeyi deneyin.</translation>
 <translation id="2042889939382983733">Chromium geçmişimi göster</translation>
 <translation id="2052320862053429062">Chromium, internette yayınlanan listelerle karşılaştırarak şifrelerinizi belirli aralıklarla kontrol eder. Bu işlem sırasında şifreleriniz ve kullanıcı adlarınız şifrelendiğinden, Google dahil olmak üzere hiç kimse tarafından okunamaz.</translation>
@@ -119,6 +119,7 @@ Hesap değiştirmeden önce birkaç dakika beklemeyi deneyin. Hesabı şimdi de�
 <translation id="3816686541346279443">Chromium, şifrenizi kaydetmeyi önerir.</translation>
 <translation id="3827545470516145620">Bu cihazda standart güvenlik korumasına sahipsiniz</translation>
 <translation id="3833326979834193417">Chromium; veri ihlalleri, güvenli olmayan web siteleri ve diğer risklere karşı güvenliğinizi sağlamak için Güvenlik Kontrolü'nü her gün otomatik olarak çalıştırır. Güvenlik Kontrolü hakkında daha fazla bilgiyi Ayarlar'da bulabilirsiniz.</translation>
+<translation id="3837584850181228767">Chromium İpucu: Gelişmiş Güvenli Tarama</translation>
 <translation id="3845223911364528001">Dosyanızı yüklemek için Chromium'a dönün</translation>
 <translation id="3855938650519180865">Chromium'daki Yenilikler</translation>
 <translation id="3886689467633467988">Yer işaretlerinize ve daha fazlasına tüm cihazlarınızdan ulaşmak için bu sitede ve Chromium'da oturum açın.</translation>

@@ -150,6 +150,7 @@ import org.chromium.chrome.browser.price_tracking.PriceDropNotificationManagerFa
 import org.chromium.chrome.browser.printing.TabPrinter;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.profiles.ProfileManager;
+import org.chromium.chrome.browser.profiles.ProfileManagerUtils;
 import org.chromium.chrome.browser.profiles.ProfileProvider;
 import org.chromium.chrome.browser.provider.PageContentProviderImpl;
 import org.chromium.chrome.browser.provider.PageContentProviderMetrics;
@@ -501,7 +502,7 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
             Snackbar snackbar =
                     Snackbar.make(
                             error, null, Snackbar.TYPE_NOTIFICATION, Snackbar.UMA_WINDOW_ERROR);
-            snackbar.setSingleLine(false);
+            snackbar.setDefaultLines(false);
             snackbar.setDuration(SnackbarManager.DEFAULT_SNACKBAR_DURATION_LONG_MS);
             snackbarManager.showSnackbar(snackbar);
         }
@@ -1305,6 +1306,9 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
         super.onPauseWithNative();
         if (!ChromeFeatureList.isEnabled(ChromeFeatureList.UMA_SESSION_CORRECTNESS_FIXES)) {
             endUmaSession();
+        } else {
+            mUmaActivityObserver.flushUmaSession();
+            ProfileManagerUtils.flushPersistentDataForAllProfiles();
         }
     }
 

@@ -24,6 +24,7 @@
 #include "ui/gfx/geometry/skia_conversions.h"
 #include "ui/gtk/gtk_compat.h"
 #include "ui/gtk/gtk_util.h"
+#include "ui/native_theme/native_theme.h"
 #include "ui/native_theme/native_theme_base.h"
 
 using base::StrCat;
@@ -88,6 +89,32 @@ void PaintWidget(cc::PaintCanvas* canvas,
                     rect.x(), rect.y());
 }
 
+void UpdateNativeUiInstance(const ui::NativeTheme* native_theme) {
+  auto* const ui_theme = ui::NativeTheme::GetInstanceForNativeUi();
+  bool updated = false;
+  if (ui_theme->forced_colors() != native_theme->forced_colors()) {
+    ui_theme->set_forced_colors(native_theme->forced_colors());
+    updated = true;
+  }
+  if (ui_theme->page_colors() != native_theme->page_colors()) {
+    ui_theme->set_page_colors(native_theme->page_colors());
+    updated = true;
+  }
+  if (ui_theme->preferred_color_scheme() !=
+      native_theme->preferred_color_scheme()) {
+    ui_theme->set_preferred_color_scheme(
+        native_theme->preferred_color_scheme());
+    updated = true;
+  }
+  if (ui_theme->preferred_contrast() != native_theme->preferred_contrast()) {
+    ui_theme->SetPreferredContrast(native_theme->preferred_contrast());
+    updated = true;
+  }
+  if (updated) {
+    ui_theme->NotifyOnNativeThemeUpdated();
+  }
+}
+
 }  // namespace
 
 // static
@@ -136,23 +163,12 @@ void NativeThemeGtk::NotifyOnNativeThemeUpdated() {
   // NativeThemeGtk pulls information about contrast from NativeThemeAura. As
   // such, Aura must be updated with this information before we call
   // NotifyOnNativeThemeUpdated().
-  if (auto* native_theme_aura = ui::NativeTheme::GetInstanceForNativeUi();
-      native_theme_aura->UpdateContrastRelatedStates(*this)) {
-    native_theme_aura->NotifyOnNativeThemeUpdated();
-  }
-
+  UpdateNativeUiInstance(this);
   NativeTheme::NotifyOnNativeThemeUpdated();
 }
 
 void NativeThemeGtk::NotifyOnPreferredContrastUpdated() {
-  // NativeThemeGtk pulls information about contrast from NativeThemeAura. As
-  // such, Aura must be updated with this information before we call
-  // NotifyOnPreferredContrastUpdated().
-  if (auto* native_theme_aura = ui::NativeTheme::GetInstanceForNativeUi();
-      native_theme_aura->UpdateContrastRelatedStates(*this)) {
-    native_theme_aura->NotifyOnNativeThemeUpdated();
-  }
-
+  UpdateNativeUiInstance(this);
   NativeTheme::NotifyOnPreferredContrastUpdated();
 }
 
@@ -170,9 +186,10 @@ void NativeThemeGtk::OnThemeChanged(GtkSettings* settings,
   // experimentally check if the theme is dark by checking if the window
   // background color is dark.
   const SkColor window_bg_color = GetBgColor("");
-  set_use_dark_colors(IsForcedDarkMode() ||
-                      color_utils::IsDark(window_bg_color));
-  set_preferred_color_scheme(CalculatePreferredColorScheme());
+  set_preferred_color_scheme(
+      (IsForcedDarkMode() || color_utils::IsDark(window_bg_color))
+          ? ui::NativeTheme::PreferredColorScheme::kDark
+          : ui::NativeTheme::PreferredColorScheme::kLight);
 
   // GTK doesn't have a native high contrast setting.  Rather, it's implied by
   // the theme name.  The only high contrast GTK themes that I know of are
@@ -193,8 +210,7 @@ void NativeThemeGtk::PaintMenuPopupBackground(
     cc::PaintCanvas* canvas,
     const ui::ColorProvider* color_provider,
     const gfx::Size& size,
-    const MenuBackgroundExtraParams& menu_background,
-    ColorScheme color_scheme) const {
+    const MenuBackgroundExtraParams& menu_background) const {
   auto context = GetStyleContextFromCss(GtkCssMenu());
   // Chrome menus aren't rendered with transparency, so avoid rounded corners.
   ApplyCssToContext(context, "* { border-radius: 0px; }");
@@ -264,8 +280,7 @@ void NativeThemeGtk::PaintFrameTopArea(
     cc::PaintCanvas* canvas,
     State state,
     const gfx::Rect& rect,
-    const FrameTopAreaExtraParams& frame_top_area,
-    ColorScheme color_scheme) const {
+    const FrameTopAreaExtraParams& frame_top_area) const {
   auto context = GetStyleContextFromCss(frame_top_area.use_custom_frame
                                             ? "headerbar.header-bar.titlebar"
                                             : "menubar");

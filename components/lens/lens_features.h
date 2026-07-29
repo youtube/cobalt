@@ -58,10 +58,6 @@ BASE_DECLARE_FEATURE(kLensOverlaySurvey);
 COMPONENT_EXPORT(LENS_FEATURES)
 BASE_DECLARE_FEATURE(kLensOverlaySidePanelOpenInNewTab);
 
-// Enables the Lens overlay simplified selection flow.
-COMPONENT_EXPORT(LENS_FEATURES)
-BASE_DECLARE_FEATURE(kLensOverlaySimplifiedSelection);
-
 // Enables the Lens overlay visual selection updates.
 COMPONENT_EXPORT(LENS_FEATURES)
 BASE_DECLARE_FEATURE(kLensOverlayVisualSelectionUpdates);
@@ -98,10 +94,6 @@ BASE_DECLARE_FEATURE(kLensSearchProtectedPage);
 COMPONENT_EXPORT(LENS_FEATURES)
 BASE_DECLARE_FEATURE(kLensOverlayEduActionChip);
 
-// Enables the modification of the default width of the Lens search side panel.
-COMPONENT_EXPORT(LENS_FEATURES)
-BASE_DECLARE_FEATURE(kLensSearchSidePanelDefaultWidthChange);
-
 // Enables keyboard selection in the Lens overlay.
 COMPONENT_EXPORT(LENS_FEATURES)
 BASE_DECLARE_FEATURE(kLensOverlayKeyboardSelection);
@@ -109,10 +101,6 @@ BASE_DECLARE_FEATURE(kLensOverlayKeyboardSelection);
 // Use alternate appearance for permission bubble.
 COMPONENT_EXPORT(LENS_FEATURES)
 BASE_DECLARE_FEATURE(kLensOverlayPermissionBubbleAlt);
-
-// Enables the back to live page functionality in the Lens overlay.
-COMPONENT_EXPORT(LENS_FEATURES)
-BASE_DECLARE_FEATURE(kLensOverlayBackToPage);
 
 // Enables the search not found on page toast when a user clicks a citation for
 // the current page they are viewing but the text was not found.
@@ -195,10 +183,6 @@ extern const base::FeatureParam<bool> kLensOverlayEnableOpenInNewTab;
 // Whether the EDU action chip should be disabled by glic.
 COMPONENT_EXPORT(LENS_FEATURES)
 extern const base::FeatureParam<bool> kLensOverlayEduActionChipDisabledByGlic;
-
-// The default width of the Lens search side panel.
-COMPONENT_EXPORT(LENS_FEATURES)
-extern const base::FeatureParam<int> kLensSearchSidePanelDefaultWidth;
 
 // Value representing the string to use to override the Lens overlay entrypoint
 // label.
@@ -739,34 +723,6 @@ extern double GetUploadProgressBarShowHeuristic();
 COMPONENT_EXPORT(LENS_FEATURES)
 extern bool ShouldAutoFocusSearchbox();
 
-// Whether to enable the simplified selection flow in the Lens overlay.
-COMPONENT_EXPORT(LENS_FEATURES)
-extern bool IsSimplifiedSelectionEnabled();
-
-// The text received timeout for the simplified selection feature. Time to wait
-// for Lens text response before displaying the selected region context menu, in
-// milliseconds.
-COMPONENT_EXPORT(LENS_FEATURES)
-extern int GetSimplifiedSelectionTextReceivedTimeout();
-
-// The copy text received timeout for the simplified selection feature. Time to
-// wait for text in the interaction response before falling back to using the
-// full image response to copy text from a region.
-COMPONENT_EXPORT(LENS_FEATURES)
-extern int GetCopyTextReceivedTimeout();
-
-// The translate text received timeout for the simplified selection feature.
-// Time to wait for text in the interaction response before falling back to
-// using the full image response to translate text from a region.
-COMPONENT_EXPORT(LENS_FEATURES)
-extern int GetTranslateTextReceivedTimeout();
-
-// Whether the copy keyboard command (ex: CMD+C) should copy the selected region
-// as an image or copy the text within the region when the simplified selection
-// feature is enabled.
-COMPONENT_EXPORT(LENS_FEATURES)
-extern bool GetShouldCopyAsImage();
-
 // Whether the visual selection updates are enabled. This is true if the
 // visual selection updates feature flag is enabled or if the omnibox
 // suggestions feature flag is enabled.
@@ -954,14 +910,6 @@ extern std::string GetLensOverlayEduHashedDomainBlockFilters();
 COMPONENT_EXPORT(LENS_FEATURES)
 bool IsLensOverlayEduActionChipDisabledByGlic();
 
-// Whether to enable the default width change for the side panel.
-COMPONENT_EXPORT(LENS_FEATURES)
-bool IsLensSearchSidePanelDefaultWidthChangeEnabled();
-
-// The default width for the side panel.
-COMPONENT_EXPORT(LENS_FEATURES)
-int GetLensSearchSidePanelDefaultWidth();
-
 // Whether to enable keyboard selection in the Lens overlay.
 COMPONENT_EXPORT(LENS_FEATURES)
 extern bool IsLensOverlayKeyboardSelectionEnabled();
@@ -969,10 +917,6 @@ extern bool IsLensOverlayKeyboardSelectionEnabled();
 // Whether to use alternate appearance for permission bubble.
 COMPONENT_EXPORT(LENS_FEATURES)
 bool IsLensOverlayPermissionBubbleAltEnabled();
-
-// Whether the back to live page functionality is enabled in the Lens overlay.
-COMPONENT_EXPORT(LENS_FEATURES)
-extern bool IsLensOverlayBackToPageEnabled();
 
 // Whether to enable the not found on page toast.
 COMPONENT_EXPORT(LENS_FEATURES)

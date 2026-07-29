@@ -244,7 +244,8 @@ StyleEngine::StyleEngine(Document& document)
           MakeGarbageCollected<StyleSheetCollection>(document)),
       preferred_color_scheme_(mojom::blink::PreferredColorScheme::kLight),
       owner_preferred_color_scheme_(mojom::blink::PreferredColorScheme::kLight),
-      owner_color_scheme_(mojom::blink::ColorScheme::kLight) {
+      owner_color_scheme_(mojom::blink::ColorScheme::kLight),
+      preferred_contrast_(mojom::blink::PreferredContrast::kNoPreference) {
   if (document.GetFrame()) {
     resolver_ = MakeGarbageCollected<StyleResolver>(document);
     global_rule_set_ = MakeGarbageCollected<CSSGlobalRuleSet>();
@@ -3942,19 +3943,6 @@ void StyleEngine::RecalcPositionTryStyleForPseudoElement(
   pseudo_element.RecalcStyle(style_recalc_change, style_recalc_context);
 }
 
-void StyleEngine::RecalcTransitionPseudoStyle() {
-  // TODO(khushalsagar) : This forces a style recalc and layout tree rebuild
-  // for the pseudo-element tree each time we do a style recalc phase. See if
-  // we can optimize this to only when the pseudo-element tree is dirtied.
-  SelectorFilterParentScope filter_scope(
-      nullptr, SelectorFilterParentScope::ScopeType::kRoot);
-
-  ViewTransitionUtils::ForEachTransition(
-      *document_, [&](ViewTransition& transition) {
-        transition.RecalcTransitionPseudoTreeStyle();
-      });
-}
-
 void StyleEngine::RebuildTransitionPseudoLayoutTrees() {
   ViewTransitionUtils::ForEachTransition(
       *document_, [&](ViewTransition& transition) {
@@ -3965,33 +3953,6 @@ void StyleEngine::RebuildTransitionPseudoLayoutTrees() {
 void StyleEngine::RecalcStyle() {
   RecalcStyle(
       {}, StyleRecalcContext::FromAncestors(style_recalc_root_.RootElement()));
-  ViewTransition* transition = ViewTransitionUtils::GetTransition(*document_);
-  if (transition && !transition->IsCreatedViaScriptAPI()) {
-    // MPA transitions require a separate style update pass for view
-    // transitions.
-    // TODO(crbug.com/442622988): Determine if we need to keep this restriction.
-    // Ideally, this is not a fundamental blocker to streamlining the style
-    // update process.
-    RecalcTransitionPseudoStyle();
-  } else {
-    // SPA transitions and scoped view-transitions are updated as part of the
-    // regular style update process. This sanity check ensures that no dirty
-    // style bits remain after the update process.
-#if EXPENSIVE_DCHECKS_ARE_ON()
-    ViewTransitionUtils::ForEachTransition(
-        *document_, [&](ViewTransition& transition) {
-          auto validate_style = [](PseudoElement* pseudo_element) {
-            DCHECK(!pseudo_element->NeedsStyleRecalc())
-                << *pseudo_element << " is dirty after RecalcStyle()";
-          };
-          Element* scope = transition.Scope();
-          if (!scope) {
-            return;
-          }
-          ViewTransitionUtils::ForEachTransitionPseudo(*scope, validate_style);
-        });
-#endif
-  }
 }
 
 void StyleEngine::ClearEnsuredDescendantStyles(Element& root) {
@@ -4346,9 +4307,12 @@ void StyleEngine::UpdateColorScheme() {
   } else {
     preferred_color_scheme_ = owner_preferred_color_scheme_;
   }
+  mojom::blink::PreferredContrast old_preferred_contrast = preferred_contrast_;
+  preferred_contrast_ = settings->GetPreferredContrast();
   bool old_force_dark_mode_enabled = force_dark_mode_enabled_;
   force_dark_mode_enabled_ = settings->GetForceDarkModeEnabled();
   bool media_feature_override_color_scheme = false;
+  bool media_feature_override_contrast = false;
 
   // TODO(1479201): Should DevTools emulation use the WebPreferences API
   // overrides?
@@ -4364,26 +4328,43 @@ void StyleEngine::UpdateColorScheme() {
       preferred_color_scheme_ = preferred_color_scheme_override.value();
       media_feature_override_color_scheme = true;
     }
+    if (std::optional<mojom::blink::PreferredContrast>
+            preferred_contrast_override = overrides->GetPreferredContrast()) {
+      preferred_contrast_ = preferred_contrast_override.value();
+      media_feature_override_contrast = true;
+    }
   }
 
   const PreferenceOverrides* preference_overrides =
       GetDocument().GetPage()->GetPreferenceOverrides();
-  if (preference_overrides && !media_feature_override_color_scheme) {
-    std::optional<mojom::blink::PreferredColorScheme>
-        preferred_color_scheme_override =
-            preference_overrides->GetPreferredColorScheme();
-    if (preferred_color_scheme_override.has_value()) {
-      preferred_color_scheme_ = preferred_color_scheme_override.value();
+  if (preference_overrides) {
+    if (!media_feature_override_color_scheme) {
+      std::optional<mojom::blink::PreferredColorScheme>
+          preferred_color_scheme_override =
+              preference_overrides->GetPreferredColorScheme();
+      if (preferred_color_scheme_override.has_value()) {
+        preferred_color_scheme_ = preferred_color_scheme_override.value();
+      }
+    }
+    if (!media_feature_override_contrast) {
+      std::optional<mojom::blink::PreferredContrast>
+          preferred_contrast_override =
+              preference_overrides->GetPreferredContrast();
+      if (preferred_contrast_override.has_value()) {
+        preferred_contrast_ = preferred_contrast_override.value();
+      }
     }
   }
 
   if (GetDocument().Printing()) {
     preferred_color_scheme_ = mojom::blink::PreferredColorScheme::kLight;
+    preferred_contrast_ = mojom::blink::PreferredContrast::kNoPreference;
     force_dark_mode_enabled_ = false;
   }
 
   if (forced_colors_ != old_forced_colors ||
       preferred_color_scheme_ != old_preferred_color_scheme ||
+      preferred_contrast_ != old_preferred_contrast ||
       force_dark_mode_enabled_ != old_force_dark_mode_enabled) {
     PlatformColorsChanged();
   }

@@ -5,8 +5,6 @@
 // Represents the browser side of the browser <--> renderer communication
 // channel. There will be one RenderProcessHost per renderer process.
 
-#define TODO_BASE_FEATURE_MACROS_NEED_MIGRATION
-
 #include "content/browser/renderer_host/render_process_host_impl.h"
 
 #include <algorithm>
@@ -162,6 +160,7 @@
 #include "content/public/browser/render_widget_host_iterator.h"
 #include "content/public/browser/resource_coordinator_service.h"
 #include "content/public/browser/site_isolation_policy.h"
+#include "content/public/browser/tracing_support.h"
 #include "content/public/browser/weak_document_ptr.h"
 #include "content/public/browser/webrtc_log.h"
 #include "content/public/common/content_client.h"
@@ -318,6 +317,13 @@ const void* const kSubframeProcessReuseOverLimitUmaLoggedKey =
 
 RenderProcessHost::AnalyzeHungRendererFunction g_analyze_hung_renderer =
     nullptr;
+
+// Memory threshold for subframe process reuse, in bytes. A process may be
+// reused for another subframe only if the process's memory footprint stays
+// below this threshold. The default memory threshold is 512MB, for more details
+// about how this was picked, see https://crbug.com/40259123 and
+// https://crbug.com/4348963. Can be overridden in tests.
+uint64_t g_subframe_process_reuse_memory_threshold = 512 * 1024 * 1024u;
 
 #if BUILDFLAG(IS_WIN)
 // This is from extensions/common/switches.cc
@@ -553,13 +559,6 @@ bool IsBelowReuseResourceThresholds(RenderProcessHost* host,
     return true;
   }
 
-  if (process_reuse_policy ==
-          ProcessReusePolicy::kReusePendingOrCommittedSiteSubframe &&
-      !base::FeatureList::IsEnabled(
-          features::kSubframeProcessReuseThresholds)) {
-    return true;
-  }
-
   size_t main_frame_count = 0;
   size_t total_frame_count = 0;
   bool devtools_attached = false;
@@ -612,9 +611,8 @@ bool IsBelowReuseResourceThresholds(RenderProcessHost* host,
   // main frame and subframe in the process, how many extra same-site frames
   // would be necessarily added to `host` later if the current frame were
   // allowed to reuse it (e.g., as its subframes), etc.
-  uint64_t process_memory_limit = base::saturated_cast<uint64_t>(
-      features::kSubframeProcessReuseMemoryThreshold.Get());
-  if (host->GetPrivateMemoryFootprint() < process_memory_limit) {
+  if (host->GetPrivateMemoryFootprint() <
+      g_subframe_process_reuse_memory_threshold) {
     return true;
   }
 
@@ -1212,8 +1210,7 @@ void InvokeVideoDecoderEventCB(RenderProcessHostImpl::VideoDecoderEvent event) {
 #if !BUILDFLAG(IS_ANDROID)
 // Enables kUserVisible process priority. Otherwise when feature is disabled,
 // Priority::kUserVisible has same behavior as Priority::kUserBlocking.
-BASE_FEATURE(UserVisibleProcessPriority,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kUserVisibleProcessPriority, base::FEATURE_DISABLED_BY_DEFAULT);
 #endif
 
 // Please keep in sync with "RenderProcessHostBlockedURLReason" in
@@ -1581,12 +1578,15 @@ RenderProcessHostImpl::RenderProcessHostImpl(
       id_(ChildProcessHostImpl::GenerateChildProcessUniqueId()),
       browser_context_(browser_context),
       storage_partition_impl_(storage_partition_impl->GetWeakPtr()),
-      flags_(flags) {
+      flags_(flags),
+      tracing_track_(
+          perfetto::NamedTrack::FromPointer("RenderProcessHostImpl",
+                                            this,
+                                            GetChildProcessTracingTrack(id_))) {
   CHECK(!browser_context->ShutdownStarted());
   TRACE_EVENT("shutdown", "RenderProcessHostImpl",
               ChromeTrackEvent::kRenderProcessHost, *this);
-  TRACE_EVENT_BEGIN("shutdown", "Browser.RenderProcessHostImpl",
-                    perfetto::Track::FromPointer(this),
+  TRACE_EVENT_BEGIN("shutdown", "Browser.RenderProcessHostImpl", tracing_track_,
                     ChromeTrackEvent::kRenderProcessHost, *this);
 
 #if BUILDFLAG(ALLOW_OOP_VIDEO_DECODER)
@@ -1720,10 +1720,10 @@ RenderProcessHostImpl::~RenderProcessHostImpl() {
       max_outermost_main_frames_);
 
   // "Cleanup in progress"
-  TRACE_EVENT_END("shutdown", perfetto::Track::FromPointer(this),
+  TRACE_EVENT_END("shutdown", tracing_track_,
                   ChromeTrackEvent::kRenderProcessHost, *this);
   // "Browser.RenderProcessHostImpl"
-  TRACE_EVENT_END("shutdown", perfetto::Track::FromPointer(this),
+  TRACE_EVENT_END("shutdown", tracing_track_,
                   ChromeTrackEvent::kRenderProcessHost, *this);
 }
 
@@ -3273,8 +3273,7 @@ bool RenderProcessHostImpl::IsSpare() const {
 void RenderProcessHostImpl::SetProcessLock(
     const IsolationContext& isolation_context,
     const ProcessLock& process_lock) {
-  TRACE_EVENT_BEGIN("shutdown", "Lock process",
-                    perfetto::Track::FromPointer(this),
+  TRACE_EVENT_BEGIN("shutdown", "Lock process", tracing_track_,
                     ChromeTrackEvent::kRenderProcessHost, *this);
   ChildProcessSecurityPolicyImpl::GetInstance()->LockProcess(
       isolation_context, GetDeprecatedID(), !IsUnused(), process_lock);
@@ -3288,7 +3287,7 @@ void RenderProcessHostImpl::SetProcessLock(
   NotifyRendererOfLockedStateUpdate();
 
   // "Lock process"
-  TRACE_EVENT_END("shutdown", perfetto::Track::FromPointer(this),
+  TRACE_EVENT_END("shutdown", tracing_track_,
                   ChromeTrackEvent::kRenderProcessHost, *this);
 }
 
@@ -4271,8 +4270,7 @@ void RenderProcessHostImpl::Cleanup() {
 
   TRACE_EVENT("shutdown", "RenderProcessHostImpl::Cleanup : Starting cleanup.",
               ChromeTrackEvent::kRenderProcessHost, *this);
-  TRACE_EVENT_BEGIN("shutdown", "Cleanup in progress",
-                    perfetto::Track::FromPointer(this),
+  TRACE_EVENT_BEGIN("shutdown", "Cleanup in progress", tracing_track_,
                     ChromeTrackEvent::kRenderProcessHost, *this);
 
   // We cannot delete `this` twice; if this fails, there is an issue with our
@@ -5472,6 +5470,12 @@ uint64_t RenderProcessHostImpl::GetPrivateMemoryFootprint() {
       now + kPrivateMemoryFootprintCacheValidTime;
   return total_size;
 #endif
+}
+
+// static
+void RenderProcessHostImpl::SetSubframeProcessReuseThresholdForTesting(
+    uint64_t threshold) {
+  g_subframe_process_reuse_memory_threshold = threshold;  // IN-TEST
 }
 
 void RenderProcessHostImpl::HasGpuProcess(HasGpuProcessCallback callback) {

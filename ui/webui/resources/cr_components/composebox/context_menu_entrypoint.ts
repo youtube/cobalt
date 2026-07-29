@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 import './icons.html.js';
+import './composebox_tab_favicon.js';
 import '//resources/cr_elements/icons.html.js';
 import '//resources/cr_elements/cr_icon/cr_icon.js';
 import '//resources/cr_elements/cr_action_menu/cr_action_menu.js';
@@ -12,6 +13,8 @@ import {AnchorAlignment} from '//resources/cr_elements/cr_action_menu/cr_action_
 import type {CrActionMenuElement} from '//resources/cr_elements/cr_action_menu/cr_action_menu.js';
 import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
 
+import type {PageHandlerRemote, TabInfo} from './composebox.mojom-webui.js';
+import {ComposeboxProxyImpl} from './composebox_proxy.js';
 import {getCss} from './context_menu_entrypoint.css.js';
 import {getHtml} from './context_menu_entrypoint.html.js';
 
@@ -42,21 +45,48 @@ export class ContextMenuEntrypointElement extends CrLitElement {
   static override get properties() {
     return {
       inputsDisabled: {type: Boolean},
-      hasTabSuggestions_: {type: Boolean},
+      tabSuggestions_: {type: Array},
     };
   }
 
   accessor inputsDisabled: boolean = false;
-  // TODO(crbug.com/442575942): Set `hasTabSuggestions_` to false by default,
-  // and add actual logic for setting it true.
-  protected accessor hasTabSuggestions_: boolean = true;
+  protected accessor tabSuggestions_: TabInfo[] = [];
+  private pageHandler_: PageHandlerRemote;
 
-  protected onEntrypointClick_() {
+  constructor() {
+    super();
+
+    this.pageHandler_ = ComposeboxProxyImpl.getInstance().handler;
+  }
+
+  protected async onEntrypointClick_() {
+    const {tabs} = await this.pageHandler_.getRecentTabs();
+    this.tabSuggestions_ = tabs;
+
     this.$.menu.showAt(this.$.entrypointIcon, {
       top: this.$.entrypointIcon.getBoundingClientRect().bottom,
       width: MENU_WIDTH_PX,
       anchorAlignmentX: AnchorAlignment['AFTER_START'],
     });
+  }
+
+  protected addTabContext(e: Event) {
+    e.stopPropagation();
+
+    const tabElement = e.currentTarget! as HTMLButtonElement;
+    const tabInfo =
+        this.tabSuggestions_[Number(tabElement.dataset['index'])];
+
+    if (!tabInfo) {
+      return;
+    }
+
+    this.fire('add-tab-context', {
+      id: tabInfo.tabId,
+      title: tabInfo.title,
+      url: tabInfo.url,
+    });
+    this.$.menu.close();
   }
 
   protected openImageUpload() {

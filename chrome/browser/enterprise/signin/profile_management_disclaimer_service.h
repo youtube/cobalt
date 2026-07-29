@@ -24,6 +24,7 @@
 #include "chrome/browser/ui/webui/signin/turn_sync_on_helper_policy_fetch_tracker.h"
 #include "components/keyed_service/core/keyed_service.h"
 #include "components/policy/core/browser/signin/profile_separation_policies.h"
+#include "components/signin/public/base/signin_prefs.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
 
 class Profile;
@@ -55,7 +56,8 @@ class ProfileManagementDisclaimerService
   // detailed description of the `callback` parameter.
   // The caller must ensure that we are not already creating a managed profile
   // for another account using `GetAccountBeingConsideredForManagementIfAny()`.
-  void EnsureManagedProfileForAccount(
+  // Virtual for testing purposes.
+  virtual void EnsureManagedProfileForAccount(
       const CoreAccountId& account_id,
       signin_metrics::AccessPoint access_point,
       base::OnceCallback<void(Profile*, bool)> callback);
@@ -83,6 +85,7 @@ class ProfileManagementDisclaimerService
 
     // Timeout for waiting for full information to be available.
     base::OneShotTimer extended_account_info_wait_timeout;
+    base::OneShotTimer refresh_token_wait_timeout;
 
     std::unique_ptr<ManagedProfileCreationController>
         profile_creation_controller;
@@ -130,12 +133,15 @@ class ProfileManagementDisclaimerService
     enable_management_disclaimer_ = enabled;
   }
 
-  void OnRegisteredForPolicy(bool is_managed_account);
+  void OnRegisteredForPolicy(bool is_from_cached_registration_result,
+                             bool is_managed_account);
 
   // signin::IdentityManager::Observer:
   void OnPrimaryAccountChanged(
       const signin::PrimaryAccountChangeEvent& event_details) override;
   void OnExtendedAccountInfoUpdated(const AccountInfo& info) override;
+  void OnRefreshTokenUpdatedForAccount(
+      const CoreAccountInfo& account_info) override;
 
   // BrowserListObserver:
   void OnBrowserSetLastActive(Browser* browser) override;
@@ -147,6 +153,8 @@ class ProfileManagementDisclaimerService
   std::optional<signin::SigninChoice> user_choice_for_testing_;
 
   bool enable_management_disclaimer_ = true;
+  bool skip_automatic_disclaimer_ = false;
+  SigninPrefs signin_prefs_;
 
   std::map<CoreAccountId, std::unique_ptr<TurnSyncOnHelperPolicyFetchTracker>>
       policy_fetch_tracker_by_account_id_;

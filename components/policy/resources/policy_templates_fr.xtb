@@ -160,6 +160,7 @@ Pour les appareils non gérés, l'utilisateur peut décider d'envoyer les métri
 <translation id="1087437665304381368">Cette règle permet de ne contrôler que le mode développeur <ph name="PRODUCT_OS_NAME" />. Si vous voulez bloquer l'accès aux options pour les développeurs Android, vous devez définir la règle <ph name="DEVELOPER_TOOLS_DISABLED_POLICY_NAME" />.</translation>
 <translation id="1087707496788636333">La liste des règles Chrome Enterprise a changé d'adresse ! Pensez à mettre à jour vos favoris. Le lien correct est le suivant : <ph name="POLICY_DOCUMENTATION_URL" />.</translation>
 <translation id="1089150222292592899">Saisir automatiquement le nom d'utilisateur sur la page de l'IdP SAML</translation>
+<translation id="1090430607214486535">Sensible</translation>
 <translation id="1091765729282771296">Autoriser les sites à demander aux utilisateurs d'accorder l'accès à un appareil HID</translation>
 <translation id="1095209545735032039">Bloquer l'API Serial sur ces sites</translation>
 <translation id="1096105751829466145">Moteur de recherche par défaut</translation>
@@ -472,6 +473,7 @@ Cette fonctionnalité est disponible à partir de <ph name="MAC_OS_NAME" /> 10.
       Inversement, si elle est activée, ils le sont aussi.
       Si elle n'est pas configurée, elle est désactivée pour les appareils gérés et activée pour les appareils non gérés.
       Notez qu'il s'agit d'une règle temporaire afin que les utilisateurs gérés puissent quand même utiliser les anciens raccourcis obsolètes. Elle prendra fin une fois que des raccourcis clavier personnalisés seront disponibles.</translation>
+<translation id="1357214899305978790">Définir des raccourcis sur la page "Nouvel onglet" (bêta)</translation>
 <translation id="1361661842732478894">Afficher le bouton Accueil dans la barre d'outils</translation>
 <translation id="1363275621236827384">Activer l'envoi de requêtes de profils matériels à Quirks Server</translation>
 <translation id="1363839375295535439">Si cette règle est activée ou qu'elle n'est pas configurée, le bac à sable LPAC est activé pour les services d'impression lorsque la configuration du système le permet.
@@ -1528,6 +1530,7 @@ Cette règle est habituellement désactivée pour protéger les utilisateurs con
 
 Cette règle relative aux appareils est équivalente à la règle relative aux utilisateurs <ph name="SECURITY_KEY_PERMIT_ATTESTATION_POLICY_NAME" /> existante, à la différence qu'elle s'applique au profil de connexion sur l'écran de connexion.</translation>
 <translation id="2089541797660774692">Activer la création de rapports cloud via un navigateur géré</translation>
+<translation id="2090280024671359587">Autoriser la Capture de texte et améliorer les modèles d'IA.</translation>
 <translation id="2090712407517297305">La page de l'historique Chrome organisée par groupes sera visible sur chrome://history/grouped.</translation>
 <translation id="2090939118981888335">Si vous activez cette règle, le proxy de compression des données est activé. Si vous la désactivez, le proxy est désactivé.
 
@@ -3252,7 +3255,6 @@ Pour en savoir plus sur les formats <ph name="URL_LABEL" /> valides (depuis la v
 <translation id="3285231260918855067">Opacité du contour du texte du filigrane, de 0 (transparent) à 100 (opaque).</translation>
 <translation id="3286159327013237833">Activer les clics automatiques sur l'écran de connexion</translation>
 <translation id="3288595667065905535">Version disponible</translation>
-<translation id="3291940794983537008">Paramètres des fonctionnalités d'IA générative des outils de développement</translation>
 <translation id="3294430356898755483">Cette règle permet aux administrateurs de configurer une liste d'imprimantes pour leurs utilisateurs. La sélection de l'imprimante est effectuée la première fois que l'utilisateur lance une impression.
 
       Vous pouvez utiliser cette règle pour effectuer les opérations suivantes :
@@ -3383,6 +3385,7 @@ Cette règle est limitée à 1 000 entrées.
 Si cette règle n'est pas configurée, aucune navigation dans le navigateur n'est autorisée tant que le VPN permanent en mode strict est actif et que le VPN n'est pas connecté.</translation>
 <translation id="3405997282295704902">Ne pas autoriser les utilisateurs à se servir de <ph name="PRODUCT_NAME" /></translation>
 <translation id="3406122462682235653">Ne pas demander à l'utilisateur (les téléchargements débutent immédiatement)</translation>
+<translation id="3410534959501660670">Paramètres de la fonctionnalité Capture de texte</translation>
 <translation id="3411947169047929182">Contrôle la configuration liée à WebRTC</translation>
 <translation id="341285788698114069">Cette règle contrôle la priorité du processus audio sous Windows.
       Si cette règle est activée, le processus audio s'exécutera avec une priorité supérieure à la normale.
@@ -3823,11 +3826,6 @@ Si les règles <ph name="CONTENT_TRANSFER_ENABLEMENT_STATUS_START_DATE_VALUE" />
 Le transfert de données avec Takeout doit aussi être activé pour que l'appli fonctionne correctement. Pour en savoir plus, consultez https://support.google.com/a/answer/6364687.</translation>
 <translation id="3702518095257671450">Attestation à distance</translation>
 <translation id="3702647575225525306"><ph name="POLICY_NAME" /> (Le champ constitué d'une seule ligne est abandonné et va être supprimé prochainement. Utilisez à la place la zone de texte à plusieurs lignes ci-dessous.)</translation>
-<translation id="3711561721191203926">Lorsque cette règle est activée, la requête principale est bloquée chaque fois qu'un avertissement est censé s'afficher dans <ph name="DEV_TOOLS_NAME" /> en raison de l'échec des vérifications <ph name="PRIVATE_NETWORK_ACCESS" />.
-
-Si cette règle est désactivée ou n'est pas configurée, tous les avertissements <ph name="PRIVATE_NETWORK_ACCESS" /> ne sont pas appliqués et les requêtes ne sont pas bloquées.
-
-Pour connaître les restrictions concernant <ph name="PRIVATE_NETWORK_ACCESS" />, consultez https://wicg.github.io/private-network-access/.</translation>
 <translation id="3711895659073496551">Arrêter</translation>
 <translation id="3712861436661566358">Activer la séparation des profils</translation>
 <translation id="3719826155360621982">Page d'accueil</translation>
@@ -4845,7 +4843,6 @@ Elle est toujours appliquée pour <ph name="PRODUCT_OS_NAME" />.</translation>
 
       Si cette règle est désactivée ou n'est pas configurée, les appareils enregistrés ne communiquent pas leur position.</translation>
 <translation id="4461400898496433231">Ne pas ignorer le contrôle de joignabilité IPv6. N'interroger l'enregistrement AAAA pour la résolution des noms d'hôte que lorsqu'un hôte IPv6 global peut accéder à l'appareil.</translation>
-<translation id="4463467966408770621">Ne pas autoriser les fonctionnalités d'IA générative des outils de développement.</translation>
 <translation id="4463675333222095358">Activer la conversion d'unités pour Réponses rapides</translation>
 <translation id="4464365009416584564">Désactiver <ph name="CHROME_SYNC_NAME" /></translation>
 <translation id="4467952432486360968">Bloquer les cookies tiers</translation>
@@ -5243,6 +5240,17 @@ L'utilisateur restera connecté à son compte Google lorsqu'il supprimera les co
 Jusqu'à Chrome 114, cette règle exigeait que la règle <ph name="SYNC_DISABLED_POLICY_NAME" /> soit définie sur "true". À partir de Chrome 115, si vous configurez cette règle, la synchronisation sera désactivée pour les types de données respectifs si <ph name="CHROME_SYNC_NAME" /> n'est pas désactivé en définissant la règle <ph name="SYNC_DISABLED_POLICY_NAME" /> et que <ph name="BROWSER_SIGNIN_POLICY_NAME" /> n'est pas désactivé.</translation>
 <translation id="4694138212536142867">Activer les rapports sur l'état du matériel de l'appareil</translation>
 <translation id="4697581738794063407">Contrôler la fonctionnalité de filtrage des paramètres d'URL</translation>
+<translation id="4698488381632756664">En développement : en preview anticipée uniquement.
+
+Cette règle permet de préconfigurer jusqu'à 10 raccourcis personnalisés sur la page "Nouvel onglet" de <ph name="PRODUCT_NAME" />.
+
+Si elle est configurée, les utilisateurs verront ces raccourcis par défaut. Ils pourront passer de "Mes raccourcis" à "Sites les plus consultés" ou "Raccourcis de mon organisation" dans le panneau "Personnaliser Chrome". Si elle est vide ou n'est pas définie, l'utilisateur ne pourra basculer qu'entre "Mes raccourcis" et "Sites les plus consultés" dans le panneau "Personnaliser Chrome".
+
+Les URL de raccourci doivent être uniques.
+
+Si <ph name="NTP_SHORTCUTS_ALLOW_USER_EDIT_NAME" /> est défini sur "True", les utilisateurs peuvent modifier le nom du raccourci. Si la valeur est définie sur "False" ou n'est pas configurée, les utilisateurs ne peuvent pas modifier le nom.
+
+Si <ph name="NTP_SHORTCUTS_ALLOW_USER_DELETE_NAME" /> est défini sur "True", les utilisateurs peuvent supprimer le raccourci. Si la valeur est définie sur "False" ou n'est pas configurée, les utilisateurs ne peuvent pas supprimer le raccourci.</translation>
 <translation id="4698895924806859508">Ne pas signaler les événements réseau</translation>
 <translation id="4699172675775169585">Images et fichiers en cache</translation>
 <translation id="4699592681017489215">Cette règle configure un interrupteur local pouvant être utilisé pour désactiver les contrôles d'interception des requêtes DNS. Ces contrôles ont pour but de déterminer si le navigateur est situé derrière un proxy qui redirige les noms d'hôte inconnus.
@@ -6153,6 +6161,7 @@ Valeurs de gestion valides :
 
 Consultez la section 5.2 du document RFC 8828 (https://tools.ietf.org/html/rfc8828.html#section-5.2) pour obtenir une description détaillée de toutes les valeurs de gestion.</translation>
 <translation id="5290940294294002042">Répertorier les plug-ins pouvant être activés ou désactivés par l'utilisateur</translation>
+<translation id="5292069729218406524">Autoriser la Capture de texte sans améliorer les modèles d'IA</translation>
 <translation id="5293285950307241933">Effacer toutes les données utilisateur locales</translation>
 <translation id="5293619885162445352">Autoriser <ph name="PEPPER_NAME" /> à utiliser le nouveau décodeur vidéo.</translation>
 <translation id="529457411593078576">Activer les conditions d'utilisation à la première exécution des onglets personnalisés Chrome</translation>
@@ -7832,23 +7841,6 @@ Si cette règle n'est pas configurée, <ph name="PRODUCT_OS_NAME" /> stocke par 
 <translation id="6383774771168138899">Configurer le flux <ph name="CLOUD_UPLOAD_NAME" /> pour <ph name="MICROSOFT_ONE_DRIVE_NAME" /> et <ph name="MICROSOFT_365_NAME" /></translation>
 <translation id="6384542789059421431">Activer l'affichage des pages de résultats du moteur de recherche par défaut dans un panneau latéral du navigateur.</translation>
 <translation id="6389240462871677239">Autoriser les origines d'applications Web isolées à utiliser Controlled Frame</translation>
-<translation id="6390338862225976270">Ces fonctionnalités des outils de développement de <ph name="PRODUCT_NAME" /> utilisent des modèles d'IA générative pour fournir des informations de débogage supplémentaires. Pour utiliser ces fonctionnalités, <ph name="PRODUCT_NAME" /> doit collecter des données telles que les messages d'erreur, les traces de la pile, les extraits de code et les requêtes réseau, puis les envoyer à un serveur de Google qui exécute un modèle d'IA générative. Le corps de la réponse ou les en-têtes d'authentification et de cookies dans les requêtes réseau ne sont pas inclus dans les données envoyées au serveur.
-
-0 = Permettre d'utiliser la fonctionnalité tout en autorisant Google à utiliser des données pertinentes pour améliorer ses modèles d'IA. Selon la fonctionnalité, les données pertinentes peuvent inclure des requêtes, des entrées, des sorties, des documents source et des commentaires écrits. Elles pourront également être examinées par des réviseurs humains dans le seul but d'améliorer les modèles d'IA. 0 est la valeur par défaut, sauf pour les exceptions ci-dessous.
-
-1 = Permettre d'utiliser la fonctionnalité, mais ne pas autoriser Google à améliorer ses modèles à l'aide du contenu des utilisateurs (y compris les requêtes, les entrées, les sorties, les documents source et les commentaires écrits). 1 est la valeur par défaut pour les utilisateurs de la version Enterprise gérés par <ph name="GOOGLE_ADMIN_CONSOLE_PRODUCT_NAME" /> et pour les comptes Education gérés par <ph name="GOOGLE_WORKSPACE_PRODUCT_NAME" />.
-
-2 = Ne pas autoriser la fonctionnalité.
-
-Si la règle n'est pas configurée, son comportement est déterminé par la règle <ph name="GEN_AI_DEFAULT_SETTINGS_POLICY_NAME" />.
-
-Les fonctionnalités d'IA générative des outils de développement incluent les suivantes :
-
-- Console Insights : décrit les messages de la console et propose des suggestions pour corriger les erreurs dans la console.
-
-- Assistance IA : obtenez de l'aide pour mieux comprendre les styles CSS (depuis la version 131), les requêtes réseau, les performances et les fichiers (tous depuis la version 132).
-
-Pour en savoir plus sur la gestion des données pour les fonctionnalités d'IA générative, veuillez consulter https://support.google.com/chrome/a?p=generative_ai_settings.</translation>
 <translation id="6394350458541421998">Cette règle a été supprimée à partir de la version 29 de <ph name="PRODUCT_OS_NAME" />. Veuillez utiliser la règle PresentationScreenDimDelayScale à la place.</translation>
 <translation id="6397588391180665797">Signale la configuration du réseau des utilisateurs sur les appareils enregistrés.
 
@@ -8379,11 +8371,6 @@ Si elle est activée, les données sont collectées et importées dans la <ph na
 
 Concernant <ph name="PRODUCT_NAME" />, cette règle n'est appliquée que si l'appareil est enregistré avec la règle <ph name="CLOUD_MANAGEMENT_ENROLLMENT_TOKEN" />.
 Cette règle est toujours appliquée pour <ph name="PRODUCT_OS_NAME" />.</translation>
-<translation id="6720071484598746942">Lorsque cette règle est activée, la requête principale est bloquée chaque fois qu'un avertissement est censé s'afficher dans <ph name="DEV_TOOLS_NAME" /> en raison de l'échec des vérifications <ph name="LOCAL_NETWORK_ACCCESS" />.
-
-Si cette règle est désactivée ou n'est pas configurée, les requêtes <ph name="LOCAL_NETWORK_ACCESS" /> utiliseront le traitement par défaut.
-
-Pour connaître les restrictions concernant <ph name="LOCAL_NETWORK_ACCESS" />, consultez https://wicg.github.io/local-network-access/.</translation>
 <translation id="6720330829631914048">Heures écoulées depuis le début de la journée (format 24 heures).</translation>
 <translation id="6721252203593581486">WebSQL dans des contextes tiers (ex. : les cadres iFrame intersites) est désactivé par défaut à partir de M97 et sera entièrement supprimé dans M101.
           Si cette règle est définie sur "False" ou n'est pas configurée, WebSQL dans des contextes tiers restera désactivé.
@@ -9711,6 +9698,7 @@ Si cette règle n'est pas configurée, le moteur de rendu des PDF est sélection
 <translation id="7713608076604149344">Restrictions de téléchargement</translation>
 <translation id="7713845740295404764">Signaler les événements de connexion/déconnexion</translation>
 <translation id="7715711044277116530">Pourcentage d'adaptation du délai d'assombrissement de l'écran en mode Présentation</translation>
+<translation id="7715838249298819250">Ne pas autoriser la Capture de texte</translation>
 <translation id="7716020145539921591">Cette règle étant obsolète, veuillez utiliser la règle <ph name="PROXY_SETTINGS_POLICY_NAME" /> à la place.
 
        Elle permet de définir l'URL du serveur proxy. Elle ne s'applique que si la règle <ph name="PROXY_SETTINGS_POLICY_NAME" /> n'est pas spécifiée et si vous avez sélectionné l'option <ph name="PROXY_MODE_ENUM_FIXED_SERVERS" /> dans la règle <ph name="PROXY_MODE_POLICY_NAME" />.
@@ -10404,6 +10392,17 @@ Consultez la section 5.2 du document RFC 8828 (https://tools.ietf.org/html/rfc
 
       Cette règle est ignorée pour les comptes utilisateur classiques.</translation>
 <translation id="8257863622304579015">Activer le bac à sable du service réseau</translation>
+<translation id="825834906982940588">Cette règle contrôle les paramètres de la fonctionnalité Capture de texte pour <ph name="PRODUCT_OS_NAME" />.
+
+0 = Permettre d'utiliser la fonctionnalité tout en autorisant Google à utiliser des données pertinentes pour améliorer ses modèles d'IA. Selon la fonctionnalité, les données pertinentes peuvent inclure des prompts, des entrées, des sorties, des sources et des retours écrits. Elles pourront également être examinées par des réviseurs humains afin d'améliorer les modèles d'IA. 0 est la valeur par défaut, sauf pour les exceptions ci-dessous.
+
+1 = Permettre d'utiliser la fonctionnalité, mais ne pas autoriser Google à améliorer ses modèles à l'aide du contenu des utilisateurs (y compris les prompts, les entrées, les sorties, les sources et les retours écrits). 1 est la valeur par défaut pour les utilisateurs de la version Enterprise gérés par <ph name="GOOGLE_ADMIN_CONSOLE_PRODUCT_NAME" /> et pour les comptes Education gérés par <ph name="GOOGLE_WORKSPACE_PRODUCT_NAME" />.
+
+2 = Ne pas autoriser la fonctionnalité.
+
+Si la règle n'est pas configurée, son comportement est déterminé par la règle <ph name="GEN_AI_DEFAULT_SETTINGS_POLICY_NAME" />.
+
+Pour en savoir plus sur la gestion des données pour les fonctionnalités d'IA générative, veuillez consulter https://support.google.com/chrome/a?p=generative_ai_settings.</translation>
 <translation id="8259375588339409826">Chromium et Google Chrome fonctionnent avec le même ensemble de règles. Sachez que ce document peut contenir des règles destinées à des versions logicielles inédites (règles dont la compatibilité renvoie à une version de <ph name="PRODUCT_NAME" /> qui n'est pas encore commercialisée), qui sont susceptibles d'être modifiées ou supprimées sans préavis, et pour lesquelles aucune garantie d'aucune sorte n'est fournie, y compris en termes de sécurité et de confidentialité.
 
 Ces règles sont strictement réservées à la configuration des instances de
@@ -11027,7 +11026,6 @@ Elle est toujours appliquée pour <ph name="PRODUCT_OS_NAME" />.</translation>
       Remarque : Pour savoir quelles variables vous pouvez utiliser, consultez la page https://www.chromium.org/administrators/policy-list-3/user-data-directory-variables.</translation>
 <translation id="8657543427358173663">Autoriser la collecte des journaux des événements WebRTC à partir des services Google</translation>
 <translation id="8659843732895043951">Autoriser le presse-papiers sur ces sites</translation>
-<translation id="8660214745436301739">Autoriser les fonctionnalités d'IA générative des outils de développement et améliorer les modèles d'IA.</translation>
 <translation id="8661297125441579970">Interdire la migration de données et ARC.</translation>
 <translation id="8661538142776716004">Effacer les paramètres des sites</translation>
 <translation id="8661980316738569557">Activer le mode Contraste élevé</translation>
@@ -11822,7 +11820,6 @@ Cette règle n'a aucun effet si la règle <ph name="METRICS_REPORTING_ENABLED_PO
       Si elle est définie sur <ph name="ASSISTANT_ONBOARDING_MODE_EDUCATION" />, le mode EDU du processus de prise en main de l'Assistant est utilisé.</translation>
 <translation id="9191821120522935133">Autorise l'activation de la limitation d'iFrames multi-origines non visibles</translation>
 <translation id="9192220384862917760">Activer la protection de l'hôte d'accès à distance</translation>
-<translation id="9194693367692364911">Autoriser les fonctionnalités d'IA générative des outils de développement sans améliorer les modèles d'IA.</translation>
 <translation id="9195766455191826480">Ne pas signaler l'état de sécurité</translation>
 <translation id="9197238499850071076">Spécifie si la version définie par <ph name="DEVICE_TARGET_VERSION_PREFIX_POLICY_NAME" /> doit être rétablie sur l'appareil s'il exécute une version ultérieure.
 

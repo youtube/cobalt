@@ -27,8 +27,8 @@ import {getHtml} from './power_bookmark_row.html.js';
 import {PowerBookmarksService} from './power_bookmarks_service.js';
 import {getFolderLabel} from './power_bookmarks_utils.js';
 
-export const NESTED_BOOKMARKS_BASE_MARGIN = 45;
-export const NESTED_BOOKMARKS_MARGIN_PER_DEPTH = 17;
+export const NESTED_BOOKMARKS_BASE_MARGIN = 28;
+export const NESTED_BOOKMARKS_MARGIN_PER_DEPTH = 12;
 export const BOOKMARK_ROW_LOAD_EVENT = 'bookmark-row-connected-event';
 
 export class PowerBookmarkRowElement extends CrLitElement {
@@ -68,8 +68,11 @@ export class PowerBookmarkRowElement extends CrLitElement {
       trailingIconTooltip: {type: String},
       listItemSize: {type: String},
       toggleExpand: {type: Boolean},
+      isSelected: {type: Boolean},
       updatedElementIds: {type: Array},
       canDrag: {type: Boolean},
+      activeFolderPath: {type: Array},
+      hasFolders: {type: Boolean, reflect: true},
     };
   }
 
@@ -97,10 +100,13 @@ export class PowerBookmarkRowElement extends CrLitElement {
   accessor rowAriaDescription: string = '';
   accessor trailingIconTooltip: string = '';
   accessor toggleExpand: boolean = false;
+  accessor isSelected: boolean = false;
   accessor imageUrls: {[key: string]: string} = {};
   accessor updatedElementIds: string[] = [];
   accessor isPriceTracked: boolean = false;
   accessor canDrag: boolean = true;
+  accessor activeFolderPath: BookmarksTreeNode[] = [];
+  accessor hasFolders: boolean = false;
 
   accessor listItemSize: CrUrlListItemSize = CrUrlListItemSize.COMPACT;
 
@@ -150,6 +156,17 @@ export class PowerBookmarkRowElement extends CrLitElement {
 
   override willUpdate(changedProperties: PropertyValues<this>) {
     super.willUpdate(changedProperties);
+
+    if (changedProperties.has('bookmark') &&
+        this.bookmark.id !== changedProperties.get('bookmark')?.id) {
+      this.toggleExpand = false;
+    }
+
+    if (changedProperties.has('activeFolderPath')) {
+      this.isSelected = this.activeFolderPath?.length > 0 &&
+          this.activeFolderPath[this.activeFolderPath.length - 1].id ===
+              this.bookmark.id;
+    }
 
     if (changedProperties.has('compact')) {
       this.listItemSize =
@@ -305,13 +322,6 @@ export class PowerBookmarkRowElement extends CrLitElement {
     // eat input clicks. Also ignore clicks if the row has no associated
     // bookmark, or if the event is a right-click.
     if (this.isRenamingItem_() || !this.bookmark || event.button === 2) {
-      return;
-    }
-    // In compact view, if the item is a folder, ignore row clicks to toggle
-    // the folder.
-    if (this.shouldExpand_() && !this.hasCheckbox) {
-      // If clicking on a row that's a folder in compact view, move focus to it.
-      this.keyArrowNavigationService_.setCurrentFocusIndex(this);
       return;
     }
     event.preventDefault();

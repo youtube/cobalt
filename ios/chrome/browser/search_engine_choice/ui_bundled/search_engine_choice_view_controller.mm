@@ -146,6 +146,20 @@ CGFloat ConvertVerticalCoordonateWithMainViewReference(UIView* mainView,
   return pointWithMainViewReference.y;
 }
 
+UITextView* CreateSubtitleTextView() {
+  UITextView* subtitleTextView = [[UITextView alloc] init];
+  subtitleTextView.backgroundColor = nil;
+  subtitleTextView.adjustsFontForContentSizeCategory = YES;
+  // Disable and hide scrollbar.
+  subtitleTextView.textContainerInset = UIEdgeInsetsMake(0, 0, 0, 0);
+  subtitleTextView.scrollEnabled = NO;
+  subtitleTextView.showsVerticalScrollIndicator = NO;
+  subtitleTextView.showsHorizontalScrollIndicator = NO;
+  subtitleTextView.editable = NO;
+  subtitleTextView.translatesAutoresizingMaskIntoConstraints = NO;
+  return subtitleTextView;
+}
+
 }  // namespace
 
 @interface SearchEngineChoiceViewController () <UITextViewDelegate>
@@ -270,12 +284,12 @@ CGFloat ConvertVerticalCoordonateWithMainViewReference(UIView* mainView,
   _titleLabel.accessibilityTraits |= UIAccessibilityTraitHeader;
   _titleLabel.translatesAutoresizingMaskIntoConstraints = NO;
 
-  // Add view subtitle.
+  // Add view subtitle 1.
   CHECK_NE(self.subtitle1StringID, 0);
   CHECK_NE(self.subtitle1LearnMoreSuffixStringID, 0);
   CHECK_NE(self.subtitle1LearnMoreA11yStringID, 0);
   UIFont* subtitleFont = [UIFont preferredFontForTextStyle:UIFontTextStyleBody];
-  NSMutableAttributedString* subtitleText = [[NSMutableAttributedString alloc]
+  NSMutableAttributedString* subtitle1Text = [[NSMutableAttributedString alloc]
       initWithString:[l10n_util::GetNSString(self.subtitle1StringID)
                          stringByAppendingString:@" "]
           attributes:@{
@@ -300,23 +314,35 @@ CGFloat ConvertVerticalCoordonateWithMainViewReference(UIView* mainView,
               }];
   learnMoreAttributedString.accessibilityLabel =
       l10n_util::GetNSString(self.subtitle1LearnMoreA11yStringID);
-  [subtitleText appendAttributedString:learnMoreAttributedString];
-  UITextView* subtitleTextView = [[UITextView alloc] init];
-  [scrollContentView addSubview:subtitleTextView];
-  [subtitleTextView setAttributedText:subtitleText];
-  subtitleTextView.backgroundColor = nil;
-  subtitleTextView.adjustsFontForContentSizeCategory = YES;
-  [subtitleTextView setTextAlignment:NSTextAlignmentCenter];
-  subtitleTextView.delegate = self;
-  // Disable and hide scrollbar.
-  subtitleTextView.textContainerInset = UIEdgeInsetsMake(0, 0, 0, 0);
-  subtitleTextView.scrollEnabled = NO;
-  subtitleTextView.showsVerticalScrollIndicator = NO;
-  subtitleTextView.showsHorizontalScrollIndicator = NO;
-  subtitleTextView.editable = NO;
-  subtitleTextView.translatesAutoresizingMaskIntoConstraints = NO;
+  [subtitle1Text appendAttributedString:learnMoreAttributedString];
+  UITextView* subtitle1TextView = CreateSubtitleTextView();
+  [scrollContentView addSubview:subtitle1TextView];
+  subtitle1TextView.attributedText = subtitle1Text;
+  // The text alignment needs to be set after the setting the attributed text.
+  subtitle1TextView.textAlignment = NSTextAlignmentCenter;
+  subtitle1TextView.delegate = self;
 
-  // TODO(crbug.com/433501136): Need to add subtitle 2 if needed.
+  NSLayoutYAxisAnchor* subtitleBottomAnchor = subtitle1TextView.bottomAnchor;
+
+  // Add view subtitle 2.
+  UITextView* subtitle2TextView = nil;
+  if (self.subtitle2StringID.has_value()) {
+    CHECK_NE(self.subtitle2StringID.value(), 0);
+    NSAttributedString* subtitle2Text = [[NSAttributedString alloc]
+        initWithString:l10n_util::GetNSString(self.subtitle2StringID.value())
+            attributes:@{
+              NSForegroundColorAttributeName :
+                  [UIColor colorNamed:kGrey800Color],
+              NSFontAttributeName : subtitleFont,
+            }];
+    subtitle2TextView = CreateSubtitleTextView();
+    [scrollContentView addSubview:subtitle2TextView];
+    subtitle2TextView.attributedText = subtitle2Text;
+    // The text alignment needs to be set after the setting the attributed text.
+    subtitle2TextView.textAlignment = NSTextAlignmentCenter;
+
+    subtitleBottomAnchor = subtitle2TextView.bottomAnchor;
+  }
 
   // Add stack view for the search engine buttons.
   _searchEngineStackView = [[UIStackView alloc] init];
@@ -388,7 +414,10 @@ CGFloat ConvertVerticalCoordonateWithMainViewReference(UIView* mainView,
   // allowing the scroll view to take the full screen width.
   UILayoutGuide* widthLayoutGuide = AddPromoStyleWidthLayoutGuide(view);
   // This is the layout guide to compute the bottom margin of the "Set as
-  // Default" button.
+  // Default" button in the float container.
+  // And the height of this layout guide is applied to
+  // `inlineContainerButtonBottomMargin`.
+  // With this, the floating and the inline containers have the same height.
   UILayoutGuide* buttonBottomMargin = [[UILayoutGuide alloc] init];
   [view addLayoutGuide:buttonBottomMargin];
   // This layout guide is to map `buttonBottomMargin` height into the inline
@@ -398,6 +427,19 @@ CGFloat ConvertVerticalCoordonateWithMainViewReference(UIView* mainView,
   [_inlineSetAsDefaultButtonContainer
       addLayoutGuide:inlineContainerButtonBottomMargin];
 
+  if (subtitle2TextView) {
+    [NSLayoutConstraint activateConstraints:@[
+      // TODO(crbug.com/423883364): The constraint needs to be adjusted
+      // according to the system font size.
+      [subtitle2TextView.topAnchor
+          constraintEqualToAnchor:subtitle1TextView.bottomAnchor
+                         constant:kTitleSubtitleMargin],
+      [subtitle2TextView.leadingAnchor
+          constraintEqualToAnchor:_searchEngineStackView.leadingAnchor],
+      [subtitle2TextView.trailingAnchor
+          constraintEqualToAnchor:_searchEngineStackView.trailingAnchor],
+    ]];
+  }
   [NSLayoutConstraint activateConstraints:@[
     // Scroll view constraints. It needs to be the full size of the view,
     // so the content is visible in the safe area too.
@@ -436,24 +478,27 @@ CGFloat ConvertVerticalCoordonateWithMainViewReference(UIView* mainView,
     [_titleLabel.trailingAnchor
         constraintEqualToAnchor:_searchEngineStackView.trailingAnchor],
 
-    // SubtitleTextView constraints.
-    [subtitleTextView.topAnchor constraintEqualToAnchor:_titleLabel.bottomAnchor
-                                               constant:kTitleSubtitleMargin],
-    [subtitleTextView.leadingAnchor
+    // subtitle1TextView constraints.
+    [subtitle1TextView.topAnchor
+        constraintEqualToAnchor:_titleLabel.bottomAnchor
+                       constant:kTitleSubtitleMargin],
+    [subtitle1TextView.leadingAnchor
         constraintEqualToAnchor:_searchEngineStackView.leadingAnchor],
-    [subtitleTextView.trailingAnchor
+    [subtitle1TextView.trailingAnchor
         constraintEqualToAnchor:_searchEngineStackView.trailingAnchor],
 
     // Search engine stack view constraints.
     [_searchEngineStackView.topAnchor
-        constraintEqualToAnchor:subtitleTextView.bottomAnchor
+        constraintEqualToAnchor:subtitleBottomAnchor
                        constant:kSubtitleSearchEngineStackMargin],
     [_searchEngineStackView.leadingAnchor
         constraintEqualToAnchor:scrollContentView.leadingAnchor],
     [_searchEngineStackView.trailingAnchor
         constraintEqualToAnchor:scrollContentView.trailingAnchor],
 
-    // Button bottom margin constraints.
+    // Button bottom margin constraints. The bottom margin the "Set as Default"
+    // button is different according if there is a safe area or not.
+    // This works with `buttonBottomMarginConstraint` defined below.
     [buttonBottomMargin.bottomAnchor constraintEqualToAnchor:view.bottomAnchor],
     [buttonBottomMargin.topAnchor
         constraintLessThanOrEqualToAnchor:view.safeAreaLayoutGuide.bottomAnchor
@@ -473,7 +518,9 @@ CGFloat ConvertVerticalCoordonateWithMainViewReference(UIView* mainView,
     [_inlineSetAsDefaultButtonContainer.bottomAnchor
         constraintEqualToAnchor:scrollContentView.bottomAnchor],
 
-    // inlineContainerButtonBottomMargin constraints.
+    // inlineContainerButtonBottomMargin constraints. With those constraints,
+    // the bottom margin of the inline button is the same as the one of the
+    // floating button.
     [inlineContainerButtonBottomMargin.bottomAnchor
         constraintEqualToAnchor:_inlineSetAsDefaultButtonContainer
                                     .bottomAnchor],
@@ -533,6 +580,12 @@ CGFloat ConvertVerticalCoordonateWithMainViewReference(UIView* mainView,
     [_floatingSetAsDefaultButton.centerXAnchor
         constraintEqualToAnchor:_searchEngineStackView.centerXAnchor],
   ]];
+  // This contraint makes sure `buttonBottomMargin` is as small as possible.
+  NSLayoutConstraint* buttonBottomMarginConstraint =
+      [buttonBottomMargin.topAnchor
+          constraintEqualToAnchor:view.safeAreaLayoutGuide.bottomAnchor];
+  buttonBottomMarginConstraint.priority = UILayoutPriorityDefaultLow;
+  buttonBottomMarginConstraint.active = YES;
   // No need to update the more and SetAsDefault buttons. They will be updated
   // when the view will be appearing.
   [self loadSearchEngineButtons];

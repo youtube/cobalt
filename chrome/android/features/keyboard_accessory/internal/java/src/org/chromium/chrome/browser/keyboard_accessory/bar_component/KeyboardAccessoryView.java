@@ -52,12 +52,12 @@ class KeyboardAccessoryView extends LinearLayout {
     private ObjectAnimator mAnimator;
     private AnimationListener mAnimationListener;
     private ViewPropertyAnimator mRunningAnimation;
-    private float mLastBarItemsViewPosition;
     private boolean mShouldSkipClosingAnimation;
     private boolean mDisableAnimations;
     private boolean mAllowClicksWhileObscured;
     private boolean mHasStickyLastItem;
     private int mMaxWidth;
+    private boolean mAnimateSuggestionsFromTop;
 
     protected RecyclerView mBarItemsView;
 
@@ -133,7 +133,7 @@ class KeyboardAccessoryView extends LinearLayout {
             return ((ViewGroup) view).getChildCount()
                     * getContext()
                             .getResources()
-                            .getDimensionPixelSize(R.dimen.keyboard_accessory_tab_size);
+                            .getDimensionPixelSize(R.dimen.keyboard_accessory_tab_icon_width);
         }
 
         private int getOccupiedSpaceByChildren(RecyclerView parent) {
@@ -209,6 +209,25 @@ class KeyboardAccessoryView extends LinearLayout {
         TraceEvent.begin("KeyboardAccessoryView#onFinishInflate");
         super.onFinishInflate();
         sendAccessibilityEvent(AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED);
+
+        // TODO: crbug.com/385172647 - Move height parameters to the xml file once the feature is
+        // launched.
+        if (ChromeFeatureList.isEnabled(
+                ChromeFeatureList.AUTOFILL_ENABLE_KEYBOARD_ACCESSORY_CHIP_REDESIGN)) {
+            LinearLayout barContents = findViewById(R.id.accessory_bar_contents);
+            // TODO: crbug.com/385172647 - Figure out if the height needs to be increased even if
+            // there are no suggestions displayed.
+            barContents.setMinimumHeight(
+                    getResources()
+                            .getDimensionPixelSize(R.dimen.keyboard_accessory_height_redesign));
+
+            LinearLayout.LayoutParams layoutParams =
+                    (LinearLayout.LayoutParams) barContents.getLayoutParams();
+            layoutParams.height =
+                    getResources()
+                            .getDimensionPixelSize(R.dimen.keyboard_accessory_height_redesign);
+            barContents.setLayoutParams(layoutParams);
+        }
 
         mBarItemsView = findViewById(R.id.bar_items_view);
         initializeHorizontalRecyclerView(mBarItemsView);
@@ -368,6 +387,10 @@ class KeyboardAccessoryView extends LinearLayout {
         mHasStickyLastItem = hasStickyLastItem;
     }
 
+    void setAnimateSuggestionsFromTop(boolean animateSuggestionsFromTop) {
+        mAnimateSuggestionsFromTop = animateSuggestionsFromTop;
+    }
+
     void setAccessibilityMessage(boolean hasSuggestions) {
         setContentDescription(
                 getContext()
@@ -474,25 +497,37 @@ class KeyboardAccessoryView extends LinearLayout {
 
     private void animateSuggestionArrival() {
         if (areAnimationsDisabled()) return;
-        int bounceDirection = getLayoutDirection() == LAYOUT_DIRECTION_RTL ? 1 : -1;
         if (mAnimator != null && mAnimator.isRunning()) {
             mAnimator.cancel();
-        } else {
-            mLastBarItemsViewPosition = mBarItemsView.getX();
         }
 
+        if (mAnimateSuggestionsFromTop) {
+            mAnimator = createVerticalAnimator();
+        } else {
+            mAnimator = createHorizontalAnimator();
+        }
+        mAnimator.setDuration(ARRIVAL_ANIMATION_DURATION_MS);
+        mAnimator.setInterpolator(new OvershootInterpolator(ARRIVAL_ANIMATION_TENSION));
+        mAnimator.start();
+    }
+
+    private ObjectAnimator createVerticalAnimator() {
+        // Animate from the top of the screen to its original position.
+        final float start = -getY();
+        setTranslationY(start);
+        return ObjectAnimator.ofFloat(this, "translationY", start, 0f);
+    }
+
+    private ObjectAnimator createHorizontalAnimator() {
+        final float endPosition = 0f;
+        int bounceDirection = getLayoutDirection() == LAYOUT_DIRECTION_RTL ? 1 : -1;
         float start =
-                mLastBarItemsViewPosition
+                endPosition
                         - bounceDirection
                                 * ARRIVAL_ANIMATION_BOUNCE_LENGTH_DIP
                                 * getContext().getResources().getDisplayMetrics().density;
         mBarItemsView.setTranslationX(start);
-        mAnimator =
-                ObjectAnimator.ofFloat(
-                        mBarItemsView, "translationX", start, mLastBarItemsViewPosition);
-        mAnimator.setDuration(ARRIVAL_ANIMATION_DURATION_MS);
-        mAnimator.setInterpolator(new OvershootInterpolator(ARRIVAL_ANIMATION_TENSION));
-        mAnimator.start();
+        return ObjectAnimator.ofFloat(mBarItemsView, "translationX", start, endPosition);
     }
 
     private void initializeHorizontalRecyclerView(RecyclerView recyclerView) {

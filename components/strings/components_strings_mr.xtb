@@ -36,6 +36,7 @@
 <translation id="1062407476771304334">पुनर्स्थित करा</translation>
 <translation id="1063822554756965137">फाइल यशस्वीरीत्या हटवल्या आहेत</translation>
 <translation id="1064054731605354900">A3x5</translation>
+<translation id="1065369186007547872">तुम्हाला या साइटवरून नोटिफिकेशन नको आहेत असे Chrome ला वाटते. त्यामुळे, व्यत्यय टाळण्यासाठी विनंत्या लपवलेल्या आहेत.</translation>
 <translation id="1066528211000788800">JSON</translation>
 <translation id="1067029985695494416">शोध इंजीनचे तपशील</translation>
 <translation id="1068467933609179019">ऑटोफिल सेवा सेटिंग्ज</translation>
@@ -129,6 +130,7 @@
 <translation id="1212527389003717329">डाउनलोड सुरू झाला आहे. तो पाहण्यासाठी, |<ph name="ACCELERATOR" />| प्रेस करून धरून ठेवा.</translation>
 <translation id="1215738931000958575">तुमच्या Google खात्यामध्ये सेव्ह केलेली माहिती पासवर्ड, पासकी, पत्ते, पेमेंट पद्धती आणि इतर माहिती ऑटोफिल करण्यासाठी वापरा</translation>
 <translation id="1219129156119358924">सिस्टीम सुरक्षा</translation>
+<translation id="1219134100826635117">तुमच्या अ‍ॅडमिनिस्ट्रेटरने ही कृती ब्लॉक केली आहे</translation>
 <translation id="1222060260947439312">उजवा ट्रे</translation>
 <translation id="1224330468394120478">A3x6</translation>
 <translation id="1225240795350945817">कार्ड नंबर:</translation>
@@ -532,7 +534,6 @@
 <translation id="1863257867908022953">ट्रे १२</translation>
 <translation id="1864927262126810325"><ph name="SOURCE_NAME" /> मधून</translation>
 <translation id="186539747722034544">केबल आणि उपग्रह पुरवठादार</translation>
-<translation id="1866757068250903512"><ph name="READERNAME" /> नावाची ऑथेंटिकेशन डिव्हाइस आणि त्यांच्यासोबत वापरली जाणारी स्मार्ट कार्ड नियंत्रित करा</translation>
 <translation id="1870473978371099486">खाजगी शिकवणी सेवा</translation>
 <translation id="1871208020102129563">प्रॉक्सी निश्चित प्रॉक्सी सर्व्हर वापरण्‍यास सेट करण्‍यात आले आहे, .pac स्क्रिप्ट URL नव्हे.</translation>
 <translation id="1871284979644508959">या जागा भरणे आवश्यक</translation>
@@ -639,7 +640,6 @@
 <translation id="2066969741541525119">पुढील साइट तुमच्या संस्थेद्वारे ब्लॉक केलेली आहे</translation>
 <translation id="2069913043427250781">वाहन आणि रहदारीशी संबंधित सुरक्षितता</translation>
 <translation id="2071156619270205202">हे कार्ड व्हर्च्युअल कार्ड नंबरसाठी पात्र नाही.</translation>
-<translation id="2071692954027939183">सूचना आपोआप ब्लॉक केल्या होत्या कारण तुम्ही सहसा त्यांना अनुमती देत नाही</translation>
 <translation id="2071852865256799872">तुमची संस्था तुमचा ब्राउझर व्यवस्थापित करते आणि <ph name="PROFILE_DOMAIN" />तुमची प्रोफाइल व्यवस्थापित करते</translation>
 <translation id="2072011841331007013">Google Jamboard</translation>
 <translation id="2074733626795553847"><ph name="TOPIC" /> अनब्लॉक करा</translation>
@@ -716,6 +716,7 @@
 <translation id="2173302385160625112">तुमचे इंटरनेट कनेक्शन तपासा</translation>
 <translation id="2174875517416416684">तुमचा व्यवहार पूर्ण झाला नाही. तुमच्या खात्यामधून कोणतेही निधी काढले नाहीत.</translation>
 <translation id="2175630235841878061">१००MB पेक्षा मोठ्या फाइल डाउनलोड करण्यासाठी उपलब्ध नाहीत</translation>
+<translation id="217631816678106981">पेस्ट करू नका</translation>
 <translation id="2178665390943006934">Chrome अपडेट करा बटण, तुमच्या Chrome सेटिंग्जमधून Chrome अपडेट करण्यासाठी ॲक्टिव्हेट करा</translation>
 <translation id="2178904466768126352">तुम्ही भेट देण्याचा प्रयत्न केलेल्या साइटवरील हल्लेखोर हानिकारक सॉफ्टवेअर इंस्टॉल करू शकतात, जी तुमचे पासवर्ड, फोटो, मेसेज किंवा क्रेडिट कार्ड क्रमांक यांसारख्या गोष्टी चोरतात अथवा हटवतात.</translation>
 <translation id="2179003720612888584"><ph name="SITE_DOMAIN_NAME" /> वरील <ph name="SITE_TITLE" /></translation>
@@ -843,6 +844,7 @@
 <translation id="23703388716193220">गॉल्फ उपकरणे</translation>
 <translation id="2370368710215137370">फाइल अपलोड</translation>
 <translation id="2370739752330685659">कदाचित नंतर</translation>
+<translation id="2371084566192454134">टॅब आणि टॅब गट</translation>
 <translation id="2374629208601905275">तुमच्या प्रदेशातील कायद्याच्या आधारावर, Chrome तुम्हाला तुमचे डीफॉल्ट शोध इंजीन निवडण्यास सांगते. ही शोध इंजीन तुमच्या प्रदेशात लोकप्रिय आहेत आणि रँडम क्रमाने दाखवली आहेत.</translation>
 <translation id="2376455483361831781">नवीन सारणी</translation>
 <translation id="2377241607395428273">ग्राफिक आणि अ‍ॅनिमेशन सॉफ्टवेअर</translation>
@@ -938,7 +940,6 @@
 <translation id="2527451058878391043">तुमचा CVC हा तुमच्या कार्डच्या समोरील बाजूस असतो. तुमच्या कार्ड नंबरच्या सर्वात वरती हा चार अंकी कोड आहे.</translation>
 <translation id="2529899080962247600">या भागात <ph name="MAX_ITEMS_LIMIT" /> पेक्षा जास्त नोंदी असू शकत नाहीत. उरलेल्या सर्व नोंदी दुर्लक्षित केल्या जातील.</translation>
 <translation id="2530042584066815841">माउस लॉक आणि वापर</translation>
-<translation id="2533649878691950253">तुम्ही सहसा यास परवानगी देत नसल्याने, या साइटला तुमचे अचूक स्थान जाणून घेण्यापासून ब्लॉक केले गेले</translation>
 <translation id="253493526287553278">प्रोमो कोडचे तपशील पहा</translation>
 <translation id="2535585790302968248">खाजगीरीत्या ब्राउझ करण्यासाठी नवीन गुप्त टॅब उघडा</translation>
 <translation id="2535659140340599600">{COUNT,plural, =1{आणि आणखी एक}other{आणि आणखी #}}</translation>
@@ -1062,6 +1063,7 @@
 <translation id="2731220418440848219">Chromium मध्ये तुमच्या शोध इंजीनबद्दल अधिक जाणून घ्या</translation>
 <translation id="2731382536835015353">44 x 68 in</translation>
 <translation id="2734319753272419592">पर्सनलाइझ केलेल्या सवलती शोधण्यासाठी Google ला तुमची कार्ट वापरू द्या. उपलब्ध असतील, तेव्हा सवलती आपोआप तुमच्या कार्टवर दिसतील.</translation>
+<translation id="2734797989819862638">कॉपी करू नका</translation>
 <translation id="273785062888389088">HVAC आणि हवामान नियंत्रण</translation>
 <translation id="2740531572673183784">ठीक आहे</translation>
 <translation id="2742128390261873684">होम ऑटोमेशन</translation>
@@ -1623,6 +1625,7 @@
 <translation id="3678529606614285348">पेज एका नवीन गुप्त विंडोमध्ये उघडा (Ctrl-Shift-N)</translation>
 <translation id="3678914302246317895"><ph name="OTP_LENGTH" /> अंकी पडताळणी कोड एंटर करा</translation>
 <translation id="3681007416295224113">सर्टिफिकेट माहिती</translation>
+<translation id="3681191721636073359">तुम्हाला या साइटवर तुमचे स्थान वापरायचे नाही असे Chrome ला वाटते. त्यामुळे, व्यत्यय टाळण्यासाठी विनंत्या लपवलेल्या आहेत.</translation>
 <translation id="3681421644246505351">Chrome हे तुमच्या अलीकडील ब्राउझिंग इतिहासावर आधारित विषयांची नोंद ठेवते.</translation>
 <translation id="3681841880472207951">QuickTime व्हिडिओ</translation>
 <translation id="3682094733650754138">पत्ता भरा हा पर्याय निवडला होता</translation>
@@ -1743,6 +1746,8 @@
 <translation id="3869939189466884821">तुमच्या स्थानिक फाइल <ph name="MINUTES" /> मिनिटांमध्ये हटवल्या जातील</translation>
 <translation id="3872834068356954457">विज्ञान</translation>
 <translation id="3875783148670536197">मला कसे ते दाखवा</translation>
+<translation id="3877603629930976930">शेअर करू नका</translation>
+<translation id="3878445208930547646">या साइटवरून कॉपी करण्याची अनुमती नाही</translation>
 <translation id="3879748587602334249">डाउनलोड व्यवस्थापक</translation>
 <translation id="3880456882942693779">कला आणि मनोरंजन</translation>
 <translation id="3880589673277376494">इंटरनेट आणि टेलिकॉम</translation>
@@ -2111,6 +2116,7 @@
 <translation id="4466576951214254884">शैक्षणिक कर्ज आणि शैक्षणिक अर्थसाहाय्य</translation>
 <translation id="4467821340016922962">फुल स्क्रीनमधून बाहेर पडून डाउनलोड पाहण्यासाठी, |<ph name="ACCELERATOR" />| प्रेस करा</translation>
 <translation id="4473643328224505070">Chrome ची सर्वोच्च सुरक्षा पातळी मिळवण्यासाठी<ph name="BEGIN_ENHANCED_PROTECTION_LINK" />वर्धित संरक्षण सुरू करा<ph name="END_ENHANCED_PROTECTION_LINK" /></translation>
+<translation id="4475299370877036544">ही कृती तुमच्या संस्थेच्या धोरणांचे उल्लंघन करू शकते</translation>
 <translation id="447665707681730621"><ph name="BUBBLE_MESSAGE" />. <ph name="LEARN_MORE_TEXT" /></translation>
 <translation id="4476953670630786061">हा फॉर्म सुरक्षित नाही. ऑटोफिल बंद केले आहे.</translation>
 <translation id="4477350412780666475">पुढील ट्रॅक</translation>
@@ -3657,6 +3663,7 @@
 <translation id="70705239631109039">तुमचे कनेक्शन पूर्णपणे सुरक्षित नाही</translation>
 <translation id="7071122206197538392">नवीन तुलना चाचणी</translation>
 <translation id="7075452647191940183">विनंती खूपच मोठी आहे</translation>
+<translation id="7075896597860500885">या साइटवरून कॉपी करण्याची शिफारस करत नाही</translation>
 <translation id="7078665357168027058">RA3</translation>
 <translation id="7079699498125013497">\u0020\u2022\u0020</translation>
 <translation id="7079783554682867524"><ph name="TYPE_1" /> वरून (सिंक केलेल्या डिव्हाइसवर आणखी)</translation>
@@ -3692,6 +3699,7 @@
 <translation id="7129809579943936035"><ph name="VALUE_PROP" /> <ph name="DETAILS" /></translation>
 <translation id="7130775116821607281">अपलोड करणे ब्लॉक केले आहे</translation>
 <translation id="7132939140423847331">तुमच्या ॲडमिनने हा डेटा कॉपी करण्यापासून प्रतिबंधित केले आहे.</translation>
+<translation id="7134653428559514680">या साइटवरून शेअर करण्याची शिफारस केली जात नाही</translation>
 <translation id="7135130955892390533">स्थिती दाखवा</translation>
 <translation id="7135814714616751706">शॉर्टकट शोधा</translation>
 <translation id="7136009930065337683">गुप्त मोडबद्दल अधिक जाणून घ्या</translation>
@@ -3780,6 +3788,7 @@
 <translation id="7275334191706090484">व्यवस्थापित केलेले बुकमार्क</translation>
 <translation id="7275808129217605899">सकस आहार</translation>
 <translation id="7285654172857511148"><ph name="CHANGE_GOOGLE_PASSWORD_FOCUSED_FRIENDLY_MATCH_TEXT" />, तुमचा Google खाते पासवर्ड बदलण्यासाठी टॅब आणि त्यानंतर एंटर प्रेस करा</translation>
+<translation id="7286908876112207905">या साइटवर हा आशय पेस्ट करण्याची अनुमती नाही</translation>
 <translation id="7291578327729322058">ड्रायव्हरच्या परवान्यासंबंधित माहिती जोडा</translation>
 <translation id="7292031607255951991">मिळवणाऱ्याचे नाव</translation>
 <translation id="7298195798382681320">शिफारस केलेले</translation>
@@ -3820,6 +3829,7 @@
 <translation id="7366117520888504990">१९८ x २७५ मिमी</translation>
 <translation id="7366362069757178916">पेमेंट हँडलर</translation>
 <translation id="7366594738862061263">Chrome तुमच्या पासवर्डचे संरक्षण कसे करते याबद्दल जाणून घ्या</translation>
+<translation id="7370751048350026847">या साइटवर हा आशय पेस्ट करण्याची शिफारस करत नाही</translation>
 <translation id="7372526636730851647">फोटो (ग्लॉसी)</translation>
 <translation id="7372973238305370288">शोध परिणाम</translation>
 <translation id="7374461526650987610">प्रोटोकॉल हँडलर</translation>
@@ -3893,6 +3903,7 @@
 <translation id="745640750744109667">A0x3</translation>
 <translation id="7457071735008326060">कार्गो ट्रक आणि ट्रेलर</translation>
 <translation id="7461924472993315131">पिन</translation>
+<translation id="7463068149674892185">या कृतीची शिफारस केली जात नाही</translation>
 <translation id="746329643760972486">MacOS</translation>
 <translation id="746412105358554870">JavaScript ऑप्टिमायझेशन आणि सुरक्षा</translation>
 <translation id="7465036432780054056">तुम्ही <ph name="TOP_LEVEL_URL" /> ला भेट दिल्याचे <ph name="EMBEDDED_URL" /> ला समजेल</translation>
@@ -4586,6 +4597,7 @@
 <translation id="8624354461147303341">सवलती मिळवा</translation>
 <translation id="8634957317623797170">५४ x ८६ मिमी</translation>
 <translation id="8637362707224133343">तुम्ही ब्राउझ करत असताना तुमचे संरक्षण करण्यासाठी Chrome मध्ये बिल्ट-इन सुरक्षितता वैशिष्‍ट्ये आहेत — जसे की Google सुरक्षित ब्राउझिंग, ज्याला तुम्ही भेट देण्याचा प्रयत्न केलेल्या साइटवर <ph name="BEGIN_LINK" />अलीकडे फिशिंग आढळले आहे<ph name="END_LINK" />. फिशिंग साइट तुमची फसवणूक करण्यासाठी इतर साइट असल्याचे भासवतात. <ph name="NEW_LINE" />साधारणपणे सुरक्षित असलेल्या साइटदेखील काहीवेळा हल्लेखोरांमुळे धोक्यात येऊ शकतात. एखादी चूक झाली आहे आणि या साइटला धोका नाही असे तुम्हाला वाटत असल्यास, <ph name="BEGIN_ERROR_LINK" />आम्हाला कळवा<ph name="END_ERROR_LINK" />.</translation>
+<translation id="8640996933372643759">टॅब शेअर करण्यासाठी आणि इतरांसोबत सहयोग करण्यासाठी, तुम्हाला Chrome मध्ये साइन इन करता येणे आवश्यक आहे</translation>
 <translation id="8641131559425911240">एन्व्हलप (बॉंड)</translation>
 <translation id="8643409044755049933">एन्व्हलप काकू ३</translation>
 <translation id="8643846627971610148">गट बंद केला जातो, तेव्हा त्यात कोण सामील होऊ शकते ते मर्यादित करते</translation>
@@ -4912,6 +4924,7 @@
 <translation id="9183425211371246419"><ph name="HOST_NAME" /> असमर्थित प्रोटोकॉल वापरतो.</translation>
 <translation id="918454845714257218"><ph name="SIDE_OF_CARD" /> येथील कोड तपासा आणि पुन्हा प्रयत्न करा</translation>
 <translation id="9186203289258525843">Chrome ला डीफॉल्ट ब्राउझर म्हणून सेट करा बटण, Chrome ला सिस्टीमचा डीफॉल्ट ब्राउझर म्हणून सेट करण्यासाठी अ‍ॅक्टिव्हेट करा</translation>
+<translation id="9186371298532546532">तुमचा पत्ता आणखी ठिकाणी वापरा</translation>
 <translation id="9189468832660648522"><ph name="MEMBER_FIRST_NAME" /> यांनी हा टॅब बदलला आहे</translation>
 <translation id="9189789270972826888">कार्ड भरले नसल्यास कॉपी आणि पेस्ट करण्यासाठी खालील कार्ड तपशिलांवर क्लिक करा. <ph name="IDS_AUTOFILL_FILLED_CARD_INFORMATION_BUBBLE_LEARN_MORE_LINK_LABEL" /></translation>
 <translation id="9190557999028587593">४ आठवड्यांहून जुने विषय ऑटो-डिलीट केले जातात</translation>
@@ -4927,6 +4940,7 @@
 <translation id="920643408853370361">प्रवास विमा</translation>
 <translation id="9207861905230894330">लेख जोडण्यात अयशस्वी.</translation>
 <translation id="9209339767782560829">तुमचे लॉगिन सर्टिफिकेट वापरताना समस्या आली.</translation>
+<translation id="9210152531668884481">मी तयार आहे</translation>
 <translation id="9210825002219699214">विमान प्रवास</translation>
 <translation id="9213433120051936369">स्वरूप कस्टमाइझ करा</translation>
 <translation id="9215416866750762878">एक ॲप्लिकेशन Chrome ला या साइटशी सुरक्षितपणे कनेक्ट करण्यापासून थांबवत आहे</translation>

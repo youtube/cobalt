@@ -7,24 +7,24 @@
 #include "base/check.h"
 #include "ios/chrome/browser/shared/model/profile/profile_dependency_manager_ios.h"
 #include "ios/chrome/browser/shared/model/profile/profile_ios.h"
+#include "ios/chrome/browser/shared/model/profile/profile_keyed_service_factory_ios.h"
 #include "ios/chrome/browser/shared/model/profile/profile_keyed_service_utils.h"
 
 namespace {
 
 // Wraps `testing_factory` as a KeyedServiceFactory::TestingFactory.
-template <typename T>
 base::OnceCallback<scoped_refptr<RefcountedKeyedService>(void*)> WrapFactory(
-    base::OnceCallback<scoped_refptr<RefcountedKeyedService>(T*)>
-        testing_factory) {
+    RefcountedProfileKeyedServiceFactoryIOS::TestingFactory testing_factory) {
   if (!testing_factory) {
     return {};
   }
 
   return base::BindOnce(
-      [](base::OnceCallback<scoped_refptr<RefcountedKeyedService>(T*)>
+      [](RefcountedProfileKeyedServiceFactoryIOS::TestingFactory
              testing_factory,
          void* context) -> scoped_refptr<RefcountedKeyedService> {
-        return std::move(testing_factory).Run(static_cast<T*>(context));
+        return std::move(testing_factory)
+            .Run(static_cast<ProfileIOS*>(context));
       },
       std::move(testing_factory));
 }
@@ -32,16 +32,9 @@ base::OnceCallback<scoped_refptr<RefcountedKeyedService>(void*)> WrapFactory(
 }  // namespace
 
 void RefcountedProfileKeyedServiceFactoryIOS::SetTestingFactory(
+    PassKey pass_key,
     ProfileIOS* profile,
-    ProfileTestingFactory testing_factory) {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  RefcountedKeyedServiceFactory::SetTestingFactory(
-      profile, WrapFactory(std::move(testing_factory)));
-}
-
-void RefcountedProfileKeyedServiceFactoryIOS::SetTestingFactory(
-    ProfileIOS* profile,
-    LegacyTestingFactory testing_factory) {
+    TestingFactory testing_factory) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   RefcountedKeyedServiceFactory::SetTestingFactory(
       profile, WrapFactory(std::move(testing_factory)));
@@ -54,25 +47,23 @@ void RefcountedProfileKeyedServiceFactoryIOS::RegisterProfilePrefs(
 }
 
 scoped_refptr<RefcountedKeyedService>
-RefcountedProfileKeyedServiceFactoryIOS::BuildServiceInstanceFor(
-    ProfileIOS* profile) const {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  return BuildServiceInstanceFor(static_cast<web::BrowserState*>(profile));
-}
-
-scoped_refptr<RefcountedKeyedService>
-RefcountedProfileKeyedServiceFactoryIOS::BuildServiceInstanceFor(
-    web::BrowserState* context) const {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  return nullptr;
-}
-
-scoped_refptr<RefcountedKeyedService>
 RefcountedProfileKeyedServiceFactoryIOS::GetServiceForProfile(
     ProfileIOS* profile,
     bool create) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   return GetServiceForContext(profile, create);
+}
+
+void RefcountedProfileKeyedServiceFactoryIOS::DependsOn(
+    ProfileKeyedServiceFactoryIOS* other) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  RefcountedKeyedServiceFactory::DependsOn(other);
+}
+
+void RefcountedProfileKeyedServiceFactoryIOS::DependsOn(
+    RefcountedProfileKeyedServiceFactoryIOS* other) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  RefcountedKeyedServiceFactory::DependsOn(other);
 }
 
 void* RefcountedProfileKeyedServiceFactoryIOS::GetContextToUse(

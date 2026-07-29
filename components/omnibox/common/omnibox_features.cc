@@ -71,12 +71,6 @@ BASE_FEATURE(kDynamicMaxAutocomplete,
              "OmniboxDynamicMaxAutocomplete",
              enable_if(!IS_IOS));
 
-// If enabled, takes the search intent query params into account for triggering
-// switch to tab actions on matches.
-BASE_FEATURE(kDisambiguateTabMatchingForEntitySuggestions,
-             "DisambiguateTabMatchingForEntitySuggestions",
-             ENABLED);
-
 // Enables omnibox focus as a trigger for zero-prefix suggestions on web and
 // SRP, subject to the same requirements and conditions as on-clobber
 // suggestions.
@@ -272,11 +266,6 @@ BASE_FEATURE(kAnimateSuggestionsListAppearance,
 
 BASE_FEATURE(kOmniboxAnswerActions, "OmniboxAnswerActions", DISABLED);
 
-// If enabled, treats categorical suggestions just like the entity suggestions
-// by reusing the `ACMatchType::SEARCH_SUGGEST_ENTITY` and reports the original
-// `omnibox::TYPE_CATEGORICAL_QUERY` to the server.
-BASE_FEATURE(kCategoricalSuggestions, "CategoricalSuggestions", ENABLED);
-
 // If enabled, sends a signal when a user touches down on a search suggestion to
 // |SearchPrefetchService|. |SearchPrefetchService| will then prefetch
 // suggestion iff the SearchNavigationPrefetch feature and "touch_down" param
@@ -399,6 +388,11 @@ BASE_FEATURE(kHideAimEntrypointOnUserInput,
              "OmniboxHideAimEntrypointOnUserInput",
              DISABLED);
 
+// Controls whether the composebox
+BASE_FEATURE(kComposeboxUsesChromeComposeClient,
+             "ComposeboxUsesChromeComposeClient",
+             DISABLED);
+
 #if BUILDFLAG(IS_ANDROID)
 // Accelerates time from cold start to focused Omnibox on low-end devices,
 // prioritizing Omnibox focus and background initialization.
@@ -422,6 +416,10 @@ BASE_FEATURE(kPostDelayedTaskFocusTab, "PostDelayedTaskFocusTab", ENABLED);
 // Controls various Omnibox Diagnostics features.
 BASE_FEATURE(kDiagnostics, "OmniboxDiagnostics", DISABLED);
 
+// When enabled, offer a desktop-like omnibox UI enhancement on large form
+// factors.
+BASE_FEATURE(kOmniboxImprovementForLFF, "OmniboxImprovementForLFF", DISABLED);
+
 namespace android {
 static jlong JNI_OmniboxFeatureMap_GetNativeMap(JNIEnv* env) {
   static const base::Feature* const kFeaturesExposedToJava[] = {
@@ -439,7 +437,8 @@ static jlong JNI_OmniboxFeatureMap_GetNativeMap(JNIEnv* env) {
       &kOmniboxSiteSearch,
       &kOmniboxAimShortcutTypedState,
       &kOmniboxMultimodalInput,
-      &kMultilineEditField};
+      &kMultilineEditField,
+      &kOmniboxImprovementForLFF};
   static base::NoDestructor<base::android::FeatureMap> kFeatureMap(
       kFeaturesExposedToJava);
   return reinterpret_cast<jlong>(kFeatureMap.get());

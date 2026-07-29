@@ -110,6 +110,7 @@
 #include "third_party/blink/renderer/core/dom/mutation_observer_interest_group.h"
 #include "third_party/blink/renderer/core/dom/mutation_record.h"
 #include "third_party/blink/renderer/core/dom/named_node_map.h"
+#include "third_party/blink/renderer/core/dom/node.h"
 #include "third_party/blink/renderer/core/dom/node_cloning_data.h"
 #include "third_party/blink/renderer/core/dom/node_traversal.h"
 #include "third_party/blink/renderer/core/dom/popover_data.h"
@@ -2594,9 +2595,10 @@ void Element::setScrollLeft(double new_left) {
     if (snap_point.has_value()) {
       end_offset = scrollable_area->ScrollPositionToOffset(snap_point.value());
     }
-    scrollable_area->SetScrollOffset(end_offset,
-                                     mojom::blink::ScrollType::kProgrammatic,
-                                     mojom::blink::ScrollBehavior::kAuto);
+    scrollable_area->SetScrollOffset(
+        end_offset, mojom::blink::ScrollType::kProgrammatic,
+        mojom::blink::ScrollBehavior::kAuto,
+        ScrollableArea::ScrollSourceType::kAbsoluteScroll);
   }
 }
 
@@ -2652,9 +2654,10 @@ void Element::setScrollTop(double new_top) {
       end_offset = scrollable_area->ScrollPositionToOffset(snap_point.value());
     }
 
-    scrollable_area->SetScrollOffset(end_offset,
-                                     mojom::blink::ScrollType::kProgrammatic,
-                                     mojom::blink::ScrollBehavior::kAuto);
+    scrollable_area->SetScrollOffset(
+        end_offset, mojom::blink::ScrollType::kProgrammatic,
+        mojom::blink::ScrollBehavior::kAuto,
+        ScrollableArea::ScrollSourceType::kAbsoluteScroll);
   }
 }
 
@@ -2840,8 +2843,9 @@ bool Element::ScrollLayoutBoxBy(const ScrollToOptions* scroll_to_options) {
   new_position =
       scrollable_area->GetSnapPositionAndSetTarget(*strategy).value_or(
           new_position);
-  return scrollable_area->ScrollToAbsolutePosition(new_position,
-                                                   scroll_behavior);
+  return scrollable_area->ScrollToAbsolutePosition(
+      new_position, scroll_behavior, mojom::blink::ScrollType::kProgrammatic,
+      ScrollableArea::ScrollSourceType::kRelativeScroll);
 }
 
 bool Element::ScrollLayoutBoxTo(const ScrollToOptions* scroll_to_options) {
@@ -2908,7 +2912,8 @@ bool Element::ScrollLayoutBoxTo(const ScrollToOptions* scroll_to_options) {
   }
 
   return scrollable_area->SetScrollOffset(
-      new_offset, mojom::blink::ScrollType::kProgrammatic, scroll_behavior);
+      new_offset, mojom::blink::ScrollType::kProgrammatic, scroll_behavior,
+      ScrollableArea::ScrollSourceType::kAbsoluteScroll);
 }
 
 bool Element::ScrollFrameBy(const ScrollToOptions* scroll_to_options) {
@@ -2946,7 +2951,8 @@ bool Element::ScrollFrameBy(const ScrollToOptions* scroll_to_options) {
       viewport->GetSnapPositionAndSetTarget(*strategy).value_or(new_position);
   return viewport->SetScrollOffset(
       viewport->ScrollPositionToOffset(new_position),
-      mojom::blink::ScrollType::kProgrammatic, scroll_behavior);
+      mojom::blink::ScrollType::kProgrammatic, scroll_behavior,
+      ScrollableArea::ScrollSourceType::kRelativeScroll);
 }
 
 bool Element::ScrollFrameTo(const ScrollToOptions* scroll_to_options) {
@@ -2985,7 +2991,8 @@ bool Element::ScrollFrameTo(const ScrollToOptions* scroll_to_options) {
       viewport->GetSnapPositionAndSetTarget(*strategy).value_or(new_position);
   new_offset = viewport->ScrollPositionToOffset(new_position);
   return viewport->SetScrollOffset(
-      new_offset, mojom::blink::ScrollType::kProgrammatic, scroll_behavior);
+      new_offset, mojom::blink::ScrollType::kProgrammatic, scroll_behavior,
+      ScrollableArea::ScrollSourceType::kAbsoluteScroll);
 }
 
 gfx::Rect Element::BoundsInWidget() const {
@@ -4465,6 +4472,14 @@ const ComputedStyle* Element::StyleForLayoutObject(
       DCHECK(IsPseudoElement());
       return nullptr;
     }
+
+    // This sets the flag on the element when starting style are detected. There
+    // is no reliable way to detect whether starting styles no longer affect an
+    // element, so this flag is "sticky".
+    if (!AffectedByStartingStyles()) {
+      SetAffectedByStartingStyles();
+      probe::UpdateAffectedByStartingStylesFlag(this, /*override_flag=*/true);
+    }
   }
 
   DisplayLockContext* context = GetDisplayLockContext();
@@ -4760,17 +4775,8 @@ void Element::RecalcStyle(const StyleRecalcChange change,
     }
   }
 
-  if (ViewTransition* view_transition =
-          ViewTransitionUtils::GetTransition(*this)) {
-    if (view_transition->Scope() == this) {
-      view_transition->RecalcTransitionPseudoTreeStyle();
-    } else if (child_change.TraversePseudoElements(*this) &&
-               IsTransitionPseudoElement(GetPseudoId())) {
-      UpdateTransitionPseudoElements(child_change, child_recalc_context);
-    }
-  }
-
   if (child_change.TraversePseudoElements(*this)) {
+    UpdateTransitionPseudoElements(child_change, child_recalc_context);
     UpdateBackdropPseudoElement(child_change, child_recalc_context);
     UpdatePseudoElement(kPseudoIdMarker, child_change, child_recalc_context);
     UpdateLayoutSiblingPseudoElement(kPseudoIdScrollMarkerGroupBefore,
@@ -4861,10 +4867,6 @@ void Element::RecalcStyle(const StyleRecalcChange change,
       UpdateFirstLetterPseudoElement(StyleUpdatePhase::kRecalc,
                                      child_recalc_context);
     }
-    // RecalcTransitionPseudoTreeStyle generally manages the transition pseudo
-    // tree, but it won't be called after the transition is finished, so we need
-    // to clean up here.
-    ClearTransitionPseudoTreeIfNeeded(child_change);
   }
 
   ClearChildNeedsStyleRecalc();
@@ -5073,6 +5075,11 @@ StyleRecalcChange Element::RecalcOwnStyle(
 
   ComputedStyle::Difference diff =
       ComputedStyle::ComputeDifference(old_style, new_style);
+  if (ViewTransitionUtils::GetTransition(*this)) {
+    // Even if the computed style is an exact match, we must trigger pseudo-
+    // element traversal to properly populate the pseudo-element's subtree.
+    diff = std::max(diff, ComputedStyle::Difference::kPseudoElementStyle);
+  }
 
   if (old_style && old_style->IsEnsuredInDisplayNone()) {
     // Make sure we traverse children for clearing ensured computed styles
@@ -5332,14 +5339,6 @@ StyleRecalcChange Element::RecalcOwnStyle(
       apply_changes = LayoutObject::ApplyStyleChanges::kYes;
     }
     layout_object->SetStyle(layout_style, apply_changes);
-  }
-
-  if (RuntimeEnabledFeatures::ScopedViewTransitionsEnabled() &&
-      !IsDocumentElement() && ViewTransitionUtils::GetTransition(*this)) {
-    // TODO(kevers): Retrieve vector of VT names from the view transition.
-    // TODO(kevers): Determine if it is safe to remove the call from StyleEngine
-    // for the document element here.
-    RecalcTransitionPseudoTreeStyle({});
   }
 
   return child_change;
@@ -8269,6 +8268,17 @@ bool Element::AffectedBySubjectHas() const {
   return false;
 }
 
+void Element::SetAffectedByStartingStyles() {
+  EnsureElementRareData().SetAffectedByStartingStyles();
+}
+
+bool Element::AffectedByStartingStyles() const {
+  if (const ElementRareDataVector* data = GetElementRareData()) {
+    return data->AffectedByStartingStyles();
+  }
+  return false;
+}
+
 void Element::SetAffectedBySubjectHas() {
   EnsureElementRareData().SetAffectedBySubjectHas();
 }
@@ -8474,12 +8484,20 @@ void Element::SetInnerHTMLInternal(
   if (html.empty() && !HasNonInBodyInsertionMode()) {
     setTextContent(html);
   } else {
+    // Use null registry to create fragment if the context element is a
+    // template element as the container of the document fragment will be a
+    // document fragment without browsing context.
+    auto* template_element = DynamicTo<HTMLTemplateElement>(*this);
+    CustomElementRegistry* registry = GetDocument().customElementRegistry();
+    if (RuntimeEnabledFeatures::ScopedCustomElementRegistryEnabled()) {
+      registry = template_element ? nullptr : customElementRegistry();
+    }
     if (DocumentFragment* fragment = CreateFragmentForInnerOuterHTML(
             html, this, kAllowScriptingContent, parse_declarative_shadows,
-            force_html, exception_state)) {
+            force_html, registry, exception_state)) {
       ContainerNode* container = this;
       bool swap_dom_parts{false};
-      if (auto* template_element = DynamicTo<HTMLTemplateElement>(*this)) {
+      if (template_element) {
         container = template_element->content();
         swap_dom_parts =
             RuntimeEnabledFeatures::DOMPartsAPIEnabled() &&
@@ -8538,10 +8556,13 @@ void Element::SetOuterHTMLWithoutTrustedTypes(const String& html,
   Node* prev = previousSibling();
   Node* next = nextSibling();
 
-  DocumentFragment* fragment =
-      CreateFragmentForInnerOuterHTML(html, parent, kAllowScriptingContent,
-                                      ParseDeclarativeShadowRoots::kDontParse,
-                                      ForceHtml::kDontForce, exception_state);
+  DocumentFragment* fragment = CreateFragmentForInnerOuterHTML(
+      html, parent, kAllowScriptingContent,
+      ParseDeclarativeShadowRoots::kDontParse, ForceHtml::kDontForce,
+      RuntimeEnabledFeatures::ScopedCustomElementRegistryEnabled()
+          ? customElementRegistry()
+          : GetDocument().customElementRegistry(),
+      exception_state);
   if (exception_state.HadException()) {
     return;
   }
@@ -8792,6 +8813,9 @@ void Element::InsertAdjacentHTMLWithoutTrustedTypes(
   DocumentFragment* fragment = CreateFragmentForInnerOuterHTML(
       markup, context_element, kAllowScriptingContent,
       ParseDeclarativeShadowRoots::kDontParse, ForceHtml::kDontForce,
+      RuntimeEnabledFeatures::ScopedCustomElementRegistryEnabled()
+          ? customElementRegistry()
+          : GetDocument().customElementRegistry(),
       exception_state);
   if (!fragment) {
     return;
@@ -9740,7 +9764,7 @@ Element* Element::GetStyledPseudoElement(
   }
 
   // This traverses the pseudo-element hierarchy generated in
-  // RecalcTransitionPseudoTreeStyle to query nested ::view-transition-group
+  // UpdateTransitionPseudoElements to query nested ::view-transition-group
   // ::view-transition-image-pair and
   // ::view-transition-{old,new} pseudo-elements.
   auto* transition_pseudo = GetPseudoElement(kPseudoIdViewTransition);
@@ -11664,174 +11688,133 @@ void Element::InvalidateStyleAttribute(
       html_names::kStyleAttr, *this);
 }
 
-void Element::RecalcTransitionPseudoTreeStyle(
-    const Vector<AtomicString>& view_transition_names) {
-  DCHECK(RuntimeEnabledFeatures::ScopedViewTransitionsEnabled() ||
-         this == GetDocument().documentElement());
-  DisplayLockStyleScope display_lock_style_scope(this);
-  if (!display_lock_style_scope.ShouldUpdateChildStyle()) {
-    return;
-  }
-
-  PseudoElement* old_transition_pseudo =
-      GetPseudoElement(kPseudoIdViewTransition);
-  const auto* transition = ViewTransitionUtils::GetTransition(*this);
-
-  if (!transition && !old_transition_pseudo) {
-    return;
-  }
-
-  if (transition && old_transition_pseudo &&
-      !transition->IsGeneratingPseudo(
-          To<ViewTransitionPseudoElementBase>(*old_transition_pseudo))) {
-    ClearPseudoElement(kPseudoIdViewTransition);
-    old_transition_pseudo = nullptr;
-  }
-
-  const StyleRecalcChange style_recalc_change;
-  const StyleRecalcContext style_recalc_context =
-      StyleRecalcContext::FromInclusiveAncestors(
-          *GetDocument().documentElement());
-
-  PseudoElement* transition_pseudo =
-      UpdatePseudoElement(kPseudoIdViewTransition, style_recalc_change,
-                          style_recalc_context, g_null_atom);
-  if (!transition_pseudo) {
-    return;
-  }
-
-  for (const auto& view_transition_name : view_transition_names) {
-    // If the container (::view-transition-group(name)) is already created
-    // for the implementation purposes of capturing the old state, we need
-    // to check if it needs to be reparented to its containing group.
-    bool container_already_created_in_view_transition_pseudo =
-        !!transition_pseudo->GetPseudoElement(
-            PseudoId::kPseudoIdViewTransitionGroup, view_transition_name);
-    PseudoElement* parent =
-        To<ViewTransitionTransitionElement>(transition_pseudo)
-            ->FindViewTransitionGroupPseudoElementParent(view_transition_name);
-    if (container_already_created_in_view_transition_pseudo &&
-        parent != transition_pseudo) {
-      transition_pseudo->ClearPseudoElement(
-          PseudoId::kPseudoIdViewTransitionGroup, view_transition_name);
-    }
-
-    // If the parent is not a ::view-transition element, we need a
-    // ::view-transition-group-children container.
-    if (parent && parent != transition_pseudo) {
-      bool needs_reattach = parent->NeedsReattachLayoutTree();
-      parent = parent->UpdatePseudoElement(
-          kPseudoIdViewTransitionGroupChildren, style_recalc_change,
-          style_recalc_context, parent->view_transition_name());
-      if (!parent) {
-        continue;
-      }
-      if (needs_reattach) {
-        parent->SetNeedsReattachLayoutTree();
-      }
-    } else {
-      parent = transition_pseudo;
-    }
-
-    PseudoElement* container_pseudo = parent->UpdatePseudoElement(
-        kPseudoIdViewTransitionGroup, style_recalc_change, style_recalc_context,
-        view_transition_name);
-
-    if (!container_pseudo) {
-      continue;
-    }
-
-    // Nested pseudo-elements don't keep pointers to their children, only their
-    // parents (i.e. firstChild() in a  ::view-transition is nullptr but
-    // parentNode of ::view-transition-group is ::view-transition). However,
-    // the layout tree is reattached by descending the DOM tree by child
-    // pointers so if any pseudo needs a reattach we have to explicitly mark
-    // all descendant pseudos as needing a reattach explicitly.
-    // TODO(crbug.com/1455139): Implement tree traversal for nested pseudos.
-    if (transition_pseudo->NeedsReattachLayoutTree()) {
-      container_pseudo->SetNeedsReattachLayoutTree();
-    }
-
-    PseudoElement* wrapper_pseudo = container_pseudo->UpdatePseudoElement(
-        kPseudoIdViewTransitionImagePair, style_recalc_change,
-        style_recalc_context, view_transition_name);
-    if (!wrapper_pseudo) {
-      continue;
-    }
-    if (container_pseudo->NeedsReattachLayoutTree()) {
-      wrapper_pseudo->SetNeedsReattachLayoutTree();
-    }
-
-    PseudoElement* old_pseudo = wrapper_pseudo->UpdatePseudoElement(
-        kPseudoIdViewTransitionOld, style_recalc_change, style_recalc_context,
-        view_transition_name);
-    PseudoElement* new_pseudo = wrapper_pseudo->UpdatePseudoElement(
-        kPseudoIdViewTransitionNew, style_recalc_change, style_recalc_context,
-        view_transition_name);
-
-    if (wrapper_pseudo->NeedsReattachLayoutTree()) {
-      if (old_pseudo) {
-        old_pseudo->SetNeedsReattachLayoutTree();
-      }
-      if (new_pseudo) {
-        new_pseudo->SetNeedsReattachLayoutTree();
-      }
-    }
-
-    container_pseudo->ClearChildNeedsStyleRecalc();
-    wrapper_pseudo->ClearChildNeedsStyleRecalc();
-  }
-
-  // Regular pseudo update doesn't clear child style, since there are
-  // (typically) no children / dirty child style. However, here we do need to
-  // clear the child dirty bit.
-  transition_pseudo->ClearChildNeedsStyleRecalc();
-}
-
 void Element::UpdateTransitionPseudoElements(
     const StyleRecalcChange style_recalc_change,
     const StyleRecalcContext& style_recalc_context) {
-  // TODO(crbug.com/442622988): Ideally we handle the originating element here
-  // as well and deprecate RecalcTransitionPseudoTreeStyle. Presently,
-  // RecalcTransitionPseudoTreeStyle handles creation of the group hierarchy,
-  // and this method updates pseudo-elements -- treating the hierarchy as
-  // immutable. Note that the hierarchy is only allowed to change in a post-
-  // capture style update. The capture phases are run before and after the
-  // DOM callback in StartViewTransition.
-  DCHECK(IsTransitionPseudoElement(GetPseudoId()));
+  if (!IsPseudoElement()) {
+    PseudoElement* old_transition_pseudo =
+        GetPseudoElement(kPseudoIdViewTransition);
+    const auto* transition = ViewTransitionUtils::GetTransition(*this);
+
+    if (old_transition_pseudo &&
+        (!transition ||
+         !transition->IsGeneratingPseudo(
+             To<ViewTransitionPseudoElementBase>(*old_transition_pseudo)))) {
+      ClearPseudoElement(kPseudoIdViewTransition);
+    }
+
+    if (!transition) {
+      return;
+    }
+
+    bool had_transition_pseudo = !!GetPseudoElement(kPseudoIdViewTransition);
+    PseudoElement* transition_pseudo =
+        UpdatePseudoElement(kPseudoIdViewTransition, style_recalc_change,
+                            style_recalc_context, g_null_atom);
+    if (transition_pseudo && !had_transition_pseudo) {
+      transition_pseudo->UpdateTransitionPseudoElements(style_recalc_change,
+                                                        style_recalc_context);
+    }
+    return;
+  }
+
+  if (!IsTransitionPseudoElement(GetPseudoId())) {
+    return;
+  }
+
+  ViewTransitionPseudoElementBase* transition_pseudo =
+      To<ViewTransitionPseudoElementBase>(this);
+
   switch (GetPseudoId()) {
-    case kPseudoIdViewTransition:
-    case kPseudoIdViewTransitionGroupChildren: {
-      for (const AtomicString& name : To<ViewTransitionPseudoElementBase>(this)
-                                          ->GetViewTransitionNames()) {
-        if (GetPseudoElement(kPseudoIdViewTransitionGroup, name)) {
-          UpdatePseudoElement(kPseudoIdViewTransitionGroup, style_recalc_change,
-                              style_recalc_context, name);
+    case kPseudoIdViewTransition: {
+      for (const AtomicString& name :
+           transition_pseudo->GetViewTransitionNames()) {
+        bool had_group = !!GetPseudoElement(kPseudoIdViewTransitionGroup, name);
+        const AtomicString& containing_group_name =
+            transition_pseudo->GetContainingGroupName(name);
+        if (containing_group_name == g_null_atom) {
+          PseudoElement* group = UpdatePseudoElement(
+              kPseudoIdViewTransitionGroup, style_recalc_change,
+              style_recalc_context, name);
+          if (group && !had_group) {
+            group->UpdateTransitionPseudoElements(style_recalc_change,
+                                                  style_recalc_context);
+          }
+        } else if (had_group) {
+          // During the initial capture phase, the view-transition names are in
+          // a flat list. The second capture (post DOM update) will contain the
+          // nested hierarchy.
+          ClearPseudoElement(kPseudoIdViewTransitionGroup, name);
         }
       }
       break;
     }
 
-    case kPseudoIdViewTransitionGroup:
-      UpdatePseudoElement(kPseudoIdViewTransitionImagePair, style_recalc_change,
-                          style_recalc_context,
-                          To<PseudoElement>(this)->view_transition_name());
-      if (GetPseudoElement(kPseudoIdViewTransitionGroupChildren,
-                           To<PseudoElement>(this)->view_transition_name())) {
-        UpdatePseudoElement(kPseudoIdViewTransitionGroupChildren,
-                            style_recalc_change, style_recalc_context,
-                            To<PseudoElement>(this)->view_transition_name());
+    case kPseudoIdViewTransitionGroupChildren: {
+      for (const AtomicString& name :
+           transition_pseudo->GetViewTransitionNames()) {
+        if (transition_pseudo->GetContainingGroupName(name) ==
+            transition_pseudo->view_transition_name()) {
+          bool had_group =
+              !!GetPseudoElement(kPseudoIdViewTransitionGroup, name);
+          PseudoElement* group = UpdatePseudoElement(
+              kPseudoIdViewTransitionGroup, style_recalc_change,
+              style_recalc_context, name);
+          if (group && !had_group) {
+            group->UpdateTransitionPseudoElements(style_recalc_change,
+                                                  style_recalc_context);
+          }
+        }
       }
       break;
+    }
 
-    case kPseudoIdViewTransitionImagePair:
-      UpdatePseudoElement(kPseudoIdViewTransitionOld, style_recalc_change,
-                          style_recalc_context,
-                          To<PseudoElement>(this)->view_transition_name());
-      UpdatePseudoElement(kPseudoIdViewTransitionNew, style_recalc_change,
-                          style_recalc_context,
-                          To<PseudoElement>(this)->view_transition_name());
+    case kPseudoIdViewTransitionGroup: {
+      const AtomicString& group_name =
+          transition_pseudo->view_transition_name();
+      bool had_image_pair =
+          GetPseudoElement(kPseudoIdViewTransitionImagePair, group_name);
+      PseudoElement* image_pair = UpdatePseudoElement(
+          kPseudoIdViewTransitionImagePair, style_recalc_change,
+          style_recalc_context, group_name);
+      if (image_pair && !had_image_pair) {
+        image_pair->UpdateTransitionPseudoElements(style_recalc_change,
+                                                   style_recalc_context);
+      }
+      bool has_nested_groups = false;
+      for (const AtomicString& name :
+           transition_pseudo->GetViewTransitionNames()) {
+        if (transition_pseudo->GetContainingGroupName(name) == group_name) {
+          has_nested_groups = true;
+          break;
+        }
+      }
+      // Update view-transition-group-children if existing, but do not create
+      // otherwise. Creation is handled above when navigating over the view-
+      // transition names.
+      if (has_nested_groups) {
+        bool had_group_children =
+            GetPseudoElement(kPseudoIdViewTransitionGroupChildren, group_name);
+        PseudoElement* group_children = UpdatePseudoElement(
+            kPseudoIdViewTransitionGroupChildren, style_recalc_change,
+            style_recalc_context, group_name);
+        if (group_children && !had_group_children) {
+          group_children->UpdateTransitionPseudoElements(style_recalc_change,
+                                                         style_recalc_context);
+        }
+      }
       break;
+    }
+
+    case kPseudoIdViewTransitionImagePair: {
+      const AtomicString& group_name =
+          transition_pseudo->view_transition_name();
+      UpdatePseudoElement(kPseudoIdViewTransitionOld, style_recalc_change,
+                          style_recalc_context, group_name);
+      UpdatePseudoElement(kPseudoIdViewTransitionNew, style_recalc_change,
+                          style_recalc_context, group_name);
+      break;
+    }
 
     case kPseudoIdViewTransitionOld:
     case kPseudoIdViewTransitionNew:
@@ -11839,16 +11822,6 @@ void Element::UpdateTransitionPseudoElements(
 
     default:
       NOTREACHED();
-  }
-}
-
-void Element::ClearTransitionPseudoTreeIfNeeded(
-    const StyleRecalcChange change) {
-  PseudoElement* element =
-      GetPseudoElement(kPseudoIdViewTransition, g_null_atom);
-  if (element && change.ShouldUpdatePseudoElement(*element) &&
-      !ViewTransitionUtils::GetTransition(*this)) {
-    ClearPseudoElement(kPseudoIdViewTransition, g_null_atom);
   }
 }
 

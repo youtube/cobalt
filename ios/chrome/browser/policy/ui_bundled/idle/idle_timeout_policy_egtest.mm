@@ -41,10 +41,10 @@ using policy_test_utils::SetPolicy;
 
 namespace {
 
-// Wait a bit more than kSnackbarMessageTestDuration to avoid flakiness due to
+// Wait a bit more than kSnackbarMessageDuration to avoid flakiness due to
 // time lags.
 constexpr base::TimeDelta kSnackbarDisappearanceTimeout =
-    kSnackbarMessageTestDuration + base::Seconds(4);
+    kSnackbarMessageDuration + base::Seconds(4);
 
 // Returns a matcher for the idle timeout dialog's "Continue using Chrome"
 // button.
@@ -344,7 +344,15 @@ void VerifyNoActionsRan() {
 
 // Tests that the idle timeout confirmation dialog is shown on the other window
 // when the window presenting the dialog is closed.
-- (void)testIdleTimeoutDialogWithMultiWindows {
+// TODO(crbug.com/442534095): Re-enable the test once the bug is fixed.
+- (void)DISABLED_testIdleTimeoutDialogWithMultiWindows {
+  // TODO(crbug.com/444650008): Re-enable the test.
+#if !TARGET_OS_SIMULATOR
+  if (base::ios::IsRunningOnIOS26OrLater()) {
+    EARL_GREY_TEST_DISABLED(@"Test disabled on iOS 26.");
+  }
+#endif
+
   if (![ChromeEarlGrey areMultipleWindowsSupported]) {
     EARL_GREY_TEST_DISABLED(@"Multiple windows can't be opened.");
   }

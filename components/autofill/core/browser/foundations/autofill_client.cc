@@ -124,10 +124,6 @@ PasswordManagerDelegate* AutofillClient::GetPasswordManagerDelegate(
   return nullptr;
 }
 
-OtpDelegate* AutofillClient::GetOtpDelegate() {
-  return nullptr;
-}
-
 void AutofillClient::GetAiPageContent(GetAiPageContentCallback callback) {
   std::move(callback).Run(std::nullopt);
 }
@@ -302,5 +298,13 @@ void AutofillClient::ShowEntitySaveOrUpdateBubble(
     EntityInstance new_entity,
     std::optional<EntityInstance> old_entity,
     EntitySaveOrUpdatePromptResultCallback save_prompt_acceptance_callback) {}
+
+OtpFieldDetector* AutofillClient::GetOtpFieldDetector() {
+  return nullptr;
+}
+
+one_time_tokens::SmsOtpBackend* AutofillClient::GetSmsOtpBackend() const {
+  return nullptr;
+}
 
 }  // namespace autofill

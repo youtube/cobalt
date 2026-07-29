@@ -445,6 +445,7 @@ targets.bundle(
     name = "android_desktop_gtests",
     targets = [
         "android_browsertests",
+        "chrome_public_test_apk",
         "chrome_public_test_apk_desktop",
         "chrome_public_unit_test_apk",
         "extensions_unittests",
@@ -458,9 +459,31 @@ targets.bundle(
         "x86-64",
     ],
     per_test_modifications = {
-        "chrome_public_test_apk_desktop": targets.mixin(
+        "chrome_public_test_apk": targets.mixin(
+            args = [
+                # Tests on devices with large form factor are typically slower.
+                # Double the timeout threshold to reduce test flakiness.
+                # TODO(crbug.com/444753297): Remove this config.
+                "--timeout-scale=2.0",
+            ],
+            # Due to the capacity concern, this suite will run as ci_only.
             ci_only = True,
+            swarming = targets.swarming(
+                shards = 30,
+            ),
+            # TODO(crbug.com/444482498): Remove the experiment after the suite
+            # is green.
             experiment_percentage = 100,
+        ),
+        "chrome_public_test_apk_desktop": targets.mixin(
+            args = [
+                # Tests on devices with large form factor are typically slower.
+                # Double the timeout threshold to reduce test flakiness.
+                # TODO(crbug.com/444753297): Remove this config.
+                "--timeout-scale=2.0",
+            ],
+            # TODO(crbug.com/441704684): Remove the ci_only after green.
+            ci_only = True,
         ),
         "chrome_public_unit_test_apk": targets.mixin(
             swarming = targets.swarming(
@@ -1762,6 +1785,7 @@ targets.bundle(
         "media_base_junit_tests",
         "module_installer_junit_tests",
         "net_junit_tests",
+        "one_time_tokens_junit_tests",
         "paint_preview_junit_tests",
         "password_manager_junit_tests",
         "services_junit_tests",
@@ -1910,6 +1934,17 @@ targets.bundle(
             ],
         ),
         "net_junit_tests": targets.per_test_modification(
+            remove_mixins = [
+                "chromium_pixel_2_q",
+                "emulator-4-cores",
+                "nougat-x86-emulator",
+                "oreo-x86-emulator",
+                "pie-x86-emulator",
+                "10-x86-emulator",
+                "16-x64-emulator",
+            ],
+        ),
+        "one_time_tokens_junit_tests": targets.per_test_modification(
             remove_mixins = [
                 "chromium_pixel_2_q",
                 "emulator-4-cores",

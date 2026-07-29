@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#define TODO_BASE_FEATURE_MACROS_NEED_MIGRATION
-
 #include "content/browser/preloading/prerender/prerender_host.h"
 
 #include <memory>
@@ -692,7 +690,7 @@ void PrerenderHost::DidFinishNavigation(NavigationHandle* navigation_handle) {
     return;
   }
 
-  if (PreloadServingMetrics::IsEnabled()) {
+  if (PreloadServingMetricsCapsule::IsFeatureEnabled()) {
     // If `DidFinishNavigation()` is called multiple times, ignore
     // `PreloadServingMetrics` of that navigation and keep the first one.
     if (!prerender_initial_preload_serving_metrics_) {
@@ -878,7 +876,7 @@ std::unique_ptr<StoredPage> PrerenderHost::Activate(
 
   // Associate `PreloadServingMetrics` of prerender initial navigation to ones
   // of activation.
-  if (PreloadServingMetrics::IsEnabled()) {
+  if (PreloadServingMetricsCapsule::IsFeatureEnabled()) {
     auto& activation_preload_serving_metrics_holder =
         *PreloadServingMetricsHolder::GetOrCreateForNavigationHandle(
             navigation_request);
@@ -992,7 +990,7 @@ bool PrerenderHost::AreInitialPrerenderNavigationParamsCompatibleWithNavigation(
 // The flag below is provided in case the workaround had a bug. Use the flag to
 // revert back to the previous behavior.
 // TODO(crbug.com/399478939): Remove the workaround and this flag.
-BASE_FEATURE(PrerenderActivationMismatchWebViewWorkaround,
+BASE_FEATURE(kPrerenderActivationMismatchWebViewWorkaround,
              base::FEATURE_ENABLED_BY_DEFAULT);
 #endif
 
@@ -1799,7 +1797,7 @@ void PrerenderHost::NotifyReused() {
 
 void PrerenderHost::OnWillBeCancelled(
     const PrerenderCancellationReason& reason) {
-  if (!PreloadServingMetrics::IsEnabled()) {
+  if (!PreloadServingMetricsCapsule::IsFeatureEnabled()) {
     return;
   }
 

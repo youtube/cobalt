@@ -120,8 +120,13 @@ using NativeCursor = void*;
 using NativeView = base::apple::WeakUIView;
 using NativeWindow = base::apple::WeakUIWindow;
 #if BUILDFLAG(USE_BLINK)
+#if BUILDFLAG(IS_IOS_TVOS)
+using NativeEvent =
+    std::variant<base::apple::OwnedUIEvent, base::apple::OwnedUIPress>;
+#else
 using NativeEvent =
     std::variant<base::apple::OwnedUIEvent, base::apple::OwnedBEKeyEntry>;
+#endif  // BUILDFLAG(IS_IOS_TVOS)
 #else
 using NativeEvent = base::apple::OwnedUIEvent;
 #endif  // BUILDFLAG(USE_BLINK)
@@ -205,7 +210,12 @@ using NativeViewId = intptr_t;
 // AcceleratedWidget provides a surface to compositors to paint pixels.
 #if BUILDFLAG(IS_WIN)
 using AcceleratedWidget = HWND;
+// The compiler doesn't realize that a const nullptr can't point to anything
+// mutable, so it's okay for this pointer to be duplicated.
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wunique-object-duplication"
 inline constexpr AcceleratedWidget kNullAcceleratedWidget = nullptr;
+#pragma clang diagnostic pop
 #elif BUILDFLAG(IS_IOS)
 using AcceleratedWidget = uint64_t;
 inline constexpr AcceleratedWidget kNullAcceleratedWidget = 0;

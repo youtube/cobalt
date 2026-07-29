@@ -23,6 +23,8 @@ import static androidx.test.espresso.matcher.ViewMatchers.withContentDescription
 import static androidx.test.espresso.matcher.ViewMatchers.withId;
 import static androidx.test.espresso.matcher.ViewMatchers.withText;
 
+import static com.google.common.truth.Truth.assertThat;
+
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.emptyIterable;
@@ -1784,7 +1786,9 @@ public class SiteSettingsTest {
         onView(withText("1 site")).check(matches(isDisplayed()));
 
         onView(withText("primary.com")).perform(click());
+        onView(withText("Edit")).perform(click());
         onView(withText("Block")).perform(click());
+        onView(withText("Confirm")).perform(click());
 
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
@@ -2741,12 +2745,17 @@ public class SiteSettingsTest {
 
         onView(withId(R.id.recycler_view)).perform(RecyclerViewActions.scrollToLastPosition());
         onView(withText(url)).check(matches(isDisplayed())).perform(click());
+        onView(withText("Edit")).perform(click());
         onView(withText("Approximate")).perform(click());
+        onView(withText("Confirm")).perform(click());
         assertEquals(
                 new GeolocationSetting(ContentSetting.ALLOW, ContentSetting.BLOCK),
                 getGeolocationSetting(url));
 
+        onView(withText(url)).check(matches(isDisplayed())).perform(click());
+        onView(withText("Edit")).perform(click());
         onView(withText("Block")).perform(click());
+        onView(withText("Confirm")).perform(click());
         assertEquals(
                 new GeolocationSetting(ContentSetting.BLOCK, ContentSetting.BLOCK),
                 getGeolocationSetting(url));
@@ -2773,7 +2782,9 @@ public class SiteSettingsTest {
         onView(withId(R.id.recycler_view)).perform(RecyclerViewActions.scrollToLastPosition());
         onView(withText("Automatically blocked")).check(matches(isDisplayed()));
         onView(withText(origin)).perform(click());
+        onView(withText("Edit")).perform(click());
         onView(withText("Allow")).perform(click());
+        onView(withText("Confirm")).perform(click());
         assertEquals(
                 new GeolocationSetting(ContentSetting.ALLOW, ContentSetting.ALLOW),
                 getGeolocationSetting(url));
@@ -4473,7 +4484,7 @@ public class SiteSettingsTest {
         private void assertToggleTitleAndSummary(SingleCategorySettings singleCategorySettings) {
             ChromeSwitchPreference toggle =
                     singleCategorySettings.findPreference(SingleCategorySettings.BINARY_TOGGLE_KEY);
-            assert toggle != null;
+            assertThat(toggle).isNotNull();
 
             Assert.assertEquals(
                     "Preference title is not set correctly.",
@@ -4554,7 +4565,7 @@ public class SiteSettingsTest {
             BinaryStatePermissionPreference radio_button =
                     singleCategorySettings.findPreference(
                             SingleCategorySettings.BINARY_RADIO_BUTTON_KEY);
-            assert radio_button != null;
+            assertThat(radio_button).isNotNull();
 
             Assert.assertEquals(
                     "Preference text is not set correctly.",

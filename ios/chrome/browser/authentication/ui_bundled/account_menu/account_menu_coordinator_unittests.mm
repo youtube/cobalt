@@ -200,7 +200,7 @@ class AccountMenuCoordinatorTest : public PlatformTest,
   AccountMenuMediator* mediator_;
   id<SyncEncryptionPassphraseTableViewControllerPresentationDelegate>
       presentation_delegate_;
-  raw_ptr<AuthenticationService> authentication_service_;
+  raw_ptr<AuthenticationService, DanglingUntriaged> authentication_service_;
   raw_ptr<FakeSystemIdentityManager> fake_system_identity_manager_;
   // The view owned by the view controller.
   UIView* view_;
@@ -242,6 +242,7 @@ TEST_P(AccountMenuCoordinatorTest, testManageYourGoogleAccount) {
                                            animated:YES
                                          completion:nil]);
   [coordinator_ didTapManageYourGoogleAccount];
+  OCMExpect([mediator_ accountMenuIsUsable]);
   AssertOpenAndStop();
 }
 
@@ -259,7 +260,7 @@ TEST_P(AccountMenuCoordinatorTest, testSignOut) {
   base::RepeatingClosure closure = run_loop.QuitClosure();
   CGRect rect = CGRect();
   OCMExpect([mock_snackbar_commands_handler_
-      showCustomSnackbarMessageOverBrowserToolbar:[OCMArg isNotNil]]);
+      showSnackbarMessageOverBrowserToolbar:[OCMArg isNotNil]]);
   [coordinator_ signOutFromTargetRect:rect
                            completion:^(BOOL success, SceneState* scene_state) {
                              EXPECT_TRUE(success);
@@ -282,7 +283,7 @@ TEST_P(AccountMenuCoordinatorTest, testMediatorWantsToBeDismissed) {
 // callback.
 TEST_P(AccountMenuCoordinatorTest, testTriggerSignout) {
   OCMExpect([mock_snackbar_commands_handler_
-      showCustomSnackbarMessageOverBrowserToolbar:[OCMArg any]]);
+      showSnackbarMessageOverBrowserToolbar:[OCMArg any]]);
 
   base::RunLoop run_loop;
   base::RepeatingClosure closure = run_loop.QuitClosure();

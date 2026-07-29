@@ -1,0 +1,409 @@
+// Copyright 2025 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include "chrome/browser/ui/webui_browser/webui_browser_extensions_container.h"
+
+#include <optional>
+
+#include "base/logging.h"
+#include "base/notimplemented.h"
+#include "base/strings/utf_string_conversions.h"
+#include "chrome/browser/extensions/extension_view_host.h"
+#include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/extensions/extension_action_view_controller.h"
+#include "chrome/browser/ui/toolbar/toolbar_action_view_delegate.h"
+#include "chrome/browser/ui/toolbar/toolbar_actions_model.h"
+#include "chrome/browser/ui/views/toolbar/toolbar_action_view_delegate_views.h"
+#include "chrome/browser/ui/webui/util/image_util.h"
+#include "chrome/browser/ui/webui_browser/webui_browser_ui.h"
+#include "chrome/browser/ui/webui_browser/webui_browser_window.h"
+#include "ui/base/mojom/menu_source_type.mojom.h"
+#include "ui/views/controls/menu/menu_item_view.h"
+#include "ui/views/controls/menu/menu_model_adapter.h"
+#include "ui/views/controls/menu/menu_runner.h"
+
+class WebUIBrowserExtensionsContainer::ActionInfo
+    : public ToolbarActionViewDelegateViews {
+ public:
+  ActionInfo(WebUIBrowserExtensionsContainer& extensions_container,
+             Browser& browser,
+             std::unique_ptr<ExtensionActionViewController> controller)
+      : extensions_container_(extensions_container),
+        browser_(browser),
+        controller_(std::move(controller)) {
+    controller_->SetDelegate(this);
+  }
+
+  // ToolbarActionViewDelegate:
+  content::WebContents* GetCurrentWebContents() const override {
+    return browser_->tab_strip_model()->GetActiveWebContents();
+  }
+
+  void UpdateState() override {
+    extensions_container_->NotifyOfOneAction(controller_->GetId());
+  }
+
+  void ShowContextMenuAsFallback() override { NOTIMPLEMENTED(); }
+
+  // ToolbarActionViewDelegateViews:
+  views::FocusManager* GetFocusManagerForAccelerator() override {
+    return extensions_container_->window_->widget()->GetFocusManager();
+  }
+
+  views::BubbleAnchor GetReferenceButtonForPopup() override {
+    return GetAnchor();
+  }
+
+  ui::TrackedElement* GetAnchor() {
+    // TODO(webium): Use the proper button once TrackedElement supports
+    // dynamic ids or the like. See https://crbug.com/444237074
+    return extensions_container_->window_->GetExtensionsMenuButtonAnchor();
+  }
+
+  ExtensionActionViewController* controller() { return controller_.get(); }
+
+  extensions_bar::mojom::ExtensionActionInfoPtr ToMojo(
+      WebUIBrowserWindow& window) const {
+    content::WebContents* web_contents = GetCurrentWebContents();
+    auto result = extensions_bar::mojom::ExtensionActionInfo::New();
+    result->id = controller_->GetId();
+    result->accessible_name =
+        base::UTF16ToUTF8(controller_->GetAccessibleName(web_contents));
+    result->tooltip = base::UTF16ToUTF8(controller_->GetTooltip(web_contents));
+    result->is_visible =
+        extensions_container_->IsActionVisibleOnToolbar(result->id);
+    result->is_enabled = controller_->IsEnabled(web_contents);
+
+    ui::ImageModel icon_model =
+        controller_->GetIcon(web_contents, gfx::Size(20, 20));
+    if (cached_icon_model_ != icon_model || !cached_icon_url_.has_value()) {
+      cached_icon_model_ = std::move(icon_model);
+      cached_icon_url_ = GURL(webui::EncodePNGAndMakeDataURI(
+          cached_icon_model_->Rasterize(window.GetColorProvider()),
+          window.GetWebUIBrowserUI()->web_ui()->GetDeviceScaleFactor()));
+    }
+    result->data_url_for_icon = *cached_icon_url_;
+    return result;
+  }
+
+ private:
+  const raw_ref<WebUIBrowserExtensionsContainer> extensions_container_;
+  const raw_ref<Browser> browser_;
+  mutable std::optional<ui::ImageModel> cached_icon_model_;
+  mutable std::optional<GURL> cached_icon_url_;
+  std::unique_ptr<ExtensionActionViewController> controller_;
+};
+
+// This is based on ExtensionContextMenuController.
+class WebUIBrowserExtensionsContainer::ContextMenu {
+ public:
+  static std::unique_ptr<ContextMenu> MaybeCreate(
+      WebUIBrowserExtensionsContainer& extensions_container,
+      const std::string& action_id) {
+    auto it = extensions_container.actions_.find(action_id);
+    CHECK(it != extensions_container.actions_.end());
+
+    ui::MenuModel* model = it->second->controller()->GetContextMenu(
+        extensions::ExtensionContextMenuModel::ContextMenuSource::
+            kToolbarAction);
+
+    // It's possible the action doesn't have a context menu.
+    if (!model) {
+      return nullptr;
+    }
+
+    return base::WrapUnique(new ContextMenu(action_id, *it->second, model));
+  }
+
+  // This is in two steps so that `context_menu_` in the container gets
+  // updated.
+  void Show(views::Widget* main_widget, ui::mojom::MenuSourceType source) {
+    int run_types =
+        views::MenuRunner::HAS_MNEMONICS | views::MenuRunner::CONTEXT_MENU;
+
+    std::unique_ptr<views::MenuItemView> menu = menu_adapter_->CreateMenu();
+    menu_runner_ =
+        std::make_unique<views::MenuRunner>(std::move(menu), run_types);
+
+    action_info_->controller()->OnContextMenuShown(
+        extensions::ExtensionContextMenuModel::ContextMenuSource::
+            kToolbarAction);
+
+    menu_runner_->RunMenuAt(main_widget, nullptr,
+                            action_info_->GetAnchor()->GetScreenBounds(),
+                            views::MenuAnchorPosition::kTopLeft, source);
+  }
+
+  const std::string& action_id() const { return action_id_; }
+
+ private:
+  ContextMenu(const std::string& action_id,
+              ActionInfo& action_info,
+              ui::MenuModel* model)
+      : action_id_(action_id), action_info_(action_info) {
+    menu_adapter_ = std::make_unique<views::MenuModelAdapter>(
+        model, base::BindRepeating(&ContextMenu::OnMenuClosed,
+                                   weak_ptr_factory_.GetWeakPtr()));
+  }
+
+  void OnMenuClosed() {
+    menu_runner_.reset();
+    menu_adapter_.reset();
+
+    // This will delete us.
+    action_info_->controller()->OnContextMenuClosed(
+        extensions::ExtensionContextMenuModel::ContextMenuSource::
+            kToolbarAction);
+  }
+
+  std::string action_id_;
+  const raw_ref<ActionInfo> action_info_;
+  std::unique_ptr<views::MenuModelAdapter> menu_adapter_;
+  std::unique_ptr<views::MenuRunner> menu_runner_;
+
+  base::WeakPtrFactory<ContextMenu> weak_ptr_factory_{this};
+};
+
+WebUIBrowserExtensionsContainer::WebUIBrowserExtensionsContainer(
+    Browser& browser,
+    WebUIBrowserWindow& window)
+    : browser_(browser),
+      window_(window),
+      model_(*ToolbarActionsModel::Get(browser.profile())),
+      extensions_menu_coordinator_(
+          std::make_unique<ExtensionsMenuCoordinator>(&browser_.get())) {
+  CreateActions();
+  observe_actions_.Observe(&model_.get());
+}
+
+WebUIBrowserExtensionsContainer::~WebUIBrowserExtensionsContainer() {
+  for (const auto& [_, action] : actions_) {
+    action->controller()->UnregisterCommand();
+  }
+}
+
+ToolbarActionViewController* WebUIBrowserExtensionsContainer::GetActionForId(
+    const std::string& action_id) {
+  auto it = actions_.find(action_id);
+  return it != actions_.end() ? it->second->controller() : nullptr;
+}
+
+std::optional<extensions::ExtensionId>
+WebUIBrowserExtensionsContainer::GetPoppedOutActionId() const {
+  return popped_out_action_;
+}
+
+void WebUIBrowserExtensionsContainer::OnContextMenuShownFromToolbar(
+    const std::string& action_id) {
+  DCHECK_EQ(action_id, context_menu_->action_id());
+  NotifyOfOneAction(action_id);
+}
+
+void WebUIBrowserExtensionsContainer::OnContextMenuClosedFromToolbar() {
+  std::string prev_context_menu_id = context_menu_->action_id();
+  context_menu_.reset();
+  NotifyOfOneAction(prev_context_menu_id);
+}
+
+bool WebUIBrowserExtensionsContainer::IsActionVisibleOnToolbar(
+    const std::string& action_id) const {
+  return model_->IsActionPinned(action_id) || popped_out_action_ == action_id ||
+         (context_menu_ && context_menu_->action_id() == action_id);
+}
+
+void WebUIBrowserExtensionsContainer::UndoPopOut() {
+  std::string old_popped_out = std::move(popped_out_action_).value();
+  popped_out_action_ = std::nullopt;
+  NotifyOfOneAction(old_popped_out);
+}
+
+void WebUIBrowserExtensionsContainer::SetPopupOwner(
+    ToolbarActionViewController* popup_owner) {
+  // We should never be setting a popup owner when one already exists, and
+  // never unsetting one when one wasn't set.
+  DCHECK((popup_owner_ != nullptr) ^ (popup_owner != nullptr));
+  popup_owner_ = popup_owner;
+}
+
+void WebUIBrowserExtensionsContainer::HideActivePopup() {
+  if (popup_owner_) {
+    popup_owner_->HidePopup();
+  }
+  DCHECK(!popup_owner_);
+}
+
+bool WebUIBrowserExtensionsContainer::CloseOverflowMenuIfOpen() {
+  if (extensions_menu_coordinator_->IsShowing()) {
+    extensions_menu_coordinator_->Hide();
+    return true;
+  }
+  return false;
+}
+
+void WebUIBrowserExtensionsContainer::PopOutAction(
+    const extensions::ExtensionId& action_id,
+    base::OnceClosure closure) {
+  DCHECK(!popped_out_action_.has_value());
+  popped_out_action_ = action_id;
+  NotifyOfOneAction(action_id);
+  NotifyActionPoppedOut(std::move(closure));
+}
+
+bool WebUIBrowserExtensionsContainer::ShowToolbarActionPopupForAPICall(
+    const std::string& action_id,
+    ShowPopupCallback callback) {
+  NOTIMPLEMENTED();
+  return true;
+}
+
+void WebUIBrowserExtensionsContainer::ToggleExtensionsMenu() {
+  if (extensions_menu_coordinator_->IsShowing()) {
+    extensions_menu_coordinator_->Hide();
+  } else {
+    extensions_menu_coordinator_->Show(window_->GetExtensionsMenuButtonAnchor(),
+                                       this);
+  }
+}
+
+bool WebUIBrowserExtensionsContainer::HasAnyExtensions() const {
+  return !actions_.empty();
+}
+
+void WebUIBrowserExtensionsContainer::UpdateToolbarActionHoverCard(
+    ToolbarActionView* action_view,
+    ToolbarActionHoverCardUpdateType update_type) {
+  NOTIMPLEMENTED();
+}
+
+void WebUIBrowserExtensionsContainer::CollapseConfirmation() {
+  NOTIMPLEMENTED();
+}
+
+void WebUIBrowserExtensionsContainer::OnToolbarModelInitialized() {
+  CreateActions();
+}
+
+void WebUIBrowserExtensionsContainer::OnToolbarActionAdded(
+    const ToolbarActionsModel::ActionId& id) {
+  CreateActionForId(id);
+  NotifyOfOneAction(id);
+}
+
+void WebUIBrowserExtensionsContainer::OnToolbarActionRemoved(
+    const ToolbarActionsModel::ActionId& id) {
+  if (popped_out_action_ == id) {
+    popped_out_action_ = std::nullopt;
+  }
+  if (context_menu_ && context_menu_->action_id() == id) {
+    context_menu_.reset();
+  }
+  actions_[id]->controller()->UnregisterCommand();
+  actions_.erase(id);
+  if (page_) {
+    page_->ActionRemoved(id);
+  }
+}
+
+void WebUIBrowserExtensionsContainer::OnToolbarActionUpdated(
+    const ToolbarActionsModel::ActionId& id) {
+  NotifyOfOneAction(id);
+}
+
+void WebUIBrowserExtensionsContainer::OnToolbarPinnedActionsChanged() {
+  NotifyOfAllActions();
+}
+
+void WebUIBrowserExtensionsContainer::Bind(
+    mojo::PendingRemote<extensions_bar::mojom::Page> page,
+    mojo::PendingReceiver<extensions_bar::mojom::PageHandler> receiver) {
+  receiver_.reset();
+  receiver_.Bind(std::move(receiver));
+  page_.reset();
+  page_.Bind(std::move(page));
+  NotifyOfAllActions();
+}
+
+void WebUIBrowserExtensionsContainer::NotifyOfAllActions() {
+  if (!page_ || actions_.empty()) {
+    return;
+  }
+
+  // Don't notify when the window is being destroyed.
+  if (!browser_->tab_strip_model()->GetActiveWebContents()) {
+    return;
+  }
+
+  std::vector<extensions_bar::mojom::ExtensionActionInfoPtr> updates;
+  for (const auto& [_, action] : actions_) {
+    updates.push_back(action->ToMojo(*window_));
+  }
+  page_->ActionsAddedOrUpdated(std::move(updates));
+}
+
+void WebUIBrowserExtensionsContainer::NotifyOfOneAction(
+    const ToolbarActionsModel::ActionId& id) {
+  if (!page_) {
+    return;
+  }
+
+  // Don't notify when the window is being destroyed.
+  if (!browser_->tab_strip_model()->GetActiveWebContents()) {
+    return;
+  }
+
+  std::vector<extensions_bar::mojom::ExtensionActionInfoPtr> update;
+  update.push_back(actions_[id]->ToMojo(*window_));
+  page_->ActionsAddedOrUpdated(std::move(update));
+}
+
+void WebUIBrowserExtensionsContainer::NotifyActionPoppedOut(
+    base::OnceClosure closure) {
+  if (!page_) {
+    std::move(closure).Run();
+    return;
+  }
+  page_->ActionPoppedOut(std::move(closure));
+}
+
+void WebUIBrowserExtensionsContainer::ExecuteUserAction(const std::string& id) {
+  auto it = actions_.find(id);
+  CHECK(it != actions_.end());
+  it->second->controller()->ExecuteUserAction(
+      ToolbarActionViewController::InvocationSource::kToolbarButton);
+}
+
+void WebUIBrowserExtensionsContainer::ShowContextMenu(
+    ui::mojom::MenuSourceType source,
+    const std::string& id) {
+  context_menu_ = ContextMenu::MaybeCreate(*this, id);
+  if (context_menu_) {
+    context_menu_->Show(window_->widget(), source);
+  }
+}
+
+void WebUIBrowserExtensionsContainer::ToggleExtensionsMenuFromWebUI() {
+  ToggleExtensionsMenu();
+}
+
+void WebUIBrowserExtensionsContainer::CreateActions() {
+  // If the model isn't initialized yet, it will eventually call
+  // OnToolbarModelInitialized() and we'll try again.
+  if (!model_->actions_initialized()) {
+    return;
+  }
+
+  for (const auto& action_id : model_->action_ids()) {
+    CreateActionForId(action_id);
+  }
+  NotifyOfAllActions();
+}
+
+void WebUIBrowserExtensionsContainer::CreateActionForId(
+    const ToolbarActionsModel::ActionId& action_id) {
+  auto action_info = std::make_unique<ActionInfo>(
+      *this, browser_.get(),
+      ExtensionActionViewController::Create(action_id, &browser_.get(), this));
+  action_info->controller()->RegisterCommand();
+  actions_[action_id] = std::move(action_info);
+}

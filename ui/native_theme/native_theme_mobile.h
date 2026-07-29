@@ -18,16 +18,18 @@ class NativeThemeMobile : public NativeThemeBase {
   // NativeThemeBase:
   gfx::Size GetPartSize(Part part,
                         State state,
-                        const ExtraParams& extra) const override;
+                        const ExtraParams& extra_params) const override;
 
  protected:
-  friend class NativeTheme;
-  friend class base::NoDestructor<NativeThemeMobile>;
-
   // NativeThemeBase:
   void AdjustCheckboxRadioRectForPadding(SkRect* rect) const override;
+  SkColor GetControlColor(ControlColorId color_id,
+                          bool dark_mode,
+                          const ColorProvider* color_provider) const override;
 
  private:
+  friend class base::NoDestructor<NativeThemeMobile>;
+
   NativeThemeMobile();
   ~NativeThemeMobile() override;
 };

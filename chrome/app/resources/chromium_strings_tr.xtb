@@ -95,6 +95,7 @@
 <translation id="2185166961232948079">Chromium - Ağda Oturum Açın - <ph name="PAGE_TITLE" /></translation>
 <translation id="2190166659037789668">Güncelleme denetimi hatası: <ph name="UPDATE_CHECK_ERROR" />.</translation>
 <translation id="2199210295479376551">Hesabı Chromium'dan kaldır</translation>
+<translation id="2210502920229141283">iOS için Chromium'da Gelişmiş Güvenli Tarama ile hareket halindeyken güvende kalın</translation>
 <translation id="2210682093923538346">Tehlikeli site. Chromium, bildirimleri kaldırdı.</translation>
 <translation id="2236949375853147973">Etkinliğim</translation>
 <translation id="2238130810669087193">Adreslerinizi ve diğer öğelerinizi tüm cihazlarınızda kullanmak için Chromium'da oturum açın. Bu adres, oturum açtıktan sonra Google Hesabınıza kaydedilir.</translation>
@@ -103,6 +104,7 @@
 <translation id="2307973900865360088">Dock'ta tut</translation>
 <translation id="2313870531055795960">URL'leri, Chromium'da kayıtlı güvenli olmayan siteler listesine göre kontrol eder. Chromium, bir sitenin şifrenizi çalmaya çalışması veya zararlı bir dosya indirmeniz halinde de Güvenli Tarama'ya sayfa içeriğinden parçalarla birlikte URL'ler gönderebilir.</translation>
 <translation id="2343156876103232566">Buradan Android telefonunuza numara göndermek için iki cihazdan da Chromium'da oturum açın.</translation>
+<translation id="2356070529366658676">Sor</translation>
 <translation id="2359808026110333948">Devam</translation>
 <translation id="2361918034042471035">"<ph name="EXTENSION_NAME" />" uzantısı, Chromium'da oturum açmanızı istiyor</translation>
 <translation id="236943522426971115">Uygulamalar İçin Chromium'un Arka Planda Çalışmasını Devre Dışı Bırak</translation>
@@ -153,6 +155,7 @@
 <translation id="2928420929544864228">Yükleme tamamlandı.</translation>
 <translation id="2933336679234709858">Verileriniz parolanızla şifrelenir. Chromium verilerini kullanmak ve Google Hesabınıza kaydetmek için bu kodu girin.</translation>
 <translation id="2945997411976714835">Yükleme hatası: Yükleyici işlemi başlatılamadı.</translation>
+<translation id="2948852018303413228">iOS'te Chromium için kayıtlı şifreleri kullanarak sitelerde daha hızlı oturum açın</translation>
 <translation id="2970426615109535079">Chromium'u kuruluşunuz yönetiyor</translation>
 <translation id="2977470724722393594">Chromium güncel durumda</translation>
 <translation id="2977506796191543575">Chromium, bir sitenin şifrenizi çalmaya çalışması veya zararlı bir dosya indirmeniz halinde de Güvenli Tarama'ya sayfa içeriğinden parçalarla birlikte URL'ler gönderebilir.</translation>
@@ -177,6 +180,9 @@
 <translation id="3155163173539279776">Chromium'u Yeniden Başlat</translation>
 <translation id="3161522574479303604">Tüm diller</translation>
 <translation id="3179665906251668410">Bağlantıyı Chromium &amp;Gizli Penceresinde Aç</translation>
+<translation id="3183357154200327217">Bilgisayarınızdaki başka bir program, Chromium'un çalışma şeklini değiştirebilecek bir tema ekledi.
+
+<ph name="EXTENSION_NAME" /></translation>
 <translation id="3185330573522821672">Yeni Chromium profilinizi özelleştirin</translation>
 <translation id="3224847870593914902">Google Hesabınızı Chromium'dan kaldırmak için Ayarlar sayfasında Chromium oturumunu kapatın</translation>
 <translation id="3234316605225071811">Daha sonra Chromium, formlarınızın otomatik olarak doldurulması için kayıtlı bilgileri kullanmak isteyip istemediğinizi sorabilir</translation>
@@ -239,6 +245,9 @@
 <translation id="4036079820698952681"><ph name="BEGIN_LINK" />Mevcut ayarlarınızı<ph name="END_LINK" /> bildirerek Chromium'u daha iyi hale getirmemize yardımcı olun</translation>
 <translation id="4050175100176540509">Son sürümde güvenlikle ilgili önemli iyileştirmeler ve yeni özellikler mevcuttur.</translation>
 <translation id="4055805654398742145">Ş&amp;ifre Yöneticisi</translation>
+<translation id="4061696872429826774">Bilgisayarınızdaki başka bir program, Chromium'un çalışma şeklini değiştirebilecek bir uzantı ekledi.
+
+<ph name="EXTENSION_NAME" /></translation>
 <translation id="4095980151185649725">{COUNT,plural, =1{Kuruluşunuz, 1 dakika kullanılmadığında Chromium'u otomatik olarak kapatır. Tarama verileri silinir. Bu veriler geçmiş, otomatik doldurma ve indirilenleri içerebilir.}other{Kuruluşunuz, # dakika kullanılmadığında Chromium'u otomatik olarak kapatır. Tarama verileri silinir. Bu veriler geçmiş, otomatik doldurma ve indirilenleri içerebilir.}}</translation>
 <translation id="4118474109249235144">Chromium Gizli Modu</translation>
 <translation id="4122186850977583290">Chromium hakkında sayfasına gidin</translation>
@@ -398,6 +407,9 @@
 <translation id="6174920971222007286">Bu dosya tehlikeli olabilir<ph name="LINE_BREAK" />Şifreyi sağlarsanız Chromium, indirme işlemini sizin için kontrol edebilir. Dosyayla ilgili bilgiler Google Güvenli Tarama'ya gönderilir ancak dosya içeriği ve şifresi cihazınızda kalır.</translation>
 <translation id="6182736845697986886">Güncelleme sunucusundaki dahili hata nedeniyle yükleme işlemi başarısız oldu.</translation>
 <translation id="6183079672144801177"><ph name="TARGET_DEVICE_NAME" /> cihazınızdan Chromium'da oturum açtığınızdan emin olup tekrar göndermeyi deneyin.</translation>
+<translation id="6204922163963157461">Bilgisayarınızdaki başka bir program, Chromium'un çalışma şeklini değiştirebilecek bir uygulama ekledi.
+
+<ph name="EXTENSION_NAME" /></translation>
 <translation id="6212496753309875659">Bu bilgisayarda Chromium'un daha yeni bir sürümü de var. Yazılım çalışmıyorsa, Chromium'u kaldırın ve tekrar deneyin.</translation>
 <translation id="6219195342503754812">{0,plural, =0{Chromium şimdi yeniden başlatılacak}=1{Chromium 1 saniye içinde yeniden başlatılacak}other{Chromium # saniye içinde yeniden başlatılacak}}</translation>
 <translation id="6239161312595354541">Görsel aramaya bu video hakkında soru sorun</translation>
@@ -547,6 +559,7 @@ Chromium ayarlarınızı kurtaramıyor.</translation>
 <translation id="7888981273428720788">Chromium'u varsayılan tarayıcınız olarak ayarlayın</translation>
 <translation id="7934340546140346950">Chromium, güvensiz bağlantıları mümkün olduğunda otomatik olarak HTTPS'ye yükseltir</translation>
 <translation id="7937630085815544518">Chromium'da <ph name="USER_EMAIL_ADDRESS" /> olarak oturum açtınız. Tekrar oturum açmak için lütfen aynı hesabı kullanın.</translation>
+<translation id="7953047982688951904">Hareket halindeyken ek koruma katmanı için telefonunuza Chromium'u indirin</translation>
 <translation id="7975919845073681630">Bu, Chromium'un ikincil bir yüklemesidir ve varsayılan tarayıcınız yapılamaz.</translation>
 <translation id="7997934263947464652">Bilinmeyen kaynaklardan gelen uzantılar, uygulamalar ve temalar cihazınıza zarar verebilir. Chromium bunların yalnızca <ph name="IDS_EXTENSION_WEB_STORE_TITLE" /> kaynağından yüklenmesini önerir.</translation>
 <translation id="8004582292198964060">Tarayıcı</translation>

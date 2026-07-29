@@ -106,6 +106,8 @@
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_list.h"
 #include "chrome/browser/ui/browser_window.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/webui/ash/login/oobe_ui.h"
 #include "chrome/browser/ui/webui/ash/login/terms_of_service_screen_handler.h"
@@ -1077,12 +1079,12 @@ IN_PROC_BROWSER_TEST_F(DeviceLocalAccountTest, StartSession) {
   WaitForSessionStart();
 
   // Check that the startup pages specified in policy were opened.
-  BrowserList* browser_list = BrowserList::GetInstance();
-  EXPECT_EQ(1U, browser_list->size());
-  Browser* browser = browser_list->get(0);
+  EXPECT_EQ(1U, BrowserList::GetInstance()->size());
+  BrowserWindowInterface* const browser =
+      GetLastActiveBrowserWindowInterfaceWithAnyProfile();
   ASSERT_TRUE(browser);
 
-  TabStripModel* tabs = browser->tab_strip_model();
+  TabStripModel* const tabs = browser->GetTabStripModel();
   ASSERT_TRUE(tabs);
   int expected_tab_count = static_cast<int>(std::size(kStartupURLs));
   EXPECT_EQ(expected_tab_count, tabs->count());
@@ -1111,9 +1113,10 @@ IN_PROC_BROWSER_TEST_F(DeviceLocalAccountTest, FullscreenAllowed) {
 
   BrowserList* browser_list = BrowserList::GetInstance();
   EXPECT_EQ(1U, browser_list->size());
-  Browser* browser = browser_list->get(0);
+  BrowserWindowInterface* const browser =
+      GetLastActiveBrowserWindowInterfaceWithAnyProfile();
   ASSERT_TRUE(browser);
-  BrowserWindow* browser_window = browser->window();
+  ui::BaseWindow* const browser_window = browser->GetWindow();
   ASSERT_TRUE(browser_window);
 
   // Verify that an attempt to enter fullscreen mode is allowed.
@@ -1432,8 +1435,7 @@ IN_PROC_BROWSER_TEST_F(DeviceLocalAccountTest, ExternalData) {
   // Specify an external data reference for the key::kUserAvatarImage policy.
   base::Value::Dict metadata = test::ConstructExternalDataReference(
       embedded_test_server()->GetURL(kExternalDataPath).spec(), kExternalData);
-  std::string policy;
-  base::JSONWriter::Write(metadata, &policy);
+  std::string policy = base::WriteJson(metadata).value_or("");
   device_local_account_policy_.payload().mutable_useravatarimage()->set_value(
       policy);
   UploadAndInstallDeviceLocalAccountPolicy();
@@ -1514,15 +1516,12 @@ IN_PROC_BROWSER_TEST_F(DeviceLocalAccountTest, UserAvatarImage) {
         &image_data));
   }
 
-  std::string policy;
-  base::JSONWriter::Write(
-      test::ConstructExternalDataReference(
-          embedded_test_server()
-              ->GetURL(std::string("/") +
-                       ash::test::kUserAvatarImage1RelativePath)
-              .spec(),
-          image_data),
-      &policy);
+  std::string path =
+      std::string("/") + ash::test::kUserAvatarImage1RelativePath;
+  std::string url = embedded_test_server()->GetURL(path).spec();
+  std::string policy =
+      base::WriteJson(test::ConstructExternalDataReference(url, image_data))
+          .value_or("");
   device_local_account_policy_.payload().mutable_useravatarimage()->set_value(
       policy);
   UploadAndInstallDeviceLocalAccountPolicy();
@@ -1632,16 +1631,16 @@ IN_PROC_BROWSER_TEST_F(DeviceLocalAccountTest, LastWindowClosedLogoutReminder) {
   EXPECT_EQ(1U, app_window_registry->app_windows().size());
 
   // Close the only open browser window.
-  BrowserList* browser_list = BrowserList::GetInstance();
+  BrowserList* const browser_list = BrowserList::GetInstance();
   EXPECT_EQ(1U, browser_list->size());
-  Browser* browser = browser_list->get(0);
+  BrowserWindowInterface* browser =
+      GetLastActiveBrowserWindowInterfaceWithAnyProfile();
   ASSERT_TRUE(browser);
-  BrowserWindow* browser_window = browser->window();
+  ui::BaseWindow* browser_window = browser->GetWindow();
   ASSERT_TRUE(browser_window);
   browser_window->Close();
-  WaitForBrowserDestruction(browser);
+  WaitForBrowserDestruction(browser->GetBrowserForMigrationOnly());
   browser_window = nullptr;
-  browser = nullptr;
   EXPECT_TRUE(browser_list->empty());
 
   // Verify that the logout confirmation dialog is not showing because an app
@@ -1649,7 +1648,7 @@ IN_PROC_BROWSER_TEST_F(DeviceLocalAccountTest, LastWindowClosedLogoutReminder) {
   EXPECT_FALSE(IsLogoutConfirmationDialogShowing());
 
   // Open a browser window.
-  Browser* first_browser = CreateBrowser(profile);
+  BrowserWindowInterface* first_browser = CreateBrowser(profile);
   EXPECT_EQ(1U, browser_list->size());
 
   // Close the app window.
@@ -1664,14 +1663,14 @@ IN_PROC_BROWSER_TEST_F(DeviceLocalAccountTest, LastWindowClosedLogoutReminder) {
   EXPECT_FALSE(IsLogoutConfirmationDialogShowing());
 
   // Open a second browser window.
-  Browser* second_browser = CreateBrowser(profile);
+  BrowserWindowInterface* second_browser = CreateBrowser(profile);
   EXPECT_EQ(2U, browser_list->size());
 
   // Close the first browser window.
-  browser_window = first_browser->window();
+  browser_window = first_browser->GetWindow();
   ASSERT_TRUE(browser_window);
   browser_window->Close();
-  WaitForBrowserDestruction(first_browser);
+  WaitForBrowserDestruction(first_browser->GetBrowserForMigrationOnly());
   browser_window = nullptr;
   first_browser = nullptr;
   EXPECT_EQ(1U, browser_list->size());
@@ -1681,10 +1680,10 @@ IN_PROC_BROWSER_TEST_F(DeviceLocalAccountTest, LastWindowClosedLogoutReminder) {
   EXPECT_FALSE(IsLogoutConfirmationDialogShowing());
 
   // Close the second browser window.
-  browser_window = second_browser->window();
+  browser_window = second_browser->GetWindow();
   ASSERT_TRUE(browser_window);
   browser_window->Close();
-  WaitForBrowserDestruction(second_browser);
+  WaitForBrowserDestruction(second_browser->GetBrowserForMigrationOnly());
   browser_window = nullptr;
   second_browser = nullptr;
   EXPECT_TRUE(browser_list->empty());
@@ -1703,10 +1702,10 @@ IN_PROC_BROWSER_TEST_F(DeviceLocalAccountTest, LastWindowClosedLogoutReminder) {
   EXPECT_EQ(1U, browser_list->size());
 
   // Close the browser window.
-  browser_window = browser->window();
+  browser_window = browser->GetWindow();
   ASSERT_TRUE(browser_window);
   browser_window->Close();
-  WaitForBrowserDestruction(browser);
+  WaitForBrowserDestruction(browser->GetBrowserForMigrationOnly());
   browser_window = nullptr;
   browser = nullptr;
   EXPECT_TRUE(browser_list->empty());
@@ -2975,8 +2974,10 @@ class AmbientAuthenticationManagedGuestSessionTest
     int policy_value = device_local_account_policy_.payload()
                            .ambientauthenticationinprivatemodesenabled()
                            .value();
-    Profile* regular_profile = GetCurrentBrowser()->profile();
-    Profile* incognito_profile =
+    EXPECT_EQ(1U, BrowserList::GetInstance()->size());
+    Profile* const regular_profile =
+        GetLastActiveBrowserWindowInterfaceWithAnyProfile()->GetProfile();
+    Profile* const incognito_profile =
         regular_profile->GetPrimaryOTRProfile(/*create_if_needed=*/true);
 
     EXPECT_TRUE(AmbientAuthenticationTestHelper::IsAmbientAuthAllowedForProfile(
@@ -2985,14 +2986,6 @@ class AmbientAuthenticationManagedGuestSessionTest
                   incognito_profile),
               AmbientAuthenticationTestHelper::IsIncognitoAllowedInPolicy(
                   policy_value));
-  }
-
-  Browser* GetCurrentBrowser() {
-    BrowserList* browser_list = BrowserList::GetInstance();
-    EXPECT_EQ(1U, browser_list->size());
-    Browser* browser = browser_list->get(0);
-    DCHECK(browser);
-    return browser;
   }
 };
 

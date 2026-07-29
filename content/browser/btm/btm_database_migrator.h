@@ -62,6 +62,14 @@ class CONTENT_EXPORT BtmDatabaseMigrator {
   // the `user_interaction` columns to be `user_activation`.
   bool MigrateSchemaVersionFrom8To9();
 
+  // Migrates from v9 to v10 of the DIPS database schema. This migration
+  // removes the `site_storage` and `stateful_bounce` columns.
+  bool MigrateSchemaVersionFrom9To10();
+
+  // Migrates from v10 to v11 of the DIPS database schema. This migration
+  // removes the rows that became empty after the v9 to v10 migration.
+  bool MigrateSchemaVersionFrom10To11();
+
   BtmDatabaseMigrator(const BtmDatabaseMigrator&) = delete;
   BtmDatabaseMigrator& operator=(const BtmDatabaseMigrator&) = delete;
 

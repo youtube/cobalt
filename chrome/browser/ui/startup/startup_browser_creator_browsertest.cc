@@ -195,11 +195,10 @@ Browser* OpenNewBrowser(Profile* profile,
   StartupBrowserCreatorImpl creator(base::FilePath(), dummy,
                                     chrome::startup::IsFirstRun::kYes);
   creator.SetCurrentChromeVersionStringForTesting(version_string_for_testing);
-  ui_test_utils::BrowserChangeObserver new_browser_observer(
-      nullptr, ui_test_utils::BrowserChangeObserver::ChangeType::kAdded);
+  ui_test_utils::BrowserCreatedObserver browser_created_observer;
   creator.Launch(profile, chrome::startup::IsProcessStartup::kNo,
                  /*restore_tabbed_browser=*/true);
-  Browser* new_browser = new_browser_observer.Wait();
+  Browser* new_browser = browser_created_observer.Wait();
   ui_test_utils::WaitUntilBrowserBecomeActive(new_browser);
   return new_browser;
 }
@@ -868,8 +867,7 @@ IN_PROC_BROWSER_TEST_P(StartupBrowserCreatorChromeAppShortcutTest,
   base::CommandLine command_line(base::CommandLine::NO_PROGRAM);
   command_line.AppendSwitchASCII(switches::kAppId, extension_app->id());
 
-  ui_test_utils::BrowserChangeObserver browser_waiter(
-      nullptr, ui_test_utils::BrowserChangeObserver::ChangeType::kAdded);
+  ui_test_utils::BrowserCreatedObserver browser_created_observer;
   ASSERT_TRUE(StartupBrowserCreator().ProcessCmdLineImpl(
       command_line, base::FilePath(), chrome::startup::IsProcessStartup::kNo,
       {browser()->profile(), StartupProfileMode::kBrowserWindow}, {}));
@@ -878,7 +876,7 @@ IN_PROC_BROWSER_TEST_P(StartupBrowserCreatorChromeAppShortcutTest,
     // Pref was set to open in a window, so the app should have opened in a
     // window.  The launch should have created a new browser. Find the new
     // browser.
-    Browser* new_browser = browser_waiter.Wait();
+    Browser* new_browser = browser_created_observer.Wait();
     ASSERT_TRUE(new_browser);
 
     // Expect an app window.
@@ -1046,8 +1044,7 @@ IN_PROC_BROWSER_TEST_P(StartupBrowserCreatorChromeAppShortcutTestWithLaunch,
   base::CommandLine command_line(base::CommandLine::NO_PROGRAM);
   command_line.AppendSwitchASCII(switches::kAppId, extension_app->id());
 
-  ui_test_utils::BrowserChangeObserver browser_waiter(
-      nullptr, ui_test_utils::BrowserChangeObserver::ChangeType::kAdded);
+  ui_test_utils::BrowserCreatedObserver browser_created_observer;
   ASSERT_TRUE(StartupBrowserCreator().ProcessCmdLineImpl(
       command_line, base::FilePath(), chrome::startup::IsProcessStartup::kNo,
       {browser()->profile(), StartupProfileMode::kBrowserWindow}, {}));
@@ -3283,10 +3280,9 @@ class StartupBrowserCreatorWasRestartedFlag : public InProcessBrowserTest,
     base::FilePath user_data_dir;
     base::PathService::Get(chrome::DIR_USER_DATA, &user_data_dir);
 
-    std::string json;
     base::Value::Dict local_state;
     local_state.SetByDottedPath(prefs::kWasRestarted, true);
-    base::JSONWriter::Write(local_state, &json);
+    std::string json = base::WriteJson(local_state).value_or("");
 
     base::FilePath local_state_path =
         user_data_dir.Append(chrome::kLocalStateFilename);
@@ -3550,13 +3546,12 @@ class StartupBrowserCreatorInfobarsWithoutStartupWindowTest
     base::CommandLine command_line(base::CommandLine::NO_PROGRAM);
     Profile* profile = ProfileManager::GetLastUsedProfileIfLoaded();
 
-    ui_test_utils::BrowserChangeObserver new_browser_observer(
-        nullptr, ui_test_utils::BrowserChangeObserver::ChangeType::kAdded);
+    ui_test_utils::BrowserCreatedObserver browser_created_observer;
     StartupBrowserCreatorImpl launch(base::FilePath(), command_line,
                                      chrome::startup::IsFirstRun::kNo);
     launch.Launch(profile, chrome::startup::IsProcessStartup::kNo,
                   /*restore_tabbed_browser=*/true);
-    Browser* new_browser = new_browser_observer.Wait();
+    Browser* new_browser = browser_created_observer.Wait();
     if (!new_browser) {
       return std::make_pair(nullptr, nullptr);
     }
@@ -4295,10 +4290,9 @@ IN_PROC_BROWSER_TEST_P(StartupBrowserCreatorPickerInfobarTest,
     profile = profile_manager->GetLastUsedProfile();
   }
 
-  ui_test_utils::BrowserChangeObserver new_browser_observer(
-      nullptr, ui_test_utils::BrowserChangeObserver::ChangeType::kAdded);
+  ui_test_utils::BrowserCreatedObserver browser_created_observer;
   OpenProfileFromPicker(profile->GetPath(), false);
-  Browser* new_browser = new_browser_observer.Wait();
+  Browser* new_browser = browser_created_observer.Wait();
   ui_test_utils::WaitUntilBrowserBecomeActive(new_browser);
   infobars::ContentInfoBarManager* infobar_manager =
       infobars::ContentInfoBarManager::FromWebContents(

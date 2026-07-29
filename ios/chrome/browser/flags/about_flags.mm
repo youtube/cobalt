@@ -174,6 +174,8 @@ const FeatureEntry::FeatureParam
 const FeatureEntry::FeatureParam kNTPMIAEntrypointEnlargedFakeboxNoIncognito[] =
     {{kNTPMIAEntrypointParam,
       kNTPMIAEntrypointParamEnlargedFakeboxNoIncognito}};
+const FeatureEntry::FeatureParam kNTPMIAEntrypointAIMInQuickActions[] = {
+    {kNTPMIAEntrypointParam, kNTPMIAEntrypointParamAIMInQuickActions}};
 
 const FeatureEntry::FeatureVariation kNTPMIAEntrypointVariations[] = {
     {"A: Contained in Omnibox, single button",
@@ -188,6 +190,17 @@ const FeatureEntry::FeatureVariation kNTPMIAEntrypointVariations[] = {
     {"D: Contained in enlarged fakebox, without incognito shortcut",
      kNTPMIAEntrypointEnlargedFakeboxNoIncognito,
      std::size(kNTPMIAEntrypointEnlargedFakeboxNoIncognito), nullptr},
+    {"E: AIM entry point in quick actions, enlarged fakebox",
+     kNTPMIAEntrypointAIMInQuickActions,
+     std::size(kNTPMIAEntrypointAIMInQuickActions), nullptr},
+};
+
+const FeatureEntry::FeatureParam kAIMPrototypeAllOmniboxEntrypoints[] = {
+    {kAIMPrototypeParam, kAIMPrototypeParamAllOmniboxEntrypoints}};
+
+const FeatureEntry::FeatureVariation kAIMPrototypeVariations[] = {
+    {"for all Omnibox entrypoints", kAIMPrototypeAllOmniboxEntrypoints,
+     std::size(kAIMPrototypeAllOmniboxEntrypoints), nullptr},
 };
 
 const FeatureEntry::FeatureParam kOmniboxUIMaxAutocompleteMatches3[] = {
@@ -1720,10 +1733,6 @@ const flags_ui::FeatureEntry kFeatureEntries[] = {
      flag_descriptions::kIOSSharedHighlightingAmpName,
      flag_descriptions::kIOSSharedHighlightingAmpDescription, flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(shared_highlighting::kSharedHighlightingAmp)},
-    {"track-by-default-mobile",
-     commerce::flag_descriptions::kTrackByDefaultOnMobileName,
-     commerce::flag_descriptions::kTrackByDefaultOnMobileDescription,
-     flags_ui::kOsIos, FEATURE_VALUE_TYPE(commerce::kTrackByDefaultOnMobile)},
     {"ntp-view-hierarchy-repair",
      flag_descriptions::kNTPViewHierarchyRepairName,
      flag_descriptions::kNTPViewHierarchyRepairDescription, flags_ui::kOsIos,
@@ -2786,7 +2795,9 @@ const flags_ui::FeatureEntry kFeatureEntries[] = {
      FEATURE_VALUE_TYPE(kDiamondPrototype)},
     {"aim-prototype-ios", flag_descriptions::kAIMPrototypeName,
      flag_descriptions::kAIMPrototypeDescription, flags_ui::kOsIos,
-     FEATURE_VALUE_TYPE(kAIMPrototype)},
+     FEATURE_WITH_PARAMS_VALUE_TYPE(kAIMPrototype,
+                                    kAIMPrototypeVariations,
+                                    "AIMPrototypeVariations")},
     {"omnibox-drs-prototype", flag_descriptions::kOmniboxDRSPrototypeName,
      flag_descriptions::kOmniboxDRSPrototypeDescription, flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(kOmniboxDRSPrototype)},
@@ -2921,6 +2932,21 @@ const flags_ui::FeatureEntry kFeatureEntries[] = {
     {"reader-mode-new-css-enabled", flag_descriptions::kReaderModeNewCssName,
      flag_descriptions::kReaderModeNewCssDescription, flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(dom_distiller::kEnableReaderModeNewCss)},
+    {"tab-grid-empty-thumbnail", flag_descriptions::kTabGridEmptyThumbnailName,
+     flag_descriptions::kTabGridEmptyThumbnailDescription, flags_ui::kOsIos,
+     FEATURE_VALUE_TYPE(kTabGridEmptyThumbnail)},
+    {"ios-app-bundle-promo-magic-stack",
+     flag_descriptions::kIOSAppBundlePromoEphemeralCardName,
+     flag_descriptions::kIOSAppBundlePromoEphemeralCardDescription,
+     flags_ui::kOsIos,
+     FEATURE_VALUE_TYPE(
+         segmentation_platform::features::kAppBundlePromoEphemeralCard)},
+    {"hide-toolbars-in-overflow-menu",
+     flag_descriptions::kHideToolbarsInOverflowMenuName,
+     flag_descriptions::kHideToolbarsInOverflowMenuDescription,
+     flags_ui::kOsIos,
+     FEATURE_VALUE_TYPE(kHideToolbarsInOverflowMenu),
+    },
 };
 
 bool SkipConditionalFeatureEntry(const flags_ui::FeatureEntry& entry) {

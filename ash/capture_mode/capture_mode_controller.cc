@@ -1042,6 +1042,12 @@ void CaptureModeController::SetUserCaptureRegion(const gfx::Rect& region,
 }
 
 bool CaptureModeController::CanShowSunfishRegionNudge() const {
+  // The nudge applies to both Sunfish and Scanner, if neither can be shown then
+  // we don't want to show the nudge either.
+  if (!CanShowSunfishOrScannerUi()) {
+    return false;
+  }
+
   auto* session_controller = Shell::Get()->session_controller();
   DCHECK(session_controller->IsActiveUserSessionStarted());
 
@@ -1691,9 +1697,9 @@ bool CaptureModeController::ShouldBlockRecordingForContentProtection(
   //     |window_being_recorded| in this case is the root window, and a
   //     protected window on this root will be a descendant.
   //   - When recording a browser window showing a page with protected content,
-  //     the |window_being_recorded| in this case is the BrowserFrame, while the
-  //     protected window will be the RenderWidgetHostViewAura, which is also a
-  //     descendant.
+  //     the |window_being_recorded| in this case is the BrowserWidget, while
+  //     the protected window will be the RenderWidgetHostViewAura, which is
+  //     also a descendant.
   for (const auto& iter : protected_windows_) {
     if (window_being_recorded->Contains(iter.first))
       return true;

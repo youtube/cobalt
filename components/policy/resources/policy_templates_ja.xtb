@@ -152,6 +152,7 @@
 <translation id="1087437665304381368">このポリシーでは、<ph name="PRODUCT_OS_NAME" /> のデベロッパー モードのみを管理します。Android 開発者向けオプションへのアクセスを禁止するには、<ph name="DEVELOPER_TOOLS_DISABLED_POLICY_NAME" /> ポリシーを設定する必要があります。</translation>
 <translation id="1087707496788636333">Chrome Enterprise ポリシーのリストは別のページに移動しました。ブックマークを <ph name="POLICY_DOCUMENTATION_URL" /> に変更してください。</translation>
 <translation id="1089150222292592899">SAML IdP ページでユーザー名を自動入力する</translation>
+<translation id="1090430607214486535">機密</translation>
 <translation id="1091765729282771296">サイトが HID デバイスへのアクセスをユーザーに要求することを許可する</translation>
 <translation id="1095209545735032039">シリアル API をブロックするサイトを指定します</translation>
 <translation id="1096105751829466145">デフォルトの検索プロバイダ</translation>
@@ -394,7 +395,7 @@
       <ph name="DEFAULT_SEARCH_PROVIDER_NAME_POLICY_NAME" /> を未設定のままにした場合、検索 URL で指定されたホスト名が使用されます。</translation>
 <translation id="1312799700549720683">ディスプレイの設定を制御します。</translation>
 <translation id="131353325527891113">ログイン画面でユーザー名を表示する</translation>
-<translation id="1317158052518324525">拡張自動入力を許可しない。</translation>
+<translation id="1317158052518324525">高精度の自動入力を許可しない。</translation>
 <translation id="1317658068839330898">ウェブでの <ph name="ASSISTANT_PRODUCT_NAME" /> の使用を許可しない</translation>
 <translation id="1318233005302276244">ユーザーが Chrome で荷物を追跡できるようにする。</translation>
 <translation id="1323501563951768821">F12 の設定で Shift 修飾キーを含むショートカットを使用する</translation>
@@ -1483,6 +1484,7 @@ accounts.google.com など一部の URL は認証に必要です。オンライ�
 
 このデバイス ポリシーは、既存のユーザー ポリシー <ph name="SECURITY_KEY_PERMIT_ATTESTATION_POLICY_NAME" /> と同じように機能しますが、ログイン画面のログイン プロファイルに適用されます。</translation>
 <translation id="2089541797660774692">管理対象ブラウザのクラウド レポートを有効にする</translation>
+<translation id="2090280024671359587">テキスト キャプチャを許可し、AI モデルを改善する。</translation>
 <translation id="2090712407517297305">グループに分類した Chrome 履歴ページを chrome://history/grouped に表示する。</translation>
 <translation id="2090939118981888335">このポリシーを有効に設定した場合、データ圧縮プロキシが許可されます。このポリシーを無効に設定した場合、プロキシは許可されません。
 
@@ -3130,7 +3132,6 @@ Microsoft Outlook カードには、追加の管理者設定が必要です。Ch
 <translation id="3285231260918855067">透かしテキストの輪郭の不透明度、0（透明）～100（不透明）。</translation>
 <translation id="3286159327013237833">ログイン画面で自動クリックを有効にする</translation>
 <translation id="3288595667065905535">リリース チャンネル</translation>
-<translation id="3291940794983537008">DevTools の生成 AI 機能の設定</translation>
 <translation id="3294430356898755483">このポリシーを設定した場合、管理者はユーザー用のプリンタのリストを設定できます。プリンタの選択は、ユーザーが初めて印刷しようとしたときに行われます。
 
       このポリシーの使用方法:
@@ -3265,6 +3266,7 @@ Microsoft Outlook カードには、追加の管理者設定が必要です。Ch
 このポリシーを未設定のままにした場合、厳格モードの常時接続 VPN が有効で接続されていないとき、ブラウザ ナビゲーションはブロックされます。</translation>
 <translation id="3405997282295704902">ユーザーに <ph name="PRODUCT_NAME" /> の使用を許可しない</translation>
 <translation id="3406122462682235653">ユーザーに確認しない（すぐにダウンロードを開始する）</translation>
+<translation id="3410534959501660670">テキスト キャプチャ機能の設定</translation>
 <translation id="3411947169047929182">WebRTC 関連の構成を制御します</translation>
 <translation id="341285788698114069">このポリシーでは、Windows での音声処理の優先度を制御できます。
       このポリシーを有効に設定した場合、音声処理は通常より高い優先度で実行されます。
@@ -3714,11 +3716,6 @@ HTTPS 用の RSA 証明書に両方を含める必要があります。</transla
 コンテンツ移行アプリが正しく機能するには、データ エクスポートを使用したデータ転送も有効にする必要があります。詳しくは、https://support.google.com/a/answer/6364687 をご覧ください。</translation>
 <translation id="3702518095257671450">リモート認証</translation>
 <translation id="3702647575225525306"><ph name="POLICY_NAME" />（1 行入力欄はサポートを終了し、今後削除する予定です。下の複数行入力欄を使用するようにしてください）。</translation>
-<translation id="3711561721191203926">このポリシーを有効に設定した場合、<ph name="PRIVATE_NETWORK_ACCESS" /> チェックの失敗により <ph name="DEV_TOOLS_NAME" /> に警告が表示されると想定されるケースでは、代わりにメイン リクエストがブロックされます。
-
-このポリシーを無効に設定するか未設定のままにした場合、<ph name="PRIVATE_NETWORK_ACCESS" /> に関する警告は一切表示されず、リクエストはブロックされません。
-
-<ph name="PRIVATE_NETWORK_ACCESS" /> の制限については、https://wicg.github.io/private-network-access/ をご覧ください。</translation>
 <translation id="3711895659073496551">停止する</translation>
 <translation id="3712861436661566358">プロファイル分離を強制適用する</translation>
 <translation id="3719826155360621982">ホームページ</translation>
@@ -4713,7 +4710,6 @@ WebSQL は M112 で削除されました。</translation>
 
       このポリシーを無効に設定するか、未設定のままにすると、登録済みデバイスは現在地を報告しません。</translation>
 <translation id="4461400898496433231">IPv6 のネットワーク到達性チェックをオーバーライドしない。デバイスがグローバル IPv6 ホストに到達可能な場合のみ、AAAA レコードをクエリしてホスト名を解決する。</translation>
-<translation id="4463467966408770621">DevTools の生成 AI 機能を許可しない。</translation>
 <translation id="4463675333222095358">クイック アンサーの単位変換を有効にする</translation>
 <translation id="4464365009416584564"><ph name="CHROME_SYNC_NAME" /> を無効にする</translation>
 <translation id="4467952432486360968">サードパーティの Cookie をブロックする</translation>
@@ -5940,6 +5936,7 @@ URL パターンと処理タイプの組み合わせのリストを指定しま�
 
 すべての処理値の詳しい説明については、RFC 8828 のセクション 5.2（https://tools.ietf.org/html/rfc8828.html#section-5.2）をご覧ください。</translation>
 <translation id="5290940294294002042">ユーザーが有効または無効にできるプラグインのリストを指定する</translation>
+<translation id="5292069729218406524">AI モデルの改善は行わずに、テキスト キャプチャを許可する。</translation>
 <translation id="5293285950307241933">すべてのローカル ユーザー データを消去する</translation>
 <translation id="5293619885162445352"><ph name="PEPPER_NAME" /> で新しい動画デコーダの使用を許可する。</translation>
 <translation id="529457411593078576">CCT の初回実行時の利用規約を有効にする</translation>
@@ -7543,23 +7540,6 @@ Origin-Agent-Cluster HTTP ヘッダーは、オリジンキー エージェン�
 <translation id="6383774771168138899"><ph name="MICROSOFT_ONE_DRIVE_NAME" /> と <ph name="MICROSOFT_365_NAME" /> の<ph name="CLOUD_UPLOAD_NAME" /> フローを設定する</translation>
 <translation id="6384542789059421431">ブラウザのサイドパネルにおけるデフォルトの検索エンジンの検索結果ページの表示を有効にします。</translation>
 <translation id="6389240462871677239">独立したウェブアプリのオリジンに Controlled Frame の使用を許可する</translation>
-<translation id="6390338862225976270"><ph name="PRODUCT_NAME" /> の DevTools のこれらの機能は、生成 AI モデルを利用して追加のデバッグ情報を提供します。これらの機能を使用するには、<ph name="PRODUCT_NAME" /> がエラー メッセージ、スタック トレース、コード スニペット、ネットワーク リクエストなどのデータを収集し、Google が所有するサーバーに送信する必要があります。そこで生成 AI モデルが実行されます。サーバーに送信されるデータには、ネットワーク リクエストのレスポンスの本文、認証および Cookie ヘッダーは含まれません。
-
-0 = この機能の使用と、Google が AI モデルを改善する目的で関連データを使用することを許可します。関連データには、機能に応じてプロンプト、入力内容、出力内容、ソース資料、フィードバックの文面などが含まれます。AI モデルを改善するため、人間のレビュアーが確認する場合もあります。以下に記載している場合を除き、0 がデフォルト値です。
-
-1 = この機能の使用を許可しますが、Google がモデルを改善する目的でユーザーのコンテンツ（プロンプト、入力内容、出力内容、ソース資料、フィードバックの文面など）を使用することは許可しません。1 は、<ph name="GOOGLE_ADMIN_CONSOLE_PRODUCT_NAME" /> で管理されている企業ユーザーと、<ph name="GOOGLE_WORKSPACE_PRODUCT_NAME" /> で管理されている教育機関向けアカウントのデフォルト値です。
-
-2 = この機能を許可しません。
-
-このポリシーを未設定のままにした場合、動作は <ph name="GEN_AI_DEFAULT_SETTINGS_POLICY_NAME" /> ポリシーによって決まります。
-
-DevTools の生成 AI 機能は次のとおりです。
-
-- Console Insights: コンソール メッセージについて説明し、コンソールのエラーの修正方法を提案します。
-
-- AI アシスタンス: CSS スタイル（バージョン 131 以降）、ネットワーク リクエスト、パフォーマンス、ファイル（すべてバージョン 132 以降）の解釈のサポートを利用します。
-
-生成 AI 機能のデータ処理について詳しくは、https://support.google.com/chrome/a?p=generative_ai_settings をご覧ください。</translation>
 <translation id="6394350458541421998">このポリシーは <ph name="PRODUCT_OS_NAME" /> バージョン 29 で廃止されました。PresentationScreenDimDelayScale ポリシーを代わりに使用してください。</translation>
 <translation id="6397588391180665797">登録済みデバイスのユーザーのネットワーク設定を報告します。
 
@@ -7967,7 +7947,7 @@ URL が <ph name="SERIAL_ASK_FOR_URLS_POLICY_NAME" /> の URL パターンと競
 <translation id="6659537776197644458">パスワード同期の認証フローをトリガーしない</translation>
 <translation id="6659877981632400997">コンテキスト メニューに、<ph name="GOOGLE_PHOTOS_PRODUCT_NAME" /> と画像を共有するためのメニュー項目を表示しない。</translation>
 <translation id="6661178198729301029">管理対象プロファイルのクラウド レポートを有効にする</translation>
-<translation id="666203515318060501">AI モデルの改善は行わずに、拡張自動入力を許可する。</translation>
+<translation id="666203515318060501">AI モデルの改善は行わずに、高精度の自動入力を許可する。</translation>
 <translation id="6665670272107384733">ロックのクイック解除機能を使用するために必要なパスワード入力の頻度を設定する</translation>
 <translation id="6667586534922258705">ログイン画面とロック画面にパスワード表示ボタンを表示する</translation>
 <translation id="6668559639284945695">このポリシーでは、Cookie のスコープを従来の動作に戻すことができます。
@@ -8074,11 +8054,6 @@ URL が <ph name="SERIAL_ASK_FOR_URLS_POLICY_NAME" /> の URL パターンと競
 
 <ph name="PRODUCT_NAME" /> の場合、このポリシーは <ph name="CLOUD_MANAGEMENT_ENROLLMENT_TOKEN" /> で登録されたマシンでのみ有効です。
 <ph name="PRODUCT_OS_NAME" /> の場合、このポリシーは常に有効です。</translation>
-<translation id="6720071484598746942">このポリシーを有効に設定した場合、<ph name="LOCAL_NETWORK_ACCCESS" /> チェックの失敗により <ph name="DEV_TOOLS_NAME" /> に警告が表示されると想定されるケースでは、代わりにメイン リクエストがブロックされます。
-
-このポリシーを無効に設定するか未設定のままにした場合、<ph name="LOCAL_NETWORK_ACCESS" /> リクエストでは、これらのリクエストのデフォルトの処理を使用します。
-
-<ph name="LOCAL_NETWORK_ACCESS" /> の制限については、https://wicg.github.io/local-network-access/ をご覧ください。</translation>
 <translation id="6720330829631914048">1 日の開始時間からの経過時間（24 時間表示）です。</translation>
 <translation id="6721252203593581486">サードパーティのコンテキスト（クロスサイト iframe など）での WebSQL は M97 の時点ではデフォルトでオフになっており、M101 では完全に削除されます。
           このポリシーを False に設定するか未設定のままにした場合、サードパーティのコンテキストでの WebSQL はオフのままになります。
@@ -9253,7 +9228,7 @@ Kyber の提供には下位互換性があります。既存の TLS サーバー
 <translation id="7657261947024629645">パフォーマンスを重視します。</translation>
 <translation id="76580522298425324">事前のユーザー操作なしでスクリーン キャプチャを許可する</translation>
 <translation id="7666228839913571182">サードパーティ Cookie を許可する</translation>
-<translation id="7666782560345386904">拡張自動入力の設定</translation>
+<translation id="7666782560345386904">高精度の自動入力の設定</translation>
 <translation id="7669630878711068277">このポリシーを有効に設定するか未設定のままにした場合、ユーザーは <ph name="PRODUCT_NAME" /> で印刷することができます。ユーザーはこの設定を変更できません。
 
       このポリシーを無効に設定した場合、ユーザーは <ph name="PRODUCT_NAME" /> から印刷できません。印刷は、その他メニュー、拡張機能、JavaScript アプリケーションで無効になります。</translation>
@@ -9326,6 +9301,7 @@ Kyber の提供には下位互換性があります。既存の TLS サーバー
 <translation id="7713608076604149344">ダウンロードの制限</translation>
 <translation id="7713845740295404764">ログイン / ログアウト イベントを報告する</translation>
 <translation id="7715711044277116530">プレゼンテーション モードで画面を暗くするまでの時間に掛ける倍率</translation>
+<translation id="7715838249298819250">テキスト キャプチャを許可しない。</translation>
 <translation id="7716020145539921591">このポリシーはサポートが終了しています。代わりに <ph name="PROXY_SETTINGS_POLICY_NAME" /> を使用してください。
 
        このポリシーでは、プロキシ サーバーの URL を指定できます。このポリシーは、<ph name="PROXY_SETTINGS_POLICY_NAME" /> ポリシーを指定せずに、<ph name="PROXY_MODE_POLICY_NAME" /> で <ph name="PROXY_MODE_ENUM_FIXED_SERVERS" /> を選択した場合のみ適用されます。
@@ -9995,6 +9971,17 @@ false に設定した場合、管理対象のネットワークに接続され�
 
       このポリシーは、通常のユーザー アカウントでは無視されます。</translation>
 <translation id="8257863622304579015">ネットワーク サービスのサンドボックスを有効にする</translation>
+<translation id="825834906982940588">このポリシーでは、<ph name="PRODUCT_OS_NAME" /> のテキスト キャプチャ機能の設定を制御します。
+
+0 = この機能の使用と、Google が AI モデルを改善する目的で関連データを使用することを許可します。関連データには、機能に応じてプロンプト、入力内容、出力内容、ソース資料、フィードバックの文面などが含まれます。AI モデルを改善するため、人間のレビュアーが確認する場合もあります。以下に記載している場合を除き、0 がデフォルト値です。
+
+1 = この機能の使用を許可しますが、Google がモデルを改善する目的でユーザーのコンテンツ（プロンプト、入力内容、出力内容、ソース資料、フィードバックの文面など）を使用することは許可しません。1 は、<ph name="GOOGLE_ADMIN_CONSOLE_PRODUCT_NAME" /> で管理されている企業ユーザーと、<ph name="GOOGLE_WORKSPACE_PRODUCT_NAME" /> で管理されている教育機関向けアカウントのデフォルト値です。
+
+2 = この機能を許可しません。
+
+このポリシーを未設定のままにした場合、動作は <ph name="GEN_AI_DEFAULT_SETTINGS_POLICY_NAME" /> ポリシーによって決まります。
+
+生成 AI 機能のデータ処理について詳しくは、https://support.google.com/chrome/a?p=generative_ai_settings をご覧ください。</translation>
 <translation id="8259375588339409826">Chromium と Google Chrome では、同じ一連のポリシーがサポートされます。このドキュメントには、リリース前のポリシー（「サポート対象」項目が <ph name="PRODUCT_NAME" /> のリリース前のバージョンであるポリシー）が含まれている可能性があります。そうしたポリシーは事前の通知なく変更または削除されることがあり、そうしたポリシーについて一切の保証（ポリシーのセキュリティやプライバシー面の性質に関する保証など）は行われません。
 
 これらのポリシーの使用目的は、組織内部の <ph name="PRODUCT_NAME" /> インスタンスの設定のみに限定されています。これらのポリシーを組織外部（一般に配布されるプログラムなど）で使用すると、不正なソフトウェアと見なされ、Google およびウィルス対策ベンダーによって不正なソフトウェアとラベル付けされる可能性があります。
@@ -10160,7 +10147,7 @@ false に設定した場合、管理対象のネットワークに接続され�
 <translation id="8331421240786531350">ローカル ネットワーク エンドポイントへのリクエストをブロックするサイトを指定する</translation>
 <translation id="8331479227794770304">スティッキー キーを有効にする</translation>
 <translation id="8332822245414537447">RSA 鍵用途の確認を無効にする</translation>
-<translation id="8333141477131859004">拡張自動入力と AI モデルの改善を許可する。</translation>
+<translation id="8333141477131859004">高精度の自動入力と AI モデルの改善を許可する。</translation>
 <translation id="8334685561819743286">ユーザーの入力時に物理キーボードの自動修正を無効にする</translation>
 <translation id="8336986243404088829">このポリシーでは、サイドチャネルのクロスプロセス メモリ攻撃を軽減するため、CPU コアのレンダラ プロセスを分離し、他のプロセスが同じコアを共有できないようにします。この軽減措置は、<ph name="MS_WIN_NAME" /> 11 24H2 以降でサポートされています。必要なスケジュール実行が OS でサポートされていない場合、このポリシーは無視されます。このポリシーによって、ハイパースレッディングを無効にした場合と同じように、負荷の高い状況でパフォーマンスが低下する可能性があります。詳しくは、https://learn.microsoft.com/en-us/windows/win32/api/winnt/ns-winnt-process_mitigation_side_channel_isolation_policy をご覧ください。
       このポリシーを有効にした場合は、レンダラ プロセスの実行中に、同じ CPU コアで他のプロセスをスケジュール実行しません。
@@ -10616,7 +10603,6 @@ URL が <ph name="SERIAL_BLOCKED_FOR_URLS_POLICY_NAME" /> の URL パターン�
       注: 使用できる変数の一覧については、https://www.chromium.org/administrators/policy-list-3/user-data-directory-variables をご覧ください。</translation>
 <translation id="8657543427358173663">Google サービスからの WebRTC イベントログの収集を許可する</translation>
 <translation id="8659843732895043951">クリップボードの使用を許可するサイトを指定する</translation>
-<translation id="8660214745436301739">DevTools の生成 AI 機能と AI モデルの改善を許可する。</translation>
 <translation id="8661297125441579970">データ移行と ARC を許可しない。</translation>
 <translation id="8661538142776716004">サイトの設定を消去する</translation>
 <translation id="8661980316738569557">ハイ コントラストを有効にする</translation>
@@ -11402,7 +11388,6 @@ URL パターンは、<ph name="WEB_PRINTING_BLOCKED_FOR_URLS_POLICY_NAME" /> �
       このポリシーを <ph name="ASSISTANT_ONBOARDING_MODE_EDUCATION" /> に設定した場合、アシスタントのオンボーディング エクスペリエンスでは EDU モードが使用されます。</translation>
 <translation id="9191821120522935133">非表示のクロスオリジン iframe のスロットリングを有効にできるようにする</translation>
 <translation id="9192220384862917760">リモート アクセスホストのカーテンを有効にする</translation>
-<translation id="9194693367692364911">AI モデルの改善を行わずに DevTools の生成 AI 機能を許可する。</translation>
 <translation id="9195766455191826480">セキュリティ ステータスを報告しない</translation>
 <translation id="9197238499850071076">デバイスでより新しいバージョンをすでに実行している場合に、<ph name="DEVICE_TARGET_VERSION_PREFIX_POLICY_NAME" /> で設定されているバージョンに戻すかどうかを指定します。
 

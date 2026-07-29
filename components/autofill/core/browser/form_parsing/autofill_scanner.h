@@ -7,11 +7,9 @@
 
 #include <stddef.h>
 
-#include <memory>
-#include <vector>
-
 #include "base/compiler_specific.h"
-#include "base/memory/raw_ptr.h"
+#include "base/containers/span.h"
+#include "base/memory/raw_span.h"
 
 namespace autofill {
 
@@ -19,9 +17,25 @@ class FormFieldData;
 
 // A helper class for parsing a stream of |FormFieldData|'s with lookahead.
 class AutofillScanner {
+ private:
+  using Iterator = base::raw_span<const FormFieldData>::const_iterator;
+
  public:
+  // The position of an AutofillScanner can be saved and restored.
+  class Position {
+   public:
+    friend bool operator==(const Position&, const Position&) = default;
+
+   private:
+    friend class AutofillScanner;
+    explicit Position(
+        base::span<const FormFieldData>::const_iterator cursor LIFETIME_BOUND)
+        : cursor_(cursor) {}
+    Iterator cursor_;
+  };
+
   explicit AutofillScanner(
-      const std::vector<raw_ptr<const FormFieldData>>& fields LIFETIME_BOUND);
+      base::span<const FormFieldData> fields LIFETIME_BOUND);
 
   AutofillScanner(const AutofillScanner&) = delete;
   AutofillScanner& operator=(const AutofillScanner&) = delete;
@@ -40,31 +54,17 @@ class AutofillScanner {
   // Returns |true| if the cursor has reached the end of the stream.
   bool IsEnd() const;
 
-  // Restores the most recently saved cursor. See also |SaveCursor()|.
-  void Rewind();
+  [[nodiscard]] Position GetPosition() const LIFETIME_BOUND;
+  void Restore(Position position);
 
-  // Repositions the cursor to the specified |index|. See also |SaveCursor()|.
-  void RewindTo(size_t index);
-
-  // Saves and returns the current cursor position. See also |Rewind()| and
-  // |RewindTo()|.
-  size_t SaveCursor();
-
-  // Returns the current cursor position.
-  size_t CursorPosition();
+  // Returns the distance since the beginning.
+  size_t GetOffset() const;
 
  private:
-  // Indicates the current position in the stream, represented as a vector.
-  std::vector<raw_ptr<const FormFieldData>>::const_iterator cursor_;
+  base::raw_span<const FormFieldData> fields_;
 
-  // The most recently saved cursor.
-  std::vector<raw_ptr<const FormFieldData>>::const_iterator saved_cursor_;
-
-  // The beginning pointer for the stream.
-  std::vector<raw_ptr<const FormFieldData>>::const_iterator begin_;
-
-  // The past-the-end pointer for the stream.
-  std::vector<raw_ptr<const FormFieldData>>::const_iterator end_;
+  // Indicates the current position in the stream.
+  Iterator cursor_;
 };
 
 }  // namespace autofill

@@ -41,7 +41,7 @@ namespace viz {
 
 namespace {
 
-gfx::ColorSpace GetColorSpaceForOzone(gfx::BufferFormat format,
+gfx::ColorSpace GetColorSpaceForOzone(SharedImageFormat format,
                                       const gfx::ColorSpace& orig_color_space) {
 #if BUILDFLAG(IS_CHROMEOS)
   // The goal here is to ensure that the hw overlay path and the compositing
@@ -65,7 +65,7 @@ gfx::ColorSpace GetColorSpaceForOzone(gfx::BufferFormat format,
   // can just the pass the color space as-is to Ozone (and we would also need to
   // change the GL path to distinguish between BT.601 and BT.709, see
   // NativePixmapEGLBinding::InitializeFromNativePixmap()).
-  if ((format == gfx::BufferFormat::YUV_420_BIPLANAR) &&
+  if ((format == MultiPlaneFormat::kNV12) &&
       (!base::FeatureList::IsEnabled(features::kVulkan) ||
        !base::FeatureList::IsEnabled(features::kDefaultANGLEVulkan) ||
        !base::FeatureList::IsEnabled(features::kVulkanFromANGLE))) {
@@ -82,8 +82,7 @@ void ConvertToOzoneOverlaySurface(
     const OverlayProcessorInterface::OutputSurfaceOverlayPlane& primary_plane,
     ui::OverlaySurfaceCandidate* ozone_candidate) {
   ozone_candidate->transform = primary_plane.transform;
-  ozone_candidate->format =
-      SinglePlaneSharedImageFormatToBufferFormat(primary_plane.format);
+  ozone_candidate->format = primary_plane.format;
   ozone_candidate->color_space = GetColorSpaceForOzone(
       ozone_candidate->format, /*orig_color_space=*/primary_plane.color_space);
   ozone_candidate->display_rect = primary_plane.display_rect;
@@ -101,7 +100,7 @@ void ConvertToOzoneOverlaySurface(
     const OverlayCandidate& overlay_candidate,
     ui::OverlaySurfaceCandidate* ozone_candidate) {
   ozone_candidate->transform = overlay_candidate.transform;
-  ozone_candidate->format = gpu::ToBufferFormat(overlay_candidate.format);
+  ozone_candidate->format = overlay_candidate.format;
   ozone_candidate->color_space =
       GetColorSpaceForOzone(ozone_candidate->format,
                             /*orig_color_space=*/overlay_candidate.color_space);
@@ -128,7 +127,7 @@ void ConvertToTiledOzoneOverlaySurface(
     const OverlayCandidate& overlay_candidate,
     ui::OverlaySurfaceCandidate* ozone_candidate) {
   ozone_candidate->transform = gfx::OVERLAY_TRANSFORM_NONE;
-  ozone_candidate->format = gfx::BufferFormat::RGBA_8888;
+  ozone_candidate->format = SinglePlaneFormat::kRGBA_8888;
   ozone_candidate->color_space =
       GetColorSpaceForOzone(ozone_candidate->format,
                             /*orig_color_space=*/overlay_candidate.color_space);
@@ -530,8 +529,10 @@ bool OverlayProcessorOzone::SetNativePixmapForCandidate(
     return false;
   }
 
-  if (is_primary && (candidate->buffer_size != native_pixmap->GetBufferSize() ||
-                     candidate->format != native_pixmap->GetBufferFormat())) {
+  if (is_primary &&
+      (candidate->buffer_size != native_pixmap->GetBufferSize() ||
+       candidate->format !=
+           GetSharedImageFormat(native_pixmap->GetBufferFormat()))) {
     // If |mailbox| corresponds to the last submitted primary plane, its
     // parameters may not match those of the current candidate due to a
     // reshape. If the size and format don't match, skip this candidate for

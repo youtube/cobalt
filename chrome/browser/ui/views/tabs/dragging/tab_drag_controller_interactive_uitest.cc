@@ -488,9 +488,10 @@ void ResizeUsingMouseEmulation(Browser* browser,
   }
 
   // Move the window.
-  auto* grab_handle_space = BrowserView::GetBrowserViewForBrowser(browser)
-                                ->tab_strip_region_view()
-                                ->reserved_grab_handle_space_for_testing();
+  auto* tab_strip_region_view = views::AsViewClass<TabStripRegionView>(
+      browser->GetBrowserView().tab_strip_view());
+  auto* grab_handle_space =
+      tab_strip_region_view->reserved_grab_handle_space_for_testing();
   auto grab_coordinates =
       ui_test_utils::GetCenterInScreenCoordinates(grab_handle_space);
   gfx::Vector2d grab_offset = {grab_coordinates.x(), grab_coordinates.y()};
@@ -665,9 +666,9 @@ bool GetIsDragged(Browser* browser) {
 // Allows making ClearNativeFocus() invoke ReleaseCapture().
 class TestDesktopBrowserFrameAura : public DESKTOP_BROWSER_FRAME_AURA {
  public:
-  TestDesktopBrowserFrameAura(BrowserFrame* browser_frame,
+  TestDesktopBrowserFrameAura(BrowserWidget* browser_widget,
                               BrowserView* browser_view)
-      : DESKTOP_BROWSER_FRAME_AURA(browser_frame, browser_view) {}
+      : DESKTOP_BROWSER_FRAME_AURA(browser_widget, browser_view) {}
   TestDesktopBrowserFrameAura(const TestDesktopBrowserFrameAura&) = delete;
   TestDesktopBrowserFrameAura& operator=(const TestDesktopBrowserFrameAura&) =
       delete;
@@ -698,9 +699,9 @@ class TestBrowserNativeWidgetFactory : public BrowserNativeWidgetFactory {
       const TestBrowserNativeWidgetFactory&) = delete;
   ~TestBrowserNativeWidgetFactory() override = default;
 
-  BrowserNativeWidget* Create(BrowserFrame* browser_frame,
+  BrowserNativeWidget* Create(BrowserWidget* browser_widget,
                               BrowserView* browser_view) override {
-    return new TestDesktopBrowserFrameAura(browser_frame, browser_view);
+    return new TestDesktopBrowserFrameAura(browser_widget, browser_view);
   }
 };
 
@@ -1812,9 +1813,11 @@ IN_PROC_BROWSER_TEST_P(DetachToBrowserTabDragControllerTest,
   const gfx::Rect bounds = browser_window->GetBoundsInScreen();
   aura::test::TestWindowDelegate masked_window_delegate;
   masked_window_delegate.set_can_focus(false);
-  std::unique_ptr<aura::Window> masked_window(
-      aura::test::CreateTestWindowWithDelegate(
-          &masked_window_delegate, 10, bounds, browser_window->parent()));
+  std::unique_ptr<aura::Window> masked_window =
+      aura::test::CreateTestWindow({.delegate = &masked_window_delegate,
+                                    .parent = browser_window->parent(),
+                                    .bounds = bounds,
+                                    .window_id = 10});
   masked_window->SetProperty(aura::client::kZOrderingKey,
                              ui::ZOrderLevel::kFloatingWindow);
   auto targeter = std::make_unique<aura::WindowTargeter>();
@@ -2867,8 +2870,7 @@ IN_PROC_BROWSER_TEST_P(DetachToBrowserTabDragControllerTest,
   TabStrip* tab_strip = GetTabStripForBrowser(browser());
   EXPECT_EQ("0 1 2 3", IDString(browser()->tab_strip_model()));
 
-  ui_test_utils::BrowserChangeObserver removed_observer(
-      nullptr, ui_test_utils::BrowserChangeObserver::ChangeType::kRemoved);
+  ui_test_utils::BrowserDestroyedObserver browser_destroyed_observer;
   // Drag the third tab out of its browser window, request to close the detached
   // tab and verify its owning window gets properly closed.
   DragTabAndNotify(
@@ -2885,8 +2887,8 @@ IN_PROC_BROWSER_TEST_P(DetachToBrowserTabDragControllerTest,
         EXPECT_TRUE(GetTabStripForBrowser(new_browser)->IsTabStripCloseable());
       }),
       2);
-  // Ensure completion of asynchronous browser closure.
-  removed_observer.Wait();
+  // Ensure completion of asynchronous browser destruction.
+  browser_destroyed_observer.Wait();
 
   // Should no longer be dragging.
   ASSERT_EQ(1u, browser_list()->size());
@@ -2921,8 +2923,7 @@ IN_PROC_BROWSER_TEST_P(DetachToBrowserTabDragControllerTest,
   tabs::TabHandle dragged_tab =
       browser()->tab_strip_model()->GetTabAtIndex(0)->GetHandle();
 
-  ui_test_utils::BrowserChangeObserver removed_observer(
-      nullptr, ui_test_utils::BrowserChangeObserver::ChangeType::kRemoved);
+  ui_test_utils::BrowserDestroyedObserver removed_observer;
   // Move to the first tab and drag it enough so that it detaches.
   DragTabAndNotify(tab_strip,
                    base::BindOnce(&PressEscapeWhileDetachedStep2, this));
@@ -3626,13 +3627,12 @@ IN_PROC_BROWSER_TEST_P(DetachToBrowserTabDragControllerTest,
   StopAnimating(tab_strip);
   EnsureFocusToTabStrip(tab_strip);
 
-  ui_test_utils::BrowserChangeObserver removed_observer(
-      nullptr, ui_test_utils::BrowserChangeObserver::ChangeType::kRemoved);
+  ui_test_utils::BrowserDestroyedObserver browser_removed_observer;
   DragToDetachGroupAndNotify(
       tab_strip, base::BindOnce(&PressEscapeWhileDetachedHeaderStep2, this),
       group);
   // Ensure completion of asynchronous browser closure.
-  removed_observer.Wait();
+  browser_removed_observer.Wait();
 
   EXPECT_FALSE(tab_strip->group_header(group)->dragging());
 
@@ -3741,13 +3741,12 @@ IN_PROC_BROWSER_TEST_P(DetachToBrowserTabDragControllerTest,
   StopAnimating(tab_strip);
   EXPECT_TRUE(model->IsGroupCollapsed(group));
 
-  ui_test_utils::BrowserChangeObserver removed_observer(
-      nullptr, ui_test_utils::BrowserChangeObserver::ChangeType::kRemoved);
+  ui_test_utils::BrowserDestroyedObserver browser_destroyed_observer;
   DragToDetachGroupAndNotify(
       tab_strip, base::BindOnce(&PressEscapeWhileDetachedHeaderStep2, this),
       group);
   // Ensure completion of asynchronous browser closure.
-  removed_observer.Wait();
+  browser_destroyed_observer.Wait();
 
   EXPECT_FALSE(tab_strip->group_header(group)->dragging());
   ASSERT_FALSE(tab_strip->GetDragContext()->IsDragSessionActive());

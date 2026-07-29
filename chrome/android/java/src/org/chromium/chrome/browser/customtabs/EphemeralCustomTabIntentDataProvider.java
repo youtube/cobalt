@@ -12,8 +12,6 @@ import android.content.Intent;
 import org.chromium.base.IntentUtils;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
-import org.chromium.chrome.browser.IntentHandler;
-import org.chromium.chrome.browser.IntentHandler.IncognitoCctCallerId;
 import org.chromium.chrome.browser.browserservices.intents.CustomButtonParams;
 
 import java.util.Collections;
@@ -54,7 +52,8 @@ public class EphemeralCustomTabIntentDataProvider extends CustomTabIntentDataPro
         return IntentUtils.safeGetBooleanExtra(intent, EXTRA_ENABLE_EPHEMERAL_BROWSING, false);
     }
 
-    public @IntentHandler.IncognitoCctCallerId int getFeatureIdForMetricsCollection() {
+    @Override
+    public @IncognitoCctCallerId int getFeatureIdForMetricsCollection() {
         return IncognitoCctCallerId.EPHEMERAL_TAB;
     }
 

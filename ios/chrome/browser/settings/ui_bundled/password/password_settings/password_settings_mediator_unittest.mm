@@ -137,15 +137,14 @@ class PasswordSettingsMediatorTest : public PlatformTest {
     TestProfileIOS::Builder builder;
     builder.AddTestingFactory(
         IOSChromeProfilePasswordStoreFactory::GetInstance(),
-        base::BindRepeating(
-            &password_manager::BuildPasswordStore<web::BrowserState,
+        base::BindOnce(
+            &password_manager::BuildPasswordStore<ProfileIOS,
                                                   TestPasswordStore>));
     builder.AddTestingFactory(
         IOSPasskeyModelFactory::GetInstance(),
-        base::BindRepeating(
-            [](web::BrowserState*) -> std::unique_ptr<KeyedService> {
-              return std::make_unique<webauthn::TestPasskeyModel>();
-            }));
+        base::BindOnce([](ProfileIOS*) -> std::unique_ptr<KeyedService> {
+          return std::make_unique<webauthn::TestPasskeyModel>();
+        }));
     profile_ = std::move(builder).Build();
 
     passkey_model_ = static_cast<webauthn::TestPasskeyModel*>(
@@ -214,7 +213,7 @@ class PasswordSettingsMediatorTest : public PlatformTest {
   web::WebTaskEnvironment task_env_;
   SyncServiceForPasswordTests sync_service_;
   affiliations::FakeAffiliationService affiliation_service_;
-  raw_ptr<webauthn::TestPasskeyModel> passkey_model_;
+  raw_ptr<webauthn::TestPasskeyModel, DanglingUntriaged> passkey_model_;
   scoped_refptr<TestPasswordStore> profile_store_;
   std::unique_ptr<SavedPasswordsPresenter> presenter_;
   std::unique_ptr<TestProfileIOS> profile_;

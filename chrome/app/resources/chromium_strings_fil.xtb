@@ -98,6 +98,7 @@ Maaaring hindi available ang ilang tampok at hindi mase-save ang mga pagbabago s
 <translation id="2185166961232948079">Chromium - Pag-sign in sa Network - <ph name="PAGE_TITLE" /></translation>
 <translation id="2190166659037789668">Error sa pagtingin kung may update: <ph name="UPDATE_CHECK_ERROR" />.</translation>
 <translation id="2199210295479376551">Alisin ang account sa Chromium</translation>
+<translation id="2210502920229141283">Manatiling mas ligtas on the go gamit ang Pinahusay na Ligtas na Pag-browse sa Chromium para sa iOS</translation>
 <translation id="2210682093923538346">Mapanganib na site. Inalis ng Chromium ang mga notification.</translation>
 <translation id="2236949375853147973">Aking Aktibidad</translation>
 <translation id="2238130810669087193">Para makuha ang iyong mga address at higit pa sa lahat ng device mo, mag-sign in sa Chromium. Mase-save ang address na ito sa iyong Google Account pagkatapos mong mag-sign in.</translation>
@@ -106,6 +107,7 @@ Maaaring hindi available ang ilang tampok at hindi mase-save ang mga pagbabago s
 <translation id="2307973900865360088">Panatilihin sa Dock</translation>
 <translation id="2313870531055795960">Sinusuri ang mga URL sa pamamagitan ng listahan ng mga hindi ligtas na site na naka-store sa Chromium. Kung susubukan ng site na nakawin ang iyong password, o kapag nag-download ka ng mapaminsalang file, posible ring magpadala ang Chromium sa Ligtas na Pag-browse ng mga URL, kabilang ang ilang content ng page.</translation>
 <translation id="2343156876103232566">Para magpadala ng numero sa iyong Android phone mula rito, mag-sign in sa Chromium sa parehong device.</translation>
+<translation id="2356070529366658676">Magtanong</translation>
 <translation id="2359808026110333948">Magpatuloy</translation>
 <translation id="2361918034042471035">Gusto ng extension na "<ph name="EXTENSION_NAME" />" na mag-sign in ka sa Chromium</translation>
 <translation id="236943522426971115">I-disable ang Pagtakbo ng Chromium sa Background para sa Mga App</translation>
@@ -156,6 +158,7 @@ Maaaring hindi available ang ilang tampok at hindi mase-save ang mga pagbabago s
 <translation id="2928420929544864228">Tapos na ang pag-install.</translation>
 <translation id="2933336679234709858">Naka-encrypt ang iyong data gamit ang passphrase mo. Ilagay ito para magamit at ma-save ang data sa Chromium sa iyong Google Account.</translation>
 <translation id="2945997411976714835">Error sa pag-install: Hindi nagsimula ang proseso ng installer.</translation>
+<translation id="2948852018303413228">Mas mabilis na makapag-sign in sa mga site gamit ang mga na-save na password para sa Chromium sa iOS</translation>
 <translation id="2970426615109535079">Pinapamahalaan ng iyong organisasyon ang Chromium</translation>
 <translation id="2977470724722393594">Napapanahon ang Chromium</translation>
 <translation id="2977506796191543575">Kung susubukan ng site na nakawin ang iyong password, o kapag nag-download ka ng mapaminsalang file, posible ring magpadala ang Chromium sa Ligtas na Pag-browse ng mga URL, kabilang ang ilang content ng page</translation>
@@ -180,6 +183,9 @@ Maaaring hindi available ang ilang tampok at hindi mase-save ang mga pagbabago s
 <translation id="3155163173539279776">Muling ilunsad ang Chromium</translation>
 <translation id="3161522574479303604">Lahat ng wika</translation>
 <translation id="3179665906251668410">Buksan ang Link sa Inco&amp;gnito Window ng Chromium</translation>
+<translation id="3183357154200327217">Nagdagdag ang ibang program sa iyong computer ng tema na posibleng magpabago sa paraan ng paggana ng Chromium.
+
+<ph name="EXTENSION_NAME" /></translation>
 <translation id="3185330573522821672">I-customize ang iyong bagong profile sa Chromium</translation>
 <translation id="3224847870593914902">Para alisin ang iyong Google Account sa Chromium, mag-sign out sa Chromium sa page na Mga Setting</translation>
 <translation id="3234316605225071811">Itatanong sa iyo ng Chromium sa ibang pagkakataon kung gusto mong gamitin ang naka-save na impormasyon para i-autofill ang mga form para sa iyo</translation>
@@ -244,6 +250,9 @@ Maaaring hindi available ang ilang tampok at hindi mase-save ang mga pagbabago s
 <translation id="4036079820698952681">Tulungang pahusayin ang Chromium sa pamamagitan ng pag-ulat sa <ph name="BEGIN_LINK" />mga kasalukuyang setting<ph name="END_LINK" /></translation>
 <translation id="4050175100176540509">May available na mahahalagang pagpapahusay sa seguridad at mga bagong feature sa pinakabagong bersyon.</translation>
 <translation id="4055805654398742145">P&amp;assword Manager</translation>
+<translation id="4061696872429826774">Nagdagdag ang ibang program sa iyong computer ng extension na posibleng magpabago sa paraan ng paggana ng Chromium.
+
+<ph name="EXTENSION_NAME" /></translation>
 <translation id="4095980151185649725">{COUNT,plural, =1{Awtomatikong isinasara ng iyong organisasyon ang Chromium kapag hindi ito nagamit nang 1 minuto. Ide-delete ang data mula sa pag-browse. Posibleng kasama rito ang history, autofill, at mga download.}one{Awtomatikong isinasara ng iyong organisasyon ang Chromium kapag hindi ito nagamit nang # minuto. Ide-delete ang data mula sa pag-browse. Posibleng kasama rito ang history, autofill, at mga download.}other{Awtomatikong isinasara ng iyong organisasyon ang Chromium kapag hindi ito nagamit nang # na minuto. Ide-delete ang data mula sa pag-browse. Posibleng kasama rito ang history, autofill, at mga download.}}</translation>
 <translation id="4118474109249235144">Incognito sa Chromium</translation>
 <translation id="4122186850977583290">Pumunta sa page na Tungkol sa Chromium</translation>
@@ -403,6 +412,9 @@ Maaaring hindi available ang ilang tampok at hindi mase-save ang mga pagbabago s
 <translation id="6174920971222007286">Posibleng mapanganib ang file na ito<ph name="LINE_BREAK" />Puwedeng suriin ng Chromium ang download na ito para sa iyo kung ibibigay mo ang password. Ipapadala sa Ligtas na Pag-browse sa Google ang impormasyon tungkol sa file, pero mananatili sa iyong device ang content ng file at ang password.</translation>
 <translation id="6182736845697986886">Hindi na-install dahil sa isang internal na error sa server ng update.</translation>
 <translation id="6183079672144801177">Tiyaking naka-sign in ka sa Chromium sa iyong <ph name="TARGET_DEVICE_NAME" /> at pagkatapos ay subukang ipadala ulit.</translation>
+<translation id="6204922163963157461">Nagdagdag ang ibang program sa iyong computer ng app na posibleng magpabago sa paraan ng paggana ng Chromium.
+
+<ph name="EXTENSION_NAME" /></translation>
 <translation id="6212496753309875659">May mas bagong bersyon ng Chromium na ang computer na ito. Kung hindi gumagana ang software, mangyaring i-uninstall ang Chromium at subukan ulit.</translation>
 <translation id="6219195342503754812">{0,plural, =0{Muli nang ilulunsad ang Chromium ngayon}=1{Muli nang ilulunsad ang Chromium sa loob ng 1 segundo}one{Muli nang ilulunsad ang Chromium sa loob ng # segundo}other{Muli nang ilulunsad ang Chromium sa loob ng # na segundo}}</translation>
 <translation id="6239161312595354541">Magtanong sa Paghahanap ng Larawan tungkol sa video na ito</translation>
@@ -552,6 +564,7 @@ Hindi mabawi ng Chromium ang iyong mga setting.</translation>
 <translation id="7888981273428720788">Itakda ang Chromium bilang iyong default</translation>
 <translation id="7934340546140346950">Awtomatikong ina-upgrade ng Chromium ang mga hindi secure na koneksyon sa HTTPS kapag posible</translation>
 <translation id="7937630085815544518">Naka-sign in ka sa Chromium bilang <ph name="USER_EMAIL_ADDRESS" />. Pakigamit ang parehong account upang mag-sign in muli.</translation>
+<translation id="7953047982688951904">I-download ang Chromium sa iyong telepono para magkaroon ng karagdagang layer ng proteksyon kapag on the go ka</translation>
 <translation id="7975919845073681630">Pangalawang pag-install ito ng Chromium at hindi ito maaaring gawing iyong default na browser.</translation>
 <translation id="7997934263947464652">Puwedeng mapinsala ng mga extension, app, at tema mula sa mga hindi kilalang source ang iyong device. Inirerekomenda ng Chromium na i-install lang ang mga ito mula sa <ph name="IDS_EXTENSION_WEB_STORE_TITLE" /></translation>
 <translation id="8004582292198964060">Browser</translation>

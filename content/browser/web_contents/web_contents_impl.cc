@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#define TODO_BASE_FEATURE_MACROS_NEED_MIGRATION
-
 #include "content/browser/web_contents/web_contents_impl.h"
 
 #include <stddef.h>
@@ -299,7 +297,7 @@ enum class CrashRepHandlingOutcome {
 constexpr auto kUpdateLoadStatesInterval = base::Milliseconds(250);
 
 // Kill switch for inner WebContents visibility updates.
-BASE_FEATURE(UpdateInnerWebContentsVisibility,
+BASE_FEATURE(kUpdateInnerWebContentsVisibility,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 using LifecycleState = RenderFrameHost::LifecycleState;
@@ -1431,7 +1429,7 @@ WebContentsImpl::WebContentsImpl(BrowserContext* browser_context)
   slow_web_preference_cache_observation_.Observe(
       SlowWebPreferenceCache::GetInstance());
   renderer_preferences_.caret_blink_interval =
-      native_theme->GetCaretBlinkInterval();
+      native_theme->caret_blink_interval();
 #if BUILDFLAG(IS_CHROMEOS)
   renderer_preferences_.use_overlay_scrollbar =
       native_theme->use_overlay_scrollbar();
@@ -2030,10 +2028,21 @@ std::vector<RenderFrameHostImpl*> WebContentsImpl::GetOutermostMainFrames() {
 
   // In the case of inner WebContents, we still allow this method to be called,
   // but the semantics of the values being returned are "outermost
-  // within this WebContents" as opposed to truly outermost. We would not expect
-  // any other outermost pages besides the primary page in the case of inner
-  // WebContents.
-  DCHECK(!GetOuterWebContents() || (result.size() == 1));
+  // within this WebContents" as opposed to truly outermost. When this method is
+  // called for an inner WebContents in a normal browser, we would not expect
+  // any other outermost pages besides the primary page.
+  //
+  // Note that for an inner WebContents in a WebUIBrowser (detectable here when
+  // the AttachUnownedInnerWebContents feature is enabled), `result.size()` may
+  // sometimes exceed 1. For example, for WebUIBrowser, when a prerendering code
+  // path is triggered, a prerender frame tree is generated, but the path to
+  // activate or discard it does not run before this point.
+  //
+  // TODO(webium): Fix prerendering and bfcache for WebUIBrowser, which are not
+  // yet fully enabled.
+  DCHECK(
+      !GetOuterWebContents() || (result.size() == 1) ||
+      base::FeatureList::IsEnabled(features::kAttachUnownedInnerWebContents));
 
   return result;
 }
@@ -11646,7 +11655,7 @@ void WebContentsImpl::OnNativeThemeUpdated(ui::NativeTheme* observed_theme) {
 
   HandleColorRelatedStateChanges();
 
-  const auto caret_blink_interval = observed_theme->GetCaretBlinkInterval();
+  const auto caret_blink_interval = observed_theme->caret_blink_interval();
 #if BUILDFLAG(IS_CHROMEOS)
   const auto use_overlay_scrollbar = observed_theme->use_overlay_scrollbar();
 #endif

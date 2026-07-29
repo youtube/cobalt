@@ -156,7 +156,7 @@ Gelişmiş Koruma, şu Chrome ayarlarını kontrol eder:
 <translation id="2677748264148917807">Çık</translation>
 <translation id="2682367912565197520">Kayıtlı yakınlaştırma seviyesini sil</translation>
 <translation id="2683434792633810741">Veriler silinip sıfırlansın mı?</translation>
-<translation id="2685514716378236873">İzin Verilmiyor</translation>
+<translation id="2685514716378236873">İzin verilmiyor</translation>
 <translation id="2713106313042589954">Kamerayı kapat</translation>
 <translation id="2717722538473713889">E-posta adresleri</translation>
 <translation id="2726059656860238749">Chrome'u çok amaçlı adres çubuğu odaklı başlatın. Böylece, düşük özellikli cihazlarda başlatma süresi kısalır.</translation>
@@ -233,7 +233,7 @@ Gelişmiş Koruma, şu Chrome ayarlarını kontrol eder:
 <translation id="3594780231884063836">Videonun sesini kapat</translation>
 <translation id="3600792891314830896">Ses çalan sitelerin sesini kapat</translation>
 <translation id="3602290021589620013">Önizleme</translation>
-<translation id="3611658447322220736">Yeni kapatılan siteler veri gönderip alma işlemini bitirebilir</translation>
+<translation id="3611658447322220736">Yeni kapatılan siteler veri gönderip alma işlemini tamamlayabilir</translation>
 <translation id="3619294456800709762">Siteler otomatik olarak pencere içinde pencere moduna girebilir</translation>
 <translation id="3628308229821498208">Önerilen aramalar</translation>
 <translation id="3641456520301071208">Siteler konum bilgimi isteyebilir</translation>
@@ -244,7 +244,7 @@ Gelişmiş Koruma, şu Chrome ayarlarını kontrol eder:
 <translation id="3697164069658504920">Bu düğme açıkken siteler USB cihazları kullanmak isteyebilir. Düğme kapalıyken siteler USB cihazları kullanamaz.</translation>
 <translation id="3703430731944883733">Feed'inizi yönetin</translation>
 <translation id="3707034683772193706">Ziyaret ettiğiniz bir site, esasen bot olmadığınızı doğrulayan az miktarda bilgiyi Chrome'a kaydedebilir</translation>
-<translation id="3708684582558000260">Kapatılan sitelerin veri gönderme veya alma işlemini bitirmesine izin verme</translation>
+<translation id="3708684582558000260">Kapatılan sitelerin veri gönderip alma işlemini tamamlamasına izin verme</translation>
 <translation id="3709818294139939629">Sitenin dosya erişimi kaldırıldı</translation>
 <translation id="3721953990244350188">Kapat ve sonraki mevcut işlemi göster</translation>
 <translation id="3744111561329211289">Arka plan senkronizasyonu</translation>
@@ -695,7 +695,7 @@ Gelişmiş Koruma, şu Chrome ayarlarını kontrol eder:
 <translation id="8926666909099850184">NFC bu cihazda kapalı. Bu özelliği <ph name="BEGIN_LINK" />Android Ayarları<ph name="END_LINK" />'nda açın.</translation>
 <translation id="8928445016601307354">NFC cihazlarda sitelerin bilgileri görmesini ve değiştirmesini engelle</translation>
 <translation id="8944485226638699751">Sınırlı</translation>
-<translation id="895054485242522631">Siteler hareket sensörleri kullanabilir</translation>
+<translation id="895054485242522631">Siteler hareket sensörlerini kullanabilir</translation>
 <translation id="8959122750345127698">Gezinme işlevine ulaşılamıyor: <ph name="URL" /></translation>
 <translation id="8990043154272859344">Tüm sitelerdeki oturumunuz kapatılacak</translation>
 <translation id="8993853206419610596">Tüm istekleri genişlet</translation>
@@ -705,6 +705,7 @@ Gelişmiş Koruma, şu Chrome ayarlarını kontrol eder:
 <translation id="9019902583201351841">Ebeveynleriniz tarafından yönetiliyor</translation>
 <translation id="902236149563113779">Siteler; oyunlar veya uyarı yönlendirmeleri gibi artırılmış gerçeklik özelliklerinin kullanılması için genellikle kamera konumunuzu izler</translation>
 <translation id="9039697262778250930">Bu sitelerdeki oturumunuz kapatılabilir</translation>
+<translation id="9065203028668620118">Düzenle</translation>
 <translation id="9074739597929991885">Bluetooth</translation>
 <translation id="9106233582039520022">Çerezler silinsin mi?</translation>
 <translation id="9109747640384633967">{PERMISSIONS_SUMMARY_MIXED,plural, =1{<ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> ve <ph name="NUM_MORE" /> tane daha}other{<ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> ve <ph name="NUM_MORE" /> tane daha}}</translation>

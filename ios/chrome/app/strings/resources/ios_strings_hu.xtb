@@ -27,6 +27,7 @@
 <translation id="1082554859195167538">Termékvélemények Önnek</translation>
 <translation id="1084365883616172403">A Facebook-bejegyzés kész.</translation>
 <translation id="1085677983426914530">A(z) <ph name="FILENAME" /> megnyitása nem sikerült</translation>
+<translation id="1086486568852410168">Keresés a Google Lens segítségével</translation>
 <translation id="1096992026380844478">A legutóbbi biztonsági mentés alapján a rendszer visszaállítja a szinkronizálási beállításokat. <ph name="BEGIN_LINK" />Tekintse át, hogy mit szinkronizálhat<ph name="END_LINK" />.</translation>
 <translation id="1103523840287552314"><ph name="LANGUAGE" /> - mindig legyen lefordítva</translation>
 <translation id="110491332089958282">Megoszthatja az oldal tartalmát a Geminivel, hogy relevánsabb válaszokat kaphasson. Amikor megoszt egy oldalt a Geminivel, az oldal teljes tartalma és URL-je elküldésre kerül a Google-nak. <ph name="BEGIN_LINK" />További információ<ph name="END_LINK" />.</translation>
@@ -647,7 +648,6 @@ A keresési előzmények törléséről a keresőmotorja útmutatójából táj�
 <translation id="3530206579861815432">Gyorsan megtalálhatja a megnyitott és a nemrégiben bezárt lapokat a szinkronizált eszközökön.</translation>
 <translation id="3530767473765895035">Fiókok kezelése ezen az eszközön…</translation>
 <translation id="3533436815740441613">Új lap</translation>
-<translation id="3533860663366814939">Nyissa meg az Automatikus kitöltés és jelszavak beállításait</translation>
 <translation id="3540141921715814660">Hozzáadás a könyvjelzőkhöz</translation>
 <translation id="3546122170015471515">Térkép-előzetesek a Google.com-on</translation>
 <translation id="3547356470684043247">Olvassa el az ügyfelek által a termékekről, a szolgáltatásokról vagy az élményekről készített értékeléseket, amelyek segítségével megalapozott döntéseket hozhat.</translation>
@@ -681,6 +681,7 @@ A keresési előzmények törléséről a keresőmotorja útmutatójából táj�
 <translation id="3695446226812920698">Tudnivalók</translation>
 <translation id="3700134753671613714">Jelentkezzen be, hogy könyvjelzőit az összes eszközén elérje.</translation>
 <translation id="3708944822379815019">{COUNT,plural, =1{{COUNT} jelszót csak erre az eszközre ment a rendszer. Ha a többi eszközén is használni szeretné, mentse Google-fiókjába ({EMAIL}).}other{{COUNT} jelszót csak erre az eszközre ment a rendszer. Ha a többi eszközén is használni szeretné őket, mentse őket Google-fiókjába ({EMAIL}).}}</translation>
+<translation id="3709621342136814217">Itt választhatja ki a betűtípust, a szövegméretet és egyebeket</translation>
 <translation id="371230970611282515">Előrejelzi a veszélyes eseményeket, és figyelmezteti Önt rájuk még a bekövetkezésük előtt.</translation>
 <translation id="372115889256123713">gyorsítótárazott fájlok</translation>
 <translation id="3725081662140949903">Ha nem szeretné, hogy mások használhassák az Ön jelszavát, nyissa meg a(z) <ph name="APP" /> alkalmazást a jelszó módosításához</translation>

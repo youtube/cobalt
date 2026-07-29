@@ -732,6 +732,12 @@ const char kInProductHelpDemoModeDescription[] =
     "an individual promotion causes that promotion but no other promotions to "
     "occur.";
 
+const char kIOSAppBundlePromoEphemeralCardName[] =
+    "Enable App Bundle Promo Magic Stack Card";
+const char kIOSAppBundlePromoEphemeralCardDescription[] =
+    "Enables showing a promotional card for the Best of Google app "
+    "bundle in the Magic Stack.";
+
 const char kIOSBrowserEditMenuMetricsName[] = "Browser edit menu metrics";
 const char kIOSBrowserEditMenuMetricsDescription[] =
     "Collect metrics for edit menu usage.";
@@ -1406,6 +1412,11 @@ const char kReaderModeNewCssName[] = "Reader mode new CSS on iOS";
 const char kReaderModeNewCssDescription[] =
     "Enables the new CSS for Reader mode on iOS.";
 
+const char kHideToolbarsInOverflowMenuName[] = "Hide Toolbars in Overflow menu";
+const char kHideToolbarsInOverflowMenuDescription[] =
+    "When enabled, adds a button in the overflow menu that force the "
+    "fullscreen mode on iOS.";
+
 const char kRefactorToolbarsSizeName[] = "Refactor toolbars size";
 const char kRefactorToolbarsSizeDescription[] =
     "When enabled, the toolbars size does not use broadcaster but observers.";
@@ -1644,6 +1655,11 @@ const char kTabGridNewTransitionsName[] = "Enable new TabGrid transitions";
 const char kTabGridNewTransitionsDescription[] =
     "When enabled, the new Tab Grid to Browser (and vice versa) transitions"
     "are used.";
+
+const char kTabGridEmptyThumbnailName[] = "Enable empty thumbnail in TabGrid";
+const char kTabGridEmptyThumbnailDescription[] =
+    "When enabled, the tab grid will show an empty thumbnail for tabs that "
+    "don't have one.";
 
 const char kTabResumptionName[] = "Enable Tab Resumption";
 const char kTabResumptionDescription[] =

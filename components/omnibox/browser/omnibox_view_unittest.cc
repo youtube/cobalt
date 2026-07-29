@@ -37,10 +37,12 @@
 #include "ui/gfx/image/image_unittest_util.h"
 #include "ui/gfx/paint_vector_icon.h"
 
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
+#if !BUILDFLAG(IS_ANDROID)
 #include "components/omnibox/browser/vector_icons.h"  // nogncheck
 #include "components/vector_icons/vector_icons.h"     // nogncheck
 #endif
+
+static_assert(!BUILDFLAG(IS_IOS));
 
 using base::ASCIIToUTF16;
 using testing::_;
@@ -113,7 +115,7 @@ class OmniboxViewPopupTest : public testing::Test {
 };
 }  // namespace
 
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
+#if !BUILDFLAG(IS_ANDROID)
 // Tests GetIcon returns the default search icon when the match is a search
 // query.
 TEST_F(OmniboxViewTest, DISABLED_GetIcon_Default) {
@@ -266,7 +268,7 @@ TEST_F(OmniboxViewPopupTest, GetIcon_IconUrl) {
   gfx::test::CheckColors(bitmap.getColor(0, 0),
                          image.GetImage().ToSkBitmap()->getColor(0, 0));
 }
-#endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
+#endif  // !BUILDFLAG(IS_ANDROID)
 
 // Tests GetStateChanges correctly determines if text was deleted.
 TEST_F(OmniboxViewTest, GetStateChanges_DeletedText) {
@@ -275,7 +277,8 @@ TEST_F(OmniboxViewTest, GetStateChanges_DeletedText) {
     auto state_before =
         TestOmniboxView::CreateState("google.com", 10, 3);  // goo[gle.com]
     auto state_after = TestOmniboxView::CreateState("goog", 4, 4);  // goog|
-    auto state_changes = view()->GetStateChanges(state_before, state_after);
+    auto state_changes =
+        TestOmniboxView::GetStateChanges(state_before, state_after);
     EXPECT_FALSE(state_changes.just_deleted_text);
   }
   {
@@ -283,7 +286,8 @@ TEST_F(OmniboxViewTest, GetStateChanges_DeletedText) {
     auto state_before =
         TestOmniboxView::CreateState("google.com", 1, 10);  // g[oogle.com]
     auto state_after = TestOmniboxView::CreateState("gi", 2, 2);  // gi|
-    auto state_changes = view()->GetStateChanges(state_before, state_after);
+    auto state_changes =
+        TestOmniboxView::GetStateChanges(state_before, state_after);
     EXPECT_FALSE(state_changes.just_deleted_text);
   }
   {
@@ -291,7 +295,8 @@ TEST_F(OmniboxViewTest, GetStateChanges_DeletedText) {
     auto state_before =
         TestOmniboxView::CreateState("google.com", 1, 10);       // g[oogle.com]
     auto state_after = TestOmniboxView::CreateState("g", 1, 1);  // g|
-    auto state_changes = view()->GetStateChanges(state_before, state_after);
+    auto state_changes =
+        TestOmniboxView::GetStateChanges(state_before, state_after);
     EXPECT_TRUE(state_changes.just_deleted_text);
   }
   {
@@ -300,7 +305,8 @@ TEST_F(OmniboxViewTest, GetStateChanges_DeletedText) {
         TestOmniboxView::CreateState("goole.com", 3, 3);  // goo|le.com
     auto state_after =
         TestOmniboxView::CreateState("google.com", 4, 4);  // goog|le.com
-    auto state_changes = view()->GetStateChanges(state_before, state_after);
+    auto state_changes =
+        TestOmniboxView::GetStateChanges(state_before, state_after);
     EXPECT_FALSE(state_changes.just_deleted_text);
   }
   {
@@ -309,7 +315,8 @@ TEST_F(OmniboxViewTest, GetStateChanges_DeletedText) {
         TestOmniboxView::CreateState("googgle.com", 5, 5);  // googg|le.com
     auto state_after =
         TestOmniboxView::CreateState("google.com", 4, 4);  // goog|le.com
-    auto state_changes = view()->GetStateChanges(state_before, state_after);
+    auto state_changes =
+        TestOmniboxView::GetStateChanges(state_before, state_after);
     EXPECT_TRUE(state_changes.just_deleted_text);
   }
   {
@@ -318,7 +325,8 @@ TEST_F(OmniboxViewTest, GetStateChanges_DeletedText) {
         TestOmniboxView::CreateState("goojle.com", 3, 4);  // goo[j]le.com
     auto state_after =
         TestOmniboxView::CreateState("google.com", 4, 4);  // goog|le.com
-    auto state_changes = view()->GetStateChanges(state_before, state_after);
+    auto state_changes =
+        TestOmniboxView::GetStateChanges(state_before, state_after);
     EXPECT_FALSE(state_changes.just_deleted_text);
   }
 }

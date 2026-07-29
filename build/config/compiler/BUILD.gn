@@ -6,6 +6,7 @@ import("//build/buildflag_header.gni")
 import("//build/config/android/config.gni")
 import("//build/config/c++/c++.gni")
 import("//build/config/c++/modules.gni")
+import("//build/config/cast.gni")
 import("//build/config/chrome_build.gni")
 import("//build/config/chromeos/args.gni")
 import("//build/config/clang/clang.gni")
@@ -268,7 +269,7 @@ assert(!(llvm_force_head_revision && use_remoteexec && host_os != "linux"),
 # Since this is referenced both when passing the file and when deciding which
 # warnings to enable, store it in a separate variable here.
 use_clang_warning_suppression_file =
-    !llvm_android_mainline && is_clang && clang_warning_suppression_file != ""
+    is_clang && clang_warning_suppression_file != ""
 
 # default_include_dirs ---------------------------------------------------------
 #
@@ -659,9 +660,7 @@ config("compiler") {
 
     # TODO(crbug.com/40283598): This causes binary size growth and potentially
     # other problems.
-    # TODO(crbug.com/40284925): This isn't supported by Cronet's mainline llvm version.
-    if (default_toolchain != "//build/toolchain/cros:target" &&
-        !llvm_android_mainline) {
+    if (default_toolchain != "//build/toolchain/cros:target") {
       cflags += [
         "-mllvm",
         "-split-threshold-for-reg-with-hint=0",
@@ -686,8 +685,7 @@ config("compiler") {
     # TODO(crbug.com/376278218): This causes segfault on Linux ARM builds.
     # It also causes segfault on Linux s390x:
     # https://github.com/llvm/llvm-project/issues/149511
-    if (is_linux && use_lld && !llvm_android_mainline && current_cpu != "arm" &&
-        current_cpu != "s390x") {
+    if (is_linux && use_lld && current_cpu != "arm" && current_cpu != "s390x") {
       cflags += [ "-Wa,--crel,--allow-experimental-crel" ]
     }
   }
@@ -2001,8 +1999,6 @@ config("tot_warnings") {
   # Entries should generally require both is_clang and llvm_force_head_revision,
   # but may have additional constraints as well (e.g. only some OSes)
   if (is_clang && llvm_force_head_revision) {
-    # TODO(crbug.com/432275627): Fix and re-enable.
-    cflags += [ "-Wno-uninitialized-const-pointer" ]
   }
 }
 
@@ -2132,6 +2128,9 @@ config("default_warnings") {
 
       # TODO(crbug.com/376641662): Fix and re-enable.
       "-Wno-nontrivial-memcall",
+
+      # TODO(crbug.com/432275627): Fix and re-enable.
+      "-Wno-uninitialized-const-pointer",
     ]
 
     cflags_cc += [
@@ -2163,7 +2162,7 @@ config("default_warnings") {
       ]
     }
 
-    if (is_component_build && use_clang_warning_suppression_file && !is_win) {
+    if (is_component_build && use_clang_warning_suppression_file) {
       # Warn for globally unique objects which might get duplicated if built
       # into different components, due to hidden visibility. Only applicable
       # to component builds.
@@ -2185,17 +2184,6 @@ config("default_warnings") {
       # other issues if the versions are incompatible.
       cflags += [ "-Wno-version-check" ]
       ldflags += [ "-Wno-version-check" ]
-    }
-
-    # Some builders, such as Cronet, use a different version of Clang than
-    # Chromium. This can cause minor errors when compiling Chromium changes. We
-    # want to avoid these errors.
-    if (llvm_android_mainline) {
-      cflags += [
-        "-Wno-error=unknown-warning-option",
-        "-Wno-error=unused-command-line-argument",
-        "-Wno-error=unknown-pragmas",
-      ]
     }
 
     # Disable the GNU line marker warning when building a target with Icecc,
@@ -2750,7 +2738,7 @@ config("optimize") {
     # -Os in clang is more of a size-conscious -O2 than "size at any cost"
     # (AKA -Oz).
 
-    if (is_fuchsia) {
+    if (is_fuchsia || enable_cast_receiver) {
       cflags = [ "-Oz" ] + common_optimize_on_cflags
     } else {
       cflags = [ "-Os" ] + common_optimize_on_cflags

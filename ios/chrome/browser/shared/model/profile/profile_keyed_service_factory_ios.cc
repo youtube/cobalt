@@ -8,21 +8,22 @@
 #include "ios/chrome/browser/shared/model/profile/profile_dependency_manager_ios.h"
 #include "ios/chrome/browser/shared/model/profile/profile_ios.h"
 #include "ios/chrome/browser/shared/model/profile/profile_keyed_service_utils.h"
+#include "ios/chrome/browser/shared/model/profile/refcounted_profile_keyed_service_factory_ios.h"
 
 namespace {
 
 // Wraps `testing_factory` as a KeyedServiceFactory::TestingFactory.
-template <typename T>
 base::OnceCallback<std::unique_ptr<KeyedService>(void*)> WrapFactory(
-    base::OnceCallback<std::unique_ptr<KeyedService>(T*)> testing_factory) {
+    ProfileKeyedServiceFactoryIOS::TestingFactory testing_factory) {
   if (!testing_factory) {
     return {};
   }
 
   return base::BindOnce(
-      [](base::OnceCallback<std::unique_ptr<KeyedService>(T*)> testing_factory,
+      [](ProfileKeyedServiceFactoryIOS::TestingFactory testing_factory,
          void* context) -> std::unique_ptr<KeyedService> {
-        return std::move(testing_factory).Run(static_cast<T*>(context));
+        return std::move(testing_factory)
+            .Run(static_cast<ProfileIOS*>(context));
       },
       std::move(testing_factory));
 }
@@ -30,16 +31,9 @@ base::OnceCallback<std::unique_ptr<KeyedService>(void*)> WrapFactory(
 }  // namespace
 
 void ProfileKeyedServiceFactoryIOS::SetTestingFactory(
+    PassKey pass_key,
     ProfileIOS* profile,
-    ProfileTestingFactory testing_factory) {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  KeyedServiceFactory::SetTestingFactory(
-      profile, WrapFactory(std::move(testing_factory)));
-}
-
-void ProfileKeyedServiceFactoryIOS::SetTestingFactory(
-    ProfileIOS* profile,
-    LegacyTestingFactory testing_factory) {
+    TestingFactory testing_factory) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   KeyedServiceFactory::SetTestingFactory(
       profile, WrapFactory(std::move(testing_factory)));
@@ -51,25 +45,23 @@ void ProfileKeyedServiceFactoryIOS::RegisterProfilePrefs(
   // Nothing to do.
 }
 
-std::unique_ptr<KeyedService>
-ProfileKeyedServiceFactoryIOS::BuildServiceInstanceFor(
-    ProfileIOS* profile) const {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  return BuildServiceInstanceFor(static_cast<web::BrowserState*>(profile));
-}
-
-std::unique_ptr<KeyedService>
-ProfileKeyedServiceFactoryIOS::BuildServiceInstanceFor(
-    web::BrowserState* context) const {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  return nullptr;
-}
-
 KeyedService* ProfileKeyedServiceFactoryIOS::GetServiceForProfile(
     ProfileIOS* profile,
     bool create) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   return GetServiceForContext(profile, create);
+}
+
+void ProfileKeyedServiceFactoryIOS::DependsOn(
+    ProfileKeyedServiceFactoryIOS* other) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  KeyedServiceFactory::DependsOn(other);
+}
+
+void ProfileKeyedServiceFactoryIOS::DependsOn(
+    RefcountedProfileKeyedServiceFactoryIOS* other) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  KeyedServiceFactory::DependsOn(other);
 }
 
 void* ProfileKeyedServiceFactoryIOS::GetContextToUse(void* context) const {

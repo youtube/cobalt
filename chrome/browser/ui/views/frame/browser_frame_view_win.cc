@@ -63,12 +63,11 @@ HICON BrowserFrameViewWin::throbber_icons_
 
 namespace {
 
-// When enabled, a call to BrowserFrame::GetMinimizeButtonOffset() is avoided
+// When enabled, a call to BrowserWidget::GetMinimizeButtonOffset() is avoided
 // when not needed. Behind a feature to assess impact
 // (go/chrome-performance-work-should-be-finched).
 // TODO(crbug.com/40897031): Clean up when experiment is complete.
 BASE_FEATURE(kAvoidUnnecessaryGetMinimizeButtonOffset,
-             "AvoidUnnecessaryGetMinimizeButtonOffset",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Converts the |image| to a Windows icon and returns the corresponding HICON
@@ -96,9 +95,9 @@ constexpr int kIconTitleSpacing = 5;
 ///////////////////////////////////////////////////////////////////////////////
 // BrowserFrameViewWin, public:
 
-BrowserFrameViewWin::BrowserFrameViewWin(BrowserFrame* frame,
+BrowserFrameViewWin::BrowserFrameViewWin(BrowserWidget* frame,
                                          BrowserView* browser_view)
-    : BrowserNonClientFrameView(frame, browser_view) {
+    : BrowserFrameView(frame, browser_view) {
   // We initialize all fields despite some of them being unused in some modes,
   // since it's possible for modes to flip dynamically (e.g. if the user enables
   // a high-contrast theme). Throbber icons are only used when ShowSystemIcon()
@@ -146,7 +145,7 @@ BrowserFrameViewWin::BrowserFrameViewWin(BrowserFrame* frame,
 BrowserFrameViewWin::~BrowserFrameViewWin() = default;
 
 ///////////////////////////////////////////////////////////////////////////////
-// BrowserFrameViewWin, BrowserNonClientFrameView implementation:
+// BrowserFrameViewWin, BrowserFrameView implementation:
 
 BrowserLayoutParams BrowserFrameViewWin::GetBrowserLayoutParams() const {
   BrowserLayoutParams params;
@@ -270,11 +269,11 @@ BrowserFrameViewWin::GetCaptionButtonBounds() const {
 }
 
 void BrowserFrameViewWin::PaintAsActiveChanged() {
-  BrowserNonClientFrameView::PaintAsActiveChanged();
+  BrowserFrameView::PaintAsActiveChanged();
 
   // When window controls overlay is enabled, the caption button container is
   // painted to a layer and is not repainted by
-  // BrowserNonClientFrameView::PaintAsActiveChanged. Schedule a re-paint here
+  // BrowserFrameView::PaintAsActiveChanged. Schedule a re-paint here
   // to update the caption button colors.
   if (caption_button_container_->layer()) {
     caption_button_container_->SchedulePaint();
@@ -309,7 +308,7 @@ gfx::Rect BrowserFrameViewWin::GetWindowBoundsForClientBounds(
 }
 
 int BrowserFrameViewWin::NonClientHitTest(const gfx::Point& point) {
-  int super_component = BrowserNonClientFrameView::NonClientHitTest(point);
+  int super_component = BrowserFrameView::NonClientHitTest(point);
   if (super_component != HTNOWHERE) {
     return super_component;
   }
@@ -430,12 +429,12 @@ void BrowserFrameViewWin::UpdateWindowTitle() {
 }
 
 void BrowserFrameViewWin::ResetWindowControls() {
-  BrowserNonClientFrameView::ResetWindowControls();
+  BrowserFrameView::ResetWindowControls();
   caption_button_container_->ResetWindowControls();
 }
 
 void BrowserFrameViewWin::OnThemeChanged() {
-  BrowserNonClientFrameView::OnThemeChanged();
+  BrowserFrameView::OnThemeChanged();
   if (!ShouldBrowserCustomDrawTitlebar(browser_view())) {
     SetSystemMicaTitlebarAttributes();
   }
@@ -487,7 +486,7 @@ void BrowserFrameViewWin::Layout(PassKey) {
     LayoutTitleBar();
   }
   LayoutClientView();
-  LayoutSuperclass<BrowserNonClientFrameView>(this);
+  LayoutSuperclass<BrowserFrameView>(this);
 }
 
 ///////////////////////////////////////////////////////////////////////////////

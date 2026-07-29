@@ -69,6 +69,7 @@
 #include "third_party/blink/public/common/privacy_budget/identifiability_study_settings.h"
 #include "third_party/blink/public/common/thread_safe_browser_interface_broker_proxy.h"
 #include "third_party/blink/public/mojom/css/preferred_color_scheme.mojom-blink.h"
+#include "third_party/blink/public/mojom/css/preferred_contrast.mojom-blink.h"
 #include "third_party/blink/public/mojom/frame/frame.mojom-blink.h"
 #include "third_party/blink/public/mojom/input/focus_type.mojom-blink.h"
 #include "third_party/blink/public/mojom/manifest/display_mode.mojom-blink-forward.h"
@@ -330,6 +331,7 @@
 #include "third_party/blink/renderer/core/resize_observer/resize_observer_controller.h"
 #include "third_party/blink/renderer/core/resize_observer/resize_observer_entry.h"
 #include "third_party/blink/renderer/core/resize_observer/resize_observer_size.h"
+#include "third_party/blink/renderer/core/route_matching/route_map.h"
 #include "third_party/blink/renderer/core/sanitizer/sanitizer_api.h"
 #include "third_party/blink/renderer/core/script/detect_javascript_frameworks.h"
 #include "third_party/blink/renderer/core/script/script_runner.h"
@@ -1613,7 +1615,7 @@ Element* Document::CreateElement(const QualifiedName& q_name,
   }
 
   if (definition) {
-    return definition->CreateElement(*this, q_name, flags, registry);
+    return definition->CreateElement(*this, q_name, flags);
   }
 
   return CustomElement::CreateUncustomizedOrUndefinedElement(
@@ -2986,6 +2988,11 @@ DocumentPartRoot& Document::EnsureDocumentPartRoot() {
     document_part_root_ = MakeGarbageCollected<DocumentPartRoot>(*this);
   }
   return *document_part_root_;
+}
+
+RouteMap* Document::routeMap() {
+  DCHECK(RuntimeEnabledFeatures::RouteMatchingEnabled());
+  return &RouteMap::Ensure(*this);
 }
 
 void Document::ApplyScrollRestorationLogic() {
@@ -4374,8 +4381,7 @@ void Document::CheckCompleted() {
 }
 
 void Document::FetchDictionaryFromLinkHeader() {
-  if (!CompressionDictionaryTransportFullyEnabled(GetExecutionContext()) ||
-      !Loader()) {
+  if (!Loader()) {
     return;
   }
   Loader()->DispatchLinkHeaderPreloads(
@@ -8061,6 +8067,8 @@ void Document::FinishedParsing() {
     // Record the total taken time by UseCounter.
     Loader()->GetUseCounter().ReportTotalTakenTime(GetFrame(),
                                                    /*did_commit_load=*/false);
+    // Record the total taken time by subresource load observer update.
+    Loader()->ReportTotalTakenTimeToUpdateSubresourceLoadMetrics();
   }
 }
 
@@ -9609,6 +9617,10 @@ bool Document::IsScriptBlockedUntilPrerenderActivation() const {
 
 mojom::blink::PreferredColorScheme Document::GetPreferredColorScheme() const {
   return GetStyleEngine().GetPreferredColorScheme();
+}
+
+mojom::blink::PreferredContrast Document::GetPreferredContrast() const {
+  return GetStyleEngine().GetPreferredContrast();
 }
 
 void Document::ColorSchemeChanged() {

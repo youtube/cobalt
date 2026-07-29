@@ -176,15 +176,15 @@ class PDFiumEngine : public DocumentLoader::Client,
     // Parameters for the view. Their meaning depends on the `view` and their
     // number is defined by `num_params` but is at most `kMaxViewParams`. Note:
     // If a parameter stands for the x/y coordinates, it should be transformed
-    // into the corresponding in-screen coordinates before it's sent to the
+    // into the corresponding screen coordinates before it's sent to the
     // viewport.
     std::array<float, kMaxViewParams> params;
 
     // A string of parameters for view fit type XYZ in the format of "x,y,zoom",
-    // where x and y parameters are the in-screen coordinates and zoom is the
-    // zoom level. If a parameter is "null", then current value of that
-    // parameter in the viewport should be retained. Note: This string is empty
-    // if the view's fit type is not XYZ.
+    // where x and y parameters are the screen coordinates and zoom is the zoom
+    // level. If a parameter is "null", then current value of that parameter in
+    // the viewport should be retained. Note: This string is empty if the view's
+    // fit type is not XYZ.
     std::string xyz_params;
   };
 
@@ -671,8 +671,10 @@ class PDFiumEngine : public DocumentLoader::Client,
     PDFiumPage::Area area = PDFiumPage::NONSELECTABLE_AREA;
     int page_index = -1;
     int char_index = -1;
+    PdfRect char_bounds;
     int form_type = FPDF_FORMFIELD_UNKNOWN;
     PDFiumPage::LinkTarget target;
+    gfx::PointF pdf_point;
   };
 
   friend class FormFillerTest;
@@ -817,7 +819,7 @@ class PDFiumEngine : public DocumentLoader::Client,
   ui::mojom::CursorType DetermineCursorType(PDFiumPage::Area area,
                                             int form_type) const;
 
-  bool ExtendSelection(int page_index, int char_index);
+  bool ExtendSelection(const PointData& point_data);
 
   std::vector<uint8_t> PrintPagesAsRasterPdf(
       base::span<const int> page_indices,
@@ -832,6 +834,7 @@ class PDFiumEngine : public DocumentLoader::Client,
   void SetFormSelectedText(FPDF_FORMHANDLE form_handle, FPDF_PAGE page);
 
   // Returns information about `point` and the objects at that point.
+  // `point` is in device coordinates.
   PointData GetPointData(const gfx::PointF& point);
 
   void OnSingleClick(int page_index, int char_index);
@@ -917,12 +920,9 @@ class PDFiumEngine : public DocumentLoader::Client,
                  SkColor color,
                  std::vector<gfx::Rect>& highlighted_rects) const;
 
-  // Helper function to convert device coordinates to page coordinates.  If the
-  // page is not yet loaded, `page_x` and `page_y` will be set to 0.
-  void DeviceToPage(int page_index,
-                    const gfx::PointF& device_point,
-                    double* page_x,
-                    double* page_y);
+  // Helper function to convert device coordinates to PDF coordinates.  If the
+  // page is not yet loaded, returns (0, 0).
+  gfx::PointF DeviceToPdf(int page_index, const gfx::PointF& device_point);
 
   // Helper function to convert device coordinates to screen coordinates.
   // Normalizes `device_point` based on `position_` and `current_zoom_`.
@@ -1146,11 +1146,9 @@ class PDFiumEngine : public DocumentLoader::Client,
   // True if left mouse button is currently being held down.
   bool mouse_left_button_down_ = false;
 
-  // True if middle mouse button is currently being held down.
-  bool mouse_middle_button_down_ = false;
-
-  // Last known position while performing middle mouse button pan.
-  gfx::PointF mouse_middle_button_last_position_;
+  // Last known position while performing middle mouse button pan, or
+  // std::nullopt if the middle mouse button is currently not held down.
+  std::optional<gfx::PointF> mouse_middle_button_last_position_;
 
   // The current text used for searching.
   std::u16string current_find_text_;

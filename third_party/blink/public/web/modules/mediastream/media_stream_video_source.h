@@ -48,8 +48,7 @@ class VideoTrackAdapterSettings;
 // for screen content capture, e.g. getDisplayMedia.
 // `deliver_frame_cb` is called when a new video frame is available.
 // `frame_dropped_cb` is called when a video frame is dropped.
-// `sub_capture_target_version_cb` is called when the sub-capture target
-// version is updated.
+// `capture_version_cb` is called when the capture version is updated.
 // `encoded_frame_cb` is called when an encoded video frame is available.
 // `settings_cb` is called when the video track settings are updated.
 // `format_cb` is called when the video track format is updated.
@@ -57,7 +56,7 @@ class VideoTrackAdapterSettings;
 struct MediaStreamVideoSourceCallbacks {
   VideoCaptureDeliverFrameCB deliver_frame_cb;
   VideoCaptureNotifyFrameDroppedCB frame_dropped_cb;
-  VideoCaptureSubCaptureTargetVersionCB sub_capture_target_version_cb;
+  VideoCaptureVersionCB capture_version_cb;
   EncodedVideoFrameCB encoded_frame_cb;
   VideoTrackSettingsCallback settings_cb;
   VideoTrackFormatCallback format_cb;
@@ -214,6 +213,10 @@ class BLINK_MODULES_EXPORT MediaStreamVideoSource
       base::OnceCallback<void(media::mojom::ApplySubCaptureTargetResult)>
           callback);
 
+  // Returns the current capture-version (See media::CaptureVersion's
+  // documentation for details.)
+  virtual media::CaptureVersion GetCaptureVersion() const;
+
   // If a new |sub_capture_target_version| can be assigned, returns it.
   // Otherwise, returns nullopt. (Can happen if the source does not support
   // cropping/restriction, or if a change of target is not possible at this
@@ -225,16 +228,8 @@ class BLINK_MODULES_EXPORT MediaStreamVideoSource
   // TODO(crbug.com/1332628): Make the sub-capture-target-version an
   // implementation detail that is not exposed to the entity
   // calling ApplySubCaptureTarget().
+  // TODO(crbug.com/394794490): Replace with GetNextCaptureVersion().
   virtual std::optional<uint32_t> GetNextSubCaptureTargetVersion();
-
-  // Returns the current sub-capture-target version.
-  // For an explanation of what a |sub_capture_target_version| is,
-  // see ApplySubCaptureTarget().
-  // The initial sub-capture-target version is zero. On platforms where cropping
-  // and restriction are not supported (Android), and for sources that don't
-  // support cropping and restriction (audio), the sub-capture-target version
-  // never goes over 0.
-  virtual uint32_t GetSubCaptureTargetVersion() const;
 
   // Notifies the source about that the number of encoded sinks have been
   // updated. Note: Can only be called if the number of encoded sinks have
@@ -278,10 +273,10 @@ class BLINK_MODULES_EXPORT MediaStreamVideoSource
   // * |media_stream_callbacks.deliver_frame_cb| with the captured frames.
   // * |media_stream_callbacks.encoded_frame_cb| with encoded frames if
   //    supported and enabled via OnEncodedSinkEnabled.
-  // * |media_stream_callbacks.sub_capture_target_version_cb| whenever it is
+  // * |media_stream_callbacks.capture_version_cb| whenever it is
   //    guaranteed that all subsequent frames that
   // * |media_stream_callbacks.deliver_frame_cb| will be called for, will have
-  //    either the given sub-capture-target version or higher.
+  //    either the given capture version or higher.
   // * |media_stream_callbacks.frame_dropped_cb| will be called when a frame was
   //    dropped prior to delivery (i.e.
   //   |media_stream_callbacks.deliver_frame_cb| was not called for this frame).

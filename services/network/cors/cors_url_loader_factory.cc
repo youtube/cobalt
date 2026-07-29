@@ -8,6 +8,7 @@
 #include <utility>
 
 #include "base/debug/crash_logging.h"
+#include "base/debug/dump_without_crashing.h"
 #include "base/functional/bind.h"
 #include "base/logging.h"
 #include "base/metrics/histogram_macros.h"
@@ -131,6 +132,16 @@ bool IsTrustedNavigationRequestFromSecureContext(
     return IsUrlPotentiallyTrustworthy(request.url);
   }
   return request.trusted_params->client_security_state->is_web_secure_context;
+}
+
+// TODO(crbug.com/443182219): Remove this after the investigation is done.
+void DumpWithoutCrashingIfPrefetch(const ResourceRequest& request,
+                                   const base::Location& location) {
+  if (request.load_flags & net::LOAD_PREFETCH) {
+    SCOPED_CRASH_KEY_NUMBER("crbug443182219", "line_number",
+                            location.line_number());
+    base::debug::DumpWithoutCrashing();
+  }
 }
 
 }  // namespace
@@ -588,6 +599,7 @@ bool CorsURLLoaderFactory::IsValidRequest(const ResourceRequest& request,
   if (request.url.SchemeIs(url::kDataScheme)) {
     LOG(WARNING) << "CorsURLLoaderFactory doesn't support `data` scheme.";
     mojo::ReportBadMessage("CorsURLLoaderFactory: data: URL is not supported.");
+    DumpWithoutCrashingIfPrefetch(request, FROM_HERE);
     return false;
   }
 
@@ -599,6 +611,7 @@ bool CorsURLLoaderFactory::IsValidRequest(const ResourceRequest& request,
     LOG(WARNING) << "`mode` is " << request.mode
                  << ", but `request_initiator` is not set.";
     mojo::ReportBadMessage("CorsURLLoaderFactory: cors without initiator");
+    DumpWithoutCrashingIfPrefetch(request, FROM_HERE);
     return false;
   }
 
@@ -608,6 +621,7 @@ bool CorsURLLoaderFactory::IsValidRequest(const ResourceRequest& request,
       (net::LOAD_CAN_USE_SHARED_DICTIONARY |
        net::LOAD_DISABLE_SHARED_DICTIONARY_AFTER_CROSS_ORIGIN_REDIRECT)) {
     mojo::ReportBadMessage("CorsURLLoaderFactory: Internal load flag received");
+    DumpWithoutCrashingIfPrefetch(request, FROM_HERE);
     return false;
   }
 
@@ -617,6 +631,7 @@ bool CorsURLLoaderFactory::IsValidRequest(const ResourceRequest& request,
     if (request.trusted_params) {
       mojo::ReportBadMessage(
           "CorsURLLoaderFactory: Untrusted caller making trusted request");
+      DumpWithoutCrashingIfPrefetch(request, FROM_HERE);
       return false;
     }
 
@@ -630,6 +645,7 @@ bool CorsURLLoaderFactory::IsValidRequest(const ResourceRequest& request,
           net::LOAD_RESTRICTED_PREFETCH_FOR_MAIN_FRAME)) {
       mojo::ReportBadMessage(
           "CorsURLLoaderFactory: Untrusted caller using restricted load flag");
+      DumpWithoutCrashingIfPrefetch(request, FROM_HERE);
       return false;
     }
   }
@@ -647,6 +663,7 @@ bool CorsURLLoaderFactory::IsValidRequest(const ResourceRequest& request,
         "CorsURLLoaderFactory: Request with "
         "LOAD_RESTRICTED_PREFETCH_FOR_MAIN_FRAME flag is "
         "not trusted");
+    DumpWithoutCrashingIfPrefetch(request, FROM_HERE);
     return false;
   }
 
@@ -659,6 +676,7 @@ bool CorsURLLoaderFactory::IsValidRequest(const ResourceRequest& request,
     mojo::ReportBadMessage(
         "CorsURLLoaderFactory: original_destination is unexpectedly set to "
         "kDocument");
+    DumpWithoutCrashingIfPrefetch(request, FROM_HERE);
     return false;
   }
 
@@ -669,6 +687,7 @@ bool CorsURLLoaderFactory::IsValidRequest(const ResourceRequest& request,
     mojo::ReportBadMessage(
         "CorsURLLoaderFactory: navigation redirect chain set for a "
         "non-navigation");
+    DumpWithoutCrashingIfPrefetch(request, FROM_HERE);
     return false;
   }
 
@@ -679,6 +698,7 @@ bool CorsURLLoaderFactory::IsValidRequest(const ResourceRequest& request,
     mojo::ReportBadMessage(
         "CorsURLLoaderFactory: all requests in this context must be "
         "cross-site");
+    DumpWithoutCrashingIfPrefetch(request, FROM_HERE);
     return false;
   }
 
@@ -717,6 +737,7 @@ bool CorsURLLoaderFactory::IsValidRequest(const ResourceRequest& request,
           mojo::ReportBadMessage(
               "CorsURLLoaderFactory: navigate from non-browser-process with "
               "redirect_mode set to 'follow'");
+          DumpWithoutCrashingIfPrefetch(request, FROM_HERE);
           return false;
         }
 
@@ -726,6 +747,7 @@ bool CorsURLLoaderFactory::IsValidRequest(const ResourceRequest& request,
           mojo::ReportBadMessage(
               "CorsURLLoaderFactory: navigate from non-browser-process without "
               "a redirect chain provided");
+          DumpWithoutCrashingIfPrefetch(request, FROM_HERE);
           return false;
         }
 
@@ -774,17 +796,20 @@ bool CorsURLLoaderFactory::IsValidRequest(const ResourceRequest& request,
           base::OptionalToPtr(request_initiator_origin_lock_));
       mojo::ReportBadMessage(
           "CorsURLLoaderFactory: lock VS initiator mismatch");
+      DumpWithoutCrashingIfPrefetch(request, FROM_HERE);
       return false;
   }
 
   if (!GetAllowAnyCorsExemptHeaderForBrowser() &&
       !IsValidCorsExemptHeaders(*context_->cors_exempt_header_list(),
                                 request.cors_exempt_headers)) {
+    DumpWithoutCrashingIfPrefetch(request, FROM_HERE);
     return false;
   }
 
   if (!AreRequestHeadersSafe(request.headers) ||
       !AreRequestHeadersSafe(request.cors_exempt_headers)) {
+    DumpWithoutCrashingIfPrefetch(request, FROM_HERE);
     return false;
   }
 
@@ -795,6 +820,7 @@ bool CorsURLLoaderFactory::IsValidRequest(const ResourceRequest& request,
     LOG(WARNING) << "same-origin credentials mode without initiator";
     mojo::ReportBadMessage(
         "CorsURLLoaderFactory: same-origin credentials mode without initiator");
+    DumpWithoutCrashingIfPrefetch(request, FROM_HERE);
     return false;
   }
 
@@ -805,6 +831,7 @@ bool CorsURLLoaderFactory::IsValidRequest(const ResourceRequest& request,
     LOG(WARNING) << "unsupported credentials mode on a navigation request";
     mojo::ReportBadMessage(
         "CorsURLLoaderFactory: unsupported credentials mode on navigation");
+    DumpWithoutCrashingIfPrefetch(request, FROM_HERE);
     return false;
   }
 
@@ -812,6 +839,7 @@ bool CorsURLLoaderFactory::IsValidRequest(const ResourceRequest& request,
       !IsCorsPreflighLoadOptionAllowed()) {
     mojo::ReportBadMessage(
         "CorsURLLoaderFactory: kURLLoadOptionAsCorsPreflight is set");
+    DumpWithoutCrashingIfPrefetch(request, FROM_HERE);
     return false;
   }
 
@@ -820,6 +848,7 @@ bool CorsURLLoaderFactory::IsValidRequest(const ResourceRequest& request,
           trust_token_redemption_policy_)) {
     // VerifyTrustTokenParamsIntegrityIfPresent will report an appropriate bad
     // message.
+    DumpWithoutCrashingIfPrefetch(request, FROM_HERE);
     return false;
   }
 
@@ -827,6 +856,7 @@ bool CorsURLLoaderFactory::IsValidRequest(const ResourceRequest& request,
     // Callers are expected to ensure that `method` follows RFC 7230.
     mojo::ReportBadMessage(
         "CorsURLLoaderFactory: invalid characters in method");
+    DumpWithoutCrashingIfPrefetch(request, FROM_HERE);
     return false;
   }
 
@@ -838,6 +868,7 @@ bool CorsURLLoaderFactory::IsValidRequest(const ResourceRequest& request,
        base::EqualsCaseInsensitiveASCII(
            request.method, net::HttpRequestHeaders::kConnectMethod))) {
     mojo::ReportBadMessage("CorsURLLoaderFactory: Forbidden method");
+    DumpWithoutCrashingIfPrefetch(request, FROM_HERE);
     return false;
   }
 
@@ -851,6 +882,7 @@ bool CorsURLLoaderFactory::IsValidRequest(const ResourceRequest& request,
     if (request.net_log_create_info && !is_trusted_) {
       mojo::ReportBadMessage(
           "CorsURLLoaderFactory: net_log_create_info field is not expected.");
+      DumpWithoutCrashingIfPrefetch(request, FROM_HERE);
       return false;
     }
 
@@ -860,6 +892,7 @@ bool CorsURLLoaderFactory::IsValidRequest(const ResourceRequest& request,
       mojo::ReportBadMessage(
           "CorsURLLoaderFactory: net_log_reference_info field is not "
           "expected.");
+      DumpWithoutCrashingIfPrefetch(request, FROM_HERE);
       return false;
     }
 
@@ -867,6 +900,22 @@ bool CorsURLLoaderFactory::IsValidRequest(const ResourceRequest& request,
       mojo::ReportBadMessage(
           "CorsURLLoaderFactory: target_ip_address_space is "
           "set.");
+      const std::string target_ip_address_space = [&]() {
+        switch (request.target_ip_address_space) {
+          case mojom::IPAddressSpace::kUnknown:
+            return "unknown";
+          case mojom::IPAddressSpace::kPublic:
+            return "public";
+          case mojom::IPAddressSpace::kLocal:
+            return "local";
+          case mojom::IPAddressSpace::kLoopback:
+            return "loopback";
+        }
+        NOTREACHED();
+      }();
+      SCOPED_CRASH_KEY_STRING32("crbug443182219", "target_ip_address_space",
+                                target_ip_address_space);
+      DumpWithoutCrashingIfPrefetch(request, FROM_HERE);
       return false;
     }
   }
@@ -878,6 +927,7 @@ bool CorsURLLoaderFactory::IsValidRequest(const ResourceRequest& request,
     mojo::ReportBadMessage(
         "CorsURLLoaderFactory: client_side_content_decoding_enabled is set "
         "unexpectedly.");
+    DumpWithoutCrashingIfPrefetch(request, FROM_HERE);
     return false;
   }
 

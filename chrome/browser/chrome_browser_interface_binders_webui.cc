@@ -68,7 +68,6 @@
 #include "chrome/browser/ui/webui/signin/history_sync_optin/history_sync_optin.mojom.h"
 #include "chrome/browser/ui/webui/signin/history_sync_optin/history_sync_optin_ui.h"
 #include "chrome/browser/ui/webui/whats_new/whats_new_ui.h"
-#include "components/signin/public/base/signin_switches.h"
 #endif
 
 #if BUILDFLAG(IS_ANDROID)
@@ -371,7 +370,7 @@
 #include "chrome/browser/ui/webui/signin/batch_upload_ui.h"
 #include "chrome/browser/ui/webui/signin/signout_confirmation/signout_confirmation.mojom.h"
 #include "chrome/browser/ui/webui/signin/signout_confirmation/signout_confirmation_ui.h"
-#include "components/signin/public/base/signin_switches.h"
+#include "components/sync/base/features.h"
 #endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
 
 #if BUILDFLAG(ENABLE_GLIC)
@@ -499,7 +498,8 @@ void PopulateChromeWebUIFrameBinders(
       on_device_translation_internals::mojom::PageHandlerFactory,
       OnDeviceTranslationInternalsUI>(map);
 
-  if (base::FeatureList::IsEnabled(switches::kEnableHistorySyncOptin)) {
+  if (base::FeatureList::IsEnabled(
+          syncer::kReplaceSyncPromosWithSignInPromos)) {
     RegisterWebUIControllerInterfaceBinder<
         history_sync_optin::mojom::PageHandlerFactory, HistorySyncOptinUI>(map);
   }
@@ -1462,6 +1462,7 @@ void PopulateChromeWebUIFrameInterfaceBrokers(
         .Add<color_change_listener::mojom::PageHandler>()
         .Add<webui_browser::mojom::PageHandlerFactory>()
         .Add<bookmark_bar::mojom::PageHandlerFactory>()
+        .Add<extensions_bar::mojom::PageHandlerFactory>()
         .Add<searchbox::mojom::PageHandler>()
         .Add<metrics_reporter::mojom::PageMetricsHost>()
         .Add<tabs_api::mojom::TabStripService>()

@@ -763,20 +763,22 @@ void CanvasRenderingContext2D::drawElement(Element* element,
   DrawElementInternal(element, x, y, dwidth, dheight, exception_state);
 }
 
-void CanvasRenderingContext2D::drawHTML(Element* element,
-                                        double x,
-                                        double y,
-                                        ExceptionState& exception_state) {
+void CanvasRenderingContext2D::drawElementImage(
+    Element* element,
+    double x,
+    double y,
+    ExceptionState& exception_state) {
   DrawElementInternal(element, x, y, std::nullopt, std::nullopt,
                       exception_state);
 }
 
-void CanvasRenderingContext2D::drawHTML(Element* element,
-                                        double x,
-                                        double y,
-                                        double dwidth,
-                                        double dheight,
-                                        ExceptionState& exception_state) {
+void CanvasRenderingContext2D::drawElementImage(
+    Element* element,
+    double x,
+    double y,
+    double dwidth,
+    double dheight,
+    ExceptionState& exception_state) {
   DrawElementInternal(element, x, y, dwidth, dheight, exception_state);
 }
 
@@ -786,7 +788,7 @@ void CanvasRenderingContext2D::setHitTestRegions(
   HTMLCanvasElement* canvas_element = HostAsHTMLCanvasElement();
   DCHECK(canvas_element);
   canvas_element->GetDocument().View()->UpdateAllLifecyclePhasesExceptPaint(
-      DocumentUpdateReason::kCanvasDrawHTML);
+      DocumentUpdateReason::kCanvasDrawElementImage);
 
   VectorOf<HTMLCanvasElement::ElementHitTestRegion> result;
   if (!ConvertHitTestRegionsToHTMLCanvasRegions(
@@ -813,13 +815,14 @@ void CanvasRenderingContext2D::DrawElementInternal(
   HTMLCanvasElement* canvas_element = HostAsHTMLCanvasElement();
   DCHECK(canvas_element);
   canvas_element->GetDocument().View()->UpdateAllLifecyclePhasesExceptPaint(
-      DocumentUpdateReason::kCanvasDrawHTML);
+      DocumentUpdateReason::kCanvasDrawElementImage);
 
   if (!GetOrCreatePaintCanvas()) {
     return;
   }
 
-  if (!IsDrawHTMLEligible(element, "drawHTML()", exception_state)) {
+  if (!IsDrawElementImageEligible(element, "drawElementImage()",
+                                  exception_state)) {
     return;
   }
 
@@ -839,9 +842,9 @@ void CanvasRenderingContext2D::DrawElementInternal(
                                           /*disable_expansion*/ true);
 
   PaintLayerPainter paint_layer_painter = PaintLayerPainter(*layer);
-  PaintFlags paint_flags = PaintFlag::kPaintingCanvasDrawHTML;
-  paint_flags |= PaintFlag::kPrivacyPreserving;
-  paint_layer_painter.Paint(builder.Context(), paint_flags);
+  paint_layer_painter.Paint(
+      builder.Context(),
+      PaintFlag::kPrivacyPreserving | PaintFlag::kOmitCompositingInfo);
 
   PropertyTreeState property_tree_state = layer->GetLayoutObject()
                                               .FirstFragment()
@@ -1010,7 +1013,14 @@ void CanvasRenderingContext2D::PageVisibilityChanged() {
   if (features::IsCanvas2DHibernationEnabled() && !page_is_visible &&
       !IsHibernating() && resource_provider &&
       resource_provider->IsAccelerated()) {
-    GetHibernationHandler()->InitiateHibernationIfNecessary();
+    // Assuming 8-bit RGBA or similar, this means that we don't bother
+    // hibernating canvas elements smaller than 64kiB. Hibernation has a cost,
+    // and a lot of pages have very small canvas elements, according to metrics.
+    if (!(base::FeatureList::IsEnabled(
+              features::kCanvas2DHibernationNoSmallCanvas) &&
+          Height() * Width() < 128 * 128)) {
+      GetHibernationHandler()->InitiateHibernationIfNecessary();
+    }
   }
 
   // The impl tree may have dropped the transferable resource for this canvas

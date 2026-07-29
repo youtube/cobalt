@@ -731,7 +731,7 @@ class DataLoader final : public ExecutableWithDatabase<RequestDataCallback> {
       v8_inspector::V8InspectorSession* v8_session,
       std::unique_ptr<RequestDataCallback> request_callback,
       const String& object_store_name,
-      const String& index_name,
+      std::optional<String> index_name,
       IDBKeyRange* idb_key_range,
       int skip_count,
       unsigned page_size) {
@@ -759,8 +759,8 @@ class DataLoader final : public ExecutableWithDatabase<RequestDataCallback> {
     }
 
     IDBRequest* idb_request;
-    if (!index_name_.empty()) {
-      IDBIndex* idb_index = IndexForObjectStore(idb_object_store, index_name_);
+    if (index_name_.has_value()) {
+      IDBIndex* idb_index = IndexForObjectStore(idb_object_store, *index_name_);
       if (!idb_index) {
         request_callback_->sendFailure(
             protocol::Response::ServerError("Could not get index"));
@@ -786,7 +786,7 @@ class DataLoader final : public ExecutableWithDatabase<RequestDataCallback> {
   DataLoader(v8_inspector::V8InspectorSession* v8_session,
              std::unique_ptr<RequestDataCallback> request_callback,
              const String& object_store_name,
-             const String& index_name,
+             std::optional<String> index_name,
              IDBKeyRange* idb_key_range,
              int skip_count,
              unsigned page_size)
@@ -801,7 +801,7 @@ class DataLoader final : public ExecutableWithDatabase<RequestDataCallback> {
   raw_ptr<v8_inspector::V8InspectorSession> v8_session_;
   std::unique_ptr<RequestDataCallback> request_callback_;
   String object_store_name_;
-  String index_name_;
+  std::optional<String> index_name_;
   Persistent<IDBKeyRange> idb_key_range_;
   int skip_count_;
   unsigned page_size_;
@@ -904,7 +904,7 @@ void InspectorIndexedDBAgent::requestData(
     std::unique_ptr<protocol::Storage::StorageBucket> storage_bucket,
     const String& database_name,
     const String& object_store_name,
-    const String& index_name,
+    std::optional<String> index_name,
     int skip_count,
     int page_size,
     std::unique_ptr<protocol::IndexedDB::KeyRange> key_range,

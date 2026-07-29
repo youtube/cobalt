@@ -7,8 +7,10 @@
 #include "base/memory/raw_ptr.h"
 #include "chrome/app/vector_icons/vector_icons.h"
 #include "chrome/browser/ui/ui_features.h"
+#include "chrome/grit/generated_resources.h"
 #include "ui/base/dragdrop/drag_drop_types.h"
 #include "ui/base/dragdrop/os_exchange_data.h"
+#include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/color/color_provider.h"
@@ -21,15 +23,20 @@
 #include "ui/gfx/favicon_size.h"
 #include "ui/gfx/geometry/insets.h"
 #include "ui/gfx/geometry/rect.h"
+#include "ui/gfx/geometry/rounded_corners_f.h"
 #include "ui/gfx/image/image_skia_operations.h"
 #include "ui/gfx/paint_vector_icon.h"
+#include "ui/gfx/text_constants.h"
 #include "ui/resources/grit/ui_resources.h"
 #include "ui/views/animation/flood_fill_ink_drop_ripple.h"
 #include "ui/views/background.h"
 #include "ui/views/border.h"
 #include "ui/views/controls/image_view.h"
+#include "ui/views/controls/label.h"
 #include "ui/views/layout/flex_layout.h"
+#include "ui/views/layout/flex_layout_types.h"
 #include "ui/views/view.h"
+#include "ui/views/view_class_properties.h"
 #include "ui/views/view_constants.h"
 #include "ui/views/view_utils.h"
 
@@ -39,6 +46,7 @@ constexpr float kInnerCornerRadius = 6;
 constexpr int kOuterPadding = 8;
 constexpr int kIconSize = 24;
 constexpr int kAnimationDurationMs = 450;
+constexpr gfx::Insets kInnerContainerMargins = gfx::Insets::VH(24, 10);
 
 }  // namespace
 
@@ -60,21 +68,55 @@ MultiContentsDropTargetView::MultiContentsDropTargetView()
                                    views::MaximumFlexSizeRule::kUnbounded));
 
   auto inner_container = std::make_unique<views::View>();
+  inner_container->SetPaintToLayer(ui::LAYER_SOLID_COLOR);
+  inner_container->layer()->SetName(
+      "MultiContentsDropTargetView/InnerContainer");
+  inner_container->layer()->SetRoundedCornerRadius(
+      gfx::RoundedCornersF(kInnerCornerRadius));
+  inner_container->layer()->SetIsFastRoundedCorner(true);
 
-  inner_container->SetBackground(views::CreateRoundedRectBackground(
-      ui::kColorSysSurface3, kInnerCornerRadius));
-
-  inner_container->SetLayoutManager(std::make_unique<views::FlexLayout>())
-      ->SetOrientation(views::LayoutOrientation::kVertical)
-      .SetMainAxisAlignment(views::LayoutAlignment::kCenter)
-      .SetCrossAxisAlignment(views::LayoutAlignment::kCenter)
-      .SetDefault(
-          views::kFlexBehaviorKey,
-          views::FlexSpecification(views::MinimumFlexSizeRule::kScaleToZero,
-                                   views::MaximumFlexSizeRule::kUnbounded));
+  inner_container_layout_ =
+      &inner_container->SetLayoutManager(std::make_unique<views::FlexLayout>())
+           ->SetOrientation(views::LayoutOrientation::kVertical)
+           .SetMainAxisAlignment(views::LayoutAlignment::kCenter)
+           .SetCrossAxisAlignment(views::LayoutAlignment::kCenter)
+           .SetInteriorMargin(kInnerContainerMargins)
+           .SetDefault(
+               views::kFlexBehaviorKey,
+               views::FlexSpecification(
+                   views::MinimumFlexSizeRule::kScaleToMinimumSnapToZero,
+                   views::MaximumFlexSizeRule::kPreferred));
 
   icon_view_ =
       inner_container->AddChildView(std::make_unique<views::ImageView>());
+  icon_view_->SetPaintToLayer(ui::LAYER_TEXTURED);
+  icon_view_->layer()->SetFillsBoundsOpaquely(false);
+  icon_view_->SetImage(ui::ImageModel::FromVectorIcon(
+      kAddCircleIcon, ui::kColorSysPrimary, kIconSize));
+
+  label_ = inner_container->AddChildView(std::make_unique<views::Label>(
+      l10n_util::GetStringUTF16(IDS_SPLIT_VIEW_DRAG_ENTRYPOINT_LABEL)));
+  label_->SetPaintToLayer(ui::LAYER_TEXTURED);
+  label_->layer()->SetFillsBoundsOpaquely(false);
+  label_->SetEnabledColor(ui::kColorSysPrimary);
+  label_->SetElideBehavior(gfx::NO_ELIDE);
+  label_->SetSubpixelRenderingEnabled(false);
+
+  // This ensures that the height of the label is collapsed whenever its
+  // width doesn't fit in the available space. This ensures the icon is
+  // vertically centered whenever the label is collapsed.
+  label_->SetProperty(
+      views::kFlexBehaviorKey,
+      views::FlexSpecification(base::BindRepeating(
+          [](const views::View* view, const views::SizeBounds& bounds) {
+            const auto preferred_size = view->GetPreferredSize();
+            if (bounds.width().is_bounded() &&
+                bounds.width().value() < preferred_size.width()) {
+              return gfx::Size();
+            }
+            return view->GetPreferredSize(bounds);
+          })));
+
   inner_container_ = AddChildView(std::move(inner_container));
 
   animation_.SetTweenType(gfx::Tween::Type::EASE_IN_OUT_EMPHASIZED);
@@ -164,7 +206,9 @@ void MultiContentsDropTargetView::AnimationEnded(
   InvalidateLayout();
 }
 
-void MultiContentsDropTargetView::Show(DropSide side, DropTargetState state) {
+void MultiContentsDropTargetView::Show(DropSide side,
+                                       DropTargetState state,
+                                       DragType drag_type) {
   if (state == DropTargetState::kNudge ||
       state == DropTargetState::kNudgeToFull) {
     CHECK(base::FeatureList::IsEnabled(features::kSideBySideDropTargetNudge));
@@ -176,30 +220,40 @@ void MultiContentsDropTargetView::Show(DropSide side, DropTargetState state) {
     animation_.Reset(0);
   }
 
+  label_->SetVisible(state != DropTargetState::kNudge);
+
   side_ = side;
   state_ = state;
+  drag_type_ = drag_type;
+
+  inner_container_layout_->SetMainAxisAlignment(
+      drag_type_ == DragType::kTab ? views::LayoutAlignment::kStart
+                                   : views::LayoutAlignment::kCenter);
+
   UpdateVisibility(true);
 }
 
-void MultiContentsDropTargetView::Hide() {
+void MultiContentsDropTargetView::Hide(bool suppress_animation /*=false*/) {
+  base::AutoReset<bool> auto_reset(&should_suppress_animation_,
+                                   suppress_animation);
   UpdateVisibility(false);
 }
 
 void MultiContentsDropTargetView::SetVisible(bool visible) {
   if (!visible) {
     side_.reset();
+    drag_type_.reset();
   }
   views::View::SetVisible(visible);
 }
 
 void MultiContentsDropTargetView::UpdateVisibility(bool should_be_open) {
-  // If starting a new "expand" animation, then update the starting width.
-  if (animation_.GetCurrentValue() == 0 && should_be_open) {
-    animate_expand_starting_width_ = width();
-  } else if (!should_be_open) {
+  if (!should_be_open || !GetVisible()) {
     animate_expand_starting_width_.reset();
+  } else if (animation_.GetCurrentValue() == 0) {
+    // If starting a new "expand" animation, then update the starting width.
+    animate_expand_starting_width_ = width();
   }
-
   if (ShouldShowAnimation()) {
     if (should_be_open) {
       SetVisible(should_be_open);
@@ -216,15 +270,13 @@ void MultiContentsDropTargetView::UpdateVisibility(bool should_be_open) {
 
 bool MultiContentsDropTargetView::ShouldShowAnimation() const {
   return gfx::Animation::ShouldRenderRichAnimation() &&
-         !gfx::Animation::PrefersReducedMotion();
+         !gfx::Animation::PrefersReducedMotion() && !should_suppress_animation_;
 }
 
 void MultiContentsDropTargetView::OnThemeChanged() {
   views::View::OnThemeChanged();
-  SkColor primary_color = GetColorProvider()->GetColor(ui::kColorSysPrimary);
-  ui::ImageModel icon_image_model =
-      ui::ImageModel::FromVectorIcon(kAddCircleIcon, primary_color, kIconSize);
-  icon_view_->SetImage(icon_image_model);
+  inner_container_->layer()->SetColor(
+      GetColorProvider()->GetColor(ui::kColorSysSurface3));
 }
 
 bool MultiContentsDropTargetView::GetDropFormats(

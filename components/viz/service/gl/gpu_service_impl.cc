@@ -57,7 +57,7 @@
 #include "gpu/ipc/service/gpu_watchdog_thread.h"
 #include "gpu/ipc/service/image_decode_accelerator_worker.h"
 #include "gpu/vulkan/buildflags.h"
-#include "ipc/ipc_channel_handle.h"
+#include "ipc/ipc_channel.h"
 #include "ipc/ipc_sync_channel.h"
 #include "media/base/media_log.h"
 #include "media/base/media_switches.h"
@@ -321,6 +321,14 @@ GpuServiceImpl::~GpuServiceImpl() {
   if (watchdog_thread_)
     watchdog_thread_->OnGpuProcessTearDown();
 
+#if !BUILDFLAG(IS_ANDROID)
+  if (owned_shared_image_manager_) {
+    // Clear the SharedImageManager's raw_ptr to the GMB factory before
+    // destroying the latter below.
+    owned_shared_image_manager_->clear_gpu_memory_buffer_factory();
+  }
+#endif
+
   compositor_gpu_thread_.reset();
   media_gpu_channel_manager_.reset();
   gpu_channel_manager_.reset();
@@ -420,12 +428,7 @@ void GpuServiceImpl::InitializeWithHost(
   }
 
   if (!shared_image_manager) {
-#if BUILDFLAG(IS_OZONE)
-    shared_image_manager =
-        CreateSharedImageManager(creation_params->supports_overlays);
-#else
     shared_image_manager = CreateSharedImageManager();
-#endif
   }
 
   if (!scheduler) {
@@ -1339,7 +1342,8 @@ gpu::SharedImageManager* GpuServiceImpl::CreateSharedImageManager(
   // requires |thread_safe_manager| to be true.
   bool thread_safe_manager = true;
   owned_shared_image_manager_ = std::make_unique<gpu::SharedImageManager>(
-      thread_safe_manager, display_context_on_another_thread);
+      thread_safe_manager, display_context_on_another_thread,
+      gpu_memory_buffer_factory());
 #if BUILDFLAG(IS_OZONE)
   owned_shared_image_manager_->SetSupportsOverlays(supports_overlays);
 #endif

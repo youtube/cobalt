@@ -472,7 +472,7 @@ class SitePerProcessWithMainFrameThresholdAndSiteRestrictionBrowserClient
       delete;
 
   // Controls whether reuse is preferred under the main frame threshold policy.
-  bool ShouldReuseExistingProcessForNewMainFrameSiteInstance(
+  bool ShouldReuseAnyExistingProcessForNewMainFrameSiteInstance(
       content::BrowserContext* browser_context,
       const GURL& site_instance_original_url) override {
     // Only reuse for foo.com/title1.html specifically.
@@ -14277,9 +14277,9 @@ class SitePerProcessWithMainFrameThresholdAndSiteRestrictionTest
       test_client_;
 };
 
-// Verify that ShouldReuseExistingProcessForNewMainFrameSiteInstance is honored
-// when deciding whether to reuse a process for a main frame navigation under
-// the threshold, provided the controlling feature flag is enabled.
+// Verify that ShouldReuseAnyExistingProcessForNewMainFrameSiteInstance is
+// honored when deciding whether to reuse a process for a main frame navigation
+// under the threshold, provided the controlling feature flag is enabled.
 IN_PROC_BROWSER_TEST_P(
     SitePerProcessWithMainFrameThresholdAndSiteRestrictionTest,
     RestrictedToURLWithContentClient) {
@@ -14313,7 +14313,7 @@ IN_PROC_BROWSER_TEST_P(
   EXPECT_NE(rph_foo1, rph_bar2);
 }
 
-// Verify that ShouldReuseExistingProcessForNewMainFrameSiteInstance's
+// Verify that ShouldReuseAnyExistingProcessForNewMainFrameSiteInstance's
 // path-specific logic, using the original_url, correctly assigns different
 // processes to main frame navigations on the same domain but with different
 // paths, under the kProcessPerSiteUpToMainFrameThreshold policy.
@@ -14604,17 +14604,9 @@ class SitePerProcessWithSubframeProcessReuseThresholdsTest
       public ::testing::WithParamInterface<std::string> {
  public:
   SitePerProcessWithSubframeProcessReuseThresholdsTest() {
-    size_t total_memory_limit = 8;
-    base::FieldTrialParams params = {
-        {"SubframeProcessReuseMemoryThreshold",
-         base::StringPrintf("%zu", total_memory_limit)}};
-    scoped_feature_list_.InitAndEnableFeatureWithParameters(
-        features::kSubframeProcessReuseThresholds, params);
+    RenderProcessHostImpl::SetSubframeProcessReuseThresholdForTesting(8u);
   }
   ~SitePerProcessWithSubframeProcessReuseThresholdsTest() override = default;
-
- private:
-  base::test::ScopedFeatureList scoped_feature_list_;
 };
 
 // Verify that a subframe will only reuse an existing process if adding

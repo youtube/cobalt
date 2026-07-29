@@ -205,14 +205,14 @@ class ThemeServiceTest : public extensions::ExtensionServiceTestBase {
 
 class ColorProviderTest : public ThemeServiceTest,
                           public testing::WithParamInterface<
-                              std::tuple<ui::NativeTheme::ColorScheme,
+                              std::tuple<ui::NativeTheme::PreferredColorScheme,
                                          ui::NativeTheme::PreferredContrast,
                                          SystemTheme>> {
  public:
   static std::string ParamInfoToString(
       ::testing::TestParamInfo<ParamType> param_info) {
-    std::string str = (GetColorScheme(param_info.param) ==
-                       ui::NativeTheme::ColorScheme::kDark)
+    std::string str = (GetPreferredColorScheme(param_info.param) ==
+                       ui::NativeTheme::PreferredColorScheme::kDark)
                           ? "Dark"
                           : "Light";
     if (preferred_contrast(param_info.param) ==
@@ -264,20 +264,19 @@ class ColorProviderTest : public ThemeServiceTest,
 #endif
     original_forced_colors_ = native_theme_->forced_colors();
     original_preferred_contrast_ = native_theme_->preferred_contrast();
-    original_should_use_dark_colors_ = native_theme_->ShouldUseDarkColors();
+    original_preferred_color_scheme_ = native_theme_->preferred_color_scheme();
 
-    bool use_dark_colors =
-        GetColorScheme() == ui::NativeTheme::ColorScheme::kDark;
+    auto preferred_color_scheme = GetPreferredColorScheme();
 #if BUILDFLAG(IS_WIN)
     const bool high_contrast =
         preferred_contrast() == ui::NativeTheme::PreferredContrast::kMore;
     if (high_contrast) {
-      use_dark_colors = false;
+      preferred_color_scheme = ui::NativeTheme::PreferredColorScheme::kLight;
     }
     native_theme_->set_forced_colors(high_contrast);
 #endif  // BUILDFLAG(IS_WIN)
     native_theme_->SetPreferredContrast(preferred_contrast());
-    native_theme_->set_use_dark_colors(use_dark_colors);
+    native_theme_->set_preferred_color_scheme(preferred_color_scheme);
 
     // If native_theme_ has changed, call
     // NativeTheme::NotifyOnNativeThemeUpdated to notify observers that the
@@ -286,8 +285,8 @@ class ColorProviderTest : public ThemeServiceTest,
     // also be reset.
     if (original_forced_colors_ != native_theme_->forced_colors() ||
         original_preferred_contrast_ != native_theme_->preferred_contrast() ||
-        original_should_use_dark_colors_ !=
-            native_theme_->ShouldUseDarkColors()) {
+        original_preferred_color_scheme_ !=
+            native_theme_->preferred_color_scheme()) {
       native_theme_->NotifyOnNativeThemeUpdated();
     }
 
@@ -303,15 +302,15 @@ class ColorProviderTest : public ThemeServiceTest,
     // Restore the original NativeTheme parameters.
     native_theme_->set_forced_colors(original_forced_colors_);
     native_theme_->SetPreferredContrast(original_preferred_contrast_);
-    native_theme_->set_use_dark_colors(original_should_use_dark_colors_);
+    native_theme_->set_preferred_color_scheme(original_preferred_color_scheme_);
     native_theme_->NotifyOnNativeThemeUpdated();
     ThemeServiceTest::TearDown();
   }
 
  protected:
-  static ui::NativeTheme::ColorScheme GetColorScheme(
+  static ui::NativeTheme::PreferredColorScheme GetPreferredColorScheme(
       const ParamType& param = GetParam()) {
-    return std::get<ui::NativeTheme::ColorScheme>(param);
+    return std::get<ui::NativeTheme::PreferredColorScheme>(param);
   }
 
   static ui::NativeTheme::PreferredContrast preferred_contrast(
@@ -342,7 +341,8 @@ class ColorProviderTest : public ThemeServiceTest,
   bool original_forced_colors_ = false;
   ui::NativeTheme::PreferredContrast original_preferred_contrast_ =
       ui::NativeTheme::PreferredContrast::kNoPreference;
-  bool original_should_use_dark_colors_ = false;
+  ui::NativeTheme::PreferredColorScheme original_preferred_color_scheme_ =
+      ui::NativeTheme::PreferredColorScheme::kLight;
   raw_ptr<ui::NativeTheme> native_theme_;
 #if BUILDFLAG(IS_LINUX)
   std::unique_ptr<ui::LinuxUiGetter> linux_ui_getter_;
@@ -353,8 +353,8 @@ INSTANTIATE_TEST_SUITE_P(
     ,
     ColorProviderTest,
     ::testing::Combine(
-        ::testing::Values(ui::NativeTheme::ColorScheme::kLight,
-                          ui::NativeTheme::ColorScheme::kDark),
+        ::testing::Values(ui::NativeTheme::PreferredColorScheme::kLight,
+                          ui::NativeTheme::PreferredColorScheme::kDark),
         ::testing::Values(ui::NativeTheme::PreferredContrast::kNoPreference,
                           ui::NativeTheme::PreferredContrast::kMore),
         ::testing::Values(SystemTheme::kDefault, SystemTheme::kCustom)),
@@ -609,7 +609,8 @@ TEST_P(ColorProviderTest, OmniboxContrast) {
   // TODO(crbug.com/41494383): Linux platform native dark mode colors aren't
   //                      sufficiently high contrast to pass.
   if (GetSystemTheme() == SystemTheme::kCustom &&
-      GetColorScheme() == ui::NativeTheme::ColorScheme::kDark) {
+      GetPreferredColorScheme() ==
+          ui::NativeTheme::PreferredColorScheme::kDark) {
     return;
   }
 #endif

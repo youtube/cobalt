@@ -2277,8 +2277,10 @@ std::vector<AnnotatedVisit> HistoryBackend::GetAnnotatedVisits(
   //  `VisitContextAnnotations`. Probably we need to expand `QueryOptions`.
   VisitVector visit_rows;
 
-  // Set the optional out-param if it's non-nullptr.
-  bool limited = db_->GetVisibleVisitsInRange(options, &visit_rows);
+  // Set the optional out-param if it's non-nullptr. Exclude 404 visits, as this
+  // method is intended for UI features that don't want 404 visits.
+  bool limited = db_->GetVisibleVisitsInRange(
+      options, VisitQuery404sPolicy::kExclude404s, &visit_rows);
   if (limited_by_max_count) {
     *limited_by_max_count = limited;
   }
@@ -2695,7 +2697,11 @@ QueryResults HistoryBackend::QueryHistory(const std::u16string& text_query,
   if (db_) {
     if (text_query.empty()) {
       // Basic history query for the main database.
-      QueryHistoryBasic(options, &query_results);
+      // TODO: crbug.com/441271799 - Take `policy_for_404s` as a param and pass
+      //   the value to `QueryHistoryBasic()`, instead of hardcoding
+      //   `kExclude404s`.
+      QueryHistoryBasic(options, VisitQuery404sPolicy::kExclude404s,
+                        &query_results);
     } else {
       // Text history query.
       QueryHistoryText(text_query, options, &query_results);
@@ -2708,10 +2714,12 @@ QueryResults HistoryBackend::QueryHistory(const std::u16string& text_query,
 
 // Basic time-based querying of history.
 void HistoryBackend::QueryHistoryBasic(const QueryOptions& options,
+                                       VisitQuery404sPolicy policy_for_404s,
                                        QueryResults* result) {
   // First get all visits.
   VisitVector visits;
-  bool has_more_results = db_->GetVisibleVisitsInRange(options, &visits);
+  bool has_more_results =
+      db_->GetVisibleVisitsInRange(options, policy_for_404s, &visits);
   DCHECK_LE(static_cast<int>(visits.size()), options.EffectiveMaxCount());
 
   VisitSourceMap sources;
@@ -2776,7 +2784,11 @@ void HistoryBackend::QueryHistoryText(const std::u16string& text_query,
   for (const auto& text_match : text_matches) {
     // Get all visits for given URL match.
     VisitVector visits;
-    db_->GetVisibleVisitsForURL(text_match.id(), options, &visits);
+    // TODO: crbug.com/441271808 - Take a `policy_for_404s` param and pass its
+    //   value to `GetVisibleVisitsForURL()`, instead of hardcoding
+    //   `kExclude404s`.
+    db_->GetVisibleVisitsForURL(text_match.id(), options,
+                                VisitQuery404sPolicy::kExclude404s, &visits);
 
     VisitSourceMap sources;
     GetVisitsSource(visits, &sources);
@@ -3463,7 +3475,7 @@ void HistoryBackend::ExpireHistoryForTimes(const std::set<base::Time>& times,
   options.end_time = end_time;
   options.duplicate_policy = QueryOptions::KEEP_ALL_DUPLICATES;
   QueryResults results;
-  QueryHistoryBasic(options, &results);
+  QueryHistoryBasic(options, VisitQuery404sPolicy::kInclude404s, &results);
 
   // 1st pass: find URLs that are visited at one of `times`.
   std::set<GURL> urls;

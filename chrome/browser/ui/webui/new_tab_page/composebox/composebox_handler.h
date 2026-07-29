@@ -74,6 +74,7 @@ class ComposeboxHandler
   void AddTabContext(int32_t tab_id, AddTabContextCallback) override;
   void DeleteContext(const base::UnguessableToken& file_token) override;
   void ClearFiles() override;
+  void GetRecentTabs(GetRecentTabsCallback callback) override;
 
   // ComposeboxQueryController::FileUploadStatusObserver:
   void OnFileUploadStatusChanged(
@@ -83,7 +84,6 @@ class ComposeboxHandler
       const std::optional<FileUploadErrorType>& error_type) override;
 
   // searchbox::mojom::PageHandler:
-  void DeleteAutocompleteMatch(uint8_t line, const GURL& url) override;
   void ExecuteAction(uint8_t line,
                      uint8_t action_index,
                      const GURL& url,
@@ -103,6 +103,7 @@ class ComposeboxHandler
       const base::UnguessableToken& context_token,
       std::unique_ptr<lens::ContextualInputData> page_content_data);
 
+  std::set<base::UnguessableToken> deleted_context_tokens_;
   std::unique_ptr<ComposeboxQueryController> query_controller_;
   std::unique_ptr<ComposeboxMetricsRecorder> metrics_recorder_;
   raw_ptr<content::WebContents> web_contents_;

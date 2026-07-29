@@ -495,7 +495,7 @@ public class DisplayUtilTest {
 
     @Test
     public void testClampWindowToDisplay_boundsInsideDisplay() {
-        when(mDisplayAndroid.getBounds()).thenReturn(new Rect(0, 0, 1920, 1080));
+        when(mDisplayAndroid.getLocalBounds()).thenReturn(new Rect(0, 0, 1920, 1080));
         final Rect testBounds = new Rect(100, 200, 700, 800);
         assertEquals(
                 "The bounds should have been preserved as they were already inside display",
@@ -505,7 +505,7 @@ public class DisplayUtilTest {
 
     @Test
     public void testClampWindowToDisplay_boundsPartiallyOffscreen() {
-        when(mDisplayAndroid.getBounds()).thenReturn(new Rect(0, 0, 1000, 1000));
+        when(mDisplayAndroid.getLocalBounds()).thenReturn(new Rect(0, 0, 1000, 1000));
         final Rect testBounds = new Rect(-100, 200, 700, 800);
         // Size can be preserved, there is exactly one Rect with given size distant by 100 px in
         // Manhattan metric that fits inside the display, and there is no valid Rect with given size
@@ -519,7 +519,7 @@ public class DisplayUtilTest {
 
     @Test
     public void testClampWindowToDisplay_boundsPartiallyOffscreen2() {
-        when(mDisplayAndroid.getBounds()).thenReturn(new Rect(0, 0, 1000, 1000));
+        when(mDisplayAndroid.getLocalBounds()).thenReturn(new Rect(0, 0, 1000, 1000));
         final Rect testBounds = new Rect(200, -100, 800, 700);
         // Size can be preserved, there is exactly one Rect with given size distant by 100 px in
         // Manhattan metric that fits inside the display, and there is no valid Rect with given size
@@ -533,7 +533,7 @@ public class DisplayUtilTest {
 
     @Test
     public void testClampWindowToDisplay_boundsFullyOffscreen() {
-        when(mDisplayAndroid.getBounds()).thenReturn(new Rect(0, 0, 1000, 1000));
+        when(mDisplayAndroid.getLocalBounds()).thenReturn(new Rect(0, 0, 1000, 1000));
         final Rect testBounds = new Rect(1100, 1200, 1600, 1800);
         // Size can be preserved, there is exactly one Rect with given size distant by 1400 px in
         // Manhattan metric that fits inside the display, and there is no valid Rect with given size
@@ -547,7 +547,7 @@ public class DisplayUtilTest {
 
     @Test
     public void testClampWindowToDisplay_boundsFullyOffscreenAndWiderThanDisplay() {
-        when(mDisplayAndroid.getBounds()).thenReturn(new Rect(0, 0, 1100, 1200));
+        when(mDisplayAndroid.getLocalBounds()).thenReturn(new Rect(0, 0, 1100, 1200));
         final Rect testBounds = new Rect(-100, 1400, 1200, 1800);
         // Size cannot be preserved in horizontal axis. The least displacement in the vertical axis
         // to get a Rect inside the display is 400px.
@@ -560,12 +560,63 @@ public class DisplayUtilTest {
 
     @Test
     public void testClampWindowToDisplay_boundsBiggerThanDisplay() {
-        final Rect displayBounds = new Rect(0, 0, 1400, 1200);
-        when(mDisplayAndroid.getBounds()).thenReturn(displayBounds);
+        final Rect displayLocalBounds = new Rect(0, 0, 1400, 1200);
+        when(mDisplayAndroid.getLocalBounds()).thenReturn(displayLocalBounds);
         final Rect testBounds = new Rect(-100, 1400, 1400, 3000);
         assertEquals(
                 "The bounds were bigger in both dimensions than the display",
-                displayBounds,
+                displayLocalBounds,
                 DisplayUtil.clampWindowToDisplay(testBounds, mDisplayAndroid));
+    }
+
+    @Test
+    public void scaleToEnclosingRect() {
+        Rect rect = new Rect(-10, -20, 10, 20);
+
+        // An empty rect.
+        assertEquals(
+                "Scaling an empty rect.",
+                new Rect(0, 0, 0, 0),
+                DisplayUtil.scaleToEnclosingRect(new Rect(0, 0, 0, 0), 1.5f));
+
+        // Scale = 0.
+        assertEquals(
+                "Scaling by 0.0 should result in an empty rect at the origin.",
+                new Rect(0, 0, 0, 0),
+                DisplayUtil.scaleToEnclosingRect(rect, 0.0f));
+
+        // Scale = 1.0, should be a no-op.
+        assertEquals(
+                "Scaling by 1.0 should not change the rect.",
+                rect,
+                DisplayUtil.scaleToEnclosingRect(rect, 1.0f));
+
+        // Scaling Up.
+        assertEquals(
+                "Scaling a rect with negative coordinates.",
+                new Rect(-15, -30, 15, 30),
+                DisplayUtil.scaleToEnclosingRect(rect, 1.5f));
+
+        // Scaling down.
+        assertEquals(
+                "Scaling down by 0.5 should halve the coordinates.",
+                new Rect(-5, -10, 5, 10),
+                DisplayUtil.scaleToEnclosingRect(rect, 0.5f));
+
+        // Fractional results.
+        // left = -10 * 1.33 = -13.3, top = -20 * 1.33 = -26.6
+        // right = 10 * 1.33 = 13.3, bottom = 20 * 1.33 = 26.6
+        assertEquals(
+                "Scaling a rect with fractional results.",
+                new Rect(-14, -27, 14, 27),
+                DisplayUtil.scaleToEnclosingRect(rect, 1.33f));
+
+        // Fractional results.
+        // left = -10 * 1.05 = -10.5, top = -20 * 1.05 = -21
+        // right = 10 * 1.05 = 10.5, bottom = 20 * 1.05 = 21
+        assertEquals(
+                "Scaling a rect with 0.5 fractional results.",
+                new Rect(-11, -21, 11, 21),
+                DisplayUtil.scaleToEnclosingRect(rect, 1.05f));
     }
 }

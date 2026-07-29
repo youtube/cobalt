@@ -109,12 +109,16 @@ chromium-metrics-reviews@google.com.
 <variants name="MediaRebufferingCategories">
   <variant name=".Audio.EME"
       summary="Metric for EME media with an audio track."/>
+  <variant name=".Audio.HLS"
+      summary="Metric for HLS media with an audio track."/>
   <variant name=".Audio.MSE"
       summary="Metric for MSE media with an audio track."/>
   <variant name=".Audio.SRC"
       summary="Metric for SRC media with an audio track."/>
   <variant name=".AudioVideo.EME"
       summary="Metric for EME media with both an audio and video track."/>
+  <variant name=".AudioVideo.HLS"
+      summary="Metric for HLS media with both an audio and video track."/>
   <variant name=".AudioVideo.MSE"
       summary="Metric for MSE media with both an audio and video track."/>
   <variant name=".AudioVideo.SRC"
@@ -463,7 +467,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.AImageReaderGLOwner.CodecType"
-    enum="TextureOwnerCodecType" expires_after="2026-01-04">
+    enum="TextureOwnerCodecType" expires_after="2026-03-08">
   <owner>vasilyt@chromium.org</owner>
   <owner>media-dev-uma@chromium.org</owner>
   <summary>
@@ -503,24 +507,6 @@ chromium-metrics-reviews@google.com.
   <summary>
     Android: Whether we successfuly got ColorSpace from MediaCodec or not.
     Recorded each time output format changes from MediaCodec.
-  </summary>
-</histogram>
-
-<histogram name="Media.Android.MediaPlayerSuccess" enum="MediaPlayerExitStatus"
-    expires_after="2026-02-09">
-  <owner>tguilbert@chromium.org</owner>
-  <owner>media-dev-uma@chromium.org</owner>
-  <summary>Android: Whether MediaPlayer exited without errors.</summary>
-</histogram>
-
-<histogram name="Media.Android.MediaPlayerWatchTime"
-    enum="MediaPlayerWatchTimeType" expires_after="2025-09-28">
-  <owner>dalecurtis@chromium.org</owner>
-  <owner>media-dev-uma@chromium.org</owner>
-  <summary>
-    Wall time of MediaPlayer playbacks. Each count represents one second of
-    media playback. Multiple MediaPlayer instances can together accumulate watch
-    time faster than real time.
   </summary>
 </histogram>
 
@@ -570,6 +556,34 @@ chromium-metrics-reviews@google.com.
     The buffer size in frames of an AAudio {Direction} stream got by
     `AAudioStream_getBufferSizeInFrames()` and {AudioLatencyTag}. Logged when an
     AAudio stream is opened.
+  </summary>
+  <token key="Direction" variants="AudioDirection"/>
+  <token key="AudioLatencyTag" variants="AudioLatencyTag"/>
+</histogram>
+
+<histogram
+    name="Media.Audio.Android.AAudioFramesPerBurst.{Direction}{AudioLatencyTag}"
+    units="frames" expires_after="2026-01-18">
+  <owner>tguilbert@chromium.org</owner>
+  <owner>media-dev-uma@chromium.org</owner>
+  <summary>
+    The frames per burst of an AAudio {Direction} stream retrieved by
+    `AAudioStream_getFramesPerBurst()` and {AudioLatencyTag}. Logged when an
+    AAudio stream is opened.
+  </summary>
+  <token key="Direction" variants="AudioDirection"/>
+  <token key="AudioLatencyTag" variants="AudioLatencyTag"/>
+</histogram>
+
+<histogram
+    name="Media.Audio.Android.AAudioFramesPerBurstChanged.{Direction}{AudioLatencyTag}"
+    enum="Boolean" expires_after="2026-01-18">
+  <owner>tguilbert@chromium.org</owner>
+  <owner>media-dev-uma@chromium.org</owner>
+  <summary>
+    Whether the value returned by `AAudioStream_getFramesPerBurst()` changed
+    bewtween when an {Direction} stream was opened and when it was closed.
+    Logged when an AAudio stream is closed.
   </summary>
   <token key="Direction" variants="AudioDirection"/>
   <token key="AudioLatencyTag" variants="AudioLatencyTag"/>
@@ -4733,7 +4747,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.MediaDevices.GetDisplayMedia.Latency" units="ms"
-    expires_after="2026-01-04">
+    expires_after="2026-03-08">
   <owner>toprice@chromium.org</owner>
   <owner>agpalak@chromium.org</owner>
   <owner>video-cmi-apis@google.com</owner>
@@ -5577,7 +5591,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.PictureInPicture.Window.TotalTime" units="ms"
-    expires_after="2026-01-04">
+    expires_after="2026-03-08">
   <owner>bkeen@google.com</owner>
   <owner>media-dev-uma@chromium.org</owner>
   <summary>
@@ -5592,7 +5606,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.PictureInPicture.Window.TotalTimeV2" units="ms"
-    expires_after="2026-01-04">
+    expires_after="2026-03-08">
   <owner>bkeen@google.com</owner>
   <owner>media-dev-uma@chromium.org</owner>
   <summary>
@@ -6301,7 +6315,7 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Media.Session.EnterPictureInPicture"
+<histogram name="Media.Session.EnterPictureInPictureV2"
     enum="MediaSessionEnterPictureInPictureType" expires_after="2026-01-18">
   <owner>steimel@chromium.org</owner>
   <owner>media-dev-uma@chromium.org</owner>
@@ -6842,7 +6856,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.Video.Roughness{VideoFrameRateRange}" units="ms"
-    expires_after="2025-12-07">
+    expires_after="2026-03-08">
   <owner>eugene@chromium.org</owner>
   <owner>media-dev-uma@chromium.org</owner>
   <summary>
@@ -7625,6 +7639,9 @@ chromium-metrics-reviews@google.com.
     <variant name=".Audio.Background.EME"
         summary="Background watch time for EME media with only an audio
                  track."/>
+    <variant name=".Audio.Background.HLS"
+        summary="Background watch time for HLS media with only an audio
+                 track."/>
     <variant name=".Audio.Background.MSE"
         summary="Background watch time for MSE media with only an audio
                  track."/>
@@ -7637,6 +7654,9 @@ chromium-metrics-reviews@google.com.
     <variant name=".Audio.Discarded.EME"
         summary="Watch time less than 7 seconds for EME media with only an
                  audio track."/>
+    <variant name=".Audio.Discarded.HLS"
+        summary="Watch time less than 7 seconds for HLS media with only an
+                 audio track."/>
     <variant name=".Audio.Discarded.MSE"
         summary="Watch time less than 7 seconds for MSE media with only an
                  audio track."/>
@@ -7648,6 +7668,8 @@ chromium-metrics-reviews@google.com.
                  audio track."/>
     <variant name=".Audio.EME"
         summary="Watch time for EME media with only an audio track."/>
+    <variant name=".Audio.HLS"
+        summary="Watch time for HLS media with only an audio track."/>
     <variant name=".Audio.MSE"
         summary="Watch time for MSE media with only an audio track."/>
     <variant name=".Audio.NativeControlsOff"
@@ -7682,6 +7704,9 @@ chromium-metrics-reviews@google.com.
     <variant name=".AudioVideo.Background.EME"
         summary="Background watch time for EME media with both an audio and
                  video track."/>
+    <variant name=".AudioVideo.Background.HLS"
+        summary="Background watch time for HLS media with both an audio and
+                 video track."/>
     <variant name=".AudioVideo.Background.MSE"
         summary="Background watch time for MSE media with both an audio and
                  video track."/>
@@ -7694,6 +7719,9 @@ chromium-metrics-reviews@google.com.
     <variant name=".AudioVideo.Discarded.EME"
         summary="Watch time less than 7 seconds for EME media with only with
                  both an audio and video track."/>
+    <variant name=".AudioVideo.Discarded.HLS"
+        summary="Watch time less than 7 seconds for HLS media with with both
+                 an audio and video track."/>
     <variant name=".AudioVideo.Discarded.MSE"
         summary="Watch time less than 7 seconds for MSE media with only with
                  both an audio and video track."/>
@@ -7714,6 +7742,8 @@ chromium-metrics-reviews@google.com.
                  audio and video track."/>
     <variant name=".AudioVideo.EME"
         summary="Watch time for EME media with both an audio and video track."/>
+    <variant name=".AudioVideo.HLS"
+        summary="Watch time for HLS media with both an audio and video track."/>
     <variant name=".AudioVideo.MediaFoundation.All"
         summary="MediaFoundations renderer watch time for all media with both
                  an audio and video track."/>
@@ -7727,6 +7757,9 @@ chromium-metrics-reviews@google.com.
                  track."/>
     <variant name=".AudioVideo.Muted.EME"
         summary="Muted watch time for EME media with both an audio and video
+                 track."/>
+    <variant name=".AudioVideo.Muted.HLS"
+        summary="Muted watch time for HLS media with both an audio and video
                  track."/>
     <variant name=".AudioVideo.Muted.MSE"
         summary="Muted watch time for MSE media with both an audio and video
@@ -8092,21 +8125,6 @@ chromium-metrics-reviews@google.com.
   <owner>openscreen-eng@google.com</owner>
   <summary>
     Records video capture errors received from the {UiLocation} camera preview.
-  </summary>
-  <token key="UiLocation">
-    <variant name="PageInfo"/>
-    <variant name="Permissions"/>
-  </token>
-</histogram>
-
-<histogram name="MediaPreviews.UI.{UiLocation}.OriginTrialAllowed"
-    enum="Boolean" expires_after="2026-02-01">
-  <owner>mfoltz@chromium.org</owner>
-  <owner>openscreen-eng@google.com</owner>
-  <summary>
-    When Media Previews are requested, records whether the previews were allowed
-    or blocked by the site's membership in the MediaPreviewsOptOutPersistent
-    origin trial.
   </summary>
   <token key="UiLocation">
     <variant name="PageInfo"/>

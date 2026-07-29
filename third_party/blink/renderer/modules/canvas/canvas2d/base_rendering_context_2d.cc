@@ -210,8 +210,8 @@ void BaseRenderingContext2D::DispatchContextLostEvent(TimerBase*) {
   if (context_lost_mode_ == CanvasRenderingContext::kRealLostContext ||
       context_lost_mode_ == CanvasRenderingContext::kSyntheticLostContext) {
     try_restore_context_attempt_count_ = 0;
-    try_restore_context_event_timer_.StartRepeating(
-        try_restore_context_interval_, FROM_HERE);
+    try_restore_context_event_timer_.StartRepeating(kTryRestoreContextInterval,
+                                                    FROM_HERE);
   }
 }
 
@@ -394,6 +394,10 @@ ImageData* BaseRenderingContext2D::getImageDataInternal(
     exception_state.ThrowDOMException(
         DOMExceptionCode::kIndexSizeError,
         String::Format("The source %s is 0.", sw ? "height" : "width"));
+  } else if (RuntimeEnabledFeatures::BlockCanvasReadbackEnabled(
+                 GetTopExecutionContext())) {
+    exception_state.ThrowDOMException(DOMExceptionCode::kNotAllowedError,
+                                      String(kBlockCanvasReadbackErrorMessage));
   }
 
   if (exception_state.HadException())
@@ -489,7 +493,6 @@ ImageData* BaseRenderingContext2D::getImageDataInternal(
     noised = CanvasInterventionsHelper::MaybeNoiseSnapshot(
         GetTopExecutionContext(), snapshot);
   }
-
   TRACE_EVENT_INSTANT(
       TRACE_DISABLED_BY_DEFAULT("identifiability.high_entropy_api"),
       "CanvasReadback", perfetto::Flow::FromPointer(this),

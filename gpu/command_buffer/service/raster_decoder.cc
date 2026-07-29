@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#define TODO_BASE_FEATURE_MACROS_NEED_MIGRATION
-
 #ifdef UNSAFE_BUFFERS_BUILD
 // TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
 #pragma allow_unsafe_buffers
@@ -108,6 +106,7 @@
 
 #if BUILDFLAG(ENABLE_VULKAN)
 #include "components/viz/common/gpu/vulkan_context_provider.h"
+#include "gpu/command_buffer/service/drm_modifiers_filter_vulkan.h"
 #include "gpu/vulkan/vulkan_device_queue.h"
 #include "gpu/vulkan/vulkan_util.h"
 #endif  // BUILDFLAG(ENABLE_VULKAN)
@@ -149,7 +148,7 @@ namespace {
 base::AtomicSequenceNumber g_raster_decoder_id;
 
 // Controls whether we may yield during rasterization.
-BASE_FEATURE(GpuYieldRasterization, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kGpuYieldRasterization, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Controls how many ops are rastered before checking if we should yield.
 const base::FeatureParam<int> kGpuYieldRasterizationOpCount(
@@ -700,8 +699,10 @@ class RasterDecoderImpl final : public RasterDecoder,
                                  GLint yoffset,
                                  GLint x,
                                  GLint y,
-                                 GLsizei width,
-                                 GLsizei height,
+                                 GLsizei src_width,
+                                 GLsizei src_height,
+                                 GLsizei dst_width,
+                                 GLsizei dst_height,
                                  const volatile GLbyte* mailboxes);
   void DoWritePixelsINTERNAL(GLint x_offset,
                              GLint y_offset,
@@ -1925,13 +1926,16 @@ void RasterDecoderImpl::DoCopySharedImageINTERNAL(
     GLint yoffset,
     GLint x,
     GLint y,
-    GLsizei width,
-    GLsizei height,
+    GLsizei src_width,
+    GLsizei src_height,
+    GLsizei dst_width,
+    GLsizei dst_height,
     const volatile GLbyte* mailboxes) {
   CopySharedImageHelper helper(&shared_image_representation_factory_,
                                shared_context_state_.get());
   auto result =
-      helper.CopySharedImage(xoffset, yoffset, x, y, width, height, mailboxes);
+      helper.CopySharedImage(xoffset, yoffset, x, y, src_width, src_height,
+                             dst_width, dst_height, mailboxes);
   if (!result.has_value()) {
     LOCAL_SET_GL_ERROR(result.error().gl_error,
                        result.error().function_name.c_str(),

@@ -215,7 +215,8 @@ id<GREYMatcher> ActivityIndicatorMatcher() {
 }
 
 // Test to ensure the dialog goes away once the cancel button is clicked.
-- (void)testOtpInputDialogCancel {
+// TODO(crbug.com/444093961): Test is flaky.
+- (void)FLAKY_testOtpInputDialogCancel {
   [self showOtpInputDialog];
 
   // Tap the cancel button.
@@ -227,7 +228,8 @@ id<GREYMatcher> ActivityIndicatorMatcher() {
 }
 
 // Test to ensure the dialog's confirm button works correctly.
-- (void)testOtpInputDialogConfirm {
+// TODO(crbug.com/444045960): Test is flaky.
+- (void)DISABLED_testOtpInputDialogConfirm {
   [self showOtpInputDialog];
 
   [[EarlGrey selectElementWithMatcher:OtpInputDialogConfirmButton()]

@@ -24,6 +24,9 @@ inline constexpr base::FeatureParam<int>
 // Enables syncing of Loyalty Cards coming from Google Wallet.
 BASE_DECLARE_FEATURE(kSyncAutofillLoyaltyCard);
 
+// Enables syncing of Autofill Valuable settings from the user's account.
+BASE_DECLARE_FEATURE(kSyncAutofillValuableSettings);
+
 // Enables storing valuables in the profile db instead of the account db.
 BASE_DECLARE_FEATURE(kSyncMoveValuablesToProfileDb);
 
@@ -74,6 +77,12 @@ BASE_DECLARE_FEATURE(kSyncWalletFlightReservations);
 
 // Enables syncing of vehicle registrations coming from Google Wallet.
 BASE_DECLARE_FEATURE(kSyncWalletVehicleRegistrations);
+
+// If enabled, the spellcheck custom dictionary will keep the account dictionary
+// separate from the local dictionary.
+// TODO(crbug.com/443954137): This feature doesn't yet do anything. Implement
+// the local and account data separation behind this feature flag.
+BASE_DECLARE_FEATURE(kSpellcheckSeparateLocalAndAccountDictionaries);
 
 // Normally, if kReplaceSyncPromosWithSignInPromos is disabled,
 // UserSelectableType::kBookmarks is disabled by default upon sign-in. This

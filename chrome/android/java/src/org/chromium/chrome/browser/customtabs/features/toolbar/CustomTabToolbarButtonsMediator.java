@@ -14,6 +14,7 @@ import static org.chromium.chrome.browser.customtabs.features.toolbar.CustomTabT
 import static org.chromium.chrome.browser.customtabs.features.toolbar.CustomTabToolbarButtonsProperties.MINIMIZE_BUTTON;
 import static org.chromium.chrome.browser.customtabs.features.toolbar.CustomTabToolbarButtonsProperties.OMNIBOX_ENABLED;
 import static org.chromium.chrome.browser.customtabs.features.toolbar.CustomTabToolbarButtonsProperties.OPTIONAL_BUTTON_VISIBLE;
+import static org.chromium.chrome.browser.customtabs.features.toolbar.CustomTabToolbarButtonsProperties.TINT;
 import static org.chromium.chrome.browser.customtabs.features.toolbar.CustomTabToolbarButtonsProperties.TITLE_VISIBLE;
 import static org.chromium.chrome.browser.customtabs.features.toolbar.CustomTabToolbarButtonsProperties.TOOLBAR_WIDTH;
 
@@ -118,6 +119,8 @@ class CustomTabToolbarButtonsMediator
     public void onColorSchemeChanged(
             @ColorInt int toolbarColor, @BrandedColorScheme int colorScheme) {
         updateOptionalButtonColors(toolbarColor, colorScheme);
+        var tint = ThemeUtils.getThemedToolbarIconTint(mActivity, colorScheme);
+        mModel.set(TINT, tint);
     }
 
     void setMinimizeButtonEnabled(boolean enabled) {
@@ -235,7 +238,7 @@ class CustomTabToolbarButtonsMediator
                     // As CPA chip does the expansion animation, the custom action button on
                     // the left of it needs animating too. Adjusting its margin makes it
                     // animate together with the chip.
-                    var view = mView.getCustomActionButtonsParent().getChildAt(0);
+                    var view = assumeNonNull(mView.getCustomActionButtonsParent()).getChildAt(0);
                     var viewLp = (ViewGroup.MarginLayoutParams) view.getLayoutParams();
                     if (type == TransitionType.EXPANDING_ACTION_CHIP
                             || type == TransitionType.COLLAPSING_ACTION_CHIP) {

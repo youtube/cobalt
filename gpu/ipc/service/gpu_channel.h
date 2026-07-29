@@ -30,12 +30,12 @@
 #include "gpu/ipc/service/command_buffer_stub.h"
 #include "gpu/ipc/service/gpu_ipc_service_export.h"
 #include "gpu/ipc/service/shared_image_stub.h"
-#include "ipc/ipc_channel_proxy.h"
+#include "ipc/ipc_sync_channel.h"
 #include "mojo/public/cpp/bindings/generic_pending_associated_receiver.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "ui/gfx/geometry/size.h"
 #include "ui/gfx/gpu_extra_info.h"
-#include "ui/gfx/native_widget_types.h"
+#include "ui/gfx/native_ui_types.h"
 #include "ui/gl/gl_share_group.h"
 #include "ui/gl/gpu_preference.h"
 
@@ -80,7 +80,7 @@ class GPU_IPC_SERVICE_EXPORT GpuChannel : public IPC::Listener,
 
   // Init() sets up the underlying IPC channel.  Use a separate method because
   // we don't want to do that in tests.
-  void Init(IPC::ChannelHandle channel_handle,
+  void Init(mojo::MessagePipeHandle channel_handle,
             base::WaitableEvent* shutdown_event);
 
   base::WeakPtr<GpuChannel> AsWeakPtr();
@@ -225,7 +225,7 @@ class GPU_IPC_SERVICE_EXPORT GpuChannel : public IPC::Listener,
   // Message handlers for control messages.
   bool CreateSharedImageStub(const gfx::GpuExtraInfo& gpu_extra_info);
 
-  std::unique_ptr<IPC::ChannelProxy> channel_proxy_;  // nullptr in tests.
+  std::unique_ptr<IPC::SyncChannel> sync_channel_;  // nullptr in tests.
 
   base::ProcessId client_pid_ = base::kNullProcessId;
 

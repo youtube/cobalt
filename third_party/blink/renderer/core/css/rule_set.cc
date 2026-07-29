@@ -357,21 +357,29 @@ static bool ExtractSelectorValues(const CSSSelector* selector,
         case CSSSelector::kPseudoWebkitAnyLink:
         case CSSSelector::kPseudoAnyLink:
         case CSSSelector::kPseudoFocusVisible:
-        case CSSSelector::kPseudoPlaceholder:
-        case CSSSelector::kPseudoDetailsContent:
-        case CSSSelector::kPseudoPermissionIcon:
-        case CSSSelector::kPseudoFileSelectorButton:
         case CSSSelector::kPseudoHost:
         case CSSSelector::kPseudoHostContext:
         case CSSSelector::kPseudoSlotted:
         case CSSSelector::kPseudoSelectorFragmentAnchor:
         case CSSSelector::kPseudoRoot:
+        case CSSSelector::kPseudoActiveViewTransition:
+          // Pseudo classes.
+          pseudo_type = selector->GetPseudoType();
+          break;
+        case CSSSelector::kPseudoPlaceholder:
+        case CSSSelector::kPseudoDetailsContent:
+        case CSSSelector::kPseudoPermissionIcon:
+        case CSSSelector::kPseudoFileSelectorButton:
         case CSSSelector::kPseudoScrollbarButton:
         case CSSSelector::kPseudoScrollbarCorner:
         case CSSSelector::kPseudoScrollbarThumb:
         case CSSSelector::kPseudoScrollbarTrack:
         case CSSSelector::kPseudoScrollbarTrackPiece:
-          pseudo_type = selector->GetPseudoType();
+          // Pseudo elements; do not overwrite a pseudo class
+          // (in particular, :host).
+          if (pseudo_type == CSSSelector::kPseudoUnknown) {
+            pseudo_type = selector->GetPseudoType();
+          }
           break;
         case CSSSelector::kPseudoWebKitCustomElement:
         case CSSSelector::kPseudoBlinkInternalElement:
@@ -584,6 +592,17 @@ void RuleSet::FindBestRuleSetAndAdd(CSSSelector& component,
         pseudo_type == CSSSelector::kPseudoScrollbarTrack ||
         pseudo_type == CSSSelector::kPseudoScrollbarTrackPiece) {
       AddToRuleSet(scrollbar_rules_, rule_data);
+      return;
+    }
+    if (pseudo_type == CSSSelector::kPseudoActiveViewTransition) {
+      if (bucket_coverage == BucketCoverage::kCompute) {
+        MarkAsCoveredByBucketing(component, [](const CSSSelector& selector) {
+          return selector.Match() == CSSSelector::kPseudoClass &&
+                 selector.GetPseudoType() ==
+                     CSSSelector::kPseudoActiveViewTransition;
+        });
+      }
+      AddToRuleSet(active_view_transition_rules_, rule_data);
       return;
     }
   }
@@ -951,9 +970,9 @@ void RuleSet::AddChildRules(StyleRule* parent_rule,
       page_rule->SetCascadeLayer(cascade_layer);
       AddPageRule(page_rule);
     } else if (auto* route_rule = DynamicTo<StyleRuleRoute>(rule)) {
-      const Document* document = medium.GetMediaValues().GetDocument();
-      if (const RouteMap* route_map = RouteMap::Get(document)) {
-        if (route_map->MatchesRoute(document->Url(), route_rule->GetName())) {
+      if (const auto* route_map =
+              RouteMap::Get(medium.GetMediaValues().GetDocument())) {
+        if (route_map->MatchesRoute(route_rule->GetName())) {
           AddChildRules(parent_rule, route_rule->ChildRules(), medium, mixins,
                         add_rule_flags, container_query, cascade_layer,
                         style_scope, apply_mixins_stack);
@@ -1040,58 +1059,39 @@ void RuleSet::AddChildRules(StyleRule* parent_rule,
                     container_query, cascade_layer, style_scope,
                     apply_mixins_stack);
     } else if (auto* apply_mixin_rule = DynamicTo<StyleRuleApplyMixin>(rule)) {
-      auto it = mixins.mixins.find(apply_mixin_rule->GetName());
-      if (it != mixins.mixins.end()) {
-        if (std::ranges::find_if(apply_mixins_stack,
-                                 [&](const ApplyingMixin& entry) {
-                                   return entry.mixin == it->value;
-                                 }) != apply_mixins_stack.end()) {
-          // Cycle, so ignore this @apply.
-          // NOTE: The exact behavior during cycles is not yet
-          // specified. See https://github.com/w3c/csswg-drafts/issues/12595
-          continue;
-        }
-        apply_mixins_stack.push_back(ApplyingMixin{
-            .mixin = it->value.Get(), .invoking_apply_rule = apply_mixin_rule});
-        AddChildRules(parent_rule, it->value->ChildRules(), medium, mixins,
-                      add_rule_flags, container_query, cascade_layer,
-                      style_scope, apply_mixins_stack);
-        apply_mixins_stack.pop_back();
-
-        // If the @mixin we are applying (or currently: any @mixin) was defined
-        // inside a media query, we now need to take on the same dependency.
-        // This makes sure that if this media query changes, we will also
-        // re-evaluate this RuleSet.
-        features_.MutableMediaQueryResultFlags().Add(
-            mixins.media_query_result_flags);
-        media_query_set_results_.AppendVector(mixins.media_query_set_results);
-
-        // Mark that we are using some mixin, and which generation of mixin map
-        // it came from, so that we can invalidate if anything should change.
-        if (based_on_mixin_generation_ !=
-            std::numeric_limits<uint64_t>::max()) {
-          CHECK_EQ(based_on_mixin_generation_, mixins.generation);
-        }
-        based_on_mixin_generation_ = mixins.generation;
-      }
+      ApplyMixin(parent_rule, apply_mixin_rule, medium, mixins, add_rule_flags,
+                 container_query, cascade_layer, style_scope,
+                 apply_mixins_stack);
     } else if (auto* contents_rule =
                    DynamicTo<StyleRuleContentsStatement>(rule)) {
-      // Try first the parameter from @apply, then the fallback block given in
-      // @contents, and if neither exists, nothing happens.
-      if (apply_mixins_stack.back()
-              .invoking_apply_rule->FakeParentRuleForDeclarations()) {
-        AddChildRules(parent_rule,
-                      *apply_mixins_stack.back()
-                           .invoking_apply_rule->FakeParentRuleForDeclarations()
-                           ->ChildRules(),
-                      medium, mixins, add_rule_flags, container_query,
-                      cascade_layer, style_scope, apply_mixins_stack);
-      } else if (contents_rule->FakeParentRuleForFallback() &&
-                 contents_rule->FakeParentRuleForFallback()->ChildRules()) {
-        AddChildRules(parent_rule,
-                      *contents_rule->FakeParentRuleForFallback()->ChildRules(),
-                      medium, mixins, add_rule_flags, container_query,
-                      cascade_layer, style_scope, apply_mixins_stack);
+      const StyleRuleMixin* mixin = apply_mixins_stack.back().mixin;
+      const StyleRuleApplyMixin* apply =
+          apply_mixins_stack.back().invoking_apply_rule;
+
+      // Verify that the mixin actually has a @contents parameter.
+      // Otherwise, @contents is illegal and ignored.
+      const bool has_contents_parameter = std::ranges::any_of(
+          mixin->GetParameters(),
+          [](const StyleRuleFunction::Parameter& parameter) {
+            return parameter.name == "@contents";
+          });
+
+      if (has_contents_parameter) {
+        // Try first the parameter from @apply, then the fallback block given in
+        // @contents, and if neither exists, nothing happens.
+        if (apply->FakeParentRuleForDeclarations()) {
+          AddChildRules(parent_rule,
+                        *apply->FakeParentRuleForDeclarations()->ChildRules(),
+                        medium, mixins, add_rule_flags, container_query,
+                        cascade_layer, style_scope, apply_mixins_stack);
+        } else if (contents_rule->FakeParentRuleForFallback() &&
+                   contents_rule->FakeParentRuleForFallback()->ChildRules()) {
+          AddChildRules(
+              parent_rule,
+              *contents_rule->FakeParentRuleForFallback()->ChildRules(), medium,
+              mixins, add_rule_flags, container_query, cascade_layer,
+              style_scope, apply_mixins_stack);
+        }
       }
     } else if (auto* nested_declarations =
                    DynamicTo<StyleRuleNestedDeclarations>(rule)) {
@@ -1099,6 +1099,50 @@ void RuleSet::AddChildRules(StyleRule* parent_rule,
                    mixins, add_rule_flags, apply_mixins_stack, container_query,
                    cascade_layer, style_scope);
     }
+  }
+}
+
+void RuleSet::ApplyMixin(StyleRule* parent_rule,
+                         StyleRuleApplyMixin* apply_mixin_rule,
+                         const MediaQueryEvaluator& medium,
+                         const MixinMap& mixins,
+                         AddRuleFlags add_rule_flags,
+                         const ContainerQuery* container_query,
+                         CascadeLayer* cascade_layer,
+                         const StyleScope* style_scope,
+                         ApplyMixinsStack& apply_mixins_stack) {
+  auto it = mixins.mixins.find(apply_mixin_rule->GetName());
+  if (it != mixins.mixins.end()) {
+    if (std::ranges::find_if(apply_mixins_stack,
+                             [&](const ApplyingMixin& entry) {
+                               return entry.mixin == it->value;
+                             }) != apply_mixins_stack.end()) {
+      // Cycle, so ignore this @apply.
+      // NOTE: The exact behavior during cycles is not yet
+      // specified. See https://github.com/w3c/csswg-drafts/issues/12595
+      return;
+    }
+    apply_mixins_stack.push_back(ApplyingMixin{
+        .mixin = it->value.Get(), .invoking_apply_rule = apply_mixin_rule});
+    AddChildRules(parent_rule, it->value->ChildRules(), medium, mixins,
+                  add_rule_flags, container_query, cascade_layer, style_scope,
+                  apply_mixins_stack);
+    apply_mixins_stack.pop_back();
+
+    // If the @mixin we are applying (or currently: any @mixin) was defined
+    // inside a media query, we now need to take on the same dependency.
+    // This makes sure that if this media query changes, we will also
+    // re-evaluate this RuleSet.
+    features_.MutableMediaQueryResultFlags().Add(
+        mixins.media_query_result_flags);
+    media_query_set_results_.AppendVector(mixins.media_query_set_results);
+
+    // Mark that we are using some mixin, and which generation of mixin map
+    // it came from, so that we can invalidate if anything should change.
+    if (based_on_mixin_generation_ != std::numeric_limits<uint64_t>::max()) {
+      CHECK_EQ(based_on_mixin_generation_, mixins.generation);
+    }
+    based_on_mixin_generation_ = mixins.generation;
   }
 }
 
@@ -1151,11 +1195,10 @@ void RuleSet::AddRulesFromSheet(const StyleSheetContents* sheet,
     }
   }
 
-  const Document* document = medium.GetDocument();
-  if (const RouteMap* route_map = RouteMap::Get(document)) {
+  if (const auto* route_map = RouteMap::Get(medium.GetDocument())) {
     // In case there are multiple style sheets, we only need to do this once:
     if (active_routes_.empty()) {
-      active_routes_ = route_map->GetActiveRoutes(document->Url());
+      active_routes_ = route_map->GetActiveRoutes();
     }
   }
 
@@ -1274,6 +1317,9 @@ void RuleSet::AddFilteredRulesFromOtherSet(
     AddFilteredRulesFromOtherBucket(
         other, other.selector_fragment_anchor_rules_, only_include,
         &selector_fragment_anchor_rules_);
+    AddFilteredRulesFromOtherBucket(other, other.active_view_transition_rules_,
+                                    only_include,
+                                    &active_view_transition_rules_);
     AddFilteredRulesFromOtherBucket(other, other.root_element_rules_,
                                     only_include, &root_element_rules_);
 
@@ -1611,6 +1657,7 @@ void RuleSet::CompactRules() {
   shadow_host_rules_.shrink_to_fit();
   part_pseudo_rules_.shrink_to_fit();
   slotted_pseudo_element_rules_.shrink_to_fit();
+  active_view_transition_rules_.shrink_to_fit();
   page_rules_.shrink_to_fit();
   font_face_rules_.shrink_to_fit();
   font_palette_values_rules_.shrink_to_fit();
@@ -1686,6 +1733,7 @@ void RuleSet::AssertRuleListsSorted() const {
   DCHECK(IsRuleListSorted(universal_rules_));
   DCHECK(IsRuleListSorted(shadow_host_rules_));
   DCHECK(IsRuleListSorted(part_pseudo_rules_));
+  DCHECK(IsRuleListSorted(active_view_transition_rules_));
 }
 
 #endif  // EXPENSIVE_DCHECKS_ARE_ON()
@@ -1696,12 +1744,8 @@ bool RuleSet::DidMediaQueryResultsChange(
 }
 
 bool RuleSet::DidRoutesChange(const Document* document) const {
-  if (!document) {
-    return false;
-  }
   if (const RouteMap* route_map = RouteMap::Get(document)) {
-    HashSet<String> current_routes =
-        route_map->GetActiveRoutes(document->Url());
+    HashSet<String> current_routes = route_map->GetActiveRoutes();
     if (current_routes != active_routes_) {
       return true;
     }
@@ -1748,6 +1792,7 @@ void RuleSet::Trace(Visitor* visitor) const {
   visitor->Trace(shadow_host_rules_);
   visitor->Trace(part_pseudo_rules_);
   visitor->Trace(slotted_pseudo_element_rules_);
+  visitor->Trace(active_view_transition_rules_);
   visitor->Trace(page_rules_);
   visitor->Trace(font_face_rules_);
   visitor->Trace(font_palette_values_rules_);

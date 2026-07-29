@@ -709,8 +709,11 @@ TEST_F(GestureRecognizerTest, TouchCancelCanDestroyWindow) {
 
   // Create a window that will remove itself from its parent on touch cancelled
   // events.
-  std::unique_ptr<aura::Window> window(CreateTestWindowWithDelegate(
-      delegate.get(), -1234, gfx::Rect(0, 0, 200, 200), root_window()));
+  std::unique_ptr<aura::Window> window =
+      aura::test::CreateTestWindow({.delegate = delegate.get(),
+                                    .parent = root_window(),
+                                    .bounds = {200, 200},
+                                    .window_id = -1234});
   auto handler = std::make_unique<RemoveOnTouchCancelHandler>();
   window->AddPreTargetHandler(handler.get());
 
@@ -738,8 +741,11 @@ TEST_F(GestureRecognizerTest, GestureEventTap) {
   const int kWindowHeight = 45;
   const int kTouchId = 2;
   gfx::Rect bounds(100, 200, kWindowWidth, kWindowHeight);
-  std::unique_ptr<aura::Window> window(CreateTestWindowWithDelegate(
-      delegate.get(), -1234, bounds, root_window()));
+  std::unique_ptr<aura::Window> window =
+      aura::test::CreateTestWindow({.delegate = delegate.get(),
+                                    .parent = root_window(),
+                                    .bounds = bounds,
+                                    .window_id = -1234});
 
   delegate->Reset();
   ui::TouchEvent press(
@@ -790,9 +796,11 @@ TEST_F(GestureRecognizerTest, GestureEventTapRegion) {
   const int kWindowWidth = 800;
   const int kWindowHeight = 600;
   const int kTouchId = 2;
-  gfx::Rect bounds(0, 0, kWindowWidth, kWindowHeight);
-  std::unique_ptr<aura::Window> window(CreateTestWindowWithDelegate(
-      delegate.get(), -1234, bounds, root_window()));
+  std::unique_ptr<aura::Window> window =
+      aura::test::CreateTestWindow({.delegate = delegate.get(),
+                                    .parent = root_window(),
+                                    .bounds = {kWindowWidth, kWindowHeight},
+                                    .window_id = -1234});
 
   // Test with no EventType::kTouchMoved events.
   {
@@ -1041,8 +1049,11 @@ TEST_F(GestureRecognizerTest, GestureEventScroll) {
   const int kWindowHeight = 45;
   const int kTouchId = 5;
   gfx::Rect bounds(100, 200, kWindowWidth, kWindowHeight);
-  std::unique_ptr<aura::Window> window(CreateTestWindowWithDelegate(
-      delegate.get(), -1234, bounds, root_window()));
+  std::unique_ptr<aura::Window> window(
+      aura::test::CreateTestWindow({.delegate = delegate.get(),
+                                    .parent = root_window(),
+                                    .bounds = bounds,
+                                    .window_id = -1234}));
 
   delegate->Reset();
   ui::TouchEvent press(
@@ -1110,8 +1121,11 @@ TEST_F(GestureRecognizerTest, GestureEventScrollPrediction) {
   const int kWindowHeight = 45;
   const int kTouchId = 5;
   gfx::Rect bounds(95, 195, kWindowWidth, kWindowHeight);
-  std::unique_ptr<aura::Window> window(CreateTestWindowWithDelegate(
-      delegate.get(), -1234, bounds, root_window()));
+  std::unique_ptr<aura::Window> window(
+      aura::test::CreateTestWindow({.delegate = delegate.get(),
+                                    .parent = root_window(),
+                                    .bounds = bounds,
+                                    .window_id = -1234}));
 
   delegate->Reset();
   // Tracks the total scroll since we want to verify that the correct position
@@ -1178,8 +1192,11 @@ TEST_F(GestureRecognizerTest, GestureEventScrollBoundingBox) {
     const int kWindowHeight = 45;
     const int kTouchId = 5;
     gfx::Rect bounds(100, 200, kWindowWidth, kWindowHeight);
-    std::unique_ptr<aura::Window> window(CreateTestWindowWithDelegate(
-        delegate.get(), -1234, bounds, root_window()));
+    std::unique_ptr<aura::Window> window(
+        aura::test::CreateTestWindow({.delegate = delegate.get(),
+                                      .parent = root_window(),
+                                      .bounds = bounds,
+                                      .window_id = -1234}));
 
     const int kPositionX = 101;
     const int kPositionY = 201;
@@ -1225,9 +1242,11 @@ TEST_F(GestureRecognizerTest, GestureEventHorizontalRailFling) {
       new GestureEventConsumeDelegate());
   TimedEvents tes;
   const int kTouchId = 7;
-  gfx::Rect bounds(0, 0, 1000, 1000);
-  std::unique_ptr<aura::Window> window(CreateTestWindowWithDelegate(
-      delegate.get(), -1234, bounds, root_window()));
+  std::unique_ptr<aura::Window> window(
+      aura::test::CreateTestWindow({.delegate = delegate.get(),
+                                    .parent = root_window(),
+                                    .bounds = {1000, 1000},
+                                    .window_id = -1234}));
 
   ui::TouchEvent press(
       ui::EventType::kTouchPressed, gfx::Point(0, 0), tes.Now(),
@@ -1272,9 +1291,11 @@ TEST_F(GestureRecognizerTest, GestureEventVerticalRailFling) {
       new GestureEventConsumeDelegate());
   TimedEvents tes;
   const int kTouchId = 7;
-  gfx::Rect bounds(0, 0, 1000, 1000);
-  std::unique_ptr<aura::Window> window(CreateTestWindowWithDelegate(
-      delegate.get(), -1234, bounds, root_window()));
+  std::unique_ptr<aura::Window> window(
+      aura::test::CreateTestWindow({.delegate = delegate.get(),
+                                    .parent = root_window(),
+                                    .bounds = {1000, 1000},
+                                    .window_id = -1234}));
 
   ui::TouchEvent press(
       ui::EventType::kTouchPressed, gfx::Point(0, 0), tes.Now(),
@@ -1322,9 +1343,11 @@ TEST_F(GestureRecognizerTest, GestureEventNonRailFling) {
       new GestureEventConsumeDelegate());
   TimedEvents tes;
   const int kTouchId = 7;
-  gfx::Rect bounds(0, 0, 1000, 1000);
-  std::unique_ptr<aura::Window> window(CreateTestWindowWithDelegate(
-      delegate.get(), -1234, bounds, root_window()));
+  std::unique_ptr<aura::Window> window(
+      aura::test::CreateTestWindow({.delegate = delegate.get(),
+                                    .parent = root_window(),
+                                    .bounds = {1000, 1000},
+                                    .window_id = -1234}));
 
   ui::TouchEvent press(
       ui::EventType::kTouchPressed, gfx::Point(0, 0), tes.Now(),
@@ -1361,8 +1384,11 @@ TEST_F(GestureRecognizerTest, GestureEventShortPress) {
   const int kWindowHeight = 45;
   const int kTouchId = 2;
   gfx::Rect bounds(100, 200, kWindowWidth, kWindowHeight);
-  std::unique_ptr<aura::Window> window(CreateTestWindowWithDelegate(
-      delegate.get(), -1234, bounds, root_window()));
+  std::unique_ptr<aura::Window> window(
+      aura::test::CreateTestWindow({.delegate = delegate.get(),
+                                    .parent = root_window(),
+                                    .bounds = bounds,
+                                    .window_id = -1234}));
 
   delegate->Reset();
 
@@ -1406,8 +1432,11 @@ TEST_F(GestureRecognizerTest, GestureEventLongPress) {
   const int kWindowHeight = 45;
   const int kTouchId = 2;
   gfx::Rect bounds(100, 200, kWindowWidth, kWindowHeight);
-  std::unique_ptr<aura::Window> window(CreateTestWindowWithDelegate(
-      delegate.get(), -1234, bounds, root_window()));
+  std::unique_ptr<aura::Window> window(
+      aura::test::CreateTestWindow({.delegate = delegate.get(),
+                                    .parent = root_window(),
+                                    .bounds = bounds,
+                                    .window_id = -1234}));
 
   delegate->Reset();
 
@@ -1449,8 +1478,11 @@ TEST_F(GestureRecognizerTest, GestureEventLongPressCancelledByScroll) {
   const int kWindowHeight = 45;
   const int kTouchId = 6;
   gfx::Rect bounds(100, 200, kWindowWidth, kWindowHeight);
-  std::unique_ptr<aura::Window> window(CreateTestWindowWithDelegate(
-      delegate.get(), -1234, bounds, root_window()));
+  std::unique_ptr<aura::Window> window(
+      aura::test::CreateTestWindow({.delegate = delegate.get(),
+                                    .parent = root_window(),
+                                    .bounds = bounds,
+                                    .window_id = -1234}));
 
   delegate->Reset();
 
@@ -1493,8 +1525,11 @@ TEST_F(GestureRecognizerTest, GestureEventLongTap) {
   const int kWindowHeight = 45;
   const int kTouchId = 2;
   gfx::Rect bounds(100, 200, kWindowWidth, kWindowHeight);
-  std::unique_ptr<aura::Window> window(CreateTestWindowWithDelegate(
-      delegate.get(), -1234, bounds, root_window()));
+  std::unique_ptr<aura::Window> window(
+      aura::test::CreateTestWindow({.delegate = delegate.get(),
+                                    .parent = root_window(),
+                                    .bounds = bounds,
+                                    .window_id = -1234}));
 
   delegate->Reset();
 
@@ -1538,8 +1573,11 @@ TEST_F(GestureRecognizerTest, GestureEventLongPressCancelledBySecondTap) {
   const int kTouchId1 = 8;
   const int kTouchId2 = 2;
   gfx::Rect bounds(5, 5, kWindowWidth, kWindowHeight);
-  std::unique_ptr<aura::Window> window(CreateTestWindowWithDelegate(
-      delegate.get(), -1234, bounds, root_window()));
+  std::unique_ptr<aura::Window> window(
+      aura::test::CreateTestWindow({.delegate = delegate.get(),
+                                    .parent = root_window(),
+                                    .bounds = bounds,
+                                    .window_id = -1234}));
 
   delegate->Reset();
   ui::TouchEvent press(
@@ -1586,8 +1624,11 @@ TEST_F(GestureRecognizerTest, GestureEventHorizontalRailScroll) {
   TimedEvents tes;
   const int kTouchId = 7;
   gfx::Rect bounds(0, 0, 1000, 1000);
-  std::unique_ptr<aura::Window> window(CreateTestWindowWithDelegate(
-      delegate.get(), -1234, bounds, root_window()));
+  std::unique_ptr<aura::Window> window(
+      aura::test::CreateTestWindow({.delegate = delegate.get(),
+                                    .parent = root_window(),
+                                    .bounds = bounds,
+                                    .window_id = -1234}));
 
   ui::TouchEvent press(
       ui::EventType::kTouchPressed, gfx::Point(0, 0), tes.Now(),
@@ -1637,8 +1678,11 @@ TEST_F(GestureRecognizerTest, GestureEventVerticalRailScroll) {
   TimedEvents tes;
   const int kTouchId = 7;
   gfx::Rect bounds(0, 0, 1000, 1000);
-  std::unique_ptr<aura::Window> window(CreateTestWindowWithDelegate(
-      delegate.get(), -1234, bounds, root_window()));
+  std::unique_ptr<aura::Window> window(
+      aura::test::CreateTestWindow({.delegate = delegate.get(),
+                                    .parent = root_window(),
+                                    .bounds = bounds,
+                                    .window_id = -1234}));
 
   ui::TouchEvent press(
       ui::EventType::kTouchPressed, gfx::Point(0, 0), tes.Now(),
@@ -1695,8 +1739,11 @@ TEST_F(GestureRecognizerTest, GestureTapFollowedByScroll) {
   const int kWindowHeight = 45;
   const int kTouchId = 3;
   gfx::Rect bounds(100, 200, kWindowWidth, kWindowHeight);
-  std::unique_ptr<aura::Window> window(CreateTestWindowWithDelegate(
-      delegate.get(), -1234, bounds, root_window()));
+  std::unique_ptr<aura::Window> window(
+      aura::test::CreateTestWindow({.delegate = delegate.get(),
+                                    .parent = root_window(),
+                                    .bounds = bounds,
+                                    .window_id = -1234}));
 
   delegate->Reset();
   ui::TouchEvent press(
@@ -1822,9 +1869,11 @@ TEST_F(GestureRecognizerTest, DestroyGestureProviderAuraBeforeAck) {
   const int kTouchId = 4;
   std::unique_ptr<GestureEventConsumeDelegate> delegate(
       new GestureEventConsumeDelegate());
-  std::unique_ptr<aura::Window> window1(CreateTestWindowWithDelegate(
-      delegate.get(), /*id=*/-2345, /*bounds=*/gfx::Rect(0, 0, 50, 50),
-      /*parent=*/root_window()));
+  std::unique_ptr<aura::Window> window1(
+      aura::test::CreateTestWindow({.delegate = delegate.get(),
+                                    .parent = root_window(),
+                                    .bounds = {50, 50},
+                                    .window_id = -2345}));
 
   // Touch press then release on `window1`.
   constexpr gfx::Point touch_location(/*x=*/10, /*y=*/20);
@@ -1852,9 +1901,11 @@ TEST_F(GestureRecognizerTest, DestroyGestureProviderAuraBeforeAck) {
   std::unique_ptr<QueueTouchEventDelegate> delegate2(
       new QueueTouchEventDelegate(host()->dispatcher()));
   const int kTouchId2 = 4;
-  std::unique_ptr<aura::Window> window2(CreateTestWindowWithDelegate(
-      delegate2.get(), /*id=*/-1234, /*bounds=*/gfx::Rect(100, 100, 500, 500),
-      root_window()));
+  std::unique_ptr<aura::Window> window2(
+      aura::test::CreateTestWindow({.delegate = delegate2.get(),
+                                    .parent = root_window(),
+                                    .bounds = {100, 100, 500, 500},
+                                    .window_id = -1234}));
   delegate2->set_window(window2.get());
 
   // Send a press event on `window2`. Verify that the gesture provider for
@@ -1890,8 +1941,11 @@ TEST_F(GestureRecognizerTest, AsynchronousGestureRecognition) {
   const int kTouchId1 = 6;
   const int kTouchId2 = 4;
   gfx::Rect bounds(100, 200, kWindowWidth, kWindowHeight);
-  std::unique_ptr<aura::Window> queue(CreateTestWindowWithDelegate(
-      queued_delegate.get(), -1234, bounds, root_window()));
+  std::unique_ptr<aura::Window> queue(
+      aura::test::CreateTestWindow({.delegate = queued_delegate.get(),
+                                    .parent = root_window(),
+                                    .bounds = bounds,
+                                    .window_id = -1234}));
 
   queued_delegate->set_window(queue.get());
 
@@ -1930,8 +1984,11 @@ TEST_F(GestureRecognizerTest, AsynchronousGestureRecognition) {
   // tap-down gesture.
   std::unique_ptr<GestureEventConsumeDelegate> delegate(
       new GestureEventConsumeDelegate());
-  std::unique_ptr<aura::Window> window(CreateTestWindowWithDelegate(
-      delegate.get(), -2345, gfx::Rect(0, 0, 50, 50), root_window()));
+  std::unique_ptr<aura::Window> window(
+      aura::test::CreateTestWindow({.delegate = delegate.get(),
+                                    .parent = root_window(),
+                                    .bounds = {50, 50},
+                                    .window_id = -2345}));
   delegate->Reset();
   ui::TouchEvent press2(
       ui::EventType::kTouchPressed, gfx::Point(10, 20), tes.Now(),
@@ -2093,8 +2150,11 @@ TEST_F(GestureRecognizerTest, GestureEventPinchFromScroll) {
   const int kTouchId1 = 5;
   const int kTouchId2 = 3;
   gfx::Rect bounds(5, 5, kWindowWidth, kWindowHeight);
-  std::unique_ptr<aura::Window> window(CreateTestWindowWithDelegate(
-      delegate.get(), -1234, bounds, root_window()));
+  std::unique_ptr<aura::Window> window(
+      CreateTestWindow({.delegate = delegate.get(),
+                        .parent = root_window(),
+                        .bounds = bounds,
+                        .window_id = -1234}));
 
   delegate->Reset();
   ui::TouchEvent press(
@@ -2179,8 +2239,11 @@ TEST_F(GestureRecognizerTest, GestureEventPinchFromScrollFromPinch) {
   const int kTouchId1 = 5;
   const int kTouchId2 = 3;
   gfx::Rect bounds(5, 5, kWindowWidth, kWindowHeight);
-  std::unique_ptr<aura::Window> window(CreateTestWindowWithDelegate(
-      delegate.get(), -1234, bounds, root_window()));
+  std::unique_ptr<aura::Window> window(
+      CreateTestWindow({.delegate = delegate.get(),
+                        .parent = root_window(),
+                        .bounds = bounds,
+                        .window_id = -1234}));
 
   ui::TouchEvent press(
       ui::EventType::kTouchPressed, gfx::Point(101, 301), tes.Now(),
@@ -2241,8 +2304,11 @@ TEST_F(GestureRecognizerTest, GestureEventPinchFromTap) {
   const int kTouchId1 = 3;
   const int kTouchId2 = 5;
   gfx::Rect bounds(5, 5, kWindowWidth, kWindowHeight);
-  std::unique_ptr<aura::Window> window(CreateTestWindowWithDelegate(
-      delegate.get(), -1234, bounds, root_window()));
+  std::unique_ptr<aura::Window> window(
+      CreateTestWindow({.delegate = delegate.get(),
+                        .parent = root_window(),
+                        .bounds = bounds,
+                        .window_id = -1234}));
 
   delegate->Reset();
   ui::TouchEvent press(
@@ -2350,8 +2416,11 @@ TEST_F(GestureRecognizerTest, GestureEventTouchLockSelectsCorrectWindow) {
   // its origin.
   for (int i = 0; i < kNumWindows; ++i) {
     delegates[i] = new GestureEventConsumeDelegate();
-    windows[i] = CreateTestWindowWithDelegate(
-        delegates[i], i, window_bounds[i], root_window());
+    windows[i] = CreateTestWindow({.delegate = delegates[i],
+                                   .parent = root_window(),
+                                   .bounds = window_bounds[i],
+                                   .window_id = i})
+                     .release();
     windows[i]->SetId(i);
     ui::TouchEvent press(ui::EventType::kTouchPressed,
                          window_bounds[i].origin(), tes.Now(),
@@ -2427,8 +2496,11 @@ TEST_F(GestureRecognizerTest, GestureEventTouchLockIgnoresOtherScreens) {
   std::unique_ptr<GestureEventConsumeDelegate> delegate(
       new GestureEventConsumeDelegate());
   gfx::Rect bounds(0, 0, 10, 10);
-  std::unique_ptr<aura::Window> window(
-      CreateTestWindowWithDelegate(delegate.get(), 0, bounds, root_window()));
+  std::unique_ptr<aura::Window> window =
+      CreateTestWindow({.delegate = delegate.get(),
+                        .parent = root_window(),
+                        .bounds = bounds,
+                        .window_id = 0});
 
   const int kTouchId1 = 8;
   const int kTouchId2 = 2;
@@ -2461,8 +2533,8 @@ TEST_F(GestureRecognizerTest, GestureEventTouchLockIgnoresOtherScreens) {
 // by the root window's gesture sequence.
 TEST_F(GestureRecognizerTest, GestureEventOutsideRootWindowTap) {
   TimedEvents tes;
-  std::unique_ptr<aura::Window> window(
-      CreateTestWindow({.bounds = {-100, -100, 2000, 2000}}, root_window()));
+  std::unique_ptr<aura::Window> window(CreateTestWindow(
+      {.parent = root_window(), .bounds = {-100, -100, 2000, 2000}}));
 
   gfx::Point pos1(-10, -10);
   ui::TouchEvent press1(ui::EventType::kTouchPressed, pos1, tes.Now(),
@@ -2494,8 +2566,11 @@ TEST_F(GestureRecognizerTest, NoTapWithPreventDefaultedRelease) {
   TimedEvents tes;
   const int kTouchId = 2;
   gfx::Rect bounds(100, 200, 100, 100);
-  std::unique_ptr<aura::Window> window(CreateTestWindowWithDelegate(
-      delegate.get(), -1234, bounds, root_window()));
+  std::unique_ptr<aura::Window> window =
+      CreateTestWindow({.delegate = delegate.get(),
+                        .parent = root_window(),
+                        .bounds = bounds,
+                        .window_id = -1234});
   delegate->set_window(window.get());
 
   delegate->Reset();
@@ -2524,8 +2599,11 @@ TEST_F(GestureRecognizerTest, PinchScrollWithPreventDefaultedRelease) {
   const int kTouchId1 = 7;
   const int kTouchId2 = 5;
   gfx::Rect bounds(10, 20, 100, 100);
-  std::unique_ptr<aura::Window> window(CreateTestWindowWithDelegate(
-      delegate.get(), -1234, bounds, root_window()));
+  std::unique_ptr<aura::Window> window =
+      CreateTestWindow({.delegate = delegate.get(),
+                        .parent = root_window(),
+                        .bounds = bounds,
+                        .window_id = -1234});
   delegate->set_window(window.get());
 
   {
@@ -2628,8 +2706,11 @@ TEST_F(GestureRecognizerTest, PinchScrollWithPreventDefaultedRelease) {
 
 TEST_F(GestureRecognizerTest, GestureEndLocation) {
   GestureEventConsumeDelegate delegate;
-  std::unique_ptr<aura::Window> window(CreateTestWindowWithDelegate(
-      &delegate, -1234, gfx::Rect(10, 10, 300, 300), root_window()));
+  std::unique_ptr<aura::Window> window =
+      CreateTestWindow({.delegate = &delegate,
+                        .parent = root_window(),
+                        .bounds = gfx::Rect(10, 10, 300, 300),
+                        .window_id = -1234});
   ui::test::EventGenerator generator(root_window(), window.get());
   const gfx::Point begin(20, 20);
   const gfx::Point end(150, 150);
@@ -2645,8 +2726,11 @@ TEST_F(GestureRecognizerTest, GestureEndLocation) {
 TEST_F(GestureRecognizerTest, CaptureSendsGestureEnd) {
   std::unique_ptr<GestureEventConsumeDelegate> delegate(
       new GestureEventConsumeDelegate());
-  std::unique_ptr<aura::Window> window(CreateTestWindowWithDelegate(
-      delegate.get(), -1234, gfx::Rect(10, 10, 300, 300), root_window()));
+  std::unique_ptr<aura::Window> window(
+      CreateTestWindow({.delegate = delegate.get(),
+                        .parent = root_window(),
+                        .bounds = {10, 10, 300, 300},
+                        .window_id = -1234}));
   ui::test::EventGenerator generator(root_window());
 
   generator.MoveMouseRelativeTo(window.get(), gfx::Point(10, 10));
@@ -2655,8 +2739,8 @@ TEST_F(GestureRecognizerTest, CaptureSendsGestureEnd) {
 
   EXPECT_TRUE(delegate->tap_down());
 
-  std::unique_ptr<aura::Window> capture(
-      CreateTestWindow({.bounds = {10, 10, 200, 200}}, root_window()));
+  std::unique_ptr<aura::Window> capture(CreateTestWindow(
+      {.parent = root_window(), .bounds = {10, 10, 200, 200}}));
   capture->SetCapture();
   RunAllPendingInMessageLoop();
 
@@ -2674,8 +2758,11 @@ TEST_F(GestureRecognizerTest, CaptureDoesNotCancelFinishedTouches) {
   root_window()->AddPreTargetHandler(handler.get());
 
   // Create a window and set it as the capture window.
-  std::unique_ptr<aura::Window> window1(CreateTestWindowWithDelegate(
-      delegate.get(), -1234, gfx::Rect(10, 10, 300, 300), root_window()));
+  std::unique_ptr<aura::Window> window1 =
+      CreateTestWindow({.delegate = delegate.get(),
+                        .parent = root_window(),
+                        .bounds = gfx::Rect(10, 10, 300, 300),
+                        .window_id = -1234});
   window1->SetCapture();
 
   ui::test::EventGenerator generator(root_window());
@@ -2711,8 +2798,8 @@ TEST_F(GestureRecognizerTest, CaptureDoesNotCancelFinishedTouches) {
   EXPECT_EQ(1, handler->touch_cancelled_count());
 
   // Create a new window and set it as the new capture window.
-  std::unique_ptr<aura::Window> window2(
-      CreateTestWindow({.bounds = {100, 100, 300, 300}}, root_window()));
+  std::unique_ptr<aura::Window> window2(CreateTestWindow(
+      {.parent = root_window(), .bounds = {100, 100, 300, 300}}));
   window2->SetCapture();
   RunAllPendingInMessageLoop();
   // Check that setting capture does not generate any synthetic touch-cancels
@@ -2728,8 +2815,11 @@ TEST_F(GestureRecognizerTest, PressDoesNotCrash) {
       new GestureEventConsumeDelegate());
   TimedEvents tes;
 
-  std::unique_ptr<aura::Window> window(CreateTestWindowWithDelegate(
-      delegate.get(), -1234, gfx::Rect(10, 10, 300, 300), root_window()));
+  std::unique_ptr<aura::Window> window =
+      CreateTestWindow({.delegate = delegate.get(),
+                        .parent = root_window(),
+                        .bounds = gfx::Rect(10, 10, 300, 300),
+                        .window_id = -1234});
 
   ui::TouchEvent press(ui::EventType::kTouchPressed, gfx::Point(45, 45),
                        tes.Now(),
@@ -2760,8 +2850,11 @@ TEST_F(GestureRecognizerTest, TwoFingerTap) {
   const int kTouchId1 = 2;
   const int kTouchId2 = 3;
   gfx::Rect bounds(100, 200, kWindowWidth, kWindowHeight);
-  std::unique_ptr<aura::Window> window(CreateTestWindowWithDelegate(
-      delegate.get(), -1234, bounds, root_window()));
+  std::unique_ptr<aura::Window> window(
+      CreateTestWindow({.delegate = delegate.get(),
+                        .parent = root_window(),
+                        .bounds = bounds,
+                        .window_id = -1234}));
   TimedEvents tes;
 
   delegate->Reset();
@@ -2824,8 +2917,11 @@ TEST_F(GestureRecognizerTest, TwoFingerTapExpired) {
   const int kTouchId1 = 2;
   const int kTouchId2 = 3;
   gfx::Rect bounds(100, 200, kWindowWidth, kWindowHeight);
-  std::unique_ptr<aura::Window> window(CreateTestWindowWithDelegate(
-      delegate.get(), -1234, bounds, root_window()));
+  std::unique_ptr<aura::Window> window(
+      CreateTestWindow({.delegate = delegate.get(),
+                        .parent = root_window(),
+                        .bounds = bounds,
+                        .window_id = -1234}));
   TimedEvents tes;
 
   delegate->Reset();
@@ -2874,8 +2970,11 @@ TEST_F(GestureRecognizerTest, TwoFingerTapChangesToPinch) {
   // Test moving first finger
   {
     gfx::Rect bounds(100, 200, kWindowWidth, kWindowHeight);
-    std::unique_ptr<aura::Window> window(CreateTestWindowWithDelegate(
-        delegate.get(), -1234, bounds, root_window()));
+    std::unique_ptr<aura::Window> window(
+        CreateTestWindow({.delegate = delegate.get(),
+                          .parent = root_window(),
+                          .bounds = bounds,
+                          .window_id = -1234}));
 
     delegate->Reset();
     ui::TouchEvent press1(
@@ -2909,8 +3008,11 @@ TEST_F(GestureRecognizerTest, TwoFingerTapChangesToPinch) {
   // Test moving second finger
   {
     gfx::Rect bounds(100, 200, kWindowWidth, kWindowHeight);
-    std::unique_ptr<aura::Window> window(CreateTestWindowWithDelegate(
-        delegate.get(), -1234, bounds, root_window()));
+    std::unique_ptr<aura::Window> window(
+        CreateTestWindow({.delegate = delegate.get(),
+                          .parent = root_window(),
+                          .bounds = bounds,
+                          .window_id = -1234}));
 
     delegate->Reset();
     ui::TouchEvent press1(
@@ -2952,8 +3054,11 @@ TEST_F(GestureRecognizerTest, NoTwoFingerTapWhenFirstFingerHasScrolled) {
   TimedEvents tes;
 
   gfx::Rect bounds(100, 200, kWindowWidth, kWindowHeight);
-  std::unique_ptr<aura::Window> window(CreateTestWindowWithDelegate(
-      delegate.get(), -1234, bounds, root_window()));
+  std::unique_ptr<aura::Window> window(
+      CreateTestWindow({.delegate = delegate.get(),
+                        .parent = root_window(),
+                        .bounds = bounds,
+                        .window_id = -1234}));
 
   delegate->Reset();
   ui::TouchEvent press1(
@@ -2989,8 +3094,11 @@ TEST_F(GestureRecognizerTest, MultiFingerSwipe) {
   const int kWindowHeight = 45;
 
   gfx::Rect bounds(5, 10, kWindowWidth, kWindowHeight);
-  std::unique_ptr<aura::Window> window(CreateTestWindowWithDelegate(
-      delegate.get(), -1234, bounds, root_window()));
+  std::unique_ptr<aura::Window> window(
+      CreateTestWindow({.delegate = delegate.get(),
+                        .parent = root_window(),
+                        .bounds = bounds,
+                        .window_id = -1234}));
 
   const int kSteps = 15;
   const size_t kTouchPoints = 4;
@@ -3056,8 +3164,11 @@ TEST_F(GestureRecognizerTest, TwoFingerTapCancelled) {
   // Test canceling first finger.
   {
     gfx::Rect bounds(100, 200, kWindowWidth, kWindowHeight);
-    std::unique_ptr<aura::Window> window(CreateTestWindowWithDelegate(
-        delegate.get(), -1234, bounds, root_window()));
+    std::unique_ptr<aura::Window> window(
+        CreateTestWindow({.delegate = delegate.get(),
+                          .parent = root_window(),
+                          .bounds = bounds,
+                          .window_id = -1234}));
 
     delegate->Reset();
     ui::TouchEvent press1(
@@ -3093,8 +3204,11 @@ TEST_F(GestureRecognizerTest, TwoFingerTapCancelled) {
   // Test canceling second finger
   {
     gfx::Rect bounds(100, 200, kWindowWidth, kWindowHeight);
-    std::unique_ptr<aura::Window> window(CreateTestWindowWithDelegate(
-        delegate.get(), -1234, bounds, root_window()));
+    std::unique_ptr<aura::Window> window(
+        CreateTestWindow({.delegate = delegate.get(),
+                          .parent = root_window(),
+                          .bounds = bounds,
+                          .window_id = -1234}));
 
     delegate->Reset();
     ui::TouchEvent press1(
@@ -3136,8 +3250,12 @@ TEST_F(GestureRecognizerTest, VeryWideTwoFingerTouchDownShouldBeAPinch) {
   const int kTouchId1 = 2;
   const int kTouchId2 = 3;
   gfx::Rect bounds(100, 200, kWindowWidth, kWindowHeight);
-  std::unique_ptr<aura::Window> window(CreateTestWindowWithDelegate(
-      delegate.get(), -1234, bounds, root_window()));
+
+  std::unique_ptr<aura::Window> window(
+      CreateTestWindow({.delegate = delegate.get(),
+                        .parent = root_window(),
+                        .bounds = bounds,
+                        .window_id = -1234}));
   TimedEvents tes;
 
   delegate->Reset();
@@ -3193,7 +3311,10 @@ TEST_F(GestureRecognizerTest, FlushAllOnHide) {
       new GestureEventConsumeDelegate());
   gfx::Rect bounds(0, 0, 200, 200);
   std::unique_ptr<aura::Window> window(
-      CreateTestWindowWithDelegate(delegate.get(), 0, bounds, root_window()));
+      CreateTestWindow({.delegate = delegate.get(),
+                        .parent = root_window(),
+                        .bounds = bounds,
+                        .window_id = 0}));
   const int kTouchId1 = 8;
   const int kTouchId2 = 2;
   TimedEvents tes;
@@ -3222,8 +3343,11 @@ TEST_F(GestureRecognizerTest, LongPressTimerStopsOnPreventDefaultedTouchMoves) {
       new QueueTouchEventDelegate(host()->dispatcher()));
   const int kTouchId = 2;
   gfx::Rect bounds(100, 200, 100, 100);
-  std::unique_ptr<aura::Window> window(CreateTestWindowWithDelegate(
-      delegate.get(), -1234, bounds, root_window()));
+  std::unique_ptr<aura::Window> window(
+      CreateTestWindow({.delegate = delegate.get(),
+                        .parent = root_window(),
+                        .bounds = bounds,
+                        .window_id = -1234}));
   delegate->set_window(window.get());
   TimedEvents tes;
 
@@ -3282,8 +3406,11 @@ TEST_F(GestureRecognizerTest, GestureEventScrollTouchMoveConsumed) {
   const int kWindowHeight = 45;
   const int kTouchId = 5;
   gfx::Rect bounds(100, 200, kWindowWidth, kWindowHeight);
-  std::unique_ptr<aura::Window> window(CreateTestWindowWithDelegate(
-      delegate.get(), -1234, bounds, root_window()));
+  std::unique_ptr<aura::Window> window(
+      CreateTestWindow({.delegate = delegate.get(),
+                        .parent = root_window(),
+                        .bounds = bounds,
+                        .window_id = -1234}));
   TimedEvents tes;
 
   delegate->Reset();
@@ -3342,8 +3469,11 @@ TEST_F(GestureRecognizerTest, GestureEventScrollTwoFingerTouchMoveConsumed) {
   TimedEvents tes;
 
   gfx::Rect bounds(100, 200, kWindowWidth, kWindowHeight);
-  std::unique_ptr<aura::Window> window(CreateTestWindowWithDelegate(
-      delegate.get(), -1234, bounds, root_window()));
+  std::unique_ptr<aura::Window> window(
+      CreateTestWindow({.delegate = delegate.get(),
+                        .parent = root_window(),
+                        .bounds = bounds,
+                        .window_id = -1234}));
 
   delegate->Reset();
   ui::TouchEvent press1(
@@ -3405,8 +3535,11 @@ TEST_F(GestureRecognizerTest, GestureEventScrollTouchMovePartialConsumed) {
   const int kWindowHeight = 45;
   const int kTouchId = 5;
   gfx::Rect bounds(100, 200, kWindowWidth, kWindowHeight);
-  std::unique_ptr<aura::Window> window(CreateTestWindowWithDelegate(
-      delegate.get(), -1234, bounds, root_window()));
+  std::unique_ptr<aura::Window> window(
+      CreateTestWindow({.delegate = delegate.get(),
+                        .parent = root_window(),
+                        .bounds = bounds,
+                        .window_id = -1234}));
   TimedEvents tes;
 
   delegate->Reset();
@@ -3505,8 +3638,11 @@ TEST_F(GestureRecognizerTest, GestureEventDoubleTap) {
   const int kWindowHeight = 45;
   const int kTouchId = 2;
   gfx::Rect bounds(100, 200, kWindowWidth, kWindowHeight);
-  std::unique_ptr<aura::Window> window(CreateTestWindowWithDelegate(
-      delegate.get(), -1234, bounds, root_window()));
+  std::unique_ptr<aura::Window> window(
+      CreateTestWindow({.delegate = delegate.get(),
+                        .parent = root_window(),
+                        .bounds = bounds,
+                        .window_id = -1234}));
   TimedEvents tes;
 
   // First tap (tested in GestureEventTap)
@@ -3550,8 +3686,11 @@ TEST_F(GestureRecognizerTest, GestureEventTripleTap) {
   const int kWindowHeight = 45;
   const int kTouchId = 2;
   gfx::Rect bounds(100, 200, kWindowWidth, kWindowHeight);
-  std::unique_ptr<aura::Window> window(CreateTestWindowWithDelegate(
-      delegate.get(), -1234, bounds, root_window()));
+  std::unique_ptr<aura::Window> window(
+      CreateTestWindow({.delegate = delegate.get(),
+                        .parent = root_window(),
+                        .bounds = bounds,
+                        .window_id = -1234}));
   TimedEvents tes;
 
   // First tap (tested in GestureEventTap)
@@ -3624,8 +3763,11 @@ TEST_F(GestureRecognizerTest, TwoTapsFarApart) {
   const int kWindowHeight = 45;
   const int kTouchId = 2;
   gfx::Rect bounds(100, 200, kWindowWidth, kWindowHeight);
-  std::unique_ptr<aura::Window> window(CreateTestWindowWithDelegate(
-      delegate.get(), -1234, bounds, root_window()));
+  std::unique_ptr<aura::Window> window(
+      CreateTestWindow({.delegate = delegate.get(),
+                        .parent = root_window(),
+                        .bounds = bounds,
+                        .window_id = -1234}));
   TimedEvents tes;
 
   // First tap (tested in GestureEventTap)
@@ -3670,8 +3812,11 @@ TEST_F(GestureRecognizerTest, TwoTapsWithDelayBetween) {
   const int kWindowHeight = 45;
   const int kTouchId = 2;
   gfx::Rect bounds(100, 200, kWindowWidth, kWindowHeight);
-  std::unique_ptr<aura::Window> window(CreateTestWindowWithDelegate(
-      delegate.get(), -1234, bounds, root_window()));
+  std::unique_ptr<aura::Window> window(
+      CreateTestWindow({.delegate = delegate.get(),
+                        .parent = root_window(),
+                        .bounds = bounds,
+                        .window_id = -1234}));
   TimedEvents tes;
 
   // First tap (tested in GestureEventTap)
@@ -3717,8 +3862,11 @@ TEST_F(GestureRecognizerTest, BoundingBoxRadiusChange) {
   const int kWindowHeight = 345;
   const int kTouchId = 5, kTouchId2 = 7;
   gfx::Rect bounds(100, 200, kWindowWidth, kWindowHeight);
-  std::unique_ptr<aura::Window> window(CreateTestWindowWithDelegate(
-      delegate.get(), -1234, bounds, root_window()));
+  std::unique_ptr<aura::Window> window(
+      CreateTestWindow({.delegate = delegate.get(),
+                        .parent = root_window(),
+                        .bounds = bounds,
+                        .window_id = -1234}));
   TimedEvents tes;
 
   ui::TouchEvent press1(
@@ -3776,8 +3924,11 @@ TEST_F(GestureRecognizerTest, NoDriftInScroll) {
   const int kTouchId = 5;
   TimedEvents tes;
   gfx::Rect bounds(100, 200, kWindowWidth, kWindowHeight);
-  std::unique_ptr<aura::Window> window(CreateTestWindowWithDelegate(
-      delegate.get(), -1234, bounds, root_window()));
+  std::unique_ptr<aura::Window> window(
+      CreateTestWindow({.delegate = delegate.get(),
+                        .parent = root_window(),
+                        .bounds = bounds,
+                        .window_id = -1234}));
 
   ui::TouchEvent press1(
       ui::EventType::kTouchPressed, gfx::Point(101, 208), tes.Now(),
@@ -3834,8 +3985,11 @@ TEST_F(GestureRecognizerTest, GestureEventConsumedTouchMoveCanFireTapCancel) {
       new ConsumesTouchMovesDelegate());
   const int kTouchId = 5;
   gfx::Rect bounds(100, 200, 123, 45);
-  std::unique_ptr<aura::Window> window(CreateTestWindowWithDelegate(
-      delegate.get(), -1234, bounds, root_window()));
+  std::unique_ptr<aura::Window> window(
+      CreateTestWindow({.delegate = delegate.get(),
+                        .parent = root_window(),
+                        .bounds = bounds,
+                        .window_id = -1234}));
   TimedEvents tes;
 
   delegate->Reset();
@@ -3870,8 +4024,11 @@ TEST_F(GestureRecognizerTest, CancelAllActiveTouches) {
   const int kTouchId1 = 1;
   const int kTouchId2 = 2;
   gfx::Rect bounds(0, 0, kWindowWidth, kWindowHeight);
-  std::unique_ptr<aura::Window> window(CreateTestWindowWithDelegate(
-      delegate.get(), -1234, bounds, root_window()));
+  std::unique_ptr<aura::Window> window(
+      CreateTestWindow({.delegate = delegate.get(),
+                        .parent = root_window(),
+                        .bounds = bounds,
+                        .window_id = -1234}));
   std::unique_ptr<TestEventHandler> handler(new TestEventHandler());
   window->AddPreTargetHandler(handler.get());
 
@@ -3932,8 +4089,11 @@ TEST_F(GestureRecognizerTest, GestureEventShowPress) {
   const int kWindowHeight = 45;
   const int kTouchId = 2;
   gfx::Rect bounds(100, 200, kWindowWidth, kWindowHeight);
-  std::unique_ptr<aura::Window> window(CreateTestWindowWithDelegate(
-      delegate.get(), -1234, bounds, root_window()));
+  std::unique_ptr<aura::Window> window(
+      CreateTestWindow({.delegate = delegate.get(),
+                        .parent = root_window(),
+                        .bounds = bounds,
+                        .window_id = -1234}));
 
   delegate->Reset();
 
@@ -3974,8 +4134,11 @@ TEST_F(GestureRecognizerTest, GestureEventShowPressCancelledByScroll) {
   const int kWindowHeight = 45;
   const int kTouchId = 6;
   gfx::Rect bounds(100, 200, kWindowWidth, kWindowHeight);
-  std::unique_ptr<aura::Window> window(CreateTestWindowWithDelegate(
-      delegate.get(), -1234, bounds, root_window()));
+  std::unique_ptr<aura::Window> window(
+      CreateTestWindow({.delegate = delegate.get(),
+                        .parent = root_window(),
+                        .bounds = bounds,
+                        .window_id = -1234}));
 
   delegate->Reset();
 
@@ -4014,8 +4177,11 @@ TEST_F(GestureRecognizerTest, GestureEventShowPressSentOnTap) {
   const int kWindowHeight = 45;
   const int kTouchId = 6;
   gfx::Rect bounds(100, 200, kWindowWidth, kWindowHeight);
-  std::unique_ptr<aura::Window> window(CreateTestWindowWithDelegate(
-      delegate.get(), -1234, bounds, root_window()));
+  std::unique_ptr<aura::Window> window(
+      CreateTestWindow({.delegate = delegate.get(),
+                        .parent = root_window(),
+                        .bounds = bounds,
+                        .window_id = -1234}));
 
   delegate->Reset();
 
@@ -4046,8 +4212,11 @@ TEST_F(GestureRecognizerTest, GestureEventConsumedTouchMoveScrollTest) {
   TimedEvents tes;
   const int kTouchId = 7;
   gfx::Rect bounds(0, 0, 1000, 1000);
-  std::unique_ptr<aura::Window> window(CreateTestWindowWithDelegate(
-      delegate.get(), -1234, bounds, root_window()));
+  std::unique_ptr<aura::Window> window(
+      CreateTestWindow({.delegate = delegate.get(),
+                        .parent = root_window(),
+                        .bounds = bounds,
+                        .window_id = -1234}));
   delegate->set_window(window.get());
 
   ui::TouchEvent press(
@@ -4084,8 +4253,11 @@ TEST_F(GestureRecognizerTest, GestureEventConsumedTouchMoveTapTest) {
   TimedEvents tes;
   const int kTouchId = 7;
   gfx::Rect bounds(0, 0, 1000, 1000);
-  std::unique_ptr<aura::Window> window(CreateTestWindowWithDelegate(
-      delegate.get(), -1234, bounds, root_window()));
+  std::unique_ptr<aura::Window> window(
+      CreateTestWindow({.delegate = delegate.get(),
+                        .parent = root_window(),
+                        .bounds = bounds,
+                        .window_id = -1234}));
   delegate->set_window(window.get());
 
   ui::TouchEvent press(
@@ -4118,8 +4290,11 @@ TEST_F(GestureRecognizerTest, GestureEventConsumedTouchMoveLongPressTest) {
   const int kWindowHeight = 45;
   const int kTouchId = 2;
   gfx::Rect bounds(100, 200, kWindowWidth, kWindowHeight);
-  std::unique_ptr<aura::Window> window(CreateTestWindowWithDelegate(
-      delegate.get(), -1234, bounds, root_window()));
+  std::unique_ptr<aura::Window> window(
+      CreateTestWindow({.delegate = delegate.get(),
+                        .parent = root_window(),
+                        .bounds = bounds,
+                        .window_id = -1234}));
   delegate->set_window(window.get());
 
   delegate->Reset();
@@ -4152,8 +4327,11 @@ TEST_F(GestureRecognizerTest, TestExceedingSlopSlowly) {
   const int kTouchId = 5;
   TimedEvents tes;
   gfx::Rect bounds(0, 0, kWindowWidth, kWindowHeight);
-  std::unique_ptr<aura::Window> window(CreateTestWindowWithDelegate(
-      delegate.get(), -1234, bounds, root_window()));
+  std::unique_ptr<aura::Window> window(
+      CreateTestWindow({.delegate = delegate.get(),
+                        .parent = root_window(),
+                        .bounds = bounds,
+                        .window_id = -1234}));
 
   ui::TouchEvent press(
       ui::EventType::kTouchPressed, gfx::Point(10, 10), tes.Now(),
@@ -4214,8 +4392,11 @@ TEST_F(GestureRecognizerTest, ScrollAlternatelyConsumedTest) {
   const int kWindowHeight = 3000;
   const int kTouchId = 2;
   gfx::Rect bounds(0, 0, kWindowWidth, kWindowHeight);
-  std::unique_ptr<aura::Window> window(CreateTestWindowWithDelegate(
-      delegate.get(), -1234, bounds, root_window()));
+  std::unique_ptr<aura::Window> window(
+      CreateTestWindow({.delegate = delegate.get(),
+                        .parent = root_window(),
+                        .bounds = bounds,
+                        .window_id = -1234}));
   delegate->set_window(window.get());
 
   delegate->Reset();
@@ -4279,8 +4460,11 @@ TEST_F(GestureRecognizerTest, PinchAlternatelyConsumedTest) {
   const int kTouchId1 = 5;
   const int kTouchId2 = 7;
   gfx::Rect bounds(0, 0, kWindowWidth, kWindowHeight);
-  std::unique_ptr<aura::Window> window(CreateTestWindowWithDelegate(
-      delegate.get(), -1234, bounds, root_window()));
+  std::unique_ptr<aura::Window> window(
+      CreateTestWindow({.delegate = delegate.get(),
+                        .parent = root_window(),
+                        .bounds = bounds,
+                        .window_id = -1234}));
   delegate->set_window(window.get());
   delegate->Reset();
 
@@ -4382,8 +4566,11 @@ TEST_F(GestureRecognizerTest, GestureEventFlagsPassedFromTouchEvent) {
   const int kWindowHeight = 45;
   const int kTouchId = 6;
   gfx::Rect bounds(100, 200, kWindowWidth, kWindowHeight);
-  std::unique_ptr<aura::Window> window(CreateTestWindowWithDelegate(
-      delegate.get(), -1234, bounds, root_window()));
+  std::unique_ptr<aura::Window> window(
+      CreateTestWindow({.delegate = delegate.get(),
+                        .parent = root_window(),
+                        .bounds = bounds,
+                        .window_id = -1234}));
 
   delegate->Reset();
 
@@ -4439,8 +4626,11 @@ TEST_F(GestureRecognizerTest, GestureEventLongPressDeletingWindow) {
   const int kWindowHeight = 45;
   const int kTouchId = 2;
   gfx::Rect bounds(100, 200, kWindowWidth, kWindowHeight);
-  aura::Window* window(CreateTestWindowWithDelegate(
-      &delegate, -1234, bounds, root_window()));
+  aura::Window* window = CreateTestWindow({.delegate = &delegate,
+                                           .parent = root_window(),
+                                           .bounds = bounds,
+                                           .window_id = -1234})
+                             .release();
   delegate.set_window(&window);
 
   ui::TouchEvent press1(
@@ -4465,8 +4655,11 @@ TEST_F(GestureRecognizerWithSwitchTest, GestureEventSmallPinchDisabled) {
   const int kTouchId1 = 3;
   const int kTouchId2 = 5;
   gfx::Rect bounds(5, 5, kWindowWidth, kWindowHeight);
-  std::unique_ptr<aura::Window> window(CreateTestWindowWithDelegate(
-      delegate.get(), -1234, bounds, root_window()));
+  std::unique_ptr<aura::Window> window(
+      CreateTestWindow({.delegate = delegate.get(),
+                        .parent = root_window(),
+                        .bounds = bounds,
+                        .window_id = -1234}));
 
   ui::TouchEvent press1(
       ui::EventType::kTouchPressed, gfx::Point(101, 301), tes.Now(),
@@ -4508,8 +4701,11 @@ TEST_F(GestureRecognizerTest, GestureEventSmallPinchEnabled) {
   const int kTouchId1 = 3;
   const int kTouchId2 = 5;
   gfx::Rect bounds(5, 5, kWindowWidth, kWindowHeight);
-  std::unique_ptr<aura::Window> window(CreateTestWindowWithDelegate(
-      delegate.get(), -1234, bounds, root_window()));
+  std::unique_ptr<aura::Window> window(
+      CreateTestWindow({.delegate = delegate.get(),
+                        .parent = root_window(),
+                        .bounds = bounds,
+                        .window_id = -1234}));
 
   ui::TouchEvent press1(
       ui::EventType::kTouchPressed, gfx::Point(101, 301), tes.Now(),
@@ -4549,8 +4745,11 @@ TEST_F(GestureRecognizerTest, EagerGestureDetection) {
   TimedEvents tes;
   const int kTouchId = 2;
   gfx::Rect bounds(100, 200, 100, 100);
-  std::unique_ptr<aura::Window> window(CreateTestWindowWithDelegate(
-      delegate.get(), -1234, bounds, root_window()));
+  std::unique_ptr<aura::Window> window(
+      CreateTestWindow({.delegate = delegate.get(),
+                        .parent = root_window(),
+                        .bounds = bounds,
+                        .window_id = -1234}));
   delegate->set_window(window.get());
 
   delegate->Reset();
@@ -4588,8 +4787,11 @@ TEST_F(GestureRecognizerTest, IgnoredEventsDontBreakGestureRecognition) {
   const int kWindowHeight = 400;
   const int kTouchId1 = 3;
   gfx::Rect bounds(5, 5, kWindowWidth, kWindowHeight);
-  std::unique_ptr<aura::Window> window(CreateTestWindowWithDelegate(
-      delegate.get(), -1234, bounds, root_window()));
+  std::unique_ptr<aura::Window> window(
+      CreateTestWindow({.delegate = delegate.get(),
+                        .parent = root_window(),
+                        .bounds = bounds,
+                        .window_id = -1234}));
   delegate->set_window(window.get());
 
   ui::TouchEvent press1(
@@ -4645,8 +4847,11 @@ TEST_F(GestureRecognizerTest,
   const int kWindowHeight = 400;
   const int kTouchId1 = 3;
   gfx::Rect bounds(0, 0, kWindowWidth, kWindowHeight);
-  std::unique_ptr<aura::Window> window(CreateTestWindowWithDelegate(
-      delegate.get(), -1234, bounds, root_window()));
+  std::unique_ptr<aura::Window> window(
+      CreateTestWindow({.delegate = delegate.get(),
+                        .parent = root_window(),
+                        .bounds = bounds,
+                        .window_id = -1234}));
   delegate->set_window(window.get());
 
   // Start a scroll gesture.
@@ -4729,8 +4934,11 @@ TEST_F(GestureRecognizerTest, GestureEventTwoWindowsActive) {
   const int kTouchId1 = 6;
   const int kTouchId2 = 4;
   gfx::Rect bounds(150, 200, kWindowWidth, kWindowHeight);
-  std::unique_ptr<aura::Window> window(CreateTestWindowWithDelegate(
-      queued_delegate.get(), -1234, bounds, root_window()));
+  std::unique_ptr<aura::Window> window(
+      CreateTestWindow({.delegate = queued_delegate.get(),
+                        .parent = root_window(),
+                        .bounds = bounds,
+                        .window_id = -1234}));
   queued_delegate->set_window(window.get());
 
   // Touch down on the window. This should not generate any gesture event.
@@ -4752,8 +4960,11 @@ TEST_F(GestureRecognizerTest, GestureEventTwoWindowsActive) {
   std::unique_ptr<QueueTouchEventDelegate> queued_delegate2(
       new QueueTouchEventDelegate(host()->dispatcher()));
   gfx::Rect bounds2(0, 0, kWindowWidth, kWindowHeight);
-  std::unique_ptr<aura::Window> window2(CreateTestWindowWithDelegate(
-      queued_delegate2.get(), -2345, bounds2, root_window()));
+  std::unique_ptr<aura::Window> window2(
+      CreateTestWindow({.delegate = queued_delegate2.get(),
+                        .parent = root_window(),
+                        .bounds = bounds2,
+                        .window_id = -2345}));
   queued_delegate2->set_window(window2.get());
 
   queued_delegate2->Reset();
@@ -4812,8 +5023,11 @@ TEST_F(GestureRecognizerTest, TransferEventsToRoutesAckCorrectly) {
   const int kTouchId = 7;
   gfx::Rect bounds(0, 0, 1000, 1000);
 
-  std::unique_ptr<aura::Window> window_1(CreateTestWindowWithDelegate(
-      delegate_1.get(), -1234, bounds, root_window()));
+  std::unique_ptr<aura::Window> window_1(
+      CreateTestWindow({.delegate = delegate_1.get(),
+                        .parent = root_window(),
+                        .bounds = bounds,
+                        .window_id = -1234}));
 
   delegate_1->set_window(window_1.get());
 
@@ -4826,8 +5040,11 @@ TEST_F(GestureRecognizerTest, TransferEventsToRoutesAckCorrectly) {
   // Create a new consumer and Touch event delegate.
   std::unique_ptr<QueueTouchEventDelegate> delegate_2(
       new QueueTouchEventDelegate(host()->dispatcher()));
-  std::unique_ptr<aura::Window> window_2(CreateTestWindowWithDelegate(
-      delegate_2.get(), -2345, bounds, root_window()));
+  std::unique_ptr<aura::Window> window_2(
+      CreateTestWindow({.delegate = delegate_2.get(),
+                        .parent = root_window(),
+                        .bounds = bounds,
+                        .window_id = -2345}));
   delegate_2->set_window(window_2.get());
 
   // Transfer event sequence from previous window to the new window.
@@ -4869,8 +5086,11 @@ TEST_F(GestureRecognizerTest, GestureConsumerCleanupBeforeTouchAck) {
   const int kTouchId = 7;
   gfx::Rect bounds(0, 0, 1000, 1000);
 
-  std::unique_ptr<aura::Window> window(CreateTestWindowWithDelegate(
-      delegate.get(), -1234, bounds, root_window()));
+  std::unique_ptr<aura::Window> window(
+      CreateTestWindow({.delegate = delegate.get(),
+                        .parent = root_window(),
+                        .bounds = bounds,
+                        .window_id = -1234}));
 
   delegate->set_window(window.get());
 
@@ -4894,9 +5114,11 @@ TEST_F(GestureRecognizerTest, ResetGestureRecognizerWithGestureProvider) {
   const int kTouchId = 4;
   std::unique_ptr<GestureEventConsumeDelegate> delegate(
       new GestureEventConsumeDelegate());
-  std::unique_ptr<aura::Window> window(CreateTestWindowWithDelegate(
-      delegate.get(), /*id=*/-2345, /*bounds=*/gfx::Rect(0, 0, 50, 50),
-      /*parent=*/root_window()));
+  std::unique_ptr<aura::Window> window(
+      CreateTestWindow({.delegate = delegate.get(),
+                        .parent = root_window(),
+                        .bounds = {50, 50},
+                        .window_id = -2345}));
 
   // Touch press then release on `window`.
   constexpr gfx::Point touch_location(/*x=*/10, /*y=*/20);

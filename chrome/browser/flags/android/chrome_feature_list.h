@@ -35,14 +35,14 @@ BASE_DECLARE_FEATURE(kAndroidDataImporterService);
 BASE_DECLARE_FEATURE(kAndroidDesktopDensity);
 BASE_DECLARE_FEATURE(kAndroidElegantTextHeight);
 BASE_DECLARE_FEATURE(kAndroidFirstRunLaunchBounds);
-BASE_DECLARE_FEATURE(kAndroidNativePagesInNewTab);
-BASE_DECLARE_FEATURE(kAndroidOpenIncognitoAsWindow);
 BASE_DECLARE_FEATURE(kAndroidProgressBarVisualUpdate);
 BASE_DECLARE_FEATURE(kAndroidNoVisibleHintForDifferentTLD);
 BASE_DECLARE_FEATURE(kAndroidOmniboxFocusedNewTabPage);
 BASE_DECLARE_FEATURE(kAndroidOpenPdfInlineBackport);
 BASE_DECLARE_FEATURE(kAndroidPdfAssistContent);
 BASE_DECLARE_FEATURE(kAndroidPinnedTabs);
+BASE_DECLARE_FEATURE(kAndroidPinnedTabsTabletTabStrip);
+BASE_DECLARE_FEATURE(kAndroidSearchInSettings);
 BASE_DECLARE_FEATURE(kAndroidSettingsContainment);
 BASE_DECLARE_FEATURE(kAndroidTabGroupsColorUpdateGM3);
 BASE_DECLARE_FEATURE(kAndroidTabHighlighting);
@@ -171,6 +171,7 @@ BASE_DECLARE_FEATURE(kHubBackButton);
 BASE_DECLARE_FEATURE(kHubSlideAnimation);
 BASE_DECLARE_FEATURE(kLockBackPressHandlerAtStart);
 BASE_DECLARE_FEATURE(kLockTopControlsOnLargeTablets);
+BASE_DECLARE_FEATURE(kIncognitoNtpSmallIcon);
 BASE_DECLARE_FEATURE(kIncognitoScreenshot);
 BASE_DECLARE_FEATURE(kIncognitoThemeOverlayTesting);
 BASE_DECLARE_FEATURE(kInstanceSwitcherV2);
@@ -325,6 +326,12 @@ constexpr base::FeatureParam<int>
         &kReadAloudAudioOverviews,
         "read_aloud_audio_overviews_speed_addition_percentage",
         /* default_value=*/20);
+
+constexpr base::FeatureParam<bool>
+    kShouldConsiderLanguageInOverviewReadability(
+        &kReadAloudAudioOverviews,
+        "read_aloud_audio_overviews_should_consider_language_in_overview_readability",
+        /* default_value=*/false);
 
 constexpr base::FeatureParam<int>
   kReadAloudAudioReadabilityDelayMsAfterPageLoad(

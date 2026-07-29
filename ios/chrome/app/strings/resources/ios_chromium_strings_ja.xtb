@@ -4,7 +4,6 @@
 <translation id="1000436330784933699">ここで Google レンズを開くことができます。</translation>
 <translation id="1042296835509784301">Chromium でパスワード マネージャーを開きます。</translation>
 <translation id="1047130070405668746">[Chromium] を選択する</translation>
-<translation id="1086486568852410168">Google レンズで検索</translation>
 <translation id="1091252999271033193">Chromium は毎回モバイルサイトをリクエストします。</translation>
 <translation id="1115463765356382667">Chromium を最大限に活用するには、下記のおすすめの操作を行ってください。</translation>
 <translation id="1185134272377778587">Chromium について</translation>
@@ -43,6 +42,7 @@
 <ph name="BEGIN_LINK" />詳細<ph name="END_LINK" /></translation>
 <translation id="1847960401032164406">Chromium の Google マップ表示</translation>
 <translation id="1867772173333403444">4. [Chromium] を選択する</translation>
+<translation id="1965068424387304464">Chromium のヒント: パスワードを保存</translation>
 <translation id="2006345422933397527">Chromium でアップデートを確認できませんでした。インターネット接続を確認してみてください。</translation>
 <translation id="2042889939382983733">Chromium 履歴を表示する</translation>
 <translation id="2052320862053429062">Chromium では、定期的にパスワードをオンライン上の公開リストと照合し、確認しています。その際、パスワードとユーザー名は Google を含め誰も読み取ることができないよう暗号化されます。</translation>
@@ -119,6 +119,7 @@ Chromium を使いやすくするためにデータを使用するその他の�
 <translation id="3816686541346279443">Chromium でパスワードの保存を確認するメッセージが表示されます。</translation>
 <translation id="3827545470516145620">このデバイスは標準のセキュリティ機能で保護されます</translation>
 <translation id="3833326979834193417">Chromium では、データ侵害や安全でないウェブサイトなどからユーザーを保護するため、1 日 1 回、安全チェックを自動的に実行します。安全チェックの詳細は [設定] で確認できます。</translation>
+<translation id="3837584850181228767">Chromium のヒント: セーフ ブラウジング保護強化機能</translation>
 <translation id="3845223911364528001">Chromium に戻ってファイルをアップロードします</translation>
 <translation id="3855938650519180865">Chromium の新機能</translation>
 <translation id="3886689467633467988">このサイトと Chromium にログインすると、すべてのデバイスで同じブックマークやその他の設定を使用できます。</translation>

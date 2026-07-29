@@ -454,6 +454,7 @@ struct SameSizeAsDocumentLoader
       HashMap<mojom::blink::PermissionName, mojom::blink::PermissionStatus>>
       initial_permission_statuses;
   bool force_new_document_sequence_number;
+  base::TimeDelta total_taken_time_to_update_subresource_load_metrics;
 };
 
 // Asserts size of DocumentLoader, so that whenever a new attribute is added to
@@ -1204,9 +1205,8 @@ void DocumentLoader::UpdateForSameDocumentNavigation(
   // See
   // https://github.com/WICG/declarative-partial-updates#part-2-route-matching
   if (frame_) {
-    Document* document = frame_->GetDocument();
-    if (document && RouteMap::Get(document)) {
-      document->GetStyleEngine().RoutesMayHaveChanged();
+    if (auto* routemap = RouteMap::Get(frame_->GetDocument())) {
+      routemap->UpdateActiveRoutes();
     }
   }
 }
@@ -2981,10 +2981,8 @@ void DocumentLoader::CommitNavigation() {
       (commit_reason_ == CommitReason::kRegular)
           ? ScopedOldDocumentInfoForCommitCapturer::CurrentInfo()
           : nullptr;
-  bool had_sticky_activation_before_navigation =
-      old_document_info_for_commit &&
-      old_document_info_for_commit->had_sticky_activation_before_navigation;
-  if (had_sticky_activation_before_navigation != had_sticky_activation_) {
+  if (frame_->HadStickyUserActivationBeforeNavigation() !=
+      had_sticky_activation_) {
     frame_->SetHadStickyUserActivationBeforeNavigation(had_sticky_activation_);
     frame_->GetLocalFrameHostRemote()
         .HadStickyUserActivationBeforeNavigationChanged(had_sticky_activation_);
@@ -3672,7 +3670,7 @@ void DocumentLoader::NotifyPrerenderingDocumentActivated(
     // process already knows it.
   }
 
-  GetTiming().SetActivationStart(params.activation_start);
+  GetTiming().SetActivationStart(*params.activation_start);
 
   if (params.view_transition_state) {
     CHECK(!view_transition_state_);
@@ -3891,11 +3889,23 @@ void DocumentLoader::DisableCodeCacheForTesting() {
 
 void DocumentLoader::UpdateSubresourceLoadMetrics(
     const SubresourceLoadMetrics& subresource_load_metrics) {
+  base::ElapsedTimer timer;
   GetLocalFrameClient().DidObserveSubresourceLoad(subresource_load_metrics);
+  total_taken_time_to_update_subresource_load_metrics_ += timer.Elapsed();
 }
 
 const mojom::RendererContentSettingsPtr& DocumentLoader::GetContentSettings() {
   return content_settings_;
+}
+
+void DocumentLoader::ReportTotalTakenTimeToUpdateSubresourceLoadMetrics() {
+  if (Url().ProtocolIsInHTTPFamily() && frame_->IsOutermostMainFrame() &&
+      ShouldEmitNewNavigationHistogram(navigation_type_)) {
+    base::UmaHistogramTimes(
+        "Blink.DocumentLoader.TotalTakenTimeToUpdateSubresourceLoadMetrics."
+        "OutermostMainFrame.NewNavigation.IsHTTPOrHTTPS",
+        total_taken_time_to_update_subresource_load_metrics_);
+  }
 }
 
 DEFINE_WEAK_IDENTIFIER_MAP(DocumentLoader)

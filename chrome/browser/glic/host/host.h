@@ -12,6 +12,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/observer_list.h"
 #include "base/observer_list_types.h"
+#include "chrome/browser/glic/host/context/glic_sharing_manager_provider.h"
 #include "chrome/browser/glic/host/glic.mojom-forward.h"
 #include "chrome/browser/glic/host/glic_web_client_access.h"
 #include "components/tabs/public/tab_interface.h"
@@ -24,11 +25,12 @@ class RenderProcessHost;
 namespace glic {
 class GlicKeyedService;
 class GlicPageHandler;
+class GlicWindowController;
 class WebUIContentsContainer;
 
 // The host owns the WebUI that contains the main glic UI and the web client.
 // TODO(crbug.com/409332639): Better encapsulate details here.
-class Host {
+class Host : public GlicSharingManagerProvider {
  public:
   class Delegate {
    public:
@@ -62,6 +64,24 @@ class Host {
     virtual bool IsShowing() const = 0;
   };
 
+  // Interface for methods that the host can call on an instance.
+  // TODO(refactor): This interface should eventually take the place of
+  // Delegate.
+  class InstanceDelegate {
+   public:
+    virtual ~InstanceDelegate() = default;
+
+    virtual void CreateTab() = 0;
+    virtual void CreateTask() = 0;
+    virtual void PerformActions() = 0;
+    virtual void StopActorTask() = 0;
+    virtual void PauseActorTask() = 0;
+    virtual void ResumeActorTask() = 0;
+
+    virtual void GetZeroStateSuggestionsAndSubscribe() = 0;
+    virtual void GetZeroStateSuggestionsForFocusedTab() = 0;
+  };
+
   class Observer : public base::CheckedObserver {
    public:
     // Called when the client is ready to show, invoked sometime after
@@ -84,11 +104,12 @@ class Host {
     virtual void ContextAccessIndicatorChanged(bool enabled) {}
   };
 
-  using DestructionCallback = base::OnceCallback<void(Host*)>;
-
-  Host(Profile* profile, DestructionCallback destruction_callback);
+  // When no sharing manager provider is supplied, GlicKeyedService is used.
+  explicit Host(Profile* profile);
+  explicit Host(Profile* profile,
+                GlicSharingManagerProvider* sharing_manager_provider);
   Host(const Host&) = delete;
-  ~Host();
+  ~Host() override;
   Host& operator=(const Host&) = delete;
 
   void Initialize(Delegate* delegate);
@@ -96,10 +117,6 @@ class Host {
   void PanelWillOpen(mojom::InvocationSource invocation_source);
 
   void PanelWasClosed();
-
-  // Must be called before the delegate is destroyed, just before Host's
-  // destructor.
-  void Destroy();
 
   // Delete the owned web contents and prepare for destruction.
   void Shutdown();
@@ -112,6 +129,9 @@ class Host {
 
   // Signals the glic WebUI that the glic window will be shown soon.
   void NotifyWindowIntentToShow();
+
+  // GlicSharingManagerProvider Implementation.
+  GlicSharingManager& sharing_manager() override;
 
   WebUIContentsContainer* contents_container() { return contents_.get(); }
   // Returns the WebUI web contents. May be null.
@@ -249,7 +269,6 @@ class Host {
   }
 
   raw_ptr<Profile> profile_;
-  DestructionCallback destruction_callback_;
 
   // Null before `Initialize()` and after `Shutdown()`.
   raw_ptr<Delegate> delegate_;
@@ -266,6 +285,8 @@ class Host {
   // destroyed when the profile needs to be destroyed.
   std::unique_ptr<WebUIContentsContainer> contents_;
 
+  raw_ptr<GlicSharingManagerProvider> sharing_manager_provider_;
+
   // The current view in the primary page handler.
   mojom::CurrentView primary_current_view_ = mojom::CurrentView::kConversation;
 };
@@ -274,17 +295,11 @@ class Host {
 // else soon.
 class HostManager {
  public:
-  explicit HostManager(Profile* profile);
+  HostManager(Profile* profile,
+              base::WeakPtr<GlicWindowController> window_controller);
   ~HostManager();
 
-  // TODO(refactor): Remove.
-  Host& primary_host();
-
   void Shutdown();
-  void Destroy();
-
-  void AddHost(Host* host);
-  void RemoveHost(Host* host);
 
   // Called when a `GlicPageHandler` is created.
   Host* WebUIPageHandlerAdded(GlicPageHandler* page_handler);
@@ -306,9 +321,11 @@ class HostManager {
   Host* FindHostForTabForTesting(tabs::TabInterface& tab);
 
  private:
+  std::vector<Host*> GetPrimaryHosts();
+
   class DummyHostDelegate;
   raw_ptr<Profile> profile_;
-  std::vector<Host*> instance_hosts_;
+  base::WeakPtr<GlicWindowController> window_controller_;
   std::unique_ptr<DummyHostDelegate> dummy_host_delegate_;
   // Hosts for any unclaimed page handlers, which is approximately limited to
   // chrome://glic in tabs. These are only important for developers, and do not

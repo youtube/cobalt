@@ -4,6 +4,8 @@
 
 #include "components/wallet/content/browser/content_walletable_pass_ingestion_controller.h"
 
+#include "base/strings/utf_string_conversions.h"
+#include "components/optimization_guide/content/browser/page_content_proto_provider.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/web_contents.h"
 
@@ -21,11 +23,32 @@ ContentWalletablePassIngestionController::
 void ContentWalletablePassIngestionController::DidFinishLoad(
     content::RenderFrameHost* render_frame_host,
     const GURL& validated_url) {
-  if (!render_frame_host->IsInPrimaryMainFrame() ||
-      !IsEligibleForExtraction(validated_url)) {
-    return;
+  if (render_frame_host->IsInPrimaryMainFrame()) {
+    StartWalletablePassDetectionFlow(validated_url);
   }
-  // TODO(crbug.com/422366321): Add walletable pass detection logic here.
+}
+
+std::string ContentWalletablePassIngestionController::GetPageTitle() const {
+  return base::UTF16ToUTF8(web_contents()->GetTitle());
+}
+
+void ContentWalletablePassIngestionController::GetAnnotatedPageContent(
+    AnnotatedPageContentCallback callback) {
+  blink::mojom::AIPageContentOptionsPtr ai_page_content_options =
+      optimization_guide::DefaultAIPageContentOptions(
+          /*on_critical_path =*/true);
+  optimization_guide::GetAIPageContent(
+      web_contents(), std::move(ai_page_content_options),
+      base::BindOnce(
+          [](AnnotatedPageContentCallback callback,
+             std::optional<optimization_guide::AIPageContentResult> result) {
+            if (!result) {
+              std::move(callback).Run(std::nullopt);
+              return;
+            }
+            std::move(callback).Run(std::move(result->proto));
+          },
+          std::move(callback)));
 }
 
 }  // namespace wallet

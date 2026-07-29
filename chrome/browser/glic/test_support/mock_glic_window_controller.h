@@ -20,6 +20,7 @@ class MockGlicWindowController
 
   MOCK_METHOD(Host&, host, (), (override));
   MOCK_METHOD(HostManager&, host_manager, (), (override));
+  MOCK_METHOD(std::vector<Host*>, GetHosts, (), (override));
   MOCK_METHOD(Host*, GetHostForTab, (tabs::TabInterface*), (override));
 
   MOCK_METHOD(void,
@@ -79,13 +80,13 @@ class MockGlicWindowController
   MOCK_METHOD(void, SetPreviousPositionForTesting, (gfx::Point), (override));
   MOCK_METHOD(std::unique_ptr<views::View>,
               CreateViewForSidePanel,
-              (tabs::TabInterface*),
+              (tabs::TabInterface&),
               (override));
   MOCK_METHOD(base::CallbackListSubscription,
               RegisterFloatyStateChange,
               (FloatyStateChangeCallback callback),
               (override));
-  MOCK_METHOD(void, SidePanelShown, (Browser*), (override));
+  MOCK_METHOD(void, SidePanelShown, (BrowserWindowInterface*), (override));
 
   base::WeakPtr<GlicWindowController> GetWeakPtr() override {
     return weak_ptr_factory_.GetWeakPtr();

@@ -27,7 +27,7 @@
 #include "extensions/common/permissions/permission_message.h"
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "ui/gfx/image/image.h"
-#include "ui/gfx/native_widget_types.h"
+#include "ui/gfx/native_ui_types.h"
 
 static_assert(BUILDFLAG(ENABLE_EXTENSIONS_CORE));
 
@@ -114,6 +114,8 @@ class ExtensionInstallPrompt {
                          double average_rating,
                          int rating_count,
                          const std::string& localized_rating_count);
+    void SetInitialExtensionsProviderName(
+        std::u16string initial_extensions_provider_name);
 
     PromptType type() const { return type_; }
 
@@ -182,6 +184,10 @@ class ExtensionInstallPrompt {
 
    private:
     const PromptType type_;
+
+    // When this is non empty, means that this extension is an initial
+    // pre-installed one.
+    std::u16string initial_extensions_provider_name_;
 
     // Permissions that are being requested (may not be all of an extension's
     // permissions if only additional ones are being requested)
@@ -304,10 +310,7 @@ class ExtensionInstallPrompt {
                   const SkBitmap* icon,
                   std::unique_ptr<Prompt> prompt,
                   const ShowDialogCallback& show_dialog_callback);
-  // Declared virtual for testing purposes.
-  // Note: if all you want to do is automatically confirm or cancel, prefer
-  // ScopedTestDialogAutoConfirm from extension_dialog_auto_confirm.h
-  virtual void ShowDialog(
+  void ShowDialog(
       DoneCallback install_callback,
       const extensions::Extension* extension,
       const SkBitmap* icon,

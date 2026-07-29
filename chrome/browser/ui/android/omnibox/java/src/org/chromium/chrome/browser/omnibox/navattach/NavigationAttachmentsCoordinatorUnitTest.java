@@ -9,6 +9,8 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.Mockito.doReturn;
 
 import android.app.Activity;
 import android.view.LayoutInflater;
@@ -23,13 +25,18 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.Mock;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 
 import org.chromium.base.supplier.ObservableSupplierImpl;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.Features.EnableFeatures;
+import org.chromium.chrome.browser.omnibox.LocationBarDataProvider;
 import org.chromium.chrome.browser.omnibox.R;
 import org.chromium.chrome.browser.profiles.Profile;
+import org.chromium.components.metrics.OmniboxEventProtos.OmniboxEventProto.PageClassification;
 import org.chromium.components.omnibox.OmniboxFeatureList;
 import org.chromium.ui.base.TestActivity;
 import org.chromium.ui.base.WindowAndroid;
@@ -37,9 +44,12 @@ import org.chromium.ui.base.WindowAndroid;
 /** Unit tests for {@link NavigationAttachmentsCoordinator}. */
 @RunWith(BaseRobolectricTestRunner.class)
 public class NavigationAttachmentsCoordinatorUnitTest {
-    @Rule
-    public ActivityScenarioRule<TestActivity> mActivityScenarioRule =
+    public @Rule ActivityScenarioRule<TestActivity> mActivityScenarioRule =
             new ActivityScenarioRule<>(TestActivity.class);
+    public @Rule MockitoRule mMockitoRule = MockitoJUnit.rule();
+    private @Mock ComposeBoxQueryControllerBridge.Natives mControllerMock;
+    private @Mock Profile mProfileMock;
+    private @Mock LocationBarDataProvider mLocationBarDataProvider;
 
     private Activity mActivity;
     private WindowAndroid mWindowAndroid;
@@ -49,6 +59,7 @@ public class NavigationAttachmentsCoordinatorUnitTest {
 
     @Before
     public void setUp() {
+        ComposeBoxQueryControllerBridgeJni.setInstanceForTesting(mControllerMock);
         mActivityScenarioRule
                 .getScenario()
                 .onActivity(
@@ -72,7 +83,17 @@ public class NavigationAttachmentsCoordinatorUnitTest {
     public void testToolbarVisibility_featureEnabled() {
         mCoordinator =
                 new NavigationAttachmentsCoordinator(
-                        mActivity, mWindowAndroid, mParent, mProfileSupplier);
+                        mActivity,
+                        mWindowAndroid,
+                        mParent,
+                        mProfileSupplier,
+                        mLocationBarDataProvider);
+
+        doReturn(PageClassification.INSTANT_NTP_WITH_OMNIBOX_AS_STARTING_FOCUS_VALUE)
+                .when(mLocationBarDataProvider)
+                .getPageClassification(anyBoolean());
+
+        mProfileSupplier.set(mProfileMock);
         View navigationToolbar = mParent.findViewById(R.id.location_bar_navigation_toolbar);
         assertEquals(View.GONE, navigationToolbar.getVisibility());
 
@@ -88,7 +109,11 @@ public class NavigationAttachmentsCoordinatorUnitTest {
     public void testAdapter_isSet() {
         mCoordinator =
                 new NavigationAttachmentsCoordinator(
-                        mActivity, mWindowAndroid, mParent, mProfileSupplier);
+                        mActivity,
+                        mWindowAndroid,
+                        mParent,
+                        mProfileSupplier,
+                        mLocationBarDataProvider);
         NavigationAttachmentsViewHolder viewHolder = mCoordinator.getViewHolderForTesting();
         assertNotNull(viewHolder);
         assertNotNull(viewHolder.attachmentsView.getAdapter());
@@ -99,7 +124,11 @@ public class NavigationAttachmentsCoordinatorUnitTest {
     public void testToolbarVisibility_featureDisabled() {
         mCoordinator =
                 new NavigationAttachmentsCoordinator(
-                        mActivity, mWindowAndroid, mParent, mProfileSupplier);
+                        mActivity,
+                        mWindowAndroid,
+                        mParent,
+                        mProfileSupplier,
+                        mLocationBarDataProvider);
         assertNull(mCoordinator.getViewHolderForTesting());
     }
 
@@ -108,7 +137,11 @@ public class NavigationAttachmentsCoordinatorUnitTest {
     public void testAddButton_togglesPopup() {
         mCoordinator =
                 new NavigationAttachmentsCoordinator(
-                        mActivity, mWindowAndroid, mParent, mProfileSupplier);
+                        mActivity,
+                        mWindowAndroid,
+                        mParent,
+                        mProfileSupplier,
+                        mLocationBarDataProvider);
         NavigationAttachmentsViewHolder viewHolder = mCoordinator.getViewHolderForTesting();
         assertNotNull(viewHolder);
         View addButton = viewHolder.addButton;

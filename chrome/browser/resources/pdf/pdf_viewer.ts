@@ -76,6 +76,9 @@ import type {KeyEventData} from './pdf_viewer_base.js';
 import {PdfViewerBaseElement} from './pdf_viewer_base.js';
 import {PdfViewerPrivateProxyImpl} from './pdf_viewer_private_proxy.js';
 import type {DocumentDimensionsMessageData} from './pdf_viewer_utils.js';
+// <if expr="enable_pdf_save_to_drive">
+import {getSaveToDriveManageStorageUrl, getSaveToDriveOpenInDriveUrl} from './pdf_viewer_utils.js';
+// </if> enable_pdf_save_to_drive
 import {hasCtrlModifier, hasCtrlModifierOnly, shouldIgnoreKeyEvents, verifyPdfHeader} from './pdf_viewer_utils.js';
 // clang-format on
 
@@ -83,6 +86,7 @@ import {hasCtrlModifier, hasCtrlModifierOnly, shouldIgnoreKeyEvents, verifyPdfHe
 const SaveToDriveErrorType = chrome.pdfViewerPrivate.SaveToDriveErrorType;
 const SaveToDriveStatus = chrome.pdfViewerPrivate.SaveToDriveStatus;
 type SaveToDriveProgress = chrome.pdfViewerPrivate.SaveToDriveProgress;
+type SaveToDriveStatus = chrome.pdfViewerPrivate.SaveToDriveStatus;
 // </if> enable_pdf_save_to_drive
 const SaveRequestType = chrome.pdfViewerPrivate.SaveRequestType;
 type SaveRequestType = chrome.pdfViewerPrivate.SaveRequestType;
@@ -162,15 +166,27 @@ const BACKGROUND_COLOR: number = 0xff282828;
 // clang-format on
 
 // <if expr="enable_pdf_save_to_drive">
+function convertNoErrorStatusToSaveToDriveState(status: SaveToDriveStatus):
+    SaveToDriveState {
+  switch (status) {
+    case SaveToDriveStatus.INITIATED:
+    case SaveToDriveStatus.FETCH_OAUTH:
+    case SaveToDriveStatus.FETCH_PARENT_FOLDER:
+    case SaveToDriveStatus.UPLOAD_STARTED:
+    case SaveToDriveStatus.UPLOAD_IN_PROGRESS:
+      return SaveToDriveState.UPLOADING;
+    case SaveToDriveStatus.UPLOAD_COMPLETED:
+      return SaveToDriveState.SUCCESS;
+    default:
+      return SaveToDriveState.UNINITIALIZED;
+  }
+}
+
 function convertSaveToDriveProgressToSaveToDriveState(
     progress: SaveToDriveProgress): SaveToDriveState {
   switch (progress.errorType) {
     case SaveToDriveErrorType.NO_ERROR:
-      if (progress.status === SaveToDriveStatus.INITIATED ||
-          progress.status === SaveToDriveStatus.UPLOAD_IN_PROGRESS) {
-        return SaveToDriveState.UPLOADING;
-      }
-      return SaveToDriveState.UNINITIALIZED;
+      return convertNoErrorStatusToSaveToDriveState(progress.status);
     case SaveToDriveErrorType.UNKNOWN_ERROR:
       return SaveToDriveState.UNKNOWN_ERROR;
     case SaveToDriveErrorType.QUOTA_EXCEEDED:
@@ -253,9 +269,8 @@ export class PdfViewerElement extends PdfViewerBaseElement {
 
       // <if expr="enable_pdf_save_to_drive">
       pdfSaveToDriveEnabled_: {type: Boolean},
-      saveToDriveFileSizeBytes_: {type: Number},
+      saveToDriveProgress_: {type: Object},
       saveToDriveState_: {type: String},
-      saveToDriveUploadedBytes_: {type: Number},
       // </if>
 
       showPasswordDialog_: {type: Boolean},
@@ -323,10 +338,13 @@ export class PdfViewerElement extends PdfViewerBaseElement {
   // </if>
   // <if expr="enable_pdf_save_to_drive">
   protected accessor pdfSaveToDriveEnabled_: boolean = false;
-  protected accessor saveToDriveFileSizeBytes_: number = 0;
+  protected accessor saveToDriveProgress_: SaveToDriveProgress = {
+    status: SaveToDriveStatus.NOT_STARTED,
+    errorType: SaveToDriveErrorType.NO_ERROR,
+  };
   protected accessor saveToDriveState_: SaveToDriveState =
       SaveToDriveState.UNINITIALIZED;
-  protected accessor saveToDriveUploadedBytes_: number = 0;
+  private saveToDriveRequestType_: SaveRequestType = SaveRequestType.ORIGINAL;
   // </if>
   private pdfSearchifySaveEnabled_: boolean = false;
   private pdfUseShowSaveFilePicker_: boolean = false;
@@ -382,6 +400,17 @@ export class PdfViewerElement extends PdfViewerBaseElement {
     if (changedProperties.has('showErrorDialog') && this.showErrorDialog) {
       this.onErrorDialog_();
     }
+    // <if expr="enable_pdf_save_to_drive">
+    const changedPrivateProperties =
+        changedProperties as Map<PropertyKey, unknown>;
+    if (changedPrivateProperties.has('saveToDriveState_') &&
+        changedPrivateProperties.get('saveToDriveState_') ===
+            SaveToDriveState.UPLOADING) {
+      this.getSaveToDriveBubble_().showAt(
+          this.$.toolbar.getSaveToDriveBubbleAnchor(),
+          /*autoDismiss=*/ true);
+    }
+    // </if>
   }
 
   // <if expr="enable_pdf_ink2">
@@ -1095,8 +1124,7 @@ export class PdfViewerElement extends PdfViewerBaseElement {
     if (streamUrl !== this.browserApi!.getStreamInfo().streamUrl) {
       return;
     }
-    this.saveToDriveUploadedBytes_ = progress.uploadedBytes ?? 0;
-    this.saveToDriveFileSizeBytes_ = progress.fileSizeBytes ?? 0;
+    this.saveToDriveProgress_ = progress;
     this.saveToDriveState_ =
         convertSaveToDriveProgressToSaveToDriveState(progress);
   }
@@ -1279,12 +1307,10 @@ export class PdfViewerElement extends PdfViewerBaseElement {
     if (!this.isSaveToDriveUploading_()) {
       return 0;
     }
-    assert(
-        this.saveToDriveFileSizeBytes_ > 0,
-        'Invalid file size for save to Drive');
-    return Math.round(
-        (this.saveToDriveUploadedBytes_ / this.saveToDriveFileSizeBytes_) *
-        100);
+    const fileSizeBytes = this.saveToDriveProgress_.fileSizeBytes ?? 0;
+    assert(fileSizeBytes > 0, 'Invalid file size for save to Drive');
+    const uploadedBytes = this.saveToDriveProgress_.uploadedBytes ?? 0;
+    return Math.round((uploadedBytes / fileSizeBytes) * 100);
   }
 
   protected isSaveToDriveUploading_(): boolean {
@@ -1295,15 +1321,15 @@ export class PdfViewerElement extends PdfViewerBaseElement {
     // TODO(crbug.com/427449996): Implement logics to reset the SaveToDriveState
     // back to UNINITIALIZED after the bubble is closed from the finish or error
     // state, so the next `onSaveToDrive_` call can re-trigger the upload flow.
+    // Also implement the logic to close the bubble if it was already open when
+    // the event is fired.
     if (this.saveToDriveState_ === SaveToDriveState.UNINITIALIZED) {
       PdfViewerPrivateProxyImpl.getInstance().saveToDrive(e.detail);
+      this.saveToDriveRequestType_ = e.detail;
       return;
     }
-    const bubble =
-        this.shadowRoot.querySelector<ViewerSaveToDriveBubbleElement>(
-            'viewer-save-to-drive-bubble');
-    assert(bubble);
-    bubble.showAt(this.$.toolbar.getSaveToDriveBubbleAnchor());
+    this.getSaveToDriveBubble_().showAt(
+        this.$.toolbar.getSaveToDriveBubbleAnchor());
   }
 
   protected onSaveToDriveBubbleAction_(
@@ -1313,12 +1339,42 @@ export class PdfViewerElement extends PdfViewerBaseElement {
         PdfViewerPrivateProxyImpl.getInstance().saveToDrive(
             /*saveRequestType=undefined*/);
         break;
+      case SaveToDriveBubbleRequestType.MANAGE_STORAGE:
+        assert(this.saveToDriveProgress_.accountEmail);
+        this.handleNavigate_(
+            getSaveToDriveManageStorageUrl(
+                this.saveToDriveProgress_.accountEmail,
+                this.saveToDriveProgress_.accountIsManaged ?? false),
+            WindowOpenDisposition.NEW_FOREGROUND_TAB);
+        // TODO(crbug.com/427449996): Add testing for this case.
+        break;
+      case SaveToDriveBubbleRequestType.OPEN_IN_DRIVE:
+        assert(this.saveToDriveProgress_.accountEmail);
+        assert(this.saveToDriveProgress_.driveItemId);
+        this.handleNavigate_(
+            getSaveToDriveOpenInDriveUrl(
+                this.saveToDriveProgress_.accountEmail,
+                this.saveToDriveProgress_.driveItemId),
+            WindowOpenDisposition.NEW_FOREGROUND_TAB);
+        // TODO(crbug.com/427449996): Add testing for this case.
+        break;
+      case SaveToDriveBubbleRequestType.RETRY:
+        PdfViewerPrivateProxyImpl.getInstance().saveToDrive(
+            this.saveToDriveRequestType_);
+        break;
       default:
-        // TODO(crbug.com/427449996): Implement the save PDF to drive logics.
         console.warn(
             'Saving to Drive bubble action is not implemented yet.', e.detail);
         break;
     }
+  }
+
+  private getSaveToDriveBubble_(): ViewerSaveToDriveBubbleElement {
+    const bubble =
+        this.shadowRoot.querySelector<ViewerSaveToDriveBubbleElement>(
+            'viewer-save-to-drive-bubble');
+    assert(bubble);
+    return bubble;
   }
   // </if> enable_pdf_save_to_drive
 

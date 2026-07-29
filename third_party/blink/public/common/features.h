@@ -222,6 +222,7 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kCameraMicPreview);
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kCanvas2DHibernation);
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(
     kCanvas2DHibernationReleaseTransferMemory);
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kCanvas2DHibernationNoSmallCanvas);
 
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kCaptureJSExecutionLocation);
 
@@ -1763,8 +1764,6 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kUrgentMainFrameForInput);
 // to canonicalize URL properties. See https://crbug.com/409350827
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kURLPatternDummyURLCanonicalization);
 
-BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kUseCommitUrlInsteadOfRedirectUrl);
-
 // Uses page viewport instead of frame viewport in the Largest Contentful Paint
 // heuristic where images occupying the full viewport are ignored.
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kUsePageViewportInLCP);
@@ -1773,11 +1772,6 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kUseSnappyForParkableStrings);
 
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kUseZstdForParkableStrings);
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(int, kZstdCompressionLevel);
-
-// Causes MediaStreamVideoSource video frames to be transported on a
-// SequencedTaskRunner backed by the threadpool instead of the normal IO thread.
-BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(
-    kUseThreadPoolForMediaStreamVideoTaskRunner);
 
 // Feature flag for driving decoding with the Metronome by VSyncs instead of by
 // timer.

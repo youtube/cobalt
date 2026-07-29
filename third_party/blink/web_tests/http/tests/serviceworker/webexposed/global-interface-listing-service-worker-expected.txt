@@ -1692,28 +1692,6 @@ interface QuotaExceededError : DOMException
     getter quota
     getter requested
     method constructor
-interface RTCRtpAcks
-    attribute @@toStringTag
-    getter explicitCongestionNotification
-    getter receivedTime
-    getter remoteSendTimestamp
-    method acks
-    method constructor
-interface RTCRtpSendResult
-    attribute @@toStringTag
-    getter sent
-    getter unsent
-    method constructor
-interface RTCRtpSendStream
-    attribute @@toStringTag
-    method constructor
-    method sendRtp
-interface RTCRtpSent
-    attribute @@toStringTag
-    getter ackId
-    getter size
-    getter time
-    method constructor
 interface ReadableByteStreamController
     attribute @@toStringTag
     getter byobRequest
@@ -1822,6 +1800,17 @@ interface Response
 interface RestrictionTarget
     attribute @@toStringTag
     method constructor
+interface RtcReceivedPacket
+    attribute @@toStringTag
+    getter data
+    method constructor
+interface RtcTransport
+    attribute @@toStringTag
+    getter onicecandidate
+    method constructor
+    method getReceivedPackets
+    method sendPackets
+    setter onicecandidate
 interface Scheduler
     attribute @@toStringTag
     method constructor
@@ -2055,7 +2044,7 @@ interface TrustedTypePolicy
     method createHTML
     method createScript
     method createScriptURL
-interface TrustedTypePolicyFactory : EventTarget
+interface TrustedTypePolicyFactory
     attribute @@toStringTag
     getter defaultPolicy
     getter emptyHTML
@@ -2879,7 +2868,7 @@ interface WebGL2RenderingContext
     method stencilOp
     method stencilOpSeparate
     method texElement2D
-    method texHTML2D
+    method texElementImage2D
     method texImage2D
     method texImage3D
     method texParameterf
@@ -3384,7 +3373,7 @@ interface WebGLRenderingContext
     method stencilOp
     method stencilOpSeparate
     method texElement2D
-    method texHTML2D
+    method texElementImage2D
     method texImage2D
     method texParameterf
     method texParameteri

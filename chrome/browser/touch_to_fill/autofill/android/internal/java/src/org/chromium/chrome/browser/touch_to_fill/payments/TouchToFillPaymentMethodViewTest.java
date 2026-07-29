@@ -31,6 +31,8 @@ import static org.chromium.chrome.browser.autofill.AutofillTestHelper.createCred
 import static org.chromium.chrome.browser.autofill.AutofillTestHelper.createLocalCreditCard;
 import static org.chromium.chrome.browser.autofill.AutofillTestHelper.createVirtualCreditCard;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.BACK_PRESS_HANDLER;
+import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.BnplSelectionProgressHeaderProperties.BNPL_BACK_BUTTON_ENABLED;
+import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.BnplSelectionProgressHeaderProperties.BNPL_ON_BACK_BUTTON_CLICKED;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.BnplSuggestionProperties.BNPL_ICON_ID;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.BnplSuggestionProperties.BNPL_ITEM_COLLECTION_INFO;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.BnplSuggestionProperties.IS_ENABLED;
@@ -59,16 +61,19 @@ import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaym
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.IbanProperties.ON_IBAN_CLICK_ACTION;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.ItemType.ALL_LOYALTY_CARDS;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.ItemType.BNPL;
+import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.ItemType.BNPL_SELECTION_PROGRESS_HEADER;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.ItemType.CREDIT_CARD;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.ItemType.FILL_BUTTON;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.ItemType.HEADER;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.ItemType.IBAN;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.ItemType.LOYALTY_CARD;
+import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.ItemType.PROGRESS_ICON;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.ItemType.TERMS_LABEL;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.LoyaltyCardProperties.LOYALTY_CARD_NUMBER;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.LoyaltyCardProperties.MERCHANT_NAME;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.LoyaltyCardProperties.NON_TRANSFORMING_LOYALTY_CARD_KEYS;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.LoyaltyCardProperties.ON_LOYALTY_CARD_CLICK_ACTION;
+import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.ProgressIconProperties.PROGRESS_CONTENT_DESCRIPTION_ID;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.SHEET_CLOSED_DESCRIPTION_ID;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.SHEET_CONTENT_DESCRIPTION_ID;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.SHEET_FULL_HEIGHT_DESCRIPTION_ID;
@@ -76,6 +81,7 @@ import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaym
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.SHEET_ITEMS;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.ScreenId.ALL_LOYALTY_CARDS_SCREEN;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.ScreenId.HOME_SCREEN;
+import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.ScreenId.PROGRESS_SCREEN;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.TermsLabelProperties.ALL_TERMS_LABEL_KEYS;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.TermsLabelProperties.CARD_BENEFITS_TERMS_AVAILABLE;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.VISIBLE;
@@ -118,6 +124,7 @@ import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.browser.touch_to_fill.common.FillableItemCollectionInfo;
 import org.chromium.chrome.browser.touch_to_fill.common.TouchToFillResourceProvider;
 import org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.AllLoyaltyCardsItemProperties;
+import org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.BnplSelectionProgressHeaderProperties;
 import org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.ButtonProperties;
 import org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.HeaderProperties;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
@@ -1354,6 +1361,109 @@ public class TouchToFillPaymentMethodViewTest {
         verify(actionCallback, never()).run();
     }
 
+    @Test
+    @MediumTest
+    public void testProgressSpinnerIsShown() {
+        runOnUiThreadBlocking(
+                () -> {
+                    ModelList progressScreenItems = new ModelList();
+                    progressScreenItems.add(
+                            new ListItem(
+                                    PROGRESS_ICON,
+                                    createProgressIconModel(
+                                            R.string
+                                                    .autofill_pending_dialog_loading_accessibility_description)));
+
+                    mTouchToFillPaymentMethodModel.set(CURRENT_SCREEN, PROGRESS_SCREEN);
+                    mTouchToFillPaymentMethodModel.set(SHEET_ITEMS, progressScreenItems);
+                    mTouchToFillPaymentMethodModel.set(VISIBLE, true);
+                });
+        BottomSheetTestSupport.waitForOpen(mBottomSheetController);
+
+        RecyclerView bnplProgressScreen =
+                mTouchToFillPaymentMethodView
+                        .getContentView()
+                        .findViewById(R.id.touch_to_fill_progress_screen);
+        assertNotNull(bnplProgressScreen);
+        assertThat(bnplProgressScreen.getAdapter().getItemCount(), is(1));
+
+        View progressSpinner = bnplProgressScreen.getChildAt(0).findViewById(R.id.progress_spinner);
+        assertTrue(progressSpinner.isShown());
+        assertEquals(
+                getString(R.string.autofill_pending_dialog_loading_accessibility_description),
+                progressSpinner.getContentDescription());
+    }
+
+    @Test
+    @MediumTest
+    public void testBnplSelectionProgressHeaderBackButtonDisabled() {
+        Runnable actionCallback = mock(Runnable.class);
+        runOnUiThreadBlocking(
+                () -> {
+                    mTouchToFillPaymentMethodModel
+                            .get(SHEET_ITEMS)
+                            .add(
+                                    new ListItem(
+                                            BNPL_SELECTION_PROGRESS_HEADER,
+                                            createBnplSelectionProgressHeaderModel(
+                                                    /* backButtonEnabled= */ false,
+                                                    actionCallback)));
+                    mTouchToFillPaymentMethodModel.set(VISIBLE, true);
+                });
+        BottomSheetTestSupport.waitForOpen(mBottomSheetController);
+
+        View backButton =
+                mTouchToFillPaymentMethodView
+                        .getContentView()
+                        .findViewById(R.id.bnpl_header_back_button);
+        TextView title =
+                mTouchToFillPaymentMethodView.getContentView().findViewById(R.id.bnpl_header_title);
+
+        assertThat(
+                title.getText().toString(),
+                is(getString(R.string.autofill_bnpl_pay_later_options_text)));
+        assertFalse(backButton.isEnabled());
+        assertThat(backButton.getAlpha(), is(0.38f));
+
+        onView(withId(R.id.bnpl_header_back_button)).perform(createClickActionWithFlags(0));
+        verify(actionCallback, never()).run();
+    }
+
+    @Test
+    @MediumTest
+    public void testBnplSelectionProgressHeaderBackButtonEnabled() {
+        Runnable actionCallback = mock(Runnable.class);
+        runOnUiThreadBlocking(
+                () -> {
+                    mTouchToFillPaymentMethodModel
+                            .get(SHEET_ITEMS)
+                            .add(
+                                    new ListItem(
+                                            BNPL_SELECTION_PROGRESS_HEADER,
+                                            createBnplSelectionProgressHeaderModel(
+                                                    /* backButtonEnabled= */ true,
+                                                    actionCallback)));
+                    mTouchToFillPaymentMethodModel.set(VISIBLE, true);
+                });
+        BottomSheetTestSupport.waitForOpen(mBottomSheetController);
+
+        View backButton =
+                mTouchToFillPaymentMethodView
+                        .getContentView()
+                        .findViewById(R.id.bnpl_header_back_button);
+        TextView title =
+                mTouchToFillPaymentMethodView.getContentView().findViewById(R.id.bnpl_header_title);
+
+        assertThat(
+                title.getText().toString(),
+                is(getString(R.string.autofill_bnpl_pay_later_options_text)));
+        assertTrue(backButton.isEnabled());
+        assertThat(backButton.getAlpha(), is(1.0f));
+
+        onView(withId(R.id.bnpl_header_back_button)).perform(createClickActionWithFlags(0));
+        waitForEvent(actionCallback).run();
+    }
+
     private RecyclerView getCreditCardSuggestions() {
         return mTouchToFillPaymentMethodView
                 .getContentView()
@@ -1469,6 +1579,21 @@ public class TouchToFillPaymentMethodViewTest {
                         .with(BNPL_ITEM_COLLECTION_INFO, collectionInfo)
                         .with(IS_ENABLED, !suggestion.applyDeactivatedStyle());
         return bnplSuggestionModelBuilder.build();
+    }
+
+    private static PropertyModel createProgressIconModel(@StringRes int contentDescription) {
+        return new PropertyModel.Builder(
+                        TouchToFillPaymentMethodProperties.ProgressIconProperties.ALL_KEYS)
+                .with(PROGRESS_CONTENT_DESCRIPTION_ID, contentDescription)
+                .build();
+    }
+
+    private static PropertyModel createBnplSelectionProgressHeaderModel(
+            boolean backButtonEnabled, Runnable actionCallback) {
+        return new PropertyModel.Builder(BnplSelectionProgressHeaderProperties.ALL_KEYS)
+                .with(BNPL_BACK_BUTTON_ENABLED, backButtonEnabled)
+                .with(BNPL_ON_BACK_BUTTON_CLICKED, actionCallback)
+                .build();
     }
 
     private static PropertyModel createFillButtonModel(Runnable actionCallback) {

@@ -27,6 +27,7 @@
 <translation id="1082554859195167538">Opinie o produktach dla Ciebie</translation>
 <translation id="1084365883616172403">Post na Facebooku dodany.</translation>
 <translation id="1085677983426914530">Nie udało się otworzyć pliku <ph name="FILENAME" /></translation>
+<translation id="1086486568852410168">Szukaj za pomocą Obiektywu Google</translation>
 <translation id="1096992026380844478">Ustawienia synchronizacji zostaną przywrócone na podstawie ostatniej kopii zapasowej. <ph name="BEGIN_LINK" />Zobacz, co możesz synchronizować<ph name="END_LINK" /></translation>
 <translation id="1103523840287552314">Zawsze tłumacz z języka: <ph name="LANGUAGE" /></translation>
 <translation id="110491332089958282">Udostępnij Gemini zawartość strony, aby otrzymywać trafniejsze odpowiedzi. Gdy udostępniasz stronę Gemini, jej pełna zawartość i adres URL są wysyłane do Google. <ph name="BEGIN_LINK" />Więcej informacji<ph name="END_LINK" /></translation>
@@ -113,6 +114,7 @@
 <translation id="1429187656584513419">Otwórz Hasła</translation>
 <translation id="1430915738399379752">Drukuj</translation>
 <translation id="1433478348197382180">Tryb czytania</translation>
+<translation id="1435271730600332883">Otwórz Autouzupełnianie i hasła</translation>
 <translation id="1436671784520050284">Kontynuuj konfigurację</translation>
 <translation id="143681031165817424">Adres został zapisany tylko na tym urządzeniu</translation>
 <translation id="1445276840641906250">Wszystkie Twoje karty w 1 przeglądarce</translation>
@@ -647,7 +649,6 @@ Jeśli chcesz usunąć historię wyszukiwania, zapoznaj się z instrukcjami wys
 <translation id="3530206579861815432">Szybko znajduj otwarte i ostatnio zamknięte karty na zsynchronizowanych urządzeniach.</translation>
 <translation id="3530767473765895035">Zarządzaj kontami na tym urządzeniu…</translation>
 <translation id="3533436815740441613">Nowa karta</translation>
-<translation id="3533860663366814939">Otwórz ustawienia Wypełniania i Haseł</translation>
 <translation id="3540141921715814660">Dodaj do zakładek</translation>
 <translation id="3546122170015471515">Podgląd Map na Google.com</translation>
 <translation id="3547356470684043247">Zapoznaj się z ocenami i recenzjami produktów i usług, aby podejmować lepsze decyzje na podstawie opinii klientów</translation>
@@ -681,6 +682,7 @@ Jeśli chcesz usunąć historię wyszukiwania, zapoznaj się z instrukcjami wys
 <translation id="3695446226812920698">Instrukcje</translation>
 <translation id="3700134753671613714">Zaloguj się, by pobrać zakładki na wszystkie urządzenia.</translation>
 <translation id="3708944822379815019">{COUNT,plural, =1{{COUNT} hasło zostało zapisane tylko na tym urządzeniu. Aby używać go na innych urządzeniach, zapisz je na swoim koncie Google {EMAIL}.}few{{COUNT} hasła zostały zapisane tylko na tym urządzeniu. Aby używać ich na innych urządzeniach, zapisz je na swoim koncie Google {EMAIL}.}many{{COUNT} haseł zostało zapisanych tylko na tym urządzeniu. Aby używać ich na innych urządzeniach, zapisz je na swoim koncie Google {EMAIL}.}other{{COUNT} hasła zostało zapisane tylko na tym urządzeniu. Aby używać ich na innych urządzeniach, zapisz je na swoim koncie Google {EMAIL}.}}</translation>
+<translation id="3709621342136814217">Wybierz czcionkę, rozmiar tekstu i inne ustawienia</translation>
 <translation id="371230970611282515">Przewiduje niebezpieczne zdarzenia i ostrzega Cię przed nimi, zanim nastąpią.</translation>
 <translation id="372115889256123713">pliki w pamięci podręcznej</translation>
 <translation id="3725081662140949903">Aby uniemożliwić innym korzystanie z Twojego hasła, otwórz aplikację <ph name="APP" /> i zmień je</translation>
@@ -832,6 +834,7 @@ Jeśli chcesz usunąć historię wyszukiwania, zapoznaj się z instrukcjami wys
 <translation id="4286718549648564014">Adres został przeniesiony na konto <ph name="USER_EMAIL" /></translation>
 <translation id="4287172530684295552">Oznacz jako przeczytane</translation>
 <translation id="428768789042547925">Nowe funkcje</translation>
+<translation id="428858055663163046">W tym miejscu pojawią się pobrane pliki, gdy będą dostępne</translation>
 <translation id="429074084062258019">{count,plural, =1{Dodaj kartę do grupy}few{Dodaj karty do grupy}many{Dodaj karty do grupy}other{Dodaj karty do grupy}}</translation>
 <translation id="4302061870579014542">Ustaw pozycję</translation>
 <translation id="4304713468139749426">Menedżer haseł</translation>
@@ -1414,6 +1417,7 @@ Funkcja Handoff musi być też włączona w sekcji Ogólne w Ustawieniach, a urz
 <translation id="6452534462676960500">Nowa aktywność</translation>
 <translation id="6459411599807878608">Szczegóły zostały ukryte</translation>
 <translation id="646394917185284261">Pliki</translation>
+<translation id="6472069383518492189">Tutaj znajdziesz pobrane pliki</translation>
 <translation id="6476253015009698798">W przypadku tej strony monitorowanie cen jest niedostępne.</translation>
 <translation id="6476284679642588870">Zarządzaj formami płatności</translation>
 <translation id="6476800141292307438">Tłumaczę stronę na <ph name="LANGUAGE" />. Opcje znajdują się na dole ekranu.</translation>

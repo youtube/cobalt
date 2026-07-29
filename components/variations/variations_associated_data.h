@@ -21,11 +21,16 @@
 #include <optional>
 #include <string_view>
 
+#include "base/component_export.h"
 #include "base/metrics/field_trial.h"
 #include "base/time/time.h"
+#include "base/types/pass_key.h"
 #include "components/variations/active_field_trials.h"
 
 namespace variations {
+
+class SyntheticTrialRegistry;
+class VariationsSeedProcessor;
 
 typedef int VariationID;
 
@@ -102,24 +107,36 @@ enum IDCollectionKey {
 };
 
 // Associates a VariationID value with a FieldTrial group (denoted by
-// `trial_name` and `group_name`) for collection `key`. If an ID was previously
-// set for `trial_name` and `group_name`, it is overwritten. This must be called
-// whenever a FieldTrial is prepared (create the trial and append groups) and
-// needs to have a VariationID associated with it so that Google servers can
-// recognize the FieldTrial. The transmission of the VariationID will be limited
-// to the `time_window`. Thread safe.
+// `active_group_id`) for collection `key`. If an ID was previously set for
+// `active_group_id`, it is overwritten. The transmission of the VariationID
+// will be limited to the `time_window`.
+//
+// This function is restricted to be used from only two specific locations for
+// privacy reasons.
 COMPONENT_EXPORT(VARIATIONS)
-void AssociateGoogleVariationID(IDCollectionKey key,
-                                std::string_view trial_name,
-                                std::string_view group_name,
+void AssociateGoogleVariationID(base::PassKey<VariationsSeedProcessor> pass_key,
+                                IDCollectionKey key,
+                                ActiveGroupId active_group_id,
                                 VariationID variation_id,
-                                TimeWindow time_window = TimeWindow());
-
-// As above, but takes an ActiveGroupId hash pair, rather than the string names.
+                                TimeWindow time_window);
 COMPONENT_EXPORT(VARIATIONS)
-void AssociateGoogleVariationID(
+void AssociateGoogleVariationID(base::PassKey<SyntheticTrialRegistry> pass_key,
+                                IDCollectionKey key,
+                                ActiveGroupId active_group_id,
+                                VariationID variation_id,
+                                TimeWindow time_window);
+
+// A test-only version of AssociateGoogleVariationID(). Unlike production code,
+// tests are allowed to associate variation ids from arbitrary call sites. All
+// calls from tests should use this function.
+//
+// For convenience, the testing override takes the `trial_name` and `group_name`
+// params instead of ActiveGroupId.
+COMPONENT_EXPORT(VARIATIONS)
+void AssociateGoogleVariationIDForTesting(
     IDCollectionKey key,
-    ActiveGroupId active_group_id,
+    std::string_view trial_name,
+    std::string_view group_name,
     VariationID variation_id,
     TimeWindow time_window = TimeWindow());
 
@@ -152,7 +169,7 @@ COMPONENT_EXPORT(VARIATIONS)
 base::Time GetNextTimeWindowEvent(base::Time time);
 
 // Expose some functions for testing.
-namespace testing {
+namespace test {
 
 // Clears all of the mapped associations. Deprecated, use ScopedFeatureList
 // instead as it does a lot of work for you automatically.
@@ -161,7 +178,7 @@ COMPONENT_EXPORT(VARIATIONS) void ClearAllVariationIDs();
 // Clears all of the associated params. Deprecated, use ScopedFeatureList
 // instead as it does a lot of work for you automatically.
 COMPONENT_EXPORT(VARIATIONS) void ClearAllVariationParams();
-}  // namespace testing
+}  // namespace test
 }  // namespace variations
 
 #endif  // COMPONENTS_VARIATIONS_VARIATIONS_ASSOCIATED_DATA_H_

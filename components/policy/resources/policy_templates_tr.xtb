@@ -160,6 +160,7 @@ Politika ayarlanmadığında yönetilmeyen cihazlarda metriklerin gönderilip g�
 <translation id="1087437665304381368">Bu politika yalnızca <ph name="PRODUCT_OS_NAME" /> geliştirici modunu kontrol eder. Android Geliştirici Seçenekleri'ne erişimi engellemek isterseniz <ph name="DEVELOPER_TOOLS_DISABLED_POLICY_NAME" /> politikasını ayarlamanız gerekir.</translation>
 <translation id="1087707496788636333">Chrome Enterprise politika listesinin yeri değişiyor! Lütfen yer işaretlerinizi <ph name="POLICY_DOCUMENTATION_URL" /> adresi ile güncelleyin.</translation>
 <translation id="1089150222292592899">SAML IdP sayfasında kullanıcı adını otomatik olarak doldur</translation>
+<translation id="1090430607214486535">Hassas</translation>
 <translation id="1091765729282771296">Sitelerin kullanıcıdan HID cihazlara erişim istemesine izin ver</translation>
 <translation id="1095209545735032039">Bu sitelerde Serial API'sini engelle</translation>
 <translation id="1096105751829466145">Varsayılan arama sağlayıcı</translation>
@@ -1548,6 +1549,7 @@ Genellikle bu politika kimlik avına karşı bir savunma olarak Devre Dışıdı
 
 Bu cihaz politikası, mevcut <ph name="SECURITY_KEY_PERMIT_ATTESTATION_POLICY_NAME" /> kullanıcı politikası ile aynıdır ancak giriş ekranındaki oturum açma profilinde geçerlidir.</translation>
 <translation id="2089541797660774692">Yönetilen tarayıcı bulut raporlamasını etkinleştir</translation>
+<translation id="2090280024671359587">Metin yakalama özelliğine izin ver ve yapay zeka modellerini iyileştir</translation>
 <translation id="2090712407517297305">Gruplar halinde düzenlenmiş Chrome geçmişi sayfası chrome://history/grouped adresinde görülebilir.</translation>
 <translation id="2090939118981888335">Politika, Etkin değerine ayarlanırsa veri sıkıştırma proxy'sine izin verilir. Politika, Devre Dışı değerine ayarlanırsa proxy'ye izin verilmez.
 
@@ -3315,7 +3317,6 @@ Geçerli <ph name="URL_LABEL" /> kalıpları (sürüm 127'den itibaren) hakkınd
 <translation id="3285231260918855067">Filigran metninin çizgi opaklığını 0 (şeffaf) ile 100 (opak) arasında ayarlayın.</translation>
 <translation id="3286159327013237833">Giriş ekranında otomatik tıklamayı etkinleştir</translation>
 <translation id="3288595667065905535">Yeni sürüm kanalı</translation>
-<translation id="3291940794983537008">Geliştirici Araçları üretken yapay zeka özellik ayarları</translation>
 <translation id="3294430356898755483">Politika ayarlanırsa yöneticiler kullanıcıları için bir yazıcı listesi oluşturur. Yazıcı seçimi, kullanıcılar ilk kez yazdırmaya çalıştığında yapılır.
 
       Politikayı kullanarak:
@@ -3450,6 +3451,7 @@ Bu politika 1.000 giriş ile sınırlıdır.
 Politikanın ayarlanmadan bırakılması, yüksek düzey modunda Her zaman açık VPN etkinken ve VPN bağlı değilken tarayıcıda gezinmeyi engeller.</translation>
 <translation id="3405997282295704902">Kullanıcıların <ph name="PRODUCT_NAME" /> kullanmasına izin verme</translation>
 <translation id="3406122462682235653">Kullanıcıya sorma (indirme işlemleri hemen başlar)</translation>
+<translation id="3410534959501660670">Metin yakalama özelliğinin ayarları</translation>
 <translation id="3411947169047929182">WebRTC ile ilgili yapılandırmayı kontrol eder</translation>
 <translation id="341285788698114069">Bu politika, Windows üzerinde ses işleminin önceliğini kontrol eder.
       Bu politika etkinleştirilirse ses işlemi, normal üstü öncelikli çalışır.
@@ -3911,14 +3913,6 @@ Hem <ph name="CONTENT_TRANSFER_ENABLEMENT_STATUS_START_DATE_VALUE" /> hem de <ph
 İçerik Aktarımı uygulamasının düzgün çalışması için Paket Servisi ile veri aktarımı da etkinleştirilmelidir. Daha fazla bilgi için https://support.google.com/a/answer/6364687 adresine göz atabilirsiniz.</translation>
 <translation id="3702518095257671450">Uzaktan onay</translation>
 <translation id="3702647575225525306"><ph name="POLICY_NAME" /> (Tek satırlı alanlar artık kullanılmamaktadır ve yakında kaldırılacaktır. Lütfen aşağıdaki çok satırlı metin kutusunu kullanın.)</translation>
-<translation id="3711561721191203926">Bu politika, Etkin değerine ayarlanırsa <ph name="PRIVATE_NETWORK_ACCESS" />
-kontrollerinin başarısız olması nedeniyle <ph name="DEV_TOOLS_NAME" /> içinde bir uyarı gösterilmesi gerektiğinde bunun yerine
-ana istek engellenir.
-
-Bu politika, Devre Dışı değerine ayarlanırsa veya ayarlanmadan bırakılırsa <ph name="PRIVATE_NETWORK_ACCESS" /> uyarıları
-zorunlu kılınmaz ve istekler engellenmez.
-
-<ph name="PRIVATE_NETWORK_ACCESS" /> kısıtlamaları için https://wicg.github.io/private-network-access/ sayfasına bakabilirsiniz.</translation>
 <translation id="3711895659073496551">Askıya al</translation>
 <translation id="3712861436661566358">Profil ayırmayı zorunlu kıl</translation>
 <translation id="3719826155360621982">Ana sayfa</translation>
@@ -4947,7 +4941,6 @@ Bu politika yalnızca <ph name="PRODUCT_NAME" /> için makinenin <ph name="CLOUD
 
       Politika, Devre Dışı değerine ayarlanır veya ayarlanmadan bırakılırsa kayıtlı cihazlar konumlarını bildirmez.</translation>
 <translation id="4461400898496433231">IPv6 erişilebilirlik kontrolünü geçersiz kılma. Ana makine adı çözümlemesi için AAAA kaydını yalnızca küresel bir IPv6 ana makinesinden cihaza erişilebildiğinde sorgula.</translation>
-<translation id="4463467966408770621">Geliştirici araçları üretken yapay zeka özelliklerine izin verme.</translation>
 <translation id="4463675333222095358">Bil Bakalım Birim Dönüşümünü Etkinleştir</translation>
 <translation id="4464365009416584564"><ph name="CHROME_SYNC_NAME" /> işlevini devre dışı bırak</translation>
 <translation id="4467952432486360968">Üçüncü taraf çerezlerini engelle</translation>
@@ -6263,6 +6256,7 @@ Geçerli işleme değerleri:
 
 Tüm işleme değerlerinin ayrıntılı açıklaması için RFC 8828 belgesinin 5.2 numaralı bölümüne bakın (https://tools.ietf.org/html/rfc8828.html#section-5.2).</translation>
 <translation id="5290940294294002042">Kullanıcının etkinleştirebileceği veya devre dışı bırakabileceği eklentilerin listesini belirt</translation>
+<translation id="5292069729218406524">Yapay zeka modellerini iyileştirmeden Metin yakalama özelliğine izin ver</translation>
 <translation id="5293285950307241933">Tüm yerel kullanıcı verilerini sil</translation>
 <translation id="5293619885162445352"><ph name="PEPPER_NAME" /> eklentisinin, yeni video kod çözücüyü kullanmasına izin ver.</translation>
 <translation id="529457411593078576">CCT için ilk çalıştırma sırasında Hizmet Şartları'nı etkinleştirme</translation>
@@ -7966,22 +7960,6 @@ Politika ayarlanmadan bırakılırsa <ph name="PRODUCT_OS_NAME" />, ekran görü
 <translation id="6383774771168138899"><ph name="MICROSOFT_ONE_DRIVE_NAME" /> ve <ph name="MICROSOFT_365_NAME" /> için <ph name="CLOUD_UPLOAD_NAME" /> akışını yapılandırır</translation>
 <translation id="6384542789059421431">Varsayılan arama motoru sonuç sayfalarının, tarayıcı yan panelinde gösterilmesini etkinleştir.</translation>
 <translation id="6389240462871677239">Yalıtılmış web uygulaması kaynaklarının, Controlled Frame'i kullanmasına izin ver</translation>
-<translation id="6390338862225976270"><ph name="PRODUCT_NAME" /> ürününün geliştirici araçlarında bulunan bu özellikler, ilave hata ayıklama bilgileri sağlamak için üretken yapay zeka modellerini kullanır. Bu özellikleri kullanmak için <ph name="PRODUCT_NAME" /> ürününün hata mesajı, yığın izleme (stack trace), kod snippet'i ve ağ istekleri gibi verileri toplayıp Google'ın sahip olduğu ve üretken yapay zeka modeli kullanan bir sunucuya göndermesi gerekir. Ağ isteklerindeki yanıt gövdesi veya kimlik doğrulama ve çerez başlıkları, sunucuya gönderilen verilere dahil edilmez.
-
-0 = Özelliğin kullanılmasına izin verirken Google'ın yapay zeka modellerini iyileştirmek için ilgili verileri kullanmasına izin verir. İlgili veriler arasında özelliğe bağlı olarak istemler, girişler, çıkışlar, kaynak materyaller ve yazılı geri bildirimler yer alabilir. Bu bilgiler, gerçek kişiler tarafından da yapay zeka modellerini iyileştirmek için incelenebilir. Aşağıdaki değerler belirtilmediği sürece varsayılan değer 0'dır.
-
-1 = Özelliğin kullanılmasına izin verir ancak Google'ın kullanıcıların içeriklerini (istemler, girişler, çıkışlar, kaynak materyaller ve yazılı geri bildirimler dahil) kullanarak modelleri iyileştirmesine izin vermez. <ph name="GOOGLE_ADMIN_CONSOLE_PRODUCT_NAME" /> tarafından yönetilen kurumsal kullanıcılar ve <ph name="GOOGLE_WORKSPACE_PRODUCT_NAME" /> tarafından yönetilen eğitim hesapları için varsayılan değer 1'dir.
-
-2 = Özelliğe izin vermez.
-
-Politika ayarlanmadan bırakılırsa davranışı <ph name="GEN_AI_DEFAULT_SETTINGS_POLICY_NAME" /> politikasına göre belirlenir.
-
-Aşağıdakiler Geliştirici Araçları üretken yapay zeka özellikleri arasındadır:
-- Konsol Analizleri: Konsol mesajlarını açıklar ve konsol hatalarının düzeltilmesine yönelik öneriler sunar.
-
-- Yapay zeka desteği: CSS stillerini (131. sürümden itibaren), ağ isteklerini, performansı ve dosyaları (tümü 132. sürümden itibaren) anlama konusunda yardım alın.
-
-Üretken yapay zeka özelliklerinde verilerin nasıl işlendiği hakkında daha fazla bilgi için lütfen https://support.google.com/chrome/a?p=generative_ai_settings adresine göz atın.</translation>
 <translation id="6394350458541421998">Bu politika, <ph name="PRODUCT_OS_NAME" /> Sürüm 29 itibariyle kullanımdan kaldırılmıştır. Lütfen bunun yerine PresentationScreenDimDelayScale politikasını kullanın.</translation>
 <translation id="6397588391180665797">Kayıtlı cihazlardaki kullanıcıların ağ yapılandırmasını raporla.
 
@@ -8524,13 +8502,6 @@ Bu politika Etkin değerine ayarlandığında veriler toplanıp <ph name="GOOGLE
 
 <ph name="PRODUCT_NAME" /> için bu politika yalnızca makinenin <ph name="CLOUD_MANAGEMENT_ENROLLMENT_TOKEN" /> kaydı yapıldığında geçerli olur.
 <ph name="PRODUCT_OS_NAME" /> için bu politika her zaman geçerlidir.</translation>
-<translation id="6720071484598746942">Bu politika, Etkin değerine ayarlanırsa <ph name="LOCAL_NETWORK_ACCCESS" />
-kontrollerinin başarısız olması nedeniyle <ph name="DEV_TOOLS_NAME" /> içinde bir uyarı gösterilmesi gerektiğinde bunun yerine
-ana istek engellenir.
-
-Bu politika, Devre Dışı değerine ayarlanır veya ayarlanmadan bırakılırsa <ph name="LOCAL_NETWORK_ACCESS" /> istekleri, bu istekler için varsayılan yöntemle işlenir.
-
-<ph name="LOCAL_NETWORK_ACCESS" /> kısıtlamaları için https://wicg.github.io/local-network-access/ sayfasına bakabilirsiniz.</translation>
 <translation id="6720330829631914048">Günün başlangıcından itibaren kaç saat geçtiği (24 saatlik biçimde).</translation>
 <translation id="6721252203593581486">Üçüncü taraf bağlamındaki WebSQL (ör. siteler arası iframe'ler), M97 itibarıyla varsayılan olarak kapalıdır ve M101'de tamamen kaldırılacaktır.
           Bu politika yanlış değerine ayarlanırsa veya ayarlanmadan bırakılırsa üçüncü taraf bağlamındaki WebSQL kapalı kalır.
@@ -9897,6 +9868,7 @@ Bu politika ayarlanmadan bırakılırsa PDF oluşturucu tarayıcı tarafından s
 <translation id="7713608076604149344">İndirme kısıtlamaları</translation>
 <translation id="7713845740295404764">Giriş/çıkış etkinliklerini raporla</translation>
 <translation id="7715711044277116530">Sunum modunda ekranın kararma gecikmesinin ölçekleneceği yüzde</translation>
+<translation id="7715838249298819250">Metin yakalama özelliğine izin verme</translation>
 <translation id="7716020145539921591">Bu politika kullanımdan kaldırıldı, lütfen bunun yerine <ph name="PROXY_SETTINGS_POLICY_NAME" /> politikasını kullanın.
 
        Politikanın ayarlanması proxy sunucunun URL'sini belirtmenizi sağlar. Bu politika yalnızca <ph name="PROXY_SETTINGS_POLICY_NAME" /> politikası belirtilmediğinde ve <ph name="PROXY_MODE_POLICY_NAME" /> politikasıyla <ph name="PROXY_MODE_ENUM_FIXED_SERVERS" /> seçtiğinizde geçerli olur.
@@ -10613,6 +10585,17 @@ Tüm işleme değerlerinin ayrıntılı açıklaması için RFC 8828 belgesinin 
 
       Bu politika normal kullanıcı hesaplarında yoksayılır.</translation>
 <translation id="8257863622304579015">Ağ hizmeti korumalı alanını etkinleştir</translation>
+<translation id="825834906982940588">Bu politika, <ph name="PRODUCT_OS_NAME" /> için Metin yakalama özelliğinin ayarlarını kontrol eder.
+
+0 = Özelliğin kullanılmasına izin verirken Google'ın, yapay zeka modellerini iyileştirmek için ilgili verileri kullanmasına izin verir. İlgili veriler arasında özelliğe bağlı olarak istemler, girişler, çıkışlar, kaynak materyaller ve yazılı geri bildirimler yer alabilir. Bu bilgiler, gerçek kişiler tarafından da yapay zeka modellerini iyileştirmek için incelenebilir. Aşağıdaki değerler belirtilmediği sürece varsayılan değer 0'dır.
+
+1 = Özelliğin kullanılmasına izin verir ancak Google'ın, kullanıcıların içeriklerini (istemler, girişler, çıkışlar, kaynak materyaller ve yazılı geri bildirimler dahil) kullanarak modelleri iyileştirmesine izin vermez. <ph name="GOOGLE_ADMIN_CONSOLE_PRODUCT_NAME" /> tarafından yönetilen kurumsal kullanıcılar ve <ph name="GOOGLE_WORKSPACE_PRODUCT_NAME" /> tarafından yönetilen eğitim hesapları için varsayılan değer 1'dir.
+
+2 = Özelliğe izin vermez.
+
+Politika ayarlanmadan bırakılırsa davranışı <ph name="GEN_AI_DEFAULT_SETTINGS_POLICY_NAME" /> politikasına göre belirlenir.
+
+Üretken yapay zeka özelliklerinde verilerin nasıl işlendiği hakkında daha fazla bilgi için lütfen https://support.google.com/chrome/a?p=generative_ai_settings adresine göz atın.</translation>
 <translation id="8259375588339409826">Hem Chromium hem de Google Chrome aynı politika grubunu destekler. Bu dokümanın, piyasaya çıkmamış yazılım sürümleri için hazırlanmış (yani "Desteklenen sürümler" bilgisinde, piyasaya çıkmamış bir <ph name="PRODUCT_NAME" /> sürümünü belirtir) politikalar içerebileceğini ve bu tür politikaların önceden bildirilmeksizin değiştirilebileceğini veya kaldırılabileceğini, güvenlik ve gizlilik özellikleriyle ilgili tüm garantiler de dahil olmak üzere herhangi bir garanti sağlanmadığını lütfen unutmayın.
 
 Bu politikalar sadece kuruluşunuz dahilindeki <ph name="PRODUCT_NAME" /> örneklerini yapılandırmak için kullanılabilir. Bu politikaların kuruluşunuzun dışında (örneğin, herkese açık olarak dağıtılan bir programda) kullanılması kötü amaçlı yazılım olarak kabul edilmesine yol açar ve muhtemelen Google ile virüsten korunma yazılımı tedarikçileri tarafından da kötü amaçlı yazılım olarak sınıflandırılır.
@@ -11244,7 +11227,6 @@ Bu politika yalnızca <ph name="PRODUCT_NAME" /> için makinenin <ph name="CLOUD
       Not: Kullanabileceğiniz değişkenlerin listesine bakın (https://www.chromium.org/administrators/policy-list-3/user-data-directory-variables).</translation>
 <translation id="8657543427358173663">Google hizmetlerinden WebRTC olay günlüğü toplanmasına izin ver</translation>
 <translation id="8659843732895043951">Bu sitelerde panoya izin ver</translation>
-<translation id="8660214745436301739">Geliştirici araçları üretken yapay zeka özelliklerine izin ver ve yapay zeka modellerini daha iyi hale getir.</translation>
 <translation id="8661297125441579970">Veri taşıma ve ARC'ye izin verme.</translation>
 <translation id="8661538142776716004">Site Ayarlarını Temizle</translation>
 <translation id="8661980316738569557">Yüksek kontrastı etkinleştir</translation>
@@ -12059,7 +12041,6 @@ Bu politika, Devre Dışı değerine ayarlanırsa kullanıcılara ürün içi an
       Politika <ph name="ASSISTANT_ONBOARDING_MODE_EDUCATION" /> değerine ayarlanırsa Asistan ilk katılım deneyiminin EDU modu kullanılır.</translation>
 <translation id="9191821120522935133">Görünür olmayan, çapraz kaynak iframe'lerin etkinleştirilmesine izin verir</translation>
 <translation id="9192220384862917760">Uzaktan erişim ana makinesinin perdelenmesini etkinleştir</translation>
-<translation id="9194693367692364911">Yapay zeka modellerini daha iyi hale getirmeden Geliştirici araçları üretken yapay zeka özelliklerine izin ver.</translation>
 <translation id="9195766455191826480">Güvenlik durumunu raporlama</translation>
 <translation id="9197238499850071076">Bu cihazın sonraki bir sürümü çalıştırıyor olması halinde, <ph name="DEVICE_TARGET_VERSION_PREFIX_POLICY_NAME" /> tarafından ayarlanan sürüme geri döndürülüp döndürülmeyeceğini belirler.
 

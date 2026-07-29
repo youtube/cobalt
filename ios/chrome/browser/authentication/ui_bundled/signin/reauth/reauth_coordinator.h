@@ -23,11 +23,10 @@ enum class ReauthResult : int {
   kCancelledByUser = 2,
   // The reauth flow was cancelled because the coordinator was stopped.
   kInterrupted = 3,
-  kMaxValue = kInterrupted
 };
 
 // The delegate for the reauth flow.
-@protocol ReauthCoordinatorDelegate <BuggyAuthenticationViewOwner>
+@protocol ReauthCoordinatorDelegate
 
 // The reauth flow has completed with `result`.
 - (void)reauthFinishedWithResult:(ReauthResult)result;

@@ -474,6 +474,28 @@
       },
     },
   },
+  'linux_amd_780m_experimental': {
+    'fail_if_unused': False,
+    'swarming': {
+      'dimensions': {
+        'gpu': '1002:1900-25.2.2',
+        'os': 'Ubuntu-24.04',
+        'display_attached': '1',
+        'pool': 'chromium.tests.gpu.experimental',
+      },
+    },
+  },
+  'linux_amd_890m_experimental': {
+    'fail_if_unused': False,
+    'swarming': {
+      'dimensions': {
+        'gpu': '1002:150e-25.0.7',
+        'os': 'Ubuntu-24.04',
+        'display_attached': '1',
+        'pool': 'chromium.tests.gpu.experimental',
+      },
+    },
+  },
   'linux_amd_rx_5500_xt': {
     'fail_if_unused': False,
     'swarming': {
@@ -888,6 +910,28 @@
       },
     },
   },
+  'win11_amd_780m_experimental': {
+    'fail_if_unused': False,
+    'swarming': {
+      'dimensions': {
+        'display_attached': '1',
+        'gpu': '1002:1900-32.0.21025.10016',
+        'os': 'Windows-11-26100',
+        'pool': 'chromium.tests.gpu.experimental',
+      },
+    },
+  },
+  'win11_amd_890m_experimental': {
+    'fail_if_unused': False,
+    'swarming': {
+      'dimensions': {
+        'gpu': '1002:150e-32.0.21025.10016',
+        'os': 'Windows-11-26100',
+        'display_attached': '1',
+        'pool': 'chromium.tests.gpu.experimental',
+      },
+    },
+  },
   'win11_amd_rx_7600_stable': {
     'fail_if_unused': False,
     'swarming': {
@@ -945,12 +989,12 @@
   'xcode_26_main': {
     'args': [
       '--xcode-build-version',
-      '17a5305k',
+      '17a321',
     ],
     'swarming': {
       'named_caches': [
         {
-          'name': 'xcode_ios_17a5305k',
+          'name': 'xcode_ios_17a321',
           'path': 'Xcode.app',
         },
       ],

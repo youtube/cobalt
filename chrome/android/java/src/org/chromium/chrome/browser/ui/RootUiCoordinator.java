@@ -162,8 +162,10 @@ import org.chromium.chrome.browser.ui.native_page.NativePage;
 import org.chromium.chrome.browser.ui.system.StatusBarColorController;
 import org.chromium.chrome.browser.ui.system.StatusBarColorController.StatusBarColorProvider;
 import org.chromium.chrome.browser.wallet.BoardingPassController;
-import org.chromium.components.browser_ui.accessibility.PageZoomCoordinator;
-import org.chromium.components.browser_ui.accessibility.PageZoomCoordinatorDelegate;
+import org.chromium.components.browser_ui.accessibility.PageZoomBarCoordinator;
+import org.chromium.components.browser_ui.accessibility.PageZoomBarCoordinatorDelegate;
+import org.chromium.components.browser_ui.accessibility.PageZoomManager;
+import org.chromium.components.browser_ui.accessibility.PageZoomManagerDelegate;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController.SheetState;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetControllerFactory;
@@ -192,12 +194,14 @@ import org.chromium.components.ukm.UkmRecorder;
 import org.chromium.content_public.browser.ActionModeCallbackHelper;
 import org.chromium.content_public.browser.BrowserContextHandle;
 import org.chromium.content_public.browser.LoadUrlParams;
+import org.chromium.content_public.browser.WebContents;
 import org.chromium.ui.base.ActivityWindowAndroid;
 import org.chromium.ui.base.DeviceFormFactor;
 import org.chromium.ui.base.IntentRequestTracker;
 import org.chromium.ui.base.MimeTypeUtils;
 import org.chromium.ui.base.PageTransition;
 import org.chromium.ui.display.DisplayAndroid;
+import org.chromium.ui.display.DisplayUtil;
 import org.chromium.ui.edge_to_edge.EdgeToEdgeManager;
 import org.chromium.ui.modaldialog.ModalDialogManager;
 import org.chromium.ui.modaldialog.ModalDialogManager.ModalDialogManagerObserver;
@@ -243,8 +247,6 @@ public class RootUiCoordinator
 
     protected final ActivityTabProvider mActivityTabProvider;
     protected ObservableSupplier<ShareDelegate> mShareDelegateSupplier;
-    protected final OneshotSupplierImpl<DesktopWindowStateManager>
-            mDesktopWindowStateManagerSupplier = new OneshotSupplierImpl<>();
 
     protected @Nullable FindToolbarManager mFindToolbarManager;
     private @Nullable FindToolbarObserver mFindToolbarObserver;
@@ -338,7 +340,7 @@ public class RootUiCoordinator
     protected final TopControlsStacker mTopControlsStacker;
     @NonNull protected final ObservableSupplier<Integer> mOverviewColorSupplier;
     @Nullable private ContextualSearchObserver mReadAloudContextualSearchObserver;
-    @Nullable private PageZoomCoordinator mPageZoomCoordinator;
+    @Nullable private PageZoomBarCoordinator mPageZoomCoordinator;
     @Nullable private ReaderModeBottomSheetManager mReaderModeBottomSheetManager;
     private AppMenuObserver mAppMenuObserver;
 
@@ -358,6 +360,7 @@ public class RootUiCoordinator
     private @Nullable ToolbarControlContainer mToolbarContainer;
     private @Nullable DesktopWindowStateManager mDesktopWindowStateManager;
     private final ExclusiveAccessManager mExclusiveAccessManager;
+    private final PageZoomManager mPageZoomManager;
 
     /**
      * Create a new {@link RootUiCoordinator} for the given activity.
@@ -536,6 +539,7 @@ public class RootUiCoordinator
                         shouldAllowBrightThemeColors(),
                         shouldAllowThemingOnTablets());
 
+        mDesktopWindowStateManager = desktopWindowStateManager;
         mStatusBarColorController =
                 new StatusBarColorController(
                         mActivity.getWindow(),
@@ -547,19 +551,16 @@ public class RootUiCoordinator
                         mActivityTabProvider,
                         mTopUiThemeColorProvider,
                         edgeToEdgeManager.getEdgeToEdgeSystemBarColorHelper(),
-                        mDesktopWindowStateManagerSupplier,
+                        mDesktopWindowStateManager,
                         mOverviewColorSupplier,
                         NtpCustomizationUtils.canEnableEdgeToEdgeForCustomizedTheme(mIsTablet));
         mEphemeralTabCoordinatorSupplier = ephemeralTabCoordinatorSupplier;
-
-        mPageZoomCoordinator =
-                new PageZoomCoordinator(
-                        new PageZoomCoordinatorDelegate() {
+        mPageZoomManager =
+                new PageZoomManager(
+                        new PageZoomManagerDelegate() {
                             @Override
-                            public View getZoomControlView() {
-                                ViewStub viewStub =
-                                        mActivity.findViewById(R.id.page_zoom_container);
-                                return viewStub.inflate();
+                            public WebContents getWebContents() {
+                                return mActivityTabProvider.get().getWebContents();
                             }
 
                             @Override
@@ -567,6 +568,18 @@ public class RootUiCoordinator
                                 return mProfileSupplier.get().getOriginalProfile();
                             }
                         });
+
+        mPageZoomCoordinator =
+                new PageZoomBarCoordinator(
+                        new PageZoomBarCoordinatorDelegate() {
+                            @Override
+                            public View getZoomControlView() {
+                                ViewStub viewStub =
+                                        mActivity.findViewById(R.id.page_zoom_container);
+                                return viewStub.inflate();
+                            }
+                        },
+                        mPageZoomManager);
         mActivityRecreationController =
                 new ActivityRecreationController(
                         mToolbarManagerOneshotSupplier,
@@ -580,10 +593,6 @@ public class RootUiCoordinator
                 new BottomControlsStacker(mBrowserControlsManager, mActivity, mWindowAndroid);
         mTopControlsStacker = new TopControlsStacker(mBrowserControlsManager);
         mXrSpaceModeObservableSupplier = xrSpaceModeObservableSupplier;
-        mDesktopWindowStateManager = desktopWindowStateManager;
-        if (mDesktopWindowStateManager != null) {
-            mDesktopWindowStateManagerSupplier.set(mDesktopWindowStateManager);
-        }
 
         if (ChromeFeatureList.sEnableExclusiveAccessManager.isEnabled()) {
             mExclusiveAccessManager =
@@ -1212,9 +1221,7 @@ public class RootUiCoordinator
      */
     public double getPrimaryDisplaySizeInInches() {
         DisplayAndroid display = DisplayAndroid.getNonMultiDisplay(mActivity);
-        double xInches = display.getDisplayWidth() / display.getXdpi();
-        double yInches = display.getDisplayHeight() / display.getYdpi();
-        return Math.sqrt(Math.pow(xInches, 2) + Math.pow(yInches, 2));
+        return DisplayUtil.getDisplaySizeInInches(display);
     }
 
     /**
@@ -1430,6 +1437,11 @@ public class RootUiCoordinator
             // value simultaneously.
             mPageZoomCoordinator.hide();
         }
+    }
+
+    /** Returns the {@link PageZoomManager}. */
+    public PageZoomManager getPageZoomManager() {
+        return mPageZoomManager;
     }
 
     // Protected class methods

@@ -38,15 +38,18 @@ const NSTimeInterval kSlideInDuration = 0.1;
   UIView* containerView = transitionContext.containerView;
   [containerView addSubview:toView];
 
-  UIView* mainView = [_contextProvider mainViewForAnimation];
   UIView* inputPlateView = [_contextProvider inputPlateViewForAnimation];
   UITextView* textView = [_contextProvider textViewForAnimation];
 
-  mainView.alpha = 0.0;
+  toView.alpha = 0.0;
   CGRect finalFrame = inputPlateView.frame;
   inputPlateView.frame =
       CGRectMake(finalFrame.origin.x, containerView.bounds.size.height,
                  finalFrame.size.width, finalFrame.size.height);
+
+  BOOL toggleOnAIM = self.toggleOnAIM;
+  __weak id<AIMPrototypeAnimationContextProvider> contextProvider =
+      _contextProvider;
 
   [textView becomeFirstResponder];
   [UIView
@@ -58,7 +61,7 @@ const NSTimeInterval kSlideInDuration = 0.1;
         [UIView addKeyframeWithRelativeStartTime:0.0
                                 relativeDuration:1.0
                                       animations:^{
-                                        mainView.alpha = 1.0;
+                                        toView.alpha = 1.0;
                                       }];
         // Slide in the input plate.
         [UIView addKeyframeWithRelativeStartTime:0.0
@@ -66,6 +69,16 @@ const NSTimeInterval kSlideInDuration = 0.1;
                                       animations:^{
                                         inputPlateView.frame = finalFrame;
                                       }];
+
+        // Enables AIM.
+        [UIView
+            addKeyframeWithRelativeStartTime:0.2
+                            relativeDuration:0.8
+                                  animations:^{
+                                    if (toggleOnAIM) {
+                                      [contextProvider setAIModeEnabled:YES];
+                                    }
+                                  }];
       }
       completion:^(BOOL finished) {
         [transitionContext completeTransition:finished];

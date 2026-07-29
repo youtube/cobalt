@@ -132,7 +132,7 @@ void IbanBubbleControllerImpl::ShowConfirmationBubbleView(
     bool iban_saved,
     bool hit_max_strikes) {
   // Hide the current bubble if still showing.
-  HideBubble();
+  HideBubble(/*show_next_bubble=*/false);
 
   is_reshow_ = false;
   current_bubble_type_ = IbanBubbleType::kUploadCompleted;
@@ -147,14 +147,14 @@ void IbanBubbleControllerImpl::ShowConfirmationBubbleView(
       chrome::FindBrowserWithTab(web_contents())
           ->window()
           ->GetAutofillBubbleHandler();
-  set_bubble_view(autofill_bubble_handler->ShowSaveIbanConfirmationBubble(
+  SetBubbleView(autofill_bubble_handler->ShowSaveIbanConfirmationBubble(
       web_contents(), this));
   // Auto close confirmation bubble when IBAN saved is successful.
   if (iban_saved) {
     auto_close_confirmation_timer_.Start(
         FROM_HERE, kAutoCloseConfirmationBubbleWaitSec,
         base::BindOnce(&IbanBubbleControllerImpl::HideBubble,
-                       base::Unretained(this)));
+                       base::Unretained(this), /*show_next_bubble=*/true));
   }
 }
 
@@ -321,7 +321,7 @@ void IbanBubbleControllerImpl::OnBubbleClosed(
     }
   }
 
-  set_bubble_view(nullptr);
+  ResetBubbleViewAndInformBubbleManager(/*show_next_bubble=*/true);
 
   auto get_metric = [](PaymentsUiClosedReason reason) {
     switch (reason) {
@@ -448,9 +448,9 @@ void IbanBubbleControllerImpl::DoShowBubble() {
   Browser* browser = chrome::FindBrowserWithTab(web_contents());
   AutofillBubbleHandler* autofill_bubble_handler =
       browser->window()->GetAutofillBubbleHandler();
-  set_bubble_view(autofill_bubble_handler->ShowIbanBubble(
-      web_contents(), this, /*is_user_gesture=*/is_reshow_,
-      current_bubble_type_));
+  SetBubbleView(autofill_bubble_handler->ShowIbanBubble(
+      web_contents(), this,
+      /*is_user_gesture=*/is_reshow_, current_bubble_type_));
   CHECK(bubble_view());
   CHECK(current_bubble_type_ != IbanBubbleType::kInactive);
 

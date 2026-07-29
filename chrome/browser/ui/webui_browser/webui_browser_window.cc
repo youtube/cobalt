@@ -21,6 +21,7 @@
 #include "chrome/browser/ui/views/side_panel/side_panel_ui_base.h"
 #include "chrome/browser/ui/web_applications/app_browser_controller.h"
 #include "chrome/browser/ui/webui_browser/webui_browser_client_view.h"
+#include "chrome/browser/ui/webui_browser/webui_browser_extensions_container.h"
 #include "chrome/browser/ui/webui_browser/webui_browser_modal_dialog_host.h"
 #include "chrome/browser/ui/webui_browser/webui_browser_side_panel_ui.h"
 #include "chrome/browser/ui/webui_browser/webui_browser_ui.h"
@@ -51,7 +52,7 @@ namespace {
 
 const char* const kWebUIBrowserWindowKey = "__WEBUI_BROWSER_WINDOW__";
 
-// Copied from chrome/browser/ui/views/frame/browser_frame.cc.
+// Copied from chrome/browser/ui/views/frame/browser_widget.cc.
 bool IsUsingLinuxSystemTheme(Profile* profile) {
 #if BUILDFLAG(IS_LINUX)
   return ThemeServiceFactory::GetForProfile(profile)->UsingSystemTheme();
@@ -101,7 +102,7 @@ class WebUIBrowserWindow::WidgetDelegate : public views::WidgetDelegate {
 };
 
 WebUIBrowserWindow::WebUIBrowserWindow(Browser* browser) : browser_(browser) {
-  location_bar_ = std::make_unique<WebUILocationBar>(browser_.get());
+  location_bar_ = std::make_unique<WebUILocationBar>(this);
   web_contents_delegate_ =
       std::make_unique<WebUIBrowserWebContentsDelegate>(this);
   widget_delegate_ =
@@ -128,6 +129,8 @@ WebUIBrowserWindow::WebUIBrowserWindow(Browser* browser) : browser_(browser) {
       std::make_unique<WebShellWebContentsUserData>(this));
 
   modal_dialog_host_ = std::make_unique<WebUIBrowserModalDialogHost>(this);
+  extensions_container_ =
+      std::make_unique<WebUIBrowserExtensionsContainer>(*browser_, *this);
 
   web_view->LoadInitialURL(GURL(chrome::kChromeUIWebuiBrowserURL));
   web_view_ = widget_->SetClientContentsView(std::move(web_view));
@@ -148,6 +151,9 @@ WebUIBrowserWindow::WebUIBrowserWindow(Browser* browser) : browser_(browser) {
 WebUIBrowserWindow::~WebUIBrowserWindow() {
   browser_->GetFeatures().TearDownPreBrowserWindowDestruction();
   web_view_ = nullptr;
+  // We want to destroy the extensions container before the `widget_` since
+  // it wants to de-register itself for focus stuff.
+  extensions_container_.reset();
   widget_->RemoveObserver(this);
   widget_.reset();
 }
@@ -285,7 +291,7 @@ ui::NativeTheme* WebUIBrowserWindow::GetNativeTheme() {
 }
 
 const ui::ThemeProvider* WebUIBrowserWindow::GetThemeProvider() const {
-  // Copied from BrowserFrame::GetThemeProvider().
+  // Copied from BrowserWidget::GetThemeProvider().
   auto* app_controller = browser_->app_controller();
   // Ignore the system theme for web apps with window-controls-overlay as the
   // display_override so the web contents can blend with the overlay by using
@@ -438,6 +444,12 @@ gfx::Rect WebUIBrowserWindow::GetContentsBoundsInScreen() const {
   return content_region->GetScreenBounds();
 }
 
+ui::TrackedElement* WebUIBrowserWindow::GetExtensionsMenuButtonAnchor() const {
+  return ui::ElementTracker::GetElementTracker()->GetFirstMatchingElement(
+      kExtensionsMenuButtonElementId,
+      views::ElementTrackerViews::GetContextForWidget(widget_.get()));
+}
+
 void WebUIBrowserWindow::DeleteBrowserWindow() {
   delete this;
 }
@@ -584,6 +596,10 @@ void WebUIBrowserWindow::OnActiveTabChanged(content::WebContents* old_contents,
   // This is a no-op if it's already set to |this|.
   new_contents->SetColorProviderSource(this);
 
+  // State of extensions depends on what's active --- e.g. some may be disabled
+  // on some URLs.
+  extensions_container_->NotifyOfAllActions();
+
   NOTIMPLEMENTED();
 }
 
@@ -682,8 +698,7 @@ void WebUIBrowserWindow::FocusToolbar() {
 }
 
 ExtensionsContainer* WebUIBrowserWindow::GetExtensionsContainer() {
-  NOTIMPLEMENTED();
-  return nullptr;
+  return extensions_container_.get();
 }
 
 void WebUIBrowserWindow::ToolbarSizeChanged(bool is_animating) {
@@ -808,6 +823,11 @@ WebUIBrowserWindow::ShowSendTabToSelfPromoBubble(content::WebContents* contents,
 }
 
 #if BUILDFLAG(IS_CHROMEOS)
+views::Button* WebUIBrowserWindow::GetSharingHubIconButton() {
+  NOTIMPLEMENTED();
+  return nullptr;
+}
+
 void WebUIBrowserWindow::ToggleMultitaskMenu() const {
   NOTIMPLEMENTED();
 }
@@ -869,6 +889,7 @@ void WebUIBrowserWindow::ConfirmBrowserCloseWithPendingDownloads(
 void WebUIBrowserWindow::UserChangedTheme(
     BrowserThemeChangeType theme_change_type) {
   NotifyColorProviderChanged();
+  extensions_container_->NotifyOfAllActions();  // Icons may need re-rendering.
 }
 
 void WebUIBrowserWindow::ShowAppMenu() {

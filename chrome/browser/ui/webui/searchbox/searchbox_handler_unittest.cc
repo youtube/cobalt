@@ -58,7 +58,7 @@ class SearchboxHandlerTest : public ::testing::Test {
   content::BrowserTaskEnvironment task_environment_;
   std::unique_ptr<content::TestWebUIDataSource> source_;
   std::unique_ptr<TestingProfile> profile_;
-  variations::ScopedVariationsIdsProvider scoped_variations_ids_provider_{
+  variations::test::ScopedVariationsIdsProvider scoped_variations_ids_provider_{
       variations::VariationsIdsProvider::Mode::kUseSignedInState};
 
   void SetUp() override {
@@ -120,13 +120,12 @@ TEST_F(RealboxHandlerTest, RealboxUpdatesSelection) {
   searchbox::mojom::OmniboxPopupSelectionPtr selection;
   EXPECT_CALL(page_, UpdateSelection)
       .Times(4)
-      .WillRepeatedly(
-          testing::Invoke([&old_selection, &selection](
-                              searchbox::mojom::OmniboxPopupSelectionPtr arg0,
-                              searchbox::mojom::OmniboxPopupSelectionPtr arg1) {
-            old_selection = std::move(arg0);
-            selection = std::move(arg1);
-          }));
+      .WillRepeatedly([&old_selection, &selection](
+                          searchbox::mojom::OmniboxPopupSelectionPtr arg0,
+                          searchbox::mojom::OmniboxPopupSelectionPtr arg1) {
+        old_selection = std::move(arg0);
+        selection = std::move(arg1);
+      });
 
   handler_->UpdateSelection(
       OmniboxPopupSelection(OmniboxPopupSelection::kNoMatch),

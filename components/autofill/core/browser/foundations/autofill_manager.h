@@ -439,11 +439,6 @@ class AutofillManager
   // Returns true only if the previewed form should be cleared.
   virtual bool ShouldClearPreviewedForm() = 0;
 
-  std::map<FormGlobalId, std::unique_ptr<FormStructure>>*
-  mutable_form_structures() {
-    return &form_structures_;
-  }
-
   // Logs the field types of `form` to chrome://autofill-internals and the
   // autofill-information attribute (if
   // `features::test::kAutofillShowTypePredictions` is enabled).
@@ -486,8 +481,10 @@ class AutofillManager
   // Steps 2-4 described above ParseFormsAsync(), which are shared with
   // ParseFormAsync().
   void ParseFormsAsyncCommon(
-      std::vector<std::unique_ptr<FormStructure>> form_structures,
-      base::OnceCallback<void(AutofillManager&)> callback);
+      bool preserve_signatures,
+      std::vector<FormData> forms,
+      base::OnceCallback<void(AutofillManager&, const std::vector<FormData>&)>
+          callback);
 
   // Step 2 described above ParseFormsAsync().
   void RunMlModels(AsyncContext context,

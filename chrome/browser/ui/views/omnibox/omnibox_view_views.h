@@ -129,8 +129,7 @@ class OmniboxViewViews
   void SetAdditionalText(const std::u16string& additional_text) override;
   void EnterKeywordModeForDefaultSearchProvider() override;
   bool IsSelectAll() const override;
-  void GetSelectionBounds(std::u16string::size_type* start,
-                          std::u16string::size_type* end) const override;
+  gfx::Range GetSelectionBounds() const override;
   void SelectAll(bool reversed) override;
   void RevertAll() override;
   void SetFocus(bool is_user_initiated) override;
@@ -328,8 +327,13 @@ class OmniboxViewViews
   // DSE placeholder.
   void UpdatePlaceholderTextColor();
 
-  // Returns true if the AIM placeholder text should be visible instead of the
+  // Returns true if the AIM placeholder text should be installed instead of the
   // DSE placeholder text.
+  bool ShouldInstallAimPlaceholderText() const;
+
+  // Returns true if the AIM placeholder text should be visible. This differs
+  // from ShouldInstallAimPlaceholderText() because there are certain scenarios
+  // where the AIM placeholder text is installed but not visible.
   bool ShouldShowAimPlaceholderText() const;
 
   // Returns the AI Mode page action icon view, if present, or nullptr if the

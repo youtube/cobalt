@@ -44,7 +44,7 @@
 #include "ui/base/ui_base_types.h"
 #include "ui/base/window_open_disposition.h"
 #include "ui/gfx/geometry/rect_f.h"
-#include "ui/gfx/native_widget_types.h"
+#include "ui/gfx/native_ui_types.h"
 
 #if BUILDFLAG(IS_ANDROID)
 #include "base/android/scoped_java_ref.h"
@@ -108,7 +108,6 @@ class SiteInstance;
 class WebContents;
 struct ContextMenuParams;
 struct DropData;
-struct MediaPlayerWatchTime;
 struct OpenURLParams;
 struct Referrer;
 
@@ -797,9 +796,6 @@ class CONTENT_EXPORT WebContentsDelegate {
   // eviction and displayed until a new frame is generated. If false, a white
   // solid color is displayed instead.
   virtual bool ShouldShowStaleContentOnEviction(WebContents* source);
-
-  // Invoked when media playback is interrupted or completed.
-  virtual void MediaWatchTimeChanged(const MediaPlayerWatchTime& watch_time) {}
 
   // Returns a  InstalledWebappGeolocationContext if this web content is running
   // in a installed webapp and geolocation should be deleagted from the

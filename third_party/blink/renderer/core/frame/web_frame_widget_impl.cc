@@ -631,7 +631,7 @@ void WebFrameWidgetImpl::DragTargetDrop(const WebDragData& web_drag_data,
   DragData drag_data(current_drag_data_.Get(),
                      ViewportToRootFrame(point_in_viewport), screen_point,
                      operations_allowed_, web_drag_data.ForceDefaultAction());
-  GetPage()->GetDragController().PerformDrag(
+  GetPage()->GetDragController().PerformDrop(
       &drag_data, *local_root_->GetFrame(), drag_operation_);
   // Drops that initiated in the browser get reported via `DragSourceEndedAt`.
   if (!GetPage()->GetDragController().did_initiate_drag()) {
@@ -3975,10 +3975,7 @@ bool WebFrameWidgetImpl::IsProvisional() {
 
 cc::ElementId WebFrameWidgetImpl::GetScrollableContainerIdAt(
     const gfx::PointF& point) {
-  gfx::PointF hit_test_point = point;
-  LocalFrameView* view = LocalRootImpl()->GetFrameView();
-  hit_test_point.Scale(1 / view->InputEventsScaleFactor());
-  return HitTestResultForRootFramePos(hit_test_point).GetScrollableContainer();
+  return HitTestResultAt(point).GetScrollableContainerId();
 }
 
 bool WebFrameWidgetImpl::ShouldHandleImeEvents() {
@@ -5096,7 +5093,10 @@ const viz::FrameSinkId& WebFrameWidgetImpl::GetFrameSinkId() {
 }
 
 WebHitTestResult WebFrameWidgetImpl::HitTestResultAt(const gfx::PointF& point) {
-  return CoreHitTestResultAt(point);
+  gfx::PointF hit_test_point = point;
+  hit_test_point.Scale(
+      1 / GetPage()->GetChromeClient().InputEventsScaleForEmulation());
+  return CoreHitTestResultAt(hit_test_point);
 }
 
 void WebFrameWidgetImpl::SetZoomLevelForTesting(double zoom_level) {

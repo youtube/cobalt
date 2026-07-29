@@ -27,6 +27,7 @@
 <translation id="1082554859195167538">Recenzije proizvoda za vas</translation>
 <translation id="1084365883616172403">Dovršen je post za Facebook.</translation>
 <translation id="1085677983426914530">Otvaranje datoteke <ph name="FILENAME" /> nije uspjelo</translation>
+<translation id="1086486568852410168">Pretraži pomoću Google objektiva</translation>
 <translation id="1096992026380844478">Vaše postavke sinkronizacije vratit će se na temelju posljednje sigurnosne kopije. <ph name="BEGIN_LINK" />Pogledajte što možete sinkronizirati<ph name="END_LINK" /></translation>
 <translation id="1103523840287552314">Uvijek prevedi <ph name="LANGUAGE" /></translation>
 <translation id="110491332089958282">Podijelite sadržaj stranice s Geminijem da biste dobili relevantnije odgovore. Kad podijelite stranicu s Geminijem, Googleu se šalju cjelokupni sadržaj i URL stranice. <ph name="BEGIN_LINK" />Saznajte više<ph name="END_LINK" /></translation>
@@ -647,7 +648,6 @@ Potražite upute za svoju tražilicu da biste saznali kako izbrisati svoju povij
 <translation id="3530206579861815432">Brzo pronađite otvorene i nedavno zatvorene kartice na svim sinkroniziranim uređajima.</translation>
 <translation id="3530767473765895035">Upravljajte računima na ovom uređaju…</translation>
 <translation id="3533436815740441613">Nova kartica</translation>
-<translation id="3533860663366814939">Otvorite postavke automatskog popunjavanja i zaporki</translation>
 <translation id="3540141921715814660">Dodaj u Oznake</translation>
 <translation id="3546122170015471515">Pregledi karata na Google.com</translation>
 <translation id="3547356470684043247">Pročitajte korisničke procjene proizvoda, usluga ili doživljaja kako biste lakše odlučili o svojim recenzijama</translation>
@@ -681,6 +681,7 @@ Potražite upute za svoju tražilicu da biste saznali kako izbrisati svoju povij
 <translation id="3695446226812920698">Saznajte kako</translation>
 <translation id="3700134753671613714">Prijavite se da biste imali svoje oznake na svim svojim uređajima.</translation>
 <translation id="3708944822379815019">{COUNT,plural, =1{{COUNT} zaporka sprema se samo na ovaj uređaj. Da biste je upotrebljavali na svojim drugim uređajima, spremite je na svoj Google račun, {EMAIL}.}one{{COUNT} zaporka sprema se samo na ovaj uređaj. Da biste je upotrebljavali na svojim drugim uređajima, spremite je na svoj Google račun, {EMAIL}.}few{{COUNT} zaporke spremaju se samo na ovaj uređaj. Da biste ih upotrebljavali na svojim drugim uređajima, spremite ih na svoj Google račun, {EMAIL}.}other{{COUNT} zaporki sprema se samo na ovaj uređaj. Da biste ih upotrebljavali na svojim drugim uređajima, spremite ih na svoj Google račun, {EMAIL}.}}</translation>
+<translation id="3709621342136814217">Ovdje odaberite font, veličinu teksta i drugo</translation>
 <translation id="371230970611282515">Predviđa opasne događaje i upozorava vas na njih prije nego što se dogode.</translation>
 <translation id="372115889256123713">datoteke u predmemoriji</translation>
 <translation id="3725081662140949903">Da biste drugima onemogućili da upotrebljavaju vašu zaporku, otvorite aplikaciju <ph name="APP" /> i promijenite zaporku</translation>

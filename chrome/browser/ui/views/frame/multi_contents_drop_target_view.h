@@ -14,7 +14,9 @@
 #include "ui/views/view.h"
 
 namespace views {
+class FlexLayout;
 class ImageView;
+class Label;
 }  // namespace views
 
 // MultiContentsDropTargetView shows a drop target view used for the drag and
@@ -42,6 +44,12 @@ class MultiContentsDropTargetView : public views::View,
     kFull,
   };
 
+  // Represents the type of content being dragged.
+  enum class DragType {
+    kTab,
+    kLink,
+  };
+
   // Delegate for handling drag events that are routed to this view.
   class DragDelegate {
    public:
@@ -67,8 +75,8 @@ class MultiContentsDropTargetView : public views::View,
 
   void SetDragDelegate(DragDelegate* drag_delegate);
 
-  void Show(DropSide side, DropTargetState state);
-  void Hide();
+  void Show(DropSide side, DropTargetState state, DragType drag_type);
+  void Hide(bool suppress_animation_ = false);
 
   bool IsClosing() const;
 
@@ -99,9 +107,11 @@ class MultiContentsDropTargetView : public views::View,
   void HandleTabDrop(TabDragDelegate::DragController& controller);
 
   std::optional<DropSide> side() const { return side_; }
+  std::optional<DragType> drag_type() const { return drag_type_; }
   std::optional<DropTargetState> state() const { return state_; }
 
   raw_ptr<views::ImageView> icon_view_for_testing() { return icon_view_; }
+  raw_ptr<views::Label> label_for_testing() { return label_; }
   gfx::SlideAnimation& animation_for_testing() { return animation_; }
 
   bool ShouldShowAnimation() const;
@@ -121,6 +131,9 @@ class MultiContentsDropTargetView : public views::View,
   // The state that this view is in, if showing.
   std::optional<DropTargetState> state_ = std::nullopt;
 
+  // The type of drag operation.
+  std::optional<DragType> drag_type_ = std::nullopt;
+
   raw_ptr<DragDelegate> drag_delegate_ = nullptr;
 
   // Animation controlling showing and hiding of the drop target view.
@@ -128,9 +141,15 @@ class MultiContentsDropTargetView : public views::View,
   // The width at the time the animation started.
   // This is relevant for transitioning from a nudge state to a full state.
   std::optional<int> animate_expand_starting_width_ = std::nullopt;
+  // Flag to used by base::AutoReset to suppress animation for hide request
+  // to avoid content reflows during the split view creation.
+  bool should_suppress_animation_ = false;
 
   raw_ptr<views::View> inner_container_ = nullptr;
+  raw_ptr<views::FlexLayout> inner_container_layout_ = nullptr;
+
   raw_ptr<views::ImageView> icon_view_ = nullptr;
+  raw_ptr<views::Label> label_ = nullptr;
 };
 
 #endif  // CHROME_BROWSER_UI_VIEWS_FRAME_MULTI_CONTENTS_DROP_TARGET_VIEW_H_

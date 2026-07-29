@@ -1446,8 +1446,9 @@ bool RenderWidgetHostViewAndroid::OnGestureEvent(
     float delta = min_page_scale_ / page_scale_;
     web_event = ui::CreateWebGestureEventFromGestureEventAndroid(
         ui::GestureEventAndroid(event.type(), event.location(),
-                                event.screen_location(), event.time(), delta, 0,
-                                0, 0, 0, /*target_viewport*/ false,
+                                event.screen_location(), event.time(),
+                                event.source(), delta, 0, 0, 0, 0,
+                                /*target_viewport*/ false,
                                 /*synthetic_scroll*/ false,
                                 /*prevent_boosting*/ false));
   } else {
@@ -2519,7 +2520,9 @@ void RenderWidgetHostViewAndroid::OnPointerLockRelease() {
 
 bool RenderWidgetHostViewAndroid::LockKeyboard(
     std::optional<base::flat_set<ui::DomCode>> codes) {
-  CHECK(!keyboard_locked_);
+  if (keyboard_locked_) {
+    return true;
+  }
 
   if (!base::FeatureList::IsEnabled(features::kKeyboardLockApiOnAndroid)) {
     return false;
@@ -2792,8 +2795,8 @@ void RenderWidgetHostViewAndroid::UpdateNativeViewTree(
   bool resize = false;
   if (will_build_tree != has_view_tree) {
     if (has_view_tree) {
-      view_.RemoveObserver(this);
       view_.RemoveFromParent();
+      view_.RemoveObserver(this);
       view_.GetLayer()->RemoveFromParent();
     }
     if (will_build_tree) {
@@ -2962,6 +2965,15 @@ void RenderWidgetHostViewAndroid::OnPhysicalBackingSizeChanged(
     SynchronizeVisualProperties(
         cc::DeadlinePolicy::UseSpecifiedDeadline(deadline_in_frames),
         std::nullopt);
+}
+
+void RenderWidgetHostViewAndroid::OnWindowPositionChanged() {
+  RenderWidgetHostDelegate* delegate = host()->delegate();
+  if (!delegate) {
+    return;
+  }
+
+  delegate->SendScreenRects();
 }
 
 void RenderWidgetHostViewAndroid::OnRootWindowVisibilityChanged(bool visible) {

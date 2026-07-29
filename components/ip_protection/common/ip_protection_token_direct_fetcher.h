@@ -68,6 +68,8 @@ class IpProtectionTokenDirectFetcher : public IpProtectionTokenFetcher {
   void AccountStatusChanged(bool account_available);
 
  private:
+  friend class IpProtectionTokenDirectFetcherTest;
+
   // The helper runs in `SequenceBound<SequenceBoundFetch>`, and
   // `network::SharedURLLoaderFactory::Create` must be called in that sequence.
   // This class owns the stack of BlindSignAuthInterface ->
@@ -94,16 +96,14 @@ class IpProtectionTokenDirectFetcher : public IpProtectionTokenFetcher {
    private:
     // The BlindSignAuth implementation used to fetch blind-signed auth
     // tokens. A raw pointer to `url_loader_factory_` gets passed to
-    // `ip_protection_config_http_`, so we ensure it stays alive by storing
+    // `blind_sign_auth_`, so we ensure it stays alive by storing
     // its scoped_refptr here.
     scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory_;
-    std::unique_ptr<IpProtectionConfigHttp> ip_protection_config_http_;
     std::unique_ptr<quiche::BlindSignAuthInterface> blind_sign_auth_;
     IpProtectionTokenFetcherHelper fetcher_helper_;
   };
 
-  FRIEND_TEST_ALL_PREFIXES(IpProtectionTokenDirectFetcherTest,
-                           CalculateBackoff);
+
 
   void OnRequestOAuthTokenCompletedForTryGetAuthTokens(
       uint32_t batch_size,

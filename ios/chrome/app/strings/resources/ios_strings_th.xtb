@@ -27,6 +27,7 @@
 <translation id="1082554859195167538">รีวิวผลิตภัณฑ์สำหรับคุณ</translation>
 <translation id="1084365883616172403">โพสต์ใน Facebook แล้ว</translation>
 <translation id="1085677983426914530">เปิด <ph name="FILENAME" /> ไม่ได้</translation>
+<translation id="1086486568852410168">ค้นหาด้วย Google Lens</translation>
 <translation id="1096992026380844478">ระบบจะกู้คืนการตั้งค่าการซิงค์ตามการสำรองข้อมูลครั้งล่าสุด <ph name="BEGIN_LINK" />ดูสิ่งที่คุณซิงค์ได้<ph name="END_LINK" /></translation>
 <translation id="1103523840287552314">แปลภาษา<ph name="LANGUAGE" />ทุกครั้ง</translation>
 <translation id="110491332089958282">แชร์เนื้อหาของหน้าเว็บกับ Gemini เพื่อรับคำตอบที่เกี่ยวข้องมากขึ้น เมื่อคุณแชร์หน้าเว็บกับ Gemini ระบบจะส่งเนื้อหาและ URL แบบเต็มของหน้าเว็บไปยัง Google <ph name="BEGIN_LINK" />ดูข้อมูลเพิ่มเติม<ph name="END_LINK" /></translation>
@@ -113,6 +114,7 @@
 <translation id="1429187656584513419">เปิดรหัสผ่าน</translation>
 <translation id="1430915738399379752">พิมพ์</translation>
 <translation id="1433478348197382180">โหมดการอ่าน</translation>
+<translation id="1435271730600332883">เปิดการป้อนข้อความอัตโนมัติและรหัสผ่าน</translation>
 <translation id="1436671784520050284">ตั้งค่าต่อ</translation>
 <translation id="143681031165817424">บันทึกที่อยู่ในอุปกรณ์นี้เท่านั้น</translation>
 <translation id="1445276840641906250">แท็บทั้งหมดของคุณในเบราว์เซอร์เดียว</translation>
@@ -647,7 +649,6 @@
 <translation id="3530206579861815432">ค้นหาแท็บที่เปิดอยู่และแท็บที่เพิ่งปิดได้อย่างรวดเร็วในอุปกรณ์ที่ซิงค์</translation>
 <translation id="3530767473765895035">จัดการบัญชีในอุปกรณ์นี้…</translation>
 <translation id="3533436815740441613">แท็บใหม่</translation>
-<translation id="3533860663366814939">เปิดการตั้งค่าการป้อนข้อความอัตโนมัติและรหัสผ่าน</translation>
 <translation id="3540141921715814660">เพิ่มไปยังบุ๊กมาร์ก</translation>
 <translation id="3546122170015471515">Maps เวอร์ชันก่อนเปิดตัวใน Google.com</translation>
 <translation id="3547356470684043247">อ่านการประเมินผลิตภัณฑ์ บริการ หรือประสบการณ์ของลูกค้าเพื่อช่วยในการตัดสินด้วยรีวิว</translation>
@@ -681,6 +682,7 @@
 <translation id="3695446226812920698">ดูวิธีการ</translation>
 <translation id="3700134753671613714">ลงชื่อเข้าใช้เพื่อรับบุ๊กมาร์กบนอุปกรณ์ทั้งหมดของคุณ</translation>
 <translation id="3708944822379815019">{COUNT,plural, =1{รหัสผ่าน {COUNT} รายการจะบันทึกไว้ในอุปกรณ์นี้เท่านั้น หากต้องการใช้งานในอุปกรณ์อื่น ให้บันทึกไว้ในบัญชี Google {EMAIL}}other{รหัสผ่าน {COUNT} รายการจะบันทึกไว้ในอุปกรณ์นี้เท่านั้น หากต้องการใช้งานในอุปกรณ์อื่น ให้บันทึกไว้ในบัญชี Google {EMAIL}}}</translation>
+<translation id="3709621342136814217">เลือกแบบอักษร ขนาดข้อความ และอื่นๆ ที่นี่</translation>
 <translation id="371230970611282515">คาดการณ์และเตือนคุณก่อนเกิดเหตุการณ์อันตราย</translation>
 <translation id="372115889256123713">ไฟล์ที่แคชไว้</translation>
 <translation id="3725081662140949903">หากไม่ต้องการให้ผู้อื่นใช้รหัสผ่านของคุณ ให้เปิดแอป <ph name="APP" /> เพื่อเปลี่ยนรหัสผ่าน</translation>

@@ -32,6 +32,10 @@ class CommandLine;
 
 // A collection of functions designed for use with unit and browser tests.
 
+namespace blink {
+class NoiseToken;
+}  // namespace blink
+
 namespace content {
 
 class RenderFrameHost;
@@ -161,7 +165,7 @@ void FocusWebContentsOnFrame(WebContents* web_contents, RenderFrameHost* rfh);
 
 // Gets the CanvasNoiseToken value from the `page` for tests that rely on the
 // CanvasNoiseToken value and do not reside in //content/browser.
-std::optional<uint64_t> GetCanvasNoiseTokenForPage(const Page& page);
+std::optional<blink::NoiseToken> GetCanvasNoiseTokenForPage(const Page& page);
 
 // Helper class to Run and Quit the message loop. Run and Quit can only happen
 // once per instance. Make a new instance for each use. Calling Quit after Run
@@ -401,7 +405,7 @@ class EffectiveURLContentBrowserClientHelper {
   ~EffectiveURLContentBrowserClientHelper();
 
   void AddTranslation(const GURL& url_to_modify, const GURL& url_to_return);
-  GURL GetEffectiveURL(const GURL& url);
+  std::optional<GURL> GetEffectiveURL(const GURL& url);
   bool DoesSiteRequireDedicatedProcess(BrowserContext* browser_context,
                                        const GURL& effective_site_url);
 
@@ -438,8 +442,8 @@ class EffectiveURLContentBrowserClient : public ContentBrowserClient {
   void AddTranslation(const GURL& url_to_modify, const GURL& url_to_return);
 
  private:
-  GURL GetEffectiveURL(BrowserContext* browser_context,
-                       const GURL& url) override;
+  std::optional<GURL> GetEffectiveURL(BrowserContext* browser_context,
+                                      const GURL& url) override;
   bool DoesSiteRequireDedicatedProcess(BrowserContext* browser_context,
                                        const GURL& effective_site_url) override;
 

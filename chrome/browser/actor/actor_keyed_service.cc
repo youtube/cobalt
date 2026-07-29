@@ -4,12 +4,14 @@
 
 #include "chrome/browser/actor/actor_keyed_service.h"
 
+#include <optional>
 #include <utility>
 
 #include "base/containers/span.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/trace_event/trace_event.h"
 #include "base/types/pass_key.h"
+#include "chrome/browser/actor/actor_features.h"
 #include "chrome/browser/actor/actor_keyed_service_factory.h"
 #include "chrome/browser/actor/actor_tab_data.h"
 #include "chrome/browser/actor/actor_task.h"
@@ -37,6 +39,19 @@ void RunLater(base::OnceClosure task) {
 }  // namespace
 
 namespace actor {
+
+std::optional<page_content_annotations::PaintPreviewOptions>
+CreateOptionalPaintPreviewOptions() {
+  if (!base::FeatureList::IsEnabled(kGlicTabScreenshotPaintPreviewBackend)) {
+    return std::nullopt;
+  }
+  page_content_annotations::PaintPreviewOptions paint_preview_options;
+  paint_preview_options.max_per_capture_bytes =
+      kScreenshotMaxPerCaptureBytes.Get();
+  paint_preview_options.iframe_redaction_scope =
+      kScreenshotIframeRedaction.Get();
+  return paint_preview_options;
+}
 
 using ui::ActorUiStateManagerInterface;
 
@@ -184,12 +199,26 @@ void ActorKeyedService::RequestTabObservation(
   const GURL& last_committed_url = tab.GetContents()->GetLastCommittedURL();
   auto journal_entry = journal_.CreatePendingAsyncEntry(
       last_committed_url, task_id, mojom::JournalTrack::kActor,
-      "RequestTabObservation", "");
+      "RequestTabObservation", {});
   page_content_annotations::FetchPageContextOptions options;
-  options.include_viewport_screenshot = true;
+
+  options.screenshot_options =
+      kFullPageScreenshot.Get()
+          // It's safe to dereference the optional here because
+          // kFullPageScreenshot being true implies
+          // kGlicTabScreenshotPaintPreviewBackend is enabled.
+          ? page_content_annotations::ScreenshotOptions::FullPage(
+                CreateOptionalPaintPreviewOptions().value())
+          : page_content_annotations::ScreenshotOptions::ViewportOnly(
+                CreateOptionalPaintPreviewOptions());
+
   options.annotated_page_content_options =
       optimization_guide::ActionableAIPageContentOptions(
           /* on_critical_path =*/true);
+  // The maximum number of meta tags to extract from the page. This is a fairly
+  // generous limit that should be sufficient for the metadata we expect to see.
+  // 32 is the value specified in the TabObservation proto comment.
+  options.annotated_page_content_options->max_meta_elements = 32;
   page_content_annotations::FetchPageContext(
       *tab.GetContents(), options,
       CreateActorJournalFetchPageProgressListener(journal_.GetSafeRef(),

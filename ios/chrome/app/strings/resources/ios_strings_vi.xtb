@@ -27,6 +27,7 @@
 <translation id="1082554859195167538">Bài đánh giá sản phẩm dành cho bạn</translation>
 <translation id="1084365883616172403">Đã đăng lên Facebook.</translation>
 <translation id="1085677983426914530">Không mở được <ph name="FILENAME" /></translation>
+<translation id="1086486568852410168">Tìm bằng Google Ống kính</translation>
 <translation id="1096992026380844478">Chế độ cài đặt đồng bộ hoá sẽ được khôi phục dựa trên lần sao lưu gần đây nhất. <ph name="BEGIN_LINK" />Xem những nội dung bạn có thể đồng bộ hoá<ph name="END_LINK" /></translation>
 <translation id="1103523840287552314">Luôn dịch <ph name="LANGUAGE" /></translation>
 <translation id="110491332089958282">Chia sẻ nội dung trang với Gemini để nhận được câu trả lời phù hợp hơn. Khi bạn chia sẻ một trang với Gemini, toàn bộ nội dung và URL của trang đó sẽ được gửi đến Google. <ph name="BEGIN_LINK" />Tìm hiểu thêm<ph name="END_LINK" /></translation>
@@ -113,6 +114,7 @@
 <translation id="1429187656584513419">Mở phần Mật khẩu</translation>
 <translation id="1430915738399379752">In</translation>
 <translation id="1433478348197382180">Chế độ đọc</translation>
+<translation id="1435271730600332883">Mở phần Tự động điền và mật khẩu</translation>
 <translation id="1436671784520050284">Tiếp tục thiết lập</translation>
 <translation id="143681031165817424">Địa chỉ chỉ được lưu trên thiết bị này</translation>
 <translation id="1445276840641906250">Mọi thẻ trong một trình duyệt</translation>
@@ -647,7 +649,6 @@ Bạn đang dùng công cụ tìm kiếm <ph name="DSE_NAME" />. Để xoá nh�
 <translation id="3530206579861815432">Tìm nhanh các thẻ đang mở và mới đóng trên các thiết bị đã đồng bộ hoá.</translation>
 <translation id="3530767473765895035">Quản lý các tài khoản trên thiết bị này…</translation>
 <translation id="3533436815740441613">Thẻ mới</translation>
-<translation id="3533860663366814939">Mở phần cài đặt Tự động điền và mật khẩu</translation>
 <translation id="3540141921715814660">Thêm vào Dấu trang</translation>
 <translation id="3546122170015471515">Tính năng Xem trước bản đồ trên Google.com</translation>
 <translation id="3547356470684043247">Đọc bài đánh giá của khách hàng về sản phẩm, dịch vụ hoặc trải nghiệm để đưa ra quyết định sáng suốt hơn</translation>
@@ -681,6 +682,7 @@ Bạn đang dùng công cụ tìm kiếm <ph name="DSE_NAME" />. Để xoá nh�
 <translation id="3695446226812920698">Tìm hiểu cách thức</translation>
 <translation id="3700134753671613714">Đăng nhập để nhận dấu trang trên tất cả các thiết bị của bạn.</translation>
 <translation id="3708944822379815019">{COUNT,plural, =1{{COUNT} mật khẩu chỉ được lưu trên thiết bị này. Để sử dụng mật khẩu này trên các thiết bị khác, hãy lưu mật khẩu trong Tài khoản Google {EMAIL} của bạn.}other{{COUNT} mật khẩu chỉ được lưu trên thiết bị này. Để sử dụng những mật khẩu này trên các thiết bị khác, hãy lưu mật khẩu trong Tài khoản Google {EMAIL} của bạn.}}</translation>
+<translation id="3709621342136814217">Chọn phông chữ, cỡ chữ và nhiều lựa chọn khác tại đây</translation>
 <translation id="371230970611282515">Dự đoán và cảnh báo cho bạn các sự kiện nguy hiểm trước khi các sự kiện đó xảy ra.</translation>
 <translation id="372115889256123713">tệp được lưu vào bộ nhớ đệm</translation>
 <translation id="3725081662140949903">Để ngăn người khác sử dụng mật khẩu của bạn, hãy mở ứng dụng <ph name="APP" /> để đổi mật khẩu</translation>
@@ -832,6 +834,7 @@ Bạn đang dùng công cụ tìm kiếm <ph name="DSE_NAME" />. Để xoá nh�
 <translation id="4286718549648564014">Đã di chuyển địa chỉ sang tài khoản <ph name="USER_EMAIL" /> của bạn</translation>
 <translation id="4287172530684295552">Đánh dấu là đã đọc</translation>
 <translation id="428768789042547925">Thông tin mới</translation>
+<translation id="428858055663163046">Bạn có thể truy cập vào các tệp đã tải xuống tại đây khi có</translation>
 <translation id="429074084062258019">{count,plural, =1{Thêm thẻ vào nhóm}other{Thêm các thẻ vào nhóm}}</translation>
 <translation id="4302061870579014542">Thiết lập vị trí</translation>
 <translation id="4304713468139749426">Trình quản lý mật khẩu</translation>
@@ -1414,6 +1417,7 @@ Bạn đang dùng công cụ tìm kiếm <ph name="DSE_NAME" />. Để xoá nh�
 <translation id="6452534462676960500">Hoạt động mới</translation>
 <translation id="6459411599807878608">Đã ẩn thông tin chi tiết</translation>
 <translation id="646394917185284261">Files</translation>
+<translation id="6472069383518492189">Bạn sẽ thấy tệp đã tải xuống ở đây</translation>
 <translation id="6476253015009698798">Tính năng theo dõi giá không hoạt động trên trang này.</translation>
 <translation id="6476284679642588870">Quản lý phương thức thanh toán</translation>
 <translation id="6476800141292307438">Đang dịch trang sang <ph name="LANGUAGE" />. Các tùy chọn nằm ở gần cuối màn hình.</translation>

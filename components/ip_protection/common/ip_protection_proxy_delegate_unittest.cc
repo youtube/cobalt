@@ -16,12 +16,15 @@
 
 #include "base/base64.h"
 #include "base/check.h"
+#include "base/files/file_path.h"
 #include "base/files/scoped_temp_dir.h"
+#include "base/functional/bind.h"
 #include "base/functional/callback_forward.h"
 #include "base/functional/callback_helpers.h"
 #include "base/json/json_reader.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
+#include "base/notreached.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/stringprintf.h"
 #include "base/test/bind.h"
@@ -31,6 +34,11 @@
 #include "base/time/time.h"
 #include "base/types/expected.h"
 #include "base/values.h"
+#include "base/version_info/channel.h"
+#include "components/content_settings/core/common/content_settings.h"
+#include "components/content_settings/core/common/content_settings_metadata.h"
+#include "components/content_settings/core/common/content_settings_pattern.h"
+#include "components/content_settings/core/common/content_settings_rules.h"
 #include "components/content_settings/core/common/content_settings_utils.h"
 #include "components/content_settings/core/common/host_indexed_content_settings.h"
 #include "components/ip_protection/common/ip_protection_core.h"
@@ -56,6 +64,7 @@
 #include "net/base/schemeful_site.h"
 #include "net/http/http_response_headers.h"
 #include "net/http/http_util.h"
+#include "net/http/structured_headers.h"
 #include "net/proxy_resolution/proxy_info.h"
 #include "net/proxy_resolution/proxy_retry_info.h"
 #include "net/test/gtest_util.h"
@@ -65,6 +74,7 @@
 #include "net/url_request/url_request_test_util.h"
 #include "services/network/public/cpp/features.h"
 #include "services/network/public/cpp/resource_request.h"
+#include "services/network/public/cpp/url_loader_completion_status.h"
 #include "services/network/public/cpp/weak_wrapper_shared_url_loader_factory.h"
 #include "services/network/public/mojom/network_context.mojom.h"
 #include "services/network/public/mojom/proxy_config.mojom-shared.h"
@@ -90,14 +100,6 @@ constexpr char kLocalhost[] = "http://localhost";
 
 constexpr char kProxyResolutionHistogram[] =
     "NetworkService.IpProtection.ProxyResolution";
-constexpr char kEligibilityHistogram[] =
-    "NetworkService.IpProtection.RequestIsEligibleForProtection";
-constexpr char kAreAuthTokensAvailableHistogram[] =
-    "NetworkService.IpProtection.AreAuthTokensAvailable";
-constexpr char kIsProxyListAvailableHistogram[] =
-    "NetworkService.IpProtection.IsProxyListAvailable";
-constexpr char kAvailabilityHistogram[] =
-    "NetworkService.IpProtection.ProtectionIsAvailableForRequest";
 constexpr size_t kPRTPlaintextSize = 29;
 
 class MockIpProtectionCore : public IpProtectionCore {
@@ -534,12 +536,6 @@ TEST_F(IpProtectionProxyDelegateTest, OnResolveProxyDeprioritizesBadProxies) {
   EXPECT_TRUE(result.is_for_ip_protection());
   histogram_tester_.ExpectUniqueSample(kProxyResolutionHistogram,
                                        ProxyResolutionResult::kAttemptProxy, 1);
-  histogram_tester_.ExpectUniqueSample(kEligibilityHistogram,
-                                       ProtectionEligibility::kEligible, 1);
-  histogram_tester_.ExpectUniqueSample(kAreAuthTokensAvailableHistogram, true,
-                                       1);
-  histogram_tester_.ExpectUniqueSample(kIsProxyListAvailableHistogram, true, 1);
-  histogram_tester_.ExpectUniqueSample(kAvailabilityHistogram, true, 1);
 }
 
 TEST_F(IpProtectionProxyDelegateTest, OnResolveProxyAllProxiesBad) {
@@ -572,12 +568,6 @@ TEST_F(IpProtectionProxyDelegateTest, OnResolveProxyAllProxiesBad) {
   EXPECT_TRUE(result.is_for_ip_protection());
   histogram_tester_.ExpectUniqueSample(kProxyResolutionHistogram,
                                        ProxyResolutionResult::kAttemptProxy, 1);
-  histogram_tester_.ExpectUniqueSample(kEligibilityHistogram,
-                                       ProtectionEligibility::kEligible, 1);
-  histogram_tester_.ExpectUniqueSample(kAreAuthTokensAvailableHistogram, true,
-                                       1);
-  histogram_tester_.ExpectUniqueSample(kIsProxyListAvailableHistogram, true, 1);
-  histogram_tester_.ExpectUniqueSample(kAvailabilityHistogram, true, 1);
 }
 
 TEST_F(IpProtectionProxyDelegateTest,
@@ -628,15 +618,8 @@ TEST_F(IpProtectionProxyDelegateTest,
   EXPECT_TRUE(result.Fallback(net::ERR_PROXY_CONNECTION_FAILED,
                               net::NetLogWithSource()));
   EXPECT_TRUE(result.is_for_ip_protection());
-
   histogram_tester_.ExpectUniqueSample(kProxyResolutionHistogram,
                                        ProxyResolutionResult::kAttemptProxy, 1);
-  histogram_tester_.ExpectUniqueSample(kEligibilityHistogram,
-                                       ProtectionEligibility::kEligible, 1);
-  histogram_tester_.ExpectUniqueSample(kAreAuthTokensAvailableHistogram, true,
-                                       1);
-  histogram_tester_.ExpectUniqueSample(kIsProxyListAvailableHistogram, true, 1);
-  histogram_tester_.ExpectUniqueSample(kAvailabilityHistogram, true, 1);
 }
 
 TEST_F(IpProtectionProxyDelegateTest,
@@ -670,12 +653,6 @@ TEST_F(IpProtectionProxyDelegateTest,
   EXPECT_TRUE(result.is_for_ip_protection());
   histogram_tester_.ExpectUniqueSample(kProxyResolutionHistogram,
                                        ProxyResolutionResult::kAttemptProxy, 1);
-  histogram_tester_.ExpectUniqueSample(kEligibilityHistogram,
-                                       ProtectionEligibility::kEligible, 1);
-  histogram_tester_.ExpectUniqueSample(kAreAuthTokensAvailableHistogram, true,
-                                       1);
-  histogram_tester_.ExpectUniqueSample(kIsProxyListAvailableHistogram, true, 1);
-  histogram_tester_.ExpectUniqueSample(kAvailabilityHistogram, true, 1);
 }
 
 TEST_F(IpProtectionProxyDelegateTest,
@@ -700,11 +677,6 @@ TEST_F(IpProtectionProxyDelegateTest,
   EXPECT_FALSE(result.is_for_ip_protection());
   histogram_tester_.ExpectUniqueSample(kProxyResolutionHistogram,
                                        ProxyResolutionResult::kNoMdlMatch, 1);
-  histogram_tester_.ExpectUniqueSample(kEligibilityHistogram,
-                                       ProtectionEligibility::kIneligible, 1);
-  histogram_tester_.ExpectTotalCount(kAreAuthTokensAvailableHistogram, 0);
-  histogram_tester_.ExpectTotalCount(kIsProxyListAvailableHistogram, 0);
-  histogram_tester_.ExpectTotalCount(kAvailabilityHistogram, 0);
 }
 
 TEST_F(IpProtectionProxyDelegateTest, OnResolveProxy_NoAuthTokenEver) {
@@ -726,16 +698,9 @@ TEST_F(IpProtectionProxyDelegateTest, OnResolveProxy_NoAuthTokenEver) {
 
   EXPECT_TRUE(result.is_direct());
   EXPECT_FALSE(result.is_for_ip_protection());
-
   histogram_tester_.ExpectUniqueSample(
       kProxyResolutionHistogram, ProxyResolutionResult::kTokensNeverAvailable,
       1);
-  histogram_tester_.ExpectUniqueSample(kEligibilityHistogram,
-                                       ProtectionEligibility::kEligible, 1);
-  histogram_tester_.ExpectUniqueSample(kAreAuthTokensAvailableHistogram, false,
-                                       1);
-  histogram_tester_.ExpectUniqueSample(kIsProxyListAvailableHistogram, true, 1);
-  histogram_tester_.ExpectUniqueSample(kAvailabilityHistogram, false, 1);
 }
 
 TEST_F(IpProtectionProxyDelegateTest, OnResolveProxy_NoAuthToken_Exhausted) {
@@ -762,15 +727,8 @@ TEST_F(IpProtectionProxyDelegateTest, OnResolveProxy_NoAuthToken_Exhausted) {
 
   EXPECT_TRUE(result.is_direct());
   EXPECT_FALSE(result.is_for_ip_protection());
-
   histogram_tester_.ExpectUniqueSample(
       kProxyResolutionHistogram, ProxyResolutionResult::kTokensExhausted, 1);
-  histogram_tester_.ExpectUniqueSample(kEligibilityHistogram,
-                                       ProtectionEligibility::kEligible, 1);
-  histogram_tester_.ExpectUniqueSample(kAreAuthTokensAvailableHistogram, false,
-                                       1);
-  histogram_tester_.ExpectUniqueSample(kIsProxyListAvailableHistogram, true, 1);
-  histogram_tester_.ExpectUniqueSample(kAvailabilityHistogram, false, 1);
 }
 
 TEST_F(IpProtectionProxyDelegateTest, OnResolveProxy_NoProxyList) {
@@ -795,13 +753,6 @@ TEST_F(IpProtectionProxyDelegateTest, OnResolveProxy_NoProxyList) {
   histogram_tester_.ExpectUniqueSample(
       kProxyResolutionHistogram, ProxyResolutionResult::kProxyListNotAvailable,
       1);
-  histogram_tester_.ExpectUniqueSample(kEligibilityHistogram,
-                                       ProtectionEligibility::kEligible, 1);
-  histogram_tester_.ExpectUniqueSample(kAreAuthTokensAvailableHistogram, false,
-                                       1);
-  histogram_tester_.ExpectUniqueSample(kIsProxyListAvailableHistogram, false,
-                                       1);
-  histogram_tester_.ExpectUniqueSample(kAvailabilityHistogram, false, 1);
 }
 
 TEST_F(IpProtectionProxyDelegateTest, OnResolveProxy_IpProtectionDisabled) {
@@ -826,11 +777,6 @@ TEST_F(IpProtectionProxyDelegateTest, OnResolveProxy_IpProtectionDisabled) {
   EXPECT_FALSE(result.is_for_ip_protection());
   histogram_tester_.ExpectUniqueSample(
       kProxyResolutionHistogram, ProxyResolutionResult::kSettingDisabled, 1);
-  histogram_tester_.ExpectUniqueSample(kEligibilityHistogram,
-                                       ProtectionEligibility::kEligible, 1);
-  histogram_tester_.ExpectTotalCount(kAreAuthTokensAvailableHistogram, 0);
-  histogram_tester_.ExpectTotalCount(kIsProxyListAvailableHistogram, 0);
-  histogram_tester_.ExpectTotalCount(kAvailabilityHistogram, 0);
 }
 
 // When URLs do not match the allow list, the result is direct and not flagged
@@ -855,11 +801,6 @@ TEST_F(IpProtectionProxyDelegateTest, OnResolveProxyIpProtectionNoMatch) {
   EXPECT_FALSE(result.is_for_ip_protection());
   histogram_tester_.ExpectUniqueSample(kProxyResolutionHistogram,
                                        ProxyResolutionResult::kNoMdlMatch, 1);
-  histogram_tester_.ExpectUniqueSample(kEligibilityHistogram,
-                                       ProtectionEligibility::kIneligible, 1);
-  histogram_tester_.ExpectTotalCount(kAreAuthTokensAvailableHistogram, 0);
-  histogram_tester_.ExpectTotalCount(kIsProxyListAvailableHistogram, 0);
-  histogram_tester_.ExpectTotalCount(kAvailabilityHistogram, 0);
 }
 
 // If the allowlist is empty, this suggests it hasn't yet been populated and
@@ -885,11 +826,6 @@ TEST_F(IpProtectionProxyDelegateTest,
   EXPECT_FALSE(result.is_for_ip_protection());
   histogram_tester_.ExpectUniqueSample(
       kProxyResolutionHistogram, ProxyResolutionResult::kMdlNotPopulated, 1);
-  histogram_tester_.ExpectUniqueSample(kEligibilityHistogram,
-                                       ProtectionEligibility::kUnknown, 1);
-  histogram_tester_.ExpectTotalCount(kAreAuthTokensAvailableHistogram, 0);
-  histogram_tester_.ExpectTotalCount(kIsProxyListAvailableHistogram, 0);
-  histogram_tester_.ExpectTotalCount(kAvailabilityHistogram, 0);
 }
 
 // When the top frame url has a User Bypass exception, do not attempt to proxy.
@@ -928,14 +864,8 @@ TEST_F(IpProtectionProxyDelegateTest, OnResolveProxy_HasSiteException) {
                            "GET", net::ProxyRetryInfoMap(), &result);
   EXPECT_TRUE(result.is_direct());
   EXPECT_FALSE(result.is_for_ip_protection());
-
   histogram_tester_.ExpectUniqueSample(
       kProxyResolutionHistogram, ProxyResolutionResult::kHasSiteException, 1);
-  histogram_tester_.ExpectUniqueSample(kEligibilityHistogram,
-                                       ProtectionEligibility::kEligible, 1);
-  histogram_tester_.ExpectUniqueSample(kAreAuthTokensAvailableHistogram, true,
-                                       1);
-  histogram_tester_.ExpectUniqueSample(kIsProxyListAvailableHistogram, true, 1);
 }
 
 // When the top frame url has a User Bypass exception and the user has navigated
@@ -978,14 +908,8 @@ TEST_F(IpProtectionProxyDelegateTest,
                            "GET", net::ProxyRetryInfoMap(), &result);
   EXPECT_TRUE(result.is_direct());
   EXPECT_FALSE(result.is_for_ip_protection());
-
   histogram_tester_.ExpectUniqueSample(
       kProxyResolutionHistogram, ProxyResolutionResult::kHasSiteException, 1);
-  histogram_tester_.ExpectUniqueSample(kEligibilityHistogram,
-                                       ProtectionEligibility::kEligible, 1);
-  histogram_tester_.ExpectUniqueSample(kAreAuthTokensAvailableHistogram, true,
-                                       1);
-  histogram_tester_.ExpectUniqueSample(kIsProxyListAvailableHistogram, true, 1);
 }
 
 // When the top frame url has a User Bypass exception but the experiment to
@@ -1022,11 +946,8 @@ TEST_F(
                            "GET", net::ProxyRetryInfoMap(), &result);
   EXPECT_FALSE(result.is_direct());
   EXPECT_TRUE(result.is_for_ip_protection());
-
   histogram_tester_.ExpectUniqueSample(kProxyResolutionHistogram,
                                        ProxyResolutionResult::kAttemptProxy, 1);
-  histogram_tester_.ExpectUniqueSample(kEligibilityHistogram,
-                                       ProtectionEligibility::kEligible, 1);
 }
 
 // When the URL is HTTP and multi-proxy chains are used, the result is flagged
@@ -1050,12 +971,6 @@ TEST_F(IpProtectionProxyDelegateTest,
                            "GET", net::ProxyRetryInfoMap(), &result);
   EXPECT_FALSE(result.is_direct());
   EXPECT_TRUE(result.is_for_ip_protection());
-  histogram_tester_.ExpectUniqueSample(kEligibilityHistogram,
-                                       ProtectionEligibility::kEligible, 1);
-  histogram_tester_.ExpectUniqueSample(kAreAuthTokensAvailableHistogram, true,
-                                       1);
-  histogram_tester_.ExpectUniqueSample(kIsProxyListAvailableHistogram, true, 1);
-  histogram_tester_.ExpectUniqueSample(kAvailabilityHistogram, true, 1);
 }
 
 // When URLs match the allow list, and a token is available, the result is
@@ -1081,12 +996,6 @@ TEST_F(IpProtectionProxyDelegateTest, OnResolveProxyIpProtectionSuccess) {
   EXPECT_FALSE(result.prt_header_value().has_value());
   histogram_tester_.ExpectUniqueSample(kProxyResolutionHistogram,
                                        ProxyResolutionResult::kAttemptProxy, 1);
-  histogram_tester_.ExpectUniqueSample(kEligibilityHistogram,
-                                       ProtectionEligibility::kEligible, 1);
-  histogram_tester_.ExpectUniqueSample(kAreAuthTokensAvailableHistogram, true,
-                                       1);
-  histogram_tester_.ExpectUniqueSample(kIsProxyListAvailableHistogram, true, 1);
-  histogram_tester_.ExpectUniqueSample(kAvailabilityHistogram, true, 1);
 }
 
 TEST_F(IpProtectionProxyDelegateTest, OnResolveProxyPRTSuccess) {
@@ -1890,12 +1799,8 @@ TEST_F(IpProtectionProxyDelegateTest, OnResolveProxyBypassesWhenSet) {
 
   EXPECT_TRUE(result.is_direct());
   EXPECT_FALSE(result.is_for_ip_protection());
-
   histogram_tester_.ExpectUniqueSample(
       kProxyResolutionHistogram, ProxyResolutionResult::kBypassedByDevTools, 1);
-  histogram_tester_.ExpectUniqueSample(kEligibilityHistogram,
-                                       ProtectionEligibility::kEligible, 1);
-  histogram_tester_.ExpectUniqueSample(kAvailabilityHistogram, true, 1);
 }
 
 }  // namespace ip_protection

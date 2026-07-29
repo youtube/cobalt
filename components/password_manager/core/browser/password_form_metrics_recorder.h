@@ -166,7 +166,8 @@ class PasswordFormMetricsRecorder
     kAutocompleteAttributes = 1 << 2,
     kFormControlTypes = 1 << 3,
     kFormFieldNames = 1 << 4,
-    kMaxFormDifferencesValue = 1 << 5,
+    kFormFieldFocusability = 1 << 5,
+    kMaxFormDifferencesValue = 1 << 6,
   };
 
   // Used in UMA histogram, please do NOT reorder.
@@ -212,7 +213,9 @@ class PasswordFormMetricsRecorder
     kSingleUsernameForm = 14,
     // An actor task is ongoing on the page.
     kActorTaskOngoing = 15,
-    kMaxValue = kActorTaskOngoing,
+    // Password change is ongoing on the page.
+    kPasswordChangeOngoing = 16,
+    kMaxValue = kPasswordChangeOngoing,
   };
   // LINT.ThenChange(/tools/metrics/histograms/metadata/password/enums.xml:PasswordManagerFirstWaitForUsernameReason)
 

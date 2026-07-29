@@ -42,7 +42,6 @@
 #include "net/dns/mock_host_resolver.h"
 
 using ::base::test::TestFuture;
-using ::optimization_guide::proto::BrowserAction;
 using ::optimization_guide::proto::ClickAction;
 
 namespace actor {
@@ -313,6 +312,24 @@ IN_PROC_BROWSER_TEST_F(ExecutionEngineBrowserTest,
       web_contents(), content::JsReplace("setBlockedSite($1);", blocked_url)));
   ClickTarget("#redirectToBlocked",
               mojom::ActionResultCode::kTriggeredNavigationBlocked);
+}
+
+IN_PROC_BROWSER_TEST_F(ExecutionEngineBrowserTest, FirstActionOnBlockedSite) {
+  const GURL start_url = embedded_https_test_server().GetURL(
+      "blocked.example.com", "/actor/link.html");
+  const GURL second_url =
+      embedded_https_test_server().GetURL("example.com", "/actor/blank.html");
+
+  ASSERT_TRUE(content::NavigateToURL(web_contents(), start_url));
+  EXPECT_TRUE(content::ExecJs(web_contents(),
+                              content::JsReplace("setLink($1);", second_url)));
+
+  ClickTarget("#link", mojom::ActionResultCode::kUrlBlocked);
+
+  // Even though the first action failed, the tab should still be associated
+  // with the task.
+  EXPECT_TRUE(
+      actor_task().GetLastActedTabs().contains(active_tab()->GetHandle()));
 }
 
 IN_PROC_BROWSER_TEST_F(ExecutionEngineBrowserTest, PrerenderBlockedSite) {

@@ -1169,25 +1169,27 @@ void* RasterImplementation::MapRasterCHROMIUM(uint32_t size,
   return raster_mapped_buffer_->address();
 }
 
-void* RasterImplementation::MapFontBuffer(uint32_t size) {
+base::span<uint8_t> RasterImplementation::MapFontBuffer(uint32_t size) {
+  DCHECK(size > 0);
   if (font_mapped_buffer_) {
     SetGLError(GL_INVALID_OPERATION, "glMapFontBufferCHROMIUM",
                "already mapped");
-    return nullptr;
+    return {};
   }
   if (!raster_mapped_buffer_) {
     SetGLError(GL_INVALID_OPERATION, "glMapFontBufferCHROMIUM",
                "mapped font buffer with no raster buffer");
-    return nullptr;
+    return {};
   }
 
   font_mapped_buffer_.emplace(size, helper_, mapped_memory_.get());
   if (!font_mapped_buffer_->valid()) {
     SetGLError(GL_INVALID_OPERATION, "glMapFontBufferCHROMIUM", "size too big");
     font_mapped_buffer_ = std::nullopt;
-    return nullptr;
+    return {};
   }
-  return font_mapped_buffer_->address();
+
+  return font_mapped_buffer_->as_byte_span();
 }
 
 void RasterImplementation::UnmapRasterCHROMIUM(uint32_t raster_written_size,
@@ -1256,7 +1258,44 @@ void RasterImplementation::CopySharedImage(const gpu::Mailbox& source_mailbox,
   memcpy(mailboxes + sizeof(source_mailbox.name), dest_mailbox.name,
          sizeof(dest_mailbox.name));
   helper_->CopySharedImageINTERNALImmediate(xoffset, yoffset, x, y, width,
-                                            height, mailboxes);
+                                            height, width, height, mailboxes);
+  CheckGLError();
+}
+
+void RasterImplementation::CopySharedImage(const gpu::Mailbox& source_mailbox,
+                                           const gpu::Mailbox& dest_mailbox,
+                                           const gfx::Rect& source_rect,
+                                           const gfx::Rect& dest_rect) {
+  GPU_CLIENT_SINGLE_THREAD_CHECK();
+  GPU_CLIENT_LOG("[" << GetLogPrefix() << "] glCopySharedImage("
+                     << source_mailbox.ToDebugString() << ", "
+                     << dest_mailbox.ToDebugString() << ", "
+                     << source_rect.ToString() << ", " << dest_rect.ToString()
+                     << ")");
+  if (source_rect.width() < 0) {
+    SetGLError(GL_INVALID_VALUE, "glCopySharedImage", "src_width < 0");
+    return;
+  }
+  if (source_rect.height() < 0) {
+    SetGLError(GL_INVALID_VALUE, "glCopySharedImage", "src_height < 0");
+    return;
+  }
+  if (dest_rect.width() < 0) {
+    SetGLError(GL_INVALID_VALUE, "glCopySharedImage", "dst_width < 0");
+    return;
+  }
+  if (dest_rect.height() < 0) {
+    SetGLError(GL_INVALID_VALUE, "glCopySharedImage", "dst_height < 0");
+    return;
+  }
+  GLbyte mailboxes[sizeof(source_mailbox.name) * 2];
+  memcpy(mailboxes, source_mailbox.name, sizeof(source_mailbox.name));
+  memcpy(mailboxes + sizeof(source_mailbox.name), dest_mailbox.name,
+         sizeof(dest_mailbox.name));
+  helper_->CopySharedImageINTERNALImmediate(
+      dest_rect.x(), dest_rect.y(), source_rect.x(), source_rect.y(),
+      source_rect.width(), source_rect.height(), dest_rect.width(),
+      dest_rect.height(), mailboxes);
   CheckGLError();
 }
 

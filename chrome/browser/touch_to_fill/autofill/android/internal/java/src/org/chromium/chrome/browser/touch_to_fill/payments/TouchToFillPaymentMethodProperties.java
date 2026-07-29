@@ -63,6 +63,9 @@ class TouchToFillPaymentMethodProperties {
 
         // The screen displaying all loyalty cards of a user.
         int ALL_LOYALTY_CARDS_SCREEN = 1;
+
+        // The screen displaying the progress spinner.
+        int PROGRESS_SCREEN = 2;
     }
 
     @interface ItemType {
@@ -96,6 +99,12 @@ class TouchToFillPaymentMethodProperties {
 
         // A section containing the BNPL data.
         int BNPL = 9;
+
+        // A section containing the progress spinner icon.
+        int PROGRESS_ICON = 10;
+
+        // The header at the top of the BNPL selection and progress screens.
+        int BNPL_SELECTION_PROGRESS_HEADER = 11;
     }
 
     /** Metadata associated with a card's image. */
@@ -243,6 +252,16 @@ class TouchToFillPaymentMethodProperties {
         private BnplSuggestionProperties() {}
     }
 
+    /** Properties for a progress icon entry in the TouchToFill sheet for payments. */
+    static class ProgressIconProperties {
+        static final PropertyModel.ReadableIntPropertyKey PROGRESS_CONTENT_DESCRIPTION_ID =
+                new PropertyModel.ReadableIntPropertyKey("progress_content_description_id");
+
+        static final PropertyKey[] ALL_KEYS = {PROGRESS_CONTENT_DESCRIPTION_ID};
+
+        private ProgressIconProperties() {}
+    }
+
     /**
      * Properties defined here reflect the visible state of the header in the TouchToFill sheet for
      * payments.
@@ -258,6 +277,23 @@ class TouchToFillPaymentMethodProperties {
         static final PropertyKey[] ALL_KEYS = {IMAGE_DRAWABLE_ID, TITLE_ID, SUBTITLE_ID};
 
         private HeaderProperties() {}
+    }
+
+    /**
+     * Properties defined here reflect the visible state of the BNPL header for selection and
+     * progress screen in the TouchToFill sheet for payments.
+     */
+    static class BnplSelectionProgressHeaderProperties {
+        static final PropertyModel.ReadableBooleanPropertyKey BNPL_BACK_BUTTON_ENABLED =
+                new PropertyModel.ReadableBooleanPropertyKey("bnpl_back_button_enabled");
+        static final PropertyModel.ReadableObjectPropertyKey<Runnable> BNPL_ON_BACK_BUTTON_CLICKED =
+                new ReadableObjectPropertyKey<>("bnpl_on_back_button_clicked");
+
+        static final PropertyKey[] ALL_KEYS = {
+            BNPL_BACK_BUTTON_ENABLED, BNPL_ON_BACK_BUTTON_CLICKED
+        };
+
+        private BnplSelectionProgressHeaderProperties() {}
     }
 
     /**

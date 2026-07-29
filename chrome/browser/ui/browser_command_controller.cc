@@ -1050,10 +1050,10 @@ bool BrowserCommandController::ExecuteCommandWithDisposition(
                           chrome::kSafetyHubSubPage);
       break;
     case IDC_HELP_PAGE_VIA_KEYBOARD:
-      ShowHelp(browser_, HELP_SOURCE_KEYBOARD);
+      ShowHelp(browser_, chrome::HelpSource::kKeyboard);
       break;
     case IDC_HELP_PAGE_VIA_MENU:
-      ShowHelp(browser_, HELP_SOURCE_MENU);
+      ShowHelp(browser_, chrome::HelpSource::kMenu);
       break;
     case IDC_CHROME_TIPS:
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
@@ -1120,6 +1120,9 @@ bool BrowserCommandController::ExecuteCommandWithDisposition(
       AddNewTabToGroup(browser_);
       base::UmaHistogramEnumeration("TabGroups.Shortcuts",
                                     TabGroupShortcut::kAddNewTabToGroup);
+      break;
+    case IDC_GROUP_UNGROUPED_TABS:
+      GroupAllUngroupedTabs(browser_);
       break;
 
     case IDC_WINDOW_CLOSE_TABS_TO_RIGHT:
@@ -1407,6 +1410,7 @@ void BrowserCommandController::InitCommandState() {
   command_updater_.UpdateCommandEnabled(IDC_FOCUS_NEXT_TAB_GROUP, true);
   command_updater_.UpdateCommandEnabled(IDC_FOCUS_PREV_TAB_GROUP, true);
   command_updater_.UpdateCommandEnabled(IDC_CLOSE_TAB_GROUP, true);
+  command_updater_.UpdateCommandEnabled(IDC_GROUP_UNGROUPED_TABS, true);
 
   // Omnibox commands
   command_updater_.UpdateCommandEnabled(IDC_SHOW_FULL_URLS, true);

@@ -30,10 +30,11 @@
 #include "third_party/blink/renderer/platform/wtf/functional.h"
 #include "third_party/blink/renderer/platform/wtf/hash_set.h"
 #include "third_party/skia/include/codec/SkCodec.h"
-#include "third_party/skia/include/codec/SkPngDecoder.h"
+#include "third_party/skia/include/codec/SkPngRustDecoder.h"
 #include "third_party/skia/include/core/SkAlphaType.h"
 #include "third_party/skia/include/core/SkData.h"
 #include "third_party/skia/include/core/SkImage.h"
+#include "third_party/skia/include/core/SkStream.h"
 #include "third_party/skia/include/core/SkSurface.h"
 
 #if BUILDFLAG(HAS_ZSTD_COMPRESSION)
@@ -171,11 +172,13 @@ void CanvasHibernationHandler::SaveForHibernation(
   // the renderer is idle. In other words, a delayed idle task would not execute
   // as long as the renderer is in background, which completely defeats the
   // purpose.
+  auto task_runner =
+      Thread::MainThread()->GetTaskRunner(MainThreadTaskRunnerRestricted());
   base::PostDelayedMemoryReductionTask(
-      GetMainThreadTaskRunner(), FROM_HERE,
+      task_runner, FROM_HERE,
       base::BindOnce(&CanvasHibernationHandler::OnAfterHibernation,
                      weak_ptr_factory_.GetWeakPtr(), epoch_),
-      before_compression_delay_);
+      kBeforeCompressionDelay);
 }
 
 void CanvasHibernationHandler::OnAfterHibernation(uint64_t epoch) {
@@ -186,7 +189,8 @@ void CanvasHibernationHandler::OnAfterHibernation(uint64_t epoch) {
   if (epoch_ != epoch || !image_) {
     return;
   }
-  auto task_runner = GetMainThreadTaskRunner();
+  auto task_runner =
+      Thread::MainThread()->GetTaskRunner(MainThreadTaskRunnerRestricted());
   algorithm_ = CompressionAlgorithm::kZlib;
 #if BUILDFLAG(HAS_ZSTD_COMPRESSION)
   if (base::FeatureList::IsEnabled(kCanvasHibernationSnapshotZstd)) {
@@ -217,18 +221,6 @@ void CanvasHibernationHandler::OnEncoded(
     encoded_ = encoded;
     image_ = nullptr;
   }
-
-  if (on_encoded_callback_for_testing_) {
-    on_encoded_callback_for_testing_.Run();
-  }
-}
-
-scoped_refptr<base::SingleThreadTaskRunner>
-CanvasHibernationHandler::GetMainThreadTaskRunner() const {
-  return main_thread_task_runner_for_testing_
-             ? main_thread_task_runner_for_testing_
-             : Thread::MainThread()->GetTaskRunner(
-                   MainThreadTaskRunnerRestricted());
 }
 
 void CanvasHibernationHandler::Encode(
@@ -246,12 +238,11 @@ void CanvasHibernationHandler::Encode(
       break;
     case CompressionAlgorithm::kZstd: {
 #if BUILDFLAG(HAS_ZSTD_COMPRESSION)
-      // When the compression level is set to 0, no compression is done. Then we
-      // can pass the result to ZSTD. This won't produce a valid PNG, but it
-      // doesn't matter, as we don't write it to disk, and restore it ourselves.
-      constexpr int kZLibCompressionLevel = 0;
-      sk_sp<SkData> encoded_uncompressed = skia::EncodePngAsSkData(
-          nullptr, params->image.get(), kZLibCompressionLevel);
+      // Do minimal PNG compression and then pass the result to ZSTD. This won't
+      // produce a valid PNG, but it doesn't matter, as we don't write it to
+      // disk, and restore it ourselves.
+      sk_sp<SkData> encoded_uncompressed =
+          skia::FastEncodePngAsSkData(nullptr, params->image.get());
 
       TRACE_EVENT_BEGIN2("blink", "ZstdCompression", "original_size", 0, "size",
                          0);
@@ -337,12 +328,13 @@ sk_sp<SkImage> CanvasHibernationHandler::GetImage() {
     }
   }
 
-  CHECK(SkPngDecoder::IsPng(png_data->data(), png_data->size()));
+  CHECK(SkPngRustDecoder::IsPng(png_data->data(), png_data->size()));
 
   base::TimeTicks before = base::TimeTicks::Now();
   // Note: not discarding the encoded image.
   sk_sp<SkImage> image = nullptr;
-  std::unique_ptr<SkCodec> codec = SkPngDecoder::Decode(png_data, nullptr);
+  std::unique_ptr<SkCodec> codec = SkPngRustDecoder::Decode(
+      std::make_unique<SkMemoryStream>(std::move(png_data)), nullptr);
   if (codec) {
     image = std::get<0>(codec->getImage());
   }

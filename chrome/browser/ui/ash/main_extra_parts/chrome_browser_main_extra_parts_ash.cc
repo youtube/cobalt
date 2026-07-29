@@ -10,6 +10,7 @@
 #include "ash/constants/ash_features.h"
 #include "ash/constants/ash_switches.h"
 #include "ash/display/refresh_rate_controller.h"
+#include "ash/multi_user/multi_user_window_manager_impl.h"
 #include "ash/public/cpp/new_window_delegate.h"
 #include "ash/public/cpp/projector/projector_controller.h"
 #include "ash/public/cpp/shelf_model.h"
@@ -32,6 +33,7 @@
 #include "base/scoped_observation.h"
 #include "base/trace_event/trace_event.h"
 #include "chrome/browser/ash/app_list/app_list_client_impl.h"
+#include "chrome/browser/ash/app_restore/browser_restore_observer.h"
 #include "chrome/browser/ash/app_restore/full_restore_service.h"
 #include "chrome/browser/ash/auth/active_session_fingerprint_client_impl.h"
 #include "chrome/browser/ash/boca/boca_app_client_impl.h"
@@ -76,6 +78,7 @@
 #include "chrome/browser/ui/ash/login/oobe_dialog_util_impl.h"
 #include "chrome/browser/ui/ash/management_disclosure/management_disclosure_client_impl.h"
 #include "chrome/browser/ui/ash/media_client/media_client_impl.h"
+#include "chrome/browser/ui/ash/multi_user/multi_user_window_manager_helper.h"
 #include "chrome/browser/ui/ash/network/mobile_data_notifications.h"
 #include "chrome/browser/ui/ash/network/network_connect_delegate.h"
 #include "chrome/browser/ui/ash/network/network_portal_notification_controller.h"
@@ -252,6 +255,17 @@ void ChromeBrowserMainExtraPartsAsh::PreProfileInit() {
                      // Safe because SessionManager singleton will be destroyed
                      // after message loops stops.
                      base::Unretained(session_manager::SessionManager::Get())));
+  if (ash::MultiUserWindowManagerImpl::IsEnabled()) {
+    MultiUserWindowManagerHelper::CreateInstance();
+  }
+  // Note: BrowserRestoreObserver needs to be instantiated after
+  // MultiUserWindowManagerHelper.
+  // Both MultiUserWindowManagerBrowserAdaptor held by
+  // MultiUserWindowManagerHelper and BrowserRestoreObserver register themselves
+  // as BrowserListObserver, and the order is critical, because the code we run
+  // as a part of BrowserRestoreObserver on Browser creation depends on the data
+  // that is annotated by the MultProfileSupport.
+  browser_restore_observer_ = std::make_unique<ash::BrowserRestoreObserver>();
 
   screen_orientation_delegate_ =
       std::make_unique<ScreenOrientationDelegateChromeos>();
@@ -577,6 +591,10 @@ void ChromeBrowserMainExtraPartsAsh::PostMainMessageLoopRun() {
   // AppListClientImpl indirectly holds WebContents for answer card and
   // needs to be released before destroying the profile.
   app_list_client_.reset();
+  browser_restore_observer_.reset();
+  if (MultiUserWindowManagerHelper::GetInstance()) {
+    MultiUserWindowManagerHelper::DeleteInstance();
+  }
   ash_shell_init_.reset();
 
   // These instances must be destructed after `ash_shell_init_`.
@@ -627,6 +645,9 @@ class ChromeBrowserMainExtraPartsAsh::UserProfileLoadedObserver
       ash::SyncErrorNotifierFactory::GetForProfile(profile);
     }
 
+    if (auto* instance = MultiUserWindowManagerHelper::GetInstance()) {
+      instance->AddUser(account_id);
+    }
     if (ChromeShelfController::instance()) {
       ChromeShelfController::instance()->OnUserProfileReadyToSwitch(profile);
     }

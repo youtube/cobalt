@@ -139,8 +139,8 @@ class NonModalDefaultBrowserPromoSchedulerSceneAgentTest : public PlatformTest {
   base::test::ScopedFeatureList feature_list_;
   IOSChromeScopedTestingLocalState scoped_testing_local_state_;
   std::unique_ptr<TestProfileIOS> profile_;
-  raw_ptr<web::FakeWebState> test_web_state_;
-  raw_ptr<Browser> browser_;
+  raw_ptr<web::FakeWebState, DanglingUntriaged> test_web_state_;
+  raw_ptr<Browser, DanglingUntriaged> browser_;
   raw_ptr<feature_engagement::test::MockTracker> mock_tracker_;
   FakeOverlayPresentationContext overlay_presentation_context_;
   id promo_commands_handler_;
@@ -338,7 +338,6 @@ TEST_F(NonModalDefaultBrowserPromoSchedulerSceneAgentTest,
   [promo_commands_handler_ verify];
 
   NSURL* url = [NSURL URLWithString:UIApplicationOpenSettingsURLString];
-#if defined(__IPHONE_18_3) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_18_3
   if (@available(iOS 18.3, *)) {
     if (IsDefaultAppsDestinationAvailable() &&
         IsUseDefaultAppsDestinationForPromosEnabled()) {
@@ -346,7 +345,6 @@ TEST_F(NonModalDefaultBrowserPromoSchedulerSceneAgentTest,
           URLWithString:UIApplicationOpenDefaultApplicationsSettingsURLString];
     }
   }
-#endif
   [[application_ expect] openURL:url options:{} completionHandler:nil];
   [scheduler_ logUserPerformedPromoAction];
 

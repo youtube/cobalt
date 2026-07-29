@@ -45,7 +45,7 @@ import org.chromium.chrome.browser.keyboard_accessory.bar_component.KeyboardAcce
 import org.chromium.chrome.browser.keyboard_accessory.bar_component.KeyboardAccessoryStyle;
 import org.chromium.chrome.browser.keyboard_accessory.data.KeyboardAccessoryData;
 import org.chromium.chrome.browser.keyboard_accessory.data.KeyboardAccessoryData.Action;
-import org.chromium.chrome.browser.keyboard_accessory.data.PropertyProvider;
+import org.chromium.chrome.browser.keyboard_accessory.data.Provider;
 import org.chromium.chrome.browser.keyboard_accessory.sheet_component.AccessorySheetCoordinator;
 import org.chromium.chrome.browser.keyboard_accessory.sheet_tabs.AccessorySheetTabCoordinator;
 import org.chromium.chrome.browser.keyboard_accessory.sheet_tabs.AddressAccessorySheetCoordinator;
@@ -73,7 +73,6 @@ import org.chromium.components.browser_ui.widget.gesture.BackPressHandler;
 import org.chromium.content_public.browser.NavigationHandle;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.content_public.browser.WebContentsAccessibility;
-import org.chromium.ui.DropdownPopupWindow;
 import org.chromium.ui.base.ApplicationViewportInsetSupplier;
 import org.chromium.ui.base.DeviceInput;
 import org.chromium.ui.base.ViewUtils;
@@ -118,7 +117,6 @@ class ManualFillingMediator
     private AccessorySheetCoordinator mAccessorySheet;
     private ChromeActivity mActivity; // Used to control the keyboard.
     private TabModelSelectorTabModelObserver mTabModelObserver;
-    private DropdownPopupWindow mPopup;
     private BottomSheetController mBottomSheetController;
     private ManualFillingComponent.SoftKeyboardDelegate mSoftKeyboardDelegate;
     private ConfirmationDialogHelper mConfirmationHelper;
@@ -329,7 +327,7 @@ class ManualFillingMediator
     void registerSheetDataProvider(
             WebContents webContents,
             @AccessoryTabType int tabType,
-            PropertyProvider<KeyboardAccessoryData.AccessorySheetData> dataProvider) {
+            Provider<KeyboardAccessoryData.AccessorySheetData> dataProvider) {
         if (!isInitialized()) return;
         ManualFillingState state = mStateCache.getStateFor(webContents);
 
@@ -343,16 +341,13 @@ class ManualFillingMediator
         refreshTabs();
     }
 
-    void registerAutofillProvider(
-            PropertyProvider<List<AutofillSuggestion>> autofillProvider,
-            AutofillDelegate delegate) {
+    void setSuggestions(List<AutofillSuggestion> suggestions, AutofillDelegate delegate) {
         if (!isInitialized()) return;
         if (mKeyboardAccessory == null) return;
-        mKeyboardAccessory.registerAutofillProvider(autofillProvider, delegate);
+        mKeyboardAccessory.setSuggestions(suggestions, delegate);
     }
 
-    void registerActionProvider(
-            WebContents webContents, PropertyProvider<Action[]> actionProvider) {
+    void registerActionProvider(WebContents webContents, Provider<Action[]> actionProvider) {
         if (!isInitialized()) return;
         ManualFillingState state = mStateCache.getStateFor(webContents);
 
@@ -400,10 +395,6 @@ class ManualFillingMediator
         if (!isInitialized()) return;
         pause();
         hideSoftKeyboard();
-    }
-
-    void notifyPopupOpened(DropdownPopupWindow popup) {
-        mPopup = popup;
     }
 
     void show(boolean waitForKeyboard, boolean isCredentialFieldOrHasAutofillSuggestions) {
@@ -606,6 +597,16 @@ class ManualFillingMediator
                         ChromeFeatureList.AUTOFILL_ANDROID_DESKTOP_KEYBOARD_ACCESSORY_REVAMP));
     }
 
+    /**
+     * @return Whether suggestions should animate from the top instead of horizontally. This
+     *     vertical animation is specific to the revamped UI on large form factor devices.
+     */
+    private boolean shouldAnimateSuggestionsFromTop() {
+        return isLargeFormFactor()
+                && ChromeFeatureList.isEnabled(
+                        ChromeFeatureList.AUTOFILL_ANDROID_DESKTOP_KEYBOARD_ACCESSORY_REVAMP);
+    }
+
     public boolean isLargeFormFactor() {
         int windowWidthDp = mActivity.getResources().getConfiguration().screenWidthDp;
         int windowHeightDp = mActivity.getResources().getConfiguration().screenHeightDp;
@@ -627,6 +628,7 @@ class ManualFillingMediator
         TraceEvent.begin("ManualFillingMediator#enforceStateProperties");
         if (requiresVisibleBar(extensionState)) {
             mKeyboardAccessory.setHasStickyLastItem(shouldHaveStickyLastItem());
+            mKeyboardAccessory.setAnimateSuggestionsFromTop(shouldAnimateSuggestionsFromTop());
             mKeyboardAccessory.show();
         } else {
             mKeyboardAccessory.dismiss();
@@ -702,7 +704,6 @@ class ManualFillingMediator
     public void onChangeAccessorySheet(int tabIndex) {
         if (!isInitialized()) return;
         mAccessorySheet.setActiveTab(tabIndex);
-        if (mPopup != null && mPopup.isShowing()) mPopup.dismiss();
         if (is(EXTENDING_KEYBOARD)) {
             mModel.set(KEYBOARD_EXTENSION_STATE, REPLACING_KEYBOARD);
         } else if (is(FLOATING_BAR)) {

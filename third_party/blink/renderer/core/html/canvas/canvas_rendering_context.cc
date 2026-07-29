@@ -80,7 +80,7 @@ void CanvasRenderingContext::Dispose() {
   }
 }
 
-bool CanvasRenderingContext::IsDrawHTMLEligible(
+bool CanvasRenderingContext::IsDrawElementImageEligible(
     Element* element,
     const String& func_name,
     ExceptionState& exception_state) {
@@ -140,13 +140,6 @@ bool CanvasRenderingContext::IsDrawHTMLEligible(
     return false;
   }
 
-  // TODO(crbug.com/413728246): Maybe we can support canvas element.
-  if (IsA<HTMLCanvasElement>(element)) {
-    exception_state.ThrowTypeError(
-        build_error("<canvas> children of a <canvas> cannot be passed to %s."));
-    return false;
-  }
-
   return true;
 }
 
@@ -156,7 +149,8 @@ bool CanvasRenderingContext::ConvertHitTestRegionsToHTMLCanvasRegions(
     const String& func_name,
     ExceptionState& exception_state) {
   for (const auto& region : hit_test_regions) {
-    if (!IsDrawHTMLEligible(region->element(), func_name, exception_state)) {
+    if (!IsDrawElementImageEligible(region->element(), func_name,
+                                    exception_state)) {
       return false;
     }
 

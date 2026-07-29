@@ -7,6 +7,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <deque>
+#include <iterator>
 #include <map>
 #include <memory>
 #include <optional>
@@ -14,13 +15,16 @@
 #include <utility>
 #include <vector>
 
+#include "base/location.h"
+#include "base/memory/scoped_refptr.h"
+#include "base/no_destructor.h"
 #include "base/notreached.h"
 #include "base/strings/stringprintf.h"
-#include "base/strings/to_string.h"
 #include "base/test/bind.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/task_environment.h"
 #include "base/time/time.h"
+#include "components/content_settings/core/common/content_settings.h"
 #include "components/ip_protection/common/ip_protection_core.h"
 #include "components/ip_protection/common/ip_protection_core_host_remote.h"
 #include "components/ip_protection/common/ip_protection_data_types.h"
@@ -49,12 +53,8 @@ constexpr char kGeoChangeTokenPresence[] =
     "NetworkService.IpProtection.GeoChangeTokenPresence";
 constexpr char kGetAuthTokenResultHistogram[] =
     "NetworkService.IpProtection.GetAuthTokenResult";
-constexpr char kProxyATokenSpendRateHistogram[] =
-    "NetworkService.IpProtection.ProxyA.TokenSpendRate";
 constexpr char kProxyATokenExpirationRateHistogram[] =
     "NetworkService.IpProtection.ProxyA.TokenExpirationRate";
-constexpr char kProxyBTokenSpendRateHistogram[] =
-    "NetworkService.IpProtection.ProxyB.TokenSpendRate";
 constexpr char kProxyBTokenExpirationRateHistogram[] =
     "NetworkService.IpProtection.ProxyB.TokenExpirationRate";
 constexpr char kTokenBatchGenerationTimeHistogram[] =
@@ -81,15 +81,18 @@ constexpr char kProxyATokenCountRecycledHistogram[] =
 constexpr base::TimeDelta kTokenLimitExceededDelay = base::Minutes(10);
 constexpr base::TimeDelta kTokenRateMeasurementInterval = base::Minutes(5);
 
-const GeoHint kMountainViewGeo = {.country_code = "US",
-                                  .iso_region = "US-CA",
-                                  .city_name = "MOUNTAIN VIEW"};
-const std::string kMountainViewGeoId = GetGeoIdFromGeoHint(kMountainViewGeo);
+const base::NoDestructor<GeoHint> kMountainViewGeoPtr(
+    {.country_code = "US",
+     .iso_region = "US-CA",
+     .city_name = "MOUNTAIN VIEW"});
+const GeoHint& kMountainViewGeo = *kMountainViewGeoPtr;
+constexpr char kMountainViewGeoId[] = "US,US-CA,MOUNTAIN VIEW";
 
-const GeoHint kSunnyvaleGeo = {.country_code = "US",
-                               .iso_region = "US-CA",
-                               .city_name = "SUNNYVALE"};
-const std::string kSunnyvaleGeoId = GetGeoIdFromGeoHint(kSunnyvaleGeo);
+const base::NoDestructor<GeoHint> kSunnyvaleGeoPtr({.country_code = "US",
+                                                    .iso_region = "US-CA",
+                                                    .city_name = "SUNNYVALE"});
+const GeoHint& kSunnyvaleGeo = *kSunnyvaleGeoPtr;
+constexpr char kSunnyvaleGeoId[] = "US,US-CA,SUNNYVALE";
 
 struct ExpectedTryGetAuthTokensCall {
   // The expected batch_size argument for the call.
@@ -213,8 +216,8 @@ class FakeCoreHost : public ip_protection::mojom::CoreHost {
     NOTREACHED();
   }
   void RecycleTokens(ip_protection::ProxyLayer proxy_layer,
-                     const std::vector<BlindSignedAuthToken>& tokens) override {
-    returned_tokens_[proxy_layer] = tokens;
+                     std::vector<BlindSignedAuthToken> tokens) override {
+    returned_tokens_[proxy_layer] = std::move(tokens);
   }
 
   const absl::flat_hash_map<ip_protection::ProxyLayer,
@@ -644,44 +647,6 @@ TEST_F(IpProtectionTokenManagerImplTest, NullGetter) {
       HistogramState{.success = 0, .failure = 1, .generated = 0});
 }
 
-// Verify that the token spend rate for ProxyA is measured correctly.
-TEST_F(IpProtectionTokenManagerImplTest, ProxyATokenSpendRate) {
-  std::vector<BlindSignedAuthToken> tokens;
-
-  // Fill the cache with 5 tokens.
-  ipp_proxy_a_token_fetcher_->ExpectTryGetAuthTokensCall(
-      expected_batch_size_, TokenBatch(5, kFutureExpiration, kMountainViewGeo));
-  CallTryGetAuthTokensAndWait(ProxyLayer::kProxyA);
-  ASSERT_TRUE(ipp_proxy_a_token_fetcher_->GotAllExpectedMockCalls());
-
-  // Get four tokens from the batch.
-  for (int i = 0; i < 4; i++) {
-    std::optional<BlindSignedAuthToken> got_token =
-        ipp_proxy_a_token_manager_->GetAuthToken(kMountainViewGeoId);
-    EXPECT_EQ(got_token.value().token, base::StringPrintf("token-%d", i));
-    EXPECT_EQ(got_token.value().expiration, kFutureExpiration);
-  }
-
-  // Fast-forward to run the measurement timer.
-  task_environment_.FastForwardBy(kTokenRateMeasurementInterval);
-
-  // Four tokens in five minutes is a rate of 36 tokens per hour.
-  histogram_tester_.ExpectUniqueSample(kProxyATokenSpendRateHistogram, 48, 1);
-
-  // Get the remaining token in the batch.
-  std::optional<BlindSignedAuthToken> got_token =
-      ipp_proxy_a_token_manager_->GetAuthToken(kMountainViewGeoId);
-  EXPECT_EQ(got_token.value().token, "token-4");
-  EXPECT_EQ(got_token.value().expiration, kFutureExpiration);
-
-  // Fast-forward to run the measurement timer again, for another interval.
-  task_environment_.FastForwardBy(kTokenRateMeasurementInterval);
-
-  // One token in five minutes is a rate of 12 tokens per hour.
-  histogram_tester_.ExpectBucketCount(kProxyATokenSpendRateHistogram, 12, 1);
-  histogram_tester_.ExpectTotalCount(kProxyATokenSpendRateHistogram, 2);
-}
-
 // Verify that the token expiration rate for ProxyA is measured correctly.
 TEST_F(IpProtectionTokenManagerImplTest, ProxyATokenExpirationRate) {
   std::vector<BlindSignedAuthToken> tokens;
@@ -713,44 +678,6 @@ TEST_F(IpProtectionTokenManagerImplTest, ProxyATokenExpirationRate) {
   histogram_tester_.ExpectBucketCount(kProxyATokenExpirationRateHistogram, 0,
                                       1);
   histogram_tester_.ExpectTotalCount(kProxyATokenExpirationRateHistogram, 2);
-}
-
-// Verify that the token spend rate for ProxyB is measured correctly.
-TEST_F(IpProtectionTokenManagerImplTest, ProxyBTokenSpendRate) {
-  std::vector<BlindSignedAuthToken> tokens;
-
-  // Fill the cache with 5 tokens.
-  ipp_proxy_b_token_fetcher_->ExpectTryGetAuthTokensCall(
-      expected_batch_size_, TokenBatch(5, kFutureExpiration, kMountainViewGeo));
-  CallTryGetAuthTokensAndWait(ProxyLayer::kProxyB);
-  ASSERT_TRUE(ipp_proxy_b_token_fetcher_->GotAllExpectedMockCalls());
-
-  // Get four tokens from the batch.
-  for (int i = 0; i < 4; i++) {
-    std::optional<BlindSignedAuthToken> got_token =
-        ipp_proxy_b_token_manager_->GetAuthToken(kMountainViewGeoId);
-    EXPECT_EQ(got_token.value().token, base::StringPrintf("token-%d", i));
-    EXPECT_EQ(got_token.value().expiration, kFutureExpiration);
-  }
-
-  // Fast-forward to run the measurement timer.
-  task_environment_.FastForwardBy(kTokenRateMeasurementInterval);
-
-  // Four tokens in five minutes is a rate of 36 tokens per hour.
-  histogram_tester_.ExpectUniqueSample(kProxyBTokenSpendRateHistogram, 48, 1);
-
-  // Get the remaining token in the batch.
-  std::optional<BlindSignedAuthToken> got_token =
-      ipp_proxy_b_token_manager_->GetAuthToken(kMountainViewGeoId);
-  EXPECT_EQ(got_token.value().token, "token-4");
-  EXPECT_EQ(got_token.value().expiration, kFutureExpiration);
-
-  // Fast-forward to run the measurement timer again, for another interval.
-  task_environment_.FastForwardBy(kTokenRateMeasurementInterval);
-
-  // One token in five minutes is a rate of 12 tokens per hour.
-  histogram_tester_.ExpectBucketCount(kProxyBTokenSpendRateHistogram, 12, 1);
-  histogram_tester_.ExpectTotalCount(kProxyBTokenSpendRateHistogram, 2);
 }
 
 // Verify that the token expiration rate for ProxyB is measured correctly.

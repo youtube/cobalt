@@ -36,6 +36,7 @@ WebNNContextImpl::WebNNContextImpl(
     WebNNContextProviderImpl* context_provider,
     ContextProperties properties,
     mojom::CreateContextOptionsPtr options,
+    mojo::ScopedDataPipeConsumerHandle write_tensor_consumer,
     gpu::CommandBufferId command_buffer_id,
     std::unique_ptr<ScopedSequence> sequence,
     scoped_refptr<gpu::SchedulerTaskRunner> task_runner)
@@ -47,21 +48,18 @@ WebNNContextImpl::WebNNContextImpl(
       options_(std::move(options)),
       command_buffer_id_(command_buffer_id),
       sequence_(std::move(sequence)),
-      scheduler_task_runner_(std::move(task_runner)) {
+      scheduler_task_runner_(std::move(task_runner)),
+      write_tensor_consumer_(std::move(write_tensor_consumer)) {
   CHECK(context_provider_);
-  // Safe to use base::Unretained because `this` is sequence-bound to
-  // scheduler_task_runner_. Deletion occurs via Shutdown(), which drops all
-  // pending tasks - including this one - before the object is destroyed.
-  on_lost_callback_ = base::BindPostTaskToCurrentDefault(base::BindOnce(
-      [](WebNNContextImpl* self, const std::string& reason) {
-        self->GetMojoReceiver().ResetWithReason(/*custom_reason=*/0, reason);
-        self->PostTaskToOwningTaskRunner(base::BindOnce(
-            &WebNNContextImpl::OnDisconnect, base::Unretained((self))));
-      },
-      base::Unretained(this)));
 }
 
 WebNNContextImpl::~WebNNContextImpl() {
+  // Close all tensor pipes explicitly so no response callbacks are pending as
+  // Mojo forbids callbacks that are pending during destruction.
+  for (auto impl : tensor_impls_) {
+    impl->ResetMojoReceiver();
+  }
+
   // Note: ShutDown() prevents new tasks from being scheduled and drops existing
   // ones from executing.
   scheduler_task_runner_->ShutDown();
@@ -186,6 +184,26 @@ gpu::SyncToken WebNNContextImpl::GenVerifiedSyncToken() {
   return verified_release;
 }
 
+bool WebNNContextImpl::HasValidWriteTensorConsumer() const {
+  return write_tensor_consumer_.is_valid();
+}
+
+void WebNNContextImpl::ReadDataFromBigBufferOrDataPipe(
+    mojo_base::BigBuffer src_buffer,
+    base::span<uint8_t> dst_span) {
+  if (src_buffer.size() == 0) {
+    CHECK(write_tensor_consumer_);
+    size_t bytes_read = 0;
+    if (write_tensor_consumer_->ReadData(MOJO_READ_DATA_FLAG_ALL_OR_NONE,
+                                         dst_span,
+                                         bytes_read) != MOJO_RESULT_OK) {
+      OnLost("WriteTensor(): Failed to read tensor data from data pipe.");
+    }
+  } else {
+    dst_span.copy_from(src_buffer);
+  }
+}
+
 void WebNNContextImpl::CreateTensorFromMailbox(mojom::TensorInfoPtr tensor_info,
                                                const gpu::Mailbox& mailbox,
                                                const gpu::SyncToken& fence,
@@ -215,8 +233,7 @@ void WebNNContextImpl::CreateTensorFromMailbox(mojom::TensorInfoPtr tensor_info,
   auto receiver = remote.InitWithNewEndpointAndPassReceiver();
 
   // Must be a scheduled task since this depends on shared image creation task.
-  scheduler_task_runner()->PostTask(
-      FROM_HERE,
+  PostTaskToOwningTaskRunner(
       base::BindOnce(
           [](base::WeakPtr<WebNNContextImpl> self,
              mojo::PendingAssociatedReceiver<mojom::WebNNTensor> receiver,
@@ -244,8 +261,6 @@ void WebNNContextImpl::CreateTensorFromMailbox(mojom::TensorInfoPtr tensor_info,
           std::move(callback), std::move(remote)));
 }
 
-
-
 void WebNNContextImpl::RemoveWebNNTensorImpl(
     const blink::WebNNTensorToken& handle) {
   const auto it = tensor_impls_.find(handle);
@@ -265,7 +280,15 @@ void WebNNContextImpl::RemoveWebNNGraphImpl(
 }
 
 void WebNNContextImpl::OnLost(const std::string& reason) {
-  std::move(on_lost_callback_).Run(reason);
+  // Safe to use base::Unretained because `this` is sequence-bound to
+  // scheduler_task_runner_. Deletion occurs via Shutdown(), which drops all
+  // pending tasks - including this one - before the object is destroyed.
+  PostTaskToOwningTaskRunner(base::BindOnce(
+      [](WebNNContextImpl* self, const std::string& reason) {
+        self->GetMojoReceiver().ResetWithReason(/*custom_reason=*/0, reason);
+        self->OnDisconnect();
+      },
+      base::Unretained(this), reason));
 }
 
 scoped_refptr<WebNNTensorImpl> WebNNContextImpl::GetWebNNTensorImpl(

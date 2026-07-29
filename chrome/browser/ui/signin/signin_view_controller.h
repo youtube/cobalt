@@ -171,8 +171,10 @@ class SigninViewController {
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
   // Shows the modal history sync opt in dialog as a browser-modal dialog on top
-  // of the `browser_`'s window.
-  void ShowModalHistorySyncOptInDialog();
+  // of the `browser_`'s window. Executes the provided callback when the dialog
+  // closes.
+  void ShowModalHistorySyncOptInDialog(
+      base::OnceClosure history_optin_completed_closure);
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 
   // Shows the modal managed user notice dialog as a browser-modal dialog on
@@ -217,15 +219,7 @@ class SigninViewController {
 
  private:
   FRIEND_TEST_ALL_PREFIXES(SignInViewControllerBrowserTest,
-                           EmailConfirmationDefaultFocus);
-  FRIEND_TEST_ALL_PREFIXES(SignInViewControllerBrowserTest,
                            ErrorDialogDefaultFocus);
-  FRIEND_TEST_ALL_PREFIXES(SignInViewControllerBrowserTest,
-                           EnterpriseConfirmationDefaultFocus);
-  FRIEND_TEST_ALL_PREFIXES(SignInViewControllerBrowserOIDCAccountTest,
-                           EnterpriseConfirmationDefaultFocus);
-  FRIEND_TEST_ALL_PREFIXES(SignInViewControllerBrowserOIDCAccountTest,
-                           EnterpriseConfirmationCancel);
   FRIEND_TEST_ALL_PREFIXES(SigninViewControllerDelegateViewsBrowserTest,
                            CloseImmediately);
   FRIEND_TEST_ALL_PREFIXES(ProfilePickerCreationFlowBrowserTest,

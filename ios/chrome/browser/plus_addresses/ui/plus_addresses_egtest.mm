@@ -9,8 +9,8 @@
 #import "components/feature_engagement/public/feature_constants.h"
 #import "components/plus_addresses/core/browser/grit/plus_addresses_strings.h"
 #import "components/plus_addresses/core/browser/metrics/plus_address_metrics.h"
+#import "components/plus_addresses/core/browser/plus_address_test_utils.h"
 #import "components/plus_addresses/core/common/features.h"
-#import "components/plus_addresses/plus_address_test_utils.h"
 #import "components/strings/grit/components_strings.h"
 #import "ios/chrome/browser/authentication/ui_bundled/signin_earl_grey.h"
 #import "ios/chrome/browser/authentication/ui_bundled/signin_earl_grey_ui_test_util.h"
@@ -289,12 +289,10 @@ id<GREYMatcher> GetMatcherForPlusAddressLabel(NSString* labelText) {
 - (void)testCreatePlusAddressIPH {
   [PlusAddressAppInterface setShouldOfferPlusAddressCreation:YES];
 
-#if TARGET_OS_SIMULATOR
   // Synchronization off because the tap on element 'kEmailFieldId' completes
   // only after the IPH has already disappeared. This leads to a subsequent
   // error when trying to verify that the IPH appeared.
   ScopedSynchronizationDisabler disabler;
-#endif
 
   // Tap an element that is eligible for plus_address autofilling.
   [[EarlGrey selectElementWithMatcher:chrome_test_util::WebViewMatcher()]

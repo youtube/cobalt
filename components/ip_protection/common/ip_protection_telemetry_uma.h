@@ -25,9 +25,6 @@ class IpProtectionTelemetryUma final : public IpProtectionTelemetry {
   void OAuthTokenFetchComplete(base::TimeDelta) override;
   void TokenBatchFetchComplete(TryGetAuthTokensResult,
                                std::optional<base::TimeDelta>) override;
-  void AndroidTokenBatchFetchComplete(
-      TryGetAuthTokensAndroidResult result,
-      std::optional<base::TimeDelta> duration) override;
 
   void ProxyChainFallback(int) override;
   void EmptyTokenCache(ProxyLayer) override;
@@ -41,11 +38,12 @@ class IpProtectionTelemetryUma final : public IpProtectionTelemetry {
   void ProxyListRefreshComplete(
       GetProxyListResult result,
       std::optional<base::TimeDelta> duration) override;
-  void TokenSpendRate(ProxyLayer, int) override;
   void TokenExpirationRate(ProxyLayer, int) override;
   void MdlEstimatedMemoryUsage(size_t) override;
   void MdlEstimatedDiskUsage(int64_t) override;
   void MdlSize(int64_t) override;
+  void MdlFlatbufferBuildTime(base::TimeDelta duration) override;
+  void MdlUpdateSuccess(bool success) override;
   void AndroidAuthClientCreationTime(base::TimeDelta duration) override;
   void AndroidAuthClientGetInitialDataTime(base::TimeDelta duration) override;
   void AndroidAuthClientAuthAndSignTime(base::TimeDelta duration) override;

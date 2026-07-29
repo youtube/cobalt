@@ -322,10 +322,9 @@ TEST_F(WmGestureHandlerTest, EnterOverviewWithPopupCaptureWindow) {
   std::unique_ptr<aura::Window> popup_window = aura::test::CreateTestWindow(
       {.delegate =
            aura::test::TestWindowDelegate::CreateSelfDestroyingDelegate(),
-       .bounds = gfx::Rect(100, 100),
+       .parent = normal_window.get(),
        .window_type = aura::client::WINDOW_TYPE_POPUP,
-       .window_id = 1},
-      normal_window.get());
+       .window_id = 1});
   popup_window->SetCapture();
 
   ui::ScrollEvent fling_cancel(ui::EventType::kScrollFlingCancel, gfx::Point(),

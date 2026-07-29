@@ -11,6 +11,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.AdditionalMatchers.geq;
+import static org.mockito.AdditionalMatchers.lt;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.atLeastOnce;
@@ -24,7 +25,9 @@ import static org.chromium.chrome.browser.toolbar.top.ToolbarUtils.ToolbarCompon
 import static org.chromium.chrome.browser.toolbar.top.ToolbarUtils.ToolbarComponentId.BACK;
 import static org.chromium.chrome.browser.toolbar.top.ToolbarUtils.ToolbarComponentId.FORWARD;
 import static org.chromium.chrome.browser.toolbar.top.ToolbarUtils.ToolbarComponentId.HOME;
+import static org.chromium.chrome.browser.toolbar.top.ToolbarUtils.ToolbarComponentId.INCOGNITO_INDICATOR;
 import static org.chromium.chrome.browser.toolbar.top.ToolbarUtils.ToolbarComponentId.MENU;
+import static org.chromium.chrome.browser.toolbar.top.ToolbarUtils.ToolbarComponentId.PADDING;
 import static org.chromium.chrome.browser.toolbar.top.ToolbarUtils.ToolbarComponentId.RELOAD;
 import static org.chromium.chrome.browser.toolbar.top.ToolbarUtils.ToolbarComponentId.TAB_SWITCHER;
 
@@ -187,6 +190,8 @@ public final class ToolbarTabletUnitTest {
         mToolbarTablet.setTabStackButtonCoordinatorForTesting(mTabSwitcherButtonCoordinator);
         mToolbarTablet.setIncognitoIndicatorCoordinatorForTesting(mIncognitoIndicatorCoordinator);
         mToolbarTablet.ensureOptionalButtonWidthConsumerForTesting();
+        mToolbarTablet.ensurePaddingWidthConsumer();
+        mToolbarTablet.ensureLocationBarMidWidthConsumer();
         mToolbarTabletLayout = mToolbarTablet.findViewById(R.id.toolbar_tablet_layout);
         mHomeButton = mToolbarTablet.findViewById(R.id.home_button);
         mBackButton = mToolbarTablet.findViewById(R.id.back_button);
@@ -209,11 +214,26 @@ public final class ToolbarTabletUnitTest {
                         .getContext()
                         .getResources()
                         .getDimensionPixelSize(R.dimen.toolbar_button_width);
-        doReturn(buttonWidth).when(mHomeButtonCoordinator).updateVisibility(anyInt());
-        doReturn(buttonWidth).when(mReloadButtonCoordinator).updateVisibility(anyInt());
-        doReturn(buttonWidth).when(mBackButtonCoordinator).updateVisibility(anyInt());
-        doReturn(buttonWidth).when(mTabSwitcherButtonCoordinator).updateVisibility(anyInt());
-        doReturn(buttonWidth).when(mMenuButtonCoordinator).updateVisibility(anyInt());
+
+        doReturn(buttonWidth).when(mHomeButtonCoordinator).updateVisibility(geq(buttonWidth));
+        doReturn(0).when(mHomeButtonCoordinator).updateVisibility(lt(buttonWidth));
+
+        doReturn(buttonWidth).when(mReloadButtonCoordinator).updateVisibility(geq(buttonWidth));
+        doReturn(0).when(mReloadButtonCoordinator).updateVisibility(lt(buttonWidth));
+
+        doReturn(buttonWidth).when(mBackButtonCoordinator).updateVisibility(geq(buttonWidth));
+        doReturn(0).when(mBackButtonCoordinator).updateVisibility(lt(buttonWidth));
+
+        doReturn(buttonWidth)
+                .when(mTabSwitcherButtonCoordinator)
+                .updateVisibility(geq(buttonWidth));
+        doReturn(0).when(mTabSwitcherButtonCoordinator).updateVisibility(lt(buttonWidth));
+
+        doReturn(buttonWidth).when(mMenuButtonCoordinator).updateVisibility(geq(buttonWidth));
+        doReturn(0).when(mMenuButtonCoordinator).updateVisibility(lt(buttonWidth));
+
+        doReturn(buttonWidth * 3).when(mIncognitoIndicatorCoordinator).updateVisibility(anyInt());
+        doReturn(false).when(mIncognitoIndicatorCoordinator).needsUpdateBeforeShowing();
 
         mForwardButtonCoordinator =
                 new ForwardButtonCoordinator(
@@ -735,7 +755,14 @@ public final class ToolbarTabletUnitTest {
     @Test
     @EnableFeatures(ChromeFeatureList.TOOLBAR_TABLET_RESIZE_REFACTOR)
     public void testResizeTabletToolbar_buttonsShowInRankedOrder() {
-        int widthForStaticComponents = mToolbarTablet.getWidthForStaticComponents();
+        int locationBarMidWidth = 200;
+        int padding =
+                mToolbarTablet
+                                .getContext()
+                                .getResources()
+                                .getDimensionPixelSize(R.dimen.tablet_toolbar_start_padding)
+                        * 2;
+
         int buttonWidth =
                 mToolbarTablet
                         .getContext()
@@ -745,60 +772,126 @@ public final class ToolbarTabletUnitTest {
                 /* buttonVariant= */ AdaptiveToolbarButtonVariant.SHARE,
                 R.string.adaptive_toolbar_button_preference_share);
 
-        mToolbarTablet.onMeasure(
-                MeasureSpec.makeMeasureSpec(widthForStaticComponents, EXACTLY), UNSPECIFIED);
+        mToolbarTablet.onMeasure(MeasureSpec.makeMeasureSpec(0, EXACTLY), UNSPECIFIED);
         assertToolbarComponentsReceivedWidth(Set.of());
 
-        mToolbarTablet.onMeasure(
-                MeasureSpec.makeMeasureSpec(buttonWidth + widthForStaticComponents, EXACTLY),
-                UNSPECIFIED);
+        mToolbarTablet.onMeasure(MeasureSpec.makeMeasureSpec(buttonWidth, EXACTLY), UNSPECIFIED);
         assertToolbarComponentsReceivedWidth(Set.of(MENU));
 
         mToolbarTablet.onMeasure(
-                MeasureSpec.makeMeasureSpec(2 * buttonWidth + widthForStaticComponents, EXACTLY),
-                UNSPECIFIED);
-        assertToolbarComponentsReceivedWidth(Set.of(MENU, BACK));
+                MeasureSpec.makeMeasureSpec(2 * buttonWidth, EXACTLY), UNSPECIFIED);
+        assertToolbarComponentsReceivedWidth(Set.of(TAB_SWITCHER, MENU));
 
         mToolbarTablet.onMeasure(
-                MeasureSpec.makeMeasureSpec(3 * buttonWidth + widthForStaticComponents, EXACTLY),
+                MeasureSpec.makeMeasureSpec(2 * buttonWidth + (locationBarMidWidth / 2), EXACTLY),
                 UNSPECIFIED);
-        assertToolbarComponentsReceivedWidth(Set.of(MENU, BACK, TAB_SWITCHER));
+        assertToolbarComponentsReceivedWidth(Set.of(TAB_SWITCHER, MENU));
 
         mToolbarTablet.onMeasure(
-                MeasureSpec.makeMeasureSpec(4 * buttonWidth + widthForStaticComponents, EXACTLY),
+                MeasureSpec.makeMeasureSpec(2 * buttonWidth + locationBarMidWidth, EXACTLY),
                 UNSPECIFIED);
-        assertToolbarComponentsReceivedWidth(Set.of(MENU, BACK, ADAPTIVE_BUTTON, TAB_SWITCHER));
+        assertToolbarComponentsReceivedWidth(Set.of(TAB_SWITCHER, MENU));
 
         mToolbarTablet.onMeasure(
-                MeasureSpec.makeMeasureSpec(5 * buttonWidth + widthForStaticComponents, EXACTLY),
+                MeasureSpec.makeMeasureSpec(
+                        2 * buttonWidth + locationBarMidWidth + padding, EXACTLY),
+                UNSPECIFIED);
+        assertToolbarComponentsReceivedWidth(Set.of(PADDING, TAB_SWITCHER, MENU));
+
+        mToolbarTablet.onMeasure(
+                MeasureSpec.makeMeasureSpec(
+                        3 * buttonWidth + locationBarMidWidth + padding, EXACTLY),
+                UNSPECIFIED);
+        assertToolbarComponentsReceivedWidth(Set.of(PADDING, BACK, TAB_SWITCHER, MENU));
+
+        mToolbarTablet.onMeasure(
+                MeasureSpec.makeMeasureSpec(
+                        6 * buttonWidth + locationBarMidWidth + padding, EXACTLY),
                 UNSPECIFIED);
         assertToolbarComponentsReceivedWidth(
-                Set.of(MENU, BACK, RELOAD, ADAPTIVE_BUTTON, TAB_SWITCHER));
+                Set.of(PADDING, BACK, INCOGNITO_INDICATOR, TAB_SWITCHER, MENU));
 
         mToolbarTablet.onMeasure(
-                MeasureSpec.makeMeasureSpec(6 * buttonWidth + widthForStaticComponents, EXACTLY),
+                MeasureSpec.makeMeasureSpec(
+                        7 * buttonWidth + locationBarMidWidth + padding, EXACTLY),
                 UNSPECIFIED);
         assertToolbarComponentsReceivedWidth(
-                Set.of(MENU, BACK, FORWARD, RELOAD, ADAPTIVE_BUTTON, TAB_SWITCHER));
+                Set.of(PADDING, BACK, ADAPTIVE_BUTTON, INCOGNITO_INDICATOR, TAB_SWITCHER, MENU));
 
         mToolbarTablet.onMeasure(
-                MeasureSpec.makeMeasureSpec(7 * buttonWidth + widthForStaticComponents, EXACTLY),
+                MeasureSpec.makeMeasureSpec(
+                        8 * buttonWidth + locationBarMidWidth + padding, EXACTLY),
                 UNSPECIFIED);
         assertToolbarComponentsReceivedWidth(
-                Set.of(MENU, HOME, BACK, FORWARD, RELOAD, ADAPTIVE_BUTTON, TAB_SWITCHER));
+                Set.of(
+                        PADDING,
+                        BACK,
+                        RELOAD,
+                        ADAPTIVE_BUTTON,
+                        INCOGNITO_INDICATOR,
+                        TAB_SWITCHER,
+                        MENU));
 
         mToolbarTablet.onMeasure(
-                MeasureSpec.makeMeasureSpec(8 * buttonWidth + widthForStaticComponents, EXACTLY),
+                MeasureSpec.makeMeasureSpec(
+                        9 * buttonWidth + locationBarMidWidth + padding, EXACTLY),
                 UNSPECIFIED);
         assertToolbarComponentsReceivedWidth(
-                Set.of(MENU, HOME, BACK, FORWARD, RELOAD, ADAPTIVE_BUTTON, TAB_SWITCHER));
+                Set.of(
+                        PADDING,
+                        BACK,
+                        FORWARD,
+                        RELOAD,
+                        ADAPTIVE_BUTTON,
+                        INCOGNITO_INDICATOR,
+                        TAB_SWITCHER,
+                        MENU));
+
+        mToolbarTablet.onMeasure(
+                MeasureSpec.makeMeasureSpec(
+                        10 * buttonWidth + locationBarMidWidth + padding, EXACTLY),
+                UNSPECIFIED);
+        assertToolbarComponentsReceivedWidth(
+                Set.of(
+                        PADDING,
+                        HOME,
+                        BACK,
+                        FORWARD,
+                        RELOAD,
+                        ADAPTIVE_BUTTON,
+                        INCOGNITO_INDICATOR,
+                        TAB_SWITCHER,
+                        MENU));
+
+        mToolbarTablet.onMeasure(
+                MeasureSpec.makeMeasureSpec(
+                        11 * buttonWidth + locationBarMidWidth + padding, EXACTLY),
+                UNSPECIFIED);
+        assertToolbarComponentsReceivedWidth(
+                Set.of(
+                        PADDING,
+                        HOME,
+                        BACK,
+                        FORWARD,
+                        RELOAD,
+                        ADAPTIVE_BUTTON,
+                        INCOGNITO_INDICATOR,
+                        TAB_SWITCHER,
+                        MENU));
     }
 
     @SuppressLint("WrongCall")
     @Test
     @EnableFeatures(ChromeFeatureList.TOOLBAR_TABLET_RESIZE_REFACTOR)
     public void testResizeTabletToolbar_buttonsHideInRankedOrder() {
-        int widthForStaticComponents = mToolbarTablet.getWidthForStaticComponents();
+        int locationBarMidWidth = 200;
+        int padding =
+                mToolbarTablet
+                                .getContext()
+                                .getResources()
+                                .getDimensionPixelSize(R.dimen.tablet_toolbar_start_padding)
+                        * 2;
+
         int buttonWidth =
                 mToolbarTablet
                         .getContext()
@@ -809,51 +902,110 @@ public final class ToolbarTabletUnitTest {
                 R.string.adaptive_toolbar_button_preference_share);
 
         mToolbarTablet.onMeasure(
-                MeasureSpec.makeMeasureSpec(8 * buttonWidth + widthForStaticComponents, EXACTLY),
+                MeasureSpec.makeMeasureSpec(
+                        11 * buttonWidth + locationBarMidWidth + padding, EXACTLY),
                 UNSPECIFIED);
         assertToolbarComponentsReceivedWidth(
-                Set.of(MENU, HOME, BACK, FORWARD, RELOAD, ADAPTIVE_BUTTON, TAB_SWITCHER));
+                Set.of(
+                        PADDING,
+                        HOME,
+                        BACK,
+                        FORWARD,
+                        RELOAD,
+                        ADAPTIVE_BUTTON,
+                        INCOGNITO_INDICATOR,
+                        TAB_SWITCHER,
+                        MENU));
 
         mToolbarTablet.onMeasure(
-                MeasureSpec.makeMeasureSpec(7 * buttonWidth + widthForStaticComponents, EXACTLY),
+                MeasureSpec.makeMeasureSpec(
+                        10 * buttonWidth + locationBarMidWidth + padding, EXACTLY),
                 UNSPECIFIED);
         assertToolbarComponentsReceivedWidth(
-                Set.of(MENU, HOME, BACK, FORWARD, RELOAD, ADAPTIVE_BUTTON, TAB_SWITCHER));
+                Set.of(
+                        PADDING,
+                        HOME,
+                        BACK,
+                        FORWARD,
+                        RELOAD,
+                        ADAPTIVE_BUTTON,
+                        INCOGNITO_INDICATOR,
+                        TAB_SWITCHER,
+                        MENU));
 
         mToolbarTablet.onMeasure(
-                MeasureSpec.makeMeasureSpec(6 * buttonWidth + widthForStaticComponents, EXACTLY),
+                MeasureSpec.makeMeasureSpec(
+                        9 * buttonWidth + locationBarMidWidth + padding, EXACTLY),
                 UNSPECIFIED);
         assertToolbarComponentsReceivedWidth(
-                Set.of(MENU, BACK, FORWARD, RELOAD, ADAPTIVE_BUTTON, TAB_SWITCHER));
+                Set.of(
+                        PADDING,
+                        BACK,
+                        FORWARD,
+                        RELOAD,
+                        ADAPTIVE_BUTTON,
+                        INCOGNITO_INDICATOR,
+                        TAB_SWITCHER,
+                        MENU));
 
         mToolbarTablet.onMeasure(
-                MeasureSpec.makeMeasureSpec(5 * buttonWidth + widthForStaticComponents, EXACTLY),
+                MeasureSpec.makeMeasureSpec(
+                        8 * buttonWidth + locationBarMidWidth + padding, EXACTLY),
                 UNSPECIFIED);
         assertToolbarComponentsReceivedWidth(
-                Set.of(MENU, BACK, RELOAD, ADAPTIVE_BUTTON, TAB_SWITCHER));
+                Set.of(
+                        PADDING,
+                        BACK,
+                        RELOAD,
+                        ADAPTIVE_BUTTON,
+                        INCOGNITO_INDICATOR,
+                        TAB_SWITCHER,
+                        MENU));
 
         mToolbarTablet.onMeasure(
-                MeasureSpec.makeMeasureSpec(4 * buttonWidth + widthForStaticComponents, EXACTLY),
+                MeasureSpec.makeMeasureSpec(
+                        7 * buttonWidth + locationBarMidWidth + padding, EXACTLY),
                 UNSPECIFIED);
-        assertToolbarComponentsReceivedWidth(Set.of(MENU, BACK, ADAPTIVE_BUTTON, TAB_SWITCHER));
+        assertToolbarComponentsReceivedWidth(
+                Set.of(PADDING, BACK, ADAPTIVE_BUTTON, INCOGNITO_INDICATOR, TAB_SWITCHER, MENU));
 
         mToolbarTablet.onMeasure(
-                MeasureSpec.makeMeasureSpec(3 * buttonWidth + widthForStaticComponents, EXACTLY),
+                MeasureSpec.makeMeasureSpec(
+                        6 * buttonWidth + locationBarMidWidth + padding, EXACTLY),
                 UNSPECIFIED);
-        assertToolbarComponentsReceivedWidth(Set.of(MENU, BACK, TAB_SWITCHER));
+        assertToolbarComponentsReceivedWidth(
+                Set.of(PADDING, BACK, INCOGNITO_INDICATOR, TAB_SWITCHER, MENU));
 
         mToolbarTablet.onMeasure(
-                MeasureSpec.makeMeasureSpec(2 * buttonWidth + widthForStaticComponents, EXACTLY),
+                MeasureSpec.makeMeasureSpec(
+                        3 * buttonWidth + locationBarMidWidth + padding, EXACTLY),
                 UNSPECIFIED);
-        assertToolbarComponentsReceivedWidth(Set.of(MENU, BACK));
+        assertToolbarComponentsReceivedWidth(Set.of(PADDING, BACK, TAB_SWITCHER, MENU));
 
         mToolbarTablet.onMeasure(
-                MeasureSpec.makeMeasureSpec(buttonWidth + widthForStaticComponents, EXACTLY),
+                MeasureSpec.makeMeasureSpec(
+                        2 * buttonWidth + locationBarMidWidth + padding, EXACTLY),
                 UNSPECIFIED);
+        assertToolbarComponentsReceivedWidth(Set.of(PADDING, TAB_SWITCHER, MENU));
+
+        mToolbarTablet.onMeasure(
+                MeasureSpec.makeMeasureSpec(2 * buttonWidth + locationBarMidWidth, EXACTLY),
+                UNSPECIFIED);
+        assertToolbarComponentsReceivedWidth(Set.of(TAB_SWITCHER, MENU));
+
+        mToolbarTablet.onMeasure(
+                MeasureSpec.makeMeasureSpec(2 * buttonWidth + (locationBarMidWidth / 2), EXACTLY),
+                UNSPECIFIED);
+        assertToolbarComponentsReceivedWidth(Set.of(TAB_SWITCHER, MENU));
+
+        mToolbarTablet.onMeasure(
+                MeasureSpec.makeMeasureSpec(2 * buttonWidth, EXACTLY), UNSPECIFIED);
+        assertToolbarComponentsReceivedWidth(Set.of(TAB_SWITCHER, MENU));
+
+        mToolbarTablet.onMeasure(MeasureSpec.makeMeasureSpec(buttonWidth, EXACTLY), UNSPECIFIED);
         assertToolbarComponentsReceivedWidth(Set.of(MENU));
 
-        mToolbarTablet.onMeasure(
-                MeasureSpec.makeMeasureSpec(widthForStaticComponents, EXACTLY), UNSPECIFIED);
+        mToolbarTablet.onMeasure(MeasureSpec.makeMeasureSpec(0, EXACTLY), UNSPECIFIED);
         assertToolbarComponentsReceivedWidth(Set.of());
     }
 
@@ -861,13 +1013,19 @@ public final class ToolbarTabletUnitTest {
     @Test
     @EnableFeatures(ChromeFeatureList.TOOLBAR_TABLET_RESIZE_REFACTOR)
     public void testResizeTabletToolbar_toggleOptionalButtonHidden() {
-        int widthForStaticComponents = mToolbarTablet.getWidthForStaticComponents();
+        int locationBarMidWidth = 200;
+        int padding =
+                mToolbarTablet
+                                .getContext()
+                                .getResources()
+                                .getDimensionPixelSize(R.dimen.tablet_toolbar_start_padding)
+                        * 2;
         int buttonWidth =
                 mToolbarTablet
                         .getContext()
                         .getResources()
                         .getDimensionPixelSize(R.dimen.toolbar_button_width);
-        int toolbarWidth = 8 * buttonWidth + widthForStaticComponents;
+        int toolbarWidth = 10 * buttonWidth + locationBarMidWidth + padding;
         updateOptionalButton(
                 /* buttonVariant= */ AdaptiveToolbarButtonVariant.SHARE,
                 R.string.adaptive_toolbar_button_preference_share);
@@ -877,13 +1035,30 @@ public final class ToolbarTabletUnitTest {
         // The optional / adaptive button should be showing.
         mToolbarTablet.onMeasure(MeasureSpec.makeMeasureSpec(toolbarWidth, EXACTLY), UNSPECIFIED);
         assertToolbarComponentsReceivedWidth(
-                Set.of(MENU, HOME, BACK, FORWARD, RELOAD, ADAPTIVE_BUTTON, TAB_SWITCHER));
+                Set.of(
+                        PADDING,
+                        HOME,
+                        BACK,
+                        FORWARD,
+                        RELOAD,
+                        ADAPTIVE_BUTTON,
+                        INCOGNITO_INDICATOR,
+                        TAB_SWITCHER,
+                        MENU));
 
         // The optional / adaptive button should stop showing.
         mToolbarTablet.hideOptionalButton();
         mToolbarTablet.onMeasure(MeasureSpec.makeMeasureSpec(toolbarWidth, EXACTLY), UNSPECIFIED);
         assertToolbarComponentsReceivedWidth(
-                Set.of(MENU, HOME, BACK, FORWARD, RELOAD, TAB_SWITCHER));
+                Set.of(
+                        PADDING,
+                        HOME,
+                        BACK,
+                        FORWARD,
+                        RELOAD,
+                        INCOGNITO_INDICATOR,
+                        TAB_SWITCHER,
+                        MENU));
 
         // The optional / adaptive button should start showing again after being updated.
         updateOptionalButton(
@@ -891,7 +1066,16 @@ public final class ToolbarTabletUnitTest {
                 R.string.adaptive_toolbar_button_preference_share);
         mToolbarTablet.onMeasure(MeasureSpec.makeMeasureSpec(toolbarWidth, EXACTLY), UNSPECIFIED);
         assertToolbarComponentsReceivedWidth(
-                Set.of(MENU, HOME, BACK, FORWARD, RELOAD, ADAPTIVE_BUTTON, TAB_SWITCHER));
+                Set.of(
+                        PADDING,
+                        HOME,
+                        BACK,
+                        FORWARD,
+                        RELOAD,
+                        ADAPTIVE_BUTTON,
+                        INCOGNITO_INDICATOR,
+                        TAB_SWITCHER,
+                        MENU));
     }
 
     @SuppressWarnings("DirectInvocationOnMock")
@@ -902,6 +1086,11 @@ public final class ToolbarTabletUnitTest {
                         .getContext()
                         .getResources()
                         .getDimensionPixelSize(R.dimen.toolbar_button_width);
+        int padding =
+                mToolbarTablet
+                        .getContext()
+                        .getResources()
+                        .getDimensionPixelSize(R.dimen.tablet_toolbar_start_padding);
 
         if (visibleComponents.contains(HOME)) {
             verify(mHomeButtonCoordinator).updateVisibility(geq(buttonWidth));
@@ -948,6 +1137,14 @@ public final class ToolbarTabletUnitTest {
         assertEquals(
                 visibleComponents.contains(ADAPTIVE_BUTTON) ? View.VISIBLE : View.GONE,
                 mToolbarTablet.getOptionalButtonViewForTesting().getVisibility());
+
+        if (visibleComponents.contains(PADDING)) {
+            assertEquals(padding, mToolbarTablet.getPaddingStart());
+            assertEquals(padding, mToolbarTablet.getPaddingEnd());
+        } else {
+            assertEquals(0, mToolbarTablet.getPaddingStart());
+            assertEquals(0, mToolbarTablet.getPaddingEnd());
+        }
     }
 
     private void verifyToolbarIconTints(ColorStateList tint, ColorStateList activityFocusTint) {

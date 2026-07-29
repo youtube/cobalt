@@ -29,8 +29,8 @@
 #include "chrome/browser/ui/translate/partial_translate_bubble_model.h"
 #include "chrome/browser/ui/user_education/browser_user_education_interface.h"
 #include "chrome/browser/ui/views/exclusive_access_bubble_views_context.h"
-#include "chrome/browser/ui/views/frame/browser_frame.h"
 #include "chrome/browser/ui/views/frame/browser_view_layout.h"
+#include "chrome/browser/ui/views/frame/browser_widget.h"
 #include "chrome/browser/ui/views/frame/contents_container_view.h"
 #include "chrome/browser/ui/views/frame/contents_web_view.h"
 #include "chrome/browser/ui/views/frame/immersive_mode_controller.h"
@@ -46,6 +46,7 @@
 #include "components/webapps/browser/banners/app_banner_manager.h"
 #include "content/public/browser/page_user_data.h"
 #include "content/public/browser/permission_controller.h"
+#include "content/public/browser/permission_result.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_contents_observer.h"
 #include "third_party/blink/public/common/permissions/permission_utils.h"
@@ -146,13 +147,13 @@ class BrowserView : public BrowserWindow,
   BrowserView& operator=(const BrowserView&) = delete;
   ~BrowserView() override;
 
-  void set_frame(std::unique_ptr<BrowserFrame> frame) {
+  void set_frame(std::unique_ptr<BrowserWidget> frame) {
     frame_ = std::move(frame);
     paint_as_active_subscription_ =
         frame_->RegisterPaintAsActiveChangedCallback(base::BindRepeating(
             &BrowserView::PaintAsActiveChanged, base::Unretained(this)));
   }
-  BrowserFrame* frame() const { return frame_.get(); }
+  BrowserWidget* frame() const { return frame_.get(); }
 
   // Returns a pointer to the BrowserView* interface implementation (an
   // instance of this object, typically) for a given native window, or null if
@@ -215,8 +216,10 @@ class BrowserView : public BrowserWindow,
   views::Widget* overlay_widget() { return overlay_widget_.get(); }
   const views::Widget* overlay_widget() const { return overlay_widget_.get(); }
 
-  views::View* overlay_view() { return overlay_view_.get(); }
-  const views::View* overlay_view() const { return overlay_view_.get(); }
+  views::View* overlay_view() { return overlay_view_tracker_.view(); }
+  const views::View* overlay_view() const {
+    return overlay_view_tracker_.view();
+  }
 
   views::Widget* tab_overlay_widget() { return tab_overlay_widget_.get(); }
   const views::Widget* tab_overlay_widget() const {
@@ -250,10 +253,6 @@ class BrowserView : public BrowserWindow,
 
   TabStripViewInterface* tab_strip_view() const {
     return tab_strip_region_view_.get();
-  }
-
-  TabStripRegionView* tab_strip_region_view() const {
-    return tab_strip_region_view_;
   }
 
   VerticalTabStripRegionView* vertical_tab_strip_region_view() const {
@@ -365,7 +364,7 @@ class BrowserView : public BrowserWindow,
   float GetTopControlsSlideBehaviorShownRatio() const;
 
   // Returns the widget for anchoring bubbles and dialogs.
-  // This returns BrowserFrame except on fullscreen macOS where the toolbar is
+  // This returns BrowserWidget except on fullscreen macOS where the toolbar is
   // hosted in an OverlayWidget.
   views::Widget* GetWidgetForAnchoring();
 
@@ -587,6 +586,7 @@ class BrowserView : public BrowserWindow,
       content::WebContents* contents,
       bool show_signin_button) override;
 #if BUILDFLAG(IS_CHROMEOS)
+  views::Button* GetSharingHubIconButton() override;
   void ToggleMultitaskMenu() const override;
 #else
   sharing_hub::SharingHubBubbleView* ShowSharingHubBubble(
@@ -922,6 +922,8 @@ class BrowserView : public BrowserWindow,
   bool IsTabChangeInSplitView(content::WebContents* old_contents,
                               content::WebContents* new_contents);
 
+  void UpdateTabModalDialogBounds();
+
   // Updates stored focus for web contents that is being activated.
   void MaybeUpdateStoredFocusForWebContents(content::WebContents*);
 
@@ -1085,7 +1087,7 @@ class BrowserView : public BrowserWindow,
   // Updates the variable keeping track of the Window Management permission,
   // which together with borderless_mode_enabled_ controls whether the title bar
   // is shown or not.
-  void UpdateWindowManagementPermission(blink::mojom::PermissionStatus status);
+  void UpdateWindowManagementPermission(content::PermissionResult result);
 
   // Sets the callback which is called when the status of the Window Management
   // permission changes.
@@ -1110,8 +1112,8 @@ class BrowserView : public BrowserWindow,
   bool ShouldUseBrowserContentMinimumSize() const;
   bool IsBrowserAWebApp() const;
 
-  // The BrowserFrame that owns this view.
-  std::unique_ptr<BrowserFrame> frame_;
+  // The BrowserWidget that owns this view.
+  std::unique_ptr<BrowserWidget> frame_;
 
   // The owning Browser object. `browser_` will outlive this.
   const raw_ptr<Browser> browser_;
@@ -1148,10 +1150,10 @@ class BrowserView : public BrowserWindow,
   // Menu button and page status icons. Only used by web-app windows.
   raw_ptr<WebAppFrameToolbarView> web_app_frame_toolbar_ = nullptr;
 
-  // Normally the BrowserNonClientFrameView is responsible for rendering the
-  // title of a window when appropriate. However for web applications the title
-  // needs to be more integrated with other UI components part of BrowserView,
-  // so have a title Label for them here.
+  // Normally the BrowserFrameView is responsible for rendering the title of a
+  // window when appropriate. However for web applications the title needs to be
+  // more integrated with other UI components part of BrowserView, so have a
+  // title Label for them here.
   raw_ptr<views::Label> web_app_window_title_ = nullptr;
 
   // The view that contains the tabstrip, new tab button, and grab handle space.
@@ -1172,7 +1174,7 @@ class BrowserView : public BrowserWindow,
   // during immersive reveal.
   // On Aura, this view is owned by the browser frame. On mac, this view is
   // owned by `overlay_widget_`.
-  raw_ptr<views::View, DanglingUntriaged> overlay_view_ = nullptr;
+  views::ViewTracker overlay_view_tracker_;
 
 #if BUILDFLAG(IS_MAC)
   // Used when calling CreateMacOverlayView(). This widget owns `overlay_view_`.

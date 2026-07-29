@@ -17,7 +17,7 @@ import org.chromium.chrome.browser.fullscreen.BrowserControlsManager;
 import org.chromium.chrome.browser.fullscreen.BrowserControlsManagerSupplier;
 import org.chromium.chrome.browser.keyboard_accessory.bar_component.KeyboardAccessoryCoordinator;
 import org.chromium.chrome.browser.keyboard_accessory.data.KeyboardAccessoryData;
-import org.chromium.chrome.browser.keyboard_accessory.data.PropertyProvider;
+import org.chromium.chrome.browser.keyboard_accessory.data.Provider;
 import org.chromium.chrome.browser.keyboard_accessory.sheet_component.AccessorySheetCoordinator;
 import org.chromium.chrome.browser.password_manager.ConfirmationDialogHelper;
 import org.chromium.chrome.browser.profiles.Profile;
@@ -27,7 +27,6 @@ import org.chromium.components.autofill.AutofillSuggestion;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.ui.AsyncViewStub;
-import org.chromium.ui.DropdownPopupWindow;
 import org.chromium.ui.base.WindowAndroid;
 import org.chromium.ui.insets.InsetObserver;
 
@@ -47,7 +46,7 @@ class ManualFillingCoordinator implements ManualFillingComponent {
     private final ObserverList<Observer> mObserverList = new ObserverList<>();
     private KeyboardAccessoryCoordinator mKeyboardAccessoryCoordinator;
 
-    public ManualFillingCoordinator() {}
+    ManualFillingCoordinator() {}
 
     @Override
     public void initialize(
@@ -151,11 +150,6 @@ class ManualFillingCoordinator implements ManualFillingComponent {
     }
 
     @Override
-    public void notifyPopupAvailable(DropdownPopupWindow popup) {
-        mMediator.notifyPopupOpened(popup);
-    }
-
-    @Override
     public void closeAccessorySheet() {
         mMediator.onCloseAccessorySheet();
     }
@@ -167,8 +161,7 @@ class ManualFillingCoordinator implements ManualFillingComponent {
 
     @Override
     public void registerActionProvider(
-            WebContents webContents,
-            PropertyProvider<KeyboardAccessoryData.Action[]> actionProvider) {
+            WebContents webContents, Provider<KeyboardAccessoryData.Action[]> actionProvider) {
         mMediator.registerActionProvider(webContents, actionProvider);
     }
 
@@ -176,7 +169,7 @@ class ManualFillingCoordinator implements ManualFillingComponent {
     public void registerSheetDataProvider(
             WebContents webContents,
             @AccessoryTabType int sheetType,
-            PropertyProvider<KeyboardAccessoryData.AccessorySheetData> sheetDataProvider) {
+            Provider<KeyboardAccessoryData.AccessorySheetData> sheetDataProvider) {
         mMediator.registerSheetDataProvider(webContents, sheetType, sheetDataProvider);
     }
 
@@ -187,10 +180,8 @@ class ManualFillingCoordinator implements ManualFillingComponent {
     }
 
     @Override
-    public void registerAutofillProvider(
-            PropertyProvider<List<AutofillSuggestion>> autofillProvider,
-            AutofillDelegate delegate) {
-        mMediator.registerAutofillProvider(autofillProvider, delegate);
+    public void setSuggestions(List<AutofillSuggestion> suggestions, AutofillDelegate delegate) {
+        mMediator.setSuggestions(suggestions, delegate);
     }
 
     @Override

@@ -1754,13 +1754,15 @@ void NetworkContext::CloseIdleConnections(
 void NetworkContext::SetNetworkConditions(
     const base::UnguessableToken& throttling_profile_id,
     mojom::NetworkConditionsPtr conditions) {
-  std::unique_ptr<NetworkConditions> network_conditions;
+  std::vector<MatchedNetworkConditions> network_conditions;
   if (conditions) {
-    network_conditions = std::make_unique<NetworkConditions>(
-        conditions->offline, conditions->latency.InMillisecondsF(),
-        conditions->download_throughput, conditions->upload_throughput,
-        conditions->packet_loss, conditions->packet_queue_length,
-        conditions->packet_reordering);
+    network_conditions.emplace_back(
+        std::string{},
+        NetworkConditions{
+            conditions->offline, conditions->latency.InMillisecondsF(),
+            conditions->download_throughput, conditions->upload_throughput,
+            conditions->packet_loss, conditions->packet_queue_length,
+            conditions->packet_reordering});
   }
   ThrottlingController::SetConditions(throttling_profile_id,
                                       std::move(network_conditions));
@@ -1857,11 +1859,12 @@ void NetworkContext::CreateRestrictedUDPSocket(
     mojom::RestrictedUDPSocketParamsPtr params,
     mojo::PendingReceiver<mojom::RestrictedUDPSocket> receiver,
     mojo::PendingRemote<mojom::UDPSocketListener> listener,
+    bool allow_multicast,
     CreateRestrictedUDPSocketCallback callback) {
   // SimpleHostResolver is transitively owned by |this|.
   socket_factory_->CreateRestrictedUDPSocket(
       addr, mode, traffic_annotation, std::move(params), std::move(receiver),
-      std::move(listener), SimpleHostResolver::Create(this),
+      std::move(listener), SimpleHostResolver::Create(this), allow_multicast,
       std::move(callback));
 }
 

@@ -55,6 +55,7 @@
 #include "chrome/browser/ui/tabs/saved_tab_groups/saved_tab_group_utils.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/ui_features.h"
+#include "chrome/browser/ui/views/bubble_anchor_util_views.h"
 #include "chrome/browser/ui/views/chrome_layout_provider.h"
 #include "chrome/browser/ui/views/chrome_typography.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
@@ -81,6 +82,7 @@
 #include "chrome/browser/ui/views/passwords/manage_passwords_icon_views.h"
 #include "chrome/browser/ui/views/permissions/chip/permission_chip_view.h"
 #include "chrome/browser/ui/views/permissions/chip/permission_dashboard_view.h"
+#include "chrome/browser/ui/views/sharing_hub/sharing_hub_icon_view.h"
 #include "chrome/browser/ui/views/toolbar/pinned_toolbar_actions_container.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_view.h"
 #include "chrome/browser/ui/web_applications/app_browser_controller.h"
@@ -1068,6 +1070,15 @@ LocationBarModel* LocationBarView::GetLocationBarModel() {
 
 WebContents* LocationBarView::GetWebContents() {
   return delegate_->GetWebContents();
+}
+
+std::optional<bubble_anchor_util::AnchorConfiguration>
+LocationBarView::GetChipAnchor() {
+  auto* chip = GetChipController()->chip();
+  if (chip->GetVisible()) {
+    return {{chip, chip, views::BubbleBorder::TOP_LEFT}};
+  }
+  return std::nullopt;
 }
 
 SkColor LocationBarView::GetIconLabelBubbleSurroundingForegroundColor() const {

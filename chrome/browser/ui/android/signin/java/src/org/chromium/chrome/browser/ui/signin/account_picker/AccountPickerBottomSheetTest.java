@@ -17,6 +17,8 @@ import static androidx.test.espresso.matcher.ViewMatchers.withEffectiveVisibilit
 import static androidx.test.espresso.matcher.ViewMatchers.withId;
 import static androidx.test.espresso.matcher.ViewMatchers.withText;
 
+import static com.google.common.truth.Truth.assertThat;
+
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.not;
@@ -297,7 +299,7 @@ public class AccountPickerBottomSheetTest {
                                     getBottomSheetController(),
                                     mAccountPickerDelegateMock,
                                     AccountPickerBottomSheetTestUtil.getBottomSheetStrings(
-                                            mSigninAccessPoint),
+                                            mActivityTestRule.getActivity(), mSigninAccessPoint),
                                     new SigninTestUtil.CustomDeviceLockActivityLauncher(),
                                     AccountPickerLaunchMode.DEFAULT,
                                     /* isWebSignin= */ mSigninAccessPoint
@@ -325,7 +327,7 @@ public class AccountPickerBottomSheetTest {
                                     getBottomSheetController(),
                                     mAccountPickerDelegateMock,
                                     AccountPickerBottomSheetTestUtil.getBottomSheetStrings(
-                                            mSigninAccessPoint),
+                                            mActivityTestRule.getActivity(), mSigninAccessPoint),
                                     new SigninTestUtil.CustomDeviceLockActivityLauncher(),
                                     AccountPickerLaunchMode.CHOOSE_ACCOUNT,
                                     /* isWebSignin= */ mSigninAccessPoint
@@ -560,7 +562,7 @@ public class AccountPickerBottomSheetTest {
                                     getBottomSheetController(),
                                     mAccountPickerDelegateMock,
                                     AccountPickerBottomSheetTestUtil.getBottomSheetStrings(
-                                            mSigninAccessPoint),
+                                            mActivityTestRule.getActivity(), mSigninAccessPoint),
                                     null,
                                     AccountPickerLaunchMode.DEFAULT,
                                     /* isWebSignin= */ mSigninAccessPoint
@@ -1403,10 +1405,11 @@ public class AccountPickerBottomSheetTest {
                                 .findViewById(R.id.account_picker_selected_account)
                         ::isShown);
         AccountPickerBottomSheetStrings bottomSheetStrings =
-                AccountPickerBottomSheetTestUtil.getBottomSheetStrings(mSigninAccessPoint);
-        onVisibleView(withText(bottomSheetStrings.titleStringId)).check(matches(isDisplayed()));
-        if (bottomSheetStrings.subtitleStringId != 0) {
-            onVisibleView(withText(bottomSheetStrings.subtitleStringId))
+                AccountPickerBottomSheetTestUtil.getBottomSheetStrings(
+                        mActivityTestRule.getActivity(), mSigninAccessPoint);
+        onVisibleView(withText(bottomSheetStrings.titleString)).check(matches(isDisplayed()));
+        if (bottomSheetStrings.subtitleString != null) {
+            onVisibleView(withText(bottomSheetStrings.subtitleString))
                     .check(matches(isDisplayed()));
         } else {
             onView(withId(R.id.account_picker_header_subtitle)).check(matches(not(isDisplayed())));
@@ -1425,9 +1428,8 @@ public class AccountPickerBottomSheetTest {
                                         ? accountInfo.getEmail()
                                         : accountInfo.getGivenName());
         onView(withText(continueAsText)).check(matches(isDisplayed()));
-        if (bottomSheetStrings.dismissButtonStringId != 0) {
-            onView(withText(bottomSheetStrings.dismissButtonStringId))
-                    .check(matches(isDisplayed()));
+        if (bottomSheetStrings.dismissButtonString != null) {
+            onView(withText(bottomSheetStrings.dismissButtonString)).check(matches(isDisplayed()));
         } else {
             onView(withId(R.id.account_picker_dismiss_button)).check(matches(not(isDisplayed())));
         }
@@ -1435,7 +1437,7 @@ public class AccountPickerBottomSheetTest {
     }
 
     private void checkCollapsedAccountListForWebSignin(AccountInfo accountInfo) {
-        assert mSigninAccessPoint == SigninAccessPoint.WEB_SIGNIN;
+        assertThat(mSigninAccessPoint).isEqualTo(SigninAccessPoint.WEB_SIGNIN);
         checkCollapsedAccountList(accountInfo);
     }
 
@@ -1452,7 +1454,7 @@ public class AccountPickerBottomSheetTest {
                                     getBottomSheetController(),
                                     mAccountPickerDelegateMock,
                                     AccountPickerBottomSheetTestUtil.getBottomSheetStrings(
-                                            mSigninAccessPoint),
+                                            mActivityTestRule.getActivity(), mSigninAccessPoint),
                                     mDeviceLockActivityLauncher,
                                     launchMode,
                                     /* isWebSignin= */ mSigninAccessPoint

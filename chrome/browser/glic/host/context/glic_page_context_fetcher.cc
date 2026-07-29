@@ -162,7 +162,7 @@ void FetchPageContext(
     const GURL& url = web_contents->GetLastCommittedURL();
     journal_entry = actor_keyed_service->GetJournal().CreatePendingAsyncEntry(
         url, actor::TaskId(), actor::mojom::JournalTrack::kActor,
-        "GlicFetchPageContext", "");
+        "GlicFetchPageContext", {});
     progress_listener = actor::CreateActorJournalFetchPageProgressListener(
         actor_keyed_service->GetJournal().GetSafeRef(), url, actor::TaskId());
   }
@@ -174,8 +174,13 @@ void FetchPageContext(
   if (tab_context_options.include_pdf) {
     options.pdf_size_limit = tab_context_options.pdf_size_limit;
   }
-  options.include_viewport_screenshot =
-      tab_context_options.include_viewport_screenshot;
+
+  if (tab_context_options.include_viewport_screenshot) {
+    // Disable paint preview backend for glic, and capture the viewport only.
+    options.screenshot_options =
+        page_content_annotations::ScreenshotOptions::ViewportOnly(
+            /*paint_preview_options=*/std::nullopt);
+  }
 
   const bool on_critical_path = true;
   if (tab_context_options.include_annotated_page_content) {

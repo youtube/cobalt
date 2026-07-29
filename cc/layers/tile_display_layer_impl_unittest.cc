@@ -11,6 +11,7 @@
 #include "components/viz/client/client_resource_provider.h"
 #include "components/viz/common/quads/solid_color_draw_quad.h"
 #include "components/viz/common/quads/tile_draw_quad.h"
+#include "ui/gfx/geometry/rect.h"
 
 namespace cc {
 
@@ -65,6 +66,172 @@ TEST_F(TileDisplayLayerImplTest, SettingSolidColorResultsInSolidColorQuad) {
       viz::SolidColorDrawQuad::MaterialCast(render_pass->quad_list.front())
           ->color,
       kLayerColor);
+}
+
+// Tests that AppendQuads() does not append any quads for a layer serving as
+// a backdrop filter mask.
+TEST_F(TileDisplayLayerImplTest,
+       AppendQuadsDoesNotAppendQuadsForBackdropFilterMask) {
+  constexpr gfx::Size kLayerBounds(1300, 1900);
+  constexpr gfx::Rect kLayerRect(kLayerBounds);
+  constexpr float kOpacity = 1.0;
+
+  auto layer = std::make_unique<TileDisplayLayerImpl>(
+      CHECK_DEREF(host_impl()->active_tree()), /*id=*/42);
+  auto* raw_layer = layer.get();
+  host_impl()->active_tree()->AddLayer(std::move(layer));
+
+  raw_layer->SetIsBackdropFilterMask(true);
+
+  // For the production code to actually append a quad, the layer must have
+  // non-zero size and not be completely transparent; ensure that these
+  // preconditions are satisfied to avoid this test passing trivially.
+  raw_layer->SetBounds(kLayerBounds);
+  raw_layer->draw_properties().visible_layer_rect = kLayerRect;
+  raw_layer->draw_properties().opacity = kOpacity;
+
+  SetupRootProperties(host_impl()->active_tree()->root_layer());
+
+  auto render_pass = viz::CompositorRenderPass::Create();
+  AppendQuadsData data;
+  raw_layer->AppendQuads(AppendQuadsContext{DRAW_MODE_SOFTWARE, {}, false},
+                         render_pass.get(), &data);
+
+  EXPECT_EQ(render_pass->quad_list.size(), 0u);
+}
+
+// Tests that AppendQuads() does not append any quads for a layer serving as
+// a backdrop filter mask with a solid color set.
+TEST_F(TileDisplayLayerImplTest,
+       AppendQuadsDoesNotAppendQuadsForBackdropFilterMaskWithSolidColor) {
+  constexpr gfx::Size kLayerBounds(1300, 1900);
+  constexpr gfx::Rect kLayerRect(kLayerBounds);
+  constexpr SkColor4f kLayerColor = SkColors::kRed;
+  constexpr float kOpacity = 1.0;
+
+  auto layer = std::make_unique<TileDisplayLayerImpl>(
+      CHECK_DEREF(host_impl()->active_tree()), /*id=*/42);
+  auto* raw_layer = layer.get();
+  host_impl()->active_tree()->AddLayer(std::move(layer));
+
+  raw_layer->SetIsBackdropFilterMask(true);
+  raw_layer->SetSolidColor(kLayerColor);
+
+  // For the production code to actually append a quad, the layer must have
+  // non-zero size and not be completely transparent; ensure that these
+  // preconditions are satisfied to avoid this test passing trivially.
+  raw_layer->SetBounds(kLayerBounds);
+  raw_layer->draw_properties().visible_layer_rect = kLayerRect;
+  raw_layer->draw_properties().opacity = kOpacity;
+
+  SetupRootProperties(host_impl()->active_tree()->root_layer());
+
+  auto render_pass = viz::CompositorRenderPass::Create();
+  AppendQuadsData data;
+  raw_layer->AppendQuads(AppendQuadsContext{DRAW_MODE_SOFTWARE, {}, false},
+                         render_pass.get(), &data);
+
+  EXPECT_EQ(render_pass->quad_list.size(), 0u);
+}
+
+TEST_F(TileDisplayLayerImplTest,
+       AppendQuadsDoesNotAppendQuadsForOccludedTiles) {
+  constexpr gfx::Size kLayerBounds(100, 100);
+  constexpr gfx::Rect kLayerRect(kLayerBounds);
+  constexpr float kOpacity = 1.0;
+
+  auto layer = std::make_unique<TileDisplayLayerImpl>(
+      CHECK_DEREF(host_impl()->active_tree()), /*id=*/42);
+  auto* raw_layer = layer.get();
+  host_impl()->active_tree()->AddLayer(std::move(layer));
+
+  raw_layer->SetBounds(kLayerBounds);
+  raw_layer->draw_properties().visible_layer_rect = kLayerRect;
+  raw_layer->draw_properties().opacity = kOpacity;
+
+  // Create a tiling with one tile.
+  auto& tiling = raw_layer->GetOrCreateTilingFromScaleKey(1.0);
+  tiling.SetTileSize(kLayerBounds);
+  tiling.SetTilingRect(kLayerRect);
+
+  auto resource_id = host_impl()->resource_provider()->ImportResource(
+      viz::TransferableResource::Make(
+          gpu::ClientSharedImage::CreateForTesting(),
+          viz::TransferableResource::ResourceSource::kTest, gpu::SyncToken()),
+      base::DoNothing());
+  TileDisplayLayerImpl::TileContents contents =
+      TileDisplayLayerImpl::TileResource(resource_id, kLayerBounds,
+                                         /*is_checkered=*/false);
+  tiling.SetTileContents(TileIndex{0, 0}, contents, /*update_damage=*/false);
+
+  // Set up occlusion that covers the entire layer. Occlusion is specified in
+  // screen space, so we provide an identity transform to make content space
+  // the same as screen space.
+  gfx::Transform identity_transform;
+  SimpleEnclosedRegion screen_occlusion(kLayerRect);
+  raw_layer->draw_properties().occlusion_in_content_space =
+      Occlusion(identity_transform, screen_occlusion, screen_occlusion);
+
+  SetupRootProperties(host_impl()->active_tree()->root_layer());
+
+  auto render_pass = viz::CompositorRenderPass::Create();
+  AppendQuadsData data;
+  raw_layer->AppendQuads(AppendQuadsContext{DRAW_MODE_SOFTWARE, {}, false},
+                         render_pass.get(), &data);
+
+  EXPECT_EQ(render_pass->quad_list.size(), 0u);
+}
+
+TEST_F(TileDisplayLayerImplTest,
+       AppendQuadsAppendsClippedQuadsForPartiallyOccludedTiles) {
+  const gfx::Rect layer_rect(0, 0, 10, 10);
+  const gfx::Rect tile_rect(0, 0, 10, 10);
+  const gfx::Rect occluded_rect(0, 0, 5, 10);
+
+  // Setup layer and tiling.
+  auto layer = std::make_unique<TileDisplayLayerImpl>(
+      CHECK_DEREF(host_impl()->active_tree()), /*id=*/42);
+  auto* raw_layer = layer.get();
+  host_impl()->active_tree()->AddLayer(std::move(layer));
+
+  raw_layer->SetBounds(layer_rect.size());
+  raw_layer->draw_properties().visible_layer_rect = layer_rect;
+  raw_layer->draw_properties().occlusion_in_content_space =
+      Occlusion(gfx::Transform(), SimpleEnclosedRegion(occluded_rect),
+                SimpleEnclosedRegion());
+
+  auto& tiling = raw_layer->GetOrCreateTilingFromScaleKey(1.0);
+  tiling.SetTileSize(tile_rect.size());
+  tiling.SetTilingRect(tile_rect);
+
+  auto resource_id = host_impl()->resource_provider()->ImportResource(
+      viz::TransferableResource::Make(
+          gpu::ClientSharedImage::CreateForTesting(),
+          viz::TransferableResource::ResourceSource::kTest, gpu::SyncToken()),
+      base::DoNothing());
+  TileDisplayLayerImpl::TileContents contents =
+      TileDisplayLayerImpl::TileResource(resource_id, tile_rect.size(),
+                                         /*is_checkered=*/false);
+  tiling.SetTileContents(TileIndex{0, 0}, contents, /*update_damage=*/false);
+
+  SetupRootProperties(host_impl()->active_tree()->root_layer());
+
+  // Append quads.
+  auto render_pass = viz::CompositorRenderPass::Create();
+  AppendQuadsData data;
+  raw_layer->AppendQuads(AppendQuadsContext{DRAW_MODE_SOFTWARE, {}, false},
+                         render_pass.get(), &data);
+
+  // Verify that one quad is appended and it's clipped.
+  ASSERT_EQ(1u, render_pass->quad_list.size());
+  const viz::DrawQuad* quad = render_pass->quad_list.front();
+  EXPECT_EQ(viz::DrawQuad::Material::kTiledContent, quad->material);
+
+  const auto* tile_quad = viz::TileDrawQuad::MaterialCast(quad);
+  EXPECT_EQ(tile_rect, tile_quad->rect);
+  const gfx::Rect expected_visible_rect =
+      gfx::SubtractRects(tile_rect, occluded_rect);
+  EXPECT_EQ(expected_visible_rect, tile_quad->visible_rect);
 }
 
 TEST_F(TileDisplayLayerImplTest,

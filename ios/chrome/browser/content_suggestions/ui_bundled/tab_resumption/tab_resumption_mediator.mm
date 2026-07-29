@@ -80,7 +80,6 @@
 #import "ios/chrome/browser/shared/public/features/system_flags.h"
 #import "ios/chrome/browser/shared/public/snackbar/snackbar_message.h"
 #import "ios/chrome/browser/shared/public/snackbar/snackbar_message_action.h"
-#import "ios/chrome/browser/shared/ui/util/snackbar_util.h"
 #import "ios/chrome/browser/signin/model/authentication_service.h"
 #import "ios/chrome/browser/snapshots/model/snapshot_browser_agent.h"
 #import "ios/chrome/browser/snapshots/model/snapshot_id.h"
@@ -350,21 +349,23 @@ class TabResumptionMediatorProxy {
   TabResumptionItem* _pendingItem;
 
   // The owning Browser.
-  raw_ptr<Browser> _browser;
-  raw_ptr<PrefService> _profilePrefs;
+  raw_ptr<Browser, DanglingUntriaged> _browser;
+  raw_ptr<PrefService, DanglingUntriaged> _profilePrefs;
   SceneState* _sceneState;
   // Loads favicons.
   raw_ptr<FaviconLoader> _faviconLoader;
   // Browser Agent that manages the most recent WebState.
   raw_ptr<StartSurfaceRecentTabBrowserAgent> _recentTabBrowserAgent;
   // KeyedService responsible session sync.
-  raw_ptr<sync_sessions::SessionSyncService> _sessionSyncService;
+  raw_ptr<sync_sessions::SessionSyncService, DanglingUntriaged>
+      _sessionSyncService;
   // KeyedService responsible for sync state.
-  raw_ptr<syncer::SyncService> _syncService;
-  raw_ptr<UrlLoadingBrowserAgent> _URLLoadingBrowserAgent;
-  raw_ptr<WebStateList> _webStateList;
+  raw_ptr<syncer::SyncService, DanglingUntriaged> _syncService;
+  raw_ptr<UrlLoadingBrowserAgent, DanglingUntriaged> _URLLoadingBrowserAgent;
+  raw_ptr<WebStateList, DanglingUntriaged> _webStateList;
   // KeyedService for Salient images.
-  raw_ptr<page_image_service::ImageService> _pageImageService;
+  raw_ptr<page_image_service::ImageService, DanglingUntriaged>
+      _pageImageService;
   // Observer bridge for mediator to listen to
   // StartSurfaceRecentTabObserverBridge.
   std::unique_ptr<StartSurfaceRecentTabObserverBridge> _startSurfaceObserver;
@@ -581,8 +582,7 @@ class TabResumptionMediatorProxy {
 
 - (void)onTracked:(ShopCardTrackItemResult)result
              item:(TabResumptionItem*)item {
-  [self.dispatcher showCustomSnackbarMessage:[self snackbarMessage:result
-                                                              item:item]];
+  [self.dispatcher showSnackbarMessage:[self snackbarMessage:result item:item]];
 }
 
 - (SnackbarMessage*)snackbarMessage:(ShopCardTrackItemResult)result
@@ -615,14 +615,20 @@ class TabResumptionMediatorProxy {
 
   SnackbarMessage* message;
   if (result == ShopCardTrackItemResult::kTrackSuccess) {
-    message = CreateCustomSnackbarMessage(l10n_util::GetNSString(
-        IDS_IOS_CONTENT_SUGGESTIONS_SHOPCARD_TRACK_PRICE_SUCCESS_SNACKBAR));
+    message = [[SnackbarMessage alloc]
+        initWithTitle:
+            l10n_util::GetNSString(
+                IDS_IOS_CONTENT_SUGGESTIONS_SHOPCARD_TRACK_PRICE_SUCCESS_SNACKBAR)];
   } else if (result == ShopCardTrackItemResult::kTrackSuccesNoNotification) {
-    message = CreateCustomSnackbarMessage(l10n_util::GetNSString(
-        IDS_IOS_CONTENT_SUGGESTIONS_SHOPCARD_TRACK_PRICE_NO_PUSH_PERMISSION_SNACKBAR));
+    message = [[SnackbarMessage alloc]
+        initWithTitle:
+            l10n_util::GetNSString(
+                IDS_IOS_CONTENT_SUGGESTIONS_SHOPCARD_TRACK_PRICE_NO_PUSH_PERMISSION_SNACKBAR)];
   } else {
-    message = CreateCustomSnackbarMessage(l10n_util::GetNSString(
-        IDS_IOS_CONTENT_SUGGESTIONS_SHOPCARD_TRACK_PRICE_FAILURE_SNACKBAR));
+    message = [[SnackbarMessage alloc]
+        initWithTitle:
+            l10n_util::GetNSString(
+                IDS_IOS_CONTENT_SUGGESTIONS_SHOPCARD_TRACK_PRICE_FAILURE_SNACKBAR)];
   }
 
   message.action = action;

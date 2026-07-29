@@ -219,11 +219,12 @@ class CrossPlatformAccessibilityBrowserTest : public ContentBrowserTest {
     ~DownloadImageObserver() = default;
   };
 
-  void DownloadImageFromAxNodeTestInternal(Shell* shell,
-                                           ui::AXTreeID tree_id,
-                                           ui::AXNodeID node_id,
-                                           int expected_http_status,
-                                           int expected_number_of_images) {
+  void DownloadImageFromAxNodeTestInternal(
+      Shell* shell,
+      ui::AXTreeID tree_id,
+      ui::AXNodeID node_id,
+      ::testing::Matcher<int> expected_http_status,
+      int expected_number_of_images) {
     using ::testing::_;
     using ::testing::InvokeWithoutArgs;
     using ::testing::SizeIs;
@@ -246,6 +247,20 @@ class CrossPlatformAccessibilityBrowserTest : public ContentBrowserTest {
 
     // Wait for response.
     run_loop.Run();
+  }
+
+  void DownloadImageFromAxNodeTestSuccess(Shell* shell,
+                                          ui::AXTreeID tree_id,
+                                          ui::AXNodeID node_id) {
+    using ::testing::Ne;
+    DownloadImageFromAxNodeTestInternal(shell, tree_id, node_id, Ne(404), 1);
+  }
+
+  void DownloadImageFromAxNodeTestNotFound(Shell* shell,
+                                           ui::AXTreeID tree_id,
+                                           ui::AXNodeID node_id) {
+    using ::testing::Eq;
+    DownloadImageFromAxNodeTestInternal(shell, tree_id, node_id, Eq(404), 0);
   }
 
  private:
@@ -324,8 +339,8 @@ IN_PROC_BROWSER_TEST_F(CrossPlatformAccessibilityBrowserTest,
       FindFirstNodeWithRole(ax::mojom::Role::kImage);
   ASSERT_TRUE(image);
 
-  DownloadImageFromAxNodeTestInternal(shell(), GetAXTree().GetAXTreeID(),
-                                      image->GetId(), 0, 1);
+  DownloadImageFromAxNodeTestSuccess(shell(), GetAXTree().GetAXTreeID(),
+                                     image->GetId());
 }
 
 IN_PROC_BROWSER_TEST_F(CrossPlatformAccessibilityBrowserTest,
@@ -339,17 +354,16 @@ IN_PROC_BROWSER_TEST_F(CrossPlatformAccessibilityBrowserTest,
   ASSERT_TRUE(web_contents);
   WaitForAccessibilityTreeToChange(web_contents);
 
-  ui::BrowserAccessibility* image =
+  ui::BrowserAccessibility* paragraph =
       FindFirstNodeWithRole(ax::mojom::Role::kParagraph);
-  ASSERT_TRUE(image);
+  ASSERT_TRUE(paragraph);
 
-  DownloadImageFromAxNodeTestInternal(shell(), GetAXTree().GetAXTreeID(),
-                                      image->GetId(), 404, 0);
+  DownloadImageFromAxNodeTestNotFound(shell(), GetAXTree().GetAXTreeID(),
+                                      paragraph->GetId());
 }
 
-// TODO(crbug.com/40844856): This test is flaky
 IN_PROC_BROWSER_TEST_F(CrossPlatformAccessibilityBrowserTest,
-                       DISABLED_DownloadImageFromAxNode_LazyLoaded) {
+                       DownloadImageFromAxNode_LazyLoaded) {
   ASSERT_TRUE(embedded_test_server()->Start());
   const GURL url(embedded_test_server()->GetURL("/page_with_lazy_image.html"));
   EXPECT_TRUE(NavigateToURL(shell(), url));
@@ -363,8 +377,8 @@ IN_PROC_BROWSER_TEST_F(CrossPlatformAccessibilityBrowserTest,
       FindFirstNodeWithRole(ax::mojom::Role::kImage);
   ASSERT_TRUE(image);
 
-  DownloadImageFromAxNodeTestInternal(shell(), GetAXTree().GetAXTreeID(),
-                                      image->GetId(), 200, 1);
+  DownloadImageFromAxNodeTestSuccess(shell(), GetAXTree().GetAXTreeID(),
+                                     image->GetId());
 }
 
 IN_PROC_BROWSER_TEST_F(CrossPlatformAccessibilityBrowserTest,
@@ -383,8 +397,8 @@ IN_PROC_BROWSER_TEST_F(CrossPlatformAccessibilityBrowserTest,
       FindFirstNodeWithRole(ax::mojom::Role::kImage);
   ASSERT_TRUE(image);
 
-  DownloadImageFromAxNodeTestInternal(shell(), GetAXTree().GetAXTreeID(),
-                                      image->GetId(), 404, 0);
+  DownloadImageFromAxNodeTestNotFound(shell(), GetAXTree().GetAXTreeID(),
+                                      image->GetId());
 }
 
 IN_PROC_BROWSER_TEST_F(CrossPlatformAccessibilityBrowserTest,
@@ -3211,10 +3225,12 @@ IN_PROC_BROWSER_TEST_F(AriaNotifyCrossPlatformAccessibilityBrowserTest,
                        TestSingleAriaNotification) {
   const std::string url_str(R"HTML(
       <!DOCTYPE html>
+      <body>
       <div aria-label="Container">
         <button aria-label="a" id="a" onclick="notify(this)"></button>
         <button aria-label="b" id="b" onclick="otherNotify(this)"></button>
       </div>
+      </body>
       <script>
       function notify(clickedElement) {
         clickedElement.ariaNotify("hello");
@@ -3297,6 +3313,26 @@ IN_PROC_BROWSER_TEST_F(AriaNotifyCrossPlatformAccessibilityBrowserTest,
             static_cast<int32_t>(ax::mojom::AriaNotificationPriority::kHigh)},
         button->GetIntListAttribute(
             ax::mojom::IntListAttribute::kAriaNotificationPriorityProperties));
+  }
+
+  {
+    AccessibilityNotificationWaiter waiter(
+        shell()->web_contents(),
+        ui::AXEventGenerator::Event::ARIA_NOTIFICATIONS_POSTED);
+
+    ExecuteScript("document.body.ariaNotify('hi');");
+    ASSERT_TRUE(waiter.WaitForNotification());
+
+    const ui::AXTree& tree = GetAXTree();
+    const ui::AXNode* root = tree.root();
+    const ui::AXNode* document = root->GetChildAtIndex(0);
+    const ui::AXNode* body = document->GetChildAtIndex(0);
+    ASSERT_NE(body, nullptr);
+
+    EXPECT_EQ(
+        std::vector<std::string>{"hi"},
+        body->GetStringListAttribute(
+            ax::mojom::StringListAttribute::kAriaNotificationAnnouncements));
   }
 }
 

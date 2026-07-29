@@ -224,7 +224,7 @@ void ManifestUpdateManager::MaybeUpdate(
   // Skip the cases when the app's scope and the site mismatch e.g. scope
   // extensions.
   if (provider_->registrar_unsafe().GetUrlInAppScopeScore(
-          url.spec(), app_id.value()) == 0) {
+          url, app_id.value()) == 0) {
     NotifyResult(url, app_id, ManifestUpdateResult::kNoAppInScope);
     return;
   }
@@ -318,7 +318,8 @@ void ManifestUpdateManager::StartCheckAfterPageAndManifestUrlLoad(
 
   // TODO(crbug.com/442643377): Don't do this here, and instead use a per-page
   // class to be notified when a valid manifest is attached to a page.
-  if (base::FeatureList::IsEnabled(features::kWebAppPredictableAppUpdating)) {
+  if (base::FeatureList::IsEnabled(features::kWebAppPredictableAppUpdating) &&
+      base::FeatureList::IsEnabled(features::kWebAppUsePrimaryIcon)) {
     provider_->scheduler().ScheduleManifestSilentUpdate(
         url, web_contents->GetWeakPtr(),
         base::BindOnce(&ManifestUpdateManager::OnManifestSilentUpdateComplete,

@@ -139,9 +139,9 @@ BASE_DECLARE_FEATURE(kPressAndHoldEscToExitBrowserFullscreen);
 
 BASE_DECLARE_FEATURE(kReloadSelectionModel);
 
-BASE_DECLARE_FEATURE(kScrimForBrowserWindowModal);
+BASE_DECLARE_FEATURE(kCloseActiveTabInSplitViewViaHotkey);
 
-BASE_DECLARE_FEATURE(kScrimForTabModal);
+BASE_DECLARE_FEATURE(kScrimForBrowserWindowModal);
 
 BASE_DECLARE_FEATURE(kSideBySide);
 
@@ -211,6 +211,7 @@ BASE_DECLARE_FEATURE(kTabGroupHoverCards);
 // General improvements to tab group menus
 BASE_DECLARE_FEATURE(kTabGroupMenuImprovements);
 BASE_DECLARE_FEATURE(kTabGroupMenuMoreEntryPoints);
+bool IsTabGroupMenuMoreEntryPointsEnabled();
 
 #endif  // !BUILDFLAG(IS_ANDROID)
 

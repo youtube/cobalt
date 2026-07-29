@@ -156,8 +156,7 @@ void HeadlessProtocolBrowserTest::OnLoadEventFired(
   }
   test_params.Merge(GetPageUrlExtraParams());
 
-  std::string json_test_params;
-  base::JSONWriter::Write(test_params, &json_test_params);
+  std::string json_test_params = base::WriteJson(test_params).value_or("");
   std::string evaluate_script = "runTest(" + json_test_params + ")";
 
   base::Value::Dict evaluate_params;
@@ -588,7 +587,6 @@ HEADLESS_PROTOCOL_TEST(ScreenDetailsColorDepth,
 HEADLESS_PROTOCOL_TEST(ScreenDetailsWorkArea,
                        "shared/screen-details-work-area.js")
 
-// This produces unexpected results, see http://crbug.com/442922581.
 HEADLESS_PROTOCOL_TEST(ScreenDetailsWorkAreaScaled,
                        "shared/screen-details-work-area-scaled.js")
 
@@ -678,5 +676,15 @@ HEADLESS_PROTOCOL_TEST(RemoveScreenGetScreenDetails,
                        "shared/remove-screen-get-screen-details.js")
 
 HEADLESS_PROTOCOL_TEST(AddRemoveScreen, "shared/add-remove-screen.js")
+
+HEADLESS_PROTOCOL_TEST(DispatchMouseEventScreenCoordinates,
+                       "shared/dispatch-mouse-event-screen-coordinates.js")
+
+HEADLESS_PROTOCOL_TEST(DispatchTouchEventScreenCoordinates,
+                       "shared/dispatch-touch-event-screen-coordinates.js")
+
+HEADLESS_PROTOCOL_TEST(
+    EmulateTouchFromMouseEventScreenCoordinates,
+    "shared/emulate-touch-from-mouse-event-screen-coordinates.js")
 
 }  // namespace headless

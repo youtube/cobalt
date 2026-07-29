@@ -333,8 +333,7 @@ String ErrorCodeToString(MediaStreamRequestResult result) {
 // applies to user media requests.
 bool ShouldDeferDeviceSettingsSelection(
     UserMediaRequestType request_type,
-    mojom::blink::MediaStreamType media_stream_type,
-    const ExecutionContext* execution_context) {
+    mojom::blink::MediaStreamType media_stream_type) {
   // The new behavior shouldn't be applied for anything except for user media
   // requests.
   // TODO(crbug.com/341136036): Find a better long-term solution for keeping
@@ -354,10 +353,6 @@ bool ShouldDeferDeviceSettingsSelection(
     return false;
   }
 
-  if (RuntimeEnabledFeatures::MediaPreviewsOptOutEnabled(execution_context)) {
-    return false;
-  }
-
   // Enables camera preview in permission bubble and site settings.
   return base::FeatureList::IsEnabled(features::kCameraMicPreview) &&
          base::FeatureList::IsEnabled(
@@ -366,8 +361,7 @@ bool ShouldDeferDeviceSettingsSelection(
 #else
 bool ShouldDeferDeviceSettingsSelection(
     UserMediaRequestType request_type,
-    mojom::blink::MediaStreamType media_stream_type,
-    const ExecutionContext* execution_context) {
+    mojom::blink::MediaStreamType media_stream_type) {
   return false;
 }
 #endif
@@ -846,8 +840,7 @@ void UserMediaProcessor::SelectAudioSettings(
                                     current_request_info_->request_id()));
   if (ShouldDeferDeviceSettingsSelection(
           user_media_request->MediaRequestType(),
-          user_media_request->AudioMediaStreamType(),
-          user_media_request->GetExecutionContext())) {
+          user_media_request->AudioMediaStreamType())) {
     base::expected<Vector<blink::AudioCaptureSettings>, std::string>
         eligible_settings = SelectEligibleSettingsAudioCapture(
             capabilities, user_media_request->AudioConstraints(),
@@ -1097,8 +1090,7 @@ void UserMediaProcessor::SelectVideoDeviceSettings(
   // Do constraints processing.
   if (ShouldDeferDeviceSettingsSelection(
           user_media_request->MediaRequestType(),
-          user_media_request->VideoMediaStreamType(),
-          user_media_request->GetExecutionContext())) {
+          user_media_request->VideoMediaStreamType())) {
     auto eligible_settings = SelectEligibleSettingsVideoDeviceCapture(
         std::move(capabilities), user_media_request->VideoConstraints(),
         blink::MediaStreamVideoSource::kDefaultWidth,
@@ -1316,12 +1308,9 @@ void UserMediaProcessor::OnStreamsGenerated(
     return;
   }
 
-  const auto* execution_context =
-      current_request_info_->request()->GetExecutionContext();
   if (ShouldDeferDeviceSettingsSelection(
           current_request_info_->request()->MediaRequestType(),
-          current_request_info_->request()->AudioMediaStreamType(),
-          execution_context) &&
+          current_request_info_->request()->AudioMediaStreamType()) &&
       !current_request_info_->eligible_audio_settings().empty() &&
       stream_devices_set->stream_devices.front()->audio_device.has_value()) {
     const std::string selected_id =
@@ -1345,8 +1334,7 @@ void UserMediaProcessor::OnStreamsGenerated(
   }
   if (ShouldDeferDeviceSettingsSelection(
           current_request_info_->request()->MediaRequestType(),
-          current_request_info_->request()->VideoMediaStreamType(),
-          execution_context) &&
+          current_request_info_->request()->VideoMediaStreamType()) &&
       !current_request_info_->eligible_video_settings().empty() &&
       stream_devices_set->stream_devices.front()->video_device.has_value()) {
     const std::string selected_id =
@@ -1899,7 +1887,7 @@ UserMediaProcessor::CreateAudioSource(
           ?
           // TODO(crbug.com://40247860, crbug.com://415952276): retire this
           // logic when restrictOwnAudio is launched.
-          MediaStreamAudioProcessingLayout::MakeForDisplayCapture(
+          MediaStreamAudioProcessingLayout::MaybeMakeForProcessedDisplayCapture(
               current_request_info_->audio_capture_settings()
                   .audio_processing_properties(),
               current_request_info_->audio_capture_settings().num_channels())
@@ -1915,6 +1903,9 @@ UserMediaProcessor::CreateAudioSource(
         *processing_layout, std::move(source_ready), task_runner_);
   }
 
+  // Now `processing_layout` being nullptr means we are capturing non-mic audio
+  // content and no processing is needed. If it's not nullptr, we are capturing
+  // microphone, and:
   // TODO(http://crbug.com/428837201)
   // At this point besides echo cancellation, `processing_layout` may have other
   // processing enableds/disabled in AudioProcessingProperties; also its
@@ -1923,14 +1914,17 @@ UserMediaProcessor::CreateAudioSource(
   // and only takes care of echo cancellation - which is a bug for microhpone
   // capture.
   MediaStreamAudioProcessingLayout local_source_processing_layout =
-      MediaStreamAudioProcessingLayout::MakeForUnprocessedLocalSource(
-          current_request_info_->audio_capture_settings()
-              .audio_processing_properties(),
-          device.input.effects());
+      processing_layout
+          ? MediaStreamAudioProcessingLayout::MakeForUnprocessedLocalSource(
+                current_request_info_->audio_capture_settings()
+                    .audio_processing_properties(),
+                device.input.effects())
+          : MediaStreamAudioProcessingLayout::None();
+
   CHECK(!local_source_processing_layout.NeedWebrtcAudioProcessing());
 
   SendLogMessage(
-      base::StringPrintf("%s => (no audiprocessing is used)", __func__));
+      base::StringPrintf("%s => (no audioprocessing is used)", __func__));
   return std::make_unique<blink::LocalMediaStreamAudioSource>(
       frame_, device,
       base::OptionalToPtr(current_request_info_->audio_capture_settings()
