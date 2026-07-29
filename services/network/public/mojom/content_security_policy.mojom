@@ -90,8 +90,6 @@ struct CSPSourceList {
   bool allow_unsafe_hashes = false;
   bool report_sample = false;
   IntegrityAlgorithm? report_hash_algorithm;
-  [EnableIf=cobalt_custom_csp]bool cobalt_insecure_local_network = false;
-  [EnableIf=cobalt_custom_csp]bool cobalt_insecure_private_range = false;
 };
 
 enum CSPDirectiveName {
@@ -126,7 +124,6 @@ enum CSPDirectiveName {
   TrustedTypes,
   UpgradeInsecureRequests,
   WorkerSrc,
-  [EnableIf=cobalt_custom_csp]CobaltLocationSrc,
 };
 
 enum CSPRequireTrustedTypesFor {

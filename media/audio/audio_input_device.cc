@@ -41,9 +41,6 @@ namespace {
 // dependent how fast the renderer process can pick up captured data from
 // shared memory.
 const int kRequestedSharedMemoryCount = 10;
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-const int kStarboardRequestedSharedMemoryCount = 32;
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 // The number of seconds with missing callbacks before we report a capture
 // error. The value is based on that the Mac audio implementation can defer
@@ -143,9 +140,6 @@ void AudioInputDevice::Initialize(const AudioParameters& params,
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DCHECK(params.IsValid());
   DCHECK(!callback_);
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  LOG(INFO) << "AudioInputDevice::Initialize: params=" << params.AsHumanReadableString();
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
   audio_parameters_ = params;
   callback_ = callback;
 }
@@ -160,11 +154,8 @@ void AudioInputDevice::Start() {
     return;
 
   state_ = CREATING_STREAM;
-  int segment_count = kRequestedSharedMemoryCount;
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  segment_count = kStarboardRequestedSharedMemoryCount;
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
-  ipc_->CreateStream(this, audio_parameters_, agc_is_enabled_, segment_count);
+  ipc_->CreateStream(this, audio_parameters_, agc_is_enabled_,
+                     kRequestedSharedMemoryCount);
 }
 
 void AudioInputDevice::Stop() {
@@ -305,13 +296,9 @@ void AudioInputDevice::OnStreamCreated(
                                 base::Unretained(alive_checker_.get()))
           : base::DoNothing();
 
-  int segment_count = kRequestedSharedMemoryCount;
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  segment_count = kStarboardRequestedSharedMemoryCount;
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
   audio_callback_ = std::make_unique<AudioInputDevice::AudioThreadCallback>(
       audio_parameters_, std::move(shared_memory_region),
-      segment_count, enable_uma_, callback_,
+      kRequestedSharedMemoryCount, enable_uma_, callback_,
       notify_alive_closure);
   audio_thread_ = std::make_unique<AudioDeviceThread>(
       audio_callback_.get(), std::move(socket_handle), "AudioInputDevice",

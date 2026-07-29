@@ -254,12 +254,7 @@ gpu::ContextResult ImplementationBase::Initialize(
   }
 
   mapped_memory_ = std::make_unique<MappedMemoryManager>(
-      helper_, limits.mapped_memory_reclaim_limit
-#if BUILDFLAG(IS_STARBOARD)
-      ,
-      limits.mapped_memory_allocated_bytes_cleanup_threshold
-#endif
-  );
+      helper_, limits.mapped_memory_reclaim_limit);
   mapped_memory_->set_chunk_size_multiple(limits.mapped_memory_chunk_size);
   query_tracker_ = std::make_unique<gles2::QueryTracker>(mapped_memory_.get());
 

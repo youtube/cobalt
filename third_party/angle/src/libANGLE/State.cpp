@@ -268,30 +268,7 @@ template <>
 void State::setGenericBufferBinding<BufferBinding::ElementArray>(const Context *context,
                                                                  Buffer *buffer)
 {
-    Buffer *oldBuffer = mVertexArray->mState.mElementArrayBuffer.get();
-    if (oldBuffer)
-    {
-        oldBuffer->removeObserver(&mVertexArray->mState.mElementArrayBuffer);
-        oldBuffer->removeContentsObserver(mVertexArray, kElementArrayBufferIndex);
-        if (context->isWebGL())
-        {
-            oldBuffer->onNonTFBindingChanged(-1);
-        }
-        oldBuffer->release(context);
-    }
-    mVertexArray->mState.mElementArrayBuffer.assign(buffer);
-    if (buffer)
-    {
-        buffer->addObserver(&mVertexArray->mState.mElementArrayBuffer);
-        buffer->addContentsObserver(mVertexArray, kElementArrayBufferIndex);
-        if (context->isWebGL())
-        {
-            buffer->onNonTFBindingChanged(1);
-        }
-        buffer->addRef();
-    }
-    mVertexArray->mDirtyBits.set(VertexArray::DIRTY_BIT_ELEMENT_ARRAY_BUFFER);
-    mVertexArray->mIndexRangeInlineCache = {};
+    mVertexArray->bindElementBuffer(context, buffer);
     mDirtyObjects.set(state::DIRTY_OBJECT_VERTEX_ARRAY);
 }
 
@@ -1224,10 +1201,7 @@ void PrivateState::setFramebufferSRGB(bool sRGB)
         mFramebufferSRGB = sRGB;
         mDirtyBits.set(state::DIRTY_BIT_FRAMEBUFFER_SRGB_WRITE_CONTROL_MODE);
         mDirtyObjects.set(state::DIRTY_OBJECT_DRAW_FRAMEBUFFER);
-        if (isRobustResourceInitEnabled())
-        {
-            mDirtyObjects.set(state::DIRTY_OBJECT_DRAW_ATTACHMENTS);
-        }
+        mDirtyObjects.set(state::DIRTY_OBJECT_DRAW_ATTACHMENTS);
     }
 }
 
@@ -2907,7 +2881,6 @@ void State::setDrawFramebufferBinding(Framebuffer *framebuffer)
         if (isRobustResourceInitEnabled() && mDrawFramebuffer->hasResourceThatNeedsInit())
         {
             mDirtyObjects.set(state::DIRTY_OBJECT_DRAW_ATTACHMENTS);
-            mDirtyObjects.set(state::DIRTY_OBJECT_DRAW_FRAMEBUFFER);
         }
     }
 }
@@ -3957,17 +3930,9 @@ angle::Result State::syncDirtyObject(const Context *context, GLenum target)
     {
         case GL_READ_FRAMEBUFFER:
             localSet.set(state::DIRTY_OBJECT_READ_FRAMEBUFFER);
-            if (mDirtyObjects.test(state::DIRTY_OBJECT_READ_ATTACHMENTS))
-            {
-                localSet.set(state::DIRTY_OBJECT_READ_ATTACHMENTS);
-            }
             break;
         case GL_DRAW_FRAMEBUFFER:
             localSet.set(state::DIRTY_OBJECT_DRAW_FRAMEBUFFER);
-            if (mDirtyObjects.test(state::DIRTY_OBJECT_DRAW_ATTACHMENTS))
-            {
-                localSet.set(state::DIRTY_OBJECT_DRAW_ATTACHMENTS);
-            }
             break;
         default:
             UNREACHABLE();

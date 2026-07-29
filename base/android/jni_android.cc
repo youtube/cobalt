@@ -71,7 +71,6 @@ void PrepareClassLoaders(JNIEnv* env) {
   }
 }
 #endif  // !BUILDFLAG(IS_ROBOLECTRIC)
-
 }  // namespace
 
 LogFatalCallback g_log_fatal_callback_for_testing = nullptr;

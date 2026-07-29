@@ -13,34 +13,8 @@
 #include "base/strings/stringprintf.h"
 #include "base/types/pass_key.h"
 #include "media/base/subsample_entry.h"
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-#include "starboard/common/experimental/media_buffer_pool.h"  // nogncheck
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 namespace media {
-
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-namespace {
-
-DecoderBuffer::Allocator* s_allocator = nullptr;
-
-}  // namespace
-
-// static
-DecoderBuffer::Allocator* DecoderBuffer::Allocator::Get() {
-  return s_allocator;
-}
-
-// static
-void DecoderBuffer::Allocator::Set(Allocator* allocator) {
-  // One of them has to be nullptr, i.e. either setting a valid allocator, or
-  // resetting an existing allocator.  Setting an allocator while another
-  // allocator is in place will fail.
-  DCHECK(s_allocator == nullptr || allocator == nullptr);
-  s_allocator = allocator;
-}
-
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 namespace {
 
@@ -58,65 +32,8 @@ class ExternalSharedMemoryAdapter : public DecoderBuffer::ExternalMemory {
   T mapping_;
 };
 
-
 }  // namespace
 
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-// --- Starboard-specific Constructor Implementations ---
-DecoderBuffer::DecoderBuffer(size_t size)
-    : DecoderBuffer(DemuxerStream::UNKNOWN, size) {}
-
-DecoderBuffer::DecoderBuffer(DemuxerStream::Type type,
-                             const uint8_t* data,
-                             size_t size)
-    : DecoderBuffer(type, size) {
-  if (!data) {
-    CHECK_EQ(size, 0u);
-    return;
-  }
-
-  if (size > 0) {
-    s_allocator->Write(allocator_data_->handle, data, size);
-  }
-}
-
-DecoderBuffer::DecoderBuffer(DemuxerStream::Type type,
-                             base::span<const uint8_t> data)
-    : DecoderBuffer(type, data.size()) {
-  if (data.empty()) {
-    return;
-  }
-
-  memcpy(writable_data(), data.data(), data.size());
-}
-
-DecoderBuffer::DecoderBuffer(base::span<const uint8_t> data)
-    : DecoderBuffer(DemuxerStream::UNKNOWN, data) {}
-
-DecoderBuffer::DecoderBuffer(base::HeapArray<uint8_t> data)
-    : DecoderBuffer(DemuxerStream::UNKNOWN, data.size()) {
-  if (data.empty()) {
-    return;
-  }
-
-  memcpy(writable_data(), data.data(), data.size());
-}
-
-DecoderBuffer::DecoderBuffer(std::unique_ptr<ExternalMemory> external_memory)
-    : external_memory_(std::move(external_memory)) {}
-
-DecoderBuffer::DecoderBuffer(DemuxerStream::Type type, size_t size)
-    : allocator_data_([&]() -> std::optional<AllocatorData> {
-        if (size == 0) {
-          return std::nullopt;
-        }
-        CHECK(s_allocator);
-        return AllocatorData(type, s_allocator->Allocate(type, size), size);
-      }()) {}
-
-#else // BUILDFLAG(USE_STARBOARD_MEDIA)
-
-// --- Non-Starboard Constructor Implementations ---
 DecoderBuffer::DecoderBuffer(size_t size)
     : data_(base::HeapArray<uint8_t>::Uninit(size)) {}
 
@@ -129,9 +46,6 @@ DecoderBuffer::DecoderBuffer(base::HeapArray<uint8_t> data)
 DecoderBuffer::DecoderBuffer(std::unique_ptr<ExternalMemory> external_memory)
     : external_memory_(std::move(external_memory)) {}
 
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
-
-// --- Common Constructor Implementations ---
 DecoderBuffer::DecoderBuffer(DecoderBufferType decoder_buffer_type,
                              std::optional<ConfigVariant> next_config)
     : is_end_of_stream_(decoder_buffer_type ==
@@ -160,17 +74,7 @@ DecoderBuffer::DecoderBuffer(base::PassKey<DecoderBuffer>,
                              std::optional<ConfigVariant> next_config)
     : DecoderBuffer(decoder_buffer_type, std::move(next_config)) {}
 
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-DecoderBuffer::~DecoderBuffer() {
-  if (allocator_data_) {
-    CHECK(s_allocator);
-    s_allocator->Free(allocator_data_->stream_type_, allocator_data_->handle,
-                      allocator_data_->size);
-  }
-}
-#else // BUILDFLAG(USE_STARBOARD_MEDIA)
 DecoderBuffer::~DecoderBuffer() = default;
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 // static
 scoped_refptr<DecoderBuffer> DecoderBuffer::CopyFrom(

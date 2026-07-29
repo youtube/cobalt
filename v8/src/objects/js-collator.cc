@@ -357,16 +357,18 @@ MaybeHandle<JSCollator> JSCollator::New(Isolate* isolate, DirectHandle<Map> map,
   // https://tc39.github.io/ecma402/#sec-intl-collator-internal-slots
   //
   // 16. Let relevantExtensionKeys be %Collator%.[[RelevantExtensionKeys]].
+  std::set<std::string> relevant_extension_keys{"co", "kn", "kf"};
 
   // 17. Let r be ResolveLocale(%Collator%.[[AvailableLocales]],
   // requestedLocales, opt, %Collator%.[[RelevantExtensionKeys]],
   // localeData).
-  Intl::ResolvedLocale r;
-  if (!Intl::ResolveLocale(isolate, JSCollator::GetAvailableLocales(),
-                           requested_locales, matcher, {"co", "kn", "kf"})
-           .To(&r)) {
+  Maybe<Intl::ResolvedLocale> maybe_resolve_locale =
+      Intl::ResolveLocale(isolate, JSCollator::GetAvailableLocales(),
+                          requested_locales, matcher, relevant_extension_keys);
+  if (maybe_resolve_locale.IsNothing()) {
     THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError));
   }
+  Intl::ResolvedLocale r = maybe_resolve_locale.FromJust();
 
   // 18. Set collator.[[Locale]] to r.[[locale]].
   icu::Locale icu_locale = r.icu_locale;

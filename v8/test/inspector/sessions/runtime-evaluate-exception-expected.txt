@@ -15,7 +15,6 @@ From session 1
             exceptionId : <exceptionId>
             executionContextId : <executionContextId>
             lineNumber : 0
-            scriptId : <scriptId>
             stackTrace : {
                 callFrames : [
                     [0] : {
@@ -45,7 +44,6 @@ From session 2
             exceptionId : <exceptionId>
             executionContextId : <executionContextId>
             lineNumber : 0
-            scriptId : <scriptId>
             stackTrace : {
                 callFrames : [
                     [0] : {
@@ -76,7 +74,6 @@ From session 1
             exceptionId : <exceptionId>
             executionContextId : <executionContextId>
             lineNumber : 0
-            scriptId : <scriptId>
             stackTrace : {
                 callFrames : [
                     [0] : {
@@ -106,7 +103,6 @@ From session 2
             exceptionId : <exceptionId>
             executionContextId : <executionContextId>
             lineNumber : 0
-            scriptId : <scriptId>
             stackTrace : {
                 callFrames : [
                     [0] : {
@@ -137,7 +133,6 @@ From session 1
             exceptionId : <exceptionId>
             executionContextId : <executionContextId>
             lineNumber : 0
-            scriptId : <scriptId>
             stackTrace : {
                 callFrames : [
                     [0] : {
@@ -167,7 +162,6 @@ From session 2
             exceptionId : <exceptionId>
             executionContextId : <executionContextId>
             lineNumber : 0
-            scriptId : <scriptId>
             stackTrace : {
                 callFrames : [
                     [0] : {
@@ -217,7 +211,6 @@ From session 1
             exceptionId : <exceptionId>
             executionContextId : <executionContextId>
             lineNumber : 0
-            scriptId : <scriptId>
             stackTrace : {
                 callFrames : [
                     [0] : {
@@ -247,7 +240,6 @@ From session 2
             exceptionId : <exceptionId>
             executionContextId : <executionContextId>
             lineNumber : 0
-            scriptId : <scriptId>
             stackTrace : {
                 callFrames : [
                     [0] : {
