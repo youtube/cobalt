@@ -258,7 +258,7 @@ def _extract_flag_key(arg: str) -> str:
     return arg.split("=", 1)[0].split()[0]
 
 
-def deduplicate_sb_args(cobalt_json_args: List[str], override_args: List[str]) -> List[str]:
+def remove_duplicate_sb_args(cobalt_json_args: List[str], override_args: List[str]) -> List[str]:
     """Filters pre-existing flags from cobalt_json_args whose keys are overridden by override_args.
 
     Handles inline equals ('--foo=val'), single-string space ('--foo val'),
@@ -360,7 +360,7 @@ def launch_on_device(
                 user_override_args = param if param else []
                 override_args = script_args + user_override_args
 
-                config["sbmainargs"] = deduplicate_sb_args(cobalt_json_args, override_args)
+                config["sbmainargs"] = remove_duplicate_sb_args(cobalt_json_args, override_args)
 
                 # Set configuration
                 rpc_set_config = json.dumps({
