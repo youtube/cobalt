@@ -70,7 +70,6 @@ import org.chromium.components.browser_ui.styles.ChromeColors;
 import org.chromium.components.browser_ui.widget.MenuOrKeyboardActionController.MenuOrKeyboardActionHandler;
 import org.chromium.components.feature_engagement.Tracker;
 import org.chromium.ui.base.DeviceFormFactor;
-import org.chromium.ui.xr.scenecore.XrSceneCoreUtils;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -169,6 +168,7 @@ public abstract class TabSwitcherPaneBase implements Pane, TabSwitcher, TabSwitc
     private boolean mNativeInitialized;
     private @Nullable PaneHubController mPaneHubController;
     private @Nullable Long mWaitForTabStateInitializedStartTimeMs;
+    private final @Nullable ObservableSupplier<Boolean> mXrSpaceModeObservableSupplier;
 
     /**
      * @param context The activity context.
@@ -179,6 +179,8 @@ public abstract class TabSwitcherPaneBase implements Pane, TabSwitcher, TabSwitc
      * @param edgeToEdgeSupplier Supplier to the {@link EdgeToEdgeController} instance.
      * @param compositorViewHolderSupplier Supplier to the {@link CompositorViewHolder} instance.
      * @param tabGroupCreationUiDelegate Orchestrates the tab group creation UI flow.
+     * @param xrSpaceModeObservableSupplier Supplies current XR space mode status. True for XR full
+     *     space mode, false otherwise.
      */
     TabSwitcherPaneBase(
             @NonNull Context context,
@@ -188,7 +190,8 @@ public abstract class TabSwitcherPaneBase implements Pane, TabSwitcher, TabSwitc
             @NonNull UserEducationHelper userEducationHelper,
             @NonNull ObservableSupplier<EdgeToEdgeController> edgeToEdgeSupplier,
             @NonNull ObservableSupplier<CompositorViewHolder> compositorViewHolderSupplier,
-            @NonNull TabGroupCreationUiDelegate tabGroupCreationUiDelegate) {
+            @NonNull TabGroupCreationUiDelegate tabGroupCreationUiDelegate,
+            @Nullable ObservableSupplier<Boolean> xrSpaceModeObservableSupplier) {
         mFactory = factory;
         mIsIncognito = isIncognito;
 
@@ -201,6 +204,7 @@ public abstract class TabSwitcherPaneBase implements Pane, TabSwitcher, TabSwitc
         mEdgeToEdgeSupplier = edgeToEdgeSupplier;
         mCompositorViewHolderSupplier = compositorViewHolderSupplier;
         mUiFlow = tabGroupCreationUiDelegate;
+        mXrSpaceModeObservableSupplier = xrSpaceModeObservableSupplier;
     }
 
     @Override
@@ -297,8 +301,7 @@ public abstract class TabSwitcherPaneBase implements Pane, TabSwitcher, TabSwitc
             @NonNull HubContainerView hubContainerView) {
         Context context = hubContainerView.getContext();
         final boolean isFullSpaceModeOnAndroidXr =
-                XrSceneCoreUtils.isSceneCoreSessionInFsm(
-                        XrSceneCoreUtils.getXrSceneCoreSessionManagerFromContext(context));
+                mXrSpaceModeObservableSupplier != null && mXrSpaceModeObservableSupplier.get();
 
         assert !DeviceFormFactor.isNonMultiDisplayContextOnTablet(context)
                 || isFullSpaceModeOnAndroidXr;

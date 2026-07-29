@@ -556,6 +556,16 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="GPU.Dawn.AdapterFeatureLevel" enum="DawnAdapterFeatureLevel"
+    expires_after="2025-12-06">
+  <owner>kylechar@chromium.org</owner>
+  <owner>chrome-gpu-metric-alerts@chromium.org</owner>
+  <summary>
+    Tracks whether the Dawn device used by Graphite supports Core or
+    Compatibility level.
+  </summary>
+</histogram>
+
 <histogram name="GPU.Dawn.InfoCollectionTimeMS" units="ms"
     expires_after="2026-04-28">
   <owner>enga@chromium.org</owner>
@@ -563,6 +573,20 @@ chromium-metrics-reviews@google.com.
   <summary>
     Measures the time to collect Dawn information during GPU info collection.
     NOTE: metric expired from 2024-06-25 to 2025-05-01.
+  </summary>
+</histogram>
+
+<histogram name="GPU.DirectComposition.CommitAndClearPendingOverlaysDuration"
+    units="microseconds" expires_after="2025-12-09">
+  <owner>vasilyt@chromium.org</owner>
+  <owner>tangm@microsoft.com</owner>
+  <summary>
+    Records the duration of CommitAndClearPendingOverlays, which contains the
+    work to update the DCLayerTree's visual contents, visual tree, and commit.
+    This estimates the amount of work DCLayerTree needs to do per frame and can
+    be used to compare incremental tree updating algorithms.
+
+    Only reported on systems which have high resolution timers.
   </summary>
 </histogram>
 
@@ -801,6 +825,7 @@ chromium-metrics-reviews@google.com.
   <owner>chikamune@chromium.org</owner>
   <owner>kouhei@chromium.org</owner>
   <owner>chrome-gpu-metric-alerts@chromium.org</owner>
+  <improvement direction="LOWER_IS_BETTER"/>
   <summary>
     Measures the time it takes to synchronously establish the GPU channel.
     Logged on the first run of a sync call to EstableGpuChannelSync is made.

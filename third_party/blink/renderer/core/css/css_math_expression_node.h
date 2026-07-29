@@ -30,6 +30,7 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_CSS_CSS_MATH_EXPRESSION_NODE_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_CSS_CSS_MATH_EXPRESSION_NODE_H_
 
+#include <array>
 #include <optional>
 #include <unordered_map>
 
@@ -677,20 +678,23 @@ class CORE_EXPORT CSSMathExpressionOperation final
       const CSSMathExpressionNode* left_side,
       const CSSMathExpressionNode* right_side);
 
+  // Note: `CSSMathType type` is default for all non-arithemtic operations.
   CSSMathExpressionOperation(const CSSMathExpressionNode* left_side,
                              const CSSMathExpressionNode* right_side,
                              CSSMathOperator op,
                              CalculationResultCategory category,
-                             CSSMathType type = CSSMathType());
+                             CSSMathType type);
 
+  // Note: `CSSMathType type` is default for all non-arithemtic operations.
   CSSMathExpressionOperation(CalculationResultCategory category,
                              Operands&& operands,
                              CSSMathOperator op,
-                             CSSMathType type = CSSMathType());
+                             CSSMathType type);
 
+  // Note: `CSSMathType type` is default for all non-arithemtic operations.
   CSSMathExpressionOperation(CalculationResultCategory category,
                              CSSMathOperator op,
-                             CSSMathType type = CSSMathType());
+                             CSSMathType type);
 
   CSSMathExpressionNode* Copy() const final {
     Operands operands(operands_);

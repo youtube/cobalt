@@ -45,10 +45,8 @@ ci.defaults.set(
     execution_timeout = 20 * time.hour,
     health_spec = health_spec.DEFAULT,
     priority = ci.DEFAULT_FYI_PRIORITY,
-    reclient_enabled = False,
     service_account = ci.DEFAULT_SERVICE_ACCOUNT,
     shadow_service_account = ci.DEFAULT_SHADOW_SERVICE_ACCOUNT,
-    siso_enabled = True,
     siso_project = siso.project.DEFAULT_TRUSTED,
     siso_remote_jobs = siso.remote_jobs.DEFAULT,
 )
@@ -220,6 +218,7 @@ coverage_webview_builder(
 
 coverage_builder(
     name = "android-x86-code-coverage",
+    description_html = "Builder for creating x86 Android code coverage builds.",
     builder_spec = builder_config.builder_spec(
         gclient_config = builder_config.gclient_config(
             config = "chromium",
@@ -351,6 +350,10 @@ coverage_builder(
                 ),
             ),
             # Keep this same as android-10-x86-rel
+            "content_unittests": targets.mixin(
+                ci_only = True,
+            ),
+            # Keep this same as android-10-x86-rel
             "gl_tests_validating": targets.mixin(
                 args = [
                     "--test-launcher-filter-file=../../testing/buildbot/filters/android.emulator_10.gl_tests.filter",
@@ -431,6 +434,7 @@ coverage_builder(
             short_name = "x86",
         ),
     ],
+    contact_team_email = "clank-engprod@google.com",
     coverage_test_types = ["overall", "unit"],
     export_coverage_to_zoss = True,
     siso_remote_jobs = siso.remote_jobs.HIGH_JOBS_FOR_CI,

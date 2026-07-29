@@ -146,7 +146,7 @@ bool CanvasRenderingContextHost::IsImageBitmapRenderingContext() const {
 CanvasResourceProvider*
 CanvasRenderingContextHost::GetOrCreateCanvasResourceProviderForCanvas2D() {
   CHECK(IsRenderingContext2D());
-  auto* provider = ResourceProvider();
+  auto* provider = GetResourceProviderForCanvas2D();
   if (!provider && !did_fail_to_create_resource_provider_) {
     if (IsValidImageSize()) {
       provider = CreateCanvasResourceProvider2D();
@@ -166,11 +166,11 @@ CanvasRenderingContextHost::GetOrCreateCanvasResourceProviderForCanvas2D() {
 CanvasResourceProvider*
 CanvasRenderingContextHost::GetOrCreateCanvasResourceProviderForWebGL() {
   CHECK(IsWebGL());
-  auto* provider = ResourceProvider();
+  auto* provider = GetResourceProviderForWebGL();
   if (!provider && !did_fail_to_create_resource_provider_) {
     if (IsValidImageSize()) {
       ReplaceResourceProvider(CreateCanvasResourceProviderWebGL());
-      provider = ResourceProvider();
+      provider = GetResourceProviderForWebGL();
     }
     if (!provider) {
       did_fail_to_create_resource_provider_ = true;
@@ -187,7 +187,7 @@ CanvasRenderingContextHost::GetOrCreateCanvasResourceProviderForWebGL() {
 CanvasResourceProvider*
 CanvasRenderingContextHost::GetOrCreateCanvasResourceProviderForWebGPU() {
   CHECK(IsWebGPU());
-  auto* provider = ResourceProvider();
+  auto* provider = GetResourceProviderForWebGPU();
   if (!provider && !did_fail_to_create_resource_provider_) {
     if (IsValidImageSize()) {
       provider = CreateCanvasResourceProviderWebGPU();
@@ -495,6 +495,13 @@ bool CanvasRenderingContextHost::ContextHasOpenLayers(
 bool CanvasRenderingContextHost::IsContextLost() const {
   CanvasRenderingContext* context = RenderingContext();
   return !context || context->isContextLost();
+}
+
+void CanvasRenderingContextHost::FlushRecordingForCanvas2D(FlushReason reason) {
+  CHECK(IsRenderingContext2D());
+  if (auto* provider = GetResourceProviderForCanvas2D()) {
+    provider->FlushCanvas(reason);
+  }
 }
 
 }  // namespace blink

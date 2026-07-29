@@ -1250,6 +1250,10 @@ void WebLocalFrameImpl::DeprecatedStopLoading() {
   GetFrame()->Loader().StopAllLoaders(/*abort_client=*/true);
 }
 
+void WebLocalFrameImpl::RequestNetworkIdleCallback(base::OnceClosure callback) {
+  GetFrame()->RequestNetworkIdleCallback(std::move(callback));
+}
+
 void WebLocalFrameImpl::ReplaceSelection(const WebString& text) {
   // TODO(editing-dev): The use of UpdateStyleAndLayout
   // needs to be audited.  See http://crbug.com/590369 for more details.
@@ -2679,6 +2683,10 @@ bool WebLocalFrameImpl::IsProvisional() const {
 }
 
 WebLocalFrameImpl* WebLocalFrameImpl::LocalRoot() {
+  return const_cast<WebLocalFrameImpl*>(std::as_const(*this).LocalRoot());
+}
+
+const WebLocalFrameImpl* WebLocalFrameImpl::LocalRoot() const {
   DCHECK(GetFrame());
   auto* result = FromFrame(GetFrame()->LocalFrameRoot());
   DCHECK(result);

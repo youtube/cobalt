@@ -11,7 +11,7 @@
 #include "base/memory/raw_ptr.h"
 #include "chrome/browser/flags/android/chrome_session_state.h"
 #include "chrome/browser/ui/android/tab_model/android_live_tab_context.h"
-#include "chrome/browser/ui/android/tab_model/tab_list_interface.h"
+#include "chrome/browser/ui/tabs/tab_list_interface.h"
 #include "components/omnibox/browser/location_bar_model.h"
 #include "components/omnibox/browser/location_bar_model_delegate.h"
 #include "components/sessions/core/session_id.h"
@@ -165,6 +165,18 @@ class TabModel : public TabListInterface {
   // clang-format off
   // LINT.ThenChange(//tools/metrics/histograms/metadata/new_tab_page/enums.xml:TabLaunchType,//chrome/android/java/src/org/chromium/chrome/browser/tabmodel/ChromeTabCreator.java,//chrome/browser/tabpersistence/android/java/src/org/chromium/chrome/browser/tabpersistence/flatbuffer/tab_state_common.fbs,//chrome/browser/tabpersistence/android/java/src/org/chromium/chrome/browser/tabpersistence/FlatBufferTabStateSerializer.java)
   // clang-format on
+
+  // Various ways tabs can be closed.
+  // Values must be numbered from 0 and can't have gaps.
+  // GENERATED_JAVA_ENUM_PACKAGE: org.chromium.chrome.browser.tab
+  enum class TabClosingSource {
+    // Tab closing from all other sources.
+    UNKNOWN,
+    // Tab closing from tablet tab strip.
+    TABLET_TAB_STRIP,
+    // Must be last.
+    SIZE
+  };
 
   // Various ways tabs can be selected.
   // Values must be numbered from 0 and can't have gaps.

@@ -31,6 +31,7 @@
 #include "components/saved_tab_groups/internal/sync_data_type_configuration.h"
 #include "components/saved_tab_groups/internal/tab_group_sync_bridge_mediator.h"
 #include "components/saved_tab_groups/internal/tab_group_sync_coordinator_impl.h"
+#include "components/saved_tab_groups/internal/versioning_message_controller_impl.h"
 #include "components/saved_tab_groups/public/collaboration_finder.h"
 #include "components/saved_tab_groups/public/features.h"
 #include "components/saved_tab_groups/public/pref_names.h"
@@ -191,7 +192,10 @@ TabGroupSyncServiceImpl::TabGroupSyncServiceImpl(
       collaboration_finder_(std::move(collaboration_finder)),
       logger_(logger),
       pref_service_(pref_service),
-      opt_guide_(optimization_guide_decider) {
+      opt_guide_(optimization_guide_decider),
+      versioning_message_controller_(
+          std::make_unique<VersioningMessageControllerImpl>(pref_service_,
+                                                            this)) {
   if (shared_tab_group_account_configuration) {
     shared_tab_group_account_data_bridge_ =
         std::make_unique<SharedTabGroupAccountDataSyncBridge>(
@@ -251,6 +255,18 @@ std::unique_ptr<std::vector<SavedTabGroup>>
 TabGroupSyncServiceImpl::TakeSharedTabGroupsAvailableAtStartupForMessaging() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   return std::move(shared_tab_groups_available_at_startup_for_messaging_);
+}
+
+bool TabGroupSyncServiceImpl::HadSharedTabGroupsLastSession(
+    bool open_shared_tab_groups) {
+  return open_shared_tab_groups ? had_open_shared_tab_groups_on_startup_
+                                : had_shared_tab_groups_on_startup_;
+}
+
+VersioningMessageController*
+TabGroupSyncServiceImpl::GetVersioningMessageController() {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  return versioning_message_controller_.get();
 }
 
 void TabGroupSyncServiceImpl::AddObserver(
@@ -1754,6 +1770,11 @@ void TabGroupSyncServiceImpl::
 
     // Dereference to create a safe copy.
     shared_tab_groups_available_at_startup_for_messaging_->push_back(*group);
+
+    had_shared_tab_groups_on_startup_ = true;
+    if (group->local_group_id().has_value()) {
+      had_open_shared_tab_groups_on_startup_ = true;
+    }
   }
 }
 

@@ -5,6 +5,7 @@
 #ifndef CC_METRICS_COMPOSITOR_FRAME_REPORTING_CONTROLLER_H_
 #define CC_METRICS_COMPOSITOR_FRAME_REPORTING_CONTROLLER_H_
 
+#include <array>
 #include <map>
 #include <memory>
 #include <vector>
@@ -261,15 +262,6 @@ class CC_EXPORT CompositorFrameReportingController {
   // cases its more appropriate to check against frame_token instead of
   // BeginFrameId.
   std::map<uint32_t, EventMetricsSet> events_metrics_from_dropped_frames_;
-
-  CompositorFrameReporter::CompositorLatencyInfo
-      previous_latency_predictions_main_;
-  CompositorFrameReporter::CompositorLatencyInfo
-      previous_latency_predictions_impl_;
-
-  // Container that stores the EventLatency stage latency predictions based on
-  // previous event traces.
-  CompositorFrameReporter::EventLatencyInfo event_latency_predictions_;
 
   // Reporting controller needs to track transition of the page from invisible
   // to visible in order to discard EventsMetrics impacted by duration of page

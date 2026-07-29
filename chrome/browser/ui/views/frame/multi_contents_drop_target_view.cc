@@ -6,9 +6,13 @@
 
 #include "base/memory/raw_ptr.h"
 #include "chrome/app/vector_icons/vector_icons.h"
+#include "ui/base/dragdrop/drag_drop_types.h"
+#include "ui/base/dragdrop/os_exchange_data.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/color/color_provider.h"
+#include "ui/compositor/layer.h"
+#include "ui/compositor/layer_tree_owner.h"
 #include "ui/compositor/layer_type.h"
 #include "ui/events/event_constants.h"
 #include "ui/gfx/animation/slide_animation.h"
@@ -41,8 +45,11 @@ constexpr int kAnimationDurationMs = 450;
 DEFINE_CLASS_ELEMENT_IDENTIFIER_VALUE(MultiContentsDropTargetView,
                                       kMultiContentsDropTargetElementId);
 
-MultiContentsDropTargetView::MultiContentsDropTargetView()
-    : views::AnimationDelegateViews(this) {
+MultiContentsDropTargetView::MultiContentsDropTargetView(
+    DropDelegate& drop_delegate)
+    : views::AnimationDelegateViews(this), drop_delegate_(drop_delegate) {
+  SetVisible(false);
+  SetProperty(views::kElementIdentifierKey, kMultiContentsDropTargetElementId);
   SetLayoutManager(std::make_unique<views::FlexLayout>())
       ->SetOrientation(views::LayoutOrientation::kVertical)
       .SetMainAxisAlignment(views::LayoutAlignment::kCenter)
@@ -91,6 +98,13 @@ bool MultiContentsDropTargetView::IsClosing() const {
   return animation_.IsClosing();
 }
 
+int MultiContentsDropTargetView::GetPreferredWidth() const {
+  if (!GetVisible()) {
+    return 0;
+  }
+  return GetAnimationValue() * GetPreferredSize().width();
+}
+
 void MultiContentsDropTargetView::AnimationProgressed(
     const gfx::Animation* animation) {
   InvalidateLayout();
@@ -104,12 +118,20 @@ void MultiContentsDropTargetView::AnimationEnded(
   InvalidateLayout();
 }
 
-void MultiContentsDropTargetView::Show() {
+void MultiContentsDropTargetView::Show(DropSide side) {
+  side_ = side;
   UpdateVisibility(true);
 }
 
 void MultiContentsDropTargetView::Hide() {
   UpdateVisibility(false);
+}
+
+void MultiContentsDropTargetView::SetVisible(bool visible) {
+  if (!visible) {
+    side_.reset();
+  }
+  views::View::SetVisible(visible);
 }
 
 void MultiContentsDropTargetView::UpdateVisibility(bool should_be_open) {
@@ -136,6 +158,54 @@ void MultiContentsDropTargetView::OnThemeChanged() {
   ui::ImageModel icon_image_model =
       ui::ImageModel::FromVectorIcon(kAddCircleIcon, primary_color, kIconSize);
   icon_view_->SetImage(icon_image_model);
+}
+
+bool MultiContentsDropTargetView::GetDropFormats(
+    int* formats,
+    std::set<ui::ClipboardFormatType>* format_types) {
+  *formats = ui::OSExchangeData::URL;
+  format_types->insert(ui::ClipboardFormatType::UrlType());
+  return true;
+}
+
+// Allows dropping links only.
+bool MultiContentsDropTargetView::CanDrop(const OSExchangeData& data) {
+  if (!data.HasURL(ui::FilenameToURLPolicy::CONVERT_FILENAMES)) {
+    return false;
+  }
+  auto urls = data.GetURLs(ui::FilenameToURLPolicy::CONVERT_FILENAMES);
+  return urls.has_value() && !urls.value().empty();
+}
+
+int MultiContentsDropTargetView::OnDragUpdated(
+    const ui::DropTargetEvent& event) {
+  return ui::DragDropTypes::DRAG_LINK;
+}
+
+void MultiContentsDropTargetView::OnDragExited() {
+  Hide();
+}
+
+void MultiContentsDropTargetView::OnDragDone() {
+  Hide();
+}
+
+views::View::DropCallback MultiContentsDropTargetView::GetDropCallback(
+    const ui::DropTargetEvent& event) {
+  return base::BindOnce(&MultiContentsDropTargetView::DoDrop,
+                        base::Unretained(this));
+}
+
+void MultiContentsDropTargetView::DoDrop(
+    const ui::DropTargetEvent& event,
+    ui::mojom::DragOperation& output_drag_op,
+    std::unique_ptr<ui::LayerTreeOwner> drag_image_layer_owner) {
+  CHECK(side_.has_value());
+  DropSide side = side_.value();
+  Hide();
+  auto urls = event.data().GetURLs(ui::FilenameToURLPolicy::CONVERT_FILENAMES);
+  CHECK(urls.has_value());
+  drop_delegate_->HandleLinkDrop(side, urls.value());
 }
 
 BEGIN_METADATA(MultiContentsDropTargetView)

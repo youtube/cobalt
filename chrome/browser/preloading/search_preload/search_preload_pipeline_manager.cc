@@ -16,10 +16,9 @@
 #include "components/omnibox/browser/base_search_provider.h"
 #include "components/omnibox/browser/omnibox.mojom-shared.h"
 #include "components/search_engines/template_url_service.h"
+#include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/preloading_data.h"
-#include "content/public/browser/storage_partition.h"
 #include "content/public/browser/web_contents.h"
-#include "services/network/public/mojom/network_context.mojom.h"
 
 namespace {
 
@@ -56,14 +55,41 @@ WEB_CONTENTS_USER_DATA_KEY_IMPL(SearchPreloadPipelineManager);
 
 SearchPreloadPipelineManager::SearchPreloadPipelineManager(
     content::WebContents* web_contents)
-    : content::WebContentsUserData<SearchPreloadPipelineManager>(
-          *web_contents) {
+    : content::WebContentsUserData<SearchPreloadPipelineManager>(*web_contents),
+      content::WebContentsObserver(web_contents) {
   auto* preloading_data =
       content::PreloadingData::GetOrCreateForWebContents(web_contents);
   SetIsNavigationInDomainCallback(preloading_data);
 }
 
 SearchPreloadPipelineManager::~SearchPreloadPipelineManager() = default;
+
+void SearchPreloadPipelineManager::DidFinishNavigation(
+    content::NavigationHandle* navigation_handle) {
+  const bool is_primary_main_frame_navigation =
+      navigation_handle->HasCommitted() &&
+      navigation_handle->IsInPrimaryMainFrame() &&
+      !navigation_handle->IsSameDocument();
+  if (!is_primary_main_frame_navigation) {
+    return;
+  }
+
+  content::BrowserContext* browser_context =
+      GetWebContents().GetBrowserContext();
+  if (!browser_context) {
+    return;
+  }
+
+  // Invalidate a pipeline if it is likely used.
+  std::optional<GURL> maybe_canonical_url = GetCanonicalUrlForSearchPreload(
+      *browser_context, navigation_handle->GetURL());
+  if (!maybe_canonical_url.has_value()) {
+    return;
+  }
+  const GURL& canonical_url = maybe_canonical_url.value();
+
+  pipelines_.erase(canonical_url);
+}
 
 void SearchPreloadPipelineManager::ClearPreloads() {
   pipelines_.clear();
@@ -80,41 +106,6 @@ void SearchPreloadPipelineManager::EraseNotAlivePipelines() {
       });
 }
 
-void SearchPreloadPipelineManager::MaybePreloadSharedDictionary(
-    Profile& profile,
-    const AutocompleteResult& result) {
-  std::vector<GURL> urls;
-  urls.reserve(result.size());
-  for (const AutocompleteMatch& match : result) {
-    if (match.destination_url.SchemeIsHTTPOrHTTPS()) {
-      urls.emplace_back(match.destination_url);
-    }
-  }
-
-  if (urls.empty()) {
-    return;
-  }
-
-  // Keep the old handle until `PreloadSharedDictionaryInfoForDocument()` call
-  // to avoid reloading dictionaries in the network service.
-  mojo::PendingRemote<network::mojom::PreloadedSharedDictionaryInfoHandle>
-      old_handle = std::move(shared_dictionary_handle_);
-
-  shared_dictionary_handle_.reset();
-  profile.GetDefaultStoragePartition()
-      ->GetNetworkContext()
-      ->PreloadSharedDictionaryInfoForDocument(
-          urls, shared_dictionary_handle_.InitWithNewPipeAndPassReceiver());
-  shared_dictionary_expiry_timer_.Start(
-      FROM_HERE, features::kDsePreload2OnSuggestSharedDictionaryTtl.Get(),
-      base::BindOnce(&SearchPreloadPipelineManager::InvalidateSharedDictionary,
-                     base::Unretained(this)));
-}
-
-void SearchPreloadPipelineManager::InvalidateSharedDictionary() {
-  shared_dictionary_handle_.reset();
-}
-
 void SearchPreloadPipelineManager::OnAutocompleteResultChanged(
     Profile& profile,
     base::WeakPtr<SearchPreloadService> search_preload_service,
@@ -126,8 +117,6 @@ void SearchPreloadPipelineManager::OnAutocompleteResultChanged(
   if (!template_url_service->GetDefaultSearchProvider()) {
     return;
   }
-
-  MaybePreloadSharedDictionary(profile, result);
 
   // Erase to count prefetches.
   EraseNotAlivePipelines();
@@ -208,7 +197,8 @@ void SearchPreloadPipelineManager::OnAutocompleteResultChangedProcessOne(
                               /*is_navigation_likely=*/false);
   pipelines_[canonical_url]->StartPrefetch(
       GetWebContents(), search_preload_service, prefetch_url,
-      chrome_preloading_predictor::kDefaultSearchEngine, no_vary_search_hint);
+      chrome_preloading_predictor::kDefaultSearchEngine, no_vary_search_hint,
+      /*is_navigation_likely=*/false);
 
   // Trigger prerender without waiting prefetch.
   //
@@ -328,7 +318,8 @@ bool SearchPreloadPipelineManager::OnNavigationLikely(
   pipelines_[canonical_url]->UpdateConfidence(GetWebContents(), 100);
   return pipelines_[canonical_url]->StartPrefetch(
       GetWebContents(), search_preload_service, prefetch_url, predictor,
-      no_vary_search_hint);
+      no_vary_search_hint,
+      /*is_navigation_likely=*/true);
 }
 
 bool SearchPreloadPipelineManager::InvalidatePipelineForTesting(

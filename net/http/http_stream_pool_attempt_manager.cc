@@ -195,8 +195,8 @@ HttpStreamPool::AttemptManager::AttemptManager(Group* group, NetLog* net_log)
 }
 
 HttpStreamPool::AttemptManager::~AttemptManager() {
-  base::UmaHistogramTimes("Net.HttpStreamPool.AttemptManagerAliveTime",
-                          base::TimeTicks::Now() - created_time_);
+  base::UmaHistogramLongTimes100("Net.HttpStreamPool.AttemptManagerAliveTime2",
+                                 base::TimeTicks::Now() - created_time_);
   net_log().EndEvent(NetLogEventType::HTTP_STREAM_POOL_ATTEMPT_MANAGER_ALIVE);
   group_->net_log().AddEventReferencingSource(
       NetLogEventType::HTTP_STREAM_POOL_GROUP_ATTEMPT_MANAGER_DESTROYED,
@@ -205,13 +205,14 @@ HttpStreamPool::AttemptManager::~AttemptManager() {
 }
 
 void HttpStreamPool::AttemptManager::RequestStream(Job* job) {
-  CHECK(availability_state_ == AvailabilityState::kAvailable);
+  // JobController should check idle streams before starting a request Job.
+  CHECK_EQ(group_->IdleStreamSocketCount(), 0u);
 
-  TRACE_EVENT_INSTANT("net.stream", "AttemptManager::StartJob", track_,
+  TRACE_EVENT_INSTANT("net.stream", "AttemptManager::RequestStream", track_,
                       NetLogWithSourceToFlow(job->request_net_log()));
 
   net_log_.AddEvent(
-      NetLogEventType::HTTP_STREAM_POOL_ATTEMPT_MANAGER_START_JOB, [&] {
+      NetLogEventType::HTTP_STREAM_POOL_ATTEMPT_MANAGER_REQUEST_STREAM, [&] {
         base::Value::Dict dict;
         dict.Set("priority", job->priority());
         base::Value::List allowed_bad_certs_list;
@@ -235,40 +236,11 @@ void HttpStreamPool::AttemptManager::RequestStream(Job* job) {
       NetLogEventType::HTTP_STREAM_POOL_ATTEMPT_MANAGER_JOB_BOUND,
       net_log_.source());
 
-  if (job->respect_limits() == RespectLimits::kIgnore) {
-    limit_ignoring_jobs_.emplace(job);
-  }
-
-  if (!job->enable_ip_based_pooling()) {
-    ip_based_pooling_disabling_jobs_.emplace(job);
-  }
-
-  if (!job->enable_alternative_services()) {
-    alternative_service_disabling_jobs_.emplace(job);
-  }
-
-  // HttpStreamPool should check the existing QUIC/SPDY sessions and idle
-  // streams before calling this method.
-  DCHECK(!CanUseExistingQuicSession());
-  DCHECK(!HasAvailableSpdySession());
-  CHECK_EQ(group_->IdleStreamSocketCount(), 0u);
-
-  request_jobs_.Insert(job, job->priority());
-
-  MaybeChangeServiceEndpointRequestPriority();
-
-  if (base_ssl_config_.has_value()) {
-    base_ssl_config_->allowed_bad_certs = job->allowed_bad_certs();
-  }
-  quic_version_ = job->quic_version();
-
   StartInternal(job);
-
-  return;
 }
 
 void HttpStreamPool::AttemptManager::Preconnect(Job* job) {
-  CHECK(availability_state_ == AvailabilityState::kAvailable);
+  // JobController should check active streams before starting a preconnect Job.
   CHECK_LT(group_->ActiveStreamSocketCount(), job->num_streams());
 
   TRACE_EVENT_INSTANT("net.stream", "AttemptManager::Preconnect", track_,
@@ -286,14 +258,6 @@ void HttpStreamPool::AttemptManager::Preconnect(Job* job) {
   job->delegate_net_log().AddEventReferencingSource(
       NetLogEventType::HTTP_STREAM_POOL_JOB_CONTROLLER_PRECONNECT_BOUND,
       net_log_.source());
-
-  // HttpStreamPool should check the existing QUIC/SPDY sessions before calling
-  // this method.
-  DCHECK(!CanUseExistingQuicSession());
-  DCHECK(!HasAvailableSpdySession());
-
-  preconnect_jobs_.emplace(job);
-  quic_version_ = job->quic_version();
 
   StartInternal(job);
 }
@@ -460,10 +424,6 @@ HttpStreamPool::AttemptManager::GetSSLConfig(const IPEndPoint& ip_endpoint) {
   ssl_config.early_data_enabled =
       http_network_session()->params().enable_early_data;
 
-  if (!IsEchEnabled()) {
-    return ssl_config;
-  }
-
   const bool svcb_optional = IsSvcbOptional();
   for (auto& endpoint : service_endpoint_request_->GetEndpointResults()) {
     if (!IsEndpointUsableForTcpBasedAttempt(endpoint, svcb_optional)) {
@@ -473,7 +433,18 @@ HttpStreamPool::AttemptManager::GetSSLConfig(const IPEndPoint& ip_endpoint) {
                                                       ? endpoint.ipv4_endpoints
                                                       : endpoint.ipv6_endpoints;
     if (base::Contains(ip_endpoints, ip_endpoint)) {
-      ssl_config.ech_config_list = endpoint.metadata.ech_config_list;
+      if (IsEchEnabled()) {
+        ssl_config.ech_config_list = endpoint.metadata.ech_config_list;
+      }
+      if (base::FeatureList::IsEnabled(features::kTLSTrustAnchorIDs) &&
+          !endpoint.metadata.trust_anchor_ids.empty()) {
+        ssl_config.trust_anchor_ids =
+            SSLConfig::SelectTrustAnchorIDs(endpoint.metadata.trust_anchor_ids,
+                                            pool()
+                                                ->stream_attempt_params()
+                                                ->ssl_client_context->config()
+                                                .trust_anchor_ids);
+      }
       return ssl_config;
     }
   }
@@ -849,7 +820,7 @@ void HttpStreamPool::AttemptManager::OnQuicAttemptComplete(
       NetLogEventType::HTTP_STREAM_POOL_ATTEMPT_MANAGER_QUIC_ATTEMPT_COMPLETED,
       [&] {
         base::Value::Dict dict = GetStatesAsNetLogParams();
-        dict.Set("result", ErrorToString(rv));
+        dict.Set("result", rv);
         if (net_error_details_.quic_connection_error != quic::QUIC_NO_ERROR) {
           dict.Set("quic_error", quic::QuicErrorCodeToString(
                                      net_error_details_.quic_connection_error));
@@ -936,6 +907,15 @@ base::Value::Dict HttpStreamPool::AttemptManager::GetInfoAsValue() const {
            CanAttemptResultToString(CanAttemptConnection()));
   dict.Set("service_endpoint_request_finished",
            service_endpoint_request_finished_);
+  if (service_endpoint_request_ &&
+      !service_endpoint_request_->GetEndpointResults().empty()) {
+    base::Value::List service_endpoints;
+    for (const auto& endpoint :
+         service_endpoint_request_->GetEndpointResults()) {
+      service_endpoints.Append(endpoint.ToValue());
+    }
+    dict.Set("service_endpoints", std::move(service_endpoints));
+  }
   dict.Set("tcp_based_attempt_state",
            TcpBasedAttemptStateToString(tcp_based_attempt_state_));
   dict.Set("tcp_based_attempt_delay_ms",
@@ -996,7 +976,7 @@ base::Value::Dict HttpStreamPool::AttemptManager::GetStatesAsNetLogParams()
   dict.Set("enable_alternative_services", IsAlternativeServiceEnabled());
   dict.Set("quic_attempt_alive", !!quic_attempt_);
   if (quic_attempt_result_.has_value()) {
-    dict.Set("quic_attempt_result", ErrorToString(*quic_attempt_result_));
+    dict.Set("quic_attempt_result", *quic_attempt_result_);
   }
   return dict;
 }
@@ -1018,6 +998,37 @@ void HttpStreamPool::AttemptManager::SetOnCompleteCallbackForTesting(
 }
 
 void HttpStreamPool::AttemptManager::StartInternal(Job* job) {
+  CHECK(availability_state_ == AvailabilityState::kAvailable);
+
+  if (job->IsPreconnect()) {
+    preconnect_jobs_.emplace(job);
+  } else {
+    request_jobs_.Insert(job, job->priority());
+    if (base_ssl_config_.has_value()) {
+      base_ssl_config_->allowed_bad_certs = job->allowed_bad_certs();
+    }
+  }
+
+  if (job->respect_limits() == RespectLimits::kIgnore) {
+    limit_ignoring_jobs_.emplace(job);
+  }
+
+  if (!job->enable_ip_based_pooling()) {
+    ip_based_pooling_disabling_jobs_.emplace(job);
+  }
+
+  if (!job->enable_alternative_services()) {
+    alternative_service_disabling_jobs_.emplace(job);
+  }
+
+  quic_version_ = job->quic_version();
+
+  // JobController should check the existing QUIC/SPDY sessions before starting
+  // a Job.
+  DCHECK(!CanUseExistingQuicSession());
+  DCHECK(!HasAvailableSpdySession());
+
+  MaybeChangeServiceEndpointRequestPriority();
   RestrictAllowedProtocols(job->allowed_alpns());
   UpdateTcpBasedAttemptState();
 
@@ -1073,7 +1084,6 @@ void HttpStreamPool::AttemptManager::RestrictAllowedProtocols(
   if (!CanUseQuic()) {
     // TODO(crbug.com/346835898): Use other error code?
     CancelQuicAttempt(ERR_ABORTED);
-    UpdateTcpBasedAttemptState();
   }
 }
 

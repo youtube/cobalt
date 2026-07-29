@@ -2348,7 +2348,7 @@ ax::mojom::blink::Role AXNodeObject::NativeRoleIgnoringAria() const {
   if (ParentObjectIfPresent() && ParentObjectIfPresent()->RoleValue() ==
                                      ax::mojom::blink::Role::kComboBoxSelect) {
     if (!RuntimeEnabledFeatures::CustomizableSelectEnabled() ||
-        HTMLSelectElement::IsPopoverForAppearanceBase(GetNode())) {
+        HTMLSelectElement::IsPopoverPickerElement(GetNode())) {
       return ax::mojom::blink::Role::kMenuListPopup;
     }
   }
@@ -4458,7 +4458,7 @@ AXObject* AXNodeObject::ChooserPopup() const {
     if (auto* input = DynamicTo<HTMLInputElement>(GetNode())) {
       if (input->IsTextField()) {
         if (auto* select = input->FirstAncestorSelectElement()) {
-          if (auto* popover = select->PopoverForAppearanceBase()) {
+          if (auto* popover = select->PopoverPickerElement()) {
             if (auto* axobject = AXObjectCache().Get(popover)) {
               return axobject;
             }
@@ -4860,7 +4860,7 @@ String AXNodeObject::GetName(ax::mojom::blink::NameFrom& name_from,
     name_objects->clear();
     String input_name = DatetimeAncestor()->GetName(name_from, name_objects);
     if (!input_name.empty())
-      return WTF::StrCat({name, " ", input_name});
+      return StrCat({name, " ", input_name});
   }
 
   // Handle ::scroll-button(*) pseudo element names.
@@ -7358,7 +7358,7 @@ String AXNodeObject::MaybeAppendFileDescriptionToName(
   if (!displayed_file_path.empty()) {
     bool is_rtl =
         GetTextDirection() == ax::mojom::blink::WritingDirection::kRtl;
-    return WTF::StrCat({name, is_rtl ? " :" : ": ", displayed_file_path});
+    return StrCat({name, is_rtl ? " :" : ": ", displayed_file_path});
   }
   return name;
 }
@@ -7423,7 +7423,7 @@ String AXNodeObject::Description(
     String ancestor_description = DatetimeAncestor()->Description(
         datetime_ancestor_name_from, description_from, description_objects);
     if (!result.empty() && !ancestor_description.empty())
-      return WTF::StrCat({result, " ", ancestor_description});
+      return StrCat({result, " ", ancestor_description});
     if (!ancestor_description.empty())
       return ancestor_description;
   }

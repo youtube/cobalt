@@ -105,15 +105,6 @@ OffscreenCanvasRenderingContext2D::OffscreenCanvasRenderingContext2D(
       canvas->GetTopExecutionContext());
   is_valid_size_ = Host()->IsValidImageSize();
 
-  // Clear the background transparent or opaque.
-
-  // NOTE: At this point the canvas has no context installed yet and hence it is
-  // not possible to go through GetResourceProviderForCanvas2D() on it, which
-  // asserts that the context is present and is Canvas2D.
-  if (canvas->ResourceProvider() && canvas->ResourceProvider()->IsValid()) {
-    DidDraw(CanvasPerformanceMonitor::DrawType::kOther);
-  }
-
   ExecutionContext* execution_context = canvas->GetTopExecutionContext();
   if (auto* window = DynamicTo<LocalDOMWindow>(execution_context)) {
     if (window->GetFrame() && window->GetFrame()->GetSettings() &&
@@ -140,7 +131,7 @@ void OffscreenCanvasRenderingContext2D::FinalizeFrame(FlushReason reason) {
   // because it will be too late during the paint invalidation phase.
   if (!GetOrCreateCanvasResourceProvider())
     return;
-  Host()->FlushRecording(reason);
+  Host()->FlushRecordingForCanvas2D(reason);
 }
 
 // BaseRenderingContext2D implementation
@@ -361,7 +352,7 @@ bool OffscreenCanvasRenderingContext2D::WritePixels(
     int y) {
   DCHECK(IsCanvas2DBufferValid());
 
-  Host()->FlushRecording(FlushReason::kWritePixels);
+  Host()->FlushRecordingForCanvas2D(FlushReason::kWritePixels);
 
   // Short-circuit out if an error occurred while flushing the recording.
   if (!Host()->GetResourceProviderForCanvas2D()->IsValid()) {

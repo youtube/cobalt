@@ -13,6 +13,7 @@
 #include "components/optimization_guide/content/browser/page_content_proto_provider.h"
 #include "components/optimization_guide/content/mojom/ai_page_content_metadata.mojom.h"
 #include "components/optimization_guide/core/optimization_guide_proto_util.h"
+#include "components/optimization_guide/core/page_content_proto_serializer.h"
 #include "components/optimization_guide/proto/features/common_quality_data.pb.h"
 #include "third_party/blink/public/mojom/content_extraction/ai_page_content.mojom.h"
 #include "third_party/blink/public/mojom/forms/form_control_type.mojom-shared.h"
@@ -20,22 +21,28 @@
 
 namespace optimization_guide {
 
-class SecurityOriginSerializer {
- public:
-  static void Serialize(
-      const url::Origin& origin,
-      optimization_guide::proto::SecurityOrigin* proto_origin) {
-    proto_origin->set_opaque(origin.opaque());
-
-    if (origin.opaque()) {
-      proto_origin->set_value(origin.GetNonceForSerialization()->ToString());
-    } else {
-      proto_origin->set_value(origin.Serialize());
-    }
-  }
-};
-
 namespace {
+
+optimization_guide::proto::ClickabilityReason ConvertClickabilityReason(
+    blink::mojom::AIPageContentClickabilityReason reason) {
+  switch (reason) {
+    case blink::mojom::AIPageContentClickabilityReason::kClickableControl:
+      return optimization_guide::proto::CLICKABILITY_REASON_CLICKABLE_CONTROL;
+    case blink::mojom::AIPageContentClickabilityReason::kClickEvents:
+      return optimization_guide::proto::CLICKABILITY_REASON_CLICK_HANDLER;
+    case blink::mojom::AIPageContentClickabilityReason::kMouseEvents:
+      return optimization_guide::proto::CLICKABILITY_REASON_MOUSE_EVENTS;
+    case blink::mojom::AIPageContentClickabilityReason::kKeyEvents:
+      return optimization_guide::proto::CLICKABILITY_REASON_KEY_EVENTS;
+    case blink::mojom::AIPageContentClickabilityReason::kEditable:
+      return optimization_guide::proto::CLICKABILITY_REASON_EDITABLE;
+    case blink::mojom::AIPageContentClickabilityReason::kCursorPointer:
+      return optimization_guide::proto::CLICKABILITY_REASON_CURSOR_POINTER;
+    case blink::mojom::AIPageContentClickabilityReason::kAriaRole:
+      return optimization_guide::proto::CLICKABILITY_REASON_ARIA_ROLE;
+  }
+  NOTREACHED();
+}
 
 optimization_guide::proto::ContentAttributeType ConvertAttributeType(
     blink::mojom::AIPageContentAttributeType type) {
@@ -56,6 +63,8 @@ optimization_guide::proto::ContentAttributeType ConvertAttributeType(
       return optimization_guide::proto::CONTENT_ATTRIBUTE_SVG;
     case blink::mojom::AIPageContentAttributeType::kCanvas:
       return optimization_guide::proto::CONTENT_ATTRIBUTE_CANVAS;
+    case blink::mojom::AIPageContentAttributeType::kVideo:
+      return optimization_guide::proto::CONTENT_ATTRIBUTE_VIDEO;
     case blink::mojom::AIPageContentAttributeType::kForm:
       return optimization_guide::proto::CONTENT_ATTRIBUTE_FORM;
     case blink::mojom::AIPageContentAttributeType::kFormControl:
@@ -180,6 +189,12 @@ void ConvertNodeInteractionInfo(
     proto_interaction_info->set_document_scoped_z_order(
         *mojom_node_interaction_info.document_scoped_z_order);
   }
+
+  for (const auto& reason :
+       mojom_node_interaction_info.debug_clickability_reasons) {
+    proto_interaction_info->add_debug_clickability_reasons(
+        ConvertClickabilityReason(reason));
+  }
 }
 
 void ConvertPoint(const gfx::Point& mojom_point,
@@ -281,6 +296,17 @@ void ConvertCanvasData(
     optimization_guide::proto::CanvasData* proto_canvas_data) {
   proto_canvas_data->set_layout_width(mojom_canvas_data.layout_size.width());
   proto_canvas_data->set_layout_height(mojom_canvas_data.layout_size.height());
+}
+
+void ConvertVideoData(
+    const blink::mojom::AIPageContentVideoData& mojom_video_data,
+    optimization_guide::proto::VideoData* proto_video_data) {
+  proto_video_data->set_url(mojom_video_data.url.spec());
+  if (mojom_video_data.source_origin) {
+    SecurityOriginSerializer::Serialize(
+        *mojom_video_data.source_origin,
+        proto_video_data->mutable_security_origin());
+  }
 }
 
 optimization_guide::proto::AnchorRel ConvertAnchorRel(
@@ -494,6 +520,13 @@ bool ConvertAttributes(
     }
     ConvertCanvasData(*mojom_attributes.canvas_data,
                       proto_attributes->mutable_canvas_data());
+  } else if (mojom_attributes.video_data) {
+    if (mojom_attributes.attribute_type !=
+        blink::mojom::AIPageContentAttributeType::kVideo) {
+      return false;
+    }
+    ConvertVideoData(*mojom_attributes.video_data,
+                     proto_attributes->mutable_video_data());
   } else if (mojom_attributes.anchor_data) {
     if (mojom_attributes.attribute_type !=
         blink::mojom::AIPageContentAttributeType::kAnchor) {
@@ -554,7 +587,6 @@ void ConvertFrameMetadata(
     GURL url,
     const blink::mojom::AIPageContentFrameData& mojom_frame_data,
     optimization_guide::mojom::PageMetadata& metadata) {
-
   auto frame_metadata = optimization_guide::mojom::FrameMetadata::New();
   frame_metadata->url = url;
 

@@ -4,6 +4,8 @@
 
 package org.chromium.chrome.browser.theme;
 
+import static org.chromium.build.NullUtil.assumeNonNull;
+
 import android.content.Context;
 import android.content.res.ColorStateList;
 import android.graphics.Color;
@@ -45,7 +47,7 @@ public class ThemeUtils {
      * @return The background color of {@link Tab}.
      */
     public static @ColorInt int getBackgroundColor(Tab tab) {
-        if (tab.isNativePage()) return tab.getNativePage().getBackgroundColor();
+        if (tab.isNativePage()) return assumeNonNull(tab.getNativePage()).getBackgroundColor();
 
         WebContents tabWebContents = tab.getWebContents();
         RenderWidgetHostView rwhv =
@@ -91,8 +93,6 @@ public class ThemeUtils {
     public static @ColorInt int getTextBoxColorForToolbarBackgroundInNonNativePage(
             Context context, @ColorInt int color, boolean isIncognito, boolean isCustomTab) {
         // Text box color on default toolbar background in incognito mode is a pre-defined color.
-        // TODO(https://crbug.com/406890625): Update incognito mode once we have confirmation from
-        // UX.
         if (isIncognito) {
             return SurfaceColorUpdateUtils.getOmniboxBackgroundColor(
                     context, /* isIncognito= */ true);

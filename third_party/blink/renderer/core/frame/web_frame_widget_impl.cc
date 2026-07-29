@@ -5086,10 +5086,7 @@ void WebFrameWidgetImpl::NotifyInputObservers(
     return;
 
   const WebInputEvent& input_event = coalesced_event.Event();
-  auto& paint_timing_detector = frame_view->GetPaintTimingDetector();
-
-  if (paint_timing_detector.NeedToNotifyInputOrScroll())
-    paint_timing_detector.NotifyInputEvent(input_event.GetType());
+  frame_view->GetPaintTimingDetector().NotifyInputEvent(input_event.GetType());
 }
 
 Frame* WebFrameWidgetImpl::FocusedCoreFrame() const {
@@ -5231,6 +5228,10 @@ void WebFrameWidgetImpl::ApplyLocalSurfaceIdUpdate(
     return;
   }
   widget_base_->LayerTreeHost()->SetLocalSurfaceIdFromParent(id);
+}
+
+bool WebFrameWidgetImpl::InsertVisualStateRequest(base::OnceClosure callback) {
+  return widget_base_->InsertVisualStateRequest(std::move(callback));
 }
 
 void WebFrameWidgetImpl::SetMayThrottleIfUndrawnFrames(

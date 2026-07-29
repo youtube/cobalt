@@ -11,9 +11,3 @@
   display: flex;
   width: 100%;
 }
-
-.file {
-  /* TODO(crbug.com/420938297): Replace with styles to spec. */
-  height: 50px;
-  width: 50px;
-}

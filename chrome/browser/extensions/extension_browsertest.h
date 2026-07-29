@@ -213,9 +213,6 @@ class ExtensionBrowserTest : public PlatformBrowserTest,
   // tab.
   content::WebContents* GetActiveWebContents() const;
 
-  // Returns incognito profile. Creates the profile if it doesn't exist.
-  Profile* GetOrCreateIncognitoProfile();
-
   // Pack the extension in `dir_path` into a crx file and return its path.
   // Return an empty FilePath if there were errors.
   base::FilePath PackExtension(
@@ -402,7 +399,7 @@ class ExtensionBrowserTest : public PlatformBrowserTest,
 
   ExtensionId last_loaded_extension_id_;
 
-#if BUILDFLAG(ENABLE_DESKTOP_ANDROID_EXTENSIONS)
+#if BUILDFLAG(IS_ANDROID)
   class TestTabModel;
   std::unique_ptr<TestTabModel> tab_model_;
 #endif

@@ -21,9 +21,7 @@ try_.defaults.set(
     compilator_cores = 32,
     execution_timeout = try_.DEFAULT_EXECUTION_TIMEOUT,
     orchestrator_cores = 4,
-    reclient_enabled = False,
     service_account = try_.DEFAULT_SERVICE_ACCOUNT,
-    siso_enabled = True,
     # crbug.com/372192123 - downloading with "minimum" strategy doesn't work
     # well for Android builds because some steps have additional inputs/outputs
     # they are not configured in the build graph.
@@ -366,6 +364,24 @@ try_.builder(
     gn_args = gn_args.config(
         configs = [
             "ci/android-15-x64-fyi-rel",
+            "release_try_builder",
+        ],
+    ),
+    contact_team_email = "clank-engprod@google.com",
+    siso_remote_jobs = siso.remote_jobs.LOW_JOBS_FOR_CQ,
+)
+
+try_.builder(
+    name = "android-16-x64-rel",
+    # TODO(crbug.com/424231911): Enable when green.
+    # branch_selector = branches.selector.ANDROID_BRANCHES,
+    description_html = "Run Chromium tests on Android 16 emulator.",
+    mirrors = [
+        "ci/android-16-x64-rel",
+    ],
+    gn_args = gn_args.config(
+        configs = [
+            "ci/android-16-x64-rel",
             "release_try_builder",
         ],
     ),
@@ -1164,11 +1180,11 @@ try_.orchestrator_builder(
     name = "android-x86-rel",
     branch_selector = branches.selector.ANDROID_BRANCHES,
     mirrors = [
-        "ci/android-oreo-x86-rel",
+        "ci/android-10-x86-rel",
     ],
     gn_args = gn_args.config(
         configs = [
-            "ci/android-oreo-x86-rel",
+            "ci/android-10-x86-rel",
             "release_try_builder",
             "use_clang_coverage",
             "use_java_coverage",
@@ -1684,5 +1700,13 @@ try_.builder(
     name = "android-code-coverage-native",
     mirrors = ["ci/android-code-coverage-native"],
     gn_args = "ci/android-code-coverage-native",
+    execution_timeout = 20 * time.hour,
+)
+
+try_.builder(
+    name = "android-x86-code-coverage",
+    mirrors = ["ci/android-x86-code-coverage"],
+    gn_args = "ci/android-x86-code-coverage",
+    contact_team_email = "clank-engprod@google.com",
     execution_timeout = 20 * time.hour,
 )

@@ -1399,15 +1399,15 @@ enum class ToolbarKind {
   [self.qrScannerCoordinator stop];
   self.qrScannerCoordinator = nil;
 
-  [_lensCoordinator stop];
-  _lensCoordinator = nil;
+  [_lensOverlayCoordinator stop];
+  _lensOverlayCoordinator = nil;
 
   if (IsLVFUnifiedExperienceEnabled(self.profile->GetPrefs())) {
     [_lensViewFinderCoordinator stop];
     _lensViewFinderCoordinator = nil;
   } else {
-    [_lensOverlayCoordinator stop];
-    _lensOverlayCoordinator = nil;
+    [_lensCoordinator stop];
+    _lensCoordinator = nil;
   }
 
   [self.downloadManagerCoordinator stop];
@@ -1857,7 +1857,7 @@ enum class ToolbarKind {
   collaboration::CollaborationService* collaborationService =
       collaboration::CollaborationServiceFactory::GetForProfile(self.profile);
   if (collaborationService) {
-    collaborationService->CancelAllFlows(base::DoNothing());
+    collaborationService->CancelAllFlows();
   }
 }
 
@@ -4317,38 +4317,46 @@ enum class ToolbarKind {
 
 #pragma mark - MiniMapCommands
 
-- (void)presentConsentThenMiniMapForText:(NSString*)text
-                              inWebState:(web::WebState*)webState {
+- (void)presentMiniMapWithIPHForText:(NSString*)text {
   self.miniMapCoordinator =
       [[MiniMapCoordinator alloc] initWithBaseViewController:self.viewController
                                                      browser:self.browser
-                                                    webState:webState
                                                         text:text
-                                             consentRequired:YES
+                                                         url:nil
+                                                     withIPH:YES
                                                         mode:MiniMapMode::kMap];
   [self.miniMapCoordinator start];
 }
 
-- (void)presentMiniMapForText:(NSString*)text
-                   inWebState:(web::WebState*)webState {
+- (void)presentMiniMapForText:(NSString*)text {
   self.miniMapCoordinator =
       [[MiniMapCoordinator alloc] initWithBaseViewController:self.viewController
                                                      browser:self.browser
-                                                    webState:webState
                                                         text:text
-                                             consentRequired:NO
+                                                         url:nil
+                                                     withIPH:NO
                                                         mode:MiniMapMode::kMap];
   [self.miniMapCoordinator start];
 }
 
-- (void)presentMiniMapDirectionsForText:(NSString*)text
-                             inWebState:(web::WebState*)webState {
+- (void)presentMiniMapForURL:(NSURL*)URL {
+  self.miniMapCoordinator =
+      [[MiniMapCoordinator alloc] initWithBaseViewController:self.viewController
+                                                     browser:self.browser
+                                                        text:nil
+                                                         url:URL
+                                                     withIPH:NO
+                                                        mode:MiniMapMode::kMap];
+  [self.miniMapCoordinator start];
+}
+
+- (void)presentMiniMapDirectionsForText:(NSString*)text {
   self.miniMapCoordinator = [[MiniMapCoordinator alloc]
       initWithBaseViewController:self.viewController
                          browser:self.browser
-                        webState:webState
                             text:text
-                 consentRequired:NO
+                             url:nil
+                         withIPH:NO
                             mode:MiniMapMode::kDirections];
   [self.miniMapCoordinator start];
 }

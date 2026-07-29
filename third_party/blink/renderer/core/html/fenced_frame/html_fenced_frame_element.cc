@@ -5,6 +5,7 @@
 #include "third_party/blink/renderer/core/html/fenced_frame/html_fenced_frame_element.h"
 
 #include "base/metrics/histogram_macros.h"
+#include "base/trace_event/trace_event.h"
 #include "base/types/pass_key.h"
 #include "mojo/public/cpp/bindings/associated_remote.h"
 #include "services/network/public/cpp/is_potentially_trustworthy.h"
@@ -38,6 +39,7 @@
 #include "third_party/blink/renderer/core/inspector/console_message.h"
 #include "third_party/blink/renderer/core/layout/layout_iframe.h"
 #include "third_party/blink/renderer/core/layout/layout_object.h"
+#include "third_party/blink/renderer/core/layout/layout_object_inlines.h"
 #include "third_party/blink/renderer/core/page/page.h"
 #include "third_party/blink/renderer/core/resize_observer/resize_observer_entry.h"
 #include "third_party/blink/renderer/platform/instrumentation/use_counter.h"
@@ -345,8 +347,8 @@ void HTMLFencedFrameElement::ParseAttribute(
         GetDocument().AddConsoleMessage(MakeGarbageCollected<ConsoleMessage>(
             mojom::blink::ConsoleMessageSource::kOther,
             mojom::blink::ConsoleMessageLevel::kError,
-            WTF::StrCat({"Error while parsing the 'sandbox' attribute: ",
-                         String::FromUTF8(parsed.error_message)})));
+            StrCat({"Error while parsing the 'sandbox' attribute: ",
+                    String::FromUTF8(parsed.error_message)})));
       }
     }
     SetSandboxFlags(current_flags);
@@ -441,10 +443,10 @@ void HTMLFencedFrameElement::Navigate(
     GetDocument().AddConsoleMessage(MakeGarbageCollected<ConsoleMessage>(
         mojom::blink::ConsoleMessageSource::kRendering,
         mojom::blink::ConsoleMessageLevel::kWarning,
-        WTF::StrCat({"Cannot create a fenced frame with mode '",
-                     DeprecatedFencedFrameModeToString(GetDeprecatedMode()),
-                     "' nested in a fenced frame with mode '",
-                     DeprecatedFencedFrameModeToString(parent_mode), "'."})));
+        StrCat({"Cannot create a fenced frame with mode '",
+                DeprecatedFencedFrameModeToString(GetDeprecatedMode()),
+                "' nested in a fenced frame with mode '",
+                DeprecatedFencedFrameModeToString(parent_mode), "'."})));
     RecordFencedFrameCreationOutcome(
         FencedFrameCreationOutcome::kIncompatibleMode);
     return;

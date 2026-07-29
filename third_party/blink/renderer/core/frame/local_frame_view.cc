@@ -119,6 +119,7 @@
 #include "third_party/blink/renderer/core/layout/layout_counter.h"
 #include "third_party/blink/renderer/core/layout/layout_embedded_content.h"
 #include "third_party/blink/renderer/core/layout/layout_embedded_object.h"
+#include "third_party/blink/renderer/core/layout/layout_object_inlines.h"
 #include "third_party/blink/renderer/core/layout/layout_shift_tracker.h"
 #include "third_party/blink/renderer/core/layout/layout_view.h"
 #include "third_party/blink/renderer/core/layout/legacy_layout_tree_walking.h"
@@ -4713,9 +4714,14 @@ void LocalFrameView::MapLocalToRemoteMainFrame(
                                  TransformState::kAccumulateTransform);
 }
 
-LayoutUnit LocalFrameView::CaretWidth() const {
+LayoutUnit LocalFrameView::BarCaretWidth() const {
   return LayoutUnit(std::max<float>(
       1.0f, GetChromeClient()->WindowToViewportScalar(&GetFrame(), 1.0f)));
+}
+
+LayoutUnit LocalFrameView::ScaleCssPixelForCaret(float width) const {
+  return LayoutUnit(std::max<float>(
+      width, GetChromeClient()->WindowToViewportScalar(&GetFrame(), width)));
 }
 
 void LocalFrameView::RegisterTapEvent(Element* target) {

@@ -556,15 +556,19 @@ bool ElementRuleCollector::CollectMatchingRulesForListInternal(
         static_cast<wtf_size_t>(rules.size()));
   }
 
+  const Element::TinyBloomFilter element_filter =
+      context.element->AttributeOrClassBloomFilter();
+
   for (const RuleData& rule_data : rules) {
     if (perf_trace_enabled) {
       selector_statistics_collector.EndCollectionForCurrentRule();
       selector_statistics_collector.BeginCollectionForRule(&rule_data);
     }
-    if (can_use_fast_reject_ &&
-        selector_filter_.FastRejectSelector(
-            rule_data.DescendantSelectorIdentifierHashes(
-                rule_set->BloomHashBacking()))) {
+    if (rule_data.RejectElement(element_filter) ||
+        (can_use_fast_reject_ &&
+         selector_filter_.FastRejectSelector(
+             rule_data.DescendantSelectorIdentifierHashes(
+                 rule_set->BloomHashBacking())))) {
       fast_rejected++;
       if (perf_trace_enabled) {
         selector_statistics_collector.SetWasFastRejected();
@@ -937,6 +941,22 @@ DISABLE_CFI_PERF bool ElementRuleCollector::CollectMatchingRulesInternal(
 
       const AttributeCollection collection = element.AttributesWithoutUpdate();
       attributes = base::span(collection);
+    }
+  }
+
+  if (element.HasLocalName(html_names::kInputTag.LocalName())) {
+    if (const AtomicString& input_type =
+            element.getAttribute(html_names::kTypeAttr);
+        !input_type.IsNull()) {
+      for (const auto bundle : match_request.RuleSetsWithInputRules()) {
+        if (CollectMatchingRulesForList<stop_at_first_match>(
+                bundle.rule_set->InputRules(input_type.LowerASCII()),
+                match_request, bundle.rule_set, bundle.style_sheet_index,
+                checker, context.context) &&
+            stop_at_first_match) {
+          return true;
+        }
+      }
     }
   }
 

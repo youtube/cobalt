@@ -24,7 +24,6 @@ import org.chromium.base.ContextUtils;
 import org.chromium.base.ThreadUtils;
 import org.chromium.chrome.R;
 import org.chromium.components.signin.AccountManagerFacadeProvider;
-import org.chromium.components.signin.base.AccountCapabilities;
 import org.chromium.components.signin.base.AccountInfo;
 import org.chromium.components.signin.base.CoreAccountId;
 import org.chromium.components.signin.identitymanager.AccountInfoServiceProvider;
@@ -176,13 +175,6 @@ public class AccountManagerTestRule implements TestRule {
         mFakeAccountManagerFacade.setAccountFetchFailed();
     }
 
-    /** Scheduled for removal. Use blockGetAccountsUpdate instead. */
-    @Deprecated
-    public FakeAccountManagerFacade.UpdateBlocker blockGetCoreAccountInfosUpdate(
-            boolean populateCache) {
-        return mFakeAccountManagerFacade.blockGetAccounts(populateCache);
-    }
-
     /** See {@link FakeAccountManagerFacade#blockGetAccounts(boolean)}. */
     public FakeAccountManagerFacade.UpdateBlocker blockGetAccountsUpdate(boolean populateCache) {
         return mFakeAccountManagerFacade.blockGetAccounts(populateCache);
@@ -214,11 +206,7 @@ public class AccountManagerTestRule implements TestRule {
      * show to minors.
      */
     public void resolveMinorModeToRestricted(CoreAccountId accountId) {
-        // TODO(b/343384614): append instead of overriding
-        overrideCapabilities(accountId, TestAccounts.MINOR_MODE_REQUIRED);
-    }
-
-    private void overrideCapabilities(CoreAccountId accountId, AccountCapabilities capabilities) {
-        mFakeAccountManagerFacade.setAccountCapabilities(accountId, capabilities);
+        mFakeAccountManagerFacade.updateAccountCapabilities(
+                accountId, TestAccounts.MINOR_MODE_REQUIRED);
     }
 }

@@ -12,11 +12,14 @@ source_set("actor") {
     ":browser_tests",
   ]
   public = [
-    "actor_coordinator.h",
     "actor_keyed_service.h",
     "actor_keyed_service_factory.h",
     "actor_task.h",
     "aggregated_journal.h",
+    "aggregated_journal_file_serializer.h",
+    "aggregated_journal_in_memory_serializer.h",
+    "aggregated_journal_serializer.h",
+    "execution_engine.h",
     "tools/observation_delay_controller.h",
     "tools/tool_controller.h",
   ]
@@ -37,15 +40,18 @@ source_set("actor") {
 
 source_set("impl") {
   sources = [
-    "actor_coordinator.cc",
     "actor_features.cc",
     "actor_features.h",
     "actor_keyed_service.cc",
     "actor_keyed_service_factory.cc",
     "actor_task.cc",
     "aggregated_journal.cc",
+    "aggregated_journal_file_serializer.cc",
+    "aggregated_journal_in_memory_serializer.cc",
+    "aggregated_journal_serializer.cc",
     "browser_action_util.cc",
     "browser_action_util.h",
+    "execution_engine.cc",
     "site_policy.cc",
     "site_policy.h",
     "tools/history_tool.cc",
@@ -55,6 +61,8 @@ source_set("impl") {
     "tools/observation_delay_controller.cc",
     "tools/page_tool.cc",
     "tools/page_tool.h",
+    "tools/tab_management_tool.cc",
+    "tools/tab_management_tool.h",
     "tools/tool.cc",
     "tools/tool.h",
     "tools/tool_callbacks.cc",
@@ -73,12 +81,16 @@ source_set("impl") {
     "//chrome/browser/profiles:profile",
     "//chrome/browser/safe_browsing",
     "//chrome/browser/ui:browser_navigator_params_headers",
+    "//chrome/browser/ui/browser_window:browser_window",
     "//chrome/browser/ui/tabs:tabs_public",
     "//chrome/common",
     "//components/safe_browsing:buildflags",
     "//components/variations/service:service",
     "//content/public/browser",
     "//net",
+    "//third_party/perfetto:libperfetto",
+    "//third_party/perfetto/protos/perfetto/config:zero_gen",
+    "//third_party/perfetto/protos/perfetto/trace/perfetto:zero_gen",
     "//url",
   ]
   if (enable_glic) {
@@ -128,7 +140,7 @@ source_set("unit_tests") {
     "//testing/gtest",
   ]
   if (enable_glic) {
-    sources += [ "actor_coordinator_unittest.cc" ]
+    sources += [ "execution_engine_unittest.cc" ]
   }
 }
 
@@ -156,7 +168,8 @@ source_set("browser_tests") {
 
   if (enable_glic) {
     sources += [
-      "actor_coordinator_browsertest.cc",
+      "execution_engine_browsertest.cc",
+      "tools/page_stability_browsertest.cc",
       "tools/tools_browsertest.cc",
     ]
     deps += [ "//chrome/browser/glic:glic" ]

@@ -38,6 +38,9 @@ CGFloat const kSpacingBeforeTitle = 16;
 // Spacing use for the spacing after the logo title in the bottom sheet.
 CGFloat const kSpacingAfterTitle = 4;
 
+// Vertical spacing between the labels of a password suggestion cell.
+CGFloat const kSpacingBetweenCellLabels = 2;
+
 // Returns the username to display for the given `suggestion`.
 NSString* GetSuggestionDisplayUsername(FormSuggestion* suggestion) {
   NSString* username = suggestion.value;
@@ -160,6 +163,12 @@ NSString* GetSuggestionDisplayUsername(FormSuggestion* suggestion) {
   [self.handler viewDidDisappear];
 }
 
+#pragma mark - Getters
+
+- (NSArray<FormSuggestion*>*)suggestions {
+  return _suggestions;
+}
+
 #pragma mark - PasswordSuggestionBottomSheetConsumer
 
 - (void)setSuggestions:(NSArray<FormSuggestion*>*)suggestions
@@ -203,16 +212,22 @@ NSString* GetSuggestionDisplayUsername(FormSuggestion* suggestion) {
                                  children:@[
                                    [strongSelf openPasswordManagerAction]
                                  ]]];
-      [menuElements
-          addObject:[UIMenu
-                        menuWithTitle:@""
-                                image:nil
-                           identifier:nil
-                              options:UIMenuOptionsDisplayInline
-                             children:@[
-                               [strongSelf
-                                   openPasswordDetailsForIndexPath:indexPath]
-                             ]]];
+
+      // The option to open password details shouldn't be available for recovery
+      // passwords as they are not displayed in the Password Manager for now.
+      FormSuggestion* formSuggestion =
+          [strongSelf.suggestions objectAtIndex:indexPath.row];
+      if (!formSuggestion.metadata.is_recovery_password) {
+        [menuElements
+            addObject:[UIMenu
+                          menuWithTitle:@""
+                                  image:nil
+                             identifier:nil
+                                options:UIMenuOptionsDisplayInline
+                               children:@[ [strongSelf
+                                            openPasswordDetailsForSuggestion:
+                                                formSuggestion] ]]];
+      }
     }
 
     return [UIMenu menuWithTitle:@"" children:menuElements];
@@ -339,7 +354,7 @@ NSString* GetSuggestionDisplayUsername(FormSuggestion* suggestion) {
       base::apple::ObjCCastStrict<TableViewURLCell>(cell);
 
   if (suggestion.metadata.is_recovery_password) {
-    // TODO(crbug.com/417943553): Replace favicon with kHistorySymbol.
+    [URLCell replaceFaviconWithSymbol:kHistorySymbol];
   } else {
     auto faviconLoadedBlock = ^(FaviconAttributes* attributes) {
       DCHECK(attributes);
@@ -369,11 +384,10 @@ NSString* GetSuggestionDisplayUsername(FormSuggestion* suggestion) {
               handler:passwordManagerButtonTapHandler];
 }
 
-// Creates the UI action used to open the password details for form suggestion
-// at index path.
-- (UIAction*)openPasswordDetailsForIndexPath:(NSIndexPath*)indexPath {
+// Creates the UI action used to open the password details for the given
+// `formSuggestion`.
+- (UIAction*)openPasswordDetailsForSuggestion:(FormSuggestion*)formSuggestion {
   __weak __typeof(self) weakSelf = self;
-  FormSuggestion* formSuggestion = [_suggestions objectAtIndex:indexPath.row];
   void (^showDetailsButtonTapHandler)(UIAction*) = ^(UIAction* action) {
     // Open Password Details.
     weakSelf.disableBottomSheetOnExit = NO;
@@ -388,13 +402,6 @@ NSString* GetSuggestionDisplayUsername(FormSuggestion* suggestion) {
                           image:infoIcon
                      identifier:nil
                         handler:showDetailsButtonTapHandler];
-}
-
-// Returns the accessibility label for the given cell.
-- (NSString*)cellAccessibilityLabel:(TableViewURLCell*)cell {
-  return l10n_util::GetNSStringF(IDS_IOS_AUTOFILL_ACCNAME_SUGGESTION,
-                                 base::SysNSStringToUTF16(cell.titleLabel.text),
-                                 base::SysNSStringToUTF16(_domain));
 }
 
 // Returns the accessibility value for the cell at the provided index path.
@@ -423,8 +430,15 @@ NSString* GetSuggestionDisplayUsername(FormSuggestion* suggestion) {
   cell.URLLabel.lineBreakMode = NSLineBreakByTruncatingMiddle;
   cell.URLLabel.numberOfLines = 1;
   cell.URLLabel.hidden = NO;
-  // TODO(crbug.com/417943553): Set `cell.thirdRowLabel`.
-  cell.accessibilityLabel = [self cellAccessibilityLabel:cell];
+  if (formSuggestion.metadata.is_recovery_password) {
+    cell.thirdRowLabel.text = l10n_util::GetNSString(
+        IDS_IOS_PASSWORD_BOTTOM_SHEET_RECOVERY_PASSWORD_LABEL);
+    cell.thirdRowLabel.hidden = NO;
+  }
+  if (base::FeatureList::IsEnabled(
+          password_manager::features::kIOSFillRecoveryPassword)) {
+    cell.labelSpacing = kSpacingBetweenCellLabels;
+  }
   cell.accessibilityValue = [self cellAccessibilityValueAtIndexPath:indexPath];
   cell.separatorInset = [self separatorInsetForTableViewWidth:tableViewWidth
                                                   atIndexPath:indexPath];

@@ -294,8 +294,9 @@ void PredictionBasedPermissionUiSelector::OnDeviceAiv3ModelExecutionCallback(
             << static_cast<int>(relevance.value());
     last_permission_request_relevance_ = relevance.value();
     features.permission_relevance = relevance.value();
-    base::UmaHistogramEnumeration("Permissions.AIv3.PermissionRequestRelevance",
-                                  features.permission_relevance);
+
+    PermissionUmaUtil::RecordPermissionRequestRelevance(
+        request_metadata.request_type, features.permission_relevance, "AIv3");
   } else {
     last_permission_request_relevance_ =
         PermissionRequestRelevance::kUnspecified;
@@ -478,9 +479,7 @@ PredictionBasedPermissionUiSelector::BuildPredictionRequestFeatures(
   // `ConvertToProtoRelevance` execution.
   features.permission_relevance = PermissionRequestRelevance::kUnspecified;
   // if both Aiv3 and Aiv1 are enabled, we want to chose Aiv3.
-  if (base::FeatureList::IsEnabled(permissions::features::kPermissionsAIv3) ||
-      base::FeatureList::IsEnabled(
-          permissions::features::kPermissionsAIv3Geolocation)) {
+  if (base::FeatureList::IsEnabled(permissions::features::kPermissionsAIv3)) {
     features.experiment_id =
         PredictionRequestFeatures::ExperimentId::kAiV3ExperimentId;
   } else if (base::FeatureList::IsEnabled(
@@ -531,7 +530,7 @@ void PredictionBasedPermissionUiSelector::OnDeviceAiv1ModelExecutionCallback(
   }
   features.permission_relevance = last_permission_request_relevance_.value();
   PermissionUmaUtil::RecordPermissionRequestRelevance(
-      features.permission_relevance);
+      request_metadata.request_type, features.permission_relevance, "AIv1");
   InquireServerModel(features, std::move(request_metadata),
                      /*record_source=*/!response.has_value());
 }
@@ -669,9 +668,7 @@ PredictionSource PredictionBasedPermissionUiSelector::GetPredictionTypeToUse(
   if (use_server_side) {
     // Aiv3 takes priority over Aiv1 if both are enabled.
 #if BUILDFLAG(BUILD_WITH_TFLITE_LIB)
-    if (base::FeatureList::IsEnabled(permissions::features::kPermissionsAIv3) ||
-        base::FeatureList::IsEnabled(
-            permissions::features::kPermissionsAIv3Geolocation)) {
+    if (base::FeatureList::IsEnabled(permissions::features::kPermissionsAIv3)) {
       return PredictionSource::kOnDeviceAiv3AndServerSideModel;
     }
 #endif  // BUILDFLAG(BUILD_WITH_TFLITE_LIB)

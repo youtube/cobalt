@@ -5482,6 +5482,9 @@ are declared in tools/grit/grit_args.gni.
         <message name="IDS_EXTENSION_PROMPT_WARNING_LOGIN" desc="Permission string for access to Login API.">
           Launch and exit managed guest sessions
         </message>
+        <message name="IDS_EXTENSION_PROMPT_WARNING_ENTERPRISE_LOGIN" desc="Permission string for access to Enterprise Login API.">
+          Exit managed guest sessions
+        </message>
         <message name="IDS_EXTENSION_PROMPT_WARNING_LOGIN_SCREEN_UI" desc="Permission string for access to login screen UI.">
           Display UI on the login screen
         </message>
@@ -7652,6 +7655,9 @@ Keep your key file in a safe place. You will need it to create new versions of y
       <message name="IDS_NTP_CUSTOM_LINKS_CANT_REMOVE" desc="A catchall error message for when the shortcut cannot be removed. (On the New Tab Page)">
        Can't remove shortcut
       </message>
+      <message name="IDS_NTP_CUSTOM_LINKS_HELP_PIN" desc="The in-product help text instructing the user on how to pin a shortcut (On the New Tab Page)">
+        Tap and hold to pin shortcuts
+      </message>
       <message name="IDS_NTP_CONFIRM_MSG_SHORTCUT_REMOVED" desc="The title of the shortcut removed confirmation message when removing a custom link. (On the New Tab Page)">
         Shortcut removed
       </message>
@@ -7760,8 +7766,11 @@ Keep your key file in a safe place. You will need it to create new versions of y
       <message name="IDS_NTP_CUSTOMIZE_FOOTER_HEADER" desc="The toggle for the Footer title in the customization menu on the New Tab Page." meaning="The footer which shows at the bottom of the New Tab page.">
         Footer
       </message>
-      <message name="IDS_NTP_CUSTOMIZE_CHROME_MANAGED_NEW_TAB_PAGE" desc="The string that shows on the customize chrome UI when a 3rd party manages the new tab page.">
-        <ph name="THIRD_PARTY_NTP_MANAGER">$1<ex>ZomboCom</ex></ph> is managing your new tab page
+      <message name="IDS_NTP_MANAGED_BY_SEARCH_ENGINE" desc="The string that shows on the customize chrome UI when a 3rd party manages the new tab page.">
+        Current search engine managing your new tab page
+      </message>
+      <message name="IDS_NTP_MANAGED_BY_EXTENSION" desc="The string that shows on the customize chrome UI when a 3rd party manages the new tab page.">
+        Current extension managing your new tab page
       </message>
       <message name="IDS_NTP_CUSTOMIZE_CHROME_MANAGED_NEW_TAB_PAGE_ACCESSIBILITY" is_accessibility_with_no_ui="true" desc="Accessibility label for the button that shows on the customize chrome UI when a 3rd party manages the new tab page.">
         <ph name="THIRD_PARTY_NTP_MANAGER">$1<ex>ZomboCom</ex></ph> is managing your new tab page, opens in a new tab
@@ -8472,6 +8481,16 @@ Keep your key file in a safe place. You will need it to create new versions of y
           Reset to default
         </message>
       </if>
+      <!-- TODO(crbug.com/423679752): Make the following string translatable. -->
+      <message name="IDS_NTP_COMPOSE_ENTRYPOINT" desc="The text for the compose entrypoint in the searchbox on the New Tab Page." translateable="false">
+        AI Mode
+      </message>
+      <message name="IDS_NTP_COMPOSE_IMAGE_UPLOAD_BUTTON_A11Y_LABEL" desc="The accessibility label for the image upload button on the compose box.">
+        Upload an image
+      </message>
+      <message name="IDS_NTP_COMPOSE_FILE_UPLOAD_BUTTON_A11Y_LABEL" desc="The accessibility label for the file upload button on the compose box.">
+        Upload a file
+      </message>
 
       <!-- NTP Modules -->
       <message name="IDS_NTP_MODULES_INFO_BUTTON_TITLE" desc="Text shown in tooltip of info button of an NTP module.">
@@ -8807,6 +8826,10 @@ Keep your key file in a safe place. You will need it to create new versions of y
        <message name="IDS_OPENS_MANAGEMENT_PAGE" desc="ARIA (accessibility) role description for a link in the New Tab footer which opens the chrome://management page in the current tab.">
         Learn about how your browser is managed
       </message>
+      <message name="IDS_HIDE_NEW_TAB_FOOTER" desc="Label for option to hide New Tab Footer feature, a UI that may show at the bottom of the New Tab Page.">
+        Hide footer on New Tab page
+      </message>
+
       <!-- Star View menu -->
       <if expr="use_titlecase">
         <message name="IDS_STAR_VIEW_MENU_ADD_BOOKMARK" desc="The item label of the menu triggered from the star icon in the location bar for adding a bookmark.">
@@ -11366,7 +11389,10 @@ Check your passwords anytime in <ph name="GOOGLE_PASSWORD_MANAGER">$1<ex>Google 
           other {Add tabs to new group}}
         </message>
         <message name="IDS_TAB_CXMENU_ADD_TAB_TO_NEW_SPLIT" desc="The label of the tab context menu submenu for creating a split view between the selected tab and the active tab.">
-          Add tab to split view
+          Add tab to new split view
+        </message>
+        <message name="IDS_TAB_CXMENU_NEW_SPLIT_WITH_CURRENT" desc="The label of the tab context menu submenu for creating a split view between the selected tab and the active tab.">
+          New split view with current tab
         </message>
         <message name="IDS_TAB_CXMENU_ARRANGE_SPLIT" desc="The label of the tab context menu submenu for exiting split view.">
           Arrange split view
@@ -11476,7 +11502,10 @@ Check your passwords anytime in <ph name="GOOGLE_PASSWORD_MANAGER">$1<ex>Google 
           other {Add Tabs to New Group}}
         </message>
         <message name="IDS_TAB_CXMENU_ADD_TAB_TO_NEW_SPLIT" desc="The label of the tab context menu submenu for creating a split view between the selected tab and the active tab.">
-          Add Tab to Split View
+          Add Tab to New Split View
+        </message>
+        <message name="IDS_TAB_CXMENU_NEW_SPLIT_WITH_CURRENT" desc="The label of the tab context menu submenu for creating a split view between the selected tab and the active tab.">
+          New Split View with Current Tab
         </message>
         <message name="IDS_TAB_CXMENU_ARRANGE_SPLIT" desc="The label of the tab context menu submenu for exiting split view.">
           Arrange Split View
@@ -11560,6 +11589,18 @@ Check your passwords anytime in <ph name="GOOGLE_PASSWORD_MANAGER">$1<ex>Google 
         <message name="IDS_SPLIT_TAB_CLOSE" translateable="false" desc="The label for a menu item that closes the inactive split tab when clicked.">
           Close this view
         </message>
+        <message name="IDS_SPLIT_TAB_CLOSE_LEFT_VIEW" translateable="false" desc="The label for a menu item that closes the left view in the active split.">
+          Close left view
+        </message>
+        <message name="IDS_SPLIT_TAB_CLOSE_RIGHT_VIEW" translateable="false" desc="The label for a menu item that closes the right view in the active split.">
+          Close right view
+        </message>
+        <message name="IDS_SPLIT_TAB_CLOSE_TOP_VIEW" translateable="false" desc="The label for a menu item that closes the top view in the active split.">
+          Close top view
+        </message>
+        <message name="IDS_SPLIT_TAB_CLOSE_BOTTOM_VIEW" translateable="false" desc="The label for a menu item that closes the bottom view in the active split.">
+          Close bottom view
+        </message>
         <message name="IDS_SPLIT_TAB_SEPARATE_VIEWS" translateable="false" desc="The label for a menu item that unsplits the split tab when clicked.">
           Separate views
         </message>
@@ -11579,6 +11620,18 @@ Check your passwords anytime in <ph name="GOOGLE_PASSWORD_MANAGER">$1<ex>Google 
         </message>
         <message name="IDS_SPLIT_TAB_CLOSE" translateable="false" desc="In title case: the label for a menu item that closes the inactive split tab when clicked.">
           Close This View
+        </message>
+        <message name="IDS_SPLIT_TAB_CLOSE_LEFT_VIEW" translateable="false" desc="In title case: the label for a menu item that closes the left view in the active split.">
+          Close Left View
+        </message>
+        <message name="IDS_SPLIT_TAB_CLOSE_RIGHT_VIEW" translateable="false" desc="In title case: the label for a menu item that closes the right view in the active split.">
+          Close Right View
+        </message>
+        <message name="IDS_SPLIT_TAB_CLOSE_TOP_VIEW" translateable="false" desc="In title case: the label for a menu item that closes the top view in the active split.">
+          Close Top View
+        </message>
+        <message name="IDS_SPLIT_TAB_CLOSE_BOTTOM_VIEW" translateable="false" desc="In title case: the label for a menu item that closes the bottom view in the active split.">
+          Close Bottom View
         </message>
         <message name="IDS_SPLIT_TAB_SEPARATE_VIEWS" translateable="false" desc="In title case: the label for a menu item that unsplits the split tab when clicked.">
           Separate Views
@@ -14233,7 +14286,7 @@ This can include information about installed software, files, your browser, the 
         <message name="IDS_SYNC_PASSPHRASE_DIALOG_TITLE" desc="Title of the sync passphrase dialog">
           Enter your passphrase
         </message>
-        <message name="IDS_SYNC_PASSPHRASE_DIALOG_OK_BUTTON" desc="Label of the main button of the sync passphrase dialog">
+        <message name="IDS_SYNC_PASSPHRASE_DIALOG_OK_BUTTON" meaning="An on-screen button that opens the dialog for the user to enter a custom passphrase" desc="Label of the main button of the sync passphrase dialog">
           Enter
         </message>
 

@@ -176,50 +176,6 @@ CanvasRenderingContext2DSettings* BaseRenderingContext2D::getContextAttributes()
   return ToCanvasRenderingContext2DSettings(CreationAttributes());
 }
 
-bool BaseRenderingContext2D::IsDrawElementEligible(
-    Element* element,
-    ExceptionState& exception_state) {
-  HTMLCanvasElement* canvas_element = HostAsHTMLCanvasElement();
-  if (!canvas_element || !canvas_element->GetDocument().View()) {
-    return false;
-  }
-
-  if (!GetOrCreatePaintCanvas()) {
-    return false;
-  }
-
-  if (element->parentElement() != canvas_element) {
-    exception_state.ThrowTypeError(
-        "Only immediate children of the <canvas> element can be passed to "
-        "drawElement().");
-    return false;
-  }
-
-  if (!canvas_element->layoutSubtree()) {
-    exception_state.ThrowTypeError(
-        "<canvas> elements without layoutsubtree do not support "
-        "drawElement().");
-    return false;
-  }
-
-  if (!element->GetLayoutObject()) {
-    exception_state.ThrowTypeError(
-        "The canvas and element used with drawElement() must have been laid "
-        "out. Detached canvases are not supported, nor canvas or children that "
-        "are `display: none`.");
-    return false;
-  }
-
-  // TODO(crbug.com/413728246): Maybe we can support canvas element.
-  if (IsA<HTMLCanvasElement>(element)) {
-    exception_state.ThrowTypeError(
-        "<canvas> children of a <canvas> cannot be passed to drawElement().");
-    return false;
-  }
-
-  return true;
-}
-
 void BaseRenderingContext2D::DispatchContextLostEvent(TimerBase*) {
   // If `need_dispatch_context_restored_` is `true`, the context has been
   // restored already (e.g. by fixing a `kInvalidCanvasSize` context loss), but
@@ -337,7 +293,7 @@ void BaseRenderingContext2D::RestoreFromInvalidSizeIfNeeded() {
       !host) {
     return;
   }
-  DCHECK(!host->ResourceProvider());
+  DCHECK(!host->GetResourceProviderForCanvas2D());
 
   if (host->IsValidImageSize()) {
     if (dispatch_context_lost_event_timer_.IsActive()) {
@@ -835,6 +791,14 @@ void BaseRenderingContext2D::RestoreCanvasMatrixClipStack(
 
 void BaseRenderingContext2D::Reset() {
   ResetInternal();
+}
+
+scoped_refptr<StaticBitmapImage>
+BaseRenderingContext2D::PaintRenderingResultsToSnapshot(
+    SourceDrawingBuffer source_buffer,
+    FlushReason reason) {
+  CanvasResourceProvider* provider = Host()->GetResourceProviderForCanvas2D();
+  return provider ? provider->Snapshot(reason) : nullptr;
 }
 
 void BaseRenderingContext2D::WillUseCurrentFont() const {
@@ -1540,11 +1504,12 @@ GPUTexture* BaseRenderingContext2D::transferToGPUTexture(
   gpu::SyncToken canvas_access_sync_token;
   bool performed_copy = false;
   scoped_refptr<gpu::ClientSharedImage> client_si =
-      host->ResourceProvider()->GetBackingClientSharedImageForExternalWrite(
-          &canvas_access_sync_token,
-          gpu::SHARED_IMAGE_USAGE_WEBGPU_READ |
-              gpu::SHARED_IMAGE_USAGE_WEBGPU_WRITE,
-          &performed_copy);
+      host->GetResourceProviderForCanvas2D()
+          ->GetBackingClientSharedImageForExternalWrite(
+              &canvas_access_sync_token,
+              gpu::SHARED_IMAGE_USAGE_WEBGPU_READ |
+                  gpu::SHARED_IMAGE_USAGE_WEBGPU_WRITE,
+              &performed_copy);
   if (access_options->requireZeroCopy() && performed_copy) {
     exception_state.ThrowDOMException(
         DOMExceptionCode::kInvalidStateError,
@@ -1622,7 +1587,7 @@ void BaseRenderingContext2D::transferBackFromGPUTexture(
   // If this canvas already has a resource provider, this means that drawing has
   // occurred after `transferToWebGPU`. We disallow transferring back in this
   // case, and raise an exception instead.
-  if (host->ResourceProvider()) {
+  if (host->GetResourceProviderForCanvas2D()) {
     exception_state.ThrowDOMException(
         DOMExceptionCode::kInvalidStateError,
         "The canvas was touched after transferToGPUTexture.");

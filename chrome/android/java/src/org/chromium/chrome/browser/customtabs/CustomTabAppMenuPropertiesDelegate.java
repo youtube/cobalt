@@ -67,7 +67,7 @@ public class CustomTabAppMenuPropertiesDelegate extends AppMenuPropertiesDelegat
     private final boolean mIsStartIconMenu;
 
     private final List<String> mMenuEntries;
-    private final Map<Integer, Integer> mItemIdToIndexMap = new HashMap<Integer, Integer>();
+    private final Map<Integer, Integer> mItemIdToIndexMap = new HashMap<>();
     private final Supplier<ContextualPageActionController> mContextualPageActionControllerSupplier;
 
     private boolean mHasClientPackage;
@@ -120,7 +120,7 @@ public class CustomTabAppMenuPropertiesDelegate extends AppMenuPropertiesDelegat
 
     @Override
     @VisibleForTesting
-    public MVCListAdapter.ModelList buildMenuModelList(AppMenuHandler handler) {
+    public MVCListAdapter.ModelList buildMenuModelList() {
         MVCListAdapter.ModelList modelList = new MVCListAdapter.ModelList();
 
         Tab currentTab = mActivityTabProvider.get();

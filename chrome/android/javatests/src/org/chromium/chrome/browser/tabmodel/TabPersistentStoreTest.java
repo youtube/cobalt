@@ -113,10 +113,7 @@ import java.util.stream.Collectors;
 @RunWith(ChromeJUnit4ClassRunner.class)
 @CommandLineFlags.Add(ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE)
 @DisableFeatures({ChromeFeatureList.ANDROID_TAB_DECLUTTER_RESCUE_KILLSWITCH})
-@EnableFeatures({
-    ChromeFeatureList.TAB_GROUP_SYNC_ANDROID,
-    ChromeFeatureList.ANDROID_TAB_SKIP_SAVE_TABS_TASK_KILLSWITCH
-})
+@EnableFeatures({ChromeFeatureList.ANDROID_TAB_SKIP_SAVE_TABS_TASK_KILLSWITCH})
 public class TabPersistentStoreTest {
     // Test activity type that does not restore tab on cold restart.
     // Any type other than ActivityType.TABBED works.
@@ -217,7 +214,19 @@ public class TabPersistentStoreTest {
                                     TestTabModelSelector.this,
                                     tabRemover,
                                     /* supportUndo= */ true,
-                                    /* isArchivedTabModel= */ true);
+                                    /* isArchivedTabModel= */ false) {
+                                @Override
+                                public void initializeNative(
+                                        int activityType, boolean isArchivedTabModel) {
+                                    // Skip setting up the TabModelObserverJniBridge by using
+                                    // isArchivedTabModel = true. This test uses MockTab which has
+                                    // no native pointer while still initializing the native half of
+                                    // the TabModel leading to crashes from the
+                                    // TabModelObserverJniBridge. It needs to be refactored.
+                                    super.initializeNative(
+                                            activityType, /* isArchivedTabModel= */ true);
+                                }
+                            };
                         }
                     };
             TabModelImpl regularTabModel = ThreadUtils.runOnUiThreadBlocking(callable);
@@ -239,18 +248,18 @@ public class TabPersistentStoreTest {
                                     NO_RESTORE_TYPE,
                                     this,
                                     incognitoTabRemover));
-            TabUngrouperFactory factory =
-                    (isIncognitoBranded, tabGroupModelFilterSupplier) ->
-                            new PassthroughTabUngrouper(tabGroupModelFilterSupplier);
-            initialize(regularTabModel, incognitoTabModel, factory);
+            initialize(
+                    TabModelHolderFactory.createTabModelHolderForTesting(regularTabModel),
+                    TabModelHolderFactory.createIncognitoTabModelHolderForTesting(
+                            incognitoTabModel));
         }
 
         @Override
         public void requestToShowTab(Tab tab, @TabSelectionType int type) {}
 
         @Override
-        public boolean isSessionRestoreInProgress() {
-            return false;
+        public boolean isTabModelRestored() {
+            return true;
         }
     }
 

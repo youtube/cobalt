@@ -638,7 +638,8 @@ void LayerTreeHostImpl::ReadyToCommit(
         begin_main_frame_metrics->should_measure_smoothness) ||
        commit_timeout)) {
     is_measuring_smoothness_ = true;
-    dropped_frame_counter_.OnFirstContentfulPaintReceived();
+    frame_sorter_.OnFirstContentfulPaintReceived();
+    dropped_frame_counter()->OnFirstContentfulPaintReceived();
   }
 
   // Notify the browser controls manager that we have processed any
@@ -1282,8 +1283,7 @@ bool LayerTreeHostImpl::HasDamage() const {
 
   // If we have a new LocalSurfaceId, we must always submit a CompositorFrame
   // because the parent is blocking on us.
-  if (last_draw_local_surface_id_ !=
-      child_local_surface_id_allocator_.GetCurrentLocalSurfaceId()) {
+  if (last_draw_local_surface_id_ != GetCurrentLocalSurfaceId()) {
     return true;
   }
 
@@ -2795,11 +2795,10 @@ RenderFrameMetadata LayerTreeHostImpl::MakeRenderFrameMetadata(
 #endif
   }
 
-  if (child_local_surface_id_allocator_.GetCurrentLocalSurfaceId().is_valid()) {
+  if (GetCurrentLocalSurfaceId().is_valid()) {
     if (allocate_new_local_surface_id)
       AllocateLocalSurfaceId();
-    metadata.local_surface_id =
-        child_local_surface_id_allocator_.GetCurrentLocalSurfaceId();
+    metadata.local_surface_id = GetCurrentLocalSurfaceId();
   }
 
   metadata.primary_main_frame_item_sequence_number =
@@ -3277,11 +3276,13 @@ viz::CompositorFrame LayerTreeHostImpl::GenerateCompositorFrame(
   CHECK(!settings_.single_thread_proxy_scheduler ||
         active_tree()->local_surface_id_from_parent().is_valid());
 
-  layer_tree_frame_sink_->SetLocalSurfaceId(
-      child_local_surface_id_allocator_.GetCurrentLocalSurfaceId());
+  if (!settings_.trees_in_viz_in_viz_process) {
+    // In TreesInViz viz process, this ends up in LayerTreeHostImpl again
+    // and doesn't change anything.
+    layer_tree_frame_sink_->SetLocalSurfaceId(GetCurrentLocalSurfaceId());
+  }
 
-  last_draw_local_surface_id_ =
-      child_local_surface_id_allocator_.GetCurrentLocalSurfaceId();
+  last_draw_local_surface_id_ = GetCurrentLocalSurfaceId();
 
   if (const char* client_name = GetClientNameForMetrics()) {
     size_t total_quad_count = 0;
@@ -3314,7 +3315,8 @@ void LayerTreeHostImpl::UpdateDisplayTree(FrameData& frame) {
 
   layer_context_->UpdateDisplayTreeFrom(
       *active_tree(), *resource_provider(),
-      *layer_tree_frame_sink_->context_provider(), viewport_damage_rect_);
+      *layer_tree_frame_sink_->context_provider(), viewport_damage_rect_,
+      target_local_surface_id_);
 }
 
 int LayerTreeHostImpl::RequestedMSAASampleCount() const {
@@ -3731,7 +3733,7 @@ void LayerTreeHostImpl::DidLoseLayerTreeFrameSink() {
   has_valid_layer_tree_frame_sink_ = false;
   client_->DidLoseLayerTreeFrameSinkOnImplThread();
   lag_tracking_manager_.Clear();
-  frame_sorter_.Reset();
+  frame_sorter_.Reset(/*reset_fcp=*/false);
   dropped_frame_counter_.ResetPendingFrames(base::TimeTicks::Now());
 }
 
@@ -3938,7 +3940,7 @@ void LayerTreeHostImpl::ActivateSyncTree() {
     DidModifyTilePriorities(/*pending_update_tiles=*/false);
 
   auto screenshot_token = active_tree()->TakeScreenshotDestinationToken();
-  if (child_local_surface_id_allocator_.GetCurrentLocalSurfaceId().is_valid()) {
+  if (GetCurrentLocalSurfaceId().is_valid()) {
     // Since the screenshot will be issued against the previous `viz::Surface`
     // we need to make sure the renderer has at least embedded a valid surface
     // previously.
@@ -4035,7 +4037,7 @@ void LayerTreeHostImpl::SetVisible(bool visible) {
 
   if (!visible_) {
     auto now = base::TimeTicks::Now();
-    frame_sorter_.Reset();
+    frame_sorter_.Reset(/*reset_fcp=*/false);
     dropped_frame_counter_.ResetPendingFrames(now);
 
     // When page is invisible, throw away corresponding EventsMetrics since
@@ -4510,8 +4512,7 @@ bool LayerTreeHostImpl::InitializeFrameSink(
   // Always allocate a new viz::LocalSurfaceId when we get a new
   // LayerTreeFrameSink to ensure that we do not reuse the same surface after
   // it might have been garbage collected.
-  const viz::LocalSurfaceId& local_surface_id =
-      child_local_surface_id_allocator_.GetCurrentLocalSurfaceId();
+  const viz::LocalSurfaceId& local_surface_id = GetCurrentLocalSurfaceId();
   if (local_surface_id.is_valid())
     AllocateLocalSurfaceId();
 
@@ -4878,8 +4879,8 @@ void LayerTreeHostImpl::UpdateChildLocalSurfaceId() {
   // We have a newer surface than the evicted one, or the embedding has
   // changed, clear eviction state resume drawing.
   if (evicted_local_surface_id_.is_valid() &&
-      child_local_surface_id_allocator_.GetCurrentLocalSurfaceId()
-          .IsNewerThanOrEmbeddingChanged(evicted_local_surface_id_)) {
+      GetCurrentLocalSurfaceId().IsNewerThanOrEmbeddingChanged(
+          evicted_local_surface_id_)) {
     evicted_local_surface_id_ = viz::LocalSurfaceId();
     if (resource_provider_) {
       resource_provider_->SetEvicted(false);
@@ -5968,7 +5969,7 @@ void LayerTreeHostImpl::SetActiveURL(const GURL& url, ukm::SourceId source_id) {
   // case to occur.
   // The source id has already been associated to the URL.
   compositor_frame_reporting_controller_->SetSourceId(source_id);
-  frame_sorter_.Reset();
+  frame_sorter_.Reset(/*reset_fcp=*/true);
   dropped_frame_counter_.Reset();
   is_measuring_smoothness_ = false;
 }

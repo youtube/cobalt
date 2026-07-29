@@ -26,9 +26,7 @@ import org.robolectric.annotation.Config;
 import org.chromium.base.Token;
 import org.chromium.base.supplier.Supplier;
 import org.chromium.base.test.BaseRobolectricTestRunner;
-import org.chromium.base.test.util.Features.DisableFeatures;
-import org.chromium.base.test.util.Features.EnableFeatures;
-import org.chromium.chrome.browser.flags.ChromeFeatureList;
+import org.chromium.base.test.util.HistogramWatcher;
 import org.chromium.chrome.browser.preferences.Pref;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tab.MockTab;
@@ -52,7 +50,6 @@ import java.util.List;
 /** Unit tests for the {@link TabGroupSyncRemoteObserver}. */
 @RunWith(BaseRobolectricTestRunner.class)
 @Config(manifest = Config.NONE)
-@EnableFeatures(ChromeFeatureList.TAB_GROUP_SYNC_AUTO_OPEN_KILL_SWITCH)
 public class TabGroupSyncRemoteObserverUnitTest {
     private static final Token TOKEN_1 = new Token(2, 3);
     private static final Token TOKEN_2 = new Token(4, 4);
@@ -141,14 +138,6 @@ public class TabGroupSyncRemoteObserverUnitTest {
     }
 
     @Test
-    @DisableFeatures(ChromeFeatureList.TAB_GROUP_SYNC_AUTO_OPEN_KILL_SWITCH)
-    public void testAutoOpenKillSwitch() {
-        SavedTabGroup savedTabGroup = TabGroupSyncTestUtils.createSavedTabGroup();
-        mRemoteObserver.onTabGroupAdded(savedTabGroup, TriggerSource.REMOTE);
-        verify(mLocalMutationHelper, never()).createNewTabGroup(any(), anyInt());
-    }
-
-    @Test
     public void testTabGroupAdded_SkipsSharedTabGroupIfAlreadyOpen() {
         SavedTabGroup savedTabGroup = TabGroupSyncTestUtils.createSavedTabGroup();
         savedTabGroup.localId = LOCAL_TAB_GROUP_ID_1;
@@ -205,15 +194,24 @@ public class TabGroupSyncRemoteObserverUnitTest {
     @Test
     public void testTabGroupRemoved() {
         addOneTab();
+        HistogramWatcher histogramExpectation =
+                HistogramWatcher.newSingleRecordWatcher(
+                        "TabGroups.CloseTabGroupsDeletedRemotely", 1);
         mRemoteObserver.onTabGroupRemoved(LOCAL_TAB_GROUP_ID_1, TriggerSource.REMOTE);
         verify(mLocalMutationHelper).closeTabGroup(any(), eq(ClosingSource.DELETED_FROM_SYNC));
+        histogramExpectation.assertExpected();
     }
 
     @Test
     public void testTabGroupRemovedForDifferentWindow() {
         addOneTab();
+        HistogramWatcher histogramExpectation =
+                HistogramWatcher.newBuilder()
+                        .expectNoRecords("TabGroups.CloseTabGroupsDeletedRemotely")
+                        .build();
         mRemoteObserver.onTabGroupRemoved(LOCAL_TAB_GROUP_ID_2, TriggerSource.REMOTE);
         verify(mLocalMutationHelper, never()).closeTabGroup(any(), anyInt());
+        histogramExpectation.assertExpected();
     }
 
     @Test

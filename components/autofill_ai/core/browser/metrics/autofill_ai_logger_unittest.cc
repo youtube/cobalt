@@ -30,7 +30,6 @@
 #include "components/autofill_ai/core/browser/autofill_ai_manager.h"
 #include "components/autofill_ai/core/browser/autofill_ai_manager_test_api.h"
 #include "components/autofill_ai/core/browser/metrics/autofill_ai_ukm_logger.h"
-#include "components/autofill_ai/core/browser/mock_autofill_ai_client.h"
 #include "components/optimization_guide/core/model_execution/model_execution_prefs.h"
 #include "components/optimization_guide/core/model_quality/test_model_quality_logs_uploader_service.h"
 #include "components/optimization_guide/proto/features/forms_classifications.pb.h"
@@ -90,6 +89,19 @@ std::string GetCorrectionAfterFillHistogram(bool submitted) {
                             submitted ? submitted_str : abandoned_str);
 }
 
+class MockAutofillClient : public autofill::TestAutofillClient {
+ public:
+  MockAutofillClient() = default;
+  MockAutofillClient(const MockAutofillClient&) = delete;
+  MockAutofillClient& operator=(const MockAutofillClient&) = delete;
+  ~MockAutofillClient() override = default;
+
+  MOCK_METHOD(optimization_guide::ModelQualityLogsUploaderService*,
+              GetMqlsUploadService,
+              (),
+              (override));
+};
+
 class BaseAutofillAiTest : public testing::Test {
  public:
   BaseAutofillAiTest() {
@@ -98,18 +110,14 @@ class BaseAutofillAiTest : public testing::Test {
             webdata_helper_.autofill_webdata_service(),
             /*history_service=*/nullptr,
             /*strike_database=*/nullptr));
-
-    manager_ = std::make_unique<AutofillAiManager>(&client_, &strike_database_);
-    ON_CALL(client_, GetAutofillClient)
-        .WillByDefault(ReturnRef(autofill_client()));
-    ON_CALL(client_, GetEntityDataManager)
-        .WillByDefault(Return(autofill_client().GetEntityDataManager()));
+    manager_ = std::make_unique<AutofillAiManager>(&autofill_client_,
+                                                   &strike_database_);
   }
 
   AutofillAiManager& manager() { return *manager_; }
 
   void AddOrUpdateEntityInstance(autofill::EntityInstance entity) {
-    client().GetEntityDataManager()->AddOrUpdateEntityInstance(
+    autofill_client().GetEntityDataManager()->AddOrUpdateEntityInstance(
         std::move(entity));
     webdata_helper_.WaitUntilIdle();
   }
@@ -140,16 +148,14 @@ class BaseAutofillAiTest : public testing::Test {
     return form;
   }
 
-  autofill::TestAutofillClient& autofill_client() { return autofill_client_; }
-  MockAutofillAiClient& client() { return client_; }
+  MockAutofillClient& autofill_client() { return autofill_client_; }
 
  private:
   base::test::ScopedFeatureList scoped_feature_list_{
       autofill::features::kAutofillAiWithDataSchema};
   autofill::test::AutofillUnitTestEnvironment autofill_test_env_;
   base::test::SingleThreadTaskEnvironment task_environment_;
-  autofill::TestAutofillClient autofill_client_;
-  NiceMock<MockAutofillAiClient> client_;
+  NiceMock<MockAutofillClient> autofill_client_;
   std::unique_ptr<AutofillAiManager> manager_;
   autofill::TestStrikeDatabase strike_database_;
   autofill::AutofillWebDataServiceTestHelper webdata_helper_{
@@ -317,7 +323,7 @@ class AutofillAiMqlsMetricsTest : public BaseAutofillAiTest {
         local_state_.registry());
     optimization_guide::model_execution::prefs::RegisterProfilePrefs(
         local_state_.registry());
-    ON_CALL(client(), GetMqlsUploadService)
+    ON_CALL(autofill_client(), GetMqlsUploadService)
         .WillByDefault(testing::Return(logs_uploader_.get()));
   }
 

@@ -39,6 +39,7 @@ import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.metrics.RecordUserAction;
 import org.chromium.base.supplier.LazyOneshotSupplier;
 import org.chromium.base.supplier.ObservableSupplier;
+import org.chromium.base.supplier.ObservableSupplierImpl;
 import org.chromium.base.supplier.OneshotSupplier;
 import org.chromium.base.supplier.OneshotSupplierImpl;
 import org.chromium.base.supplier.Supplier;
@@ -79,6 +80,7 @@ import org.chromium.ui.base.DeviceFormFactor;
 import org.chromium.ui.modaldialog.ModalDialogManager;
 import org.chromium.ui.modelutil.PropertyModel;
 import org.chromium.ui.modelutil.PropertyModelChangeProcessor;
+import org.chromium.ui.util.XrUtils;
 import org.chromium.ui.widget.ViewRectProvider;
 
 import java.util.List;
@@ -87,6 +89,8 @@ import java.util.Set;
 /** Coordinator for a {@link TabSwitcherPaneBase}'s UI. */
 public class TabSwitcherPaneCoordinator implements BackPressHandler {
     static final String COMPONENT_NAME = "GridTabSwitcher";
+    static final int XR_FADING_EDGE_LENGTH_PX = 24;
+    static final boolean CONTEXT_MENU_FOCUSABLE = true;
 
     private final MessageUpdateObserver mMessageUpdateObserver =
             new MessageUpdateObserver() {
@@ -158,6 +162,11 @@ public class TabSwitcherPaneCoordinator implements BackPressHandler {
     private final ObservableSupplier<TabBookmarker> mTabBookmarkerSupplier;
     private final Runnable mOnTabGroupCreation;
     private final Callback<TabGroupModelFilter> mOnFilterChange = this::onFilterChange;
+    private final ObservableSupplierImpl<Boolean> mIsContextMenuFocusableSupplier =
+            new ObservableSupplierImpl<>();
+    private final Callback<Boolean> mOnContextMenuFocusableChanged =
+            this::onContextMenuFocusableChanged;
+
     private @Nullable TabGridContextMenuCoordinator mContextMenuCoordinator;
     private @Nullable TabGroupListBottomSheetCoordinator mTabGroupListBottomSheetCoordinator;
 
@@ -169,6 +178,8 @@ public class TabSwitcherPaneCoordinator implements BackPressHandler {
 
     /** Not null when drawing the hub edge to edge. */
     private @Nullable EdgeToEdgePadAdjuster mEdgeToEdgePadAdjuster;
+
+    private @Nullable TabListCoordinator.DragObserver mDragObserver;
 
     private int mEdgeToEdgeBottomInsets;
 
@@ -201,6 +212,7 @@ public class TabSwitcherPaneCoordinator implements BackPressHandler {
      * @param tabBookmarkerSupplier Supplier of {@link TabBookmarker} for bookmarking a given tab.
      * @param undoBarThrottle Throttle to block undo snackbar.
      * @param setOverlayViewCallback Callback to set the current overlay view.
+     * @param tabSwitcherDragHandler An instance of the {@link TabSwitcherDragHandler}.
      */
     public TabSwitcherPaneCoordinator(
             @NonNull Activity activity,
@@ -228,7 +240,8 @@ public class TabSwitcherPaneCoordinator implements BackPressHandler {
             @NonNull ObservableSupplier<ShareDelegate> shareDelegateSupplier,
             @NonNull ObservableSupplier<TabBookmarker> tabBookmarkerSupplier,
             UndoBarThrottle undoBarThrottle,
-            Callback<View> setOverlayViewCallback) {
+            Callback<View> setOverlayViewCallback,
+            @Nullable TabSwitcherDragHandler tabSwitcherDragHandler) {
         try (TraceEvent e = TraceEvent.scoped("TabSwitcherPaneCoordinator.constructor")) {
             mProfileProviderSupplier = profileProviderSupplier;
             mIsVisibleSupplier = isVisibleSupplier;
@@ -325,7 +338,7 @@ public class TabSwitcherPaneCoordinator implements BackPressHandler {
             int emptyImageResId =
                     DeviceFormFactor.isNonMultiDisplayContextOnTablet(activity)
                             ? R.drawable.tablet_tab_switcher_empty_state_illustration
-                            : R.drawable.phone_tab_switcher_empty_state_illustration;
+                            : R.drawable.phone_tab_switcher_empty_state_illustration_static;
             TabListCoordinator tabListCoordinator =
                     new TabListCoordinator(
                             mode,
@@ -354,14 +367,22 @@ public class TabSwitcherPaneCoordinator implements BackPressHandler {
                                     ? R.string.tabswitcher_no_tabs_open_to_visit_different_pages
                                     : Resources.ID_NULL,
                             onTabGroupCreation,
-                            /* allowDragAndDrop= */ true);
+                            /* allowDragAndDrop= */ true,
+                            tabSwitcherDragHandler);
             mTabListCoordinator = tabListCoordinator;
             tabListCoordinator.setOnLongPressTabItemEventListener(mLongPressItemEventListener);
 
-            mTabListOnScrollListener
-                    .getYOffsetNonZeroSupplier()
-                    .addObserver(setHairlineVisibilityCallback);
             TabListRecyclerView recyclerView = tabListCoordinator.getContainerView();
+
+            if (XrUtils.isXrDevice()) {
+                recyclerView.setVerticalFadingEdgeEnabled(true);
+                recyclerView.setFadingEdgeLength(XR_FADING_EDGE_LENGTH_PX);
+            } else {
+                mTabListOnScrollListener
+                        .getYOffsetNonZeroSupplier()
+                        .addObserver(setHairlineVisibilityCallback);
+            }
+
             recyclerView.setVisibility(View.VISIBLE);
             recyclerView.setBackgroundColor(Color.TRANSPARENT);
             recyclerView.addOnScrollListener(mTabListOnScrollListener);
@@ -425,11 +446,33 @@ public class TabSwitcherPaneCoordinator implements BackPressHandler {
 
             mOnVisibilityChanged.onResult(isVisibleSupplier.addObserver(mOnVisibilityChanged));
             mTabGroupModelFilterSupplier.addObserver(mOnFilterChange);
+
+            mDragObserver =
+                    new TabListCoordinator.DragObserver() {
+                        @Override
+                        public void onDragStart() {
+                            // Prevent the context menu from interfering with tab dragging.
+                            mIsContextMenuFocusableSupplier.set(false);
+                        }
+
+                        @Override
+                        public void onDragEnd() {
+                            // Restore default behavior.
+                            mIsContextMenuFocusableSupplier.set(CONTEXT_MENU_FOCUSABLE);
+                        }
+                    };
+
+            mIsContextMenuFocusableSupplier.set(CONTEXT_MENU_FOCUSABLE);
+            mIsContextMenuFocusableSupplier.addObserver(mOnContextMenuFocusableChanged);
+            tabListCoordinator.addDragObserver(mDragObserver);
         }
     }
 
     /** Destroys the coordinator. */
     public void destroy() {
+        mIsContextMenuFocusableSupplier.removeObserver(mOnContextMenuFocusableChanged);
+        mTabListCoordinator.removeDragObserver(mDragObserver);
+        mDragObserver = null;
         mMessageManager.removeObserver(mMessageUpdateObserver);
         mMessageManager.unbind(mTabListCoordinator);
         mMediator.destroy();
@@ -668,14 +711,19 @@ public class TabSwitcherPaneCoordinator implements BackPressHandler {
         ViewRectProvider viewRectProvider =
                 new ViewRectProvider(cardView, TabGridViewRectUpdater::new);
         Token groupId = tab.getTabGroupId();
+        boolean focusable = mIsContextMenuFocusableSupplier.get();
         if (groupId != null) {
-            tabListGroupMenuCoordinator.showMenu(viewRectProvider, groupId);
+            tabListGroupMenuCoordinator.showMenu(viewRectProvider, groupId, focusable);
             return tabListGroupMenuCoordinator::dismiss;
         } else {
-            tabGridContextMenuCoordinator.showMenu(viewRectProvider, tabId);
+            tabGridContextMenuCoordinator.showMenu(viewRectProvider, tabId, focusable);
             RecordUserAction.record("TabSwitcher.ContextMenu");
             return tabGridContextMenuCoordinator::dismiss;
         }
+    }
+
+    private void onContextMenuFocusableChanged(boolean focusable) {
+        mContextMenuCoordinator.setMenuFocusable(focusable);
     }
 
     private boolean isTabGridDialogVisible() {

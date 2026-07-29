@@ -30,9 +30,9 @@ import org.chromium.base.Callback;
 import org.chromium.base.ResettersForTesting;
 import org.chromium.chrome.browser.tab.TabUtils;
 import org.chromium.chrome.browser.tab.state.ShoppingPersistedTabData;
+import org.chromium.chrome.browser.tab_ui.TabCardThemeUtil;
 import org.chromium.chrome.browser.tab_ui.TabListFaviconProvider;
 import org.chromium.chrome.browser.tab_ui.TabThumbnailView;
-import org.chromium.chrome.browser.tab_ui.TabUiThemeUtils;
 import org.chromium.chrome.browser.tasks.tab_management.TabListMediator.ShoppingPersistedTabDataFetcher;
 import org.chromium.chrome.browser.tasks.tab_management.TabListMediator.TabActionButtonData;
 import org.chromium.chrome.browser.tasks.tab_management.TabListMediator.TabActionButtonData.TabActionButtonType;
@@ -255,15 +255,22 @@ class TabGridViewBinder {
         } else if (TabProperties.VISIBILITY == propertyKey) {
             view.setVisibility(model.get(TabProperties.VISIBILITY));
         } else if (TabProperties.IS_SELECTED == propertyKey
-                || TabProperties.TAB_ACTION_BUTTON_DATA == propertyKey) {
+                || TabProperties.TAB_ACTION_BUTTON_DATA == propertyKey
+                || TabProperties.TAB_GROUP_CARD_COLOR == propertyKey) {
             ((TabGridView) view)
                     .setTabActionButtonTint(
-                            TabUiThemeProvider.getActionButtonTintList(
+                            TabCardThemeUtil.getActionButtonTintList(
                                     view.getContext(),
                                     model.get(TabProperties.IS_INCOGNITO),
-                                    model.get(TabProperties.IS_SELECTED)));
+                                    model.get(TabProperties.IS_SELECTED),
+                                    model.get(TabProperties.TAB_GROUP_CARD_COLOR)));
         } else if (TabProperties.TAB_CARD_LABEL_DATA == propertyKey) {
             updateTabCardLabel(view, model.get(TabProperties.TAB_CARD_LABEL_DATA));
+        } else if (TabProperties.IS_HIGHLIGHTED == propertyKey) {
+            ((TabGridView) view)
+                    .setIsHighlighted(
+                            model.get(TabProperties.IS_HIGHLIGHTED),
+                            model.get(TabProperties.IS_INCOGNITO));
         }
     }
 
@@ -541,12 +548,12 @@ class TabGridViewBinder {
 
         cardView.getBackground().mutate();
         final @ColorInt int backgroundColor =
-                TabUiThemeUtils.getCardViewBackgroundColor(
+                TabCardThemeUtil.getCardViewBackgroundColor(
                         cardView.getContext(), isIncognito, isSelected, colorId);
         ViewCompat.setBackgroundTintList(cardView, ColorStateList.valueOf(backgroundColor));
 
         titleView.setTextColor(
-                TabUiThemeUtils.getTitleTextColor(
+                TabCardThemeUtil.getTitleTextColor(
                         titleView.getContext(), isIncognito, isSelected, colorId));
 
         thumbnail.updateThumbnailPlaceholder(isIncognito, isSelected, colorId);
@@ -568,7 +575,7 @@ class TabGridViewBinder {
                 .setLevel(TabCardViewBinderUtils.getCheckmarkLevel(res, isSelected));
         DrawableCompat.setTintList(
                 actionButton.getBackground().mutate(),
-                TabUiThemeProvider.getToggleActionButtonBackgroundTintList(
+                TabCardThemeUtil.getToggleActionButtonBackgroundTintList(
                         context, isIncognito, isSelected));
 
         // The check should be invisible if not selected.

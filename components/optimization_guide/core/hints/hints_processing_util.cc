@@ -181,10 +181,11 @@ std::string GetStringNameForOptimizationType(
       return "GlicActionPageBlock";
     case proto::OptimizationType::FEDCM_CLICKTHROUGH_RATE:
       return "FedCmClickthroughRate";
-    case proto::OptimizationType::GLIC_PAGE_CONTEXT_ELIGIBILITY:
-      return "GlicPageContextEligibility";
     case proto::OptimizationType::DIGITAL_CREDENTIALS_LOW_FRICTION:
       return "DigitalCredentialsLowFriction";
+    case proto::OptimizationType::
+        SHARED_CREDIT_CARD_FLAT_RATE_BENEFITS_BLOCKLIST:
+      return "SharedCreditCardFlatRateBenefitBlocklist";
   }
 
   // The returned string is used to record histograms for the optimization type.

@@ -2091,6 +2091,9 @@ const PolicyToPreferenceMapEntry kSimplePolicyMap[] = {
   { key::kDeviceAttributesAllowedForOrigins,
     prefs::kDeviceAttributesAllowedForOrigins,
     base::Value::Type::LIST },
+  { key::kKioskApplicationLogCollectionEnabled,
+    prefs::kKioskApplicationLogCollectionEnabled,
+    base::Value::Type::BOOLEAN},
   { key::kKioskBrowserPermissionsAllowedForOrigins,
     prefs::kKioskBrowserPermissionsAllowedForOrigins,
     base::Value::Type::LIST },
@@ -2385,9 +2388,6 @@ const PolicyToPreferenceMapEntry kSimplePolicyMap[] = {
     prefs::kNTPFooterManagementNoticeEnabled,
     base::Value::Type::BOOLEAN },
 #endif // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
-  { key::kAIModeSearchSuggestSettings,
-    omnibox::kAIModeSearchSuggestSettings,
-    base::Value::Type::INTEGER },
   { key::kAIModeSettings,
     omnibox::kAIModeSettings,
     base::Value::Type::INTEGER },
@@ -3255,10 +3255,6 @@ std::unique_ptr<ConfigurationPolicyHandlerList> BuildHandlerList(
       extensions::pref_names::kExtensionUnpublishedAvailability,
       /*min=*/0, /*max=*/1, /*clamp=*/false));
   handlers->AddHandler(std::make_unique<ExtensionDeveloperModePolicyHandler>());
-  handlers->AddHandler(std::make_unique<IntRangePolicyHandler>(
-      key::kExtensionManifestV2Availability,
-      extensions::pref_names::kManifestV2Availability, /*min=*/0, /*max=*/3,
-      /*clamp=*/false));
 
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 
@@ -3375,10 +3371,6 @@ std::unique_ptr<ConfigurationPolicyHandlerList> BuildHandlerList(
       key::kGenAIInlineImageSettings,
       ash::prefs::kLobsterEnterprisePolicySettings);
 #endif  // BUILDFLAG(IS_CHROMEOS)
-  gen_ai_default_policies.emplace_back(
-      key::kAIModeSearchSuggestSettings, omnibox::kAIModeSearchSuggestSettings,
-      GenAiDefaultSettingsPolicyHandler::PolicyValueToPrefMap(
-          {{0, 0}, {1, 0}, {2, 1}}));
   gen_ai_default_policies.emplace_back(
       key::kAIModeSettings, omnibox::kAIModeSettings,
       GenAiDefaultSettingsPolicyHandler::PolicyValueToPrefMap(

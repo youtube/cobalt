@@ -15,12 +15,16 @@
 #include "chrome/common/actor.mojom-forward.h"
 #include "content/public/browser/weak_document_ptr.h"
 
+namespace tabs {
+class TabInterface;
+}  // namespace tabs
+
 namespace content {
 class RenderFrameHost;
 }  // namespace content
 
 namespace optimization_guide::proto {
-class ActionInformation;
+class Action;
 }  // namespace optimization_guide::proto
 
 namespace actor {
@@ -29,7 +33,7 @@ class AggregatedJournal;
 class Tool;
 
 // Entry point into actor tool usage. ToolController is a profile-scoped,
-// ActorCoordinator-owned object. This class routes a tool use request to the
+// ExecutionEngine-owned object. This class routes a tool use request to the
 // appropriate browser tool or to a corresponding executor in the renderer for
 // page-level tools.
 class ToolController {
@@ -40,11 +44,12 @@ class ToolController {
   ToolController(const ToolController&) = delete;
   ToolController& operator=(const ToolController&) = delete;
 
-  // Invokes a tool action.
-  void Invoke(const optimization_guide::proto::ActionInformation& action,
+  // Invokes a tool action. Both `tab` and `target_frame` can be null.
+  void Invoke(const optimization_guide::proto::Action& action,
               AggregatedJournal& journal,
               TaskId task_id,
-              content::RenderFrameHost& target_frame,
+              tabs::TabInterface* tab,
+              content::RenderFrameHost* target_frame,
               ResultCallback result_callback);
 
  private:
@@ -58,8 +63,9 @@ class ToolController {
   std::unique_ptr<Tool> CreateTool(
       AggregatedJournal& journal,
       TaskId task_id,
-      content::RenderFrameHost& frame,
-      const optimization_guide::proto::ActionInformation& action_information);
+      tabs::TabInterface* tab,
+      content::RenderFrameHost* frame,
+      const optimization_guide::proto::Action& action);
 
   void ValidationComplete(mojom::ActionResultPtr result);
 

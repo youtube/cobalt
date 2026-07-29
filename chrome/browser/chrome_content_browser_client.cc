@@ -323,6 +323,7 @@
 #include "content/public/browser/permission_descriptor_util.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/render_process_host.h"
+#include "content/public/browser/service_worker_context.h"
 #include "content/public/browser/site_isolation_mode.h"
 #include "content/public/browser/site_isolation_policy.h"
 #include "content/public/browser/sms_fetcher.h"
@@ -340,6 +341,7 @@
 #include "content/public/common/content_descriptors.h"
 #include "content/public/common/content_features.h"
 #include "content/public/common/content_switches.h"
+#include "content/public/common/origin_util.h"
 #include "content/public/common/url_utils.h"
 #include "content/public/common/window_container_type.mojom-shared.h"
 #include "device/fido/features.h"
@@ -484,11 +486,12 @@
 #include "chrome/browser/android/tab_android.h"
 #include "chrome/browser/android/tab_web_contents_delegate_android.h"
 #include "chrome/browser/chrome_browser_main_android.h"
+#include "chrome/browser/chrome_content_browser_client_android.h"
 #include "chrome/browser/digital_credentials/digital_identity_provider_android.h"
 #include "chrome/browser/flags/android/chrome_feature_list.h"
 #include "chrome/browser/safe_browsing/android/safe_browsing_referring_app_bridge_android.h"
 #include "chrome/browser/ui/android/tab_model/tab_model_list.h"
-#include "chrome/common/chrome_descriptors.h"
+#include "chrome/common/chrome_descriptors_android.h"
 #include "components/browser_ui/accessibility/android/font_size_prefs_android.h"
 #include "components/crash/content/browser/child_exit_observer_android.h"
 #include "components/crash/content/browser/crash_memory_metrics_collector_android.h"
@@ -774,6 +777,11 @@ bool g_disable_advanced_protection_caching_for_tests = false;
 
 BASE_FEATURE(kSkipPagehideInCommitForDSENavigation,
              "SkipPagehideInCommitForDSENavigation",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Warm up the ServiceWorker registration for DSE.
+BASE_FEATURE(kPrewarmServiceWorkerRegistrationForDSE,
+             "PrewarmServiceWorkerRegistrationForDSE",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 // A small ChromeBrowserMainExtraParts that invokes a callback when threads are
@@ -1328,6 +1336,10 @@ ProfileSelections GetHumanProfileSelections() {
 bool IsDefaultSearchEngine(Profile* profile, const GURL& url) {
   auto* template_url_service =
       TemplateURLServiceFactory::GetForProfile(profile);
+
+  if (!template_url_service) {
+    return false;
+  }
 
   const TemplateURL* default_search_engine =
       template_url_service->GetDefaultSearchProvider();
@@ -3762,6 +3774,61 @@ bool ChromeContentBrowserClient::AreThirdPartyCookiesGenerallyAllowed(
   return !cookie_settings->ShouldBlockThirdPartyCookies();
 }
 
+void ChromeContentBrowserClient::PrewarmServiceWorkerRegistrationForDSE(
+    content::BrowserContext* browser_context,
+    content::ServiceWorkerContext& service_worker_context) {
+  TRACE_EVENT(
+      "ServiceWorker",
+      "ChromeContentBrowserClient::PrewarmServiceWorkerRegistrationForDSE");
+
+  if (ChromeContentBrowserClient::
+          PrewarmServiceWorkerRegistrationForDSECalledCountForTesting()) {
+    CHECK_IS_TEST();
+    ++(*ChromeContentBrowserClient::
+           PrewarmServiceWorkerRegistrationForDSECalledCountForTesting());
+  }
+
+  if (!base::FeatureList::IsEnabled(kPrewarmServiceWorkerRegistrationForDSE)) {
+    return;
+  }
+
+  Profile* profile = Profile::FromBrowserContext(browser_context);
+
+  if (!profile) {
+    return;
+  }
+
+  TemplateURLService* template_url_service =
+      TemplateURLServiceFactory::GetForProfile(profile);
+
+  if (!template_url_service) {
+    return;
+  }
+
+  GURL url =
+      template_url_service->GenerateSearchURLForDefaultSearchProvider(u"");
+
+  if (!content::OriginCanAccessServiceWorkers(url)) {
+    return;
+  }
+
+  const blink::StorageKey key =
+      blink::StorageKey::CreateFirstParty(url::Origin::Create(url));
+
+  if (!service_worker_context.MaybeHasRegistrationForStorageKey(key)) {
+    return;
+  }
+
+  service_worker_context.CheckHasServiceWorker(url, key, base::DoNothing());
+}
+
+// static
+std::optional<int>& ChromeContentBrowserClient::
+    PrewarmServiceWorkerRegistrationForDSECalledCountForTesting() {
+  static std::optional<int> call_count;
+  return call_count;
+}
+
 bool ChromeContentBrowserClient::CanSendSCTAuditingReport(
     content::BrowserContext* browser_context) {
   return SCTReportingService::CanSendSCTAuditingReport();
@@ -5028,29 +5095,7 @@ void ChromeContentBrowserClient::GetAdditionalMappedFilesForChildProcess(
   fd = ui::GetCommonResourcesPackFd(&region);
   mappings->ShareWithRegion(kAndroidChrome100PercentPakDescriptor, fd, region);
 
-  // There are (up to) 2 locale paks for Clank. One contains all the strings
-  // that exist in WebView, and is shared with WebView. The other contains all
-  // the strings that are present in Clank but not WebView.
-  //
-  // Note that in the near future when we introduce gendered locales, we will
-  // have up to 4 locale paks here: WebView-gendered, non-WebView-gendered,
-  // WebView-fallback, and non-WebView-fallback. The "fallback" paks are for the
-  // default gender, and will be read from if a particular string doesn't exist
-  // in the corresponding gendered pak.
-  const std::vector<ui::ResourceBundle::FdAndRegion>& locale_paks =
-      ui::GetLocalePaks();
-  CHECK_GE(locale_paks.size(), 1u);
-  CHECK_LE(locale_paks.size(), 2u);
-
-  mappings->ShareWithRegion(kAndroidLocalePakDescriptor, locale_paks.at(0).fd,
-                            locale_paks.at(0).region);
-
-  // Optional secondary locale .pak file.
-  if (locale_paks.size() == 2) {
-    CHECK_GE(locale_paks.at(1).fd, 0);
-    mappings->ShareWithRegion(kAndroidSecondaryLocalePakDescriptor,
-                              locale_paks.at(1).fd, locale_paks.at(1).region);
-  }
+  GetMappedLocalePacksForChildProcess(mappings);
 
   base::FilePath app_data_path;
   base::PathService::Get(base::DIR_ANDROID_APP_DATA, &app_data_path);
@@ -8515,6 +8560,11 @@ void ChromeContentBrowserClient::QueryInstalledWebAppsByManifestId(
     base::OnceCallback<void(std::optional<blink::mojom::RelatedApplication>)>
         callback) {
   Profile* profile = Profile::FromBrowserContext(browser_context);
+
+  if (!web_app::AreWebAppsEnabled(profile)) {
+    return std::move(callback).Run(std::nullopt);
+  }
+
   web_app::WebAppProvider* const provider =
       web_app::WebAppProvider::GetForLocalAppsUnchecked(profile);
 

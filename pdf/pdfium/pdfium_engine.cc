@@ -1445,6 +1445,10 @@ bool PDFiumEngine::OnLeftMouseDown(const blink::WebMouseEvent& event) {
   }
   SetFieldFocus(FocusFieldType::kNoFocus);
 
+#if BUILDFLAG(ENABLE_SCREEN_AI_SERVICE)
+  client_->MaybeShowSearchifyInProgress();
+#endif
+
   if (point_data.area != PDFiumPage::TEXT_AREA) {
     return true;  // Return true so WebKit doesn't do its own highlighting.
   }
@@ -1910,6 +1914,10 @@ void PDFiumEngine::StartFind(const std::u16string& text, bool case_sensitive) {
     client_->NotifyNumberOfFindResultsChanged(0, true);
     return;
   }
+
+#if BUILDFLAG(ENABLE_SCREEN_AI_SERVICE)
+  client_->MaybeShowSearchifyInProgress();
+#endif
 
   bool first_search = (current_find_text_ != text);
   int character_to_start_searching_from = 0;

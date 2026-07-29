@@ -295,7 +295,7 @@ Se não fizer isso, a permissão será bloqueada pelas configurações de privac
 <translation id="1482372785911828880">Ultrafino</translation>
 <translation id="1482879811280872320">De bicicleta</translation>
 <translation id="1483493594462132177">Enviar</translation>
-<translation id="1484449009683144042">Esta é uma ferramenta experimental de escrita com tecnologia de IA que nem sempre acerta.
+<translation id="1484449009683144042">Esta é uma ferramenta experimental de escrita com tecnologia de IA. Sujeita a erros.
     <ph name="BEGIN_LINK" />Saiba mais<ph name="END_LINK" /></translation>
 <translation id="1486096554574027028">Pesquise senhas</translation>
 <translation id="1492194039220927094">Push de políticas:</translation>
@@ -345,7 +345,7 @@ Se não fizer isso, a permissão será bloqueada pelas configurações de privac
 <translation id="1569694109004336106">O Google Chrome está tentando ativar o Windows Hello para preencher senhas.</translation>
 <translation id="1572765991610098222"><ph name="WIDTH" /> x <ph name="HEIGHT" /> pol.</translation>
 <translation id="1574714699824202614">Verificando a forma de pagamento</translation>
-<translation id="1576277203042721907">Shopping Insights</translation>
+<translation id="1576277203042721907">Insights de compras</translation>
 <translation id="1579189948231786790">Este site foi bloqueado pela sua organização</translation>
 <translation id="1581080074034554886">CVC</translation>
 <translation id="1581172376168798878">Não expira</translation>
@@ -522,6 +522,7 @@ Se não fizer isso, a permissão será bloqueada pelas configurações de privac
 <translation id="1863257867908022953">Bandeja 12</translation>
 <translation id="1864927262126810325">De <ph name="SOURCE_NAME" /></translation>
 <translation id="186539747722034544">Provedores de TV a cabo e por satélite</translation>
+<translation id="1866757068250903512">Controle os dispositivos de autenticação <ph name="READERNAME" /> e os cartões inteligentes usados com eles</translation>
 <translation id="1870473978371099486">Aulas particulares</translation>
 <translation id="1871208020102129563">O proxy foi configurado para utilizar servidores de proxy fixo e não um URL de script .pac.</translation>
 <translation id="1871284979644508959">Campo obrigatório</translation>
@@ -866,6 +867,7 @@ Se não fizer isso, a permissão será bloqueada pelas configurações de privac
             <ph name="LIST_ITEM" />Informações inseridas em formulários
           <ph name="END_LIST" /></translation>
 <translation id="2448295565072560657">Periféricos vinculados a este dispositivo enquanto sua conta está conectada</translation>
+<translation id="2450019289047528273">Formas de pagamento e outras informações da Carteira do Google</translation>
 <translation id="2451607499823206582">Monitoramento</translation>
 <translation id="2452098632681057184">Ecologia e meio ambiente</translation>
 <translation id="2452837234288608067">Não foi possível ajudar. Tente de novo.</translation>
@@ -935,6 +937,7 @@ Se não fizer isso, a permissão será bloqueada pelas configurações de privac
 <translation id="2546283357679194313">Cookies e dados de sites</translation>
 <translation id="254947805923345898">O valor da política não é válido.</translation>
 <translation id="2549836668759467704">Consultoria e contratação de construção</translation>
+<translation id="2549919488151689436"><ph name="TOPIC_1" />, <ph name="TOPIC_2" /> e mais</translation>
 <translation id="255002559098805027"><ph name="HOST_NAME" /> enviou uma resposta inválida.</translation>
 <translation id="2551608178605132291">Endereço: <ph name="ADDRESS" />.</translation>
 <translation id="2552246211866555379">Hagaki</translation>
@@ -1045,6 +1048,7 @@ Se não fizer isso, a permissão será bloqueada pelas configurações de privac
 <translation id="2743934314332613923">Atualizar carteira de habilitação?</translation>
 <translation id="2759299890026163685">Verifique se você tem uma conexão de Internet estável antes de tentar de novo</translation>
 <translation id="2759825833388495838">preencher sua senha no app <ph name="APP_NAME" /></translation>
+<translation id="2760805590727089264">MM / AA</translation>
 <translation id="2764001903315068341">Quadrinhos</translation>
 <translation id="2765217105034171413">Pequeno</translation>
 <translation id="2768397283109119044">Você tentou acessar <ph name="DOMAIN" />, mas o servidor apresentou um certificado inválido emitido para esse nome. O nome é um endereço IP reservado ou um nome do host interno.</translation>
@@ -1385,6 +1389,7 @@ Se não fizer isso, a permissão será bloqueada pelas configurações de privac
 <translation id="3362968246557010467">Esta política foi copiada automaticamente da política <ph name="OLD_POLICY" /> obsoleta. Use esta política.</translation>
 <translation id="3364869320075768271"><ph name="URL" /> quer usar seus dispositivos e dados de realidade virtual</translation>
 <translation id="3369192424181595722">Erro do relógio</translation>
+<translation id="3370855919511944393">Configurações da Carteira</translation>
 <translation id="3371064404604898522">Definir o Chrome como navegador padrão</translation>
 <translation id="3371186787117738282">Informação adicionada: <ph name="ATTRIBUTE_NAME" /></translation>
 <translation id="337363190475750230">Desprovisionado</translation>
@@ -1560,6 +1565,7 @@ Se não fizer isso, a permissão será bloqueada pelas configurações de privac
 <translation id="3641116835972736297">Futebol americano</translation>
 <translation id="3642196846309122856">Tente baixar os arquivos de novo</translation>
 <translation id="3642638418806704195">Aplicativo:</translation>
+<translation id="3644768007456662469">Ícone do item de pagamentos</translation>
 <translation id="3646643500201740985">Medir a performance de um anúncio</translation>
 <translation id="3647286794400715637">Cada entrada de string de URL precisa conter entre um e dois URLs.</translation>
 <translation id="3647400963805615193">Botão "Dispensar dica do Chrome", pressione Enter para dispensar, <ph name="REMOVE_BUTTON_FOCUSED_FRIENDLY_MATCH_TEXT" /></translation>
@@ -2096,11 +2102,13 @@ Se não fizer isso, a permissão será bloqueada pelas configurações de privac
 <translation id="4530347922939905757">Mensagem de texto</translation>
 <translation id="4531477351494678589">Número do cartão virtual:</translation>
 <translation id="4535523368173457420">Esses mecanismos de pesquisa são os mais usados na sua região. Eles estão listados em ordem aleatória.</translation>
+<translation id="4539931187424170595">{NUM_YEARS,plural, =1{Criado há 1 ano}one{Criado há {NUM_YEARS} ano}other{Criado há {NUM_YEARS} anos}}</translation>
 <translation id="4541810033354695636">realidade aumentada</translation>
 <translation id="4542971377163063093">Bandeja 6</translation>
 <translation id="4543072026714825470">Para agilizar o pagamento na próxima vez, salve o cartão e o endereço de faturamento na sua Conta do Google.</translation>
 <translation id="454441086898495030">Adicionar a <ph name="SET" />?</translation>
 <translation id="4546730006268514143">O tempo de transferência expirou</translation>
+<translation id="4548974025982531828">{NUM_DAYS,plural, =1{Criado há 1 dia}one{Criado há {NUM_DAYS} dia}other{Criado há {NUM_DAYS} dias}}</translation>
 <translation id="455113658016510503">A9</translation>
 <translation id="4556069465387849460">Você está usando o bloqueio de tela para preencher senhas</translation>
 <translation id="4557573143631562971">Seguro residencial</translation>
@@ -2894,6 +2902,7 @@ Se não fizer isso, a permissão será bloqueada pelas configurações de privac
 <translation id="5938153366081463283">Adicionar cartão virtual</translation>
 <translation id="5938793338444039872">Troy</translation>
 <translation id="5938866385061293322">Essas informações vêm de sites de avaliações independentes, como Trustpilot, ScamAdviser, Google e outros. Os resumos são criados com IA.</translation>
+<translation id="5943775258256265106">{NUM_MINS,plural, =1{Criado há 1 minuto}one{Criado há {NUM_MINS} minuto}other{Criado há {NUM_MINS} minutos}}</translation>
 <translation id="5944297261866530437">Tecido (alto brilho)</translation>
 <translation id="5950901984834744590">Lâminas e barbeadores</translation>
 <translation id="5951495562196540101">Não é possível fazer a inscrição com a conta pessoal (pacote de licença disponível).</translation>
@@ -3041,6 +3050,7 @@ Se não fizer isso, a permissão será bloqueada pelas configurações de privac
 <translation id="6177531123306197852">Envelope C2</translation>
 <translation id="6180316780098470077">Intervalo entre novas tentativas</translation>
 <translation id="6182972682129119950">A4x5</translation>
+<translation id="6184099524311454384">Pesquisar guias</translation>
 <translation id="6184868291074982484">O Chrome limita automaticamente os cookies de terceiros</translation>
 <translation id="6190518157737269631">Substituir algumas teclas do teclado, como Esc</translation>
 <translation id="6194209731893739467">Veja todos os seus produtos monitorados aqui</translation>
@@ -3599,6 +3609,7 @@ Se não fizer isso, a permissão será bloqueada pelas configurações de privac
 <translation id="7130775116821607281">Upload bloqueado</translation>
 <translation id="7132939140423847331">O administrador bloqueou a cópia destes dados.</translation>
 <translation id="7135130955892390533">Mostrar status</translation>
+<translation id="7135814714616751706">Pesquisar atalhos</translation>
 <translation id="7136009930065337683">Saiba mais sobre a navegação anônima</translation>
 <translation id="7138472120740807366">Método de entrega</translation>
 <translation id="7138678301420049075">Outro</translation>
@@ -3951,7 +3962,7 @@ Mais detalhes:
 <translation id="769424100851389104">Iniciar atualização agora</translation>
 <translation id="7697837508203274589">Eventos esportivos ao vivo</translation>
 <translation id="7698864304447945242">Atualizar o Google Play Services para RA?</translation>
-<translation id="7701040980221191251">Não há</translation>
+<translation id="7701040980221191251">Nenhum</translation>
 <translation id="7701486038694690341">Música country</translation>
 <translation id="7701544340847569275">Atualização concluída com erros</translation>
 <translation id="7704050614460855821"><ph name="BEGIN_LINK" />Ir para <ph name="SITE" /> (não seguro)<ph name="END_LINK" /></translation>
@@ -4026,7 +4037,7 @@ Mais detalhes:
 <translation id="782886543891417279">O Wi-Fi que você está usando (<ph name="WIFI_NAME" />) pode exigir a visita a uma página de login.</translation>
 <translation id="7831993212387676366">O que é a lista de compras?</translation>
 <translation id="7840103971441592723">A captura de tela foi iniciada</translation>
-<translation id="784137052867620416">Shopping Insights</translation>
+<translation id="784137052867620416">Insights de compras</translation>
 <translation id="7841633276323004751">Formas de pagamento disponíveis para selecionar e continuar com o pagamento. Teclado oculto.</translation>
 <translation id="7842611866969435396">Vamos lá</translation>
 <translation id="784404208867107517">Histórico agrupado</translation>
@@ -4055,6 +4066,7 @@ Mais detalhes:
 <translation id="7894280532028510793">Se o endereço estiver correto, <ph name="BEGIN_LINK" />tente executar o Diagnóstico de Rede<ph name="END_LINK" />.</translation>
 <translation id="7901831439558593470">Envelope de 18 cm x 23 cm</translation>
 <translation id="7905064834449738336">Quando você usa uma senha, o Chromium avisa se ela foi publicada on-line. Quando isso é feito, as senhas e os nomes de usuário são criptografados para que não possam ser lidos por ninguém, nem mesmo o Google.</translation>
+<translation id="7906177144646315659">{NUM_HOURS,plural, =1{Criado há 1 hora}one{Criado há {NUM_HOURS} hora}other{Criado há {NUM_HOURS} horas}}</translation>
 <translation id="7908648876066812348">Ativando o cartão virtual</translation>
 <translation id="7909498058929404306"><ph name="RUN_CHROME_SAFETY_CHECK_FOCUSED_FRIENDLY_MATCH_TEXT" />. Pressione Tab e depois Enter para acessar a página de confirmação de segurança do Chrome nas configurações</translation>
 <translation id="791107458486222637">Botão "Refazer" pressionado</translation>
@@ -4171,6 +4183,7 @@ Mais detalhes:
 <translation id="8092254339843485299">6 x 8 pol.</translation>
 <translation id="8092774999298748321">Roxo intenso</translation>
 <translation id="8094917007353911263">A rede que você está usando pode exigir uma visita a <ph name="BEGIN_BOLD" /><ph name="LOGIN_URL" /><ph name="END_BOLD" />.</translation>
+<translation id="809543534949702122">Pesquisar no histórico</translation>
 <translation id="8098855213644561659">A3 Extra</translation>
 <translation id="809898108652741896">A6</translation>
 <translation id="8103161714697287722">Forma de Pagamento</translation>
@@ -4189,6 +4202,7 @@ Mais detalhes:
 <translation id="8134058435519644366">Recrutamento e contratação</translation>
 <translation id="8135546115396015134">tecla esquerda</translation>
 <translation id="8137456439814903304">Energia e serviços públicos</translation>
+<translation id="814432316791813431">{NUM_MONTHS,plural, =1{Criado há 1 mês}one{Criado há {NUM_MONTHS} mês}other{Criado há {NUM_MONTHS} meses}}</translation>
 <translation id="8148608574971654810">Versão do PDF:</translation>
 <translation id="8149426793427495338">Seu computador entrou em modo de suspensão.</translation>
 <translation id="8150722005171944719">O arquivo em <ph name="URL" /> não está legível. Ele pode ter sido removido ou movido, ou as permissões do arquivo podem estar impedindo o acesso.</translation>
@@ -4811,6 +4825,7 @@ incomuns e incorretas. Isso pode acontecer quando um invasor está fingindo ser 
 <translation id="9219103736887031265">Imagens</translation>
 <translation id="922152298093051471">Personalizar o Chrome</translation>
 <translation id="9222403027701923763">Educação primária e secundária (K-12)</translation>
+<translation id="9222463428840654067">O número do cartão é inválido</translation>
 <translation id="922849469395748170">Cartões fidelidade</translation>
 <translation id="93020190163435405">Estágios</translation>
 <translation id="931598121743515856">A compra precisa custar mais de <ph name="CHECKOUT_AMOUNT_MINIMUM" /></translation>

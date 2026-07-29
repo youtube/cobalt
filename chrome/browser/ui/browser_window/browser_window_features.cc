@@ -25,13 +25,17 @@
 #include "chrome/browser/ui/browser_instant_controller.h"
 #include "chrome/browser/ui/browser_location_bar_model_delegate.h"
 #include "chrome/browser/ui/browser_tab_menu_model_delegate.h"
+#include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/desktop_browser_window_capabilities.h"
 #include "chrome/browser/ui/commerce/product_specifications_entry_point_controller.h"
 #include "chrome/browser/ui/extensions/mv2_disabled_dialog_controller.h"
+#include "chrome/browser/ui/find_bar/find_bar.h"
+#include "chrome/browser/ui/find_bar/find_bar_controller.h"
 #include "chrome/browser/ui/lens/lens_overlay_entry_point_controller.h"
 #include "chrome/browser/ui/performance_controls/memory_saver_bubble_controller.h"
 #include "chrome/browser/ui/performance_controls/memory_saver_opt_in_iph_controller.h"
+#include "chrome/browser/ui/signin/signin_view_controller.h"
 #include "chrome/browser/ui/sync/browser_synced_window_delegate.h"
 #include "chrome/browser/ui/tabs/glic_nudge_controller.h"
 #include "chrome/browser/ui/tabs/organization/tab_declutter_controller.h"
@@ -122,6 +126,10 @@ void BrowserWindowFeatures::ReplaceBrowserWindowFeaturesForTesting(
 }
 
 void BrowserWindowFeatures::Init(BrowserWindowInterface* browser) {
+  // This is used only for the controllers which will be created on demand
+  // later.
+  browser_ = browser;
+
   // Avoid passing `browser` directly to features. Instead, pass the minimum
   // necessary state or controllers necessary.
   // Ping erikchen for assistance. This comment will be deleted after there are
@@ -217,6 +225,8 @@ void BrowserWindowFeatures::Init(BrowserWindowInterface* browser) {
   reading_list_side_panel_coordinator_ =
       std::make_unique<ReadingListSidePanelCoordinator>(
           browser->GetProfile(), browser->GetTabStripModel());
+
+  signin_view_controller_ = std::make_unique<SigninViewController>(browser);
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
   if (base::FeatureList::IsEnabled(features::kPdfInfoBar)) {
@@ -375,10 +385,11 @@ void BrowserWindowFeatures::InitPostBrowserViewConstruction(
   }
 }
 
-void BrowserWindowFeatures::TearDownPreBrowserViewDestruction() {
+void BrowserWindowFeatures::TearDownPreBrowserWindowDestruction() {
   memory_saver_opt_in_iph_controller_.reset();
   lens_overlay_entry_point_controller_.reset();
   tab_search_toolbar_button_controller_.reset();
+  toast_service_.reset();
   extension_window_controller_.reset();
 
 #if BUILDFLAG(ENABLE_GLIC)
@@ -386,13 +397,13 @@ void BrowserWindowFeatures::TearDownPreBrowserViewDestruction() {
 #endif
 
   if (download_toolbar_ui_controller_) {
-    download_toolbar_ui_controller_->TearDownPreBrowserViewDestruction();
+    download_toolbar_ui_controller_->TearDownPreBrowserWindowDestruction();
   }
 
   // TODO(crbug.com/346148093): This logic should not be gated behind a
   // conditional.
   if (side_panel_coordinator_) {
-    side_panel_coordinator_->TearDownPreBrowserViewDestruction();
+    side_panel_coordinator_->TearDownPreBrowserWindowDestruction();
   }
 
   if (mv2_disabled_dialog_controller_) {
@@ -412,6 +423,7 @@ void BrowserWindowFeatures::TearDownPreBrowserViewDestruction() {
   }
 
   desktop_browser_window_capabilities_.reset();
+  signin_view_controller_->TearDownPreBrowserWindowDestruction();
 }
 
 SidePanelUI* BrowserWindowFeatures::side_panel_ui() {
@@ -420,6 +432,24 @@ SidePanelUI* BrowserWindowFeatures::side_panel_ui() {
 
 ToastController* BrowserWindowFeatures::toast_controller() {
   return toast_service_ ? toast_service_->toast_controller() : nullptr;
+}
+
+FindBarController* BrowserWindowFeatures::GetFindBarController() {
+  if (!find_bar_controller_.get()) {
+    CHECK(browser_);
+    find_bar_controller_ = std::make_unique<FindBarController>(
+        browser_->GetBrowserForMigrationOnly()->window()->CreateFindBar());
+    find_bar_controller_->find_bar()->SetFindBarController(
+        find_bar_controller_.get());
+    find_bar_controller_->ChangeWebContents(
+        tab_strip_model_->GetActiveWebContents());
+    find_bar_controller_->find_bar()->MoveWindowIfNecessary();
+  }
+  return find_bar_controller_.get();
+}
+
+bool BrowserWindowFeatures::HasFindBarController() const {
+  return find_bar_controller_.get() != nullptr;
 }
 
 BrowserWindowFeatures::BrowserWindowFeatures() = default;

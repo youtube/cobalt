@@ -75,7 +75,7 @@ class DownloadManagerCoordinatorImpl
         mActivity = activity;
         mSettingsNavigation = settingsNavigation;
         mDeleteCoordinator = new DeleteUndoCoordinator(snackbarManager);
-        mSelectionDelegate = new SelectionDelegate<ListItem>();
+        mSelectionDelegate = new SelectionDelegate<>();
         mListCoordinator =
                 new DateOrderedListCoordinator(
                         mActivity,
@@ -98,6 +98,7 @@ class DownloadManagerCoordinatorImpl
                         /* listContentView= */ mListCoordinator.getView(),
                         mSelectionDelegate,
                         config.isSeparateActivity,
+                        config.autoFocusSearchBox,
                         tracker);
 
         initializeView();

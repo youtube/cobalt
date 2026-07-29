@@ -674,6 +674,8 @@ Request* Request::CreateRequestWithRequestOrString(
     }
     options.retry_after_unload = retry_options->retryAfterUnload();
     options.retry_non_idempotent = retry_options->retryNonIdempotent();
+    options.retry_only_if_server_unreached =
+        retry_options->retryOnlyIfServerUnreached();
     request->SetRetryOptions(options);
   }
 
@@ -1263,7 +1265,7 @@ mojom::blink::FetchAPIRequestPtr Request::CreateFetchAPIRequest() const {
     HTTPHeaderMap::AddResult result = headers.Add(key, value);
     if (!result.is_new_entry) {
       result.stored_value->value =
-          AtomicString(WTF::StrCat({result.stored_value->value, ", ", value}));
+          AtomicString(StrCat({result.stored_value->value, ", ", value}));
     }
   }
   for (const auto& pair : headers)

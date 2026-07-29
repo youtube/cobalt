@@ -88,7 +88,7 @@ inline constexpr base::FeatureParam<PreloadTopChromeWebUIMode>
     kPreloadTopChromeWebUIMode(
         &kPreloadTopChromeWebUI,
         kPreloadTopChromeWebUIModeName,
-        PreloadTopChromeWebUIMode::kPreloadOnMakeContents,
+        PreloadTopChromeWebUIMode::kPreloadOnWarmup,
         &kPreloadTopChromeWebUIModeOptions);
 
 // If smart preload is enabled, the preload WebUI is determined by historical
@@ -144,6 +144,13 @@ BASE_DECLARE_FEATURE(kScrimForBrowserWindowModal);
 BASE_DECLARE_FEATURE(KScrimForTabModal);
 
 BASE_DECLARE_FEATURE(kSideBySide);
+
+// The delay before showing the drop target for the side-by-side drag-and-drop
+// entrypoint.
+inline constexpr base::FeatureParam<base::TimeDelta>
+    kSideBySideShowDropTargetDelay(&kSideBySide,
+                                   "SideBySideShowDropTargetDelay",
+                                   base::Seconds(1));
 
 BASE_DECLARE_FEATURE(kSideBySideLinkMenuNewBadge);
 
@@ -366,6 +373,16 @@ inline constexpr base::FeatureParam<bool> kPageActionsMigrationPriceInsights(
 inline constexpr base::FeatureParam<bool> kPageActionsMigrationManagePasswords(
     &kPageActionsMigration,
     "manage_passwords",
+    false);
+
+inline constexpr base::FeatureParam<bool> kPageActionsMigrationCookieControls(
+    &kPageActionsMigration,
+    "cookie_controls",
+    false);
+
+inline constexpr base::FeatureParam<bool> kPageActionsMigrationAutofillAddress(
+    &kPageActionsMigration,
+    "autofill_address",
     false);
 
 // Determines whether the "save password" page action displays different UI if

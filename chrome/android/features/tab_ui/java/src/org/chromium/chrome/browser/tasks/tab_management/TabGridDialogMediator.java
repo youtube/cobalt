@@ -407,7 +407,7 @@ public class TabGridDialogMediator
                     }
 
                     @Override
-                    public void tabPendingClosure(Tab tab) {
+                    public void tabPendingClosure(Tab tab, @TabClosingSource int closingSource) {
                         if (!isVisible()) return;
 
                         // TODO(b/338447134): This shouldn't show a snackbar if the tab isn't in
@@ -1328,7 +1328,9 @@ public class TabGridDialogMediator
             @Nullable TabGridContextMenuCoordinator tabGridContextMenuCoordinator) {
         if (tabGridContextMenuCoordinator != null && cardView != null) {
             tabGridContextMenuCoordinator.showMenu(
-                    new ViewRectProvider(cardView, TabGridViewRectUpdater::new), tabId);
+                    new ViewRectProvider(cardView, TabGridViewRectUpdater::new),
+                    tabId,
+                    /* focusable= */ true);
             return tabGridContextMenuCoordinator::dismiss;
         }
         return null;

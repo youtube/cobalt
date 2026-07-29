@@ -63,6 +63,7 @@
 <translation id="178701303897325119">‏لم تعُد هذه الإضافة متاحة. ينصح متصفّح Chrome بإزالتها.</translation>
 <translation id="1812689907177901597">‏من خلال إيقاف هذا الإعداد، يمكنك تسجيل الدخول إلى "مواقع Google" مثل Gmail بدون الحاجة إلى تسجيل الدخول إلى Chrome</translation>
 <translation id="1821644463306970002">{NUM_TABS,plural, =1{‏ينصح Chrome بإيقاف علامة التبويب التي تبطئ المتصفّح مؤقتًا}zero{‏ينصح Chrome بإيقاف علامات التبويب التي تبطئ المتصفّح مؤقتًا}two{‏ينصح Chrome بإيقاف علامتَي التبويب اللتين تبطئان المتصفّح مؤقتًا}few{‏ينصح Chrome بإيقاف علامات التبويب التي تبطئ المتصفّح مؤقتًا}many{‏ينصح Chrome بإيقاف علامات التبويب التي تبطئ المتصفّح مؤقتًا}other{‏ينصح Chrome بإيقاف علامات التبويب التي تبطئ المتصفّح مؤقتًا}}</translation>
+<translation id="1832046143430087831">‏يعمل هذا الإعداد على زيادة سرعة المواقع الإلكترونية باستخدام محرّك V8 في Chrome، مع تقليل قدرة Chrome على مقاومة الهجمات قليلاً. هذا الإعداد غير مفعَّل.</translation>
 <translation id="1838374766361614909">محو البحث</translation>
 <translation id="1860536484129686729">‏يحتاج Chrome إلى إذن للوصول إلى الكاميرا من أجل الموقع الإلكتروني هذا.</translation>
 <translation id="1873233029667955273">‏Google Chrome ليس متصفحك التلقائي.</translation>
@@ -92,7 +93,7 @@
 <translation id="2137162749895930932">إغلاق شاشة الترجمة</translation>
 <translation id="2139300032719313227">‏إعادة تشغيل نظام التشغيل Chrome</translation>
 <translation id="2151406531797534936">‏يُرجى إعادة تشغيل Chrome الآن</translation>
-<translation id="2163089732491971196">‏عليك إدخال عبارة المرور لاستخدام بيانات Chrome وحفظها في حسابك على Google</translation>
+<translation id="2163089732491971196">‏لاستخدام بيانات Chrome وحفظها في حسابك على Google، يجب أولاً إدخال عبارة المرور</translation>
 <translation id="2174917724755363426">لم يكتمل التثبيت. هل تريد فعلاً الإلغاء؟</translation>
 <translation id="2186206192313702726">‏عدسة Google</translation>
 <translation id="2190166659037789668">خطأ في عملية التحقق من التحديث: <ph name="UPDATE_CHECK_ERROR" />.</translation>
@@ -221,6 +222,7 @@
 <translation id="3716540481907974026">‏إصدار نظام التشغيل ChromeOS Flex</translation>
 <translation id="3718181793972440140">‏سيعمل هذا على حذف عنصر واحد من هذا الجهاز. لاسترداد بياناتك لاحقًا، سجّل الدخول إلى Chrome كـ <ph name="USER_EMAIL" />.</translation>
 <translation id="3723744677043446310">{NUM_EXTENSIONS,plural, =1{‏ينصح متصفِّح Chrome بإزالة هذه الإضافة. <ph name="BEGIN_LINK" />مزيد من المعلومات عن الإضافات المتوافقة<ph name="END_LINK" />}zero{‏ينصح المتصفّح Chrome بإزالة هذه الإضافات. <ph name="BEGIN_LINK" />مزيد من المعلومات عن الإضافات المتوافقة<ph name="END_LINK" />}two{‏ينصح Chrome بإزالة هاتين الإضافتيَن. <ph name="BEGIN_LINK" />مزيد من المعلومات عن الإضافات المتوافقة<ph name="END_LINK" />}few{‏ينصح المتصفّح Chrome بإزالة هذه الإضافات. <ph name="BEGIN_LINK" />مزيد من المعلومات عن الإضافات المتوافقة<ph name="END_LINK" />}many{‏ينصح المتصفّح Chrome بإزالة هذه الإضافات. <ph name="BEGIN_LINK" />مزيد من المعلومات عن الإضافات المتوافقة<ph name="END_LINK" />}other{‏ينصح المتصفّح Chrome بإزالة هذه الإضافات. <ph name="BEGIN_LINK" />مزيد من المعلومات عن الإضافات المتوافقة<ph name="END_LINK" />}}</translation>
+<translation id="3756724684201900923">‏مزيد من المعلومات حول تثبيت Chrome</translation>
 <translation id="3780814664026482060">Chrome - <ph name="PAGE_TITLE" /></translation>
 <translation id="3785324443014631273">‏تعذَّر على ChromeOS Flex مزامنة البيانات بسبب حدوث خطأ أثناء تسجيل الدخول.</translation>
 <translation id="3795971588916395511">‏نظام التشغيل Chrome من Google</translation>
@@ -446,12 +448,12 @@
 <translation id="6718739135284199302">‏زيادة سرعة متصفِّح Chrome</translation>
 <translation id="6735387454586646204">‏نظام التشغيل ChromeOS Flex</translation>
 <translation id="6750954913813541382">‏لإصلاح الأخطاء الإملائية، يرسِل Chrome النص الذي تكتبه في المتصفّح إلى Google.</translation>
+<translation id="6760235774835597023">‏يعمل هذا الإعداد على زيادة سرعة المواقع الإلكترونية باستخدام محرّك V8 في Chrome، مع تقليل قدرة Chrome على مقاومة الهجمات قليلاً. هذا الإعداد مفعَّل.</translation>
 <translation id="677276454032249905">‏هل تريد الخروج من Chrome على أي حال؟</translation>
 <translation id="6794858689789885890">‏حذف بيانات الموقع الإلكتروني من جهازك دائمًا عند إغلاق Chrome</translation>
 <translation id="6831043979455480757">ترجمة</translation>
 <translation id="683440813066116847">‏قاعدة الوارد إلى Google Chrome Canary للسماح بحركة مرور mDNS.</translation>
 <translation id="684888714667046800">يتعذّر الاتصال بالإنترنت. في حال استخدام جدار حماية، يُرجى التأكّد من إدراج <ph name="PRODUCT_EXE_NAME" /> في القائمة المسموح بها.</translation>
-<translation id="6851981911629679515">‏يمكنك تفعيل ميزة "الحماية الإضافية" في محرك JavaScript وWebAssembly من Chrome.</translation>
 <translation id="6877155553248388166">أسفل يسار مساحة البحث: %<ph name="RIGHT" /> من الجهة اليسرى و%<ph name="BOTTOM" /> من الأسفل</translation>
 <translation id="6881299373831449287">‏جارٍ تحديث Chrome.</translation>
 <translation id="6885412569789873916">‏تطبيقات الإصدار التجريبي من Chrome</translation>

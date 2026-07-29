@@ -40,17 +40,9 @@
 
 namespace gpu {
 
-GpuMemoryBufferSupport::GpuMemoryBufferSupport() {
-#if BUILDFLAG(IS_OZONE)
-  client_native_pixmap_factory_ = ui::CreateClientNativePixmapFactoryOzone();
-#endif
-}
+namespace {
 
-GpuMemoryBufferSupport::~GpuMemoryBufferSupport() {}
-
-// static
-gfx::GpuMemoryBufferType
-GpuMemoryBufferSupport::GetNativeGpuMemoryBufferType() {
+gfx::GpuMemoryBufferType GetNativeGpuMemoryBufferType() {
 #if BUILDFLAG(IS_MAC)
   return gfx::IO_SURFACE_BUFFER;
 #elif BUILDFLAG(IS_ANDROID)
@@ -63,6 +55,16 @@ GpuMemoryBufferSupport::GetNativeGpuMemoryBufferType() {
   return gfx::EMPTY_BUFFER;
 #endif
 }
+
+}  // namespace
+
+GpuMemoryBufferSupport::GpuMemoryBufferSupport() {
+#if BUILDFLAG(IS_OZONE)
+  client_native_pixmap_factory_ = ui::CreateClientNativePixmapFactoryOzone();
+#endif
+}
+
+GpuMemoryBufferSupport::~GpuMemoryBufferSupport() = default;
 
 // static
 bool GpuMemoryBufferSupport::IsNativeGpuMemoryBufferConfigurationSupported(
@@ -224,13 +226,6 @@ bool GpuMemoryBufferSupport::IsConfigurationSupportedForTest(
   NOTREACHED();
 }
 
-// static
-bool GpuMemoryBufferSupport::IsSizeValid(const gfx::Size& size) {
-  base::CheckedNumeric<int> bytes = size.width();
-  bytes *= size.height();
-  return bytes.IsValid();
-}
-
 std::unique_ptr<GpuMemoryBufferImpl>
 GpuMemoryBufferSupport::CreateGpuMemoryBufferImplFromHandle(
     gfx::GpuMemoryBufferHandle handle,
@@ -253,7 +248,7 @@ GpuMemoryBufferSupport::CreateGpuMemoryBufferImplFromHandle(
 #if BUILDFLAG(IS_OZONE)
     case gfx::NATIVE_PIXMAP:
       return GpuMemoryBufferImplNativePixmap::CreateFromHandle(
-          client_native_pixmap_factory(), std::move(handle), size, format,
+          client_native_pixmap_factory_.get(), std::move(handle), size, format,
           usage, std::move(callback));
 #endif
 #if BUILDFLAG(IS_WIN)

@@ -22,8 +22,7 @@
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_instance.h"
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_type.h"
 #include "components/autofill/core/browser/integrators/autofill_ai/autofill_ai_delegate.h"
-#include "components/autofill_ai/core/browser/autofill_ai_client.h"
-#include "components/autofill_ai/core/browser/autofill_ai_import_utils.h"
+#include "components/autofill/core/browser/integrators/autofill_ai/autofill_ai_import_utils.h"
 #include "components/strings/grit/components_strings.h"
 #include "content/public/browser/navigation_handle.h"
 #include "ui/base/l10n/l10n_util.h"
@@ -112,7 +111,7 @@ SaveOrUpdateAutofillAiDataController::GetOrCreate(
 void SaveOrUpdateAutofillAiDataControllerImpl::ShowPrompt(
     autofill::EntityInstance new_entity,
     std::optional<autofill::EntityInstance> old_entity,
-    AutofillAiClient::SaveOrUpdatePromptResultCallback
+    autofill::AutofillClient::EntitySaveOrUpdatePromptResultCallback
         save_prompt_acceptance_callback) {
   // Don't show the bubble if it's already visible.
   if (bubble_view()) {

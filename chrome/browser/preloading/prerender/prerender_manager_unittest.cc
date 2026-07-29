@@ -309,17 +309,6 @@ TEST_P(PrerenderManagerBasicRequirementTest, NavigateAway) {
   }
 }
 
-// Test that a Searched related url is ignored by the prerender BookmarkBar
-// trigger.
-TEST_F(PrerenderManagerTest, DisallowSearchUrlBookmarkBar) {
-  base::HistogramTester histogram_tester;
-  GURL prerendering_url = GetSearchSuggestionUrl("prer", "prerender");
-  ASSERT_FALSE(prerender_manager()->StartPrerenderBookmark(prerendering_url));
-
-  histogram_tester.ExpectUniqueSample(
-      "Prerender.IsPrerenderingSRPUrl.Embedder_BookmarkBar", true, 1);
-}
-
 // Test that a Searched related url is ignored by the prerender NewTabPage
 // trigger.
 TEST_F(PrerenderManagerTest, DisallowSearchUrlNewTabPage) {
@@ -352,7 +341,7 @@ TEST_F(PrerenderManagerPrewarmTest, StartPrewarmSearchResult) {
   // Prerender the prewarm page.
   content::test::PrerenderHostRegistryObserver registry_observer(
       *GetActiveWebContents());
-  ASSERT_TRUE(prerender_manager()->StartPrewarmSearchResult());
+  ASSERT_TRUE(prerender_manager()->MaybeStartPrewarmSearchResult());
   registry_observer.WaitForTrigger(prewarm_url);
 
   // Prewarm page should not be found here as it's matcher was set as not

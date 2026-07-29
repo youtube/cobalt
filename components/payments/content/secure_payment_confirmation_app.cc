@@ -18,6 +18,7 @@
 #include "base/json/json_writer.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/notreached.h"
+#include "base/strings/utf_string_conversions.h"
 #include "base/time/time.h"
 #include "base/values.h"
 #include "components/payments/content/browser_binding/browser_bound_key.h"
@@ -69,6 +70,7 @@ SecurePaymentConfirmationApp::SecurePaymentConfirmationApp(
     content::WebContents* web_contents_to_observe,
     const std::string& effective_relying_party_identity,
     const std::u16string& payment_instrument_label,
+    const std::u16string& payment_instrument_details,
     std::unique_ptr<SkBitmap> payment_instrument_icon,
     std::vector<uint8_t> credential_id,
     std::unique_ptr<PasskeyBrowserBinder> passkey_browser_binder,
@@ -77,7 +79,7 @@ SecurePaymentConfirmationApp::SecurePaymentConfirmationApp(
     base::WeakPtr<PaymentRequestSpec> spec,
     mojom::SecurePaymentConfirmationRequestPtr request,
     std::unique_ptr<webauthn::InternalAuthenticator> authenticator,
-    std::vector<PaymentEntityLogo> payment_entities_logos)
+    std::vector<PaymentApp::PaymentEntityLogo> payment_entities_logos)
     : PaymentApp(/*icon_resource_id=*/0, PaymentApp::Type::INTERNAL),
       content::WebContentsObserver(web_contents_to_observe),
       authenticator_frame_routing_id_(
@@ -85,6 +87,7 @@ SecurePaymentConfirmationApp::SecurePaymentConfirmationApp(
                         : content::GlobalRenderFrameHostId()),
       effective_relying_party_identity_(effective_relying_party_identity),
       payment_instrument_label_(payment_instrument_label),
+      payment_instrument_details_(payment_instrument_details),
       payment_instrument_icon_(std::move(payment_instrument_icon)),
       credential_id_(std::move(credential_id)),
       merchant_origin_(merchant_origin),
@@ -212,7 +215,7 @@ std::u16string SecurePaymentConfirmationApp::GetLabel() const {
 }
 
 std::u16string SecurePaymentConfirmationApp::GetSublabel() const {
-  return std::u16string();
+  return payment_instrument_details_;
 }
 
 const SkBitmap* SecurePaymentConfirmationApp::icon_bitmap() const {
@@ -247,9 +250,19 @@ const SkBitmap* SecurePaymentConfirmationApp::network_bitmap() const {
   return payment_entities_logos_[0].icon.get();
 }
 
-const std::vector<PaymentApp::PaymentEntityLogo>&
-SecurePaymentConfirmationApp::GetPaymentEntitiesLogos() const {
-  return payment_entities_logos_;
+std::vector<PaymentApp::PaymentEntityLogo*>
+SecurePaymentConfirmationApp::GetPaymentEntitiesLogos() {
+  // Filters logos with empty icons out from payment_entities_logos_. Once
+  // network_bitmap() and issuer_bitmap() are no longer needed,
+  // payment_entities_logos_ will no longer contain logos with empty icons, and
+  // the filtering will not be required.
+  std::vector<PaymentApp::PaymentEntityLogo*> filtered_logos;
+  for (PaymentApp::PaymentEntityLogo& logo : payment_entities_logos_) {
+    if (logo.icon != nullptr) {
+      filtered_logos.push_back(&logo);
+    }
+  }
+  return filtered_logos;
 }
 
 bool SecurePaymentConfirmationApp::IsValidForModifier(
@@ -366,16 +379,30 @@ void SecurePaymentConfirmationApp::OnGetBrowserBoundKey(
   // passed the correct information.
   std::optional<std::vector<blink::mojom::ShownPaymentEntityLogoPtr>>
       payment_entities_logos;
+  blink::mojom::PaymentCredentialInstrumentPtr instrument =
+      request_->instrument.Clone();
   if (base::FeatureList::IsEnabled(
           blink::features::kSecurePaymentConfirmationUxRefresh)) {
     payment_entities_logos.emplace();
-    // TODO(crbug.com/416516304): Pass the icon urls (and labels) from the app
-    // factory, then include them in PaymentOptions.
+    for (const PaymentApp::PaymentEntityLogo& logo : payment_entities_logos_) {
+      if (logo.icon) {
+        payment_entities_logos->push_back(
+            blink::mojom::ShownPaymentEntityLogo::New(
+                logo.url, base::UTF16ToUTF8(logo.label)));
+      }
+    }
+  } else {
+    // If kSecurePaymentConfirmationUxRefresh is not enabled, then we did not
+    // show the instrument details in the UI, and therefore we do not include
+    // them in the clientData by setting an empty string. Details should be an
+    // empty string here because the dictionary field is already flag protected
+    // on the render side; however, we also set it empty here on the
+    // browser-side as well.
+    instrument->details = "";
   }
   authenticator_->SetPaymentOptions(blink::mojom::PaymentOptions::New(
       spec_->GetTotal(/*selected_app=*/this)->amount.Clone(),
-      request_->instrument.Clone(), request_->payee_name,
-      request_->payee_origin,
+      std::move(instrument), request_->payee_name, request_->payee_origin,
       /*payment_entities_logos=*/std::move(payment_entities_logos),
       std::move(browser_bound_public_key)));
 

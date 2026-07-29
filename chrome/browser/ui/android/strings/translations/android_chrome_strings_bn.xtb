@@ -109,6 +109,7 @@
 <translation id="1419753403124156396">Chrome রিস্টার্ট করতে চান?</translation>
 <translation id="1428770807407000502">সিঙ্ক করা বন্ধ করতে চান?</translation>
 <translation id="1430915738399379752">প্রিন্ট</translation>
+<translation id="1433478348197382180">Reading Mode</translation>
 <translation id="1435593198351412143">পিডিএফ অটোমেটিক খোলার সুবিধা</translation>
 <translation id="1437543266176261764"><ph name="APP_NAME" />-এ চলছে</translation>
 <translation id="1448440926884431741">Bookmarks-এ আপনার ট্র্যাক করা সমস্ত প্রোডাক্ট সাজিয়ে রাখুন</translation>
@@ -545,7 +546,6 @@
 <translation id="3513019849832307207">যোগ দিন ও খুলুন</translation>
 <translation id="3513704683820682405">অগমেন্টেড রিয়েলিটি</translation>
 <translation id="3516053221628030540">Google Play অ্যাপে যান</translation>
-<translation id="351672147489633468">{NUM_REVOKED_PERMISSIONS,plural, =1{আপনি সম্প্রতি দেখেননি এমন একটি সাইট থেকে বিজ্ঞপ্তির অনুমতি সরিয়ে দেওয়া হয়েছে}one{আপনি সম্প্রতি দেখেননি এমন #টি সাইট থেকে বিজ্ঞপ্তির অনুমতি সরিয়ে দেওয়া হয়েছে}other{আপনি সম্প্রতি দেখেননি এমন #টি সাইট থেকে বিজ্ঞপ্তির অনুমতি সরিয়ে দেওয়া হয়েছে}}</translation>
 <translation id="3518985090088779359">স্বীকার করুন ও অবিরত রাখুন</translation>
 <translation id="3519014757432845220">Google-এর সাথে বিজ্ঞপ্তির কন্টেন্ট ও সাইটের URL শেয়ার করার মাধ্যমে স্প্যাম সংক্রান্ত সুরক্ষা উন্নত করতে সাহায্য করুন। কোনও ব্যক্তি কন্টেন্ট পর্যালোচনা করতে পারেন।</translation>
 <translation id="3521388823983121502"><ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" />-এর মাধ্যমে চালিয়ে যাওয়া যাচ্ছে না</translation>
@@ -714,6 +714,7 @@
 <translation id="4298388696830689168">লিঙ্ক করা সাইট</translation>
 <translation id="4300632303535881174">আগের পৃষ্ঠায় ফিরে যান</translation>
 <translation id="4303044213806199882">chrome_screenshot_<ph name="CURRENT_TIMESTAMP_MS" /></translation>
+<translation id="4306489587293957491">লিখুন</translation>
 <translation id="4307992518367153382">বুনিয়াদি</translation>
 <translation id="4311652497846705514">পিডিএফ খুলতে চান?</translation>
 <translation id="4320177379694898372">কোনো ইন্টারনেট সংযোগ নেই</translation>
@@ -1080,7 +1081,6 @@
 <translation id="5956665950594638604">Chrome সহায়তা কেন্দ্রকে একটি নতুন ট্যাবে খুলুন</translation>
 <translation id="59577092665511740">একটি অ্যাকাউন্ট বেছে নিন।</translation>
 <translation id="5958275228015807058">ডাউনলোড ফোল্ডার থেকে আপনার সমস্ত ফাইল ও পৃষ্ঠাগুলি খুঁজে নিন</translation>
-<translation id="5958994127112619898">পৃষ্ঠা সরলীকরণ করুন</translation>
 <translation id="5962718611393537961">সঙ্কুচিত করতে আলতো চাপুন</translation>
 <translation id="5964869237734432770">ছবির বিবরণ বন্ধ করুন</translation>
 <translation id="5975083100439434680">ছোট করুন</translation>
@@ -1629,7 +1629,6 @@
 <translation id="8137562778192957619">আপনাকে এই পাসওয়ার্ড মনে রাখতে হবে না। এটি Google Password Manager-এ সেভ হয়ে যাবে।</translation>
 <translation id="8152331954420209374">Lens-এ যান</translation>
 <translation id="8163820386638255770">আপনার Google অ্যাকাউন্টের পাসওয়ার্ড সেভ ও ব্যবহার করতে, আপনার পরিচয় যাচাই করুন</translation>
-<translation id="8179976553408161302">Enter</translation>
 <translation id="8186512483418048923"><ph name="FILES" />টি ফাইল বাকি</translation>
 <translation id="8190358571722158785">১ দিন বাকি আছে</translation>
 <translation id="8192765420340770300">সাইন-ইন করার জন্য স্ক্রিনের নিচে অ্যাটাচ করা শিট সম্পূর্ণ স্ক্রিন জুড়ে খুলেছে</translation>
@@ -1651,7 +1650,6 @@
 <translation id="8244387390464017490">'নতুন ট্যাব' পৃষ্ঠা কাস্টমাইজ করুন</translation>
 <translation id="8250920743982581267">দস্তাবেজগুলি</translation>
 <translation id="8255617931166444521">সাইট শুধুমাত্র আপনার কুকি ব্যবহার করতে পারে, যাতে তার সাইটে আপনার ব্রাউজিং অ্যাক্টিভিটি দেখা যায়</translation>
-<translation id="8256087213273124136">Chrome বিজ্ঞপ্তি থেকে আপনাকে আনসাবস্ক্রাইব করে দিয়েছে</translation>
 <translation id="8258999165172757081">যোগ করা্ হয়েছে</translation>
 <translation id="8259179246279078674">প্রিলোড করা পৃষ্ঠা এনক্রিপ্ট করা থাকে বলে সেটির কন্টেন্ট Google জানতে পারে না। কোন সাইট ব্যক্তিগতভাবে প্রিলোড করা হয়েছে সেটি Google সার্ভার জানতে পারে। এই তথ্য শুধু পৃষ্ঠা প্রিলোড করার জন্য ব্যবহার করা হয় এবং আপনার Google অ্যাকাউন্টের অন্য তথ্যের সাথে যুক্ত থাকে না।</translation>
 <translation id="8260126382462817229">আবার সাইন ইন করার চেষ্টা করুন</translation>

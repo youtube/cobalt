@@ -179,7 +179,7 @@ public class UndoTabModelUnitTest {
                             mTabModelDelegate,
                             tabRemover,
                             supportUndo,
-                            /* isArchivedTabModel= */ true);
+                            /* isArchivedTabModel= */ false);
             when(mTabModelSelector.getModel(true)).thenReturn(tabModel);
         } else {
             tabModel =
@@ -195,7 +195,7 @@ public class UndoTabModelUnitTest {
                             mTabModelDelegate,
                             tabRemover,
                             supportUndo,
-                            /* isArchivedTabModel= */ true);
+                            /* isArchivedTabModel= */ false);
             when(mTabModelSelector.getModel(false)).thenReturn(tabModel);
         }
         // Assume the model is the current and active model.
@@ -272,7 +272,7 @@ public class UndoTabModelUnitTest {
         model.addObserver(
                 new TabModelObserver() {
                     @Override
-                    public void tabPendingClosure(Tab tab) {
+                    public void tabPendingClosure(Tab tab, @TabClosingSource int closingSource) {
                         didReceivePendingClosureHelper.notifyCalled();
                     }
                 });

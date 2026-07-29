@@ -15,10 +15,12 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.reset;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
@@ -51,6 +53,8 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.junit.MockitoJUnit;
@@ -76,6 +80,7 @@ import org.chromium.chrome.browser.browserservices.intents.BrowserServicesIntent
 import org.chromium.chrome.browser.browserservices.intents.CustomButtonParams.ButtonType;
 import org.chromium.chrome.browser.customtabs.CustomButtonParamsImpl;
 import org.chromium.chrome.browser.customtabs.CustomTabFeatureOverridesManager;
+import org.chromium.chrome.browser.customtabs.CustomTabsConnection;
 import org.chromium.chrome.browser.customtabs.features.minimizedcustomtab.CustomTabMinimizeDelegate;
 import org.chromium.chrome.browser.customtabs.features.minimizedcustomtab.MinimizedFeatureUtils;
 import org.chromium.chrome.browser.customtabs.features.toolbar.CustomTabToolbar.CustomTabLocationBar;
@@ -96,6 +101,8 @@ import org.chromium.chrome.browser.toolbar.top.CaptureReadinessResult;
 import org.chromium.chrome.browser.toolbar.top.NavigationPopup.HistoryDelegate;
 import org.chromium.chrome.browser.toolbar.top.ToggleTabStackButtonCoordinator;
 import org.chromium.chrome.browser.toolbar.top.ToolbarSnapshotDifference;
+import org.chromium.chrome.browser.ui.appmenu.AppMenuHandler;
+import org.chromium.chrome.browser.ui.appmenu.AppMenuObserver;
 import org.chromium.chrome.browser.user_education.UserEducationHelper;
 import org.chromium.components.content_settings.CookieBlocking3pcdStatus;
 import org.chromium.components.content_settings.CookieControlsState;
@@ -143,10 +150,12 @@ public class CustomTabToolbarUnitTest {
     @Mock Callback<Integer> mContainerVisibilityChangeObserver;
     @Mock View mParentView;
     @Mock WindowAndroid mWindowAndroid;
+    @Mock AppMenuHandler mAppMenuHandler;
     private @Mock PageInfoIphController mPageInfoIphController;
     @Mock private CustomTabFeatureOverridesManager mFeatureOverridesManager;
     @Mock private BrowserServicesIntentDataProvider mIntentDataProvider;
     @Mock private CustomTabMinimizeDelegate mMinimizeDelegate;
+    @Captor ArgumentCaptor<AppMenuObserver> mAppMenuObserverCaptor;
 
     private Activity mActivity;
     private CustomTabToolbar mToolbar;
@@ -210,7 +219,7 @@ public class CustomTabToolbarUnitTest {
                 null,
                 /* homeButtonDisplay= */ null);
         if (!ChromeFeatureList.sCctToolbarRefactor.isEnabled()) {
-            mToolbar.calculateToolbarWidthBeforeMeasure(mActivity, mIntentDataProvider);
+            mToolbar.initVisibilityRule(mActivity, () -> mAppMenuHandler, mIntentDataProvider);
             mToolbar.setFeatureOverridesManager(mFeatureOverridesManager);
         }
         mLocationBar =
@@ -655,16 +664,18 @@ public class CustomTabToolbarUnitTest {
     }
 
     @Test
-    @EnableFeatures({ChromeFeatureList.CCT_ADAPTIVE_BUTTON, ChromeFeatureList.SEARCH_IN_CCT})
+    @EnableFeatures(ChromeFeatureList.CCT_ADAPTIVE_BUTTON)
     public void testOptionalButton_notEnabledForSearchInCct() {
-        mToolbar.updateOptionalButton(getDataForTranslateIconButton());
+        var connection = spy(CustomTabsConnection.getInstance());
+        Mockito.doReturn(true).when(connection).shouldEnableOmniboxForIntent(any());
+        CustomTabsConnection.setInstanceForTesting(connection);
+        mToolbar.updateOptionalButton(getDataForPriceInsightsIconButton());
         assertNull(mToolbar.getOptionalButtonCoordinatorForTesting());
         assertEquals(View.GONE, mToolbar.findViewById(R.id.menu_dot).getVisibility());
     }
 
     @Test
-    @EnableFeatures({ChromeFeatureList.CCT_ADAPTIVE_BUTTON})
-    @DisableFeatures({ChromeFeatureList.SEARCH_IN_CCT})
+    @EnableFeatures(ChromeFeatureList.CCT_ADAPTIVE_BUTTON)
     public void testOptionalButton_notEnabledForMultipleDevButtons() {
         mToolbar.addCustomActionButton(
                 AppCompatResources.getDrawable(mActivity, R.drawable.ic_share_white_24dp),
@@ -676,8 +687,30 @@ public class CustomTabToolbarUnitTest {
                 "bookmark",
                 mock(OnClickListener.class),
                 ButtonType.OTHER);
-        mToolbar.updateOptionalButton(getDataForTranslateIconButton());
+        mToolbar.updateOptionalButton(getDataForPriceInsightsIconButton());
         assertNull(mToolbar.getOptionalButtonCoordinatorForTesting());
+        assertEquals(View.VISIBLE, mToolbar.findViewById(R.id.menu_dot).getVisibility());
+        verify(mAppMenuHandler).addObserver(mAppMenuObserverCaptor.capture());
+
+        // Verify that the corresponding menu item gets highlighted.
+        verify(mAppMenuHandler).setMenuHighlight(eq(R.id.price_insights_menu_id), eq(false));
+
+        // Verify the menu dot disappears as the overflow menu show up.
+        mAppMenuObserverCaptor.getValue().onMenuVisibilityChanged(/* isVisible= */ true);
+        assertEquals(View.GONE, mToolbar.findViewById(R.id.menu_dot).getVisibility());
+    }
+
+    @Test
+    @EnableFeatures(ChromeFeatureList.CCT_ADAPTIVE_BUTTON)
+    public void testOptionalButton_notEnabledForWidthConstraint() {
+        mToolbar.setToolbarWidthForTesting(48 + 68);
+        mToolbar.updateOptionalButton(getDataForPriceInsightsIconButton());
+
+        // For MTB hidden due to width constraint, |OptionButtonCoordinator| is instantiated
+        // since the button visibility rule needs to be applied after the MTB is added to
+        // the toolbar. If toolbar width changes dynamically later, it lets the optional button
+        // start showing.
+        assertNotNull(mToolbar.getOptionalButtonCoordinatorForTesting());
         assertEquals(View.VISIBLE, mToolbar.findViewById(R.id.menu_dot).getVisibility());
     }
 
@@ -726,11 +759,12 @@ public class CustomTabToolbarUnitTest {
         Mockito.doReturn(UrlBarData.forUrl(url)).when(mLocationBarModel).getUrlBarData();
     }
 
-    private ButtonDataImpl getDataForTranslateIconButton() {
-        Drawable iconDrawable = AppCompatResources.getDrawable(mActivity, R.drawable.ic_translate);
+    private ButtonDataImpl getDataForPriceInsightsIconButton() {
+        Drawable iconDrawable =
+                AppCompatResources.getDrawable(mActivity, R.drawable.ic_trending_down_24dp);
         OnClickListener clickListener = mock(OnClickListener.class);
         OnLongClickListener longClickListener = mock(OnLongClickListener.class);
-        String contentDescription = mActivity.getString(R.string.menu_translate);
+        String contentDescription = mActivity.getString(R.string.price_insights_title);
 
         // Whether a button is static or dynamic is determined by the button variant.
         ButtonSpec buttonSpec =
@@ -741,7 +775,7 @@ public class CustomTabToolbarUnitTest {
                         contentDescription,
                         true,
                         null,
-                        /* buttonVariant= */ AdaptiveToolbarButtonVariant.TRANSLATE,
+                        /* buttonVariant= */ AdaptiveToolbarButtonVariant.PRICE_INSIGHTS,
                         /* actionChipLabelResId= */ Resources.ID_NULL,
                         /* tooltipTextResId= */ Resources.ID_NULL,
                         /* hasErrorBadge= */ false);

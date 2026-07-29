@@ -1131,6 +1131,12 @@ For more settings that use data to improve your Chrome experience, go to <ph nam
       <message name="IDS_CONTEXTUAL_SEARCH_SEE_BETTER_RESULTS_SUMMARY" desc="Summary for the see better results switch in Contextual Search preference.">
         By including more of a page’s text, you might see better results
       </message>
+      <message name="IDS_CONTEXTUAL_SEARCH_CALLOUT_TEXT" desc="The text for a button, which when pressed opens the latest search results for the currently selected text.">
+        Latest results
+      </message>
+      <message name="IDS_CONTEXTUAL_SEARCH_CALLOUT_TEXT_VARIANT" desc="The text for a button, which when pressed allows the user to see more information about the currently selected text.">
+        See more
+      </message>
       <message name="IDS_DO_NOT_TRACK_TITLE" desc="Title for the 'Do Not Track' preference. Please leave the 'Do Not Track' part in English according to the glossary.">
         Send a “Do Not Track” request
       </message>
@@ -1959,12 +1965,14 @@ Your Google account may have other forms of browsing history like searches and a
         other {Chrome found # reused passwords that you could improve}}
       </message>
       <message name="IDS_SAFETY_HUB_UNSUBSCRIBED_NOTIFICATIONS_NOTIFICATION_TITLE" desc="Title for the notification sent from Safety Hub for telling the user that some notifications have been unsubscribed.">
-        Chrome unsubscribed you from notifications
+        {NUM_REVOKED_PERMISSIONS, plural,
+        =1 {Unsubscribed from one unused site}
+        other {Unsubscribed from # unused sites}}
       </message>
       <message name="IDS_SAFETY_HUB_UNSUBSCRIBED_NOTIFICATIONS_NOTIFICATION_MESSAGE" desc="Message for the notification sent from Safety Hub for telling the user that some notifications have been unsubscribed.">
         {NUM_REVOKED_PERMISSIONS, plural,
-        =1 {Removed notification permissions from one site you haven’t visited recently}
-        other {Removed notification permissions from # sites you haven’t visited recently}}
+        =1 {Chrome stopped notifications from this site. You can review and manage.}
+        other {Chrome stopped notifications from these sites. You can review and manage.}}
       </message>
       <message name="IDS_SAFETY_HUB_UNSUBSCRIBED_NOTIFICATIONS_NOTIFICATION_ACK" desc="Button to acknowledge the notification sent from Safety Hub for telling the user that some notifications have been unsubscribed.">
         Got it
@@ -2701,7 +2709,7 @@ Your Google account may have other forms of browsing history like searches and a
           =1 {1 item is saved only to this device. To use it on your other devices, save it in your Google Account, <ph name="ACCOUNT_EMAIL">%2$s<ex>elisa.g.beckett@gmail.com</ex></ph>.}
           other {# items are saved only to this device. To use them on your other devices, save them in your Google Account, <ph name="ACCOUNT_EMAIL">%2$s<ex>elisa.g.beckett@gmail.com</ex></ph>.}}
       </message>
-      <message name="IDS_BOOKMARKS_LEFT_BEHIND_BOOKMARKS_BUTTON" desc="This message appears in a user's bookmark manager. The text appears in a temporary card to inform them that there is some local data (bookmarks) saved to their device, but the data hasn't been saved to their Google Account yet. The user can click 'Save in Account' to enter a flow where they review the data and choose to save it in their account. When data is saved to the user's Google Account, it's backed up safely and is available on any device where they're signed in to Chrome.">
+      <message name="IDS_BATCH_UPLOAD_CARD_SAVE_BUTTON" desc="This message appears on a button in a temporary card to inform the user that there is some local data saved to their device, but the data hasn't been saved to their Google Account yet. The user can click 'Save in Account' to enter a flow where they review the data and choose to save it in their account. When data is saved to the user's Google Account, it's backed up safely and is available on any device where they're signed in to Chrome.">
         Save in account
       </message>
       <message name="IDS_BOOKMARKS_LEFT_BEHIND_BOOKMARK"  desc="This message appears in a user's bookmark manager. The text appears in a temporary card to inform them that there is some local data (bookmarks) saved to their device, but the data hasn't been saved to their Google Account yet. The user can click 'Save in Account' to enter a flow where they review the data and choose to save it in their account. When data is saved to the user's Google Account, it's backed up safely and is available on any device where they're signed in to Chrome.">
@@ -2957,6 +2965,9 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       <message name="IDS_IDENTITY_ERROR_CARD_BUTTON_OKAY" desc="Button label for the message shown in the Sync Error Card (due to missing trusted vault keys) for confirming that a user wants to get all their passwords on their device.">
         Okay
       </message>
+      <message name="IDS_IDENTITY_ERROR_CARD_BUTTON_GET" desc="Button label for the message shown in the Sync Error Card (due to missing trusted vault keys) for fixing the issue and getting all passwords of a user on their device.">
+        Get
+      </message>
       <!-- Identity error message and notification strings -->
       <message name="IDS_IDENTITY_ERROR_MESSAGE_BODY" desc="Error message/notification to resolve passphrase required error, sync encryption error, auth error, outdated client error.">
         Keep using the Chrome data in your Google Account
@@ -2976,7 +2987,7 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       <message name="IDS_IDENTITY_ERROR_MESSAGE_TITLE_CLIENT_OUT_OF_DATE" desc="Error message/notification title for client out-of-date error.">
         Update Chrome
       </message>
-      <message name="IDS_IDENTITY_ERROR_MESSAGE_BUTTON_PASSPHRASE_REQUIRED" desc="Error message button label for passphrase required error.">
+      <message name="IDS_IDENTITY_ERROR_MESSAGE_BUTTON_PASSPHRASE_REQUIRED" meaning="An on-screen button that opens the dialog for the user to enter a custom passphrase" desc="Error message button label for passphrase required error.">
         Enter
       </message>
       <message name="IDS_IDENTITY_ERROR_MESSAGE_BUTTON_VERIFY" desc="Error message button label for all errors requiring re-auth (auth error, degraded recoverability, encryption error)">
@@ -3065,6 +3076,11 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
         {FILE_COUNT, plural,
           =1 {1 was blocked by your organization}
           other {# were blocked by your organization}}
+      </message>
+      <message name="IDS_DOWNLOAD_MESSAGE_MULTIPLE_DOWNLOAD_DANGEROUS" desc="Download message label describing that one or more downloads are dangerous and were blocked">
+        {FILE_COUNT, plural,
+          =1 {Dangerous download blocked}
+          other {# dangerous downloads blocked}}
       </message>
 
       <message name="IDS_INCOGNITO_DOWNLOAD_MESSAGE_TITLE" desc="Download title displayed in a prompt message when the user downloads a file in Incognito mode.">
@@ -4415,6 +4431,9 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       <message name="IDS_MENU_RECENT_TABS" desc="Menu item for opening the 'Recent tabs' page that shows recently closed tabs and pages the user has opened on his/her other devices. [CHAR_LIMIT=27]">
         Recent tabs
       </message>
+      <message name="IDS_MENU_EXTENSIONS" desc="Menu item for opening the 'Extensions' page that allows the user to manage installed extensions. [CHAR_LIMIT=27]">
+        Extensions
+      </message>
       <message name="IDS_MENU_TINKER_TANK" desc="Menu item for opening the tinker tank bottom sheet. [CHAR_LIMIT=27]" translateable="false">
         Tinker tank
       </message>
@@ -4931,8 +4950,8 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       <message name="IDS_READER_MODE_MESSAGE_BUTTON" desc="The label for the button to open the current page in reader mode.">
         View
       </message>
-      <message name="IDS_READER_MODE_ACTION_CHIP_LABEL_SIMPLIFY_PAGE" desc="The label for the action chip shown on the toolbar to open the current page in reader mode. [CHAR_LIMIT=27]">
-        Simplify page
+      <message name="IDS_READER_MODE_ACTION_CHIP_LABEL_SIMPLIFY_PAGE" desc="The label for the action chip shown on the toolbar to open the current page in reading mode. [CHAR_LIMIT=27]">
+        Reading Mode
       </message>
       <message name="IDS_CONTENT_PROVIDER_SEARCH_DESCRIPTION" desc="Description for Chrome's entry in QSB's list of search suggestion providers [CHAR_LIMIT=32]">
         Bookmarks and web history
@@ -5310,6 +5329,12 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       </message>
       <message name="IDS_MAX_NUMBER_OF_WINDOWS" desc="Toast message for when the user has tried to start more than 5 instances of Chrome window.">
         You can have up to 5 windows.
+      </message>
+      <message name="IDS_MAX_NUMBER_OF_WINDOWS_INSTANCE_SWITCHER_V2" desc="Message to notify the user that the total number of persisted instances exceeds the window limit.">
+        You can have up to <ph name="MAX_WINDOW_COUNT">%1$d</ph> total windows. To restore a window, close <ph name="WINDOW_COUNT">%2$d</ph> active or inactive windows.
+      </message>
+      <message name="IDS_PERSISTED_INSTANCE_DELETION_MESSAGE" desc="Message to notify the user about permanent deletion of persisted instances.">
+        Inactive windows are permanently deleted after 6 months of being inactive.
       </message>
       <message name="IDS_TAB_DROPPED_DIFFERENT_MODEL" desc="Toast that appears when a tab is dropped into tab strip with a different profile (regular v.s. incognito).">
         You can find all open tabs in the tab switcher
@@ -5784,8 +5809,11 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       <message name="IDS_TARGET_SELECTOR_MOVE" desc="The message in the button in target selector dialog that starts moving a tab.">
         Move tab
       </message>
-      <message name="IDS_INSTANCE_SWITCHER_CLOSE_CONFIRM_HEADER" desc="The header of multi-instance switcher dialog confirming close operation.">
+      <message name="IDS_INSTANCE_SWITCHER_CLOSE_CONFIRM_HEADER" desc="The header of multi-instance switcher dialog confirming close operation for a non-current window.">
         Close window?
+      </message>
+      <message name="IDS_INSTANCE_SWITCHER_CLOSE_CONFIRM_HEADER_CURRENT" desc="The header of multi-instance switcher dialog confirming close operation for the current window.">
+        Close your current window?
       </message>
       <message name="IDS_INSTANCE_SWITCHER_CLOSE_CONFIRM_DELETED_TABS_ZERO" desc="The phrase used in the message when there is a single tab to delete.">
         The window will be closed
@@ -5798,6 +5826,11 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
           =1 {<ph name="TAB_TITLE">%1$s<ex>YouTube</ex></ph> and <ph name="TAB_COUNT_ONE">%2$s</ph> more tab will be closed}
           other {<ph name="TAB_TITLE">%1$s<ex>YouTube</ex></ph> and <ph name="TAB_COUNT_MANY">%2$s</ph> more tabs will be closed}}
       </message>
+      <message name="IDS_INSTANCE_SWITCHER_CLOSE_CONFIRM_DELETED_TABS_MANY_V2" desc="The phrase used in the message when there are multiple tabs to delete.">
+        {TAB_COUNT, plural,
+          =1 {<ph name="TAB_TITLE">%1$s<ex>YouTube</ex></ph> and <ph name="TAB_COUNT_ONE">%2$s</ph> other tab will be closed}
+          other {<ph name="TAB_TITLE">%1$s<ex>YouTube</ex></ph> and <ph name="TAB_COUNT_MANY">%2$s</ph> other tabs will be closed}}
+      </message>
       <message name="IDS_INSTANCE_SWITCHER_CLOSE_CONFIRM_DELETED_INCOGNITO" desc="The phrase used in the message for deleting incognito-only instance.">
         {TAB_COUNT, plural,
           =1 {<ph name="TAB_COUNT_ONE">%1$s<ex>1</ex></ph> incognito tab will be closed}
@@ -5807,6 +5840,25 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
         {TAB_COUNT, plural,
           =1 {<ph name="INCOGNITO_TAB_COUNT">%1$s<ex>2</ex></ph> incognito and <ph name="TAB_COUNT_ONE">%2$s<ex>1</ex></ph> more tab will be closed}
           other {<ph name="INCOGNITO_TAB_COUNT">%1$s<ex>4</ex></ph> incognito and <ph name="TAB_COUNT_MANY">%2$s<ex>4</ex></ph> more tabs will be closed}}
+      </message>
+      <message name="IDS_INSTANCE_LAST_ACCESSED_CURRENT" desc="The current window indicator text.">
+        Current window
+      </message>
+       <message name="IDS_INSTANCE_SWITCHER_CLOSE_CONFIRM_DELETED_INCOGNITO_MIXED_V2" desc="The phrase used in the message for deleting incognito-selected instance.">
+        {TAB_COUNT, plural,
+          =1 {<ph name="INCOGNITO_TAB_COUNT">%1$s<ex>2</ex></ph> incognito and <ph name="TAB_COUNT_ONE">%2$s<ex>1</ex></ph> other tab will be closed}
+          other {<ph name="INCOGNITO_TAB_COUNT">%1$s<ex>4</ex></ph> incognito and <ph name="TAB_COUNT_MANY">%2$s<ex>4</ex></ph> other tabs will be closed}}
+      </message>
+
+      <!-- Multi-instance message strings -->
+      <message name="IDS_MULTI_INSTANCE_RESTORATION_MESSAGE_TITLE" desc="Title of the message shown when the number of persisted instances exceeds the max instance count after an instance limit downgrade.">
+        Only <ph name="MAX_INSTANCE_COUNT">%1$s<ex>5</ex></ph> windows can be shown
+      </message>
+      <message name="IDS_MULTI_INSTANCE_RESTORATION_MESSAGE_DESCRIPTION" desc="Description of the message shown when the number of persisted instances exceeds the max instance count after an instance limit downgrade.">
+        Select manage to see all windows
+      </message>
+      <message name="IDS_MULTI_INSTANCE_RESTORATION_MESSAGE_BUTTON" desc="Text on the button that will open the instance switcher dialog.">
+        Manage
       </message>
 
       <!-- In-Product Help strings -->

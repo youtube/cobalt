@@ -49,6 +49,13 @@ void ImageBitmapRenderingContextBase::Stop() {
   image_layer_bridge_->Dispose();
 }
 
+scoped_refptr<StaticBitmapImage>
+ImageBitmapRenderingContextBase::PaintRenderingResultsToSnapshot(
+    SourceDrawingBuffer source_buffer,
+    FlushReason reason) {
+  return GetImage(reason);
+}
+
 void ImageBitmapRenderingContextBase::Dispose() {
   Stop();
   CanvasRenderingContext::Dispose();
@@ -140,11 +147,12 @@ bool ImageBitmapRenderingContextBase::PushFrame() {
   }
   cc::PaintFlags paint_flags;
   paint_flags.setBlendMode(SkBlendMode::kSrc);
-  Host()->ResourceProvider()->Canvas().drawImage(
+  OffscreenCanvas* canvas = static_cast<OffscreenCanvas*>(Host());
+  canvas->GetResourceProviderForImageBitmap()->Canvas().drawImage(
       image->PaintImageForCurrentFrame(), 0, 0, SkSamplingOptions(),
       &paint_flags);
   scoped_refptr<CanvasResource> resource =
-      Host()->ResourceProvider()->ProduceCanvasResource(
+      canvas->GetResourceProviderForImageBitmap()->ProduceCanvasResource(
           FlushReason::kNon2DCanvas);
   Host()->PushFrame(
       std::move(resource),

@@ -557,6 +557,16 @@ const Iban* PaymentsDataManager::GetIbanByGUID(const std::string& guid) const {
   return iter != local_ibans_.end() ? iter->get() : nullptr;
 }
 
+const AutofillOfferData* PaymentsDataManager::GetMerchantPromoCodeByOfferId(
+    const int64_t offer_id) const {
+  auto iter = std::ranges::find_if(
+      autofill_offer_data_,
+      [&offer_id](const std::unique_ptr<AutofillOfferData>& offer_data) {
+        return offer_data->GetOfferId() == offer_id;
+      });
+  return iter != autofill_offer_data_.end() ? iter->get() : nullptr;
+}
+
 const Iban* PaymentsDataManager::GetIbanByInstrumentId(
     int64_t instrument_id) const {
   for (const Iban* iban : GetServerIbans()) {
@@ -684,7 +694,7 @@ PaymentsDataManager::GetApplicableBenefitDescriptionForCardAndOrigin(
   if (optimization_guide) {
     CreditCardCategoryBenefit::BenefitCategory category_benefit_type =
         optimization_guide->AttemptToGetEligibleCreditCardBenefitCategory(
-            credit_card.issuer_id(), origin.GetURL());
+            credit_card.benefit_source(), origin.GetURL());
     if (category_benefit_type !=
         CreditCardCategoryBenefit::BenefitCategory::kUnknownBenefitCategory) {
       std::optional<CreditCardCategoryBenefit> category_benefit =
@@ -700,7 +710,16 @@ PaymentsDataManager::GetApplicableBenefitDescriptionForCardAndOrigin(
   std::optional<CreditCardFlatRateBenefit> flat_rate_benefit =
       GetFlatRateBenefitByInstrumentId(benefit_instrument_id);
   if (flat_rate_benefit && flat_rate_benefit->IsActiveBenefit()) {
-    return flat_rate_benefit->benefit_description();
+    // Return empty string if flat rate benefit is blocked on the current
+    // merchant.
+    return base::FeatureList::IsEnabled(
+               features::kAutofillEnableFlatRateCardBenefitsBlocklist) &&
+                   optimization_guide &&
+                   optimization_guide
+                       ->ShouldBlockFlatRateBenefitSuggestionLabelsForUrl(
+                           origin.GetURL())
+               ? std::u16string()
+               : flat_rate_benefit->benefit_description();
   }
 
   // No eligible benefit to display.
@@ -2009,6 +2028,16 @@ void PaymentsDataManager::AddCreditCardBenefitForTest(
 
 bool PaymentsDataManager::IsFacilitatedPaymentsPixUserPrefEnabled() const {
   return prefs::IsFacilitatedPaymentsPixEnabled(pref_service_);
+}
+
+void PaymentsDataManager::SetFacilitatedPaymentsPixAccountLinkingUserPref(
+    bool enabled) {
+  prefs::SetFacilitatedPaymentsPixAccountLinking(pref_service_, enabled);
+}
+
+bool PaymentsDataManager::
+    IsFacilitatedPaymentsPixAccountLinkingUserPrefEnabled() const {
+  return prefs::IsFacilitatedPaymentsPixAccountLinkingEnabled(pref_service_);
 }
 
 bool PaymentsDataManager::IsFacilitatedPaymentsEwalletUserPrefEnabled() const {

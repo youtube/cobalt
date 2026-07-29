@@ -10,13 +10,13 @@
 #include "base/memory/weak_ptr.h"
 #include "base/uuid.h"
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_instance.h"
+#include "components/autofill/core/browser/foundations/autofill_client.h"
 #include "components/autofill/core/browser/integrators/autofill_ai/autofill_ai_delegate.h"
 #include "components/autofill/core/browser/strike_databases/autofill_ai/autofill_ai_save_strike_database_by_attribute.h"
 #include "components/autofill/core/browser/strike_databases/autofill_ai/autofill_ai_save_strike_database_by_host.h"
 #include "components/autofill/core/browser/strike_databases/autofill_ai/autofill_ai_update_strike_database.h"
 #include "components/autofill/core/common/aliases.h"
 #include "components/autofill/core/common/unique_ids.h"
-#include "components/autofill_ai/core/browser/autofill_ai_client.h"
 #include "components/autofill_ai/core/browser/metrics/autofill_ai_logger.h"
 
 namespace autofill {
@@ -37,7 +37,7 @@ namespace autofill_ai {
 // class is an interface.
 class AutofillAiManager : public autofill::AutofillAiDelegate {
  public:
-  AutofillAiManager(AutofillAiClient* client,
+  AutofillAiManager(autofill::AutofillClient* client,
                     autofill::StrikeDatabase* strike_database);
   AutofillAiManager(const AutofillAiManager&) = delete;
   AutofillAiManager& operator=(const AutofillAiManager&) = delete;
@@ -45,11 +45,11 @@ class AutofillAiManager : public autofill::AutofillAiDelegate {
 
   // autofill::AutofillAiDelegate:
   std::vector<autofill::Suggestion> GetSuggestions(
-      autofill::FormGlobalId form_global_id,
+      const autofill::FormStructure& form,
       const autofill::FormFieldData& trigger_field) override;
   bool OnFormSubmitted(const autofill::FormStructure& form,
                        ukm::SourceId ukm_source_id) override;
-  bool ShouldDisplayIph(autofill::FormGlobalId form,
+  bool ShouldDisplayIph(const autofill::FormStructure& form,
                         autofill::FieldGlobalId field) const override;
   void OnSuggestionsShown(const autofill::FormStructure& form,
                           const autofill::AutofillField& field,
@@ -91,18 +91,18 @@ class AutofillAiManager : public autofill::AutofillAiDelegate {
   void HandleSavePromptResult(
       const GURL& form_url,
       const autofill::EntityInstance& entity,
-      AutofillAiClient::SaveOrUpdatePromptResult result);
+      autofill::AutofillClient::EntitySaveOrUpdatePromptResult result);
   // Updates the `EntityDataManager` and the update strike database depending on
   // the prompt `result`.
   void HandleUpdatePromptResult(
       const base::Uuid& entity_uuid,
-      AutofillAiClient::SaveOrUpdatePromptResult result);
+      autofill::AutofillClient::EntitySaveOrUpdatePromptResult result);
 
   autofill::LogManager* GetCurrentLogManager();
 
   // A raw reference to the client, which owns `this` and therefore outlives
   // it.
-  const raw_ref<AutofillAiClient> client_;
+  const raw_ref<autofill::AutofillClient> client_;
 
   // Logger that records various Autofill AI metrics.
   AutofillAiLogger logger_{&*client_};

@@ -206,6 +206,7 @@ extensions/browser
 extensions/common
 extensions/common/api
 extensions/common/manifest_handlers
+extensions/renderer/api/messaging
 extensions/shell/common
 google_apis/gaia
 gpu/config
@@ -634,14 +635,12 @@ third_party/pyjson5/src
 third_party/pylint/pylint
 third_party/rapidhash
 third_party/rust/chromium_crates_io/supply-chain
-third_party/rust/chromium_crates_io/vendor/adler2-v2/.github/workflows
 third_party/rust/chromium_crates_io/vendor/anstyle-v1
 third_party/rust/chromium_crates_io/vendor/anyhow-v1
 third_party/rust/chromium_crates_io/vendor/anyhow-v1/.github/workflows
 third_party/rust/chromium_crates_io/vendor/autocfg-v1
 third_party/rust/chromium_crates_io/vendor/base64-v0_22
 third_party/rust/chromium_crates_io/vendor/bytes-v1/.github/workflows
-third_party/rust/chromium_crates_io/vendor/cfg-if-v1/.github/workflows
 third_party/rust/chromium_crates_io/vendor/clap_builder-v4/src
 third_party/rust/chromium_crates_io/vendor/clap_builder-v4/src/builder
 third_party/rust/chromium_crates_io/vendor/clap_builder-v4/src/parser

@@ -109,6 +109,7 @@
 <translation id="1419753403124156396">重新啟動 Chrome 嗎？</translation>
 <translation id="1428770807407000502">要關閉同步功能嗎？</translation>
 <translation id="1430915738399379752">列印</translation>
+<translation id="1433478348197382180">閱讀模式</translation>
 <translation id="1435593198351412143">自動開啟 PDF</translation>
 <translation id="1437543266176261764">正在 <ph name="APP_NAME" /> 中執行</translation>
 <translation id="1448440926884431741">在「書籤」中整理追蹤的產品</translation>
@@ -331,6 +332,7 @@
 <translation id="2524132927880411790">在 Google 應用程式中開啟語音搜尋</translation>
 <translation id="2527209463677295330">加入網頁上的更多文字，可能會找到更相關的結果</translation>
 <translation id="2527779675047087889">隱藏剪貼簿內容</translation>
+<translation id="2531209299761896527">兩指捏住並拖曳，即可在新視窗中開啟分頁</translation>
 <translation id="2532336938189706096">網頁檢視</translation>
 <translation id="253498598929009420">網站將可見到您螢幕上的內容</translation>
 <translation id="2535807170289627159">所有分頁</translation>
@@ -544,7 +546,6 @@
 <translation id="3513019849832307207">加入並開啟</translation>
 <translation id="3513704683820682405">擴張實境</translation>
 <translation id="3516053221628030540">前往 Google Play</translation>
-<translation id="351672147489633468">{NUM_REVOKED_PERMISSIONS,plural, =1{已從你最近未瀏覽的 1 個網站移除通知權限}other{已從你最近未瀏覽的 # 個網站移除通知權限}}</translation>
 <translation id="3518985090088779359">接受並繼續</translation>
 <translation id="3519014757432845220">與 Google 分享通知內容和網站網址，協助改善垃圾內容阻截功能。內容可能會送交真人審核。</translation>
 <translation id="3521388823983121502">無法繼續使用「<ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" />」</translation>
@@ -713,6 +714,7 @@
 <translation id="4298388696830689168">已連結的網站</translation>
 <translation id="4300632303535881174">前往上一頁</translation>
 <translation id="4303044213806199882">chrome_screenshot_<ph name="CURRENT_TIMESTAMP_MS" /></translation>
+<translation id="4306489587293957491">輸入</translation>
 <translation id="4307992518367153382">基本</translation>
 <translation id="4311652497846705514">要開啟 PDF 嗎？</translation>
 <translation id="4320177379694898372">沒有互聯網連線</translation>
@@ -1079,7 +1081,6 @@
 <translation id="5956665950594638604">在新分頁中開啟 Chrome 說明中心</translation>
 <translation id="59577092665511740">請選擇帳戶。</translation>
 <translation id="5958275228015807058">在「下載」主畫面尋找您的檔案和網頁</translation>
-<translation id="5958994127112619898">簡化網頁</translation>
 <translation id="5962718611393537961">輕按即可收合</translation>
 <translation id="5964869237734432770">停止取得圖片說明</translation>
 <translation id="5975083100439434680">縮小</translation>
@@ -1628,7 +1629,6 @@
 <translation id="8137562778192957619">您不需記住此密碼。系統會將密碼儲存至「Google 密碼管理工具」。</translation>
 <translation id="8152331954420209374">前往「智能鏡頭」</translation>
 <translation id="8163820386638255770">如要將密碼儲存至 Google 帳戶及使用當中的密碼，請驗證身分。</translation>
-<translation id="8179976553408161302">Enter 鍵</translation>
 <translation id="8186512483418048923">尚餘 <ph name="FILES" /> 個檔案</translation>
 <translation id="8190358571722158785">尚餘 1 天</translation>
 <translation id="8192765420340770300">登入頁底面板宜家顯示喺成個畫面</translation>
@@ -1650,7 +1650,6 @@
 <translation id="8244387390464017490">自訂新分頁</translation>
 <translation id="8250920743982581267">文件</translation>
 <translation id="8255617931166444521">網站只能使用 Cookie 查看您在該網站的瀏覽活動</translation>
-<translation id="8256087213273124136">Chrome 已為你取消訂閱通知</translation>
 <translation id="8258999165172757081">已新增</translation>
 <translation id="8259179246279078674">由於預先載入的網頁已加密，Google 不會得知預先載入網頁內容的相關資料。Google 伺服器會知道哪些網站已透過私密方式預先載入。此資料只用於預先載入網頁，不會與您 Google 帳戶的其他資料連結。</translation>
 <translation id="8260126382462817229">請嘗試再次登入</translation>

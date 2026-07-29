@@ -4491,6 +4491,16 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
+<action
+    name="Autofill.PaymentMethodsSettingsPage.ManagePaymentMethodsLinkClicked">
+  <owner>smcgruer@chromium.org</owner>
+  <owner>chrome-payments-eng@google.com</owner>
+  <description>
+    Recorded when the user clicks the link on the payment methods settings page
+    to manage Google Pay payment methods.
+  </description>
+</action>
+
 <action name="Autofill.PaymentMethodsSettingsPage.ScanCardClicked">
   <owner>darwinyang@google.com</owner>
   <owner>chrome-payments-eng@google.com</owner>
@@ -24426,6 +24436,12 @@ should be able to be added at any place in this file.
   <description>Please enter the description of the metric.</description>
 </action>
 
+<action name="MobileMenuExtensions">
+  <owner>massan@google.com</owner>
+  <owner>nya@chromium.org</owner>
+  <description>User pressed 'Extensions' in the app menu.</description>
+</action>
+
 <action name="MobileMenuFeedback">
   <owner>aurimas@chromium.org</owner>
   <description>User pressed 'Help and Feedback' in the app menu.</description>
@@ -32482,6 +32498,33 @@ should be able to be added at any place in this file.
   <description>Permissions reset from PageInfo.</description>
 </action>
 
+<action name="PageInfo.PrivacySubpage.IncognitoSettingsOpened">
+  <owner>michelleabreo@google.com</owner>
+  <owner>koilos@google.com</owner>
+  <description>
+    Incognito settings link clicked on the page info &quot;Privacy and site
+    data&quot; subpage.
+  </description>
+</action>
+
+<action name="PageInfo.PrivacySubpage.TrackingProtectionsPaused">
+  <owner>michelleabreo@google.com</owner>
+  <owner>koilos@google.com</owner>
+  <description>
+    User paused tracking protections on the page info &quot;Privacy and site
+    data&quot; subpage via the tracking protections button.
+  </description>
+</action>
+
+<action name="PageInfo.PrivacySubpage.TrackingProtectionsReenabled">
+  <owner>michelleabreo@google.com</owner>
+  <owner>koilos@google.com</owner>
+  <description>
+    User reenabled tracking protections on the page info &quot;Privacy and site
+    data&quot; subpage via the tracking protections button.
+  </description>
+</action>
+
 <action name="PageInfo.SafeBrowsing.HelpOpened">
   <owner>olesiamarukhno@google.com</owner>
   <owner>dullweber@chromium.org</owner>
@@ -39404,12 +39447,69 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
+<action name="Signin_BottomSheet_DefaultAccount_AddAccount">
+  <owner>arthurmilchior@chromium.org</owner>
+  <owner>chrome-signin-mobile-team@google.com</owner>
+  <description>
+    Recorded when the user taps on the Add Account button in the sign-in bottom
+    sheet. This can only occurs if all accounts were removed from the device
+    after the sign-in sheet was opened. Recorded for iOS only.
+  </description>
+</action>
+
+<action name="Signin_BottomSheet_DefaultAccount_IdentityButtonTapped">
+  <owner>arthurmilchior@chromium.org</owner>
+  <owner>chrome-signin-mobile-team@google.com</owner>
+  <description>
+    Recorded when the user taps on the button with the default identity in the
+    sign-in bottom sheet. That cause the identity chooser to be opened. Recorded
+    for iOS only.
+  </description>
+</action>
+
+<action name="Signin_BottomSheet_DefaultAccount_Signin">
+  <owner>arthurmilchior@chromium.org</owner>
+  <owner>chrome-signin-mobile-team@google.com</owner>
+  <description>
+    Recorded when the user taps on sign-in button in the sign-in bottom sheet.
+    Recorded for iOS only.
+  </description>
+</action>
+
+<action name="Signin_BottomSheet_DefaultAccount_Skip">
+  <owner>arthurmilchior@chromium.org</owner>
+  <owner>chrome-signin-mobile-team@google.com</owner>
+  <description>
+    Recorded when the user tap &quot;cancel&quot; or &quot;skip&quot; in the
+    sign-in bottom sheet. Recorded for iOS only.
+  </description>
+</action>
+
+<action name="Signin_BottomSheet_IdentityChooser_AddAccount">
+  <owner>arthurmilchior@chromium.org</owner>
+  <owner>chrome-signin-mobile-team@google.com</owner>
+  <description>
+    Recorded when the user taps on AddAccount in the identity chooser dialog.
+    Recorded for iOS only.
+  </description>
+</action>
+
 <action name="Signin_BottomSheet_IdentityChooser_Closed">
   <owner>jlebel@chromium.org</owner>
   <owner>chrome-signin-mobile-team@google.com</owner>
   <description>
-    Recorded when the identity chooser dialog from the bottom sheet is closed by
-    the user. Recorded for iOS only.
+    Recorded when the identity chooser dialog from the bottom sheet is closed.
+    This might be caused by an explicit user action or any other event that
+    closes the UI. Recorded for iOS only.
+  </description>
+</action>
+
+<action name="Signin_BottomSheet_IdentityChooser_ClosedByUser">
+  <owner>arthurmilchior@chromium.org</owner>
+  <owner>chrome-signin-mobile-team@google.com</owner>
+  <description>
+    Recorded when the user closed the identity chooser dialog from the bottom
+    sheet with the back button or voice-over Z move. Recorded for iOS only.
   </description>
 </action>
 
@@ -39419,6 +39519,24 @@ should be able to be added at any place in this file.
   <description>
     Recorded when the identity chooser dialog from the bottom sheet is opened by
     the user. Recorded for iOS only.
+  </description>
+</action>
+
+<action name="Signin_BottomSheet_IdentityChooser_Selected">
+  <owner>arthurmilchior@chromium.org</owner>
+  <owner>chrome-signin-mobile-team@google.com</owner>
+  <description>
+    Recorded when the user selects an identity in the identity chooser dialog.
+    Recorded for iOS only.
+  </description>
+</action>
+
+<action name="Signin_BottomSheet_IdentityChooser_ShowManagementHelpPage">
+  <owner>arthurmilchior@chromium.org</owner>
+  <owner>chrome-signin-mobile-team@google.com</owner>
+  <description>
+    Recorded when the user taps on the &quot;management help&quot; link in the
+    footer of the identity chooser dialog. Recorded for iOS only.
   </description>
 </action>
 
@@ -44648,6 +44766,36 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
+<action name="TabGroups.ArchivedTabGroupManualCloseOnInactiveSurface">
+  <owner>wylieb@google.com</owner>
+  <owner>evanluo@google.com</owner>
+  <owner>clank-tab-dev@google.com</owner>
+  <description>
+    Recorded when archived tab group is closed due to user manually clicking the
+    X button of the tab group in the inactive pane.
+  </description>
+</action>
+
+<action name="TabGroups.RestoreFromTabGroupPane">
+  <owner>wylieb@google.com</owner>
+  <owner>evanluo@google.com</owner>
+  <owner>clank-tab-dev@google.com</owner>
+  <description>
+    Recorded when an archived tab group is restored when the user opens the same
+    tab group from the tab group pane.
+  </description>
+</action>
+
+<action name="TabGroups.RestoreSingleTabGroup">
+  <owner>wylieb@google.com</owner>
+  <owner>evanluo@google.com</owner>
+  <owner>clank-tab-dev@google.com</owner>
+  <description>
+    Recorded when archived tab group is restored due to user manually clicking
+    into the tab group in the inactive pane.
+  </description>
+</action>
+
 <action name="TabGroups.Shared.SwitchGroupedTab">
   <owner>dljames@chromium.org</owner>
   <owner>top-chrome-desktop-ui@google.com</owner>
@@ -45921,6 +46069,30 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
+<action name="TrackingProtections.Bubble.ProtectionsActive.Opened">
+  <owner>michelleabreo@google.com</owner>
+  <owner>koilos@google.com</owner>
+  <description>
+    User bypass is opened when tracking protections are active.
+  </description>
+</action>
+
+<action name="TrackingProtections.Bubble.ProtectionsPaused.Opened">
+  <owner>michelleabreo@google.com</owner>
+  <owner>koilos@google.com</owner>
+  <description>
+    User bypass is opened when tracking protections are paused.
+  </description>
+</action>
+
+<action name="TrackingProtections.Bubble.SendFeedback">
+  <owner>michelleabreo@google.com</owner>
+  <owner>koilos@google.com</owner>
+  <description>
+    Send Feedback triggered from tracking protections bubble.
+  </description>
+</action>
+
 <action name="TrackpadScroll">
   <obsolete>
     Not needed as of 05/2018 since performance metrics for ScrollBegin show the
@@ -47166,6 +47338,14 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
+<action name="WebAuthn.Dialog.UserSelected.PasswordOnly">
+  <owner>derinel@google.com</owner>
+  <owner>chrome-webauthn@google.com</owner>
+  <description>
+    User selected a password option in the WebAuthn combined selector dialog.
+  </description>
+</action>
+
 <action name="WebAuthn.Dialog.UserSelected.ProfileOnly">
   <owner>derinel@google.com</owner>
   <owner>chrome-webauthn@google.com</owner>
@@ -47207,6 +47387,18 @@ should be able to be added at any place in this file.
   <description>
     Recorded when the user is displayed the system authentication UI to sign in
     with a passkey stored in the Chrome profile.
+  </description>
+</action>
+
+<action name="WebAuthn.GetAssertion.CombinedSelectorShown"
+    not_user_triggered="true">
+  <owner>derinel@google.com</owner>
+  <owner>chrome-webauthn@google.com</owner>
+  <description>
+    Recorded when the user is displayed the combined selector sheet, which is a
+    dialog that lists available passkeys or passwords from different sources.
+    This UI is used for navigator.credentials.get() requests with mediation:
+    &quot;immediate&quot;
   </description>
 </action>
 
@@ -47529,6 +47721,25 @@ should be able to be added at any place in this file.
     Recorded when the user is displayed the Windows Hello UI to sign in with a
     credential in Windows Hello. In some Windows versions this UI may also
     display an option to use the Hybrid flow.
+  </description>
+</action>
+
+<action name="WebAuthn.GetCredential.Start" not_user_triggered="true">
+  <owner>derinel@google.com</owner>
+  <owner>chrome-webauthn@google.com</owner>
+  <description>
+    Recorded when a GetCredential request with mediation = &quot;immediate&quot;
+    is started.
+  </description>
+</action>
+
+<action name="WebAuthn.GetCredential.SuccessWithPassword"
+    not_user_triggered="true">
+  <owner>derinel@google.com</owner>
+  <owner>chrome-webauthn@google.com</owner>
+  <description>
+    Recorded when the user selected a password credential in the immediate
+    mediation selection dialog.
   </description>
 </action>
 

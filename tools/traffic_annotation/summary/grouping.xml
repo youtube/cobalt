@@ -108,7 +108,6 @@ after discussions on the right group.
       <annotation id="remoting_directory_delete_host"/>
       <annotation id="remoting_directory_get_host_list"/>
       <annotation id="remoting_directory_register_host"/>
-      <annotation id="remoting_telemetry_log_writer"/>
       <annotation id="heartbeat_sender"/>
       <annotation id="remoting_register_support_host_request"/>
       <annotation id="remoting_ice_config_request"/>
@@ -379,6 +378,8 @@ after discussions on the right group.
       <annotation id="corp_register_support_host_request"/>
       <annotation id="zero_state_suggestions_model_execution"/>
       <annotation id="certificate_verifier_2qwac_loader"/>
+      <annotation id="trusted_vault_cert_request"/>
+      <annotation id="keepalive_fetch_retry"/>
     </sender>
   </group>
   <group name="Admin Features" hidden="true">

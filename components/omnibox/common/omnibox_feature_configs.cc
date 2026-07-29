@@ -120,6 +120,10 @@ ContextualSearch::ContextualSearch() {
       base::FeatureParam<bool>(&kContextualSuggestionsAblateOthersWhenPresent,
                                "AblateSearchOnly", false)
           .Get();
+  contextual_suggestions_ablate_url_only =
+      base::FeatureParam<bool>(&kContextualSuggestionsAblateOthersWhenPresent,
+                               "AblateUrlOnly", false)
+          .Get();
   starter_pack_page = feature_enabled(kStarterPackPage);
   contextual_zero_suggest_lens_fulfillment =
       feature_enabled(kContextualZeroSuggestLensFulfillment);
@@ -189,8 +193,9 @@ BASE_FEATURE(Toolbelt::kOmniboxToolbelt,
 
 Toolbelt::Toolbelt() {
   enabled = base::FeatureList::IsEnabled(kOmniboxToolbelt);
-  keep_toolbelt_after_zps =
-      base::FeatureParam<bool>(&kOmniboxToolbelt, "KeepToolbeltAfterZps", false)
+  keep_toolbelt_after_input =
+      base::FeatureParam<bool>(&kOmniboxToolbelt, "KeepToolbeltAfterInput",
+                               false)
           .Get();
   always_include_lens_action =
       base::FeatureParam<bool>(&kOmniboxToolbelt, "AlwaysIncludeLensAction",

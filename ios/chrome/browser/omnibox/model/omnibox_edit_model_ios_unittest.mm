@@ -91,7 +91,8 @@ class OmniboxEditModelIOSTest : public PlatformTest {
     omnibox_controller_ =
         std::make_unique<OmniboxControllerIOS>(omnibox_client_.get());
     view_ = std::make_unique<TestOmniboxViewIOS>();
-    omnibox_text_model_ = std::make_unique<OmniboxTextModel>();
+    omnibox_text_model_ =
+        std::make_unique<OmniboxTextModel>(omnibox_client_.get());
     omnibox_edit_model_ = std::make_unique<TestOmniboxEditModelIOS>(
         omnibox_controller_.get(), view_.get(), /*pref_service=*/nullptr,
         omnibox_text_model_.get());
@@ -112,8 +113,8 @@ class OmniboxEditModelIOSTest : public PlatformTest {
   std::unique_ptr<TestOmniboxClient> omnibox_client_;
   std::unique_ptr<TestOmniboxViewIOS> view_;
   std::unique_ptr<OmniboxControllerIOS> omnibox_controller_;
-  std::unique_ptr<TestOmniboxEditModelIOS> omnibox_edit_model_;
   std::unique_ptr<OmniboxTextModel> omnibox_text_model_;
+  std::unique_ptr<TestOmniboxEditModelIOS> omnibox_edit_model_;
 };
 
 TEST_F(OmniboxEditModelIOSTest, DISABLED_InlineAutocompleteText) {

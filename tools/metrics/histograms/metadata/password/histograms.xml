@@ -1026,7 +1026,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="PasswordManager.BulkCheck.InsecureCredentials.Unmuted.Count"
-    units="credentials" expires_after="2025-07-06">
+    units="credentials" expires_after="2026-07-06">
   <owner>eic@google.com</owner>
   <owner>noemies@google.com</owner>
   <summary>
@@ -1384,6 +1384,28 @@ chromium-metrics-reviews@google.com.
     the Loading dialog is cancelled by user or timed out.
   </summary>
   <token key="ProfileType" variants="ProfileType"/>
+</histogram>
+
+<histogram name="PasswordManager.CredentialRequest.ThirdParty.Get"
+    enum="CredentialManagerAndroidGetResult" expires_after="2025-12-11">
+  <owner>izuzic@google.com</owner>
+  <owner>anki-team@google.com</owner>
+  <summary>
+    Log the result of the call to the Credential Manager API on Android when
+    getting a credential. Logged only on Android when Chrome uses platform
+    Autofill.
+  </summary>
+</histogram>
+
+<histogram name="PasswordManager.CredentialRequest.ThirdParty.Store"
+    enum="CredentialManagerStoreResult" expires_after="2025-12-11">
+  <owner>izuzic@google.com</owner>
+  <owner>anki-team@google.com</owner>
+  <summary>
+    Log the result of the call to the Credential Manager API on Android when
+    storing a credential. Logged only on Android when Chrome uses platform
+    Autofill.
+  </summary>
 </histogram>
 
 <histogram name="PasswordManager.CredentialsWithDuplicates3" units="units"
@@ -2356,7 +2378,7 @@ useful for Chirp alerts (go/crca-alerts). -->
 </histogram>
 
 <histogram name="PasswordManager.MediationConditional"
-    enum="CredentialManagerGetResult" expires_after="2025-06-22">
+    enum="CredentialManagerGetResult" expires_after="2025-11-22">
   <owner>goto@google.com</owner>
   <owner>markusheintz@google.com</owner>
   <owner>yigu@google.com</owner>

@@ -311,8 +311,7 @@ Animation* Animation::Create(AnimationEffect* effect,
   }
 
   auto* context = timeline->GetDocument()->GetExecutionContext();
-  return MakeGarbageCollected<Animation>(context, timeline, effect,
-                                         /*trigger=*/nullptr);
+  return MakeGarbageCollected<Animation>(context, timeline, effect);
 }
 
 Animation* Animation::Create(ExecutionContext* execution_context,
@@ -327,8 +326,8 @@ Animation* Animation::Create(ExecutionContext* execution_context,
                              AnimationTimeline* timeline,
                              ExceptionState& exception_state) {
   if (!timeline) {
-    Animation* animation = MakeGarbageCollected<Animation>(
-        execution_context, nullptr, effect, /*trigger=*/nullptr);
+    Animation* animation =
+        MakeGarbageCollected<Animation>(execution_context, nullptr, effect);
     return animation;
   }
 
@@ -337,8 +336,7 @@ Animation* Animation::Create(ExecutionContext* execution_context,
 
 Animation::Animation(ExecutionContext* execution_context,
                      AnimationTimeline* timeline,
-                     AnimationEffect* content,
-                     AnimationTrigger* trigger)
+                     AnimationEffect* content)
     : ActiveScriptWrappable<Animation>({}),
       ExecutionContextLifecycleObserver(nullptr),
       playback_rate_(1),
@@ -361,8 +359,7 @@ Animation::Animation(ExecutionContext* execution_context,
       compositor_group_(0),
       effect_suppressed_(false),
       compositor_property_animations_have_no_effect_(false),
-      animation_has_no_effect_(false),
-      trigger_(trigger) {
+      animation_has_no_effect_(false) {
   if (execution_context && !execution_context->IsContextDestroyed())
     SetExecutionContext(execution_context);
 
@@ -2590,11 +2587,11 @@ void Animation::SetCompositorPending(CompositorPendingReason reason) {
 }
 
 const Animation::RangeBoundary* Animation::rangeStart() {
-  return ToRangeBoundary(range_start_);
+  return ToRangeBoundary(range_start_, GetKeyframeEffectTargetZoom());
 }
 
 const Animation::RangeBoundary* Animation::rangeEnd() {
-  return ToRangeBoundary(range_end_);
+  return ToRangeBoundary(range_end_, GetKeyframeEffectTargetZoom());
 }
 
 void Animation::setRangeStart(const Animation::RangeBoundary* range_start,
@@ -2622,7 +2619,8 @@ std::optional<TimelineOffset> Animation::GetEffectiveTimelineOffset(
 
 /* static */
 Animation::RangeBoundary* Animation::ToRangeBoundary(
-    std::optional<TimelineOffset> timeline_offset) {
+    std::optional<TimelineOffset> timeline_offset,
+    float zoom) {
   if (!timeline_offset) {
     return MakeGarbageCollected<RangeBoundary>("normal");
   }
@@ -2631,19 +2629,20 @@ Animation::RangeBoundary* Animation::ToRangeBoundary(
       MakeGarbageCollected<TimelineRangeOffset>();
   timeline_range_offset->setRangeName(timeline_offset->name);
   CSSPrimitiveValue* value =
-      CSSPrimitiveValue::CreateFromLength(timeline_offset->offset, 1);
+      CSSPrimitiveValue::CreateFromLength(timeline_offset->offset, zoom);
   CSSNumericValue* offset = CSSNumericValue::FromCSSValue(*value);
   timeline_range_offset->setOffset(offset);
   return MakeGarbageCollected<RangeBoundary>(timeline_range_offset);
 }
 
 Animation::RangeBoundary* Animation::ToRangeBoundary(
-    TimelineOffsetOrAuto timeline_offset_or_auto) {
+    TimelineOffsetOrAuto timeline_offset_or_auto,
+    float zoom) {
   if (timeline_offset_or_auto.IsAuto()) {
     return MakeGarbageCollected<RangeBoundary>("auto");
   }
 
-  return ToRangeBoundary(timeline_offset_or_auto.GetTimelineOffset());
+  return ToRangeBoundary(timeline_offset_or_auto.GetTimelineOffset(), zoom);
 }
 
 void Animation::UpdateAutoAlignedStartTime() {
@@ -3610,7 +3609,6 @@ void Animation::Trace(Visitor* visitor) const {
   visitor->Trace(style_dependent_range_start_);
   visitor->Trace(style_dependent_range_end_);
   visitor->Trace(prior_native_paint_worklet_target_);
-  visitor->Trace(trigger_);
   EventTarget::Trace(visitor);
   ExecutionContextLifecycleObserver::Trace(visitor);
 }
@@ -3658,6 +3656,15 @@ void Animation::ResetPlayback() {
   pause();
 
   SetPausedForTrigger(true);
+}
+
+float Animation::GetKeyframeEffectTargetZoom() const {
+  auto* keyframe_effect = DynamicTo<KeyframeEffect>(effect());
+  if (!keyframe_effect || !keyframe_effect->EffectTarget() ||
+      !keyframe_effect->EffectTarget()->GetComputedStyle()) {
+    return 1.f;
+  }
+  return keyframe_effect->EffectTarget()->ComputedStyleRef().EffectiveZoom();
 }
 
 }  // namespace blink

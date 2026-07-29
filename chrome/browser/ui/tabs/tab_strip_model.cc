@@ -2491,15 +2491,36 @@ void TabStripModel::ExecuteContextMenuCommand(int context_index,
     case CommandAddToSplit: {
       CHECK(base::FeatureList::IsEnabled(features::kSideBySide));
       std::vector<int> indices = GetIndicesForCommand(context_index);
-      if (indices.size() == 1) {
-        delegate_->NewSplitTab(context_index == active_index()
-                                   ? std::vector<int>()
-                                   : std::vector<int>({context_index}));
-      } else {
-        CHECK(indices.size() > 1);
-        std::erase(indices, active_index());
-        delegate_->NewSplitTab(indices);
+      // There are three cases for adding to a split.
+      // 1. Selecting an inactive tab and making it a split with the active.
+      // 2. Selecting active and inactive tab and creating a split
+      // 3. Splitting the active tab with itself.
+      // Remove the active tab from the indices first since splitting is done
+      // with the active tab. Case 3 is a special zero split case that creates a
+      // new split tab and is inferred by the delegate.
+      std::erase_if(indices, [this](int tab_index) {
+        return tab_index == active_index();
+      });
+
+      // This callback results in creating a split. It is either sent to the
+      // deletion dialog that owns it and is responsible for calling it or if no
+      // group is deleted it is simply called here.
+      base::OnceCallback<void()> callback =
+          base::BindOnce(&TabStripModelDelegate::NewSplitTab,
+                         base::Unretained(delegate_), indices);
+
+      // If we are splitting the active tab no group can be deleted.
+      if (!indices.empty()) {
+        std::vector<tab_groups::TabGroupId> groups_to_delete =
+            GetGroupsDestroyedFromRemovingIndices(indices);
+        if (!groups_to_delete.empty()) {
+          MarkTabGroupsForClosing(groups_to_delete);
+          return delegate_->OnRemovingAllTabsFromGroups(groups_to_delete,
+                                                        std::move(callback));
+        }
       }
+
+      std::move(callback).Run();
       break;
     }
 
@@ -3643,19 +3664,20 @@ void TabStripModel::UpdateActiveTabInSplitImpl(split_tabs::SplitTabId split_id,
     CloseWebContentsAt(close_index, TabCloseTypes::CLOSE_USER_GESTURE);
   } else {
     int initial_active_index = active_index();
-    std::optional<tab_groups::TabGroupId> destination_group =
-        GetTabGroupForTab(update_index);
-    bool destination_pinned = IsTabPinned(update_index);
+    tabs::TabInterface* update_tab = GetTabAtIndex(update_index);
+    std::optional<tab_groups::TabGroupId> initial_active_group =
+        GetTabGroupForTab(active_index());
+    bool initial_active_pinned = IsTabPinned(active_index());
 
-    MoveTabToIndexImpl(update_index, active_index(), GetActiveTab()->GetGroup(),
-                       GetActiveTab()->IsPinned(), true);
-    if (active_index() < update_index) {
-      MoveTabToIndexImpl(initial_active_index + 1, update_index,
-                         destination_group, destination_pinned, false);
-    } else {
-      MoveTabToIndexImpl(initial_active_index - 1, update_index,
-                         destination_group, destination_pinned, false);
-    }
+    // Move the active index first so the group is not possibly destroyed at the
+    // update index. This can happen when the update index is the only member of
+    // a group. Note that the active split tab cannot be the only member of a
+    // group since it is a split tab.
+    MoveTabToIndexImpl(active_index(), update_index, update_tab->GetGroup(),
+                       update_tab->IsPinned(), false);
+
+    MoveTabToIndexImpl(GetIndexOfTab(update_tab), initial_active_index,
+                       initial_active_group, initial_active_pinned, true);
   }
 
   std::vector<int> split_indices;
@@ -4789,17 +4811,19 @@ std::optional<int> TabStripModel::DetermineNewSelectedIndex(
 std::vector<std::pair<tabs::TabInterface*, int>>
 TabStripModel::GetTabsAndIndicesInSplit(split_tabs::SplitTabId split_id) {
   std::vector<std::pair<tabs::TabInterface*, int>> split_tabs_with_indices;
-  const tabs::SplitTabCollection* split =
-      contents_data_->GetSplitTabCollection(split_id);
-  if (!split) {
+
+  split_tabs::SplitTabData* split_data = GetSplitData(split_id);
+  std::vector<tabs::TabInterface*> split_tabs = split_data->ListTabs();
+
+  if (split_tabs.empty()) {
     return split_tabs_with_indices;
   }
 
   // All the tabs in a split should be contiguous. Instead of using
   // GetIndexOfTab multiple times, call it on the first tab, then increment by
   // one for each subsequent tab.
-  for (size_t index = GetIndexOfTab(split->GetTabAtIndexRecursive(0));
-       tabs::TabInterface* split_tab : *split) {
+  for (size_t index = GetIndexOfTab(split_tabs[0]);
+       tabs::TabInterface* split_tab : split_tabs) {
     split_tabs_with_indices.emplace_back(split_tab, index++);
   }
 
@@ -4808,14 +4832,8 @@ TabStripModel::GetTabsAndIndicesInSplit(split_tabs::SplitTabId split_id) {
 
 gfx::Range TabStripModel::GetIndexRangeOfSplit(
     split_tabs::SplitTabId split_id) const {
-  const tabs::SplitTabCollection* split =
-      contents_data_->GetSplitTabCollection(split_id);
-  if (!split) {
-    return gfx::Range();
-  }
-
-  size_t start = GetIndexOfTab(split->GetTabAtIndexRecursive(0));
-  return gfx::Range(start, start + split->TabCountRecursive());
+  split_tabs::SplitTabData* split_data = GetSplitData(split_id);
+  return split_data->GetIndexRange();
 }
 
 TabStripModel::ScopedTabStripModalUIImpl::ScopedTabStripModalUIImpl(

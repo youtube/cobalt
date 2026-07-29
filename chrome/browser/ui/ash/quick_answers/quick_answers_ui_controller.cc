@@ -18,6 +18,7 @@
 #include "base/strings/stringprintf.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/ash/quick_answers/quick_answers_controller_impl.h"
+#include "chrome/browser/ui/ash/quick_answers/ui/magic_boost_user_consent_view.h"
 #include "chrome/browser/ui/ash/quick_answers/ui/quick_answers_util.h"
 #include "chrome/browser/ui/ash/quick_answers/ui/quick_answers_view.h"
 #include "chrome/browser/ui/ash/quick_answers/ui/rich_answers_definition_view.h"
@@ -253,11 +254,12 @@ void QuickAnswersUiController::ShowRetry() {
 }
 
 void QuickAnswersUiController::CreateUserConsentView(
+    Profile* profile,
     const gfx::Rect& anchor_bounds,
     quick_answers::IntentType intent_type,
     const std::u16string& intent_text) {
   CreateUserConsentViewInternal(
-      anchor_bounds, intent_type, intent_text,
+      profile, anchor_bounds, intent_type, intent_text,
       /*use_refreshed_design=*/
       chromeos::features::IsQuickAnswersMaterialNextUIEnabled());
 }
@@ -268,11 +270,12 @@ void QuickAnswersUiController::CreateUserConsentViewForPixelTest(
     const std::u16string& intent_text,
     bool use_refreshed_design) {
   CHECK_IS_TEST();
-  CreateUserConsentViewInternal(anchor_bounds, intent_type, intent_text,
-                                use_refreshed_design);
+  CreateUserConsentViewInternal(/*profile=*/nullptr, anchor_bounds, intent_type,
+                                intent_text, use_refreshed_design);
 }
 
 void QuickAnswersUiController::CreateUserConsentViewInternal(
+    Profile* profile,
     const gfx::Rect& anchor_bounds,
     quick_answers::IntentType intent_type,
     const std::u16string& intent_text,
@@ -280,23 +283,46 @@ void QuickAnswersUiController::CreateUserConsentViewInternal(
   CHECK_EQ(controller_->GetQuickAnswersVisibility(),
            QuickAnswersVisibility::kPending);
 
-  auto* view = GetReadWriteCardsUiController().SetQuickAnswersUi(
-      views::Builder<quick_answers::UserConsentView>(
-          std::make_unique<quick_answers::UserConsentView>(
-              use_refreshed_design, GetReadWriteCardsUiController()))
-          .SetIntentType(intent_type)
-          .SetIntentText(intent_text)
-          // It is safe to do `base::Unretained(this)`. UIs are destructed
-          // before a UI controller gets destructed. See
-          // `~QuickAnswersUiController`.
-          .SetNoThanksButtonPressed(base::BindRepeating(
-              &QuickAnswersUiController::OnUserConsentNoThanksPressed,
-              base::Unretained(this)))
-          .SetAllowButtonPressed(base::BindRepeating(
-              &QuickAnswersUiController::OnUserConsentAllowPressed,
-              base::Unretained(this)))
-          .Build());
-  user_consent_view_.SetView(view);
+  if (chromeos::features::IsMagicBoostRevampForQuickAnswersEnabled() &&
+      QuickAnswersState::GetFeatureType() ==
+          QuickAnswersState::FeatureType::kHmr) {
+    // Directing to the right settings toggle requires an active profile.
+    profile_ = profile;
+    user_consent_view_.SetView(
+        GetReadWriteCardsUiController().SetQuickAnswersUi(
+            views::Builder<quick_answers::MagicBoostUserConsentView>(
+                std::make_unique<quick_answers::MagicBoostUserConsentView>(
+                    intent_type, intent_text, GetReadWriteCardsUiController()))
+                // It is safe to do `base::Unretained(this)`. UIs are destructed
+                // before a UI controller gets destructed. See
+                // `~QuickAnswersUiController`.
+                .SetSettingsButtonPressed(base::BindRepeating(
+                    &QuickAnswersUiController::OnSettingsButtonPressed,
+                    base::Unretained(this)))
+                .SetIntentButtonPressedCallback(base::BindRepeating(
+                    &QuickAnswersUiController::
+                        OnMagicBoostUserConsentIntentButtonPressed,
+                    base::Unretained(this)))
+                .Build()));
+  } else {
+    user_consent_view_.SetView(
+        GetReadWriteCardsUiController().SetQuickAnswersUi(
+            views::Builder<quick_answers::UserConsentView>(
+                std::make_unique<quick_answers::UserConsentView>(
+                    use_refreshed_design, GetReadWriteCardsUiController()))
+                .SetIntentType(intent_type)
+                .SetIntentText(intent_text)
+                // It is safe to do `base::Unretained(this)`. UIs are destructed
+                // before a UI controller gets destructed. See
+                // `~QuickAnswersUiController`.
+                .SetNoThanksButtonPressed(base::BindRepeating(
+                    &QuickAnswersUiController::OnUserConsentNoThanksPressed,
+                    base::Unretained(this)))
+                .SetAllowButtonPressed(base::BindRepeating(
+                    &QuickAnswersUiController::OnUserConsentAllowPressed,
+                    base::Unretained(this)))
+                .Build()));
+  }
 
   // `ViewAccessibility::AnnounceText` requires a root view. Announce text after
   // a view gets attached to a widget.
@@ -403,6 +429,10 @@ void QuickAnswersUiController::OnUserConsentResult(bool consented) {
   if (consented && IsShowingQuickAnswersView()) {
     quick_answers_view()->RequestFocus();
   }
+}
+
+void QuickAnswersUiController::OnMagicBoostUserConsentIntentButtonPressed() {
+  controller_->ShowMagicBoostDisclaimerView();
 }
 
 bool QuickAnswersUiController::IsShowingUserConsentView() const {

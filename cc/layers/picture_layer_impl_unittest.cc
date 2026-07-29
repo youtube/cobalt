@@ -343,14 +343,6 @@ class CommitToActiveTreePictureLayerImplTest : public PictureLayerImplTest {
   }
 };
 
-class NoLowResPictureLayerImplTest : public LegacySWPictureLayerImplTest {
- public:
-  LayerTreeSettings CreateSettings() override {
-    LayerTreeSettings settings = LegacySWPictureLayerImplTest::CreateSettings();
-    return settings;
-  }
-};
-
 TEST_F(LegacySWPictureLayerImplTest, CloneNoInvalidation) {
   gfx::Size layer_bounds(400, 400);
   SetupDefaultTrees(layer_bounds);
@@ -453,7 +445,7 @@ TEST_F(LegacySWPictureLayerImplTest, ViewportRectForTilePriorityIsCached) {
             active_layer()->viewport_rect_for_tile_priority_in_content_space());
 }
 
-TEST_F(NoLowResPictureLayerImplTest, ClonePartialInvalidation) {
+TEST_F(LegacySWPictureLayerImplTest, ClonePartialInvalidation) {
   gfx::Size layer_bounds(400, 400);
   gfx::Rect layer_invalidation(150, 200, 30, 180);
 
@@ -550,7 +542,7 @@ TEST_F(LegacySWPictureLayerImplTest, CloneFullInvalidation) {
   }
 }
 
-TEST_F(NoLowResPictureLayerImplTest, UpdateTilesCreatesTilings) {
+TEST_F(LegacySWPictureLayerImplTest, UpdateTilesCreatesTilings) {
   gfx::Size layer_bounds(1300, 1900);
   SetupDefaultTrees(layer_bounds);
 
@@ -642,7 +634,7 @@ TEST_F(LegacySWPictureLayerImplTest, PendingLayerOnlyHasHighResTiling) {
       7.26f, pending_layer()->tilings()->tiling_at(0)->contents_scale_key());
 }
 
-TEST_F(NoLowResPictureLayerImplTest, CreateTilingsEvenIfTwinHasNone) {
+TEST_F(LegacySWPictureLayerImplTest, CreateTilingsEvenIfTwinHasNone) {
   // This test makes sure that if a layer can have tilings, then a commit makes
   // it not able to have tilings (empty size), and then a future commit that
   // makes it valid again should be able to create tilings.
@@ -723,7 +715,7 @@ TEST_F(LegacySWPictureLayerImplTest, ScaledBoundsOverflowInt) {
       &state, adjusted_scale, active_layer()->contents_opaque());
 }
 
-TEST_F(NoLowResPictureLayerImplTest, PinchGestureTilings) {
+TEST_F(LegacySWPictureLayerImplTest, PinchGestureTilings) {
   gfx::Size layer_bounds(1300, 1900);
 
   float low_res_factor = 0.25f;
@@ -785,7 +777,7 @@ TEST_F(NoLowResPictureLayerImplTest, PinchGestureTilings) {
       4.0f, active_layer()->tilings()->tiling_at(0)->contents_scale_key());
 }
 
-TEST_F(NoLowResPictureLayerImplTest, SnappedTilingDuringZoom) {
+TEST_F(LegacySWPictureLayerImplTest, SnappedTilingDuringZoom) {
   gfx::Size layer_bounds(2600, 3800);
   SetupDefaultTrees(layer_bounds);
 
@@ -1487,7 +1479,7 @@ TEST_F(LegacySWPictureLayerImplTest, TileScalesWithSolidColorRasterSource) {
   EXPECT_GT(active_layer()->ideal_contents_scale_key(), 0.f);
 }
 
-TEST_F(NoLowResPictureLayerImplTest, MarkRequiredOffscreenTiles) {
+TEST_F(LegacySWPictureLayerImplTest, MarkRequiredOffscreenTiles) {
   gfx::Size layer_bounds(200, 200);
 
   gfx::Transform transform;
@@ -1530,7 +1522,7 @@ TEST_F(NoLowResPictureLayerImplTest, MarkRequiredOffscreenTiles) {
   EXPECT_GT(num_offscreen, 0);
 }
 
-TEST_F(NoLowResPictureLayerImplTest,
+TEST_F(LegacySWPictureLayerImplTest,
        TileOutsideOfViewportForTilePriorityNotRequired) {
   host_impl()->AdvanceToNextFrame(base::Milliseconds(1));
 
@@ -1910,12 +1902,11 @@ TEST_F(LegacySWPictureLayerImplTest, HighResRequiredWhenActiveAllReady) {
   // All active tiles ready, so pending can only activate with all high res
   // tiles.
   pending_layer()->HighResTiling()->UpdateAllRequiredStateForTesting();
-  EXPECT_FALSE(pending_layer()->LowResTiling());
 
   AssertAllTilesRequired(pending_layer()->HighResTiling());
 }
 
-TEST_F(NoLowResPictureLayerImplTest, HighResRequiredWhenMissingHighResFlagOn) {
+TEST_F(LegacySWPictureLayerImplTest, HighResRequiredWhenMissingHighResFlagOn) {
   gfx::Size layer_bounds(400, 400);
   gfx::Size tile_size(100, 100);
 
@@ -1938,7 +1929,7 @@ TEST_F(NoLowResPictureLayerImplTest, HighResRequiredWhenMissingHighResFlagOn) {
   AssertAllTilesRequired(active_layer()->HighResTiling());
 }
 
-TEST_F(NoLowResPictureLayerImplTest, DisallowRequiredForActivation) {
+TEST_F(LegacySWPictureLayerImplTest, DisallowRequiredForActivation) {
   gfx::Size layer_bounds(400, 400);
   gfx::Size tile_size(100, 100);
 
@@ -1977,12 +1968,11 @@ TEST_F(LegacySWPictureLayerImplTest, HighResRequiredIfActiveCantHaveTiles) {
   // This can happen if a layer exists for a while and switches from
   // not being able to have content to having content.
   pending_layer()->HighResTiling()->UpdateAllRequiredStateForTesting();
-  EXPECT_FALSE(pending_layer()->LowResTiling());
 
   AssertAllTilesRequired(pending_layer()->HighResTiling());
 }
 
-TEST_F(NoLowResPictureLayerImplTest,
+TEST_F(LegacySWPictureLayerImplTest,
        HighResRequiredWhenActiveHasDifferentBounds) {
   gfx::Size pending_layer_bounds(400, 400);
   gfx::Size active_layer_bounds(200, 200);
@@ -1999,7 +1989,6 @@ TEST_F(NoLowResPictureLayerImplTest,
   // Since the active layer has different bounds, the pending layer needs all
   // high res tiles in order to activate.
   pending_layer()->HighResTiling()->UpdateAllRequiredStateForTesting();
-  EXPECT_FALSE(pending_layer()->LowResTiling());
   active_layer()->HighResTiling()->UpdateAllRequiredStateForTesting();
 
   AssertAllTilesRequired(pending_layer()->HighResTiling());
@@ -2940,7 +2929,6 @@ TEST_F(LegacySWPictureLayerImplTest, TilingSetRasterQueue) {
   std::set<Tile*> unique_tiles;
   bool reached_prepaint = false;
   int non_ideal_tile_count = 0u;
-  int low_res_tile_count = 0u;
   int high_res_tile_count = 0u;
   int high_res_now_tiles = 0u;
   std::unique_ptr<TilingSetRasterQueueAll> queue =
@@ -2966,7 +2954,6 @@ TEST_F(LegacySWPictureLayerImplTest, TilingSetRasterQueue) {
     }
 
     non_ideal_tile_count += priority.resolution == NON_IDEAL_RESOLUTION;
-    low_res_tile_count += priority.resolution == LOW_RESOLUTION;
     high_res_tile_count += priority.resolution == HIGH_RESOLUTION;
 
     unique_tiles.insert(prioritized_tile.tile());
@@ -2975,13 +2962,12 @@ TEST_F(LegacySWPictureLayerImplTest, TilingSetRasterQueue) {
 
   EXPECT_TRUE(reached_prepaint);
   EXPECT_EQ(0, non_ideal_tile_count);
-  EXPECT_EQ(0, low_res_tile_count);
 
   // With layer size being 1000x1000 and default tile size 256x256, we expect to
   // see 4 now tiles out of 16 total high res tiles.
   EXPECT_EQ(16, high_res_tile_count);
   EXPECT_EQ(4, high_res_now_tiles);
-  EXPECT_EQ(low_res_tile_count + high_res_tile_count + non_ideal_tile_count,
+  EXPECT_EQ(high_res_tile_count + non_ideal_tile_count,
             static_cast<int>(unique_tiles.size()));
 
   std::unique_ptr<TilingSetRasterQueueRequired> required_queue =
@@ -3061,7 +3047,7 @@ TEST_F(LegacySWPictureLayerImplTest, TilingSetRasterQueue) {
   EXPECT_TRUE(queue->IsEmpty());
 }
 
-TEST_F(NoLowResPictureLayerImplTest, TilingSetRasterQueueActiveTree) {
+TEST_F(LegacySWPictureLayerImplTest, TilingSetRasterQueueActiveTree) {
   host_impl()->AdvanceToNextFrame(base::Milliseconds(1));
 
   host_impl()->active_tree()->SetDeviceViewportRect(gfx::Rect(500, 500));
@@ -3548,7 +3534,7 @@ TEST_F(LegacySWPictureLayerImplTest, ActiveHighResReadyNotEnoughToActivate) {
   EXPECT_TRUE(host_impl()->tile_manager()->IsReadyToActivate());
 }
 
-TEST_F(NoLowResPictureLayerImplTest, ManageTilingsCreatesTilings) {
+TEST_F(LegacySWPictureLayerImplTest, ManageTilingsCreatesTilings) {
   gfx::Size layer_bounds(1300, 1900);
   SetupDefaultTrees(layer_bounds);
 
@@ -3591,50 +3577,7 @@ TEST_F(NoLowResPictureLayerImplTest, ManageTilingsCreatesTilings) {
       7.26f, active_layer()->tilings()->tiling_at(0)->contents_scale_key());
 }
 
-TEST_F(NoLowResPictureLayerImplTest, PendingLayerOnlyHasHighResTiling) {
-  gfx::Size layer_bounds(1300, 1900);
-  SetupDefaultTrees(layer_bounds);
-
-  ResetTilingsAndRasterScales();
-
-  SetupDrawPropertiesAndUpdateTiles(pending_layer(),
-                                    6.f,   // ideal contents scale
-                                    3.f,   // device scale
-                                    2.f);  // page scale
-  ASSERT_EQ(1u, pending_layer()->tilings()->num_tilings());
-  EXPECT_FLOAT_EQ(
-      6.f, pending_layer()->tilings()->tiling_at(0)->contents_scale_key());
-
-  // If we change the page scale factor, then we should get new tilings.
-  SetupDrawPropertiesAndUpdateTiles(pending_layer(),
-                                    6.6f,   // ideal contents scale
-                                    3.f,    // device scale
-                                    2.2f);  // page scale
-  ASSERT_EQ(1u, pending_layer()->tilings()->num_tilings());
-  EXPECT_FLOAT_EQ(
-      6.6f, pending_layer()->tilings()->tiling_at(0)->contents_scale_key());
-
-  // If we change the device scale factor, then we should get new tilings.
-  SetupDrawPropertiesAndUpdateTiles(pending_layer(),
-                                    7.26f,  // ideal contents scale
-                                    3.3f,   // device scale
-                                    2.2f);  // page scale
-  ASSERT_EQ(1u, pending_layer()->tilings()->num_tilings());
-  EXPECT_FLOAT_EQ(
-      7.26f, pending_layer()->tilings()->tiling_at(0)->contents_scale_key());
-
-  // If we change the device scale factor, but end up at the same total scale
-  // factor somehow, then we don't get new tilings.
-  SetupDrawPropertiesAndUpdateTiles(pending_layer(),
-                                    7.26f,  // ideal contents scale
-                                    2.2f,   // device scale
-                                    3.3f);  // page scale
-  ASSERT_EQ(1u, pending_layer()->tilings()->num_tilings());
-  EXPECT_FLOAT_EQ(
-      7.26f, pending_layer()->tilings()->tiling_at(0)->contents_scale_key());
-}
-
-TEST_F(NoLowResPictureLayerImplTest, AllHighResRequiredEvenIfNotChanged) {
+TEST_F(LegacySWPictureLayerImplTest, AllHighResRequiredEvenIfNotChanged) {
   gfx::Size layer_bounds(400, 400);
   gfx::Size tile_size(100, 100);
 
@@ -3652,7 +3595,7 @@ TEST_F(NoLowResPictureLayerImplTest, AllHighResRequiredEvenIfNotChanged) {
   AssertAllTilesRequired(active_layer()->HighResTiling());
 }
 
-TEST_F(NoLowResPictureLayerImplTest, NothingRequiredIfActiveMissingTiles) {
+TEST_F(LegacySWPictureLayerImplTest, NothingRequiredIfActiveMissingTiles) {
   gfx::Size layer_bounds(1000, 4000);
   gfx::Size tile_size(100, 100);
 
@@ -3682,7 +3625,7 @@ TEST_F(NoLowResPictureLayerImplTest, NothingRequiredIfActiveMissingTiles) {
   EXPECT_EQ(pending_layer()->HighResTiling()->AllTilesForTesting().size(), 0u);
 }
 
-TEST_F(NoLowResPictureLayerImplTest, CleanUpTilings) {
+TEST_F(LegacySWPictureLayerImplTest, CleanUpTilings) {
   gfx::Size layer_bounds(1300, 1900);
   std::vector<raw_ptr<PictureLayerTiling, VectorExperimental>> used_tilings;
   SetupDefaultTrees(layer_bounds);
@@ -3796,32 +3739,6 @@ TEST_F(NoLowResPictureLayerImplTest, CleanUpTilings) {
   ASSERT_EQ(1u, active_layer()->tilings()->num_tilings());
 }
 
-TEST_F(NoLowResPictureLayerImplTest, ReleaseTileResources) {
-  gfx::Size layer_bounds(1300, 1900);
-  SetupDefaultTrees(layer_bounds);
-  EXPECT_EQ(1u, pending_layer()->tilings()->num_tilings());
-  EXPECT_EQ(1u, active_layer()->tilings()->num_tilings());
-
-  // All tilings should be removed when losing output surface.
-  active_layer()->ReleaseTileResources();
-  EXPECT_TRUE(active_layer()->tilings());
-  EXPECT_EQ(0u, active_layer()->num_tilings());
-  active_layer()->RecreateTileResources();
-  EXPECT_EQ(0u, active_layer()->num_tilings());
-  pending_layer()->ReleaseTileResources();
-  EXPECT_TRUE(pending_layer()->tilings());
-  EXPECT_EQ(0u, pending_layer()->num_tilings());
-  pending_layer()->RecreateTileResources();
-  EXPECT_EQ(0u, pending_layer()->num_tilings());
-
-  // This should create new tilings.
-  SetupDrawPropertiesAndUpdateTiles(pending_layer(),
-                                    1.3f,   // ideal contents scale
-                                    2.7f,   // device scale
-                                    3.2f);  // page scale
-  EXPECT_EQ(1u, pending_layer()->tilings()->num_tilings());
-}
-
 TEST_F(LegacySWPictureLayerImplTest, SharedQuadStateContainsMaxTilingScale) {
   auto render_pass = viz::CompositorRenderPass::Create();
 
@@ -3920,10 +3837,10 @@ TEST_F(PictureLayerImplTestWithDelegatingRenderer,
 }
 
 class OcclusionTrackingPictureLayerImplTest
-    : public NoLowResPictureLayerImplTest {
+    : public LegacySWPictureLayerImplTest {
  public:
   LayerTreeSettings CreateSettings() override {
-    LayerTreeSettings settings = NoLowResPictureLayerImplTest::CreateSettings();
+    LayerTreeSettings settings = LegacySWPictureLayerImplTest::CreateSettings();
     settings.use_occlusion_for_tile_prioritization = true;
     return settings;
   }
@@ -4211,47 +4128,35 @@ void OcclusionTrackingPictureLayerImplTest::TestOcclusionForScale(
   ASSERT_TRUE(active_layer()->CanHaveTilings());
   active_layer()->SetContentsScaleForTesting(scale);
   active_layer()->tilings()->RemoveAllTilings();
-  float low_res_factor = 0.25f;
-  active_layer()
-      ->AddTiling(gfx::AxisTransform2d(low_res_factor, gfx::Vector2dF()))
-      ->set_resolution(LOW_RESOLUTION);
   active_layer()
       ->AddTiling(gfx::AxisTransform2d(scale, gfx::Vector2dF()))
       ->set_resolution(HIGH_RESOLUTION);
 
-  ASSERT_EQ(2u, active_layer()->num_tilings());
+  ASSERT_EQ(1u, active_layer()->num_tilings());
 
   host_impl()->AdvanceToNextFrame(base::Milliseconds(1));
   // UpdateDrawProperties with the occluding layer.
   UpdateDrawProperties(host_impl()->active_tree());
 
-  ASSERT_EQ(2u, active_layer()->num_tilings());
+  ASSERT_EQ(1u, active_layer()->num_tilings());
 
   int occluded_tile_count = 0;
-  for (size_t i = 0; i < active_layer()->num_tilings(); ++i) {
-    PictureLayerTiling* tiling = active_layer()->tilings()->tiling_at(i);
-    auto prioritized_tiles =
-        tiling->UpdateAndGetAllPrioritizedTilesForTesting();
-    std::vector<Tile*> tiles = tiling->AllTilesForTesting();
+  PictureLayerTiling* tiling = active_layer()->tilings()->tiling_at(0);
+  auto prioritized_tiles = tiling->UpdateAndGetAllPrioritizedTilesForTesting();
+  std::vector<Tile*> tiles = tiling->AllTilesForTesting();
 
-    occluded_tile_count = 0;
-    for (size_t j = 0; j < tiles.size(); ++j) {
-      if (prioritized_tiles[tiles[j]].is_occluded()) {
-        gfx::Rect scaled_content_rect = ScaleToEnclosingRect(
-            tiles[j]->content_rect(), 1.f / tiles[j]->contents_scale_key());
-        EXPECT_GE(scaled_content_rect.x(), occluding_layer_position.x());
-        occluded_tile_count++;
-      }
-    }
-
-    if (i == 0) {
-      EXPECT_EQ(scale, tiling->contents_scale_key());
-      EXPECT_EQ(occluded_tile_count, expected_occluded_count);
-    } else {
-      ASSERT_EQ(1u, i);
-      EXPECT_EQ(occluded_tile_count, 2);
+  occluded_tile_count = 0;
+  for (size_t i = 0; i < tiles.size(); ++i) {
+    if (prioritized_tiles[tiles[i]].is_occluded()) {
+      gfx::Rect scaled_content_rect = ScaleToEnclosingRect(
+          tiles[i]->content_rect(), 1.f / tiles[i]->contents_scale_key());
+      EXPECT_GE(scaled_content_rect.x(), occluding_layer_position.x());
+      occluded_tile_count++;
     }
   }
+
+  EXPECT_EQ(scale, tiling->contents_scale_key());
+  EXPECT_EQ(occluded_tile_count, expected_occluded_count);
 }
 
 TEST_F(OcclusionTrackingPictureLayerImplTest, OcclusionForScale0_3) {
@@ -4333,11 +4238,6 @@ TEST_F(OcclusionTrackingPictureLayerImplTest, DifferentOcclusionOnTrees) {
 
       // All tiles are unoccluded, because the pending tree has no occlusion.
       EXPECT_FALSE(prioritized_tiles[tile].is_occluded());
-
-      if (tiling->resolution() == LOW_RESOLUTION) {
-        EXPECT_FALSE(active_layer()->GetPendingOrActiveTwinTiling(tiling));
-        continue;
-      }
 
       Tile* twin_tile =
           active_layer()->GetPendingOrActiveTwinTiling(tiling)->TileAt(
@@ -4973,7 +4873,7 @@ TEST_F(LegacySWPictureLayerImplTest, UpdateLCDTextInvalidatesPendingTree) {
     EXPECT_TRUE(tile->can_use_lcd_text());
 }
 
-TEST_F(NoLowResPictureLayerImplTest, UpdateLCDTextPushToActiveTree) {
+TEST_F(LegacySWPictureLayerImplTest, UpdateLCDTextPushToActiveTree) {
   SetupPendingTree(FakeRasterSource::CreateFilledWithText(gfx::Size(200, 200)));
   float page_scale = 4.f;
   SetupDrawPropertiesAndUpdateTiles(pending_layer(), page_scale, 1.0f,
@@ -5010,7 +4910,7 @@ TEST_F(NoLowResPictureLayerImplTest, UpdateLCDTextPushToActiveTree) {
     EXPECT_FALSE(tile->can_use_lcd_text());
 }
 
-TEST_F(NoLowResPictureLayerImplTest, UpdateLCDTextPushToActiveTreeWith2dScale) {
+TEST_F(LegacySWPictureLayerImplTest, UpdateLCDTextPushToActiveTreeWith2dScale) {
   SetupPendingTree(FakeRasterSource::CreateFilledWithText(gfx::Size(200, 200)));
   gfx::Vector2dF ideal_scale(4.f, 2.f);
   float page_scale = 4.f;
@@ -5262,7 +5162,7 @@ TEST_F(HalfWidthTileTest, TileSizes) {
   EXPECT_EQ(result.height(), 256);
 }
 
-TEST_F(NoLowResPictureLayerImplTest, LowResWasHighResCollision) {
+TEST_F(LegacySWPictureLayerImplTest, LowResWasHighResCollision) {
   gfx::Size layer_bounds(1300, 1900);
 
   float low_res_factor = 0.25f;
@@ -5651,7 +5551,7 @@ TEST_F(LegacySWPictureLayerImplTest,
   }
 }
 
-TEST_F(NoLowResPictureLayerImplTest,
+TEST_F(LegacySWPictureLayerImplTest,
        ChangeRasterTranslationNukeActiveLayerTiles) {
   gfx::Size layer_bounds(200, 200);
   gfx::Size tile_size(256, 256);

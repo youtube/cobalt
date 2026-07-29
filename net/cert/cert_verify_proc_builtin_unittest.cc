@@ -8,6 +8,7 @@
 #include <optional>
 #include <string_view>
 
+#include "base/containers/to_vector.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/numerics/safe_conversions.h"
@@ -38,6 +39,7 @@
 #include "net/cert/x509_util.h"
 #include "net/cert_net/cert_net_fetcher_url_request.h"
 #include "net/http/transport_security_state.h"
+#include "net/log/net_log_event_type.h"
 #include "net/log/net_log_with_source.h"
 #include "net/log/test_net_log.h"
 #include "net/test/cert_builder.h"
@@ -116,6 +118,33 @@ static std::string MakeRandomPath(std::string_view suffix) {
 }
 
 #if BUILDFLAG(CHROME_ROOT_STORE_SUPPORTED)
+// Parses a single PEM certificate from `*pem_value`, or adds a gtest failure
+// and returns empty vector on error.
+//
+// Since the input from the test often comes from a base::Dict and thus may be
+// null if the expected element isn't found, this takes a pointer as a
+// convenience and will add a failure and an return empty vector if the input
+// is null, so that each test expectation doesn't need to null-check the input
+// before calling.
+std::vector<uint8_t> ParsePemCertificate(const std::string* pem_value) {
+  if (!pem_value) {
+    ADD_FAILURE() << "pem_value is null";
+    return {};
+  }
+  CertificateList certs = X509Certificate::CreateCertificateListFromBytes(
+      base::as_byte_span(*pem_value),
+      X509Certificate::Format::FORMAT_PEM_CERT_SEQUENCE);
+  if (certs.empty()) {
+    ADD_FAILURE() << "error decoding pem";
+    return {};
+  }
+  if (certs.size() > 1) {
+    ADD_FAILURE() << "multiple certs in pem";
+    return {};
+  }
+  return base::ToVector(certs[0]->cert_span());
+}
+
 std::vector<std::string> ParseNetLogCertificatesList(
     const base::Value::List& list) {
   std::vector<std::string> result;
@@ -138,6 +167,16 @@ std::vector<std::string> ParseNetLogCertificatesList(
     result.emplace_back(base::as_string_view(certs[0]->cert_span()));
   }
   return result;
+}
+
+std::vector<std::string> ParseNetLogCertificatesDict(
+    const base::Value::Dict& dict) {
+  auto* cert_list = dict.FindList("certificates");
+  if (!cert_list) {
+    ADD_FAILURE() << "no cerificates key in dict";
+    return {};
+  }
+  return ParseNetLogCertificatesList(*cert_list);
 }
 #endif  // BUILDFLAG(CHROME_ROOT_STORE_SUPPORTED)
 
@@ -2523,8 +2562,12 @@ INSTANTIATE_TEST_SUITE_P(, CertVerifyProcBuiltin1QwacTest, testing::Bool());
 class CertVerifyProcBuiltin2QwacTest : public CertVerifyProcBuiltinTest {
  public:
   void ExpectHistogramSample(const base::HistogramTester& histograms,
-                             Verify2QwacResult result) {
-    histograms.ExpectUniqueSample("Net.CertVerifier.Qwac.2Qwac", result, 1u);
+                             Verify2QwacBindingResult result) {
+    histograms.ExpectUniqueSample("Net.CertVerifier.Qwac.2QwacBinding", result,
+                                  1u);
+  }
+  void ExpectNoHistogramSample(const base::HistogramTester& histograms) {
+    histograms.ExpectTotalCount("Net.CertVerifier.Qwac.2QwacBinding", 0);
   }
 };
 
@@ -2552,7 +2595,8 @@ TEST_F(CertVerifyProcBuiltin2QwacTest, InvalidCertificate) {
     EXPECT_THAT(error, IsError(ERR_CERT_INVALID));
     EXPECT_TRUE(verify_result.cert_status & CERT_STATUS_INVALID);
     EXPECT_FALSE(verify_result.cert_status & CERT_STATUS_IS_QWAC);
-    ExpectHistogramSample(histograms, Verify2QwacResult::kLeafParsingError);
+    ExpectHistogramSample(histograms,
+                          Verify2QwacBindingResult::kCertLeafParsingError);
   }
 }
 
@@ -2580,7 +2624,8 @@ TEST_F(CertVerifyProcBuiltin2QwacTest, TwoQwacRequiresEutl) {
     EXPECT_THAT(error, IsError(ERR_CERT_AUTHORITY_INVALID));
     EXPECT_TRUE(verify_result.cert_status & CERT_STATUS_AUTHORITY_INVALID);
     EXPECT_FALSE(verify_result.cert_status & CERT_STATUS_IS_QWAC);
-    ExpectHistogramSample(histograms, Verify2QwacResult::kAuthorityInvalid);
+    ExpectHistogramSample(histograms,
+                          Verify2QwacBindingResult::kCertAuthorityInvalid);
 
     // The path builder should have found the intermediate, but no root.
     EXPECT_EQ(leaf->GetCertBuffer(),
@@ -2605,7 +2650,7 @@ TEST_F(CertVerifyProcBuiltin2QwacTest, TwoQwacRequiresEutl) {
     EXPECT_THAT(error, IsOk());
     EXPECT_FALSE(IsCertStatusError(verify_result.cert_status));
     EXPECT_TRUE(verify_result.cert_status & CERT_STATUS_IS_QWAC);
-    ExpectHistogramSample(histograms, Verify2QwacResult::kValid2Qwac);
+    ExpectNoHistogramSample(histograms);
 
     // The verified chain has the full cert chain.
     EXPECT_EQ(leaf->GetCertBuffer(),
@@ -2639,7 +2684,8 @@ TEST_F(CertVerifyProcBuiltin2QwacTest, TwoQwacRequiresPolicies) {
     EXPECT_THAT(error, IsError(ERR_CERT_INVALID));
     EXPECT_TRUE(verify_result.cert_status & CERT_STATUS_INVALID);
     EXPECT_FALSE(verify_result.cert_status & CERT_STATUS_IS_QWAC);
-    ExpectHistogramSample(histograms, Verify2QwacResult::kInconsistentBits);
+    ExpectHistogramSample(histograms,
+                          Verify2QwacBindingResult::kCertInconsistentBits);
   }
 
   leaf->SetCertificatePolicies({"0.4.0.194112.1.6"});  // QNCP-w-gen
@@ -2654,7 +2700,7 @@ TEST_F(CertVerifyProcBuiltin2QwacTest, TwoQwacRequiresPolicies) {
     EXPECT_THAT(error, IsOk());
     EXPECT_FALSE(IsCertStatusError(verify_result.cert_status));
     EXPECT_TRUE(verify_result.cert_status & CERT_STATUS_IS_QWAC);
-    ExpectHistogramSample(histograms, Verify2QwacResult::kValid2Qwac);
+    ExpectNoHistogramSample(histograms);
   }
 }
 
@@ -2679,7 +2725,8 @@ TEST_F(CertVerifyProcBuiltin2QwacTest, TwoQwacRequiresQcStatements) {
     EXPECT_THAT(error, IsError(ERR_CERT_INVALID));
     EXPECT_TRUE(verify_result.cert_status & CERT_STATUS_INVALID);
     EXPECT_FALSE(verify_result.cert_status & CERT_STATUS_IS_QWAC);
-    ExpectHistogramSample(histograms, Verify2QwacResult::kInconsistentBits);
+    ExpectHistogramSample(histograms,
+                          Verify2QwacBindingResult::kCertInconsistentBits);
   }
 
   leaf->SetQwacQcStatements({bssl::der::Input(kEtsiQctWebOid)});
@@ -2694,7 +2741,7 @@ TEST_F(CertVerifyProcBuiltin2QwacTest, TwoQwacRequiresQcStatements) {
     EXPECT_THAT(error, IsOk());
     EXPECT_FALSE(IsCertStatusError(verify_result.cert_status));
     EXPECT_TRUE(verify_result.cert_status & CERT_STATUS_IS_QWAC);
-    ExpectHistogramSample(histograms, Verify2QwacResult::kValid2Qwac);
+    ExpectNoHistogramSample(histograms);
   }
 }
 
@@ -2719,7 +2766,8 @@ TEST_F(CertVerifyProcBuiltin2QwacTest, TwoQwacRequiresEku) {
     EXPECT_THAT(error, IsError(ERR_CERT_INVALID));
     EXPECT_TRUE(verify_result.cert_status & CERT_STATUS_INVALID);
     EXPECT_FALSE(verify_result.cert_status & CERT_STATUS_IS_QWAC);
-    ExpectHistogramSample(histograms, Verify2QwacResult::kInconsistentBits);
+    ExpectHistogramSample(histograms,
+                          Verify2QwacBindingResult::kCertInconsistentBits);
   }
 
   leaf->SetExtendedKeyUsages({bssl::der::Input(kIdKpTlsBinding)});
@@ -2734,7 +2782,7 @@ TEST_F(CertVerifyProcBuiltin2QwacTest, TwoQwacRequiresEku) {
     EXPECT_THAT(error, IsOk());
     EXPECT_FALSE(IsCertStatusError(verify_result.cert_status));
     EXPECT_TRUE(verify_result.cert_status & CERT_STATUS_IS_QWAC);
-    ExpectHistogramSample(histograms, Verify2QwacResult::kValid2Qwac);
+    ExpectNoHistogramSample(histograms);
   }
 }
 
@@ -2761,7 +2809,8 @@ TEST_F(CertVerifyProcBuiltin2QwacTest, TwoQwacVerifiesName) {
     EXPECT_THAT(error, IsError(ERR_CERT_COMMON_NAME_INVALID));
     EXPECT_TRUE(verify_result.cert_status & CERT_STATUS_COMMON_NAME_INVALID);
     EXPECT_FALSE(verify_result.cert_status & CERT_STATUS_IS_QWAC);
-    ExpectHistogramSample(histograms, Verify2QwacResult::kNameInvalid);
+    ExpectHistogramSample(histograms,
+                          Verify2QwacBindingResult::kCertNameInvalid);
   }
 
   {
@@ -2774,7 +2823,7 @@ TEST_F(CertVerifyProcBuiltin2QwacTest, TwoQwacVerifiesName) {
     EXPECT_THAT(error, IsOk());
     EXPECT_FALSE(IsCertStatusError(verify_result.cert_status));
     EXPECT_TRUE(verify_result.cert_status & CERT_STATUS_IS_QWAC);
-    ExpectHistogramSample(histograms, Verify2QwacResult::kValid2Qwac);
+    ExpectNoHistogramSample(histograms);
   }
 }
 
@@ -2802,7 +2851,8 @@ TEST_F(CertVerifyProcBuiltin2QwacTest, TwoQwacVerifiesValidityDate) {
     EXPECT_THAT(error, IsError(ERR_CERT_DATE_INVALID));
     EXPECT_TRUE(verify_result.cert_status & CERT_STATUS_DATE_INVALID);
     EXPECT_FALSE(verify_result.cert_status & CERT_STATUS_IS_QWAC);
-    ExpectHistogramSample(histograms, Verify2QwacResult::kDateInvalid);
+    ExpectHistogramSample(histograms,
+                          Verify2QwacBindingResult::kCertDateInvalid);
   }
 
   // 2-QWACs are not bound by BR lifetime limits, so we don't enforce any
@@ -2820,15 +2870,16 @@ TEST_F(CertVerifyProcBuiltin2QwacTest, TwoQwacVerifiesValidityDate) {
     EXPECT_THAT(error, IsOk());
     EXPECT_FALSE(IsCertStatusError(verify_result.cert_status));
     EXPECT_TRUE(verify_result.cert_status & CERT_STATUS_IS_QWAC);
-    ExpectHistogramSample(histograms, Verify2QwacResult::kValid2Qwac);
+    ExpectNoHistogramSample(histograms);
   }
 }
 
 class CertVerifyProcBuiltin2QwacBindingTest : public CertVerifyProcBuiltinTest {
  public:
   void ExpectHistogramSample(const base::HistogramTester& histograms,
-                             Verify2QwacResult result) {
-    histograms.ExpectUniqueSample("Net.CertVerifier.Qwac.2Qwac", result, 1u);
+                             Verify2QwacBindingResult result) {
+    histograms.ExpectUniqueSample("Net.CertVerifier.Qwac.2QwacBinding", result,
+                                  1u);
   }
 };
 
@@ -2843,6 +2894,7 @@ TEST_F(CertVerifyProcBuiltin2QwacBindingTest, TestValidBinding) {
   AddMockEutlRoot(binding_builder.GetRootBuilder()->GetCertBuffer());
 
   base::HistogramTester histograms;
+  RecordingNetLogObserver net_log_observer(NetLogCaptureMode::kDefault);
   NetLogSource verify_net_log_source;
   scoped_refptr<X509Certificate> verified_2qwac = Verify2QwacBinding(
       jws, "www.example.com", base::as_byte_span(tls_leaf->GetDER()),
@@ -2850,9 +2902,49 @@ TEST_F(CertVerifyProcBuiltin2QwacBindingTest, TestValidBinding) {
   ASSERT_TRUE(verified_2qwac);
   EXPECT_TRUE(verified_2qwac->EqualsIncludingChain(
       binding_builder.GetLeafBuilder()->GetX509CertificateFullChain().get()));
-  ExpectHistogramSample(histograms, Verify2QwacResult::kValid2Qwac);
-  // TODO(crbug.com/392931070): test Verify2QwacBinding histograms and netlogs
-  // once they are added.
+  ExpectHistogramSample(histograms,
+                        Verify2QwacBindingResult::kValid2QwacBinding);
+
+  auto events = net_log_observer.GetEntriesForSource(verify_net_log_source);
+  auto event =
+      std::ranges::find(events, NetLogEventType::CERT_VERIFY_PROC_2QWAC_BINDING,
+                        &NetLogEntry::type);
+  ASSERT_NE(event, events.end());
+  EXPECT_EQ(net::NetLogEventPhase::BEGIN, event->phase);
+  EXPECT_EQ(jws, base::optional_ref(event->params.FindString("binding")));
+  EXPECT_EQ("www.example.com",
+            base::optional_ref(event->params.FindString("host")));
+  EXPECT_EQ(base::as_byte_span(tls_leaf->GetDER()),
+            ParsePemCertificate(event->params.FindString("tls_certificate")));
+
+  event = std::ranges::find(++event, events.end(),
+                            NetLogEventType::CERT_VERIFY_PROC_2QWAC,
+                            &NetLogEntry::type);
+  ASSERT_NE(event, events.end());
+  EXPECT_EQ(net::NetLogEventPhase::BEGIN, event->phase);
+
+  event = std::ranges::find(++event, events.end(),
+                            NetLogEventType::CERT_VERIFY_PROC_2QWAC,
+                            &NetLogEntry::type);
+  ASSERT_NE(event, events.end());
+  EXPECT_EQ(net::NetLogEventPhase::END, event->phase);
+
+  EXPECT_FALSE(event->params.Find("net_error"));
+  EXPECT_EQ(net::CERT_STATUS_IS_QWAC, event->params.FindInt("cert_status"));
+  base::Value::Dict* pem_verified_certs =
+      event->params.FindDict("verified_cert");
+  ASSERT_TRUE(pem_verified_certs);
+  EXPECT_THAT(ParseNetLogCertificatesDict(*pem_verified_certs),
+              testing::ElementsAre(binding_builder.GetLeafBuilder()->GetDER(),
+                                   binding_builder.GetRootBuilder()->GetDER()));
+
+  event = std::ranges::find(++event, events.end(),
+                            NetLogEventType::CERT_VERIFY_PROC_2QWAC_BINDING,
+                            &NetLogEntry::type);
+  ASSERT_NE(event, events.end());
+  EXPECT_EQ(net::NetLogEventPhase::END, event->phase);
+  EXPECT_FALSE(event->params.Find("net_error"));
+  EXPECT_EQ(true, event->params.FindBool("is_valid_2qwac_binding"));
 }
 
 TEST_F(CertVerifyProcBuiltin2QwacBindingTest, TestBindingFailsParsing) {
@@ -2865,12 +2957,23 @@ TEST_F(CertVerifyProcBuiltin2QwacBindingTest, TestBindingFailsParsing) {
   InitializeVerifyProc(CreateParams(/*additional_trust_anchors=*/{}));
   AddMockEutlRoot(binding_builder.GetRootBuilder()->GetCertBuffer());
 
+  RecordingNetLogObserver net_log_observer(NetLogCaptureMode::kDefault);
   base::HistogramTester histograms;
   NetLogSource verify_net_log_source;
   EXPECT_FALSE(Verify2QwacBinding(jws, "www.example.com",
                                   base::as_byte_span(tls_leaf->GetDER()),
                                   &verify_net_log_source));
-  histograms.ExpectTotalCount("Net.CertVerifier.Qwac.2Qwac", 0);
+  ExpectHistogramSample(histograms,
+                        Verify2QwacBindingResult::kBindingParsingError);
+
+  auto end_events = net_log_observer.GetEntriesForSourceWithType(
+      verify_net_log_source, NetLogEventType::CERT_VERIFY_PROC_2QWAC_BINDING,
+      net::NetLogEventPhase::END);
+  ASSERT_EQ(1U, end_events.size());
+  auto& event = end_events[0];
+  EXPECT_EQ(ERR_FAILED, event.params.FindInt("net_error"));
+  EXPECT_EQ("binding parsing error",
+            base::optional_ref(event.params.FindString("error_description")));
 }
 
 TEST_F(CertVerifyProcBuiltin2QwacBindingTest, TestBindingInvalidSignature) {
@@ -2883,12 +2986,23 @@ TEST_F(CertVerifyProcBuiltin2QwacBindingTest, TestBindingInvalidSignature) {
   InitializeVerifyProc(CreateParams(/*additional_trust_anchors=*/{}));
   AddMockEutlRoot(binding_builder.GetRootBuilder()->GetCertBuffer());
 
+  RecordingNetLogObserver net_log_observer(NetLogCaptureMode::kDefault);
   base::HistogramTester histograms;
   NetLogSource verify_net_log_source;
   EXPECT_FALSE(Verify2QwacBinding(jws, "www.example.com",
                                   base::as_byte_span(tls_leaf->GetDER()),
                                   &verify_net_log_source));
-  histograms.ExpectTotalCount("Net.CertVerifier.Qwac.2Qwac", 0);
+  ExpectHistogramSample(histograms,
+                        Verify2QwacBindingResult::kBindingSignatureInvalid);
+
+  auto end_events = net_log_observer.GetEntriesForSourceWithType(
+      verify_net_log_source, NetLogEventType::CERT_VERIFY_PROC_2QWAC_BINDING,
+      net::NetLogEventPhase::END);
+  ASSERT_EQ(1U, end_events.size());
+  auto& event = end_events[0];
+  EXPECT_EQ(ERR_FAILED, event.params.FindInt("net_error"));
+  EXPECT_EQ("binding signature invalid",
+            base::optional_ref(event.params.FindString("error_description")));
 }
 
 TEST_F(CertVerifyProcBuiltin2QwacBindingTest,
@@ -2903,12 +3017,23 @@ TEST_F(CertVerifyProcBuiltin2QwacBindingTest,
   // certificate should fail.
   InitializeVerifyProc(CreateParams(/*additional_trust_anchors=*/{}));
 
+  RecordingNetLogObserver net_log_observer(NetLogCaptureMode::kDefault);
   base::HistogramTester histograms;
   NetLogSource verify_net_log_source;
   EXPECT_FALSE(Verify2QwacBinding(jws, "www.example.com",
                                   base::as_byte_span(tls_leaf->GetDER()),
                                   &verify_net_log_source));
-  ExpectHistogramSample(histograms, Verify2QwacResult::kAuthorityInvalid);
+  ExpectHistogramSample(histograms,
+                        Verify2QwacBindingResult::kCertAuthorityInvalid);
+
+  auto end_events = net_log_observer.GetEntriesForSourceWithType(
+      verify_net_log_source, NetLogEventType::CERT_VERIFY_PROC_2QWAC_BINDING,
+      net::NetLogEventPhase::END);
+  ASSERT_EQ(1U, end_events.size());
+  auto& event = end_events[0];
+  EXPECT_EQ(ERR_FAILED, event.params.FindInt("net_error"));
+  EXPECT_EQ("2-QWAC cert verify failed",
+            base::optional_ref(event.params.FindString("error_description")));
 }
 
 TEST_F(CertVerifyProcBuiltin2QwacBindingTest, TestTlsCertIsNotBound) {
@@ -2922,12 +3047,22 @@ TEST_F(CertVerifyProcBuiltin2QwacBindingTest, TestTlsCertIsNotBound) {
   InitializeVerifyProc(CreateParams(/*additional_trust_anchors=*/{}));
   AddMockEutlRoot(binding_builder.GetRootBuilder()->GetCertBuffer());
 
+  RecordingNetLogObserver net_log_observer(NetLogCaptureMode::kDefault);
   base::HistogramTester histograms;
   NetLogSource verify_net_log_source;
   EXPECT_FALSE(Verify2QwacBinding(jws, "www.example.com",
                                   base::as_byte_span(tls_leaf->GetDER()),
                                   &verify_net_log_source));
-  ExpectHistogramSample(histograms, Verify2QwacResult::kValid2Qwac);
+  ExpectHistogramSample(histograms, Verify2QwacBindingResult::kTlsCertNotBound);
+
+  auto end_events = net_log_observer.GetEntriesForSourceWithType(
+      verify_net_log_source, NetLogEventType::CERT_VERIFY_PROC_2QWAC_BINDING,
+      net::NetLogEventPhase::END);
+  ASSERT_EQ(1U, end_events.size());
+  auto& event = end_events[0];
+  EXPECT_EQ(ERR_FAILED, event.params.FindInt("net_error"));
+  EXPECT_EQ("TLS cert not bound",
+            base::optional_ref(event.params.FindString("error_description")));
 }
 
 #endif  // BUILDFLAG(CHROME_ROOT_STORE_SUPPORTED)

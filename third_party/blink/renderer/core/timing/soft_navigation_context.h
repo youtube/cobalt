@@ -8,6 +8,7 @@
 #include <cstdint>
 
 #include "base/time/time.h"
+#include "third_party/blink/public/common/features.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_hash_set.h"
@@ -18,12 +19,17 @@
 namespace blink {
 
 class Node;
+class TextRecord;
+class ImageRecord;
+class LargestContentfulPaintCalculator;
+
 class CORE_EXPORT SoftNavigationContext
     : public GarbageCollected<SoftNavigationContext> {
   static uint64_t last_context_id_;
 
  public:
-  explicit SoftNavigationContext(bool advanced_paint_attribution_enabled);
+  explicit SoftNavigationContext(LocalDOMWindow& window,
+                                 features::SoftNavigationHeuristicsMode);
 
   bool IsMostRecentlyCreatedContext() const {
     return context_id_ == last_context_id_;
@@ -56,15 +62,17 @@ class CORE_EXPORT SoftNavigationContext
 
   uint64_t PaintedArea() const { return painted_area_; }
 
+  // Returns true if this Context is involved in modifying the container root
+  // for this Node*.
+  bool IsNeededForTiming(Node* node);
   // Reports a new contentful paint area to this context, and the Node painted.
-  // Returns true if we update the total attributed area (meaning this context
-  // was involved in modifying this dom node, and we grew the painted region).
-  // Return value is used to check if it is worthwhile to check for "sufficient
-  // paints" (to emit a new soft-nav entry).
-  bool AddPaintedArea(Node* node,
-                      const gfx::RectF& rect,
-                      bool is_newest_context);
+  bool AddPaintedArea(TextRecord*);
+  bool AddPaintedArea(ImageRecord*);
+  // Returns true if we update the total attributed area this animation frame.
+  // Used to check if it is worthwhile to call `SatisfiesSoftNavPaintCriteria`.
   bool OnPaintFinished();
+  void OnInputOrScroll();
+  void UpdateSoftLcpCandidate();
 
   bool SatisfiesSoftNavNonPaintCriteria() const;
   bool SatisfiesSoftNavPaintCriteria(uint64_t required_paint_area) const;
@@ -74,26 +82,33 @@ class CORE_EXPORT SoftNavigationContext
   void Trace(Visitor* visitor) const;
 
  private:
+  bool AddPaintedAreaInternal(Node* node, const gfx::RectF& rect);
+
   // Pre-Increment `last_context_id_` such that the newest context uses the
   // largest value and can be used to identify the most recent context.
   const uint64_t context_id_ = ++last_context_id_;
 
-  bool advanced_paint_attribution_enabled_;
+  bool was_emitted_ = false;
+  const features::SoftNavigationHeuristicsMode paint_attribution_mode_;
 
   base::TimeTicks user_interaction_timestamp_;
+  base::TimeTicks first_input_or_scroll_time_;
+
   String initial_url_;
   String most_recent_url_;
-  bool was_emitted_ = false;
 
   blink::HeapHashSet<WeakMember<Node>> modified_nodes_;
   blink::HeapHashSet<WeakMember<Node>> already_painted_modified_nodes_;
+
+  Member<LargestContentfulPaintCalculator> lcp_calculator_;
+  Member<TextRecord> largest_text_;
+  Member<ImageRecord> largest_image_;
 
   // Elements of `modified_nodes_` can get GC-ed, so we need to keep a count of
   // the total nodes modified.
   size_t num_modified_dom_nodes_ = 0;
   uint64_t painted_area_ = 0;
   uint64_t repainted_area_ = 0;
-  uint64_t unattributed_area_ = 0;
 
   size_t num_modified_dom_nodes_last_animation_frame_ = 0;
   size_t num_live_nodes_last_animation_frame_ = 0;

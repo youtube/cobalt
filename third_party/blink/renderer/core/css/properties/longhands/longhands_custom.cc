@@ -604,7 +604,8 @@ const CSSValue* AnimationTimeline::CSSValueFromComputedStyleInternal(
     const LayoutObject*,
     bool allow_visited_style,
     CSSValuePhase value_phase) const {
-  return ComputedStyleUtils::ValueForAnimationTimelineList(style.Animations());
+  return ComputedStyleUtils::ValueForAnimationTimelineList(style.Animations(),
+                                                           style);
 }
 
 const CSSValue* AnimationTimeline::InitialValue() const {
@@ -760,7 +761,7 @@ const CSSValue* AnimationTriggerTimeline::CSSValueFromComputedStyleInternal(
     bool allow_visited_style,
     CSSValuePhase value_phase) const {
   return ComputedStyleUtils::ValueForAnimationTriggerTimelineList(
-      style.Animations());
+      style.Animations(), style);
 }
 
 const CSSValue* AnimationTriggerTimeline::InitialValue() const {
@@ -3142,7 +3143,7 @@ void Content::ApplyValue(StyleResolverState& state,
           IDS_PARTIAL_INTEREST_TARGET_ACTIVATION_HINT,
           Element::GetPartialInterestTargetActivationHotkey());
       auto* content =
-          MakeGarbageCollected<TextContentData>("{" + hint_text + "}");
+          MakeGarbageCollected<TextContentData>(StrCat({"{", hint_text, "}"}));
       auto* alt_content = MakeGarbageCollected<AltTextContentData>(hint_text);
       content->SetNext(alt_content);
       builder.SetContent(content);
@@ -3191,7 +3192,7 @@ void Content::ApplyValue(StyleResolverState& state,
           GetStringFromAttributeOrStringValue(*item, state, builder);
       if (prev_content && prev_content->IsText()) {
         TextContentData* text_content = To<TextContentData>(prev_content);
-        text_content->SetText(text_content->GetText() + string);
+        text_content->SetText(StrCat({text_content->GetText(), string}));
         continue;
       }
       next_content = MakeGarbageCollected<TextContentData>(string);
@@ -3653,6 +3654,7 @@ void AdjustDisplayKeywords(DisplayValidationResult& result) {
     case CSSValueID::kFlex:
     case CSSValueID::kFlowRoot:
     case CSSValueID::kGrid:
+    case CSSValueID::kMasonry:
     case CSSValueID::kTable:
       if (outside == CSSValueID::kBlock) {
         result.outside = nullptr;
@@ -3663,6 +3665,8 @@ void AdjustDisplayKeywords(DisplayValidationResult& result) {
         } else if (inside == CSSValueID::kFlowRoot) {
           new_id = CSSValueID::kInlineBlock;
         } else if (inside == CSSValueID::kGrid) {
+          new_id = CSSValueID::kInlineGrid;
+        } else if (inside == CSSValueID::kMasonry) {
           new_id = CSSValueID::kInlineGrid;
         } else if (inside == CSSValueID::kTable) {
           new_id = CSSValueID::kInlineTable;
@@ -3908,6 +3912,9 @@ void Display::ApplyValue(StyleResolverState& state,
       builder.SetDisplay(is_block ? EDisplay::kFlex : EDisplay::kInlineFlex);
     } else if (inside == CSSValueID::kGrid) {
       builder.SetDisplay(is_block ? EDisplay::kGrid : EDisplay::kInlineGrid);
+    } else if (inside == CSSValueID::kMasonry) {
+      builder.SetDisplay(is_block ? EDisplay::kMasonry
+                                  : EDisplay::kInlineMasonry);
     } else if (inside == CSSValueID::kMath) {
       builder.SetDisplay(is_block ? EDisplay::kBlockMath : EDisplay::kMath);
     } else if (inside == CSSValueID::kRuby) {

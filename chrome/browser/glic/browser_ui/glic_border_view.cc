@@ -10,6 +10,7 @@
 #include "base/debug/dump_without_crashing.h"
 #include "chrome/browser/glic/browser_ui/theme_util.h"
 #include "chrome/browser/glic/glic_keyed_service_factory.h"
+#include "chrome/browser/glic/host/context/glic_sharing_manager.h"
 #include "chrome/browser/glic/host/context/glic_tab_data.h"
 #include "chrome/browser/glic/resources/grit/glic_browser_resources.h"
 #include "chrome/browser/glic/widget/glic_window_controller.h"
@@ -104,9 +105,10 @@ class GlicBorderView::BorderViewUpdater {
 
     // Subscribe to changes in the focus tab.
     focus_change_subscription_ =
-        glic_service->AddFocusedTabChangedCallback(base::BindRepeating(
-            &GlicBorderView::BorderViewUpdater::OnFocusedTabChanged,
-            base::Unretained(this)));
+        glic_service->sharing_manager().AddFocusedTabChangedCallback(
+            base::BindRepeating(
+                &GlicBorderView::BorderViewUpdater::OnFocusedTabChanged,
+                base::Unretained(this)));
 
     // Subscribe to changes in the context access indicator status.
     indicator_change_subscription_ =
@@ -373,10 +375,16 @@ void GlicBorderView::OnPaint(gfx::Canvas* canvas) {
        .value = UseDarkMode(theme_service_) ? 1 : 0}};
 
   views::View::OnPaint(canvas);
+
   cc::PaintFlags flags;
-  flags.setShader(cc::PaintShader::MakeSkSLCommand(
+  auto shader = cc::PaintShader::MakeSkSLCommand(
       shader_, std::move(float_uniforms), std::move(float2_uniforms),
-      /*float4_uniforms=*/{}, std::move(int_uniforms)));
+      /*float4_uniforms=*/{}, std::move(int_uniforms), cached_paint_shader_);
+  flags.setShader(shader);
+
+  if (base::FeatureList::IsEnabled(features::kGlicUseShaderCache)) {
+    cached_paint_shader_ = shader;
+  }
 
   // TODO(liuwilliam): This will create a hard clip at the boundary. Figure out
   // a better way of the falloff.

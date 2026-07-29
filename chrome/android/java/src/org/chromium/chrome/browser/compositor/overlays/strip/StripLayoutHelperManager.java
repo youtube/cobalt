@@ -69,6 +69,7 @@ import org.chromium.chrome.browser.multiwindow.MultiWindowUtils;
 import org.chromium.chrome.browser.share.ShareDelegate;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.Tab.LoadUrlResult;
+import org.chromium.chrome.browser.tab.TabClosingSource;
 import org.chromium.chrome.browser.tab.TabCreationState;
 import org.chromium.chrome.browser.tab.TabLaunchType;
 import org.chromium.chrome.browser.tab.TabSelectionType;
@@ -106,8 +107,6 @@ import org.chromium.ui.dragdrop.DragDropGlobalState;
 import org.chromium.ui.interpolators.Interpolators;
 import org.chromium.ui.resources.ResourceManager;
 import org.chromium.ui.util.ColorUtils;
-import org.chromium.ui.xr.scenecore.XrSceneCoreSessionManager;
-import org.chromium.ui.xr.scenecore.XrSceneCoreUtils;
 import org.chromium.url.GURL;
 
 import java.util.ArrayList;
@@ -253,11 +252,10 @@ public class StripLayoutHelperManager
     private final BrowserControlsStateProvider mBrowserControlsStateProvider;
     private final Callback<Integer> mStripVisibilityStateObserver;
     private final ObservableSupplierImpl<Integer> mStripVisibilityStateSupplier;
+    private final @Nullable ObservableSupplier<Boolean> mXrSpaceModeObservableSupplier;
 
     // Drag-Drop
     @Nullable private TabStripDragHandler mTabStripDragHandler;
-
-    private @Nullable XrSceneCoreSessionManager mXrSessionManager;
 
     private class TabStripEventHandler implements MotionEventHandler {
         @Override
@@ -370,8 +368,7 @@ public class StripLayoutHelperManager
     class TabSwitcherLayoutObserver implements LayoutStateObserver {
         @Override
         public void onStartedShowing(int layoutType) {
-            if (layoutType == LayoutType.TAB_SWITCHER
-                    && XrSceneCoreUtils.isSceneCoreSessionInFsm(mXrSessionManager)) {
+            if (layoutType == LayoutType.TAB_SWITCHER && isActivityInXrFullSpaceModeNow()) {
                 setStripVisibilityState(StripVisibilityState.OBSCURED, /* clear= */ false);
             }
         }
@@ -385,7 +382,7 @@ public class StripLayoutHelperManager
         @Override
         public void onStartedHiding(@LayoutType int layoutType) {
             if (layoutType != LayoutType.TAB_SWITCHER) return;
-            if (!XrSceneCoreUtils.isSceneCoreSessionInFsm(mXrSessionManager)) {
+            if (!isActivityInXrFullSpaceModeNow()) {
                 setStripVisibilityState(StripVisibilityState.OBSCURED, /* clear= */ true);
             }
 
@@ -397,7 +394,7 @@ public class StripLayoutHelperManager
         @Override
         public void onFinishedHiding(int layoutType) {
             if (layoutType != LayoutType.TAB_SWITCHER) return;
-            if (XrSceneCoreUtils.isSceneCoreSessionInFsm(mXrSessionManager)) {
+            if (isActivityInXrFullSpaceModeNow()) {
                 setStripVisibilityState(StripVisibilityState.OBSCURED, /* clear= */ true);
             }
         }
@@ -435,6 +432,8 @@ public class StripLayoutHelperManager
      * @param dataSharingTabManager The {@link DataSharingTabManager} for shared groups.
      * @param bottomSheetController The {@link BottomSheetController} used to show bottom sheets.
      * @param shareDelegateSupplier Supplies {@link ShareDelegate} to share tab URLs.
+     * @param xrSpaceModeObservableSupplier Supplies current XR space mode status. True for XR full
+     *     space mode, false otherwise.
      */
     public StripLayoutHelperManager(
             Context context,
@@ -458,7 +457,8 @@ public class StripLayoutHelperManager
             ActionConfirmationManager actionConfirmationManager,
             DataSharingTabManager dataSharingTabManager,
             @NonNull BottomSheetController bottomSheetController,
-            @NonNull Supplier<ShareDelegate> shareDelegateSupplier) {
+            @NonNull Supplier<ShareDelegate> shareDelegateSupplier,
+            @Nullable ObservableSupplier<Boolean> xrSpaceModeObservableSupplier) {
         mContext = context;
         Resources res = context.getResources();
         mManagerHost = managerHost;
@@ -597,7 +597,7 @@ public class StripLayoutHelperManager
             onAppHeaderStateChanged(mDesktopWindowStateManager.getAppHeaderState());
         }
 
-        mXrSessionManager = XrSceneCoreUtils.getXrSceneCoreSessionManagerFromContext(context);
+        mXrSpaceModeObservableSupplier = xrSpaceModeObservableSupplier;
     }
 
     private boolean isAppInDesktopWindow() {
@@ -731,7 +731,6 @@ public class StripLayoutHelperManager
         if (mDesktopWindowStateManager != null) {
             mDesktopWindowStateManager.removeObserver(this);
         }
-        mXrSessionManager = null;
     }
 
     /** Mark whether tab strip is hidden by a height transition. */
@@ -1354,7 +1353,7 @@ public class StripLayoutHelperManager
                     }
 
                     @Override
-                    public void tabPendingClosure(Tab tab) {
+                    public void tabPendingClosure(Tab tab, @TabClosingSource int closingSource) {
                         getStripLayoutHelper(tab.isIncognitoBranded())
                                 .tabClosed(time(), tab.getId());
                         updateModelSwitcherButton();
@@ -1369,7 +1368,8 @@ public class StripLayoutHelperManager
                     }
 
                     @Override
-                    public void onFinishingTabClosure(Tab tab) {
+                    public void onFinishingTabClosure(
+                            Tab tab, @TabClosingSource int closingSource) {
                         getStripLayoutHelper(tab.isIncognitoBranded())
                                 .tabClosed(time(), tab.getId());
                         updateModelSwitcherButton();
@@ -1655,5 +1655,9 @@ public class StripLayoutHelperManager
      */
     public boolean openKeyboardFocusedContextMenu() {
         return getActiveStripLayoutHelper().openKeyboardFocusedContextMenu();
+    }
+
+    private boolean isActivityInXrFullSpaceModeNow() {
+        return mXrSpaceModeObservableSupplier != null && mXrSpaceModeObservableSupplier.get();
     }
 }

@@ -4489,6 +4489,9 @@ domain Emulation
       boolean mobile
       optional string bitness
       optional boolean wow64
+      # Used to specify User Agent form-factor values.
+      # See https://wicg.github.io/ua-client-hints/#sec-ch-ua-form-factors
+      optional array of string formFactors
 
   # Used to specify sensor types to emulate.
   # See https://w3c.github.io/sensors/#automation for more information.
@@ -6919,6 +6922,9 @@ domain Network
     properties
       # The outer response of signed HTTP exchange which was received from network.
       Response outerResponse
+      # Whether network response for the signed exchange was accompanied by
+      # extra headers.
+      boolean hasExtraInfo
       # Information about the signed exchange header.
       optional SignedExchangeHeader header
       # Security details for the signed exchange header.
@@ -8641,6 +8647,7 @@ domain Page
       join-ad-interest-group
       keyboard-map
       language-detector
+      language-model
       local-fonts
       local-network-access
       magnetometer

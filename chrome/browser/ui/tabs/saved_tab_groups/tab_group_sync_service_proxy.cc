@@ -26,6 +26,7 @@
 #include "components/saved_tab_groups/public/saved_tab_group_tab.h"
 #include "components/saved_tab_groups/public/tab_group_sync_service.h"
 #include "components/saved_tab_groups/public/types.h"
+#include "components/saved_tab_groups/public/versioning_message_controller.h"
 #include "components/sync/base/user_selectable_type.h"
 #include "components/sync/service/sync_service.h"
 #include "components/sync/service/sync_user_settings.h"
@@ -375,6 +376,16 @@ std::unique_ptr<std::vector<SavedTabGroup>>
 TabGroupSyncServiceProxy::TakeSharedTabGroupsAvailableAtStartupForMessaging() {
   // This method should only exist and be used in the underlying service.
   NOTREACHED();
+}
+
+bool TabGroupSyncServiceProxy::HadSharedTabGroupsLastSession(
+    bool open_shared_tab_groups) {
+  return false;
+}
+
+VersioningMessageController*
+TabGroupSyncServiceProxy::GetVersioningMessageController() {
+  return nullptr;
 }
 
 void TabGroupSyncServiceProxy::OnLastTabClosed(

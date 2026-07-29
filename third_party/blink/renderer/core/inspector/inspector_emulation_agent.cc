@@ -6,6 +6,7 @@
 
 #include "third_party/blink/public/common/input/web_touch_event.h"
 #include "third_party/blink/public/common/loader/network_utils.h"
+#include "third_party/blink/public/common/user_agent/user_agent_metadata.h"
 #include "third_party/blink/public/platform/platform.h"
 #include "third_party/blink/public/platform/web_theme_engine.h"
 #include "third_party/blink/public/web/web_render_theme.h"
@@ -180,10 +181,7 @@ void InspectorEmulationAgent::Restore() {
       default_background_color_override_rgba_.Get());
   if (status_or_rgba.ok())
     setDefaultBackgroundColorOverride(std::move(status_or_rgba).value());
-  if (emulate_focus_.Get()) {
-    setFocusEmulationEnabled(true);
-  }
-
+  setFocusEmulationEnabled(emulate_focus_.Get());
   if (emulate_auto_dark_mode_.Get())
     setAutoDarkModeOverride(auto_dark_mode_override_.Get());
   if (!timezone_id_override_.Get().IsNull())
@@ -252,9 +250,7 @@ protocol::Response InspectorEmulationAgent::disable() {
     setEmulatedVisionDeficiency(String("none"));
   setEmulatedOSTextScale(std::nullopt);
   setCPUThrottlingRate(1);
-  if (emulate_focus_.Get()) {
-    setFocusEmulationEnabled(false);
-  }
+  setFocusEmulationEnabled(false);
   if (emulate_auto_dark_mode_.Get()) {
     setAutoDarkModeOverride(std::nullopt);
   }
@@ -332,9 +328,9 @@ protocol::Response InspectorEmulationAgent::setTouchEmulationEnabled(
     return response;
   int max_points = max_touch_points.value_or(1);
   if (max_points < 1 || max_points > WebTouchEvent::kTouchesLengthCap) {
-    String msg = WTF::StrCat({"Touch points must be between 1 and ",
-                              String::Number(static_cast<uint16_t>(
-                                  WebTouchEvent::kTouchesLengthCap))});
+    String msg = StrCat({"Touch points must be between 1 and ",
+                         String::Number(static_cast<uint16_t>(
+                             WebTouchEvent::kTouchesLengthCap))});
     return protocol::Response::InvalidParams(msg.Utf8());
   }
   touch_event_emulation_enabled_.Set(enabled);
@@ -495,6 +491,9 @@ protocol::Response InspectorEmulationAgent::setFocusEmulationEnabled(
   protocol::Response response = AssertPage();
   if (!response.IsSuccess())
     return response;
+  if (enabled == emulate_focus_.Get()) {
+    return response;
+  }
   emulate_focus_.Set(enabled);
   GetWebViewImpl()->GetPage()->GetFocusController().SetFocusEmulationEnabled(
       enabled);
@@ -598,7 +597,7 @@ AtomicString InspectorEmulationAgent::OverrideAcceptImageHeader(
     // and is expected to be always ending with `image/*,*/*;q=xxx`, therefore,
     // to remove a type we replace `image/x,` with empty string. Only webp and
     // avif types can be disabled.
-    header.Replace(WTF::StrCat({type, ","}), "");
+    header.Replace(StrCat({type, ","}), "");
   }
   return AtomicString(header);
 }
@@ -778,6 +777,16 @@ protocol::Response InspectorEmulationAgent::setUserAgentOverride(
       return protocol::Response::InvalidParams(
           "Can't specify UserAgentMetadata but no UA string");
     }
+    if (ua_metadata_override->hasFormFactors()) {
+      for (const auto& form_factor :
+           *(ua_metadata_override->getFormFactors(nullptr))) {
+        if (!blink::UserAgentMetadata::IsValidFormFactor(form_factor.Ascii())) {
+          return protocol::Response::InvalidParams(
+              "Can't specify UserAgentMetadata with invalid form factors.");
+        }
+      }
+    }
+
     protocol::Emulation::UserAgentMetadata& ua_metadata = *ua_metadata_override;
     ua_metadata_override_.emplace();
     if (ua_metadata.hasBrands()) {
@@ -818,7 +827,6 @@ protocol::Response InspectorEmulationAgent::setUserAgentOverride(
     ua_metadata_override_->architecture = ua_metadata.getArchitecture().Ascii();
     ua_metadata_override_->model = ua_metadata.getModel().Ascii();
     ua_metadata_override_->mobile = ua_metadata.getMobile();
-    ua_metadata_override_->form_factors = default_ua_metadata.form_factors;
 
     if (ua_metadata.hasBitness()) {
       ua_metadata_override_->bitness = ua_metadata.getBitness("").Ascii();
@@ -829,6 +837,14 @@ protocol::Response InspectorEmulationAgent::setUserAgentOverride(
       ua_metadata_override_->wow64 = ua_metadata.getWow64(false);
     } else {
       ua_metadata_override_->wow64 = default_ua_metadata.wow64;
+    }
+    if (ua_metadata.hasFormFactors()) {
+      for (const auto& form_factor : *ua_metadata.getFormFactors(nullptr)) {
+        ua_metadata_override_->form_factors.push_back(form_factor.Ascii());
+      }
+    } else {
+      ua_metadata_override_->form_factors =
+          std::move(default_ua_metadata.form_factors);
     }
 
   } else {
@@ -970,7 +986,7 @@ protocol::Response InspectorEmulationAgent::setDisabledImageTypes(
   for (protocol::Emulation::DisabledImageType type : *disabled_types) {
     if (DisabledImageTypeEnum::Avif == type ||
         DisabledImageTypeEnum::Webp == type) {
-      disabled_image_types_.Set(WTF::StrCat({prefix, type}), true);
+      disabled_image_types_.Set(StrCat({prefix, type}), true);
       continue;
     }
     disabled_image_types_.Clear();

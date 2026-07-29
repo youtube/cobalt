@@ -157,9 +157,6 @@ void WaylandPopup::Hide() {
   parent_window()->set_child_popup(nullptr);
   xdg_popup_.reset();
 
-  // Although this is unlikely to be reshown, popup state should be kUnknown.
-  pending_configure_state_.window_state = PlatformWindowState::kUnknown;
-
   WaylandWindow::Hide();
   // Mutter compositor crashes if we don't reset subsurfaces when hiding.
   if (WaylandWindow::primary_subsurface()) {
@@ -219,17 +216,6 @@ void WaylandPopup::HandlePopupConfigure(const gfx::Rect& bounds_dip) {
   if (!xdg_parent_window) {
     return;
   }
-
-  if (pending_configure_state_.window_state == PlatformWindowState::kUnknown) {
-    // ui::Compositor may have finished rendering the content at this point,
-    // causing gpu process to not produce any new frames. Always full damage to
-    // ensure we have something to give to the system compositor post 1st
-    // configure.
-    schedule_redraw_ = true;
-  }
-  // Popup state is set to "normal" as soon as the first configure
-  // sequence is processed.
-  pending_configure_state_.window_state = PlatformWindowState::kNormal;
 
   // Use UI scale to scale the bounds received from the Wayland compositor (ie:
   // non-empty `bounds_dip`) as it is an internal scaling factor, which the
@@ -296,9 +282,9 @@ void WaylandPopup::OnCloseRequest() {
 bool WaylandPopup::OnInitialize(PlatformWindowInitProperties properties,
                                 PlatformWindowDelegate::State* state) {
   DCHECK(parent_window());
-  // Just like toplevel windows, popups start with unknown state, until the
-  // first configure sequence arrives, when it transitions to kNormal.
-  CHECK_EQ(state->window_state, PlatformWindowState::kUnknown);
+
+  // `window_state` is always `kNormal` on WaylandPopup.
+  state->window_state = PlatformWindowState::kNormal;
 
   state->window_scale = parent_window()->applied_state().window_scale;
   shadow_type_ = properties.shadow_type;
@@ -330,7 +316,8 @@ void WaylandPopup::SetWindowGeometry(
 }
 
 void WaylandPopup::AckConfigure(uint32_t serial) {
-  DCHECK(xdg_popup_);
-  xdg_popup_->AckConfigure(serial);
+  if (xdg_popup_) {
+    xdg_popup_->AckConfigure(serial);
+  }
 }
 }  // namespace ui

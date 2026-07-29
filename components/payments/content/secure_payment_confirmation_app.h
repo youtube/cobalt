@@ -55,6 +55,7 @@ class SecurePaymentConfirmationApp : public PaymentApp,
       content::WebContents* web_contents_to_observe,
       const std::string& effective_relying_party_identity,
       const std::u16string& payment_instrument_label,
+      const std::u16string& payment_instrument_details,
       std::unique_ptr<SkBitmap> payment_instrument_icon,
       std::vector<uint8_t> credential_id,
       std::unique_ptr<PasskeyBrowserBinder> passkey_browser_binder,
@@ -84,8 +85,7 @@ class SecurePaymentConfirmationApp : public PaymentApp,
   const SkBitmap* icon_bitmap() const override;
   const SkBitmap* issuer_bitmap() const override;
   const SkBitmap* network_bitmap() const override;
-  const std::vector<PaymentApp::PaymentEntityLogo>& GetPaymentEntitiesLogos()
-      const override;
+  std::vector<PaymentEntityLogo*> GetPaymentEntitiesLogos() override;
   bool IsValidForModifier(const std::string& method) const override;
   base::WeakPtr<PaymentApp> AsWeakPtr() override;
   bool HandlesShippingAddress() const override;
@@ -129,6 +129,7 @@ class SecurePaymentConfirmationApp : public PaymentApp,
 
   const std::string effective_relying_party_identity_;
   const std::u16string payment_instrument_label_;
+  const std::u16string payment_instrument_details_;
   const std::unique_ptr<SkBitmap> payment_instrument_icon_;
   const std::vector<uint8_t> credential_id_;
   const url::Origin merchant_origin_;

@@ -7,8 +7,10 @@ package org.chromium.chrome.browser.tabmodel;
 import org.jni_zero.JNINamespace;
 import org.jni_zero.NativeMethods;
 
+import org.chromium.base.MathUtils;
 import org.chromium.base.ObserverList;
 import org.chromium.base.Token;
+import org.chromium.base.metrics.RecordUserAction;
 import org.chromium.base.supplier.LazyOneshotSupplier;
 import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.base.supplier.ObservableSupplierImpl;
@@ -55,14 +57,20 @@ public class TabCollectionTabModelImpl extends TabModelJniBridge
     // counterparts.
     private final Map<Integer, Tab> mTabIdToTabs = new HashMap<>();
 
+    private final boolean mIsArchivedTabModel;
     private final TabCreator mRegularTabCreator;
     private final TabCreator mIncognitoTabCreator;
+    private final TabModelDelegate mModelDelegate;
     // TODO(crbug.com/405343634): Replace this with the appropriate TabUngrouper.
     private final TabUngrouper mTabUngrouper = new PassthroughTabUngrouper(() -> this);
 
     private long mNativeTabCollectionTabModelImplPtr;
+    // Only ever true for the regular tab model. Called after tab state is initialized, before
+    // broadcastSessionRestoreComplete().
     private boolean mInitializationComplete;
     private boolean mActive;
+    // TODO(crbug.com/425345868): Consider using indexOf(mCurrentTabSupplier.get()) instead.
+    private int mIndex = TabList.INVALID_TAB_INDEX;
 
     /**
      * @param profile The {@link Profile} tabs in the tab collection tab model belongs to.
@@ -70,18 +78,22 @@ public class TabCollectionTabModelImpl extends TabModelJniBridge
      * @param isArchivedTabModel Whether the tab collection tab model stored archived tabs.
      * @param regularTabCreator The tab creator for regular tabs.
      * @param incognitoTabCreator The tab creator for incognito tabs.
+     * @param modelDelegate The {@link TabModelDelegate} for interacting outside the tab model.
      */
     public TabCollectionTabModelImpl(
             Profile profile,
             @ActivityType int activityType,
             boolean isArchivedTabModel,
             TabCreator regularTabCreator,
-            TabCreator incognitoTabCreator) {
-        super(profile, activityType, isArchivedTabModel);
+            TabCreator incognitoTabCreator,
+            TabModelDelegate modelDelegate) {
+        super(profile);
+        mIsArchivedTabModel = isArchivedTabModel;
         mRegularTabCreator = regularTabCreator;
         mIncognitoTabCreator = incognitoTabCreator;
+        mModelDelegate = modelDelegate;
 
-        initializeNative(profile);
+        initializeNative(activityType, isArchivedTabModel);
     }
 
     @Override
@@ -104,22 +116,32 @@ public class TabCollectionTabModelImpl extends TabModelJniBridge
 
     @Override
     public int index() {
-        return TabList.INVALID_TAB_INDEX;
+        if (mIsArchivedTabModel) return TabList.INVALID_TAB_INDEX;
+        return mIndex;
     }
 
     @Override
     public int getCount() {
-        return 0;
+        if (mNativeTabCollectionTabModelImplPtr == 0) return 0;
+        return TabCollectionTabModelImplJni.get()
+                .getTabCountRecursive(mNativeTabCollectionTabModelImplPtr);
     }
 
     @Override
     public @Nullable Tab getTabAt(int index) {
-        return null;
+        if (mNativeTabCollectionTabModelImplPtr == 0) return null;
+        return TabCollectionTabModelImplJni.get()
+                .getTabAtIndexRecursive(mNativeTabCollectionTabModelImplPtr, index);
     }
 
     @Override
     public int indexOf(@Nullable Tab tab) {
-        return TabList.INVALID_TAB_INDEX;
+        if (tab == null || mNativeTabCollectionTabModelImplPtr == 0) {
+            return TabList.INVALID_TAB_INDEX;
+        }
+        assert tab.isInitialized();
+        return TabCollectionTabModelImplJni.get()
+                .getIndexOfTabRecursive(mNativeTabCollectionTabModelImplPtr, tab);
     }
 
     // SupportsTabModelObserver overrides.
@@ -184,7 +206,44 @@ public class TabCollectionTabModelImpl extends TabModelJniBridge
     }
 
     @Override
-    public void setIndex(int i, final @TabSelectionType int type) {}
+    public void setIndex(int i, final @TabSelectionType int type) {
+        // TODO(crbug.com/425344200): Prevent passing negative indices.
+        if (mIsArchivedTabModel) return;
+        if (mNativeTabCollectionTabModelImplPtr == 0) return;
+
+        // When we select a tab in this model it should become the active model. This is the
+        // existing behavior of TabModelImpl.
+        if (!isActiveModel()) mModelDelegate.selectModel(isIncognitoBranded());
+
+        Tab oldSelectedTab = mCurrentTabSupplier.get();
+        int lastId = (oldSelectedTab == null) ? Tab.INVALID_TAB_ID : oldSelectedTab.getId();
+
+        int currentTabCount = getCount();
+
+        if (currentTabCount == 0) {
+            // INVALID_TAB_INDEX is only permitted when the tab model is empty.
+            mIndex = TabList.INVALID_TAB_INDEX;
+        } else {
+            mIndex = MathUtils.clamp(i, 0, currentTabCount - 1);
+        }
+
+        Tab newSelectedTab = (mIndex == TabList.INVALID_TAB_INDEX) ? null : getTabAt(mIndex);
+        // Request to show the tab first so that it gets loaded; i.e. has a view, web contents, etc.
+        mModelDelegate.requestToShowTab(newSelectedTab, type);
+        mCurrentTabSupplier.set(newSelectedTab);
+
+        if (newSelectedTab != null) {
+            for (TabModelObserver obs : mTabModelObservers) {
+                obs.didSelectTab(newSelectedTab, type, lastId);
+            }
+
+            boolean wasAlreadySelected =
+                    (newSelectedTab.getId() == lastId && lastId != Tab.INVALID_TAB_ID);
+            if (!wasAlreadySelected && type == TabSelectionType.FROM_USER) {
+                RecordUserAction.record("MobileTabSwitched");
+            }
+        }
+    }
 
     @Override
     public boolean isActiveModel() {
@@ -238,7 +297,14 @@ public class TabCollectionTabModelImpl extends TabModelJniBridge
         assert !mInitializationComplete : "TabCollectionTabModelImpl initialized multiple times.";
         mInitializationComplete = true;
 
-        // TODO(crbug.com/405343634): set activated and current index if applicable.
+        if (getCount() != 0 && mIndex == TabList.INVALID_TAB_INDEX) {
+            if (isActiveModel()) {
+                setIndex(0, TabSelectionType.FROM_USER);
+            } else {
+                mIndex = 0;
+                mCurrentTabSupplier.set(getTabAt(mIndex));
+            }
+        }
 
         for (TabModelObserver observer : mTabModelObservers) observer.restoreCompleted();
     }
@@ -254,11 +320,11 @@ public class TabCollectionTabModelImpl extends TabModelJniBridge
     // TabModelJniBridge overrides.
 
     @Override
-    public void initializeNative(Profile profile) {
-        super.initializeNative(profile);
+    public void initializeNative(@ActivityType int activityType, boolean isArchivedTabModel) {
+        super.initializeNative(activityType, isArchivedTabModel);
         assert mNativeTabCollectionTabModelImplPtr == 0;
         mNativeTabCollectionTabModelImplPtr =
-                TabCollectionTabModelImplJni.get().init(this, profile);
+                TabCollectionTabModelImplJni.get().init(this, getProfile());
     }
 
     @Override
@@ -302,11 +368,16 @@ public class TabCollectionTabModelImpl extends TabModelJniBridge
 
     @Override
     protected boolean isSessionRestoreInProgress() {
-        return false;
+        return !mModelDelegate.isTabModelRestored();
     }
 
     @Override
     protected void openTabProgrammatically(GURL url, int index) {}
+
+    @Override
+    protected Tab[] getAllTabs() {
+        return new Tab[0];
+    }
 
     // TabGroupModelFilter overrides.
 
@@ -450,7 +521,7 @@ public class TabCollectionTabModelImpl extends TabModelJniBridge
 
     @Override
     public boolean isTabModelRestored() {
-        return false;
+        return mModelDelegate.isTabModelRestored();
     }
 
     @Override
@@ -508,7 +579,9 @@ public class TabCollectionTabModelImpl extends TabModelJniBridge
     // TabGroupModelFilterInternal overrides.
 
     @Override
-    public void markTabStateInitialized() {}
+    public void markTabStateInitialized() {
+        // Intentional no-op. This is handled by mModelDelegate#isTabModelRestored().
+    }
 
     @Override
     public void moveTabOutOfGroupInDirection(int sourceTabId, boolean trailing) {}
@@ -524,5 +597,11 @@ public class TabCollectionTabModelImpl extends TabModelJniBridge
         long init(TabCollectionTabModelImpl javaObject, Profile profile);
 
         void destroy(long nativeTabCollectionTabModelImpl);
+
+        int getTabCountRecursive(long nativeTabCollectionTabModelImpl);
+
+        int getIndexOfTabRecursive(long nativeTabCollectionTabModelImpl, Tab tab);
+
+        Tab getTabAtIndexRecursive(long nativeTabCollectionTabModelImpl, int index);
     }
 }

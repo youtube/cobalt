@@ -17,6 +17,7 @@
 
 #include "base/memory/raw_ptr.h"
 #include "base/memory/ref_counted.h"
+#include "base/test/task_environment.h"
 #include "build/build_config.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/browser_process_platform_part.h"
@@ -35,6 +36,7 @@ class BackgroundModeManager;
 class NotificationPlatformBridge;
 class NotificationUIManager;
 class PrefService;
+class TestingPrefServiceSimple;
 class SystemNotificationHelper;
 
 namespace extensions {
@@ -70,7 +72,9 @@ namespace variations {
 class VariationsService;
 }
 
-class TestingBrowserProcess : public BrowserProcess {
+class TestingBrowserProcess
+    : public BrowserProcess,
+      public base::test::TaskEnvironment::DestructionObserver {
  public:
   // Initializes |g_browser_process| with a new TestingBrowserProcess.
   static void CreateInstance();
@@ -171,9 +175,9 @@ class TestingBrowserProcess : public BrowserProcess {
   GlobalFeatures* GetFeatures() override;
   void CreateGlobalFeaturesForTesting() override;
 
-  // Set the local state for tests. Consumer is responsible for cleaning it up
-  // afterwards (using ScopedTestingLocalState, for example).
-  void SetLocalState(PrefService* local_state);
+  // TaskEnvironment::DestructionObserver:
+  void WillDestroyCurrentTaskEnvironment() override;
+
   void SetMetricsService(metrics::MetricsService* metrics_service);
   void SetProfileManager(std::unique_ptr<ProfileManager> profile_manager);
   void SetSafeBrowsingService(safe_browsing::SafeBrowsingService* sb_service);
@@ -192,7 +196,6 @@ class TestingBrowserProcess : public BrowserProcess {
   void SetSystemNotificationHelper(
       std::unique_ptr<SystemNotificationHelper> system_notification_helper);
   void SetShuttingDown(bool is_shutting_down);
-  void ShutdownBrowserPolicyConnector();
   TestingBrowserProcessPlatformPart* GetTestPlatformPart();
   void SetStatusTray(std::unique_ptr<StatusTray> status_tray);
 #if !BUILDFLAG(IS_ANDROID)
@@ -205,26 +208,36 @@ class TestingBrowserProcess : public BrowserProcess {
       std::unique_ptr<UsbSystemTrayIcon> usb_system_tray_icon);
 #endif
 
- private:
-  // Perform necessary cleanup prior to destruction of |g_browser_process|
-  static void StartTearDown();
+  // Same as local_state() but provides TestingPrefServiceSimple interface.
+  TestingPrefServiceSimple* GetTestingLocalState();
 
+ private:
   // See CreateInstance() and DestoryInstance() above.
   TestingBrowserProcess();
   ~TestingBrowserProcess() override;
 
   void Init();
 
+  // Perform necessary cleanup prior to destruction of |g_browser_process|
+  void MaybeStartTearDown();
+
+  void ShutdownBrowserPolicyConnector();
+
+  // The value returned by `IsShuttingDown()`.
   bool is_shutting_down_ = false;
+
+  // Used as a guard for `MaybeStartTearDown()`.
+  bool is_torn_down_ = false;
 
   std::unique_ptr<policy::ChromeBrowserPolicyConnector>
       browser_policy_connector_;
-  bool created_browser_policy_connector_ = false;
   std::unique_ptr<network::TestNetworkQualityTracker>
       test_network_quality_tracker_;
   raw_ptr<metrics::MetricsService> metrics_service_ = nullptr;
   raw_ptr<variations::VariationsService> variations_service_ = nullptr;
   std::unique_ptr<ProfileManager> profile_manager_;
+
+  std::unique_ptr<TestingPrefServiceSimple> testing_local_state_;
 
 #if BUILDFLAG(ENABLE_CHROME_NOTIFICATIONS)
   std::unique_ptr<NotificationUIManager> notification_ui_manager_;
@@ -258,7 +271,6 @@ class TestingBrowserProcess : public BrowserProcess {
   std::unique_ptr<network_time::NetworkTimeTracker> network_time_tracker_;
 
   // The following objects are not owned by TestingBrowserProcess:
-  raw_ptr<PrefService> local_state_ = nullptr;
   scoped_refptr<network::SharedURLLoaderFactory> shared_url_loader_factory_;
 
   std::unique_ptr<TestingBrowserProcessPlatformPart> platform_part_;
@@ -300,7 +312,6 @@ class TestingBrowserProcess : public BrowserProcess {
 //  ...stuff...
 //  private:
 //   TestingBrowserProcessInitializer initializer_;
-//   LocalState local_state_;  // Needs a BrowserProcess to initialize.
 // };
 class TestingBrowserProcessInitializer {
  public:
