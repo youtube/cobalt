@@ -45,6 +45,11 @@ loadable_module("clear_key_cdm_bin") {
     ]
     defines += [ "CLEAR_KEY_CDM_USE_FFMPEG_DECODER" ]
     deps += [ "//third_party/ffmpeg" ]
+  } else {
+    sources -= [
+      "clear_key_cdm.cc",
+      "clear_key_cdm.h",
+    ]
   }
 
   # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and

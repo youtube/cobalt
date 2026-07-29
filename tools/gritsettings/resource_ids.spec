@@ -1579,6 +1579,10 @@
     "messages": [10120],
   },
 
+  "cobalt/shell/shell_resources.grd": {
+    "includes": [31500]
+  },
+
   # END "everything else" section.
   # Everything but chrome/, components/, content/, and ios/
 

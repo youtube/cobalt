@@ -5,6 +5,7 @@
 #ifndef MEDIA_BASE_AUDIO_CODECS_H_
 #define MEDIA_BASE_AUDIO_CODECS_H_
 
+#include <cstdint>
 #include <string>
 #include <string_view>
 
