@@ -22,6 +22,21 @@ chromium-metrics-reviews@google.com.
 
 <histograms>
 
+<histogram name="RegionalCapabilities.ActiveRegionalProgram"
+    enum="ActiveRegionalProgram" expires_after="2026-01-31">
+  <owner>ljjlee@google.com</owner>
+  <owner>chrome-regionalcapabilities@google.com</owner>
+  <summary>
+    Records an overall active regional program for the profiles loaded in the
+    current session, at the time the session is finalized. This histogram will
+    be used by the UMA pipeline to tag all metrics in the session log, enabling
+    per-program filtering and analysis.
+
+    Emitted through ProvideCurrentSessionData, when a UMA session record is
+    getting finalized.
+  </summary>
+</histogram>
+
 <histogram name="RegionalCapabilities.FallbackCountryMatching"
     enum="CountryMatchingStatus" expires_after="2025-12-28">
   <owner>dgn@chromium.org</owner>
@@ -48,6 +63,34 @@ chromium-metrics-reviews@google.com.
     Recorded when the profile is loaded, when we succeeded fetching the country
     from the primary source (e.g. Finch or Play). Otherwise,
     RegionalCapabilities.FallbackCountryMatching is recorded.
+  </summary>
+</histogram>
+
+<histogram name="RegionalCapabilities.FunnelStage.RegionalPresence"
+    enum="RegionalProgramAndLocationMatch" expires_after="2025-12-28">
+  <owner>dgn@chromium.org</owner>
+  <owner>chrome-regionalcapabilities@google.com</owner>
+  <summary>
+    Reports on the relative status of the profile country and the Finch latest
+    country, in the context of the selected regional program.
+
+    Recorded when the profile is loaded, for profiles that have been determined
+    to be in-scope for a non-default program. Only one bucket is logged for a
+    profile, the most specific one. This means that &quot;region matches&quot;
+    is not logged when &quot;country matches&quot; is logged.
+  </summary>
+</histogram>
+
+<histogram name="RegionalCapabilities.FunnelStage.Reported"
+    enum="RegionalCapabilitiesFunnelStage" expires_after="2025-12-28">
+  <owner>dgn@chromium.org</owner>
+  <owner>chrome-regionalcapabilities@google.com</owner>
+  <summary>
+    Reports on which stage of the regional capabilities funnel a given profile
+    is in. (Internal-only: see go/chrome-taiyaki-metrics-dd for more info)
+
+    Can be recorded by profiles on some key events like profile load or attempt
+    to trigger a choice screen.
   </summary>
 </histogram>
 

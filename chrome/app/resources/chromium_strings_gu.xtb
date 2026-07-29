@@ -84,6 +84,7 @@
 <translation id="2008474315282236005">આ, 1 આઇટમને આ ડિવાઇસમાંથી ડિલીટ કરશે. પછીથી તમારો ડેટા ફરીથી મેળવવા માટે, Chromium માં <ph name="USER_EMAIL" /> તરીકે સાઇન ઇન કરો.</translation>
 <translation id="2018879682492276940">ઇન્સ્ટૉલ કરવામાં નિષ્ફળ રહ્યાં. કૃપા કરીને ફરી પ્રયાસ કરો.</translation>
 <translation id="2020032459870799438">ડેટા ઉલ્લંઘન અને અન્ય સુરક્ષાની સમસ્યાથી તમારા અન્ય પાસવર્ડ સુરક્ષિત છે કે નહીં તે ચેક કરવા માટે, <ph name="BEGIN_LINK" />Chromiumમાં સાઇન ઇન કરો<ph name="END_LINK" />.</translation>
+<translation id="2039417478970545937">સેટિંગ.</translation>
 <translation id="2049376729098081731">Googleની સેવાઓમાં વધુ મનગમતા બનાવેલા અનુભવો આપવા માટે, Chromium ઇતિહાસ શામેલ કરવો કે નહીં, તે પસંદ કરો</translation>
 <translation id="2054039611381840095">Chromiumની ભાવિ અપડેટ મેળવવા માટે, તમારે macOS 12 કે તે પછીના વર્ઝન પર અપડેટ કરવું જરૂરી રહેશે. આ કમ્પ્યૂટર macOS 11નો ઉપયોગ કરી રહ્યું છે.</translation>
 <translation id="2086476982681781442">Chromium દ્વારા આ ડાઉનલોડ બ્લૉક કરવામાં આવ્યું કારણ કે આ ફાઇલ છેતરામણી છે અને તે તમારા ડિવાઇસમાં અનપેક્ષિત ફેરફારો કરે તેમ બની શકે છે</translation>
@@ -312,10 +313,12 @@
 <translation id="494490797786467921">Chromiumમાં સાઇન ઇન કરવાનો સંવાદ બંધ કરવા માટે ક્લિક કરો</translation>
 <translation id="4950660488495335294">Chromium પ્રોફાઇલ વડે, તમે તમારી બધી વસ્તુઓ Chromium પર અલગ-અલગ રાખી શકો છો. મિત્રો અને કુટુંબ માટે પ્રોફાઇલ બનાવો અથવા તેને ઑફિસ અને મનોરંજન વચ્ચે વિભાજિત કરો.</translation>
 <translation id="4987820182225656817">અતિથિઓ કંઈપણ પાછળ છોડ્યાં વિના Chromium નો ઉપયોગ કરી શકે છે.</translation>
+<translation id="4992938037305302429">Chromiumમાં તમારું એકાઉન્ટ</translation>
 <translation id="4994636714258228724">સ્વયંને Chromium માં ઉમેરો</translation>
 <translation id="5123973130450702873">Chromiumને તમારા હાથ ટ્રૅક કરવા માટે પરવાનગીની જરૂર છે</translation>
 <translation id="5141988424377517949">તમે તાજેતરમાં આ સાઇટની મુલાકાત લીધી નથી. Chromium દ્વારા <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" />, <ph name="PERMISSION_3" />ની પરવાનગીઓ કાઢી નાખવામાં આવી.</translation>
 <translation id="5174969993834422967">તમે સામાન્ય રીતે નોટિફિકેશનને બ્લૉક કરો છો. આ સાઇટ તમને સૂચિત કરી શકે તે માટે, તમારા લોકેશન બારના જમણા ખૂણે દેખાતા નોટિફિકેશનના આઇકન પર ક્લિક કરો.</translation>
+<translation id="5174983315706567306">પર્યાપ્ત ડિસ્ક સ્પેસ નથી.</translation>
 <translation id="5187123684706427865">Chromium એકાઉન્ટને પુન:પ્રમાણીકરણની જરૂર છે</translation>
 <translation id="5224391634244552924">કોઈ સાચવેલા પાસવર્ડ નથી. જ્યારે તમે તમારા પાસવર્ડ સાચવો ત્યારે Chromium તેને ચેક કરી શકે છે.</translation>
 <translation id="5231355151045086930">Chromiumમાંથી સાઇન આઉટ કરો</translation>
@@ -389,6 +392,7 @@
 <translation id="6072463441809498330">Chromiumને વધુ ઝડપી બનાવો</translation>
 <translation id="6096348254544841612">Chromiumને કસ્ટમાઇઝ અને નિયંત્રિત કરો. અપડેટ ઉપલબ્ધ છે.</translation>
 <translation id="6107893135096467929">ચાલુ • આ એક્સ્ટેન્શન ક્યાંથી આવે છે તેની ચકાસણી Chromium કરી શકતું નથી</translation>
+<translation id="611228897408671387">Chromiumમાં તમારું એકાઉન્ટ</translation>
 <translation id="6119438414301547735">Chromiumના ટૂલબારમાં ઍક્સેસની વિનંતીઓ બતાવવા માટે એક્સ્ટેન્શનને મંજૂરી આપો</translation>
 <translation id="6129621093834146363"><ph name="FILE_NAME" /> જોખમી છે, તેથી Chromium એ તેને અવરોધિત કરેલ છે.</translation>
 <translation id="6132897690380286411">Chromium ટૂંક સમયમાં જ બંધ થશે અને ડેટા ડિલીટ કરશે</translation>
@@ -443,6 +447,7 @@
 <translation id="6598877126913850652">Chromiumની નોટિફિકેશનની સેટિંગ પર જાઓ</translation>
 <translation id="6600016381025017075">આ પેજ પર કંઈપણ શોધો</translation>
 <translation id="6613594504749178791">તમારા ફેરફારો તમે આગલી વખતે Chromium ફરીથી લોંચ કરશો ત્યારે પ્રભાવમાં આવશે.</translation>
+<translation id="6648212540664651655">તમે જ્યાંથી છોડ્યું હતું ત્યાંથી ચાલુ કરો: Chromiumએ તમારા છેલ્લા સત્રના ટૅબ રિસ્ટોર કર્યા છે. તમે આને આમાં બંધ કરી શકો છો</translation>
 <translation id="665732753414869868">તમારા આસપાસનો 3D નકશો બનાવવા માટે, Chromiumને કૅમેરાની પરવાનગીની જરૂર છે</translation>
 <translation id="6669284030132180248">જો તમે બુકમાર્કને તમારા Google એકાઉન્ટમાં પણ સાચવશો, તો તમે પ્રોડક્ટની કિંમતો Chromiumમાં ટ્રૅક કરી શકશો તેમજ જ્યારે પણ કિંમતમાં ઘટાડો થાય ત્યારે નોટિફિકેશન મેળવશો</translation>
 <translation id="6676384891291319759">ઇંટરનેટ ઍક્સેસ કરો</translation>
@@ -507,6 +512,7 @@ Chromium તમારા સેટિંગને રિકવર શકતુ�
 <translation id="7352651011704765696">કંઈક ખોટું થયું હતું</translation>
 <translation id="7376384068949534168">તમે તાજેતરમાં આ સાઇટની મુલાકાત લીધી નથી. Chromium દ્વારા <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" />ની પરવાનગીઓ કાઢી નાખવામાં આવી.</translation>
 <translation id="7384121030444253939">આ એક્સ્ટેન્શન હવે સપોર્ટેડ રહ્યું નથી. એના બદલે Chromium તેને કાઢી નાખવાનો સુઝાવ તમને આપે છે.</translation>
+<translation id="7413153308467572558">તમે જ્યાંથી છોડ્યું હતું ત્યાંથી ચાલુ કરો: Chromium તમે જ્યારે ફરી શરૂ કરો છો ત્યારે દરેક વખતે તમારા ટૅબ રિસ્ટોર કરે છે. આને બંધ કરવા માટે, આના પર જાઓ</translation>
 <translation id="7449453770951226939"><ph name="PAGE_TITLE" /> - Chromium Dev</translation>
 <translation id="7450541714075000668">ટેક્સ્ટ કૉપિ કરી</translation>
 <translation id="7451052299415159299">Chromiumને આ સાઇટ માટે તમારા કૅમેરાના ઍક્સેસની પરવાનગીની જરૂર પડે છે</translation>
@@ -638,6 +644,7 @@ Chromium તમારા સેટિંગને રિકવર શકતુ�
 <translation id="911206726377975832">તમારો બ્રાઉઝિંગ ડેટા પણ ડિલીટ કરી દઈએ?</translation>
 <translation id="9134482777260927479">હોમવર્ક માટે મદદ</translation>
 <translation id="9148058034647219655">બહાર નીકળો</translation>
+<translation id="9155105544013854680">તમે જ્યાંથી છોડ્યું હતું ત્યાંથી ચાલુ કરો: Chromium તમે જ્યારે ફરી શરૂ કરો છો ત્યારે દરેક વખતે તમારા ટૅબ રિસ્ટોર કરી શકે છે. આને ચાલુ કરવા માટે, આના પર જાઓ</translation>
 <translation id="9158494823179993217">તમારા સિસ્ટમ વ્યવસ્થાપકે <ph name="TARGET_URL_HOSTNAME" />ને ઍક્સેસ કરવા Chromiumને વૈકલ્પિક બ્રાઉઝર ખોલવા માટે ગોઠવેલું છે.</translation>
 <translation id="9185526690718004400">&amp;Chromium અપડેટ કરવા માટે, ફરીથી લૉન્ચ કરો</translation>
 <translation id="9190841055450128916">Chromium (mDNS-In)</translation>

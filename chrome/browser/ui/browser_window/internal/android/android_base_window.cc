@@ -11,6 +11,8 @@
 #include "base/android/scoped_java_ref.h"
 #include "base/notreached.h"
 #include "chrome/browser/ui/browser_window/internal/jni/AndroidBaseWindow_jni.h"
+#include "ui/android/window_android.h"
+#include "ui/base/ui_base_types.h"
 #include "ui/gfx/geometry/rect.h"
 
 namespace {
@@ -61,7 +63,10 @@ bool AndroidBaseWindow::IsFullscreen() const {
 }
 
 gfx::NativeWindow AndroidBaseWindow::GetNativeWindow() const {
-  NOTREACHED();
+  JNIEnv* env = AttachCurrentThread();
+  ScopedJavaLocalRef<jobject> j_window_android =
+      Java_AndroidBaseWindow_getWindowAndroid(env, java_android_base_window_);
+  return ui::WindowAndroid::FromJavaWindowAndroid(j_window_android);
 }
 
 gfx::Rect AndroidBaseWindow::GetRestoredBounds() const {
@@ -81,7 +86,7 @@ gfx::Rect AndroidBaseWindow::GetBounds() const {
 }
 
 void AndroidBaseWindow::Show() {
-  NOTREACHED();
+  Java_AndroidBaseWindow_show(AttachCurrentThread(), java_android_base_window_);
 }
 
 void AndroidBaseWindow::Hide() {
@@ -94,7 +99,8 @@ bool AndroidBaseWindow::IsVisible() const {
 }
 
 void AndroidBaseWindow::ShowInactive() {
-  NOTREACHED();
+  Java_AndroidBaseWindow_showInactive(AttachCurrentThread(),
+                                      java_android_base_window_);
 }
 
 void AndroidBaseWindow::Close() {
@@ -108,7 +114,8 @@ void AndroidBaseWindow::Activate() {
 }
 
 void AndroidBaseWindow::Deactivate() {
-  NOTREACHED();
+  Java_AndroidBaseWindow_deactivate(AttachCurrentThread(),
+                                    java_android_base_window_);
 }
 
 void AndroidBaseWindow::Maximize() {
@@ -136,7 +143,7 @@ void AndroidBaseWindow::FlashFrame(bool flash) {
 }
 
 ui::ZOrderLevel AndroidBaseWindow::GetZOrderLevel() const {
-  NOTREACHED();
+  return ui::ZOrderLevel::kNormal;
 }
 
 void AndroidBaseWindow::SetZOrderLevel(ui::ZOrderLevel order) {

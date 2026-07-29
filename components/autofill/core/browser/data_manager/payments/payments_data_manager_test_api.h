@@ -46,6 +46,12 @@ class PaymentsDataManagerTestApi {
     payments_data_manager_->image_fetcher_ = image_fetcher;
   }
 
+  void SetAutofillOptimizationGuideDecider(
+      AutofillOptimizationGuideDecider* autofill_optimization_guide_decider) {
+    payments_data_manager_->autofill_optimization_guide_decider_ =
+        autofill_optimization_guide_decider;
+  }
+
   bool ShouldSuggestServerPaymentMethods();
 
   bool AreBnplIssuersSupported() const {

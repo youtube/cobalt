@@ -8,6 +8,7 @@ import android.graphics.Rect;
 
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
+import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.ui.base.ActivityWindowAndroid;
 
 import java.util.List;
@@ -141,11 +142,20 @@ public interface ChromeAndroidTask {
      */
     long getLastActivatedTimeMillis();
 
+    /** Returns the {@link Profile} associated with this task. */
+    Profile getProfile();
+
     /** Returns current bounds of the window. */
     Rect getBounds();
 
+    /** Shows this {@link ChromeAndroidTask} or activates it if it's already visible. */
+    void show();
+
     /** Returns true if the window is visible. */
     boolean isVisible();
+
+    /** Shows this {@link ChromeAndroidTask} but does not activate it. */
+    void showInactive();
 
     /** Closes this {@link ChromeAndroidTask}. */
     void close();
@@ -155,6 +165,12 @@ public interface ChromeAndroidTask {
      * state if necessary.
      */
     void activate();
+
+    /**
+     * Unfocus this {@link ChromeAndroidTask} by making the last focused task, if any, as the active
+     * window.
+     */
+    void deactivate();
 
     /** Maximize this {@link ChromeAndroidTask}. */
     void maximize();

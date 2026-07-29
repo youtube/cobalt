@@ -13,7 +13,6 @@ import androidx.preference.PreferenceCategory;
 import org.chromium.base.metrics.RecordUserAction;
 import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.base.supplier.ObservableSupplierImpl;
-import org.chromium.base.supplier.Supplier;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.components.browser_ui.settings.SettingsFragment;
@@ -28,6 +27,7 @@ import org.chromium.ui.text.SpanApplier;
 
 import java.util.HashSet;
 import java.util.List;
+import java.util.function.Supplier;
 
 /** Fragment for managing all the topics. */
 @NullMarked
@@ -36,7 +36,7 @@ public class TopicsManageFragment extends PrivacySandboxSettingsBaseFragment {
 
     private PreferenceCategory mTopicsCategory;
 
-    private @Nullable Supplier<ModalDialogManager> mModalDialogManagerSupplier;
+    private @Nullable Supplier<@Nullable ModalDialogManager> mModalDialogManagerSupplier;
 
     private final ObservableSupplierImpl<String> mPageTitle = new ObservableSupplierImpl<>();
 
@@ -70,7 +70,7 @@ public class TopicsManageFragment extends PrivacySandboxSettingsBaseFragment {
      * AutofillDeleteCreditCardConfirmationDialog}.
      */
     public void setModalDialogManagerSupplier(
-            Supplier<ModalDialogManager> modalDialogManagerSupplier) {
+            Supplier<@Nullable ModalDialogManager> modalDialogManagerSupplier) {
         mModalDialogManagerSupplier = modalDialogManagerSupplier;
     }
 

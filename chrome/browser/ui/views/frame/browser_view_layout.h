@@ -32,6 +32,10 @@ namespace web_modal {
 class WebContentsModalDialogHost;
 }
 
+namespace tabs {
+class VerticalTabStripStateController;
+}
+
 // The layout manager used in chrome browser.
 class BrowserViewLayout : public views::LayoutManager {
  public:
@@ -53,7 +57,6 @@ class BrowserViewLayout : public views::LayoutManager {
                     WebAppFrameToolbarView* web_app_frame_toolbar,
                     views::Label* web_app_window_title,
                     TabStripRegionView* tab_strip_region_view,
-                    TabStrip* tab_strip,
                     views::View* vertical_tab_strip_container,
                     views::View* toolbar,
                     InfoBarContainerView* infobar_container,
@@ -103,7 +106,7 @@ class BrowserViewLayout : public views::LayoutManager {
  private:
   FRIEND_TEST_ALL_PREFIXES(BrowserViewLayoutTest, BrowserViewLayout);
   FRIEND_TEST_ALL_PREFIXES(BrowserViewLayoutTest, Layout);
-  class WebContentsModalDialogHostViews;
+  class BrowserModalDialogHostViews;
 
   // Layout the following controls, updating `available_bounds` to leave the
   // remaining space available for future controls.
@@ -138,6 +141,10 @@ class BrowserViewLayout : public views::LayoutManager {
 
   void UpdateSplitViewInsets();
 
+  // Returns the current pref for vertical tabs by accessing the vertical
+  // tab strip state controller
+  bool IsVerticalTabsEnabled() const;
+
   // The delegate interface. May be a mock in tests.
   const std::unique_ptr<BrowserViewLayoutDelegate> delegate_;
 
@@ -168,9 +175,11 @@ class BrowserViewLayout : public views::LayoutManager {
   raw_ptr<views::View> loading_bar_ = nullptr;
   raw_ptr<TabStrip> tab_strip_ = nullptr;
   raw_ptr<BookmarkBarView> bookmark_bar_ = nullptr;
+  raw_ptr<tabs::VerticalTabStripStateController>
+      vertical_tab_strip_controller_ = nullptr;
 
-  // The host for use in positioning the web contents modal dialog.
-  std::unique_ptr<WebContentsModalDialogHostViews> dialog_host_;
+  // The host for use in positioning the web contents browser modal dialog.
+  std::unique_ptr<BrowserModalDialogHostViews> dialog_host_;
 
   // The latest dialog bounds applied during a layout pass.
   gfx::Rect latest_dialog_bounds_in_screen_;

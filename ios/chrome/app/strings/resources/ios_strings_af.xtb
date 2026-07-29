@@ -21,6 +21,7 @@
 <translation id="1072476005125066234">Resensies gegrond op jou belangstellings</translation>
 <translation id="1074827084851510304">Jy is op die punt om {password_count} wagwoorde en die lys werwe en apps uit te vee wat jy gekies het om nooit aanmeldinligting voor te stoor nie. Enige rekening wat jy vir werwe en apps geskep het, sal nie uitgevee word nie.</translation>
 <translation id="1076421457278169141">Kode is geskandeer</translation>
+<translation id="1081114897601629648">Die volgende wagwoorde is nie na Google Wagwoordbestuurder toe ingevoer nie, omdat hulle nie aan die vereistes voldoen nie.</translation>
 <translation id="1081932398873105675">{count,plural, =1{{count} oortjie}other{{count} oortjies}}</translation>
 <translation id="1082554859195167538">Produkresensies vir jou</translation>
 <translation id="1084365883616172403">Facebook-plasing is voltooi.</translation>
@@ -121,7 +122,6 @@
 <translation id="1469381646033328562">Jou rekening word deur jou ouer bestuur.
 <ph name="BEGIN_LINK" />Kom meer te wete<ph name="END_LINK" /></translation>
 <translation id="147982357559798527">Het verander</translation>
-<translation id="1485907716209290998">Pakkienasporing</translation>
 <translation id="1486096554574027028">Deursoek wagwoorde</translation>
 <translation id="1491277525950327607">Dubbeltik om instelling te wissel</translation>
 <translation id="1491965206608166851">Meld vanaf enige app aan met jou gestoorde wagwoorde en toegangsleutels</translation>
@@ -241,6 +241,7 @@
 <translation id="1902277226107477495">Adresbespeuring is af. Skakel dit weer aan in Instellings.</translation>
 <translation id="1904580727789512086">Die URL'e wat jy besoek, word in jou Google-rekening gestoor</translation>
 <translation id="1911619930368729126">Laai op na Google Drive</translation>
+<translation id="1925706052394657380">Maak <ph name="BEGIN_BOLD" />Default Apps<ph name="END_BOLD" /> se instellings in iOS oop</translation>
 <translation id="1941314575388338491">Dubbeltik om te kopieer.</translation>
 <translation id="1943478190258551035">Kieslys → Instellings</translation>
 <translation id="1952728750904661634">Meld met bestuurde rekening aan</translation>
@@ -250,6 +251,7 @@
 <translation id="1962348300797608157"><ph name="BEGIN_BOLD" /><ph name="FULL_NAME" /><ph name="END_BOLD" /> het ’n wagwoord met jou gedeel vir <ph name="WEBSITE" /></translation>
 <translation id="1962969542251276847">Sluitskerm</translation>
 <translation id="1963976881984600709">Standaardbeskerming</translation>
+<translation id="1964507856799750384">Tik op <ph name="BEGIN_BOLD" />Browser App<ph name="END_BOLD" /></translation>
 <translation id="1966313166384086081">werfdata</translation>
 <translation id="1967461193809857427">{count,plural, =1{Maak die oortjie oop wat jy onlangs op Android gebruik het?}other{Maak die oortjies oop wat jy onlangs op Android gebruik het?}}</translation>
 <translation id="1972325230031091483">Jy sal vinniger kan blaai omdat inhoud proaktief op grond van jou huidige webbladsybesoek gelaai word</translation>
@@ -599,7 +601,6 @@ Sien jou soekenjin se instruksies om jou soekgeskiedenis uit te vee, indien nodi
 <translation id="333229797575847124">Hoe om hierdie kenmerk te aktiveer</translation>
 <translation id="3344485292736684439">{count,plural, =1{Boekmerk is gestoor in “{title}” in jou rekening, {email}}other{Boekmerke is gestoor in “{title}” in jou rekening, {email}}}</translation>
 <translation id="334690320928261823">Onlangse oortjies</translation>
-<translation id="3348387552617855658">Hierdie kaart help jou om jou pakkette na te spoor en gee jou belangrike afleweringopdaterings.</translation>
 <translation id="3349031117032695619">Blokkeer opspringers</translation>
 <translation id="3349676726073650389">Die werwe en soektogte wat jy volg, word in jou Google-rekening gestoor. Jy kan enige tyd in instellings bestuur wat jy volg.</translation>
 <translation id="3353037916374303415"><ph name="EMAIL" />. Hierdie rekening word bestuur.</translation>
@@ -1398,7 +1399,6 @@ Oorgee moet ook in die Algemene afdeling van Instellings geaktiveer word, en jou
 <translation id="6406506848690869874">Sinkronisering</translation>
 <translation id="6410390304316730527">Veiligblaai beskerm jou teen aanvallers wat jou dalk kan mislei om iets gevaarlik te doen, soos om kwaadwillige sagteware te installeer of jou persoonlike inligting, soos wagwoorde, foonnommers of kredietkaartinligting, bekend te maak. As jy dit afskakel, moet jy versigtig wees wanneer jy op onbekende of nie-fatsoenlike werwe blaai.</translation>
 <translation id="6410883413783534063">Maak oortjies oop om verskillende bladsye op dieselfde tyd te besoek</translation>
-<translation id="6416807286621280684">Jou nagespoorde pakkies en afleweringopdaterings.</translation>
 <translation id="6418346271604475326">Berei PDF voor</translation>
 <translation id="6421038304268477484">Vertaalde teks</translation>
 <translation id="6429213933892582367">Maak Wagwoordopsies oop</translation>

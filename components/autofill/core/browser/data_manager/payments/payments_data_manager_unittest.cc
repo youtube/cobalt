@@ -39,7 +39,7 @@
 #include "components/autofill/core/browser/field_types.h"
 #include "components/autofill/core/browser/form_structure.h"
 #include "components/autofill/core/browser/foundations/test_autofill_client.h"
-#include "components/autofill/core/browser/integrators/optimization_guide/mock_autofill_optimization_guide.h"
+#include "components/autofill/core/browser/integrators/optimization_guide/mock_autofill_optimization_guide_decider.h"
 #include "components/autofill/core/browser/metrics/autofill_metrics.h"
 #include "components/autofill/core/browser/metrics/payments/mandatory_reauth_metrics.h"
 #include "components/autofill/core/browser/payments/constants.h"
@@ -133,7 +133,8 @@ class PaymentsDataManagerHelper : public PaymentsDataManagerTestBase {
         profile_database_service_, account_database_service_,
         /*image_fetcher=*/nullptr, /*shared_storage_handler=*/nullptr,
         prefs_.get(), &sync_service_, identity_test_env_.identity_manager(),
-        GeoIpCountryCode(country_code), app_locale);
+        GeoIpCountryCode(country_code), app_locale,
+        autofill_client()->GetAutofillOptimizationGuideDecider());
     payments_data_manager_->Refresh();
     WaitForOnPaymentsDataChanged();
   }
@@ -338,6 +339,21 @@ TEST_F(PaymentsDataManagerTest, GetIbans) {
   std::vector<const Iban*> all_ibans = {&local_iban1, &local_iban2,
                                         &server_iban1, &server_iban2};
   ExpectSameElements(all_ibans, payments_data_manager().GetIbans());
+}
+
+// Tests that OnPaymentsDataLoaded is called after syncing.
+TEST_F(PaymentsDataManagerTest, OnPaymentsDataLoaded) {
+  ASSERT_TRUE(GetServerDataTable()->SetPaymentInstruments(
+      {test::CreatePaymentInstrumentWithEwalletAccount(1234L)}));
+
+  EXPECT_CALL(*static_cast<MockAutofillOptimizationGuideDecider*>(
+                  autofill_client()->GetAutofillOptimizationGuideDecider()),
+              OnPaymentsDataLoaded);
+
+  // We need to call `Refresh()` to ensure that the payment instruments
+  // are loaded from the WebDatabase.
+  payments_data_manager().Refresh();
+  WaitForOnPaymentsDataChanged();
 }
 
 // Test that a local IBAN is removed from suggestions when it has a matching
@@ -2949,7 +2965,8 @@ TEST_F(PaymentsDataManagerTest,
       /*sync_service=*/nullptr,
       /*identity_manager=*/nullptr,
       /*variations_country_code=*/GeoIpCountryCode("US"),
-      /*app-locale=*/"en-US");
+      /*app-locale=*/"en-US",
+      /*autofill_optimization_guide=*/nullptr);
 
   histogram_tester.ExpectTotalCount(
       "Autofill.PaymentMethods.CardBenefitsIsEnabled.Startup", 0);
@@ -2991,8 +3008,8 @@ TEST_P(PaymentsDataManagerShouldBlockBenefitsTest,
 
   const url::Origin origin =
       url::Origin::Create(GURL("https://example-blocked-url.com/"));
-  ON_CALL(*static_cast<MockAutofillOptimizationGuide*>(
-              autofill_client()->GetAutofillOptimizationGuide()),
+  ON_CALL(*static_cast<MockAutofillOptimizationGuideDecider*>(
+              autofill_client()->GetAutofillOptimizationGuideDecider()),
           ShouldBlockFlatRateBenefitSuggestionLabelsForUrl)
       .WillByDefault(testing::Return(true));
 
@@ -3010,7 +3027,7 @@ TEST_P(PaymentsDataManagerShouldBlockBenefitsTest,
   EXPECT_TRUE(payments_data_manager()
                   .GetApplicableBenefitDescriptionForCardAndOrigin(
                       test::GetMaskedServerCard(), origin,
-                      autofill_client()->GetAutofillOptimizationGuide())
+                      autofill_client()->GetAutofillOptimizationGuideDecider())
                   .empty());
 
   // Add other benefit.
@@ -3024,7 +3041,8 @@ TEST_P(PaymentsDataManagerShouldBlockBenefitsTest,
 
   EXPECT_EQ(
       payments_data_manager().GetApplicableBenefitDescriptionForCardAndOrigin(
-          card, origin, autofill_client()->GetAutofillOptimizationGuide()),
+          card, origin,
+          autofill_client()->GetAutofillOptimizationGuideDecider()),
       merchant_benefit.benefit_description());
 }
 
@@ -3043,8 +3061,8 @@ TEST_P(PaymentsDataManagerShouldBlockBenefitsTest,
 
   const url::Origin origin =
       url::Origin::Create(GURL("https://example-blocked-url.com/"));
-  ON_CALL(*static_cast<MockAutofillOptimizationGuide*>(
-              autofill_client()->GetAutofillOptimizationGuide()),
+  ON_CALL(*static_cast<MockAutofillOptimizationGuideDecider*>(
+              autofill_client()->GetAutofillOptimizationGuideDecider()),
           ShouldBlockFlatRateBenefitSuggestionLabelsForUrl)
       .WillByDefault(testing::Return(true));
 
@@ -3060,7 +3078,8 @@ TEST_P(PaymentsDataManagerShouldBlockBenefitsTest,
 
   EXPECT_EQ(
       payments_data_manager().GetApplicableBenefitDescriptionForCardAndOrigin(
-          card, origin, autofill_client()->GetAutofillOptimizationGuide()),
+          card, origin,
+          autofill_client()->GetAutofillOptimizationGuideDecider()),
       flat_rate_benefit.benefit_description());
 }
 

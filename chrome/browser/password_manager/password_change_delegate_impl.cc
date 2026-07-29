@@ -176,9 +176,13 @@ PasswordChangeDelegate::CoarseFinalPasswordChangeState GetCoarseState(
       return PasswordChangeDelegate::CoarseFinalPasswordChangeState::kOffered;
 
     case PasswordChangeDelegate::State::kCanceled:
+    // Password change is "ongoing", but since the metric is recorded on
+    // destruction of PasswordChangeDelegateImpl it means user canceled password
+    // change implicitly by closing the tab.
     case PasswordChangeDelegate::State::kWaitingForChangePasswordForm:
     case PasswordChangeDelegate::State::kChangingPassword:
     case PasswordChangeDelegate::State::kLoginFormDetected:
+    case PasswordChangeDelegate::State::kLoginFormDetectedUserCanContinue:
       return PasswordChangeDelegate::CoarseFinalPasswordChangeState::kCanceled;
 
     case PasswordChangeDelegate::State::kPasswordSuccessfullyChanged:
@@ -199,6 +203,13 @@ PasswordChangeDelegate::CoarseFinalPasswordChangeState GetCoarseState(
       NOTREACHED();
   }
 }
+
+void OnLeakDialogHidden(base::WeakPtr<PasswordsModelDelegate> model_delegate) {
+  if (model_delegate) {
+    model_delegate->GetPasswordsLeakDialogDelegate()->OnLeakDialogHidden();
+  }
+}
+
 }  // namespace
 
 PasswordChangeDelegateImpl::PasswordChangeDelegateImpl(
@@ -302,29 +313,38 @@ void PasswordChangeDelegateImpl::StartPasswordChangeFlow() {
     login_state_checker_ = std::make_unique<LoginStateChecker>(
         originator_.get(),
         ChromePasswordManagerClient::FromWebContents(originator_),
-        // Callback for the first check's result.
-        base::BindOnce(&PasswordChangeDelegateImpl::UpdateState,
-                       weak_ptr_factory_.GetWeakPtr(),
-                       State::kLoginFormDetected),
-        // Callback for the final, definitive result.
-        base::BindOnce(&PasswordChangeDelegateImpl::OnLoginStateCheckResult,
-                       weak_ptr_factory_.GetWeakPtr()));
+        base::BindRepeating(
+            &PasswordChangeDelegateImpl::OnLoginStateCheckResult,
+            weak_ptr_factory_.GetWeakPtr()));
   } else {
-    StartBackgroundTab();
+    ProceedToChangePassword();
   }
 }
 
 void PasswordChangeDelegateImpl::OnLoginStateCheckResult(bool is_logged_in) {
-  login_state_checker_.reset();
-  if (!is_logged_in) {
-    UpdateState(State::kChangePasswordFormNotFound);
+  if (is_logged_in) {
+    // User is logged in, start password change process.
+    ProceedToChangePassword();
     return;
   }
-  UpdateState(State::kWaitingForChangePasswordForm);
-  StartBackgroundTab();
+
+  if (!login_state_checker_->ReachedAttemptsLimit()) {
+    // Update the UI to encourage user to complete sign in.
+    UpdateState(current_state_ == State::kLoginFormDetected
+                    ? State::kLoginFormDetectedUserCanContinue
+                    : State::kLoginFormDetected);
+    return;
+  }
+
+  // Maximum number of retries reached. Show an error dialog.
+  login_state_checker_.reset();
+  UpdateState(State::kChangePasswordFormNotFound);
 }
 
-void PasswordChangeDelegateImpl::StartBackgroundTab() {
+void PasswordChangeDelegateImpl::ProceedToChangePassword() {
+  login_state_checker_.reset();
+  UpdateState(State::kWaitingForChangePasswordForm);
+
   executor_ = CreateWebContents(profile_, change_password_url_);
   CHECK(executor_);
   auto* client = ChromePasswordManagerClient::FromWebContents(executor_.get());
@@ -550,6 +570,13 @@ void PasswordChangeDelegateImpl::OnPasswordChangeDeclined() {
   password_change_hats_->MaybeLaunchSurvey(
       kHatsSurveyTriggerPasswordChangeCanceled,
       /*password_change_duration=*/base::TimeDelta(), originator_);
+  // Post task as otherwise ManagePasswordsUIController won't show a bubble
+  // until password change has finished.
+  base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE,
+      base::BindOnce(&OnLeakDialogHidden,
+                     ManagePasswordsUIController::FromWebContents(originator_)
+                         ->GetModelDelegateProxy()));
 }
 
 void PasswordChangeDelegateImpl::UpdateState(State new_state) {

@@ -12,7 +12,6 @@ import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.base.supplier.ObservableSupplierImpl;
 import org.chromium.base.supplier.OneshotSupplier;
 import org.chromium.base.supplier.OneshotSupplierImpl;
-import org.chromium.base.supplier.Supplier;
 import org.chromium.base.supplier.SupplierUtils;
 import org.chromium.base.supplier.TransitiveObservableSupplier;
 import org.chromium.build.annotations.NullMarked;
@@ -37,6 +36,7 @@ import org.chromium.ui.widget.Toast;
 
 import java.util.HashSet;
 import java.util.Set;
+import java.util.function.Supplier;
 
 /**
  * The root coordinator for the bottom controls component. This component is intended for use with
@@ -199,15 +199,15 @@ public class BottomControlsCoordinator implements BackPressHandler {
      * @return Whether or not the back press event is consumed here.
      */
     public boolean onBackPressed() {
-        return mContentDelegateSupplier.hasValue()
-                ? mContentDelegateSupplier.get().onBackPressed()
-                : false;
+        BottomControlsContentDelegate contentDelegate = mContentDelegateSupplier.get();
+        return contentDelegate != null ? contentDelegate.onBackPressed() : false;
     }
 
     @Override
     public @BackPressResult int handleBackPress() {
-        return mContentDelegateSupplier.hasValue()
-                ? mContentDelegateSupplier.get().handleBackPress()
+        BottomControlsContentDelegate contentDelegate = mContentDelegateSupplier.get();
+        return contentDelegate != null
+                ? contentDelegate.handleBackPress()
                 : BackPressResult.FAILURE;
     }
 
@@ -225,7 +225,8 @@ public class BottomControlsCoordinator implements BackPressHandler {
     public void destroy() {
         mIsDestroyed = true;
 
-        if (mContentDelegateSupplier.hasValue()) mContentDelegateSupplier.get().destroy();
+        BottomControlsContentDelegate contentDelegate = mContentDelegateSupplier.get();
+        if (contentDelegate != null) contentDelegate.destroy();
         mMediator.destroy();
     }
 

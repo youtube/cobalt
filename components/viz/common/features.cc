@@ -38,8 +38,8 @@ namespace features {
 // and load progress updates will be animated instead of directly snapping to
 // the new position. The animation is done in the same manner as BCIV, where
 // OffsetTags and OffstTagValues will enable viz to move the progress bar.
-BASE_FEATURE(kAndroidAnimatedCompositedProgressBar,
-             "AndroidAnimatedCompositedProgressBar",
+BASE_FEATURE(kAndroidAnimatedProgressBarInViz,
+             "AndroidAnimatedProgressBarInViz",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 // During a scroll, enable viz to move browser controls according to the
@@ -337,6 +337,13 @@ BASE_FEATURE(kEnableADPFSetThreads,
              "EnableADPFSetThreads",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
+// If enabled, Chrome uses notifyWorkloadReset method on viz wakeup instead of
+// sending a timing report with a fake actual duration > target duration.
+// Supported only on Android >= 16.
+BASE_FEATURE(kEnableADPFWorkloadReset,
+             "EnableADPFWorkloadReset",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // If enabled, we immediately send acks to clients when a viz surface
 // activates. This effectively removes back-pressure. This can result in wasted
 // work and contention, but should regularize the timing of client rendering.
@@ -611,9 +618,9 @@ bool ShouldRemoveRedirectionBitmap() {
 #endif
 
 #if BUILDFLAG(IS_ANDROID)
-bool IsAndroidAnimatedCompositedProgressBarEnabled() {
+bool IsAndroidAnimatedProgressBarInVizEnabled() {
   return base::FeatureList::IsEnabled(
-      features::kAndroidAnimatedCompositedProgressBar);
+      features::kAndroidAnimatedProgressBarInViz);
 }
 
 bool IsBcivBottomControlsEnabled() {

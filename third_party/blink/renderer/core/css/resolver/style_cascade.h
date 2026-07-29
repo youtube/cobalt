@@ -412,6 +412,11 @@ class CORE_EXPORT StyleCascade {
                                      CascadePriority,
                                      CascadeOrigin&,
                                      CascadeResolver&);
+  const CSSValue* ResolveRevertRule(const CSSProperty&,
+                                    const TreeScope*,
+                                    CascadePriority,
+                                    CascadeOrigin&,
+                                    CascadeResolver&);
   const CSSValue* ResolveFlipRevert(const CSSProperty&,
                                     const CSSFlipRevertValue&,
                                     const TreeScope*,
@@ -682,7 +687,7 @@ class CORE_EXPORT StyleCascade {
 
   CSSVariableData* GetVariableData(const CustomProperty&) const;
   CSSVariableData* GetEnvironmentVariable(const AtomicString&,
-                                          WTF::Vector<unsigned>) const;
+                                          Vector<unsigned>) const;
   const CSSParserContext* GetParserContext(const CSSUnparsedDeclarationValue&);
 
   // Detects if the given property/data depends on the font-size property

@@ -881,6 +881,7 @@ void PermissionUmaUtil::RecordEmbargoPromptSuppressionFromSource(
       break;
     case content::PermissionStatusSource::UNSPECIFIED:
     case content::PermissionStatusSource::KILL_SWITCH:
+    case content::PermissionStatusSource::ACTOR_OVERRIDE:
     case content::PermissionStatusSource::INSECURE_ORIGIN:
     case content::PermissionStatusSource::FEATURE_POLICY:
     case content::PermissionStatusSource::VIRTUAL_URL_DIFFERENT_ORIGIN:
@@ -1641,6 +1642,12 @@ void PermissionUmaUtil::RecordPageInfoPermissionChange(
 }
 
 // static
+void PermissionUmaUtil::RecordPageReloadInfoBarShown(bool shown) {
+  base::UmaHistogramBoolean(
+      "Permissions.QuietPrompt.Preignore.PageReloadInfoBar", shown);
+}
+
+// static
 std::string PermissionUmaUtil::GetPermissionActionString(
     PermissionAction permission_action) {
   switch (permission_action) {
@@ -2105,6 +2112,16 @@ void PermissionUmaUtil::RecordActionBrowserAlwaysActive(
       {"Permissions.Prompt.", GetPermissionRequestString(request_type), ".",
        permission_action, ".WithBrowser"});
   base::UmaHistogramBoolean(histogram_name, always_active);
+}
+
+// static
+void PermissionUmaUtil::RecordRenderedTextSize(PredictionModelType model_type,
+                                               RequestType request_type,
+                                               size_t text_size) {
+  base::UmaHistogramCounts10000(
+      base::StrCat({"Permissions.", GetPredictionModelString(model_type), ".",
+                    GetRequestTypeString(request_type), ".RenderedTextSize"}),
+      text_size);
 }
 
 // static

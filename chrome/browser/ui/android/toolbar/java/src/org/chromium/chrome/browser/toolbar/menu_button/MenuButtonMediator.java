@@ -20,12 +20,10 @@ import org.chromium.base.metrics.RecordUserAction;
 import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.base.supplier.ObservableSupplierImpl;
 import org.chromium.base.supplier.OneshotSupplier;
-import org.chromium.base.supplier.Supplier;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.browser_controls.BrowserStateBrowserControlsVisibilityDelegate;
 import org.chromium.chrome.browser.omnibox.OmniboxFocusReason;
-import org.chromium.chrome.browser.theme.ThemeColorProvider;
 import org.chromium.chrome.browser.toolbar.R;
 import org.chromium.chrome.browser.toolbar.menu_button.MenuButtonCoordinator.SetFocusFunction;
 import org.chromium.chrome.browser.toolbar.menu_button.MenuButtonProperties.ShowBadgeProperty;
@@ -42,6 +40,8 @@ import org.chromium.ui.modelutil.PropertyModel;
 import org.chromium.ui.modelutil.PropertyModelAnimatorFactory;
 import org.chromium.ui.util.TokenHolder;
 
+import java.util.function.Supplier;
+
 /**
  * Mediator for the MenuButton. Listens for MenuButton state changes and drives corresponding
  * changes to the property model that backs the MenuButton view.
@@ -57,7 +57,6 @@ class MenuButtonMediator implements AppMenuObserver {
     private final SetFocusFunction mSetUrlBarFocusFunction;
     private final PropertyModel mPropertyModel;
     private final Runnable mRequestRenderRunnable;
-    private final ThemeColorProvider mThemeColorProvider;
     private final Activity mActivity;
     private final KeyboardVisibilityDelegate mKeyboardDelegate;
     private final boolean mCanShowAppUpdateBadge;
@@ -81,7 +80,6 @@ class MenuButtonMediator implements AppMenuObserver {
      *     process of finishing or has already been destroyed.
      * @param requestRenderRunnable Runnable that requests a re-rendering of the compositor view
      *     containing the app menu button.
-     * @param themeColorProvider Provider of theme color changes.
      * @param isInOverviewModeSupplier Supplier of overview mode state.
      * @param controlsVisibilityDelegate Delegate for forcing persistent display of browser
      *     controls.
@@ -98,7 +96,6 @@ class MenuButtonMediator implements AppMenuObserver {
             boolean canShowAppUpdateBadge,
             Supplier<Boolean> isActivityFinishingSupplier,
             Runnable requestRenderRunnable,
-            ThemeColorProvider themeColorProvider,
             Supplier<Boolean> isInOverviewModeSupplier,
             BrowserStateBrowserControlsVisibilityDelegate controlsVisibilityDelegate,
             SetFocusFunction setUrlBarFocusFunction,
@@ -111,11 +108,9 @@ class MenuButtonMediator implements AppMenuObserver {
         mCanShowAppUpdateBadge = canShowAppUpdateBadge;
         mIsActivityFinishingSupplier = isActivityFinishingSupplier;
         mRequestRenderRunnable = requestRenderRunnable;
-        mThemeColorProvider = themeColorProvider;
         mIsInOverviewModeSupplier = isInOverviewModeSupplier;
         mControlsVisibilityDelegate = controlsVisibilityDelegate;
         mSetUrlBarFocusFunction = setUrlBarFocusFunction;
-        mThemeColorProvider.addTintObserver(this::onTintChanged);
         mAppMenuCoordinatorSupplierObserver = this::onAppMenuInitialized;
         mAppMenuCoordinatorSupplier = appMenuCoordinatorSupplier;
         mAppMenuCoordinatorSupplier.onAvailable(mAppMenuCoordinatorSupplierObserver);
@@ -270,7 +265,7 @@ class MenuButtonMediator implements AppMenuObserver {
         updateContentDescription(false, 0);
     }
 
-    private void onTintChanged(
+    void onTintChanged(
             @Nullable ColorStateList tintList,
             @Nullable ColorStateList activityFocusTintList,
             @BrandedColorScheme int brandedColorScheme) {

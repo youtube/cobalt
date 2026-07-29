@@ -18,13 +18,13 @@ import android.view.ViewGroup;
 import android.view.ViewStub;
 import android.widget.ImageView;
 
+import androidx.annotation.ColorInt;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.DefaultItemAnimator;
 import androidx.recyclerview.widget.RecyclerView;
 
 import org.chromium.base.Callback;
 import org.chromium.base.supplier.ObservableSupplier;
-import org.chromium.base.supplier.Supplier;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.cc.input.OffsetTag;
@@ -45,8 +45,10 @@ import org.chromium.chrome.browser.fullscreen.FullscreenOptions;
 import org.chromium.chrome.browser.layouts.CompositorModelChangeProcessor;
 import org.chromium.chrome.browser.layouts.LayoutManager;
 import org.chromium.chrome.browser.profiles.Profile;
+import org.chromium.chrome.browser.tab.CurrentTabObserver;
+import org.chromium.chrome.browser.tab.EmptyTabObserver;
 import org.chromium.chrome.browser.tab.Tab;
-import org.chromium.chrome.browser.theme.SurfaceColorUpdateUtils;
+import org.chromium.chrome.browser.theme.TopUiThemeColorProvider;
 import org.chromium.components.browser_ui.widget.ViewResourceFrameLayout;
 import org.chromium.ui.modelutil.MVCListAdapter.ModelList;
 import org.chromium.ui.modelutil.PropertyModel;
@@ -54,6 +56,8 @@ import org.chromium.ui.modelutil.PropertyModelChangeProcessor;
 import org.chromium.ui.modelutil.SimpleRecyclerViewAdapter;
 import org.chromium.ui.resources.ResourceManager;
 import org.chromium.ui.resources.dynamics.ViewResourceAdapter;
+
+import java.util.function.Supplier;
 
 /** Coordinator for the bookmark bar which provides users with bookmark access from top chrome. */
 @NullMarked
@@ -81,6 +85,8 @@ public class BookmarkBarCoordinator
     private final FullscreenManager mFullscreenManager;
     private boolean mIsResourceRegistered;
     private @Nullable OffsetTag mOffsetTag;
+    private final CurrentTabObserver mCurrentTabObserver;
+    private final TopUiThemeColorProvider mTopUiThemeColorProvider;
 
     // Tracks whether or not the bookmark bar should be shown at all. We keep this state in addition
     // to setting visibility directly on |mView| because we need to differentiate the Android
@@ -93,6 +99,7 @@ public class BookmarkBarCoordinator
      * @param activity The activity which is hosting the bookmark bar.
      * @param layoutManager LayoutManager to add SceneLayer to and bind model to.
      * @param requestUpdate Runnable to request an update for the layout manager and cc layers.
+     * @param fullscreenManager FullScreenManager that can be observed for hiding scene layers.
      * @param resourceManager The resource manager for providing resources to C++ layers.
      * @param browserControlsStateProvider The state provider for browser controls.
      * @param heightChangeCallback A callback to notify owner of bookmark bar height changes.
@@ -102,6 +109,8 @@ public class BookmarkBarCoordinator
      * @param bookmarkOpener Used to open bookmarks.
      * @param bookmarkManagerOpenerSupplier Used to open the bookmark manager.
      * @param topControlsStacker TopControlsStacker to manage the view's y-offset.
+     * @param currentTabSupplier Supplier of current tab to use for observers.
+     * @param topUiThemeColorProvider Provider for theme colors to match background color.
      */
     public BookmarkBarCoordinator(
             Activity activity,
@@ -116,7 +125,9 @@ public class BookmarkBarCoordinator
             @Nullable Tab currentTab,
             BookmarkOpener bookmarkOpener,
             ObservableSupplier<BookmarkManagerOpener> bookmarkManagerOpenerSupplier,
-            TopControlsStacker topControlsStacker) {
+            TopControlsStacker topControlsStacker,
+            ObservableSupplier<@Nullable Tab> currentTabSupplier,
+            TopUiThemeColorProvider topUiThemeColorProvider) {
         mRequestUpdate = requestUpdate;
         mResourceManager = resourceManager;
         mFullscreenManager = fullscreenManager;
@@ -127,13 +138,8 @@ public class BookmarkBarCoordinator
         mViewResourceAdapter = mViewResourceFrameLayout.getResourceAdapter();
         registerResource();
 
-        mBookmarkBarSceneLayer =
-                new BookmarkBarSceneLayer(mViewResourceFrameLayout.getId(), mResourceManager);
+        mBookmarkBarSceneLayer = new BookmarkBarSceneLayer(mResourceManager);
         mBookmarkBarSceneLayer.setVisibility(true);
-
-        // Update view background color to match current theme.
-        mView.setBackgroundColor(
-                SurfaceColorUpdateUtils.getDefaultThemeColor(activity, /* isIncognito= */ false));
 
         mHeightChangeCallback = heightChangeCallback;
         mView.addOnLayoutChangeListener(this);
@@ -210,16 +216,44 @@ public class BookmarkBarCoordinator
                         bookmarkOpener,
                         bookmarkManagerOpenerSupplier,
                         itemsContainer,
-                        mView,
-                        this::handleBookmarkBarChange);
+                        mView);
         PropertyModelChangeProcessor.create(model, mView, BookmarkBarViewBinder::bind);
 
         // All dimensions and offsets require the first layout pass to complete, so don't set here.
         mBookmarkBarSceneLayerModel =
                 new PropertyModel.Builder(BookmarkBarSceneLayerProperties.ALL_KEYS)
+                        .with(
+                                BookmarkBarSceneLayerProperties.RESOURCE_ID,
+                                mViewResourceFrameLayout.getId())
                         .with(BookmarkBarSceneLayerProperties.VISIBILITY, true)
                         .build();
         updateOffsetTag();
+
+        // Create a CurrentTabObserver to update the background color as it changes.
+        Callback<@Nullable Tab> visibleTabObserver =
+                (tab) -> {
+                    if (tab == null) return;
+                    updateBackgroundColor(tab);
+                };
+        mTopUiThemeColorProvider = topUiThemeColorProvider;
+        mCurrentTabObserver =
+                new CurrentTabObserver(
+                        currentTabSupplier,
+                        new EmptyTabObserver() {
+                            @Override
+                            public void onContentChanged(Tab tab) {
+                                updateBackgroundColor(tab);
+                            }
+
+                            @Override
+                            public void onDidChangeThemeColor(Tab tab, int color) {
+                                updateBackgroundColor(tab);
+                            }
+                        },
+                        visibleTabObserver);
+        visibleTabObserver.onResult(currentTabSupplier.get());
+        mCurrentTabObserver.triggerWithCurrentTab();
+
         mChangeProcessor =
                 layoutManager.createCompositorMCP(
                         mBookmarkBarSceneLayerModel,
@@ -236,6 +270,7 @@ public class BookmarkBarCoordinator
         mItemsAdapter.destroy();
         mMediator.destroy();
         mChangeProcessor.destroy();
+        mCurrentTabObserver.destroy();
         mView.removeOnLayoutChangeListener(this);
         mBrowserControlsStateProvider.removeObserver(this);
         mFullscreenManager.removeObserver(this);
@@ -497,6 +532,20 @@ public class BookmarkBarCoordinator
         } else {
             mBookmarkBarSceneLayerModel.set(BookmarkBarSceneLayerProperties.OFFSET_TAG, null);
         }
+    }
+
+    private void updateBackgroundColor(Tab tab) {
+        // We set both the Android widget background and the scene layer background. The scene
+        // layer background will update the container layer holding the snapshot (which overlaps the
+        // padding of the Android widgets). The snapshot includes the background of the Android
+        // widgets, but if not set, the background will be transparent. With a transparent
+        // background, the layer will show whatever is remaining in the buffer from the previous
+        // snapshot, so we also set the Android widget background.
+        @ColorInt int color = mTopUiThemeColorProvider.getSceneLayerBackground(tab);
+        mView.setBackgroundColor(color);
+        mViewResourceFrameLayout.setBackgroundColor(color);
+        mBookmarkBarSceneLayerModel.set(BookmarkBarSceneLayerProperties.BACKGROUND_COLOR, color);
+        handleBookmarkBarChange();
     }
 
     // Custom animator for BookmarkBar RecyclerView:

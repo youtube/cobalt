@@ -11,6 +11,7 @@
 #include "base/test/gmock_callback_support.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/run_until.h"
+#include "base/test/scoped_feature_list.h"
 #include "base/test/test_future.h"
 #include "chrome/browser/affiliations/affiliation_service_factory.h"
 #include "chrome/browser/browser_process.h"
@@ -54,6 +55,7 @@
 #include "components/optimization_guide/core/optimization_guide_prefs.h"
 #include "components/optimization_guide/core/optimization_guide_proto_util.h"
 #include "components/optimization_guide/proto/model_quality_service.pb.h"
+#include "components/password_manager/core/browser/features/password_features.h"
 #include "components/password_manager/core/browser/one_time_passwords/otp_form_manager.h"
 #include "components/password_manager/core/browser/one_time_passwords/otp_manager.h"
 #include "components/password_manager/core/browser/password_form_manager.h"
@@ -98,6 +100,8 @@ using OpenFormResponseData = ::optimization_guide::proto::OpenFormResponseData;
 using QualityStatus = ::optimization_guide::proto::
     PasswordChangeQuality_StepQuality_SubmissionStatus;
 using SubmissionOutcome = PasswordChangeSubmissionVerifier::SubmissionOutcome;
+using SubmitFormResponseData =
+    ::optimization_guide::proto::SubmitFormResponseData;
 
 constexpr char kPasswordChangeSubmissionOutcomeHistogram[] =
     "PasswordManager.PasswordChangeSubmissionOutcome";
@@ -158,6 +162,14 @@ const ukm::mojom::UkmEntry* GetMetricEntry(
 
 class PasswordChangeBrowserTest : public PasswordManagerBrowserTestBase {
  public:
+  PasswordChangeBrowserTest() {
+    // TODO (crbug.com/439496997): Fix the test to work with this feature flag
+    // default value.
+    scoped_feature_list_.InitWithFeatures(
+        {password_manager::features::kSubmitWithEnterDuringPasswordChange},
+        {password_manager::features::kCheckLoginStateBeforePasswordChange});
+  }
+
   void SetUpInProcessBrowserTestFixture() override {
     PasswordManagerBrowserTestBase::SetUpInProcessBrowserTestFixture();
     create_services_subscription_ =
@@ -332,6 +344,7 @@ class PasswordChangeBrowserTest : public PasswordManagerBrowserTestBase {
   base::CallbackListSubscription create_services_subscription_;
   autofill::TestAutofillManagerInjector<TestAutofillManager>
       autofill_manager_injector_;
+  base::test::ScopedFeatureList scoped_feature_list_;
   base::WeakPtrFactory<PasswordChangeBrowserTest> weak_ptr_factory_{this};
 };
 
@@ -1501,11 +1514,13 @@ IN_PROC_BROWSER_TEST_F(PasswordChangeBrowserTestWithLoginCheck,
   EXPECT_EQ(delegate->GetCurrentState(),
             PasswordChangeDelegate::State::kWaitingForChangePasswordForm);
 
-  delegate_impl->login_checker()->ResponseWithLoginStatusFirstCheck();
+  delegate_impl->login_checker()->RespondWithLoginStatus(false);
   EXPECT_EQ(delegate->GetCurrentState(),
             PasswordChangeDelegate::State::kLoginFormDetected);
   // Verify that password change fails if the user is not logged in.
-  delegate_impl->login_checker()->RespondWithLoginStatus(false);
+  for (auto i = 1; i < LoginStateChecker::kMaxLoginChecks; i++) {
+    delegate_impl->login_checker()->RespondWithLoginStatus(false);
+  }
   EXPECT_FALSE(delegate_impl->login_checker());
   EXPECT_EQ(delegate->GetCurrentState(),
             PasswordChangeDelegate::State::kChangePasswordFormNotFound);
@@ -1528,11 +1543,14 @@ IN_PROC_BROWSER_TEST_F(PasswordChangeBrowserTestWithLoginCheck,
   EXPECT_EQ(delegate->GetCurrentState(),
             PasswordChangeDelegate::State::kWaitingForChangePasswordForm);
 
-  delegate_impl->login_checker()->ResponseWithLoginStatusFirstCheck();
+  delegate_impl->login_checker()->RespondWithLoginStatus(false);
   EXPECT_EQ(delegate->GetCurrentState(),
             PasswordChangeDelegate::State::kLoginFormDetected);
-  // Verify that password change fails if the user is not logged in.
-  delegate_impl->login_checker()->RespondWithLoginStatus(false);
+  // Verify that password change fails if the user is not logged in after
+  // maximum amount of attempts.
+  for (auto i = 1; i < LoginStateChecker::kMaxLoginChecks; i++) {
+    delegate_impl->login_checker()->RespondWithLoginStatus(false);
+  }
   EXPECT_FALSE(delegate_impl->login_checker());
   EXPECT_FALSE(delegate_impl->executor());
   EXPECT_EQ(delegate->GetCurrentState(),
@@ -1573,6 +1591,45 @@ IN_PROC_BROWSER_TEST_F(PasswordChangeBrowserTestWithLoginCheck,
   EXPECT_FALSE(
       static_cast<PasswordChangeDelegateImpl*>(delegate)->login_checker());
   EXPECT_TRUE(static_cast<PasswordChangeDelegateImpl*>(delegate)->executor());
+  EXPECT_EQ(delegate->GetCurrentState(),
+            PasswordChangeDelegate::State::kWaitingForChangePasswordForm);
+}
+
+IN_PROC_BROWSER_TEST_F(PasswordChangeBrowserTestWithLoginCheck,
+                       UserSkipsLoginCheck) {
+  const GURL main_url = WebContents()->GetLastCommittedURL();
+  EXPECT_CALL(*affiliation_service(), GetChangePasswordURL(main_url))
+      .WillOnce(Return(GURL(kChangePasswordURL)));
+  password_change_service()->OfferPasswordChangeUi(main_url, u"test",
+                                                   u"password", WebContents());
+  auto* delegate =
+      password_change_service()->GetPasswordChangeDelegate(WebContents());
+  delegate->StartPasswordChangeFlow();
+  auto* delegate_impl = static_cast<PasswordChangeDelegateImpl*>(delegate);
+  // Verify that the background tab was not created yet.
+  EXPECT_FALSE(delegate_impl->executor());
+  EXPECT_TRUE(delegate_impl->login_checker());
+  EXPECT_EQ(delegate->GetCurrentState(),
+            PasswordChangeDelegate::State::kWaitingForChangePasswordForm);
+
+  delegate_impl->login_checker()->RespondWithLoginStatus(false);
+  EXPECT_TRUE(delegate_impl->login_checker());
+  EXPECT_FALSE(delegate_impl->executor());
+  EXPECT_EQ(delegate->GetCurrentState(),
+            PasswordChangeDelegate::State::kLoginFormDetected);
+
+  // Failing for the second time changes the state to give an option to
+  // continue.
+  delegate_impl->login_checker()->RespondWithLoginStatus(false);
+  EXPECT_TRUE(delegate_impl->login_checker());
+  EXPECT_FALSE(delegate_impl->executor());
+  EXPECT_EQ(delegate->GetCurrentState(),
+            PasswordChangeDelegate::State::kLoginFormDetectedUserCanContinue);
+
+  // Now the user clicks "Continue" which skips login check.
+  delegate->ProceedToChangePassword();
+  EXPECT_FALSE(delegate_impl->login_checker());
+  EXPECT_TRUE(delegate_impl->executor());
   EXPECT_EQ(delegate->GetCurrentState(),
             PasswordChangeDelegate::State::kWaitingForChangePasswordForm);
 }

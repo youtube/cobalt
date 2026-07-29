@@ -465,11 +465,10 @@ void PrefetchContainer::SetTriggeringOutcomeAndFailureReasonFromStatus(
                               static_cast<int>(old_prefetch_status.value()));
       SCOPED_CRASH_KEY_NUMBER("PrefetchContainer", "prefetch_status_to",
                               static_cast<int>(new_prefetch_status));
-      NOTREACHED()
-          << "PrefetchStatus illegal transition: (old_prefetch_status, "
-             "new_prefetch_status) = ("
-          << static_cast<int>(old_prefetch_status.value()) << ", "
-          << static_cast<int>(new_prefetch_status) << ")";
+      NOTREACHED() << "PrefetchStatus illegal transition: "
+                      "(old_prefetch_status, new_prefetch_status) = ("
+                   << static_cast<int>(old_prefetch_status.value()) << ", "
+                   << static_cast<int>(new_prefetch_status) << ")";
     }
   }
 
@@ -713,7 +712,8 @@ PrefetchContainer::LoadState PrefetchContainer::GetLoadState() const {
 }
 
 void PrefetchContainer::OnAddedToPrefetchService() {
-  time_added_to_prefetch_service_ = base::TimeTicks::Now();
+  prefetch_container_metrics_.time_added_to_prefetch_service =
+      base::TimeTicks::Now();
 }
 
 void PrefetchContainer::OnEligibilityCheckComplete(
@@ -745,7 +745,8 @@ void PrefetchContainer::OnEligibilityCheckComplete(
       request().attempt()->SetEligibility(eligibility);
     }
 
-    time_initial_eligibility_got_ = base::TimeTicks::Now();
+    prefetch_container_metrics_.time_initial_eligibility_got =
+        base::TimeTicks::Now();
 
     // Recording an eligiblity for PrefetchReferringPageMetrics.
     // TODO(crbug.com/40946257): Current code doesn't support
@@ -956,7 +957,8 @@ void PrefetchContainer::OnDeterminedHead() {
   SetLoadState(LoadState::kDeterminedHead);
 
   if (GetNonRedirectHead()) {
-    time_header_determined_successfully_ = base::TimeTicks::Now();
+    prefetch_container_metrics_.time_header_determined_successfully =
+        base::TimeTicks::Now();
   }
 
   // Propagates the header to `no_vary_search_data_` if a non-redirect response
@@ -1045,7 +1047,8 @@ void PrefetchContainer::OnPrefetchCompleteInternal(
   }
 
   if (net_error == net::OK) {
-    time_prefetch_completed_successfully_ = base::TimeTicks::Now();
+    prefetch_container_metrics_.time_prefetch_completed_successfully =
+        base::TimeTicks::Now();
     RecordPrefetchProxyPrefetchMainframeBodyLength(body_length);
   }
 
@@ -1256,7 +1259,7 @@ void PrefetchContainer::OnDetectedCookiesChange(
 
 void PrefetchContainer::OnPrefetchStarted() {
   SetLoadState(PrefetchContainer::LoadState::kStarted);
-  time_prefetch_started_ = base::TimeTicks::Now();
+  prefetch_container_metrics_.time_prefetch_started = base::TimeTicks::Now();
 }
 
 bool PrefetchContainer::HasSameReferringURLForMetrics(
@@ -1440,6 +1443,12 @@ void PrefetchContainer::MakeResourceRequest(
   // of this, `ServiceWorkerClient::GetOngoingNavigationRequestBeforeCommit()`
   // is never called. `NavPrefetchBrowserTest` has the corresponding test
   // coverage.
+
+  // Prefetches with `skip_service_worker` == `true` shouldn't serve navigation
+  // with `skip_service_worker` == `false`, but right now we don't support such
+  // prefetches.
+  // TODO(https://crbug.com/438478667): Revisit this.
+  CHECK(!resource_request->skip_service_worker);
 
   resource_request_ = std::move(resource_request);
 }
@@ -1753,7 +1762,8 @@ void PrefetchContainer::NotifyPrefetchResponseReceived(
   // Ensured by the caller `PrefetchService::OnPrefetchResponseStarted()`.
   CHECK(!IsDecoy());
 
-  time_url_request_started_ = head.load_timing.request_start;
+  prefetch_container_metrics_.time_url_request_started =
+      head.load_timing.request_start;
 
   // DevTools plumbing.
   auto* renderer_initiator_info = request().GetRendererInitiatorInfo();
@@ -1827,6 +1837,21 @@ std::string PrefetchContainer::GetMetricsSuffix() const {
                                                  embedder_histogram_suffix);
 }
 
+bool PrefetchContainer::HasPreloadPipelineInfoForMetrics(
+    const PreloadPipelineInfo& other) const {
+  if (&request().preload_pipeline_info() == &other) {
+    return true;
+  }
+
+  for (const auto& preload_pipeline_info : inherited_preload_pipeline_infos_) {
+    if (preload_pipeline_info.get() == &other) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 void PrefetchContainer::MaybeRecordPrefetchStatusToUMA(
     PrefetchStatus prefetch_status) {
   if (prefetch_status_recorded_to_uma_) {
@@ -1854,11 +1879,11 @@ void PrefetchContainer::OnServiceWorkerStateDetermined(
 }
 
 void PrefetchContainer::RecordPrefetchDurationHistogram() {
-  if (!time_added_to_prefetch_service_.has_value()) {
+  if (!prefetch_container_metrics_.time_added_to_prefetch_service.has_value()) {
     return;
   }
 
-  if (!time_initial_eligibility_got_.has_value()) {
+  if (!prefetch_container_metrics_.time_initial_eligibility_got.has_value()) {
     return;
   }
 
@@ -1867,10 +1892,10 @@ void PrefetchContainer::RecordPrefetchDurationHistogram() {
           "Prefetch.PrefetchContainer.AddedToInitialEligibility.",
           GetMetricsSuffix(),
       }),
-      time_initial_eligibility_got_.value() -
-          time_added_to_prefetch_service_.value());
+      prefetch_container_metrics_.time_initial_eligibility_got.value() -
+          prefetch_container_metrics_.time_added_to_prefetch_service.value());
 
-  if (!time_prefetch_started_.has_value()) {
+  if (!prefetch_container_metrics_.time_prefetch_started.has_value()) {
     return;
   }
 
@@ -1879,85 +1904,92 @@ void PrefetchContainer::RecordPrefetchDurationHistogram() {
           "Prefetch.PrefetchContainer.AddedToPrefetchStarted.",
           GetMetricsSuffix(),
       }),
-      time_prefetch_started_.value() - time_added_to_prefetch_service_.value());
+      prefetch_container_metrics_.time_prefetch_started.value() -
+          prefetch_container_metrics_.time_added_to_prefetch_service.value());
 
   base::UmaHistogramTimes(
       base::StrCat({
           "Prefetch.PrefetchContainer.InitialEligibilityToPrefetchStarted.",
           GetMetricsSuffix(),
       }),
-      time_prefetch_started_.value() - time_initial_eligibility_got_.value());
+      prefetch_container_metrics_.time_prefetch_started.value() -
+          prefetch_container_metrics_.time_initial_eligibility_got.value());
 
-  if (!time_url_request_started_.has_value()) {
+  if (!prefetch_container_metrics_.time_url_request_started.has_value()) {
     return;
   }
 
-  base::UmaHistogramTimes(base::StrCat({
-                              "Prefetch.PrefetchContainer."
-                              "AddedToURLRequestStarted.",
-                              GetMetricsSuffix(),
-                          }),
-                          time_url_request_started_.value() -
-                              time_added_to_prefetch_service_.value());
+  base::UmaHistogramTimes(
+      base::StrCat({
+          "Prefetch.PrefetchContainer.AddedToURLRequestStarted.",
+          GetMetricsSuffix(),
+      }),
+      prefetch_container_metrics_.time_url_request_started.value() -
+          prefetch_container_metrics_.time_added_to_prefetch_service.value());
 
   base::UmaHistogramTimes(
       base::StrCat({
           "Prefetch.PrefetchContainer.PrefetchStartedToURLRequestStarted.",
           GetMetricsSuffix(),
       }),
-      time_url_request_started_.value() - time_prefetch_started_.value());
+      prefetch_container_metrics_.time_url_request_started.value() -
+          prefetch_container_metrics_.time_prefetch_started.value());
 
-  if (!time_header_determined_successfully_.has_value()) {
+  if (!prefetch_container_metrics_.time_header_determined_successfully
+           .has_value()) {
     return;
   }
 
-  base::UmaHistogramTimes(base::StrCat({
-                              "Prefetch.PrefetchContainer."
-                              "AddedToHeaderDeterminedSuccessfully.",
-                              GetMetricsSuffix(),
-                          }),
-                          time_header_determined_successfully_.value() -
-                              time_added_to_prefetch_service_.value());
+  base::UmaHistogramTimes(
+      base::StrCat({
+          "Prefetch.PrefetchContainer.AddedToHeaderDeterminedSuccessfully.",
+          GetMetricsSuffix(),
+      }),
+      prefetch_container_metrics_.time_header_determined_successfully.value() -
+          prefetch_container_metrics_.time_added_to_prefetch_service.value());
 
-  base::UmaHistogramTimes(base::StrCat({
-                              "Prefetch.PrefetchContainer."
-                              "PrefetchStartedToHeaderDeterminedSuccessfully.",
-                              GetMetricsSuffix(),
-                          }),
-                          time_header_determined_successfully_.value() -
-                              time_prefetch_started_.value());
+  base::UmaHistogramTimes(
+      base::StrCat({
+          "Prefetch.PrefetchContainer."
+          "PrefetchStartedToHeaderDeterminedSuccessfully.",
+          GetMetricsSuffix(),
+      }),
+      prefetch_container_metrics_.time_header_determined_successfully.value() -
+          prefetch_container_metrics_.time_prefetch_started.value());
 
-  if (!time_prefetch_completed_successfully_.has_value()) {
+  if (!prefetch_container_metrics_.time_prefetch_completed_successfully
+           .has_value()) {
     return;
   }
 
-  base::UmaHistogramTimes(base::StrCat({
-                              "Prefetch.PrefetchContainer."
-                              "AddedToPrefetchCompletedSuccessfully.",
-                              GetMetricsSuffix(),
-                          }),
-                          time_prefetch_completed_successfully_.value() -
-                              time_added_to_prefetch_service_.value());
+  base::UmaHistogramTimes(
+      base::StrCat({
+          "Prefetch.PrefetchContainer.AddedToPrefetchCompletedSuccessfully.",
+          GetMetricsSuffix(),
+      }),
+      prefetch_container_metrics_.time_prefetch_completed_successfully.value() -
+          prefetch_container_metrics_.time_added_to_prefetch_service.value());
 
-  base::UmaHistogramTimes(base::StrCat({
-                              "Prefetch.PrefetchContainer."
-                              "PrefetchStartedToPrefetchCompletedSuccessfully.",
-                              GetMetricsSuffix(),
-                          }),
-                          time_prefetch_completed_successfully_.value() -
-                              time_prefetch_started_.value());
+  base::UmaHistogramTimes(
+      base::StrCat({
+          "Prefetch.PrefetchContainer."
+          "PrefetchStartedToPrefetchCompletedSuccessfully.",
+          GetMetricsSuffix(),
+      }),
+      prefetch_container_metrics_.time_prefetch_completed_successfully.value() -
+          prefetch_container_metrics_.time_prefetch_started.value());
 }
 
 void PrefetchContainer::RecordPrefetchMatchMissedToPrefetchStartedHistogram() {
-  if (time_prefetch_started_.has_value() &&
+  if (prefetch_container_metrics_.time_prefetch_started.has_value() &&
       time_prefetch_match_missed_.has_value()) {
     base::UmaHistogramTimes(
         base::StrCat({
-            "Prefetch.PrefetchContainer."
-            "PrefetchMatchMissedToPrefetchStarted.",
+            "Prefetch.PrefetchContainer.PrefetchMatchMissedToPrefetchStarted.",
             GetMetricsSuffix(),
         }),
-        time_prefetch_started_.value() - time_prefetch_match_missed_.value());
+        prefetch_container_metrics_.time_prefetch_started.value() -
+            time_prefetch_match_missed_.value());
   }
 }
 

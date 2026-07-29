@@ -15,8 +15,10 @@
 #include "chrome/browser/ui/browser_list.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/find_bar/find_bar.h"
+#include "chrome/browser/ui/views/side_panel/side_panel_ui_base.h"
 #include "chrome/browser/ui/web_applications/app_browser_controller.h"
 #include "chrome/browser/ui/webui_browser/webui_browser_client_view.h"
+#include "chrome/browser/ui/webui_browser/webui_browser_side_panel_ui.h"
 #include "chrome/browser/ui/webui_browser/webui_browser_ui.h"
 #include "chrome/browser/ui/webui_browser/webui_browser_web_contents_delegate.h"
 #include "chrome/browser/ui/webui_browser/webui_location_bar.h"
@@ -25,6 +27,7 @@
 #include "components/input/native_web_keyboard_event.h"
 #include "components/sharing_message/sharing_dialog_data.h"
 #include "content/public/browser/keyboard_event_processing_result.h"
+#include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_contents_observer.h"
 #include "third_party/blink/public/common/associated_interfaces/associated_interface_provider.h"
 #include "third_party/blink/public/mojom/page/draggable_region.mojom.h"
@@ -34,6 +37,8 @@
 #include "ui/views/widget/widget_delegate.h"
 
 namespace {
+
+const char* const kWebUIBrowserWindowKey = "__WEBUI_BROWSER_WINDOW__";
 
 // Copied from chrome/browser/ui/views/frame/browser_frame.cc.
 bool IsUsingLinuxSystemTheme(Profile* profile) {
@@ -60,11 +65,14 @@ class WebShellWebContentsUserData : public base::SupportsUserData::Data {
 class WebUIBrowserWindow::WidgetDelegate : public views::WidgetDelegate {
  public:
   explicit WidgetDelegate(
+      WebUIBrowserWindow* window,
       WebUIBrowserWebContentsDelegate* web_contents_delegate);
 
   views::ClientView* CreateClientView(views::Widget* widget) override;
+  std::u16string GetWindowTitle() const override;
 
  private:
+  raw_ptr<WebUIBrowserWindow> browser_window_;
   raw_ptr<WebUIBrowserWebContentsDelegate> web_contents_delegate_;
 };
 
@@ -74,7 +82,7 @@ WebUIBrowserWindow::WebUIBrowserWindow(std::unique_ptr<Browser> browser)
   web_contents_delegate_ =
       std::make_unique<WebUIBrowserWebContentsDelegate>(this);
   widget_delegate_ =
-      std::make_unique<WidgetDelegate>(web_contents_delegate_.get());
+      std::make_unique<WidgetDelegate>(this, web_contents_delegate_.get());
   widget_ = std::make_unique<views::Widget>();
   views::Widget::InitParams params(
       views::Widget::InitParams::CLIENT_OWNS_WIDGET);
@@ -83,7 +91,8 @@ WebUIBrowserWindow::WebUIBrowserWindow(std::unique_ptr<Browser> browser)
   params.delegate = widget_delegate_.get();
   params.native_widget = CreateNativeWidget();
   widget_->Init(std::move(params));
-  widget_->MakeCloseSynchronous(base::BindRepeating(
+  widget_->SetNativeWindowProperty(kWebUIBrowserWindowKey, this);
+  widget_->MakeCloseSynchronous(base::BindOnce(
       &WebUIBrowserWindow::OnWindowCloseRequested, base::Unretained(this)));
   auto web_view = std::make_unique<views::WebView>(browser_->profile());
 
@@ -120,6 +129,26 @@ WebUIBrowserWindow* WebUIBrowserWindow::FromWebShellWebContents(
   }
 
   return user_data->browser_window_;
+}
+
+// static
+WebUIBrowserWindow* WebUIBrowserWindow::FromBrowser(Browser* browser) {
+  // This function is implemented based on
+  // BrowserView::GetBrowserViewForBrowser(). Please see the comments in that
+  // function for the implementation rationale.
+  if (!browser->window() || !browser->window()->GetNativeWindow()) {
+    return nullptr;
+  }
+  return FromNativeWindow(browser->window()->GetNativeWindow());
+}
+
+// static
+WebUIBrowserWindow* WebUIBrowserWindow::FromNativeWindow(
+    gfx::NativeWindow window) {
+  views::Widget* widget = views::Widget::GetWidgetForNativeWindow(window);
+  return widget ? reinterpret_cast<WebUIBrowserWindow*>(
+                      widget->GetNativeWindowProperty(kWebUIBrowserWindowKey))
+                : nullptr;
 }
 
 void WebUIBrowserWindow::Show() {
@@ -354,7 +383,8 @@ std::vector<StatusBubble*> WebUIBrowserWindow::GetStatusBubbles() {
 }
 
 void WebUIBrowserWindow::UpdateTitleBar() {
-  NOTIMPLEMENTED();
+  widget_->UpdateWindowTitle();
+  // TODO(webium): The icon might also need updating.
 }
 
 void WebUIBrowserWindow::BookmarkBarStateChanged(
@@ -459,7 +489,9 @@ void WebUIBrowserWindow::SetFocusToLocationBar(bool is_user_initiated) {
 }
 
 void WebUIBrowserWindow::UpdateReloadStopState(bool is_loading, bool force) {
-  NOTIMPLEMENTED();
+  if (webui_browser::mojom::Page* page = GetWebUIBrowserUI()->page()) {
+    page->SetReloadStopState(is_loading);
+  }
 }
 
 void WebUIBrowserWindow::UpdateToolbar(content::WebContents* contents) {
@@ -473,12 +505,6 @@ bool WebUIBrowserWindow::UpdateToolbarSecurityState() {
 
 void WebUIBrowserWindow::UpdateCustomTabBarVisibility(bool visible,
                                                       bool animate) {
-  NOTIMPLEMENTED();
-}
-
-void WebUIBrowserWindow::SetContentScrimVisibility(
-    content::WebContents* contents,
-    bool visible) {
   NOTIMPLEMENTED();
 }
 
@@ -621,11 +647,6 @@ WebUIBrowserWindow::ShowSendTabToSelfPromoBubble(content::WebContents* contents,
 }
 
 #if BUILDFLAG(IS_CHROMEOS)
-views::Button* WebUIBrowserWindow::GetSharingHubIconButton() {
-  NOTIMPLEMENTED();
-  return nullptr;
-}
-
 void WebUIBrowserWindow::ToggleMultitaskMenu() const {
   NOTIMPLEMENTED();
 }
@@ -691,12 +712,6 @@ void WebUIBrowserWindow::UserChangedTheme(
 
 void WebUIBrowserWindow::ShowAppMenu() {
   NOTIMPLEMENTED();
-}
-
-bool WebUIBrowserWindow::PreHandleMouseEvent(
-    const blink::WebMouseEvent& event) {
-  NOTIMPLEMENTED();
-  return false;
 }
 
 void WebUIBrowserWindow::PreHandleDragUpdate(const content::DropData& drop_data,
@@ -787,6 +802,13 @@ WebUIBrowserWindow::GetWebContentsModalDialogHost() {
   return nullptr;
 }
 
+web_modal::WebContentsModalDialogHost*
+WebUIBrowserWindow::GetWebContentsModalDialogHostFor(
+    content::WebContents* web_contents) {
+  NOTIMPLEMENTED();
+  return nullptr;
+}
+
 void WebUIBrowserWindow::ShowAvatarBubbleFromAvatarButton(
     bool is_source_accelerator) {
   NOTIMPLEMENTED();
@@ -868,13 +890,19 @@ void WebUIBrowserWindow::OnWebApiWindowResizableChanged() {
 }
 
 bool WebUIBrowserWindow::GetCanResize() {
-  NOTIMPLEMENTED();
-  return false;
+  return widget_delegate_->CanResize();
 }
 
 ui::mojom::WindowShowState WebUIBrowserWindow::GetWindowShowState() const {
-  NOTIMPLEMENTED();
-  return ui::mojom::WindowShowState::kDefault;
+  if (IsMaximized()) {
+    return ui::mojom::WindowShowState::kMaximized;
+  } else if (IsMinimized()) {
+    return ui::mojom::WindowShowState::kMinimized;
+  } else if (IsFullscreen()) {
+    return ui::mojom::WindowShowState::kFullscreen;
+  } else {
+    return ui::mojom::WindowShowState::kDefault;
+  }
 }
 
 void WebUIBrowserWindow::ShowChromeLabs() {
@@ -934,9 +962,10 @@ Profile* WebUIBrowserWindow::GetProfile() {
   return browser_->profile();
 }
 
-void WebUIBrowserWindow::EnterFullscreen(const url::Origin& origin,
-                                         ExclusiveAccessBubbleType bubble_type,
-                                         const int64_t display_id) {
+void WebUIBrowserWindow::EnterFullscreen(
+    const url::Origin& origin,
+    ExclusiveAccessBubbleType bubble_type,
+    FullscreenTabParams fullscreen_tab_params) {
   // TODO(webium): Implement this.
   NOTIMPLEMENTED();
 }
@@ -994,6 +1023,11 @@ void WebUIBrowserWindow::OnWindowCloseRequested(
   // close before we hide the window below.
   if (const auto closing_status = browser_->HandleBeforeClose();
       closing_status != BrowserClosingStatus::kPermitted) {
+    // Need to reset the synchronous close callback after each Close() call as
+    // it's reset once used.  Close() is generally called twice during shutdown.
+    widget_->MakeCloseSynchronous(base::BindOnce(
+        &WebUIBrowserWindow::OnWindowCloseRequested, base::Unretained(this)));
+
     BrowserList::NotifyBrowserCloseCancelled(browser_.get(), closing_status);
     return;
   }
@@ -1011,8 +1045,15 @@ void WebUIBrowserWindow::OnWindowCloseRequested(
 }
 
 WebUIBrowserWindow::WidgetDelegate::WidgetDelegate(
+    WebUIBrowserWindow* window,
     WebUIBrowserWebContentsDelegate* web_contents_delegate)
-    : web_contents_delegate_(web_contents_delegate) {}
+    : browser_window_(window), web_contents_delegate_(web_contents_delegate) {
+  // TODO(webium): May want to override these for Apps or Picture-in-picture.
+  SetCanResize(browser_window_->browser_->create_params().can_resize);
+  SetCanMaximize(browser_window_->browser_->create_params().can_maximize);
+  SetCanFullscreen(browser_window_->browser_->create_params().can_fullscreen);
+  SetCanMinimize(true);
+}
 
 views::ClientView* WebUIBrowserWindow::WidgetDelegate::CreateClientView(
     views::Widget* widget) {
@@ -1020,9 +1061,25 @@ views::ClientView* WebUIBrowserWindow::WidgetDelegate::CreateClientView(
                                     TransferOwnershipOfContentsView());
 }
 
+std::u16string WebUIBrowserWindow::WidgetDelegate::GetWindowTitle() const {
+  // TODO(webium):  BrowserView::GetWindowTitle() has some magic for media
+  // on Mac.
+  return browser_window_->browser()->GetWindowTitleForCurrentTab(
+      true /* include_app_name */);
+}
+
 WebUIBrowserUI* WebUIBrowserWindow::GetWebUIBrowserUI() const {
   return web_contents_delegate_->web_contents()
       ->GetWebUI()
       ->GetController()
       ->GetAs<WebUIBrowserUI>();
+}
+
+void WebUIBrowserWindow::ShowSidePanel(SidePanelEntryKey side_panel_entry_key) {
+  GetWebUIBrowserUI()->ShowSidePanel(side_panel_entry_key);
+}
+
+WebUIBrowserSidePanelUI* WebUIBrowserWindow::GetWebUIBrowserSidePanelUI() {
+  return static_cast<WebUIBrowserSidePanelUI*>(
+      browser_->browser_window_features()->side_panel_ui());
 }

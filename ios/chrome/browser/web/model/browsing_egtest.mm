@@ -275,10 +275,11 @@ id<GREYMatcher> TabWithTitle(const std::string& tab_title) {
                   @"Unexpected URL after going back");
 }
 
+// TODO(crbug.com/441746799): Test is flaky.
 // Tests that a link with WebUI URL does not trigger a load. WebUI pages may
 // have increased power and using the same web process (which may potentially
 // be controlled by an attacker) is dangerous.
-- (void)testTapLinkWithWebUIURL {
+- (void)FLAKY_testTapLinkWithWebUIURL {
   // Create map of canned responses and set up the test HTML server.
   std::map<GURL, std::string> responses;
   const GURL URL(web::test::HttpServer::MakeUrl("http://pageWithWebUILink"));

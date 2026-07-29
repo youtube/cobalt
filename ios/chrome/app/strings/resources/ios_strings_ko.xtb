@@ -21,6 +21,7 @@
 <translation id="1072476005125066234">관심분야를 기반으로 한 리뷰</translation>
 <translation id="1074827084851510304">비밀번호 {password_count}개와 로그인 정보를 저장하지 않도록 선택한 사이트 및 앱 목록을 삭제하려고 합니다. 사이트 및 앱용으로 만든 계정은 삭제되지 않습니다.</translation>
 <translation id="1076421457278169141">코드 스캔됨</translation>
+<translation id="1081114897601629648">다음 비밀번호는 요건을 충족하지 않아 Google 비밀번호 관리자로 가져오지 않았습니다.</translation>
 <translation id="1081932398873105675">{count,plural, =1{탭 {count}개}other{탭 {count}개}}</translation>
 <translation id="1082554859195167538">추천 제품 리뷰</translation>
 <translation id="1084365883616172403">Facebook 게시가 완료되었습니다.</translation>
@@ -121,7 +122,6 @@
 <translation id="1469381646033328562">부모님이 관리하는 계정입니다.
 <ph name="BEGIN_LINK" />자세히 알아보기<ph name="END_LINK" /></translation>
 <translation id="147982357559798527">변경됨</translation>
-<translation id="1485907716209290998">배송 추적</translation>
 <translation id="1486096554574027028">비밀번호 검색</translation>
 <translation id="1491277525950327607">설정을 전환하려면 두 번 탭하세요.</translation>
 <translation id="1491965206608166851">모든 앱에서 저장된 비밀번호 및 패스키로 로그인</translation>
@@ -241,6 +241,7 @@
 <translation id="1902277226107477495">주소 감지가 사용 중지되었습니다. 설정에서 다시 사용 설정하세요.</translation>
 <translation id="1904580727789512086">내가 방문한 URL이 Google 계정에 저장됩니다.</translation>
 <translation id="1911619930368729126">Google Drive로 업로드</translation>
+<translation id="1925706052394657380">iOS에서 <ph name="BEGIN_BOLD" />기본 앱<ph name="END_BOLD" /> 설정 열기</translation>
 <translation id="1941314575388338491">복사하려면 두 번 탭하세요.</translation>
 <translation id="1943478190258551035">메뉴 → 설정</translation>
 <translation id="1952728750904661634">관리 계정으로 로그인</translation>
@@ -250,6 +251,7 @@
 <translation id="1962348300797608157"><ph name="BEGIN_BOLD" /><ph name="FULL_NAME" /><ph name="END_BOLD" />님이 <ph name="WEBSITE" />의 비밀번호를 공유했습니다</translation>
 <translation id="1962969542251276847">잠금 화면</translation>
 <translation id="1963976881984600709">표준 보호 모드</translation>
+<translation id="1964507856799750384"><ph name="BEGIN_BOLD" />브라우저 앱<ph name="END_BOLD" />을 탭합니다.</translation>
 <translation id="1966313166384086081">사이트 데이터</translation>
 <translation id="1967461193809857427">{count,plural, =1{Android에서 중단한 탭을 다시 시작하시겠습니까?}other{Android에서 중단한 탭을 다시 시작하시겠습니까?}}</translation>
 <translation id="1972325230031091483">현재 웹페이지 방문을 토대로 콘텐츠가 미리 로드되므로 더 빠르게 탐색할 수 있습니다.</translation>
@@ -599,7 +601,6 @@ Google이 아닌 다른 검색엔진을 사용 중이라면 해당 검색엔진�
 <translation id="333229797575847124">이 기능을 사용 설정하는 방법</translation>
 <translation id="3344485292736684439">{count,plural, =1{{email} 계정의 "{title}"에 북마크가 저장됨}other{{email} 계정의 "{title}"에 북마크가 저장됨}}</translation>
 <translation id="334690320928261823">최근 탭</translation>
-<translation id="3348387552617855658">이 카드는 택배를 추적하고 중요한 배송 관련 소식을 제공하는 데 도움이 됩니다</translation>
 <translation id="3349031117032695619">팝업 차단</translation>
 <translation id="3349676726073650389">팔로우하는 사이트 및 검색어는 Google 계정에 저장됩니다. 언제든지 설정에서 팔로우를 관리할 수 있습니다.</translation>
 <translation id="3353037916374303415"><ph name="EMAIL" />. 관리 계정임</translation>
@@ -1398,7 +1399,6 @@ Handoff는 설정의 일반 섹션에서도 사용 설정할 수 있으며, 이�
 <translation id="6406506848690869874">동기화</translation>
 <translation id="6410390304316730527">세이프 브라우징을 사용하면 악성 소프트웨어를 설치하거나 개인정보(예: 비밀번호, 전화번호, 신용카드 정보)를 공개하는 등의 위험한 행동을 하도록 사용자를 속이는 공격자를 차단합니다. 이 기능을 사용 중지하는 경우 익숙하지 않거나 평판이 좋지 않은 사이트를 탐색할 때 주의하시기 바랍니다.</translation>
 <translation id="6410883413783534063">탭을 열어 동시에 여러 페이지를 방문할 수 있습니다.</translation>
-<translation id="6416807286621280684">추적하는 택배 및 배송 업데이트입니다</translation>
 <translation id="6418346271604475326">PDF 준비 중</translation>
 <translation id="6421038304268477484">번역된 텍스트</translation>
 <translation id="6429213933892582367">비밀번호 옵션을 엽니다.</translation>
@@ -1625,7 +1625,7 @@ Handoff는 설정의 일반 섹션에서도 사용 설정할 수 있으며, 이�
 <translation id="7334364820047587268">Google 비밀번호 관리자에 이미 이 계정의 비밀번호가 있습니다. 아래 비밀번호 중 하나를 가져오면 기존 비밀번호가 대체됩니다.</translation>
 <translation id="7336264872878993241"><ph name="PERCENT" />% 다운로드됨</translation>
 <translation id="7346909386216857016">확인</translation>
-<translation id="7352651011704765696">문제가 발생했습니다.</translation>
+<translation id="7352651011704765696">문제가 발생했습니다</translation>
 <translation id="7363349185727752629">개인 정보 보호 선택 가이드</translation>
 <translation id="736564850024123010">주소 표시줄 위치를 전환하여 맞춤 환경을 이용하세요</translation>
 <translation id="7366909168761621528">인터넷 사용 기록</translation>

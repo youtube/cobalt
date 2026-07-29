@@ -15,6 +15,7 @@
 #include "chrome/browser/actor/aggregated_journal.h"
 #include "chrome/browser/actor/browser_action_util.h"
 #include "chrome/browser/actor/execution_engine.h"
+#include "chrome/browser/actor/site_policy.h"
 #include "chrome/browser/actor/task_id.h"
 #include "chrome/browser/actor/tools/tool_request.h"
 #include "chrome/browser/actor/ui/actor_ui_state_manager.h"
@@ -40,6 +41,7 @@ using ui::ActorUiStateManagerInterface;
 
 ActorKeyedService::ActorKeyedService(Profile* profile) : profile_(profile) {
   actor_ui_state_manager_ = std::make_unique<ui::ActorUiStateManager>(*this);
+  InitActionBlocklist(profile);
 }
 
 ActorKeyedService::~ActorKeyedService() = default;
@@ -70,9 +72,12 @@ const ActorTask* ActorKeyedService::GetActingActorTaskForWebContents(
   return nullptr;
 }
 
+base::WeakPtr<ActorKeyedService> ActorKeyedService::GetWeakPtr() {
+  return weak_ptr_factory_.GetWeakPtr();
+}
+
 TaskId ActorKeyedService::AddActiveTask(std::unique_ptr<ActorTask> task) {
   TaskId task_id = next_task_id_.GenerateNextId();
-  last_created_task_id_ = task_id;
   task->SetId(base::PassKey<ActorKeyedService>(), task_id);
   task->GetExecutionEngine()->SetOwner(task.get());
   // Notify of task creation now that the task id is set.
@@ -144,6 +149,47 @@ void ActorKeyedService::NotifyTaskStateChanged(const ActorTask& task) {
   tab_state_change_callback_list_.Notify(task);
 }
 
+base::CallbackListSubscription
+ActorKeyedService::AddRequestToShowCredentialSelectionDialogSubscriberCallback(
+    RequestToShowCredentialSelectionDialogSubscriberCallback callback) {
+  return request_to_show_credential_selection_dialog_callback_list_.Add(
+      std::move(callback));
+}
+
+void ActorKeyedService::NotifyRequestToShowCredentialSelectionDialog(
+    TaskId task_id,
+    const std::vector<actor_login::Credential>& credentials) {
+  request_to_show_credential_selection_dialog_callback_list_.Notify(
+      task_id, credentials,
+      base::BindRepeating(&ActorKeyedService::OnCredentialSelected,
+                          weak_ptr_factory_.GetWeakPtr(), task_id));
+}
+
+void ActorKeyedService::OnCredentialSelected(
+    TaskId request_task_id,
+    webui::mojom::SelectCredentialDialogResponsePtr response) {
+  // TODO(crbug.com/440147814): Update the `UserGrantedPermissionDuration`
+  // if the user changes the permission.
+  TaskId response_task_id(response->task_id);
+  if (response_task_id != request_task_id) {
+    // TODO(crbug.com/441500534): We should also add error handling in
+    // glic_api_host.ts.
+    VLOG(1) << "SelectCredentialDialogResponse has a different task id "
+            << response_task_id << " than requested " << request_task_id;
+    // If the task ID mismatches, generate an empty response with the correct
+    // task ID and error value.
+    response->task_id = request_task_id.value();
+    response->selected_credential_id = std::nullopt;
+    // TODO(crbug.com/427817882): Explicit error reason (kMismatchedTaskId).
+    response->error_reason = std::nullopt;
+  }
+  if (auto* task = GetTask(request_task_id)) {
+    task->GetExecutionEngine()->OnCredentialSelected(std::move(response));
+  } else {
+    VLOG(1) << "Task not found for task id: " << request_task_id;
+  }
+}
+
 void ActorKeyedService::RequestTabObservation(
     tabs::TabInterface& tab,
     TaskId task_id,
@@ -155,7 +201,8 @@ void ActorKeyedService::RequestTabObservation(
   page_content_annotations::FetchPageContextOptions options;
   options.include_viewport_screenshot = true;
   options.annotated_page_content_options =
-      optimization_guide::ActionableAIPageContentOptions();
+      optimization_guide::ActionableAIPageContentOptions(
+          /* on_critical_path =*/true);
   page_content_annotations::FetchPageContext(
       *tab.GetContents(), options,
       base::BindOnce(
@@ -182,8 +229,10 @@ void ActorKeyedService::RequestTabObservation(
             bool has_screenshot = fetch_result.screenshot_result.has_value();
             if (!has_apc || !has_screenshot) {
               std::move(callback).Run(base::unexpected(absl::StrFormat(
-                  "Failed Observation: hasAPC[%g] hasScreenshot[%g]", has_apc,
-                  has_screenshot)));
+                  "Failed Observation: APC[%g] screenshot[%s]", has_apc,
+                  fetch_result.screenshot_result.has_value()
+                      ? std::string("OK")
+                      : fetch_result.screenshot_result.error())));
               return;
             }
 
@@ -217,14 +266,17 @@ void ActorKeyedService::ConvertToBrowserActionResult(
     int32_t tab_id,
     const GURL& url,
     actor::mojom::ActionResultPtr action_result,
-    std::vector<optimization_guide::proto::ScriptToolResult>
-        script_tool_results,
+    std::vector<ActionResultWithLatencyInfo> action_results,
     base::expected<
         std::unique_ptr<page_content_annotations::FetchPageContextResult>,
         std::string> context_result) {
   optimization_guide::proto::BrowserActionResult browser_action_result;
+  browser_action_result.set_task_id(task_id.value());
+  browser_action_result.set_tab_id(tab_id);
+
   if (!context_result.has_value()) {
-    VLOG(1) << "Execute Action failed: Error fetching context.";
+    VLOG(1) << "Execute Action - Error fetching context: "
+            << context_result.error();
     browser_action_result.set_action_result(0);
     RunLater(
         base::BindOnce(std::move(callback), std::move(browser_action_result)));
@@ -237,7 +289,7 @@ void ActorKeyedService::ConvertToBrowserActionResult(
 
   CopyScriptToolResults(*fetch_result.annotated_page_content_result->proto
                              .mutable_main_frame_data(),
-                        script_tool_results);
+                        action_results);
 
   browser_action_result.mutable_annotated_page_content()->Swap(
       &fetch_result.annotated_page_content_result->proto);
@@ -247,8 +299,6 @@ void ActorKeyedService::ConvertToBrowserActionResult(
   browser_action_result.set_screenshot(data.data(), data.size());
   browser_action_result.set_screenshot_mime_type(kMimeTypeJpeg);
 
-  browser_action_result.set_task_id(task_id.value());
-  browser_action_result.set_tab_id(tab_id);
   browser_action_result.set_action_result(actor::IsOk(*action_result) ? 1 : 0);
   RunLater(
       base::BindOnce(std::move(callback), std::move(browser_action_result)));
@@ -260,8 +310,7 @@ void ActorKeyedService::OnActionFinished(
     TaskId task_id,
     actor::mojom::ActionResultPtr action_result,
     std::optional<size_t> index_of_failed_action,
-    std::vector<optimization_guide::proto::ScriptToolResult>
-        script_tool_results) {
+    std::vector<ActionResultWithLatencyInfo> action_results) {
   auto* task = GetTask(actor::TaskId(task_id));
   CHECK(task);
   tabs::TabInterface* tab = task->GetTabForObservation();
@@ -278,20 +327,20 @@ void ActorKeyedService::OnActionFinished(
       base::BindOnce(&ActorKeyedService::ConvertToBrowserActionResult,
                      weak_ptr_factory_.GetWeakPtr(), std::move(callback),
                      task_id, tab_id, tab->GetContents()->GetLastCommittedURL(),
-                     std::move(action_result), std::move(script_tool_results)));
+                     std::move(action_result), std::move(action_results)));
 }
 
 void ActorKeyedService::PerformActions(
     TaskId task_id,
     std::vector<std::unique_ptr<ToolRequest>>&& actions,
     PerformActionsCallback callback) {
-  const std::vector<optimization_guide::proto::ScriptToolResult> empty_results;
+  std::vector<ActionResultWithLatencyInfo> empty_results;
   auto* task = GetTask(task_id);
   if (!task) {
     VLOG(1) << "PerformActions failed: Task not found.";
     RunLater(base::BindOnce(std::move(callback),
                             mojom::ActionResultCode::kTaskWentAway,
-                            std::nullopt, empty_results));
+                            std::nullopt, std::move(empty_results)));
     return;
   }
 
@@ -299,7 +348,7 @@ void ActorKeyedService::PerformActions(
     VLOG(1) << "PerformActions failed: No actions provided.";
     RunLater(base::BindOnce(std::move(callback),
                             mojom::ActionResultCode::kEmptyActionSequence,
-                            std::nullopt, empty_results));
+                            std::nullopt, std::move(empty_results)));
     return;
   }
 
@@ -313,20 +362,14 @@ void ActorKeyedService::OnActionsFinished(
     PerformActionsCallback callback,
     mojom::ActionResultPtr result,
     std::optional<size_t> index_of_failed_action,
-    std::vector<optimization_guide::proto::ScriptToolResult>
-        script_tool_results) {
+    std::vector<ActionResultWithLatencyInfo> action_results) {
   // If the result if Ok then we must not have a failed action.
   CHECK(!IsOk(*result) || !index_of_failed_action);
   RunLater(base::BindOnce(std::move(callback), result->code,
-                          index_of_failed_action,
-                          std::move(script_tool_results)));
+                          index_of_failed_action, std::move(action_results)));
 }
 
 void ActorKeyedService::StopTask(TaskId task_id, bool success) {
-  if (task_id == last_created_task_id_) {
-    last_created_task_id_ = TaskId();
-  }
-
   auto task = active_tasks_.extract(task_id);
   if (!task.empty()) {
     auto ret = inactive_tasks_.insert(std::move(task));
@@ -344,10 +387,6 @@ ActorTask* ActorKeyedService::GetTask(TaskId task_id) {
     return task->second.get();
   }
   return nullptr;
-}
-
-ActorTask* ActorKeyedService::GetMostRecentTask() {
-  return GetTask(last_created_task_id_);
 }
 
 ActorUiStateManagerInterface* ActorKeyedService::GetActorUiStateManager() {

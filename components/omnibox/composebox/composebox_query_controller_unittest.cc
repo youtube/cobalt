@@ -60,6 +60,15 @@ constexpr char kVisualInputTypeParameterKey[] = "vit";
 constexpr char kLnsSurfaceParameterKey[] = "lns_surface";
 constexpr char kTestCellAddress[] = "test_cell_address";
 constexpr char kTestServerAddress[] = "test_server_address";
+
+#if BUILDFLAG(IS_ANDROID)
+constexpr lens::CompressionType kExpectedPdfCompressionType =
+    lens::CompressionType::UNCOMPRESSED;
+#else
+constexpr lens::CompressionType kExpectedPdfCompressionType =
+    lens::CompressionType::ZSTD;
+#endif  // !BUILDFLAG(IS_ANDROID)
+
 base::Time kTestQueryStartTime =
     base::Time::FromMillisecondsSinceUnixEpoch(1000);
 
@@ -142,24 +151,30 @@ class ComposeboxQueryControllerTest
   }
 
   void StartPdfFileUploadFlow(const base::UnguessableToken& file_token,
-                              scoped_refptr<base::RefCountedBytes> file_data) {
-    std::unique_ptr<ComposeboxQueryController::FileInfo> file_info =
-        std::make_unique<ComposeboxQueryController::FileInfo>();
-    file_info->file_token_ = file_token;
-    file_info->mime_type_ = lens::MimeType::kPdf;
-    controller().StartFileUploadFlow(std::move(file_info), std::move(file_data),
+                              const std::vector<uint8_t>& file_data) {
+    std::unique_ptr<lens::ContextualInputData> input_data =
+        std::make_unique<lens::ContextualInputData>();
+    input_data->primary_content_type = lens::MimeType::kPdf;
+    input_data->context_input = std::vector<lens::ContextualInput>();
+    input_data->context_input->push_back(
+        lens::ContextualInput(file_data, lens::MimeType::kPdf));
+
+    controller().StartFileUploadFlow(file_token, std::move(input_data),
                                      /*image_options=*/std::nullopt);
   }
 
   void StartImageFileUploadFlow(const base::UnguessableToken& file_token,
-                                scoped_refptr<base::RefCountedBytes> file_data,
+                                const std::vector<uint8_t>& file_data,
                                 std::optional<composebox::ImageEncodingOptions>
                                     image_options = std::nullopt) {
-    std::unique_ptr<ComposeboxQueryController::FileInfo> file_info =
-        std::make_unique<ComposeboxQueryController::FileInfo>();
-    file_info->file_token_ = file_token;
-    file_info->mime_type_ = lens::MimeType::kImage;
-    controller().StartFileUploadFlow(std::move(file_info), std::move(file_data),
+    std::unique_ptr<lens::ContextualInputData> input_data =
+        std::make_unique<lens::ContextualInputData>();
+    input_data->primary_content_type = lens::MimeType::kImage;
+    input_data->context_input = std::vector<lens::ContextualInput>();
+    input_data->context_input->push_back(
+        lens::ContextualInput(file_data, lens::MimeType::kImage));
+
+    controller().StartFileUploadFlow(file_token, std::move(input_data),
                                      image_options);
   }
 
@@ -356,9 +371,8 @@ TEST_F(ComposeboxQueryControllerTest, NotifySessionAbandoned) {
 
   // Act: Start the file upload flow.
   const base::UnguessableToken file_token = base::UnguessableToken::Create();
-  StartPdfFileUploadFlow(
-      file_token,
-      /*file_data=*/base::MakeRefCounted<base::RefCountedBytes>());
+  StartPdfFileUploadFlow(file_token,
+                         /*file_data=*/std::vector<uint8_t>());
 
   // Assert: Validate file upload request and status changes.
   WaitForFileUpload(file_token, lens::MimeType::kPdf);
@@ -386,9 +400,8 @@ TEST_F(ComposeboxQueryControllerTest, UploadFileRequestFailure) {
 
   // Act: Start the file upload flow.
   const base::UnguessableToken file_token = base::UnguessableToken::Create();
-  StartPdfFileUploadFlow(
-      file_token,
-      /*file_data=*/base::MakeRefCounted<base::RefCountedBytes>());
+  StartPdfFileUploadFlow(file_token,
+                         /*file_data=*/std::vector<uint8_t>());
 
   // Assert: Validate file upload request and status changes.
   WaitForFileUpload(file_token, lens::MimeType::kPdf,
@@ -411,10 +424,7 @@ TEST_F(ComposeboxQueryControllerTest, UploadImageFileRequestSuccess) {
                                                  .max_height = 1000,
                                                  .max_width = 1000,
                                                  .compression_quality = 30};
-  StartImageFileUploadFlow(
-      file_token,
-      /*file_data=*/base::MakeRefCounted<base::RefCountedBytes>(image_bytes),
-      image_options);
+  StartImageFileUploadFlow(file_token, image_bytes, image_options);
 
   // Assert: Validate file upload request and status changes.
   WaitForFileUpload(file_token, lens::MimeType::kImage);
@@ -483,6 +493,9 @@ TEST_F(ComposeboxQueryControllerTest, UploadImageFileRequestSuccess) {
                 ->routing_info()
                 .server_address(),
             kTestServerAddress);
+
+  EXPECT_EQ(controller().suggest_inputs().search_session_id(),
+            kTestSearchSessionId);
 }
 
 TEST_F(ComposeboxQueryControllerTest, UploadEmptyImageFileRequestFailure) {
@@ -499,10 +512,7 @@ TEST_F(ComposeboxQueryControllerTest, UploadEmptyImageFileRequestFailure) {
                                                  .max_height = 1000,
                                                  .max_width = 1000,
                                                  .compression_quality = 30};
-  StartImageFileUploadFlow(
-      file_token,
-      /*file_data=*/base::MakeRefCounted<base::RefCountedBytes>(image_bytes),
-      image_options);
+  StartImageFileUploadFlow(file_token, image_bytes, image_options);
 
   // Assert: Validate file upload request and status changes.
   WaitForFileUpload(file_token, lens::MimeType::kImage,
@@ -520,9 +530,8 @@ TEST_F(ComposeboxQueryControllerTest, UploadPdfFileRequestSuccess) {
 
   // Act: Start the file upload flow.
   const base::UnguessableToken file_token = base::UnguessableToken::Create();
-  StartPdfFileUploadFlow(
-      file_token,
-      /*file_data=*/base::MakeRefCounted<base::RefCountedBytes>());
+  StartPdfFileUploadFlow(file_token,
+                         /*file_data=*/std::vector<uint8_t>());
 
   // Assert: Validate file upload request and status changes.
   WaitForFileUpload(file_token, lens::MimeType::kPdf);
@@ -541,8 +550,141 @@ TEST_F(ComposeboxQueryControllerTest, UploadPdfFileRequestSuccess) {
                 .payload()
                 .content()
                 .content_data(0)
-                .data(),
-            "");
+                .compression_type(),
+            kExpectedPdfCompressionType);
+  // Check that the vsrid matches that for a pdf upload.
+  EXPECT_EQ(controller()
+                .GetFileInfo(file_token)
+                ->GetRequestIdForTesting()
+                ->sequence_id(),
+            1);
+  EXPECT_EQ(controller()
+                .GetFileInfo(file_token)
+                ->GetRequestIdForTesting()
+                ->image_sequence_id(),
+            0);
+  EXPECT_EQ(controller()
+                .GetFileInfo(file_token)
+                ->GetRequestIdForTesting()
+                ->long_context_id(),
+            1);
+  EXPECT_EQ(controller()
+                .last_sent_file_upload_request()
+                ->objects_request()
+                .request_context()
+                .request_id()
+                .sequence_id(),
+            1);
+  EXPECT_EQ(controller()
+                .last_sent_file_upload_request()
+                ->objects_request()
+                .request_context()
+                .request_id()
+                .image_sequence_id(),
+            0);
+  EXPECT_EQ(controller()
+                .last_sent_file_upload_request()
+                ->objects_request()
+                .request_context()
+                .request_id()
+                .long_context_id(),
+            1);
+  EXPECT_EQ(controller()
+                .last_sent_file_upload_request()
+                ->objects_request()
+                .request_context()
+                .request_id()
+                .media_type(),
+            lens::LensOverlayRequestId::MEDIA_TYPE_PDF);
+  // Check that the routing info is in the vsrid.
+  EXPECT_EQ(controller()
+                .GetFileInfo(file_token)
+                ->GetRequestIdForTesting()
+                ->routing_info()
+                .cell_address(),
+            kTestCellAddress);
+  EXPECT_EQ(controller()
+                .GetFileInfo(file_token)
+                ->GetRequestIdForTesting()
+                ->routing_info()
+                .server_address(),
+            kTestServerAddress);
+}
+
+TEST_F(ComposeboxQueryControllerTest, UploadPageContextPdfFileRequestSuccess) {
+  // Act: Start the session.
+  controller().NotifySessionStarted();
+
+  // Assert: Validate cluster info request and state changes.
+  WaitForClusterInfo();
+
+  // Act: Start the file upload flow with multiple context inputs and page
+  // context params.
+  GURL page_url = GURL("https://www.test.com");
+  std::string page_title = "Test Page";
+  const base::UnguessableToken file_token = base::UnguessableToken::Create();
+  std::unique_ptr<lens::ContextualInputData> input_data =
+      std::make_unique<lens::ContextualInputData>();
+  input_data->primary_content_type = lens::MimeType::kPdf;
+  input_data->context_input = std::vector<lens::ContextualInput>();
+  input_data->page_url = page_url;
+  input_data->page_title = page_title;
+  input_data->context_input->push_back(
+      lens::ContextualInput(std::vector<uint8_t>(), lens::MimeType::kPdf));
+  input_data->context_input->push_back(
+      lens::ContextualInput(std::vector<uint8_t>(), lens::MimeType::kPdf));
+  controller().StartFileUploadFlow(file_token, std::move(input_data),
+                                   /*image_options=*/std::nullopt);
+
+  // Assert: Validate file upload request and status changes.
+  WaitForFileUpload(file_token, lens::MimeType::kPdf);
+  // Validate the file upload request payload.
+  EXPECT_EQ(controller()
+                .last_sent_file_upload_request()
+                ->objects_request()
+                .payload()
+                .content()
+                .content_data(0)
+                .content_type(),
+            lens::ContentData::CONTENT_TYPE_PDF);
+  EXPECT_EQ(controller()
+                .last_sent_file_upload_request()
+                ->objects_request()
+                .payload()
+                .content()
+                .content_data(1)
+                .content_type(),
+            lens::ContentData::CONTENT_TYPE_PDF);
+  EXPECT_EQ(controller()
+                .last_sent_file_upload_request()
+                ->objects_request()
+                .payload()
+                .content()
+                .content_data(0)
+                .compression_type(),
+            kExpectedPdfCompressionType);
+  EXPECT_EQ(controller()
+                .last_sent_file_upload_request()
+                ->objects_request()
+                .payload()
+                .content()
+                .content_data(1)
+                .compression_type(),
+            kExpectedPdfCompressionType);
+  EXPECT_EQ(controller()
+                .last_sent_file_upload_request()
+                ->objects_request()
+                .payload()
+                .content()
+                .webpage_title(),
+            page_title);
+  EXPECT_EQ(controller()
+                .last_sent_file_upload_request()
+                ->objects_request()
+                .payload()
+                .content()
+                .webpage_url(),
+            page_url.spec());
   // Check that the vsrid matches that for a pdf upload.
   EXPECT_EQ(controller()
                 .GetFileInfo(file_token)
@@ -612,14 +754,13 @@ TEST_F(ComposeboxQueryControllerTest, UploadInvalidMimeTypeFileRequestFailure) {
   // Act: Start the file upload flow.
   const base::UnguessableToken file_token = base::UnguessableToken::Create();
 
-  std::unique_ptr<ComposeboxQueryController::FileInfo> file_info =
-      std::make_unique<ComposeboxQueryController::FileInfo>();
-  file_info->file_token_ = file_token;
   lens::MimeType mime_type = lens::MimeType::kUnknown;
-  file_info->mime_type_ = mime_type;
-  controller().StartFileUploadFlow(
-      std::move(file_info), base::MakeRefCounted<base::RefCountedBytes>(),
-      /*image_options=*/std::nullopt);
+  std::unique_ptr<lens::ContextualInputData> input_data =
+      std::make_unique<lens::ContextualInputData>();
+  input_data->primary_content_type = mime_type;
+
+  controller().StartFileUploadFlow(file_token, std::move(input_data),
+                                   /*image_options=*/std::nullopt);
 
   // Assert: Validate file upload request and status changes.
   WaitForFileUpload(file_token, mime_type, FileUploadStatus::kValidationFailed,
@@ -642,9 +783,8 @@ TEST_F(ComposeboxQueryControllerTest, UploadFileRequestSuccessWithOAuth) {
 
   // Act: Start the file upload flow.
   const base::UnguessableToken file_token = base::UnguessableToken::Create();
-  StartPdfFileUploadFlow(
-      file_token,
-      /*file_data=*/base::MakeRefCounted<base::RefCountedBytes>());
+  StartPdfFileUploadFlow(file_token,
+                         /*file_data=*/std::vector<uint8_t>());
   identity_test_env()->WaitForAccessTokenRequestIfNecessaryAndRespondWithToken(
       access_token_info().token, access_token_info().expiration_time,
       access_token_info().id_token);
@@ -665,9 +805,8 @@ TEST_F(ComposeboxQueryControllerTest, UploadFileAndWaitForClusterInfoExpire) {
 
   // Act: Start the file upload flow.
   const base::UnguessableToken file_token = base::UnguessableToken::Create();
-  StartPdfFileUploadFlow(
-      file_token,
-      /*file_data=*/base::MakeRefCounted<base::RefCountedBytes>());
+  StartPdfFileUploadFlow(file_token,
+                         /*file_data=*/std::vector<uint8_t>());
 
   // Assert: Validate file upload request and status changes.
   WaitForFileUpload(file_token, lens::MimeType::kPdf);
@@ -702,9 +841,8 @@ TEST_F(ComposeboxQueryControllerTest,
   // Act: Start the file upload flow without waiting for the cluster info
   // request to complete.
   const base::UnguessableToken file_token = base::UnguessableToken::Create();
-  StartPdfFileUploadFlow(
-      file_token,
-      /*file_data=*/base::MakeRefCounted<base::RefCountedBytes>());
+  StartPdfFileUploadFlow(file_token,
+                         /*file_data=*/std::vector<uint8_t>());
 
   // Assert: Validate file upload status change.
   FileUploadStatusTuple processing_file_upload_status =
@@ -783,9 +921,8 @@ TEST_F(ComposeboxQueryControllerTest, AbandonSessionClearsFiles) {
 
   // Act: Start the file upload flow.
   const base::UnguessableToken file_token = base::UnguessableToken::Create();
-  StartPdfFileUploadFlow(
-      file_token,
-      /*file_data=*/base::MakeRefCounted<base::RefCountedBytes>());
+  StartPdfFileUploadFlow(file_token,
+                         /*file_data=*/std::vector<uint8_t>());
 
   // Assert: Validate file upload request and status changes.
   WaitForFileUpload(file_token, lens::MimeType::kPdf);
@@ -960,9 +1097,8 @@ TEST_F(ComposeboxQueryControllerTest, QuerySubmittedWithUploadedPdf) {
 
   // Act: Start the file upload flow.
   const base::UnguessableToken file_token = base::UnguessableToken::Create();
-  StartPdfFileUploadFlow(
-      file_token,
-      /*file_data=*/base::MakeRefCounted<base::RefCountedBytes>());
+  StartPdfFileUploadFlow(file_token,
+                         /*file_data=*/std::vector<uint8_t>());
 
   // Assert: Validate file upload request and status changes.
   WaitForFileUpload(file_token, lens::MimeType::kPdf);
@@ -1016,10 +1152,7 @@ TEST_F(ComposeboxQueryControllerTest, QuerySubmittedWithUploadedImage) {
                                                  .max_height = 1000,
                                                  .max_width = 1000,
                                                  .compression_quality = 30};
-  StartImageFileUploadFlow(
-      file_token,
-      /*file_data=*/base::MakeRefCounted<base::RefCountedBytes>(image_bytes),
-      image_options);
+  StartImageFileUploadFlow(file_token, image_bytes, image_options);
 
   // Assert: Validate file upload request and status changes.
   WaitForFileUpload(file_token, lens::MimeType::kImage);
@@ -1055,8 +1188,7 @@ TEST_F(ComposeboxQueryControllerTest, QuerySubmittedWithUploadedImage) {
 
   std::string cud_value;
   EXPECT_TRUE(net::GetValueForKeyInQuery(
-      aim_url, kClientUploadDurationQueryParameter,
-      &cud_value));
+      aim_url, kClientUploadDurationQueryParameter, &cud_value));
 }
 #endif  // !BUILDFLAG(IS_IOS)
 
@@ -1076,9 +1208,8 @@ TEST_F(ComposeboxQueryControllerTest,
 
   // Act: Start the file upload flow.
   const base::UnguessableToken file_token = base::UnguessableToken::Create();
-  StartPdfFileUploadFlow(
-      file_token,
-      /*file_data=*/base::MakeRefCounted<base::RefCountedBytes>());
+  StartPdfFileUploadFlow(file_token,
+                         /*file_data=*/std::vector<uint8_t>());
 
   // Assert: Validate file upload request and status changes.
   WaitForFileUpload(file_token, lens::MimeType::kPdf);
@@ -1118,9 +1249,8 @@ TEST_F(ComposeboxQueryControllerTest, DeleteFile_Success) {
 
   // Act: Start the file upload flow.
   const base::UnguessableToken file_token = base::UnguessableToken::Create();
-  StartPdfFileUploadFlow(
-      file_token,
-      /*file_data=*/base::MakeRefCounted<base::RefCountedBytes>());
+  StartPdfFileUploadFlow(file_token,
+                         /*file_data=*/std::vector<uint8_t>());
 
   // Assert: Validate file upload request and status changes.
   WaitForFileUpload(file_token, lens::MimeType::kPdf);
@@ -1168,9 +1298,8 @@ TEST_F(ComposeboxQueryControllerTest, ClearFiles) {
 
   // Act: Start the file upload flow.
   const base::UnguessableToken file_token = base::UnguessableToken::Create();
-  StartPdfFileUploadFlow(
-      file_token,
-      /*file_data=*/base::MakeRefCounted<base::RefCountedBytes>());
+  StartPdfFileUploadFlow(file_token,
+                         /*file_data=*/std::vector<uint8_t>());
 
   // Assert: Validate file upload request and status changes.
   WaitForFileUpload(file_token, lens::MimeType::kPdf);
@@ -1196,9 +1325,8 @@ TEST_F(ComposeboxQueryControllerTest, QuerySubmittedWithLnsSurface) {
 
   // Act: Start the file upload flow.
   const base::UnguessableToken file_token = base::UnguessableToken::Create();
-  StartPdfFileUploadFlow(
-      file_token,
-      /*file_data=*/base::MakeRefCounted<base::RefCountedBytes>());
+  StartPdfFileUploadFlow(file_token,
+                         /*file_data=*/std::vector<uint8_t>());
 
   // Assert: Validate file upload request and status changes.
   WaitForFileUpload(file_token, lens::MimeType::kPdf);

@@ -13,6 +13,7 @@
 #include "base/test/simple_test_tick_clock.h"
 #include "base/test/test_future.h"
 #include "build/build_config.h"
+#include "chrome/browser/chrome_content_browser_client.h"
 #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
 #include "chrome/browser/media/media_engagement_service.h"
 #include "chrome/browser/media/media_engagement_service_factory.h"
@@ -160,6 +161,14 @@ class MockAutoBlocker : public permissions::PermissionDecisionAutoBlockerBase {
                ContentSettingsType permission,
                bool ignored_prompt_was_quiet),
               (override));
+};
+
+class MockContentBrowserClient : public ChromeContentBrowserClient {
+ public:
+  MOCK_METHOD(media::PictureInPictureEventsInfo::AutoPipInfo,
+              GetAutoPipInfo,
+              (const content::WebContents& web_contents),
+              (const, override));
 };
 
 // Helper class to wait for "recently audible" callbacks.
@@ -384,7 +393,8 @@ class AutoPictureInPictureTabHelperBrowserTest : public WebRtcTestBase {
   }
 
   void SetUp() override {
-    scoped_feature_list_.InitWithFeatures(GetEnabledFeatures(), {});
+    scoped_feature_list_.InitWithFeatures(GetEnabledFeatures(),
+                                          GetDisabledFeatures());
     InProcessBrowserTest::SetUp();
   }
 
@@ -900,6 +910,10 @@ class AutoPictureInPictureTabHelperBrowserTest : public WebRtcTestBase {
             blink::features::kMediaSessionEnterPictureInPicture};
   }
 
+  virtual std::vector<base::test::FeatureRef> GetDisabledFeatures() {
+    return {blink::features::kBrowserInitiatedAutomaticPictureInPicture};
+  }
+
  private:
   std::unique_ptr<media_session::test::TestAudioFocusObserver>
       audio_focus_observer_;
@@ -997,6 +1011,10 @@ class BrowserInitiatedAutoPictureInPictureBrowserTest
     features.push_back(
         blink::features::kBrowserInitiatedAutomaticPictureInPicture);
     return features;
+  }
+
+  std::vector<base::test::FeatureRef> GetDisabledFeatures() override {
+    return {};
   }
 };
 
@@ -2997,6 +3015,36 @@ IN_PROC_BROWSER_TEST_F(AutoPictureInPictureWithVideoPlaybackBrowserTest,
     EXPECT_EQ(expected_auto_pip_info,
               log_watcher.last_auto_picture_in_picture_event_info());
   }
+}
+
+IN_PROC_BROWSER_TEST_F(AutoPictureInPictureWithVideoPlaybackBrowserTest,
+                       ReportAutoPictureInPictureInfoChangedCalledOnce) {
+  // Setup mock browser client.
+  MockContentBrowserClient mock_client;
+  content::ContentBrowserClient* old_client =
+      content::SetBrowserClientForTesting(&mock_client);
+
+  // Load a page that registers for autopip and start video playback.
+  LoadAutoVideoPipPage(browser());
+  auto* web_contents = browser()->tab_strip_model()->GetActiveWebContents();
+  PlayVideo(web_contents);
+  WaitForAudioFocusGained();
+  WaitForMediaSessionPlaying(web_contents);
+  WaitForWasRecentlyAudible(web_contents);
+  SetExpectedHasHighEngagement(true);
+
+  // We use `GetAutoPipInfo` as a proxy for calls to
+  // `ReportAutoPictureInPictureInfoChanged`. We want to make sure that we only
+  // report changes to auto-pip info once on tab switch. This is specially
+  // important due to the asynchronous nature of the URL safety checks.
+  EXPECT_CALL(mock_client, GetAutoPipInfo(_)).Times(1);
+
+  // Switch tabs to trigger auto-pip.
+  SwitchToNewTabAndWaitForAutoPip();
+
+  // Clean up.
+  SwitchBackToOpenerAndWaitForPipToClose();
+  content::SetBrowserClientForTesting(old_client);
 }
 
 IN_PROC_BROWSER_TEST_F(BrowserInitiatedAutoPictureInPictureBrowserTest,

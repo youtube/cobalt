@@ -21,6 +21,7 @@ import org.junit.runner.RunWith;
 import org.chromium.base.test.util.ApplicationTestUtils;
 import org.chromium.base.test.util.Batch;
 import org.chromium.base.test.util.CommandLineFlags;
+import org.chromium.base.test.util.DisabledTest;
 import org.chromium.base.test.util.Feature;
 import org.chromium.base.test.util.Features;
 import org.chromium.base.test.util.Restriction;
@@ -33,6 +34,7 @@ import org.chromium.components.browser_ui.notifications.MockNotificationManagerP
 import org.chromium.components.browser_ui.notifications.NotificationFeatureMap;
 import org.chromium.ui.test.util.DeviceRestriction;
 
+import java.util.EnumSet;
 import java.util.List;
 
 /** Tests for the Safety Hub notification about unsubscribed notifications. */
@@ -50,6 +52,7 @@ public final class UnsubscribedNotificationsNotificationTest {
     @Test
     @SmallTest
     @Feature({"SafetyHubNotification"})
+    @DisabledTest(message = "Flaky. See crbug.com/441276761")
     public void testReviewNotification() throws Exception {
         UnsubscribedNotificationsNotificationManager.displayNotification(1);
         List<MockNotificationManagerProxy.NotificationEntry> notifications =
@@ -63,7 +66,15 @@ public final class UnsubscribedNotificationsNotificationTest {
         SettingsActivity settingsActivity =
                 ApplicationTestUtils.waitForActivityWithClass(
                         SettingsActivity.class,
-                        Stage.CREATED,
+                        // In SettingsSingleActivity mode, if there already
+                        // exists the settings activity, it will be reused.
+                        // In such cases, the activity state is set to
+                        // PAUSED, rather than CREATED.
+                        // Because there's no guarantee of the existing
+                        // settings activity, we wait for either condition.
+                        ChromeFeatureList.sSettingsSingleActivity.isEnabled()
+                                ? EnumSet.of(Stage.PAUSED, Stage.CREATED)
+                                : EnumSet.of(Stage.CREATED),
                         () -> {
                             try {
                                 notification.actions[0].actionIntent.send();
@@ -89,7 +100,7 @@ public final class UnsubscribedNotificationsNotificationTest {
         SettingsActivity settingsActivity =
                 ApplicationTestUtils.waitForActivityWithClass(
                         SettingsActivity.class,
-                        Stage.CREATED,
+                        EnumSet.of(Stage.PAUSED, Stage.CREATED),
                         () -> {
                             try {
                                 notification.contentIntent.send();

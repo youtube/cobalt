@@ -329,6 +329,7 @@ class AutofillExternalDelegateTest : public testing::Test {
  protected:
   void SetUp() override {
     client().set_entity_data_manager(std::make_unique<EntityDataManager>(
+        client().GetPrefs(), client().GetIdentityManager(),
         webdata_helper_.autofill_webdata_service(), /*history_service=*/nullptr,
         /*strike_database=*/nullptr));
     autofill_driver_ =
@@ -795,7 +796,7 @@ TEST_F(AutofillExternalDelegateTest, AcceptedBnplEntry_FormIsFilled) {
   CreditCard card = test::GetVirtualCard();
   card.set_issuer_id(kBnplAffirmIssuerId);
 
-  const uint64_t expected_amount = 50'000'000;
+  const std::optional<uint64_t> expected_amount = 50'000'000;
 
   EXPECT_CALL(*manager().GetPaymentsBnplManager(),
               OnDidAcceptBnplSuggestion(expected_amount, _))

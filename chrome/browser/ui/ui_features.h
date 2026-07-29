@@ -154,7 +154,11 @@ BASE_DECLARE_FEATURE_PARAM(base::TimeDelta, kSideBySideHideDropTargetDelay);
 BASE_DECLARE_FEATURE_PARAM(int, kSideBySideDropTargetMinWidth);
 BASE_DECLARE_FEATURE_PARAM(int, kSideBySideDropTargetMaxWidth);
 BASE_DECLARE_FEATURE_PARAM(int, kSideBySideDropTargetTargetWidthPercentage);
+
+// The size of the edge of the screen where the Split View drop target is hidden
+// will be the max of the width and the percentage times the screen width.
 BASE_DECLARE_FEATURE_PARAM(int, kSideBySideDropTargetHideForOSWidth);
+BASE_DECLARE_FEATURE_PARAM(double, kSideBySideDropTargetHideForOSPercentage);
 
 // Feature and params to control the "nudge" behavior of drop targets.
 BASE_DECLARE_FEATURE(kSideBySideDropTargetNudge);
@@ -201,6 +205,13 @@ BASE_DECLARE_FEATURE(kSidePanelResizing);
 BASE_DECLARE_FEATURE(kSidePanelSearchCompanion);
 
 BASE_DECLARE_FEATURE(kTabGroupsCollapseFreezing);
+
+#if !BUILDFLAG(IS_ANDROID)
+// General improvements to tab group menus
+BASE_DECLARE_FEATURE(kTabGroupMenuImprovements);
+BASE_DECLARE_FEATURE(kTabGroupMenuMoreEntryPoints);
+
+#endif  // !BUILDFLAG(IS_ANDROID)
 
 BASE_DECLARE_FEATURE(kTabHoverCardImages);
 
@@ -366,6 +377,11 @@ BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationClickToCall);
 // Determines whether the "save password" page action displays different UI if
 // the user has said to never save passwords for that site.
 BASE_DECLARE_FEATURE(kSavePasswordsContextualUi);
+
+#if BUILDFLAG(IS_MAC)
+// Add tab group colours when viewing tab groups using the top mac OS menu bar.
+BASE_DECLARE_FEATURE(kShowTabGroupsMacSystemMenu);
+#endif  // BUILDFLAG(IS_MAC)
 
 // Controls whether browser tab loading animations are driven by the compositor
 // vs. a repeating timer.

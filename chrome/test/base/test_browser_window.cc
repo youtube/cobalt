@@ -17,6 +17,7 @@
 #include "components/sharing_message/sharing_dialog_data.h"
 #include "components/user_education/common/new_badge/new_badge_controller.h"
 #include "content/public/browser/keyboard_event_processing_result.h"
+#include "content/public/browser/web_contents.h"
 #include "ui/base/mojom/window_show_state.mojom.h"
 #include "ui/color/color_provider_key.h"
 #include "ui/color/color_provider_manager.h"
@@ -207,10 +208,6 @@ ExtensionsContainer* TestBrowserWindow::GetExtensionsContainer() {
   return nullptr;
 }
 
-bool TestBrowserWindow::PreHandleMouseEvent(const blink::WebMouseEvent& event) {
-  return false;
-}
-
 content::KeyboardEventProcessingResult
 TestBrowserWindow::PreHandleKeyboardEvent(
     const input::NativeWebKeyboardEvent& event) {
@@ -311,9 +308,6 @@ TestBrowserWindow::ShowSendTabToSelfPromoBubble(content::WebContents* contents,
 }
 
 #if BUILDFLAG(IS_CHROMEOS)
-views::Button* TestBrowserWindow::GetSharingHubIconButton() {
-  return nullptr;
-}
 void TestBrowserWindow::ToggleMultitaskMenu() const {
   return;
 }
@@ -342,6 +336,12 @@ std::unique_ptr<FindBar> TestBrowserWindow::CreateFindBar() {
 
 web_modal::WebContentsModalDialogHost*
     TestBrowserWindow::GetWebContentsModalDialogHost() {
+  return nullptr;
+}
+
+web_modal::WebContentsModalDialogHost*
+TestBrowserWindow::GetWebContentsModalDialogHostFor(
+    content::WebContents* web_contents) {
   return nullptr;
 }
 

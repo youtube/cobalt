@@ -117,21 +117,25 @@ const char kMobileKeyCommandClose[] = "MobileKeyCommandClose";
 }
 
 + (UIKeyCommand*)cr_showNextTab {
+  UIImage* image = DefaultSymbolWithConfiguration(kArrowRightSquareSymbol, nil);
   UIKeyCommand* keyCommand =
       [self cr_commandWithInput:@"\t"
                   modifierFlags:Control
                          action:@selector(keyCommand_showNextTab)
-                titleIDAsString:@"IDS_IOS_KEYBOARD_NEXT_TAB"];
+                titleIDAsString:@"IDS_IOS_KEYBOARD_NEXT_TAB"
+                          image:image];
   keyCommand.wantsPriorityOverSystemBehavior = YES;
   return keyCommand;
 }
 
 + (UIKeyCommand*)cr_showPreviousTab {
+  UIImage* image = DefaultSymbolWithConfiguration(kArrowLeftSquareSymbol, nil);
   UIKeyCommand* keyCommand =
       [self cr_commandWithInput:@"\t"
                   modifierFlags:ControlShift
                          action:@selector(keyCommand_showPreviousTab)
-                titleIDAsString:@"IDS_IOS_KEYBOARD_PREVIOUS_TAB"];
+                titleIDAsString:@"IDS_IOS_KEYBOARD_PREVIOUS_TAB"
+                          image:image];
   keyCommand.wantsPriorityOverSystemBehavior = YES;
   return keyCommand;
 }
@@ -285,17 +289,21 @@ const char kMobileKeyCommandClose[] = "MobileKeyCommandClose";
 }
 
 + (UIKeyCommand*)cr_showHelp {
+  UIImage* image = DefaultSymbolWithConfiguration(kHelpSymbol, nil);
   return [self cr_commandWithInput:@"?"
                      modifierFlags:AltCommand
                             action:@selector(keyCommand_showHelp)
-                   titleIDAsString:@"IDS_IOS_KEYBOARD_SHOW_HELP"];
+                   titleIDAsString:@"IDS_IOS_KEYBOARD_SHOW_HELP"
+                             image:image];
 }
 
 + (UIKeyCommand*)cr_showDownloads {
+  UIImage* image = DefaultSymbolWithConfiguration(kDownloadSymbol, nil);
   return [self cr_commandWithInput:@"l"
                      modifierFlags:AltCommand
                             action:@selector(keyCommand_showDownloads)
-                   titleIDAsString:@"IDS_IOS_KEYBOARD_SHOW_DOWNLOADS"];
+                   titleIDAsString:@"IDS_IOS_KEYBOARD_SHOW_DOWNLOADS"
+                             image:image];
 }
 
 + (UIKeyCommand*)cr_showDownloads_2 {
@@ -305,10 +313,14 @@ const char kMobileKeyCommandClose[] = "MobileKeyCommandClose";
 }
 
 + (UIKeyCommand*)cr_select1 {
+  UIImage* image =
+      DefaultSymbolWithConfiguration(kArrowLeftToLineSquareSymbol, nil);
   UIKeyCommand* keyCommand =
-      [self keyCommandWithInput:@"1"
+      [self cr_commandWithInput:@"1"
                   modifierFlags:Command
-                         action:@selector(keyCommand_select1)];
+                         action:@selector(keyCommand_select1)
+                titleIDAsString:@"IDS_IOS_KEYBOARD_FIRST_TAB"
+                          image:image];
   keyCommand.allowsAutomaticLocalization = NO;
   return keyCommand;
 }
@@ -362,17 +374,23 @@ const char kMobileKeyCommandClose[] = "MobileKeyCommandClose";
 }
 
 + (UIKeyCommand*)cr_select9 {
+  UIImage* image =
+      DefaultSymbolWithConfiguration(kArrowRightToLineSquareSymbol, nil);
   return [self cr_commandWithInput:@"9"
                      modifierFlags:Command
                             action:@selector(keyCommand_select9)
-                   titleIDAsString:@"IDS_IOS_KEYBOARD_LAST_TAB"];
+                   titleIDAsString:@"IDS_IOS_KEYBOARD_LAST_TAB"
+                             image:image];
 }
 
 + (UIKeyCommand*)cr_reportAnIssue {
+  UIImage* image =
+      DefaultSymbolWithConfiguration(kExclamationMarkBubbleSymbol, nil);
   return [self cr_commandWithInput:@"i"
                      modifierFlags:ShiftCommand
                             action:@selector(keyCommand_reportAnIssue)
-                   titleIDAsString:@"IDS_IOS_KEYBOARD_REPORT_AN_ISSUE"];
+                   titleIDAsString:@"IDS_IOS_KEYBOARD_REPORT_AN_ISSUE"
+                             image:image];
 }
 
 + (UIKeyCommand*)cr_reportAnIssue_2 {

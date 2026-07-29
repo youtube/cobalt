@@ -34,8 +34,11 @@
   flex-wrap: wrap;
   gap: var(--ntp-promo-spacing);
   justify-content: center;
+  margin-block-start: 30px;
+  margin-inline: 40px;
 }
 
+/* This styling includes overriding default <button> properties. */
 #promo {
   align-items: center;
   background-color: var(--ntp-promo-background);
@@ -45,9 +48,11 @@
   cursor: pointer;
   display: flex;
   flex-direction: row;
+  font: inherit;
   gap: var(--ntp-promo-element-spacing);
   padding: var(--ntp-promo-padding);
   position: relative;
+  text-align: start;
 }
 
 #promo:hover {
@@ -98,4 +103,8 @@
   );
   text-align: center;
   width: var(--ntp-promo-icon-size);
+}
+
+#actionIcon:dir(rtl) {
+  transform: scaleX(-1);
 }

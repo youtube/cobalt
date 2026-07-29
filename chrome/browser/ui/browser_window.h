@@ -335,11 +335,6 @@ class BrowserWindow : public ui::BaseWindow {
   // transition if |animate| is true.
   virtual void UpdateCustomTabBarVisibility(bool visible, bool animate) = 0;
 
-  // Updates the visibility of the scrim that covers the content area associated
-  // with |contents|.
-  virtual void SetContentScrimVisibility(content::WebContents* contents,
-                                         bool visible) = 0;
-
   // Updates the visibility of the scrim that covers the devtools area.
   virtual void SetDevToolsScrimVisibility(bool visible) = 0;
 
@@ -458,9 +453,6 @@ class BrowserWindow : public ui::BaseWindow {
                                bool show_signin_button) = 0;
 
 #if BUILDFLAG(IS_CHROMEOS)
-  // Returns the PageActionIconView for the Sharing Hub.
-  virtual views::Button* GetSharingHubIconButton() = 0;
-
   // Toggles the multitask menu on the browser frame size button.
   virtual void ToggleMultitaskMenu() const = 0;
 #else
@@ -518,9 +510,6 @@ class BrowserWindow : public ui::BaseWindow {
   // Shows the app menu (for accessibility).
   virtual void ShowAppMenu() = 0;
 
-  // Allows the BrowserWindow object to handle the specified mouse event
-  // before sending it to the renderer.
-  virtual bool PreHandleMouseEvent(const blink::WebMouseEvent& event) = 0;
   // Allows the BrowserWindow object to handle a mouse drag update
   // before sending it to the renderer.
   // `point` is relative to the content view.
@@ -546,6 +535,13 @@ class BrowserWindow : public ui::BaseWindow {
   // instance during tab drag on Views/Win32).
   virtual web_modal::WebContentsModalDialogHost*
   GetWebContentsModalDialogHost() = 0;
+
+  // Return the WebContentsModalDialogHost for use in positioning web contents
+  // modal dialogs relative to its corresponding container view if possible,
+  // otherwise falls back to returning the WebContentsModalDialogHost that is
+  // responsible for modal positioning relative to the browser window.
+  virtual web_modal::WebContentsModalDialogHost*
+  GetWebContentsModalDialogHostFor(content::WebContents* web_contents) = 0;
 
   // Construct a BrowserWindow implementation for the specified |browser|.
   static BrowserWindow* CreateBrowserWindow(std::unique_ptr<Browser> browser,

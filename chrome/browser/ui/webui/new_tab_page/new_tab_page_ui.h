@@ -132,6 +132,7 @@ class NewTabPageUI
   static bool IsNewTabPageOrigin(const GURL& url);
   static void RegisterProfilePrefs(PrefRegistrySimple* registry);
   static void ResetProfilePrefs(PrefService* prefs);
+  static void MigrateDeprecatedUseMostVisitedTilesPref(PrefService* prefs);
   static bool IsManagedProfile(Profile* profile);
 
   // Instantiates the implementor of the mojom::PageHandlerFactory mojo
@@ -301,11 +302,12 @@ class NewTabPageUI
   void OnColorProviderChanged() override;
 
   bool IsCustomLinksEnabled() const;
+  bool IsEnterpriseShortcutsEnabled() const;
   bool IsShortcutsVisible() const;
 
-  // Callback for when the value of the pref for showing custom links vs. most
-  // visited sites in the NTP tiles changes.
-  void OnCustomLinksEnabledPrefChanged();
+  // Callback for when the value of the pref for determining the type of NTP
+  // tiles changes.
+  void OnShortcutsTypePrefChanged();
   // Callback for when the value of the pref for showing the NTP tiles changes.
   void OnTilesVisibilityPrefChanged();
   // Called when the NTP (re)loads. Sets mutable load time data.
@@ -313,9 +315,6 @@ class NewTabPageUI
 
   // The counter for NewTabPage.Count UMA metrics.
   static int instance_count_;
-
-  // The most recent NTP promo result. Used for logging.
-  std::optional<user_education::ShowNtpPromosResult> last_ntp_promo_result_;
 
   std::unique_ptr<NewTabPageHandler> page_handler_;
   mojo::Receiver<new_tab_page::mojom::PageHandlerFactory>

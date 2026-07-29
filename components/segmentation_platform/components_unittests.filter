@@ -1,5 +1,6 @@
 *AddressBarPositionEphemeralModuleTest.*
 *AndroidHomeModuleRankerTest.*
+*AppBundlePromoEphemeralModuleTest.*
 *AutofillPasswordsEphemeralModuleTest.*
 *AuxiliarySearchPromoTest.*
 *BackgroundRecorderTest.*
@@ -16,6 +17,7 @@
 *DatabaseApiClientsTest.*
 *DatabaseClientImplTest.*
 *DatabaseMaintenanceImplTest.*
+*DefaultBrowserPromoEphemeralModuleTest.*
 *DefaultBrowserPromoTest.*
 *DeviceSwitcherModelTest.*
 *DeviceSwitcherResultDispatcherTest.*

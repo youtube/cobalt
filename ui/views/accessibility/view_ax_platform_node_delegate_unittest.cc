@@ -27,7 +27,7 @@
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/geometry/rect_conversions.h"
 #include "ui/gfx/geometry/size.h"
-#include "ui/gfx/native_widget_types.h"
+#include "ui/gfx/native_window_types.h"
 #include "ui/views/controls/button/button.h"
 #include "ui/views/controls/label.h"
 #include "ui/views/controls/menu/submenu_view.h"
@@ -1426,7 +1426,7 @@ TEST_F(ViewAXPlatformNodeDelegateMenuTest, MenuTest) {
       separator_item->GetBoolAttribute(ax::mojom::BoolAttribute::kSelected));
   EXPECT_FALSE(separator_item->IsInvisibleOrIgnored());
   EXPECT_FALSE(separator_item->GetData().IsInvisibleOrIgnored());
-  EXPECT_EQ(separator_item->GetRole(), ax::mojom::Role::kSplitter);
+  EXPECT_EQ(separator_item->GetRole(), ax::mojom::Role::kMenuItemSeparator);
   EXPECT_EQ(separator_item->GetData().GetHasPopup(),
             ax::mojom::HasPopup::kFalse);
   EXPECT_FALSE(

@@ -79,12 +79,33 @@ export class SettingsPrivacyPageIndexElement extends
         value: false,
       },
 
+      enableIncognitoTrackingProtections_: {
+        type: Boolean,
+        value: () =>
+            loadTimeData.getBoolean('enableIncognitoTrackingProtections'),
+      },
+
       enableSecurityKeysSubpage_: {
         type: Boolean,
         readOnly: true,
         value: () => {
           return loadTimeData.getBoolean('enableSecurityKeysSubpage');
         },
+      },
+
+      enableKeyboardLockPrompt_: {
+        type: Boolean,
+        value: () => loadTimeData.getBoolean('enableKeyboardLockPrompt'),
+      },
+
+      enableWebAppInstallation_: {
+        type: Boolean,
+        value: () => loadTimeData.getBoolean('enableWebAppInstallation'),
+      },
+
+      enableLocalNetworkAccessSetting_: {
+        type: Boolean,
+        value: () => loadTimeData.getBoolean('enableLocalNetworkAccessSetting'),
       },
 
       isAdPrivacyAvailable_: {
@@ -115,7 +136,11 @@ export class SettingsPrivacyPageIndexElement extends
   declare private pageVisibility_: PageVisibility;
   declare private routes_: SettingsRoutes;
   declare private showPrivacyGuidePromo_: boolean;
+  declare private enableIncognitoTrackingProtections_: boolean;
+  declare private enableKeyboardLockPrompt_: boolean;
+  declare private enableLocalNetworkAccessSetting_: boolean;
   declare private enableSecurityKeysSubpage_: boolean;
+  declare private enableWebAppInstallation_: boolean;
   declare private isAdPrivacyAvailable_: boolean;
   declare private isPrivacySandboxRestricted_: boolean;
 
@@ -166,9 +191,37 @@ export class SettingsPrivacyPageIndexElement extends
         return this.inSearchMode ? this.getDefaultViews_() : [];
       case routes.COOKIES:
         return ['cookies'];
+      case routes.INCOGNITO_TRACKING_PROTECTIONS:
+        assert(this.enableIncognitoTrackingProtections_);
+        return ['incognitoTrackingProtections'];
       case routes.SECURITY_KEYS:
         assert(this.enableSecurityKeysSubpage_);
         return ['securityKeys'];
+      case routes.SITE_SETTINGS:
+        return ['siteSettings'];
+      case routes.SITE_SETTINGS_AUTOMATIC_FULLSCREEN:
+        return ['siteSettingsAutomaticFullscreen'];
+      case routes.SITE_SETTINGS_HANDLERS:
+        return ['siteSettingsHandlers'];
+      case routes.SITE_SETTINGS_KEYBOARD_LOCK:
+        assert(this.enableKeyboardLockPrompt_);
+        return ['siteSettingsKeyboardLock'];
+      case routes.SITE_SETTINGS_LOCAL_NETWORK_ACCESS:
+        assert(this.enableLocalNetworkAccessSetting_);
+        return ['siteSettingsLocalNetworkAccess'];
+      case routes.SITE_SETTINGS_LOCATION:
+        return ['siteSettingsLocation'];
+      case routes.SITE_SETTINGS_NOTIFICATIONS:
+        return ['siteSettingsNotifications'];
+      case routes.SITE_SETTINGS_PDF_DOCUMENTS:
+        return ['siteSettingsPdfDocuments'];
+      case routes.SITE_SETTINGS_SITE_DATA:
+        return ['siteSettingsSiteData'];
+      case routes.SITE_SETTINGS_WEB_APP_INSTALLATION:
+        assert(this.enableWebAppInstallation_);
+        return ['siteSettingsWebAppInstallation'];
+      case routes.SITE_SETTINGS_ZOOM_LEVELS:
+        return ['siteSettingsZoomLevels'];
       case routes.SAFETY_HUB:
         return ['safetyHub'];
       case routes.PRIVACY_SANDBOX:

@@ -98,11 +98,12 @@ class FakeWebMediaPlayer final : public EmptyWebMediaPlayer {
     }
 
     context_->GetTaskRunner(TaskType::kInternalMediaRealTime)
-        ->PostDelayedTask(FROM_HERE,
-                          WTF::BindOnce(&FakeWebMediaPlayer::AutoTimeIncrement,
-                                        WTF::Unretained(this),
-                                        auto_time_increment_delta_.value()),
-                          auto_time_increment_delta_.value());
+        ->PostDelayedTask(
+            FROM_HERE,
+            blink::BindOnce(&FakeWebMediaPlayer::AutoTimeIncrement,
+                            Unretained(this),
+                            auto_time_increment_delta_.value()),
+            auto_time_increment_delta_.value());
     scheduled_time_increment_ = true;
   }
 
@@ -297,10 +298,10 @@ TEST_F(HTMLMediaElementEventListenersTest,
   Vector<blink::WebFullscreenVideoStatus> observed_results;
 
   ON_CALL(*WebMediaPlayer(), SetIsEffectivelyFullscreen(_))
-      .WillByDefault(testing::Invoke(
+      .WillByDefault(
           [&](blink::WebFullscreenVideoStatus fullscreen_video_status) {
             observed_results.push_back(fullscreen_video_status);
-          }));
+          });
 
   DestroyDocument();
 

@@ -5,6 +5,7 @@
 package org.chromium.chrome.browser.keyboard_accessory;
 
 import static android.content.res.Configuration.HARDKEYBOARDHIDDEN_UNDEFINED;
+import static android.view.Display.INVALID_DISPLAY;
 
 import static androidx.test.espresso.matcher.ViewMatchers.assertThat;
 
@@ -14,9 +15,10 @@ import static org.hamcrest.CoreMatchers.not;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
-import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doNothing;
@@ -44,7 +46,6 @@ import static org.chromium.chrome.browser.tab.TabSelectionType.FROM_USER;
 
 import android.content.res.Configuration;
 import android.graphics.drawable.Drawable;
-import android.view.Gravity;
 import android.view.Surface;
 import android.view.View;
 
@@ -78,6 +79,7 @@ import org.chromium.chrome.browser.fullscreen.FullscreenManager;
 import org.chromium.chrome.browser.fullscreen.FullscreenOptions;
 import org.chromium.chrome.browser.keyboard_accessory.ManualFillingComponent.UpdateAccessorySheetDelegate;
 import org.chromium.chrome.browser.keyboard_accessory.bar_component.KeyboardAccessoryCoordinator;
+import org.chromium.chrome.browser.keyboard_accessory.bar_component.KeyboardAccessoryStyle;
 import org.chromium.chrome.browser.keyboard_accessory.data.KeyboardAccessoryData;
 import org.chromium.chrome.browser.keyboard_accessory.data.KeyboardAccessoryData.AccessorySheetData;
 import org.chromium.chrome.browser.keyboard_accessory.data.KeyboardAccessoryData.Action;
@@ -127,6 +129,7 @@ public class ManualFillingControllerTest {
     @Rule public MockitoRule mMockitoRule = MockitoJUnit.rule();
 
     @Captor ArgumentCaptor<FullscreenManager.Observer> mFullscreenObserverCaptor;
+    @Captor private ArgumentCaptor<KeyboardAccessoryStyle> mStyleCaptor;
 
     @Mock private ChromeWindow mMockWindow;
     @Mock private ChromeActivity mMockActivity;
@@ -762,7 +765,7 @@ public class ManualFillingControllerTest {
         SheetProviderHelper tabHelper = new SheetProviderHelper();
         mController.registerSheetDataProvider(
                 mLastMockWebContents, AccessoryTabType.PASSWORDS, tabHelper.getSheetDataProvider());
-        when(mMockSoftKeyboardDelegate.isSoftKeyboardShowing(any(), any())).thenReturn(true);
+        when(mMockSoftKeyboardDelegate.isSoftKeyboardShowing(any())).thenReturn(true);
         mKeyboardInsetSupplier.set(sKeyboardHeightDp * /* density= */ 2);
         when(mMockSoftKeyboardDelegate.calculateSoftKeyboardHeight(any()))
                 .thenReturn(sKeyboardHeightDp * /* density= */ 2);
@@ -789,7 +792,7 @@ public class ManualFillingControllerTest {
         SheetProviderHelper tabHelper = new SheetProviderHelper();
         mController.registerSheetDataProvider(
                 mLastMockWebContents, AccessoryTabType.PASSWORDS, tabHelper.getSheetDataProvider());
-        when(mMockSoftKeyboardDelegate.isSoftKeyboardShowing(any(), any())).thenReturn(true);
+        when(mMockSoftKeyboardDelegate.isSoftKeyboardShowing(any())).thenReturn(true);
         mKeyboardInsetSupplier.set(sKeyboardHeightDp * /* density= */ 2);
         when(mMockSoftKeyboardDelegate.calculateSoftKeyboardHeight(any()))
                 .thenReturn(sKeyboardHeightDp * /* density= */ 2);
@@ -815,7 +818,7 @@ public class ManualFillingControllerTest {
         SheetProviderHelper tabHelper = new SheetProviderHelper();
         mController.registerSheetDataProvider(
                 mLastMockWebContents, AccessoryTabType.PASSWORDS, tabHelper.getSheetDataProvider());
-        when(mMockSoftKeyboardDelegate.isSoftKeyboardShowing(any(), any())).thenReturn(true);
+        when(mMockSoftKeyboardDelegate.isSoftKeyboardShowing(any())).thenReturn(true);
         when(mMockKeyboardAccessory.empty()).thenReturn(false);
 
         mController.show(
@@ -827,8 +830,7 @@ public class ManualFillingControllerTest {
 
         // Rotating the screen causes a relayout:
         setContentAreaDimensions(2.f, 320, 128, Surface.ROTATION_90);
-        when(mMockSoftKeyboardDelegate.isSoftKeyboardShowing(eq(mMockActivity), any()))
-                .thenReturn(false);
+        when(mMockSoftKeyboardDelegate.isSoftKeyboardShowing(any())).thenReturn(false);
         mMediator.onLayoutChange(mMockContentView, 0, 0, 160, 640, 0, 0, 540, 360);
         assertThat(mModel.get(KEYBOARD_EXTENSION_STATE), is(HIDDEN));
     }
@@ -841,8 +843,7 @@ public class ManualFillingControllerTest {
         SheetProviderHelper tabHelper = new SheetProviderHelper();
         mController.registerSheetDataProvider(
                 mLastMockWebContents, AccessoryTabType.PASSWORDS, tabHelper.getSheetDataProvider());
-        when(mMockSoftKeyboardDelegate.isSoftKeyboardShowing(eq(mMockActivity), any()))
-                .thenReturn(true);
+        when(mMockSoftKeyboardDelegate.isSoftKeyboardShowing(any())).thenReturn(true);
         mKeyboardInsetSupplier.set(sKeyboardHeightDp * /* density= */ 2);
         when(mMockSoftKeyboardDelegate.calculateSoftKeyboardHeight(any()))
                 .thenReturn(sKeyboardHeightDp * /* density= */ 2);
@@ -886,8 +887,7 @@ public class ManualFillingControllerTest {
         SheetProviderHelper tabHelper = new SheetProviderHelper();
         mController.registerSheetDataProvider(
                 mLastMockWebContents, AccessoryTabType.PASSWORDS, tabHelper.getSheetDataProvider());
-        when(mMockSoftKeyboardDelegate.isSoftKeyboardShowing(eq(mMockActivity), any()))
-                .thenReturn(true);
+        when(mMockSoftKeyboardDelegate.isSoftKeyboardShowing(any())).thenReturn(true);
         when(mMockKeyboardAccessory.empty()).thenReturn(false);
 
         // Show the accessory bar for the dimensions exactly at the threshold: 180x128@2.f.
@@ -909,6 +909,7 @@ public class ManualFillingControllerTest {
      * the accessory sheet's height is shrunken.
      */
     @Test
+    @SuppressWarnings("DirectInvocationOnMock")
     public void testRestrictsSheetSizeIfVerticalSpaceChanges() {
         final int density = 2;
         final int accessorySheetHeightDp = 100; // The height of a large keyboard.
@@ -971,6 +972,7 @@ public class ManualFillingControllerTest {
      * WebContents height is insetted by the keyboard and its accessories.
      */
     @Test
+    @SuppressWarnings("DirectInvocationOnMock")
     public void testRestrictsSheetSizeIfVerticalSpaceChangesWithResizesContent() {
         final int density = 2;
         final int accessorySheetHeightDp = 100; // The height of a large keyboard.
@@ -1037,20 +1039,22 @@ public class ManualFillingControllerTest {
         when(mMockKeyboardAccessory.isShown()).thenReturn(true);
         when(mMockKeyboardAccessory.hasActiveTab()).thenReturn(false);
         mModel.set(SHOW_WHEN_VISIBLE, true);
-        when(mMockSoftKeyboardDelegate.isSoftKeyboardShowing(eq(mMockActivity), any()))
-                .thenReturn(true);
+        when(mMockSoftKeyboardDelegate.isSoftKeyboardShowing(any())).thenReturn(true);
         mModel.set(KEYBOARD_EXTENSION_STATE, EXTENDING_KEYBOARD);
 
         // Ensure it's bottom-aligned and insetting the page with its height.
         assertEquals(
                 sAccessoryHeightDp * density, (int) mController.getBottomInsetSupplier().get());
-        verify(mMockKeyboardAccessory).setOffsetAndGravity(eq(0), anyInt());
+        verify(mMockKeyboardAccessory).setStyle(mStyleCaptor.capture());
+        KeyboardAccessoryStyle style = mStyleCaptor.getValue();
+        assertTrue(style.isDocked());
+        assertEquals(0, style.getMaxWidth());
         reset(mMockKeyboardAccessory, mMockAccessorySheet);
 
         // Simulate entering fullscreen mode which makes the keyboard overlaying.
         mFullscreenObserverCaptor
                 .getValue()
-                .onEnterFullscreen(tab, new FullscreenOptions(false, false));
+                .onEnterFullscreen(tab, new FullscreenOptions(false, false, INVALID_DISPLAY));
 
         // Ensure it's not insetting the page.
         assertEquals(0, (int) mController.getBottomInsetSupplier().get());
@@ -1069,20 +1073,22 @@ public class ManualFillingControllerTest {
         when(mMockKeyboardAccessory.hasActiveTab()).thenReturn(false);
 
         mModel.set(SHOW_WHEN_VISIBLE, true);
-        when(mMockSoftKeyboardDelegate.isSoftKeyboardShowing(eq(mMockActivity), any()))
-                .thenReturn(true);
+        when(mMockSoftKeyboardDelegate.isSoftKeyboardShowing(any())).thenReturn(true);
         mModel.set(KEYBOARD_EXTENSION_STATE, EXTENDING_KEYBOARD);
 
         // Ensure it's bottom-aligned and insetting the page with its height.
         assertEquals(
                 sAccessoryHeightDp * density, (int) mController.getBottomInsetSupplier().get());
-        verify(mMockKeyboardAccessory).setOffsetAndGravity(eq(0), anyInt());
+        verify(mMockKeyboardAccessory).setStyle(mStyleCaptor.capture());
+        KeyboardAccessoryStyle style = mStyleCaptor.getValue();
+        assertTrue(style.isDocked());
+        assertEquals(0, style.getMaxWidth());
         reset(mMockKeyboardAccessory, mMockAccessorySheet);
 
         // Simulate entering fullscreen mode which makes the keyboard overlaying.
         mFullscreenObserverCaptor
                 .getValue()
-                .onEnterFullscreen(tab, new FullscreenOptions(false, false));
+                .onEnterFullscreen(tab, new FullscreenOptions(false, false, INVALID_DISPLAY));
 
         // Ensure it's not insetting the page.
         assertEquals(
@@ -1134,8 +1140,7 @@ public class ManualFillingControllerTest {
         // As soon as active tab and keyboard change, |isFillingViewShown| returns the expected
         // state - even if the sheet component wasn't updated yet.
         when(mMockKeyboardAccessory.hasActiveTab()).thenReturn(true);
-        when(mMockSoftKeyboardDelegate.isSoftKeyboardShowing(eq(mMockActivity), any()))
-                .thenReturn(false);
+        when(mMockSoftKeyboardDelegate.isSoftKeyboardShowing(any())).thenReturn(false);
         assertThat(mController.isFillingViewShown(null), is(true));
 
         // The layout change impacts the component, but not the coordinator method.
@@ -1168,8 +1173,7 @@ public class ManualFillingControllerTest {
         mModel.set(KEYBOARD_EXTENSION_STATE, HIDDEN);
         reset(mMockKeyboardAccessory, mMockAccessorySheet);
 
-        when(mMockSoftKeyboardDelegate.isSoftKeyboardShowing(eq(mMockActivity), any()))
-                .thenReturn(true);
+        when(mMockSoftKeyboardDelegate.isSoftKeyboardShowing(any())).thenReturn(true);
         // Set the model EXTENDING_KEYBOARD. This should update keyboard and subcomponents.
         mModel.set(KEYBOARD_EXTENSION_STATE, EXTENDING_KEYBOARD);
         assertThat(mModel.get(KEYBOARD_EXTENSION_STATE), is(EXTENDING_KEYBOARD));
@@ -1184,8 +1188,7 @@ public class ManualFillingControllerTest {
         addBrowserTab(mMediator, 1111, null);
         mModel.set(SHOW_WHEN_VISIBLE, true);
         // Make sure the model is in a non-FLOATING_BAR state first.
-        when(mMockSoftKeyboardDelegate.isSoftKeyboardShowing(eq(mMockActivity), any()))
-                .thenReturn(false);
+        when(mMockSoftKeyboardDelegate.isSoftKeyboardShowing(any())).thenReturn(false);
         mModel.set(KEYBOARD_EXTENSION_STATE, HIDDEN);
         reset(mMockKeyboardAccessory, mMockAccessorySheet);
 
@@ -1279,7 +1282,7 @@ public class ManualFillingControllerTest {
         when(mMockKeyboardAccessory.empty()).thenReturn(false);
 
         // Showing the keyboard should now trigger a transition into EXTENDING state.
-        when(mMockSoftKeyboardDelegate.isSoftKeyboardShowing(any(), any())).thenReturn(true);
+        when(mMockSoftKeyboardDelegate.isSoftKeyboardShowing(any())).thenReturn(true);
         mMediator.onLayoutChange(mMockContentView, 0, 0, 320, 90, 0, 0, 320, 180);
 
         assertThat(mModel.get(KEYBOARD_EXTENSION_STATE), is(EXTENDING_KEYBOARD));
@@ -1294,7 +1297,7 @@ public class ManualFillingControllerTest {
         mModel.set(KEYBOARD_EXTENSION_STATE, HIDDEN);
         reset(mMockKeyboardAccessory, mMockAccessorySheet);
         when(mMockKeyboardAccessory.empty()).thenReturn(false);
-        when(mMockSoftKeyboardDelegate.isSoftKeyboardShowing(any(), any())).thenReturn(true);
+        when(mMockSoftKeyboardDelegate.isSoftKeyboardShowing(any())).thenReturn(true);
 
         // Showing the keyboard should now trigger a transition into EXTENDING state.
         mController.show(
@@ -1333,7 +1336,7 @@ public class ManualFillingControllerTest {
         when(mMockKeyboardAccessory.isShown()).thenReturn(true);
 
         // Simulate opening a keyboard:
-        when(mMockSoftKeyboardDelegate.isSoftKeyboardShowing(any(), any())).thenReturn(true);
+        when(mMockSoftKeyboardDelegate.isSoftKeyboardShowing(any())).thenReturn(true);
         mMediator.onLayoutChange(mMockContentView, 0, 0, 320, 90, 0, 0, 320, 180);
 
         assertThat(mModel.get(KEYBOARD_EXTENSION_STATE), is(EXTENDING_KEYBOARD));
@@ -1386,7 +1389,7 @@ public class ManualFillingControllerTest {
         mController.registerSheetDataProvider(
                 mLastMockWebContents, AccessoryTabType.PASSWORDS, new PropertyProvider<>());
         mModel.set(SHOW_WHEN_VISIBLE, true);
-        when(mMockSoftKeyboardDelegate.isSoftKeyboardShowing(any(), any())).thenReturn(true);
+        when(mMockSoftKeyboardDelegate.isSoftKeyboardShowing(any())).thenReturn(true);
         mModel.set(KEYBOARD_EXTENSION_STATE, EXTENDING_KEYBOARD);
         reset(mMockKeyboardAccessory, mMockAccessorySheet);
         when(mMockKeyboardAccessory.empty()).thenReturn(false);
@@ -1403,7 +1406,7 @@ public class ManualFillingControllerTest {
         assertThat(mModel.get(KEYBOARD_EXTENSION_STATE), is(WAITING_TO_REPLACE));
 
         // The keyboard finally hides completely and the state changes to REPLACING.
-        when(mMockSoftKeyboardDelegate.isSoftKeyboardShowing(any(), any())).thenReturn(false);
+        when(mMockSoftKeyboardDelegate.isSoftKeyboardShowing(any())).thenReturn(false);
         mMediator.onLayoutChange(mMockContentView, 0, 0, 320, 90, 0, 0, 320, 180);
         assertThat(mModel.get(KEYBOARD_EXTENSION_STATE), is(REPLACING_KEYBOARD));
     }
@@ -1431,7 +1434,7 @@ public class ManualFillingControllerTest {
         verify(mMockSoftKeyboardDelegate).showSoftKeyboard(any());
 
         // Simulate the keyboard opening:
-        when(mMockSoftKeyboardDelegate.isSoftKeyboardShowing(any(), any())).thenReturn(true);
+        when(mMockSoftKeyboardDelegate.isSoftKeyboardShowing(any())).thenReturn(true);
         mMediator.onLayoutChange(mMockContentView, 0, 0, 320, 90, 0, 0, 320, 180);
 
         assertThat(mModel.get(KEYBOARD_EXTENSION_STATE), is(EXTENDING_KEYBOARD));
@@ -1473,7 +1476,10 @@ public class ManualFillingControllerTest {
                 /* isCredentialFieldOrHasAutofillSuggestions= */ false);
 
         assertThat(mModel.get(KEYBOARD_EXTENSION_STATE), is(HIDDEN));
-        verify(mMockKeyboardAccessory).setOffsetAndGravity(anyInt(), eq(Gravity.BOTTOM));
+        verify(mMockKeyboardAccessory).setStyle(mStyleCaptor.capture());
+        KeyboardAccessoryStyle style = mStyleCaptor.getValue();
+        assertTrue(style.isDocked());
+        assertEquals(0, style.getMaxWidth());
         verify(mMockKeyboardAccessory, never()).setHasStickyLastItem(anyBoolean());
     }
 
@@ -1491,14 +1497,17 @@ public class ManualFillingControllerTest {
                 /* waitForKeyboard= */ true, /* isCredentialFieldOrHasAutofillSuggestions= */ true);
 
         assertThat(mModel.get(KEYBOARD_EXTENSION_STATE), is(FLOATING_BAR));
-        verify(mMockKeyboardAccessory).setOffsetAndGravity(anyInt(), eq(Gravity.TOP));
+        verify(mMockKeyboardAccessory).setStyle(mStyleCaptor.capture());
+        KeyboardAccessoryStyle style = mStyleCaptor.getValue();
+        assertFalse(style.isDocked());
+        assertTrue(style.getMaxWidth() > 0);
         verify(mMockKeyboardAccessory).setHasStickyLastItem(false);
     }
 
     @Test
     public void testLargeFormAccessoryShownMinWidthWithPhysicalKeyboard() {
         updateConfiguration(/* widthDp= */ 900, /* heightDp= */ 450);
-        when(mMockSoftKeyboardDelegate.isSoftKeyboardShowing(any(), any())).thenReturn(false);
+        when(mMockSoftKeyboardDelegate.isSoftKeyboardShowing(any())).thenReturn(false);
         DeviceInput.setSupportsAlphabeticKeyboardForTesting(true);
         // Prepare a tab and register a new tab, so there is a reason to display the bar.
         addBrowserTab(mMediator, 1111, null);
@@ -1511,14 +1520,17 @@ public class ManualFillingControllerTest {
                 /* waitForKeyboard= */ true, /* isCredentialFieldOrHasAutofillSuggestions= */ true);
 
         assertThat(mModel.get(KEYBOARD_EXTENSION_STATE), is(FLOATING_BAR));
-        verify(mMockKeyboardAccessory).setOffsetAndGravity(anyInt(), eq(Gravity.TOP));
+        verify(mMockKeyboardAccessory).setStyle(mStyleCaptor.capture());
+        KeyboardAccessoryStyle style = mStyleCaptor.getValue();
+        assertFalse(style.isDocked());
+        assertTrue(style.getMaxWidth() > 0);
         verify(mMockKeyboardAccessory).setHasStickyLastItem(false);
     }
 
     @Test
     public void testLargeFormAccessoryShownMinWidthAndMinHeightWithPhysicalKeyboard() {
         updateConfiguration(/* widthDp= */ 640, /* heightDp= */ 640);
-        when(mMockSoftKeyboardDelegate.isSoftKeyboardShowing(any(), any())).thenReturn(false);
+        when(mMockSoftKeyboardDelegate.isSoftKeyboardShowing(any())).thenReturn(false);
         DeviceInput.setSupportsAlphabeticKeyboardForTesting(true);
         // Prepare a tab and register a new tab, so there is a reason to display the bar.
         addBrowserTab(mMediator, 1111, null);
@@ -1531,14 +1543,17 @@ public class ManualFillingControllerTest {
                 /* waitForKeyboard= */ true, /* isCredentialFieldOrHasAutofillSuggestions= */ true);
 
         assertThat(mModel.get(KEYBOARD_EXTENSION_STATE), is(FLOATING_BAR));
-        verify(mMockKeyboardAccessory).setOffsetAndGravity(anyInt(), eq(Gravity.TOP));
+        verify(mMockKeyboardAccessory).setStyle(mStyleCaptor.capture());
+        KeyboardAccessoryStyle style = mStyleCaptor.getValue();
+        assertFalse(style.isDocked());
+        assertTrue(style.getMaxWidth() > 0);
         verify(mMockKeyboardAccessory).setHasStickyLastItem(false);
     }
 
     @Test
     public void testLargeFormAccessoryNotFloatingLessThanMinWidthAndMinHeight() {
         updateConfiguration(/* widthDp= */ 320, /* heightDp= */ 470);
-        when(mMockSoftKeyboardDelegate.isSoftKeyboardShowing(any(), any())).thenReturn(true);
+        when(mMockSoftKeyboardDelegate.isSoftKeyboardShowing(any())).thenReturn(true);
         DeviceInput.setSupportsAlphabeticKeyboardForTesting(false);
         // Prepare a tab and register a new tab, so there is a reason to display the bar.
         addBrowserTab(mMediator, 1111, null);
@@ -1551,7 +1566,10 @@ public class ManualFillingControllerTest {
                 /* waitForKeyboard= */ true, /* isCredentialFieldOrHasAutofillSuggestions= */ true);
 
         assertThat(mModel.get(KEYBOARD_EXTENSION_STATE), is(EXTENDING_KEYBOARD));
-        verify(mMockKeyboardAccessory).setOffsetAndGravity(anyInt(), eq(Gravity.BOTTOM));
+        verify(mMockKeyboardAccessory).setStyle(mStyleCaptor.capture());
+        KeyboardAccessoryStyle style = mStyleCaptor.getValue();
+        assertTrue(style.isDocked());
+        assertEquals(0, style.getMaxWidth());
         verify(mMockKeyboardAccessory).setHasStickyLastItem(true);
     }
 
@@ -1693,6 +1711,7 @@ public class ManualFillingControllerTest {
      * @param vkMode The current virtual keyboard mode, affecting how WebContents reacts to the View
      *     size.
      */
+    @SuppressWarnings("DirectInvocationOnMock")
     private void simulateLayoutSizeChange(
             float density,
             int width,

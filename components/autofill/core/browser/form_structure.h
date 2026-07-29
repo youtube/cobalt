@@ -68,9 +68,9 @@ class FormStructure {
 
   // Runs several heuristics against the form fields to determine their possible
   // types.
-  void DetermineHeuristicTypes(
-      const GeoIpCountryCode& client_country,
-      LogManager* log_manager);
+  void DetermineHeuristicTypes(const GeoIpCountryCode& client_country,
+                               const LanguageCode& current_page_language,
+                               LogManager* log_manager);
 
   // Runs rationalization and sectioning. This is to be run after the field
   // types change.
@@ -80,7 +80,9 @@ class FormStructure {
   // predictions (or `legacy_order` is true), parts of the rationalization
   // happens before sectioning.
   // TODO(crbug.com/408497919): Make the order consistent.
-  void RationalizeAndAssignSections(LogManager* log_manager,
+  void RationalizeAndAssignSections(const GeoIpCountryCode& client_country,
+                                    const LanguageCode& current_page_language,
+                                    LogManager* log_manager,
                                     bool legacy_order = false);
 
   // Returns predictions that can be sent to the renderer process for debugging.
@@ -232,7 +234,9 @@ class FormStructure {
 
   // Rationalize the form's autocomplete attributes, repeated fields and field
   // type predictions.
-  void RationalizeFormStructure(LogManager* log_manager);
+  void RationalizeFormStructure(const GeoIpCountryCode& client_country,
+                                const LanguageCode& current_page_language,
+                                LogManager* log_manager);
 
   // Returns the FieldGlobalIds of the |fields_| that are eligible for manual
   // filling on form interaction.
@@ -330,23 +334,17 @@ class FormStructure {
     submission_source_ = submission_source;
   }
 
+  // Logs the DeveloperEngagementMetric UKM metric and updates
+  // `developer_engagement_metrics_`.
+  void LogDeveloperEngagementMetric();
+
   int developer_engagement_metrics() const {
     return developer_engagement_metrics_;
-  }
-
-  const LanguageCode& current_page_language() const {
-    return current_page_language_;
-  }
-
-  void set_current_page_language(LanguageCode language) {
-    current_page_language_ = std::move(language);
   }
 
   FormGlobalId global_id() const { return {host_frame_, renderer_id_}; }
 
   FormVersion version() const { return version_; }
-
-  const GeoIpCountryCode& client_country() const { return client_country_; }
 
   // The signatures of forms recently submitted on the same origin within a
   // small period of time.
@@ -380,8 +378,6 @@ class FormStructure {
   void AssignBestFieldTypes(const FieldCandidatesMap& field_type_map,
                             HeuristicSource heuristic_source);
 
-  void LogDetermineHeuristicTypesMetrics();
-
   // Sets each field's `html_type` and `html_mode` based on the field's
   // `parsed_autocomplete` member.
   void SetFieldTypesFromAutocompleteAttribute();
@@ -404,18 +400,6 @@ class FormStructure {
 
   // Extracts the parseable field name by removing a common affix.
   void ExtractParseableFieldNames();
-
-  // Extract parseable field labels by potentially splitting labels between
-  // adjacent fields.
-  void ExtractParseableFieldLabels();
-
-  // The country where the user is currently located. Used to introduce biases
-  // in form parsing and understanding according to the user's location.
-  GeoIpCountryCode client_country_;
-
-  // The language detected for this form's page, before any translations
-  // performed by Chrome.
-  LanguageCode current_page_language_;
 
   // The id attribute of the form.
   std::u16string id_attribute_;

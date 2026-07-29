@@ -282,7 +282,8 @@ IN_PROC_BROWSER_TEST_F(SettingsTest, DISABLED_MainPage) {
   RunTest("settings/settings_main_test.js", "mocha.run()");
 }
 
-IN_PROC_BROWSER_TEST_F(SettingsTest, SettingsMain) {
+// TODO(crbug.com/441873882): Re-enable this test
+IN_PROC_BROWSER_TEST_F(SettingsTest, DISABLED_SettingsMain) {
   RunTest("settings/settings_main_plugins_test.js", "mocha.run()");
 }
 
@@ -902,7 +903,9 @@ IN_PROC_BROWSER_TEST_F(SettingsClearBrowsingDataV2Test,
           "runMochaSuite('DeleteBrowsingDataDialog')");
 }
 
-IN_PROC_BROWSER_TEST_F(SettingsClearBrowsingDataV2Test, OtherGoogleDataDialog) {
+// TODO(crbug.com/440503425): Flaky on all platforms.
+IN_PROC_BROWSER_TEST_F(SettingsClearBrowsingDataV2Test,
+                       DISABLED_OtherGoogleDataDialog) {
   RunTest("settings/other_google_data_dialog_test.js",
           "runMochaSuite('OtherGoogleDataDialog')");
 }

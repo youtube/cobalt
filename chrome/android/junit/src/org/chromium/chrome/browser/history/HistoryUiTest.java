@@ -93,6 +93,7 @@ import org.chromium.components.signin.test.util.TestAccounts;
 import org.chromium.components.sync.SyncService;
 import org.chromium.components.user_prefs.UserPrefs;
 import org.chromium.components.user_prefs.UserPrefsJni;
+import org.chromium.ui.base.DeviceInput;
 import org.chromium.ui.base.PageTransition;
 import org.chromium.ui.base.TestActivity;
 import org.chromium.url.GURL;
@@ -693,7 +694,7 @@ public class HistoryUiTest {
         final MenuItem infoMenuItem = toolbar.getItemById(R.id.info_menu_id);
 
         // Sign in and set has other forms of browsing data to true.
-        mAccountManagerTestRule.addAccount(AccountManagerTestRule.TEST_ACCOUNT_EMAIL);
+        mAccountManagerTestRule.addAccount(TestAccounts.ACCOUNT1);
         setHasOtherFormsOfBrowsingData(true);
 
         toolbar.onSignInStateChange();
@@ -714,6 +715,46 @@ public class HistoryUiTest {
         // The first group should be the history item group from SetUp()
         Assert.assertFalse(mAdapter.hasListHeader());
         Assert.assertEquals(3, firstGroup.size());
+    }
+
+    @Test
+    @SmallTest
+    @Config(qualifiers = "sw600dp")
+    public void testInfoHeaderInSearchModeOnLFFDevice() {
+        DeviceInput.setSupportsKeyboardForTesting(true);
+        mHistoryManager =
+                new HistoryManager(
+                        mActivity,
+                        true,
+                        mSnackbarManager,
+                        mProfile,
+                        /* bottomSheetController= */ null,
+                        /* Supplier<Tab>= */ null,
+                        mHistoryProvider,
+                        new HistoryUmaRecorder(),
+                        /* clientPackageName= */ null,
+                        /* shouldShowClearData= */ true,
+                        /* launchedForApp= */ false,
+                        /* showAppFilter= */ true,
+                        /* openHistoryItemCallback= */ null,
+                        /* edgeToEdgePadAdjusterGenerator= */ null);
+        mContentManager = mHistoryManager.getContentManagerForTests();
+        mAdapter = mContentManager.getAdapter();
+        mRecyclerView = mContentManager.getRecyclerView();
+
+        final HistoryManagerToolbar toolbar = mHistoryManager.getToolbarForTests();
+        final MenuItem searchMenuItem =
+                toolbar.getItemById(R.id.search_menu_id); // The magnifier button
+
+        // Sign in and set has other forms of browsing data to true.
+        mAccountManagerTestRule.addAccount(TestAccounts.ACCOUNT1);
+        setHasOtherFormsOfBrowsingData(true);
+
+        ShadowLooper.idleMainLooper();
+        DateDividedAdapter.ItemGroup firstGroup = mAdapter.getFirstGroupForTests();
+        Assert.assertFalse(searchMenuItem.isVisible());
+        Assert.assertTrue(mAdapter.hasListHeader());
+        Assert.assertEquals(2, firstGroup.size());
     }
 
     @Test
@@ -947,7 +988,7 @@ public class HistoryUiTest {
     private void signInToSupervisedAccount() {
         // Sign in to account. Note that if supervised user is set before sign in, the supervised
         // user setting will be reset.
-        mAccountManagerTestRule.addAccount(AccountManagerTestRule.TEST_ACCOUNT_EMAIL);
+        mAccountManagerTestRule.addAccount(TestAccounts.ACCOUNT1);
         doReturn(true).when(mProfile).isChild();
         doReturn("ChildAccountSUID").when(mPrefService).getString(Pref.SUPERVISED_USER_ID);
         IncognitoUtils.setEnabledForTesting(false);

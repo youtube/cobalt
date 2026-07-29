@@ -20,16 +20,16 @@
 #import "ios/chrome/browser/home_customization/coordinator/home_customization_data_conversion.h"
 #import "ios/chrome/browser/home_customization/coordinator/home_customization_navigation_delegate.h"
 #import "ios/chrome/browser/home_customization/model/home_background_customization_service.h"
+#import "ios/chrome/browser/home_customization/model/user_uploaded_image_manager.h"
 #import "ios/chrome/browser/home_customization/ui/background_collection_configuration.h"
-#import "ios/chrome/browser/home_customization/ui/home_customization_background_photo_framing_coordinates.h"
 #import "ios/chrome/browser/home_customization/ui/home_customization_discover_consumer.h"
+#import "ios/chrome/browser/home_customization/ui/home_customization_framing_coordinates.h"
 #import "ios/chrome/browser/home_customization/ui/home_customization_magic_stack_consumer.h"
 #import "ios/chrome/browser/home_customization/ui/home_customization_main_consumer.h"
 #import "ios/chrome/browser/home_customization/utils/home_customization_constants.h"
 #import "ios/chrome/browser/home_customization/utils/home_customization_helper.h"
 #import "ios/chrome/browser/home_customization/utils/home_customization_metrics_recorder.h"
 #import "ios/chrome/browser/ntp/ui_bundled/theme_utils.h"
-#import "ios/chrome/browser/parcel_tracking/features.h"
 #import "ios/chrome/browser/shared/model/prefs/pref_names.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
@@ -48,6 +48,8 @@
   // The Background customization service for getting current and recently used
   // backgrounds.
   raw_ptr<HomeBackgroundCustomizationService> _backgroundService;
+  // The image manager used to load uesr uploaded images.
+  raw_ptr<UserUploadedImageManager> _userUploadedImageManager;
 
   // Whether the theme has been changed.
   BOOL _themeHasChanged;
@@ -58,8 +60,10 @@
         (DiscoverFeedVisibilityBrowserAgent*)discoverFeedVisibilityBrowserAgent
                      backgroundService:
                          (HomeBackgroundCustomizationService*)backgroundService
-                   imageFetcherService:(image_fetcher::ImageFetcherService*)
-                                           imageFetcherService {
+                   imageFetcherService:
+                       (image_fetcher::ImageFetcherService*)imageFetcherService
+              userUploadedImageManager:
+                  (UserUploadedImageManager*)userUploadedImageManager {
   self = [super init];
   if (self) {
     _prefService = prefService;
@@ -67,6 +71,7 @@
     _backgroundService = backgroundService;
     _imageFetcher = imageFetcherService->GetImageFetcher(
         image_fetcher::ImageFetcherConfig::kDiskCacheOnly);
+    _userUploadedImageManager = userUploadedImageManager;
   }
   return self;
 }
@@ -144,11 +149,6 @@
        [self isMagicStackCardEnabledForType:CustomizationToggleType::
                                                 kTapResumption]},
   };
-  if (IsIOSParcelTrackingEnabled()) {
-    toggleMap.insert({CustomizationToggleType::kParcelTracking,
-                      [self isMagicStackCardEnabledForType:
-                                CustomizationToggleType::kParcelTracking]});
-  }
   if (IsTipsMagicStackEnabled()) {
     toggleMap.insert(
         {CustomizationToggleType::kTips,
@@ -201,9 +201,6 @@
     case CustomizationToggleType::kTapResumption:
       return _prefService->GetBoolean(
           prefs::kHomeCustomizationMagicStackTabResumptionEnabled);
-    case CustomizationToggleType::kParcelTracking:
-      return _prefService->GetBoolean(
-          prefs::kHomeCustomizationMagicStackParcelTrackingEnabled);
     case CustomizationToggleType::kTips: {
       CHECK(IsTipsMagicStackEnabled());
       return _prefService->GetBoolean(
@@ -398,10 +395,6 @@
       _prefService->SetBoolean(
           prefs::kHomeCustomizationMagicStackTabResumptionEnabled, enabled);
       break;
-    case CustomizationToggleType::kParcelTracking:
-      _prefService->SetBoolean(
-          prefs::kHomeCustomizationMagicStackParcelTrackingEnabled, enabled);
-      break;
     case CustomizationToggleType::kTips: {
       CHECK(IsTipsMagicStackEnabled());
       _prefService->SetBoolean(prefs::kHomeCustomizationMagicStackTipsEnabled,
@@ -526,6 +519,17 @@
       }),
       // TODO (crbug.com/417234848): Add annotation.
       image_fetcher::ImageFetcherParams(NO_TRAFFIC_ANNOTATION_YET, "Test"));
+}
+
+- (void)fetchBackgroundCustomizationUserUploadedImage:(NSString*)imagePath
+                                           completion:
+                                               (void (^)(UIImage*))completion {
+  DCHECK(imagePath.length > 0);
+
+  base::FilePath path = base::FilePath(base::SysNSStringToUTF8(imagePath));
+
+  _userUploadedImageManager->LoadUserUploadedImage(path,
+                                                   base::BindOnce(completion));
 }
 
 @end

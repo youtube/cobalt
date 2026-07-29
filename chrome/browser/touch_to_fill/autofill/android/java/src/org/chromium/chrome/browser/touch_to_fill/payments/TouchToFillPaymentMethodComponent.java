@@ -50,14 +50,14 @@ interface TouchToFillPaymentMethodComponent {
         /**
          * Called when the user selects a local IBAN.
          *
-         * @param GUID of the selected local IBAN.
+         * @param guid The selected local IBAN.
          */
         void localIbanSuggestionSelected(String guid);
 
         /**
          * Called when the user selects a server IBAN.
          *
-         * @param InstrumentId of the selected server IBAN.
+         * @param instrumentId The selected server IBAN.
          */
         void serverIbanSuggestionSelected(long instrumentId);
 
@@ -90,7 +90,7 @@ interface TouchToFillPaymentMethodComponent {
             BottomSheetFocusHelper bottomSheetFocusHelper);
 
     /**
-     * Displays a new credit card bottom sheet.
+     * Displays a new payment methods bottom sheet.
      *
      * @param suggestions A list of {@link AutofillSuggestion}, each generated from a corresponding
      *     credit card. It includes a boolean that denotes if the card is acceptable for the given
@@ -98,7 +98,7 @@ interface TouchToFillPaymentMethodComponent {
      * @param shouldShowScanCreditCard A boolean that conveys whether 'ScanCreditCard' should be
      *     shown.
      */
-    void showCreditCards(List<AutofillSuggestion> suggestions, boolean shouldShowScanCreditCard);
+    void showPaymentMethods(List<AutofillSuggestion> suggestions, boolean shouldShowScanCreditCard);
 
     /** Displays a new IBAN bottom sheet. */
     void showIbans(List<PersonalDataManager.Iban> ibans);

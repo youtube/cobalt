@@ -11,6 +11,7 @@
 #include <string>
 #include <utility>
 
+#include "base/containers/flat_set.h"
 #include "base/containers/span.h"
 #include "base/gtest_prod_util.h"
 #include "base/memory/raw_ptr.h"
@@ -74,6 +75,11 @@ class FormDataImporter : public AddressDataManager::Observer,
     // retrieval process). This field is optional and is set when an Autofill
     // credit card Downstream has happened.
     std::optional<bool> card_was_fetched_from_cache;
+
+    // Whether Save and Fill suggestion was clicked on for the last fetched
+    // card. If so, no other payments post-checkout flow should be offered
+    // again.
+    bool card_submitted_through_save_and_fill = false;
   };
 
   // The parameters should outlive the FormDataImporter.
@@ -132,9 +138,8 @@ class FormDataImporter : public AddressDataManager::Observer,
   void OnHistoryDeletions(history::HistoryService* history_service,
                           const history::DeletionInfo& deletion_info) override;
 
-  void set_fetched_payments_data_context(
-      const FetchedPaymentsDataContext& context) {
-    fetched_payments_data_context_ = context;
+  FetchedPaymentsDataContext& fetched_payments_data_context() {
+    return fetched_payments_data_context_;
   }
 
   // See `FormAssociator::GetFormAssociations()`.
@@ -291,6 +296,11 @@ class FormDataImporter : public AddressDataManager::Observer,
 
   // Helper function which extracts the IBAN from the form structure.
   Iban ExtractIbanFromForm(const FormStructure& form);
+
+  // Extracts the GUIDs of profiles used to autofill `submitted_form`, returning
+  // an empty set if any field was manually edited.
+  base::flat_set<std::string> ExtractGUIDsOfProfilesWithoutManualEdits(
+      const FormStructure& submitted_form) const;
 
   // If the `profile`'s country is not empty, complements it with
   // `AddressDataManager::GetDefaultCountryCodeForNewAddress()`, while logging

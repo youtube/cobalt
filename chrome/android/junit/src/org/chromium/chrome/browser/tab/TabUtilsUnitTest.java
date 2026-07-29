@@ -11,7 +11,6 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -55,7 +54,7 @@ import org.chromium.chrome.test.OverrideContextWrapperTestRule;
 import org.chromium.components.browser_ui.site_settings.WebsitePreferenceBridge;
 import org.chromium.components.browser_ui.site_settings.WebsitePreferenceBridgeJni;
 import org.chromium.components.browser_ui.util.AutomotiveUtils;
-import org.chromium.components.content_settings.ContentSettingValues;
+import org.chromium.components.content_settings.ContentSetting;
 import org.chromium.components.content_settings.ContentSettingsType;
 import org.chromium.content_public.browser.NavigationController;
 import org.chromium.content_public.browser.WebContents;
@@ -124,7 +123,7 @@ public class TabUtilsUnitTest {
     @Mock private BrowserControlsStateProvider mBrowserControlsStateProvider;
 
     private boolean mRdsDefault;
-    private @ContentSettingValues int mRdsException;
+    private @ContentSetting int mRdsException;
     private boolean mIsGlobal;
     private boolean mUseDesktopUserAgent;
     private @TabUserAgent int mTabUserAgent;
@@ -225,66 +224,11 @@ public class TabUtilsUnitTest {
     }
 
     @Test
-    public void testGetTabUserAgent_UpgradePath() {
-        mTabUserAgent = TabUserAgent.UNSET;
-        mUseDesktopUserAgent = false;
-        Assert.assertEquals(
-                "TabUserAgent is not set up correctly for upgrade path.",
-                TabUserAgent.DEFAULT,
-                TabUtils.getTabUserAgent(mTab));
-        verify(mTab).setUserAgent(TabUserAgent.DEFAULT);
-
-        mTabUserAgent = TabUserAgent.UNSET;
-        mUseDesktopUserAgent = true;
-        Assert.assertEquals(
-                "TabUserAgent is not set up correctly for upgrade path.",
-                TabUserAgent.DESKTOP,
-                TabUtils.getTabUserAgent(mTab));
-        verify(mTab).setUserAgent(TabUserAgent.DESKTOP);
-    }
-
-    @Test
-    public void testGetTabUserAgent_Mobile() {
-        mTabUserAgent = TabUserAgent.MOBILE;
-        mUseDesktopUserAgent = false;
-        Assert.assertEquals(
-                "Read unexpected TabUserAgent value.",
-                TabUserAgent.MOBILE,
-                TabUtils.getTabUserAgent(mTab));
-
-        mUseDesktopUserAgent = true;
-        Assert.assertEquals(
-                "Read unexpected TabUserAgent value.",
-                TabUserAgent.MOBILE,
-                TabUtils.getTabUserAgent(mTab));
-
-        verify(mTab, never()).setUserAgent(anyInt());
-    }
-
-    @Test
-    public void testGetTabUserAgent_Desktop() {
-        mTabUserAgent = TabUserAgent.DESKTOP;
-        mUseDesktopUserAgent = false;
-        Assert.assertEquals(
-                "Read unexpected TabUserAgent value.",
-                TabUserAgent.DESKTOP,
-                TabUtils.getTabUserAgent(mTab));
-
-        mUseDesktopUserAgent = true;
-        Assert.assertEquals(
-                "Read unexpected TabUserAgent value.",
-                TabUserAgent.DESKTOP,
-                TabUtils.getTabUserAgent(mTab));
-
-        verify(mTab, never()).setUserAgent(anyInt());
-    }
-
-    @Test
     public void testReadRequestDesktopSiteContentSettings() {
         GURL gurl = JUnitTestGURLs.EXAMPLE_URL;
 
         // Site level setting is Mobile.
-        mRdsException = ContentSettingValues.BLOCK;
+        mRdsException = ContentSetting.BLOCK;
         Assert.assertFalse(
                 "The result should be false when there is no url",
                 TabUtils.readRequestDesktopSiteContentSettings(mProfile, null));
@@ -293,7 +237,7 @@ public class TabUtilsUnitTest {
                 TabUtils.readRequestDesktopSiteContentSettings(mProfile, gurl));
 
         // Site level setting is Desktop.
-        mRdsException = ContentSettingValues.ALLOW;
+        mRdsException = ContentSetting.ALLOW;
         Assert.assertFalse(
                 "The result should be false when there is no url",
                 TabUtils.readRequestDesktopSiteContentSettings(mProfile, null));

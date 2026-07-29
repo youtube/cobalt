@@ -707,15 +707,14 @@ void WindowPerformance::EventTimingProcessingEnd(
   if (need_new_promise_for_event_presentation_time_) {
     DomWindow()->GetFrame()->GetChromeClient().NotifyPresentationTime(
         *DomWindow()->GetFrame(),
-        WTF::BindOnce(&WindowPerformance::OnPresentationPromiseResolved,
-                      WrapWeakPersistent(this),
-                      ++event_presentation_promise_count_,
-                      // TODO(crbug.com/378647854): Current implementation uses
-                      // source id from previous BeginMainFrame as an
-                      // approximate. And this can be further improved to the
-                      // current BeginMainFrame if we could defer presentation
-                      // promise registering to align with each BeginMainFrame.
-                      begin_main_frame_source_id_));
+        BindOnce(&WindowPerformance::OnPresentationPromiseResolved,
+                 WrapWeakPersistent(this), ++event_presentation_promise_count_,
+                 // TODO(crbug.com/378647854): Current implementation uses
+                 // source id from previous BeginMainFrame as an
+                 // approximate. And this can be further improved to the
+                 // current BeginMainFrame if we could defer presentation
+                 // promise registering to align with each BeginMainFrame.
+                 begin_main_frame_source_id_));
     need_new_promise_for_event_presentation_time_ = false;
   }
 
@@ -1230,9 +1229,15 @@ void WindowPerformance::NotifyAndAddEventTimingBuffer(
     TRACE_EVENT_INSTANT("latency", "EventCreation", parent_track,
                         entryInfo->creation_time, flow_id);
     auto enqueued_to_main_thread_time = entryInfo->enqueued_to_main_thread_time;
-    CHECK(!enqueued_to_main_thread_time.is_null(), base::NotFatalUntil(143));
-    TRACE_EVENT_INSTANT("latency", "EventEnqueuedToMainThread", parent_track,
-                        enqueued_to_main_thread_time, flow_id);
+    if (!enqueued_to_main_thread_time.is_null()) {
+      TRACE_EVENT_INSTANT("latency", "EventEnqueuedToMainThread", parent_track,
+                          enqueued_to_main_thread_time, flow_id);
+    } else {
+      // TODO(crbug.com/422215352): Add a Histogram to report the event name
+      // when `enqueued_to_main_thread_time` is null.  All events should have
+      // this timestamp set-- but we're not observing some forms of event
+      // dispatch for which we support EventTiming.  This might be due to IME.
+    }
 
     TRACE_EVENT_BEGIN(
         "latency", "EventProcessing", parent_track,

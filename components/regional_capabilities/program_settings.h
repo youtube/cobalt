@@ -5,18 +5,26 @@
 #ifndef COMPONENTS_REGIONAL_CAPABILITIES_PROGRAM_SETTINGS_H_
 #define COMPONENTS_REGIONAL_CAPABILITIES_PROGRAM_SETTINGS_H_
 
+#include "base/containers/enum_set.h"
 #include "base/memory/raw_span.h"
 #include "components/country_codes/country_codes.h"
 
 namespace regional_capabilities {
 
+// These values are persisted to prefs. Entries should not be renumbered and
+// numeric values should never be reused.
 // GENERATED_JAVA_ENUM_PACKAGE: org.chromium.components.regional_capabilities
 // GENERATED_JAVA_CLASS_NAME_OVERRIDE: RegionalProgram
-enum class Program: int {
-  kDefault = 0,
-  kTaiyaki,
-  kWaffle,
+enum class Program : int {
+  kDefault = 1,
+  kTaiyaki = 2,
+  kWaffle = 3,
+
+  kMin = kDefault,
+  kMax = kWaffle,
 };
+
+using ProgramSet = base::EnumSet<Program, Program::kMin, Program::kMax>;
 
 // Describes how search engines should be listed.
 enum class SearchEngineListType {
@@ -28,13 +36,37 @@ enum class SearchEngineListType {
   kShuffled,
 };
 
+// Describes how the program affects the search engine choice screen eligibility
+// logic.
+//
+// Note: The order of the fields is important, and reflects the priority order
+// in which eligibility checks are performed and their relative precedence.
+struct ChoiceScreenEligibilityConfig {
+  // Relates to default search engine selections associated with a non-builtin
+  // search engine service, likely entered manually be the user.
+  bool should_preserve_non_prepopulated_dse;
+  // Relates to to the choices that we identified as having been made on another
+  // device and imported through Backup & Restore.
+  bool should_preserve_imported_choice;
+  // Relates to default search engine selections associated with a non-Google
+  // service.
+  bool should_preserve_non_google_dse;
+};
+
 // Describes how features should adjust themselves based on the program.
 struct ProgramSettings {
   Program program;
   base::raw_span<const country_codes::CountryId> associated_countries;
   SearchEngineListType search_engine_list_type;
-  bool can_show_search_engine_choice_screen;
+  // When `std::nullopt`, it means the program does not involve choice screens.
+  std::optional<ChoiceScreenEligibilityConfig> choice_screen_eligibility_config;
 };
+
+// Returns the integer representation of `program`.
+int SerializeProgram(Program program);
+
+// Returns whether `serialized_program` represents a known program.
+bool IsValidSerializedProgram(int serialized_program);
 
 bool IsInProgramRegion(Program program,
                        const country_codes::CountryId& profile_country);

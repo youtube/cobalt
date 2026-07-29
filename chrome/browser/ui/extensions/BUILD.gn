@@ -24,6 +24,7 @@ source_set("extensions") {
       "extension_install_ui.h",
       "extensions_dialogs.h",
       "reload_page_dialog_controller.h",
+      "settings_overridden_dialog.h",
     ]
 
     if (is_android) {
@@ -37,6 +38,7 @@ source_set("extensions") {
       "//base",
       "//extensions/common",
       "//ui/base:types",
+      "//ui/base/interaction",
       "//ui/base/mojom:ui_base_types",
     ]
   }
@@ -52,7 +54,6 @@ source_set("extensions") {
       "extension_enable_flow.h",
       "extension_installed_bubble_model.h",
       "extension_installed_waiter.h",
-      "extension_settings_overridden_dialog.h",
       "extension_side_panel_utils.h",
       "extensions_container.h",
       "extensions_overrides/simple_overrides.h",
@@ -103,6 +104,7 @@ source_set("impl") {
       "extension_multiple_uninstall_dialog.cc",
       "extension_uninstall_dialog_impl.cc",
       "reload_page_dialog_controller.cc",
+      "settings_overridden_dialog.cc",
     ]
     deps += [
       "//chrome/browser/extensions",
@@ -165,6 +167,7 @@ source_set("impl") {
       ":extension_enable_flow_delegate",
       ":extension_popup_types",
       "//apps",
+      "//chrome/browser/app_mode",
       "//chrome/browser/apps/app_service",
       "//chrome/browser/apps/app_service:constants",
       "//chrome/browser/apps/platform_apps",

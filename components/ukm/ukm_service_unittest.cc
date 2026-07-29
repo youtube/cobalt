@@ -340,7 +340,7 @@ class UkmReduceAddEntryIpcTest : public testing::Test {
 }  // namespace
 
 TEST_F(UkmServiceTest, ClientIdClonedInstall) {
-  prefs_.SetInt64(prefs::kUkmClientId, 123);
+  prefs_.SetUint64(prefs::kUkmClientId, 123);
   UkmService service(&prefs_, &client_,
                      std::make_unique<MockDemographicMetricsProvider>());
 
@@ -2532,9 +2532,9 @@ TEST_F(UkmReduceAddEntryIpcTest, AddRemoveUkmObserver) {
     // and the mock method AddEntry would be called once.
     EXPECT_CALL(mock_recorder, AddEntry)
         .Times(1)
-        .WillOnce(testing::Invoke([&](mojom::UkmEntryPtr entry) {
+        .WillOnce([&](mojom::UkmEntryPtr entry) {
           observed_ukm_entry = std::move(entry);
-        }));
+        });
 
     builder.Record(mojo_recorder.get());
     run_loop.RunUntilIdle();
@@ -2565,9 +2565,9 @@ TEST_F(UkmReduceAddEntryIpcTest, AddRemoveUkmObserver) {
 
     EXPECT_CALL(mock_recorder, AddEntry)
         .Times(1)
-        .WillOnce(testing::Invoke([&](mojom::UkmEntryPtr entry) {
+        .WillOnce([&](mojom::UkmEntryPtr entry) {
           observed_ukm_entry = std::move(entry);
-        }));
+        });
     builder3.Record(mojo_recorder.get());
     run_loop.RunUntilIdle();
     EXPECT_EQ(expected_ukm_entry, observed_ukm_entry);

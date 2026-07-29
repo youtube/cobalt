@@ -31,9 +31,23 @@ GpuMemoryBufferImplNativePixmap::GpuMemoryBufferImplNativePixmap(
     const gfx::Size& size,
     gfx::BufferFormat format,
     std::unique_ptr<gfx::ClientNativePixmap> pixmap)
-    : GpuMemoryBufferImpl(size, format), pixmap_(std::move(pixmap)) {}
+    : size_(size), format_(format), pixmap_(std::move(pixmap)) {}
 
-GpuMemoryBufferImplNativePixmap::~GpuMemoryBufferImplNativePixmap() = default;
+GpuMemoryBufferImplNativePixmap::~GpuMemoryBufferImplNativePixmap() {
+#if DCHECK_IS_ON()
+  {
+    base::AutoLock auto_lock(map_lock_);
+    DCHECK_EQ(map_count_, 0u);
+  }
+#endif
+}
+
+void GpuMemoryBufferImplNativePixmap::AssertMapped() {
+#if DCHECK_IS_ON()
+  base::AutoLock auto_lock(map_lock_);
+  DCHECK_GT(map_count_, 0u);
+#endif
+}
 
 // static
 std::unique_ptr<GpuMemoryBufferImplNativePixmap>
@@ -131,6 +145,15 @@ gfx::GpuMemoryBufferHandle GpuMemoryBufferImplNativePixmap::CloneHandle()
     const {
   gfx::GpuMemoryBufferHandle handle(pixmap_->CloneHandleForIPC());
   return handle;
+}
+
+void GpuMemoryBufferImplNativePixmap::MapAsync(
+    base::OnceCallback<void(bool)> callback) {
+  std::move(callback).Run(Map());
+}
+
+bool GpuMemoryBufferImplNativePixmap::AsyncMappingIsNonBlocking() const {
+  return false;
 }
 
 }  // namespace gpu
