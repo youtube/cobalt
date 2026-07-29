@@ -409,7 +409,7 @@ TEST(PartitionAllocPageAllocatorTest,
 }
 
 // Test permission setting on POSIX, where we can set a trap handler.
-#if PA_BUILDFLAG(IS_POSIX)
+#if PA_BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 
 namespace {
 sigjmp_buf g_continuation;
@@ -597,7 +597,7 @@ TEST(PartitionAllocPageAllocatorTest, DecommitAndZero) {
   DecommitAndZeroSystemPages(buffer, size);
 
 // Test permission setting on POSIX, where we can set a trap handler.
-#if PA_BUILDFLAG(IS_POSIX)
+#if PA_BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 
   FAULT_TEST_BEGIN()
 

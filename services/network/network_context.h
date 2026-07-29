@@ -26,6 +26,12 @@
 #include "base/types/pass_key.h"
 #include "base/unguessable_token.h"
 #include "build/build_config.h"
+<<<<<<< HEAD
+=======
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
+#include "components/ip_protection/common/ip_protection_core.h"  // nogncheck
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
+>>>>>>> parent of 65ea0fa84dc (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #include "mojo/public/cpp/base/big_buffer.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
@@ -212,6 +218,15 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkContext
 
   CookieManager* cookie_manager() { return cookie_manager_.get(); }
 
+<<<<<<< HEAD
+=======
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
+  ip_protection::IpProtectionCore* ip_protection_core() {
+    return ip_protection_core_.get();
+  }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
+
+>>>>>>> parent of 65ea0fa84dc (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   const base::flat_set<std::string>* cors_exempt_header_list() const {
     return &cors_exempt_header_list_;
   }
@@ -677,6 +692,7 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkContext
   // and to store information conveyed in the corresponding responses.
   //
   // May return null if Trust Tokens support is disabled.
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   PendingTrustTokenStore* trust_token_store() {
     return trust_token_store_.get();
   }
@@ -684,6 +700,11 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkContext
     return trust_token_store_.get();
   }
   bool are_trust_tokens_blocked() const { return block_trust_tokens_; }
+#else
+  PendingTrustTokenStore* trust_token_store() { return nullptr; }
+  const PendingTrustTokenStore* trust_token_store() const { return nullptr; }
+  bool are_trust_tokens_blocked() const { return true; }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 
   WebBundleManager& GetWebBundleManager() { return web_bundle_manager_; }
 
@@ -836,8 +857,10 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkContext
   // SQL-based) persistence layer, |FinishConstructingTrustTokenStore|
   // constructs and populates |trust_token_store_| once the persister's
   // asynchronous initialization has finished.
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   void FinishConstructingTrustTokenStore(
       std::unique_ptr<SQLiteTrustTokenPersister> persister);
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 
   bool IsAllowedToUseAllHttpAuthSchemes(
       const url::SchemeHostPort& scheme_host_port);
@@ -864,6 +887,16 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkContext
 
   std::unique_ptr<ResourceScheduler> resource_scheduler_;
 
+<<<<<<< HEAD
+=======
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
+  // The IpProtectionCore for this context, used to coordinate proxying
+  // protected requests. `url_request_context_owner_` indirectly holds
+  // a pointer to and must be defined after `ip_protection_core_`.
+  std::unique_ptr<ip_protection::IpProtectionCore> ip_protection_core_;
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
+
+>>>>>>> parent of 65ea0fa84dc (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   // Used only when network::features::kCompressionDictionaryTransport is
   // enabled.
   // Note: `url_request_context_owner_` indirectly holds a pointer to
@@ -921,6 +954,7 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkContext
   mojo::UniqueReceiverSet<mojom::ProxyResolvingSocketFactory>
       proxy_resolving_socket_factories_;
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   // See the comment for |trust_token_store()|.
   std::unique_ptr<PendingTrustTokenStore> trust_token_store_;
 
@@ -933,6 +967,7 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkContext
   // Whether the user is blocking Trust Tokens, value provided by the
   // PrivacySandboxSettings service.
   bool block_trust_tokens_ = false;
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 
 #if BUILDFLAG(ENABLE_WEBSOCKETS)
   std::unique_ptr<WebSocketFactory> websocket_factory_;

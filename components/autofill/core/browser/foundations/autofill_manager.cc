@@ -135,8 +135,10 @@ struct AutofillManager::AsyncContext {
 
   std::vector<FormData> forms;
   std::vector<RegexPredictions> regex_predictions;
+#if BUILDFLAG(BUILD_WITH_TFLITE_LIB)
   std::vector<ModelPredictions> autofill_predictions;
   std::vector<ModelPredictions> password_manager_predictions;
+#endif  // BUILDFLAG(BUILD_WITH_TFLITE_LIB)
   GeoIpCountryCode country_code;
   LanguageCode current_page_language;
   std::unique_ptr<BufferingLogManager> log_manager;
@@ -905,12 +907,14 @@ void AutofillManager::UpdateFormCache(
 
   auto apply_predictions = [](FormStructure& form_structure,
                               const AsyncContext& context, size_t i) {
+#if BUILDFLAG(BUILD_WITH_TFLITE_LIB)
     if (!context.autofill_predictions.empty()) {
       context.autofill_predictions[i].ApplyTo(form_structure.fields());
     }
     if (!context.password_manager_predictions.empty()) {
       context.password_manager_predictions[i].ApplyTo(form_structure.fields());
     }
+#endif  // BUILDFLAG(BUILD_WITH_TFLITE_LIB)
     if (!context.regex_predictions.empty()) {
       context.regex_predictions[i].ApplyTo(form_structure.fields());
     }
@@ -1003,6 +1007,7 @@ void AutofillManager::LogCurrentFieldTypes(
 
 void AutofillManager::SubscribeToMlModelChanges(
     FieldClassificationModelHandler& handler) {
+#if BUILDFLAG(BUILD_WITH_TFLITE_LIB)
   switch (handler.optimization_target()) {
     case optimization_guide::proto::OptimizationTarget::
         OPTIMIZATION_TARGET_AUTOFILL_FIELD_CLASSIFICATION:
@@ -1023,6 +1028,9 @@ void AutofillManager::SubscribeToMlModelChanges(
     default:
       NOTREACHED();
   }
+#else
+  NOTREACHED();
+#endif
 }
 
 }  // namespace autofill

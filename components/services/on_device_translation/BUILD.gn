@@ -26,7 +26,11 @@ source_set("on_device_translation_service") {
     "//mojo/public/cpp/bindings",
   ]
 
+<<<<<<< HEAD
   if (is_linux || is_chromeos) {
+=======
+  if (is_linux && !is_cobalt_hermetic_build) {
+>>>>>>> parent of 65ea0fa84dc (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     sources += [
       "sandbox_hook.cc",
       "sandbox_hook.h",

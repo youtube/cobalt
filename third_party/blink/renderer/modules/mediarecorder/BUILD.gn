@@ -5,6 +5,13 @@
 import("//build/buildflag_header.gni")
 import("//media/media_options.gni")
 import("//third_party/blink/renderer/modules/modules.gni")
+<<<<<<< HEAD
+=======
+import("//third_party/libaom/options.gni")
+if (is_cobalt) {
+  import("//starboard/build/buildflags.gni")
+}
+>>>>>>> parent of 65ea0fa84dc (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
 blink_modules_sources("mediarecorder") {
   sources = [
@@ -44,4 +51,8 @@ blink_modules_sources("mediarecorder") {
     "//third_party/libyuv",
     "//third_party/opus",
   ]
+
+  if (is_cobalt && (is_starboard || use_starboard_media)) {
+    deps -= [ "//third_party/libvpx" ]
+  }
 }

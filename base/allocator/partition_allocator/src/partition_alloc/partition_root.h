@@ -278,6 +278,10 @@ struct alignas(64) PA_COMPONENT_EXPORT(PARTITION_ALLOC) PartitionRoot {
     internal::ReservationOffsetTable reservation_offset_table;
 
     bool eventually_zero_freed_memory = false;
+#if BUILDFLAG(IS_COBALT)
+    internal::SchedulerLoopQuarantineConfig
+        scheduler_loop_quarantine_global_config;
+#endif  // BUILDFLAG(IS_COBALT)
     internal::SchedulerLoopQuarantineConfig
         scheduler_loop_quarantine_thread_local_config;
 #if PA_BUILDFLAG(HAS_MEMORY_TAGGING)

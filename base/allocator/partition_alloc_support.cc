@@ -1049,10 +1049,12 @@ void PartitionAllocSupport::ReconfigureAfterFeatureListInit(
     CHECK(base::FeatureList::GetInstance());
   }
 
+#if !BUILDFLAG(IS_COBALT)
   if (configure_dangling_pointer_detector) {
     base::allocator::InstallDanglingRawPtrChecks();
   }
   base::allocator::InstallUnretainedDanglingRawPtrChecks();
+#endif  // !BUILDFLAG(IS_COBALT)
 
   {
     base::AutoLock scoped_lock(lock_);
@@ -1080,6 +1082,13 @@ void PartitionAllocSupport::ReconfigureAfterFeatureListInit(
 
     called_after_feature_list_init_ = true;
   }
+
+#if BUILDFLAG(IS_COBALT)
+  if (configure_dangling_pointer_detector) {
+    base::allocator::InstallDanglingRawPtrChecks();
+  }
+  base::allocator::InstallUnretainedDanglingRawPtrChecks();
+#endif  // BUILDFLAG(IS_COBALT)
 
   DCHECK_NE(process_type, switches::kZygoteProcess);
   [[maybe_unused]] BrpConfiguration brp_config =
@@ -1255,6 +1264,14 @@ void PartitionAllocSupport::ReconfigureAfterFeatureListInit(
       scheduler_loop_quarantine_for_advanced_memory_safety_checks_config,
       allocator_shim::EventuallyZeroFreedMemory(eventually_zero_freed_memory),
       allocator_shim::EnableFreeWithSize(enable_free_with_size));
+
+#if BUILDFLAG(IS_COBALT)
+  LOG(INFO) << "PartitionAlloc: main root re-creation "
+            << (allocator_shim::internal::PartitionAllocMalloc::
+                        OriginalAllocator() == nullptr
+                    ? "skipped (reused initial root)"
+                    : "executed (new root created)");
+#endif  // BUILDFLAG(IS_COBALT)
 
   const uint32_t extras_size = allocator_shim::GetMainPartitionRootExtrasSize();
   // As per description, extras are optional and are expected not to
