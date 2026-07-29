@@ -64,6 +64,7 @@ void MockActorLoginService::AttemptLogin(
     bool should_store_permission,
     actor_login::LoginStatusResultOrErrorReply callback) {
   last_credential_used_ = credential;
+  last_permission_was_permanent_ = should_store_permission;
   std::move(callback).Run(login_status_);
 }
 
@@ -85,6 +86,9 @@ void MockActorLoginService::SetLoginStatus(
 const std::optional<actor_login::Credential>&
 MockActorLoginService::last_credential_used() const {
   return last_credential_used_;
+}
+bool MockActorLoginService::last_permission_was_permanent() const {
+  return last_permission_was_permanent_;
 }
 
 ActorToolsTest::ActorToolsTest() {
@@ -176,22 +180,6 @@ std::unique_ptr<ExecutionEngine> ActorToolsTest::CreateExecutionEngine(
   return std::make_unique<ExecutionEngine>(profile);
 }
 
-// static
-std::string ActorToolsGeneralPageStabilityTest::DescribeParam(
-    const testing::TestParamInfo<ParamType>& info) {
-  return DescribeGeneralPageStabilityMode(info.param);
-}
-
-ActorToolsGeneralPageStabilityTest::ActorToolsGeneralPageStabilityTest() {
-  scoped_feature_list_.InitAndEnableFeatureWithParameters(
-      ::features::kGlicActor,
-      {{::features::kActorGeneralPageStabilityMode.name,
-        ::features::kActorGeneralPageStabilityMode.GetName(GetParam())}});
-}
-
-ActorToolsGeneralPageStabilityTest::~ActorToolsGeneralPageStabilityTest() =
-    default;
-
 gfx::RectF GetBoundingClientRect(content::RenderFrameHost& rfh,
                                  std::string_view query) {
   double width =
@@ -220,18 +208,6 @@ gfx::RectF GetBoundingClientRect(content::RenderFrameHost& rfh,
           .ExtractDouble();
 
   return gfx::RectF(x, y, width, height);
-}
-
-std::string DescribeGeneralPageStabilityMode(
-    features::ActorGeneralPageStabilityMode mode) {
-  switch (mode) {
-    case features::ActorGeneralPageStabilityMode::kDisabled:
-      return "Disabled";
-    case features::ActorGeneralPageStabilityMode::kNavigateAndHistoryEnabled:
-      return "NavigateAndHistoryEnabled";
-    case features::ActorGeneralPageStabilityMode::kAllEnabled:
-      return "AllEnabled";
-  }
 }
 
 std::string DescribePaintStabilityMode(features::ActorPaintStabilityMode mode) {

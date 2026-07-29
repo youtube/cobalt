@@ -3808,6 +3808,13 @@ error::Error GLES2DecoderPassthroughImpl::DoQueryCounterEXT(
     int32_t sync_shm_id,
     uint32_t sync_shm_offset,
     uint32_t submit_count) {
+  // The only entrypoint to this method is WebGL, which cannot legally pass
+  // Chromium-internal commands (which is what emulated targets are).
+  if (IsEmulatedQueryTarget(target)) {
+    InsertError(GL_INVALID_ENUM, "Invalid query target.");
+    return error::kNoError;
+  }
+
   scoped_refptr<gpu::Buffer> buffer = GetSharedMemoryBuffer(sync_shm_id);
   if (!buffer)
     return error::kInvalidArguments;
@@ -3818,25 +3825,20 @@ error::Error GLES2DecoderPassthroughImpl::DoQueryCounterEXT(
 
   GLuint service_id = GetQueryServiceID(id, &query_id_map_);
 
-  if (IsEmulatedQueryTarget(target)) {
-    DCHECK_EQ(target,
-              static_cast<GLenum>(GL_COMMANDS_ISSUED_TIMESTAMP_CHROMIUM));
-  } else {
-    // glQueryCounter is not loaded unless GL_EXT_disjoint_timer_query is present
-    if (!feature_info_->feature_flags().ext_disjoint_timer_query) {
-      InsertError(GL_INVALID_ENUM, "Invalid query target.");
-      return error::kNoError;
-    }
+  // glQueryCounter is not loaded unless GL_EXT_disjoint_timer_query is present
+  if (!feature_info_->feature_flags().ext_disjoint_timer_query) {
+    InsertError(GL_INVALID_ENUM, "Invalid query target.");
+    return error::kNoError;
+  }
 
-    // Flush all previous errors
-    CheckErrorCallbackState();
+  // Flush all previous errors
+  CheckErrorCallbackState();
 
-    api()->glQueryCounterFn(service_id, target);
+  api()->glQueryCounterFn(service_id, target);
 
-    // Check if a new error was generated
-    if (CheckErrorCallbackState()) {
-      return error::kNoError;
-    }
+  // Check if a new error was generated
+  if (CheckErrorCallbackState()) {
+    return error::kNoError;
   }
 
   QueryInfo* query_info = &query_info_map_[service_id];
@@ -3852,8 +3854,6 @@ error::Error GLES2DecoderPassthroughImpl::DoQueryCounterEXT(
   pending_query.shm = std::move(buffer);
   pending_query.sync = sync;
   pending_query.submit_count = submit_count;
-  if (target == GL_COMMANDS_ISSUED_TIMESTAMP_CHROMIUM)
-    pending_query.commands_issued_timestamp = base::TimeTicks::Now();
   pending_queries_.push_back(std::move(pending_query));
 
   return error::kNoError;
@@ -4229,8 +4229,7 @@ error::Error GLES2DecoderPassthroughImpl::DoRequestExtensionCHROMIUM(
 
   // Make sure newly enabled extensions are exposed and usable.
   context_->ReinitializeDynamicBindings();
-  InitializeFeatureInfo(feature_info_->context_type(),
-                        feature_info_->disallowed_features(), true);
+  feature_info_->ForceReinitialize();
 
   return error::kNoError;
 }

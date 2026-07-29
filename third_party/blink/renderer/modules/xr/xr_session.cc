@@ -61,6 +61,7 @@
 #include "third_party/blink/renderer/modules/xr/xr_transient_input_hit_test_source.h"
 #include "third_party/blink/renderer/modules/xr/xr_utils.h"
 #include "third_party/blink/renderer/modules/xr/xr_view.h"
+#include "third_party/blink/renderer/modules/xr/xr_visibility_mask_change_event.h"
 #include "third_party/blink/renderer/modules/xr/xr_webgl_layer.h"
 #include "third_party/blink/renderer/platform/bindings/enumeration_base.h"
 #include "third_party/blink/renderer/platform/bindings/v8_throw_exception.h"
@@ -683,6 +684,9 @@ void XRSession::UpdateViews(Vector<device::mojom::blink::XRViewPtr> views) {
     // the old views to the new views.
     bool create_views = false;
     bool views_resized = false;
+    // If we have *no* views yet, then we assume this is the first time we're
+    // updating our views.
+    bool initial_creation = views_.empty();
     if (views_.size() != views.size()) {
       views_.clear();
       views_.resize(views.size());
@@ -712,6 +716,18 @@ void XRSession::UpdateViews(Vector<device::mojom::blink::XRViewPtr> views) {
         views_[i]->UpdateView(std::move(views[i]), render_state_->depthNear(),
                               render_state_->depthFar());
       }
+
+      // If this is the first time we're creating the views, then we'll dispatch
+      // the visibility change event later.
+      if (!initial_creation) {
+        XRViewData* view = views_[i];
+        if (view->NeedsVisibilityMaskChangeEvent()) {
+          DispatchEvent(*XRVisibilityMaskChangeEvent::Create(
+              event_type_names::kVisibilitymaskchange, this,
+              GetV8Eye(view->Eye()), view->index(), view->visibility_mask()));
+          view->OnVisibilityMaskChangeEvent();
+        }
+      }
     }
 
     if (views_resized) {
@@ -719,6 +735,26 @@ void XRSession::UpdateViews(Vector<device::mojom::blink::XRViewPtr> views) {
     }
   } else {  // Inline
     UpdateInlineView();
+  }
+}
+
+void XRSession::DispatchInitialEvents() {
+  if (immersive()) {
+    for (XRViewData* view : views()) {
+      // We will only send visibility mask change events for views that actually
+      // *have* a visibility mask, at least for the initial set. If the views
+      // change, we'll send empty masks; but until that time don't send an empty
+      // mask if it's the first time.
+      if (view->visibility_mask()) {
+        DispatchEvent(*XRVisibilityMaskChangeEvent::Create(
+            event_type_names::kVisibilitymaskchange, this,
+            GetV8Eye(view->Eye()), view->index(), view->visibility_mask()));
+      }
+
+      // Whether we sent the event or opted not to send the event, indicate that
+      // it was sent, so that it'll be skipped until there's an actual update.
+      view->OnVisibilityMaskChangeEvent();
+    }
   }
 }
 
@@ -2097,11 +2133,15 @@ void XRSession::OnFrame(double timestamp,
         DVLOG(2)
             << __func__
             << ": prev_transport_delegate is valid, submitting frame with it";
-        // TODO(crbug.com/450856064): Update state for mojom backend.
+
         if (should_update_layers_backend_) {
           should_update_layers_backend_ = false;
+          // Hides all layers on the backend if the 'layers' feature is enabled.
+          render_state_->UpdateLayersBackend(LayerManager());
           render_state_->OnLayersUpdated();
         }
+        // Submits the current frame without running the animation frame
+        // callback.
         xr_->frameProvider()->ClearCachedLayersData();
         xr_->frameProvider()->SubmitFrame(prev_transport_delegate_);
         prev_transport_delegate_ = nullptr;
@@ -2133,8 +2173,6 @@ void XRSession::OnFrame(double timestamp,
     if (should_update_layers_backend_) {
       should_update_layers_backend_ = false;
       if (layers_enabled_) {
-        // TODO(crbug.com/450856064): Update backend and request frame again.
-
         // This means that the page has updated the layers since it last
         // received a new frame, but we haven't updated the backend yet, so the
         // page won't be able to use those layers just yet as they expect. For
@@ -2143,7 +2181,11 @@ void XRSession::OnFrame(double timestamp,
         // TODO(crbug.com/452604976): Refactor the frame submission flow to
         // allow the layer sequence to be updated by the backend compositor
         // without dropping the current frame.
+        render_state_->UpdateLayersBackend(LayerManager());
         render_state_->OnLayersUpdated();
+
+        // Submit this animation frame without changes and request a new one
+        // immediately.
         xr_->frameProvider()->SubmitFrame(transport_delegate);
         MaybeRequestFrame();
         return;
@@ -2581,6 +2623,13 @@ XRViewData* XRSession::ViewDataForEye(device::mojom::blink::XREye eye) {
 bool XRSession::HasPendingActivity() const {
   return (!callback_collection_->IsEmpty() || !vfc_execution_queue_.empty()) &&
          !ended_;
+}
+
+device::mojom::blink::XRLayerManager* XRSession::LayerManager() {
+  if (ended_ || !immersive()) {
+    return nullptr;
+  }
+  return xr()->frameProvider()->layer_manager();
 }
 
 void XRSession::Trace(Visitor* visitor) const {

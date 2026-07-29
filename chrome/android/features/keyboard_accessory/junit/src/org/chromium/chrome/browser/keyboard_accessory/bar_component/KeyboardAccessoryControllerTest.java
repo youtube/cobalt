@@ -59,6 +59,7 @@ import org.chromium.chrome.browser.keyboard_accessory.bar_component.KeyboardAcce
 import org.chromium.chrome.browser.keyboard_accessory.bar_component.KeyboardAccessoryProperties.AutofillBarItem;
 import org.chromium.chrome.browser.keyboard_accessory.bar_component.KeyboardAccessoryProperties.BarItem;
 import org.chromium.chrome.browser.keyboard_accessory.bar_component.KeyboardAccessoryProperties.DismissBarItem;
+import org.chromium.chrome.browser.keyboard_accessory.bar_component.KeyboardAccessoryProperties.GroupBarItem;
 import org.chromium.chrome.browser.keyboard_accessory.bar_component.KeyboardAccessoryProperties.SheetOpenerBarItem;
 import org.chromium.chrome.browser.keyboard_accessory.button_group_component.KeyboardAccessoryButtonGroupCoordinator;
 import org.chromium.chrome.browser.keyboard_accessory.data.KeyboardAccessoryData;
@@ -94,7 +95,11 @@ import java.util.function.Supplier;
 @Config(
         manifest = Config.NONE,
         shadows = {CustomShadowAsyncTask.class})
-@Features.EnableFeatures({ChromeFeatureList.AUTOFILL_ANDROID_DESKTOP_KEYBOARD_ACCESSORY_REVAMP})
+@Features.EnableFeatures({
+    ChromeFeatureList.AUTOFILL_ANDROID_DESKTOP_KEYBOARD_ACCESSORY_REVAMP,
+    ChromeFeatureList.AUTOFILL_ENABLE_KEYBOARD_ACCESSORY_CHIP_REDESIGN,
+    ChromeFeatureList.AUTOFILL_ENABLE_KEYBOARD_ACCESSORY_CHIP_WIDTH_ADJUSTMENT,
+})
 public class KeyboardAccessoryControllerTest {
     @Rule public MockitoRule mMockitoRule = MockitoJUnit.rule();
 
@@ -129,6 +134,16 @@ public class KeyboardAccessoryControllerTest {
         PersonalDataManagerFactory.setInstanceForTesting(mMockPersonalDataManager);
         mEdgeToEdgeControllerSupplier = new ObservableSupplierImpl<>(mEdgeToEdgeController);
         when(mMockIsLargeFormFactorSupplier.get()).thenReturn(false);
+
+        when(mMockFillingProductBridgeJni.getFillingProductFromSuggestionType(
+                        SuggestionType.ADDRESS_ENTRY))
+                .thenReturn(FillingProduct.ADDRESS);
+        when(mMockFillingProductBridgeJni.getFillingProductFromSuggestionType(
+                        SuggestionType.CREDIT_CARD_ENTRY))
+                .thenReturn(FillingProduct.CREDIT_CARD);
+        when(mMockFillingProductBridgeJni.getFillingProductFromSuggestionType(
+                        SuggestionType.IBAN_ENTRY))
+                .thenReturn(FillingProduct.IBAN);
 
         mCoordinator =
                 new KeyboardAccessoryCoordinator(
@@ -186,20 +201,22 @@ public class KeyboardAccessoryControllerTest {
         // 1 item inserted, sheet opener is moved to the end.
         verify(mMockActionListObserver).onItemRangeChanged(mModel.get(BAR_ITEMS), 0, 1, null);
         verify(mMockActionListObserver).onItemRangeInserted(mModel.get(BAR_ITEMS), 1, 1);
-        assertThat(mModel.get(BAR_ITEMS).size(), is(2)); // Plus tab switcher.
-        assertThat(flattenItemGroups().get(0).getAction(), is(equalTo(testAction)));
+        List<ActionBarItem> barItems = flattenItemGroups();
+        assertThat(barItems.size(), is(2)); // Plus tab switcher.
+        assertThat(barItems.get(0).getAction(), is(equalTo(testAction)));
 
         // If the coordinator receives a new set of actions, the model should report a change.
         testProvider.notifyObservers(new Action[] {testAction});
         verify(mMockActionListObserver).onItemRangeChanged(mModel.get(BAR_ITEMS), 0, 2, null);
-        assertThat(mModel.get(BAR_ITEMS).size(), is(2)); // Plus tab switcher.
-        assertThat(flattenItemGroups().get(0).getAction(), is(equalTo(testAction)));
+        barItems = flattenItemGroups();
+        assertThat(barItems.size(), is(2)); // Plus tab switcher.
+        assertThat(barItems.get(0).getAction(), is(equalTo(testAction)));
 
         // If the coordinator receives an empty set of actions, the model should report a deletion.
         testProvider.notifyObservers(new Action[] {});
         // First call of onItemRangeChanged(mModel.get(BAR_ITEMS), 0, 1, null);
         verify(mMockActionListObserver).onItemRangeRemoved(mModel.get(BAR_ITEMS), 1, 1);
-        assertThat(mModel.get(BAR_ITEMS).size(), is(1)); // Only the tab switcher.
+        assertThat(flattenItemGroups().size(), is(1)); // Only the tab switcher.
 
         // There should be no notification if no actions are reported repeatedly.
         testProvider.notifyObservers(new Action[] {});
@@ -261,22 +278,22 @@ public class KeyboardAccessoryControllerTest {
         credManProvider.notifyObservers(new Action[] {credManAction});
 
         // CredManAction should come later than suggestions but before the tab layout.
-        assertThat(mModel.get(BAR_ITEMS).size(), is(5));
-        assertThat(flattenItemGroups().get(0).getAction(), is(generationAction));
+        List<ActionBarItem> barItems = flattenItemGroups();
+        assertThat(barItems.size(), is(5));
+        assertThat(barItems.get(0).getAction(), is(generationAction));
         assertThat(
-                flattenItemGroups().get(0).getCaptionId(),
-                is(R.string.password_generation_accessory_button));
-        assertThat(mModel.get(BAR_ITEMS).get(1), instanceOf(AutofillBarItem.class));
-        AutofillBarItem autofillBarItem1 = (AutofillBarItem) mModel.get(BAR_ITEMS).get(1);
+                barItems.get(0).getCaptionId(), is(R.string.password_generation_accessory_button));
+        assertThat(barItems.get(1), instanceOf(AutofillBarItem.class));
+        AutofillBarItem autofillBarItem1 = (AutofillBarItem) barItems.get(1);
         assertThat(autofillBarItem1.getViewType(), is(BarItem.Type.LOYALTY_CARD_SUGGESTION));
         assertThat(autofillBarItem1.getSuggestion(), is(suggestion1));
-        assertThat(mModel.get(BAR_ITEMS).get(2), instanceOf(AutofillBarItem.class));
-        AutofillBarItem autofillBarItem2 = (AutofillBarItem) mModel.get(BAR_ITEMS).get(2);
+        assertThat(barItems.get(2), instanceOf(AutofillBarItem.class));
+        AutofillBarItem autofillBarItem2 = (AutofillBarItem) barItems.get(2);
         assertThat(autofillBarItem2.getViewType(), is(BarItem.Type.SUGGESTION));
         assertThat(autofillBarItem2.getSuggestion(), is(suggestion2));
-        assertThat(flattenItemGroups().get(3).getAction(), is(credManAction));
-        assertThat(flattenItemGroups().get(3).getCaptionId(), is(R.string.select_passkey));
-        assertThat(mModel.get(BAR_ITEMS).get(4).getViewType(), is(BarItem.Type.TAB_LAYOUT));
+        assertThat(barItems.get(3).getAction(), is(credManAction));
+        assertThat(barItems.get(3).getCaptionId(), is(R.string.select_passkey));
+        assertThat(barItems.get(4).getViewType(), is(BarItem.Type.TAB_LAYOUT));
     }
 
     @Test
@@ -295,12 +312,13 @@ public class KeyboardAccessoryControllerTest {
         mCoordinator.setSuggestions(List.of(suggestion), mMockAutofillDelegate);
         credManProvider.notifyObservers(new Action[] {credManAction});
 
-        assertThat(mModel.get(BAR_ITEMS).size(), is(3));
-        assertThat(mModel.get(BAR_ITEMS).get(0), instanceOf(AutofillBarItem.class));
-        AutofillBarItem autofillBarItem = (AutofillBarItem) mModel.get(BAR_ITEMS).get(0);
+        List<ActionBarItem> barItems = flattenItemGroups();
+        assertThat(barItems.size(), is(3));
+        assertThat(barItems.get(0), instanceOf(AutofillBarItem.class));
+        AutofillBarItem autofillBarItem = (AutofillBarItem) barItems.get(0);
         assertThat(autofillBarItem.getSuggestion(), is(suggestion));
-        assertThat(flattenItemGroups().get(1).getAction(), is(credManAction));
-        assertThat(flattenItemGroups().get(1).getCaptionId(), is(R.string.more_passkeys));
+        assertThat(barItems.get(1).getAction(), is(credManAction));
+        assertThat(barItems.get(1).getCaptionId(), is(R.string.more_passkeys));
     }
 
     @Test
@@ -317,15 +335,14 @@ public class KeyboardAccessoryControllerTest {
         generationProvider.notifyObservers(new Action[] {generationAction});
 
         // Autofill suggestions should always come last, independent of when they were added.
-        assertThat(mModel.get(BAR_ITEMS).size(), is(4)); // Additional tab switcher
-        assertThat(flattenItemGroups().get(0).getAction(), is(generationAction));
-        assertThat(mModel.get(BAR_ITEMS).get(1).getViewType(), is(BarItem.Type.SUGGESTION));
-        assertThat(
-                ((AutofillBarItem) mModel.get(BAR_ITEMS).get(1)).getSuggestion(), is(suggestion1));
-        assertThat(mModel.get(BAR_ITEMS).get(2).getViewType(), is(BarItem.Type.SUGGESTION));
-        assertThat(
-                ((AutofillBarItem) mModel.get(BAR_ITEMS).get(2)).getSuggestion(), is(suggestion2));
-        assertThat(mModel.get(BAR_ITEMS).get(3).getViewType(), is(BarItem.Type.TAB_LAYOUT));
+        List<ActionBarItem> barItems = flattenItemGroups();
+        assertThat(barItems.size(), is(4)); // Additional tab switcher
+        assertThat(barItems.get(0).getAction(), is(generationAction));
+        assertThat(barItems.get(1).getViewType(), is(BarItem.Type.SUGGESTION));
+        assertThat(((AutofillBarItem) barItems.get(1)).getSuggestion(), is(suggestion1));
+        assertThat(barItems.get(2).getViewType(), is(BarItem.Type.SUGGESTION));
+        assertThat(((AutofillBarItem) barItems.get(2)).getSuggestion(), is(suggestion2));
+        assertThat(barItems.get(3).getViewType(), is(BarItem.Type.TAB_LAYOUT));
     }
 
     @Test
@@ -344,19 +361,22 @@ public class KeyboardAccessoryControllerTest {
         Action generationAction = new Action(GENERATE_PASSWORD_AUTOMATIC, (a) -> {});
         mCoordinator.setSuggestions(List.of(suggestion, suggestion), mMockAutofillDelegate);
         generationProvider.notifyObservers(new Action[] {generationAction});
-        assertThat(mModel.get(BAR_ITEMS).size(), is(4));
+        List<ActionBarItem> barItems = flattenItemGroups();
+        assertThat(barItems.size(), is(4));
 
         // Drop all Autofill suggestions. Only the generation action should remain.
         mCoordinator.setSuggestions(List.of(), mMockAutofillDelegate);
-        assertThat(mModel.get(BAR_ITEMS).size(), is(2));
-        assertThat(flattenItemGroups().get(0).getAction(), is(generationAction));
+        barItems = flattenItemGroups();
+        assertThat(barItems.size(), is(2));
+        assertThat(barItems.get(0).getAction(), is(generationAction));
 
         // Readd an Autofill suggestion and drop the generation. Only the suggestion should remain.
         mCoordinator.setSuggestions(List.of(suggestion), mMockAutofillDelegate);
         generationProvider.notifyObservers(new Action[0]);
-        assertThat(mModel.get(BAR_ITEMS).size(), is(2));
-        assertThat(mModel.get(BAR_ITEMS).get(0), instanceOf(AutofillBarItem.class));
-        AutofillBarItem autofillBarItem = (AutofillBarItem) mModel.get(BAR_ITEMS).get(0);
+        barItems = flattenItemGroups();
+        assertThat(barItems.size(), is(2));
+        assertThat(barItems.get(0), instanceOf(AutofillBarItem.class));
+        AutofillBarItem autofillBarItem = (AutofillBarItem) barItems.get(0);
         assertThat(autofillBarItem.getSuggestion(), is(suggestion));
     }
 
@@ -590,9 +610,6 @@ public class KeyboardAccessoryControllerTest {
                 AutofillProfile.builder().setRecordType(RecordType.ACCOUNT_HOME).build();
         ProfileManager.setLastUsedProfileForTesting(mMockProfile);
         when(mMockPersonalDataManager.getProfile("123")).thenReturn(profile);
-        when(mMockFillingProductBridgeJni.getFillingProductFromSuggestionType(
-                        SuggestionType.ADDRESS_ENTRY))
-                .thenReturn(FillingProduct.ADDRESS);
 
         AutofillProfilePayload payload = new AutofillProfilePayload("123");
         AutofillSuggestion addressSuggestion =
@@ -609,7 +626,9 @@ public class KeyboardAccessoryControllerTest {
 
     @Test
     public void testStyle() {
-        KeyboardAccessoryStyle style = new KeyboardAccessoryStyle(true, 1, 1);
+        KeyboardAccessoryStyle style =
+                new KeyboardAccessoryStyle(
+                        /* isDocked= */ true, /* offset= */ 1, /* maxWidth= */ 1);
         mCoordinator.setStyle(style);
         assertThat(mModel.get(STYLE), is(equalTo(style)));
     }
@@ -661,12 +680,230 @@ public class KeyboardAccessoryControllerTest {
         mCoordinator.setSuggestions(List.of(suggestion), mMockAutofillDelegate);
         generationProvider.notifyObservers(new Action[] {generationAction});
 
-        assertThat(mModel.get(BAR_ITEMS).size(), is(2));
-        assertThat(flattenItemGroups().get(0).getAction(), is(generationAction));
-        assertThat(mModel.get(BAR_ITEMS).get(1), instanceOf(AutofillBarItem.class));
+        List<ActionBarItem> barItems = flattenItemGroups();
+        assertThat(barItems.size(), is(2));
+        assertThat(barItems.get(0).getAction(), is(generationAction));
+        assertThat(barItems.get(1), instanceOf(AutofillBarItem.class));
         assertThat(
                 mModel.get(BAR_ITEMS_FIXED),
                 contains(instanceOf(SheetOpenerBarItem.class), instanceOf(DismissBarItem.class)));
+    }
+
+    @Test
+    public void testGroupCreation() {
+        Provider<Action[]> generationProvider = new Provider<>(GENERATE_PASSWORD_AUTOMATIC);
+        mCoordinator.registerActionProvider(generationProvider);
+        when(mMockIsLargeFormFactorSupplier.get()).thenReturn(false);
+
+        assertThat(mModel.get(BAR_ITEMS).size(), is(1)); // Only the tab switcher.
+        assertThat(mModel.get(BAR_ITEMS).get(0), instanceOf(SheetOpenerBarItem.class));
+
+        final AutofillSuggestion suggestion =
+                new AutofillSuggestion.Builder()
+                        .setLabel("John")
+                        .setSubLabel("Main Str")
+                        .setSuggestionType(SuggestionType.ADDRESS_ENTRY)
+                        .setFeatureForIph("")
+                        .build();
+
+        // Set 1 suggestion and check that no suggestion group is created.
+        mCoordinator.setSuggestions(List.of(suggestion), mMockAutofillDelegate);
+        assertThat(mModel.get(BAR_ITEMS).size(), is(2));
+        assertThat(mModel.get(BAR_ITEMS).get(0), instanceOf(AutofillBarItem.class));
+
+        // Set 2 suggestion and check that a suggestion group is created.
+        mCoordinator.setSuggestions(List.of(suggestion, suggestion), mMockAutofillDelegate);
+        assertThat(mModel.get(BAR_ITEMS).size(), is(2));
+        assertThat(mModel.get(BAR_ITEMS).get(0), instanceOf(GroupBarItem.class));
+        GroupBarItem suggestionGroup = (GroupBarItem) mModel.get(BAR_ITEMS).get(0);
+        assertThat(suggestionGroup.getActionBarItems().size(), is(2));
+
+        // Set 3 suggestions and check that a suggestion group is created again.
+        mCoordinator.setSuggestions(
+                List.of(suggestion, suggestion, suggestion), mMockAutofillDelegate);
+        assertThat(mModel.get(BAR_ITEMS).size(), is(2));
+        assertThat(mModel.get(BAR_ITEMS).get(0), instanceOf(GroupBarItem.class));
+        suggestionGroup = (GroupBarItem) mModel.get(BAR_ITEMS).get(0);
+        assertThat(suggestionGroup.getActionBarItems().size(), is(3));
+
+        // Set 4 suggestions and check that a suggestion group is created again, but only for the
+        // first 3 suggestions.
+        mCoordinator.setSuggestions(
+                List.of(suggestion, suggestion, suggestion, suggestion), mMockAutofillDelegate);
+        assertThat(mModel.get(BAR_ITEMS).size(), is(3));
+        assertThat(mModel.get(BAR_ITEMS).get(0), instanceOf(GroupBarItem.class));
+        suggestionGroup = (GroupBarItem) mModel.get(BAR_ITEMS).get(0);
+        assertThat(suggestionGroup.getActionBarItems().size(), is(3));
+        assertThat(mModel.get(BAR_ITEMS).get(1), instanceOf(AutofillBarItem.class));
+
+        // Add the generate password action, which is displayed first in the list of suggestions.
+        // Verify that no suggestion group is created, because suggestion group is created only from
+        // the suggestions in the beginning of the list.
+        final Action generationAction = new Action(GENERATE_PASSWORD_AUTOMATIC, (a) -> {});
+        generationProvider.notifyObservers(new Action[] {generationAction});
+        assertThat(mModel.get(BAR_ITEMS).size(), is(6));
+        assertThat(mModel.get(BAR_ITEMS).get(0), instanceOf(ActionBarItem.class));
+        assertThat(mModel.get(BAR_ITEMS).get(1), instanceOf(AutofillBarItem.class));
+        assertThat(mModel.get(BAR_ITEMS).get(2), instanceOf(AutofillBarItem.class));
+        assertThat(mModel.get(BAR_ITEMS).get(3), instanceOf(AutofillBarItem.class));
+        assertThat(mModel.get(BAR_ITEMS).get(4), instanceOf(AutofillBarItem.class));
+    }
+
+    @Test
+    public void testGroupCreationForCreditCards() {
+        when(mMockIsLargeFormFactorSupplier.get()).thenReturn(false);
+
+        final AutofillSuggestion suggestion =
+                new AutofillSuggestion.Builder()
+                        .setLabel("Mastercast")
+                        .setSubLabel("1234 **")
+                        .setSuggestionType(SuggestionType.CREDIT_CARD_ENTRY)
+                        .setFeatureForIph("")
+                        .build();
+        mCoordinator.setSuggestions(
+                List.of(suggestion, suggestion, suggestion), mMockAutofillDelegate);
+
+        // It is not allowed to limit width of the credit card suggestions.
+        assertThat(mModel.get(BAR_ITEMS).size(), is(4));
+        assertThat(mModel.get(BAR_ITEMS).get(0), instanceOf(AutofillBarItem.class));
+        assertThat(mModel.get(BAR_ITEMS).get(1), instanceOf(AutofillBarItem.class));
+        assertThat(mModel.get(BAR_ITEMS).get(2), instanceOf(AutofillBarItem.class));
+    }
+
+    @Test
+    public void testGroupCreationForIbans() {
+        when(mMockIsLargeFormFactorSupplier.get()).thenReturn(false);
+
+        final AutofillSuggestion suggestion =
+                new AutofillSuggestion.Builder()
+                        .setLabel("DE12 3456 **")
+                        .setSubLabel("Your account")
+                        .setSuggestionType(SuggestionType.IBAN_ENTRY)
+                        .setFeatureForIph("")
+                        .build();
+        mCoordinator.setSuggestions(
+                List.of(suggestion, suggestion, suggestion), mMockAutofillDelegate);
+
+        // It is not allowed to limit width of the IBAN suggestions.
+        assertThat(mModel.get(BAR_ITEMS).size(), is(4));
+        assertThat(mModel.get(BAR_ITEMS).get(0), instanceOf(AutofillBarItem.class));
+        assertThat(mModel.get(BAR_ITEMS).get(1), instanceOf(AutofillBarItem.class));
+        assertThat(mModel.get(BAR_ITEMS).get(2), instanceOf(AutofillBarItem.class));
+    }
+
+    @Test
+    public void testGroupCreationForPasswords() {
+        when(mMockIsLargeFormFactorSupplier.get()).thenReturn(false);
+
+        final AutofillSuggestion suggestion =
+                new AutofillSuggestion.Builder()
+                        .setLabel("username")
+                        .setSubLabel("******")
+                        .setSuggestionType(SuggestionType.PASSWORD_ENTRY)
+                        .setFeatureForIph("")
+                        .build();
+        mCoordinator.setSuggestions(
+                List.of(suggestion, suggestion, suggestion), mMockAutofillDelegate);
+
+        // It is not allowed to limit width of the password suggestions.
+        assertThat(mModel.get(BAR_ITEMS).size(), is(4));
+        assertThat(mModel.get(BAR_ITEMS).get(0), instanceOf(AutofillBarItem.class));
+        assertThat(mModel.get(BAR_ITEMS).get(1), instanceOf(AutofillBarItem.class));
+        assertThat(mModel.get(BAR_ITEMS).get(2), instanceOf(AutofillBarItem.class));
+    }
+
+    @Test
+    public void testGroupCreationWhenStyleIsChanged() {
+        when(mMockIsLargeFormFactorSupplier.get()).thenReturn(false);
+        final AutofillSuggestion suggestion =
+                new AutofillSuggestion.Builder()
+                        .setLabel("John")
+                        .setSubLabel("Main Str")
+                        .setSuggestionType(SuggestionType.ADDRESS_ENTRY)
+                        .setFeatureForIph("")
+                        .build();
+        mCoordinator.setSuggestions(
+                List.of(suggestion, suggestion, suggestion), mMockAutofillDelegate);
+
+        // Keyboard Accessory is docked initially, make sure that the suggestion groups are not
+        // created.
+        assertThat(mModel.get(BAR_ITEMS).size(), is(2));
+        assertThat(mModel.get(BAR_ITEMS).get(0), instanceOf(GroupBarItem.class));
+
+        when(mMockIsLargeFormFactorSupplier.get()).thenReturn(true);
+        mCoordinator.setStyle(
+                new KeyboardAccessoryStyle(
+                        /* isDocked= */ false, /* offset= */ 1, /* maxWidth= */ 1));
+        // The suggestions should not be grouped because the style was changed to undocked.
+        // TODO: crbug.com/431185714 - Mediator should remove the sheet opener when the style is
+        // changed to undocked.
+        assertThat(mModel.get(BAR_ITEMS).size(), is(4));
+        assertThat(mModel.get(BAR_ITEMS).get(0), instanceOf(AutofillBarItem.class));
+        assertThat(mModel.get(BAR_ITEMS).get(1), instanceOf(AutofillBarItem.class));
+        assertThat(mModel.get(BAR_ITEMS).get(2), instanceOf(AutofillBarItem.class));
+
+        when(mMockIsLargeFormFactorSupplier.get()).thenReturn(false);
+        mCoordinator.setStyle(
+                new KeyboardAccessoryStyle(
+                        /* isDocked= */ true, /* offset= */ 1, /* maxWidth= */ 1));
+        // The suggestions should be grouped again since the style was changed to docked.
+        assertThat(mModel.get(BAR_ITEMS).size(), is(2));
+        assertThat(mModel.get(BAR_ITEMS).get(0), instanceOf(GroupBarItem.class));
+    }
+
+    @Test
+    public void testGroupCreationWhenStyleIsUndocked() {
+        when(mMockIsLargeFormFactorSupplier.get()).thenReturn(true);
+
+        final AutofillSuggestion suggestion =
+                new AutofillSuggestion.Builder()
+                        .setLabel("SecondSuggestion")
+                        .setSubLabel("")
+                        .setSuggestionType(SuggestionType.AUTOCOMPLETE_ENTRY)
+                        .setFeatureForIph("")
+                        .build();
+        mCoordinator.setSuggestions(
+                List.of(suggestion, suggestion, suggestion), mMockAutofillDelegate);
+
+        // The suggestions should not be grouped because the style was set to undocked.
+        assertThat(mModel.get(BAR_ITEMS).size(), is(3));
+        assertThat(mModel.get(BAR_ITEMS).get(0), instanceOf(AutofillBarItem.class));
+        assertThat(mModel.get(BAR_ITEMS).get(1), instanceOf(AutofillBarItem.class));
+        assertThat(mModel.get(BAR_ITEMS).get(2), instanceOf(AutofillBarItem.class));
+    }
+
+    @Test
+    public void testGroupCreationWhenNewItemsAreAvailable() {
+        Provider<Action[]> credmanActionProvider = new Provider<>(CREDMAN_CONDITIONAL_UI_REENTRY);
+        mCoordinator.registerActionProvider(credmanActionProvider);
+
+        when(mMockIsLargeFormFactorSupplier.get()).thenReturn(true);
+
+        final AutofillSuggestion suggestion =
+                new AutofillSuggestion.Builder()
+                        .setLabel("SecondSuggestion")
+                        .setSubLabel("")
+                        .setSuggestionType(SuggestionType.AUTOCOMPLETE_ENTRY)
+                        .setFeatureForIph("")
+                        .build();
+        mCoordinator.setSuggestions(
+                List.of(suggestion, suggestion, suggestion), mMockAutofillDelegate);
+
+        // The suggestions should not be grouped because the style was set to undocked.
+        assertThat(mModel.get(BAR_ITEMS).size(), is(3));
+        assertThat(mModel.get(BAR_ITEMS).get(0), instanceOf(AutofillBarItem.class));
+        assertThat(mModel.get(BAR_ITEMS).get(1), instanceOf(AutofillBarItem.class));
+        assertThat(mModel.get(BAR_ITEMS).get(2), instanceOf(AutofillBarItem.class));
+
+        // The suggestions should not be grouped again after the list of suggestions was updated
+        // with a newly available item.
+        final Action credmanAction = new Action(CREDMAN_CONDITIONAL_UI_REENTRY, (a) -> {});
+        credmanActionProvider.notifyObservers(new Action[] {credmanAction});
+        // The suggestions should not be grouped because the style was set to undocked.
+        assertThat(mModel.get(BAR_ITEMS).size(), is(4));
+        assertThat(mModel.get(BAR_ITEMS).get(0), instanceOf(AutofillBarItem.class));
+        assertThat(mModel.get(BAR_ITEMS).get(1), instanceOf(AutofillBarItem.class));
+        assertThat(mModel.get(BAR_ITEMS).get(2), instanceOf(AutofillBarItem.class));
     }
 
     private int getGenerationImpressionCount() {
@@ -681,7 +918,7 @@ public class KeyboardAccessoryControllerTest {
     }
 
     private AutofillBarItem getAutofillItemAt(int position) {
-        return (AutofillBarItem) mModel.get(BAR_ITEMS).get(position);
+        return (AutofillBarItem) flattenItemGroups().get(position);
     }
 
     private List<ActionBarItem> flattenItemGroups() {

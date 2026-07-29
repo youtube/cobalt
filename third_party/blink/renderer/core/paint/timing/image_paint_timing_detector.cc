@@ -28,8 +28,6 @@
 #include "third_party/blink/renderer/core/timing/soft_navigation_context.h"
 #include "third_party/blink/renderer/core/timing/soft_navigation_heuristics.h"
 #include "third_party/blink/renderer/platform/heap/thread_state.h"
-#include "third_party/blink/renderer/platform/instrumentation/tracing/trace_event.h"
-#include "third_party/blink/renderer/platform/instrumentation/tracing/traced_value.h"
 #include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 
 namespace blink {
@@ -65,6 +63,27 @@ uint64_t DownScaleIfIntrinsicSizeIsSmaller(
   return visual_size;
 }
 
+// Returns whether or not the `media_timing` should be ignored when computing
+// minimum required entropy. See crbug.com/434659232.
+bool ShouldIgnoreMediaEntropy(const MediaTiming& media_timing,
+                              bool is_recording_lcp) {
+  // Always check entropy for images.
+  if (media_timing.GetFirstVideoFrameTime().is_null()) {
+    return false;
+  }
+  // Ignore the entropy check for soft navs. Since hard LCP stops on the first
+  // interaction and soft navs requires an interaction, we use
+  // `is_recording_lcp` as a signal for whether this is for a soft nav. This
+  // isn't quite perfect since pressing browser navigation buttons (back,
+  // forward) aren't considered navigations, but it should be good enough for
+  // soft navs, with the goal of eventually aligning hard and soft LCP.
+  if (!is_recording_lcp) {
+    return true;
+  }
+  // Otherwise, use the flag for hard LCP.
+  return RuntimeEnabledFeatures::EntropyIgnoredForFirstVideoFrameLCPEnabled();
+}
+
 }  // namespace
 
 ImagePaintTimingDetector::ImagePaintTimingDetector(LocalFrameView* frame_view)
@@ -82,66 +101,11 @@ ImageRecord* ImageRecordsManager::LargestImage() const {
   return largest_painted_image_.Get();
 }
 
-void ImagePaintTimingDetector::PopulateTraceValue(
-    TracedValue& value,
-    const ImageRecord& first_image_paint) {
-  first_image_paint.PopulateTraceValue(value);
-
-  value.SetInteger("candidateIndex", ++count_candidates_);
-  value.SetBoolean("isMainFrame", frame_view_->GetFrame().IsMainFrame());
-  value.SetBoolean("isOutermostMainFrame",
-                   frame_view_->GetFrame().IsOutermostMainFrame());
-  value.SetBoolean("isEmbeddedFrame",
-                   !frame_view_->GetFrame().LocalFrameRoot().IsMainFrame() ||
-                       frame_view_->GetFrame().IsInFencedFrameTree());
-}
-
-void ImagePaintTimingDetector::ReportCandidateToTrace(
-    ImageRecord& largest_image_record,
-    base::TimeTicks time) {
-  if (!PaintTimingDetector::IsTracing())
-    return;
-  DCHECK(!time.is_null());
-  auto value = std::make_unique<TracedValue>();
-  PopulateTraceValue(*value, largest_image_record);
-  // TODO(yoav): Report first animated frame times as well.
-  TRACE_EVENT_MARK_WITH_TIMESTAMP2(
-      "loading", "LargestImagePaint::Candidate", time, "data", std::move(value),
-      "frame", GetFrameIdForTracing(&frame_view_->GetFrame()));
-}
-
-void ImagePaintTimingDetector::ReportNoCandidateToTrace() {
-  if (!PaintTimingDetector::IsTracing())
-    return;
-  auto value = std::make_unique<TracedValue>();
-  value->SetInteger("candidateIndex", ++count_candidates_);
-  value->SetBoolean("isMainFrame", frame_view_->GetFrame().IsMainFrame());
-  value->SetBoolean("isOutermostMainFrame",
-                    frame_view_->GetFrame().IsOutermostMainFrame());
-  value->SetBoolean("isEmbeddedFrame",
-                    !frame_view_->GetFrame().LocalFrameRoot().IsMainFrame() ||
-                        frame_view_->GetFrame().IsInFencedFrameTree());
-  TRACE_EVENT2("loading", "LargestImagePaint::NoCandidate", "data",
-               std::move(value), "frame",
-               GetFrameIdForTracing(&frame_view_->GetFrame()));
-}
-
 std::pair<ImageRecord*, bool>
 ImagePaintTimingDetector::UpdateMetricsCandidate() {
   ImageRecord* largest_image_record = records_manager_.LargestImage();
-
-  base::TimeTicks time;
-  uint64_t size = 0;
-  double bpp = 0.0;
-  std::optional<WebURLRequest::Priority> priority = std::nullopt;
-
-  if (largest_image_record) {
-    time = largest_image_record->HasFirstAnimatedFrameTime()
-               ? largest_image_record->FirstAnimatedFrameTime()
-               : largest_image_record->PaintTime();
-    size = largest_image_record->RecordedSize();
-    bpp = largest_image_record->EntropyForLCP();
-    priority = largest_image_record->RequestPriority();
+  if (!largest_image_record) {
+    return {nullptr, false};
   }
 
   PaintTimingDetector& detector = frame_view_->GetPaintTimingDetector();
@@ -152,15 +116,7 @@ ImagePaintTimingDetector::UpdateMetricsCandidate() {
   // So when they are unchanged, the candidate is considered unchanged.
   bool changed =
       detector.GetLargestContentfulPaintCalculator()
-          ->NotifyMetricsIfLargestImagePaintChanged(
-              time, size, largest_image_record, bpp, std::move(priority));
-  if (changed) {
-    if (!time.is_null() && largest_image_record->IsLoaded()) {
-      ReportCandidateToTrace(*largest_image_record, time);
-    } else {
-      ReportNoCandidateToTrace();
-    }
-  }
+          ->NotifyMetricsIfLargestImagePaintChanged(*largest_image_record);
   return {largest_image_record, changed};
 }
 
@@ -328,9 +284,13 @@ bool ImagePaintTimingDetector::RecordImage(
 
   // Check the entropy before creating an `ImageRecord`, to ensure the invariant
   // that all `ImageRecord`s have sufficient entropy.
+  // TODO(crbug.com/434659232): Consider moving the `kMinimumEntropyForLCP`
+  // check and `ShouldIgnoreMediaEntropy()` into a single helper. See
+  // comments in crrev.com/c/6981829 for context and discussion.
   double entropy_for_lcp =
       media_timing.ContentSizeForEntropy() * 8.0 / visual_size;
-  if (entropy_for_lcp < kMinimumEntropyForLCP) {
+  if (entropy_for_lcp < kMinimumEntropyForLCP &&
+      !ShouldIgnoreMediaEntropy(media_timing, IsRecordingLargestImagePaint())) {
     records_manager_.RecordImage(record_id_hash);
     return false;
   }
@@ -532,7 +492,6 @@ void ImageRecordsManager::OnImageLoaded(MediaRecordIdHash record_id_hash,
     if (document && document->domWindow()) {
       record->SetLoadTime(ImageElementTiming::From(*document->domWindow())
                               .GetBackgroundImageLoadTime(style_image));
-      record->SetIsOriginClean(style_image->IsFromOriginCleanStyleSheet());
     }
   }
   OnImageLoadedInternal(record, current_frame_index);

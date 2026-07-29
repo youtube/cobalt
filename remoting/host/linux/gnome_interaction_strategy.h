@@ -12,6 +12,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
+#include "base/sequence_checker.h"
 #include "base/task/sequenced_task_runner.h"
 #include "remoting/host/desktop_capturer_proxy.h"
 #include "remoting/host/desktop_interaction_strategy.h"
@@ -35,7 +36,8 @@ class GnomeInteractionStrategy : public DesktopInteractionStrategy,
   std::unique_ptr<DesktopResizer> CreateDesktopResizer() override;
   std::unique_ptr<DesktopCapturer> CreateVideoCapturer(
       webrtc::ScreenId id) override;
-  std::unique_ptr<MouseCursorMonitor> CreateMouseCursorMonitor() override;
+  std::unique_ptr<protocol::MouseCursorMonitor> CreateMouseCursorMonitor()
+      override;
   std::unique_ptr<KeyboardLayoutMonitor> CreateKeyboardLayoutMonitor(
       base::RepeatingCallback<void(const protocol::KeyboardLayout&)> callback)
       override;
@@ -58,19 +60,9 @@ class GnomeInteractionStrategy : public DesktopInteractionStrategy,
   using InitCallback = base::OnceCallback<InitCallbackSignature>;
   explicit GnomeInteractionStrategy(
       scoped_refptr<base::SequencedTaskRunner> ui_task_runner);
-  template <typename SuccessType, typename String>
-  GDBusConnectionRef::CallCallback<SuccessType> CheckResultAndContinue(
-      void (GnomeInteractionStrategy::*success_method)(SuccessType),
-      String&& error_context);
-  void OnInitError(std::string_view what, Loggable why);
   void Init(InitCallback callback);
-  void OnConnectionCreated(GDBusConnectionRef connection);
-  void OnSessionCreated(std::tuple<gvariant::ObjectPath> args);
-  void OnGotSessionId(std::string session_id);
-  void OnScreenCastSessionCreated(std::tuple<gvariant::ObjectPath> args);
-  void OnSessionStarted(std::tuple<>);
-  void OnEisFd(std::pair<std::tuple<GDBusFdList::Handle>, GDBusFdList> args);
-  void OnEiSession(std::unique_ptr<EiSenderSession> ei_session);
+  void OnInitResult(InitCallback callback,
+                    base::expected<void, std::string> result);
 
   // PipewireCaptureStreamManager::Observer overrides.
   void OnPipewireCaptureStreamAdded(

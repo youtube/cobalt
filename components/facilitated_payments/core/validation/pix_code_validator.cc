@@ -6,6 +6,7 @@
 
 #include "base/functional/callback.h"
 #include "base/strings/string_util.h"
+#include "components/facilitated_payments/core/mojom/pix_code_validator.mojom.h"
 #include "third_party/re2/src/re2/re2.h"
 
 namespace payments::facilitated {
@@ -15,6 +16,7 @@ constexpr char kSectionIdAndSizePattern[] = "(\\d{2})(\\d{2})";
 constexpr char kPayloadFormatIndicatorFirstSectionId[] = "00";
 constexpr char kMerchantAccountInformationSectionId[] = "26";
 constexpr char kMerchantAccountInformationDynamicUrlSectionId[] = "25";
+constexpr char kMerchantAccountInformationStaticKeySectionId[] = "01";
 constexpr char kAdditionalDataFieldTemplateSectionId[] = "62";
 constexpr char kCrc16LastSectionId[] = "63";
 constexpr char kPixCodeIndicatorLowercase[] = "0014br.gov.bcb.pix";
@@ -69,62 +71,65 @@ PixCodeValidator::PixCodeValidator() = default;
 PixCodeValidator::~PixCodeValidator() = default;
 
 // static
-bool PixCodeValidator::IsValidPixCode(std::string_view code) {
+mojom::PixQrCodeType PixCodeValidator::GetPixQrCodeType(std::string_view code) {
   if (code.empty()) {
-    return false;
+    return mojom::PixQrCodeType::kInvalid;
   }
 
   SectionInfo section_info;
-  bool contains_pix_code_indicator = false;
 
   if (!ParseNextSection(&code, &section_info) ||
       section_info.section_id != kPayloadFormatIndicatorFirstSectionId) {
-    return false;
+    return mojom::PixQrCodeType::kInvalid;
   }
 
   while (!code.empty()) {
     if (!ParseNextSection(&code, &section_info)) {
-      return false;
+      return mojom::PixQrCodeType::kInvalid;
     }
 
     if (section_info.section_id == kMerchantAccountInformationSectionId) {
       if (!ContainsValidSections(section_info.section_value)) {
-        return false;
+        return mojom::PixQrCodeType::kInvalid;
       }
       if (base::ToLowerASCII(section_info.section_value)
               .find(kPixCodeIndicatorLowercase) != 0) {
-        return false;
+        return mojom::PixQrCodeType::kInvalid;
       }
       // By this time, we have already verified that the sub sections for
       // merchant account information are already valid. Only checking for the
       // presence of the dynamic url section id is sufficient to determine
       // whether the Pix code is a static vs dynamic code.
-      SectionInfo dynamic_url_section_info;
+      SectionInfo pix_qr_code_type_section_info;
       // We expect the dynamic url id to start right after the Pix code
       // indicator.
-      std::string_view dynamic_url_section_string =
+      std::string_view pix_qr_code_type_section_string =
           section_info.section_value.substr(strlen(kPixCodeIndicatorLowercase));
-      ParseNextSection(&dynamic_url_section_string, &dynamic_url_section_info);
-      if (dynamic_url_section_info.section_id !=
+      ParseNextSection(&pix_qr_code_type_section_string,
+                       &pix_qr_code_type_section_info);
+      if (pix_qr_code_type_section_info.section_id ==
           kMerchantAccountInformationDynamicUrlSectionId) {
-        return false;
+        return mojom::PixQrCodeType::kDynamic;
+      } else if (pix_qr_code_type_section_info.section_id ==
+                 kMerchantAccountInformationStaticKeySectionId) {
+        return mojom::PixQrCodeType::kStatic;
+      } else {
+        return mojom::PixQrCodeType::kInvalid;
       }
-
-      contains_pix_code_indicator = true;
     }
 
     if (section_info.section_id == kAdditionalDataFieldTemplateSectionId) {
       if (!ContainsValidSections(section_info.section_value)) {
-        return false;
+        return mojom::PixQrCodeType::kInvalid;
       }
     }
 
     if (code.empty() && section_info.section_id != kCrc16LastSectionId) {
-      return false;
+      return mojom::PixQrCodeType::kInvalid;
     }
   }
 
-  return contains_pix_code_indicator;
+  return mojom::PixQrCodeType::kInvalid;
 }
 
 // static
@@ -135,8 +140,8 @@ bool PixCodeValidator::ContainsPixIdentifier(std::string_view code) {
 
 void PixCodeValidator::ValidatePixCode(
     const std::string& input_text,
-    base::OnceCallback<void(std::optional<bool>)> callback) {
-  std::move(callback).Run(IsValidPixCode(input_text));
+    base::OnceCallback<void(std::optional<mojom::PixQrCodeType>)> callback) {
+  std::move(callback).Run(GetPixQrCodeType(input_text));
 }
 
 }  // namespace payments::facilitated

@@ -55,6 +55,7 @@
 #include "third_party/blink/renderer/core/css/css_supports_rule.h"
 #include "third_party/blink/renderer/core/css/css_view_transition_rule.h"
 #include "third_party/blink/renderer/core/css/media_list.h"
+#include "third_party/blink/renderer/core/css/media_query_exp.h"
 #include "third_party/blink/renderer/core/css/parser/container_query_parser.h"
 #include "third_party/blink/renderer/core/css/parser/css_parser.h"
 #include "third_party/blink/renderer/core/css/parser/css_parser_context.h"
@@ -443,10 +444,10 @@ unsigned StyleRule::AverageSizeInBytes() {
 StyleRule::StyleRule(base::PassKey<StyleRule>,
                      base::span<CSSSelector> selector_vector,
                      CSSPropertyValueSet* properties,
-                     const CustomEnvBindings* env_bindings)
+                     const MixinParameterBindings* mixin_parameter_bindings)
     : StyleRuleBase(kStyle),
       properties_(properties),
-      env_bindings_(env_bindings) {
+      mixin_parameter_bindings_(mixin_parameter_bindings) {
   CSSSelectorList::AdoptSelectorVector(selector_vector, SelectorArray());
 }
 
@@ -534,7 +535,7 @@ void StyleRule::TraceAfterDispatch(blink::Visitor* visitor) const {
   visitor->Trace(properties_);
   visitor->Trace(lazy_property_parser_);
   visitor->Trace(child_rules_);
-  visitor->Trace(env_bindings_);
+  visitor->Trace(mixin_parameter_bindings_);
 
   const CSSSelector* current = SelectorArray();
   do {
@@ -549,27 +550,51 @@ namespace {
 HeapVector<Member<StyleRuleBase>> CloneRules(
     const HeapVector<Member<StyleRuleBase>>& old_rules,
     StyleRule* new_parent,
-    const CustomEnvBindings* env_bindings) {
+    const MixinParameterBindings* mixin_parameter_bindings) {
   HeapVector<Member<StyleRuleBase>> result;
   for (StyleRuleBase* old_rule : old_rules) {
-    result.push_back(old_rule->Clone(new_parent, env_bindings));
+    result.push_back(old_rule->Clone(new_parent, mixin_parameter_bindings));
   }
   return result;
 }
 
 template <typename T>
-StyleRuleBase* CloneGroupRule(T* group_rule,
-                              StyleRule* new_parent,
-                              const CustomEnvBindings* env_bindings) {
+StyleRuleBase* CloneGroupRule(
+    T* group_rule,
+    StyleRule* new_parent,
+    const MixinParameterBindings* mixin_parameter_bindings) {
   return MakeGarbageCollected<T>(
-      *group_rule,
-      CloneRules(group_rule->ChildRules(), new_parent, env_bindings));
+      *group_rule, CloneRules(group_rule->ChildRules(), new_parent,
+                              mixin_parameter_bindings));
+}
+
+// Make sure that the FakeParentRuleForDeclarations, if any,
+// gets our parent as parent. In particular, we'd like any
+// StyleRuleNestedDeclarations in there to get our selector
+// (it copies the parent selector during clone), not the
+// dummy parent selector that's there from parsing and which
+// may have the wrong specificity.
+StyleRule* CloneFakeParentRule(
+    StyleRule* old_inner_rule,
+    StyleRule* new_parent,
+    const MixinParameterBindings* mixin_parameter_bindings) {
+  HeapVector<CSSSelector> selectors =
+      CSSSelectorList::Copy(new_parent->FirstSelector());
+  auto* new_rule = StyleRule::Create(
+      selectors, old_inner_rule->Properties().ImmutableCopyIfNeeded(),
+      mixin_parameter_bindings);
+  for (StyleRuleBase* child_rule : *old_inner_rule->ChildRules()) {
+    new_rule->AddChildRule(
+        child_rule->Clone(new_rule, mixin_parameter_bindings));
+  }
+  return new_rule;
 }
 
 }  // namespace
 
-StyleRuleBase* StyleRuleBase::Clone(StyleRule* new_parent,
-                                    const CustomEnvBindings* env_bindings) {
+StyleRuleBase* StyleRuleBase::Clone(
+    StyleRule* new_parent,
+    const MixinParameterBindings* mixin_parameter_bindings) {
   switch (GetType()) {
     case kStyle: {
       HeapVector<CSSSelector> selectors;
@@ -577,11 +602,12 @@ StyleRuleBase* StyleRuleBase::Clone(StyleRule* new_parent,
                               selectors);
       auto* new_rule = StyleRule::Create(
           selectors, To<StyleRule>(this)->Properties().ImmutableCopyIfNeeded(),
-          env_bindings);
+          mixin_parameter_bindings);
       if (GCedHeapVector<Member<StyleRuleBase>>* child_rules =
               To<StyleRule>(this)->ChildRules()) {
         for (StyleRuleBase* child_rule : *child_rules) {
-          new_rule->AddChildRule(child_rule->Clone(new_rule, env_bindings));
+          new_rule->AddChildRule(
+              child_rule->Clone(new_rule, mixin_parameter_bindings));
         }
       }
       return new_rule;
@@ -591,46 +617,66 @@ StyleRuleBase* StyleRuleBase::Clone(StyleRule* new_parent,
           &To<StyleRuleScope>(this)->GetStyleScope();
       const StyleScope* new_style_scope = old_style_scope->Clone(new_parent);
       CHECK(new_style_scope);
-      HeapVector<Member<StyleRuleBase>> new_child_rules =
-          CloneRules(To<StyleRuleScope>(this)->ChildRules(),
-                     new_style_scope->RuleForNesting(), env_bindings);
+      HeapVector<Member<StyleRuleBase>> new_child_rules = CloneRules(
+          To<StyleRuleScope>(this)->ChildRules(),
+          new_style_scope->RuleForNesting(), mixin_parameter_bindings);
       return MakeGarbageCollected<StyleRuleScope>(*new_style_scope,
                                                   std::move(new_child_rules));
     }
     case kLayerBlock:
       return CloneGroupRule(To<StyleRuleLayerBlock>(this), new_parent,
-                            env_bindings);
+                            mixin_parameter_bindings);
     case kContainer: {
       StyleRuleContainer* container_rule = To<StyleRuleContainer>(this);
       return MakeGarbageCollected<StyleRuleContainer>(
           *MakeGarbageCollected<ContainerQuery>(
               container_rule->GetContainerQuery()),
-          CloneRules(container_rule->ChildRules(), new_parent, env_bindings));
+          CloneRules(container_rule->ChildRules(), new_parent,
+                     mixin_parameter_bindings));
     }
     case kMedia:
-      return CloneGroupRule(To<StyleRuleMedia>(this), new_parent, env_bindings);
+      return CloneGroupRule(To<StyleRuleMedia>(this), new_parent,
+                            mixin_parameter_bindings);
     case kRoute:
-      return CloneGroupRule(To<StyleRuleRoute>(this), new_parent, env_bindings);
+      return CloneGroupRule(To<StyleRuleRoute>(this), new_parent,
+                            mixin_parameter_bindings);
     case kSupports:
       return CloneGroupRule(To<StyleRuleSupports>(this), new_parent,
-                            env_bindings);
+                            mixin_parameter_bindings);
     case kStartingStyle:
       return CloneGroupRule(To<StyleRuleStartingStyle>(this), new_parent,
-                            env_bindings);
+                            mixin_parameter_bindings);
     case kPage: {
       return MakeGarbageCollected<StyleRulePage>(
           To<StyleRulePage>(this)->SelectorList()->Renest(new_parent),
           To<StyleRulePage>(this)->Properties().ImmutableCopyIfNeeded(),
           CloneRules(To<StyleRulePage>(this)->ChildRules(), new_parent,
-                     env_bindings));
+                     mixin_parameter_bindings));
     }
     case kMixin:
-      return CloneGroupRule(To<StyleRuleMixin>(this), new_parent, env_bindings);
-    case kApplyMixin:
-    case kContents:
-      // The parent pointers in mixins don't really matter;
-      // they are always replaced during application anyway.
-      return this;
+      return CloneGroupRule(To<StyleRuleMixin>(this), new_parent,
+                            mixin_parameter_bindings);
+    case kApplyMixin: {
+      auto* apply_rule = To<StyleRuleApplyMixin>(this);
+      StyleRule* old_inner_rule = apply_rule->FakeParentRuleForDeclarations();
+      if (!old_inner_rule || !old_inner_rule->ChildRules()) {
+        return this;
+      }
+      return MakeGarbageCollected<StyleRuleApplyMixin>(
+          apply_rule->GetName(), apply_rule->GetArguments(),
+          CloneFakeParentRule(old_inner_rule, new_parent,
+                              mixin_parameter_bindings));
+    }
+    case kContents: {
+      auto* contents_rule = To<StyleRuleContentsStatement>(this);
+      StyleRule* old_inner_rule = contents_rule->FakeParentRuleForFallback();
+      if (!old_inner_rule || !old_inner_rule->ChildRules()) {
+        return this;
+      }
+      return MakeGarbageCollected<StyleRuleContentsStatement>(
+          CloneFakeParentRule(old_inner_rule, new_parent,
+                              mixin_parameter_bindings));
+    }
     case kNestedDeclarations: {
       auto* nested_declarations_rule = To<StyleRuleNestedDeclarations>(this);
       // Nested declaration rules are different from regular nested style rules,
@@ -650,7 +696,7 @@ StyleRuleBase* StyleRuleBase::Clone(StyleRule* new_parent,
           CSSSelectorList::Copy(new_parent->FirstSelector());
       auto* new_inner_rule = StyleRule::Create(
           selectors, old_inner_rule->Properties().ImmutableCopyIfNeeded(),
-          env_bindings);
+          mixin_parameter_bindings);
       return MakeGarbageCollected<StyleRuleNestedDeclarations>(
           nested_declarations_rule->NestingType(), new_inner_rule);
     }
@@ -659,8 +705,8 @@ StyleRuleBase* StyleRuleBase::Clone(StyleRule* new_parent,
           To<StyleRuleFunctionDeclarations>(*this));
     case kFunction: {
       StyleRuleFunction* function_rule = To<StyleRuleFunction>(this);
-      HeapVector<Member<StyleRuleBase>> result =
-          CloneRules(function_rule->ChildRules(), new_parent, env_bindings);
+      HeapVector<Member<StyleRuleBase>> result = CloneRules(
+          function_rule->ChildRules(), new_parent, mixin_parameter_bindings);
       return MakeGarbageCollected<StyleRuleFunction>(
           function_rule->Name(), function_rule->GetParameters(),
           std::move(result), function_rule->GetReturnType());
@@ -1089,35 +1135,21 @@ void StyleRuleCustomMedia::TraceAfterDispatch(blink::Visitor* visitor) const {
   }
 }
 
-const std::pair<String, CSSSyntaxDefinition>* CustomEnvBindings::Lookup(
-    const String& variable_name) const {
-  auto it = bindings_.find(variable_name);
-  if (it != bindings_.end()) {
-    return &it->value;
-  }
-  if (previous_in_env_chain_) {
-    return previous_in_env_chain_->Lookup(variable_name);
-  } else {
-    return nullptr;
-  }
-}
-
-unsigned CustomEnvBindings::ComputeHash() const {
-  unsigned hash =
-      previous_in_env_chain_ ? previous_in_env_chain_->GetHash() : 1234;
+unsigned MixinParameterBindings::ComputeHash() const {
+  unsigned hash = parent_mixin_ ? parent_mixin_->GetHash() : 1234;
   for (const auto& [key, value] : bindings_) {
-    hash = HashInts(
-        hash, HashInts(key.Impl()->GetHash(), value.first.Impl()->GetHash()));
+    hash = HashInts(hash, HashInts(key.Impl()->GetHash(),
+                                   value.value ? value.value->Hash() : 5678));
   }
   return hash;
 }
 
-bool CustomEnvBindings::operator==(const CustomEnvBindings& other) const {
+bool MixinParameterBindings::operator==(
+    const MixinParameterBindings& other) const {
   if (bindings_ != other.bindings_) {
     return false;
   }
-  return base::ValuesEquivalent(previous_in_env_chain_,
-                                other.previous_in_env_chain_);
+  return base::ValuesEquivalent(parent_mixin_, other.parent_mixin_);
 }
 
 }  // namespace blink

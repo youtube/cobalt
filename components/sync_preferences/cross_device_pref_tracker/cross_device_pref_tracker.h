@@ -81,6 +81,10 @@ class CrossDevicePrefTracker : public KeyedService {
   struct DeviceFilter {
     std::optional<syncer::DeviceInfo::OsType> os_type;
     std::optional<syncer::DeviceInfo::FormFactor> form_factor;
+    // If provided, only include devices whose
+    // `DeviceInfo::last_updated_timestamp` is within this duration from the
+    // time the filter is applied.
+    std::optional<base::TimeDelta> max_sync_recency;
   };
 
   ~CrossDevicePrefTracker() override;
@@ -118,14 +122,16 @@ class CrossDevicePrefTracker : public KeyedService {
       JNIEnv* env,
       const base::android::JavaParamRef<jstring>& pref_name,
       std::optional<int> os_type,
-      std::optional<int> form_factor) const = 0;
+      std::optional<int> form_factor,
+      std::optional<jlong> max_sync_recency_microseconds) const = 0;
   // `pref_name` can be either the tracked pref name or the cross-device pref
   // name.
   virtual base::android::ScopedJavaLocalRef<jobject> GetMostRecentValue(
       JNIEnv* env,
       const base::android::JavaParamRef<jstring>& pref_name,
       std::optional<int> os_type,
-      std::optional<int> form_factor) const = 0;
+      std::optional<int> form_factor,
+      std::optional<jlong> max_sync_recency_microseconds) const = 0;
 #endif  // BUILDFLAG(IS_ANDROID)
 
  protected:

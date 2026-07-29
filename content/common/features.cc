@@ -29,9 +29,7 @@ BASE_FEATURE(kAndroidDragDropOopif, base::FEATURE_ENABLED_BY_DEFAULT);
 #if BUILDFLAG(IS_WIN)
 // Flag guard for Windows Arabic digit substitution workaround.
 // crbug.com/440381284
-BASE_FEATURE(kArabicDigitSubstitution,
-             "ArabicDigitSubstitution",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kArabicDigitSubstitution, base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_WIN)
 
 // Synchronously continuing with navigation can lead to trying to start another
@@ -51,8 +49,15 @@ BASE_FEATURE(kArabicDigitSubstitution,
 //
 // There are several modes that are described in the
 // AvoidUnnecessaryBeforeUnloadCheckSyncMode enum in the header file.
+//
+// The eventual state is to utilize kWithoutSendBeforeUnload mode, as it offers
+// the highest performance. However, kWithoutSendBeforeUnload mode causes a
+// metrics skew due to the current inaccurate measurement timing of navigation
+// start (refer to crbug.com/385170155). Therefore, kWithSendBeforeUnload mode
+// is the current default. We would like to update to use
+// kWithoutSendBeforeUnload mode once crbug.com/385170155 is resolved.
 BASE_FEATURE(kAvoidUnnecessaryBeforeUnloadCheckSync,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 constexpr base::FeatureParam<AvoidUnnecessaryBeforeUnloadCheckSyncMode>::Option
     kAvoidUnnecessaryBeforeUnloadCheckSyncModeOption[] = {
@@ -69,7 +74,7 @@ BASE_FEATURE_ENUM_PARAM(
     kAvoidUnnecessaryBeforeUnloadCheckSyncMode,
     &kAvoidUnnecessaryBeforeUnloadCheckSync,
     "AvoidUnnecessaryBeforeUnloadCheckSyncMode",
-    AvoidUnnecessaryBeforeUnloadCheckSyncMode::kDumpWithoutCrashing,
+    AvoidUnnecessaryBeforeUnloadCheckSyncMode::kWithSendBeforeUnload,
     &kAvoidUnnecessaryBeforeUnloadCheckSyncModeOption);
 
 // Enables controlling the time to live for pages in the BackForwardCache.
@@ -486,7 +491,6 @@ BASE_FEATURE(kPrivacySandboxAdsAPIsM1Override,
 BASE_FEATURE(kContinueGestureOnLosingFocus, base::FEATURE_DISABLED_BY_DEFAULT);
 #endif
 
-
 // Make sendBeacon throw for a Blob with a non simple type.
 BASE_FEATURE(kSendBeaconThrowForBlobWithNonSimpleType,
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -538,6 +542,12 @@ BASE_FEATURE(kReloadHiddenTabsWithCrashedSubframes,
 BASE_FEATURE(kRendererCancellationThrottleImprovements,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+// When enabled, allows a navigation to resume even if the renderer process for
+// its speculative RFH is killed. This only works for navigations that have not
+// yet received the response and picked the final RFH to commit in.
+BASE_FEATURE(kResumeNavigationWithSpeculativeRFHProcessGone,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // When enabled, try to reuse any same-site process that is hosting
 // only prerendered frames for main-frame navigations.
 BASE_FEATURE(kReusePrerenderingProcessForMainFrames,
@@ -572,13 +582,6 @@ const base::FeatureParam<std::string>
 // (crbug.com/41411856): When enabled, the srcdoc iframes are controlled by the
 // same service worker that controls their parent.
 BASE_FEATURE(kServiceWorkerSrcdocSupport, base::FEATURE_ENABLED_BY_DEFAULT);
-
-// (crbug.com/340949948): Killswitch for the fix to address the ServiceWorker
-// main and subreosurce loader lifetime issue, which introduces fetch() failure
-// in the sw fetch handler.
-BASE_FEATURE(kServiceWorkerStaticRouterRaceRequestFix,
-             "kServiceWorkerStaticRouterRaceRequestFix",
-             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // (crbug.com/1371756): When enabled, the static routing API starts
 // ServiceWorker when the routing result of a main resource request was network

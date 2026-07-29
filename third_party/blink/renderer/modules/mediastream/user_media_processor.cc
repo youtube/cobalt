@@ -85,6 +85,27 @@ void LogEchoCancellationMode(EchoCancellationMode mode) {
       "Media.MediaDevices.GetUserMedia.EchoCancellationMode", mode);
 }
 
+void UpdateRequestResult(UserMediaRequestType media_type,
+                         MediaStreamRequestResult result) {
+  switch (media_type) {
+    case UserMediaRequestType::kUserMedia:
+      base::UmaHistogramEnumeration(
+          "WebRTC.UserMediaRequest.GetUserMedia.Result", result,
+          mojom::blink::MediaStreamRequestResult::NUM_MEDIA_REQUEST_RESULTS);
+      return;
+    case UserMediaRequestType::kDisplayMedia:
+      base::UmaHistogramEnumeration(
+          "WebRTC.UserMediaRequest.GetDisplayMedia.Result", result,
+          mojom::blink::MediaStreamRequestResult::NUM_MEDIA_REQUEST_RESULTS);
+      return;
+    case UserMediaRequestType::kAllScreensMedia:
+      base::UmaHistogramEnumeration(
+          "WebRTC.UserMediaRequest.GetAllScreensMedia.Result", result,
+          mojom::blink::MediaStreamRequestResult::NUM_MEDIA_REQUEST_RESULTS);
+      return;
+  }
+}
+
 const char* MediaStreamRequestResultToString(MediaStreamRequestResult value) {
   switch (value) {
     case MediaStreamRequestResult::OK:
@@ -127,6 +148,8 @@ const char* MediaStreamRequestResultToString(MediaStreamRequestResult value) {
       return "START_TIMEOUT";
     case MediaStreamRequestResult::PERMISSION_DENIED_BY_USER:
       return "PERMISSION_DENIED_BY_USER";
+    case MediaStreamRequestResult::AUDIO_DEVICE_SOCKET_ERROR:
+      return "AUDIO_DEVICE_SOCKET_ERROR";
     case MediaStreamRequestResult::NUM_MEDIA_REQUEST_RESULTS:
       break;
   }
@@ -320,6 +343,8 @@ String ErrorCodeToString(MediaStreamRequestResult result) {
       return "Constraint not satisfied";
     case MediaStreamRequestResult::PERMISSION_DENIED_BY_USER:
       return "Permission denied by user";
+    case MediaStreamRequestResult::AUDIO_DEVICE_SOCKET_ERROR:
+      return "Audio device socket error";
     case MediaStreamRequestResult::NUM_MEDIA_REQUEST_RESULTS:
       break;  // Not a valid enum value.
   }
@@ -1294,8 +1319,6 @@ void UserMediaProcessor::OnStreamsGenerated(
     SendLogMessage(base::StringPrintf(
         "OnStreamsGenerated([request_id=%d]) => (ERROR: invalid request ID)",
         request_id));
-    blink::LogUserMediaRequestResult(
-        MediaStreamRequestResult::REQUEST_CANCELLED);
     for (const mojom::blink::StreamDevicesPtr& stream_devices :
          stream_devices_set->stream_devices) {
       OnStreamGeneratedForCancelledRequest(*stream_devices);
@@ -2149,7 +2172,8 @@ void UserMediaProcessor::DelayedGetUserMediaRequestSucceeded(
       "DelayedGetUserMediaRequestSucceeded({request_id=%d}, {result=%s})",
       request_id,
       MediaStreamRequestResultToString(MediaStreamRequestResult::OK)));
-  blink::LogUserMediaRequestResult(MediaStreamRequestResult::OK);
+  UpdateRequestResult(user_media_request->MediaRequestType(),
+                      MediaStreamRequestResult::OK);
   DeleteUserMediaRequest(user_media_request);
   if (!user_media_request->IsTransferredTrackRequest()) {
     // For transferred tracks, user_media_request has already been resolved in
@@ -2189,7 +2213,7 @@ void UserMediaProcessor::DelayedGetUserMediaRequestFailed(
     MediaStreamRequestResult result,
     const String& constraint_name) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  blink::LogUserMediaRequestResult(result);
+  UpdateRequestResult(user_media_request->MediaRequestType(), result);
   SendLogMessage(base::StringPrintf(
       "DelayedGetUserMediaRequestFailed({request_id=%d}, {result=%s})",
       request_id, MediaStreamRequestResultToString(result)));
@@ -2276,9 +2300,14 @@ bool UserMediaProcessor::RemoveLocalSource(MediaStreamSource* source) {
         result = MediaStreamRequestResult::DEVICE_IN_USE;
         message = "Audio capture device already in use";
         break;
-      default:
+      case AudioSourceErrorCode::kSocketError:
+        result = MediaStreamRequestResult::AUDIO_DEVICE_SOCKET_ERROR;
+        message = "Socket for audio capture device closed";
+        break;
+      case AudioSourceErrorCode::kUnknown:
         result = MediaStreamRequestResult::TRACK_START_FAILURE_AUDIO;
         message = "Failed to access audio capture device";
+        break;
     }
   } else {
     result = MediaStreamRequestResult::TRACK_START_FAILURE_VIDEO;
@@ -2303,21 +2332,52 @@ bool UserMediaProcessor::IsCurrentRequestInfo(
          current_request_info_->request() == user_media_request;
 }
 
-bool UserMediaProcessor::DeleteUserMediaRequest(
+bool UserMediaProcessor::CancelRequest(UserMediaRequest* user_media_request) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  if (current_request_info_ &&
+      current_request_info_->request() == user_media_request) {
+    SendLogMessage(base::StringPrintf("CancelRequest(request_id=%d)",
+                                      user_media_request->request_id()));
+    switch (current_request_info_->state()) {
+      case RequestInfo::State::kSentForGeneration:
+        // Let the browser process know that the previously sent request must be
+        // canceled.
+        GetMediaStreamDispatcherHost()->CancelRequest(
+            current_request_info_->request_id());
+        [[fallthrough]];
+
+      case RequestInfo::State::kNotSentForGeneration:
+        DeleteUserMediaRequest(user_media_request);
+        break;
+
+      case RequestInfo::State::kGenerated:
+        // Don't delete the request if it has already been generated as the
+        // request might be trying to start tracks and deleting it at this point
+        // might cause issues.
+        break;
+    }
+    UpdateRequestResult(user_media_request->MediaRequestType(),
+                        MediaStreamRequestResult::REQUEST_CANCELLED);
+    return true;
+  }
+  return false;
+}
+
+void UserMediaProcessor::DeleteUserMediaRequest(
     UserMediaRequest* user_media_request) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   if (current_request_info_ &&
       current_request_info_->request() == user_media_request) {
     current_request_info_ = nullptr;
     std::move(request_completed_cb_).Run();
-    return true;
   }
-  return false;
 }
 
 void UserMediaProcessor::StopAllProcessing() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   if (current_request_info_) {
+    UpdateRequestResult(current_request_info_->request()->MediaRequestType(),
+                        MediaStreamRequestResult::REQUEST_CANCELLED);
     switch (current_request_info_->state()) {
       case RequestInfo::State::kSentForGeneration:
         // Let the browser process know that the previously sent request must be

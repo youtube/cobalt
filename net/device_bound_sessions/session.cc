@@ -90,10 +90,9 @@ Session::~Session() = default;
 // static
 base::expected<std::unique_ptr<Session>, SessionError> Session::CreateIfValid(
     const SessionParams& params) {
+  CHECK(!params.session_id.empty());
   if (!params.fetcher_url.is_valid()) {
     return base::unexpected(SessionError{SessionError::kInvalidFetcherUrl});
-  } else if (params.session_id.empty()) {
-    return base::unexpected(SessionError{SessionError::kInvalidSessionId});
   }
 
   // If there is an origin in the scope, verify it is valid. Default to the
@@ -113,7 +112,8 @@ base::expected<std::unique_ptr<Session>, SessionError> Session::CreateIfValid(
         base::TrimWhitespaceASCII(params.scope.origin, base::TRIM_ALL);
     if ((scope_origin_as_url.has_path() && scope_origin_as_url.path() != "/") ||
         base::EndsWith(origin_view, "/")) {
-      return base::unexpected(SessionError{SessionError::kInvalidScopeOrigin});
+      return base::unexpected(
+          SessionError{SessionError::kScopeOriginContainsPath});
     }
   }
 
@@ -155,12 +155,12 @@ base::expected<std::unique_ptr<Session>, SessionError> Session::CreateIfValid(
                   candidate_refresh_endpoint));
 
   for (const auto& cred : params.credentials) {
-    std::optional<CookieCraving> craving = CookieCraving::Create(
+    base::expected<CookieCraving, SessionError> craving = CookieCraving::Create(
         params.fetcher_url, cred.name, cred.attributes, base::Time::Now());
-    if (craving) {
-      session->cookie_cravings_.push_back(*craving);
+    if (craving.has_value()) {
+      session->cookie_cravings_.push_back(craving.value());
     } else {
-      return base::unexpected(SessionError{SessionError::kInvalidCredentials});
+      return base::unexpected(SessionError{std::move(craving.error())});
     }
   }
 
@@ -171,7 +171,7 @@ base::expected<std::unique_ptr<Session>, SessionError> Session::CreateIfValid(
   for (const std::string& initiator : params.allowed_refresh_initiators) {
     if (!IsValidHostPattern(initiator)) {
       return base::unexpected(
-          SessionError{SessionError::kInvalidRefreshInitiators});
+          SessionError{SessionError::kRefreshInitiatorInvalidHostPattern});
     }
   }
   session->set_allowed_refresh_initiators(
@@ -475,7 +475,16 @@ void Session::InformOfRefreshResult(SessionError::ErrorType error_type) {
     case kServerRequestedTermination:
     case kInvalidConfigJson:
     case kInvalidSessionId:
-    case kInvalidCredentials:
+    case kInvalidCredentialsConfig:
+    case kInvalidCredentialsType:
+    case kInvalidCredentialsEmptyName:
+    case kInvalidCredentialsCookie:
+    case kInvalidCredentialsCookieCreationTime:
+    case kInvalidCredentialsCookieName:
+    case kInvalidCredentialsCookieParsing:
+    case kInvalidCredentialsCookieUnpermittedAttribute:
+    case kInvalidCredentialsCookieInvalidDomain:
+    case kInvalidCredentialsCookiePrefix:
     case kInvalidChallenge:
     case kTooManyChallenges:
     case kInvalidFetcherUrl:
@@ -484,22 +493,35 @@ void Session::InformOfRefreshResult(SessionError::ErrorType error_type) {
     case kScopeOriginSameSiteMismatch:
     case kRefreshUrlSameSiteMismatch:
     case kInvalidScopeOrigin:
+    case kScopeOriginContainsPath:
     case kMismatchedSessionId:
-    case kInvalidRefreshInitiators:
-    case kInvalidScopeRule:
+    case kRefreshInitiatorNotString:
+    case kRefreshInitiatorInvalidHostPattern:
+    case kInvalidScopeRulePath:
+    case kInvalidScopeRuleHostPattern:
+    case kScopeRuleOriginScopedHostPatternMismatch:
+    case kScopeRuleSiteScopedHostPatternMismatch:
+    case kInvalidScopeSpecification:
+    case kMissingScopeSpecificationType:
+    case kEmptyScopeSpecificationDomain:
+    case kEmptyScopeSpecificationPath:
+    case kInvalidScopeSpecificationType:
     case kMissingScope:
     case kNoCredentials:
     case kInvalidScopeIncludeSite:
+    case kMissingScopeIncludeSite:
     case kFederatedKeyThumbprintMismatch:
     case kInvalidFederatedSessionUrl:
-    case kInvalidFederatedSession:
+    case kInvalidFederatedSessionProviderSessionMissing:
+    case kInvalidFederatedSessionWrongProviderOrigin:
     case kInvalidFederatedKey:
 
     // We do not want to back off on many network connection errors
     // (e.g. internet disconnected), so we do not hit our maximum
     // backoff whenever the machine goes offline while the browser is
-    // running.
+    // running. Proxy errors (407) count as net errors.
     case kNetError:
+    case kProxyError:
       break;
     case kTransientHttpError:
     case kBoundCookieSetForbidden:
@@ -509,12 +531,17 @@ void Session::InformOfRefreshResult(SessionError::ErrorType error_type) {
     case kSubdomainRegistrationWellKnownUnavailable:
     case kSubdomainRegistrationUnauthorized:
     case kSubdomainRegistrationWellKnownMalformed:
-    case kFederatedNotAuthorized:
+    case kFederatedNotAuthorizedByProvider:
+    case kFederatedNotAuthorizedByRelyingParty:
     case kSessionProviderWellKnownUnavailable:
     case kSessionProviderWellKnownMalformed:
+    case kSessionProviderWellKnownHasProviderOrigin:
     case kRelyingPartyWellKnownUnavailable:
     case kRelyingPartyWellKnownMalformed:
+    case kRelyingPartyWellKnownHasRelyingOrigins:
     case kTooManyRelyingOriginLabels:
+    case kEmptySessionConfig:
+    case kRegistrationAttemptedChallenge:
       NOTREACHED();
   }
 }

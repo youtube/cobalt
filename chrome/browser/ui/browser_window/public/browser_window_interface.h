@@ -12,7 +12,6 @@
 #include "content/public/browser/page_navigator.h"
 
 #if !BUILDFLAG(IS_ANDROID)
-#include "base/callback_list.h"
 #include "ui/base/window_open_disposition.h"
 #endif
 
@@ -32,14 +31,13 @@
 // or on DesktopBrowserWindowCapabilities.
 
 #if !BUILDFLAG(IS_ANDROID)
+namespace base {
+class CallbackListSubscription;
+}  // namespace base
+
 namespace tabs {
 class TabInterface;
 }  // namespace tabs
-
-namespace views {
-class WebView;
-class View;
-}  // namespace views
 
 namespace web_app {
 class AppBrowserController;
@@ -205,11 +203,6 @@ class BrowserWindowInterface : public content::PageNavigator {
   // Returns nullptr if no browser window with the given session ID exists.
   static BrowserWindowInterface* FromSessionID(const SessionID& session_id);
 
-  // The contents of the active tab is rendered in a views::WebView. When the
-  // active tab switches, the contents of the views::WebView is modified, but
-  // the instance itself remains the same.
-  virtual views::WebView* GetWebView() = 0;
-
   // Opens a URL, with the given disposition. This is a convenience wrapper
   // around OpenURL from content::PageNavigator.
   virtual void OpenGURL(const GURL& gurl,
@@ -240,9 +233,6 @@ class BrowserWindowInterface : public content::PageNavigator {
   virtual base::CallbackListSubscription RegisterBrowserCloseCancelled(
       BrowserCloseCancelledCallback callback) = 0;
 
-  // Returns the top container view.
-  virtual views::View* TopContainer() = 0;
-
   // WARNING: Many uses of base::WeakPtr are inappropriate and lead to bugs.
   // An appropriate use case is as a variable passed to an asynchronously
   // invoked PostTask.
@@ -262,9 +252,6 @@ class BrowserWindowInterface : public content::PageNavigator {
   //   std::optional<SkColor> color_of_browser_;
   // };
   virtual base::WeakPtr<BrowserWindowInterface> GetWeakPtr() = 0;
-
-  // Returns the view that houses the Lens overlay.
-  virtual views::View* LensOverlayView() = 0;
 
   using ActiveTabChangeCallback =
       base::RepeatingCallback<void(BrowserWindowInterface*)>;

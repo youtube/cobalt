@@ -2,11 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
-#pragma allow_unsafe_buffers
-#endif
-
 #import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_header_view.h"
 
 #import <UIKit/UIKit.h>
@@ -391,7 +386,7 @@ CGFloat MIAAnimationOpacityForScrollProgress(CGFloat percent) {
                 textColor:color
             textInputTint:color
                  iconTint:color
-      presentationContext:OmniboxPresentationContext::kLocationBar];
+      presentationContext:OmniboxPresentationContext::kNTPHeader];
   omnibox.textInput.placeholder = self.placeholderText;
   [omnibox.textInput setText:@""];
   omnibox.translatesAutoresizingMaskIntoConstraints = NO;
@@ -1261,7 +1256,7 @@ CGFloat MIAAnimationOpacityForScrollProgress(CGFloat percent) {
     return kEndButtonMIAEnlargedFakebox;
   }
   // If normal sized fakebox and new bade is showing, reduce trailing space.
-  if (_useNewBadgeForLensButton && !ShouldEnlargeLogoAndFakebox()) {
+  if (_useNewBadgeForLensButton && !ShouldEnlargeNTPFakeboxForMIA()) {
     return kEndButtonNormalSizeFakeboxWithBadgeTrailingSpace;
   }
   // Common trailing space.
@@ -1387,7 +1382,7 @@ CGFloat MIAAnimationOpacityForScrollProgress(CGFloat percent) {
 #pragma mark - helpers
 
 - (CGFloat)fakeboxHorizontalMargin {
-  if (IsSplitToolbarMode(self) && ShouldEnlargeLogoAndFakebox() &&
+  if (IsSplitToolbarMode(self) && ShouldEnlargeNTPFakeboxForMIA() &&
       !ShouldEnlargeNTPFakeboxForMIA()) {
     return kLargeFakeboxHorizontalMargin;
   }

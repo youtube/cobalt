@@ -6,6 +6,7 @@
 #define CHROME_BROWSER_UI_EXTENSIONS_EXTENSIONS_MENU_VIEW_MODEL_H_
 
 #include "base/memory/raw_ptr.h"
+#include "chrome/browser/ui/toolbar/toolbar_actions_model.h"
 #include "extensions/browser/permissions_manager.h"
 #include "extensions/common/extension_id.h"
 
@@ -19,8 +20,8 @@ class ExtensionsMenuViewPlatformDelegate;
 // The platform agnostic controller for the extensions menu.
 // TODO(crbug.com/449814184): Move the observers from
 // ExtensionsMenuViewController here.
-class ExtensionsMenuViewModel
-    : public extensions::PermissionsManager::Observer {
+class ExtensionsMenuViewModel : public extensions::PermissionsManager::Observer,
+                                public ToolbarActionsModel::Observer {
  public:
   ExtensionsMenuViewModel(
       BrowserWindowInterface* browser,
@@ -28,16 +29,44 @@ class ExtensionsMenuViewModel
   ExtensionsMenuViewModel(const ExtensionsMenuViewModel&) = delete;
   const ExtensionsMenuViewModel& operator=(const ExtensionsMenuViewModel&) =
       delete;
-  virtual ~ExtensionsMenuViewModel();
-
-  // PermissionsManager::Observer:
-  void OnHostAccessRequestAdded(const extensions::ExtensionId& extension_id,
-                                int tab_id) override;
+  ~ExtensionsMenuViewModel() override;
 
   // Updates the extension's site access for the current site.
   void UpdateSiteAccess(
       const extensions::ExtensionId& extension_id,
       extensions::PermissionsManager::UserSiteAccess site_access);
+
+  // Grants the extension site access to the current site.
+  void GrantSiteAccess(const extensions::ExtensionId& extension_id);
+
+  // Revokes the extension's site access from the current site.
+  void RevokeSiteAccess(const extensions::ExtensionId& extension_id);
+
+  // Update the extension's site setting for the current site.
+  void UpdateSiteSetting(
+      extensions::PermissionsManager::UserSiteSetting site_setting);
+
+  // PermissionsManager::Observer:
+  void OnHostAccessRequestAdded(const extensions::ExtensionId& extension_id,
+                                int tab_id) override;
+  void OnHostAccessRequestUpdated(const extensions::ExtensionId& extension_id,
+                                  int tab_id) override;
+  void OnHostAccessRequestRemoved(const extensions::ExtensionId& extension_id,
+                                  int tab_id) override;
+  void OnHostAccessRequestsCleared(int tab_id) override;
+  void OnHostAccessRequestDismissedByUser(
+      const extensions::ExtensionId& extension_id,
+      const url::Origin& origin) override;
+
+  // ToolbarActionsModel::Observer:
+  void OnToolbarActionAdded(
+      const ToolbarActionsModel::ActionId& action_id) override;
+  void OnToolbarActionRemoved(
+      const ToolbarActionsModel::ActionId& action_id) override;
+  void OnToolbarActionUpdated(
+      const ToolbarActionsModel::ActionId& action_id) override;
+  void OnToolbarModelInitialized() override;
+  void OnToolbarPinnedActionsChanged() override;
 
  private:
   content::WebContents* GetActiveWebContents();
@@ -51,6 +80,10 @@ class ExtensionsMenuViewModel
   base::ScopedObservation<extensions::PermissionsManager,
                           extensions::PermissionsManager::Observer>
       permissions_manager_observation_{this};
+
+  const raw_ptr<ToolbarActionsModel> toolbar_model_;
+  base::ScopedObservation<ToolbarActionsModel, ToolbarActionsModel::Observer>
+      toolbar_model_observation_{this};
 };
 
 #endif  // CHROME_BROWSER_UI_EXTENSIONS_EXTENSIONS_MENU_VIEW_MODEL_H_

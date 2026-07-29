@@ -467,8 +467,6 @@ public class TouchToFillPaymentMethodControllerRobolectricTest {
                     /* legalMessages= */ new BnplIssuerTosDetail.LegalMessages(
                             Arrays.asList(new LegalMessageLine(LEGAL_MESSAGE_LINE)),
                             MOCK_LINK_OPENER));
-    private static final String BNPL_HIDE_OPTIONS_LINK_FOOTER_TEXT =
-            "To hide pay later options, go to <link>payment settings</link>";
 
     @Rule public MockitoRule mMockitoRule = MockitoJUnit.rule();
 
@@ -823,7 +821,7 @@ public class TouchToFillPaymentMethodControllerRobolectricTest {
                 is(R.string.autofill_bnpl_progress_sheet_closed));
 
         ModelList sheetItems = mTouchToFillPaymentMethodModel.get(SHEET_ITEMS);
-        assertThat(sheetItems.size(), is(2));
+        assertThat(sheetItems.size(), is(3));
 
         ListItem bnplSelectionProgressHeaderItem = sheetItems.get(0);
         assertThat(
@@ -843,6 +841,31 @@ public class TouchToFillPaymentMethodControllerRobolectricTest {
                         TouchToFillPaymentMethodProperties.ProgressIconProperties
                                 .PROGRESS_CONTENT_DESCRIPTION_ID),
                 is(R.string.autofill_pending_dialog_loading_accessibility_description));
+
+        ListItem bnplSelectionProgressFooter = sheetItems.get(2);
+        assertThat(
+                bnplSelectionProgressFooter.type,
+                is(TouchToFillPaymentMethodProperties.ItemType.BNPL_SELECTION_PROGRESS_FOOTER));
+        assertFooterModelHasExpectedValues(
+                sheetItems,
+                /* expectedTermsTextId= */ R.string.autofill_bnpl_issuer_bottom_sheet_terms_label,
+                /* expectedHideOptionsLinkText= */ ContextUtils.getApplicationContext()
+                        .getString(
+                                R.string
+                                        .autofill_card_bnpl_select_provider_bottom_sheet_footnote_hide_option),
+                /* expectedEnabled= */ false);
+    }
+
+    @Test
+    public void testSetVisibleHidesAndShowsProgressScreen() {
+        mCoordinator.getMediatorForTesting().showProgressScreen();
+        assertThat(mTouchToFillPaymentMethodModel.get(VISIBLE), is(true));
+
+        mCoordinator.setVisible(false);
+        assertThat(mTouchToFillPaymentMethodModel.get(VISIBLE), is(false));
+
+        mCoordinator.setVisible(true);
+        assertThat(mTouchToFillPaymentMethodModel.get(VISIBLE), is(true));
     }
 
     @Test
@@ -887,8 +910,7 @@ public class TouchToFillPaymentMethodControllerRobolectricTest {
                         List.of(
                                 BNPL_ISSUER_CONTEXT_AFFIRM_LINKED,
                                 BNPL_ISSUER_CONTEXT_KLARNA_LINKED,
-                                BNPL_ISSUER_CONTEXT_ZIP_LINKED),
-                        BNPL_HIDE_OPTIONS_LINK_FOOTER_TEXT);
+                                BNPL_ISSUER_CONTEXT_ZIP_LINKED));
 
         assertThat(
                 mTouchToFillPaymentMethodModel.get(CURRENT_SCREEN),
@@ -908,7 +930,11 @@ public class TouchToFillPaymentMethodControllerRobolectricTest {
         assertFooterModelHasExpectedValues(
                 itemList,
                 /* expectedTermsTextId= */ R.string.autofill_bnpl_issuer_bottom_sheet_terms_label,
-                /* expectedHideOptionsLinkText= */ BNPL_HIDE_OPTIONS_LINK_FOOTER_TEXT);
+                /* expectedHideOptionsLinkText= */ ContextUtils.getApplicationContext()
+                        .getString(
+                                R.string
+                                        .autofill_card_bnpl_select_provider_bottom_sheet_footnote_hide_option),
+                /* expectedEnabled= */ true);
     }
 
     @Test
@@ -919,8 +945,7 @@ public class TouchToFillPaymentMethodControllerRobolectricTest {
                         List.of(
                                 BNPL_ISSUER_CONTEXT_AFFIRM_UNLINKED,
                                 BNPL_ISSUER_CONTEXT_KLARNA_UNLINKED,
-                                BNPL_ISSUER_CONTEXT_ZIP_UNLINKED),
-                        BNPL_HIDE_OPTIONS_LINK_FOOTER_TEXT);
+                                BNPL_ISSUER_CONTEXT_ZIP_UNLINKED));
 
         assertThat(
                 mTouchToFillPaymentMethodModel.get(CURRENT_SCREEN),
@@ -940,7 +965,11 @@ public class TouchToFillPaymentMethodControllerRobolectricTest {
         assertFooterModelHasExpectedValues(
                 itemList,
                 /* expectedTermsTextId= */ R.string.autofill_bnpl_issuer_bottom_sheet_terms_label,
-                /* expectedHideOptionsLinkText= */ BNPL_HIDE_OPTIONS_LINK_FOOTER_TEXT);
+                /* expectedHideOptionsLinkText= */ ContextUtils.getApplicationContext()
+                        .getString(
+                                R.string
+                                        .autofill_card_bnpl_select_provider_bottom_sheet_footnote_hide_option),
+                /* expectedEnabled= */ true);
     }
 
     @Test
@@ -951,8 +980,7 @@ public class TouchToFillPaymentMethodControllerRobolectricTest {
                         List.of(
                                 BNPL_ISSUER_CONTEXT_INELIGIBLE_NOT_SUPPORTED_BY_MERCHANT,
                                 BNPL_ISSUER_CONTEXT_INELIGIBLE_CHECKOUT_AMOUNT_TOO_LOW,
-                                BNPL_ISSUER_CONTEXT_INELIGIBLE_CHECKOUT_AMOUNT_TOO_HIGH),
-                        BNPL_HIDE_OPTIONS_LINK_FOOTER_TEXT);
+                                BNPL_ISSUER_CONTEXT_INELIGIBLE_CHECKOUT_AMOUNT_TOO_HIGH));
 
         assertThat(
                 mTouchToFillPaymentMethodModel.get(CURRENT_SCREEN),
@@ -975,16 +1003,18 @@ public class TouchToFillPaymentMethodControllerRobolectricTest {
         assertFooterModelHasExpectedValues(
                 itemList,
                 /* expectedTermsTextId= */ R.string.autofill_bnpl_issuer_bottom_sheet_terms_label,
-                /* expectedHideOptionsLinkText= */ BNPL_HIDE_OPTIONS_LINK_FOOTER_TEXT);
+                /* expectedHideOptionsLinkText= */ ContextUtils.getApplicationContext()
+                        .getString(
+                                R.string
+                                        .autofill_card_bnpl_select_provider_bottom_sheet_footnote_hide_option),
+                /* expectedEnabled= */ true);
     }
 
     @Test
     public void testShowBnplIssuerScreenFooterLinkOpensPaymentMethodSettings() {
         mCoordinator
                 .getMediatorForTesting()
-                .showBnplIssuers(
-                        List.of(BNPL_ISSUER_CONTEXT_AFFIRM_LINKED),
-                        BNPL_HIDE_OPTIONS_LINK_FOOTER_TEXT);
+                .showBnplIssuers(List.of(BNPL_ISSUER_CONTEXT_AFFIRM_LINKED));
         assertThat(
                 mTouchToFillPaymentMethodModel.get(CURRENT_SCREEN),
                 is(BNPL_ISSUER_SELECTION_SCREEN));
@@ -1997,12 +2027,13 @@ public class TouchToFillPaymentMethodControllerRobolectricTest {
     private static void assertFooterModelHasExpectedValues(
             ModelList itemList,
             @StringRes int expectedTermsTextId,
-            String expectedHideOptionsLinkText) {
+            String expectedHideOptionsLinkText,
+            boolean expectedEnabled) {
         Optional<PropertyModel> footerModel = getBnplSelectionProgressFooterModel(itemList);
         assertTrue(footerModel.isPresent());
         assertThat(footerModel.get().get(TERMS_TEXT_ID), is(expectedTermsTextId));
         assertThat(footerModel.get().get(HIDE_OPTIONS_LINK_TEXT), is(expectedHideOptionsLinkText));
-        assertFalse(footerModel.get().get(APPLY_LINK_DEACTIVATED_STYLE));
+        assertThat(footerModel.get().get(APPLY_LINK_DEACTIVATED_STYLE), is(!expectedEnabled));
         assertNotNull(footerModel.get().get(ON_LINK_CLICK_CALLBACK));
     }
 

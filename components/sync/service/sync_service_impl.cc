@@ -1549,10 +1549,6 @@ base::Time SyncServiceImpl::GetLastSyncedTimeForDebugging() const {
 void SyncServiceImpl::OnSelectedTypesChanged() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
-  if (data_type_manager_) {
-    data_type_manager_->ResetDataTypeErrors();
-  }
-
   ConfigureDataTypeManager(CONFIGURE_REASON_RECONFIGURATION,
                            /*bypass_setup_in_progress_check=*/false);
 }
@@ -1630,14 +1626,13 @@ DataTypeSet SyncServiceImpl::GetDataTypesForTransportOnlyMode() const {
 DataTypeSet SyncServiceImpl::GetActiveDataTypes() const {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
-  if (!engine_ || !engine_->IsInitialized() || !data_type_manager_) {
+  // Return an empty set unless the TransportState is ACTIVE. (There may in fact
+  // also be active types while it is CONFIGURING, but those are not exposed to
+  // clients, mostly for historic reasons.)
+  if (GetTransportState() != TransportState::ACTIVE) {
     return DataTypeSet();
   }
-
-  // Persistent auth errors lead to PAUSED, which implies
-  // engine_==null above.
-  CHECK(!GetAuthError().IsPersistentError());
-
+  CHECK(data_type_manager_);
   return data_type_manager_->GetActiveDataTypes();
 }
 

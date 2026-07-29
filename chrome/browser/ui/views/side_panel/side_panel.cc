@@ -18,6 +18,7 @@
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/top_container_background.h"
+#include "chrome/browser/ui/views/side_panel/side_panel_entry.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_enums.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_resize_area.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_ui.h"
@@ -28,6 +29,7 @@
 #include "components/prefs/pref_service.h"
 #include "components/prefs/scoped_user_pref_update.h"
 #include "third_party/skia/include/core/SkPath.h"
+#include "third_party/skia/include/core/SkRRect.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/base/ui_base_features.h"
@@ -132,15 +134,14 @@ class SidePanelBorder : public views::Border {
       gfx::ScopedCanvas scoped_rescale(canvas);
       canvas->Scale(dsf, dsf);
 
-      const SkScalar border_radii[8] = {
-          border_radii_.upper_left(),  border_radii_.upper_left(),
-          border_radii_.upper_right(), border_radii_.upper_right(),
-          border_radii_.lower_right(), border_radii_.lower_right(),
-          border_radii_.lower_left(),  border_radii_.lower_left()};
+      const SkVector border_radii[4] = {
+          {border_radii_.upper_left(),  border_radii_.upper_left()},
+          {border_radii_.upper_right(), border_radii_.upper_right()},
+          {border_radii_.lower_right(), border_radii_.lower_right()},
+          {border_radii_.lower_left(),  border_radii_.lower_left()}};
 
-      SkPath rounded_border_path;
-      rounded_border_path.addRoundRect(gfx::RectToSkRect(view.GetLocalBounds()),
-                                       border_radii, SkPathDirection::kCW);
+      const SkPath rounded_border_path = SkPath::RRect(SkRRect::MakeRectRadii(
+          gfx::RectToSkRect(view.GetLocalBounds()), border_radii));
 
       // Add another clip to the canvas that rounds the outer corners of the
       // border. This is done in DIPs because for some device scale factors, the
@@ -312,10 +313,12 @@ class SidePanel::VisibleBoundsViewClipper : public views::ViewObserver {
 };
 
 SidePanel::SidePanel(BrowserView* browser_view,
+                     SidePanelEntry::PanelType type,
                      bool has_border,
                      HorizontalAlignment horizontal_alignment)
     : views::AnimationDelegateViews(this),
       browser_view_(browser_view),
+      type_(type),
       visible_bounds_view_clipper_(
           std::make_unique<VisibleBoundsViewClipper>(this)),
       horizontal_alignment_(horizontal_alignment) {
@@ -421,7 +424,7 @@ void SidePanel::UpdateWidthOnEntryChanged() {
   if (std::optional<int> width_from_pref = dict.FindInt(panel_id)) {
     SetPanelWidth(width_from_pref.value());
   } else {
-    SetPanelWidth(side_panel_ui->GetCurrentEntryDefaultContentWidth() +
+    SetPanelWidth(side_panel_ui->GetCurrentEntryDefaultContentWidth(type_) +
                   GetBorderInsets().width());
   }
 }
@@ -430,11 +433,11 @@ void SidePanel::SetHorizontalAlignment(HorizontalAlignment alignment) {
   horizontal_alignment_ = alignment;
 }
 
-SidePanel::HorizontalAlignment SidePanel::GetHorizontalAlignment() {
+SidePanel::HorizontalAlignment SidePanel::GetHorizontalAlignment() const {
   return horizontal_alignment_;
 }
 
-bool SidePanel::IsRightAligned() {
+bool SidePanel::IsRightAligned() const {
   return GetHorizontalAlignment() == HorizontalAlignment::kRight;
 }
 

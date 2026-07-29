@@ -17,7 +17,7 @@
 #include "base/containers/flat_map.h"
 #include "base/containers/flat_set.h"
 #include "base/memory/raw_ptr.h"
-#include "base/memory/ref_counted.h"
+#include "base/memory/scoped_refptr.h"
 #include "build/build_config.h"
 #include "gpu/command_buffer/common/debug_marker_manager.h"
 #include "gpu/command_buffer/common/discardable_handle.h"
@@ -385,10 +385,6 @@ class GPU_GLES2_EXPORT GLES2DecoderPassthroughImpl
 
   void SetOptionalExtensionsRequestedForTesting(bool request_extensions);
 
-  void InitializeFeatureInfo(ContextType context_type,
-                             const DisallowedFeatures& disallowed_features,
-                             bool force_reinitialize);
-
   template <typename T, typename GLGetFunction>
   error::Error GetNumericHelper(GLenum pname,
                                 GLsizei bufsize,
@@ -599,7 +595,6 @@ class GPU_GLES2_EXPORT GLES2DecoderPassthroughImpl
 
     std::unique_ptr<gl::GLFence> commands_completed_fence;
     base::TimeDelta commands_issued_time;
-    base::TimeTicks commands_issued_timestamp;
 
     std::vector<base::OnceClosure> callbacks;
     std::unique_ptr<gl::GLFence> buffer_shadow_update_fence;

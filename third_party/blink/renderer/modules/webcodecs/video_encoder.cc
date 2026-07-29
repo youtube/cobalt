@@ -23,9 +23,11 @@
 #include "components/viz/common/gpu/raster_context_provider.h"
 #include "gpu/GLES2/gl2extchromium.h"
 #include "gpu/command_buffer/client/raster_interface.h"
+#include "gpu/config/gpu_finch_features.h"
 #include "media/base/async_destroy_video_encoder.h"
 #include "media/base/limits.h"
 #include "media/base/media_log.h"
+#include "media/base/media_util.h"
 #include "media/base/mime_util.h"
 #include "media/base/supported_types.h"
 #include "media/base/svc_scalability_mode.h"
@@ -688,7 +690,9 @@ std::unique_ptr<media::VideoEncoder> CreateVpxVideoEncoder() {
 
 std::unique_ptr<media::VideoEncoder> CreateOpenH264VideoEncoder() {
 #if BUILDFLAG(ENABLE_OPENH264)
-  return std::make_unique<media::OpenH264VideoEncoder>();
+  return media::IsOpenH264SoftwareEncoderEnabled()
+             ? std::make_unique<media::OpenH264VideoEncoder>()
+             : nullptr;
 #else
   return nullptr;
 #endif  // BUILDFLAG(ENABLE_OPENH264)
@@ -1100,6 +1104,9 @@ void VideoEncoder::ProcessEncode(Request* request) {
 
   bool mappable = frame->IsMappable() || frame->HasMappableGpuBuffer();
   bool can_handle_shared_image =
+#if BUILDFLAG(IS_WIN)
+      !base::FeatureList::IsEnabled(features::kSkiaGraphite) &&
+#endif  // BUILDFLAG(IS_WIN)
       encoder_info_.DoesSupportGpuSharedImages(frame->format()) &&
       frame->HasSharedImage();
 

@@ -16,6 +16,7 @@ import org.chromium.ui.modelutil.PropertyModel.WritableObjectPropertyKey;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
+import java.util.List;
 
 /** Properties for the Tips Notifications promo bottom sheet. */
 @NullMarked
@@ -32,19 +33,34 @@ public class TipsPromoProperties {
     }
 
     /** Contains information needed by the Tips Promo View to display UI. */
+    @NullMarked
     public static class FeatureTipPromoData {
+        public final String positiveButtonText;
         public final String mainPageTitle;
         public final String mainPageDescription;
+        public final String detailPageTitle;
+        public final List<String> detailPageSteps;
 
         /**
          * Create a {@link FeatureTipPromoData} object containing feature tip data.
          *
+         * @param positiveButtonText The text on the positive button on the promo.
          * @param mainPageTitle The title of the main page of the promo.
          * @param mainPageDescription The description of the main page of the promo.
+         * @param detailPageTitle The title of the detail page of the promo.
+         * @param detailPageSteps The info steps for the detail page of the promo.
          */
-        public FeatureTipPromoData(String mainPageTitle, String mainPageDescription) {
+        public FeatureTipPromoData(
+                String positiveButtonText,
+                String mainPageTitle,
+                String mainPageDescription,
+                String detailPageTitle,
+                List<String> detailPageSteps) {
+            this.positiveButtonText = positiveButtonText;
             this.mainPageTitle = mainPageTitle;
             this.mainPageDescription = mainPageDescription;
+            this.detailPageTitle = detailPageTitle;
+            this.detailPageSteps = detailPageSteps;
         }
     }
 
@@ -54,6 +70,10 @@ public class TipsPromoProperties {
 
     /** Indicates which {@link ScreenType} is currently displayed on the bottom sheet. */
     public static final WritableIntPropertyKey CURRENT_SCREEN = new WritableIntPropertyKey();
+
+    /** Click listener for the back button. */
+    public static final WritableObjectPropertyKey<OnClickListener> BACK_BUTTON_CLICK_LISTENER =
+            new WritableObjectPropertyKey<>();
 
     /** Click listener for the details button. */
     public static final WritableObjectPropertyKey<OnClickListener> DETAILS_BUTTON_CLICK_LISTENER =
@@ -66,6 +86,7 @@ public class TipsPromoProperties {
     public static final PropertyKey[] ALL_KEYS = {
         FEATURE_TIP_PROMO_DATA,
         CURRENT_SCREEN,
+        BACK_BUTTON_CLICK_LISTENER,
         DETAILS_BUTTON_CLICK_LISTENER,
         SETTINGS_BUTTON_CLICK_LISTENER
     };

@@ -121,13 +121,13 @@ class GLOzoneEGLGbm : public GLOzoneEGL {
 
   ~GLOzoneEGLGbm() override = default;
 
-  bool CanImportNativePixmap(gfx::BufferFormat format) override {
+  bool CanImportNativePixmap(viz::SharedImageFormat format) override {
     if (!gl::GLSurfaceEGL::GetGLDisplayEGL()
              ->ext->b_EGL_EXT_image_dma_buf_import) {
       return false;
     }
 
-    return NativePixmapEGLBinding::IsBufferFormatSupported(format);
+    return NativePixmapEGLBinding::IsSharedImageFormatSupported(format);
   }
 
   std::unique_ptr<NativePixmapGLBinding> ImportNativePixmap(
@@ -433,7 +433,7 @@ scoped_refptr<gfx::NativePixmap>
 GbmSurfaceFactory::CreateNativePixmapFromHandle(
     gfx::AcceleratedWidget widget,
     gfx::Size size,
-    gfx::BufferFormat format,
+    viz::SharedImageFormat format,
     gfx::NativePixmapHandle handle) {
   // Query the external service (if available), whether it recognizes this
   // NativePixmapHandle, and whether it can provide a corresponding NativePixmap
@@ -445,8 +445,9 @@ GbmSurfaceFactory::CreateNativePixmapFromHandle(
       return protected_pixmap;
   }
 
-  return CreateNativePixmapFromHandleInternal(widget, size, format,
-                                              std::move(handle));
+  return CreateNativePixmapFromHandleInternal(
+      widget, size, viz::SharedImageFormatToBufferFormat(format),
+      std::move(handle));
 }
 
 scoped_refptr<gfx::NativePixmap>

@@ -377,9 +377,8 @@ class CONTENT_EXPORT Metrics {
   // Records whether the browser's knowledge of whether the user is signed into
   // the IDP based on observing signin/signout HTTP headers matches the
   // information returned by the accounts endpoint.
-  static void RecordIdpSigninMatchStatus(
-      std::optional<bool> idp_signin_status,
-      IdpNetworkRequestManager::ParseStatus accounts_endpoint_status);
+  static void RecordIdpSigninMatchStatus(std::optional<bool> idp_signin_status,
+                                         ParseStatus accounts_endpoint_status);
 
   // Records the time from when a call to the API was made to when the accounts
   // dialog is shown. This does not include flows that involve LoginToIdP. e.g.
@@ -504,6 +503,7 @@ class CONTENT_EXPORT Metrics {
       bool auto_reauthn_success,
       bool is_auto_reauthn_setting_blocked,
       bool is_auto_reauthn_embargoed,
+      bool is_auto_reauthn_blocked_by_embedder,
       std::optional<base::TimeDelta> time_from_embargo,
       bool requires_user_mediation);
 

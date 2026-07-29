@@ -52,14 +52,12 @@
 #import "ios/chrome/browser/discover_feed/model/discover_feed_service_factory.h"
 #import "ios/chrome/browser/discover_feed/model/discover_feed_visibility_observer.h"
 #import "ios/chrome/browser/discover_feed/model/feed_constants.h"
-#import "ios/chrome/browser/discover_feed/model/feed_model_configuration.h"
 #import "ios/chrome/browser/feature_engagement/model/tracker_factory.h"
 #import "ios/chrome/browser/google/model/google_logo_service_factory.h"
 #import "ios/chrome/browser/home_customization/coordinator/home_customization_coordinator.h"
 #import "ios/chrome/browser/home_customization/coordinator/home_customization_delegate.h"
 #import "ios/chrome/browser/home_customization/utils/home_customization_constants.h"
 #import "ios/chrome/browser/lens/ui_bundled/lens_entrypoint.h"
-#import "ios/chrome/browser/ntp/model/new_tab_page_state.h"
 #import "ios/chrome/browser/ntp/model/new_tab_page_tab_helper.h"
 #import "ios/chrome/browser/ntp/model/new_tab_page_util.h"
 #import "ios/chrome/browser/ntp/search_engine_logo/mediator/search_engine_logo_mediator.h"
@@ -132,6 +130,8 @@
 #import "ios/chrome/browser/signin/model/system_identity_manager.h"
 #import "ios/chrome/browser/supervised_user/model/family_link_user_capabilities_observer_bridge.h"
 #import "ios/chrome/browser/sync/model/sync_service_factory.h"
+#import "ios/chrome/browser/tab_switcher/tab_grid/base_grid/coordinator/tab_grid_observing.h"
+#import "ios/chrome/browser/tab_switcher/tab_grid/base_grid/coordinator/tab_grid_scene_agent.h"
 #import "ios/chrome/browser/toolbar/ui_bundled/public/fakebox_focuser.h"
 #import "ios/chrome/browser/toolbar/ui_bundled/tab_groups/coordinator/tab_group_indicator_coordinator.h"
 #import "ios/chrome/browser/url_loading/model/url_loading_browser_agent.h"
@@ -167,6 +167,7 @@
                                      OverscrollActionsControllerDelegate,
                                      ProfileStateObserver,
                                      SceneStateObserver,
+                                     TabGridObserving,
                                      FamilyLinkUserCapabilitiesObserving,
                                      NewTabPageShortcutsHandler> {
   // Observes changes in the IdentityManager.
@@ -329,6 +330,8 @@
   SceneState* sceneState = self.browser->GetSceneState();
   [sceneState addObserver:self];
 
+  [[TabGridSceneAgent agentFromScene:sceneState] addObserver:self];
+
   // Configures incognito NTP if user is in incognito mode.
   if (self.isOffTheRecord) {
     DCHECK(!self.incognitoViewController);
@@ -391,6 +394,8 @@
 
   SceneState* sceneState = self.browser->GetSceneState();
   [sceneState removeObserver:self];
+
+  [[TabGridSceneAgent agentFromScene:sceneState] removeObserver:self];
 
   if (self.isOffTheRecord) {
     self.incognitoViewController = nil;
@@ -545,7 +550,7 @@
 - (void)didNavigateToNTPInWebState:(web::WebState*)webState {
   CHECK(self.started);
   self.webState = webState;
-  [self restoreNTPState];
+  [self restoreNTPScrollPosition];
   [self updateNTPIsVisible:YES];
   [self updateStartForVisibilityChange:YES];
   [self.toolbarDelegate didNavigateToNTPOnActiveWebState];
@@ -554,7 +559,7 @@
 - (void)didNavigateAwayFromNTP {
   [self cancelOmniboxEdit];
   [self dismissCustomizationMenu];
-  [self.NTPMediator saveNTPStateForWebState:self.webState];
+  [self.NTPMediator saveNTPScrollPositionForWebState:self.webState];
   [self updateNTPIsVisible:NO];
   [self updateStartForVisibilityChange:NO];
   self.webState = nullptr;
@@ -1679,10 +1684,10 @@
   [handler showSnackbarMessage:message];
 }
 
-// Restores the saved state of the NTP associated with `self.webState` if
-// necessary.
-- (void)restoreNTPState {
-  [self.NTPMediator restoreNTPStateForWebState:self.webState];
+// Restores the saved scroll position of the NTP associated with `self.webState`
+// if necessary.
+- (void)restoreNTPScrollPosition {
+  [self.NTPMediator restoreNTPScrollPositionForWebState:self.webState];
 }
 
 // Opens the Home customization menu at a specific `page`.
@@ -1844,6 +1849,16 @@
   id<ApplicationCommands> applicationHandler = HandlerForProtocol(
       self.browser->GetCommandDispatcher(), ApplicationCommands);
   [applicationHandler openURLInNewTab:command];
+}
+
+#pragma mark - TabGridObserving
+
+- (void)willEnterTabGrid {
+  [self clearPresentedState];
+}
+
+- (void)willExitTabGrid {
+  // Do nothing.
 }
 
 @end

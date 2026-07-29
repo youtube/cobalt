@@ -195,6 +195,12 @@ class LensSearchController {
   // Gets the page title.
   std::optional<std::string> GetPageTitle();
 
+  // Handles the creation of a new thumbnail from a bitmap.
+  void HandleThumbnailCreatedBitmap(const SkBitmap& thumbnail);
+
+  // Clears the visual selection thumbnail on the searchbox.
+  void ClearVisualSelectionThumbnail();
+
   // Returns the weak pointer to this class.
   base::WeakPtr<LensSearchController> GetWeakPtr();
 
@@ -291,6 +297,9 @@ class LensSearchController {
   // cleaning up.
   void CloseLensPart2(lens::LensOverlayDismissalSource dismissal_source);
 
+  // Called on the UI thread with the processed thumbnail URI.
+  void OnThumbnailProcessed(const std::string& thumbnail_uri);
+
   // The final step for closing the overlay. This is called after the lens
   // overlay has faded out.
   void OnOverlayHidden(std::optional<lens::LensOverlayDismissalSource> dismissal_source);
@@ -343,6 +352,9 @@ class LensSearchController {
   void StartLensSession(lens::LensOverlayInvocationSource invocation_source,
                         bool suppress_contextualization = false);
 
+  // Shows the mobile promo if the user is eligible.
+  void MaybeShowMobilePromo();
+
   // Runs the eligibility checks necessary for Lens to open on this tab. If the
   // user has not granted permission to use Lens on this tab, the permission
   // request will be shown and callback will be called after the user accepts.
@@ -376,7 +388,7 @@ class LensSearchController {
       lens::proto::LensOverlaySuggestInputs suggest_inputs);
 
   // Callback used by the query controller to pass the thumbnail bytes of a
-  // visual interaction request to the searchbox.
+  // visual interaction request to the searchbox and composebox.
   void HandleThumbnailCreated(const std::string& thumbnail_bytes,
                               const SkBitmap& region_bitmap);
 

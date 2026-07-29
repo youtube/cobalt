@@ -30,7 +30,8 @@ class GlicKeyedService;
 class GlicWebClientHandler;
 
 // Handles the Mojo requests coming from the Glic WebUI.
-class GlicPageHandler : public glic::mojom::PageHandler {
+class GlicPageHandler : public glic::mojom::PageHandler,
+                        public PanelStateObserver {
  public:
   GlicPageHandler(content::WebContents* webui_contents,
                   mojo::PendingReceiver<glic::mojom::PageHandler> receiver,
@@ -78,10 +79,17 @@ class GlicPageHandler : public glic::mojom::PageHandler {
 
   void WebUiStateChanged(glic::mojom::WebUiState new_state) override;
 
+  // PanelStateObserver implementation.
+  void PanelStateChanged(const glic::mojom::PanelState& panel_state,
+                         const PanelStateContext& context) override;
+
+  void UpdatePageState(mojom::PanelStateKind panelStateKind);
+
   Host& host() { return *host_; }
 
  private:
-  void AllowedChanged();
+  void UpdateProfileReadyState();
+
   GlicKeyedService* GetGlicService();
 
   // HostManager keeps the host alive while GlicPageHandler is alive.

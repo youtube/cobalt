@@ -9,6 +9,7 @@
 #include "base/time/time.h"
 #include "base/timer/timer.h"
 #include "chrome/browser/ui/views/chrome_views_export.h"
+#include "chrome/browser/ui/views/toolbar/reload_control.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_button.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/base/mojom/menu_source_type.mojom-forward.h"
@@ -17,6 +18,8 @@
 
 class CommandUpdater;
 class Profile;
+class WaapUIMetricsRecorder;
+class WaapUIMetricsRecorder;
 
 ////////////////////////////////////////////////////////////////////////////////
 //
@@ -28,33 +31,26 @@ class Profile;
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-class ReloadButton : public ToolbarButton,
-                     public ui::SimpleMenuModel::Delegate {
+class ReloadButton : public ToolbarButton, public ReloadControl {
   METADATA_HEADER(ReloadButton, ToolbarButton)
 
  public:
-  enum class Mode { kReload = 0, kStop };
-
   ReloadButton(Profile* profile, CommandUpdater* command_updater);
   ReloadButton(const ReloadButton&) = delete;
   ReloadButton& operator=(const ReloadButton&) = delete;
   ~ReloadButton() override;
 
-  // Ask for a specified button state.  If |force| is true this will be applied
-  // immediately.
-  void ChangeMode(Mode mode, bool force);
   Mode visible_mode() const { return visible_mode_; }
 
   void SetVectorIconsForMode(Mode mode,
                              const gfx::VectorIcon& icon,
                              const gfx::VectorIcon& touch_icon);
 
-  // Gets/Sets whether reload drop-down menu is enabled.
-  bool GetMenuEnabled() const;
-  void SetMenuEnabled(bool enable);
-
   // ToolbarButton:
+  void OnMouseEntered(const ui::MouseEvent& event) override;
   void OnMouseExited(const ui::MouseEvent& event) override;
+  bool OnMousePressed(const ui::MouseEvent& event) override;
+  void OnMouseReleased(const ui::MouseEvent& event) override;
   bool ShouldShowMenu() override;
   void ShowDropDownMenu(ui::mojom::MenuSourceType source_type) override;
 
@@ -69,10 +65,17 @@ class ReloadButton : public ToolbarButton,
   bool IsCommandIdVisible(int command_id) const override;
   bool GetAcceleratorForCommandId(int command_id,
                                   ui::Accelerator* accelerator) const override;
+
+  // ReloadControl overrides:
+  void ChangeMode(Mode mode, bool force) override;
+  bool GetMenuEnabled() const override;
+  void SetMenuEnabled(bool is_menu_enabled) override;
+  views::View* GetAsViewClassForTesting() override;
+
   void ExecuteCommand(int command_id, int event_flags) override;
 
  private:
-  friend class ReloadButtonTest;
+  friend class ReloadButtonTestBase;
   FRIEND_TEST_ALL_PREFIXES(ReloadButtonTest, TooltipText);
   FRIEND_TEST_ALL_PREFIXES(ReloadButtonTest, TooltipTextAccessibility);
 
@@ -93,8 +96,9 @@ class ReloadButton : public ToolbarButton,
   // Timer to delay switching between reload and stop states.
   base::OneShotTimer mode_switch_timer_;
 
-  // This may be null.
-  const raw_ptr<Profile> profile_;
+  // This can't be null. But it may not record anything if the feature is
+  // disabled or if profile is missing.
+  const std::unique_ptr<WaapUIMetricsRecorder> metrics_recorder_;
 
   // This may be NULL when testing.
   raw_ptr<CommandUpdater, DanglingUntriaged> command_updater_;
@@ -117,7 +121,7 @@ class ReloadButton : public ToolbarButton,
   base::TimeDelta mode_switch_timer_delay_;
 
   // Indicates if reload menu is enabled.
-  bool menu_enabled_ = false;
+  bool is_menu_enabled_ = false;
 
   // TESTING ONLY
   // True if we should pretend the button is hovered.

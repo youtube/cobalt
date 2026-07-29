@@ -7,12 +7,16 @@
 #include <memory>
 #include <utility>
 
+#include "base/strings/utf_string_conversions.h"
 #include "base/token.h"
 #include "chrome/browser/tab/collection_storage_package.h"
 #include "chrome/browser/tab/payload.h"
+#include "chrome/browser/tab/protocol/children.pb.h"
 #include "chrome/browser/tab/protocol/split_collection_state.pb.h"
+#include "chrome/browser/tab/protocol/tab_group_collection_state.pb.h"
 #include "chrome/browser/tab/storage_id_mapping.h"
 #include "chrome/browser/tab/storage_package.h"
+#include "chrome/browser/tab/tab_group_collection_data.h"
 #include "chrome/browser/tab/tab_storage_package.h"
 #include "chrome/browser/tab/tab_storage_type.h"
 #include "chrome/browser/tab/tab_storage_util.h"
@@ -46,7 +50,21 @@ class ChildProcessor : public DirectChildWalker::Processor {
 class EmptyPayload : public Payload {
  public:
   EmptyPayload() = default;
-  std ::string SerializePayload() const override { return ""; }
+  std::string SerializePayload() const override { return ""; }
+};
+
+// A payload representing the collection children.
+class ChildrenPayload : public Payload {
+ public:
+  explicit ChildrenPayload(tabs_pb::Children children)
+      : children_(std::move(children)) {}
+
+  std::string SerializePayload() const override {
+    return children_.SerializeAsString();
+  }
+
+ private:
+  tabs_pb::Children children_;
 };
 
 // A payload of data representing SplitTabCollections.
@@ -58,7 +76,7 @@ class SplitCollectionStorageData : public Payload {
 
   ~SplitCollectionStorageData() override = default;
 
-  std ::string SerializePayload() const override {
+  std::string SerializePayload() const override {
     return split_collection_state_.SerializeAsString();
   }
 
@@ -66,17 +84,38 @@ class SplitCollectionStorageData : public Payload {
   tabs_pb::SplitCollectionState split_collection_state_;
 };
 
+// A payload of data representing TabGroupTabCollection.
+class TabGroupCollectionStorageData : public Payload {
+ public:
+  explicit TabGroupCollectionStorageData(tabs_pb::TabGroupCollectionState state)
+      : state_(std::move(state)) {}
+
+  ~TabGroupCollectionStorageData() override = default;
+
+  std::string SerializePayload() const override {
+    return state_.SerializeAsString();
+  }
+
+ private:
+  tabs_pb::TabGroupCollectionState state_;
+};
+
 TabStoragePackager::TabStoragePackager() = default;
 TabStoragePackager::~TabStoragePackager() = default;
+
+void PopulateChildren(tabs_pb::Children& children_proto,
+                      const TabCollection* collection,
+                      StorageIdMapping& mapping) {
+  ChildProcessor processor(children_proto, mapping);
+  DirectChildWalker walker(collection, &processor);
+  walker.Walk();
+}
 
 std::unique_ptr<StoragePackage> TabStoragePackager::Package(
     const TabCollection* collection,
     StorageIdMapping& mapping) {
   tabs_pb::Children children_proto;
-
-  ChildProcessor processor(children_proto, mapping);
-  DirectChildWalker walker(collection, &processor);
-  walker.Walk();
+  PopulateChildren(children_proto, collection, mapping);
 
   // TODO(crbug.com/450532811): Handle collection subtype-specific data.
   std::unique_ptr<Payload> metadata;
@@ -93,6 +132,32 @@ std::unique_ptr<StoragePackage> TabStoragePackager::Package(
 
   return std::make_unique<CollectionStoragePackage>(std::move(metadata),
                                                     std::move(children_proto));
+}
+
+std::unique_ptr<Payload> TabStoragePackager::PackageChildren(
+    const TabCollection* collection,
+    StorageIdMapping& mapping) {
+  tabs_pb::Children children_proto;
+
+  PopulateChildren(children_proto, collection, mapping);
+  return std::make_unique<ChildrenPayload>(std::move(children_proto));
+}
+
+std::unique_ptr<Payload> TabStoragePackager::PackageTabGroupTabCollectionData(
+    const TabGroupTabCollection* collection,
+    StorageIdMapping& mapping) {
+  tabs_pb::TabGroupCollectionState state;
+  const base::Token group_id = collection->GetTabGroupId().token();
+  state.set_group_id_high(group_id.high());
+  state.set_group_id_low(group_id.low());
+
+  const tab_groups::TabGroupVisualData* visual_data =
+      collection->GetTabGroup()->visual_data();
+  state.set_color(static_cast<int32_t>(visual_data->color()));
+  state.set_is_collapsed(visual_data->is_collapsed());
+  state.set_title(base::UTF16ToUTF8(visual_data->title()));
+
+  return std::make_unique<TabGroupCollectionStorageData>(std::move(state));
 }
 
 std::unique_ptr<Payload> TabStoragePackager::PackageSplitTabCollectionData(

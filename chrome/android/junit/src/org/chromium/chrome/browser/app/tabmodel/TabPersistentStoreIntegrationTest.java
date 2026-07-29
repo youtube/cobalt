@@ -87,7 +87,11 @@ import java.util.concurrent.atomic.AtomicInteger;
 @EnableFeatures({ChromeFeatureList.PROCESS_RANK_POLICY_ANDROID})
 @DisableFeatures({
     ChromeFeatureList.ANDROID_TAB_DECLUTTER_RESCUE_KILLSWITCH,
-    ChromeFeatureList.CHANGE_UNFOCUSED_PRIORITY
+    ChromeFeatureList.CHANGE_UNFOCUSED_PRIORITY,
+    // TODO(crbug.com/454298057): This test should use a mock TabModel or be changed to an
+    // instrumentation test. A unit test is not compatible with TabCollectionTabModelImpl as it
+    // requires native initialization.
+    ChromeFeatureList.TAB_COLLECTION_ANDROID
 })
 public class TabPersistentStoreIntegrationTest {
     public @Rule MockitoRule mMockitoRule = MockitoJUnit.rule().strictness(Strictness.LENIENT);

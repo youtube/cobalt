@@ -125,7 +125,9 @@ namespace autofill::payments {
 ChromePaymentsAutofillClient::ChromePaymentsAutofillClient(
     ContentAutofillClient* client)
     : content::WebContentsObserver(&client->GetWebContents()),
-      client_(CHECK_DEREF(client)) {}
+      client_(CHECK_DEREF(client)),
+      save_and_fill_manager_(
+          std::make_unique<payments::SaveAndFillManagerImpl>(&client_.get())) {}
 
 ChromePaymentsAutofillClient::~ChromePaymentsAutofillClient() = default;
 
@@ -1030,6 +1032,15 @@ void ChromePaymentsAutofillClient::HideTouchToFillPaymentMethod() {
 #endif
 }
 
+void ChromePaymentsAutofillClient::SetTouchToFillVisible(bool visible) {
+#if BUILDFLAG(IS_ANDROID)
+  GetTouchToFillPaymentMethodController()->SetVisible(visible);
+#else
+  // Touch To Fill is not supported on Desktop.
+  NOTREACHED();
+#endif
+}
+
 PaymentsDataManager& ChromePaymentsAutofillClient::GetPaymentsDataManager() {
   return client_->GetPersonalDataManager().payments_data_manager();
 }
@@ -1060,10 +1071,6 @@ SaveAndFillManager* ChromePaymentsAutofillClient::GetSaveAndFillManager() {
 #if BUILDFLAG(IS_ANDROID)
   return nullptr;
 #else
-  if (!save_and_fill_manager_) {
-    save_and_fill_manager_ =
-        std::make_unique<payments::SaveAndFillManagerImpl>(&client_.get());
-  }
   return save_and_fill_manager_.get();
 #endif  // BUILDFLAG(IS_ANDROID)
 }

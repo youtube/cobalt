@@ -6,7 +6,10 @@
 
 #include "third_party/blink/renderer/core/css/css_unparsed_declaration_value.h"
 #include "third_party/blink/renderer/core/css/media_feature_names.h"
+#include "third_party/blink/renderer/core/css/media_list.h"
+#include "third_party/blink/renderer/core/css/media_query_exp.h"
 #include "third_party/blink/renderer/core/css/parser/css_parser_context.h"
+#include "third_party/blink/renderer/core/css/parser/css_parser_token_stream.h"
 #include "third_party/blink/renderer/core/css/parser/css_tokenizer.h"
 #include "third_party/blink/renderer/core/css/parser/css_variable_parser.h"
 #include "third_party/blink/renderer/core/css/properties/css_parsing_utils.h"
@@ -134,6 +137,13 @@ MediaQuerySet* MediaQueryParser::ParseMediaCondition(
     ExecutionContext* execution_context) {
   return MediaQueryParser(kMediaConditionParser, execution_context)
       .ParseImpl(stream);
+}
+
+MediaQuerySet* MediaQueryParser::ParseCustomMediaDefinition(
+    CSSParserTokenStream& stream,
+    ExecutionContext* execution_context) {
+  CSSParserTokenStream::Boundary boundary(stream, kSemicolonToken);
+  return ParseMediaQuerySet(stream, execution_context);
 }
 
 MediaQueryParser::MediaQueryParser(ParserType parser_type,

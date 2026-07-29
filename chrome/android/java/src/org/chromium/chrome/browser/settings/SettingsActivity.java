@@ -111,6 +111,7 @@ public class SettingsActivity extends ChromeBaseAppCompatActivity
 
     static final String EXTRA_SHOW_FRAGMENT_ARGUMENTS = "show_fragment_args";
     static final String EXTRA_SHOW_FRAGMENT_STANDALONE = "show_fragment_standalone";
+    static final String EXTRA_ADD_TO_BACK_STACK = "add_to_back_stack";
 
     /** The current instance of SettingsActivity in the resumed state, if any. */
     private static @Nullable SettingsActivity sResumedInstance;
@@ -392,26 +393,21 @@ public class SettingsActivity extends ChromeBaseAppCompatActivity
      */
     private void removeContainmentForFragment(Fragment f) {
         PreferenceFragmentCompat fragment = resolveFragmentForContainment(f);
-        if (!isContainmentEnabled() || fragment == null) {
+        if (!isContainmentEnabled() || !(fragment instanceof MainSettings)) {
             return;
         }
 
-        if (fragment instanceof MainSettings) {
-            ContainmentItemDecoration itemDecoration = mItemDecorations.get(fragment);
-            if (itemDecoration != null) {
-                fragment.getListView().removeItemDecoration(itemDecoration);
-                mItemDecorations.remove(fragment);
-                // Force a full redraw of the recycler view items.
-                if (fragment.getListView().getAdapter() != null) {
-                    // `invalidate()` is insufficient to remove the containment background because
-                    // it doesn't trigger a re-evaluation of `RecyclerView.ItemDecoration`s, which
-                    // applies the containment styling. A full redraw of items is needed.
-                    fragment.getListView()
-                            .getAdapter()
-                            .notifyItemRangeChanged(
-                                    0, fragment.getListView().getAdapter().getItemCount());
-                }
-            }
+        ContainmentItemDecoration itemDecoration = mItemDecorations.get(fragment);
+        if (itemDecoration != null) {
+            fragment.getListView().removeItemDecoration(itemDecoration);
+            mItemDecorations.remove(fragment);
+
+            fragment.requireContext()
+                    .getTheme()
+                    .applyStyle(R.style.ThemeOverlay_Chromium_Settings_MainPanel, true);
+
+            // Force a re-inflation of all views to ensure they pick up the new theme.
+            reInflateViews(fragment);
         }
     }
 
@@ -441,9 +437,15 @@ public class SettingsActivity extends ChromeBaseAppCompatActivity
 
         // For MainSettings, skip containment if multi-column layout is visible.
         if (shouldSkipContainmentForMainSettings(fragment)) {
+            fragment.requireContext()
+                    .getTheme()
+                    .applyStyle(R.style.ThemeOverlay_Chromium_Settings_MainPanel, true);
             return;
         }
 
+        fragment.requireContext()
+                .getTheme()
+                .applyStyle(R.style.ThemeOverlay_Chromium_Settings_Containment, true);
         // Posting this runnable ensures the RecyclerView has completed its layout pass before
         // updating backgrounds.
         fragment.getListView()
@@ -463,7 +465,17 @@ public class SettingsActivity extends ChromeBaseAppCompatActivity
                                             SettingsUtils.getVisiblePreferences(
                                                     fragment.getPreferenceScreen())));
                             fragment.getListView().invalidateItemDecorations();
+
+                            // Force a re-inflation of all views to ensure they pick up the new
+                            // theme.
+                            reInflateViews(fragment);
                         });
+    }
+
+    private void reInflateViews(PreferenceFragmentCompat fragment) {
+        var adapter = fragment.getListView().getAdapter();
+        fragment.getListView().setAdapter(null);
+        fragment.getListView().setAdapter(adapter);
     }
 
     @Override
@@ -673,7 +685,12 @@ public class SettingsActivity extends ChromeBaseAppCompatActivity
      */
     @VisibleForTesting
     public @Nullable Fragment getMainFragment() {
-        return getSupportFragmentManager().findFragmentById(R.id.content);
+        if (mMultiColumnSettings == null) {
+            return getSupportFragmentManager().findFragmentById(R.id.content);
+        }
+        return mMultiColumnSettings
+                .getChildFragmentManager()
+                .findFragmentById(R.id.preferences_detail);
     }
 
     /** Returns the MultiColumnSettings if it is running in SettingsMultiColumn mode. */
@@ -871,7 +888,10 @@ public class SettingsActivity extends ChromeBaseAppCompatActivity
         mFinishedMainFragment = new WeakReference<>(fragment);
 
         if (ChromeFeatureList.sSettingsSingleActivity.isEnabled()) {
-            FragmentManager fragmentManager = getSupportFragmentManager();
+            FragmentManager fragmentManager =
+                    mMultiColumnSettings == null
+                            ? getSupportFragmentManager()
+                            : mMultiColumnSettings.getChildFragmentManager();
             if (fragmentManager.getBackStackEntryCount() == 0) {
                 finish();
             } else {

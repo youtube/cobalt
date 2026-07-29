@@ -37,6 +37,7 @@
 #include "chrome/browser/themes/theme_service_factory.h"
 #include "chrome/browser/translate/chrome_translate_client.h"
 #include "chrome/browser/translate/translate_service.h"
+#include "chrome/browser/ui/actions/chrome_action_id.h"
 #include "chrome/browser/ui/autofill/payments/save_card_bubble_controller_impl.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_actions.h"
@@ -50,6 +51,7 @@
 #include "chrome/browser/ui/lens/lens_overlay_entry_point_controller.h"
 #include "chrome/browser/ui/omnibox/ai_mode_page_action_controller.h"
 #include "chrome/browser/ui/omnibox/chrome_omnibox_client.h"
+#include "chrome/browser/ui/omnibox/features.h"
 #include "chrome/browser/ui/omnibox/omnibox_controller.h"
 #include "chrome/browser/ui/omnibox/omnibox_edit_model.h"
 #include "chrome/browser/ui/omnibox/omnibox_popup_view.h"
@@ -416,6 +418,19 @@ void LocationBarView::Init() {
           page_action_items, page_actions::PageActionPropertiesProvider(),
           page_action_params));
 
+  const bool aim_omnibox_entrypoint_enabled =
+      browser_ &&
+      base::FeatureList::IsEnabled(omnibox::kAiModeOmniboxEntryPoint);
+  if (!page_action_container_->children().empty() &&
+      aim_omnibox_entrypoint_enabled &&
+      IsPageActionMigrated(PageActionIconType::kAiMode)) {
+    auto* first_page_action_view = static_cast<page_actions::PageActionView*>(
+        page_action_container_->children().front());
+    DCHECK(first_page_action_view->GetActionId() == kActionAiMode)
+        << "kActionAiMode must be the first child in PageActionContainerView "
+           "to ensure it's the left-most page action.";
+  }
+
   PageActionIconParams params;
   // |browser_| may be null when LocationBarView is used for non-Browser windows
   // such as PresentationReceiverWindowView, which do not support page actions.
@@ -459,17 +474,6 @@ void LocationBarView::Init() {
   params.types_enabled.push_back(PageActionIconType::kVirtualCardEnroll);
   params.types_enabled.push_back(PageActionIconType::kMandatoryReauth);
 
-  if (browser_ &&
-      base::FeatureList::IsEnabled(omnibox::kAiModeOmniboxEntryPoint)) {
-    // Position in the leading position, like the entrypoint for
-    // kLensOverlayHomework below. While both chips may be enabled, they will
-    // not appear at the same time due to different focus behavior. The
-    // visibility of this entrypoint is dependent on whether or not the user
-    // meets AIM eligibility criteria.
-    params.types_enabled.insert(params.types_enabled.begin(),
-                                PageActionIconType::kAiMode);
-  }
-
   if (browser_ && lens::features::IsOmniboxEntryPointEnabled()) {
     // The persistent compact entrypoint should be positioned directly before
     // the star icon and the prominent expanding entrypoint should be
@@ -493,6 +497,16 @@ void LocationBarView::Init() {
                                 PageActionIconType::kLensOverlayHomework);
   }
 
+  if (aim_omnibox_entrypoint_enabled) {
+    // Position in the leading position, like the entrypoint for
+    // kLensOverlayHomework above. While both chips may be enabled, they will
+    // not appear at the same time due to different focus behavior. The
+    // visibility of this entrypoint is dependent on whether or not the user
+    // meets AIM eligibility criteria.
+    params.types_enabled.insert(params.types_enabled.begin(),
+                                PageActionIconType::kAiMode);
+  }
+
   if (browser_ && tab_groups::SavedTabGroupUtils::SupportsSharedTabGroups()) {
     params.types_enabled.push_back(PageActionIconType::kCollaborationMessaging);
   }
@@ -511,6 +525,17 @@ void LocationBarView::Init() {
   page_action_icon_container_ =
       AddChildView(std::make_unique<PageActionIconContainerView>(params));
   page_action_icon_controller_ = page_action_icon_container_->controller();
+
+  if (!page_action_icon_container_->children().empty() &&
+      aim_omnibox_entrypoint_enabled &&
+      !IsPageActionMigrated(PageActionIconType::kAiMode)) {
+    auto* first_page_action_icon_view = static_cast<PageActionIconView*>(
+        page_action_icon_container_->children().front());
+    DCHECK(first_page_action_icon_view->action_id() == kActionAiMode)
+        << "kActionAiMode must be the first child in "
+           "PageActionIconContainerView to ensure it's the left-most page "
+           "action.";
+  }
 
   auto clear_all_button = views::CreateVectorImageButton(base::BindRepeating(
       static_cast<void (OmniboxView::*)(const std::u16string&)>(
@@ -890,30 +915,43 @@ void LocationBarView::Layout(PassKey) {
     }
   }
 
-  auto add_trailing_decoration = [&](View* view, int intra_item_padding) {
+  auto add_trailing_decoration = [&](View* view, int intra_item_padding,
+                                     int edge_padding) {
     if (view->GetVisible()) {
       trailing_decorations.AddDecoration(
           vertical_padding, location_height, /*auto_collapse=*/false,
-          /*max_fraction=*/0, intra_item_padding,
-          trailing_decorations_edge_padding, view);
+          /*max_fraction=*/0, intra_item_padding, edge_padding, view);
     }
   };
 
+  // When the AIM page action is shown as the right-most page action in the
+  // location bar, it should be positioned flush against the right edge of the
+  // location bar.
+  const int kTrailingEdgePaddingForAim =
+      IsPageActionMigrated(PageActionIconType::kAiMode) ? -3 : 5;
   add_trailing_decoration(page_action_icon_container_,
-                          /*intra_item_padding=*/0);
+                          /*intra_item_padding=*/0,
+                          /*edge_padding=*/
+                          IsAimLastVisiblePageAction()
+                              ? kTrailingEdgePaddingForAim
+                              : trailing_decorations_edge_padding);
   add_trailing_decoration(page_action_container_,
-                          /*intra_item_padding=*/0);
+                          /*intra_item_padding=*/0,
+                          /*edge_padding=*/trailing_decorations_edge_padding);
   for (ContentSettingImageView* view : base::Reversed(content_setting_views_)) {
     int intra_item_padding = kContentSettingIntraItemPadding;
-    add_trailing_decoration(view, intra_item_padding);
+    add_trailing_decoration(view, intra_item_padding,
+                            /*edge_padding=*/trailing_decorations_edge_padding);
   }
 
   if (intent_chip_) {
     int intra_item_padding = kIntentChipIntraItemPadding;
-    add_trailing_decoration(intent_chip_, intra_item_padding);
+    add_trailing_decoration(intent_chip_, intra_item_padding,
+                            /*edge_padding=*/trailing_decorations_edge_padding);
   }
 
-  add_trailing_decoration(clear_all_button_, /*intra_item_padding=*/0);
+  add_trailing_decoration(clear_all_button_, /*intra_item_padding=*/0,
+                          /*edge_padding=*/trailing_decorations_edge_padding);
 
   // Perform layout.
   int entry_width = width();
@@ -1228,6 +1266,91 @@ bool LocationBarView::ShouldHidePageActionIconsForContext(
     default:
       return false;
   }
+}
+
+/*
+ * The logic in this function is intended to inform callers about whether or not
+ * the AIM page action is being shown as the right-most page action in the
+ * location bar.
+ *
+ * For context, given that there's ongoing page actions migrations work at the
+ * moment, the location bar currently uses two page action containers in order
+ * to render page actions as follows:
+ *
+ * | <migrated page actions> || <legacy page actions> |
+ *
+ * In particular, the migrated page actions are placed in a container that's
+ * positioned to the LEFT of the container that holds legacy page actions.
+ *
+ * If the AIM page action has been migrated, then it will be shown as follows:
+ *
+ * | (AIM) (A) (B) (C) || (D) (E) (F) |
+ *
+ * In this case, AIM, A, B, and C are migrated page actions, while D, E, and F
+ * are legacy page actions.
+ *
+ * On the other hand, if the AIM page action has NOT been migrated (i.e. legacy
+ * state), it will shown as follows:
+ *
+ * | (A) (B) (C) || (AIM) (D) (E) (F) |
+ *
+ * Note that, in both cases, the AIM page action will, by definition, be shown
+ * as the left-most page action in whichever container it's placed in.
+ *
+ * With all this in mind, the AIM page action will be considered as the last
+ * (right-most) page action in the following scenarios:
+ *
+ * AIM page action is migrated: | (AIM) || |
+ *
+ * In other words, if the AIM page action is migrated, then it's the last page
+ * action IFF it's visible in the migrated container AND the total number of
+ * visible page actions (migrated + legacy) is exactly one.
+ *
+ * AIM page action is NOT migrated: | (A) (B) (C) || (AIM) |
+ *
+ * In other words, if the AIM page action is NOT migrated, then it's
+ * considered the last page action IFF it's visible in the legacy container
+ * AND the number of visible legacy page actions is exactly one (irrespective
+ * of how many migrated page actions are visible).
+ */
+bool LocationBarView::IsAimLastVisiblePageAction() const {
+  int visible_migrated_page_action_count = 0;
+  bool migrated_aim_page_action_is_visible = false;
+
+  // Check PageActionContainerView (migrated page actions).
+  for (views::View* view : page_action_container_->children()) {
+    if (view->GetVisible()) {
+      visible_migrated_page_action_count++;
+      page_actions::PageActionView* page_action_view =
+          static_cast<page_actions::PageActionView*>(view);
+      if (page_action_view->GetActionId() == kActionAiMode) {
+        migrated_aim_page_action_is_visible = true;
+      }
+    }
+  }
+
+  int visible_page_action_count = 0;
+  bool aim_page_action_is_visible = false;
+
+  // Check PageActionIconContainerView (legacy page actions).
+  for (views::View* view : page_action_icon_container_->children()) {
+    if (view->GetVisible()) {
+      visible_page_action_count++;
+      PageActionIconView* icon_view = static_cast<PageActionIconView*>(view);
+      if (icon_view->action_id() == kActionAiMode) {
+        aim_page_action_is_visible = true;
+      }
+    }
+  }
+
+  if (migrated_aim_page_action_is_visible &&
+      (visible_migrated_page_action_count + visible_page_action_count) == 1) {
+    return true;
+  } else if (aim_page_action_is_visible && visible_page_action_count == 1) {
+    return true;
+  }
+
+  return false;
 }
 
 // static

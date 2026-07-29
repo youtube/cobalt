@@ -346,7 +346,14 @@ void ZeroStateSuggestionsPageData::GiveUp() {
                          "destroyed while waiting for "
                          "annotated page content from %s.",
                          GetUrl().spec()));
-  // If we've timed out, fail everything.
+
+  // Each OnReceived* method may try to construct the page context proto and
+  // access the (maybe already destroyed) page if partial results are available,
+  // so clear both of these first.
+  inner_text_result_.reset();
+  annotated_page_content_.reset();
+
+  // Finish with failure and run the page context callbacks.
   OnReceivedInnerText(nullptr);
   OnReceivedOptimizationMetadata(
       optimization_guide::OptimizationGuideDecision::kUnknown, {});
@@ -361,7 +368,8 @@ void ZeroStateSuggestionsPageData::InvokePageContextCallbacksIfComplete() {
   // Check if we are allowed to request suggestions for this page.
   if (!IsEligibleForContextualSuggestions(optimization_decision_,
                                           optimization_metadata_)) {
-    page_context_callbacks_.Notify(std::nullopt);
+    page_context_callbacks_.Notify(
+        base::unexpected(PageContextIneligibilityType::kOptimizationMetadata));
     return;
   }
 
@@ -375,9 +383,12 @@ void ZeroStateSuggestionsPageData::InvokePageContextCallbacksIfComplete() {
         "ContextualCueing.ZeroStateSuggestions.ContextExtractionDone", true);
   }
 
-  page_context_callbacks_.Notify(
-      has_page_context ? std::make_optional(ConstructPageContextProto())
-                       : std::nullopt);
+  if (has_page_context) {
+    page_context_callbacks_.Notify(base::ok(ConstructPageContextProto()));
+  } else {
+    page_context_callbacks_.Notify(
+        base::unexpected(PageContextIneligibilityType::kPageContext));
+  }
 }
 
 const GURL ZeroStateSuggestionsPageData::GetUrl() const {

@@ -719,7 +719,8 @@ void LocalDOMWindow::ReportPotentialPermissionsPolicyViolation(
     ReportingContext::From(this)->QueueReport(report);
   }
 
-  if (disposition == mojom::blink::PolicyDisposition::kEnforce) {
+  if (disposition == mojom::blink::PolicyDisposition::kEnforce &&
+      !reporting_endpoint.empty()) {
     GetFrame()->Console().AddMessage(MakeGarbageCollected<ConsoleMessage>(
         mojom::blink::ConsoleMessageSource::kViolation,
         mojom::blink::ConsoleMessageLevel::kError, body->message()));
@@ -1700,10 +1701,6 @@ int LocalDOMWindow::screenX() const {
   if (!page)
     return 0;
 
-  if (RuntimeEnabledFeatures::ReduceScreenSizeEnabled()) {
-    return 0;
-  }
-
   ChromeClient& chrome_client = page->GetChromeClient();
   if (page->GetSettings().GetReportScreenSizeInPhysicalPixelsQuirk()) {
     return static_cast<int>(
@@ -1721,10 +1718,6 @@ int LocalDOMWindow::screenY() const {
   Page* page = frame->GetPage();
   if (!page)
     return 0;
-
-  if (RuntimeEnabledFeatures::ReduceScreenSizeEnabled()) {
-    return 0;
-  }
 
   ChromeClient& chrome_client = page->GetChromeClient();
   if (page->GetSettings().GetReportScreenSizeInPhysicalPixelsQuirk()) {

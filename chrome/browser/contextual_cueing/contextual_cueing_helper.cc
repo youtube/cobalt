@@ -6,6 +6,8 @@
 
 #include "base/feature_list.h"
 #include "base/metrics/histogram_functions.h"
+#include "chrome/browser/actor/actor_keyed_service.h"
+#include "chrome/browser/actor/actor_keyed_service_factory.h"
 #include "chrome/browser/contextual_cueing/contextual_cueing_enums.h"
 #include "chrome/browser/contextual_cueing/contextual_cueing_features.h"
 #include "chrome/browser/contextual_cueing/contextual_cueing_page_data.h"
@@ -87,7 +89,7 @@ ContextualCueingHelper::ContextualCueingHelper(
       content::WebContentsUserData<ContextualCueingHelper>(*web_contents),
       optimization_guide_keyed_service_(ogks),
       contextual_cueing_service_(ccs) {
-  if (base::FeatureList::IsEnabled(kContextualCueing)) {
+  if (IsContextualCueingEnabled()) {
     // LINT.IfChange(OptType)
     optimization_guide_keyed_service_->RegisterOptimizationTypes(
         {optimization_guide::proto::GLIC_CONTEXTUAL_CUEING});
@@ -98,7 +100,7 @@ ContextualCueingHelper::ContextualCueingHelper(
 ContextualCueingHelper::~ContextualCueingHelper() = default;
 
 tabs::GlicNudgeController* ContextualCueingHelper::GetGlicNudgeController() {
-  if (!base::FeatureList::IsEnabled(kContextualCueing)) {
+  if (!IsContextualCueingEnabled()) {
     return nullptr;
   }
 
@@ -151,7 +153,7 @@ void ContextualCueingHelper::DidFinishNavigation(
     return;
   }
 
-  if (!base::FeatureList::IsEnabled(kContextualCueing)) {
+  if (!IsContextualCueingEnabled()) {
     return;
   }
 
@@ -160,7 +162,7 @@ void ContextualCueingHelper::DidFinishNavigation(
   auto* glic_nudge_controller = GetGlicNudgeController();
   if (glic_nudge_controller) {
     glic_nudge_controller->UpdateNudgeLabel(
-        web_contents(), std::string(),
+        web_contents(), std::string(), /*prompt_suggestion=*/std::nullopt,
         tabs::GlicNudgeActivity::kNudgeIgnoredNavigation, base::DoNothing());
   }
 
@@ -193,7 +195,7 @@ void ContextualCueingHelper::DidFinishNavigation(
 }
 
 void ContextualCueingHelper::PrimaryMainDocumentElementAvailable() {
-  if (!base::FeatureList::IsEnabled(kContextualCueing)) {
+  if (!IsContextualCueingEnabled()) {
     return;
   }
 
@@ -312,7 +314,7 @@ bool ContextualCueingHelper::IsBrowserBlockingNudges(
   auto* glic_service =
       glic::GlicKeyedServiceFactory::GetGlicKeyedService(profile);
 
-  if (glic_service->IsWindowShowing()) {
+  if (glic_service->IsPanelShowingForBrowser(*browser_window_interface)) {
     recorder->set_nudge_decision(NudgeDecision::kNudgeNotShownWindowShowing);
     return true;
   }
@@ -328,6 +330,13 @@ bool ContextualCueingHelper::IsBrowserBlockingNudges(
     return true;
   }
 
+  auto* actor_service =
+      actor::ActorKeyedServiceFactory::GetActorKeyedService(profile);
+  if (actor_service && actor_service->IsActiveOnTab(*tab_interface)) {
+    recorder->set_nudge_decision(NudgeDecision::kNudgeNotShownActorActiveOnTab);
+    return true;
+  }
+
 #endif  // BUILDFLAG(ENABLE_GLIC)
 
   return false;
@@ -336,7 +345,7 @@ bool ContextualCueingHelper::IsBrowserBlockingNudges(
 void ContextualCueingHelper::OnCueingDecision(
     std::unique_ptr<ScopedNudgeDecisionRecorder> decision_recorder,
     base::TimeTicks document_available_time,
-    base::expected<std::string, NudgeDecision> decision_result) {
+    base::expected<CueingResult, NudgeDecision> decision_result) {
   CHECK_EQ(NudgeDecision::kUnknown, decision_recorder->nudge_decision());
   if (ContextualCueingPageData::GetForPage(web_contents()->GetPrimaryPage())) {
     ContextualCueingPageData::DeleteForPage(web_contents()->GetPrimaryPage());
@@ -347,7 +356,8 @@ void ContextualCueingHelper::OnCueingDecision(
     return;
   }
 
-  std::string cue_label = decision_result.value();
+  std::string cue_label = decision_result.value().cue_label;
+  std::string prompt_suggestion = decision_result.value().prompt_suggestion;
   if (IsBrowserBlockingNudges(decision_recorder.get())) {
     return;
   }
@@ -360,10 +370,14 @@ void ContextualCueingHelper::OnCueingDecision(
   }
 
   GetGlicNudgeController()->UpdateNudgeLabel(
-      web_contents(), cue_label, /*activity=*/std::nullopt,
+      web_contents(), cue_label,
+      prompt_suggestion.empty() ? std::nullopt
+                                : std::make_optional(prompt_suggestion),
+      /*activity=*/std::nullopt,
       base::BindRepeating(&ContextualCueingService::OnNudgeActivity,
                           contextual_cueing_service_->GetWeakPtr(),
-                          web_contents(), document_available_time));
+                          web_contents(), document_available_time,
+                          decision_result->is_dynamic));
 }
 
 // static

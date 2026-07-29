@@ -25,7 +25,6 @@
 #include "gpu/config/gpu_finch_features.h"
 #include "media/audio/audio_features.h"
 #include "media/base/media_switches.h"
-#include "mojo/public/cpp/bindings/features.h"
 #include "net/base/features.h"
 #include "services/network/public/cpp/features.h"
 #include "services/tracing/public/cpp/tracing_features.h"
@@ -65,6 +64,11 @@ void AwFieldTrials::RegisterFeatureOverrides(base::FeatureList* feature_list) {
   // fixed before enabling this feature flag for android.
   aw_feature_overrides.DisableFeature(
       blink::features::kAboutBlankPageRespectsDarkModeOnUserAction);
+
+  // TODO(crbug.com/433304196): Remove this once webview experiment has
+  // concluded.
+  aw_feature_overrides.DisableFeature(
+      blink::features::kAsyncTouchMovesImmediatelyAfterScroll);
 
   // Disable enforcing `noopener` on Blob URL navigations on WebView.
   aw_feature_overrides.DisableFeature(
@@ -199,8 +203,10 @@ void AwFieldTrials::RegisterFeatureOverrides(base::FeatureList* feature_list) {
   aw_feature_overrides.DisableFeature(::features::kFedCm);
 
   // Disable Digital Credentials API on WebView.
-  aw_feature_overrides.DisableFeature(::features::kWebIdentityDigitalCredentials);
-  aw_feature_overrides.DisableFeature(::features::kWebIdentityDigitalCredentialsCreation);
+  aw_feature_overrides.DisableFeature(
+      ::features::kWebIdentityDigitalCredentials);
+  aw_feature_overrides.DisableFeature(
+      ::features::kWebIdentityDigitalCredentialsCreation);
 
   // TODO(crbug.com/40272633): Web MIDI permission prompt for all usage.
   aw_feature_overrides.DisableFeature(blink::features::kBlockMidiByDefault);
@@ -214,10 +220,6 @@ void AwFieldTrials::RegisterFeatureOverrides(base::FeatureList* feature_list) {
   // site isolation but field trial testing doesn't indicate that. Revisit when
   // enabling site isolation. See crbug.com/356170748.
   aw_feature_overrides.DisableFeature(blink::features::kPaintHoldingForIframes);
-
-  // Default Nav Transition does not support WebView.
-  // TODO(crbug.com/434928245): cleanup this feature gate in M141.
-  aw_feature_overrides.DisableFeature(blink::features::kBackForwardTransitions);
 
   // Disabling this feature for WebView, since it can switch focus when scrolled
   // in cases with multiple views which can trigger HTML focus changes that
@@ -301,11 +303,21 @@ void AwFieldTrials::RegisterFeatureOverrides(base::FeatureList* feature_list) {
   aw_feature_overrides.DisableFeature(
       features::kAAudioPerStreamDeviceSelection);
 
+  // WebView exposes text autosizing to apps via setLayoutAlgorithm(), so
+  // we keep text autosizing support in WebView for now. Further WebView
+  // work will take place in https://crbug.com/391990606.
+  aw_feature_overrides.DisableFeature(blink::features::kForceOffTextAutosizing);
+
   // Local Network Access restrictions should not be enforced in WebView.
   // The LNA permission is auto-granted in WebView, but the permission
   // policy currently blocks iframes from using it. crbug.com/442879527
   aw_feature_overrides.DisableFeature(
       network::features::kLocalNetworkAccessChecks);
+
+  // Disable background media for WebView, until we have consensus on long-term
+  // behavior crbug.com/453706851
+  aw_feature_overrides.DisableFeature(
+      features::kAndroidEnableBackgroundMediaLargeFormFactors);
 
   // SystemTracing is enabled by default only in WebView for now.
   aw_feature_overrides.EnableFeature(features::kEnablePerfettoSystemTracing);

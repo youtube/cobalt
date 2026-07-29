@@ -23,6 +23,10 @@
 #include "components/sync/model/data_type_store_service.h"
 #include "content/public/browser/browser_context.h"
 
+#if !BUILDFLAG(IS_ANDROID)
+#include "chrome/browser/contextual_tasks/tab_strip_context_decorator.h"
+#endif
+
 namespace contextual_tasks {
 
 // static
@@ -44,6 +48,7 @@ ContextualTasksServiceFactory::ContextualTasksServiceFactory()
           "ContextualTasksService",
           ProfileSelections::Builder()
               .WithRegular(ProfileSelection::kOwnInstance)
+              .WithGuest(ProfileSelection::kOwnInstance)
               .Build()) {
   DependsOn(AimEligibilityServiceFactory::GetInstance());
   DependsOn(DataTypeStoreServiceFactory::GetInstance());
@@ -72,13 +77,27 @@ ContextualTasksServiceFactory::BuildServiceInstanceForBrowserContext(
       AimEligibilityServiceFactory::GetForProfile(profile);
   signin::IdentityManager* identity_manager =
       IdentityManagerFactory::GetForProfile(profile);
+
+  std::map<ContextualTaskContextSource, std::unique_ptr<ContextDecorator>>
+      additional_decorators;
+
+#if !BUILDFLAG(IS_ANDROID)
+  additional_decorators.emplace(
+      ContextualTaskContextSource::kTabStrip,
+      std::make_unique<TabStripContextDecorator>(profile));
+#endif
+
+  bool supports_ephemeral_only =
+      profile->IsOffTheRecord() || profile->IsGuestSession();
+
   return std::make_unique<ContextualTasksServiceImpl>(
       chrome::GetChannel(),
       DataTypeStoreServiceFactory::GetForProfile(
           Profile::FromBrowserContext(context))
           ->GetStoreFactory(),
-      CreateCompositeContextDecorator(favicon_service, history_service),
-      aim_eligibility_service, identity_manager, profile->IsOffTheRecord());
+      CreateCompositeContextDecorator(favicon_service, history_service,
+                                      std::move(additional_decorators)),
+      aim_eligibility_service, identity_manager, supports_ephemeral_only);
 }
 
 }  // namespace contextual_tasks

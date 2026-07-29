@@ -786,8 +786,7 @@ class VideoTextureBacking : public cc::TextureBacking {
     // GLES2 interface.
     gpu::SharedImageUsageSet flags = gpu::SHARED_IMAGE_USAGE_GLES2_READ |
                                      gpu::SHARED_IMAGE_USAGE_RASTER_READ |
-                                     gpu::SHARED_IMAGE_USAGE_RASTER_WRITE |
-                                     gpu::SHARED_IMAGE_USAGE_OOP_RASTERIZATION;
+                                     gpu::SHARED_IMAGE_USAGE_RASTER_WRITE;
     shared_image_ =
         sii->CreateSharedImage({SHARED_IMAGE_FORMAT, coded_size, color_space,
                                 flags, "PaintCanvasVideoRenderer"},
@@ -874,17 +873,6 @@ PaintCanvasVideoRenderer::PaintCanvasVideoRenderer()
 
 PaintCanvasVideoRenderer::~PaintCanvasVideoRenderer() = default;
 
-void PaintCanvasVideoRenderer::PaintOOPR(
-    scoped_refptr<VideoFrame> video_frame,
-    cc::PaintCanvas* canvas,
-    cc::PaintFlags& flags,
-    const PaintParams& params,
-    viz::RasterContextProvider* raster_context_provider) {
-  CHECK(!raster_context_provider ||
-        raster_context_provider->ContextCapabilities().gpu_rasterization);
-  Paint(std::move(video_frame), canvas, flags, params, raster_context_provider);
-}
-
 void PaintCanvasVideoRenderer::Paint(
     scoped_refptr<VideoFrame> video_frame,
     cc::PaintCanvas* canvas,
@@ -902,10 +890,7 @@ void PaintCanvasVideoRenderer::Paint(
           << "Can't render textured frames w/o viz::RasterContextProvider";
       return;  // Unable to get/create a shared main thread context.
     }
-    if (!raster_context_provider->ContextCapabilities().gpu_rasterization) {
-      DLOG(ERROR) << "Can't render textured frames w/o GPU raster.";
-      return;
-    }
+    CHECK(raster_context_provider->ContextCapabilities().gpu_rasterization);
   }
 
   gfx::RectF dest_rect = params.dest_rect.value_or(
@@ -1050,19 +1035,13 @@ void PaintCanvasVideoRenderer::Paint(
   canvas->flush();
 }
 
-void PaintCanvasVideoRenderer::CopyOOPR(
+void PaintCanvasVideoRenderer::Copy(
     scoped_refptr<VideoFrame> video_frame,
     cc::PaintCanvas* canvas,
     viz::RasterContextProvider* raster_context_provider) {
   CHECK(!raster_context_provider ||
         raster_context_provider->ContextCapabilities().gpu_rasterization);
-  Copy(std::move(video_frame), canvas, raster_context_provider);
-}
 
-void PaintCanvasVideoRenderer::Copy(
-    scoped_refptr<VideoFrame> video_frame,
-    cc::PaintCanvas* canvas,
-    viz::RasterContextProvider* raster_context_provider) {
   cc::PaintFlags flags;
   flags.setBlendMode(SkBlendMode::kSrc);
   flags.setFilterQuality(cc::PaintFlags::FilterQuality::kLow);
@@ -1445,9 +1424,7 @@ bool PaintCanvasVideoRenderer::CopyVideoFrameTexturesToGLTexture(
   // read out its contents into a destination GL texture via the GLES2
   // interface.
   gpu::SharedImageUsageSet src_usage =
-      gpu::SHARED_IMAGE_USAGE_GLES2_READ |
-      gpu::SHARED_IMAGE_USAGE_RASTER_WRITE |
-      gpu::SHARED_IMAGE_USAGE_OOP_RASTERIZATION;
+      gpu::SHARED_IMAGE_USAGE_GLES2_READ | gpu::SHARED_IMAGE_USAGE_RASTER_WRITE;
   auto [rgb_shared_image, rgb_sync_token, status] =
       rgb_shared_image_cache_->GetOrCreateSharedImage(
           video_frame.get(), raster_context_provider, src_usage,
@@ -1542,9 +1519,7 @@ bool PaintCanvasVideoRenderer::CopyVideoFrameYUVDataToGLTexture(
   // SI into the destination GL texture via the GLES2 interface.
   CHECK(raster_context_provider->ContextCapabilities().gpu_rasterization);
   gpu::SharedImageUsageSet src_usage =
-      gpu::SHARED_IMAGE_USAGE_RASTER_WRITE |
-      gpu::SHARED_IMAGE_USAGE_GLES2_READ |
-      gpu::SHARED_IMAGE_USAGE_OOP_RASTERIZATION;
+      gpu::SHARED_IMAGE_USAGE_RASTER_WRITE | gpu::SHARED_IMAGE_USAGE_GLES2_READ;
 
   // Recreate both the caches if not set.
   if (!rgb_shared_image_cache_) {
@@ -1566,14 +1541,11 @@ bool PaintCanvasVideoRenderer::CopyVideoFrameYUVDataToGLTexture(
   // On the source Raster context, do the YUV->RGB conversion.
   // Pass the rgb sync token here to be waited upon before performing raster
   // tasks.
-  internals::ConvertYuvVideoFrameToRgbSharedImage(
-      video_frame.get(), raster_context_provider, rgb_shared_image,
-      rgb_sync_token, /*use_visible_rect=*/false,
-      yuv_shared_image_cache_.get());
-
-  gpu::SyncToken post_conversion_sync_token;
-  raster_context_provider->RasterInterface()->GenUnverifiedSyncTokenCHROMIUM(
-      post_conversion_sync_token.GetData());
+  gpu::SyncToken post_conversion_sync_token =
+      internals::ConvertYuvVideoFrameToRgbSharedImage(
+          video_frame.get(), raster_context_provider, rgb_shared_image,
+          rgb_sync_token, /*use_visible_rect=*/false,
+          yuv_shared_image_cache_.get());
 
   // On the destination GL context, do a copy (with cropping) into the
   // destination texture.

@@ -30,6 +30,7 @@ import org.chromium.base.test.params.ParameterAnnotations.UseRunnerDelegate;
 import org.chromium.base.test.params.ParameterSet;
 import org.chromium.base.test.params.ParameterizedRunner;
 import org.chromium.base.test.util.Batch;
+import org.chromium.base.test.util.DisabledTest;
 import org.chromium.base.test.util.Feature;
 import org.chromium.components.browser_ui.widget.test.R;
 import org.chromium.ui.test.util.BlankUiTestActivity;
@@ -53,10 +54,15 @@ public class RichRadioButtonRenderTest {
 
     private static Activity sActivity;
 
-    private static final int REVISION = 2;
+    private static final int REVISION = 3;
     private static final String REVISION_DESCRIPTION =
             "Render test for RichRadioButton covering various states and orientations, with"
-                    + " improved layout";
+                    + " improved layout and ellipsized text in the vertical layout";
+
+    private static final String sVeryLongTitle =
+            "This is an extremely long title, which cannot possibly fit in one line.";
+    private static final String sVeryLongDescription =
+            "And this is a very long description, which cannot possibly fit in one line.";
 
     @Rule
     public RenderTestRule mRenderTestRule =
@@ -146,6 +152,7 @@ public class RichRadioButtonRenderTest {
     @Test
     @SmallTest
     @Feature({"RenderTest", "RichRadioButton"})
+    @DisabledTest(message = "https://crbug.com/454385607")
     public void testRichRbHorizontalTitleChecked() throws Exception {
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
@@ -172,6 +179,7 @@ public class RichRadioButtonRenderTest {
     @Test
     @SmallTest
     @Feature({"RenderTest", "RichRadioButton"})
+    @DisabledTest(message = "https://crbug.com/454443245")
     public void testRichRbHorizontalFullChecked() throws Exception {
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
@@ -192,7 +200,10 @@ public class RichRadioButtonRenderTest {
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
                     mRichRbVerticalFullUnchecked.setItemData(
-                            R.drawable.test_location_precise, "Title", "Vertical item", true);
+                            R.drawable.test_location_precise,
+                            sVeryLongTitle,
+                            sVeryLongDescription,
+                            true);
                     mRichRbVerticalFullUnchecked.setChecked(false);
                 });
         mRenderTestRule.render(mRichRbVerticalFullUnchecked, "rich_rb_vertical_full_unchecked");

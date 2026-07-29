@@ -26,7 +26,7 @@ class View;
 
 class ExtensionsMenuViewModel;
 class Browser;
-class ExtensionsContainer;
+class ExtensionsContainerViews;
 class ExtensionsMenuMainPageView;
 class ExtensionsMenuSitePermissionsPageView;
 class ToolbarActionsModel;
@@ -43,7 +43,7 @@ class ExtensionsMenuViewPlatformDelegateViews
  public:
   ExtensionsMenuViewPlatformDelegateViews(
       Browser* browser,
-      ExtensionsContainer* extensions_container,
+      ExtensionsContainerViews* extensions_container,
       views::View* bubble_contents);
   ExtensionsMenuViewPlatformDelegateViews(
       const ExtensionsMenuViewPlatformDelegateViews&) = delete;
@@ -54,8 +54,15 @@ class ExtensionsMenuViewPlatformDelegateViews
   // ExtensionsMenuViewPlatformDelegate:
   void AttachToModel(ExtensionsMenuViewModel* model) override;
   void DetachFromModel() override;
-  void OnAccessRequestAdded(const extensions::ExtensionId& extension_id,
-                            content::WebContents* web_contents) override;
+  void OnHostAccessRequestAddedOrUpdated(
+      const extensions::ExtensionId& extension_id,
+      content::WebContents* web_contents) override;
+  void OnAccessRequestRemoved(
+      const extensions::ExtensionId& extension_id) override;
+  void OnAccessRequestsCleared() override;
+  void OnAccessRequestDismissedByUser(
+      const extensions::ExtensionId& extension_id) override;
+  void OnActionAdded(const ToolbarActionsModel::ActionId& action_id) override;
 
   // ExtensionsMenuHandler:
   void OpenMainPage() override;
@@ -105,14 +112,6 @@ class ExtensionsMenuViewPlatformDelegateViews
   void OnShowAccessRequestsInToolbarChanged(
       const extensions::ExtensionId& extension_id,
       bool can_show_requests) override;
-  void OnHostAccessRequestUpdated(const extensions::ExtensionId& extension_id,
-                                  int tab_id) override;
-  void OnHostAccessRequestRemoved(const extensions::ExtensionId& extension_id,
-                                  int tab_id) override;
-  void OnHostAccessRequestsCleared(int tab_id) override;
-  void OnHostAccessRequestDismissedByUser(
-      const extensions::ExtensionId& extension_id,
-      const url::Origin& origin) override;
 
   // Accessors used by tests:
   // Returns the main page iff it's the `current_page_` one.
@@ -158,7 +157,7 @@ class ExtensionsMenuViewPlatformDelegateViews
   content::WebContents* GetActiveWebContents() const;
 
   const raw_ptr<Browser> browser_;
-  const raw_ptr<ExtensionsContainer> extensions_container_;
+  const raw_ptr<ExtensionsContainerViews> extensions_container_;
   const raw_ptr<views::View> bubble_contents_;
 
   // The platform-agnostic menu view model.

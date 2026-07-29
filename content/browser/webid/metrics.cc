@@ -410,39 +410,36 @@ void Metrics::RecordSignInStateMatchStatus(const GURL& provider,
 }
 
 // static
-void Metrics::RecordIdpSigninMatchStatus(
-    std::optional<bool> idp_signin_status,
-    IdpNetworkRequestManager::ParseStatus accounts_endpoint_status) {
+void Metrics::RecordIdpSigninMatchStatus(std::optional<bool> idp_signin_status,
+                                         ParseStatus accounts_endpoint_status) {
   IdpSigninMatchStatus match_status = IdpSigninMatchStatus::kMaxValue;
   if (!idp_signin_status.has_value()) {
-    match_status = (accounts_endpoint_status ==
-                    IdpNetworkRequestManager::ParseStatus::kSuccess)
+    match_status = (accounts_endpoint_status == ParseStatus::kSuccess)
                        ? IdpSigninMatchStatus::kUnknownStatusWithAccounts
                        : IdpSigninMatchStatus::kUnknownStatusWithoutAccounts;
   } else if (idp_signin_status.value()) {
     switch (accounts_endpoint_status) {
-      case IdpNetworkRequestManager::ParseStatus::kHttpNotFoundError:
+      case ParseStatus::kHttpNotFoundError:
         match_status = IdpSigninMatchStatus::kMismatchWithNetworkError;
         break;
-      case IdpNetworkRequestManager::ParseStatus::kNoResponseError:
+      case ParseStatus::kNoResponseError:
         match_status = IdpSigninMatchStatus::kMismatchWithNoContent;
         break;
-      case IdpNetworkRequestManager::ParseStatus::kInvalidResponseError:
+      case ParseStatus::kInvalidResponseError:
         match_status = IdpSigninMatchStatus::kMismatchWithInvalidResponse;
         break;
-      case IdpNetworkRequestManager::ParseStatus::kEmptyListError:
+      case ParseStatus::kEmptyListError:
         match_status = IdpSigninMatchStatus::kMismatchWithNoContent;
         break;
-      case IdpNetworkRequestManager::ParseStatus::kInvalidContentTypeError:
+      case ParseStatus::kInvalidContentTypeError:
         match_status = IdpSigninMatchStatus::kMismatchWithInvalidResponse;
         break;
-      case IdpNetworkRequestManager::ParseStatus::kSuccess:
+      case ParseStatus::kSuccess:
         match_status = IdpSigninMatchStatus::kMatchWithAccounts;
         break;
     }
   } else {
-    match_status = (accounts_endpoint_status ==
-                    IdpNetworkRequestManager::ParseStatus::kSuccess)
+    match_status = (accounts_endpoint_status == ParseStatus::kSuccess)
                        ? IdpSigninMatchStatus::kMismatchWithUnexpectedAccounts
                        : IdpSigninMatchStatus::kMatchWithoutAccounts;
   }
@@ -467,6 +464,7 @@ void Metrics::RecordAutoReauthnMetrics(
     bool auto_reauthn_success,
     bool is_auto_reauthn_setting_blocked,
     bool is_auto_reauthn_embargoed,
+    bool is_auto_reauthn_blocked_by_embedder,
     std::optional<base::TimeDelta> time_from_embargo,
     bool requires_user_mediation) {
   NumAccounts num_returning_accounts = NumAccounts::kZero;
@@ -482,6 +480,8 @@ void Metrics::RecordAutoReauthnMetrics(
   }
   base::UmaHistogramBoolean("Blink.FedCm.AutoReauthn.Succeeded",
                             auto_reauthn_success);
+  base::UmaHistogramBoolean("Blink.FedCm.AutoReauthn.BlockedByEmbedder",
+                            is_auto_reauthn_blocked_by_embedder);
   base::UmaHistogramBoolean("Blink.FedCm.AutoReauthn.BlockedByContentSettings",
                             is_auto_reauthn_setting_blocked);
   base::UmaHistogramBoolean("Blink.FedCm.AutoReauthn.BlockedByEmbargo",
@@ -508,6 +508,8 @@ void Metrics::RecordAutoReauthnMetrics(
         static_cast<int>(num_returning_accounts));
   }
   ukm_builder->SetAutoReauthn_Succeeded(auto_reauthn_success);
+  ukm_builder->SetAutoReauthn_BlockedByEmbedder(
+      is_auto_reauthn_blocked_by_embedder);
   ukm_builder->SetAutoReauthn_BlockedByContentSettings(
       is_auto_reauthn_setting_blocked);
   ukm_builder->SetAutoReauthn_BlockedByEmbargo(is_auto_reauthn_embargoed);
@@ -770,7 +772,7 @@ ukm::SourceId Metrics::GetOrCreateProviderSourceId(const GURL& provider) {
   }
   ukm::SourceId source_id =
       ukm::UkmRecorder::GetSourceIdForWebIdentityFromScope(
-          base::PassKey<webid::Metrics>(), provider);
+          base::PassKey<Metrics>(), provider);
   provider_source_ids_[provider] = source_id;
   return source_id;
 }

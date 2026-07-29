@@ -162,6 +162,15 @@ chromium-metrics-reviews@google.com.
 
 <!-- LINT.ThenChange(//chrome/browser/glic/glic_metrics.cc:BrowserActiveState) -->
 
+<!-- LINT.IfChange(CaptureRegionErrorReason) -->
+
+<enum name="GlicCaptureRegionErrorReason">
+  <int value="0" label="Unknown"/>
+  <int value="1" label="NoFocusableTab"/>
+</enum>
+
+<!-- LINT.ThenChange(//chrome/browser/glic/host/glic.mojom:CaptureRegionErrorReason) -->
+
 <!-- LINT.IfChange(GlicDetailedWebClientState) -->
 
 <enum name="GlicDetailedWebClientState">
@@ -323,6 +332,13 @@ chromium-metrics-reviews@google.com.
   <int value="67" label="OnContextUploadCompleted"/>
   <int value="68" label="OnContextUploadStarted"/>
   <int value="69" label="SetActuationOnWebSetting"/>
+  <int value="70" label="OnModeChange"/>
+  <int value="71" label="SubscribeToCaptureRegion"/>
+  <int value="72" label="UnsubscribeFromCaptureRegion"/>
+  <int value="73" label="OnRecordUseCounter"/>
+  <int value="74" label="InterruptActorTask"/>
+  <int value="75" label="UninterruptActorTask"/>
+  <int value="76" label="ActivateTab"/>
 </enum>
 
 <!-- LINT.ThenChange(//chrome/browser/resources/glic/glic_api_impl/request_types.ts:ApiRequestType) -->
@@ -347,6 +363,54 @@ chromium-metrics-reviews@google.com.
 
 <!-- LINT.ThenChange(//chrome/browser/glic/glic_metrics.h:GlicInputModesUsed) -->
 
+<!-- LINT.IfChange(GlicInstanceEvent) -->
+
+<enum name="GlicInstanceEvent">
+  <int value="0" label="Instance Created"/>
+  <int value="1" label="Warmed Instance Created"/>
+  <int value="2" label="Instance Created Without Warming"/>
+  <int value="3" label="Warmed Instance Promoted"/>
+  <int value="4" label="Side Panel Shown"/>
+  <int value="5" label="Floaty Shown"/>
+  <int value="6" label="Detached To Floaty"/>
+  <int value="7" label="Tab Bound"/>
+  <int value="8" label="Tab Bound Via Daisy Chain"/>
+  <int value="9" label="Daisy Chain Failed"/>
+  <int value="10" label="Conversation Switched From Floaty"/>
+  <int value="11" label="Conversation Switched From Side Panel"/>
+  <int value="12" label="Conversation Switched To Floaty"/>
+  <int value="13" label="Conversation Switched To Side Panel"/>
+  <int value="14" label="Register Conversation"/>
+  <int value="15" label="Instance Hidden"/>
+  <int value="16" label="Close"/>
+  <int value="17" label="Toggle"/>
+  <int value="18" label="Bound Tab Destroyed"/>
+  <int value="19" label="Create Tab"/>
+  <int value="20" label="Create Task"/>
+  <int value="21" label="Perform Actions"/>
+  <int value="22" label="Stop Actor Task"/>
+  <int value="23" label="Pause Actor Task"/>
+  <int value="24" label="Resume Actor Task"/>
+  <int value="25" label="Interrupt Actor Task"/>
+  <int value="26" label="Uninterrupt Actor Task"/>
+  <int value="27" label="WebUI State Uninitialized"/>
+  <int value="28" label="WebUI State Begin Load"/>
+  <int value="29" label="WebUI State Show Loading"/>
+  <int value="30" label="WebUI State Hold Loading"/>
+  <int value="31" label="WebUI State Finish Loading"/>
+  <int value="32" label="WebUI State Error"/>
+  <int value="33" label="WebUI State Offline"/>
+  <int value="34" label="WebUI State Unavailable"/>
+  <int value="35" label="WebUI State Ready"/>
+  <int value="36" label="WebUI State Unresponsive"/>
+  <int value="37" label="WebUI State Sign In"/>
+  <int value="38" label="WebUI State Guest Error"/>
+  <int value="39" label="WebUI State Disabled By Admin"/>
+  <int value="40" label="Unbind Embedder From Instance"/>
+</enum>
+
+<!-- LINT.ThenChange(//chrome/browser/glic/service/glic_instance_metrics.h:GlicInstanceEvent) -->
+
 <!-- LINT.IfChange(GlicInvocationSource) -->
 
 <enum name="GlicInvocationSource">
@@ -364,6 +428,7 @@ chromium-metrics-reviews@google.com.
   <int value="11" label="User shared a tab"/>
   <int value="12" label="From the actor task icon"/>
   <int value="13" label="User shared an image"/>
+  <int value="14" label="From the handoff button"/>
 </enum>
 
 <!-- LINT.ThenChange(//chrome/browser/glic/host/glic.mojom:InvocationSource) -->
@@ -396,6 +461,7 @@ chromium-metrics-reviews@google.com.
   <int value="11" label="Blocked By Shown Glic"/>
   <int value="12" label="Under Memory Pressure"/>
   <int value="13" label="Cellular Connection"/>
+  <int value="14" label="Browser app is shutting down"/>
 </enum>
 
 <!-- LINT.ThenChange(//chrome/browser/glic/glic_profile_manager.h:GlicPrewarmingChecksResult) -->
@@ -484,6 +550,10 @@ chromium-metrics-reviews@google.com.
   <int value="50" label="Actor task icon, attached, audio mode."/>
   <int value="51" label="Actor task icon, detached, text mode."/>
   <int value="52" label="Actor task icon, detached, audio mode."/>
+  <int value="53" label="Handoff button, attached, text mode."/>
+  <int value="54" label="Handoff button, attached, audio mode."/>
+  <int value="55" label="Handoff button, detached, text mode."/>
+  <int value="56" label="Handoff button, detached, audio mode."/>
 </enum>
 
 <!-- LINT.ThenChange(//chrome/browser/glic/glic_metrics.h:ResponseSegmentation) -->
@@ -533,6 +603,15 @@ chromium-metrics-reviews@google.com.
 </enum>
 
 <!-- LINT.ThenChange(//chrome/browser/glic/host/glic.mojom:WebClientMode) -->
+
+<!-- LINT.IfChange(GlicWebUseCounter) -->
+
+<enum name="GlicWebUseCounter">
+  <int value="0" label="Default"/>
+  <int value="1" label="Submit Prompt with Auto Mode"/>
+</enum>
+
+<!-- LINT.ThenChange(//chrome/browser/glic/host/glic.mojom:WebUseCounter) -->
 
 <!-- LINT.IfChange(GlicWebviewExitReason) -->
 

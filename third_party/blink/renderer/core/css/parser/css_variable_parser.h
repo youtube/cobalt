@@ -5,7 +5,6 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_CSS_PARSER_CSS_VARIABLE_PARSER_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_CSS_PARSER_CSS_VARIABLE_PARSER_H_
 
-#include "base/memory/scoped_refptr.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/css/parser/css_parser_token.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context.h"
@@ -98,9 +97,10 @@ class CORE_EXPORT CSSVariableParser {
   static void CollectDashedFunctions(CSSParserTokenStream&,
                                      HashSet<AtomicString>& result);
 
-  // Consume the argument list of a custom function call or a mixin @apply rule,
-  // assuming you are already inside the start of the list (i.e., you have
-  // an active BlockGuard).
+  // Consume the argument list of a custom function call, assuming you are
+  // already inside the start of the list (i.e., you have an active
+  // BlockGuard) and the syntax has already been verified by
+  // ConsumeUnparsedDeclaration().
   //
   // The parse was successful if stream.AtEnd() returns true. In particular,
   // if you have more than “max_num_arguments”, only the first ones will be
@@ -108,6 +108,14 @@ class CORE_EXPORT CSSVariableParser {
   static HeapVector<String> ConsumeFunctionArguments(
       CSSParserTokenStream& stream,
       unsigned max_num_arguments);
+
+  // Similar, except that it also does syntax verification and enters
+  // the BlockGuard for you, and returns CSSVariableData instead of
+  // just string (so that you do not have to re-tokenize to get one).
+  static bool ConsumeMixinArguments(
+      CSSParserTokenStream& stream,
+      const CSSParserContext& context,
+      HeapVector<Member<CSSVariableData>>& result);
 };
 
 }  // namespace blink

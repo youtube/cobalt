@@ -42,6 +42,7 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_window.h"
+#include "chrome/browser/ui/exclusive_access/exclusive_access_context.h"
 #include "chrome/browser/ui/exclusive_access/exclusive_access_manager.h"
 #include "chrome/browser/ui/global_error/global_error_service_factory.h"
 #include "chrome/browser/ui/hats/trust_safety_sentiment_service_factory.h"
@@ -1288,6 +1289,11 @@ void AppMenu::ExecuteCommand(int command_id, int mouse_event_flags) {
     // it means the user clicked on the area around the buttons and we should
     // not do anyting.
     return;
+  }
+
+  if (command_id == IDC_CREATE_NEW_TAB_GROUP_TOP_LEVEL) {
+    base::RecordAction(
+        base::UserMetricsAction("TabGroups_NewTabGroup_AppMenu"));
   }
 
   const Entry& entry = command_id_to_entry_.find(command_id)->second;

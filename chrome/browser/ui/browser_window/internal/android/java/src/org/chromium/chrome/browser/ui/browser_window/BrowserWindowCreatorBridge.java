@@ -8,6 +8,7 @@ import androidx.annotation.VisibleForTesting;
 
 import org.jni_zero.CalledByNative;
 
+import org.chromium.base.JniOnceCallback;
 import org.chromium.build.annotations.NullMarked;
 
 /** Java class that will be used by the native {@code #CreateBrowserWindow()} function. */
@@ -20,7 +21,16 @@ final class BrowserWindowCreatorBridge {
     static long createBrowserWindow(AndroidBrowserWindowCreateParams createParams) {
         ChromeAndroidTaskTracker tracker = ChromeAndroidTaskTrackerFactory.getInstance();
         assert tracker != null;
-        ChromeAndroidTask task = tracker.createPendingTask(createParams);
+        ChromeAndroidTask task = tracker.createPendingTask(createParams, null);
         return task.getOrCreateNativeBrowserWindowPtr();
+    }
+
+    @CalledByNative
+    @VisibleForTesting
+    static void createBrowserWindowAsync(
+            AndroidBrowserWindowCreateParams createParams, JniOnceCallback<Long> callback) {
+        ChromeAndroidTaskTracker tracker = ChromeAndroidTaskTrackerFactory.getInstance();
+        assert tracker != null;
+        tracker.createPendingTask(createParams, callback);
     }
 }

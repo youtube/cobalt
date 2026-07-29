@@ -984,12 +984,6 @@
     'content_worker': {
       'filepath': 'content/.*worker',
     },
-    'contextual_search': {
-      'filepath': 'chrome/browser/android/contextualsearch/|' \
-                  'chrome/android/java/src/org/chromium/chrome/browser/contextualsearch/|' \
-                  'chrome/android/javatests/src/org/chromium/chrome/browser/contextualsearch/|' \
-                  'components/contextual_search/',
-    },
     'contextual_tasks': {
       'filepath': 'contextual_tasks/',
     },
@@ -2150,6 +2144,27 @@
     'startup': {
       'filepath': 'chrome/browser/ui/startup/',
     },
+    'storage': {
+      'filepath': '/blob[-_]storage/|' \
+                  '/cache[-_]storage/|' \
+                  '/cookie[-_]store/|' \
+                  '/dom[-_]storage/|' \
+                  '/file[-_]system[-_]access/|' \
+                  '/indexed[-_]db/|' \
+                  '/storage[-_]key/|' \
+                  '/sync[-_]file[-_]system/|' \
+                  '^chrome/browser/storage/|' \
+                  '^components/services/storage/|' \
+                  '^content/browser/locks/|' \
+                  '^storage/|' \
+                  '^third_party/blink/renderer/modules/storage/|' \
+                  '^third_party/blink/renderer/platform/storage/|' \
+                  '^third_party/blink/web_tests/external/wpt/storage/|' \
+                  '^third_party/blink/web_tests/external/wpt/webstorage/|' \
+                  '^third_party/crc32c/|' \
+                  '^third_party/snappy/|' \
+                  '^tools/metrics/histograms/metadata/storage/'
+    },
     'storage_access_api': {
       'filepath': '/storage_access_api/|' \
                   '/storage-access-api/'
@@ -2285,6 +2300,12 @@
     'touch_selection': {
       'filepath': 'ui/touch_selection/'\
                   '|content/public/android/java/src/org/chromium/content/browser/selection/'
+    },
+    'touch_to_search': {
+      'filepath': 'chrome/browser/android/contextualsearch/|' \
+                  'chrome/android/java/src/org/chromium/chrome/browser/contextualsearch/|' \
+                  'chrome/android/javatests/src/org/chromium/chrome/browser/contextualsearch/|' \
+                  'components/touch_to_search/',
     },
     'tracing': {
       'filepath': 'base/debug/trace_event'\
@@ -2899,9 +2920,6 @@
     'content_shell': ['peter@chromium.org'],
     'content_worker': ['blink-worker-reviews@chromium.org',
                        'kinuko+watch@chromium.org'],
-    'contextual_search': ['donnd+watch@chromium.org',
-                          'twellington+watch@chromium.org',
-                          'gangwu+watch@chromium.org'],
     'contextual_tasks': ['sophiechang@chromium.org'],
     'core_timing': ['speed-metrics-dev+watchlist@chromium.org',
                     'core-timing-reviews@chromium.org'],
@@ -3311,6 +3329,7 @@
     'splitview': ['toshikikikuchi+watch-splitview@chromium.org'],
     'startup': ['nicolaso+watch@chromium.org',
                 'ydago+watch@chromium.org'],
+    'storage': ['storage-reviews@chromium.org'],
     'storage_access_api': ['cfredric+watch@chromium.org'],
     'storage_service': ['dmurph+watching-storageservice@chromium.org',
                         'edgestoragedev@microsoft.com'],
@@ -3371,6 +3390,9 @@
     'tools_win_chromeexts': ['robliao+watch@chromium.org'],
     'touch_selection': ['ajith.v@samsung.com',
                         'ajith.v@chromium.org'],
+    'touch_to_search': ['donnd+watch@chromium.org',
+                        'twellington+watch@chromium.org',
+                        'gangwu+watch@chromium.org'],
     'tracing': ['tracing+reviews@chromium.org',
                 'wfh+watch@chromium.org',
                 'spang+watch@chromium.org'],

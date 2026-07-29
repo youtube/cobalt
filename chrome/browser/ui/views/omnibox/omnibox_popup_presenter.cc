@@ -13,6 +13,7 @@
 #include "base/strings/stringprintf.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/omnibox/features.h"
 #include "chrome/browser/ui/omnibox/omnibox_view.h"
 #include "chrome/browser/ui/views/location_bar/location_bar_view.h"
 #include "chrome/browser/ui/views/omnibox/omnibox_popup_webui_content.h"
@@ -78,9 +79,6 @@ void OmniboxPopupPresenter::Show() {
         include_location_bar_cutout_));
 
     widget_->SetVisibilityChangedAnimationsEnabled(false);
-    // The widget height can not be 0 or else the compositor thinks the webview
-    // is hidden and will not calculate its preferred size.
-    SetWidgetContentHeight(1);
 
     if (base::FeatureList::IsEnabled(omnibox::kWebUIOmniboxFullPopup)) {
       widget_->Show();
@@ -89,6 +87,10 @@ void OmniboxPopupPresenter::Show() {
       }
     } else {
       widget_->ShowInactive();
+    }
+
+    if (auto* content = GetOmniboxPopupWebUIContent()) {
+      content->GetWebContents()->WasShown();
     }
   }
 }

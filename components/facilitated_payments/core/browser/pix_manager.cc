@@ -18,8 +18,10 @@
 #include "components/facilitated_payments/core/browser/network_api/facilitated_payments_network_interface.h"
 #include "components/facilitated_payments/core/features/features.h"
 #include "components/facilitated_payments/core/metrics/facilitated_payments_metrics.h"
+#include "components/facilitated_payments/core/mojom/pix_code_validator.mojom.h"
 #include "components/facilitated_payments/core/utils/facilitated_payments_ui_utils.h"
 #include "components/facilitated_payments/core/utils/facilitated_payments_utils.h"
+#include "components/facilitated_payments/core/validation/pix_code_validator.h"
 #include "components/optimization_guide/core/hints/optimization_guide_decider.h"
 
 namespace payments::facilitated {
@@ -28,6 +30,21 @@ namespace {
 static constexpr base::TimeDelta kProgressScreenDismissDelay = base::Seconds(2);
 static constexpr FacilitatedPaymentsType kPaymentsType =
     FacilitatedPaymentsType::kPix;
+
+PixCodeValidationResult ConvertPixQrCodeTypeToValidationResult(
+    base::expected<mojom::PixQrCodeType, std::string> pix_qr_code_type) {
+  if (!pix_qr_code_type.has_value()) {
+    return PixCodeValidationResult::kValidatorFailed;
+  }
+  switch (pix_qr_code_type.value()) {
+    case mojom::PixQrCodeType::kDynamic:
+      return PixCodeValidationResult::kDynamic;
+    case mojom::PixQrCodeType::kStatic:
+      return PixCodeValidationResult::kStatic;
+    case mojom::PixQrCodeType::kInvalid:
+      return PixCodeValidationResult::kInvalid;
+  }
+}
 
 }  // namespace
 
@@ -111,20 +128,30 @@ bool PixManager::IsMerchantAllowlisted(const GURL& url) const {
 void PixManager::OnPixCodeValidated(
     std::string pix_code,
     base::TimeTicks start_time,
-    base::expected<bool, std::string> is_pix_code_valid) {
+    base::expected<mojom::PixQrCodeType, std::string> pix_qr_code_type) {
   LogPaymentCodeValidationResultAndLatency(
-      is_pix_code_valid, (base::TimeTicks::Now() - start_time));
-  if (!is_pix_code_valid.has_value()) {
+      ConvertPixQrCodeTypeToValidationResult(pix_qr_code_type),
+      (base::TimeTicks::Now() - start_time));
+  if (!pix_qr_code_type.has_value()) {
     // Pix code validator encountered an error.
     LogPixFlowExitedReason(PixFlowExitedReason::kCodeValidatorFailed);
     return;
   }
 
-  if (!is_pix_code_valid.value()) {
+  if (pix_qr_code_type.value() == mojom::PixQrCodeType::kInvalid) {
     // Pix code is not valid.
     LogPixFlowExitedReason(PixFlowExitedReason::kInvalidCode);
     return;
   }
+
+  if (pix_qr_code_type.value() == mojom::PixQrCodeType::kStatic &&
+      !base::FeatureList::IsEnabled(
+          payments::facilitated::kEnableStaticQrCodeForPix)) {
+    // Pix code is static and not supported.
+    LogPixFlowExitedReason(PixFlowExitedReason::kStaticCode);
+    return;
+  }
+
   // If a valid Pix code is found, and the user has Google Wallet linked Pix
   // accounts, verify that the payments API is available, and then show the Pix
   // payment prompt.
@@ -174,6 +201,7 @@ void PixManager::OnPixCodeValidated(
   if (!GetApiClient()) {
     return;
   }
+
   initiate_payment_request_details_->pix_code_ = std::move(pix_code);
   GetApiClient()->IsAvailable(
       base::BindOnce(&PixManager::OnApiAvailabilityReceived,

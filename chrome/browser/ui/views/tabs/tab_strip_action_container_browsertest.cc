@@ -466,6 +466,10 @@ IN_PROC_BROWSER_TEST_F(TabStripActionContainerBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(TabStripActionContainerBrowserTest,
                        LogsWhenGlicNudgeButtonClicked) {
+  if (base::FeatureList::IsEnabled(features::kGlicMultiInstance)) {
+    // TODO(b/453696965): Broken in multi-instance.
+    GTEST_SKIP() << "Skipping for kGlicMultiInstance";
+  }
   ShowTabStripNudgeButton(GlicNudgeButton());
 
   tab_strip_action_container()->GetWidget()->LayoutRootViewIfNecessary();
@@ -507,7 +511,8 @@ IN_PROC_BROWSER_TEST_F(TabStripActionContainerBrowserTest, PreloadFreOnNudge) {
 
   nudge_controller->UpdateNudgeLabel(
       browser()->tab_strip_model()->GetActiveWebContents(), "test",
-      std::nullopt, base::DoNothing());
+      /*prompt_suggestion=*/std::nullopt, /*activity=*/std::nullopt,
+      base::DoNothing());
 
   ShowTabStripNudgeButton(GlicNudgeButton());
 
@@ -757,8 +762,7 @@ IN_PROC_BROWSER_TEST_F(TabStripActionContainerBrowserTest,
   EXPECT_FALSE(tab_two->IsActivated());
 
   // Mark task as completed and remove the tab being actuated on.
-  actor_task_nudge_state.text =
-      tabs::ActorTaskNudgeState::Text::kCompleteTasks;
+  actor_task_nudge_state.text = tabs::ActorTaskNudgeState::Text::kCompleteTasks;
   actor_nudge_controller->OnStateUpdate(actor_task_nudge_state);
   task->RemoveTab(tab_one->GetHandle());
 

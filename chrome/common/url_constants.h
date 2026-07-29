@@ -577,8 +577,13 @@ inline constexpr char16_t kSyncEncryptionHelpURL[] =
 inline constexpr char kSyncErrorsHelpURL[] =
     "https://support.google.com/chrome?p=settings_sync_error";
 
-inline constexpr char kSyncGoogleDashboardURL[] =
+// Legacy URL to the sync google dashboard.
+inline constexpr char kLegacySyncGoogleDashboardURL[] =
     "https://www.google.com/settings/chrome/sync";
+
+// New URL to the sync google dashboard.
+inline constexpr char kNewSyncGoogleDashboardURL[] =
+    "https://chrome.google.com/data";
 
 // The URL for the "Learn more" page for sync setup on the personal stuff page.
 inline constexpr char16_t kSyncLearnMoreURL[] =
@@ -1034,7 +1039,6 @@ inline constexpr char kChromeRootStoreSettingsHelpCenterURL[] =
 #endif
 
 #if BUILDFLAG(ENABLE_PDF_SAVE_TO_DRIVE)
-// TODO(crbug.com/436926181): Make sure the URL is not a dead link.
 // "Learn more" URL for how to save PDF to Google Drive from the PDF viewer.
 inline constexpr char kPdfViewerSaveToDriveHelpCenterURL[] =
     "https://support.google.com/drive?p=save_from_chrome";

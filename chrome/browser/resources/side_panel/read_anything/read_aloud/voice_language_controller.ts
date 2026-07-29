@@ -87,20 +87,32 @@ export class VoiceLanguageController {
         availableVoice => areVoicesEqual(availableVoice, voice));
   }
 
+  // Depending on the timing, the engine might send an onvoiceschanged message
+  // before our connection is established, so request installation after the
+  // connection is established. In the other case, the connection may happen
+  // first, but the engine is not ready for installation requests yet. In this
+  // case, wait until onvoiceschanged to install.
+  // Ideally, only one of these cases should happen, but this is a workaround
+  // for the race condition present in the Chrome extension code.
+  private onEngineMightBeReady_() {
+    // The page language may not have had any system voices, but may have voices
+    // in the engine, so try enabling and installing that language.
+    if (!this.getEnabledLangs().includes(this.getCurrentLanguage())) {
+      this.onPageLanguageChanged();
+    }
+    this.installEnabledLangs_(
+        /* onlyInstallExactGoogleLocaleMatch=*/ true,
+        /* retryIfPreviousInstallFailed= */ true);
+  }
+
   onTtsEngineInstalled() {
+    this.onEngineMightBeReady_();
     this.model_.setWaitingForNewEngine(true);
   }
 
   onVoicesChanged() {
     if (this.model_.getWaitingForNewEngine()) {
-      this.installEnabledLangs_(
-          /* onlyInstallExactGoogleLocaleMatch=*/ true,
-          /* retryIfPreviousInstallFailed= */ true);
-
-      // Ensure onPageLanguageChanged is called to make sure read aloud is
-      // autoswitching to the page language if we previously attempted to
-      // download natural voices before the TTS extension had been installed.
-      this.onPageLanguageChanged();
+      this.onEngineMightBeReady_();
       this.model_.setWaitingForNewEngine(false);
       return;
     }
@@ -200,8 +212,8 @@ export class VoiceLanguageController {
     // If there are no Google TTS locales for this language then enable the
     // first available locale for this language.
     if (!localeToEnable) {
-      localeToEnable =
-          this.getAvailableLangs().find(l => l.startsWith(availableLang));
+      localeToEnable = this.getAvailableLangs().find(
+          l => l.toLowerCase().startsWith(availableLang));
     }
 
     // Enable the locales so we can select a voice for the given language and
@@ -768,8 +780,9 @@ export class VoiceLanguageController {
     if (!voicesForLanguage.length) {
       // Stay with the current voice if no voices are available for this
       // language.
-      return this.getCurrentVoice() ?
-          this.getCurrentVoice() :
+      const currentVoice = this.getCurrentVoice();
+      return currentVoice && this.isVoiceAvailable(currentVoice) ?
+          currentVoice :
           getNaturalVoiceOrDefault(allPossibleVoices);
     }
 

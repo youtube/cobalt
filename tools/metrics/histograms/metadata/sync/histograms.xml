@@ -22,6 +22,15 @@ chromium-metrics-reviews@google.com.
 
 <histograms>
 
+<variants name="AssociateWindowsType">
+  <variant name="SessionRestore"
+      summary="Recorded during session restore. This should only happen on
+               start up."/>
+  <variant name="TabModification"
+      summary="Recorded on tab modification, such as a when a new WebContents
+               is shown."/>
+</variants>
+
 <!-- LINT.IfChange(DataTypeHistogramSuffix) -->
 
 <variants name="SyncDataType">
@@ -224,15 +233,7 @@ chromium-metrics-reviews@google.com.
     multiple situations, which this histogram is emitted separately for. Ideally
     as little time is spent as possible doing this.
   </summary>
-  <token key="Type">
-    <variant name="SessionRestore"
-        summary="Triggered during session restore. This should only happen on
-                 start up. Slower times here may be acceptable."/>
-    <variant name="TabModification"
-        summary="Triggered on tab modification, such as a when a new
-                 WebContents is shown. This should almost always be very
-                 fast."/>
-  </token>
+  <token key="Type" variants="AssociateWindowsType"/>
 </histogram>
 
 <histogram name="Sync.BackedOffDataType" enum="SyncDataTypes"
@@ -590,7 +591,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Sync.ConfigureDataTypeManager.Finished"
-    enum="BooleanIsFirstSync" expires_after="2026-02-14">
+    enum="BooleanIsFirstSync" expires_after="2026-04-19">
   <owner>rushans@google.com</owner>
   <owner>treib@chromium.org</owner>
   <summary>
@@ -613,7 +614,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Sync.ConfigureDataTypeManager.Start" enum="BooleanIsFirstSync"
-    expires_after="2026-02-14">
+    expires_after="2026-04-19">
   <owner>rushans@google.com</owner>
   <owner>treib@chromium.org</owner>
   <summary>
@@ -681,28 +682,6 @@ chromium-metrics-reviews@google.com.
     metric helps determine how often clients attempt to read cross-device
     preferences when the tracker is unavailable. Recorded immediately upon API
     invocation.
-  </summary>
-</histogram>
-
-<histogram name="Sync.CrossUserSharingKeyPairState"
-    enum="CrossUserSharingKeyPairState" expires_after="2025-11-28">
-  <owner>rushans@google.com</owner>
-  <owner>mmoskvitin@google.com</owner>
-  <summary>
-    Records the state of cross user sharing key pair on browser startup (or
-    profile load) when Nigori local data is valid.
-  </summary>
-</histogram>
-
-<histogram name="Sync.CrossUserSharingKeyPairState.DecryptPendingKeys"
-    enum="CrossUserSharingKeyPairStateOnDecryptPendingKeys"
-    expires_after="2026-04-05">
-  <owner>rushans@google.com</owner>
-  <owner>mmoskvitin@google.com</owner>
-  <summary>
-    Records the state of the key pair whenever pendings keys are successfully
-    decrypted (e.g. on remote update, or custom passphrase or trusted vault
-    become available).
   </summary>
 </histogram>
 
@@ -799,7 +778,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Sync.DataTypeActiveForSyncToSigninMigration{SyncDataType}"
-    enum="BooleanActive" expires_after="2026-02-09">
+    enum="BooleanActive" expires_after="2026-04-19">
   <owner>treib@chromium.org</owner>
   <owner>mastiz@chromium.org</owner>
   <summary>
@@ -1444,6 +1423,17 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Sync.MissingProgressMarkerInGetUpdatesResponse"
+    enum="SyncDataTypes" expires_after="2026-10-01">
+  <owner>rushans@google.com</owner>
+  <owner>treib@chromium.org</owner>
+  <owner>src/components/sync/OWNERS</owner>
+  <summary>
+    Logged when the GetUpdates response didn't contain a progress marker for an
+    expected/requested data type. Recorded once per missing data type.
+  </summary>
+</histogram>
+
 <histogram name="Sync.ModelError{SyncDataType}" enum="SyncModelError"
     expires_after="2026-07-01">
   <owner>mtatarski@google.com</owner>
@@ -1660,15 +1650,15 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Sync.PlaceholderTabResyncResult"
-    enum="SyncPlaceholderTabResyncResult" expires_after="2026-04-08">
-  <owner>bjfong@google.com</owner>
+<histogram name="Sync.PlaceholderResync.On{Type}"
+    enum="SyncPlaceholderTabResyncResult" expires_after="2026-10-01">
+  <owner>skym@chromium.org</owner>
   <owner>ckitagawa@chromium.org</owner>
   <summary>
     Records the result of whether the placeholder tab had its local session
-    found, had its data resynced successfully, or remained unsynced. Recorded
-    once for each placeholder tab during session restore.
+    found, had its data resynced successfully, or remained unsynced.
   </summary>
+  <token key="Type" variants="AssociateWindowsType"/>
 </histogram>
 
 <histogram name="Sync.PostedClientToServerMessage"
@@ -1986,7 +1976,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Sync.SelectedTypesInTransportMode" enum="SyncDataTypes"
-    expires_after="2026-02-15">
+    expires_after="2026-04-19">
   <owner>treib@chromium.org</owner>
   <owner>mastiz@chromium.org</owner>
   <summary>

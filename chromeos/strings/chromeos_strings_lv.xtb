@@ -744,6 +744,7 @@
 <translation id="4300073214558989"><ph name="IMAGE_COUNT" /> attēls(-i)</translation>
 <translation id="4300272766492248925">Atvērt lietotni</translation>
 <translation id="430786093962686457">šifons</translation>
+<translation id="4309762678330556039">Automātiski veidojiet transkripcijas un meklējiet audio. Varat izveidot ierakstus pat tad, ja nav savienojuma ar internetu.</translation>
 <translation id="4310735698903592804">Jaunākās fona tapetes, ko nodrošina Google MI</translation>
 <translation id="4320904097188876154">neona rozā</translation>
 <translation id="432961742358282111">Noklikšķiniet ar peles labo pogu vai nospiediet un turiet, lai iegūtu definīcijas, tulkojumus vai konvertētu vērtības citās mērvienībās. Lai pārvaldītu šo funkciju, izmantojiet kreiso vai labo bultiņu.</translation>
@@ -1460,6 +1461,7 @@ Lai varētu izveidot šādas transkripcijas, lejupielādējiet transkribēšanas
 <translation id="7425832472614771259">Lejupielādētais <ph name="LANGUAGE_NAME" /> valodas transkribēšanas modeļa apjoms ir <ph name="PROGRESS_PERCENTAGE" />%</translation>
 <translation id="7427315641433634153">MSCHAP</translation>
 <translation id="7438298994385592770">Nevar atspējot vai noņemt šo APN. Iespējotie APN (“<ph name="ATTACH" />”) ir jāatspējo vai jānoņem.</translation>
+<translation id="7458359366992324037">Tālvadības displejs</translation>
 <translation id="7458970041932198923">Lai skatītu un iestatītu iemiesojumus, izveidojiet savienojumu ar tīklu un atkārtoti ielādējiet lapu.</translation>
 <translation id="7469648432129124067">Konstatēts portāls</translation>
 <translation id="7481312909269577407">Pārsūtīt</translation>

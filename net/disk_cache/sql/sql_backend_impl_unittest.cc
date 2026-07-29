@@ -13,6 +13,8 @@
 #include "base/location.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/run_loop.h"
+#include "base/strings/string_number_conversions.h"
+#include "base/strings/stringprintf.h"
 #include "base/task/thread_pool.h"
 #include "base/test/bind.h"
 #include "base/test/metrics/histogram_tester.h"
@@ -20,6 +22,7 @@
 #include "base/test/task_environment.h"
 #include "base/test/test_file_util.h"
 #include "base/test/test_future.h"
+#include "components/performance_manager/scenario_api/performance_scenario_test_support.h"
 #include "net/base/features.h"
 #include "net/base/io_buffer.h"
 #include "net/base/test_completion_callback.h"
@@ -32,6 +35,11 @@
 
 using net::test::IsError;
 using net::test::IsOk;
+
+using performance_scenarios::InputScenario;
+using performance_scenarios::LoadingScenario;
+using performance_scenarios::PerformanceScenarioTestHelper;
+using performance_scenarios::ScenarioScope;
 
 namespace disk_cache {
 namespace {
@@ -73,6 +81,15 @@ void ReadAndVerifyData(Entry* entry, std::string_view expected_data) {
             expected_data);
 }
 
+size_t GetShardCount() {
+  return std::max(std::min(net::features::kSqlDiskCacheShardCount.Get(), 255),
+                  1);
+}
+std::string GetExpectedFakeIndexContents() {
+  return base::StrCat(
+      {kSqlBackendFakeIndexPrefix, base::NumberToString(GetShardCount())});
+}
+
 class SqlBackendImplTest : public testing::Test {
  public:
   SqlBackendImplTest() = default;
@@ -102,9 +119,22 @@ class SqlBackendImplTest : public testing::Test {
           res_id_or_error) {
     CHECK(res_id_or_error);
     while (!res_id_or_error->data.has_value()) {
+      FlushQueue(backend);
+    }
+  }
+
+  void FlushQueue(SqlBackendImpl& backend) {
+    net::TestCompletionCallback flush_cb;
+    backend.FlushQueueForTest(flush_cb.callback());
+    EXPECT_THAT(flush_cb.WaitForResult(), IsOk());
+  }
+
+  void FlushQueueInTaskRunners(
+      const std::vector<scoped_refptr<base::SequencedTaskRunner>>&
+          task_runners) {
+    for (auto& runner : task_runners) {
       base::RunLoop run_loop;
-      backend.GetBackgroundTaskRunnerForTest()->PostTask(
-          FROM_HERE, run_loop.QuitClosure());
+      runner->PostTask(FROM_HERE, run_loop.QuitClosure());
       run_loop.Run();
     }
   }
@@ -120,6 +150,11 @@ class SqlBackendImplTest : public testing::Test {
     return false;
   }
 
+  // Gets the total size of all entries.
+  int64_t GetSizeOfAllEntries(SqlBackendImpl& backend) {
+    return backend.GetSqlStoreForTest()->GetSizeOfAllEntries();
+  }
+
   base::test::TaskEnvironment task_environment_{
       base::test::TaskEnvironment::TimeSource::MOCK_TIME};
 
@@ -127,6 +162,7 @@ class SqlBackendImplTest : public testing::Test {
 };
 
 TEST_F(SqlBackendImplTest, InitWithNoFakeIndexFile) {
+  const std::string expected_contents = GetExpectedFakeIndexContents();
   base::HistogramTester histogram_tester;
   auto backend = CreateBackend();
   base::test::TestFuture<int> future;
@@ -139,19 +175,19 @@ TEST_F(SqlBackendImplTest, InitWithNoFakeIndexFile) {
       temp_dir_.GetPath().Append(kSqlBackendFakeIndexFileName);
   const std::optional<int64_t> file_size = base::GetFileSize(file_path);
   ASSERT_TRUE(file_size.has_value());
-  EXPECT_EQ(*file_size, sizeof(kSqlBackendFakeIndexMagicNumber));
-  int64_t magic_number_from_file;
-  ASSERT_TRUE(base::ReadFile(file_path,
-                             base::byte_span_from_ref(magic_number_from_file)));
-  EXPECT_EQ(magic_number_from_file, kSqlBackendFakeIndexMagicNumber);
+  EXPECT_EQ(*file_size, expected_contents.size());
+  std::vector<uint8_t> contents(expected_contents.size());
+  ASSERT_TRUE(base::ReadFile(file_path, contents));
+  EXPECT_EQ(contents, base::as_byte_span(expected_contents));
 }
 
 TEST_F(SqlBackendImplTest, InitWithFakeIndexFile) {
+  const std::string expected_contents = GetExpectedFakeIndexContents();
   base::HistogramTester histogram_tester;
   base::FilePath file_path =
       temp_dir_.GetPath().Append(kSqlBackendFakeIndexFileName);
-  ASSERT_TRUE(base::WriteFile(
-      file_path, base::byte_span_from_ref(kSqlBackendFakeIndexMagicNumber)));
+  ASSERT_TRUE(
+      base::WriteFile(file_path, base::as_byte_span(expected_contents)));
 
   auto backend = CreateBackend();
   base::test::TestFuture<int> future;
@@ -162,12 +198,16 @@ TEST_F(SqlBackendImplTest, InitWithFakeIndexFile) {
 }
 
 TEST_F(SqlBackendImplTest, InitWithCorruptedFakeIndexFile) {
+  std::string corrupted_contents = GetExpectedFakeIndexContents();
+  base::span<uint8_t> corrupted_contents_span =
+      base::as_writable_bytes(base::span(corrupted_contents));
+  // Rewrite the last char to 'X'.
+  corrupted_contents_span.subspan(corrupted_contents_span.size() - 1)
+      .copy_from({'X'});
   base::HistogramTester histogram_tester;
   base::FilePath file_path =
       temp_dir_.GetPath().Append(kSqlBackendFakeIndexFileName);
-  const int64_t kWrongMagicNumber = 0xDEADBEEFDEADBEEF;
-  ASSERT_TRUE(
-      base::WriteFile(file_path, base::byte_span_from_ref(kWrongMagicNumber)));
+  ASSERT_TRUE(base::WriteFile(file_path, corrupted_contents_span));
 
   auto backend = CreateBackend();
   base::test::TestFuture<int> future;
@@ -194,11 +234,12 @@ TEST_F(SqlBackendImplTest, InitWithWrongSizeFakeIndexFile) {
 }
 
 TEST_F(SqlBackendImplTest, InitWithOpenFileFailed) {
+  const std::string expected_contents = GetExpectedFakeIndexContents();
   base::HistogramTester histogram_tester;
   base::FilePath file_path =
       temp_dir_.GetPath().Append(kSqlBackendFakeIndexFileName);
-  ASSERT_TRUE(base::WriteFile(
-      file_path, base::byte_span_from_ref(kSqlBackendFakeIndexMagicNumber)));
+  ASSERT_TRUE(
+      base::WriteFile(file_path, base::as_byte_span(expected_contents)));
   base::FilePermissionRestorer permission_restorer(file_path);
   // Make the file unreadable.
   ASSERT_TRUE(base::MakeFileUnreadable(file_path));
@@ -894,6 +935,21 @@ TEST_F(SqlBackendImplTest, OnExternalCacheHitRacesWithOpen) {
   entry->Close();
 }
 
+TEST_F(SqlBackendImplTest, DoomEntryNonExistent) {
+  auto backend = CreateBackendAndInit();
+  EXPECT_TRUE(LoadInMemoryIndex(*backend));
+  backend->GetSqlStoreForTest()->SetSimulateDbFailureForTesting(true);
+  const std::string kNonExistentKey = "non-existent-key";
+  net::TestCompletionCallback cb_doom;
+  int rv_doom =
+      backend->DoomEntry(kNonExistentKey, net::HIGHEST,
+                         base::BindOnce([](int rv) { NOTREACHED(); }));
+  // The operation should complete synchronously due to the in-memory index
+  // check, so the callback should not be reached if the DB operation were to
+  // be attempted.
+  EXPECT_EQ(net::OK, rv_doom);
+}
+
 // Tests that calling Doom() multiple times on the same entry is safe and
 // idempotent.
 TEST_F(SqlBackendImplTest, MultipleDoomsOnSameEntry) {
@@ -910,14 +966,9 @@ TEST_F(SqlBackendImplTest, MultipleDoomsOnSameEntry) {
   entry->Doom();
   entry->Doom();
 
-  {
-    // When the entry was created speculatively, the doomed flag is updated
-    // asynchronously. So need to flush the pending database operations.
-    base::RunLoop run_loop;
-    backend->GetBackgroundTaskRunnerForTest()->PostTask(FROM_HERE,
-                                                        run_loop.QuitClosure());
-    run_loop.Run();
-  }
+  // When the entry was created speculatively, the doomed flag is updated
+  // asynchronously. So need to flush the pending database operations.
+  FlushQueue(*backend);
 
   EXPECT_TRUE(static_cast<SqlEntryImpl*>(entry)->doomed());
   entry->Close();
@@ -953,26 +1004,40 @@ TEST_F(SqlBackendImplTest, RecursiveOpenNextEntry) {
   base::RunLoop run_loop;
   Entry* entry3 = nullptr;
 
+  bool key_1_found = false;
+  bool key_2_found = false;
+
   // The first call to OpenNextEntry. Inside its callback, we'll trigger the
   // second call.
   ASSERT_THAT(
       iter->OpenNextEntry(base::BindLambdaForTesting([&](EntryResult result1) {
             ASSERT_THAT(result1.net_error(), IsOk());
-            auto* entry1 = result1.ReleaseEntry();
-            EXPECT_EQ(entry1->GetKey(), "key2");  // Newest entry first
-            entry1->Close();
+            auto* entry1_itr = result1.ReleaseEntry();
+            key_1_found = entry1_itr->GetKey() == "key1";
+            key_2_found = entry1_itr->GetKey() == "key2";
+            EXPECT_TRUE(key_1_found || key_2_found);
+            entry1_itr->Close();
             // Now, make the recursive call to OpenNextEntry.
             ASSERT_THAT(
                 iter->OpenNextEntry(
                         base::BindLambdaForTesting([&](EntryResult result2) {
                           ASSERT_THAT(result2.net_error(), IsOk());
-                          auto* entry2 = result2.ReleaseEntry();
-                          EXPECT_EQ(entry2->GetKey(), "key1");
-                          entry2->Close();
                           // By this point, the CreateEntry for "key3" should
                           // have completed, proving that the normal operation
                           // was not starved.
                           CHECK(entry3);
+
+                          auto* entry2_itr = result2.ReleaseEntry();
+                          if (entry2_itr->GetKey() == "key3") {
+                            EXPECT_EQ(entry2_itr, entry3);
+                          } else {
+                            if (key_1_found) {
+                              EXPECT_EQ(entry2_itr->GetKey(), "key2");
+                            } else {
+                              EXPECT_EQ(entry2_itr->GetKey(), "key1");
+                            }
+                          }
+                          entry2_itr->Close();
                           entry3->Close();
                           run_loop.Quit();
                         }))
@@ -1021,27 +1086,43 @@ TEST_F(SqlBackendImplTest, RecursiveOpenNextEntryWithActiveEntry) {
   base::RunLoop run_loop;
   Entry* entry3 = nullptr;
 
+  bool key_1_found = false;
+  bool key_2_found = false;
+
   // The first call to OpenNextEntry. Inside its callback, we'll trigger the
   // second call.
   ASSERT_THAT(
       iter->OpenNextEntry(base::BindLambdaForTesting([&](EntryResult result1) {
             ASSERT_THAT(result1.net_error(), IsOk());
             auto* entry1_iter = result1.ReleaseEntry();
-            EXPECT_EQ(entry1_iter->GetKey(), "key2");  // Newest entry first
-            // The returned entry should be the same as the active one.
-            EXPECT_EQ(entry1_iter, entry2_active);
+            key_1_found = entry1_iter->GetKey() == "key1";
+            key_2_found = entry1_iter->GetKey() == "key2";
+            EXPECT_TRUE(key_1_found || key_2_found);
+            if (key_2_found) {
+              EXPECT_EQ(entry1_iter, entry2_active);
+            }
             entry1_iter->Close();
             // Now, make the recursive call to OpenNextEntry.
             ASSERT_THAT(
                 iter->OpenNextEntry(
                         base::BindLambdaForTesting([&](EntryResult result2) {
                           ASSERT_THAT(result2.net_error(), IsOk());
-                          auto* entry2_iter = result2.ReleaseEntry();
-                          EXPECT_EQ(entry2_iter->GetKey(), "key1");
-                          entry2_iter->Close();
                           // By this point, the CreateEntry for "key3" should
-                          // have completed.
+                          // have completed, proving that the normal operation
+                          // was not starved.
                           CHECK(entry3);
+
+                          auto* entry2_itr = result2.ReleaseEntry();
+                          if (entry2_itr->GetKey() == "key3") {
+                            EXPECT_EQ(entry2_itr, entry3);
+                          } else {
+                            if (key_1_found) {
+                              EXPECT_EQ(entry2_itr->GetKey(), "key2");
+                            } else {
+                              EXPECT_EQ(entry2_itr->GetKey(), "key1");
+                            }
+                          }
+                          entry2_itr->Close();
                           entry3->Close();
                           run_loop.Quit();
                         }))
@@ -1129,7 +1210,7 @@ TEST_F(SqlBackendImplTest, AbortPendingWriteData) {
                             write_future.GetCallback(), false);
   ASSERT_THAT(rv, write_buffer->size());
 
-  auto task_runner = backend->GetBackgroundTaskRunnerForTest();
+  auto task_runners = backend->GetBackgroundTaskRunnersForTest();
 
   // Destroy the backend while the write is in flight.
   backend.reset();
@@ -1138,9 +1219,7 @@ TEST_F(SqlBackendImplTest, AbortPendingWriteData) {
   while (!(res_id_or_error->data.has_value() &&
            std::holds_alternative<SqlPersistentStore::Error>(
                *res_id_or_error->data))) {
-    base::RunLoop run_loop;
-    task_runner->PostTask(FROM_HERE, run_loop.QuitClosure());
-    run_loop.Run();
+    FlushQueueInTaskRunners(task_runners);
   }
 
   // The res_id_or_error should have been set to aborted.
@@ -1181,7 +1260,7 @@ TEST_F(SqlBackendImplTest, AbortPendingGetAvailableRange) {
 TEST_F(SqlBackendImplTest, DoomedEntriesCleanup) {
   // 1. Create a backend and add three entries with data.
   auto backend = CreateBackendAndInit();
-  auto task_runner = backend->GetBackgroundTaskRunnerForTest();
+  auto task_runners = backend->GetBackgroundTaskRunnersForTest();
 
   const std::string kKey1 = "key1";
   const std::string kKey2 = "key2";
@@ -1201,18 +1280,15 @@ TEST_F(SqlBackendImplTest, DoomedEntriesCleanup) {
 
   backend.reset();
 
-  {
-    base::RunLoop run_loop;
-    task_runner->PostTask(FROM_HERE, run_loop.QuitClosure());
-    run_loop.Run();
-  }
+  FlushQueueInTaskRunners(task_runners);
 
   // 2. Open the database directly via SqlPersistentStore and doom the third
   // entry.
   {
-    auto store = disk_cache::SqlPersistentStore::Create(
+    auto store = std::make_unique<SqlPersistentStore>(
         temp_dir_.GetPath(), kDefaultMaxBytes, net::CacheType::DISK_CACHE,
-        task_runner);
+        task_runners);
+
     base::test::TestFuture<disk_cache::SqlPersistentStore::Error> future_init;
     store->Initialize(future_init.GetCallback());
     ASSERT_EQ(future_init.Get(), disk_cache::SqlPersistentStore::Error::kOk);
@@ -1223,11 +1299,8 @@ TEST_F(SqlBackendImplTest, DoomedEntriesCleanup) {
 
     store.reset();
   }
-  {
-    base::RunLoop run_loop;
-    task_runner->PostTask(FROM_HERE, run_loop.QuitClosure());
-    run_loop.Run();
-  }
+
+  FlushQueueInTaskRunners(task_runners);
 
   // 3. Recreate the backend
   backend = CreateBackendAndInit();
@@ -1834,6 +1907,59 @@ TEST_F(SqlBackendImplTest,
 
   entry1->Close();
   entry2->Close();
+}
+
+TEST_F(SqlBackendImplTest, IdleTimeEviction) {
+  const int64_t kMaxBytes = 10000;
+  const int64_t kIdleTimeHighWatermark =
+      kMaxBytes * kSqlBackendIdleTimeEvictionHighWaterMarkPermille /
+      1000;  // 9250
+  auto buffer =
+      base::MakeRefCounted<net::StringIOBuffer>(std::string(1000, 'x'));
+
+  auto backend = CreateBackendAndInit(kMaxBytes);
+
+  // Add entries to be above idle time watermark.
+  int i = 0;
+  while (GetSizeOfAllEntries(*backend) <= kIdleTimeHighWatermark) {
+    TestEntryResultCompletionCallback cb;
+    EntryResult result = cb.GetResult(backend->CreateEntry(
+        base::StringPrintf("key%d", i++), net::HIGHEST, cb.callback()));
+    ASSERT_THAT(result.net_error(), IsOk());
+    auto* entry = result.ReleaseEntry();
+    net::TestCompletionCallback write_cb;
+    EXPECT_EQ(
+        write_cb.GetResult(entry->WriteData(1, 0, buffer.get(), buffer->size(),
+                                            write_cb.callback(), false)),
+        buffer->size());
+    entry->Close();
+    FlushQueue(*backend);
+  }
+
+  auto test_helper = PerformanceScenarioTestHelper::Create();
+  // Set the state to idle.
+  test_helper->SetLoadingScenario(ScenarioScope::kGlobal,
+                                  LoadingScenario::kNoPageLoading);
+  test_helper->SetInputScenario(ScenarioScope::kGlobal,
+                                InputScenario::kNoInput);
+
+  // Trigger idle time eviction.
+  backend->OnBrowserIdle();
+
+  // The eviction process involves multiple asynchronous steps across different
+  // shards. The first FlushQueue ensures that all shards have processed their
+  // eviction candidates and posted their results to the
+  // EvictionCandidateAggregator. The second FlushQueue ensures that the
+  // EvictionCandidateAggregator has aggregated the results and posted the final
+  // eviction tasks back to the individual shards, and that those tasks have
+  // been processed.
+  FlushQueue(*backend);
+  FlushQueue(*backend);
+
+  // Eviction should have run and reduced the size.
+  const int64_t kLowWatermark =
+      kMaxBytes * kSqlBackendEvictionLowWaterMarkPermille / 1000;  // 9000
+  EXPECT_LE(GetSizeOfAllEntries(*backend), kLowWatermark);
 }
 
 }  // namespace

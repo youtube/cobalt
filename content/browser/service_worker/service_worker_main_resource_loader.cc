@@ -57,6 +57,13 @@ namespace content {
 
 namespace {
 
+// (crbug.com/340949948): When this is enabled, it fixes the object lifetime
+// issue when `race-network-and-fetch-handler` is used. When
+// `race-network-and-fetch-handler` is used, the object should be deleted after
+// the fetch event completion, regardless of the result of racing.
+BASE_FEATURE(kServiceWorkerStaticRouterRaceRequestFix2,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 using SyntheticResponseStatus =
     ServiceWorkerSyntheticResponseManager::SyntheticResponseStatus;
 using SyntheticResponseEligibility =
@@ -94,11 +101,6 @@ bool HasAutoPreloadEligibleScript(scoped_refptr<ServiceWorkerVersion> version) {
           .contains(version->sha256_script_checksum());
 }
 
-bool IsStaticRouterRaceRequestFixEnabled() {
-  return base::FeatureList::IsEnabled(
-      features::kServiceWorkerStaticRouterRaceRequestFix);
-}
-
 void MaybeSetHeaderReceivedTiming(net::LoadTimingInfo& timing) {
   if (timing.receive_headers_start.is_null()) {
     timing.receive_headers_start = base::TimeTicks::Now();
@@ -113,6 +115,16 @@ void RecordSyntheticResponseEligibility(
     SyntheticResponseEligibility eligibility) {
   base::UmaHistogramEnumeration(kHistogramSyntheticResponseEligibility,
                                 eligibility);
+}
+
+void MaybeSetFetchHandlerBypassOptionForsyntheticResponse(
+    scoped_refptr<ServiceWorkerVersion> version,
+    blink::mojom::ServiceWorkerFetchHandlerBypassOption option) {
+  static const bool bypass_subresource(
+      blink::features::kServiceWorkerSyntheticResponseBypassSubresource.Get());
+  if (bypass_subresource) {
+    version->set_fetch_handler_bypass_option(option);
+  }
 }
 
 }  // namespace
@@ -575,7 +587,7 @@ bool ServiceWorkerMainResourceLoader::StartRaceNetworkRequest(
           context->storage_partition(), resource_request_));
   CHECK(!race_network_request_url_loader_client_);
   race_network_request_url_loader_client_.emplace(
-      resource_request_, AsWeakPtr(), std::move(forwarding_client));
+      resource_request_.url, AsWeakPtr(), std::move(forwarding_client));
 
   // If the initial state is not kWaitForBody, that means creating data pipes
   // failed. Do not start RaceNetworkRequest this case.
@@ -756,14 +768,11 @@ void ServiceWorkerMainResourceLoader::DidDispatchFetchEvent(
   // When kRaceNetworkRequest preload is triggered, it's possible that the
   // response is already committed without waiting for the fetch event result.
   // Invalidate and destruct if the class already detached from the request.
-  if (IsStaticRouterRaceRequestFixEnabled()) {
-    has_fetch_event_finished_ = true;
-    if (dispatched_preload_type() ==
-            DispatchedPreloadType::kRaceNetworkRequest &&
-        is_detached_ && status_ == Status::kCompleted) {
-      InvalidateAndDeleteIfNeeded();
-      return;
-    }
+  did_dispatch_event_ = true;
+  if (dispatched_preload_type() == DispatchedPreloadType::kRaceNetworkRequest &&
+      is_detached_ && status_ == Status::kCompleted) {
+    InvalidateAndDeleteIfNeeded();
+    return;
   }
 
   bool is_fallback =
@@ -1059,6 +1068,10 @@ bool ServiceWorkerMainResourceLoader::MaybeStartSyntheticNetworkRequest(
       RecordSyntheticResponseEligibility(
           SyntheticResponseEligibility::kNotEligibleByNoHeaderStored);
     }
+    MaybeSetFetchHandlerBypassOptionForsyntheticResponse(
+        version, blink::mojom::ServiceWorkerFetchHandlerBypassOption::
+                     kSyntheticResponseDryRunMode);
+
     return false;
   }
 
@@ -1137,6 +1150,10 @@ bool ServiceWorkerMainResourceLoader::MaybeStartSyntheticNetworkRequest(
           SyntheticResponseEligibility::kEligible);
       break;
   }
+
+  MaybeSetFetchHandlerBypassOptionForsyntheticResponse(
+      version,
+      blink::mojom::ServiceWorkerFetchHandlerBypassOption::kSyntheticResponse);
 
   return true;
 }
@@ -1355,19 +1372,24 @@ void ServiceWorkerMainResourceLoader::OnConnectionClosed() {
   InvalidateAndDeleteIfNeeded();
 }
 
-void ServiceWorkerMainResourceLoader::InvalidateAndDeleteIfNeeded() {
+bool ServiceWorkerMainResourceLoader::
+    ShouldDelayDeletionUntilFetchEventCompletion() {
   // Postpone the invalidation and destruction if both conditions are satisfied:
   // 1) RaceNetworkRequest is dispatched and the network wins the race.
   // 2) The fetch event result is not received yet.
   // The postponed things will be done in DidDispatchFetchEvent().
-  if (IsStaticRouterRaceRequestFixEnabled()) {
-    if (dispatched_preload_type() ==
-            DispatchedPreloadType::kRaceNetworkRequest &&
-        race_network_request_url_loader_client_.has_value() &&
-        !has_fetch_event_finished_) {
-      CHECK(fetch_dispatcher_);
-      return;
-    }
+  if (dispatched_preload_type() == DispatchedPreloadType::kRaceNetworkRequest &&
+      race_network_request_url_loader_client_.has_value() &&
+      !did_dispatch_event_) {
+    return true;
+  }
+  return false;
+}
+
+void ServiceWorkerMainResourceLoader::InvalidateAndDeleteIfNeeded() {
+  if (ShouldDelayDeletionUntilFetchEventCompletion()) {
+    CHECK(fetch_dispatcher_);
+    return;
   }
 
   // The fetch dispatcher or stream waiter may still be running. Don't let them
@@ -1388,8 +1410,17 @@ void ServiceWorkerMainResourceLoader::InvalidateAndDeleteIfNeeded() {
 }
 
 void ServiceWorkerMainResourceLoader::DeleteIfNeeded() {
-  if (!receiver_.is_bound() && is_detached_)
-    delete this;
+  bool can_delete = !receiver_.is_bound() && is_detached_;
+  if (!can_delete) {
+    return;
+  }
+  if (base::FeatureList::IsEnabled(kServiceWorkerStaticRouterRaceRequestFix2) &&
+      ShouldDelayDeletionUntilFetchEventCompletion()) {
+    // Speculative fix to delay the object deletion until the fetch event
+    // completion. crbug.com/340949948 for more details.
+    return;
+  }
+  delete this;
 }
 
 network::mojom::ServiceWorkerStatus

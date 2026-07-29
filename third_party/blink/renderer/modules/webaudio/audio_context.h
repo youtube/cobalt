@@ -8,6 +8,7 @@
 #include <atomic>
 
 #include "base/gtest_prod_util.h"
+#include "base/sequence_checker.h"
 #include "base/time/time.h"
 #include "media/mojo/mojom/media_player.mojom-blink.h"
 #include "third_party/blink/public/mojom/mediastream/media_devices.mojom-blink.h"
@@ -113,7 +114,8 @@ class MODULES_EXPORT AudioContext final
                const WebAudioLatencyHint&,
                std::optional<float> sample_rate,
                WebAudioSinkDescriptor sink_descriptor,
-               bool update_echo_cancellation_on_first_start);
+               bool update_echo_cancellation_on_first_start,
+               uint32_t render_quantum_frames);
   AudioContext(const AudioContext&) = delete;
   AudioContext& operator=(const AudioContext&) = delete;
   ~AudioContext() override;

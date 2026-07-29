@@ -73,6 +73,7 @@ import org.chromium.cc.input.BrowserControlsState;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.IntentHandler.ExternalAppId;
 import org.chromium.chrome.browser.IntentHandler.TabOpenType;
+import org.chromium.chrome.browser.accessibility.settings.CaretBrowsingDialog;
 import org.chromium.chrome.browser.app.ChromeActivity;
 import org.chromium.chrome.browser.app.metrics.LaunchCauseMetrics;
 import org.chromium.chrome.browser.app.metrics.TabbedActivityLaunchCauseMetrics;
@@ -247,6 +248,7 @@ import org.chromium.chrome.browser.tabmodel.RedirectTabCreator;
 import org.chromium.chrome.browser.tabmodel.TabClosingSource;
 import org.chromium.chrome.browser.tabmodel.TabClosureParams;
 import org.chromium.chrome.browser.tabmodel.TabClosureParamsUtils;
+import org.chromium.chrome.browser.tabmodel.TabCreatorUtil;
 import org.chromium.chrome.browser.tabmodel.TabGroupColorUtils;
 import org.chromium.chrome.browser.tabmodel.TabGroupMetadata;
 import org.chromium.chrome.browser.tabmodel.TabGroupModelFilter;
@@ -294,6 +296,7 @@ import org.chromium.chrome.browser.ui.signin.account_picker.AccountPickerBottomS
 import org.chromium.chrome.browser.ui.signin.history_sync.HistorySyncConfig;
 import org.chromium.chrome.browser.undo_tab_close_snackbar.TabUndoBarController;
 import org.chromium.chrome.browser.undo_tab_close_snackbar.UndoBarController;
+import org.chromium.chrome.browser.url_constants.ExtensionsUrlOverrideRegistry;
 import org.chromium.chrome.browser.url_constants.UrlConstantResolver;
 import org.chromium.chrome.browser.url_constants.UrlConstantResolverFactory;
 import org.chromium.chrome.browser.usage_stats.UsageStatsService;
@@ -816,7 +819,8 @@ public class ChromeTabbedActivity extends ChromeActivity {
 
             mTabModelNotificationDotManager.initWithNative(mTabModelSelector);
             TabModel currentTabModel = mTabModelSelector.getCurrentModel();
-            initializeChromeAndroidTask(BrowserWindowType.NORMAL, currentTabModel);
+            initializeChromeAndroidTask(
+                    BrowserWindowType.NORMAL, currentTabModel, mMultiInstanceManager);
 
             // For saving non-incognito tab closures for Recent Tabs.
             mHistoricalTabModelObserver =
@@ -923,6 +927,11 @@ public class ChromeTabbedActivity extends ChromeActivity {
     }
 
     private boolean shouldRemoveWindowWithZeroTabs(@TabClosingSource int closingSource) {
+        // Close incognito window when the last tab is closed.
+        if (mSupportedProfileType == SupportedProfileType.OFF_THE_RECORD) {
+            return true;
+        }
+
         return closingSource == TabClosingSource.TABLET_TAB_STRIP
                 || closingSource == TabClosingSource.KEYBOARD_SHORTCUT;
     }
@@ -1050,8 +1059,7 @@ public class ChromeTabbedActivity extends ChromeActivity {
                             mRootUiCoordinator.getDataSharingTabManager(),
                             mRootUiCoordinator.getBottomSheetController(),
                             mRootUiCoordinator.getShareDelegateSupplier(),
-                            mXrSceneCoreSessionManagerSupplier.get(),
-                            mRootUiCoordinator.getTopControlsStacker());
+                            mXrSceneCoreSessionManagerSupplier.get());
             mLayoutStateProviderSupplier.set(mLayoutManager);
         }
     }
@@ -1482,6 +1490,10 @@ public class ChromeTabbedActivity extends ChromeActivity {
                 }
             }
 
+            if (!ChromeFeatureList.sChromeNativeUrlOverriding.isEnabled()) {
+                ExtensionsUrlOverrideRegistry.resetRegistry();
+            }
+
             initiateArchivedTabsAutoDeletePromoManager();
         }
     }
@@ -1564,6 +1576,9 @@ public class ChromeTabbedActivity extends ChromeActivity {
         mInactivityTracker.setLastBackgroundedTimeInPrefs(System.currentTimeMillis());
 
         MultiWindowUtils.recordTabCountForRelaunchWhenActivityPaused(mTabModelSelector, mWindowId);
+
+        EducationalTipModuleUtils.setDefaultBrowserPromoAllowDisplayForRelaunchToSharedPreference(
+                mTabModelProfileSupplier);
 
         super.onPauseWithNative();
     }
@@ -2357,7 +2372,7 @@ public class ChromeTabbedActivity extends ChromeActivity {
         boolean incognito = mSupportedProfileType == SupportedProfileType.OFF_THE_RECORD;
 
         String url = null;
-        GURL homepageGurl = HomepageManager.getInstance().getHomepageGurl();
+        GURL homepageGurl = HomepageManager.getInstance().getHomepageGurl(incognito);
 
         ProfileProvider profileProvider = getProfileProviderSupplier().get();
         Profile profile =
@@ -2955,6 +2970,11 @@ public class ChromeTabbedActivity extends ChromeActivity {
     @Override
     protected int getToolbarLayoutId() {
         return isTablet() ? R.layout.toolbar_tablet : R.layout.toolbar_phone;
+    }
+
+    @Override
+    protected int getToolbarLayoutHeightResId() {
+        return R.dimen.toolbar_height_no_shadow;
     }
 
     @Override
@@ -3725,7 +3745,7 @@ public class ChromeTabbedActivity extends ChromeActivity {
             reportNewTabShortcutUsed(false);
             if (fromMenu) RecordUserAction.record("MobileMenuNewTab.AppMenu");
 
-            getTabCreator(false).launchNtp();
+            TabCreatorUtil.launchNtp(getTabCreator(/* incognito= */ false));
 
             mLocaleManager.showSearchEnginePromoIfNeeded(this, null);
         } else if (id == R.id.new_incognito_tab_menu_id) {
@@ -3743,7 +3763,7 @@ public class ChromeTabbedActivity extends ChromeActivity {
                 RecordUserAction.record("MobileNewTabOpened");
                 reportNewTabShortcutUsed(true);
                 if (fromMenu) RecordUserAction.record("MobileMenuNewIncognitoTab.AppMenu");
-                getTabCreator(true).launchNtp();
+                TabCreatorUtil.launchNtp(getTabCreator(/* incognito= */ true));
                 Tracker tracker = TrackerFactory.getTrackerForProfile(profile);
                 tracker.notifyEvent(EventConstants.APP_MENU_NEW_INCOGNITO_TAB_CLICKED);
             }
@@ -3941,6 +3961,15 @@ public class ChromeTabbedActivity extends ChromeActivity {
                 newTabPage.listenToFeed(mRootUiCoordinator.getReadAloudControllerSupplier());
                 RecordUserAction.record("MobileMenuListenToFeed");
             }
+        } else if (id == R.id.toggle_caret_browsing) {
+            if (CaretBrowsingDialog.shouldShowDialogForKeyboardShortcut(
+                    getCurrentTabModel().getProfile())) {
+                CaretBrowsingDialog caretDialog =
+                        new CaretBrowsingDialog(
+                                this, getModalDialogManager(), getCurrentTabModel().getProfile());
+                caretDialog.show();
+            }
+
         } else {
             return super.onMenuOrKeyboardAction(id, fromMenu, triggeringMotion);
         }
@@ -4109,46 +4138,49 @@ public class ChromeTabbedActivity extends ChromeActivity {
         //
         // If the runnable doesn't run before the Activity dies, Chrome won't crash but the tab
         // won't be closed (crbug.com/587565).
+        if (MinimizeAppAndCloseTabBackPressHandler.supportCloseTabUponMinimization()) {
+            // TODO(crbug.com/450560278): closing the tab synchronously may introduce visual jank.
+            // Might require improvements.
+            closeTabUponMinimizationInternalSync(tabToClose);
+            return;
+        }
         mHandler.postDelayed(
-                () -> {
-                    if (mTabModelSelector == null
-                            || tabToClose.isClosing()
-                            || tabToClose.isDestroyed()) {
-                        return;
-                    }
-
-                    final TabModel currentModel = mTabModelSelector.getCurrentModel();
-                    final TabModel tabToCloseModel =
-                            mTabModelSelector.getModel(tabToClose.isIncognito());
-                    if (currentModel != tabToCloseModel) {
-                        // This seems improbable; however, crbug/1463397 suggests otherwise. If
-                        // this happens, remain on the current tab and close the tab in the
-                        // other model.
-                        tabToCloseModel
-                                .getTabRemover()
-                                .closeTabs(
-                                        TabClosureParams.closeTab(tabToClose)
-                                                .uponExit(true)
-                                                .allowUndo(false)
-                                                .build(),
-                                        /* allowDialog= */ false);
-                        return;
-                    }
-
-                    Tab nextTab =
-                            currentModel.getNextTabIfClosed(
-                                    tabToClose.getId(), /* uponExit= */ true);
-                    tabToCloseModel
-                            .getTabRemover()
-                            .closeTabs(
-                                    TabClosureParams.closeTab(tabToClose)
-                                            .recommendedNextTab(nextTab)
-                                            .uponExit(true)
-                                            .allowUndo(false)
-                                            .build(),
-                                    /* allowDialog= */ false);
-                },
+                () -> closeTabUponMinimizationInternalSync(tabToClose),
                 CLOSE_TAB_ON_MINIMIZE_DELAY_MS);
+    }
+
+    private void closeTabUponMinimizationInternalSync(@NonNull Tab tabToClose) {
+        if (mTabModelSelector == null || tabToClose.isClosing() || tabToClose.isDestroyed()) {
+            return;
+        }
+
+        final TabModel currentModel = mTabModelSelector.getCurrentModel();
+        final TabModel tabToCloseModel = mTabModelSelector.getModel(tabToClose.isIncognito());
+        if (currentModel != tabToCloseModel) {
+            // This seems improbable; however, crbug/1463397 suggests otherwise. If
+            // this happens, remain on the current tab and close the tab in the
+            // other model.
+            tabToCloseModel
+                    .getTabRemover()
+                    .closeTabs(
+                            TabClosureParams.closeTab(tabToClose)
+                                    .uponExit(true)
+                                    .allowUndo(false)
+                                    .build(),
+                            /* allowDialog= */ false);
+            return;
+        }
+
+        Tab nextTab = currentModel.getNextTabIfClosed(tabToClose.getId(), /* uponExit= */ true);
+        tabToCloseModel
+                .getTabRemover()
+                .closeTabs(
+                        TabClosureParams.closeTab(tabToClose)
+                                .recommendedNextTab(nextTab)
+                                .uponExit(true)
+                                .allowUndo(false)
+                                .build(),
+                        /* allowDialog= */ false);
     }
 
     @Override

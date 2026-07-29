@@ -21,16 +21,25 @@ interface PageHandlerFactory {
 interface PageHandler {
   // Reloads the current page. If the page is already in a loading state,
   // it will trigger another reload, and abort the previous one.
-  Reload();
+  // If `ignore_cache` is set to true, the page will be reloaded while
+  // ignoring the HTTP cache.
+  Reload(bool ignore_cache);
   // Stops the current page from reloading. If the page is not in a loading
   // state, it is a no-op.
   StopReload();
+  // Displays the context menu for the reload button with the x and y offset
+  // in pixel relative to the ReloadButtonWebView's origin.
+  ShowContextMenu(int32 offset_x, int32 offset_y);
 };
 
 // Called from C++ side of chrome://reload-button.top-chrome
 // (Browser -> Renderer)
 interface Page {
-  // Sets the loading state in the renderer, the renderer is expected to make
-  // UI changes accordingly.
-  SetLoadingState(bool is_loading);
+  // Sets the reload button state in the renderer, the renderer is expected to
+  // make UI changes accordingly.
+  // `is_loading` indicates if the page is loading. If so, the button should be
+  // displayed as "stop loading"; otherwise the button should be "reload".
+  // `is_menu_enabled` indicates if the context menu is enabled for the reload
+  // button.
+  SetReloadButtonState(bool is_loading, bool is_menu_enabled);
 };

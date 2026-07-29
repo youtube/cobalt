@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 import type {WebClientInitialState} from '../glic.mojom-webui.js';
-import type {ActorTaskPauseReason, ActorTaskState, ActorTaskStopReason, AdditionalContext, AdditionalContextPart, AnnotatedPageData, ChromeVersion, ConversationInfo, Credential, DraggableArea, ErrorReasonTypes, ErrorWithReason, FocusedTabDataHasFocus, FocusedTabDataHasNoFocus, GetPinCandidatesOptions, HostCapability, Journal, MetricUserInputReactionType, OnResponseStoppedDetails, OpenPanelInfo, OpenSettingsOptions, PageMetadata, PanelOpeningData, PanelState, PdfDocumentData, PinCandidate, Screenshot, ScrollToParams, SelectCredentialDialogRequest, SelectCredentialDialogResponse, TabContextOptions, TabContextResult, TabData, TaskOptions, UserConfirmationDialogRequest, UserConfirmationDialogResponse, UserProfileInfo, ViewChangedNotification, ViewChangeRequest, ZeroStateSuggestions, ZeroStateSuggestionsOptions, ZeroStateSuggestionsV2} from '../glic_api/glic_api.js';
+import type {ActorTaskPauseReason, ActorTaskState, ActorTaskStopReason, AdditionalContext, AdditionalContextPart, AnnotatedPageData, CaptureRegionErrorReason, CaptureRegionResult, ChromeVersion, ConversationInfo, Credential, DraggableArea, ErrorReasonTypes, ErrorWithReason, FocusedTabDataHasFocus, FocusedTabDataHasNoFocus, GetPinCandidatesOptions, HostCapability, Journal, MetricUserInputReactionType, NavigationConfirmationRequest, NavigationConfirmationResponse, OnResponseStoppedDetails, OpenPanelInfo, OpenSettingsOptions, PageMetadata, PanelOpeningData, PanelState, PdfDocumentData, PinCandidate, ResumeActorTaskResult, Screenshot, ScrollToParams, SelectCredentialDialogRequest, SelectCredentialDialogResponse, TabContextOptions, TabContextResult, TabData, TaskOptions, UserConfirmationDialogRequest, UserConfirmationDialogResponse, UserProfileInfo, ViewChangedNotification, ViewChangeRequest, WebClientMode, ZeroStateSuggestions, ZeroStateSuggestionsOptions, ZeroStateSuggestionsV2} from '../glic_api/glic_api.js';
 
 /*
 This file defines messages sent over postMessage in-between the Glic WebUI
@@ -182,7 +182,25 @@ export declare type HostRequestTypes = ValidateRequestMap<{
       tabContextOptions: TabContextOptions,
     },
     response: {
-      tabContextResult: TabContextResultPrivate,
+      resumeActorTaskResult: ResumeActorTaskResultPrivate,
+    },
+    backgroundAllowed: true,
+  },
+  glicBrowserInterruptActorTask: {
+    request: {
+      taskId: number,
+    },
+    backgroundAllowed: true,
+  },
+  glicBrowserUninterruptActorTask: {
+    request: {
+      taskId: number,
+    },
+    backgroundAllowed: true,
+  },
+  glicBrowserActivateTab: {
+    request: {
+      tabId: string,
     },
     backgroundAllowed: true,
   },
@@ -379,6 +397,12 @@ export declare type HostRequestTypes = ValidateRequestMap<{
     },
     backgroundAllowed: true,
   },
+  glicBrowserOnRecordUseCounter: {
+    request: {
+      counter: number,
+    },
+    backgroundAllowed: true,
+  },
   glicBrowserOnResponseRated: {
     request: {
       positive: boolean,
@@ -445,6 +469,19 @@ export declare type HostRequestTypes = ValidateRequestMap<{
     },
     backgroundAllowed: true,
   },
+  glicBrowserSubscribeToCaptureRegion: {
+    request: {
+      observationId: number,
+    },
+    backgroundAllowed: true,
+  },
+  glicBrowserUnsubscribeFromCaptureRegion: {
+    request: {
+      observationId: number,
+    },
+    backgroundAllowed: true,
+  },
+
   glicBrowserGetZeroStateSuggestionsForFocusedTab: {
     request: {
       isFirstRun?: boolean,
@@ -480,6 +517,12 @@ export declare type HostRequestTypes = ValidateRequestMap<{
     },
     response: {
       success: boolean,
+    },
+    backgroundAllowed: true,
+  },
+  glicBrowserOnModeChange: {
+    request: {
+      newMode: WebClientMode,
     },
     backgroundAllowed: true,
   },
@@ -620,6 +663,12 @@ export declare type WebClientRequestTypes = ValidateRequestMap<{
     },
     backgroundAllowed: true,
   },
+  glicWebClientNotifyTabDataChanged: {
+    request: {
+      tabData: TabDataPrivate,
+    },
+    backgroundAllowed: true,
+  },
   glicWebClientPageMetadataChanged: {
     request: {
       tabId: string,
@@ -644,10 +693,31 @@ export declare type WebClientRequestTypes = ValidateRequestMap<{
     },
     backgroundAllowed: true,
   },
+  glicWebClientRequestToConfirmNavigation: {
+    request: {
+      request: NavigationConfirmationRequestPrivate,
+    },
+    response: {
+      response: NavigationConfirmationResponsePrivate,
+    },
+    backgroundAllowed: true,
+  },
   glicWebClientNotifyAdditionalContext: {
     request: {
       context: AdditionalContextPrivate,
     },
+  },
+  glicWebClientCaptureRegionUpdate: {
+    request: {
+      result?: CaptureRegionResult,
+      reason?: CaptureRegionErrorReason, observationId: number,
+    },
+  },
+  glicWebClientNotifyActOnWebCapabilityChanged: {
+    request: {
+      canActOnWeb: boolean,
+    },
+    backgroundAllowed: true,
   },
 }>;
 
@@ -733,6 +803,13 @@ export const HOST_REQUEST_TYPES: HostRequestEnumNamesType&{MAX_VALUE: number} =
         OnContextUploadCompleted: 67,
         OnContextUploadStarted: 68,
         SetActuationOnWebSetting: 69,
+        OnModeChange: 70,
+        SubscribeToCaptureRegion: 71,
+        UnsubscribeFromCaptureRegion: 72,
+        OnRecordUseCounter: 73,
+        InterruptActorTask: 74,
+        UninterruptActorTask: 75,
+        ActivateTab: 76,
       };
       return {...result, MAX_VALUE: Math.max(...Object.values(result))};
     })();
@@ -870,6 +947,14 @@ export declare interface TabContextResultPrivate extends
   annotatedPageData?: AnnotatedPageDataPrivate;
 }
 
+// ResumeActorTaskResult data for postMessage transport.
+export declare interface ResumeActorTaskResultPrivate extends Omit<
+    ResumeActorTaskResult, 'tabData'|'pdfDocumentData'|'annotatedPageData'> {
+  tabData: TabDataPrivate;
+  pdfDocumentData?: PdfDocumentDataPrivate;
+  annotatedPageData?: AnnotatedPageDataPrivate;
+}
+
 export declare interface UserProfileInfoPrivate extends
     Omit<UserProfileInfo, 'avatarIcon'> {
   avatarIcon?: RgbaImage;
@@ -922,10 +1007,10 @@ export declare interface SelectCredentialDialogResponsePrivate extends
 export declare interface UserConfirmationDialogRequestPrivate extends
     Omit<UserConfirmationDialogRequest, 'onDialogClosed'> {}
 
-export enum UserConfirmationDialogErrorReason {
+export enum ConfirmationRequestErrorReason {
   // The hosting WebUI received the request, but the web client has not
   // subscribed to the request yet. We couldn't show the dialog in this case.
-  DIALOG_PROMISE_NO_SUBSCRIBER = 0,
+  REQUEST_PROMISE_NO_SUBSCRIBER = 0,
   // The task requested a new user confirmation dialog before the current
   // one completed.
   PREEMPTED_BY_NEW_REQUEST = 1,
@@ -933,7 +1018,15 @@ export enum UserConfirmationDialogErrorReason {
 
 export declare interface UserConfirmationDialogResponsePrivate extends
     UserConfirmationDialogResponse {
-  errorReason?: UserConfirmationDialogErrorReason;
+  errorReason?: ConfirmationRequestErrorReason;
+}
+
+export declare interface NavigationConfirmationRequestPrivate extends
+    Omit<NavigationConfirmationRequest, 'onConfirmationDecision'> {}
+
+export declare interface NavigationConfirmationResponsePrivate extends
+    NavigationConfirmationResponse {
+  errorReason?: ConfirmationRequestErrorReason;
 }
 
 export class ErrorWithReasonImpl<T extends keyof ErrorReasonTypes> extends Error

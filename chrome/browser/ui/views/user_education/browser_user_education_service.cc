@@ -61,6 +61,7 @@
 #include "chrome/browser/ui/views/user_education/impl/browser_feature_promo_preconditions.h"
 #include "chrome/browser/ui/views/user_education/impl/browser_user_education_context.h"
 #include "chrome/browser/ui/views/web_apps/web_app_install_dialog_delegate.h"
+#include "chrome/browser/ui/webui/customize_buttons/customize_buttons_handler.h"
 #include "chrome/browser/ui/webui/new_tab_page/new_tab_page_ui.h"
 #include "chrome/browser/ui/webui/password_manager/password_manager_ui.h"
 #include "chrome/browser/ui/webui/settings/settings_ui.h"
@@ -505,10 +506,10 @@ void MaybeRegisterChromeFeaturePromos(
                                  "Triggered after user navigates to a "
                                  "page with a promotable PWA.")));
 
-  // kIPHDesktopCustomizeChromeFeature:
+  // kIPHDesktopCustomizeChromeExperimentFeature:
   registry.RegisterFeature(std::move(
       FeaturePromoSpecification::CreateForCustomAction(
-          feature_engagement::kIPHDesktopCustomizeChromeFeature,
+          feature_engagement::kIPHDesktopCustomizeChromeExperimentFeature,
           kTopContainerElementId,
           IDS_TUTORIAL_CUSTOMIZE_CHROME_START_TUTORIAL_IPH,
           IDS_PROMO_SHOW_TUTORIAL_BUTTON,
@@ -553,14 +554,13 @@ void MaybeRegisterChromeFeaturePromos(
           .SetBubbleIcon(kLightbulbOutlineIcon)
           .SetCustomActionIsDefault(true)
           .SetCustomActionDismissText(IDS_PROMO_SNOOZE_BUTTON)
-          // This provides backwards-compatibility with legacy conditions used
-          // before feature auto-configuration was enabled.
-          .SetAdditionalConditions(std::move(
-              AdditionalConditions().AddAdditionalCondition(AdditionalCondition{
-                  feature_engagement::events::kCustomizeChromeOpened,
-                  AdditionalConditions::Constraint::kAtMost, 0})))
           // See: crbug.com/1494923
-          .OverrideFocusOnShow(false)));
+          .OverrideFocusOnShow(false)
+          .SetMetadata(143, "rsult@google.com",
+                       "Intro for the Customize Chrome Tutorial. Triggered "
+                       "upon Chrome Startup for users who have not customized "
+                       "Chrome yet or have not interacted with the 'Customize "
+                       "Chrome' button.")));
 
   // kIPHDesktopCustomizeChromeRefreshFeature:
   registry.RegisterFeature(std::move(
@@ -573,7 +573,7 @@ void MaybeRegisterChromeFeaturePromos(
                  user_education::FeaturePromoHandle promo_handle) {
                 ShowPromoInPage::Params params;
                 params.bubble_anchor_id =
-                    NewTabPageUI::kCustomizeChromeButtonElementId;
+                    CustomizeButtonsHandler::kCustomizeChromeButtonElementId;
                 params.bubble_arrow =
                     user_education::HelpBubbleArrow::kBottomRight;
                 params.bubble_text = l10n_util::GetStringUTF16(
@@ -594,6 +594,20 @@ void MaybeRegisterChromeFeaturePromos(
           .SetMetadata(119, "mickeyburks@chromium.org",
                        "Triggered after user is updated to "
                        "the new Chrome Refresh design.")));
+
+  // kIPHDesktopCustomizeChromeAutoPromoFeature:
+  registry.RegisterFeature(std::move(
+      FeaturePromoSpecification::CreateForToastPromo(
+          feature_engagement::kIPHDesktopCustomizeChromeAutoOpenFeature,
+          CustomizeButtonsHandler::kCustomizeChromeButtonElementId,
+          IDS_IPH_CUSTOMIZE_CHROME_AUTO_OPEN_BODY,
+          IDS_IPH_CUSTOMIZE_CHROME_AUTO_OPEN_SCREENREADER,
+          FeaturePromoSpecification::AcceleratorInfo())
+          .SetBubbleArrow(HelpBubbleArrow::kBottomRight)
+          .SetInAnyContext(true)
+          .SetMetadata(143, "kbajkiewicz@google.com",
+                       "Attempts to trigger when user is on NTP to promote "
+                       "customization.")));
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)
   // kIPHExtensionsMenuFeature:
@@ -852,17 +866,6 @@ void MaybeRegisterChromeFeaturePromos(
       IDS_PASSWORD_MANAGER_IPH_BODY_WEB_APP_PROFILE_SWITCH,
       IDS_PROFILE_SWITCH_PROMO_SCREENREADER,
       FeaturePromoSpecification::AcceleratorInfo()));
-
-  // kIPHSignoutWebInterceptFeature:
-  registry.RegisterFeature(std::move(
-      FeaturePromoSpecification::CreateForToastPromo(
-          feature_engagement::kIPHSignoutWebInterceptFeature,
-          kToolbarAvatarButtonElementId,
-          IDS_SIGNOUT_DICE_WEB_INTERCEPT_BUBBLE_CHROME_SIGNOUT_IPH_TEXT,
-          IDS_SIGNOUT_DICE_WEB_INTERCEPT_BUBBLE_CHROME_SIGNOUT_IPH_TEXT_SCREENREADER,
-          FeaturePromoSpecification::AcceleratorInfo())
-          .SetPromoSubtype(user_education::FeaturePromoSpecification::
-                               PromoSubtype::kKeyedNotice)));
 
   // kIPHExplicitBrowserSigninPreferenceRememberedFeature:
   registry.RegisterFeature(std::move(
@@ -1593,7 +1596,7 @@ void MaybeRegisterChromeTutorials(
     auto customize_chrome_tutorial = TutorialDescription::Create<
         kSidePanelCustomizeChromeTutorialMetricPrefix>(
         // Bubble step - customize chrome button
-        BubbleStep(NewTabPageUI::kCustomizeChromeButtonElementId)
+        BubbleStep(CustomizeButtonsHandler::kCustomizeChromeButtonElementId)
             .SetBubbleBodyText(IDS_TUTORIAL_CUSTOMIZE_CHROME_OPEN_SIDE_PANEL)
             .SetBubbleArrow(HelpBubbleArrow::kBottomRight)
             .InAnyContext(),
@@ -1634,7 +1637,7 @@ void MaybeRegisterChromeTutorials(
         HiddenStep::WaitForHidden(kChromeThemeBackElementName),
 
         // Completion of the tutorial.
-        BubbleStep(NewTabPageUI::kCustomizeChromeButtonElementId)
+        BubbleStep(CustomizeButtonsHandler::kCustomizeChromeButtonElementId)
             .SetBubbleTitleText(IDS_TUTORIAL_GENERIC_SUCCESS_TITLE)
             .SetBubbleArrow(HelpBubbleArrow::kBottomRight)
             .SetBubbleBodyText(IDS_TUTORIAL_CUSTOMIZE_CHROME_SUCCESS_BODY)
@@ -1642,8 +1645,8 @@ void MaybeRegisterChromeTutorials(
 
     customize_chrome_tutorial.metadata.additional_description =
         "Tutorial for customizing themes using side panel.";
-    customize_chrome_tutorial.metadata.launch_milestone = 114;
-    customize_chrome_tutorial.metadata.owners = "mickeyburks@chromium.org";
+    customize_chrome_tutorial.metadata.launch_milestone = 143;
+    customize_chrome_tutorial.metadata.owners = "rsult@google.com";
 
     tutorial_registry.AddTutorial(kSidePanelCustomizeChromeTutorialId,
                                   std::move(customize_chrome_tutorial));

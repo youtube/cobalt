@@ -739,14 +739,14 @@ void CanonicalizeRef(std::optional<std::u16string_view> spec,
 
 // Use for standard URLs with authorities and paths.
 COMPONENT_EXPORT(URL)
-bool CanonicalizeStandardURL(const char* spec,
+bool CanonicalizeStandardUrl(std::string_view spec,
                              const Parsed& parsed,
                              SchemeType scheme_type,
                              CharsetConverter* query_converter,
                              CanonOutput* output,
                              Parsed* new_parsed);
 COMPONENT_EXPORT(URL)
-bool CanonicalizeStandardURL(const char16_t* spec,
+bool CanonicalizeStandardUrl(std::u16string_view spec,
                              const Parsed& parsed,
                              SchemeType scheme_type,
                              CharsetConverter* query_converter,
@@ -755,15 +755,13 @@ bool CanonicalizeStandardURL(const char16_t* spec,
 
 // Use for non-special URLs.
 COMPONENT_EXPORT(URL)
-bool CanonicalizeNonSpecialURL(const char* spec,
-                               int spec_len,
+bool CanonicalizeNonSpecialUrl(std::string_view spec,
                                const Parsed& parsed,
                                CharsetConverter* query_converter,
                                CanonOutput& output,
                                Parsed& new_parsed);
 COMPONENT_EXPORT(URL)
-bool CanonicalizeNonSpecialURL(const char16_t* spec,
-                               int spec_len,
+bool CanonicalizeNonSpecialUrl(std::u16string_view spec,
                                const Parsed& parsed,
                                CharsetConverter* query_converter,
                                CanonOutput& output,
@@ -771,15 +769,13 @@ bool CanonicalizeNonSpecialURL(const char16_t* spec,
 
 // Use for file URLs.
 COMPONENT_EXPORT(URL)
-bool CanonicalizeFileURL(const char* spec,
-                         int spec_len,
+bool CanonicalizeFileUrl(std::string_view spec,
                          const Parsed& parsed,
                          CharsetConverter* query_converter,
                          CanonOutput* output,
                          Parsed* new_parsed);
 COMPONENT_EXPORT(URL)
-bool CanonicalizeFileURL(const char16_t* spec,
-                         int spec_len,
+bool CanonicalizeFileUrl(std::u16string_view spec,
                          const Parsed& parsed,
                          CharsetConverter* query_converter,
                          CanonOutput* output,
@@ -787,13 +783,13 @@ bool CanonicalizeFileURL(const char16_t* spec,
 
 // Use for filesystem URLs.
 COMPONENT_EXPORT(URL)
-bool CanonicalizeFileSystemURL(const char* spec,
+bool CanonicalizeFileSystemUrl(std::string_view spec,
                                const Parsed& parsed,
                                CharsetConverter* query_converter,
                                CanonOutput* output,
                                Parsed* new_parsed);
 COMPONENT_EXPORT(URL)
-bool CanonicalizeFileSystemURL(const char16_t* spec,
+bool CanonicalizeFileSystemUrl(std::u16string_view spec,
                                const Parsed& parsed,
                                CharsetConverter* query_converter,
                                CanonOutput* output,
@@ -1027,7 +1023,7 @@ class Replacements {
 
 // The base must be an 8-bit canonical URL.
 COMPONENT_EXPORT(URL)
-bool ReplaceStandardURL(const char* base,
+bool ReplaceStandardUrl(std::string_view base,
                         const Parsed& base_parsed,
                         const Replacements<char>& replacements,
                         SchemeType scheme_type,
@@ -1035,7 +1031,7 @@ bool ReplaceStandardURL(const char* base,
                         CanonOutput* output,
                         Parsed* new_parsed);
 COMPONENT_EXPORT(URL)
-bool ReplaceStandardURL(const char* base,
+bool ReplaceStandardUrl(std::string_view base,
                         const Parsed& base_parsed,
                         const Replacements<char16_t>& replacements,
                         SchemeType scheme_type,
@@ -1045,14 +1041,14 @@ bool ReplaceStandardURL(const char* base,
 
 // For non-special URLs.
 COMPONENT_EXPORT(URL)
-bool ReplaceNonSpecialURL(const char* base,
+bool ReplaceNonSpecialUrl(std::string_view base,
                           const Parsed& base_parsed,
                           const Replacements<char>& replacements,
                           CharsetConverter* query_converter,
                           CanonOutput& output,
                           Parsed& new_parsed);
 COMPONENT_EXPORT(URL)
-bool ReplaceNonSpecialURL(const char* base,
+bool ReplaceNonSpecialUrl(std::string_view base,
                           const Parsed& base_parsed,
                           const Replacements<char16_t>& replacements,
                           CharsetConverter* query_converter,
@@ -1062,14 +1058,14 @@ bool ReplaceNonSpecialURL(const char* base,
 // Filesystem URLs can only have the path, query, or ref replaced.
 // All other components will be ignored.
 COMPONENT_EXPORT(URL)
-bool ReplaceFileSystemURL(const char* base,
+bool ReplaceFileSystemUrl(std::string_view base,
                           const Parsed& base_parsed,
                           const Replacements<char>& replacements,
                           CharsetConverter* query_converter,
                           CanonOutput* output,
                           Parsed* new_parsed);
 COMPONENT_EXPORT(URL)
-bool ReplaceFileSystemURL(const char* base,
+bool ReplaceFileSystemUrl(std::string_view base,
                           const Parsed& base_parsed,
                           const Replacements<char16_t>& replacements,
                           CharsetConverter* query_converter,
@@ -1079,14 +1075,14 @@ bool ReplaceFileSystemURL(const char* base,
 // Replacing some parts of a file URL is not permitted. Everything except
 // the host, path, query, and ref will be ignored.
 COMPONENT_EXPORT(URL)
-bool ReplaceFileURL(const char* base,
+bool ReplaceFileUrl(std::string_view base,
                     const Parsed& base_parsed,
                     const Replacements<char>& replacements,
                     CharsetConverter* query_converter,
                     CanonOutput* output,
                     Parsed* new_parsed);
 COMPONENT_EXPORT(URL)
-bool ReplaceFileURL(const char* base,
+bool ReplaceFileUrl(std::string_view base,
                     const Parsed& base_parsed,
                     const Replacements<char16_t>& replacements,
                     CharsetConverter* query_converter,
@@ -1129,7 +1125,7 @@ bool ReplaceMailtoURL(const char* base,
 // relative or absolute URL and places the result into |*is_relative|. If it is
 // relative, the relevant portion of the URL will be placed into
 // |*relative_component| (there may have been trimmed whitespace, for example).
-// This value is passed to ResolveRelativeURL. If the input is not relative,
+// This value is passed to ResolveRelativeUrl. If the input is not relative,
 // this value is UNDEFINED (it may be changed by the function).
 //
 // Returns true on success (we successfully determined the URL is relative or
@@ -1170,19 +1166,19 @@ bool IsRelativeUrl(std::string_view base,
 // reasonable" that will be consistent and valid, just probably not what
 // was intended by the web page author or caller.
 COMPONENT_EXPORT(URL)
-bool ResolveRelativeURL(const char* base_url,
+bool ResolveRelativeUrl(std::string_view base_url,
                         const Parsed& base_parsed,
                         bool base_is_file,
-                        const char* relative_url,
+                        std::string_view relative_url,
                         const Component& relative_component,
                         CharsetConverter* query_converter,
                         CanonOutput* output,
                         Parsed* out_parsed);
 COMPONENT_EXPORT(URL)
-bool ResolveRelativeURL(const char* base_url,
+bool ResolveRelativeUrl(std::string_view base_url,
                         const Parsed& base_parsed,
                         bool base_is_file,
-                        const char16_t* relative_url,
+                        std::u16string_view relative_url,
                         const Component& relative_component,
                         CharsetConverter* query_converter,
                         CanonOutput* output,

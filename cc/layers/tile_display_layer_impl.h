@@ -14,7 +14,7 @@
 #include "base/memory/raw_ref.h"
 #include "cc/base/tiling_data.h"
 #include "cc/cc_export.h"
-#include "cc/layers/layer_impl.h"
+#include "cc/layers/tile_based_layer_impl.h"
 #include "cc/mojom/missing_tile_reason.mojom.h"
 #include "cc/tiles/tile_index.h"
 #include "cc/tiles/tile_priority.h"
@@ -30,7 +30,7 @@ namespace cc {
 // Viz-side counterpart to a client-side PictureLayerImpl when TreesInViz is
 // enabled. Clients push tiling information and tile contents from a picture
 // layer down to Viz, and this layer uses that information to draw tile quads.
-class CC_EXPORT TileDisplayLayerImpl : public LayerImpl {
+class CC_EXPORT TileDisplayLayerImpl : public TileBasedLayerImpl {
  public:
   struct NoContents {
     mojom::MissingTileReason reason =
@@ -142,9 +142,6 @@ class CC_EXPORT TileDisplayLayerImpl : public LayerImpl {
   Tiling& GetOrCreateTilingFromScaleKey(float scale_key);
   void RemoveTiling(float scale_key);
   void SetSolidColor(std::optional<SkColor4f> color) { solid_color_ = color; }
-  void SetIsBackdropFilterMask(bool is_backdrop_filter_mask) {
-    is_backdrop_filter_mask_ = is_backdrop_filter_mask;
-  }
   void SetIsDirectlyCompositedImage(bool is_directly_composited_image) {
     is_directly_composited_image_ = is_directly_composited_image;
   }
@@ -162,9 +159,6 @@ class CC_EXPORT TileDisplayLayerImpl : public LayerImpl {
   std::unique_ptr<LayerImpl> CreateLayerImpl(
       LayerTreeImpl* tree_impl) const override;
   void PushPropertiesTo(LayerImpl* layer) override;
-  void AppendQuads(const AppendQuadsContext& context,
-                   viz::CompositorRenderPass* render_pass,
-                   AppendQuadsData* append_quads_data) override;
   void GetContentsResourceId(viz::ResourceId* resource_id,
                              gfx::Size* resource_size,
                              gfx::SizeF* resource_uv_size) const override;
@@ -185,13 +179,14 @@ class CC_EXPORT TileDisplayLayerImpl : public LayerImpl {
   std::optional<SkColor4f> solid_color_for_testing() const {
     return solid_color_;
   }
-  bool is_backdrop_filter_mask_for_testing() const {
-    return is_backdrop_filter_mask_;
-  }
 
  private:
+  // TileBasedLayerImpl:
+  void AppendQuadsSpecialization(const AppendQuadsContext& context,
+                                 viz::CompositorRenderPass* render_pass,
+                                 AppendQuadsData* append_quads_data) override;
+
   std::optional<SkColor4f> solid_color_;
-  bool is_backdrop_filter_mask_ = false;
   bool is_directly_composited_image_ = false;
   bool nearest_neighbor_ = false;
   gfx::ContentColorUsage content_color_usage_ = gfx::ContentColorUsage::kSRGB;

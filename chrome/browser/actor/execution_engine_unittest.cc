@@ -6,16 +6,19 @@
 
 #include <optional>
 
+#include "base/task/single_thread_task_runner.h"
 #include "base/test/bind.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/test_future.h"
+#include "base/time/time.h"
 #include "base/timer/elapsed_timer.h"
 #include "chrome/browser/actor/actor_features.h"
 #include "chrome/browser/actor/actor_tab_data.h"
 #include "chrome/browser/actor/actor_task.h"
 #include "chrome/browser/actor/actor_test_util.h"
 #include "chrome/browser/actor/shared_types.h"
+#include "chrome/browser/actor/tool_request_variant.h"
 #include "chrome/browser/actor/tools/click_tool_request.h"
 #include "chrome/browser/actor/tools/fake_tool.h"
 #include "chrome/browser/actor/tools/fake_tool_request.h"
@@ -63,6 +66,12 @@ constexpr char kActorTaskCountCancelledHistogram[] =
     "Actor.Task.Count.Cancelled";
 constexpr char kActorTaskCountCompletedHistogram[] =
     "Actor.Task.Count.Completed";
+constexpr char kActorClickToolDurationSuccessHistogram[] =
+    "Actor.Tools.ExecutionDuration.Click";
+constexpr char kActorFakeToolDurationHistogram[] =
+    "Actor.Tools.ExecutionDuration.FakeTool";
+constexpr char kActorTaskInterruptionCompletedHistogram[] =
+    "Actor.Task.Interruptions.Completed";
 
 class FakeChromeRenderFrame : public chrome::mojom::ChromeRenderFrame {
  public:
@@ -283,6 +292,7 @@ TEST_F(ExecutionEngineTest, ActSucceedsOnSupportedUrl) {
       Act(GURL("http://localhost/"), MakeClickCallback(kFakeContentNodeId)));
   histograms_.ExpectUniqueSample(kActionResultHistogram,
                                  mojom::ActionResultCode::kOk, 1);
+  histograms_.ExpectTotalCount(kActorClickToolDurationSuccessHistogram, 1);
 }
 
 TEST_F(ExecutionEngineTest, ActFailsOnUnsupportedUrl) {
@@ -379,7 +389,7 @@ TEST_F(ExecutionEngineTest, CancelOngoingAction) {
   content::NavigationSimulator::NavigateAndCommitFromBrowser(
       web_contents(), GURL("http://localhost/"));
 
-  base::test::TestFuture<void> on_invoke_future;
+  base::test::TestFuture<Tool::InvokeCallback> on_invoke_future;
   base::test::TestFuture<void> on_destroy_future;
   std::unique_ptr<ToolRequest> request = std::make_unique<FakeToolRequest>(
       on_invoke_future.GetCallback(), on_destroy_future.GetCallback());
@@ -399,7 +409,7 @@ TEST_F(ExecutionEngineTest, CancelOngoingAction) {
   ExpectErrorResult(result, mojom::ActionResultCode::kTaskWentAway);
 }
 
-TEST_F(ExecutionEngineTest, CompletedHistogram) {
+TEST_F(ExecutionEngineTest, ActorTaskCompletedHistogram) {
   content::NavigationSimulator::NavigateAndCommitFromBrowser(
       web_contents(), GURL("http://localhost/"));
 
@@ -425,7 +435,7 @@ TEST_F(ExecutionEngineTest, CompletedHistogram) {
   histograms_.ExpectBucketCount(kActorTaskCountCompletedHistogram, 4, 1);
 }
 
-TEST_F(ExecutionEngineTest, CompletedWithPauseHistogram) {
+TEST_F(ExecutionEngineTest, ActorTaskCompletedWithPauseHistogram) {
   content::NavigationSimulator::NavigateAndCommitFromBrowser(
       web_contents(), GURL("http://localhost/"));
 
@@ -459,7 +469,7 @@ TEST_F(ExecutionEngineTest, CompletedWithPauseHistogram) {
   histograms_.ExpectBucketCount(kActorTaskCountCompletedHistogram, 1, 1);
 }
 
-TEST_F(ExecutionEngineTest, CancelledHistogram) {
+TEST_F(ExecutionEngineTest, ActorTaskCancelledHistogram) {
   content::NavigationSimulator::NavigateAndCommitFromBrowser(
       web_contents(), GURL("http://localhost/"));
 
@@ -483,7 +493,7 @@ TEST_F(ExecutionEngineTest, CancelledHistogram) {
   histograms_.ExpectBucketCount(kActorTaskCountCancelledHistogram, 2, 1);
 }
 
-TEST_F(ExecutionEngineTest, CountAndDurationHistograms) {
+TEST_F(ExecutionEngineTest, ActorTaskCountAndDurationHistograms) {
   // Task in Created state followed by Acting then Reflecting states.
   const base::TimeDelta created_duration = base::Seconds(5);
 
@@ -543,9 +553,51 @@ TEST_F(ExecutionEngineTest, CountAndDurationHistograms) {
       "Actor.Task.StateTransition.Duration.Reflecting", reflecting_duration, 2);
   histograms_.ExpectBucketCount(
       "Actor.Task.StateTransition.ActionCount.Reflecting_Finished", 0, 1);
+  histograms_.ExpectBucketCount(kActorTaskInterruptionCompletedHistogram, 2, 1);
 }
 
-TEST_F(ExecutionEngineTest, LatencyInfo) {
+TEST_F(ExecutionEngineTest, LatencyInfoAndActionDurationHistogram) {
+  content::NavigationSimulator::NavigateAndCommitFromBrowser(
+      web_contents(), GURL("http://localhost/"));
+
+  ActResultFuture result;
+
+  FakeChromeRenderFrame fake_chrome_render_frame;
+  fake_chrome_render_frame.OverrideBinder(main_rfh());
+
+  const base::TimeDelta simulated_duration = base::Milliseconds(150);
+  const base::TimeTicks action_start_time = base::TimeTicks::Now();
+
+  base::test::TestFuture<Tool::InvokeCallback> on_invoke_future;
+
+  std::unique_ptr<ToolRequest> action = std::make_unique<FakeToolRequest>(
+      on_invoke_future.GetCallback(), base::OnceClosure());
+
+  task_->Act(ToRequestList(action), result.GetCallback());
+
+  ASSERT_TRUE(on_invoke_future.Wait());
+  ASSERT_FALSE(result.IsReady()) << "Act should not be finished yet.";
+
+  // Fast forward time by the simulated duration before running callback to
+  // complete tool invocation.
+  task_environment()->FastForwardBy(simulated_duration);
+  std::move(on_invoke_future.Take()).Run(MakeOkResult());
+
+  ASSERT_TRUE(result.Wait());
+  EXPECT_TRUE(IsOk(*result.Get<0>()));
+
+  auto& actions_result = result.Get<2>();
+  EXPECT_EQ(actions_result.size(), 1u);
+  EXPECT_EQ(actions_result[0].start_time, action_start_time);
+  EXPECT_EQ(actions_result[0].end_time, action_start_time + simulated_duration);
+
+  EXPECT_EQ(actions_result[0].end_time - actions_result[0].start_time,
+            simulated_duration);
+  histograms_.ExpectTimeBucketCount(kActorFakeToolDurationHistogram,
+                                    simulated_duration, 1);
+}
+
+TEST_F(ExecutionEngineTest, CompletedWithInterruptHistogram) {
   content::NavigationSimulator::NavigateAndCommitFromBrowser(
       web_contents(), GURL("http://localhost/"));
 
@@ -558,10 +610,26 @@ TEST_F(ExecutionEngineTest, LatencyInfo) {
       MakeClickCallback(kFakeContentNodeId).Run();
   task_->Act(ToRequestList(action), result.GetCallback());
 
-  auto& actions_result = result.Get<2>();
-  EXPECT_EQ(actions_result.size(), 1u);
-  EXPECT_NE(actions_result[0].start_time, base::TimeTicks());
-  EXPECT_NE(actions_result[0].end_time, base::TimeTicks());
+  // Simulate the first active period
+  const base::TimeDelta active_duration1 = base::Milliseconds(100);
+  task_environment()->FastForwardBy(active_duration1);
+
+  task_->Interrupt();
+
+  // Time that passes while paused should not be counted.
+  task_environment()->FastForwardBy(base::Milliseconds(500));
+
+  task_->Uninterrupt();
+
+  // Simulate the second active period
+  const base::TimeDelta active_duration2 = base::Milliseconds(50);
+  task_environment()->FastForwardBy(active_duration2);
+
+  task_->Stop(/*success=*/true);
+  histograms_.ExpectTimeBucketCount(kActorTaskDurationCompletedHistogram,
+                                    active_duration1 + active_duration2, 1);
+  histograms_.ExpectBucketCount(kActorTaskCountCompletedHistogram, 1, 1);
+  histograms_.ExpectBucketCount(kActorTaskInterruptionCompletedHistogram, 1, 1);
 }
 
 }  // namespace

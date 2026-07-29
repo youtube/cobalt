@@ -133,6 +133,7 @@
 <translation id="1492417797159476138">Вы уже сохранили это имя пользователя для данного сайта.</translation>
 <translation id="1497590942294823549">Меню → Менеджер паролей</translation>
 <translation id="1498283581832036924">Ваш аккаунт <ph name="WEBSITE" /> удален не будет.</translation>
+<translation id="1503814213414825943">Выберите аккаунты, которые хотите экспортировать в другое приложение.</translation>
 <translation id="1506061864768559482">Поисковая система</translation>
 <translation id="1506063256525392513">Это нужно, чтобы делать снимки, загружать фотографии и сканировать QR-коды.</translation>
 <translation id="1508263560970797965">Продолжить в режиме инкогнито</translation>
@@ -161,6 +162,7 @@
 <translation id="1582732959743469162">Скачивание файлов будет приостановлено.</translation>
 <translation id="1594034544529347967">Начало</translation>
 <translation id="1598751033135758830">Открыть в приложении…</translation>
+<translation id="1601560923496285236">Применить</translation>
 <translation id="1603718000246404895">{COUNT,plural, =1{1 адрес}one{# адрес}few{# адреса}many{# адресов}other{# адреса}}</translation>
 <translation id="1605405588277479165">Отключено (не рекомендуется)</translation>
 <translation id="1605658421715042784">Скопировать изображение</translation>
@@ -778,6 +780,7 @@
 <translation id="4049507953662678203">Проверьте подключение к Интернету и повторите попытку.</translation>
 <translation id="4070132839822635162">Не входить</translation>
 <translation id="4092655288299341041">Справочная информация</translation>
+<translation id="4095483462103784441">Создать новую группу вкладок</translation>
 <translation id="4099756562043439968">Создать напоминание</translation>
 <translation id="4108998448622696017">Обнаруживает опасные события и предупреждает о них.</translation>
 <translation id="4111985840824673503">Отметить все как прочитанные</translation>
@@ -837,7 +840,6 @@
 <translation id="4286718549648564014">Адрес перемещен в ваш аккаунт <ph name="USER_EMAIL" />.</translation>
 <translation id="4287172530684295552">Отметить как прочитанное</translation>
 <translation id="428768789042547925">Что нового</translation>
-<translation id="428858055663163046">Когда вы скачаете какой-нибудь файл, он появится в этом разделе.</translation>
 <translation id="429074084062258019">{count,plural, =1{Добавить вкладку в группу}one{Добавить вкладки в группу}few{Добавить вкладки в группу}many{Добавить вкладки в группу}other{Добавить вкладки в группу}}</translation>
 <translation id="4302061870579014542">Выбрать</translation>
 <translation id="4304713468139749426">Менеджер паролей</translation>
@@ -1095,6 +1097,7 @@
 <translation id="5242899254250321823">Сменить пароль на сайте</translation>
 <translation id="5248640482715684545">Этот сайт пытается открыть другое приложение.</translation>
 <translation id="5250371859659394278">Из неизвестного источника</translation>
+<translation id="5269913829202614649">Настройка главной страницы</translation>
 <translation id="5271265092610673171">{count,plural, =1{Пропущено обязательное поле. Заполните его.}one{Пропущены обязательные поля. Заполните их.}few{Пропущены обязательные поля. Заполните их.}many{Пропущены обязательные поля. Заполните их.}other{Пропущены обязательные поля. Заполните их.}}</translation>
 <translation id="5271549068863921519">Сохранить пароль</translation>
 <translation id="5275912569557792098"><ph name="USER_NAME" /> (<ph name="USER_EMAIL" />) хочет управлять с вами группой вкладок. Обратите внимание, что любой, у кого есть ссылка, может изменять все вкладки. Она действительна 48 часов.</translation>
@@ -1236,6 +1239,7 @@
 <translation id="5758759241456233788">Приложение "Карты Бета" отключено. Вы можете включить его в настройках.</translation>
 <translation id="5759484603608560822">Скрыть раздел "Скачанные файлы"</translation>
 <translation id="5767099457279594162">Доступ к паролю не предоставлен</translation>
+<translation id="5768870767339201169">Продолжите с того, на чем остановились</translation>
 <translation id="5779117921996157216">{count,plural, =1{Раскрыт {count} пароль. Безопасность данных под угрозой. Устраните проблему, чтобы защитить себя.}one{Раскрыт {count} пароль. Безопасность данных под угрозой. Устраните проблему, чтобы защитить себя.}few{Раскрыто {count} пароля. Безопасность данных под угрозой. Устраните проблему, чтобы защитить себя.}many{Раскрыто {count} паролей. Безопасность данных под угрозой. Устраните проблему, чтобы защитить себя.}other{Раскрыто {count} пароля. Безопасность данных под угрозой. Устраните проблему, чтобы защитить себя.}}</translation>
 <translation id="5791632441210678828">Кнопка "Сортировать" для ленты новостей.</translation>
 <translation id="5803566855766646066">Удалить новую карту?</translation>
@@ -1454,6 +1458,7 @@
 <translation id="6537746030088321027">example.com</translation>
 <translation id="6550675742724504774">Параметры</translation>
 <translation id="6550891580932862748">Не защищает вас от опасных сайтов, расширений и скачиваемых файлов. Этот вариант не повлияет на настройки Безопасного просмотра в других продуктах Google.</translation>
+<translation id="6556866813142980365">Повторить</translation>
 <translation id="6559301491397835130">{count,plural, =1{Закладка сохранена в "{title}" (только на этом устройстве).}one{Закладки сохранены в "{title}" (только на этом устройстве).}few{Закладки сохранены в "{title}" (только на этом устройстве).}many{Закладки сохранены в "{title}" (только на этом устройстве).}other{Закладки сохранены в "{title}" (только на этом устройстве).}}</translation>
 <translation id="656065428026159829">Ещё</translation>
 <translation id="6571070086367343653">Изменить данные карты</translation>
@@ -1524,7 +1529,7 @@
 <translation id="6794476726485507147">Выберите дату и время, когда хотите получить напоминание о необходимости вернуться на эту страницу.</translation>
 <translation id="6795481620482106033">Недопустимые данные</translation>
 <translation id="6797543908718012274">Включить режим чтения</translation>
-<translation id="6806550742467879742">Инструменты управления страницей</translation>
+<translation id="6806550742467879742">Для этой страницы</translation>
 <translation id="6807287147325542056">Пароли в других приложениях</translation>
 <translation id="681368974849482173">Сохранено</translation>
 <translation id="6825078212112407882">{count,plural, =1{Закладка сохранена в аккаунте Google ({email}).}one{{count} закладка сохранена в аккаунте Google ({email}).}few{{count} закладки сохранено в аккаунте Google ({email}).}many{{count} закладок сохранено в аккаунте Google ({email}).}other{{count} закладки сохранено в аккаунте Google ({email}).}}</translation>
@@ -1692,6 +1697,7 @@
 <translation id="7484645889979462775">Никогда для этого сайта</translation>
 <translation id="7486006552035434095">Синхронизируйте устройства</translation>
 <translation id="7491131399623468277">Открыть настройки</translation>
+<translation id="7491161827858509164">Чтобы посмотреть ранее скачанные файлы, откройте приложение <ph name="BEGIN_LINK" />Файлы<ph name="END_LINK" />.</translation>
 <translation id="7498234416455752244">Продолжить редактирование</translation>
 <translation id="7500244509706269886">Заполнить автоматически</translation>
 <translation id="750493650310597496">Закладки не выбраны</translation>
@@ -1729,6 +1735,7 @@
 <translation id="7612619742409846846">Вы вошли в аккаунт</translation>
 <translation id="7612849887607288481">Открыть меню ИИ-прототипов</translation>
 <translation id="7620522820075868385">Отмена</translation>
+<translation id="762078666799342162">Посмотреть ранее скачанные файлы можно в приложении <ph name="BEGIN_LINK" />Файлы<ph name="END_LINK" /></translation>
 <translation id="7638584964844754484">Неверная кодовая фраза</translation>
 <translation id="7639276194483401980">{COUNT,plural, =0{Раскрытые пароли}=1{{COUNT} раскрытый пароль}one{{COUNT} раскрытый пароль}few{{COUNT} раскрытых пароля}many{{COUNT} раскрытых паролей}other{{COUNT} раскрытого пароля}}</translation>
 <translation id="7640669552036055091">Вкладки из Android</translation>
@@ -1793,6 +1800,7 @@
 <translation id="7851858861565204677">Другие устройства</translation>
 <translation id="7853202427316060426">История действий</translation>
 <translation id="7854006015462979438">Нажмите "Основные".</translation>
+<translation id="7855678267851972597">Аудиофайлы</translation>
 <translation id="7859988229622350291">Никогда не переводить</translation>
 <translation id="7863211248337747225">Установить</translation>
 <translation id="7865127013871431856">Параметры перевода</translation>
@@ -1909,7 +1917,6 @@
 <translation id="8273982424131314219">Данные будут вставлены на сайте <ph name="URL" /></translation>
 <translation id="8275068909952022340">Ещё…</translation>
 <translation id="8277328362018795342">Чтобы ответы были более подходящими, содержание страниц передается Google</translation>
-<translation id="8278488584187265939">Настройка главной страницы</translation>
 <translation id="8281781826761538115">Язык по умолчанию: <ph name="DEFAULT_LOCALE" /></translation>
 <translation id="8281886186245836920">Пропустить</translation>
 <translation id="8282657446819506217">Открыть в группе вкладок</translation>
@@ -1973,6 +1980,7 @@
 <translation id="8524799873541103884"><ph name="INCOGNITO" />, вкладки между <ph name="FIRST_VISIBLE_TAB" /> и <ph name="LAST_VISIBLE_TAB" />, всего <ph name="NUMBER_OF_OPEN_TABS" /></translation>
 <translation id="8528009254289981965">Как открывать ссылки из других приложений в режиме инкогнито</translation>
 <translation id="8529767659511976195">Новинка</translation>
+<translation id="8531572740963685410">PDF-файлы</translation>
 <translation id="8533411848724153701">Gemini</translation>
 <translation id="8533670235862049797">Безопасный просмотр включен</translation>
 <translation id="8534481786647257214">Опубликовано в Google+.</translation>
@@ -2179,6 +2187,7 @@
 <translation id="945522503751344254">Отправить отзыв</translation>
 <translation id="94870150074703282">Удалить группу?</translation>
 <translation id="952704832371081537">Отмена</translation>
+<translation id="95332591904104970">Подключенные приложения</translation>
 <translation id="954667170699278022">Список для чтения</translation>
 <translation id="956218893102219091">Используйте точное местоположение вместо приблизительного на основе IP-адреса, чтобы получать более подходящие результаты от Gemini. <ph name="BEGIN_LINK" />Подробнее…<ph name="END_LINK" /></translation>
 <translation id="961856697154696964">Удалить данные браузера</translation>

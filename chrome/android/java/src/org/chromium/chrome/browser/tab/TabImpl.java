@@ -12,6 +12,7 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.net.Uri;
 import android.os.Build;
+import android.os.SystemClock;
 import android.text.TextUtils;
 import android.util.SparseArray;
 import android.view.View;
@@ -30,7 +31,6 @@ import org.jni_zero.JniType;
 import org.jni_zero.NativeMethods;
 
 import org.chromium.base.Callback;
-import org.chromium.base.CallbackUtils;
 import org.chromium.base.ContextUtils;
 import org.chromium.base.Log;
 import org.chromium.base.ObserverList;
@@ -41,6 +41,7 @@ import org.chromium.base.TraceEvent;
 import org.chromium.base.UserDataHost;
 import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.metrics.RecordUserAction;
+import org.chromium.base.process_launcher.ScopedServiceBindingBatch;
 import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.base.version_info.VersionInfo;
 import org.chromium.build.annotations.EnsuresNonNullIf;
@@ -58,7 +59,6 @@ import org.chromium.chrome.browser.content.ContentUtils;
 import org.chromium.chrome.browser.content.WebContentsFactory;
 import org.chromium.chrome.browser.flags.ActivityType;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
-import org.chromium.chrome.browser.gesturenav.GestureNavigationUtils;
 import org.chromium.chrome.browser.native_page.NativePageAssassin;
 import org.chromium.chrome.browser.night_mode.NightModeUtils;
 import org.chromium.chrome.browser.offlinepages.OfflinePageUtils;
@@ -111,8 +111,10 @@ import org.chromium.ui.base.ViewAndroidDelegate;
 import org.chromium.ui.base.WindowAndroid;
 import org.chromium.url.GURL;
 
+import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 import java.lang.ref.WeakReference;
 import java.nio.ByteBuffer;
 import java.util.Objects;
@@ -143,6 +145,19 @@ class TabImpl implements Tab {
             "autofill.using_virtual_view_structure";
 
     private static final String PRODUCT_VERSION = VersionInfo.getProductVersion();
+
+    // LINT.IfChange(DiscardReason)
+
+    @IntDef({DiscardReason.ON_DEMAND, DiscardReason.APPEND_NAVIGATION, DiscardReason.COUNT})
+    @Target(ElementType.TYPE_USE)
+    @Retention(RetentionPolicy.SOURCE)
+    private @interface DiscardReason {
+        int ON_DEMAND = 0;
+        int APPEND_NAVIGATION = 1;
+        int COUNT = 2;
+    }
+
+    // LINT.ThenChange(//tools/metrics/histograms/metadata/tab/enums.xml:DiscardReason)
 
     private long mNativeTabAndroid;
 
@@ -643,7 +658,7 @@ class TabImpl implements Tab {
 
     /**
      * @return true iff the tab doesn't hold a live page. This happens before initialize() and when
-     * the tab holds frozen WebContents state that is yet to be inflated.
+     *     the tab holds frozen WebContents state that is yet to be inflated.
      */
     @Override
     public boolean isFrozen() {
@@ -811,9 +826,21 @@ class TabImpl implements Tab {
     @Override
     public void freeze() {
         if (useDiscardForFreeze()) {
-            discard();
+            discardInternal(DiscardReason.ON_DEMAND);
         } else {
             freezeInternal();
+        }
+    }
+
+    private String getMetricsTag(@DiscardReason int discardReason) {
+        switch (discardReason) {
+            case DiscardReason.ON_DEMAND:
+                return "OnDemand";
+            case DiscardReason.APPEND_NAVIGATION:
+                return "AppendNavigation";
+            default:
+                assert false : "Unknown discard reason: " + discardReason;
+                return "Unknown";
         }
     }
 
@@ -822,12 +849,21 @@ class TabImpl implements Tab {
                 && ContentFeatureMap.isEnabled(ContentFeatures.WEB_CONTENTS_DISCARD);
     }
 
-    private void discard() {
+    private void discardInternal(@DiscardReason int discardReason) {
         assert isHidden() || isClosing() : "Should only discard a closing or hidden tab.";
 
         if (mWebContents == null) return;
 
-        mWebContents.discard(CallbackUtils.emptyRunnable());
+        long start = SystemClock.uptimeMillis();
+
+        RecordHistogram.recordEnumeratedHistogram(
+                "Tab.Android.DiscardStarted", discardReason, DiscardReason.COUNT);
+        mWebContents.discard(
+                () -> {
+                    RecordHistogram.recordTimesHistogram(
+                            "Tab.Android.DiscardLatency." + getMetricsTag(discardReason),
+                            SystemClock.uptimeMillis() - start);
+                });
         // TODO(crbug.com/449784092): Check if the tab gets stuck in a loading state when using
         // discard.
     }
@@ -911,7 +947,7 @@ class TabImpl implements Tab {
             // Case 3: The tab has a live WebContents and maybe a pending load params. Clobber
             // the previous pending load params (if one existed) and discard the WebContents.
             assert mWebContents != null;
-            discard();
+            discardInternal(DiscardReason.APPEND_NAVIGATION);
             mPendingLoadParams = params;
             mUrl = new GURL(params.getUrl());
         }
@@ -921,8 +957,6 @@ class TabImpl implements Tab {
     private void freezeAndAppendPendingNavigationInternal(
             LoadUrlParams params, @Nullable String title) {
         assert isHidden() : "Should only freeze and append a navigation to a tab that is hidden.";
-        // TODO(crbug.com/449784092): This should use `discard()` instead of `freezeInternal()`
-        // once pending navigations with a WebContents are supported.
         freezeInternal();
         assumeNonNull(mWebContentsState);
         // The only reason this should still be null is if we failed to allocate a byte buffer,
@@ -1118,7 +1152,9 @@ class TabImpl implements Tab {
 
     @Override
     public void show(@TabSelectionType int type, @TabLoadIfNeededCaller int caller) {
-        try {
+        // Batch service binding updates for the tab including the subframes. TabImpl.show() is
+        // triggered not only on tab switch, but also when the window is shown.
+        try (ScopedServiceBindingBatch scope = ScopedServiceBindingBatch.scoped()) {
             TraceEvent.begin("Tab.show");
             if (!isHidden()) return;
             // Keep unsetting mIsHidden above loadIfNeeded(), so that we pass correct visibility
@@ -1174,7 +1210,9 @@ class TabImpl implements Tab {
 
     @Override
     public final void hide(@TabHidingType int type) {
-        try {
+        // Batch service binding updates for the tab including the subframes. TabImpl.hide() is
+        // triggered not only on tab switch, but also when the window is hidden.
+        try (ScopedServiceBindingBatch scope = ScopedServiceBindingBatch.scoped()) {
             TraceEvent.begin("Tab.hide");
             if (isHidden()) return;
             mIsHidden = true;
@@ -1451,6 +1489,7 @@ class TabImpl implements Tab {
 
     /**
      * Restores member fields from the given TabState.
+     *
      * @param state TabState containing information about this Tab.
      */
     void restoreFieldsFromState(TabState state) {
@@ -1681,6 +1720,7 @@ class TabImpl implements Tab {
 
     /**
      * Called when a page has finished loading.
+     *
      * @param url URL that was loaded.
      */
     void didFinishPageLoad(GURL url) {
@@ -1692,6 +1732,7 @@ class TabImpl implements Tab {
 
     /**
      * Called when a page has failed loading.
+     *
      * @param errorCode The error code causing the page to fail loading.
      */
     void didFailPageLoad(int errorCode) {
@@ -1734,6 +1775,7 @@ class TabImpl implements Tab {
 
     /**
      * Notify the observers that the load progress has changed.
+     *
      * @param progress The current percentage of progress.
      */
     void notifyLoadProgress(float progress) {
@@ -1776,10 +1818,10 @@ class TabImpl implements Tab {
     }
 
     /**
-     * Sets whether the tab is showing an error page.  This is reset whenever the tab finishes a
-     * navigation.
-     * Note: This is kept here to keep the build green. Remove from interface as soon as
-     *       the downstream patch lands.
+     * Sets whether the tab is showing an error page. This is reset whenever the tab finishes a
+     * navigation. Note: This is kept here to keep the build green. Remove from interface as soon as
+     * the downstream patch lands.
+     *
      * @param isShowingErrorPage Whether the tab shows an error page.
      */
     void setIsShowingErrorPage(boolean isShowingErrorPage) {
@@ -1871,11 +1913,12 @@ class TabImpl implements Tab {
     /**
      * Cache the title for the current page.
      *
-     * {@link ContentViewClient#onUpdateTitle} is unreliable, particularly for navigating backwards
-     * and forwards in the history stack, so pull the correct title whenever the page changes.
-     * onUpdateTitle is only called when the title of a navigation entry changes. When the user goes
-     * back a page the navigation entry exists with the correct title, thus the title is not
-     * actually changed, and no notification is sent.
+     * <p>{@link ContentViewClient#onUpdateTitle} is unreliable, particularly for navigating
+     * backwards and forwards in the history stack, so pull the correct title whenever the page
+     * changes. onUpdateTitle is only called when the title of a navigation entry changes. When the
+     * user goes back a page the navigation entry exists with the correct title, thus the title is
+     * not actually changed, and no notification is sent.
+     *
      * @param title Title of the page.
      */
     void updateTitle(String title) {
@@ -2122,6 +2165,7 @@ class TabImpl implements Tab {
 
     /**
      * Shows the given {@code nativePage} if it's not already showing.
+     *
      * @param nativePage The {@link NativePage} to show.
      */
     private void showNativePage(NativePage nativePage) {
@@ -2137,9 +2181,6 @@ class TabImpl implements Tab {
                         view.addOnAttachStateChangeListener(mAttachStateChangeListener);
                     }
                     if (isDisplayingBackForwardAnimation()) {
-                        assert GestureNavigationUtils.areBackForwardTransitionsEnabled()
-                                : "Must not draw bf screenshot if back forward transition is"
-                                        + " disabled";
                         mNativePageSmoothTransitionDelegate = mNativePage.enableSmoothTransition();
                         assumeNonNull(mNativePageSmoothTransitionDelegate);
                         mNativePageSmoothTransitionDelegate.prepare();
@@ -2181,6 +2222,7 @@ class TabImpl implements Tab {
 
     /**
      * Set {@link TabDelegateFactory} instance and updates the references.
+     *
      * @param factory TabDelegateFactory instance.
      */
     private void setDelegateFactory(TabDelegateFactory factory) {
@@ -2219,8 +2261,8 @@ class TabImpl implements Tab {
     }
 
     /**
-     * Update the interactable state of the tab. If the state has changed, it will call the
-     * {@link #onInteractableStateChanged(boolean)} method.
+     * Update the interactable state of the tab. If the state has changed, it will call the {@link
+     * #onInteractableStateChanged(boolean)} method.
      */
     private void updateInteractableState() {
         boolean currentState =
@@ -2766,7 +2808,9 @@ class TabImpl implements Tab {
     }
 
     @Override
+    @CalledByNative
     public void setMediaState(@MediaState int mediaState) {
+        if (mMediaState == mediaState) return;
         mMediaState = mediaState;
         if (ChromeFeatureList.sMediaIndicatorsAndroid.isEnabled()) {
             for (TabObserver observer : mObservers) {

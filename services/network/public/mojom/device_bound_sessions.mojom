@@ -7,6 +7,7 @@ module network.mojom;
 import "mojo/public/mojom/base/time.mojom";
 import "sandbox/policy/mojom/context.mojom";
 import "services/network/public/mojom/clear_data_filter.mojom";
+import "services/network/public/mojom/cookie_manager.mojom";
 import "services/network/public/mojom/schemeful_site.mojom";
 import "url/mojom/url.mojom";
 
@@ -65,6 +66,44 @@ enum DeviceBoundSessionDeletionReason {
 
 // LINT.ThenChange(//net/device_bound_sessions/deletion_reason.h:DeletionReason)
 
+// LINT.IfChange(DeviceBoundSessionParams)
+
+// The following provides Mojo bindings over the DBSC JSON registration
+// payload. See the spec for details about their intended semantics:
+// https://w3c.github.io/webappsec-dbsc/#format-session-instructions
+enum DeviceBoundSessionScopeSpecificationType {
+  kExclude,
+  kInclude,
+};
+
+struct DeviceBoundSessionScopeSpecification {
+  DeviceBoundSessionScopeSpecificationType type;
+  string domain;
+  string path;
+};
+
+struct DeviceBoundSessionScope {
+  bool include_site;
+  array<DeviceBoundSessionScopeSpecification> specifications;
+  string origin;
+};
+
+struct DeviceBoundSessionCredential {
+  string name;
+  string attributes;
+};
+
+struct DeviceBoundSessionParams {
+  string session_id;
+  url.mojom.Url fetcher_url;
+  string refresh_url;
+  DeviceBoundSessionScope scope;
+  array<DeviceBoundSessionCredential> credentials;
+  array<string> allowed_refresh_initiators;
+};
+
+// LINT.ThenChange(//net/device_bound_sessions/session_params.h:SessionParams)
+
 // DeviceBoundSessionManager is a privileged interface that should only
 // be used in trusted processes.
 [RequireContext=sandbox.mojom.Context.kBrowser]
@@ -89,6 +128,19 @@ interface DeviceBoundSessionManager {
   // Add an observer for accesses to sessions including `url`.
   AddObserver(url.mojom.Url url,
               pending_remote<DeviceBoundSessionAccessObserver> observer);
+
+  // Create a session with the given `params`, and set each cookie in
+  // `cookies_to_set`. This combined functionality allows callers to
+  // prevent sessions from applying to stale cookies and to ensure that
+  // sessions always apply to the new cookies. Returns whether the session was
+  // created and cookies set.
+  //
+  // TODO(crbug.com/439821296): Add a better error type so callers can
+  // distinguish various reasons they may have failed.
+  CreateBoundSession(DeviceBoundSessionParams params,
+                     array<uint8> wrapped_key,
+                     array<CanonicalCookie> cookies_to_set,
+                     CookieOptions cookie_options) => (bool success);
 };
 
 // Observer that is notified on use of a device bound session.

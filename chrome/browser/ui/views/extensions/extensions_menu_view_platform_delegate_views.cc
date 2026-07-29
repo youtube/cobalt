@@ -20,7 +20,6 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/extensions/extension_action_view_controller.h"
-#include "chrome/browser/ui/extensions/extensions_container.h"
 #include "chrome/browser/ui/extensions/extensions_menu_view_model.h"
 #include "chrome/browser/ui/tabs/tab_strip_model_observer.h"
 #include "chrome/browser/ui/toolbar/toolbar_action_view_controller.h"
@@ -28,6 +27,7 @@
 #include "chrome/browser/ui/views/chrome_layout_provider.h"
 #include "chrome/browser/ui/views/extensions/extension_action_platform_delegate_views.h"
 #include "chrome/browser/ui/views/extensions/extension_view_utils.h"
+#include "chrome/browser/ui/views/extensions/extensions_container_views.h"
 #include "chrome/browser/ui/views/extensions/extensions_menu_item_view.h"
 #include "chrome/browser/ui/views/extensions/extensions_menu_main_page_view.h"
 #include "chrome/browser/ui/views/extensions/extensions_menu_site_permissions_page_view.h"
@@ -279,7 +279,7 @@ ExtensionMenuItemView::SiteAccessToggleState GetSiteAccessToggleState(
 ExtensionsMenuViewPlatformDelegateViews::
     ExtensionsMenuViewPlatformDelegateViews(
         Browser* browser,
-        ExtensionsContainer* extensions_container,
+        ExtensionsContainerViews* extensions_container,
         views::View* bubble_contents)
     : browser_(browser),
       extensions_container_(extensions_container),
@@ -308,7 +308,7 @@ void ExtensionsMenuViewPlatformDelegateViews::DetachFromModel() {
   menu_model_ = nullptr;
 }
 
-void ExtensionsMenuViewPlatformDelegateViews::OnAccessRequestAdded(
+void ExtensionsMenuViewPlatformDelegateViews::OnHostAccessRequestAddedOrUpdated(
     const extensions::ExtensionId& extension_id,
     content::WebContents* web_contents) {
   CHECK(current_page_);
@@ -324,8 +324,60 @@ void ExtensionsMenuViewPlatformDelegateViews::OnAccessRequestAdded(
   int index = 0;
   AddOrUpdateExtensionRequestingAccess(main_page, extension_id, index,
                                        web_contents);
-
   main_page->MaybeShowRequestsSection();
+}
+
+void ExtensionsMenuViewPlatformDelegateViews::OnAccessRequestRemoved(
+    const extensions::ExtensionId& extension_id) {
+  CHECK(current_page_);
+
+  // Site access requests only affect the main page.
+  ExtensionsMenuMainPageView* main_page = GetMainPage(current_page_.view());
+  if (!main_page) {
+    return;
+  }
+
+  main_page->RemoveExtensionRequestingAccess(extension_id);
+  main_page->MaybeShowRequestsSection();
+}
+
+void ExtensionsMenuViewPlatformDelegateViews::OnAccessRequestsCleared() {
+  // Site access requests only affect the main page.
+  ExtensionsMenuMainPageView* main_page = GetMainPage(current_page_.view());
+  if (!main_page) {
+    return;
+  }
+
+  main_page->ClearExtensionsRequestingAccess();
+  main_page->MaybeShowRequestsSection();
+}
+
+void ExtensionsMenuViewPlatformDelegateViews::OnAccessRequestDismissedByUser(
+    const extensions::ExtensionId& extension_id) {
+  CHECK(current_page_);
+
+  // Site access requests only affect the main page.
+  ExtensionsMenuMainPageView* main_page = GetMainPage(current_page_.view());
+  if (!main_page) {
+    return;
+  }
+
+  main_page->RemoveExtensionRequestingAccess(extension_id);
+  main_page->MaybeShowRequestsSection();
+}
+
+void ExtensionsMenuViewPlatformDelegateViews::OnActionAdded(
+    const ToolbarActionsModel::ActionId& action_id) {
+  CHECK(current_page_);
+
+  // A new toolbar action only affects the main page.
+  ExtensionsMenuMainPageView* main_page = GetMainPage(current_page_.view());
+  if (!main_page) {
+    return;
+  }
+
+  int index = FindIndex(*toolbar_model_, action_id);
+  InsertMenuItemMainPage(main_page, action_id, index);
 }
 
 void ExtensionsMenuViewPlatformDelegateViews::OpenMainPage() {
@@ -367,96 +419,19 @@ void ExtensionsMenuViewPlatformDelegateViews::OnSiteAccessSelected(
 
 void ExtensionsMenuViewPlatformDelegateViews::OnSiteSettingsToggleButtonPressed(
     bool is_on) {
-  content::WebContents* web_contents = GetActiveWebContents();
-  const url::Origin& origin =
-      web_contents->GetPrimaryMainFrame()->GetLastCommittedOrigin();
   PermissionsManager::UserSiteSetting site_setting =
       is_on ? PermissionsManager::UserSiteSetting::kCustomizeByExtension
             : PermissionsManager::UserSiteSetting::kBlockAllExtensions;
-
-  extensions::TabHelper::FromWebContents(web_contents)
-      ->SetReloadRequired(site_setting);
-  PermissionsManager::Get(browser_->profile())
-      ->UpdateUserSiteSetting(origin, site_setting);
-
-  if (is_on) {
-    base::RecordAction(
-        base::UserMetricsAction("Extensions.Menu.AllowByExtensionSelected"));
-  } else {
-    base::RecordAction(
-        base::UserMetricsAction("Extensions.Menu.ExtensionsBlockedSelected"));
-  }
+  menu_model_->UpdateSiteSetting(site_setting);
 }
 
 void ExtensionsMenuViewPlatformDelegateViews::OnExtensionToggleSelected(
     const extensions::ExtensionId& extension_id,
     bool is_on) {
-  const extensions::Extension* extension = GetExtension(browser_, extension_id);
-  content::WebContents* web_contents = GetActiveWebContents();
-  CHECK(CanUserCustomizeExtensionSiteAccess(*extension, *browser_->profile(),
-                                            *toolbar_model_, *web_contents));
-
-  SitePermissionsHelper permissions_helper(browser_->profile());
-  auto* permissions_manager = PermissionsManager::Get(browser_->profile());
-  auto current_site_access = permissions_manager->GetUserSiteAccess(
-      *extension, web_contents->GetLastCommittedURL());
-  PermissionsManager::ExtensionSiteAccess extension_site_access =
-      permissions_manager->GetSiteAccess(*extension,
-                                         web_contents->GetLastCommittedURL());
-
-  // Grant extension site access when extension is toggled on.
   if (is_on) {
-    DCHECK_EQ(current_site_access,
-              PermissionsManager::UserSiteAccess::kOnClick);
-
-    // Update site access when extension requested host permissions for the
-    // current site (that is, site access was withheld).
-    if (extension_site_access.withheld_site_access ||
-        extension_site_access.withheld_all_sites_access) {
-      // Restore to previous access by looking whether broad site access was
-      // previously granted.
-      PermissionsManager::UserSiteAccess new_site_access =
-          permissions_manager->HasPreviousBroadSiteAccess(extension_id)
-              ? PermissionsManager::UserSiteAccess::kOnAllSites
-              : PermissionsManager::UserSiteAccess::kOnSite;
-      permissions_helper.UpdateSiteAccess(*extension, web_contents,
-                                          new_site_access);
-      return;
-    }
-
-    // Otherwise, grant one-time access (e.g. extension with activeTab is
-    // granted access).
-    extensions::ExtensionActionRunner* action_runner =
-        extensions::ExtensionActionRunner::GetForWebContents(web_contents);
-    if (action_runner) {
-      action_runner->GrantTabPermissions({extension});
-    }
-    return;
-  }
-
-  // Revoke extension's site access when extension is toggled off.
-
-  // Update site access to "on click" when extension requested, and was granted,
-  // host permissions for the current site (that is, extension has site access).
-  if (extension_site_access.has_site_access ||
-      extension_site_access.has_all_sites_access) {
-    DCHECK_NE(current_site_access,
-              PermissionsManager::UserSiteAccess::kOnClick);
-    permissions_helper.UpdateSiteAccess(
-        *extension, web_contents, PermissionsManager::UserSiteAccess::kOnClick);
-    return;
-  }
-
-  // Otherwise, extension has one-time access and we need to clear tab
-  // permissions (e.g extension with activeTab was granted one-time access).
-  DCHECK_EQ(current_site_access, PermissionsManager::UserSiteAccess::kOnClick);
-  extensions::ActiveTabPermissionGranter::FromWebContents(web_contents)
-      ->ClearActiveExtensionAndNotify(extension_id);
-
-  auto* action_runner =
-      extensions::ExtensionActionRunner::GetForWebContents(web_contents);
-  if (action_runner) {
-    action_runner->ShowReloadPageBubble({GetExtension(browser_, extension_id)});
+    menu_model_->GrantSiteAccess(extension_id);
+  } else {
+    menu_model_->RevokeSiteAccess(extension_id);
   }
 }
 
@@ -725,21 +700,7 @@ void ExtensionsMenuViewPlatformDelegateViews::UpdateSitePermissionsPage(
 }
 
 void ExtensionsMenuViewPlatformDelegateViews::OnToolbarActionAdded(
-    const ToolbarActionsModel::ActionId& action_id) {
-  DCHECK(current_page_);
-
-  // Do nothing when site permission page is opened as a new extension doesn't
-  // affect the site permissions page of another extension.
-  if (GetSitePermissionsPage(current_page_.view())) {
-    return;
-  }
-
-  // Insert a menu item for the extension when main page is opened.
-  auto* main_page = GetMainPage(current_page_.view());
-  DCHECK(main_page);
-  int index = FindIndex(*toolbar_model_, action_id);
-  InsertMenuItemMainPage(main_page, action_id, index);
-}
+    const ToolbarActionsModel::ActionId& action_id) {}
 
 void ExtensionsMenuViewPlatformDelegateViews::OnToolbarActionRemoved(
     const ToolbarActionsModel::ActionId& action_id) {
@@ -842,106 +803,6 @@ void ExtensionsMenuViewPlatformDelegateViews::
   }
 }
 
-void ExtensionsMenuViewPlatformDelegateViews::
-    OnHostAccessRequestDismissedByUser(
-        const extensions::ExtensionId& extension_id,
-        const url::Origin& origin) {
-  DCHECK(current_page_);
-
-  // Extension can only dismiss requests from the menu's main page. if it has
-  // navigated to another site in between, do nothing (navigation listeners will
-  // handle menu updates).
-  auto* main_page = GetMainPage(current_page_.view());
-  if (!main_page ||
-      GetActiveWebContents()->GetPrimaryMainFrame()->GetLastCommittedOrigin() !=
-          origin) {
-    return;
-  }
-
-  main_page->RemoveExtensionRequestingAccess(extension_id);
-  main_page->MaybeShowRequestsSection();
-}
-
-void ExtensionsMenuViewPlatformDelegateViews::OnHostAccessRequestUpdated(
-    const extensions::ExtensionId& extension_id,
-    int tab_id) {
-  DCHECK(current_page_);
-
-  // Ignore requests for other tabs.
-  int current_tab_id =
-      extensions::ExtensionTabUtil::GetTabId(GetActiveWebContents());
-  if (tab_id != current_tab_id) {
-    return;
-  }
-
-  // Site access requests only affect the main page.
-  ExtensionsMenuMainPageView* main_page = GetMainPage(current_page_.view());
-  if (!main_page) {
-    return;
-  }
-
-  // Update the request iff it's an active one.
-  auto* permissions_manager =
-      extensions::PermissionsManager::Get(browser_->profile());
-  if (permissions_manager->HasActiveHostAccessRequest(tab_id, extension_id)) {
-    // TODO(crbug.com/330588494): Add to correct index based on alphabetic
-    // order.
-    int index = 0;
-    AddOrUpdateExtensionRequestingAccess(main_page, extension_id, index,
-                                         GetActiveWebContents());
-    main_page->MaybeShowRequestsSection();
-    return;
-  }
-
-  // Otherwise, remove the request if existent.
-  main_page->RemoveExtensionRequestingAccess(extension_id);
-  main_page->MaybeShowRequestsSection();
-}
-
-void ExtensionsMenuViewPlatformDelegateViews::OnHostAccessRequestRemoved(
-    const extensions::ExtensionId& extension_id,
-    int tab_id) {
-  DCHECK(current_page_);
-
-  // Ignore requests for other tabs.
-  int current_tab_id =
-      extensions::ExtensionTabUtil::GetTabId(GetActiveWebContents());
-  if (tab_id != current_tab_id) {
-    return;
-  }
-
-  // Site access requests only affect the main page.
-  ExtensionsMenuMainPageView* main_page = GetMainPage(current_page_.view());
-  if (!main_page) {
-    return;
-  }
-
-  main_page->RemoveExtensionRequestingAccess(extension_id);
-  main_page->MaybeShowRequestsSection();
-}
-
-void ExtensionsMenuViewPlatformDelegateViews::OnHostAccessRequestsCleared(
-    int tab_id) {
-  DCHECK(current_page_);
-
-  // Ignore requests for other tabs.
-  int current_tab_id =
-      extensions::ExtensionTabUtil::GetTabId(GetActiveWebContents());
-  if (tab_id != current_tab_id) {
-    return;
-  }
-
-  // Site access requests only affect the 'user customized access' section in
-  // the main page.
-  ExtensionsMenuMainPageView* main_page = GetMainPage(current_page_.view());
-  if (!main_page) {
-    return;
-  }
-
-  main_page->ClearExtensionsRequestingAccess();
-  main_page->MaybeShowRequestsSection();
-}
-
 ExtensionsMenuMainPageView*
 ExtensionsMenuViewPlatformDelegateViews::GetMainPageViewForTesting() {
   DCHECK(current_page_);
@@ -989,6 +850,8 @@ void ExtensionsMenuViewPlatformDelegateViews::InsertMenuItemMainPage(
   Profile* profile = browser_->profile();
   content::WebContents* web_contents = GetActiveWebContents();
 
+  // TODO(crbug.com/449814184): Move this computation to the platform-agnostic
+  // model.
   bool is_enterprise = extensions::ExtensionSystem::Get(profile)
                            ->management_policy()
                            ->HasEnterpriseForcedAccess(*extension);

@@ -6,6 +6,7 @@
 #include "chrome/browser/vr/test/multi_class_browser_test.h"
 #include "chrome/browser/vr/test/webxr_vr_browser_test.h"
 #include "device/vr/buildflags/buildflags.h"
+#include "device/vr/public/mojom/vr_service.mojom.h"
 
 // Browser test equivalent of
 // chrome/android/javatests/src/.../browser/vr/WebXrVrTransitionTest.java.
@@ -182,6 +183,20 @@ IN_PROC_BROWSER_TEST_F(WebXrVrOpenXrBrowserTest,
   }
 
   // EndTest();
+}
+
+IN_PROC_BROWSER_TEST_F(WebXrVrOpenXrBrowserTest,
+                       TestVisibilityMaskChangeEventReceived) {
+  MockXRDeviceHookBase mock;
+  device::VisibilityMaskData visibility_mask{
+      .vertices = {0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f}, .indices = {0, 1, 2}};
+  mock.SetVisibilityMaskForTesting(0, visibility_mask);
+  mock.SetVisibilityMaskForTesting(1, visibility_mask);
+
+  LoadFileAndAwaitInitialization("test_visibility_mask_change_event");
+  EnterSessionWithUserGestureOrFail();
+  PollJavaScriptBooleanOrFail("visibilityMaskChangeEventCount > 0",
+                              kPollTimeoutMedium);
 }
 
 IN_PROC_BROWSER_TEST_F(WebXrVrOpenXrBrowserTest, TestVisibilityChanged) {

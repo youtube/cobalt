@@ -153,6 +153,9 @@ found in the LICENSE file.
     <dimen name="incognito_ntp_total_space_between_views">14sp</dimen>
     <dimen name="incognito_ntp_fading_shadow_size">16dp</dimen>
 
+    <!-- Incognito Indicator Menu -->
+    <dimen name="incognito_indicator_menu_max_width">270dp</dimen>
+
     <!-- Recent tabs page -->
     <dimen name="recent_tabs_visible_separator_padding">8dp</dimen>
     <dimen name="recent_tabs_group_view_vertical_padding">8dp</dimen>
@@ -352,6 +355,8 @@ found in the LICENSE file.
     <dimen name="settings_search_ui_horizontal_margin">16dp</dimen>
     <dimen name="settings_search_icon_padding">16dp</dimen>
     <dimen name="settings_detailed_title_padding">10dp</dimen>
+    <dimen name="settings_multi_column_divider_size">24dp</dimen>
+    <dimen name="settings_detailed_title_offset">16dp</dimen>
 
     <!-- Sharing Hub dimensions -->
     <dimen name="sharing_hub_preview_icon_padding">12dp</dimen>
@@ -437,6 +442,14 @@ found in the LICENSE file.
     <dimen name="tab_strip_dragged_tab_shadow_thickness">8dp</dimen>
 
     <!-- Tips Notifications dimensions -->
-    <dimen name="tips_notifications_bottom_sheet_horizontal_margin">24dp</dimen>
     <dimen name="tips_notifications_bottom_sheet_button_padding">4dp</dimen>
+    <dimen name="tips_notifications_bottom_sheet_horizontal_margin">24dp</dimen>
+    <dimen name="tips_notifications_bottom_sheet_step_content_margin_start">16dp</dimen>
+    <dimen name="tips_notifications_bottom_sheet_step_number_width">25dp</dimen>
+    <dimen name="tips_notifications_bottom_sheet_step_vertical_padding">12dp</dimen>
+    <dimen name="tips_notifications_bottom_sheet_title_padding">24dp</dimen>
+
+    <!-- Caret browsing dimensions -->
+    <dimen name="caret_top_padding">18dp</dimen>
+    <dimen name="caret_external_margin">16dp</dimen>
 </resources>

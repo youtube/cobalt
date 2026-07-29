@@ -32,9 +32,34 @@ chromium-metrics-reviews@google.com.
   <variant name="PausedByActor" summary="ActorTask in PausedByActor state."/>
   <variant name="PausedByUser" summary="ActorTask in PausedByUser state."/>
   <variant name="Reflecting" summary="ActorTask in Reflecting state."/>
+  <variant name="WaitingOnUser" summary="ActorTask in WaitingOnUser state."/>
 </variants>
 
 <!-- LINT.ThenChange(//chrome/browser/actor/actor_task.h:State) -->
+
+<!-- LINT.IfChange(ToolRequest) -->
+
+<variants name="ToolRequest">
+  <variant name="AttemptLogin" summary="Attempt Login"/>
+  <variant name="Click" summary="Click"/>
+  <variant name="CloseTab" summary="Close Tab"/>
+  <variant name="CloseWindow" summary="Close Window"/>
+  <variant name="CreateTab" summary="Create Tab"/>
+  <variant name="CreateWindow" summary="Create Window"/>
+  <variant name="DragAndRelease" summary="Drag And Release"/>
+  <variant name="History" summary="History"/>
+  <variant name="MediaControl" summary="Media Control"/>
+  <variant name="MoveMouse" summary="MoveMouse"/>
+  <variant name="Navigate" summary="Navigate"/>
+  <variant name="ScriptTool" summary="ScriptTool"/>
+  <variant name="Scroll" summary="Scroll"/>
+  <variant name="ScrollTo" summary="Scroll To"/>
+  <variant name="Select" summary="Select"/>
+  <variant name="Type" summary="Type"/>
+  <variant name="Wait" summary="Wait"/>
+</variants>
+
+<!-- LINT.ThenChange(//chrome/browser/actor/tool_request_variant.h:ToolRequestVariant) -->
 
 <!-- LINT.IfChange(UiEvent) -->
 
@@ -275,6 +300,28 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Actor.Task.Interruptions.Cancelled" units="count"
+    expires_after="2026-08-11">
+  <owner>dtapuska@google.com</owner>
+  <owner>bokan@google.com</owner>
+  <owner>chrome-synapse-team@google.com</owner>
+  <summary>
+    Recorded when a task is cancelled. This captures the number of times the
+    task was interrupted.
+  </summary>
+</histogram>
+
+<histogram name="Actor.Task.Interruptions.Completed" units="count"
+    expires_after="2026-08-11">
+  <owner>dtapuska@google.com</owner>
+  <owner>bokan@google.com</owner>
+  <owner>chrome-synapse-team@google.com</owner>
+  <summary>
+    Recorded when a task is completed. This captures the number of times the
+    task was interrupted.
+  </summary>
+</histogram>
+
 <histogram name="Actor.Task.StateTransition.ActionCount.{OldState}_{NewState}"
     units="count" expires_after="2026-08-11">
   <owner>kenok@google.com</owner>
@@ -299,6 +346,30 @@ chromium-metrics-reviews@google.com.
     time the task spent in the {ActorTaskState} state.
   </summary>
   <token key="ActorTaskState" variants="ActorTaskState"/>
+</histogram>
+
+<histogram name="Actor.Tools.ExecutionDuration.{ToolRequest}" units="ms"
+    expires_after="2026-09-17">
+  <owner>dtapuska@google.com</owner>
+  <owner>bokan@google.com</owner>
+  <owner>chrome-synapse-team@google.com</owner>
+  <summary>
+    The duration of how long a given tool took to execute when it was
+    successful.
+  </summary>
+  <token key="ToolRequest" variants="ToolRequest"/>
+</histogram>
+
+<histogram name="Actor.Tools.PageStabilization.{ToolRequest}" units="ms"
+    expires_after="2026-09-17">
+  <owner>dtapuska@google.com</owner>
+  <owner>bokan@google.com</owner>
+  <owner>chrome-synapse-team@google.com</owner>
+  <summary>
+    The duration of how long a given tool took to stabilize after execution when
+    it was successful.
+  </summary>
+  <token key="ToolRequest" variants="ToolRequest"/>
 </histogram>
 
 <histogram name="Actor.Tools.TimeOfUseValidation" enum="TimeOfUseResult"

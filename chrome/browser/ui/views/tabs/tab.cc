@@ -159,7 +159,7 @@ class TabStyleHighlightPathGenerator : public views::HighlightPathGenerator {
 
   // views::HighlightPathGenerator:
   SkPath GetHighlightPath(const views::View* view) override {
-    return tab_style_views_->GetPath(TabStyle::PathType::kHighlight, 1.0);
+    return tab_style_views_->GetPath(TabStyle::PathType::kHighlight, 1.0, {});
   }
 
  private:
@@ -342,7 +342,7 @@ bool Tab::GetHitTestMask(SkPath* mask) const {
   *mask = tab_style_views()->GetPath(
       TabStyle::PathType::kHitTest,
       GetWidget()->GetCompositor()->device_scale_factor(),
-      /* force_active */ false, TabStyle::RenderUnits::kDips);
+      {.render_units = TabStyle::RenderUnits::kDips});
   return true;
 }
 
@@ -609,7 +609,7 @@ void Tab::OnMouseReleased(const ui::MouseEvent& event) {
   // In some cases, ending the drag will schedule the tab for destruction; if
   // so, bail immediately, since our members are already dead and we shouldn't
   // do anything else except drop the tab where it is.
-  if (controller_->EndDrag(END_DRAG_COMPLETE)) {
+  if (controller_->EndDrag(EndDragReason::kComplete)) {
     shift_pressed_on_mouse_down_ = false;
     return;
   }
@@ -649,7 +649,7 @@ void Tab::OnMouseReleased(const ui::MouseEvent& event) {
 }
 
 void Tab::OnMouseCaptureLost() {
-  controller_->EndDrag(END_DRAG_CAPTURE_LOST);
+  controller_->EndDrag(EndDragReason::kCaptureLost);
 }
 
 void Tab::OnMouseMoved(const ui::MouseEvent& event) {
@@ -814,7 +814,7 @@ void Tab::PaintChildren(const views::PaintInfo& info) {
   const float paint_recording_scale = info.paint_recording_scale_x();
 
   const SkPath clip_path = tab_style_views()->GetPath(
-      TabStyle::PathType::kInteriorClip, paint_recording_scale);
+      TabStyle::PathType::kInteriorClip, paint_recording_scale, {});
 
   clip_recorder.ClipPathWithAntiAliasing(clip_path);
   View::PaintChildren(info);

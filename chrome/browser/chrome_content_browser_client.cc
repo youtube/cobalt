@@ -109,12 +109,15 @@
 #include "chrome/browser/net/profile_network_context_service.h"
 #include "chrome/browser/net/profile_network_context_service_factory.h"
 #include "chrome/browser/net/system_network_context_manager.h"
+#include "chrome/browser/optimization_guide/optimization_guide_keyed_service.h"
+#include "chrome/browser/optimization_guide/optimization_guide_keyed_service_factory.h"
 #include "chrome/browser/payments/payment_request_display_manager_factory.h"
 #include "chrome/browser/performance_manager/public/chrome_browser_main_extra_parts_performance_manager.h"
 #include "chrome/browser/performance_manager/public/chrome_content_browser_client_performance_manager_part.h"
 #include "chrome/browser/picture_in_picture/picture_in_picture_window_manager.h"
 #include "chrome/browser/picture_in_picture/scoped_tuck_picture_in_picture.h"
 #include "chrome/browser/plugins/plugin_utils.h"
+#include "chrome/browser/policy/chrome_policy_blocklist_service_factory.h"
 #include "chrome/browser/policy/policy_util.h"
 #include "chrome/browser/policy/profile_policy_connector.h"
 #include "chrome/browser/predictors/loading_predictor.h"
@@ -150,6 +153,7 @@
 #include "chrome/browser/signin/chrome_signin_url_loader_throttle.h"
 #include "chrome/browser/signin/header_modification_delegate_impl.h"
 #include "chrome/browser/speech/chrome_speech_recognition_manager_delegate.h"
+#include "chrome/browser/speech/on_device_speech_recognition_util.h"
 #include "chrome/browser/ssl/chrome_security_blocking_page_factory.h"
 #include "chrome/browser/ssl/chrome_security_state_tab_helper.h"
 #include "chrome/browser/ssl/https_upgrades_interceptor.h"
@@ -256,6 +260,7 @@
 #include "components/no_state_prefetch/common/no_state_prefetch_final_status.h"
 #include "components/no_state_prefetch/common/no_state_prefetch_url_loader_throttle.h"
 #include "components/page_load_metrics/browser/metrics_web_contents_observer.h"
+#include "components/password_manager/core/browser/features/password_features.h"
 #include "components/payments/content/payment_request_display_manager.h"
 #include "components/payments/content/secure_payment_confirmation_service_factory.h"
 #include "components/pdf/common/pdf_util.h"
@@ -354,6 +359,7 @@
 #include "media/base/media_switches.h"
 #include "media/media_buildflags.h"
 #include "media/mojo/buildflags.h"
+#include "media/mojo/mojom/speech_recognizer.mojom.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "net/base/data_url.h"
 #include "net/base/features.h"
@@ -497,6 +503,7 @@
 #endif
 
 #if !BUILDFLAG(IS_ANDROID)
+#include "chrome/browser/actor/actor_features.h"
 #include "chrome/browser/actor/actor_keyed_service.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_ui_service.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_ui_service_factory.h"
@@ -541,6 +548,7 @@
 #include "components/keep_alive_registry/keep_alive_registry.h"
 #include "components/password_manager/content/common/web_ui_constants.h"
 #include "components/password_manager/core/common/password_manager_features.h"
+#include "components/soda/soda_util.h"
 #include "components/webapps/isolated_web_apps/url_loading/url_loader_factory.h"
 #include "services/network/public/mojom/permissions_policy/permissions_policy_feature.mojom.h"
 #include "third_party/blink/public/mojom/installedapp/related_application.mojom.h"
@@ -1102,8 +1110,8 @@ void LaunchURL(
 
   bool is_allowlisted = false;
   PolicyBlocklistService* service =
-      PolicyBlocklistFactory::GetForBrowserContext(
-          web_contents->GetBrowserContext());
+      ChromePolicyBlocklistServiceFactory::GetForProfile(
+          Profile::FromBrowserContext(web_contents->GetBrowserContext()));
   if (ShouldHonorPolicies() && service) {
     const policy::URLBlocklist::URLBlocklistState url_state =
         service->GetURLBlocklistState(url);
@@ -1324,6 +1332,20 @@ bool IsDefaultSearchEngine(Profile* profile, const GURL& url) {
 
   return false;
 }
+
+#if !BUILDFLAG(IS_ANDROID)
+bool IsActorActingOnWebContents(WebContents* web_contents) {
+  auto* actor_service =
+      actor::ActorKeyedService::Get(web_contents->GetBrowserContext());
+  if (!actor_service) {
+    return false;
+  }
+
+  const auto* tab_interface =
+      tabs::TabInterface::MaybeGetFromContents(web_contents);
+  return tab_interface && actor_service->IsActiveOnTab(*tab_interface);
+}
+#endif
 
 }  // namespace
 
@@ -4393,6 +4415,22 @@ ChromeContentBrowserClient::CreateSpeechRecognitionManagerDelegate() {
   return new speech::ChromeSpeechRecognitionManagerDelegate();
 }
 
+std::unique_ptr<optimization_guide::ModelBrokerClient>
+ChromeContentBrowserClient::CreateModelBrokerClient(
+    content::BrowserContext* browser_context) {
+  auto* service = OptimizationGuideKeyedServiceFactory::GetForProfile(
+      Profile::FromBrowserContext(browser_context));
+  return service ? service->CreateModelBrokerClient() : nullptr;
+}
+
+media::mojom::AvailabilityStatus
+ChromeContentBrowserClient::GetOnDeviceSpeechRecognitionAvailabilityStatus(
+    content::BrowserContext* context,
+    const std::string& language) {
+  return speech::GetOnDeviceSpeechRecognitionAvailabilityStatus(context,
+                                                                language);
+}
+
 #if BUILDFLAG(IS_CHROMEOS)
 content::TtsControllerDelegate*
 ChromeContentBrowserClient::GetTtsControllerDelegate() {
@@ -4742,12 +4780,6 @@ void ChromeContentBrowserClient::OverrideWebPreferences(
   web_prefs->always_show_context_menu_on_touch =
       base::FeatureList::IsEnabled(::features::kContextMenuEmptySpace);
 #endif
-
-  web_prefs->api_based_fingerprinting_interventions_enabled =
-      base::FeatureList::IsEnabled(
-          features::kIncognitoFingerprintingInterventions) &&
-      Profile::FromBrowserContext(web_contents->GetBrowserContext())
-          ->IsIncognitoProfile();
 
   web_prefs->content_based_fingerprinting_protection_enabled =
       fingerprinting_protection_filter::features::
@@ -6811,18 +6843,10 @@ bool ChromeContentBrowserClient::HandleExternalProtocol(
 
 #if !BUILDFLAG(IS_ANDROID)
   content::WebContents* web_contents = web_contents_getter.Run();
-  if (web_contents) {
-    Profile* profile =
-        Profile::FromBrowserContext(web_contents->GetBrowserContext());
-    const auto* tab_interface =
-        tabs::TabInterface::MaybeGetFromContents(web_contents);
-    auto* actor_service = actor::ActorKeyedService::Get(profile);
+  if (ShouldDisallowCredentialRequest(web_contents)) {
     // If actor is active, bail out early to prevent it from launching external
     // applications.
-    if (tab_interface && actor_service &&
-        actor_service->IsActiveOnTab(*tab_interface)) {
-      return false;
-    }
+    return false;
   }
 #endif  //! BUILDFLAG(IS_ANDROID)
 
@@ -7306,7 +7330,8 @@ bool ChromeContentBrowserClient::ShouldBlockRendererDebugURL(
   // If the debug URL being visited is listed in the URLBlocklist policy it
   // should be blocked.
   PolicyBlocklistService* service =
-      PolicyBlocklistFactory::GetForBrowserContext(context);
+      ChromePolicyBlocklistServiceFactory::GetForProfile(
+          Profile::FromBrowserContext(context));
   using URLBlocklistState = policy::URLBlocklist::URLBlocklistState;
   URLBlocklistState blocklist_state = service->GetURLBlocklistState(url);
   return blocklist_state == URLBlocklistState::URL_IN_BLOCKLIST;
@@ -7489,16 +7514,15 @@ std::optional<GURL>
 ChromeContentBrowserClient::MaybeOverrideSourceURLForClipboardAccess(
     content::RenderFrameHost* render_frame_host,
     const GURL& original_url) {
-#if !BUILDFLAG(IS_ANDROID)
-  if (render_frame_host &&
-      printing::PrintPreviewDialogController::IsPrintPreviewURL(original_url)) {
-    return std::make_optional(
-        printing::PrintPreviewDialogController::GetInstance()
-            ->GetInitiator(WebContents::FromRenderFrameHost(render_frame_host))
-            ->GetPrimaryMainFrame()
-            ->GetLastCommittedURL());
+  DCHECK(render_frame_host);
+#if BUILDFLAG(ENABLE_PRINT_PREVIEW)
+  if (printing::PrintPreviewDialogController::IsPrintPreviewURL(original_url)) {
+    return printing::PrintPreviewDialogController::GetInstance()
+        ->GetInitiator(WebContents::FromRenderFrameHost(render_frame_host))
+        ->GetPrimaryMainFrame()
+        ->GetLastCommittedURL();
   }
-#endif  // !BUILDFLAG(IS_ANDROID)
+#endif  // BUILDFLAG(ENABLE_PRINT_PREVIEW)
   return std::nullopt;
 }
 
@@ -8761,4 +8785,25 @@ bool ChromeContentBrowserClient::UsePrefetchPrerenderIntegration() {
 
 bool ChromeContentBrowserClient::UsePreloadServingMetrics() {
   return features::kDsePreload2UsePreloadServingMetrics.Get();
+}
+
+#if !BUILDFLAG(IS_ANDROID)
+bool ChromeContentBrowserClient::ShouldDisallowCredentialRequest(
+    content::WebContents* web_contents) {
+  if (!base::FeatureList::IsEnabled(password_manager::features::kActorLogin)) {
+    return false;
+  }
+  return IsActorActingOnWebContents(web_contents);
+}
+#endif  // !BUILDFLAG(IS_ANDROID)
+
+bool ChromeContentBrowserClient::IsFileSystemAccessApiFilePickerAllowed(
+    WebContents* web_contents) {
+#if !BUILDFLAG(IS_ANDROID)
+  if (base::FeatureList::IsEnabled(
+          actor::kGlicBlockFileSystemAccessApiFilePicker)) {
+    return !IsActorActingOnWebContents(web_contents);
+  }
+#endif
+  return true;
 }

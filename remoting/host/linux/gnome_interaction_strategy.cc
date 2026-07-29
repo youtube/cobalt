@@ -60,10 +60,7 @@ GnomeInteractionStrategy::~GnomeInteractionStrategy() {
 
 GnomeInteractionStrategy::GnomeInteractionStrategy(
     scoped_refptr<base::SequencedTaskRunner> ui_task_runner)
-    : ui_task_runner_(std::move(ui_task_runner)) {
-  capture_stream_manager_subscription_ =
-      remote_desktop_session_->capture_stream_manager()->AddObserver(this);
-}
+    : ui_task_runner_(std::move(ui_task_runner)) {}
 
 std::unique_ptr<ActionExecutor>
 GnomeInteractionStrategy::CreateActionExecutor() {
@@ -120,7 +117,7 @@ std::unique_ptr<DesktopCapturer> GnomeInteractionStrategy::CreateVideoCapturer(
   return proxy;
 }
 
-std::unique_ptr<MouseCursorMonitor>
+std::unique_ptr<protocol::MouseCursorMonitor>
 GnomeInteractionStrategy::CreateMouseCursorMonitor() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   return std::make_unique<PipewireMouseCursorMonitor>(
@@ -155,7 +152,11 @@ GnomeInteractionStrategy::CreateDisplayInfoMonitor() {
 
 std::unique_ptr<LocalInputMonitor>
 GnomeInteractionStrategy::CreateLocalInputMonitor() {
-  return std::make_unique<GnomeLocalInputMonitor>();
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
+  auto capturer = remote_desktop_session_->mouse_cursor_capturer();
+  DCHECK(capturer);
+  return std::make_unique<GnomeLocalInputMonitor>(*capturer);
 }
 
 std::unique_ptr<CurtainMode> GnomeInteractionStrategy::CreateCurtainMode(
@@ -168,16 +169,20 @@ std::unique_ptr<CurtainMode> GnomeInteractionStrategy::CreateCurtainMode(
 
 void GnomeInteractionStrategy::Init(InitCallback callback) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  remote_desktop_session_->Init(base::BindOnce(
-      [](base::WeakPtr<GnomeInteractionStrategy> that, InitCallback callback,
-         base::expected<void, std::string> result) {
-        // Prevent `callback` from being called if the interaction strategy is
-        // already deleted.
-        if (that) {
-          std::move(callback).Run(result);
-        }
-      },
-      weak_ptr_factory_.GetWeakPtr(), std::move(callback)));
+  remote_desktop_session_->Init(
+      base::BindOnce(&GnomeInteractionStrategy::OnInitResult,
+                     weak_ptr_factory_.GetWeakPtr(), std::move(callback)));
+}
+
+void GnomeInteractionStrategy::OnInitResult(
+    InitCallback callback,
+    base::expected<void, std::string> result) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  if (result.has_value()) {
+    capture_stream_manager_subscription_ =
+        remote_desktop_session_->capture_stream_manager()->AddObserver(this);
+  }
+  std::move(callback).Run(std::move(result));
 }
 
 void GnomeInteractionStrategy::OnPipewireCaptureStreamAdded(

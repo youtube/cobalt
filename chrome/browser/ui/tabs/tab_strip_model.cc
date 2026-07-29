@@ -734,6 +734,8 @@ std::unique_ptr<tabs::TabCollection> TabStripModel::DetachTabCollectionImpl(
   // Pass the indices vector from above.
   UpdateSelectionModelForDetach(tab_indices, next_selected_index);
 
+  ValidateTabStripModel();
+
   // Call the callback for collection detached.
   std::move(execute_tabs_notify_observer_operation).Run();
 
@@ -3929,13 +3931,17 @@ split_tabs::SplitTabId TabStripModel::AddToSplitImpl(
         return IsTabSelected(GetIndexOfTab(tab)) || tab->IsActivated();
       });
 
-  if (add_to_selection) {
-    const ui::ListSelectionModel old_selection_model = selection_model();
+  const ui::ListSelectionModel old_selection_model = selection_model();
 
+  if (add_to_selection) {
     for (auto split_tab : tabs_with_indices) {
       selection_model_->AddIndexToSelection(split_tab.second);
     }
+  }
 
+  ValidateTabStripModel();
+
+  if (old_selection_model != selection_model()) {
     TabStripSelectionChange selection(GetActiveTab(), old_selection_model);
 
     selection.new_model = selection_model();
@@ -3963,6 +3969,8 @@ void TabStripModel::RemoveSplitImpl(
       selection_model_->RemoveIndexFromSelection(i);
     }
   }
+
+  ValidateTabStripModel();
 
   // If there was an update to the selection model, notify observers.
   if (old_selection_model != selection_model()) {
@@ -4334,11 +4342,11 @@ std::unique_ptr<tabs::TabModel> TabStripModel::RemoveTabFromIndexImpl(
     }
   }
 
+  ValidateTabStripModel();
+
   if (group_model_ && old_group) {
     TabGroupStateChanged(index, tab, old_group, std::nullopt);
   }
-
-  ValidateTabStripModel();
 
   return old_data;
 }
@@ -4390,6 +4398,8 @@ void TabStripModel::MoveTabToIndexImpl(
 
   UpdateSelectionModelForMove(initial_index, final_index, select_after_move);
 
+  ValidateTabStripModel();
+
   selection.new_model = selection_model();
   selection.new_tab = GetActiveTab();
   selection.new_contents = GetActiveWebContents();
@@ -4417,7 +4427,6 @@ void TabStripModel::MoveTabToIndexImpl(
     }
   }
 
-  ValidateTabStripModel();
 }
 
 void TabStripModel::MoveTabsToIndexImpl(
@@ -4802,6 +4811,8 @@ void TabStripModel::MoveTabsWithNotifications(
 
   UpdateSelectionModelForMoves(tab_indices, destination_index);
 
+  ValidateTabStripModel();
+
   for (const auto& notification : notifications) {
     const int final_index = GetIndexOfTab(notification.tab);
     tabs::TabInterface* tab = GetTabAtIndex(final_index);
@@ -4823,8 +4834,6 @@ void TabStripModel::MoveTabsWithNotifications(
       }
     }
   }
-
-  ValidateTabStripModel();
 }
 
 // Sets the sound content setting for each site at the |indices|.
@@ -4844,7 +4853,7 @@ void TabStripModel::SetSitesMuted(const std::vector<int>& indices,
       // chrome:// URLs don't have content settings but can be muted, so just
       // mute the WebContents.
       SetTabAudioMuted(web_contents, mute,
-                       TabMutedReason::CONTENT_SETTING_CHROME, std::string());
+                       TabMutedReason::kContentSettingChrome, std::string());
     } else {
       Profile* profile =
           Profile::FromBrowserContext(web_contents->GetBrowserContext());
@@ -4967,7 +4976,7 @@ void TabStripModel::OnActiveTabChanged(
     return;
   }
 
-  const tabs::TabInterface* const old_tab = selection.old_tab;
+  tabs::TabInterface* const old_tab = selection.old_tab;
   const tabs::TabInterface* const new_tab = selection.new_tab;
   const tabs::TabInterface* old_opener = nullptr;
   int reason = selection.reason;
@@ -4987,8 +4996,7 @@ void TabStripModel::OnActiveTabChanged(
       // It's possible this could be done with a separate TabStripModelObserver,
       // but then it would be possible for a different observer to jump in front
       // and modify the WebContents, so for now, do it here.
-      auto* const thumbnail_helper =
-          ThumbnailTabHelper::FromWebContents(old_tab->GetContents());
+      auto* const thumbnail_helper = ThumbnailTabHelper::From(old_tab);
       if (thumbnail_helper) {
         thumbnail_helper->CaptureThumbnailOnTabBackgrounded();
       }

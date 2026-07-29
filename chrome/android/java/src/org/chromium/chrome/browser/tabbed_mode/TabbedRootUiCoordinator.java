@@ -1864,6 +1864,11 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
         }
     }
 
+    @Override
+    public boolean getBookmarkBarVisibility() {
+        return BookmarkBarUtils.isBookmarkBarVisible(mActivity, mProfileSupplier.get());
+    }
+
     public int getBookmarkBarHeight() {
         return mBookmarkBarCoordinator != null && mBookmarkBarCoordinator.isVisible()
                 ? mBookmarkBarCoordinator.getTopControlHeight()
@@ -1893,19 +1898,21 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
             if (stripLayoutHelperManager == null) return false;
             return stripLayoutHelperManager.openKeyboardFocusedContextMenu();
         } else if (id == R.id.focus_bookmarks) {
-            if (mBookmarkBarCoordinator != null) mBookmarkBarCoordinator.requestFocus();
+            if (mBookmarkBarCoordinator != null && mBookmarkBarCoordinator.isVisible()) {
+                mBookmarkBarCoordinator.requestFocus();
+            }
             return true;
         } else if (id == R.id.toggle_bookmark_bar) {
+            // isActivityStateBookmarkBarCompatible already checks the flag sAndroidBookmarkBar.
             if (BookmarkBarUtils.isActivityStateBookmarkBarCompatible(mActivity)) {
                 if (DeviceInfo.isDesktop()) {
+                    // Desktop uses the synced UserPref.
                     BookmarkBarUtils.toggleUserPrefsShowBookmarksBar(
                             mProfileSupplier.get(), /* fromKeyboardShortcut= */ true);
-                } else if (ChromeFeatureList.sAndroidBookmarkBarFastFollow.isEnabled()) {
+                } else {
+                    // Tablet uses the local shared pref (but interacts with policy via Profile).
                     BookmarkBarUtils.toggleDevicePrefShowBookmarksBar(
                             mProfileSupplier.get(), /* fromKeyboardShortcut= */ true);
-                } else {
-                    BookmarkBarUtils.toggleDevicePrefShowBookmarksBar(
-                            /* fromKeyboardShortcut= */ true);
                 }
                 return true;
             }

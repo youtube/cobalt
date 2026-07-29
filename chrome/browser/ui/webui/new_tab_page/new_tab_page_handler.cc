@@ -48,17 +48,21 @@
 #include "chrome/browser/promos/promos_pref_names.h"
 #include "chrome/browser/promos/promos_utils.h"
 #include "chrome/browser/search/background/ntp_custom_background_service.h"
+#include "chrome/browser/search/background/ntp_custom_background_service_factory.h"
 #include "chrome/browser/search_engines/template_url_service_factory.h"
 #include "chrome/browser/themes/custom_theme_supplier.h"
 #include "chrome/browser/themes/theme_properties.h"
+#include "chrome/browser/themes/theme_service_factory.h"
 #include "chrome/browser/ui/actions/chrome_action_id.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/color/chrome_color_id.h"
+#include "chrome/browser/ui/customize_chrome/side_panel_controller.h"
 #include "chrome/browser/ui/hats/hats_service.h"
 #include "chrome/browser/ui/hats/hats_service_factory.h"
+#include "chrome/browser/ui/tabs/public/tab_features.h"
 #include "chrome/browser/ui/views/new_tab_footer/footer_controller.h"
 #include "chrome/browser/ui/views/side_panel/customize_chrome/customize_chrome_utils.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_action_callback.h"
@@ -127,6 +131,32 @@ std::vector<std::string> GetSurveyEligibleModuleIds() {
       ",:;", base::WhitespaceHandling::TRIM_WHITESPACE,
       base::SplitResult::SPLIT_WANT_NONEMPTY);
 }
+
+const void* const kCustomizeChromeAutoOpenedUserDataKey =
+    &kCustomizeChromeAutoOpenedUserDataKey;
+
+class CustomizeChromeAutoOpenedUserData : public base::SupportsUserData::Data {
+ public:
+  static CustomizeChromeAutoOpenedUserData* GetOrCreateForProfile(
+      Profile* profile) {
+    auto* data = static_cast<CustomizeChromeAutoOpenedUserData*>(
+        profile->GetUserData(kCustomizeChromeAutoOpenedUserDataKey));
+    if (!data) {
+      data = new CustomizeChromeAutoOpenedUserData();
+      profile->SetUserData(kCustomizeChromeAutoOpenedUserDataKey,
+                           base::WrapUnique(data));
+    }
+    return data;
+  }
+
+  int times_opened() const { return times_opened_; }
+  void IncrementTimesOpened() { times_opened_ += 1; }
+
+ private:
+  CustomizeChromeAutoOpenedUserData() = default;
+
+  int times_opened_ = 0;
+};
 
 // Returns true if we should force dark foreground colors for the Google logo
 // and the One Google Bar. This is done to fix specific GWS themes where the
@@ -566,6 +596,7 @@ void NewTabPageHandler::RegisterProfilePrefs(PrefRegistrySimple* registry) {
   registry->RegisterListPref(prefs::kNtpHiddenModules);
   registry->RegisterListPref(prefs::kNtpModulesOrder);
   registry->RegisterBooleanPref(prefs::kNtpModulesVisible, true);
+  registry->RegisterBooleanPref(prefs::kNtpToolChipsVisible, false);
   registry->RegisterIntegerPref(prefs::kNtpCustomizeChromeButtonOpenCount, 0);
   registry->RegisterDictionaryPref(prefs::kNtpModulesInteractedCountDict);
   registry->RegisterDictionaryPref(prefs::kNtpModulesLoadedCountDict);
@@ -573,6 +604,10 @@ void NewTabPageHandler::RegisterProfilePrefs(PrefRegistrySimple* registry) {
   registry->RegisterBooleanPref(prefs::kNtpOutlookModuleVisible, false);
   registry->RegisterBooleanPref(prefs::kNtpSharepointModuleVisible, false);
   registry->RegisterIntegerPref(prefs::kNtpComposeButtonShownCountPrefName, 0);
+  registry->RegisterIntegerPref(
+      prefs::kNtpCustomizeChromeSidePanelAutoOpeningsCount, 0);
+  registry->RegisterBooleanPref(prefs::kNtpCustomizeChromeExplicitlyClosed,
+                                false);
 }
 
 void NewTabPageHandler::SetMostVisitedSettings(ntp_tiles::TileType type,
@@ -1159,9 +1194,35 @@ void NewTabPageHandler::OnBrowserWindowInterfaceChanged() {
 }
 
 void NewTabPageHandler::MaybeTriggerAutomaticCustomizeChromePromo() {
-  if (!base::FeatureList::IsEnabled(ntp_features::kNtpCustomizeChromePromo)) {
+  auto promo_eligibility = CanShowCustomizeChromePromo();
+  base::UmaHistogramEnumeration("NewTabPage.CustomizeChromePromoEligibility",
+                                promo_eligibility);
+  if (promo_eligibility != NTPCustomizeChromePromoEligibility::kCanShowPromo ||
+      !base::FeatureList::IsEnabled(
+          ntp_features::kNtpCustomizeChromeAutoOpen)) {
     return;
   }
+
+  // Variation where we do not open the Side Panel automatically; instead we
+  // show a tutorial.
+  if (ntp_features::kNtpCustomizeChromeAutoShownMaxCount.Get() == 0) {
+    feature_promo_helper_->MaybeShowFeaturePromo(
+        feature_engagement::kIPHDesktopCustomizeChromeExperimentFeature,
+        web_contents_.get());
+    return;
+  }
+
+  feature_promo_helper_->MaybeShowFeaturePromo(
+      feature_engagement::kIPHDesktopCustomizeChromeAutoOpenFeature,
+      web_contents_.get());
+
+  CustomizeChromeAutoOpenedUserData::GetOrCreateForProfile(profile_)
+      ->IncrementTimesOpened();
+  profile_->GetPrefs()->SetInteger(
+      prefs::kNtpCustomizeChromeSidePanelAutoOpeningsCount,
+      profile_->GetPrefs()->GetInteger(
+          prefs::kNtpCustomizeChromeSidePanelAutoOpeningsCount) +
+          1);
 
   actions::ActionManager::Get()
       .FindAction(kActionSidePanelShowCustomizeChrome)
@@ -1173,6 +1234,52 @@ void NewTabPageHandler::MaybeTriggerAutomaticCustomizeChromePromo() {
                       SidePanelOpenTrigger::
                           kNewTabPageAutomaticCustomizeChrome))
               .Build());
+}
+
+NTPCustomizeChromePromoEligibility
+NewTabPageHandler::CanShowCustomizeChromePromo() {
+  auto* background_service =
+      NtpCustomBackgroundServiceFactory::GetForProfile(profile_);
+  auto* theme_service = ThemeServiceFactory::GetForProfile(profile_);
+  if (background_service->GetCustomBackground() ||
+      theme_service->GetThemeID() != ThemeHelper::kDefaultThemeID) {
+    return NTPCustomizeChromePromoEligibility::kChromeCustomizedAlready;
+  }
+
+  if (profile_->GetPrefs()->GetBoolean(
+          prefs::kNtpCustomizeChromeExplicitlyClosed)) {
+    return NTPCustomizeChromePromoEligibility::
+        kCustomizeChromeClosedExplicitlyByUser;
+  }
+
+  if (profile_->GetPrefs()->GetInteger(
+          prefs::kNtpCustomizeChromeButtonOpenCount) > 0) {
+    return NTPCustomizeChromePromoEligibility::kCustomizeChromeOpenedByUser;
+  }
+
+  // If no max auto open count is set, then we are showing a different variation
+  // of the promo (not involving auto opening of the Side Panel), for which the
+  // user is considered eligible at this point.
+  if (ntp_features::kNtpCustomizeChromeAutoShownMaxCount.Get() == 0) {
+    return NTPCustomizeChromePromoEligibility::kCanShowPromo;
+  }
+
+  CHECK_GT(ntp_features::kNtpCustomizeChromeAutoShownMaxCount.Get(), 0);
+  CHECK_GT(ntp_features::kNtpCustomizeChromeAutoShownSessionMaxCount.Get(), 0);
+
+  if (profile_->GetPrefs()->GetInteger(
+          prefs::kNtpCustomizeChromeSidePanelAutoOpeningsCount) >=
+      ntp_features::kNtpCustomizeChromeAutoShownMaxCount.Get()) {
+    return NTPCustomizeChromePromoEligibility::kReachedTotalMaxCountAlready;
+  }
+
+  if (CustomizeChromeAutoOpenedUserData::GetOrCreateForProfile(profile_)
+          ->times_opened() >=
+      ntp_features::kNtpCustomizeChromeAutoShownSessionMaxCount.Get()) {
+    return NTPCustomizeChromePromoEligibility::kReachedSessionMaxCountAlready;
+  }
+
+  return NTPCustomizeChromePromoEligibility::kCanShowPromo;
 }
 
 void NewTabPageHandler::LogEvent(NTPLoggingEventType event) {

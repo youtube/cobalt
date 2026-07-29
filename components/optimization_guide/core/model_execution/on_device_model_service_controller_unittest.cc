@@ -27,13 +27,13 @@
 #include "build/build_config.h"
 #include "components/optimization_guide/core/delivery/model_info.h"
 #include "components/optimization_guide/core/delivery/test_model_info_builder.h"
-#include "components/optimization_guide/core/model_execution/execute_remote_fn.h"
 #include "components/optimization_guide/core/model_execution/feature_keys.h"
 #include "components/optimization_guide/core/model_execution/model_broker_client.h"
 #include "components/optimization_guide/core/model_execution/model_broker_state.h"
 #include "components/optimization_guide/core/model_execution/model_execution_features.h"
 #include "components/optimization_guide/core/model_execution/model_execution_prefs.h"
 #include "components/optimization_guide/core/model_execution/multimodal_message.h"
+#include "components/optimization_guide/core/model_execution/on_device_capability.h"
 #include "components/optimization_guide/core/model_execution/on_device_execution.h"
 #include "components/optimization_guide/core/model_execution/on_device_model_access_controller.h"
 #include "components/optimization_guide/core/model_execution/on_device_model_adaptation_loader.h"
@@ -42,7 +42,6 @@
 #include "components/optimization_guide/core/model_execution/optimization_guide_model_execution_error.h"
 #include "components/optimization_guide/core/model_execution/performance_class.h"
 #include "components/optimization_guide/core/model_execution/test/fake_model_assets.h"
-#include "components/optimization_guide/core/model_execution/test/fake_remote.h"
 #include "components/optimization_guide/core/model_execution/test/feature_config_builder.h"
 #include "components/optimization_guide/core/model_execution/test/request_builder.h"
 #include "components/optimization_guide/core/model_execution/test/response_holder.h"
@@ -51,7 +50,6 @@
 #include "components/optimization_guide/core/optimization_guide_enums.h"
 #include "components/optimization_guide/core/optimization_guide_features.h"
 #include "components/optimization_guide/core/optimization_guide_logger.h"
-#include "components/optimization_guide/core/optimization_guide_model_executor.h"
 #include "components/optimization_guide/core/optimization_guide_proto_util.h"
 #include "components/optimization_guide/core/optimization_guide_util.h"
 #include "components/optimization_guide/proto/features/compose.pb.h"
@@ -149,10 +147,7 @@ class OnDeviceModelServiceControllerTest : public testing::Test {
     feature_list_.InitWithFeaturesAndParameters(
         {{features::kOptimizationGuideModelExecution, {}},
          {features::kOptimizationGuideOnDeviceModel,
-          {{"on_device_model_min_tokens_for_context", "10"},
-           {"on_device_model_max_tokens_for_context", "22"},
-           {"on_device_model_context_token_chunk_size", "4"},
-           {"on_device_model_topk", "1"},
+          {{"on_device_model_topk", "1"},
            {"on_device_model_temperature", "0"},
            {"on_device_model_disable_crash_count", "3"},
            {"on_device_model_crash_backoff_base_time", "1m"},
@@ -223,7 +218,7 @@ class OnDeviceModelServiceControllerTest : public testing::Test {
     task_environment_.FastForwardBy(base::Seconds(1));
   }
 
-  std::unique_ptr<OptimizationGuideModelExecutor::Session> CreateSession(
+  std::unique_ptr<OnDeviceSession> CreateSession(
       const SessionConfigParams& params) {
     return controller().CreateSession(kFeature, params);
   }
@@ -237,8 +232,7 @@ class OnDeviceModelServiceControllerTest : public testing::Test {
         reason, 1);
   }
 
-  std::string GetResponse(OptimizationGuideModelExecutor::Session& session,
-                          const std::string& prompt) {
+  std::string GetResponse(OnDeviceSession& session, const std::string& prompt) {
     ResponseHolder response;
     session.ExecuteModel(PageUrlRequest(prompt),
                          response.GetStreamingCallback());
@@ -360,15 +354,6 @@ TEST_F(OnDeviceModelServiceControllerTest, BaseModelExecutionSuccess) {
 }
 
 TEST_F(OnDeviceModelServiceControllerTest, TokenLimits) {
-  base::test::ScopedFeatureList feature_list;
-  feature_list.InitAndEnableFeatureWithParameters(
-      features::kOptimizationGuideOnDeviceModel,
-      {
-          {"on_device_model_min_tokens_for_context", "10"},
-          {"on_device_model_max_tokens_for_context", "10"},
-          {"on_device_model_max_tokens_for_execute", "5"},
-          {"on_device_model_max_tokens_for_output", "2"},
-      });
   auto config = SimpleComposeConfig();
   config.mutable_input_config()->set_min_context_tokens(5);
   config.mutable_input_config()->set_max_context_tokens(5);
@@ -383,7 +368,7 @@ TEST_F(OnDeviceModelServiceControllerTest, TokenLimits) {
   });
   auto session = CreateSession(SessionConfigParams{});
   const TokenLimits& limits = session->GetTokenLimits();
-  EXPECT_EQ(limits.max_tokens, 17u);
+  EXPECT_EQ(limits.max_tokens, 10240u);
   EXPECT_EQ(limits.min_context_tokens, 5u);
   EXPECT_EQ(limits.max_context_tokens, 5u);
   EXPECT_EQ(limits.max_execute_tokens, 3u);
@@ -391,20 +376,11 @@ TEST_F(OnDeviceModelServiceControllerTest, TokenLimits) {
 }
 
 TEST_F(OnDeviceModelServiceControllerTest, TokenLimitsCapped) {
-  base::test::ScopedFeatureList feature_list;
-  feature_list.InitAndEnableFeatureWithParameters(
-      features::kOptimizationGuideOnDeviceModel,
-      {
-          {"on_device_model_min_tokens_for_context", "10"},
-          {"on_device_model_max_tokens_for_context", "10"},
-          {"on_device_model_max_tokens_for_execute", "5"},
-          {"on_device_model_max_tokens_for_output", "2"},
-      });
   auto config = SimpleComposeConfig();
-  config.mutable_input_config()->set_min_context_tokens(1000);
-  config.mutable_input_config()->set_max_context_tokens(1000);
-  config.mutable_input_config()->set_max_execute_tokens(1000);
-  config.mutable_output_config()->set_max_output_tokens(1000);
+  config.mutable_input_config()->set_min_context_tokens(100000);
+  config.mutable_input_config()->set_max_context_tokens(100000);
+  config.mutable_input_config()->set_max_execute_tokens(100000);
+  config.mutable_output_config()->set_max_output_tokens(100000);
   FakeAdaptationAsset compose_asset({.config = config});
   Initialize(InitializeParams{
       .base_model = &standard_assets_.base_model,
@@ -414,11 +390,11 @@ TEST_F(OnDeviceModelServiceControllerTest, TokenLimitsCapped) {
   });
   auto session = CreateSession(SessionConfigParams{});
   const TokenLimits& limits = session->GetTokenLimits();
-  EXPECT_EQ(limits.max_tokens, 17u);
-  EXPECT_EQ(limits.min_context_tokens, 17u);
-  EXPECT_EQ(limits.max_context_tokens, 17u);
-  EXPECT_EQ(limits.max_execute_tokens, 17u);
-  EXPECT_EQ(limits.max_output_tokens, 17u);
+  EXPECT_EQ(limits.max_tokens, 10240u);
+  EXPECT_EQ(limits.min_context_tokens, 10240u);
+  EXPECT_EQ(limits.max_context_tokens, 10240u);
+  EXPECT_EQ(limits.max_execute_tokens, 10240u);
+  EXPECT_EQ(limits.max_output_tokens, 10240u);
 }
 
 TEST_F(OnDeviceModelServiceControllerTest, CacheWeightExecutionSuccess) {
@@ -1778,7 +1754,7 @@ TEST_F(OnDeviceModelServiceControllerTest,
   task_environment_.RunUntilIdle();
   histogram_tester.ExpectUniqueSample(
       "OptimizationGuide.ModelExecution.OnDeviceExecuteModelResult.Compose",
-      ExecuteModelResult::kDisconnectAndMaybeFallback, 1);
+      ExecuteModelResult::kDisconnectAndCancel, 1);
   ASSERT_FALSE(response_.GetFinalStatus());
 }
 
@@ -1814,7 +1790,6 @@ TEST_F(OnDeviceModelServiceControllerTest, DisconnectsWhenIdle) {
   session->ExecuteModel(PageUrlRequest("foo"),
                         response_.GetStreamingCallback());
   session.reset();
-  EXPECT_TRUE(fake_launcher_.is_service_running());
 
   task_environment_.FastForwardBy(idle_timeout / 2 + base::Milliseconds(1));
   task_environment_.RunUntilIdle();
@@ -3168,7 +3143,7 @@ TEST_F(OnDeviceModelServiceControllerTest, ImageExecutionSuccess) {
     session->ExecuteModel(proto::ExampleForTestingRequest(),
                           response.GetStreamingCallback());
     ASSERT_TRUE(response.GetFinalStatus());
-    EXPECT_EQ(*response.value(), "<image> max:22<image> max:1024");
+    EXPECT_EQ(*response.value(), "<image> max:8192<image> max:1024");
   }
 
   // Session without capabilities should not allow images.
@@ -3181,7 +3156,7 @@ TEST_F(OnDeviceModelServiceControllerTest, ImageExecutionSuccess) {
                           response.GetStreamingCallback());
     ASSERT_TRUE(response.GetFinalStatus());
     EXPECT_EQ(*response.value(),
-              "<unsupported> max:22<unsupported> "
+              "<unsupported> max:8192<unsupported> "
               "max:1024");
   }
 }
@@ -3274,7 +3249,7 @@ TEST_F(OnDeviceModelServiceControllerTest, KeepInputOnExtension) {
   altered_clone->ExecuteModel(proto::ExampleForTestingRequest(),
                               altered_response.GetStreamingCallback());
   ASSERT_TRUE(altered_response.GetFinalStatus());
-  EXPECT_EQ(*altered_response.value(), "v1<image><audio>v2v3v4 max:22");
+  EXPECT_EQ(*altered_response.value(), "v1<image><audio>v2v3v4 max:8192");
 
   // The clone that only extended should have sent input in separate chunks.
   ResponseHolder extended_response;
@@ -3282,19 +3257,19 @@ TEST_F(OnDeviceModelServiceControllerTest, KeepInputOnExtension) {
                                extended_response.GetStreamingCallback());
   ASSERT_TRUE(extended_response.GetFinalStatus());
   EXPECT_EQ(*extended_response.value(),
-            "v1<image><audio> max:22"
-            "v2 max:22"
-            "v3 max:4"
-            "v4 max:4");
+            "v1<image><audio> max:8192"
+            "v2 max:8192"
+            "v3 max:8174"
+            "v4 max:8174");
 
   // The original should have input in separate chunks.
   session->ExecuteModel(proto::ExampleForTestingRequest(),
                         response_.GetStreamingCallback());
   ASSERT_TRUE(response_.GetFinalStatus());
   EXPECT_EQ(*response_.value(),
-            "v1<image><audio> max:22"
-            "v2 max:22"
-            "v3 max:4");
+            "v1<image><audio> max:8192"
+            "v2 max:8192"
+            "v3 max:8174");
 }
 
 TEST_F(OnDeviceModelServiceControllerTest, OmitEmptyInputs) {
@@ -3544,9 +3519,8 @@ TEST_F(OnDeviceModelServiceControllerTest, Broker) {
 
   ModelBrokerClient broker_client(
       pending_broker.InitWithNewPipeAndPassRemote());
-  base::test::TestFuture<
-      std::unique_ptr<OptimizationGuideModelExecutor::Session>>
-      session_future;
+
+  base::test::TestFuture<std::unique_ptr<OnDeviceSession>> session_future;
   broker_client.CreateSession(mojom::ModelBasedCapabilityKey::kCompose,
                               SessionConfigParams{},
                               session_future.GetCallback());
@@ -3574,9 +3548,7 @@ TEST_F(OnDeviceModelServiceControllerTest,
 
   ModelBrokerClient broker_client(
       pending_broker.InitWithNewPipeAndPassRemote());
-  base::test::TestFuture<
-      std::unique_ptr<OptimizationGuideModelExecutor::Session>>
-      session_future;
+  base::test::TestFuture<std::unique_ptr<OnDeviceSession>> session_future;
   broker_client.CreateSession(mojom::ModelBasedCapabilityKey::kCompose,
                               SessionConfigParams{},
                               session_future.GetCallback());

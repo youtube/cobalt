@@ -39,6 +39,7 @@ import org.chromium.base.process_launcher.ChildProcessConnection;
 import org.chromium.base.process_launcher.ChildProcessLauncher;
 import org.chromium.base.process_launcher.IChildProcessArgs;
 import org.chromium.base.process_launcher.IFileDescriptorInfo;
+import org.chromium.base.process_launcher.ScopedServiceBindingBatch;
 import org.chromium.base.task.PostTask;
 import org.chromium.base.task.TaskTraits;
 import org.chromium.build.annotations.NullMarked;
@@ -480,6 +481,10 @@ public final class ChildProcessLauncherHelperImpl {
      */
     public static void startBindingManagement(final Context context) {
         assert ThreadUtils.runningOnUiThread();
+        // startBindingManagement() is safe to check feature flags because it is executed after C++
+        // native context is initialized.
+        boolean activated = ScopedServiceBindingBatch.tryActivate(LauncherThread.getHandler());
+        Log.i(TAG, "ScopedServiceBindingBatch.tryActivate: %b", activated);
         LauncherThread.post(
                 new Runnable() {
                     @Override
@@ -904,11 +909,6 @@ public final class ChildProcessLauncherHelperImpl {
         }
 
         // Add first and remove second.
-        if (visible && !mVisible) {
-            if (mBindingManager != null) mBindingManager.addConnection(connection);
-        }
-        mVisible = visible;
-
         if (mEffectiveImportance != newEffectiveImportance) {
             switch (newEffectiveImportance) {
                 case ChildProcessImportance.NORMAL:
@@ -935,6 +935,14 @@ public final class ChildProcessLauncherHelperImpl {
                     assert false;
             }
         }
+
+        // Add connection to BindingManager after upgrading the connection binding priority. The
+        // binding state stronger than not-perceptible, which will be added by BindingManager,
+        // should be applied first.
+        if (visible && !mVisible) {
+            if (mBindingManager != null) mBindingManager.addConnection(connection);
+        }
+        mVisible = visible;
 
         mIsSpareRenderer = isSpareRenderer;
 

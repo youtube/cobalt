@@ -463,8 +463,9 @@ crbug.com/1361088 [ win amd-0x7340 angle-d3d9 passthrough ] conformance/textures
 ## D3D9 / AMD / Passthrough
 crbug.com/40864619 [ win amd angle-d3d9 passthrough ] conformance/uniforms/uniform-default-values.html [ Failure ]
 crbug.com/402989074 [ win amd-0x7480 angle-d3d9 passthrough ] conformance/uniforms/uniform-values-per-program.html [ Failure ]
-crbug.com/402989074 [ win amd-0x1900 angle-d3d9 passthrough ] conformance/uniforms/uniform-values-per-program.html [ Failure ]
-crbug.com/402989074 [ win amd-0x150e angle-d3d9 passthrough ] conformance/uniforms/uniform-values-per-program.html [ Failure ]
+# Commented out until full procurement is ready since UAT is done.
+# crbug.com/402989074 [ win amd-0x1900 angle-d3d9 passthrough ] conformance/uniforms/uniform-values-per-program.html [ Failure ]
+# crbug.com/402989074 [ win amd-0x150e angle-d3d9 passthrough ] conformance/uniforms/uniform-values-per-program.html [ Failure ]
 
 ## win10 / angle-d3d11 / Passthrough command decoder failures ##
 
@@ -478,13 +479,14 @@ crbug.com/415086850 [ win11 nvidia-0x2184 angle-vulkan passthrough ] conformance
 crbug.com/1523062 [ win11 qualcomm-0x41333430 angle-d3d11 ] conformance/rendering/bind-framebuffer-flush-bug.html [ Failure ]
 crbug.com/1523062 [ win11 qualcomm-0x41333430 angle-d3d11 ] conformance/textures/misc/mipmap-fbo.html [ Failure ]
 
+## Win / Qualcomm Snapdragon X Elite / D3D11
+crbug.com/41496016 [ win11 qualcomm-0x36334330 angle-d3d11 ] conformance/textures/misc/mipmap-fbo.html [ Failure ]
+crbug.com/452924810 [ win11 qualcomm-0x36334330 angle-vulkan ] conformance/extensions/webgl-blend-func-extended.html [ Failure ]
 
 ## Win / Intel / D3D9
 crbug.com/395934162 [ angle-d3d9 intel-0x4680 passthrough win ] conformance/uniforms/out-of-bounds-uniform-array-access.html [ RetryOnFailure ]
 
 
-# Win11 / NVIDIA RTX 4070 Super
-crbug.com/450326413 [ win11 nvidia-0x2783 ] conformance/textures/image_bitmap_from_canvas/tex-2d-rgb-rgb-unsigned_short_5_6_5.html [ RetryOnFailure ]
 
 ####################
 # Mac failures     #

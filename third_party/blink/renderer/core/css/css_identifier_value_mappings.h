@@ -275,6 +275,9 @@ inline CSSIdentifierValue::CSSIdentifierValue(AppearanceValue e)
     case AppearanceValue::kBaseSelect:
       value_id_ = CSSValueID::kBaseSelect;
       break;
+    case AppearanceValue::kBase:
+      value_id_ = CSSValueID::kBase;
+      break;
   }
 }
 
@@ -313,6 +316,8 @@ inline AppearanceValue CSSIdentifierValue::ConvertTo() const {
       return AppearanceValue::kTextArea;
     case CSSValueID::kBaseSelect:
       return AppearanceValue::kBaseSelect;
+    case CSSValueID::kBase:
+      return AppearanceValue::kBase;
     default:
       NOTREACHED();
   }
@@ -1817,6 +1822,8 @@ inline GeometryBox CSSIdentifierValue::ConvertTo() const {
       return GeometryBox::kStrokeBox;
     case CSSValueID::kViewBox:
       return GeometryBox::kViewBox;
+    case CSSValueID::kHalfBorderBox:
+      return GeometryBox::kHalfBorderBox;
     default:
       break;
   }
@@ -1847,6 +1854,9 @@ inline CSSIdentifierValue::CSSIdentifierValue(GeometryBox geometry_box)
       break;
     case GeometryBox::kViewBox:
       value_id_ = CSSValueID::kViewBox;
+      break;
+    case GeometryBox::kHalfBorderBox:
+      value_id_ = CSSValueID::kHalfBorderBox;
       break;
   }
 }

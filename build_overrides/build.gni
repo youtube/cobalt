@@ -49,7 +49,7 @@ declare_args() {
   gtest_enable_absl_printers = true
 
   # Allow projects that wish to stay on C++17 to override Chromium's default.
-  # TODO(crbug.com/40251117): evaluate removing this end of 2023
+  # TODO(anglebug.com/330910097): evaluate removing this 2026-04-01
   use_cxx17 = false
 }
 

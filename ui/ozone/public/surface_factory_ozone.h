@@ -152,14 +152,14 @@ class COMPONENT_EXPORT(OZONE_BASE) SurfaceFactoryOzone {
       gfx::BufferUsage usage,
       std::optional<gfx::Size> framebuffer_size = std::nullopt);
 
-  virtual bool CanCreateNativePixmapForFormat(gfx::BufferFormat format);
+  virtual bool CanCreateNativePixmapForFormat(viz::SharedImageFormat format);
 
   // Create a single native buffer from an existing handle. Takes ownership of
   // |handle| and can be called on any thread.
   virtual scoped_refptr<gfx::NativePixmap> CreateNativePixmapFromHandle(
       gfx::AcceleratedWidget widget,
       gfx::Size size,
-      gfx::BufferFormat format,
+      viz::SharedImageFormat format,
       gfx::NativePixmapHandle handle);
 
   // A temporary solution that allows protected NativePixmap management to be
@@ -208,11 +208,12 @@ class COMPONENT_EXPORT(OZONE_BASE) SurfaceFactoryOzone {
   virtual std::vector<gfx::BufferFormat> GetSupportedFormatsForTexturing()
       const;
 
-  // Enumerates the BufferFormats that the platform can import via
+  // Enumerates the SharedImageFormats that the platform can import via
   // CreateNativePixmapFromHandle() to use for GL, or returns empty if those
   // could not be retrieved or the platform doesn't know in advance.
   // Enumeration should not be assumed to take a trivial amount of time.
-  std::vector<gfx::BufferFormat> GetSupportedFormatsForGLNativePixmapImport();
+  std::vector<viz::SharedImageFormat>
+  GetSupportedFormatsForGLNativePixmapImport();
 
   // This returns a preferred format for solid color image on Wayland.
   virtual std::optional<gfx::BufferFormat> GetPreferredFormatForSolidColor()

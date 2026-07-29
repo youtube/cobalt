@@ -72,9 +72,6 @@ declare_args() {
   use_official_enterprise_connectors_api_keys = false
 }
 
-additional_modules_list_file =
-    "$root_gen_dir/chrome/browser/internal/additional_modules_list.txt"
-
 if (is_win) {
   # This is in a separate config so the flags can be applied to dependents.
   # ldflags in GN aren't automatically inherited.
@@ -346,8 +343,6 @@ static_library("browser") {
     "component_updater/trust_token_key_commitments_component_installer.h",
     "component_updater/wasm_tts_engine_component_installer.cc",
     "component_updater/wasm_tts_engine_component_installer.h",
-    "contextmenu/context_menu_features.cc",
-    "contextmenu/context_menu_features.h",
     "custom_handlers/chrome_protocol_handler_registry_delegate.cc",
     "custom_handlers/chrome_protocol_handler_registry_delegate.h",
     "custom_handlers/protocol_handler_registry_factory.cc",
@@ -439,7 +434,6 @@ static_library("browser") {
     "engagement/important_sites_util.cc",
     "engagement/important_sites_util.h",
     "engagement/site_engagement_service_factory.cc",
-    "engagement/site_engagement_service_factory.h",
     "enterprise/browser_management/browser_management_service.cc",
     "enterprise/browser_management/browser_management_service.h",
     "enterprise/browser_management/browser_management_status_provider.cc",
@@ -466,6 +460,8 @@ static_library("browser") {
     "enterprise/connectors/referrer_cache_utils.h",
     "enterprise/core/dependency_factory_impl.cc",
     "enterprise/core/dependency_factory_impl.h",
+    "enterprise/data_protection/view_source_navigation_throttle.cc",
+    "enterprise/data_protection/view_source_navigation_throttle.h",
     "enterprise/identifiers/profile_id_delegate_impl.cc",
     "enterprise/identifiers/profile_id_delegate_impl.h",
     "enterprise/identifiers/profile_id_service_factory.cc",
@@ -646,8 +642,6 @@ static_library("browser") {
     "media/audio_service_util.h",
     "media/chrome_media_session_client.cc",
     "media/chrome_media_session_client.h",
-    "media/media_access_handler.cc",
-    "media/media_access_handler.h",
     "media/media_engagement_contents_observer.cc",
     "media/media_engagement_contents_observer.h",
     "media/media_engagement_preloaded_list.cc",
@@ -714,7 +708,6 @@ static_library("browser") {
     "metrics/thread_watcher_report_hang.cc",
     "metrics/thread_watcher_report_hang.h",
     "metrics/ukm_background_recorder_service.cc",
-    "metrics/ukm_background_recorder_service.h",
     "metrics/variations/chrome_variations_service_client.cc",
     "metrics/variations/chrome_variations_service_client.h",
     "metrics/variations/google_groups_manager_factory.cc",
@@ -838,8 +831,6 @@ static_library("browser") {
     "ntp_tiles/chrome_most_visited_sites_factory.h",
     "ntp_tiles/chrome_popular_sites_factory.cc",
     "ntp_tiles/chrome_popular_sites_factory.h",
-    "offline_items_collection/offline_content_aggregator_factory.cc",
-    "offline_items_collection/offline_content_aggregator_factory.h",
     "omnibox/contextual_session_service_factory.cc",
     "omnibox/contextual_session_service_factory.h",
     "omnibox/contextual_session_web_contents_helper.cc",
@@ -994,6 +985,8 @@ static_library("browser") {
     "performance_manager/policies/policy_features.h",
     "performance_manager/policies/termination_target_policy.cc",
     "performance_manager/policies/termination_target_policy.h",
+    "performance_manager/policies/transient_keep_alive_policy.cc",
+    "performance_manager/policies/transient_keep_alive_policy.h",
     "performance_manager/policies/working_set_trimmer_policy.cc",
     "performance_manager/policies/working_set_trimmer_policy.h",
     "performance_manager/public/chrome_browser_main_extra_parts_performance_manager.h",
@@ -1005,6 +998,7 @@ static_library("browser") {
     "performance_monitor/chrome_browser_main_extra_parts_performance_monitor.h",
     "performance_monitor/system_monitor.cc",
     "performance_monitor/system_monitor.h",
+    "platform_util_internal.cc",
     "platform_util_internal.h",
     "plugins/pdf_iframe_navigation_throttle.cc",
     "plugins/pdf_iframe_navigation_throttle.h",
@@ -1012,6 +1006,8 @@ static_library("browser") {
     "policy/browsing_history_policy_handler.h",
     "policy/chrome_browser_policy_connector.cc",
     "policy/chrome_browser_policy_connector.h",
+    "policy/chrome_policy_blocklist_service_factory.cc",
+    "policy/chrome_policy_blocklist_service_factory.h",
     "policy/chrome_policy_conversions_client.cc",
     "policy/chrome_policy_conversions_client.h",
     "policy/cloud/cloud_policy_invalidator.cc",
@@ -1028,6 +1024,10 @@ static_library("browser") {
     "policy/cloud/user_fm_registration_token_uploader_factory.h",
     "policy/configuration_policy_handler_list_factory.cc",
     "policy/configuration_policy_handler_list_factory.h",
+    "policy/developer_tools_policy_checker.cc",
+    "policy/developer_tools_policy_checker.h",
+    "policy/developer_tools_policy_checker_factory.cc",
+    "policy/developer_tools_policy_checker_factory.h",
     "policy/developer_tools_policy_handler.cc",
     "policy/developer_tools_policy_handler.h",
     "policy/device_management_service_configuration.cc",
@@ -1420,6 +1420,8 @@ static_library("browser") {
     "speech/chrome_speech_recognition_manager_delegate.h",
     "speech/on_device_speech_recognition_impl.cc",
     "speech/on_device_speech_recognition_impl.h",
+    "speech/on_device_speech_recognition_util.cc",
+    "speech/on_device_speech_recognition_util.h",
     "ssl/chrome_security_blocking_page_factory.cc",
     "ssl/chrome_security_blocking_page_factory.h",
     "ssl/chrome_security_state_tab_helper.cc",
@@ -1532,10 +1534,6 @@ static_library("browser") {
     "tpcd/metadata/devtools_observer.h",
     "tpcd/metadata/manager_factory.cc",
     "tpcd/metadata/manager_factory.h",
-    "tpcd/support/top_level_trial_service.cc",
-    "tpcd/support/top_level_trial_service.h",
-    "tpcd/support/top_level_trial_service_factory.cc",
-    "tpcd/support/top_level_trial_service_factory.h",
     "tpcd/support/tpcd_support_service.cc",
     "tpcd/support/tpcd_support_service.h",
     "tpcd/support/tpcd_support_service_factory.cc",
@@ -1790,14 +1788,10 @@ static_library("browser") {
     # headers are componentized:
     # - c/b/download/download_request_limiter.h
     # - c/b/download/background_download_service_factory.h
-    # - c/b/offline_items_collection/offline_content_aggregator_factory.h
-    # - c/b/metrics/ukm_background_recorder_service.h
     "//chrome/browser/background_fetch:impl",
 
     # TODO(crbug.com/353332589): Remove this circular dependencies when the following
     # headers get componentized:
-    # - c/b/metrics/ukm_background_recorder_service.h
-    # - c/b/engagement/site_engagement_service_factory.h
     # - c/b/webapps/installable/installable_utils.h
     "//chrome/browser/background_sync:impl",
 
@@ -1806,12 +1800,9 @@ static_library("browser") {
     # - c/b/chrome_content_browser_client.h
     "//chrome/browser/btm:impl",
 
-    # TODO(crbug.com/353332589): Remove this circular dependencies when the following
-    # headers get componentized:
-    # - c/b/metrics/ukm_background_recorder_service.h
-    # - c/b/offline_items_collection/offline_content_aggregator_factory.h
-    # - c/b/engagement/site_engagement_service_factory.h
-    "//chrome/browser/content_index:impl",
+    # TODO(crbug.com/430804948): Remove this circular dependency when profiles/profile_manager.h
+    # gets componentized.
+    "//chrome/browser/subscription_eligibility",
   ]
 
   public_deps = [
@@ -1898,7 +1889,9 @@ static_library("browser") {
     "//chrome/browser/content_settings:content_settings_util",
     "//chrome/browser/content_settings:content_settings_util_impl",
     "//chrome/browser/content_settings:impl",
+    "//chrome/browser/contextmenu",
     "//chrome/browser/contextual_tasks",
+    "//chrome/browser/contextual_tasks:impl",
     "//chrome/browser/crash_upload_list",
     "//chrome/browser/data_saver",
     "//chrome/browser/devtools",
@@ -1906,6 +1899,7 @@ static_library("browser") {
     "//chrome/browser/dom_distiller:impl",
     "//chrome/browser/download",
     "//chrome/browser/download:status_text_builder_utils",
+    "//chrome/browser/engagement",
     "//chrome/browser/enterprise/platform_auth:features",
     "//chrome/browser/favicon",
     "//chrome/browser/feature_engagement",
@@ -1922,11 +1916,13 @@ static_library("browser") {
     "//chrome/browser/ip_protection",
     "//chrome/browser/legion",
     "//chrome/browser/lifetime:termination_notification",
+    "//chrome/browser/media:access_handler",
     "//chrome/browser/media/prefs",
     "//chrome/browser/media/router",
     "//chrome/browser/media/router:media_router_feature",
     "//chrome/browser/media/router/discovery/access_code:access_code_cast_feature",
     "//chrome/browser/media/webrtc",
+    "//chrome/browser/metrics",
     "//chrome/browser/metrics:expired_histograms_array",
     "//chrome/browser/metrics/structured",
     "//chrome/browser/metrics/variations:chrome_ui_string_overrider_factory",
@@ -1935,6 +1931,7 @@ static_library("browser") {
     "//chrome/browser/notifications",
     "//chrome/browser/notifications/scheduler:factory",
     "//chrome/browser/notifications/scheduler/public",
+    "//chrome/browser/offline_items_collection",
     "//chrome/browser/omnibox",
     "//chrome/browser/optimization_guide",
     "//chrome/browser/optimization_guide:impl",
@@ -1962,7 +1959,6 @@ static_library("browser") {
     "//chrome/browser/privacy_budget",
     "//chrome/browser/privacy_sandbox",
     "//chrome/browser/privacy_sandbox:headers",
-    "//chrome/browser/privacy_sandbox/incognito",
     "//chrome/browser/profiles",
     "//chrome/browser/profiles:profile",
     "//chrome/browser/profiles:profile_downloader",
@@ -2003,6 +1999,7 @@ static_library("browser") {
     "//chrome/browser/status_icons",
     "//chrome/browser/status_icons:impl",
     "//chrome/browser/storage_access_api",
+    "//chrome/browser/subscription_eligibility",
     "//chrome/browser/sync",
     "//chrome/browser/tab_group_sync:factories",
     "//chrome/browser/tab_group_sync:factories_impl",
@@ -2065,6 +2062,7 @@ static_library("browser") {
     "//chrome/browser/webdata_services",
     "//chrome/browser/webid",
     "//chrome/browser/webid:impl",
+    "//components/browser_apis/tab_strip:mojom",
     "//components/enterprise/connectors/core",
 
     # TODO(crbug.com/369436587): Remove this dependency when
@@ -2156,7 +2154,6 @@ static_library("browser") {
     "//components/content_settings/core/browser",
     "//components/content_settings/core/browser:cookie_settings",
     "//components/content_settings/core/common",
-    "//components/contextual_search/core/browser",
     "//components/contextual_tasks/public:feature_list",
     "//components/continuous_search/browser",
     "//components/cookie_config",
@@ -2194,6 +2191,7 @@ static_library("browser") {
     "//components/enterprise/common/proto:extensions_workflow_events_proto",
     "//components/enterprise/content",
     "//components/enterprise/device_trust",
+    "//components/enterprise/encryption/cache",
     "//components/enterprise/obfuscation/core:enterprise_obfuscation",
     "//components/enterprise/signin",
     "//components/error_page/common",
@@ -2279,7 +2277,6 @@ static_library("browser") {
     "//components/no_state_prefetch/common",
     "//components/no_state_prefetch/common:mojo_bindings",
     "//components/ntp_tiles",
-    "//components/offline_items_collection/core",
     "//components/offline_pages/buildflags",
     "//components/offline_pages/core",
     "//components/offline_pages/core/background:background_offliner",
@@ -2397,6 +2394,7 @@ static_library("browser") {
     "//components/safe_browsing/core/browser/realtime:enterprise_url_lookup_service",
     "//components/safe_browsing/core/browser/realtime:policy_engine",
     "//components/safe_browsing/core/browser/realtime:url_lookup_service",
+    "//components/safe_browsing/core/browser/realtime:url_lookup_service_base",
     "//components/safe_browsing/core/browser/sync",
     "//components/safe_browsing/core/common",
     "//components/safe_browsing/core/common:safe_browsing_policy_handler",
@@ -2469,6 +2467,7 @@ static_library("browser") {
     "//components/sync_preferences:features",
     "//components/sync_sessions",
     "//components/tab_groups",
+    "//components/touch_to_search/core/browser",
     "//components/tpcd/metadata/browser",
     "//components/tpcd/metadata/browser:prefs",
     "//components/tracing:background_tracing_utils",
@@ -2814,6 +2813,8 @@ static_library("browser") {
       "android/httpclient/http_client_bridge.h",
       "android/intent_handler.cc",
       "android/media/media_capture_devices_dispatcher_android.cc",
+      "android/media_state_observer.cc",
+      "android/media_state_observer.h",
       "android/messages_resource_mapper_initializer.cc",
       "android/metrics/android_session_durations_service.cc",
       "android/metrics/android_session_durations_service.h",
@@ -2921,6 +2922,8 @@ static_library("browser") {
       "android/tab_favicon.h",
       "android/tab_group_android.cc",
       "android/tab_group_android.h",
+      "android/tab_group_collection_data_android.cc",
+      "android/tab_group_collection_data_android.h",
       "android/tab_group_features.cc",
       "android/tab_group_features.h",
       "android/tab_interface_android.cc",
@@ -3048,6 +3051,8 @@ static_library("browser") {
       "download/android/open_download_dialog_bridge.h",
       "download/android/open_download_dialog_bridge_delegate.cc",
       "download/android/open_download_dialog_bridge_delegate.h",
+      "download/android/policy_warning_download_dialog_bridge.cc",
+      "download/android/policy_warning_download_dialog_bridge.h",
       "download/android/service/download_background_task.cc",
       "download/android/service/download_task_scheduler.cc",
       "download/android/service/download_task_scheduler.h",
@@ -3099,6 +3104,7 @@ static_library("browser") {
       "first_run/android/first_run_utils.cc",
       "geolocation/geolocation_permission_context_delegate_android.cc",
       "geolocation/geolocation_permission_context_delegate_android.h",
+      "gesturenav/android/gesture_navigation_utils.cc",
       "gesturenav/android/tab_on_back_gesture_handler.cc",
       "gesturenav/android/tab_on_back_gesture_handler.h",
       "history_clusters/history_clusters_tab_helper_android.cc",
@@ -3636,7 +3642,6 @@ static_library("browser") {
       # TODO(crbug.com/353332589): Remove this circular dependency when the following
       # headers get componentized:
       # - c/b/predictors/predictors_features.h
-      # - c/b/contextmenu/context_menu_features.h
       # - c/b/browser_features.h
       "//chrome/browser/flags:flags_android_impl",
 
@@ -3649,6 +3654,11 @@ static_library("browser") {
       # headers get componentized:
       # - c/b/android/tab_android.h
       "//chrome/browser/complex_tasks:impl",
+
+      # TODO(crbug.com/353332589): Remove this circular dependencies when the following
+      # headers get componentized:
+      # - c/b/android/service_tab_launcher.h
+      "//chrome/browser/content_index:impl",
     ]
 
     if (safe_browsing_mode == 2) {
@@ -3721,6 +3731,8 @@ static_library("browser") {
       "chrome_browser_interface_binders_webui_parts_desktop.cc",
       "chrome_process_singleton.cc",
       "chrome_process_singleton.h",
+      "component_updater/actor_safety_lists_component_installer.cc",
+      "component_updater/actor_safety_lists_component_installer.h",
       "component_updater/iwa_key_distribution_component_installer.cc",
       "component_updater/iwa_key_distribution_component_installer.h",
       "component_updater/soda_component_installer.cc",
@@ -4070,6 +4082,8 @@ static_library("browser") {
       "performance_manager/policies/freezing_opt_out_checker.h",
       "performance_manager/policies/memory_saver_mode_policy.cc",
       "performance_manager/policies/memory_saver_mode_policy.h",
+      "performance_manager/policies/sustained_memory_pressure_evaluator.cc",
+      "performance_manager/policies/sustained_memory_pressure_evaluator.h",
       "performance_manager/policies/urgent_page_discarding_policy.cc",
       "performance_manager/policies/urgent_page_discarding_policy.h",
       "performance_manager/public/background_tab_loading_policy.h",
@@ -4081,6 +4095,10 @@ static_library("browser") {
       "performance_manager/user_tuning/performance_detection_manager.cc",
       "performance_manager/user_tuning/user_performance_tuning_manager.cc",
       "performance_manager/user_tuning/user_performance_tuning_notifier.cc",
+      "policy/cloud/extension_install_policy_service.cc",
+      "policy/cloud/extension_install_policy_service.h",
+      "policy/cloud/extension_install_policy_service_factory.cc",
+      "policy/cloud/extension_install_policy_service_factory.h",
       "policy/device_account_initializer.cc",
       "policy/device_account_initializer.h",
       "policy/extension_developer_mode_policy_handler.cc",
@@ -4329,6 +4347,7 @@ static_library("browser") {
       "//chrome/browser/contextual_cueing",
       "//chrome/browser/contextual_cueing:impl",
       "//chrome/browser/contextual_tasks:ui",
+      "//chrome/browser/contextual_tasks:ui_impl",
       "//chrome/browser/device_notifications",
       "//chrome/browser/device_notifications:impl",
       "//chrome/browser/error_reporting",
@@ -4665,7 +4684,6 @@ static_library("browser") {
       "//chrome/browser/ui/passwords/bubble_controllers:impl",
 
       # TODO(crbug.com/438226511): Remove this circular dependency when:
-      # - c/b/engagement/site_engagement_service_factory.h
       # - c/b/sessions/app_session_service.h
       # - c/b/sessions/app_session_service_factory.h
       # - c/b/sessions/session_service_base.h
@@ -5215,6 +5233,8 @@ static_library("browser") {
       "speech/tts_chromeos.h",
       "speech/tts_controller_delegate_impl.cc",
       "speech/tts_controller_delegate_impl.h",
+      "ssl/ssl_config_overlay.cc",
+      "ssl/ssl_config_overlay.h",
       "supervised_user/chromeos/supervised_user_favicon_request_handler.cc",
       "supervised_user/chromeos/supervised_user_favicon_request_handler.h",
       "supervised_user/chromeos/supervised_user_web_content_handler_impl.cc",
@@ -5303,7 +5323,6 @@ static_library("browser") {
       "//chrome/browser/apps/app_preload_service",
       "//chrome/browser/apps/app_service/app_install:implementation",
       "//chrome/browser/apps/app_service/app_install:navigation_throttle",
-      "//chrome/browser/apps/app_service/webapk:prefs",
       "//chrome/browser/apps/browser_instance",
       "//chrome/browser/ash/accessibility",
       "//chrome/browser/ash/accessibility/live_caption",
@@ -5324,6 +5343,7 @@ static_library("browser") {
       "//chrome/browser/ash/app_mode/web_app",
       "//chrome/browser/ash/app_restore",
       "//chrome/browser/ash/apps",
+      "//chrome/browser/ash/apps/webapk:prefs",
       "//chrome/browser/ash/arc",
       "//chrome/browser/ash/arc:arc_util",
       "//chrome/browser/ash/arc:arc_util_impl",
@@ -5353,7 +5373,6 @@ static_library("browser") {
       "//chrome/browser/ash/arc/tts",
       "//chrome/browser/ash/arc/vmm",
       "//chrome/browser/ash/arc/window_predictor",
-      "//chrome/browser/ash/assistant",
       "//chrome/browser/ash/attestation",
       "//chrome/browser/ash/audio",
       "//chrome/browser/ash/auth",
@@ -5891,7 +5910,6 @@ static_library("browser") {
       "//chrome/browser/ash/arc/tracing",
       "//chrome/browser/ash/arc/tts",
       "//chrome/browser/ash/arc/window_predictor",
-      "//chrome/browser/ash/assistant",
       "//chrome/browser/ash/attestation",
       "//chrome/browser/ash/audio",
       "//chrome/browser/ash/auth",
@@ -6893,7 +6911,6 @@ static_library("browser") {
       "enterprise/connectors/analysis/clipboard_request_handler.h",
       "enterprise/connectors/analysis/content_analysis_delegate.cc",
       "enterprise/connectors/analysis/content_analysis_delegate.h",
-      "enterprise/connectors/analysis/content_analysis_delegate_base.h",
       "enterprise/connectors/analysis/content_analysis_dialog_controller.cc",
       "enterprise/connectors/analysis/content_analysis_dialog_controller.h",
       "enterprise/connectors/analysis/content_analysis_dialog_delegate.cc",
@@ -8442,6 +8459,7 @@ static_library("browser_public_dependencies") {
     "//components/input",
     "//components/media_router/common/mojom:media_controller",
     "//components/optimization_guide:machine_learning_tflite_buildflags",
+    "//components/optimization_guide/core",
     "//components/page_image_service/mojom:mojo_bindings",
     "//components/page_info",
     "//components/page_info/core",
@@ -8614,7 +8632,6 @@ static_library("browser_generated_files") {
       "//chrome/browser/support_tool:support_tool_proto",
       "//chrome/browser/sync_file_system/drive_backend:sync_file_system_drive_proto",
       "//chrome/browser/ui:webui_name_variants",
-      "//chrome/browser/ui/tabs/tab_strip_api:mojom",
       "//chrome/browser/ui/webui/access_code_cast:mojo_bindings",
       "//chrome/browser/ui/webui/app_service_internals:mojo_bindings",
       "//chrome/browser/ui/webui/customize_buttons:mojo_bindings",
@@ -8642,6 +8659,7 @@ static_library("browser_generated_files") {
       "//chrome/browser/ui/webui_browser:browser_mojo_bindings",
       "//chrome/browser/webauthn/proto",
       "//components/autofill/core/browser/ml_model/logging:mojo_bindings",
+      "//components/browser_apis/tab_strip:mojom",
     ]
     if (!is_official_build) {
       public_deps +=
@@ -8891,13 +8909,7 @@ grit("resources") {
     "browser_resources.pak",
   ]
 
-  grit_flags = [
-    "-E",
-    "additional_modules_list_file=" +
-        rebase_path(additional_modules_list_file, root_build_dir),
-  ]
-
-  deps = [ ":chrome_internal_resources_gen" ]
+  deps = []
 
   if (is_win) {
     deps += [ "//chrome/browser/resources/conflicts:build_ts" ]
@@ -8923,20 +8935,6 @@ grit("resources") {
 
   if (safe_browsing_mode == 1) {
     deps += [ "//chrome/browser/resources/reset_password:build_ts" ]
-  }
-}
-
-if (is_chrome_branded) {
-  action("chrome_internal_resources_gen") {
-    script = "internal/transform_additional_modules_list.py"
-    sources = [ "internal/resources/additional_modules_list.input" ]
-    outputs = [ additional_modules_list_file ]
-    args = rebase_path(sources, root_build_dir) +
-           rebase_path(outputs, root_build_dir)
-  }
-} else {
-  group("chrome_internal_resources_gen") {
-    # Empty placeholder.
   }
 }
 

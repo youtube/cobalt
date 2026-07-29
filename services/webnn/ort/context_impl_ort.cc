@@ -4,6 +4,7 @@
 
 #include "services/webnn/ort/context_impl_ort.h"
 
+#include "base/feature_list.h"
 #include "services/webnn/ort/buffer_content_ort.h"
 #include "services/webnn/ort/graph_impl_ort.h"
 #include "services/webnn/ort/tensor_impl_ort.h"
@@ -19,12 +20,21 @@
 
 namespace webnn::ort {
 
+namespace {
+
+// The feature flag allows us to try using device allocator to create device
+// tensors for EPs, e.g. OpenVINO EP.
+BASE_FEATURE(kUseDeviceTensor, base::FEATURE_DISABLED_BY_DEFAULT);
+
+}  // namespace
+
 // static
 scoped_refptr<WebNNContextImpl> ContextImplOrt::Create(
     mojo::PendingReceiver<mojom::WebNNContext> receiver,
     base::WeakPtr<WebNNContextProviderImpl> context_provider,
     const EpWorkarounds& ep_workarounds,
     mojom::CreateContextOptionsPtr options,
+    mojom::Device device_type,
     mojo::ScopedDataPipeConsumerHandle write_tensor_consumer,
     mojo::ScopedDataPipeProducerHandle read_tensor_producer,
     scoped_refptr<Environment> env,
@@ -38,7 +48,7 @@ scoped_refptr<WebNNContextImpl> ContextImplOrt::Create(
   DCHECK(owning_task_runner->RunsTasksInCurrentSequence());
   return base::MakeRefCounted<ContextImplOrt>(
       std::move(receiver), std::move(context_provider),
-      std::move(ep_workarounds), std::move(options),
+      std::move(ep_workarounds), std::move(options), device_type,
       std::move(write_tensor_consumer), std::move(read_tensor_producer),
       std::move(env), command_buffer_id, std::move(sequence),
       std::move(memory_tracker), std::move(owning_task_runner),
@@ -50,6 +60,7 @@ ContextImplOrt::ContextImplOrt(
     base::WeakPtr<WebNNContextProviderImpl> context_provider,
     const EpWorkarounds& ep_workarounds,
     mojom::CreateContextOptionsPtr options,
+    mojom::Device device_type,
     mojo::ScopedDataPipeConsumerHandle write_tensor_consumer,
     mojo::ScopedDataPipeProducerHandle write_tensor_producer,
     scoped_refptr<Environment> env,
@@ -73,7 +84,12 @@ ContextImplOrt::ContextImplOrt(
           shared_image_manager,
           std::move(main_task_runner)),
       env_(std::move(env)),
-      session_options_(SessionOptions::Create(this->options().device, env_)) {}
+      session_options_(SessionOptions::Create(device_type, env_)) {
+  if (base::FeatureList::IsEnabled(kUseDeviceTensor)) {
+    device_allocator_ = DeviceAllocator::Create(this->options().device,
+                                                session_options_->get(), env_);
+  }
+}
 
 ContextImplOrt::~ContextImplOrt() = default;
 
@@ -349,8 +365,8 @@ ContextImplOrt::CreateTensorImpl(
                           "Creation of constant tensors is not supported."));
   }
 
-  auto buffer_content =
-      std::make_unique<BufferContentOrt>(tensor_info->descriptor);
+  auto buffer_content = std::make_unique<BufferContentOrt>(
+      tensor_info->descriptor, device_allocator_);
   auto buffer_state =
       base::MakeRefCounted<QueueableResourceState<BufferContentOrt>>(
           std::move(buffer_content));

@@ -39,7 +39,7 @@
 #include "content/public/common/alternative_error_page_override_info.mojom-forward.h"
 #include "media/base/picture_in_picture_events_info.h"
 #include "media/media_buildflags.h"
-#include "mojo/public/cpp/bindings/associated_remote.h"
+#include "media/mojo/mojom/speech_recognizer.mojom.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "net/base/network_handle.h"
@@ -90,6 +90,10 @@ namespace net {
 class IsolationInfo;
 class SiteForCookies;
 }  // namespace net
+
+namespace optimization_guide {
+class ModelBrokerClient;
+}  // namespace optimization_guide
 
 namespace safe_browsing {
 class AsyncCheckTracker;
@@ -523,6 +527,12 @@ class ChromeContentBrowserClient : public content::ContentBrowserClient {
                        bool* no_javascript_access) override;
   content::SpeechRecognitionManagerDelegate*
   CreateSpeechRecognitionManagerDelegate() override;
+  std::unique_ptr<optimization_guide::ModelBrokerClient>
+  CreateModelBrokerClient(content::BrowserContext* browser_context) override;
+  media::mojom::AvailabilityStatus
+  GetOnDeviceSpeechRecognitionAvailabilityStatus(
+      content::BrowserContext* context,
+      const std::string& language) override;
 #if BUILDFLAG(IS_CHROMEOS)
   content::TtsControllerDelegate* GetTtsControllerDelegate() override;
 #endif
@@ -1055,6 +1065,8 @@ class ChromeContentBrowserClient : public content::ContentBrowserClient {
 
   bool IsTransientActivationRequiredForShowFileOrDirectoryPicker(
       content::WebContents* web_contents) override;
+  bool IsFileSystemAccessApiFilePickerAllowed(
+      content::WebContents* web_contents) override;
 
   bool ShouldUseFirstPartyStorageKey(const url::Origin& origin) override;
 
@@ -1190,6 +1202,10 @@ class ChromeContentBrowserClient : public content::ContentBrowserClient {
 
   bool UsePrefetchPrerenderIntegration() override;
   bool UsePreloadServingMetrics() override;
+#if !BUILDFLAG(IS_ANDROID)
+  bool ShouldDisallowCredentialRequest(
+      content::WebContents* web_contents) override;
+#endif  //! BUILDFLAG(IS_ANDROID)
 
  protected:
   static bool HandleWebUI(GURL* url, content::BrowserContext* browser_context);

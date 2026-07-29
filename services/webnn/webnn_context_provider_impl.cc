@@ -27,6 +27,7 @@
 #include <string>
 
 #include "base/types/expected_macros.h"
+#include "gpu/config/gpu_driver_bug_workaround_type.h"
 #include "services/webnn/dml/context_provider_dml.h"
 #include "services/webnn/ort/context_impl_ort.h"
 #include "services/webnn/ort/context_provider_ort.h"
@@ -54,7 +55,7 @@ namespace {
 BASE_FEATURE(kWebNNUseDataPipe, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Whether to allow multiple threads.
-BASE_FEATURE(kWebNNAllowMultipleThreads, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kWebNNAllowMultipleThreads, base::FEATURE_ENABLED_BY_DEFAULT);
 
 WebNNContextProviderImpl::BackendForTesting* g_backend_for_testing = nullptr;
 
@@ -117,18 +118,6 @@ WebNNContextProviderImpl::WebNNContextProviderImpl(
 
 WebNNContextProviderImpl::~WebNNContextProviderImpl() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-}
-
-base::flat_set<scoped_refptr<base::SequencedTaskRunner>>
-WebNNContextProviderImpl::GetAllContextTaskRunnersForTesting() {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-
-  base::flat_set<scoped_refptr<base::SequencedTaskRunner>> runners;
-  for (auto& impl : context_impls_) {
-    runners.insert(impl->owning_task_runner());
-  }
-
-  return runners;
 }
 
 std::unique_ptr<WebNNContextProviderImpl> WebNNContextProviderImpl::Create(
@@ -254,6 +243,15 @@ void WebNNContextProviderImpl::CreateWebNNContext(
       LOG(ERROR) << "[WebNN] Failed to create ONNX Runtime context: "
                  << env_creation_results.error();
     } else {
+      mojom::Device device_type = options->device;
+      // Falls back to GPU if the device type is NPU but NPU is disabled.
+      if (device_type == mojom::Device::kNpu &&
+          gpu_feature_info_.IsWorkaroundEnabled(gpu::DISABLE_WEBNN_FOR_NPU)) {
+        device_type = mojom::Device::kGpu;
+        LOG(WARNING) << "[WebNN] [WARNING] NPU device is disabled to create "
+                        "ONNX Runtime context. Falling back to GPU.";
+      }
+
       if (!task_runner->BelongsToCurrentThread()) {
         // Re-create sequence for the new task runner. Destroying the old
         // sequence is safe since it has no scheduled tasks yet.
@@ -270,8 +268,9 @@ void WebNNContextProviderImpl::CreateWebNNContext(
             FROM_HERE,
             base::BindOnce(
                 &ort::ContextImplOrt::Create, std::move(receiver), AsWeakPtr(),
-                env_creation_results.value()->GetEpWorkarounds(options->device),
-                std::move(options), std::move(write_tensor_consumer),
+                env_creation_results.value()->GetEpWorkarounds(device_type),
+                std::move(options), device_type,
+                std::move(write_tensor_consumer),
                 std::move(read_tensor_producer),
                 std::move(env_creation_results.value()), command_buffer_id,
                 std::move(sequence), std::move(memory_tracker_), task_runner,
@@ -285,8 +284,8 @@ void WebNNContextProviderImpl::CreateWebNNContext(
       }
       context_impl = base::MakeRefCounted<ort::ContextImplOrt>(
           std::move(receiver), AsWeakPtr(),
-          env_creation_results.value()->GetEpWorkarounds(options->device),
-          std::move(options), std::move(write_tensor_consumer),
+          env_creation_results.value()->GetEpWorkarounds(device_type),
+          std::move(options), device_type, std::move(write_tensor_consumer),
           std::move(read_tensor_producer),
           std::move(env_creation_results.value()), command_buffer_id,
           std::move(sequence), memory_tracker_, std::move(task_runner),

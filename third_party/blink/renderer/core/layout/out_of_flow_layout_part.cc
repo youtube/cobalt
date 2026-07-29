@@ -1963,10 +1963,12 @@ AnchorEvaluatorImpl OutOfFlowLayoutPart::CreateAnchorEvaluator(
       const LayoutObject* container_object =
           container_builder_->GetLayoutObject();
       CHECK(container_object);
+      WritingDirectionMode writing_direction =
+          container_object->Style()->GetWritingDirection();
 
       FragmentBuilder::PropagateChildAnchors(
-          fragment, stitched_offset, *container_object, stitched_container_size,
-          options, &stitched_anchor_query);
+          fragment, stitched_offset, *container_object, writing_direction,
+          stitched_container_size, options, &stitched_anchor_query);
       if (const auto* break_token =
               To<BlockBreakToken>(fragment.GetBreakToken())) {
         stitched_offset.block_offset = break_token->ConsumedBlockSize();
@@ -2172,8 +2174,12 @@ struct NonOverflowingCandidate {
   std::optional<wtf_size_t> try_fallback_index;
   // The result of TryCalculateOffset.
   OutOfFlowLayoutPart::OffsetInfo offset_info;
+  NonOverflowingScrollRange non_overflowing_range;
 
-  void Trace(Visitor* visitor) const { visitor->Trace(offset_info); }
+  void Trace(Visitor* visitor) const {
+    visitor->Trace(offset_info);
+    visitor->Trace(non_overflowing_range);
+  }
 };
 
 EPositionTryOrder ToLogicalPositionTryOrder(
@@ -2342,7 +2348,9 @@ OutOfFlowLayoutPart::OffsetInfo OutOfFlowLayoutPart::CalculateOffset(
       // Also check if it fits the containing block after applying scroll offset
       // (i.e. the scroll-adjusted inset-modified containing block).
       if (try_fit_available_space) {
-        if (offset_info || RuntimeEnabledFeatures::CSSAnchorUpdateEnabled()) {
+        if (RuntimeEnabledFeatures::CSSAnchorUpdateEnabled()) {
+          non_overflowing_scroll_ranges.push_back(non_overflowing_range);
+        } else if (offset_info) {
           non_overflowing_scroll_ranges.push_back(non_overflowing_range);
           if (!non_overflowing_range.Contains(GetAnchorOffset(
                   node_info.node, style, anchor_evaluator.AnchorQuery()))) {
@@ -2361,8 +2369,8 @@ OutOfFlowLayoutPart::OffsetInfo OutOfFlowLayoutPart::CalculateOffset(
       }
 
       if (offset_info) {
-        NonOverflowingCandidate candidate{iter.TryFallbackIndex(),
-                                          *offset_info};
+        NonOverflowingCandidate candidate{iter.TryFallbackIndex(), *offset_info,
+                                          non_overflowing_range};
         if (find_last_successful_option &&
             iter.TryFallbackIndex() == last_successful_index) {
           // The last successful option still fits.
@@ -2430,6 +2438,12 @@ OutOfFlowLayoutPart::OffsetInfo OutOfFlowLayoutPart::CalculateOffset(
       // Move the iterator to the chosen candidate.
       iter.MoveToChosenTryFallbackIndex(
           non_overflowing_candidates.front().try_fallback_index);
+      // If we have a successful non-overflowing candidate, we only want to
+      // invalidate when this candidate becomes invalid.
+      if (RuntimeEnabledFeatures::CSSAnchorUpdateEnabled()) {
+        non_overflowing_scroll_ranges = {
+            non_overflowing_candidates.front().non_overflowing_range};
+      }
     }
     // Once the position-try-fallbacks placement has been decided, calculate the
     // offset again, using the non-base style.
@@ -2442,8 +2456,8 @@ OutOfFlowLayoutPart::OffsetInfo OutOfFlowLayoutPart::CalculateOffset(
     offset_info->overflows_containing_block = overflows_containing_block;
   }
   if (RuntimeEnabledFeatures::CSSAnchorUpdateEnabled()) {
-    if (element->EnsureOutOfFlowData().SetPendingRememberedScrollOffsets(
-            iter.GetCurrentUsedScrollOffsets())) {
+    if (element && element->SetPendingRememberedScrollOffsets(
+                       iter.GetCurrentUsedScrollOffsets())) {
       element->GetDocument()
           .GetStyleEngine()
           .MarkAnchorRememberedOffsetsChanged(*element);
@@ -2499,16 +2513,18 @@ OutOfFlowLayoutPart::TryCalculateOffset(
   LogicalRect container_rect = base_rect;
   if (const std::optional<PositionAreaOffsets> offsets =
           candidate_style.PositionAreaOffsets()) {
-    Element* elm = To<Element>(node_info.node.GetDOMNode());
-    if (offsets->behaves_as_auto.top != offsets->behaves_as_auto.bottom ||
-        offsets->behaves_as_auto.left != offsets->behaves_as_auto.right) {
-      // When one inset for an axis is tethered to the default anchor, and the
-      // other one is tethered to the original containing block, the IMCB is
-      // affected by the default anchor scroll shift. Schedule for calculation
-      // of the default scroll shift.
-      elm->EnsureOutOfFlowData();
-      StyleEngine& style_engine = elm->GetDocument().GetStyleEngine();
-      style_engine.MarkForDefaultAnchorScrollShift(*elm);
+    if (!RuntimeEnabledFeatures::CSSAnchorUpdateEnabled()) {
+      Element* element = To<Element>(node_info.node.GetDOMNode());
+      if (offsets->behaves_as_auto.top != offsets->behaves_as_auto.bottom ||
+          offsets->behaves_as_auto.left != offsets->behaves_as_auto.right) {
+        // When one inset for an axis is tethered to the default anchor, and the
+        // other one is tethered to the original containing block, the IMCB is
+        // affected by the default anchor scroll shift. Schedule for calculation
+        // of the default scroll shift.
+        element->EnsureOutOfFlowData();
+        StyleEngine& style_engine = element->GetDocument().GetStyleEngine();
+        style_engine.MarkForDefaultAnchorScrollShift(*element);
+      }
     }
     container_rect = ApplyPositionAreaOffsets(
         base_rect, *offsets, default_anchor_scroll_shift, container_info);

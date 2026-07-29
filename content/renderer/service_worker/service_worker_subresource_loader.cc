@@ -176,11 +176,6 @@ blink::mojom::ServiceWorkerFetchEventTimingPtr AdjustTimingIfNeededCrBug1342408(
   return timing;
 }
 
-bool IsStaticRouterRaceRequestFixEnabled() {
-  return base::FeatureList::IsEnabled(
-      features::kServiceWorkerStaticRouterRaceRequestFix);
-}
-
 }  // namespace
 
 // A ServiceWorkerStreamCallback implementation which waits for completion of
@@ -245,7 +240,7 @@ bool ServiceWorkerSubresourceLoader::StartRaceNetworkRequest() {
       network::SharedURLLoaderFactory::Create(fallback_factory_->Clone()));
 
   DCHECK(!race_network_request_loader_client_);
-  race_network_request_loader_client_.emplace(resource_request_,
+  race_network_request_loader_client_.emplace(resource_request_.url,
                                               weak_factory_.GetWeakPtr(),
                                               std::move(forwarding_client));
 
@@ -331,7 +326,7 @@ ServiceWorkerSubresourceLoader::ServiceWorkerSubresourceLoader(
   url_loader_receiver_.set_disconnect_handler(
       base::BindOnce(&ServiceWorkerSubresourceLoader::OnMojoDisconnect,
                      base::Unretained(this)));
-  StartRequest(resource_request);
+  StartRequest();
 }
 
 ServiceWorkerSubresourceLoader::~ServiceWorkerSubresourceLoader() = default;
@@ -346,24 +341,20 @@ void ServiceWorkerSubresourceLoader::MaybeDeleteThis() {
   // 2) The fetch event handler has not been finished yet.
   // The postponed destruction will be done in
   // ServiceWorkerFetchResponseCallback methods.
-  if (IsStaticRouterRaceRequestFixEnabled()) {
-    if (dispatched_preload_type() ==
-            DispatchedPreloadType::kRaceNetworkRequest &&
-        race_network_request_loader_client_.has_value() &&
-        controller_connector_observation_.IsObserving()) {
-      return;
-    }
+  if (dispatched_preload_type() == DispatchedPreloadType::kRaceNetworkRequest &&
+      race_network_request_loader_client_.has_value() &&
+      controller_connector_observation_.IsObserving()) {
+    return;
   }
   delete this;
 }
 
-void ServiceWorkerSubresourceLoader::StartRequest(
-    const network::ResourceRequest& resource_request) {
+void ServiceWorkerSubresourceLoader::StartRequest() {
   TRACE_EVENT_WITH_FLOW1(
       "ServiceWorker", "ServiceWorkerSubresourceLoader::StartRequest",
       TRACE_ID_WITH_SCOPE(kServiceWorkerSubresourceLoaderScope,
                           TRACE_ID_LOCAL(request_id_)),
-      TRACE_EVENT_FLAG_FLOW_OUT, "url", resource_request.url.spec());
+      TRACE_EVENT_FLAG_FLOW_OUT, "url", resource_request_.url.spec());
   TransitionToStatus(Status::kStarted);
   CHECK(commit_responsibility() == FetchResponseFrom::kNoResponseYet ||
         commit_responsibility() ==
@@ -641,8 +632,7 @@ void ServiceWorkerSubresourceLoader::OnResponse(
                           TRACE_ID_LOCAL(request_id_)),
       TRACE_EVENT_FLAG_FLOW_IN | TRACE_EVENT_FLAG_FLOW_OUT);
   SettleFetchEventDispatch(blink::ServiceWorkerStatusCode::kOk);
-  if (IsStaticRouterRaceRequestFixEnabled() &&
-      IsResponseAlreadyCommittedByRaceNetworkRequest()) {
+  if (IsResponseAlreadyCommittedByRaceNetworkRequest()) {
     MaybeDeleteThis();
     return;
   }
@@ -663,8 +653,7 @@ void ServiceWorkerSubresourceLoader::OnResponseStream(
                           TRACE_ID_LOCAL(request_id_)),
       TRACE_EVENT_FLAG_FLOW_IN | TRACE_EVENT_FLAG_FLOW_OUT);
   SettleFetchEventDispatch(blink::ServiceWorkerStatusCode::kOk);
-  if (IsStaticRouterRaceRequestFixEnabled() &&
-      IsResponseAlreadyCommittedByRaceNetworkRequest()) {
+  if (IsResponseAlreadyCommittedByRaceNetworkRequest()) {
     MaybeDeleteThis();
     return;
   }
@@ -676,8 +665,7 @@ void ServiceWorkerSubresourceLoader::OnFallback(
     std::optional<network::DataElementChunkedDataPipe> request_body,
     blink::mojom::ServiceWorkerFetchEventTimingPtr timing) {
   SettleFetchEventDispatch(blink::ServiceWorkerStatusCode::kOk);
-  if (IsStaticRouterRaceRequestFixEnabled() &&
-      IsResponseAlreadyCommittedByRaceNetworkRequest()) {
+  if (IsResponseAlreadyCommittedByRaceNetworkRequest()) {
     MaybeDeleteThis();
     return;
   }
@@ -1288,7 +1276,7 @@ void ServiceWorkerSubresourceLoader::FollowRedirect(
       FetchResponseFrom::kSubresourceLoaderIsHandlingRedirect);
   race_network_request_loader_client_.reset();
   race_network_request_url_loader_factory_.reset();
-  StartRequest(resource_request_);
+  StartRequest();
 }
 
 void ServiceWorkerSubresourceLoader::SetPriority(net::RequestPriority priority,

@@ -112,6 +112,11 @@ class RegionalCapabilitiesService : public KeyedService {
   // show a search engine choice screen.
   bool IsInSearchEngineChoiceScreenRegion();
 
+  // Returns whether the tested country ID is associated with a region in which
+  // we can show a search engine choice screen.
+  static bool IsInSearchEngineChoiceScreenRegion(
+      const country_codes::CountryId& tested_country_id);
+
   // Returns true when the choice screen eligibility check against country
   // association is not required, or if the current location is compatible with
   // the regional scope.
@@ -119,10 +124,12 @@ class RegionalCapabilitiesService : public KeyedService {
 
   bool ShouldRecordSearchEngineChoicesMadeFromSettings();
 
+#if !BUILDFLAG(IS_ANDROID)
   // Returns the appropriate choice screen design strings for the active
   // program, if one is required. Returns `std::nullopt` if the region does not
   // require a search engine choice screen.
   std::optional<ChoiceScreenDesign> GetChoiceScreenDesign();
+#endif  // !BUILDFLAG(IS_ANDROID)
 
   const std::optional<ChoiceScreenEligibilityConfig>&
   GetChoiceScreenEligibilityConfig();

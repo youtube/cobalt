@@ -55,7 +55,12 @@ BASE_FEATURE(kAvoidTrustedParamsCopies, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Async touchmoves after scroll.
 BASE_FEATURE(kAsyncTouchMovesImmediatelyAfterScroll,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+#if BUILDFLAG(IS_ANDROID)
+             base::FEATURE_ENABLED_BY_DEFAULT
+#else
+             base::FEATURE_DISABLED_BY_DEFAULT
+#endif
+);
 
 // Block all MIDI access with the MIDI_SYSEX permission
 BASE_FEATURE(kBlockMidiByDefault, base::FEATURE_ENABLED_BY_DEFAULT);
@@ -412,6 +417,11 @@ BASE_FEATURE(kContentCaptureConstantStreaming,
 BASE_FEATURE(kCreateImageBitmapOrientationNone,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+// When enabled, Declarative CSS Modules will generate a DataURI instead of a
+// Blob URL in the generated Import Map.
+BASE_FEATURE(kDeclarativeCSSModulesUseDataURI,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 BASE_FEATURE(kDeferRendererTasksAfterInput, base::FEATURE_ENABLED_BY_DEFAULT);
 
 const char kDeferRendererTasksAfterInputPolicyParamName[] = "policy";
@@ -596,15 +606,7 @@ BASE_FEATURE(kDropInputEventsWhilePaintHolding,
 BASE_FEATURE(kEnableDevtoolsDeepLinkViaExtensibilityApi,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-BASE_FEATURE(kEstablishGpuChannelAsync,
-#if BUILDFLAG(IS_ANDROID)
-             base::FEATURE_ENABLED_BY_DEFAULT
-#else
-             // TODO(crbug.com/1278147): Experiment with this more on desktop to
-             // see if it can help.
-             base::FEATURE_DISABLED_BY_DEFAULT
-#endif
-);
+BASE_FEATURE(kEstablishGpuChannelAsync, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Whether to respect loading=lazy attribute for images when they are on
 // invisible pages.
@@ -889,7 +891,7 @@ BASE_FEATURE(kForceHighPerformanceGPUForWebGL,
 
 // Text autosizing uses heuristics to inflate text sizes on devices with
 // small screens. This feature is for disabling these heuristics.
-BASE_FEATURE(kForceOffTextAutosizing, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kForceOffTextAutosizing, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Automatically convert light-themed pages to use a Blink-generated dark theme
 BASE_FEATURE(kForceWebContentsDarkMode,
@@ -917,6 +919,12 @@ const base::FeatureParam<ForceDarkImageBehavior>::Option
     forcedark_image_behavior_options[] = {
         {ForceDarkImageBehavior::kUseBlinkSettings,
          "use_blink_settings_for_images"},
+        // 'none' is no longer supported, but is still being passed via
+        // command line by some early-adopters of the overall feature. To
+        // avoid this being detected as invalid (resulting in a DwC, some
+        // telemetry, and falling back to the default value), we map it to the
+        // default value (from below).
+        {ForceDarkImageBehavior::kUseBlinkSettings, "none"},
         {ForceDarkImageBehavior::kInvertSelectively, "selective"}};
 
 BASE_FEATURE_ENUM_PARAM(ForceDarkImageBehavior,
@@ -1863,13 +1871,13 @@ BASE_FEATURE(kNoThrowForCSPBlockedWorker, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kOpenAllUrlsOrFilesOnDrop, base::FEATURE_ENABLED_BY_DEFAULT);
 
-BASE_FEATURE(kOptimizeHTMLElementUrls, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kOptimizeHTMLElementUrls, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE_PARAM(size_t,
                    kDocumentURLCacheSize,
                    &kOptimizeHTMLElementUrls,
                    "cache_size",
-                   100);
+                   500);
 
 BASE_FEATURE(kOriginAgentClusterDefaultEnabled,
              "OriginAgentClusterDefaultEnable",
@@ -2128,6 +2136,24 @@ BASE_FEATURE(kResamplingScrollEvents, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kResourceFetcherStoresStrongReferences,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+BASE_FEATURE(kRestrictSpellingAndGrammarHighlights,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE_PARAM(bool,
+                   kRestrictSpellingAndGrammarHighlightsChangedContents,
+                   &kRestrictSpellingAndGrammarHighlights,
+                   "RestrictSpellingAndGrammarHighlightsChangedContents",
+                   false);
+BASE_FEATURE_PARAM(bool,
+                   kRestrictSpellingAndGrammarHighlightsChangedEnablement,
+                   &kRestrictSpellingAndGrammarHighlights,
+                   "RestrictSpellingAndGrammarHighlightsChangedEnablement",
+                   false);
+BASE_FEATURE_PARAM(bool,
+                   kRestrictSpellingAndGrammarHighlightsChangedSelection,
+                   &kRestrictSpellingAndGrammarHighlights,
+                   "RestrictSpellingAndGrammarHighlightsChangedSelection",
+                   false);
+
 // https://html.spec.whatwg.org/multipage/system-state.html#safelisted-scheme
 BASE_FEATURE(kSafelistPaytoToRegisterProtocolHandler,
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -2269,6 +2295,14 @@ BASE_FEATURE_PARAM(bool,
                    "dry_run",
                    false);
 
+// If true, the service worker for synthetic response doesn't intercept
+// subresources.
+BASE_FEATURE_PARAM(bool,
+                   kServiceWorkerSyntheticResponseBypassSubresource,
+                   &kServiceWorkerSyntheticResponse,
+                   "bypass_subresource",
+                   false);
+
 // 'Mode' parameter for blink::features::kSoftNavigationHeuristics.
 const base::FeatureParam<SoftNavigationHeuristicsMode>::Option
     kSoftNavigationHeuristicsModes[] = {
@@ -2360,6 +2394,12 @@ BASE_FEATURE(kStreamlineRendererInit, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kSubSampleWindowProxyUsageMetrics,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
+BASE_FEATURE(kSupportOpeningDraggedLinksInSameTab,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kTaskAttributionTraceMicrotaskTaskState,
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
 BASE_FEATURE(kThreadedBodyLoader, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kThreadedPreloadScanner, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -2403,8 +2443,6 @@ BASE_FEATURE_PARAM(int,
                    &features::kThrottleUnimportantFrameTimers,
                    "large_frame_size_percent_threshold",
                    75);
-
-BASE_FEATURE(kTimedHTMLParserBudget, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Changes behavior of User-Agent Client Hints to send blank headers when the
 // User-Agent string is overridden, instead of disabling the headers altogether.
@@ -2530,18 +2568,6 @@ BASE_FEATURE(kWebFontsCacheAwareTimeoutAdaption,
              base::FEATURE_ENABLED_BY_DEFAULT
 #endif
 );
-
-// TODO(crbug.com/355256378): OpenH264 for encoding and FFmpeg for H264 decoding
-// should be detangled such that software decoding can be enabled without
-// software encoding.
-#if BUILDFLAG(RTC_USE_H264) && BUILDFLAG(ENABLE_FFMPEG_VIDEO_DECODERS) && \
-    BUILDFLAG(ENABLE_OPENH264)
-// Run-time feature for the |rtc_use_h264| encoder/decoder.
-BASE_FEATURE(kWebRtcH264WithOpenH264FFmpeg,
-             "WebRTC-H264WithOpenH264FFmpeg",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-#endif  // BUILDFLAG(RTC_USE_H264) && BUILDFLAG(ENABLE_FFMPEG_VIDEO_DECODERS) &&
-        // BUILDFLAG(ENABLE_OPENH264)
 
 // Causes WebRTC to replace host ICE candidate IP addresses with generated
 // names ending in ".local" and resolve them using mDNS.

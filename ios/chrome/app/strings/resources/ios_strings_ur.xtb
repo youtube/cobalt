@@ -161,6 +161,7 @@
 <translation id="1582732959743469162">اس سے آپ کے موجودہ ڈاؤن لوڈ کی سبھی پیش رفت رک جائے گی۔</translation>
 <translation id="1594034544529347967">تاریخ آغاز</translation>
 <translation id="1598751033135758830">اس ایپ میں کھولیں…</translation>
+<translation id="1601560923496285236">لاگو کریں</translation>
 <translation id="1603718000246404895">{COUNT,plural, =1{1 پتہ}other{# پتے}}</translation>
 <translation id="1605405588277479165">آف ہے - تجویز کردہ نہیں ہے</translation>
 <translation id="1605658421715042784">تصویر کاپی کریں</translation>
@@ -778,6 +779,7 @@
 <translation id="4049507953662678203">یقینی بنائیں کہ آپ کے پاس نیٹ ورک کنکشن ہے اور دوبارہ کوشش کریں۔</translation>
 <translation id="4070132839822635162">سائن ان نہ کریں</translation>
 <translation id="4092655288299341041">مدد دکھائیں</translation>
+<translation id="4095483462103784441">نیا ٹیب گروپ تخلیق کریں</translation>
 <translation id="4099756562043439968">ایک یاد دہانی سیٹ کریں</translation>
 <translation id="4108998448622696017">جب خطرناک ایونٹس ہوتے ہیں تو ان کا پتہ لگا کر آپ کو ان کے بارے میں متنبہ کرتا ہے۔</translation>
 <translation id="4111985840824673503">سبھی کو پڑھا ہوا کے بطور نشان زد کریں</translation>
@@ -837,7 +839,6 @@
 <translation id="4286718549648564014">پتہ آپ کے اکاؤنٹ <ph name="USER_EMAIL" /> میں منتقل کر دیا گیا</translation>
 <translation id="4287172530684295552">پڑھی ہوئی کا نشان لگائیں</translation>
 <translation id="428768789042547925">نیا کیا ہے</translation>
-<translation id="428858055663163046">دستیاب ہونے پر آپ اپنی ڈاؤن لوڈ کردہ فائلز تک یہاں رسائی حاصل کر سکتے ہیں</translation>
 <translation id="429074084062258019">{count,plural, =1{گروپ میں ٹیب شامل کریں}other{گروپ میں ٹیبز شامل کریں}}</translation>
 <translation id="4302061870579014542">پوزیشن سیٹ کریں</translation>
 <translation id="4304713468139749426">پاس ورڈ مینیجر</translation>
@@ -1236,6 +1237,7 @@ Handoff ترتیبات کے عام سیکشن میں بھی فعال ہونی ض
 <translation id="5758759241456233788">‏‫'Maps کے پیش مناظر' آف ہے۔ اسے ترتیبات میں دوبارہ آن کریں۔</translation>
 <translation id="5759484603608560822">ڈاؤن لوڈز کو چھپائیں</translation>
 <translation id="5767099457279594162">پاس ورڈ کا اشتراک نہیں کیا گیا</translation>
+<translation id="5768870767339201169">جہاں آپ نے چھوڑا وہیں سے شروع کریں</translation>
 <translation id="5779117921996157216">{count,plural, =1{آپ کے پاس {count} متاثرہ پاس ورڈ ہے جس سے آپ کی سیکیورٹی کو خطرہ لاحق ہو سکتا ہے۔ محفوظ رہنے کے لیے اسے ابھی صحیح کریں۔}other{آپ کے پاس {count} متاثرہ پاس ورڈز ہیں جن سے آپ کی سیکیورٹی کو خطرہ لاحق ہو سکتا ہے۔ محفوظ رہنے کے لیے انہیں ابھی صحیح کریں۔}}</translation>
 <translation id="5791632441210678828">مندرجہ ذیل فیڈ کے لیے ترتیب دینے کا بٹن۔</translation>
 <translation id="5803566855766646066">کیا آپ واقعی اس نئے کارڈ کو مسترد کرنا چاہتے ہیں؟</translation>
@@ -1454,6 +1456,7 @@ Handoff ترتیبات کے عام سیکشن میں بھی فعال ہونی ض
 <translation id="6537746030088321027">example.com</translation>
 <translation id="6550675742724504774">اختیارات</translation>
 <translation id="6550891580932862748">‏خطرناک ویب سائٹس، ڈاؤن لوڈز اور ایکسٹینشنز سے آپ کی حفاظت نہیں کرتی ہے۔ Google کے دیگر پروڈکٹس میں آپ کی محفوظ براؤزنگ کی ترتیبات متاثر نہیں ہوں گی۔</translation>
+<translation id="6556866813142980365">واپس لائیں</translation>
 <translation id="6559301491397835130">{count,plural, =1{بک مارکس "{title}" میں محفوظ کیے گئے۔ یہ صرف اس آلہ میں محفوظ ہے۔}other{بک مارکس "{title}" میں محفوظ کیے گئے۔ یہ صرف اس آلہ میں محفوظ ہیں۔}}</translation>
 <translation id="656065428026159829">مزید دیکھیں</translation>
 <translation id="6571070086367343653">کریڈٹ کارڈ میں ترمیم کریں</translation>
@@ -1692,6 +1695,7 @@ Handoff ترتیبات کے عام سیکشن میں بھی فعال ہونی ض
 <translation id="7484645889979462775">اس سائٹ کیلئے کبھی نہیں</translation>
 <translation id="7486006552035434095">اپنے آلات کو مطابقت پذیر رکھیں</translation>
 <translation id="7491131399623468277">ترتیبات پر جائیں…</translation>
+<translation id="7491161827858509164">‏پہلے ڈاؤن لوڈ کی گئی فائلز دیکھنے کے لیے، <ph name="BEGIN_LINK" />Files<ph name="END_LINK" /> کھولیں</translation>
 <translation id="7498234416455752244">ترمیم جاری رکھیں</translation>
 <translation id="7500244509706269886">آٹو فل فارم</translation>
 <translation id="750493650310597496">0 منتخب کیا گیا</translation>
@@ -1729,6 +1733,7 @@ Handoff ترتیبات کے عام سیکشن میں بھی فعال ہونی ض
 <translation id="7612619742409846846">‏Google میں سائن ان ہے بطور</translation>
 <translation id="7612849887607288481">‏‫AI پروٹو ٹائپنگ مینو کھولیں</translation>
 <translation id="7620522820075868385">منسوخ کریں</translation>
+<translation id="762078666799342162">‏آپ اپنے پہلے کے ڈاؤن لوڈز کو <ph name="BEGIN_LINK" />Files<ph name="END_LINK" /> میں دیکھ سکتے ہیں</translation>
 <translation id="7638584964844754484">غلط پاس فریز</translation>
 <translation id="7639276194483401980">{COUNT,plural, =0{متاثرہ پاس ورڈز}=1{‫{COUNT} متاثرہ پاس ورڈ}other{‫{COUNT} متاثرہ پاس ورڈز}}</translation>
 <translation id="7640669552036055091">‏Android سے ٹیبز</translation>
@@ -1793,6 +1798,7 @@ Handoff ترتیبات کے عام سیکشن میں بھی فعال ہونی ض
 <translation id="7851858861565204677">دیگر آلات</translation>
 <translation id="7853202427316060426">سرگرمی</translation>
 <translation id="7854006015462979438">'عام' کھولیں</translation>
+<translation id="7855678267851972597">آڈیوز</translation>
 <translation id="7859988229622350291">کبھی بھی ترجمہ نہ کریں</translation>
 <translation id="7863211248337747225">ایپ حاصل کریں</translation>
 <translation id="7865127013871431856">ترجمہ کے اختیارات</translation>
@@ -1909,7 +1915,6 @@ Handoff ترتیبات کے عام سیکشن میں بھی فعال ہونی ض
 <translation id="8273982424131314219">آپ <ph name="URL" /> میں معلومات پر کریں گے</translation>
 <translation id="8275068909952022340">مزید…</translation>
 <translation id="8277328362018795342">مزید متعلقہ جوابات کے لیے آپ کے صفحہ کے مواد کا اشتراک کیا گیا ہے</translation>
-<translation id="8278488584187265939">ہوم صفحہ کو حسب ضرورت بنائیں</translation>
 <translation id="8281781826761538115">ڈیفالٹ - <ph name="DEFAULT_LOCALE" /></translation>
 <translation id="8281886186245836920">نظر انداز کریں</translation>
 <translation id="8282657446819506217">ٹیب گروپ میں کھولیں</translation>
@@ -1973,6 +1978,7 @@ Handoff ترتیبات کے عام سیکشن میں بھی فعال ہونی ض
 <translation id="8524799873541103884"><ph name="INCOGNITO" /> ٹیبز <ph name="FIRST_VISIBLE_TAB" /> سے <ph name="LAST_VISIBLE_TAB" /> از <ph name="NUMBER_OF_OPEN_TABS" /></translation>
 <translation id="8528009254289981965">پوشیدگی میں دیگر ایپس کے لنکس کھولیں</translation>
 <translation id="8529767659511976195">نئی</translation>
+<translation id="8531572740963685410">PDFs</translation>
 <translation id="8533411848724153701">Gemini</translation>
 <translation id="8533670235862049797">محفوظ براؤزنگ آن ہے</translation>
 <translation id="8534481786647257214">‏Google+‎ اشاعت مکمل ہوگئی۔</translation>
@@ -2179,6 +2185,7 @@ Handoff ترتیبات کے عام سیکشن میں بھی فعال ہونی ض
 <translation id="945522503751344254">تاثرات بھیجیں</translation>
 <translation id="94870150074703282">گروپ حذف کریں؟</translation>
 <translation id="952704832371081537">منسوخ کریں</translation>
+<translation id="95332591904104970">منسلک ایپس</translation>
 <translation id="954667170699278022">پڑھنے کی فہرست</translation>
 <translation id="956218893102219091">‏اپنے IP پتہ کی بنیاد پر تخمینی مقام کے بجائے، انتہائی درست Gemini نتائج کے لیے اپنے قطعی مقام کا استعمال کریں۔ <ph name="BEGIN_LINK" />مزید جانیں<ph name="END_LINK" /></translation>
 <translation id="961856697154696964">براؤزنگ ڈیٹا حذف کریں</translation>

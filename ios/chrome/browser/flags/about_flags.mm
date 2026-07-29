@@ -2,11 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
-#pragma allow_unsafe_buffers
-#endif
-
 // Implementation of about_flags for iOS that sets flags based on experimental
 // settings.
 
@@ -213,6 +208,37 @@ const FeatureEntry::FeatureVariation kAIMPrototypeVariations[] = {
     {"for all Omnibox entrypoints", kAIMPrototypeAllOmniboxEntrypoints,
      std::size(kAIMPrototypeAllOmniboxEntrypoints), nullptr},
 };
+
+const FeatureEntry::FeatureParam kAIMPrototypeTabPickerCachedAPC[] = {
+    {kAIMPrototypeTabPickerParam, kAIMPrototypeTabPickerParamCachedAPC}};
+
+const FeatureEntry::FeatureParam kAIMPrototypeTabPickerOnFlightAPC[] = {
+    {kAIMPrototypeTabPickerParam, kAIMPrototypeTabPickerParamOnFlightAPC}};
+
+const FeatureEntry::FeatureVariation kAIMPrototypeTabPickerVariations[] = {
+    {"A) Use Cached APC", kAIMPrototypeTabPickerCachedAPC,
+     std::size(kAIMPrototypeTabPickerCachedAPC), nullptr},
+    {"B) Use On flight APC", kAIMPrototypeTabPickerOnFlightAPC,
+     std::size(kAIMPrototypeTabPickerOnFlightAPC), nullptr},
+};
+
+const FeatureEntry::FeatureParam kDisableKeyboardAccessoryOnlySymbolsParam[] = {
+    {kDisableKeyboardAccessoryParam, kDisableKeyboardAccessoryOnlySymbols}};
+
+const FeatureEntry::FeatureParam kDisableKeyboardAccessoryOnlyFeaturesParam[] =
+    {{kDisableKeyboardAccessoryParam, kDisableKeyboardAccessoryOnlyFeatures}};
+
+const FeatureEntry::FeatureParam kDisableKeyboardAccessoryCompletelyParam[] = {
+    {kDisableKeyboardAccessoryParam, kDisableKeyboardAccessoryCompletely}};
+
+const FeatureEntry::FeatureVariation kDisableKeyboardAccessoryVariations[] = {
+    {"A) only show symbols", kDisableKeyboardAccessoryOnlySymbolsParam,
+     std::size(kDisableKeyboardAccessoryOnlySymbolsParam), nullptr},
+    {"B) only show lens and voice search",
+     kDisableKeyboardAccessoryOnlyFeaturesParam,
+     std::size(kDisableKeyboardAccessoryOnlyFeaturesParam), nullptr},
+    {"C) disable completely", kDisableKeyboardAccessoryCompletelyParam,
+     std::size(kDisableKeyboardAccessoryCompletelyParam), nullptr}};
 
 const FeatureEntry::FeatureParam kOmniboxUIMaxAutocompleteMatches3[] = {
     {OmniboxFieldTrial::kUIMaxAutocompleteMatchesParam, "3"}};
@@ -1454,6 +1480,19 @@ const FeatureEntry::FeatureVariation
         {" - 3", kTipsNotificationsAlternative3,
          std::size(kTipsNotificationsAlternative3), nullptr}};
 
+const FeatureEntry::FeatureParam kZeroStateSuggestionsPlacementAIHubParam[] = {
+    {kZeroStateSuggestionsPlacementAIHub, "true"}};
+const FeatureEntry::FeatureParam
+    kZeroStateSuggestionsPlacementAskGeminiParam[] = {
+        {kZeroStateSuggestionsPlacementAskGemini, "true"}};
+
+const FeatureEntry::FeatureVariation kZeroStateSuggestionsVariations[] = {
+    {"AI Hub", kZeroStateSuggestionsPlacementAIHubParam,
+     std::size(kZeroStateSuggestionsPlacementAIHubParam), nullptr},
+    {"Ask Gemini Overlay", kZeroStateSuggestionsPlacementAskGeminiParam,
+     std::size(kZeroStateSuggestionsPlacementAskGeminiParam), nullptr},
+};
+
 // To add a new entry, add to the end of kFeatureEntries. There are four
 // distinct types of entries:
 // . ENABLE_DISABLE_VALUE: entry is either enabled, disabled, or uses the
@@ -1477,7 +1516,7 @@ const FeatureEntry::FeatureVariation
 // See the documentation of FeatureEntry for details on the fields.
 //
 // When adding a new choice, add it to the end of the list.
-const flags_ui::FeatureEntry kFeatureEntries[] = {
+constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
     {"in-product-help-demo-mode-choice",
      flag_descriptions::kInProductHelpDemoModeName,
      flag_descriptions::kInProductHelpDemoModeDescription, flags_ui::kOsIos,
@@ -2810,7 +2849,9 @@ const flags_ui::FeatureEntry kFeatureEntries[] = {
      FEATURE_VALUE_TYPE(kAIMPrototypeImmersiveSRP)},
     {"aim-prototype-tab-picker", flag_descriptions::kAIMPrototypeTabPickerName,
      flag_descriptions::kAIMPrototypeTabPickerDescription, flags_ui::kOsIos,
-     FEATURE_VALUE_TYPE(kAIMPrototypeTabPicker)},
+     FEATURE_WITH_PARAMS_VALUE_TYPE(kAIMPrototypeTabPicker,
+                                    kAIMPrototypeTabPickerVariations,
+                                    "AimPrototypeTabPicker")},
     {"ios-custom-file-upload-menu",
      flag_descriptions::kIOSCustomFileUploadMenuName,
      flag_descriptions::kIOSCustomFileUploadMenuDescription, flags_ui::kOsIos,
@@ -2835,9 +2876,10 @@ const flags_ui::FeatureEntry kFeatureEntries[] = {
      flag_descriptions::kCacheIdentityListInChromeName,
      flag_descriptions::kCacheIdentityListInChromeDescription, flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(switches::kCacheIdentityListInChrome)},
-    {"show-tab-grid-on-start", flag_descriptions::kShowTabGridOnStartName,
-     flag_descriptions::kShowTabGridOnStartDescription, flags_ui::kOsIos,
-     FEATURE_VALUE_TYPE(kShowTabGridOnStart)},
+    {"show-tab-group-in-grid-on-start",
+     flag_descriptions::kShowTabGroupInGridOnStartName,
+     flag_descriptions::kShowTabGroupInGridOnStartDescription, flags_ui::kOsIos,
+     FEATURE_VALUE_TYPE(kShowTabGroupInGridOnStart)},
     {"ios-tips-notifications-string-alternatives",
      flag_descriptions::kIOSTipsNotificationsStringAlternativesName,
      flag_descriptions::kIOSTipsNotificationsStringAlternativesDescription,
@@ -2851,7 +2893,9 @@ const flags_ui::FeatureEntry kFeatureEntries[] = {
      STRING_VALUE_TYPE(variations::switches::kVariationsSeedCorpus, "")},
     {"zero-state-suggestions", flag_descriptions::kZeroStateSuggestionsName,
      flag_descriptions::kZeroStateSuggestionsDescription, flags_ui::kOsIos,
-     FEATURE_VALUE_TYPE(kZeroStateSuggestions)},
+     FEATURE_WITH_PARAMS_VALUE_TYPE(kZeroStateSuggestions,
+                                    kZeroStateSuggestionsVariations,
+                                    "ZeroStateSuggestions")},
     {"ios-synced-set-up", flag_descriptions::kIOSSyncedSetUpName,
      flag_descriptions::kIOSSyncedSetUpDescription, flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(kIOSSyncedSetUp)},
@@ -2877,7 +2921,17 @@ const flags_ui::FeatureEntry kFeatureEntries[] = {
     {"gemini-onboarding-cards", flag_descriptions::kGeminiOnboardingCardsName,
      flag_descriptions::kGeminiOnboardingCardsDescription, flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(kGeminiOnboardingCards)},
-};
+    {"ios-save-to-drive-client-folder",
+     flag_descriptions::kIOSSaveToDriveClientFolderName,
+     flag_descriptions::kIOSSaveToDriveClientFolderDescription,
+     flags_ui::kOsIos, FEATURE_VALUE_TYPE(kIOSSaveToDriveClientFolder)},
+    {"disable-keyboard-accessory",
+     flag_descriptions::kDisableKeyboardAccessoryName,
+     flag_descriptions::kDisableKeyboardAccessoryDescription, flags_ui::kOsIos,
+     FEATURE_WITH_PARAMS_VALUE_TYPE(kDisableKeyboardAccessory,
+                                    kDisableKeyboardAccessoryVariations,
+                                    "DisableKeyboardAccessoryVariations")},
+});
 
 bool SkipConditionalFeatureEntry(const flags_ui::FeatureEntry& entry) {
   return false;
@@ -3242,8 +3296,7 @@ bool IsRestartNeededToCommitChanges() {
 namespace testing {
 
 base::span<const flags_ui::FeatureEntry> GetFeatureEntries() {
-  return base::span<const flags_ui::FeatureEntry>(kFeatureEntries,
-                                                  std::size(kFeatureEntries));
+  return kFeatureEntries;
 }
 
 }  // namespace testing

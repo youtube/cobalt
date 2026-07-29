@@ -88,6 +88,7 @@ class Host : public GlicSharingManagerProvider {
         bool open_in_background,
         const std::optional<int32_t>& window_id,
         glic::mojom::WebClientHandler::CreateTabCallback callback) = 0;
+    // TODO(mcnee): `delegate` appears unused.
     virtual void CreateTask(
         base::WeakPtr<actor::ActorTaskDelegate> delegate,
         actor::webui::mojom::TaskOptionsPtr options,
@@ -104,6 +105,8 @@ class Host : public GlicSharingManagerProvider {
         actor::TaskId task_id,
         const mojom::GetTabContextOptions& context_options,
         glic::mojom::WebClientHandler::ResumeActorTaskCallback callback) = 0;
+    virtual void InterruptActorTask(actor::TaskId task_id) = 0;
+    virtual void UninterruptActorTask(actor::TaskId task_id) = 0;
 
     virtual void FetchZeroStateSuggestions(
         bool is_first_run,
@@ -121,7 +124,10 @@ class Host : public GlicSharingManagerProvider {
         glic::mojom::ConversationInfoPtr info,
         mojom::WebClientHandler::RegisterConversationCallback callback) = 0;
 
+    virtual void OnWebClientCleared() = 0;
     virtual void PrepareForOpen() = 0;
+
+    virtual void OnInteractionModeChange(mojom::WebClientMode new_mode) = 0;
   };
 
   class Observer : public base::CheckedObserver {
@@ -166,6 +172,9 @@ class Host : public GlicSharingManagerProvider {
     // The ID of the conversation to open. If unset, the web client will open a
     // new conversation.
     std::optional<std::string> conversation_id;
+    // If set, the textbox for user input will be populated with the given
+    // string before the panel opens.
+    std::optional<std::string> prompt_suggestion;
   };
   void PanelWillOpen(mojom::InvocationSource invocation_source,
                      PanelWillOpenOptions options);
@@ -183,6 +192,8 @@ class Host : public GlicSharingManagerProvider {
   // Delete the owned web contents and prepare for destruction.
   void Shutdown();
 
+  // Request panel closing if the web contents is present and matches.
+  void Close(content::RenderFrameHost* outermost_render_frame_host);
   // Reload the web contents, if it is present and matches.
   void Reload(content::RenderFrameHost* render_frame_host);
   // Reload the web contents.
@@ -204,7 +215,7 @@ class Host : public GlicSharingManagerProvider {
 
   WebUIContentsContainer* contents_container() { return contents_.get(); }
   // Returns the WebUI web contents. May be null.
-  content::WebContents* webui_contents();
+  content::WebContents* webui_contents() const;
 
   // Returns whether `contents` is the glic WebUI web contents.
   bool IsGlicWebUi(content::WebContents* contents) const;
@@ -277,6 +288,10 @@ class Host : public GlicSharingManagerProvider {
   // Called when the current view changes in the glic webUI to update the state.
   void OnViewChanged(GlicWebClientAccess* client, mojom::CurrentView new_view);
 
+  // Called when the web client changes its mode.
+  void OnInteractionModeChange(GlicPageHandler* page_handler,
+                               mojom::WebClientMode new_mode);
+
   // Sets the size of the glic window to the specified dimensions. Callback
   // runs when the animation finishes or is destroyed, or soon if the window
   // doesn't exist yet. In this last case `size` will be used for the
@@ -320,6 +335,9 @@ class Host : public GlicSharingManagerProvider {
   GlicKeyedService& glic_service();
   GlicPageHandler* page_handler() const;
   bool IsGlicWebUiHost(content::RenderProcessHost* host) const;
+  // Returns if the outer frame matches either the WebUI frame or the guest
+  // frame.
+  bool IsWebContentPresentAndMatches(content::RenderFrameHost* rfh);
 
   // Information about the page handler which is cleared when the page handler
   // goes away.

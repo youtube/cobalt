@@ -5,6 +5,7 @@
 #ifndef CONTENT_BROWSER_PRELOADING_PREFETCH_PREFETCH_RESPONSE_READER_H_
 #define CONTENT_BROWSER_PRELOADING_PREFETCH_PREFETCH_RESPONSE_READER_H_
 
+#include "base/memory/ref_counted.h"
 #include "base/time/time.h"
 #include "content/browser/preloading/prefetch/prefetch_streaming_url_loader_common_types.h"
 #include "content/common/content_export.h"
@@ -50,9 +51,10 @@ class CONTENT_EXPORT PrefetchResponseReader final
     : public network::mojom::URLLoader,
       public base::RefCounted<PrefetchResponseReader> {
  public:
-  PrefetchResponseReader(base::OnceClosure on_determined_head_callback,
-                         OnPrefetchResponseCompletedCallback
-                             on_prefetch_response_completed_callback);
+  PrefetchResponseReader(
+      OnPrefetchDeterminedHeadCallback on_determined_head_callback,
+      OnPrefetchResponseCompletedCallback
+          on_prefetch_response_completed_callback);
 
   void SetStreamingURLLoader(
       base::WeakPtr<PrefetchStreamingURLLoader> streaming_url_loader);
@@ -242,7 +244,7 @@ class CONTENT_EXPORT PrefetchResponseReader final
   // TODO(https://crbug.com/400761083): This isn't called for:
   // - unexpected mojo disconnection cases (See
   //   `PrefetchStreamingURLLoaderTest.UnexpectedUrlLoaderDisconnect`).
-  base::OnceClosure on_determined_head_callback_;
+  OnPrefetchDeterminedHeadCallback on_determined_head_callback_;
 
   // Called when transitioned to `kCompleted` or `kFailed`.
   // This is called after `on_determined_head_callback_` at most once for the

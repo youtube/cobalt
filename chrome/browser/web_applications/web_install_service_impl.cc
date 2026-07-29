@@ -10,22 +10,27 @@
 #include "base/functional/bind.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/time/time.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/web_applications/commands/web_install_from_url_command.h"
 #include "chrome/browser/web_applications/icons/icon_masker.h"
 #include "chrome/browser/web_applications/locks/app_lock.h"
+#include "chrome/browser/web_applications/model/app_installed_by.h"
 #include "chrome/browser/web_applications/web_app_command_manager.h"
 #include "chrome/browser/web_applications/web_app_command_scheduler.h"
 #include "chrome/browser/web_applications/web_app_helpers.h"
 #include "chrome/browser/web_applications/web_app_install_info.h"
 #include "chrome/browser/web_applications/web_app_provider.h"
 #include "chrome/browser/web_applications/web_app_registrar.h"
+#include "chrome/browser/web_applications/web_app_registry_update.h"
+#include "chrome/browser/web_applications/web_app_sync_bridge.h"
 #include "chrome/browser/web_applications/web_app_tab_helper.h"
 #include "chrome/browser/web_applications/web_app_ui_manager.h"
 #include "chrome/browser/web_applications/web_app_utils.h"
 #include "chrome/browser/web_applications/web_contents/web_app_data_retriever.h"
 #include "chrome/browser/web_applications/web_contents/web_contents_manager.h"
 #include "components/permissions/permission_request.h"
+#include "components/ukm/app_source_url_recorder.h"
 #include "components/webapps/browser/banners/app_banner_manager.h"
 #include "components/webapps/browser/banners/installable_web_app_check_result.h"
 #include "components/webapps/browser/install_result_code.h"
@@ -42,6 +47,9 @@
 #include "content/public/browser/permission_request_description.h"
 #include "content/public/browser/permission_result.h"
 #include "content/public/browser/web_contents.h"
+#include "services/metrics/public/cpp/ukm_builders.h"
+#include "services/metrics/public/cpp/ukm_recorder.h"
+#include "services/metrics/public/cpp/ukm_source_id.h"
 #include "third_party/blink/public/common/permissions/permission_utils.h"
 #include "third_party/blink/public/mojom/permissions/permission_status.mojom.h"
 #include "third_party/blink/public/mojom/web_install/web_install.mojom.h"
@@ -95,6 +103,21 @@ std::optional<webapps::AppId> IsAppInstalled(
                                                                 filter);
 }
 
+void CheckInstalledByAndMaybeUpdate(const base::Time& api_call_time,
+                                    const GURL& requesting_page,
+                                    const webapps::AppId& app_id,
+                                    AppLock& lock,
+                                    base::Value::Dict& debug_value) {
+  ScopedRegistryUpdate update = lock.sync_bridge().BeginUpdate();
+  WebApp* app_to_update = update->UpdateApp(app_id);
+  if (!app_to_update) {
+    // App was uninstalled before we could update it.
+    return;
+  }
+  app_to_update->AddInstalledByInfo(
+      web_app::AppInstalledBy(api_call_time, requesting_page));
+}
+
 }  // namespace
 
 WebInstallServiceImpl::WebInstallServiceImpl(
@@ -103,7 +126,8 @@ WebInstallServiceImpl::WebInstallServiceImpl(
     : content::DocumentService<blink::mojom::WebInstallService>(
           render_frame_host,
           std::move(receiver)),
-      frame_routing_id_(render_frame_host.GetGlobalId()) {}
+      frame_routing_id_(render_frame_host.GetGlobalId()),
+      last_committed_url_(render_frame_host.GetLastCommittedURL()) {}
 
 WebInstallServiceImpl::~WebInstallServiceImpl() = default;
 
@@ -129,16 +153,41 @@ void WebInstallServiceImpl::CreateIfAllowed(
 
 void WebInstallServiceImpl::Install(blink::mojom::InstallOptionsPtr options,
                                     InstallCallback callback) {
+  // Create source ids for UKM logging.
+  ukm::SourceId requesting_page_source_id =
+      options ? render_frame_host().GetPageUkmSourceId()
+              : ukm::kInvalidSourceId;
+  ukm::SourceId installed_app_source_id =
+      options ? ukm::AppSourceUrlRecorder::GetSourceIdForPWA(
+                    GURL(options->install_url))
+              : ukm::kInvalidSourceId;
+
   // Wrap the blink callback in another that accepts all the information needed
   // to log `kInstallResultUma`, then run run the blink callback.
   auto callback_with_metrics = base::BindOnce(
-      [](InstallCallback callback, web_app::WebInstallApiResult metrics_result,
+      [](InstallCallback callback, ukm::SourceId requesting_page_source_id,
+         ukm::SourceId installed_app_source_id,
+         web_app::WebInstallApiResult metrics_result,
          blink::mojom::WebInstallServiceResult install_result,
          webapps::ManifestId manifest_id_result) {
         base::UmaHistogramEnumeration(kInstallResultUma, metrics_result);
+        // Record UKMs for background document installs.
+        if (requesting_page_source_id != ukm::kInvalidSourceId &&
+            installed_app_source_id != ukm::kInvalidSourceId) {
+          ukm::builders::WebApp_WebInstall(requesting_page_source_id)
+              .SetResultByRequestingPage(static_cast<int>(metrics_result))
+              .Record(ukm::UkmRecorder::Get());
+          // The UKM for the installed app must log source type APP_ID.
+          CHECK(ukm::GetSourceIdType(installed_app_source_id) ==
+                ukm::SourceIdType::APP_ID);
+          ukm::builders::WebApp_WebInstall(installed_app_source_id)
+              .SetResultByInstalledApp(static_cast<int>(metrics_result))
+              .Record(ukm::UkmRecorder::Get());
+        }
+
         std::move(callback).Run(install_result, manifest_id_result);
       },
-      std::move(callback));
+      std::move(callback), requesting_page_source_id, installed_app_source_id);
 
   // Record the type of install being requested. Null `options` means no
   // arguments were passed, which means a current document install.
@@ -155,8 +204,8 @@ void WebInstallServiceImpl::Install(blink::mojom::InstallOptionsPtr options,
     return;
   }
 
-  const GURL current_url = rfh->GetLastCommittedURL();
-  GURL install_target = options ? GURL(options->install_url) : current_url;
+  GURL install_target =
+      options ? GURL(options->install_url) : last_committed_url_;
 
   // Do not allow installation of file:// or chrome:// urls.
   if (!install_target.SchemeIsHTTPOrHTTPS()) {
@@ -195,7 +244,7 @@ void WebInstallServiceImpl::Install(blink::mojom::InstallOptionsPtr options,
   // If the given url to install matches the current url, skip
   // requesting permission since the user is still installing the current
   // document, even though it's in the background.
-  if (install_target == current_url) {
+  if (install_target == last_committed_url_) {
     OnPermissionDecided(
         std::move(callback_with_metrics),
         std::vector<content::PermissionResult>({content::PermissionResult(
@@ -496,7 +545,7 @@ void WebInstallServiceImpl::OnPermissionDecided(
 
   provider->ui_manager().TriggerInstallDialogForBackgroundInstall(
       web_contents, std::move(install_tracker), install_options_->install_url,
-      install_options_->manifest_id,
+      install_options_->manifest_id, last_committed_url_,
       base::BindOnce(&WebInstallServiceImpl::OnAppInstalled,
                      weak_ptr_factory_.GetWeakPtr(),
                      std::move(callback_with_metrics)));
@@ -556,6 +605,21 @@ void WebInstallServiceImpl::OnBackgroundAppLaunchDialogClosed(
     InstallCallbackWithMetrics callback_with_metrics,
     const GURL& manifest_id,
     bool accepted) {
+  // Update the installed_by field if the user accepted the launch.
+  if (accepted) {
+    auto* profile =
+        Profile::FromBrowserContext(render_frame_host().GetBrowserContext());
+    auto* provider = WebAppProvider::GetForWebApps(profile);
+    CHECK(provider);
+
+    webapps::AppId app_id = GenerateAppIdFromManifestId(manifest_id);
+    provider->scheduler().ScheduleCallback<AppLock>(
+        "CheckInstalledByAndMaybeUpdate", AppLockDescription(app_id),
+        base::BindOnce(&CheckInstalledByAndMaybeUpdate, provider->clock().Now(),
+                       last_committed_url_, app_id),
+        /*on_complete=*/base::DoNothing());
+  }
+
   // For privacy reasons, only resolve with WebInstallServiceResult::kSuccess if
   // the user accepted.
   std::move(callback_with_metrics)

@@ -504,6 +504,38 @@ mojom("mojom_attribution") {
   sources = [ "attribution.mojom" ]
 }
 
+mojom("mojom_connection_allowlist") {
+  generate_java = true
+  sources = [ "connection_allowlist.mojom" ]
+  if (!is_ios) {
+    export_class_attribute_blink = "BLINK_PLATFORM_EXPORT"
+    export_define_blink = "BLINK_PLATFORM_IMPLEMENTATION=1"
+    export_header_blink = "third_party/blink/public/platform/web_common.h"
+  }
+
+  shared_cpp_typemaps = [
+    {
+      types = [
+        {
+          mojom = "network.mojom.ConnectionAllowlist"
+          cpp = "::network::ConnectionAllowlist"
+        },
+        {
+          mojom = "network.mojom.ConnectionAllowlists"
+          cpp = "::network::ConnectionAllowlists"
+        },
+      ]
+      traits_headers = [
+        "//services/network/public/cpp/connection_allowlist_mojom_traits.h",
+      ]
+      traits_public_deps =
+          [ "//services/network/public/cpp:connection_allowlist" ]
+    },
+  ]
+  cpp_typemaps = shared_cpp_typemaps
+  blink_cpp_typemaps = shared_cpp_typemaps
+}
+
 mojom("mojom_cors_origin_pattern") {
   generate_java = true
   sources = [ "cors_origin_pattern.mojom" ]
@@ -664,6 +696,7 @@ mojom("url_loader_base") {
     ":cookies_mojom",
     ":mojom_ad_auction",
     ":mojom_attribution",
+    ":mojom_connection_allowlist",
     ":mojom_content_security_policy",
     ":mojom_integrity_algorithm",
     ":mojom_integrity_policy",
@@ -978,6 +1011,11 @@ mojom("url_loader_base") {
           mojom = "network.mojom.DeviceBoundSessionDeletionReason"
           cpp = "::net::device_bound_sessions::DeletionReason"
         },
+        {
+          mojom = "network.mojom.DeviceBoundSessionParams"
+          cpp = "::net::device_bound_sessions::SessionParams"
+          move_only = true
+        },
       ]
       traits_headers = [
         "//services/network/public/cpp/device_bound_sessions_mojom_traits.h",
@@ -985,7 +1023,10 @@ mojom("url_loader_base") {
       traits_sources = [
         "//services/network/public/cpp/device_bound_sessions_mojom_traits.cc",
       ]
-      traits_public_deps = [ "//net" ]
+      traits_public_deps = [
+        "//components/unexportable_keys",
+        "//net",
+      ]
     },
     {
       types = [

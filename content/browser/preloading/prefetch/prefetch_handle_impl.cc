@@ -98,7 +98,9 @@ PrefetchHandleImpl::~PrefetchHandleImpl() {
           break;
         case PrefetchContainer::LoadState::kStarted:
         case PrefetchContainer::LoadState::kDeterminedHead:
-        case PrefetchContainer::LoadState::kCompletedOrFailed:
+        case PrefetchContainer::LoadState::kFailedDeterminedHead:
+        case PrefetchContainer::LoadState::kCompleted:
+        case PrefetchContainer::LoadState::kFailed:
           prefetch_container_->SetPrefetchStatus(
               *prefetch_status_on_release_started_prefetch_);
           break;

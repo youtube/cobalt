@@ -29,8 +29,12 @@ inline constexpr std::string_view kSqlBackendMetaTableKeyEntryCount =
 inline constexpr std::string_view kSqlBackendMetaTableKeyTotalSize =
     "TotalSize";
 
-inline constexpr base::FilePath::CharType kSqlBackendDatabaseFileName[] =
-    FILE_PATH_LITERAL("sqldb");
+// The file name prefix of the SQL backend database shards.
+inline constexpr std::string_view kSqlBackendDatabaseFileNamePrefix = "sqldb";
+
+// The file name of the first shard of the SQL backend database.
+inline constexpr base::FilePath::CharType kSqlBackendDatabaseShard0FileName[] =
+    FILE_PATH_LITERAL("sqldb0");
 
 // The name of the fake index file. This file is created to signal the presence
 // of the SQL backend and to prevent other backends from trying to use the same
@@ -38,10 +42,9 @@ inline constexpr base::FilePath::CharType kSqlBackendDatabaseFileName[] =
 inline constexpr base::FilePath::CharType kSqlBackendFakeIndexFileName[] =
     FILE_PATH_LITERAL("index");
 
-// The magic number for the fake index file. This is "SQLCache" in
-// little-endian.
-inline constexpr uint64_t kSqlBackendFakeIndexMagicNumber =
-    UINT64_C(0x65686361434c5153);
+// The prefix of the fake index file.
+// The full content is the prefix followed by the number of shards.
+inline constexpr std::string_view kSqlBackendFakeIndexPrefix = "SQLCache";
 
 // ----------------------------------------------------------------------------
 // Database Scheme Version history:
@@ -92,12 +95,18 @@ inline constexpr int kSqlBackendStaticResourceSize = 300;
 // The SQL backend only supports stream 0 and stream 1.
 static const int kSqlBackendStreamCount = 2;
 
-// Divisor used to calculate the high and low watermarks for cache eviction.
-// The high watermark is `max_size - (max_size / divisor)`, and the low
-// watermark is `max_size - 2 * (max_size / divisor)`. Eviction is triggered
-// when the cache size exceeds the high watermark and continues until it is
-// below the low watermark.
-inline constexpr int kSqlBackendEvictionMarginDivisor = 20;
+// High watermark for cache eviction, in thousandths (permille) of the max size.
+// Eviction is triggered when the cache size exceeds this.
+inline constexpr int kSqlBackendEvictionHighWaterMarkPermille = 950;
+
+// High watermark for cache eviction during idle time, in thousandths (permille)
+// of the max size. This is lower than the regular high watermark to allow for
+// more proactive eviction when the browser is not busy.
+inline constexpr int kSqlBackendIdleTimeEvictionHighWaterMarkPermille = 925;
+
+// Low watermark for cache eviction, in thousandths (permille) of the max size.
+// Eviction continues until the cache size is below this.
+inline constexpr int kSqlBackendEvictionLowWaterMarkPermille = 900;
 
 // The delay after backend initialization before running a one-time cleanup task
 // to delete doomed entries. This task removes entries that were doomed in a
@@ -107,6 +116,10 @@ inline constexpr int kSqlBackendEvictionMarginDivisor = 20;
 // is used with Cache Storage, it should be a shorter value.
 inline constexpr base::TimeDelta kSqlBackendDeleteDoomedEntriesDelay =
     base::Minutes(10);
+
+// The prefix for histograms related to the SQL disk cache backend.
+inline constexpr std::string_view kSqlDiskCacheBackendHistogramPrefix =
+    "Net.SqlDiskCache.Backend.";
 
 }  // namespace disk_cache
 

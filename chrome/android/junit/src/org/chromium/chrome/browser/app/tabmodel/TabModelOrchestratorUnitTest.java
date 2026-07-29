@@ -26,6 +26,7 @@ import org.chromium.base.test.util.Feature;
 import org.chromium.chrome.browser.compositor.overlays.strip.StripLayoutHelperManager.TabModelStartupInfo;
 import org.chromium.chrome.browser.tabmodel.TabModel;
 import org.chromium.chrome.browser.tabmodel.TabModelSelectorBase;
+import org.chromium.chrome.browser.tabmodel.TabPersistencePolicy;
 import org.chromium.chrome.browser.tabmodel.TabPersistentStore;
 import org.chromium.chrome.browser.tabmodel.TabPersistentStore.TabPersistentStoreObserver;
 
@@ -37,6 +38,7 @@ public class TabModelOrchestratorUnitTest {
     @Mock private TabModel mMockTabModel;
     @Mock private TabModelSelectorBase mMockTabModelSelectorBase;
     @Mock private TabPersistentStore mMockTabPersistentStore;
+    @Mock private TabPersistencePolicy mTabPersistencePolicy;
 
     private TabModelOrchestrator mTabModelOrchestrator;
     private ArgumentCaptor<TabPersistentStoreObserver> mObserverCaptor;
@@ -54,6 +56,8 @@ public class TabModelOrchestratorUnitTest {
                     }
                 };
         mTabModelOrchestrator.setTabPersistentStoreForTesting(mMockTabPersistentStore);
+        mTabModelOrchestrator.setTabPersistencePolicyForTesting(mTabPersistencePolicy);
+        when(mTabPersistencePolicy.getMetadataFileName()).thenReturn("metadata");
 
         mObserverCaptor = ArgumentCaptor.forClass(TabPersistentStoreObserver.class);
         mTabModelOrchestrator.wireSelectorAndStore();

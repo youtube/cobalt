@@ -4,6 +4,7 @@
 
 package org.chromium.chrome.browser.compositor.overlays.strip;
 
+import static org.chromium.build.NullUtil.assertNonNull;
 import static org.chromium.build.NullUtil.assumeNonNull;
 import static org.chromium.chrome.browser.compositor.overlays.strip.StripLayoutUtils.ANIM_TAB_MOVE_MS;
 import static org.chromium.chrome.browser.compositor.overlays.strip.StripLayoutUtils.INVALID_TIME;
@@ -103,6 +104,7 @@ import org.chromium.chrome.browser.tabmodel.TabClosingSource;
 import org.chromium.chrome.browser.tabmodel.TabClosureParams;
 import org.chromium.chrome.browser.tabmodel.TabClosureParamsUtils;
 import org.chromium.chrome.browser.tabmodel.TabCreator;
+import org.chromium.chrome.browser.tabmodel.TabCreatorUtil;
 import org.chromium.chrome.browser.tabmodel.TabGroupColorUtils;
 import org.chromium.chrome.browser.tabmodel.TabGroupModelFilter;
 import org.chromium.chrome.browser.tabmodel.TabGroupModelFilterObserver;
@@ -415,13 +417,28 @@ public class StripLayoutHelper
                             computeAndUpdateTabWidth(
                                     /* animate= */ true, /* deferAnimations= */ true);
                     assumeNonNull(pinnedAnimations);
+
+                    // Animate the moving tab to the pinned boundary. Normally we animate from drawX
+                    // to idealX, but if the first unpinned slot is off-screen, a newly unpinned tab
+                    // would “fly” toward the strip start. To make it appear to fly into the
+                    // unpinned section instead, animate offsetX toward the absolute pinned
+                    // boundary.
+                    boolean rtl = LocalizationUtils.isLayoutRtl();
+                    float pinnedWidth = getEffectiveTabWidth(/* isPinned= */ true);
+                    // For pinning, subtract one tab width, because the total pinned width already
+                    // includes the newly pinned tab width, but the animation should target the
+                    // x-position before it was included.
+                    float animationEndX =
+                            getPinnedTabsBoundary() + (isPinned && !rtl ? -pinnedWidth : 0f);
+                    float startOffsetX = stripTab.getDrawX() - stripTab.getIdealX();
+                    float endOffsetX = animationEndX - stripTab.getIdealX();
                     pinnedAnimations.add(
                             CompositorAnimator.ofFloatProperty(
                                     mUpdateHost.getAnimationHandler(),
                                     stripTab,
                                     StripLayoutView.X_OFFSET,
-                                    stripTab.getDrawX() - stripTab.getIdealX(),
-                                    0f,
+                                    startOffsetX,
+                                    endOffsetX,
                                     ANIM_TAB_MOVE_MS));
 
                     queueAnimations(
@@ -432,6 +449,7 @@ public class StripLayoutHelper
                                     stripTab.setIsForegrounded(/* isForegrounded= */ false);
                                     mTabDelegate.setIsTabNonDragReordering(
                                             stripTab, /* isNonDragReordering= */ false);
+                                    stripTab.setOffsetX(0f);
                                 }
                             });
 
@@ -625,6 +643,9 @@ public class StripLayoutHelper
     private @MonotonicNonNull TabContextMenuCoordinator mTabContextMenuCoordinator;
     private @MonotonicNonNull TabGroupListBottomSheetCoordinator
             mTabGroupListBottomSheetCoordinator;
+    // Set when the context menu triggered by a gesture on empty strip space is shown for the first
+    // time.
+    private @MonotonicNonNull TabStripContextMenuCoordinator mTabStripContextMenuCoordinator;
 
     // Tab group share.
     // These are set if shouldEnableGroupSharing() is true.
@@ -955,6 +976,13 @@ public class StripLayoutHelper
             }
         }
         return width == 0.f ? 0.f : width + mScrollDelegate.getReorderStartMargin();
+    }
+
+    /** Returns the pinned tabs boundary on tab strip. */
+    private float getPinnedTabsBoundary() {
+        boolean isRtl = LocalizationUtils.isLayoutRtl();
+        return getStartPositionForStripViews()
+                + (isRtl ? -getTotalPinnedTabsWidth() : getTotalPinnedTabsWidth());
     }
 
     /** Returns the visual offset to be applied to the new tab button. */
@@ -1590,6 +1618,11 @@ public class StripLayoutHelper
             finishCloseAnimations();
             mCloseButtonMenu.dismiss();
         }
+    }
+
+    /** Marks the helper as selected. */
+    public void setSelected(boolean selected) {
+        mSelected = selected;
     }
 
     /** Updates the current selected tab. */
@@ -2269,9 +2302,10 @@ public class StripLayoutHelper
         if (stripView == null) {
             // Broadcast to start moving the window instance as the user has long pressed on the
             // open space of the tab strip.
-            // TODO(crbug.com/358191015): Decouple the move window broadcast from this method and
-            // maybe move to #onLongPress when `stripView` is null.
             sendMoveWindowBroadcast(mToolbarContainerView, x, y);
+
+            // Show the tab strip context menu at the long-press position on the empty space.
+            showTabStripContextMenu(x, y);
             return;
         }
 
@@ -2361,7 +2395,8 @@ public class StripLayoutHelper
         if (groupTitle == null || groupTitle.getTabGroupId() == null) return;
         // Popup menu requires screen coordinates for anchor view. Get absolute position for title.
         RectProvider anchorRectProvider = new RectProvider();
-        getAnchorRect(groupTitle, anchorRectProvider);
+        groupTitle.getAnchorRect(anchorRectProvider.getRect());
+        getAdjustedAnchorRect(anchorRectProvider);
         // If the menu is already showing (which may happen if the user does two long presses in
         // quick succession and showing the menu is slow), then abort.
         // Also note that we can assume mTabGroupContextMenuCoordinator is non-null since this
@@ -2415,7 +2450,8 @@ public class StripLayoutHelper
                             });
         }
         RectProvider anchorRectProvider = new RectProvider();
-        getAnchorRect(anchorTab, anchorRectProvider);
+        anchorTab.getAnchorRect(anchorRectProvider.getRect());
+        getAdjustedAnchorRect(anchorRectProvider);
         StripLayoutUtils.performHapticFeedback(mToolbarContainerView);
         mTabContextMenuCoordinator.showMenu(anchorRectProvider, tabIds);
     }
@@ -2568,13 +2604,13 @@ public class StripLayoutHelper
         }
     }
 
-    private void getAnchorRect(StripLayoutView stripLayoutView, RectProvider anchorRectProvider) {
+    private void getAdjustedAnchorRect(RectProvider anchorRectProvider) {
         int[] toolbarCoordinates = new int[2];
         Rect backgroundPadding = new Rect();
         mToolbarContainerView.getLocationInWindow(toolbarCoordinates);
         Drawable background = TabOverflowMenuCoordinator.getMenuBackground(mContext, mIncognito);
         background.getPadding(backgroundPadding);
-        stripLayoutView.getAnchorRect(anchorRectProvider.getRect());
+
         // Use parent toolbar view coordinates to offset title rect.
         // Also shift the anchor left by menu padding to align the menu exactly with title x.
         int xOffset =
@@ -2762,6 +2798,13 @@ public class StripLayoutHelper
             TabContextMenuCoordinator tabGroupContextMenuCoordinator) {
         mTabContextMenuCoordinator = tabGroupContextMenuCoordinator;
         ResettersForTesting.register(() -> mTabContextMenuCoordinator = null);
+    }
+
+    @SuppressWarnings("NullAway")
+    void setTabStripContextMenuCoordinatorForTesting(
+            TabStripContextMenuCoordinator tabStripContextMenuCoordinator) {
+        mTabStripContextMenuCoordinator = tabStripContextMenuCoordinator;
+        ResettersForTesting.register(() -> mTabStripContextMenuCoordinator = null);
     }
 
     private void clearLastHoveredTab() {
@@ -2992,6 +3035,7 @@ public class StripLayoutHelper
         if (runImprovedTabAnimations) {
             resizeStripOnTabClose();
         } else {
+            mNewTabButton.setOffsetX(/* offsetX= */ 0.f);
             mMultiStepTabCloseAnimRunning = false;
             // Resize the tabs appropriately.
             computeAndUpdateTabWidth(/* animate= */ true, /* deferAnimations= */ false);
@@ -3067,8 +3111,14 @@ public class StripLayoutHelper
      */
     public void click(long time, float x, float y, int buttons, int modifiers) {
         StripLayoutView clickedView = determineClickedView(x, y, buttons);
-        if (clickedView == null) return;
         clearLastHoveredTab();
+        if (clickedView == null) {
+            if (MotionEventUtils.isSecondaryClick(buttons)) {
+                // A right click on empty strip space should trigger the strip context menu.
+                showTabStripContextMenu(x, y);
+            }
+            return;
+        }
         if (MotionEventUtils.isSecondaryClick(buttons)) {
             showContextMenu(clickedView);
         } else {
@@ -3089,7 +3139,7 @@ public class StripLayoutHelper
         // 2. Reset state
         if (mNewTabButton.onUpOrCancel() && mModel != null) {
             if (!mModel.isIncognito()) mModel.commitAllTabClosures();
-            if (mTabCreator != null) mTabCreator.launchNtp();
+            if (mTabCreator != null) TabCreatorUtil.launchNtp(mTabCreator);
         }
         mIsStripScrollInProgress = false;
         resetDelayedReorderState();
@@ -3167,6 +3217,37 @@ public class StripLayoutHelper
             return true;
         }
         return false;
+    }
+
+    /**
+     * Shows the context menu originating at strip coordinates ({@code xDp}, {@code yDp}) to handle
+     * a long-press or right-click event at this position. The coordinates are assumed to lie on the
+     * empty space of the tab strip. For context menus associated with gestures on a {@link
+     * StripLayoutView}, see {@link #showContextMenu(StripLayoutView)}.
+     *
+     * @param xDp The x coordinate of the position of the gesture event.
+     * @param yDp The y coordinate of the position of the gesture event.
+     */
+    private void showTabStripContextMenu(float xDp, float yDp) {
+        if (mTabStripContextMenuCoordinator == null) {
+            mTabStripContextMenuCoordinator =
+                    new TabStripContextMenuCoordinator(mContext, mMultiInstanceManager);
+        }
+
+        // Determine the anchor view rect to position the menu.
+        float dpToPx = mContext.getResources().getDisplayMetrics().density;
+        RectProvider anchorRectProvider = new RectProvider();
+        anchorRectProvider.setRect(
+                new Rect(
+                        Math.round(xDp * dpToPx),
+                        Math.round(yDp * dpToPx),
+                        Math.round(xDp * dpToPx),
+                        Math.round(yDp * dpToPx)));
+        getAdjustedAnchorRect(anchorRectProvider);
+
+        var activity = assertNonNull(mWindowAndroid.getActivity().get());
+        mTabStripContextMenuCoordinator.showMenu(
+                anchorRectProvider, assumeNonNull(mModel).isIncognito(), activity);
     }
 
     private List<Integer> getMultiSelectedTabIds() {
@@ -3408,7 +3489,7 @@ public class StripLayoutHelper
 
         RecordUserAction.record("MobileToolbarNewTab");
         if (!mModel.isIncognito()) mModel.commitAllTabClosures();
-        mTabCreator.launchNtp();
+        TabCreatorUtil.launchNtp(mTabCreator);
     }
 
     /**
@@ -3967,7 +4048,7 @@ public class StripLayoutHelper
                 if (nextIndex != TabModel.INVALID_TAB_INDEX && mModel != null) {
                     TabModelUtils.setIndex(mModel, nextIndex);
                 } else if (mTabCreator != null) {
-                    mTabCreator.launchNtp();
+                    TabCreatorUtil.launchNtp(mTabCreator);
                 }
             }
         }
@@ -4236,18 +4317,32 @@ public class StripLayoutHelper
         computeIdealViewPositions();
     }
 
+    /**
+     * Returns the tab group count. Should only be called when rebuilding the tab strip, as we've
+     * previously seen {@link TabGroupModelFilter#getTabGroupCount()} be incorrect on startup. That
+     * said, other call-sites should use the aforementioned TabGroupModelFilter method if possible.
+     * TODO(crbug.com/454960178): Investigate if this is still needed.
+     */
     private int getTabGroupCount() {
-        if (mTabGroupModelFilter == null) return 0;
+        if (mModel == null || mTabGroupModelFilter == null) return 0;
 
         Set<Token> groupIds = new HashSet<>();
 
         for (int i = 0; i < mStripTabs.length; ++i) {
             final StripLayoutTab stripTab = mStripTabs[i];
-            final Tab tab = assumeNonNull(getTabById(stripTab.getTabId()));
-            if (mTabGroupModelFilter.isTabInTabGroup(tab)
-                    && !groupIds.contains(tab.getTabGroupId())) {
-                groupIds.add(tab.getTabGroupId());
-            }
+            final Tab tab = mModel.getTabByIdChecked(stripTab.getTabId());
+            if (mTabGroupModelFilter.isTabInTabGroup(tab)) groupIds.add(tab.getTabGroupId());
+        }
+
+        Token tabGroupIdToHide = mGroupIdToHideSupplier.get();
+        if (tabGroupIdToHide != null && !groupIds.contains(tabGroupIdToHide)) {
+            // Rebuilding tab strip with a group ID to hide without a matching Tab.
+            // TODO(crbug.com/443337907): When we migrate the close button flow to the new closure
+            //  flow, we should be able to assert that this should be unreachable, rather than just
+            //  clearing the invalid state. This is currently possible because of the sequence of
+            //  events we get when confirming a group deletion: we rebuild on the tab closure event,
+            //  but clear the state on the group removal event.
+            mGroupIdToHideSupplier.set(null);
         }
 
         return groupIds.size();
@@ -4287,12 +4382,18 @@ public class StripLayoutHelper
 
         // If we have tab group to hide due to running tab group delete dialog, then skip the tab
         // group when rebuilding StripViews.
-        if (mGroupIdToHideSupplier.get() != null && numGroups > 0) {
-            numGroups -= 1;
+        if (mGroupIdToHideSupplier.get() != null) {
+            if (mTabGroupModelFilter.tabGroupExists(mGroupIdToHideSupplier.get())) {
+                if (numGroups > 0) numGroups--;
+            } else {
+                assert false : "Rebuilding tab strip with a nonexistent group ID to hide.";
+                mGroupIdToHideSupplier.set(null);
+            }
         }
 
         int groupTitleIndex = 0;
         StripLayoutGroupTitle[] groupTitles = new StripLayoutGroupTitle[numGroups];
+        Set<Token> seenGroupIds = new HashSet<>();
 
         int numViews = mStripTabs.length + numGroups;
         if (numViews != mStripViews.length) {
@@ -4306,6 +4407,7 @@ public class StripLayoutHelper
             Token tabGroupId = firstTab.getTabGroupId();
             assert tabGroupId != null;
             StripLayoutGroupTitle groupTitle = findOrCreateGroupTitle(tabGroupId);
+            seenGroupIds.add(tabGroupId);
             if (!tabGroupId.equals(mGroupIdToHideSupplier.get())) {
                 if (TabUiUtils.shouldShowIphForSync(mTabGroupSyncService, tabGroupId)) {
                     mLastSyncedGroupIdForIph = tabGroupId;
@@ -4329,6 +4431,11 @@ public class StripLayoutHelper
                             : false;
             if (nextTabInGroup && !areRelatedTabs) {
                 assumeNonNull(nextTabGroupId);
+                if (seenGroupIds.contains(nextTabGroupId)) {
+                    assert false : "Rebuilding tab strip with a non-contiguous tab group.";
+                    continue;
+                }
+                seenGroupIds.add(nextTabGroupId);
                 StripLayoutGroupTitle groupTitle = findOrCreateGroupTitle(nextTabGroupId);
                 if (!nextTabGroupId.equals(mGroupIdToHideSupplier.get())) {
                     if (TabUiUtils.shouldShowIphForSync(mTabGroupSyncService, nextTabGroupId)) {
@@ -5421,6 +5528,10 @@ public class StripLayoutHelper
         return mPendingMouseTabClosure;
     }
 
+    ObservableSupplierImpl<@Nullable Token> getGroupIdToHideSupplierForTesting() {
+        return mGroupIdToHideSupplier;
+    }
+
     private void setAccessibilityDescription(@Nullable StripLayoutTab stripTab, @Nullable Tab tab) {
         if (tab != null) setAccessibilityDescription(stripTab, tab.getTitle(), tab.isHidden());
     }
@@ -5442,7 +5553,8 @@ public class StripLayoutHelper
                         stripTab.getIsPinned(),
                         stripTab.getNotificationBubbleShown(),
                         isHidden,
-                        stripTab.getIsMultiSelected());
+                        stripTab.getIsMultiSelected(),
+                        stripTab.getMediaState());
 
         if (!stripTab.needsAccessibilityDescriptionUpdate(title, resId)) {
             // The resulting accessibility description would be the same as the current description,
@@ -5461,14 +5573,105 @@ public class StripLayoutHelper
      * @param notificationShown Whether the tab has notification shown.
      * @param isHidden Current visibility state of the Tab.
      * @param isMultiSelected Whether the tab is multi-selected.
+     * @param mediaState The {@link MediaState} state of the tab.
      */
     private @StringRes int getTabAccessibilityLabelRes(
             boolean isPinned,
             boolean notificationShown,
             boolean isHidden,
-            boolean isMultiSelected) {
+            boolean isMultiSelected,
+            @MediaState int mediaState) {
         if (notificationShown) {
             return R.string.accessibility_tabstrip_tab_notification;
+        }
+
+        final boolean selected = !isHidden;
+        if (mediaState != MediaState.NONE) {
+            if (isMultiSelected) {
+                if (isPinned) {
+                    return getMediaAccessibilityString(
+                            mediaState,
+                            mIncognito,
+                            R.string.accessibility_tabstrip_tab_multiselected_pinned_audible,
+                            R.string.accessibility_tabstrip_tab_multiselected_pinned_muted,
+                            R.string.accessibility_tabstrip_tab_multiselected_pinned_recording,
+                            R.string.accessibility_tabstrip_tab_multiselected_pinned_sharing,
+                            R.string
+                                    .accessibility_tabstrip_tab_multiselected_pinned_audible_incognito,
+                            R.string
+                                    .accessibility_tabstrip_tab_multiselected_pinned_muted_incognito,
+                            R.string
+                                    .accessibility_tabstrip_tab_multiselected_pinned_recording_incognito,
+                            R.string
+                                    .accessibility_tabstrip_tab_multiselected_pinned_sharing_incognito);
+                } else {
+                    return getMediaAccessibilityString(
+                            mediaState,
+                            mIncognito,
+                            R.string.accessibility_tabstrip_tab_multiselected_audible,
+                            R.string.accessibility_tabstrip_tab_multiselected_muted,
+                            R.string.accessibility_tabstrip_tab_multiselected_recording,
+                            R.string.accessibility_tabstrip_tab_multiselected_sharing,
+                            R.string.accessibility_tabstrip_tab_multiselected_audible_incognito,
+                            R.string.accessibility_tabstrip_tab_multiselected_muted_incognito,
+                            R.string.accessibility_tabstrip_tab_multiselected_recording_incognito,
+                            R.string.accessibility_tabstrip_tab_multiselected_sharing_incognito);
+                }
+            }
+
+            if (selected) {
+                if (isPinned) {
+                    return getMediaAccessibilityString(
+                            mediaState,
+                            mIncognito,
+                            R.string.accessibility_tabstrip_tab_selected_pinned_audible,
+                            R.string.accessibility_tabstrip_tab_selected_pinned_muted,
+                            R.string.accessibility_tabstrip_tab_selected_pinned_recording,
+                            R.string.accessibility_tabstrip_tab_selected_pinned_sharing,
+                            R.string.accessibility_tabstrip_tab_selected_pinned_audible_incognito,
+                            R.string.accessibility_tabstrip_tab_selected_pinned_muted_incognito,
+                            R.string.accessibility_tabstrip_tab_selected_pinned_recording_incognito,
+                            R.string.accessibility_tabstrip_tab_selected_pinned_sharing_incognito);
+                } else {
+                    return getMediaAccessibilityString(
+                            mediaState,
+                            mIncognito,
+                            R.string.accessibility_tabstrip_tab_selected_audible,
+                            R.string.accessibility_tabstrip_tab_selected_muted,
+                            R.string.accessibility_tabstrip_tab_selected_recording,
+                            R.string.accessibility_tabstrip_tab_selected_sharing,
+                            R.string.accessibility_tabstrip_tab_selected_audible_incognito,
+                            R.string.accessibility_tabstrip_tab_selected_muted_incognito,
+                            R.string.accessibility_tabstrip_tab_selected_recording_incognito,
+                            R.string.accessibility_tabstrip_tab_selected_sharing_incognito);
+                }
+            } else { // not selected and not multiselected
+                if (isPinned) {
+                    return getMediaAccessibilityString(
+                            mediaState,
+                            mIncognito,
+                            R.string.accessibility_tabstrip_tab_pinned_audible,
+                            R.string.accessibility_tabstrip_tab_pinned_muted,
+                            R.string.accessibility_tabstrip_tab_pinned_recording,
+                            R.string.accessibility_tabstrip_tab_pinned_sharing,
+                            R.string.accessibility_tabstrip_tab_pinned_audible_incognito,
+                            R.string.accessibility_tabstrip_tab_pinned_muted_incognito,
+                            R.string.accessibility_tabstrip_tab_pinned_recording_incognito,
+                            R.string.accessibility_tabstrip_tab_pinned_sharing_incognito);
+                } else {
+                    return getMediaAccessibilityString(
+                            mediaState,
+                            mIncognito,
+                            R.string.accessibility_tabstrip_tab_audible,
+                            R.string.accessibility_tabstrip_tab_muted,
+                            R.string.accessibility_tabstrip_tab_recording,
+                            R.string.accessibility_tabstrip_tab_sharing,
+                            R.string.accessibility_tabstrip_tab_audible_incognito,
+                            R.string.accessibility_tabstrip_tab_muted_incognito,
+                            R.string.accessibility_tabstrip_tab_recording_incognito,
+                            R.string.accessibility_tabstrip_tab_sharing_incognito);
+                }
+            }
         }
 
         @StringRes
@@ -5525,6 +5728,48 @@ public class StripLayoutHelper
                 return pinnedSelected;
             } else {
                 return unpinnedSelected;
+            }
+        }
+    }
+
+    private @StringRes int getMediaAccessibilityString(
+            @MediaState int mediaState,
+            boolean isIncognito,
+            @StringRes int audible,
+            @StringRes int muted,
+            @StringRes int recording,
+            @StringRes int sharing,
+            @StringRes int audibleIncognito,
+            @StringRes int mutedIncognito,
+            @StringRes int recordingIncognito,
+            @StringRes int sharingIncognito) {
+        if (isIncognito) {
+            switch (mediaState) {
+                case MediaState.AUDIBLE:
+                    return audibleIncognito;
+                case MediaState.MUTED:
+                    return mutedIncognito;
+                case MediaState.RECORDING:
+                    return recordingIncognito;
+                case MediaState.SHARING:
+                    return sharingIncognito;
+                default:
+                    assert false : "Invalid media state: " + mediaState;
+                    return 0;
+            }
+        } else {
+            switch (mediaState) {
+                case MediaState.AUDIBLE:
+                    return audible;
+                case MediaState.MUTED:
+                    return muted;
+                case MediaState.RECORDING:
+                    return recording;
+                case MediaState.SHARING:
+                    return sharing;
+                default:
+                    assert false : "Invalid media state: " + mediaState;
+                    return 0;
             }
         }
     }
@@ -5661,10 +5906,11 @@ public class StripLayoutHelper
         return isPinned ? getNumLivePinnedTabs() : mStripTabs.length;
     }
 
-    public @MediaState int getMediaIndicatorState(StripLayoutTab stripLayoutTab) {
-        Tab tab = getTabById(stripLayoutTab.getTabId());
-        if (tab == null) return MediaState.NONE;
-        return tab.getMediaState();
+    public void onMediaStateChanged(Tab tab, @MediaState int mediaState) {
+        StripLayoutTab stripLayoutTab = findTabById(tab.getId());
+        assumeNonNull(stripLayoutTab);
+        stripLayoutTab.setMediaState(mediaState);
+        setAccessibilityDescription(stripLayoutTab, tab);
     }
 
     private boolean isViewDraggingInProgress() {

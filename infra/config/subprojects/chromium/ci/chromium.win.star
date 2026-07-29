@@ -32,6 +32,9 @@ ci.defaults.set(
     main_console_view = "main",
     contact_team_email = "chrome-desktop-engprod@google.com",
     execution_timeout = ci_constants.DEFAULT_EXECUTION_TIMEOUT,
+    experiments = {
+        "chromium_tests.resultdb_module": 100,
+    },
     health_spec = health_spec.default(),
     service_account = ci_constants.DEFAULT_SERVICE_ACCOUNT,
     shadow_service_account = ci_constants.DEFAULT_SHADOW_SERVICE_ACCOUNT,
@@ -569,6 +572,11 @@ ci.thin_tester(
             ),
             "components_browsertests_no_field_trial": targets.remove(
                 reason = "crbug/40630866",
+            ),
+            "interactive_ui_tests": targets.mixin(
+                swarming = targets.swarming(
+                    shards = 9,
+                ),
             ),
             "interactive_ui_tests_no_field_trial": targets.remove(
                 reason = "crbug/40630866",

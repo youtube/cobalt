@@ -200,7 +200,6 @@ TEST(BrowserUserEducationServiceTest, PreventNewHardCodedConfigurations) {
       &feature_engagement::kIPHReadingListInSidePanelFeature,
       &feature_engagement::kIPHReadingModeSidePanelFeature,
       &feature_engagement::kIPHSidePanelGenericPinnableFeature,
-      &feature_engagement::kIPHSignoutWebInterceptFeature,
       &feature_engagement::kIPHTabOrganizationSuccessFeature,
       &feature_engagement::kIPHProfileSwitchFeature,
       &feature_engagement::kIPHPriceTrackingInSidePanelFeature,
@@ -252,7 +251,6 @@ TEST(BrowserUserEducationServiceTest, CheckFeaturePromoMetadata) {
   const base::Feature* const kExistingPromosWithoutMetadata[] = {
       &feature_engagement::kIPHComposeMSBBSettingsFeature,
       &feature_engagement::kIPHDesktopSharedHighlightingFeature,
-      &feature_engagement::kIPHDesktopCustomizeChromeFeature,
       &feature_engagement::kIPHExplicitBrowserSigninPreferenceRememberedFeature,
       &feature_engagement::kIPHGMCCastStartStopFeature,
       &feature_engagement::kIPHGMCLocalMediaCastingFeature,
@@ -265,7 +263,6 @@ TEST(BrowserUserEducationServiceTest, CheckFeaturePromoMetadata) {
       &feature_engagement::kIPHReadingListDiscoveryFeature,
       &feature_engagement::kIPHReadingListEntryPointFeature,
       &feature_engagement::kIPHReadingListInSidePanelFeature,
-      &feature_engagement::kIPHSignoutWebInterceptFeature,
       &feature_engagement::kIPHProfileSwitchFeature,
       &feature_engagement::kIPHBackNavigationMenuFeature,
       &feature_engagement::kIPHCookieControlsFeature};

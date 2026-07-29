@@ -1151,8 +1151,8 @@ net::StorageAccessApiStatus ShouldLoadWithStorageAccess(
     bool did_encounter_cross_origin_redirect,
     const GURL response_url,
     const network::mojom::URLResponseHead* response) {
-  // Experimental: Storage Access API Headers
-  // (https://github.com/cfredric/storage-access-headers)
+  // Storage Access API Headers:
+  // https://github.com/privacycg/storage-access-headers
   //
   // A server can opt-in to provide storage access to a document by setting the
   // `Activate-Storage-Access: load` header, provided that the user has already
@@ -3018,7 +3018,24 @@ void NavigationRequest::SetWaitingForRendererResponse() {
 }
 
 bool NavigationRequest::ShouldAddCookieChangeListener() {
-  // The `CookieChangeListener` will only be set up if all of these are true:
+  // Cookies can only be set for http/http(s) URLs, so only create listeners
+  // for those navigations.
+  return common_params_->url.SchemeIsHTTPOrHTTPS();
+}
+
+bool NavigationRequest::DidCookiesChangeAfterStart(
+    bool exclude_http_only) const {
+  CHECK(HasCookieChangeListener());
+  if (exclude_http_only) {
+    return cookie_change_listener_->cookie_change_info()
+        .non_http_only_cookie_modification_count;
+  }
+  return cookie_change_listener_->cookie_change_info()
+      .cookie_modification_count;
+}
+
+bool NavigationRequest::ShouldAddDeviceBoundSessionObserver() {
+  // Only add if all of these are true:
   // (1) the navigation's protocol is HTTP(s).
   // (2) we allow a document with `Cache-control: no-store` header to
   // enter back/forward.
@@ -3027,9 +3044,9 @@ bool NavigationRequest::ShouldAddCookieChangeListener() {
   // used, and it would already have an existing listener, so we should skip the
   // initialization.
   // (4) the navigation is a primary main frame navigation or it's for
-  // prerendering a main frame, as the cookie change information will only be
-  // used to determined if a page can be restored from back/forward cache, so
-  // subframe navigation can be ignored.
+  // prerendering a main frame, as the device-bound session change information
+  // will only be used to determine if a page can be restored from back/forward
+  // cache, so subframe navigation can be ignored.
   return frame_tree_node_->navigator()
              .controller()
              .GetBackForwardCache()
@@ -3037,12 +3054,6 @@ bool NavigationRequest::ShouldAddCookieChangeListener() {
          !IsPageActivation() && !IsSameDocument() &&
          (IsInPrimaryMainFrame() || IsInPrerenderedMainFrame()) &&
          common_params_->url.SchemeIsHTTPOrHTTPS();
-}
-
-bool NavigationRequest::ShouldAddDeviceBoundSessionObserver() {
-  // Device bound session expiry should evict pages from the BFCache in
-  // the exact same circumstances as cookie expiry.
-  return ShouldAddCookieChangeListener();
 }
 
 void NavigationRequest::StartNavigation() {
@@ -3073,6 +3084,10 @@ void NavigationRequest::StartNavigation() {
   // document that this navigation will load should be eligible for BFCache.
   // The listener eventually will be transferred over to the committed
   // `RenderFrameHost`.
+  // The listener should receive the change events of the cookies from the
+  // the domain of the main-frame navigation url.
+  // If the navigation gets redirected, it will be reset with the new URL when
+  // `NavigationRequest::OnRequestRedirected()` is called.
   if (ShouldAddCookieChangeListener()) {
     // The listener should receive the change events of the cookies from the
     // the domain of the main-frame navigation url.
@@ -7210,7 +7225,7 @@ bool NavigationRequest::IsAllowedByCSPDirective(
   network::CSPCheckResult result = context->IsAllowedByCsp(
       policies, directive, url, commit_params_->original_url,
       has_followed_redirect, common_params_->source_location, disposition,
-      begin_params_->is_form_submission, is_opaque_fenced_frame);
+      is_opaque_fenced_frame);
   if (result.WouldBlockIfWildcardDoesNotMatchWs()) {
     GetContentClient()->browser()->LogWebFeatureForCurrentPage(
         GetParentFrame(),
@@ -10348,6 +10363,17 @@ void NavigationRequest::ComputePoliciesToCommit() {
           "LocalNetworkAccessNonSecureContextAllowed", base::Time::Now())) {
     policy_container_builder_->SetLocalNetworkAccessNonSecureContextAllowed(
         true);
+  }
+
+  if (response_head_) {
+    CHECK(base::FeatureList::IsEnabled(
+              network::features::kConnectionAllowlists) ||
+          (!response_head_->parsed_headers->connection_allowlists.enforced
+                .has_value() &&
+           !response_head_->parsed_headers->connection_allowlists.report_only
+                .has_value()));
+    policy_container_builder_->SetConnectionAllowlists(
+        std::move(response_head_->parsed_headers->connection_allowlists));
   }
 
   if (!devtools_instrumentation::ShouldBypassCSP(*this)) {

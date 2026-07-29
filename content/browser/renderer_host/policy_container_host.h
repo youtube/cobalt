@@ -9,11 +9,13 @@
 #include <memory>
 #include <vector>
 
+#include "base/memory/ref_counted.h"
 #include "content/browser/child_process_host_impl.h"
 #include "content/common/content_export.h"
 #include "mojo/public/cpp/bindings/associated_receiver.h"
 #include "mojo/public/cpp/bindings/pending_associated_remote.h"
 #include "mojo/public/cpp/bindings/unique_receiver_set.h"
+#include "services/network/public/cpp/connection_allowlist.h"
 #include "services/network/public/cpp/cross_origin_embedder_policy.h"
 #include "services/network/public/cpp/cross_origin_opener_policy.h"
 #include "services/network/public/cpp/document_isolation_policy.h"
@@ -40,6 +42,7 @@ struct CONTENT_EXPORT PolicyContainerPolicies {
       network::mojom::IPAddressSpace ip_address_space,
       bool allow_non_secure_local_network_access,
       bool is_web_secure_context,
+      network::ConnectionAllowlists connection_allowlists,
       std::vector<network::mojom::ContentSecurityPolicyPtr>
           content_security_policies,
       const network::CrossOriginOpenerPolicy& cross_origin_opener_policy,
@@ -117,6 +120,10 @@ struct CONTENT_EXPORT PolicyContainerPolicies {
   //  - |network::IsUrlPotentiallyTrustworthy()|
   //  - |network::IsOriginPotentiallyTrustworthy()|
   bool is_web_secure_context = false;
+
+  // The set of connection allowlists for the associated context.
+  // https://github.com/mikewest/anti-exfil
+  network::ConnectionAllowlists connection_allowlists;
 
   // The content security policies of the associated document.
   std::vector<network::mojom::ContentSecurityPolicyPtr>
@@ -219,6 +226,10 @@ class CONTENT_EXPORT PolicyContainerHost
 
   network::mojom::IPAddressSpace ip_address_space() const {
     return policies_.ip_address_space;
+  }
+
+  const network::ConnectionAllowlists& connection_allowlists() const {
+    return policies_.connection_allowlists;
   }
 
   network::CrossOriginOpenerPolicy& cross_origin_opener_policy() {

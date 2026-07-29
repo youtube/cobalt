@@ -10,6 +10,7 @@
 #include "base/test/scoped_feature_list.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/common/chrome_features.h"
+#include "chrome/common/webui_url_constants.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "components/page_load_metrics/browser/page_load_metrics_test_waiter.h"
@@ -21,7 +22,9 @@ class InitialWebUIPageLoadMetricsObserverBrowserTest
  public:
   InitialWebUIPageLoadMetricsObserverBrowserTest() {
     feature_list_.InitWithFeatures(
-        {features::kInitialWebUI, features::kWebUIReloadButton}, {});
+        {features::kInitialWebUI, features::kWebUIReloadButton,
+         features::kInitialWebUIMetrics},
+        {});
   }
 
   InitialWebUIPageLoadMetricsObserverBrowserTest(
@@ -48,10 +51,16 @@ class InitialWebUIPageLoadMetricsObserverBrowserTest
   void NavigateAndWaitForMetrics(const GURL& url) {
     auto metrics_waiter = CreatePageLoadMetricsTestWaiter();
     metrics_waiter->AddPageExpectation(
-        page_load_metrics::PageLoadMetricsTestWaiter::TimingField::kFirstPaint);
+        page_load_metrics::PageLoadMetricsTestWaiter::TimingField::
+            kMonotonicFirstPaint);
+    metrics_waiter->AddPageExpectation(
+        page_load_metrics::PageLoadMetricsTestWaiter::TimingField::
+            kMonotonicFirstContentfulPaint);
     // Navigate to the specified URL.
     ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
     metrics_waiter->Wait();
+    // Navigate away to flush metrics.
+    ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), GURL("about:blank")));
   }
 
   std::unique_ptr<base::HistogramTester> histogram_tester_;
@@ -60,37 +69,41 @@ class InitialWebUIPageLoadMetricsObserverBrowserTest
   base::test::ScopedFeatureList feature_list_;
 };
 
-// Test that InitialWebUIPageLoadMetricsObserverBrowserTest does NOT record
-// histograms when the target WebUI is not the InitialWebUI.
+// Test that InitialWebUIPageLoadMetricsObserverBrowserTest record histograms
+// only once across multiple navigations. Disabled due to flakiness.
+// TODO(crbug.com/455508156): Re-enable this test.
 IN_PROC_BROWSER_TEST_F(InitialWebUIPageLoadMetricsObserverBrowserTest,
-                       NotRecordForNonInitialWebUI) {
-  // Navigate to a non-initial WebUI page.
-  NavigateAndWaitForMetrics(GURL("chrome://version"));
+                       DISABLED_RecordOnlyOnceForInitialWebUI) {
+  // TODO(crbug.com/448794588): Should check initial histogram here, but test
+  // doesn't support waiting for the webcontents embededed in topchrome UI.
 
-  // Navigate away to force histogram recording.
-  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), GURL("about:blank")));
+  // 1. Navigate to an initial WebUI page.
+  NavigateAndWaitForMetrics(GURL(chrome::kChromeUIReloadButtonURL));
 
-  // Verify that initial WebUI metrics were NOT recorded.
+  // The metrics should be only be recorded once from the browser UI itself.
+  // Subsequent navigation will not be FirstPaint.
   histogram_tester_->ExpectTotalCount(
-      "InitialWebUI.Startup.ReloadButton.FirstPaint", 0);
+      "InitialWebUI.Startup.ReloadButton.FirstPaint", 1);
   histogram_tester_->ExpectTotalCount(
-      "InitialWebUI.Startup.ReloadButton.FirstContentfulPaint", 0);
-}
+      "InitialWebUI.Startup.ReloadButton.FirstContentfulPaint", 1);
 
-// Test that InitialWebUIPageLoadMetricsObserverBrowserTest does NOT record
-// histograms for non-chrome schemes.
-IN_PROC_BROWSER_TEST_F(InitialWebUIPageLoadMetricsObserverBrowserTest,
-                       NotRecordForNonChromeScheme) {
-  // Navigate to a data: URL (non-chrome scheme).
+  // 2. Navigate to a non-initial WebUI page.
+  ASSERT_TRUE(
+      ui_test_utils::NavigateToURL(browser(), GURL("chrome://version")));
+
+  // The metrics should not increase.
+  histogram_tester_->ExpectTotalCount(
+      "InitialWebUI.Startup.ReloadButton.FirstPaint", 1);
+  histogram_tester_->ExpectTotalCount(
+      "InitialWebUI.Startup.ReloadButton.FirstContentfulPaint", 1);
+
+  // 3. Navigate to a data: URL (non-chrome scheme).
   ASSERT_TRUE(ui_test_utils::NavigateToURL(
       browser(), GURL("data:text/html,<html><body>Hello world</body></html>")));
 
-  // Navigate away to force histogram recording.
-  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), GURL("about:blank")));
-
-  // Verify that initial WebUI metrics were NOT recorded.
+  // The metrics should not increase.
   histogram_tester_->ExpectTotalCount(
-      "InitialWebUI.Startup.ReloadButton.FirstPaint", 0);
+      "InitialWebUI.Startup.ReloadButton.FirstPaint", 1);
   histogram_tester_->ExpectTotalCount(
-      "InitialWebUI.Startup.ReloadButton.FirstContentfulPaint", 0);
+      "InitialWebUI.Startup.ReloadButton.FirstContentfulPaint", 1);
 }

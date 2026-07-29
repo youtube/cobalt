@@ -2119,11 +2119,8 @@ protocol::Response InspectorCSSAgent::getComputedStyleForNode(
         "Node is not an element and does not have a parent element");
   }
 
-  if (element->GetDocument().View() &&
-      element->GetDocument().View()->NeedsLayout()) {
-    element->GetDocument().UpdateStyleAndLayoutForNode(
-        element, DocumentUpdateReason::kInspector);
-  }
+  element->GetDocument().UpdateStyleAndLayoutForNode(
+      element, DocumentUpdateReason::kInspector);
 
   TRACE_EVENT1("devtools", "InspectorCSSAgent::getComputedStyleForNode", "node",
                element->DebugName());
@@ -2156,7 +2153,7 @@ protocol::Response InspectorCSSAgent::getComputedStyleForNode(
 
   bool is_appearance_base = false;
   if (auto* computed_style = element->GetComputedStyle()) {
-    is_appearance_base = computed_style->InBaseSelectAppearance();
+    is_appearance_base = computed_style->InBaseAppearance();
   }
   *extra_fields = protocol::CSS::ComputedStyleExtraFields::create()
                       .setIsAppearanceBase(is_appearance_base)
@@ -3213,13 +3210,13 @@ std::unique_ptr<protocol::CSS::CSSMedia> InspectorCSSAgent::BuildMediaObject(
       if (!exp_value.IsNumericLiteralValue()) {
         continue;
       }
-      const char* value_name =
+      StringView value_name =
           CSSPrimitiveValue::UnitTypeToString(exp_value.GetUnitType());
       std::unique_ptr<protocol::CSS::MediaQueryExpression>
           media_query_expression =
               protocol::CSS::MediaQueryExpression::create()
                   .setValue(exp_value.GetDoubleValue())
-                  .setUnit(String(value_name))
+                  .setUnit(value_name.ToString())
                   .setFeature(media_query_exp.MediaFeature())
                   .build();
 

@@ -492,7 +492,8 @@ void CanvasResourceProviderSharedImage::EndWriteAccess() {
   current_resource_has_write_access_ = false;
 }
 
-void CanvasResourceProviderSharedImage::WillDrawInternal() {
+std::unique_ptr<gpu::RasterScopedAccess>
+CanvasResourceProviderSharedImage::WillDrawInternal() {
   DCHECK(resource_);
 
   // Since the resource will be updated, the cached snapshot is no longer
@@ -513,6 +514,7 @@ void CanvasResourceProviderSharedImage::WillDrawInternal() {
   // SharedImage are deferred to ProduceCanvasResource and hence
   // copy-on-write is never needed here, and the set of SharedImage usages
   // doesn't change over the lifetime of the provider.
+  std::unique_ptr<gpu::RasterScopedAccess> dst_access;
   if (is_accelerated_ && (ShouldReplaceTargetBuffer(cached_content_id_) ||
                           !IsResourceUsable(resource_.get()))) {
     cached_content_id_ = PaintImage::kInvalidContentId;
@@ -531,14 +533,15 @@ void CanvasResourceProviderSharedImage::WillDrawInternal() {
     }
     resource_ = NewOrRecycledResource();
     DCHECK(IsResourceUsable(resource_.get()));
-    resource_->WaitSyncToken();
+    dst_access = resource_->BeginAccess(/*readonly=*/false);
     if (mode_ == SkSurface::kRetain_ContentChangeMode) {
       auto old_mailbox =
           old_resource_shared_image->GetClientSharedImage()->mailbox();
       auto mailbox = resource()->GetClientSharedImage()->mailbox();
-      old_resource->WaitSyncToken();
+      auto src_access = old_resource->BeginAccess(/*readonly=*/true);
       RasterInterface()->CopySharedImage(old_mailbox, mailbox, 0, 0, 0, 0,
                                          Size().width(), Size().height());
+      gpu::RasterScopedAccess::EndAccess(std::move(src_access));
     } else {
       // If we're not copying over the previous contents, we need to ensure
       // that the image is cleared on the next BeginRasterCHROMIUM.
@@ -549,8 +552,9 @@ void CanvasResourceProviderSharedImage::WillDrawInternal() {
                           mode_ == SkSurface::kRetain_ContentChangeMode);
     mode_ = SkSurface::kRetain_ContentChangeMode;
   } else {
-    resource_->WaitSyncToken();
+    dst_access = resource_->BeginAccess(/*readonly=*/false);
   }
+  return dst_access;
 }
 
 void CanvasResourceProviderSharedImage::WillDrawUnaccelerated() {
@@ -592,21 +596,19 @@ bool CanvasResourceProviderSharedImage::WritePixels(
   // actually intended here and either don't call the former (preserving
   // current behavior) or call resource()->GetClientSharedImage() rather than
   // the latter (if the current behavior is a bug).
-  WillDrawInternal();
+  auto access = WillDrawInternal();
   EnsureWriteAccess();
 
   // End the internal write access before calling WillDrawInternal(), which
   // has a precondition that there should be no current write access on the
   // resource.
   EndWriteAccess();
-  WillDrawInternal();
-  EndWriteAccess();
 
   auto client_si = resource()->GetClientSharedImage();
   RasterInterface()->WritePixels(client_si->mailbox(), x, y,
                                  client_si->GetTextureTarget(),
                                  SkPixmap(orig_info, pixels, row_bytes));
-  resource()->GetSyncToken();
+  resource()->EndAccess(std::move(access));
 
   // If the overdraw optimization kicked in, we need to indicate that the
   // pixels do not need to be cleared, otherwise the subsequent
@@ -634,11 +636,12 @@ bool CanvasResourceProviderSharedImage::OverwriteImage(
   }
 
   EndWriteAccess();
-  WillDrawInternal();
+  auto access = WillDrawInternal();
   EndWriteAccess();
 
   auto dst_client_si = resource()->GetClientSharedImage();
   if (!dst_client_si) {
+    resource()->EndAccess(std::move(access));
     return false;
   }
 
@@ -651,7 +654,7 @@ bool CanvasResourceProviderSharedImage::OverwriteImage(
                           copy_rect.width(), copy_rect.height());
   completion_sync_token =
       gpu::RasterScopedAccess::EndAccess(std::move(ri_access));
-  resource()->GetSyncToken();
+  resource()->EndAccess(std::move(access));
   return true;
 }
 
@@ -773,7 +776,7 @@ CanvasResourceProviderSharedImage::GetBackingClientSharedImageForExternalWrite(
   EndWriteAccess();
 
   const CanvasResource* const original_resource = resource_.get();
-  WillDrawInternal();
+  auto access = WillDrawInternal();
   EndWriteAccess();
 
   if (was_copy_performed != nullptr) {
@@ -781,8 +784,8 @@ CanvasResourceProviderSharedImage::GetBackingClientSharedImageForExternalWrite(
   }
 
   // NOTE: The above invocation of WillDrawInternal() ensures that this
-  // invocation of GetSyncToken() will generate a new sync token.
-  resource_->GetSyncToken();
+  // invocation of EndAccess() will generate a new sync token.
+  resource_->EndAccess(std::move(access));
   internal_access_sync_token = resource_->sync_token();
   return resource_->GetClientSharedImage();
 }
@@ -805,17 +808,18 @@ void CanvasResourceProviderSharedImage::ExternalCanvasDrawHelper(
     base::FunctionRef<void(MemoryManagedPaintCanvas&)> draw_callback) {
   if (base::FeatureList::IsEnabled(blink::kSkipRedundantWillDraw)) {
     cached_snapshot_.reset();
+    draw_callback(Canvas());
   } else {
     // TODO(crbug.com/40183122): Video frames don't work without this
     // conditional WillDraw(), but we are getting memory leak on CreatePattern
     // with it. There should be a better way to solve this.
     if (cached_snapshot_ && !IsGpuContextLost()) {
-      WillDrawInternal();
+      auto access = WillDrawInternal();
       EnsureWriteAccess();
+      draw_callback(Canvas());
+      resource()->EndAccess(std::move(access));
     }
   }
-
-  draw_callback(Canvas());
 }
 
 scoped_refptr<StaticBitmapImage> CanvasResourceProviderSharedImage::Snapshot(
@@ -880,14 +884,14 @@ void CanvasResourceProviderSharedImage::RasterRecord(
     return;
   }
 
-  WillDrawInternal();
+  auto access = WillDrawInternal();
   EnsureWriteAccess();
 
   const bool needs_clear = !is_cleared_;
   is_cleared_ = true;
   AcceleratedRasterRecord(std::move(last_recording), needs_clear,
                           resource()->GetClientSharedImage()->mailbox());
-  resource()->GetSyncToken();
+  resource()->EndAccess(std::move(access));
 }
 
 sk_sp<SkSurface> CanvasResourceProviderSharedImage::CreateSkSurface() const {
@@ -1220,7 +1224,8 @@ CanvasResourceProvider::CreateSharedImageProvider(
 
   const bool is_mappable_shared_image_allowed =
       is_gpu_compositing_enabled &&
-      gpu::IsFormatSupportedForSIWithNativeBuffer(format, capabilities);
+      capabilities.gpu_memory_buffer_formats.Has(
+          viz::SinglePlaneSharedImageFormatToBufferFormat(format));
 
   if (raster_mode == RasterMode::kCPU && !is_mappable_shared_image_allowed) {
     return nullptr;
@@ -1600,7 +1605,7 @@ void CanvasResourceProvider::FlushIfRecordingLimitExceeded() {
   if (recorder_->ReleasableOpBytesUsed() > max_recorded_op_bytes_ ||
       recorder_->ReleasableImageBytesUsed() > max_pinned_image_bytes_)
       [[unlikely]] {
-    FlushCanvas(FlushReason::kRecordingLimitExceeded);
+    FlushCanvas();
   }
 }
 
@@ -1677,7 +1682,6 @@ void CanvasResourceProvider::RecordingCleared() {
   // is now safe to update `mode_` to discard the old copy of canvas content.
   mode_ = SkSurface::kDiscard_ContentChangeMode;
   clear_frame_ = true;
-  last_flush_reason_ = FlushReason::kNone;
 }
 
 MemoryManagedPaintCanvas& CanvasResourceProvider::Canvas() {
@@ -1692,7 +1696,7 @@ void CanvasResourceProvider::OnContextDestroyed() {
 
 void CanvasResourceProvider::OnFlushForImage(PaintImage::ContentId content_id) {
   if (Canvas().IsCachingImage(content_id)) {
-    FlushCanvas(FlushReason::kSourceImageWillChange);
+    FlushCanvas();
   }
 }
 
@@ -1766,7 +1770,7 @@ SkSurfaceProps CanvasResourceProvider::GetSkSurfaceProps() const {
 }
 
 std::optional<cc::PaintRecord> CanvasResourceProvider::FlushCanvas(
-    FlushReason reason) {
+    FlushReason reason /*=FlushReason::kOther*/) {
   if (!recorder_->HasReleasableDrawOps()) {
     return std::nullopt;
   }
@@ -1781,7 +1785,6 @@ std::optional<cc::PaintRecord> CanvasResourceProvider::FlushCanvas(
   // If a previous flush rasterized some paint ops, we lost part of the
   // recording and must fallback to raster printing instead of vectorial
   // printing.
-  last_flush_reason_ = reason;
   clear_frame_ = false;
   if (reason == FlushReason::kClear) {
     clear_frame_ = true;

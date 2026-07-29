@@ -230,6 +230,15 @@ enum ActionResultCode {
   // The tool took too long to execute.
   kToolTimeout = 33,
 
+  // The task triggered a file picker.
+  kFilePickerTriggered = 34,
+
+  // File picker was confirmed.
+  kFilePickerConfirmed = 35,
+
+  // File pikcer was cancelled.
+  kFilePickerCancelled = 36,
+
   // Please see the comment above about adding new values.
 
   ///////////////////////////////////////////////////////////////////////
@@ -398,6 +407,14 @@ enum ActionResultCode {
   kLoginDeviceReauthFailed = 907,
 
   // Please see the comment above about adding new values.
+
+  ///////////////////////////////////////////////////////////////////////
+  // Codes 1000-1099: Errors for media control.
+
+  // The media control action failed because there is no media on the page.
+  kMediaControlNoMedia = 1000,
+
+  // Please see the comment above about adding new values.
 };
 
 // LINT.ThenChange(//tools/metrics/histograms/metadata/actor/enums.xml:ActionResultCode)
@@ -452,12 +469,6 @@ enum JournalEntryType {
   kInstant,
 };
 
-// The track to log the journal entry on.
-enum JournalTrack {
-  kFrontEnd,
-  kActor,
-};
-
 // Details of a journal entry.
 struct JournalDetails {
   string key;
@@ -475,14 +486,14 @@ struct JournalEntry {
   // The task ID associated with this entry.
   TaskId task_id;
 
-  // The track the event should occur on.
-  JournalTrack track;
-
   // The time the event occurred at.
   mojo_base.mojom.Time timestamp;
 
   // The event name.
   string event;
+
+  // Track UUID.
+  uint64 track_uuid;
 
   // Specific details of the event logged.
   array<JournalDetails> details;

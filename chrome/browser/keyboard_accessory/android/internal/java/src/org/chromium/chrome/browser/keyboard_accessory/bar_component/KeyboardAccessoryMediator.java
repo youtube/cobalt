@@ -36,6 +36,7 @@ import org.chromium.chrome.browser.keyboard_accessory.bar_component.KeyboardAcce
 import org.chromium.chrome.browser.keyboard_accessory.bar_component.KeyboardAccessoryProperties.AutofillBarItem;
 import org.chromium.chrome.browser.keyboard_accessory.bar_component.KeyboardAccessoryProperties.BarItem;
 import org.chromium.chrome.browser.keyboard_accessory.bar_component.KeyboardAccessoryProperties.DismissBarItem;
+import org.chromium.chrome.browser.keyboard_accessory.bar_component.KeyboardAccessoryProperties.GroupBarItem;
 import org.chromium.chrome.browser.keyboard_accessory.bar_component.KeyboardAccessoryProperties.SheetOpenerBarItem;
 import org.chromium.chrome.browser.keyboard_accessory.button_group_component.KeyboardAccessoryButtonGroupCoordinator;
 import org.chromium.chrome.browser.keyboard_accessory.data.KeyboardAccessoryData;
@@ -46,6 +47,8 @@ import org.chromium.chrome.browser.keyboard_accessory.utils.ManualFillingMetrics
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.components.autofill.AutofillDelegate;
 import org.chromium.components.autofill.AutofillSuggestion;
+import org.chromium.components.autofill.FillingProduct;
+import org.chromium.components.autofill.FillingProductBridge;
 import org.chromium.components.autofill.SuggestionType;
 import org.chromium.components.feature_engagement.FeatureConstants;
 import org.chromium.ui.modelutil.PropertyKey;
@@ -161,13 +164,19 @@ class KeyboardAccessoryMediator
      *     bar.
      */
     private void setBarContents(List<BarItem> scrollableItems) {
-        // TODO: crbug.com/450830784 - Group the first 2 or 3 suggestions to conditionally limit
-        // their width.
+        // Chip width limiting works when the keyboard accessory spans the whole screen width. Thus
+        // the chip group is created only for the docked keyboard accessory. If the suggestions are
+        // not grouped initially and then grouped when the STYLE is set, it can cause a UI glitch.
+        // However, the manual filling component's STYLE property is updated when the component is
+        // shown, so it's not possible.
+        if (shouldLimitSuggestionWidth()) {
+            // Create chip group to limit chip width only when the keyboard accessory style is set
+            // to docked.
+            scrollableItems = createGroupBarItem(scrollableItems);
+        }
         // TODO(crbug.com/441006939): Show dismiss on first launch too.
         List<BarItem> fixedBarItems = new ArrayList<BarItem>();
-        if (mIsLargeFormFactorSupplier.get()
-                && ChromeFeatureList.isEnabled(
-                        ChromeFeatureList.AUTOFILL_ANDROID_DESKTOP_KEYBOARD_ACCESSORY_REVAMP)) {
+        if (showFloatingKeyboardAccessory()) {
             fixedBarItems.add(mModel.get(SHEET_OPENER_ITEM));
             fixedBarItems.add(mModel.get(DISMISS_ITEM));
         } else {
@@ -176,6 +185,48 @@ class KeyboardAccessoryMediator
         mModel.get(BAR_ITEMS_FIXED).set(fixedBarItems);
         mModel.get(BAR_ITEMS).set(scrollableItems);
         mModel.set(HAS_SUGGESTIONS, barHasSuggestions());
+    }
+
+    private List<BarItem> createGroupBarItem(Iterable<BarItem> scrollableItemsIterable) {
+        List<BarItem> scrollableItems = new ArrayList<>();
+        for (BarItem item : scrollableItemsIterable) {
+            scrollableItems.add(item);
+        }
+        List<ActionBarItem> autofillBarItems = new ArrayList<>();
+        // Collect at most 3 Autofill address suggestions that are in the beginning of the list.
+        for (int i = 0; i < scrollableItems.size() && autofillBarItems.size() < 3; i++) {
+            if (scrollableItems.get(i) instanceof AutofillBarItem autofillBarItem
+                    && canLimitWidth(autofillBarItem.getSuggestion().getSuggestionType())) {
+                autofillBarItems.add(autofillBarItem);
+            } else {
+                // Stop collection Autofill suggestions when the first item of a different type is
+                // encountered.
+                break;
+            }
+        }
+        // If there are not enough Autofill suggestions in the beginning of the list, do not create
+        // a chip group for chip width adjustment.
+        if (autofillBarItems.size() < 2) {
+            return scrollableItems;
+        }
+        // Otherwise, substitute the first Autofill suggestions with a suggestion group to
+        // dynamically limit their screen width in the Keyboard Accessory.
+        scrollableItems.removeAll(autofillBarItems);
+        GroupBarItem groupBarItem = new GroupBarItem(autofillBarItems);
+        scrollableItems.add(0, groupBarItem);
+        return scrollableItems;
+    }
+
+    private List<BarItem> ungroupBarItems(Iterable<BarItem> scrollableItems) {
+        List<BarItem> barItems = new ArrayList<>();
+        for (BarItem barItem : scrollableItems) {
+            if (barItem instanceof GroupBarItem) {
+                barItems.addAll(barItem.getActionBarItems());
+            } else {
+                barItems.add(barItem);
+            }
+        }
+        return barItems;
     }
 
     private List<BarItem> collectItemsToRetain(@AccessoryAction int actionType) {
@@ -393,6 +444,11 @@ class KeyboardAccessoryMediator
 
     void setStyle(KeyboardAccessoryStyle style) {
         mModel.set(STYLE, style);
+        if (style.isDocked()) {
+            mModel.get(BAR_ITEMS).set(createGroupBarItem(mModel.get(BAR_ITEMS)));
+        } else {
+            mModel.get(BAR_ITEMS).set(ungroupBarItems(mModel.get(BAR_ITEMS)));
+        }
     }
 
     void setHasStickyLastItem(boolean hasStickyLastItem) {
@@ -445,6 +501,17 @@ class KeyboardAccessoryMediator
         return suggestion.getSuggestionType() == SuggestionType.ADDRESS_ENTRY;
     }
 
+    /**
+     * Width limiting is applied only to address suggestions.
+     *
+     * @param suggestionType the type of the displayed suggestion.
+     * @return whether the width of the suggestion is allowed to be limited.
+     */
+    private static boolean canLimitWidth(@SuggestionType int suggestionType) {
+        return FillingProductBridge.getFillingProductFromSuggestionType(suggestionType)
+                == FillingProduct.ADDRESS;
+    }
+
     private @StringRes int getCaptionId(@AccessoryAction int actionType) {
         switch (actionType) {
             case AccessoryAction.GENERATE_PASSWORD_AUTOMATIC:
@@ -477,6 +544,20 @@ class KeyboardAccessoryMediator
             }
         }
         return R.string.select_passkey;
+    }
+
+    private boolean showFloatingKeyboardAccessory() {
+        return mIsLargeFormFactorSupplier.get()
+                && ChromeFeatureList.isEnabled(
+                        ChromeFeatureList.AUTOFILL_ANDROID_DESKTOP_KEYBOARD_ACCESSORY_REVAMP);
+    }
+
+    private boolean shouldLimitSuggestionWidth() {
+        return !showFloatingKeyboardAccessory()
+                && ChromeFeatureList.isEnabled(
+                        ChromeFeatureList.AUTOFILL_ENABLE_KEYBOARD_ACCESSORY_CHIP_REDESIGN)
+                && ChromeFeatureList.isEnabled(
+                        ChromeFeatureList.AUTOFILL_ENABLE_KEYBOARD_ACCESSORY_CHIP_WIDTH_ADJUSTMENT);
     }
 
     void addObserver(KeyboardAccessoryVisualStateProvider.Observer observer) {

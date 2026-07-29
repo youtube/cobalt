@@ -70,6 +70,8 @@ void AddMaterialNewTabPageColorMixer(ui::ColorProvider* provider,
   mixer[kColorNewTabPageComposeboxOutlineHcm] = {
       dark_mode ? SkColorSetRGB(0xFF, 0xFF, 0xFF)
                 : SkColorSetRGB(0x00, 0x00, 0x00)};
+  mixer[kColorNewTabPageComposeboxRecentTabChipOutline] = {
+      ui::kColorSysTonalOutline};
   mixer[kColorNewTabPageComposeboxScrimBackground] = {ui::kColorSysBase};
   mixer[kColorNewTabPageComposeboxSubmitButton] = {
       SkColorSetRGB(0x0B, 0x50, 0xD0)};
@@ -84,7 +86,9 @@ void AddMaterialNewTabPageColorMixer(ui::ColorProvider* provider,
       dark_mode ? SkColorSetRGB(0x56, 0x59, 0x5E)
                 : SkColorSetRGB(0xAD, 0xAF, 0xB8)};
   mixer[kColorNewTabPageComposeboxFileChipBackground] = {
-      SkColorSetRGB(0xED, 0xF2, 0xFA)};
+      SkColorSetRGB(0xF3, 0xF6, 0xFC)};
+  mixer[kColorNewTabPageComposeboxFileChipFaviconBackground] = {
+      SkColorSetRGB(0xEA, 0xF0, 0xF9)};
   mixer[kColorNewTabPageComposeboxFileChipText] = {
       SkColorSetRGB(0x1F, 0x1F, 0x1F)};
   mixer[kColorNewTabPageComposeboxPdfChipIcon] = {

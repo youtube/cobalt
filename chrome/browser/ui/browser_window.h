@@ -90,11 +90,6 @@ class NativeTheme;
 class ThemeProvider;
 }  // namespace ui
 
-namespace views {
-class Button;
-class WebView;
-}  // namespace views
-
 namespace web_modal {
 class WebContentsModalDialogHost;
 }
@@ -456,9 +451,6 @@ class BrowserWindow : public ui::BaseWindow {
                                bool show_signin_button) = 0;
 
 #if BUILDFLAG(IS_CHROMEOS)
-  // Returns the PageActionIconView for the Sharing Hub.
-  virtual views::Button* GetSharingHubIconButton() = 0;
-
   // Toggles the multitask menu on the browser frame size button.
   virtual void ToggleMultitaskMenu() = 0;
 #else
@@ -490,12 +482,6 @@ class BrowserWindow : public ui::BaseWindow {
   virtual void ShowOneClickSigninConfirmation(
       const std::u16string& email,
       base::OnceCallback<void(bool)> confirmed_callback) = 0;
-
-  // Returns the TopContainerView.
-  virtual views::View* GetTopContainer() = 0;
-
-  // Returns the LensOverlayView.
-  virtual views::View* GetLensOverlayView() = 0;
 
   // Returns the DownloadBubbleUIController. Returns null if Download Bubble
   // UI is not enabled, or if the download toolbar button does not exist.
@@ -648,9 +634,6 @@ class BrowserWindow : public ui::BaseWindow {
 
   // Shows the Chrome Labs bubble if enabled.
   virtual void ShowChromeLabs() = 0;
-
-  // Returns the WebView backing the tab-contents area of the BrowserWindow.
-  virtual views::WebView* GetContentsWebView() = 0;
 
   // In production code BrowserView is the only subclass for BrowserWindow. The
   // fact that this is not true in some tests is a problem with the tests. See

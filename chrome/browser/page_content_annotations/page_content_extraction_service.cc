@@ -93,7 +93,8 @@ void PageContentExtractionService::OnPageContentExtracted(
   }
 
   page_content_cache_handler_->ProcessPageContentExtraction(
-      tab_id, ToWebStateWrapper(web_contents), ToPageContext(page_content));
+      tab_id, ToWebStateWrapper(web_contents), ToPageContext(page_content),
+      base::Time::Now());
 }
 
 std::optional<ExtractedPageContentResult>
@@ -109,6 +110,12 @@ void PageContentExtractionService::OnTabClosed(int64_t tab_id) {
   }
 }
 
+void PageContentExtractionService::OnTabCloseUndone(int64_t tab_id) {
+  if (is_page_content_cache_enabled_) {
+    page_content_cache_handler_->OnTabCloseUndone(tab_id);
+  }
+}
+
 void PageContentExtractionService::OnVisibilityChanged(
     std::optional<int64_t> tab_id,
     content::WebContents* web_contents,
@@ -119,7 +126,8 @@ void PageContentExtractionService::OnVisibilityChanged(
     if (extracted_result) {
       page_content_cache_handler_->OnVisibilityChanged(
           tab_id, ToWebStateWrapper(web_contents),
-          ToPageContext(std::move(extracted_result->page_content)));
+          ToPageContext(std::move(extracted_result->page_content)),
+          extracted_result->extraction_timestamp);
     }
   }
 }

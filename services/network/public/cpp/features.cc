@@ -368,6 +368,8 @@ BASE_FEATURE(kDocumentIsolationPolicy,
 #endif
 );
 
+BASE_FEATURE(kConnectionAllowlists, base::FEATURE_DISABLED_BY_DEFAULT);
+
 // This feature enables the Prefetch() method on the NetworkContext, and makes
 // the PrefetchMatchingURLLoaderFactory check the match quality.
 BASE_FEATURE(kNetworkContextPrefetch, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -604,6 +606,9 @@ BASE_FEATURE_PARAM(bool,
                    true);
 
 BASE_FEATURE(kNetworkServicePerPriorityTaskQueues,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kUseUnexportableKeyServiceInBrowserProcess,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 }  // namespace network::features

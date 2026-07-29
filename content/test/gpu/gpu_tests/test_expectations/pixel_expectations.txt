@@ -476,14 +476,16 @@ crbug.com/402171652 [ win11 amd-0x7480 ] Pixel_DirectComposition_Video_VP9_BGRA 
 crbug.com/402429382 [ win11 amd-0x7480 ] Pixel_ReflectedDiv [ Failure ]
 
 # Win/AMD 780M failures
-crbug.com/402171652 [ win11 amd-0x1900 ] Pixel_DirectComposition_Video_VP9_YUY2 [ Failure ]
-crbug.com/402171652 [ win11 amd-0x1900 ] Pixel_DirectComposition_Video_VP9_BGRA [ Failure ]
-crbug.com/402429382 [ win11 amd-0x1900 ] Pixel_ReflectedDiv [ Failure ]
+# Commented out until full procurement is ready since UAT is done.
+# crbug.com/402171652 [ win11 amd-0x1900 ] Pixel_DirectComposition_Video_VP9_YUY2 [ Failure ]
+# crbug.com/402171652 [ win11 amd-0x1900 ] Pixel_DirectComposition_Video_VP9_BGRA [ Failure ]
+# crbug.com/402429382 [ win11 amd-0x1900 ] Pixel_ReflectedDiv [ Failure ]
 
 # Win/AMD 890M failures
-crbug.com/402171652 [ win11 amd-0x150e ] Pixel_DirectComposition_Video_VP9_YUY2 [ Failure ]
-crbug.com/402171652 [ win11 amd-0x150e ] Pixel_DirectComposition_Video_VP9_BGRA [ Failure ]
-crbug.com/402429382 [ win11 amd-0x150e ] Pixel_ReflectedDiv [ Failure ]
+# Commented out until full procurement is ready since UAT is done.
+# crbug.com/402171652 [ win11 amd-0x150e ] Pixel_DirectComposition_Video_VP9_YUY2 [ Failure ]
+# crbug.com/402171652 [ win11 amd-0x150e ] Pixel_DirectComposition_Video_VP9_BGRA [ Failure ]
+# crbug.com/402429382 [ win11 amd-0x150e ] Pixel_ReflectedDiv [ Failure ]
 
 # Failures on all Mac and Windows bots running these tests
 crbug.com/370694819 [ mac ] Pixel_WebGPUDestroyed_TransferToOffscreenCanvas* [ Failure ]
@@ -501,7 +503,6 @@ crbug.com/413062240 [ win10 intel-0x4680 passthrough ] Pixel_WebGPUDestroyed_Ons
 
 # Failure on Win10 Nvidia bot
 crbug.com/420902568 [ win10 nvidia-0x2184 target-cpu-32 ] Pixel_MeetEffectsTruckerHat [ Failure ]
-crbug.com/451750216 [ win11 nvidia ] Pixel_Canvas2DRedBoxHdr10 [ Failure ]
 
 # Video tests flakily cause Android Pixel 6 Ganesh to crash.
 crbug.com/421412516 [ android android-chromium graphite-disabled passthrough angle-vulkan android-pixel-6 ] Pixel_Video_Context_Loss_VP9 [ RetryOnFailure ]
@@ -530,7 +531,7 @@ crbug.com/415830130 [ android android-chromium ] Pixel_Video_MP4_TreesInViz [ Fa
 crbug.com/415830130 [ fuchsia ] Pixel_Video_MP4_TreesInViz [ Failure ]
 crbug.com/415830130 [ android android-chromium ] Pixel_ViewTransitionsCapture_TreesInViz [ RetryOnFailure ]
 crbug.com/446950282 [ mac intel-0x3e9b ] Pixel_ViewTransitionsCapture_TreesInViz [ Failure ]
-crbug.com/415830130 [ android-chromium android-pixel-2 android-q angle-disabled graphite-disabled mobile no-clang-coverage no-passthrough qualcomm renderer-skia-gl ] Pixel_WebGLGreenTriangle_AA_Alpha_TreesInViz [ RetryOnFailure ]
+crbug.com/415830130 [ android-chromium android-pixel-2 android-q angle-disabled graphite-disabled mobile no-clang-coverage no-passthrough qualcomm renderer-skia-gl target-cpu-64 ] Pixel_WebGLGreenTriangle_AA_Alpha_TreesInViz [ RetryOnFailure ]
 crbug.com/415830130 [ android android-chromium ] Pixel_SolidColorBackground_TreesInViz [ Failure ]
 crbug.com/415830130 [ angle-swiftshader fuchsia fuchsia-board-qemu-x64 google-0xc0de ] Pixel_SolidColorBackground_TreesInViz [ Failure ]
 crbug.com/415830130 [ angle-vulkan arm fuchsia fuchsia-board-sherlock no-asan no-clang-coverage ] Pixel_SolidColorBackground_TreesInViz [ Failure ]
@@ -546,7 +547,8 @@ crbug.com/437973213 [ android android-brya ] Pixel_Video_Context_Loss_VP9 [ Fail
 
 
 # Linux/AMD 780M failures
-crbug.com/445727123 [ linux amd-0x1900 ] Pixel_Video_MP4_FourColors_Aspect_4x3 [ Failure ]
+# Commented out until full procurement is ready since UAT is done.
+# crbug.com/445727123 [ linux amd-0x1900 ] Pixel_Video_MP4_FourColors_Aspect_4x3 [ Failure ]
 
 # Win11 Canvas Timeout
 crbug.com/446719056 [ win11 angle-d3d11 qualcomm-0x41333430 graphite-disabled ] Pixel_OffscreenCanvas2DResizeOnWorker [ Failure ]
@@ -571,24 +573,17 @@ crbug.com/446861923 [ android android-pixel-10 android-chromium ] Pixel_Video_VP
 
 # Win11/RTX 4070 Super failures
 crbug.com/450326412 [ win11 nvidia-0x2783 ] Pixel_Canvas2DRedBox [ RetryOnFailure ]
-crbug.com/450326412 [ win11 nvidia-0x2783 ] Pixel_Canvas2DRedBoxScrgbLinear [ RetryOnFailure ]
 crbug.com/450326412 [ win11 nvidia-0x2783 ] Pixel_CanvasDisplaySRGBAccelerated2D [ RetryOnFailure ]
-crbug.com/450326412 [ win11 nvidia-0x2783 ] Pixel_GpuRasterization_ConcavePaths [ RetryOnFailure ]
-crbug.com/450326412 [ win11 nvidia-0x2783 ] Pixel_OffscreenCanvasAccelerated2DWorker [ RetryOnFailure ]
-crbug.com/450326412 [ win11 nvidia-0x2783 ] Pixel_OffscreenCanvasIBRCWorker [ RetryOnFailure ]
 crbug.com/450326412 [ win11 nvidia-0x2783 ] Pixel_OffscreenCanvasTransferBeforeStyleResize [ RetryOnFailure ]
 crbug.com/450326412 [ win11 nvidia-0x2783 ] Pixel_OffscreenCanvasTransferToImageBitmap [ RetryOnFailure ]
 crbug.com/450326412 [ win11 nvidia-0x2783 ] Pixel_PaintWorkletTransform [ RetryOnFailure ]
 crbug.com/450326412 [ win11 nvidia-0x2783 ] Pixel_ScissorTestWithPreserveDrawingBuffer [ RetryOnFailure ]
 crbug.com/450326412 [ win11 nvidia-0x2783 ] Pixel_WebGLGreenTriangle_NoAA_NoAlpha [ RetryOnFailure ]
 crbug.com/450326412 [ win11 nvidia-0x2783 ] Pixel_WebglResizedCanvas [ RetryOnFailure ]
-crbug.com/450326413 [ win11 nvidia-0x2783 ] Pixel_OffscreenCanvasWebGLPaintAfterResize [ RetryOnFailure ]
-crbug.com/450326413 [ win11 nvidia-0x2783 ] Pixel_OffscreenCanvasWebglResizeOnWorker [ RetryOnFailure ]
-crbug.com/450326413 [ win11 nvidia-0x2783 ] Pixel_OffscreenCanvasWebGLSoftwareCompositing [ RetryOnFailure ]
-crbug.com/450325666 [ win11 nvidia-0x2783 ] Pixel_DirectComposition_Video_VP9_Fullsize [ RetryOnFailure ]
-crbug.com/450325666 [ win11 nvidia-0x2783 ] Pixel_OffscreenCanvasUnaccelerated2DGPUCompositing [ RetryOnFailure ]
-crbug.com/450325666 [ win11 nvidia-0x2783 ] Pixel_WebGLTextureFromWebGLReadback [ RetryOnFailure ]
-crbug.com/450325666 [ win11 nvidia-0x2783 ] Pixel_WebGPUImportVideoFrame [ RetryOnFailure ]
+
+# ViewTransitions capturing incorrect image
+crbug.com/446157733 [ android-pixel-4 angle-opengles graphite-disabled ] Pixel_ViewTransitionsCapture [ Failure ]
+crbug.com/446157733 [ android-pixel-6 angle-vulkan ] Pixel_ViewTransitionsCapture [ Failure ]
 
 #######################################################################
 # Automated Entries After This Point - Do Not Manually Add Below Here #

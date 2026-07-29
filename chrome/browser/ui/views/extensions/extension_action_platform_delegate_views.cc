@@ -14,9 +14,9 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/extensions/accelerator_priority.h"
 #include "chrome/browser/ui/extensions/extension_action_view_controller.h"
-#include "chrome/browser/ui/extensions/extensions_container.h"
 #include "chrome/browser/ui/tabs/tab_list_interface.h"
 #include "chrome/browser/ui/views/extensions/extension_popup.h"
+#include "chrome/browser/ui/views/extensions/extensions_container_views.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_action_view_delegate_views.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_view.h"
@@ -32,7 +32,7 @@ using extensions::ActionInfo;
 
 ExtensionActionPlatformDelegateViews::ExtensionActionPlatformDelegateViews(
     BrowserWindowInterface* browser,
-    ExtensionsContainer* extensions_container)
+    ExtensionsContainerViews* extensions_container)
     : browser_(browser), extensions_container_(extensions_container) {}
 
 ExtensionActionPlatformDelegateViews::~ExtensionActionPlatformDelegateViews() {
@@ -97,10 +97,10 @@ void ExtensionActionPlatformDelegateViews::ShowPopup(
   // TOP_RIGHT is correct for both RTL and LTR, because the views platform
   // performs the flipping in RTL cases.
   views::BubbleBorder::Arrow arrow = views::BubbleBorder::TOP_RIGHT;
-  ExtensionPopup::ShowPopup(browser_->GetBrowserForMigrationOnly(),
-                            std::move(host),
-                            GetDelegateViews()->GetReferenceButtonForPopup(),
-                            arrow, show_action, std::move(callback));
+  ExtensionPopup::ShowPopup(
+      browser_->GetBrowserForMigrationOnly(), std::move(host),
+      extensions_container_->GetReferenceButtonForPopup(controller_->GetId()),
+      arrow, show_action, std::move(callback));
 
   extensions_container_->OnPopupShown(controller_->GetId(), by_user);
 }
@@ -137,7 +137,7 @@ void ExtensionActionPlatformDelegateViews::RegisterCommand() {
 
   extensions::Command extension_command;
   views::FocusManager* focus_manager =
-      GetDelegateViews()->GetFocusManagerForAccelerator();
+      extensions_container_->GetFocusManagerForAccelerator();
   if (focus_manager && controller_->GetExtensionCommand(&extension_command)) {
     action_keybinding_ =
         std::make_unique<ui::Accelerator>(extension_command.accelerator());
@@ -153,7 +153,7 @@ void ExtensionActionPlatformDelegateViews::UnregisterCommand() {
   }
 
   views::FocusManager* focus_manager =
-      GetDelegateViews()->GetFocusManagerForAccelerator();
+      extensions_container_->GetFocusManagerForAccelerator();
   if (focus_manager) {
     focus_manager->UnregisterAccelerator(*action_keybinding_, this);
     action_keybinding_.reset();

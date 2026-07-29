@@ -13,6 +13,7 @@ import org.chromium.base.ObserverList;
 import org.chromium.base.Token;
 import org.chromium.base.TraceEvent;
 import org.chromium.base.metrics.RecordUserAction;
+import org.chromium.base.process_launcher.ScopedServiceBindingBatch;
 import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.base.supplier.ObservableSupplierImpl;
 import org.chromium.build.annotations.EnsuresNonNullIf;
@@ -34,6 +35,7 @@ import org.chromium.chrome.browser.tabmodel.PendingTabClosureManager.PendingTabC
 import org.chromium.chrome.browser.tabmodel.TabGroupModelFilter.MergeNotificationType;
 import org.chromium.chrome.browser.tasks.tab_management.MoveTabUtils;
 import org.chromium.components.tabs.TabStripCollection;
+import org.chromium.components.ukm.UkmRecorder;
 import org.chromium.content_public.browser.WebContents;
 
 import java.util.ArrayList;
@@ -48,14 +50,16 @@ import java.util.Set;
 /**
  * This is the implementation of the synchronous {@link TabModel} for the {@link
  * ChromeTabbedActivity}.
+ *
+ * @deprecated This class is replaced by {@link TabCollectionTabModelImpl}. This class will be
+ *     deleted in the coming weeks. If you make a change to this class it MUST be mirrored to {@link
+ *     TabCollectionTabModelImpl}.
  */
+@Deprecated
 @NullMarked
 public class TabModelImpl extends TabModelJniBridge {
-    /**
-     * The application ID used for tabs opened from an application that does not specify an app ID
-     * in its VIEW intent extras.
-     */
-    public static final String UNKNOWN_APP_ID = "com.google.android.apps.chrome.unknown_app";
+    /** The name of the UKM event used for tab state changes. */
+    private static final String UKM_METRICS_TAB_STATE_CHANGED = "Tab.StateChange";
 
     /**
      * The main list of tabs. Note that when this changes, all pending closures must be committed
@@ -446,6 +450,13 @@ public class TabModelImpl extends TabModelJniBridge {
         int availableIndex = findFirstNonPinnedTabIndex();
         if (availableIndex == mTabs.size()) return;
 
+        WebContents webContents = tab.getWebContents();
+        if (webContents != null) {
+            new UkmRecorder(webContents, UKM_METRICS_TAB_STATE_CHANGED)
+                    .addBooleanMetric("IsPinned")
+                    .record();
+        }
+
         notifyWillChangeInPinState(tab);
         tab.setIsPinned(true);
         recordPinTimestamp(tab);
@@ -799,7 +810,10 @@ public class TabModelImpl extends TabModelJniBridge {
     @Override
     public void setIndex(int i, final @TabSelectionType int type) {
         if (mIsArchivedTabModel) return;
-        try {
+        // Batch service binding updates for the tabs becoming active and inactive. The activeness
+        // change usually causes visibility changes, which updates service bindings of subframes at
+        // the same time.
+        try (ScopedServiceBindingBatch scope = ScopedServiceBindingBatch.scoped()) {
             TraceEvent.begin("TabModelImpl.setIndex");
             int lastId =
                     mCurrentTabSupplier.get() != null

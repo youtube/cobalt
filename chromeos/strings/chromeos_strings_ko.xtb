@@ -756,6 +756,7 @@
 <translation id="4300073214558989">이미지 <ph name="IMAGE_COUNT" />개</translation>
 <translation id="4300272766492248925">앱 열기</translation>
 <translation id="430786093962686457">시폰</translation>
+<translation id="4309762678330556039">자동으로 스크립트를 작성하고 오디오를 검색하세요. 인터넷에 연결되지 않아도 녹음 파일을 만들 수 있습니다.</translation>
 <translation id="4310735698903592804">Google AI 기반 최신 배경화면</translation>
 <translation id="4320904097188876154">네온 핑크색</translation>
 <translation id="432961742358282111">마우스 오른쪽 버튼으로 클릭하거나 길게 눌러 정의, 번역 또는 단위 변환을 확인합니다. 이 기능을 관리하려면 왼쪽 또는 오른쪽 화살표 키를 사용하세요.</translation>
@@ -1472,6 +1473,7 @@
 <translation id="7425832472614771259"><ph name="LANGUAGE_NAME" /> 스크립트 작성 모델 <ph name="PROGRESS_PERCENTAGE" />% 다운로드됨</translation>
 <translation id="7427315641433634153">MSCHAP</translation>
 <translation id="7438298994385592770">이 APN을 사용 중지하거나 삭제할 수 없습니다. 사용 설정된 <ph name="ATTACH" /> APN이 사용 중지되거나 삭제되었는지 확인하세요.</translation>
+<translation id="7458359366992324037">원격 디스플레이</translation>
 <translation id="7458970041932198923">아바타를 보고 설정하려면 네트워크에 연결하고 페이지를 새로고침하세요.</translation>
 <translation id="7469648432129124067">포털 감지됨</translation>
 <translation id="7481312909269577407">앞으로</translation>

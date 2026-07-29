@@ -182,7 +182,7 @@ bool ShouldStoreOldStyle(const StyleRecalcContext& style_recalc_context,
   // descendant explicitly inherits insets or other valid @position-try
   // properties from the element with position-try-fallbacks. This applies to
   // descendants of elements with anchor queries as well.
-  return (style_recalc_context.container ||
+  return (style_recalc_context.size_container ||
           style_recalc_context.has_anchored_container ||
           state.StyleBuilder().HasAnchorFunctions() ||
           state.StyleBuilder().PositionAnchor() ||
@@ -1739,7 +1739,8 @@ void StyleResolver::ApplyBaseStyleNoCache(
     if (IsForcedColorsModeEnabled()) {
       cascade.MutableMatchResult().AddMatchedProperties(
           ForcedColorsUserAgentDeclarations(),
-          /*env_bindings=*/nullptr, {.origin = CascadeOrigin::kUserAgent});
+          /*mixin_parameter_bindings=*/nullptr,
+          {.origin = CascadeOrigin::kUserAgent});
     }
 
     // UA rule: * { overlay: none !important }
@@ -1751,7 +1752,8 @@ void StyleResolver::ApplyBaseStyleNoCache(
     // namespace since the sheet has a default namespace.
     cascade.MutableMatchResult().AddMatchedProperties(
         UniversalOverlayUserAgentDeclaration(),
-        /*env_bindings=*/nullptr, {.origin = CascadeOrigin::kUserAgent});
+        /*mixin_parameter_bindings=*/nullptr,
+        {.origin = CascadeOrigin::kUserAgent});
 
     // This adds a CSSInitialColorValue to the cascade for the document
     // element. The CSSInitialColorValue will resolve to a color-scheme
@@ -1763,7 +1765,8 @@ void StyleResolver::ApplyBaseStyleNoCache(
     if (element == state.GetDocument().documentElement()) {
       cascade.MutableMatchResult().AddMatchedProperties(
           DocumentElementUserAgentDeclarations(),
-          /*env_bindings=*/nullptr, {.origin = CascadeOrigin::kUserAgent});
+          /*mixin_parameter_bindings=*/nullptr,
+          {.origin = CascadeOrigin::kUserAgent});
     }
   }
 
@@ -2082,7 +2085,8 @@ CompositorKeyframeValue* StyleResolver::CreateCompositorKeyframeValueSnapshot(
     cascade.MutableMatchResult().BeginAddingAuthorRulesForTreeScope(
         element.GetTreeScope());
     cascade.MutableMatchResult().AddMatchedProperties(
-        set, /*env_bindings=*/nullptr, {.origin = CascadeOrigin::kAuthor});
+        set, /*mixin_parameter_bindings=*/nullptr,
+        {.origin = CascadeOrigin::kAuthor});
     cascade.Apply();
   }
   const ComputedStyle* style = state.TakeStyle();
@@ -2217,7 +2221,8 @@ const ComputedStyle* StyleResolver::StyleForPage(uint32_t page_index,
     set->SetProperty(CSSPropertyID::kMarginLeft, *value,
                      /*important=*/params.ignore_css_margins);
     cascade.MutableMatchResult().AddMatchedProperties(
-        set, /*env_bindings=*/nullptr, {.origin = CascadeOrigin::kUserAgent});
+        set, /*mixin_parameter_bindings=*/nullptr,
+        {.origin = CascadeOrigin::kUserAgent});
   }
 
   if (!ignore_author_style) {
@@ -2358,8 +2363,6 @@ ComputedStyleBuilder StyleResolver::InitialStyleBuilderForElement() const {
   FontDescription document_font_description = builder.GetFontDescription();
   document_font_description.SetLocale(
       LayoutLocale::Get(GetDocument().ContentLanguage()));
-  document_font_description.SetIsForcedColorsMode(
-      GetDocument().InForcedColorsMode());
 
   builder.SetFontDescription(document_font_description);
   builder.SetUserModify(GetDocument().InDesignMode() ? EUserModify::kReadWrite
@@ -2436,10 +2439,16 @@ Element* StyleResolver::FindContainerForElement(
     Element* element,
     const ContainerSelector& container_selector,
     const TreeScope* selector_tree_scope) {
-  DCHECK(element);
+  CHECK(element);
+  Element* start_candidate = FlatTreeTraversal::ParentElement(*element);
+  if (PseudoElement* pseudo_element = DynamicTo<PseudoElement>(element)) {
+    if (pseudo_element->IsLayoutSiblingOfOriginatingElement() &&
+        container_selector.SelectsSizeContainers()) {
+      start_candidate = FlatTreeTraversal::ParentElement(*start_candidate);
+    }
+  }
   return ContainerQueryEvaluator::FindContainer(
-      FlatTreeTraversal::ParentElement(*element), container_selector,
-      selector_tree_scope);
+      start_candidate, container_selector, selector_tree_scope);
 }
 
 RuleIndexList* StyleResolver::PseudoCSSRulesForElement(
@@ -2903,7 +2912,8 @@ const CSSValue* StyleResolver::ComputeValue(
   cascade.MutableMatchResult().BeginAddingAuthorRulesForTreeScope(
       element->GetTreeScope());
   cascade.MutableMatchResult().AddMatchedProperties(
-      set, /*env_bindings=*/nullptr, {.origin = CascadeOrigin::kAuthor});
+      set, /*mixin_parameter_bindings=*/nullptr,
+      {.origin = CascadeOrigin::kAuthor});
   cascade.Apply();
 
   if (state.HasUnsupportedGuaranteedInvalid()) {
@@ -2927,7 +2937,7 @@ const CSSValue* StyleResolver::ResolveValue(
   state.CreateNewClonedStyle(style);
   return StyleCascade::Resolve(state, property_name, value,
                                /*tree_scope=*/&document,
-                               /*env_bindings=*/nullptr);
+                               /*mixin_parameter_bindings=*/nullptr);
 }
 
 FilterOperations StyleResolver::ComputeFilterOperations(
@@ -3632,6 +3642,12 @@ StyleRulePositionTry* StyleResolver::ResolvePositionTryRule(
 }
 
 void StyleResolver::ApplyTriggerData(StyleResolverState& state) {
+  if (state.GetPseudoId() != PseudoId::kPseudoIdNone) {
+    // TODO(crbug.com/451477493): Applying trigger data here would clobber the
+    // style of the pseudo's originating element. We should investigate a
+    // cleaner solution to this than making an exception here.
+    return;
+  }
   CSSAnimations::UpdateNamedTriggers(
       state.StyleBuilder(), state.AnimationUpdate(), state.GetElement());
 }

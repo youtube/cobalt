@@ -82,7 +82,7 @@ class MockDesktopEnvironment : public DesktopEnvironment {
               GetDisplayInfoMonitor,
               (),
               (override));
-  MOCK_METHOD(std::unique_ptr<MouseCursorMonitor>,
+  MOCK_METHOD(std::unique_ptr<protocol::MouseCursorMonitor>,
               CreateMouseCursorMonitor,
               (),
               (override));
@@ -305,7 +305,7 @@ class MockSecurityKeyAuthHandler : public SecurityKeyAuthHandler {
   SecurityKeyAuthHandler::SendMessageCallback callback_;
 };
 
-class MockMouseCursorMonitor : public MouseCursorMonitor {
+class MockMouseCursorMonitor : public protocol::MouseCursorMonitor {
  public:
   MockMouseCursorMonitor();
 
@@ -314,8 +314,12 @@ class MockMouseCursorMonitor : public MouseCursorMonitor {
 
   ~MockMouseCursorMonitor() override;
 
-  MOCK_METHOD(void, Init, (Callback*, Mode), (override));
-  MOCK_METHOD(void, Capture, (), (override));
+  MOCK_METHOD(void,
+              Init,
+              (protocol::MouseCursorMonitor::Callback*,
+               protocol::MouseCursorMonitor::Mode),
+              (override));
+  MOCK_METHOD(void, SetPreferredCaptureInterval, (base::TimeDelta), (override));
 };
 
 class MockUrlForwarderConfigurator final : public UrlForwarderConfigurator {

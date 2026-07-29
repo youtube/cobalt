@@ -211,8 +211,7 @@ class OopPixelTest : public testing::Test,
     auto* ri = raster_context_provider_->RasterInterface();
     auto* sii = raster_context_provider_->SharedImageInterface();
     gpu::SharedImageUsageSet flags = gpu::SHARED_IMAGE_USAGE_RASTER_READ |
-                                     gpu::SHARED_IMAGE_USAGE_RASTER_WRITE |
-                                     gpu::SHARED_IMAGE_USAGE_OOP_RASTERIZATION;
+                                     gpu::SHARED_IMAGE_USAGE_RASTER_WRITE;
     auto client_shared_image = sii->CreateSharedImage(
         {viz::SinglePlaneFormat::kRGBA_8888, gfx::Size(width, height),
          options.target_color_params.color_space, flags, "TestLabel"},
@@ -300,8 +299,7 @@ class OopPixelTest : public testing::Test,
     // These SharedImages serve as both the source of reads and destination of
     // writes via the raster interface in these tests.
     gpu::SharedImageUsageSet flags = gpu::SHARED_IMAGE_USAGE_RASTER_READ |
-                                     gpu::SHARED_IMAGE_USAGE_RASTER_WRITE |
-                                     gpu::SHARED_IMAGE_USAGE_OOP_RASTERIZATION;
+                                     gpu::SHARED_IMAGE_USAGE_RASTER_WRITE;
     auto client_shared_image = sii->CreateSharedImage(
         {format, options.resource_size,
          color_space.value_or(options.target_color_params.color_space), flags,
@@ -2967,9 +2965,7 @@ class OopPathPixelTest : public OopPixelTest,
     PaintFlags flags;
     flags.setStyle(PaintFlags::kFill_Style);
     flags.setColor(SkColors::kGreen);
-    SkPath path;
-    path.addCircle(20, 20, 10);
-    display_item_list->push<DrawPathOp>(path, flags);
+    display_item_list->push<DrawPathOp>(SkPath::Circle(20, 20, 10), flags);
     flags.setColor(SkColors::kBlue);
     display_item_list->push<DrawRectOp>(SkRect::MakeWH(10, 10), flags);
     display_item_list->EndPaintOfUnpaired(options.full_raster_rect);

@@ -1022,18 +1022,11 @@ void LocalFrameView::RunIntersectionObserverSteps() {
                            LocalFrameUkmAggregator::kIntersectionObservation);
 
   ComputeIntersectionsContext context;
-  bool has_active_observations = UpdateViewportIntersectionsForSubtree(
+  UpdateViewportIntersectionsForSubtree(
       IntersectionObservation::kConsumeScrollDelta |
           IntersectionObservation::kUpdateTracking,
       context);
-  if (FrameOwner* owner = frame_->Owner())
-    owner->SetNeedsOcclusionTracking(context.NeedsOcclusionTracking());
-  if (has_active_observations) {
-    GetChromeClient()->RequestMainFrameOnCompositorAnimation(
-        *frame_, context.NeedsOcclusionTracking()
-                     ? cc::PropertyChangeForcesCommitCriteria::kAny
-                     : cc::PropertyChangeForcesCommitCriteria::kTransform);
-  }
+
 #if DCHECK_IS_ON()
   DCHECK(was_dirty || !NeedsLayout());
 #endif
@@ -1096,8 +1089,12 @@ std::optional<NaturalSizingInfo> LocalFrameView::GetNaturalDimensions() const {
   if (!natural_height_) {
     return std::nullopt;
   }
+  const LayoutView* layout_view = GetLayoutView();
+  DCHECK(layout_view);
+  const float unscaled_natural_height =
+      AdjustForAbsoluteZoom::AdjustFloat(*natural_height_, *layout_view);
   NaturalSizingInfo info;
-  info.size = gfx::SizeF(0, *natural_height_);
+  info.size = gfx::SizeF(0, unscaled_natural_height);
   info.has_width = false;
   info.has_height = true;
   return info;
@@ -2375,8 +2372,12 @@ void LocalFrameView::UpdateLifecyclePhasesInternal(
           });
     }
     // Only run the rest of the steps here if resize observer is done.
-    if (needs_to_repeat_lifecycle)
+    if (needs_to_repeat_lifecycle) {
+      if (RuntimeEnabledFeatures::RunSnapshotPostLayoutStateStepsEnabled()) {
+        should_run_scroll_snapshot_client_steps = true;
+      }
       continue;
+    }
 
     // ViewTransition mutates the tree and mirrors post layout transform for
     // transitioning elements to UA created elements. This may dirty
@@ -2384,6 +2385,14 @@ void LocalFrameView::UpdateLifecyclePhasesInternal(
     needs_to_repeat_lifecycle = RunViewTransitionSteps(target_state);
     if (!needs_to_repeat_lifecycle)
       break;
+  }
+
+  UpdateIntersectionObserverStatus();
+  if (HasActiveIntersectionObservations()) {
+    GetChromeClient()->RequestMainFrameOnCompositorAnimation(
+        *frame_, NeedsOcclusionTracking()
+                     ? cc::PropertyChangeForcesCommitCriteria::kAny
+                     : cc::PropertyChangeForcesCommitCriteria::kTransform);
   }
 
   // 21. For each doc of docs, mark paint timing for doc.
@@ -3751,20 +3760,6 @@ void LocalFrameView::AddScrollbar(Scrollbar* scrollbar) {
   scrollbars_.insert(scrollbar);
 }
 
-bool LocalFrameView::VisualViewportSuppliesScrollbars() {
-  // On desktop, we always use the layout viewport's scrollbars.
-  if (!frame_->GetSettings() || !frame_->GetSettings()->GetViewportEnabled() ||
-      !frame_->GetDocument() || !frame_->GetPage())
-    return false;
-
-  if (!LayoutViewport())
-    return false;
-
-  const TopDocumentRootScrollerController& controller =
-      frame_->GetPage()->GlobalRootScrollerController();
-  return controller.RootScrollerArea() == LayoutViewport();
-}
-
 AXObjectCache* LocalFrameView::ExistingAXObjectCache() const {
   if (GetFrame().GetDocument())
     return GetFrame().GetDocument()->ExistingAXObjectCache();
@@ -4284,61 +4279,31 @@ void LocalFrameView::CollectDraggableRegions(
     CollectDraggableRegions(*curr, regions);
 }
 
-bool LocalFrameView::UpdateViewportIntersectionsForSubtree(
-    unsigned parent_flags,
-    ComputeIntersectionsContext& context) {
+void LocalFrameView::UpdateIntersectionObserverStatus() {
+  has_active_intersection_observations_ = false;
+
   IntersectionObserverController* controller =
       GetFrame().GetDocument()->GetIntersectionObserverController();
-  // This will be recomputed, but default to the previous computed value if
-  // there's an early return.
-  bool needs_occlusion_tracking =
-      controller && controller->NeedsOcclusionTracking();
-
-  // TODO(dcheng): Since LocalFrameView tree updates are deferred, FrameViews
-  // might still be in the LocalFrameView hierarchy even though the associated
-  // Document is already detached. Investigate if this check and a similar check
-  // in lifecycle updates are still needed when there are no more deferred
-  // LocalFrameView updates: https://crbug.com/561683
   if (!GetFrame().GetDocument()->IsActive()) {
-    if (needs_occlusion_tracking) {
-      context.SetNeedsOcclusionTracking();
-    }
-    return false;
+    // This can be an ephemeral state, in which case we should avoid any
+    // temporary gaps in occlusion calculation by retaining the previously
+    // computed value of needs_occlusion_tracking_.
+    return;
   }
 
-  bool has_active_observations = false;
-  unsigned flags = GetIntersectionObservationFlags(parent_flags);
-  // Update anyway, even if the frame is display locked or throttled. If the
-  // frame is display locked or the layout is dirty, this will create a
-  // degenerate "not intersecting" notification or schedule a delayed update
-  // if needed.
+  needs_occlusion_tracking_ = false;
+
   if (controller) {
-    has_active_observations = controller->ComputeIntersections(
-        flags, *this, accumulated_scroll_delta_since_last_intersection_update_,
-        context);
-    if (flags & IntersectionObservation::kConsumeScrollDelta) {
-      accumulated_scroll_delta_since_last_intersection_update_ =
-          gfx::Vector2dF();
-    }
-    needs_occlusion_tracking = controller->NeedsOcclusionTracking();
+    controller->UpdateIntersectionObserverStatus();
+    has_active_intersection_observations_ = controller->HasActiveObservations();
+    needs_occlusion_tracking_ = controller->NeedsOcclusionTracking();
   }
-  intersection_observation_state_ = kNotNeeded;
-
-  {
-    SCOPED_UMA_AND_UKM_TIMER(
-        GetUkmAggregator(),
-        LocalFrameUkmAggregator::kUpdateViewportIntersection);
-    UpdateViewportIntersection(flags, needs_occlusion_tracking);
-  }
-
-  if (needs_occlusion_tracking) {
-    context.SetNeedsOcclusionTracking();
-  }
-
   for (Frame* child = frame_->Tree().FirstChild(); child;
        child = child->Tree().NextSibling()) {
-    has_active_observations |=
-        child->View()->UpdateViewportIntersectionsForSubtree(flags, context);
+    child->View()->UpdateIntersectionObserverStatus();
+    has_active_intersection_observations_ |=
+        child->View()->HasActiveIntersectionObservations();
+    needs_occlusion_tracking_ |= child->View()->NeedsOcclusionTracking();
   }
 
   if (DocumentFencedFrames* fenced_frames =
@@ -4346,14 +4311,78 @@ bool LocalFrameView::UpdateViewportIntersectionsForSubtree(
     for (HTMLFencedFrameElement* fenced_frame :
          fenced_frames->GetFencedFrames()) {
       if (Frame* frame = fenced_frame->ContentFrame()) {
-        has_active_observations |=
-            frame->View()->UpdateViewportIntersectionsForSubtree(flags,
-                                                                 context);
+        frame->View()->UpdateIntersectionObserverStatus();
+        has_active_intersection_observations_ |=
+            frame->View()->HasActiveIntersectionObservations();
+        needs_occlusion_tracking_ |= frame->View()->NeedsOcclusionTracking();
       }
     }
   }
 
-  return has_active_observations;
+  if (FrameOwner* owner = frame_->Owner()) {
+    owner->SetNeedsOcclusionTracking(needs_occlusion_tracking_);
+  }
+}
+
+bool LocalFrameView::HasActiveIntersectionObservations() const {
+  return has_active_intersection_observations_;
+}
+
+bool LocalFrameView::NeedsOcclusionTracking() const {
+  return needs_occlusion_tracking_;
+}
+
+void LocalFrameView::UpdateViewportIntersectionsForSubtree(
+    unsigned parent_flags,
+    ComputeIntersectionsContext& context) {
+  // TODO(dcheng): Since LocalFrameView tree updates are deferred, FrameViews
+  // might still be in the LocalFrameView hierarchy even though the associated
+  // Document is already detached. Investigate if this check and a similar check
+  // in lifecycle updates are still needed when there are no more deferred
+  // LocalFrameView updates: https://crbug.com/561683
+  if (!GetFrame().GetDocument()->IsActive()) {
+    return;
+  }
+
+  unsigned flags = GetIntersectionObservationFlags(parent_flags);
+  IntersectionObserverController* controller =
+      GetFrame().GetDocument()->GetIntersectionObserverController();
+  // Update anyway, even if the frame is display locked or throttled. If the
+  // frame is display locked or the layout is dirty, this will create a
+  // degenerate "not intersecting" notification or schedule a delayed update
+  // if needed.
+  if (controller) {
+    controller->ComputeIntersections(
+        flags, *this, accumulated_scroll_delta_since_last_intersection_update_,
+        context);
+    if (flags & IntersectionObservation::kConsumeScrollDelta) {
+      accumulated_scroll_delta_since_last_intersection_update_ =
+          gfx::Vector2dF();
+    }
+  }
+  intersection_observation_state_ = kNotNeeded;
+
+  {
+    SCOPED_UMA_AND_UKM_TIMER(
+        GetUkmAggregator(),
+        LocalFrameUkmAggregator::kUpdateViewportIntersection);
+    UpdateViewportIntersection(flags, NeedsOcclusionTracking());
+  }
+
+  for (Frame* child = frame_->Tree().FirstChild(); child;
+       child = child->Tree().NextSibling()) {
+    child->View()->UpdateViewportIntersectionsForSubtree(flags, context);
+  }
+
+  if (DocumentFencedFrames* fenced_frames =
+          DocumentFencedFrames::Get(*frame_->GetDocument())) {
+    for (HTMLFencedFrameElement* fenced_frame :
+         fenced_frames->GetFencedFrames()) {
+      if (Frame* frame = fenced_frame->ContentFrame()) {
+        frame->View()->UpdateViewportIntersectionsForSubtree(flags, context);
+      }
+    }
+  }
 }
 
 void LocalFrameView::DeliverSynchronousIntersectionObservations() {

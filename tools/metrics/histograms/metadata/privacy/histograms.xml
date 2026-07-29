@@ -621,7 +621,7 @@ Regular profiles start at bucket 1, we don't consider non-regular profiles. -->
 </histogram>
 
 <histogram name="Privacy.DIPS.TimeFromNavigationCommitToClientBounce"
-    units="ms" expires_after="2025-11-02">
+    units="ms" expires_after="2026-05-02">
   <owner>liu@chromium.org</owner>
   <owner>src/content/browser/btm/OWNERS</owner>
   <summary>
@@ -1922,16 +1922,6 @@ Regular profiles start at bucket 1, we don't consider non-regular profiles. -->
     Records the amount of times each survey was attempted to be shown on Clank.
     Values do not indicate the amount of surveys shown as each attempt can fail
     due to various factors.
-  </summary>
-</histogram>
-
-<histogram name="PrivacySandbox.WhatsNewSurvey.Status"
-    enum="PrivacySandboxWhatsNewSurveyStatus" expires_after="2026-02-26">
-  <owner>michalhoffmann@google.com</owner>
-  <owner>polonium@google.com</owner>
-  <summary>
-    Records the status when attempting to surface the ACT What's New survey. The
-    ACT What's New survey is triggered on the What's New page with a delay.
   </summary>
 </histogram>
 

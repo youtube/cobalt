@@ -153,6 +153,11 @@ BASE_DECLARE_FEATURE(kAvoidResourceRequestCopies);
 COMPONENT_EXPORT(NETWORK_CPP_FLAGS_AND_SWITCHES)
 BASE_DECLARE_FEATURE(kDocumentIsolationPolicy);
 
+// Should connection allowlists be enforced?
+// https://github.com/mikewest/anti-exfil
+COMPONENT_EXPORT(NETWORK_CPP_FLAGS_AND_SWITCHES)
+BASE_DECLARE_FEATURE(kConnectionAllowlists);
+
 // To actually use the prefetch results, it's also necessary to enable
 // kNetworkContextPrefetchUseCache, below.
 COMPONENT_EXPORT(NETWORK_CPP_FLAGS_AND_SWITCHES)
@@ -369,6 +374,14 @@ BASE_DECLARE_FEATURE_PARAM(bool, kNetworkServiceTaskSchedulerURLLoader);
 // per-net::RequestrPriority task queues for each RequestPriority variant.
 COMPONENT_EXPORT(NETWORK_CPP_FLAGS_AND_SWITCHES)
 BASE_DECLARE_FEATURE(kNetworkServicePerPriorityTaskQueues);
+
+// When enabled the browser process will start an UnexportableKeyService proxy
+// service that can be used by other processes. It will also make the network
+// process start using the proxy. This is needed for example when implementing
+// DBSC for macOS, since access to the Secure Enclave requires higher privileges
+// than what the network process has.
+COMPONENT_EXPORT(NETWORK_CPP_FLAGS_AND_SWITCHES)
+BASE_DECLARE_FEATURE(kUseUnexportableKeyServiceInBrowserProcess);
 
 }  // namespace network::features
 

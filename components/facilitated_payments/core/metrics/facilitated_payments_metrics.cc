@@ -8,8 +8,10 @@
 #include "base/metrics/histogram_macros.h"
 #include "base/strings/strcat.h"
 #include "base/time/time.h"
+#include "components/facilitated_payments/core/mojom/pix_code_validator.mojom.h"
 #include "components/facilitated_payments/core/utils/facilitated_payments_utils.h"
 #include "components/facilitated_payments/core/validation/payment_link_validator.h"
+#include "components/facilitated_payments/core/validation/pix_code_validator.h"
 #include "services/metrics/public/cpp/ukm_builders.h"
 
 namespace payments::facilitated {
@@ -74,6 +76,19 @@ std::string PaymentLinkFopSelectorTypesToString(
       return "A2AOnly";
     case PaymentLinkFopSelectorTypes::kEwalletAndA2A:
       return "EwalletAndA2A";
+  }
+}
+
+std::string PixCodeValidationResultToString(PixCodeValidationResult result) {
+  switch (result) {
+    case PixCodeValidationResult::kDynamic:
+      return "DynamicCode";
+    case PixCodeValidationResult::kStatic:
+      return "StaticCode";
+    case PixCodeValidationResult::kInvalid:
+      return "InvalidCode";
+    case PixCodeValidationResult::kValidatorFailed:
+      return "ValidatorFailed";
   }
 }
 
@@ -165,20 +180,13 @@ void LogEwalletFopSelected(AvailableEwalletsConfiguration type) {
       FopSelectorAction::kFopSelected);
 }
 
-void LogPaymentCodeValidationResultAndLatency(
-    base::expected<bool, std::string> result,
-    base::TimeDelta duration) {
-  std::string payment_code_validation_result_type;
-  if (!result.has_value()) {
-    payment_code_validation_result_type = "ValidatorFailed";
-  } else if (!result.value()) {
-    payment_code_validation_result_type = "InvalidCode";
-  } else {
-    payment_code_validation_result_type = "ValidCode";
-  }
+void LogPaymentCodeValidationResultAndLatency(PixCodeValidationResult result,
+                                              base::TimeDelta duration) {
+  base::UmaHistogramEnumeration(
+      "FacilitatedPayments.Pix.PaymentCodeValidation.Result", result);
   base::UmaHistogramLongTimes(
       base::StrCat({"FacilitatedPayments.Pix.PaymentCodeValidation.",
-                    payment_code_validation_result_type, ".Latency"}),
+                    PixCodeValidationResultToString(result), ".Latency"}),
       duration);
 }
 

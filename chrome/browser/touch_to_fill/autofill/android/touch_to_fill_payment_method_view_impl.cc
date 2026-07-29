@@ -90,8 +90,10 @@ ConvertBnplIssuerTosDetailToJavaObject(
 static base::android::ScopedJavaLocalRef<jobject>
 CreateJavaBnplIssuerContextFromNative(
     JNIEnv* env,
-    const autofill::payments::BnplIssuerContext& bnpl_issuer_context) {
-  // For now, Android only uses the `LightModeImageId`.
+    const autofill::TouchToFillPaymentMethodViewController& controller,
+    const autofill::payments::BnplIssuerContext& bnpl_issuer_context,
+    const std::string& app_locale) {
+  // Android uses the `LightModeImageId` for both light and dark modes.
   const std::pair<autofill::BnplIssuer::LightModeImageId,
                   autofill::BnplIssuer::DarkModeImageId>
       image_ids = GetBnplIssuerIconIds(
@@ -99,16 +101,13 @@ CreateJavaBnplIssuerContextFromNative(
           /*issuer_linked=*/bnpl_issuer_context.issuer.payment_instrument()
               .has_value());
 
-  // TODO(crbug.com/430575808): App locale will be provided to `ShowBnplIssuers`
-  // in crrev.com/c/7005163. Once this CL is merged remove the hard-coded app
-  // locale, "en-US".
   const std::u16string selection_text =
       autofill::payments::GetBnplIssuerSelectionOptionText(
-          bnpl_issuer_context.issuer.issuer_id(), "en-US",
+          bnpl_issuer_context.issuer.issuer_id(), app_locale,
           {bnpl_issuer_context});
 
   return autofill::Java_BnplIssuerContext_Constructor(
-      env, image_ids.first.value(),
+      env, controller.GetJavaResourceId(image_ids.first.value()),
       std::string(
           ConvertToBnplIssuerIdString(bnpl_issuer_context.issuer.issuer_id())),
       bnpl_issuer_context.issuer.GetDisplayName(), selection_text,
@@ -278,7 +277,9 @@ bool TouchToFillPaymentMethodViewImpl::ShowProgressScreen(
 }
 
 bool TouchToFillPaymentMethodViewImpl::ShowBnplIssuers(
-    base::span<const payments::BnplIssuerContext> bnpl_issuer_contexts) {
+    const TouchToFillPaymentMethodViewController& controller,
+    base::span<const payments::BnplIssuerContext> bnpl_issuer_contexts,
+    const std::string& app_locale) {
   if (!java_object_) {
     return false;
   }
@@ -288,17 +289,12 @@ bool TouchToFillPaymentMethodViewImpl::ShowBnplIssuers(
   issuer_context_array.reserve(bnpl_issuer_contexts.size());
   for (const payments::BnplIssuerContext& issuer_context :
        bnpl_issuer_contexts) {
-    issuer_context_array.push_back(
-        CreateJavaBnplIssuerContextFromNative(env, issuer_context));
+    issuer_context_array.push_back(CreateJavaBnplIssuerContextFromNative(
+        env, controller, issuer_context, app_locale));
   }
 
-  // Pass only the raw string to Java. The link's start/end indices from
-  // `GetBnplUiFooterText()` are no longer needed, as the link's position is
-  // defined declaratively by `<link>` tags within the string resource. The
-  // Android UI layer is responsible for creating the clickable span.
   Java_TouchToFillPaymentMethodViewBridge_showBnplIssuers(
-      env, java_object_, std::move(issuer_context_array),
-      ConvertUTF16ToJavaString(env, payments::GetBnplUiFooterText()));
+      env, java_object_, std::move(issuer_context_array));
   return true;
 }
 
@@ -344,6 +340,13 @@ void TouchToFillPaymentMethodViewImpl::Hide() {
   if (java_object_) {
     Java_TouchToFillPaymentMethodViewBridge_hideSheet(
         base::android::AttachCurrentThread(), java_object_);
+  }
+}
+
+void TouchToFillPaymentMethodViewImpl::SetVisible(bool visible) {
+  if (java_object_) {
+    Java_TouchToFillPaymentMethodViewBridge_setVisible(
+        base::android::AttachCurrentThread(), java_object_, visible);
   }
 }
 

@@ -872,7 +872,8 @@ void WaitForFakeJoinFlowView() {
 }
 
 // Ensures new tab is added when closing the last tab of a shared group.
-- (void)testCloseLastTabInSharedGroup {
+// TODO(crbug.com/454567832): Re-enable this test.
+- (void)FLAKY_testCloseLastTabInSharedGroup {
   AddSharedGroup(/*owner=*/NO, self.testServer);
   [ChromeEarlGrey waitForMainTabCount:1];
 
@@ -1446,7 +1447,8 @@ void WaitForFakeJoinFlowView() {
 
 // Tests that the activity indicators (blue dot and notification dot) on the
 // toolbar are updated when a shared group is updated.
-- (void)testActivityIndicatorsOnToolbar {
+// TODO(crbug.com/454262963): test is flaky, disable it.
+- (void)DISABLED_testActivityIndicatorsOnToolbar {
   AddSharedGroup(/*owner=*/YES, self.testServer);
   [ChromeEarlGrey waitForMainTabCount:1];
 

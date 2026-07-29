@@ -22,6 +22,9 @@ ci.defaults.set(
     pool = ci_constants.DEFAULT_POOL,
     cores = 8,
     execution_timeout = 10 * time.hour,
+    experiments = {
+        "chromium_tests.resultdb_module": 100,
+    },
     health_spec = health_spec.default(),
     priority = ci_constants.DEFAULT_FYI_PRIORITY,
     service_account = ci_constants.DEFAULT_SERVICE_ACCOUNT,
@@ -188,7 +191,7 @@ ci.builder(
                     },
                 ),
             ),
-            "chromium_pixel_2_pie",
+            "chromium_pixel_2_q",
             "has_native_resultdb_integration",
         ],
     ),
@@ -1170,7 +1173,7 @@ fyi_ios_builder(
         mixins = [
             "has_native_resultdb_integration",
             "ioswpt-chromium-swarming-pool",
-            "mac_14_x64",
+            "mac_15_x64",
             "mac_toolchain",
             "xcode_26_main",
         ],
@@ -1518,7 +1521,7 @@ ci.builder(
             "variations_smoke_tests",  # single module scheme
             "mojo_python_unittests",  # pyunit scheme
             "grit_python_unittests",  # pyunit scheme
-            "webgpu_cts_dedicated_worker_tests",  # webgpucts scheme
+            "webgpu_cts_structured_test_id_dedicated_worker_tests",  # webgpucts scheme
         ],
         mixins = [
             "isolate_profile_data",
@@ -1573,7 +1576,7 @@ ci.builder(
             "webdriver_wpt_tests": targets.mixin(
                 ci_only = True,
             ),
-            "webgpu_cts_dedicated_worker_tests": [
+            "webgpu_cts_structured_test_id_dedicated_worker_tests": [
                 "linux_nvidia_gtx_1660_stable",
             ],
         },

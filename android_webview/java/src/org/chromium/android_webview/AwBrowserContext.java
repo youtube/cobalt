@@ -31,6 +31,7 @@ import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.blink.mojom.PermissionStatus;
 import org.chromium.content_public.browser.BrowserContextHandle;
 import org.chromium.content_public.browser.ContentViewStatics;
+import org.chromium.url.GURL;
 import org.chromium.url.Origin;
 
 import java.util.List;
@@ -495,6 +496,21 @@ public class AwBrowserContext implements BrowserContextHandle {
                 .isValidHttpHeaderName(headerName);
     }
 
+    public void addQuicHints(Set<String> origins) {
+        GURL[] gurls = new GURL[origins.size()];
+        int i = 0;
+        for (String origin : origins) {
+            GURL gurl = new GURL(origin);
+            if (GURL.isEmptyOrInvalid(gurl)) {
+                throw new IllegalArgumentException("Invalid origin: " + origin);
+            }
+
+            gurls[i++] = gurl;
+        }
+
+        AwBrowserContextJni.get().addQuicHints(mNativeAwBrowserContext, gurls);
+    }
+
     @NativeMethods
     interface Natives {
         AwBrowserContext getDefaultJava();
@@ -549,5 +565,8 @@ public class AwBrowserContext implements BrowserContextHandle {
         boolean isValidHttpHeaderName(@JniType("std::string") String headerName);
 
         boolean isValidHttpHeaderValue(@JniType("std::string") String headerValue);
+
+        void addQuicHints(
+                long nativeAwBrowserContext, @JniType("std::vector<GURL>") GURL[] origins);
     }
 }

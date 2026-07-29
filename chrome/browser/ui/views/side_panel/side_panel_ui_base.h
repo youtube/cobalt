@@ -57,8 +57,9 @@ class SidePanelUIBase : public SidePanelUI, public TabStripModelObserver {
       SidePanelEntry::Key entry_key,
       std::optional<SidePanelUtil::SidePanelOpenTrigger> open_trigger) override;
   std::optional<SidePanelEntry::Id> GetCurrentEntryId() const override;
-  int GetCurrentEntryDefaultContentWidth() const override;
-  bool IsSidePanelShowing() const override;
+  int GetCurrentEntryDefaultContentWidth(
+      SidePanelEntry::PanelType type) const override;
+  bool IsSidePanelShowing(SidePanelEntry::PanelType type) const override;
   bool IsSidePanelEntryShowing(
       const SidePanelEntry::Key& entry_key) const override;
   base::CallbackListSubscription RegisterSidePanelShown(
@@ -138,10 +139,11 @@ class SidePanelUIBase : public SidePanelUI, public TabStripModelObserver {
 
   void NotifyShownCallbacksFor(SidePanelEntry::PanelType type);
 
-  std::optional<UniqueKey> current_key() const {
-    return panel_data_.at(SidePanelEntry::PanelType::kContent)->current_key;
+  std::optional<UniqueKey> current_key(SidePanelEntry::PanelType type) const {
+    return panel_data_.at(type)->current_key;
   }
-  void SetCurrentKey(std::optional<UniqueKey> new_key);
+  void SetCurrentKey(SidePanelEntry::PanelType type,
+                     std::optional<UniqueKey> new_key);
 
   std::optional<UniqueKey> GetUniqueKeyForKey(
       const SidePanelEntry::Key& entry_key) const;
@@ -158,9 +160,10 @@ class SidePanelUIBase : public SidePanelUI, public TabStripModelObserver {
   // nullopt if no suitable entry is found. Called from
   // `OnTabStripModelChanged()` when there's an active entry being shown in the
   // side panel.
-  std::optional<UniqueKey> GetNewActiveKeyOnTabChanged();
+  std::optional<UniqueKey> GetNewActiveKeyOnTabChanged(
+      SidePanelEntry::PanelType type);
 
-  SidePanelEntryWaiter* waiter() const;
+  SidePanelEntryWaiter* waiter(SidePanelEntry::PanelType type) const;
 
   const raw_ptr<Browser> browser_;
 

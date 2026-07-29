@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "base/component_export.h"
+#include "base/sequence_checker.h"
 #include "base/types/optional_ref.h"
 #include "gpu/command_buffer/service/sequence_id.h"
 #include "gpu/command_buffer/service/shared_context_state.h"
@@ -112,11 +113,6 @@ class COMPONENT_EXPORT(WEBNN_SERVICE) WebNNContextProviderImpl
     DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
     return shared_context_state_;
   }
-
-  // For tests: ensure that all WebNNContextImpls have been destroyed on their
-  // owning task runners, since they may post tasks to the gpu::Scheduler.
-  base::flat_set<scoped_refptr<base::SequencedTaskRunner>>
-  GetAllContextTaskRunnersForTesting();
 
  protected:
   // SequenceChecker for WebNNContextProviderImpl. It attaches to the sequence

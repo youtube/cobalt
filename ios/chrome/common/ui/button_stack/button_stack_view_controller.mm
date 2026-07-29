@@ -7,7 +7,6 @@
 #import "ios/chrome/common/app_group/app_group_utils.h"
 #import "ios/chrome/common/ui/button_stack/button_stack_action_delegate.h"
 #import "ios/chrome/common/ui/button_stack/button_stack_configuration.h"
-#import "ios/chrome/common/ui/button_stack/button_stack_constants.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
 #import "ios/chrome/common/ui/util/button_util.h"
 #import "ios/chrome/common/ui/util/chrome_button.h"
@@ -17,12 +16,10 @@
 namespace {
 
 const CGFloat kButtonSpacing = 8.0;
-const CGFloat kButtonStackBottomMargin = 20.0;
 const CGFloat kButtonStackHorizontalMargin = 16.0;
 
-// The size of the checkmark symbol in the confirmation state on the primary
-// button.
-const CGFloat kSymbolConfirmationCheckmarkPointSize = 17;
+const CGFloat kButtonStackBottomMargin = 20.0;
+const CGFloat kLegacyButtonStackBottomMargin = 0.0;
 
 // The position of a button in the stack.
 typedef NS_ENUM(NSInteger, ButtonStackButtonPosition) {
@@ -31,23 +28,19 @@ typedef NS_ENUM(NSInteger, ButtonStackButtonPosition) {
   ButtonStackButtonPositionTertiary,
 };
 
-// Sets the activity indicator of the button in the button configuration.
-void SetConfigurationActivityIndicator(ChromeButton* button,
-                                       BOOL shows_activity_indicator) {
-  UIButtonConfiguration* button_configuration = button.configuration;
-  button_configuration.showsActivityIndicator = shows_activity_indicator;
-  button.configuration = button_configuration;
-}
-
 }  // namespace
 
 @interface ButtonStackViewController () <UIScrollViewDelegate>
-// Publicly readable as `UIButton`, but privately writeable and backed by
-// `ChromeButton` instances for internal use.
+
+// The bottom margin for the action button stack.
+@property(nonatomic, assign) CGFloat actionStackBottomMargin;
+
+// Redefine properties as readwrite for internal use.
 @property(nonatomic, strong, readwrite) UIView* contentView;
 @property(nonatomic, strong, readwrite) ChromeButton* primaryActionButton;
 @property(nonatomic, strong, readwrite) ChromeButton* secondaryActionButton;
 @property(nonatomic, strong, readwrite) ChromeButton* tertiaryActionButton;
+
 @end
 
 @implementation ButtonStackViewController {
@@ -55,6 +48,10 @@ void SetConfigurationActivityIndicator(ChromeButton* button,
   ButtonStackConfiguration* _configuration;
   // Stack view for the action buttons.
   UIStackView* _actionStackView;
+  // The bottom constraint for the action stack view against the safe area.
+  NSLayoutConstraint* _actionStackSafeAreaBottomConstraint;
+  // A secondary bottom constraint for the action stack view against the view.
+  NSLayoutConstraint* _actionStackBottomConstraint;
   // The container for the scroll view.
   UIView* _scrollContainerView;
   // The scroll view containing the content.
@@ -68,11 +65,6 @@ void SetConfigurationActivityIndicator(ChromeButton* button,
   BOOL _isConfirmed;
   // Whether the gradient view is shown.
   BOOL _showsGradientView;
-
-  // The last applied styles for each button.
-  ButtonStackButtonStyle _primaryButtonStyle;
-  ButtonStackButtonStyle _secondaryButtonStyle;
-  ButtonStackButtonStyle _tertiaryButtonStyle;
 }
 
 - (instancetype)initWithConfiguration:(ButtonStackConfiguration*)configuration {
@@ -84,17 +76,9 @@ void SetConfigurationActivityIndicator(ChromeButton* button,
     _scrollEnabled = YES;
     _showsVerticalScrollIndicator = YES;
     _showsGradientView = YES;
-
-    // Set the default styles for the buttons.
-    _primaryButtonStyle = configuration.primaryButtonStyle;
-    _secondaryButtonStyle = configuration.secondaryButtonStyle;
-    _tertiaryButtonStyle = configuration.tertiaryButtonStyle;
+    _actionStackBottomMargin = kButtonStackBottomMargin;
   }
   return self;
-}
-
-- (instancetype)init {
-  return [self initWithConfiguration:[[ButtonStackConfiguration alloc] init]];
 }
 
 #pragma mark - UIViewController
@@ -223,6 +207,16 @@ void SetConfigurationActivityIndicator(ChromeButton* button,
   _scrollContainerView.layer.mask = _showsGradientView ? _gradientMask : nil;
 }
 
+- (void)setActionStackBottomMargin:(CGFloat)actionStackBottomMargin {
+  _actionStackBottomMargin = actionStackBottomMargin;
+  if (_actionStackSafeAreaBottomConstraint) {
+    _actionStackSafeAreaBottomConstraint.constant = -_actionStackBottomMargin;
+  }
+  if (_actionStackBottomConstraint) {
+    _actionStackBottomConstraint.constant = -_actionStackBottomMargin;
+  }
+}
+
 #pragma mark - Private
 
 // Creates the scroll container view.
@@ -270,18 +264,20 @@ void SetConfigurationActivityIndicator(ChromeButton* button,
 
   // Create buttons for all possible actions. The `reconfigureButtons` method
   // will handle showing/hiding them based on the current configuration.
-  self.tertiaryActionButton = [self createButtonForStyle:_tertiaryButtonStyle];
+  self.tertiaryActionButton =
+      [self createButtonForStyle:_configuration.tertiaryButtonStyle];
   [self.tertiaryActionButton addTarget:self
                                 action:@selector(handleTertiaryAction)
                       forControlEvents:UIControlEventTouchUpInside];
 
-  self.primaryActionButton = [self createButtonForStyle:_primaryButtonStyle];
+  self.primaryActionButton =
+      [self createButtonForStyle:_configuration.primaryButtonStyle];
   [self.primaryActionButton addTarget:self
                                action:@selector(handlePrimaryAction)
                      forControlEvents:UIControlEventTouchUpInside];
 
   self.secondaryActionButton =
-      [self createButtonForStyle:_secondaryButtonStyle];
+      [self createButtonForStyle:_configuration.secondaryButtonStyle];
   [self.secondaryActionButton addTarget:self
                                  action:@selector(handleSecondaryAction)
                        forControlEvents:UIControlEventTouchUpInside];
@@ -308,86 +304,65 @@ void SetConfigurationActivityIndicator(ChromeButton* button,
 - (void)reconfigureButtons {
   [self configureButtonForPosition:ButtonStackButtonPositionPrimary
                         withString:_configuration.primaryActionString
-                             image:_configuration.primaryActionImage
                              style:_configuration.primaryButtonStyle];
   [self configureButtonForPosition:ButtonStackButtonPositionSecondary
                         withString:_configuration.secondaryActionString
-                             image:_configuration.secondaryActionImage
                              style:_configuration.secondaryButtonStyle];
   [self configureButtonForPosition:ButtonStackButtonPositionTertiary
                         withString:_configuration.tertiaryActionString
-                             image:_configuration.tertiaryActionImage
                              style:_configuration.tertiaryButtonStyle];
+
+  BOOL useLegacyBottomMargin = NO;
+  if (@available(iOS 26, *)) {
+  } else {
+    if (!app_group::IsConfirmationButtonSwapOrderEnabled()) {
+      if (!_secondaryActionButton.hidden) {
+        useLegacyBottomMargin = YES;
+      }
+    }
+  }
+  self.actionStackBottomMargin = useLegacyBottomMargin
+                                     ? kLegacyButtonStackBottomMargin
+                                     : kButtonStackBottomMargin;
 }
 
 // Configures a button with the given properties.
 - (void)configureButtonForPosition:(ButtonStackButtonPosition)position
                         withString:(NSString*)string
-                             image:(UIImage*)image
-                             style:(ButtonStackButtonStyle)style {
+                             style:(ChromeButtonStyle)style {
   ChromeButton* button;
-  // Use a pointer to the cached style ivar to avoid repeating the update logic
-  // for each button position. This allows the code to read from and write to
-  // the correct ivar using a single, shared piece of logic.
-  ButtonStackButtonStyle* cachedStyle;
+  UIImage* image = nil;
 
   switch (position) {
     case ButtonStackButtonPositionPrimary:
       button = _primaryActionButton;
-      cachedStyle = &_primaryButtonStyle;
       break;
-    case ButtonStackButtonPositionSecondary:
+    case ButtonStackButtonPositionSecondary: {
       button = _secondaryActionButton;
-      cachedStyle = &_secondaryButtonStyle;
+      image = _configuration.secondaryActionImage;
+      UIButtonConfiguration* config = button.configuration;
+      config.image = image;
+      button.configuration = config;
       break;
+    }
     case ButtonStackButtonPositionTertiary:
       button = _tertiaryActionButton;
-      cachedStyle = &_tertiaryButtonStyle;
       break;
   }
 
-  BOOL hasAction = string.length > 0;
+  BOOL hasAction = string.length > 0 || image;
   button.hidden = !hasAction;
   if (hasAction) {
-    if (*cachedStyle != style) {
-      *cachedStyle = style;
-      switch (style) {
-        case ButtonStackButtonStylePrimary:
-          UpdateButtonToMatchPrimaryAction(button);
-          break;
-        case ButtonStackButtonStyleSecondary:
-          UpdateButtonToMatchSecondaryAction(button);
-          break;
-        case ButtonStackButtonStyleTertiary:
-          UpdateButtonToMatchTertiaryAction(button);
-          break;
-        case ButtonStackButtonStylePrimaryDestructive:
-          UpdateButtonToMatchPrimaryDestructiveAction(button);
-          break;
-      }
+    if (button.style != style) {
+      button.style = style;
     }
-    SetConfigurationTitle(button, string);
-    SetConfigurationImage(button, image);
+    button.title = string;
   }
 }
 
-// Creates a styled button using the factory functions from button_util.h.
-- (ChromeButton*)createButtonForStyle:(ButtonStackButtonStyle)style {
-  ChromeButton* button;
-  switch (style) {
-    case ButtonStackButtonStylePrimary:
-      button = PrimaryActionButton();
-      break;
-    case ButtonStackButtonStyleSecondary:
-      button = SecondaryActionButton();
-      break;
-    case ButtonStackButtonStyleTertiary:
-      button = TertiaryActionButton();
-      break;
-    case ButtonStackButtonStylePrimaryDestructive:
-      button = PrimaryDestructiveActionButton();
-      break;
-  }
+// Creates a button with the given style.
+- (ChromeButton*)createButtonForStyle:(ChromeButtonStyle)style {
+  ChromeButton* button = [[ChromeButton alloc] initWithStyle:style];
   [button setContentHuggingPriority:UILayoutPriorityRequired
                             forAxis:UILayoutConstraintAxisVertical];
   button.translatesAutoresizingMaskIntoConstraints = NO;
@@ -418,6 +393,16 @@ void SetConfigurationActivityIndicator(ChromeButton* button,
       constraintEqualToAnchor:_scrollView.heightAnchor];
   contentViewHeightConstraint.priority = UILayoutPriorityDefaultLow;
 
+  _actionStackSafeAreaBottomConstraint = [_actionStackView.bottomAnchor
+      constraintEqualToAnchor:safeAreaLayoutGuide.bottomAnchor
+                     constant:-self.actionStackBottomMargin];
+  // Lower priority to avoid conflicts when the safe area bottom inset is zero.
+  _actionStackSafeAreaBottomConstraint.priority = UILayoutPriorityDefaultHigh;
+
+  _actionStackBottomConstraint = [_actionStackView.bottomAnchor
+      constraintLessThanOrEqualToAnchor:self.view.bottomAnchor
+                               constant:-self.actionStackBottomMargin];
+
   // Action stack view constraints.
   [NSLayoutConstraint activateConstraints:@[
     [_actionStackView.leadingAnchor
@@ -426,9 +411,8 @@ void SetConfigurationActivityIndicator(ChromeButton* button,
     [_actionStackView.trailingAnchor
         constraintEqualToAnchor:safeAreaLayoutGuide.trailingAnchor
                        constant:-kButtonStackHorizontalMargin],
-    [_actionStackView.bottomAnchor
-        constraintEqualToAnchor:safeAreaLayoutGuide.bottomAnchor
-                       constant:-kButtonStackBottomMargin],
+    _actionStackBottomConstraint,
+    _actionStackSafeAreaBottomConstraint,
   ]];
 }
 
@@ -440,26 +424,18 @@ void SetConfigurationActivityIndicator(ChromeButton* button,
   _secondaryActionButton.enabled = !showingProgressState;
   _tertiaryActionButton.enabled = !showingProgressState;
 
-  if (_isConfirmed) {
-    _primaryActionButton.tunedDownStyle = YES;
-    // Use the system symbol name directly to avoid a dependency on the browser
-    // layer's symbol helpers.
-    UIImageSymbolConfiguration* symbol_configuration =
-        [UIImageSymbolConfiguration
-            configurationWithPointSize:kSymbolConfirmationCheckmarkPointSize];
-    SetConfigurationImage(_primaryActionButton,
-                          [UIImage systemImageNamed:@"checkmark.circle.fill"
-                                  withConfiguration:symbol_configuration]);
-  } else {
-    _primaryActionButton.tunedDownStyle = NO;
-    SetConfigurationImage(_primaryActionButton,
-                          _configuration.primaryActionImage);
-  }
-  SetConfigurationActivityIndicator(_primaryActionButton, _isLoading);
+  _primaryActionButton.tunedDownStyle = _isConfirmed;
 
-  SetConfigurationTitle(
-      _primaryActionButton,
-      showingProgressState ? @"" : _configuration.primaryActionString);
+  if (_isLoading) {
+    _primaryActionButton.primaryButtonImage = PrimaryButtonImageSpinner;
+  } else if (_isConfirmed) {
+    _primaryActionButton.primaryButtonImage = PrimaryButtonImageCheckmark;
+  } else {
+    _primaryActionButton.primaryButtonImage = PrimaryButtonImageNone;
+  }
+
+  _primaryActionButton.title =
+      showingProgressState ? @"" : _configuration.primaryActionString;
 }
 
 // Handles the tap event for the primary action button.

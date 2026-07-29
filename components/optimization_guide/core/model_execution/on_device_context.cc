@@ -6,8 +6,8 @@
 
 #include "base/metrics/histogram_functions.h"
 #include "components/optimization_guide/core/model_execution/multimodal_message.h"
+#include "components/optimization_guide/core/model_execution/on_device_capability.h"
 #include "components/optimization_guide/core/optimization_guide_features.h"
-#include "components/optimization_guide/core/optimization_guide_model_executor.h"
 #include "services/on_device_model/ml/chrome_ml_audio_buffer.h"
 #include "third_party/skia/include/core/SkBitmap.h"
 
@@ -96,8 +96,7 @@ OnDeviceOptions::OnDeviceOptions(const OnDeviceOptions& orig)
       adapter(orig.adapter),
       safety_checker(std::make_unique<SafetyChecker>(*orig.safety_checker)),
       token_limits(orig.token_limits),
-      capabilities(orig.capabilities),
-      sampling_params(orig.sampling_params) {}
+      session_params(orig.session_params) {}
 
 bool OnDeviceOptions::ShouldUse() const {
   return model_client->ShouldUse();
@@ -105,12 +104,13 @@ bool OnDeviceOptions::ShouldUse() const {
 
 OnDeviceContext::OnDeviceContext(OnDeviceOptions opts,
                                  ModelBasedCapabilityKey feature)
-    : opts_(std::move(opts)), feature_(feature) {}
+    : opts_(std::move(opts)), feature_(feature) {
+  CHECK(opts_.session_params.sampling_params.has_value());
+}
 OnDeviceContext::~OnDeviceContext() = default;
 
-bool OnDeviceContext::SetInput(
-    MultimodalMessageReadView request,
-    OptimizationGuideModelExecutor::Session::SetInputCallback callback) {
+bool OnDeviceContext::SetInput(MultimodalMessageReadView request,
+                               OnDeviceSession::SetInputCallback callback) {
   callback_ = std::move(callback);
   auto input =
       opts_.adapter->ConstructInputString(request, /*want_input_context=*/true);
@@ -152,9 +152,9 @@ OnDeviceContext::GetOrCreateSession() {
     return session_;
   }
   auto params = on_device_model::mojom::SessionParams::New();
-  params->capabilities = opts_.capabilities;
-  params->top_k = opts_.sampling_params.top_k;
-  params->temperature = opts_.sampling_params.temperature;
+  params->capabilities = opts_.session_params.capabilities;
+  params->top_k = opts_.session_params.sampling_params->top_k;
+  params->temperature = opts_.session_params.sampling_params->temperature;
   opts_.model_client->StartSession(session_.BindNewPipeAndPassReceiver(),
                                    std::move(params));
   session_.reset_on_disconnect();

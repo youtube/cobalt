@@ -14,6 +14,7 @@
 #include "base/functional/callback_helpers.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
+#include "base/sequence_checker.h"
 #include "base/task/sequenced_task_runner.h"
 #include "components/affiliations/core/browser/affiliation_backend.h"
 #include "components/affiliations/core/browser/affiliation_fetcher_factory_impl.h"
@@ -52,9 +53,10 @@ enum class GetChangePasswordUrlMetric {
   kUrlOverrideUsed = 1,
   // Used when no override url was available.
   kNoUrlOverrideAvailable = 2,
-  // Used when a url was used, which corresponds to a site from within same
-  // FacetGroup.
-  kGroupUrlOverrideUsed = 3,
+
+  // Fallback to arbitrary facet causes more bugs than good.
+  // Deprecated: kGroupUrlOverrideUsed = 3,
+
   // Used when change password info was available for the main domain only.
   kMainDomainUsed = 4,
   kMaxValue = kMainDomainUsed,
@@ -64,7 +66,6 @@ class AffiliationServiceImpl : public AffiliationService {
  public:
   struct ChangePasswordUrlMatch {
     GURL change_password_url;
-    bool group_url_override;
     bool main_domain_override;
   };
 

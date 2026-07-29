@@ -4,33 +4,119 @@
 
 #import "ios/chrome/browser/location_bar/badge/coordinator/location_bar_badge_mediator.h"
 
+#import "base/timer/timer.h"
+#import "ios/chrome/browser/location_bar/badge/coordinator/location_bar_badge_mediator_delegate.h"
+#import "ios/chrome/browser/location_bar/badge/model/badge_type.h"
 #import "ios/chrome/browser/location_bar/badge/ui/location_bar_badge_consumer.h"
 
-@implementation LocationBarBadgeMediator
+namespace {
+
+// Time to transition in seconds.
+const int kTransitionTimeInSeconds = 2;
+
+}  // anonymous namespace
+
+@implementation LocationBarBadgeMediator {
+  // Timer keeping track of when badge transitions to a promo.
+  std::unique_ptr<base::OneShotTimer> _promoStartTimer;
+  // Timer keeping track of when to return to the default badge state after
+  // a promo was shown.
+  std::unique_ptr<base::OneShotTimer> _promoEndTimer;
+}
 
 #pragma mark - BadgeViewVisibilityDelegate
 
 - (void)setBadgeViewHidden:(BOOL)hidden {
-  [self.consumer setFeature:BadgeType::kBadgeView hidden:hidden];
-}
-
-#pragma mark - ContextualPanelEntrypointVisibilityDelegate
-
-- (void)setContextualPanelEntrypointHidden:(BOOL)hidden {
-  [self.consumer setFeature:BadgeType::kContextualPanel hidden:hidden];
+  [self.consumer setBadge:LocationBarBadgeType::kBadgeView hidden:hidden];
 }
 
 #pragma mark - IncognitoBadgeViewVisibilityDelegate
 
 - (void)setIncognitoBadgeViewHidden:(BOOL)hidden {
-  [self.consumer setFeature:BadgeType::kIncognito hidden:hidden];
+  [self.consumer setBadge:LocationBarBadgeType::kIncognito hidden:hidden];
 }
 
 #pragma mark - ReaderModeChipVisibilityDelegate
 
 - (void)readerModeChipCoordinator:(ReaderModeChipCoordinator*)coordinator
        didSetReaderModeChipHidden:(BOOL)hidden {
-  [self.consumer setFeature:BadgeType::kReaderMode hidden:hidden];
+  [self.consumer setBadge:LocationBarBadgeType::kReaderMode hidden:hidden];
+}
+
+#pragma mark - LocationBarBadgeCommands
+
+- (void)updateBadgeConfig:(LocationBarBadgeConfiguration*)config {
+  [self resetTimersAndUIStateAnimated:NO];
+  [self.consumer setBadgeConfig:config];
+  [self.consumer transitionToSmallEntrypoint];
+  [self.consumer showEntrypoint];
+}
+
+#pragma mark - LocationBarBadgeMutator
+
+- (void)dismissIPHAnimated:(BOOL)animated {
+  [self.consumer highlightBadge:NO];
+}
+
+// TODO (crbug.com/452094170): Implement user tap.
+- (void)entrypointTapped {
+  // Cancel any pending transition timers since user interacted with the badge.
+  [self resetTimersAndUIStateAnimated:YES];
+}
+
+- (void)setLocationBarLabelCenteredBetweenContent:(BOOL)centered {
+  [self.delegate setLocationBarLabelCenteredBetweenContent:self
+                                                  centered:centered];
+}
+
+#pragma mark - Private
+
+// Starts the promo timer.
+- (void)startPromoTimer {
+  __weak LocationBarBadgeMediator* weakSelf = self;
+  _promoStartTimer = std::make_unique<base::OneShotTimer>();
+  _promoStartTimer->Start(FROM_HERE, base::Seconds(kTransitionTimeInSeconds),
+                          base::BindOnce(^{
+                            [weakSelf setupAndExpandChip];
+                          }));
+}
+
+// Transforms the badge into a chip and starts the timers to transition back to
+// the default badge state.
+- (void)setupAndExpandChip {
+  if (![self.delegate canShowLargeContextualPanelEntrypoint:self]) {
+    // Enable fullscreen in case it was disabled when trying to show the IPH.
+    [self.delegate enableFullscreen];
+    return;
+  }
+
+  [self.delegate disableFullscreen];
+  [self.consumer transitionToLargeEntrypoint];
+
+  // TODO(crbug.com/454072799): Add metric log for chip showing.
+
+  __weak LocationBarBadgeMediator* weakSelf = self;
+
+  _promoEndTimer = std::make_unique<base::OneShotTimer>();
+  _promoEndTimer->Start(FROM_HERE, base::Seconds(kTransitionTimeInSeconds),
+                        base::BindOnce(^{
+                          [weakSelf cleanupAndTransitionToDefaultBadgeState];
+                        }));
+}
+
+// Changes the UI to the default badge state.
+- (void)cleanupAndTransitionToDefaultBadgeState {
+  [self.consumer transitionToSmallEntrypoint];
+  [self.delegate enableFullscreen];
+}
+
+// Cancels pending timers, dismisses any showing IPH and removes any active
+// fullscreen disabler.
+- (void)resetTimersAndUIStateAnimated:(BOOL)animated {
+  _promoStartTimer = nullptr;
+  _promoEndTimer = nullptr;
+  [self dismissIPHAnimated:animated];
+  [self cleanupAndTransitionToDefaultBadgeState];
 }
 
 @end

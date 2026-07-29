@@ -8,7 +8,6 @@
 #include "chrome/browser/actor/tools/tool_request_visitor_functor.h"
 #include "chrome/common/actor.mojom.h"
 #include "chrome/common/actor/action_result.h"
-#include "chrome/common/actor/actor_utils.h"
 #include "third_party/abseil-cpp/absl/strings/str_format.h"
 
 namespace actor {
@@ -51,17 +50,12 @@ void MediaControlToolRequest::Apply(ToolRequestVisitorFunctor& f) const {
   f.Apply(*this);
 }
 
-std::string MediaControlToolRequest::JournalEvent() const {
-  return absl::StrFormat("MediaControl[%s]", MediaControlName(media_control_));
+std::string MediaControlToolRequest::Name() const {
+  return "MediaControl";
 }
 
-std::optional<ObservationDelayController::PageStabilityConfig>
-MediaControlToolRequest::GetObservationPageStabilityConfig() const {
-  if (UseGeneralPageStabilityAllTools()) {
-    return ObservationDelayController::PageStabilityConfig();
-  } else {
-    return std::nullopt;
-  }
+std::string MediaControlToolRequest::JournalEvent() const {
+  return absl::StrFormat("%s[%s]", Name(), MediaControlName(media_control_));
 }
 
 }  // namespace actor

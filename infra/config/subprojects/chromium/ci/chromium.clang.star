@@ -1121,6 +1121,8 @@ clang_tot_linux_builder(
             "linux-jammy",
         ],
     ),
+    builderless = False,
+    ssd = True,
     short_name = "msn",
 )
 
@@ -1294,6 +1296,11 @@ ci.builder(
         short_name = "rel",
     ),
     contact_team_email = "lexan@google.com",
+    # Clang ToT Win compiles get timeouts often.
+    siso_configs = [
+        "builder",
+        "no-remote-timeout",
+    ],
 )
 
 ci.builder(
@@ -1866,6 +1873,7 @@ ci.builder(
             "gfx_unittests",
             "google_apis_unittests",
             "ios_chrome_unittests",
+            "ios_credential_provider_extension_unittests",
             "ios_net_unittests",
             "ios_web_inttests",
             "ios_web_unittests",

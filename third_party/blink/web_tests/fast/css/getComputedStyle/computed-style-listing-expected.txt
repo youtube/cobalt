@@ -141,6 +141,7 @@ column-rule-break: spanning-item
 column-rule-color: rgb(0, 0, 0)
 column-rule-outset: 50%
 column-rule-style: none
+column-rule-visibility-items: all
 column-rule-width: 3px
 column-span: none
 column-width: auto
@@ -337,6 +338,7 @@ row-rule-break: spanning-item
 row-rule-color: rgb(0, 0, 0)
 row-rule-outset: 50%
 row-rule-style: none
+row-rule-visibility-items: all
 row-rule-width: 3px
 ruby-align: space-around
 ruby-overhang: auto
@@ -398,6 +400,7 @@ text-emphasis-position: auto
 text-emphasis-style: none
 text-grow: none
 text-indent: 0px
+text-justify: auto
 text-overflow: clip
 text-rendering: auto
 text-shadow: none

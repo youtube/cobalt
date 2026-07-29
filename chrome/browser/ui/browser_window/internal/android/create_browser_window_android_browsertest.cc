@@ -6,13 +6,24 @@
 
 #include <utility>
 
+#include "base/command_line.h"
+#include "base/test/test_future.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/test/base/android/android_browser_test.h"
 #include "content/public/test/browser_test.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-using CreateBrowserWindowAndroidBrowserTest = AndroidBrowserTest;
+class CreateBrowserWindowAndroidBrowserTest : public AndroidBrowserTest {
+  void SetUpDefaultCommandLine(base::CommandLine* command_line) override {
+    AndroidBrowserTest::SetUpDefaultCommandLine(command_line);
+
+    // Disable the first-run experience (FRE) so that when a function under
+    // test launches an Intent for ChromeTabbedActivity, ChromeTabbedActivity
+    // will be shown instead of FirstRunActivity.
+    command_line->AppendSwitch("disable-fre");
+  }
+};
 
 IN_PROC_BROWSER_TEST_F(CreateBrowserWindowAndroidBrowserTest,
                        CreateBrowserWindowReturnsBrowserWindowInterface) {
@@ -23,6 +34,23 @@ IN_PROC_BROWSER_TEST_F(CreateBrowserWindowAndroidBrowserTest,
 
   BrowserWindowInterface* new_browser_window =
       CreateBrowserWindow(std::move(create_params));
+
+  ASSERT_NE(new_browser_window, nullptr);
+  EXPECT_EQ(new_browser_window->GetType(),
+            BrowserWindowInterface::Type::TYPE_NORMAL);
+  EXPECT_EQ(new_browser_window->GetProfile(), profile);
+}
+
+IN_PROC_BROWSER_TEST_F(CreateBrowserWindowAndroidBrowserTest,
+                       CreateBrowserWindowAsyncReturnsBrowserWindowInterface) {
+  Profile* profile = GetProfile();
+  BrowserWindowCreateParams create_params =
+      BrowserWindowCreateParams(BrowserWindowInterface::Type::TYPE_NORMAL,
+                                *profile, /*from_user_gesture=*/false);
+
+  base::test::TestFuture<BrowserWindowInterface*> future;
+  CreateBrowserWindow(std::move(create_params), future.GetCallback());
+  BrowserWindowInterface* new_browser_window = future.Get();
 
   ASSERT_NE(new_browser_window, nullptr);
   EXPECT_EQ(new_browser_window->GetType(),

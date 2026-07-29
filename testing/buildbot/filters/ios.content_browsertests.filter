@@ -504,3 +504,12 @@
 # https://crrev.com/c/6966639.
 -FileSystemChooserBrowserTest.DontShowWhileHidden
 -FileSystemChooserBrowserTest.ShowThenHide
+
+# TODO(crbug.com/454067890): The test has been failing since
+# https://crrev.com/c/6734221.
+-All/AudioServiceBrowserTest.GetUserMediaEcRemoteOnly/SystemAecAvailable
+-All/AudioServiceBrowserTest.GetUserMediaEcRemoteOnly/SystemAecNotAvailable
+
+# TODO(crbug.com/455304273): The test has been failing since
+# #7619 build on the bot(https://ci.chromium.org/ui/p/chromium/builders/ci/ios-blink-rel-fyi/7619/blamelist).
+-ContentBrowserTest.RunMockTests

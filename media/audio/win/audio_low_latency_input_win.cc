@@ -55,6 +55,7 @@
 #include "media/base/channel_layout.h"
 #include "media/base/limits.h"
 #include "media/base/media_switches.h"
+#include "media/base/sample_format.h"
 #include "media/base/timestamp_constants.h"
 
 using base::win::ScopedCoMem;
@@ -66,6 +67,8 @@ namespace media {
 namespace {
 
 constexpr uint32_t KSAUDIO_SPEAKER_UNSUPPORTED = 0;
+
+constexpr SampleFormat kSampleFormat = kSampleFormatS16;
 
 // Max allowed absolute difference between a QPC-based timestamp and a default
 // base::TimeTicks::Now() timestamp before switching to fake audio timestamps.
@@ -629,6 +632,7 @@ WASAPIAudioInputStream::WASAPIAudioInputStream(
     const std::string& device_id,
     AudioManager::LogCallback log_callback)
     : manager_(manager),
+      params_(params),
       peak_detector_(base::BindRepeating(&AudioManager::TraceAmplitudePeak,
                                          base::Unretained(manager_),
                                          /*trace_start=*/true)),
@@ -669,8 +673,26 @@ WASAPIAudioInputStream::WASAPIAudioInputStream(
   if (!avrt_init)
     SendLogMessage("%s => (WARNING: failed to load Avrt.dll)", __func__);
 
-  const SampleFormat kSampleFormat = kSampleFormatS16;
+  UpdateFormats();
 
+  // All events are auto-reset events and non-signaled initially.
+
+  // Create the event which the audio engine will signal each time
+  // a buffer becomes ready to be processed by the client.
+  audio_samples_ready_event_.Set(CreateEvent(NULL, FALSE, FALSE, NULL));
+  DCHECK(audio_samples_ready_event_.IsValid());
+
+  // Create the event which will be set in Stop() when capturing shall stop.
+  stop_capture_event_.Set(CreateEvent(NULL, FALSE, FALSE, NULL));
+  DCHECK(stop_capture_event_.IsValid());
+}
+
+WASAPIAudioInputStream::~WASAPIAudioInputStream() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+}
+
+void WASAPIAudioInputStream::UpdateFormats() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   // The clients asks for an input stream specified by |params|. Start by
   // setting up an input device format according to the same specification.
   // If all goes well during the upcoming initialization, this format will not
@@ -680,8 +702,8 @@ WASAPIAudioInputStream::WASAPIAudioInputStream(
   // matches what the client asks for.
   WAVEFORMATEX* format = &input_format_.Format;
   format->wFormatTag = WAVE_FORMAT_EXTENSIBLE;
-  format->nChannels = params.channels();
-  format->nSamplesPerSec = params.sample_rate();
+  format->nChannels = params_.channels();
+  format->nSamplesPerSec = params_.sample_rate();
   format->wBitsPerSample = SampleFormatToBitsPerChannel(kSampleFormat);
   format->nBlockAlign = (format->wBitsPerSample / 8) * format->nChannels;
   format->nAvgBytesPerSec = format->nSamplesPerSec * format->nBlockAlign;
@@ -691,7 +713,7 @@ WASAPIAudioInputStream::WASAPIAudioInputStream(
   format->cbSize = sizeof(WAVEFORMATEXTENSIBLE) - sizeof(WAVEFORMATEX);
   input_format_.Samples.wValidBitsPerSample = format->wBitsPerSample;
   input_format_.dwChannelMask =
-      ChannelLayoutToChannelConfig(params.channel_layout());
+      ChannelLayoutToChannelConfig(params_.channel_layout());
   input_format_.SubFormat = KSDATAFORMAT_SUBTYPE_PCM;
   SendLogMessage("%s => (audio engine format=[%s])", __func__,
                  CoreAudioUtil::WaveFormatToString(&input_format_).c_str());
@@ -714,27 +736,12 @@ WASAPIAudioInputStream::WASAPIAudioInputStream(
 
   // Store size of audio packets which we expect to get from the audio
   // endpoint device in each capture event.
-  packet_size_bytes_ = params.GetBytesPerBuffer(kSampleFormat);
+  packet_size_bytes_ = params_.GetBytesPerBuffer(kSampleFormat);
   packet_size_frames_ = packet_size_bytes_ / format->nBlockAlign;
   SendLogMessage(
       "%s => (packet size=[%zu bytes/%zu audio frames/%.3f milliseconds])",
       __func__, packet_size_bytes_, packet_size_frames_,
-      params.GetBufferDuration().InMillisecondsF());
-
-  // All events are auto-reset events and non-signaled initially.
-
-  // Create the event which the audio engine will signal each time
-  // a buffer becomes ready to be processed by the client.
-  audio_samples_ready_event_.Set(CreateEvent(NULL, FALSE, FALSE, NULL));
-  DCHECK(audio_samples_ready_event_.IsValid());
-
-  // Create the event which will be set in Stop() when capturing shall stop.
-  stop_capture_event_.Set(CreateEvent(NULL, FALSE, FALSE, NULL));
-  DCHECK(stop_capture_event_.IsValid());
-}
-
-WASAPIAudioInputStream::~WASAPIAudioInputStream() {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+      params_.GetBufferDuration().InMillisecondsF());
 }
 
 AudioInputStream::OpenOutcome WASAPIAudioInputStream::Open() {
@@ -1415,8 +1422,11 @@ void WASAPIAudioInputStream::PullCaptureDataAndPushToSink() {
           base::CheckMul<size_t>(num_frames_to_read,
                                  input_format_.Format.nBlockAlign)
               .ValueOrDie()));
-      peak_detector_.FindPeak(audio_frames, bytes_per_sample);
-      fifo_->Push(audio_frames, num_frames_to_read, bytes_per_sample);
+      peak_detector_.FindPeak(audio_frames, kSampleFormat);
+      // TODO(crbug.com/354625679): For now, our pipeline is set for only
+      // kSampleFormatS16 only. We plan to implement changes to take higher bit
+      // depths such as 24bit or 32bit float.
+      fifo_->Push(audio_frames, num_frames_to_read, kSampleFormat);
     }
 
     hr = audio_capture_client_->ReleaseBuffer(num_frames_to_read);

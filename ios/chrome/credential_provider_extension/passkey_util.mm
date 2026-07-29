@@ -2,11 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
-#pragma allow_unsafe_buffers
-#endif
-
 #import "ios/chrome/credential_provider_extension/passkey_util.h"
 
 #import <AuthenticationServices/AuthenticationServices.h>
@@ -57,30 +52,29 @@ NSMutableArray<NSData*>* PRFOutputsFromExtensionOutputData(
         extension_output_data) {
   static constexpr size_t kPRFOutputSize = 32u;
 
-  size_t result_size = extension_output_data.prf_result.size();
-  bool hasOneOutput = result_size == kPRFOutputSize;
-  bool hasTwoOutputs = result_size == 2u * kPRFOutputSize;
+  auto span = base::span(extension_output_data.prf_result);
 
   // The PRF result can be empty, have exactly 1 output or exactly 2 outputs.
-  CHECK(result_size == 0u || hasOneOutput || hasTwoOutputs)
-      << "Invalid PRF result size: " << result_size;
+  CHECK_EQ(span.size() % kPRFOutputSize, 0u)
+      << "Invalid PRF result size: " << span.size();
+  CHECK_LE(span.size() / kPRFOutputSize, 2u)
+      << "Invalid PRF result size: " << span.size();
 
-  if (hasOneOutput || hasTwoOutputs) {
-    NSMutableArray<NSData*>* prf_outputs = [NSMutableArray array];
-    [prf_outputs
-        addObject:[[NSData alloc]
-                      initWithBytes:extension_output_data.prf_result.data()
-                             length:kPRFOutputSize]];
-    if (hasTwoOutputs) {
-      [prf_outputs
-          addObject:[[NSData alloc]
-                        initWithBytes:extension_output_data.prf_result.data() +
-                                      kPRFOutputSize
-                               length:kPRFOutputSize]];
-    }
-    return prf_outputs;
+  if (span.empty()) {
+    return nil;
   }
-  return nil;
+
+  NSMutableArray<NSData*>* result = [NSMutableArray array];
+  while (span.size() >= kPRFOutputSize) {
+    auto [head, rest] = span.split_at<kPRFOutputSize>();
+
+    [result addObject:[[NSData alloc] initWithBytes:head.data()
+                                             length:head.size()]];
+
+    span = rest;
+  }
+
+  return result;
 }
 
 // Wrapper around passkey_model_utils's MakeAuthenticatorDataForAssertion
@@ -119,51 +113,30 @@ NSData* GenerateSignature(NSData* authenticator_data,
 void SaveToIdentityStore(id<Credential> credential,
                          ProceduralBlock completion) {
   auto stateCompletion = ^(ASCredentialIdentityStoreState* state) {
-    if (state.enabled) {
-      // Update ASCredentialIdentityStore to make the passkey immediately
-      // available locally.
-      NSMutableArray<id<ASCredentialIdentity>>* storeIdentities =
-          [NSMutableArray arrayWithCapacity:1];
-      [storeIdentities addObject:[[ASPasskeyCredentialIdentity alloc]
-                                     cr_initWithCredential:credential]];
-      [ASCredentialIdentityStore.sharedStore
-          replaceCredentialIdentityEntries:storeIdentities
-                                completion:^(BOOL success, NSError* error) {
-                                  completion();
-                                }];
-    } else {
+    if (!state.enabled) {
       completion();
+      return;
+    }
+
+    NSArray<id<ASCredentialIdentity>>* storeIdentities =
+        @[ [[ASPasskeyCredentialIdentity alloc]
+            cr_initWithCredential:credential] ];
+    void (^storeCompletion)(BOOL, NSError*) = ^(BOOL success, NSError* error) {
+      completion();
+    };
+
+    if (credential.hidden) {
+      [ASCredentialIdentityStore.sharedStore
+          removeCredentialIdentityEntries:storeIdentities
+                               completion:storeCompletion];
+    } else {
+      [ASCredentialIdentityStore.sharedStore
+          saveCredentialIdentityEntries:storeIdentities
+                             completion:storeCompletion];
     }
   };
   [ASCredentialIdentityStore.sharedStore
       getCredentialIdentityStoreStateWithCompletion:stateCompletion];
-}
-
-// Saves a newly created passkey to the user defaults credential store. This
-// credential store will be read by Chrome if it is currently running, or the
-// next time it runs, to sync the newly created passkeys in the user's account.
-void SaveCredential(id<Credential> credential) {
-  NSString* key = AppGroupUserDefaultsCredentialProviderNewCredentials();
-  UserDefaultsCredentialStore* store = [[UserDefaultsCredentialStore alloc]
-      initWithUserDefaults:app_group::GetGroupUserDefaults()
-                       key:key];
-
-  if ([store credentialWithRecordIdentifier:credential.recordIdentifier]) {
-    [store updateCredential:credential];
-  } else {
-    [store addCredential:credential];
-  }
-
-  [store saveDataWithCompletion:^(NSError* error) {
-    if (error != nil) {
-      return;
-    }
-
-    SaveToIdentityStore(credential, ^{
-      // Notify Chrome that a new passkey was created
-      [CredentialProviderCreationNotifier notifyCredentialCreated];
-    });
-  }];
 }
 
 // Returns the UserVerificationPreference based on the provided
@@ -278,9 +251,9 @@ PasskeyCreationOutput PerformPasskeyCreation(
       [NSData dataWithBytes:attestation_object_for_creation.data()
                      length:attestation_object_for_creation.size()];
 
-  SaveCredential([[ArchivableCredential alloc] initWithFavicon:nil
-                                                          gaia:gaia
-                                                       passkey:passkey]);
+  SavePasskeyCredential([[ArchivableCredential alloc] initWithFavicon:nil
+                                                                 gaia:gaia
+                                                              passkey:passkey]);
 
   return {[ASPasskeyRegistrationCredential
               credentialWithRelyingParty:rp_id
@@ -329,7 +302,7 @@ PasskeyAssertionOutput PerformPasskeyAssertion(
   // Update the credential's last used time.
   credential.lastUsedTime =
       base::Time::Now().ToDeltaSinceWindowsEpoch().InMicroseconds();
-  SaveCredential(credential);
+  SavePasskeyCredential(credential);
 
   return {[ASPasskeyAssertionCredential
               credentialWithUserHandle:credential.userId
@@ -360,4 +333,29 @@ BOOL ShouldPerformUserVerificationForPreference(
     case UserVerificationPreference::kDiscouraged:
       return NO;
   }
+}
+
+void SavePasskeyCredential(id<Credential> credential) {
+  NSString* key = AppGroupUserDefaultsCredentialProviderNewCredentials();
+  UserDefaultsCredentialStore* store = [[UserDefaultsCredentialStore alloc]
+      initWithUserDefaults:app_group::GetGroupUserDefaults()
+                       key:key];
+
+  if ([store credentialWithRecordIdentifier:credential.recordIdentifier]) {
+    [store updateCredential:credential];
+  } else {
+    [store addCredential:credential];
+  }
+
+  [store saveDataWithCompletion:^(NSError* error) {
+    if (error != nil) {
+      return;
+    }
+
+    SaveToIdentityStore(credential, ^{
+      // TODO(crbug.com/432260316): Consider renaming this class as its purpose
+      // is to trigger migration, but not necessarily for creations only.
+      [CredentialProviderCreationNotifier notifyCredentialCreated];
+    });
+  }];
 }

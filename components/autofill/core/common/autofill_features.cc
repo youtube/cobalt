@@ -49,8 +49,7 @@ const base::FeatureParam<int> kAutofillOnTypingMinNumberCharactersToMatch{
 // This parameter enables updating the maximum number of characters typed until
 // Autofill on typing suggestions are no longer displayed.
 const base::FeatureParam<int> kAutofillOnTypingMaxNumberCharactersToMatch{
-    &kAutofillAddressSuggestionsOnTyping, "max_number_characeters_to_match",
-    10};
+    &kAutofillAddressSuggestionsOnTyping, "max_number_characters_to_match", 10};
 
 // This parameter enables updating the required number of characters that need
 // to be missing between the typed data and the profile data. This makes sure
@@ -62,7 +61,7 @@ const base::FeatureParam<int> kAutofillOnTypingMinMissingCharactersNumber{
 
 // This parameter enables updating the field types offered in Autofill on typing
 // suggestions. Field types are defined as enums, so this parameter should be a
-// string of integers separated by comma, such as "34,22,44,11". If the string
+// string of integers separated by dash, such as "34-22-44-11". If the string
 // cannot be parsed or some value is out of bound of the field types enum, the
 // param is ignored. When this param is an empty string (default value), a
 // default list of field types is used.
@@ -825,6 +824,10 @@ BASE_FEATURE(kAutofillBetterLocalHeuristicPlaceholderSupport,
 BASE_FEATURE(kUseSettingsAddressEditorInPaymentsRequest,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+// When enabled, the rewriter uses updated rewrite rules.
+// TODO(crbug.com/445863287): Cleanup when launched.
+BASE_FEATURE(kAutofillFixRewriterRules, base::FEATURE_DISABLED_BY_DEFAULT);
+
 #if BUILDFLAG(IS_ANDROID)
 
 // If enabled, on Android desktop, the Autofill keyboard accessory will have a
@@ -845,6 +848,12 @@ BASE_FEATURE(kAutofillDeepLinkAutofillOptions,
 // Controls if Chrome Keyboard Accessory on Android displays 2 line chips.
 // TODO: crbug.com/385172647 - Clean up after the feature is launched.
 BASE_FEATURE(kAutofillEnableKeyboardAccessoryChipRedesign,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Controls if Chrome Keyboard Accessory limits the width of the first chip or
+// the first 2 chips to display a part of the next one on the screen.
+// TODO: crbug.com/385172647 - Clean up after the feature is launched.
+BASE_FEATURE(kAutofillEnableKeyboardAccessoryChipWidthAdjustment,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Controls if Chrome Autofill UI surfaces ignore touch events if something is

@@ -6,11 +6,13 @@
 
 #include "base/feature_list.h"
 #include "base/metrics/field_trial_params.h"
-#include "services/network/public/cpp/features.h"
 
 namespace android_webview::features {
 
 // Alphabetical:
+
+// Kill switch for Profile.addQuicHints.
+BASE_FEATURE(kWebViewAddQuicHints, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enable auto granting storage access API requests. This will be done
 // if a relationship is detected between the app and the website.
@@ -20,6 +22,13 @@ BASE_FEATURE(kWebViewAutoSAA, base::FEATURE_DISABLED_BY_DEFAULT);
 // effect iff both this feature flag and the content/public kBackForwardCache
 // flag is enabled.
 BASE_FEATURE(kWebViewBackForwardCache, base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Enables parsing a custom header passed by the WebView embedder during a
+// prefetch request that allows bypassing the HTTP cache for that request.
+// This is a kill switch, so it is enabled by default.
+// TODO(crbug.com/455296998): Remove this code for M145.
+BASE_FEATURE(kWebViewBypassHttpCacheForPrefetchFromHeader,
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Allow apps to configure the renderer library prefetching behaviour.
 BASE_FEATURE(kWebViewConfigurableLibraryPrefetch,
@@ -48,15 +57,10 @@ BASE_FEATURE(kWebViewDrainPrefetchQueueDuringInit,
 // longer supported.
 BASE_FEATURE(kWebViewFileSystemAccess, base::FEATURE_DISABLED_BY_DEFAULT);
 
-// Feature parameter for `network::features::kMaskedDomainList` that sets the
-// exclusion criteria for defining which domains are excluded from the
-// Masked Domain List for WebView.
-//
-// Exclusion criteria can assume values from `WebviewExclusionPolicy`.
-const base::FeatureParam<int> kWebViewIpProtectionExclusionCriteria{
-    &network::features::kMaskedDomainList,
-    "WebViewIpProtectionExclusionCriteria",
-    /*WebviewExclusionPolicy::kNone*/ 0};
+// Enable ignoring duplicate navigations in WebView. Note that this will only
+// take effect if both this feature flag and the content/public
+// kIgnoreDuplicateNavs flag is enabled.
+BASE_FEATURE(kWebViewIgnoreDuplicateNavs, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Fetch Hand Writing icon lazily.
 BASE_FEATURE(kWebViewLazyFetchHandWritingIcon,
@@ -301,6 +305,21 @@ BASE_FEATURE(kWebViewMoveWorkToProviderInit, base::FEATURE_DISABLED_BY_DEFAULT);
 // `CookieManager.getInstance()` will trigger WebView startup on the main looper
 // and wait for startup to complete.
 BASE_FEATURE(kWebViewBypassProvisionalCookieManager,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// When enabled, WebView stores the persistent metrics files in the
+// app's non-backed-up files directory instead of the app's data directory.
+BASE_FEATURE(kWebViewPersistentMetricsInNoBackupDir,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// When enabled, requests the compositor warm-up (crbug.com/41496019) for the
+// prerender trigger.
+BASE_FEATURE(kPrerender2WarmUpCompositorForWebView,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Enables fetching the Origin Trials configuration update component in the
+// embedded WebView.
+BASE_FEATURE(kWebViewFetchOriginTrialsComponent,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 }  // namespace android_webview::features

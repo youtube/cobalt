@@ -14,6 +14,8 @@ import androidx.annotation.Px;
 
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
+import org.chromium.content_public.browser.SelectionMenuItem;
+import org.chromium.ui.listmenu.ListMenuItemProperties;
 import org.chromium.ui.modelutil.MVCListAdapter;
 import org.chromium.ui.modelutil.MVCListAdapter.ListItem;
 import org.chromium.ui.modelutil.PropertyModel;
@@ -54,23 +56,28 @@ public interface SelectionDropdownMenuDelegate {
     /** Dismisses the dropdown menu. */
     void dismiss();
 
-    /** Returns the group id for an item if it's present. Otherwise returns 0. */
-    @IdRes
-    int getGroupId(PropertyModel itemModel);
-
-    /** Returns the id for an item if it's present. Otherwise returns 0. */
-    @IdRes
-    int getItemId(PropertyModel itemModel);
-
-    /** Returns the intent for an item if it's present. Otherwise null is returned. */
-    @Nullable
-    Intent getItemIntent(PropertyModel itemModel);
-
     /**
-     * Returns the {@link android.view.View.OnClickListener} for an item if there is
-     * one. Otherwise returns null.
+     * Return a minimal SelectionMenuItem with only the following fields set (add to this list if
+     * you add more): Title, Id, GroupId, Order, Intent, ClickListener.
      */
-    View.@Nullable OnClickListener getClickListener(PropertyModel itemModel);
+    default SelectionMenuItem getMinimalMenuItem(PropertyModel itemModel) {
+        return new SelectionMenuItem.Builder(
+                        PropertyModel.getFromModelOrDefault(
+                                itemModel, ListMenuItemProperties.TITLE, ""))
+                .setId(
+                        PropertyModel.getFromModelOrDefault(
+                                itemModel, ListMenuItemProperties.MENU_ITEM_ID, 0))
+                .setGroupId(
+                        PropertyModel.getFromModelOrDefault(
+                                itemModel, ListMenuItemProperties.GROUP_ID, 0))
+                .setOrder(
+                        PropertyModel.getFromModelOrDefault(
+                                itemModel, ListMenuItemProperties.ORDER, -1))
+                .setIntent(
+                        PropertyModel.getFromModelOrDefault(
+                                itemModel, ListMenuItemProperties.INTENT, null))
+                .build();
+    }
 
     /** Returns a divider menu item to be shown in the dropdown menu. */
     ListItem getDivider();
@@ -87,7 +94,6 @@ public interface SelectionDropdownMenuDelegate {
      * @param isIconTintable True if the icon can be tinted.
      * @param groupContainsIcon True if this or any other item in group has an icon.
      * @param enabled Whether or not this menu item should be enabled.
-     * @param clickListener Optional click listener for the menu item.
      * @param intent Optional intent for the menu item.
      * @return ListItem with text and optionally an icon.
      */
@@ -100,8 +106,8 @@ public interface SelectionDropdownMenuDelegate {
             boolean isIconTintable,
             boolean groupContainsIcon,
             boolean enabled,
-            View.@Nullable OnClickListener clickListener,
-            @Nullable Intent intent);
+            @Nullable Intent intent,
+            int order);
 
     /** Returns a pointer to a native SelectionPopupDelegate. */
     default long getNativeDelegate() {

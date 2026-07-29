@@ -12,9 +12,16 @@
 #carousel {
   box-sizing: border-box;
   margin-bottom: 12px;
-  margin-top: 13px;
+  margin-top: 4px;
   padding-inline-end: var(--context-carousel-inline-end-spacing, 50px);
   padding-inline-start: var(--context-carousel-inline-start-spacing, 50px);
+}
+
+#carousel.top {
+  margin: 0;
+  position: absolute;
+  top: 14px;
+  width: auto;
 }
 
 .context-menu-container {
@@ -30,6 +37,7 @@
 }
 
 #toolChipsContainer {
+  padding-top: 10px;
   padding-inline-start: 16px;
 }
 

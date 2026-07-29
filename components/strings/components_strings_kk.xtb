@@ -79,6 +79,7 @@
 <translation id="1132735979845538847"><ph name="ORIGIN" />: толық экраннан шығу үшін жоғарыдан сүйреп, "Артқа" түймесін түртіңіз.</translation>
 <translation id="1138458427267715730">Интернеттегі кез келген сайтта баға түскен кезде, хабарландырулар алыңыз.</translation>
 <translation id="1142713751288681188">Қағаз түрі</translation>
+<translation id="1142965388643537393">Саяхат туралы ақпарат</translation>
 <translation id="1144136880160289237">Әзірше қолданыстағы тақырыптар жоқ.</translation>
 <translation id="1149617035358809955">төлем туралы ақпаратыңызды толтыру үшін жеке басыңызды растағысы келеді</translation>
 <translation id="1150565364351027703">Күнқағар көзілдірік</translation>
@@ -788,6 +789,7 @@
 <translation id="22792995594807632">Жүктеп алу алдында қарап шығу қажет</translation>
 <translation id="2283340219607151381">Мекенжайларды сақтау және толтыру</translation>
 <translation id="2283447177162560884">"<ph name="PAGE_TITLE" />" жойылды</translation>
+<translation id="2283599456633275070">Саяхат</translation>
 <translation id="2286383991450886080">34 x 44 дюйм</translation>
 <translation id="2288422996159078444">Терген мәтініңіз, көрген беттеріңіз не желідегі басқа да әрекеттеріңіз бақыланады. Сайттардағы контент сізге хабарланбай өзгертілуі мүмкін.</translation>
 <translation id="2289385804009217824">Кесу</translation>
@@ -836,6 +838,7 @@
 <translation id="2357481397660644965">Құрылғыңызды <ph name="DEVICE_MANAGER" />, ал аккаунтыңызды <ph name="ACCOUNT_MANAGER" /> басқарады.</translation>
 <translation id="2359629602545592467">Бірнеше</translation>
 <translation id="2359808026110333948">Жалғастыру</translation>
+<translation id="236000571258713023">Көліктер</translation>
 <translation id="2361263712565360498">275 x 395 мм</translation>
 <translation id="236340516568226369">Өлшем өзгерту мәзірі</translation>
 <translation id="2365355378251437925"><ph name="FIELD" /> бөліміне кіріңіз</translation>
@@ -882,6 +885,7 @@
 <translation id="2436976580469434549">Мата және тоқыма өнері</translation>
 <translation id="243815215670139125">Бұл картаны Google аккаунтыңызға сақтау мүмкін болмады. Ол осы құрылғыдағы Chrome-ға сақталды.</translation>
 <translation id="2438874542388153331">Оң жағын төрт рет тесу</translation>
+<translation id="2440855519769445271">Кейін төлеу опцияларын жасыру үшін <ph name="BEGIN_LINK" />төлем параметрлеріне<ph name="END_LINK" /> өтіңіз.</translation>
 <translation id="2441854154602066476">Түрту арқылы толтыруға болатын төлеу әдістері. Пернетақта жасырылды.</translation>
 <translation id="2442865686365739754">Chrome келесі ақпаратты <ph name="BEGIN_EMPHASIS" />сақтамайды<ph name="END_EMPHASIS" />:
           <ph name="BEGIN_LIST" />
@@ -2196,6 +2200,7 @@
 <translation id="4598556348158889687">Жадты басқару</translation>
 <translation id="459914240367517409">Веб-дизайн және әзірлеу</translation>
 <translation id="4602465984861132303">Боулинг</translation>
+<translation id="4603727370377253901">Рейсті резервтеу</translation>
 <translation id="4607608436550361748">Chrome кеңестерін көру</translation>
 <translation id="460848736049414407">Әкімші бөгеді</translation>
 <translation id="4610279718074907952">Бұл сайт әрекетіңізді көре алатын <ph name="SET_OWNER" /> белгілеген топқа кіреді</translation>
@@ -2204,6 +2209,7 @@
 <translation id="4619564267100705184">Жеке басыңызды растаңыз</translation>
 <translation id="4622292761762557753">Бәрібір тасымалдау</translation>
 <translation id="4622647778991854660">Хабарландыру орталығында хабарландыруларды қосу. "<ph name="LINK" />" бетін ашу.</translation>
+<translation id="4623894491222334521">Жеке куәліктер</translation>
 <translation id="4627675673814409125">Бұл саясатты Chrome профилі деңгейінде орнатуға болмайды және ол еленбейді.</translation>
 <translation id="4628678854894591460">Демалыс ұсыныстары</translation>
 <translation id="4628948037717959914">Фотосурет</translation>
@@ -2221,6 +2227,7 @@
 <translation id="4648262692072505866">Хеш SHA-256 форматында болуы керек.</translation>
 <translation id="4652266463001779298">Рұқсат етілмеген</translation>
 <translation id="4652440160515225514">Ұйымыңыз бұл сайтты бөгеді, себебі ол саясатқа қайшы.</translation>
+<translation id="4654457557264366314">Төлем жоспарлары талаптарға сай болуы керек.</translation>
 <translation id="4658638640878098064">Жоғарғы сол жағын қапсыру</translation>
 <translation id="4660592918803576381">Drive-тан ашу</translation>
 <translation id="4661556981531699496">Үй жануарлары мен аңдар</translation>

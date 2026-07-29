@@ -6,16 +6,38 @@
 
 #include "base/check_deref.h"
 #include "components/optimization_guide/core/hints/optimization_guide_decider.h"
-#include "components/optimization_guide/core/optimization_guide_model_executor.h"
+#include "components/optimization_guide/core/model_execution/remote_model_executor.h"
 #include "components/optimization_guide/proto/features/walletable_pass_extraction.pb.h"
 #include "components/optimization_guide/proto/hints.pb.h"
+#include "components/strike_database/strike_database_base.h"
 #include "url/gurl.h"
 
 namespace wallet {
+namespace {
+
+using enum WalletablePassClient::WalletablePassBubbleResult;
+using optimization_guide::proto::WalletablePass;
+
+std::string GetWalletablePassCategory(const WalletablePass& walletable_pass) {
+  switch (walletable_pass.pass_case()) {
+    case WalletablePass::kLoyaltyCard:
+      return "LoyaltyCard";
+    case WalletablePass::kEventPass:
+      return "EventPass";
+    case WalletablePass::PASS_NOT_SET:
+      // Should be handled by the caller before this function is invoked.
+      NOTREACHED();
+  }
+}
+
+}  // namespace
 
 WalletablePassIngestionController::WalletablePassIngestionController(
     WalletablePassClient* client)
-    : client_(CHECK_DEREF(client)) {
+    : client_(CHECK_DEREF(client)),
+      save_strike_db_(
+          std::make_unique<WalletablePassSaveStrikeDatabaseByCategory>(
+              client->GetStrikeDatabase())) {
   RegisterOptimizationTypes();
 }
 
@@ -33,9 +55,8 @@ void WalletablePassIngestionController::StartWalletablePassDetectionFlow(
     return;
   }
 
-  GetAnnotatedPageContent(base::BindOnce(
-      &WalletablePassIngestionController::OnGetAnnotatedPageContent,
-      weak_ptr_factory_.GetWeakPtr(), url));
+  // TODO(crbug.com/444148314): Request user consent if not consented yet.
+  ShowConsentBubble(url);
 }
 
 bool WalletablePassIngestionController::IsEligibleForExtraction(
@@ -50,6 +71,35 @@ bool WalletablePassIngestionController::IsEligibleForExtraction(
              optimization_guide::proto::WALLETABLE_PASS_DETECTION_ALLOWLIST,
              /*optimization_metadata=*/nullptr) ==
          optimization_guide::OptimizationGuideDecision::kTrue;
+}
+
+void WalletablePassIngestionController::ShowConsentBubble(const GURL& url) {
+  // TODO(crbug.com/444147446): Check strike before showing the consent bubble.
+  client_->ShowWalletablePassConsentBubble(base::BindOnce(
+      &WalletablePassIngestionController::OnGetConsentBubbleResult,
+      weak_ptr_factory_.GetWeakPtr(), url));
+}
+
+void WalletablePassIngestionController::OnGetConsentBubbleResult(
+    const GURL& url,
+    WalletablePassClient::WalletablePassBubbleResult result) {
+  switch (result) {
+    case kAccepted:
+      // TODO(crbug.com/444148314): Write consent result to local storage
+      GetAnnotatedPageContent(base::BindOnce(
+          &WalletablePassIngestionController::OnGetAnnotatedPageContent,
+          weak_ptr_factory_.GetWeakPtr(), url));
+      break;
+    case kDeclined:
+    case kClosed:
+      // Add strikes for cases where user rejects explicitly
+      // TODO(crbug.com/452779539): Report user rejects explicitly to UMA.
+      break;
+    case kLostFocus:
+    case kUnknown:
+      // TODO(crbug.com/452779539): Report other outcomes to UMA.
+      break;
+  }
 }
 
 void WalletablePassIngestionController::OnGetAnnotatedPageContent(
@@ -75,7 +125,7 @@ void WalletablePassIngestionController::ExtractWalletablePass(
   *request.mutable_page_context()->mutable_annotated_page_content() =
       std::move(annotated_page_content);
 
-  client_->GetOptimizationGuideModelExecutor()->ExecuteModel(
+  client_->GetRemoteModelExecutor()->ExecuteModel(
       optimization_guide::ModelBasedCapabilityKey::kWalletablePassExtraction,
       std::move(request),
       /*execution_timeout=*/std::nullopt,
@@ -107,15 +157,53 @@ void WalletablePassIngestionController::OnExtractWalletablePass(
     return;
   }
 
+  if (parsed_response->walletable_pass(0).pass_case() ==
+      WalletablePass::PASS_NOT_SET) {
+    // TODO(crbug.com/441892746): Report invalid walletable pass found to UMA
+    return;
+  }
+
+  auto walletable_pass =
+      std::make_unique<WalletablePass>(parsed_response->walletable_pass(0));
+  ShowSaveBubble(std::move(walletable_pass));
+}
+
+void WalletablePassIngestionController::ShowSaveBubble(
+    std::unique_ptr<WalletablePass> walletable_pass) {
+  const std::string category = GetWalletablePassCategory(*walletable_pass);
+  if (save_strike_db_->ShouldBlockFeature(category)) {
+    // TODO(crbug.com/452779539): Report save bubble blocked to UMA
+    return;
+  }
+
+  WalletablePass* pass_ptr = walletable_pass.get();
   client_->ShowWalletablePassSaveBubble(
-      parsed_response->walletable_pass(0),
+      *pass_ptr,
       base::BindOnce(&WalletablePassIngestionController::OnGetSaveBubbleResult,
-                     weak_ptr_factory_.GetWeakPtr()));
+                     weak_ptr_factory_.GetWeakPtr(),
+                     std::move(walletable_pass)));
 }
 
 void WalletablePassIngestionController::OnGetSaveBubbleResult(
+    std::unique_ptr<WalletablePass> walletable_pass,
     WalletablePassClient::WalletablePassBubbleResult result) {
-  // TODO(crbug.com/452579752): Save pass to Wallet.
+  const std::string category = GetWalletablePassCategory(*walletable_pass);
+  switch (result) {
+    case kAccepted:
+      // TODO(crbug.com/452579752): Save pass to Wallet.
+      save_strike_db_->ClearStrikes(category);
+      break;
+    case kDeclined:
+    case kClosed:
+      // Add strikes for cases where user rejects explicitly
+      save_strike_db_->AddStrike(category);
+      // TODO(crbug.com/452779539): Report user rejects explicitly to UMA.
+      break;
+    case kLostFocus:
+    case kUnknown:
+      // TODO(crbug.com/452779539): Report other outcomes to UMA.
+      break;
+  }
 }
 
 }  // namespace wallet

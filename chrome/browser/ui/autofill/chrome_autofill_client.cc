@@ -174,7 +174,7 @@
 #include "components/messages/android/messages_feature.h"
 #include "components/strings/grit/components_strings.h"
 #else  // !BUILDFLAG(IS_ANDROID)
-#include "chrome/browser/ui/autofill/autofill_ai/save_or_update_autofill_ai_data_controller.h"
+#include "chrome/browser/ui/autofill/autofill_ai/autofill_ai_import_data_controller.h"
 #include "chrome/browser/ui/autofill/autofill_field_promo_controller_impl.h"
 #include "chrome/browser/ui/autofill/delete_address_profile_dialog_controller_impl.h"
 #include "chrome/browser/ui/autofill/payments/offer_notification_bubble_controller_impl.h"
@@ -592,8 +592,8 @@ AutofillAiModelExecutor* ChromeAutofillClient::GetAutofillAiModelExecutor() {
   return AutofillAiModelExecutorFactory::GetForProfile(profile);
 }
 
-optimization_guide::OptimizationGuideModelExecutor*
-ChromeAutofillClient::GetOptimizationGuideModelExecutor() {
+optimization_guide::RemoteModelExecutor*
+ChromeAutofillClient::GetRemoteModelExecutor() {
   Profile* profile =
       Profile::FromBrowserContext(web_contents()->GetBrowserContext());
   if (!profile || profile->ShutdownStarted()) {
@@ -1352,18 +1352,6 @@ OtpFieldDetector* ChromeAutofillClient::GetOtpFieldDetector() {
   return otp_field_detector_.get();
 }
 
-one_time_tokens::SmsOtpBackend* ChromeAutofillClient::GetSmsOtpBackend() const {
-#if BUILDFLAG(IS_ANDROID)
-  if (base::FeatureList::IsEnabled(
-          password_manager::features::kAndroidSmsOtpFilling)) {
-    Profile* profile =
-        Profile::FromBrowserContext(web_contents()->GetBrowserContext());
-    return AndroidSmsOtpBackendFactory::GetForProfile(profile);
-  }
-#endif  // BUILDFLAG(IS_ANDROID)
-  return nullptr;
-}
-
 one_time_tokens::OneTimeTokenService*
 ChromeAutofillClient::GetOneTimeTokenService() const {
 #if BUILDFLAG(IS_ANDROID)
@@ -1423,19 +1411,20 @@ ChromeAutofillClient::GetMqlsUploadService() {
 #endif
 }
 
-void ChromeAutofillClient::ShowEntitySaveOrUpdateBubble(
+void ChromeAutofillClient::ShowEntityImportBubble(
     EntityInstance new_entity,
     std::optional<EntityInstance> old_entity,
-    EntitySaveOrUpdatePromptResultCallback prompt_acceptance_callback) {
+    EntityImportPromptResultCallback prompt_closed_callback) {
 #if !BUILDFLAG(IS_ANDROID)
-  if (auto* controller = SaveOrUpdateAutofillAiDataController::GetOrCreate(
+  if (auto* controller = AutofillAiImportDataController::GetOrCreate(
           &*web_contents(), GetAppLocale())) {
     controller->ShowPrompt(std::move(new_entity), std::move(old_entity),
-                           std::move(prompt_acceptance_callback));
+                           std::move(prompt_closed_callback));
     return;
   }
 #endif  // !BUILDFLAG(IS_ANDROID)
-  std::move(prompt_acceptance_callback).Run(EntitySaveOrUpdatePromptResult());
+  std::move(prompt_closed_callback)
+      .Run(AutofillClient::AutofillAiBubbleClosedReason::kUnknown);
 }
 
 }  // namespace autofill

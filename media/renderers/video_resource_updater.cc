@@ -81,8 +81,8 @@ gfx::ProtectedVideoType ProtectedVideoTypeFromMetadata(
                                : gfx::ProtectedVideoType::kSoftwareProtected;
 }
 
-VideoFrameResourceType ExternalResourceTypeForHardware(const VideoFrame& frame,
-                                                       GLuint target) {
+VideoFrameResourceType ExternalResourceTypeForHardware(
+    const VideoFrame& frame) {
   bool si_prefers_external_sampler =
       frame.shared_image()->format().PrefersExternalSampler();
   if (si_prefers_external_sampler) {
@@ -96,7 +96,7 @@ VideoFrameResourceType ExternalResourceTypeForHardware(const VideoFrame& frame,
     case PIXEL_FORMAT_ABGR:
     case PIXEL_FORMAT_XBGR:
     case PIXEL_FORMAT_BGRA:
-      switch (target) {
+      switch (frame.shared_image()->GetTextureTarget()) {
         case GL_TEXTURE_EXTERNAL_OES:
 #if BUILDFLAG(IS_ANDROID)
           return VideoFrameResourceType::RGB;
@@ -719,9 +719,11 @@ VideoResourceUpdater::FrameResource* VideoResourceUpdater::AllocateResource(
   return all_resources_.back().get();
 }
 
-void VideoResourceUpdater::CopyHardwareResource(
-    VideoFrame* video_frame,
-    VideoFrameExternalResource* external_resource) {
+VideoFrameExternalResource VideoResourceUpdater::CopyHardwareResource(
+    VideoFrame* video_frame) {
+  VideoFrameExternalResource external_resource;
+  external_resource.type = VideoFrameResourceType::RGBA_PREMULTIPLIED;
+
   const gfx::Size output_resource_size = video_frame->coded_size();
   auto shared_image = video_frame->shared_image();
   // The copy needs to be a direct transfer of pixel data, so we use an RGBA8
@@ -731,10 +733,7 @@ void VideoResourceUpdater::CopyHardwareResource(
 
   // We copy to RGBA image, so we need only RGBA portion of the color space.
   const auto copy_color_space = video_frame->ColorSpace().GetAsFullRangeRGB();
-  SkAlphaType copy_alpha_type =
-      (external_resource->type == VideoFrameResourceType::RGBA_PREMULTIPLIED)
-          ? kPremul_SkAlphaType
-          : kUnpremul_SkAlphaType;
+  const SkAlphaType copy_alpha_type = kPremul_SkAlphaType;
 
   const VideoFrame::ID no_unique_id;  // Do not recycle referenced textures.
   FrameResource* hardware_resource = RecycleOrAllocateResource(
@@ -777,10 +776,12 @@ void VideoResourceUpdater::CopyHardwareResource(
       video_frame->hdr_metadata().value_or(gfx::HDRMetadata());
   transferable_resource.needs_detiling = video_frame->metadata().needs_detiling;
 
-  external_resource->resource = std::move(transferable_resource);
-  external_resource->release_callback =
+  external_resource.resource = std::move(transferable_resource);
+  external_resource.release_callback =
       base::BindOnce(&VideoResourceUpdater::RecycleResource,
                      weak_ptr_factory_.GetWeakPtr(), hardware_resource->id());
+
+  return external_resource;
 }
 
 VideoFrameExternalResource VideoResourceUpdater::CreateForHardwareFrame(
@@ -790,17 +791,14 @@ VideoFrameExternalResource VideoResourceUpdater::CreateForHardwareFrame(
     return VideoFrameExternalResource();
   }
 
-  VideoFrameExternalResource external_resource;
-  const bool copy_required = video_frame->metadata().copy_required;
-  auto shared_image = video_frame->shared_image();
-  GLuint target = shared_image->GetTextureTarget();
-  // If |copy_required| then we will copy into a GL_TEXTURE_2D target.
-  if (copy_required) {
-    target = GL_TEXTURE_2D;
+  if (video_frame->metadata().copy_required) {
+    return CopyHardwareResource(video_frame.get());
   }
 
-  external_resource.type =
-      ExternalResourceTypeForHardware(*video_frame, target);
+  VideoFrameExternalResource external_resource;
+  auto shared_image = video_frame->shared_image();
+
+  external_resource.type = ExternalResourceTypeForHardware(*video_frame);
   if (external_resource.type == VideoFrameResourceType::NONE) {
     DLOG(ERROR) << "Unsupported Texture format"
                 << VideoPixelFormatToString(video_frame->format());
@@ -810,11 +808,6 @@ VideoFrameExternalResource VideoResourceUpdater::CreateForHardwareFrame(
   // Make a copy of the current release SyncToken so we know if it changes.
   CopyingSyncTokenClient client;
   auto original_release_token = video_frame->UpdateReleaseSyncToken(&client);
-
-  if (copy_required) {
-    CopyHardwareResource(video_frame.get(), &external_resource);
-    return external_resource;
-  }
 
   SkAlphaType alpha_type =
       (external_resource.type == VideoFrameResourceType::RGBA_PREMULTIPLIED)
@@ -931,12 +924,8 @@ void VideoResourceUpdater::TransferRGBPixelsToPaintCanvas(
   // https://crbug.com/1090435
   PaintCanvasVideoRenderer::PaintParams paint_params;
   paint_params.dest_rect = gfx::RectF(video_frame->visible_rect());
-
-  // Call PaintOOPR() as part of the transition away from calling PCVR::Paint()
-  // directly. The condition of PaintOOPR() that the raster context provider
-  // either be null or support `gpu_rasterization` is here trivially satisfied.
-  video_renderer_->PaintOOPR(video_frame, &canvas, flags, paint_params,
-                             /*raster_context_provider=*/nullptr);
+  video_renderer_->Paint(video_frame, &canvas, flags, paint_params,
+                         /*raster_context_provider=*/nullptr);
 }
 
 bool VideoResourceUpdater::WriteRGBPixelsToTexture(

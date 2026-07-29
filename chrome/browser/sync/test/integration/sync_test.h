@@ -84,28 +84,6 @@ namespace syncer {
 class SyncServiceImpl;
 }  // namespace syncer
 
-enum class SyncTestMode {
-  kSignInOnly,
-  kSyncTheFeature_WithSyncToSignin,
-  kSyncTheFeature_WithoutSyncToSignin,
-};
-
-// Enables user-readable output from gtest (instead of binary streams).
-std::ostream& operator<<(std::ostream& stream, SyncTestMode sync_test_mode);
-std::string SyncTestModeAsString(SyncTestMode sync_test_mode);
-
-inline auto GetSyncTestModes() {
-#if BUILDFLAG(IS_CHROMEOS)
-  return testing::Values(SyncTestMode::kSyncTheFeature_WithoutSyncToSignin);
-#elif BUILDFLAG(IS_ANDROID)
-  return testing::Values(SyncTestMode::kSignInOnly);
-#else
-  return testing::Values(SyncTestMode::kSignInOnly,
-                         SyncTestMode::kSyncTheFeature_WithSyncToSignin,
-                         SyncTestMode::kSyncTheFeature_WithoutSyncToSignin);
-#endif
-}
-
 // This is the base class for integration tests for all sync data types. Derived
 // classes must be defined for each sync data type. Individual tests are defined
 // using the IN_PROC_BROWSER_TEST_F macro.
@@ -158,9 +136,6 @@ class SyncTest : public PlatformBrowserTest,
     kSyncTransportOnly,
     kSyncTheFeature,
   };
-
-  // Maps SyncTestMode to SetupSyncMode.
-  static SyncTest::SetupSyncMode GetSetupSyncMode(SyncTestMode sync_test_mode);
 
   // A SyncTest must be associated with a particular test type.
   explicit SyncTest(TestType test_type);
@@ -246,14 +221,14 @@ class SyncTest : public PlatformBrowserTest,
   // Initializes sync clients and waits for different stages to complete
   // depending on |setup_mode|.
   [[nodiscard]] bool SetupSync(
-      SyncWaitCondition wait_condition = WAIT_FOR_COMMITS_TO_COMPLETE,
-      SetupSyncMode setup_mode = kSyncTheFeature);
+      SetupSyncMode setup_mode = kSyncTheFeature,
+      SyncWaitCondition wait_condition = WAIT_FOR_COMMITS_TO_COMPLETE);
   [[nodiscard]] bool SetupSync(
       SyncTestAccount account,
-      SyncWaitCondition wait_condition = WAIT_FOR_COMMITS_TO_COMPLETE,
-      SetupSyncMode setup_mode = kSyncTheFeature);
+      SetupSyncMode setup_mode = kSyncTheFeature,
+      SyncWaitCondition wait_condition = WAIT_FOR_COMMITS_TO_COMPLETE);
 
-  // This is similar to click the reset button on chrome.google.com/sync.
+  // This is similar to click the reset button on chrome.google.com/data.
   // Only takes effect when running with external servers.
   // Please call this before setting anything.
   [[nodiscard]] bool ResetSyncForPrimaryAccount();
@@ -361,9 +336,9 @@ class SyncTest : public PlatformBrowserTest,
   void InitializeProfile(int index, Profile* profile);
 
   // Internal routine for setting up sync.
-  [[nodiscard]] bool SetupSyncInternal(SyncWaitCondition wait_condition,
-                                       SyncTestAccount account,
-                                       SetupSyncMode setup_mode);
+  [[nodiscard]] bool SetupSyncInternal(SyncTestAccount account,
+                                       SetupSyncMode setup_mode,
+                                       SyncWaitCondition wait_condition);
 
   // Used to determine whether ARC_PACKAGE data type needs to be enabled. This
   // is applicable on ChromeOS-Ash platform only.
@@ -465,6 +440,22 @@ class SyncTest : public PlatformBrowserTest,
       profile_manager_observation_{this};
   base::WeakPtrFactory<SyncTest> weak_ptr_factory_{this};
 };
+
+inline auto GetSyncTestModes() {
+#if BUILDFLAG(IS_CHROMEOS)
+  return testing::Values(SyncTest::SetupSyncMode::kSyncTheFeature);
+#elif BUILDFLAG(IS_ANDROID)
+  return testing::Values(SyncTest::SetupSyncMode::kSyncTransportOnly);
+#else
+  return testing::Values(SyncTest::SetupSyncMode::kSyncTransportOnly,
+                         SyncTest::SetupSyncMode::kSyncTheFeature);
+#endif
+}
+
+// Enables user-readable output from gtest (instead of binary streams).
+std::ostream& operator<<(std::ostream& stream,
+                         SyncTest::SetupSyncMode sync_test_mode);
+std::string SetupSyncModeAsString(SyncTest::SetupSyncMode sync_test_mode);
 
 syncer::DataTypeSet AllowedTypesInStandaloneTransportMode();
 

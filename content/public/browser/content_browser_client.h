@@ -60,6 +60,7 @@
 #include "media/base/picture_in_picture_events_info.h"
 #include "media/mojo/mojom/media_service.mojom-forward.h"
 #include "media/mojo/mojom/remoting.mojom-forward.h"
+#include "media/mojo/mojom/speech_recognizer.mojom.h"
 #include "mojo/public/cpp/bindings/generic_pending_receiver.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
@@ -166,11 +167,16 @@ namespace network {
 class SharedURLLoaderFactory;
 class URLLoaderFactoryBuilder;
 namespace mojom {
+enum class AttributionSupport : int32_t;
 class TrustedHeaderClient;
 class URLLoader;
 class URLLoaderClient;
 }  // namespace mojom
 }  // namespace network
+
+namespace optimization_guide {
+class ModelBrokerClient;
+}  // namespace optimization_guide
 
 namespace service_manager {
 template <typename...>
@@ -1463,6 +1469,15 @@ class CONTENT_EXPORT ContentBrowserClient {
   virtual SpeechRecognitionManagerDelegate*
   CreateSpeechRecognitionManagerDelegate();
 
+  // Allows the embedder to create a ModelBrokerClient.
+  virtual std::unique_ptr<optimization_guide::ModelBrokerClient>
+  CreateModelBrokerClient(BrowserContext* browser_context);
+
+  // Returns whether on-device speech recognition is available.
+  virtual media::mojom::AvailabilityStatus
+  GetOnDeviceSpeechRecognitionAvailabilityStatus(BrowserContext* context,
+                                                 const std::string& language);
+
 #if BUILDFLAG(IS_CHROMEOS)
   // Allows the embedder to return a delegate for the TtsController.
   virtual TtsControllerDelegate* GetTtsControllerDelegate();
@@ -1928,9 +1943,8 @@ class CONTENT_EXPORT ContentBrowserClient {
   //
   // This is called on the UI thread.
   virtual std::vector<std::unique_ptr<blink::URLLoaderThrottle>>
-  CreateURLLoaderThrottlesForKeepAlive(
-      BrowserContext* browser_context,
-      FrameTreeNodeId frame_tree_node_id);
+  CreateURLLoaderThrottlesForKeepAlive(BrowserContext* browser_context,
+                                       FrameTreeNodeId frame_tree_node_id);
 
   // Allows the embedder to register per-scheme URLLoaderFactory implementations
   // to handle navigation URL requests for schemes not handled by the Network
@@ -2740,8 +2754,8 @@ class CONTENT_EXPORT ContentBrowserClient {
       std::optional<LegacyTechCookieIssueDetails> cookie_issue_details);
 
   // Get the desired URL for clipboard source/destination reporting, if one
-  // exists. For example, given chrome://print and its rfh, return the URL of
-  // the page being printed.
+  // exists, from a non-null RenderFrameHost. For example, given chrome://print
+  // and its rfh, return the URL of the page being printed.
   virtual std::optional<GURL> MaybeOverrideSourceURLForClipboardAccess(
       RenderFrameHost* render_frame_host,
       const GURL& original_url);
@@ -3059,6 +3073,11 @@ class CONTENT_EXPORT ContentBrowserClient {
   virtual bool IsTransientActivationRequiredForShowFileOrDirectoryPicker(
       WebContents* web_contents);
 
+  // Checks if the file picker from the file system access web API should be
+  // blocked.
+  virtual bool IsFileSystemAccessApiFilePickerAllowed(
+      WebContents* web_contents);
+
   // Checks if `origin` should always receive a first-party StorageKey
   // in RenderFrameHostImpl. Currently in Chrome, this is true for all
   // extension origins.
@@ -3343,6 +3362,16 @@ class CONTENT_EXPORT ContentBrowserClient {
   // experiments. For more details, see
   // https://docs.google.com/document/d/1bBhfhO7BotUB7Myy_8mtFF_4lI5N8hUyNayV_gI019Y/edit?tab=t.0#heading=h.9osmajzfan4b
   virtual bool UsePreloadServingMetrics();
+#if !BUILDFLAG(IS_ANDROID)
+  // Gives the content embedder a chance to disallow a credential request,
+  // for example if there's an active actor task in the tab associated with
+  // `web_contents`.
+  virtual bool ShouldDisallowCredentialRequest(WebContents* web_contents);
+#endif  // !BUILDFLAG(IS_ANDROID)
+
+  // Whether to animate back-forward transition gestures with a screenshot of
+  // the destination.
+  virtual bool ShouldAnimateBackForwardTransitions();
 };
 
 }  // namespace content

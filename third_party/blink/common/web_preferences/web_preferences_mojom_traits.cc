@@ -238,15 +238,13 @@ bool StructTraits<blink::mojom::WebPreferencesDataView,
   out->subapps_apis_require_user_gesture_and_authorization =
       data.require_transient_activation_and_user_confirmation_for_subapps_api();
   out->payment_request_enabled = data.payment_request_enabled();
-  out->api_based_fingerprinting_interventions_enabled =
-      data.api_based_fingerprinting_interventions_enabled();
   out->content_based_fingerprinting_protection_enabled =
       data.content_based_fingerprinting_protection_enabled();
   out->ai_prompt_api_enabled = data.ai_prompt_api_enabled();
 
 #if BUILDFLAG(IS_ANDROID)
-  out->increment_local_surface_id_for_mainframe_same_doc_navigation =
-      data.increment_local_surface_id_for_mainframe_same_doc_navigation();
+  out->should_screenshot_on_mainframe_same_doc_navigation =
+      data.should_screenshot_on_mainframe_same_doc_navigation();
 #endif  // BUILDFLAG(IS_ANDROID)
 
   return true;

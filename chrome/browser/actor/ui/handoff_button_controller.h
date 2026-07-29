@@ -62,7 +62,9 @@ class HandoffButtonController {
   HandoffButtonController(const HandoffButtonController&) = delete;
   HandoffButtonController& operator=(const HandoffButtonController&) = delete;
 
-  virtual void UpdateState(const HandoffButtonState& state, bool is_visible);
+  virtual void UpdateState(const HandoffButtonState& state,
+                           bool is_visible,
+                           base::OnceClosure callback);
   // Returns true if the mouse is currently hovering over the handoff button.
   virtual bool IsHovering();
 
@@ -83,6 +85,7 @@ class HandoffButtonController {
   virtual ActorUiTabControllerInterface* GetTabController();
   virtual void UpdateBounds();
   virtual void UpdateVisibility();
+  void OnWidgetDestroying(views::Widget::ClosedReason reason);
 
   tabs::TabDialogManager* GetTabDialogManager();
 

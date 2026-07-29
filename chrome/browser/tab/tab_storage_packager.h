@@ -39,16 +39,19 @@ class TabStoragePackager {
   std::unique_ptr<StoragePackage> Package(const TabCollection* collection,
                                           StorageIdMapping& mapping);
 
- protected:
-  virtual std::unique_ptr<Payload> PackageTabGroupTabCollectionData(
-      const TabGroupTabCollection* collection,
-      StorageIdMapping& mapping) = 0;
+  // Packages only the children of a collection for storage.
+  std::unique_ptr<Payload> PackageChildren(const TabCollection* collection,
+                                           StorageIdMapping& mapping);
 
+ protected:
   virtual std::unique_ptr<Payload> PackageTabStripCollectionData(
       const TabStripCollection* collection,
       StorageIdMapping& mapping) = 0;
 
  private:
+  std::unique_ptr<Payload> PackageTabGroupTabCollectionData(
+      const TabGroupTabCollection* collection,
+      StorageIdMapping& mapping);
   std::unique_ptr<Payload> PackageSplitTabCollectionData(
       const SplitTabCollection* collection,
       StorageIdMapping& mapping);

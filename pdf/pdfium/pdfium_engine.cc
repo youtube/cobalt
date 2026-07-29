@@ -967,9 +967,6 @@ void PDFiumEngine::OnDocumentCanceled() {
 void PDFiumEngine::ClearTextSelection() {
   SelectionChangeInvalidator selection_invalidator(this);
   selection_.clear();
-  if (caret_) {
-    caret_->SetVisible(true);
-  }
 }
 
 void PDFiumEngine::ExtendAndInvalidateSelectionByChar(
@@ -989,6 +986,10 @@ uint32_t PDFiumEngine::GetCharCount(uint32_t page_index) const {
   return base::checked_cast<uint32_t>(pages_[page_index]->GetCharCount());
 }
 
+PageOrientation PDFiumEngine::GetCurrentOrientation() const {
+  return layout_.options().default_page_orientation();
+}
+
 std::vector<gfx::Rect> PDFiumEngine::GetScreenRectsForCaret(
     const PageCharacterIndex& index) const {
   CHECK(PageIndexInBounds(index.page_index));
@@ -1003,6 +1004,21 @@ std::vector<gfx::Rect> PDFiumEngine::GetScreenRectsForCaret(
   PDFiumRange range(page, index.char_index, 1);
   return range.GetScreenRects(GetVisibleRect().origin(), current_zoom_,
                               GetCurrentOrientation());
+}
+
+std::optional<AccessibilityTextRunInfo> PDFiumEngine::GetTextRunInfoAt(
+    const PageCharacterIndex& index) const {
+  if (!PageIndexInBounds(index.page_index)) {
+    return std::nullopt;
+  }
+
+  PDFiumPage* page = pages_[index.page_index].get();
+  if (page->GetCharCount() == 0 ||
+      !page->IsCharIndexInBounds(index.char_index)) {
+    return std::nullopt;
+  }
+
+  return page->GetTextRunInfoAt(index.char_index).value();
 }
 
 void PDFiumEngine::InvalidateRect(const gfx::Rect& rect) {
@@ -2079,8 +2095,8 @@ bool PDFiumEngine::OnKeyDown(const blink::WebKeyboardEvent& event) {
   if (event.windows_key_code == FWL_VKEY_Tab) {
     return HandleTabEvent(event.GetModifiers());
   }
-
-  if (caret_ && caret_->OnKeyDown(event)) {
+  if (focus_field_type_ == FocusFieldType::kNoFocus && caret_ &&
+      caret_->OnKeyDown(event)) {
     return true;
   }
 
@@ -3393,10 +3409,6 @@ bool PDFiumEngine::IsPageVisible(int page_index) const {
   return base::Contains(visible_pages_, page_index);
 }
 
-PageOrientation PDFiumEngine::GetCurrentOrientation() const {
-  return layout_.options().default_page_orientation();
-}
-
 void PDFiumEngine::ScrollToPage(int page) {
   if (!PageIndexInBounds(page)) {
     return;
@@ -3837,16 +3849,16 @@ gfx::Rect PDFiumEngine::GetScreenRect(const gfx::Rect& rect) const {
 
 std::vector<gfx::Rect> PDFiumEngine::GetNoTextPageScreenRectsForCaret(
     PDFiumPage* page) const {
-  // TODO(crbug.com/437807125): Determine default caret offset and height.
+  // TODO(crbug.com/437807125): Determine default caret offset and size.
   static constexpr float kCaretOffset = 10.0f;
-  static constexpr float kCaretHeight = 12.0f;
+  static constexpr float kCaretSize = 12.0f;
 
   const PdfRect page_bounds = GetPageBoundingBox(page->GetPage()).value();
   const float caret_left = page_bounds.left() + kCaretOffset;
   const float caret_top = page_bounds.top() - kCaretOffset;
   const PdfRect caret_rect(/*left=*/caret_left,
-                           /*bottom=*/caret_top - kCaretHeight,
-                           /*right=*/caret_left + PdfCaret::kCaretWidth,
+                           /*bottom=*/caret_top - kCaretSize,
+                           /*right=*/caret_left + kCaretSize,
                            /*top=*/caret_top);
 
   // The PDF page is too small to display the default caret size.

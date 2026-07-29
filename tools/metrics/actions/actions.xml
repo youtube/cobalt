@@ -135,6 +135,26 @@ should be able to be added at any place in this file.
   <variant name="_SecureButton" summary="Secure pillar page button"/>
 </variants>
 
+<variants name="GlicDaisyChain_Outcome">
+  <variant name="" summary="aggregated"/>
+  <variant name="Failure"
+      summary="Glic failed to daisy chain a new side panel."/>
+  <variant name="Success"
+      summary="Glic successfully daisy chained a side panel."/>
+</variants>
+
+<variants name="GlicDaisyChain_Type">
+  <variant name="" summary="aggregated"/>
+  <variant name="ActorAddTab"
+      summary="Daisy chaining initiated from Actor creating a new tab."/>
+  <variant name="GlicContents"
+      summary="Daisy chaining initiated from clicking a link in the Glic Host
+               UI."/>
+  <variant name="TabContents"
+      summary="Daisy chaining initiated from clicking a link in the active
+               Glic Instance's Tab Contents."/>
+</variants>
+
 <variants name="InProductHelp_Type">
   <variant name="" summary="aggregated"/>
   <variant name="_AccountSettingsHistorySync"
@@ -269,7 +289,9 @@ should be able to be added at any place in this file.
   <variant name="_DefaultBrowserPromoSettingCard"
       summary="For Default browser promo in Chrome settings."/>
   <variant name="_DefaultSiteView" summary="For DefaultSiteView feature."/>
-  <variant name="_DesktopCustomizeChrome"
+  <variant name="_DesktopCustomizeChromeAutoOpen"
+      summary="For Customize Chrome Auto Open feature."/>
+  <variant name="_DesktopCustomizeChromeExperiment"
       summary="For Customize Chrome feature."/>
   <variant name="_DesktopCustomizeChromeRefresh"
       summary="For Customize Chrome refresh feature."/>
@@ -725,7 +747,6 @@ should be able to be added at any place in this file.
   <variant name="_SideSearchPageActionLabel"
       summary="For side search feature page action label triggering."/>
   <variant name="_SignInBenefits" summary="For sign-in benefits IPH feature."/>
-  <variant name="_SignoutWebIntercept" summary="For web signout IPH feature."/>
   <variant name="_SupervisedUserProfileSignin"
       summary="For displaying the supervised user sign-in IPH."/>
   <variant name="_TabAudioMuting" summary="For TabAudioMuting feature."/>
@@ -4649,6 +4670,32 @@ should be able to be added at any place in this file.
   <description>The survey infobar was displayed.</description>
 </action>
 
+<action name="Android.TabStripMenu.ChangeWindowName">
+  <owner>aishwaryarj@google.com</owner>
+  <description>
+    User tapped 'Save' on the dialog opened via the tab strip context menu to
+    successfully save and change the name of a Chrome window and dismiss the
+    dialog.
+  </description>
+</action>
+
+<action name="Android.TabStripMenu.NameWindow">
+  <owner>aishwaryarj@google.com</owner>
+  <description>
+    User tapped 'Name window' on the tab strip context menu to name a Chrome
+    window.
+  </description>
+</action>
+
+<action name="Android.TabStripMenu.SaveWindowName">
+  <owner>aishwaryarj@google.com</owner>
+  <description>
+    User tapped 'Save' on the dialog opened via the tab strip context menu to
+    successfully save (with or without changing) the name of a Chrome window and
+    dismiss the dialog.
+  </description>
+</action>
+
 <action name="Android.WindowManager.ChangeWindowName">
   <owner>aishwaryarj@google.com</owner>
   <owner>rathomas@google.com</owner>
@@ -4709,8 +4756,8 @@ should be able to be added at any place in this file.
   <owner>rathomas@google.com</owner>
   <description>
     User tapped 'Save' on the dialog opened via the 3-dot menu on the in-app
-    window manager to successfully save the name of a Chrome window and dismiss
-    the dialog.
+    window manager to successfully save (with or without changing) the name of a
+    Chrome window and dismiss the dialog.
   </description>
 </action>
 
@@ -6788,6 +6835,15 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
+<action name="BookmarkBar_ContextMenu_OpenAllInNewTabGroup">
+  <owner>dpenning@chromium.org</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
+  <description>
+    Recorded when the bookmarks context menu is used in the bookmark context
+    menu &quot;Open All in New Tab Group&quot;
+  </description>
+</action>
+
 <action name="BookmarkBar_ContextMenu_OpenAllInNewWindow">
   <owner>dfried@chromium.org</owner>
   <owner>chrome-analysis-team@google.com</owner>
@@ -6802,32 +6858,38 @@ should be able to be added at any place in this file.
 </action>
 
 <action name="BookmarkBar_ContextMenu_OpenInNewTab">
-  <owner>Please list the metric's owners. Add more owner tags as needed.</owner>
+  <owner>dpenning@chromium.org</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
   <description>Please enter the description of this user action.</description>
 </action>
 
 <action name="BookmarkBar_ContextMenu_OpenInNewWindow">
-  <owner>Please list the metric's owners. Add more owner tags as needed.</owner>
+  <owner>dpenning@chromium.org</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
   <description>Please enter the description of this user action.</description>
 </action>
 
 <action name="BookmarkBar_ContextMenu_Redo">
-  <owner>Please list the metric's owners. Add more owner tags as needed.</owner>
+  <owner>dpenning@chromium.org</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
   <description>Please enter the description of this user action.</description>
 </action>
 
 <action name="BookmarkBar_ContextMenu_Remove">
-  <owner>Please list the metric's owners. Add more owner tags as needed.</owner>
+  <owner>dpenning@chromium.org</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
   <description>Please enter the description of this user action.</description>
 </action>
 
 <action name="BookmarkBar_ContextMenu_RemoveFromBookmarkBar">
-  <owner>Please list the metric's owners. Add more owner tags as needed.</owner>
+  <owner>dpenning@chromium.org</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
   <description>Please enter the description of this user action.</description>
 </action>
 
 <action name="BookmarkBar_ContextMenu_ShowInFolder">
-  <owner>Please list the metric's owners. Add more owner tags as needed.</owner>
+  <owner>dpenning@chromium.org</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
   <description>Please enter the description of this user action.</description>
 </action>
 
@@ -6841,7 +6903,8 @@ should be able to be added at any place in this file.
 </action>
 
 <action name="BookmarkBar_ContextMenu_Undo">
-  <owner>Please list the metric's owners. Add more owner tags as needed.</owner>
+  <owner>dpenning@chromium.org</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
   <description>Please enter the description of this user action.</description>
 </action>
 
@@ -13873,6 +13936,312 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
+<action name="Glic.Instance.Bind">
+  <owner>birnie@google.com</owner>
+  <owner>perrier@google.com</owner>
+  <description>Logged when a Glic instance is bound to a tab.</description>
+</action>
+
+<action name="Glic.Instance.BoundTabDestroyed">
+  <owner>birnie@google.com</owner>
+  <owner>perrier@google.com</owner>
+  <description>Logged when a bound tab is destroyed.</description>
+</action>
+
+<action name="Glic.Instance.Close">
+  <owner>birnie@google.com</owner>
+  <owner>perrier@google.com</owner>
+  <description>Logged when Close is called on an instance.</description>
+</action>
+
+<action name="Glic.Instance.Created">
+  <owner>birnie@google.com</owner>
+  <owner>perrier@google.com</owner>
+  <description>Logged when a Glic instance is created.</description>
+</action>
+
+<action name="Glic.Instance.CreatedInstanceWithoutWarming">
+  <owner>birnie@google.com</owner>
+  <owner>perrier@google.com</owner>
+  <description>
+    Logged when an instance is created wihtout prewarming.
+  </description>
+</action>
+
+<action name="Glic.Instance.CreatedWarmedInstance">
+  <owner>birnie@google.com</owner>
+  <owner>perrier@google.com</owner>
+  <description>Logged when a warmed instance is created.</description>
+</action>
+
+<action name="Glic.Instance.CreateTab">
+  <owner>birnie@google.com</owner>
+  <owner>perrier@google.com</owner>
+  <description>
+    Logged when the CreateTab API is used on an Instance.
+  </description>
+</action>
+
+<action name="Glic.Instance.CreateTask">
+  <owner>birnie@google.com</owner>
+  <owner>perrier@google.com</owner>
+  <description>
+    Logged when the CreateTask API is used on an Instance.
+  </description>
+</action>
+
+<action
+    name="Glic.Instance.DaisyChain.{GlicDaisyChain_Type}.{GlicDaisyChain_Outcome}">
+  <owner>sanaakbani@google.com</owner>
+  <owner>birnie@google.com</owner>
+  <description>
+    Glic side panel daisy chained to a new tab through {GlicDaisyChain_Type}
+    with a result of {GlicDaisyChain_Outcome}.
+  </description>
+  <token key="GlicDaisyChain_Type" variants="GlicDaisyChain_Type"/>
+  <token key="GlicDaisyChain_Outcome" variants="GlicDaisyChain_Outcome"/>
+</action>
+
+<action name="Glic.Instance.Destroyed">
+  <owner>birnie@google.com</owner>
+  <owner>perrier@google.com</owner>
+  <description>Logged when a Glic instance is destroyed.</description>
+</action>
+
+<action name="Glic.Instance.Detach">
+  <owner>birnie@google.com</owner>
+  <owner>perrier@google.com</owner>
+  <description>
+    Logged when the user detaches a Glic instance from its current context
+    (e.g., the side panel to a floating window).
+  </description>
+</action>
+
+<action name="Glic.Instance.Hide">
+  <owner>birnie@google.com</owner>
+  <owner>perrier@google.com</owner>
+  <description>
+    Logged when a Glic instance is hidden from the user (e.g., the side panel is
+    closed, the tab is backgrounded, or the floaty is dismissed).
+  </description>
+</action>
+
+<action name="Glic.Instance.InterruptActorTask">
+  <owner>birnie@google.com</owner>
+  <owner>perrier@google.com</owner>
+  <description>
+    User action to interrupt an actor task within the Glic instance.
+  </description>
+</action>
+
+<action name="Glic.Instance.PauseActorTask">
+  <owner>birnie@google.com</owner>
+  <owner>perrier@google.com</owner>
+  <description>
+    User action to pause an actor task within the Glic instance.
+  </description>
+</action>
+
+<action name="Glic.Instance.PerformActions">
+  <owner>birnie@google.com</owner>
+  <owner>perrier@google.com</owner>
+  <description>
+    User action to perform a set of actions within the Glic instance.
+  </description>
+</action>
+
+<action name="Glic.Instance.Promoted">
+  <owner>birnie@google.com</owner>
+  <owner>perrier@google.com</owner>
+  <description>
+    Logged when a Glic instance is promoted to become a live instance.
+  </description>
+</action>
+
+<action name="Glic.Instance.RegisterConversation">
+  <owner>birnie@google.com</owner>
+  <owner>perrier@google.com</owner>
+  <description>
+    Logged when RegisterConversation is called on an instance.
+  </description>
+</action>
+
+<action name="Glic.Instance.ResumeActorTask">
+  <owner>birnie@google.com</owner>
+  <owner>perrier@google.com</owner>
+  <description>
+    User action to resume an actor task within the Glic instance.
+  </description>
+</action>
+
+<action name="Glic.Instance.Show.Floaty">
+  <owner>birnie@google.com</owner>
+  <owner>perrier@google.com</owner>
+  <description>
+    Logged when a Glic instance is shown in a floating window.
+  </description>
+</action>
+
+<action name="Glic.Instance.Show.SidePanel">
+  <owner>birnie@google.com</owner>
+  <owner>perrier@google.com</owner>
+  <description>
+    Logged when a Glic instance is shown in the side panel.
+  </description>
+</action>
+
+<action name="Glic.Instance.StopActorTask">
+  <owner>birnie@google.com</owner>
+  <owner>perrier@google.com</owner>
+  <description>
+    User action to stop an actor task within the Glic instance.
+  </description>
+</action>
+
+<action name="Glic.Instance.SwitchFromConversation.Floaty">
+  <owner>birnie@google.com</owner>
+  <owner>perrier@google.com</owner>
+  <description>
+    Logged when SwitchConversation is called from Floaty on a Glic instance to
+    switch to a different conversation (eg. loading a chat from 'recent'
+    conversations in the three-dots menu).
+  </description>
+</action>
+
+<action name="Glic.Instance.SwitchFromConversation.SidePanel">
+  <owner>birnie@google.com</owner>
+  <owner>perrier@google.com</owner>
+  <description>
+    Logged when SwitchConversation is called from Side Panel on a Glic instance
+    to switch to a different conversation (eg. loading a chat from 'recent'
+    conversations in the three-dots menu).
+  </description>
+</action>
+
+<action name="Glic.Instance.SwitchToConversation.Floaty">
+  <owner>birnie@google.com</owner>
+  <owner>perrier@google.com</owner>
+  <description>
+    Logged from SwitchConversation on the newly activated instance if it is in a
+    floaty.
+  </description>
+</action>
+
+<action name="Glic.Instance.SwitchToConversation.SidePanel">
+  <owner>birnie@google.com</owner>
+  <owner>perrier@google.com</owner>
+  <description>
+    Logged from SwitchConversation on the newly activated instance if it is in a
+    side panel.
+  </description>
+</action>
+
+<action name="Glic.Instance.Toggle">
+  <owner>birnie@google.com</owner>
+  <owner>perrier@google.com</owner>
+  <description>Logged when Toggle is called on an instance.</description>
+</action>
+
+<action name="Glic.Instance.UnBind">
+  <owner>birnie@google.com</owner>
+  <owner>perrier@google.com</owner>
+  <description>Logged when a Glic instance is un bound from a tab.</description>
+</action>
+
+<action name="Glic.Instance.UninterruptActorTask">
+  <owner>birnie@google.com</owner>
+  <owner>perrier@google.com</owner>
+  <description>
+    User action to uninterrupt an actor task within the Glic instance.
+  </description>
+</action>
+
+<action name="Glic.Instance.WebUiStateChanged.BeginLoad">
+  <owner>birnie@google.com</owner>
+  <owner>perrier@google.com</owner>
+  <description>The Glic instance WebUI has begun to load.</description>
+</action>
+
+<action name="Glic.Instance.WebUiStateChanged.DisabledByAdmin">
+  <owner>birnie@google.com</owner>
+  <owner>perrier@google.com</owner>
+  <description>
+    The Glic instance WebUI has been disabled by admin policy.
+  </description>
+</action>
+
+<action name="Glic.Instance.WebUiStateChanged.Error">
+  <owner>birnie@google.com</owner>
+  <owner>perrier@google.com</owner>
+  <description>The Glic instance WebUI has encountered an error.</description>
+</action>
+
+<action name="Glic.Instance.WebUiStateChanged.FinishLoading">
+  <owner>birnie@google.com</owner>
+  <owner>perrier@google.com</owner>
+  <description>The Glic instance WebUI has finished loading.</description>
+</action>
+
+<action name="Glic.Instance.WebUiStateChanged.GuestError">
+  <owner>birnie@google.com</owner>
+  <owner>perrier@google.com</owner>
+  <description>
+    The Glic instance WebUI has encountered a guest error.
+  </description>
+</action>
+
+<action name="Glic.Instance.WebUiStateChanged.HoldLoading">
+  <owner>birnie@google.com</owner>
+  <owner>perrier@google.com</owner>
+  <description>The Glic instance WebUI is holding loading.</description>
+</action>
+
+<action name="Glic.Instance.WebUiStateChanged.Offline">
+  <owner>birnie@google.com</owner>
+  <owner>perrier@google.com</owner>
+  <description>The Glic instance WebUI is offline.</description>
+</action>
+
+<action name="Glic.Instance.WebUiStateChanged.Ready">
+  <owner>birnie@google.com</owner>
+  <owner>perrier@google.com</owner>
+  <description>The Glic instance WebUI is ready.</description>
+</action>
+
+<action name="Glic.Instance.WebUiStateChanged.ShowLoading">
+  <owner>birnie@google.com</owner>
+  <owner>perrier@google.com</owner>
+  <description>
+    The Glic instance WebUI is showing a loading screen.
+  </description>
+</action>
+
+<action name="Glic.Instance.WebUiStateChanged.SignIn">
+  <owner>birnie@google.com</owner>
+  <owner>perrier@google.com</owner>
+  <description>
+    The Glic instance WebUI is prompting the user to sign in.
+  </description>
+</action>
+
+<action name="Glic.Instance.WebUiStateChanged.Unavailable">
+  <owner>birnie@google.com</owner>
+  <owner>perrier@google.com</owner>
+  <description>The Glic instance WebUI is unavailable.</description>
+</action>
+
+<action name="Glic.Instance.WebUiStateChanged.Uninitialized">
+  <owner>birnie@google.com</owner>
+  <owner>perrier@google.com</owner>
+  <description>The Glic instance WebUI is uninitialized.</description>
+</action>
+
+<action name="Glic.Instance.WebUiStateChanged.Unresponsive">
+  <owner>birnie@google.com</owner>
+  <owner>perrier@google.com</owner>
+  <description>The GLic instance WebUI is unresponsive.</description>
+</action>
+
 <action name="Glic.Pinned">
   <owner>charlesmeng@chromium.org</owner>
   <owner>erikchen@chromium.org</owner>
@@ -13976,6 +14345,20 @@ should be able to be added at any place in this file.
   <owner>iwells@chromium.org</owner>
   <description>
     Logged if the user enables the tabstrip button in glic settings.
+  </description>
+</action>
+
+<action name="Glic.Settings.WebActuation.Disabled">
+  <owner>michelleabreo@google.com</owner>
+  <description>
+    Logged if the user disables actuation on web in glic settings.
+  </description>
+</action>
+
+<action name="Glic.Settings.WebActuation.Enabled">
+  <owner>michelleabreo@google.com</owner>
+  <description>
+    Logged if the user enables actuation on web in glic settings.
   </description>
 </action>
 
@@ -17994,6 +18377,17 @@ should be able to be added at any place in this file.
   <owner>rtinkoff@chromium.org</owner>
   <description>
     The user unmuted the mic by pressing the mic mute keyboard key.
+  </description>
+</action>
+
+<action name="KeyboardAccessory_CloseButtonPressed">
+  <owner>tmartino@chromium.org</owner>
+  <owner>noemies@google.com</owner>
+  <owner>sugoi@google.com</owner>
+  <owner>leozhao@google.com</owner>
+  <description>
+    The user tapped on the close button on the Keyboard Accessory to dismiss it.
+    iOS only.
   </description>
 </action>
 
@@ -26392,13 +26786,6 @@ should be able to be added at any place in this file.
   <description>User pressed 'Find in page' in the app menu.</description>
 </action>
 
-<action name="MobileMenuFollow">
-  <owner>adamta@google.org</owner>
-  <owner>sczs@chromium.org</owner>
-  <owner>tinazwang@chromium.org</owner>
-  <description>User pressed the follow option in the app menu.</description>
-</action>
-
 <action name="MobileMenuForward">
   <owner>aurimas@chromium.org</owner>
   <description>User pressed the forward icon in the app menu.</description>
@@ -26793,13 +27180,6 @@ should be able to be added at any place in this file.
 <action name="MobileMenuTranslate">
   <owner>frechette@chromium.org</owner>
   <description>User pressed the 'Translate' in the app menu.</description>
-</action>
-
-<action name="MobileMenuUnfollow">
-  <owner>adamta@google.org</owner>
-  <owner>sczs@chromium.org</owner>
-  <owner>tinazwang@chromium.org</owner>
-  <description>User pressed the unfollow option in the app menu.</description>
 </action>
 
 <action name="MobileMenuUnpinTab">
@@ -27347,6 +27727,20 @@ should be able to be added at any place in this file.
   <description>
     User used the refinement arrow in an omnibox URL suggestion to copy the text
     of the suggestion into the omnibox.
+  </description>
+</action>
+
+<action name="MobileOmniboxRemoveSuggestion.Button">
+  <owner>jianli@chromium.org</owner>
+  <description>
+    User clicks the remove button to remove the suggestion.
+  </description>
+</action>
+
+<action name="MobileOmniboxRemoveSuggestion.LongPress">
+  <owner>jianli@chromium.org</owner>
+  <description>
+    User long pressed an omnibox search suggestion to remove the suggestion.
   </description>
 </action>
 
@@ -31232,6 +31626,42 @@ should be able to be added at any place in this file.
 <action name="NewTab_Button">
   <owner>Please list the metric's owners. Add more owner tags as needed.</owner>
   <description>Please enter the description of this user action.</description>
+</action>
+
+<action name="NewTabButton_ContextMenu_NewGroup">
+  <owner>dominicaustria@google.com</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
+  <description>
+    User opened the new tab button context menu and selected the 'new group'
+    menu item.
+  </description>
+</action>
+
+<action name="NewTabButton_ContextMenu_NewSplitTab">
+  <owner>dominicaustria@google.com</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
+  <description>
+    User opened the new tab button context menu and selected the 'new split view
+    with current tab' menu item.
+  </description>
+</action>
+
+<action name="NewTabButton_ContextMenu_NewTab">
+  <owner>dominicaustria@google.com</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
+  <description>
+    User opened the new tab button context menu and selected the 'new tab' menu
+    item.
+  </description>
+</action>
+
+<action name="NewTabButton_ContextMenu_NewTabInGroup">
+  <owner>dominicaustria@google.com</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
+  <description>
+    User opened the new tab button context menu and selected the 'new tab in
+    group' menu item.
+  </description>
 </action>
 
 <action name="NewTabPage.Carts.AcceptDiscountConsent">
@@ -38336,6 +38766,14 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
+<action name="Settings.AiPage.GlicShortcuts.WebActuationToggleLearnMoreClicked">
+  <owner>michelleabreo@google.com</owner>
+  <description>
+    Logged when the user clicks on the 'Learn more' link associated with the Web
+    Actuation setting in chrome://settings/ai/gemini.
+  </description>
+</action>
+
 <action name="Settings.AiPage.HistorySearch.Disabled">
   <owner>zalmashni@google.com</owner>
   <owner>rainhard@chromium.org</owner>
@@ -41440,6 +41878,7 @@ should be able to be added at any place in this file.
 
 <action name="SidePanel_Bookmarks_ContextMenu_OpenAll">
   <owner>dpenning@chromium.org</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
   <description>
     Recorded when the bookmarks context menu is used in the SidePanel for
     &quot;open all&quot;
@@ -41448,6 +41887,7 @@ should be able to be added at any place in this file.
 
 <action name="SidePanel_Bookmarks_ContextMenu_OpenAllIncognito">
   <owner>dpenning@chromium.org</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
   <description>
     Recorded when the bookmarks context menu is used in the SidePanel for
     &quot;open all incognito&quot;
@@ -41456,6 +41896,7 @@ should be able to be added at any place in this file.
 
 <action name="SidePanel_Bookmarks_ContextMenu_OpenAllInNewTabGroup">
   <owner>dpenning@chromium.org</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
   <description>
     Recorded when the bookmarks context menu is used in the SidePanel for
     &quot;open all in new tab group&quot;
@@ -41464,6 +41905,7 @@ should be able to be added at any place in this file.
 
 <action name="SidePanel_Bookmarks_ContextMenu_OpenAllInNewWindow">
   <owner>dpenning@chromium.org</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
   <description>
     Recorded when the bookmarks context menu is used in the SidePanel for
     &quot;open all in new window&quot;
@@ -41472,6 +41914,7 @@ should be able to be added at any place in this file.
 
 <action name="SidePanel_Bookmarks_ContextMenu_OpenSplitView">
   <owner>dpenning@chromium.org</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
   <description>
     Recorded when the bookmarks context menu is used in the SidePanel for
     &quot;open split view&quot;
@@ -46574,10 +47017,55 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
+<action name="SystemContextMenu_BookmarkAllTabs">
+  <owner>dominicaustria@google.com</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
+  <description>
+    The user opened the system menu context and selected the 'bookmark all tabs'
+    menu item.
+  </description>
+</action>
+
+<action name="SystemContextMenu_GroupAllTabs">
+  <owner>dominicaustria@google.com</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
+  <description>
+    The user opened the system menu context and selected the 'group all tabs'
+    menu item.
+  </description>
+</action>
+
+<action name="SystemContextMenu_NameWindow">
+  <owner>dominicaustria@google.com</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
+  <description>
+    The user opened the system menu context and selected the 'name window' menu
+    item.
+  </description>
+</action>
+
+<action name="SystemContextMenu_NewTab">
+  <owner>dominicaustria@google.com</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
+  <description>
+    The user opened the system menu context and selected the 'new tab' menu
+    item.
+  </description>
+</action>
+
 <action name="SystemContextMenu_Opened">
   <owner>corising@chromium.org</owner>
   <owner>top-chrome-desktop-ui@google.com</owner>
   <description>The user opened the system menu context.</description>
+</action>
+
+<action name="SystemContextMenu_RestoreTab">
+  <owner>dominicaustria@google.com</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
+  <description>
+    The user opened the system menu context and selected the 'reopen closed tab'
+    menu item.
+  </description>
 </action>
 
 <action name="Tab.PinnedTabToastClosedAfterConfirmation">
@@ -47616,6 +48104,14 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
+<action name="TabGroups_NewTabGroup_AppMenu">
+  <owner>dominicaustria@google.com</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
+  <description>
+    User created a tab group by clicking 'New tab group' in the app menu.
+  </description>
+</action>
+
 <action name="TabGroups_SavedTabGroups_Closed">
   <owner>dljames@chromium.org</owner>
   <owner>top-chrome-desktop-ui@google.com</owner>
@@ -47666,6 +48162,15 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
+<action name="TabGroups_SavedTabGroups_CreateNewGroupTriggeredFromVerticalTabs">
+  <owner>kunaldaftari@google.com</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
+  <description>
+    User pressed &quot;Create New Tab Group&quot; from the Everything menu in
+    the vertical tab strip.
+  </description>
+</action>
+
 <action name="TabGroups_SavedTabGroups_Deleted">
   <owner>dljames@chromium.org</owner>
   <owner>top-chrome-desktop-ui@google.com</owner>
@@ -47689,6 +48194,15 @@ should be able to be added at any place in this file.
   <description>
     User attempted to open a SavedTabGroup that was already open by clicking a
     SavedTabGroup button in the bookmarks bar, but focused the group instead.
+  </description>
+</action>
+
+<action name="TabGroups_SavedTabGroups_MoveGroupToNewWindow">
+  <owner>dominicaustria@google.com</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
+  <description>
+    User opened a SavedTabGroup by clicking the move group to new window submenu
+    item from the tab groups app menu.
   </description>
 </action>
 
@@ -48482,6 +48996,40 @@ should be able to be added at any place in this file.
         summary="Recorded when a group suggestion is considered invalid."/>
     <variant name=".Shown"
         summary="Recorded when a group suggestion is shown."/>
+  </token>
+</action>
+
+<action name="TabSwitcher.PinnedTabs.ContextMenu{ActionType}">
+  <owner>madhavpruthi@google.com</owner>
+  <owner>ckitagawa@chromium.org</owner>
+  <owner>clank-tab-dev@chromium.org</owner>
+  <description>
+    Recorded when a user long presses on a pinned tab card in the tab switcher
+    to show the context menu. {ActionType}
+  </description>
+  <token key="ActionType">
+    <variant name="" summary="aggregated"/>
+    <variant name=".AddBookmark"
+        summary="Recorded when the 'Add to bookmarks' option in the context
+                 menu is selected."/>
+    <variant name=".AddToGroup"
+        summary="Recorded when the 'Add to group' option in the context menu
+                 is selected."/>
+    <variant name=".AddToGroup"
+        summary="Recorded when the 'Add to group' option in the context menu
+                 is selected."/>
+    <variant name=".CloseTab"
+        summary="Recorded when the 'Close tab' option in the context menu is
+                 selected."/>
+    <variant name=".EditBookmark"
+        summary="Recorded when the 'Edit bookmark' option in the context menu
+                 is selected."/>
+    <variant name=".MoveToGroup"
+        summary="Recorded when the 'move to group' option in the context menu
+                 is selected."/>
+    <variant name=".UnpinTab"
+        summary="Recorded when the 'Unpin Tab' option in the context menu is
+                 selected."/>
   </token>
 </action>
 
@@ -49861,6 +50409,18 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
+<action name="UserEducation.WhatsNew.CarouselScrollButtonClick">
+  <owner>mickeyburks@chromium.org</owner>
+  <owner>frizzle-team@google.com</owner>
+  <description>The user clicked on a carousel scroll button.</description>
+</action>
+
+<action name="UserEducation.WhatsNew.CtaClick">
+  <owner>mickeyburks@chromium.org</owner>
+  <owner>frizzle-team@google.com</owner>
+  <description>The user clicked on a CTA.</description>
+</action>
+
 <action name="UserEducation.WhatsNew.EditionShown{ActionType}">
   <owner>mickeyburks@chromium.org</owner>
   <owner>frizzle-team@google.com</owner>
@@ -49875,6 +50435,12 @@ should be able to be added at any place in this file.
     <variant name=".Spark" summary="Spark edition."/>
     <variant name=".TestEdition" summary="Test edition."/>
   </token>
+</action>
+
+<action name="UserEducation.WhatsNew.FeatureTileNavigation">
+  <owner>mickeyburks@chromium.org</owner>
+  <owner>frizzle-team@google.com</owner>
+  <description>The user clicked on a feature tile.</description>
 </action>
 
 <action
@@ -49899,6 +50465,18 @@ should be able to be added at any place in this file.
   </description>
   <token key="UserEducation_WhatsNew_Module_Type"
       variants="UserEducation_WhatsNew_Module_Type"/>
+</action>
+
+<action name="UserEducation.WhatsNew.NavClick">
+  <owner>mickeyburks@chromium.org</owner>
+  <owner>frizzle-team@google.com</owner>
+  <description>The user clicked any navigation.</description>
+</action>
+
+<action name="UserEducation.WhatsNew.NextButtonClick">
+  <owner>mickeyburks@chromium.org</owner>
+  <owner>frizzle-team@google.com</owner>
+  <description>The user clicked on the next button.</description>
 </action>
 
 <action name="UserEducation.WhatsNew.PauseClicked">
@@ -51954,9 +52532,10 @@ should be able to be added at any place in this file.
 
 <action name="WrenchMenu_Bookmarks_ContextMenu_OpenAllInNewTabGroup">
   <owner>dpenning@chromium.org</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
   <description>
     Recorded when the bookmarks context menu is used in the Wrench menu for
-    &quot;open split view&quot;
+    &quot;Open all in new tab group&quot;
   </description>
 </action>
 
@@ -51975,6 +52554,7 @@ should be able to be added at any place in this file.
 
 <action name="WrenchMenu_Bookmarks_ContextMenu_OpenSplitView">
   <owner>dpenning@chromium.org</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
   <description>
     Recorded when the bookmarks context menu is used in the Wrench menu for
     &quot;open split view&quot;
@@ -51996,6 +52576,7 @@ should be able to be added at any place in this file.
 
 <action name="WrenchMenu_OpenRecentGroup">
   <owner>dpenning@chromium.org</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
   <description>App Menu: Recently Closed: Open a recent group.</description>
 </action>
 

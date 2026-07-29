@@ -22,7 +22,7 @@
 @property(nonatomic, readonly) NSString* gaia;
 
 // Username of the service. Used by passwords and passkeys.
-@property(nonatomic, readonly) NSString* username;
+@property(nonatomic, copy) NSString* username;
 
 // Plain text password. Used by passwords only.
 @property(nonatomic, readonly) NSString* password;
@@ -36,6 +36,11 @@
 
 // Human readable name of the associated service. Used by passwords only.
 @property(nonatomic, readonly) NSString* serviceName;
+
+// eTLD+1 of the `serviceIdentifier`. Used by passwords only. It is only
+// populated by the browser, hence it might be nil until the next credential
+// migration runs in the browser.
+@property(nonatomic, readonly) NSString* registryControlledDomain;
 
 // Attached note to the credential. Used by passwords only.
 @property(nonatomic, readonly) NSString* note;
@@ -69,12 +74,12 @@
 
 // Whether credential should be shown to the user in authentication surfaces,
 // e.g. because a site marked it as obsolete. Used by passkeys only.
-@property(nonatomic, readonly) BOOL hidden;
+@property(nonatomic, assign) BOOL hidden;
 
 // Local time on device when the credential was `hidden`. Represented in
 // milliseconds since the UNIX epoch. Used to permanently delete credentials
 // after they've been hidden for a while. Used by passkeys only.
-@property(nonatomic, readonly) int64_t hiddenTime;
+@property(nonatomic, assign) int64_t hiddenTime;
 
 // Whether `userDisplayName` or passkey `username` was ever manually edited by
 // the user. Used by passkeys only.

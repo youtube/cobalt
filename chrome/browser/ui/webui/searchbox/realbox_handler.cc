@@ -75,18 +75,15 @@ void RealboxOmniboxClient::OnBookmarkLaunched() {
 
 RealboxHandler::RealboxHandler(
     mojo::PendingReceiver<searchbox::mojom::PageHandler> pending_page_handler,
-    std::unique_ptr<ComposeboxMetricsRecorder> composebox_metrics_recorder,
     Profile* profile,
     content::WebContents* web_contents)
     : ContextualSearchboxHandler(
           std::move(pending_page_handler),
           profile,
           web_contents,
-          std::move(composebox_metrics_recorder),
           std::make_unique<OmniboxController>(
               /*view=*/nullptr,
-              std::make_unique<RealboxOmniboxClient>(profile, web_contents),
-              kAutocompleteDefaultStopTimerDuration)) {
+              std::make_unique<RealboxOmniboxClient>(profile, web_contents))) {
   autocomplete_controller_observation_.Observe(autocomplete_controller());
 }
 

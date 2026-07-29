@@ -41,7 +41,7 @@ TEST_F(MessagingUtilTest, TestMaximumMessageSize) {
   v8::Local<v8::Context> context = MainContext();
 
   constexpr char kMessageTooLongError[] =
-      "Message length exceeded maximum allowed length.";
+      "Message length exceeded maximum allowed length of 64MB.";
 
   v8::Local<v8::Value> long_message =
       V8ValueFromScriptSource(context, "'a'.repeat(1024 *1024 * 65)");
@@ -85,8 +85,8 @@ TEST_F(MessagingUtilTest, TestParseMessageOptionsFrameId) {
 
 // Tests the result of GetEventForChannel().
 TEST_F(MessagingUtilTest, TestGetEventForChannel) {
-  ExtensionId id1('a', 32);
-  ExtensionId id2('b', 32);
+  ExtensionId id1(32, 'a');
+  ExtensionId id2(32, 'b');
 
   // Exercise a bunch of possible channel endpoints -> extensions.
   // This technically isn't exhaustive, but should give us pretty reasonable

@@ -221,7 +221,7 @@ bool EvaluateAndAddContainerQueries(
     Element* starting_element =
         ContainerQueryEvaluator::DetermineStartingElement(
             element, pseudo_id, container_query.Selector(),
-            /*nearest_size_container=*/style_recalc_context.container);
+            /*nearest_size_container=*/style_recalc_context.size_container);
     if (!ContainerQueryEvaluator::EvalAndAdd(
             starting_element, style_recalc_context, *current,
             container_selector_cache, result)) {
@@ -432,7 +432,7 @@ void ElementRuleCollector::AddElementStyleProperties(
   }
   auto link_match_type = static_cast<unsigned>(CSSSelector::kMatchAll);
   result_.AddMatchedProperties(
-      property_set, /*env_bindings=*/nullptr,
+      property_set, /*mixin_parameter_bindings=*/nullptr,
       {.link_match_type = static_cast<uint8_t>(
            AdjustLinkMatchType(inside_link_, link_match_type)),
        .is_inline_style = is_inline_style,
@@ -449,7 +449,7 @@ void ElementRuleCollector::AddTryStyleProperties() {
   }
   auto link_match_type = static_cast<unsigned>(CSSSelector::kMatchAll);
   result_.AddMatchedProperties(
-      property_set, /*env_bindings=*/nullptr,
+      property_set, /*mixin_parameter_bindings=*/nullptr,
       {.link_match_type = static_cast<uint8_t>(
            AdjustLinkMatchType(inside_link_, link_match_type)),
        .valid_property_filter =
@@ -467,7 +467,7 @@ void ElementRuleCollector::AddTryTacticsStyleProperties() {
   }
   auto link_match_type = static_cast<unsigned>(CSSSelector::kMatchAll);
   result_.AddMatchedProperties(
-      property_set, /*env_bindings=*/nullptr,
+      property_set, /*mixin_parameter_bindings=*/nullptr,
       {.link_match_type = static_cast<uint8_t>(
            AdjustLinkMatchType(inside_link_, link_match_type)),
        .origin = CascadeOrigin::kAuthor,
@@ -514,7 +514,12 @@ bool ElementRuleCollector::CollectMatchingRulesForListInternal(
     const SelectorChecker& checker,
     SelectorChecker::SelectorCheckingContext& context) {
   bool force_starting_style = false;
-  probe::ForceStartingStyle(context.element, &force_starting_style);
+  Element* originating_element =
+      context.element->IsPseudoElement()
+          ? &To<PseudoElement>(context.element)->UltimateOriginatingElement()
+          : context.element;
+  probe::ForceStartingStyle(originating_element, &force_starting_style);
+
   bool reject_starting_styles = (style_recalc_context_.is_ensuring_style ||
                                  style_recalc_context_.old_style ||
                                  mode_ != SelectorChecker::kResolvingStyle) &&
@@ -1257,7 +1262,8 @@ void ElementRuleCollector::SortAndTransferMatchedRules(
   // Now transfer the set of matched rules over to our list of declarations.
   for (const MatchedRule& matched_rule : matched_rules_) {
     result_.AddMatchedProperties(
-        &matched_rule.Rule()->Properties(), matched_rule.Rule()->EnvBindings(),
+        &matched_rule.Rule()->Properties(),
+        matched_rule.Rule()->GetMixinParameterBindings(),
         {.link_match_type = static_cast<uint8_t>(
              AdjustLinkMatchType(inside_link_, matched_rule.LinkMatchType())),
          .valid_property_filter = static_cast<uint8_t>(

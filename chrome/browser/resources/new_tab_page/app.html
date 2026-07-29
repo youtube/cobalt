@@ -58,14 +58,15 @@ import {nothing} from '//resources/lit/v3_0/lit.rollup.js';
         @searchbox-input-focus-changed="${this.onInputFocusChanged_}">
     </cr-searchbox>
     ${this.showComposebox_ ? html`
-      <ntp-composebox id="composebox" ?is_collapsible="false"
+      <cr-composebox id="composebox"
           ?ntp-realbox-next-enabled="${this.ntpRealboxNextEnabled_}"
           @composebox-initialized="${this.onComposeboxInitialized_}"
           @close-composebox="${this.closeComposebox_}"
           @composebox-dropdown-visible-changed="${this.onDropdownVisibleChanged_}"
           @composebox-input-focus-changed="${this.onInputFocusChanged_}"
+          @open-voice-search="${this.onOpenVoiceSearch_}"
           realbox-layout-mode="${this.realboxLayoutMode_}">
-      </ntp-composebox>
+      </cr-composebox>
     ` : ''}
     ${this.showLensUploadDialog_ ? html`
       <ntp-lens-upload-dialog id="lensUploadDialog"
@@ -87,7 +88,8 @@ import {nothing} from '//resources/lit/v3_0/lit.rollup.js';
   ${this.lazyRender_ ? html`
     ${this.shortcutsEnabled_ ? html`
       <cr-most-visited id="mostVisited" .theme="${this.theme_?.mostVisited || null}"
-          single-row reflow-on-overflow>
+          single-row reflow-on-overflow
+          ?enable-show-more-button="${this.ntpNextFeaturesEnabled_}">
       </cr-most-visited>
     ` : ''}
     ${this.middleSlotPromoEnabled_ ? html`

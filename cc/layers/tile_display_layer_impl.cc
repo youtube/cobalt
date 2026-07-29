@@ -134,7 +134,7 @@ TileDisplayLayerImpl::Tiling::Cover(const gfx::Rect& coverage_rect,
 }
 
 TileDisplayLayerImpl::TileDisplayLayerImpl(LayerTreeImpl& tree, int id)
-    : LayerImpl(&tree, id) {}
+    : TileBasedLayerImpl(&tree, id) {}
 
 TileDisplayLayerImpl::~TileDisplayLayerImpl() = default;
 
@@ -186,15 +186,10 @@ void TileDisplayLayerImpl::PushPropertiesTo(LayerImpl* layer) {
   NOTREACHED();
 }
 
-void TileDisplayLayerImpl::AppendQuads(const AppendQuadsContext& context,
-                                       viz::CompositorRenderPass* render_pass,
-                                       AppendQuadsData* append_quads_data) {
-  // If this layer is used as a backdrop filter, don't create and append a quad
-  // as that will be done in RenderSurfaceImpl::AppendQuads.
-  if (is_backdrop_filter_mask_) {
-    return;
-  }
-
+void TileDisplayLayerImpl::AppendQuadsSpecialization(
+    const AppendQuadsContext& context,
+    viz::CompositorRenderPass* render_pass,
+    AppendQuadsData* append_quads_data) {
   if (solid_color_) {
     CHECK(tilings_.empty());
     AppendSolidQuad(render_pass, append_quads_data, *solid_color_);
@@ -353,7 +348,7 @@ void TileDisplayLayerImpl::GetContentsResourceId(
   *resource_id = viz::kInvalidResourceId;
 
   // We need contents resource for backdrop filter masks only.
-  if (!is_backdrop_filter_mask_) {
+  if (!is_backdrop_filter_mask()) {
     return;
   }
 

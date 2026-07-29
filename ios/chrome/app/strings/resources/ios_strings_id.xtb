@@ -161,6 +161,7 @@
 <translation id="1582732959743469162">Ini akan menghentikan semua progres download Anda saat ini.</translation>
 <translation id="1594034544529347967">Mulai</translation>
 <translation id="1598751033135758830">Buka di aplikasi…</translation>
+<translation id="1601560923496285236">Terapkan</translation>
 <translation id="1603718000246404895">{COUNT,plural, =1{1 alamat}other{# alamat}}</translation>
 <translation id="1605405588277479165">Nonaktif - Tidak direkomendasikan</translation>
 <translation id="1605658421715042784">Salin Gambar</translation>
@@ -778,6 +779,7 @@
 <translation id="4049507953662678203">Pastikan Anda memiliki koneksi jaringan dan coba lagi.</translation>
 <translation id="4070132839822635162">Jangan login</translation>
 <translation id="4092655288299341041">Tampilkan Bantuan</translation>
+<translation id="4095483462103784441">Buat grup tab baru</translation>
 <translation id="4099756562043439968">Setel Pengingat</translation>
 <translation id="4108998448622696017">Mendeteksi dan memberikan peringatan terkait peristiwa berbahaya ketika terjadi.</translation>
 <translation id="4111985840824673503">Tandai semua telah dibaca</translation>
@@ -837,7 +839,6 @@
 <translation id="4286718549648564014">Alamat dipindahkan ke akun <ph name="USER_EMAIL" /> Anda</translation>
 <translation id="4287172530684295552">Tandai telah dibaca</translation>
 <translation id="428768789042547925">Yang Baru</translation>
-<translation id="428858055663163046">Anda dapat mengakses file yang didownload di sini jika tersedia</translation>
 <translation id="429074084062258019">{count,plural, =1{Tambahkan Tab ke Grup}other{Tambahkan Tab ke Grup}}</translation>
 <translation id="4302061870579014542">Tetapkan posisi</translation>
 <translation id="4304713468139749426">Pengelola Sandi</translation>
@@ -1236,6 +1237,7 @@ Handoff juga harus diaktifkan pada bagian General di Settings, dan perangkat And
 <translation id="5758759241456233788">Pratinjau Maps nonaktif. Aktifkan kembali di Setelan.</translation>
 <translation id="5759484603608560822">Sembunyikan Download</translation>
 <translation id="5767099457279594162">Sandi tidak dibagikan</translation>
+<translation id="5768870767339201169">Lanjutkan Aktivitas Anda</translation>
 <translation id="5779117921996157216">{count,plural, =1{Anda memiliki {count} sandi yang telah dibobol yang dapat membahayakan keamanan Anda. Perbaiki sekarang agar tetap terlindungi.}other{Anda memiliki {count} sandi yang telah dibobol yang dapat membahayakan keamanan Anda. Perbaiki sekarang agar tetap terlindungi.}}</translation>
 <translation id="5791632441210678828">Tombol urutkan untuk feed Mengikuti.</translation>
 <translation id="5803566855766646066">Yakin ingin menghapus kartu baru ini?</translation>
@@ -1454,6 +1456,7 @@ Handoff juga harus diaktifkan pada bagian General di Settings, dan perangkat And
 <translation id="6537746030088321027">contoh.com</translation>
 <translation id="6550675742724504774">Opsi</translation>
 <translation id="6550891580932862748">Tidak melindungi Anda terhadap situs, download, dan ekstensi berbahaya. Setelan Safe Browsing Anda di produk Google lainnya tidak akan terpengaruh.</translation>
+<translation id="6556866813142980365">Urungkan</translation>
 <translation id="6559301491397835130">{count,plural, =1{Bookmark disimpan ke "{title}". Bookmark hanya disimpan ke perangkat ini.}other{Bookmark disimpan ke "{title}". Bookmark hanya disimpan ke perangkat ini.}}</translation>
 <translation id="656065428026159829">Lihat lebih banyak</translation>
 <translation id="6571070086367343653">Edit kartu kredit</translation>
@@ -1692,6 +1695,7 @@ Handoff juga harus diaktifkan pada bagian General di Settings, dan perangkat And
 <translation id="7484645889979462775">Jangan untuk situs ini</translation>
 <translation id="7486006552035434095">Buat perangkat Anda tetap tersinkron</translation>
 <translation id="7491131399623468277">Buka Setelan…</translation>
+<translation id="7491161827858509164">Untuk melihat file yang telah Anda download sebelumnya, buka <ph name="BEGIN_LINK" />File<ph name="END_LINK" /></translation>
 <translation id="7498234416455752244">Lanjut mengedit</translation>
 <translation id="7500244509706269886">Isi otomatis formulir</translation>
 <translation id="750493650310597496">Tak ada yang dipilih</translation>
@@ -1729,6 +1733,7 @@ Handoff juga harus diaktifkan pada bagian General di Settings, dan perangkat And
 <translation id="7612619742409846846">Login ke Google sebagai</translation>
 <translation id="7612849887607288481">Buka Menu Pembuatan Prototipe AI</translation>
 <translation id="7620522820075868385">Batal</translation>
+<translation id="762078666799342162">Anda dapat melihat hasil download sebelumnya di <ph name="BEGIN_LINK" />File<ph name="END_LINK" /></translation>
 <translation id="7638584964844754484">Frasa sandi salah</translation>
 <translation id="7639276194483401980">{COUNT,plural, =0{Sandi telah dibobol}=1{{COUNT} sandi telah dibobol}other{{COUNT} sandi telah dibobol}}</translation>
 <translation id="7640669552036055091">Tab dari Android</translation>
@@ -1793,6 +1798,7 @@ Handoff juga harus diaktifkan pada bagian General di Settings, dan perangkat And
 <translation id="7851858861565204677">Perangkat lain</translation>
 <translation id="7853202427316060426">Aktivitas</translation>
 <translation id="7854006015462979438">Buka General</translation>
+<translation id="7855678267851972597">Audio</translation>
 <translation id="7859988229622350291">Jangan pernah terjemahkan</translation>
 <translation id="7863211248337747225">Dapatkan aplikasi</translation>
 <translation id="7865127013871431856">Opsi Terjemahan</translation>
@@ -1909,7 +1915,6 @@ Handoff juga harus diaktifkan pada bagian General di Settings, dan perangkat And
 <translation id="8273982424131314219">Anda akan mengisi info ke <ph name="URL" /></translation>
 <translation id="8275068909952022340">Lainnya…</translation>
 <translation id="8277328362018795342">Konten halaman Anda dibagikan untuk menghasilkan jawaban yang lebih relevan</translation>
-<translation id="8278488584187265939">Sesuaikan halaman beranda</translation>
 <translation id="8281781826761538115">Default - <ph name="DEFAULT_LOCALE" /></translation>
 <translation id="8281886186245836920">Lewati</translation>
 <translation id="8282657446819506217">Buka di Grup Tab</translation>
@@ -1973,6 +1978,7 @@ Handoff juga harus diaktifkan pada bagian General di Settings, dan perangkat And
 <translation id="8524799873541103884">Tab <ph name="FIRST_VISIBLE_TAB" /> hingga <ph name="LAST_VISIBLE_TAB" /> dari <ph name="NUMBER_OF_OPEN_TABS" /> dalam mode <ph name="INCOGNITO" /></translation>
 <translation id="8528009254289981965">Buka link dari aplikasi lain dalam mode Samaran</translation>
 <translation id="8529767659511976195">Baru</translation>
+<translation id="8531572740963685410">PDF</translation>
 <translation id="8533411848724153701">Gemini</translation>
 <translation id="8533670235862049797">Safe Browsing aktif</translation>
 <translation id="8534481786647257214">Kirim Google+ selesai.</translation>
@@ -2179,6 +2185,7 @@ Handoff juga harus diaktifkan pada bagian General di Settings, dan perangkat And
 <translation id="945522503751344254">Kirim masukan</translation>
 <translation id="94870150074703282">Hapus grup?</translation>
 <translation id="952704832371081537">Batal</translation>
+<translation id="95332591904104970">Aplikasi terhubung</translation>
 <translation id="954667170699278022">Daftar Bacaan</translation>
 <translation id="956218893102219091">Gunakan lokasi presisi Anda untuk mendapatkan hasil Gemini yang paling akurat, bukan estimasi lokasi berdasarkan alamat IP Anda. <ph name="BEGIN_LINK" />Pelajari lebih lanjut<ph name="END_LINK" /></translation>
 <translation id="961856697154696964">Hapus data penjelajahan</translation>

@@ -137,6 +137,9 @@ void OffscreenCanvasRenderingContext2D::FinalizeFrame(FlushReason reason) {
     return;
   }
   resource_provider_->FlushCanvas(reason);
+  if (RuntimeEnabledFeatures::CanvasTextSwitchFrameOnFinalizeEnabled()) {
+    Host()->NotifyCachesOfSwitchingFrame();
+  }
 }
 
 // BaseRenderingContext2D implementation
@@ -457,7 +460,7 @@ bool OffscreenCanvasRenderingContext2D::WritePixels(
     return false;
   }
 
-  resource_provider_->FlushCanvas(FlushReason::kWritePixels);
+  resource_provider_->FlushCanvas();
 
   // Short-circuit out if an error occurred while flushing the recording.
   if (!resource_provider_->IsValid()) {
@@ -487,12 +490,6 @@ bool OffscreenCanvasRenderingContext2D::ResolveFont(const String& new_font) {
     FontDescription desc = FontStyleResolver::ComputeFont(
         *style, host->GetFontSelector()->BaseFontSelector());
     desc.SetLocale(locale);
-    if (LocalDOMWindow* window =
-            DynamicTo<LocalDOMWindow>(host->GetTopExecutionContext())) {
-      if (Document* document = window->document()) {
-        desc.SetIsForcedColorsMode(document->InForcedColorsMode());
-      }
-    }
     font_cache.AddFont(new_font, desc);
     GetState().SetFont(desc, host->GetFontSelector());
   }

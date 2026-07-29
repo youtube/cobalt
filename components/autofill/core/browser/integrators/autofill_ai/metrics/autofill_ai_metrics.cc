@@ -4,9 +4,13 @@
 
 #include "components/autofill/core/browser/integrators/autofill_ai/metrics/autofill_ai_metrics.h"
 
+#include <algorithm>
+
 #include "base/containers/flat_map.h"
 #include "base/metrics/histogram_functions.h"
+#include "base/notreached.h"
 #include "base/strings/strcat.h"
+#include "components/autofill/core/browser/data_model/autofill_ai/entity_instance.h"
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_type.h"
 
 namespace autofill {
@@ -27,6 +31,32 @@ void LogOptInFunnelEvent(AutofillAiOptInFunnelEvents event) {
   base::UmaHistogramEnumeration("Autofill.Ai.OptInFunnel", event);
 }
 
+void LogStoredEntitiesCount(base::span<const EntityInstance> entities) {
+  static constexpr std::string_view kHistogramPrefix =
+      "Autofill.Ai.StoredEntitiesCount";
+  base::flat_map<EntityType, std::vector<const EntityInstance*>>
+      entities_by_type;
+  for (const EntityInstance& entity : entities) {
+    entities_by_type[entity.type()].push_back(&entity);
+  }
+
+  for (EntityType entity_type : DenseSet<EntityType>::all()) {
+    for (EntityInstance::RecordType record_type :
+         DenseSet<EntityInstance::RecordType>::all()) {
+      base::UmaHistogramCounts1000(
+          base::StrCat({kHistogramPrefix, ".",
+                        EntityTypeToMetricsString(entity_type), ".",
+                        EntityRecordTypeToMetricsString(record_type)}),
+          std::ranges::count(entities_by_type[entity_type], record_type,
+                             &EntityInstance::record_type));
+    }
+    base::UmaHistogramCounts1000(
+        base::StrCat(
+            {kHistogramPrefix, ".", EntityTypeToMetricsString(entity_type)}),
+        entities_by_type[entity_type].size());
+  }
+}
+
 // LINT.IfChange(EntityTypeToMetricsString)
 std::string_view EntityTypeToMetricsString(EntityType type) {
   switch (type.name()) {
@@ -45,8 +75,37 @@ std::string_view EntityTypeToMetricsString(EntityType type) {
     case EntityTypeName::kFlightReservation:
       return "FlightReservation";
   }
+  NOTREACHED();
 }
 // LINT.ThenChange(//tools/metrics/histograms/metadata/autofill/histograms.xml:Autofill.Ai.EntityType)
+
+// LINT.IfChange(EntityRecordTypeToMetricsString)
+std::string_view EntityRecordTypeToMetricsString(
+    EntityInstance::RecordType record_type) {
+  switch (record_type) {
+    case EntityInstance::RecordType::kLocal:
+      return "Local";
+    case EntityInstance::RecordType::kServerWallet:
+      return "ServerWallet";
+  }
+  NOTREACHED();
+}
+// LINT.ThenChange(//tools/metrics/histograms/metadata/autofill/histograms.xml:Autofill.Ai.EntityRecordType)
+
+// LINT.IfChange(EntityPromptTypeToMetricsString)
+std::string_view EntityPromptTypeToMetricsString(
+    AutofillClient::AutofillAiImportPromptType prompt_type) {
+  switch (prompt_type) {
+    case AutofillClient::AutofillAiImportPromptType::kSave:
+      return "SavePrompt";
+    case AutofillClient::AutofillAiImportPromptType::kUpdate:
+      return "UpdatePrompt";
+    case AutofillClient::AutofillAiImportPromptType::kMigrate:
+      return "MigratePrompt";
+  }
+  NOTREACHED();
+}
+// LINT.ThenChange(//tools/metrics/histograms/metadata/autofill/histograms.xml:Autofill.Ai.EntityPromptType)
 
 void LogLocalEntitiesDeduplicationMetrics(
     const base::flat_map<EntityType, size_t>&

@@ -155,6 +155,16 @@ chromium-metrics-reviews@google.com.
   <int value="2" label="Import with section union"/>
 </enum>
 
+<enum name="AutofillAiBubbleClosedReason">
+  <int value="0" label="The prompt was for closed due to an unknown reason"/>
+  <int value="1" label="The prompt was accepted"/>
+  <int value="2" label="The user clicked the cancel button"/>
+  <int value="3"
+      label="The user closed the prompt (via the close button or the ESC)"/>
+  <int value="4" label="The user did not interact with the prompt"/>
+  <int value="5" label="The prompt was closed due to losing focus"/>
+</enum>
+
 <!-- LINT.IfChange(AutofillAiDecryptStatus) -->
 
 <enum name="AutofillAiDecryptStatus">
@@ -983,6 +993,11 @@ Called by update_autofill_enums.py.-->
              value edited"/>
   <int value="13121"
       label="FLIGHT_RESERVATION_ARRIVAL_AIRPORT: Autofilled value accepted"/>
+  <int value="13184"
+      label="FLIGHT_RESERVATION_DEPARTURE_DATE: Not autofilled or autofilled
+             value edited"/>
+  <int value="13185"
+      label="FLIGHT_RESERVATION_DEPARTURE_DATE: Autofilled value accepted"/>
 </enum>
 
 <enum name="AutofillDynamicElementType">
@@ -1313,6 +1328,8 @@ Called by update_autofill_enums.py.-->
   <int value="3265" label="FLIGHT_RESERVATION_DEPARTURE_AIRPORT: accepted"/>
   <int value="3280" label="FLIGHT_RESERVATION_ARRIVAL_AIRPORT: edited"/>
   <int value="3281" label="FLIGHT_RESERVATION_ARRIVAL_AIRPORT: accepted"/>
+  <int value="3296" label="FLIGHT_RESERVATION_DEPARTURE_DATE: edited"/>
+  <int value="3297" label="FLIGHT_RESERVATION_DEPARTURE_DATE: accepted"/>
 </enum>
 
 <enum name="AutofillEmailOrLoyaltyCardAcceptanceMetricValue">
@@ -2185,6 +2202,7 @@ Called by update_autofill_enums.py.-->
   <int value="203" label="KNOWN_TRAVELER_NUMBER_EXPIRATION_DATE"/>
   <int value="204" label="FLIGHT_RESERVATION_DEPARTURE_AIRPORT"/>
   <int value="205" label="FLIGHT_RESERVATION_ARRIVAL_AIRPORT"/>
+  <int value="206" label="FLIGHT_RESERVATION_DEPARTURE_DATE"/>
 </enum>
 
 <enum name="AutofillFilledCardInformationBubbleFieldClicked">
@@ -3140,6 +3158,7 @@ Called by update_autofill_enums.py.-->
   <int value="0" label="No pattern found"/>
   <int value="1" label="UPI VPA"/>
   <int value="2" label="IBAN"/>
+  <int value="3" label="ACH routing transit number"/>
 </enum>
 
 <enum name="AutofillVirtualCardDialogLinkClicked">
@@ -3567,16 +3586,6 @@ Called by update_autofill_enums.py.-->
              email"/>
 </enum>
 
-<enum name="EntitySaveOrUpdatePromptResult">
-  <int value="0" label="The prompt was for closed due to an unknown reason"/>
-  <int value="1" label="The prompt was accepted"/>
-  <int value="2" label="The user clicked the cancel button"/>
-  <int value="3"
-      label="The user closed the prompt (via the close button or the ESC)"/>
-  <int value="4" label="The user did not interact with the prompt"/>
-  <int value="5" label="The prompt was closed due to losing focus"/>
-</enum>
-
 <enum name="FastCheckoutCacheStateForIsTriggerFormSupported">
   <summary>
     Possible different cache states that `FastCheckoutCapabilitiesFetcherImpl`
@@ -3918,6 +3927,8 @@ Called by update_autofill_enums.py.-->
   <int value="817" label="FLIGHT_RESERVATION_DEPARTURE_AIRPORT: Accepted"/>
   <int value="820" label="FLIGHT_RESERVATION_ARRIVAL_AIRPORT: Ignored"/>
   <int value="821" label="FLIGHT_RESERVATION_ARRIVAL_AIRPORT: Accepted"/>
+  <int value="824" label="FLIGHT_RESERVATION_DEPARTURE_DATE: Ignored"/>
+  <int value="825" label="FLIGHT_RESERVATION_DEPARTURE_DATE: Accepted"/>
 </enum>
 
 <!-- LINT.IfChange(FormSubmissionOutcomeIOS) -->

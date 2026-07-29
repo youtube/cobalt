@@ -8,7 +8,6 @@ import android.util.SparseArray;
 
 import org.chromium.base.test.util.CallbackHelper;
 import org.chromium.build.annotations.Nullable;
-import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tab.MockTab;
 import org.chromium.chrome.browser.tab.MockTabAttributes;
 import org.chromium.chrome.browser.tab.Tab;
@@ -24,7 +23,7 @@ import org.chromium.content_public.browser.WebContents;
 import org.chromium.url.GURL;
 
 /** MockTabCreator for use in tests. */
-public class MockTabCreator extends TabCreator {
+public class MockTabCreator implements TabCreator {
     public final SparseArray<TabState> created;
     public final CallbackHelper callback;
 
@@ -75,7 +74,7 @@ public class MockTabCreator extends TabCreator {
     }
 
     @Override
-    public Tab createFrozenTab(TabState state, int id, int index) {
+    public @Nullable Tab createFrozenTab(TabState state, int id, int index) {
         MockTab tab =
                 new MockTab(
                         id,
@@ -113,14 +112,12 @@ public class MockTabCreator extends TabCreator {
         return null;
     }
 
+    @Override
+    public void launchNtp(@TabLaunchType int type) {}
+
     private void storeTabInfo(TabState state, int id) {
         if (created.size() == 0) idOfFirstCreatedTab = id;
         created.put(id, state);
         callback.notifyCalled();
-    }
-
-    @Override
-    protected Profile getProfile() {
-        return mSelector.getCurrentModel().getProfile();
     }
 }

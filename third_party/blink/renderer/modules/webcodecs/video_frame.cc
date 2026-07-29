@@ -1311,8 +1311,8 @@ void VideoFrame::ConvertAndCopyToRGB(scoped_refptr<media::VideoFrame> frame,
 
   // GetRasterContextProvider() returns the SharedGPUContext's provider, which
   // always supports `gpu_rasterization`.
-  renderer.PaintOOPR(std::move(frame), &canvas, flags, paint_params,
-                     context_provider.get());
+  renderer.Paint(std::move(frame), &canvas, flags, paint_params,
+                 context_provider.get());
 }
 
 bool VideoFrame::CopyToAsync(
@@ -1477,10 +1477,9 @@ scoped_refptr<Image> VideoFrame::GetSourceImageForCanvas(
   auto* resource_provider =
       provider_cache.CreateProvider(resource_provider_size);
 
-  const auto dest_rect = gfx::Rect(resource_provider_size);
-  auto image = CreateImageFromVideoFrame(local_handle->frame(),
-                                         resource_provider,
-                                         /*video_renderer=*/nullptr, dest_rect);
+  auto image =
+      CreateImageFromVideoFrame(local_handle->frame(), resource_provider,
+                                /*video_renderer=*/nullptr);
   if (!image) {
     *status = kInvalidSourceImageStatus;
     return nullptr;
@@ -1578,10 +1577,9 @@ ScriptPromise<ImageBitmap> VideoFrame::CreateImageBitmap(
   auto* resource_provider =
       provider_cache.CreateProvider(resource_provider_size);
 
-  const auto dest_rect = gfx::Rect(resource_provider_size);
-  auto image = CreateImageFromVideoFrame(local_handle->frame(),
-                                         resource_provider,
-                                         /*video_renderer=*/nullptr, dest_rect);
+  auto image =
+      CreateImageFromVideoFrame(local_handle->frame(), resource_provider,
+                                /*video_renderer=*/nullptr);
   if (!image) {
     exception_state.ThrowDOMException(
         DOMExceptionCode::kNotSupportedError,

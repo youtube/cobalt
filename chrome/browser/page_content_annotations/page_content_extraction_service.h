@@ -5,8 +5,11 @@
 #ifndef CHROME_BROWSER_PAGE_CONTENT_ANNOTATIONS_PAGE_CONTENT_EXTRACTION_SERVICE_H_
 #define CHROME_BROWSER_PAGE_CONTENT_ANNOTATIONS_PAGE_CONTENT_EXTRACTION_SERVICE_H_
 
+#include <set>
+
 #include "base/observer_list.h"
 #include "base/supports_user_data.h"
+#include "base/time/time.h"
 #include "components/keyed_service/core/keyed_service.h"
 #include "components/optimization_guide/proto/features/common_quality_data.pb.h"
 #include "content/public/browser/visibility.h"
@@ -61,6 +64,9 @@ class PageContentExtractionService : public KeyedService,
 
   // Called when a tab is closed.
   void OnTabClosed(int64_t tab_id);
+
+  // Called when a closed tab is undone.
+  void OnTabCloseUndone(int64_t tab_id);
 
   // Called when the visibility of a WebContents changes.
   void OnVisibilityChanged(std::optional<int64_t> tab_id,

@@ -546,7 +546,7 @@ class TouchToFillPaymentMethodMediator {
                         createProgressIconModel(
                                 R.string
                                         .autofill_pending_dialog_loading_accessibility_description)));
-        // TODO(crbug.com/438784993): Add footer UI to BNPL progress screen.
+        progressScreenModel.add(buildFooterForBnplSelectionProgress(/* isInProgress= */ true));
 
         mModel.set(SHEET_ITEMS, progressScreenModel);
         mModel.set(
@@ -568,13 +568,11 @@ class TouchToFillPaymentMethodMediator {
      * <p>This method shows a bottom sheet listing the provided BNPL issuers.
      *
      * @param bnplIssuerContexts A list of {@link BnplIssuerContext} to be displayed.
-     * @param footerText The text to be displayed on the footer.
      */
-    public void showBnplIssuers(List<BnplIssuerContext> bnplIssuerContexts, String footerText) {
+    public void showBnplIssuers(List<BnplIssuerContext> bnplIssuerContexts) {
         mInputProtector.markShowTime();
 
         assert bnplIssuerContexts != null;
-        assert footerText != null;
         mBnplIssuerContexts = bnplIssuerContexts;
         mIbans = null;
         mAffiliatedLoyaltyCards = null;
@@ -590,7 +588,7 @@ class TouchToFillPaymentMethodMediator {
             sheetItems.add(new ListItem(BNPL_ISSUER, createBnplIssuerContextModel(issuerContext)));
         }
 
-        sheetItems.add(buildFooterForBnplSelectionProgress(footerText, /* isInProgress= */ false));
+        sheetItems.add(buildFooterForBnplSelectionProgress(/* isInProgress= */ false));
 
         mModel.set(
                 SHEET_CONTENT_DESCRIPTION_ID,
@@ -694,6 +692,10 @@ class TouchToFillPaymentMethodMediator {
 
     void hideSheet() {
         onDismissed(BottomSheetController.StateChangeReason.NONE);
+    }
+
+    void setVisible(boolean visible) {
+        mModel.set(VISIBLE, visible);
     }
 
     public void onDismissed(@StateChangeReason int reason) {
@@ -1108,12 +1110,16 @@ class TouchToFillPaymentMethodMediator {
                         .build());
     }
 
-    private ListItem buildFooterForBnplSelectionProgress(String footerText, boolean isInProgress) {
+    private ListItem buildFooterForBnplSelectionProgress(boolean isInProgress) {
         return new ListItem(
                 BNPL_SELECTION_PROGRESS_FOOTER,
                 new PropertyModel.Builder(BnplSelectionProgressFooterProperties.ALL_KEYS)
                         .with(TERMS_TEXT_ID, R.string.autofill_bnpl_issuer_bottom_sheet_terms_label)
-                        .with(HIDE_OPTIONS_LINK_TEXT, footerText)
+                        .with(
+                                HIDE_OPTIONS_LINK_TEXT,
+                                getString(
+                                        R.string
+                                                .autofill_card_bnpl_select_provider_bottom_sheet_footnote_hide_option))
                         .with(ON_LINK_CLICK_CALLBACK, (view) -> showPaymentMethodSettings())
                         .with(APPLY_LINK_DEACTIVATED_STYLE, isInProgress)
                         .build());

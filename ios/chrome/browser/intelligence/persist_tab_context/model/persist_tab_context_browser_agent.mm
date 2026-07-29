@@ -10,22 +10,22 @@
 #import "base/functional/bind.h"
 #import "base/metrics/histogram_functions.h"
 #import "base/metrics/histogram_macros.h"
+#import "base/notimplemented.h"
 #import "base/strings/string_number_conversions.h"
 #import "base/task/thread_pool.h"
 #import "base/time/time.h"
 #import "components/prefs/pref_service.h"
 #import "ios/chrome/browser/intelligence/features/features.h"
 #import "ios/chrome/browser/intelligence/persist_tab_context/metrics/persist_tab_context_metrics.h"
+#import "ios/chrome/browser/intelligence/proto_wrappers/page_context_utils.h"
 #import "ios/chrome/browser/intelligence/proto_wrappers/page_context_wrapper.h"
+#import "ios/chrome/browser/shared/model/browser/browser.h"
+#import "ios/chrome/browser/shared/model/browser/browser_list.h"
+#import "ios/chrome/browser/shared/model/browser/browser_list_factory.h"
 #import "ios/chrome/browser/shared/model/paths/paths_internal.h"
 #import "ios/chrome/browser/shared/model/profile/profile_ios.h"
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
 #import "ios/web/public/web_state.h"
-
-// TODO(crbug.com/445963646): Add metrics logging to browser agent for cleanup
-// functions and for tracking the difference between the number of web states vs
-// the number of page contexts in storage.
-// TODO(crbug.com/447646545): Add test coverage for persist tab context
 
 namespace {
 
@@ -216,6 +216,42 @@ PersistTabContextBrowserAgent::PageContextMap DoMultipleContextReads(
   return result_map;
 }
 
+// Calculates and logs the difference between the count of persisted page
+// context files in `storage_directory_path` and the provided `web_state_count`.
+// The result (`file_count` - `web_state_count`) is logged to the
+// `kPersistTabContextStorageDifferenceHistogram` UMA metric.
+void LogStorageDifference(base::FilePath storage_directory_path,
+                          int web_state_count) {
+  if (storage_directory_path.empty()) {
+    return;
+  }
+
+  int file_count = 0;
+  base::FileEnumerator enumerator(
+      storage_directory_path, /*recursive=*/false, base::FileEnumerator::FILES,
+      base::StrCat({kPageContextPrefix, "*", kProtoSuffix}));
+  for (base::FilePath name = enumerator.Next(); !name.empty();
+       name = enumerator.Next()) {
+    file_count++;
+  }
+
+  // TODO(crbug.com/452926908) - The metric logged here for web state
+  // differences can frequently be non-zero, making it difficult to definitively
+  // confirm if web state management is always working as intended strictly
+  // based on this metric. This is due to several potential race conditions:
+  // 1.  Race conditions can occur between a background task counting web states
+  // in one browser and concurrent tab closures happening in another browser
+  // instance. This can lead to unexpected positive deltas. To improve metric
+  // reliability and reduce these race conditions, consider refactoring to use a
+  // keyed service instead of a BrowserAgent for this logic in the future.
+  // 2.  If multiple browser agents are active, these startup timing issues
+  // could potentially compound, leading to larger deltas.
+  // 3.  Onboarding into the experiment with pre-existing tabs.
+  int difference = file_count - web_state_count;
+  base::UmaHistogramSparse(kPersistTabContextStorageDifferenceHistogram,
+                           difference);
+}
+
 // Deletes page context proto files from `contexts_dir` whose last modified time
 // is older than the set time to live.
 void PurgeExpiredPageContexts(base::FilePath contexts_dir,
@@ -235,13 +271,9 @@ void PurgeExpiredPageContexts(base::FilePath contexts_dir,
     base::TimeDelta age = now - last_modified;
 
     if (age >= ttl) {
-      if (!base::DeleteFile(name)) {
-        // TODO(crbug.com/445963646): Add metrics logging to browser agent for
-        // cleanup functions.
-      } else {
-        // TODO(crbug.com/445963646): Add metrics logging to browser agent for
-        // cleanup functions.
-      }
+      bool deletion_result = base::DeleteFile(name);
+      base::UmaHistogramBoolean(kPersistTabContextPurgeFileResultHistogram,
+                                deletion_result);
     }
   }
 }
@@ -249,14 +281,47 @@ void PurgeExpiredPageContexts(base::FilePath contexts_dir,
 // Recursively deletes the entire persisted contexts directory.
 void DeletePersistedContextsDirectory(base::FilePath contexts_dir) {
   if (!base::DirectoryExists(contexts_dir)) {
-    // TODO(crbug.com/445963646): Add metrics logging to browser agent for
-    // cleanup functions.
+    base::UmaHistogramEnumeration(
+        kPersistTabContextDeleteDirectoryResultHistogram,
+        IOSPersistTabContextDeleteDirectoryResult::kDirectoryNotFound);
     return;
   }
 
-  // TODO(crbug.com/445963646): Add metrics logging to browser agent for
-  // cleanup functions.
-  base::DeletePathRecursively(contexts_dir);
+  bool delete_successful = base::DeletePathRecursively(contexts_dir);
+  base::UmaHistogramEnumeration(
+      kPersistTabContextDeleteDirectoryResultHistogram,
+      delete_successful
+          ? IOSPersistTabContextDeleteDirectoryResult::kSuccess
+          : IOSPersistTabContextDeleteDirectoryResult::kDeleteFailure);
+}
+
+// Calculates the total number of WebStates across all Browser instances
+// associated with the given `profile` which are eligibile to have their
+// contexts persisted.
+int GetPersistedWebStateCountForProfile(ProfileIOS* profile) {
+  CHECK(profile);
+  BrowserList* browser_list = BrowserListFactory::GetForProfile(profile);
+  CHECK(browser_list);
+
+  const std::set<Browser*>& browsers =
+      browser_list->BrowsersOfType(BrowserList::BrowserType::kRegular);
+
+  int total_web_state_count = 0;
+  for (Browser* browser : browsers) {
+    if (!browser || !browser->GetWebStateList()) {
+      continue;
+    }
+
+    for (int i = 0; i < browser->GetWebStateList()->count(); i++) {
+      web::WebState* web_state = browser->GetWebStateList()->GetWebStateAt(i);
+      if (!CanExtractPageContextForWebState(web_state)) {
+        continue;
+      }
+
+      total_web_state_count++;
+    }
+  }
+  return total_web_state_count;
 }
 
 }  // namespace
@@ -301,6 +366,12 @@ PersistTabContextBrowserAgent::PersistTabContextBrowserAgent(Browser* browser)
                        storage_directory_path_),
         kPurgeTaskDelay);
   }
+
+  int total_web_state_count = GetPersistedWebStateCountForProfile(profile);
+  // Log the difference between web states and persisted files.
+  task_runner_->PostTask(
+      FROM_HERE, base::BindOnce(&LogStorageDifference, storage_directory_path_,
+                                total_web_state_count));
 }
 
 PersistTabContextBrowserAgent::~PersistTabContextBrowserAgent() {
@@ -317,6 +388,10 @@ void PersistTabContextBrowserAgent::GetSingleContextAsync(
     base::OnceCallback<void(
         std::optional<std::unique_ptr<optimization_guide::proto::PageContext>>)>
         callback) {
+  // TODO(crbug.com/454689025): Remove when this browser agent is ready to be
+  // used by clients.
+  NOTIMPLEMENTED();
+
   task_runner_->PostTaskAndReplyWithResult(
       FROM_HERE,
       base::BindOnce(&ReadAndParseContextFromStorage, storage_directory_path_,
@@ -327,6 +402,10 @@ void PersistTabContextBrowserAgent::GetSingleContextAsync(
 void PersistTabContextBrowserAgent::GetMultipleContextsAsync(
     const std::vector<std::string>& webstate_unique_ids,
     base::OnceCallback<void(PageContextMap)> callback) {
+  // TODO(crbug.com/454689025): Remove when this browser agent is ready to be
+  // used by clients.
+  NOTIMPLEMENTED();
+
   if (webstate_unique_ids.empty()) {
     std::move(callback).Run({});
     return;
@@ -379,13 +458,22 @@ void PersistTabContextBrowserAgent::WasHidden(web::WebState* web_state) {
     return;
   }
 
+  std::string webstate_unique_id =
+      base::NumberToString(web_state->GetUniqueIdentifier().identifier());
+
+  // Check if the tab should be persisted, and skip + clean up any remaining
+  // context if it shouldn't.
+  if (!CanExtractPageContextForWebState(web_state)) {
+    task_runner_->PostTask(
+        FROM_HERE, base::BindOnce(&DeleteContextFromStorage, webstate_unique_id,
+                                  storage_directory_path_));
+    return;
+  }
+
   // Cancel any ongoing page context operation.
   if (page_context_wrapper_) {
     page_context_wrapper_ = nil;
   }
-
-  std::string webstate_unique_id =
-      base::NumberToString(web_state->GetUniqueIdentifier().identifier());
 
   page_context_wrapper_ = [[PageContextWrapper alloc]
         initWithWebState:web_state

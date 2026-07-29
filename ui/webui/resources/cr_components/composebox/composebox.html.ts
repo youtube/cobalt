@@ -22,7 +22,7 @@ export function getHtml(this: ComposeboxElement) {
   <div id="composebox" @keydown="${this.onKeydown_}"
       @focusin=${this.handleComposeboxFocusIn_}
       @focusout=${this.handleComposeboxFocusOut_}>
-    <div id="inputContainer">
+    <div id="inputContainer" part="input-container">
       <div id="textContainer" part="text-container">
         <div id="iconContainer" part="icon-container">
           <div id="aimIcon"></div>
@@ -51,7 +51,9 @@ export function getHtml(this: ComposeboxElement) {
         </div>
       </div>
       <contextual-entrypoint-and-carousel id="context" part="context-entrypoint"
-          .tabSuggestions_=${this.tabSuggestions_}
+          class="${this.carouselOnTop_ && this.isCollapsible ? 'icon-fade' : ''}"
+          exportparts="context-menu-entrypoint-icon, composebox-file-carousel, upload-container, voice-icon"
+          .tabSuggestions="${this.tabSuggestions_}"
           entrypoint-name="Composebox"
           @add-tab-context="${this.addTabContext_}"
           @add-file-context="${this.addFileContext_}"
@@ -61,10 +63,11 @@ export function getHtml(this: ComposeboxElement) {
           @set-create-image-mode="${this.setCreateImageMode_}"
           @get-tab-preview="${this.getTabPreview_}"
           ?show-dropdown="${this.showDropdown_}"
-          ?inputs-disabled="${this.inputsDisabled_}"
           ?show-context-menu-description="${this.showContextMenuDescription_}"
-          realbox-layout-mode="${this.realboxLayoutMode}">
-        <ntp-composebox-dropdown
+          realbox-layout-mode="${this.realboxLayoutMode}"
+          ?carousel-on-top_="${this.carouselOnTop_}"
+          .parentFocused="${true}">
+        <cr-composebox-dropdown
             id="matches"
             part="dropdown"
             role="listbox"
@@ -75,7 +78,7 @@ export function getHtml(this: ComposeboxElement) {
             @match-click="${this.onMatchClick_}"
             ?hidden="${!this.showDropdown_}"
             .lastQueriedInput=${this.lastQueriedInput_}>
-        </ntp-composebox-dropdown>
+        </cr-composebox-dropdown>
       </contextual-entrypoint-and-carousel>
     </div>
     <!-- A seperate container is needed for the submit button so the
@@ -103,15 +106,18 @@ export function getHtml(this: ComposeboxElement) {
     <!-- A seperate container is needed for the submit button so the
        expand/collapse animation can be applied without affecting the submit
        button enabled/disabled state. -->
-    <div id="submitContainer" class="icon-fade" part="submit">
+    <div id="submitContainer" class="icon-fade" part="submit"
+         tabindex="0"
+         title="${this.i18n('composeboxSubmitButtonTitle')}"
+         @click="${this.submitQuery_}"
+         ?disabled="${!this.submitEnabled_}"
+         @focusin="${this.handleSubmitFocusIn_}">
+      <div id="submitOverlay"></div>
       <cr-icon-button
         class="action-icon icon-arrow-upward"
         id="submitIcon"
         part="action-icon submit-icon"
-        title="${this.i18n('composeboxSubmitButtonTitle')}"
-        @click="${this.submitQuery_}"
-        ?disabled="${!this.submitEnabled_}"
-        @focusin="${this.handleSubmitFocusIn_}">
+        tabindex="-1">
       </cr-icon-button>
     </div>
   </div>

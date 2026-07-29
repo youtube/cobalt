@@ -24,6 +24,7 @@
 #include "base/types/id_type.h"
 #include "chrome/browser/actor/actor_features.h"
 #include "chrome/browser/actor/actor_keyed_service.h"
+#include "chrome/browser/actor/actor_metrics.h"
 #include "chrome/browser/actor/actor_policy_checker.h"
 #include "chrome/browser/actor/actor_task.h"
 #include "chrome/browser/actor/browser_action_util.h"
@@ -84,6 +85,23 @@ void PostTaskForActCallback(
 
 }  // namespace
 
+ToolDelegate::CredentialWithPermission::CredentialWithPermission() = default;
+ToolDelegate::CredentialWithPermission::CredentialWithPermission(
+    const actor_login::Credential& credential,
+    webui::mojom::UserGrantedPermissionDuration permission_duration)
+    : credential(credential), permission_duration(permission_duration) {}
+ToolDelegate::CredentialWithPermission::CredentialWithPermission(
+    const CredentialWithPermission&) = default;
+ToolDelegate::CredentialWithPermission::CredentialWithPermission(
+    CredentialWithPermission&&) = default;
+ToolDelegate::CredentialWithPermission&
+ToolDelegate::CredentialWithPermission::operator=(
+    const CredentialWithPermission&) = default;
+ToolDelegate::CredentialWithPermission&
+ToolDelegate::CredentialWithPermission::operator=(CredentialWithPermission&&) =
+    default;
+ToolDelegate::CredentialWithPermission::~CredentialWithPermission() = default;
+
 ExecutionEngine::ExecutionEngine(Profile* profile)
     : profile_(profile),
       journal_(ActorKeyedService::Get(profile)->GetJournal().GetSafeRef()),
@@ -114,6 +132,8 @@ ExecutionEngine::~ExecutionEngine() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   UMA_HISTOGRAM_COUNTS_1000("Actor.NavigationGating.AllowListSize",
                             allowed_navigation_origins_.size());
+
+  RunUserTakeoverCallbackIfExists(/*should_cancel=*/true);
 }
 
 void ExecutionEngine::SetOwner(ActorTask* task) {
@@ -125,8 +145,7 @@ void ExecutionEngine::SetOwner(ActorTask* task) {
 
 void ExecutionEngine::SetState(State state) {
   TRACE_EVENT0("actor", "ExecutionEngine::SetState");
-  journal_->Log(GURL(), task_->id(), mojom::JournalTrack::kActor,
-                "ExecutionEngine::StateChange",
+  journal_->Log(GURL(), task_->id(), "ExecutionEngine::StateChange",
                 JournalDetailsBuilder()
                     .Add("current_state", StateToString(state_))
                     .Add("new_state", StateToString(state))
@@ -172,7 +191,7 @@ std::string ExecutionEngine::StateToString(State state) {
 
 bool ExecutionEngine::ShouldGateNavigation(
     content::NavigationHandle& navigation_handle,
-    ExecutionEngine::UserConfirmationDialogCallback callback) {
+    ExecutionEngine::NavigationDecisionCallback callback) {
   if (!base::FeatureList::IsEnabled(kGlicCrossOriginNavigationGating)) {
     return false;
   }
@@ -184,7 +203,7 @@ bool ExecutionEngine::ShouldGateNavigation(
 
 bool ExecutionEngine::ShouldGateNavigationInternal(
     content::NavigationHandle& navigation_handle,
-    ExecutionEngine::UserConfirmationDialogCallback callback) {
+    ExecutionEngine::NavigationDecisionCallback callback) {
   base::ScopedUmaHistogramTimer timer(
       "Actor.NavigationGating.TimeElapsedForGating");
 
@@ -212,12 +231,8 @@ bool ExecutionEngine::ShouldGateNavigationInternal(
 
   base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE,
-      base::BindOnce(
-          &ExecutionEngine::PromptToConfirmCrossOriginNavigation, GetWeakPtr(),
-          navigation_origin,
-          base::BindOnce(&ExecutionEngine::OnPromptToConfirmNavigationDecision,
-                         GetWeakPtr(), navigation_origin,
-                         std::move(callback))));
+      base::BindOnce(&ExecutionEngine::CheckNavigationBlocklist, GetWeakPtr(),
+                     navigation_handle.GetURL(), std::move(callback)));
 
   return true;
 }
@@ -239,9 +254,110 @@ void ExecutionEngine::LogNavigationGating(
   }
 }
 
-void ExecutionEngine::OnPromptToConfirmNavigationDecision(
+void ExecutionEngine::CheckNavigationBlocklist(
+    const GURL& navigation_url,
+    ExecutionEngine::NavigationDecisionCallback callback) {
+  auto [callback1, callback2] = base::SplitOnceCallback(std::move(callback));
+  if (ShouldBlockNavigationUrlForOriginGating(
+          navigation_url, profile_,
+          base::BindOnce(&ExecutionEngine::OnNavigationBlocklistDecision,
+                         GetWeakPtr(), url::Origin::Create(navigation_url),
+                         std::move(callback1)))) {
+    return;
+  }
+  // If `ShouldBlockNavigationUrlForOriginGating` returns false, it means the
+  // Optimization Guide was not available to check the blocklist, so we
+  // continue to the next step.
+  OnNavigationBlocklistDecision(url::Origin::Create(navigation_url),
+                                std::move(callback2),
+                                /*may_continue=*/true);
+}
+
+void ExecutionEngine::OnNavigationBlocklistDecision(
     url::Origin navigation_origin,
-    ExecutionEngine::UserConfirmationDialogCallback callback,
+    ExecutionEngine::NavigationDecisionCallback callback,
+    bool may_continue) {
+  // If the site is not on the blocklist, this is a novel origin and we should
+  // invoke SendNavigationConfirmationRequest.
+  if (may_continue) {
+    SendNavigationConfirmationRequest(navigation_origin, std::move(callback));
+    return;
+  }
+  // Otherwise if the site is blocked, present a user confirmation dialog to
+  // continue.
+  SendUserConfirmationDialogRequest(navigation_origin, std::move(callback));
+}
+
+void ExecutionEngine::SendNavigationConfirmationRequest(
+    const url::Origin& navigation_origin,
+    ExecutionEngine::NavigationDecisionCallback callback) {
+  if (navigation_confirmation_callback_) {
+    std::move(navigation_confirmation_callback_)
+        .Run(webui::mojom::NavigationConfirmationResponse::New(
+            webui::mojom::ConfirmationRequestResult::NewErrorReason(
+                webui::mojom::ConfirmationRequestErrorReason::
+                    kPreemptedByNewRequest)));
+  }
+  navigation_confirmation_callback_ =
+      base::BindOnce(&ExecutionEngine::OnNavigationConfirmationDecision,
+                     GetWeakPtr(), navigation_origin, std::move(callback));
+  ActorKeyedService::Get(profile_)->NotifyRequestToConfirmNavigation(
+      task_->id(), navigation_origin);
+}
+
+void ExecutionEngine::OnNavigationConfirmationResponse(
+    webui::mojom::NavigationConfirmationResponsePtr response) {
+  CHECK(navigation_confirmation_callback_);
+  std::move(navigation_confirmation_callback_).Run(std::move(response));
+}
+
+void ExecutionEngine::OnNavigationConfirmationDecision(
+    url::Origin navigation_origin,
+    ExecutionEngine::NavigationDecisionCallback callback,
+    webui::mojom::NavigationConfirmationResponsePtr response) {
+  if (response->result->is_permission_granted()) {
+    bool permission_granted = response->result->get_permission_granted();
+    // TODO(dylancutler): Separate Actor.NavigationGating.PermissionGranted into
+    // separate histograms for different confirmation types.
+    UMA_HISTOGRAM_BOOLEAN("Actor.NavigationGating.PermissionGranted",
+                          permission_granted);
+    if (permission_granted) {
+      allowed_navigation_origins_.insert(std::move(navigation_origin));
+    }
+    std::move(callback).Run(permission_granted);
+    return;
+  }
+  // TODO(crbug.com/450302860): Add UMA metrics for logging frequency of
+  // different failure modes.
+  std::move(callback).Run(/*may_continue=*/false);
+}
+
+void ExecutionEngine::SendUserConfirmationDialogRequest(
+    const url::Origin& navigation_origin,
+    ExecutionEngine::NavigationDecisionCallback callback) {
+  if (user_confirmation_callback_) {
+    std::move(user_confirmation_callback_)
+        .Run(webui::mojom::UserConfirmationDialogResponse::New(
+            webui::mojom::ConfirmationRequestResult::NewErrorReason(
+                webui::mojom::ConfirmationRequestErrorReason::
+                    kPreemptedByNewRequest)));
+  }
+  user_confirmation_callback_ =
+      base::BindOnce(&ExecutionEngine::OnPromptUserToConfirmNavigationDecision,
+                     GetWeakPtr(), navigation_origin, std::move(callback));
+  ActorKeyedService::Get(profile_)->NotifyRequestToShowUserConfirmationDialog(
+      task_->id(), navigation_origin);
+}
+
+void ExecutionEngine::OnUserConfirmationDialogResponse(
+    webui::mojom::UserConfirmationDialogResponsePtr response) {
+  CHECK(user_confirmation_callback_);
+  std::move(user_confirmation_callback_).Run(std::move(response));
+}
+
+void ExecutionEngine::OnPromptUserToConfirmNavigationDecision(
+    url::Origin navigation_origin,
+    ExecutionEngine::NavigationDecisionCallback callback,
     webui::mojom::UserConfirmationDialogResponsePtr response) {
   if (response->result->is_permission_granted()) {
     bool permission_granted = response->result->get_permission_granted();
@@ -250,8 +366,31 @@ void ExecutionEngine::OnPromptToConfirmNavigationDecision(
     if (permission_granted) {
       allowed_navigation_origins_.insert(std::move(navigation_origin));
     }
+    std::move(callback).Run(permission_granted);
+    return;
   }
-  std::move(callback).Run(std::move(response));
+  // TODO(crbug.com/450302860): Add UMA metrics for logging frequency of
+  // different failure modes.
+  std::move(callback).Run(/*may_continue=*/false);
+}
+
+void ExecutionEngine::UserTakeover(
+    mojom::ActionResultCode takeover_response_code,
+    base::OnceCallback<void(bool)> callback) {
+  CancelOngoingActions(takeover_response_code);
+
+  // Cancel any existing user takeover callback
+  RunUserTakeoverCallbackIfExists(/*should_cancel=*/true);
+
+  user_takeover_callback_ = std::move(callback);
+}
+
+void ExecutionEngine::RunUserTakeoverCallbackIfExists(bool should_cancel) {
+  if (user_takeover_callback_.is_null()) {
+    return;
+  }
+
+  std::move(user_takeover_callback_).Run(should_cancel);
 }
 
 void ExecutionEngine::AddObserver(StateObserver* observer) {
@@ -293,8 +432,7 @@ void ExecutionEngine::Act(std::vector<std::unique_ptr<ToolRequest>>&& actions,
 
   if (!action_sequence_.empty()) {
     journal_->Log(
-        actions[0]->GetURLForJournal(), task_->id(),
-        mojom::JournalTrack::kActor, "Act Failed",
+        actions[0]->GetURLForJournal(), task_->id(), "Act Failed",
         JournalDetailsBuilder()
             .AddError(
                 "Unable to perform action: task already has action in progress")
@@ -361,8 +499,7 @@ void ExecutionEngine::SafetyChecksForNextAction() {
   tabs::TabInterface* tab = GetNextAction().GetTabHandle().Get();
 
   if (!tab) {
-    journal_->Log(GURL::EmptyGURL(), task_->id(), mojom::JournalTrack::kActor,
-                  "Act Failed",
+    journal_->Log(GURL::EmptyGURL(), task_->id(), "Act Failed",
                   JournalDetailsBuilder()
                       .AddError("The tab is no longer present")
                       .Build());
@@ -390,8 +527,7 @@ void ExecutionEngine::DidFinishAsyncSafetyChecks(
 
   tabs::TabInterface* tab = GetNextAction().GetTabHandle().Get();
   if (!tab) {
-    journal_->Log(GURL::EmptyGURL(), task_->id(), mojom::JournalTrack::kActor,
-                  "Act Failed",
+    journal_->Log(GURL::EmptyGURL(), task_->id(), "Act Failed",
                   JournalDetailsBuilder()
                       .AddError("The tab is no longer present")
                       .Build());
@@ -410,8 +546,7 @@ void ExecutionEngine::DidFinishAsyncSafetyChecks(
     // A cross-origin navigation occurred before we got permission. The result
     // is no longer applicable. For now just fail.
     // TODO(mcnee): Handle this gracefully.
-    journal_->Log(GetNextAction().GetURLForJournal(), task_id,
-                  mojom::JournalTrack::kActor, "Act Failed",
+    journal_->Log(GetNextAction().GetURLForJournal(), task_id, "Act Failed",
                   JournalDetailsBuilder()
                       .AddError("Acting after cross-origin navigation occurred")
                       .Build());
@@ -425,8 +560,7 @@ void ExecutionEngine::DidFinishAsyncSafetyChecks(
 
   if (!may_act) {
     journal_->Log(
-        GetNextAction().GetURLForJournal(), task_id,
-        mojom::JournalTrack::kActor, "Act Failed",
+        GetNextAction().GetURLForJournal(), task_id, "Act Failed",
         JournalDetailsBuilder().AddError("URL blocked for actions").Build());
     FailedOnTabBeforeToolCreation();
     CompleteActions(MakeResult(mojom::ActionResultCode::kUrlBlocked,
@@ -441,8 +575,7 @@ void ExecutionEngine::DidFinishAsyncSafetyChecks(
 
 void ExecutionEngine::FailedOnTabBeforeToolCreation() {
   tabs::TabHandle tab = GetNextAction().GetTabHandle();
-  journal_->Log(GetNextAction().GetURLForJournal(), task_->id(),
-                mojom::JournalTrack::kActor, "Act Failed",
+  journal_->Log(GetNextAction().GetURLForJournal(), task_->id(), "Act Failed",
                 JournalDetailsBuilder()
                     .Add("tabId", tab.raw_value())
                     .AddError("Associating tab for failed action")
@@ -502,15 +635,17 @@ void ExecutionEngine::FinishedToolInvoke(mojom::ActionResultPtr result) {
     return;
   }
 
+  base::TimeTicks end_time = base::TimeTicks::Now();
   if (!IsOk(*result)) {
-    action_results_.emplace_back(action_start_time_, base::TimeTicks::Now(),
-                                 result->Clone());
+    action_results_.emplace_back(action_start_time_, end_time, result->Clone());
     CompleteActions(std::move(result), InProgressActionIndex());
     return;
   }
 
-  action_results_.emplace_back(action_start_time_, base::TimeTicks::Now(),
-                               std::move(result));
+  CHECK(result->execution_end_time);
+  RecordToolTimings(GetInProgressAction().Name(), end_time - action_start_time_,
+                    end_time - *result->execution_end_time);
+  action_results_.emplace_back(action_start_time_, end_time, std::move(result));
   SetState(State::kUiPostInvoke);
   ui_event_dispatcher_->OnPostTool(
       GetInProgressAction(),
@@ -549,7 +684,7 @@ void ExecutionEngine::CompleteActions(mojom::ActionResultPtr result,
       url = action_sequence_[*action_index]->GetURLForJournal();
     }
     journal_->Log(
-        url, task_->id(), mojom::JournalTrack::kActor, "Act Failed",
+        url, task_->id(), "Act Failed",
         JournalDetailsBuilder().AddError(ToDebugString(*result)).Build());
   }
 
@@ -605,11 +740,12 @@ void ExecutionEngine::PromptToSelectCredential(
 }
 
 void ExecutionEngine::SetUserSelectedCredential(
-    const actor_login::Credential& credential) {
-  user_selected_credentials_[credential.request_origin] = credential;
+    const ToolDelegate::CredentialWithPermission& credential_with_permission) {
+  user_selected_credentials_[credential_with_permission.credential
+                                 .request_origin] = credential_with_permission;
 }
 
-const std::optional<actor_login::Credential>
+const std::optional<ToolDelegate::CredentialWithPermission>
 ExecutionEngine::GetUserSelectedCredential(
     const url::Origin& request_origin) const {
   auto it = user_selected_credentials_.find(request_origin);
@@ -637,42 +773,6 @@ void ExecutionEngine::AddWritableMainframeOrigins(
     // the url::Origin's stored in allowed_navigation_origins_.
     allowed_navigation_origins_.insert(url::Origin(origin));
   }
-}
-
-void ExecutionEngine::PromptToConfirmCrossOriginNavigation(
-    const url::Origin& navigation_origin,
-    ExecutionEngine::UserConfirmationDialogCallback callback) {
-  PromptUserForConfirmationInternal(
-      navigation_origin, /*download_url=*/std::nullopt, std::move(callback));
-}
-
-void ExecutionEngine::PromptToConfirmDownload(
-    int32_t download_id,
-    ExecutionEngine::UserConfirmationDialogCallback callback) {
-  PromptUserForConfirmationInternal(/*navigation_origin=*/std::nullopt,
-                                    download_id, std::move(callback));
-}
-
-void ExecutionEngine::PromptUserForConfirmationInternal(
-    const std::optional<url::Origin>& navigation_origin,
-    const std::optional<int32_t> download_id,
-    ExecutionEngine::UserConfirmationDialogCallback callback) {
-  if (user_confirmation_callback_) {
-    std::move(user_confirmation_callback_)
-        .Run(webui::mojom::UserConfirmationDialogResponse::New(
-            webui::mojom::UserConfirmationDialogResult::NewErrorReason(
-                webui::mojom::UserConfirmationDialogErrorReason::
-                    kPreemptedByNewRequest)));
-  }
-  user_confirmation_callback_ = std::move(callback);
-  ActorKeyedService::Get(profile_)->NotifyRequestToShowUserConfirmationDialog(
-      task_->id(), navigation_origin, download_id);
-}
-
-void ExecutionEngine::OnUserConfirmation(
-    webui::mojom::UserConfirmationDialogResponsePtr response) {
-  CHECK(user_confirmation_callback_);
-  std::move(user_confirmation_callback_).Run(std::move(response));
 }
 
 const ToolRequest& ExecutionEngine::GetNextAction() const {

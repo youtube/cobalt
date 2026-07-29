@@ -4,9 +4,9 @@
 
 #include "chrome/browser/ui/lens/lens_overlay_controller.h"
 
+#include <algorithm>
 #include <memory>
 #include <optional>
-#include <set>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -61,6 +61,7 @@
 #include "chrome/browser/ui/tabs/public/tab_features.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/user_education/browser_user_education_interface.h"
+#include "chrome/browser/ui/views/interaction/browser_elements_views.h"
 #include "chrome/browser/ui/views/side_panel/side_panel.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_coordinator.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_enums.h"
@@ -78,8 +79,6 @@
 #include "components/lens/lens_overlay_mime_type.h"
 #include "components/lens/lens_overlay_permission_utils.h"
 #include "components/omnibox/browser/lens_suggest_inputs_utils.h"
-#include "components/optimization_guide/content/browser/page_content_proto_provider.h"
-#include "components/optimization_guide/content/browser/page_context_eligibility.h"
 #include "components/permissions/permission_request_manager.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
 #include "components/tabs/public/tab_interface.h"
@@ -388,7 +387,9 @@ void LensOverlayController::CloseUI(
   side_panel_coordinator_ = nullptr;
 
   // Re-enable mouse and keyboard events to the tab contents web view.
-  auto* contents_web_view = tab_->GetBrowserWindowInterface()->GetWebView();
+  auto* contents_web_view =
+      BrowserElementsViews::From(tab_->GetBrowserWindowInterface())
+          ->RetrieveView(kActiveContentsWebViewRetrievalId);
   CHECK(contents_web_view);
   contents_web_view->SetEnabled(true);
 
@@ -647,7 +648,7 @@ void LensOverlayController::IssueTranslateFullPageRequest(
     const std::string& source_language,
     const std::string& target_language) {
   // Remove the selection thumbnail, if it exists.
-  GetLensSearchboxController()->SetSearchboxThumbnail(std::string());
+  lens_search_controller_->ClearVisualSelectionThumbnail();
   ClearRegionSelection();
   // Set the coachmark text.
   if (preselection_widget_) {
@@ -946,7 +947,7 @@ void LensOverlayController::ShowUI(
   // Setup observer to be notified of side panel opens and closes.
   side_panel_shown_subscription_ =
       side_panel_coordinator_->RegisterSidePanelShown(
-          SidePanelEntry::PanelType::kContent,
+          GetLensOverlaySidePanelCoordinator()->GetPanelType(),
           base::BindRepeating(&LensOverlayController::OnSidePanelDidOpen,
                               weak_factory_.GetWeakPtr()));
 
@@ -996,7 +997,8 @@ void LensOverlayController::ShowUI(
 
   // This should be the last thing called in ShowUI, so if something goes wrong
   // in capturing the screenshot, the state gets cleaned up correctly.
-  if (side_panel_coordinator_->IsSidePanelShowing() &&
+  if (side_panel_coordinator_->IsSidePanelShowing(
+          GetLensOverlaySidePanelCoordinator()->GetPanelType()) &&
       !results_side_panel_coordinator_->IsEntryShowing()) {
     // Close the currently opened side panel synchronously if it's not the Lens
     // panel. Postpone the screenshot for a fixed time to allow reflow.
@@ -1195,7 +1197,7 @@ void LensOverlayController::ClearRegionSelection() {
   if (!IsOverlayShowing()) {
     return;
   }
-  GetLensSearchboxController()->SetSearchboxThumbnail("");
+  lens_search_controller_->ClearVisualSelectionThumbnail();
   lens_selection_type_ = lens::UNKNOWN_SELECTION_TYPE;
   initialization_data_->selected_region_.reset();
   initialization_data_->selected_region_bitmap_.reset();
@@ -1517,7 +1519,9 @@ void LensOverlayController::SetLiveBlur(bool enabled) {
 }
 
 void LensOverlayController::ShowOverlay() {
-  auto* contents_web_view = tab_->GetBrowserWindowInterface()->GetWebView();
+  auto* contents_web_view =
+      BrowserElementsViews::From(tab_->GetBrowserWindowInterface())
+          ->RetrieveView(kActiveContentsWebViewRetrievalId);
   CHECK(contents_web_view);
 
   NotifyIsOverlayShowing(true);
@@ -1755,7 +1759,7 @@ void LensOverlayController::InitializeOverlayUI(
   page_->ShouldShowContextualSearchBox(!is_side_panel_open);
   // If should show CSB, and the CSB viewport thumbnail is enabled, send it now.
   if (lens::features::GetVisualSelectionUpdatesEnableCsbThumbnail()) {
-    GetLensSearchboxController()->HandleThumbnailCreatedBitmap(
+    lens_search_controller_->HandleThumbnailCreatedBitmap(
         init_data.initial_screenshot_);
   }
 
@@ -1786,7 +1790,9 @@ bool LensOverlayController::IsContextualSearchbox() {
 
 raw_ptr<views::View> LensOverlayController::CreateViewForOverlay() {
   // Grab the host view for the overlay which is owned by the browser view.
-  auto* host_view = tab_->GetBrowserWindowInterface()->LensOverlayView();
+  auto* const host_view =
+      BrowserElementsViews::From(tab_->GetBrowserWindowInterface())
+          ->GetView(kLensOverlayViewElementId);
   CHECK(host_view);
 
   // Setup a preselection anchor view. Usually bubbles are anchored to top
@@ -1885,9 +1891,8 @@ void LensOverlayController::OnWidgetActivationChanged(views::Widget* widget,
     // the preselection widget, make sure to clear out the browser's native
     // focus. This causes the preselection widget to lose activation, so
     // reactivate it manually.
-    tab_->GetBrowserWindowInterface()
-        ->TopContainer()
-        ->GetWidget()
+    BrowserElementsViews::From(tab_->GetBrowserWindowInterface())
+        ->GetPrimaryWindowWidget()
         ->GetFocusManager()
         ->ClearNativeFocus();
     preselection_widget_->Activate();
@@ -2258,7 +2263,7 @@ void LensOverlayController::IssueTextSelectionRequestInner(
       std::make_pair(selection_start_index, selection_end_index);
 
   GetLensSearchboxController()->SetSearchboxInputText(query);
-  GetLensSearchboxController()->SetSearchboxThumbnail(std::string());
+  lens_search_controller_->ClearVisualSelectionThumbnail();
 
   lens_overlay_query_controller_->SendTextOnlyQuery(
       query_start_time, query, lens_selection_type_,
@@ -2569,7 +2574,9 @@ void LensOverlayController::HideOverlay() {
   // focus before the overlay view is hidden. If it is done after, focus will
   // move from the overlay view to another Chrome UI element before the contents
   // web view can take focus.
-  auto* contents_web_view = tab_->GetBrowserWindowInterface()->GetWebView();
+  auto* contents_web_view =
+      BrowserElementsViews::From(tab_->GetBrowserWindowInterface())
+          ->RetrieveView(kActiveContentsWebViewRetrievalId);
   CHECK(contents_web_view);
   contents_web_view->SetEnabled(true);
   contents_web_view->RequestFocus();
@@ -2939,7 +2946,8 @@ void LensOverlayController::ReshowOverlayPart3(const SkBitmap& rgb_screenshot) {
     lens_overlay_blur_layer_delegate_->Hide();
   }
 
-  state_ = side_panel_coordinator_->IsSidePanelShowing()
+  state_ = side_panel_coordinator_->IsSidePanelShowing(
+               GetLensOverlaySidePanelCoordinator()->GetPanelType())
                ? State::kOverlayAndResults
                : State::kOverlay;
   ShowOverlay();

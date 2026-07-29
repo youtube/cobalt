@@ -2612,6 +2612,11 @@
       <message name="IDS_IOS_EXPORT_PASSWORDS_AND_PASSKEYS" desc="Button that the user can press to export passwords and passkeys. [iOS only]">
         Export passwords and passkeys…
       </message>
+      <message name="IDS_IOS_EXPORT_PASSWORDS_AND_PASSKEYS_COUNT" desc="Text displaying the number of items currently selected. [iOS Only]">
+        {count, plural,
+          =1 {1 selected}
+          other {# selected}}
+      </message>
       <message name="IDS_IOS_EXPORT_PASSWORDS_AND_PASSKEYS_SUBTITLE" desc="Subtitle text on the credential export selection screen, instructing the user to select accounts. [iOS only]">
         Select the accounts you want to export to another app.
       </message>
@@ -3244,9 +3249,6 @@
       </message>
       <message name="IDS_IOS_INCOGNITO_REAUTH_UNLOCK_BUTTON_VOICEOVER_LABEL" desc="Voiceover label on the button that starts biometric authentication on a screen that blocks Incognito tabs until biometric authetication. [iOS only]">
        Unlock Incognito tabs with <ph name="BIOMETRIC_AUTHENITCATION_TYPE">$1<ex>Face ID</ex></ph>
-      </message>
-      <message name="IDS_IOS_INCOGNITO_SETTINGS_SECTION_HEADER" desc="Section header for Incognito settings on the Privacy and security settings page." translateable="false">
-       Incognito
       </message>
       <message name="IDS_IOS_INFOBAR_BADGES_PASSWORD_HINT" desc="The iOS infobar badge item for saving password credentials [Length:Unlimited]">
         Options to save password
@@ -6988,6 +6990,33 @@ Handoff must also be enabled in the General section of Settings, and your device
       </message>
       <message name="IDS_IOS_SWITCH_PROFILE_SWITCH_TITLE" desc="Title for the switch profile developer panel in Settings-&gt;Switch Profile giving the list of loaded profiles [iOS only]">
         Switch to another profile
+      </message>
+      <message name="IDS_IOS_SYNCED_SET_UP_SNACKBAR_APPLIED_ACTION" desc="The action button text for the snackbar shown after new tab page preferences have been applied. [iOS only]">
+        Undo
+      </message>
+      <message name="IDS_IOS_SYNCED_SET_UP_SNACKBAR_APPLIED_MESSAGE_NTP" desc="The message text for the snackbar shown after new tab page preferences have been applied. [iOS only]">
+        Applied your new tab page preferences
+      </message>
+      <message name="IDS_IOS_SYNCED_SET_UP_SNACKBAR_PROMO_ACTION" desc="The action button text for the snackbar that prompts the user to apply their synced new tab page settings. [iOS only]">
+        Apply
+      </message>
+      <message name="IDS_IOS_SYNCED_SET_UP_SNACKBAR_PROMO_MESSAGE_NTP" desc="The message text for the snackbar that prompts the user to apply their synced new tab page settings from another device. [iOS only]">
+        Would you like to apply your new tab page customizations from another device?
+      </message>
+      <message name="IDS_IOS_SYNCED_SET_UP_SNACKBAR_REMOVED_ACTION" desc="The action button text for the snackbar shown after new tab page preferences have been removed. [iOS only]">
+        Redo
+      </message>
+      <message name="IDS_IOS_SYNCED_SET_UP_SNACKBAR_REMOVED_MESSAGE_NTP" desc="The message text for the snackbar shown after new tab page preferences have been removed. [iOS only]">
+        Removed new tab page preferences
+      </message>
+      <message name="IDS_IOS_SYNCED_SET_UP_SUBTITLE_TEXT" desc="Subtitle text on the Synced Set Up screen, indicating that the user's data is being loaded. [iOS only]">
+        Getting your stuff…
+      </message>
+      <message name="IDS_IOS_SYNCED_SET_UP_WELCOME_MESSAGE_TITLE" desc="Title of the Synced Set Up screen shown while the user's settings are being fetched. This is the default title shown when the user's name is not available. [iOS only]">
+        Welcome back!
+      </message>
+      <message name="IDS_IOS_SYNCED_SET_UP_WELCOME_MESSAGE_WITH_USER_NAME_TITLE" desc="Title of the Synced Set Up screen that includes the user's name, shown while their settings are being fetched. It includes a placeholder for the user's first name ($1). [iOS only]">
+        Welcome back, <ph name="USER_NAME">$1<ex>Benjamin</ex></ph>!
       </message>
       <message name="IDS_IOS_SYNC_ADDRESSES_DIALOG_CONTINUE" desc="Action of a dialog to enable saving addresses to the Google Account. If the user chose to continue, addresses will start syncing.">
         Continue

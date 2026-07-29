@@ -81,22 +81,31 @@ void Host::Shutdown() {
   contents_.reset();
 }
 
-void Host::Reload(content::RenderFrameHost* render_frame_host) {
-  content::RenderFrameHost* outer_frame =
-      render_frame_host->GetOutermostMainFrame();
-
-  // Reload if the outer frame matches either the WebUI frame or the guest
-  // frame.
+bool Host::IsWebContentPresentAndMatches(
+    content::RenderFrameHost* outermost_rfh) {
   auto* contents = webui_contents();
-  if (contents && contents->GetOuterWebContentsFrame() == outer_frame) {
-    Reload();
-    return;
+  if (contents && contents->GetOuterWebContentsFrame() == outermost_rfh) {
+    return true;
   }
   auto* handler = page_handler();
   if (handler) {
-    if (handler->GetGuestMainFrame() == outer_frame) {
-      Reload();
+    if (handler->GetGuestMainFrame() == outermost_rfh) {
+      return true;
     }
+  }
+  return false;
+}
+
+void Host::Close(content::RenderFrameHost* outermost_render_frame_host) {
+  if (IsWebContentPresentAndMatches(outermost_render_frame_host)) {
+    delegate_->ClosePanel();
+  }
+}
+
+void Host::Reload(content::RenderFrameHost* render_frame_host) {
+  if (IsWebContentPresentAndMatches(
+          render_frame_host->GetOutermostMainFrame())) {
+    Reload();
   }
 }
 
@@ -134,12 +143,15 @@ void Host::PanelWillOpen(mojom::InvocationSource invocation_source,
         glic_instance_
             ? mojom::PanelOpeningData::New(
                   glic_instance_->GetPanelState().Clone(), invocation_source,
-                  std::move(options.conversation_id))
+                  std::move(options.conversation_id),
+                  std::move(options.prompt_suggestion))
             : mojom::PanelOpeningData::New(),
         base::BindOnce(
             &Host::PanelWillOpenComplete,
             // Unretained is safe because web client is owned by `contents_`.
             base::Unretained(this), handler_info_->web_client.get()));
+  } else {
+    pending_panel_open_options_ = std::move(options);
   }
 }
 
@@ -285,6 +297,7 @@ void Host::UnsetWebClient(GlicWebClientAccess* web_client) {
     observers_.Notify(&Observer::ContextAccessIndicatorChanged, false);
   }
   handler_info_->web_client = nullptr;
+  instance_delegate().OnWebClientCleared();
 }
 
 void Host::SetWebClient(GlicWebClientAccess* web_client) {
@@ -292,16 +305,19 @@ void Host::SetWebClient(GlicWebClientAccess* web_client) {
   CHECK(web_client);
   handler_info_->web_client = web_client;
   if (invocation_source_ && web_client) {
-    std::optional<std::string> conversation_id;
+    std::optional<std::string> conversation_id, prompt_suggestion;
     if (pending_panel_open_options_) {
       conversation_id = std::move(pending_panel_open_options_->conversation_id);
+      prompt_suggestion =
+          std::move(pending_panel_open_options_->prompt_suggestion);
       pending_panel_open_options_.reset();
     }
     web_client->PanelWillOpen(
         mojom::PanelOpeningData::New(
             glic_instance_ ? glic_instance_->GetPanelState().Clone()
                            : mojom::PanelState::New(),
-            *invocation_source_, std::move(conversation_id)),
+            *invocation_source_, std::move(conversation_id),
+            std::move(prompt_suggestion)),
         base::BindOnce(
             &Host::PanelWillOpenComplete,
             // Unretained is safe because web client is owned by `contents_`.
@@ -340,7 +356,7 @@ bool Host::IsPrimaryClientOpen() {
   return handler_info_ ? handler_info_->open_complete : false;
 }
 
-content::WebContents* Host::webui_contents() {
+content::WebContents* Host::webui_contents() const {
   if (contents_) {
     return contents_->web_contents();
   }
@@ -434,6 +450,11 @@ void Host::OnViewChanged(GlicWebClientAccess* client,
     primary_current_view_ = new_view;
     observers_.Notify(&Observer::OnViewChanged, primary_current_view_);
   }
+}
+
+void Host::OnInteractionModeChange(GlicPageHandler* page_handler,
+                                   mojom::WebClientMode new_mode) {
+  instance_delegate_->OnInteractionModeChange(new_mode);
 }
 
 mojom::CurrentView Host::GetPrimaryCurrentView() {

@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "android_webview/common/aw_feature_map.h"
+
 #include <string>
 
 #include "android_webview/common/aw_features.h"
@@ -35,6 +37,7 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &safe_browsing::kHashPrefixRealTimeLookups,
     &base::features::kPostGetMyMemoryStateToBackground,
     &sensitive_content::features::kSensitiveContent,
+    &features::kWebViewAddQuicHints,
     &features::kWebViewBackForwardCache,
     &features::kWebViewBypassProvisionalCookieManager,
     &features::kWebViewCacheBoundaryInterfaceMethods,
@@ -46,6 +49,7 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &features::kWebViewEarlyPerfettoInit,
     &features::kWebViewEarlyStartupTracing,
     &features::kWebViewEnableCrash,
+    &features::kWebViewFetchOriginTrialsComponent,
     &features::kWebViewFileSystemAccess,
     &features::kWebViewHyperlinkContextMenu,
     &features::kWebViewInvokeZoomPickerOnGSU,
@@ -78,14 +82,14 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     // keep-sorted end
 };
 
+}  // namespace
+
 // static
 base::android::FeatureMap* GetFeatureMap() {
   static base::NoDestructor<base::android::FeatureMap> kFeatureMap(
       kFeaturesExposedToJava);
   return kFeatureMap.get();
 }
-
-}  // namespace
 
 static jlong JNI_AwFeatureMap_GetNativeMap(JNIEnv* env) {
   return reinterpret_cast<jlong>(GetFeatureMap());

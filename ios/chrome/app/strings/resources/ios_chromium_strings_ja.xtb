@@ -85,7 +85,7 @@
 <translation id="2684230048001240293">Chromium を既定に設定すると、タブ、パスワード、お支払い情報をすべてのデバイスで同期できるようになります</translation>
 <translation id="2729836253097154631">Chromium にログインして同じ設定やデータにアクセス</translation>
 <translation id="2730884209570016437">カメラは別のアプリが使用中のため、Chromium では使用できません</translation>
-<translation id="2742952311155593352">Chromium の設定はあと少しで完了</translation>
+<translation id="2742952311155593352">Chromium の設定完了まであと少し</translation>
 <translation id="2798503587425057129">Chromium リーディング リストを開きます。</translation>
 <translation id="28276745681323897">Google アカウントに<ph name="BEGIN_LINK" />保存する Chromium データを管理<ph name="END_LINK" />できます。
 
@@ -331,6 +331,7 @@ Chromium を使いやすくするためにデータを使用するその他の�
 <translation id="8730503818204408000">Chromium の設定を開いて、Chromium を既定のブラウザに設定します。</translation>
 <translation id="8754966941001340678">Chromium は保護強化機能を推奨しています</translation>
 <translation id="8759037115129007407">現在、ファミリー メンバーはパスワードを受信できません。Chromium を更新してパスワードを同期するようメンバーに依頼してください。<ph name="BEGIN_LINK" />詳細<ph name="END_LINK" /></translation>
+<translation id="8769418653786388149">Chromium をどこでも活用</translation>
 <translation id="8776843108004031667">このアカウントと保存されていないデータは Chromium から削除されます。</translation>
 <translation id="8793333988063379360">Chromium の設定などをここで確認できます</translation>
 <translation id="8805148242934787134">Chromium をデフォルトのブラウザに設定する</translation>

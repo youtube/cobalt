@@ -46,10 +46,17 @@ class GlicActorTaskManager {
       actor::TaskId task_id,
       const mojom::GetTabContextOptions& context_options,
       glic::mojom::WebClientHandler::ResumeActorTaskCallback callback);
+  void InterruptActorTask(actor::TaskId task_id);
+  void UninterruptActorTask(actor::TaskId task_id);
+
+  void CancelTask();
+  bool IsActuating() const;
 
   base::WeakPtr<GlicActorTaskManager> GetWeakPtr();
 
  private:
+  void StopActorTask(actor::TaskId task_id, bool success);
+
   void PerformActionsFinished(
       mojom::WebClientHandler::PerformActionsCallback callback,
       actor::TaskId task_id,
@@ -61,6 +68,8 @@ class GlicActorTaskManager {
 
   raw_ptr<Profile> profile_;
   raw_ptr<actor::ActorKeyedService> actor_keyed_service_;
+
+  actor::TaskId current_task_id_;
 
   base::WeakPtrFactory<GlicActorTaskManager> weak_ptr_factory_{this};
 };

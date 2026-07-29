@@ -22,6 +22,7 @@
 #include "third_party/skia/include/core/SkColor.h"
 #include "url/gurl.h"
 
+using actor::webui::mojom::UserGrantedPermissionDuration;
 using base::test::TestFuture;
 using ::testing::_;
 using ::testing::Return;
@@ -35,12 +36,14 @@ webui::mojom::SelectCredentialDialogResponsePtr
 MakeSelectCredentialDialogResponse(
     TaskId task_id,
     std::optional<actor_login::Credential::Id> selected_credential_id,
+    UserGrantedPermissionDuration permission_duration,
     std::optional<webui::mojom::SelectCredentialDialogErrorReason>
         error_reason = std::nullopt) {
   auto response = webui::mojom::SelectCredentialDialogResponse::New();
   response->task_id = task_id.value();
   if (selected_credential_id.has_value()) {
     response->selected_credential_id = selected_credential_id->value();
+    response->permission_duration = permission_duration;
   }
   response->error_reason = error_reason;
   return response;
@@ -76,7 +79,7 @@ class MockExecutionEngine : public ExecutionEngine {
   MOCK_METHOD(favicon::FaviconService*, GetFaviconService, (), (override));
 };
 
-class ActorAttemptLoginToolTest : public ActorToolsGeneralPageStabilityTest {
+class ActorAttemptLoginToolTest : public ActorToolsTest {
  public:
   ActorAttemptLoginToolTest() {
     scoped_feature_list_.InitWithFeatures(
@@ -102,7 +105,8 @@ class ActorAttemptLoginToolTest : public ActorToolsGeneralPageStabilityTest {
                    const MockExecutionEngine::IconMap&,
                    ToolDelegate::CredentialSelectedCallback callback) {
               std::move(callback).Run(MakeSelectCredentialDialogResponse(
-                  actor_task().id(), credentials[0].id));
+                  actor_task().id(), credentials[0].id,
+                  webui::mojom::UserGrantedPermissionDuration::kOneTime));
             });
 
     ON_CALL(mock_execution_engine(), GetFaviconService())
@@ -125,13 +129,7 @@ class ActorAttemptLoginToolTest : public ActorToolsGeneralPageStabilityTest {
   base::test::ScopedFeatureList scoped_feature_list_;
 };
 
-INSTANTIATE_TEST_SUITE_P(
-    ,
-    ActorAttemptLoginToolTest,
-    testing::ValuesIn(kActorGeneralPageStabilityModeValues),
-    ActorToolsGeneralPageStabilityTest::DescribeParam);
-
-IN_PROC_BROWSER_TEST_P(ActorAttemptLoginToolTest, Basic) {
+IN_PROC_BROWSER_TEST_F(ActorAttemptLoginToolTest, Basic) {
   const GURL url =
       embedded_https_test_server().GetURL("example.com", "/actor/blank.html");
   ASSERT_TRUE(content::NavigateToURL(web_contents(), url));
@@ -152,7 +150,7 @@ IN_PROC_BROWSER_TEST_P(ActorAttemptLoginToolTest, Basic) {
   EXPECT_EQ(u"username", last_credential_used->username);
 }
 
-IN_PROC_BROWSER_TEST_P(ActorAttemptLoginToolTest, NoCredentials) {
+IN_PROC_BROWSER_TEST_F(ActorAttemptLoginToolTest, NoCredentials) {
   const GURL url =
       embedded_https_test_server().GetURL("example.com", "/actor/blank.html");
   ASSERT_TRUE(content::NavigateToURL(web_contents(), url));
@@ -164,7 +162,7 @@ IN_PROC_BROWSER_TEST_P(ActorAttemptLoginToolTest, NoCredentials) {
                     mojom::ActionResultCode::kLoginNoCredentialsAvailable);
 }
 
-IN_PROC_BROWSER_TEST_P(ActorAttemptLoginToolTest,
+IN_PROC_BROWSER_TEST_F(ActorAttemptLoginToolTest,
                        MultipleCredentialsSelectFirst) {
   const GURL url =
       embedded_https_test_server().GetURL("example.com", "/actor/blank.html");
@@ -188,7 +186,7 @@ IN_PROC_BROWSER_TEST_P(ActorAttemptLoginToolTest,
   EXPECT_EQ(u"username1", last_credential_used->username);
 }
 
-IN_PROC_BROWSER_TEST_P(ActorAttemptLoginToolTest,
+IN_PROC_BROWSER_TEST_F(ActorAttemptLoginToolTest,
                        MultipleCredentialsSelectSecond) {
   ON_CALL(mock_execution_engine(), PromptToSelectCredential(_, _, _))
       .WillByDefault(
@@ -196,7 +194,8 @@ IN_PROC_BROWSER_TEST_P(ActorAttemptLoginToolTest,
                  const MockExecutionEngine::IconMap&,
                  ToolDelegate::CredentialSelectedCallback callback) {
             std::move(callback).Run(MakeSelectCredentialDialogResponse(
-                actor_task().id(), credentials[1].id));
+                actor_task().id(), credentials[1].id,
+                UserGrantedPermissionDuration::kOneTime));
           });
 
   const GURL url =
@@ -221,7 +220,7 @@ IN_PROC_BROWSER_TEST_P(ActorAttemptLoginToolTest,
   EXPECT_EQ(u"username2", last_credential_used->username);
 }
 
-IN_PROC_BROWSER_TEST_P(ActorAttemptLoginToolTest, NoAvailableCredentials) {
+IN_PROC_BROWSER_TEST_F(ActorAttemptLoginToolTest, NoAvailableCredentials) {
   const GURL url =
       embedded_https_test_server().GetURL("example.com", "/actor/blank.html");
   ASSERT_TRUE(content::NavigateToURL(web_contents(), url));
@@ -238,7 +237,7 @@ IN_PROC_BROWSER_TEST_P(ActorAttemptLoginToolTest, NoAvailableCredentials) {
                     mojom::ActionResultCode::kLoginNoCredentialsAvailable);
 }
 
-IN_PROC_BROWSER_TEST_P(ActorAttemptLoginToolTest,
+IN_PROC_BROWSER_TEST_F(ActorAttemptLoginToolTest,
                        MultipleCredentialsOnlyOneAvailable) {
   const GURL url =
       embedded_https_test_server().GetURL("example.com", "/actor/blank.html");
@@ -265,7 +264,7 @@ IN_PROC_BROWSER_TEST_P(ActorAttemptLoginToolTest,
   EXPECT_EQ(u"username2", last_credential_used->username);
 }
 
-IN_PROC_BROWSER_TEST_P(ActorAttemptLoginToolTest, OnlyUsernameFilled) {
+IN_PROC_BROWSER_TEST_F(ActorAttemptLoginToolTest, OnlyUsernameFilled) {
   const GURL url =
       embedded_https_test_server().GetURL("example.com", "/actor/blank.html");
   ASSERT_TRUE(content::NavigateToURL(web_contents(), url));
@@ -282,7 +281,7 @@ IN_PROC_BROWSER_TEST_P(ActorAttemptLoginToolTest, OnlyUsernameFilled) {
   ExpectOkResult(result);
 }
 
-IN_PROC_BROWSER_TEST_P(ActorAttemptLoginToolTest, OnlyPasswordFilled) {
+IN_PROC_BROWSER_TEST_F(ActorAttemptLoginToolTest, OnlyPasswordFilled) {
   const GURL url =
       embedded_https_test_server().GetURL("example.com", "/actor/blank.html");
   ASSERT_TRUE(content::NavigateToURL(web_contents(), url));
@@ -299,7 +298,7 @@ IN_PROC_BROWSER_TEST_P(ActorAttemptLoginToolTest, OnlyPasswordFilled) {
   ExpectOkResult(result);
 }
 
-IN_PROC_BROWSER_TEST_P(ActorAttemptLoginToolTest, NoSigninForm) {
+IN_PROC_BROWSER_TEST_F(ActorAttemptLoginToolTest, NoSigninForm) {
   const GURL url =
       embedded_https_test_server().GetURL("example.com", "/actor/blank.html");
   ASSERT_TRUE(content::NavigateToURL(web_contents(), url));
@@ -315,7 +314,7 @@ IN_PROC_BROWSER_TEST_P(ActorAttemptLoginToolTest, NoSigninForm) {
   ExpectErrorResult(result, mojom::ActionResultCode::kLoginNotLoginPage);
 }
 
-IN_PROC_BROWSER_TEST_P(ActorAttemptLoginToolTest,
+IN_PROC_BROWSER_TEST_F(ActorAttemptLoginToolTest,
                        InvalidCredentialForGivenUrl) {
   const GURL url =
       embedded_https_test_server().GetURL("example.com", "/actor/blank.html");
@@ -333,7 +332,7 @@ IN_PROC_BROWSER_TEST_P(ActorAttemptLoginToolTest,
                     mojom::ActionResultCode::kLoginNoCredentialsAvailable);
 }
 
-IN_PROC_BROWSER_TEST_P(ActorAttemptLoginToolTest,
+IN_PROC_BROWSER_TEST_F(ActorAttemptLoginToolTest,
                        FillingNotAllowedForGivenUrl) {
   const GURL url =
       embedded_https_test_server().GetURL("example.com", "/actor/blank.html");
@@ -342,7 +341,7 @@ IN_PROC_BROWSER_TEST_P(ActorAttemptLoginToolTest,
   mock_login_service().SetCredential(MakeTestCredential(
       u"username", url, /*immediately_available_to_login=*/true));
   mock_login_service().SetLoginStatus(
-      actor_login::LoginStatusResult::kErrorFillingNotAllowed);
+      base::unexpected(actor_login::ActorLoginError::kFillingNotAllowed));
 
   std::unique_ptr<ToolRequest> action = MakeAttemptLoginRequest(*active_tab());
   ActResultFuture result;
@@ -350,7 +349,7 @@ IN_PROC_BROWSER_TEST_P(ActorAttemptLoginToolTest,
   ExpectErrorResult(result, mojom::ActionResultCode::kLoginFillingNotAllowed);
 }
 
-IN_PROC_BROWSER_TEST_P(ActorAttemptLoginToolTest, FailedAttemptLogin) {
+IN_PROC_BROWSER_TEST_F(ActorAttemptLoginToolTest, FailedAttemptLogin) {
   const GURL url =
       embedded_https_test_server().GetURL("example.com", "/actor/blank.html");
   ASSERT_TRUE(content::NavigateToURL(web_contents(), url));
@@ -366,7 +365,7 @@ IN_PROC_BROWSER_TEST_P(ActorAttemptLoginToolTest, FailedAttemptLogin) {
   ExpectErrorResult(result, mojom::ActionResultCode::kError);
 }
 
-IN_PROC_BROWSER_TEST_P(ActorAttemptLoginToolTest, CredentialSaved) {
+IN_PROC_BROWSER_TEST_F(ActorAttemptLoginToolTest, CredentialSaved) {
   const GURL url =
       embedded_https_test_server().GetURL("example.com", "/actor/blank.html");
   ASSERT_TRUE(content::NavigateToURL(web_contents(), url));
@@ -382,8 +381,9 @@ IN_PROC_BROWSER_TEST_P(ActorAttemptLoginToolTest, CredentialSaved) {
       .WillOnce([this](const std::vector<actor_login::Credential>& credentials,
                        const MockExecutionEngine::IconMap&,
                        ToolDelegate::CredentialSelectedCallback callback) {
-        auto response = MakeSelectCredentialDialogResponse(actor_task().id(),
-                                                           credentials[0].id);
+        auto response = MakeSelectCredentialDialogResponse(
+            actor_task().id(), credentials[0].id,
+            UserGrantedPermissionDuration::kAlwaysAllow);
         std::move(callback).Run(std::move(response));
       });
   std::unique_ptr<ToolRequest> action1 = MakeAttemptLoginRequest(*active_tab());
@@ -393,6 +393,7 @@ IN_PROC_BROWSER_TEST_P(ActorAttemptLoginToolTest, CredentialSaved) {
   ASSERT_TRUE(mock_login_service().last_credential_used().has_value());
   EXPECT_EQ(u"username1",
             mock_login_service().last_credential_used()->username);
+  EXPECT_TRUE(mock_login_service().last_permission_was_permanent());
 
   // The second time, the user should not be prompted. Note that we don't need
   // to set another expectation on `PromptToSelectCredential` because the
@@ -404,9 +405,10 @@ IN_PROC_BROWSER_TEST_P(ActorAttemptLoginToolTest, CredentialSaved) {
   ASSERT_TRUE(mock_login_service().last_credential_used().has_value());
   EXPECT_EQ(u"username1",
             mock_login_service().last_credential_used()->username);
+  EXPECT_TRUE(mock_login_service().last_permission_was_permanent());
 }
 
-IN_PROC_BROWSER_TEST_P(ActorAttemptLoginToolTest, SavedCredentialNotUsed) {
+IN_PROC_BROWSER_TEST_F(ActorAttemptLoginToolTest, SavedCredentialNotUsed) {
   const GURL blank_url =
       embedded_https_test_server().GetURL("example.com", "/actor/blank.html");
   ASSERT_TRUE(content::NavigateToURL(web_contents(), blank_url));
@@ -425,8 +427,9 @@ IN_PROC_BROWSER_TEST_P(ActorAttemptLoginToolTest, SavedCredentialNotUsed) {
       .WillOnce([this](const std::vector<actor_login::Credential>& credentials,
                        const MockExecutionEngine::IconMap&,
                        ToolDelegate::CredentialSelectedCallback callback) {
-        auto response = MakeSelectCredentialDialogResponse(actor_task().id(),
-                                                           credentials[0].id);
+        auto response = MakeSelectCredentialDialogResponse(
+            actor_task().id(), credentials[0].id,
+            UserGrantedPermissionDuration::kAlwaysAllow);
         std::move(callback).Run(std::move(response));
       });
   std::unique_ptr<ToolRequest> action1 = MakeAttemptLoginRequest(*active_tab());
@@ -436,6 +439,7 @@ IN_PROC_BROWSER_TEST_P(ActorAttemptLoginToolTest, SavedCredentialNotUsed) {
   ASSERT_TRUE(mock_login_service().last_credential_used().has_value());
   EXPECT_EQ(u"username1",
             mock_login_service().last_credential_used()->username);
+  EXPECT_TRUE(mock_login_service().last_permission_was_permanent());
 
   const GURL link_url = embedded_https_test_server().GetURL(
       "subdomain.example.com", "/actor/link.html");
@@ -450,8 +454,9 @@ IN_PROC_BROWSER_TEST_P(ActorAttemptLoginToolTest, SavedCredentialNotUsed) {
       .WillOnce([this](const std::vector<actor_login::Credential>& credentials,
                        const MockExecutionEngine::IconMap&,
                        ToolDelegate::CredentialSelectedCallback callback) {
-        auto response = MakeSelectCredentialDialogResponse(actor_task().id(),
-                                                           credentials[0].id);
+        auto response = MakeSelectCredentialDialogResponse(
+            actor_task().id(), credentials[0].id,
+            UserGrantedPermissionDuration::kOneTime);
         std::move(callback).Run(std::move(response));
       });
 
@@ -462,11 +467,12 @@ IN_PROC_BROWSER_TEST_P(ActorAttemptLoginToolTest, SavedCredentialNotUsed) {
   ASSERT_TRUE(mock_login_service().last_credential_used().has_value());
   EXPECT_EQ(u"username2",
             mock_login_service().last_credential_used()->username);
+  EXPECT_FALSE(mock_login_service().last_permission_was_permanent());
 }
 
 // If a navigation occurs during credential selection, do not proceed with the
 // login attempt and return an error instead.
-IN_PROC_BROWSER_TEST_P(ActorAttemptLoginToolTest,
+IN_PROC_BROWSER_TEST_F(ActorAttemptLoginToolTest,
                        NavigationWhileRequestingCredential) {
   const GURL url =
       embedded_https_test_server().GetURL("example.com", "/actor/blank.html");
@@ -487,7 +493,8 @@ IN_PROC_BROWSER_TEST_P(ActorAttemptLoginToolTest,
                     ToolDelegate::CredentialSelectedCallback callback) {
         select_creds.SetValue(base::BindOnce(
             std::move(callback), MakeSelectCredentialDialogResponse(
-                                     actor_task().id(), credentials[0].id)));
+                                     actor_task().id(), credentials[0].id,
+                                     UserGrantedPermissionDuration::kOneTime)));
       });
 
   std::unique_ptr<ToolRequest> action = MakeAttemptLoginRequest(*active_tab());
@@ -533,13 +540,7 @@ class ActorAttemptLoginToolTestWithFaviconService
   favicon::MockFaviconService mock_favicon_service_;
 };
 
-INSTANTIATE_TEST_SUITE_P(
-    ,
-    ActorAttemptLoginToolTestWithFaviconService,
-    testing::ValuesIn(kActorGeneralPageStabilityModeValues),
-    ActorToolsGeneralPageStabilityTest::DescribeParam);
-
-IN_PROC_BROWSER_TEST_P(ActorAttemptLoginToolTestWithFaviconService, NoService) {
+IN_PROC_BROWSER_TEST_F(ActorAttemptLoginToolTestWithFaviconService, NoService) {
   ON_CALL(mock_execution_engine(), GetFaviconService())
       .WillByDefault(Return(nullptr));
   EXPECT_CALL(mock_favicon_service(), GetFaviconImageForPageURL(_, _, _))
@@ -572,7 +573,7 @@ IN_PROC_BROWSER_TEST_P(ActorAttemptLoginToolTestWithFaviconService, NoService) {
   EXPECT_EQ(u"username1", last_credential_used->username);
 }
 
-IN_PROC_BROWSER_TEST_P(ActorAttemptLoginToolTestWithFaviconService,
+IN_PROC_BROWSER_TEST_F(ActorAttemptLoginToolTestWithFaviconService,
                        EmptyFavicons) {
   const GURL url =
       embedded_https_test_server().GetURL("example.com", "/actor/blank.html");
@@ -603,7 +604,7 @@ IN_PROC_BROWSER_TEST_P(ActorAttemptLoginToolTestWithFaviconService,
   EXPECT_EQ(u"username1", last_credential_used->username);
 }
 
-IN_PROC_BROWSER_TEST_P(ActorAttemptLoginToolTestWithFaviconService,
+IN_PROC_BROWSER_TEST_F(ActorAttemptLoginToolTestWithFaviconService,
                        OneFavicon) {
   const SkBitmap bitmap = GenerateSquareBitmap(/*size=*/10, SK_ColorRED);
   auto image = gfx::Image::CreateFrom1xBitmap(bitmap);
@@ -648,7 +649,7 @@ IN_PROC_BROWSER_TEST_P(ActorAttemptLoginToolTestWithFaviconService,
   EXPECT_EQ(u"username1", last_credential_used->username);
 }
 
-IN_PROC_BROWSER_TEST_P(ActorAttemptLoginToolTestWithFaviconService,
+IN_PROC_BROWSER_TEST_F(ActorAttemptLoginToolTestWithFaviconService,
                        TwoFavicons) {
   auto blank_icon = gfx::Image::CreateFrom1xBitmap(
       GenerateSquareBitmap(/*size=*/10, SK_ColorWHITE));

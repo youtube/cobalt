@@ -159,6 +159,14 @@ export declare interface GlicBrowserHost {
   getChromeVersion(): Promise<ChromeVersion>;
 
   /**
+   * Notifies the browser that the web client has switched modes. Note that this
+   * call does not change any aspect of the panel itself (e.g. resize-ability).
+   *
+   * @param newMode the mode the web client switched into.
+   */
+  onModeChange?(newMode: WebClientMode): void;
+
+  /**
    * Sets the size of the glic window to the specified dimensions. Resolves when
    * the animation finishes, is interrupted, or immediately if the window
    * doesn't exist yet, in which case the size will be used as the initial size
@@ -199,6 +207,7 @@ export declare interface GlicBrowserHost {
 
   /**
    * Returns the model quality client ID.
+   *
    * IMPORTANT: callers must verify that getHostCapabilities() includes
    * HostCapability.GET_MODEL_QUALITY_CLIENT_ID before calling this API.
    * Checking that it's defined is not sufficient. In older Chromium versions
@@ -325,7 +334,23 @@ export declare interface GlicBrowserHost {
    *
    */
   resumeActorTask?(taskId: number, tabContextOptions: TabContextOptions):
-      Promise<TabContextResult>;
+      Promise<ResumeActorTaskResult>;
+
+  /**
+   * Interrupts the actor task with the given ID in the browser if it exists.
+   * No-op otherwise.
+   *
+   * Interrupting is different than pausing. Interrupting changes the state
+   * indicating the task is waiting for user input but does not pause the
+   * task.
+   */
+  interruptActorTask?(taskId: number): void;
+
+  /**
+   * Indicates a task is no longer interrupted with the given ID in the browser
+   * if it exists. No-op otherwise.
+   */
+  uninterruptActorTask?(taskId: number): void;
 
   /**
    * Returns the observable state of the actor task with the given ID. Updates
@@ -335,6 +360,25 @@ export declare interface GlicBrowserHost {
    * - The task is going away.
    */
   getActorTaskState?(taskId: number): ObservableValue<ActorTaskState>;
+
+  /**
+   * Returns the observable state of TabData for the given tab.
+   * Note that updates are only sent for a subset of changes to the tab.
+   *
+   * WARNING: The current implementation within Chrome makes this unsuitable for
+   * general use. Only tabs involved with actor tasks are supported.
+   * The observable remains open even if there's no tab.
+   * @todo Generalize this to work with non-actor tabs.
+   * @todo Complete the observable when tabs are removed.
+   */
+  getTabById?(tabId: string): ObservableValue<TabData>;
+
+  /**
+   * Makes the given tab the active tab in its window and activates its window.
+   *
+   * No-op if the tab doesn't exist or is already in the foreground.
+   */
+  activateTab?(tabId: string): void;
 
   /**
    * Requests the host to capture a screenshot. The choice of the screenshot
@@ -347,6 +391,28 @@ export declare interface GlicBrowserHost {
    * @throws {CaptureScreenshotError} on failure.
    */
   captureScreenshot?(): Promise<Screenshot>;
+
+  /**
+   * Starts a user-interactive process to select content from a tab. The user
+   * can select multiple regions.
+   *
+   * The returned observable will emit a value for each region captured. The
+   * client can cancel this operation by unsubscribing from the observable,
+   * which will cause the observable to be completed.
+   *
+   * The observable will terminate with a `CaptureRegionError` if the operation
+   * fails. This can happen if there is no focusable tab to capture from (with
+   * reason `NO_FOCUSABLE_TAB`), or if the operation is canceled by the user or
+   * the browser for other reasons (with reason `UNKNOWN`).
+   *
+   * Only one capture operation can be active at a time across all instances of
+   * the Glic web client running within a single Chrome user profile.
+   *
+   * If a capture is already in progress when this method is called (either from
+   * the same or a different client instance), the existing capture session will
+   * be terminated and a new one will begin.
+   */
+  captureRegion?(): ObservableValue<CaptureRegionResult>;
 
   /**
    * @todo All actuation should eventually be moved onto PerformActions.
@@ -755,6 +821,22 @@ export declare interface GlicBrowserHost {
       (): Observable<UserConfirmationDialogRequest>;
 
   /**
+   * Returns an observable that emits when the browser wants the web client to
+   * confirm a navigation to a novel origin with the model.
+   *
+   * NOTE:
+   * - The browser will only make one request at a time. We might have to
+   * support concurrent PerformActions() in the future. The plan is to
+   * sequence the requests.
+   * - Currently the browser won't cancel the request. The task that issues the
+   * request will yield and wait for the response, or fail the task when it
+   * times out. The web client must also observe `getActorTaskState()` to clean
+   * up the UI elements when the task is no longer active.
+   */
+  selectNavigationConfirmationRequestHandler?
+      (): Observable<NavigationConfirmationRequest>;
+
+  /**
    * Switches to a use a different instance that shows the conversation
    * represented by the provided id. If `info` is not provided, a new instance
    * will be created with an empty conversation. When a new conversation is
@@ -786,6 +868,9 @@ export declare interface GlicBrowserHost {
    * Returns an observable that emits when additional context is available.
    */
   getAdditionalContext?(): Observable<AdditionalContext>;
+
+  /** Returns the host's capability to act on web pages. */
+  getActOnWebCapability?(): ObservableValue<boolean>;
 }
 
 /** Information about a conversation. */
@@ -896,6 +981,11 @@ export declare interface GlicBrowserHostMetrics {
    * scope.
    */
   onModelChanged?(model: WebClientModel): void;
+
+  /**
+   * Called when we want to record an use counter metric.
+   */
+  onRecordUseCounter?(action: WebUseCounter): void;
 }
 
 export enum ResponseStopCause {
@@ -909,6 +999,56 @@ export enum ResponseStopCause {
 /** Details for metrics recording purposes. */
 export declare interface OnResponseStoppedDetails {
   cause?: ResponseStopCause;
+}
+
+/**
+ * A rectangle with a position and size. All coordinate and size values are in
+ * DIPs.
+ */
+export declare interface Rect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+/**
+ * A region captured by the user from a document in a tab.
+ *
+ * This is a union of different possible region shapes. Currently only
+ * rectangular regions are supported, but this may be expanded with other region
+ * types like polygons in the future.
+ */
+export declare interface CapturedRegion {
+  /**
+   * A rectangular region captured from a document in a tab.
+   *
+   * The coordinate system is relative to the top-left corner of the document.
+   * The units are in device-independent pixels (DIPs), which are equivalent to
+   * CSS pixels.
+   *
+   * - **Position (`x`, `y`):** Coordinates of the top-left corner of the
+   *   rectangle, relative to the document's origin (0,0). Can be negative if
+   *   content is scrolled out of view.
+   * - **Size (`width`, `height`):** Dimensions of the rectangle, expected to be
+   *   non-negative.
+   *
+   * The rectangle can represent an area outside the currently visible viewport
+   * if the page is scrolled. It is not guaranteed to be contained within the
+   * document's bounds.
+   */
+  rect?: Rect;
+}
+
+/** The result of a successful region capture. */
+export declare interface CaptureRegionResult {
+  /** The ID of the tab from which the region was captured. */
+  tabId?: string;
+  /**
+   * The captured region. This can be expanded with other region types like
+   * polygons in the future.
+   */
+  region?: CapturedRegion;
 }
 
 /** An encoded journal. */
@@ -1038,6 +1178,11 @@ export declare interface PanelOpeningData {
    * capability is present.
    */
   conversationId?: string;
+  /**
+   * If set, the textbox for user input will be populated with the given string
+   * before the panel opens.
+   */
+  promptSuggestion?: string;
 }
 
 /** The default value of TabContextOptions.pdfSizeLimit. */
@@ -1115,6 +1260,19 @@ export declare interface TabContextResult {
   pdfDocumentData?: PdfDocumentData;
   /** Page content data. Provided if requested. */
   annotatedPageData?: AnnotatedPageData;
+}
+
+/**
+ * Extension of TabContextResult to include an ActionResultCode while
+ * maintaining backwards-compatibility.
+ */
+export declare interface ResumeActorTaskResult extends TabContextResult {
+  // ActionResultCode that may have been supplied along with the
+  // TabContextResult.
+  // Note that this is an enum ActionResultCode from chrome/common/actor.mojom.
+  // It is expected that the client has an equivalent enum definition. See
+  // http://shortn/_gLyPxrRm6p
+  actionResult?: number;
 }
 
 /**
@@ -1260,6 +1418,18 @@ export declare interface TabData {
    * b/433995475
    */
   isTabContentCaptured?: boolean;
+
+  /**
+   * Whether the tab is the active tab in its browser window. Note that this
+   * does not consider the state of the window.
+   */
+  isActiveInWindow?: boolean;
+
+  /**
+   * Whether the tab's browser window is active. Note that this does not
+   * consider whether the tab is active in the window.
+   */
+  isWindowActive?: boolean;
 }
 
 /** A candidate for pinning. */
@@ -1336,6 +1506,7 @@ export declare interface TaskOptions {
 /** Maps the ErrorWithReason.reasonType to the type of reason. */
 export declare interface ErrorReasonTypes {
   captureScreenshot: CaptureScreenshotErrorReason;
+  captureRegion: CaptureRegionErrorReason;
   scrollTo: ScrollToErrorReason;
   webClientInitialize: WebClientInitializeErrorReason;
   actInFocusedTab: ActInFocusedTabErrorReason;
@@ -1400,6 +1571,8 @@ export declare interface ActInFocusedTabParams {
 
 /** Error type used for screenshot capture errors. */
 export type CaptureScreenshotError = ErrorWithReason<'captureScreenshot'>;
+
+export type CaptureRegionError = ErrorWithReason<'captureRegion'>;
 
 /** Error type used for actuation errors. */
 export type ActInFocusedTabError = ErrorWithReason<'actInFocusedTab'>;
@@ -1702,21 +1875,6 @@ export declare interface SuggestionContent {
   suggestion: string;
 }
 
-/**
- * Describes how long the user grants the actor with the permission to actuate.
- * Used when the actor is to actuate with sensitive data, such as entering
- * payment information or login credentials.
- */
-export enum UserGrantedPermissionDuration {
-  // The user only grants a one-time permission. The user will be asked again.
-  // This is the default behavior.
-  ONE_TIME = 0,
-  // The user grants a permission to always allow the actor to actuate with
-  // sensitive data. The persistence of this permission is defined differently
-  // for different features.
-  ALWAYS_ALLOW = 1
-}
-
 /** Credential selection dialog. */
 
 /** A credential used for the auto-login. */
@@ -1764,7 +1922,11 @@ export declare interface UserConfirmationDialogRequest {
   // These fields form a union type, only 1 must be set.
   // Origin to request the actor navigate to.
   navigationOrigin?: string;
-  // ID of download the actor is asking to execute.
+  /**
+   * @deprecated Unique integer ID for identifying downloads
+   * for confirmation. We decided not to show user confirmation
+   * dialog in that case.
+   */
   downloadId?: number;
   // End of union fields.
 
@@ -1776,6 +1938,23 @@ export declare interface UserConfirmationDialogRequest {
 export declare interface UserConfirmationDialogResponse {
   // The verdict of the user confirmation dialog.
   permissionGranted: boolean;
+}
+
+export declare interface NavigationConfirmationRequest {
+  // ID of the actor's task.
+  taskId: number;
+  // Origin to request the actor navigate to.
+  navigationOrigin: string;
+
+  // The WebClient must call this function to respond back to the browser when
+  // the confirmation request has a decision.
+  onConfirmationDecision(result: {response: NavigationConfirmationResponse}):
+      void;
+}
+
+export declare interface NavigationConfirmationResponse {
+  // The verdict of the model if the actor can navigate to this origin.
+  permissionGranted?: boolean;
 }
 
 //
@@ -1801,6 +1980,8 @@ export interface BackwardsCompatibleTypes {
   glicBrowserHostMetrics: GlicBrowserHostMetrics;
   hostRegistry: GlicHostRegistry;
   imageOriginAnnotations: ImageOriginAnnotations;
+  navigationConfirmationRequest: NavigationConfirmationRequest;
+  navigationConfirmationResponse: NavigationConfirmationResponse;
   openPanelInfo: OpenPanelInfo;
   panelOpeningData: PanelOpeningData;
   panelState: PanelState;
@@ -1816,12 +1997,16 @@ export interface BackwardsCompatibleTypes {
   subscriber: Subscriber;
   tabContextOptions: TabContextOptions;
   tabContextResult: TabContextResult;
+  resumeActorTaskResult: ResumeActorTaskResult;
   tabData: TabData;
   userConfirmationDialogRequest: UserConfirmationDialogRequest;
   userConfirmationDialogResponse: UserConfirmationDialogResponse;
   userProfileInfo: UserProfileInfo;
   webClient: GlicWebClient;
   webPageData: WebPageData;
+  rect: Rect;
+  captureRegionResult: CaptureRegionResult;
+  capturedRegion: CapturedRegion;
   openSettingsOptions: OpenSettingsOptions;
   osPermissionType: OsPermissionType;
   zeroStateSuggestions: ZeroStateSuggestions;
@@ -1838,6 +2023,7 @@ export interface ClosedEnums {
 // Enums that can be extended.
 export interface ExtensibleEnums {
   captureScreenshotErrorReason: typeof CaptureScreenshotErrorReason;
+  captureRegionErrorReason: typeof CaptureRegionErrorReason;
   scrollToErrorReason: typeof ScrollToErrorReason;
   webClientInitializeErrorReason: typeof WebClientInitializeErrorReason;
   invocationSource: typeof InvocationSource;
@@ -1850,6 +2036,7 @@ export interface ExtensibleEnums {
   actorTaskPauseReason: typeof ActorTaskPauseReason;
   actorTaskStopReason: typeof ActorTaskStopReason;
   UserGrantedPermissionDuration: typeof UserGrantedPermissionDuration;
+  webUseCounter: typeof WebUseCounter;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1923,6 +2110,8 @@ export enum ActorTaskStopReason {
   TASK_COMPLETE = 0,
   // Actor task was stopped by the user.
   STOPPED_BY_USER = 1,
+  // Actor task was stopped because the model reported a failure.
+  MODEL_ERROR = 2,
 }
 
 ///////////////////////////////////////////////
@@ -2031,6 +2220,8 @@ export enum InvocationSource {
   ACTOR_TASK_ICON = 12,
   // User shared an image via the context menu.
   SHARED_IMAGE = 13,
+  // From the handoff button.
+  HANDOFF_BUTTON = 14,
 }
 
 ///////////////////////////////////////////////
@@ -2051,6 +2242,24 @@ export enum WebClientModel {
   DEFAULT = 0,
   // Actor operation mode.
   ACTOR = 1,
+}
+
+///////////////////////////////////////////////
+// WARNING - GENERATED FROM MOJOM, DO NOT EDIT.
+// Web client's user counter.
+export enum WebUseCounter {
+  // Default counter. Never used.
+  DEFAULT = 0,
+  SUBMIT_PROMPT_WITH_AUTO_MODE = 1,
+}
+
+///////////////////////////////////////////////
+// WARNING - GENERATED FROM MOJOM, DO NOT EDIT.
+// Reason for `captureRegion` error.
+export enum CaptureRegionErrorReason {
+  UNKNOWN = 0,
+  // There is no focused tab that can be used for region capture.
+  NO_FOCUSABLE_TAB = 1,
 }
 
 ///////////////////////////////////////////////
@@ -2076,6 +2285,21 @@ export enum HostCapability {
   GET_MODEL_QUALITY_CLIENT_ID = 2,
   // Glic is in multi-instance mode.
   MULTI_INSTANCE = 3,
+}
+
+///////////////////////////////////////////////
+// WARNING - GENERATED FROM MOJOM, DO NOT EDIT.
+// Describes how long the user grants the actor with the permission to actuate.
+// Used when the actor is to actuate with sensitive data, such as entering
+// payment information or login credentials.
+export enum UserGrantedPermissionDuration {
+  // The user only grants a one-time permission. The user will be asked again.
+  // This is the default behavior.
+  ONE_TIME = 0,
+  // The user grants a permission to always allow the actor to actuate with
+  // sensitive data. The persistence of this permission is defined differently
+  // for different features.
+  ALWAYS_ALLOW = 1,
 }
 
 

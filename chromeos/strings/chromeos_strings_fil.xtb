@@ -756,6 +756,7 @@
 <translation id="4300073214558989"><ph name="IMAGE_COUNT" /> Larawan</translation>
 <translation id="4300272766492248925">Buksan ang app</translation>
 <translation id="430786093962686457">chiffon</translation>
+<translation id="4309762678330556039">Awtomatikong gumawa ng mga transcription at maghanap ng audio. Puwede kang gumawa ng mga recording kahit na hindi ka nakakonekta sa internet.</translation>
 <translation id="4310735698903592804">Mga kamakailang wallpaper mula sa Google AI</translation>
 <translation id="4320904097188876154">neon pink</translation>
 <translation id="432961742358282111">Mag-right click o pindutin nang matagal para makakuha ng mga kahulugan, pagsasalin, o conversion ng unit. Gamitin ang mga Kaliwa o Pakanang arrow key para pamahalaan ang feature na ito.</translation>
@@ -1472,6 +1473,7 @@ I-download ang modelo ng transcription (hanggang 100MB) para makuha ang mga tran
 <translation id="7425832472614771259">Modelo ng transcription sa <ph name="LANGUAGE_NAME" /> <ph name="PROGRESS_PERCENTAGE" />% na ang na-download</translation>
 <translation id="7427315641433634153">MSCHAP</translation>
 <translation id="7438298994385592770">Hindi ma-disable o maalis ang APN na ito. Tiyaking naka-disable o inalis ang mga naka-enable na <ph name="ATTACH" /> na APN.</translation>
+<translation id="7458359366992324037">Remote display</translation>
 <translation id="7458970041932198923">Kumonekta sa isang network at i-reload ang page para tumingin at magtakda ng mga avatar.</translation>
 <translation id="7469648432129124067">May na-detect na portal</translation>
 <translation id="7481312909269577407">Sumulong</translation>

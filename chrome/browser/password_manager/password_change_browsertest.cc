@@ -52,7 +52,7 @@
 #include "components/autofill/core/common/autofill_features.h"
 #include "components/autofill/core/common/autofill_test_utils.h"
 #include "components/keyed_service/content/browser_context_dependency_manager.h"
-#include "components/optimization_guide/core/mock_optimization_guide_model_executor.h"
+#include "components/optimization_guide/core/model_execution/test/mock_remote_model_executor.h"
 #include "components/optimization_guide/core/model_quality/test_model_quality_logs_uploader_service.h"
 #include "components/optimization_guide/core/optimization_guide_features.h"
 #include "components/optimization_guide/core/optimization_guide_prefs.h"
@@ -1794,4 +1794,36 @@ IN_PROC_BROWSER_TEST_F(PasswordChangeBrowserTestWithLoginCheck,
       /*final_status=*/
       FinalModelStatus::FINAL_MODEL_STATUS_UNSPECIFIED,
       /*login_check_was_skipped=*/true);
+}
+
+class PasswordChangeBrowserTestShowHiddenTab
+    : public PasswordChangeBrowserTest {
+ public:
+  PasswordChangeBrowserTestShowHiddenTab() {
+    scoped_feature_list_.InitAndEnableFeature(
+        password_manager::features::kRunPasswordChangeInBackgroundTab);
+  }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+IN_PROC_BROWSER_TEST_F(PasswordChangeBrowserTestShowHiddenTab,
+                       ShowHiddenTabDuringPasswordChange) {
+  SetPrivacyNoticeAcceptedPref();
+
+  const GURL main_url = WebContents()->GetLastCommittedURL();
+  EXPECT_CALL(*affiliation_service(), GetChangePasswordURL(main_url))
+      .WillOnce(Return(embedded_test_server()->GetURL(
+          "/password/update_form_empty_fields_no_submit.html")));
+
+  password_change_service()->OfferPasswordChangeUi(main_url, u"test",
+                                                   u"pa$$word", WebContents());
+  PasswordChangeDelegate* delegate =
+      password_change_service()->GetPasswordChangeDelegate(WebContents());
+  delegate->StartPasswordChangeFlow();
+
+  TabStripModel* tab_strip = browser()->tab_strip_model();
+  // Assert that password change tab is opened.
+  ASSERT_EQ(tab_strip->count(), 2);
 }

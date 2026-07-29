@@ -81,6 +81,7 @@
 #include "chromeos/ash/experiences/settings_ui/settings_app_manager.h"
 #include "chromeos/constants/devicetype.h"
 #include "chromeos/dbus/power/power_manager_client.h"
+#include "components/application_locale_storage/application_locale_storage.h"
 #include "components/language/core/browser/pref_names.h"
 #include "components/live_caption/pref_names.h"
 #include "components/prefs/pref_member.h"
@@ -423,9 +424,12 @@ AccessibilityStatusEventDetails::AccessibilityStatusEventDetails(
 // AccessibilityManager
 
 // static
-void AccessibilityManager::Initialize(PrefService* local_state) {
+void AccessibilityManager::Initialize(
+    PrefService* local_state,
+    const ApplicationLocaleStorage* application_locale_storage) {
   CHECK(g_accessibility_manager == nullptr);
-  g_accessibility_manager = new AccessibilityManager(local_state);
+  g_accessibility_manager =
+      new AccessibilityManager(local_state, application_locale_storage);
 }
 
 // static
@@ -446,8 +450,11 @@ void AccessibilityManager::ShowAccessibilityHelp() {
                    GURL(chrome::kChromeAccessibilityHelpURL));
 }
 
-AccessibilityManager::AccessibilityManager(PrefService* local_state)
-    : local_state_(CHECK_DEREF(local_state)) {
+AccessibilityManager::AccessibilityManager(
+    PrefService* local_state,
+    const ApplicationLocaleStorage* application_locale_storage)
+    : local_state_(CHECK_DEREF(local_state)),
+      application_locale_storage_(CHECK_DEREF(application_locale_storage)) {
   session_observation_.Observe(session_manager::SessionManager::Get());
 
   on_app_terminating_subscription_ =
@@ -1268,7 +1275,8 @@ void AccessibilityManager::OnDictationChanged(bool triggered_by_user) {
     // not triggered by a user) or a new user (Dictation was just enabled in
     // settings) and pick the language accordingly.
     const std::string locale = Dictation::DetermineDefaultSupportedLocale(
-        profile_, /*new_user=*/triggered_by_user);
+        profile_, /*new_user=*/triggered_by_user,
+        application_locale_storage_->Get());
 
     // Ensure we don't trigger nudges, downloads or notifications for the locale
     // pref upgrade. If these need to occur they will occur below.
@@ -1371,7 +1379,7 @@ void AccessibilityManager::ShowDictationLanguageUpgradedNudge(
   // Show the nudge, then set the pref to indicate that it has been shown
   // for this particular locale.
   AccessibilityController::Get()->ShowDictationLanguageUpgradedNudge(
-      dictation_locale, g_browser_process->GetApplicationLocale());
+      dictation_locale, application_locale_storage_->Get());
   ScopedDictPrefUpdate update(profile_->GetPrefs(),
                               prefs::kAccessibilityDictationLocaleOfflineNudge);
   update->Set(dictation_locale, true);
@@ -2386,6 +2394,16 @@ bool AccessibilityManager::ToggleDictation() {
   return dictation_active_;
 }
 
+std::string AccessibilityManager::GetDictationDefaultLocale(bool new_user) {
+  auto* active_profile = Profile::FromBrowserContext(
+      BrowserContextHelper::Get()->GetBrowserContextByUser(
+          user_manager::UserManager::Get()->GetActiveUser()));
+  CHECK(active_profile);
+
+  return Dictation::DetermineDefaultSupportedLocale(
+      active_profile, new_user, application_locale_storage_->Get());
+}
+
 void AccessibilityManager::OpenSettingsSubpage(const std::string& subpage) {
   // TODO(chrome-a11y-core): we can't open a settings page when you're on the
   // signin profile, but maybe we should notify the user and explain why?
@@ -2893,7 +2911,7 @@ void AccessibilityManager::UpdateDictationNotification() {
   // Get the display name of |locale| in the application locale.
   const std::u16string display_name = l10n_util::GetDisplayNameForLocale(
       /*locale=*/locale,
-      /*display_locale=*/g_browser_process->GetApplicationLocale(),
+      /*display_locale=*/application_locale_storage_->Get(),
       /*is_ui=*/true);
 
   bool soda_installed = false;

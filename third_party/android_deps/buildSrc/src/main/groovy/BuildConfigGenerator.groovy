@@ -96,8 +96,6 @@ class BuildConfigGenerator extends DefaultTask {
             // Use fully-qualified labels here since androidx might refer to them.
             com_google_android_material_material: '//third_party/android_deps:material_design_java',
             com_google_android_play_feature_delivery: '//third_party/android_deps:playcore_java',
-            com_google_dagger_dagger_compiler: '//third_party/android_deps:dagger_processor',
-            com_google_dagger_dagger: '//third_party/android_deps:dagger_java',
             com_google_guava_failureaccess: '//third_party/android_deps:guava_java',
             com_google_guava_guava: '//third_party/android_deps:guava_java',
             com_google_protobuf_protobuf_javalite: '//third_party/android_deps:protobuf_lite_runtime_java',
@@ -109,10 +107,6 @@ class BuildConfigGenerator extends DefaultTask {
     static final Map<String, String> CONDITIONAL_LIBS = [
             com_google_android_material_material: '!defined(material_design_target)',
             com_google_android_play_feature_delivery: '!defined(playcore_target)',
-            com_google_dagger_dagger_compiler: '!defined(dagger_annotation_processor_target)',
-            com_google_dagger_dagger_producers: '!defined(dagger_annotation_processor_target)',
-            com_google_dagger_dagger_spi: '!defined(dagger_annotation_processor_target)',
-            com_google_dagger_dagger: '!defined(dagger_java_target)',
             com_google_protobuf_protobuf_javalite: '!defined(android_proto_runtime)',
             com_google_guava_guava: '!defined(guava_android_target)',
             // Logic for google_play_services_package added below.
@@ -788,8 +782,6 @@ No modifications.
             case 'com_google_android_gms_play_services_basement':
                 sb.append('  # https://crbug.com/989505\n')
                 sb.append('  jar_excluded_patterns += ["META-INF/proguard/*"]\n')
-                // Deprecated deps jar but still needed by play services basement.
-                sb.append('  input_jars_paths=["$android_sdk/optional/org.apache.http.legacy.jar"]\n')
                 break
             case 'com_google_android_gms_play_services_maps':
                 sb.append('  # Ignore the dependency to org.apache.http.legacy. See crbug.com/1084879.\n')

@@ -35,6 +35,9 @@ class GlicActorUiTest : public test::InteractiveGlicTest {
   using ExpectedErrorResult = std::variant<std::monostate,
                                            actor::mojom::ActionResultCode,
                                            mojom::PerformActionsErrorReason>;
+  using ExpectedResumeResult =
+      std::variant<std::monostate, actor::mojom::ActionResultCode, bool>;
+
   static constexpr int32_t kNonExistentContentNodeId =
       std::numeric_limits<int32_t>::max();
   static constexpr char kActivateSurfaceIncompatibilityNotice[] =
@@ -110,6 +113,18 @@ class GlicActorUiTest : public test::InteractiveGlicTest {
       optimization_guide::proto::ClickAction::ClickCount click_count,
       ExpectedErrorResult expected_result = {});
 
+  // The above functions take the coordinate as an rvalue which means the value
+  // of the parameter is used at the time the step is declared, not when its
+  // run. This function takes the coordinate by address to emphasise that the
+  // step will use the value of the coordinate when the step runs, enabling
+  // tests to click on a dynamically generated point (e.g. read an element's
+  // bounding box and click on it).
+  MultiStep ClickAction(
+      const gfx::Point* coordinate,
+      optimization_guide::proto::ClickAction::ClickType click_type,
+      optimization_guide::proto::ClickAction::ClickCount click_count,
+      ExpectedErrorResult expected_result = {});
+
   MultiStep NavigateAction(GURL url,
                            actor::TaskId& task_id,
                            tabs::TabHandle& tab_handle,
@@ -137,7 +152,8 @@ class GlicActorUiTest : public test::InteractiveGlicTest {
   MultiStep PauseActorTask();
 
   // Resumes a paused task by calling the glic ResumeActorTask API.
-  MultiStep ResumeActorTask(base::Value::Dict context_options, bool expected);
+  MultiStep ResumeActorTask(base::Value::Dict context_options,
+                            ExpectedResumeResult expected_result);
 
   MultiStep WaitForActorTaskState(mojom::ActorTaskState expected_state);
 
@@ -148,6 +164,14 @@ class GlicActorUiTest : public test::InteractiveGlicTest {
   // Uses the state observable from PrepareForStopStateChange to await a state
   // change to stopped.
   MultiStep WaitForActorTaskStateChangeToStopped();
+
+  // Foregrounds the last acted on tab by calling the glic
+  // activateTab API.
+  MultiStep ActivateTaskTab();
+
+  // Waits for the glic getTabById for the task tab to satisfy the expected
+  // foreground value.
+  MultiStep WaitForTaskTabForground(bool expected_foreground);
 
   // Returns a callback that returns the given string as the action proto. Meant
   // for testing error handling since this allows providing an invalid proto.

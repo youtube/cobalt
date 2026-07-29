@@ -19,7 +19,7 @@ class DesktopSessionProxy;
 
 // Routes MouseCursorMonitor calls through the IPC channel to the
 // desktop session agent running in the desktop integration process.
-class IpcMouseCursorMonitor : public MouseCursorMonitor {
+class IpcMouseCursorMonitor : public protocol::MouseCursorMonitor {
  public:
   explicit IpcMouseCursorMonitor(
       scoped_refptr<DesktopSessionProxy> desktop_session_proxy);
@@ -31,7 +31,7 @@ class IpcMouseCursorMonitor : public MouseCursorMonitor {
 
   // MouseCursorMonitor interface.
   void Init(Callback* callback, Mode mode) override;
-  void Capture() override;
+  void SetPreferredCaptureInterval(base::TimeDelta interval) override;
 
   // Called when the cursor shape has changed.
   void OnMouseCursor(std::unique_ptr<webrtc::MouseCursor> cursor);

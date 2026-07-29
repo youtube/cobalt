@@ -20,7 +20,7 @@
         "swarming": {
           "dimensions": {
             "gpu": "10de:2184-440.100",
-            "os": "Ubuntu-18.04.5|Ubuntu-18.04.6",
+            "os": "Ubuntu-18.04",
             "pool": "chromium.tests.gpu"
           },
           "hard_timeout": 1800,
@@ -49,7 +49,7 @@
         "swarming": {
           "dimensions": {
             "gpu": "10de:2184-440.100",
-            "os": "Ubuntu-18.04.5|Ubuntu-18.04.6",
+            "os": "Ubuntu-18.04",
             "pool": "chromium.tests.gpu"
           },
           "hard_timeout": 1800,
@@ -77,7 +77,7 @@
         "swarming": {
           "dimensions": {
             "gpu": "10de:2184-440.100",
-            "os": "Ubuntu-18.04.5|Ubuntu-18.04.6",
+            "os": "Ubuntu-18.04",
             "pool": "chromium.tests.gpu"
           },
           "hard_timeout": 1800,
@@ -106,7 +106,7 @@
         "swarming": {
           "dimensions": {
             "gpu": "10de:2184-440.100",
-            "os": "Ubuntu-18.04.5|Ubuntu-18.04.6",
+            "os": "Ubuntu-18.04",
             "pool": "chromium.tests.gpu"
           },
           "hard_timeout": 1800,

@@ -1194,7 +1194,7 @@ TEST_P(SpdyNetworkTransactionTest, TwoGetsLateBindingFromPreconnect) {
   HttpStreamFactory* http_stream_factory =
       helper.session()->http_stream_factory();
 
-  http_stream_factory->PreconnectStreams(1, request_);
+  http_stream_factory->PreconnectStreams(1, request_, base::OnceClosure());
 
   out.rv = trans1.Start(&request_, callback1.callback(), log_);
   ASSERT_THAT(out.rv, IsError(ERR_IO_PENDING));
@@ -3684,7 +3684,8 @@ TEST_P(SpdyNetworkTransactionTest, NetLog) {
   RecordingNetLogObserver net_log_observer;
 
   SequencedSocketData data(reads, writes);
-  request_.extra_headers.SetHeader("User-Agent", "Chrome");
+  request_.extra_headers.SetHeader(net::HttpRequestHeaders::kUserAgent,
+                                   "Chrome");
   NormalSpdyTransactionHelper helper(
       request_, DEFAULT_PRIORITY,
       NetLogWithSource::Make(NetLogSourceType::NONE), nullptr);

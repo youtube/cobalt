@@ -32,7 +32,6 @@
 #include "chrome/common/chrome_switches.h"
 #include "chrome/grit/generated_resources.h"
 #include "chrome/test/base/interactive_test_utils.h"
-#include "chromeos/ash/services/assistant/public/cpp/features.h"
 #include "components/user_manager/user_names.h"
 #include "components/vector_icons/vector_icons.h"
 #include "content/public/test/browser_test.h"
@@ -199,12 +198,6 @@ class SpokenFeedbackAppListBaseTest : public LoggedInSpokenFeedbackTest {
     AppListTestApi().DisableAppListNudge(true);
     AppListControllerImpl::SetSunfishNudgeDisabledForTest(true);
 
-    scoped_feature_list_.InitWithFeatures(
-        {features::kLauncherSearchControl,
-         features::kFeatureManagementLocalImageSearch},
-        {features::kScannerDogfood, features::kSunfishFeature,
-         ash::assistant::features::kEnableNewEntryPoint});
-
     LoggedInSpokenFeedbackTest::SetUp();
   }
 
@@ -214,6 +207,8 @@ class SpokenFeedbackAppListBaseTest : public LoggedInSpokenFeedbackTest {
   }
 
   void SetUpCommandLine(base::CommandLine* command_line) override {
+    LoggedInSpokenFeedbackTest::SetUpCommandLine(command_line);
+
     if (variant_ == kTestAsGuestUser) {
       command_line->AppendSwitch(switches::kGuestSession);
       command_line->AppendSwitch(::switches::kIncognito);
@@ -221,6 +216,10 @@ class SpokenFeedbackAppListBaseTest : public LoggedInSpokenFeedbackTest {
       command_line->AppendSwitchASCII(
           switches::kLoginUser, user_manager::GuestAccountId().GetUserEmail());
     }
+
+    scoped_feature_list_.InitWithFeatures(
+        {features::kFeatureManagementLocalImageSearch},
+        {features::kScannerDogfood, features::kSunfishFeature});
   }
 
   void SetUpOnMainThread() override {
@@ -1078,6 +1077,12 @@ IN_PROC_BROWSER_TEST_P(SpokenFeedbackAppListSearchTest, VocalizeResultCount) {
 }
 
 IN_PROC_BROWSER_TEST_P(SpokenFeedbackAppListSearchTest, SearchCategoryFilter) {
+  if (GetParam().manifest_version() == ManifestVersion::kThree) {
+    // TODO(https://crbug.com/433771715): This test is failing on MSAN builds
+    // when ChromeVox mv3 is enabled.
+    return;
+  }
+
   chromevox_test_utils()->EnableChromeVox();
   ShowAppList();
 

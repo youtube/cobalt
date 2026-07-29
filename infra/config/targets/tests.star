@@ -1695,6 +1695,10 @@ targets.tests.isolated_script_test(
 )
 
 targets.tests.isolated_script_test(
+    name = "ios_credential_provider_extension_unittests",
+)
+
+targets.tests.isolated_script_test(
     name = "ios_net_unittests",
 )
 
@@ -1860,14 +1864,6 @@ targets.tests.isolated_script_test(
     name = "module_installer_junit_tests",
 )
 
-targets.tests.gtest_test(
-    name = "monochrome_public_smoke_test",
-)
-
-targets.tests.gtest_test(
-    name = "monochrome_public_bundle_smoke_test",
-)
-
 targets.tests.isolated_script_test(
     name = "mojo_python_unittests",
 )
@@ -1878,14 +1874,6 @@ targets.tests.gtest_test(
 
 targets.tests.gtest_test(
     name = "mojo_unittests",
-)
-
-targets.tests.isolated_script_test(
-    name = "monochrome_public_apk_checker",
-)
-
-targets.tests.gtest_test(
-    name = "monochrome_public_test_ar_apk",
 )
 
 targets.tests.gtest_test(
@@ -2576,18 +2564,6 @@ targets.tests.isolated_script_test(
 
 targets.tests.isolated_script_test(
     name = "telemetry_gpu_unittests",
-)
-
-targets.tests.isolated_script_test(
-    name = "telemetry_monochrome_minidump_unittests",
-    args = [
-        "BrowserMinidumpTest",
-        "--browser=android-chromium-monochrome",
-        "-v",
-        "--passthrough",
-        "--retry-limit=2",
-    ],
-    binary = "telemetry_perf_unittests_android_monochrome",
 )
 
 targets.tests.isolated_script_test(
@@ -3297,7 +3273,6 @@ targets.tests.gpu_telemetry_test(
     mixins = [
         "has_native_resultdb_integration",
     ],
-    module_scheme = "webgpucts",
 )
 
 targets.tests.gpu_telemetry_test(
@@ -3306,7 +3281,6 @@ targets.tests.gpu_telemetry_test(
     mixins = [
         "has_native_resultdb_integration",
     ],
-    module_scheme = "webgpucts",
 )
 
 targets.tests.gpu_telemetry_test(
@@ -3315,7 +3289,6 @@ targets.tests.gpu_telemetry_test(
     mixins = [
         "has_native_resultdb_integration",
     ],
-    module_scheme = "webgpucts",
 )
 
 targets.tests.gpu_telemetry_test(
@@ -3324,7 +3297,6 @@ targets.tests.gpu_telemetry_test(
     mixins = [
         "has_native_resultdb_integration",
     ],
-    module_scheme = "webgpucts",
 )
 
 targets.tests.gpu_telemetry_test(
@@ -3333,7 +3305,6 @@ targets.tests.gpu_telemetry_test(
     mixins = [
         "has_native_resultdb_integration",
     ],
-    module_scheme = "webgpucts",
 )
 
 targets.tests.gpu_telemetry_test(
@@ -3345,11 +3316,23 @@ targets.tests.gpu_telemetry_test(
     args = [
         "--use-worker=service",
     ],
-    module_scheme = "webgpucts",
 )
 
 targets.tests.gpu_telemetry_test(
     name = "webgpu_cts_dedicated_worker_tests",
+    telemetry_test_name = "webgpu_cts",
+    mixins = [
+        "has_native_resultdb_integration",
+    ],
+    args = [
+        "--use-worker=dedicated",
+    ],
+)
+
+# A copy of webgpu_cts_worker_tests but with the module_scheme turned on.
+# This target can be removed after the webgpu_cts module schemes are enabled.
+targets.tests.gpu_telemetry_test(
+    name = "webgpu_cts_structured_test_id_dedicated_worker_tests",
     telemetry_test_name = "webgpu_cts",
     mixins = [
         "has_native_resultdb_integration",
@@ -3369,7 +3352,6 @@ targets.tests.gpu_telemetry_test(
     args = [
         "--use-worker=shared",
     ],
-    module_scheme = "webgpucts",
 )
 
 targets.tests.gpu_telemetry_test(
@@ -3378,7 +3360,6 @@ targets.tests.gpu_telemetry_test(
     mixins = [
         "has_native_resultdb_integration",
     ],
-    module_scheme = "webgpucts",
 )
 
 targets.tests.isolated_script_test(
@@ -3403,7 +3384,6 @@ targets.tests.gpu_telemetry_test(
     mixins = [
         "has_native_resultdb_integration",
     ],
-    module_scheme = "webgpucts",
 )
 
 targets.tests.gpu_telemetry_test(
@@ -3412,7 +3392,6 @@ targets.tests.gpu_telemetry_test(
     mixins = [
         "has_native_resultdb_integration",
     ],
-    module_scheme = "webgpucts",
 )
 
 targets.tests.script_test(

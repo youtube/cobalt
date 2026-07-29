@@ -9,7 +9,7 @@
 #include <string_view>
 #include <vector>
 
-#include "base/memory/ref_counted.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/observer_list.h"
 #include "base/supports_user_data.h"
@@ -108,7 +108,7 @@ class AutofillWebDataService : public WebDataServiceBase {
       EntityInstance entity,
       base::OnceCallback<void(EntityInstanceChange)> on_success);
   void RemoveEntityInstance(
-      EntityInstance::EntityId guid,
+      EntityInstance entity,
       base::OnceCallback<void(EntityInstanceChange)> on_success);
   void RemoveEntityInstancesModifiedBetween(base::Time delete_begin,
                                             base::Time delete_end);

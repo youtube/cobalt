@@ -4,30 +4,14 @@
 # found in the LICENSE file.
 """Automatic Ownership Calculator.
 
-This script analyzes the git history of a specified directory (by default,
-'ios/') to automatically determine potential code owners for each
-sub-directory.
+This script analyzes pre-collected git history and OWNERS data to automatically
+determine potential code owners for each sub-directory.
 
 Usage:
     python3 automatic_ownership.py [path]
 
     [path]: Optional. The root directory to start the analysis from.
             Defaults to 'ios'.
-
-The script works in two main phases:
-1. Data Collection: It fetches the last two years of git history and git blame
-   information for the specified path. This is done in parallel for efficiency.
-2. Analysis: It walks through each subdirectory and applies one of two
-   algorithms to determine ownership:
-    a) Z-Score Analysis: For directories with a rich commit history (more than
-       5 commits), it calculates a weighted score for each author/reviewer and
-       identifies statistical outliers as owners.
-    b) Git Blame Fallback: For directories with sparse history, it falls back
-       to analyzing `git blame` output to find the authors who have written the
-       most lines of code.
-
-The final output is a CSV file named `final_algo.csv` containing the suggested
-owners for each directory.
 """
 
 import argparse
@@ -40,29 +24,34 @@ import sys
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from commit import Commit
 from filters import avoid_directory, avoid_file, avoid_username
-from gitutils import get_commits_in_folder_in_period, get_blame_for_file
+from gitutils import get_blame_for_file, split_log_into_commits
 
 MONTH = 30
 YEAR = 12 * MONTH
 TWO_YEARS = 2 * YEAR
 
 
-def get_dates_range() -> list[tuple[datetime.date, datetime.date]]:
-    """Generates a list of monthly date ranges spanning the last two years.
+def is_high_level_owner(reviewer: str, path: str,
+                        owners_map: dict[str, set[str]]) -> bool:
+    """Checks if a reviewer is an owner of the given path or any parent path.
+
+    Args:
+        reviewer: The username of the reviewer.
+        path: The file path of the change being reviewed.
+        owners_map: The map of existing owners.
 
     Returns:
-        A list of tuples, where each tuple contains the start and end date
-        for a one-month period.
+        True if the reviewer is an owner of the path or a parent directory.
     """
-    dates_range = []
-    date_start = datetime.date.today()
-    date_end = date_start - datetime.timedelta(TWO_YEARS)
-    while date_start > date_end:
-        end = date_start
-        begin = date_start - datetime.timedelta(MONTH)
-        date_start = begin
-        dates_range.append((begin, end))
-    return dates_range
+    current_path = path
+    while current_path:
+        if current_path in owners_map and reviewer in owners_map[current_path]:
+            return True
+        parent_path = os.path.dirname(current_path)
+        if parent_path == current_path:
+            break
+        current_path = parent_path
+    return False
 
 
 def progress_indicator(future) -> None:
@@ -70,54 +59,26 @@ def progress_indicator(future) -> None:
     print('.', end='', flush=True)
 
 
-def get_all_commits_of_folder(path: str, quiet: bool = False) -> list[str]:
-    """Retrieves all raw commit logs for a folder over the last two years.
-
-    This function parallelizes the git log calls by splitting the time period
-    into monthly chunks.
-
-    Args:
-        path: The directory to retrieve commit logs for.
-        quiet: If True, suppresses progress indicators.
-
-    Returns:
-        A list of raw commit description strings.
-    """
-    commits = []
-    executor = ProcessPoolExecutor()
-    # Dispatch tasks into the process pool and create a list of futures.
-    futures = [
-        executor.submit(get_commits_in_folder_in_period, path, dates)
-        for dates in get_dates_range()
-    ]
-    if not quiet:
-        # Register the progress indicator callback.
-        for future in futures:
-            future.add_done_callback(progress_indicator)
-    # Iterate over all submitted tasks and get results as they are available.
-    for future in as_completed(futures):
-        # Get the result for the next completed task.
-        result = future.result()  # blocks
-        if result:
-            commits += result
-    # Shutdown the process pool.
-    executor.shutdown(wait=True)  # blocks
-    return commits
-
-
 def extract_commits_informations(commits: list[str],
+                                 owners_map: dict[str, set[str]],
+                                 owner_exclusion: bool,
                                  quiet: bool = False) -> dict:
     """Parses raw commit logs and aggregates statistics by folder.
 
+    For each commit, its statistics are aggregated into the commit's directory
+    and all of its parent directories.
+
     Args:
         commits: A list of raw commit description strings.
+        owners_map: A dictionary mapping directories to their owners.
+        owner_exclusion: If True, exclude high-level owners from review stats.
         quiet: If True, suppresses progress indicators.
 
     Returns:
         A dictionary where keys are folder paths and values are dictionaries
         containing aggregated commit/review stats for that folder.
     """
-    allStatsPerFolder = {}
+    all_stats_per_dir = {}
     commit_to_analyse_count = len(commits)
     if not quiet:
         print('Getting logs done. Total number of commits to analyse: ',
@@ -136,33 +97,50 @@ def extract_commits_informations(commits: list[str],
                    path),
                   end='',
                   flush=True)
-        if not path in allStatsPerFolder:
-            allStatsPerFolder[path] = dict(total_commit=0,
-                                           total_review=0,
-                                           individual_stats={},
-                                           final_score={},
-                                           last_update=datetime.datetime.min)
-        if not author in allStatsPerFolder[path]['individual_stats']:
-            allStatsPerFolder[path]['individual_stats'][author] = dict(
-                commit_count=0, review_count=0)
 
-        allStatsPerFolder[path]['last_update'] = max(
-            allStatsPerFolder[path]['last_update'], date)
-        allStatsPerFolder[path]['total_commit'] += 1
-        allStatsPerFolder[path]['total_review'] += len(reviewers)
-        allStatsPerFolder[path]['individual_stats'][author][
-            'commit_count'] += 1
-        for reviewer in reviewers:
-            if not reviewer in allStatsPerFolder[path]['individual_stats']:
-                allStatsPerFolder[path]['individual_stats'][reviewer] = dict(
-                    commit_count=0, review_count=0)
-            allStatsPerFolder[path]['individual_stats'][reviewer][
-                'review_count'] += 1
+        current_path = path
+        while current_path:
+            if not current_path in all_stats_per_dir:
+                all_stats_per_dir[current_path] = dict(
+                    total_commit=0,
+                    total_review=0,
+                    individual_stats={},
+                    final_score={},
+                    last_update=datetime.datetime.min)
+            if not author in all_stats_per_dir[current_path][
+                    'individual_stats']:
+                all_stats_per_dir[current_path]['individual_stats'][
+                    author] = dict(commit_count=0, review_count=0)
+
+            all_stats_per_dir[current_path]['last_update'] = max(
+                all_stats_per_dir[current_path]['last_update'], date)
+            all_stats_per_dir[current_path]['total_commit'] += 1
+            all_stats_per_dir[current_path]['individual_stats'][author][
+                'commit_count'] += 1
+            for reviewer in reviewers:
+                if owner_exclusion and is_high_level_owner(
+                        reviewer, path, owners_map):
+                    continue
+                all_stats_per_dir[current_path]['total_review'] += 1
+                if not reviewer in all_stats_per_dir[current_path][
+                        'individual_stats']:
+                    all_stats_per_dir[current_path][
+                        'individual_stats'][reviewer] = dict(commit_count=0,
+                                                             review_count=0)
+                all_stats_per_dir[current_path]['individual_stats'][
+                    reviewer]['review_count'] += 1
+
+            parent_path = os.path.dirname(current_path)
+            if parent_path == current_path:
+                break
+            current_path = parent_path
+
         if not quiet:
             print('\t\t\tDONE, commits left: ',
                   commit_to_analyse_count,
                   flush=True)
-    return allStatsPerFolder
+    return all_stats_per_dir
+
 
 
 def get_all_git_blame_informations_for_folder(
@@ -262,7 +240,6 @@ def determine_owners_from_git_blame_informations(
             owners.append(username)
     return owners
 
-
 def determine_owners_from_git_blame(root: str, files: list[str],
                                     last_update: datetime,
                                     quiet: bool = False) -> list[str]:
@@ -292,7 +269,6 @@ def determine_owners_from_git_blame(root: str, files: list[str],
     stats, lines_count = extract_blame_informations(lines)
     return determine_owners_from_git_blame_informations(stats, lines_count)
 
-
 def determine_owners_from_zscore(stats: dict) -> list[str]:
     """Determines owners from commit stats using Z-Score analysis.
 
@@ -321,7 +297,7 @@ def determine_owners_from_zscore(stats: dict) -> list[str]:
             total_commit_count) if total_commit_count > 0 else 0
         normalized_review_count = (
             individual_stats[username]['review_count'] /
-            total_review_count) if total_review_count > 0 else 0
+            total_review_count) if total_commit_count > 0 else 0
         individual_score[username] = (0.6 * normalized_commit_count) + (
             0.4 * normalized_review_count)
 
@@ -353,24 +329,53 @@ if __name__ == '__main__':
         default='ios',
         help="The root directory to start the analysis from. Default: 'ios'.")
     parser.add_argument(
+        '--commits-input-file',
+        default='commits.log',
+        help="The path to the input file for commit logs. "
+        "Defaults to 'commits.log'.")
+    parser.add_argument(
+        '--owners-input-file',
+        default='owners.json',
+        help="The path to the input file for the OWNERS map. "
+        "Defaults to 'owners.json'.")
+    parser.add_argument(
         '--output-file',
         default='final_algo.csv',
         help="The path to the output CSV file. Defaults to 'final_algo.csv'.")
+    parser.add_argument(
+        '--disable-owner-exclusion',
+        action='store_true',
+        help='Disable exclusion of higher-level owners from review stats.')
     args = parser.parse_args()
 
     root_folder = args.root_directory
+    commits_input_file = args.commits_input_file
+    owners_input_file = args.owners_input_file
     output_file = args.output_file
     quiet_mode = args.quiet
+    owner_exclusion = not args.disable_owner_exclusion
 
-    # Phase 1: Data Collection
-    commits = get_all_commits_of_folder(root_folder, quiet=quiet_mode)
-    stats_per_folder = extract_commits_informations(commits, quiet=quiet_mode)
+    # Load pre-collected data.
+    with open(owners_input_file, 'r') as f:
+        owners_map = json.load(f)
+    # Convert lists back to sets.
+    owners_map = {k: set(v) for k, v in owners_map.items()}
+
+    with open(commits_input_file, 'r') as f:
+        commit_log = f.read()
+    commits = split_log_into_commits(commit_log)
+
+    # Phase 1: Data Analysis
+    stats_per_folder = extract_commits_informations(commits,
+                                                    owners_map,
+                                                    owner_exclusion,
+                                                    quiet=quiet_mode)
 
     # Clear output file before starting
     with open(output_file, 'w') as f:
         pass
 
-    # Phase 2: Analysis and Ownership Calculation
+    # Phase 2: Ownership Calculation
     steps = len(stats_per_folder)
     step_count = 0
     for root, dirs, files in os.walk(root_folder):

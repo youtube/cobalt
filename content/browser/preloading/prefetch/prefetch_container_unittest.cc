@@ -130,7 +130,9 @@ class PrefetchContainerTestBase : public RenderViewHostTestHarness,
             /*priority=*/PrefetchPriority::kHighest,
             /*attempt=*/nullptr, additional_headers,
             /*request_status_listener=*/nullptr, base::Minutes(10),
-            should_append_additional_headers));
+            should_append_additional_headers,
+            /*should_disable_block_until_head_timeout=*/false,
+            /*should_bypass_http_cache=*/false));
   }
   bool SetCookie(const GURL& url, const std::string& value) {
     std::unique_ptr<net::CanonicalCookie> cookie(
@@ -1267,8 +1269,9 @@ TEST_P(PrefetchContainerTest, RecordRedirectChainSize) {
 
   AddRedirectHop(prefetch_container.get(), GURL("https://redirect1.com"));
   AddRedirectHop(prefetch_container.get(), GURL("https://redirect2.com"));
-  prefetch_container->OnDeterminedHead();
-  prefetch_container->OnPrefetchComplete(network::URLLoaderCompletionStatus());
+  prefetch_container->OnDeterminedHead(/*is_successful_determined_head=*/true);
+  prefetch_container->OnPrefetchComplete(/*is_success=*/true,
+                                         network::URLLoaderCompletionStatus());
 
   histogram_tester.ExpectUniqueSample(
       "PrefetchProxy.Prefetch.RedirectChainSize", 3, 1);

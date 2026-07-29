@@ -6,7 +6,11 @@ package org.chromium.chrome.browser.omnibox.navattach;
 
 import android.view.View;
 
+import androidx.annotation.StringRes;
+
 import org.chromium.build.annotations.NullMarked;
+import org.chromium.chrome.browser.omnibox.R;
+import org.chromium.components.omnibox.AutocompleteRequestType;
 import org.chromium.ui.modelutil.PropertyKey;
 import org.chromium.ui.modelutil.PropertyModel;
 
@@ -20,15 +24,30 @@ class NavigationAttachmentsViewBinder {
             PropertyModel model, NavigationAttachmentsViewHolder view, PropertyKey propertyKey) {
         if (propertyKey == NavigationAttachmentsProperties.ADAPTER) {
             view.attachmentsView.setAdapter(model.get(NavigationAttachmentsProperties.ADAPTER));
-        } else if (propertyKey == NavigationAttachmentsProperties.AI_MODE_ENABLED) {
-            view.navigationType.setChecked(
-                    model.get(NavigationAttachmentsProperties.AI_MODE_ENABLED));
+        } else if (propertyKey == NavigationAttachmentsProperties.AUTOCOMPLETE_REQUEST_TYPE) {
+            @StringRes
+            int res =
+                    switch (model.get(NavigationAttachmentsProperties.AUTOCOMPLETE_REQUEST_TYPE)) {
+                        case AutocompleteRequestType.AI_MODE -> R.string.ai_mode_entrypoint_label;
+                        default -> 0;
+                    };
+
+            if (res != 0) view.requestType.setText(res);
+            view.requestType.setVisibility(res == 0 ? View.GONE : View.VISIBLE);
+        } else if (propertyKey
+                == NavigationAttachmentsProperties.AUTOCOMPLETE_REQUEST_TYPE_CLICKED) {
+            view.requestType.setOnClickListener(
+                    v ->
+                            model.get(
+                                            NavigationAttachmentsProperties
+                                                    .AUTOCOMPLETE_REQUEST_TYPE_CLICKED)
+                                    .run());
+        } else if (propertyKey == NavigationAttachmentsProperties.POPUP_AI_MODE_CLICKED) {
+            view.popup.mAiModeButton.setOnClickListener(
+                    v -> model.get(NavigationAttachmentsProperties.POPUP_AI_MODE_CLICKED).run());
         } else if (propertyKey == NavigationAttachmentsProperties.ATTACHMENTS_VISIBLE) {
             boolean visible = model.get(NavigationAttachmentsProperties.ATTACHMENTS_VISIBLE);
             view.attachmentsView.setVisibility(visible ? View.VISIBLE : View.GONE);
-            if (visible) {
-                view.navigationType.setChecked(true);
-            }
         } else if (propertyKey == NavigationAttachmentsProperties.ATTACHMENTS_TOOLBAR_VISIBLE) {
             view.attachmentsToolbar.setVisibility(
                     model.get(NavigationAttachmentsProperties.ATTACHMENTS_TOOLBAR_VISIBLE)
@@ -37,17 +56,13 @@ class NavigationAttachmentsViewBinder {
         } else if (propertyKey == NavigationAttachmentsProperties.BUTTON_ADD_CLICKED) {
             view.addButton.setOnClickListener(
                     v -> model.get(NavigationAttachmentsProperties.BUTTON_ADD_CLICKED).run());
-        } else if (propertyKey == NavigationAttachmentsProperties.NAVIGATION_TYPE_VISIBLE) {
-            view.navigationTypeGroup.setVisibility(
-                    model.get(NavigationAttachmentsProperties.NAVIGATION_TYPE_VISIBLE)
+        } else if (propertyKey
+                == NavigationAttachmentsProperties.AUTOCOMPLETE_REQUEST_TYPE_CHANGEABLE) {
+            int visibility =
+                    model.get(NavigationAttachmentsProperties.AUTOCOMPLETE_REQUEST_TYPE_CHANGEABLE)
                             ? View.VISIBLE
-                            : View.GONE);
-        } else if (propertyKey == NavigationAttachmentsProperties.ON_USE_AI_MODE_CHANGED) {
-            view.navigationType.setOnCheckedChangeListener(
-                    (buttonView, isChecked) -> {
-                        model.get(NavigationAttachmentsProperties.ON_USE_AI_MODE_CHANGED)
-                                .onResult(isChecked);
-                    });
+                            : View.GONE;
+            view.popup.mAutocompleteRequestTypeGroup.setVisibility(visibility);
         } else if (propertyKey == NavigationAttachmentsProperties.POPUP_CAMERA_CLICKED) {
             view.popup.mCameraButton.setOnClickListener(
                     v -> model.get(NavigationAttachmentsProperties.POPUP_CAMERA_CLICKED).run());

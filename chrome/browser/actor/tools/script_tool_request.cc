@@ -26,7 +26,7 @@ ScriptToolRequest::ScriptToolRequest(tabs::TabHandle tab_handle,
 
 ScriptToolRequest::~ScriptToolRequest() = default;
 
-std::string ScriptToolRequest::JournalEvent() const {
+std::string ScriptToolRequest::Name() const {
   return "ScriptTool";
 }
 
@@ -42,11 +42,6 @@ mojom::ToolActionPtr ScriptToolRequest::ToMojoToolAction(
 
 std::unique_ptr<PageToolRequest> ScriptToolRequest::Clone() const {
   return std::make_unique<ScriptToolRequest>(*this);
-}
-
-std::optional<ObservationDelayController::PageStabilityConfig>
-ScriptToolRequest::GetObservationPageStabilityConfig() const {
-  return std::nullopt;
 }
 
 }  // namespace actor

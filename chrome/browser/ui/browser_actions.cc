@@ -47,6 +47,7 @@
 #include "chrome/browser/ui/search/omnibox_utils.h"
 #include "chrome/browser/ui/send_tab_to_self/send_tab_to_self_bubble.h"
 #include "chrome/browser/ui/send_tab_to_self/send_tab_to_self_toolbar_icon_controller.h"
+#include "chrome/browser/ui/tabs/features.h"
 #include "chrome/browser/ui/tabs/public/tab_features.h"
 #include "chrome/browser/ui/tabs/saved_tab_groups/saved_tab_group_utils.h"
 #include "chrome/browser/ui/toolbar/cast/cast_toolbar_button_util.h"
@@ -475,7 +476,10 @@ void BrowserActions::InitializeBrowserActions() {
           .SetEnabled(IncognitoModePrefs::IsIncognitoAllowed(profile))
           .Build());
 
-  if (features::HasTabSearchToolbarButton()) {
+  // Both TabSearch in the toolbar and in Vertical Tabs implementations use
+  // ActionItems to represent the 'TabSearch' action.
+  if (features::HasTabSearchToolbarButton() ||
+      tabs::IsVerticalTabsFeatureEnabled()) {
     root_action_item_->AddChild(
         ChromeMenuAction(
             base::BindRepeating(
@@ -503,6 +507,24 @@ void BrowserActions::InitializeBrowserActions() {
           .SetTooltipText(BrowserActions::GetCleanTitleAndTooltipText(
               l10n_util::GetStringUTF16(IDS_NEW_TAB)))
           .SetImage(ui::ImageModel::FromVectorIcon(kAddIcon, ui::kColorIcon))
+          .Build());
+
+  root_action_item_->AddChild(
+      actions::ActionItem::Builder(
+          base::BindRepeating(
+              [](BrowserWindowInterface* bwi, actions::ActionItem* item,
+                 actions::ActionInvocationContext context) {
+                // This functionality is controlled by the MenuButtonController.
+                // It should have a callback for ShowEverythingMenu.
+              },
+              bwi))
+          .SetActionId(kActionTabGroupsMenu)
+          .SetText(BrowserActions::GetCleanTitleAndTooltipText(
+              l10n_util::GetStringUTF16(IDS_SAVED_TAB_GROUPS_MENU)))
+          .SetTooltipText(BrowserActions::GetCleanTitleAndTooltipText(
+              l10n_util::GetStringUTF16(IDS_SAVED_TAB_GROUPS_MENU)))
+          .SetImage(ui::ImageModel::FromVectorIcon(
+              kSavedTabGroupBarEverythingIcon, ui::kColorIcon))
           .Build());
 
   root_action_item_->AddChild(
@@ -644,6 +666,14 @@ void BrowserActions::InitializeBrowserActions() {
               [](BrowserWindowInterface* bwi, TabStripModel* tab_strip_model,
                  actions::ActionItem* item,
                  actions::ActionInvocationContext context) {
+                auto page_action_trigger =
+                    context.GetProperty(page_actions::kPageActionTriggerKey);
+                // If triggered by omnibox page action, do nothing.
+                if (page_action_trigger !=
+                    page_actions::kInvalidPageActionTrigger) {
+                  return;
+                }
+
                 auto* controller = autofill::AddressBubblesIconController::Get(
                     tab_strip_model->GetActiveWebContents());
                 if (controller && controller->GetBubbleView()) {
@@ -1092,10 +1122,12 @@ void BrowserActions::InitializeBrowserActions() {
                         kActionSidePanelShowContextualTasks, bwi, false)
             .Build());
   }
-
+// TODO(crbug.com/454112198): Delete this after Multi Instance launches. This
+// is currently only used in the experimental single instance side panel.
 #if BUILDFLAG(ENABLE_GLIC)
   auto* glic_service = glic::GlicKeyedService::Get(bwi->GetProfile());
-  if (glic_service) {
+  if (glic_service &&
+      !base::FeatureList::IsEnabled(features::kGlicMultiInstance)) {
     actions::ActionItem::InvokeActionCallback toggle_glic_callback =
         base::BindRepeating(
             [](base::WeakPtr<BrowserWindowInterface> bwi,

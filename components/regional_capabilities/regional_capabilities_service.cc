@@ -293,6 +293,13 @@ bool RegionalCapabilitiesService::IsInSearchEngineChoiceScreenRegion() {
   return GetChoiceScreenEligibilityConfig().has_value();
 }
 
+// static
+bool RegionalCapabilitiesService::IsInSearchEngineChoiceScreenRegion(
+    const country_codes::CountryId& tested_country_id) {
+  return GetSettingsForProgram(CountryIdToProgram(tested_country_id))
+      .choice_screen_eligibility_config.has_value();
+}
+
 bool RegionalCapabilitiesService::
     IsChoiceScreenCompatibleWithCurrentLocation() {
   CHECK(GetChoiceScreenEligibilityConfig().has_value())
@@ -313,10 +320,9 @@ bool RegionalCapabilitiesService::
       .selection_from_settings_counts_as_choice_screen_choice;
 }
 
+#if !BUILDFLAG(IS_ANDROID)
 std::optional<RegionalCapabilitiesService::ChoiceScreenDesign>
 RegionalCapabilitiesService::GetChoiceScreenDesign() {
-  // TODO(crbug.com/440549533): Investigate minimizing apk size by excluding
-  // unused strings and OSE assets from builds.
   switch (GetActiveProgramSettings().program) {
     case Program::kDefault:
       return std::nullopt;
@@ -344,6 +350,7 @@ RegionalCapabilitiesService::GetChoiceScreenDesign() {
   }
   NOTREACHED();
 }
+#endif  // !BUILDFLAG(IS_ANDROID)
 
 const std::optional<ChoiceScreenEligibilityConfig>&
 RegionalCapabilitiesService::GetChoiceScreenEligibilityConfig() {

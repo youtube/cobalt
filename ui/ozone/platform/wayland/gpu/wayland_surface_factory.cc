@@ -8,6 +8,7 @@
 
 #include "base/memory/ptr_util.h"
 #include "base/memory/raw_ptr.h"
+#include "components/viz/common/resources/shared_image_format_utils.h"
 #include "ui/gfx/linux/client_native_pixmap_dmabuf.h"
 #include "ui/gfx/linux/native_pixmap_dmabuf.h"
 #include "ui/gl/gl_bindings.h"
@@ -54,7 +55,7 @@ class GLOzoneEGLWayland : public GLOzoneEGL {
 
   ~GLOzoneEGLWayland() override {}
 
-  bool CanImportNativePixmap(gfx::BufferFormat format) override;
+  bool CanImportNativePixmap(viz::SharedImageFormat format) override;
 
   std::unique_ptr<NativePixmapGLBinding> ImportNativePixmap(
       scoped_refptr<gfx::NativePixmap> pixmap,
@@ -87,13 +88,13 @@ class GLOzoneEGLWayland : public GLOzoneEGL {
   gl::EGLDisplayPlatform native_display_;
 };
 
-bool GLOzoneEGLWayland::CanImportNativePixmap(gfx::BufferFormat format) {
+bool GLOzoneEGLWayland::CanImportNativePixmap(viz::SharedImageFormat format) {
   if (!gl::GLSurfaceEGL::GetGLDisplayEGL()
            ->ext->b_EGL_EXT_image_dma_buf_import) {
     return false;
   }
 
-  return NativePixmapEGLBinding::IsBufferFormatSupported(format);
+  return NativePixmapEGLBinding::IsSharedImageFormatSupported(format);
 }
 
 std::unique_ptr<NativePixmapGLBinding> GLOzoneEGLWayland::ImportNativePixmap(
@@ -287,16 +288,17 @@ scoped_refptr<gfx::NativePixmap>
 WaylandSurfaceFactory::CreateNativePixmapFromHandle(
     gfx::AcceleratedWidget widget,
     gfx::Size size,
-    gfx::BufferFormat format,
+    viz::SharedImageFormat format,
     gfx::NativePixmapHandle handle) {
 #if defined(WAYLAND_GBM)
   auto* gbm_device = buffer_manager_->GetGbmDevice();
   if (gbm_device && gbm_device->CanCreateBufferForFormat(
-                        GetFourCCFormatFromBufferFormat(format))) {
+                        GetFourCCFormatFromSharedImageFormat(format))) {
     scoped_refptr<GbmPixmapWayland> pixmap =
         base::MakeRefCounted<GbmPixmapWayland>(buffer_manager_);
-    if (pixmap->InitializeBufferFromHandle(widget, size, format,
-                                           std::move(handle))) {
+    if (pixmap->InitializeBufferFromHandle(
+            widget, size, viz::SharedImageFormatToBufferFormat(format),
+            std::move(handle))) {
       return pixmap;
     }
   } else {

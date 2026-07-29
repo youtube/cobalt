@@ -1010,11 +1010,14 @@ class VectorBuffer : protected VectorBufferBase<T, Allocator> {
   void VerifyInlinedBuffer() {
     // On heap allocations are always zero-initialized. Stack is anyway scanned
     // conservatively, stack-to-stack pointers are filtered out, so no need to
-    // clear out the inlined buffer.
+    // clear out the inlined buffer. The check reads uninitialized memory, so
+    // don't do it if msan is on.
     if constexpr (Allocator::kIsGarbageCollected) {
-      const bool is_zeroed =
-          std::ranges::all_of(inline_buffer_, [](char c) { return c == 0; });
-      DCHECK(is_zeroed || IsOnStack(inline_buffer_));
+      const auto IsZeroed = [this] {
+        return std::ranges::all_of(inline_buffer_,
+                                   [](char c) { return c == 0; });
+      };
+      DCHECK(IsOnStack(inline_buffer_) || IsZeroed());
     }
   }
 
@@ -1255,10 +1258,11 @@ template <typename T,
 concept VectorCanAssignFromRange =
     std::ranges::input_range<Range> && std::ranges::sized_range<Range> &&
     std::indirectly_unary_invocable<Proj, std::ranges::iterator_t<Range>> &&
-    // This prevents accidental fallback from the more efficient code paths.
-    (!std::is_base_of_v<Vector<T, InlineCapacity, Allocator>,
-                        std::decay_t<Range>> ||
-     !std::is_same_v<Proj, std::identity>);
+    // This prevents accidental fallback from the more efficient code paths
+    // e.g., assignment from a vector with identity.
+    !(std::is_base_of_v<Vector<T, InlineCapacity, Allocator>,
+                        std::decay_t<Range>> &&
+      std::is_same_v<Proj, std::identity>);
 
 template <typename T, wtf_size_t InlineCapacity, typename Allocator>
 class Vector : private VectorBuffer<T, INLINE_CAPACITY, Allocator> {
@@ -1308,6 +1312,9 @@ class Vector : private VectorBuffer<T, INLINE_CAPACITY, Allocator> {
   Vector& operator=(const Vector&);
   template <wtf_size_t otherCapacity>
   Vector& operator=(const Vector<T, otherCapacity, Allocator>&);
+
+  template <typename U>
+  explicit Vector(base::span<const U>);
 
   // Creates a vector with elements copied or moved from an input and sized
   // range, with optional projection. To move elements, use
@@ -1786,6 +1793,16 @@ Vector<T, InlineCapacity, Allocator>::Vector(
   ANNOTATE_NEW_BUFFER(data(), capacity(), other.size());
   size_ = other.size();
   TypeOperations::UninitializedCopy(base::span(other), base::span(*this),
+                                    VectorOperationOrigin::kConstruction);
+}
+
+template <typename T, wtf_size_t InlineCapacity, typename Allocator>
+template <typename U>
+Vector<T, InlineCapacity, Allocator>::Vector(base::span<const U> other)
+    : Base(other.size()) {
+  ANNOTATE_NEW_BUFFER(data(), capacity(), other.size());
+  size_ = other.size();
+  TypeOperations::UninitializedCopy(other, base::span(*this),
                                     VectorOperationOrigin::kConstruction);
 }
 

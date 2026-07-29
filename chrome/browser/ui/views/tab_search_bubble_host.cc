@@ -83,12 +83,14 @@ TabSearchBubbleHost::TabSearchBubbleHost(
   if (tab_organization_service) {
     tab_organization_observation_.Observe(tab_organization_service);
   }
+
+  // LINT.IfChange(menu_button_controller)
   auto menu_button_controller = std::make_unique<views::MenuButtonController>(
       button,
       base::BindRepeating(&TabSearchBubbleHost::ButtonPressed,
                           base::Unretained(this)),
       std::make_unique<views::Button::DefaultButtonControllerDelegate>(button));
-  menu_button_controller_ = menu_button_controller.get();
+  // LINT.ThenChange(:pressed_lock_)
   button->SetButtonController(std::move(menu_button_controller));
   webui_bubble_manager_observer_.Observe(webui_bubble_manager_.get());
 }
@@ -278,7 +280,11 @@ bool TabSearchBubbleHost::ShowTabSearchBubble(
   }
 
   // Hold the pressed lock while the |bubble_| is active.
-  pressed_lock_ = menu_button_controller_->TakeLock();
+  // LINT.IfChange(pressed_lock_)
+  pressed_lock_ =
+      static_cast<views::MenuButtonController*>(button_->button_controller())
+          ->TakeLock();
+  // LINT.ThenChange(:menu_button_controller)
   return true;
 }
 

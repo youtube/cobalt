@@ -22,6 +22,7 @@
 #include "base/memory/memory_pressure_listener.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/raw_ptr_exclusion.h"
+#include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
 #include "base/synchronization/lock.h"
 #include "base/time/time.h"
@@ -109,36 +110,6 @@ class RasterDarkModeFilter;
 //      of each other), they hold ImageDatas by scoped_refptr. The scoped_refptr
 //      keeps an ImageData alive while it is present in either the
 //      |persistent_cache_| or |in_use_cache_|.
-//
-// HARDWARE ACCELERATED DECODES:
-//
-// In Chrome OS, we have the ability to use specialized hardware to decode
-// certain images. Because this requires interacting with drivers, it must be
-// done in the GPU process. Therefore, we follow a different path than the usual
-// decode -> upload tasks:
-//   1) We decide whether to do hardware decode acceleration for an image before
-//      we create the decode/upload tasks. Under the hood, this involves parsing
-//      the image and checking if it's supported by the hardware decoder
-//      according to information advertised by the GPU process. Also, we only
-//      allow hardware decoding in OOP-R mode.
-//   2) If we do decide to do hardware decoding, we don't create a decode task.
-//      Instead, we create only an upload task and store enough state to
-//      indicate that the image will go through this hardware accelerated path.
-//      The reason that we use the upload task is that we need to hold the
-//      context lock in order to schedule the image decode.
-//   3) When the upload task runs, we send a request to the GPU process to start
-//      the image decode. This is an IPC message that does not require us to
-//      wait for the response. Instead, we get a sync token that is signalled
-//      when the decode completes. We insert a wait for this sync token right
-//      after sending the decode request.
-//
-// We also handle the more unusual case where images are decoded at raster time.
-// The process is similar: we skip the software decode and then request the
-// hardware decode in the same way as step (3) above.
-//
-// Note that the decoded data never makes it back to the renderer. It stays in
-// the GPU process. The sync token ensures that any raster work that needs the
-// image happens after the decode completes.
 class CC_EXPORT GpuImageDecodeCache
     : public ImageDecodeCache,
       public base::trace_event::MemoryDumpProvider,
@@ -605,7 +576,6 @@ class CC_EXPORT GpuImageDecodeCache
 
   scoped_refptr<GpuImageDecodeCache::ImageData> CreateImageData(
       const DrawImage& image,
-      bool allow_hardware_decode,
       bool speculative_decode);
   void WillAddCacheEntry(const DrawImage& draw_image)
       EXCLUSIVE_LOCKS_REQUIRED(lock_);
@@ -650,18 +620,6 @@ class CC_EXPORT GpuImageDecodeCache
   void UploadImageIfNecessary(const DrawImage& draw_image,
                               ImageData* image_data)
       EXCLUSIVE_LOCKS_REQUIRED(lock_);
-
-  // Implementation of UploadImageIfNecessary for each sub-case.
-  void UploadImageIfNecessary_TransferCache_HardwareDecode(
-      const DrawImage& draw_image,
-      ImageData* image_data,
-      sk_sp<SkColorSpace> color_space) EXCLUSIVE_LOCKS_REQUIRED(lock_);
-  void UploadImageIfNecessary_TransferCache_SoftwareDecode(
-      const DrawImage& draw_image,
-      ImageData* image_data,
-      sk_sp<SkColorSpace> decoded_target_colorspace,
-      const std::optional<gfx::HDRMetadata>& hdr_metadata,
-      sk_sp<SkColorSpace> target_color_space) EXCLUSIVE_LOCKS_REQUIRED(lock_);
 
   // Runs pending operations that required the |context_| lock to be held, but
   // were queued up during a time when the |context_| lock was unavailable.

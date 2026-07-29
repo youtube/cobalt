@@ -597,7 +597,9 @@ bool PrefetchService::IsPrefetchStale(
     case PrefetchContainer::LoadState::kEligible:
     case PrefetchContainer::LoadState::kStarted:
     case PrefetchContainer::LoadState::kDeterminedHead:
-    case PrefetchContainer::LoadState::kCompletedOrFailed:
+    case PrefetchContainer::LoadState::kFailedDeterminedHead:
+    case PrefetchContainer::LoadState::kCompleted:
+    case PrefetchContainer::LoadState::kFailed:
       break;
   }
 
@@ -913,7 +915,6 @@ void PrefetchService::OnGotServiceWorkerResult(
     std::move(params).Finish(PreloadingEligibility::kEligible);
     return;
   }
-  CHECK(prefetch_container);
   if (auto* preloading_attempt = static_cast<PreloadingAttemptImpl*>(
           prefetch_container->request().attempt())) {
     const auto duration =
@@ -1178,6 +1179,36 @@ void PrefetchService::OnGotEligibilityForRedirect(
     return;
   }
 
+  // Returns `false` if `OnGotEligibilityForRedirect()` should be early-returned
+  // because the prefetch was already terminated during the eligiblity check.
+  const auto check_streaming_loader = [&]() {
+    // TODO(crbug.com/396133768): Consider setting appropriate PrefetchStatus.
+    auto streaming_url_loader = prefetch_container->GetStreamingURLLoader();
+    if (streaming_url_loader) {
+      return true;
+    }
+    if (!UsePrefetchScheduler()) {
+      if (active_prefetch_ == prefetch_container->key()) {
+        active_prefetch_ = std::nullopt;
+        Prefetch();
+      }
+    } else {
+      // TODO(crbug.com/400761083): Use
+      // `ResetPrefetchContainerAndProgressAsync()` instead.
+      RemoveFromSchedulerAndProgressAsync(*prefetch_container);
+    }
+    return false;
+  };
+
+  if (base::FeatureList::IsEnabled(features::kPrefetchGracefulNotification)) {
+    if (!check_streaming_loader()) {
+      // TODO(crbug.com/400761083): Turn this into `CHECK_EQ()`.
+      DUMP_WILL_BE_CHECK_EQ(prefetch_container->GetLoadState(),
+                            PrefetchContainer::LoadState::kFailed);
+      return;
+    }
+  }
+
   const bool eligible = eligibility == PreloadingEligibility::kEligible;
   RecordRedirectResult(eligible
                            ? PrefetchRedirectResult::kSuccessRedirectFollowed
@@ -1209,21 +1240,13 @@ void PrefetchService::OnGotEligibilityForRedirect(
     }
   }
 
-  // TODO(crbug.com/396133768): Consider setting appropriate PrefetchStatus.
-  auto streaming_url_loader = prefetch_container->GetStreamingURLLoader();
-  if (!streaming_url_loader) {
-    if (!UsePrefetchScheduler()) {
-      if (active_prefetch_ == prefetch_container->key()) {
-        active_prefetch_ = std::nullopt;
-        Prefetch();
-      }
-    } else {
-      // TODO(crbug.com/400761083): Use
-      // `ResetPrefetchContainerAndProgressAsync()` instead.
-      RemoveFromSchedulerAndProgressAsync(*prefetch_container);
+  if (!base::FeatureList::IsEnabled(features::kPrefetchGracefulNotification)) {
+    if (!check_streaming_loader()) {
+      return;
     }
-    return;
   }
+  auto streaming_url_loader = prefetch_container->GetStreamingURLLoader();
+  CHECK(streaming_url_loader);
 
   // If the redirect is not eligible and the prefetch is not a decoy, then stop
   // the prefetch.
@@ -1392,9 +1415,7 @@ void PrefetchService::MayReleasePrefetch(
 
   if (!UsePrefetchScheduler()) {
     ResetPrefetchContainer(prefetch_container);
-    if (base::FeatureList::IsEnabled(
-            features::kPrefetchQueueingPartialFixWithoutScheduler) &&
-        !active_prefetch_) {
+    if (!active_prefetch_) {
       base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
           FROM_HERE, base::BindOnce(&PrefetchService::Prefetch,
                                     weak_method_factory_.GetWeakPtr()));
@@ -1536,6 +1557,11 @@ void PrefetchService::EvictPrefetch(
 
 bool PrefetchService::StartSinglePrefetch(
     base::PassKey<PrefetchScheduler>,
+    base::WeakPtr<PrefetchContainer> prefetch_container) {
+  return StartSinglePrefetch(std::move(prefetch_container));
+}
+
+bool PrefetchService::StartSinglePrefetchForTesting(
     base::WeakPtr<PrefetchContainer> prefetch_container) {
   return StartSinglePrefetch(std::move(prefetch_container));
 }

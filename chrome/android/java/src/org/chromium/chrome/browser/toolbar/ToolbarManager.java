@@ -67,8 +67,10 @@ import org.chromium.chrome.browser.browser_controls.BrowserControlsSizer;
 import org.chromium.chrome.browser.browser_controls.BrowserControlsStateProvider;
 import org.chromium.chrome.browser.browser_controls.BrowserControlsStateProvider.ControlsPosition;
 import org.chromium.chrome.browser.browser_controls.BrowserStateBrowserControlsVisibilityDelegate;
+import org.chromium.chrome.browser.browser_controls.TopControlLayer;
 import org.chromium.chrome.browser.browser_controls.TopControlsStacker;
 import org.chromium.chrome.browser.browser_controls.TopControlsStacker.TopControlType;
+import org.chromium.chrome.browser.browser_controls.TopControlsStacker.TopControlVisibility;
 import org.chromium.chrome.browser.compositor.CompositorViewHolder;
 import org.chromium.chrome.browser.compositor.bottombar.OverlayPanelManager.OverlayPanelManagerObserver;
 import org.chromium.chrome.browser.compositor.layouts.Layout;
@@ -101,6 +103,7 @@ import org.chromium.chrome.browser.metrics.UmaActivityObserver;
 import org.chromium.chrome.browser.multiwindow.MultiInstanceManager;
 import org.chromium.chrome.browser.ntp.IncognitoNewTabPage;
 import org.chromium.chrome.browser.ntp.IncognitoNtpOmniboxAutofocusManager;
+import org.chromium.chrome.browser.ntp.IncognitoNtpUtils;
 import org.chromium.chrome.browser.ntp.NewTabPage;
 import org.chromium.chrome.browser.ntp.NewTabPageUma;
 import org.chromium.chrome.browser.ntp_customization.edge_to_edge.TopInsetCoordinator;
@@ -186,8 +189,6 @@ import org.chromium.chrome.browser.ui.native_page.NativePage;
 import org.chromium.chrome.browser.ui.system.StatusBarColorController;
 import org.chromium.chrome.browser.ui.theme.BrandedColorScheme;
 import org.chromium.chrome.browser.undo_tab_close_snackbar.UndoBarThrottle;
-import org.chromium.chrome.browser.url_constants.UrlConstantResolver;
-import org.chromium.chrome.browser.url_constants.UrlConstantResolverFactory;
 import org.chromium.chrome.browser.user_education.UserEducationHelper;
 import org.chromium.chrome.browser.util.BrowserUiUtils;
 import org.chromium.chrome.browser.util.BrowserUiUtils.ModuleTypeOnStartAndNtp;
@@ -362,7 +363,7 @@ public class ToolbarManager
     private final OverlayPanelManagerObserver mOverlayPanelManagerObserver;
     private final ObservableSupplierImpl<Boolean> mOverlayPanelVisibilitySupplier =
             new ObservableSupplierImpl<>();
-    private ObservableSupplierImpl<Integer> mTabStripHeightSupplier;
+    private TabStripHeightSupplier mTabStripHeightSupplier;
     private @Nullable TabStripHeightObserver mTabStripHeightObserver;
     private final @Nullable DesktopWindowStateManager mDesktopWindowStateManager;
     private final @Nullable MultiInstanceManager mMultiInstanceManager;
@@ -1159,7 +1160,10 @@ public class ToolbarManager
                         progressBar,
                         historyDelegate,
                         topControlsStacker);
-        mTabStripHeightSupplier = new ObservableSupplierImpl<>(mToolbar.getTabStripHeight());
+        mTabStripHeightSupplier = new TabStripHeightSupplier(mToolbar.getTabStripHeight());
+        if (ChromeFeatureList.sTopControlsRefactor.isEnabled()) {
+            mTopControlsStacker.addControl(mTabStripHeightSupplier);
+        }
         mActionModeController =
                 new ActionModeController(
                         mActivity,
@@ -2442,8 +2446,8 @@ public class ToolbarManager
                         getOmniboxStub(),
                         mLayoutManager,
                         mTabModelSelector,
-                        this::getIncognitoNtpView,
-                        this::getIncognitoNtpContentHeight);
+                        IncognitoNtpUtils::getIncognitoNtpView,
+                        IncognitoNtpUtils::getIncognitoNtpContentMetrics);
 
         mInitializedWithNative = true;
         mTabModelSelector.getCurrentTabModelSupplier().addObserver(mCurrentTabModelObserver);
@@ -2472,36 +2476,6 @@ public class ToolbarManager
         }
 
         TraceEvent.end("ToolbarManager.initializeWithNative");
-    }
-
-    /**
-     * Provides the primary content view of the Incognito New Tab Page for a given tab.
-     *
-     * @param tab The tab to get the NTP view from.
-     * @return The content {@link View} of the Incognito NTP, or {@code null} if it cannot be found.
-     */
-    private @Nullable View getIncognitoNtpView(Tab tab) {
-        if (tab == null || tab.getView() == null) {
-            return null;
-        }
-
-        return tab.getView().findViewById(R.id.new_tab_incognito_container);
-    }
-
-    /**
-     * Calculates the height of the main text content area on the Incognito New Tab Page, excluding
-     * all paddings after very last TextView.
-     *
-     * @param ntpView The Incognito NTP view.
-     * @return The height of the content in pixels.
-     */
-    private double getIncognitoNtpContentHeight(View ntpView) {
-        final double cookiesCardPaddingBottom =
-                mActivity
-                        .getResources()
-                        .getDimensionPixelSize(R.dimen.md_incognito_ntp_padding_vertical);
-
-        return ntpView.getHeight() - (ntpView.getPaddingBottom() + cookiesCardPaddingBottom);
     }
 
     /**
@@ -2641,6 +2615,7 @@ public class ToolbarManager
             mToolbar.removeTabStripHeightObserver(mTabStripHeightObserver);
             mTabStripHeightObserver = null;
         }
+        mTopControlsStacker.removeControl(mTabStripHeightSupplier);
         mTabStripHeightSupplier = null;
         mToolbar.destroy();
         mToolbarLongPressMenuHandler.destroy();
@@ -2762,15 +2737,11 @@ public class ToolbarManager
 
     @VisibleForTesting
     String homepageUrl() {
-        GURL homepageGurl = HomepageManager.getInstance().getHomepageGurl();
-        if (homepageGurl.isEmpty()) {
-            Profile profile = mProfileSupplier.get();
-            UrlConstantResolver urlConstantResolver =
-                    UrlConstantResolverFactory.getForProfile(profile);
-            return urlConstantResolver.getNtpUrl();
-        } else {
-            return homepageGurl.getSpec();
-        }
+        Profile profile = mProfileSupplier.get();
+        boolean isIncognito = profile != null && profile.isOffTheRecord();
+        GURL homepageGurl = HomepageManager.getInstance().getHomepageGurl(isIncognito);
+        assert !homepageGurl.isEmpty();
+        return homepageGurl.getSpec();
     }
 
     private void registerTemplateUrlObserver() {
@@ -3499,5 +3470,39 @@ public class ToolbarManager
      */
     public @Nullable ExtensionToolbarCoordinator getExtensionToolbarCoordinator() {
         return mExtensionToolbarCoordinator;
+    }
+
+    // Top control layer representing tab strip. It can have different state than the current
+    // height store in the StripLayoutHelperManager, as this represents the target height it is
+    // going for during tab strip height transition.
+    private static class TabStripHeightSupplier extends ObservableSupplierImpl<Integer>
+            implements TopControlLayer {
+
+        public TabStripHeightSupplier(int tabStripHeight) {
+            super(tabStripHeight);
+        }
+
+        @Override
+        public @TopControlType int getTopControlType() {
+            return TopControlType.TABSTRIP;
+        }
+
+        @Override
+        public int getTopControlHeight() {
+            return get();
+        }
+
+        @Override
+        public int getTopControlVisibility() {
+            // The tab strip adds to the total height of the top controls regardless of whether or
+            // not it is "visible" to the user, i.e. we take its inherent height into account even
+            // when scrolled offscreen or obscured, except when hidden by height transition.
+            //
+            // TODO(crbug.com/417238089): Possibly add way to notify stacker of visibility changes.
+            boolean isTabStripVisibleAsLayer = get() > 0;
+            return isTabStripVisibleAsLayer
+                    ? TopControlVisibility.VISIBLE
+                    : TopControlVisibility.HIDDEN;
+        }
     }
 }

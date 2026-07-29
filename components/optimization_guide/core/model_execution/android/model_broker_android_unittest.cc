@@ -14,7 +14,6 @@
 #include "components/optimization_guide/core/model_execution/model_execution_prefs.h"
 #include "components/optimization_guide/core/model_execution/test/fake_model_assets.h"
 #include "components/optimization_guide/core/model_execution/test/fake_model_broker.h"
-#include "components/optimization_guide/core/model_execution/test/fake_remote.h"
 #include "components/optimization_guide/core/model_execution/test/feature_config_builder.h"
 #include "components/optimization_guide/core/model_execution/test/request_builder.h"
 #include "components/optimization_guide/core/model_execution/test/response_holder.h"
@@ -109,7 +108,7 @@ class ModelBrokerAndroidTest : public testing::Test {
 
   mojo::PendingRemote<mojom::ModelBroker> BindAndPassRemote() {
     mojo::PendingRemote<mojom::ModelBroker> remote;
-    EnsureBroker().BindBroker(remote.InitWithNewPipeAndPassReceiver());
+    EnsureBroker().BindModelBroker(remote.InitWithNewPipeAndPassReceiver());
     return remote;
   }
 
@@ -125,9 +124,9 @@ class ModelBrokerAndroidTest : public testing::Test {
         std::make_unique<ModelInfo>(scam_detection_asset_.model_info()));
   }
 
-  std::unique_ptr<OptimizationGuideModelExecutor::Session>
-  DownloadModelAndCreateSession(ModelBrokerClient& client,
-                                mojom::ModelBasedCapabilityKey feature) {
+  std::unique_ptr<OnDeviceSession> DownloadModelAndCreateSession(
+      ModelBrokerClient& client,
+      mojom::ModelBasedCapabilityKey feature) {
     // Requesting the feature we've provided assets for should succeed.
     base::test::TestFuture<ModelBrokerClient::CreateSessionResult> future;
     client.CreateSession(feature, SessionConfigParams{}, future.GetCallback());

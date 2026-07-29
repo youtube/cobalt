@@ -141,20 +141,10 @@ void RasterImplementationGLES::EndQueryEXT(GLenum target) {
   gl_->EndQueryEXT(target);
 }
 
-void RasterImplementationGLES::QueryCounterEXT(GLuint id, GLenum target) {
-  gl_->QueryCounterEXT(id, target);
-}
-
 void RasterImplementationGLES::GetQueryObjectuivEXT(GLuint id,
                                                     GLenum pname,
                                                     GLuint* params) {
   gl_->GetQueryObjectuivEXT(id, pname, params);
-}
-
-void RasterImplementationGLES::GetQueryObjectui64vEXT(GLuint id,
-                                                      GLenum pname,
-                                                      GLuint64* params) {
-  gl_->GetQueryObjectui64vEXT(id, pname, params);
 }
 
 void RasterImplementationGLES::CopySharedImage(

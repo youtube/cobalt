@@ -4,8 +4,10 @@
 
 package org.chromium.chrome.browser.ui.browser_window;
 
+import org.chromium.base.JniOnceCallback;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
+import org.chromium.chrome.browser.multiwindow.MultiInstanceManager;
 import org.chromium.chrome.browser.tabmodel.TabModel;
 import org.chromium.ui.base.ActivityWindowAndroid;
 
@@ -46,14 +48,21 @@ public interface ChromeAndroidTaskTracker {
      * @param activityWindowAndroid The {@link ActivityWindowAndroid} to be associated with the
      *     returned {@link ChromeAndroidTask}.
      * @param tabModel The tab model associated with the returned {@link ChromeAndroidTask}.
-     * @param pendingId The unique ID of the pending {@link ChromeAndroidTask} that the newly
-     *     created {@code ChromeActivity} should adopt. May be {@code null} when the activity is not
-     *     associated with a pending {@link ChromeAndroidTask}.
+     * @param multiInstanceManager The {@link MultiInstanceManager} associated with the given {@link
+     *     ActivityWindowAndroid}'s {@code Activity}. If the {@code Activity} doesn't have a {@link
+     *     MultiInstanceManager}, pass {@code null}.
+     * @param pendingId The unique ID of a pending {@link ChromeAndroidTask} that was created before
+     *     its {@code ChromeActivity}. In this case, {@code ChromeActivity}'s {@code Intent} will
+     *     contain {@link #EXTRA_PENDING_BROWSER_WINDOW_TASK_ID}, and {@code ChromeActivity} should
+     *     pass that Extra value as the pending ID so that the {@code Activity} can be associated
+     *     with the pending {@link ChromeAndroidTask}. In other cases, the pending ID should be
+     *     {@code null}.
      */
     ChromeAndroidTask obtainTask(
             @BrowserWindowType int browserWindowType,
             ActivityWindowAndroid activityWindowAndroid,
             TabModel tabModel,
+            @Nullable MultiInstanceManager multiInstanceManager,
             @Nullable Integer pendingId);
 
     /**
@@ -62,9 +71,14 @@ public interface ChromeAndroidTaskTracker {
      *
      * @param createParams The {@link AndroidBrowserWindowCreateParams} that will determine the
      *     newly created {@code Activity}'s startup state.
+     * @param callback The callback to be invoked with the native {@code AndroidBrowserWindow}
+     *     pointer once the task becomes active. May be {@code null} for synchronous creation.
      * @return The pending {@link ChromeAndroidTask}.
+     * @see BrowserWindowCreatorBridge
      */
-    ChromeAndroidTask createPendingTask(AndroidBrowserWindowCreateParams createParams);
+    ChromeAndroidTask createPendingTask(
+            AndroidBrowserWindowCreateParams createParams,
+            @Nullable JniOnceCallback<Long> callback);
 
     /**
      * Returns the {@link ChromeAndroidTask} with the given {@code taskId}.

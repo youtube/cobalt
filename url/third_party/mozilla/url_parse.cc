@@ -540,12 +540,11 @@ Parsed DoParseFileSystemURL(std::basic_string_view<CharT> url) {
   }
 
   Parsed inner_parsed;
-  if (CompareSchemeComponent(url.data(), inner_scheme, kFileScheme)) {
+  if (CompareSchemeComponent(url, inner_scheme, kFileScheme)) {
     // File URLs are special. The static cast is safe because we calculated the
     // size above as the difference of two ints.
     inner_parsed = ParseFileURL(inner_url);
-  } else if (CompareSchemeComponent(url.data(), inner_scheme,
-                                    kFileSystemScheme)) {
+  } else if (CompareSchemeComponent(url, inner_scheme, kFileSystemScheme)) {
     // Filesystem URLs don't nest.
     return parsed;
   } else if (IsStandard(inner_scheme.as_string_view_on(url.data()))) {
@@ -1131,32 +1130,30 @@ void ParsePathInternal(const char16_t* spec,
   ParsePath(spec, path, filepath, query, ref);
 }
 
-void ParseAfterSpecialScheme(const char* spec,
-                             int spec_len,
+void ParseAfterSpecialScheme(std::string_view spec,
                              int after_scheme,
                              Parsed* parsed) {
-  DoParseAfterSpecialScheme(spec, spec_len, after_scheme, parsed);
+  DoParseAfterSpecialScheme(spec.data(), spec.length(), after_scheme, parsed);
 }
 
-void ParseAfterSpecialScheme(const char16_t* spec,
-                             int spec_len,
+void ParseAfterSpecialScheme(std::u16string_view spec,
                              int after_scheme,
                              Parsed* parsed) {
-  DoParseAfterSpecialScheme(spec, spec_len, after_scheme, parsed);
+  DoParseAfterSpecialScheme(spec.data(), spec.length(), after_scheme, parsed);
 }
 
-void ParseAfterNonSpecialScheme(const char* spec,
-                                int spec_len,
+void ParseAfterNonSpecialScheme(std::string_view spec,
                                 int after_scheme,
                                 Parsed* parsed) {
-  DoParseAfterNonSpecialScheme(spec, spec_len, after_scheme, parsed);
+  DoParseAfterNonSpecialScheme(spec.data(), spec.length(), after_scheme,
+                               parsed);
 }
 
-void ParseAfterNonSpecialScheme(const char16_t* spec,
-                                int spec_len,
+void ParseAfterNonSpecialScheme(std::u16string_view spec,
                                 int after_scheme,
                                 Parsed* parsed) {
-  DoParseAfterNonSpecialScheme(spec, spec_len, after_scheme, parsed);
+  DoParseAfterNonSpecialScheme(spec.data(), spec.length(), after_scheme,
+                               parsed);
 }
 
 }  // namespace url

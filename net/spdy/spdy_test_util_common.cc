@@ -475,7 +475,8 @@ base::WeakPtr<SpdySession> CreateSpdySessionHelper(
   rv =
       http_session->spdy_session_pool()->CreateAvailableSessionFromSocketHandle(
           key, std::move(connection), net_log,
-          MultiplexedSessionCreationInitiator::kUnknown, &spdy_session);
+          MultiplexedSessionCreationInitiator::kUnknown, &spdy_session,
+          std::nullopt);
   // Failure is reported asynchronously.
   EXPECT_THAT(rv, IsOk());
   EXPECT_TRUE(spdy_session);
@@ -567,7 +568,8 @@ base::WeakPtr<SpdySession> CreateFakeSpdySession(SpdySessionPool* pool,
   base::WeakPtr<SpdySession> spdy_session;
   int rv = pool->CreateAvailableSessionFromSocketHandle(
       key, std::move(handle), NetLogWithSource(),
-      MultiplexedSessionCreationInitiator::kUnknown, &spdy_session);
+      MultiplexedSessionCreationInitiator::kUnknown, &spdy_session,
+      std::nullopt);
   // Failure is reported asynchronously.
   EXPECT_THAT(rv, IsOk());
   EXPECT_TRUE(spdy_session);
@@ -1002,4 +1004,22 @@ SHA256HashValue GetTestHashValue(uint8_t label) {
 }
 
 }  // namespace test
+
+TestConnectionChangeObserver::TestConnectionChangeObserver() = default;
+TestConnectionChangeObserver::~TestConnectionChangeObserver() = default;
+
+void TestConnectionChangeObserver::OnSessionClosed() {
+  session_closed_++;
+}
+
+void TestConnectionChangeObserver::OnConnectionFailed() {
+  connection_failed_++;
+}
+
+void TestConnectionChangeObserver::OnNetworkEvent(
+    net::NetworkChangeEvent event) {
+  network_event_++;
+  last_network_event_ = event;
+}
+
 }  // namespace net

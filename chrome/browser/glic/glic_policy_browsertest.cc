@@ -14,6 +14,7 @@
 #include "chrome/browser/glic/glic_pref_names.h"
 #include "chrome/browser/glic/host/glic.mojom-data-view.h"
 #include "chrome/browser/glic/host/glic.mojom.h"
+#include "chrome/browser/glic/public/glic_instance.h"
 #include "chrome/browser/glic/public/glic_keyed_service.h"
 #include "chrome/browser/glic/public/glic_keyed_service_factory.h"
 #include "chrome/browser/glic/test_support/glic_test_environment.h"
@@ -158,6 +159,7 @@ class GlicPolicyTest : public PolicyTest {
         glic::prefs::kGlicLauncherEnabled, true);
 
     profile_1_ = browser()->profile();
+    instance_tracker_.SetProfile(profile_1_);
 
     // "policy_for_profile_1_" is provider_, setup in PolicyTest.
 
@@ -185,6 +187,7 @@ class GlicPolicyTest : public PolicyTest {
   void TearDownOnMainThread() override {
     PolicyTest::TearDownOnMainThread();
 
+    instance_tracker_.SetProfile(nullptr);
     if (GlicBackgroundModeManager* background_mode_manager =
             g_browser_process->GetFeatures()->glic_background_mode_manager()) {
       background_mode_manager->ExitBackgroundMode();
@@ -290,10 +293,9 @@ class GlicPolicyTest : public PolicyTest {
  protected:
   // Get the active tab's glic host. Must be called only after instantiating
   // glic.
-  Host* GetHost() {
-    return &GlicKeyedServiceFactory::GetGlicKeyedService(browser()->profile())
-                ->GetInstanceForActiveTab(browser())
-                ->host();
+  Host* GetHost() { return instance_tracker_.GetHost(); }
+  GlicInstance* GetGlicInstance() {
+    return instance_tracker_.GetGlicInstance();
   }
 
   // The first profile.
@@ -308,6 +310,9 @@ class GlicPolicyTest : public PolicyTest {
 
  private:
   GlicTestEnvironment glic_test_environment_;
+
+  GlicInstanceTracker instance_tracker_;
+
   testing::NiceMock<policy::MockConfigurationPolicyProvider>
       policy_for_profile_2_;
 
@@ -577,24 +582,18 @@ IN_PROC_BROWSER_TEST_F(GlicPolicyTest, DisableGlicWhenIsOpen) {
 
   GlicKeyedService* service =
       GlicKeyedServiceFactory::GetGlicKeyedService(profile_1_);
-  ASSERT_FALSE(service->IsWindowShowing());
 
+  GlicInstanceTracker instance_tracker(profile_1_);
   // Show the panel as if the glic button was clicked.
   {
-    base::test::TestFuture<void> wait_for_panel;
-    PanelStateObserver panel_state_observer(mojom::PanelStateKind::kDetached,
-                                            wait_for_panel.GetCallback());
-    service->window_controller().AddGlobalStateObserver(&panel_state_observer);
     service->ToggleUI(/*bwi=*/browser(), /*prevent_close=*/false,
                       /*source=*/mojom::InvocationSource::kOsButton);
 
-    EXPECT_TRUE(wait_for_panel.Wait());
-    service->window_controller().RemoveGlobalStateObserver(
-        &panel_state_observer);
+    ASSERT_TRUE(instance_tracker.WaitForShow());
   }
 
-  ASSERT_TRUE(service->IsWindowShowing());
-
+  ASSERT_TRUE(GetGlicInstance());
+  ASSERT_TRUE(GetGlicInstance()->IsShowing());
   Host* host = GetHost();
   GlicAppStateObserver app_observer(host);
   app_observer.Wait(mojom::WebUiState::kError);
@@ -607,7 +606,9 @@ IN_PROC_BROWSER_TEST_F(GlicPolicyTest, DisableGlicWhenIsOpen) {
     return host->GetPrimaryWebUiState() == mojom::WebUiState::kDisabledByAdmin;
   })) << "Timed out waiting for unavailable state. Current state: "
       << host->GetPrimaryWebUiState();
-  ASSERT_TRUE(service->IsWindowShowing());
+
+  ASSERT_TRUE(GetGlicInstance());
+  ASSERT_TRUE(GetGlicInstance()->IsShowing());
 
 // Flakiness on linux.
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
@@ -617,13 +618,9 @@ IN_PROC_BROWSER_TEST_F(GlicPolicyTest, DisableGlicWhenIsOpen) {
   base::SingleThreadTaskRunner::GetCurrentDefault()->PostDelayedTask(
       FROM_HERE, run_loop.QuitClosure(), base::Milliseconds(1000));
   run_loop.Run();
-  ClickElementWithId(
-      static_cast<GlicWindowControllerImpl&>(service->window_controller())
-          .GetGlicViewForTesting()
-          ->GetWebContents(),
-      "disabledByAdminCloseButton");
+  ClickElementWithId(GetHost()->webui_contents(), "disabledByAdminCloseButton");
   ASSERT_TRUE(base::test::RunUntil([&]() {
-    return !service->IsWindowShowing();
+    return !GetGlicInstance()->IsShowing();
   })) << "Timed out waiting for glic to close";
 #endif
 }

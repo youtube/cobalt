@@ -17,7 +17,6 @@
 #include "third_party/blink/public/platform/platform.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_image_encode_options.h"
-#include "third_party/blink/renderer/core/frame/web_feature.h"
 #include "third_party/blink/renderer/core/html/canvas/canvas_async_blob_creator.h"
 #include "third_party/blink/renderer/core/html/canvas/canvas_rendering_context.h"
 #include "third_party/blink/renderer/core/html/canvas/unique_font_selector.h"
@@ -30,7 +29,6 @@
 #include "third_party/blink/renderer/platform/graphics/unaccelerated_static_bitmap_image.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/heap/thread_state.h"
-#include "third_party/blink/renderer/platform/instrumentation/use_counter.h"
 #include "third_party/skia/include/core/SkSurface.h"
 #include "ui/gfx/geometry/skia_conversions.h"
 
@@ -79,6 +77,15 @@ void CanvasRenderingContextHost::RecordCanvasSizeToUMA() {
       UMA_HISTOGRAM_CUSTOM_COUNTS("Blink.OffscreenCanvas.SqrtNumberOfPixels",
                                   std::sqrt(Size().Area64()), 1, 5000, 100);
       break;
+  }
+}
+
+void CanvasRenderingContextHost::NotifyCachesOfSwitchingFrame() {
+  if (plain_text_painter_) {
+    plain_text_painter_->DidSwitchFrame();
+  }
+  if (unique_font_selector_) {
+    unique_font_selector_->DidSwitchFrame();
   }
 }
 
@@ -192,7 +199,6 @@ PlainTextPainter& CanvasRenderingContextHost::GetPlainTextPainter() {
   if (!plain_text_painter_) {
     plain_text_painter_ =
         MakeGarbageCollected<PlainTextPainter>(PlainTextPainter::kCanvas);
-    UseCounter::Count(GetTopExecutionContext(), WebFeature::kCanvasTextNg);
   }
   return *plain_text_painter_;
 }

@@ -478,6 +478,8 @@ component("net") {
     "device_bound_sessions/session_access.h",
     "device_bound_sessions/session_key.cc",
     "device_bound_sessions/session_key.h",
+    "device_bound_sessions/session_params.cc",
+    "device_bound_sessions/session_params.h",
     "device_bound_sessions/session_usage.h",
     "disk_cache/backend_cleanup_tracker.cc",
     "disk_cache/backend_cleanup_tracker.h",
@@ -1173,8 +1175,8 @@ component("net") {
   deps = [
     ":cronet_buildflags",
     ":net_deps",
-    "//components/miracle_parameter/common",
     "//components/network_time/time_tracker",
+    "//components/unexportable_keys",
     "//net/http:transport_security_state_generated_files",
     "//third_party/simdutf",
   ]
@@ -1273,8 +1275,6 @@ component("net") {
       "device_bound_sessions/session_inclusion_rules.h",
       "device_bound_sessions/session_json_utils.cc",
       "device_bound_sessions/session_json_utils.h",
-      "device_bound_sessions/session_params.cc",
-      "device_bound_sessions/session_params.h",
       "device_bound_sessions/session_service.cc",
       "device_bound_sessions/session_service.h",
       "device_bound_sessions/session_service_impl.cc",
@@ -1293,7 +1293,6 @@ component("net") {
       ":device_bound_sessions_storage_proto",
       "//build:branding_buildflags",
       "//components/sqlite_proto",
-      "//components/unexportable_keys",
       "//sql",
     ]
   }
@@ -1650,6 +1649,7 @@ component("net") {
       "CFNetwork.framework",
       "CoreServices.framework",
       "Foundation.framework",
+      "Network.framework",
       "Security.framework",
       "SystemConfiguration.framework",
       "UniformTypeIdentifiers.framework",
@@ -1820,6 +1820,8 @@ component("net") {
     sources += [
       "disk_cache/sql/cache_entry_key.cc",
       "disk_cache/sql/cache_entry_key.h",
+      "disk_cache/sql/eviction_candidate_aggregator.cc",
+      "disk_cache/sql/eviction_candidate_aggregator.h",
       "disk_cache/sql/exclusive_operation_coordinator.cc",
       "disk_cache/sql/exclusive_operation_coordinator.h",
       "disk_cache/sql/indexed_pair_set.h",
@@ -1830,6 +1832,10 @@ component("net") {
       "disk_cache/sql/sql_entry_impl.h",
       "disk_cache/sql/sql_persistent_store.cc",
       "disk_cache/sql/sql_persistent_store.h",
+      "disk_cache/sql/sql_persistent_store_backend.cc",
+      "disk_cache/sql/sql_persistent_store_backend.h",
+      "disk_cache/sql/sql_persistent_store_backend_shard.cc",
+      "disk_cache/sql/sql_persistent_store_backend_shard.h",
       "disk_cache/sql/sql_persistent_store_in_memory_index.cc",
       "disk_cache/sql/sql_persistent_store_in_memory_index.h",
       "disk_cache/sql/sql_persistent_store_queries.h",
@@ -2478,7 +2484,7 @@ if (use_external_gssapi) {
   # In order for the tests to be reliable, these two targets cannot depend on a
   # valid GSSAPI library. This is easy to achieve on most platforms. But on
   # macOS care must be taken to not depend directly or indirectly on
-  # GSS.framework. This is suprisingly easy to get wrong since
+  # GSS.framework. This is surprisingly easy to get wrong since
   # Security.framework is such a common dependency and it indirectly depends on
   # GSS.
   shared_library("test_gssapi") {
@@ -3173,6 +3179,7 @@ target(_test_target_type, "net_unittests") {
     "//testing/gmock",
     "//testing/gtest",
     "//third_party/abseil-cpp:absl",
+    "//third_party/abseil-cpp:test_support",
     "//third_party/anonymous_tokens:anonymous_tokens_tests",
     "//third_party/perfetto:perfetto_test_support",
     "//third_party/protobuf:protobuf_lite",
@@ -3515,6 +3522,7 @@ target(_test_target_type, "net_unittests") {
   if (enable_disk_cache_sql_backend) {
     sources += [
       "disk_cache/sql/cache_entry_key_unittest.cc",
+      "disk_cache/sql/eviction_candidate_aggregator_unittest.cc",
       "disk_cache/sql/exclusive_operation_coordinator_unittest.cc",
       "disk_cache/sql/indexed_pair_set_unittest.cc",
       "disk_cache/sql/sql_backend_impl_unittest.cc",
@@ -3548,6 +3556,7 @@ if (!is_ios) {
       "extras/sqlite/sqlite_persistent_cookie_store_perftest.cc",
       "http/http_no_vary_search_data_perftest.cc",
       "http/http_request_headers_perftest.cc",
+      "http/no_vary_search_cache_perftest.cc",
       "socket/udp_socket_perftest.cc",
       "spdy/spdy_http_utils_perftest.cc",
       "url_request/url_request_quic_perftest.cc",

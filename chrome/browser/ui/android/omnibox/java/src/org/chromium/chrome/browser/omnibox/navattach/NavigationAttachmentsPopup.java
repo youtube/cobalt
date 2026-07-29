@@ -29,6 +29,8 @@ class NavigationAttachmentsPopup {
     /* package */ Button mGalleryButton;
     /* package */ Button mFileButton;
     /* package */ Button mClipboardButton;
+    /* package */ Button mAiModeButton;
+    /* package */ View mAutocompleteRequestTypeGroup;
     /* package */ TabAttachmentPopupChoicesRecyclerViewAdapter mTabAttachmentsAdapter;
     /* package */ View mRecentTabsHeader;
 
@@ -50,8 +52,7 @@ class NavigationAttachmentsPopup {
         // to determine the minimum child size accurately.
         mPopupWindow.setDesiredContentSize(
                 context.getResources()
-                        .getDimensionPixelSize(
-                                R.dimen.location_bar_navigation_attachments_popup_width),
+                        .getDimensionPixelSize(R.dimen.navigation_attachments_popup_width),
                 0);
         mPopupWindow.setHorizontalOverlapAnchor(true);
         mTabAttachmentView = mContentView.findViewById(R.id.tab_attachment_recycler_view);
@@ -60,6 +61,9 @@ class NavigationAttachmentsPopup {
         mFileButton = mContentView.findViewById(R.id.navigation_attachments_pick_file_button);
         mClipboardButton =
                 mContentView.findViewById(R.id.navigation_attachments_paste_from_clipboard_button);
+        mAiModeButton = mContentView.findViewById(R.id.navigation_attachments_ai_mode_button);
+        mAutocompleteRequestTypeGroup =
+                mContentView.findViewById(R.id.autocomplete_request_type_group);
         mRecentTabsHeader =
                 mContentView.findViewById(R.id.navigation_attachments_recent_tabs_header);
 

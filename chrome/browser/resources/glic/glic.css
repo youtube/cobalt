@@ -24,6 +24,16 @@ body {
   user-select: none;
 }
 
+#glic-app-container {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+#glic-app-container[hidden] {
+  display: none;
+}
+
 webview:not([hidden]) {
   display: block;
   height: 100%;
@@ -40,9 +50,24 @@ webview:not([hidden]) {
   color: var(--color--on-surface);
 }
 
+#localPanels {
+  height: 100%;
+}
+
+#localPanels .dialog {
+  height: 100%;
+}
+
 .dialog .container {
   background: var(--color--surface-container);
   color: var(--color--on-surface-variant);
+}
+
+#localPanels .container {
+  display: flex;
+  flex-direction: column;
+  background: var(--color--surface);
+  height: 100%
 }
 
 #loadingPanel {
@@ -60,7 +85,12 @@ webview:not([hidden]) {
   justify-content: space-between;
 }
 
-#loadingPanel .p1 {
+#loadingPanel #sidePanelLoading .secondline {
+  flex-direction: column;
+  height: 100%;
+}
+
+#loadingPanel #floatingLoading .p1 {
   flex: 1;
   height: 17px;
   margin-right: 60px;
@@ -68,18 +98,65 @@ webview:not([hidden]) {
   border-radius: 5px;
 }
 
-#loadingPanel .p2 {
+#loadingPanel #floatingLoading .p2 {
   height: 16px;
   width: 76px;
   padding: 8px 2px;
   border-radius: 16px;
 }
 
-#loadingPanel .p3 {
+#loadingPanel #floatingLoading .p3 {
   height: 16px;
   width: 28px;
   padding: 8px 2px;
   border-radius: 8px;
+}
+
+#loadingPanel #sidePanelLoading .p1 {
+  height: 17px;
+  width: 78px;
+  margin-top: 4px;
+  border-radius: 12px;
+}
+
+.header-right-align {
+  display: flex;
+}
+
+#loadingPanel #sidePanelLoading .p2 {
+  height: 17px;
+  width: 78px;
+  margin-top: 4px;
+  border-radius: 12px;
+}
+
+.center-group {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+#loadingPanel #sidePanelLoading .p3 {
+  height: 56px;
+  border-radius: 12px;
+  margin-bottom: 23px;
+}
+
+#loadingPanel #sidePanelLoading .p4 {
+  height: 32px;
+  border-radius: 6px;
+  margin-bottom: 8px;
+}
+
+#loadingPanel #sidePanelLoading .p5 {
+  height: 32px;
+  border-radius: 6px;
+}
+
+#loadingPanel #sidePanelLoading .p6 {
+  height: 132px;
+  border-radius: 12px;
 }
 
 .panel .header {
@@ -92,6 +169,14 @@ webview:not([hidden]) {
 
 #loadingPanel .header {
   padding-bottom: 8px;
+}
+
+.floating #sidePanelLoading {
+  display: none;
+}
+
+.sidePanel #floatingLoading {
+  display: none;
 }
 
 .panel .logo {
@@ -116,6 +201,15 @@ webview:not([hidden]) {
   color: var(--color--on-surface);
   border-radius: 10px;
   padding: 12px;
+  text-align: center;
+}
+
+#localPanels .notice {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
 }
 
 .notice .icon {
@@ -151,6 +245,10 @@ webview:not([hidden]) {
   font-size: 14px;
   font-weight: 500;
   margin: 8px 0 4px;
+}
+
+.notice-message {
+  width: 300px;
 }
 
 /* Guest panel contains glic webview. If in the show-header state, a header
@@ -195,7 +293,6 @@ webview:not([hidden]) {
 }
 
 .tonal-button {
-  width: 100%;
   background-color: var(--color--secondary-container);
   color: var(--color--on-secondary-container);
 }
@@ -339,4 +436,15 @@ cr-progress {
   color: var(--cr-fallback-color-primary);
   width: 20px;
   height: 20px;
+}
+
+#fre-app-container .a {
+  width: 90px;
+  height: 45px;
+  border-radius: 48px;
+  align-self: flex-start;
+}
+
+#freLoadingPanel .container {
+  background: var(--color--surface);
 }

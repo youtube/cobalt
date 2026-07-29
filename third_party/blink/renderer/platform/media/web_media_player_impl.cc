@@ -808,6 +808,10 @@ void WebMediaPlayerImpl::BecameDominantVisibleContent(bool is_dominant) {
   is_dominant_visible_content_ = is_dominant;
   if (observer_)
     observer_->OnBecameDominantVisibleContent(is_dominant);
+  if (!watch_time_reporter_) {
+    return;
+  }
+  watch_time_reporter_->OnDominantVisibleContentChanged(is_dominant);
 }
 
 void WebMediaPlayerImpl::SetIsEffectivelyFullscreen(
@@ -1539,8 +1543,8 @@ void WebMediaPlayerImpl::Paint(cc::PaintCanvas* canvas,
   // support OOP-R.
   CHECK(!raster_context_provider_ ||
         raster_context_provider_->ContextCapabilities().gpu_rasterization);
-  video_renderer_.PaintOOPR(video_frame, canvas, flags, paint_params,
-                            raster_context_provider_.get());
+  video_renderer_.Paint(video_frame, canvas, flags, paint_params,
+                        raster_context_provider_.get());
 }
 
 scoped_refptr<media::VideoFrame>
@@ -3498,6 +3502,8 @@ void WebMediaPlayerImpl::CreateWatchTimeReporter() {
   watch_time_reporter_->OnDurationChanged(GetPipelineMediaDuration());
   watch_time_reporter_->OnHdrChanged(
       pipeline_metadata_.video_decoder_config.color_space_info().IsHDR());
+  watch_time_reporter_->OnDominantVisibleContentChanged(
+      is_dominant_visible_content_);
 
   if (delegate_->IsPageHidden()) {
     watch_time_reporter_->OnHidden();
@@ -4116,10 +4122,6 @@ void WebMediaPlayerImpl::ReportSessionUMAs() const {
     uma_name = "Media.EME." + key_system_name_for_uma + ".WaitingForKey";
     base::UmaHistogramBoolean(uma_name, has_waiting_for_key_);
   }
-}
-
-bool WebMediaPlayerImpl::PassedTimingAllowOriginCheck() const {
-  return demuxer_manager_->PassedDataSourceTimingAllowOriginCheck();
 }
 
 void WebMediaPlayerImpl::DidMediaMetadataChange() {

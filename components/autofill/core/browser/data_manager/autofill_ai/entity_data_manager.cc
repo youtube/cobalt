@@ -11,6 +11,7 @@
 #include "base/uuid.h"
 #include "components/autofill/core/browser/data_manager/autofill_ai/entity_instance_cleaner.h"
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_instance.h"
+#include "components/autofill/core/browser/integrators/autofill_ai/metrics/autofill_ai_metrics.h"
 #include "components/autofill/core/browser/permissions/autofill_ai/autofill_ai_permission_utils.h"
 #include "components/autofill/core/browser/strike_databases/autofill_ai/autofill_ai_save_strike_database_by_host.h"
 #include "components/autofill/core/common/autofill_features.h"
@@ -85,6 +86,10 @@ void EntityDataManager::LoadEntities() {
           self->entities_ =
               base::flat_set<EntityInstance, EntityInstance::CompareByGuid>(
                   std::move(result).GetValue());
+          if (!self->entity_data_loaded_) {
+            self->entity_data_loaded_ = true;
+            LogStoredEntitiesCount(self->entities_);
+          }
           self->NotifyEntityInstancesChanged();
         }
       },
@@ -111,8 +116,13 @@ void EntityDataManager::AddOrUpdateEntityInstance(EntityInstance entity) {
 }
 
 void EntityDataManager::RemoveEntityInstance(EntityInstance::EntityId guid) {
+  base::optional_ref<const EntityInstance> entity_instance =
+      GetEntityInstance(guid);
+  if (!entity_instance) {
+    return;
+  }
   webdata_service_->RemoveEntityInstance(
-      std::move(guid),
+      *entity_instance,
       base::BindOnce(
           [](base::WeakPtr<EntityDataManager> self, EntityInstanceChange eic) {
             if (!self) {
@@ -157,7 +167,9 @@ bool EntityDataManager::HasPendingQueries() const {
 }
 
 void EntityDataManager::OnAutofillChangedBySync(syncer::DataType data_type) {
-  if (data_type == syncer::AUTOFILL_VALUABLE && WalletPublicPassesEnabled()) {
+  if ((data_type == syncer::AUTOFILL_VALUABLE && WalletPublicPassesEnabled()) ||
+      (data_type == syncer::AUTOFILL_VALUABLE_METADATA &&
+       base::FeatureList::IsEnabled(syncer::kSyncAutofillValuableMetadata))) {
     LoadEntities();
   }
 }

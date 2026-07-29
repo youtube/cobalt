@@ -10,6 +10,7 @@
 #include "components/autofill/core/browser/field_types.h"
 #include "components/autofill/core/browser/proto/autofill_ai_chrome_metadata.pb.h"
 #include "components/autofill/core/browser/test_utils/autofill_test_utils.h"
+#include "components/sync/protocol/autofill_valuable_metadata_specifics.pb.h"
 #include "components/sync/protocol/autofill_valuable_specifics.pb.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -63,7 +64,10 @@ sync_pb::AutofillValuableSpecifics TestFlightReservationSpecifics() {
 TEST(EntitySyncUtilTest, CreateEntityInstanceFromSpecifics_FlightReservation) {
   sync_pb::AutofillValuableSpecifics specifics =
       TestFlightReservationSpecifics();
-
+  base::Time departure_time;
+  ASSERT_TRUE(base::Time::FromUTCString("2025-01-01", &departure_time));
+  specifics.mutable_flight_reservation()->set_departure_date_unix_epoch_micros(
+      departure_time.InMillisecondsSinceUnixEpoch() * 1000);
   std::optional<EntityInstance> flight_reservation =
       CreateEntityInstanceFromSpecifics(specifics);
 
@@ -90,14 +94,16 @@ TEST(EntitySyncUtilTest, CreateEntityInstanceFromSpecifics_FlightReservation) {
   EXPECT_EQ(GetStringValue(*flight_reservation,
                            AttributeTypeName::kFlightReservationArrivalAirport),
             specifics.flight_reservation().arrival_airport());
+  EXPECT_EQ(GetStringValue(*flight_reservation,
+                           AttributeTypeName::kFlightReservationDepartureDate),
+            "2025-01-01");
   const AttributeInstance& name = *flight_reservation->attribute(
       AttributeType(AttributeTypeName::kFlightReservationPassengerName));
   EXPECT_EQ(name.GetRawInfo(FieldType::NAME_FULL), u"Joe Smith");
   EXPECT_EQ(name.GetVerificationStatus(FieldType::NAME_FULL),
             VerificationStatus::kServerParsed);
-  EXPECT_EQ(
-      test_api(*flight_reservation).frecency_override(),
-      base::TimeFormatAsIso8601(base::Time::FromSecondsSinceUnixEpoch(60)));
+  EXPECT_EQ(test_api(*flight_reservation).frecency_override(),
+            base::TimeFormatAsIso8601(departure_time));
 }
 
 // Tests that the `CreateEntityInstanceFromSpecifics` function correctly
@@ -208,6 +214,52 @@ TEST(EntitySyncUtilTest, CreateSpecificsFromEntityInstance_IsEditable) {
                      EntityInstance::AreAttributesReadOnly(true)}));
     EXPECT_FALSE(specifics.is_editable());
   }
+}
+
+// Tests that the `CreateSpecificsFromEntityMetadata` function correctly
+// converts EntityTable::EntityMetadata to the proto.
+TEST(EntitySyncUtilTest, CreateSpecificsFromEntityMetadata) {
+  EntityInstance::EntityMetadata metadata;
+  metadata.guid = EntityInstance::EntityId("test-valuable-id");
+  // Corresponds to Jan 1, 2025, 00:00:00 UTC
+  metadata.date_modified = base::Time::FromDeltaSinceWindowsEpoch(
+      base::Microseconds(13379000000000000u));
+  metadata.use_count = 5;
+  // Corresponds to Jan 1, 2024, 00:00:00 UTC
+  metadata.use_date = base::Time::FromDeltaSinceWindowsEpoch(
+      base::Microseconds(13347400000000000u));
+
+  sync_pb::AutofillValuableMetadataSpecifics specifics =
+      CreateSpecificsFromEntityMetadata(metadata);
+
+  EXPECT_EQ(specifics.valuable_id(), "test-valuable-id");
+  EXPECT_EQ(specifics.last_modified_date_unix_epoch_micros(),
+            13379000000000000ll);
+  EXPECT_EQ(specifics.use_count(), 5u);
+  EXPECT_EQ(specifics.last_used_date_unix_epoch_micros(), 13347400000000000ll);
+}
+
+// Tests that the `CreateValuableMetadataFromSpecifics` function correctly
+// converts the proto to EntityTable::EntityMetadata.
+TEST(EntitySyncUtilTest, CreateValuableMetadataFromSpecifics) {
+  sync_pb::AutofillValuableMetadataSpecifics specifics;
+  specifics.set_valuable_id("test-valuable-id");
+  // Corresponds to Jan 1, 2025, 00:00:00 UTC
+  specifics.set_last_modified_date_unix_epoch_micros(13379000000000000u);
+  specifics.set_use_count(5);
+  // Corresponds to Jan 1, 2024, 00:00:00 UTC
+  specifics.set_last_used_date_unix_epoch_micros(13347400000000000u);
+
+  EntityInstance::EntityMetadata metadata =
+      CreateValuableMetadataFromSpecifics(specifics);
+
+  EXPECT_EQ(metadata.guid.value(), "test-valuable-id");
+  EXPECT_EQ(metadata.date_modified,
+            base::Time::FromDeltaSinceWindowsEpoch(
+                base::Microseconds(13379000000000000u)));
+  EXPECT_EQ(metadata.use_count, 5u);
+  EXPECT_EQ(metadata.use_date, base::Time::FromDeltaSinceWindowsEpoch(
+                                   base::Microseconds(13347400000000000u)));
 }
 
 }  // namespace

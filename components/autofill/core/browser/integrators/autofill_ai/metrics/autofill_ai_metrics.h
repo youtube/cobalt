@@ -8,6 +8,8 @@
 #include <string_view>
 
 #include "base/containers/flat_map.h"
+#include "components/autofill/core/browser/data_model/autofill_ai/entity_instance.h"
+#include "components/autofill/core/browser/foundations/autofill_client.h"
 
 namespace autofill {
 
@@ -30,7 +32,15 @@ void LogLocalEntitiesDeduplicationMetrics(
         local_entities_considered_for_deduplication_per_type,
     const base::flat_map<EntityType, size_t>& local_entities_dedupled_per_type);
 
+void LogStoredEntitiesCount(base::span<const EntityInstance> entities);
+
 std::string_view EntityTypeToMetricsString(EntityType type);
+
+std::string_view EntityRecordTypeToMetricsString(
+    EntityInstance::RecordType record_type);
+
+std::string_view EntityPromptTypeToMetricsString(
+    AutofillClient::AutofillAiImportPromptType prompt_type);
 
 }  // namespace autofill
 

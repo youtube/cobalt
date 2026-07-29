@@ -6,12 +6,14 @@
 
 #import "base/metrics/histogram_functions.h"
 #import "base/strings/sys_string_conversions.h"
+#import "base/time/time.h"
 #import "components/password_manager/core/browser/password_form.h"
 #import "components/password_manager/core/browser/password_store/password_store_interface.h"
 #import "components/sync/protocol/webauthn_credential_specifics.pb.h"
 #import "components/webauthn/core/browser/passkey_model.h"
 #import "components/webauthn/core/browser/passkey_model_utils.h"
 #import "ios/chrome/browser/credential_provider/model/archivable_credential+password_form.h"
+#import "ios/chrome/browser/credential_provider/model/features.h"
 #import "ios/chrome/common/credential_provider/archivable_credential+passkey.h"
 #import "ios/chrome/common/credential_provider/user_defaults_credential_store.h"
 
@@ -107,10 +109,35 @@ static constexpr char kPasskeysIOSMigration[] = "Passkeys.IOSMigration";
         std::optional<sync_pb::WebauthnCredentialSpecifics>
             credential_specifics =
                 _passkeyStore->GetPasskeyByCredentialId(rpId, credentialId);
+        if (!credential_specifics.has_value()) {
+          continue;
+        }
 
-        if (credential_specifics &&
-            (credential_specifics->last_used_time_windows_epoch_micros() <
-             credential.lastUsedTime)) {
+        if (base::FeatureList::IsEnabled(kCredentialProviderSignalAPI) &&
+            credential_specifics->hidden() != credential.hidden) {
+          // TODO(crbug.com/432260316): Log metrics.
+          // TODO(crbug.com/432260316): Add PasskeyChangeQuotaTracker.
+          if (credential.hidden) {
+            _passkeyStore->HidePasskey(
+                credentialId, base::Time::FromMillisecondsSinceUnixEpoch(
+                                  credential.hiddenTime));
+          } else {
+            _passkeyStore->UnhidePasskey(credentialId);
+          }
+        }
+
+        std::string username = base::SysNSStringToUTF8(credential.username);
+        if (base::FeatureList::IsEnabled(kCredentialProviderSignalAPI) &&
+            credential_specifics->user_name() != username) {
+          _passkeyStore->UpdatePasskey(
+              credentialId,
+              {.user_name = username,
+               .user_display_name = credential_specifics->user_display_name()},
+              /*updated_by_user=*/false);
+        }
+
+        if (credential_specifics->last_used_time_windows_epoch_micros() <
+            credential.lastUsedTime) {
           _passkeyStore->UpdatePasskeyTimestamp(
               credentialId, base::Time::FromDeltaSinceWindowsEpoch(
                                 base::Microseconds(credential.lastUsedTime)));

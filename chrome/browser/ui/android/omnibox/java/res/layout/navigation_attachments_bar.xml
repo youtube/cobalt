@@ -10,18 +10,18 @@ found in the LICENSE file.
 
     <org.chromium.chrome.browser.omnibox.navattach.NavigationAttachmentsRecyclerView
         android:id="@+id/location_bar_attachments"
-        android:visibility="gone"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
+        android:visibility="gone"
         android:orientation="horizontal"
         android:requiresFadingEdge="horizontal"
         android:fadingEdgeLength="8dp"
         android:paddingStart="@dimen/omnibox_suggestion_content_padding"
         android:paddingEnd="@dimen/omnibox_suggestion_content_padding"
+        android:focusable="false"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/url_bar"
-        android:focusable="false"/>
+        app:layout_constraintTop_toBottomOf="@id/url_bar"/>
 
     <!-- Helper group allowing us to toggle all attachment views. -->
     <androidx.constraintlayout.widget.Group
@@ -31,59 +31,56 @@ found in the LICENSE file.
         android:visibility="gone"
         app:constraint_referenced_ids="location_bar_attachments_add"/>
 
-    <org.chromium.ui.widget.ChromeImageButton
+    <org.chromium.ui.widget.ChromeImageView
         android:id="@+id/location_bar_attachments_add"
-        android:layout_width="@dimen/min_touch_target_size"
-        android:layout_height="@dimen/min_touch_target_size"
+        android:layout_width="@dimen/navigation_attachments_button_size"
+        android:layout_height="@dimen/navigation_attachments_button_size"
+        android:padding="@dimen/navigation_attachments_button_padding"
         android:src="@drawable/ic_add_round_24dp"
+        android:scaleType="centerInside"
         android:clickable="true"
         android:focusable="true"
-        android:background="@null"
-        android:foreground="?attr/selectableItemBackgroundBorderless"
+        android:background="?attr/selectableItemBackground"
+        android:clipToOutline="true"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintTop_toBottomOf="@id/location_bar_attachments"
         app:tint="@color/default_icon_color_tint_list"/>
 
-    <org.chromium.ui.widget.ChromeImageButton
+    <org.chromium.ui.widget.ChromeImageView
         android:id="@+id/location_bar_attachments_settings"
-        android:layout_width="@dimen/min_touch_target_size"
-        android:layout_height="@dimen/min_touch_target_size"
+        android:layout_width="@dimen/navigation_attachments_button_size"
+        android:layout_height="@dimen/navigation_attachments_button_size"
+        android:padding="@dimen/navigation_attachments_button_padding"
         android:src="@drawable/ic_settings_tune_24dp"
+        android:scaleType="centerInside"
         android:clickable="true"
         android:focusable="true"
-        android:background="@null"
+        android:background="?attr/selectableItemBackground"
+        android:clipToOutline="true"
         android:visibility="gone"
-        android:foreground="?attr/selectableItemBackgroundBorderless"
         app:layout_constraintStart_toEndOf="@id/location_bar_attachments_add"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintTop_toBottomOf="@id/location_bar_attachments"
         app:tint="@color/default_icon_color_tint_list"/>
 
-    <androidx.constraintlayout.widget.Group
-        android:id="@+id/location_bar_navigation_type_group"
-        android:layout_width="0dp"
-        android:layout_height="0dp"
-        android:visibility="gone"
-        app:constraint_referenced_ids="location_bar_navigation_type_label,location_bar_navigation_type"/>
-
-    <TextView
-        android:id="@+id/location_bar_navigation_type_label"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:text="@string/ai_mode_entrypoint_label"
-        android:textAppearance="@style/TextAppearance.TextSmall"
-        app:layout_constraintEnd_toStartOf="@id/location_bar_navigation_type"
-        app:layout_constraintTop_toTopOf="@id/location_bar_navigation_type"
-        app:layout_constraintBottom_toBottomOf="@id/location_bar_navigation_type"/>
-
-    <androidx.appcompat.widget.SwitchCompat
-        android:id="@+id/location_bar_navigation_type"
+    <org.chromium.ui.widget.ButtonCompat
+        style="@style/OutlinedButton"
+        android:id="@+id/navigation_attachments_request_type"
         android:layout_width="wrap_content"
         android:layout_height="@dimen/min_touch_target_size"
-        app:layout_constraintEnd_toEndOf="parent"
+        android:drawableStart="@drawable/search_spark_black_24dp"
+        android:drawableEnd="@drawable/btn_close"
+        android:drawablePadding="8dp"
+        android:visibility="gone"
+        android:singleLine="true"
+        android:textAlignment="viewStart"
+        android:textAppearance="@style/TextAppearance.TextSmall"
+        app:layout_constraintStart_toEndOf="@id/location_bar_attachments_settings"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintTop_toBottomOf="@id/location_bar_attachments"
-        />
+        app:buttonColor="@color/gm3_baseline_surface_container"
+        app:drawableTint="?attr/colorPrimary"
+        app:buttonTextColor="@null"/>
 
 </merge>

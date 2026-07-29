@@ -72,19 +72,6 @@ const char kWebViewSelectiveImageInversionDarkening[] =
 // Enables FencedFrames. This also enables PrivacySandboxAdsAPIsOverride.
 const char kWebViewFencedFrames[] = "webview-fenced-frames";
 
-// Enables downloading TpcdMetadataComponentInstallerPolicy by the component
-// updater downloading service in nonembedded WebView.
-const char kWebViewTpcdMetadaComponent[] = "webview-tpcd-metadata-component";
-
-// Enables downloading FirstPartySetsComponentInstallerPolicy by the component
-// updater downloading service in nonembedded WebView.
-const char kWebViewFpsComponent[] = "webview-fps-component";
-
-// Enables downloading MaskedDomainListComponentInstallerPolicy by the component
-// updater downloading service in nonembedded WebView.
-const char kWebViewMaskedDomainListComponent[] =
-    "webview-masked-domain-list-component";
-
 // Force disables 3rd party cookie for all apps.
 const char kWebViewForceDisable3pcs[] = "webview-force-disable-3pcs";
 
@@ -124,6 +111,12 @@ const char kWebViewUseStartupTasksLogicP2[] =
 // WebViewUseStartupTasksLogicP2, with minor additions.
 const char kWebViewStartupTasksYieldToNative[] =
     "webview-startup-tasks-yield-to-native";
+
+// Enables running native startup tasks asynchronously if WebView startup is
+// asynchronous in addition to preventing multiprocess enabled checks from
+// starting chromium.
+const char kWebViewStartupTasksPlusMultiProcess[] =
+    "webview-startup-tasks-plus-multi-process";
 
 const char kStartupNonBlockingWebViewConstructor[] =
     "startup-non-blocking-webview-constructor";

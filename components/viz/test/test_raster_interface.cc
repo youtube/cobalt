@@ -59,7 +59,6 @@ void TestRasterInterface::GenQueriesEXT(GLsizei n, GLuint* queries) {
 void TestRasterInterface::DeleteQueriesEXT(GLsizei n, const GLuint* queries) {}
 void TestRasterInterface::BeginQueryEXT(GLenum target, GLuint id) {}
 void TestRasterInterface::EndQueryEXT(GLenum target) {}
-void TestRasterInterface::QueryCounterEXT(GLuint id, GLenum target) {}
 
 void TestRasterInterface::GetQueryObjectuivEXT(GLuint id,
                                                GLenum pname,
@@ -68,22 +67,6 @@ void TestRasterInterface::GetQueryObjectuivEXT(GLuint id,
   if (pname == GL_QUERY_RESULT_AVAILABLE_EXT ||
       pname == GL_QUERY_RESULT_AVAILABLE_NO_FLUSH_CHROMIUM_EXT) {
     *params = 1;
-  }
-}
-
-void TestRasterInterface::GetQueryObjectui64vEXT(GLuint id,
-                                                 GLenum pname,
-                                                 GLuint64* params) {
-  // This is used for testing GL_COMMANDS_ISSUED_TIMESTAMP_QUERY, so we return
-  // the maximum that base::TimeDelta()::InMicroseconds() could return.
-  if (pname == GL_QUERY_RESULT_EXT) {
-    static_assert(std::is_same<decltype(base::TimeDelta().InMicroseconds()),
-                               int64_t>::value,
-                  "Expected the return type of "
-                  "base::TimeDelta()::InMicroseconds() to be int64_t");
-    *params = std::numeric_limits<int64_t>::max();
-  } else {
-    NOTREACHED();
   }
 }
 

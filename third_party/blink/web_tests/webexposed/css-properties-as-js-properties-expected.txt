@@ -140,6 +140,7 @@ columnRuleBreak
 columnRuleColor
 columnRuleOutset
 columnRuleStyle
+columnRuleVisibilityItems
 columnRuleWidth
 columnSpan
 columnWidth
@@ -423,6 +424,7 @@ rowRuleBreak
 rowRuleColor
 rowRuleOutset
 rowRuleStyle
+rowRuleVisibilityItems
 rowRuleWidth
 rubyAlign
 rubyOverhang
@@ -522,6 +524,7 @@ textEmphasisPosition
 textEmphasisStyle
 textGrow
 textIndent
+textJustify
 textOrientation
 textOverflow
 textRendering

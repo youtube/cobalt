@@ -281,6 +281,7 @@ class IdleManagerImpl;
 class NavigationEarlyHintsManager;
 class NavigationRequest;
 class PeerConnectionTrackerHost;
+class PendingNavigation;
 class PrefetchedSignedExchangeCache;
 class PrerenderCancellationReason;
 class PresentationServiceImpl;
@@ -300,7 +301,6 @@ class SiteInfo;
 class SpeechSynthesisImpl;
 class WebAuthRequestSecurityChecker;
 class WebUIImpl;
-struct PendingNavigation;
 struct ResourceTimingInfo;
 
 // To be called when a RenderFrameHostImpl receives an event.
@@ -1538,6 +1538,7 @@ class CONTENT_EXPORT RenderFrameHostImpl
       // The number of observed cookie modifications.
       int64_t cookie_modification_count = 0;
       int64_t http_only_cookie_modification_count = 0;
+      int64_t non_http_only_cookie_modification_count = 0;
       // The number of observed cookie modifications that should be removed
       // since we want to adjust the count by subtracting the number of cookie
       // modification from the navigation itself.
@@ -2691,7 +2692,7 @@ class CONTENT_EXPORT RenderFrameHostImpl
   void DraggableRegionsChanged(
       std::vector<blink::mojom::DraggableRegionPtr> regions) override;
   void NotifyDocumentInteractive() override;
-  void OnFirstContentfulPaint(base::TimeDelta load_time) override;
+  void OnFirstContentfulPaint(base::TimeDelta duration) override;
   void NotifyFirstContentfulPaint();
   void SetStorageAccessApiStatus(net::StorageAccessApiStatus status) override;
 
@@ -3222,14 +3223,6 @@ class CONTENT_EXPORT RenderFrameHostImpl
   // and if its closest fenced frame root ancestor and all nested fenced frame
   // roots have disabled untrusted network access.
   bool CanReadFromSharedStorage();
-
-  // Returns true if this RFH's compositor should be reused by a speculative
-  // RFH with the `speculative_site_instance`.
-  // Returns false if the speculative RFH should initialize a new compositor.
-  bool ShouldReuseCompositing(
-      SiteInstanceImpl& speculative_site_instance) const;
-
-  void NotifyWillCreateRenderWidgetOnCommit();
 
   // If this RenderFrameHost is a local root (i.e., either the main frame or a
   // subframe in a different process than its parent), this returns the
@@ -5531,10 +5524,6 @@ class CONTENT_EXPORT RenderFrameHostImpl
 
   // Listens for changes to DeviceBoundSessions on this page.
   std::unique_ptr<DeviceBoundSessionObserver> device_bound_session_observer_;
-
-  // If true, the renderer side widget is created after the navigation is
-  // committed.
-  bool waiting_for_renderer_widget_creation_after_commit_ = false;
 
   // Deferred shared storage operations to run after navigation commit in the
   // event of a race between navigation and subresource request(s).

@@ -9,9 +9,10 @@ import androidx.annotation.VisibleForTesting;
 import org.chromium.base.ResettersForTesting;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
-import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.profiles.Profile;
+import org.chromium.chrome.browser.url_constants.UrlConstantResolver.PreNativeGurlHolder;
 import org.chromium.components.embedder_support.util.UrlConstants;
+import org.chromium.url.GURL;
 
 /**
  * This factory creates and keeps a single ExtensionsUrlOverrideRegistryManager for incognito
@@ -19,6 +20,12 @@ import org.chromium.components.embedder_support.util.UrlConstants;
  */
 @NullMarked
 public class UrlConstantResolverFactory {
+    private static final String SERIALIZED_NATIVE_NTP_URL =
+            "82,1,true,0,13,0,-1,0,-1,16,6,0,-1,22,1,0,-1,0,-1,false,false,chrome-native://newtab/";
+    private static final String SERIALIZED_NTP_URL =
+            "73,1,true,0,6,0,-1,0,-1,9,6,0,-1,15,1,0,-1,0,-1,false,false,chrome://newtab/";
+
+    private static @Nullable PreNativeGurlHolder sPreNativeNtpGurl;
     private static @Nullable UrlConstantResolver sOriginalResolver;
     private static @Nullable UrlConstantResolver sIncognitoResolver;
     private static @Nullable UrlConstantResolver sResolverForTesting;
@@ -31,21 +38,29 @@ public class UrlConstantResolverFactory {
             return sResolverForTesting;
         }
 
-        if (profile == null || !profile.isIncognitoBranded()) {
+        if (profile == null || !profile.isOffTheRecord()) {
             return getOriginalResolver();
         }
 
         return getIncognitoResolver();
     }
 
-    private static UrlConstantResolver getOriginalResolver() {
+    /**
+     * Returns the resolver associated with the primary profile. Should be used for pre-native
+     * functionality.
+     */
+    public static UrlConstantResolver getOriginalResolver() {
         if (sOriginalResolver == null) {
             sOriginalResolver = buildOriginalResolver();
         }
         return sOriginalResolver;
     }
 
-    private static UrlConstantResolver getIncognitoResolver() {
+    /**
+     * Returns the resolver associated with the incognito profile. Should be used for pre-native
+     * functionality.
+     */
+    public static UrlConstantResolver getIncognitoResolver() {
         if (sIncognitoResolver == null) {
             sIncognitoResolver = buildIncognitoResolver();
         }
@@ -54,7 +69,7 @@ public class UrlConstantResolverFactory {
 
     private static UrlConstantResolver buildOriginalResolver() {
         UrlConstantResolver resolver = new UrlConstantResolver();
-        if (!ChromeFeatureList.sChromeNativeUrlOverriding.isEnabled()) return resolver;
+        resolver.registerPreNativeGurl(UrlConstants.NTP_URL, getPreNativeNtpGurlHolder());
 
         resolver.registerOverride(
                 UrlConstants.NTP_URL,
@@ -79,7 +94,7 @@ public class UrlConstantResolverFactory {
 
     private static UrlConstantResolver buildIncognitoResolver() {
         UrlConstantResolver resolver = new UrlConstantResolver();
-        if (!ChromeFeatureList.sChromeNativeUrlOverriding.isEnabled()) return resolver;
+        resolver.registerPreNativeGurl(UrlConstants.NTP_URL, getPreNativeNtpGurlHolder());
 
         resolver.registerOverride(
                 UrlConstants.NTP_URL,
@@ -105,5 +120,22 @@ public class UrlConstantResolverFactory {
     public static void resetResolvers() {
         sOriginalResolver = null;
         sIncognitoResolver = null;
+    }
+
+    private static PreNativeGurlHolder getPreNativeNtpGurlHolder() {
+        if (sPreNativeNtpGurl == null) {
+            sPreNativeNtpGurl = buildPreNativeNtpGurlHolder();
+        }
+        return sPreNativeNtpGurl;
+    }
+
+    private static PreNativeGurlHolder buildPreNativeNtpGurlHolder() {
+        return new PreNativeGurlHolder(
+                deserializeGurlString(SERIALIZED_NATIVE_NTP_URL),
+                deserializeGurlString(SERIALIZED_NTP_URL));
+    }
+
+    private static GURL deserializeGurlString(String serializedGurl) {
+        return GURL.deserializeLatestVersionOnly(serializedGurl.replace(',', '\0'));
     }
 }

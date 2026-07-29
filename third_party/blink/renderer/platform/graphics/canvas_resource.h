@@ -6,7 +6,6 @@
 
 #include "base/check_op.h"
 #include "base/dcheck_is_on.h"
-#include "base/memory/raw_ptr.h"
 #include "base/memory/shared_memory_mapping.h"
 #include "base/memory/weak_ptr.h"
 #include "base/notreached.h"
@@ -101,11 +100,6 @@ class PLATFORM_EXPORT CanvasResource
   // resource maybe used for reads on any thread, it can be written to only on
   // the thread where it was created.
   virtual void Transfer() {}
-
-  // Updates the sync token if necessary to indicate when all writes to the
-  // current resource are finished on the GPU thread. Note that the token is not
-  // guaranteed to be verified at the time of calling this method.
-  virtual void GetSyncToken() = 0;
 
   // Provides a TransferableResource representation of this resource to share it
   // with the compositor.
@@ -221,9 +215,8 @@ class PLATFORM_EXPORT CanvasResourceSharedImage final : public CanvasResource {
   // zero-parameter variant of WaitSyncToken().
   void WaitSyncToken(const gpu::SyncToken&) override;
 
-  // Wait on the saved |sync_token_|.
-  void WaitSyncToken();
-  void GetSyncToken() override;
+  std::unique_ptr<gpu::RasterScopedAccess> BeginAccess(bool readonly);
+  void EndAccess(std::unique_ptr<gpu::RasterScopedAccess> access);
 
   void NotifyResourceLost() final;
 
@@ -334,7 +327,7 @@ class PLATFORM_EXPORT ExternalCanvasResource final : public CanvasResource {
     return client_si_;
   }
   void WaitSyncToken(const gpu::SyncToken&) override;
-  void GetSyncToken() override;
+  void GetSyncToken();
 
   scoped_refptr<StaticBitmapImage> Bitmap() override;
 
@@ -399,7 +392,6 @@ class PLATFORM_EXPORT CanvasResourceSwapChain final : public CanvasResource {
   const scoped_refptr<gpu::ClientSharedImage>& GetClientSharedImage()
       const override;
   void WaitSyncToken(const gpu::SyncToken&) override;
-  void GetSyncToken() override;
 
  private:
   bool UsesAcceleratedRaster() const final { return true; }

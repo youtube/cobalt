@@ -80,9 +80,9 @@ const base::FeatureParam<double> kCsdCreditCardFormHCAcceptanceRate{
 const base::FeatureParam<double> kCsdCreditCardFormSampleRate{
     &kClientSideDetectionCreditCardForm, "SampleRate",
     /*default_value=*/0.0};
-const base::FeatureParam<int> kCsdCreditCardFormMaxSiteEngagement{
-    &kClientSideDetectionCreditCardForm, "MaxSiteEngagement",
-    /*default_value=*/1000};
+const base::FeatureParam<int> kCsdCreditCardFormMaxUserVisit{
+    &kClientSideDetectionCreditCardForm, "MaxUserVisit",
+    /*default_value=*/1};
 
 BASE_FEATURE(kClientSideDetectionForcedLlamaRedirectChainKillswitch,
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -174,9 +174,9 @@ BASE_FEATURE(kEnterprisePasswordReuseUiRefresh,
 
 BASE_FEATURE(kEsbAsASyncedSetting,
 #if BUILDFLAG(IS_ANDROID)
-             base::FEATURE_DISABLED_BY_DEFAULT
-#else
              base::FEATURE_ENABLED_BY_DEFAULT
+#else
+             base::FEATURE_DISABLED_BY_DEFAULT
 #endif
 );
 
@@ -267,9 +267,10 @@ constexpr base::FeatureParam<std::string>
                                                  /*default_value=*/""};
 #endif
 
-BASE_FEATURE(kModifiedESBFetchErrorHandling,
-             "ModifiedESBFetchErrorHandling",
-             base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(kModifiedESBFetchErrorHandling, base::FEATURE_ENABLED_BY_DEFAULT);
+
+BASE_FEATURE(kMovePasswordLeakDetectionToggleIos,
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kNotificationTelemetry, base::FEATURE_ENABLED_BY_DEFAULT);
 
@@ -291,6 +292,9 @@ constexpr base::FeatureParam<std::string> kRedWarningSurveyReportTypeFilter{
 constexpr base::FeatureParam<std::string> kRedWarningSurveyDidProceedFilter{
     &kRedWarningSurvey, "RedWarningSurveyDidProceedFilter",
     /*default_value=*/"TRUE,FALSE"};
+
+BASE_FEATURE(kRelaunchNotificationForAdvancedProtection,
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kReportNotificationContentDetectionData,
              base::FEATURE_ENABLED_BY_DEFAULT);

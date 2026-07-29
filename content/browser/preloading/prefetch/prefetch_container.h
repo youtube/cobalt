@@ -38,6 +38,7 @@ class Origin;
 namespace content {
 
 class PrefetchKey;
+class PrefetchMatchResolverAction;
 class PrefetchNetworkContext;
 class PrefetchRequest;
 class PrefetchResponseReader;
@@ -230,20 +231,27 @@ class CONTENT_EXPORT PrefetchContainer {
     // prefetching state and servability.
     //
     // - `kStarted`: Prefetch is started.
-    // - `kDeterminedHead`: `PrefetchContainer::OnDeterminedHead()` is called.
+    // - `kDeterminedHead` or `kFailedDeterminedHead`:
+    //   `PrefetchContainer::OnDeterminedHead()` is called.
     //   `Observer::OnDeterminedHead()` is called after transitioning to this
-    //   state.
-    // - [Final state] `kCompletedOrFailed`:
-    //   `PrefetchContainer::OnPrefetchComplete()` is called.
+    //   state. They will eventually transition to `kCompleted` or `kFailed`,
+    //   respectively (except for the cases where no state transitions occur,
+    //   which should be fixed by https://crbug.com/400761083).
+    //   TODO(https://crbug.com/400761083): Probably we should make these
+    //   `PrefetchContainer::LoadState`s directly correspond to
+    //   `PrefetchResponseReader::LoadState`s. One scenario where currently
+    //   these two `LoadState`s temporarily mismatch is: when
+    //   `PrefetchResponseReader::LoadState` transitions directly from
+    //   `kStarted` to `kFailed`, `PrefetchContainer::LoadState` transitions to
+    //   `kFailedDeterminedHead` and then immediately to `kFailed`, in order to
+    //   align `PrefetchContainer::LoadState` and
+    //   `PrefetchContainer::Observer` calls. Revisit this later.
+    // - [Final state] `kCompleted` or `kFailed`:
+    //   `PrefetchContainer::OnPrefetchComplete()` is called, and its
+    //   `PrefetchResponseReader::LoadState` is `kCompleted` or `kFailed`,
+    //   respectively.
     //   `Observer::OnPrefetchCompletedOrFailed()` is called after transitioning
     //   to this state.
-    //
-    // Currently the distinction between these three states is introduced for
-    // CHECK()ing the calling order of `OnDeterminedHead()` and
-    // `OnPrefetchComplete()` (for https://crbug.com/400761083) and shouldn't be
-    // used for
-    // other purposes (i.e. these three enum values should behave in the same
-    // way).
     //
     // TODO(https://crbug.com/432518638): Make more strict association with
     // `PrefetchContainer::LoadState` and `PrefetchResponseReader::LoadState`
@@ -258,7 +266,9 @@ class CONTENT_EXPORT PrefetchContainer {
     // `kServable` even if `request().attempt()` has a failure).
     kStarted,
     kDeterminedHead,
-    kCompletedOrFailed,
+    kFailedDeterminedHead,
+    kCompleted,
+    kFailed,
 
     // [Final state] Heldback due to `PreloadingAttempt::ShouldHoldback()`.
     kFailedHeldback,
@@ -353,16 +363,17 @@ class CONTENT_EXPORT PrefetchContainer {
   // navigations.
   bool HasPrefetchBeenConsideredToServe() const;
 
-  // Called when |PrefetchService::OnPrefetchComplete| is called for the
-  // prefetch. This happens when |loader_| fully downloads the requested
-  // resource.
+  // See `OnPrefetchResponseCompletedCallback`.
   void OnPrefetchComplete(
+      bool is_success,
       const network::URLLoaderCompletionStatus& completion_status);
 
   // Note: Even if this returns `kServable`, `CreateRequestHandler()` can still
   // fail (returning null handler) due to final checks. See also the comment for
   // `PrefetchResponseReader::CreateRequestHandler()`.
   PrefetchServableState GetServableState(
+      base::TimeDelta cacheable_duration) const;
+  PrefetchMatchResolverAction GetMatchResolverAction(
       base::TimeDelta cacheable_duration) const;
 
   // Starts blocking `PrefetchMatchResolver` until non-redirect response header
@@ -381,7 +392,7 @@ class CONTENT_EXPORT PrefetchContainer {
   //
   // This method must be called at most once in the lifecycle of
   // `PrefetchContainer`.
-  void OnDeterminedHead();
+  void OnDeterminedHead(bool is_successful_determined_head);
   // Unblocks waiting `PrefetchMatchResolver`.
   //
   // This method can be called multiple times.
@@ -642,6 +653,9 @@ class CONTENT_EXPORT PrefetchContainer {
   // `OnPrefetchCompleteInternal()`.
   void OnPrefetchCompleteInternal(
       const network::URLLoaderCompletionStatus& completion_status);
+
+  PrefetchServableState GetServableStateInternal(
+      base::TimeDelta cacheable_duration) const;
 
   // The prefetch request parameters of the very first initiator/requester of
   // this prefetch at the time of request creation.

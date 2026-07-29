@@ -348,7 +348,7 @@
         "default": "",
       },
       origin_trial_feature_name: "AIPromptAPIMultimodalInput",
-      origin_trial_os: ["win", "mac", "linux"],
+      origin_trial_os: ["win", "mac", "linux", "chromeos"],
       origin_trial_allows_third_party: true,
       implied_by: ["AIPromptAPIMultimodalInput"],
     },
@@ -378,7 +378,7 @@
         "default": "",
       },
       origin_trial_feature_name: "AIPromptAPIMultimodalInput",
-      origin_trial_os: ["win", "mac", "linux"],
+      origin_trial_os: ["win", "mac", "linux", "chromeos"],
       origin_trial_allows_third_party: true,
       base_feature_status: "enabled",
       copied_from_base_feature_if: "overridden",
@@ -399,7 +399,7 @@
         "default": "",
       },
       origin_trial_feature_name: "AIProofreaderAPI",
-      origin_trial_os: ["win", "mac", "linux"],
+      origin_trial_os: ["win", "mac", "linux", "chromeos"],
       origin_trial_allows_third_party: true,
       base_feature_status: "enabled",
       copied_from_base_feature_if: "overridden",
@@ -414,7 +414,7 @@
         "default": "",
       },
       origin_trial_feature_name: "AIRewriterAPI",
-      origin_trial_os: ["win", "mac", "linux"],
+      origin_trial_os: ["win", "mac", "linux", "chromeos"],
       origin_trial_allows_third_party: true,
       base_feature_status: "enabled",
       copied_from_base_feature_if: "overridden",
@@ -447,7 +447,7 @@
         "default": "",
       },
       origin_trial_feature_name: "AIWriterAPI",
-      origin_trial_os: ["win", "mac", "linux"],
+      origin_trial_os: ["win", "mac", "linux", "chromeos"],
       origin_trial_allows_third_party: true,
       base_feature_status: "enabled",
       copied_from_base_feature_if: "overridden",
@@ -538,6 +538,7 @@
       // https://drafts.csswg.org/web-animations-2/#triggers
       name: "AnimationTrigger",
       status: "experimental",
+      implied_by: ["EventTrigger", "TimelineTrigger"],
     },
     {
       name: "AnimationWorklet",
@@ -556,6 +557,20 @@
       public: true,
       status: "experimental",
       depends_on: ["AOMAriaRelationshipProperties"],
+    },
+    {
+      // appearance:base for in-page form controls.
+      // https://drafts.csswg.org/css-forms-1/
+      // https://issues.chromium.org/issues/450139531
+      // https://chromestatus.com/feature/5104958101913600
+      name: "AppearanceBase",
+      status: "experimental",
+    },
+    {
+      name: "ApproximateGeolocationPermission",
+      // This feature is controlled by the kApproximateGeolocationPermission
+      // base::Feature in the browser process.
+      base_feature: "none",
     },
     {
       name: "AppTitle",
@@ -693,13 +708,6 @@
       status: "stable",
     },
     {
-      // Used to enable Blink side of features flags for Default Nav Transition.
-      name: "BackForwardTransitions",
-      status: {
-        "Android": "stable",
-      },
-    },
-    {
       name: "BackgroundFetch",
       public: true,
       status: "stable",
@@ -771,7 +779,7 @@
     // https://chromestatus.com/feature/5176753681203200
     {
       name: "BorderRadiusCorrectionCoverageFactor",
-      status: "test",
+      status: "stable",
     },
     // crbug.com/1147998: Mouse and Pointer boundary event dispatch (i.e. dispatch
     // of enter, leave, over, out events) tracks DOM node removal to fix event
@@ -909,6 +917,11 @@
     {
       // crbug.com/389726691.
       name: "CanvasTextMemoryPressure",
+      status: "stable",
+    },
+    {
+      // crbug.com/450531794.
+      name: "CanvasTextSwitchFrameOnFinalize",
       status: "stable",
     },
     {
@@ -1062,7 +1075,21 @@
       name: "CollectWidthAndHeightAsStylesForNestedSvg",
       status: "stable",
     },
+    // Enable the display-p3-linear color space in CSS.
+    // https://chromestatus.com/feature/5162372125818880
+    {
+      name: "ColorSpaceDisplayP3Linear",
+      status: "experimental",
+    },
+    // Enable the srgb-linear and display-p3-linear color spaces in
+    // PredefinedColorSpace.
+    // https://chromestatus.com/feature/5122501071994880
+    {
+      name: "ColorSpacePredefinedLinearSpaces",
+      status: "experimental",
+    },
     // Enable the rec2100-linear color space in CSS and PredefinedColorSpace.
+    // https://chromestatus.com/feature/5204024772788224
     {
       name: "ColorSpaceRec2100Linear",
       status: "experimental",
@@ -1685,6 +1712,11 @@
       status: "stable",
     },
     {
+      // crbug.com/40321528
+      name: "CssTextJustify",
+      status: "test",
+    },
+    {
       // crbug.com/1463890, crbug.com/1463891: CSS `text-spacing` shorthand
       name: "CSSTextSpacing",
       depends_on: ["CSSTextAutoSpace"],
@@ -2073,11 +2105,6 @@
       status: "experimental",
     },
     {
-      // See: crbug.com/420857717
-      name: "EmojiMonochromeRendering",
-      status: "experimental"
-    },
-    {
       name: "EmphasisMarkShapeCache",
       status: "stable",
     },
@@ -2089,6 +2116,12 @@
       // See: crbug.com/40771555
       name: "EnterInOpenShadowRoots",
       status: "stable",
+    },
+    // When enabled, the LCP algorithm ignores image entropy for the first
+    // video frame. See crbug.com/434659232.
+    {
+      name: "EntropyIgnoredForFirstVideoFrameLCP",
+      status: "experimental",
     },
     {
       // `event.pseudoTarget` property to represent pseudo-elements in events. Returns `CSSPseudoElement` or null.
@@ -2107,6 +2140,11 @@
     },
     {
       name: "EventTimingTargetSelector",
+      status: "experimental",
+    },
+    {
+      // https://drafts.csswg.org/web-animations-2/#triggers
+      name: "EventTrigger",
       status: "experimental",
     },
     {
@@ -2563,10 +2601,6 @@
       status: "stable",
     },
     {
-      name: "FontSystemFallbackNotoCjk",
-      status: "stable",
-    },
-    {
       // crbug.com/40398871
       name: "FontVariationSettingsDescriptor",
       status: "stable",
@@ -2621,7 +2655,7 @@
     },
     {
       name: "GamepadWindowEventHandlers",
-      status: "experimental",
+      status: "stable",
     },
     {
       // Tracking bug for the implementation: https://crbug.com/430204832
@@ -2750,15 +2784,6 @@
     {
       name: "HTMLCommandActionsV2",
       status: "test",
-    },
-    // Adds support for `command=toggle-interest`, for use by the command
-    // invokers API, targeting an interest invoker (with `interestfor`). This is
-    // a sub-feature of the HTMLInterestForAttribute feature.
-    // https://open-ui.org/components/interest-invokers.explainer/
-    {
-      name: "HTMLCommandActionToggleInterest",
-      status: "experimental",
-      depends_on: ["HTMLInterestForAttribute"],
     },
     // Adds support for the 'request-close' command.
     // https://open-ui.org/components/invokers.explainer/
@@ -3844,7 +3869,7 @@
       // Used to allow preloading data: URLs with link rel=preload.
       // https://crbug.com/348442535
       name: "PreloadLinkRelDataUrls",
-      status: "experimental",
+      status: "stable",
     },
     {
       // Used to allow chrome://flags to turn off prerendering. (Without using
@@ -4021,25 +4046,6 @@
       base_feature: "none",
     },
     {
-      // If enabled, the amount of RAM reported through the `Navigator`
-      // interface will be hard-coded to 8gb.
-      name: "ReduceDeviceMemory",
-      settable_from_internals: true,
-    },
-    {
-      // If enabled, the number of CPU cores reported through the `Navigator`
-      // interface will be hard-coded to 8.
-      name: "ReduceHardwareConcurrency",
-      settable_from_internals: true,
-    },
-    {
-      // If enabled, the screen sizes reported through the `Screen` interface
-      // will be limited to the size of the viewport unless Window Management
-      // permission has been granted.
-      name: "ReduceScreenSize",
-      settable_from_internals: true,
-    },
-    {
       // If enabled, the deviceModel will be reduced to "K" and the
       // androidVersion will be reduced to a static "10" string in android
       // User-Agent string.
@@ -4051,7 +4057,7 @@
     // This feature is limited to Linux only.
     {
       name: "ReduceUserAgentDataLinuxPlatformVersion",
-      status: {"Linux": "stable"},
+      status: {"Linux": "experimental"},
     },
     // If enabled, the minor version of the User-Agent string will be reduced.
     // This User-Agent Reduction feature has been enabled starting from M101,
@@ -4189,7 +4195,7 @@
     },
     {
       name: "ResourceTimingContentEncoding",
-      status: "experimental",
+      status: "stable",
     },
     {
       name: "ResourceTimingContentType",
@@ -4342,7 +4348,8 @@
     {
       // https://github.com/WICG/view-transitions/blob/main/scoped-transitions.md
       name: "ScopedViewTransitions",
-      status: "experimental"
+      depends_on: ["CSSAnchorWithTransforms", "OriginatingElementIsImplicitAnchor"],
+      status: "experimental",
     },
     {
       // https://github.com/w3c/window-management/issues/149
@@ -4370,10 +4377,6 @@
     },
     {
       name: "ScriptRunIteratorCombiningMarks",
-    },
-    {
-      name: "ScriptTools",
-      status: "experimental",
     },
     {
       name: "ScrollAnchorPriorityCandidateSubtree",
@@ -4486,6 +4489,14 @@
       },
     },
     {
+      // Replicates old behavior which removes selectedness from option
+      // elements when they are all removed from a select at the same time.
+      // https://issues.chromium.org/issues/444330901
+      // Enabled in M142, can be removed in M145.
+      name: "SelectChildrenRemovedFix",
+      status: "stable",
+    },
+    {
       // The selectedcontentelement attribute is for connecting select elements
       // to arbitrary <selectedcontent> elements.
       // https://github.com/openui/open-ui/issues/1063
@@ -4497,6 +4508,10 @@
       // Disabled due to UI freeze issues, see https://crbug.com/448833953.
       name: "SelectionAndFocusedVisiblePositionMatch",
       status: "experimental",
+    },
+    {
+      name: "SelectionCollapsedDirectionNone",
+      status: "stable",
     },
     {
       // Killswitch M141.
@@ -4836,6 +4851,10 @@
       name: "Svg2Cascade",
     },
     {
+      name: "SvgAnchorElementAttributes",
+      status: "experimental",
+    },
+    {
       name: "SvgAnchorElementDownloadAttribute",
       status: "stable",
     },
@@ -5095,6 +5114,11 @@
       name: "ThirdPartyStoragePartitioningUserBypass",
       browser_process_read_write_access: true,
       base_feature: "none",
+    },
+    {
+      // https://drafts.csswg.org/web-animations-2/#triggers
+      name: "TimelineTrigger",
+      status: "experimental",
     },
     {
       name: "TimerThrottlingForBackgroundTabs",
@@ -5372,7 +5396,7 @@
     {
       // Fix for https://crbug.com/354497121
       name: "UseSpecValuesInTextFormatUpdateEventStyles",
-      status: "test"
+      status: "stable"
     },
     {
       name: "UseUndoStepElementDispatchBeforeInput",
@@ -5423,15 +5447,11 @@
       status: "stable",
     },
     {
-      name: "ViewTransitionAnimationDelayInherit",
-      status: "stable",
-    },
-    {
       name: "ViewTransitionAsyncFinished",
       status: "stable",
     },
     {
-      name: "ViewTransitionInheritAnimationProperties",
+      name: "ViewTransitionHoistBackdropFilterEffect",
       status: "stable",
     },
     {
@@ -5722,14 +5742,24 @@
     },
     {
       name: "WebIdentityDigitalCredentialsCreation",
+      origin_trial_feature_name: "WebIdentityDigitalCredentialsCreation",
+      origin_trial_allows_third_party: true,
       public: true,
-      status: "test",
+      status: "experimental",
       base_feature: "none",
     },
     // Kill switch for making BigInt handling in WebIDL use ToBigInt.
     {
       name: "WebIDLBigIntUsesToBigInt",
       status: "stable",
+    },
+    {
+      name: "WebMCP",
+      status: "experimental",
+    },
+    {
+      name: "WebMCPTesting",
+      status: "experimental",
     },
     {
       name: "WebNFC",
@@ -5784,7 +5814,7 @@
     },
     {
       name: "WebTransportApplicationProtocol",
-      status: "experimental",
+      status: "stable",
       base_feature: "none",
     },
     {
@@ -5906,6 +5936,11 @@
       name: "WebXRSpecParity",
       depends_on: ["WebXR"],
       public: true,
+      status: "experimental",
+    },
+    {
+      name: "WebXRVisibilityMask",
+      depends_on: ["WebXR"],
       status: "experimental",
     },
     {

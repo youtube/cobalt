@@ -1169,7 +1169,8 @@ std::optional<ModelError> ClientTagBasedDataTypeProcessor::OnFullUpdateReceived(
     CHECK(HasClearAllDirective(gc_directive));
 
     // Bridges with full updates only are not expected to support writes.
-    CHECK_EQ(entity_tracker_->GetUnsyncedDataCount(), 0u);
+    // TODO(crbug.com/455150916): make it CHECK once fixed.
+    DUMP_WILL_BE_CHECK_EQ(entity_tracker_->GetUnsyncedDataCount(), 0u);
     // If the bridge supports incremental updates, it should not receive a full
     // update on GC directive.
     CHECK(!bridge_->SupportsIncrementalUpdates());
@@ -1349,12 +1350,6 @@ void ClientTagBasedDataTypeProcessor::ExpireAllEntries(
     MetadataChangeList* metadata_changes) {
   CHECK(metadata_changes);
   CHECK(entity_tracker_);
-
-  // Bridges must support incremental updates to be able to write data and this
-  // code path is only used for bridges that *don't* support incremental updates
-  // (hence it's not expected here to have any unsynced data). See
-  // crbug.com/40668179 for details.
-  CHECK_EQ(entity_tracker_->GetUnsyncedDataCount(), 0u);
 
   std::vector<std::string> storage_key_to_be_deleted;
   for (const ProcessorEntity* entity :

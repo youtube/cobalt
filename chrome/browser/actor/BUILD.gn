@@ -17,10 +17,10 @@ source_set("actor") {
     "actor_keyed_service_factory.h",
     "actor_metrics.h",
     "actor_navigation_throttle.h",
+    "actor_policy_checker.h",
     "actor_switches.h",
     "actor_tab_data.h",
     "actor_task.h",
-    "actor_task_delegate.h",
     "actor_task_metadata.h",
     "aggregated_journal.h",
     "aggregated_journal_file_serializer.h",
@@ -45,6 +45,7 @@ source_set("actor") {
     "tools/tool_controller.h",
     "tools/tool_delegate.h",
     "tools/tool_request.h",
+    "tools/tool_request_visitor_functor.h",
     "tools/type_tool_request.h",
     "tools/wait_tool_request.h",
     "tools/window_management_tool_request.h",
@@ -77,7 +78,6 @@ source_set("impl") {
     "actor_metrics.cc",
     "actor_navigation_throttle.cc",
     "actor_policy_checker.cc",
-    "actor_policy_checker.h",
     "actor_switches.cc",
     "actor_tab_data.cc",
     "actor_task.cc",
@@ -88,6 +88,10 @@ source_set("impl") {
     "aggregated_journal_serializer.cc",
     "browser_action_util.cc",
     "execution_engine.cc",
+    "safety_list.cc",
+    "safety_list.h",
+    "safety_list_manager.cc",
+    "safety_list_manager.h",
     "site_policy.cc",
     "site_policy.h",
     "tools/attempt_login_tool.cc",
@@ -124,7 +128,6 @@ source_set("impl") {
     "tools/tool_callbacks.h",
     "tools/tool_controller.cc",
     "tools/tool_request.cc",
-    "tools/tool_request_visitor_functor.h",
     "tools/type_tool_request.cc",
     "tools/wait_tool.cc",
     "tools/wait_tool.h",
@@ -138,21 +141,26 @@ source_set("impl") {
 
   deps = [
     ":actor",
+    ":variants",
     "//chrome/browser:browser_process",
     "//chrome/browser/actor/ui",
     "//chrome/browser/actor/ui:event_dispatcher",
-    "//chrome/browser/actor/ui:tool_request_variant",
     "//chrome/browser/favicon",
     "//chrome/browser/optimization_guide",
     "//chrome/browser/page_content_annotations:fetcher",
     "//chrome/browser/profiles:profile",
     "//chrome/browser/safe_browsing",
+    "//chrome/browser/ui:browser_list",
     "//chrome/browser/ui:browser_navigator_params_headers",
     "//chrome/browser/ui/browser_window",
+    "//chrome/browser/ui/tabs:tab_strip",
+    "//chrome/browser/ui/tabs:tab_strip_model_observer",
     "//chrome/browser/ui/tabs:tabs_public",
     "//chrome/common",
+    "//components/content_settings/core/common",
     "//components/favicon/core",
     "//components/lookalikes/core",
+    "//components/page_load_metrics/browser",
     "//components/password_manager/core/browser/features:password_features",
     "//components/safe_browsing:buildflags",
     "//components/safe_browsing/core/common:safe_browsing_prefs",
@@ -167,15 +175,20 @@ source_set("impl") {
     "//url",
   ]
 
-  allow_circular_includes_from = [
-    # TODO(crbug.com/427726384): See if we can factor ToolRequest objects out of
-    # actor:impl, which could clean up this circular dependency.
-    "//chrome/browser/actor/ui:tool_request_variant",
-  ]
-
   if (enable_glic) {
     deps += [ "//chrome/browser/glic" ]
   }
+}
+
+source_set("variants") {
+  sources = [
+    "tool_request_variant.cc",
+    "tool_request_variant.h",
+  ]
+  deps = [
+    ":actor",
+    "//base",
+  ]
 }
 
 # This target contains only type definitions that may be depended on by other
@@ -183,6 +196,7 @@ source_set("impl") {
 # This avoids dependency cycles.
 source_set("types") {
   sources = [
+    "actor_task_delegate.h",
     "shared_types.cc",
     "shared_types.h",
   ]
@@ -191,7 +205,11 @@ source_set("types") {
     "//chrome/common:mojo_bindings",
     "//ui/gfx/geometry",
   ]
-  deps = [ "//third_party/abseil-cpp:absl" ]
+  deps = [
+    "//chrome/common",
+    "//components/tabs:public",
+    "//third_party/abseil-cpp:absl",
+  ]
 }
 
 source_set("impl_test_support") {
@@ -235,6 +253,8 @@ source_set("unit_tests") {
     "actor_keyed_service_unittest.cc",
     "actor_task_metadata_unittest.cc",
     "aggregated_journal_unittest.cc",
+    "safety_list_manager_unittest.cc",
+    "safety_list_unittest.cc",
     "shared_types_unittest.cc",
     "site_policy_unittest.cc",
   ]
@@ -252,7 +272,10 @@ source_set("unit_tests") {
   ]
   if (enable_glic) {
     sources += [ "execution_engine_unittest.cc" ]
-    deps += [ ":impl_test_support" ]
+    deps += [
+      ":impl_test_support",
+      ":variants",
+    ]
   }
 }
 
@@ -293,6 +316,7 @@ source_set("browser_tests") {
     "//chrome/browser/safe_browsing",
     "//chrome/browser/ui",
     "//chrome/browser/ui:ui_features",
+    "//chrome/browser/ui/views:file_system_access_test_support",
     "//chrome/browser/ui/zoom",
     "//chrome/test:test_support",
     "//chrome/test:test_support_ui",
@@ -331,6 +355,7 @@ source_set("browser_tests") {
     ]
     deps += [
       "//chrome/browser/glic",
+      "//components/page_load_metrics/browser:test_support",
       "//ui/base:ozone_buildflags",
     ]
   }
@@ -355,13 +380,14 @@ source_set("interactive_ui_tests") {
   ]
   if (enable_glic) {
     sources = [
-      "execution_engine_confirmation_dialog_interactive_ui_test.cc",
+      "execution_engine_interactive_ui_test.cc",
       "tools/attempt_login_tool_interactive_ui_test.cc",
       "tools/select_tool_interactive_ui_test.cc",
     ]
     deps += [
       "//chrome/browser/glic",
       "//chrome/browser/glic/test_support",
+      "//chrome/browser/optimization_guide:test_support",
     ]
   }
 }

@@ -874,9 +874,6 @@ BASE_FEATURE(kForceOnDeviceAppControlsForAllRegions,
 // For more info, see go/crosforest.
 BASE_FEATURE(kForestFeature, base::FEATURE_ENABLED_BY_DEFAULT);
 
-// Controls whether to allow keeping full screen mode after unlock.
-BASE_FEATURE(kFullscreenAfterUnlockAllowed, base::FEATURE_ENABLED_BY_DEFAULT);
-
 // When enabled, there will be an alert bubble showing up when the device
 // returns from low brightness (e.g., sleep, closed cover) without a lock screen
 // and the active window is in fullscreen.
@@ -1239,15 +1236,12 @@ BASE_FEATURE(kInternalServerSideSpeechRecognitionByFinch,
 BASE_FEATURE(kInternalServerSideSpeechRecognitionUSMModelFinch,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
-// Enables sending `client-info` values to IPP printers on ChromeOS.
-BASE_FEATURE(kIppClientInfo, base::FEATURE_ENABLED_BY_DEFAULT);
-
 // Enables new experimental IPP-first setup path for USB printers on ChromeOS.
 // Used in finch experiment.
 BASE_FEATURE(kIppFirstSetupForUsbPrinters, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enables Romaji/Kana mode switch for Japanese VK.
-BASE_FEATURE(kJapaneseInputModeSwitchInVK, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kJapaneseInputModeSwitchInVK, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kJupiterScreensaver, base::FEATURE_ENABLED_BY_DEFAULT);
 
@@ -1297,9 +1291,6 @@ BASE_FEATURE(kLauncherNudgeShortInterval, base::FEATURE_DISABLED_BY_DEFAULT);
 // If enabled, the launcher nudge prefs will be reset at the start of each new
 // user session.
 BASE_FEATURE(kLauncherNudgeSessionReset, base::FEATURE_DISABLED_BY_DEFAULT);
-
-// If enabled, the launcher will only provide results based on the user control.
-BASE_FEATURE(kLauncherSearchControl, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Segmentation flag for local image search.
 BASE_FEATURE(kFeatureManagementLocalImageSearch,
@@ -1515,6 +1506,22 @@ BASE_FEATURE(kOnDeviceGrammarCheck, base::FEATURE_ENABLED_BY_DEFAULT);
 // Whether the device supports on-device speech recognition.
 // Forwarded to LaCrOS as BrowserInitParams::is_ondevice_speech_supported.
 BASE_FEATURE(kOnDeviceSpeechRecognition, base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Gates syncing of the first batch of visual accessibility settings so the
+// rollout can be staged and rolled back independently if issues surface.
+BASE_FEATURE(kOsSyncAccessibilitySettingsBatch1,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Gates syncing of the second batch of accessibility settings (reduced
+// animations and caption styling) so the rollout can proceed in small,
+// reversible stages.
+BASE_FEATURE(kOsSyncAccessibilitySettingsBatch2,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Gates syncing of the third batch of accessibility settings (screen + docked
+// magnifiers and select-to-speak toggles) so rollout can proceed incrementally.
+BASE_FEATURE(kOsSyncAccessibilitySettingsBatch3,
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Whether the OneDrive upload flow should immediately prompt the user to
 // re-authenticate without first showing a notification.
@@ -2852,10 +2859,6 @@ bool ShouldForceEnableServerSideSpeechRecognition() {
 #endif  // BUILDFLAG(GOOGLE_CHROME_BRANDING);
 }
 
-bool IsFullscreenAfterUnlockAllowed() {
-  return base::FeatureList::IsEnabled(kFullscreenAfterUnlockAllowed);
-}
-
 bool IsFullscreenAlertBubbleEnabled() {
   return base::FeatureList::IsEnabled(kFullscreenAlertBubble);
 }
@@ -3050,10 +3053,6 @@ bool IsInternalServerSideSpeechRecognitionEnabledByFinch() {
 #endif  // BUILDFLAG(GOOGLE_CHROME_BRANDING)
 }
 
-bool IsIppClientInfoEnabled() {
-  return base::FeatureList::IsEnabled(kIppClientInfo);
-}
-
 bool IsJupiterScreensaverEnabled() {
   return base::FeatureList::IsEnabled(kJupiterScreensaver) &&
          IsTimeOfDayScreenSaverEnabled();
@@ -3090,10 +3089,6 @@ bool IsLauncherNudgeShortIntervalEnabled() {
 
 bool IsLauncherNudgeSessionResetEnabled() {
   return base::FeatureList::IsEnabled(kLauncherNudgeSessionReset);
-}
-
-bool IsLauncherSearchControlEnabled() {
-  return base::FeatureList::IsEnabled(kLauncherSearchControl);
 }
 
 bool IsLinkCrossDeviceDogfoodFeedbackEnabled() {

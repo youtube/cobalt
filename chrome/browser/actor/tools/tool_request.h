@@ -58,9 +58,16 @@ class ToolRequest {
 
   // Returns the name to use for the journal when recording entries for this
   // request.
-  virtual std::string JournalEvent() const = 0;
+  virtual std::string JournalEvent() const;
 
-  // TODO(bokan): What does this do?
+  // Returns the name of the ToolRequest.
+  // NOTE: This value is persisted to UMA logs so do not change after a
+  // ToolRequest is added.
+  // TODO(crbug.com/454919535): Add a test to verify that names do not change.
+  virtual std::string Name() const = 0;
+
+  // Used by ConvertToVariantFn to convert a polymorphic ToolRequest object into
+  // the proper ToolRequestVariant type.
   virtual void Apply(ToolRequestVisitorFunctor&) const = 0;
 
   struct CreateToolResult {
@@ -82,9 +89,8 @@ class ToolRequest {
   // safe to use their origins as a trust signal.
   virtual std::optional<url::Origin> AssociatedOriginGrant() const;
 
-  // Gets configuration for general page stability on observation. Returns
-  // `std::nullopt` if not enabled.
-  virtual std::optional<ObservationDelayController::PageStabilityConfig>
+  // Gets configuration for general page stability on observation.
+  virtual ObservationDelayController::PageStabilityConfig
   GetObservationPageStabilityConfig() const;
 };
 

@@ -4,7 +4,6 @@
 
 package org.chromium.chrome.browser.omnibox.navattach;
 
-import org.chromium.base.Callback;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.ui.modelutil.PropertyKey;
 import org.chromium.ui.modelutil.PropertyModel.WritableBooleanPropertyKey;
@@ -22,10 +21,6 @@ class NavigationAttachmentsProperties {
     public static final WritableBooleanPropertyKey ADD_BUTTON_VISIBLE =
             new WritableBooleanPropertyKey();
 
-    /** Whether the AI mode is enabled. */
-    public static final WritableBooleanPropertyKey AI_MODE_ENABLED =
-            new WritableBooleanPropertyKey();
-
     /** Whether the attachments toolbar is visible. */
     public static final WritableBooleanPropertyKey ATTACHMENTS_TOOLBAR_VISIBLE =
             new WritableBooleanPropertyKey();
@@ -34,16 +29,24 @@ class NavigationAttachmentsProperties {
     public static final WritableBooleanPropertyKey ATTACHMENTS_VISIBLE =
             new WritableBooleanPropertyKey();
 
+    /** Tracks the {@link AutocompleteRequestType}. */
+    public static final WritableObjectPropertyKey<Integer> AUTOCOMPLETE_REQUEST_TYPE =
+            new WritableObjectPropertyKey<>();
+
+    /** Whether the navigation type toggle is changeable. */
+    public static final WritableBooleanPropertyKey AUTOCOMPLETE_REQUEST_TYPE_CHANGEABLE =
+            new WritableBooleanPropertyKey();
+
+    /** Action to perform when the user clicks the Autocomplete Request Type button. */
+    public static final WritableObjectPropertyKey<Runnable> AUTOCOMPLETE_REQUEST_TYPE_CLICKED =
+            new WritableObjectPropertyKey<>();
+
     /** Action to perform when the user clicks the Add button. */
     public static final WritableObjectPropertyKey<Runnable> BUTTON_ADD_CLICKED =
             new WritableObjectPropertyKey<>();
 
-    /** Whether the navigation type toggle is visible. */
-    public static final WritableBooleanPropertyKey NAVIGATION_TYPE_VISIBLE =
-            new WritableBooleanPropertyKey();
-
-    /** Callback for when the Use AI Mode switch is toggled. */
-    public static final WritableObjectPropertyKey<Callback<Boolean>> ON_USE_AI_MODE_CHANGED =
+    /** Action to perform when the user clicks the AI Mode button in the popup. */
+    public static final WritableObjectPropertyKey<Runnable> POPUP_AI_MODE_CLICKED =
             new WritableObjectPropertyKey<>();
 
     /** Action to perform when the user clicks the Camera button in the popup. */
@@ -73,12 +76,13 @@ class NavigationAttachmentsProperties {
     public static final PropertyKey[] ALL_KEYS = {
         ADAPTER,
         ADD_BUTTON_VISIBLE,
-        AI_MODE_ENABLED,
         ATTACHMENTS_TOOLBAR_VISIBLE,
         ATTACHMENTS_VISIBLE,
+        AUTOCOMPLETE_REQUEST_TYPE,
+        AUTOCOMPLETE_REQUEST_TYPE_CHANGEABLE,
+        AUTOCOMPLETE_REQUEST_TYPE_CLICKED,
         BUTTON_ADD_CLICKED,
-        NAVIGATION_TYPE_VISIBLE,
-        ON_USE_AI_MODE_CHANGED,
+        POPUP_AI_MODE_CLICKED,
         POPUP_CAMERA_CLICKED,
         POPUP_CLIPBOARD_BUTTON_VISIBLE,
         POPUP_CLIPBOARD_CLICKED,

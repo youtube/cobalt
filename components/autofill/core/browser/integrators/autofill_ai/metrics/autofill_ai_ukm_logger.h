@@ -34,13 +34,12 @@ class AutofillAiUkmLogger {
                      bool suggestion_filled,
                      bool edited_autofilled_field,
                      bool opt_in_status);
-  void LogSaveOrUpdatePromptResult(
-      AutofillClient::AutofillAiPromptTypes prompt_type,
+  void LogImportPromptResult(
+      const FormData& form,
+      AutofillClient::AutofillAiImportPromptType prompt_type,
       EntityType entity_type,
       EntityInstance::RecordType record_type,
-      uint64_t form_session_id,
-      const std::string& domain,
-      AutofillClient::EntitySaveOrUpdatePromptResult result,
+      AutofillClient::AutofillAiBubbleClosedReason close_reason,
       ukm::SourceId ukm_source_id);
 
   // These values are persisted to logs. Entries should not be renumbered and
@@ -59,6 +58,7 @@ class AutofillAiUkmLogger {
                      const FormStructure& form,
                      const AutofillField& field,
                      EntityType entity_type,
+                     EntityInstance::RecordType record_type,
                      EventType event_type);
 
  private:

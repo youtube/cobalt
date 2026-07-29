@@ -6,8 +6,10 @@
 #define SERVICES_WEBNN_WEBNN_OBJECT_IMPL_H_
 
 #include "base/component_export.h"
+#include "base/memory/ref_counted.h"
 #include "base/memory/ref_counted_delete_on_sequence.h"
 #include "base/memory/weak_ptr.h"
+#include "base/sequence_checker.h"
 #include "base/task/bind_post_task.h"
 #include "mojo/public/cpp/bindings/associated_receiver.h"
 #include "mojo/public/cpp/bindings/receiver.h"

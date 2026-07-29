@@ -106,6 +106,11 @@ constexpr char kChromeOsBocaSchoolToolsAuthName[] =
 constexpr char kSharedDataPreviewName[] = "shared_data_preview";
 constexpr char kAccessCodeCastDiscoveryName[] = "access_code_cast_discovery";
 constexpr char kAuthServiceDriveApiName[] = "auth_service_drive_api";
+constexpr char kAuthServiceCalendarName[] = "auth_service_calendar";
+constexpr char kAuthServiceGlanceablesClassroomName[] =
+    "auth_service_glanceables_classroom";
+constexpr char kAuthServiceTasksClientName[] = "auth_service_tasks_client";
+constexpr char kYouTubeMusicName[] = "youtube_music";
 
 }  // namespace
 
@@ -453,6 +458,27 @@ OAuthConsumer GetOAuthConsumerFromId(OAuthConsumerId oauth_consumer_id) {
           /*scopes=*/{GaiaConstants::kDriveOAuth2Scope,
                       GaiaConstants::kDriveAppsOAuth2Scope,
                       GaiaConstants::kDriveAppsReadonlyOAuth2Scope});
+    case OAuthConsumerId::kAuthServiceCalendar:
+      return OAuthConsumer(
+          /*name=*/kAuthServiceCalendarName,
+          /*scopes=*/{GaiaConstants::kCalendarReadOnlyOAuth2Scope});
+    case OAuthConsumerId::kAuthServiceGlanceablesClassroom:
+      return OAuthConsumer(
+          /*name=*/kAuthServiceGlanceablesClassroomName,
+          /*scopes=*/{
+              GaiaConstants::kClassroomReadOnlyCoursesOAuth2Scope,
+              GaiaConstants::kClassroomReadOnlyCourseWorkSelfOAuth2Scope,
+              GaiaConstants::
+                  kClassroomReadOnlyStudentSubmissionsSelfOAuth2Scope});
+    case OAuthConsumerId::kAuthServiceTasksClient:
+      return OAuthConsumer(
+          /*name=*/kAuthServiceTasksClientName,
+          /*scopes=*/{GaiaConstants::kTasksReadOnlyOAuth2Scope,
+                      GaiaConstants::kTasksOAuth2Scope});
+    case OAuthConsumerId::kYouTubeMusic:
+      return OAuthConsumer(
+          /*name=*/kYouTubeMusicName,
+          /*scopes=*/{GaiaConstants::kYouTubeMusicOAuth2Scope});
   }
   NOTREACHED();
 }

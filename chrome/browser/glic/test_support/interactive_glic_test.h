@@ -42,6 +42,7 @@
 #include "chrome/browser/ui/browser_list.h"
 #include "chrome/browser/ui/browser_navigator.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/interaction/browser_elements.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/common/chrome_switches.h"
@@ -144,6 +145,7 @@ class InteractiveGlicTestMixin : public T {
   void SetUpOnMainThread() override {
     LOG(INFO) << "InteractiveGlicTest: setting up base fixture";
     T::SetUpOnMainThread();
+    instance_tracker_.SetProfile(T::GetProfile());
     LOG(INFO) << "InteractiveGlicTest: setting up";
 
     Test::embedded_test_server()->ServeFilesFromDirectory(
@@ -187,10 +189,16 @@ class InteractiveGlicTestMixin : public T {
     guest_url_ = Test::embedded_test_server()->GetURL(path.str());
     command_line->AppendSwitchASCII(::switches::kGlicGuestURL,
                                     guest_url_.spec());
+    GURL fre_url = glic_fre_url_.value_or(
+        Test::embedded_test_server()->GetURL("/glic/test_client/fre.html"));
+    command_line->AppendSwitchASCII(switches::kGlicFreURL, fre_url.spec());
     LOG(INFO) << "InteractiveGlicTest: done setting up";
   }
 
-  void TearDownOnMainThread() override { T::TearDownOnMainThread(); }
+  void TearDownOnMainThread() override {
+    instance_tracker_.SetProfile(nullptr);
+    T::TearDownOnMainThread();
+  }
 
   void SetGlicPagePath(const std::string& glic_page_path) {
     glic_page_path_ = glic_page_path;
@@ -223,8 +231,8 @@ class InteractiveGlicTestMixin : public T {
                 [&]() -> bool {
                   GlicInstance* instance = GetGlicInstanceImpl();
                   if (!instance) {
-                    LOG(ERROR)
-                        << "No glic instance for " << DescribeGlicTracking();
+                    LOG(ERROR) << "No glic instance for "
+                               << instance_tracker_.DescribeGlicTracking();
                     return false;
                   }
                   if (!instance->IsShowing()) {
@@ -324,7 +332,8 @@ class InteractiveGlicTestMixin : public T {
       auto steps = Api::Steps(Api::Do([&]() {
                                 GetInstanceCoordinator().Toggle(
                                     /*browser=*/nullptr, true,
-                                    mojom::InvocationSource::kOsButton);
+                                    mojom::InvocationSource::kOsButton,
+                                    /*prompt_suggestion=*/std::nullopt);
                               }),
                               WaitForAndInstrumentGlic(instrument_mode));
       Api::AddDescriptionPrefix(steps, "OpenGlicFloatingWindow");
@@ -340,14 +349,12 @@ class InteractiveGlicTestMixin : public T {
   auto ToggleGlicWindow(GlicWindowMode window_mode) {
     if (base::FeatureList::IsEnabled(features::kGlicMultiInstance)) {
       return Api::PressButton(kGlicButtonElementId)
-          .SetContext(views::ElementTrackerViews::GetContextForView(
-              browser()->TopContainer()));
+          .SetContext(BrowserElements::From(browser())->GetContext());
     }
     switch (window_mode) {
       case GlicWindowMode::kAttached:
         return Api::PressButton(kGlicButtonElementId)
-            .SetContext(views::ElementTrackerViews::GetContextForView(
-                browser()->TopContainer()));
+            .SetContext(BrowserElements::From(browser())->GetContext());
       case GlicWindowMode::kDetached:
         return Api::Do(
             [this] { window_controller().ShowDetachedForTesting(); });
@@ -363,7 +370,8 @@ class InteractiveGlicTestMixin : public T {
         return Api::PressButton(element_id);
       case GlicWindowMode::kDetached:
         return Api::Do([this, invocation_source] {
-          window_controller().Toggle(browser(), false, invocation_source);
+          window_controller().Toggle(browser(), false, invocation_source,
+                                     /*prompt_suggestion=*/std::nullopt);
         });
     }
   }
@@ -602,10 +610,9 @@ class InteractiveGlicTestMixin : public T {
     }
   }
 
-  // Same as `Api::AddInstrumentedTabWithOpener()`, but sets the `opener` to
-  // the current glic instance web contents. This is useful to bind the glic
-  // instance from the active tab to the newly created tab.
-  InteractiveBrowserTestApi::MultiStep AddInstrumentedTabWithOpener(
+  // Same as `Api::AddInstrumentedTab()`, but also opens a side panel from the
+  // currently tracked instance if the Multi-Instance flag is enabled.
+  InteractiveBrowserTestApi::MultiStep AddInstrumentedTabAndOpenSidePanel(
       ui::ElementIdentifier id,
       GURL url,
       std::optional<int> at_index = std::nullopt) {
@@ -627,7 +634,21 @@ class InteractiveGlicTestMixin : public T {
                   GetHost()->webui_contents()->GetPrimaryMainFrame();
               CHECK(Navigate(&navigate_params));
             })),
-        Api::WaitForWebContentsReady(id));
+        Api::WaitForWebContentsReady(id),
+        Api::WithElement(
+            id, base::BindLambdaForTesting([this](ui::TrackedElement* el) {
+              auto* const web_el = el->AsA<TrackedElementWebContents>();
+              CHECK(web_el);
+              content::WebContents* contents = web_el->owner()->web_contents();
+              tabs::TabInterface* tab =
+                  tabs::TabModel::MaybeGetFromContents(contents);
+              CHECK(tab) << "Could not find a tab for the new WebContents.";
+
+              if (base::FeatureList::IsEnabled(features::kGlicMultiInstance)) {
+                // Show the Glic side panel in the newly created tab.
+                GetGlicInstanceImpl()->Show(ShowOptions::ForSidePanel(*tab));
+              }
+            })));
     Api::AddDescriptionPrefix(
         steps, base::StringPrintf("AddInstrumentedTabWithOpener( %s, %s, %d, )",
                                   id.GetName().c_str(), url.spec().c_str(),
@@ -750,6 +771,8 @@ class InteractiveGlicTestMixin : public T {
     return guest_url_;
   }
 
+  void SetGlicFreUrlOverride(const GURL& url) { glic_fre_url_ = url; }
+
   // `InteractiveGlicTestMixin` is configured to operate a single browser, but
   // it can change which browser it operates. This changes the browser to be
   // used in functions of `InteractiveGlicTestMixin`.
@@ -775,87 +798,29 @@ class InteractiveGlicTestMixin : public T {
 
   // Have all glic instance operations linked to a glic instance with this ID.
   void TrackGlicInstanceWithId(InstanceId id) {
-    ClearGlicTracking();
-    tracked_instance_id_ = id;
+    instance_tracker_.TrackGlicInstanceWithId(id);
   }
 
   // Track the glic instance at a specific tab index.
   void TrackGlicInstanceWithTabIndex(int index) {
-    ClearGlicTracking();
-    glic_instance_tab_index_ = index;
+    instance_tracker_.TrackGlicInstanceWithTabIndex(index);
   }
 
   // Track the glic instance at this tab.
   void TrackGlicInstanceWithTabHandle(tabs::TabInterface::Handle handle) {
-    ClearGlicTracking();
-    glic_instance_tab_handle_ = handle;
+    instance_tracker_.TrackGlicInstanceWithTabHandle(handle);
   }
 
   void TrackFloatingGlicInstance() {
-    ClearGlicTracking();
-    track_floating_glic_instance_ = true;
+    instance_tracker_.TrackFloatingGlicInstance();
   }
 
   // Returns the currently tracked glic instance.
   GlicInstance* GetGlicInstance() {
-    if (tracked_instance_id_) {
-      for (GlicInstance* instance : window_controller().GetInstances()) {
-        if (instance->id() == *tracked_instance_id_) {
-          return instance;
-        }
-      }
-      return nullptr;
-    }
-
-    if (base::FeatureList::IsEnabled(features::kGlicMultiInstance)) {
-      if (track_floating_glic_instance_) {
-        return GetInstanceCoordinator().GetInstanceWithFloaty();
-      }
-      if (glic_instance_tab_handle_) {
-        if (glic_instance_tab_handle_->Get()) {
-          return glic_service()->GetInstanceForTab(
-              glic_instance_tab_handle_->Get());
-        }
-        return nullptr;
-      }
-      if (glic_instance_tab_index_ != std::nullopt) {
-        return glic_service()->GetInstanceForTab(
-            browser()->GetTabStripModel()->GetTabAtIndex(
-                *glic_instance_tab_index_));
-      }
-      return glic_service()->GetInstanceForTab(
-          browser()->GetTabStripModel()->GetTabAtIndex(0));
-    }
-    return glic_service()->GetInstanceForActiveTab(browser());
+    return instance_tracker_.GetGlicInstance();
   }
 
  private:
-  std::string DescribeGlicTracking() {
-    if (tracked_instance_id_) {
-      return base::StrCat({"Tracking glic instance with id ",
-                           tracked_instance_id_->AsLowercaseString()});
-    } else if (glic_instance_tab_index_) {
-      return base::StrCat({"Tracking glic instance at tab index ",
-                           base::NumberToString(*glic_instance_tab_index_)});
-
-    } else if (glic_instance_tab_handle_) {
-      if (!glic_instance_tab_handle_->Get()) {
-        return "Tracking glic instance with INVALID tab handle";
-      }
-      return "Tracking glic instance with tab handle";
-    } else if (track_floating_glic_instance_) {
-      return "Tracking floating glic instance";
-    }
-    NOTREACHED();
-  }
-
-  void ClearGlicTracking() {
-    tracked_instance_id_ = std::nullopt;
-    glic_instance_tab_index_ = std::nullopt;
-    glic_instance_tab_handle_ = std::nullopt;
-    track_floating_glic_instance_ = false;
-  }
-
   // Because of limitations in the template system, calls to base class methods
   // that are guaranteed by the `requires` clause must still be scoped. These
   // are here for convenience to make the methods above more readable.
@@ -864,10 +829,8 @@ class InteractiveGlicTestMixin : public T {
 
   // These determine which glic instance is tracked by this class. This affects
   // many functions in this fixture. Only one will be present at a time.
-  std::optional<InstanceId> tracked_instance_id_;
-  std::optional<int> glic_instance_tab_index_ = 0;
-  std::optional<tabs::TabInterface::Handle> glic_instance_tab_handle_;
-  bool track_floating_glic_instance_ = false;
+  GlicInstanceTracker instance_tracker_;
+  std::optional<GURL> glic_fre_url_;
 
   base::WeakPtr<Browser> active_browser_;
   glic::GlicTestEnvironment glic_test_environment_;

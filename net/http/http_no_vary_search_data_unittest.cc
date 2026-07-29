@@ -27,6 +27,7 @@
 #include "net/http/http_util.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/abseil-cpp/absl/hash/hash_testing.h"
 #include "third_party/fuzztest/src/fuzztest/fuzztest.h"
 #include "url/gurl.h"
 
@@ -867,12 +868,10 @@ constexpr std::pair<std::string_view, std::string_view>
 enum class AreEquivalentImplementation {
   kOld,
   kNew,
-  kNewWithCheck,
 };
 
 // Configures the ImplementationOverrideForTesting object to simulate
-// enabling/disabling feature "HttpNoVarySearchDataUseNewAreEquivalent" and
-// parameter "check_result" according to `implementation`.
+// enabling/disabling feature "HttpNoVarySearchDataUseNewAreEquivalent".
 std::unique_ptr<
     ScopedHttpNoVarySearchDataEquivalentImplementationOverrideForTesting>
 ConfigureAreEquivalentImplementation(
@@ -881,17 +880,12 @@ ConfigureAreEquivalentImplementation(
     case AreEquivalentImplementation::kOld:
       return std::make_unique<
           ScopedHttpNoVarySearchDataEquivalentImplementationOverrideForTesting>(
-          false, false);
+          false);
 
     case AreEquivalentImplementation::kNew:
       return std::make_unique<
           ScopedHttpNoVarySearchDataEquivalentImplementationOverrideForTesting>(
-          true, false);
-
-    case AreEquivalentImplementation::kNewWithCheck:
-      return std::make_unique<
-          ScopedHttpNoVarySearchDataEquivalentImplementationOverrideForTesting>(
-          true, true);
+          true);
   }
 }
 
@@ -913,8 +907,7 @@ class HttpNoVarySearchAreEquivalentTest
 INSTANTIATE_TEST_SUITE_P(HttpNoVarySearchAreEquivalentTest,
                          HttpNoVarySearchAreEquivalentTest,
                          Values(AreEquivalentImplementation::kOld,
-                                AreEquivalentImplementation::kNew,
-                                AreEquivalentImplementation::kNewWithCheck));
+                                AreEquivalentImplementation::kNew));
 
 TEST_P(HttpNoVarySearchAreEquivalentTest,
        CheckUrlEqualityWithPercentEncodedNonASCIICharactersExcept) {
@@ -1220,13 +1213,11 @@ const NoVarySearchCompareTestData no_vary_search_compare_tests[] = {
      false},
 };
 
-INSTANTIATE_TEST_SUITE_P(
-    HttpNoVarySearchAreEquivalentParameterizedTest,
-    HttpNoVarySearchAreEquivalentParameterizedTest,
-    Combine(ValuesIn(no_vary_search_compare_tests),
-            Values(AreEquivalentImplementation::kOld,
-                   AreEquivalentImplementation::kNew,
-                   AreEquivalentImplementation::kNewWithCheck)));
+INSTANTIATE_TEST_SUITE_P(HttpNoVarySearchAreEquivalentParameterizedTest,
+                         HttpNoVarySearchAreEquivalentParameterizedTest,
+                         Combine(ValuesIn(no_vary_search_compare_tests),
+                                 Values(AreEquivalentImplementation::kOld,
+                                        AreEquivalentImplementation::kNew)));
 
 // AreEquivalent() needs to operate on a URL that has a scheme that has a query
 // and fragment. Rather than forcing the fuzzer to work that it needs to start
@@ -1468,6 +1459,26 @@ INSTANTIATE_TEST_SUITE_P(
 TEST(HttpNoVarySearchEmptyPickleTest, ReadEmptyPickle) {
   base::Pickle pickle;
   EXPECT_EQ(ReadValueFromPickle<HttpNoVarySearchData>(pickle), std::nullopt);
+}
+
+TEST(HttpNoVarySearchDataTest, AbslHashValue) {
+  EXPECT_TRUE(absl::VerifyTypeImplementsAbslHashCorrectly({
+      // Two identical objects.
+      HttpNoVarySearchData::CreateFromNoVaryParams({"a", "b"}, true),
+      HttpNoVarySearchData::CreateFromNoVaryParams({"a", "b"}, true),
+      // Order of params shouldn't matter as they are stored in a flat_set.
+      HttpNoVarySearchData::CreateFromNoVaryParams({"b", "a"}, true),
+      // Different objects.
+      HttpNoVarySearchData::CreateFromNoVaryParams({"a"}, true),
+      HttpNoVarySearchData::CreateFromNoVaryParams({"a", "b"}, false),
+      HttpNoVarySearchData::CreateFromVaryParams({"a", "b"}, true),
+      HttpNoVarySearchData::CreateFromVaryParams({"a", "b"}, false),
+      HttpNoVarySearchData::CreateFromVaryParams({"c"}, true),
+      // Object with only vary_on_key_order set to false.
+      HttpNoVarySearchData::CreateFromNoVaryParams({}, false),
+      // Object with only vary_params set.
+      HttpNoVarySearchData::CreateFromVaryParams({"a"}, true),
+  }));
 }
 
 }  // namespace

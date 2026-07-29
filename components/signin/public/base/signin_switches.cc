@@ -37,7 +37,7 @@ const char kForceFreDefaultBrowserStep[] = "force-fre-default-browser-step";
 #if BUILDFLAG(IS_IOS)
 BASE_FEATURE(kAccountRetrievalWaitsForRestoration,
              base::FEATURE_DISABLED_BY_DEFAULT);
-BASE_FEATURE(kAllowlistScopesForMdmErrors, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kAllowlistScopesForMdmErrors, base::FEATURE_ENABLED_BY_DEFAULT);
 #endif
 
 #if BUILDFLAG(IS_WIN)
@@ -300,17 +300,12 @@ const base::FeatureParam<int> kHistoryOptInEducationalTipVariation(
     1);
 #endif  // BUILDFLAG(IS_ANDROID)
 
-#if BUILDFLAG(IS_ANDROID)
-BASE_FEATURE(kIgnoreMirrorHeadersInBackgoundTabs,
-             base::FEATURE_ENABLED_BY_DEFAULT);
-#endif
-
 BASE_FEATURE(kInterceptBubblesDismissibleByAvatarButton,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 #if BUILDFLAG(IS_ANDROID)
 BASE_FEATURE(kMakeAccountsAvailableInIdentityManager,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(IS_ANDROID)
@@ -343,6 +338,24 @@ BASE_FEATURE_PARAM(base::TimeDelta,
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 BASE_FEATURE(kProfileCreationDeclineSigninCTAExperiment,
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kProfilePickerTextVariations, base::FEATURE_DISABLED_BY_DEFAULT);
+constexpr base::FeatureParam<ProfilePickerVariation>::Option
+    kProfilePickerVariations[] = {
+        {ProfilePickerVariation::kKeepWorkAndLifeSeparate,
+         "keep-work-and-life-separate"},
+        {ProfilePickerVariation::kGotAnotherGoogleAccount,
+         "got-another-google-account"},
+        {ProfilePickerVariation::kKeepTasksSeparate, "keep-tasks-separate"},
+        {ProfilePickerVariation::kSharingAComputer, "sharing-a-computer"},
+        {ProfilePickerVariation::kKeepEverythingInChrome,
+         "keep-everything-in-chrome"},
+};
+constexpr base::FeatureParam<ProfilePickerVariation>
+    kProfilePickerTextVariation{
+        &kProfilePickerTextVariations, "profile-picker-variation",
+        ProfilePickerVariation::kKeepWorkAndLifeSeparate,
+        &kProfilePickerVariations};
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 
 BASE_FEATURE(kProfilesReordering, base::FEATURE_DISABLED_BY_DEFAULT);

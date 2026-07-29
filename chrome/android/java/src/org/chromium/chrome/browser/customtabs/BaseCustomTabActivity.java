@@ -940,7 +940,8 @@ public abstract class BaseCustomTabActivity extends ChromeActivity {
         if (browserWindowType != null) {
             initializeChromeAndroidTask(
                     browserWindowType,
-                    tabModelOrchestrator.getTabModelSelector().getCurrentModel());
+                    tabModelOrchestrator.getTabModelSelector().getCurrentModel(),
+                    /* multiInstanceManager= */ null);
         }
     }
 
@@ -993,6 +994,11 @@ public abstract class BaseCustomTabActivity extends ChromeActivity {
         return ChromeFeatureList.sCctToolbarRefactor.isEnabled()
                 ? R.layout.new_custom_tab_toolbar
                 : R.layout.custom_tabs_toolbar;
+    }
+
+    @Override
+    protected int getToolbarLayoutHeightResId() {
+        return R.dimen.custom_tabs_control_container_height;
     }
 
     @Override
@@ -1406,7 +1412,8 @@ public abstract class BaseCustomTabActivity extends ChromeActivity {
                             getBrowserControlsManager(),
                             this::isShowingWebAppHeaderButtons,
                             this::isShowingHeaderAsOverlay,
-                            mRootUiCoordinator.getExclusiveAccessManager());
+                            mRootUiCoordinator.getExclusiveAccessManager(),
+                            mRootUiCoordinator.getDesktopWindowStateManager());
         }
         return mDelegateFactory;
     }

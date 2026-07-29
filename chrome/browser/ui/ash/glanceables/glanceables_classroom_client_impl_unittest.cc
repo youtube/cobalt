@@ -28,6 +28,7 @@
 #include "chrome/browser/apps/app_service/app_service_proxy.h"
 #include "chrome/browser/apps/app_service/app_service_proxy_factory.h"
 #include "chrome/browser/apps/app_service/publishers/app_publisher.h"
+#include "chrome/browser/policy/chrome_policy_blocklist_service_factory.h"
 #include "chrome/browser/prefs/browser_prefs.h"
 #include "chrome/test/base/testing_browser_process.h"
 #include "chrome/test/base/testing_profile.h"
@@ -145,9 +146,12 @@ class GlanceablesClassroomClientImplIsDisabledByAdminTest
   GlanceablesClassroomClientImpl CreateClientForProfile(
       Profile* profile) const {
     return GlanceablesClassroomClientImpl(
-        profile, base::DefaultClock::GetInstance(),
+        profile->GetPrefs(),
+        apps::AppServiceProxyFactory::GetForProfile(profile),
+        ChromePolicyBlocklistServiceFactory::GetForProfile(profile),
+        base::DefaultClock::GetInstance(),
         base::BindLambdaForTesting(
-            [](const std::vector<std::string>& scopes,
+            [](signin::OAuthConsumerId oauth_consumer_id,
                const net::NetworkTrafficAnnotationTag& traffic_annotation_tag)
                 -> std::unique_ptr<google_apis::RequestSender> {
               return nullptr;
@@ -219,17 +223,20 @@ class GlanceablesClassroomClientImplTest : public testing::Test {
     OverrideTime("10 Apr 2023 00:00 GMT");
 
     auto create_request_sender_callback = base::BindLambdaForTesting(
-        [&](const std::vector<std::string>& scopes,
+        [&](signin::OAuthConsumerId oauth_consumer_id,
             const net::NetworkTrafficAnnotationTag& traffic_annotation_tag) {
           return std::make_unique<google_apis::RequestSender>(
               std::make_unique<google_apis::DummyAuthService>(),
               url_loader_factory_, task_environment_.GetMainThreadTaskRunner(),
               "test-user-agent", TRAFFIC_ANNOTATION_FOR_TESTS);
         });
+    Profile* profile = profile_manager_.CreateTestingProfile(
+        "profile@example.com",
+        /*testing_factories=*/{}, url_loader_factory_);
     client_ = std::make_unique<GlanceablesClassroomClientImpl>(
-        profile_manager_.CreateTestingProfile("profile@example.com",
-                                              /*testing_factories=*/{},
-                                              url_loader_factory_),
+        profile->GetPrefs(),
+        apps::AppServiceProxyFactory::GetForProfile(profile),
+        ChromePolicyBlocklistServiceFactory::GetForProfile(profile),
         &test_clock_, create_request_sender_callback);
 
     test_server_.RegisterRequestHandler(

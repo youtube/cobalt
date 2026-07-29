@@ -15,7 +15,6 @@
 #include "base/types/expected.h"
 #include "components/optimization_guide/core/delivery/model_util.h"
 #include "components/optimization_guide/core/delivery/optimization_guide_model_provider.h"
-#include "components/optimization_guide/core/model_execution/execute_remote_fn.h"
 #include "components/optimization_guide/core/model_execution/feature_keys.h"
 #include "components/optimization_guide/core/model_execution/model_execution_features.h"
 #include "components/optimization_guide/core/model_execution/model_execution_fetcher.h"
@@ -24,11 +23,11 @@
 #include "components/optimization_guide/core/model_execution/on_device_model_metadata.h"
 #include "components/optimization_guide/core/model_execution/on_device_model_service_controller.h"
 #include "components/optimization_guide/core/model_execution/optimization_guide_model_execution_error.h"
+#include "components/optimization_guide/core/model_execution/remote_model_executor.h"
 #include "components/optimization_guide/core/model_quality/model_quality_log_entry.h"
 #include "components/optimization_guide/core/optimization_guide_constants.h"
 #include "components/optimization_guide/core/optimization_guide_enums.h"
 #include "components/optimization_guide/core/optimization_guide_logger.h"
-#include "components/optimization_guide/core/optimization_guide_model_executor.h"
 #include "components/optimization_guide/core/optimization_guide_prefs.h"
 #include "components/optimization_guide/core/optimization_guide_proto_util.h"
 #include "components/optimization_guide/core/optimization_guide_util.h"
@@ -124,8 +123,6 @@ using ModelExecutionError =
 ModelExecutionManager::ModelExecutionManager(
     scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
     signin::IdentityManager* identity_manager,
-    base::WeakPtr<OnDeviceModelServiceController>
-        on_device_model_service_controller,
     OptimizationGuideLogger* optimization_guide_logger,
     base::WeakPtr<ModelQualityLogsUploaderService>
         model_quality_uploader_service)
@@ -136,9 +133,7 @@ ModelExecutionManager::ModelExecutionManager(
           "key",
           features::GetOptimizationGuideServiceAPIKey())),
       url_loader_factory_(url_loader_factory),
-      identity_manager_(identity_manager),
-      on_device_model_service_controller_(
-          std::move(on_device_model_service_controller)) {}
+      identity_manager_(identity_manager) {}
 
 ModelExecutionManager::~ModelExecutionManager() = default;
 
@@ -228,23 +223,6 @@ void ModelExecutionManager::ExecuteModel(
       base::BindOnce(&ModelExecutionManager::OnModelExecuteResponse,
                      weak_ptr_factory_.GetWeakPtr(), feature, fetcher_id,
                      std::move(log_ai_data_request), std::move(callback)));
-}
-
-std::unique_ptr<OptimizationGuideModelExecutor::Session>
-ModelExecutionManager::StartSession(ModelBasedCapabilityKey feature,
-                                    const SessionConfigParams& config_params) {
-  if (!on_device_model_service_controller_) {
-    return nullptr;
-  }
-  return on_device_model_service_controller_->CreateSession(feature,
-                                                            config_params);
-}
-
-on_device_model::Capabilities ModelExecutionManager::GetOnDeviceCapabilities() {
-  if (!on_device_model_service_controller_) {
-    return {};
-  }
-  return on_device_model_service_controller_->GetCapabilities();
 }
 
 void ModelExecutionManager::OnModelExecuteResponse(
@@ -377,54 +355,6 @@ void ModelExecutionManager::OnModelExecuteResponse(
                               base::ok(execute_response->response_metadata()),
                               std::move(execution_info)),
                           std::move(log_entry));
-}
-
-optimization_guide::OnDeviceModelEligibilityReason
-ModelExecutionManager::GetOnDeviceModelEligibility(
-    optimization_guide::ModelBasedCapabilityKey feature) {
-  if (!on_device_model_service_controller_) {
-    return OnDeviceModelEligibilityReason::kFeatureNotEnabled;
-  }
-
-  return on_device_model_service_controller_->CanCreateSession(feature);
-}
-
-std::optional<OnDeviceModelAdaptationMetadata>
-ModelExecutionManager::GetOnDeviceModelAdaptationMetadata(
-    ModelBasedCapabilityKey feature) {
-  if (!on_device_model_service_controller_) {
-    return std::nullopt;
-  }
-
-  MaybeAdaptationMetadata metadata =
-      on_device_model_service_controller_->GetFeatureMetadata(feature);
-  if (!metadata.has_value()) {
-    return std::nullopt;
-  }
-  return metadata.value();
-}
-
-std::optional<optimization_guide::SamplingParamsConfig>
-ModelExecutionManager::GetSamplingParamsConfig(
-    optimization_guide::ModelBasedCapabilityKey feature) {
-  std::optional<optimization_guide::OnDeviceModelAdaptationMetadata>
-      adaptation_metadata = GetOnDeviceModelAdaptationMetadata(feature);
-  if (!adaptation_metadata.has_value()) {
-    return std::nullopt;
-  }
-
-  return adaptation_metadata->adapter()->GetSamplingParamsConfig();
-}
-
-std::optional<const proto::Any> ModelExecutionManager::GetFeatureMetadata(
-    optimization_guide::ModelBasedCapabilityKey feature) {
-  std::optional<optimization_guide::OnDeviceModelAdaptationMetadata>
-      adaptation_metadata = GetOnDeviceModelAdaptationMetadata(feature);
-  if (!adaptation_metadata.has_value()) {
-    return std::nullopt;
-  }
-
-  return adaptation_metadata->adapter()->GetFeatureMetadata();
 }
 
 }  // namespace optimization_guide

@@ -24,6 +24,8 @@ class WebAppFilter {
   static WebAppFilter PolicyInstalledIsolatedWebApp();
   // Only consider crafted web apps (not DIY apps).
   static WebAppFilter IsCraftedApp();
+  // Only consider crafted web apps that are set to open in a dedicated window.
+  static WebAppFilter IsCraftedAppAndOpensInDedicatedWindow();
   // Only consider apps that are not installed on this device, but are suggested
   // from other devices.
   static WebAppFilter IsSuggestedApp();
@@ -50,6 +52,10 @@ class WebAppFilter {
   // Only consider web apps that open in a dedicated window (see above), or were
   // installed by the user. Used by the Web Install API.
   static WebAppFilter LaunchableFromInstallApi();
+
+  // Only consider web apps that have been installed in Chrome by trusted
+  // sources, like admin or preinstalled apps.
+  static WebAppFilter IsTrusted();
 
   WebAppFilter(const WebAppFilter&);
   WebAppFilter& operator=(const WebAppFilter&) = default;
@@ -78,6 +84,12 @@ class WebAppFilter {
   bool is_diy_with_os_shortcut_ = false;
   bool launchable_from_install_api_ = false;
   bool is_policy_installed_iwa = false;
+  // Having is_crafted_app_ and opens_in_dedicated_window_ set to true
+  // separately would result in matching any app for which either filter is
+  // true. So use a separate field for the combination of the two. In the
+  // future we might want to have a more generic "and" mechanism for filters.
+  bool is_crafted_app_and_opens_in_dedicated_window_ = false;
+  bool is_app_trusted_ = false;
 };
 
 }  // namespace web_app

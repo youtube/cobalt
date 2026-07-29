@@ -21,6 +21,7 @@
 #include "build/build_config.h"
 #include "components/viz/common/buildflags.h"
 #include "components/viz/common/features.h"
+#include "components/viz/host/persistent_cache_sandboxed_file_factory.h"
 #include "gpu/config/gpu_driver_bug_workaround_type.h"
 #include "gpu/config/gpu_feature_info.h"
 #include "gpu/config/gpu_finch_features.h"
@@ -193,6 +194,12 @@ GpuHostImpl::GpuHostImpl(Delegate* delegate,
 GpuHostImpl::~GpuHostImpl() {
   GetFontRenderParams().SetGpuHostImpl(nullptr);
   SendOutstandingReplies();
+}
+
+void GpuHostImpl::NotifyWorkloadIncrease() {
+#if BUILDFLAG(IS_ANDROID)
+  viz_main_->NotifyWorkloadIncrease();
+#endif
 }
 
 // static
@@ -460,6 +467,10 @@ void GpuHostImpl::InitPersistentCache() {
     // TODO(crbug.com/399642827): Enable persistent cache for other cache types.
     auto* persistent_cache_file_factory =
         PersistentCacheSandboxedFileFactory::GetInstance();
+    if (!persistent_cache_file_factory) {
+      // This can happen in tests when the cache directory is not defined.
+      return;
+    }
     persistent_cache_file_factory->CreateFilesAsync(
         /*cache_id=*/GetGpuDiskCacheSubdir(
             gpu::GpuDiskCacheType::kDawnGraphite),
