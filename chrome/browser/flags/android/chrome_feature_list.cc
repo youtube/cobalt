@@ -65,6 +65,7 @@
 #include "components/sensitive_content/features.h"
 #include "components/shared_highlighting/core/common/shared_highlighting_features.h"
 #include "components/signin/public/base/signin_switches.h"
+#include "components/spellcheck/common/spellcheck_features.h"
 #include "components/subresource_filter/core/browser/subresource_filter_features.h"
 #include "components/supervised_user/core/common/features.h"
 #include "components/sync/base/features.h"
@@ -100,6 +101,7 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &autofill::features::kAutofillEnableCardBenefitsForAmericanExpress,
     &autofill::features::kAutofillEnableCardBenefitsForBmo,
     &autofill::features::kAutofillEnableFlatRateCardBenefitsFromCurinos,
+    &autofill::features::kAutofillEnableNewCardBenefitsToggleText,
     &autofill::features::kAutofillEnablePaymentSettingsCardPromoAndScanCard,
     &autofill::features::kAutofillEnablePaymentSettingsCardPromoAndScanCard,
     &autofill::features::kAutofillThirdPartyModeContentProvider,
@@ -117,7 +119,6 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &autofill::features::kAutofillAndroidDesktopSuppressAccessoryOnEmpty,
     &base::features::kBackgroundThreadPoolFieldTrial,
     &blink::features::kBackForwardTransitions,
-    &blink::features::kDynamicSafeAreaInsets,
     &blink::features::kForceWebContentsDarkMode,
     &blink::features::kPrerender2,
     &browsing_data::features::kBrowsingDataModel,
@@ -149,6 +150,7 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &features::kContextMenuEmptySpace,
     &features::kDisplayEdgeToEdgeFullscreen,
     &features::kEnableExclusiveAccessManager,
+    &features::kEnableFullscreenToAnyScreenAndroid,
     &features::kHttpsFirstBalancedMode,
     &features::kNetworkServiceInProcess,
     &features::kElasticOverscroll,
@@ -191,6 +193,7 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &history::kOrganicRepeatableQueries,
     &history_clusters::internal::kJourneys,
     &history_clusters::internal::kOmniboxAction,
+    &media::kAutoPictureInPictureAndroid,
     &kAccountForSuppressedKeyboardInsets,
     &kAdaptiveButtonInTopToolbarCustomizationV2,
     &kAdaptiveButtonInTopToolbarPageSummary,
@@ -206,6 +209,7 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &kAndroidAppearanceSettings,
     &kAndroidBookmarkBar,
     &kAndroidBottomToolbar,
+    &kAndroidBottomToolbarV2,
     &kAndroidDataImporterService,
     &kAndroidElegantTextHeight,
     &kAndroidFirstRunLaunchBounds,
@@ -217,6 +221,7 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &kAndroidOpenPdfInlineBackport,
     &kAndroidPdfAssistContent,
     &kAndroidPinnedTabs,
+    &kAndroidSettingsContainment,
     &kAndroidTabGroupsColorUpdateGM3,
     &kAndroidTabHighlighting,
     &kAndroidShowRestoreTabsPromoOnFREBypassedKillSwitch,
@@ -233,6 +238,8 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &kAndroidToolbarScrollAblation,
     &kAndroidUseAdminsForEnterpriseInfo,
     &kAndroidWindowPopupLargeScreen,
+    &kAndroidWindowPopupResizeAfterSpawn,
+    &kAnimatedGifRefactor,
     &kAnimatedImageDragShadow,
     &kAppSpecificHistory,
     &kAppSpecificHistoryViewIntent,
@@ -243,7 +250,6 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &kBatchTabRestore,
     &kBlockIntentsWhileLocked,
     &kBookmarkPaneAndroid,
-    &kBottomBrowserControlsRefactor,
     &kBrowserControlsDebugging,
     &kBrowserControlsEarlyResize,
     &kCacheActivityTaskID,
@@ -259,8 +265,6 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &kCCTContextualMenuItems,
     &kCCTEarlyNav,
     &kCCTExtendTrustedCdnPublisher,
-    &kCCTEphemeralMediaViewerExperiment,
-    &kCCTEphemeralMode,
     &kCCTFixWarmup,
     &kCCTFreInSameTask,
     &kCCTIncognitoAvailableToThirdParty,
@@ -283,9 +287,11 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &kCCTToolbarRefactor,
     &kCCTResetTimeoutEnabled,
     &kChangeUnfocusedPriority,
+    &kChromeNativeUrlOverriding,
     &kDefaultBrowserPromoAndroid2,
     &kDisableInstanceLimit,
     &kDontAutoHideBrowserControls,
+    &kDrawChromePagesEdgeToEdge,
     &kCacheDeprecatedSystemLocationSetting,
     &kChromeSurveyNextAndroid,
     &kClampAutomotiveScaling,
@@ -398,8 +404,8 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &kTabGroupEntryPointsAndroid,
     &kTabGroupParityBottomSheetAndroid,
     &kTabModelInitFixes,
-    &kTabStateFlatBuffer,
     &kTabStorageSqlitePrototype,
+    &kTabStripAutoSelectOnCloseChange,
     &kTabStripDensityChangeAndroid,
     &kTabStripGroupDragDropAndroid,
     &kTabStripIncognitoMigration,
@@ -474,6 +480,8 @@ const base::Feature* const kFeaturesExposedToJava[] = {
         kSegmentationPlatformAndroidHomeModuleRankerV2,
     &sensitive_content::features::kSensitiveContent,
     &sensitive_content::features::kSensitiveContentWhileSwitchingTabs,
+    &spellcheck::kAndroidGrammarCheck,
+    &spellcheck::kAndroidSpellcheckNativeUi,
     &supervised_user::kPropagateDeviceContentFiltersToSupervisedUser,
     &switches::kMitigateLegacySearchEnginePromoOverlap,
     &sync_sessions::kOptimizeAssociateWindowsAndroid,
@@ -517,7 +525,7 @@ BASE_FEATURE(kAdaptiveButtonInTopToolbarPageSummary,
 
 BASE_FEATURE(kAllowTabClosingUponMinimization,
              "AllowTabClosingUponMinimization",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kAndroidAppIntegration,
              "AndroidAppIntegration",
@@ -563,11 +571,13 @@ BASE_FEATURE(kAndroidBottomToolbar,
              "AndroidBottomToolbar",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
-// TODO(crbug.com/431218724): Enable by default when the implementation is
-// complete. Remember to also update the CachedFlag in ChromeFeatureList.java.
+BASE_FEATURE(kAndroidBottomToolbarV2,
+             "AndroidBottomToolbarV2",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 BASE_FEATURE(kAndroidDataImporterService,
              "AndroidDataImporterService",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kAndroidElegantTextHeight,
              "AndroidElegantTextHeight",
@@ -575,7 +585,7 @@ BASE_FEATURE(kAndroidElegantTextHeight,
 
 BASE_FEATURE(kAndroidFirstRunLaunchBounds,
              "AndroidFirstRunLaunchBounds",
-             base::FEATURE_ENABLED_BY_DEFAULT);
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kAndroidNativePagesInNewTab,
              "AndroidNativePagesInNewTab",
@@ -607,6 +617,10 @@ BASE_FEATURE(kAndroidOpenPdfInlineBackport,
 
 BASE_FEATURE(kAndroidPdfAssistContent,
              "AndroidPdfAssistContent",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kAndroidSettingsContainment,
+             "AndroidSettingsContainment",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kAndroidTabGroupsColorUpdateGM3,
@@ -647,7 +661,7 @@ BASE_FEATURE(kAndroidTabDeclutterDedupeTabIdsKillSwitch,
 
 BASE_FEATURE(kAndroidTabDeclutterPerformanceImprovements,
              "AndroidTabDeclutterPerformanceImprovements",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kAndroidTabDeclutterRescueKillswitch,
              "AndroidTabDeclutterRescueKillswitch",
@@ -672,6 +686,14 @@ BASE_FEATURE(kAndroidUseAdminsForEnterpriseInfo,
 BASE_FEATURE(kAndroidWindowPopupLargeScreen,
              "AndroidWindowPopupLargeScreen",
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kAndroidWindowPopupResizeAfterSpawn,
+             "AndroidWindowPopupResizeAfterSpawn",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kAnimatedGifRefactor,
+             "AnimatedGifRefactor",
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kAnimatedImageDragShadow,
              "AnimatedImageDragShadow",
@@ -716,10 +738,6 @@ BASE_FEATURE(kBlockIntentsWhileLocked,
 BASE_FEATURE(kBookmarkPaneAndroid,
              "BookmarkPaneAndroid",
              base::FEATURE_DISABLED_BY_DEFAULT);
-
-BASE_FEATURE(kBottomBrowserControlsRefactor,
-             "BottomBrowserControlsRefactor",
-             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kBrowserControlsDebugging,
              "BrowserControlsDebugging",
@@ -771,14 +789,6 @@ BASE_FEATURE(kCCTContextualMenuItems,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kCCTEarlyNav, "CCTEarlyNav", base::FEATURE_DISABLED_BY_DEFAULT);
-
-BASE_FEATURE(kCCTEphemeralMediaViewerExperiment,
-             "CCTEphemeralMediaViewerExperiment",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
-BASE_FEATURE(kCCTEphemeralMode,
-             "CCTEphemeralMode",
-             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kCCTExtendTrustedCdnPublisher,
              "CCTExtendTrustedCdnPublisher",
@@ -840,7 +850,7 @@ BASE_FEATURE(kHubBackButton,
 
 BASE_FEATURE(kHubSlideAnimation,
              "HubSlideAnimation",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kCCTPrewarmTab, "CCTPrewarmTab", base::FEATURE_ENABLED_BY_DEFAULT);
 
@@ -878,6 +888,10 @@ BASE_FEATURE(kCCTResetTimeoutEnabled,
              "CCTResetTimeoutEnabled",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+BASE_FEATURE(kChromeNativeUrlOverriding,
+             "ChromeNativeUrlOverriding",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 BASE_FEATURE(kChangeUnfocusedPriority,
              "ChangeUnfocusedPriority",
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -889,6 +903,10 @@ BASE_FEATURE(kDisableInstanceLimit,
 BASE_FEATURE(kDontAutoHideBrowserControls,
              "DontAutoHideBrowserControls",
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kDrawChromePagesEdgeToEdge,
+             "DrawChromePagesEdgeToEdge",
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kCacheDeprecatedSystemLocationSetting,
              "CacheDeprecatedSystemLocationSetting",
@@ -1308,17 +1326,17 @@ BASE_FEATURE(kTabModelInitFixes,
              "TabModelInitFixes",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-BASE_FEATURE(kTabStateFlatBuffer,
-             "TabStateFlatBuffer",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 BASE_FEATURE(kTabStorageSqlitePrototype,
              "TabStorageSqlitePrototype",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+BASE_FEATURE(kTabStripAutoSelectOnCloseChange,
+             "TabStripAutoSelectOnCloseChange",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
 BASE_FEATURE(kTabStripDensityChangeAndroid,
              "TabStripDensityChangeAndroid",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kTabStripGroupDragDropAndroid,
              "TabStripGroupDragDropAndroid",

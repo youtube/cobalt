@@ -151,7 +151,6 @@
 #include "chrome/browser/password_manager/android/credential_leak_controller_android.h"
 #include "chrome/browser/password_manager/android/grouped_affiliations/acknowledge_grouped_credential_sheet_bridge.h"
 #include "chrome/browser/password_manager/android/grouped_affiliations/acknowledge_grouped_credential_sheet_controller.h"
-#include "chrome/browser/password_manager/android/local_passwords_migration_warning_util.h"
 #include "chrome/browser/password_manager/android/one_time_passwords/android_sms_otp_backend_factory.h"
 #include "chrome/browser/password_manager/android/password_checkup_launcher_helper_impl.h"
 #include "chrome/browser/password_manager/android/password_generation_controller.h"
@@ -225,16 +224,6 @@ constexpr char kPasswordBreachEntryTrigger[] = "PASSWORD_ENTRY";
 // TODO(crbug.com/41485955): Get rid of DeprecatedGetOriginAsURL().
 url::Origin URLToOrigin(GURL url) {
   return url::Origin::Create(url.DeprecatedGetOriginAsURL());
-}
-
-void MaybeShowPostMigrationSheetWrapper(
-    base::WeakPtr<content::WebContents> web_contents,
-    Profile* profile) {
-  if (!web_contents) {
-    return;
-  }
-  local_password_migration::MaybeShowPostMigrationSheet(
-      web_contents->GetTopLevelNativeWindow(), profile);
 }
 
 #endif
@@ -1400,16 +1389,6 @@ void ChromePasswordManagerClient::NavigateToManagePasswordsPage(
 #endif
 }
 
-void ChromePasswordManagerClient::InformPasswordChangeServiceOfOtpPresent() {
-  ChromePasswordChangeService* password_change_service =
-      PasswordChangeServiceFactory::GetForProfile(profile_);
-  if (password_change_service &&
-      password_change_service->GetPasswordChangeDelegate(web_contents())) {
-    password_change_service->GetPasswordChangeDelegate(web_contents())
-        ->OnOtpFieldDetected(web_contents());
-  }
-}
-
 #if BUILDFLAG(IS_ANDROID)
 void ChromePasswordManagerClient::NavigateToManagePasskeysPage(
     password_manager::ManagePasswordsReferrer referrer) {
@@ -1910,6 +1889,12 @@ ChromePasswordManagerClient::ChromePasswordManagerClient(
                         InitializationPolicy::kObservePreexistingManagers);
 }
 
+void ChromePasswordManagerClient::RenderFrameDeleted(
+    content::RenderFrameHost* render_frame_host) {
+  otp_manager_.OnRenderFrameDeleted(
+      autofill::LocalFrameToken(render_frame_host->GetFrameToken().value()));
+}
+
 void ChromePasswordManagerClient::PrimaryPageChanged(content::Page& page) {
 #if BUILDFLAG(IS_ANDROID)
   if (first_cct_page_load_metrics_recorder_) {
@@ -1970,6 +1955,20 @@ void ChromePasswordManagerClient::WebContentsDestroyed() {
 #endif
 }
 
+void ChromePasswordManagerClient::DidFinishNavigation(
+    content::NavigationHandle* navigation) {
+  if (!navigation->HasCommitted() || navigation->IsSameDocument()) {
+    return;
+  }
+
+  if (navigation->IsInPrimaryMainFrame()) {
+    otp_manager_.OnDidFinishNavigationInMainFrame();
+  } else {
+    otp_manager_.OnDidFinishNavigationInIframe(autofill::LocalFrameToken(
+        navigation->GetRenderFrameHost()->GetFrameToken().value()));
+  }
+}
+
 void ChromePasswordManagerClient::ResourceLoadComplete(
     content::RenderFrameHost* render_frame_host,
     const content::GlobalRequestID& request_id,
@@ -1988,12 +1987,6 @@ void ChromePasswordManagerClient::OnFieldTypesDetermined(
     autofill::AutofillManager& manager,
     autofill::FormGlobalId form_id,
     FieldTypeSource source) {
-  if (source != FieldTypeSource::kAutofillServer &&
-      !base::FeatureList::IsEnabled(
-          password_manager::features::kPasswordFormClientsideClassifier)) {
-    return;
-  }
-
   std::optional<autofill::RendererForms> renderer_forms =
       autofill::RendererFormsFromBrowserForm(manager, form_id);
   if (!renderer_forms.has_value()) {
@@ -2028,10 +2021,17 @@ void ChromePasswordManagerClient::OnFieldTypesDetermined(
         auto predictions = manager.GetHeursticPredictionForForm(
             autofill::HeuristicSource::kPasswordManagerMachineLearning, form_id,
             field_ids);
-        password_manager_.ProcessClassificationModelPredictions(driver, form,
-                                                                predictions);
+        if (base::FeatureList::IsEnabled(
+                password_manager::features::
+                    kApplyClientsideModelPredictionsForPasswordTypes)) {
+          password_manager_.ProcessClassificationModelPredictions(driver, form,
+                                                                  predictions);
+        }
 
-        if (PredictionsContainOtpFields(predictions)) {
+        if (PredictionsContainOtpFields(predictions) &&
+            base::FeatureList::IsEnabled(
+                password_manager::features::
+                    kApplyClientsideModelPredictionsForOtps)) {
           otp_manager_.ProcessClassificationModelPredictions(form, predictions);
         }
         break;
@@ -2254,14 +2254,6 @@ gfx::RectF ChromePasswordManagerClient::TransformToRootCoordinates(
 #if BUILDFLAG(IS_ANDROID)
 void ChromePasswordManagerClient::ResetErrorMessageDelegate() {
   password_manager_error_message_delegate_.reset();
-}
-
-void ChromePasswordManagerClient::TryToShowPostPasswordMigrationSheet() {
-  // This is to run the function after all the initialization tasks have been
-  // completed.
-  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-      FROM_HERE, base::BindOnce(&MaybeShowPostMigrationSheetWrapper,
-                                web_contents()->GetWeakPtr(), profile_));
 }
 #endif
 

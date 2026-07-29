@@ -8,6 +8,7 @@
 #include <map>
 
 #include "base/memory/raw_ref.h"
+#include "components/autofill/core/browser/data_model/autofill_ai/entity_type.h"
 #include "components/autofill/core/browser/form_structure.h"
 #include "components/autofill/core/browser/integrators/autofill_ai/metrics/autofill_ai_ukm_logger.h"
 #include "components/autofill/core/common/unique_ids.h"
@@ -24,19 +25,24 @@ class AutofillAiLogger {
   AutofillAiLogger& operator=(const AutofillAiLogger&) = delete;
   ~AutofillAiLogger();
 
-  void OnFormEligibilityAvailable(FormGlobalId form_id, bool is_eligible);
-  void OnFormHasDataToFill(FormGlobalId form_id);
+  void OnFormEligibilityAvailable(FormGlobalId form_id,
+                                  DenseSet<EntityType> relevant_entities);
+  void OnFormHasDataToFill(FormGlobalId form_id,
+                           DenseSet<EntityType> entities_to_fill);
   void OnSuggestionsShown(const FormStructure& form,
                           const AutofillField& field,
+                          DenseSet<EntityType> suggested_entity_types,
                           ukm::SourceId ukm_source_id);
   void OnDidFillSuggestion(const FormStructure& form,
                            const AutofillField& field,
+                           EntityType entity_type,
                            ukm::SourceId ukm_source_id);
   void OnEditedAutofilledField(const FormStructure& form,
                                const AutofillField& field,
                                ukm::SourceId ukm_source_id);
   void OnDidFillField(const FormStructure& form,
                       const AutofillField& field,
+                      EntityType entity_type,
                       ukm::SourceId ukm_source_id);
 
   // Function that records the contents of `form_states` for `form` into
@@ -70,17 +76,31 @@ class AutofillAiLogger {
     bool edited_autofilled_field = false;
   };
 
-  void RecordFunnelMetrics(const FunnelState& funnel_state,
+  void RecordFunnelMetrics(const std::map<EntityType, FunnelState>& states,
+                           DenseSet<EntityType> relevant_entities,
                            bool submission_state) const;
-  void RecordKeyMetrics(const FormStructure& form,
-                        const FunnelState& funnel_state) const;
-  void RecordNumberOfFieldsFilled(const FormStructure& form,
-                                  const FunnelState& state,
-                                  bool opt_in_status) const;
+  void RecordKeyMetrics(DenseSet<EntityType> relevant_entities,
+                        const std::map<EntityType, FunnelState>& states) const;
+  void RecordNumberOfFieldsFilled(
+      const FormStructure& form,
+      const std::map<EntityType, FunnelState>& states,
+      bool opt_in_status) const;
 
-  // Records the funnel state of each form. See the documentation of
-  // `FunnelState` for more information about what is recorded.
-  std::map<FormGlobalId, FunnelState> form_states_;
+  // Records the funnel state for each form and entity type separately. See the
+  // documentation of `FunnelState` for more information about what is recorded.
+  std::map<FormGlobalId, std::map<EntityType, FunnelState>> form_states_;
+
+  // Records the IDs of forms that were submitted throughout the lifetime of
+  // this object.
+  std::set<FormGlobalId> submitted_forms_;
+
+  // Records the last filled `EntityType` for each field. This information is
+  // currently unavailable in `AutofillField`, because
+  // `AutofillField::filling_product_` isn't accurate enough when it comes to
+  // AutofillAi entities, which are all aggregated into
+  // `FillingProduct::kAutofillAi`.
+  // TODO(crbug.com/432650464): Update this state on Undo operations.
+  std::map<FieldGlobalId, EntityType> last_filled_entity_;
 
   AutofillAiUkmLogger ukm_logger_;
 };

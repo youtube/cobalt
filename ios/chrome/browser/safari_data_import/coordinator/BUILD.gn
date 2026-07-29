@@ -39,6 +39,9 @@ source_set("export_coordinator") {
     ":coordinator_delegate",
     ":import_coordinator",
     "//base",
+    "//ios/chrome/browser/safari_data_import/ui",
+    "//ios/chrome/common/ui/confirmation_alert",
+    "//ios/public/provider/chrome/browser/safari_data_import:safari_data_import_api",
   ]
 }
 
@@ -61,9 +64,11 @@ source_set("import_coordinator") {
     "//components/password_manager/core/browser/ui",
     "//components/reading_list/core",
     "//components/user_data_importer/ios",
+    "//ios/chrome/app/strings",
     "//ios/chrome/browser/affiliations/model",
     "//ios/chrome/browser/autofill/model",
     "//ios/chrome/browser/bookmarks/model",
+    "//ios/chrome/browser/favicon/model",
     "//ios/chrome/browser/first_run/ui_bundled:constants",
     "//ios/chrome/browser/history/model",
     "//ios/chrome/browser/passwords/model:store_factory",
@@ -74,8 +79,11 @@ source_set("import_coordinator") {
     "//ios/chrome/browser/shared/model/application_context",
     "//ios/chrome/browser/shared/model/browser",
     "//ios/chrome/browser/shared/model/profile",
+    "//ios/chrome/browser/signin/model",
+    "//ios/chrome/browser/sync/model",
     "//ios/chrome/browser/webauthn/model",
     "//ios/chrome/common/ui/promo_style",
+    "//ui/base",
   ]
 }
 

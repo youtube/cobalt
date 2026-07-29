@@ -158,17 +158,22 @@ signin::Tribool AccountInfo::IsManaged(const std::string& hosted_domain) {
 }
 
 bool AccountInfo::IsMemberOfFlexOrg() const {
-  return capabilities.is_subject_to_enterprise_policies() ==
+  return capabilities.is_subject_to_enterprise_features() ==
              signin::Tribool::kTrue &&
          IsManaged(hosted_domain) != signin::Tribool::kTrue;
 }
 
 signin::Tribool AccountInfo::IsManaged() const {
-  if (base::FeatureList::IsEnabled(
-          kUseAccountCapabilityToDetermineAccountManagement)) {
-    return capabilities.is_subject_to_enterprise_policies();
-  }
   return IsManaged(hosted_domain);
+}
+
+signin::Tribool AccountInfo::CanApplyAccountLevelEnterprisePolicies() const {
+#if BUILDFLAG(ENABLE_DICE_SUPPORT)
+  if (base::FeatureList::IsEnabled(switches::kEnforceManagementDisclaimer)) {
+    return capabilities.is_subject_to_account_level_enterprise_policies();
+  }
+#endif
+  return IsManaged();
 }
 
 bool AccountInfo::IsEduAccount() const {

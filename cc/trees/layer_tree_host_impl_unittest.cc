@@ -2890,81 +2890,6 @@ TEST_P(LayerTreeHostImplTest, ScrollSnapAfterAnimatedScroll) {
             GetSnapContainerData(overflow)->GetTargetSnapAreaElementIds());
 }
 
-TEST_P(LayerTreeHostImplTest, SnapAnimationTargetUpdated) {
-  // If MultiImplOnlyScrollAnimations is enabled this test is not valid because
-  // that flag makes InputHandler forget the latched ScrollNode at the beginning
-  // of the snap animation rather than at the end. And so, processing a
-  // ScrollUpdate (without a corresponding ScrollBegin) after the snap animation
-  // has kicked off is invalid.
-  // TODO(crbug.com/372627916): remove this test when deleting this flag.
-  if (features::MultiImplOnlyScrollAnimationsSupported()) {
-    return;
-  }
-  LayerImpl* overflow = CreateLayerForSnapping();
-
-  gfx::Point pointer_position(10, 10);
-  gfx::Vector2dF y_delta(0, 20);
-  EXPECT_EQ(ScrollThread::kScrollOnImplThread,
-            GetInputHandler()
-                .ScrollBegin(BeginState(pointer_position, y_delta,
-                                        ui::ScrollInputType::kWheel)
-                                 .get(),
-                             ui::ScrollInputType::kWheel)
-                .thread);
-  EXPECT_POINTF_EQ(gfx::PointF(0, 0), CurrentScrollOffset(overflow));
-
-  GetInputHandler().ScrollUpdate(
-      UpdateState(pointer_position, y_delta, ui::ScrollInputType::kWheel));
-  EXPECT_FALSE(
-      GetInputHandler().animating_for_snap_for_testing(overflow->element_id()));
-
-  viz::BeginFrameArgs begin_frame_args =
-      viz::CreateBeginFrameArgsForTesting(BEGINFRAME_FROM_HERE, 0, 1);
-  GetInputHandler().ScrollEnd(true);
-  base::TimeTicks start_time = base::TimeTicks() + base::Milliseconds(100);
-  BeginImplFrameAndAnimate(begin_frame_args, start_time);
-
-  // Finish smooth wheel scroll animation which starts a snap animation.
-  BeginImplFrameAndAnimate(begin_frame_args,
-                           start_time + base::Milliseconds(100));
-  EXPECT_TRUE(
-      GetInputHandler().animating_for_snap_for_testing(overflow->element_id()));
-  EXPECT_EQ(TargetSnapAreaElementIds(),
-            GetSnapContainerData(overflow)->GetTargetSnapAreaElementIds());
-
-  gfx::PointF current_offset = CurrentScrollOffset(overflow);
-  EXPECT_GT(50, current_offset.y());
-  EXPECT_LT(20, current_offset.y());
-
-  // Update wheel scroll animation target. This should no longer be considered
-  // as animating a snap scroll, which should happen at the end of this
-  // animation.
-  GetInputHandler().ScrollUpdate(
-      AnimatedUpdateState(gfx::Point(10, 10), gfx::Vector2dF(0, -10)));
-  EXPECT_FALSE(
-      GetInputHandler().animating_for_snap_for_testing(overflow->element_id()));
-  // Finish the smooth scroll animation for wheel.
-  BeginImplFrameAndAnimate(begin_frame_args,
-                           start_time + base::Milliseconds(150));
-
-  // At the end of the previous scroll animation, a new animation for the
-  // snapping should have started.
-  EXPECT_TRUE(
-      GetInputHandler().animating_for_snap_for_testing(overflow->element_id()));
-
-  // Finish the snap animation.
-  BeginImplFrameAndAnimate(begin_frame_args,
-                           start_time + base::Milliseconds(1000));
-
-  EXPECT_FALSE(
-      GetInputHandler().animating_for_snap_for_testing(overflow->element_id()));
-  // At the end of snap animation we should have updated the
-  // TargetSnapAreaElementIds.
-  EXPECT_EQ(TargetSnapAreaElementIds(ElementId(), ElementId(10)),
-            GetSnapContainerData(overflow)->GetTargetSnapAreaElementIds());
-  EXPECT_POINTF_EQ(gfx::PointF(0, 50), CurrentScrollOffset(overflow));
-}
-
 TEST_P(LayerTreeHostImplTest, SnapAnimationCancelledByScroll) {
   LayerImpl* overflow = CreateLayerForSnapping();
 
@@ -3744,10 +3669,11 @@ class IncompleteRecordingLayer : public LayerImpl {
   }
 };
 
-TEST_P(LayerTreeHostImplTest, ScrollCheckerboardsIncompleteRecording) {
+TEST_P(LayerTreeHostImplTest, ScrollCheckerboardsIncompleteRecordingPerScroll) {
   base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitAndEnableFeature(
-      features::kNewContentForCheckerboardedScrolls);
+  scoped_feature_list.InitAndEnableFeatureWithParameters(
+      features::kNewContentForCheckerboardedScrolls,
+      {{"mode", features::kNewContentForCheckerboardedScrollsPerScroll}});
   LayerTreeSettings settings = DefaultSettings();
   CreateHostImpl(settings, CreateLayerTreeFrameSink());
   host_impl_->active_tree()->PushPageScaleFromMainThread(1, 0.25f, 4);
@@ -3775,7 +3701,7 @@ TEST_P(LayerTreeHostImplTest, ScrollCheckerboardsIncompleteRecording) {
   DrawFrame();
 
   // No scroll has taken place so this should be false.
-  EXPECT_FALSE(host_impl_->ScrollCheckerboardsIncompleteRecording());
+  EXPECT_FALSE(host_impl_->PrioritizeNewContentDueToCheckerboarding());
 
   // Send scroll begin.
   GetInputHandler().ScrollBegin(
@@ -3788,7 +3714,7 @@ TEST_P(LayerTreeHostImplTest, ScrollCheckerboardsIncompleteRecording) {
 
   // Even though a ScrollBegin has been processed, we still don't consider the
   // interaction to be "actively scrolling". Expect this to be false.
-  EXPECT_FALSE(host_impl_->ScrollCheckerboardsIncompleteRecording());
+  EXPECT_FALSE(host_impl_->PrioritizeNewContentDueToCheckerboarding());
 
   gfx::Vector2dF scroll_delta(0, 10);
 
@@ -3802,12 +3728,134 @@ TEST_P(LayerTreeHostImplTest, ScrollCheckerboardsIncompleteRecording) {
   // Now that a scroll update has been processed and the latest
   // CalculateRenderPasses run has computed significant visible checkerboarding,
   // expect this flag to be true.
-  EXPECT_TRUE(host_impl_->ScrollCheckerboardsIncompleteRecording());
+  EXPECT_TRUE(host_impl_->PrioritizeNewContentDueToCheckerboarding());
 
   GetInputHandler().ScrollEnd();
 
   // Expect state to be reset after a scroll end.
-  EXPECT_FALSE(host_impl_->ScrollCheckerboardsIncompleteRecording());
+  EXPECT_FALSE(host_impl_->PrioritizeNewContentDueToCheckerboarding());
+}
+
+TEST_P(LayerTreeHostImplTest, ScrollCheckerboardsIncompleteRecordingPerFrame) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeatureWithParameters(
+      features::kNewContentForCheckerboardedScrolls,
+      {{"mode", features::kNewContentForCheckerboardedScrollsPerFrame}});
+  LayerTreeSettings settings = DefaultSettings();
+  CreateHostImpl(settings, CreateLayerTreeFrameSink());
+  host_impl_->active_tree()->PushPageScaleFromMainThread(1, 0.25f, 4);
+
+  const gfx::Size content_size(1000, 1000);
+  const gfx::Size viewport_size(500, 500);
+  SetupViewportLayersOuterScrolls(viewport_size, content_size);
+
+  LayerImpl* outer_scroll_layer = OuterViewportScrollLayer();
+  outer_scroll_layer->SetDrawsContent(true);
+  LayerImpl* inner_scroll_layer = InnerViewportScrollLayer();
+  inner_scroll_layer->SetDrawsContent(true);
+
+  // Add layer that draws content and has checkerboarded areas.
+  auto* scroll_layer =
+      AddLayer<IncompleteRecordingLayer>(host_impl_->active_tree());
+  CopyProperties(inner_scroll_layer, scroll_layer);
+  scroll_layer->SetBounds(gfx::Size(500, 500));
+  scroll_layer->SetDrawsContent(true);
+  scroll_layer->SetHitTestOpaqueness(HitTestOpaqueness::kTransparent);
+  host_impl_->active_tree()->SetElementIdsForTesting();
+
+  UpdateDrawProperties(host_impl_->active_tree());
+
+  DrawFrame();
+
+  // No scroll has taken place so this should be false.
+  EXPECT_FALSE(host_impl_->PrioritizeNewContentDueToCheckerboarding());
+
+  // Send scroll begin.
+  GetInputHandler().ScrollBegin(
+      BeginState(gfx::Point(250, 250), gfx::Vector2dF(),
+                 ui::ScrollInputType::kTouchscreen)
+          .get(),
+      ui::ScrollInputType::kTouchscreen);
+
+  DrawFrame();
+
+  // Even though a ScrollBegin has been processed, we still don't consider the
+  // interaction to be "actively scrolling". Expect this to be false.
+  EXPECT_FALSE(host_impl_->PrioritizeNewContentDueToCheckerboarding());
+
+  gfx::Vector2dF scroll_delta(0, 10);
+
+  scroll_layer->layer_tree_impl()
+      ->property_trees()
+      ->scroll_tree_mutable()
+      .SetScrollingContentsCullRect(
+          host_impl_->CurrentlyScrollingNode()->element_id, gfx::Rect(50, 50));
+
+  // Send scroll update.
+  GetInputHandler().ScrollUpdate(UpdateState(gfx::Point(10, 10), scroll_delta,
+                                             ui::ScrollInputType::kWheel));
+  // Now that a scroll update has been processed and checkerboarding has been
+  // detected expect this flag to be true.
+  EXPECT_TRUE(host_impl_->PrioritizeNewContentDueToCheckerboarding());
+  host_impl_->SetFullViewportDamage();
+  DrawFrame();
+
+  // After drawing a frame the value remains true because the frame had
+  // checkerboarding (the top layer was IncompleteRecordingLayer).
+  EXPECT_TRUE(host_impl_->PrioritizeNewContentDueToCheckerboarding());
+}
+
+// Verifies that kNewContentForCheckerboardedScrolls doesn't set the flag to
+// to change tree priority when the checkerboarding happens outside of the
+// screen's rect.
+TEST_P(LayerTreeHostImplTest,
+       ScrollCheckerboardsIncompleteRecordingOutOfScreen) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeatureWithParameters(
+      features::kNewContentForCheckerboardedScrolls,
+      {{"mode", features::kNewContentForCheckerboardedScrollsPerFrame}});
+  LayerTreeSettings settings = DefaultSettings();
+  CreateHostImpl(settings, CreateLayerTreeFrameSink());
+  host_impl_->active_tree()->PushPageScaleFromMainThread(1, 0.25f, 4);
+
+  const gfx::Size content_size(1000, 1000);
+  const gfx::Size viewport_size(500, 500);
+  SetupViewportLayersOuterScrolls(viewport_size, content_size);
+  LayerImpl* outer_scroll_layer = OuterViewportScrollLayer();
+  outer_scroll_layer->SetDrawsContent(true);
+  LayerImpl* inner_scroll_layer = InnerViewportScrollLayer();
+  inner_scroll_layer->SetDrawsContent(true);
+  auto* scroll_layer =
+      AddLayer<IncompleteRecordingLayer>(host_impl_->active_tree());
+  CopyProperties(inner_scroll_layer, scroll_layer);
+  scroll_layer->SetBounds(gfx::Size(250, 250));
+  scroll_layer->SetDrawsContent(true);
+  scroll_layer->SetHitTestOpaqueness(HitTestOpaqueness::kTransparent);
+  host_impl_->active_tree()->SetElementIdsForTesting();
+  UpdateDrawProperties(host_impl_->active_tree());
+  GetInputHandler().ScrollBegin(
+      BeginState(gfx::Point(260, 260), gfx::Vector2dF(),
+                 ui::ScrollInputType::kTouchscreen)
+          .get(),
+      ui::ScrollInputType::kTouchscreen);
+  // The `cull_rect` will start 20px down from the `visible_rect` (after the
+  // scroll). The `visible_rect`'s origin will be 20px above the screen, so
+  // those 20pxs wouldn't be rendered. Even though the `cull_rect` won't contain
+  // the entirety of the `visible_rect`, it will contain the entirety of the
+  // `visible_rect`'s portion that is is rendered inside the screen, which means
+  // that the checkerboarding won't be visible to the user and
+  // `PrioritizeNewContentDueToCheckerboarding()` should be false.
+  const gfx::Vector2dF scroll_delta(0, 20);
+  scroll_layer->layer_tree_impl()
+      ->property_trees()
+      ->scroll_tree_mutable()
+      .SetScrollingContentsCullRect(
+          host_impl_->CurrentlyScrollingNode()->element_id,
+          gfx::Rect(scroll_delta.x(), scroll_delta.y(), viewport_size.width(),
+                    viewport_size.height()));
+  GetInputHandler().ScrollUpdate(UpdateState(gfx::Point(10, 10), scroll_delta,
+                                             ui::ScrollInputType::kWheel));
+  EXPECT_FALSE(host_impl_->PrioritizeNewContentDueToCheckerboarding());
 }
 
 TEST_P(LayerTreeHostImplTest, ImplPinchZoom) {
@@ -16569,8 +16617,6 @@ TEST_P(LayerTreeHostImplTest, RasterColorSpace) {
   wcg_params =
       host_impl_->GetTargetColorParams(gfx::ContentColorUsage::kWideColorGamut);
   EXPECT_EQ(wcg_params.color_space, gfx::ColorSpace::CreateDisplayP3D65());
-  EXPECT_EQ(wcg_params.sdr_max_luminance_nits,
-            gfx::ColorSpace::kDefaultSDRWhiteLevel);
 }
 
 TEST_P(LayerTreeHostImplTest, RasterColorSpaceSoftware) {
@@ -16587,8 +16633,6 @@ TEST_P(LayerTreeHostImplTest, RasterColorSpaceSoftware) {
   wcg_params =
       host_impl_->GetTargetColorParams(gfx::ContentColorUsage::kWideColorGamut);
   EXPECT_EQ(wcg_params.color_space, gfx::ColorSpace::CreateSRGB());
-  EXPECT_EQ(wcg_params.sdr_max_luminance_nits,
-            gfx::ColorSpace::kDefaultSDRWhiteLevel);
 }
 
 TEST_P(LayerTreeHostImplTest, RasterColorPrefersSRGB) {
@@ -16608,8 +16652,6 @@ TEST_P(LayerTreeHostImplTest, RasterColorPrefersSRGB) {
   host_impl_->active_tree()->SetDisplayColorSpaces(gfx::DisplayColorSpaces(p3));
   srgb_params = host_impl_->GetTargetColorParams(gfx::ContentColorUsage::kSRGB);
   EXPECT_EQ(srgb_params.color_space, p3);
-  EXPECT_EQ(srgb_params.sdr_max_luminance_nits,
-            gfx::ColorSpace::kDefaultSDRWhiteLevel);
 }
 
 TEST_P(LayerTreeHostImplTest, RasterColorSpaceHDR) {
@@ -16631,17 +16673,15 @@ TEST_P(LayerTreeHostImplTest, RasterColorSpaceHDR) {
   const auto hdr_params =
       host_impl_->GetTargetColorParams(gfx::ContentColorUsage::kHDR);
 
-  // Non-HDR content should be rasterized in P3.
-  EXPECT_EQ(srgb_params.color_space, gfx::ColorSpace::CreateDisplayP3D65());
-  EXPECT_EQ(srgb_params.sdr_max_luminance_nits, kCustomWhiteLevel);
-  EXPECT_EQ(srgb_params.hdr_max_luminance_relative, 1.f);
-  EXPECT_EQ(wcg_params.color_space, gfx::ColorSpace::CreateDisplayP3D65());
-  EXPECT_EQ(wcg_params.sdr_max_luminance_nits, kCustomWhiteLevel);
-  EXPECT_EQ(wcg_params.hdr_max_luminance_relative, 1.f);
-
-  EXPECT_EQ(hdr_params.color_space, gfx::ColorSpace::CreateExtendedSRGB());
-  EXPECT_EQ(hdr_params.sdr_max_luminance_nits, kCustomWhiteLevel);
-  EXPECT_EQ(hdr_params.hdr_max_luminance_relative, kHDRMaxLuminanceRelative);
+  // sRGB content is rastered as sRGB, WCG as P3.
+  const auto srgb = gfx::ColorSpace::CreateSRGB();
+  const auto p3 = gfx::ColorSpace::CreateDisplayP3D65();
+  EXPECT_EQ(srgb_params.color_space, srgb);
+  EXPECT_EQ(srgb_params.GetHdrHeadroom(), 0.f);
+  EXPECT_EQ(wcg_params.color_space, p3);
+  EXPECT_EQ(wcg_params.GetHdrHeadroom(), 0.f);
+  EXPECT_EQ(hdr_params.color_space, p3.GetAsHDR());
+  EXPECT_EQ(hdr_params.GetHdrHeadroom(), std::log2(kHDRMaxLuminanceRelative));
 }
 
 TEST_F(CommitToPendingTreeLayerTreeHostImplTest,
@@ -19276,11 +19316,6 @@ TEST_P(LayerTreeHostImplTest, VisbilityUpdateToLayers) {
 
 class ConcurrentImplOnlyScrollAnimationsTest : public LayerTreeHostImplTest {
  public:
-  void SetUp() override {
-    scoped_feature_list_.InitAndEnableFeature(
-        features::kMultipleImplOnlyScrollAnimations);
-    LayerTreeHostImplTest::SetUp();
-  }
   gfx::PointF CreateAndTickScrollAnimations();
   void CompleteScrollAnimations();
 
@@ -19429,8 +19464,6 @@ TEST_P(ConcurrentImplOnlyScrollAnimationsTest, RemovedByCommit) {
 class ConcurrentSnapAnimationsTest : public LayerTreeHostImplTest {
  public:
   void SetUp() override {
-    scoped_feature_list_.InitAndEnableFeature(
-        features::kMultipleImplOnlyScrollAnimations);
     LayerTreeHostImplTest::SetUp();
     gfx::Size viewport_size(100, 100);
     gfx::Size content_size(100, 5000);

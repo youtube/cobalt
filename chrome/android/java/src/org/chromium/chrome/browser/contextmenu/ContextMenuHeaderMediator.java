@@ -30,6 +30,7 @@ import org.chromium.components.embedder_support.contextmenu.ContextMenuNativeDel
 import org.chromium.components.embedder_support.contextmenu.ContextMenuParams;
 import org.chromium.components.favicon.IconType;
 import org.chromium.components.favicon.LargeIconBridge;
+import org.chromium.ui.listmenu.ListMenuItemProperties;
 import org.chromium.ui.modelutil.PropertyModel;
 import org.chromium.url.GURL;
 
@@ -106,23 +107,40 @@ class ContextMenuHeaderMediator implements View.OnClickListener {
 
     /**
      * This is called when the url text is clicked. So, we can expand or shrink the url here.
+     *
      * @param v The url text view.
      */
     @Override
     public void onClick(View v) {
+        boolean isSecondaryUrlPresent =
+                !TextUtils.isEmpty(mModel.get(ContextMenuHeaderProperties.SECONDARY_URL));
+        if (!isSecondaryUrlPresent) {
+            mModel.set(ContextMenuHeaderProperties.SECONDARY_URL_MAX_LINES, 0);
+        }
         if (mModel.get(ContextMenuHeaderProperties.URL_MAX_LINES) == Integer.MAX_VALUE) {
             // URL and title should both be expanded.
             assert mModel.get(ContextMenuHeaderProperties.TITLE_MAX_LINES) == Integer.MAX_VALUE;
 
             final boolean isTitleEmpty =
-                    TextUtils.isEmpty(mModel.get(ContextMenuHeaderProperties.TITLE));
-            mModel.set(ContextMenuHeaderProperties.URL_MAX_LINES, isTitleEmpty ? 2 : 1);
+                    TextUtils.isEmpty(mModel.get(ListMenuItemProperties.TITLE));
             final boolean isUrlEmpty =
                     TextUtils.isEmpty(mModel.get(ContextMenuHeaderProperties.URL));
-            mModel.set(ContextMenuHeaderProperties.TITLE_MAX_LINES, isUrlEmpty ? 2 : 1);
+            if (isSecondaryUrlPresent) {
+                mModel.set(ContextMenuHeaderProperties.URL_MAX_LINES, 1);
+                mModel.set(ContextMenuHeaderProperties.TITLE_MAX_LINES, 1);
+                mModel.set(
+                        ContextMenuHeaderProperties.SECONDARY_URL_MAX_LINES,
+                        isUrlEmpty && isTitleEmpty ? 3 : 1);
+            } else {
+                mModel.set(ContextMenuHeaderProperties.URL_MAX_LINES, isTitleEmpty ? 2 : 1);
+                mModel.set(ContextMenuHeaderProperties.TITLE_MAX_LINES, isUrlEmpty ? 2 : 1);
+            }
         } else {
             mModel.set(ContextMenuHeaderProperties.URL_MAX_LINES, Integer.MAX_VALUE);
             mModel.set(ContextMenuHeaderProperties.TITLE_MAX_LINES, Integer.MAX_VALUE);
+            if (isSecondaryUrlPresent) {
+                mModel.set(ContextMenuHeaderProperties.SECONDARY_URL_MAX_LINES, Integer.MAX_VALUE);
+            }
         }
     }
 

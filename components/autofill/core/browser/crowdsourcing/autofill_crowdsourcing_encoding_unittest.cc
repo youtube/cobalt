@@ -983,10 +983,23 @@ TEST_F(AutofillCrowdsourcingEncoding, EncodeUploadRequest_WithSubForms) {
                                    SerializesAndDeepEquals(upload_cvc)));
 }
 
-TEST_F(AutofillCrowdsourcingEncoding,
+class AutofillCrowdsourcingEncodingUploadProto
+    : public AutofillCrowdsourcingEncoding,
+      public testing::WithParamInterface<bool> {
+ public:
+  AutofillCrowdsourcingEncodingUploadProto() = default;
+  void SetUp() override {
+    feature_list_.InitWithFeatureState(features::kAutofillServerUploadMoreData,
+                                       GetParam());
+  }
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
+};
+
+TEST_P(AutofillCrowdsourcingEncodingUploadProto,
        EncodeUploadRequest_ThreeBitHashedMetadata) {
-  base::test::ScopedFeatureList feature_list;
-  feature_list.InitAndEnableFeature(features::kAutofillServerUploadMoreData);
+  const bool kUploadMoreDataEnabled = GetParam();
 
   FormData form;
   form.set_id_attribute(u"form-id");
@@ -1017,44 +1030,71 @@ TEST_F(AutofillCrowdsourcingEncoding,
   ASSERT_EQ(1u, uploads.size());
   const AutofillUploadContents& upload = uploads.front();
 
-  // Verify form metadata hashes.
-  ASSERT_TRUE(upload.has_three_bit_hashed_form_metadata());
-  const ThreeBitHashedFormMetadata& form_metadata =
-      upload.three_bit_hashed_form_metadata();
-  EXPECT_EQ(form_metadata.id(), StrToHash3Bit(form.id_attribute()));
-  EXPECT_EQ(form_metadata.name(), StrToHash3Bit(form.name_attribute()));
-  EXPECT_EQ(form_metadata.button_titles_concatenated(),
-            StrToHash3Bit(form.button_titles()[0].first));
+  if (kUploadMoreDataEnabled) {
+    // Verify form metadata hashes.
+    ASSERT_TRUE(upload.has_three_bit_hashed_form_metadata());
+    const ThreeBitHashedFormMetadata& form_metadata =
+        upload.three_bit_hashed_form_metadata();
+    EXPECT_EQ(form_metadata.id(), StrToHash3Bit(form.id_attribute()));
+    EXPECT_EQ(form_metadata.name(), StrToHash3Bit(form.name_attribute()));
+    EXPECT_EQ(form_metadata.button_titles_concatenated(),
+              StrToHash3Bit(form.button_titles()[0].first));
 
-  // Verify field metadata hashes.
-  ASSERT_EQ(upload.field_data_size(), 1);
+    // Verify field metadata hashes.
+    ASSERT_EQ(upload.field_data_size(), 1);
 
-  const ThreeBitHashedFieldMetadata& field_metadata =
-      upload.field_data(0).three_bit_hashed_field_metadata();
-  EXPECT_EQ(field_metadata.id(), StrToHash3Bit(field.id_attribute()));
-  EXPECT_EQ(field_metadata.name(), StrToHash3Bit(field.name_attribute()));
-  EXPECT_EQ(field_metadata.type(),
-            StrToHash3Bit(FormControlTypeToString(field.form_control_type())));
-  EXPECT_EQ(field_metadata.label(), StrToHash3Bit(field.label()));
-  EXPECT_EQ(field_metadata.aria_label(), StrToHash3Bit(field.aria_label()));
-  EXPECT_EQ(field_metadata.aria_description(),
-            StrToHash3Bit(field.aria_description()));
-  EXPECT_EQ(field_metadata.placeholder(), StrToHash3Bit(field.placeholder()));
-  EXPECT_EQ(field_metadata.initial_value(), StrToHash3Bit(field.value()));
-  EXPECT_EQ(field_metadata.autocomplete(),
-            StrToHash3Bit(field.autocomplete_attribute()));
-  EXPECT_EQ(field_metadata.pattern(), StrToHash3Bit(field.pattern()));
+    const ThreeBitHashedFieldMetadata& field_metadata =
+        upload.field_data(0).three_bit_hashed_field_metadata();
+    EXPECT_EQ(field_metadata.id(), StrToHash3Bit(field.id_attribute()));
+    EXPECT_EQ(field_metadata.name(), StrToHash3Bit(field.name_attribute()));
+    EXPECT_EQ(
+        field_metadata.type(),
+        StrToHash3Bit(FormControlTypeToString(field.form_control_type())));
+    EXPECT_EQ(field_metadata.label(), StrToHash3Bit(field.label()));
+    EXPECT_EQ(field_metadata.aria_label(), StrToHash3Bit(field.aria_label()));
+    EXPECT_EQ(field_metadata.aria_description(),
+              StrToHash3Bit(field.aria_description()));
+    EXPECT_EQ(field_metadata.placeholder(), StrToHash3Bit(field.placeholder()));
+    EXPECT_EQ(field_metadata.initial_value(), StrToHash3Bit(field.value()));
+    EXPECT_EQ(field_metadata.autocomplete(),
+              StrToHash3Bit(field.autocomplete_attribute()));
+    EXPECT_EQ(field_metadata.pattern(), StrToHash3Bit(field.pattern()));
+  } else {
+    // Verify form metadata hashes are NOT present.
+    EXPECT_FALSE(upload.has_three_bit_hashed_form_metadata());
+
+    // Verify field metadata hashes are NOT present.
+    ASSERT_EQ(upload.field_data_size(), 1);
+    EXPECT_FALSE(upload.field_data(0).has_three_bit_hashed_field_metadata());
+  }
 }
 
-TEST_F(AutofillCrowdsourcingEncoding,
-       EncodeUploadRequest_ThreeBitHashedMetadata_FlagDisabled) {
-  base::test::ScopedFeatureList feature_list;
-  feature_list.InitAndDisableFeature(features::kAutofillServerUploadMoreData);
+INSTANTIATE_TEST_SUITE_P(All,
+                         AutofillCrowdsourcingEncodingUploadProto,
+                         testing::Bool());
+
+class AutofillCrowdsourcingEncodingQueryProto
+    : public AutofillCrowdsourcingEncoding,
+      public testing::WithParamInterface<bool> {
+ public:
+  AutofillCrowdsourcingEncodingQueryProto() = default;
+  void SetUp() override {
+    feature_list_.InitWithFeatureState(
+        features::kAutofillServerExperimentalSignatures, GetParam());
+  }
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
+};
+
+TEST_P(AutofillCrowdsourcingEncodingQueryProto,
+       EncodeAutofillPageQueryRequest_WithExperimentalSignatures) {
+  const bool kExperimentalSignaturesEnabled = GetParam();
 
   FormData form;
   form.set_id_attribute(u"form-id");
   form.set_name_attribute(u"form-name");
-  form.set_action(GURL("http://www.foo.com/submit"));
+  form.set_url(GURL("http://www.foo.com/"));
   form.set_button_titles({std::make_pair(
       u"Submit Button", mojom::ButtonTitleType::BUTTON_ELEMENT_SUBMIT_TYPE)});
 
@@ -1073,20 +1113,58 @@ TEST_F(AutofillCrowdsourcingEncoding,
   test_api(form).Append(field);
 
   FormStructure form_structure(form);
-  EncodeUploadRequestOptions options;
+  std::vector<raw_ptr<const FormStructure, VectorExperimental>> forms;
+  forms.push_back(&form_structure);
 
-  std::vector<AutofillUploadContents> uploads =
-      EncodeUploadRequest(form_structure, options);
-  ASSERT_EQ(1u, uploads.size());
-  const AutofillUploadContents& upload = uploads.front();
+  auto [encoded_query, encoded_signatures] =
+      EncodeAutofillPageQueryRequest(forms);
 
-  // Verify form metadata hashes are NOT present.
-  EXPECT_FALSE(upload.has_three_bit_hashed_form_metadata());
+  ASSERT_EQ(encoded_query.forms_size(), 1);
+  const auto& query_form = encoded_query.forms(0);
 
-  // Verify field metadata hashes are NOT present.
-  ASSERT_EQ(upload.field_data_size(), 1);
-  EXPECT_FALSE(upload.field_data(0).has_three_bit_hashed_field_metadata());
+  if (kExperimentalSignaturesEnabled) {
+    EXPECT_EQ(query_form.structural_signature(),
+              form_structure.structural_form_signature().value());
+
+    // Verify form metadata hashes.
+    ASSERT_TRUE(query_form.has_three_bit_hashed_form_metadata());
+    const auto& form_metadata = query_form.three_bit_hashed_form_metadata();
+    EXPECT_EQ(form_metadata.id(), StrToHash3Bit(form.id_attribute()));
+    EXPECT_EQ(form_metadata.name(), StrToHash3Bit(form.name_attribute()));
+    EXPECT_EQ(form_metadata.button_titles_concatenated(),
+              StrToHash3Bit(form.button_titles()[0].first));
+
+    // Verify field metadata hashes.
+    ASSERT_EQ(query_form.fields_size(), 1);
+    const auto& query_field = query_form.fields(0);
+    ASSERT_TRUE(query_field.has_three_bit_hashed_field_metadata());
+    const auto& field_metadata = query_field.three_bit_hashed_field_metadata();
+    EXPECT_EQ(field_metadata.id(), StrToHash3Bit(field.id_attribute()));
+    EXPECT_EQ(field_metadata.name(), StrToHash3Bit(field.name_attribute()));
+    EXPECT_EQ(
+        field_metadata.type(),
+        StrToHash3Bit(FormControlTypeToString(field.form_control_type())));
+    EXPECT_EQ(field_metadata.label(), StrToHash3Bit(field.label()));
+    EXPECT_EQ(field_metadata.aria_label(), StrToHash3Bit(field.aria_label()));
+    EXPECT_EQ(field_metadata.aria_description(),
+              StrToHash3Bit(field.aria_description()));
+    EXPECT_EQ(field_metadata.placeholder(), StrToHash3Bit(field.placeholder()));
+    EXPECT_EQ(field_metadata.initial_value(), StrToHash3Bit(field.value()));
+    EXPECT_EQ(field_metadata.autocomplete(),
+              StrToHash3Bit(field.autocomplete_attribute()));
+    EXPECT_EQ(field_metadata.pattern(), StrToHash3Bit(field.pattern()));
+  } else {
+    EXPECT_FALSE(query_form.has_structural_signature());
+    EXPECT_FALSE(query_form.has_three_bit_hashed_form_metadata());
+    ASSERT_EQ(query_form.fields_size(), 1);
+    const auto& query_field = query_form.fields(0);
+    EXPECT_FALSE(query_field.has_three_bit_hashed_field_metadata());
+  }
 }
+
+INSTANTIATE_TEST_SUITE_P(All,
+                         AutofillCrowdsourcingEncodingQueryProto,
+                         testing::Bool());
 
 // Check that we compute the "datapresent" string correctly for the given
 // |available_types|.
@@ -2383,18 +2461,18 @@ TEST_F(AutofillCrowdsourcingEncoding,
   EXPECT_FALSE(form.field(1)->server_type_prediction_is_override());
 
   // Validate that the server prediction won for the first field.
-  EXPECT_EQ(form.field(0)->Type().GetStorableType(), NAME_FIRST);
-  EXPECT_EQ(form.field(1)->Type().GetStorableType(), NAME_FULL);
+  EXPECT_THAT(form.field(0)->Type().GetTypes(), ElementsAre(NAME_FIRST));
+  EXPECT_THAT(form.field(1)->Type().GetTypes(), ElementsAre(NAME_FULL));
 
   // Validate that the server override cannot be altered.
   form.field(0)->SetTypeTo(AutofillType(NAME_FULL),
                            AutofillPredictionSource::kHeuristics);
-  EXPECT_EQ(form.field(0)->Type().GetStorableType(), NAME_FIRST);
+  EXPECT_THAT(form.field(0)->Type().GetTypes(), ElementsAre(NAME_FIRST));
 
   // Validate that that the non-override can be altered.
   form.field(1)->SetTypeTo(AutofillType(NAME_FIRST),
                            AutofillPredictionSource::kHeuristics);
-  EXPECT_EQ(form.field(1)->Type().GetStorableType(), NAME_FIRST);
+  EXPECT_THAT(form.field(1)->Type().GetTypes(), ElementsAre(NAME_FIRST));
 }
 
 // Test the heuristic prediction for NAME_LAST_SECOND overrides server
@@ -2439,9 +2517,9 @@ TEST_F(AutofillCrowdsourcingEncoding,
   EXPECT_EQ(NAME_LAST, form.field(2)->server_type());
 
   // Validate that the heuristic prediction wins for the two last name fields.
-  EXPECT_EQ(form.field(0)->Type().GetStorableType(), NAME_FIRST);
-  EXPECT_EQ(form.field(1)->Type().GetStorableType(), NAME_LAST_FIRST);
-  EXPECT_EQ(form.field(2)->Type().GetStorableType(), NAME_LAST_SECOND);
+  EXPECT_THAT(form.field(0)->Type().GetTypes(), ElementsAre(NAME_FIRST));
+  EXPECT_THAT(form.field(1)->Type().GetTypes(), ElementsAre(NAME_LAST_FIRST));
+  EXPECT_THAT(form.field(2)->Type().GetTypes(), ElementsAre(NAME_LAST_SECOND));
 }
 
 // Test the heuristic prediction for ADDRESS_HOME_STREET_NAME and
@@ -2489,8 +2567,10 @@ TEST_F(AutofillCrowdsourcingEncoding,
 
   // Validate that the heuristic prediction wins for the street name and house
   // number.
-  EXPECT_EQ(form.field(1)->Type().GetStorableType(), ADDRESS_HOME_STREET_NAME);
-  EXPECT_EQ(form.field(2)->Type().GetStorableType(), ADDRESS_HOME_HOUSE_NUMBER);
+  EXPECT_THAT(form.field(1)->Type().GetTypes(),
+              ElementsAre(ADDRESS_HOME_STREET_NAME));
+  EXPECT_THAT(form.field(2)->Type().GetTypes(),
+              ElementsAre(ADDRESS_HOME_HOUSE_NUMBER));
 }
 
 // Tests that a joined prediction for email or loyalty card fields is generated
@@ -2531,9 +2611,9 @@ TEST_F(AutofillCrowdsourcingEncoding, ParseQueryResponse_JoinedTypes) {
   EXPECT_EQ(form.field(0)->server_type(), EMAIL_OR_LOYALTY_MEMBERSHIP_ID);
 
   // Validate that the server prediction wins for email or loyalty cards.
-  EXPECT_EQ(EMAIL_OR_LOYALTY_MEMBERSHIP_ID,
-            form.field(0)->Type().GetStorableType());
-  EXPECT_EQ(PASSWORD, form.field(1)->Type().GetStorableType());
+  EXPECT_THAT(form.field(0)->Type().GetTypes(),
+              ElementsAre(EMAIL_OR_LOYALTY_MEMBERSHIP_ID));
+  EXPECT_THAT(form.field(1)->Type().GetTypes(), ElementsAre(PASSWORD));
 }
 
 // Tests that a server joined prediction is not generated for email or loyalty
@@ -2574,8 +2654,8 @@ TEST_F(AutofillCrowdsourcingEncoding, ParseQueryResponse_NoJoinedTypes) {
   EXPECT_EQ(form.field(0)->server_type(), EMAIL_ADDRESS);
 
   // Validate that the server prediction wins for email or loyalty cards.
-  EXPECT_EQ(form.field(0)->Type().GetStorableType(), EMAIL_ADDRESS);
-  EXPECT_EQ(form.field(1)->Type().GetStorableType(), PASSWORD);
+  EXPECT_THAT(form.field(0)->Type().GetTypes(), ElementsAre(EMAIL_ADDRESS));
+  EXPECT_THAT(form.field(1)->Type().GetTypes(), ElementsAre(PASSWORD));
 }
 
 // Tests proper resolution heuristic, server and html field types when the
@@ -2617,19 +2697,19 @@ TEST_F(AutofillCrowdsourcingEncoding, ParseQueryResponse_TooManyTypes) {
   EXPECT_EQ(NAME_FIRST, form.field(0)->heuristic_type());
   EXPECT_EQ(NAME_FIRST, form.field(0)->server_type());
   EXPECT_EQ(HtmlFieldType::kUnspecified, form.field(0)->html_type());
-  EXPECT_EQ(NAME_FIRST, form.field(0)->Type().GetStorableType());
+  EXPECT_THAT(form.field(0)->Type().GetTypes(), ElementsAre(NAME_FIRST));
 
   // Validate field 1.
   EXPECT_EQ(NAME_LAST, form.field(1)->heuristic_type());
   EXPECT_EQ(NAME_LAST, form.field(1)->server_type());
   EXPECT_EQ(HtmlFieldType::kUnspecified, form.field(1)->html_type());
-  EXPECT_EQ(NAME_LAST, form.field(1)->Type().GetStorableType());
+  EXPECT_THAT(form.field(1)->Type().GetTypes(), ElementsAre(NAME_LAST));
 
   // Validate field 2. Note: HtmlFieldType::kAddressLevel2 -> City
   EXPECT_EQ(EMAIL_ADDRESS, form.field(2)->heuristic_type());
   EXPECT_EQ(ADDRESS_HOME_LINE1, form.field(2)->server_type());
   EXPECT_EQ(HtmlFieldType::kAddressLevel2, form.field(2)->html_type());
-  EXPECT_EQ(ADDRESS_HOME_CITY, form.field(2)->Type().GetStorableType());
+  EXPECT_THAT(form.field(2)->Type().GetTypes(), ElementsAre(ADDRESS_HOME_CITY));
 
   // Also check the extreme case of an empty form.
   FormStructure empty_form{FormData()};
@@ -2678,19 +2758,19 @@ TEST_F(AutofillCrowdsourcingEncoding, ParseQueryResponse_UnknownType) {
   EXPECT_EQ(form.field(0)->heuristic_type(), NAME_FIRST);
   EXPECT_EQ(form.field(0)->server_type(), UNKNOWN_TYPE);
   EXPECT_EQ(form.field(0)->html_type(), HtmlFieldType::kUnspecified);
-  EXPECT_EQ(form.field(0)->Type().GetStorableType(), UNKNOWN_TYPE);
+  EXPECT_THAT(form.field(0)->Type().GetTypes(), ElementsAre(UNKNOWN_TYPE));
 
   // Validate field 1.
   EXPECT_EQ(form.field(1)->heuristic_type(), NAME_LAST);
   EXPECT_EQ(form.field(1)->server_type(), NO_SERVER_DATA);
   EXPECT_EQ(form.field(1)->html_type(), HtmlFieldType::kUnspecified);
-  EXPECT_EQ(form.field(1)->Type().GetStorableType(), NAME_LAST);
+  EXPECT_THAT(form.field(1)->Type().GetTypes(), ElementsAre(NAME_LAST));
 
   // Validate field 2. Note: HtmlFieldType::kAddressLevel2 -> City
   EXPECT_EQ(form.field(2)->heuristic_type(), EMAIL_ADDRESS);
   EXPECT_EQ(form.field(2)->server_type(), ADDRESS_HOME_LINE1);
   EXPECT_EQ(form.field(2)->html_type(), HtmlFieldType::kAddressLevel2);
-  EXPECT_EQ(form.field(2)->Type().GetStorableType(), ADDRESS_HOME_CITY);
+  EXPECT_THAT(form.field(2)->Type().GetTypes(), ElementsAre(ADDRESS_HOME_CITY));
 }
 
 struct PredictionPrecedenceTestCase {
@@ -2985,7 +3065,7 @@ TEST_F(AutofillCrowdsourcingEncoding, ParseServerPredictionsQueryResponse) {
   auto* form_suggestion = api_response.add_form_suggestions();
   AddFieldPredictionsToForm(form.fields()[0],
                             {CreateFieldPrediction(NAME_FULL),
-                             CreateFieldPrediction(PHONE_HOME_COUNTRY_CODE)},
+                             CreateFieldPrediction(CREDIT_CARD_NAME_FULL)},
                             form_suggestion);
   AddFieldPredictionToForm(form.fields()[1], ADDRESS_HOME_LINE1,
                            form_suggestion);
@@ -3009,7 +3089,7 @@ TEST_F(AutofillCrowdsourcingEncoding, ParseServerPredictionsQueryResponse) {
   EXPECT_EQ(forms[0]->field(0)->server_type(), NAME_FULL);
   EXPECT_THAT(forms[0]->field(0)->server_predictions(),
               ElementsAre(EqualsPrediction(NAME_FULL),
-                          EqualsPrediction(PHONE_HOME_COUNTRY_CODE)));
+                          EqualsPrediction(CREDIT_CARD_NAME_FULL)));
 
   EXPECT_EQ(forms[0]->field(1)->server_type(), ADDRESS_HOME_LINE1);
   EXPECT_THAT(forms[0]->field(1)->server_predictions(),
@@ -3568,10 +3648,11 @@ TEST_F(AutofillCrowdsourcingEncoding, ParseQueryResponse_AuthorDefinedTypes) {
   ASSERT_GE(forms[0]->field_count(), 2U);
   // Server type is parsed from the response and is the end result type.
   EXPECT_EQ(forms[0]->field(0)->server_type(), EMAIL_ADDRESS);
-  EXPECT_EQ(forms[0]->field(0)->Type().GetStorableType(), EMAIL_ADDRESS);
+  EXPECT_THAT(forms[0]->field(0)->Type().GetTypes(),
+              ElementsAre(EMAIL_ADDRESS));
   EXPECT_EQ(forms[0]->field(1)->server_type(), ACCOUNT_CREATION_PASSWORD);
-  EXPECT_EQ(forms[0]->field(1)->Type().GetStorableType(),
-            ACCOUNT_CREATION_PASSWORD);
+  EXPECT_THAT(forms[0]->field(1)->Type().GetTypes(),
+              ElementsAre(ACCOUNT_CREATION_PASSWORD));
 }
 
 // Tests that, when the flag is off, we will not set the predicted type to
@@ -3617,11 +3698,13 @@ TEST_F(AutofillCrowdsourcingEncoding,
   ASSERT_EQ(4U, forms[0]->field_count());
 
   // Only NAME_LAST should be affected by the flag.
-  EXPECT_EQ(forms[0]->field(1)->Type().GetStorableType(), NAME_LAST);
+  EXPECT_THAT(forms[0]->field(1)->Type().GetTypes(), ElementsAre(NAME_LAST));
 
-  EXPECT_EQ(forms[0]->field(0)->Type().GetStorableType(), NAME_FIRST);
-  EXPECT_EQ(forms[0]->field(2)->Type().GetStorableType(), ADDRESS_HOME_LINE1);
-  EXPECT_EQ(forms[0]->field(3)->Type().GetStorableType(), ADDRESS_HOME_COUNTRY);
+  EXPECT_THAT(forms[0]->field(0)->Type().GetTypes(), ElementsAre(NAME_FIRST));
+  EXPECT_THAT(forms[0]->field(2)->Type().GetTypes(),
+              ElementsAre(ADDRESS_HOME_LINE1));
+  EXPECT_THAT(forms[0]->field(3)->Type().GetTypes(),
+              ElementsAre(ADDRESS_HOME_COUNTRY));
 }
 
 // Tests that we never overwrite the CVC heuristic-predicted type, even if there
@@ -3664,15 +3747,16 @@ TEST_F(AutofillCrowdsourcingEncoding, NoServerDataCCFields_CVC_NoOverwrite) {
 
   ASSERT_EQ(1U, forms.size());
   ASSERT_EQ(4U, forms[0]->field_count());
-  EXPECT_EQ(forms[0]->field(0)->Type().GetStorableType(),
-            CREDIT_CARD_NAME_FULL);
-  EXPECT_EQ(forms[0]->field(1)->Type().GetStorableType(), CREDIT_CARD_NUMBER);
-  EXPECT_EQ(forms[0]->field(2)->Type().GetStorableType(),
-            CREDIT_CARD_EXP_DATE_4_DIGIT_YEAR);
+  EXPECT_THAT(forms[0]->field(0)->Type().GetTypes(),
+              ElementsAre(CREDIT_CARD_NAME_FULL));
+  EXPECT_THAT(forms[0]->field(1)->Type().GetTypes(),
+              ElementsAre(CREDIT_CARD_NUMBER));
+  EXPECT_THAT(forms[0]->field(2)->Type().GetTypes(),
+              ElementsAre(CREDIT_CARD_EXP_DATE_4_DIGIT_YEAR));
 
   // Regardless of the flag, the CVC field should not have been overwritten.
-  EXPECT_EQ(forms[0]->field(3)->Type().GetStorableType(),
-            CREDIT_CARD_VERIFICATION_CODE);
+  EXPECT_THAT(forms[0]->field(3)->Type().GetTypes(),
+              ElementsAre(CREDIT_CARD_VERIFICATION_CODE));
 }
 
 // Tests that we never overwrite the CVC heuristic-predicted type, even if there
@@ -3721,13 +3805,14 @@ TEST_F(AutofillCrowdsourcingEncoding, WithServerDataCCFields_CVC_NoOverwrite) {
 
   // Regardless of the flag, the fields should not have been overwritten,
   // including the CVC field.
-  EXPECT_EQ(forms[0]->field(0)->Type().GetStorableType(),
-            CREDIT_CARD_NAME_FULL);
-  EXPECT_EQ(forms[0]->field(1)->Type().GetStorableType(), CREDIT_CARD_NUMBER);
-  EXPECT_EQ(forms[0]->field(2)->Type().GetStorableType(),
-            CREDIT_CARD_EXP_DATE_4_DIGIT_YEAR);
-  EXPECT_EQ(forms[0]->field(3)->Type().GetStorableType(),
-            CREDIT_CARD_VERIFICATION_CODE);
+  EXPECT_THAT(forms[0]->field(0)->Type().GetTypes(),
+              ElementsAre(CREDIT_CARD_NAME_FULL));
+  EXPECT_THAT(forms[0]->field(1)->Type().GetTypes(),
+              ElementsAre(CREDIT_CARD_NUMBER));
+  EXPECT_THAT(forms[0]->field(2)->Type().GetTypes(),
+              ElementsAre(CREDIT_CARD_EXP_DATE_4_DIGIT_YEAR));
+  EXPECT_THAT(forms[0]->field(3)->Type().GetTypes(),
+              ElementsAre(CREDIT_CARD_VERIFICATION_CODE));
 }
 
 // When two fields have the same signature and the server response has multiple

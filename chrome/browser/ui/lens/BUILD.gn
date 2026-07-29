@@ -154,7 +154,7 @@ source_set("impl") {
     "//components/lens:enterprise_policy",
     "//components/lens:features",
     "//components/lens/proto/server:proto",
-    "//components/metrics_services_manager:metrics_services_manager",
+    "//components/metrics_services_manager",
     "//components/optimization_guide/content/browser",
     "//components/optimization_guide/content/browser:page_context_eligibility",
     "//components/prefs",
@@ -167,7 +167,7 @@ source_set("impl") {
     "//components/variations",
     "//components/variations:variations_mojom",
     "//components/version_info:channel",
-    "//components/web_modal:web_modal",
+    "//components/web_modal",
     "//components/zoom",
     "//google_apis",
     "//google_apis/common",
@@ -210,6 +210,8 @@ source_set("test_support") {
     "test_lens_overlay_query_controller.h",
     "test_lens_overlay_side_panel_coordinator.cc",
     "test_lens_overlay_side_panel_coordinator.h",
+    "test_lens_search_contextualization_controller.cc",
+    "test_lens_search_contextualization_controller.h",
     "test_lens_search_controller.cc",
     "test_lens_search_controller.h",
   ]
@@ -248,6 +250,7 @@ source_set("browser_tests") {
     "//chrome/browser/ui/find_bar",
     "//chrome/browser/ui/hats",
     "//chrome/browser/ui/hats:test_support",
+    "//chrome/browser/ui/location_bar",
     "//chrome/browser/ui/tabs:tabs_public",
     "//chrome/browser/ui/views/page_action",
     "//chrome/browser/ui/views/side_panel",
@@ -322,7 +325,7 @@ source_set("interactive_ui_tests") {
     "//testing/gtest",
   ]
   if (enable_pdf) {
-    deps += [ "//components/pdf/browser:browser" ]
+    deps += [ "//components/pdf/browser" ]
   }
 }
 

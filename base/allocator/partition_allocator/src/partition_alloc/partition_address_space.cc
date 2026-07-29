@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "partition_alloc/partition_address_space.h"
 
 #include <array>
@@ -12,6 +17,7 @@
 #include <string>
 
 #include "partition_alloc/address_pool_manager.h"
+#include "partition_alloc/allocator_config.h"
 #include "partition_alloc/build_config.h"
 #include "partition_alloc/buildflags.h"
 #include "partition_alloc/compressed_pointer.h"
@@ -399,6 +405,19 @@ void PartitionAddressSpace::InitMetadataRegionAndOffsets() {
   if (metadata_region_start_ != kUninitializedPoolBaseAddress) {
     return;
   }
+
+#if PA_BUILDFLAG(ENABLE_MOVE_METADATA_OUT_OF_GIGACAGE_TRIAL)
+  if (ExternalMetadataTrialGroup::kUndefined ==
+      GetExternalMetadataTrialGroup()) {
+    if (SelectExternalMetadataTrialGroup() !=
+        ExternalMetadataTrialGroup::kEnabled) {
+      for (size_t i = 0; i < kMaxPoolHandle; ++i) {
+        offsets_to_metadata_[i] = SystemPageSize();
+      }
+      return;
+    }
+  }
+#endif  // PA_BUILDFLAG(ENABLE_MOVE_METADATA_OUT_OF_GIGACAGE_TRIAL)
 
 #if PA_CONFIG(DYNAMICALLY_SELECT_POOL_SIZE)
   metadata_region_size_ = std::max(kConfigurablePoolMaxSize, CorePoolSize());

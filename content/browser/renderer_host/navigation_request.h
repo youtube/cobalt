@@ -27,6 +27,7 @@
 #include "content/browser/loader/navigation_url_loader_delegate.h"
 #include "content/browser/loader/subresource_proxying_url_loader_service.h"
 #include "content/browser/navigation_subresource_loader_params.h"
+#include "content/browser/preloading/prerender/reserved_prerender_host_info.h"
 #include "content/browser/renderer_host/browsing_context_group_swap.h"
 #include "content/browser/renderer_host/commit_deferring_condition_runner.h"
 #include "content/browser/renderer_host/cookie_access_observers.h"
@@ -475,6 +476,7 @@ class CONTENT_EXPORT NavigationRequest
   void GetResponseBody(ResponseBodyCallback callback) override;
   PreloadingTriggerType GetPrerenderTriggerType() override;
   std::string GetPrerenderEmbedderHistogramSuffix() override;
+  bool IsPrerenderHostReused() override;
 #if BUILDFLAG(IS_ANDROID)
   const base::android::JavaRef<jobject>& GetJavaNavigationHandle() override;
 #endif
@@ -1231,15 +1233,6 @@ class CONTENT_EXPORT NavigationRequest
     base::debug::ScopedCrashKeyString is_same_document_;
   };
 
-  // Prerender2:
-  void set_prerender_trigger_type(PreloadingTriggerType type) {
-    DCHECK(!prerender_trigger_type_.has_value());
-    prerender_trigger_type_ = type;
-  }
-  void set_prerender_embedder_histogram_suffix(const std::string& suffix) {
-    prerender_embedder_histogram_suffix_ = suffix;
-  }
-
   // Used in tests to indicate this navigation should force a BrowsingInstance
   // swap.
   void set_force_new_browsing_instance(bool force_new_browsing_instance) {
@@ -1801,6 +1794,7 @@ class CONTENT_EXPORT NavigationRequest
   std::optional<NavigationEarlyHintsManagerParams>
   CreateNavigationEarlyHintsManagerParams(
       const network::mojom::EarlyHints& early_hints) override;
+  bool ShouldClearParsedHeadersOnTestReceiveRedirect() override;
 
   // Selecting a `RenderFrameHost` to commit a navigation may occasionally fail.
   // When this happens, the navigation will bind a closure to continue the
@@ -2969,6 +2963,8 @@ class CONTENT_EXPORT NavigationRequest
   // only know whether this is the case when BeginNavigation is called so the
   // optional will be empty until then and callers must not query its value
   // before it's been computed.
+  // TODO(crbug.com/427054641): Remove this field once the migration to use
+  // `reserved_prerender_host_info_` is complete.
   std::optional<FrameTreeNodeId> prerender_frame_tree_node_id_;
 
   // Contains state pertaining to a prerender activation. This is only used if
@@ -3059,12 +3055,10 @@ class CONTENT_EXPORT NavigationRequest
   std::optional<std::u16string> embedder_shared_storage_context_;
 
   // Prerender2:
-  // The type to trigger prerendering. The value is valid only when Prerender2
-  // is enabled.
-  std::optional<PreloadingTriggerType> prerender_trigger_type_;
-  // The suffix of a prerender embedder. This value is valid only when
-  // PreloadingTriggerType is kEmbedder. Only used for metrics.
-  std::string prerender_embedder_histogram_suffix_;
+  // The information about the reserved prerender host. This is used to pass
+  // information about the reserved host including information required for
+  // metrics collection.
+  std::optional<ReservedPrerenderHostInfo> reserved_prerender_host_info_;
 
   // Prevents the compositor from requesting main frame updates early in
   // navigation.

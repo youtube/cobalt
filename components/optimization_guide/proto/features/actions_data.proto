@@ -265,8 +265,7 @@ message ScrollToAction {
 // Next ID: 5
 message ScriptToolAction {
   // The Document which provides the associated Tool.
-  DocumentIdentifier document_identifier = 1
-      [features = { field_presence: EXPLICIT }];
+  DocumentIdentifier document_identifier = 1 [features = { field_presence: EXPLICIT }];
 
   int32 tab_id = 2 [features = { field_presence: EXPLICIT }];
 
@@ -411,7 +410,7 @@ message TabObservation {
 
 // All relevant state in chrome after the actions are taken or an error has
 // occurred.
-// Next ID: 5
+// Next ID: 6
 message ActionsResult {
   // The result of the actions. See
   // https://source.chromium.org/chromium/chromium/src/+/main:chrome/common/actor.mojom
@@ -429,6 +428,9 @@ message ActionsResult {
   // Observations after all actions are finished or an error has occurred. The
   // client will determine the relevant windows and tabs.
   repeated TabObservation tabs = 4;
+
+  // The results of executing script tools.
+  repeated ScriptToolResult script_tool_results = 5;
 }
 
 // A request to start a task.

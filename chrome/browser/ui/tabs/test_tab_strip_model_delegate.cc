@@ -19,7 +19,8 @@ void TestTabStripModelDelegate::AddTabAt(
     const GURL& url,
     int index,
     bool foreground,
-    std::optional<tab_groups::TabGroupId> group) {}
+    std::optional<tab_groups::TabGroupId> group,
+    bool pinned) {}
 
 Browser* TestTabStripModelDelegate::CreateNewStripWithTabs(
     std::vector<NewStripContents> tabs,
@@ -146,3 +147,21 @@ void TestTabStripModelDelegate::OnRemovingAllTabsFromGroups(
     base::OnceCallback<void()> callback) {
   std::move(callback).Run();
 }
+
+#if BUILDFLAG(ENABLE_GLIC)
+bool TestTabStripModelDelegate::IsTabGlicPinned(tabs::TabHandle tab_handle) {
+  return true;
+}
+
+bool TestTabStripModelDelegate::GlicPinTabs(
+    base::span<const tabs::TabHandle> tab_handles) {
+  return true;
+}
+
+bool TestTabStripModelDelegate::GlicUnpinTabs(
+    base::span<const tabs::TabHandle> tab_handles) {
+  return true;
+}
+
+void TestTabStripModelDelegate::OpenGlicWindowFromSharedTab() {}
+#endif

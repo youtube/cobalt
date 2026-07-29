@@ -134,8 +134,6 @@ String IntegrityAlgorithmsForConsole(const FeatureContext* feature_context) {
 
 String HashAlgorithmToString(HashAlgorithm algorithm) {
   switch (algorithm) {
-    case kHashAlgorithmSha1:
-      NOTREACHED();
     case kHashAlgorithmSha256:
       return "sha256-";
     case kHashAlgorithmSha384:
@@ -175,6 +173,35 @@ String SubresourceIntegrity::GetSubresourceIntegrityHash(
     return String();
   }
   return GetIntegrityStringFromDigest(digest, algorithm);
+}
+
+bool SubresourceIntegrity::CheckUnencodedDigests(
+    const Vector<IntegrityMetadata>& digests,
+    const SegmentedBuffer* buffer) {
+  // Performs the "verify `unencoded-digest` assertions" algorithm defined in
+  // https://wicg.github.io/signature-based-sri/#unencoded-digest-validation
+  for (const IntegrityMetadata& digest : digests) {
+    HashAlgorithm algorithm =
+        IntegrityAlgorithmToHashAlgorithm(digest.algorithm);
+    DCHECK(algorithm == blink::HashAlgorithm::kHashAlgorithmSha256 ||
+           algorithm == blink::HashAlgorithm::kHashAlgorithmSha512);
+
+    DigestValue computed_digest;
+    if (!ComputeDigest(algorithm, buffer, computed_digest)) {
+      return false;
+    }
+
+    // If any specified digest doesn't match the digest computed over |buffer|,
+    // matching fails.
+    DigestValue expected_digest(base::as_byte_span(digest.value));
+    if (computed_digest != expected_digest) {
+      return false;
+    }
+  }
+
+  // If no digest failed to match (or if we didn't have any digests in the
+  // first place), matching succeeded.
+  return true;
 }
 
 bool SubresourceIntegrity::CheckSubresourceIntegrityImpl(
@@ -352,7 +379,10 @@ bool SubresourceIntegrity::CheckSignaturesImpl(
 
   for (const IntegrityMetadata& metadata : integrity_list) {
     for (const auto& signature : signatures) {
-      if (signature->keyid && signature->keyid.value() == metadata.value) {
+      if (signature->keyid &&
+          (signature->keyid->size() == metadata.value.size() &&
+           std::equal(metadata.value.begin(), metadata.value.end(),
+                      signature->keyid->begin()))) {
         return true;
       }
     }
@@ -388,6 +418,7 @@ IntegrityAlgorithm SubresourceIntegrity::FindBestAlgorithm(
 SubresourceIntegrity::AlgorithmParseResult
 SubresourceIntegrity::ParseAttributeAlgorithm(
     std::string_view token,
+
     const FeatureContext* feature_context,
     IntegrityAlgorithm& algorithm) {
   static const AlgorithmPrefixPair kPrefixes[] = {
@@ -526,9 +557,9 @@ void SubresourceIntegrity::ParseIntegrityAttribute(
       }
     }
 
-    IntegrityMetadata integrity_metadata;
-    Base64Decode(digest, integrity_metadata.value);
-    integrity_metadata.algorithm = algorithm;
+    Vector<uint8_t> decoded;
+    Base64Decode(digest, decoded);
+    IntegrityMetadata integrity_metadata(algorithm, decoded);
     if (integrity_report) {
       if (IsHashingAlgorithm(algorithm)) {
         integrity_report->AddUseCount(WebFeature::kSRIHashAssertion);

@@ -364,7 +364,8 @@ PrerenderHost::PrerenderHost(
                                            embedder_histogram_suffix())),
       attempt_(std::move(attempt)),
       devtools_attempt_(std::move(devtools_attempt)),
-      web_contents_(web_contents) {
+      web_contents_(web_contents),
+      host_reused_(reuse_host) {
 #if BUILDFLAG(IS_ANDROID)
   if (trigger_type() == PreloadingTriggerType::kSpeculationRule) {
     base::trace_event::EmitNamedTrigger("sp-prerender-start");
@@ -375,6 +376,8 @@ PrerenderHost::PrerenderHost(
   SetTriggeringOutcome(PreloadingTriggeringOutcome::kTriggeredButPending);
 
   if (reuse_host) {
+    reuse_host->RecordFailedFinalStatusImpl(PrerenderCancellationReason(
+        PrerenderFinalStatus::kPrerenderHostReused));
     if (reuse_host->frame_tree_delegate_->on_wait_loading_finished_) {
       std::move(reuse_host->frame_tree_delegate_->on_wait_loading_finished_)
           .Run(PrerenderHost::LoadingOutcome::kPrerenderingCancelled);
@@ -1261,7 +1264,8 @@ void PrerenderHost::SetFailureReason(
     // propagated to `attempt_`. Most values should be propagated, but we
     // explicitly do not propagate failure reasons if:
     // 1. prerender was successfully prepared but then destroyed because it
-    //    wasn't needed for a subsequent navigation (kTriggerDestroyed).
+    //    wasn't needed for a subsequent navigation (kTriggerDestroyed and
+    //    kPrerenderHostReused).
     // 2. the prerender was still pending for its initial navigation when it was
     //    activated (kActivatedBeforeStarted).
     case PrerenderFinalStatus::kTriggerDestroyed:
@@ -1270,6 +1274,7 @@ void PrerenderHost::SetFailureReason(
     case PrerenderFinalStatus::kTabClosedWithoutUserGesture:
     case PrerenderFinalStatus::kSpeculationRuleRemoved:
     case PrerenderFinalStatus::kOtherPrerenderedPageActivated:
+    case PrerenderFinalStatus::kPrerenderHostReused:
       return;
     case PrerenderFinalStatus::kDestroyed:
     case PrerenderFinalStatus::kLowEndDevice:
@@ -1719,6 +1724,12 @@ void PrerenderHost::AddAdditionalRequestHeaders(
       !GetInitialNavigationId().has_value() && tags.has_value()) {
     headers.SetHeader(blink::kSecSpeculationTagsHeaderName,
                       tags->ConvertStringToHeaderString().value());
+  }
+}
+
+void PrerenderHost::NotifyReused() {
+  for (auto& observer : observers_) {
+    observer.OnHostReused();
   }
 }
 

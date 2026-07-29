@@ -74,11 +74,6 @@ mojom("mojom") {
           mojom = "gfx.mojom.BufferPlane"
           cpp = "::gfx::BufferPlane"
         },
-        {
-          mojom = "gfx.mojom.GpuMemoryBufferId"
-          cpp = "::gfx::GpuMemoryBufferId"
-          copyable_pass_by_value = true
-        },
       ]
 
       traits_headers = [ "buffer_types_mojom_traits.h" ]
@@ -159,6 +154,10 @@ mojom("mojom") {
         {
           mojom = "gfx.mojom.SelectionBound"
           cpp = "::gfx::SelectionBound"
+        },
+        {
+          mojom = "gfx.mojom.SelectionBoundType"
+          cpp = "::gfx::SelectionBound::Type"
         },
       ]
       traits_headers = [ "selection_bound_mojom_traits.h" ]

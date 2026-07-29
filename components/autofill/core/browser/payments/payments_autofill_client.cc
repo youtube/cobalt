@@ -29,6 +29,26 @@ namespace autofill::payments {
 
 PaymentsAutofillClient::~PaymentsAutofillClient() = default;
 
+PaymentsAutofillClient::UserProvidedCardDetails::UserProvidedCardDetails() =
+    default;
+
+PaymentsAutofillClient::UserProvidedCardDetails::UserProvidedCardDetails(
+    const UserProvidedCardDetails&) = default;
+
+PaymentsAutofillClient::UserProvidedCardDetails&
+PaymentsAutofillClient::UserProvidedCardDetails::operator=(
+    const UserProvidedCardDetails&) = default;
+
+PaymentsAutofillClient::UserProvidedCardDetails::UserProvidedCardDetails(
+    UserProvidedCardDetails&&) = default;
+
+PaymentsAutofillClient::UserProvidedCardDetails&
+PaymentsAutofillClient::UserProvidedCardDetails::operator=(
+    UserProvidedCardDetails&&) = default;
+
+PaymentsAutofillClient::UserProvidedCardDetails::~UserProvidedCardDetails() =
+    default;
+
 #if BUILDFLAG(IS_ANDROID)
 AutofillSaveCardBottomSheetBridge*
 PaymentsAutofillClient::GetOrCreateAutofillSaveCardBottomSheetBridge() {
@@ -270,6 +290,8 @@ void PaymentsAutofillClient::ShowCreditCardLocalSaveAndFillDialog(
 void PaymentsAutofillClient::ShowCreditCardUploadSaveAndFillDialog(
     const LegalMessageLines& legal_message_lines,
     CardSaveAndFillDialogCallback callback) {}
+
+void PaymentsAutofillClient::ShowCreditCardSaveAndFillPendingDialog() {}
 
 payments::SaveAndFillManager* PaymentsAutofillClient::GetSaveAndFillManager() {
   return nullptr;

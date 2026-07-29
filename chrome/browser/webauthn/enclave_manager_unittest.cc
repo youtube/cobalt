@@ -33,6 +33,7 @@
 #include "base/task/current_thread.h"
 #include "base/test/bind.h"
 #include "base/test/metrics/histogram_tester.h"
+#include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
 #include "base/test/test_future.h"
 #include "base/threading/platform_thread.h"
@@ -45,6 +46,7 @@
 #include "chrome/browser/webauthn/proto/enclave_local_state.pb.h"
 #include "chrome/browser/webauthn/test_util.h"
 #include "chrome/browser/webauthn/unexportable_key_utils.h"
+#include "components/cbor/reader.h"
 #include "components/os_crypt/sync/os_crypt_mocker.h"
 #include "components/signin/public/base/consent_level.h"
 #include "components/signin/public/identity_manager/identity_test_environment.h"
@@ -52,6 +54,8 @@
 #include "components/trusted_vault/command_line_switches.h"
 #include "components/trusted_vault/proto/vault.pb.h"
 #include "components/trusted_vault/trusted_vault_connection.h"
+#include "crypto/aead.h"
+#include "crypto/hkdf.h"
 #include "crypto/scoped_fake_unexportable_key_provider.h"
 #include "crypto/scoped_fake_user_verifying_key_provider.h"
 #include "crypto/user_verifying_key.h"
@@ -62,6 +66,7 @@
 #include "device/fido/enclave/constants.h"
 #include "device/fido/enclave/enclave_authenticator.h"
 #include "device/fido/enclave/types.h"
+#include "device/fido/features.h"
 #include "device/fido/fido_authenticator.h"
 #include "device/fido/fido_constants.h"
 #include "device/fido/fido_types.h"
@@ -200,6 +205,29 @@ std::unique_ptr<network::NetworkService> CreateNetwork(
 scoped_refptr<device::JSONRequest> JSONFromString(std::string_view json_str) {
   base::Value json_request = base::JSONReader::Read(json_str).value();
   return base::MakeRefCounted<device::JSONRequest>(std::move(json_request));
+}
+
+std::vector<uint8_t> DecryptWrappedPin(
+    base::span<const uint8_t> security_domain_secret,
+    base::span<const uint8_t> wrapped_pin) {
+  base::span<const uint8_t> nonce = wrapped_pin.first(12u);
+  base::span<const uint8_t> encrypted_pin = wrapped_pin.subspan(12u);
+  // This is "KeychainApplicationKey:chrome:GPM PIN data wrapping key".
+  static constexpr uint8_t kKeyPurposePinDataKey[] = {
+      0x4b, 0x65, 0x79, 0x63, 0x68, 0x61, 0x69, 0x6e, 0x41, 0x70, 0x70,
+      0x6c, 0x69, 0x63, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x4b, 0x65, 0x79,
+      0x3a, 0x63, 0x68, 0x72, 0x6f, 0x6d, 0x65, 0x3a, 0x47, 0x50, 0x4d,
+      0x20, 0x50, 0x49, 0x4e, 0x20, 0x64, 0x61, 0x74, 0x61, 0x20, 0x77,
+      0x72, 0x61, 0x70, 0x70, 0x69, 0x6e, 0x67, 0x20, 0x6b, 0x65, 0x79};
+  const std::array<uint8_t, 32> derived_key = crypto::HkdfSha256<32>(
+      security_domain_secret, /*salt=*/base::span<const uint8_t>(),
+      kKeyPurposePinDataKey);
+  crypto::Aead aead(crypto::Aead::AeadAlgorithm::AES_256_GCM);
+  aead.Init(derived_key);
+  std::optional<std::vector<uint8_t>> pin = aead.Open(
+      encrypted_pin, nonce, /*additional_data=*/base::span<const uint8_t>());
+  CHECK(pin.has_value());
+  return *pin;
 }
 
 }  // namespace
@@ -479,6 +507,8 @@ class EnclaveManagerTest : public testing::Test, EnclaveManager::Observer {
   std::unique_ptr<FakeRecoveryKeyStore> recovery_key_store_;
   std::unique_ptr<crypto::ScopedFakeUnexportableKeyProvider> fake_hw_provider_;
   EnclaveManager manager_;
+  base::test::ScopedFeatureList scoped_feature_list_{
+      device::kWebAuthnWrapCohortData};
 };
 
 TEST_F(EnclaveManagerTest, TestInfrastructure) {
@@ -778,6 +808,21 @@ TEST_F(EnclaveManagerTest, SetupWithPIN) {
   CHECK(security_domain_secret.has_value());
   EXPECT_EQ(manager_.TakeSecret()->second, *security_domain_secret);
 
+  // Verify that the wrapped PIN Chrome generated contains the cohort details.
+  std::vector<uint8_t> wrapped_pin = DecryptWrappedPin(
+      *security_domain_secret,
+      base::as_byte_span(manager_.GetWrappedPIN()->wrapped_pin()));
+  std::optional<cbor::Value> cbor = cbor::Reader::Read(wrapped_pin);
+  const cbor::Value::MapValue& wrapped_pin_cbor = cbor->GetMap();
+  int cert_xml_serial_number =
+      wrapped_pin_cbor.find(cbor::Value(6))->second.GetInteger();
+  EXPECT_EQ(cert_xml_serial_number, FakeRecoveryKeyStore::kTestSerialNumber);
+  const std::vector<uint8_t> cohort_public_key =
+      wrapped_pin_cbor.find(cbor::Value(7))->second.GetBytestring();
+  EXPECT_EQ(cohort_public_key,
+            recovery_key_store_->endpoint_public_key_bytes());
+
+  // Verify we can use the PIN to create a passkey and assert it.
   std::unique_ptr<device::enclave::ClaimedPIN> claimed_pin =
       EnclaveManager::MakeClaimedPINSlowly(pin, manager_.GetWrappedPIN());
   std::unique_ptr<sync_pb::WebauthnCredentialSpecifics> entity;
@@ -843,6 +888,21 @@ TEST_F(EnclaveManagerTest, AddDeviceAndPINToAccount) {
                                     *recovery_key_store_);
   CHECK(security_domain_secret.has_value());
   EXPECT_EQ(manager_.TakeSecret()->second, *security_domain_secret);
+
+  // Verify that the wrapped PIN the enclave generated contains the cohort
+  // details.
+  std::vector<uint8_t> wrapped_pin = DecryptWrappedPin(
+      *security_domain_secret,
+      base::as_byte_span(manager_.GetWrappedPIN()->wrapped_pin()));
+  std::optional<cbor::Value> cbor = cbor::Reader::Read(wrapped_pin);
+  const cbor::Value::MapValue& wrapped_pin_cbor = cbor->GetMap();
+  int cert_xml_serial_number =
+      wrapped_pin_cbor.find(cbor::Value(6))->second.GetInteger();
+  EXPECT_EQ(cert_xml_serial_number, FakeRecoveryKeyStore::kTestSerialNumber);
+  const std::vector<uint8_t> cohort_public_key =
+      wrapped_pin_cbor.find(cbor::Value(7))->second.GetBytestring();
+  EXPECT_EQ(cohort_public_key,
+            recovery_key_store_->endpoint_public_key_bytes());
 
   std::unique_ptr<device::enclave::ClaimedPIN> claimed_pin =
       EnclaveManager::MakeClaimedPINSlowly(pin, manager_.GetWrappedPIN());

@@ -4,6 +4,8 @@
 
 package org.chromium.chrome.browser.contextmenu;
 
+import static org.chromium.ui.listmenu.ListMenuItemProperties.TITLE;
+
 import android.graphics.Bitmap;
 import android.view.View;
 
@@ -18,13 +20,16 @@ class ContextMenuHeaderProperties {
     /** Invalid value for OVERRIDE_*_PIXEL resources */
     static final int INVALID_OVERRIDE = -1;
 
-    public static final WritableObjectPropertyKey<String> TITLE = new WritableObjectPropertyKey<>();
     public static final WritableIntPropertyKey TITLE_MAX_LINES = new WritableIntPropertyKey();
     public static final WritableObjectPropertyKey<CharSequence> URL =
+            new WritableObjectPropertyKey<>();
+    public static final WritableObjectPropertyKey<CharSequence> SECONDARY_URL =
             new WritableObjectPropertyKey<>();
     public static final WritableObjectPropertyKey<View.OnClickListener>
             TITLE_AND_URL_CLICK_LISTENER = new WritableObjectPropertyKey<>();
     public static final WritableIntPropertyKey URL_MAX_LINES = new WritableIntPropertyKey();
+    public static final WritableIntPropertyKey SECONDARY_URL_MAX_LINES =
+            new WritableIntPropertyKey();
     public static final WritableObjectPropertyKey<Bitmap> IMAGE = new WritableObjectPropertyKey<>();
     public static final PropertyModel.WritableBooleanPropertyKey CIRCLE_BG_VISIBLE =
             new PropertyModel.WritableBooleanPropertyKey();
@@ -58,8 +63,10 @@ class ContextMenuHeaderProperties {
         TITLE,
         TITLE_MAX_LINES,
         URL,
+        SECONDARY_URL,
         TITLE_AND_URL_CLICK_LISTENER,
         URL_MAX_LINES,
+        SECONDARY_URL_MAX_LINES,
         IMAGE,
         CIRCLE_BG_VISIBLE,
         MONOGRAM_SIZE_PIXEL,

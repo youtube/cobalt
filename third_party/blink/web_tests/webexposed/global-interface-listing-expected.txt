@@ -1925,6 +1925,7 @@ interface DigitalCredential : Credential
     getter data
     getter protocol
     method constructor
+    method toJSON
 interface Directive
     attribute @@toStringTag
     getter type
@@ -2183,7 +2184,10 @@ interface Document : Node
     method importNode
     method moveBefore
     method open
+    method patchAfter
     method patchAll
+    method patchBefore
+    method patchBetween
     method patchSelf
     method prepend
     method queryCommandEnabled
@@ -2353,7 +2357,10 @@ interface DocumentFragment : Node
     method getElementById
     method getPartRoot
     method moveBefore
+    method patchAfter
     method patchAll
+    method patchBefore
+    method patchBetween
     method patchSelf
     method prepend
     method querySelector
@@ -2560,7 +2567,10 @@ interface Element : Node
     method insertAdjacentText
     method matches
     method moveBefore
+    method patchAfter
     method patchAll
+    method patchBefore
+    method patchBetween
     method patchSelf
     method prepend
     method pseudo
@@ -4271,9 +4281,17 @@ interface HTMLFrameSetElement : HTMLElement
     setter rows
 interface HTMLGeolocationElement : HTMLPermissionElement
     attribute @@toStringTag
+    getter autolocate
+    getter error
     getter onlocation
+    getter position
+    getter precise
+    getter watch
     method constructor
+    setter autolocate
     setter onlocation
+    setter precise
+    setter watch
 interface HTMLHRElement : HTMLElement
     attribute @@toStringTag
     getter align
@@ -7141,6 +7159,16 @@ interface OrientationSensor : Sensor
     getter quaternion
     method constructor
     method populateMatrix
+interface Origin
+    static method fromURL
+    static method parse
+    attribute @@toStringTag
+    getter opaque
+    method constructor
+    method isSameOrigin
+    method isSameSite
+    method toJSON
+    method toString
 interface OscillatorNode : AudioScheduledSourceNode
     attribute @@toStringTag
     getter detune
@@ -7459,6 +7487,10 @@ interface PerformanceResourceTiming : PerformanceEntry
     getter secureConnectionStart
     getter serverTiming
     getter transferSize
+    getter workerCacheLookupStart
+    getter workerFinalSourceType
+    getter workerMatchedSourceType
+    getter workerRouterEvaluationStart
     getter workerStart
     method constructor
     method toJSON

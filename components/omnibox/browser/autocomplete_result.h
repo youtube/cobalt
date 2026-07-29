@@ -42,9 +42,7 @@ class AutocompleteResult {
   typedef ACMatches::const_iterator const_iterator;
   typedef ACMatches::iterator iterator;
   using MatchDedupComparator = ACMatchKey<std::string,  // URL
-                                          bool,         // Is Calculator type?
-                                          bool,         // Is Verbatim Match?
-                                          bool>;        // Is Answer card?
+                                          AutocompleteMatchDedupeType>;
 
   // Max number of matches we'll show from the various providers. This limit
   // may be different for zero suggest and non zero suggest. Does not take into
@@ -184,6 +182,12 @@ class AutocompleteResult {
   // Sets |action| in matches that have Pedal-triggering text.
   void AttachPedalsToMatches(const AutocompleteInput& input,
                              const AutocompleteProviderClient& client);
+
+#if BUILDFLAG(IS_IOS) || BUILDFLAG(IS_ANDROID)
+  // Attaches AIM action to the highest-scoring eligible match in the result
+  // set, if no other actions are present.
+  void AttachAimAction(TemplateURLService* template_url_service);
+#endif
 
   // Sets a takeover action on all matches to issue a contextual search.
   void AttachContextualSearchFulfillmentActionToMatches();

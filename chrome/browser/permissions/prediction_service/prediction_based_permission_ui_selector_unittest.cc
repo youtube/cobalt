@@ -15,11 +15,13 @@
 #include "base/test/scoped_command_line.h"
 #include "base/test/scoped_feature_list.h"
 #include "chrome/browser/permissions/permission_actions_history_factory.h"
+#include "chrome/browser/permissions/test/enums_to_string.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/test/base/testing_profile.h"
 #include "components/content_settings/core/common/pref_names.h"
 #include "components/permissions/features.h"
 #include "components/permissions/permission_request_data.h"
+#include "components/permissions/permission_request_enums.h"
 #include "components/permissions/permission_uma_util.h"
 #include "components/permissions/permission_util.h"
 #include "components/permissions/prediction_service/prediction_common.h"
@@ -34,14 +36,9 @@
 
 namespace {
 using Decision = PredictionBasedPermissionUiSelector::Decision;
-using PredictionSource = PredictionBasedPermissionUiSelector::PredictionSource;
+using PredictionSource =
+    permissions::PermissionPredictionSource;
 using base::test::FeatureRef;
-
-#define BASIC_CPSS_FEATURES                                              \
-  permissions::features::kPermissionPredictionsV2,                       \
-      permissions::features::kPermissionOnDeviceNotificationPredictions, \
-      permissions::features::kPermissionOnDeviceGeolocationPredictions,  \
-      features::kQuietNotificationPrompts
 
 constexpr char kOnDevPredServiceResponseNotificationsHistogram[] =
     "Permissions.OnDevicePredictionService.Response.Notifications";
@@ -55,23 +52,6 @@ constexpr char kAIv3ResponseNotificationsHistogram[] =
     "Permissions.AIv3.Response.Notifications";
 constexpr char kAIv3ResponseGeolocationHistogram[] =
     "Permissions.AIv3.Response.Geolocation";
-
-std::string PredictionSourceToString(PredictionSource prediction_source) {
-  switch (prediction_source) {
-    case PredictionSource::kServerSideCpssV3Model:
-      return "ServerSideCpssV3Model";
-    case PredictionSource::kOnDeviceAiv1AndServerSideModel:
-      return "OnDeviceAiv1AndServerSideModel";
-    case PredictionSource::kOnDeviceAiv3AndServerSideModel:
-      return "OnDeviceAiv3AndServerSideModel";
-    case PredictionSource::kOnDeviceCpssV1Model:
-      return "OnDeviceCpssV1Model";
-    case PredictionSource::kNoCpssModel:
-      [[fallthrough]];
-    default:
-      NOTREACHED();
-  }
-}
 
 }  // namespace
 
@@ -271,8 +251,7 @@ TEST_F(PredictionBasedPermissionUiSelectorTest, GetPredictionTypeToUseCpssV1) {
 
   feature_list_->Reset();
   feature_list_->InitWithFeatures(
-      /*enabled_features=*/{BASIC_CPSS_FEATURES,
-                            permissions::features::kPermissionsAIv1},
+      /*enabled_features=*/{permissions::features::kPermissionsAIv1},
       /*disabled_features=*/{});
 
   PredictionBasedPermissionUiSelector prediction_selector(profile());
@@ -291,7 +270,9 @@ TEST_F(PredictionBasedPermissionUiSelectorTest, GetPredictionTypeToUseCpssV1) {
       base::BindRepeating(decided));
 
   permissions::PredictionRequestFeatures features =
-      prediction_selector.BuildPredictionRequestFeatures(&permission_request);
+      prediction_selector.BuildPredictionRequestFeatures(
+          &permission_request,
+          PredictionSource::kOnDeviceAiv1AndServerSideModel);
 
   auto proto_request = GetPredictionRequestProto(features);
 }
@@ -314,42 +295,49 @@ INSTANTIATE_TEST_SUITE_P(
     testing::ValuesIn<PredictionSourceTestCase>({
 #if BUILDFLAG(IS_ANDROID)
         {/*test_name=*/"UseCpssV1OnAndroid",
-         /*enabled_features=*/{BASIC_CPSS_FEATURES},
+         /*enabled_features=*/{},
          /*disabled_features=*/
          {permissions::features::kPermissionDedicatedCpssSettingAndroid},
          /*expected_prediction_source=*/PredictionSource::kOnDeviceCpssV1Model},
         {/*test_name=*/"UseServerSideOnAndroid",
          /*enabled_features=*/
-         {BASIC_CPSS_FEATURES,
-          permissions::features::kPermissionDedicatedCpssSettingAndroid},
+         {permissions::features::kPermissionDedicatedCpssSettingAndroid},
          /*disabled_features=*/{},
          /*expected_prediction_source=*/
          PredictionSource::kServerSideCpssV3Model},
 #else
         {/*test_name=*/"UseServerSideOnDesktop",
-         /*enabled_features=*/{BASIC_CPSS_FEATURES},
+         /*enabled_features=*/{},
          /*disabled_features=*/{},
          /*expected_prediction_source=*/
          PredictionSource::kServerSideCpssV3Model},
         {/*test_name=*/"UsePermissionsAiv1OnDesktop",
          /*enabled_features=*/
-         {BASIC_CPSS_FEATURES, permissions::features::kPermissionsAIv1},
+         {permissions::features::kPermissionsAIv1},
          /*disabled_features=*/{},
          /*expected_prediction_source=*/
          PredictionSource::kOnDeviceAiv1AndServerSideModel},
         {/*test_name=*/"UsePermissionsAiv3OnDesktop",
          /*enabled_features=*/
-         {BASIC_CPSS_FEATURES, permissions::features::kPermissionsAIv3},
+         {permissions::features::kPermissionsAIv3},
          /*disabled_features=*/{},
          /*expected_prediction_source=*/
          PredictionSource::kOnDeviceAiv3AndServerSideModel},
         {/*test_name=*/"UsePermissionsAiv3OverAiv1OnDesktop",
          /*enabled_features=*/
-         {BASIC_CPSS_FEATURES, permissions::features::kPermissionsAIv1,
+         {permissions::features::kPermissionsAIv1,
           permissions::features::kPermissionsAIv3},
          /*disabled_features=*/{},
          /*expected_prediction_source=*/
          PredictionSource::kOnDeviceAiv3AndServerSideModel},
+        {/*test_name=*/"UsePermissionsAiv4OverAivXOnDesktop",
+         /*enabled_features=*/
+         {permissions::features::kPermissionsAIv1,
+          permissions::features::kPermissionsAIv3,
+          permissions::features::kPermissionsAIv4},
+         /*disabled_features=*/{},
+         /*expected_prediction_source=*/
+         PredictionSource::kOnDeviceAiv4AndServerSideModel},
 #endif
     }),
     /*name_generator=*/
@@ -397,8 +385,8 @@ class PredictionBasedPermissionUiExpectedHoldbackChanceTest
         {});
   }
 
-  // Checks for the selected histogram that is has a bucket count of 1 and
-  // also ensures that no other histogram was changed.
+  // Checks for the selected histogram that has a bucket count of 1 and also
+  // ensures that no other histogram was changed.
   void CheckHistogramsAreEmptyExcept(
       const std::vector<std::string_view>& updated_histograms) {
     // Static list of all histogram names to check
@@ -407,6 +395,8 @@ class PredictionBasedPermissionUiExpectedHoldbackChanceTest
         kOnDevPredServiceResponseGeolocationHistogram,
         kPredServiceResponseNotificationsHistogram,
         kPredServiceResponseGeolocationHistogram,
+        kAIv3ResponseNotificationsHistogram,
+        kAIv3ResponseGeolocationHistogram,
     };
 
     for (const auto& histogram_name : kAllHistogramNames) {
@@ -422,7 +412,7 @@ class PredictionBasedPermissionUiExpectedHoldbackChanceTest
           /*sample=*/GetParam().holdback_chance == 1,
           /*expected_count=*/1);
 
-      histogram_tester_.ExpectTotalCount(histogram_name, /*count=*/1);
+      histogram_tester_.ExpectTotalCount(histogram_name, /*expected_count=*/1);
     }
   }
 
@@ -532,8 +522,8 @@ INSTANTIATE_TEST_SUITE_P(
       return base::StrCat(
           {(info.param.holdback_chance == 1) ? "FullHoldbackChance"
                                              : "NoHoldbackChance",
-           "For", PredictionSourceToString(info.param.prediction_source),
-           "Execution", "And",
+           "For", test::ToString(info.param.prediction_source), "Execution",
+           "And",
            (info.param.request_type == permissions::RequestType::kNotifications)
                ? "Notifications"
                : "Geolocation",

@@ -52,7 +52,6 @@
 #include "gpu/config/gpu_finch_features.h"
 #include "gpu/ipc/common/command_buffer_id.h"
 #include "gpu/ipc/common/gpu_channel.mojom.h"
-#include "gpu/ipc/common/gpu_memory_buffer_impl_shared_memory.h"
 #include "gpu/ipc/common/gpu_memory_buffer_support.h"
 #include "gpu/ipc/service/gles2_command_buffer_stub.h"
 #include "gpu/ipc/service/gpu_channel_manager.h"
@@ -455,9 +454,9 @@ void GpuChannelMessageFilter::CreateGpuMemoryBuffer(
 
   if (IsNativeBufferSupported(buffer_format, buffer_usage)) {
     handle = gpu_memory_buffer_factory_->CreateNativeGmbHandle(
-        MappableSIClientGmbId::kGpuChannel, size, buffer_format, buffer_usage);
+        size, buffer_format, buffer_usage);
   } else {
-    if (gpu::GpuMemoryBufferImplSharedMemory::IsUsageSupported(buffer_usage) &&
+    if (SharedMemoryImageBackingFactory::IsBufferUsageSupported(buffer_usage) &&
         SharedMemoryImageBackingFactory::IsSizeValidForFormat(size, format)) {
       handle = SharedMemoryImageBackingFactory::CreateGpuMemoryBufferHandle(
           size, buffer_format, buffer_usage);

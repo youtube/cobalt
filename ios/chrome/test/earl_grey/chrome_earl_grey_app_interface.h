@@ -529,9 +529,6 @@ enum class TipsNotificationType;
 // Returns YES if kTestFeature is enabled.
 + (BOOL)isTestFeatureEnabled;
 
-// Returns YES if DWA feature is enabled.
-+ (BOOL)isDWAEnabled [[nodiscard]];
-
 // Returns YES if DemographicMetricsReporting feature is enabled.
 + (BOOL)isDemographicMetricsReportingEnabled [[nodiscard]];
 
@@ -555,9 +552,6 @@ enum class TipsNotificationType;
 
 // Returns whether the UseLensToSearchForImage feature is enabled.
 + (BOOL)isUseLensToSearchForImageEnabled;
-
-// Returns whether Tab Group Sync is enabled.
-+ (BOOL)isTabGroupSyncEnabled;
 
 // Returns whether the current layout is showing the bottom omnibox.
 + (BOOL)isCurrentLayoutBottomOmnibox;

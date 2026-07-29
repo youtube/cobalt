@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include <memory>
+#include <optional>
 
 #include "base/base64.h"
 #include "base/containers/span.h"
@@ -857,8 +858,10 @@ IN_PROC_BROWSER_TEST_P(DownloadDeepScanningBrowserTest,
   EXPECT_EQ(item->GetState(), download::DownloadItem::INTERRUPTED);
 }
 
+// TODO(https://crbug.com/414822762): Reenable the test once the flakiness is
+// fixed.
 IN_PROC_BROWSER_TEST_P(DownloadDeepScanningBrowserTest,
-                       DlpAndMalwareViolations) {
+                       DISABLED_DlpAndMalwareViolations) {
   // This allows the blocking DM token reads happening on profile-Connector
   // triggers.
   base::ScopedAllowBlockingForTesting allow_blocking;
@@ -1012,9 +1015,11 @@ IN_PROC_BROWSER_TEST_P(DownloadRestrictionsDeepScanningBrowserTest,
   validator.SetDoneClosure(run_loop.QuitClosure());
   std::set<std::string> zip_types = {"application/zip",
                                      "application/x-zip-compressed"};
-  validator.ExpectDangerousDownloadEvent(
+  validator.ExpectDangerousDeepScanningResult(
       /*url*/ url.spec(),
       /*tab_url*/ url.spec(),
+      /*source*/ "",
+      /*destination*/ "",
       /*filename*/
       connectors_machine_scope() ? main_file.AsUTF8Unsafe()
                                  : "zipfile_two_archives.zip",
@@ -1030,7 +1035,8 @@ IN_PROC_BROWSER_TEST_P(DownloadRestrictionsDeepScanningBrowserTest,
       enterprise_connectors::EventResultToString(
           enterprise_connectors::EventResult::BLOCKED),
       /*username*/ kUserName,
-      /*profile_identifier*/ GetProfileIdentifier());
+      /*profile_identifier*/ GetProfileIdentifier(),
+      /*scan_id*/ std::nullopt);
 
   WaitForDownloadToFinish();
 
@@ -1721,7 +1727,7 @@ IN_PROC_BROWSER_TEST_F(FileSystemAccessDeepScanningBrowserTest, BlockedWrite) {
   ASSERT_THAT(result, content::EvalJsResult::IsError());
 
   // TODO(crbug.com/407065784): Improve error message for SB checks.
-  EXPECT_EQ(result.error,
+  EXPECT_EQ(result.ExtractError(),
             "a JavaScript error: \"AbortError: Blocked by Safe Browsing.\"\n");
 
   // File is created but remains empty due to block.

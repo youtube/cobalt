@@ -14,17 +14,18 @@ import android.widget.TextView;
 
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.R;
+import org.chromium.ui.listmenu.ListMenuItemProperties;
 import org.chromium.ui.modelutil.PropertyKey;
 import org.chromium.ui.modelutil.PropertyModel;
 
 @NullMarked
 class ContextMenuHeaderViewBinder {
     public static void bind(PropertyModel model, View view, PropertyKey propertyKey) {
-        if (propertyKey == ContextMenuHeaderProperties.TITLE) {
+        if (propertyKey == ListMenuItemProperties.TITLE) {
             TextView titleText = view.findViewById(R.id.menu_header_title);
-            titleText.setText(model.get(ContextMenuHeaderProperties.TITLE));
+            titleText.setText(model.get(ListMenuItemProperties.TITLE));
             titleText.setVisibility(
-                    TextUtils.isEmpty(model.get(ContextMenuHeaderProperties.TITLE))
+                    TextUtils.isEmpty(model.get(ListMenuItemProperties.TITLE))
                             ? View.GONE
                             : View.VISIBLE);
         } else if (propertyKey == ContextMenuHeaderProperties.TITLE_MAX_LINES) {
@@ -43,6 +44,12 @@ class ContextMenuHeaderViewBinder {
                     TextUtils.isEmpty(model.get(ContextMenuHeaderProperties.URL))
                             ? View.GONE
                             : View.VISIBLE);
+        } else if (propertyKey == ContextMenuHeaderProperties.SECONDARY_URL) {
+            TextView secondaryUrlText = view.findViewById(R.id.menu_header_secondary_url);
+            CharSequence secondaryUrl = model.get(ContextMenuHeaderProperties.SECONDARY_URL);
+            secondaryUrlText.setText(secondaryUrl);
+            secondaryUrlText.setVisibility(
+                    TextUtils.isEmpty(secondaryUrl) ? View.GONE : View.VISIBLE);
         } else if (propertyKey == ContextMenuHeaderProperties.TITLE_AND_URL_CLICK_LISTENER) {
             view.findViewById(R.id.title_and_url)
                     .setOnClickListener(
@@ -55,6 +62,15 @@ class ContextMenuHeaderViewBinder {
                 urlText.setEllipsize(null);
             } else {
                 urlText.setEllipsize(TextUtils.TruncateAt.END);
+            }
+        } else if (propertyKey == ContextMenuHeaderProperties.SECONDARY_URL_MAX_LINES) {
+            final int maxLines = model.get(ContextMenuHeaderProperties.SECONDARY_URL_MAX_LINES);
+            final TextView secondaryUrlText = view.findViewById(R.id.menu_header_secondary_url);
+            secondaryUrlText.setMaxLines(maxLines);
+            if (maxLines == Integer.MAX_VALUE) {
+                secondaryUrlText.setEllipsize(null);
+            } else {
+                secondaryUrlText.setEllipsize(TextUtils.TruncateAt.END);
             }
         } else if (propertyKey == ContextMenuHeaderProperties.IMAGE) {
             Bitmap bitmap = model.get(ContextMenuHeaderProperties.IMAGE);

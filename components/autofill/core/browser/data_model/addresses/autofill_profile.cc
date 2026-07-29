@@ -74,9 +74,8 @@ namespace {
 
 constexpr char kAddressComponentsDefaultLocality[] = "en-US";
 
-// Like |AutofillType::GetStorableType()|, but also returns |NAME_FULL| for
-// first, middle, and last name field types, and groups phone number types
-// similarly.
+// Returns `NAME_FULL` for first, middle, and last name field types, and groups
+// phone number types similarly.
 FieldType GetStorableTypeCollapsingGroupsForPartialType(FieldType type) {
   if (GroupTypeOfFieldType(type) == FieldTypeGroup::kName) {
     return NAME_FULL;
@@ -552,7 +551,7 @@ int AutofillProfile::Compare(const AutofillProfile& profile) const {
 
   // When adding field types, ensure that they don't need to be added here and
   // update the last checked value.
-  static_assert(FieldType::MAX_VALID_FIELD_TYPE == 203,
+  static_assert(FieldType::MAX_VALID_FIELD_TYPE == 204,
                 "New field type needs to be reviewed for inclusion in the "
                 "profile comparison logic.");
 
@@ -695,6 +694,7 @@ bool AutofillProfile::IsAccountProfile() const {
     case RecordType::kAccount:
     case RecordType::kAccountHome:
     case RecordType::kAccountWork:
+    case RecordType::kAccountNameEmail:
       return true;
   }
   NOTREACHED();
@@ -704,6 +704,7 @@ bool AutofillProfile::IsHomeAndWorkProfile() const {
   switch (record_type()) {
     case RecordType::kLocalOrSyncable:
     case RecordType::kAccount:
+    case RecordType::kAccountNameEmail:
       return false;
     case RecordType::kAccountHome:
     case RecordType::kAccountWork:
@@ -1056,7 +1057,7 @@ VerificationStatus AutofillProfile::GetVerificationStatus(
 
 std::u16string AutofillProfile::GetInfo(const AutofillType& type,
                                         const std::string& app_locale) const {
-  const FormGroup* form_group = FormGroupForType(type.GetStorableType());
+  const FormGroup* form_group = FormGroupForType(type.GetAddressType());
   if (!form_group) {
     return std::u16string();
   }
@@ -1068,7 +1069,7 @@ bool AutofillProfile::SetInfoWithVerificationStatus(
     const std::u16string& value,
     const std::string& app_locale,
     VerificationStatus status) {
-  FormGroup* form_group = MutableFormGroupForType(type.GetStorableType());
+  FormGroup* form_group = MutableFormGroupForType(type.GetAddressType());
   if (!form_group) {
     return false;
   }

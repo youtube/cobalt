@@ -574,34 +574,36 @@ void AutofillMetrics::LogEditedAutofilledFieldAtSubmission(
       "Autofill.EditedAutofilledFieldAtSubmission2.Aggregate", editing_metric);
 
   // Record the type specific UMA statistics.
-  base::UmaHistogramSparse(
-      "Autofill.EditedAutofilledFieldAtSubmission2.ByFieldType",
-      GetFieldTypeUserEditStatusMetric(field.Type().GetStorableType(),
-                                       editing_metric));
+  if (std::optional<FieldType> ft = field.autofilled_type()) {
+    base::UmaHistogramSparse(
+        "Autofill.EditedAutofilledFieldAtSubmission2.ByFieldType",
+        GetFieldTypeUserEditStatusMetric(*ft, editing_metric));
+  }
 
   // Record the metric for Autofill AI specific fields.
   if (field.filling_product() == FillingProduct::kAutofillAi) {
     base::UmaHistogramEnumeration(
         "Autofill.Ai.EditedAutofilledFieldAtSubmission", editing_metric);
-    if (std::optional<FieldType> ai_type =
-            field.GetAutofillAiServerTypePredictions()) {
+    if (std::optional<FieldType> field_type = field.autofilled_type()) {
       // Record the type specific UMA statistics.
       base::UmaHistogramSparse(
           "Autofill.Ai.EditedAutofilledFieldAtSubmission.ByFieldType",
-          GetFieldTypeUserEditStatusMetric(*ai_type, editing_metric));
+          GetFieldTypeUserEditStatusMetric(*field_type, editing_metric));
     }
   }
 
   // Record the UMA statistics spliced by the autocomplete attribute value.
-  FormType form_type = FieldTypeGroupToFormType(field.Type().group());
-  if (form_type == FormType::kAddressForm ||
-      form_type == FormType::kCreditCardForm) {
-    bool autocomplete_off = field.autocomplete_attribute() == "off";
-    const std::string autocomplete_histogram = base::StrCat(
-        {"Autofill.Autocomplete.", autocomplete_off ? "Off" : "NotOff",
-         ".EditedAutofilledFieldAtSubmission2.",
-         form_type == FormType::kAddressForm ? "Address" : "CreditCard"});
-    base::UmaHistogramEnumeration(autocomplete_histogram, editing_metric);
+  if (std::optional<FieldType> ft = field.autofilled_type()) {
+    FormType form_type = FieldTypeGroupToFormType(GroupTypeOfFieldType(*ft));
+    if (form_type == FormType::kAddressForm ||
+        form_type == FormType::kCreditCardForm) {
+      bool autocomplete_off = field.autocomplete_attribute() == "off";
+      const std::string autocomplete_histogram = base::StrCat(
+          {"Autofill.Autocomplete.", autocomplete_off ? "Off" : "NotOff",
+           ".EditedAutofilledFieldAtSubmission2.",
+           form_type == FormType::kAddressForm ? "Address" : "CreditCard"});
+      base::UmaHistogramEnumeration(autocomplete_histogram, editing_metric);
+    }
   }
 
   // If the field was edited, record the event to UKM.
@@ -1021,7 +1023,7 @@ void AutofillMetrics::LogCreditCardSeamlessnessAtFillTime(
       if (only_visible_fields && !field->is_visible()) {
         continue;
       }
-      autofilled_types.insert(field->Type().GetStorableType());
+      autofilled_types.insert(field->Type().GetCreditCardType());
     }
     return CreditCardSeamlessness(autofilled_types);
   };
@@ -1109,7 +1111,8 @@ void AutofillMetrics::LogCreditCardSeamlessnessAtFillTime(
     const url::Origin& triggered_origin = p.field.origin();
     return field.origin() != triggered_origin &&
            (field.origin() != main_origin ||
-            IsSensitiveFieldType(field.Type().GetStorableType())) &&
+            std::ranges::any_of(field.Type().GetTypes(),
+                                IsSensitiveFieldType)) &&
            triggered_origin == main_origin;
   };
 

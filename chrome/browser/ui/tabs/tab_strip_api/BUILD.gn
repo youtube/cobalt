@@ -6,6 +6,24 @@ assert(is_win || is_mac || is_linux || is_chromeos)
 
 import("//mojo/public/tools/bindings/mojom.gni")
 
+# This is an experimental API and should not be used outside of its approved
+# implementation. There is a visibility rule that ensures any new dependency on
+# this target must be approved.
+# TODO(crbug.com/433569400) Link to doc for more information.
+mojom("mojom_experiment") {
+  sources = [ "tab_strip_experiment_api.mojom" ]
+
+  deps = [ ":mojom" ]
+
+  webui_module_path = "/"
+  visibility = [
+    ":browser_tests",
+    ":impl",
+    ":tab_strip_api",
+    ":unit_tests",
+  ]
+}
+
 mojom("mojom") {
   sources = [
     "tab_strip_api.mojom",
@@ -42,6 +60,10 @@ mojom("mojom") {
           mojom = "tabs_api.mojom.TabGroupVisualData"
           cpp = "::tab_groups::TabGroupVisualData"
         },
+        {
+          mojom = "tabs_api.mojom.SplitTabVisualData"
+          cpp = "::split_tabs::SplitTabVisualData"
+        },
       ]
       traits_headers = [
         "//chrome/browser/ui/tabs/tab_strip_api/types/node_id.h",
@@ -49,14 +71,18 @@ mojom("mojom") {
         "//chrome/browser/ui/tabs/tab_strip_api/types/position.h",
         "//chrome/browser/ui/tabs/tab_strip_api/types/position_traits.h",
         "//chrome/browser/ui/tabs/tab_strip_api/types/tab_group_visual_data_traits.h",
+        "//chrome/browser/ui/tabs/tab_strip_api/types/split_tab_visual_data_traits.h",
+        "//components/tab_groups/tab_group_visual_data.h",
+        "//components/tabs/public/split_tab_visual_data.h",
       ]
       traits_sources = [
         "//chrome/browser/ui/tabs/tab_strip_api/types/node_id_traits.cc",
         "//chrome/browser/ui/tabs/tab_strip_api/types/position_traits.cc",
+        "//chrome/browser/ui/tabs/tab_strip_api/types/split_tab_visual_data_traits.cc",
         "//chrome/browser/ui/tabs/tab_strip_api/types/tab_group_visual_data_traits.cc",
       ]
       traits_public_deps = [
-        "types:types",
+        "types",
         "//base",
         "//chrome/browser/ui/tabs",
       ]
@@ -89,7 +115,10 @@ source_set("tab_strip_api") {
     "//chrome/browser/ui/tabs:tab_strip_model_observer",
   ]
 
-  deps = [ "//chrome/browser/ui/tabs/tab_strip_api/events:events" ]
+  deps = [
+    ":mojom_experiment",
+    "//chrome/browser/ui/tabs/tab_strip_api/events",
+  ]
 }
 
 source_set("impl") {
@@ -102,13 +131,14 @@ source_set("impl") {
   public_deps = [ "//chrome/browser:browser_public_dependencies" ]
 
   deps = [
+    ":mojom_experiment",
     ":tab_strip_api",
     "adapters:impl",
     "converters",
     "events",
-    "types:types",
+    "types",
     "//chrome/browser/ui",
-    "//chrome/browser/ui/browser_window:browser_window",
+    "//chrome/browser/ui/browser_window",
     "//chrome/browser/ui/tabs:tab_strip",
   ]
 }
@@ -116,17 +146,21 @@ source_set("impl") {
 source_set("unit_tests") {
   testonly = true
 
-  sources = [ "tab_strip_service_impl_unittest.cc" ]
+  sources = [
+    "tab_strip_experiment_service_unittest.cc",
+    "tab_strip_service_impl_unittest.cc",
+  ]
 
   deps = [
     ":impl",
+    ":mojom_experiment",
     ":tab_strip_api",
     "converters:unit_tests",
     "events:unit_tests",
     "testing",
     "types:unit_tests",
     "//base/test:test_support",
-    "//chrome/browser/ui/browser_window:browser_window",
+    "//chrome/browser/ui/browser_window",
     "//chrome/browser/ui/tabs:tab_strip",
     "//chrome/browser/ui/tabs:test_support",
     "//chrome/test:test_support",
@@ -143,12 +177,13 @@ source_set("browser_tests") {
 
   deps = [
     ":impl",
+    ":mojom_experiment",
     ":tab_strip_api",
     "adapters/tree_builder:browser_tests",
     "//base",
     "//base/test:test_support",
     "//chrome/browser/ui:ui_features",
-    "//chrome/browser/ui/browser_window:browser_window",
+    "//chrome/browser/ui/browser_window",
     "//chrome/browser/ui/tabs:tab_strip",
     "//chrome/test:test_support",
     "//content/test:test_support",

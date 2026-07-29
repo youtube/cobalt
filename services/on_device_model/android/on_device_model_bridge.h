@@ -6,6 +6,8 @@
 #define SERVICES_ON_DEVICE_MODEL_ANDROID_ON_DEVICE_MODEL_BRIDGE_H_
 
 #include "base/android/scoped_java_ref.h"
+#include "components/optimization_guide/proto/model_execution.pb.h"
+#include "services/on_device_model/public/mojom/on_device_model.mojom.h"
 
 namespace on_device_model {
 
@@ -15,7 +17,9 @@ class OnDeviceModelBridge {
  public:
   // Creates a new AiCoreSession instance. Caller is responsible for
   // creating a global ref if it needs to be stored.
-  static base::android::ScopedJavaLocalRef<jobject> CreateSession();
+  static base::android::ScopedJavaLocalRef<jobject> CreateSession(
+      optimization_guide::proto::ModelExecutionFeature feature,
+      on_device_model::mojom::SessionParamsPtr params);
 };
 
 }  // namespace on_device_model

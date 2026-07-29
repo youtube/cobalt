@@ -162,9 +162,12 @@ chromium-metrics-reviews@google.com.
 <!-- LINT.IfChange(PermissionPredictionSource) -->
 
 <enum name="PermissionPredictionSource">
-  <int value="0" label="ON_DEVICE_TFLITE"/>
-  <int value="1" label="SERVER_SIDE"/>
-  <int value="2" label="ONDEVICE_AI_AND_SERVER_SIDE"/>
+  <int value="0" label="No CPSS model"/>
+  <int value="1" label="CPSSv1 model"/>
+  <int value="2" label="CPSSv3 model"/>
+  <int value="3" label="AIv1 model"/>
+  <int value="4" label="AIv3 model"/>
+  <int value="5" label="AIv4 model"/>
 </enum>
 
 <!-- LINT.ThenChange(//components/permissions/permission_request_enums.h:PermissionPredictionSource) -->
@@ -215,10 +218,11 @@ chromium-metrics-reviews@google.com.
 
 <enum name="PermissionSourceUI">
   <int value="0" label="Prompt"/>
-  <int value="1" label="Origin info bubble"/>
+  <int value="1" label="Page info bubble"/>
   <int value="2" label="Site settings"/>
   <int value="3" label="Page action bubble"/>
-  <int value="4" label="Permission settings from Android OS"/>
+  <int value="4"
+      label="Android notification channel settings (when opened from Chrome)"/>
   <int value="5" label="Inline settings as part of the event's UI"/>
   <int value="6" label="Automatic revocation from Safe Browsing"/>
   <int value="7" label="Automatic revocation from Safety Hub"/>

@@ -229,6 +229,22 @@ chromium-metrics-reviews@google.com.
   <int value="2" label="Read data error"/>
 </enum>
 
+<!-- LINT.IfChange(ServiceWorkerRegistrationDeleteInitiator) -->
+
+<enum name="ServiceWorkerRegistrationDeleteInitiator">
+  <int value="0" label="Triggered by navigator.serviceWorker.unregister()"/>
+  <int value="1" label="Triggered by clearing site data"/>
+  <int value="2" label="Triggered by an emergency force-delete"/>
+  <int value="3" label="Triggered by a registration failure"/>
+  <int value="4"
+      label="Triggered via the public C++ API (e.g., extensions, DevTools)"/>
+  <int value="5"
+      label="Triggered by a user action on chrome://serviceworker-internals"/>
+  <int value="6" label="Triggered from a test"/>
+</enum>
+
+<!-- LINT.ThenChange(//content/browser/service_worker/service_worker_registration.h:DeleteInitiator) -->
+
 <enum name="ServiceWorkerRouterEvaluatorErrorEnums">
   <int value="0" label="kNoError"/>
   <int value="1" label="kInvalidType"/>
@@ -268,6 +284,15 @@ chromium-metrics-reviews@google.com.
 </enum>
 
 <!-- LINT.ThenChange(//content/browser/service_worker/service_worker_main_resource_loader.cc:SyntheticResponseEligibility) -->
+
+<!-- LINT.IfChange(SyntheticResponseReloadReason) -->
+
+<enum name="SyntheticResponseReloadReason">
+  <int value="0" label="CachedResponseHeadCleared"/>
+  <int value="1" label="HeaderInconsistent"/>
+</enum>
+
+<!-- LINT.ThenChange(//content/browser/service_worker/service_worker_synthetic_response_manager.cc:SyntheticResponseReloadReason) -->
 
 <enum name="WorkerOrWorkletInterfaceNameType">
   <int value="0" label="kOther"/>

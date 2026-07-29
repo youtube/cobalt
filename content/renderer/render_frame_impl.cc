@@ -4923,10 +4923,17 @@ RenderFrameImpl::MakeDidCommitProvisionalLoadParams(
     params->url = GURL(kBlockedURL);
   }
 
+  // When `blink::features::kVisitedLinksOnErrorNavigation` is enabled, visits
+  // to reachable URLs that have a 404 status code qualify for history updates.
+  // Otherwise, we shouldn't update history for 404s.
+  bool does_status_code_qualify_for_history =
+      base::FeatureList::IsEnabled(
+          blink::features::kVisitedLinksOnErrorNavigation) ||
+      response.HttpStatusCode() != 404;
   // TODO(crbug.com/40161149): Reconsider how we calculate
   // should_update_history.
-  params->should_update_history =
-      !document_loader->HasUnreachableURL() && response.HttpStatusCode() != 404;
+  params->should_update_history = !document_loader->HasUnreachableURL() &&
+                                  does_status_code_qualify_for_history;
 
   if (previous_page_state.has_value()) {
     params->previous_page_state = previous_page_state;
@@ -5201,7 +5208,8 @@ void RenderFrameImpl::DidCommitNavigationInternal(
   RendererNavigationMetricsManager::Instance().ProcessNavigationCommit(
       navigation_state->commit_params().navigation_metrics_token,
       navigation_state->common_params().url,
-      navigation_state->common_params().actual_navigation_start);
+      navigation_state->common_params().actual_navigation_start,
+      navigation_state->commit_params().commit_sent, IsMainFrame());
   // Add any new code above the ProcessNavigationCommit call.
 }
 

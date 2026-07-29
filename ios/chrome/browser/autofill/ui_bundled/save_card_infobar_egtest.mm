@@ -104,11 +104,12 @@ id<GREYMatcher> UploadBottomSheetCancelButtonMatcher() {
 }
 
 id<GREYMatcher> LocalBannerLabelsMatcher() {
-  NSString* bannerLabel =
-      [NSString stringWithFormat:@"%@,%@",
-                                 l10n_util::GetNSString(
-                                     IDS_AUTOFILL_SAVE_CARD_PROMPT_TITLE_LOCAL),
-                                 kSaveCardLabel];
+  NSString* bannerLabel = [NSString
+      stringWithFormat:
+          @"%@,%@",
+          l10n_util::GetNSString(
+              IDS_AUTOFILL_SAVE_CARD_PROMPT_TITLE_LOCAL_ON_THIS_DEVICE),
+          kSaveCardLabel];
   return grey_allOf(
       grey_accessibilityID(kInfobarBannerLabelsStackViewIdentifier),
       grey_accessibilityLabel(bannerLabel), nil);
@@ -269,6 +270,9 @@ void FillAndSubmitXframeCreditCardForm() {
   config.features_enabled.push_back(
       autofill::features::kAutofillLocalSaveCardBottomSheet);
 
+  config.features_enabled.push_back(
+      autofill::features::kAutofillEnableCvcStorageAndFilling);
+
   return config;
 }
 
@@ -381,6 +385,9 @@ void FillAndSubmitXframeCreditCardForm() {
   // Push the cancel button.
   [[EarlGrey selectElementWithMatcher:UploadBottomSheetCancelButtonMatcher()]
       performAction:grey_tap()];
+
+  // Synchronization off due to an infinite spinner.
+  ScopedSynchronizationDisabler disabler;
 
   // Assert save card bottomsheet dimisses.
   GREYAssertTrue(
@@ -1184,7 +1191,7 @@ void FillAndSubmitXframeCreditCardForm() {
 
   [[EarlGrey selectElementWithMatcher:
                  grey_accessibilityValue(l10n_util::GetNSString(
-                     IDS_AUTOFILL_SAVE_CARD_ONLY_PROMPT_EXPLANATION_LOCAL))]
+                     IDS_AUTOFILL_SAVE_CARD_WITH_CVC_PROMPT_EXPLANATION_LOCAL))]
       assertWithMatcher:grey_sufficientlyVisible()];
 
   [[EarlGrey selectElementWithMatcher:BottomSheetCardDescriptionMatcher()]

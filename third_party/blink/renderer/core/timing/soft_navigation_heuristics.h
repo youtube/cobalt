@@ -24,6 +24,7 @@ namespace scheduler {
 class TaskAttributionInfo;
 }  // namespace scheduler
 
+class HTMLVideoElement;
 class SoftNavigationContext;
 class SoftNavigationPaintAttributionTracker;
 
@@ -88,8 +89,14 @@ class CORE_EXPORT SoftNavigationHeuristics
 
   // Inform `SoftNavigationHeuristics` that `node` was modified in some way.
   // Sets up paint tracking if the modification is attributable to a
-  // `SoftNavigationContext` and connected to the DOM.
-  static void ModifiedNode(Node* node);
+  // `SoftNavigationContext` and connected to the DOM, in which case this
+  // returns true.
+  static bool ModifiedNode(Node* node);
+
+  // Inform `SoftNavigationHeuristics` that the "src" attribute for the video
+  // element changed. Sets up paint tracking if the modification is attributable
+  // to a `SoftNavigationContext` and connected to the DOM.
+  static void OnVideoSrcChanged(HTMLVideoElement*);
 
   // GarbageCollected boilerplate.
   void Trace(Visitor*) const override;
@@ -98,7 +105,7 @@ class CORE_EXPORT SoftNavigationHeuristics
 
   void SameDocumentNavigationCommitted(const String& url,
                                        SoftNavigationContext*);
-  void ModifiedDOM(Node* node);
+  bool ModifiedDOM(Node* node);
   uint32_t SoftNavigationCount() { return soft_navigation_count_; }
 
   // TaskAttributionTracker::Observer's implementation.
@@ -107,7 +114,6 @@ class CORE_EXPORT SoftNavigationHeuristics
   SoftNavigationContext* MaybeGetSoftNavigationContextForTiming(Node* node);
   void OnPaintFinished();
   void OnInputOrScroll();
-  OptionalPaintTimingCallback TakePaintTimingCallback();
   void UpdateSoftLcpCandidate();
 
   const LargestContentfulPaintDetails&
@@ -150,7 +156,19 @@ class CORE_EXPORT SoftNavigationHeuristics
       SoftNavigationContext*) const;
   SoftNavigationContext* GetSoftNavigationContextForCurrentTask() const;
 
-  void EmitSoftNavigationEntryIfAllConditionsMet(SoftNavigationContext*);
+  // Commits the navigation, assigning the context a new navigation ID, if the
+  // context has met all of the criteria for a soft navigation and it has not
+  // already committed. Emits a SoftNavigationEntry if the navigation was
+  // committed and the context's first contentful paint has its presentation
+  // time.
+  void MaybeCommitNavigationOrEmitSoftNavigationEntry(SoftNavigationContext*);
+
+  // Emits the SoftNavigationEntry for the context. The context must have an
+  // associated committed navigation and first contentful paint timestamp when
+  // this is called, and it must not have already been emitted.
+  void EmitSoftNavigationEntry(SoftNavigationContext*);
+
+  void UpdateSoftLcpCandidateForContext(SoftNavigationContext*);
   void OnSoftNavigationEventScopeDestroyed(const EventScope&);
   EventScope CreateEventScope(EventScope::Type type);
   uint64_t CalculateRequiredPaintArea() const;
@@ -196,19 +214,13 @@ class CORE_EXPORT SoftNavigationHeuristics
   // continue measuring paints for a while.
   Member<SoftNavigationContext> context_for_current_url_;
 
-  // Save a strong reference to the most recent context that painted for the
-  // first time, and needs an FCP presentation callback.  This will be picked
-  // up by PaintTimingMixin, cleared, but held strongly until presententation
-  // feedback.  Soft-navigation entries are not reported to the performance
-  // timeline until after FCP is measured.
-  // TODO(crbug.com/424448145): Needs some changes:
-  // - measure first paint update, not the update after criteria met.
-  // - measure first paint of first contentful candidate, not fully loaded
-  // paint.
-  // - support multiple context in a single animation frame, rather than
-  // single value here.  Will become more important when all interactions
-  // measure paint.
-  Member<SoftNavigationContext> context_for_first_contentful_paint_;
+  // `SoftNavigationContext`s that have met all of the soft nav criteria but
+  // haven't emitted the performance entry because they're waiting for
+  // presentation feedback for FCP. Tracking these ensures we always emit an
+  // entry when we update the navigation ID, which might not be the case if the
+  // URL changes and presentation feedback is delayed.
+  HeapHashSet<Member<SoftNavigationContext>>
+      contexts_waiting_for_paint_timestamp_;
 
   // Used to map DOM modifications to `SoftNavigationContext`s for paint
   // attribution. Only set when `IsPrePaintBasedAttributionEnabled()` is true.

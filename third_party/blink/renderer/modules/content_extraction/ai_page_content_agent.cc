@@ -270,6 +270,20 @@ void AddClickabilityReasons(
           Reason::kAriaExpandedFalse);
     }
   }
+
+  const auto& autocomplete =
+      element.FastGetAttribute(html_names::kAutocompleteAttr);
+  const auto& aria_autocomplete =
+      element.FastGetAttribute(html_names::kAriaAutocompleteAttr);
+  if ((autocomplete && autocomplete != "off") ||
+      (aria_autocomplete == "inline" || aria_autocomplete == "list" ||
+       aria_autocomplete == "both")) {
+    interaction_info.clickability_reasons.push_back(Reason::kAutocomplete);
+  }
+
+  if (element.HasTabIndexWasSetExplicitly()) {
+    interaction_info.clickability_reasons.push_back(Reason::kTabIndex);
+  }
 }
 
 bool ShouldSkipSubtree(const LayoutObject& object) {
@@ -1235,7 +1249,10 @@ void AIPageContentAgent::ContentBuilder::AddAnnotatedRoles(
 void AIPageContentAgent::ContentBuilder::AddNodeGeometry(
     const LayoutObject& object,
     mojom::blink::AIPageContentAttributes& attributes) const {
-  if (!actionable_mode()) {
+  // When in non-actionable mode, we only want to add geometry for the
+  // accessibility focused node.
+  if (!actionable_mode() &&
+      attributes.dom_node_id != accessibility_focused_node_id_) {
     return;
   }
 
@@ -1320,8 +1337,9 @@ void AIPageContentAgent::ContentBuilder::AddPageInteractionInfo(
   // Accessibility focus
   if (AXObjectCache* ax_object_cache = document.ExistingAXObjectCache()) {
     if (Node* ax_focused_node = ax_object_cache->GetAccessibilityFocus()) {
+      accessibility_focused_node_id_ = DOMNodeIds::IdForNode(ax_focused_node);
       page_interaction_info.accessibility_focused_dom_node_id =
-          DOMNodeIds::IdForNode(ax_focused_node);
+          accessibility_focused_node_id_;
       AddInteractiveNode(
           *page_interaction_info.accessibility_focused_dom_node_id);
     }

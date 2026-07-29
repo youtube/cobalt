@@ -507,8 +507,8 @@ class CC_EXPORT LayerTreeHostImpl : public TileManagerClient,
 
   void DidNotNeedBeginFrame();
 
-  bool ScrollCheckerboardsIncompleteRecording() const {
-    return scroll_checkerboards_incomplete_recording_;
+  bool PrioritizeNewContentDueToCheckerboarding() const {
+    return prioritize_new_content_due_to_checkerboarding_;
   }
 
   // TileManagerClient implementation.
@@ -646,10 +646,18 @@ class CC_EXPORT LayerTreeHostImpl : public TileManagerClient,
   }
   // Returns the current local surface id.
   const viz::LocalSurfaceId& GetCurrentLocalSurfaceId() const {
+    if (settings().trees_in_viz_in_viz_process) {
+      return current_local_surface_id_from_client_;
+    }
     return child_local_surface_id_allocator_.GetCurrentLocalSurfaceId();
   }
   const viz::LocalSurfaceId& target_local_surface_id() const {
     return target_local_surface_id_;
+  }
+  void set_current_local_surface_id_from_client(
+      const viz::LocalSurfaceId& local_surface_id_from_client) {
+    DCHECK(settings().trees_in_viz_in_viz_process);
+    current_local_surface_id_from_client_ = local_surface_id_from_client;
   }
 
   LayerTreeImpl* active_tree() { return active_tree_.get(); }
@@ -1213,7 +1221,7 @@ class CC_EXPORT LayerTreeHostImpl : public TileManagerClient,
   // it's lost instead of having this bool.
   bool has_valid_layer_tree_frame_sink_ = false;
 
-  bool scroll_checkerboards_incomplete_recording_ = false;
+  bool prioritize_new_content_due_to_checkerboarding_ = false;
 
   // If it is enabled in the LayerTreeSettings, we can check damage in
   // WillBeginImplFrame and abort early if there is no damage. We only check
@@ -1262,6 +1270,7 @@ class CC_EXPORT LayerTreeHostImpl : public TileManagerClient,
   viz::LocalSurfaceId target_local_surface_id_;
   viz::LocalSurfaceId evicted_local_surface_id_;
   viz::ChildLocalSurfaceIdAllocator child_local_surface_id_allocator_;
+  viz::LocalSurfaceId current_local_surface_id_from_client_;
 
   // Indicates the direction of the last vertical scroll of the root layer.
   // Until the first vertical scroll occurs, this value is |kNull|. Note that

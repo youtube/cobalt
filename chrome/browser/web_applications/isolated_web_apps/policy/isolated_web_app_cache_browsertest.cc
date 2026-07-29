@@ -20,6 +20,7 @@
 #include "base/task/current_thread.h"
 #include "base/test/bind.h"
 #include "base/test/gmock_expected_support.h"
+#include "base/test/metrics/histogram_tester.h"
 #include "base/test/test_future.h"
 #include "base/values.h"
 #include "base/version.h"
@@ -64,8 +65,9 @@
 #include "components/web_package/signed_web_bundles/signed_web_bundle_id.h"
 #include "components/web_package/test_support/signed_web_bundles/ed25519_key_pair.h"
 #include "components/webapps/isolated_web_apps/features.h"
-#include "components/webapps/isolated_web_apps/update_channel.h"
+#include "components/webapps/isolated_web_apps/types/update_channel.h"
 #include "content/public/test/browser_test.h"
+#include "testing/gmock/include/gmock/gmock.h"
 #include "third_party/abseil-cpp/absl/functional/overload.h"
 
 namespace web_app {
@@ -87,9 +89,13 @@ using ash::kiosk::test::LaunchAppManually;
 using ash::kiosk::test::TheKioskApp;
 using ash::kiosk::test::WaitKioskLaunched;
 using ash::kiosk::test::WaitNetworkScreen;
+using base::test::ErrorIs;
+using base::test::HasValue;
 using base::test::ValueIs;
 using testing::Eq;
+using testing::Field;
 using testing::HasSubstr;
+using testing::Ne;
 
 constexpr char kEmail[] = "iwa@example.com";
 constexpr char kMgsDisplayName[] = "MGS";
@@ -160,6 +166,11 @@ void WaitForUserSessionLaunch() {
   }
   ash::test::WaitForPrimaryUserSessionStart();
 }
+
+constexpr char kCopyBundleToCacheAfterUpdateSuccessMetric[] =
+    "WebApp.Isolated.CopyBundleToCacheAfterUpdateSuccess";
+constexpr char kCopyBundleToCacheAfterUpdateErrorMetric[] =
+    "WebApp.Isolated.CopyBundleToCacheAfterUpdateError";
 
 }  // namespace
 
@@ -427,7 +438,7 @@ class IwaCacheBaseTest : public ash::LoginManagerTest {
                          std::optional<ash::KioskApp> kiosk_app =
                              ash::kiosk::test::GetAppByAccountId(
                                  expected_iwas[0].id());
-                         ASSERT_TRUE(kiosk_app.has_value());
+                         EXPECT_THAT(kiosk_app, Ne(std::nullopt));
                          ASSERT_TRUE(LaunchAppManually(kiosk_app.value()));
                        },
                        [&](LoginManagerMixin& login_manager_mixin) {
@@ -594,6 +605,31 @@ class IwaCacheBaseTest : public ash::LoginManagerTest {
         base::Value::Dict().Set(operation_name, result)));
   }
 
+  void ExpectEmptyCopyBundleAfterUpdateMetric() {
+    histogram_tester_.ExpectTotalCount(
+        kCopyBundleToCacheAfterUpdateSuccessMetric, 0);
+    histogram_tester_.ExpectTotalCount(kCopyBundleToCacheAfterUpdateErrorMetric,
+                                       0);
+  }
+
+  void ExpectSuccessCopyBundleAfterUpdateMetric() {
+    EXPECT_THAT(histogram_tester_.GetAllSamples(
+                    kCopyBundleToCacheAfterUpdateSuccessMetric),
+                BucketsAre(base::Bucket(true, 1)));
+    histogram_tester_.ExpectTotalCount(kCopyBundleToCacheAfterUpdateErrorMetric,
+                                       0);
+  }
+
+  void ExpectErrorCopyBundleAfterUpdateMetric(
+      const CopyBundleToCacheError& error) {
+    EXPECT_THAT(histogram_tester_.GetAllSamples(
+                    kCopyBundleToCacheAfterUpdateSuccessMetric),
+                BucketsAre(base::Bucket(false, 1)));
+    EXPECT_THAT(histogram_tester_.GetAllSamples(
+                    kCopyBundleToCacheAfterUpdateErrorMetric),
+                BucketsAre(base::Bucket(error, 1)));
+  }
+
   WebAppProvider& provider() {
     auto* provider = WebAppProvider::GetForTest(profile());
     CHECK(provider);
@@ -664,7 +700,7 @@ class IwaCacheBaseTest : public ash::LoginManagerTest {
 
   void OverrideCacheDir() {
     ProfileManager* profile_manager = g_browser_process->profile_manager();
-    EXPECT_TRUE(profile_manager);
+    ASSERT_TRUE(profile_manager);
     cache_root_dir_ = profile_manager->user_data_dir();
     cache_root_dir_override_ = std::make_unique<base::ScopedPathOverride>(
         ash::DIR_DEVICE_LOCAL_ACCOUNT_IWA_CACHE, cache_root_dir_);
@@ -675,6 +711,7 @@ class IwaCacheBaseTest : public ash::LoginManagerTest {
     return ProfileManager::GetActiveUserProfile();
   }
 
+  base::HistogramTester histogram_tester_;
   const SessionType session_type_;
   // `bundle_id`s should be unique in `iwa_policy_configs_`.
   const std::vector<IwaPolicyConfig> iwa_policy_configs_;
@@ -958,10 +995,11 @@ IN_PROC_BROWSER_TEST_F(IwaCacheMgsTest, UpdateAppWhenAppNotOpened) {
       provider(), GetAppId(kWebBundleId), apply_update_future.GetCallback());
   DiscoverUpdatesNow();
 
-  EXPECT_TRUE(apply_update_future.Get().has_value());
+  EXPECT_THAT(apply_update_future.Get(), HasValue());
   AssertAppInstalledAtVersion(kWebBundleId, kUpdateVersion,
                               /*wait_for_initial_installation=*/false);
   CheckPathExists(GetCachedBundlePath(kWebBundleId, kUpdateVersion));
+  ExpectSuccessCopyBundleAfterUpdateMetric();
 }
 
 IN_PROC_BROWSER_TEST_F(IwaCacheMgsTest, UpdateApplyTaskWhenAppClosed) {
@@ -983,13 +1021,14 @@ IN_PROC_BROWSER_TEST_F(IwaCacheMgsTest, UpdateApplyTaskWhenAppClosed) {
       provider(), GetAppId(kWebBundleId), apply_update_future.GetCallback());
   DiscoverUpdatesNow();
 
-  EXPECT_TRUE(apply_update_future.Get().has_value());
+  EXPECT_THAT(apply_update_future.Get(), HasValue());
   AssertAppInstalledAtVersion(kWebBundleId, kUpdateVersion,
                               /*wait_for_initial_installation=*/false);
   CheckPathExists(GetCachedBundlePath(kWebBundleId, kUpdateVersion));
 }
 
 IN_PROC_BROWSER_TEST_F(IwaCacheMgsTest, CopyToCacheFailed) {
+  ExpectEmptyCopyBundleAfterUpdateMetric();
   LaunchSession(kWebBundleId);
   AssertAppInstalledAtVersion(kWebBundleId, kBaseVersion);
   WaitUntilPathExists(GetCachedBundlePath(kWebBundleId, kBaseVersion));
@@ -1007,12 +1046,14 @@ IN_PROC_BROWSER_TEST_F(IwaCacheMgsTest, CopyToCacheFailed) {
 
   // The update is applied, but it was not saved to cache because of the error
   // during copying to cache.
-  ASSERT_FALSE(apply_update_future.Get().has_value());
-  EXPECT_THAT(apply_update_future.Get().error().message,
-              HasSubstr(ApplyTask::kCopyToCacheFailedMessage));
+  EXPECT_THAT(apply_update_future.Get(),
+              ErrorIs(Field(&IsolatedWebAppApplyUpdateCommandError::message,
+                            HasSubstr(ApplyTask::kCopyToCacheFailedMessage))));
   AssertAppInstalledAtVersion(kWebBundleId, kUpdateVersion,
                               /*wait_for_initial_installation=*/false);
   CheckPathDoesNotExist(GetCachedBundlePath(kWebBundleId, kUpdateVersion));
+  ExpectErrorCopyBundleAfterUpdateMetric(
+      CopyBundleToCacheError::kFailedToCreateDir);
 }
 
 // Class to test that Managed Guest Session (MGS) and kiosk cache is cleaned

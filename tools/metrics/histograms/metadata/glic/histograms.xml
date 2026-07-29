@@ -22,17 +22,6 @@ chromium-metrics-reviews@google.com.
 
 <histograms>
 
-<histogram name="Glic.Action.ActInFocusedTabErrorReason"
-    enum="ActInFocusedTabErrorReason" expires_after="2026-01-15">
-  <owner>carlosk@chromium.org</owner>
-  <owner>harringtond@chromium.org</owner>
-  <owner>bokan@chromium.org</owner>
-  <summary>
-    Recorded whenever the glic web client receives an error reason from the
-    browser when attempting to act.
-  </summary>
-</histogram>
-
 <histogram name="Glic.Api.FetchZeroStateSuggestionsLatency" units="ms"
     expires_after="2026-01-15">
   <owner>sophiechang@chromium.org</owner>
@@ -64,7 +53,6 @@ chromium-metrics-reviews@google.com.
 <!-- LINT.IfChange(ApiRequestType) -->
 
   <token key="ApiRequestType">
-    <variant name="ActInFocusedTab"/>
     <variant name="AttachPanel"/>
     <variant name="CaptureScreenshot"/>
     <variant name="ClosePanel"/>
@@ -92,13 +80,13 @@ chromium-metrics-reviews@google.com.
     <variant name="LogInstantEvent"/>
     <variant name="MaybeRefreshUserStatus"/>
     <variant name="OnClosedCaptionsShown"/>
-    <variant name="OnRequestStarted"/>
     <variant name="OnResponseRated"/>
     <variant name="OnResponseStarted"/>
     <variant name="OnResponseStopped"/>
     <variant name="OnSessionTerminated"/>
     <variant name="OnTurnCompleted"/>
     <variant name="OnUserInputSubmitted"/>
+    <variant name="OnViewChanged"/>
     <variant name="OpenGlicSettingsPage"/>
     <variant name="OpenOsPermissionSettingsMenu"/>
     <variant name="PauseActorTask"/>
@@ -405,6 +393,18 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Glic.Media.TimestampRangeCount" units="count"
+    expires_after="2026-01-15">
+  <owner>liberato@chromium.org</owner>
+  <owner>chrome-media-ux@google.com</owner>
+  <summary>
+    Recorded when a speech recognition result is received. Records the number of
+    media timestamp ranges in the result. This can be greater than one, for
+    example, around seeks. Zero means that there was no timing information, or
+    the list of ranges was empty.
+  </summary>
+</histogram>
+
 <histogram name="Glic.Metrics.Error" enum="GlicMetricsError"
     expires_after="2026-01-15">
   <owner>dewittj@google.com</owner>
@@ -483,8 +483,19 @@ chromium-metrics-reviews@google.com.
   <owner>harringtond@chromium.org</owner>
   <owner>erikchen@chromium.org</owner>
   <summary>
-    Recorded when a page context gets screenshot (post-encoding and scaling).
-    Measure the time from start.
+    Recorded when a page context successfully gets a screenshot (post-encoding
+    and scaling). Measure the time from start.
+  </summary>
+</histogram>
+
+<histogram name="Glic.PageContextFetcher.GetEncodedScreenshot.Failure"
+    units="ms" expires_after="2026-01-15">
+  <owner>carlosk@chromium.org</owner>
+  <owner>harringtond@chromium.org</owner>
+  <owner>erikchen@chromium.org</owner>
+  <summary>
+    Recorded when a page context fails to get a screenshot. This includes any
+    kind of error, including timeout. Measure the time from start.
   </summary>
 </histogram>
 
@@ -834,6 +845,17 @@ chromium-metrics-reviews@google.com.
     Measures the time from a user's submitted input until a response stops.
     There is no guarantee of correlation with Response.StartTime. This exists
     for diagnostic purposes only.
+  </summary>
+</histogram>
+
+<histogram name="Glic.Response.TabsPinnedForSharingCount" units="tabs"
+    expires_after="2026-03-15">
+  <owner>wry@chromium.org</owner>
+  <owner>carlosk@chromium.org</owner>
+  <owner>mcrouse@chromium.org</owner>
+  <summary>
+    Recorded after a turn. Records the number of tabs pinned for sharing at that
+    time.
   </summary>
 </histogram>
 

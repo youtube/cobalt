@@ -215,6 +215,8 @@ class CONTENT_EXPORT RenderWidgetHostViewAndroid
       bool request_unadjusted_movement) override;
   bool IsPointerLocked() override;
   void UnlockPointer() override;
+  bool LockKeyboard(std::optional<base::flat_set<ui::DomCode>> codes) override;
+  void UnlockKeyboard() override;
   void InvalidateLocalSurfaceIdAndAllocationGroup() override;
   void ClearFallbackSurfaceForCommitPending() override;
   void ResetFallbackToFirstNavigationSurface() override;
@@ -273,7 +275,6 @@ class CONTENT_EXPORT RenderWidgetHostViewAndroid
       std::optional<base::TimeDelta> deadline_override) override;
   void NotifyVirtualKeyboardOverlayRect(
       const gfx::Rect& keyboard_rect) override;
-  void NotifyContextMenuInsetsObservers(const gfx::Rect&) override;
   void ShowInterestInElement(int) override;
   void OnPointerLockRelease() override;
 
@@ -321,7 +322,7 @@ class CONTENT_EXPORT RenderWidgetHostViewAndroid
   // Returns the temporary background color of the underlaying document, for
   // example, returns black during screen rotation.
   std::optional<SkColor> GetCachedBackgroundColor();
-  void SendKeyEvent(const input::NativeWebKeyboardEvent& event);
+  void SendKeyEvent(input::NativeWebKeyboardEvent& event);
   void SendMouseEvent(const blink::WebMouseEvent& event,
                       const ui::LatencyInfo& info);
   void SendMouseWheelEvent(const blink::WebMouseWheelEvent& event);
@@ -807,6 +808,9 @@ class CONTENT_EXPORT RenderWidgetHostViewAndroid
   base::OnceCallback<void()> start_dragging_callback_;
 
   ScreenStateChangeHandler screen_state_change_handler_;
+
+  bool keyboard_locked_ = false;
+  std::optional<base::flat_set<ui::DomCode>> locked_keyboard_keys_;
 
   base::WeakPtrFactory<RenderWidgetHostViewAndroid> weak_ptr_factory_{this};
 };

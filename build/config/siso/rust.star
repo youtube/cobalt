@@ -166,23 +166,32 @@ def __step_config(ctx, step_config):
     platform_ref = "large"  # Rust actions run faster on large workers.
 
     remote = True
-    remote_link = True
+
+    # TODO(crbug.com/434857701): fix link for target_arch="x86"
+    remote_link = False
+    clang_inputs = [
+        "third_party/llvm-build/Release+Asserts:rustlink",
+    ]
     if runtime.os != "linux":
         remote = False
         remote_link = False
     elif "args.gn" in ctx.metadata:
         gn_args = gn.args(ctx)
-        if gn_args.get("target_os") in ('"mac"', '"ios"', '"win"'):
+        target_os = gn_args.get("target_os")
+        if target_os in ('"mac"', '"ios"'):
+            remote = False
             remote_link = False
-    clang_inputs = [
-        "build/linux/debian_bullseye_amd64-sysroot:rustlink",
-        "third_party/llvm-build/Release+Asserts:rustlink",
-    ]
-    if win_sdk.enabled(ctx):
-        clang_inputs.append(win_sdk.toolchain_dir(ctx) + ":libs")
-    else:
-        remote = False
-        remote_link = False
+        elif target_os == '"win"':
+            remote_link = False
+            if win_sdk.enabled(ctx):
+                clang_inputs.append(win_sdk.toolchain_dir(ctx) + ":libs")
+            else:
+                remote = False
+        else:
+            # TODO(crbug.com/434857701): fix sysroot for target_arch="x86"
+            clang_inputs.append(
+                "build/linux/debian_bullseye_amd64-sysroot:rustlink",
+            )
 
     rust_toolchain = [
         # TODO(b/285225184): use precomputed subtree
@@ -191,7 +200,7 @@ def __step_config(ctx, step_config):
     rust_inputs = [
         "build/action_helpers.py",
         "build/gn_helpers.py",
-        "build/rust/rustc_wrapper.py",
+        "build/rust/gni_impl/rustc_wrapper.py",
     ] + rust_toolchain
     rust_indirect_inputs = {
         "includes": [
@@ -263,7 +272,7 @@ def __step_config(ctx, step_config):
         },
         {
             "name": "rust/run_build_script",
-            "command_prefix": "python3 ../../build/rust/run_build_script.py",
+            "command_prefix": "python3 ../../build/rust/gni_impl/run_build_script.py",
             "inputs": [
                 "third_party/rust-toolchain:toolchain",
                 "third_party/rust:rustlib",
@@ -288,7 +297,7 @@ def __step_config(ctx, step_config):
             # rust/bindgen fails remotely when *.d does not exist.
             # TODO(b/356496947): need to run scandeps?
             "name": "rust/bindgen",
-            "command_prefix": "python3 ../../build/rust/run_bindgen.py",
+            "command_prefix": "python3 ../../build/rust/gni_impl/run_bindgen.py",
             "inputs": rust_toolchain + clang_inputs,
             "remote": False,
             "timeout": "2m",

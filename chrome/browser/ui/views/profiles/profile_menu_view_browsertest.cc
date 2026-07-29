@@ -17,6 +17,7 @@
 #include "base/path_service.h"
 #include "base/run_loop.h"
 #include "base/strings/escape.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/bind.h"
 #include "base/test/metrics/histogram_tester.h"
@@ -24,6 +25,9 @@
 #include "base/test/scoped_feature_list.h"
 #include "base/test/with_feature_override.h"
 #include "base/threading/thread_restrictions.h"
+#include "base/time/time.h"
+#include "base/version.h"
+#include "base/version_info/version_info.h"
 #include "build/branding_buildflags.h"
 #include "build/build_config.h"
 #include "chrome/browser/browser_process.h"
@@ -130,6 +134,7 @@
 
 namespace {
 using testing::_;
+using testing::Eq;
 using ::testing::StrictMock;
 
 constexpr char kTestEmail[] = "foo@example.com";
@@ -1671,12 +1676,19 @@ class ProfileMenuHatsSurveyTest : public ProfileMenuViewTestBase,
                                   public InProcessBrowserTest {
  public:
   ProfileMenuHatsSurveyTest() {
-    feature_list_.InitWithFeatures(
+    feature_list_.InitWithFeaturesAndParameters(
         /*enabled_features=*/
-        {switches::kChromeIdentitySurveySwitchProfileFromProfileMenu,
-         switches::kChromeIdentitySurveyProfileMenuDismissed},
+        {{switches::kChromeIdentitySurveySwitchProfileFromProfileMenu, {}},
+         {switches::kChromeIdentitySurveyProfileMenuDismissed, {}},
+         {switches::kChromeIdentitySurveyLaunchWithDelay,
+          {{switches::kChromeIdentitySurveyLaunchWithDelayDuration.name,
+            base::NumberToString(kLaunchDelayDuration.InMilliseconds()) +
+                "ms"}}}},
         /*disabled_features=*/{});
   }
+
+  static constexpr base::TimeDelta kLaunchDelayDuration =
+      base::Milliseconds(5000);
 
  private:
   base::test::ScopedFeatureList feature_list_;
@@ -1710,10 +1722,17 @@ IN_PROC_BROWSER_TEST_F(ProfileMenuHatsSurveyTest,
   Browser::Create(Browser::CreateParams(other_profile, /*user_gesture=*/true));
 
   // The survey should be launched for the other profile after switching.
+  std::map<std::string, std::string> expected_string_psd = {
+      {"Channel", "unknown"},
+      {"Chrome Version", version_info::GetVersion().GetString()},
+      {"Number of Chrome Profiles", "2"},
+      {"Number of Google Accounts", "0"},
+      {"Sign-in Status", "Signed Out"}};
   EXPECT_CALL(
       *other_profile_hats_service,
-      LaunchSurvey(kHatsSurveyTriggerIdentitySwitchProfileFromProfileMenu, _, _,
-                   _, _, _, _));
+      LaunchDelayedSurvey(
+          kHatsSurveyTriggerIdentitySwitchProfileFromProfileMenu,
+          kLaunchDelayDuration.InMilliseconds(), _, Eq(expected_string_psd)));
 
   // Open the profile menu and select the other profile.
   SetTargetBrowser(browser());
@@ -1740,9 +1759,64 @@ IN_PROC_BROWSER_TEST_F(ProfileMenuHatsSurveyTest,
       HatsServiceFactory::GetInstance()->SetTestingFactoryAndUse(
           GetProfile(), base::BindRepeating(&BuildMockHatsService)));
 
-  EXPECT_CALL(*hats_service,
-              LaunchSurvey(kHatsSurveyTriggerIdentityProfileMenuDismissed, _, _,
-                           _, _, _, _));
+  std::map<std::string, std::string> expected_string_psd = {
+      {"Channel", "unknown"},
+      {"Chrome Version", version_info::GetVersion().GetString()},
+      {"Number of Chrome Profiles", "1"},
+      {"Number of Google Accounts", "0"},
+      {"Sign-in Status", "Signed Out"}};
+  EXPECT_CALL(*hats_service, LaunchDelayedSurvey(
+                                 kHatsSurveyTriggerIdentityProfileMenuDismissed,
+                                 kLaunchDelayDuration.InMilliseconds(), _,
+                                 Eq(expected_string_psd)));
+
+  // Open the profile menu.
+  SetTargetBrowser(browser());
+  OpenProfileMenu();
+  ASSERT_TRUE(profile_menu_view());
+
+  // Dismiss the profile menu.
+  profile_menu_view()->GetWidget()->Close();
+  base::RunLoop().RunUntilIdle();
+  auto* coordinator = browser()->GetFeatures().profile_menu_coordinator();
+  EXPECT_FALSE(coordinator->IsShowing());
+}
+
+// Tests that when the number of profiles or accounts is larger than 5, the
+// data sent to the HaTS service is bucketed to "5+" for privacy.
+IN_PROC_BROWSER_TEST_F(ProfileMenuHatsSurveyTest, SurveyProductDataBucketed) {
+  // Create 5 extra profiles.
+  CreateAdditionalProfile();
+  CreateAdditionalProfile();
+  CreateAdditionalProfile();
+  CreateAdditionalProfile();
+  CreateAdditionalProfile();
+
+  // Add 6 accounts to the current profile.
+  signin::IdentityManager* identity_manager =
+      IdentityManagerFactory::GetForProfile(browser()->profile());
+  signin::MakePrimaryAccountAvailable(identity_manager, kTestEmail,
+                                      signin::ConsentLevel::kSignin);
+  signin::MakeAccountAvailable(identity_manager, "test1@example.com");
+  signin::MakeAccountAvailable(identity_manager, "test2@example.com");
+  signin::MakeAccountAvailable(identity_manager, "test3@example.com");
+  signin::MakeAccountAvailable(identity_manager, "test4@example.com");
+  signin::MakeAccountAvailable(identity_manager, "test5@example.com");
+
+  MockHatsService* hats_service = static_cast<MockHatsService*>(
+      HatsServiceFactory::GetInstance()->SetTestingFactoryAndUse(
+          GetProfile(), base::BindRepeating(&BuildMockHatsService)));
+
+  std::map<std::string, std::string> expected_string_psd = {
+      {"Channel", "unknown"},
+      {"Chrome Version", version_info::GetVersion().GetString()},
+      {"Number of Chrome Profiles", "5+"},
+      {"Number of Google Accounts", "5+"},
+      {"Sign-in Status", "Signed In"}};
+  EXPECT_CALL(*hats_service, LaunchDelayedSurvey(
+                                 kHatsSurveyTriggerIdentityProfileMenuDismissed,
+                                 kLaunchDelayDuration.InMilliseconds(), _,
+                                 Eq(expected_string_psd)));
 
   // Open the profile menu.
   SetTargetBrowser(browser());
@@ -1771,8 +1845,8 @@ IN_PROC_BROWSER_TEST_F(ProfileMenuHatsSurveyTest,
   // Attempt to select every actionable item in the menu.
   for (const auto& selected_item : kActionableItems_WithAnotherProfile) {
     EXPECT_CALL(*hats_service,
-                LaunchSurvey(kHatsSurveyTriggerIdentityProfileMenuDismissed, _,
-                             _, _, _, _, _))
+                LaunchDelayedSurvey(
+                    kHatsSurveyTriggerIdentityProfileMenuDismissed, _, _, _))
         .Times(0);
 
     SetTargetBrowser(browser());

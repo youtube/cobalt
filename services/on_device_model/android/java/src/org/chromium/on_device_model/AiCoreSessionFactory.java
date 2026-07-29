@@ -5,6 +5,8 @@
 package org.chromium.on_device_model;
 
 import org.chromium.build.annotations.NullMarked;
+import org.chromium.components.optimization_guide.proto.ModelExecutionProto.ModelExecutionFeature;
+import org.chromium.on_device_model.mojom.SessionParams;
 
 /**
  * A factory to create AiCoreSession. This is null when the AiCore API is not available. Downstream
@@ -12,5 +14,5 @@ import org.chromium.build.annotations.NullMarked;
  */
 @NullMarked
 public interface AiCoreSessionFactory {
-    AiCoreSession createSession();
+    AiCoreSession createSession(ModelExecutionFeature feature, SessionParams params);
 }

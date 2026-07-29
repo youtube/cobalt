@@ -215,6 +215,7 @@ chromium-metrics-reviews@google.com.
   <int value="1" label="ReaderMode"/>
   <int value="2" label="Gemini"/>
   <int value="3" label="Dismiss"/>
+  <int value="4" label="ReaderModeOptions"/>
 </enum>
 
 <!-- LINT.ThenChange(//ios/chrome/browser/intelligence/page_action_menu/utils/ai_hub_metrics.h:IOSAIHubAction) -->
@@ -654,7 +655,7 @@ chromium-metrics-reviews@google.com.
   <int value="-1" label="Invalid"/>
   <int value="0" label="Most Visited Tiles"/>
   <int value="1" label="Shortcuts"/>
-  <int value="2" label="Set Up List Sync"/>
+  <int value="2" label="Obsolete - Set Up List Sync"/>
   <int value="3" label="Set Up List Default Browser"/>
   <int value="4" label="Set Up List Autofill"/>
   <int value="5" label="Set Up List Compacted"/>
@@ -954,6 +955,7 @@ chromium-metrics-reviews@google.com.
   <int value="18" label="Welcome Back promo"/>
   <int value="19" label="BWG promo"/>
   <int value="20" label="Safari Import (Remind Me Later)"/>
+  <int value="21" label="Default Browser off cycle promo"/>
 </enum>
 
 <enum name="IOSPromosManagerPromoType">
@@ -971,11 +973,6 @@ chromium-metrics-reviews@google.com.
   <int value="4" label="No Active Tabs"/>
   <int value="5" label="Not Android Switcher"/>
   <int value="6" label="Success"/>
-</enum>
-
-<enum name="IOSSafetyCheckFreshnessTrigger">
-  <int value="0" label="Password Check - State Changed"/>
-  <int value="1" label="Update Chrome Check - State Changed"/>
 </enum>
 
 <enum name="IOSSafetyCheckHiddenReason">
@@ -1102,7 +1099,7 @@ chromium-metrics-reviews@google.com.
 </enum>
 
 <enum name="IOSSetUpListItemType">
-  <int value="1" label="SignIn Sync"/>
+  <int value="1" label="Obsolete - SignIn Sync"/>
   <int value="2" label="Default Browser"/>
   <int value="3" label="Autofill"/>
   <int value="4" label="Follow"/>
@@ -1586,6 +1583,16 @@ chromium-metrics-reviews@google.com.
 
 <!-- LINT.ThenChange(/ios/chrome/browser/push_notification/model/constants.h:PushNotificationTargetProfileHandlingResult) -->
 
+<!-- LINT.IfChange(ReaderModeAccessPoint) -->
+
+<enum name="ReaderModeAccessPoint">
+  <int value="0" label="Contextual Chip"/>
+  <int value="1" label="Tools Menu"/>
+  <int value="2" label="AI Hub"/>
+</enum>
+
+<!-- LINT.ThenChange(/ios/chrome/browser/reader_mode/model/constants.h:ReaderModeAccessPoint) -->
+
 <!-- LINT.IfChange(ReaderModeCustomizationType) -->
 
 <enum name="ReaderModeCustomizationType">
@@ -1595,6 +1602,19 @@ chromium-metrics-reviews@google.com.
 </enum>
 
 <!-- LINT.ThenChange(/ios/chrome/browser/reader_mode/model/constants.h:ReaderModeCustomizationType) -->
+
+<!-- LINT.IfChange(ReaderModeDistillerOutcome) -->
+
+<enum name="ReaderModeDistillerOutcome">
+  <int value="0" label="Contextual Chip / Distillable"/>
+  <int value="1" label="Contextual Chip / Not distillable"/>
+  <int value="2" label="Tools Menu / Distillable"/>
+  <int value="3" label="Tools Menu / Not distillable"/>
+  <int value="4" label="AI Hub / Distillable"/>
+  <int value="5" label="AI Hub / Not distillable"/>
+</enum>
+
+<!-- LINT.ThenChange(/ios/chrome/browser/reader_mode/model/constants.h:ReaderModeDistillerOutcome) -->
 
 <!-- LINT.IfChange(ReaderModeDistillerResult) -->
 

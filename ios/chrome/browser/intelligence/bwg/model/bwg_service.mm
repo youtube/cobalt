@@ -22,14 +22,19 @@ BwgService::BwgService(ProfileIOS* profile,
   profile_ = profile;
   auth_service_ = auth_service;
   identity_manager_ = identity_manager;
+  identity_manager_->AddObserver(this);
   pref_service_ = pref_service;
 
-  ios::provider::CheckGeminiEligibility(auth_service_, ^(BOOL eligible) {
-    is_disabled_by_gemini_policy_ = !eligible;
-  });
+  CheckGeminiEnterpriseEligibility();
 }
 
 BwgService::~BwgService() = default;
+
+void BwgService::Shutdown() {
+  identity_manager_->RemoveObserver(this);
+}
+
+#pragma mark - Public
 
 bool BwgService::IsProfileEligibleForBwg() {
   AccountInfo account_info = identity_manager_->FindExtendedAccountInfo(
@@ -50,7 +55,8 @@ bool BwgService::IsProfileEligibleForBwg() {
       pref_service_->GetInteger(prefs::kGeminiEnabledByPolicy) == 1 ||
       is_disabled_by_gemini_policy_;
 
-  bool is_eligible = can_use_model_execution && !is_disabled_by_policy;
+  bool is_eligible = can_use_model_execution && !is_disabled_by_policy &&
+                     !profile_->IsOffTheRecord();
 
   base::UmaHistogramBoolean(kEligibilityHistogram, is_eligible);
 
@@ -58,9 +64,9 @@ bool BwgService::IsProfileEligibleForBwg() {
 }
 
 bool BwgService::IsBwgAvailableForWebState(web::WebState* web_state) {
-  const bool is_profile_eligible =
-      !profile_->IsOffTheRecord() && IsProfileEligibleForBwg();
-
+  if (!IsProfileEligibleForBwg()) {
+    return false;
+  }
   // The web state is eligible for HTML and images that use http/https schemes.
   const GURL& url = web_state->GetVisibleURL();
   const std::string mime_type = web_state->GetContentsMimeType();
@@ -68,5 +74,27 @@ bool BwgService::IsBwgAvailableForWebState(web::WebState* web_state) {
       url.SchemeIsHTTPOrHTTPS() &&
       (web::IsContentTypeHtml(mime_type) || web::IsContentTypeImage(mime_type));
 
-  return is_profile_eligible && is_web_state_eligible;
+  return is_web_state_eligible;
+}
+
+#pragma mark - signin::IdentityManager::Observer
+
+void BwgService::OnPrimaryAccountChanged(
+    const signin::PrimaryAccountChangeEvent& event) {
+  CheckGeminiEnterpriseEligibility();
+}
+
+void BwgService::OnIdentityManagerShutdown(
+    signin::IdentityManager* identity_manager) {
+  if (identity_manager_) {
+    identity_manager_->RemoveObserver(this);
+  }
+}
+
+#pragma mark - Private
+
+void BwgService::CheckGeminiEnterpriseEligibility() {
+  ios::provider::CheckGeminiEligibility(auth_service_, ^(BOOL eligible) {
+    is_disabled_by_gemini_policy_ = !eligible;
+  });
 }

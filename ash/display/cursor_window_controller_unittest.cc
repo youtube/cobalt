@@ -152,7 +152,7 @@ TEST_F(CursorWindowControllerTest, MoveToDifferentDisplay) {
   EXPECT_EQ(primary_display_id, GetCursorDisplayId());
   EXPECT_EQ(CursorType::kNull, GetCursorType());
   gfx::Point hot_point = GetCursorHotPoint();
-  EXPECT_EQ(gfx::Point(4, 4), hot_point);
+  EXPECT_EQ(gfx::Point(6, 4), hot_point);
   gfx::Rect cursor_bounds = GetCursorBounds();
   EXPECT_EQ(20, cursor_bounds.x() + hot_point.x());
   EXPECT_EQ(50, cursor_bounds.y() + hot_point.y());
@@ -176,7 +176,7 @@ TEST_F(CursorWindowControllerTest, MoveToDifferentDisplay) {
   EXPECT_EQ(secondary_display_id, GetCursorDisplayId());
   EXPECT_EQ(CursorType::kNull, GetCursorType());
   hot_point = GetCursorHotPoint();
-  EXPECT_EQ(gfx::Point(3, 3), hot_point);
+  EXPECT_EQ(gfx::Point(6, 4), hot_point);
   cursor_bounds = GetCursorBounds();
   EXPECT_EQ(320, cursor_bounds.x() + hot_point.x());
   EXPECT_EQ(50, cursor_bounds.y() + hot_point.y());
@@ -457,10 +457,10 @@ TEST_F(CursorWindowControllerTest, LargeCursorColoringSpotCheck) {
       // The no drop cursor has red in it, check it's still there:
       // Most of the cursor should be colored, but the red part shouldn't be
       // re-colored.
-      {SK_ColorBLUE, SK_ColorGREEN, SkColorSetRGB(172, 0, 0),
+      {SK_ColorBLUE, SK_ColorGREEN, SkColorSetRGB(181, 70, 72),
        CursorType::kNoDrop},
       // Similarly, the copy cursor has green in it.
-      {SK_ColorBLUE, SK_ColorRED, SkColorSetRGB(25, 140, 22),
+      {SK_ColorBLUE, SK_ColorRED, SkColorSetRGB(57, 149, 88),
        CursorType::kCopy},
   };
 

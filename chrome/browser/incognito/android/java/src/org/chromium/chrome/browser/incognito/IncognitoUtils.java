@@ -12,6 +12,7 @@ import org.jni_zero.NativeMethods;
 import org.chromium.base.ResettersForTesting;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
+import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.profiles.OtrProfileId;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.profiles.ProfileKey;
@@ -51,7 +52,7 @@ public class IncognitoUtils {
      * @param otrProfileId The {@link OtrProfileId} of the profile. Null for regular profile.
      * @return The {@link ProfileKey} of the key.
      */
-    public static ProfileKey getProfileKeyFromOtrProfileId(OtrProfileId otrProfileId) {
+    public static ProfileKey getProfileKeyFromOtrProfileId(@Nullable OtrProfileId otrProfileId) {
         // If off-the-record is not requested, the request might be before native initialization.
         if (otrProfileId == null) return ProfileKeyUtil.getLastUsedRegularProfileKey();
 
@@ -65,6 +66,14 @@ public class IncognitoUtils {
     public static void setEnabledForTesting(Boolean enabled) {
         sIsEnabledForTesting = enabled;
         ResettersForTesting.register(() -> sIsEnabledForTesting = null);
+    }
+
+    /**
+     * @return Whether incognito tabs should open in a separate window.
+     */
+    public static boolean shouldOpenIncognitoAsWindow() {
+        // TODO(crbug.com/435211685): Enable this feature only for eligible devices.
+        return ChromeFeatureList.sAndroidOpenIncognitoAsWindow.isEnabled();
     }
 
     @NativeMethods

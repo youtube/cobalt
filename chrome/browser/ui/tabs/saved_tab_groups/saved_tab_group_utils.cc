@@ -46,6 +46,7 @@
 #include "components/data_sharing/public/data_sharing_service.h"
 #include "components/data_sharing/public/features.h"
 #include "components/data_sharing/public/group_data.h"
+#include "components/prefs/pref_service.h"
 #include "components/saved_tab_groups/public/features.h"
 #include "components/saved_tab_groups/public/pref_names.h"
 #include "components/saved_tab_groups/public/saved_tab_group_tab.h"
@@ -57,6 +58,7 @@
 #include "components/sync/service/sync_service.h"
 #include "components/sync/service/sync_user_settings.h"
 #include "components/tab_groups/tab_group_id.h"
+#include "components/user_education/common/help_bubble/help_bubble_params.h"
 #include "content/public/browser/web_contents.h"
 #include "ui/gfx/range/range.h"
 #include "url/gurl.h"
@@ -620,6 +622,17 @@ ui::TrackedElement* SavedTabGroupUtils::GetAnchorElementForTabGroupsV2IPH(
 }
 
 // static
+user_education::HelpBubbleArrow SavedTabGroupUtils::GetArrowForTabGroupsV2IPH(
+    const ui::TrackedElement* el) {
+  // Because the overflow button is often on the left side of the browser
+  // window, switch the arrow to the top left to avoid bubble placement that
+  // would otherwise leave the browser's bounds.
+  return el->identifier() == kSavedTabGroupOverflowButtonElementId
+             ? user_education::HelpBubbleArrow::kTopLeft
+             : user_education::HelpBubbleArrow::kTopRight;
+}
+
+// static
 bool SavedTabGroupUtils::ShouldAutoPinNewTabGroups(Profile* profile) {
   return profile->GetPrefs()->GetBoolean(
       tab_groups::prefs::kAutoPinNewTabGroups);
@@ -630,12 +643,9 @@ bool SavedTabGroupUtils::AreSavedTabGroupsSyncedForProfile(Profile* profile) {
   const syncer::SyncService* const sync_service =
       SyncServiceFactory::GetForProfile(profile);
 
-  if (!sync_service || !sync_service->IsSyncFeatureEnabled()) {
-    return false;
-  }
-
-  return sync_service->GetUserSettings()->GetSelectedTypes().Has(
-      syncer::UserSelectableType::kSavedTabGroups);
+  return sync_service &&
+         sync_service->GetUserSettings()->GetSelectedTypes().Has(
+             syncer::UserSelectableType::kSavedTabGroups);
 }
 
 // static

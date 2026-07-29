@@ -280,13 +280,14 @@ class ContentAnalysisDelegate : public ContentAnalysisDelegateBase,
   std::string tab_title() const override;
   std::string user_action_id() const override;
   std::string email() const override;
-  std::string url() const override;
+  const GURL& url() const override;
   const GURL& tab_url() const override;
   ContentAnalysisRequest::Reason reason() const override;
   google::protobuf::RepeatedPtrField<::safe_browsing::ReferrerChainEntry>
   referrer_chain() const override;
   google::protobuf::RepeatedPtrField<std::string> frame_url_chain()
       const override;
+  content::WebContents* web_contents() const override;
 
  protected:
   ContentAnalysisDelegate(content::WebContents* web_contents,
@@ -520,6 +521,8 @@ class ContentAnalysisDelegate : public ContentAnalysisDelegateBase,
   // Custom message for rule.
   ContentAnalysisResponse::Result::TriggeredRule::CustomRuleMessage
       custom_rule_message_;
+
+  base::WeakPtr<content::WebContents> web_contents_;
 
   base::WeakPtrFactory<ContentAnalysisDelegate> weak_ptr_factory_{this};
 };

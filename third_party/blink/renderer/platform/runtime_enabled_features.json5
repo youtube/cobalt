@@ -379,6 +379,7 @@
         "default": "",
       },
       origin_trial_feature_name: "AIRewriterAPI",
+      origin_trial_os: ["win", "mac", "linux"],
       origin_trial_allows_third_party: true,
       base_feature_status: "enabled",
       copied_from_base_feature_if: "overridden",
@@ -411,6 +412,7 @@
         "default": "",
       },
       origin_trial_feature_name: "AIWriterAPI",
+      origin_trial_os: ["win", "mac", "linux"],
       origin_trial_allows_third_party: true,
       base_feature_status: "enabled",
       copied_from_base_feature_if: "overridden",
@@ -535,6 +537,12 @@
       status: "stable",
     },
     {
+      // Fix Asymmetric word navigation behavior on Windows when punctuation follows whitespace
+      // See https://crbug.com/40252703
+      name: "AsymmetricWordBoundaryFix",
+      status: "stable",
+    },
+    {
       // When enabled, perform async IPCs from CookieJar::SetCookie to the
       // network service.
       name: "AsyncSetCookie",
@@ -549,10 +557,6 @@
       status: "stable",
       base_feature: "none",
       public: true,
-    },
-    {
-      name: "AudioContextInterruptedState",
-      status: "stable",
     },
     {
       name: "AudioContextOnError",
@@ -594,6 +598,10 @@
     {
       name: "AutoPictureInPictureVideoHeuristics",
       status: "experimental",
+    },
+    {
+      name: "AvoidForcedLayoutOnInvisibleDocumentClose",
+      status: "test",
     },
     { // If the start and end positions are the same in MoveParagraph,
       // there is no need to collapse the whitespace between them.
@@ -792,6 +800,12 @@
       // https://github.com/WICG/html-in-canvas/blob/main/README.md
       name: "CanvasDrawElement",
       status: "test",
+    },
+    {
+      // Remove the restriction that drawElement can only draw immediate
+      // children of the canvas, and allow drawing canvas descendants.
+      name: "CanvasDrawElementInSubtree",
+      depends_on: ["CanvasDrawElement"],
     },
     {
       name: "CanvasFloatingPoint",
@@ -1105,6 +1119,8 @@
     {
       name: "CrashReportingStorageAPI",
       status: "experimental",
+      base_feature_status: "enabled",
+      copied_from_base_feature_if: "overridden",
     },
     {
       // Allow WebAuthn relying parties to report information about existing
@@ -1485,12 +1501,6 @@
       status: "stable",
     },
     {
-      // Enables env(safe-area-max-inset-*).
-      // https://github.com/w3c/csswg-drafts/issues/11019
-      name: "CSSSafeAreaMaxInset",
-      status: "stable"
-    },
-    {
       name: "CSSSafePrintableInset",
       status: "experimental",
     },
@@ -1555,9 +1565,6 @@
       // Ignore cycles in unused var()/attr() fallbacks.
       name: "CSSShortCircuitVarAttr",
       status: "stable",
-      // The CSSShortCircuitVarAttr branch assumes that fallbacks
-      // are type-agnostic.
-      depends_on: ["CSSTypeAgnosticVarFallback"],
     },
     {
       // sibling-index() and sibling-count()
@@ -1623,12 +1630,6 @@
       //
       // [1] https://drafts.csswg.org/css-scoping-1/#shadow-names
       name: "CSSTreeScopedTimelines",
-    },
-    {
-      // The var() fallback does not validate against the type
-      // of the custom property being referenced.
-      name: "CSSTypeAgnosticVarFallback",
-      status: "stable",
     },
     {
       name: "CSSTypedArithmetic",
@@ -2453,6 +2454,14 @@
       name: "ForceReduceMotion",
     },
     {
+      // The FormControlRange interface allows web authors to create
+      // Range-like objects of the value of <textarea> and <input>
+      // elements.
+      // crbug.com/421421332
+      // https://github.com/MicrosoftEdge/MSEdgeExplainers/blob/main/FormControlRange/explainer.md
+      name: "FormControlRange",
+    },
+    {
       // TODO(crbug.com/1419161): Remove this feature after M113 has been stable
       // for a few weeks or more. This is a kill switch that, when enabled, goes
       // back to the old behavior, which was to restore the state for <input>
@@ -2621,16 +2630,6 @@
       origin_trial_feature_name: "HTMLInterestForAttribute",
       origin_trial_allows_third_party: true,
     },
-    // Enables the "context menu item only" behavior mode for the
-    // `interestfor` API. In this mode, the context menu is displayed in the
-    // "normal" location, but an additional line item is added to the menu which
-    // allows the user to show interest. This is enabled by default, but depends
-    // on HTMLInterestForAttribute.
-    {
-      name: "HTMLInterestForContextMenuItemOnly",
-      status: "stable",
-      depends_on: ["HTMLInterestForAttribute"],
-    },
     {
       // Prevents the HTMLLinkElement processing model from being invoked when
       // attributes are processed but their value doesn't change. See
@@ -2704,7 +2703,6 @@
       name: "IncomingCallNotifications",
       origin_trial_feature_name: "IncomingCallNotifications",
       origin_trial_os: [ "win" ],
-      origin_trial_allows_third_party: true,
       base_feature: "IncomingCallNotifications",
     },
     {
@@ -2891,9 +2889,6 @@
       base_feature: "LayoutNGShapeCache",
     },
     {
-      name: "LayoutReplacedReturnExplicitDefaultNaturalSize",
-    },
-    {
       name: "LayoutStretch",
       status: "stable",
     },
@@ -2932,6 +2927,21 @@
       // HTML standard spec.
       name: "ListStylePositionQuirkStandard",
       status: "stable",
+    },
+    {
+      // Reverse origin trial allowing Local Network Access requests on
+      // non-secure contexts (but still requiring a permission grant from the
+      // user).
+      name: "LocalNetworkAccessNonSecureContextAllowed",
+      origin_trial_feature_name: "LocalNetworkAccessNonSecureContextAllowed",
+      origin_trial_type: "deprecation",
+      origin_trial_allows_insecure: true,
+      status: "experimental",
+      base_feature: "none",
+      // No status because this blink runtime feature doesn't work by itself.
+      // It's controlled by network::features::kLocalNetworkAccessChecks which
+      // needs to be enabled to make the whole feature work (see
+      // crbug.com/394009026).
     },
     {
       name: "LocalNetworkAccessPermissionPolicy",
@@ -3009,10 +3019,22 @@
       status: "stable",
     },
     {
+      name: "MaskDeserializationTimeForCrossOriginMessages",
+      status: "experimental",
+    },
+    {
       // Enables mirroring for stretchy and large MathML operators when
       // the text direction is right to left.
       name: "MathMLOperatorRTLMirroring",
       status: "experimental",
+    },
+    {
+      // Enables MathML ancestor context preservation during copy-paste
+      // serialization. When enabled, copying partial MathML content includes
+      // the containing <math> element to preserve semantic context and
+      // namespace declarations.
+      name: "MathMLSerializationOnCopy",
+      status: "stable",
     },
     {
       name:"MeasureMemory",
@@ -3228,7 +3250,7 @@
     },
     {
       name: "NestedViewTransition",
-      status: "experimental",
+      status: "stable",
     },
     {
       name: "NetInfoConstantType",
@@ -3323,6 +3345,10 @@
       status: "stable",
     },
     {
+      name: "OffsetParentNewSpecBehaviorForFixedPosition",
+      status: "stable",
+    },
+    {
       name: "OmitBlurEventOnElementRemoval",
       status: "test"
     },
@@ -3342,6 +3368,10 @@
     {
       name: "OrientationEvent",
       status: {"Android": "stable"},
+    },
+    {
+      name: "OriginAPI",
+      status: "experimental",
     },
     {
       name: "OriginIsolationHeader",
@@ -3599,7 +3629,7 @@
       // The flag will enable us to land the feature over multiple CLs, and will
       // be enabled after the feature has been fully implemented.
       name: "PermissionElementIcon",
-      status: "experimental",
+      status: "stable",
       depends_on: ["PermissionElement"],
     },
     {
@@ -3860,6 +3890,12 @@
       base_feature: "none",
     },
     {
+      // If enabled, the number of CPU cores reported through the `Navigator`
+      // interface will be hard-coded to 8.
+      name: "ReduceHardwareConcurrency",
+      settable_from_internals: true,
+    },
+    {
       // If enabled, the screen sizes reported through the `Screen` interface
       // will be limited to the size of the viewport unless Window Management
       // permission has been granted.
@@ -3996,6 +4032,10 @@
       status: "test",
     },
     {
+      name: "RequestMainFrameAfterFirstVideoFrame",
+      status: "experimental",
+    },
+    {
       name: "ResolveVarStylesOnCopy",
       status: "stable",
     },
@@ -4027,11 +4067,7 @@
     },
     {
       name: "RestrictOwnAudio",
-      status: {
-        "Win": "experimental",
-        "Mac": "experimental",
-        "default": "",
-      },
+      status: "experimental",
     },
     {
       name: "RestrictTabFocusForHiddenSVGElements",
@@ -4185,6 +4221,10 @@
       status: "stable",
     },
     {
+      name: "ScriptRunIteratorCombiningMarks",
+      status: "stable",
+    },
+    {
       name: "ScriptTools",
       status: "test",
     },
@@ -4198,10 +4238,6 @@
     },
     {
       name: "ScrollbarWidth",
-      status: "stable",
-    },
-    {
-      name: "ScrollEndEvents",
       status: "stable",
     },
     {
@@ -4267,7 +4303,10 @@
     },
     {
       name: "SecurePaymentConfirmationBrowserBoundKeys",
-      status: "stable",
+      status: {
+        "Android": "stable",
+        "default": "test",
+      },
     },
     {
       name: "SecurePaymentConfirmationDebug",
@@ -4285,7 +4324,10 @@
       // Implements new UX for SPC including new output states, payment
       // instrument details and payment entities logos.
       name: "SecurePaymentConfirmationUxRefresh",
-      status: "test",
+      status: {
+        "Android": "stable",
+        "default": "test",
+      },
     },
     {
       // Implements improved accessibility mappings for having an <input>
@@ -4346,6 +4388,11 @@
       status: "stable",
     },
     {
+      // See https://chromestatus.com/feature/4811835974615040
+      name: "SelectivePermissionsIntervention",
+      status: "experimental",
+    },
+    {
       // If enabled, the select element will not dispatch a mouseup event when
       // an option is selected using the keyboard.
       // This should ship in M135, and it can be removed after M137.
@@ -4392,12 +4439,6 @@
       base_feature: "WebSerialAPI",
     },
     {
-      // Kill-switch for crbug.com/40791925.
-      // Added in M138, and it can be removed in M140.
-      name: "SerializeCdataAsTextInHTMLDocuments",
-      status: "stable",
-    },
-    {
       name: "SerializeViewTransitionStateInSPA",
     },
     {
@@ -4424,8 +4465,7 @@
     },
     {
       name: "ServiceWorkerStaticRouterTimingInfo",
-      origin_trial_allows_third_party: true,
-      origin_trial_feature_name: "ServiceWorkerStaticRouterTimingInfo",
+      status: "stable",
     },
     {
       name: "SetSequentialFocusStartingPoint",
@@ -4567,7 +4607,7 @@
     },
     {
       name: "SoftNavigationDetectionAdvancedPaintAttribution",
-      status: "experimental",
+      status: "stable",
       depends_on: ["SoftNavigationDetection"],
     },
     {
@@ -4652,6 +4692,10 @@
       origin_trial_type: "deprecation",
       origin_trial_allows_insecure: true,
       origin_trial_allows_third_party: true,
+    },
+    {
+      name: "StickyUserActivationAcrossSameOriginNavigation",
+      status: "experimental",
     },
     {
       name: "StorageBuckets",
@@ -4893,6 +4937,12 @@
       name: "TextSpacingTrimFallback",
       status: "stable",
     },
+    {
+      // crbug.com/431660829
+      name: "TextSpacingTrimFallback2",
+      depends_on: ["TextSpacingTrimFallback"],
+      status: "stable",
+    },
     // This feature is used to inform the renderer of a user bypass from the
     // browser process to disable third-party storage partitioning.
     {
@@ -4921,7 +4971,7 @@
       // https://issues.chromium.org/issues/408018828
       // https://github.com/whatwg/html/issues/9111
       name: "ToggleEventSource",
-      status: "experimental",
+      status: "stable",
     },
     {
       name: "TopicsAPI",
@@ -5255,7 +5305,7 @@
     },
     {
       name: "ViewTransitionInheritAnimationProperties",
-      status: "experimental",
+      status: "stable",
     },
     {
       name: "ViewTransitionLongCallbackTimeoutForTesting",
@@ -5299,7 +5349,7 @@
     },
     {
       name: "WebAppLaunchQueue",
-      status: {"Android": "test", "default": "stable"},
+      status: "stable",
       base_feature: "none",
     },
     {

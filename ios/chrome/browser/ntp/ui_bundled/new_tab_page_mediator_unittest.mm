@@ -29,10 +29,10 @@
 #import "ios/chrome/browser/home_customization/model/home_background_customization_service_factory.h"
 #import "ios/chrome/browser/image_fetcher/model/image_fetcher_service_factory.h"
 #import "ios/chrome/browser/ntp/model/new_tab_page_tab_helper.h"
+#import "ios/chrome/browser/ntp/search_engine_logo/ui/search_engine_logo_state.h"
 #import "ios/chrome/browser/ntp/shared/metrics/feed_metrics_constants.h"
 #import "ios/chrome/browser/ntp/shared/metrics/feed_metrics_recorder.h"
 #import "ios/chrome/browser/ntp/ui_bundled/feed_control_delegate.h"
-#import "ios/chrome/browser/ntp/ui_bundled/logo_vendor.h"
 #import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_consumer.h"
 #import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_header_consumer.h"
 #import "ios/chrome/browser/regional_capabilities/model/regional_capabilities_service_factory.h"
@@ -89,7 +89,6 @@ class NewTabPageMediatorTest : public PlatformTest {
         std::make_unique<ToolbarTestNavigationManager>();
     navigation_manager_ = navigation_manager.get();
     initial_web_state_ = CreateWebStateWithURL(GURL("chrome://newtab"), 0.0);
-    logo_vendor_ = OCMProtocolMock(@protocol(LogoVendor));
 
     UrlLoadingNotifierBrowserAgent::CreateForBrowser(browser_.get());
     FakeUrlLoadingBrowserAgent::InjectForBrowser(browser_.get());
@@ -192,7 +191,6 @@ class NewTabPageMediatorTest : public PlatformTest {
   id header_consumer_;
   id visibility_observer_;
   id image_updater_;
-  id logo_vendor_;
   FeedMetricsRecorder* feed_metrics_recorder_;
   FakeDiscoverFeedEligibilityHandler* eligibility_handler_;
   NewTabPageMediator* mediator_;
@@ -211,7 +209,8 @@ class NewTabPageMediatorTest : public PlatformTest {
 // Tests that the consumer has the right value set up.
 TEST_F(NewTabPageMediatorTest, TestConsumerSetup) {
   // Setup.
-  OCMExpect([header_consumer_ setLogoIsShowing:YES]);
+  OCMExpect(
+      [header_consumer_ setSearchEngineLogoState:SearchEngineLogoState::kLogo]);
 
   // Action.
   [mediator_ setUp];

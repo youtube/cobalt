@@ -329,15 +329,13 @@ class SubresourceFilteringRulesetServiceTest : public ::testing::Test {
         .Times(1)
         .WillOnce(Return(unindexed_ruleset));
 
-    // Suppress "uninteresting mock function call" warning output that would
-    // occur as part of resource bundle initialization.
-    EXPECT_CALL(resource_bundle_delegate, GetPathForLocalePack(_, _))
-        .WillRepeatedly(Return(base::FilePath()));
+    // A ResourceBundle that uses the test's mock delegate.
+    ui::ResourceBundle resource_bundle_with_mock_delegate{
+        &resource_bundle_delegate};
 
-    ui::ResourceBundle::SharedInstanceSwapperForTesting resource_bundle_swapper;
-    ui::ResourceBundle::InitSharedInstanceWithLocale(
-        "en-US", &resource_bundle_delegate,
-        ui::ResourceBundle::DO_NOT_LOAD_COMMON_RESOURCES);
+    // Swap in the test ResourceBundle for the lifetime of the test.
+    ui::ResourceBundle::SharedInstanceSwapperForTesting resource_bundle_swapper{
+        &resource_bundle_with_mock_delegate};
 
     // Now that everything has been set up, do the actual indexing.
     service()->IndexAndStoreAndPublishRulesetIfNeeded(ruleset_info);
@@ -346,8 +344,6 @@ class SubresourceFilteringRulesetServiceTest : public ::testing::Test {
     RunBackgroundUntilIdle();
     // Wait for file to be opened on blocking task runner.
     RunBlockingUntilIdle();
-
-    ui::ResourceBundle::CleanupSharedInstance();
   }
 
   // Mark the initialization complete and run task queues until all are empty.

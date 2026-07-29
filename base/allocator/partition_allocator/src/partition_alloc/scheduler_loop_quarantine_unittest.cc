@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "partition_alloc/scheduler_loop_quarantine.h"
 
 #include "partition_alloc/extended_api.h"
@@ -81,13 +86,15 @@ class SchedulerLoopQuarantineTest : public testing::Test {
   QuarantineBranch* GetQuarantineBranch() { return branch_; }
 
   void Quarantine(void* object) {
-    auto* slot_span = internal::SlotSpanMetadata::FromObject(object);
+    auto* slot_span =
+        internal::SlotSpanMetadata::FromObject(object, GetPartitionRoot());
     uintptr_t slot_start = GetPartitionRoot()->ObjectToSlotStart(object);
     GetQuarantineBranch()->Quarantine(object, slot_span, slot_start);
   }
 
   size_t GetObjectSize(void* object) {
-    auto* entry_slot_span = internal::SlotSpanMetadata::FromObject(object);
+    auto* entry_slot_span =
+        internal::SlotSpanMetadata::FromObject(object, GetPartitionRoot());
     return entry_slot_span->bucket->slot_size;
   }
 

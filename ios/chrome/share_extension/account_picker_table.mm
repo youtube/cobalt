@@ -4,6 +4,7 @@
 
 #import "ios/chrome/share_extension/account_picker_table.h"
 
+#import "ios/chrome/common/app_group/app_group_constants.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
 #import "ios/chrome/share_extension/account_picker_delegate.h"
 
@@ -48,8 +49,10 @@ CGFloat const kAvatarImageDimension = 30.0;
   [_accountsTable registerClass:[UITableViewCell class]
          forCellReuseIdentifier:NSStringFromClass([UITableViewCell class])];
 
-  // TODO(crbug.com/425571657): Add strings translation.
-  self.title = @"Accounts";
+  self.title = NSLocalizedString(
+      @"IDS_IOS_ACCOUNTS_TITLE_SHARE_EXTENSION",
+      @"The title of the item representing a signed out user.");
+  ;
   self.navigationItem.leftBarButtonItem = [[UIBarButtonItem alloc]
       initWithBarButtonSystemItem:UIBarButtonSystemItemDone
                            target:self
@@ -100,15 +103,18 @@ CGFloat const kAvatarImageDimension = 30.0;
 - (UITableViewCell*)configureAccountCell:(UITableViewCell*)cell
                              accountInfo:(AccountInfo*)accountInfo {
   UIListContentConfiguration* content = cell.defaultContentConfiguration;
-  if ([accountInfo.gaiaID isEqual:@"Default"]) {
-    // TODO(crbug.com/425571657): Add strings translation.
-    content.text = @"Signed out";
+  if ([accountInfo.gaiaID isEqual:app_group::kNoAccount]) {
+    content.text = NSLocalizedString(
+        @"IDS_IOS_SIGNED_OUT_USER_TITLE_SHARE_EXTENSION",
+        @"The title of the item representing a signed out user.");
+    ;
     content.image = [[UIImage systemImageNamed:@"person.crop.circle"]
         imageWithTintColor:[UIColor colorNamed:kGrey400Color]
              renderingMode:UIImageRenderingModeAlwaysOriginal];
 
   } else {
-    content.text = accountInfo.fullName;
+    content.text = ([accountInfo.fullName length] > 0) ? accountInfo.fullName
+                                                       : accountInfo.email;
     content.secondaryText = accountInfo.email;
     content.image = accountInfo.avatar;
     UIListContentImageProperties* imageProperties = content.imageProperties;

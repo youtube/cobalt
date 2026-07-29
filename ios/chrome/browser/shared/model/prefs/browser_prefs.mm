@@ -31,8 +31,6 @@
 #import "components/handoff/handoff_manager.h"
 #import "components/history/core/common/pref_names.h"
 #import "components/image_fetcher/core/cache/image_cache.h"
-#import "components/invalidation/impl/fcm_invalidation_service.h"
-#import "components/invalidation/impl/invalidator_registrar_with_memory.h"
 #import "components/invalidation/impl/per_user_topic_subscription_manager.h"
 #import "components/language/core/browser/language_prefs.h"
 #import "components/language/core/browser/pref_names.h"
@@ -139,13 +137,6 @@
 
 namespace {
 
-// Deprecated 08/2024.
-const char kTrialPrefName[] = "trending_queries.trial_version";
-
-// Deprecated 08/2024.
-constexpr char kSafeBrowsingEsbOptInWithFriendlierSettings[] =
-    "safebrowsing.esb_opt_in_with_friendlier_settings";
-
 // Deprecated 09/2024.
 constexpr char kContentSettingsWindowLastTabIndex[] =
     "content_settings_window.last_tab_index";
@@ -219,6 +210,12 @@ constexpr char kOptGuideModelFetcherLastFetchAttempt[] =
     "optimization_guide.predictionmodelfetcher.last_fetch_attempt";
 constexpr char kOptGuideModelFetcherLastFetchSuccess[] =
     "optimization_guide.predictionmodelfetcher.last_fetch_success";
+
+// Deprecated 08/2025.
+inline constexpr char kInvalidationClientIDCache[] =
+    "invalidation.per_sender_client_id_cache";
+inline constexpr char kInvalidationTopicsToHandler[] =
+    "invalidation.per_sender_topics_to_handler";
 
 // Migrates a boolean pref from source to target PrefService.
 void MigrateBooleanPref(std::string_view pref_name,
@@ -571,11 +568,6 @@ void RegisterLocalStatePrefs(PrefRegistrySimple* registry) {
   // `kIOSDockingPromoForEligibleUsersOnly` is enabled).
   registry->RegisterBooleanPref(prefs::kIosDockingPromoEligibilityMet, false);
 
-  // Pref related to the Enhanced Safe Browsing Opt-in with new friendlier
-  // settings UI on chrome://settings/security.
-  registry->RegisterBooleanPref(kSafeBrowsingEsbOptInWithFriendlierSettings,
-                                false);
-
   registry->RegisterTimePref(prefs::kLensLastOpened, base::Time());
 
   // Register pref used to determine if OS Lockdown Mode is enabled.
@@ -630,9 +622,6 @@ void RegisterLocalStatePrefs(PrefRegistrySimple* registry) {
   registry->RegisterBooleanPref(prefs::kMultiProfileForcedMigrationDone, false);
 
   registry->RegisterTimePref(prefs::kNextSSORecallTime, base::Time());
-
-  // Deprecated 08/2024.
-  registry->RegisterIntegerPref(kTrialPrefName, 0);
 
   // Deprecated 09/2024.
   registry->RegisterBooleanPref(kBrowsingDataMigrationHasBeenPossible, false);
@@ -704,7 +693,6 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
   FirstRun::RegisterProfilePrefs(registry);
   FontSizeTabHelper::RegisterBrowserStatePrefs(registry);
   HostContentSettingsMap::RegisterProfilePrefs(registry);
-  invalidation::InvalidatorRegistrarWithMemory::RegisterProfilePrefs(registry);
   invalidation::PerUserTopicSubscriptionManager::RegisterProfilePrefs(registry);
   image_fetcher::ImageCache::RegisterProfilePrefs(registry);
   language::LanguagePrefs::RegisterProfilePrefs(registry);
@@ -1051,6 +1039,9 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
   registry->RegisterBooleanPref(prefs::kIOSBWGPreciseLocationSetting, false);
   registry->RegisterBooleanPref(prefs::kIOSBWGPageContentSetting, true);
   registry->RegisterIntegerPref(prefs::kIOSBWGPromoImpressionCount, 0);
+  registry->RegisterTimePref(prefs::kLastGeminiInteractionTimestamp,
+                             base::Time());
+  registry->RegisterStringPref(prefs::kGeminiConversationId, std::string());
 
   registry->RegisterTimePref(prefs::kIosSyncInfobarErrorLastDismissedTimestamp,
                              base::Time());
@@ -1124,18 +1115,16 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
                                std::string());
   registry->RegisterInt64Pref(kOptGuideModelFetcherLastFetchAttempt, 0);
   registry->RegisterInt64Pref(kOptGuideModelFetcherLastFetchSuccess, 0);
+
+  // Deprecated 08/2025.
+  registry->RegisterDictionaryPref(kInvalidationClientIDCache);
+  registry->RegisterDictionaryPref(kInvalidationTopicsToHandler);
 }
 
 // This method should be periodically pruned of year+ old migrations.
 void MigrateObsoleteLocalStatePrefs(PrefService* prefs) {
   // This function is not allowed to block.
   base::ScopedDisallowBlocking disallow_blocking;
-
-  // Added 08/2024.
-  prefs->ClearPref(kTrialPrefName);
-
-  // Added 08/2024.
-  prefs->ClearPref(kSafeBrowsingEsbOptInWithFriendlierSettings);
 
   // Added 09/2024.
   prefs->ClearPref(kBrowsingDataMigrationHasBeenPossible);
@@ -1321,6 +1310,7 @@ void MigrateObsoleteProfilePrefs(PrefService* prefs) {
   prefs->ClearPref(kGoogleServicesSecondLastSyncingGaiaId);
 
   // Added 07/2025.
+
   // TODO(crbug.com/429521151): Remove migration call below after successfully
   // migrating from local to profile prefs.
   MigrateListPrefFromLocalStatePrefsToProfilePrefs(
@@ -1333,13 +1323,14 @@ void MigrateObsoleteProfilePrefs(PrefService* prefs) {
   // Added 07/2025.
   prefs->ClearPref(kOptGuideModelFetcherLastFetchAttempt);
   prefs->ClearPref(kOptGuideModelFetcherLastFetchSuccess);
+
+  // Added 08/2025.
+  prefs->ClearPref(kInvalidationClientIDCache);
+  prefs->ClearPref(kInvalidationTopicsToHandler);
 }
 
 void MigrateObsoleteUserDefault() {
   NSUserDefaults* defaults = [NSUserDefaults standardUserDefaults];
-
-  // Added 08/2024.
-  [defaults removeObjectForKey:@"userHasInteractedWithWhatsNew"];
 
   // Added 11/2024.
   [defaults removeObjectForKey:@"DisplaySwitchProfile"];

@@ -384,6 +384,46 @@ using VehicleOptions = VehicleOptionsT<>;
 
 EntityInstance GetVehicleEntityInstance(VehicleOptions options = {});
 
+template <typename = void>
+struct NationalIdCardOptionsT {
+  const char16_t* number = u"987654321";
+  const char16_t* country = u"United States";
+  const char16_t* issue_date = u"01/12/2020";
+  const char16_t* expiry_date = u"01/12/2030";
+  std::string_view guid = "00000000-0000-4000-8000-300000000000";
+  std::string_view nickname = "IdCard";
+  std::string_view app_locale = "en-US";
+};
+using NationalIdCardOptions = NationalIdCardOptionsT<>;
+
+EntityInstance GetNationalIdCardEntityInstance(
+    NationalIdCardOptions options = {});
+
+template <typename = void>
+struct KnownTravelerNumberOptionsT {
+  const char16_t* number = u"987654321";
+  const char16_t* expiration_date = u"01/12/2030";
+  std::string_view guid = "00000000-0000-4000-8000-400000000000";
+  std::string_view nickname = "Known Traveler Number";
+  std::string_view app_locale = "en-US";
+};
+using KnownTravelerNumberOptions = KnownTravelerNumberOptionsT<>;
+
+EntityInstance GetKnownTravelerNumberInstance(
+    KnownTravelerNumberOptions options = {});
+
+template <typename = void>
+struct RedressNumberOptionsT {
+  const char16_t* number = u"987654321";
+  std::string_view guid = "00000000-0000-4000-8000-500000000000";
+  std::string_view nickname = "RedressNumber";
+  std::string_view app_locale = "en-US";
+};
+using RedressNumberOptions = RedressNumberOptionsT<>;
+
+EntityInstance GetRedressNumberEntityInstance(
+    RedressNumberOptions options = {});
+
 // Adds `possible_types` at the end of `possible_field_types`.
 void InitializePossibleTypes(std::vector<FieldTypeSet>& possible_field_types,
                              const std::vector<FieldType>& possible_types);
@@ -488,12 +528,16 @@ sync_pb::PaymentInstrument CreatePaymentInstrumentWithLinkedBnplIssuer(
     std::string issuer_id,
     std::string currency,
     uint64_t min_price_in_micros,
-    uint64_t max_price_in_micros);
+    uint64_t max_price_in_micros,
+    std::vector<sync_pb::PaymentInstrument_ActionRequired> actions_required =
+        {});
 
 // Returns a linked BNPL issuer with fake data.
 BnplIssuer GetTestLinkedBnplIssuer(
     autofill::BnplIssuer::IssuerId issuer_id =
-        autofill::BnplIssuer::IssuerId::kBnplAffirm);
+        autofill::BnplIssuer::IssuerId::kBnplAffirm,
+    DenseSet<PaymentInstrument::ActionRequired> actions_required =
+        DenseSet<PaymentInstrument::ActionRequired>());
 
 // Returns an unlinked BNPL issuer with fake data.
 BnplIssuer GetTestUnlinkedBnplIssuer();

@@ -77,7 +77,10 @@ static constexpr auto kAutofillHeuristicsVsHtmlOverrides =
          {ADDRESS_HOME_STREET_NAME, HtmlFieldType::kStreetAddress},
          {NAME_LAST_PREFIX, HtmlFieldType::kAdditionalName},
          {NAME_LAST_PREFIX, HtmlFieldType::kAdditionalNameInitial},
-         {NAME_LAST_CORE, HtmlFieldType::kFamilyName}});
+         {NAME_LAST_CORE, HtmlFieldType::kFamilyName},
+         {ALTERNATIVE_FAMILY_NAME, HtmlFieldType::kFamilyName},
+         {ALTERNATIVE_GIVEN_NAME, HtmlFieldType::kGivenName},
+         {ALTERNATIVE_FULL_NAME, HtmlFieldType::kName}});
 
 // This list includes pairs (heuristic_type, server_type) that express which
 // heuristics predictions should be prioritized over server predictions. The
@@ -210,12 +213,7 @@ bool PreferHeuristicOverServer(FieldType heuristic_type,
 // exceptions. Check function `ComputedType` for more details.
 DenseSet<HtmlFieldType> BelievedHtmlTypes(FieldType heuristic_prediction,
                                           FieldType server_prediction) {
-  DenseSet<HtmlFieldType> believed_html_types = {};
-  constexpr auto kMin = base::to_underlying(HtmlFieldType::kMinValue);
-  constexpr auto kMax = base::to_underlying(HtmlFieldType::kMaxValue);
-  for (auto i = kMin; i <= kMax; ++i) {
-    believed_html_types.insert(static_cast<HtmlFieldType>(i));
-  }
+  DenseSet<HtmlFieldType> believed_html_types = kAllHtmlFieldTypes;
   // We always override unspecified autocomplete attribute.
   believed_html_types.erase(HtmlFieldType::kUnspecified);
   auto is_street_name_or_house_number_type = [](FieldType field_type) {
@@ -406,11 +404,15 @@ FieldType AutofillField::heuristic_type(HeuristicSource s) const {
   }
 
   FieldType type = local_type_predictions_[static_cast<size_t>(s)];
+  // Guaranteed by construction of `local_type_predictions_`.
+  DCHECK(ToSafeFieldType(type, MAX_VALID_FIELD_TYPE) != MAX_VALID_FIELD_TYPE);
   // `NO_SERVER_DATA` would mean that there is no heuristic type. Client code
   // presumes there is a prediction, therefore we coalesce to `UNKNOWN_TYPE`.
   // Shadow predictions however are not used and we care whether the type is
   // `UNKNOWN_TYPE` or whether we never ran the heuristics.
-  return (type > 0 || s != GetActiveHeuristicSource()) ? type : UNKNOWN_TYPE;
+  return type != NO_SERVER_DATA || s != GetActiveHeuristicSource()
+             ? type
+             : UNKNOWN_TYPE;
 }
 
 FieldType AutofillField::server_type() const {
@@ -425,26 +427,12 @@ bool AutofillField::server_type_prediction_is_override() const {
 }
 
 void AutofillField::set_heuristic_type(HeuristicSource s, FieldType type) {
-  if (type < 0 || type > MAX_VALID_FIELD_TYPE ||
-      type == FIELD_WITH_DEFAULT_VALUE) {
-    NOTREACHED();
-  }
+  type = ToSafeFieldType(type, MAX_VALID_FIELD_TYPE);
+  CHECK_NE(type, MAX_VALID_FIELD_TYPE, base::NotFatalUntil::M142) << type;
   local_type_predictions_[static_cast<size_t>(s)] = type;
   if (s == GetActiveHeuristicSource()) {
     overall_type_ = std::nullopt;
   }
-}
-
-std::optional<FieldType> AutofillField::GetAutofillAiServerTypePredictions()
-    const {
-  for (const FieldPrediction& prediction : server_predictions_) {
-    FieldType predicted_type =
-        ToSafeFieldType(prediction.type(), NO_SERVER_DATA);
-    if (GroupTypeOfFieldType(predicted_type) == FieldTypeGroup::kAutofillAi) {
-      return predicted_type;
-    }
-  }
-  return std::nullopt;
 }
 
 void AutofillField::set_server_predictions(
@@ -526,7 +514,7 @@ void AutofillField::SetHtmlType(HtmlFieldType type, HtmlFieldMode mode) {
 
 void AutofillField::SetTypeTo(const AutofillType& type,
                               std::optional<AutofillPredictionSource> source) {
-  DCHECK(type.GetStorableType() != NO_SERVER_DATA);
+  DCHECK(!type.GetTypes().empty());
   overall_type_ = {type, source};
 }
 
@@ -543,11 +531,47 @@ std::optional<AutofillPredictionSource> AutofillField::PredictionSource()
   return GetOverallPredictionResult().source;
 }
 
+AutofillType AutofillField::MakeAutofillType(
+    FieldType primary_field_type) const {
+  // Indicates whether `ft` may be part of the union type.
+  auto is_union_type_candidate = [](FieldType ft) {
+    return GroupTypeOfFieldType(ft) == FieldTypeGroup::kAutofillAi &&
+           base::FeatureList::IsEnabled(features::kAutofillAiWithDataSchema) &&
+           base::FeatureList::IsEnabled(
+               features::kAutofillUnionTypesForAutofillAi);
+  };
+
+  // Returns the union of
+  // - `primary_field_type` and
+  // - the types of the `predictions` that satisfy is_union_type_candidate().
+  auto get_filtered_types = [&](base::span<const FieldPrediction> predictions) {
+    FieldTypeSet field_types = {primary_field_type};
+    for (const auto& prediction : predictions) {
+      const FieldType ft = ToSafeFieldType(prediction.type(), NO_SERVER_DATA);
+      if (is_union_type_candidate(ft)) {
+        field_types.insert(ft);
+      }
+    }
+    return field_types;
+  };
+
+  // Looks for the longest prefix of `server_predictions_` whose filtered
+  // FieldTypes satisfy the AutofillType constraints.
+  FieldTypeSet field_types;
+  size_t prefix_length = server_predictions_.size();
+  do {
+    field_types = get_filtered_types(
+        base::span(server_predictions_).first(prefix_length));
+  } while (!AutofillType::TestConstraints(field_types) && prefix_length-- > 0);
+  DCHECK(field_types.contains(primary_field_type));
+  return AutofillType(field_types);
+}
+
 AutofillField::PredictionResult AutofillField::GetOverallPredictionResult()
     const {
   // Server Overrides are granted precedence unconditionally.
   if (server_type_prediction_is_override() && server_type() != NO_SERVER_DATA) {
-    return {AutofillType(server_type()),
+    return {MakeAutofillType(server_type()),
             AutofillPredictionSource::kServerOverride};
   }
   if (!overall_type_) {
@@ -570,7 +594,7 @@ AutofillField::PredictionResult AutofillField::GetComputedPredictionResult()
   // we always use the server prediction as html types are not very reliable.
   if (GroupTypeOfHtmlFieldType(html_type_local) == FieldTypeGroup::kPhone &&
       GroupTypeOfFieldType(server_type_local) == FieldTypeGroup::kPhone) {
-    return {AutofillType(server_type_local),
+    return {MakeAutofillType(server_type_local),
             AutofillPredictionSource::kServerCrowdsourcing};
   }
 
@@ -586,12 +610,12 @@ AutofillField::PredictionResult AutofillField::GetComputedPredictionResult()
           features::kAutofillEnableExpirationDateImprovements)) {
     if (server_type_local == CREDIT_CARD_EXP_DATE_2_DIGIT_YEAR ||
         server_type_local == CREDIT_CARD_EXP_DATE_4_DIGIT_YEAR) {
-      return {AutofillType(server_type_local),
+      return {MakeAutofillType(server_type_local),
               AutofillPredictionSource::kServerCrowdsourcing};
     }
     if (heuristic_type_local == CREDIT_CARD_EXP_DATE_2_DIGIT_YEAR ||
         heuristic_type_local == CREDIT_CARD_EXP_DATE_4_DIGIT_YEAR) {
-      return {AutofillType(heuristic_type_local),
+      return {MakeAutofillType(heuristic_type_local),
               AutofillPredictionSource::kHeuristics};
     }
   }
@@ -600,14 +624,26 @@ AutofillField::PredictionResult AutofillField::GetComputedPredictionResult()
   // of field detection. Except for specific cases in PreferHeuristicOverHtml
   // and also those detailed in `BelievedHtmlTypes()`.
   if (PreferHeuristicOverHtml(heuristic_type_local, html_type_local)) {
-    return {AutofillType(heuristic_type_local),
+    return {MakeAutofillType(heuristic_type_local),
             AutofillPredictionSource::kHeuristics};
   }
 
   if (BelievedHtmlTypes(heuristic_type_local, server_type_local)
           .contains(html_type_local)) {
-    return {AutofillType(html_type_local),
-            AutofillPredictionSource::kAutocomplete};
+    // The following is a hack. If we have relevant server predictions to add
+    // to the AutofillType, we want to add them. We must not do that if
+    // `html_type_local == kCountryCode` because in that case, `html_type_local`
+    // and `HtmlFieldTypeToBestCorrespondingFieldType(html_type_local)` behave
+    // differently (crbug.com/436013479). In all other cases, they are
+    // identical, except for AutofillType::ToString().
+    // TODO(crbug.com/436013479): Remove HtmlFieldType from AutofillType.
+    AutofillType type = MakeAutofillType(
+        HtmlFieldTypeToBestCorrespondingFieldType(html_type_local));
+    if (type.GetTypes().size() <= 1 ||
+        html_type_local == HtmlFieldType::kCountryCode) {
+      type = AutofillType(html_type_local);
+    }
+    return {type, AutofillPredictionSource::kAutocomplete};
   }
 
   if (server_type_local != NO_SERVER_DATA &&
@@ -669,7 +705,7 @@ AutofillField::PredictionResult AutofillField::GetComputedPredictionResult()
                            FieldTypeGroup::kPasswordField);
 
     if (believe_server) {
-      return {AutofillType(server_type_local),
+      return {MakeAutofillType(server_type_local),
               AutofillPredictionSource::kServerCrowdsourcing};
     }
   }
@@ -682,7 +718,7 @@ AutofillField::PredictionResult AutofillField::GetComputedPredictionResult()
             AutofillPredictionSource::kHeuristics};
   }
 
-  return {AutofillType(heuristic_type_local),
+  return {MakeAutofillType(heuristic_type_local),
           heuristic_type_local != UNKNOWN_TYPE
               ? std::optional(AutofillPredictionSource::kHeuristics)
               : std::nullopt};
@@ -711,16 +747,15 @@ std::string AutofillField::FieldSignatureAsStr() const {
 }
 
 bool AutofillField::IsFieldFillable() const {
-  FieldType field_type = Type().GetStorableType();
-  return IsFillableFieldType(field_type);
+  return std::ranges::any_of(Type().GetTypes(), IsFillableFieldType);
 }
 
 bool AutofillField::HasExpirationDateType() const {
-  static constexpr DenseSet kExpirationDateTypes = {
+  static constexpr FieldTypeSet kExpirationDateTypes = {
       CREDIT_CARD_EXP_MONTH, CREDIT_CARD_EXP_2_DIGIT_YEAR,
       CREDIT_CARD_EXP_4_DIGIT_YEAR, CREDIT_CARD_EXP_DATE_2_DIGIT_YEAR,
       CREDIT_CARD_EXP_DATE_4_DIGIT_YEAR};
-  return kExpirationDateTypes.contains(Type().GetStorableType());
+  return Type().GetTypes().contains_any(kExpirationDateTypes);
 }
 
 bool AutofillField::ShouldSuppressSuggestionsAndFillingByDefault() const {
@@ -773,7 +808,7 @@ void AutofillField::AppendLogEventIfNotRepeated(
 bool AutofillField::WasAutofilledWithFallback() const {
   return autofilled_type_ &&
          (!overall_type_ ||
-          autofilled_type_ != overall_type_->type.GetStorableType());
+          !overall_type_->type.GetTypes().contains(*autofilled_type_));
 }
 
 }  // namespace autofill

@@ -19,7 +19,6 @@
 #include "components/permissions/features.h"
 #include "components/privacy_sandbox/privacy_sandbox_features.h"
 #include "components/safe_browsing/core/common/features.h"
-#include "components/sync/base/features.h"
 #include "content/public/common/content_features.h"
 #include "content/public/test/browser_test.h"
 #include "crypto/crypto_buildflags.h"
@@ -47,7 +46,6 @@ class SettingsBrowserTest : public WebUIMochaBrowserTest {
 #if BUILDFLAG(ENABLE_GLIC)
             features::kGlic, features::kTabstripComboButton,
 #endif
-            syncer::kReplaceSyncPromosWithSignInPromos,
             privacy_sandbox::kPrivacySandboxRelatedWebsiteSetsUi,
             privacy_sandbox::kFingerprintingProtectionUx},
         /*disabled_features=*/{
@@ -75,6 +73,10 @@ IN_PROC_BROWSER_TEST_F(SettingsTest, A11yPage) {
 #if !BUILDFLAG(IS_CHROMEOS)
 IN_PROC_BROWSER_TEST_F(SettingsTest, AccountPage) {
   RunTest("settings/account_page_test.js", "mocha.run()");
+}
+
+IN_PROC_BROWSER_TEST_F(SettingsTest, GoogleServicesPage) {
+  RunTest("settings/google_services_page_test.js", "mocha.run()");
 }
 #endif
 
@@ -355,6 +357,10 @@ IN_PROC_BROWSER_TEST_F(SettingsTest, PeoplePageSyncControls) {
   RunTest("settings/people_page_sync_controls_test.js", "mocha.run()");
 }
 
+IN_PROC_BROWSER_TEST_F(SettingsTest, PrivacyPageIndex) {
+  RunTest("settings/privacy_page_index_test.js", "mocha.run()");
+}
+
 IN_PROC_BROWSER_TEST_F(SettingsTest, Prefs) {
   RunTest("settings/settings_prefs_test.js", "mocha.run()");
 }
@@ -564,6 +570,14 @@ class PeoplePageSyncPageTest : public SettingsBrowserTest {
 IN_PROC_BROWSER_TEST_F(PeoplePageSyncPageTest, SyncSettings) {
   RunTest("settings/people_page_sync_page_test.js",
           "runMochaSuite('SyncSettings')");
+}
+#endif
+
+#if !BUILDFLAG(IS_CHROMEOS)
+IN_PROC_BROWSER_TEST_F(PeoplePageSyncPageTest,
+                       SyncSettingsWithReplaceSyncPromosWithSignInPromos) {
+  RunTest("settings/people_page_sync_page_test.js",
+          "runMochaSuite('SyncSettingsWithReplaceSyncPromosWithSignInPromos')");
 }
 #endif
 
@@ -823,13 +837,9 @@ IN_PROC_BROWSER_TEST_F(SettingsAllSitesTest, WithoutRelatedWebsiteSetsData) {
           "runMochaSuite('WithoutRelatedWebsiteSetsData')");
 }
 
-// TODO(crbug.com/40823128): Flaky on all platforms.
-IN_PROC_BROWSER_TEST_F(SettingsTest, DISABLED_BasicPage) {
-  RunTest("settings/basic_page_test.js", "runMochaSuite('BasicPage')");
-}
-
 IN_PROC_BROWSER_TEST_F(SettingsTest, PrivacyGuidePromo) {
-  RunTest("settings/basic_page_test.js", "runMochaSuite('PrivacyGuidePromo')");
+  RunTest("settings/privacy_guide_promo_test.js",
+          "runMochaSuite('PrivacyGuidePromo')");
 }
 
 using SettingsClearBrowsingDataTest = SettingsBrowserTest;

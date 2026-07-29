@@ -11,7 +11,6 @@
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service.h"
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service_factory.h"
 #include "chrome/browser/password_manager/password_change/button_click_helper.h"
-#include "chrome/browser/password_manager/password_change/change_password_form_waiter.h"
 #include "chrome/browser/password_manager/password_change/model_quality_logs_uploader.h"
 #include "chrome/browser/password_manager/password_change/password_change_submission_verifier.h"
 #include "chrome/browser/profiles/profile.h"
@@ -27,6 +26,10 @@
 namespace {
 
 using Logger = password_manager::BrowserSavePasswordProgressLogger;
+
+constexpr optimization_guide::proto::PasswordChangeRequest::FlowStep
+    kSubmitFormFlowStep = optimization_guide::proto::PasswordChangeRequest::
+        FlowStep::PasswordChangeRequest_FlowStep_SUBMIT_FORM_STEP;
 
 blink::mojom::AIPageContentOptionsPtr GetAIPageContentOptions() {
   auto options = blink::mojom::AIPageContentOptions::New();
@@ -63,6 +66,7 @@ ChangePasswordFormFillingSubmissionHelper::
       client_(client),
       logs_uploader_(logs_uploader),
       callback_(std::move(callback)) {
+  CHECK(logs_uploader_);
   capture_annotated_page_content_ =
       base::BindOnce(&optimization_guide::GetAIPageContent, web_contents,
                      GetAIPageContentOptions());
@@ -209,7 +213,7 @@ void ChangePasswordFormFillingSubmissionHelper::ChangePasswordFormFilled(
   if (!submitted_form) {
     // Change password form disappeared, some websites practice updating form
     // dynamically which resets the form. Try to find a new change-pwd form.
-    form_waiter_ = std::make_unique<ChangePasswordFormWaiter>(
+    form_waiter_ = std::make_unique<PasswordFormWaiter>(
         web_contents_, client_,
         base::BindOnce(&ChangePasswordFormFillingSubmissionHelper::
                            OnChangePasswordFormFound,
@@ -243,6 +247,7 @@ void ChangePasswordFormFillingSubmissionHelper::OnSubmitWithEnterResult(
   }
 
   if (success) {
+    logs_uploader_->MarkStepSkipped(kSubmitFormFlowStep);
     OnFormSubmitted();
     return;
   }
@@ -264,8 +269,7 @@ void ChangePasswordFormFillingSubmissionHelper::OnPageContentReceived(
     return;
   }
   optimization_guide::proto::PasswordChangeRequest request;
-  request.set_step(optimization_guide::proto::PasswordChangeRequest::FlowStep::
-                       PasswordChangeRequest_FlowStep_SUBMIT_FORM_STEP);
+  request.set_step(kSubmitFormFlowStep);
   *request.mutable_page_context()->mutable_annotated_page_content() =
       std::move(content->proto);
   optimization_guide::ExecuteModelWithLogging(
@@ -360,14 +364,16 @@ void ChangePasswordFormFillingSubmissionHelper::
 }
 
 void ChangePasswordFormFillingSubmissionHelper::OnChangePasswordFormFound(
-    password_manager::PasswordFormManager* form_manager) {
+    PasswordFormWaiter::Result result) {
   form_waiter_.reset();
+
+  password_manager::PasswordFormManager* form_manager =
+      result.change_password_form_manager;
 
   if (!form_manager) {
     std::move(callback_).Run(false);
     return;
   }
-
   CHECK(form_manager->GetParsedObservedForm());
   CHECK(form_manager->GetDriver());
 

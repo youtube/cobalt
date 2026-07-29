@@ -221,7 +221,8 @@ void HttpStreamPool::AttemptManager::RequestStream(Job* job) {
               cert_and_status.cert->subject().GetDisplayName());
         }
         dict.Set("allowed_bad_certs", std::move(allowed_bad_certs_list));
-        dict.Set("enable_ip_based_pooling", job->enable_ip_based_pooling());
+        dict.Set("enable_ip_based_pooling_for_h2",
+                 job->enable_ip_based_pooling_for_h2());
         dict.Set("enable_alternative_services",
                  job->enable_alternative_services());
         dict.Set("quic_version",
@@ -269,8 +270,11 @@ void HttpStreamPool::AttemptManager::OnServiceEndpointsUpdated() {
     return;
   }
 
-  TRACE_EVENT_INSTANT("net.stream", "AttemptManager::OnServiceEndpointsUpdated",
-                      track_);
+  CHECK(service_endpoint_request_);
+  TRACE_EVENT_INSTANT(
+      "net.stream", "AttemptManager::OnServiceEndpointsUpdated", track_,
+      "endpoints",
+      GetServiceEndpointRequestAsValue(service_endpoint_request_.get()));
   net_log().AddEvent(
       NetLogEventType::HTTP_STREAM_POOL_ATTEMPT_MANAGER_DNS_RESOLUTION_UPDATED,
       [&] {
@@ -286,11 +290,12 @@ void HttpStreamPool::AttemptManager::OnServiceEndpointRequestFinished(int rv) {
     return;
   }
 
-  TRACE_EVENT_INSTANT("net.stream",
-                      "AttemptManager::OnServiceEndpointRequestFinished",
-                      track_, "result", rv);
   CHECK(!service_endpoint_request_finished_);
   CHECK(service_endpoint_request_);
+  TRACE_EVENT_INSTANT(
+      "net.stream", "AttemptManager::OnServiceEndpointRequestFinished", track_,
+      "result", rv, "endpoints",
+      GetServiceEndpointRequestAsValue(service_endpoint_request_.get()));
 
   service_endpoint_request_finished_ = true;
   dns_resolution_end_time_ = base::TimeTicks::Now();
@@ -563,7 +568,9 @@ size_t HttpStreamPool::AttemptManager::PendingPreconnectCount() const {
   // socket count is less than or equal to the active stream socket count.
   // This behavior is for compatibility with the non-HEv3 code path. See
   // TransportClientSocketPool::RequestSockets().
-  if (num_streams <= group_->ActiveStreamSocketCount()) {
+  CHECK_GE(group_->ActiveStreamSocketCount(), slow_tcp_based_attempt_count_);
+  if (num_streams <=
+      group_->ActiveStreamSocketCount() - slow_tcp_based_attempt_count_) {
     return 0;
   }
   return PendingCountInternal(num_streams);
@@ -975,7 +982,7 @@ base::Value::Dict HttpStreamPool::AttemptManager::GetStatesAsNetLogParams()
            static_cast<int>(tcp_based_attempts_.size()));
   dict.Set("num_slow_attempts",
            static_cast<int>(slow_tcp_based_attempt_count_));
-  dict.Set("enable_ip_based_pooling", IsIpBasedPoolingEnabled());
+  dict.Set("enable_ip_based_pooling_for_h2", IsIpBasedPoolingEnabledForH2());
   dict.Set("enable_alternative_services", IsAlternativeServiceEnabled());
   dict.Set("quic_attempt_alive", !!quic_attempt_);
   if (quic_attempt_result_.has_value()) {
@@ -1020,7 +1027,7 @@ void HttpStreamPool::AttemptManager::StartInternal(Job* job) {
     limit_ignoring_jobs_.emplace(job);
   }
 
-  if (!job->enable_ip_based_pooling()) {
+  if (!job->enable_ip_based_pooling_for_h2()) {
     ip_based_pooling_disabling_jobs_.emplace(job);
   }
 
@@ -1204,7 +1211,8 @@ QuicChromiumClientSession* HttpStreamPool::AttemptManager::
 
 base::WeakPtr<SpdySession> HttpStreamPool::AttemptManager::
     CanUseExistingSpdySessionAfterEndpointChanges() {
-  if (!IsIpBasedPoolingEnabled() || !UsingTls() || !CanUseTcpBasedProtocols()) {
+  if (!IsIpBasedPoolingEnabledForH2() || !UsingTls() ||
+      !CanUseTcpBasedProtocols()) {
     return nullptr;
   }
 
@@ -1215,7 +1223,8 @@ base::WeakPtr<SpdySession> HttpStreamPool::AttemptManager::
 
   if (HasAvailableSpdySession()) {
     base::WeakPtr<SpdySession> spdy_session = pool()->FindAvailableSpdySession(
-        stream_key(), spdy_session_key(), IsIpBasedPoolingEnabled(), net_log());
+        stream_key(), spdy_session_key(), IsIpBasedPoolingEnabledForH2(),
+        net_log());
     CHECK(spdy_session);
     CHECK(spdy_session->IsAvailable());
     return spdy_session;
@@ -1352,7 +1361,17 @@ void HttpStreamPool::AttemptManager::MaybeAttemptTcpBased(
 }
 
 bool HttpStreamPool::AttemptManager::IsTcpBasedAttemptReady() {
-  switch (CanAttemptConnection()) {
+  CanAttemptResult can_attempt = CanAttemptConnection();
+  // TODO(crbug.com/383606724): Consider removing these trace and net log event
+  // once we figure out better endpoint selection algorithm.
+  TRACE_EVENT_INSTANT("net.stream", "AttemptManager::IsTcpBasedAttemptReady",
+                      track_, "can_attempt", can_attempt);
+  net_log_.AddEvent(
+      NetLogEventType::HTTP_STREAM_POOL_ATTEMPT_MANAGER_CAN_ATTEMPT_TCP, [&] {
+        return base::Value::Dict().Set("can_attempt",
+                                       static_cast<int>(can_attempt));
+      });
+  switch (can_attempt) {
     case CanAttemptResult::kAttempt:
       // If we ignore stream limits and the pool's limit has already reached,
       // try to close as much as possible.
@@ -1432,7 +1451,7 @@ bool HttpStreamPool::AttemptManager::ShouldRespectLimits() const {
   return limit_ignoring_jobs_.empty();
 }
 
-bool HttpStreamPool::AttemptManager::IsIpBasedPoolingEnabled() const {
+bool HttpStreamPool::AttemptManager::IsIpBasedPoolingEnabledForH2() const {
   return ip_based_pooling_disabling_jobs_.empty();
 }
 
@@ -1452,8 +1471,9 @@ bool HttpStreamPool::AttemptManager::ShouldThrottleAttemptForSpdy() const {
 
   CHECK(UsingTls());
 
-  // The first attempt should not be blocked.
-  if (tcp_based_attempts_.empty()) {
+  // If there are no non-slow attempts, don't throttle new attempts.
+  CHECK_GE(tcp_based_attempts_.size(), slow_tcp_based_attempt_count_);
+  if (tcp_based_attempts_.size() - slow_tcp_based_attempt_count_ == 0) {
     return false;
   }
 
@@ -1684,7 +1704,8 @@ void HttpStreamPool::AttemptManager::CreateTextBasedStreamAndNotify(
 
 bool HttpStreamPool::AttemptManager::HasAvailableSpdySession() const {
   return spdy_session_pool()->HasAvailableSession(
-      spdy_session_key(), IsIpBasedPoolingEnabled(), /*is_websocket=*/false);
+      spdy_session_key(), IsIpBasedPoolingEnabledForH2(),
+      /*is_websocket=*/false);
 }
 
 void HttpStreamPool::AttemptManager::MaybeStartDraining() {
@@ -1937,6 +1958,8 @@ void HttpStreamPool::AttemptManager::HandleTcpBasedAttemptFailure(
 }
 
 void HttpStreamPool::AttemptManager::OnSpdyThrottleDelayPassed() {
+  TRACE_EVENT_INSTANT("net.stream", "AttemptManager::OnSpdyThrottleDelayPassed",
+                      track_);
   CHECK(!spdy_throttle_delay_passed_);
   spdy_throttle_delay_passed_ = true;
   MaybeAttemptTcpBased();
@@ -1998,13 +2021,11 @@ bool HttpStreamPool::AttemptManager::CanUseQuic() {
   return allowed_alpns_.HasAny(kQuicBasedProtocols) &&
          pool()->CanUseQuic(stream_key().destination(),
                             stream_key().network_anonymization_key(),
-                            IsIpBasedPoolingEnabled(),
                             IsAlternativeServiceEnabled());
 }
 
 bool HttpStreamPool::AttemptManager::CanUseExistingQuicSession() {
   return pool()->CanUseExistingQuicSession(quic_session_alias_key(),
-                                           IsIpBasedPoolingEnabled(),
                                            IsAlternativeServiceEnabled());
 }
 

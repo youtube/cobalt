@@ -1452,9 +1452,13 @@ void PermissionUmaUtil::RecordDSEEffectiveSetting(
 
 // static
 void PermissionUmaUtil::RecordPermissionPredictionSource(
-    PermissionPredictionSource prediction_source) {
+    PermissionPredictionSource prediction_source,
+    RequestType request_type) {
+  std::string permission_string = GetPermissionRequestString(
+      PermissionUtil::GetUmaValueForRequestType(request_type));
   base::UmaHistogramEnumeration(
-      "Permissions.PredictionService.PredictionSource", prediction_source);
+      "Permissions.PredictionServiceSource." + permission_string,
+      prediction_source);
 }
 
 // static
@@ -1633,8 +1637,6 @@ std::string PermissionUmaUtil::GetPromptDispositionString(
       return "CustomModalDialog";
     case PermissionPromptDisposition::ELEMENT_ANCHORED_BUBBLE:
       return "ElementAnchoredBubble";
-    case PermissionPromptDisposition::LOCATION_BAR_LEFT_CHIP:
-      return "LocationBarLeftChip";
     case PermissionPromptDisposition::LOCATION_BAR_LEFT_QUIET_CHIP:
       return "LocationBarLeftQuietChip";
     case PermissionPromptDisposition::LOCATION_BAR_LEFT_QUIET_ABUSIVE_CHIP:
@@ -1702,7 +1704,6 @@ bool PermissionUmaUtil::IsPromptDispositionQuiet(
     case PermissionPromptDisposition::ANCHORED_BUBBLE:
     case PermissionPromptDisposition::ELEMENT_ANCHORED_BUBBLE:
     case PermissionPromptDisposition::MODAL_DIALOG:
-    case PermissionPromptDisposition::LOCATION_BAR_LEFT_CHIP:
     case PermissionPromptDisposition::LOCATION_BAR_LEFT_CHIP_AUTO_BUBBLE:
     case PermissionPromptDisposition::NONE_VISIBLE:
     case PermissionPromptDisposition::CUSTOM_MODAL_DIALOG:
@@ -1718,7 +1719,6 @@ bool PermissionUmaUtil::IsPromptDispositionLoud(
     case PermissionPromptDisposition::ANCHORED_BUBBLE:
     case PermissionPromptDisposition::ELEMENT_ANCHORED_BUBBLE:
     case PermissionPromptDisposition::MODAL_DIALOG:
-    case PermissionPromptDisposition::LOCATION_BAR_LEFT_CHIP:
     case PermissionPromptDisposition::LOCATION_BAR_LEFT_CHIP_AUTO_BUBBLE:
       return true;
     case PermissionPromptDisposition::LOCATION_BAR_RIGHT_STATIC_ICON:

@@ -368,15 +368,6 @@ bool HTMLCanvasElement::PrepareTransferableResource(
     rate_limiter_->Reset();
   }
 
-  // If hibernating but not hidden, we want to wake up from hibernation.
-  if (RenderingContext()->IsHibernating() && !IsPageVisible()) {
-    return false;
-  }
-
-  if (!RenderingContext()->GetOrCreateCanvas2DResourceProvider()) {
-    return false;
-  }
-
   // The beforeprint event listener is sometimes scheduled in the same task
   // as BeginFrame, which means that this code may sometimes be called between
   // the event listener and its associated FinalizeFrame call. So in order to
@@ -386,18 +377,9 @@ bool HTMLCanvasElement::PrepareTransferableResource(
   if (RenderingContext()->did_print_in_current_task() || IsPrinting()) {
     reason = FlushReason::kCanvasPushFrameWhilePrinting;
   }
-  RenderingContext()->GetResourceProviderForCanvas2D()->FlushCanvas(reason);
 
-  // If the context is lost, we don't know if we should be producing GPU or
-  // software frames, until we get a new context, since the compositor will
-  // be trying to get a new context and may change modes.
-  if (!RenderingContext()->GetResourceProviderForCanvas2D()->IsValid()) {
-    return false;
-  }
-
-  scoped_refptr<CanvasResource> frame = RenderingContext()
-                                            ->GetResourceProviderForCanvas2D()
-                                            ->ProduceCanvasResource(reason);
+  scoped_refptr<CanvasResource> frame =
+      RenderingContext()->PaintRenderingResultsToResource(kBackBuffer, reason);
   if (!frame || !frame->IsValid()) {
     return false;
   }
@@ -495,7 +477,7 @@ LayoutObject* HTMLCanvasElement::CreateLayoutObject(
 
 Node::InsertionNotificationRequest HTMLCanvasElement::InsertedInto(
     ContainerNode& node) {
-  SetIsInCanvasSubtree(true);
+  SetIsCanvasOrInCanvasSubtree(true);
   ColorSchemeMayHaveChanged();
   return HTMLElement::InsertedInto(node);
 }
@@ -841,11 +823,20 @@ void HTMLCanvasElement::PostFinalizeFrame(FlushReason reason) {
 
   if (IsWebGL()) {
     context_->ClearMarkedCanvasDirty();
-    if (LowLatencyEnabled()) {
+  }
+
+  // Note: LowLatencyEnabled() could be true for any context type as it just
+  // checks whether the `desynchronized` attribute is set on the context, but
+  // only WebGL and Canvas2D have specific flows for low latency (for other
+  // context types, setting the attribute is a no-op).
+  if (LowLatencyEnabled() && (IsWebGL() || IsRenderingContext2D())) {
+    bool resource_is_paintable =
+        IsRenderingContext2D()
+            ? RenderingContext()->IsCanvas2DResourceProviderValid()
+            : true;
+    if (frame_dispatcher_ && !dirty_rect_.IsEmpty() && resource_is_paintable) {
       if (scoped_refptr<CanvasResource> canvas_resource =
-              context_->PaintRenderingResultsToResource(!dirty_rect_.IsEmpty(),
-                                                        !!frame_dispatcher_,
-                                                        kBackBuffer, reason)) {
+              context_->PaintRenderingResultsToResource(kBackBuffer, reason)) {
         const gfx::Rect src_rect(Size());
         dirty_rect_.Intersect(src_rect);
         const gfx::Rect int_dirty = dirty_rect_;
@@ -855,24 +846,16 @@ void HTMLCanvasElement::PostFinalizeFrame(FlushReason reason) {
         frame_dispatcher_->DispatchFrame(std::move(canvas_resource),
                                          damage_rect, IsOpaque());
       }
+      // WebGL clears `dirty_rect_` every frame for low-latency, but for
+      // Canvas2D it occurs only if we actually attempted to paint the
+      // resource.
+      if (IsRenderingContext2D()) {
+        dirty_rect_ = gfx::Rect();
+      }
+    }
+    if (IsWebGL()) {
       dirty_rect_ = gfx::Rect();
     }
-  } else if (IsRenderingContext2D() && LowLatencyEnabled() &&
-             frame_dispatcher_ && !dirty_rect_.IsEmpty() &&
-             RenderingContext()->IsCanvas2DResourceProviderValid()) {
-    if (scoped_refptr<CanvasResource> canvas_resource =
-            RenderingContext()
-                ->GetResourceProviderForCanvas2D()
-                ->ProduceCanvasResource(reason)) {
-      const gfx::Rect src_rect(Size());
-      dirty_rect_.Intersect(src_rect);
-      const gfx::Rect int_dirty = dirty_rect_;
-      const SkIRect damage_rect = SkIRect::MakeXYWH(
-          int_dirty.x(), int_dirty.y(), int_dirty.width(), int_dirty.height());
-      frame_dispatcher_->DispatchFrame(std::move(canvas_resource), damage_rect,
-                                       IsOpaque());
-    }
-    dirty_rect_ = gfx::Rect();
   }
 
   // If the canvas is visible, notifying listeners is taken care of in
@@ -949,7 +932,7 @@ void HTMLCanvasElement::DoDeferredPaintInvalidation() {
     if (dirty_rect_.IsEmpty())
       return;
 
-    if (cc_layer_ && IsCompositedForCanvas2D()) {
+    if (cc_layer_ && context_->IsComposited()) {
       cc_layer_->SetNeedsDisplayRect(gfx::ToEnclosingRect(invalidation_rect));
     }
   }
@@ -1243,24 +1226,9 @@ void HTMLCanvasElement::PaintInternal(GraphicsContext& context,
   }
 
   // Grab a snapshot.
-  scoped_refptr<StaticBitmapImage> snapshot;
-
-  // For canvas 2D, get the snapshot from the context if there is a valid
-  // resource provider to ensure that the recording is properly flushed (note
-  // that the fact that the canvas has a valid resource provider means that it
-  // is not possible for the canvas to be in hibernation at this point as the
-  // canvas' resource provider is dropped when going into hibernation and
-  // hibernation is ended if the canvas' resource provider is recreated). For
-  // all contexts other than canvas 2D, get a snapshot directly from the
-  // context.
-  if (IsRenderingContext2D()) {
-    if (RenderingContext()->GetResourceProviderForCanvas2D()) {
-      snapshot = context_->GetImage(FlushReason::kPaint);
-    }
-  } else {
-    snapshot = context_->PaintRenderingResultsToSnapshot(kFrontBuffer,
-                                                         FlushReason::kPaint);
-  }
+  scoped_refptr<StaticBitmapImage> snapshot =
+      context_->PaintRenderingResultsToSnapshot(kFrontBuffer,
+                                                FlushReason::kPaint);
 
   if (snapshot) {
     SkBlendMode composite_operator =
@@ -1545,23 +1513,6 @@ void HTMLCanvasElement::CollectStyleForPresentationAttribute(
   }
 }
 
-bool HTMLCanvasElement::IsCompositedForCanvas2D() const {
-  CHECK(IsRenderingContext2D());
-
-  if (RenderingContext()->IsHibernating()) {
-    return false;
-  }
-
-  if (!RenderingContext()->GetResourceProviderForCanvas2D()) [[unlikely]] {
-    return false;
-  }
-
-  return RenderingContext()
-             ->GetResourceProviderForCanvas2D()
-             ->SupportsDirectCompositing() &&
-         !LowLatencyEnabled();
-}
-
 void HTMLCanvasElement::AddListener(CanvasDrawListener* listener) {
   // The presence of a listener forces OffscrenCanvas animations to be active
   listeners_.insert(listener);
@@ -1749,10 +1700,8 @@ void HTMLCanvasElement::SetIsDisplayed(bool displayed) {
 
 cc::TextureLayer* HTMLCanvasElement::GetOrCreateCcLayerForCanvas2DIfNeeded() {
   CHECK(IsRenderingContext2D());
+  CHECK(context_->IsComposited());
 
-  if (!IsCompositedForCanvas2D()) {
-    return nullptr;
-  }
   if (!cc_layer_) [[unlikely]] {
     cc_layer_ = cc::TextureLayer::Create(this);
     InitializeLayerWithCSSProperties(cc_layer_.get());

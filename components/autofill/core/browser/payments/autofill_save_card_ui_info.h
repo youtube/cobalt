@@ -34,6 +34,7 @@ struct AutofillSaveCardUiInfo {
   std::u16string cardholder_name;
   std::u16string expiration_date_month;
   std::u16string expiration_date_year;
+  std::u16string card_cvc;
   // Accessibility description for a card chip containing the card icon, label
   // and sub label.
   std::u16string card_description;
@@ -48,6 +49,8 @@ struct AutofillSaveCardUiInfo {
   // Accessibility description when a loading spinner is shown.
   std::u16string loading_description;
   bool is_google_pay_branding_enabled;
+  // True if this UI info is for a bottom sheet on IOS.
+  bool is_for_bottom_sheet = false;
 
   AutofillSaveCardUiInfo();
   ~AutofillSaveCardUiInfo();

@@ -56,7 +56,6 @@ class GnomeInteractionStrategy : public DesktopInteractionStrategy {
  private:
   friend class GnomeDesktopResizer;
   friend class GnomeDisplayInfoLoader;
-  friend class GnomeInputInjector;
   friend class GnomeInteractionStrategyFactory;
 
   using InitCallback =
@@ -81,10 +80,6 @@ class GnomeInteractionStrategy : public DesktopInteractionStrategy {
   void OnStreamStarted(std::tuple<> args);
   void OnPipeWireStreamAdded(std::string mapping_id,
                              std::tuple<std::uint32_t> args);
-
-  void InjectKeyEvent(const protocol::KeyEvent& event);
-  void InjectTextEvent(const protocol::TextEvent& event);
-  void InjectMouseEvent(const protocol::MouseEvent& event);
 
   GDBusConnectionRef connection_ GUARDED_BY_CONTEXT(sequence_checker_);
   InitCallback init_callback_;
@@ -114,11 +109,6 @@ class GnomeInteractionStrategyFactory
               CreateCallback callback) override;
 
  private:
-  static void OnSessionInit(
-      std::unique_ptr<GnomeInteractionStrategy> session,
-      base::OnceCallback<void(std::unique_ptr<DesktopInteractionStrategy>)>
-          callback,
-      base::expected<void, std::string> result);
   scoped_refptr<base::SequencedTaskRunner> ui_task_runner_;
 };
 

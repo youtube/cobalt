@@ -25,6 +25,13 @@ extern const CGFloat kDiamondLocationBarHeight;
 extern NSString* kDiamondEnterTabGridNotification;
 // Notification sent when leaving the tab grid.
 extern NSString* kDiamondLeaveTabGridNotification;
+// Notification sent for long press on the button, passing the button.
+extern NSString* kDiamondLongPressButton;
+
+// The symbol for the app icon.
+extern NSString* const kAppSymbol;
+// The symbol for the filled app icon.
+extern NSString* const kAppFillSymbol;
 
 // Starts the gemini panel for Diamond prototype.
 void DiamondPrototypeStartGemini(bool from_tab_grid,
@@ -39,5 +46,11 @@ void DiamondPrototypeStartNewTab(bool from_tab_grid,
                                  Browser* regular_browser,
                                  Browser* incognito_browser,
                                  UIViewController* base_view_controller);
+
+// Returns a default symbol configured for the app bar.
+UIImage* GetDefaultAppBarSymbol(NSString* symbol_name);
+
+// Returns a custom symbol configured for the app bar.
+UIImage* GetCustomAppBarSymbol(NSString* symbol_name);
 
 #endif  // IOS_CHROME_BROWSER_SHARED_PUBLIC_PROTOTYPES_DIAMOND_UTILS_H_

@@ -11,6 +11,7 @@
 #import "ios/chrome/browser/badges/ui_bundled/badge_constants.h"
 #import "ios/chrome/browser/popup_menu/ui_bundled/popup_menu_constants.h"
 #import "ios/chrome/browser/reader_mode/model/features.h"
+#import "ios/chrome/browser/reader_mode/test/reader_mode_app_interface.h"
 #import "ios/chrome/browser/reader_mode/ui/constants.h"
 #import "ios/chrome/grit/ios_strings.h"
 #import "ios/chrome/test/earl_grey/chrome_earl_grey.h"
@@ -30,6 +31,17 @@ namespace {
 // multiplied by the font scale multipliers. This value is defined in
 // components/dom_distiller/core/javascript/dom_distiller_viewer.js.
 constexpr double kReaderModeBaseFontSize = 16.0;
+
+// Return the number of links on the page.
+double CountNumLinks() {
+  NSString* js =
+      @"(function() { return document.querySelectorAll('a').length; })();";
+  base::Value result = [ChromeEarlGrey evaluateJavaScript:js];
+  GREYAssertTrue(result.is_double(),
+                 @"The javascript result should be a double");
+
+  return result.GetDouble();
+}
 
 // Verifies that the theme and font have been set as expected in the document
 // body.
@@ -82,19 +94,26 @@ id<GREYMatcher> VisibleContextMenuItem(int message_id) {
 }
 
 - (AppLaunchConfiguration)appConfigurationForTestCase {
-  AppLaunchConfiguration config = [super appConfigurationForTestCase];
-  config.features_enabled.push_back(kEnableReaderMode);
+  AppLaunchConfiguration config;
 
   if ([self isRunningTest:@selector
             (testNotEligibleReaderModePageEnabledInToolsMenu)]) {
     config.features_disabled.push_back(
         kEnableReaderModePageEligibilityForToolsMenu);
   } else {
-    config.features_enabled.push_back(
-        kEnableReaderModePageEligibilityForToolsMenu);
+    config.features_enabled_and_params.push_back(
+        {kEnableReaderModePageEligibilityForToolsMenu, {}});
   }
   if ([self isRunningTest:@selector(testReadabilityEnabled)]) {
-    config.features_enabled.push_back(dom_distiller::kReaderModeUseReadability);
+    config.features_enabled_and_params.push_back(
+        {dom_distiller::kReaderModeUseReadability, {}});
+  }
+  if ([self isRunningTest:@selector(testReaderModeDistillationTimeout)]) {
+    config.features_enabled_and_params.push_back(
+        {kEnableReaderMode,
+         {{{kReaderModeDistillationTimeoutDurationStringName, "0s"}}}});
+  } else {
+    config.features_enabled_and_params.push_back({kEnableReaderMode, {}});
   }
   return config;
 }
@@ -226,9 +245,7 @@ id<GREYMatcher> VisibleContextMenuItem(int message_id) {
   [ChromeEarlGrey waitForPageToFinishLoading];
 
   // Open Reader Mode UI.
-  [ChromeEarlGreyUI openToolsMenu];
-  [ChromeEarlGreyUI
-      tapToolsMenuAction:grey_accessibilityID(kToolsMenuReaderMode)];
+  [ChromeEarlGrey showReaderMode];
   [ChromeEarlGrey
       waitForSufficientlyVisibleElementWithMatcher:
           grey_accessibilityID(kReaderModeViewAccessibilityIdentifier)];
@@ -311,18 +328,9 @@ id<GREYMatcher> VisibleContextMenuItem(int message_id) {
 - (void)testUpdateReaderModeTheme {
   [ChromeEarlGrey loadURL:self.testServer->GetURL("/article.html")];
 
-  [ChromeEarlGreyUI openToolsMenu];
-  id<GREYMatcher> tableViewMatcher =
-      [ChromeEarlGrey isNewOverflowMenuEnabled]
-          ? grey_accessibilityID(kPopupMenuToolsMenuActionListId)
-          : grey_accessibilityID(kPopupMenuToolsMenuTableViewId);
-  [[[EarlGrey
-      selectElementWithMatcher:grey_allOf(
-                                   grey_accessibilityID(kToolsMenuReaderMode),
-                                   grey_sufficientlyVisible(), nil)]
-         usingSearchAction:grey_scrollInDirection(kGREYDirectionDown, 200)
-      onElementWithMatcher:tableViewMatcher] performAction:grey_tap()];
-  [ChromeEarlGrey waitForPageToFinishLoading];
+  [ChromeEarlGrey showReaderMode];
+  GREYAssertTrue([ChromeEarlGrey waitUntilReaderModeWebStateIsReady],
+                 @"Reader mode content could not be loaded");
 
   ExpectBodyHasThemeAndFont("light", "sans-serif");
 
@@ -336,17 +344,9 @@ id<GREYMatcher> VisibleContextMenuItem(int message_id) {
 - (void)testUpdateReaderModeFont {
   [ChromeEarlGrey loadURL:self.testServer->GetURL("/article.html")];
 
-  [ChromeEarlGreyUI openToolsMenu];
-  id<GREYMatcher> tableViewMatcher =
-      [ChromeEarlGrey isNewOverflowMenuEnabled]
-          ? grey_accessibilityID(kPopupMenuToolsMenuActionListId)
-          : grey_accessibilityID(kPopupMenuToolsMenuTableViewId);
-  [[[EarlGrey
-      selectElementWithMatcher:grey_allOf(
-                                   grey_accessibilityID(kToolsMenuReaderMode),
-                                   grey_sufficientlyVisible(), nil)]
-         usingSearchAction:grey_scrollInDirection(kGREYDirectionDown, 200)
-      onElementWithMatcher:tableViewMatcher] performAction:grey_tap()];
+  [ChromeEarlGrey showReaderMode];
+  GREYAssertTrue([ChromeEarlGrey waitUntilReaderModeWebStateIsReady],
+                 @"Reader mode content could not be loaded");
   [ChromeEarlGrey waitForPageToFinishLoading];
 
   // Tap the chip to open the options view.
@@ -392,9 +392,7 @@ id<GREYMatcher> VisibleContextMenuItem(int message_id) {
   [ChromeEarlGrey waitForPageToFinishLoading];
 
   // Open Reader Mode UI.
-  [ChromeEarlGreyUI openToolsMenu];
-  [ChromeEarlGreyUI
-      tapToolsMenuAction:grey_accessibilityID(kToolsMenuReaderMode)];
+  [ChromeEarlGrey showReaderMode];
 
   [ChromeEarlGrey
       waitForSufficientlyVisibleElementWithMatcher:
@@ -418,9 +416,7 @@ id<GREYMatcher> VisibleContextMenuItem(int message_id) {
   [ChromeEarlGrey waitForPageToFinishLoading];
 
   // Open Reader Mode UI.
-  [ChromeEarlGreyUI openToolsMenu];
-  [ChromeEarlGreyUI
-      tapToolsMenuAction:grey_accessibilityID(kToolsMenuReaderMode)];
+  [ChromeEarlGrey showReaderMode];
 
   [ChromeEarlGrey
       waitForSufficientlyVisibleElementWithMatcher:
@@ -501,9 +497,7 @@ id<GREYMatcher> VisibleContextMenuItem(int message_id) {
   [ChromeEarlGrey waitForPageToFinishLoading];
 
   // Open Reader Mode UI.
-  [ChromeEarlGreyUI openToolsMenu];
-  [ChromeEarlGreyUI
-      tapToolsMenuAction:grey_accessibilityID(kToolsMenuReaderMode)];
+  [ChromeEarlGrey showReaderMode];
 
   [ChromeEarlGrey
       waitForSufficientlyVisibleElementWithMatcher:
@@ -513,9 +507,7 @@ id<GREYMatcher> VisibleContextMenuItem(int message_id) {
           grey_accessibilityID(kReaderModeChipViewAccessibilityIdentifier)];
 
   // Close Reader Mode UI.
-  [ChromeEarlGreyUI openToolsMenu];
-  [ChromeEarlGreyUI
-      tapToolsMenuAction:grey_accessibilityID(kToolsMenuReaderMode)];
+  [ChromeEarlGrey hideReaderMode];
 
   // The Reader Mode UI is not visible.
   [ChromeEarlGrey
@@ -537,15 +529,12 @@ id<GREYMatcher> VisibleContextMenuItem(int message_id) {
   [ChromeEarlGrey waitForPageToFinishLoading];
 
   // Open Reader Mode UI.
-  [ChromeEarlGreyUI openToolsMenu];
-  [ChromeEarlGreyUI
-      tapToolsMenuAction:grey_accessibilityID(kToolsMenuReaderMode)];
+  [ChromeEarlGrey showReaderMode];
 
+  // Tap the chip to open the options view.
   [ChromeEarlGrey
       waitForSufficientlyVisibleElementWithMatcher:
           grey_accessibilityID(kReaderModeChipViewAccessibilityIdentifier)];
-
-  // Tap the chip to open the options view.
   [[EarlGrey
       selectElementWithMatcher:grey_accessibilityID(
                                    kReaderModeChipViewAccessibilityIdentifier)]
@@ -618,9 +607,7 @@ id<GREYMatcher> VisibleContextMenuItem(int message_id) {
   [ChromeEarlGrey waitForPageToFinishLoading];
 
   // Open Reader Mode UI.
-  [ChromeEarlGreyUI openToolsMenu];
-  [ChromeEarlGreyUI
-      tapToolsMenuAction:grey_accessibilityID(kToolsMenuReaderMode)];
+  [ChromeEarlGrey showReaderMode];
 
   [ChromeEarlGrey
       waitForSufficientlyVisibleElementWithMatcher:
@@ -674,9 +661,7 @@ id<GREYMatcher> VisibleContextMenuItem(int message_id) {
   [ChromeEarlGrey waitForPageToFinishLoading];
 
   // Open Reader Mode UI.
-  [ChromeEarlGreyUI openToolsMenu];
-  [ChromeEarlGreyUI
-      tapToolsMenuAction:grey_accessibilityID(kToolsMenuReaderMode)];
+  [ChromeEarlGrey showReaderMode];
 
   [ChromeEarlGrey
       waitForSufficientlyVisibleElementWithMatcher:
@@ -712,9 +697,7 @@ id<GREYMatcher> VisibleContextMenuItem(int message_id) {
   [ChromeEarlGrey waitForPageToFinishLoading];
 
   // Open Reader Mode UI.
-  [ChromeEarlGreyUI openToolsMenu];
-  [ChromeEarlGreyUI
-      tapToolsMenuAction:grey_accessibilityID(kToolsMenuReaderMode)];
+  [ChromeEarlGrey showReaderMode];
 
   [ChromeEarlGrey
       waitForSufficientlyVisibleElementWithMatcher:
@@ -752,15 +735,46 @@ id<GREYMatcher> VisibleContextMenuItem(int message_id) {
       assertWithMatcher:grey_hidden(YES)];
 }
 
+// Tests that tapping outside of the options view dismisses it.
+- (void)testTapOutsideOptionsViewDismissesIt {
+  [ChromeEarlGrey loadURL:self.testServer->GetURL("/article.html")];
+  [ChromeEarlGrey waitForPageToFinishLoading];
+
+  // Open Reader Mode UI.
+  [ChromeEarlGrey showReaderMode];
+
+  [ChromeEarlGrey
+      waitForSufficientlyVisibleElementWithMatcher:
+          grey_accessibilityID(kReaderModeChipViewAccessibilityIdentifier)];
+
+  // Tap the chip to open the options view.
+  [[EarlGrey
+      selectElementWithMatcher:grey_accessibilityID(
+                                   kReaderModeChipViewAccessibilityIdentifier)]
+      performAction:grey_tap()];
+
+  // The options view should be visible.
+  [ChromeEarlGrey
+      waitForSufficientlyVisibleElementWithMatcher:
+          grey_accessibilityID(kReaderModeOptionsViewAccessibilityIdentifier)];
+
+  // Tap on the top left corner of the screen to dismiss the options view.
+  [[EarlGrey selectElementWithMatcher:grey_keyWindow()]
+      performAction:grey_tapAtPoint(CGPointMake(5, 5))];
+
+  // The options view should be hidden.
+  [ChromeEarlGrey
+      waitForUIElementToDisappearWithMatcher:
+          grey_accessibilityID(kReaderModeOptionsViewAccessibilityIdentifier)];
+}
+
 // Test accessibility for Reader mode options screen.
 - (void)testReaderModeOptionsAccessibility {
   [ChromeEarlGrey loadURL:self.testServer->GetURL("/article.html")];
   [ChromeEarlGrey waitForPageToFinishLoading];
 
   // Open Reader Mode UI.
-  [ChromeEarlGreyUI openToolsMenu];
-  [ChromeEarlGreyUI
-      tapToolsMenuAction:grey_accessibilityID(kToolsMenuReaderMode)];
+  [ChromeEarlGrey showReaderMode];
 
   [ChromeEarlGrey
       waitForSufficientlyVisibleElementWithMatcher:
@@ -803,6 +817,53 @@ id<GREYMatcher> VisibleContextMenuItem(int message_id) {
       grey_accessibilityID(@"MDCSnackbarMessageTitleAutomationIdentifier"),
       grey_accessibilityLabel(failureMessage), nil);
   [ChromeEarlGrey waitForSufficientlyVisibleElementWithMatcher:snackbarMatcher];
+}
+
+// Tests that the contextual panel entrypoint disappears and a failure snackbar
+// is presented when distillation times out.
+- (void)testReaderModeDistillationTimeout {
+  [ChromeEarlGrey loadURL:self.testServer->GetURL("/article.html")];
+  [ChromeEarlGrey waitForPageToFinishLoading];
+
+  // Wait for the contextual panel entrypoint to appear.
+  id<GREYMatcher> entrypoint = chrome_test_util::ButtonWithAccessibilityLabelId(
+      IDS_IOS_CONTEXTUAL_PANEL_READER_MODE_MODEL_ENTRYPOINT_MESSAGE);
+  [ChromeEarlGrey waitForSufficientlyVisibleElementWithMatcher:entrypoint];
+
+  // Tap the entrypoint to trigger distillation.
+  [[EarlGrey selectElementWithMatcher:entrypoint] performAction:grey_tap()];
+
+  // The entrypoint should disappear.
+  [ChromeEarlGrey waitForUIElementToDisappearWithMatcher:entrypoint];
+
+  // A snackbar should be displayed with a failure message.
+  NSString* failureMessage =
+      l10n_util::GetNSString(IDS_IOS_READER_MODE_SNACKBAR_FAILURE_MESSAGE);
+  id<GREYMatcher> snackbarMatcher = grey_allOf(
+      grey_accessibilityID(@"MDCSnackbarMessageTitleAutomationIdentifier"),
+      grey_accessibilityLabel(failureMessage), nil);
+  [ChromeEarlGrey waitForSufficientlyVisibleElementWithMatcher:snackbarMatcher];
+}
+
+// Tests that non-http links are removed from Reading mode.
+- (void)testNonHttpsLinksRemovedFromReadingMode {
+  [ChromeEarlGrey loadURL:self.testServer->GetURL("/article.html")];
+  [ChromeEarlGrey waitForPageToFinishLoading];
+
+  EXPECT_EQ(4, CountNumLinks());
+
+  // Wait for the contextual panel entrypoint to appear.
+  id<GREYMatcher> entrypoint = chrome_test_util::ButtonWithAccessibilityLabelId(
+      IDS_IOS_CONTEXTUAL_PANEL_READER_MODE_MODEL_ENTRYPOINT_MESSAGE);
+  [ChromeEarlGrey waitForSufficientlyVisibleElementWithMatcher:entrypoint];
+
+  // Tap the entrypoint to trigger distillation.
+  [[EarlGrey selectElementWithMatcher:entrypoint] performAction:grey_tap()];
+
+  [ChromeEarlGrey
+      waitForSufficientlyVisibleElementWithMatcher:
+          grey_accessibilityID(kReaderModeViewAccessibilityIdentifier)];
+  EXPECT_EQ(1, CountNumLinks());
 }
 
 @end

@@ -2109,6 +2109,17 @@ Unknown properties are collapsed to zero. -->
 
 <!-- LINT.ThenChange(//chrome/common/read_anything/read_anything.mojom:Colors) -->
 
+<!-- LINT.IfChange(ReadAnythingDistillationStatus) -->
+
+<enum name="ReadAnythingDistillationStatus">
+  <int value="0" label="Failed"/>
+  <int value="1" label="Success"/>
+  <int value="2" label="Still running"/>
+  <int value="3" label="Restarted"/>
+</enum>
+
+<!-- LINT.ThenChange(//chrome/common/read_anything/read_anything.mojom:DistillationStatus) -->
+
 <!-- LINT.IfChange(ReadAnythingEmptyState) -->
 
 <enum name="ReadAnythingEmptyState">
@@ -2129,7 +2140,7 @@ Unknown properties are collapsed to zero. -->
   <int value="5" label="EB Garamond"/>
   <int value="6" label="STIX Two Text"/>
   <int value="7" label="Andika"/>
-  <int value="8" label="Atkinson Hyperlegible"/>
+  <int value="8" label="Atkinson Hyperlegible Next"/>
 </enum>
 
 <!-- LINT.ThenChange(//chrome/common/read_anything/read_anything_util.cc:ReadAnythingFont) -->

@@ -112,14 +112,11 @@ public class PrivacySettingsFragmentTest {
     // Name of the histogram to record the entry on Privacy Guide via the S&P link-row.
     public static final String ENTRY_EXIT_HISTOGRAM = "Settings.PrivacyGuide.EntryExit";
 
-    private static final int IPP_TOGGLE_LABEL =
-            R.string.incognito_tracking_protections_ip_protection_toggle_label;
-    private static final int IPP_TOGGLE_SUBLABEL =
-            R.string.incognito_tracking_protections_ip_protection_toggle_sublabel;
-    private static final int FPP_TOGGLE_LABEL =
-            R.string.incognito_tracking_protections_fingerprinting_protection_toggle_label;
+    private static final int IPP_TOGGLE_LABEL = R.string.ip_protection_toggle_label;
+    private static final int IPP_TOGGLE_SUBLABEL = R.string.ip_protection_toggle_sublabel;
+    private static final int FPP_TOGGLE_LABEL = R.string.fingerprinting_protection_toggle_label;
     private static final int FPP_TOGGLE_SUBLABEL =
-            R.string.incognito_tracking_protections_fingerprinting_protection_toggle_sublabel;
+            R.string.fingerprinting_protection_toggle_sublabel;
 
     public final SettingsActivityTestRule<PrivacySettings> mSettingsActivityTestRule =
             new SettingsActivityTestRule<>(PrivacySettings.class);
@@ -401,13 +398,13 @@ public class PrivacySettingsFragmentTest {
         setShowTrackingProtection(false);
         mSettingsActivityTestRule.startSettingsActivity();
         // Scroll down and open the Incognito tracking protections page.
-        scrollToSetting(withText(R.string.incognito_tracking_protections_page_title));
-        onView(withText(R.string.incognito_tracking_protections_page_title)).perform(click());
+        scrollToSetting(withText(R.string.incognito_tracking_protections_link_row_label));
+        onView(withText(R.string.incognito_tracking_protections_link_row_label)).perform(click());
         assertTrue(
                 mActionTester
                         .getActions()
                         .contains(PrivacySettings.TRACKING_PROTECTIONS_OPENED_USER_ACTION));
-        onView(withText(R.string.incognito_tracking_protections_ip_protection_toggle_sublabel_off))
+        onView(withText(R.string.ip_protection_link_row_sublabel_disabled))
                 .check(matches(isDisplayed()));
         // Scroll to the IP protections preference and go to the IP protections page.
         scrollToSetting(withText(IPP_TOGGLE_LABEL));
@@ -429,17 +426,14 @@ public class PrivacySettingsFragmentTest {
         setShowTrackingProtection(false);
         mSettingsActivityTestRule.startSettingsActivity();
         // Scroll down and open the Incognito tracking protections page.
-        scrollToSetting(withText(R.string.incognito_tracking_protections_page_title));
-        onView(withText(R.string.incognito_tracking_protections_page_title)).perform(click());
+        scrollToSetting(withText(R.string.incognito_tracking_protections_link_row_label));
+        onView(withText(R.string.incognito_tracking_protections_link_row_label)).perform(click());
         // Verify that the user action is emitted when privacy guide is clicked
         assertTrue(
                 mActionTester
                         .getActions()
                         .contains(PrivacySettings.TRACKING_PROTECTIONS_OPENED_USER_ACTION));
-        onView(
-                        withText(
-                                R.string
-                                        .incognito_tracking_protections_fingerprinting_protection_toggle_sublabel_off))
+        onView(withText(R.string.fingerprinting_protection_link_row_sublabel_disabled))
                 .check(matches(isDisplayed()));
         // Scroll to the FPP preference and go to the FPP page.
         scrollToSetting(withText(FPP_TOGGLE_LABEL));

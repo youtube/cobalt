@@ -13,13 +13,8 @@ import org.chromium.chrome.browser.ui.browser_window.ChromeAndroidTask;
 public final class ExtensionWindowControllerBridgeFactory {
     private ExtensionWindowControllerBridgeFactory() {}
 
-    /**
-     * Creates an {@link ExtensionWindowControllerBridge} for the given {@link ChromeAndroidTask}.
-     *
-     * <p>Note: this class is compiled using the {@code android_library_factory} GN template, so
-     * this method will return null if {@link ExtensionWindowControllerBridgeImpl} isn't compiled
-     * into the build.
-     */
+    // Mark as nullable to be consistent with the stub factory in
+    // //chrome/browser/ui/android/extensions/windowing/stub.
     @Nullable
     public static ExtensionWindowControllerBridge create(ChromeAndroidTask chromeAndroidTask) {
         return new ExtensionWindowControllerBridgeImpl(chromeAndroidTask);

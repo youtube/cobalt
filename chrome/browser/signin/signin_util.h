@@ -168,6 +168,9 @@ bool IsSigninPending(signin::IdentityManager* identity_manager);
 // Returns the current state of the primary account that is used in Chrome.
 SignedInState GetSignedInState(const signin::IdentityManager* identity_manager);
 
+// Returns a string representation of `SignedInState`.
+std::string SignedInStateToString(SignedInState state);
+
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
 // Returns if the necessary conditions to show the History Sync Optin screen
 // are met.
@@ -177,9 +180,10 @@ SignedInState GetSignedInState(const signin::IdentityManager* identity_manager);
 // method as necessary.
 bool ShouldShowHistorySyncOptinScreen(Profile& profile);
 
-// Returns true if the HaTS survey associated with the given `trigger` is
-// enabled via its corresponding feature flag.
-bool IsFeatureEnabledForHatsTrigger(const std::string& trigger);
+// The avatar sync promo is only shown to users with specific sign in states.
+// Requires the feature enabling through
+// `switches::IsAvatarSyncPromoFeatureEnabled()`.
+bool ShouldShowAvatarSyncPromo(Profile* profile);
 #endif  // BUILDFLAG(IS_LINUX) ||  BUILDFLAG(IS_MAC) ||  BUILDFLAG(IS_WIN)
 
 }  // namespace signin_util

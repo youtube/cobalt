@@ -19,34 +19,6 @@ std::vector<std::string> OpenXrGraphicsBinding::GetOptionalExtensions() {
   return {XR_FB_COMPOSITION_LAYER_IMAGE_LAYOUT_EXTENSION_NAME};
 }
 
-#if BUILDFLAG(IS_WIN)
-SwapChainInfo::SwapChainInfo(ID3D11Texture2D* d3d11_texture)
-    : d3d11_texture(d3d11_texture) {}
-#elif BUILDFLAG(IS_ANDROID)
-SwapChainInfo::SwapChainInfo(uint32_t texture) : openxr_texture(texture) {}
-#endif
-
-SwapChainInfo::~SwapChainInfo() {
-  // If shared images are being used, the mailbox holder should have been
-  // cleared before destruction, either due to the context provider being lost
-  // or from normal session ending. If shared images are not being used, these
-  // should not have been initialized in the first place.
-  DCHECK(!shared_image);
-  DCHECK(!sync_token.HasData());
-}
-SwapChainInfo::SwapChainInfo(SwapChainInfo&&) = default;
-SwapChainInfo& SwapChainInfo::operator=(SwapChainInfo&&) = default;
-
-void SwapChainInfo::Clear() {
-  shared_image.reset();
-  sync_token.Clear();
-#if BUILDFLAG(IS_ANDROID)
-  // Resetting the SharedBufferSize ensures that we will re-create the Shared
-  // Buffer if it is needed.
-  shared_buffer_size = {0, 0};
-#endif
-}
-
 OpenXrGraphicsBinding::OpenXrGraphicsBinding(
     const OpenXrExtensionEnumeration* extension_enum)
     : fb_composition_layer_ext_enabled_(extension_enum->ExtensionSupported(
@@ -149,6 +121,13 @@ void OpenXrGraphicsBinding::SetTransferSize(const gfx::Size& transfer_size) {
   transfer_size_ = transfer_size;
 }
 
+void OpenXrGraphicsBinding::UpdateActiveSwapchainImageSize(
+    gpu::SharedImageInterface* sii) {
+  if (has_active_swapchain_image()) {
+    ResizeSharedBuffer(GetSwapChainImages()[active_swapchain_index()], sii);
+  }
+}
+
 void OpenXrGraphicsBinding::DestroySwapchainImages(
     viz::ContextProvider* context_provider) {
   // As long as we have a context provider we need to destroy any SharedImages
@@ -156,7 +135,7 @@ void OpenXrGraphicsBinding::DestroySwapchainImages(
   if (context_provider) {
     gpu::SharedImageInterface* shared_image_interface =
         context_provider->SharedImageInterface();
-    for (SwapChainInfo& info : GetSwapChainImages()) {
+    for (OpenXrSwapchainInfo& info : GetSwapChainImages()) {
       if (shared_image_interface && info.shared_image &&
           info.sync_token.HasData()) {
         shared_image_interface->DestroySharedImage(

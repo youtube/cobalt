@@ -277,7 +277,13 @@
         Search screen
       </message>
       <message name="IDS_IOS_AI_HUB_READER_MODE_LABEL" desc="The button label for the Reader mode entry point of the AI hub.">
-        Reader mode
+        Reading mode
+      </message>
+      <message name="IDS_IOS_AI_HUB_READER_MODE_OPTIONS_BUTTON_TITLE" desc="Title of a button to customise Reader mode options from the AI hub.">
+        Open Reading mode options
+      </message>
+      <message name="IDS_IOS_AI_HUB_READER_MODE_OPTIONS_FONT_LABEL" desc="A subtitle of a button to customise Reader mode options from the AI hub. The subtitle shows a preview of the currently selected font in Reader mode.">
+        Font: <ph name="FONT">$1<ex>Serif</ex></ph>
       </message>
       <message name="IDS_IOS_AI_PROTOTYPING_CALENDAR_HEADER" translateable="false" desc="The title for the enhanced calendar page of the AI prototyping menu [Length: unlimited].">
         Enhanced Calendar
@@ -412,6 +418,9 @@
       <message name="IDS_IOS_AUTOFILL_CARD_NUMBER" desc="Title of the field representing the number (PAN) on a credit card. [Length: 10em] [iOS only]">
         Card number
       </message>
+      <message name="IDS_IOS_AUTOFILL_CARD_SAVED" desc="Title for the save local card confirmation message info bar. [iOS only]">
+        Card saved
+      </message>
       <message name="IDS_IOS_AUTOFILL_CITY" desc="Title of the field of a profile address representing the city/town of the address. [Length: 15em] [iOS only]">
         City / Town
       </message>
@@ -447,6 +456,9 @@
       </message>
       <message name="IDS_IOS_AUTOFILL_EDIT_ADDRESS" desc="Title for the view in Settings for editing an Autofill profile address. [Length: 20em] [iOS only]">
         Edit address
+      </message>
+      <message name="IDS_IOS_AUTOFILL_EDIT_ADDRESS_CELL" desc="Title for the cell row in Settings for editing an Autofill profile home and work address. [Length: 20em] [iOS only]">
+        Edit...
       </message>
       <message name="IDS_IOS_AUTOFILL_EDIT_CREDIT_CARD" desc="Title for the view in Settings for editing an Autofill profile address. [Length: 20em] [iOS only]">
         Edit credit card
@@ -499,6 +511,9 @@
       </message>
       <message name="IDS_IOS_AUTOFILL_SAVE_CARD_CLOSE" desc="Title for the save credit card modal's bar button to close the view. [iOS only]">
         Close
+      </message>
+      <message name="IDS_IOS_AUTOFILL_SAVE_CARD_GOT_IT" desc="Title for the save local card confirmation message info bar button to close the view. [iOS only]">
+        Got it
       </message>
       <message name="IDS_IOS_AUTOFILL_SAVE_ELLIPSIS" desc="Title for the button that presents the View for Saving a credit card. The ellipsis indicate that a following action (the presentation) will take place. [Length: 10em] [iOS only]">
         Save…
@@ -735,11 +750,6 @@
           {count, plural,
           =1 {Bookmark saved}
           other {{count} bookmarks saved}}
-      </message>
-      <message name="IDS_IOS_BOOKMARKS_BULK_SAVED_ACCOUNT" desc="This confirmation message is intended to help users understand that multiple bookmarks have been saved in their account. The confirmation message appears at the bottom of the page after users bulk add bookmarks, telling them how many bookmarks they've added into their account. The tone should be informative.">
-          {count, plural,
-          =1 {Bookmark saved in your Google Account, {email}}
-          other {{count} bookmarks saved in your Google Account, {email}}}
       </message>
       <message name="IDS_IOS_BOOKMARKS_FOLDER_NAME_WITH_CLOUD_SLASH_ICON_LABEL" desc="Accessibility label of the cloud.slash icon in the bookmark views on Folder. For voice over only, not in UI. [iOS only]">
         <ph name="FOLDER_NAME">$1<ex>new folder</ex></ph>. Only on this device.
@@ -1041,6 +1051,9 @@
           =1 {Item saved in your Google Account, {email}}
           other {Items saved in your Google Account, {email}}}
       </message>
+      <message name="IDS_IOS_BWG_ASK_GEMINI_ACCESSIBILITY_LABEL" desc="Accessibility label for the direct Gemini entry point button.">
+        Ask Gemini
+      </message>
       <message name="IDS_IOS_BWG_CONSENT_FIRST_BOX_TITLE" desc="First box title text for the Gemini Consent page for managed accounts.">
           Your page content is shared for more relevant answers
       </message>
@@ -1103,6 +1116,21 @@
       </message>
       <message name="IDS_IOS_BWG_LOCATION_TITLE" desc="The title text of the BWG location settings page.">
         Precise Location
+      </message>
+      <message name="IDS_IOS_BWG_PAGE_ACTION_MENU_ENTRY_POINT_ACCESSIBILITY_LABEL" desc="Accessibility label for the page action menu entry point.">
+          Open on-page AI tools
+      </message>
+      <message name="IDS_IOS_BWG_PAGE_CONTENT_SHARING_ALERT_ACCEPT_BUTTON" desc="The accept button for the alert asking a user to turn on Page Content sharing.">
+          Turn on
+      </message>
+      <message name="IDS_IOS_BWG_PAGE_CONTENT_SHARING_ALERT_DECLINE_BUTTON" desc="The decline button for the alert asking a user to turn on Page Content sharing.">
+          No thanks
+      </message>
+      <message name="IDS_IOS_BWG_PAGE_CONTENT_SHARING_ALERT_MESSAGE" desc="The body/message of the alert asking a user to turn on Page Content sharing with Gemini so they can get more relevant results. This asks them if they would like to share the contents of webpages with Gemini.">
+          Share page content with Gemini to get more relevant answers
+      </message>
+      <message name="IDS_IOS_BWG_PAGE_CONTENT_SHARING_ALERT_TITLE" desc="The title of the alert asking a user to turn on Page Content sharing.">
+          Turn on page content sharing
       </message>
       <message name="IDS_IOS_BWG_PROMO_FIRST_BOX_BODY" desc="First box body text for the Gemini Promo page.">
           Get relevant answers based on the content of the page you're on
@@ -1353,9 +1381,6 @@ See your search engine’s instructions for deleting your search history, if app
       </message>
       <message name="IDS_IOS_CONTENT_CONTEXT_ADDTOREADINGLIST" desc="The iOS menu item for adding a link to the reading list.">
         Add to Reading List
-      </message>
-      <message name="IDS_IOS_CONTENT_CONTEXT_CLOSEALLTABS" desc="The iOS context menu item for closing all the tabs in the grid. [iOS only]">
-        Close All Tabs
       </message>
       <message name="IDS_IOS_CONTENT_CONTEXT_CLOSEALLTABSANDGROUPS" desc="The iOS context menu item for closing all the tabs and the groups in the grid. [iOS only]">
         Close All Tabs and Groups
@@ -1714,6 +1739,9 @@ See your search engine’s instructions for deleting your search history, if app
       <message name="IDS_IOS_CONTENT_SUGGESTIONS_WHATS_NEW" desc="The What's New title on the new tab page [Length: 10em]">
         What's New
       </message>
+      <message name="IDS_IOS_CONTEXTUAL_PANEL_READER_MODE_MODEL_ENTRYPOINT_HINT" desc="Accessibility hint for the button appearing as the Contextual Panel entry point for Reader mode (appears in the omnibox)">
+        Turn on Reading Mode
+      </message>
       <message name="IDS_IOS_CONTEXTUAL_PANEL_READER_MODE_MODEL_ENTRYPOINT_MESSAGE" desc="Message appearing as the Contextual Panel entry point for Reader mode (appears in the omnibox)">
         Reading mode available
       </message>
@@ -1813,8 +1841,11 @@ See your search engine’s instructions for deleting your search history, if app
       <message name="IDS_IOS_DEFAULT_BROWSER_TAILORED_BUILT_FOR_IPADOS_TITLE" desc="Text of title for 'Built for iPadOS' tailored default browser promo [iPadOS only]">
         Built for iPadOS
       </message>
-      <message name="IDS_IOS_DEFAULT_BROWSER_VIDEO_PROMO_DEFAULT_BROWSER_APP" desc="Text in the default browser video promo indicating the default browser app in the chrome settings to set a default browser. [iOS only]">
-        Default browser app
+      <message name="IDS_IOS_DEFAULT_BROWSER_VIDEO_PROMO_BROWSER_APP" desc="Text in the default browser promo animation mimicking the iOS Default Apps settings page. [iOS only]" meaning="The specific Browser App string appearing in iOS Default Apps settings">
+        Browser App
+      </message>
+      <message name="IDS_IOS_DEFAULT_BROWSER_VIDEO_PROMO_DEFAULT_BROWSER_APP" desc="Text in the default browser promo animation mimicking the iOS settings page for the current app. [iOS only]">
+        Default Browser App
       </message>
       <message name="IDS_IOS_DEFAULT_NON_MODAL_PRIMARY_BUTTON_TEXT" desc="Text of button that will take users to Chrome or iOS settings where they can change the default browser. Used in the non-modal default browser promo [iOS only]">
         Set…
@@ -5086,13 +5117,13 @@ While in Incognito, sites can't use cookies to see your browsing activity across
         Open Reading mode options
       </message>
       <message name="IDS_IOS_READER_MODE_OPTIONS_COLOR_THEME_BUTTON_ACCESSIBILITY_LABEL_DARK" desc="Label of a Reading mode options button which changes the Reading mode dark color scheme.">
-        Dark
+        Black background color
       </message>
       <message name="IDS_IOS_READER_MODE_OPTIONS_COLOR_THEME_BUTTON_ACCESSIBILITY_LABEL_LIGHT" desc="Label of a Reading mode options button which changes the Reading mode light color scheme.">
-        Light
+        White background color
       </message>
       <message name="IDS_IOS_READER_MODE_OPTIONS_COLOR_THEME_BUTTON_ACCESSIBILITY_LABEL_SEPIA" desc="Label of a Reading mode options button which changes the Reading mode sepia color scheme.">
-        Sepia
+        Sepia background color
       </message>
       <message name="IDS_IOS_READER_MODE_OPTIONS_COLOR_THEME_BUTTON_LABEL" desc="Label of a Reading mode options button which changes the Reading mode color scheme." meaning="Label of a Reading mode options button which changes the Reading mode color scheme. This should be one, at most two characters to preview the color scheme e.g. Aa in English.">
         Aa
@@ -5430,6 +5461,15 @@ While in Incognito, sites can't use cookies to see your browsing activity across
       <message name="IDS_IOS_SAFARI_IMPORT_IMPORT_ACTION_BUTTON_SELECT_YOUR_FILE" desc="Safari import screen that handles the import process - Button text to select the file to import data from Safari. [iOS only]">
         Select your file
       </message>
+      <message name="IDS_IOS_SAFARI_IMPORT_IMPORT_FAILURE_MESSAGE_DESCRIPTION" desc="Description in the alert message informing the user that the currently selected file could not be imported to Chrome. [iOS only]">
+        This file can't be imported
+      </message>
+      <message name="IDS_IOS_SAFARI_IMPORT_IMPORT_FAILURE_MESSAGE_OK_BUTTON" desc="Button at the bottom of the alert message to dismiss it. The alert informs the user that the currently selected file could not be imported to Chrome. [iOS only]">
+        OK
+      </message>
+      <message name="IDS_IOS_SAFARI_IMPORT_IMPORT_FAILURE_MESSAGE_TITLE" desc="Title of the alert message informing the user that the currently selected file could not be imported to Chrome. [iOS only]">
+        Something went wrong
+      </message>
       <message name="IDS_IOS_SAFARI_IMPORT_IMPORT_INSTRUCTIONS_ONE" desc="Instructions view to teach users how to import data from Safari - step 1. [iOS only]">
         Tap <ph name="BEGIN_BOLD">BEGIN_BOLD</ph>Select your file<ph name="END_BOLD">END_BOLD</ph>
       </message>
@@ -5502,6 +5542,39 @@ While in Incognito, sites can't use cookies to see your browsing activity across
       </message>
       <message name="IDS_IOS_SAFARI_IMPORT_IMPORT_TITLE" desc="Safari import screen that handles the import process - Title. [iOS only]">
         Import your data
+      </message>
+      <message name="IDS_IOS_SAFARI_IMPORT_INVALID_PASSWORD_LIST_BUTTON_CLOSE" desc="Bar button on the top right of the view that lists all invalid passwords. Tapping on this button dismisses the view. [iOS only]">
+        Close
+      </message>
+      <message name="IDS_IOS_SAFARI_IMPORT_INVALID_PASSWORD_LIST_DESCRIPTION" desc="Descriptive text showing under the title on the view that lists all invalid passwords. [iOS only]">
+        The following passwords were not imported to Google Password Manager, because they doesn’t match with the requirements.
+      </message>
+      <message name="IDS_IOS_SAFARI_IMPORT_INVALID_PASSWORD_LIST_TITLE" desc="Title of the view that lists all invalid passwords. [iOS only]">
+        Invalid Data
+      </message>
+      <message name="IDS_IOS_SAFARI_IMPORT_INVALID_PASSWORD_REASON_INVALID_URL" desc="An error message for a row that wasn't imported, because the URL is in a wrong format. It is shown on the dialog for importing passwords if some passwords weren't imported.">
+          URL format should be https://www.example.com
+      </message>
+      <message name="IDS_IOS_SAFARI_IMPORT_INVALID_PASSWORD_REASON_LONG_NOTE" desc="An error message for a row that wasn't imported, because the provided note exceeds the length limit. It is shown on the dialog for importing passwords if some passwords weren't imported.">
+        Note is more than 1000 characters
+      </message>
+      <message name="IDS_IOS_SAFARI_IMPORT_INVALID_PASSWORD_REASON_LONG_PASSWORD" desc="An error message for a row that wasn't imported, because the provided password exceeds the length limit. It is shown on the dialog for importing passwords if some passwords weren't imported.">
+        Password is more than 1000 characters
+      </message>
+      <message name="IDS_IOS_SAFARI_IMPORT_INVALID_PASSWORD_REASON_LONG_URL" desc="An error message for a row that wasn't imported, because the provided URL exceeds the length limit. It is shown on the dialog for importing passwords if some passwords weren't imported.">
+        URL is more than 2048 characters
+      </message>
+      <message name="IDS_IOS_SAFARI_IMPORT_INVALID_PASSWORD_REASON_LONG_USERNAME" desc="An error message for a row that wasn't imported, because the provided username exceeds the length limit. It is shown on the dialog for importing passwords if some passwords weren't imported.">
+        Username is more than 1000 characters
+      </message>
+      <message name="IDS_IOS_SAFARI_IMPORT_INVALID_PASSWORD_REASON_MISSING_PASSWORD" desc="An error message for a row that wasn't imported, because password was missing. It is shown on the dialog for importing passwords if some passwords weren't imported.">
+        A password is required
+      </message>
+      <message name="IDS_IOS_SAFARI_IMPORT_INVALID_PASSWORD_REASON_MISSING_URL" desc="An error message for a row that wasn't imported, because URL was missing. It is shown on the dialog for importing passwords if some passwords weren't imported.">
+        A URL is required
+      </message>
+      <message name="IDS_IOS_SAFARI_IMPORT_INVALID_PASSWORD_REASON_UNKNOWN" desc="Message is shown on the dialog for importing passwords if no passwords were imported and we don't know the cause of error. Probably error in the backend or in our systems.">
+        Your password wasn't imported
       </message>
       <message name="IDS_IOS_SAFARI_IMPORT_PASSWORD_CONFLICT_RESOLUTION_BUTTON_CONTINUE" desc="Bar button to import selected passwords from Safari to override those on Google Password Manager. It shows up on the top-right (or top-left in RTL) of the modal that enables user to resolve conflict between existing Passwords in Google Password Manager and those imported from Safari. [iOS only]">
         Continue
@@ -5948,26 +6021,56 @@ While in Incognito, sites can't use cookies to see your browsing activity across
       <message name="IDS_IOS_SETTINGS_AUTOFILL_ACCOUNT_ADDRESS_FOOTER_TEXT" desc="Footer text of an account address profile when it is viewed in settings. [iOS only]">
           You can use saved addresses across Google products. This address is saved in your Google Account, <ph name="USER_EMAIL">$1<ex>janedoe@google.com</ex></ph>.
       </message>
+      <message name="IDS_IOS_SETTINGS_AUTOFILL_DELETE_ACCOUNT_ADDRESSES_CONFIRMATION_TITLE" desc="Title for the sheet shown to the user for confirmation to delete account addresses. [iOS only]">
+          This deletes addresses saved in your Google Account <ph name="USER_EMAIL">$1<ex>janedoe@google.com</ex></ph>.
+      </message>
       <message name="IDS_IOS_SETTINGS_AUTOFILL_DELETE_ACCOUNT_ADDRESS_CONFIRMATION_TITLE" desc="Title of the confirmation shown to the user when an account address is deleted. [iOS only]">
           {count, plural,
           =1 {This address will be deleted from your Google Account (<ph name="USER_EMAIL">{email}<ex>janedoe@google.com</ex></ph>) and from this device.}
           other {These addresses will be deleted from your Google Account (<ph name="USER_EMAIL">{email}<ex>janedoe@google.com</ex></ph>) and from this device.}}
+      </message>
+      <message name="IDS_IOS_SETTINGS_AUTOFILL_DELETE_ACCOUNT_HOME_WORK_ADDRESS_CONFIRMATION_TITLE" desc="Title for the sheet shown to the user for confirmation to delete account and home or work addresses. [iOS only]">
+          This deletes addresses saved on this device. It also deletes some info from your Google Account but not basic info like your name or Home address.
+      </message>
+      <message name="IDS_IOS_SETTINGS_AUTOFILL_DELETE_ADDRESSES_CONFIRMATION_BUTTON" desc="Confirmation button title shown to the user when the address is deleted. [iOS only]">
+          Delete addresses
       </message>
       <message name="IDS_IOS_SETTINGS_AUTOFILL_DELETE_ADDRESS_CONFIRMATION_BUTTON" desc="Confirmation button title shown to the user when the address is deleted. [iOS only]">
           {count, plural,
           =1 {Delete address}
           other {Delete addresses}}
       </message>
+      <message name="IDS_IOS_SETTINGS_AUTOFILL_DELETE_HOME_WORK_ADDRESS_CONFIRMATION_TITLE" desc="Title for the sheet shown to the user for confirmation to delete home or work addresses. [iOS only]">
+          This removes selected info from Chrome, but it doesn’t delete this info from your Google Account.
+      </message>
+      <message name="IDS_IOS_SETTINGS_AUTOFILL_DELETE_LOCAL_ACCOUNT_ADDRESS_CONFIRMATION_TITLE" desc="Title for the sheet shown to the user for confirmation to delete local and account addresses. [iOS only]">
+          This deletes addresses saved on this device. It also deletes addresses saved in your Google Account <ph name="USER_EMAIL">$1<ex>janedoe@google.com</ex></ph>.
+      </message>
+      <message name="IDS_IOS_SETTINGS_AUTOFILL_DELETE_LOCAL_ACCOUNT_HOME_WORK_ADDRESS_CONFIRMATION_TITLE" desc="Title for the sheet shown to the user for confirmation to delete local, account and home or work addresses. [iOS only]">
+          This deletes addresses saved on this device. It also deletes some info from your Google Account but not basic info like your name or Home address.
+      </message>
+      <message name="IDS_IOS_SETTINGS_AUTOFILL_DELETE_LOCAL_ADDRESSES_CONFIRMATION_TITLE" desc="Title for the sheet shown to the user for confirmation to delete local addresses. [iOS only]">
+          This deletes addresses saved on this device.
+      </message>
       <message name="IDS_IOS_SETTINGS_AUTOFILL_DELETE_LOCAL_ADDRESS_CONFIRMATION_TITLE" desc="Title of the confirmation shown to the user when a local address is deleted. [iOS only]">
           {count, plural,
           =1 {This address will be deleted from this device.}
           other {These addresses will be deleted from this device.}}
+      </message>
+      <message name="IDS_IOS_SETTINGS_AUTOFILL_DELETE_LOCAL_HOME_WORK_ADDRESS_CONFIRMATION_TITLE" desc="Title for the sheet shown to the user for confirmation to delete local and home or work addresses. [iOS only]">
+          This deletes addresses saved on this device. It also removes selected info from Chrome, but it doesn’t delete this info from your Google Account.
+      </message>
+      <message name="IDS_IOS_SETTINGS_AUTOFILL_EDIT_HOME_WORK_ADDRESS_CONFIRMATION_BUTTON" desc="Edit button shown as an option in the address deletion confirmation sheet. [iOS only]">
+          Edit in Google Account
       </message>
       <message name="IDS_IOS_SETTINGS_AUTOFILL_MIGRATE_ADDRESS_TO_ACCOUNT_BUTTON_DESCRIPTION" desc="Button description asking the user to migrate the local address to account. [iOS only]">
           This address is saved only to this device. To use it on your other devices, save it in your Google Account, <ph name="USER_EMAIL">$1<ex>janedoe@google.com</ex></ph>
       </message>
       <message name="IDS_IOS_SETTINGS_AUTOFILL_MIGRATE_ADDRESS_TO_ACCOUNT_CONFIRMATION_TEXT" desc="Text shown to the user after the migration of address from local to account was succesfull [iOS only]">
                 Address moved to your account <ph name="USER_EMAIL">$1<ex>janedoe@google.com</ex></ph>
+      </message>
+      <message name="IDS_IOS_SETTINGS_AUTOFILL_REMOVE_ADDRESS_CONFIRMATION_BUTTON" desc="Confirmation button title shown to the user when the address is removed. [iOS only]">
+          Remove addresses
       </message>
       <message name="IDS_IOS_SETTINGS_DELETE_ALL_CREDENTIALS" desc="Title for the authentication page when the user tries to delete all saved credentials. [iOS only]">
           To delete all passwords manager data
@@ -6249,9 +6352,6 @@ While in Incognito, sites can't use cookies to see your browsing activity across
       </message>
       <message name="IDS_IOS_SET_UP_LIST_NOTIFICATIONS_TITLE" desc="Title for the Set Up List item that encourages the user to enable Chrome notifications.">
         Get notifications
-      </message>
-      <message name="IDS_IOS_SET_UP_LIST_SIGN_IN_SYNC_SHORT_DESCRIPTION_NO_SYNC" desc="Same as IDS_IOS_SET_UP_LIST_SIGN_IN_SYNC_SHORT_DESCRIPTION but without mentioning sync.">
-        Get your bookmarks, passwords, and more.
       </message>
       <message name="IDS_IOS_SET_UP_LIST_TRY_BUTTON_ACCESSIBILITY_HINT" desc="Action hint for the Try button on the Set Up List view. This is spoken by VoiceOver. ">
         Double tap to try
@@ -6843,9 +6943,6 @@ While in Incognito, sites can't use cookies to see your browsing activity across
       <message name="IDS_IOS_TABS_SEARCH_SUGGESTED_ACTION_SEARCH_OPEN_TABS" desc="Title for a suggested action presented at the end of search results to search through open tabs for the same search term.">
         Search open tabs
       </message>
-      <message name="IDS_IOS_TABS_SEARCH_SUGGESTED_ACTION_SEARCH_RECENT_TABS" desc="Title for a suggested action presented at the end of search results to search through recent tabs for the same search term.">
-        Search recent tabs
-      </message>
       <message name="IDS_IOS_TABS_SEARCH_SUGGESTED_ACTION_SEARCH_WEB" desc="Title for a suggested action presented at the end of search results to search the web for the same search term.">
         Search on web
       </message>
@@ -6911,13 +7008,6 @@ While in Incognito, sites can't use cookies to see your browsing activity across
       <message name="IDS_IOS_TAB_GRID_INCOGNITO_TABS_UNAVAILABLE_TITLE" desc="Title shown above a message in the Incognito Tabs page of the tab grid when the IncognitoModeAvailability enterprise policy is set to disabled. [iOS only]">
         Incognito mode is unavailable
       </message>
-      <message name="IDS_IOS_TAB_GRID_RECENT_TABS_UNAVAILABLE_MESSAGE" desc="Message shown in the Recent Tabs page of the tab grid when the IncognitoModeAvailability enterprise policy is set to forced. [iOS only]">
-        Your organization requires you to browse privately. Tabs aren't saved in Incognito mode.
-<ph name="BEGIN_LINK">BEGIN_LINK</ph>Learn more<ph name="END_LINK">END_LINK</ph>
-      </message>
-      <message name="IDS_IOS_TAB_GRID_RECENT_TABS_UNAVAILABLE_TITLE" desc="Title shown above a message in the Recent Tabs page of the tab grid when the IncognitoModeAvailability enterprise policy is set to forced. [iOS only]">
-        Recent tabs are unavailable
-      </message>
       <message name="IDS_IOS_TAB_GRID_REGULAR_TABS_EMPTY_MESSAGE" desc="Message shown underneath a title on the regular tab switcher when there are no tabs, explaining why to use the regular tab switcher. [iOS only]">
         Open tabs to visit different pages at the same time
       </message>
@@ -6933,9 +7023,6 @@ While in Incognito, sites can't use cookies to see your browsing activity across
       </message>
       <message name="IDS_IOS_TAB_GRID_REGULAR_TABS_WITH_GROUPS_TITLE" desc="The accessibility label of the Regular Tabs page (as opposed to the Incognito Tabs page) in the tab grid UI when Tab Groups are enabled. This is a noun group, not a verb for an action.[iOS only]">
         Currently open tabs and tab groups
-      </message>
-      <message name="IDS_IOS_TAB_GRID_REMOTE_TABS_TITLE" desc="The accessibility label of the Remote Tabs page in the tab grid UI. [iOS only]">
-        Tabs from other devices
       </message>
       <message name="IDS_IOS_TAB_GRID_SAVED_TAB_GROUPS" desc="Explanation text letting the user know that even if they close a tab group, it would still be saved on their device.">
         Your tab groups are saved here

@@ -10,7 +10,6 @@
 #include "chrome/browser/actor/execution_engine.h"
 #include "chrome/browser/actor/ui/actor_ui_state_manager_prefs.h"
 #include "chrome/browser/actor/ui/actor_ui_tab_controller.h"
-#include "chrome/browser/actor/variant_visitor.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
@@ -22,9 +21,10 @@
 #include "components/prefs/pref_service.h"
 #include "components/tabs/public/tab_interface.h"
 #if BUILDFLAG(ENABLE_GLIC)
-#include "chrome/browser/glic/glic_keyed_service.h"
-#include "chrome/browser/glic/glic_keyed_service_factory.h"
+#include "chrome/browser/glic/public/glic_keyed_service.h"
+#include "chrome/browser/glic/public/glic_keyed_service_factory.h"
 #endif
+#include "third_party/abseil-cpp/absl/functional/overload.h"
 
 namespace actor::ui {
 namespace {
@@ -32,33 +32,34 @@ namespace {
 constexpr int kToastShownMax = 2;
 
 using tabs::TabInterface;
+using enum HandoffButtonState::ControlOwnership;
 
 // TODO(crbug.com/424495020): Hardcoded states; Move this out to it's own file
 // to be shared with tab controller.
-const UiTabState& GetAgentControlledUiTabState() {
-  static const UiTabState kAgentState = {
+const UiTabState& GetActorControlledUiTabState() {
+  static const UiTabState kActorState = {
       .actor_overlay = ActorOverlayState(/*is_active=*/true),
-      .handoff_button = {
-          .is_active = true,
-          .controller = HandoffButtonState::ControlOwnership::kAgent}};
-  return kAgentState;
+      .handoff_button = {.is_active = true, .controller = kActor},
+      .tab_indicator_visible = true,
+  };
+  return kActorState;
 }
 
 const UiTabState& GetPausedUiTabState() {
   static const UiTabState kPausedState = {
       .actor_overlay = ActorOverlayState(/*is_active=*/false),
-      .handoff_button = {
-          .is_active = true,
-          .controller = HandoffButtonState::ControlOwnership::kClient}};
+      .handoff_button = {.is_active = true, .controller = kClient},
+      .tab_indicator_visible = false,
+  };
   return kPausedState;
 }
 
 const UiTabState& GetCompletedUiTabState() {
   static const UiTabState kCompletedState = {
       .actor_overlay = ActorOverlayState(/*is_active=*/false),
-      .handoff_button = {
-          .is_active = false,
-          .controller = HandoffButtonState::ControlOwnership::kClient}};
+      .handoff_button = {.is_active = false, .controller = kClient},
+      .tab_indicator_visible = false,
+  };
   return kCompletedState;
 }
 
@@ -68,23 +69,24 @@ struct TabUiUpdate {
 };
 
 auto GetNewUiStateFn(ActorUiStateManager& manager) {
-  return Visitor{[&manager](const StartingToActOnTab& e) -> TabUiUpdate {
-                   auto* tab = e.tab_handle.Get();
-                   if (auto* tab_controller = manager.GetUiTabController(tab)) {
-                     tab_controller->SetActiveTaskId(e.task_id);
-                   }
-                   return TabUiUpdate{tab, GetAgentControlledUiTabState()};
-                 },
-                 [](const MouseClick& e) -> TabUiUpdate {
-                   UiTabState ui_tab_state = GetAgentControlledUiTabState();
-                   ui_tab_state.actor_overlay.mouse_down = true;
-                   return TabUiUpdate{e.tab_handle.Get(), ui_tab_state};
-                 },
-                 [](const MouseMove& e) -> TabUiUpdate {
-                   UiTabState ui_tab_state = GetAgentControlledUiTabState();
-                   ui_tab_state.actor_overlay.mouse_target = e.target;
-                   return TabUiUpdate{e.tab_handle.Get(), ui_tab_state};
-                 }};
+  return absl::Overload{
+      [&manager](const StartingToActOnTab& e) -> TabUiUpdate {
+        auto* tab = e.tab_handle.Get();
+        if (auto* tab_controller = manager.GetUiTabController(tab)) {
+          tab_controller->SetActiveTaskId(e.task_id);
+        }
+        return TabUiUpdate{tab, GetActorControlledUiTabState()};
+      },
+      [](const MouseClick& e) -> TabUiUpdate {
+        UiTabState ui_tab_state = GetActorControlledUiTabState();
+        ui_tab_state.actor_overlay.mouse_down = true;
+        return TabUiUpdate{e.tab_handle.Get(), ui_tab_state};
+      },
+      [](const MouseMove& e) -> TabUiUpdate {
+        UiTabState ui_tab_state = GetActorControlledUiTabState();
+        ui_tab_state.actor_overlay.mouse_target = e.target;
+        return TabUiUpdate{e.tab_handle.Get(), ui_tab_state};
+      }};
 }
 
 // TODO(crbug.com/424495020): Bool may be converted to a map of ui
@@ -130,7 +132,7 @@ void ActorUiStateManager::OnActorTaskStateChange(
           << "Task state should never be set to kCreated from another state.";
     case ActorTask::State::kActing:
     case ActorTask::State::kReflecting:
-      ui_tab_state = GetAgentControlledUiTabState();
+      ui_tab_state = GetActorControlledUiTabState();
       break;
     case ActorTask::State::kPausedByClient:
       ui_tab_state = GetPausedUiTabState();
@@ -212,7 +214,8 @@ void ActorUiStateManager::OnUiEvent(SyncUiEvent event) {
   if (!base::FeatureList::IsEnabled(features::kGlicActorUi)) {
     return;
   }
-  std::visit(Visitor{[this](const StartTask& e) {
+  std::visit(
+      absl::Overload{[this](const StartTask& e) {
                        this->MaybeUpdateProfileScopedUiState();
                      },
                      [this](const TaskStateChanged& e) {
@@ -227,7 +230,7 @@ void ActorUiStateManager::OnUiEvent(SyncUiEvent event) {
                              base::BindOnce(&LogUiChangeError));
                        }
                      }},
-             event);
+      event);
 }
 
 #if BUILDFLAG(ENABLE_GLIC)
@@ -236,7 +239,9 @@ void ActorUiStateManager::OnGlicUpdateFloatyState(
     BrowserWindowInterface* bwi) {
   switch (floaty_state) {
     case glic::GlicWindowController::State::kClosed:
-      MaybeShowToast(bwi);
+      if (features::kGlicActorUiToast.Get()) {
+        MaybeShowToast(bwi);
+      }
       break;
     case glic::GlicWindowController::State::kOpen:
     case glic::GlicWindowController::State::kWaitingForGlicToLoad:

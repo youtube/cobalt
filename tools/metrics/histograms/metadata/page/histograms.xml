@@ -383,6 +383,7 @@ chromium-metrics-reviews@google.com.
     visible on a given page, and &quot;Clicked&quot; is logged once per click.
   </summary>
   <token key="PageActionType">
+    <variant name="AiMode"/>
     <variant name="BookmarksStar"/>
     <variant name="ClickToCall"/>
     <variant name="CookieControls"/>
@@ -1548,6 +1549,17 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="PageLoad.Clients.GoogleSearch.Prerender.HostReused"
+    enum="Boolean" expires_after="2026-01-11">
+  <owner>suzukikeita@chromium.org</owner>
+  <owner>chrome-loading@google.com</owner>
+  <summary>
+    Whether the prerendering navigation is reusing a prerender host or not. This
+    is recorded once, when a prerendered page is activated for Google search
+    page loads.
+  </summary>
+</histogram>
+
 <histogram
     name="PageLoad.Clients.GoogleSearch{Granularity}.PaintTiming.NavigationToLargestContentfulPaint"
     units="ms" expires_after="2025-12-21">
@@ -2185,6 +2197,17 @@ chromium-metrics-reviews@google.com.
   <token key="LoadedIdleVisibility" variants="LoadedIdleVisibility"/>
 </histogram>
 
+<histogram name="PageLoad.Clients.Prerender.HostReused{PreloadingTriggerType}"
+    enum="Boolean" expires_after="2026-01-18">
+  <owner>suzukikeita@chromium.org</owner>
+  <owner>src/content/browser/preloading/prerender/OWNERS</owner>
+  <summary>
+    Whether the prerendering navigation is reusing a prerender host or not. This
+    is recorded once, when a prerendered page is activated.
+  </summary>
+  <token key="PreloadingTriggerType" variants="PagePreloadingTriggerType"/>
+</histogram>
+
 <histogram
     name="PageLoad.Clients.Prerender.InteractiveTiming.FirstInputDelay4{PreloadingTriggerType}"
     units="ms" expires_after="2026-01-18">
@@ -2778,7 +2801,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="PageLoad.Clients{ObservedNavigation}.Leakage2.RendererProcessCreatedBeforeNav{BackgroundSuffix}{HiddenSuffix}{IncognitoSuffix}{RTTBucketSuffix}"
-    enum="Boolean" expires_after="2025-08-10">
+    enum="Boolean" expires_after="2026-01-23">
   <owner>sisidovski@chromium.org</owner>
   <owner>rakina@chromium.org</owner>
   <owner>chrome-loading@google.com</owner>
@@ -2824,7 +2847,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="PageLoad.Clients{ObservedNavigation}.Leakage2.{NavigationType}To{NavigationAbandonReason}{BackgroundSuffix}{HiddenSuffix}{IncognitoSuffix}{RTTBucketSuffix}"
-    units="ms" expires_after="2025-08-10">
+    units="ms" expires_after="2026-01-23">
   <owner>sisidovski@chromium.org</owner>
   <owner>rakina@chromium.org</owner>
   <owner>chrome-loading@google.com</owner>

@@ -83,6 +83,7 @@ import org.chromium.ui.modelutil.PropertyListModel;
 import org.chromium.ui.modelutil.PropertyModel;
 import org.chromium.ui.mojom.WindowOpenDisposition;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -261,7 +262,7 @@ public class FeedSurfaceMediator
     }
 
     /** Internal implementation of Stream.StreamsMediator. */
-    @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
+    @VisibleForTesting
     public class StreamsMediatorImpl implements Stream.StreamsMediator {
         @Override
         public void switchToStreamKind(@StreamKind int streamKind) {
@@ -890,6 +891,10 @@ public class FeedSurfaceMediator
 
     public boolean isLoadingFeed() {
         return mIsLoadingFeed;
+    }
+
+    public List<String> getFeedUrls() {
+        return (mCurrentStream != null) ? mCurrentStream.getFeedUrls() : new ArrayList<String>();
     }
 
     /** Unbinds the stream and clear all the stream's contents. */

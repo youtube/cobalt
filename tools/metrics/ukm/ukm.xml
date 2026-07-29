@@ -406,6 +406,20 @@ be describing additional metrics about the same event.
   </metric>
 </event>
 
+<event name="Accessibility.ReadAnything.Distillation">
+  <owner>lwinston@google.com</owner>
+  <owner>kristislee@google.com</owner>
+  <summary>
+    Records a distillation success / failure after a new page has been opened
+    with reading mode.
+  </summary>
+  <metric name="DistillationStatus" enum="ReadAnythingDistillationStatus">
+    <summary>
+      The status of the distillation
+    </summary>
+  </metric>
+</event>
+
 <event name="Accessibility.ReadAnything.EmptyState">
   <owner>abigailbklein@google.com</owner>
   <summary>
@@ -2281,6 +2295,86 @@ be describing additional metrics about the same event.
   </metric>
 </event>
 
+<event name="Autofill.AmountExtractionComplete" singular="true">
+  <owner>jamessun@google.com</owner>
+  <owner>longsheng@google.com</owner>
+  <summary>
+    Records the result of the amount extraction process. This process is to
+    search for the final checkout amount from the merchants' checkout page and
+    respond to the browser process. This event starts from the moment amount
+    extraction is initiated in the browser process to when a response is
+    received. Logged when the search is finished.
+  </summary>
+  <metric name="FailureLatencyInMillis">
+    <summary>
+      Records duration in milliseconds from when the amount extraction is
+      triggered to when an empty result of the search is returned to the browser
+      process.
+    </summary>
+    <aggregation>
+      <history>
+        <statistics>
+          <quantiles type="std-percentiles"/>
+        </statistics>
+      </history>
+    </aggregation>
+  </metric>
+  <metric name="Result" enum="AmountExtractionResult">
+    <summary>
+      An enum that records the result of the amount extraction: success, failure
+      or timeout.
+    </summary>
+    <aggregation>
+      <history>
+        <statistics>
+          <enumeration/>
+        </statistics>
+      </history>
+    </aggregation>
+  </metric>
+  <metric name="SuccessLatencyInMillis">
+    <summary>
+      Records duration in milliseconds from when the amount extraction is
+      triggered to when a non-empty result of the search is returned to the
+      browser process.
+    </summary>
+    <aggregation>
+      <history>
+        <statistics>
+          <quantiles type="std-percentiles"/>
+        </statistics>
+      </history>
+    </aggregation>
+  </metric>
+</event>
+
+<event name="Autofill.BnplSuggestionAccepted" singular="true">
+  <owner>wilsonlow@google.com</owner>
+  <owner>payments-autofill-team@google.com</owner>
+  <summary>
+    Recorded when a BNPL suggestion was added to the payments autofill dropdown
+    and shown to the user.
+  </summary>
+  <metric name="Accepted" enum="Boolean">
+    <summary>
+      Only ever set to true, thus serving as a counter.
+    </summary>
+  </metric>
+</event>
+
+<event name="Autofill.BnplSuggestionShown" singular="true">
+  <owner>wilsonlow@google.com</owner>
+  <owner>payments-autofill-team@google.com</owner>
+  <summary>
+    Recorded when a BNPL autofill suggestion was accepted on the current page.
+  </summary>
+  <metric name="Shown" enum="Boolean">
+    <summary>
+      Only ever set to true, thus serving as a counter.
+    </summary>
+  </metric>
+</event>
+
 <event name="Autofill.CardUploadDecision">
   <owner>sebsg@chromium.org</owner>
   <metric name="UploadDecision">
@@ -3447,6 +3541,12 @@ be describing additional metrics about the same event.
       The server AI type of the field as classified by autofill's ML model.
     </summary>
   </metric>
+  <metric name="EntityType">
+    <summary>
+      The type of entity for which the current metric record is being logged
+      (E.g. Passport, Driver's License, etc.).
+    </summary>
+  </metric>
   <metric name="EventType">
     <summary>
       Type of the event being recorded, see `AutofillAiUkmLogger::EventType` for
@@ -3526,6 +3626,12 @@ be describing additional metrics about the same event.
       The number of fields at form submission that are autofilled. This will
       include fields that are autofilled by any source except Autocomplete,
       including AutofillAi.
+    </summary>
+  </metric>
+  <metric name="EntityType">
+    <summary>
+      The type of entity for which the current metric record is being logged
+      (E.g. Passport, Driver's License, etc.).
     </summary>
   </metric>
   <metric name="FillingAcceptance">
@@ -3920,6 +4026,12 @@ be describing additional metrics about the same event.
       user selecting an account. This includes instances where the close action
       is less intentional such as the virtual keyboard showing triggering the
       dialog close. Records at the time the API call is completed.
+    </summary>
+  </metric>
+  <metric name="DidShowUI" enum="Boolean">
+    <summary>
+      Records whether the FedCM dialog was shown. Recorded once per API call
+      when the request is fulfilled (either resolved or rejected).
     </summary>
   </metric>
   <metric name="Disconnect.FrameType" enum="FedCmRequesterFrameType">
@@ -9336,6 +9448,14 @@ be describing additional metrics about the same event.
       https://fetch.spec.whatwg.org/#http-redirect-fetch.
     </summary>
   </metric>
+  <metric name="NumRetries">
+    <summary>
+      The number of retries a fetch keepalive request loader has experienced so
+      far when the event is logged.
+
+      Note that the maximum value is 10.
+    </summary>
+  </metric>
   <metric name="PreviousStage" enum="FetchKeepAliveRequestStage">
     <summary>
       An enum representing the previous stage of the fetch keepalive request
@@ -9356,6 +9476,20 @@ be describing additional metrics about the same event.
     <summary>
       An integer representing the extended error code of the request when it
       reaches the kRequestFailed stage. This comes from
+      network::URLLoaderCompletionStatus.extended_error_code.
+    </summary>
+  </metric>
+  <metric name="RequestRetried.ErrorCode">
+    <summary>
+      An integer representing the error code of the request when it reaches the
+      kRequestRetried stage. This comes from
+      network::URLLoaderCompletionStatus.error_code.
+    </summary>
+  </metric>
+  <metric name="RequestRetried.ExtendedErrorCode">
+    <summary>
+      An integer representing the extended error code of the request when it
+      reaches the kRequestRetried stage. This comes from
       network::URLLoaderCompletionStatus.extended_error_code.
     </summary>
   </metric>
@@ -9428,6 +9562,14 @@ be describing additional metrics about the same event.
     <summary>
       The time difference (in milliseconds) between the
       &quot;RequestFailed&quot; stage and the &quot;LoaderCreated&quot; stage.
+
+      Only set when the stage is reached.
+    </summary>
+  </metric>
+  <metric name="TimeDelta.RequestRetried">
+    <summary>
+      The time difference (in milliseconds) between the
+      &quot;RequestRetried&quot; stage and the &quot;LoaderCreated&quot; stage.
 
       Only set when the stage is reached.
     </summary>
@@ -13321,6 +13463,24 @@ be describing additional metrics about the same event.
     heuristics. Recorded once per page load when OAuth login was detected on
     page load. Note: the first version of LoginDetection recorded all pageload
     types including password logins and no logins etc.
+  </summary>
+  <metric name="Page.LoginType" enum="LoginDetectionType">
+    <summary>
+      An enum for representing the different ways of user login to a site. At
+      this moment only OAuth logins are recorded in UKM.
+    </summary>
+  </metric>
+</event>
+
+<event name="LoginDetectionV2IdentityProvider" singular="True">
+  <owner>yigu@chromium.org</owner>
+  <owner>tbansal@chromium.org</owner>
+  <owner>web-identity-eng@chromium.org</owner>
+  <summary>
+    Records the OAuth provider info about login detected for sites based on
+    different heuristics. Recorded once per page load when OAuth login was
+    detected on page load. Note: the first version of LoginDetection recorded
+    all pageload types including password logins and no logins etc.
   </summary>
   <metric name="Page.LoginType" enum="LoginDetectionType">
     <summary>
@@ -22132,6 +22292,13 @@ be describing additional metrics about the same event.
       or sum of a UMA/UKM metric.
     </summary>
   </metric>
+  <metric name="ActualResult10">
+    <summary>
+      The 10th UMA or UKM metrics related to the features affected by the ML
+      model, with or without aggregation, after running the features as
+      instructed by the ML model. No encoding is used.
+    </summary>
+  </metric>
   <metric name="ActualResult2">
     <summary>
       The 2nd UMA or UKM metrics related to the features affected by the ML
@@ -22163,6 +22330,27 @@ be describing additional metrics about the same event.
   <metric name="ActualResult6">
     <summary>
       The 6th UMA or UKM metrics related to the features affected by the ML
+      model, with or without aggregation, after running the features as
+      instructed by the ML model. No encoding is used.
+    </summary>
+  </metric>
+  <metric name="ActualResult7">
+    <summary>
+      The 7th UMA or UKM metrics related to the features affected by the ML
+      model, with or without aggregation, after running the features as
+      instructed by the ML model. No encoding is used.
+    </summary>
+  </metric>
+  <metric name="ActualResult8">
+    <summary>
+      The 8th UMA or UKM metrics related to the features affected by the ML
+      model, with or without aggregation, after running the features as
+      instructed by the ML model. No encoding is used.
+    </summary>
+  </metric>
+  <metric name="ActualResult9">
+    <summary>
+      The 9th UMA or UKM metrics related to the features affected by the ML
       model, with or without aggregation, after running the features as
       instructed by the ML model. No encoding is used.
     </summary>

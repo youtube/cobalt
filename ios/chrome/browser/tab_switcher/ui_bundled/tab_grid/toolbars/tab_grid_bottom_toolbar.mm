@@ -248,8 +248,14 @@ CGFloat CompactButtonHorizontalPadding() {
   UIButton* button;
 #if defined(__IPHONE_26_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_26_0
   if (@available(iOS 26, *)) {
-    UIButtonConfiguration* buttonConfiguration =
-        [UIButtonConfiguration prominentGlassButtonConfiguration];
+    UIButtonConfiguration* buttonConfiguration;
+    if ([UIButtonConfiguration
+            respondsToSelector:@selector(prominentGlassButtonConfiguration)]) {
+      buttonConfiguration =
+          [UIButtonConfiguration prominentGlassButtonConfiguration];
+    } else {
+      buttonConfiguration = [UIButtonConfiguration glassButtonConfiguration];
+    }
     buttonConfiguration.title = title;
     buttonConfiguration.image = image;
     button = [UIButton buttonWithConfiguration:buttonConfiguration
@@ -322,6 +328,8 @@ CGFloat CompactButtonHorizontalPadding() {
         // Vertical layout:
         [_editButton.centerYAnchor
             constraintEqualToAnchor:_containerToolbar.centerYAnchor],
+        [_undoButton.centerYAnchor
+            constraintEqualToAnchor:_containerToolbar.centerYAnchor],
         [_smallNewTabButton.centerYAnchor
             constraintEqualToAnchor:_containerToolbar.centerYAnchor],
         [_doneButton.centerYAnchor
@@ -331,6 +339,9 @@ CGFloat CompactButtonHorizontalPadding() {
         [_editButton.leadingAnchor
             constraintEqualToAnchor:_containerToolbar.leadingAnchor
                            constant:CompactButtonHorizontalPadding()],
+        [_undoButton.leadingAnchor
+            constraintEqualToAnchor:_containerToolbar.leadingAnchor
+                           constant:CompactButtonHorizontalPadding()],
         [_doneButton.trailingAnchor
             constraintEqualToAnchor:_containerToolbar.trailingAnchor
                            constant:-CompactButtonHorizontalPadding()],
@@ -338,6 +349,9 @@ CGFloat CompactButtonHorizontalPadding() {
             constraintEqualToAnchor:_containerToolbar.centerXAnchor],
         [_smallNewTabButton.leadingAnchor
             constraintGreaterThanOrEqualToAnchor:_editButton.trailingAnchor
+                                        constant:kCompactMinButtonSpacing],
+        [_smallNewTabButton.leadingAnchor
+            constraintGreaterThanOrEqualToAnchor:_undoButton.trailingAnchor
                                         constant:kCompactMinButtonSpacing],
         [_doneButton.leadingAnchor
             constraintGreaterThanOrEqualToAnchor:_smallNewTabButton
@@ -505,10 +519,8 @@ CGFloat CompactButtonHorizontalPadding() {
   [self hideAllButtons];
 
   BOOL useCompactLayout = [self shouldUseCompactLayout];
-  BOOL hideToolbar =
-      self.mode == TabGridMode::kSearch ||
-      (!useCompactLayout && (self.page == TabGridPageRemoteTabs ||
-                             self.page == TabGridPageTabGroups));
+  BOOL hideToolbar = self.mode == TabGridMode::kSearch ||
+                     (!useCompactLayout && (self.page == TabGridPageTabGroups));
   if (hideToolbar) {
     self.hidden = YES;
     [self updateBackgroundVisibility];
@@ -531,8 +543,7 @@ CGFloat CompactButtonHorizontalPadding() {
   }
 
   if (useCompactLayout) {
-    if (self.page == TabGridPageRemoteTabs ||
-        self.page == TabGridPageTabGroups) {
+    if (self.page == TabGridPageTabGroups) {
       _doneButton.hidden = NO;
     } else if (self.isInTabGroupView) {
       _smallNewTabButton.hidden = NO;

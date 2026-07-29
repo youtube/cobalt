@@ -308,7 +308,6 @@ class ChromePasswordManagerClient
   void UpdateFormManagers() override;
   void NavigateToManagePasswordsPage(
       password_manager::ManagePasswordsReferrer referrer) override;
-  void InformPasswordChangeServiceOfOtpPresent() override;
 
 #if BUILDFLAG(IS_ANDROID)
   void NavigateToManagePasskeysPage(
@@ -437,8 +436,10 @@ class ChromePasswordManagerClient
 #endif
 
   // content::WebContentsObserver overrides.
+  void RenderFrameDeleted(content::RenderFrameHost* render_frame_host) override;
   void PrimaryPageChanged(content::Page& page) override;
   void WebContentsDestroyed() override;
+  void DidFinishNavigation(content::NavigationHandle* navigation) override;
   void ResourceLoadComplete(
       content::RenderFrameHost* render_frame_host,
       const content::GlobalRequestID& request_id,
@@ -489,10 +490,6 @@ class ChromePasswordManagerClient
 
 #if BUILDFLAG(IS_ANDROID)
   void ResetErrorMessageDelegate();
-
-  // Called on startup. It will show the post password migration sheet if
-  // needed.
-  void TryToShowPostPasswordMigrationSheet();
 
   password_manager::CredManController* GetOrCreateCredManController();
 

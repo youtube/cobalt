@@ -591,6 +591,9 @@ TEST_P(PrivacySandboxPrivacyGuideShouldShowAdTopicsTest,
   if (is_feature_on) {
     feature_list()->InitAndEnableFeature(
         privacy_sandbox::kPrivacySandboxAdTopicsContentParity);
+  } else {
+    feature_list()->InitAndDisableFeature(
+        privacy_sandbox::kPrivacySandboxAdTopicsContentParity);
   }
 
   ON_CALL(*mock_privacy_sandbox_countries(), IsConsentCountry())
@@ -2612,7 +2615,7 @@ TEST_F(PrivacySandboxServiceM1PromptTest, DeviceLocalAccountUser) {
       PromptType::kM1Consent);
 
   // No prompt should be shown for a web kiosk account.
-  chromeos::SetUpFakeKioskSession();
+  chromeos::SetUpFakeChromeAppKioskSession();
   EXPECT_EQ(
       privacy_sandbox_service()->GetRequiredPromptType(SurfaceType::kDesktop),
       PromptType::kNone);

@@ -22,6 +22,21 @@ class DiscoverableCredentialMetadata;
 
 namespace webauthn {
 
+// The type of mediation that is being used for a WebAuthn GetAssertion request.
+// GENERATED_JAVA_ENUM_PACKAGE: org.chromium.components.webauthn
+// GENERATED_JAVA_PREFIX_TO_STRIP: k
+enum class AssertionMediationType {
+  kModal = 0,
+  kConditional = 1,
+  kImmediatePasskeysOnly = 3,
+  kImmediateWithPasswords = 4,
+};
+
+enum class ImmediateRequestRejectionReason {
+  kNoCredentials = 0,
+  kUserDismissed = 1,
+};
+
 class WebAuthnClientAndroid {
  public:
   virtual ~WebAuthnClientAndroid();
@@ -37,11 +52,15 @@ class WebAuthnClientAndroid {
   // if and when a user selects a credential from a selection dialog.
   virtual void OnWebAuthnRequestPending(
       content::RenderFrameHost* frame_host,
-      const std::vector<device::DiscoverableCredentialMetadata>& credentials,
-      bool is_conditional_request,
+      std::vector<device::DiscoverableCredentialMetadata> credentials,
+      AssertionMediationType mediation_type,
       base::RepeatingCallback<void(const std::vector<uint8_t>& id)>
-          getAssertionCallback,
-      base::RepeatingCallback<void()> hybridCallback) = 0;
+          passkey_callback,
+      base::RepeatingCallback<void(std::u16string_view, std::u16string_view)>
+          password_callback,
+      base::RepeatingCallback<void()> hybrid_callback,
+      base::RepeatingCallback<void(ImmediateRequestRejectionReason)>
+          reject_immediate_callback) = 0;
 
   // Closes an outstanding conditional UI request, so passkeys will no longer be
   // displayed through autofill.

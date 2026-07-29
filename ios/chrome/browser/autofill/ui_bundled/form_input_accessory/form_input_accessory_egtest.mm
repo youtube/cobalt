@@ -35,6 +35,7 @@
 #import "ios/chrome/test/earl_grey/chrome_earl_grey.h"
 #import "ios/chrome/test/earl_grey/chrome_matchers.h"
 #import "ios/chrome/test/earl_grey/web_http_server_chrome_test_case.h"
+#import "ios/chrome/test/scoped_eg_synchronization_disabler.h"
 #import "ios/testing/earl_grey/earl_grey_test.h"
 #import "ios/testing/earl_grey/matchers.h"
 #import "net/base/apple/url_conversions.h"
@@ -816,6 +817,13 @@ id<GREYMatcher> PaymentsBottomSheetUseKeyboardButton() {
 // when the fix for the payment sheet across iframes is enabled. This makes sure
 // that crbug.com/417449733 doesn't occur.
 - (void)testFillXframeCreditCardForm_WithPaymentSheetFix {
+// TODO(crbug.com/435607096): Re-enable the test on iOS26.
+#if defined(__IPHONE_26_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_26_0
+  if (iOS26_OR_ABOVE()) {
+    EARL_GREY_TEST_DISABLED(@"Test disabled on iOS 26.");
+  }
+#endif
+
   // Mock reauth so it allows filling sensitive information without the need for
   // real authentication.
   [AutofillAppInterface setUpMockReauthenticationModule];
@@ -946,6 +954,14 @@ id<GREYMatcher> PaymentsBottomSheetUseKeyboardButton() {
   [AutofillAppInterface saveExampleHomeAndWorkAccountProfile];
 
   [self loadAddressPage];
+
+#if TARGET_OS_SIMULATOR
+  // Synchronization off because the tap on element 'kFormZip' completes only
+  // after the IPH has already disappeared. This leads to a subsequent error
+  // when trying to verify that the IPH appeared.
+  ScopedSynchronizationDisabler disabler;
+#endif
+
   [[EarlGrey selectElementWithMatcher:chrome_test_util::WebViewMatcher()]
       performAction:chrome_test_util::TapWebElementWithId(kFormZip)];
 
@@ -993,6 +1009,8 @@ id<GREYMatcher> PaymentsBottomSheetUseKeyboardButton() {
   }
   if (@available(iOS 19.0, *)) {
     // TODO(crbug.com/427699033): Re-enable test on iOS 26.
+    // Fails because it assumes a window will be compact after creating a new
+    // window.
     EARL_GREY_TEST_DISABLED(@"Test disabled on iOS 26.");
   }
 

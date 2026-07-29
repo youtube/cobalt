@@ -281,6 +281,10 @@ void SetProfileCategory(
       test_api(profile).set_record_type(
           AutofillProfile::RecordType::kAccountWork);
       break;
+    case autofill_metrics::AutofillProfileRecordTypeCategory::kAccountNameEmail:
+      test_api(profile).set_record_type(
+          AutofillProfile::RecordType::kAccountNameEmail);
+      break;
   }
 }
 
@@ -967,6 +971,47 @@ EntityInstance GetDriversLicenseEntityInstance(DriversLicenseOptions options) {
       /*use_date=*/base::Time::FromTimeT(0));
 }
 
+EntityInstance GetKnownTravelerNumberInstance(
+    KnownTravelerNumberOptions options) {
+  using enum AttributeTypeName;
+  std::vector<AttributeInstance> attributes;
+  if (options.number) {
+    attributes.emplace_back(AttributeType(kKnownTravelerNumberNumber));
+    attributes.back().SetInfo(
+        KNOWN_TRAVELER_NUMBER, options.number, std::string(options.app_locale),
+        /*format_string=*/u"", VerificationStatus::kNoStatus);
+  }
+  if (options.expiration_date) {
+    attributes.emplace_back(AttributeType(kKnownTravelerNumberNumber));
+    attributes.back().SetInfo(
+        DRIVERS_LICENSE_EXPIRATION_DATE, options.expiration_date,
+        std::string(options.app_locale), /*format_string=*/u"YYYY-MM-DD",
+        VerificationStatus::kNoStatus);
+  }
+  return EntityInstance(
+      EntityType(EntityTypeName::kKnownTravelerNumber), std::move(attributes),
+      base::Uuid::ParseLowercase(options.guid), std::string(options.nickname),
+      base::Time::FromTimeT(kJune2017.ToTimeT()), /*use_count=*/0,
+      /*use_date=*/base::Time::FromTimeT(0));
+}
+
+EntityInstance GetRedressNumberEntityInstance(RedressNumberOptions options) {
+  using enum AttributeTypeName;
+  std::vector<AttributeInstance> attributes;
+  if (options.number) {
+    attributes.emplace_back(AttributeType(kRedressNumberNumber));
+    attributes.back().SetInfo(
+        REDRESS_NUMBER, options.number, std::string(options.app_locale),
+        /*format_string=*/u"", VerificationStatus::kNoStatus);
+  }
+
+  return EntityInstance(
+      EntityType(EntityTypeName::kRedressNumber), std::move(attributes),
+      base::Uuid::ParseLowercase(options.guid), std::string(options.nickname),
+      base::Time::FromTimeT(kJune2017.ToTimeT()), /*use_count=*/0,
+      /*use_date=*/base::Time::FromTimeT(0));
+}
+
 EntityInstance GetVehicleEntityInstance(VehicleOptions options) {
   using enum AttributeTypeName;
   std::vector<AttributeInstance> attributes;
@@ -1015,6 +1060,44 @@ EntityInstance GetVehicleEntityInstance(VehicleOptions options) {
   }
   return EntityInstance(
       EntityType(EntityTypeName::kVehicle), std::move(attributes),
+      base::Uuid::ParseLowercase(options.guid), std::string(options.nickname),
+      base::Time::FromTimeT(kJune2017.ToTimeT()), /*use_count=*/0,
+      /*use_date=*/base::Time::FromTimeT(0));
+}
+
+EntityInstance GetNationalIdCardEntityInstance(NationalIdCardOptions options) {
+  using enum AttributeTypeName;
+  std::vector<AttributeInstance> attributes;
+  if (options.number) {
+    attributes.emplace_back(AttributeType(kNationalIdCardNumber));
+    attributes.back().SetInfo(NATIONAL_ID_CARD_NUMBER, options.number,
+                              std::string(options.app_locale),
+                              /*format_string=*/u"",
+                              VerificationStatus::kNoStatus);
+  }
+  if (options.country) {
+    attributes.emplace_back(AttributeType(kNationalIdCardCountry));
+    attributes.back().SetInfo(NATIONAL_ID_CARD_ISSUING_COUNTRY, options.country,
+                              std::string(options.app_locale),
+                              /*format_string=*/u"",
+                              VerificationStatus::kNoStatus);
+  }
+  if (options.issue_date) {
+    attributes.emplace_back(AttributeType(kNationalIdCardIssueDate));
+    attributes.back().SetInfo(NATIONAL_ID_CARD_ISSUE_DATE, options.issue_date,
+                              std::string(options.app_locale),
+                              /*format_string=*/u"",
+                              VerificationStatus::kNoStatus);
+  }
+  if (options.expiry_date) {
+    attributes.emplace_back(AttributeType(kNationalIdCardExpirationDate));
+    attributes.back().SetInfo(
+        NATIONAL_ID_CARD_EXPIRATION_DATE, options.expiry_date,
+        std::string(options.app_locale),
+        /*format_string=*/u"", VerificationStatus::kNoStatus);
+  }
+  return EntityInstance(
+      EntityType(EntityTypeName::kNationalIdCard), std::move(attributes),
       base::Uuid::ParseLowercase(options.guid), std::string(options.nickname),
       base::Time::FromTimeT(kJune2017.ToTimeT()), /*use_count=*/0,
       /*use_date=*/base::Time::FromTimeT(0));
@@ -1145,7 +1228,8 @@ FieldPrediction CreateFieldPrediction(FieldType type, bool is_override) {
     return CreateFieldPrediction(type, FieldPrediction::SOURCE_UNSPECIFIED);
   }
   return CreateFieldPrediction(
-      type, GroupTypeOfFieldType(type) == FieldTypeGroup::kPasswordField
+      type, ToSafeFieldType(type, NO_SERVER_DATA) == type &&
+                    GroupTypeOfFieldType(type) == FieldTypeGroup::kPasswordField
                 ? FieldPrediction::SOURCE_PASSWORDS_DEFAULT
                 : FieldPrediction::SOURCE_AUTOFILL_DEFAULT);
 }
@@ -1270,7 +1354,8 @@ sync_pb::PaymentInstrument CreatePaymentInstrumentWithLinkedBnplIssuer(
     std::string issuer_id,
     std::string currency,
     uint64_t min_price_in_micros,
-    uint64_t max_price_in_micros) {
+    uint64_t max_price_in_micros,
+    std::vector<sync_pb::PaymentInstrument_ActionRequired> actions_required) {
   sync_pb::PaymentInstrument payment_instrument;
   payment_instrument.set_instrument_id(instrument_id);
   payment_instrument.add_supported_rails(
@@ -1285,16 +1370,25 @@ sync_pb::PaymentInstrument CreatePaymentInstrumentWithLinkedBnplIssuer(
   eligible_price_range->set_min_price_in_micros(min_price_in_micros);
   eligible_price_range->set_max_price_in_micros(max_price_in_micros);
   eligible_price_range->set_currency(std::move(currency));
+
+  for (auto& action_required : actions_required) {
+    payment_instrument.add_action_required(action_required);
+  }
+
   return payment_instrument;
 }
 
-BnplIssuer GetTestLinkedBnplIssuer(autofill::BnplIssuer::IssuerId issuer_id) {
+BnplIssuer GetTestLinkedBnplIssuer(
+    autofill::BnplIssuer::IssuerId issuer_id,
+    DenseSet<PaymentInstrument::ActionRequired> actions_required) {
   std::vector<BnplIssuer::EligiblePriceRange> eligible_price_ranges;
   // Currency: USD, price lower bound: $50, price upper bound: $200.
   eligible_price_ranges.emplace_back(/*currency=*/"USD",
                                      /*price_lower_bound=*/50'000'000,
                                      /*price_upper_bound=*/200'000'000);
-  return BnplIssuer(12345, issuer_id, std::move(eligible_price_ranges));
+  return BnplIssuer(
+      /*instrument_id=*/12345, issuer_id, std::move(eligible_price_ranges),
+      std::move(actions_required));
 }
 
 BnplIssuer GetTestUnlinkedBnplIssuer() {

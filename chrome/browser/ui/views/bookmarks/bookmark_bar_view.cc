@@ -797,7 +797,7 @@ void BookmarkBarView::Layout(PassKey) {
     estimate_bookmark_buttons_width +=
         (bookmark_bar_children_count - 1) * bookmark_bar_button_padding;
 
-    // Calculate the maximum size needed for the tab group buttons. space must
+    // Calculate the maximum size needed for the tab group buttons. Space must
     // be allocated for both saved tab group and bookmarks to prevent one
     // overwhelming the other.
     int saved_tab_groups_bar_available_width =
@@ -1920,7 +1920,7 @@ void BookmarkBarView::StartShowFolderDropMenuTimer(
       FROM_HERE,
       base::BindOnce(&BookmarkBarView::ShowDropFolderForNode,
                      show_folder_method_factory_.GetWeakPtr(), folder),
-      base::Milliseconds(views::GetMenuShowDelay()));
+      views::GetMenuShowDelay());
 }
 
 void BookmarkBarView::CalculateDropLocation(

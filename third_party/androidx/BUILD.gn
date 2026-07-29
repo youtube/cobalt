@@ -296,7 +296,7 @@ if (!limit_android_deps) {
 
   # This is generated, do not edit. Update BuildConfigGenerator.groovy instead.
   androidx_android_aar_prebuilt("androidx_browser_browser_java") {
-    aar_path = "../androidx/cipd/libs/androidx_browser_browser/browser-1.9.0-SNAPSHOT.aar"
+    aar_path = "../androidx/cipd/libs/androidx_browser_browser/browser-1.10.0-SNAPSHOT.aar"
     info_path = "../androidx/committed/libs/androidx_browser_browser/androidx_browser_browser.info"
     enable_bytecode_checks = false
     deps = [
@@ -1286,7 +1286,7 @@ if (!limit_android_deps) {
 
   # This is generated, do not edit. Update BuildConfigGenerator.groovy instead.
   androidx_android_aar_prebuilt("androidx_test_core_java") {
-    aar_path = "../androidx/cipd/libs/androidx_test_core/core-1.7.0-rc01.aar"
+    aar_path = "../androidx/cipd/libs/androidx_test_core/core-1.7.0.aar"
     info_path =
         "../androidx/committed/libs/androidx_test_core/androidx_test_core.info"
     enable_bytecode_checks = false
@@ -1325,7 +1325,7 @@ if (!limit_android_deps) {
 
   # This is generated, do not edit. Update BuildConfigGenerator.groovy instead.
   androidx_android_aar_prebuilt("androidx_test_espresso_espresso_core_java") {
-    aar_path = "../androidx/cipd/libs/androidx_test_espresso_espresso_core/espresso-core-3.7.0-rc01.aar"
+    aar_path = "../androidx/cipd/libs/androidx_test_espresso_espresso_core/espresso-core-3.7.0.aar"
     info_path = "../androidx/committed/libs/androidx_test_espresso_espresso_core/androidx_test_espresso_espresso_core.info"
     enable_bytecode_checks = false
     testonly = true
@@ -1380,8 +1380,7 @@ if (!limit_android_deps) {
 
   # This is generated, do not edit. Update BuildConfigGenerator.groovy instead.
   androidx_android_aar_prebuilt("androidx_test_ext_junit_java") {
-    aar_path =
-        "../androidx/cipd/libs/androidx_test_ext_junit/junit-1.3.0-rc01.aar"
+    aar_path = "../androidx/cipd/libs/androidx_test_ext_junit/junit-1.3.0.aar"
     info_path = "../androidx/committed/libs/androidx_test_ext_junit/androidx_test_ext_junit.info"
     enable_bytecode_checks = false
     testonly = true
@@ -1397,8 +1396,7 @@ if (!limit_android_deps) {
 
   # This is generated, do not edit. Update BuildConfigGenerator.groovy instead.
   androidx_android_aar_prebuilt("androidx_test_monitor_java") {
-    aar_path =
-        "../androidx/cipd/libs/androidx_test_monitor/monitor-1.8.0-rc01.aar"
+    aar_path = "../androidx/cipd/libs/androidx_test_monitor/monitor-1.8.0.aar"
     info_path = "../androidx/committed/libs/androidx_test_monitor/androidx_test_monitor.info"
     enable_bytecode_checks = false
     testonly = true
@@ -1411,7 +1409,7 @@ if (!limit_android_deps) {
 
   # This is generated, do not edit. Update BuildConfigGenerator.groovy instead.
   androidx_android_aar_prebuilt("androidx_test_rules_java") {
-    aar_path = "../androidx/cipd/libs/androidx_test_rules/rules-1.7.0-rc01.aar"
+    aar_path = "../androidx/cipd/libs/androidx_test_rules/rules-1.7.0.aar"
     info_path = "../androidx/committed/libs/androidx_test_rules/androidx_test_rules.info"
     enable_bytecode_checks = false
     testonly = true
@@ -1424,8 +1422,7 @@ if (!limit_android_deps) {
 
   # This is generated, do not edit. Update BuildConfigGenerator.groovy instead.
   androidx_android_aar_prebuilt("androidx_test_runner_java") {
-    aar_path =
-        "../androidx/cipd/libs/androidx_test_runner/runner-1.7.0-rc01.aar"
+    aar_path = "../androidx/cipd/libs/androidx_test_runner/runner-1.7.0.aar"
     info_path = "../androidx/committed/libs/androidx_test_runner/androidx_test_runner.info"
     enable_bytecode_checks = false
     testonly = true
@@ -1440,7 +1437,8 @@ if (!limit_android_deps) {
 
   # This is generated, do not edit. Update BuildConfigGenerator.groovy instead.
   androidx_android_aar_prebuilt("androidx_test_services_storage_java") {
-    aar_path = "../androidx/cipd/libs/androidx_test_services_storage/storage-1.6.0-rc01.aar"
+    aar_path =
+        "../androidx/cipd/libs/androidx_test_services_storage/storage-1.6.0.aar"
     info_path = "../androidx/committed/libs/androidx_test_services_storage/androidx_test_services_storage.info"
     enable_bytecode_checks = false
     testonly = true
@@ -2089,6 +2087,7 @@ if (!limit_android_deps) {
       ":androidx_lifecycle_lifecycle_viewmodel_ktx_java",
       ":androidx_savedstate_savedstate_compose_java",
       ":androidx_savedstate_savedstate_ktx_java",
+      ":androidx_transition_transition_java",
       "//third_party/android_deps:org_jetbrains_kotlinx_kotlinx_coroutines_android_java",
       "//third_party/android_deps:org_jetbrains_kotlinx_kotlinx_coroutines_core_java",
       "//third_party/android_deps:org_jspecify_jspecify_java",
@@ -2650,7 +2649,7 @@ if (!limit_android_deps) {
 
   # This is generated, do not edit. Update BuildConfigGenerator.groovy instead.
   androidx_android_aar_prebuilt("androidx_graphics_graphics_path_java") {
-    aar_path = "../androidx/cipd/libs/androidx_graphics_graphics_path/graphics-path-1.0.1.aar"
+    aar_path = "../androidx/cipd/libs/androidx_graphics_graphics_path/graphics-path-1.1.0-SNAPSHOT.aar"
     info_path = "../androidx/committed/libs/androidx_graphics_graphics_path/androidx_graphics_graphics_path.info"
     enable_bytecode_checks = false
 
@@ -3179,6 +3178,8 @@ if (!limit_android_deps) {
     deps = [
       ":androidx_annotation_annotation_java",
       ":androidx_core_core_viewtree_java",
+      "//third_party/android_deps:org_jetbrains_kotlinx_kotlinx_coroutines_android_java",
+      "//third_party/android_deps:org_jetbrains_kotlinx_kotlinx_coroutines_core_java",
       "//third_party/kotlin_stdlib:kotlin_stdlib_java",
     ]
   }
@@ -3551,7 +3552,7 @@ if (!limit_android_deps) {
   # This is generated, do not edit. Update BuildConfigGenerator.groovy instead.
   androidx_android_aar_prebuilt(
       "androidx_test_espresso_espresso_idling_resource_java") {
-    aar_path = "../androidx/cipd/libs/androidx_test_espresso_espresso_idling_resource/espresso-idling-resource-3.7.0-rc01.aar"
+    aar_path = "../androidx/cipd/libs/androidx_test_espresso_espresso_idling_resource/espresso-idling-resource-3.7.0.aar"
     info_path = "../androidx/committed/libs/androidx_test_espresso_espresso_idling_resource/androidx_test_espresso_espresso_idling_resource.info"
     enable_bytecode_checks = false
 

@@ -13,11 +13,13 @@ source_set("searchbox") {
     "realbox_handler.h",
     "searchbox_handler.cc",
     "searchbox_handler.h",
+    "searchbox_omnibox_client.cc",
+    "searchbox_omnibox_client.h",
   ]
   public_deps = [
     "//base",
     "//chrome/browser:browser_public_dependencies",
-    "//chrome/browser/ui/webui/new_tab_page/composebox",
+    "//chrome/browser/ui/webui/new_tab_page/composebox/variations",
     "//components/lens/proto/server:proto",
     "//components/omnibox/browser",
     "//components/omnibox/browser:mojo_bindings",
@@ -27,7 +29,6 @@ source_set("searchbox") {
     "//third_party/metrics_proto",
     "//ui/gfx",
     "//ui/gfx/geometry",
-    "//ui/webui/resources/cr_components/searchbox:mojo_bindings",
     "//url",
   ]
   deps = [

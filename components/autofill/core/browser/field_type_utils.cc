@@ -27,7 +27,7 @@ bool FieldHasMeaningfulPossibleFieldTypes(const AutofillField& field) {
 }
 
 bool TypeOfFieldIsPossibleType(const AutofillField& field) {
-  return field.possible_types().contains(field.Type().GetStorableType());
+  return field.possible_types().contains_any(field.Type().GetTypes());
 }
 
 size_t AddressLineIndex(FieldType type) {
@@ -98,7 +98,6 @@ bool IsTagType(FieldType type) {
     case CREDIT_CARD_TYPE:
     case CREDIT_CARD_VERIFICATION_CODE:
     case COMPANY_NAME:
-    case FIELD_WITH_DEFAULT_VALUE:
     case MERCHANT_EMAIL_SIGNUP:
     case MERCHANT_PROMO_CODE:
     case PASSWORD:
@@ -189,6 +188,9 @@ bool IsTagType(FieldType type) {
     case NATIONAL_ID_CARD_EXPIRATION_DATE:
     case NATIONAL_ID_CARD_ISSUE_DATE:
     case NATIONAL_ID_CARD_ISSUING_COUNTRY:
+    case REDRESS_NUMBER:
+    case KNOWN_TRAVELER_NUMBER:
+    case KNOWN_TRAVELER_NUMBER_EXPIRATION_DATE:
     case MAX_VALID_FIELD_TYPE:
       return false;
   }
@@ -229,7 +231,6 @@ bool IsDateFieldType(FieldType field_type) {
     case CREDIT_CARD_TYPE:
     case CREDIT_CARD_VERIFICATION_CODE:
     case COMPANY_NAME:
-    case FIELD_WITH_DEFAULT_VALUE:
     case MERCHANT_EMAIL_SIGNUP:
     case MERCHANT_PROMO_CODE:
     case PASSWORD:
@@ -315,6 +316,9 @@ bool IsDateFieldType(FieldType field_type) {
     case DRIVERS_LICENSE_NUMBER:
     case NATIONAL_ID_CARD_NUMBER:
     case NATIONAL_ID_CARD_ISSUING_COUNTRY:
+    case REDRESS_NUMBER:
+    case KNOWN_TRAVELER_NUMBER:
+    case KNOWN_TRAVELER_NUMBER_EXPIRATION_DATE:
     case MAX_VALID_FIELD_TYPE:
       return false;
     case CREDIT_CARD_EXP_DATE_2_DIGIT_YEAR:
@@ -364,7 +368,6 @@ bool IsAffixFormatStringEnabledForType(FieldType type) {
     case CREDIT_CARD_TYPE:
     case CREDIT_CARD_VERIFICATION_CODE:
     case COMPANY_NAME:
-    case FIELD_WITH_DEFAULT_VALUE:
     case MERCHANT_EMAIL_SIGNUP:
     case MERCHANT_PROMO_CODE:
     case PASSWORD:
@@ -452,6 +455,9 @@ bool IsAffixFormatStringEnabledForType(FieldType type) {
     case NATIONAL_ID_CARD_EXPIRATION_DATE:
     case NATIONAL_ID_CARD_ISSUE_DATE:
     case NATIONAL_ID_CARD_ISSUING_COUNTRY:
+    case REDRESS_NUMBER:
+    case KNOWN_TRAVELER_NUMBER:
+    case KNOWN_TRAVELER_NUMBER_EXPIRATION_DATE:
     case ADDRESS_HOME_ZIP_PREFIX:
     case ADDRESS_HOME_ZIP_SUFFIX:
     case MAX_VALID_FIELD_TYPE:

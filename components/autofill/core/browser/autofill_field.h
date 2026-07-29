@@ -165,9 +165,6 @@ class AutofillField : public FormFieldData {
     return server_predictions_;
   }
 
-  // Returns the first server prediction value of `FieldTypeGroup::kAutofillAi`
-  // group. Returns `std::nullopt` if none exists.
-  std::optional<FieldType> GetAutofillAiServerTypePredictions() const;
   const std::vector<
       AutofillQueryResponse::FormSuggestion::FieldSuggestion::FieldPrediction>&
   experimental_server_predictions() const {
@@ -216,13 +213,13 @@ class AutofillField : public FormFieldData {
     only_fill_when_focused_ = fill_when_focused;
   }
 
-  // Set the type of the field. This sets the value returned by |Type|.
+  // Set the type of the field. This sets the value returned by Type().
   // This function can be used to override the value that would be returned by
-  // |ComputedType|.
-  // As the |type| is expected to depend on |ComputedType|, the value will be
-  // reset to |ComputedType| if some internal value change (e.g. on call to
-  // (|set_heuristic_type|).
-  // |SetTypeTo| cannot be called with type.GetStorableType() == NO_SERVER_DATA.
+  // ComputedType().
+  // As the `type` is expected to depend on ComputedType(), the value will be
+  // reset to ComputedType() if some internal value change (e.g. on call to
+  // (set_heuristic_type()).
+  // SetTypeTo() must not be called with `type.GetTypes().empty()`.
   void SetTypeTo(const AutofillType& type,
                  std::optional<AutofillPredictionSource> source);
 
@@ -348,14 +345,10 @@ class AutofillField : public FormFieldData {
     kServer = 3,       // Set by an (Autofill) server response.
   };
 
-  // The format of the value expected by the web document. For now, format
-  // strings are only aimed at dates for Autofill AI:
-  //
-  // The alphabet is "YYYY", "YY", "MM", "M", "DD", "D", "/", ".", "-", and " "
-  // (space, U+0020). A format string contains at most one occurrence of "YYYY"
-  // or "YY", at most one of "MM" or "M", at most one of "DD" or "D", and at
-  // most two occurrences of one separator. A separator is "/", ".", "-",
-  // optionally with surrounding spaces, or space itself.
+  // The format of the value expected by the web document. Currently, the
+  // following kinds of format stings are supported:
+  // - Affix format strings (see data_util::IsValidAffixFormat()).
+  // - Date format strings (data_util::IsValidDateFormat()).
   //
   // Only one format string is stored at a time: the one with the
   // highest-ranking `FormatStringSource`.
@@ -448,7 +441,13 @@ class AutofillField : public FormFieldData {
 
  private:
   struct PredictionResult {
+    // The type may be a union type, i.e., hold multiple FieldTypes.
     AutofillType type;
+    // The source of the primary FieldType in `type`: If there are multiple
+    // FieldTypes in `type`, the source only refers to the non-Autofill AI
+    // types.
+    // TODO(crbug.com/432645177): Make the FieldType to which the `source`
+    // applies explicit?
     std::optional<AutofillPredictionSource> source;
   };
 
@@ -456,6 +455,15 @@ class AutofillField : public FormFieldData {
 
   // Whether the heuristics or server predict a credit card field.
   bool IsCreditCardPrediction() const;
+
+  // Creates a union type that contains
+  // - the `primary_field_type` and
+  // - the Autofill AI FieldTypes in the `server_predictions_` (modulo conflict
+  //   resolution).
+  //
+  // A union type is an AutofillType that holds multiple FieldType.
+  // See AutofillType for details.
+  AutofillType MakeAutofillType(FieldType primary_field_type) const;
 
   // Combines the server, heuristic and HTML type based predictions. Doesn't
   // take server overwrites or rationalization into consideration.

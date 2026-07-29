@@ -107,9 +107,11 @@ class ClientSideDetectionHost
     struct IntelligentScanResult {
       std::string brand;
       std::string intent;
+      int model_version;
+      bool execution_success;
     };
     using InquireOnDeviceModelDoneCallback =
-        base::OnceCallback<void(std::optional<IntelligentScanResult>)>;
+        base::OnceCallback<void(IntelligentScanResult)>;
 
     ~IntelligentScanDelegate() override = default;
 
@@ -169,6 +171,8 @@ class ClientSideDetectionHost
   void VibrationRequested() override;
   void DidToggleFullscreenModeForTab(bool entered_fullscreen,
                                      bool will_cause_resize) override;
+  void OnTextCopiedToClipboard(content::RenderFrameHost* render_frame_host,
+                               const std::u16string& copied_text) override;
 
   // permissions::PermissionRequestManager::Observer methods:
   void OnPromptAdded() override;
@@ -251,6 +255,10 @@ class ClientSideDetectionHost
       AsyncCheckTrackerTriggersClassificationRequestOnAllowlistMatch);
   FRIEND_TEST_ALL_PREFIXES(ClientSideDetectionHostScamDetectionTest,
                            KeyboardLockRequestTriggersOnDeviceLLM);
+  FRIEND_TEST_ALL_PREFIXES(ClientSideDetectionHostClipboardTest,
+                           ClipboardApiTriggersPreclassificationCheck);
+  FRIEND_TEST_ALL_PREFIXES(ClientSideDetectionHostClipboardTest,
+                           ClipboardApiClassificationTriggersCSPPPing);
 
   // Helper function to create preclassification check once requirements are
   // met.
@@ -390,7 +398,7 @@ class ClientSideDetectionHost
   void OnInquireOnDeviceModelDone(
       std::unique_ptr<ClientPhishingRequest> verdict,
       std::optional<bool> did_match_high_confidence_allowlist,
-      std::optional<IntelligentScanDelegate::IntelligentScanResult> response);
+      IntelligentScanDelegate::IntelligentScanResult response);
 
   // Returns bool if for a |client_side_detection_Type|, the last URL is the
   // same as the last committed URL on the RenderFrameHost.
@@ -422,6 +430,8 @@ class ClientSideDetectionHost
 
   // Records the start time of when phishing detection started.
   base::TimeTicks phishing_detection_start_time_;
+  // Records the start time of when image embedding started.
+  base::TimeTicks image_embedding_start_time_;
   raw_ptr<const base::TickClock> tick_clock_;
 
   std::unique_ptr<Delegate> delegate_;

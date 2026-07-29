@@ -36,6 +36,7 @@
 #include "net/base/network_delegate.h"
 #include "net/base/network_handle.h"
 #include "net/base/proxy_delegate.h"
+#include "net/disk_cache/buildflags.h"
 #include "net/disk_cache/disk_cache.h"
 #include "net/dns/host_resolver.h"
 #include "net/dns/stale_host_resolver.h"
@@ -109,6 +110,11 @@ class NET_EXPORT URLRequestContextBuilder {
       DISK_BLOCKFILE,
       // Disk cache using "simple" backend (SimpleBackendImpl).
       DISK_SIMPLE,
+#if BUILDFLAG(ENABLE_DISK_CACHE_SQL_BACKEND)
+      // Disk cache using "sql" backend (SqlBackendImpl).
+      // This is still under experiment.
+      DISK_EXPERIMENTAL_SQL,
+#endif  // ENABLE_DISK_CACHE_SQL_BACKEND
     };
 
     HttpCacheParams();
@@ -126,6 +132,9 @@ class NET_EXPORT URLRequestContextBuilder {
 
     // The cache path (when type is DISK).
     base::FilePath path;
+
+    // The path for persisting the NoVarySearchCache.
+    base::FilePath no_vary_search_path;
 
     // A factory to broker file operations. This is needed for network process
     // sandboxing in some platforms.

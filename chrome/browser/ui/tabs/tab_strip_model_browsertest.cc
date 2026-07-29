@@ -49,8 +49,8 @@
 #include "url/gurl.h"
 
 #if BUILDFLAG(ENABLE_GLIC)
-#include "chrome/browser/glic/glic_keyed_service_factory.h"
 #include "chrome/browser/glic/host/glic_features.mojom.h"
+#include "chrome/browser/glic/public/glic_keyed_service_factory.h"
 #include "chrome/browser/glic/test_support/glic_test_environment.h"
 #endif
 
@@ -521,10 +521,13 @@ class TabStripModelGlicMultiTabBrowserTest : public TabStripModelBrowserTest {
  protected:
   TabStripModel* tab_strip() { return browser()->tab_strip_model(); }
 
-  glic::GlicSharingManager& sharing_manager() {
+  glic::GlicKeyedService* service() {
     return glic::GlicKeyedServiceFactory::GetGlicKeyedService(
-               browser()->profile())
-        ->sharing_manager();
+        browser()->profile());
+  }
+
+  glic::GlicSharingManager& sharing_manager() {
+    return service()->sharing_manager();
   }
 
   tabs::TabHandle TabHandleAtIndex(int index) {
@@ -596,6 +599,32 @@ IN_PROC_BROWSER_TEST_F(TabStripModelGlicMultiTabBrowserTest, ShareLimit) {
 
   sharing_manager().UnpinAllTabs();
   EXPECT_EQ(0, sharing_manager().GetNumPinnedTabs());
+}
+
+IN_PROC_BROWSER_TEST_F(TabStripModelGlicMultiTabBrowserTest,
+                       StartSharingShouldOpenGlicWindow) {
+  AddTabs(1);
+  tab_strip()->ActivateTabAt(0);
+  EXPECT_FALSE(service()->IsWindowOrFreShowing());
+
+  tab_strip()->ExecuteContextMenuCommand(1,
+                                         TabStripModel::CommandGlicStartShare);
+
+  EXPECT_TRUE(service()->IsWindowOrFreShowing());
+}
+
+IN_PROC_BROWSER_TEST_F(TabStripModelGlicMultiTabBrowserTest,
+                       StartSharingShouldNotCloseGlicWindow) {
+  AddTabs(1);
+  tab_strip()->ActivateTabAt(0);
+  service()->ToggleUI(/*bwi=*/nullptr, /*prevent_close=*/true,
+                      glic::mojom::InvocationSource::kOsButton);
+  EXPECT_TRUE(service()->IsWindowOrFreShowing());
+
+  tab_strip()->ExecuteContextMenuCommand(1,
+                                         TabStripModel::CommandGlicStartShare);
+
+  EXPECT_TRUE(service()->IsWindowOrFreShowing());
 }
 
 #endif  // BUILDFLAG(ENABLE_GLIC)

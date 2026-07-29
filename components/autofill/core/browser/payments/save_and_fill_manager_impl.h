@@ -8,6 +8,7 @@
 #include "components/autofill/core/browser/payments/payments_autofill_client.h"
 #include "components/autofill/core/browser/payments/payments_request_details.h"
 #include "components/autofill/core/browser/payments/save_and_fill_manager.h"
+#include "components/autofill/core/browser/strike_databases/payments/save_and_fill_strike_database.h"
 
 namespace autofill::payments {
 
@@ -26,6 +27,7 @@ class SaveAndFillManagerImpl : public SaveAndFillManager {
   // SaveAndFillManager:
   void OnDidAcceptCreditCardSaveAndFillSuggestion(
       FillCardCallback fill_card_callback) override;
+  bool IsMaxStrikesLimitReached() override;
 
   // Called when the user makes a decision on the local Save and Fill dialog.
   // The `user_provided_card_save_and_fill_details` holds the  data entered by
@@ -75,6 +77,20 @@ class SaveAndFillManagerImpl : public SaveAndFillManager {
       const UserProvidedCardSaveAndFillDetails&
           user_provided_card_save_and_fill_details);
 
+  // Callback invoked when risk data is fetched.
+  void OnDidLoadRiskData(const std::string& risk_data);
+
+  // Helper function to send CreateCard request to the server with the
+  // `upload_details_`.
+  void SendCreateCardRequest();
+
+  // Callback invoked when the CreateCard response is received.
+  void OnDidCreateCard(PaymentsAutofillClient::PaymentsRpcResult result,
+                       const std::string& instrument_id);
+
+  // Returns the SaveAndFillStrikeDatabase for `autofill_client_`.
+  SaveAndFillStrikeDatabase* GetSaveAndFillStrikeDatabase();
+
   PaymentsAutofillClient* payments_autofill_client() const {
     return autofill_client_->GetPaymentsAutofillClient();
   }
@@ -87,6 +103,13 @@ class SaveAndFillManagerImpl : public SaveAndFillManager {
   payments::UploadCardRequestDetails upload_details_;
 
   FillCardCallback fill_card_callback_;
+
+  // Boolean value indicates whether the upload Save and Fill dialog has been
+  // accepted.
+  bool upload_save_and_fill_dialog_accepted_ = false;
+
+  // StrikeDatabase used to check whether to show the Save and Fill suggestion.
+  std::unique_ptr<SaveAndFillStrikeDatabase> save_and_fill_strike_database_;
 
   base::WeakPtrFactory<SaveAndFillManagerImpl> weak_ptr_factory_{this};
 };

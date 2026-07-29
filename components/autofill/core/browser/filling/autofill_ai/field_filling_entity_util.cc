@@ -10,6 +10,7 @@
 #include "base/containers/to_vector.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/utf_string_conversions.h"
+#include "components/autofill/core/browser/autofill_ai_form_rationalization.h"
 #include "components/autofill/core/browser/autofill_field.h"
 #include "components/autofill/core/browser/data_manager/autofill_ai/entity_data_manager.h"
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_instance.h"
@@ -83,7 +84,8 @@ std::optional<std::u16string> GetValueForDateSelect(
     const AttributeInstance& attribute,
     const AutofillField& field,
     const std::string& app_locale) {
-  FieldType type = field.Type().GetStorableType();
+  FieldType type = field.Type().GetAutofillAiTypeAndResolveTagTypes(
+      attribute.type().entity_type());
   if (!IsDateFieldType(type)) {
     return std::nullopt;
   }
@@ -91,8 +93,7 @@ std::optional<std::u16string> GetValueForDateSelect(
   auto get_part = [&](const std::u16string& format_string, uint32_t min = 0,
                       uint32_t max =
                           std::numeric_limits<uint32_t>::max()) -> uint32_t {
-    std::u16string s = attribute.GetInfo(field.Type().GetStorableType(),
-                                         app_locale, format_string);
+    std::u16string s = attribute.GetInfo(type, app_locale, format_string);
     unsigned int i = 0;
     return base::StringToUint(s, &i) && min <= i && i <= max
                ? i
@@ -117,7 +118,8 @@ std::optional<std::u16string> GetValueForDateSelect(
 std::u16string GetValueForInput(const AttributeInstance& attribute,
                                 const AutofillField& field,
                                 const std::string& app_locale) {
-  FieldType type = field.Type().GetStorableType();
+  FieldType type = field.Type().GetAutofillAiTypeAndResolveTagTypes(
+      attribute.type().entity_type());
   // TODO(crbug.com/389625753): Investigate whether only passing the
   // field type is the right choice here. This would for example
   // fail the fill a PASSPORT_NUMBER field that gets a
@@ -125,8 +127,7 @@ std::u16string GetValueForInput(const AttributeInstance& attribute,
   // prediction logic.
   std::u16string value =
       attribute.GetInfo(type, app_locale, field.format_string());
-  switch (field.Type().GetStorableType()) {
-    case ADDRESS_HOME_STATE:
+  switch (type) {
     case DRIVERS_LICENSE_REGION:
     case VEHICLE_PLATE_STATE:
       // TODO(crbug.com/389625753): Support countries other than the US.
@@ -149,7 +150,8 @@ std::u16string GetValueForSelect(const AttributeInstance& attribute,
                                  const AutofillField& field,
                                  const std::string& app_locale,
                                  AddressNormalizer* address_normalizer) {
-  FieldType type = field.Type().GetStorableType();
+  FieldType type = field.Type().GetAutofillAiTypeAndResolveTagTypes(
+      attribute.type().entity_type());
   if (IsDateFieldType(type)) {
     return GetValueForDateSelect(attribute, field, app_locale).value_or(u"");
   }
@@ -159,11 +161,9 @@ std::u16string GetValueForSelect(const AttributeInstance& attribute,
   }
 
   switch (type) {
-    case ADDRESS_HOME_COUNTRY:
     case PASSPORT_ISSUING_COUNTRY:
       return GetCountrySelectControlValue(fill_value, field.options(),
                                           /*failure_to_fill=*/nullptr);
-    case ADDRESS_HOME_STATE:
     case DRIVERS_LICENSE_REGION:
     case VEHICLE_PLATE_STATE:
       // TODO(crbug.com/389625753): Support countries other than the US.
@@ -196,7 +196,7 @@ base::flat_set<FieldGlobalId> GetFieldsFillableByAutofillAi(
       Section,
       base::flat_map<EntityType, std::vector<AutofillFieldWithAttributeType>>>
       section_to_entity_and_field_and_types =
-          DetermineAttributeTypes(form.fields());
+          RationalizeAndDetermineAttributeTypes(form.fields());
 
   // Returns true if there is data present that could fill the `field`.
   auto is_fillable = [&](const AutofillField& field) {

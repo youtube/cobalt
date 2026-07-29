@@ -1918,6 +1918,7 @@ void WebView::ApplyWebPreferences(const web_pref::WebPreferences& prefs,
       prefs.payment_request_enabled);
 
   if (prefs.api_based_fingerprinting_interventions_enabled) {
+    RuntimeEnabledFeatures::SetReduceHardwareConcurrencyEnabled(true);
     RuntimeEnabledFeatures::SetReduceScreenSizeEnabled(true);
   }
 }
@@ -3539,6 +3540,10 @@ void WebViewImpl::UpdateRendererPreferences(
 
   for (auto& watcher : renderer_preference_watchers_)
     watcher->NotifyUpdate(renderer_preferences_);
+
+  for (auto& observer : observers_) {
+    observer.OnRendererPreferencesUpdated(preferences);
+  }
 
   WebThemeEngineHelper::DidUpdateRendererPreferences(preferences);
   UpdateFontRenderingFromRendererPrefs();

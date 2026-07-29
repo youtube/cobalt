@@ -254,6 +254,76 @@ TEST_F(FetchManifestAndInstallCommandTest, SuccessWithManifest) {
   EXPECT_EQ(1, fake_ui_manager().num_reparent_tab_calls());
 }
 
+// Verify that with multiple icons provided in the manifest, there can only be a
+// single trusted icon to be used in the system.
+// TODO(crbug.com/427566601): Read and verify bitmaps from WebAppIconManager
+// once the APIs for that are added.
+TEST_F(FetchManifestAndInstallCommandTest, SuccessWithManifestTrustedIcons) {
+  base::test::ScopedFeatureList feature_list(features::kWebAppUsePrimaryIcon);
+  auto manifest = CreateValidManifest();
+
+  // Prepare all the data to be fetched or downloaded.
+  IconsMap icons_map;
+  const GURL url = GURL("https://example.com/path");
+
+  GURL icon_url1 = url.Resolve("color1.png");
+  icons_map[icon_url1] = {CreateSquareIcon(icon_size::k64, SK_ColorBLUE)};
+  GURL icon_url2 = url.Resolve("color2.png");
+  icons_map[icon_url2] = {CreateSquareIcon(icon_size::k512, SK_ColorGREEN)};
+  manifest->icons = {
+      CreateSquareImageResource(icon_url1, icon_size::k64, {IconPurpose::ANY}),
+      CreateSquareImageResource(icon_url2, icon_size::k512,
+                                {IconPurpose::ANY, IconPurpose::MASKABLE})};
+
+  SetupPageState(std::move(manifest));
+  SetupIconState(icons_map);
+
+  EXPECT_EQ(InstallAndWait(webapps::WebappInstallSource::OMNIBOX_INSTALL_ICON,
+                           CreateDialogCallback(true)),
+            webapps::InstallResultCode::kSuccessNewInstall);
+
+  apps::IconInfo icon_info1(icon_url1, icon_size::k64);
+  icon_info1.purpose = apps::IconInfo::Purpose::kAny;
+  apps::IconInfo icon_info2(icon_url2, icon_size::k512);
+  icon_info2.purpose = apps::IconInfo::Purpose::kAny;
+  apps::IconInfo icon_info3(icon_url2, icon_size::k512);
+  icon_info3.purpose = apps::IconInfo::Purpose::kMaskable;
+
+  bool prefer_maskable = false;
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_CHROMEOS)
+  prefer_maskable = true;
+#endif  // BUILDFLAG(IS_MAC) || BUILDFLAG(IS_CHROMEOS)
+
+  apps::IconInfo trusted_icon = prefer_maskable ? icon_info3 : icon_info2;
+  IconPurpose trusted_icon_purpose =
+      prefer_maskable ? IconPurpose::MASKABLE : IconPurpose::ANY;
+  std::set<SquareSizePx> sizes = web_app::SizesToGenerate();
+  sizes.emplace(icon_size::k512);
+  SortedSizesPx sizes_to_use(sizes.begin(), sizes.end());
+  EXPECT_TRUE(provider()->icon_manager().HasTrustedIcons(
+      kWebAppId, trusted_icon_purpose, sizes_to_use));
+
+  EXPECT_THAT(provider()->registrar_unsafe().GetAppIconInfos(kWebAppId),
+              testing::ElementsAre(icon_info1, icon_info2, icon_info3));
+  EXPECT_THAT(
+      provider()->registrar_unsafe().GetTrustedAppIconsMetadata(kWebAppId),
+      testing::ElementsAre(trusted_icon));
+  EXPECT_EQ(
+      trusted_icon,
+      provider()->registrar_unsafe().GetSingleTrustedAppIconForSecuritySurfaces(
+          kWebAppId, /*input_size=*/96));
+
+  // Verify reading the bitmap for the trusted icons.
+  base::test::TestFuture<std::map<SquareSizePx, SkBitmap>> icons_future;
+  provider()->icon_manager().ReadTrustedIconsWithFallbackToManifestIcons(
+      kWebAppId, {icon_size::k512}, IconPurpose::ANY,
+      icons_future.GetCallback());
+  ASSERT_TRUE(icons_future.Wait());
+  std::map<SquareSizePx, SkBitmap> trusted_bitmaps = icons_future.Get();
+  EXPECT_THAT(trusted_bitmaps[icon_size::k512],
+              gfx::test::EqualsBitmap(icons_map[icon_url2][0]));
+}
+
 TEST_F(FetchManifestAndInstallCommandTest,
        SuccessWithFallbackInstallWithManifest) {
   SetupPageState();
@@ -1093,8 +1163,8 @@ TEST_P(UniversalInstallComboTest, InstallStateValid) {
   EXPECT_EQ(registrar.GetAppEffectiveDisplayMode(app_id), display_mode);
 
   base::test::TestFuture<std::map<SquareSizePx, SkBitmap>> icons_future;
-  provider()->icon_manager().ReadIcons(
-      app_id, IconPurpose::ANY, {icon_size::k256}, icons_future.GetCallback());
+  provider()->icon_manager().ReadTrustedIconsWithFallbackToManifestIcons(
+      app_id, {icon_size::k256}, IconPurpose::ANY, icons_future.GetCallback());
   ASSERT_TRUE(icons_future.Wait());
   std::map<SquareSizePx, SkBitmap> bitmaps = icons_future.Get();
   EXPECT_THAT(bitmaps[icon_size::k256],

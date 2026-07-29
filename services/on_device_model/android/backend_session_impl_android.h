@@ -8,6 +8,7 @@
 #include <string>
 
 #include "base/android/scoped_java_ref.h"
+#include "components/optimization_guide/proto/model_execution.pb.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "services/on_device_model/backend_session.h"
 
@@ -17,7 +18,9 @@ namespace on_device_model {
 // lifetime will be created when this object is created.
 class BackendSessionImplAndroid : public BackendSession {
  public:
-  BackendSessionImplAndroid();
+  BackendSessionImplAndroid(
+      optimization_guide::proto::ModelExecutionFeature feature,
+      on_device_model::mojom::SessionParamsPtr params);
   ~BackendSessionImplAndroid() override;
 
   // BackendSession:
@@ -36,6 +39,10 @@ class BackendSessionImplAndroid : public BackendSession {
       const std::string& input,
       base::OnceCallback<void(const std::vector<float>&)> callback) override;
   std::unique_ptr<BackendSession> Clone() override;
+  void AsrStream(on_device_model::mojom::AsrStreamOptionsPtr options,
+                 mojo::PendingRemote<on_device_model::mojom::AsrStreamResponder>
+                     response) override;
+  void AsrAddAudioChunk(on_device_model::mojom::AudioDataPtr data) override;
 
   // Called by Java:
   // Called when the response of `Generate` is received from the AiCoreSession.
@@ -52,9 +59,7 @@ class BackendSessionImplAndroid : public BackendSession {
   // completes.
   mojo::Remote<on_device_model::mojom::StreamingResponder> responder_;
   // The accumulated context of the current session.
-  // TODO(crbug.com/425408635): We should hold std::vector<ml::InputPiece>
-  // instead and pass it directly to Java.
-  std::string context_;
+  std::vector<ml::InputPiece> context_input_pieces_;
 };
 
 }  // namespace on_device_model

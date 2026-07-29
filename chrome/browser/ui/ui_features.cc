@@ -159,6 +159,12 @@ BASE_FEATURE_ENUM_PARAM(MiniToolbarActiveConfiguration,
                         MiniToolbarActiveConfiguration::ShowMenu,
                         &kMiniToolbarActiveConfigurationOptions);
 
+BASE_FEATURE_PARAM(int,
+                   kSideBySideSnapDistance,
+                   &kSideBySide,
+                   "snap_distance",
+                   5);
+
 // When enabled along with SideBySide flag, split tabs will be restored on
 // startup.
 BASE_FEATURE(kSideBySideSessionRestore,
@@ -526,6 +532,18 @@ BASE_FEATURE_PARAM(bool,
                    "collaboration_messaging",
                    false);
 
+BASE_FEATURE_PARAM(bool,
+                   kPageActionsMigrationPriceTracking,
+                   &kPageActionsMigration,
+                   "price_tracking",
+                   false);
+
+BASE_FEATURE_PARAM(bool,
+                   kPageActionsMigrationAutofillMandatoryReauth,
+                   &kPageActionsMigration,
+                   "mandatory_reauth",
+                   false);
+
 BASE_FEATURE(kSavePasswordsContextualUi,
              "SavePasswordsContextualUi",
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -592,5 +610,13 @@ bool HasTabSearchToolbarButton() {
 BASE_FEATURE(kNonMilestoneUpdateToast,
              "NonMilestoneUpdateToast",
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kBookmarkTabGroupConversion,
+             "BookmarkTabGroupConversion",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+bool IsBookmarkTabGroupConversionEnabled() {
+  return base::FeatureList::IsEnabled(kBookmarkTabGroupConversion);
+}
 
 }  // namespace features

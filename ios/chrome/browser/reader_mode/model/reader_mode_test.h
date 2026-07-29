@@ -32,7 +32,8 @@ class ReaderModeTest : public PlatformTest {
   std::unique_ptr<web::FakeWebState> CreateWebState();
 
   // Controls for displaying Reading Mode UI on the fake web state.
-  void EnableReaderMode(web::WebState* web_state);
+  void EnableReaderMode(web::WebState* web_state,
+                        ReaderModeAccessPoint access_point);
   void DisableReaderMode(web::WebState* web_state);
 
   // Loads the web page with fake HTML content and commits the URL.
@@ -45,8 +46,11 @@ class ReaderModeTest : public PlatformTest {
                           ReaderModeHeuristicResult eligibility,
                           std::string distilled_content);
 
-  // Waits for Reader Mode content to be loaded and ready to query.
-  void WaitForReaderModeContentReady();
+  // Waits after a page load for the page content to be distillable.
+  void WaitForPageLoadDelayAndRunUntilIdle();
+
+  // Waits for Reader mode content availability.
+  bool WaitForAvailableReaderModeContentInWebState(web::WebState* web_state);
 
   web::WebTaskEnvironment* task_environment() { return &task_environment_; }
 

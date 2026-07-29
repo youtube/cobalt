@@ -90,13 +90,14 @@ TEST(CursorUtil, GetCursorData) {
     gfx::Point hotspot[2][2];  // indexed by cursor size and scale.
   } kCursorTestCases[] = {
       {CursorType::kPointer,
-       {gfx::Size(25, 25), gfx::Size(64, 64)},
-       {{gfx::Point(4, 4), gfx::Point(7, 7)},
-        {gfx::Point(10, 10), gfx::Point(20, 20)}}},
+       {gfx::Size(25, 25), gfx::Size(25, 25)},
+       {{gfx::Point(6, 4), gfx::Point(12, 8)},
+        {gfx::Point(6, 4), gfx::Point(12, 8)}}},
       {CursorType::kWait,
-       {gfx::Size(16, 16), gfx::Size(16, 16)},
-       {{gfx::Point(7, 7), gfx::Point(14, 14)},
-        {gfx::Point(7, 7), gfx::Point(14, 14)}}},
+       {gfx::Size(25, 25), gfx::Size(25, 25)},
+       {{gfx::Point(12, 12), gfx::Point(24, 24)},
+        {gfx::Point(12, 12), gfx::Point(24, 24)}}},
+
   };
 
   for (const float scale : {0.8f, 1.0f, 1.3f, 1.5f, 2.0f, 2.5f}) {
@@ -113,7 +114,7 @@ TEST(CursorUtil, GetCursorData) {
         ASSERT_TRUE(pointer_data);
         ASSERT_GT(pointer_data->bitmaps.size(), 0u);
         EXPECT_EQ(gfx::SkISizeToSize(pointer_data->bitmaps[0].dimensions()),
-                  gfx::ScaleToFlooredSize(
+                  gfx::ScaleToRoundedSize(
                       test.size[base::checked_cast<int>(size)], scale));
         const float resource_scale = ui::GetScaleForResourceScaleFactor(
             ui::GetSupportedResourceScaleFactorForRescale(scale));
@@ -136,11 +137,11 @@ TEST(CursorUtil, GetCursorDataWithTargetCursorSize) {
     gfx::Size size;         // large cursor size in dip
     std::array<gfx::Point, 2> hotspot;  // hotspot in px, indexed by scale.
   } kCursorTestCases[] = {{CursorType::kPointer,
-                           gfx::Size(64, 64),
-                           {gfx::Point(10, 10), gfx::Point(20, 20)}},
+                           gfx::Size(25, 25),
+                           {gfx::Point(6, 4), gfx::Point(12, 8)}},
                           {CursorType::kWait,
-                           gfx::Size(16, 16),
-                           {gfx::Point(7, 7), gfx::Point(14, 14)}}};
+                           gfx::Size(25, 25),
+                           {gfx::Point(12, 12), gfx::Point(24, 24)}}};
 
   for (const float scale : {0.8f, 1.0f, 1.3f, 1.5f, 2.0f, 2.5f}) {
     SCOPED_TRACE(testing::Message() << "scale " << scale);
@@ -195,10 +196,10 @@ TEST(CursorUtil, GetCursorDataWithColor) {
       // The no drop cursor has red in it, check it's still there:
       // Most of the cursor should be colored, but the red part shouldn't be
       // re-colored.
-      {SK_ColorBLUE, SK_ColorGREEN, SkColorSetRGB(173, 8, 8),
+      {SK_ColorBLUE, SK_ColorGREEN, SkColorSetRGB(181, 70, 72),
        CursorType::kNoDrop},
       // Similarly, the copy cursor has green in it.
-      {SK_ColorBLUE, SK_ColorRED, SkColorSetRGB(19, 137, 16),
+      {SK_ColorBLUE, SK_ColorRED, SkColorSetRGB(57, 149, 88),
        CursorType::kCopy},
   };
 

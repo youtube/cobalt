@@ -36,8 +36,14 @@ AccountCapabilities& AccountCapabilities::operator=(
 base::span<const std::string_view>
 AccountCapabilities::GetSupportedAccountCapabilityNames() {
   static constexpr auto kCapabilityNames = std::to_array<std::string_view>({
+#if BUILDFLAG(IS_IOS)
+#define ACCOUNT_CAPABILITY_TEMPORARY_NOT_IOS(cpp_label, java_label, name)
+#else
+#define ACCOUNT_CAPABILITY_TEMPORARY_NOT_IOS ACCOUNT_CAPABILITY
+#endif
 #define ACCOUNT_CAPABILITY(cpp_label, java_label, value) cpp_label,
 #include "components/signin/internal/identity_manager/account_capabilities_list.h"
+#undef ACCOUNT_CAPABILITY_TEMPORARY_NOT_IOS
 #undef ACCOUNT_CAPABILITY
   });
   return kCapabilityNames;
@@ -154,12 +160,22 @@ signin::Tribool AccountCapabilities::is_opted_in_to_parental_supervision()
 }
 
 signin::Tribool AccountCapabilities::
+    is_subject_to_account_level_enterprise_policies() const {
+#if BUILDFLAG(IS_IOS)
+  return signin::Tribool::kUnknown;
+#else
+  return GetCapabilityByName(
+      kIsSubjectToAccountLevelEnterprisePoliciesCapabilityName);
+#endif
+}
+
+signin::Tribool AccountCapabilities::
     is_subject_to_chrome_privacy_sandbox_restricted_measurement_notice() const {
   return GetCapabilityByName(
       kIsSubjectToChromePrivacySandboxRestrictedMeasurementNotice);
 }
 
-signin::Tribool AccountCapabilities::is_subject_to_enterprise_policies() const {
+signin::Tribool AccountCapabilities::is_subject_to_enterprise_features() const {
   return GetCapabilityByName(kIsSubjectToEnterprisePoliciesCapabilityName);
 }
 

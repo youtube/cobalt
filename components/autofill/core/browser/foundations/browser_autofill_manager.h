@@ -45,7 +45,6 @@
 #include "components/autofill/core/browser/metrics/form_events/credit_card_form_event_logger.h"
 #include "components/autofill/core/browser/metrics/form_events/loyalty_card_form_event_logger.h"
 #include "components/autofill/core/browser/metrics/log_event.h"
-#include "components/autofill/core/browser/payments/amount_extraction_manager.h"
 #include "components/autofill/core/browser/payments/autofill_offer_manager.h"
 #include "components/autofill/core/browser/payments/card_unmask_delegate.h"
 #include "components/autofill/core/browser/payments/full_card_request.h"
@@ -199,6 +198,10 @@ class BrowserAutofillManager : public AutofillManager {
   // handle BNPL flows. May return nullptr if BNPL is not supported on the
   // current platform.
   virtual payments::BnplManager* GetPaymentsBnplManager();
+
+  // Gets the amount extraction manager owned by `this`. This will be used for
+  // flows that require amount extraction from the page.
+  payments::AmountExtractionManager& GetAmountExtractionManager();
 
   // Handles post-filling logic of `form`, like notifying observers and logging
   // form metrics.
@@ -629,6 +632,17 @@ class BrowserAutofillManager : public AutofillManager {
       const AutofillProfile& filled_profile,
       const FormGlobalId& form_id);
 
+  // Updates Autofill Ai's model cache after server predictions were loaded.
+  void HandleLoadedServerPredictionsForAutofillAi(
+      base::span<const raw_ptr<FormStructure, VectorExperimental>> forms);
+
+  // Calls `OnDidIdentifyForms()` on all appropriate form event loggers,
+  // depending on the form types of the `form_structure`.
+  void OnDidIdentifyFormForMetrics(
+      const FormStructure& form_structure,
+      autofill_metrics::FormEventLoggerBase::FormIdentificationTime
+          identification_time);
+
   // Delegates to perform external processing (display, selection) on
   // our behalf.
   std::unique_ptr<AutofillExternalDelegate> external_delegate_ =
@@ -656,9 +670,8 @@ class BrowserAutofillManager : public AutofillManager {
 
   // The amount extraction manager, used to trigger the final checkout
   // amount from merchant websites.
-  std::unique_ptr<payments::AmountExtractionManager>
-      amount_extraction_manager_ =
-          std::make_unique<payments::AmountExtractionManager>(this);
+  // Lazily initialized: access only through GetAmountExtractionManager().
+  std::unique_ptr<payments::AmountExtractionManager> amount_extraction_manager_;
 
   // Helper class to autofill forms and fields. Do not use directly, use
   // form_filler() instead, because tests inject test objects.

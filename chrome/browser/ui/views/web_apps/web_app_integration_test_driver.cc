@@ -1502,7 +1502,7 @@ void WebAppIntegrationTestDriver::InstallSubApp(
       content::EvalJs(web_contents, script);
 
   if (option == SubAppInstallDialogOptions::kUserDeny) {
-    EXPECT_FALSE(add_result.error.empty());
+    EXPECT_FALSE(add_result.is_ok());
   } else {
     base::Value::Dict expected_output;
     expected_output.Set(sub_url, "success");
@@ -3230,7 +3230,7 @@ void WebAppIntegrationTestDriver::CheckFilesLoadedInSite(
       }
 
       base::Value::List test_content_list =
-          EvalJs(web_contents, "launchFinishedPromise").ExtractList();
+          EvalJs(web_contents, "launchFinishedPromise").TakeValue().TakeList();
       for (const auto& test_content : test_content_list) {
         if (base::EndsWith(url_str, kFooHandler)) {
           found_foo_files.push_back(test_content.GetString());
@@ -3791,7 +3791,7 @@ void WebAppIntegrationTestDriver::CheckHasSubApp(Site parent_app,
   const content::EvalJsResult list_result =
       content::EvalJs(web_contents, "navigator.subApps.list()");
 
-  const base::Value::Dict list_result_dict = list_result.ExtractDict();
+  const base::Value::Dict& list_result_dict = list_result.ExtractDict();
 
   // Check that list() contained the sub_app_url key.
   EXPECT_NE(nullptr, list_result_dict.FindDict(sub_app_url));

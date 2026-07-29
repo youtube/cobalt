@@ -14,6 +14,8 @@
 #include "components/autofill/core/browser/payments/payments_request_details.h"
 #include "components/autofill/core/browser/payments/payments_requests/payments_request.h"
 #include "components/autofill/core/browser/payments/payments_util.h"
+#include "components/autofill/core/browser/payments/save_and_fill_manager.h"
+#include "components/autofill/core/browser/strike_databases/payments/save_and_fill_strike_database.h"
 #include "components/autofill/core/browser/studies/autofill_experiments.h"
 
 namespace autofill::payments {
@@ -35,6 +37,8 @@ void SaveAndFillManagerImpl::OnDidAcceptCreditCardSaveAndFillSuggestion(
   fill_card_callback_ = std::move(fill_card_callback);
 
   if (IsCreditCardUploadEnabled()) {
+    payments_autofill_client()->ShowCreditCardSaveAndFillPendingDialog();
+
     PopulateInitialUploadDetails();
 
     payments_autofill_client()
@@ -47,6 +51,13 @@ void SaveAndFillManagerImpl::OnDidAcceptCreditCardSaveAndFillSuggestion(
   } else {
     OfferLocalSaveAndFill();
   }
+}
+
+bool SaveAndFillManagerImpl::IsMaxStrikesLimitReached() {
+  if (auto* strike_database = GetSaveAndFillStrikeDatabase()) {
+    return strike_database->ShouldBlockFeature();
+  }
+  return false;
 }
 
 void SaveAndFillManagerImpl::OnUserDidDecideOnLocalSave(
@@ -174,8 +185,25 @@ void SaveAndFillManagerImpl::PopulateInitialUploadDetails() {
 
   // Calculate the unique address from the most recently used
   // addresses. Can be empty if there is none.
-  // TODO(crbug.com/378164165): This part is rather complex. Do it in a
-  // separate CL.
+  auto comparator = [](AutofillProfile a, AutofillProfile b) {
+    return a.GetAddress() != b.GetAddress();
+  };
+  std::set<AutofillProfile, decltype(comparator)> candidate_profiles;
+  constexpr base::TimeDelta fifteen_minutes = base::Minutes(15);
+  for (const AutofillProfile* profile :
+       autofill_client_->GetPersonalDataManager()
+           .address_data_manager()
+           .GetProfiles()) {
+    if ((base::Time::Now() - profile->usage_history().use_date()) <=
+            fifteen_minutes ||
+        (base::Time::Now() - profile->usage_history().modification_date()) <=
+            fifteen_minutes) {
+      candidate_profiles.emplace(*profile);
+    }
+  }
+  if (candidate_profiles.size() == 1U) {
+    upload_details_.profiles.emplace_back(*candidate_profiles.begin());
+  }
 }
 
 void SaveAndFillManagerImpl::OfferUploadSaveAndFill(
@@ -183,6 +211,10 @@ void SaveAndFillManagerImpl::OfferUploadSaveAndFill(
   payments_autofill_client()->ShowCreditCardUploadSaveAndFillDialog(
       std::move(parsed_legal_message_lines),
       base::BindOnce(&SaveAndFillManagerImpl::OnUserDidDecideOnUploadSave,
+                     weak_ptr_factory_.GetWeakPtr()));
+
+  payments_autofill_client()->LoadRiskData(
+      base::BindOnce(&SaveAndFillManagerImpl::OnDidLoadRiskData,
                      weak_ptr_factory_.GetWeakPtr()));
 }
 
@@ -192,6 +224,48 @@ void SaveAndFillManagerImpl::OnUserDidDecideOnUploadSave(
         user_provided_card_save_and_fill_details) {
   // TODO(crbug.com/378164165): Implement logic to handle user decision for
   // upload Save and Fill dialog.
+  switch (user_decision) {
+    case CardSaveAndFillDialogUserDecision::kAccepted:
+      upload_save_and_fill_dialog_accepted_ = true;
+      break;
+    case CardSaveAndFillDialogUserDecision::kDeclined:
+      break;
+  }
+}
+
+void SaveAndFillManagerImpl::OnDidLoadRiskData(const std::string& risk_data) {
+  upload_details_.risk_data = risk_data;
+  if (upload_save_and_fill_dialog_accepted_) {
+    SendCreateCardRequest();
+  }
+}
+
+void SaveAndFillManagerImpl::SendCreateCardRequest() {
+  payments_autofill_client()
+      ->GetMultipleRequestPaymentsNetworkInterface()
+      ->CreateCard(upload_details_,
+                   base::BindOnce(&SaveAndFillManagerImpl::OnDidCreateCard,
+                                  weak_ptr_factory_.GetWeakPtr()));
+}
+
+void SaveAndFillManagerImpl::OnDidCreateCard(
+    PaymentsAutofillClient::PaymentsRpcResult result,
+    const std::string& instrument_id) {
+  // TODO(crbug.com/378164165): Implement logic to handle CreateCard response
+  // and the instrument id.
+}
+
+SaveAndFillStrikeDatabase*
+SaveAndFillManagerImpl::GetSaveAndFillStrikeDatabase() {
+  if (!autofill_client_->GetStrikeDatabase()) {
+    return nullptr;
+  }
+  if (!save_and_fill_strike_database_) {
+    save_and_fill_strike_database_ =
+        std::make_unique<SaveAndFillStrikeDatabase>(
+            autofill_client_->GetStrikeDatabase());
+  }
+  return save_and_fill_strike_database_.get();
 }
 
 }  // namespace autofill::payments

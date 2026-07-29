@@ -238,6 +238,7 @@ public class SingleCategorySettings extends BaseSiteSettingsFragment
     public static final String DESKTOP_SITE_WINDOW_TOGGLE_KEY = "desktop_site_window";
     public static final String EXPLAIN_PROTECTED_MEDIA_KEY = "protected_content_learn_more";
     public static final String ADD_EXCEPTION_KEY = "add_exception";
+    public static final String ADD_EXCEPTION_DISABLED_REASON_KEY = "add_exception_disabled_reason";
     public static final String INFO_TEXT_KEY = "info_text";
     public static final String ANTI_ABUSE_WHEN_ON_HEADER = "anti_abuse_when_on_header";
     public static final String ANTI_ABUSE_WHEN_ON_SECTION_ONE = "anti_abuse_when_on_section_one";
@@ -625,11 +626,10 @@ public class SingleCategorySettings extends BaseSiteSettingsFragment
                 websitePreference.setFragment(SingleWebsiteSettings.class.getName());
                 websitePreference.putSiteAddressIntoExtras(
                         SingleWebsiteSettings.EXTRA_SITE_ADDRESS);
-            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
-                    && mCategory.getType() == SiteSettingsCategory.Type.NOTIFICATIONS) {
-                // In  Android O+, users can manage Notification channels through App Info. If this
-                // is the case we send the user directly to Android Settings to modify the
-                // Notification exception.
+            } else if (mCategory.getType() == SiteSettingsCategory.Type.NOTIFICATIONS) {
+                // Per-origin notification permission state is mapped to Android notification
+                // channels since Android O, send the user directly to Android Settings to modify
+                // the state.
                 getSiteSettingsDelegate()
                         .getChannelIdForOrigin(
                                 websitePreference.site().getAddress().getOrigin(),
@@ -938,7 +938,7 @@ public class SingleCategorySettings extends BaseSiteSettingsFragment
 
         configureGlobalToggles();
 
-        boolean allowSpecifyingExceptions = false;
+        boolean shouldAddExceptionButton = false;
 
         switch (mCategory.getType()) {
             case SiteSettingsCategory.Type.SOUND:
@@ -947,38 +947,54 @@ public class SingleCategorySettings extends BaseSiteSettingsFragment
             case SiteSettingsCategory.Type.FEDERATED_IDENTITY_API:
             case SiteSettingsCategory.Type.REQUEST_DESKTOP_SITE:
             case SiteSettingsCategory.Type.JAVASCRIPT_OPTIMIZER:
-                allowSpecifyingExceptions = true;
+                shouldAddExceptionButton = true;
                 break;
             case SiteSettingsCategory.Type.BACKGROUND_SYNC:
             case SiteSettingsCategory.Type.AUTOMATIC_DOWNLOADS:
-                allowSpecifyingExceptions = !isCategoryEnabled();
+                shouldAddExceptionButton = !isCategoryEnabled();
                 break;
             case SiteSettingsCategory.Type.AUTO_DARK_WEB_CONTENT:
-                allowSpecifyingExceptions = isCategoryEnabled();
+                shouldAddExceptionButton = isCategoryEnabled();
                 break;
             case SiteSettingsCategory.Type.THIRD_PARTY_COOKIES:
-                allowSpecifyingExceptions = getCookieControlsMode() != CookieControlsMode.OFF;
+                shouldAddExceptionButton = getCookieControlsMode() != CookieControlsMode.OFF;
                 break;
             default:
                 break;
         }
 
         int exceptionDialogMessageResourceId = getAddExceptionDialogMessageResourceId();
-        assert allowSpecifyingExceptions == (exceptionDialogMessageResourceId != 0);
-        if (allowSpecifyingExceptions) {
+        assert shouldAddExceptionButton == (exceptionDialogMessageResourceId != 0);
+
+        if (shouldAddExceptionButton) {
+            int blockAddingExceptionsReasonResourceId =
+                    mCategory.getBlockAddingExceptionsReasonResourceId();
             boolean enableAddExceptionButton =
                     (!mCategory.isManaged()
-                            || mCategory.getType()
-                                    == SiteSettingsCategory.Type.THIRD_PARTY_COOKIES);
+                                    || mCategory.getType()
+                                            == SiteSettingsCategory.Type.THIRD_PARTY_COOKIES)
+                            && blockAddingExceptionsReasonResourceId == 0;
+            String exceptionDialogMessage =
+                    exceptionDialogMessageResourceId != 0
+                            ? getString(exceptionDialogMessageResourceId)
+                            : "";
             getPreferenceScreen()
                     .addPreference(
                             new AddExceptionPreference(
                                     getStyledContext(),
                                     ADD_EXCEPTION_KEY,
-                                    getString(exceptionDialogMessageResourceId),
+                                    exceptionDialogMessage,
                                     enableAddExceptionButton,
                                     mCategory,
                                     this));
+
+            if (blockAddingExceptionsReasonResourceId != 0) {
+                ChromeBasePreference reason = new ChromeBasePreference(getStyledContext());
+                reason.setKey(ADD_EXCEPTION_DISABLED_REASON_KEY);
+                reason.setTitle(getString(blockAddingExceptionsReasonResourceId));
+                reason.setIcon(mCategory.getDisabledInAndroidIcon(getContext()));
+                getPreferenceScreen().addPreference(reason);
+            }
         }
     }
 

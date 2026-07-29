@@ -28,16 +28,14 @@ void SetDefaultEnvironmentVariables(StyleEnvironmentVariables* instance) {
                         kSafeAreaInsetDefault);
   instance->SetVariable(UADefinedVariable::kSafeAreaInsetRight,
                         kSafeAreaInsetDefault);
-  if (RuntimeEnabledFeatures::CSSSafeAreaMaxInsetEnabled()) {
-    instance->SetVariable(UADefinedVariable::kSafeAreaMaxInsetTop,
-                          kSafeAreaInsetDefault);
-    instance->SetVariable(UADefinedVariable::kSafeAreaMaxInsetLeft,
-                          kSafeAreaInsetDefault);
-    instance->SetVariable(UADefinedVariable::kSafeAreaMaxInsetBottom,
-                          kSafeAreaInsetDefault);
-    instance->SetVariable(UADefinedVariable::kSafeAreaMaxInsetRight,
-                          kSafeAreaInsetDefault);
-  }
+  instance->SetVariable(UADefinedVariable::kSafeAreaMaxInsetTop,
+                        kSafeAreaInsetDefault);
+  instance->SetVariable(UADefinedVariable::kSafeAreaMaxInsetLeft,
+                        kSafeAreaInsetDefault);
+  instance->SetVariable(UADefinedVariable::kSafeAreaMaxInsetBottom,
+                        kSafeAreaInsetDefault);
+  instance->SetVariable(UADefinedVariable::kSafeAreaMaxInsetRight,
+                        kSafeAreaInsetDefault);
   instance->SetVariable(UADefinedVariable::kKeyboardInsetTop,
                         kKeyboardInsetDefault);
   instance->SetVariable(UADefinedVariable::kKeyboardInsetLeft,
@@ -110,14 +108,6 @@ const AtomicString StyleEnvironmentVariables::GetVariableName(
       return AtomicString("titlebar-area-width");
     case UADefinedVariable::kTitlebarAreaHeight:
       return AtomicString("titlebar-area-height");
-    case UADefinedVariable::kContextMenuInsetTop:
-      return AtomicString("context-menu-inset-top");
-    case UADefinedVariable::kContextMenuInsetLeft:
-      return AtomicString("context-menu-inset-left");
-    case UADefinedVariable::kContextMenuInsetBottom:
-      return AtomicString("context-menu-inset-bottom");
-    case UADefinedVariable::kContextMenuInsetRight:
-      return AtomicString("context-menu-inset-right");
     case UADefinedVariable::kPreferredTextScale:
       return AtomicString("preferred-text-scale");
     case UADefinedVariable::kSafePrintableInset:

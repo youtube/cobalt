@@ -223,8 +223,7 @@ class AppMenuHandlerImpl
 
     @Override
     public void setContentDescription(@Nullable String desc) {
-        assert mAppMenu != null;
-        mAppMenu.setContentDescription(desc);
+        if (mAppMenu != null) mAppMenu.setContentDescription(desc);
     }
 
     /**
@@ -509,7 +508,7 @@ class AppMenuHandlerImpl
         return mDelegate;
     }
 
-    @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
+    @VisibleForTesting
     public static void registerDefaultViewBinders(
             ModelListAdapter adapter, boolean iconBeforeItem) {
         @LayoutRes

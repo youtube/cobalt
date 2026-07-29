@@ -163,9 +163,9 @@ import java.util.List;
     ChromeFeatureList.ADAPTIVE_BUTTON_IN_TOP_TOOLBAR_PAGE_SUMMARY,
     ChromeFeatureList.NEW_TAB_PAGE_CUSTOMIZATION,
     ChromeFeatureList.FEED_AUDIO_OVERVIEWS,
-    DomDistillerFeatures.READER_MODE_IMPROVEMENTS
+    DomDistillerFeatures.READER_MODE_IMPROVEMENTS,
+    DomDistillerFeatures.READER_MODE_DISTILL_IN_APP
 })
-@EnableFeatures({ChromeFeatureList.PROPAGATE_DEVICE_CONTENT_FILTERS_TO_SUPERVISED_USER})
 public class TabbedAppMenuPropertiesDelegateUnitTest {
     // Constants defining flags that determines multi-window menu items visibility.
     private static final boolean TAB_M = true; // multiple tabs
@@ -1329,6 +1329,19 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
     }
 
     @Test
+    @DisableFeatures(DomDistillerFeatures.READER_MODE_IMPROVEMENTS + ":always_on_entry_point/false")
+    @EnableFeatures(DomDistillerFeatures.READER_MODE_DISTILL_IN_APP)
+    public void readerModeEntryPointEnabledWhenDistillingInApp() {
+        setUpMocksForPageMenu();
+        when(mTab.getUrl()).thenReturn(JUnitTestGURLs.EXAMPLE_URL);
+        doReturn(mTabModel).when(mTabModelSelector).getCurrentModel();
+
+        MVCListAdapter.ModelList modelList = mTabbedAppMenuPropertiesDelegate.getMenuItems();
+
+        assertTrue(isMenuVisible(modelList, R.id.reader_mode_menu_id));
+    }
+
+    @Test
     @EnableFeatures(DomDistillerFeatures.READER_MODE_IMPROVEMENTS + ":always_on_entry_point/true")
     public void readerModeEntryPointEnabled_ShowReadingMode() {
         setUpMocksForPageMenu();
@@ -2110,6 +2123,48 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
                 "Footer should not be a WebFeed footer",
                 mTabbedAppMenuPropertiesDelegate.buildFooterView(mAppMenuHandler),
                 anyOf(nullValue(), not(instanceOf(WebFeedMainMenuItem.class))));
+    }
+
+    @Test
+    @EnableFeatures(ChromeFeatureList.TAB_GROUP_PARITY_BOTTOM_SHEET_ANDROID)
+    public void testAddToGroup() {
+        setUpMocksForPageMenu();
+        when(mTab.getUrl()).thenReturn(GURL.emptyGURL());
+        MVCListAdapter.ModelList modelList = mTabbedAppMenuPropertiesDelegate.getMenuItems();
+        assertTrue(isMenuVisible(modelList, R.id.add_to_group_menu_id));
+    }
+
+    @Test
+    @DisableFeatures(ChromeFeatureList.TAB_GROUP_PARITY_BOTTOM_SHEET_ANDROID)
+    public void testAddToGroup_noParity() {
+        setUpMocksForPageMenu();
+        when(mTab.getUrl()).thenReturn(GURL.emptyGURL());
+        MVCListAdapter.ModelList modelList = mTabbedAppMenuPropertiesDelegate.getMenuItems();
+        assertFalse(isMenuVisible(modelList, R.id.add_to_group_menu_id));
+    }
+
+    @Test
+    @EnableFeatures(ChromeFeatureList.TAB_GROUP_PARITY_BOTTOM_SHEET_ANDROID)
+    @DisableFeatures(ChromeFeatureList.TAB_MODEL_INIT_FIXES)
+    public void testAddToGroup_preInitNoFixes() {
+        setUpMocksForPageMenu();
+        when(mTab.getUrl()).thenReturn(GURL.emptyGURL());
+        when(mTabModelSelector.isTabStateInitialized()).thenReturn(false);
+        MVCListAdapter.ModelList modelList = mTabbedAppMenuPropertiesDelegate.getMenuItems();
+        assertTrue(isMenuVisible(modelList, R.id.add_to_group_menu_id));
+    }
+
+    @Test
+    @EnableFeatures({
+        ChromeFeatureList.TAB_GROUP_PARITY_BOTTOM_SHEET_ANDROID,
+        ChromeFeatureList.TAB_MODEL_INIT_FIXES
+    })
+    public void testAddToGroup_preInit() {
+        setUpMocksForPageMenu();
+        when(mTab.getUrl()).thenReturn(GURL.emptyGURL());
+        when(mTabModelSelector.isTabStateInitialized()).thenReturn(false);
+        MVCListAdapter.ModelList modelList = mTabbedAppMenuPropertiesDelegate.getMenuItems();
+        assertFalse(isMenuVisible(modelList, R.id.add_to_group_menu_id));
     }
 
     private void setUpMocksForWebFeedFooter() {

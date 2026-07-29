@@ -4,21 +4,21 @@
 
 // Custom binding for the Media Gallery API.
 
-var blobNatives = requireNative('blob_natives');
-var mediaGalleriesNatives = requireNative('mediaGalleries');
+const blobNatives = requireNative('blob_natives');
+const mediaGalleriesNatives = requireNative('mediaGalleries');
 
-var blobsAwaitingMetadata = {};
-var mediaGalleriesMetadata = {};
+const blobsAwaitingMetadata = {};
+let mediaGalleriesMetadata = {};
 
 function createFileSystemObjectsAndUpdateMetadata(response) {
-  var result = [];
+  const result = [];
   mediaGalleriesMetadata = {};  // Clear any previous metadata.
   if (response) {
-    for (var i = 0; i < response.length; i++) {
-      var filesystem =
+    for (let i = 0; i < response.length; i++) {
+      const filesystem =
           mediaGalleriesNatives.GetMediaFileSystemObject(response[i].fsid);
       $Array.push(result, filesystem);
-      var metadata = response[i];
+      const metadata = response[i];
       delete metadata.fsid;
       mediaGalleriesMetadata[filesystem.name] = metadata;
     }
@@ -27,32 +27,34 @@ function createFileSystemObjectsAndUpdateMetadata(response) {
 }
 
 apiBridge.registerCustomHook(function(bindingsAPI, extensionId) {
-  var apiFunctions = bindingsAPI.apiFunctions;
+  const apiFunctions = bindingsAPI.apiFunctions;
 
   // getMediaFileSystems and addUserSelectedFolder use a custom callback so that
   // they can instantiate and return an array of file system objects.
   apiFunctions.setCustomCallback(
       'getMediaFileSystems', function(callback, response) {
-        var result = createFileSystemObjectsAndUpdateMetadata(response);
-        if (callback)
+        const result = createFileSystemObjectsAndUpdateMetadata(response);
+        if (callback) {
           callback(result);
+        }
       });
 
   apiFunctions.setCustomCallback(
       'addUserSelectedFolder', function(callback, response) {
-        var fileSystems = [];
-        var selectedFileSystemName = '';
+        let fileSystems = [];
+        let selectedFileSystemName = '';
         if (response && 'mediaFileSystems' in response &&
             'selectedFileSystemIndex' in response) {
           fileSystems = createFileSystemObjectsAndUpdateMetadata(
               response['mediaFileSystems']);
-          var selectedFileSystemIndex = response['selectedFileSystemIndex'];
+          const selectedFileSystemIndex = response['selectedFileSystemIndex'];
           if (selectedFileSystemIndex >= 0) {
             selectedFileSystemName = fileSystems[selectedFileSystemIndex].name;
           }
         }
-        if (callback)
+        if (callback) {
           callback(fileSystems, selectedFileSystemName);
+        }
       });
 
   apiFunctions.setHandleRequest(
@@ -71,24 +73,26 @@ apiBridge.registerCustomHook(function(bindingsAPI, extensionId) {
       });
 
   function getMetadataCallback(uuid, callback, response, blobs) {
-    if (response && blobs)
+    if (response && blobs) {
       response.metadata.attachedImages = blobs;
+    }
 
-    if (callback)
+    if (callback) {
       callback(response ? response.metadata : null);
+    }
 
     delete blobsAwaitingMetadata[uuid];
   }
 
   apiFunctions.setHandleRequest(
       'getMetadata', function(mediaFile, options, callback) {
-        var blobUuid = blobNatives.GetBlobUuid(mediaFile)
+        const blobUuid = blobNatives.GetBlobUuid(mediaFile);
         // Store the blob in a global object to keep its refcount nonzero --
         // this prevents the object from being garbage collected before any
         // metadata parsing gets to occur (see crbug.com/415792).
         blobsAwaitingMetadata[blobUuid] = mediaFile;
 
-        var optArgs = {
+        const optArgs = {
           __proto__: null,
           customCallback: $Function.bind(getMetadataCallback, null, blobUuid),
         };

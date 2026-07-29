@@ -325,6 +325,11 @@ BASE_FEATURE(kBocaMigrateSpeechRecongnizerClient,
              "BocaMigrateSpeechRecongnizerClient",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
+// Enables or disables marker mode.
+BASE_FEATURE(kBocaMarkerMode,
+             "BocaMarkerMode",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 BASE_FEATURE(kCrosSwitcher, "CrosSwitcher", base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Indicates whether the camera super resolution is supported. Note that this
@@ -403,11 +408,6 @@ const base::FeatureParam<BorealisZinkGlDriverParam> kBorealisZinkGlDriverParam{
     BorealisZinkGlDriverParam::kZinkEnableRecommended,
     &borealis_zink_gl_driver_options};
 
-// Enables client cert caching in ClientCertStoreAsh.
-BASE_FEATURE(kUseKcerClientCertStore,
-             "UseKcerClientCertStore",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 // Enables the feature to parameterize glyph for "Campbell" feature.
 BASE_FEATURE(kCampbellGlyph,
              "CampbellGlyph",
@@ -471,9 +471,6 @@ BASE_FEATURE(kCheckPasswordsAgainstCryptohomeHelper,
 // When enabled alongside the keyboard auto-repeat setting, holding down Ctrl+V
 // will cause the clipboard history menu to show. From there, the user can
 // select a clipboard history item to replace the initially pasted content.
-BASE_FEATURE(kClipboardHistoryLongpress,
-             "ClipboardHistoryLongpress",
-             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Controls enabling/disabling conch.
 BASE_FEATURE(kConch, "Conch", base::FEATURE_DISABLED_BY_DEFAULT);
@@ -745,13 +742,6 @@ BASE_FEATURE(kEcheSWACheckAndroidNetworkInfo,
              "EcheSWACheckAndroidNetworkInfo",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
-// Enables background blur for the app list, shelf, unified system tray,
-// autoclick menu, etc. Also enables the AppsGridView mask layer, slower devices
-// may have choppier app list animations while in this mode. crbug.com/765292.
-BASE_FEATURE(kEnableBackgroundBlur,
-             "EnableBackgroundBlur",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 // Enables settings to control internal display brightness and auto-brightness.
 BASE_FEATURE(kEnableBrightnessControlInSettings,
              "EnableBrightnessControlInSettings",
@@ -789,7 +779,7 @@ BASE_FEATURE(kEnableRFC8925, "EnableRFC8925", base::FEATURE_ENABLED_BY_DEFAULT);
 // Enable the DNS proxy service running in root network namespace for ChromeOS.
 BASE_FEATURE(kEnableRootNsDnsProxy,
              "EnableRootNsDnsProxy",
-             base::FEATURE_ENABLED_BY_DEFAULT);
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enable the shortcut to toggle whether the camera is enabled/disabled in
 // Settings > Privacy controls.
@@ -2491,7 +2481,7 @@ BASE_FEATURE(kReleaseNotesNotificationAlwaysEligible,
 // Enables rendering ARC notifications using ChromeOS notification framework
 BASE_FEATURE(kRenderArcNotificationsByChrome,
              "RenderArcNotificationsByChrome",
-             base::FEATURE_ENABLED_BY_DEFAULT);
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Allows the OS to unpin apps that were pinned by PinnedLauncherApps policy
 // but are no longer a part of it from shelf under specific conditions.
@@ -2936,6 +2926,12 @@ BASE_FEATURE(kUseSearchClickForRightClick,
              "UseSearchClickForRightClick",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+// Enables using ICU library to get sunrise/sunset time.
+// TODO(crbug.com/419726206): Remove this before m142 branch cut.
+BASE_FEATURE(kUseICUForGetSunRiseSet,
+             "UseICUForGetSunRiseSet",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
 // Use the Stork production SM-DS server when fetching pending eSIM profiles.
 BASE_FEATURE(kUseStorkSmdsServerAddress,
              "UseStorkSmdsServerAddress",
@@ -3324,20 +3320,6 @@ bool IsAutoSignOutEnabled() {
   return base::FeatureList::IsEnabled(kAutoSignOut);
 }
 
-bool IsBackgroundBlurEnabled() {
-  bool enabled_by_feature_flag =
-      base::FeatureList::IsEnabled(kEnableBackgroundBlur);
-#if defined(ARCH_CPU_ARM_FAMILY)
-  // Enable background blur on Mali when GPU rasterization is enabled.
-  // See crbug.com/996858 for the condition.
-  return enabled_by_feature_flag &&
-         base::CommandLine::ForCurrentProcess()->HasSwitch(
-             switches::kAshEnableTabletMode);
-#else
-  return enabled_by_feature_flag;
-#endif
-}
-
 bool IsBabelOrcaAvailable() {
   return base::FeatureList::IsEnabled(kBabelOrca);
 }
@@ -3454,6 +3436,10 @@ bool IsBocaMigrateSpeechRecognizerClientEnabled() {
   return base::FeatureList::IsEnabled(kBocaMigrateSpeechRecongnizerClient);
 }
 
+bool IsBocaMarkerModeEnabled() {
+  return base::FeatureList::IsEnabled(kBocaMarkerMode);
+}
+
 bool IsBrightnessControlInSettingsEnabled() {
   return base::FeatureList::IsEnabled(kEnableBrightnessControlInSettings);
 }
@@ -3473,10 +3459,6 @@ bool IsCaptureModeOnDeviceOcrEnabled() {
 
 bool IsCheckPasswordsAgainstCryptohomeHelperEnabled() {
   return base::FeatureList::IsEnabled(kCheckPasswordsAgainstCryptohomeHelper);
-}
-
-bool IsClipboardHistoryLongpressEnabled() {
-  return base::FeatureList::IsEnabled(kClipboardHistoryLongpress);
 }
 
 bool IsContinuousOverviewScrollAnimationEnabled() {
@@ -3730,10 +3712,6 @@ bool ShouldForceEnableServerSideSpeechRecognition() {
 #else
   return false;
 #endif  // BUILDFLAG(GOOGLE_CHROME_BRANDING);
-}
-
-bool IsForestFeatureEnabled() {
-  return base::FeatureList::IsEnabled(kForestFeature);
 }
 
 bool IsFullscreenAfterUnlockAllowed() {
@@ -4653,10 +4631,6 @@ bool IsWmModeEnabled() {
 bool IsFeatureAwareDeviceDemoModeEnabled() {
   return base::FeatureList::IsEnabled(
       kFeatureManagementFeatureAwareDeviceDemoMode);
-}
-
-bool ShouldUseKcerClientCertStore() {
-  return base::FeatureList::IsEnabled(kUseKcerClientCertStore);
 }
 
 bool IsUseAuthPanelInSessionEnabled() {

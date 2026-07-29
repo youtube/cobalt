@@ -644,6 +644,7 @@ public class NavigationTransitionsTest {
     @Test
     @MediumTest
     @EnableFeatures({UiAndroidFeatures.MIRROR_BACK_FORWARD_GESTURES_IN_RTL})
+    @DisabledTest(message = "crbug.com/434971032")
     public void testBackNavInRTL() throws Throwable {
         if (mTestNavigationMode == NAVIGATION_MODE_GESTURAL
                 && VERSION.SDK_INT < VERSION_CODES.UPSIDE_DOWN_CAKE) return;
@@ -687,7 +688,6 @@ public class NavigationTransitionsTest {
      */
     @Test
     @MediumTest
-    @DisabledTest(message = "https://crbug.com/431044324")
     public void startBackNavWithTopControlHidden() throws Throwable {
         if (mTestNavigationMode == NAVIGATION_MODE_GESTURAL
                 && VERSION.SDK_INT < VERSION_CODES.UPSIDE_DOWN_CAKE) return;
@@ -873,6 +873,7 @@ public class NavigationTransitionsTest {
     @Test
     @MediumTest
     @MinAndroidSdkLevel(Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
+    @DisabledTest(message = "crbug.com/434971032")
     public void testNoCrashWhenGestureIsNotInProgress() throws TimeoutException {
         if (mTestNavigationMode == NAVIGATION_MODE_THREE_BUTTON) {
             return;

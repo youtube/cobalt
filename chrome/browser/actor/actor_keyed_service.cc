@@ -6,6 +6,7 @@
 
 #include <utility>
 
+#include "base/containers/span.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/types/pass_key.h"
 #include "chrome/browser/actor/actor_keyed_service_factory.h"
@@ -22,9 +23,9 @@
 #include "chrome/browser/ui/browser_finder.h"
 #include "chrome/common/actor.mojom.h"
 #include "chrome/common/actor/action_result.h"
+#include "third_party/abseil-cpp/absl/strings/str_format.h"
 
 namespace {
-
 void RunLater(base::OnceClosure task) {
   base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(FROM_HERE,
                                                               std::move(task));
@@ -50,6 +51,22 @@ ActorKeyedService* ActorKeyedService::Get(content::BrowserContext* context) {
 void ActorKeyedService::SetActorUiStateManagerForTesting(
     std::unique_ptr<ui::ActorUiStateManagerInterface> ausm) {
   actor_ui_state_manager_ = std::move(ausm);
+}
+
+const ActorTask* ActorKeyedService::GetActingActorTaskForWebContents(
+    content::WebContents* web_contents) {
+  if (auto* tab_interface = tabs::TabModel::GetFromContents(web_contents)) {
+    // There should only be one active task per tab.
+    for (const auto& [task_id, actor_task] : GetActiveTasks()) {
+      if (actor_task->IsActingOnTab(tab_interface->GetHandle()) &&
+          (actor_task->GetState() == ActorTask::State::kActing ||
+           actor_task->GetState() == ActorTask::State::kReflecting)) {
+        return actor_task;
+      }
+    }
+  }
+
+  return nullptr;
 }
 
 TaskId ActorKeyedService::AddActiveTask(std::unique_ptr<ActorTask> task) {
@@ -106,7 +123,7 @@ void ActorKeyedService::ExecuteAction(
   task->Act(std::move(actions),
             base::BindOnce(&ActorKeyedService::OnActionFinished,
                            weak_ptr_factory_.GetWeakPtr(), std::move(callback),
-                           task_id.value()));
+                           task_id));
 }
 
 TaskId ActorKeyedService::CreateTask() {
@@ -135,48 +152,39 @@ void ActorKeyedService::RequestTabObservation(
       optimization_guide::ActionableAIPageContentOptions();
   page_content_annotations::FetchPageContext(
       *tab.GetContents(), options,
-      base::BindOnce(&ActorKeyedService::OnTabOservationResult,
-                     weak_ptr_factory_.GetWeakPtr(), std::move(callback)));
-}
+      base::BindOnce(
+          [](base::OnceCallback<void(TabObservationResult)> callback,
+             TabObservationResult result) {
+            if (result.has_value()) {
+              // Context for actor observations should always have an APC and a
+              // screenshot, return failure if either is missing.
+              auto& fetch_result = **result;
+              bool has_apc =
+                  fetch_result.annotated_page_content_result.has_value();
+              bool has_screenshot = fetch_result.screenshot_result.has_value();
+              if (!has_apc || !has_screenshot) {
+                std::move(callback).Run(base::unexpected(absl::StrFormat(
+                    "Failed Observation: hasAPC[%g] hasScreenshot[%g]", has_apc,
+                    has_screenshot)));
+                return;
+              }
 
-void ActorKeyedService::OnTabOservationResult(
-    base::OnceCallback<void(TabObservationResult)> callback,
-    page_content_annotations::FetchPageContextResultCallbackArg fetch_result) {
-  if (!fetch_result.has_value()) {
-    std::move(callback).Run(base::unexpected(fetch_result.error()));
-    return;
-  }
-  auto& page_context = **fetch_result;
-  if (!page_context.screenshot_result.has_value() ||
-      !page_context.annotated_page_content_result.has_value()) {
-    std::move(callback).Run(
-        base::unexpected<std::string>("Failed Observation"));
-    return;
-  }
-  std::unique_ptr<optimization_guide::proto::TabObservation> result =
-      std::make_unique<optimization_guide::proto::TabObservation>();
-  if (page_context.screenshot_result) {
-    auto& data = page_context.screenshot_result->jpeg_data;
-    if (data.size() != 0) {
-      result->set_screenshot_mime_type("image/jpeg");
-      result->set_screenshot(data.data(), data.size());
-    }
-  }
-  if (page_context.annotated_page_content_result) {
-    result->mutable_annotated_page_content()->Swap(
-        &page_context.annotated_page_content_result->proto);
-  }
-  std::move(callback).Run(std::move(result));
+              std::move(callback).Run(std::move(result));
+            }
+          },
+          std::move(callback)));
 }
 
 void ActorKeyedService::ConvertToBrowserActionResult(
     base::OnceCallback<void(optimization_guide::proto::BrowserActionResult)>
         callback,
-    int task_id,
+    TaskId task_id,
     int32_t tab_id,
+    const GURL& url,
     actor::mojom::ActionResultPtr action_result,
-    base::expected<std::unique_ptr<optimization_guide::proto::TabObservation>,
-                   std::string> context_result) {
+    base::expected<
+        std::unique_ptr<page_content_annotations::FetchPageContextResult>,
+        std::string> context_result) {
   optimization_guide::proto::BrowserActionResult browser_action_result;
   if (!context_result.has_value()) {
     VLOG(1) << "Execute Action failed: Error fetching context.";
@@ -185,18 +193,28 @@ void ActorKeyedService::ConvertToBrowserActionResult(
         base::BindOnce(std::move(callback), std::move(browser_action_result)));
     return;
   }
-  auto& tab_observation = **context_result;
-  if (tab_observation.has_annotated_page_content()) {
-    browser_action_result.mutable_annotated_page_content()->Swap(
-        tab_observation.mutable_annotated_page_content());
-  }
-  if (tab_observation.has_screenshot()) {
-    browser_action_result.set_screenshot(tab_observation.screenshot().data(),
-                                         tab_observation.screenshot().size());
-    browser_action_result.set_screenshot_mime_type(
-        tab_observation.screenshot_mime_type());
-  }
-  browser_action_result.set_task_id(task_id);
+  auto& fetch_result = **context_result;
+
+  CHECK(fetch_result.annotated_page_content_result.has_value());
+  CHECK(fetch_result.screenshot_result.has_value());
+
+  size_t size =
+      fetch_result.annotated_page_content_result->proto.ByteSizeLong();
+  std::vector<uint8_t> buffer(size);
+  fetch_result.annotated_page_content_result->proto.SerializeToArray(
+      buffer.data(), size);
+  journal_.LogAnnotatedPageContent(url, task_id, buffer);
+
+  browser_action_result.mutable_annotated_page_content()->Swap(
+      &fetch_result.annotated_page_content_result->proto);
+  auto& data = fetch_result.screenshot_result->jpeg_data;
+  journal_.LogScreenshot(url, task_id, kMimeTypeJpeg, base::as_byte_span(data));
+
+  // TODO(bokan): Can we avoid a copy here?
+  browser_action_result.set_screenshot(data.data(), data.size());
+  browser_action_result.set_screenshot_mime_type(kMimeTypeJpeg);
+
+  browser_action_result.set_task_id(task_id.value());
   browser_action_result.set_tab_id(tab_id);
   browser_action_result.set_action_result(actor::IsOk(*action_result) ? 1 : 0);
   RunLater(
@@ -206,7 +224,7 @@ void ActorKeyedService::ConvertToBrowserActionResult(
 void ActorKeyedService::OnActionFinished(
     base::OnceCallback<void(optimization_guide::proto::BrowserActionResult)>
         callback,
-    int task_id,
+    TaskId task_id,
     actor::mojom::ActionResultPtr action_result,
     std::optional<size_t> index_of_failed_action) {
   auto* task = GetTask(actor::TaskId(task_id));
@@ -221,9 +239,11 @@ void ActorKeyedService::OnActionFinished(
   }
   int32_t tab_id = tab->GetHandle().raw_value();
   RequestTabObservation(
-      *tab, base::BindOnce(&ActorKeyedService::ConvertToBrowserActionResult,
-                           weak_ptr_factory_.GetWeakPtr(), std::move(callback),
-                           task_id, tab_id, std::move(action_result)));
+      *tab,
+      base::BindOnce(&ActorKeyedService::ConvertToBrowserActionResult,
+                     weak_ptr_factory_.GetWeakPtr(), std::move(callback),
+                     task_id, tab_id, tab->GetContents()->GetLastCommittedURL(),
+                     std::move(action_result)));
 }
 
 void ActorKeyedService::PerformActions(

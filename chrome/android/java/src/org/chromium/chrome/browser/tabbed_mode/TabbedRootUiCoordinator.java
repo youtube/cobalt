@@ -4,9 +4,6 @@
 
 package org.chromium.chrome.browser.tabbed_mode;
 
-import static android.view.ViewGroup.LayoutParams.MATCH_PARENT;
-import static android.view.ViewGroup.LayoutParams.WRAP_CONTENT;
-
 import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.Intent;
@@ -17,9 +14,7 @@ import android.os.Build.VERSION;
 import android.os.Build.VERSION_CODES;
 import android.os.Bundle;
 import android.text.TextUtils;
-import android.view.View;
 import android.view.ViewGroup;
-import android.view.ViewGroup.LayoutParams;
 import android.view.ViewStub;
 
 import androidx.annotation.ColorInt;
@@ -121,6 +116,7 @@ import org.chromium.chrome.browser.notifications.permissions.NotificationPermiss
 import org.chromium.chrome.browser.notifications.permissions.NotificationPermissionRationaleDialogController;
 import org.chromium.chrome.browser.ntp.NewTabPageLaunchOrigin;
 import org.chromium.chrome.browser.ntp.NewTabPageUtils;
+import org.chromium.chrome.browser.ntp_customization.edge_to_edge.TopInsetCoordinator;
 import org.chromium.chrome.browser.offlinepages.indicator.OfflineIndicatorControllerV2;
 import org.chromium.chrome.browser.offlinepages.indicator.OfflineIndicatorInProductHelpController;
 import org.chromium.chrome.browser.omnibox.UrlFocusChangeListener;
@@ -260,7 +256,7 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
     private final Function<Tab, Boolean> mBackButtonShouldCloseTabFn;
     private final Callback<Tab> mSendToBackground;
     private final LayoutStateProvider.LayoutStateObserver mGestureNavLayoutObserver;
-    private final OneshotSupplierImpl<EphemeralTabCoordinator> mEphemeralTabCoordinatorSupplier;
+    private final ObservableSupplierImpl<EphemeralTabCoordinator> mEphemeralTabCoordinatorSupplier;
     private Callback<Integer> mOnTabStripHeightChangedCallback;
     private final MultiInstanceManager mMultiInstanceManager;
     private int mStatusIndicatorHeight;
@@ -361,6 +357,7 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
      * @param tabContentManagerSupplier Supplies the {@link TabContentManager}.
      * @param snackbarManagerSupplier Supplies the {@link SnackbarManager}.
      * @param edgeToEdgeSupplier Supplies the {@link EdgeToEdgeController}.
+     * @param topInsetCoordinatorSupplier Supplies the {@link TopInsetCoordinator}.
      * @param systemBarColorHelperSupplier Supplies the {@link SystemBarColorHelper} for the
      *     edge-to-edge bottom chin.
      * @param activityType The {@link ActivityType} for the activity.
@@ -415,12 +412,14 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
             @NonNull Supplier<TabContentManager> tabContentManagerSupplier,
             @NonNull Supplier<SnackbarManager> snackbarManagerSupplier,
             @NonNull ObservableSupplierImpl<EdgeToEdgeController> edgeToEdgeSupplier,
+            @NonNull ObservableSupplierImpl<TopInsetCoordinator> topInsetCoordinatorSupplier,
             @NonNull OneshotSupplierImpl<SystemBarColorHelper> systemBarColorHelperSupplier,
             @ActivityType int activityType,
             @NonNull Supplier<Boolean> isInOverviewModeSupplier,
             @NonNull AppMenuDelegate appMenuDelegate,
             @NonNull StatusBarColorProvider statusBarColorProvider,
-            @NonNull OneshotSupplierImpl<EphemeralTabCoordinator> ephemeralTabCoordinatorSupplier,
+            @NonNull
+                    ObservableSupplierImpl<EphemeralTabCoordinator> ephemeralTabCoordinatorSupplier,
             @NonNull IntentRequestTracker intentRequestTracker,
             @NonNull InsetObserver insetObserver,
             @NonNull Function<Tab, Boolean> backButtonShouldCloseTabFn,
@@ -463,6 +462,7 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
                 tabContentManagerSupplier,
                 snackbarManagerSupplier,
                 edgeToEdgeSupplier,
+                topInsetCoordinatorSupplier,
                 activityType,
                 isInOverviewModeSupplier,
                 appMenuDelegate,
@@ -683,10 +683,21 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
         }
 
         if (mBookmarkBarVisibilityProvider != null) {
-            destroyBookmarkBarIfNecessary();
+            if (mBookmarkBarCoordinator != null) {
+                mBookmarkBarVisibilityProvider.removeObserver(mBookmarkBarCoordinator);
+            }
             mBookmarkBarVisibilityProvider.removeObserver(mBookmarkBarVisibilityObserver);
             mBookmarkBarVisibilityProvider.destroy();
             mBookmarkBarVisibilityProvider = null;
+        }
+
+        if (mBookmarkBarCoordinator != null) {
+            mBookmarkBarCoordinator.destroy();
+            mBookmarkBarCoordinator = null;
+            mBookmarkOpener = null;
+            if (mToolbarManager != null) {
+                mToolbarManager.setBookmarkBarHeightSupplier(null);
+            }
         }
 
         if (mLoadingFullscreenCoordinator != null) {
@@ -1788,46 +1799,15 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
                 mBookmarkBarVisibilityProvider.addObserver(mBookmarkBarCoordinator);
             }
             mBookmarkBarHeightSupplier = mBookmarkBarCoordinator::getTopControlHeight;
+        } else {
+            mBookmarkBarCoordinator.setVisibility(true);
+            // When toggling the visibility of the existing view, the LayoutChangeListener will not
+            // be triggered as it is on instantiation, so we update the top controls height here.
+            updateTopControlsHeight();
         }
 
         if (mToolbarManager != null) {
             mToolbarManager.setBookmarkBarHeightSupplier(mBookmarkBarHeightSupplier);
-        }
-    }
-
-    private void destroyBookmarkBarIfNecessary() {
-        View view = null;
-
-        if (mBookmarkBarCoordinator != null) {
-            view = mBookmarkBarCoordinator.getView();
-            if (mBookmarkBarVisibilityProvider != null) {
-                mBookmarkBarVisibilityProvider.removeObserver(mBookmarkBarCoordinator);
-            }
-            mBookmarkBarCoordinator.destroy();
-            mBookmarkBarCoordinator = null;
-        }
-
-        if (mBookmarkOpener != null) {
-            mBookmarkOpener = null;
-        }
-
-        if (mToolbarManager != null) {
-            mToolbarManager.setBookmarkBarHeightSupplier(null);
-        }
-
-        if (view != null) {
-            // Remove view for bookmark bar.
-            final var parent = (ViewGroup) view.getParent();
-            final int index = parent.indexOfChild(view);
-            parent.removeViewInLayout(view);
-
-            // Add stub for bookmark bar.
-            final var viewStub = new ViewStub(mActivity, R.layout.bookmark_bar);
-            viewStub.setId(R.id.bookmark_bar_stub);
-            viewStub.setInflatedId(R.id.bookmark_bar);
-            parent.addView(viewStub, index, new LayoutParams(MATCH_PARENT, WRAP_CONTENT));
-
-            updateTopControlsHeight();
         }
     }
 
@@ -1840,7 +1820,10 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
             // onLayoutChange we will have the correct height and update the top controls then.
             createBookmarkBarIfNecessary();
         } else {
-            destroyBookmarkBarIfNecessary();
+            if (mBookmarkBarCoordinator != null) {
+                mBookmarkBarCoordinator.setVisibility(false);
+                updateTopControlsHeight();
+            }
         }
     }
 

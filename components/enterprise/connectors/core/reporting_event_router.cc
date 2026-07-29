@@ -4,6 +4,8 @@
 
 #include "components/enterprise/connectors/core/reporting_event_router.h"
 
+#include <optional>
+
 #include "base/containers/contains.h"
 #include "base/json/values_util.h"
 #include "base/strings/string_number_conversions.h"
@@ -65,6 +67,30 @@ std::string MalwareRuleToThreatType(const std::string& rule_name) {
     return kUnknownDownloadThreatType;
   }
 }
+
+std::string DangerTypeToThreatType(download::DownloadDangerType danger_type) {
+  switch (danger_type) {
+    case download::DOWNLOAD_DANGER_TYPE_DANGEROUS_FILE:
+      return kDangerousFileTypeDownloadThreatType;
+    case download::DOWNLOAD_DANGER_TYPE_DANGEROUS_URL:
+      return kDangerousFileTypeDownloadThreatType;
+    case download::DOWNLOAD_DANGER_TYPE_DANGEROUS_CONTENT:
+      return kDangerousDownloadThreatType;
+    case download::DOWNLOAD_DANGER_TYPE_UNCOMMON_CONTENT:
+      return kUncommonDownloadThreatType;
+    case download::DOWNLOAD_DANGER_TYPE_DANGEROUS_HOST:
+      return kDangerousHostDownloadThreatType;
+    case download::DOWNLOAD_DANGER_TYPE_POTENTIALLY_UNWANTED:
+      return kPotentiallyUnwantedDownloadThreatType;
+    case download::DOWNLOAD_DANGER_TYPE_DANGEROUS_ACCOUNT_COMPROMISE:
+      return kDangerousAccountCompromiseDownloadThreatType;
+    default:
+      // This can be reached when reporting an opened download that doesn't have
+      // a verdict yet.
+      return kUnknownDownloadThreatType;
+  }
+}
+
 }  // namespace
 
 ReportingEventRouter::ReportingEventRouter(
@@ -536,7 +562,27 @@ void ReportingEventRouter::OnSensitiveDataEvent(
   }
 }
 
-void ReportingEventRouter::OnDangerousDeepScanningResult(
+void ReportingEventRouter::OnDangerousDownloadEvent(
+    const GURL& url,
+    const GURL& tab_url,
+    const std::string& file_name,
+    const std::string& download_digest_sha256,
+    const download::DownloadDangerType danger_type,
+    const std::string& mime_type,
+    const std::string& trigger,
+    const std::string& scan_id,
+    const int64_t content_size,
+    const ReferrerChain& referrer_chain,
+    EventResult event_result) {
+  OnDangerousDownloadEvent(url, tab_url, /*source=*/"", /*destination=*/"",
+                           file_name, download_digest_sha256,
+                           DangerTypeToThreatType(danger_type), mime_type,
+                           trigger, scan_id,
+                           /*content_transfer_method*/ "", content_size,
+                           referrer_chain, event_result);
+}
+
+void ReportingEventRouter::OnDangerousDownloadEvent(
     const GURL& url,
     const GURL& tab_url,
     const std::string& source,
@@ -546,11 +592,11 @@ void ReportingEventRouter::OnDangerousDeepScanningResult(
     const std::string& threat_type,
     const std::string& mime_type,
     const std::string& trigger,
+    const std::string& scan_id,
+    const std::string& content_transfer_method,
     const int64_t content_size,
     const ReferrerChain& referrer_chain,
-    EventResult event_result,
-    const std::string& scan_id,
-    const std::string& content_transfer_method) {
+    EventResult event_result) {
   if (!IsEventEnabled(kKeyDangerousDownloadEvent)) {
     return;
   }
@@ -613,11 +659,11 @@ void ReportingEventRouter::OnAnalysisConnectorResult(
     EventResult event_result) {
   if (result.tag() == "malware") {
     DCHECK_EQ(1, result.triggered_rules().size());
-    OnDangerousDeepScanningResult(
+    OnDangerousDownloadEvent(
         url, tab_url, source, destination, file_name, download_digest_sha256,
         MalwareRuleToThreatType(result.triggered_rules(0).rule_name()),
-        mime_type, trigger, content_size, referrer_chain, event_result, scan_id,
-        content_transfer_method);
+        mime_type, trigger, scan_id, content_transfer_method, content_size,
+        referrer_chain, event_result);
   } else if (result.tag() == "dlp") {
     OnSensitiveDataEvent(url, tab_url, source, destination, file_name,
                          download_digest_sha256, mime_type, trigger, scan_id,
@@ -626,6 +672,70 @@ void ReportingEventRouter::OnAnalysisConnectorResult(
                          referrer_chain, event_result);
   }
 }
+
+#if BUILDFLAG(ENTERPRISE_DATA_CONTROLS)
+void ReportingEventRouter::OnDataControlsSensitiveDataEvent(
+    const GURL& url,
+    const GURL& tab_url,
+    const std::string& source,
+    const std::string& destination,
+    const std::string& mime_type,
+    const std::string& trigger,
+    const std::string& source_active_user_email,
+    const std::string& content_area_account_email,
+    const data_controls::Verdict::TriggeredRules& triggered_rules,
+    enterprise_connectors::EventResult event_result,
+    int64_t content_size) {
+  if (!IsEventEnabled(kKeySensitiveDataEvent)) {
+    return;
+  }
+
+  std::optional<ReportingSettings> settings =
+      reporting_client_->GetReportingSettings();
+
+  base::Value::Dict event;
+  event.Set(kKeyUrl, url.spec());
+  event.Set(kKeyTabUrl, tab_url.spec());
+  event.Set(kKeySource, source);
+  event.Set(kKeyDestination, destination);
+  event.Set(kKeyContentType, mime_type);
+  // |content_size| can be set to -1 to indicate an unknown size, in
+  // which case the field is not set.
+  if (content_size >= 0) {
+    event.Set(kKeyContentSize, base::Int64ToValue(content_size));
+  }
+  event.Set(kKeyTrigger, trigger);
+  if (!content_area_account_email.empty()) {
+    event.Set(enterprise_connectors::kKeyWebAppSignedInAccount,
+              content_area_account_email);
+  }
+  if (!source_active_user_email.empty()) {
+    event.Set(enterprise_connectors::kKeySourceWebAppSignedInAccount,
+              source_active_user_email);
+  }
+  event.Set(kKeyEventResult,
+            enterprise_connectors::EventResultToString(event_result));
+
+  base::Value::List triggered_rule_info;
+  triggered_rule_info.reserve(triggered_rules.size());
+  for (const auto& [index, rule] : triggered_rules) {
+    base::Value::Dict triggered_rule;
+    int rule_id_int = 0;
+    if (base::StringToInt(rule.rule_id, &rule_id_int)) {
+      triggered_rule.Set(kKeyTriggeredRuleId, rule_id_int);
+    }
+    triggered_rule.Set(kKeyTriggeredRuleName, rule.rule_name);
+
+    triggered_rule_info.Append(std::move(triggered_rule));
+  }
+  event.Set(kKeyTriggeredRuleInfo, std::move(triggered_rule_info));
+
+  reporting_client_->ReportEventWithTimestampDeprecated(
+      kKeySensitiveDataEvent, std::move(settings.value()), std::move(event),
+      base::Time::Now(),
+      /*include_profile_user_name=*/true);
+}
+#endif  // BUILDFLAG(ENTERPRISE_DATA_CONTROLS)
 
 // static
 std::string ReportingEventRouter::GetFileName(const std::string& filename,

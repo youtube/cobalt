@@ -103,10 +103,17 @@ public class TabGroupDialogFacility<
         if (ChromeFeatureList.isEnabled(ChromeFeatureList.DATA_SHARING)
                 || ChromeFeatureList.isEnabled(ChromeFeatureList.DATA_SHARING_JOIN_ONLY)) {
             // TODO(ckitagawa): Add handling for an already shared group.
-            if (isAllowedToShare()) {
-                shareButtonElement =
-                        declareView(toolbarElement.descendant(withId(R.id.share_button)));
-            }
+
+            // Make this a delayed element check to ensure the tab model is available on check.
+            declareElementFactory(
+                    mHostStation.tabModelElement,
+                    delayedElements -> {
+                        if (isAllowedToShare()) {
+                            shareButtonElement =
+                                    delayedElements.declareView(
+                                            toolbarElement.descendant(withId(R.id.share_button)));
+                        }
+                    });
 
             // Data sharing layout causes the menu button to be hidden due to the rounded corner.
             listMenuButtonElement =

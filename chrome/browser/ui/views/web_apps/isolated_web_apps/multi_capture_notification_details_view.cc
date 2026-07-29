@@ -13,6 +13,8 @@
 #include "ui/base/models/image_model.h"
 #include "ui/color/color_id.h"
 #include "ui/gfx/geometry/insets.h"
+#include "ui/gfx/image/image_skia_operations.h"
+#include "ui/gfx/text_elider.h"
 #include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/border.h"
 #include "ui/views/controls/button/md_text_button.h"
@@ -30,6 +32,9 @@ namespace multi_capture {
 
 namespace {
 
+constexpr size_t kAppMaxNameLength = 18;
+constexpr int kAppIconSize = 18;
+
 enum class DetailsMode {
   kOnlyAppsWithNotification = 0,
   kOnlyAppsWithoutNotification = 1,
@@ -37,20 +42,19 @@ enum class DetailsMode {
 };
 
 DetailsMode GetDetailsMode(
-    const std::vector<std::string>& app_names_with_notification,
-    const std::vector<std::string>& app_names_without_notification) {
-  if (!app_names_with_notification.empty() &&
-      app_names_without_notification.empty()) {
+    const std::vector<MultiCaptureNotificationDetailsView::AppInfo>&
+        apps_with_notification,
+    const std::vector<MultiCaptureNotificationDetailsView::AppInfo>&
+        apps_without_notification) {
+  if (!apps_with_notification.empty() && apps_without_notification.empty()) {
     return DetailsMode::kOnlyAppsWithNotification;
   }
 
-  if (app_names_with_notification.empty() &&
-      !app_names_without_notification.empty()) {
+  if (apps_with_notification.empty() && !apps_without_notification.empty()) {
     return DetailsMode::kOnlyAppsWithoutNotification;
   }
 
-  if (!app_names_with_notification.empty() &&
-      !app_names_without_notification.empty()) {
+  if (!apps_with_notification.empty() && !apps_without_notification.empty()) {
     return DetailsMode::kBothAppTypes;
   }
 
@@ -76,12 +80,12 @@ std::unique_ptr<views::Label> CreateAppListHeader(
 
 std::unique_ptr<views::View> CreateAppList(
     const views::LayoutProvider* provider,
-    const std::vector<std::string>& app_names) {
+    const std::vector<MultiCaptureNotificationDetailsView::AppInfo>& apps) {
   std::unique_ptr<views::View> app_list_container =
       std::make_unique<views::View>();
   app_list_container->SetLayoutManager(std::make_unique<views::BoxLayout>(
       views::BoxLayout::Orientation::kVertical));
-  for (const auto& app_name : app_names) {
+  for (const auto& app : apps) {
     auto* app_row =
         app_list_container->AddChildView(std::make_unique<views::View>());
     app_row->SetLayoutManager(std::make_unique<views::BoxLayout>(
@@ -96,11 +100,15 @@ std::unique_ptr<views::View> CreateAppList(
 
     auto* app_icon =
         app_row->AddChildView(std::make_unique<views::ImageView>());
-    app_icon->SetImage(ui::ImageModel::FromVectorIcon(
-        vector_icons::kScreenRecordIcon, ui::kColorIconSecondary, 16));
+    app_icon->SetImage(ui::ImageModel::FromImageSkia(
+        gfx::ImageSkiaOperations::CreateResizedImage(
+            app.icon, skia::ImageOperations::RESIZE_BEST,
+            gfx::Size(kAppIconSize, kAppIconSize))));
 
     app_row->AddChildView(std::make_unique<views::Label>(
-        base::UTF8ToUTF16(app_name), views::style::CONTEXT_LABEL));
+        gfx::TruncateString(base::UTF8ToUTF16(app.name), kAppMaxNameLength,
+                            gfx::BreakType::WORD_BREAK),
+        views::style::CONTEXT_LABEL));
   }
   app_list_container->SetProperty(
       views::kMarginsKey,
@@ -132,9 +140,16 @@ std::unique_ptr<views::Label> CreateAppListFooter(
 BEGIN_METADATA(MultiCaptureNotificationDetailsView)
 END_METADATA
 
+MultiCaptureNotificationDetailsView::AppInfo::AppInfo(
+    const std::string& name,
+    const gfx::ImageSkia& icon)
+    : name(name), icon(icon) {}
+
+MultiCaptureNotificationDetailsView::AppInfo::~AppInfo() = default;
+
 MultiCaptureNotificationDetailsView::MultiCaptureNotificationDetailsView(
-    const std::vector<std::string>& app_names_with_notification,
-    const std::vector<std::string>& app_names_without_notification) {
+    const std::vector<AppInfo>& apps_with_notification,
+    const std::vector<AppInfo>& apps_without_notification) {
   views::BoxLayout* layout =
       SetLayoutManager(std::make_unique<views::BoxLayout>(
           views::BoxLayout::Orientation::kVertical));
@@ -147,14 +162,13 @@ MultiCaptureNotificationDetailsView::MultiCaptureNotificationDetailsView(
 
   auto* admin_icon = AddChildView(std::make_unique<views::ImageView>());
   admin_icon->SetImage(ui::ImageModel::FromVectorIcon(
-      vector_icons::kScreenRecordIcon, ui::kColorIcon, 24));
+      vector_icons::kBusinessIcon, ui::kColorIcon, 24));
   admin_icon->SetHorizontalAlignment(views::ImageView::Alignment::kLeading);
+  const int vertical_margin =
+      provider->GetDistanceMetric(views::DISTANCE_RELATED_CONTROL_VERTICAL);
   admin_icon->SetProperty(
       views::kMarginsKey,
-      gfx::Insets::TLBR(
-          0, 0,
-          provider->GetDistanceMetric(views::DISTANCE_RELATED_CONTROL_VERTICAL),
-          0));
+      gfx::Insets::TLBR(vertical_margin, 0, vertical_margin, 0));
 
   auto* title_label = AddChildView(std::make_unique<views::Label>(
       l10n_util::GetStringUTF16(IDS_MULTI_CAPTURE_DETAILS_DIALOG_HEADING),
@@ -168,19 +182,19 @@ MultiCaptureNotificationDetailsView::MultiCaptureNotificationDetailsView(
           provider->GetDistanceMetric(views::DISTANCE_RELATED_CONTROL_VERTICAL),
           0));
 
-  const DetailsMode mode = GetDetailsMode(app_names_with_notification,
-                                          app_names_without_notification);
+  const DetailsMode mode =
+      GetDetailsMode(apps_with_notification, apps_without_notification);
 
   switch (mode) {
     case DetailsMode::kOnlyAppsWithNotification:
-      ShowAppListAllWithNotification(app_names_with_notification);
+      ShowAppListAllWithNotification(apps_with_notification);
       break;
     case DetailsMode::kOnlyAppsWithoutNotification:
-      ShowAppListNoneWithNotification(app_names_without_notification);
+      ShowAppListNoneWithNotification(apps_without_notification);
       break;
     case DetailsMode::kBothAppTypes:
-      ShowAppListsWitMixedhNotifications(app_names_with_notification,
-                                         app_names_without_notification);
+      ShowAppListsWitMixedhNotifications(apps_with_notification,
+                                         apps_without_notification);
       break;
   }
 
@@ -204,14 +218,15 @@ MultiCaptureNotificationDetailsView::~MultiCaptureNotificationDetailsView() =
     default;
 
 void MultiCaptureNotificationDetailsView::ShowCaptureDetails(
-    const std::vector<std::string>& app_names_with_notification,
-    const std::vector<std::string>& app_names_without_notification) {
+    const std::vector<AppInfo>& apps_with_notification,
+    const std::vector<AppInfo>& apps_without_notification) {
   std::unique_ptr<views::DialogDelegate> delegate =
       std::make_unique<views::DialogDelegate>();
   delegate->SetContentsView(
       std::make_unique<MultiCaptureNotificationDetailsView>(
-          app_names_with_notification, app_names_without_notification));
+          apps_with_notification, apps_without_notification));
   delegate->SetButtons(static_cast<int>(ui::mojom::DialogButton::kNone));
+  delegate->SetShowCloseButton(/*show_close_button=*/false);
 
   views::DialogDelegate::CreateDialogWidget(std::move(delegate),
                                             /*context=*/gfx::NativeWindow(),
@@ -220,13 +235,13 @@ void MultiCaptureNotificationDetailsView::ShowCaptureDetails(
 }
 
 void MultiCaptureNotificationDetailsView::ShowAppListAllWithNotification(
-    const std::vector<std::string>& app_names_with_notification) {
+    const std::vector<AppInfo>& apps_with_notification) {
   const views::LayoutProvider* provider = views::LayoutProvider::Get();
   AddChildView(CreateAppListHeader(
       provider,
       l10n_util::GetStringUTF16(
           IDS_MULTI_CAPTURE_DETAILS_DIALOG_NO_APP_ON_ALLOWLIST_MESSAGE)));
-  AddChildView(CreateAppList(provider, app_names_with_notification));
+  AddChildView(CreateAppList(provider, apps_with_notification));
   AddChildView(CreateAppListFooter(
       provider,
       l10n_util::GetStringUTF16(
@@ -234,13 +249,13 @@ void MultiCaptureNotificationDetailsView::ShowAppListAllWithNotification(
 }
 
 void MultiCaptureNotificationDetailsView::ShowAppListNoneWithNotification(
-    const std::vector<std::string>& app_names_without_notification) {
+    const std::vector<AppInfo>& apps_without_notification) {
   const views::LayoutProvider* provider = views::LayoutProvider::Get();
   AddChildView(CreateAppListHeader(
       provider,
       l10n_util::GetStringUTF16(
           IDS_MULTI_CAPTURE_DETAILS_DIALOG_NO_APP_ON_ALLOWLIST_MESSAGE)));
-  AddChildView(CreateAppList(provider, app_names_without_notification));
+  AddChildView(CreateAppList(provider, apps_without_notification));
   AddChildView(CreateAppListFooter(
       provider,
       l10n_util::GetStringUTF16(
@@ -248,19 +263,19 @@ void MultiCaptureNotificationDetailsView::ShowAppListNoneWithNotification(
 }
 
 void MultiCaptureNotificationDetailsView::ShowAppListsWitMixedhNotifications(
-    const std::vector<std::string>& app_names_with_notification,
-    const std::vector<std::string>& app_names_without_notification) {
+    const std::vector<AppInfo>& apps_with_notification,
+    const std::vector<AppInfo>& apps_without_notification) {
   const views::LayoutProvider* provider = views::LayoutProvider::Get();
   AddChildView(CreateAppListHeader(
       provider,
       l10n_util::GetStringUTF16(
           IDS_MULTI_CAPTURE_DETAILS_DIALOG_SOME_APPS_ON_ALLOWLIST_FIRST_MESSAGE)));
-  AddChildView(CreateAppList(provider, app_names_with_notification));
+  AddChildView(CreateAppList(provider, apps_with_notification));
   AddChildView(CreateAppListHeader(
       provider,
       l10n_util::GetStringUTF16(
           IDS_MULTI_CAPTURE_DETAILS_DIALOG_SOME_APPS_ON_ALLOWLIST_SECOND_MESSAGE)));
-  AddChildView(CreateAppList(provider, app_names_without_notification));
+  AddChildView(CreateAppList(provider, apps_without_notification));
 }
 
 void MultiCaptureNotificationDetailsView::CloseWidget() {

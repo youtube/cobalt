@@ -8,7 +8,6 @@ import android.app.ActivityOptions;
 import android.app.Instrumentation;
 import android.content.Intent;
 import android.os.Bundle;
-import android.provider.Browser;
 import android.text.TextUtils;
 
 import androidx.test.platform.app.InstrumentationRegistry;
@@ -99,18 +98,6 @@ public class ChromeTabbedActivityTestRule extends ChromeActivityTestRule<ChromeT
     }
 
     /**
-     * Starts the Main activity as if it was started from an external application, on the
-     * specified URL.
-     */
-    public void startMainActivityFromExternalApp(String url, String appId) {
-        Intent intent = new Intent(Intent.ACTION_VIEW);
-        if (appId != null) {
-            intent.putExtra(Browser.EXTRA_APPLICATION_ID, appId);
-        }
-        startMainActivityFromIntent(intent, url);
-    }
-
-    /**
      * Starts the Main activity using the passed intent, and using the specified URL. This method
      * waits for DEFERRED_STARTUP to fire as well as a subsequent idle-sync of the main looper
      * thread, and the initial tab must either complete its load or it must crash before this method
@@ -184,7 +171,7 @@ public class ChromeTabbedActivityTestRule extends ChromeActivityTestRule<ChromeT
         }
         ThreadUtils.runOnUiThreadBlocking(() -> incognitoTabModel.removeObserver(observer));
 
-        Tab tab = getActivity().getActivityTab();
+        Tab tab = getActivityTab();
 
         ChromeTabUtils.waitForTabPageLoaded(tab, (String) null);
         NewTabPageTestUtils.waitForNtpLoaded(tab);

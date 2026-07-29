@@ -15,10 +15,11 @@
 #include "base/scoped_observation.h"
 #include "base/values.h"
 #include "chrome/browser/media/webrtc/multi_capture/multi_capture_data_service.h"
+#include "chrome/browser/notifications/notification_display_service.h"
+#include "chrome/browser/ui/views/web_apps/isolated_web_apps/multi_capture_notification_details_view.h"
 #include "components/keyed_service/core/keyed_service.h"
 #include "components/webapps/common/web_app_id.h"
 
-class NotificationDisplayService;
 class PrefService;
 
 namespace message_center {
@@ -33,7 +34,8 @@ namespace multi_capture {
 
 class MultiCaptureUsageIndicatorService
     : public KeyedService,
-      public MultiCaptureDataService::Observer {
+      public MultiCaptureDataService::Observer,
+      public NotificationDisplayService::Observer {
  public:
   struct AllowListedAppNames {
     AllowListedAppNames(
@@ -65,6 +67,14 @@ class MultiCaptureUsageIndicatorService
   void MultiCaptureDataChanged() override;
   void MultiCaptureDataServiceDestroyed() override;
 
+  // NotificationDisplayService::Observer:
+  void OnNotificationDisplayed(
+      const message_center::Notification& notification,
+      const NotificationCommon::Metadata* const metadata) override;
+  void OnNotificationClosed(const std::string& notification_id) override;
+  void OnNotificationDisplayServiceDestroyed(
+      NotificationDisplayService* service) override;
+
  protected:
   explicit MultiCaptureUsageIndicatorService(
       PrefService* prefs,
@@ -93,6 +103,13 @@ class MultiCaptureUsageIndicatorService
 
   void RefreshNotifications();
 
+  std::vector<MultiCaptureNotificationDetailsView::AppInfo>
+  GetAllCaptureWithNotificationApps(
+      const MultiCaptureUsageIndicatorService::AllowListedAppNames& apps) const;
+  std::vector<MultiCaptureNotificationDetailsView::AppInfo>
+  GetAllCaptureWithoutNotificationApps(
+      const MultiCaptureUsageIndicatorService::AllowListedAppNames& apps) const;
+
   // As the keyed service is bound to the profile / browser context and the
   // web app provider keyed service is listed as dependency for this service,
   // these raw pointers are safe because the profile and provider objects are
@@ -100,7 +117,7 @@ class MultiCaptureUsageIndicatorService
   // `Shutdown` function is called.
   const raw_ptr<PrefService> pref_service_;
   const raw_ptr<web_app::WebAppProvider> provider_;
-  const raw_ptr<NotificationDisplayService> notification_display_service_;
+  raw_ptr<NotificationDisplayService> notification_display_service_;
   const raw_ptr<MultiCaptureDataService> data_service_;
   base::Value::List multi_screen_capture_allow_list_on_login_;
 
@@ -114,6 +131,9 @@ class MultiCaptureUsageIndicatorService
   base::ScopedObservation<MultiCaptureDataService,
                           MultiCaptureDataService::Observer>
       data_service_observer_{this};
+  base::ScopedObservation<NotificationDisplayService,
+                          NotificationDisplayService::Observer>
+      notification_service_observer_{this};
 
   base::WeakPtrFactory<MultiCaptureUsageIndicatorService> weak_ptr_factory_{
       this};

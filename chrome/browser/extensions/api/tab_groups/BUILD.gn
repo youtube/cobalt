@@ -21,18 +21,20 @@ source_set("tab_groups") {
   public_deps = [
     "//base",
     "//chrome/browser/profiles:profile",
-    "//chrome/browser/ui",
     "//chrome/browser/ui:browser_tab_strip",
     "//chrome/browser/ui/tabs:tab_strip_model_observer",
     "//chrome/common/extensions/api",
     "//components/tab_groups",
     "//extensions/browser",
+
+    # TODO(crbug.com/364501603) Remove this dependency when saved_tab_group_utils.h gets componentized.
+    "//chrome/browser/ui",
   ]
 
   deps = [
     "//chrome/browser/extensions",
     "//chrome/browser/ui:ui_features",
-    "//chrome/browser/ui/browser_window:browser_window",
+    "//chrome/browser/ui/browser_window",
     "//chrome/browser/ui/tabs:tab_group",
     "//chrome/browser/ui/tabs:tab_model",
     "//chrome/browser/ui/tabs:tab_strip",

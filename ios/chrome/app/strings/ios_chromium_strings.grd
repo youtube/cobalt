@@ -1,4 +1,4 @@
-<?xml version='1.0' encoding='UTF-8'?>
+<?xml version='1.0' encoding='utf-8'?>
 <grit base_dir="." latest_public_release="0" current_release="1" source_lang_id="en" enc_check="möl">
   <!--
   This file contains definition of resources that will be translated for each
@@ -338,6 +338,9 @@ Try waiting a few minutes before switching accounts. If you switch accounts now,
       </message>
       <message name="IDS_IOS_DEFAULT_BROWSER_VIDEO_PROMO_APP_SETTINGS" desc="Chromium version of Text in the default browser video the app settings. [iOS only]">
         Chromium settings
+      </message>
+      <message name="IDS_IOS_DEFAULT_BROWSER_VIDEO_PROMO_DEFAULT_APPS_SUBTITLE_TEXT" desc="Subtitle for the default browser video promo. 'Default Apps' must use the same translation that iOS uses for the 'Default Apps' item in the iOS settings. [iOS only]">
+        Open Default Apps settings in iOS, then tap on "Browser App" and select Chromium.
       </message>
       <message name="IDS_IOS_DEFAULT_BROWSER_VIDEO_PROMO_SUBTITLE_TEXT" desc="Chromium version of the subtitle for the default browser video promo. [iOS only]">
         Open Chromium settings in iOS, then tap on "Default Browser App" and select Chromium.
@@ -775,8 +778,8 @@ Only someone with your passphrase can read your encrypted data. The passphrase i
       <message name="IDS_IOS_NOTIFICATIONS_TIPS_SIGNIN_TITLE" desc="Text for the title of a Tips notification that encourages the user to sign in to their account">
         Chromium Tip: Sign in to Chromium
       </message>
-      <message name="IDS_IOS_NOTIFICATIONS_TIPS_TRUSTED_VAULT_KEY_RETRIVAL_TITLE" desc="TODO">
-        Chromium Tip: Verify it's you
+      <message name="IDS_IOS_NOTIFICATIONS_TIPS_TRUSTED_VAULT_KEY_RETRIVAL_TITLE" desc="Text for the title of a Tips notification that starts a re-authentication flow, which will allow users to access their passwords.">
+        Chromium Tip: Get your passwords
       </message>
       <message name="IDS_IOS_NOTIFICATIONS_TIPS_WHATS_NEW_BODY" desc="Text for the body of a Tips notification that takes the user to the Whats New page">
         Explore new features that help you get the most out of Chromium.
@@ -887,6 +890,9 @@ For more settings that use data to improve your Chromium experience, go to <ph n
       </message>
       <message name="IDS_IOS_SAFARI_IMPORT_ENTRY_POINT_SUBTITLE" desc="Safari import entry point screen - Subtitle. [iOS only]">
         Import your data to use your passwords, history, bookmarks and credit cards on Chromium
+      </message>
+      <message name="IDS_IOS_SAFARI_IMPORT_EXPORT_STATIC_INSTRUCTION_STEP_5" desc="Safari import export education screen - Step 5 to export Safari data. Displayed in the static text instructions below the animated tutorial. [iOS only]">
+        Return to Chromium to upload your file
       </message>
       <message name="IDS_IOS_SAFARI_IMPORT_IMPORT_SUBTITLE" desc="Safari import import screen - Subtitle. [iOS only]">
         Use your Safari passwords, history, bookmarks, and credit cards in Chromium

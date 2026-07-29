@@ -75,6 +75,7 @@
 #include "chromeos/ash/components/browser_context_helper/browser_context_types.h"
 #include "components/live_caption/live_caption_controller.h"
 #include "components/live_caption/pref_names.h"
+#include "components/metrics/content/subprocess_metrics_provider.h"
 #include "components/services/app_service/public/cpp/app_types.h"
 #include "components/user_manager/user_names.h"
 #include "content/public/browser/browser_task_traits.h"
@@ -253,12 +254,15 @@ void LoggedInSpokenFeedbackTest::StablizeChromeVoxState() {
   sm()->ExpectSpeech("Click me");
 }
 
-// TODO(crbug.com/388867840): Add manifest v3 variant when migration is
-// complete.
 INSTANTIATE_TEST_SUITE_P(
     ManifestV2,
     LoggedInSpokenFeedbackTest,
     ::testing::Values(SpokenFeedbackTestConfig(ManifestVersion::kTwo)));
+
+INSTANTIATE_TEST_SUITE_P(
+    ManifestV3,
+    LoggedInSpokenFeedbackTest,
+    ::testing::Values(SpokenFeedbackTestConfig(ManifestVersion::kThree)));
 
 // Flaky test, crbug.com/1081563
 IN_PROC_BROWSER_TEST_P(LoggedInSpokenFeedbackTest, DISABLED_AddBookmark) {
@@ -319,10 +323,18 @@ IN_PROC_BROWSER_TEST_P(LoggedInSpokenFeedbackTest, DISABLED_AddBookmark) {
 }
 
 IN_PROC_BROWSER_TEST_P(LoggedInSpokenFeedbackTest, ChromeVoxSpeaksIntro) {
+  base::HistogramTester histogram_tester;
   chromevox_test_utils()->EnableChromeVox(/*check_for_intro=*/false);
   sm()->ExpectSpeech("ChromeVox spoken feedback is ready");
   sm()->Replay();
-  HistogramWaiter("Accessibility.ChromeVox.StartUpSpeechDelay").Wait();
+
+  content::FetchHistogramsFromChildProcesses();
+  metrics::SubprocessMetricsProvider::MergeHistogramDeltasForTesting();
+  if (histogram_tester
+          .GetAllSamples("Accessibility.ChromeVox.StartUpSpeechDelay")
+          .size() == 0) {
+    HistogramWaiter("Accessibility.ChromeVox.StartUpSpeechDelay").Wait();
+  }
 }
 
 // Test Learn Mode by pressing a few keys in Learn Mode. Only available while
@@ -527,12 +539,15 @@ class CaptionSpokenFeedbackTest : public LoggedInSpokenFeedbackTest {
   base::test::ScopedFeatureList scoped_feature_list_;
 };
 
-// TODO(crbug.com/388867840): Add manifest v3 variant when migration is
-// complete.
 INSTANTIATE_TEST_SUITE_P(
     ManifestV2,
     CaptionSpokenFeedbackTest,
     ::testing::Values(SpokenFeedbackTestConfig(ManifestVersion::kTwo)));
+
+INSTANTIATE_TEST_SUITE_P(
+    ManifestV3,
+    CaptionSpokenFeedbackTest,
+    ::testing::Values(SpokenFeedbackTestConfig(ManifestVersion::kThree)));
 
 IN_PROC_BROWSER_TEST_P(CaptionSpokenFeedbackTest, ToggleCaptions) {
   PrefChangeRegistrar change_observer;
@@ -633,12 +648,15 @@ class NotificationCenterSpokenFeedbackTest : public LoggedInSpokenFeedbackTest {
   std::unique_ptr<NotificationCenterTestApi> test_api_;
 };
 
-// TODO(crbug.com/388867840): Add manifest v3 variant when migration is
-// complete.
 INSTANTIATE_TEST_SUITE_P(
     ManifestV2,
     NotificationCenterSpokenFeedbackTest,
     ::testing::Values(SpokenFeedbackTestConfig(ManifestVersion::kTwo)));
+
+INSTANTIATE_TEST_SUITE_P(
+    ManifestV3,
+    NotificationCenterSpokenFeedbackTest,
+    ::testing::Values(SpokenFeedbackTestConfig(ManifestVersion::kThree)));
 
 // Tests the spoken feedback text when using the notification center accelerator
 // to navigate to the notification center.
@@ -2725,103 +2743,6 @@ IN_PROC_BROWSER_TEST_F(SigninToUserProfileSwitchTest, DISABLED_LoginAsNewUser) {
     ASSERT_EQ(AccessibilityManager::Get()->profile(),
               ProfileManager::GetActiveUserProfile());
   });
-  sm()->Replay();
-}
-
-class DeskTemplatesSpokenFeedbackTest : public LoggedInSpokenFeedbackTest {
- public:
-  DeskTemplatesSpokenFeedbackTest() = default;
-  DeskTemplatesSpokenFeedbackTest(const DeskTemplatesSpokenFeedbackTest&) =
-      delete;
-  DeskTemplatesSpokenFeedbackTest& operator=(
-      const DeskTemplatesSpokenFeedbackTest&) = delete;
-  ~DeskTemplatesSpokenFeedbackTest() override = default;
-
-  void SetUpCommandLine(base::CommandLine* command_line) override {
-    LoggedInSpokenFeedbackTest::SetUpCommandLine(command_line);
-
-    scoped_feature_list_.InitWithFeatures({features::kDesksTemplates}, {});
-  }
-
- private:
-  base::test::ScopedFeatureList scoped_feature_list_;
-};
-
-// TODO(crbug.com/388867840): Add manifest v3 variant when migration is
-// complete.
-INSTANTIATE_TEST_SUITE_P(
-    ManifestV2,
-    DeskTemplatesSpokenFeedbackTest,
-    ::testing::Values(SpokenFeedbackTestConfig(ManifestVersion::kTwo)));
-
-IN_PROC_BROWSER_TEST_P(DeskTemplatesSpokenFeedbackTest, DeskTemplatesBasic) {
-  // TODO(http://b/350771229): This test tests clicking the "Save desk as
-  // template" button that will not be shown if the Forest feature is enabled.
-  // This test will be fixed before the button change is no longer hidden behind
-  // Forest.
-  if (ash::features::IsForestFeatureEnabled()) {
-    GTEST_SKIP() << "Skipping test body for Forest Feature.";
-  }
-
-  chromevox_test_utils()->EnableChromeVox();
-
-  // Enter overview first. This is how we reach the desk templates UI.
-  sm()->Call([this]() {
-    (PerformAcceleratorAction(AcceleratorAction::kToggleOverview));
-  });
-
-  sm()->ExpectSpeech(
-      "Entered window overview mode. Swipe to navigate, or press tab if using "
-      "a keyboard.");
-
-  // TODO(crbug.com/1360638): Remove the conditional here when the Save & Recall
-  // flag flip has landed since it will always be true.
-  if (saved_desk_util::ShouldShowSavedDesksOptions()) {
-    sm()->Call([this]() { SendKeyPressWithShift(ui::VKEY_TAB); });
-    sm()->ExpectSpeechPattern("Save desk for later");
-    sm()->ExpectSpeech("Button");
-  }
-
-  // Reverse tab to focus the save desk as template button.
-  sm()->Call([this]() { SendKeyPressWithShift(ui::VKEY_TAB); });
-  sm()->ExpectSpeechPattern("Save desk as a template");
-  sm()->ExpectSpeech("Button");
-
-  // Hit enter on the save desk as template button. It should take us to the
-  // templates grid, which triggers an accessibility alert. This should nudge
-  // the template name view but not say anything extra.
-  sm()->Call([this]() { SendKeyPress(ui::VKEY_RETURN); });
-  sm()->ExpectSpeech(
-      "Viewing saved desks and templates. Press tab to navigate.");
-
-  // The first item in the tab order is the template card, which is a button. It
-  // has the same name as the desk it was created from, in this case the default
-  // desk name is "Desk 1". The name view will be focused first, then we can go
-  // backwards to the template card, which is a button.
-  sm()->Call([this]() { SendKeyPressWithShift(ui::VKEY_TAB); });
-  sm()->ExpectSpeechPattern("Template, Desk 1");
-  sm()->ExpectSpeech("Button");
-  sm()->ExpectSpeech("Press Ctrl plus W to delete");
-  sm()->ExpectSpeech("Press Search plus Space to activate");
-
-  // The next item is the textfield inside the template card, which also has the
-  // same name as the desk it was created from.
-  sm()->Call([this]() { SendKeyPress(ui::VKEY_TAB); });
-  sm()->ExpectSpeechPattern("Desk 1");
-  sm()->ExpectSpeech("Edit text");
-
-  // Reverse tab to focus back on the template card.
-  sm()->Call([this]() { SendKeyPressWithShift(ui::VKEY_TAB); });
-
-  // Trigger a delete template dialog by pressing Ctrl+W.
-  sm()->Call([this]() { SendKeyPressWithControl(ui::VKEY_W); });
-  sm()->ExpectSpeech("Delete template?");
-  sm()->ExpectSpeech("Dialog");
-  sm()->ExpectSpeech("Delete");
-  sm()->ExpectSpeech("default");
-  sm()->ExpectSpeech("Button");
-  sm()->ExpectSpeech("Press Search plus Space to activate");
-
   sm()->Replay();
 }
 

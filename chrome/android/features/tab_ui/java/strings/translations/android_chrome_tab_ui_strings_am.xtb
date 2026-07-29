@@ -11,6 +11,7 @@
 <translation id="1245862538775272968">{TAB_COUNT,plural, =1{ከ<ph name="TAB_COUNT2" /> ትር ጋር <ph name="TITLE_OF_GROUP" /> ይክፈቱ}one{ከ<ph name="TAB_COUNT2" /> ትር ጋር <ph name="TITLE_OF_GROUP" /> ይክፈቱ}other{ከ<ph name="TAB_COUNT2" /> ትሮች ጋር <ph name="TITLE_OF_GROUP" /> ይክፈቱ}}</translation>
 <translation id="1273910660700874265"><ph name="TITLE_OF_GROUP" /> የትር ቡድን አማራጮች</translation>
 <translation id="1300188005269437765">ትሮች እና የትር ቡድኖች በራስ-ሰር ወደ የቦዘነ ክፍል መቼ እንደሚንቀሳቀሱ ይምረጡ።</translation>
+<translation id="1321004960118052490">የእርስዎ ገቢር ያልሆኑ ንጥሎች አይደራረቡም</translation>
 <translation id="1329584516321524826">አሁን የተዘመነ</translation>
 <translation id="1340839264183302272">ቡድኑን ለቅቀው ይውጡ</translation>
 <translation id="1403729629346559879">{NUMBER_OF_TABS,plural, =1{የተጋራ የ<ph name="TITLE_OF_GROUP" /> የትር ቡድንን በ<ph name="TABS_COUNT_ONE" /> ትር፣ በ<ph name="COLOR_NAME" /> ቀለም፣ በ<ph name="CARD_LABEL" /> መሰየሚያ ይዘረጋል።}one{የተጋራ የ<ph name="TITLE_OF_GROUP" /> የትር ቡድንን በ<ph name="TABS_COUNT_MANY" /> ትር፣ በ<ph name="COLOR_NAME" /> ቀለም፣ በ<ph name="CARD_LABEL" /> መሰየሚያ ይዘረጋል።}other{የተጋራ የ<ph name="TITLE_OF_GROUP" /> የትር ቡድንን በ<ph name="TABS_COUNT_MANY" /> ትሮች፣ በ<ph name="COLOR_NAME" /> ቀለም፣ በ<ph name="CARD_LABEL" /> መሰየሚያ ይዘረጋል።}}</translation>
@@ -43,7 +44,6 @@
 <translation id="2359808026110333948">ቀጥል</translation>
 <translation id="2371084566192454134">ትሮች እና ቡድኖች</translation>
 <translation id="2375257132547014176">{TABS_COUNT,plural, =1{<ph name="TABS_COUNT_ONE" /> ትር ያለው የ<ph name="TITLE_OF_GROUP" /> ትር ቡድንን ሰብስብ።}one{<ph name="TABS_COUNT_MANY" /> ትር ያለው የ<ph name="TITLE_OF_GROUP" /> ትር ቡድንን ሰብስብ።}other{<ph name="TABS_COUNT_MANY" /> ትሮች ያሉት የ<ph name="TITLE_OF_GROUP" /> ትር ቡድንን ሰብስብ።}}</translation>
-<translation id="2479148705183875116">ወደ ቅንብሮች ሂድ</translation>
 <translation id="2498435670446402865">የትር ቡድንን እንደገና ይሰይሙ</translation>
 <translation id="2536366509642644298">«<ph name="TAB_GROUP_NAME_1" />» እና «<ph name="TAB_GROUP_NAME_2" />» የትር ቡድኖች ከእንግዲህ አይገኙም</translation>
 <translation id="2539705006853443997">{TABS_COUNT,plural, =1{<ph name="TABS_COUNT_ONE" /> ትርን ሰብስብ።}one{ከ<ph name="TABS_COUNT_MANY" /> ትሮች ጋር የትር ቡድንን ሰብስብ።}other{ከ<ph name="TABS_COUNT_MANY" /> ትሮች ጋር የትር ቡድንን ሰብስብ።}}</translation>
@@ -60,6 +60,7 @@
 <translation id="2801787514987684416">የመደብር መረጃ ይታይ?</translation>
 <translation id="2883875523421277445">{NUMBER_OF_TABS_CLOSED,plural, =1{<ph name="ONE_CLOSED" /> ትር ተዘግቷል}one{<ph name="MANY_CLOSED" /> ትር ተዘግቷል}other{<ph name="MANY_CLOSED" /> ትሮች ተዘግተዋል}}</translation>
 <translation id="2894757982205307093">በቡድን ውስጥ አዲስ ትር</translation>
+<translation id="2918484639460781603">ወደ ቅንብሮች ይሂዱ</translation>
 <translation id="2928243913527329289">Google | ስለዚህ መደብር</translation>
 <translation id="3008554597174452548">ምርቱን መከታተል አቁም</translation>
 <translation id="3026391124054406831">ትሮችዎን ለማስተባበር ቡድኖችን ይፍጠሩ።</translation>
@@ -107,9 +108,11 @@
 <translation id="492284538114688557">የዋጋ ቅነሳ ታይቷል</translation>
 <translation id="4937582754153367435">{NUMBER_OF_TABS,plural, =1{የተጋራ የትር ቡድንን በ<ph name="TABS_COUNT_ONE" /> ትር፣ በ<ph name="COLOR_NAME" /> ቀለም በ<ph name="CARD_LABEL" /> መሰየሚያ ይዘረጋል።}one{የተጋራ የትር ቡድንን በ<ph name="TABS_COUNT_MANY" /> ትር፣ በ<ph name="COLOR_NAME" /> ቀለም በ<ph name="CARD_LABEL" /> መሰየሚያ ይዘረጋል።}other{የተጋራ የትር ቡድንን በ<ph name="TABS_COUNT_MANY" /> ትሮች፣ በ<ph name="COLOR_NAME" /> ቀለም በ<ph name="CARD_LABEL" /> መሰየሚያ ይዘረጋል።}}</translation>
 <translation id="5007392906805964215">ገምግም</translation>
+<translation id="5042769431350623987">{WINDOW_COUNT,plural, =1{ትርን ወደ ሌላ መስኮት አንቀሳቅስ}one{ትርን ወደ ሌላ መስኮት አንቀሳቅስ}other{ትሮችን ወደ ሌላ መስኮት አንቀሳቅስ}}</translation>
 <translation id="5073204694187207510">የሙሉ ማያ ፍርግርግን ደብቅ</translation>
 <translation id="5076161749301278626">የመደብር ግምገማዎችን ይመለከታሉ?</translation>
 <translation id="5161254044473106830">ርዕስ ያስፈልጋል</translation>
+<translation id="524477996738997490">{AUTO_DELETE_DELAY,plural, =1{Chrome ከ<ph name="AUTO_DELETE_DELAY_ONE" /> ወር በኋላ ገቢር ያልሆኑ ትሮች እና የትር ቡድኖችን በራስ-ሰር ይዘጋል። ይህን በቅንብሮች ውስጥ መለወጥ ይችላሉ።}one{Chrome ከ<ph name="AUTO_DELETE_DELAY_MANY" /> ወር በኋላ ገቢር ያልሆኑ ትሮች እና የትር ቡድኖችን በራስ-ሰር ይዘጋል። ይህን በቅንብሮች ውስጥ መለወጥ ይችላሉ።}other{Chrome ከ<ph name="AUTO_DELETE_DELAY_MANY" /> ወራት በኋላ ገቢር ያልሆኑ ትሮች እና የትር ቡድኖችን በራስ-ሰር ይዘጋል። ይህን በቅንብሮች ውስጥ መለወጥ ይችላሉ።}}</translation>
 <translation id="5339733443032484186">የእርስዎ የመጨረሻ ትር</translation>
 <translation id="5380159289133845234">የተባዙ ትሮችን በማህደር ያስቀምጡ</translation>
 <translation id="5400836586163650660">ግራጫ</translation>

@@ -139,7 +139,9 @@ enum class PermissionSourceUI {
 
   // Permission settings from Android.
   // Currently this value is only used when revoking notification permission in
-  // Android O+ system channel settings.
+  // Android O+ system channel settings activity, and only when that activity
+  // is launched directly from the Chrome site settings, which is not a common
+  // user journey (see usages of `REQUEST_CODE_NOTIFICATION_CHANNEL_SETTINGS`).
   ANDROID_SETTINGS = 4,
 
   // Permission settings as part of the event's UI.
@@ -155,7 +157,9 @@ enum class PermissionSourceUI {
   SAFETY_HUB_AUTO_REVOCATION = 7,
 
   // The permission status changed, but we're unsure from what source.
-  // This is likely ANDROID_SETTINGS above though.
+  // This is recorded instead of ANDROID_SETTINGS above when the Android system
+  // settings UI interaction happens while Chrome is not running, and thus
+  // Chrome only observes the permission change on next start-up.
   UNIDENTIFIED = 8,
 
   // Always keep this at the end.
@@ -240,7 +244,8 @@ enum class PermissionPromptDisposition {
 
   // Only used on desktop, a chip on the left-hand side of the location bar that
   // shows a bubble when clicked.
-  LOCATION_BAR_LEFT_CHIP = 6,
+  // DEPRECATED: This disposition is no longer existent.
+  // LOCATION_BAR_LEFT_CHIP = 6,
 
   // There was no UI being shown. This is usually because the user closed an
   // inactive tab that had a pending permission request.
@@ -450,24 +455,6 @@ enum class AutoDSEPermissionRevertTransition {
   // Always keep at the end.
   kMaxValue = INVALID_END_STATE,
 };
-
-// LINT.IfChange(PermissionPredictionSource)
-
-// This enum backs up the 'PermissionPredictionSource` histogram enum. It
-// indicates whether the permission prediction was done by the local on device
-// model or by the server side model (or both).
-// These values are persisted to logs. Entries should not be renumbered and
-// numeric values should never be reused.
-enum class PermissionPredictionSource {
-  ON_DEVICE_TFLITE = 0,
-  SERVER_SIDE = 1,
-  ONDEVICE_AI_AND_SERVER_SIDE = 2,
-
-  // Always keep at the end.
-  kMaxValue = ONDEVICE_AI_AND_SERVER_SIDE,
-};
-
-// LINT.ThenChange(//tools/metrics/histograms/metadata/permissions/enums.xml:PermissionPredictionSource)
 
 // This enum backs up the
 // 'Permissions.PageInfo.ChangedWithin1m.{PermissionType}' histograms enum. It
@@ -772,7 +759,8 @@ class PermissionUmaUtil {
                                         ContentSetting setting);
 
   static void RecordPermissionPredictionSource(
-      PermissionPredictionSource prediction_type);
+      PermissionPredictionSource prediction_source,
+      RequestType request_type);
 
   static void RecordPermissionPredictionServiceHoldback(
       RequestType request_type,

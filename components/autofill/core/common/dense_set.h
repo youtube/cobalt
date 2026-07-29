@@ -472,6 +472,11 @@ class DenseSet {
   constexpr explicit DenseSet(const Range& range, Proj proj = {})
       : DenseSet(std::ranges::begin(range), std::ranges::end(range), proj) {}
 
+  constexpr DenseSet(const DenseSet&) = default;
+  constexpr DenseSet& operator=(const DenseSet&) = default;
+
+  constexpr ~DenseSet() = default;
+
   // Returns a set containing all values from `kMinValue` to `kMaxValue`,
   // regardless of whether the values represent an existing enum.
   static constexpr DenseSet all() {
@@ -650,6 +655,22 @@ DenseSet(InputIt, InputIt, Proj) -> DenseSet<std::remove_cvref_t<
 template <typename Range, typename Proj>
 DenseSet(Range, Proj) -> DenseSet<std::remove_cvref_t<
     std::invoke_result_t<Proj, std::ranges::range_value_t<Range>>>>;
+
+template <typename T, typename Traits, typename... Ts>
+  requires((std::same_as<Ts, DenseSet<T, Traits>>) && ...)
+[[nodiscard]] constexpr DenseSet<T, Traits> Intersection(DenseSet<T, Traits> s,
+                                                         const Ts... ts) {
+  (s.intersect(ts), ...);
+  return s;
+}
+
+template <typename T, typename Traits, typename... Ts>
+  requires((std::same_as<Ts, DenseSet<T, Traits>>) && ...)
+[[nodiscard]] constexpr DenseSet<T, Traits> Union(DenseSet<T, Traits> s,
+                                                  const Ts... ts) {
+  (s.insert_all(ts), ...);
+  return s;
+}
 
 }  // namespace autofill
 

@@ -48,6 +48,12 @@ void GlicZeroStateSuggestionsManager::
     return;
   }
 
+  // Pinned tabs are a more intentional sharing choice than focused tab, so
+  // don't refresh the suggestions on focus change if there are pinned tabs.
+  if (sharing_manager_->GetNumPinnedTabs()) {
+    return;
+  }
+
   content::WebContents* active_web_contents =
       sharing_manager_->GetFocusedTabData().focus()
           ? sharing_manager_->GetFocusedTabData().focus()->GetContents()
@@ -83,30 +89,71 @@ void GlicZeroStateSuggestionsManager::
   if (pinned_tab_data.size() >
       static_cast<size_t>(
           contextual_cueing::kMaxPinnedPagesForTriggeringSuggestions.Get())) {
-    if (pause_pinned_subscription_updates) {
+    if (pause_pinned_subscription_updates_) {
       return;
     }
-    pause_pinned_subscription_updates = true;
+    pause_pinned_subscription_updates_ = true;
   } else {
-    pause_pinned_subscription_updates = false;
+    pause_pinned_subscription_updates_ = false;
   }
 
   if (contextual_cueing_service_) {
-    // Notify host that suggestions are pending.
+    // Debounce if we already have an outstanding request for the same set.
+    std::optional<std::vector<content::WebContents*>>
+        outstanding_pinned_tabs_contents =
+            contextual_cueing_service_->GetOutstandingPinnedTabsContents();
+    if (outstanding_pinned_tabs_contents &&
+        outstanding_pinned_tabs_contents->size() == pinned_tab_data.size()) {
+      // Check if they are the same.
+      bool all_matches = true;
+      for (size_t i = 0; i < pinned_tab_data.size(); i++) {
+        if (outstanding_pinned_tabs_contents->at(i) != pinned_tab_data[i]) {
+          all_matches = false;
+        }
+      }
+      if (all_matches) {
+        return;
+      }
+    }
+
+    // Notify host that suggestions are pending in case there were suggestions
+    // and we are posting an invalid state.
     host_->NotifyZeroStateSuggestion(
         MakePendingSuggestionsPtr(),
         mojom::ZeroStateSuggestionsOptions(is_first_run, supported_tools));
 
-    contextual_cueing_service_
-        ->GetContextualGlicZeroStateSuggestionsForPinnedTabs(
-            pinned_tab_data, is_first_run, supported_tools,
-            mojo::WrapCallbackWithDefaultInvokeIfNotRun(
-                base::BindOnce(&GlicZeroStateSuggestionsManager::
-                                   OnZeroStateSuggestionsNotify,
-                               GetWeakPtr(), is_first_run, supported_tools),
-                /*returned_suggestions=*/
-                std::vector<std::string>({})));
+    FocusedTabData focused_tab_data = sharing_manager_->GetFocusedTabData();
+    content::WebContents* active_web_contents =
+        focused_tab_data.focus() ? focused_tab_data.focus()->GetContents()
+                                 : nullptr;
+    bool suggestions_pending =
+        contextual_cueing_service_
+            ->GetContextualGlicZeroStateSuggestionsForPinnedTabs(
+                pinned_tab_data, is_first_run, supported_tools,
+                active_web_contents,
+                mojo::WrapCallbackWithDefaultInvokeIfNotRun(
+                    base::BindOnce(&GlicZeroStateSuggestionsManager::
+                                       OnZeroStateSuggestionsNotify,
+                                   GetWeakPtr(), is_first_run, supported_tools),
+                    /*returned_suggestions=*/
+                    std::vector<std::string>({})));
+
+    if (suggestions_pending) {
+      // Notify host that suggestions are pending.
+      host_->NotifyZeroStateSuggestion(
+          MakePendingSuggestionsPtr(),
+          mojom::ZeroStateSuggestionsOptions(is_first_run, supported_tools));
+    }
   }
+}
+
+void GlicZeroStateSuggestionsManager::
+    NotifyZeroStateSuggestionsOnPinnedTabDataChanged(
+        bool is_first_run,
+        const std::vector<std::string>& supported_tools,
+        const mojom::TabData* data) {
+  NotifyZeroStateSuggestionsOnPinnedTabChanged(
+      is_first_run, supported_tools, sharing_manager_->GetPinnedTabs());
 }
 
 void GlicZeroStateSuggestionsManager::ObserveZeroStateSuggestions(
@@ -115,11 +162,8 @@ void GlicZeroStateSuggestionsManager::ObserveZeroStateSuggestions(
     const std::vector<std::string>& supported_tools,
     glic::mojom::WebClientHandler::GetZeroStateSuggestionsAndSubscribeCallback
         callback) {
-  // Subscribe to changes in the focus tab.
+  // Subscribe to changes in sharing.
   if (is_notifying) {
-    if (current_zero_state_suggestions_focus_change_subscription_) {
-      LOG(WARNING) << "Multiple active ZeroStateSuggestion requests";
-    }
     // If there were previous subscriptions they will be unsubscribed when the
     // old values are destructed on assignment.
     // TODO: b/433738020 - Investigate whether we should listen to a different
@@ -134,13 +178,35 @@ void GlicZeroStateSuggestionsManager::ObserveZeroStateSuggestions(
             &GlicZeroStateSuggestionsManager::
                 NotifyZeroStateSuggestionsOnPinnedTabChanged,
             GetWeakPtr(), is_first_run, supported_tools));
+    current_zero_state_suggestions_pinned_tab_data_change_subscription_ =
+        sharing_manager_->AddPinnedTabDataChangedCallback(base::BindRepeating(
+            &GlicZeroStateSuggestionsManager::
+                NotifyZeroStateSuggestionsOnPinnedTabDataChanged,
+            GetWeakPtr(), is_first_run, supported_tools));
+
+    if (!contextual_cueing_service_) {
+      return;
+    }
+
+    if (auto pinned_tabs = sharing_manager_->GetPinnedTabs();
+        !pinned_tabs.empty()) {
+      contextual_cueing_service_
+          ->GetContextualGlicZeroStateSuggestionsForPinnedTabs(
+              pinned_tabs, is_first_run, supported_tools,
+              /* focused_tab=*/nullptr,
+              mojo::WrapCallbackWithDefaultInvokeIfNotRun(
+                  base::BindOnce(&GlicZeroStateSuggestionsManager::
+                                     OnZeroStateSuggestionsFetched,
+                                 GetWeakPtr(), std::move(callback)),
+                  /*returned_suggestions=*/std::vector<std::string>({})));
+      return;
+    }
 
     auto* active_web_contents =
         sharing_manager_->GetFocusedTabData().focus()
             ? sharing_manager_->GetFocusedTabData().focus()->GetContents()
             : nullptr;
-
-    if (contextual_cueing_service_ && active_web_contents) {
+    if (active_web_contents) {
       contextual_cueing_service_
           ->GetContextualGlicZeroStateSuggestionsForFocusedTab(
               active_web_contents, is_first_run, supported_tools,
@@ -150,20 +216,6 @@ void GlicZeroStateSuggestionsManager::ObserveZeroStateSuggestions(
                                  GetWeakPtr(), std::move(callback)),
                   /*returned_suggestions=*/std::vector<std::string>({})));
       return;
-    }
-    if (contextual_cueing_service_) {
-      auto pinned_tabs = sharing_manager_->GetPinnedTabs();
-      if (pinned_tabs.size() > 0) {
-        contextual_cueing_service_
-            ->GetContextualGlicZeroStateSuggestionsForPinnedTabs(
-                pinned_tabs, is_first_run, supported_tools,
-                mojo::WrapCallbackWithDefaultInvokeIfNotRun(
-                    base::BindOnce(&GlicZeroStateSuggestionsManager::
-                                       OnZeroStateSuggestionsFetched,
-                                   GetWeakPtr(), std::move(callback)),
-                    /*returned_suggestions=*/std::vector<std::string>({})));
-        return;
-      }
     }
   } else {
     // If is_notifying is false we need to reset the subscriptions.
@@ -209,6 +261,7 @@ void GlicZeroStateSuggestionsManager::OnZeroStateSuggestionsNotify(
 void GlicZeroStateSuggestionsManager::Reset() {
   current_zero_state_suggestions_focus_change_subscription_ = {};
   current_zero_state_suggestions_pinned_tab_change_subscription_ = {};
+  current_zero_state_suggestions_pinned_tab_data_change_subscription_ = {};
 }
 
 base::WeakPtr<GlicZeroStateSuggestionsManager>

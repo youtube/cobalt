@@ -330,6 +330,11 @@ FEATURE_CONSTANTS_DECLARE_FEATURE(kIPHiOSLensOverlayEntrypointTipFeature);
 FEATURE_CONSTANTS_DECLARE_FEATURE(kIPHiOSLensOverlayEscapeHatchTipFeature);
 FEATURE_CONSTANTS_DECLARE_FEATURE(kIPHiOSSharedTabGroupForeground);
 FEATURE_CONSTANTS_DECLARE_FEATURE(kIPHiOSDefaultBrowserBannerPromoFeature);
+// A feature flag to enable the Default Browser off-cycle promo and configure
+// its cooldown duration, in days.
+FEATURE_CONSTANTS_DECLARE_FEATURE(kIPHiOSDefaultBrowserOffCyclePromoFeature);
+COMPONENT_EXPORT(FEATURE_ENGAGEMENT_FEATURE_CONSTANTS)
+extern const base::FeatureParam<int> kIPHiOSDefaultBrowserOffCyclePromoCooldown;
 FEATURE_CONSTANTS_DECLARE_FEATURE(
     kIPHiOSReminderNotificationsOverflowMenuBubbleFeature);
 FEATURE_CONSTANTS_DECLARE_FEATURE(
@@ -344,6 +349,8 @@ FEATURE_CONSTANTS_DECLARE_FEATURE(kIPHiOSSafariImportFeature);
 FEATURE_CONSTANTS_DECLARE_FEATURE(kIPHIOSPageActionMenu);
 FEATURE_CONSTANTS_DECLARE_FEATURE(kIPHiOSHomepageLensNewBadge);
 FEATURE_CONSTANTS_DECLARE_FEATURE(kIPHiOSHomepageCustomizationNewBadge);
+FEATURE_CONSTANTS_DECLARE_FEATURE(
+    kIPHiOSOneTimeDefaultBrowserNotificationFeature);
 
 // A feature flag to enable and parametrize the sliding window of time for a
 // user's eligibility to be shown a default browser promo. This is not an FET

@@ -42,9 +42,8 @@ class NtpPromoOrderTest : public testing::Test {
                      base::Time completed_time) {
     registry_.AddPromo(NtpPromoSpecification(
         id, NtpPromoContent("", 0, 0),
-        NtpPromoSpecification::EligibilityCallback(),
-        NtpPromoSpecification::ActionCallback(), std::move(show_after),
-        user_education::Metadata()));
+        NtpPromoSpecification::EligibilityCallback(), base::DoNothing(),
+        base::DoNothing(), std::move(show_after), user_education::Metadata()));
 
     KeyedNtpPromoData pref;
     pref.last_top_spot_session = last_top_spot_session;
@@ -83,12 +82,13 @@ TEST_F(NtpPromoOrderTest, PendingNoPromo) {
   EXPECT_THAT(Pending(), testing::IsEmpty());
 }
 
-// The promo registry orders by key; ensure this is preserved.
+// The promo registry maintains registration order. Ensure this is preserved,
+// in the absence of other ordering criteria.
 TEST_F(NtpPromoOrderTest, PendingStableOrder) {
   RegisterPromo("c", {}, 0, 0, base::Time());
   RegisterPromo("b", {}, 0, 0, base::Time());
   RegisterPromo("a", {}, 0, 0, base::Time());
-  EXPECT_THAT(Pending(), ElementsAre("a", "b", "c"));
+  EXPECT_THAT(Pending(), ElementsAre("c", "b", "a"));
 }
 
 TEST_F(NtpPromoOrderTest, PendingCircularDependency) {

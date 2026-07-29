@@ -262,14 +262,16 @@ _BANNED_JAVA_FUNCTIONS: Sequence[BanRule] = (
         False,
     ),
     BanRule(
-        pattern=(r'/((DeviceInfo\.isDesktop\()|IS_DESKTOP_ANDROID)'),
+        pattern=(r'/((DeviceInfo\.isDesktop\()|IS_DESKTOP_ANDROID|PackageManager\.FEATURE_PC)'),
         explanation=(
             'Do not add new uses of IS_DESKTOP_ANDROID build flag or '
-            'DeviceInfo.isDesktop() until you have the approval of tedchoc@ or '
-            'twellington@. Background: it is highly important to reduce the '
-            'divergence of features across platforms. '
+            'DeviceInfo.isDesktop() until you have the approval of tedchoc@ '
+            'or twellington@.',
+            'Once approved, please use centralized util DeviceInfo.isDesktop() '
+            'instead of direct build flag or PackageManager.FEATURE_PC checks.',
+            'See https://source.chromium.org/chromium/chromium/src/+/main:docs/ui/android/device_form_factor.md for guidelines.'
             'Allowances may be granted to only the directories below: '
-            '[build/, chrome/, components/, extensions/, infra/, tools/] ',
+            '[build/, chrome/, components/, extensions/, infra/, tools/]',
             'Note: in particular we need to avoid components shared with '
             'WebView.',
         ),
@@ -1656,10 +1658,10 @@ _BANNED_CPP_FUNCTIONS: Sequence[BanRule] = (
         (),
     ),
     BanRule(
-        r'/\bTRACE_EVENT_ASYNC_',
+        r'/\bTRACE_EVENT(_NESTABLE)?_ASYNC_',
         (
-            'Please use TRACE_EVENT_NESTABLE_ASYNC_.. macros instead',
-            'of TRACE_EVENT_ASYNC_.. (crbug.com/1038710).',
+            'Please use TRACE_EVENT_BEGIN/END/INSTANT macros instead',
+            'of TRACE_EVENT_ASYNC_.. and TRACE_EVENT_NESTABLE_ASYNC_... (crbug.com/432427382).',
         ),
         False,
         (
@@ -2371,8 +2373,8 @@ _KNOWN_ROBOTS = set() | set('%s@appspot.gserviceaccount.com' % s for s in (
         for s in ('3su6n15k.default', )) | set(
             '%s@chops-service-accounts.iam.gserviceaccount.com' % s
             for s in ('bling-autoroll-builder', 'v8-ci-autoroll-builder',
-                      'wpt-autoroller', 'chrome-weblayer-builder',
-                      'skylab-test-cros-roller', 'infra-try-recipes-tester',
+                      'wpt-autoroller', 'skylab-test-cros-roller',
+                      'infra-try-recipes-tester',
                       'chrome-automated-expectation',
                       'chromium-automated-expectation', 'chrome-branch-day',
                       'chrome-cherry-picker', 'chromium-autosharder')
@@ -4464,10 +4466,6 @@ def _CheckChangeForIpcSecurityOwners(input_api, output_api):
         'third_party/win_build_output/*',
         # Enum-only mojoms used for web metrics, so no security review needed.
         'third_party/blink/public/mojom/use_counter/metrics/*',
-        # These files are just used to communicate between class loaders running
-        # in the same process.
-        'weblayer/browser/java/org/chromium/weblayer_private/interfaces/*',
-        'weblayer/browser/java/org/chromium/weblayer_private/test_interfaces/*',
     ]
 
     def IsMojoServiceManifestFile(input_api, file):
@@ -4894,7 +4892,8 @@ def _CheckAndroidCrLogUsage(input_api, output_api):
         else:
             # Report non cr Log function calls in changed lines
             for line_num, line in f.ChangedContents():
-                if log_call_pattern.search(line):
+                if (log_call_pattern.search(line)
+                        or has_some_log_import_pattern.search(line)):
                     util_log_errors.append("%s:%d" % (f.LocalPath(), line_num))
 
         # Per file checks
@@ -4993,8 +4992,7 @@ def _CheckAndroidNewMdpiAssetLocation(input_api, output_api):
 
 def _CheckAndroidWebkitImports(input_api, output_api):
     """Checks that code uses org.chromium.base.Callback instead of
-       android.webview.ValueCallback except in the WebView glue layer
-       and WebLayer.
+       android.webview.ValueCallback except in the WebView glue layer.
     """
     valuecallback_import_pattern = input_api.re.compile(
         r'^import android\.webkit\.ValueCallback;$')
@@ -5007,7 +5005,6 @@ def _CheckAndroidWebkitImports(input_api, output_api):
                        DEFAULT_FILES_TO_SKIP + (
                            r'^android_webview/glue/.*',
                            r'^android_webview/support_library/.*',
-                           r'^weblayer/.*',
                        )),
         files_to_check=[r'.*\.java$'])
 
@@ -7141,42 +7138,75 @@ def CheckTranslationExpectations(input_api,
 
 def CheckStableMojomChanges(input_api, output_api):
     """Changes to [Stable] mojom types must preserve backward-compatibility."""
-    changed_mojoms = input_api.AffectedFiles(
-        include_deletes=True,
-        file_filter=lambda f: f.LocalPath().endswith(('.mojom')))
+    no_stable_mojom_checks = input_api.change.GitFootersFromDescription().get(
+        'No-Stable-Mojom-Checks', None)
 
-    if not changed_mojoms or input_api.no_diffs:
+    expect_stable_mojom_failures = False
+    if no_stable_mojom_checks:
+        if no_stable_mojom_checks == ['true']:
+            expect_stable_mojom_failures = True
+        else:
+            return [
+                output_api.PresubmitError(
+                    f'If present, No-Stable-Mojom-Checks only accepts the value '
+                    f'"true", but got "{no_stable_mojom_checks}" instead.'
+                )
+            ]
+
+    def CheckMojomsIfNeeded():
+        changed_mojoms = input_api.AffectedFiles(
+            include_deletes=True,
+            file_filter=lambda f: f.LocalPath().endswith(('.mojom')))
+
+        if not changed_mojoms or input_api.no_diffs:
+            return []
+
+        delta = []
+        for mojom in changed_mojoms:
+            delta.append({
+                'filename': mojom.LocalPath(),
+                'old': '\n'.join(mojom.OldContents()) or None,
+                'new': '\n'.join(mojom.NewContents()) or None,
+            })
+
+        process = input_api.subprocess.Popen([
+            input_api.python3_executable,
+            input_api.os_path.join(
+                input_api.PresubmitLocalPath(), 'mojo', 'public', 'tools',
+                'mojom', 'check_stable_mojom_compatibility.py'), '--src-root',
+            input_api.PresubmitLocalPath()
+        ],
+                                             stdin=input_api.subprocess.PIPE,
+                                             stdout=input_api.subprocess.PIPE,
+                                             stderr=input_api.subprocess.PIPE,
+                                             universal_newlines=True)
+        (x, error) = process.communicate(input=input_api.json.dumps(delta))
+        if process.returncode:
+            return [
+                output_api.PresubmitError(
+                    'One or more [Stable] mojom definitions changed in a way '
+                    'that breaks backward compatibility. See '
+                    'https://chromium.googlesource.com/chromium/src/+/HEAD/mojo/public/tools/bindings/README.md#versioning'
+                    ' for details.\n\n'
+                    'If you are confident this is a false positive, add '
+                    '`No-Stable-Mojom-Checks: true` to the git footers to suppress '
+                    'this check.',
+                    long_text=error)
+            ]
         return []
 
-    delta = []
-    for mojom in changed_mojoms:
-        delta.append({
-            'filename': mojom.LocalPath(),
-            'old': '\n'.join(mojom.OldContents()) or None,
-            'new': '\n'.join(mojom.NewContents()) or None,
-        })
-
-    process = input_api.subprocess.Popen([
-        input_api.python3_executable,
-        input_api.os_path.join(
-            input_api.PresubmitLocalPath(), 'mojo', 'public', 'tools', 'mojom',
-            'check_stable_mojom_compatibility.py'), '--src-root',
-        input_api.PresubmitLocalPath()
-    ],
-                                         stdin=input_api.subprocess.PIPE,
-                                         stdout=input_api.subprocess.PIPE,
-                                         stderr=input_api.subprocess.PIPE,
-                                         universal_newlines=True)
-    (x, error) = process.communicate(input=input_api.json.dumps(delta))
-    if process.returncode:
-        return [
-            output_api.PresubmitError(
-                'One or more [Stable] mojom definitions appears to have been changed '
-                'in a way that is not backward-compatible. See '
-                'https://chromium.googlesource.com/chromium/src/+/HEAD/mojo/public/tools/bindings/README.md#versioning'
-                ' for details.',
-                long_text=error)
-        ]
+    results = CheckMojomsIfNeeded()
+    if bool(results) != expect_stable_mojom_failures:
+        if expect_stable_mojom_failures:
+            return [
+                output_api.PresubmitError(
+                    'No [Stable] mojom definitions changed in a way breaks '
+                    'backward compatibility.\n\n'
+                    'Please remove the unnecessary git footer '
+                    '`No-Stable-Mojom-Checks: true`.')
+            ]
+        else:
+            return results
     return []
 
 

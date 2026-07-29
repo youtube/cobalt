@@ -2,34 +2,24 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+assert(is_chromeos || is_win || is_mac || is_linux,
+       "components/webapps/isolated_web_apps are no-op on Android or iOS.")
+
+# TODO(crbug.com/431980377): Should this be a group()?
 source_set("isolated_web_apps") {
-  sources = [
-    # TODO(crbug.com/431980377): Move update_channel to types/.
-    "update_channel.cc",
-    "update_channel.h",
-  ]
+  sources = []
 
   public_deps = [
     ":features",
     ":key_distribution",
     "//base",
+    "//components/webapps/isolated_web_apps/download",
     "//components/webapps/isolated_web_apps/error",
+    "//components/webapps/isolated_web_apps/identity",
     "//components/webapps/isolated_web_apps/proto",
     "//components/webapps/isolated_web_apps/reading",
     "//components/webapps/isolated_web_apps/types",
     "//components/webapps/isolated_web_apps/url_loading",
-  ]
-}
-
-source_set("unit_tests") {
-  testonly = true
-  sources = [
-    "error/uma_logging_unittest.cc",
-    "error/unusable_swbn_file_error_unittest.cc",
-  ]
-  deps = [
-    ":isolated_web_apps",
-    "//base/test:test_support",
   ]
 }
 
@@ -66,5 +56,14 @@ source_set("iwa_client") {
     "//content/public/browser",
     "//services/network/public/cpp",
     "//url",
+  ]
+}
+
+group("unit_tests") {
+  testonly = true
+  deps = [
+    "//components/webapps/isolated_web_apps/download:unit_tests",
+    "//components/webapps/isolated_web_apps/error:unit_tests",
+    "//components/webapps/isolated_web_apps/types:unit_tests",
   ]
 }

@@ -46,10 +46,10 @@ BASE_FEATURE(kAutofillEnableBuyNowPayLater,
              "AutofillEnableBuyNowPayLater",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-// When enabled, buy now pay later (BNPL) for externally linked Klarna in
-// Autofill will be offered.
-BASE_FEATURE(kAutofillEnableBuyNowPayLaterForExternallyLinkedKlarna,
-             "AutofillEnableBuyNowPayLaterForExternallyLinkedKlarna",
+// When enabled, additional steps are required to autofill buy now pay later
+// (BNPL) issuers that are externally linked.
+BASE_FEATURE(kAutofillEnableBuyNowPayLaterForExternallyLinked,
+             "AutofillEnableBuyNowPayLaterForExternallyLinked",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 // When enabled, buy now pay later (BNPL) for Klarna in Autofill will be
@@ -230,12 +230,6 @@ BASE_FEATURE(kAutofillEnableSaveAndFill,
 BASE_FEATURE(kAutofillEnableSeparatePixPreferenceItem,
              "AutofillEnableSeparatePixPreferenceItem",
              base::FEATURE_DISABLED_BY_DEFAULT);
-
-// When enabled, save card securely message be displayed on upload card
-// UI message.
-BASE_FEATURE(kAutofillEnableShowSaveCardSecurelyMessage,
-             "AutofillEnableShowSaveCardSecurelyMessage",
-             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // When enabled, Pix bank accounts are synced from Chrome Sync backend and
 // stored in the local db.

@@ -9,6 +9,7 @@
 #import "base/apple/bundle_locations.h"
 #import "base/check.h"
 #import "build/branding_buildflags.h"
+#import "ios/chrome/common/app_group/app_group_constants.h"
 #import "ios/chrome/common/app_group/app_group_utils.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
 #import "ios/chrome/common/ui/elements/branded_navigation_item_title_view.h"
@@ -34,7 +35,6 @@ CGFloat const kURLStackSpacing = 2;
 // The horizontal spacing between image preview and the URL stack.
 CGFloat const kInnerViewSpacing = 16;
 
-CGFloat const kDismissButtonSize = 28;
 CGFloat const kSharedImageHeight = 181;
 
 // Custom radius for the half sheet presentation.
@@ -98,7 +98,6 @@ CGFloat const kAvatarImageDimension = 30.0;
   self.titleView = [self configureSheetTitleView];
 
   self.dismissBarButtonSystemItem = UIBarButtonSystemItemClose;
-  self.customDismissBarButtonImage = [self configureDismissButtonIcon];
 
   if (app_group::MultiProfileShareExtensionEnabled()) {
     self.mainBackgroundColor = [UIColor colorNamed:kSecondaryBackgroundColor];
@@ -279,9 +278,10 @@ CGFloat const kAvatarImageDimension = 30.0;
   CHECK(self.selectedAccountInfo);
 
   UIListContentConfiguration* content = cell.defaultContentConfiguration;
-  if ([self.selectedAccountInfo.gaiaID isEqual:@"Default"]) {
-    // TODO(crbug.com/425571657): Add strings translation.
-    content.text = @"Signed out";
+  if ([self.selectedAccountInfo.gaiaID isEqual:app_group::kNoAccount]) {
+    content.text = NSLocalizedString(
+        @"IDS_IOS_SIGNED_OUT_USER_TITLE_SHARE_EXTENSION",
+        @"The title of the item representing a signed out user.");
     content.image = [[UIImage systemImageNamed:@"person.crop.circle"]
         imageWithTintColor:[UIColor colorNamed:kGrey400Color]
              renderingMode:UIImageRenderingModeAlwaysOriginal];
@@ -559,25 +559,6 @@ CGFloat const kAvatarImageDimension = 30.0;
   URLStackView.translatesAutoresizingMaskIntoConstraints = NO;
 
   return URLStackView;
-}
-
-- (UIImage*)configureDismissButtonIcon {
-  UIImageSymbolConfiguration* colorConfig =
-      [UIImageSymbolConfiguration configurationWithPaletteColors:@[
-        [UIColor colorNamed:kTextTertiaryColor],
-        [UIColor colorNamed:kGrey200Color]
-      ]];
-
-  UIImageSymbolConfiguration* dismissButtonConfiguration =
-      [UIImageSymbolConfiguration
-          configurationWithPointSize:kDismissButtonSize
-                              weight:UIImageSymbolWeightMedium
-                               scale:UIImageSymbolScaleMedium];
-  dismissButtonConfiguration = [dismissButtonConfiguration
-      configurationByApplyingConfiguration:colorConfig];
-
-  return [UIImage systemImageNamed:@"xmark.circle.fill"
-                 withConfiguration:dismissButtonConfiguration];
 }
 
 @end

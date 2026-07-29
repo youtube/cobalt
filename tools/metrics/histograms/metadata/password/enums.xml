@@ -50,6 +50,7 @@ chromium-metrics-reviews@google.com.
   <int value="15" label="'Manage plus addresses' link in the password sheet"/>
   <int value="16" label="'Manage loyalty cards' link"/>
   <int value="17" label="'Verify it's you' link"/>
+  <int value="18" label="'Autofill suggestion from accessory sheet"/>
 </enum>
 
 <enum name="AccessorySheetTrigger">
@@ -766,6 +767,7 @@ chromium-metrics-reviews@google.com.
   <int value="7" label="OTP detected"/>
   <int value="8" label="Canceled by the user"/>
   <int value="9" label="No state. The feature wasn't offered"/>
+  <int value="10" label="Login form detected in an ongoing flow"/>
 </enum>
 
 <!-- LINT.ThenChange(/chrome/browser/password_manager/password_change_delegate.h) -->
@@ -1889,12 +1891,6 @@ chromium-metrics-reviews@google.com.
   <int value="2" label="Was already dismissed max times, not shown"/>
   <int value="3" label="Already shown once for this page, not shown"/>
   <int value="4" label="UI error, not shown"/>
-</enum>
-
-<enum name="UnifiedPasswordManagerActiveStatus">
-  <int value="0" label="Active"/>
-  <int value="1" label="Inactive - passwords sync off"/>
-  <int value="2" label="Inactive - unenrolled due to errors"/>
 </enum>
 
 <enum name="UsernameDetectionMethod">

@@ -182,6 +182,9 @@ const base::TimeDelta kSearchWithCameraTooltipHintDelay = base::Seconds(2.0);
   // The view controller that serves as the base of the presentation.
   __weak UIViewController* _presentationBaseViewController;
 
+  // A factory for creating the results page presenter.
+  LensResultsPresenterFactory _presenterFactory;
+
   // Accumulates the callbacks that are to be run once the overlay is destroyed.
   NSMutableArray<ProceduralBlock>* _runOnDestroy;
 }
@@ -342,8 +345,10 @@ const base::TimeDelta kSearchWithCameraTooltipHintDelay = base::Seconds(2.0);
 - (void)searchImageWithLens:(UIImage*)image
                  entrypoint:(LensOverlayEntrypoint)entrypoint
     initialPresentationBase:(UIViewController*)initialPresentationBase
+    resultsPresenterFactory:(LensResultsPresenterFactory)presenterFactory
                  completion:(void (^)(BOOL))completion {
   _presentationBaseViewController = initialPresentationBase;
+  _presenterFactory = presenterFactory;
   BOOL success = [self prepareOverlayWithEntrypoint:entrypoint];
   if (!success) {
     if (completion) {
@@ -433,6 +438,11 @@ const base::TimeDelta kSearchWithCameraTooltipHintDelay = base::Seconds(2.0);
   [_selectionViewController setTopIconsHidden:self.shouldShowConsentFlow];
   if (self.shouldShowConsentFlow) {
     [_selectionViewController updateGuidanceViewVisibility:NO animated:YES];
+  }
+
+  if (_entrypoint == LensOverlayEntrypoint::kFREPromo) {
+    [_selectionViewController setHUDViewHidden:YES];
+    [_selectionViewController setGuidanceViewHidden:YES];
   }
 
   [_metricsRecorder setLensOverlayInForeground:YES];
@@ -859,8 +869,8 @@ const base::TimeDelta kSearchWithCameraTooltipHintDelay = base::Seconds(2.0);
 - (void)lensOverlayResultsPagePresenter:
             (LensOverlayResultsPagePresenter*)presenter
           updateVerticalOcclusionOffset:(CGFloat)offsetNeeded {
-  UIWindow* sceneWindow = self.browser->GetSceneState().window;
-  CGFloat topOffset = kTopHeaderPadding + sceneWindow.safeAreaInsets.top;
+  CGFloat topOffset =
+      kTopHeaderPadding + _containerViewController.view.safeAreaInsets.top;
   [_selectionViewController
       setOcclusionInsets:UIEdgeInsetsMake(topOffset, 0, offsetNeeded, 0)
               reposition:YES
@@ -1527,9 +1537,14 @@ const base::TimeDelta kSearchWithCameraTooltipHintDelay = base::Seconds(2.0);
 // Configures and initializes the presenter responsible for displaying the
 // results bottom sheet.
 - (void)buildResultsBottomSheetPresentation {
-  _resultsPagePresenter = [[LensOverlayResultsPagePresenter alloc]
-      initWithBaseViewController:_containerViewController
-        resultPageViewController:_resultViewController];
+  if (_presenterFactory) {
+    _resultsPagePresenter =
+        _presenterFactory(_containerViewController, _resultViewController);
+  } else {
+    _resultsPagePresenter = [[LensOverlayResultsPagePresenter alloc]
+        initWithBaseViewController:_containerViewController
+          resultPageViewController:_resultViewController];
+  }
 
   _resultsPagePresenter.delegate = self;
   _resultMediator.presentationDelegate = _resultsPagePresenter;
@@ -1540,6 +1555,10 @@ const base::TimeDelta kSearchWithCameraTooltipHintDelay = base::Seconds(2.0);
 - (void)showResultsPageAnimated:(BOOL)animated {
   if (!_associatedTabHelper) {
     return;
+  }
+
+  if (_entrypoint == LensOverlayEntrypoint::kFREPromo) {
+    [_selectionViewController setHUDViewHidden:NO];
   }
 
   __weak __typeof(self) weakSelf = self;

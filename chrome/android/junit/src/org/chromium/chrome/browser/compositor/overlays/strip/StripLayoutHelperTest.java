@@ -178,6 +178,7 @@ import java.util.stream.IntStream;
     ChromeFeatureList.DATA_SHARING,
     ChromeFeatureList.TAB_STRIP_MOUSE_CLOSE_RESIZE_DELAY
 })
+@EnableFeatures(ChromeFeatureList.TAB_STRIP_AUTO_SELECT_ON_CLOSE_CHANGE)
 public class StripLayoutHelperTest {
     private static final Token TAB_GROUP_ID_1 = new Token(1L, 1L);
     private static final Token TAB_GROUP_ID_2 = new Token(1L, 2L);
@@ -221,7 +222,6 @@ public class StripLayoutHelperTest {
     @Mock private TintedCompositorButton mCloseButton;
     @Mock TabStripIphController mController;
     @Captor private ArgumentCaptor<DataSharingService.Observer> mSharingObserverCaptor;
-    @Captor private ArgumentCaptor<Callback<Boolean>> mSharedImageTilesCaptor;
     @Captor private ArgumentCaptor<TabModelActionListener> mTabModelActionListenerCaptor;
     @Captor private ArgumentCaptor<Callback<TabClosureParams>> mTabRemoverCallbackCaptor;
 
@@ -234,7 +234,6 @@ public class StripLayoutHelperTest {
     private final TestTabModel mModel = spy(new TestTabModel());
     private StripLayoutHelper mStripLayoutHelper;
     private boolean mIncognito;
-    private static final int NEW_ANIM_TAB_RESIZE_MS = 200;
     private static final String[] TEST_TAB_TITLES = {"Tab 1", "Tab 2", "Tab 3", "", null};
     private static final String EXPECTED_TAB = "The view should be a tab.";
     private static final String EXPECTED_TITLE = "The view should be a title.";
@@ -282,7 +281,7 @@ public class StripLayoutHelperTest {
                         R.style.Theme_BrowserUI_DayNight);
 
         mActivity = Robolectric.setupActivity(Activity.class);
-        mActivity.setTheme(org.chromium.chrome.R.style.Theme_BrowserUI);
+        mActivity.setTheme(R.style.Theme_BrowserUI_DayNight);
         when(mWindowAndroid.getActivity()).thenReturn(new WeakReference<>(mActivity));
         CompositorAnimationHandler.setTestingMode(true);
         CompositorAnimationHandler mHandler =
@@ -537,13 +536,12 @@ public class StripLayoutHelperTest {
         initializeTest(false, false, 0);
 
         // Create collaboration group and show notification bubble on group title.
-        StripLayoutGroupTitle groupTitle =
-                createCollaborationGroup(
-                        /* multipleCollaborators= */ true,
-                        /* duringStripBuild= */ false,
-                        /* start= */ 0,
-                        /* end= */ 3,
-                        TAB_GROUP_ID_1);
+        createCollaborationGroup(
+                /* multipleCollaborators= */ true,
+                /* duringStripBuild= */ false,
+                /* start= */ 0,
+                /* end= */ 3,
+                TAB_GROUP_ID_1);
         int tabId = mModel.getTabAt(0).getId();
         Set<Integer> tabIds = new HashSet<>(Collections.singleton(tabId));
         mStripLayoutHelper.updateTabStripNotificationBubble(tabIds, /* hasUpdate= */ true);
@@ -3848,6 +3846,37 @@ public class StripLayoutHelperTest {
         assertNotNull(
                 "Resize animation should be running.",
                 mStripLayoutHelper.getRunningAnimatorForTesting());
+    }
+
+    @Test
+    @DisableFeatures(ChromeFeatureList.TAB_STRIP_AUTO_SELECT_ON_CLOSE_CHANGE)
+    public void testSelectedTabClose_AutoSelect() {
+        // Initialize and select the tab at index 2.
+        initializeTest(2);
+        when(mTab.getId()).thenReturn(2);
+        when(mModel.getTabAt(2)).thenReturn(mTab);
+
+        // Fake a close button click on the tab at index 2
+        StripLayoutTab[] tabs = mStripLayoutHelper.getStripLayoutTabsForTesting();
+        mStripLayoutHelper.handleCloseTab(tabs[2], /* allowUndo= */ true);
+
+        // Verify the tab to the left was selected.
+        verify(mModel).setIndex(eq(1), anyInt());
+    }
+
+    @Test
+    public void testSelectedTabClose_AutoSelectOnCloseChange() {
+        // Initialize and select the tab at index 2.
+        initializeTest(2);
+        when(mTab.getId()).thenReturn(2);
+        when(mModel.getTabAt(2)).thenReturn(mTab);
+
+        // Fake a close button click on the tab at index 2
+        StripLayoutTab[] tabs = mStripLayoutHelper.getStripLayoutTabsForTesting();
+        mStripLayoutHelper.handleCloseTab(tabs[2], /* allowUndo= */ true);
+
+        // Verify the tab to the right was selected.
+        verify(mModel).setIndex(eq(3), anyInt());
     }
 
     @Test

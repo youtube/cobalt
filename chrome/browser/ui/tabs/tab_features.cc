@@ -21,7 +21,6 @@
 #include "chrome/browser/image_fetcher/image_fetcher_service_factory.h"
 #include "chrome/browser/loader/from_gws_navigation_and_keep_alive_request_observer.h"
 #include "chrome/browser/net/qwac_web_contents_observer.h"
-#include "chrome/browser/passage_embeddings/embedder_tab_observer.h"
 #include "chrome/browser/privacy_sandbox/incognito/privacy_sandbox_incognito_tab_observer.h"
 #include "chrome/browser/privacy_sandbox/privacy_sandbox_tab_observer.h"
 #include "chrome/browser/privacy_sandbox/tracking_protection_settings_factory.h"
@@ -68,6 +67,7 @@
 #include "chrome/browser/ui/views/side_panel/customize_chrome/side_panel_controller_views.h"
 #include "chrome/browser/ui/views/side_panel/extensions/extension_side_panel_manager.h"
 #include "chrome/browser/ui/views/side_panel/read_anything/read_anything_side_panel_controller.h"
+#include "chrome/browser/ui/views/tab_sharing/tab_capture_contents_border_helper.h"
 #include "chrome/browser/ui/views/translate/translate_page_action_controller.h"
 #include "chrome/browser/ui/views/zoom/zoom_view_controller.h"
 #include "chrome/browser/ui/web_applications/pwa_install_page_action.h"
@@ -264,7 +264,8 @@ void TabFeatures::Init(TabInterface& tab, Profile* profile) {
         profile->IsRegularProfile()) {
       actor_ui_tab_controller_ =
           std::make_unique<actor::ui::ActorUiTabController>(
-              tab, actor::ActorKeyedService::Get(profile));
+              tab, actor::ActorKeyedService::Get(profile),
+              std::make_unique<actor::ui::ActorUiTabControllerFactory>());
     }
   }  // IsInNormalWindow() end.
 
@@ -363,6 +364,10 @@ void TabFeatures::Init(TabInterface& tab, Profile* profile) {
     qwac_web_contents_observer_ =
         std::make_unique<QwacWebContentsObserver>(tab);
   }
+
+  tab_capture_contents_border_helper_ =
+      GetUserDataFactory().CreateInstance<TabCaptureContentsBorderHelper>(tab,
+                                                                          tab);
 }
 
 TabResourceUsageTabHelper* TabFeatures::SetResourceUsageHelperForTesting(

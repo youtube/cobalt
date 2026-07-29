@@ -4,6 +4,17 @@
 
 package org.chromium.chrome.browser.autofill.settings;
 
+import static androidx.test.espresso.Espresso.onView;
+import static androidx.test.espresso.action.ViewActions.click;
+import static androidx.test.espresso.assertion.ViewAssertions.matches;
+import static androidx.test.espresso.intent.Intents.intended;
+import static androidx.test.espresso.intent.Intents.intending;
+import static androidx.test.espresso.intent.matcher.IntentMatchers.hasAction;
+import static androidx.test.espresso.intent.matcher.IntentMatchers.hasData;
+import static androidx.test.espresso.matcher.ViewMatchers.withEffectiveVisibility;
+import static androidx.test.espresso.matcher.ViewMatchers.withText;
+
+import static org.hamcrest.Matchers.allOf;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -11,16 +22,20 @@ import static org.junit.Assert.assertNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
+import android.app.Activity;
+import android.app.Instrumentation;
 import android.content.Context;
 import android.content.DialogInterface;
+import android.content.Intent;
+import android.net.Uri;
 import android.view.KeyEvent;
-import android.view.View;
 import android.widget.EditText;
 import android.widget.TextView;
 
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
 import androidx.test.espresso.intent.Intents;
+import androidx.test.espresso.matcher.ViewMatchers.Visibility;
 import androidx.test.filters.MediumTest;
 
 import org.hamcrest.Matchers;
@@ -288,13 +303,35 @@ public class AutofillProfilesFragmentTest {
     @Feature({"Preferences"})
     public void testHomeEntry() throws Exception {
         mHelper.setProfile(sHomeProfile);
+        AutofillProfilesFragment autofillProfileFragment = sSettingsActivityTestRule.getFragment();
 
         AutofillProfileEditorPreference homeProfilePreference =
-                findPreference(sHomeProfile.getInfo(FieldType.NAME_FULL));
+                autofillProfileFragment.findPreference(sHomeProfile.getInfo(FieldType.NAME_FULL));
         assertNotNull(homeProfilePreference);
         assertEquals(
                 R.layout.autofill_settings_home_profile_icon,
                 homeProfilePreference.getWidgetLayoutResource());
+
+        // Edit a profile.
+        ThreadUtils.runOnUiThreadBlocking(homeProfilePreference::performClick);
+
+        // Define a fake result to return immediately when the intent is caught.
+        // This prevents the actual urls from being launched.
+        Instrumentation.ActivityResult ok_result =
+                new Instrumentation.ActivityResult(Activity.RESULT_OK, null);
+        var homeIntentMatcher =
+                allOf(
+                        hasAction(Intent.ACTION_VIEW),
+                        hasData(
+                                Uri.parse(
+                                        AutofillProfilesFragment
+                                                .GOOGLE_ACCOUNT_HOME_ADDRESS_EDIT_URL)));
+        intending(homeIntentMatcher).respondWith(ok_result);
+
+        // Try to find a view with "Link" and click on it.
+        Context context = autofillProfileFragment.getContext();
+        onView(withText(context.getString(R.string.autofill_edit_address_label))).perform(click());
+        intended(homeIntentMatcher);
     }
 
     @Test
@@ -302,13 +339,35 @@ public class AutofillProfilesFragmentTest {
     @Feature({"Preferences"})
     public void testWorkEntry() throws Exception {
         mHelper.setProfile(sWorkProfile);
+        AutofillProfilesFragment autofillProfileFragment = sSettingsActivityTestRule.getFragment();
 
         AutofillProfileEditorPreference workProfilePreference =
-                findPreference(sWorkProfile.getInfo(FieldType.NAME_FULL));
+                autofillProfileFragment.findPreference(sWorkProfile.getInfo(FieldType.NAME_FULL));
         assertNotNull(workProfilePreference);
         assertEquals(
                 R.layout.autofill_settings_work_profile_icon,
                 workProfilePreference.getWidgetLayoutResource());
+
+        // Edit a profile.
+        ThreadUtils.runOnUiThreadBlocking(workProfilePreference::performClick);
+
+        // Define a fake result to return immediately when the intent is caught.
+        // This prevents the actual urls from being launched.
+        Instrumentation.ActivityResult ok_result =
+                new Instrumentation.ActivityResult(Activity.RESULT_OK, null);
+        var workIntentMatcher =
+                allOf(
+                        hasAction(Intent.ACTION_VIEW),
+                        hasData(
+                                Uri.parse(
+                                        AutofillProfilesFragment
+                                                .GOOGLE_ACCOUNT_WORK_ADDRESS_EDIT_URL)));
+        intending(workIntentMatcher).respondWith(ok_result);
+
+        // Try to find a view with "Link" and click on it.
+        Context context = autofillProfileFragment.getContext();
+        onView(withText(context.getString(R.string.autofill_edit_address_label))).perform(click());
+        intended(workIntentMatcher);
     }
 
     @Test
@@ -504,10 +563,6 @@ public class AutofillProfilesFragmentTest {
                     "edit@profile.com"
                 });
 
-        // Verify the absence of the profile source notice.
-        TextView footerMessage = editorDialog.findViewById(R.id.footer_message);
-        assertEquals(View.GONE, footerMessage.getVisibility());
-
         rule.clickInEditorAndWait(
                 R.id.editor_dialog_done_button, /* waitForPreferenceUpdate= */ true);
 
@@ -556,14 +611,13 @@ public class AutofillProfilesFragmentTest {
         rule.setEditorDialogAndWait(editorDialog);
 
         // Verify the profile source notice.
-        TextView footerMessage = editorDialog.findViewById(R.id.footer_message);
-        assertEquals(View.VISIBLE, footerMessage.getVisibility());
         String expectedMessage =
                 context.getString(
                                 R.string
                                         .autofill_address_already_saved_in_account_record_type_notice)
                         .replace("$1", email);
-        assertEquals(expectedMessage, footerMessage.getText());
+        onView(withText(expectedMessage))
+                .check(matches(withEffectiveVisibility(Visibility.VISIBLE)));
 
         // Invalid input.
         rule.setTextInEditorAndWait(

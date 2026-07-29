@@ -6,6 +6,7 @@
 #define MEDIA_GPU_CHROMEOS_PLATFORM_VIDEO_FRAME_UTILS_H_
 
 #include <optional>
+#include <set>
 
 #include "base/memory/scoped_refptr.h"
 #include "base/unguessable_token.h"
@@ -59,10 +60,6 @@ class UniqueTrackingTokenHelper {
 
   std::set<base::UnguessableToken> tokens_;
 };
-
-// Returns a GpuMemoryBufferId that's guaranteed to be different from those
-// returned by previous calls. This function is thread safe.
-MEDIA_GPU_EXPORT gfx::GpuMemoryBufferId GetNextGpuMemoryBufferId();
 
 // Creates a GpuMemoryBufferHandle. This function is thread safe.
 gfx::GpuMemoryBufferHandle AllocateGpuMemoryBufferHandle(

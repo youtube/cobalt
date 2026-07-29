@@ -250,7 +250,7 @@ BASE_FEATURE(kIPHTabSearchFeature,
              base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kIPHTabSearchToolbarButtonFeature,
              "IPH_TabSearchToolbarButton",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kIPHDesktopSnoozeFeature,
              "IPH_DesktopSnoozeFeature",
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -756,6 +756,13 @@ BASE_FEATURE(kIPHiOSSharedTabGroupForeground,
 BASE_FEATURE(kIPHiOSDefaultBrowserBannerPromoFeature,
              "IPH_iOSDefaultBrowserBannerPromoFeature",
              base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(kIPHiOSDefaultBrowserOffCyclePromoFeature,
+             "IPH_iOSDefaultBrowserOffCyclePromo",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+constexpr base::FeatureParam<int> kIPHiOSDefaultBrowserOffCyclePromoCooldown{
+    &kIPHiOSDefaultBrowserOffCyclePromoFeature,
+    /*name=*/"cooldown-days",
+    /*default_value=*/10 * 365};
 BASE_FEATURE(kIPHiOSReminderNotificationsOverflowMenuBubbleFeature,
              "IPH_iOSReminderNotificationsOverflowMenuBubbleFeature",
              base::FEATURE_ENABLED_BY_DEFAULT);
@@ -800,6 +807,10 @@ BASE_FEATURE(kIPHiOSHomepageLensNewBadge,
 
 BASE_FEATURE(kIPHiOSHomepageCustomizationNewBadge,
              "IPH_iOSHomepageCustomizationNewBadge",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+BASE_FEATURE(kIPHiOSOneTimeDefaultBrowserNotificationFeature,
+             "IPH_iOSOneTimeDefaultBrowserNotification",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Non-FET feature.

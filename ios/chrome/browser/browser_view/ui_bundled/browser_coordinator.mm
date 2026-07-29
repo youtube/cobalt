@@ -143,6 +143,7 @@
 #import "ios/chrome/browser/mini_map/coordinator/mini_map_coordinator.h"
 #import "ios/chrome/browser/ntp/model/new_tab_page_state.h"
 #import "ios/chrome/browser/ntp/model/new_tab_page_tab_helper.h"
+#import "ios/chrome/browser/ntp/model/new_tab_page_util.h"
 #import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_component_factory.h"
 #import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_coordinator.h"
 #import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_feature.h"
@@ -176,7 +177,9 @@
 #import "ios/chrome/browser/push_notification/ui_bundled/notifications_opt_in_coordinator_delegate.h"
 #import "ios/chrome/browser/qr_scanner/ui_bundled/qr_scanner_legacy_coordinator.h"
 #import "ios/chrome/browser/reader_mode/coordinator/reader_mode_coordinator.h"
+#import "ios/chrome/browser/reader_mode/model/features.h"
 #import "ios/chrome/browser/reader_mode/model/reader_mode_browser_agent.h"
+#import "ios/chrome/browser/reader_mode/model/reader_mode_browser_agent_delegate.h"
 #import "ios/chrome/browser/reader_mode/model/reader_mode_tab_helper.h"
 #import "ios/chrome/browser/reading_list/model/reading_list_browser_agent.h"
 #import "ios/chrome/browser/reading_list/ui_bundled/reading_list_coordinator.h"
@@ -292,6 +295,7 @@
 #import "ios/chrome/browser/supervised_user/coordinator/parent_access_coordinator.h"
 #import "ios/chrome/browser/sync/model/sync_error_browser_agent.h"
 #import "ios/chrome/browser/tab_insertion/model/tab_insertion_browser_agent.h"
+#import "ios/chrome/browser/tab_switcher/ui_bundled/tab_group_action_type.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_group_confirmation_coordinator.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_strip/coordinator/tab_strip_coordinator.h"
 #import "ios/chrome/browser/tabs/model/tab_title_util.h"
@@ -396,6 +400,7 @@ enum class ToolbarKind {
     PolicyChangeCommands,
     PreloadControllerDelegate,
     QuickDeleteCommands,
+    ReaderModeBrowserAgentDelegate,
     ReaderModeCommands,
     ReadingListCoordinatorDelegate,
     RecentTabsCoordinatorDelegate,
@@ -725,6 +730,28 @@ enum class ToolbarKind {
   WelcomeBackCoordinator* _welcomeBackCoordinator;
 }
 
+#pragma mark - ReaderModeBrowserAgentDelegate
+
+- (void)readerModeBrowserAgent:(ReaderModeBrowserAgent*)browserAgent
+           showContentAnimated:(BOOL)animated {
+  if (_readerModeCoordinator) {
+    return;
+  }
+  _readerModeCoordinator = [[ReaderModeCoordinator alloc]
+      initWithBaseViewController:self.browserContainerCoordinator.viewController
+                         browser:self.browser];
+  [_readerModeCoordinator startAnimated:animated];
+}
+
+- (void)readerModeBrowserAgent:(ReaderModeBrowserAgent*)browserAgent
+           hideContentAnimated:(BOOL)animated {
+  if (!_readerModeCoordinator) {
+    return;
+  }
+  [_readerModeCoordinator stopAnimated:animated];
+  _readerModeCoordinator = nil;
+}
+
 #pragma mark - ChromeCoordinator
 
 - (void)start {
@@ -832,8 +859,7 @@ enum class ToolbarKind {
     // cannot assert that it has not been started.
     web::WebState* webState =
         self.browser->GetWebStateList()->GetActiveWebState();
-    if (webState && NewTabPageTabHelper::FromWebState(webState)->IsActive() &&
-        !self.NTPCoordinator.started) {
+    if (IsVisibleURLNewTabPage(webState) && !self.NTPCoordinator.started) {
       // Avoid Voiceover focus to be stollen if the BrowserViewController is not
       // the top view.
       BOOL ntpIsTopView = !self.viewController.presentedViewController;
@@ -1800,6 +1826,7 @@ enum class ToolbarKind {
   tabLifecycleMediator.overscrollActionsDelegate = self;
   tabLifecycleMediator.appLauncherBrowserPresentationProvider = self;
   tabLifecycleMediator.editMenuBuilder = self;
+  tabLifecycleMediator.browser = self.browser;
 
   self.tabLifecycleMediator = tabLifecycleMediator;
 }
@@ -2729,26 +2756,35 @@ enum class ToolbarKind {
 
 #pragma mark - ReaderModeCommands
 
-- (void)showReaderMode {
+- (void)showReaderModeFromAccessPoint:(ReaderModeAccessPoint)accessPoint {
   web::WebState* activeWebState = self.activeWebState;
   if (!activeWebState) {
     return;
   }
+  BOOL lensOverlayAvailable = IsLensOverlayAvailable(self.profile->GetPrefs());
   ReaderModeTabHelper* readerModeTabHelper =
       ReaderModeTabHelper::FromWebState(activeWebState);
-  if (!readerModeTabHelper->IsActive()) {
-    readerModeTabHelper->SetActive(true);
-    return;
-  }
+  auto activateReader =
+      base::BindOnce(&ReaderModeTabHelper::ActivateReader,
+                     readerModeTabHelper->GetWeakPtr(), accessPoint);
 
-  if (_readerModeCoordinator) {
-    // If the Reader mode UI is already presented then there is nothing to do.
-    return;
+  if (lensOverlayAvailable) {
+    LensOverlayTabHelper* lensOverlayTabHelper =
+        LensOverlayTabHelper::FromWebState(activeWebState);
+    BOOL lensOverlayVisible =
+        lensOverlayTabHelper &&
+        lensOverlayTabHelper->IsLensOverlayUIAttachedAndAlive();
+    if (lensOverlayVisible) {
+      id<LensOverlayCommands> lensOverlayHandler =
+          HandlerForProtocol(_dispatcher, LensOverlayCommands);
+      [lensOverlayHandler
+          destroyLensUI:YES
+                 reason:lens::LensOverlayDismissalSource::kReaderModeActivated
+             completion:base::CallbackToBlock(std::move(activateReader))];
+      return;
+    }
   }
-  _readerModeCoordinator = [[ReaderModeCoordinator alloc]
-      initWithBaseViewController:self.browserContainerCoordinator.viewController
-                         browser:self.browser];
-  [_readerModeCoordinator start];
+  std::move(activateReader).Run();
 }
 
 - (void)hideReaderMode {
@@ -2758,17 +2794,7 @@ enum class ToolbarKind {
   }
   ReaderModeTabHelper* readerModeTabHelper =
       ReaderModeTabHelper::FromWebState(activeWebState);
-  if (readerModeTabHelper->IsActive()) {
-    readerModeTabHelper->SetActive(false);
-    return;
-  }
-
-  if (!_readerModeCoordinator) {
-    // If the Reader mode UI is already dismissed then there is nothing to do.
-    return;
-  }
-  [_readerModeCoordinator stop];
-  _readerModeCoordinator = nil;
+  readerModeTabHelper->DeactivateReader();
 }
 
 #pragma mark - FindInPageCommands
@@ -2813,7 +2839,7 @@ enum class ToolbarKind {
 }
 
 - (void)closeFindInPage {
-  web::WebState* activeWebState = self.activeWebState;
+  web::WebState* activeWebState = [self activeWebStateOrReaderMode];
   if (!activeWebState) {
     return;
   }
@@ -2830,7 +2856,8 @@ enum class ToolbarKind {
 }
 
 - (void)showFindUIIfActive {
-  auto* findHelper = GetConcreteFindTabHelperFromWebState(self.activeWebState);
+  auto* findHelper =
+      GetConcreteFindTabHelperFromWebState([self activeWebStateOrReaderMode]);
   if (!findHelper || !findHelper->IsFindUIActive()) {
     return;
   }
@@ -2845,7 +2872,7 @@ enum class ToolbarKind {
 }
 
 - (void)hideFindUI {
-  web::WebState* activeWebState = self.activeWebState;
+  web::WebState* activeWebState = [self activeWebStateOrReaderMode];
   if (!activeWebState) {
     return;
   }
@@ -2869,7 +2896,7 @@ enum class ToolbarKind {
 }
 
 - (void)searchFindInPage {
-  web::WebState* activeWebState = self.activeWebState;
+  web::WebState* activeWebState = [self activeWebStateOrReaderMode];
   DCHECK(activeWebState);
   auto* helper = GetConcreteFindTabHelperFromWebState(activeWebState);
   helper->StartFinding([self.findBarCoordinator.findBarController searchTerm]);
@@ -2888,7 +2915,7 @@ enum class ToolbarKind {
 }
 
 - (void)findPreviousStringInPage {
-  web::WebState* activeWebState = self.activeWebState;
+  web::WebState* activeWebState = [self activeWebStateOrReaderMode];
   DCHECK(activeWebState);
   // TODO(crbug.com/40465124): Reshow find bar if necessary.
   GetConcreteFindTabHelperFromWebState(activeWebState)
@@ -2898,7 +2925,7 @@ enum class ToolbarKind {
 #pragma mark - FindInPageCommands Helpers
 
 - (void)showSystemFindPanel {
-  web::WebState* activeWebState = self.activeWebState;
+  web::WebState* activeWebState = [self activeWebStateOrReaderMode];
   DCHECK(activeWebState);
   auto* helper = FindTabHelper::FromWebState(activeWebState);
 
@@ -2928,7 +2955,7 @@ enum class ToolbarKind {
 }
 
 - (BOOL)canShowFindBar {
-  web::WebState* activeWebState = self.activeWebState;
+  web::WebState* activeWebState = [self activeWebStateOrReaderMode];
   if (!activeWebState) {
     return NO;
   }
@@ -3069,6 +3096,12 @@ enum class ToolbarKind {
   self.defaultBrowserGenericPromoCoordinator.promosUIHandler =
       self.promosManagerCoordinator;
   self.defaultBrowserGenericPromoCoordinator.handler = self;
+
+  if (IsDefaultBrowserOffCyclePromoEnabled()) {
+    self.defaultBrowserGenericPromoCoordinator.promoWasFromOffCycleTrigger =
+        YES;
+  }
+
   [self.defaultBrowserGenericPromoCoordinator start];
 }
 
@@ -3311,6 +3344,22 @@ enum class ToolbarKind {
 
 #pragma mark - Private WebState management methods
 
+- (web::WebState*)activeWebStateOrReaderMode {
+  if (!IsReaderModeAvailable()) {
+    return self.activeWebState;
+  }
+
+  if (self.activeWebState) {
+    ReaderModeTabHelper* tabHelper =
+        ReaderModeTabHelper::FromWebState(self.activeWebState);
+    if (tabHelper) {
+      return tabHelper->GetReaderModeWebState() ?: self.activeWebState;
+    }
+  }
+
+  return self.activeWebState;
+}
+
 // Installs delegates for self.browser.
 - (void)installDelegatesForBrowser {
   // The view controller should have been created.
@@ -3342,12 +3391,7 @@ enum class ToolbarKind {
   ReaderModeBrowserAgent* readerModeBrowserAgent =
       ReaderModeBrowserAgent::FromBrowser(self.browser);
   if (readerModeBrowserAgent) {
-    readerModeBrowserAgent->SetReaderModeHandler(HandlerForProtocol(
-        self.browser->GetCommandDispatcher(), ReaderModeCommands));
-    readerModeBrowserAgent->SetReaderModeChipHandler(HandlerForProtocol(
-        self.browser->GetCommandDispatcher(), ReaderModeChipCommands));
-    readerModeBrowserAgent->SetSnackbarHandler(
-        static_cast<id<SnackbarCommands>>(commandDispatcher));
+    readerModeBrowserAgent->SetDelegate(self);
   }
 }
 
@@ -3388,9 +3432,7 @@ enum class ToolbarKind {
   ReaderModeBrowserAgent* readerModeBrowserAgent =
       ReaderModeBrowserAgent::FromBrowser(self.browser);
   if (readerModeBrowserAgent) {
-    readerModeBrowserAgent->SetReaderModeHandler(nil);
-    readerModeBrowserAgent->SetReaderModeChipHandler(nil);
-    readerModeBrowserAgent->SetSnackbarHandler(nil);
+    readerModeBrowserAgent->SetDelegate(nil);
   }
 }
 
@@ -3621,6 +3663,15 @@ enum class ToolbarKind {
     [weakSelf runLeaveOrDeleteCompletion:command.group
                           viewController:viewController];
   };
+  if (command.actionType == TabGroupActionType::kCloseLastTabUnknownRole) {
+    // If the user's member role is unkown (i.e. sync not complete yet),
+    // cannot show option to leave/keep group when attempting to close last
+    // tab. Instead, close last tab and replace with new tab after an error
+    // alert is shown.
+    _lastTabClosingAlert.primaryAction = ^{
+      [weakSelf runKeepGroup:command.group lastTabID:command.tabID];
+    };
+  }
   _lastTabClosingAlert.secondaryAction = ^{
     if (command.closing) {
       [weakSelf runKeepGroup:command.group lastTabID:command.tabID];
@@ -3996,8 +4047,7 @@ enum class ToolbarKind {
   UIEdgeInsets maxViewportInsets =
       _fullscreenController->GetMaxViewportInsets();
 
-  NewTabPageTabHelper* NTPHelper = NewTabPageTabHelper::FromWebState(webState);
-  if (NTPHelper && NTPHelper->IsActive()) {
+  if (IsVisibleURLNewTabPage(webState)) {
     const BOOL canShowTabStrip = CanShowTabStrip(self.viewController);
     const BOOL isSplitToolbarMode = IsSplitToolbarMode(self.viewController);
     // If the NTP is active, then it's used as the base view for snapshotting.
@@ -4135,8 +4185,7 @@ enum class ToolbarKind {
   if (!webState) {
     return nil;
   }
-  NewTabPageTabHelper* NTPHelper = NewTabPageTabHelper::FromWebState(webState);
-  if (NTPHelper && NTPHelper->IsActive()) {
+  if (IsVisibleURLNewTabPage(webState)) {
     // If NTPCoordinator is not started yet, fall back to using the
     // webState's view. `_NTPCoordinator.started` should be true in most cases
     // but it can be false when the app will be terminated or the browser data

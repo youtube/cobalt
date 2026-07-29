@@ -270,9 +270,10 @@ public class IncognitoTabGroupModelFilterImpl implements TabGroupModelFilterInte
     }
 
     @Override
-    public void mergeListOfTabsToGroup(List<Tab> tabs, Tab destinationTab, boolean notify) {
+    public void mergeListOfTabsToGroup(
+            List<Tab> tabs, Tab destinationTab, @Nullable Integer indexInGroup, boolean notify) {
         if (mCurrentFilter == null) return;
-        mCurrentFilter.mergeListOfTabsToGroup(tabs, destinationTab, notify);
+        mCurrentFilter.mergeListOfTabsToGroup(tabs, destinationTab, indexInGroup, notify);
     }
 
     @Override
@@ -281,13 +282,15 @@ public class IncognitoTabGroupModelFilterImpl implements TabGroupModelFilterInte
     }
 
     @Override
-    public void undoGroupedTab(
-            Tab tab,
-            int originalIndex,
-            @TabId int originalRootId,
-            @Nullable Token originalTabGroupId) {
+    public void performUndoGroupOperation(UndoGroupMetadata undoGroupMetadata) {
         if (mCurrentFilter == null) return;
-        mCurrentFilter.undoGroupedTab(tab, originalIndex, originalRootId, originalTabGroupId);
+        mCurrentFilter.performUndoGroupOperation(undoGroupMetadata);
+    }
+
+    @Override
+    public void undoGroupOperationExpired(UndoGroupMetadata undoGroupMetadata) {
+        if (mCurrentFilter == null) return;
+        mCurrentFilter.undoGroupOperationExpired(undoGroupMetadata);
     }
 
     @Override

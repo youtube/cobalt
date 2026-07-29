@@ -12,10 +12,13 @@
 #include <vector>
 
 #include "base/check.h"
+#include "base/containers/fixed_flat_set.h"
 #include "base/debug/crash_logging.h"
 #include "base/feature_list.h"
 #include "base/logging.h"
 #include "base/memory/raw_ref.h"
+#include "base/metrics/histogram_functions.h"
+#include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
 #include "components/ip_protection/common/ip_protection_core.h"
 #include "components/ip_protection/common/ip_protection_data_types.h"
@@ -30,6 +33,7 @@
 #include "net/base/schemeful_site.h"
 #include "net/base/url_util.h"
 #include "net/http/http_request_headers.h"
+#include "net/http/http_response_headers.h"
 #include "net/http/http_util.h"
 #include "net/http/structured_headers.h"
 #include "net/proxy_resolution/proxy_info.h"
@@ -247,7 +251,82 @@ net::Error IpProtectionProxyDelegate::OnTunnelHeadersReceived(
     const net::ProxyChain& proxy_chain,
     size_t chain_index,
     const net::HttpResponseHeaders& response_headers) {
-  return net::OK;
+  if (response_headers.response_code() == 200 ||
+      !proxy_chain.is_for_ip_protection()) {
+    return net::OK;
+  }
+
+  std::optional<std::string> proxy_status_header_value =
+      response_headers.GetNormalizedHeader("Proxy-Status");
+  if (!proxy_status_header_value) {
+    return net::ERR_PROXY_TUNNEL_REQUEST_FAILED;
+  }
+
+  std::optional<net::structured_headers::List> proxy_status_list =
+      net::structured_headers::ParseList(*proxy_status_header_value);
+  if (!proxy_status_list) {
+    return net::ERR_PROXY_TUNNEL_REQUEST_FAILED;
+  }
+
+  net::structured_headers::List parsed_list = proxy_status_list.value();
+  // For IP Protection there will only ever be one proxy server per connection,
+  // so there should only ever be one element in the list corresponding to that
+  // proxy server. Even for the connection to Proxy B, this request is not
+  // visible by Proxy A and thus the Proxy-Status header can't be modified by
+  // it.
+  if (parsed_list.size() != 1) {
+    return net::ERR_PROXY_TUNNEL_REQUEST_FAILED;
+  }
+  const net::structured_headers::ParameterizedMember& p_member = parsed_list[0];
+  // `p_member` can either be a single Item or an inner list, and we expect the
+  // format here for this Proxy-Status header to be considered valid.
+  if (p_member.member_is_inner_list) {
+    return net::ERR_PROXY_TUNNEL_REQUEST_FAILED;
+  }
+
+  bool error_is_dns_error = false;
+  bool rcode_is_nxdomain = false;
+  for (const auto& [name, item] : p_member.params) {
+    if (name == "error" && item.is_token()) {
+      static constexpr auto kDestinationErrors =
+          base::MakeFixedFlatSet<std::string_view>({
+              "dns_timeout",
+              "destination_not_found",
+              "destination_unavailable",
+              "destination_ip_unroutable",
+              "connection_refused",
+              "connection_terminated",
+              "connection_timeout",
+              "proxy_loop_detected",
+          });
+      const std::string& error_val = item.GetString();
+      // These RFC 9209 errors indicate a destination-side problem.
+      // For these, we should NOT fall back.
+      if (kDestinationErrors.contains(error_val)) {
+        return net::ERR_TUNNEL_CONNECTION_FAILED;
+      }
+      if (error_val == "dns_error") {
+        error_is_dns_error = true;
+      }
+      continue;
+    }
+    // TODO(crbug.com/435524190): We can enforce that the value is a string
+    // type once all proxy B providers adhere to the spec for this.
+    if (name == "rcode" && (item.is_token() || item.is_string())) {
+      const std::string& rcode_val = item.GetString();
+      if (rcode_val == "NXDOMAIN") {
+        rcode_is_nxdomain = true;
+      }
+      continue;
+    }
+  }
+  if (error_is_dns_error && rcode_is_nxdomain) {
+    return net::ERR_TUNNEL_CONNECTION_FAILED;
+  }
+
+  // If no specific destination error was found, we assume it's a proxy
+  // failure and should fall back.
+  return net::ERR_PROXY_TUNNEL_REQUEST_FAILED;
 }
 
 void IpProtectionProxyDelegate::SetProxyResolutionService(

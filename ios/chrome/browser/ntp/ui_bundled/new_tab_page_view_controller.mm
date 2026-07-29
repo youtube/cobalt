@@ -275,9 +275,7 @@ CGFloat SpaceBetweenModules() {
     };
     [self registerForTraitChanges:traits withHandler:handler];
     if (IsNTPBackgroundCustomizationEnabled()) {
-      NSArray<UITrait>* colorTraits =
-          TraitCollectionSetForTraits(@[ NewTabPageTrait.class ]);
-      [self registerForTraitChanges:colorTraits
+      [self registerForTraitChanges:@[ NewTabPageTrait.class ]
                          withAction:@selector(applyBackgroundColors)];
       [self applyBackgroundColors];
     }
@@ -1101,7 +1099,7 @@ CGFloat SpaceBetweenModules() {
 // set.
 - (void)applyBackgroundColors {
   NewTabPageColorPalette* colorPalette =
-      [self.traitCollection objectForTrait:NewTabPageTrait.class];
+      [self.traitCollection objectForNewTabPageTrait];
 
   if (colorPalette) {
     self.view.backgroundColor = colorPalette.primaryColor;

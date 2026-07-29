@@ -14,7 +14,9 @@
 #import "ios/chrome/browser/download/coordinator/download_manager_coordinator.h"
 #import "ios/chrome/browser/download/model/download_manager_tab_helper.h"
 #import "ios/chrome/browser/download/model/pass_kit_tab_helper.h"
+#import "ios/chrome/browser/find_in_page/model/find_tab_helper.h"
 #import "ios/chrome/browser/follow/model/follow_tab_helper.h"
+#import "ios/chrome/browser/fullscreen/ui_bundled/fullscreen_controller.h"
 #import "ios/chrome/browser/intelligence/bwg/model/bwg_tab_helper.h"
 #import "ios/chrome/browser/itunes_urls/model/itunes_urls_handler_tab_helper.h"
 #import "ios/chrome/browser/lens/model/lens_tab_helper.h"
@@ -159,12 +161,18 @@
   autofillTabHelper->SetSnackbarHandler(
       static_cast<id<SnackbarCommands>>(_commandDispatcher));
 
-  if (IsReaderModeSnackbarEnabled() &&
-      [_commandDispatcher dispatchingForProtocol:@protocol(SnackbarCommands)]) {
-    ReaderModeTabHelper* readerModeTabHelper =
-        ReaderModeTabHelper::FromWebState(webState);
-    readerModeTabHelper->SetSnackbarHandler(
-        HandlerForProtocol(_commandDispatcher, SnackbarCommands));
+  ReaderModeTabHelper* readerModeTabHelper =
+      ReaderModeTabHelper::FromWebState(webState);
+
+  if (readerModeTabHelper) {
+    readerModeTabHelper->SetReaderModeHandler(
+        HandlerForProtocol(_commandDispatcher, ReaderModeCommands));
+    if (IsReaderModeSnackbarEnabled() &&
+        [_commandDispatcher
+            dispatchingForProtocol:@protocol(SnackbarCommands)]) {
+      readerModeTabHelper->SetSnackbarHandler(
+          HandlerForProtocol(_commandDispatcher, SnackbarCommands));
+    }
   }
 
   DCHECK(_printCoordinator);
@@ -232,6 +240,13 @@
         HandlerForProtocol(_commandDispatcher, BWGCommands);
     BWGTabHelper->SetBwgCommandsHandler(BWGCommandsHandler);
   }
+
+  FindTabHelper* findTabHelper = FindTabHelper::FromWebState(webState);
+  if (findTabHelper) {
+    FullscreenController* fullscreenController =
+        FullscreenController::FromBrowser(self.browser);
+    findTabHelper->SetFullscreenController(fullscreenController);
+  }
 }
 
 - (void)webStateRemoved:(web::WebState*)webState {
@@ -275,10 +290,13 @@
   autofillTabHelper->SetAutofillHandler(nil);
   autofillTabHelper->SetSnackbarHandler(nil);
 
-  if (IsReaderModeSnackbarEnabled()) {
-    ReaderModeTabHelper* readerModeTabHelper =
-        ReaderModeTabHelper::FromWebState(webState);
-    readerModeTabHelper->SetSnackbarHandler(nil);
+  ReaderModeTabHelper* readerModeTabHelper =
+      ReaderModeTabHelper::FromWebState(webState);
+  if (readerModeTabHelper) {
+    readerModeTabHelper->SetReaderModeHandler(nil);
+    if (IsReaderModeSnackbarEnabled()) {
+      readerModeTabHelper->SetSnackbarHandler(nil);
+    }
   }
 
   PrintTabHelper::GetOrCreateForWebState(webState)->set_printer(nil);
@@ -334,6 +352,11 @@
   BwgTabHelper* BWGTabHelper = BwgTabHelper::FromWebState(webState);
   if (BWGTabHelper) {
     BWGTabHelper->SetBwgCommandsHandler(nil);
+  }
+
+  FindTabHelper* findTabHelper = FindTabHelper::FromWebState(webState);
+  if (findTabHelper) {
+    findTabHelper->SetFullscreenController(nullptr);
   }
 }
 

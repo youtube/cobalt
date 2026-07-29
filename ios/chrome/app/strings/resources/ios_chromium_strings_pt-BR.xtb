@@ -53,6 +53,7 @@
 <translation id="2195025571279539885">Quer que na próxima vez o Chromium ofereça a tradução de páginas em <ph name="LANGUAGE_NAME" /> deste site?</translation>
 <translation id="22313767259766852">Este endereço está salvo no Chromium. Para usá-lo nos produtos do Google, salve-o na sua conta, <ph name="USER_EMAIL" />.</translation>
 <translation id="2236584955986023187">Isso significa que o Chromium vai solicitar sempre o site para computador.</translation>
+<translation id="2245694534483711162">O Gemini pode usar seu local exato, dependendo da permissão que você já deu ao Chromium</translation>
 <translation id="2270466829363945454">Compras</translation>
 <translation id="2313870531055795960">Confere se os URLs estão em uma lista de sites não seguros armazenada no Chromium. Se um site tentar roubar sua senha ou se você fizer o download de um arquivo nocivo, o Chromium também poderá enviar os URLs, incluindo partes do conteúdo da página, para o Navegação segura.</translation>
 <translation id="2314220608288760290">O Chromium abre automaticamente os links anônimos do YouTube na navegação anônima.</translation>
@@ -113,11 +114,11 @@ Aguarde alguns minutos antes de trocar de conta. Se você mudar de conta agora, 
 <translation id="3728124580182886854">Vincule o Chromium e outros Serviços do Google para personalização e outras finalidades</translation>
 <translation id="377649297473651452">Visualização aberta do preenchimento automático do Chromium</translation>
 <translation id="3780779443901618967">Avisa você sobre sites perigosos, mesmo aqueles que o Google não conhecia, analisando mais dados de sites do que a proteção padrão. Você pode ignorar os avisos do Chromium.</translation>
-<translation id="3804124559081428680">Dica do Chromium: confirme sua identidade</translation>
 <translation id="3805899903892079518">O Chromium não têm acesso às suas fotos ou seus vídeos. Permita o acesso em "Configurações do iOS" &gt; "Privacidade" &gt; "Fotos".</translation>
 <translation id="3816686541346279443">O Chromium vai oferecer a opção de salvar sua senha.</translation>
 <translation id="3827545470516145620">Você está usando a proteção padrão neste dispositivo</translation>
 <translation id="3833326979834193417">O Chromium executa a Confirmação de segurança todos os dias automaticamente para proteger você de violações de dados, sites perigosos e muito mais. Saiba mais sobre a Confirmação de segurança nas Configurações.</translation>
+<translation id="3845223911364528001">Volte ao Chromium para fazer upload do arquivo</translation>
 <translation id="3855938650519180865">Novidades do Chromium</translation>
 <translation id="3886689467633467988">Faça login neste site e no Chromium para conferir seus favoritos e muito mais em todos os seus dispositivos.</translation>
 <translation id="3949514465204582407">Dica do Chromium: acesse suas senhas em qualquer app</translation>
@@ -219,7 +220,7 @@ Considerações:
 <translation id="6154098560469640583">Use o Chromium sempre que abrir links em mensagens, documentos e outros apps.</translation>
 <translation id="6157162508956739031">Preencha automaticamente suas senhas e chaves de acesso do Chromium para fazer login em apps e sites com rapidez</translation>
 <translation id="6170619162539716595">Permita que o Chromium use o Google Maps para fornecer rotas e informações locais sobre os endereços detectados.</translation>
-<translation id="6247557882553405851">Gerenciador de senhas do Google</translation>
+<translation id="6247557882553405851">Gerenciador de Senhas do Google</translation>
 <translation id="6268381023930128611">Sair do Chromium?</translation>
 <translation id="6301717043141881464">Para acessar com facilidade suas senhas salvas em outros apps, use o preenchimento automático do Chromium</translation>
 <translation id="6324041800010509197">Acessar a grade de guias no Chromium</translation>

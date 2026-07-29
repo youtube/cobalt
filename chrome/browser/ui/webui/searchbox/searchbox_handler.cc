@@ -22,7 +22,7 @@
 #include "chrome/browser/preloading/search_preload/search_preload_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/webui/metrics_reporter/metrics_reporter.h"
-#include "chrome/browser/ui/webui/new_tab_page/composebox/composebox_fieldtrial.h"
+#include "chrome/browser/ui/webui/new_tab_page/composebox/variations/composebox_fieldtrial.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/bookmarks/browser/bookmark_model.h"
@@ -479,6 +479,10 @@ void SearchboxHandler::SetupWebUIDataSource(content::WebUIDataSource* source,
       {"searchboxComposeButtonText", IDS_NTP_COMPOSE_ENTRYPOINT},
       {"searchboxComposeButtonTitle", IDS_NTP_COMPOSE_ENTRYPOINT_A11Y_LABEL}};
   source->AddLocalizedStrings(kStrings);
+  source->AddString("searchboxComposePlaceholder",
+                    ntp_composebox::FeatureConfig::Get()
+                        .config.composebox()
+                        .input_placeholder_text());
 
   source->AddBoolean(
       "searchboxMatchSearchboxTheme",

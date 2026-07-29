@@ -216,14 +216,14 @@ void AutofillOptimizationGuide::OnDidParseForm(
 
   const bool has_iban_field =
       std::ranges::any_of(form_structure, [](const auto& field) {
-        return field->Type().GetStorableType() == IBAN_VALUE;
+        return field->Type().GetTypes().contains(IBAN_VALUE);
       });
   if (has_iban_field) {
     optimization_types.insert(optimization_guide::proto::IBAN_AUTOFILL_BLOCKED);
   }
   const bool has_credit_card_field =
       std::ranges::any_of(form_structure, [](const auto& field) {
-        return field->Type().group() == FieldTypeGroup::kCreditCard;
+        return field->Type().GetGroups().contains(FieldTypeGroup::kCreditCard);
       });
 
   if (has_credit_card_field) {
@@ -331,7 +331,7 @@ bool AutofillOptimizationGuide::ShouldBlockSingleFieldSuggestions(
     const AutofillField* field) const {
   // If the field's storable type is `IBAN_VALUE`, check whether IBAN
   // suggestions should be blocked based on `url`.
-  if (field->Type().GetStorableType() == IBAN_VALUE) {
+  if (field->Type().GetTypes().contains(IBAN_VALUE)) {
     optimization_guide::OptimizationGuideDecision decision =
         decider_->CanApplyOptimization(
             url, optimization_guide::proto::IBAN_AUTOFILL_BLOCKED,

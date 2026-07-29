@@ -24,6 +24,7 @@ chromium-metrics-reviews@google.com.
 
 <variants name="ClassifierRequestType">
   <variant name="" summary="all request types"/>
+  <variant name=".ClipboardCopyApi" summary="Clipboard copy API"/>
   <variant name=".ForceRequest" summary="Force request"/>
   <variant name=".FullscreenApi" summary="Fullscreen API"/>
   <variant name=".KeyboardLockRequested" summary="Keyboard lock requested"/>
@@ -43,6 +44,7 @@ chromium-metrics-reviews@google.com.
 
 <variants name="ClientSideDetectionRequestType">
   <variant name="" summary="all request types"/>
+  <variant name=".ClipboardCopyApi" summary="Clipboard copy API"/>
   <variant name=".ForceRequest" summary="Force request"/>
   <variant name=".FullscreenApi" summary="Fullscreen API"/>
   <variant name=".KeyboardLockRequested" summary="Keyboard lock requested"/>
@@ -520,7 +522,7 @@ useful for Chirp alerts (go/crca-alerts). -->
 </histogram>
 
 <histogram name="SBClientPhishing.ClassifyThresholdsResult"
-    enum="SBClientDetectionClassifyThresholdsResult" expires_after="2025-11-23">
+    enum="SBClientDetectionClassifyThresholdsResult" expires_after="2026-01-25">
   <owner>andysjlim@chromium.org</owner>
   <owner>chrome-counter-abuse-alerts@google.com</owner>
   <summary>
@@ -721,6 +723,16 @@ useful for Chirp alerts (go/crca-alerts). -->
   <token key="RequestType" variants="ClientSideDetectionRequestType"/>
 </histogram>
 
+<histogram name="SBClientPhishing.MatchCSDAllowlistOnClipboardCopyApi"
+    enum="BooleanMatched" expires_after="2026-07-24">
+  <owner>liu@chromium.org</owner>
+  <owner>chrome-counter-abuse-alerts@google.com</owner>
+  <summary>
+    Records the CSD allowlist match result when a clipboard copy API is
+    triggered on the page.
+  </summary>
+</histogram>
+
 <histogram name="SBClientPhishing.MatchCSDAllowlistOnFullscreenApi"
     enum="BooleanMatched" expires_after="2026-01-29">
   <owner>andysjlim@chromium.org</owner>
@@ -790,7 +802,7 @@ useful for Chirp alerts (go/crca-alerts). -->
 </histogram>
 
 <histogram name="SBClientPhishing.OnDeviceModelDownloadSuccess"
-    enum="BooleanSuccess" expires_after="2025-11-25">
+    enum="BooleanSuccess" expires_after="2026-01-25">
   <owner>andysjlim@chromium.org</owner>
   <owner>chrome-counter-abuse-alerts@google.com</owner>
   <summary>
@@ -836,7 +848,7 @@ useful for Chirp alerts (go/crca-alerts). -->
 </histogram>
 
 <histogram name="SBClientPhishing.OnDeviceModelFetchTime" units="ms"
-    expires_after="2025-11-25">
+    expires_after="2026-01-25">
   <owner>andysjlim@chromium.org</owner>
   <owner>chrome-counter-abuse-alerts@google.com</owner>
   <summary>
@@ -988,16 +1000,30 @@ useful for Chirp alerts (go/crca-alerts). -->
   <token key="RequestType" variants="ClientSideDetectionRequestType"/>
 </histogram>
 
-<histogram name="SBClientPhishing.PhishingImageEmbeddingResult"
+<histogram name="SBClientPhishing.PhishingImageEmbeddingDuration{RequestType}"
+    units="ms" expires_after="2026-08-01">
+  <owner>andysjlim@chromium.org</owner>
+  <owner>chrome-counter-abuse-alerts@google.com</owner>
+  <summary>
+    Records the duration it takes for image embedding requested by {RequestType}
+    to finish. This occurs for ESB enabled users only after the image embedding
+    request has been made.
+  </summary>
+  <token key="RequestType" variants="ClientSideDetectionRequestType"/>
+</histogram>
+
+<histogram name="SBClientPhishing.PhishingImageEmbeddingResult{RequestType}"
     enum="ClientSidePhishingImageEmbeddingResult" expires_after="2025-12-21">
   <owner>andysjlim@chromium.org</owner>
   <owner>chrome-counter-abuse-alerts@google.com</owner>
   <summary>
-    The result enum received from renderer-side image embedder. This is recorded
-    after every renderer image embedding which is expected to happen when the
-    user is subscribed to ESB, has an image embedding model loaded, and the page
-    is deemed phishy by the phishing classification process.
+    The result enum received from renderer-side image embedder when requested by
+    {RequestType}. This is recorded after every renderer image embedding which
+    is expected to happen when the user is subscribed to ESB, has an image
+    embedding model loaded, and the page is deemed phishy by the phishing
+    classification process.
   </summary>
+  <token key="RequestType" variants="ClientSideDetectionRequestType"/>
 </histogram>
 
 <histogram name="SBClientPhishing.PreClassificationCheckResult{RequestType}"

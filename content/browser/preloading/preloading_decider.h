@@ -5,6 +5,7 @@
 #ifndef CONTENT_BROWSER_PRELOADING_PRELOADING_DECIDER_H_
 #define CONTENT_BROWSER_PRELOADING_PRELOADING_DECIDER_H_
 
+#include "base/containers/enum_set.h"
 #include "base/gtest_prod_util.h"
 #include "content/browser/preloading/preconnector.h"
 #include "content/browser/preloading/prefetcher.h"
@@ -12,6 +13,7 @@
 #include "content/browser/preloading/prerenderer.h"
 #include "content/public/browser/document_user_data.h"
 #include "third_party/blink/public/mojom/preloading/anchor_element_interaction_host.mojom-forward.h"
+#include "third_party/blink/public/mojom/speculation_rules/speculation_rules.mojom-forward.h"
 
 namespace content {
 
@@ -25,7 +27,9 @@ class PreloadingDeciderObserverForTesting {
   virtual void UpdateSpeculationCandidates(
       const std::vector<blink::mojom::SpeculationCandidatePtr>& candidates) = 0;
   virtual void OnPointerDown(const GURL& url) = 0;
-  virtual void OnPointerHover(const GURL& url) = 0;
+  virtual void OnPointerHover(
+      const GURL& url,
+      blink::mojom::SpeculationEagerness target_eagerness) = 0;
 };
 
 // Processes user interaction events and developer provided speculation-rules
@@ -37,6 +41,10 @@ class CONTENT_EXPORT PreloadingDecider
  public:
   using SpeculationCandidateKey =
       std::pair<GURL, blink::mojom::SpeculationAction>;
+  using EagernessSet =
+      base::EnumSet<blink::mojom::SpeculationEagerness,
+                    blink::mojom::SpeculationEagerness::kMinValue,
+                    blink::mojom::SpeculationEagerness::kMaxValue>;
 
   ~PreloadingDecider() override;
 
@@ -45,7 +53,8 @@ class CONTENT_EXPORT PreloadingDecider
 
   // Receives and processes on pointer hover event for 'url' target link.
   void OnPointerHover(const GURL& url,
-                      blink::mojom::AnchorElementPointerDataPtr mouse_data);
+                      blink::mojom::AnchorElementPointerDataPtr mouse_data,
+                      blink::mojom::SpeculationEagerness target_eagerness);
 
   //  Receives and processes ML model score for 'url' target link.
   void OnPreloadingHeuristicsModelDone(const GURL& url, float score);
@@ -98,7 +107,8 @@ class CONTENT_EXPORT PreloadingDecider
   void MaybeEnactCandidate(const GURL& url,
                            const PreloadingPredictor& enacting_predictor,
                            PreloadingConfidence confidence,
-                           bool fallback_to_preconnect);
+                           bool fallback_to_preconnect,
+                           EagernessSet eagerness_to_exclude);
 
   // Merges the tags of all suitable candidates that match the given
   // `lookup_key`.
@@ -109,7 +119,8 @@ class CONTENT_EXPORT PreloadingDecider
   GetMergedSpeculationTagsFromSuitableCandidates(
       const PreloadingDecider::SpeculationCandidateKey& lookup_key,
       const PreloadingPredictor& enacting_predictor,
-      PreloadingConfidence confidence);
+      PreloadingConfidence confidence,
+      EagernessSet eagerness_to_exclude);
 
   // Prefetches the |url| if it is safe and eligible to be prefetched.
   // Returns false if no suitable (given |enacting_predictor|) on-standby
@@ -117,7 +128,8 @@ class CONTENT_EXPORT PreloadingDecider
   // accept the candidate.
   bool MaybePrefetch(const GURL& url,
                      const PreloadingPredictor& enacting_predictor,
-                     PreloadingConfidence confidence);
+                     PreloadingConfidence confidence,
+                     EagernessSet eagerness_to_exclude);
 
   // Returns true if a prefetch was attempted for the |url| and is not failed or
   // discarded by Prefetcher yet, and we should wait for it to finish.
@@ -131,7 +143,8 @@ class CONTENT_EXPORT PreloadingDecider
   std::pair<bool, bool> MaybePrerender(
       const GURL& url,
       const PreloadingPredictor& enacting_predictor,
-      PreloadingConfidence confidence);
+      PreloadingConfidence confidence,
+      EagernessSet eagerness_to_exclude);
 
   // Returns true if a prerender was attempted for the |url| and is not failed
   // or discarded by Prerenderer yet, and we should wait for it to finish.
@@ -148,7 +161,8 @@ class CONTENT_EXPORT PreloadingDecider
       const blink::mojom::SpeculationCandidatePtr& candidate,
       const PreloadingPredictor& predictor,
       PreloadingConfidence confidence,
-      blink::mojom::SpeculationAction action) const;
+      blink::mojom::SpeculationAction action,
+      EagernessSet eagerness_to_exclude) const;
 
   // Helper functions to add/remove a preloading candidate to
   // |on_standby_candidates_| and to reset |on_standby_candidates_|. Use these
@@ -165,7 +179,8 @@ class CONTENT_EXPORT PreloadingDecider
       std::pair<SpeculationCandidateKey, blink::mojom::SpeculationCandidatePtr>>
   GetMatchedPreloadingCandidate(const SpeculationCandidateKey& lookup_key,
                                 const PreloadingPredictor& enacting_predictor,
-                                PreloadingConfidence confidence) const;
+                                PreloadingConfidence confidence,
+                                EagernessSet eagerness_to_exclude) const;
 
  private:
   // Grant the test suite access to private members.
@@ -180,7 +195,8 @@ class CONTENT_EXPORT PreloadingDecider
       std::pair<SpeculationCandidateKey, blink::mojom::SpeculationCandidatePtr>>
   FindSuitableCandidates(const SpeculationCandidateKey& lookup_key,
                          const PreloadingPredictor& enacting_predictor,
-                         PreloadingConfidence confidence) const;
+                         PreloadingConfidence confidence,
+                         EagernessSet eagerness_to_exclude) const;
 
   // Enumerates all candidates that match the given `lookup_key` based on
   // No-Vary-Search hint and invokes the visitor for each match.
@@ -191,14 +207,8 @@ class CONTENT_EXPORT PreloadingDecider
       const SpeculationCandidateKey& lookup_key,
       const PreloadingPredictor& enacting_predictor,
       PreloadingConfidence confidence,
+      EagernessSet eagerness_to_exclude,
       Visitor&& visitor) const;
-
-  std::optional<
-      std::pair<SpeculationCandidateKey, blink::mojom::SpeculationCandidatePtr>>
-  GetMatchedPreloadingCandidateByNoVarySearchHint(
-      const SpeculationCandidateKey& lookup_key,
-      const PreloadingPredictor& enacting_predictor,
-      PreloadingConfidence confidence) const;
 
   // |on_standby_candidates_| stores preloading candidates for each target URL,
   // action pairs that are safe to perform but are not marked as |kImmediate|

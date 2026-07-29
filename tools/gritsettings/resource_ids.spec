@@ -747,6 +747,14 @@
     "META": {"sizes": {"includes": [5]}},
     "includes": [5240],
   },
+  "<(SHARED_INTERMEDIATE_DIR)/chrome/browser/resources/webui_browser/resources.grd": {
+    "META": {"sizes": {"includes": [5]}},
+    "includes": [5250],
+  },
+  "<(SHARED_INTERMEDIATE_DIR)/chrome/browser/resources/webui_browser/internal/resources.grd": {
+    "META": {"sizes": {"includes": [5]}},
+    "includes": [5260],
+  },
   # END chrome/ WebUI resources section
 
   # START chrome/ miscellaneous section.
@@ -1478,6 +1486,9 @@
   },
   "ui/resources/ui_resources.grd": {
     "structures": [9820],
+  },
+  "ui/resources/ui_lottie_resources.grd": {
+    "structures": [9830],
   },
   "ui/resources/ui_unscaled_resources.grd": {
     "includes": [9840],

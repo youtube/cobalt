@@ -28,6 +28,8 @@
 #include "chrome/browser/actor/tools/tool_controller.h"
 #include "chrome/browser/actor/tools/tool_request.h"
 #include "chrome/browser/actor/ui/event_dispatcher.h"
+#include "chrome/browser/password_manager/actor_login/actor_login_service.h"
+#include "chrome/browser/password_manager/actor_login/actor_login_service_impl.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser_navigator.h"
 #include "chrome/browser/ui/browser_navigator_params.h"
@@ -106,11 +108,13 @@ ExecutionEngine::~ExecutionEngine() {
 
 void ExecutionEngine::SetOwner(ActorTask* task) {
   task_ = task;
-  tool_controller_ = std::make_unique<ToolController>(*task_, *journal_);
+  actor_login_service_ = std::make_unique<actor_login::ActorLoginServiceImpl>();
+  tool_controller_ = std::make_unique<ToolController>(*task_, *this);
 }
 
 void ExecutionEngine::SetState(State state) {
-  journal_->Log(GURL(), task_->id(), "ExecutionEngine::StateChange",
+  journal_->Log(GURL(), task_->id(), mojom::JournalTrack::kActor,
+                "ExecutionEngine::StateChange",
                 absl::StrFormat("State %s -> %s", StateToString(state_),
                                 StateToString(state)));
 
@@ -180,7 +184,8 @@ void ExecutionEngine::Act(std::vector<std::unique_ptr<ToolRequest>>&& actions,
 
   if (!action_sequence_.empty()) {
     journal_->Log(
-        actions[0]->GetURLForJournal(), task_->id(), "Act Failed",
+        actions[0]->GetURLForJournal(), task_->id(),
+        mojom::JournalTrack::kActor, "Act Failed",
         "Unable to perform action: task already has action in progress");
     PostTaskForActCallback(std::move(callback),
                            MakeResult(mojom::ActionResultCode::kError,
@@ -259,8 +264,8 @@ void ExecutionEngine::SafetyChecksForNextAction() {
   tabs::TabInterface* tab = GetNextAction().GetTabHandle().Get();
 
   if (!tab) {
-    journal_->Log(GURL::EmptyGURL(), task_->id(), "Act Failed",
-                  "The tab is no longer present");
+    journal_->Log(GURL::EmptyGURL(), task_->id(), mojom::JournalTrack::kActor,
+                  "Act Failed", "The tab is no longer present");
     CompleteActions(MakeResult(mojom::ActionResultCode::kTabWentAway,
                                "The tab is no longer present."),
                     next_action_index_);
@@ -283,8 +288,8 @@ void ExecutionEngine::DidFinishAsyncSafetyChecks(
 
   tabs::TabInterface* tab = GetNextAction().GetTabHandle().Get();
   if (!tab) {
-    journal_->Log(GURL::EmptyGURL(), task_->id(), "Act Failed",
-                  "The tab is no longer present");
+    journal_->Log(GURL::EmptyGURL(), task_->id(), mojom::JournalTrack::kActor,
+                  "Act Failed", "The tab is no longer present");
     CompleteActions(MakeResult(mojom::ActionResultCode::kTabWentAway,
                                "The tab is no longer present."),
                     next_action_index_);
@@ -298,7 +303,8 @@ void ExecutionEngine::DidFinishAsyncSafetyChecks(
     // A cross-origin navigation occurred before we got permission. The result
     // is no longer applicable. For now just fail.
     // TODO(mcnee): Handle this gracefully.
-    journal_->Log(GetNextAction().GetURLForJournal(), task_id, "Act Failed",
+    journal_->Log(GetNextAction().GetURLForJournal(), task_id,
+                  mojom::JournalTrack::kActor, "Act Failed",
                   "Acting after cross-origin navigation occurred");
     CompleteActions(MakeResult(mojom::ActionResultCode::kCrossOriginNavigation,
                                "Acting after cross-origin navigation occurred"),
@@ -307,7 +313,8 @@ void ExecutionEngine::DidFinishAsyncSafetyChecks(
   }
 
   if (!may_act) {
-    journal_->Log(GetNextAction().GetURLForJournal(), task_id, "Act Failed",
+    journal_->Log(GetNextAction().GetURLForJournal(), task_id,
+                  mojom::JournalTrack::kActor, "Act Failed",
                   "URL blocked for actions");
     CompleteActions(MakeResult(mojom::ActionResultCode::kUrlBlocked,
                                "URL blocked for actions"),
@@ -404,7 +411,8 @@ void ExecutionEngine::CompleteActions(mojom::ActionResultPtr result,
     if (action_index) {
       url = action_sequence_[*action_index]->GetURLForJournal();
     }
-    journal_->Log(url, task_->id(), "Act Failed", ToDebugString(*result));
+    journal_->Log(url, task_->id(), mojom::JournalTrack::kActor, "Act Failed",
+                  ToDebugString(*result));
   }
 
   // TODO(crbug.com/411462297): Populate observation.
@@ -430,6 +438,19 @@ const AnnotatedPageContent* ExecutionEngine::GetLastObservedPageContent() {
 
 base::WeakPtr<ExecutionEngine> ExecutionEngine::GetWeakPtr() {
   return actions_weak_ptr_factory_.GetWeakPtr();
+}
+
+AggregatedJournal& ExecutionEngine::GetJournal() {
+  return *journal_;
+}
+
+actor_login::ActorLoginService& ExecutionEngine::GetActorLoginService() {
+  return *actor_login_service_;
+}
+
+void ExecutionEngine::SetActorLoginServiceForTesting(
+    std::unique_ptr<actor_login::ActorLoginService> test_service) {
+  actor_login_service_ = std::move(test_service);
 }
 
 const ToolRequest& ExecutionEngine::GetNextAction() const {

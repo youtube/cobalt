@@ -79,6 +79,7 @@ import android.view.accessibility.AccessibilityNodeProvider;
 import android.view.autofill.AutofillManager;
 import android.view.inputmethod.EditorInfo;
 
+import androidx.annotation.VisibleForTesting;
 import androidx.core.view.accessibility.AccessibilityNodeInfoCompat;
 import androidx.core.view.accessibility.AccessibilityNodeProviderCompat;
 
@@ -159,6 +160,13 @@ public class WebContentsAccessibilityImpl extends AccessibilityNodeProviderCompa
 
     // Maximum number of times that the auto-disable feature can affect |this|.
     private static final int AUTO_DISABLE_SINGLE_INSTANCE_TOGGLE_LIMIT = 3;
+
+    // Accessibility extras key for absolute drawing order (paint order among all
+    // nodes in tree). Used to compute occlusion.
+    // TODO(419600429): Update to retrieve this string from AccessibilityNodeInfo when possible.
+    @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
+    public static final String EXTRA_DATA_ABSOLUTE_DRAWING_ORDER_KEY =
+            "android.view.accessibility.extra.ABSOLUTE_DRAWING_ORDER";
 
     private final AccessibilityDelegate mDelegate;
     protected AccessibilityManager mAccessibilityManager;
@@ -575,6 +583,10 @@ public class WebContentsAccessibilityImpl extends AccessibilityNodeProviderCompa
     public void setIsAutoDisableAccessibilityCandidateForTesting(
             boolean isAutoDisableAccessibilityCandidate) {
         mIsAutoDisableAccessibilityCandidate = isAutoDisableAccessibilityCandidate;
+    }
+
+    public void setThrottleDelayForTesting(Map<Integer, Integer> eventThrottleDelays) {
+        mEventDispatcher.setEventThrottleDelays(eventThrottleDelays);
     }
 
     public boolean hasAnyPendingTimersForTesting() {
@@ -1904,7 +1916,7 @@ public class WebContentsAccessibilityImpl extends AccessibilityNodeProviderCompa
     }
 
     @CalledByNative
-    private void handleFocusChanged(int id) {
+    private void handleFocusChanged(int id, boolean isRootOrFrameRoot) {
         // If |mShouldFocusOnPageLoad| is false, that means this is a WebView and
         // we should avoid moving accessibility focus when the page loads, but more
         // generally we should avoid moving accessibility focus whenever it's not
@@ -1918,7 +1930,7 @@ public class WebContentsAccessibilityImpl extends AccessibilityNodeProviderCompa
             // result in a blur aka focus on the root. This interferes
             // with some accessibility services that move accessibility
             // focus along with input focus.
-            if (mCurrentRootId == id) {
+            if (isRootOrFrameRoot) {
                 return;
             }
         }
@@ -2207,6 +2219,9 @@ public class WebContentsAccessibilityImpl extends AccessibilityNodeProviderCompa
             case EXTRAS_DATA_REQUEST_IMAGE_DATA_KEY:
                 getImageData(virtualViewId, info);
                 break;
+            case EXTRA_DATA_ABSOLUTE_DRAWING_ORDER_KEY:
+                getPaintOrder(virtualViewId, info);
+                break;
         }
     }
 
@@ -2272,6 +2287,12 @@ public class WebContentsAccessibilityImpl extends AccessibilityNodeProviderCompa
             // request has been sent. Add this |virtualViewId| to the list of requested nodes.
             mImageDataRequestedNodes.add(virtualViewId);
         }
+    }
+
+    private void getPaintOrder(int virtualViewId, AccessibilityNodeInfoCompat info) {
+        int paintOrder =
+                WebContentsAccessibilityImplJni.get().getPaintOrder(mNativeObj, virtualViewId);
+        info.getExtras().putInt(EXTRA_DATA_ABSOLUTE_DRAWING_ORDER_KEY, paintOrder);
     }
 
     @NativeMethods
@@ -2445,5 +2466,7 @@ public class WebContentsAccessibilityImpl extends AccessibilityNodeProviderCompa
                 AccessibilityNodeInfoCompat info,
                 int id,
                 boolean hasSentPreviousRequest);
+
+        int getPaintOrder(long nativeWebContentsAccessibilityAndroid, int id);
     }
 }

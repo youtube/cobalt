@@ -17,6 +17,7 @@ import org.chromium.base.supplier.Supplier;
 import org.chromium.build.annotations.Initializer;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
+import org.chromium.chrome.R;
 import org.chromium.chrome.browser.DeferredStartupHandler;
 import org.chromium.chrome.browser.app.tabwindow.TabWindowManagerSingleton;
 import org.chromium.chrome.browser.crypto.CipherFactory;
@@ -26,6 +27,7 @@ import org.chromium.chrome.browser.multiwindow.MultiInstanceManager;
 import org.chromium.chrome.browser.multiwindow.MultiWindowUtils;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.profiles.ProfileProvider;
+import org.chromium.chrome.browser.tab.TabStateStorageServiceFactory;
 import org.chromium.chrome.browser.tab_ui.TabContentManager;
 import org.chromium.chrome.browser.tabmodel.MismatchedIndicesHandler;
 import org.chromium.chrome.browser.tabmodel.NextTabPolicy.NextTabPolicySupplier;
@@ -51,11 +53,15 @@ public class TabbedModeTabModelOrchestrator extends TabModelOrchestrator {
     private final ActivityLifecycleDispatcher mActivityLifecycleDispatcher;
     private final CipherFactory mCipherFactory;
 
+    private OneshotSupplier<ProfileProvider> mProfileProviderSupplier;
+
     // This class is driven by TabbedModeTabModelOrchestrator to prevent duplicate glue code in
-    //  ChromeTabbedActivity.
+    // ChromeTabbedActivity.
     private @Nullable ArchivedTabModelOrchestrator mArchivedTabModelOrchestrator;
     private @Nullable Supplier<TabModel> mArchivedHistoricalObserverSupplier;
-    private OneshotSupplier<ProfileProvider> mProfileProviderSupplier;
+
+    // Currently used to perform shadow operations for an alternative storage. Not always enabled.
+    private @Nullable TabStateStore mTabStateStore;
 
     /**
      * Constructor.
@@ -80,6 +86,10 @@ public class TabbedModeTabModelOrchestrator extends TabModelOrchestrator {
             mArchivedTabModelOrchestrator.removeHistoricalTabModelObserver(
                     assumeNonNull(mArchivedHistoricalObserverSupplier));
             mArchivedTabModelOrchestrator.unregisterTabModelOrchestrator(this);
+        }
+        if (mTabStateStore != null) {
+            mTabStateStore.destroy();
+            mTabStateStore = null;
         }
         super.destroy();
     }
@@ -134,8 +144,7 @@ public class TabbedModeTabModelOrchestrator extends TabModelOrchestrator {
             markTabModelsInitialized();
             Toast.makeText(
                             activity,
-                            activity.getString(
-                                    org.chromium.chrome.R.string.unsupported_number_of_windows),
+                            activity.getString(R.string.unsupported_number_of_windows),
                             Toast.LENGTH_LONG)
                     .show();
             return false;
@@ -190,7 +199,7 @@ public class TabbedModeTabModelOrchestrator extends TabModelOrchestrator {
         return mergeTabs;
     }
 
-    @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
+    @VisibleForTesting
     protected boolean isMultiInstanceApi31Enabled() {
         return MultiWindowUtils.isMultiInstanceApi31Enabled();
     }
@@ -216,6 +225,17 @@ public class TabbedModeTabModelOrchestrator extends TabModelOrchestrator {
                     });
         } else {
             createArchivedTabModelInDeferredTask(tabContentManager);
+        }
+
+        if (ChromeFeatureList.sTabStorageSqlitePrototype.isEnabled()) {
+            assert mProfileProviderSupplier.hasValue();
+            ProfileProvider profileProvider = mProfileProviderSupplier.get();
+            Profile profile = profileProvider.getOriginalProfile();
+            assert profile != null;
+            mTabStateStore =
+                    new TabStateStore(
+                            TabStateStorageServiceFactory.getForProfile(profile),
+                            mTabModelSelector);
         }
     }
 

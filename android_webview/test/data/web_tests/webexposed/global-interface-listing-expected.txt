@@ -1842,6 +1842,7 @@ interface DigitalCredential : Credential
     getter data
     getter protocol
     method constructor
+    method toJSON
 interface Directive
     attribute @@toStringTag
     getter type
@@ -2099,7 +2100,10 @@ interface Document : Node
     method importNode
     method moveBefore
     method open
+    method patchAfter
     method patchAll
+    method patchBefore
+    method patchBetween
     method patchSelf
     method prepend
     method queryCommandEnabled
@@ -2269,7 +2273,10 @@ interface DocumentFragment : Node
     method getElementById
     method getPartRoot
     method moveBefore
+    method patchAfter
     method patchAll
+    method patchBefore
+    method patchBetween
     method patchSelf
     method prepend
     method querySelector
@@ -2465,7 +2472,10 @@ interface Element : Node
     method insertAdjacentText
     method matches
     method moveBefore
+    method patchAfter
     method patchAll
+    method patchBefore
+    method patchBetween
     method patchSelf
     method prepend
     method pseudo
@@ -5587,15 +5597,6 @@ interface LargestContentfulPaint : PerformanceEntry
     getter url
     method constructor
     method toJSON
-interface LaunchParams
-    attribute @@toStringTag
-    getter files
-    getter targetURL
-    method constructor
-interface LaunchQueue
-    attribute @@toStringTag
-    method constructor
-    method setConsumer
 interface LayoutShift : PerformanceEntry
     attribute @@toStringTag
     getter hadRecentInput
@@ -6828,6 +6829,16 @@ interface OrientationSensor : Sensor
     getter quaternion
     method constructor
     method populateMatrix
+interface Origin
+    static method fromURL
+    static method parse
+    attribute @@toStringTag
+    getter opaque
+    method constructor
+    method isSameOrigin
+    method isSameSite
+    method toJSON
+    method toString
 interface OscillatorNode : AudioScheduledSourceNode
     attribute @@toStringTag
     getter detune
@@ -7139,6 +7150,10 @@ interface PerformanceResourceTiming : PerformanceEntry
     getter secureConnectionStart
     getter serverTiming
     getter transferSize
+    getter workerCacheLookupStart
+    getter workerFinalSourceType
+    getter workerMatchedSourceType
+    getter workerRouterEvaluationStart
     getter workerStart
     method constructor
     method toJSON
@@ -12093,7 +12108,6 @@ namespace console
     getter innerHeight
     getter innerWidth
     getter isSecureContext
-    getter launchQueue
     getter length
     getter localStorage
     getter location

@@ -155,6 +155,29 @@ chromium-metrics-reviews@google.com.
   <int value="2" label="Import with section union"/>
 </enum>
 
+<!-- LINT.IfChange(AutofillAiDecryptStatus) -->
+
+<enum name="AutofillAiDecryptStatus">
+  <int value="0" label="Succeeded"/>
+  <int value="1" label="Failed temporarily"/>
+  <int value="2" label="Failed permanently"/>
+</enum>
+
+<!-- LINT.ThenChange(//components/autofill/core/browser/webdata/autofill_ai/entity_table.cc:DecryptionStatus) -->
+
+<!-- LINT.IfChange(AutofillAiEntityType) -->
+
+<enum name="AutofillAiEntityType">
+  <int value="0" label="Passport"/>
+  <int value="1" label="Driver's License"/>
+  <int value="2" label="Vehicle Information"/>
+  <int value="3" label="National ID Card"/>
+  <int value="4" label="Known Traveler Number"/>
+  <int value="5" label="Redress Number"/>
+</enum>
+
+<!-- LINT.ThenChange(//components/autofill/core/browser/data_model/autofill_ai/entity_type.cc:EntityType) -->
+
 <enum name="AutofillAiModelExecutionStatus">
   <int value="0"
       label="One or more field indices returned by the model are out of
@@ -289,6 +312,7 @@ chromium-metrics-reviews@google.com.
   <int value="4" label="Profiles from different categories were used."/>
   <int value="5" label="Only a kAccountHome profile was used"/>
   <int value="6" label="Only a kAccountWork profile was used"/>
+  <int value="7" label="Only a kAccountNameEmail profile was used"/>
 </enum>
 
 <enum name="AutofillCategoryResolvedFillingReadiness">
@@ -301,6 +325,7 @@ chromium-metrics-reviews@google.com.
   <int value="4" label="Profiles from different categories available."/>
   <int value="5" label="Only a kAccountHome profile available"/>
   <int value="6" label="Only a kAccountWork profile available"/>
+  <int value="7" label="Only a kAccountNameEmail profile was used"/>
 </enum>
 
 <enum name="AutofillCreditCardAuthenticationEvents">
@@ -520,11 +545,6 @@ Called by update_autofill_enums.py.-->
   <int value="3840"
       label="COMPANY_NAME: Not autofilled or autofilled value edited"/>
   <int value="3841" label="COMPANY_NAME: Autofilled value accepted"/>
-  <int value="3904"
-      label="FIELD_WITH_DEFAULT_VALUE: Not autofilled or autofilled value
-             edited"/>
-  <int value="3905"
-      label="FIELD_WITH_DEFAULT_VALUE: Autofilled value accepted"/>
   <int value="4672"
       label="MERCHANT_EMAIL_SIGNUP: Not autofilled or autofilled value edited"/>
   <int value="4673" label="MERCHANT_EMAIL_SIGNUP: Autofilled value accepted"/>
@@ -895,6 +915,12 @@ Called by update_autofill_enums.py.-->
              value edited"/>
   <int value="12353"
       label="NATIONAL_ID_CARD_ISSUING_COUNTRY: Autofilled value accepted"/>
+  <int value="12416"
+      label="KNOWN_TRAVELER_NUMBER: Not autofilled or autofilled value edited"/>
+  <int value="12417" label="KNOWN_TRAVELER_NUMBER: Autofilled value accepted"/>
+  <int value="12480"
+      label="REDRESS_NUMBER: Not autofilled or autofilled value edited"/>
+  <int value="12481" label="REDRESS_NUMBER: Autofilled value accepted"/>
   <int value="12864"
       label="ADDRESS_HOME_ZIP_PREFIX: Not autofilled or autofilled value
              edited"/>
@@ -905,6 +931,11 @@ Called by update_autofill_enums.py.-->
              edited"/>
   <int value="12929"
       label="ADDRESS_HOME_ZIP_SUFFIX: Autofilled value accepted"/>
+  <int value="12992"
+      label="KNOWN_TRAVELER_NUMBER_EXPIRATION_DATE: Not autofilled or
+             autofilled value edited"/>
+  <int value="12993"
+      label="KNOWN_TRAVELER_NUMBER_EXPIRATION_DATE: Autofilled value accepted"/>
 </enum>
 
 <enum name="AutofillDeveloperEngagement">
@@ -1024,8 +1055,6 @@ Called by update_autofill_enums.py.-->
   <int value="945" label="CREDIT_CARD_VERIFICATION_CODE: accepted"/>
   <int value="960" label="COMPANY_NAME: edited"/>
   <int value="961" label="COMPANY_NAME: accepted"/>
-  <int value="976" label="FIELD_WITH_DEFAULT_VALUE: edited"/>
-  <int value="977" label="FIELD_WITH_DEFAULT_VALUE: accepted"/>
   <int value="1168" label="MERCHANT_EMAIL_SIGNUP: edited"/>
   <int value="1169" label="MERCHANT_EMAIL_SIGNUP: accepted"/>
   <int value="1184" label="MERCHANT_PROMO_CODE: edited"/>
@@ -1224,10 +1253,16 @@ Called by update_autofill_enums.py.-->
   <int value="3073" label="NATIONAL_ID_CARD_ISSUE_DATE: accepted"/>
   <int value="3088" label="NATIONAL_ID_CARD_ISSUING_COUNTRY: edited"/>
   <int value="3089" label="NATIONAL_ID_CARD_ISSUING_COUNTRY: accepted"/>
+  <int value="3104" label="KNOWN_TRAVELER_NUMBER: edited"/>
+  <int value="3105" label="KNOWN_TRAVELER_NUMBER: accepted"/>
+  <int value="3120" label="REDRESS_NUMBER: edited"/>
+  <int value="3121" label="REDRESS_NUMBER: accepted"/>
   <int value="3216" label="ADDRESS_HOME_ZIP_PREFIX: edited"/>
   <int value="3217" label="ADDRESS_HOME_ZIP_PREFIX: accepted"/>
   <int value="3232" label="ADDRESS_HOME_ZIP_SUFFIX: edited"/>
   <int value="3233" label="ADDRESS_HOME_ZIP_SUFFIX: accepted"/>
+  <int value="3248" label="KNOWN_TRAVELER_NUMBER_EXPIRATION_DATE: edited"/>
+  <int value="3249" label="KNOWN_TRAVELER_NUMBER_EXPIRATION_DATE: accepted"/>
 </enum>
 
 <enum name="AutofillEmailOrLoyaltyCardAcceptanceMetricValue">
@@ -1993,7 +2028,6 @@ Called by update_autofill_enums.py.-->
   <int value="58" label="CREDIT_CARD_TYPE"/>
   <int value="59" label="CREDIT_CARD_VERIFICATION_CODE"/>
   <int value="60" label="COMPANY_NAME"/>
-  <int value="61" label="FIELD_WITH_DEFAULT_VALUE"/>
   <int value="73" label="MERCHANT_EMAIL_SIGNUP"/>
   <int value="74" label="MERCHANT_PROMO_CODE"/>
   <int value="75" label="PASSWORD"/>
@@ -2091,8 +2125,11 @@ Called by update_autofill_enums.py.-->
   <int value="191" label="NATIONAL_ID_CARD_EXPIRATION_DATE"/>
   <int value="192" label="NATIONAL_ID_CARD_ISSUE_DATE"/>
   <int value="193" label="NATIONAL_ID_CARD_ISSUING_COUNTRY"/>
+  <int value="194" label="KNOWN_TRAVELER_NUMBER"/>
+  <int value="195" label="REDRESS_NUMBER"/>
   <int value="201" label="ADDRESS_HOME_ZIP_PREFIX"/>
   <int value="202" label="ADDRESS_HOME_ZIP_SUFFIX"/>
+  <int value="203" label="KNOWN_TRAVELER_NUMBER_EXPIRATION_DATE"/>
 </enum>
 
 <enum name="AutofillFilledCardInformationBubbleFieldClicked">
@@ -3568,8 +3605,6 @@ Called by update_autofill_enums.py.-->
   <int value="237" label="CREDIT_CARD_VERIFICATION_CODE: Accepted"/>
   <int value="240" label="COMPANY_NAME: Ignored"/>
   <int value="241" label="COMPANY_NAME: Accepted"/>
-  <int value="244" label="FIELD_WITH_DEFAULT_VALUE: Ignored"/>
-  <int value="245" label="FIELD_WITH_DEFAULT_VALUE: Accepted"/>
   <int value="292" label="MERCHANT_EMAIL_SIGNUP: Ignored"/>
   <int value="293" label="MERCHANT_EMAIL_SIGNUP: Accepted"/>
   <int value="296" label="MERCHANT_PROMO_CODE: Ignored"/>
@@ -3758,10 +3793,16 @@ Called by update_autofill_enums.py.-->
   <int value="769" label="NATIONAL_ID_CARD_ISSUE_DATE: Accepted"/>
   <int value="772" label="NATIONAL_ID_CARD_ISSUING_COUNTRY: Ignored"/>
   <int value="773" label="NATIONAL_ID_CARD_ISSUING_COUNTRY: Accepted"/>
+  <int value="776" label="KNOWN_TRAVELER_NUMBER: Ignored"/>
+  <int value="777" label="KNOWN_TRAVELER_NUMBER: Accepted"/>
+  <int value="780" label="REDRESS_NUMBER: Ignored"/>
+  <int value="781" label="REDRESS_NUMBER: Accepted"/>
   <int value="804" label="ADDRESS_HOME_ZIP_PREFIX: Ignored"/>
   <int value="805" label="ADDRESS_HOME_ZIP_PREFIX: Accepted"/>
   <int value="808" label="ADDRESS_HOME_ZIP_SUFFIX: Ignored"/>
   <int value="809" label="ADDRESS_HOME_ZIP_SUFFIX: Accepted"/>
+  <int value="812" label="KNOWN_TRAVELER_NUMBER_EXPIRATION_DATE: Ignored"/>
+  <int value="813" label="KNOWN_TRAVELER_NUMBER_EXPIRATION_DATE: Accepted"/>
 </enum>
 
 <!-- LINT.IfChange(FormSubmissionOutcomeIOS) -->

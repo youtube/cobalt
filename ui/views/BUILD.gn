@@ -94,6 +94,7 @@ component("views") {
     "accessible_pane_view.h",
     "actions/action_view_controller.h",
     "actions/action_view_interface.h",
+    "anchor/view_anchor.h",
     "animation/animation_abort_handle.h",
     "animation/animation_builder.h",
     "animation/animation_delegate_views.h",
@@ -345,6 +346,7 @@ component("views") {
     "accessible_pane_view.cc",
     "actions/action_view_controller.cc",
     "actions/action_view_interface.cc",
+    "anchor/view_anchor.cc",
     "animation/animation_abort_handle.cc",
     "animation/animation_builder.cc",
     "animation/animation_delegate_views.cc",
@@ -494,7 +496,6 @@ component("views") {
     "masked_targeter_delegate.cc",
     "metadata/type_conversion.cc",
     "metadata/view_factory_internal.cc",
-    "metrics.cc",
     "mouse_watcher.cc",
     "mouse_watcher_view_host.cc",
     "paint_info.cc",
@@ -507,7 +508,6 @@ component("views") {
     "style/typography_provider.cc",
     "view.cc",
     "view_class_properties.cc",
-    "view_constants.cc",
     "view_model.cc",
     "view_model_utils.cc",
     "view_shadow.cc",
@@ -517,7 +517,6 @@ component("views") {
     "view_utils.cc",
     "views_delegate.cc",
     "views_features.cc",
-    "views_switches.cc",
     "widget/any_widget_observer.cc",
     "widget/any_widget_observer_singleton.cc",
     "widget/drop_helper.cc",
@@ -576,8 +575,9 @@ component("views") {
     "//skia",
     "//third_party/icu",
     "//ui/accessibility",
-    "//ui/accessibility/platform:platform",
+    "//ui/accessibility/platform",
     "//ui/actions",
+    "//ui/anchor:impl",
     "//ui/base/clipboard",
     "//ui/base/dragdrop/mojom",
     "//ui/base/emoji",
@@ -606,6 +606,7 @@ component("views") {
     "//components/vector_icons",
     "//third_party/abseil-cpp:absl",
     "//ui/accessibility:ax_enums_mojo",
+    "//ui/anchor",
     "//ui/base",
     "//ui/base/clipboard",
     "//ui/base/cursor",
@@ -614,7 +615,7 @@ component("views") {
     "//ui/base/emoji",
     "//ui/base/ime/init",
     "//ui/base/metadata",
-    "//ui/base/mojom:mojom",
+    "//ui/base/mojom",
     "//ui/base/mojom:ui_base_types",
     "//ui/compositor",
     "//ui/display",
@@ -766,8 +767,8 @@ component("views") {
       "/DELAYLOAD:user32.dll",
     ]
     deps += [
-      "//components/stylus_handwriting/win:win",
-      "//services/tracing/public/cpp:cpp",
+      "//components/stylus_handwriting/win",
+      "//services/tracing/public/cpp",
       "//third_party/iaccessible2",
       "//third_party/wtl",
     ]
@@ -1146,7 +1147,7 @@ source_set("test_support") {
   public_deps = [
     "//testing/gmock",
     "//testing/gtest",
-    "//ui/base/mojom:mojom",
+    "//ui/base/mojom",
     "//ui/base/mojom:ui_base_types",
   ]
 
@@ -1223,6 +1224,7 @@ test("views_unittests") {
     "accessibility/accessibility_paint_checks_unittest.cc",
     "accessible_pane_view_unittest.cc",
     "actions/action_view_controller_unittest.cc",
+    "anchor/view_anchor_unittest.cc",
     "animation/animation_builder_unittest.cc",
     "animation/bounds_animator_unittest.cc",
     "animation/bubble_slide_animator_unittest.cc",
@@ -1374,7 +1376,7 @@ test("views_unittests") {
     "//ui/base/dragdrop/mojom",
     "//ui/base/emoji",
     "//ui/base/ime/init",
-    "//ui/base/mojom:mojom",
+    "//ui/base/mojom",
     "//ui/base/mojom:ui_base_types",
     "//ui/color",
     "//ui/color:mixers",
@@ -1412,7 +1414,7 @@ test("views_unittests") {
     ]
 
     deps += [
-      "//components/stylus_handwriting/win:win",
+      "//components/stylus_handwriting/win",
       "//ui/base:data_exchange",
     ]
 
@@ -1545,7 +1547,7 @@ test("views_unittests") {
           "widget/desktop_aura/desktop_window_tree_host_platform_unittest.cc",
         ]
         if (is_linux || is_chromeos) {
-          deps += [ "//ui/platform_window/stub:stub" ]
+          deps += [ "//ui/platform_window/stub" ]
         }
       }
       if (is_linux || is_chromeos) {
@@ -1626,7 +1628,7 @@ source_set("views_interactive_ui_tests") {
     "//ui/strings",
   ]
 
-  public_deps = [ "//ui/base/mojom:mojom" ]
+  public_deps = [ "//ui/base/mojom" ]
 
   if (is_win) {
     sources += [
@@ -1692,7 +1694,7 @@ test("views_perftests") {
     ":test_support",
     ":views",
     "//base/test:test_support",
-    "//cc/base:base",
+    "//cc/base",
     "//mojo/core/embedder",
     "//testing/perf",
     "//ui/resources:ui_test_pak",

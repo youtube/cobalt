@@ -17,6 +17,7 @@
 #include "base/containers/flat_map.h"
 #include "base/files/file_path.h"
 #include "base/functional/callback.h"
+#include "base/gtest_prod_util.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
@@ -64,6 +65,12 @@ class WebAppIconManager : public WebAppInstallManagerObserver {
                  ShortcutsMenuIconBitmaps shortcuts_menu_icons,
                  IconsMap other_icons_map,
                  WriteDataCallback callback);
+
+  // Writes pending icon bitmaps for an app.
+  void WritePendingIconData(webapps::AppId app_id,
+                            IconBitmaps pending_trusted_icon_bitmaps,
+                            IconBitmaps pending_manifest_icon_bitmaps,
+                            WriteDataCallback callback);
   void DeleteData(webapps::AppId app_id, WriteDataCallback callback);
 
   void SetProvider(base::PassKey<WebAppProvider>, WebAppProvider& provider);
@@ -75,6 +82,13 @@ class WebAppIconManager : public WebAppInstallManagerObserver {
   bool HasIcons(const webapps::AppId& app_id,
                 IconPurpose purpose,
                 const SortedSizesPx& icon_sizes) const;
+
+  // Returns false if any icon in |icon_sizes_in_px| is missing from stored
+  // trusted icons for a given app and |purpose|.
+  bool HasTrustedIcons(const webapps::AppId& app_id,
+                       IconPurpose purpose,
+                       const SortedSizesPx& icon_sizes) const;
+
   struct IconSizeAndPurpose {
     SquareSizePx size_px = 0;
     IconPurpose purpose = IconPurpose::ANY;
@@ -94,12 +108,26 @@ class WebAppIconManager : public WebAppInstallManagerObserver {
 
   using ReadIconsCallback =
       base::OnceCallback<void(std::map<SquareSizePx, SkBitmap> icon_bitmaps)>;
-  // Reads specified icon bitmaps for an app and |purpose|. Returns empty map in
-  // |callback| if IO error.
-  void ReadIcons(const webapps::AppId& app_id,
-                 IconPurpose purpose,
-                 const SortedSizesPx& icon_sizes,
-                 ReadIconsCallback callback);
+
+  // Reads specified icon bitmaps for an app and |purpose|. These icons are
+  // downloaded directly from the manifest and are not always surfaced to the
+  // end user, which is why they are untrusted. Returns empty map in |callback|
+  // if IO error.
+  void ReadUntrustedIcons(const webapps::AppId& app_id,
+                          IconPurpose purpose,
+                          const SortedSizesPx& icon_sizes,
+                          ReadIconsCallback callback);
+
+  // Reads the bitmaps for the trusted icon for an app of sizes specified in
+  // `icon_sizes`. Returns empty map in `callback` if an IO error happens.
+  // The `purpose_for_fallback` information is used as a fallback to read the
+  // icon bitmaps obtained from the manifest, mimicking the behavior of
+  // ReadUntrustedIcons().
+  void ReadTrustedIconsWithFallbackToManifestIcons(
+      const webapps::AppId& app_id,
+      const SortedSizesPx& icon_sizes,
+      IconPurpose purpose_for_fallback,
+      ReadIconsCallback callback);
 
   // Mimics WebAppShortcutsMenuItemInfo but stores timestamps instead of icons
   // for os integration.
@@ -119,9 +147,19 @@ class WebAppIconManager : public WebAppInstallManagerObserver {
   void ReadIconsLastUpdateTime(const webapps::AppId& app_id,
                                ReadIconsUpdateTimeCallback callback);
 
-  // TODO (crbug.com/1102701): Callback with const ref instead of value.
+  // Encapsulate the type of bitmaps being returned by ReadAllIcons().
+  struct WebAppBitmaps {
+    WebAppBitmaps(IconBitmaps manifest_icons, IconBitmaps trusted_icons)
+        : manifest_icons(std::move(manifest_icons)),
+          trusted_icons(std::move(trusted_icons)) {}
+    WebAppBitmaps() = default;
+    ~WebAppBitmaps() = default;
+
+    IconBitmaps manifest_icons;
+    IconBitmaps trusted_icons;
+  };
   using ReadIconBitmapsCallback =
-      base::OnceCallback<void(IconBitmaps icon_bitmaps)>;
+      base::OnceCallback<void(WebAppBitmaps disk_bitmap)>;
   // Reads all icon bitmaps for an app. Returns empty |icon_bitmaps| in
   // |callback| if IO error.
   void ReadAllIcons(const webapps::AppId& app_id,
@@ -185,6 +223,8 @@ class WebAppIconManager : public WebAppInstallManagerObserver {
   // See ui/base/resource/resource_scale_factor.h. Returns null image in
   // `callback` if no icons found for all supported UI scale factors (matches
   // only bigger icons, no upscaling).
+  // TODO(crbug.com/427566193): Rename here and callsites that this might be
+  // untrusted.
   void ReadFavicons(const webapps::AppId& app_id,
                     IconPurpose purpose,
                     ReadImageSkiaCallback callback);

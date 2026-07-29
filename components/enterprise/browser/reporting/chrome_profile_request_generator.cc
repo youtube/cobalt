@@ -12,6 +12,7 @@
 #include "base/functional/callback.h"
 #include "build/build_config.h"
 #include "components/device_signals/core/browser/signals_aggregator.h"
+#include "components/device_signals/core/common/signals_features.h"
 #include "components/enterprise/browser/reporting/os_report_generator.h"
 #include "components/enterprise/browser/reporting/report_type.h"
 #include "components/enterprise/browser/reporting/report_util.h"
@@ -153,6 +154,13 @@ void ChromeProfileRequestGenerator::OnBaseReportsReady(
   signals_request.signal_names.emplace(device_signals::SignalName::kOsSignals);
   signals_request.signal_names.emplace(
       device_signals::SignalName::kBrowserContextSignals);
+
+  if (enterprise_signals::features::IsDetectedAgentSignalCollectionEnabled()) {
+    signals_request.signal_names.emplace(device_signals::SignalName::kAgent);
+    signals_request.agent_signal_parameters.emplace(
+        device_signals::AgentSignalCollectionType::kDetectedAgents);
+  }
+
 #if BUILDFLAG(IS_WIN)
   signals_request.signal_names.emplace(device_signals::SignalName::kAntiVirus);
   signals_request.signal_names.emplace(device_signals::SignalName::kHotfixes);
@@ -236,6 +244,11 @@ void ChromeProfileRequestGenerator::OnAggregatedSignalsReceived(
     }
 #endif  // BUILDFLAG(IS_WIN)
 
+    if (os_signals.distribution_version) {
+      os_report->set_distribution_version(
+          os_signals.distribution_version.value());
+    }
+
     browser_report->set_browser_version(os_signals.browser_version);
   }
 
@@ -281,6 +294,17 @@ void ChromeProfileRequestGenerator::OnAggregatedSignalsReceived(
 
     if (profile_signals.profile_id) {
       profile_report->set_profile_id(profile_signals.profile_id.value());
+    }
+  }
+
+  if (response.agent_signals_response) {
+    const auto& agent_signals = response.agent_signals_response.value();
+    for (auto detected_agent : agent_signals.detected_agents) {
+      switch (detected_agent) {
+        case (device_signals::Agents::kCrowdStrikeFalcon):
+          os_report->add_detected_agents(em::Agent::CROWDSTRIKE_FALCON);
+          break;
+      }
     }
   }
 

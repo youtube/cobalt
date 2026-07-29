@@ -33,29 +33,17 @@ GpuMemoryBufferFactoryNativePixmap::~GpuMemoryBufferFactoryNativePixmap() =
     default;
 
 gfx::GpuMemoryBufferHandle
-GpuMemoryBufferFactoryNativePixmap::CreateGpuMemoryBuffer(
-    gfx::GpuMemoryBufferId id,
+GpuMemoryBufferFactoryNativePixmap::CreateNativeGmbHandle(
     const gfx::Size& size,
-    const gfx::Size& framebuffer_size,
     gfx::BufferFormat format,
-    gfx::BufferUsage usage,
-    int client_id,
-    SurfaceHandle surface_handle) {
+    gfx::BufferUsage usage) {
   scoped_refptr<gfx::NativePixmap> pixmap =
       ui::OzonePlatform::GetInstance()
           ->GetSurfaceFactoryOzone()
-          ->CreateNativePixmap(surface_handle, GetVulkanDeviceQueue(), size,
-                               format, usage, framebuffer_size);
-  return CreateGpuMemoryBufferFromNativePixmap(id, size, format, usage,
-                                               client_id, std::move(pixmap));
-}
-
-void GpuMemoryBufferFactoryNativePixmap::DestroyGpuMemoryBuffer(
-    gfx::GpuMemoryBufferId id,
-    int client_id) {
-  base::AutoLock lock(native_pixmaps_lock_);
-  NativePixmapMapKey key(id.id, client_id);
-  native_pixmaps_.erase(key);
+          ->CreateNativePixmap(gpu::kNullSurfaceHandle, GetVulkanDeviceQueue(),
+                               size, format, usage, size);
+  return CreateNativeGmbHandleFromNativePixmap(size, format, usage,
+                                               std::move(pixmap));
 }
 
 bool GpuMemoryBufferFactoryNativePixmap::
@@ -75,12 +63,10 @@ VulkanDeviceQueue* GpuMemoryBufferFactoryNativePixmap::GetVulkanDeviceQueue() {
 }
 
 gfx::GpuMemoryBufferHandle
-GpuMemoryBufferFactoryNativePixmap::CreateGpuMemoryBufferFromNativePixmap(
-    gfx::GpuMemoryBufferId id,
+GpuMemoryBufferFactoryNativePixmap::CreateNativeGmbHandleFromNativePixmap(
     const gfx::Size& size,
     gfx::BufferFormat format,
     gfx::BufferUsage usage,
-    int client_id,
     scoped_refptr<gfx::NativePixmap> pixmap) {
   if (!pixmap.get()) {
     DLOG(ERROR) << "Failed to create pixmap " << size.ToString() << ",  "
@@ -94,17 +80,7 @@ GpuMemoryBufferFactoryNativePixmap::CreateGpuMemoryBufferFromNativePixmap(
     return gfx::GpuMemoryBufferHandle();
   }
 
-  gfx::GpuMemoryBufferHandle new_handle(std::move(native_pixmap_handle));
-
-  // TODO(reveman): Remove this once crbug.com/628334 has been fixed.
-  {
-    base::AutoLock lock(native_pixmaps_lock_);
-    NativePixmapMapKey key(id.id, client_id);
-    DCHECK(native_pixmaps_.find(key) == native_pixmaps_.end());
-    native_pixmaps_[key] = pixmap;
-  }
-
-  return new_handle;
+  return gfx::GpuMemoryBufferHandle(std::move(native_pixmap_handle));
 }
 
 }  // namespace gpu

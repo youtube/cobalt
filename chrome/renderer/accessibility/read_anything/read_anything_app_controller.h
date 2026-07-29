@@ -161,6 +161,12 @@ class ReadAnythingAppController
                          const ui::AXTreeData& old_data,
                          const ui::AXTreeData& new_data) override;
 
+  void OnStringAttributeChanged(ui::AXTree* tree,
+                                ui::AXNode* node,
+                                ax::mojom::StringAttribute attr,
+                                const std::string& old_value,
+                                const std::string& new_value) override;
+
   // gin templates:
   ui::AXNodeID RootId() const;
   ui::AXNodeID StartNodeId() const;
@@ -204,6 +210,7 @@ class ReadAnythingAppController
   int EngineErrorStopSource() const;
   int ContentFinishedStopSource() const;
   int UnexpectedUpdateContentStopSource() const;
+  int MaxLineWidth() const;
   std::string GetStoredVoice() const;
   std::vector<std::string> GetLanguagesEnabledInPref() const;
   std::vector<ui::AXNodeID> GetChildren(ui::AXNodeID ax_node_id) const;
@@ -373,6 +380,8 @@ class ReadAnythingAppController
   // when the active tree changes.
   void RecordNumSelections();
 
+  void RecordDistillationSuccess();
+
   // Given a boundary position within the current granularity, identifies the
   // nodes that needs to be highlighted (e.g. until the word boundary), and
   // returns a list containing nodes and the ranges within those nodes. The
@@ -447,6 +456,12 @@ class ReadAnythingAppController
   // A timer that causes a distillation after a user stops typing for a set
   // number of seconds.
   std::unique_ptr<base::RetainingOneShotTimer> post_user_entry_draw_timer_;
+
+  base::OneShotTimer timer_;
+
+  // The number of times distillation completes successfully after a page
+  // change. Used for logging.
+  int distillationsCompleted_;
 
   // As a subclass of RenderFrameObserver, all objects of this class are stored
   // in data structure and should not get deallocated as long as the object is

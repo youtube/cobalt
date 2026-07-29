@@ -35,6 +35,7 @@
 #include "ui/gfx/image/image_skia_rep.h"
 #include "ui/gfx/skbitmap_operations.h"
 #include "ui/lottie/animation.h"
+#include "ui/resources/grit/ui_lottie_resources.h"
 #include "ui/resources/grit/ui_resources.h"
 
 namespace wm {
@@ -245,6 +246,8 @@ struct CursorResourceData {
   CursorType type;
   int id;
   gfx::Point hotspot_1x;
+  // TODO(crbug.com/416095366): Remove hotspot_2x when
+  // all cursor assets become lottie format.
   gfx::Point hotspot_2x;
   bool is_animated = false;
 };
@@ -253,14 +256,14 @@ struct CursorResourceData {
 // defined at ui/base/cursor/mojom/cursor_type.mojom.
 constexpr auto kNormalCursorResourceData = std::to_array<
     std::optional<CursorResourceData>>({
-    {{CursorType::kPointer, IDR_AURA_CURSOR_PTR, {4, 4}, {7, 7}}},
+    {{CursorType::kPointer, IDR_AURA_CURSOR_PTR_LOTTIE, {6, 4}, {6, 4}}},
     {{CursorType::kCross, IDR_AURA_CURSOR_CROSSHAIR, {12, 12}, {24, 24}}},
     {{CursorType::kHand, IDR_AURA_CURSOR_HAND, {9, 4}, {19, 8}}},
-    {{CursorType::kIBeam, IDR_AURA_CURSOR_IBEAM, {12, 12}, {24, 25}}},
+    {{CursorType::kIBeam, IDR_AURA_CURSOR_IBEAM_LOTTIE, {12, 12}, {12, 12}}},
     {{CursorType::kWait,
-      IDR_AURA_CURSOR_THROBBER,
-      {7, 7},
-      {14, 14},
+      IDR_AURA_CURSOR_THROBBER_LOTTIE,
+      {12, 12},
+      {12, 12},
       /*is_animated=*/true}},
     {{CursorType::kHelp, IDR_AURA_CURSOR_HELP, {4, 4}, {8, 9}}},
     {{CursorType::kEastResize,
@@ -330,18 +333,18 @@ constexpr auto kNormalCursorResourceData = std::to_array<
       IDR_AURA_CURSOR_XTERM_HORIZ,
       {12, 11},
       {26, 23}}},
-    {{CursorType::kCell, IDR_AURA_CURSOR_CELL, {11, 11}, {24, 23}}},
+    {{CursorType::kCell, IDR_AURA_CURSOR_CELL_LOTTIE, {12, 12}, {12, 12}}},
     {{CursorType::kContextMenu, IDR_AURA_CURSOR_CONTEXT_MENU, {4, 4}, {8, 9}}},
-    {{CursorType::kAlias, IDR_AURA_CURSOR_ALIAS, {8, 6}, {15, 11}}},
+    {{CursorType::kAlias, IDR_AURA_CURSOR_ALIAS_LOTTIE, {6, 4}, {6, 4}}},
     {{CursorType::kProgress,
-      IDR_AURA_CURSOR_THROBBER,
-      {7, 7},
-      {14, 14},
+      IDR_AURA_CURSOR_THROBBER_LOTTIE,
+      {12, 12},
+      {12, 12},
       /*is_animated=*/true}},
-    {{CursorType::kNoDrop, IDR_AURA_CURSOR_NO_DROP, {9, 9}, {18, 18}}},
-    {{CursorType::kCopy, IDR_AURA_CURSOR_COPY, {9, 9}, {18, 18}}},
+    {{CursorType::kNoDrop, IDR_AURA_CURSOR_NO_DROP_LOTTIE, {8, 7}, {8, 7}}},
+    {{CursorType::kCopy, IDR_AURA_CURSOR_COPY_LOTTIE, {8, 7}, {8, 7}}},
     /*CursorType::kNone*/ {},
-    {{CursorType::kNotAllowed, IDR_AURA_CURSOR_NO_DROP, {9, 9}, {18, 18}}},
+    {{CursorType::kNotAllowed, IDR_AURA_CURSOR_NO_DROP_LOTTIE, {8, 7}, {8, 7}}},
     {{CursorType::kZoomIn, IDR_AURA_CURSOR_ZOOM_IN, {10, 10}, {20, 20}}},
     {{CursorType::kZoomOut, IDR_AURA_CURSOR_ZOOM_OUT, {10, 10}, {20, 20}}},
     {{CursorType::kGrab, IDR_AURA_CURSOR_GRAB, {8, 5}, {16, 10}}},
@@ -374,17 +377,18 @@ constexpr auto kNormalCursorResourceData = std::to_array<
 static_assert(std::size(kNormalCursorResourceData) ==
               static_cast<int>(CursorType::kMaxValue) + 1);
 
+// TODO(crbug.com/416095366): Remove kLargeCursorResourceData when
+// all cursor assets become lottie format.
 constexpr auto kLargeCursorResourceData = std::to_array<
     std::optional<CursorResourceData>>({
-    {{CursorType::kPointer, IDR_AURA_CURSOR_BIG_PTR, {10, 10}, {20, 20}}},
+    {{CursorType::kPointer, IDR_AURA_CURSOR_PTR_LOTTIE, {6, 4}, {6, 4}}},
     {{CursorType::kCross, IDR_AURA_CURSOR_BIG_CROSSHAIR, {30, 32}, {60, 64}}},
     {{CursorType::kHand, IDR_AURA_CURSOR_BIG_HAND, {25, 7}, {50, 14}}},
-    {{CursorType::kIBeam, IDR_AURA_CURSOR_BIG_IBEAM, {30, 32}, {60, 64}}},
+    {{CursorType::kIBeam, IDR_AURA_CURSOR_IBEAM_LOTTIE, {12, 12}, {12, 12}}},
     {{CursorType::kWait,
-      // TODO(crbug.com/40348660): create IDR_AURA_CURSOR_BIG_THROBBER.
-      IDR_AURA_CURSOR_THROBBER,
-      {7, 7},
-      {14, 14},
+      IDR_AURA_CURSOR_THROBBER_LOTTIE,
+      {12, 12},
+      {12, 12},
       /*is_animated=*/true}},
     {{CursorType::kHelp, IDR_AURA_CURSOR_BIG_HELP, {10, 11}, {20, 22}}},
     {{CursorType::kEastResize,
@@ -457,25 +461,21 @@ constexpr auto kLargeCursorResourceData = std::to_array<
       IDR_AURA_CURSOR_BIG_XTERM_HORIZ,
       {32, 30},
       {64, 60}}},
-    {{CursorType::kCell, IDR_AURA_CURSOR_BIG_CELL, {30, 30}, {60, 60}}},
+    {{CursorType::kCell, IDR_AURA_CURSOR_CELL_LOTTIE, {12, 12}, {12, 12}}},
     {{CursorType::kContextMenu,
       IDR_AURA_CURSOR_BIG_CONTEXT_MENU,
       {11, 11},
       {22, 22}}},
-    {{CursorType::kAlias, IDR_AURA_CURSOR_BIG_ALIAS, {19, 11}, {38, 22}}},
+    {{CursorType::kAlias, IDR_AURA_CURSOR_ALIAS_LOTTIE, {6, 4}, {6, 4}}},
     {{CursorType::kProgress,
-      // TODO(crbug.com/40348660): create IDR_AURA_CURSOR_BIG_THROBBER.
-      IDR_AURA_CURSOR_THROBBER,
-      {7, 7},
-      {14, 14},
+      IDR_AURA_CURSOR_THROBBER_LOTTIE,
+      {12, 12},
+      {12, 12},
       /*is_animated=*/true}},
-    {{CursorType::kNoDrop, IDR_AURA_CURSOR_BIG_NO_DROP, {10, 10}, {20, 20}}},
-    {{CursorType::kCopy, IDR_AURA_CURSOR_BIG_COPY, {21, 11}, {42, 22}}},
+    {{CursorType::kNoDrop, IDR_AURA_CURSOR_NO_DROP_LOTTIE, {8, 7}, {8, 7}}},
+    {{CursorType::kCopy, IDR_AURA_CURSOR_COPY_LOTTIE, {8, 7}, {8, 7}}},
     /*CursorType::kNone*/ {},
-    {{CursorType::kNotAllowed,
-      IDR_AURA_CURSOR_BIG_NO_DROP,
-      {10, 10},
-      {20, 20}}},
+    {{CursorType::kNotAllowed, IDR_AURA_CURSOR_NO_DROP_LOTTIE, {8, 7}, {8, 7}}},
     {{CursorType::kZoomIn, IDR_AURA_CURSOR_BIG_ZOOM_IN, {25, 26}, {50, 52}}},
     {{CursorType::kZoomOut, IDR_AURA_CURSOR_BIG_ZOOM_OUT, {26, 26}, {52, 52}}},
     {{CursorType::kGrab, IDR_AURA_CURSOR_BIG_GRAB, {21, 11}, {42, 22}}},
@@ -534,7 +534,7 @@ std::optional<ui::CursorData> GetCursorData(
   const float resource_scale = ui::GetScaleForResourceScaleFactor(
       ui::GetSupportedResourceScaleFactorForRescale(scale));
   const gfx::ImageSkiaRep& image_rep = image->GetRepresentation(resource_scale);
-  CHECK_EQ(image_rep.scale(), resource_scale);
+  CHECK(image_rep.unscaled() || (image_rep.scale() == resource_scale));
 
   if (target_cursor_size_in_px) {
     // If `target_cursor_size_in_px` presents, use it to calculate scale.

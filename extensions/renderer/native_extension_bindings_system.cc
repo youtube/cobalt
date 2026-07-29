@@ -60,7 +60,6 @@
 #include "extensions/renderer/worker_thread_util.h"
 #include "gin/converter.h"
 #include "gin/data_object_builder.h"
-#include "gin/handle.h"
 #include "gin/per_context_data.h"
 #include "third_party/blink/public/mojom/devtools/console_message.mojom.h"
 #include "third_party/blink/public/mojom/service_worker/service_worker_registration.mojom.h"
@@ -209,7 +208,8 @@ void AddConsoleError(v8::Local<v8::Context> context, const std::string& error) {
 const base::Value::Dict& GetAPISchema(const std::string& api_name) {
   const base::Value::Dict* schema =
       ExtensionAPI::GetSharedInstance()->GetSchema(api_name);
-  CHECK(schema) << api_name;
+  // Don't use CHECK() here so we capture the `api_name` in the logs.
+  LOG_IF(FATAL, !schema) << "Unknown API " << api_name;
   return *schema;
 }
 
@@ -255,7 +255,7 @@ v8::Local<v8::Object> CreateRootBinding(v8::Local<v8::Context> context,
   v8::Local<v8::Object> binding_object =
       bindings_system->CreateAPIInstance(name, context, &hooks);
 
-  v8::Isolate* isolate = context->GetIsolate();
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
   auto* bridge = cppgc::MakeGarbageCollected<APIBindingBridge>(
       isolate->GetCppHeap()->GetAllocationHandle(), hooks, context,
       binding_object, script_context->GetExtensionID(),

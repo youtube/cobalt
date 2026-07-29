@@ -22,8 +22,10 @@
 #import "ios/chrome/browser/content_suggestions/ui_bundled/ntp_home_constant.h"
 #import "ios/chrome/browser/home_customization/coordinator/home_customization_delegate.h"
 #import "ios/chrome/browser/ntp/model/new_tab_page_tab_helper.h"
+#import "ios/chrome/browser/ntp/search_engine_logo/mediator/search_engine_logo_mediator.h"
+#import "ios/chrome/browser/ntp/search_engine_logo/ui/search_engine_logo_consumer.h"
+#import "ios/chrome/browser/ntp/search_engine_logo/ui/search_engine_logo_state.h"
 #import "ios/chrome/browser/ntp/shared/metrics/new_tab_page_metrics_recorder.h"
-#import "ios/chrome/browser/ntp/ui_bundled/logo_vendor.h"
 #import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_color_palette.h"
 #import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_constants.h"
 #import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_controller_delegate.h"
@@ -84,15 +86,12 @@ const CGFloat kIdentityDiscMaxFontSize = 24;
 }  // namespace
 
 @interface NewTabPageHeaderViewController () <
-    DoodleObserver,
+    SearchEngineLogoConsumer,
     UIIndirectScribbleInteractionDelegate,
     UIPointerInteractionDelegate>
 
 // `YES` if this consumer is has voice search enabled.
 @property(nonatomic, assign) BOOL voiceSearchIsEnabled;
-
-// Exposes view and methods to drive the doodle.
-@property(nonatomic, weak, readonly) id<LogoVendor> logoVendor;
 
 @property(nonatomic, strong) NewTabPageHeaderView* headerView;
 @property(nonatomic, strong) UIButton* fakeOmnibox;
@@ -107,9 +106,6 @@ const CGFloat kIdentityDiscMaxFontSize = 24;
 @property(nonatomic, strong) NSLayoutConstraint* fakeOmniboxHeightConstraint;
 @property(nonatomic, strong) NSLayoutConstraint* fakeOmniboxTopMarginConstraint;
 @property(nonatomic, strong) NSLayoutConstraint* headerViewHeightConstraint;
-
-// Whether the Google logo or doodle is being shown.
-@property(nonatomic, assign) BOOL logoIsShowing;
 
 // Whether or not the user is signed in.
 @property(nonatomic, assign) BOOL isSignedIn;
@@ -142,6 +138,8 @@ const CGFloat kIdentityDiscMaxFontSize = 24;
   // The logo for the default search engine. This is owned by the caching system
   // backing this logo.
   __weak UIImage* _dseLogo;
+  SearchEngineLogoMediator* _searchEngineLogoMediator;
+  SearchEngineLogoState _searchEngineLogoState;
 }
 
 - (instancetype)initWithUseNewBadgeForLensButton:(BOOL)useNewBadgeForLensButton
@@ -165,9 +163,7 @@ const CGFloat kIdentityDiscMaxFontSize = 24;
       };
       [self registerForTraitChanges:traits withHandler:handler];
       if (IsNTPBackgroundCustomizationEnabled()) {
-        NSArray<UITrait>* colorTraits =
-            TraitCollectionSetForTraits(@[ NewTabPageTrait.class ]);
-        [self registerForTraitChanges:colorTraits
+        [self registerForTraitChanges:@[ NewTabPageTrait.class ]
                            withAction:@selector(applyBackgroundColors)];
       }
     }
@@ -278,7 +274,8 @@ const CGFloat kIdentityDiscMaxFontSize = 24;
   if (self.isShowing) {
     [self.headerView updateTabGroupIndicatorAvailabilityWithOffset:offset];
     CGFloat progress =
-        self.logoIsShowing || !CanShowTabStrip(self)
+        (_searchEngineLogoState != SearchEngineLogoState::kNone) ||
+                !CanShowTabStrip(self)
             ? [self.headerView searchFieldProgressForOffset:offset]
             // RxR with no logo hides the fakebox, so always show the omnibox.
             : 1;
@@ -320,9 +317,8 @@ const CGFloat kIdentityDiscMaxFontSize = 24;
 }
 
 - (CGFloat)headerHeight {
-  return content_suggestions::HeightForLogoHeader(
-      self.logoIsShowing, self.logoVendor.isShowingDoodle,
-      self.traitCollection);
+  return content_suggestions::HeightForLogoHeader(_searchEngineLogoState,
+                                                  self.traitCollection);
 }
 
 - (void)viewDidLoad {
@@ -346,12 +342,13 @@ const CGFloat kIdentityDiscMaxFontSize = 24;
 
     [self addFakeOmnibox];
 
-    [self.headerView addSubview:self.logoVendor.view];
+    [self.headerView addSubview:_searchEngineLogoMediator.view];
     // Fake Tap View has identity disc, which should render above the doodle.
     [self addFakeTapView];
     [self.headerView addSubview:self.fakeOmnibox];
-    self.logoVendor.view.translatesAutoresizingMaskIntoConstraints = NO;
-    self.logoVendor.view.accessibilityIdentifier =
+    _searchEngineLogoMediator.view.translatesAutoresizingMaskIntoConstraints =
+        NO;
+    _searchEngineLogoMediator.view.accessibilityIdentifier =
         ntp_home::NTPLogoAccessibilityID();
     self.fakeOmnibox.translatesAutoresizingMaskIntoConstraints = NO;
 
@@ -370,11 +367,10 @@ const CGFloat kIdentityDiscMaxFontSize = 24;
     self.fakeOmniboxWidthConstraint = [self.fakeOmnibox.widthAnchor
         constraintEqualToConstant:content_suggestions::SearchFieldWidth(
                                       width, self.traitCollection)];
-    [self addConstraintsForLogoView:self.logoVendor.view
+    [self addConstraintsForLogoView:_searchEngineLogoMediator.view
                         fakeOmnibox:self.fakeOmnibox
                       andHeaderView:self.headerView];
 
-    [self.logoVendor fetchDoodle];
     self.headerView.tintAdjustmentMode = UIViewTintAdjustmentModeNormal;
     if (IsNTPBackgroundCustomizationEnabled()) {
       [self applyBackgroundColors];
@@ -649,7 +645,7 @@ const CGFloat kIdentityDiscMaxFontSize = 24;
   } else {
     NewTabPageColorPalette* colorPalette =
         IsNTPBackgroundCustomizationEnabled()
-            ? [self.traitCollection objectForTrait:NewTabPageTrait.class]
+            ? [self.traitCollection objectForNewTabPageTrait]
             : nil;
     button.layer.cornerRadius = 0;
     [button setImage:nil forState:UIControlStateNormal];
@@ -714,28 +710,18 @@ const CGFloat kIdentityDiscMaxFontSize = 24;
 // shows fakebox if the logo is visible and hides otherwise
 - (void)updateFakeboxDisplay {
   self.doodleTopMarginConstraint.constant =
-      content_suggestions::DoodleTopMargin(self.logoVendor.showingLogo,
-                                           self.logoVendor.isShowingDoodle,
+      content_suggestions::DoodleTopMargin(_searchEngineLogoState,
                                            self.traitCollection);
   [self.doodleHeightConstraint
-      setConstant:content_suggestions::DoodleHeight(
-                      self.logoVendor.showingLogo,
-                      self.logoVendor.isShowingDoodle, self.traitCollection)];
-  self.fakeOmnibox.hidden = CanShowTabStrip(self) && !self.logoIsShowing;
+      setConstant:content_suggestions::DoodleHeight(_searchEngineLogoState,
+                                                    self.traitCollection)];
+  self.fakeOmnibox.hidden =
+      CanShowTabStrip(self) &&
+      (_searchEngineLogoState == SearchEngineLogoState::kNone);
   [self.headerView layoutIfNeeded];
   self.headerViewHeightConstraint.constant =
-      content_suggestions::HeightForLogoHeader(self.logoIsShowing,
-                                               self.logoVendor.isShowingDoodle,
+      content_suggestions::HeightForLogoHeader(_searchEngineLogoState,
                                                self.traitCollection);
-}
-
-// If Google is not the default search engine, hides the logo, doodle and
-// fakebox. Makes them appear if Google is set as default.
-- (void)updateLogoAndFakeboxDisplay {
-  if (self.logoVendor.showingLogo != self.logoIsShowing) {
-    self.logoVendor.showingLogo = self.logoIsShowing;
-    [self updateFakeboxDisplay];
-  }
 }
 
 // Ensures the state of the Voice Search button matches whether or not it's
@@ -755,13 +741,11 @@ const CGFloat kIdentityDiscMaxFontSize = 24;
   self.doodleTopMarginConstraint = [logoView.topAnchor
       constraintEqualToAnchor:headerView.topAnchor
                      constant:content_suggestions::DoodleTopMargin(
-                                  self.logoVendor.showingLogo,
-                                  self.logoVendor.isShowingDoodle,
+                                  _searchEngineLogoState,
                                   self.traitCollection)];
   self.doodleHeightConstraint = [logoView.heightAnchor
       constraintEqualToConstant:content_suggestions::DoodleHeight(
-                                    self.logoVendor.showingLogo,
-                                    self.logoVendor.isShowingDoodle,
+                                    _searchEngineLogoState,
                                     self.traitCollection)];
   self.fakeOmniboxHeightConstraint = [fakeOmnibox.heightAnchor
       constraintEqualToConstant:content_suggestions::FakeOmniboxHeight()];
@@ -787,7 +771,7 @@ const CGFloat kIdentityDiscMaxFontSize = 24;
 // Updates opacity of doodle for scroll position, preventing it from showing
 // within the safe area insets.
 - (void)updateLogoForOffset:(CGFloat)offset {
-  self.logoVendor.view.alpha =
+  _searchEngineLogoMediator.view.alpha =
       std::max(1 - [self.headerView searchFieldProgressForOffset:offset], 0.0);
 }
 
@@ -850,50 +834,49 @@ const CGFloat kIdentityDiscMaxFontSize = 24;
   return YES;
 }
 
-#pragma mark - DoodleObserver
+#pragma mark - SearchEngineLogoConsumer
 
-- (void)doodleDisplayStateChanged:(BOOL)doodleShowing {
+- (void)searchEngineLogoStateDidChange:(SearchEngineLogoState)logoState {
+  _searchEngineLogoState = logoState;
   [self.doodleHeightConstraint
-      setConstant:content_suggestions::DoodleHeight(self.logoVendor.showingLogo,
-                                                    doodleShowing,
+      setConstant:content_suggestions::DoodleHeight(_searchEngineLogoState,
                                                     self.traitCollection)];
   self.doodleTopMarginConstraint.constant =
-      content_suggestions::DoodleTopMargin(self.logoVendor.showingLogo,
-                                           self.logoVendor.isShowingDoodle,
+      content_suggestions::DoodleTopMargin(_searchEngineLogoState,
                                            self.traitCollection);
   self.headerViewHeightConstraint.constant =
-      content_suggestions::HeightForLogoHeader(self.logoIsShowing,
-                                               self.logoVendor.isShowingDoodle,
+      content_suggestions::HeightForLogoHeader(_searchEngineLogoState,
                                                self.traitCollection);
   // Trigger relayout so that it immediately returns the updated content height
   // for the NTP to update content inset.
   [self.view setNeedsLayout];
   [self.view layoutIfNeeded];
   [self.commandHandler updateForHeaderSizeChange];
+  [self updateFakeboxDisplay];
 }
 
 #pragma mark - NewTabPageHeaderConsumer
 
-- (void)setLogoIsShowing:(BOOL)logoIsShowing {
-  _logoIsShowing = logoIsShowing;
-  [self updateLogoAndFakeboxDisplay];
+- (void)setSearchEngineLogoState:(SearchEngineLogoState)logoState {
+  _searchEngineLogoState = logoState;
+  [self updateFakeboxDisplay];
 }
 
-- (void)setLogoVendor:(id<LogoVendor>)logoVendor {
-  _logoVendor = logoVendor;
-  _logoVendor.doodleObserver = self;
-  [self updateLogoAndFakeboxDisplay];
+- (void)setSearchEngineLogoMediator:
+    (SearchEngineLogoMediator*)searchEngineLogoMediator {
+  _searchEngineLogoMediator = searchEngineLogoMediator;
+  _searchEngineLogoMediator.consumer = self;
 }
 
 - (void)updateLogoColor:(UIColor*)logoTintColor {
-  CHECK(_logoVendor);
+  CHECK(_searchEngineLogoMediator);
 
   if (logoTintColor) {
-    _logoVendor.usesMonochromeLogo = YES;
-    _logoVendor.view.tintColor = logoTintColor;
+    _searchEngineLogoMediator.usesMonochromeLogo = YES;
+    _searchEngineLogoMediator.view.tintColor = logoTintColor;
   } else {
-    _logoVendor.usesMonochromeLogo = NO;
-    _logoVendor.view.tintColor = nil;
+    _searchEngineLogoMediator.usesMonochromeLogo = NO;
+    _searchEngineLogoMediator.view.tintColor = nil;
   }
 }
 

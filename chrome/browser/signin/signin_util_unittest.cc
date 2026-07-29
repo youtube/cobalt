@@ -6,8 +6,10 @@
 
 #include <memory>
 
+#include "base/test/scoped_feature_list.h"
 #include "build/buildflag.h"
 #include "chrome/browser/browser_process.h"
+#include "chrome/browser/enterprise/util/managed_browser_utils.h"
 #include "chrome/browser/prefs/browser_prefs.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
 #include "chrome/browser/sync/sync_service_factory.h"
@@ -21,6 +23,7 @@
 #include "components/signin/public/base/signin_pref_names.h"
 #include "components/signin/public/base/signin_switches.h"
 #include "components/signin/public/identity_manager/identity_test_environment.h"
+#include "components/signin/public/identity_manager/signin_constants.h"
 #include "components/sync/base/user_selectable_type.h"
 #include "components/sync/service/sync_prefs.h"
 #include "components/sync/test/test_sync_service.h"
@@ -40,6 +43,8 @@ const char kLegacyPolicyPrimaryAccountStrictKeepExistingData[] =
     "primary_account_strict_keep_existing_data";
 const char kLegacyPolicyPrimaryAccountKeepExistingData[] =
     "primary_account_keep_existing_data";
+
+const GaiaId kSignedInGaiaId("signed_in_gaia_id");
 
 }  // namespace
 
@@ -375,17 +380,26 @@ class SigninUtilHistorySyncOptinTest : public SigninUtilTest {
         SyncServiceFactory::GetForProfile(profile()));
   }
 
-  void Signin() {
+  void Signin(bool managed_account = false) {
     CHECK(profile());
     signin::IdentityManager* identity_manager =
         IdentityManagerFactory::GetForProfile(profile());
     CHECK(identity_manager);
-    signin::MakePrimaryAccountAvailable(identity_manager, "test@gmail.com",
-                                        signin::ConsentLevel::kSignin);
+    AccountInfo account_info = signin::MakeAccountAvailable(
+        identity_manager,
+        signin::AccountAvailabilityOptionsBuilder()
+            .AsPrimary(signin::ConsentLevel::kSignin)
+            .WithGaiaId(kSignedInGaiaId)
+            .Build(managed_account ? "test@managed.com" : "test@gmail.com"));
+
+    account_info.hosted_domain = managed_account
+                                     ? "managed.com"
+                                     : signin::constants::kNoHostedDomainFound;
+    signin::UpdateAccountInfoForAccount(identity_manager, account_info);
   }
 
-  void SignInAndSetUpSyncService() {
-    Signin();
+  void SignInAndSetUpSyncService(bool managed_account = false) {
+    Signin(managed_account);
     SyncServiceFactory::GetInstance()->SetTestingFactory(
         profile(), base::BindRepeating([](content::BrowserContext* context)
                                            -> std::unique_ptr<KeyedService> {
@@ -398,6 +412,27 @@ class SigninUtilHistorySyncOptinTest : public SigninUtilTest {
     test_sync_service()->GetUserSettings()->SetSelectedTypes(
         /*sync_everything=*/false, syncer::UserSelectableTypeSet());
   }
+
+  void SetupForAvatarSyncPromo(bool managed_account = false) {
+    SignInAndSetUpSyncService(managed_account);
+    DisableAllSyncedDataTypes();
+
+    // Simulate setting enough time passing for the cookie change.
+    profile()->GetPrefs()->SetDouble(
+        prefs::kGaiaCookieChangedTime,
+        (base::Time::Now() -
+         (switches::GetAvatarSyncPromoFeatureMinimumCookeAgeParam() +
+          base::Minutes(1)))
+            .InSecondsFSinceUnixEpoch());
+
+    // The rest of the setup should be aligned with the default profile
+    // initialization/signin.
+  }
+
+ private:
+  // Use this flag to simplify test writing and not restrict to Windows only.
+  base::test::ScopedFeatureList scoped_feature_list_{
+      switches::kAvatarButtonSyncPromoForTesting};
 };
 
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
@@ -410,6 +445,7 @@ TEST_F(SigninUtilHistorySyncOptinTest,
   ASSERT_FALSE(
       identity_manager->HasPrimaryAccount(signin::ConsentLevel::kSignin));
   EXPECT_FALSE(signin_util::ShouldShowHistorySyncOptinScreen(*profile()));
+  EXPECT_FALSE(signin_util::ShouldShowAvatarSyncPromo(profile()));
 }
 
 TEST_F(SigninUtilHistorySyncOptinTest,
@@ -417,6 +453,7 @@ TEST_F(SigninUtilHistorySyncOptinTest,
   Signin();
   ASSERT_FALSE(test_sync_service());
   EXPECT_FALSE(signin_util::ShouldShowHistorySyncOptinScreen(*profile()));
+  EXPECT_FALSE(signin_util::ShouldShowAvatarSyncPromo(profile()));
 }
 
 TEST_F(SigninUtilHistorySyncOptinTest,
@@ -428,6 +465,7 @@ TEST_F(SigninUtilHistorySyncOptinTest,
 
   test_sync_service()->SetAllowedByEnterprisePolicy(false);
   EXPECT_FALSE(signin_util::ShouldShowHistorySyncOptinScreen(*profile()));
+  EXPECT_FALSE(signin_util::ShouldShowAvatarSyncPromo(profile()));
 }
 TEST_F(SigninUtilHistorySyncOptinTest,
        ShouldNotShowHistorySyncOptinScreenIfUserIsAlreadyOptedIn) {
@@ -444,6 +482,7 @@ TEST_F(SigninUtilHistorySyncOptinTest,
       syncer::UserSelectableType::kSavedTabGroups, true);
 
   EXPECT_FALSE(signin_util::ShouldShowHistorySyncOptinScreen(*profile()));
+  EXPECT_FALSE(signin_util::ShouldShowAvatarSyncPromo(profile()));
 }
 
 TEST_F(SigninUtilHistorySyncOptinTest,
@@ -490,6 +529,60 @@ TEST_F(SigninUtilHistorySyncOptinTest,
       syncer::UserSelectableType::kSavedTabGroups, false);
 
   EXPECT_TRUE(signin_util::ShouldShowHistorySyncOptinScreen(*profile()));
+}
+
+TEST_F(SigninUtilHistorySyncOptinTest, ShouldShowAvatarSyncPromo) {
+  SetupForAvatarSyncPromo();
+  EXPECT_TRUE(signin_util::ShouldShowAvatarSyncPromo(profile()));
+}
+
+TEST_F(SigninUtilHistorySyncOptinTest,
+       ShouldNotShowAvatarSyncPromoManagedAccounts) {
+  SetupForAvatarSyncPromo(/*managed_account*/ true);
+  EXPECT_FALSE(signin_util::ShouldShowAvatarSyncPromo(profile()));
+}
+
+TEST_F(SigninUtilHistorySyncOptinTest,
+       ShouldShowAvatarSyncPromoBasedOnProfleAlreadySyncing) {
+  SetupForAvatarSyncPromo();
+  ASSERT_TRUE(signin_util::ShouldShowAvatarSyncPromo(profile()));
+
+  // Promo should not show if the previously syncing gaia id is different than
+  // the current signed in one.
+  const GaiaId previously_syncing_gaia_id("syncing_gaia_id");
+  ASSERT_NE(previously_syncing_gaia_id, kSignedInGaiaId);
+  profile()->GetPrefs()->SetString(prefs::kGoogleServicesLastSyncingGaiaId,
+                                   previously_syncing_gaia_id.ToString());
+  EXPECT_FALSE(signin_util::ShouldShowAvatarSyncPromo(profile()));
+
+  // Promo can show if the gaia id match.
+  profile()->GetPrefs()->SetString(prefs::kGoogleServicesLastSyncingGaiaId,
+                                   kSignedInGaiaId.ToString());
+  EXPECT_TRUE(signin_util::ShouldShowAvatarSyncPromo(profile()));
+}
+
+TEST_F(SigninUtilHistorySyncOptinTest,
+       ShouldShowAvatarSyncPromoBasedOnGaiaCookieAge) {
+  SetupForAvatarSyncPromo();
+  ASSERT_TRUE(signin_util::ShouldShowAvatarSyncPromo(profile()));
+
+  // Promo should not show if the gaia cookie age is too short.
+  profile()->GetPrefs()->SetDouble(
+      prefs::kGaiaCookieChangedTime,
+      (base::Time::Now() -
+       (switches::GetAvatarSyncPromoFeatureMinimumCookeAgeParam() -
+        base::Minutes(1)))
+          .InSecondsFSinceUnixEpoch());
+  EXPECT_FALSE(signin_util::ShouldShowAvatarSyncPromo(profile()));
+
+  // Promo can show if the gaia cookie age is long enough.
+  profile()->GetPrefs()->SetDouble(
+      prefs::kGaiaCookieChangedTime,
+      (base::Time::Now() -
+       (switches::GetAvatarSyncPromoFeatureMinimumCookeAgeParam() +
+        base::Minutes(1)))
+          .InSecondsFSinceUnixEpoch());
+  EXPECT_TRUE(signin_util::ShouldShowAvatarSyncPromo(profile()));
 }
 
 class SigninUtilHistorySyncOptinForManagedSettingsTest

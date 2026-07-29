@@ -5,9 +5,9 @@
 #include <string>
 
 #include "base/test/scoped_feature_list.h"
-#include "chrome/browser/glic/glic_keyed_service.h"
-#include "chrome/browser/glic/glic_keyed_service_factory.h"
 #include "chrome/browser/glic/glic_pref_names.h"
+#include "chrome/browser/glic/public/glic_keyed_service.h"
+#include "chrome/browser/glic/public/glic_keyed_service_factory.h"
 #include "chrome/browser/glic/test_support/glic_test_util.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/ui_features.h"
@@ -79,11 +79,11 @@ IN_PROC_BROWSER_TEST_F(GlicNetLogBrowserTest, LogGlicFreRequestOnOpenUI) {
                COMPUTE_NETWORK_TRAFFIC_ANNOTATION_ID_HASH("glic_fre_web_ui");
   });
 
-  EXPECT_NE(it, entries.end())
+  ASSERT_NE(it, entries.end())
       << "NetLog did not contain URL_REQUEST_START_JOB for Glic FRE WeUI";
   EXPECT_EQ(true, it->params.FindBool("dummy_request"));
   const std::string* url = it->params.FindString("url");
-  EXPECT_NE(nullptr, url);
+  ASSERT_TRUE(url);
   EXPECT_THAT(*url, testing::StartsWith(kTestGlicFreURL));
 }
 
@@ -115,11 +115,11 @@ IN_PROC_BROWSER_TEST_F(GlicNetLogBrowserTest, LogGlicRequestOnOpenUI) {
                COMPUTE_NETWORK_TRAFFIC_ANNOTATION_ID_HASH("glic_web_ui");
   });
 
-  EXPECT_NE(it, entries.end())
+  ASSERT_NE(it, entries.end())
       << "NetLog did not contain URL_REQUEST_START_JOB for Glic WebUI";
   EXPECT_EQ(true, it->params.FindBool("dummy_request"));
   const std::string* url = it->params.FindString("url");
-  EXPECT_NE(nullptr, url);
+  ASSERT_TRUE(url);
   EXPECT_THAT(*url, testing::StartsWith(kTestGlicURL));
 }
 

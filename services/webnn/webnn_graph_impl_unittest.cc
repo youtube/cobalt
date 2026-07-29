@@ -52,30 +52,33 @@ class FakeWebNNGraphImpl final : public WebNNGraphImpl {
  public:
   FakeWebNNGraphImpl(
       mojo::PendingAssociatedReceiver<mojom::WebNNGraph> receiver,
-      WebNNContextImpl* context,
+      base::WeakPtr<WebNNContextImpl> context,
       ComputeResourceInfo compute_resource_info)
       : WebNNGraphImpl(std::move(receiver),
-                       context,
+                       std::move(context),
                        std::move(compute_resource_info),
                        /*devices=*/{}) {}
-  ~FakeWebNNGraphImpl() override = default;
 
   static void CreateAndBuild(
       mojo::PendingAssociatedReceiver<mojom::WebNNGraph> receiver,
-      WebNNContextImpl* context,
+      base::WeakPtr<WebNNContextImpl> context,
       const mojom::GraphInfo& graph_info,
       ComputeResourceInfo compute_resource_info,
       WebNNContextImpl::CreateGraphImplCallback callback) {
-    std::move(callback).Run(std::make_unique<FakeWebNNGraphImpl>(
-        std::move(receiver), context, std::move(compute_resource_info)));
+    std::move(callback).Run(base::MakeRefCounted<FakeWebNNGraphImpl>(
+        std::move(receiver), std::move(context),
+        std::move(compute_resource_info)));
   }
 
  private:
+  ~FakeWebNNGraphImpl() override = default;
+
   // Return nothing for testing the validation of inputs and outputs in
   // `WebNNGraphImpl::Dispatch()` function.
   void DispatchImpl(
-      base::flat_map<std::string, WebNNTensorImpl*> named_inputs,
-      base::flat_map<std::string, WebNNTensorImpl*> named_outputs) override {}
+      base::flat_map<std::string, scoped_refptr<WebNNTensorImpl>> named_inputs,
+      base::flat_map<std::string, scoped_refptr<WebNNTensorImpl>> named_outputs)
+      override {}
 };
 
 // A fake WebNNTensor Mojo interface implementation that binds a pipe for
@@ -127,9 +130,9 @@ class FakeWebNNContextImpl final : public WebNNContextImpl {
           std::unique_ptr<WebNNConstantOperand>> /*constant_operands*/,
       base::flat_map<OperandId, WebNNTensorImpl*> /*constant_tensor_operands*/,
       CreateGraphImplCallback callback) override {
-    FakeWebNNGraphImpl::CreateAndBuild(std::move(receiver), this, *graph_info,
-                                       std::move(compute_resource_info),
-                                       std::move(callback));
+    FakeWebNNGraphImpl::CreateAndBuild(
+        std::move(receiver), AsWeakPtr(), *graph_info,
+        std::move(compute_resource_info), std::move(callback));
   }
 
   void CreateTensorImpl(
@@ -139,6 +142,12 @@ class FakeWebNNContextImpl final : public WebNNContextImpl {
     std::move(callback).Run(base::MakeRefCounted<FakeWebNNTensorImpl>(
         std::move(receiver), AsWeakPtr(), std::move(tensor_info)));
   }
+
+  void CreateTensorFromMailboxImpl(
+      mojo::PendingAssociatedReceiver<mojom::WebNNTensor> receiver,
+      mojom::TensorInfoPtr tensor_info,
+      gpu::Mailbox mailbox,
+      CreateTensorImplCallback callback) override {}
 
   base::WeakPtrFactory<FakeWebNNContextImpl> weak_factory_{this};
 };
@@ -4830,6 +4839,18 @@ TEST_F(WebNNGraphImplTest, PadTest) {
         .beginning_padding = {1, 2},
         .ending_padding = {1, 2},
         .value = 1,
+        .output = {.type = OperandDataType::kFloat32, .dimensions = {4, 7}},
+        .expected = true}
+        .Test(*this);
+  }
+  {
+    // Test pad with value = NAN, beginningPadding = {1, 2} and
+    // endingPadding = {1, 2}.
+    PadTester{
+        .input = {.type = OperandDataType::kFloat32, .dimensions = {2, 3}},
+        .beginning_padding = {1, 2},
+        .ending_padding = {1, 2},
+        .value = NAN,
         .output = {.type = OperandDataType::kFloat32, .dimensions = {4, 7}},
         .expected = true}
         .Test(*this);

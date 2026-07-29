@@ -54,26 +54,9 @@ OpenXrGraphicsBindingOpenGLES::~OpenXrGraphicsBindingOpenGLES() {
   }
 }
 
-bool OpenXrGraphicsBindingOpenGLES::Initialize(XrInstance instance,
-                                               XrSystemId system) {
-  if (initialized_) {
+bool OpenXrGraphicsBindingOpenGLES::InitializeGl() {
+  if (gl_initialized_) {
     return true;
-  }
-
-  PFN_xrGetOpenGLESGraphicsRequirementsKHR get_graphics_requirements_fn{
-      nullptr};
-  if (XR_FAILED(xrGetInstanceProcAddr(
-          instance, "xrGetOpenGLESGraphicsRequirementsKHR",
-          (PFN_xrVoidFunction*)(&get_graphics_requirements_fn)))) {
-    return false;
-  }
-
-  // TODO(alcooper): Validate/set version based on the output here.
-  XrGraphicsRequirementsOpenGLESKHR graphics_requirements = {
-      XR_TYPE_GRAPHICS_REQUIREMENTS_OPENGL_ES_KHR};
-  if (XR_FAILED(get_graphics_requirements_fn(instance, system,
-                                             &graphics_requirements))) {
-    return false;
   }
 
   // None of the other runtimes support ANGLE, so we disable it too for now.
@@ -138,6 +121,33 @@ bool OpenXrGraphicsBindingOpenGLES::Initialize(XrInstance instance,
 
   renderer_ = std::make_unique<XrRenderer>();
 
+  gl_initialized_ = true;
+  return true;
+}
+
+bool OpenXrGraphicsBindingOpenGLES::Initialize(XrInstance instance,
+                                               XrSystemId system) {
+  CHECK(gl_initialized_);
+  if (initialized_) {
+    return true;
+  }
+
+  PFN_xrGetOpenGLESGraphicsRequirementsKHR get_graphics_requirements_fn{
+      nullptr};
+  if (XR_FAILED(xrGetInstanceProcAddr(
+          instance, "xrGetOpenGLESGraphicsRequirementsKHR",
+          (PFN_xrVoidFunction*)(&get_graphics_requirements_fn)))) {
+    return false;
+  }
+
+  // TODO(alcooper): Validate/set version based on the output here.
+  XrGraphicsRequirementsOpenGLESKHR graphics_requirements = {
+      XR_TYPE_GRAPHICS_REQUIREMENTS_OPENGL_ES_KHR};
+  if (XR_FAILED(get_graphics_requirements_fn(instance, system,
+                                             &graphics_requirements))) {
+    return false;
+  }
+
   initialized_ = true;
   return true;
 }
@@ -197,11 +207,12 @@ void OpenXrGraphicsBindingOpenGLES::ClearSwapchainImages() {
   color_swapchain_images_.clear();
 }
 
-base::span<SwapChainInfo> OpenXrGraphicsBindingOpenGLES::GetSwapChainImages() {
+base::span<OpenXrSwapchainInfo>
+OpenXrGraphicsBindingOpenGLES::GetSwapChainImages() {
   return color_swapchain_images_;
 }
 
-base::span<const SwapChainInfo>
+base::span<const OpenXrSwapchainInfo>
 OpenXrGraphicsBindingOpenGLES::GetSwapChainImages() const {
   return color_swapchain_images_;
 }
@@ -214,7 +225,7 @@ bool OpenXrGraphicsBindingOpenGLES::CanUseSharedImages() const {
 // with just the types changed as needed, and logic extracted out of the
 // mailbox_to_surface_bridge.
 void OpenXrGraphicsBindingOpenGLES::ResizeSharedBuffer(
-    SwapChainInfo& swap_chain_info,
+    OpenXrSwapchainInfo& swap_chain_info,
     gpu::SharedImageInterface* sii) {
   CHECK(sii);
   auto transfer_size = GetTransferSize();
@@ -310,7 +321,8 @@ void OpenXrGraphicsBindingOpenGLES::CreateSharedImages(
   }
 }
 
-const SwapChainInfo& OpenXrGraphicsBindingOpenGLES::GetActiveSwapchainImage() {
+const OpenXrSwapchainInfo&
+OpenXrGraphicsBindingOpenGLES::GetActiveSwapchainImage() {
   CHECK(has_active_swapchain_image());
   CHECK(active_swapchain_index() < color_swapchain_images_.size());
 
@@ -438,6 +450,14 @@ bool OpenXrGraphicsBindingOpenGLES::SetOverlayTexture(
   CHECK(texture.type == gfx::ANDROID_HARDWARE_BUFFER);
   overlay_handle_ = std::move(texture);
   return true;
+}
+
+gfx::Size OpenXrGraphicsBindingOpenGLES::GetMaxTextureSize() {
+  CHECK(gl_initialized_);
+  int max_texture_size;
+  glGetIntegerv(GL_MAX_TEXTURE_SIZE, &max_texture_size);
+  DVLOG(1) << __func__ << " Max size=" << max_texture_size;
+  return {max_texture_size, max_texture_size};
 }
 
 }  // namespace device

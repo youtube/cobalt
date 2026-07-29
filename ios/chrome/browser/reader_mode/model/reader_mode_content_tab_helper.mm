@@ -5,16 +5,27 @@
 #import "ios/chrome/browser/reader_mode/model/reader_mode_content_tab_helper.h"
 
 #import "ios/chrome/browser/browser_container/model/edit_menu_tab_helper.h"
+#import "ios/chrome/browser/find_in_page/model/find_tab_helper.h"
+#import "ios/chrome/browser/link_to_text/model/link_to_text_tab_helper.h"
 #import "ios/chrome/browser/overlays/model/public/overlay_request_queue.h"
 #import "ios/chrome/browser/reader_mode/model/reader_mode_content_delegate.h"
+#import "ios/chrome/browser/reader_mode/model/reader_mode_web_state_delegate.h"
+#import "ios/chrome/browser/shared/model/browser/browser_list_factory.h"
+#import "ios/chrome/browser/shared/model/profile/profile_ios.h"
+#import "ios/chrome/browser/tab_switcher/ui_bundled/tab_utils.h"
+#import "ios/chrome/browser/web/model/image_fetch/image_fetch_tab_helper.h"
 #import "ios/chrome/browser/web_selection/model/web_selection_tab_helper.h"
 #import "ios/web/public/navigation/navigation_context.h"
 #import "ios/web/public/navigation/navigation_item.h"
 #import "ios/web/public/navigation/navigation_manager.h"
+#import "ios/web/public/web_state.h"
+#import "ios/web/public/web_state_observer.h"
 #import "net/base/apple/url_conversions.h"
 
 ReaderModeContentTabHelper::ReaderModeContentTabHelper(web::WebState* web_state)
-    : web::WebStatePolicyDecider(web_state) {}
+    : web::WebStatePolicyDecider(web_state) {
+  web_state_observation_.Observe(web_state);
+}
 
 ReaderModeContentTabHelper::~ReaderModeContentTabHelper() = default;
 
@@ -39,9 +50,6 @@ void ReaderModeContentTabHelper::LoadContent(GURL content_url,
     navigation_manager->Restore(0, std::move(navigation_items));
   }
   web_state()->LoadData(content_data, @"text/html", std::move(content_url));
-  if (delegate_) {
-    delegate_->ReaderModeContentDidLoadData(this);
-  }
 }
 
 void ReaderModeContentTabHelper::AttachSupportedTabHelpers(
@@ -56,10 +64,24 @@ void ReaderModeContentTabHelper::AttachSupportedTabHelpers(
         ->SetEditMenuBuilder(
             main_tab_edit_menu_builder_tab_helper->GetEditMenuBuilder());
     WebSelectionTabHelper::CreateForWebState(web_state());
+    LinkToTextTabHelper::CreateForWebState(web_state());
   }
 
+  FindTabHelper::CreateForWebState(web_state());
+  ImageFetchTabHelper::CreateForWebState(web_state());
   OverlayRequestQueue::CreateForWebState(web_state());
-  web_state()->SetDelegate(original_web_state->GetDelegate());
+  web_state_delegate_ = std::make_unique<ReaderModeWebStateDelegate>(
+      original_web_state->GetDelegate());
+  web_state()->SetDelegate(web_state_delegate_.get());
+}
+
+void ReaderModeContentTabHelper::SetFullscreenController(
+    FullscreenController* fullscreen_controller) {
+  FindTabHelper* find_tab_helper = FindTabHelper::FromWebState(web_state());
+  if (!find_tab_helper) {
+    return;
+  }
+  find_tab_helper->SetFullscreenController(fullscreen_controller);
 }
 
 #pragma mark - WebStatePolicyDecider
@@ -84,4 +106,22 @@ void ReaderModeContentTabHelper::ShouldAllowRequest(
   if (delegate_) {
     delegate_->ReaderModeContentDidCancelRequest(this, request, request_info);
   }
+}
+
+void ReaderModeContentTabHelper::WebStateDestroyed() {
+  web_state_observation_.Reset();
+}
+
+#pragma mark - WebStateObserver
+
+void ReaderModeContentTabHelper::PageLoaded(
+    web::WebState* web_state,
+    web::PageLoadCompletionStatus load_completion_status) {
+  if (delegate_) {
+    delegate_->ReaderModeContentDidLoadData(this);
+  }
+}
+
+void ReaderModeContentTabHelper::WebStateDestroyed(web::WebState* web_state) {
+  web_state_observation_.Reset();
 }

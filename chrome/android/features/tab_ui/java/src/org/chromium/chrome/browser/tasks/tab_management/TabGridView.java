@@ -24,8 +24,11 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.accessibility.AccessibilityNodeInfo;
 import android.widget.ImageView;
+import android.widget.TextView;
 
 import androidx.annotation.IntDef;
+import androidx.constraintlayout.widget.ConstraintLayout;
+import androidx.core.content.ContextCompat;
 import androidx.core.content.res.ResourcesCompat;
 import androidx.core.widget.ImageViewCompat;
 import androidx.vectordrawable.graphics.drawable.AnimatedVectorDrawableCompat;
@@ -33,6 +36,8 @@ import androidx.vectordrawable.graphics.drawable.AnimatedVectorDrawableCompat;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.quick_delete.QuickDeleteAnimationGradientDrawable;
+import org.chromium.chrome.browser.tab.Tab.MediaState;
+import org.chromium.chrome.browser.tasks.tab_management.TabListMediator.TabActionButtonData.TabActionButtonType;
 import org.chromium.chrome.browser.tasks.tab_management.TabListModel.AnimationStatus;
 import org.chromium.chrome.browser.tasks.tab_management.TabProperties.TabActionState;
 import org.chromium.chrome.tab_ui.R;
@@ -67,7 +72,7 @@ public class TabGridView extends SelectableItemViewBase<TabListEditorItemSelecti
 
     private final AnimationHandler mHighlightAnimationHandler = new AnimationHandler();
     private boolean mIsAnimating;
-    private boolean mShowOverflowButton;
+    private @TabActionButtonType int mTabActionButtonType;
     private @TabActionState int mTabActionState = TabActionState.UNSET;
     private @Nullable ObjectAnimator mQuickDeleteAnimation;
     private @Nullable QuickDeleteAnimationGradientDrawable mQuickDeleteAnimationDrawable;
@@ -169,24 +174,20 @@ public class TabGridView extends SelectableItemViewBase<TabListEditorItemSelecti
         }
     }
 
-    void setTabActionButtonDrawable(boolean showOverflowButton) {
+    void setTabActionButtonDrawable(@TabActionButtonType int type) {
         assert mTabActionState != TabActionState.UNSET;
 
         if (mTabActionState != TabActionState.CLOSABLE) return;
 
-        mShowOverflowButton = showOverflowButton;
-        if (mShowOverflowButton) {
-            setTabActionButtonOverflowDrawable();
-        } else {
-            setTabActionButtonCloseDrawable();
-        }
+        mTabActionButtonType = type;
+        setTabActionButtonDrawable();
 
         applyActionButtonTint();
     }
 
     void setTabActionButtonTint(ColorStateList actionButtonTint) {
         mActionButtonTint = actionButtonTint;
-        setTabActionButtonDrawable(mShowOverflowButton);
+        setTabActionButtonDrawable();
     }
 
     void setTabActionState(@TabActionState int tabActionState) {
@@ -195,7 +196,7 @@ public class TabGridView extends SelectableItemViewBase<TabListEditorItemSelecti
         mTabActionState = tabActionState;
         int accessibilityMode = IMPORTANT_FOR_ACCESSIBILITY_YES;
         if (mTabActionState == TabActionState.CLOSABLE) {
-            setTabActionButtonDrawable(mShowOverflowButton);
+            setTabActionButtonDrawable();
         } else if (mTabActionState == TabActionState.SELECTABLE) {
             accessibilityMode = IMPORTANT_FOR_ACCESSIBILITY_NO;
             setTabActionButtonSelectionDrawable();
@@ -222,6 +223,35 @@ public class TabGridView extends SelectableItemViewBase<TabListEditorItemSelecti
         cardWrapper.setBackground(gridCardHighlightDrawable);
     }
 
+    void setMediaIndicator(@MediaState int mediaState) {
+        // TODO(crbug.com/430072416): Update state for muted tabs once the setting controls are
+        // implemented.
+        TextView tabTitle = findViewById(R.id.tab_title);
+        ImageView tabMediaIndicator = findViewById(R.id.media_indicator_icon);
+        ConstraintLayout.LayoutParams titleParams =
+                (ConstraintLayout.LayoutParams) tabTitle.getLayoutParams();
+
+        int mediaIndicatorVisibility = View.GONE;
+        switch (mediaState) {
+            case MediaState.AUDIBLE:
+                titleParams.endToEnd = R.id.media_indicator_icon;
+                mediaIndicatorVisibility = View.VISIBLE;
+                break;
+            case MediaState.MUTED:
+            case MediaState.RECORDING:
+            case MediaState.SHARING:
+            case MediaState.NONE:
+                titleParams.endToEnd = R.id.card_view;
+                break;
+            default:
+                assert false : "Invalid media state";
+                break;
+        }
+
+        tabTitle.setLayoutParams(titleParams);
+        tabMediaIndicator.setVisibility(mediaIndicatorVisibility);
+    }
+
     private void setTabActionButtonCloseDrawable() {
         assert mTabActionState != TabActionState.UNSET;
 
@@ -237,6 +267,14 @@ public class TabGridView extends SelectableItemViewBase<TabListEditorItemSelecti
         }
         mActionButton.setBackgroundResource(R.drawable.small_icon_background);
         mActionButton.setImageBitmap(sCloseButtonBitmapWeakRef.get());
+    }
+
+    private void setTabActionButtonPinDrawable() {
+        assert mTabActionState != TabActionState.UNSET;
+
+        mActionButton.setImageDrawable(
+                ContextCompat.getDrawable(getContext(), R.drawable.ic_keep_24dp));
+        mActionButton.setBackground(null);
     }
 
     private void setTabActionButtonOverflowDrawable() {
@@ -271,6 +309,18 @@ public class TabGridView extends SelectableItemViewBase<TabListEditorItemSelecti
         mActionButton.setImageDrawable(
                 AnimatedVectorDrawableCompat.create(
                         getContext(), R.drawable.ic_check_googblue_20dp_animated));
+    }
+
+    private void setTabActionButtonDrawable() {
+        if (mTabActionButtonType == TabActionButtonType.OVERFLOW) {
+            setTabActionButtonOverflowDrawable();
+        } else if (mTabActionButtonType == TabActionButtonType.PIN) {
+            setTabActionButtonPinDrawable();
+        } else {
+            setTabActionButtonCloseDrawable();
+        }
+
+        applyActionButtonTint();
     }
 
     // SelectableItemViewBase implementation.

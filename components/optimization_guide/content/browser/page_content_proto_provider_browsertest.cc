@@ -158,9 +158,7 @@ class PageContentProtoProviderBrowserTest : public content::ContentBrowserTest {
   }
 
   const proto::AnnotatedPageContent& page_content() { return *page_content_; }
-  const optimization_guide::mojom::PageMetadata& metadata() {
-    return *metadata_;
-  }
+  const blink::mojom::PageMetadata& metadata() { return *metadata_; }
   const base::flat_map<std::string, content::WeakDocumentPtr>&
   document_identifiers() {
     return document_identifiers_;
@@ -211,7 +209,7 @@ class PageContentProtoProviderBrowserTest : public content::ContentBrowserTest {
  private:
   std::unique_ptr<net::EmbeddedTestServer> https_server_;
   std::optional<proto::AnnotatedPageContent> page_content_;
-  optimization_guide::mojom::PageMetadataPtr metadata_;
+  blink::mojom::PageMetadataPtr metadata_;
   base::flat_map<std::string, content::WeakDocumentPtr> document_identifiers_;
 };
 
@@ -400,7 +398,8 @@ IN_PROC_BROWSER_TEST_F(PageContentProtoProviderBrowserTest,
           optimization_guide::proto::CLICKABILITY_REASON_EDITABLE,
           optimization_guide::proto::CLICKABILITY_REASON_CURSOR_POINTER,
           optimization_guide::proto::CLICKABILITY_REASON_ARIA_ROLE,
-          optimization_guide::proto::CLICKABILITY_REASON_ARIA_HAS_POPUP));
+          optimization_guide::proto::CLICKABILITY_REASON_ARIA_HAS_POPUP,
+          optimization_guide::proto::CLICKABILITY_REASON_TAB_INDEX));
   EXPECT_THAT(
       button_node.content_attributes()
           .interaction_info()
@@ -413,7 +412,8 @@ IN_PROC_BROWSER_TEST_F(PageContentProtoProviderBrowserTest,
           optimization_guide::proto::CLICKABILITY_REASON_EDITABLE,
           optimization_guide::proto::CLICKABILITY_REASON_CURSOR_POINTER,
           optimization_guide::proto::CLICKABILITY_REASON_ARIA_ROLE,
-          optimization_guide::proto::CLICKABILITY_REASON_ARIA_HAS_POPUP));
+          optimization_guide::proto::CLICKABILITY_REASON_ARIA_HAS_POPUP,
+          optimization_guide::proto::CLICKABILITY_REASON_TAB_INDEX));
 
   const auto& expanded = ActionableContentRootNode().children_nodes()[1];
   ASSERT_TRUE(expanded.content_attributes().has_interaction_info());

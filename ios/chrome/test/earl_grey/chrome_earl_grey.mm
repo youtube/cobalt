@@ -13,6 +13,7 @@
 #import "base/logging.h"
 #import "base/strings/sys_string_conversions.h"
 #import "base/test/ios/wait_util.h"
+#import "ios/chrome/browser/reader_mode/test/reader_mode_app_interface.h"
 #import "ios/chrome/browser/shared/model/prefs/pref_names.h"
 #import "ios/chrome/test/earl_grey/chrome_earl_grey_app_interface.h"
 #import "ios/chrome/test/earl_grey/chrome_matchers.h"
@@ -1081,21 +1082,21 @@ id<GREYAction> grey_longPressWithDuration(base::TimeDelta duration) {
   // Allow the UI to become idle, in case any tabs are being opened or closed.
   GREYWaitForAppToIdle(@"App failed to idle");
 
-  GREYCondition* browserCountCheck = [GREYCondition
+  GREYCondition* windowCountCheck = [GREYCondition
       conditionWithName:conditionName
                   block:^{
                     actualCount =
                         [ChromeEarlGreyAppInterface foregroundWindowCount];
                     return actualCount == count;
                   }];
-  bool browserCountEqual =
-      [browserCountCheck waitWithTimeout:kWaitForUIElementTimeout.InSecondsF()];
+  bool windowCountEqual =
+      [windowCountCheck waitWithTimeout:kWaitForUIElementTimeout.InSecondsF()];
 
   NSString* errorString = [NSString
       stringWithFormat:@"Failed waiting for window count to become %" PRIuNS
                         "; actual count: %" PRIuNS,
                        count, actualCount];
-  EG_TEST_HELPER_ASSERT_TRUE(browserCountEqual, errorString);
+  EG_TEST_HELPER_ASSERT_TRUE(windowCountEqual, errorString);
 }
 
 - (void)openNewWindow {
@@ -1374,10 +1375,6 @@ id<GREYAction> grey_longPressWithDuration(base::TimeDelta duration) {
   return [ChromeEarlGreyAppInterface isUKMEnabled];
 }
 
-- (BOOL)isDWAEnabled {
-  return [ChromeEarlGreyAppInterface isDWAEnabled];
-}
-
 - (BOOL)isTestFeatureEnabled {
   return [ChromeEarlGreyAppInterface isTestFeatureEnabled];
 }
@@ -1410,10 +1407,6 @@ id<GREYAction> grey_longPressWithDuration(base::TimeDelta duration) {
 // Returns whether the UseLensToSearchForImage feature is enabled;
 - (BOOL)isUseLensToSearchForImageEnabled {
   return [ChromeEarlGreyAppInterface isUseLensToSearchForImageEnabled];
-}
-
-- (BOOL)isTabGroupSyncEnabled {
-  return [ChromeEarlGreyAppInterface isTabGroupSyncEnabled];
 }
 
 - (BOOL)isUnfocusedOmniboxAtBottom {
@@ -1707,12 +1700,21 @@ id<GREYAction> grey_longPressWithDuration(base::TimeDelta duration) {
 
 - (void)verifyCopyLinkActionWithText:(NSString*)text {
   [ChromeEarlGreyAppInterface clearPasteboardURLs];
+#if TARGET_OS_SIMULATOR
+  // Synchronization off due to an infinite spinner.
+  ScopedSynchronizationDisabler disabler;
+#endif
   [[EarlGrey selectElementWithMatcher:CopyLinkButton()]
       performAction:grey_tap()];
   [self verifyStringCopied:text];
 }
 
 - (void)verifyOpenInNewTabActionWithURL:(const std::string&)URL {
+#if TARGET_OS_SIMULATOR
+  // Synchronization off due to an infinite spinner.
+  ScopedSynchronizationDisabler disabler;
+#endif
+
   // Check tab count prior to execution.
   NSUInteger oldRegularTabCount = [ChromeEarlGreyAppInterface mainTabCount];
   NSUInteger oldIncognitoTabCount =
@@ -1741,17 +1743,24 @@ id<GREYAction> grey_longPressWithDuration(base::TimeDelta duration) {
   NSUInteger oldIncognitoTabCount =
       [ChromeEarlGreyAppInterface incognitoTabCount];
 
+  // Synchronization off due to an infinite spinner.
+  ScopedSynchronizationDisabler disabler;
+
   [[EarlGrey selectElementWithMatcher:OpenLinkInIncognitoButton()]
       performAction:grey_tap()];
 
   [self waitForIncognitoTabCount:oldIncognitoTabCount + 1];
   [self waitForMainTabCount:oldRegularTabCount];
+
   [[EarlGrey selectElementWithMatcher:chrome_test_util::OmniboxText(URL)]
       assertWithMatcher:grey_notNil()];
 }
 
 - (void)verifyShareActionWithURL:(const GURL&)URL
                        pageTitle:(NSString*)pageTitle {
+  // Synchronization off due to an infinite spinner.
+  ScopedSynchronizationDisabler disabler;
+
   [[EarlGrey selectElementWithMatcher:ShareButton()] performAction:grey_tap()];
 
   NSString* hostString = base::SysUTF8ToNSString(URL.host());
@@ -1765,13 +1774,6 @@ id<GREYAction> grey_longPressWithDuration(base::TimeDelta duration) {
                @"Either hostString %d or pageTitle %d was not present",
                hostStringPresent, pageTitlePresent);
   } else {
-#if TARGET_OS_SIMULATOR
-    // The activity view share sheet blocks EarlGrey's synchronization on
-    // the simulators. Ref:
-    // github.com/google/EarlGrey/blob/master/docs/features.md#visibility-checks
-    ScopedSynchronizationDisabler disabler;
-#endif
-
     // On iOS 16, LPLinkView and LPTextView are marked isAccessible=N.
     ScopedMatchNonAccessibilityElements enabler;
 
@@ -1901,22 +1903,12 @@ id<GREYAction> grey_longPressWithDuration(base::TimeDelta duration) {
 
 - (void)closeActivitySheet {
   if ([ChromeEarlGrey isIPadIdiom]) {
-    // Tap the share button to dismiss the popover.
-    [[EarlGrey selectElementWithMatcher:chrome_test_util::TabShareButton()]
+    // Tap the button outside the activity sheet to dismiss the popover on iPad.
+    [[EarlGrey selectElementWithMatcher:chrome_test_util::ToolsMenuButton()]
         performAction:grey_tap()];
   } else {
-    if (@available(iOS 17, *)) {
-      [EarlGrey closeActivitySheetWithError:nil];
-    } else {
-      NSString* dismissLabel = @"Close";
-      [[EarlGrey
-          selectElementWithMatcher:
-              grey_allOf(
-                  chrome_test_util::ButtonWithAccessibilityLabel(dismissLabel),
-                  grey_not(
-                      grey_accessibilityTrait(UIAccessibilityTraitNotEnabled)),
-                  grey_interactable(), nullptr)] performAction:grey_tap()];
-    }
+    GREYAssertTrue([EarlGrey closeActivitySheetWithError:nil],
+                   @"Failed to close the activity sheet");
   }
 }
 
@@ -1951,6 +1943,27 @@ id<GREYAction> grey_longPressWithDuration(base::TimeDelta duration) {
 
 - (NSError*)waitForMessagingBackendServiceInitialized {
   return [ChromeEarlGreyAppInterface waitForMessagingBackendServiceInitialized];
+}
+
+#pragma mark - Reader mode Utilities
+
+- (void)showReaderMode {
+  [ReaderModeAppInterface showReaderMode];
+}
+
+- (BOOL)waitUntilReaderModeWebStateIsReady {
+  auto verifyBlock = ^BOOL {
+    return [ReaderModeAppInterface readerModeWebStateIsReady];
+  };
+  NSString* conditionName =
+      [NSString stringWithFormat:@"Reader mode WebState is ready."];
+  GREYCondition* condition = [GREYCondition conditionWithName:conditionName
+                                                        block:verifyBlock];
+  return [condition waitWithTimeout:kWaitForJSCompletionTimeout.InSecondsF()];
+}
+
+- (void)hideReaderMode {
+  [ReaderModeAppInterface hideReaderMode];
 }
 
 @end

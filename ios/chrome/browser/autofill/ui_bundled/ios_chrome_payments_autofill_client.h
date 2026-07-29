@@ -14,6 +14,7 @@
 #import "components/autofill/core/browser/autofill_progress_dialog_type.h"
 #import "components/autofill/core/browser/payments/autofill_save_card_delegate.h"
 #import "components/autofill/core/browser/payments/autofill_save_card_ui_info.h"
+#include "components/autofill/core/browser/payments/multiple_request_payments_network_interface.h"
 #import "components/autofill/core/browser/payments/payments_autofill_client.h"
 #import "components/autofill/core/browser/ui/payments/autofill_progress_dialog_controller_impl.h"
 #include "components/autofill/core/browser/ui/payments/card_expiration_date_fix_flow_controller_impl.h"
@@ -95,6 +96,8 @@ class IOSChromePaymentsAutofillClient : public PaymentsAutofillClient {
   void ShowAutofillErrorDialog(
       AutofillErrorDialogContext error_context) override;
   PaymentsNetworkInterface* GetPaymentsNetworkInterface() override;
+  MultipleRequestPaymentsNetworkInterface*
+  GetMultipleRequestPaymentsNetworkInterface() override;
   void ShowAutofillProgressDialog(
       AutofillProgressDialogType autofill_progress_dialog_type,
       base::OnceClosure cancel_callback) override;
@@ -143,19 +146,18 @@ class IOSChromePaymentsAutofillClient : public PaymentsAutofillClient {
   }
 
  private:
-  // Shows save card UI offering upload or local save. If
-  // `should_show_save_card_bottomsheet` is true shows bottomsheet otherwise
-  // shows infobar.
+  // Shows save card UI offering upload or local save.
   void ShowSaveCreditCard(
       AutofillSaveCardUiInfo ui_info,
-      std::unique_ptr<AutofillSaveCardDelegate> save_card_delegate,
-      bool should_show_save_card_bottomsheet);
+      std::unique_ptr<AutofillSaveCardDelegate> save_card_delegate);
 
   const raw_ref<autofill::ChromeAutofillClientIOS> client_;
 
   const raw_ref<infobars::InfoBarManager> infobar_manager_;
 
   std::unique_ptr<PaymentsNetworkInterface> payments_network_interface_;
+  std::unique_ptr<MultipleRequestPaymentsNetworkInterface>
+      multiple_request_payments_network_interface_;
 
   // TODO(crbug.com/40937065): Make these member variables as const raw_refs.
   const raw_ptr<PrefService> pref_service_;

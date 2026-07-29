@@ -39,6 +39,9 @@ constexpr CGFloat kFontSize = 11;
 }
 
 - (void)setup {
+  // The app starts in the TabGrid.
+  [self didEnterTabGrid];
+
   NSNotificationCenter* notificationCenter =
       [NSNotificationCenter defaultCenter];
   [notificationCenter addObserver:self
@@ -100,8 +103,7 @@ constexpr CGFloat kFontSize = 11;
 
 // Callback when exiting the grid.
 - (void)didLeaveTabGrid {
-  [_symbolView setSymbolImage:DefaultSymbolWithPointSize(
-                                  @"square", kChromeAppBarPrototypeSymbolSize)
+  [_symbolView setSymbolImage:GetDefaultAppBarSymbol(kAppSymbol)
         withContentTransition:[NSSymbolReplaceContentTransition
                                   replaceOffUpTransition]];
   UILabel* label = _tabCountLabel;
@@ -116,9 +118,7 @@ constexpr CGFloat kFontSize = 11;
 
 // Callback when entering the grid.
 - (void)didEnterTabGrid {
-  [_symbolView setSymbolImage:DefaultSymbolWithPointSize(
-                                  @"square.fill",
-                                  kChromeAppBarPrototypeSymbolSize)
+  [_symbolView setSymbolImage:GetDefaultAppBarSymbol(kAppFillSymbol)
         withContentTransition:[NSSymbolReplaceContentTransition
                                   replaceOffUpTransition]];
   UILabel* label = _tabCountLabel;

@@ -11,6 +11,7 @@
 #include "base/containers/span.h"
 #include "base/files/memory_mapped_file.h"
 #include "base/no_destructor.h"
+#include "base/notimplemented.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_view_util.h"
 #include "base/strings/stringprintf.h"
@@ -26,6 +27,9 @@ namespace on_device_model {
 namespace {
 
 std::string ReadFile(base::File& file) {
+  if (file.GetLength() == 0) {
+    return "";
+  }
   // Using MemoryMappedFile to handle async file.
   base::MemoryMappedFile map;
   CHECK(map.Initialize(std::move(file)));
@@ -132,16 +136,16 @@ void FakeOnDeviceSession::Append(
 
 void FakeOnDeviceSession::Generate(
     mojom::GenerateOptionsPtr options,
-    mojo::PendingRemote<mojom::StreamingResponder> response) {
+    mojo::PendingRemote<mojom::StreamingResponder> responder) {
   if (settings_->execute_delay.is_zero()) {
-    GenerateImpl(std::move(options), std::move(response));
+    GenerateImpl(std::move(options), std::move(responder));
     return;
   }
   base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
       FROM_HERE,
       base::BindOnce(&FakeOnDeviceSession::GenerateImpl,
                      weak_factory_.GetWeakPtr(), std::move(options),
-                     std::move(response)),
+                     std::move(responder)),
       settings_->execute_delay);
 }
 
@@ -171,14 +175,29 @@ void FakeOnDeviceSession::Clone(
                      weak_factory_.GetWeakPtr(), std::move(session)));
 }
 
+void FakeOnDeviceSession::AsrStream(
+    on_device_model::mojom::AsrStreamOptionsPtr options,
+    mojo::PendingReceiver<on_device_model::mojom::AsrStreamInput> stream,
+    mojo::PendingRemote<on_device_model::mojom::AsrStreamResponder> responder) {
+  if (settings_->execute_delay.is_zero()) {
+    AsrStreamImpl(std::move(options), std::move(stream), std::move(responder));
+    return;
+  }
+  // Post a task to sequence with calls to Append.
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, base::BindOnce(&FakeOnDeviceSession::AsrStreamImpl,
+                                weak_factory_.GetWeakPtr(), std::move(options),
+                                std::move(stream), std::move(responder)));
+}
+
 void FakeOnDeviceSession::SetPriority(mojom::Priority priority) {
   priority_ = priority;
 }
 
 void FakeOnDeviceSession::GenerateImpl(
     mojom::GenerateOptionsPtr options,
-    mojo::PendingRemote<mojom::StreamingResponder> response) {
-  mojo::Remote<mojom::StreamingResponder> remote(std::move(response));
+    mojo::PendingRemote<mojom::StreamingResponder> responder) {
+  mojo::Remote<mojom::StreamingResponder> remote(std::move(responder));
   if (model_->backend_type() == ml::ModelBackendType::kCpuBackend) {
     auto chunk = mojom::ResponseChunk::New();
     chunk->text = "CPU backend";
@@ -203,6 +222,18 @@ void FakeOnDeviceSession::GenerateImpl(
   if (!model_->data().cache_weight.empty()) {
     auto chunk = mojom::ResponseChunk::New();
     chunk->text = "Cache weight: " + model_->data().cache_weight;
+    remote->OnResponse(std::move(chunk));
+  }
+  if (!model_->data().encoder_cache_weight.empty()) {
+    auto chunk = mojom::ResponseChunk::New();
+    chunk->text =
+        "Encoder cache weight: " + model_->data().encoder_cache_weight;
+    remote->OnResponse(std::move(chunk));
+  }
+  if (!model_->data().adapter_cache_weight.empty()) {
+    auto chunk = mojom::ResponseChunk::New();
+    chunk->text =
+        "Adapter cache weight: " + model_->data().adapter_cache_weight;
     remote->OnResponse(std::move(chunk));
   }
 
@@ -285,6 +316,13 @@ void FakeOnDeviceSession::CloneImpl(
   }
   new_session->priority_ = priority_;
   model_->AddSession(std::move(session), std::move(new_session));
+}
+
+void FakeOnDeviceSession::AsrStreamImpl(
+    on_device_model::mojom::AsrStreamOptionsPtr options,
+    mojo::PendingReceiver<on_device_model::mojom::AsrStreamInput> stream,
+    mojo::PendingRemote<on_device_model::mojom::AsrStreamResponder> responder) {
+  NOTIMPLEMENTED_LOG_ONCE();
 }
 
 FakeOnDeviceModel::Data::Data() = default;
@@ -415,6 +453,12 @@ void FakeOnDeviceModelService::LoadModel(
   if (params->assets.cache.IsValid()) {
     data.cache_weight = ReadFile(params->assets.cache);
   }
+  if (params->assets.encoder_cache.IsValid()) {
+    data.encoder_cache_weight = ReadFile(params->assets.encoder_cache);
+  }
+  if (params->assets.adapter_cache.IsValid()) {
+    data.adapter_cache_weight = ReadFile(params->assets.adapter_cache);
+  }
   data.adaptation_ranks = params->adaptation_ranks;
   auto test_model = std::make_unique<FakeOnDeviceModel>(
       settings_, std::move(data), params->performance_hint,
@@ -454,7 +498,7 @@ void FakeOnDeviceModelService::LoadTextSafetyModel(
 void FakeOnDeviceModelService::GetDevicePerformanceInfo(
     GetDevicePerformanceInfoCallback callback) {
   auto result = mojom::DevicePerformanceInfo::New();
-  result->performance_class = mojom::PerformanceClass::kVeryHigh;
+  result->performance_class = settings_->performance_class;
   base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
       FROM_HERE, base::BindOnce(std::move(callback), std::move(result)),
       settings_->estimated_performance_delay);

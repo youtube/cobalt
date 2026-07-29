@@ -180,6 +180,10 @@ public class MiniOriginBarControllerTest {
 
         mIsFormFieldFocused.onNodeAttributeUpdated(false, false);
         Assert.assertEquals(
+                MiniOriginState.SHOWING, mMiniOriginBarController.getCurrentStateForTesting());
+
+        mKeyboardVisibilityDelegate.setVisibilityForTests(false);
+        Assert.assertEquals(
                 MiniOriginState.NOT_READY, mMiniOriginBarController.getCurrentStateForTesting());
     }
 
@@ -453,6 +457,23 @@ public class MiniOriginBarControllerTest {
         verify(mLocationBarView).setTranslationX(locationBarStartPosition);
         verify(mLocationBarView).setScaleX(1.0f);
         verify(mLocationBarView).setScaleY(1.0f);
+    }
+
+    @Test
+    public void testAnimateWithKeyboard_animationWithZeroMaxHeight() {
+        doReturn(ControlsPosition.BOTTOM).when(mBrowserControlsSizer).getControlsPosition();
+        mMiniOriginBarController.onControlsPositionChanged(ControlsPosition.BOTTOM);
+        final MiniOriginWindowInsetsAnimationListener animationListener =
+                mMiniOriginBarController.getAnimationListenerForTesting();
+
+        final BoundsCompat bounds = new BoundsCompat(Insets.NONE, Insets.of(0, 0, 0, 0));
+
+        mIsFormFieldFocused.onNodeAttributeUpdated(true, false);
+
+        animationListener.onPrepare(mImeAnimation);
+        animationListener.onStart(mImeAnimation, bounds);
+        Assert.assertEquals(
+                MiniOriginState.READY, mMiniOriginBarController.getCurrentStateForTesting());
     }
 
     @Test

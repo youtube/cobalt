@@ -47,6 +47,7 @@
 <translation id="1607715478322902680">{COUNT,plural, =0{अपडेट लागू करता यावे यासाठी तुम्ही Chromium पुन्हा लाँच करण्याची तुमच्या ॲडमिनिस्ट्रेटरला गरज आहे}=1{अपडेट लागू करता यावे यासाठी तुम्ही Chromium पुन्हा लाँच करण्याची तुमच्या ॲडमिनिस्ट्रेटरला गरज आहे. तुमची गुप्त विंडो पुन्हा उघडणार नाही.}other{अपडेट लागू करता यावे यासाठी तुम्ही Chromium पुन्हा लाँच करण्याची तुमच्या ॲडमिनिस्ट्रेटरला गरज आहे. तुमच्या # गुप्त विंडो पुन्हा उघडणार नाहीत.}}</translation>
 <translation id="1625909126243026060">Chromium मधील महत्त्वाच्या गोपनीयता आणि सुरक्षा नियंत्रणांचे पुनरावलोकन करा</translation>
 <translation id="1640672724030957280">डाऊनलोड करीत आहे...</translation>
+<translation id="1680687534629375545">इमेज शोध ला या पेजबद्दल विचारा</translation>
 <translation id="1709772298389099340"><ph name="BROWSER_NAME" /> साठी वाढीव विशेषाधिकार देते.</translation>
 <translation id="1715127912119967311">ही वैशिष्ट्ये सुधारण्यात मदत करण्यासाठी, Chromium त्याच्यासोबतचे तुमचे संवाद Google कडे पाठवते. हा डेटा मानवी परीक्षणकर्त्यांद्वारे वाचला जाऊ शकतो, त्यावर प्रक्रिया केली जाऊ शकते आणि त्यावर भाष्य केले जाऊ शकते.</translation>
 <translation id="1722488837206509557">यामुळे तुम्हाला उपलब्ध डिव्हाइसमधून निवडता येईल आणि आशय दाखवता येईल.</translation>
@@ -98,11 +99,9 @@
 <translation id="2210682093923538346">धोकादायक साइट. Chromium ने नोटिफिकेशन काढून टाकली.</translation>
 <translation id="2236949375853147973">माझी अ‍ॅक्टिव्हिटी</translation>
 <translation id="2238130810669087193">तुमच्या सर्व डिव्हाइसवर तुमचे पत्ते आणि आणखी बऱ्याच गोष्टी मिळवण्यासाठी, Chromium मध्ये साइन इन करा. तुम्ही साइन इन केल्यावर हा पत्ता तुमच्या Google खाते मध्ये सेव्ह केला जाईल.</translation>
-<translation id="2240214816234246077">तुम्ही अलीकडे भेट दिलेली नाही. Chromium ने <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> परवानग्या काढून टाकल्या</translation>
 <translation id="2241627712206172106">तुम्ही कॉंप्युटर शेअर केल्यास, मित्र आणि कुटुंब स्वतंत्रपणे ब्राउझ करू शकतात आणि त्यांना पाहिजे तसे Chromium सेट अप करू शकतात.</translation>
 <translation id="2287771843518581140">{NUM_TABS,plural, =1{Chromium तुमच्या ब्राउझरचा वेग कमी करणारा टॅब थांबवण्याची शिफारस करते}other{Chromium तुमच्या ब्राउझरचा वेग कमी करणारे टॅब थांबवण्याची शिफारशी करते}}</translation>
 <translation id="2313870531055795960">Chromium मध्ये स्टोअर केलेल्या असुरक्षित साइटच्या सूचीमध्ये URL तपासतो. एखाद्या साइटने तुमचा पासवर्ड चोरण्याचा प्रयत्न केल्यास किंवा तुम्ही हानीकारक फाइल डाउनलोड केल्यावर, Chromium हे पेजवरील काही आशयाच्या समावेशासह, URL सुरक्षित ब्राउझिंग कडे पाठवू शकते.</translation>
-<translation id="232860113504534383">तुमचे Chromium, सर्व ठिकाणी</translation>
 <translation id="2343156876103232566">येथून तुमच्या Android फोनवर नंबर पाठवण्यासाठी, दोन्ही डिव्हाइसवर Chromium मध्ये साइन इन करा.</translation>
 <translation id="2359808026110333948">सुरू ठेवा</translation>
 <translation id="2361918034042471035">"<ph name="EXTENSION_NAME" />" या एक्स्टेंशनसाठी तुम्हाला Chromium मध्ये साइन इन करावे लागेल</translation>
@@ -143,6 +142,7 @@
 <translation id="2785438272836277133">या एक्स्टेंशनमध्ये मालवेअर आहे आणि ते असुरक्षित आहे. ते Chromium वरून काढून टाका, जेणेकरून ते तुमच्या वैयक्तिक माहितीच्या समावेशासह तुम्ही भेट देत असलेल्या साइटवरील तुमचा डेटा आता पाहू आणि बदलू शकत नाही.</translation>
 <translation id="2799223571221894425">पुन्हा लाँच करा</translation>
 <translation id="2803971713792056305">तुमचा Chromium</translation>
+<translation id="2816462166102338036">इमेज शोध वापरून हा व्हिडिओ शोधा</translation>
 <translation id="2841525013647267359">यामधून भाषांतर करा</translation>
 <translation id="2846251086934905009">इंस्टॉलसंबंधित एरर: इंस्टॉलर पूर्ण झाले नाही. इंस्टॉलेशन रद्द केले गेले आहे.</translation>
 <translation id="2847479871509788944">Chromium मधून काढून टाका...</translation>
@@ -163,6 +163,7 @@
 <translation id="3032787606318309379">Chromium वर जोडत आहे...</translation>
 <translation id="3038232873781883849">इंस्टॉल करण्यासाठी प्रतीक्षा करत आहे...</translation>
 <translation id="3045032126857188731">भाषांतराची भाषा: <ph name="LANGUAGE" /></translation>
+<translation id="3047590466164881923">फीडबॅक डायलॉग बंद करा</translation>
 <translation id="3068187312562070417">इतर Chromium प्रोफाइल</translation>
 <translation id="3068515742935458733">Google कडे क्रॅश अहवाल आणि <ph name="UMA_LINK" /> पाठवून Chromium अधिक चांगले करण्यात मदत करा</translation>
 <translation id="3079753320517721795">{NUM_DEVICES,plural, =0{1 USB device was being accessed by one or more Chromium extensions}=1{१ USB डिव्हाइस हे एक किंवा त्याहून अधिक Chromium एक्स्टेंशनद्वारे अ‍ॅक्सेस केले जात आहे}other{# USB डिव्हाइस ही एक किंवा त्याहून अधिक Chromium एक्स्टेंशनद्वारे अ‍ॅक्सेस केली जात आहेत}}</translation>
@@ -182,13 +183,13 @@
 <translation id="3258596308407688501">Chromium त्याची डेटा डिरेक्टरी वाचू किंवा लिहू शकत नाही:
 
 <ph name="USER_DATA_DIRECTORY" /></translation>
-<translation id="3268051428841342958">V8 हे Chromium चे JavaScript आणि WebAssembly इंजीन आहे, जे साइटच्या परफॉर्मन्समध्ये सुधारणा करण्यासाठी वापरले जाते</translation>
 <translation id="3286538390144397061">त्वरित रीस्टार्ट करा</translation>
 <translation id="328888136576916638">Google API की गहाळ आहेत. Chromium ची काही कार्यक्षमता अक्षम केली जाईल.</translation>
 <translation id="3296368748942286671">Chromium बंद असताना पार्श्वभूमी ॲप्लिकेशन चालवणे सुरू ठेवा</translation>
 <translation id="3313189106987092621">असुरक्षित कनेक्शन वापरून कोणतीही साइट लोड करण्यापूर्वी Chromium तुम्हाला चेतावणी देईल</translation>
 <translation id="3316771292331273802">तुम्ही Chromium वर साइन इन केले असल्यास, सर्व Chromium विंडो बंद केल्यावर तुमचे Google खाते वगळता तुम्हाला बहुतांश साइटवरून साइन आउट केले जाईल. साइटना तुम्हाला लक्षात ठेवू देण्यासाठी, <ph name="SETTINGS_LINK" />.</translation>
 <translation id="3352986031709923790">शोध क्षेत्राचा सर्वात वरचा उजवा कोपरा: उजवीकडे <ph name="RIGHT" />%, सर्वात वरती <ph name="TOP" />%</translation>
+<translation id="3369405342922656244">इमेज शोध वापरून हे पेज शोधा</translation>
 <translation id="3387527074123400161">ChromiumOS</translation>
 <translation id="3406848076815591792">सध्याच्या Chromium प्रोफाइलवर स्विच करायचे आहे का?</translation>
 <translation id="3412460710772753638">या डिव्हाइसवरील पासवर्ड मॅनेजर मध्ये</translation>
@@ -294,6 +295,7 @@
 <translation id="4724676981607797757">सपोर्ट नसलेल्या प्रोटोकॉलसंबंधित एररमुळे इंस्टॉलेशन यशस्वी झाले नाही.</translation>
 <translation id="4746050847053251315">तरीही Chromium बंद करायचे?</translation>
 <translation id="4748217263233248895">Chromium साठी एक विशिष्ट सुरक्षितता अपडेट आत्ताच लागू केले. आता रीस्टार्ट करा आणि मग आम्ही तुमचे टॅब रिस्टोअर करू.</translation>
+<translation id="4771701986670315895">तुम्ही अलीकडे भेट दिलेली नाही. Chromium ने <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> आणि आणखी <ph name="COUNT" /> परवानग्या काढून टाकल्या आहेत.</translation>
 <translation id="4788777615168560705">Chromium तुमचे पासवर्ड तपासू शकत नाही. २४ तासांनंतर पुन्हा प्रयत्न करा किंवा <ph name="BEGIN_LINK" />तुमच्या Google खाते मध्ये पासवर्ड तपासा<ph name="END_LINK" />.</translation>
 <translation id="479167709087336770">Google Search मध्ये वापरत असेलेले समान स्पेल चेकर हे वापरते. तुम्ही ब्राउझरमध्ये टाइप करत असलेला मजकूर Google कडे पाठवला जातो. तुम्ही हे वर्तन कधीही सेटिंग्ज मध्ये बदलू शकता.</translation>
 <translation id="4814736265800133385">खात्याशिवाय Chromium वापरा</translation>
@@ -306,11 +308,13 @@
 <translation id="4987820182225656817">अतिथी कोणतीही गोष्ट मागे न सोडता Chromium वापरू शकतात.</translation>
 <translation id="4994636714258228724">आपल्या स्वतःस Chromium वर जोडा</translation>
 <translation id="5123973130450702873">Chromium ला तुमचे हात ट्रॅक करण्याच्या परवानगीची आवश्यकता आहे</translation>
+<translation id="5141988424377517949">तुम्ही अलीकडे भेट दिलेली नाही. Chromium ने <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" />, <ph name="PERMISSION_3" /> परवानग्या काढून टाकल्या आहेत.</translation>
 <translation id="5174969993834422967">तुम्ही सहसा सूचना ब्लॉक करता. या साइटला तुम्हाला सूचित करू देण्यासाठी, तुमच्या स्थान बारच्या उजव्या कोपऱ्यातील नोटिफिकेशन आयकनवर क्लिक करा.</translation>
 <translation id="5187123684706427865">Chromium खात्यासाठी री-ऑथेंटिकेशन आवश्यक आहे</translation>
 <translation id="5224391634244552924">सेव्ह केलेले पासवर्ड नाहीत. तुम्ही तुमचे पासवर्ड सेव्ह केल्यावर Chromium ते तपासू शकते.</translation>
 <translation id="5231355151045086930">Chromium मधून साइन आउट करा</translation>
 <translation id="5234764350956374838">डिसमिस करा</translation>
+<translation id="5254739261293693943">या व्हिडिओबद्दल विचारा</translation>
 <translation id="5277894862589591112">तुम्ही केलेले बदल लागू करण्यासाठी, Chromium रीलाँच करा</translation>
 <translation id="5286907366254680517">डिटेक्ट केली</translation>
 <translation id="5294316920224716406">गुप्त मोडमध्ये ब्राउझ करताना, असुरक्षित कनेक्शन वापरून साइट लोड करण्यापूर्वी Chromium तुम्हाला चेतावणी देईल</translation>
@@ -347,7 +351,6 @@
 <translation id="5690427481109656848">Google LLC</translation>
 <translation id="5698481217667032250">Chromium या भाषेत डिस्प्ले करा</translation>
 <translation id="569897634095159764">इंटरनेटशी कनेक्ट करता आले नाही. प्रॉक्सी सर्व्हरसाठी ऑथेंटिकेशन आवश्यक आहे.</translation>
-<translation id="5761096224651992291">तुम्ही अलीकडे भेट दिलेली नाही. Chromium ने <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" />, <ph name="PERMISSION_3" /> परवानग्या काढून टाकल्या</translation>
 <translation id="5768371961535086509">Chromium इनॅक्टिव्ह टॅबमधील मेमरी मोकळी करते. हे अ‍ॅक्टिव्ह टॅब आणि इतर अ‍ॅप्सना आणखी काँप्युटर स्रोत देते व Chromium ला जलद ठेवते. तुम्ही तुमच्या इनॅक्टिव्ह टॅबवर परत गेल्यावर ते पुन्हा आपोआप अ‍ॅक्टिव्ह होतात. <ph name="BEGIN_LINK" />मेमरी सेव्हर बद्दल अधिक जाणून घ्या<ph name="END_LINK" /></translation>
 <translation id="5775198138441669627">तुम्ही तुमचा पासफ्रेझ विसरल्यास किंवा हे सेटिंग बदलायचे असल्यास, तुमच्या खात्यामधील Chromium डेटा <ph name="SETTINGS_LINK" /> हे करा</translation>
 <translation id="5800158606660203929">Chromium कस्टमाइझ करा आणि नियंत्रित करा. Chromium तुमचा डीफॉल्ट म्हणून सेट करा.</translation>
@@ -364,6 +367,7 @@
 <translation id="5924017743176219022">इंटरनेटशी कनेक्ट करत आहे...</translation>
 <translation id="5941711191222866238">कमी करा</translation>
 <translation id="5949225980829865667">तुमच्या सर्व डिव्हाइसवर हा बुकमार्क आणि आणखी बरेच काही मिळवण्यासाठी, Chromium मध्ये साइन इन करा</translation>
+<translation id="5968400720580217226">AI मोड</translation>
 <translation id="5972142260211327093">Chromium ने तुम्हाला रँडम पद्धतीने अ‍ॅक्टिव्ह चाचणीमध्ये सामील केल्यास, तुमचा ब्राउझिंग इतिहास हा तुम्ही पाहता त्या जाहिराती आणि खाली दिलेली अंदाजित स्वारस्ये यांवर परिणाम करतो. तुमच्या गोपनीयतेचे संरक्षण करण्यासाठी, Chromium दर महिन्याला रोलिंगच्या आधारे तुमची स्वारस्ये हटवते. तुम्ही स्वारस्ये काढून टाकत नाही तोपर्यंत ती रिफ्रेश होतात.</translation>
 <translation id="5986585015444752010">{COUNT,plural, =1{Chromium १ मिनिटासाठी वापरले जात नाही, तेव्हा तुमची संस्था ते आपोआप बंद करते.}other{Chromium # मिनिटांसाठी वापरले जात नाही, तेव्हा तुमची संस्था ते आपोआप बंद करते.}}</translation>
 <translation id="5987687638152509985">सिंक करण्यासाठी Chromium अपडेट करा</translation>
@@ -389,6 +393,7 @@
 <translation id="6183079672144801177">तुम्ही तुमच्या <ph name="TARGET_DEVICE_NAME" /> वर Chromium मध्ये साइन इन केले असल्याची खात्री करा आणि त्यानंतर पुन्हा पाठवून पहा.</translation>
 <translation id="6212496753309875659">या कॉंप्युटरवर आधीपासून Chromium ची अगदी अलीकडील आवृत्ती आहे. सॉफ्‍टवेअर काम करत नसल्‍यास, कृपया Chromium अनइंस्टॉल करा आणि पुन्‍हा प्रयत्‍न करा.</translation>
 <translation id="6219195342503754812">{0,plural, =0{Chromium आता पुन्हा लाँच होईल}=1{Chromium एका सेकंदामध्ये पुन्हा लाँच होईल}other{Chromium # सेकंदांमध्ये पुन्हा लाँच होईल}}</translation>
+<translation id="6239161312595354541">इमेज शोध ला या व्हिडिओबद्दल विचारा</translation>
 <translation id="6241367896540709610">Chromium ला फाइल डाउनलोड करण्यासाठी स्टोरेज अ‍ॅक्सेस करण्याची परवानगी आवश्यक आहे</translation>
 <translation id="6245734527075554892">Chromium मध्ये स्टोअर केलेल्या असुरक्षित साइटच्या सूचीसह URLs तपासते</translation>
 <translation id="6248213926982192922">Chromium ला डीफॉल्‍ट ब्राउझर बनवा</translation>
@@ -442,7 +447,6 @@
 काही वैशिष्‍ट्ये उपलब्ध नसू शकतील. कृपया एक भिन्न प्रोफाइल डिरेक्टरी नमूद करा किंवा Chromium ची नवीन आवृत्ती वापरा.</translation>
 <translation id="6729124504294600478">पर्सनलायझेशन व इतर वैशिष्ट्ये मिळवण्यासाठी, वेब आणि अ‍ॅप अ‍ॅक्टिव्हिटी व लिंक केलेल्या Google सेवांमध्ये Chromium चा समावेश करा</translation>
 <translation id="6734291798041940871">तुमच्या कॉंप्युटरवर सर्व वापरकर्त्यांसाठी आधीच Chromium इंस्टॉल केले आहे.</translation>
-<translation id="674245979920622322">तुम्ही अलीकडे भेट दिलेली नाही. Chromium ने <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> आणि आणखी <ph name="COUNT" /> परवानग्या काढून टाकल्या</translation>
 <translation id="6751374565094704799">Chromium चे V8 इंजीन साइटचा वेग वाढवते, पण त्यामुळे Chromium ची हल्ले रोखण्याची क्षमता किंचित कमी होते. हे सेटिंग सुरू आहे.</translation>
 <translation id="67706546131546258">Chromium हे ही फाइल स्कॅन करण्याची शिफारस करते, कारण ती धोकादायक असू शकते.</translation>
 <translation id="6779406956731413166">ChromiumOS हे अतिरिक्त <ph name="BEGIN_LINK_CROS_OSS" />मुक्त स्रोत सॉफ्टवेअर<ph name="END_LINK_CROS_OSS" /> याद्वारे तयार करण्यात आले आहे.</translation>
@@ -450,11 +454,13 @@
 <translation id="6847869444787758381">तुमचे पासवर्ड कधीही धोक्यात असल्यास, Chromium तुम्हाला कळवते</translation>
 <translation id="684888714667046800">इंटरनेटशी कनेक्ट करता आले नाही. तुम्ही फायरवॉल वापरल्यास, कृपया <ph name="PRODUCT_EXE_NAME" /> अनुमती सूचीमध्ये असल्याची खात्री करा.</translation>
 <translation id="6857782730669500492">Chromium - <ph name="PAGE_TITLE" /></translation>
+<translation id="6862030660799253820">इमेज शोध वापरून ही इमेज शोधा</translation>
 <translation id="6873893289264747459">Chromium ला "<ph name="EXTENSION_NAME" />" मध्ये मालवेअरचा समावेश असल्याचे आढळले</translation>
 <translation id="6877155553248388166">शोध क्षेत्राच्या तळाशी उजवा कोपरा: उजवीकडे <ph name="RIGHT" />%, तळाशी <ph name="BOTTOM" />%</translation>
 <translation id="6896758677409633944">कॉपी करा</translation>
 <translation id="6901631050894301805">Chromium ला तुमचा डीफॉल्ट ब्राउझर म्हणून सेट करा आणि तुमच्या टास्कबारमध्ये तो पिन करा</translation>
 <translation id="6929417474050522668">चाचण्या सुरू असताना, जाहिरात मापन हे तुम्ही भेट देत असलेल्या साइटना Chromium कडे माहितीची विनंती करण्यास अनुमती देते, जे साइटला तिच्या जाहिरातींचा परफॉर्मन्स मोजण्यात मदत करते. जाहिरात मापन हे साइटदरम्यान शक्य तितकी कमी माहिती ट्रान्सफर करून क्रॉस-साइट ट्रॅकिंग प्रतिबंधित करते.</translation>
+<translation id="6934579572334859869">इमेज शोध ला इमेजविषयी माहिती विचारा</translation>
 <translation id="6940431691900807093">त्यानंतर, तुम्ही पाहता त्या जाहिराती पर्सनलाइझ करण्यासाठी, तुम्ही भेट देता ती साइट Chromium कडे तुमची स्वारस्ये पाहण्याची अनुमती मागू शकते. Chromium कमाल तीन स्वारस्ये शेअर करू शकते.</translation>
 <translation id="6964305034639999644">लिंक Chromium गुप्त विंडो मध्ये उघडा</translation>
 <translation id="6965382102122355670">ठीक आहे</translation>
@@ -489,6 +495,7 @@ Chromium तुमची सेटिंग्ज रिकव्हर कर�
 <translation id="734373864078049451">तुमचे वेब, बुकमार्क आणि अन्य Chromium आशय येथे थेट आहे.</translation>
 <translation id="7349591376906416160">तुमच्या सिस्टीम अ‍ॅडमिनिस्ट्रेटरने <ph name="TARGET_URL_HOSTNAME" /> अ‍ॅक्सेस करण्यासाठी <ph name="ALTERNATIVE_BROWSER_NAME" /> उघडण्याकरिता Chromium कॉन्फिगर केले आहे.</translation>
 <translation id="7352651011704765696">काहीतरी चूक झाली</translation>
+<translation id="7376384068949534168">तुम्ही अलीकडे भेट दिलेली नाही. Chromium ने <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> परवानग्या काढून टाकल्या आहेत.</translation>
 <translation id="7384121030444253939">या एक्स्टेंशनला यापुढे सपोर्ट नाही. त्याऐवजी तुम्ही ते काढून टाकावे अशी Chromium शिफारस करते.</translation>
 <translation id="7449453770951226939"><ph name="PAGE_TITLE" /> - Chromium डेव्हलपर</translation>
 <translation id="7450541714075000668">मजकूर कॉपी केला</translation>
@@ -497,12 +504,12 @@ Chromium तुमची सेटिंग्ज रिकव्हर कर�
 <translation id="7461356015007898716">भविष्यातील Chromium अपडेट मिळवण्यासाठी, तुमच्याकडे Windows 10 किंवा त्यापुढील आवृत्ती असणे आवश्यक आहे. हा कॉंप्युटर Windows 7 वापरत आहे.</translation>
 <translation id="7467949745582939695">Chromium पुन्हा लाँच करायचे का?</translation>
 <translation id="7483335560992089831">सध्‍या सुरू असलेल्‍या सारख्याच Chromium आवृत्तीची स्‍थापना होऊ शकत नाही. कृपया Chromium बंद करा आणि पुन्‍हा प्रयत्‍न करा.</translation>
+<translation id="7517403744065880907">तुम्ही Chromium मध्ये साइन इन केलेले असताना, तुमचे Google खाते यामध्ये तुमचे पासवर्ड सेव्ह करू व वापरू शकता आणि आणखी बरेच काही करू शकता. <ph name="LEARN_MORE" /></translation>
 <translation id="751935028865900641">साइट कदाचित अपेक्षेप्रमाणे काम करतील. तुम्ही Chromium वर साइन इन केले असल्यास, सर्व Chromium विंडो बंद केल्यावर तुमचे Google खाते वगळता तुम्हाला बहुतांश साइटवरून साइन आउट केले जाईल.</translation>
 <translation id="753534427205733210">{0,plural, =1{Chromium एका मिनिटामध्ये पुन्हा लॉंच होईल}other{Chromium # मिनिटांमध्ये पुन्हा लाँच होईल}}</translation>
 <translation id="7565444033145385702">तुमच्या डेटाचे संरक्षण करण्यासाठी, तुम्ही अलीकडील भेट न दिलेल्या साइटवरील परवानग्या Chromium ला काढून टाकू द्या.</translation>
 <translation id="7582945390259497898">Chromium तुमच्या स्वारस्यांबाबत अंदाज लावू शकते. त्यानंतर, तुम्ही पाहता त्या जाहिराती पर्सनलाइझ करण्यासाठी, तुम्ही भेट देता ती साइट Chromium कडे तुमची स्वारस्ये पाहण्याची अनुमती मागू शकते.</translation>
 <translation id="7583399374488819119"><ph name="COMPANY_NAME" /> इंस्टॉलर</translation>
-<translation id="7585391435984513350">तुम्ही अलीकडे भेट दिलेली नाही. Chromium ने <ph name="PERMISSION" /> परवानगी काढून टाकली</translation>
 <translation id="761356813943268536">Chromium तुमचा कॅमेरा आणि मायक्रोफोन वापरत आहे.</translation>
 <translation id="7617377681829253106">Chromium आता उत्कृष्ट झाले आहे</translation>
 <translation id="7622753900276619808">तुमच्याकडे आता Chromium मध्ये आणखी वैशिष्ट्ये उपलब्ध आहेत</translation>
@@ -522,9 +529,9 @@ Chromium तुमची सेटिंग्ज रिकव्हर कर�
 <translation id="7828947555739565424">या खात्यासह असलेली Chromium प्रोफाइल आधीपासून या डिव्हाइसवर अस्तित्वात आहे</translation>
 <translation id="7845233973568007926">इंस्टॉल केल्याबद्दल धन्यवाद. तुम्ही <ph name="BUNDLE_NAME" /> वापरण्यापूर्वी तुमचा कॉंप्युटर रीस्टार्ट करणे आवश्यक आहे.</translation>
 <translation id="7859018312476869945">तुम्ही अ‍ॅड्रेस बार किंवा सर्च बॉक्समध्ये टाइप करता, तेव्हा अधिक चांगल्या सूचना मिळवण्यासाठी तुम्ही जे टाइप करता ते Chromium तुमच्या डीफॉल्ट शोध इंजीनला पाठवते. हे गुप्त मोड मध्ये बंद आहे.</translation>
-<translation id="786097294490253281">तुम्ही 'समजले' वर क्लिक करता, तेव्हा Chromium मध्ये साइन इन केलेले असताना, तुमच्या Google खाते यामध्ये तुम्ही तुमचे पासवर्ड सेव्ह करू शकता आणि आणखी बरेच काही वापरू शकता. <ph name="LEARN_MORE" /></translation>
 <translation id="7867198900892795913">Chromium नवीनतम आवृत्तीवर अपडेट होऊ शकले नाही, त्यामुळे तुम्ही नवीन वैशिष्ट्ये आणि सुरक्षितता निराकरणे गमावत आहात.</translation>
 <translation id="7872446069773932638">डाउनलोड करत आहे... <ph name="SECONDS" /> सेकंद शिल्लक आहे(आहेत)</translation>
+<translation id="7877212753140190672">इमेजविषयी माहिती विचारा</translation>
 <translation id="7888981273428720788">Chromium तुमचा डीफॉल्ट म्हणून सेट करा</translation>
 <translation id="7934340546140346950">Chromium हे शक्य असेल तेव्हा असुरक्षित कनेक्शन HTTPS वर आपोआप अपग्रेड करते</translation>
 <translation id="7937630085815544518">तुम्ही <ph name="USER_EMAIL_ADDRESS" /> या रुपात Chromium मध्ये साइन इन केले होते. कृपया पुन्हा साइन इन करण्यासाठी समान खाते वापरा.</translation>
@@ -553,6 +560,7 @@ Chromium तुमची सेटिंग्ज रिकव्हर कर�
 <translation id="8248265253516264921">इमेजचे उपयोगी वर्णन नसल्यास, Chromium तुमच्यासाठी ते देण्याचा प्रयत्न करेल. वर्णने तयार करण्यासाठी, इमेज Google ला पाठवल्या जातात. तुम्ही हे सेटिंग्जमध्ये कधीही बंद करू शकता.</translation>
 <translation id="8254601181414348851">नवीन प्रोफाइलमध्ये Chromium मध्ये साइन इन करायचे आहे का?</translation>
 <translation id="8286943863733751221">असुरक्षित साइट आणि डाउनलोडबद्दल <ph name="BEGIN_LINK" />Chromium तुम्हाला चेतावणी देते<ph name="END_LINK" /></translation>
+<translation id="8295827201165805317">तुम्ही अलीकडे भेट दिलेली नाही. Chromium ने <ph name="PERMISSION" /> परवानगी काढून टाकली आहे.</translation>
 <translation id="8313851650939857356">स्टार्टअप एरर: <ph name="STARTUP_ERROR" />.</translation>
 <translation id="8318772038038596122"><ph name="TIMEOUT_DURATION" /> कालावधीसाठी Chromium वापरले जात नाही, तेव्हा तुमची संस्था ते बंद करते.</translation>
 <translation id="8321888067342493336">इमेज म्हणून सेव्ह करा</translation>
@@ -622,6 +630,7 @@ Chromium तुमची सेटिंग्ज रिकव्हर कर�
 <translation id="9158494823179993217">तुमच्या सिस्टीम अ‍ॅडमिनिस्ट्रेटरने <ph name="TARGET_URL_HOSTNAME" />ॲक्सेस करण्याकरिता पर्यायी ब्राउझर उघडण्यासाठी Chromium कॉन्फिगर केले आहे.</translation>
 <translation id="9185526690718004400">&amp;Chromium अपडेट करण्यासाठी पुन्हा लाँच करा</translation>
 <translation id="9190841055450128916">Chromium (mDNS-मध्ये)</translation>
+<translation id="9206863043651638213">तुम्ही Chromium मध्ये साइन इन केलेले असताना आणखी बरेच काही मिळवा</translation>
 <translation id="924957577793602335">Chromium ला तुमचे हक्काचे ठिकाण बनवा</translation>
 <translation id="93478295209880648">Chromium ला आता Windows XP किंवा Windows Vista चा सपोर्ट नसल्यामुळे ते आता कदाचित अचूकपणे काम करणार नाही</translation>
 <translation id="945522503751344254">अभिप्राय पाठवा</translation>

@@ -14,7 +14,7 @@ TEST(FieldTypesTest, TypeStringConversion) {
   EXPECT_EQ(TypeNameToFieldType(FieldTypeToStringView(NO_SERVER_DATA)),
             NO_SERVER_DATA);
   for (int i = 0; i < MAX_VALID_FIELD_TYPE; ++i) {
-    if (FieldType raw_value = static_cast<FieldType>(i);
+    if (FieldType raw_value = static_cast<FieldType>(i);  // nocheck
         ToSafeFieldType(raw_value, NO_SERVER_DATA) != NO_SERVER_DATA) {
       EXPECT_EQ(TypeNameToFieldType(FieldTypeToStringView(raw_value)),
                 raw_value);
@@ -66,7 +66,6 @@ TEST(FieldTypesTest, IsValidFieldType) {
       CREDIT_CARD_TYPE,
       CREDIT_CARD_VERIFICATION_CODE,
       COMPANY_NAME,
-      FIELD_WITH_DEFAULT_VALUE,
       MERCHANT_EMAIL_SIGNUP,
       MERCHANT_PROMO_CODE,
       PASSWORD,
@@ -148,6 +147,9 @@ TEST(FieldTypesTest, IsValidFieldType) {
       NATIONAL_ID_CARD_EXPIRATION_DATE,
       NATIONAL_ID_CARD_ISSUE_DATE,
       NATIONAL_ID_CARD_ISSUING_COUNTRY,
+      REDRESS_NUMBER,
+      KNOWN_TRAVELER_NUMBER,
+      KNOWN_TRAVELER_NUMBER_EXPIRATION_DATE,
       ADDRESS_HOME_ZIP_PREFIX,
       ADDRESS_HOME_ZIP_SUFFIX,
   };

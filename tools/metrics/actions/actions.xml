@@ -3749,6 +3749,24 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
+<action name="Android.WindowManager.OpenActiveWindow">
+  <owner>aishwaryarj@google.com</owner>
+  <owner>rathomas@google.com</owner>
+  <description>
+    User tapped on 'Open' in Chrome's in-app window manager to bring an active
+    Window to the foreground.
+  </description>
+</action>
+
+<action name="Android.WindowManager.OpenInactiveWindow">
+  <owner>aishwaryarj@google.com</owner>
+  <owner>rathomas@google.com</owner>
+  <description>
+    User tapped on 'Restore' in Chrome's in-app window manager to restore an
+    inactive Window and bring it to the foreground.
+  </description>
+</action>
+
 <action name="Android.WindowManager.SecondaryMenu">
   <owner>jinsukkim@chromium.org</owner>
   <owner>twellington@chromium.org</owner>
@@ -6248,6 +6266,15 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
+<action name="BottomSheet_Password_SuggestionAccepted_Backup">
+  <owner>noemies@google.com</owner>
+  <description>
+    The user tapped on the &quot;Continue&quot; button from the Password
+    Suggestion Bottom Sheet to fill the current form with the selected backup
+    password suggestion. iOS only.
+  </description>
+</action>
+
 <action name="BrowserActions.MenuOpened">
   <obsolete>Deprecated in M77 with the removal of Browser Actions.</obsolete>
   <owner>ltian@chromium.org</owner>
@@ -7133,7 +7160,7 @@ should be able to be added at any place in this file.
 
 <action name="CloseTab_EndTabInSplit">
   <owner>agale@chromium.org</owner>
-  <owner>chrome-desktop-ui-sea@google.com</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
   <description>
     User clicked the close tab button; the tab was the last tab in a split.
   </description>
@@ -7176,7 +7203,7 @@ should be able to be added at any place in this file.
 
 <action name="CloseTab_StartTabInSplit">
   <owner>agale@chromium.org</owner>
-  <owner>chrome-desktop-ui-sea@google.com</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
   <description>
     User clicked the close tab button; the tab was the first tab in a split.
   </description>
@@ -16605,6 +16632,15 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
+<action name="KeyboardAccessory_SuggestionAccepted_BackupPassword">
+  <owner>noemies@google.com</owner>
+  <owner>sugoi@google.com</owner>
+  <description>
+    The user tapped on a backup password suggestion from the Keyboard Accessory
+    to fill the current form. iOS only.
+  </description>
+</action>
+
 <action name="KeyboardShortcutViewer.CreateWindow">
   <owner>wutao@chromium.org</owner>
   <description>
@@ -21312,9 +21348,19 @@ should be able to be added at any place in this file.
   <owner>noemies@google.com</owner>
   <owner>sugoi@google.com</owner>
   <description>
-    The user tapped on the &quot;Autofill Form&quot; button of a password
+    The user tapped on the &quot;Autofill form&quot; button of a password
     suggestion from the All Passwords Manual Fallback view, which is opened by
-    tapping on the &quot;Select Password...&quot; button in the Password Manual
+    tapping on the &quot;Select password...&quot; button in the Password Manual
+    Fallback view, to fill the current form with the suggestion. iOS only.
+  </description>
+</action>
+
+<action name="ManualFallback_AllPasswords_SuggestionAccepted_Backup">
+  <owner>noemies@google.com</owner>
+  <description>
+    The user tapped on the &quot;Autofill form&quot; button of a backup password
+    suggestion from the All Passwords Manual Fallback view, which is opened by
+    tapping on the &quot;Select password...&quot; button in the Password Manual
     Fallback view, to fill the current form with the suggestion. iOS only.
   </description>
 </action>
@@ -21514,6 +21560,14 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
+<action name="ManualFallback_Password_SelectBackupPassword">
+  <owner>noemies@google.com</owner>
+  <description>
+    The user tapped on a backup password chip in the Password Manual Fallback
+    view.
+  </description>
+</action>
+
 <action name="ManualFallback_Password_SelectPassword">
   <owner>tmartino@chromium.org</owner>
   <owner>olivierrobin@chromium.org</owner>
@@ -21534,7 +21588,16 @@ should be able to be added at any place in this file.
   <owner>noemies@google.com</owner>
   <owner>sugoi@google.com</owner>
   <description>
-    The user tapped on the &quot;Autofill Form&quot; button of a password
+    The user tapped on the &quot;Autofill form&quot; button of a password
+    suggestion from the Password Manual Fallback view to fill the current form
+    with the suggestion. iOS only.
+  </description>
+</action>
+
+<action name="ManualFallback_Password_SuggestionAccepted_Backup">
+  <owner>noemies@google.com</owner>
+  <description>
+    The user tapped on the &quot;Autofill form&quot; button of a backup password
     suggestion from the Password Manual Fallback view to fill the current form
     with the suggestion. iOS only.
   </description>
@@ -24649,6 +24712,15 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
+<action name="MobileMenuAddAnyGroup.BeforeTabRestore">
+  <owner>skym@chromium.org</owner>
+  <owner>clank-tab-dev@google.com</owner>
+  <description>
+    Any sort of add tab to new/existing group menu item before tab restore
+    completed.
+  </description>
+</action>
+
 <action name="MobileMenuAddToBookmarks">
   <owner>aurimas@chromium.org</owner>
   <description>
@@ -24884,6 +24956,15 @@ should be able to be added at any place in this file.
   <description>User pressed 'New incognito tab' in the app menu.</description>
 </action>
 
+<action name="MobileMenuNewIncognitoTab.BeforeTabRestore">
+  <owner>skym@chromium.org</owner>
+  <owner>clank-tab-dev@google.com</owner>
+  <description>
+    User pressed 'New incognito tab' in the app menu before tab restore
+    completed.
+  </description>
+</action>
+
 <action name="MobileMenuNewIncognitoWindow">
   <owner>shuyng@google.com</owner>
   <owner>clank-large-form-factors@google.com</owner>
@@ -24895,6 +24976,14 @@ should be able to be added at any place in this file.
 <action name="MobileMenuNewTab">
   <owner>aurimas@chromium.org</owner>
   <description>User pressed 'New tab' in the app menu.</description>
+</action>
+
+<action name="MobileMenuNewTab.BeforeTabRestore">
+  <owner>skym@chromium.org</owner>
+  <owner>clank-tab-dev@google.com</owner>
+  <description>
+    User pressed 'New tab' in the app menu before tab restore completed.
+  </description>
 </action>
 
 <action name="MobileMenuNewTab.StartSurfaceFinale">
@@ -25847,6 +25936,14 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
+<action name="MobilePasswordBreachOpenPasswordManager">
+  <owner>noemies@google.com</owner>
+  <description>
+    Reported when user opens the Password Manager page from the password breach
+    view. iOS only.
+  </description>
+</action>
+
 <action name="MobilePasswordCheckupCoordinatorCheckStateCanceled"
     not_user_triggered="true">
   <owner>noemies@google.com</owner>
@@ -26374,20 +26471,20 @@ should be able to be added at any place in this file.
 </action>
 
 <action name="MobileReauthFailed">
+  <obsolete>Deprecated as of 08/2025</obsolete>
   <owner>noemies@google.com</owner>
   <description>
-    Reported when reauthentication failed. iOS only. TODO(crbug.com/409680593):
-    This user action was added to investigate a crash. Remove when done with the
-    investigation.
+    Reported when reauthentication failed. iOS only. This user action was added
+    to investigate a crash, see crbug.com/409680593.
   </description>
 </action>
 
 <action name="MobileReauthSuccessful">
+  <obsolete>Deprecated as of 08/2025</obsolete>
   <owner>noemies@google.com</owner>
   <description>
-    Reported when reauthentication succeeded. iOS only.
-    TODO(crbug.com/409680593): This user action was added to investigate a
-    crash. Remove when done with the investigation.
+    Reported when reauthentication succeeded. iOS only. This user action was
+    added to investigate a crash, see crbug.com/409680593.
   </description>
 </action>
 
@@ -26478,6 +26575,10 @@ should be able to be added at any place in this file.
 </action>
 
 <action name="MobileRecentTabManagerRecentTabOpenedSearchResult">
+  <obsolete>
+    Deprecated as of 7/2025. Recent tabs are no longer displayed in the tab
+    grid.
+  </obsolete>
   <owner>michaeldo@chromium.org</owner>
   <owner>mrefaat@chromium.org</owner>
   <description>
@@ -26518,6 +26619,10 @@ should be able to be added at any place in this file.
 </action>
 
 <action name="MobileRecentTabManagerTabFromOtherDeviceOpenedSearchResult">
+  <obsolete>
+    Deprecated as of 7/2025. Recent tabs are no longer displayed in the tab
+    grid.
+  </obsolete>
   <owner>michaeldo@chromium.org</owner>
   <owner>mrefaat@chromium.org</owner>
   <description>
@@ -45404,6 +45509,16 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
+<action name="TabGroups.HubSearchTabGroupSuggestionClicked">
+  <owner>wylieb@google.com</owner>
+  <owner>bjfong@google.com</owner>
+  <owner>clank-tab-dev@google.com</owner>
+  <description>
+    Recorded when a surfaced tab group suggestion matching the typed user query
+    is clicked in the hub search bar.
+  </description>
+</action>
+
 <action name="TabGroups.RestoreFromTabGroupPane">
   <owner>wylieb@google.com</owner>
   <owner>evanluo@google.com</owner>
@@ -46030,6 +46145,10 @@ should be able to be added at any place in this file.
 </action>
 
 <action name="TabsSearch.SuggestedActions.RecentTabs">
+  <obsolete>
+    Deprecated as of 7/2025. Recent tabs are no longer displayed in the tab
+    grid.
+  </obsolete>
   <owner>michaeldo@chromium.org</owner>
   <owner>mrefaat@chromium.org</owner>
   <description>
@@ -50026,6 +50145,8 @@ should be able to be added at any place in this file.
       label="For iOSDefaultBrowserBadgeEligibility feature"/>
   <suffix name="iOSDefaultBrowserBannerPromoFeature"
       label="For iOS Default browser banner promo."/>
+  <suffix name="iOSDefaultBrowserOffCyclePromo"
+      label="For iOSDefaultBrowserOffCyclePromo feature"/>
   <suffix name="iOSDefaultBrowserOverflowMenuBadge"
       label="For iOSDefaultBrowserOverflowMenuBadge feature"/>
   <suffix name="iOSDefaultBrowserSettingsBadge"
@@ -50053,6 +50174,8 @@ should be able to be added at any place in this file.
       label="For iOSLensOverlayEntrypoint IPH feature"/>
   <suffix name="iOSLensOverlayEscapeHatchTip"
       label="For iOSLensOverlayEscapeHatchTip IPH feature"/>
+  <suffix name="iOSOneTimeDefaultBrowserNotification"
+      label="For iOSOneTimeDefaultBrowserNotification feature"/>
   <suffix name="iOSOverflowMenuCustomization"
       label="For iOSOverflowMenuCustomization feature"/>
   <suffix name="IOSPageActionMenu" label="For IOSPageActionMenu IPH"/>
@@ -51063,6 +51186,12 @@ should be able to be added at any place in this file.
 
 <action-suffix separator="." ordering="suffix">
   <suffix name="AddedToComparisonTable" label="Added to comparison table"/>
+  <affected-action name="Toast.ActionButtonClicked"/>
+  <affected-action name="Toast.CloseButtonClicked"/>
+</action-suffix>
+
+<action-suffix separator="." ordering="suffix">
+  <suffix name="DiceUserMigrated" label="DICe user migrated"/>
   <affected-action name="Toast.ActionButtonClicked"/>
   <affected-action name="Toast.CloseButtonClicked"/>
 </action-suffix>

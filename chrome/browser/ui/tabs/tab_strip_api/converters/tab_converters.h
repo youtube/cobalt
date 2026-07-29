@@ -15,9 +15,11 @@ namespace tabs_api::converters {
 tabs_api::mojom::TabPtr BuildMojoTab(tabs::TabHandle handle,
                                      const TabRendererData& data);
 
+// Builds a mojom::TabCollectionPtr based off a TabCollection.
+// Note: Handle must be valid and point to a live TabCollection. There is a
+// CHECK to enforce that precondition.
 tabs_api::mojom::TabCollectionPtr BuildMojoTabCollection(
-    tabs::TabCollectionHandle handle,
-    tabs::TabCollection::Type collection_type);
+    tabs::TabCollectionHandle handle);
 
 }  // namespace tabs_api::converters
 

@@ -6,20 +6,24 @@
 
 #import <MaterialComponents/MaterialSnackbar.h>
 
+#import "base/containers/fixed_flat_set.h"
 #import "base/metrics/histogram_macros.h"
 #import "base/strings/string_number_conversions.h"
 #import "base/strings/sys_string_conversions.h"
 #import "base/strings/utf_string_conversions.h"
 #import "base/time/time.h"
 #import "components/dom_distiller/core/extraction_utils.h"
+#import "components/google/core/common/google_util.h"
 #import "components/ukm/ios/ukm_url_recorder.h"
 #import "ios/chrome/browser/dom_distiller/model/offline_page_distiller_viewer.h"
+#import "ios/chrome/browser/fullscreen/ui_bundled/fullscreen_controller.h"
 #import "ios/chrome/browser/reader_mode/model/features.h"
 #import "ios/chrome/browser/reader_mode/model/reader_mode_content_tab_helper.h"
 #import "ios/chrome/browser/reader_mode/model/reader_mode_distiller_page.h"
 #import "ios/chrome/browser/reader_mode/model/reader_mode_distiller_viewer.h"
 #import "ios/chrome/browser/reader_mode/model/reader_mode_java_script_feature.h"
 #import "ios/chrome/browser/reader_mode/model/reader_mode_metrics_helper.h"
+#import "ios/chrome/browser/shared/model/browser/browser.h"
 #import "ios/chrome/browser/shared/model/profile/profile_ios.h"
 #import "ios/chrome/browser/shared/model/url/url_util.h"
 #import "ios/chrome/browser/shared/public/commands/reader_mode_commands.h"
@@ -36,18 +40,17 @@
 
 namespace {
 
+// These are known google websites that don't support reader mode.
+static constexpr auto kGoogleWorkspaceBlocklist =
+    base::MakeFixedFlatSet<std::string_view>(
+        {"assistant.google.com", "calendar.google.com", "docs.google.com",
+         "drive.google.com", "mail.google.com", "photos.google.com"});
+
 // Helper function to generate the snackbar message.
 NSString* GenerateSnackbarMessage(bool is_distillable_page) {
   std::string message = "\nDistillation Result: ";
   message += (is_distillable_page ? "Distillable" : "Not Distillable");
   return base::SysUTF8ToNSString(message);
-}
-
-// Returns whether `web_state` currently satisfies basic requirements for Reader
-// mode before running a distillation heuristic.
-bool CurrentPageSupportsReaderModeHeuristic(web::WebState* web_state) {
-  return web_state && !web_state->IsBeingDestroyed() &&
-         !IsUrlNtp(web_state->GetVisibleURL()) && web_state->ContentIsHTML();
 }
 
 // Returns the Readability heuristic result if it is available otherwise returns
@@ -79,7 +82,8 @@ ReaderModeTabHelper::ReaderModeTabHelper(web::WebState* web_state,
 }
 
 ReaderModeTabHelper::~ReaderModeTabHelper() {
-  SetActive(false);
+  DeactivateReader(
+      ReaderModeDeactivationReason::kHostTabDestructionDeactivated);
   for (auto& observer : observers_) {
     observer.ReaderModeTabHelperDestroyed(this);
   }
@@ -97,20 +101,29 @@ bool ReaderModeTabHelper::IsActive() const {
   return active_;
 }
 
-void ReaderModeTabHelper::SetActive(bool active) {
-  if (active_ == active) {
+void ReaderModeTabHelper::ActivateReader(ReaderModeAccessPoint access_point) {
+  if (active_) {
     return;
   }
-  active_ = active;
-  if (active) {
-    // If Reader mode is being activated, create the secondary WebState where
-    // the content will be rendered and start distillation.
-    CreateReaderModeWebState();
-  } else {
-    // If Reader mode is being deactivated, destroy the secondary WebState and
-    // ensure the Reader mode UI is dismissed.
-    DestroyReaderModeWebState();
+  // It is not expected to activate reader mode for a page that is not
+  // eligible.
+  CHECK(CurrentPageIsEligibleForReaderMode());
+  active_ = true;
+
+  // If Reader mode is being activated, lazily create the secondary WebState
+  // where the content will be rendered and start distillation.
+  CreateReaderModeContent(access_point);
+}
+
+void ReaderModeTabHelper::DeactivateReader(
+    ReaderModeDeactivationReason reason) {
+  if (!active_) {
+    return;
   }
+  active_ = false;
+  // If Reader mode is being deactivated, keep the secondary WebState but make
+  // the content unavailable and ensure the Reader mode UI is dismissed.
+  DestroyReaderModeContent(reason);
 }
 
 web::WebState* ReaderModeTabHelper::GetReaderModeWebState() {
@@ -120,21 +133,57 @@ web::WebState* ReaderModeTabHelper::GetReaderModeWebState() {
   return reader_mode_web_state_.get();
 }
 
-bool ReaderModeTabHelper::CurrentPageSupportsReaderMode() const {
-  return web_state_ && CurrentPageSupportsReaderModeHeuristic(web_state_) &&
+bool ReaderModeTabHelper::CurrentPageIsEligibleForReaderMode() const {
+  bool eligible = web_state_ && !web_state_->IsBeingDestroyed() &&
+                  web_state_->ContentIsHTML();
+  if (!eligible) {
+    return false;
+  }
+  GURL current_url = web_state_->GetLastCommittedURL();
+  return current_url.SchemeIsHTTPOrHTTPS() &&
+         !google_util::IsGoogleHomePageUrl(current_url) &&
+         !google_util::IsGoogleSearchUrl(current_url) &&
+         !google_util::IsYoutubeDomainUrl(
+             current_url, google_util::ALLOW_SUBDOMAIN,
+             google_util::ALLOW_NON_STANDARD_PORTS) &&
+         !kGoogleWorkspaceBlocklist.contains(current_url.host_piece());
+}
+
+bool ReaderModeTabHelper::CurrentPageIsDistillable() const {
+  return CurrentPageIsEligibleForReaderMode() &&
          last_committed_url_eligibility_ready_ &&
          last_committed_url_without_ref_.is_valid() &&
          last_committed_url_without_ref_.EqualsIgnoringRef(
              reader_mode_eligible_url_);
 }
 
-void ReaderModeTabHelper::FetchLastCommittedUrlEligibilityResult(
+bool ReaderModeTabHelper::CurrentPageDistillationAlreadyFailed() const {
+  return distillation_already_failed_;
+}
+
+void ReaderModeTabHelper::RecordDistillationFailure() {
+  distillation_already_failed_ = true;
+  for (auto& observer : observers_) {
+    observer.ReaderModeDistillationFailed(this);
+  }
+}
+
+void ReaderModeTabHelper::FetchLastCommittedUrlDistillabilityResult(
     base::OnceCallback<void(std::optional<bool>)> callback) {
   if (last_committed_url_eligibility_ready_) {
-    std::move(callback).Run(CurrentPageSupportsReaderMode());
+    std::move(callback).Run(CurrentPageIsDistillable());
     return;
   }
   last_committed_url_eligibility_callbacks_.push_back(std::move(callback));
+}
+
+void ReaderModeTabHelper::SetReaderModeHandler(
+    id<ReaderModeCommands> reader_mode_handler) {
+  reader_mode_handler_ = reader_mode_handler;
+}
+
+id<ReaderModeCommands> ReaderModeTabHelper::GetReaderModeHandler() const {
+  return reader_mode_handler_;
 }
 
 void ReaderModeTabHelper::SetSnackbarHandler(
@@ -181,7 +230,7 @@ void ReaderModeTabHelper::DidFinishNavigation(
     web::NavigationContext* navigation_context) {
   if (!navigation_context->IsSameDocument() ||
       navigation_context->HasUserGesture()) {
-    SetActive(false);
+    DeactivateReader(ReaderModeDeactivationReason::kNavigationDeactivated);
   }
 
   SetLastCommittedUrl(web_state->GetLastCommittedURL());
@@ -189,7 +238,8 @@ void ReaderModeTabHelper::DidFinishNavigation(
 
 void ReaderModeTabHelper::WebStateDestroyed(web::WebState* web_state) {
   CHECK_EQ(web_state_, web_state);
-  SetActive(false);
+  DeactivateReader(
+      ReaderModeDeactivationReason::kHostTabDestructionDeactivated);
   web_state_observation_.Reset();
   web_state_ = nullptr;
 }
@@ -208,6 +258,7 @@ void ReaderModeTabHelper::ResetUrlEligibility(const GURL& url) {
   // Do not reset URL eligibility for same-page navigations.
   if (!reader_mode_eligible_url_.EqualsIgnoringRef(url)) {
     reader_mode_eligible_url_ = GURL();
+    distillation_already_failed_ = false;
   }
 }
 
@@ -238,6 +289,9 @@ void ReaderModeTabHelper::ReaderModeContentDidCancelRequest(
     ReaderModeContentTabHelper* reader_mode_content_tab_helper,
     NSURLRequest* request,
     web::WebStatePolicyDecider::RequestInfo request_info) {
+  if (!active_ || !web_state_->IsVisible() || !request_info.is_user_initiated) {
+    return;
+  }
   // When the Reader mode content cancels a request to navigate, load the
   // requested URL in the host WebState instead.
   web::NavigationManager::WebLoadParams params(net::GURLWithNSURL(request.URL));
@@ -252,10 +306,26 @@ void ReaderModeTabHelper::ReaderModeContentDidCancelRequest(
   web_state_->GetNavigationManager()->LoadURLWithParams(params);
 }
 
+base::WeakPtr<ReaderModeTabHelper> ReaderModeTabHelper::GetWeakPtr() {
+  return weak_ptr_factory_.GetWeakPtr();
+}
+
 void ReaderModeTabHelper::HandleReadabilityHeuristicResult(
     const GURL& url,
     const base::Value* result) {
   HandleReaderModeHeuristicResult(url, GetReaderModeHeuristicResult(result));
+}
+
+void ReaderModeTabHelper::SetFullscreenController(
+    FullscreenController* fullscreen_controller) {
+  if (!reader_mode_web_state_) {
+    return;
+  }
+  ReaderModeContentTabHelper* content_tab_helper =
+      ReaderModeContentTabHelper::FromWebState(reader_mode_web_state_.get());
+  if (content_tab_helper) {
+    content_tab_helper->SetFullscreenController(fullscreen_controller);
+  }
 }
 
 void ReaderModeTabHelper::HandleReaderModeHeuristicResult(
@@ -273,7 +343,7 @@ void ReaderModeTabHelper::HandleReaderModeHeuristicResult(
       result == ReaderModeHeuristicResult::kReaderModeEligible ? url : GURL();
   if (last_committed_url_without_ref_.EqualsIgnoringRef(url)) {
     last_committed_url_eligibility_ready_ = true;
-    CallLastCommittedUrlEligibilityCallbacks(CurrentPageSupportsReaderMode());
+    CallLastCommittedUrlEligibilityCallbacks(CurrentPageIsDistillable());
   }
 }
 
@@ -281,7 +351,7 @@ void ReaderModeTabHelper::TriggerReaderModeHeuristic(const GURL& url) {
   if (!IsReaderModeAvailable()) {
     return;
   }
-  if (web_state_ && !CurrentPageSupportsReaderModeHeuristic(web_state_)) {
+  if (!CurrentPageIsEligibleForReaderMode()) {
     // If the current page does not support running the heuristic, then the
     // eligibility of the current page is already know.
     last_committed_url_eligibility_ready_ = true;
@@ -313,6 +383,7 @@ void ReaderModeTabHelper::TriggerReaderModeHeuristic(const GURL& url) {
 }
 
 void ReaderModeTabHelper::PageDistillationCompleted(
+    ReaderModeAccessPoint access_point,
     const GURL& page_url,
     const std::string& html,
     const std::vector<DistillerViewerInterface::ImageInfo>& images,
@@ -329,8 +400,9 @@ void ReaderModeTabHelper::PageDistillationCompleted(
 
   bool is_distillable_page = !html.empty();
   metrics_helper_.RecordReaderDistillerCompleted(
-      is_distillable_page ? ReaderModeDistillerResult::kPageIsDistillable
-                          : ReaderModeDistillerResult::kPageIsNotDistillable);
+      access_point, is_distillable_page
+                        ? ReaderModeDistillerResult::kPageIsDistillable
+                        : ReaderModeDistillerResult::kPageIsNotDistillable);
 
   if (IsReaderModeSnackbarEnabled()) {
     // Show a snackbar with the heuristic result, latency and page distillation
@@ -349,36 +421,37 @@ void ReaderModeTabHelper::PageDistillationCompleted(
       ReaderModeContentTabHelper::FromWebState(reader_mode_web_state_.get())
           ->LoadContent(page_url, content_data);
     } else {
+      RecordDistillationFailure();
       // If the page could not be distilled, deactivate Reader mode in this tab.
-      SetActive(false);
-      for (auto& observer : observers_) {
-        observer.ReaderModeDistillationFailed(this);
-      }
+      DeactivateReader(
+          ReaderModeDeactivationReason::kDistillationFailureDeactivated);
     }
   }
 }
 
-void ReaderModeTabHelper::CreateReaderModeWebState() {
-  metrics_helper_.RecordReaderDistillerTriggered();
+void ReaderModeTabHelper::CreateReaderModeContent(
+    ReaderModeAccessPoint access_point) {
+  metrics_helper_.RecordReaderDistillerTriggered(access_point);
 
-  web::WebState::CreateParams create_params = web::WebState::CreateParams(
-      ProfileIOS::FromBrowserState(web_state_->GetBrowserState())
-          ->GetOffTheRecordProfile());
-  reader_mode_web_state_ = web::WebState::Create(create_params);
-  ReaderModeContentTabHelper::CreateForWebState(reader_mode_web_state_.get());
-  ReaderModeContentTabHelper* content_tab_helper =
-      ReaderModeContentTabHelper::FromWebState(reader_mode_web_state_.get());
-  content_tab_helper->SetDelegate(this);
-  content_tab_helper->AttachSupportedTabHelpers(web_state_.get());
-  reader_mode_web_state_->SetWebUsageEnabled(true);
+  if (!reader_mode_web_state_) {
+    web::WebState::CreateParams create_params = web::WebState::CreateParams(
+        ProfileIOS::FromBrowserState(web_state_->GetBrowserState()));
+    reader_mode_web_state_ = web::WebState::Create(create_params);
+    reader_mode_web_state_->SetWebUsageEnabled(true);
+    ReaderModeContentTabHelper::CreateForWebState(reader_mode_web_state_.get());
+    ReaderModeContentTabHelper* content_tab_helper =
+        ReaderModeContentTabHelper::FromWebState(reader_mode_web_state_.get());
+    content_tab_helper->SetDelegate(this);
+    content_tab_helper->AttachSupportedTabHelpers(web_state_.get());
+  }
 
   std::unique_ptr<ReaderModeDistillerPage> distiller_page =
       std::make_unique<ReaderModeDistillerPage>(web_state_);
-  distiller_viewer_.reset(new ReaderModeDistillerViewer(
+  distiller_viewer_ = std::make_unique<ReaderModeDistillerViewer>(
       reader_mode_web_state_.get(), distiller_service_,
       std::move(distiller_page), web_state_->GetLastCommittedURL(),
-      base::BindRepeating(&ReaderModeTabHelper::PageDistillationCompleted,
-                          weak_ptr_factory_.GetWeakPtr())));
+      base::BindOnce(&ReaderModeTabHelper::PageDistillationCompleted,
+                     weak_ptr_factory_.GetWeakPtr(), access_point));
 
   reader_mode_distillation_timer_.Start(
       FROM_HERE, ReaderModeDistillationTimeout(),
@@ -386,7 +459,8 @@ void ReaderModeTabHelper::CreateReaderModeWebState() {
                      weak_ptr_factory_.GetWeakPtr()));
 }
 
-void ReaderModeTabHelper::DestroyReaderModeWebState() {
+void ReaderModeTabHelper::DestroyReaderModeContent(
+    ReaderModeDeactivationReason reason) {
   metrics_helper_.Flush();
 
   WebViewProxyTabHelper* tab_helper =
@@ -395,10 +469,10 @@ void ReaderModeTabHelper::DestroyReaderModeWebState() {
     tab_helper->SetOverridingWebViewProxy(nil);
   }
   for (auto& observer : observers_) {
-    observer.ReaderModeWebStateWillBecomeUnavailable(this);
+    observer.ReaderModeWebStateWillBecomeUnavailable(this, reason);
   }
   reader_mode_web_state_content_loaded_ = false;
-  reader_mode_web_state_.reset();
+
   // Cancel any ongoing distillation task.
   distiller_viewer_.reset();
   // Update the snapshot with the original web page.
@@ -431,5 +505,7 @@ void ReaderModeTabHelper::CallLastCommittedUrlEligibilityCallbacks(
 
 void ReaderModeTabHelper::CancelDistillation() {
   metrics_helper_.RecordReaderDistillerTimedOut();
-  SetActive(false);
+  RecordDistillationFailure();
+  DeactivateReader(
+      ReaderModeDeactivationReason::kDistillationFailureDeactivated);
 }

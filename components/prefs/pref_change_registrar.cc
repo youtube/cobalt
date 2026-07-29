@@ -6,7 +6,6 @@
 
 #include <ostream>
 
-#include "base/callback_list.h"
 #include "base/check.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
@@ -24,7 +23,17 @@ std::string CopyStringView(std::string_view view) {
 
 PrefChangeRegistrar::PrefChangeRegistrar() : service_(nullptr) {}
 
-PrefChangeRegistrar::~PrefChangeRegistrar() = default;
+PrefChangeRegistrar::~PrefChangeRegistrar() {
+  // If you see an invalid memory access in this destructor, this
+  // PrefChangeRegistrar might be subscribed to an OffTheRecordProfileImpl that
+  // has been destroyed. This should not happen any more but be warned.
+  // Feel free to contact battre@chromium.org in case this happens.
+  //
+  // This can also happen for non-OTR profiles, when the
+  // DestroyProfileOnBrowserClose flag is enabled. In that case, contact
+  // nicolaso@chromium.org.
+  RemoveAll();
+}
 
 void PrefChangeRegistrar::Init(PrefService* service) {
   DCHECK(IsEmpty() || service_ == service);
@@ -47,33 +56,50 @@ void PrefChangeRegistrar::Add(std::string_view path, NamedChangeCallback obs) {
 
 void PrefChangeRegistrar::Add(std::string_view path,
                               NamedChangeAsViewCallback obs) {
-  CHECK(service_);
+  if (!service_) {
+    NOTREACHED();
+  }
   DCHECK(!IsObserved(path)) << "Already had pref, \"" << path
                             << "\", registered.";
 
-  subscriptions_.insert(std::make_pair(
-      path, service_->AddPrefChangedCallback(
-                path, base::IgnoreArgs<PrefService*>(std::move(obs)))));
+  service_->AddPrefObserver(path, this);
+  observers_.insert_or_assign(std::string(path), std::move(obs));
 }
 
 void PrefChangeRegistrar::Remove(std::string_view path) {
   DCHECK(IsObserved(path));
 
   // Use std::map::erase directly once C++23 is supported.
-  auto it = subscriptions_.find(path);
-  subscriptions_.erase(it);
+  auto it = observers_.find(path);
+  observers_.erase(it);
+  service_->RemovePrefObserver(path, this);
 }
 
 void PrefChangeRegistrar::RemoveAll() {
-  subscriptions_.clear();
+  for (const auto& [key, _] : observers_) {
+    service_->RemovePrefObserver(key, this);
+  }
+
+  observers_.clear();
 }
 
 bool PrefChangeRegistrar::IsEmpty() const {
-  return subscriptions_.empty();
+  return observers_.empty();
 }
 
 bool PrefChangeRegistrar::IsObserved(std::string_view pref) {
-  return subscriptions_.find(pref) != subscriptions_.end();
+  return observers_.find(pref) != observers_.end();
+}
+
+void PrefChangeRegistrar::OnServiceDestroyed(PrefService* service) {
+  Reset();
+}
+
+void PrefChangeRegistrar::OnPreferenceChanged(PrefService* service,
+                                              std::string_view pref) {
+  if (auto iter = observers_.find(pref); iter != observers_.end()) {
+    iter->second.Run(pref);
+  }
 }
 
 PrefService* PrefChangeRegistrar::prefs() {

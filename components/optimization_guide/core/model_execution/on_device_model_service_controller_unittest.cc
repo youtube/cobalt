@@ -13,6 +13,7 @@
 #include "base/functional/callback_helpers.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
+#include "base/run_loop.h"
 #include "base/strings/string_util.h"
 #include "base/test/bind.h"
 #include "base/test/metrics/histogram_tester.h"
@@ -167,9 +168,8 @@ class OnDeviceModelServiceControllerTest : public testing::Test {
     model_execution::prefs::RegisterLocalStatePrefs(pref_service_.registry());
 
     // Fake the requirements to install the model.
-    pref_service_.SetInteger(
-        model_execution::prefs::localstate::kOnDevicePerformanceClass,
-        base::to_underlying(OnDeviceModelPerformanceClass::kHigh));
+    UpdatePerformanceClassPref(&pref_service_,
+                               OnDeviceModelPerformanceClass::kVeryHigh);
     model_execution::prefs::RecordFeatureUsage(
         &pref_service_, ModelBasedCapabilityKey::kCompose);
   }
@@ -187,7 +187,7 @@ class OnDeviceModelServiceControllerTest : public testing::Test {
                                 component_state_.CreateDelegate(),
                                 fake_launcher_.LaunchFn());
     model_broker_state_->Init();
-    task_environment_.FastForwardBy(base::Seconds(1));
+    component_state_.WaitForRegistration();
     if (params.base_model) {
       params.base_model->SetReadyIn(
           model_broker_state_->component_state_manager());
@@ -432,6 +432,8 @@ TEST_F(OnDeviceModelServiceControllerTest, CacheWeightExecutionSuccess) {
 
   FakeBaseModelAsset base_model_with_cache({
       .cache_weight = 1015,
+      .encoder_cache_weight = 1016,
+      .adapter_cache_weight = 1017,
   });
 
   Initialize(InitializeParams{
@@ -446,7 +448,8 @@ TEST_F(OnDeviceModelServiceControllerTest, CacheWeightExecutionSuccess) {
                         response_.GetStreamingCallback());
   ASSERT_TRUE(response_.GetFinalStatus());
   EXPECT_EQ(*response_.value(),
-            "CPU backendCache weight: 1015execute:foo max:1024");
+            "CPU backendCache weight: 1015Encoder cache weight: 1016"
+            "Adapter cache weight: 1017execute:foo max:1024");
 
   // If we destroy all sessions and wait long enough, everything should idle out
   // and the service should get terminated.
@@ -605,6 +608,9 @@ TEST_F(OnDeviceModelServiceControllerTest, ModelAdaptationAndBaseModelSuccess) {
 
 TEST_F(OnDeviceModelServiceControllerTest,
        SessionCreationFailsWhenExecutionNotEnabled) {
+  // Mark another feature used so registration still happens.
+  model_execution::prefs::RecordFeatureUsage(
+      &pref_service_, ModelBasedCapabilityKey::kPromptApi);
   base::test::ScopedFeatureList feature_list;
   feature_list.InitWithFeatures(
       {}, {features::kOptimizationGuideComposeOnDeviceEval});
@@ -2037,16 +2043,26 @@ TEST_F(OnDeviceModelServiceControllerTest, DisconnectsWhenIdle) {
 
 TEST_F(OnDeviceModelServiceControllerTest,
        ShutsDownServiceAfterPerformanceCheck) {
-  Initialize(standard_assets_);
   base::HistogramTester histogram_tester;
+  pref_service_.SetString(
+      model_execution::prefs::localstate::kOnDevicePerformanceClassVersion,
+      "0.0.0.1");
+  model_broker_state_.emplace(&pref_service_, component_state_.CreateDelegate(),
+                              fake_launcher_.LaunchFn());
+  model_broker_state_->Init();
+  EXPECT_FALSE(model_broker_state_->performance_classifier()
+                   .IsPerformanceClassAvailable());
+  fake_launcher_.clear_did_launch_service();
   base::RunLoop run_loop;
-  controller().EnsurePerformanceClassAvailable(run_loop.QuitClosure());
+  model_broker_state_->performance_classifier().EnsurePerformanceClassAvailable(
+      run_loop.QuitClosure());
   run_loop.Run();
   histogram_tester.ExpectUniqueSample(
       "OptimizationGuide.ModelExecution.OnDeviceModelPerformanceClass",
       OnDeviceModelPerformanceClass::kVeryHigh, 1);
-  task_environment_.RunUntilIdle();
-  EXPECT_FALSE(fake_launcher_.is_service_running());
+  EXPECT_TRUE(fake_launcher_.did_launch_service());
+  EXPECT_TRUE(base::test::RunUntil(
+      [&]() { return !fake_launcher_.is_service_running(); }));
 }
 
 TEST_F(OnDeviceModelServiceControllerTest, RedactedField) {
@@ -2382,6 +2398,119 @@ TEST_F(OnDeviceModelServiceControllerTest, IgnoresNonRepeatingText) {
   histogram_tester.ExpectUniqueSample(
       "OptimizationGuide.ModelExecution.OnDeviceResponseHasRepeats.Compose",
       false, 1);
+}
+
+TEST_F(OnDeviceModelServiceControllerTest,
+       WithholdsTrailingNewlinesAcrossResponses) {
+  FakeAdaptationAsset compose_asset({.config = UnsafeComposeConfig()});
+  Initialize({
+      .base_model = &standard_assets_.base_model,
+      .adaptations = {&compose_asset},
+  });
+
+  fake_settings_.set_execute_result({
+      "some text",
+      " texts with newlines\n\n",
+      "\n",
+      "\n\n",
+      "\n",
+      "\n",
+      "\n no trailing newline",
+      "\n more trailing newlines\n\n",
+      "\n\n",
+      "\n",
+      "",
+  });
+  auto session = CreateSession();
+  ASSERT_TRUE(session);
+  session->ExecuteModel(UserInputRequest("foo"),
+                        response_.GetStreamingCallback());
+  ASSERT_TRUE(response_.GetFinalStatus());
+  const std::vector<std::string> partial_responses = {
+      "some text",
+      " texts with newlines",
+      "\n\n\n\n\n\n\n\n no trailing newline",
+      "\n more trailing newlines",
+  };
+  EXPECT_EQ(*response_.value(), ConcatResponses(partial_responses));
+  EXPECT_THAT(response_.partials(), ElementsAreArray(partial_responses));
+}
+
+TEST_F(OnDeviceModelServiceControllerTest,
+       WithholdsTrailingNewlinesNoTrailingNewlines) {
+  FakeAdaptationAsset compose_asset({.config = UnsafeComposeConfig()});
+  Initialize({
+      .base_model = &standard_assets_.base_model,
+      .adaptations = {&compose_asset},
+  });
+
+  fake_settings_.set_execute_result({
+      "some text",
+      " texts with newlines\n",
+      "\n",
+      "\n\n",
+      "\n",
+      "\n",
+      "\n no trailing newline",
+  });
+  auto session = CreateSession();
+  ASSERT_TRUE(session);
+  session->ExecuteModel(UserInputRequest("foo"),
+                        response_.GetStreamingCallback());
+  ASSERT_TRUE(response_.GetFinalStatus());
+  const std::vector<std::string> partial_responses = {
+      "some text",
+      " texts with newlines",
+      "\n\n\n\n\n\n\n no trailing newline",
+  };
+  EXPECT_EQ(*response_.value(), ConcatResponses(partial_responses));
+  EXPECT_THAT(response_.partials(), ElementsAreArray(partial_responses));
+}
+
+TEST_F(OnDeviceModelServiceControllerTest, NoWithholdsTrailingNewlines) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeatureWithParameters(
+      features::kOptimizationGuideOnDeviceModel,
+      {{"on_device_model_withhold_newlines", "false"}});
+  FakeAdaptationAsset compose_asset({.config = UnsafeComposeConfig()});
+  Initialize({
+      .base_model = &standard_assets_.base_model,
+      .adaptations = {&compose_asset},
+  });
+
+  fake_settings_.set_execute_result({
+      "some text",
+      " texts with newlines\n\n",
+      "\n",
+      "\n\n",
+      "\n",
+      "\n",
+      "\n no trailing newline",
+      "\n more trailing newlines\n\n",
+      "\n\n",
+      "\n",
+      "",
+  });
+  auto session = CreateSession();
+  ASSERT_TRUE(session);
+  session->ExecuteModel(UserInputRequest("foo"),
+                        response_.GetStreamingCallback());
+  ASSERT_TRUE(response_.GetFinalStatus());
+  const std::vector<std::string> partial_responses = {
+      "some text",
+      " texts with newlines\n\n",
+      "\n",
+      "\n\n",
+      "\n",
+      "\n",
+      "\n no trailing newline",
+      "\n more trailing newlines\n\n",
+      "\n\n",
+      "\n",
+      "",
+  };
+  EXPECT_EQ(*response_.value(), ConcatResponses(partial_responses));
+  EXPECT_THAT(response_.partials(), ElementsAreArray(partial_responses));
 }
 
 TEST_F(OnDeviceModelServiceControllerTest, UsesSessionTopKAndTemperature) {
@@ -2831,8 +2960,8 @@ TEST_F(OnDeviceModelServiceControllerTest,
   FakeBaseModelAsset next_model({
       .weight = 2,
       .config = ExecutionConfigWithValidation(WillFailValidationConfig()),
-      .version = "0.0.2",
   });
+  next_model.set_version("0.0.2");
   {
     base::HistogramTester histogram_tester;
     next_model.SetReadyIn(component_state_manager());
@@ -2892,8 +3021,8 @@ TEST_F(OnDeviceModelServiceControllerTest,
   // Send a new model update with no validation config.
   FakeBaseModelAsset next_model({
       .weight = 2,
-      .version = "0.0.2",
   });
+  next_model.set_version("0.0.2");
   next_model.SetReadyIn(component_state_manager());
   task_environment_.RunUntilIdle();
 
@@ -3158,66 +3287,6 @@ TEST_F(OnDeviceModelServiceControllerTest, ModelValidationFailsOnCrash) {
   histogram_tester.ExpectUniqueSample(
       "OptimizationGuide.ModelExecution.OnDeviceModelValidationResult",
       OnDeviceModelValidationResult::kServiceCrash, 1);
-}
-
-TEST_F(OnDeviceModelServiceControllerTest,
-       PerformanceCheckDoesNotInterruptModelValidation) {
-  fake_settings_.set_execute_delay(base::Seconds(10));
-
-  FakeBaseModelAsset base_model(WillPassValidationConfig());
-  FakeAdaptationAsset compose_asset({.config = UnsafeComposeConfig()});
-
-  base::HistogramTester histogram_tester;
-  Initialize({.base_model = &base_model, .adaptations = {&compose_asset}});
-  task_environment_.RunUntilIdle();
-
-  base::RunLoop run_loop;
-  controller().EnsurePerformanceClassAvailable(run_loop.QuitClosure());
-  run_loop.Run();
-  task_environment_.RunUntilIdle();
-
-  // Performance check sh;ould not shut down service.
-  EXPECT_TRUE(fake_launcher_.is_service_running());
-  histogram_tester.ExpectTotalCount(
-      "OptimizationGuide.ModelExecution.OnDeviceModelValidationResult", 0);
-
-  task_environment_.FastForwardBy(base::Seconds(10) + base::Milliseconds(1));
-  task_environment_.RunUntilIdle();
-  EXPECT_FALSE(fake_launcher_.is_service_running());
-
-  histogram_tester.ExpectUniqueSample(
-      "OptimizationGuide.ModelExecution.OnDeviceModelValidationResult",
-      OnDeviceModelValidationResult::kSuccess, 1);
-}
-
-TEST_F(OnDeviceModelServiceControllerTest,
-       ModelValidationDoesNotInterruptPerformanceCheck) {
-  fake_settings_.set_estimated_performance_delay(base::Seconds(10));
-  fake_settings_.set_execute_delay(base::Seconds(1));
-
-  FakeBaseModelAsset base_model(WillPassValidationConfig());
-  FakeAdaptationAsset compose_asset({.config = UnsafeComposeConfig()});
-
-  base::HistogramTester histogram_tester;
-  Initialize({.base_model = &base_model, .adaptations = {&compose_asset}});
-  task_environment_.RunUntilIdle();
-
-  base::RunLoop run_loop;
-  controller().EnsurePerformanceClassAvailable(run_loop.QuitClosure());
-
-  task_environment_.FastForwardBy(base::Seconds(1) + base::Milliseconds(1));
-  task_environment_.RunUntilIdle();
-  // Still connected since the performance estimator is running.
-  EXPECT_TRUE(fake_launcher_.is_service_running());
-
-  histogram_tester.ExpectUniqueSample(
-      "OptimizationGuide.ModelExecution.OnDeviceModelValidationResult",
-      OnDeviceModelValidationResult::kSuccess, 1);
-
-  EXPECT_FALSE(run_loop.AnyQuitCalled());
-  run_loop.Run();
-  task_environment_.RunUntilIdle();
-  EXPECT_FALSE(fake_launcher_.is_service_running());
 }
 
 TEST_F(OnDeviceModelServiceControllerTest, SendsPerformanceHint) {
@@ -3715,6 +3784,10 @@ TEST_F(OnDeviceModelServiceControllerTest,
   base::HistogramTester histogram_tester;
   mojo::PendingReceiver<mojom::ModelBroker> pending_broker;
 
+  pref_service_.SetString(
+      model_execution::prefs::localstate::kOnDevicePerformanceClassVersion,
+      "0.0.0.1");
+
   ModelBrokerClient broker_client(
       pending_broker.InitWithNewPipeAndPassRemote(),
       CreateSessionArgs(logger_.GetWeakPtr(), FailOnRemoteFallback()));
@@ -3724,10 +3797,11 @@ TEST_F(OnDeviceModelServiceControllerTest,
   broker_client.CreateSession(mojom::ModelBasedCapabilityKey::kCompose,
                               std::nullopt, session_future.GetCallback());
 
-  Initialize(standard_assets_);
+  model_broker_state_.emplace(&pref_service_, component_state_.CreateDelegate(),
+                              fake_launcher_.LaunchFn());
+  model_broker_state_->Init();
   controller().BindBroker(std::move(pending_broker));
-
-  ASSERT_TRUE(session_future.Take());
+  component_state_.WaitForRegistration();
   histogram_tester.ExpectUniqueSample(
       "OptimizationGuide.ModelExecution.OnDeviceModelPerformanceClass",
       OnDeviceModelPerformanceClass::kVeryHigh, 1);

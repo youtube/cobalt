@@ -5,7 +5,9 @@
 #include "content/browser/service_worker/service_worker_synthetic_response_manager.h"
 
 #include <cstddef>
+#include <numeric>
 
+#include "base/debug/dump_without_crashing.h"
 #include "base/feature_list.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/strings/string_split.h"
@@ -17,6 +19,7 @@
 #include "net/http/http_status_code.h"
 #include "services/network/public/cpp/header_util.h"
 #include "services/network/public/mojom/url_response_head.mojom.h"
+#include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/common/service_worker/service_worker_status_code.h"
 #include "third_party/blink/public/mojom/fetch/fetch_api_response.mojom.h"
 #include "third_party/blink/public/mojom/service_worker/service_worker_stream_handle.mojom.h"
@@ -25,6 +28,19 @@ namespace {
 
 constexpr char kHistogramIsHeaderConsistent[] =
     "ServiceWorker.SyntheticResponse.IsHeaderConsistent";
+constexpr char kHistogramSyntheticResponseReloadReason[] =
+    "ServiceWorker.SyntheticResponse.ReloadReason";
+
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
+//
+// LINT.IfChange(SyntheticResponseReloadReason)
+enum class SyntheticResponseReloadReason {
+  kCachedResponseHeadCleared = 0,
+  kHeaderInconsistent = 1,
+  kMaxValue = kHeaderInconsistent,
+};
+// LINT.ThenChange(//tools/metrics/histograms/metadata/service/enums.xml:SyntheticResponseReloadReason)
 
 // When this is enabled, the browser stores response headers for synthetic
 // responses even if there is no opt-in header in its response. This is for
@@ -50,6 +66,62 @@ const std::string& GetIgnoredHeadersForBypass() {
   return *ignored_headers;
 }
 
+void RecordReloadReason(SyntheticResponseReloadReason reason) {
+  base::UmaHistogramEnumeration(kHistogramSyntheticResponseReloadReason,
+                                reason);
+}
+
+bool ShouldReportInconsistentHeader() {
+  static const bool report_inconsistent_header(
+      blink::features::kServiceWorkerSyntheticResponseReportInconsistentHeader
+          .Get());
+  return report_inconsistent_header;
+}
+
+void MaybeReportHeaderInconsistency(
+    const base::flat_map<std::string, std::multiset<std::string>>&
+        incoming_headers,
+    const base::flat_map<std::string, std::multiset<std::string>>&
+        stored_headers) {
+  if (!ShouldReportInconsistentHeader()) {
+    return;
+  }
+  auto to_string = [&](const std::multiset<std::string>& values) {
+    return std::accumulate(std::begin(values), std::end(values), std::string{},
+                           [](const std::string& a, const std::string& b) {
+                             return a.empty() ? b : a + ',' + b;
+                           });
+  };
+  for (const auto& item : stored_headers) {
+    if (!incoming_headers.contains(item.first)) {
+      // The header doesn't exist.
+      SCOPED_CRASH_KEY_STRING256("SyntheticResponse", "NoHeader", item.first);
+      base::debug::DumpWithoutCrashing();
+      continue;
+    }
+    if (incoming_headers.at(item.first) != item.second) {
+      // The header value is wrong.
+      SCOPED_CRASH_KEY_STRING256("SyntheticResponse", "WrongHeader",
+                                 item.first);
+      SCOPED_CRASH_KEY_STRING256("SyntheticResponse", "IncomingValue",
+                                 to_string(incoming_headers.at(item.first)));
+      SCOPED_CRASH_KEY_STRING256("SyntheticResponse", "StoredValue",
+                                 to_string(item.second));
+      base::debug::DumpWithoutCrashing();
+      continue;
+    }
+  }
+  for (const auto& item : incoming_headers) {
+    if (!stored_headers.contains(item.first)) {
+      // Unexpected header exists.
+      SCOPED_CRASH_KEY_STRING256("SyntheticResponse", "NotExpectedHeader",
+                                 item.first);
+      SCOPED_CRASH_KEY_STRING256("SyntheticResponse", "NotExpectedValue",
+                                 to_string(item.second));
+      base::debug::DumpWithoutCrashing();
+    }
+  }
+}
 }  // namespace
 
 namespace content {
@@ -260,25 +332,36 @@ void ServiceWorkerSyntheticResponseManager::OnReceiveResponse(
   switch (status_) {
     case SyntheticResponseStatus::kReady: {
       CHECK(write_buffer_manager_.has_value());
-      bool is_header_consistent =
-          CheckHeaderConsistency(response_head->headers);
-      if (is_header_consistent) {
-        simple_buffer_manager_.emplace(std::move(body));
-        simple_buffer_manager_->Clone(
-            write_buffer_manager_->ReleaseProducerHandle(),
-            base::BindOnce(
-                &ServiceWorkerSyntheticResponseManager::OnCloneCompleted,
-                weak_factory_.GetWeakPtr()));
+      bool is_header_consistent = false;
+      if (version_->GetResponseHeadForSyntheticResponse()) {
+        is_header_consistent = CheckHeaderConsistency(response_head->headers);
+        if (is_header_consistent) {
+          simple_buffer_manager_.emplace(std::move(body));
+          simple_buffer_manager_->Clone(
+              write_buffer_manager_->ReleaseProducerHandle(),
+              base::BindOnce(
+                  &ServiceWorkerSyntheticResponseManager::OnCloneCompleted,
+                  weak_factory_.GetWeakPtr()));
+        } else {
+          // Clear the stored header when it's inconsistent with the header from
+          // the network so that the next navigation won't get the header
+          // mismatch and reloading consistently.
+          //
+          // TODO(crbug.com/352578800): Consider setting the response header
+          // here rather than resetting it in order to improve the synthetic
+          // response coverage. Revisit this after collecting coverage data.
+          version_->ResetResponseHeadForSyntheticResponse();
+          NotifyReloading();
+          RecordReloadReason(
+              SyntheticResponseReloadReason::kHeaderInconsistent);
+        }
       } else {
-        // Clear the stored header when it's inconsistent with the header from
-        // the network so that the next navigation won't get the header mismatch
-        // and reloading consistently.
-        //
-        // TODO(crbug.com/352578800): Consider setting the response header here
-        // rather than resetting it in order to improve the synthetic response
-        // coverage. Revisit this after collecting coverage data.
-        version_->ResetResponseHeadForSyntheticResponse();
+        // The cached response head may have been cleared by another request
+        // that detected a header inconsistency. Tell the client to reload to
+        // get the latest version.
         NotifyReloading();
+        RecordReloadReason(
+            SyntheticResponseReloadReason::kCachedResponseHeadCleared);
       }
       base::UmaHistogramBoolean(kHistogramIsHeaderConsistent,
                                 is_header_consistent);
@@ -312,7 +395,7 @@ bool ServiceWorkerSyntheticResponseManager::CheckHeaderConsistency(
   const auto& response_head = version_->GetResponseHeadForSyntheticResponse();
   CHECK(response_head);
   // TODO(crbug.com/352578800): Handle other necessary headers e.g. encoding.
-  base::flat_set<std::string> ignored_headers = {"date", "alt-svc"};
+  base::flat_set<std::string> ignored_headers = {"date", "alt-svc", "p3p"};
   if (IsBypassSyntheticResponseHeaderCheckEnabled()) {
     const std::string& ignored_headers_str = GetIgnoredHeadersForBypass();
     std::vector<std::string_view> testing_ignored_headers =
@@ -338,7 +421,12 @@ bool ServiceWorkerSyntheticResponseManager::CheckHeaderConsistency(
   auto incoming_headers = collect_significant_headers(*headers);
   auto stored_headers = collect_significant_headers(*response_head->headers);
 
-  return incoming_headers == stored_headers;
+  bool result = incoming_headers == stored_headers;
+  if (!result) {
+    MaybeReportHeaderInconsistency(incoming_headers, stored_headers);
+  }
+
+  return result;
 }
 
 void ServiceWorkerSyntheticResponseManager::NotifyReloading() {

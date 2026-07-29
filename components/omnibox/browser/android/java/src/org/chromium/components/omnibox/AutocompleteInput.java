@@ -9,12 +9,15 @@ import android.text.TextUtils;
 import org.chromium.build.annotations.Initializer;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.components.metrics.OmniboxEventProtos.OmniboxEventProto.PageClassification;
+import org.chromium.url.GURL;
 
 /** AutocompleteInput encompasses the input to autocomplete. */
 @NullMarked
 public class AutocompleteInput {
+    private GURL mPageUrl;
     private int mPageClassification;
     private String mUserText;
+    private boolean mAllowExactKeywordMatch;
 
     public AutocompleteInput() {
         reset();
@@ -30,9 +33,34 @@ public class AutocompleteInput {
         return mPageClassification;
     }
 
+    /** Set the page URL for the input. */
+    public void setPageUrl(GURL pageUrl) {
+        mPageUrl = pageUrl;
+    }
+
+    /** Returns the current page URL. */
+    public GURL getPageUrl() {
+        return mPageUrl;
+    }
+
     /** Set the text as currently typed by the User. */
     public void setUserText(String text) {
+        boolean oldTextUsesKeywordActivator =
+                !TextUtils.isEmpty(mUserText) && TextUtils.indexOf(mUserText, ' ') > 0;
+        boolean newTextUsesKeywordActivator =
+                !TextUtils.isEmpty(text) && TextUtils.indexOf(text, ' ') > 0;
+
+        // Allow engaging Keyword mode only if the user input introduces first space.
+        mAllowExactKeywordMatch |= !oldTextUsesKeywordActivator && newTextUsesKeywordActivator;
+        // Suppress Keyword mode when reverting back to the url.
+        mAllowExactKeywordMatch &= !(oldTextUsesKeywordActivator && !newTextUsesKeywordActivator);
+
         mUserText = text;
+    }
+
+    /** Returns whether exact keyword match is allowed with current input. */
+    public boolean allowExactKeywordMatch() {
+        return mAllowExactKeywordMatch;
     }
 
     /** Returns the text as currently typed by the User. */
@@ -69,5 +97,8 @@ public class AutocompleteInput {
     @Initializer
     public void reset() {
         mUserText = "";
+        mAllowExactKeywordMatch = false;
+        mPageUrl = GURL.emptyGURL();
+        mPageClassification = PageClassification.BLANK_VALUE;
     }
 }

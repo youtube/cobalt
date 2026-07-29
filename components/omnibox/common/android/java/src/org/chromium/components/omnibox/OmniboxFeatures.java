@@ -128,7 +128,7 @@ public class OmniboxFeatures {
             newFlag(OmniboxFeatureList.JUMP_START_OMNIBOX, FeatureState.ENABLED_IN_TEST);
 
     /** See {@link #shouldRetainOmniboxOnFocus()}. */
-    @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
+    @VisibleForTesting
     public static final CachedFlag sRetainOmniboxOnFocus =
             newFlag(OmniboxFeatureList.RETAIN_OMNIBOX_ON_FOCUS, FeatureState.ENABLED_IN_TEST);
 
@@ -143,11 +143,14 @@ public class OmniboxFeatures {
                     OmniboxFeatureList.OMNIBOX_MOBILE_PARITY_UPDATE_V2,
                     FeatureState.ENABLED_IN_TEST);
 
+    public static final CachedFlag sOmniboxSiteSearch =
+            newFlag(OmniboxFeatureList.OMNIBOX_SITE_SEARCH, FeatureState.ENABLED_IN_TEST);
+
     public static final CachedFlag sMultilineEditField =
             newFlag(OmniboxFeatureList.MULTILINE_EDIT_FIELD, FeatureState.DISABLED);
 
     public static final CachedFlag sAndroidHubSearchTabGroups =
-            newFlag(OmniboxFeatureList.ANDROID_HUB_SEARCH_TAB_GROUPS, FeatureState.DISABLED);
+            newFlag(OmniboxFeatureList.ANDROID_HUB_SEARCH_TAB_GROUPS, FeatureState.ENABLED_IN_TEST);
 
     public static final BooleanCachedFeatureParam sOmniboxParityRetrieveBuiltInEngineIcon =
             newBooleanParam(sOmniboxMobileParityUpdateV2, "retrieve_builtin_favicon", false);

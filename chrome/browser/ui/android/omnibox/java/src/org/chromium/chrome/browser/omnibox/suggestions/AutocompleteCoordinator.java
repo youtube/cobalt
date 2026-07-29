@@ -39,7 +39,6 @@ import org.chromium.chrome.browser.share.ShareDelegate;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tabwindow.TabWindowManager;
 import org.chromium.chrome.browser.ui.theme.BrandedColorScheme;
-import org.chromium.chrome.browser.util.KeyNavigationUtil;
 import org.chromium.components.omnibox.AutocompleteMatch;
 import org.chromium.components.omnibox.OmniboxFeatures;
 import org.chromium.components.omnibox.action.OmniboxActionDelegate;
@@ -47,6 +46,7 @@ import org.chromium.ui.AsyncViewProvider;
 import org.chromium.ui.AsyncViewStub;
 import org.chromium.ui.ViewProvider;
 import org.chromium.ui.base.DeviceFormFactor;
+import org.chromium.ui.base.KeyNavigationUtil;
 import org.chromium.ui.base.WindowAndroid;
 import org.chromium.ui.modaldialog.ModalDialogManager;
 import org.chromium.ui.modelutil.LazyConstructionPropertyMcp;
@@ -92,6 +92,7 @@ public class AutocompleteCoordinator
             LocationBarDataProvider locationBarDataProvider,
             ObservableSupplier<Profile> profileObservableSupplier,
             Callback<Tab> bringToForegroundCallback,
+            Callback<String> bringTabGroupToForegroundCallback,
             Supplier<TabWindowManager> tabWindowManagerSupplier,
             BookmarkState bookmarkState,
             OmniboxActionDelegate omniboxActionDelegate,
@@ -129,6 +130,7 @@ public class AutocompleteCoordinator
                         shareDelegateSupplier,
                         locationBarDataProvider,
                         bringToForegroundCallback,
+                        bringTabGroupToForegroundCallback,
                         tabWindowManagerSupplier,
                         bookmarkState,
                         omniboxActionDelegate,
@@ -261,7 +263,7 @@ public class AutocompleteCoordinator
      *
      * @param profile The profile to be used.
      */
-    @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
+    @VisibleForTesting
     public void setAutocompleteProfile(Profile profile) {
         mMediator.setAutocompleteProfile(profile);
     }

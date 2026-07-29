@@ -178,9 +178,7 @@ const CGFloat kCountBorderWidth = 24;
   [self registerForTraitChanges:traits
                      withAction:@selector(updateTitleLabelFontOnTraitChange)];
   if (IsNTPBackgroundCustomizationEnabled()) {
-    NSArray<UITrait>* colorTraits =
-        TraitCollectionSetForTraits(@[ NewTabPageTrait.class ]);
-    [self registerForTraitChanges:colorTraits
+    [self registerForTraitChanges:@[ NewTabPageTrait.class ]
                        withAction:@selector(applyBackgroundColors)];
   }
 }
@@ -194,7 +192,7 @@ const CGFloat kCountBorderWidth = 24;
 // set.
 - (void)applyBackgroundColors {
   NewTabPageColorPalette* colorPalette =
-      [self.traitCollection objectForTrait:NewTabPageTrait.class];
+      [self.traitCollection objectForNewTabPageTrait];
 
   if (colorPalette) {
     self.imageBackgroundView.tintColor = colorPalette.tertiaryColor;

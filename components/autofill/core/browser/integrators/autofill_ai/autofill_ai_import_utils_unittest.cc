@@ -28,6 +28,7 @@ namespace autofill {
 namespace {
 
 using ::testing::ElementsAre;
+using ::testing::IsEmpty;
 using ::testing::Optional;
 using ::testing::Property;
 using ::testing::UnorderedElementsAre;
@@ -150,6 +151,16 @@ TEST_F(AutofillAiImportUtilsTest, ImportFromInput) {
                       CreateAttribute(kPassportIssueDate, "2025-12-24")))));
 }
 
+// Tests that we do not import any attribute whose value has a value email
+// address format
+TEST_F(AutofillAiImportUtilsTest, NoEmailAddressImport) {
+  std::vector<std::unique_ptr<AutofillField>> fields;
+  fields.push_back(CreateInput(FormControlType::kInputText,
+                               FieldType::PASSPORT_NUMBER, "foo@bar.com"));
+
+  EXPECT_THAT(GetPossibleEntitiesFromSubmittedForm(fields, "en-US"), IsEmpty());
+}
+
 // Tests import that includes a date distributed over three <select> elements.
 TEST_F(AutofillAiImportUtilsTest, ImportFromDateSelect) {
   std::vector<std::unique_ptr<AutofillField>> fields;
@@ -186,6 +197,41 @@ TEST_F(AutofillAiImportUtilsTest, ImportFromNonDateSelect) {
           &EntityInstance::attributes,
           UnorderedElementsAre(CreateAttribute(kPassportNumber, "123"),
                                CreateAttribute(kPassportCountry, "US")))));
+}
+
+// Tests that if a field is a proper affix, the entity is not imported.
+TEST_F(AutofillAiImportUtilsTest, DoNotImportAffixes) {
+  std::vector<std::unique_ptr<AutofillField>> fields;
+  fields.push_back(CreateInput(FormControlType::kInputText,
+                               FieldType::NAME_FULL, "Karlsson on the Roof"));
+  fields.push_back(CreateInput(FormControlType::kInputText,
+                               FieldType::PASSPORT_NUMBER, "123"));
+  fields.push_back(CreateInput(FormControlType::kInputText,
+                               FieldType::DRIVERS_LICENSE_NUMBER, "12345678"));
+  ASSERT_THAT(
+      GetPossibleEntitiesFromSubmittedForm(fields, "en-US"),
+      UnorderedElementsAre(
+          Property(&EntityInstance::attributes,
+                   UnorderedElementsAre(
+                       CreateAttribute(kPassportNumber, "123"),
+                       CreateAttribute(kPassportName, "Karlsson on the Roof"))),
+          Property(&EntityInstance::attributes,
+                   UnorderedElementsAre(
+                       CreateAttribute(kDriversLicenseNumber, "12345678"),
+                       CreateAttribute(kDriversLicenseName,
+                                       "Karlsson on the Roof")))));
+
+  fields[1]->set_format_string_unless_overruled(
+      u"3", AutofillField::FormatStringSource::kServer);
+  fields[2]->set_format_string_unless_overruled(
+      u"0", AutofillField::FormatStringSource::kServer);
+  EXPECT_THAT(
+      GetPossibleEntitiesFromSubmittedForm(fields, "en-US"),
+      UnorderedElementsAre(Property(
+          &EntityInstance::attributes,
+          UnorderedElementsAre(
+              CreateAttribute(kDriversLicenseNumber, "12345678"),
+              CreateAttribute(kDriversLicenseName, "Karlsson on the Roof")))));
 }
 
 TEST_F(AutofillAiImportUtilsTest, MaybeGetLocalizedDate) {

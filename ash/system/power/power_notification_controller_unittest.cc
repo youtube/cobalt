@@ -2,11 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/377326291): Fix and remove.
-#pragma allow_unsafe_buffers
-#endif
-
 #include "ash/system/power/power_notification_controller.h"
 
 #include <map>
@@ -15,6 +10,7 @@
 
 #include "ash/constants/ash_features.h"
 #include "ash/test/ash_test_base.h"
+#include "base/compiler_specific.h"
 #include "base/containers/contains.h"
 #include "base/logging.h"
 #include "base/strings/utf_string_conversions.h"
@@ -225,7 +221,8 @@ class PowerNotificationControllerWithBatterySaverTest
       : PowerNotificationControllerTest(
             {{features::kBatterySaver,
               {{features::kBatterySaverNotificationBehavior.name,
-                features::kBatterySaverNotificationBehavior.options[GetParam()]
+                UNSAFE_TODO(features::kBatterySaverNotificationBehavior
+                                .options[GetParam()])
                     .name}}}},
             {}) {}
 
@@ -334,8 +331,8 @@ TEST_F(PowerNotificationControllerTest,
       power_manager::PowerSupplyProperties_ExternalPower_USB);
   not_full_proto.set_battery_state(
       power_manager::PowerSupplyProperties_BatteryState_CHARGING);
-  full_proto.set_battery_percent(90.0);
-  full_proto.set_is_calculating_battery_time(false);
+  not_full_proto.set_battery_percent(90.0);
+  not_full_proto.set_is_calculating_battery_time(false);
 
   // When the battery is reported as full, a notification shouldn't be displayed
   // for a low-power charger: http://b/64913617

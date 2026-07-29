@@ -337,6 +337,8 @@ PreloadingEligibility ToEligibility(PrerenderFinalStatus status) {
     case PrerenderFinalStatus::kPrerenderFailedDuringPrefetch:
     case PrerenderFinalStatus::kBrowsingDataRemoved:
       NOTREACHED();
+    case PrerenderFinalStatus::kPrerenderHostReused:
+      NOTREACHED();
   }
 
   NOTREACHED();
@@ -803,10 +805,15 @@ FrameTreeNodeId PrerenderHostRegistry::CreateAndStartHost(
     std::unique_ptr<PrerenderHost> reuse_host;
     std::unique_ptr<PrerenderHost> prerender_host;
     if (base::FeatureList::IsEnabled(features::kPrerender2ReuseHost)) {
-      reuse_host = FindPrerenderHostToReuse(attributes);
+      reuse_host = FindAndTakePrerenderHostToReuse(attributes);
     }
     base::UmaHistogramBoolean("Prerender.Experimental.FoundReusePrerenderHost",
                               reuse_host != nullptr);
+    if (!reuse_host) {
+      base::UmaHistogramCounts100(
+          "Prerender.Experimental.ReusePrerenderHost.PrerenderHostCount.Failed",
+          prerender_host_by_frame_tree_node_id_.size());
+    }
     // If we find a reusable prerender host under the same site. We will
     // take over its frame tree and initiate a new navigation to the new
     // prerender URL.
@@ -1227,7 +1234,8 @@ FrameTreeNodeId PrerenderHostRegistry::FindPotentialHostToActivate(
              : FrameTreeNodeId();
 }
 
-FrameTreeNodeId PrerenderHostRegistry::ReserveHostToActivate(
+std::optional<ReservedPrerenderHostInfo>
+PrerenderHostRegistry::ReserveHostToActivate(
     NavigationRequest& navigation_request,
     FrameTreeNodeId expected_host_id) {
   RenderFrameHostImpl* render_frame_host =
@@ -1247,7 +1255,7 @@ FrameTreeNodeId PrerenderHostRegistry::ReserveHostToActivate(
   // matched pages may not be ready for activation yet.
   auto it = prerender_host_by_frame_tree_node_id_.find(expected_host_id);
   if (it == prerender_host_by_frame_tree_node_id_.end()) {
-    return FrameTreeNodeId();
+    return std::nullopt;
   }
 
   PrerenderHost& host_ref = *it->second;
@@ -1258,11 +1266,11 @@ FrameTreeNodeId PrerenderHostRegistry::ReserveHostToActivate(
   std::optional<UrlMatchType> match_type =
       host_ref.IsUrlMatch(navigation_request.GetURL());
   if (!match_type.has_value()) {
-    return FrameTreeNodeId();
+    return std::nullopt;
   }
 
   if (!CanNavigationActivateHost(navigation_request, host_ref)) {
-    return FrameTreeNodeId();
+    return std::nullopt;
   }
 
   FrameTreeNodeId host_id = host_ref.frame_tree_node_id();
@@ -1274,7 +1282,7 @@ FrameTreeNodeId PrerenderHostRegistry::ReserveHostToActivate(
   if (prerender_frame_tree.root()->HasNavigation()) {
     CancelHost(host_id,
                PrerenderFinalStatus::kActivatedDuringMainFrameNavigation);
-    return FrameTreeNodeId();
+    return std::nullopt;
   }
 
   // Remove the host from the map of non-reserved hosts.
@@ -1294,7 +1302,10 @@ FrameTreeNodeId PrerenderHostRegistry::ReserveHostToActivate(
   CHECK(!reserved_prerender_host_);
   reserved_prerender_host_ = std::move(host);
 
-  return host_id;
+  return ReservedPrerenderHostInfo(
+      host_id, reserved_prerender_host_->trigger_type(),
+      reserved_prerender_host_->embedder_histogram_suffix(),
+      reserved_prerender_host_->host_reused());
 }
 
 RenderFrameHostImpl* PrerenderHostRegistry::GetRenderFrameHostForReservedHost(
@@ -2096,7 +2107,8 @@ void PrerenderHostRegistry::RecordPotentialPrerenderProcessReuse(
   base::UmaHistogramEnumeration(kPrerenderProcessReuseUMAName, availability);
 }
 
-std::unique_ptr<PrerenderHost> PrerenderHostRegistry::FindPrerenderHostToReuse(
+std::unique_ptr<PrerenderHost>
+PrerenderHostRegistry::FindAndTakePrerenderHostToReuse(
     const PrerenderAttributes& attributes) {
   const GURL prerender_url = attributes.prerendering_url;
   auto iter = std::find_if(prerender_host_by_frame_tree_node_id_.begin(),
@@ -2107,8 +2119,8 @@ std::unique_ptr<PrerenderHost> PrerenderHostRegistry::FindPrerenderHostToReuse(
                            });
   if (iter != prerender_host_by_frame_tree_node_id_.end()) {
     std::unique_ptr<PrerenderHost> reuse_host = std::move(iter->second);
-    // TODO(crbug.com/402626324): add a new reason and notify about cancellation
     prerender_host_by_frame_tree_node_id_.erase(iter);
+    reuse_host->NotifyReused();
     return reuse_host;
   }
   return nullptr;

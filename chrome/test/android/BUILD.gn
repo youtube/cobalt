@@ -24,6 +24,7 @@ android_library("pagecontroller_utils_java") {
   ]
   deps = [
     "//base:base_java_test_support",
+    "//base:log_java",
     "//third_party/androidx:androidx_annotation_annotation_java",
     "//third_party/androidx:androidx_test_core_java",
     "//third_party/androidx:androidx_test_monitor_java",
@@ -79,6 +80,7 @@ android_test_apk("baseline_profile_test_apk") {
   deps = [
     ":pagecontroller_utils_java",
     "//base:base_java_test_support",
+    "//base:log_java",
     "//net/android:net_java_test_support",
     "//third_party/androidx:androidx_benchmark_benchmark_junit4_java",
     "//third_party/androidx:androidx_benchmark_benchmark_macro_java",
@@ -102,68 +104,6 @@ instrumentation_test_runner("chrome_public_apk_baseline_profile_generator") {
     "--use-apk-under-test-flags-file",
     "--disable-fre",
     "--strict-mode=off",
-  ]
-}
-
-chrome_public_test_apk_tmpl("chrome_java_test_wpr_tests") {
-  apk_name = "ChromeWPRTests"
-  sources = [ "//chrome/android/feed/core/javatests/src/org/chromium/chrome/browser/feed/network_fetch/FeedNewTabPageCardInstrumentationTest.java" ]
-  data = [
-    "//chrome/android/feed/core/javatests/src/org/chromium/chrome/browser/feed/wpr_tests",
-    "//third_party/webpagereplay/cipd/bin",
-
-    # tsproxy binary.
-    "//third_party/catapult/third_party/tsproxy/",
-
-    # For the wpr_cert.pem and wpr_key.pem.
-    "//third_party/catapult/web_page_replay_go/",
-  ]
-
-  # Skia Gold dependency
-  data_deps = [ "//ui/base:goldctl" ]
-  deps = [
-    ":chrome_java_integration_test_support",
-    "//base:base_java_test_support",
-    "//chrome/android:chrome_java",
-    "//chrome/browser/flags:java",
-    "//chrome/browser/tab:java",
-    "//chrome/browser/ui/android/native_page:java",
-    "//components/embedder_support/android:util_java",
-    "//third_party/android_deps:espresso_java",
-    "//third_party/android_deps:guava_android_java",
-    "//third_party/hamcrest:hamcrest_java",
-    "//third_party/junit",
-    "//ui/android:ui_java_test_support",
-  ]
-}
-
-chrome_public_test_apk_tmpl("chrome_java_test_feed_test") {
-  apk_name = "ChromeFeedTests"
-  sources = [
-    "//chrome/android/feed/core/javatests/src/org/chromium/chrome/browser/feed/v2/FeedSurfaceCoordinatorIntegrationTest.java",
-    "//chrome/android/java/src/org/chromium/chrome/browser/app/feed/feedmanagement/FeedManagementTest.java",
-  ]
-
-  # Skia Gold dependency
-  data_deps = [ "//ui/base:goldctl" ]
-  deps = [
-    ":chrome_java_integration_test_support",
-    "//base:base_java",
-    "//base:base_java_test_support",
-    "//chrome/android:chrome_java",
-    "//chrome/browser/flags:java",
-    "//chrome/browser/tab:java",
-    "//chrome/browser/ui/android/native_page:java",
-    "//components/embedder_support/android:util_java",
-    "//components/signin/public/android:java",
-    "//components/signin/public/android:signin_java_test_support",
-    "//content/public/test/android:content_java_test_support",
-    "//net/android:net_java",
-    "//third_party/android_deps:espresso_java",
-    "//third_party/android_deps:guava_android_java",
-    "//third_party/hamcrest:hamcrest_java",
-    "//third_party/junit",
-    "//ui/android:ui_java_test_support",
   ]
 }
 
@@ -263,6 +203,7 @@ android_library("chrome_java_transit") {
     "javatests/src/org/chromium/chrome/test/transit/page/PageLoadedCondition.java",
     "javatests/src/org/chromium/chrome/test/transit/page/PdfCtaPageStation.java",
     "javatests/src/org/chromium/chrome/test/transit/page/PopupBlockedMessageFacility.java",
+    "javatests/src/org/chromium/chrome/test/transit/page/ReferrerCondition.java",
     "javatests/src/org/chromium/chrome/test/transit/page/RegularWebPageAppMenuFacility.java",
     "javatests/src/org/chromium/chrome/test/transit/page/SwipingToTabFacility.java",
     "javatests/src/org/chromium/chrome/test/transit/page/TabSwitcherActionMenuFacility.java",

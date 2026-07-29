@@ -17,11 +17,6 @@ android_library("chrome_test_java_helper") {
     "//chrome/android/feed/core/javatests/src/org/chromium/chrome/browser/feed/v2/FeedV2TestHelper.java",
     "//chrome/android/feed/core/javatests/src/org/chromium/chrome/browser/feed/v2/TestFeedServer.java",
     "src/org/chromium/chrome/browser/MockSafeBrowsingApiHandler.java",
-
-    # TODO: This is a test file that's used by another test file
-    # CustomTabActivityTest.java which is in a different package.
-    # We should try to remove this dependency if possible.
-    "src/org/chromium/chrome/browser/TabsOpenedFromExternalAppTest.java",
     "src/org/chromium/chrome/browser/ViewportTestUtils.java",
 
     # TODO: This is a test file that's used by another test file
@@ -145,14 +140,12 @@ android_library("chrome_test_java_helper") {
     "//chrome/browser/partnercustomizations:delegate_java",
     "//chrome/browser/partnercustomizations:java",
     "//chrome/browser/partnercustomizations:test_support_java",
-    "//chrome/browser/password_check:public_java",
     "//chrome/browser/password_manager/android:java",
     "//chrome/browser/password_manager/android:settings_interface_java",
     "//chrome/browser/password_manager/android:test_support_java",
     "//chrome/browser/password_manager/android:utils_java",
     "//chrome/browser/password_manager/android/account_storage_toggle:java",
     "//chrome/browser/password_manager/android/pwd_check_wrapper:test_support_java",
-    "//chrome/browser/password_manager/android/pwd_migration:java",
     "//chrome/browser/policy/android:java",
     "//chrome/browser/preferences:java",
     "//chrome/browser/preferences:pref_service_java",
@@ -500,6 +493,7 @@ android_library("chrome_test_java_org.chromium.chrome.browser") {
     "src/org/chromium/chrome/browser/TabObserverTest.java",
     "src/org/chromium/chrome/browser/TabTest.java",
     "src/org/chromium/chrome/browser/TabThemeTest.java",
+    "src/org/chromium/chrome/browser/TabsOpenedFromExternalAppTest.java",
     "src/org/chromium/chrome/browser/TabsTest.java",
     "src/org/chromium/chrome/browser/ToolbarSwipeTest.java",
     "src/org/chromium/chrome/browser/UrlSchemeTest.java",
@@ -966,16 +960,11 @@ android_library(
 
   sources = [
     "src/org/chromium/chrome/browser/password_manager/EnterpriseReportingIntegrationTest.java",
-    "src/org/chromium/chrome/browser/password_manager/PasswordCheckupIntegrationTest.java",
     "src/org/chromium/chrome/browser/password_manager/PasswordManagerDialogTest.java",
     "src/org/chromium/chrome/browser/password_manager/PasswordSavingIntegrationTest.java",
     "src/org/chromium/chrome/browser/password_manager/TouchToFillMainFlowIntegrationTest.java",
     "src/org/chromium/chrome/browser/password_manager/VirtualViewStructureInstrumentationTest.java",
     "src/org/chromium/chrome/browser/password_manager/settings/CredentialManagerIntegrationTest.java",
-    "src/org/chromium/chrome/browser/password_manager/settings/PasswordSettingsSearchTest.java",
-    "src/org/chromium/chrome/browser/password_manager/settings/PasswordSettingsTest.java",
-    "src/org/chromium/chrome/browser/password_manager/settings/PasswordSettingsTestHelper.java",
-    "src/org/chromium/chrome/browser/password_manager/settings/PasswordViewingTypeTest.java",
     "src/org/chromium/chrome/browser/password_manager/settings/PasswordsPreferenceTest.java",
   ]
 
@@ -1468,6 +1457,7 @@ android_library("chrome_test_java_various") {
     "src/org/chromium/chrome/browser/content_settings/ContentSettingsObserverTest.java",
     "src/org/chromium/chrome/browser/contextmenu/ContextMenuTabPTTest.java",
     "src/org/chromium/chrome/browser/contextmenu/ContextMenuTest.java",
+    "src/org/chromium/chrome/browser/contextmenu/CustomTabContextMenuTest.java",
     "src/org/chromium/chrome/browser/desktop_windowing/AppHeaderCoordinatorBrowserTest.java",
     "src/org/chromium/chrome/browser/device_lock/DeviceLockActivityLauncherImplTest.java",
     "src/org/chromium/chrome/browser/device_lock/DeviceLockActivityTest.java",

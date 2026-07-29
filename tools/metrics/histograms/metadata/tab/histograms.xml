@@ -273,6 +273,32 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Discarding.TabLifecycleUnit.DiscardLatency" units="ms"
+    expires_after="2025-12-14">
+  <owner>tluk@chromium.org</owner>
+  <owner>catan-team@chromium.org</owner>
+  <summary>
+    Records discard latency for the TabLifecycleUnit::Discard() operation.
+
+    For the discard implementation that replaces the discarded tab's WebContents
+    this is measured as the time from when a TabLifecycleUnit::Discard() is
+    called for a tab, to when the Tab's WebContents is replaced. This is emitted
+    immediately after the Tab's WebContents is replaced.
+
+    For the discard implementation that retains the discarded tab's WebContents
+    this is measured as the time from when a TabLifecycleUnit::Discard() is
+    called for a tab, to when the Discard() operation was completed in the
+    renderer and completion was acknowledged by the Browser or when the frame's
+    renderer is terminated. This is emitted immediately after the
+    acknowledgement of the Discard operation by the RenderFrameHost in the
+    Browser or once the frame is notified its renderer has terminated.
+
+    The retained discard implementation is behind the WebContentsDiscard flag
+    and eventually the old implementation that replaces the WebContents will be
+    removed.
+  </summary>
+</histogram>
+
 <histogram name="Tab.AgeAtDeletion" units="ms" expires_after="2026-01-05">
   <owner>ewannpv@chromium.org</owner>
   <owner>gambard@chromium.org</owner>
@@ -970,7 +996,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="TabGroups.NumberOfRootIdsFixed" units="groups"
-    expires_after="2025-11-26">
+    expires_after="2026-01-25">
   <owner>ckitagawa@chromium.org</owner>
   <owner>clank-tab-dev@chromium.org</owner>
   <summary>
@@ -1329,7 +1355,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="TabGroups.Shortcuts" enum="TabGroupShortcut"
-    expires_after="2025-11-24">
+    expires_after="2026-01-25">
   <owner>dljames@chromium.org</owner>
   <owner>top-chrome-desktop-ui@google.com</owner>
   <summary>
@@ -2090,7 +2116,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Tabs.ArchivedTabs.MaxLimitReachedAt" units="count"
-    expires_after="2025-09-07">
+    expires_after="2026-01-11">
   <owner>wylieb@google.com</owner>
   <owner>clank-tab-dev@google.com</owner>
   <summary>
@@ -2124,7 +2150,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Tabs.ArchiveSettings.AutoDeleteEnabled" enum="Boolean"
-    expires_after="2025-09-07">
+    expires_after="2026-01-11">
   <owner>wylieb@google.com</owner>
   <owner>clank-tab-dev@google.com</owner>
   <summary>
@@ -2204,7 +2230,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Tabs.DeleteWithPTD.DurationMs" units="ms"
-    expires_after="2025-09-07">
+    expires_after="2026-01-11">
   <owner>wylieb@google.com</owner>
   <owner>clank-tab-dev@google.com</owner>
   <summary>
@@ -2302,7 +2328,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Tabs.InitializePTD.DurationMs" units="ms"
-    expires_after="2025-09-07">
+    expires_after="2026-01-11">
   <owner>wylieb@google.com</owner>
   <owner>clank-tab-dev@google.com</owner>
   <summary>
@@ -2372,6 +2398,30 @@ chromium-metrics-reviews@google.com.
     build).
   </summary>
   <token key="BatteryState" variants="BatteryState"/>
+</histogram>
+
+<histogram name="Tabs.Metadata.FileSizeOnRead.{TabModelSelectorType}"
+    units="KB" expires_after="2026-07-28">
+  <owner>skym@chromium.org</owner>
+  <owner>clank-tab-dev@google.com</owner>
+  <summary>
+    Records the size of the tab list metadata file that's loaded on tab model
+    creation split out by client type. This is for the regular tab model, not
+    the incognito. Additionally this file may be loaded more times for various
+    things such as clean up and merging, these loads are all ignored. Clients
+    such as headless will still report with their selector type.
+  </summary>
+</histogram>
+
+<histogram name="Tabs.Metadata.SyncSave.{TabModelSelectorType}" units="count"
+    expires_after="2026-08-01">
+  <owner>skym@chromium.org</owner>
+  <owner>clank-tab-dev@google.com</owner>
+  <summary>
+    (Android only) Records whether the metadata save was performed synchronously
+    (only the UI thread) or asynchronous (on a background thread). Also useful
+    because it captures the total number of metadata saves.
+  </summary>
 </histogram>
 
 <histogram name="Tabs.MissingWebStateStorageFileOnSessionRestore"
@@ -2864,7 +2914,7 @@ chromium-metrics-reviews@google.com.
 <histogram name="Tabs.SplitViewMenu.{SplitViewMenuSource}"
     enum="SplitViewMenuEntry" expires_after="2025-12-24">
   <owner>agale@chromium.org</owner>
-  <owner>chrome-desktop-ui-sea@google.com</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
   <summary>
     Records the menu item selected from the split view menu anchored to
     {SplitViewMenuSource}.
@@ -2947,7 +2997,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Tabs.TabArchived.FoundDuplicateInRegularModel" units="count"
-    expires_after="2025-09-07">
+    expires_after="2026-01-11">
   <owner>wylieb@google.com</owner>
   <owner>clank-tab-dev@google.com</owner>
   <summary>
@@ -3670,7 +3720,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Tabs.TabStateCleanupAbortedByArchive" enum="Boolean"
-    expires_after="2025-09-07">
+    expires_after="2026-01-11">
   <owner>wylieb@google.com</owner>
   <owner>clank-tab-dev@google.com</owner>
   <summary>
@@ -3681,7 +3731,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Tabs.TabThumbnailCleanupAbortedByArchive" enum="Boolean"
-    expires_after="2025-09-07">
+    expires_after="2026-01-11">
   <owner>wylieb@google.com</owner>
   <owner>clank-tab-dev@google.com</owner>
   <summary>
@@ -3730,6 +3780,16 @@ chromium-metrics-reviews@google.com.
   <summary>
     [iOS] The number of old/unused tabs opened at cold launch. Inactive tab is a
     tab that has been not interacted with for more than 7 days.
+  </summary>
+</histogram>
+
+<histogram name="Tabs.VerticalTabs.State" enum="VerticalTabsState"
+    expires_after="2026-01-01">
+  <owner>dpenning@chromium.org</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
+  <summary>
+    The state of vertical tabs across all profiles. Logged by the metric
+    provider for UMA filtering.
   </summary>
 </histogram>
 
@@ -3838,6 +3898,16 @@ chromium-metrics-reviews@google.com.
   <summary>
     When the user switches tab, records the time since the mouse entered the
     tabstrip.
+  </summary>
+</histogram>
+
+<histogram name="TabStrip.SplitView.Created" enum="SplitTabCreatedSource"
+    expires_after="2026-01-18">
+  <owner>agale@chromium.org</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
+  <summary>
+    When a split tab is created, records the method through which it was
+    created.
   </summary>
 </histogram>
 

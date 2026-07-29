@@ -504,22 +504,18 @@ bool ContextMenuController::ShowContextMenu(LocalFrame* frame,
     data.alt_text = html_element->AltText().Utf8();
   }
 
-  if (source_type == kMenuSourceLongPress ||
-      source_type == kMenuSourceLongTap) {
+  const bool from_touch = source_type == kMenuSourceTouch ||
+                          source_type == kMenuSourceLongPress ||
+                          source_type == kMenuSourceLongTap;
+
+  if (from_touch) {
     for (Node* node = result.InnerNode(); node; node = node->parentNode()) {
       if (HTMLElement* element = DynamicTo<HTMLElement>(node);
           element && element->InterestForElement()) {
         auto* context = element->GetDocument().GetExecutionContext();
         CHECK(RuntimeEnabledFeatures::HTMLInterestForAttributeEnabled(context));
         data.opened_from_interest_for = true;
-        if (RuntimeEnabledFeatures::HTMLInterestForContextMenuItemOnlyEnabled(
-                context)) {
-          data.interest_for_node_id = element->NodeID();
-        } else {
-          static_assert(kInvalidDOMNodeId == 0,
-                        "The Android Java code assumes 0 === invalid");
-          data.interest_for_node_id = kInvalidDOMNodeId;
-        }
+        data.interest_for_node_id = element->NodeID();
         break;
       }
     }
@@ -829,9 +825,6 @@ bool ContextMenuController::ShowContextMenu(LocalFrame* frame,
 
   SetAutofillData(result.InnerNode(), data);
 
-  const bool from_touch = source_type == kMenuSourceTouch ||
-                          source_type == kMenuSourceLongPress ||
-                          source_type == kMenuSourceLongTap;
   if (from_touch && !ShouldShowContextMenuFromTouch(data))
     return false;
 

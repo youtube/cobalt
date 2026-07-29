@@ -14,14 +14,15 @@
 #include "base/containers/to_vector.h"
 #include "base/functional/bind.h"
 #include "chrome/browser/media/webrtc/media_capture_devices_dispatcher.h"
+#include "chrome/browser/ui/recently_audible_helper.h"
 #include "chrome/browser/ui/tabs/alert/tab_alert.h"
 #include "chrome/browser/vr/vr_tab_helper.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_contents_capability_type.h"
 
 #if BUILDFLAG(ENABLE_GLIC)
-#include "chrome/browser/glic/glic_keyed_service.h"
 #include "chrome/browser/glic/public/context/glic_sharing_manager.h"
+#include "chrome/browser/glic/public/glic_keyed_service.h"
 #endif  // BUILDFLAG(ENABLE_GLIC)
 
 namespace {
@@ -41,16 +42,17 @@ bool CompareAlerts::operator()(TabAlert first, TabAlert second) const {
   // Alerts are ordered from highest priority to be shown to lowest priority.
   static constexpr auto tab_alert_priority =
       base::MakeFixedFlatMap<TabAlert, int>(
-          {{TabAlert::DESKTOP_CAPTURING, 15},
-           {TabAlert::TAB_CAPTURING, 14},
-           {TabAlert::MEDIA_RECORDING, 13},
-           {TabAlert::AUDIO_RECORDING, 12},
-           {TabAlert::VIDEO_RECORDING, 11},
-           {TabAlert::BLUETOOTH_CONNECTED, 10},
-           {TabAlert::BLUETOOTH_SCAN_ACTIVE, 9},
-           {TabAlert::USB_CONNECTED, 8},
-           {TabAlert::HID_CONNECTED, 7},
-           {TabAlert::SERIAL_CONNECTED, 6},
+          {{TabAlert::DESKTOP_CAPTURING, 16},
+           {TabAlert::TAB_CAPTURING, 15},
+           {TabAlert::MEDIA_RECORDING, 14},
+           {TabAlert::AUDIO_RECORDING, 13},
+           {TabAlert::VIDEO_RECORDING, 12},
+           {TabAlert::BLUETOOTH_CONNECTED, 11},
+           {TabAlert::BLUETOOTH_SCAN_ACTIVE, 10},
+           {TabAlert::USB_CONNECTED, 9},
+           {TabAlert::HID_CONNECTED, 8},
+           {TabAlert::SERIAL_CONNECTED, 7},
+           {TabAlert::ACTOR_ACCESSING, 6},
            {TabAlert::GLIC_ACCESSING, 5},
            {TabAlert::GLIC_SHARING, 4},
            {TabAlert::VR_PRESENTING_IN_HEADSET, 3},
@@ -76,6 +78,11 @@ TabAlertController::TabAlertController(
           .get());
   vr_tab_helper_observation_.Observe(
       vr::VrTabHelper::FromWebContents(web_contents()));
+  recently_audible_subscription_ =
+      RecentlyAudibleHelper::FromWebContents(tab.GetContents())
+          ->RegisterRecentlyAudibleChangedCallback(base::BindRepeating(
+              &TabAlertController::OnRecentlyAudibleStateChanged,
+              base::Unretained(this)));
 
 #if BUILDFLAG(ENABLE_GLIC)
   if (glic_keyed_service) {
@@ -130,6 +137,11 @@ void TabAlertController::OnDiscardContents(TabInterface* tab_interface,
   vr_tab_helper_observation_.Reset();
   vr_tab_helper_observation_.Observe(
       vr::VrTabHelper::FromWebContents(new_contents));
+  recently_audible_subscription_ =
+      RecentlyAudibleHelper::FromWebContents(new_contents)
+          ->RegisterRecentlyAudibleChangedCallback(base::BindRepeating(
+              &TabAlertController::OnRecentlyAudibleStateChanged,
+              base::Unretained(this)));
 }
 
 void TabAlertController::OnCapabilityTypesChanged(
@@ -165,10 +177,6 @@ void TabAlertController::MediaPictureInPictureChanged(
 
 void TabAlertController::DidUpdateAudioMutingState(bool muted) {
   UpdateAlertState(TabAlert::AUDIO_MUTING, muted);
-}
-
-void TabAlertController::OnAudioStateChanged(bool audible) {
-  UpdateAlertState(TabAlert::AUDIO_PLAYING, audible);
 }
 
 void TabAlertController::OnIsCapturingVideoChanged(
@@ -241,6 +249,10 @@ void TabAlertController::OnGlicTabPinningChanged(
   }
 }
 #endif  // BUILDFLAG(ENABLE_GLIC)
+
+void TabAlertController::OnRecentlyAudibleStateChanged(bool was_audible) {
+  UpdateAlertState(TabAlert::AUDIO_PLAYING, was_audible);
+}
 
 void TabAlertController::UpdateAlertState(TabAlert alert, bool is_active) {
   std::optional<TabAlert> previous_alert = GetAlertToShow();

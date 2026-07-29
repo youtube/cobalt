@@ -121,6 +121,9 @@ class CORE_EXPORT AdTracker : public GarbageCollected<AdTracker> {
     // The filterlist rule that caused the root (last) script in
     // `ancestry_chain` to be ad-tagged.
     subresource_filter::ScopedRule root_script_filterlist_rule;
+
+    // A brief summary of the ancestry. Useful for intervention reports.
+    String ToString() const;
   };
 
   // Finds an AdTracker for a given ExecutionContext.
@@ -191,9 +194,19 @@ class CORE_EXPORT AdTracker : public GarbageCollected<AdTracker> {
  protected:
   // Protected for testing.
   // Note that this outputs the `out_top_script` even when it's not an ad.
-  virtual String ScriptAtTopOfStack(
-      std::optional<AdScriptIdentifier>* out_top_script);
+  virtual int ScriptAtTopOfStack();
   virtual ExecutionContext* GetCurrentExecutionContext();
+
+  // `script_name` will be empty in the case of a dynamically added script with
+  // no src attribute set. `script_id` won't be set for module scripts in an
+  // errored state or for non-source text modules. `top_level_execution` should
+  // be true if the top-level script is being run, as opposed to a function
+  // being called.
+  virtual void WillExecuteScript(ExecutionContext*,
+                                 const v8::Local<v8::Context>& v8_context,
+                                 const String& script_name,
+                                 int script_id,
+                                 bool top_level_execution);
 
  private:
   friend class FrameFetchContextSubresourceFilterTest;
@@ -206,22 +219,8 @@ class CORE_EXPORT AdTracker : public GarbageCollected<AdTracker> {
       StackType stack_type,
       std::optional<AdScriptIdentifier>* out_ad_script);
 
-  // `script_name` will be empty in the case of a dynamically added script with
-  // no src attribute set. `script_id` won't be set for module scripts in an
-  // errored state or for non-source text modules. `top_level_execution` should
-  // be true if the top-level script is being run, as opposed to a function
-  // being called.
-  void WillExecuteScript(ExecutionContext*,
-                         const v8::Local<v8::Context>& v8_context,
-                         const String& script_name,
-                         int script_id,
-                         bool top_level_execution);
   void DidExecuteScript();
   bool IsKnownAdScript(ExecutionContext*, const String& url);
-  bool IsKnownAdScriptForCheckedContext(
-      ExecutionContext&,
-      const String& url,
-      std::optional<AdScriptIdentifier>* out_ad_script);
 
   // Adds the given `url` and its associated `ad_provenance` to the set of known
   // ad scripts associated with the provided `execution_context`.
@@ -280,6 +279,9 @@ class CORE_EXPORT AdTracker : public GarbageCollected<AdTracker> {
 
   // The number of ad-related async tasks currently running in the stack.
   int running_ad_async_tasks_ = 0;
+
+  // The known ad-related script ids.
+  HashSet<int> ad_script_ids_;
 };
 
 template <>

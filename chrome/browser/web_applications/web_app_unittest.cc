@@ -36,7 +36,7 @@
 #include "components/web_package/signed_web_bundles/ecdsa_p256_sha256_signature.h"
 #include "components/web_package/signed_web_bundles/signed_web_bundle_signature_stack_entry.h"
 #include "components/webapps/isolated_web_apps/types/storage_location.h"
-#include "components/webapps/isolated_web_apps/update_channel.h"
+#include "components/webapps/isolated_web_apps/types/update_channel.h"
 #include "services/network/public/cpp/permissions_policy/origin_with_possible_wildcards.h"
 #include "services/network/public/mojom/permissions_policy/permissions_policy_feature.mojom.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -391,6 +391,7 @@ TEST(WebAppTest, IsolationDataDebugValue) {
         },
         "version": "1.0.0",
         "controlled_frame_partitions (on-disk)": [],
+        "opened_tabs_counter_notification_state": null,
         "pending_update_info": null,
         "integrity_block_data": null
       })|")
@@ -445,6 +446,7 @@ TEST(WebAppTest, IsolationDataPendingUpdateInfoDebugValue) {
         },
         "version": "1.0.0",
         "controlled_frame_partitions (on-disk)": [],
+        "opened_tabs_counter_notification_state": null,
         "pending_update_info": {
           "isolated_web_app_location": {
             "unowned_bundle": {

@@ -3,8 +3,12 @@
 // found in the LICENSE file.
 
 import 'chrome://resources/cr_elements/cr_auto_img/cr_auto_img.js';
+import 'chrome://resources/cr_elements/cr_button/cr_button.js';
+import 'chrome://resources/cr_elements/cr_icon/cr_icon.js';
 import '/strings.m.js';
 import '../module_header.js';
+import './icons.html.js';
+import './icon_container.js';
 
 import {CrLitElement} from 'chrome://resources/lit/v3_0/lit.rollup.js';
 
@@ -77,8 +81,16 @@ export class ModuleElement extends ModuleElementBase {
     ];
   }
 
+  protected shouldShowZeroStateCard_(): boolean {
+    return this.tabGroups.length === 0;
+  }
+
   protected getTabGroups_(): TabGroup[] {
     return this.tabGroups.slice(0, MAX_TAB_GROUPS);
+  }
+
+  protected getFaviconUrls_(objects: Array<{url: string}>): string[] {
+    return objects.map(obj => obj.url);
   }
 }
 
@@ -87,13 +99,12 @@ customElements.define(ModuleElement.is, ModuleElement);
 async function createElement(): Promise<ModuleElement|null> {
   const {tabGroups} =
       await TabGroupsProxyImpl.getInstance().handler.getTabGroups();
-  if (!tabGroups || tabGroups.length === 0) {
-    // TODO(crbug.com/431278744): Show zero-state card.
-    return null;
-  }
 
   const element = new ModuleElement();
-  element.tabGroups = tabGroups;
+
+  if (tabGroups && tabGroups.length > 0) {
+    element.tabGroups = tabGroups;
+  }
 
   return element;
 }

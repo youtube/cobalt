@@ -3,12 +3,25 @@
 # found in the LICENSE file.
 
 import("//build/buildflag_header.gni")
+import("//build/compiled_action.gni")
 import("//build/config/chrome_build.gni")
 import("//build/config/features.gni")
 import("//components/optimization_guide/features.gni")
 import("//testing/libfuzzer/fuzzer_test.gni")
 import("//third_party/protobuf/proto_library.gni")
 import("//tools/grit/grit_rule.gni")
+
+source_set("country_data") {
+  sources = [
+    "geo/country_data.cc",
+    "geo/country_data.h",
+  ]
+  deps = [
+    "//base",
+    "//components/strings",
+    "//third_party/icu",
+  ]
+}
 if (is_android) {
   import("//build/config/android/rules.gni")
 }
@@ -70,12 +83,34 @@ action("entity_schema_enums_and_functions") {
          rebase_path(outputs, root_build_dir)
 }
 
+executable("country_native_names_generator") {
+  sources = [ "geo/generate_country_native_names.cc" ]
+  deps = [
+    "//base",
+    "//base:i18n",
+    "//components/autofill/core/browser:country_data",
+    "//third_party/icu",
+  ]
+}
+
+compiled_action("generate_country_native_names") {
+  tool = ":country_native_names_generator"
+  outputs = [ "$target_gen_dir/geo/country_native_names_inl.h" ]
+  args = [
+    "--output-file-path=" +
+        rebase_path("$target_gen_dir/geo/country_native_names_inl.h",
+                    root_build_dir),
+  ]
+}
+
 proto_library("amount_extraction_heuristic_regexes_proto") {
   sources = [ "payments/amount_extraction_heuristic_regexes.proto" ]
 }
 
 static_library("browser") {
   sources = [
+    "autofill_ai_form_rationalization.cc",
+    "autofill_ai_form_rationalization.h",
     "autofill_browser_util.cc",
     "autofill_browser_util.h",
     "autofill_feedback_data.cc",
@@ -314,8 +349,6 @@ static_library("browser") {
     "geo/alternative_state_name_map_updater.h",
     "geo/autofill_country.cc",
     "geo/autofill_country.h",
-    "geo/country_data.cc",
-    "geo/country_data.h",
     "geo/country_names.cc",
     "geo/country_names.h",
     "geo/country_names_for_locale.cc",
@@ -337,8 +370,6 @@ static_library("browser") {
     "integrators/autofill_ai/autofill_ai_labels.h",
     "integrators/autofill_ai/autofill_ai_manager.cc",
     "integrators/autofill_ai/autofill_ai_manager.h",
-    "integrators/autofill_ai/autofill_ai_suggestions.cc",
-    "integrators/autofill_ai/autofill_ai_suggestions.h",
     "integrators/autofill_ai/metrics/autofill_ai_logger.cc",
     "integrators/autofill_ai/metrics/autofill_ai_logger.h",
     "integrators/autofill_ai/metrics/autofill_ai_metrics.cc",
@@ -620,6 +651,10 @@ static_library("browser") {
     "studies/autofill_experiments.h",
     "suggestions/addresses/address_suggestion_generator.cc",
     "suggestions/addresses/address_suggestion_generator.h",
+    "suggestions/autocomplete_suggestion_generator.cc",
+    "suggestions/autocomplete_suggestion_generator.h",
+    "suggestions/autofill_ai/autofill_ai_suggestion_generator.cc",
+    "suggestions/autofill_ai/autofill_ai_suggestion_generator.h",
     "suggestions/one_time_passwords/otp_suggestion_generator.cc",
     "suggestions/one_time_passwords/otp_suggestion_generator.h",
     "suggestions/payments/iban_suggestion_generator.cc",
@@ -768,6 +803,7 @@ static_library("browser") {
     "webdata/valuables/valuables_table.h",
   ]
 
+  sources += get_target_outputs(":generate_country_native_names")
   sources += get_target_outputs(":regex_patterns_inl_h")
   sources += get_target_outputs(":entity_schema_enums_and_functions")
 
@@ -788,6 +824,8 @@ static_library("browser") {
   if (is_android) {
     sources += [
       "data_model/valuables/android/loyalty_card_android.h",
+      "metrics/payments/credit_card_save_metrics_android.cc",
+      "metrics/payments/credit_card_save_metrics_android.h",
       "payments/autofill_save_iban_ui_info.cc",
       "payments/autofill_save_iban_ui_info.h",
       "ui/addresses/android/autofill_address_editor_ui_info_android.cc",
@@ -858,6 +896,7 @@ static_library("browser") {
 
   public_deps = [
     ":amount_extraction_heuristic_regexes_proto",
+    ":country_data",
     ":legal_message_line",
     "//components/autofill/core/browser/payments:card_unmask_challenge_option",
     "//components/autofill/core/browser/proto",
@@ -893,6 +932,7 @@ static_library("browser") {
     ":autofill_address_rewriter_resources",
     ":buildflags",
     ":entity_schema_enums_and_functions",
+    ":generate_country_native_names",
     ":regex_patterns_inl_h",
     "//base",
     "//base:i18n",
@@ -934,7 +974,7 @@ static_library("browser") {
     "//google_apis",
     "//google_apis/common:request_util",
     "//net",
-    "//services/data_decoder/public/cpp:cpp",
+    "//services/data_decoder/public/cpp",
     "//services/metrics/public/cpp:metrics_cpp",
     "//services/metrics/public/cpp:ukm_builders",
     "//services/network/public/cpp",
@@ -943,7 +983,7 @@ static_library("browser") {
     "//third_party/libphonenumber",
     "//third_party/re2",
     "//third_party/zlib/google:compression_utils",
-    "//ui/accessibility:accessibility",
+    "//ui/accessibility",
   ]
 
   if (!is_fuchsia) {
@@ -1231,7 +1271,7 @@ static_library("test_support") {
     "//components/variations",
     "//components/variations:test_support",
     "//components/variations/net",
-    "//components/version_info:version_info",
+    "//components/version_info",
     "//components/webdata/common",
     "//crypto",
     "//google_apis:test_support",
@@ -1242,7 +1282,7 @@ static_library("test_support") {
     "//testing/gtest",
     "//third_party/libaddressinput:test_support",
     "//third_party/libaddressinput:util",
-    "//third_party/re2:re2",
+    "//third_party/re2",
     "//ui/accessibility",
     "//ui/gfx:test_support",
     "//ui/gfx/geometry",
@@ -1311,6 +1351,7 @@ bundle_data("unit_tests_bundle_data") {
 source_set("unit_tests") {
   testonly = true
   sources = [
+    "autofill_ai_form_rationalization_unittest.cc",
     "autofill_feedback_data_unittest.cc",
     "autofill_field_unittest.cc",
     "autofill_merge_unittest.cc",
@@ -1415,7 +1456,6 @@ source_set("unit_tests") {
     "heuristic_source_unittest.cc",
     "integrators/autofill_ai/autofill_ai_import_utils_unittest.cc",
     "integrators/autofill_ai/autofill_ai_manager_unittest.cc",
-    "integrators/autofill_ai/autofill_ai_suggestions_unittest.cc",
     "integrators/autofill_ai/metrics/autofill_ai_logger_unittest.cc",
     "integrators/optimization_guide/autofill_optimization_guide_unittest.cc",
     "logging/log_buffer_submitter_unittest.cc",
@@ -1503,6 +1543,8 @@ source_set("unit_tests") {
     "studies/autofill_ablation_study_unittest.cc",
     "studies/autofill_experiments_unittest.cc",
     "suggestions/addresses/address_suggestion_generator_unittest.cc",
+    "suggestions/autocomplete_suggestion_generator_unittests.cc",
+    "suggestions/autofill_ai/autofill_ai_suggestion_generator_unittests.cc",
     "suggestions/one_time_passwords/otp_suggestion_generator_unittest.cc",
     "suggestions/payments/iban_suggestion_generator_unittest.cc",
     "suggestions/payments/merchant_promo_code_suggestion_generator_unittest.cc",
@@ -1629,11 +1671,11 @@ source_set("unit_tests") {
     "//base/version_info",
     "//components/autofill/core/common:autofill_regex",
     "//components/autofill/core/common:credit_card_number_validation",
-    "//components/device_reauth:device_reauth",
+    "//components/device_reauth",
     "//components/device_reauth:test_support",
     "//components/feature_engagement",
     "//components/history/core/browser",
-    "//components/image_fetcher/core:core",
+    "//components/image_fetcher/core",
     "//components/image_fetcher/core:test_support",
     "//components/leveldb_proto",
     "//components/optimization_guide/core",
@@ -1647,7 +1689,7 @@ source_set("unit_tests") {
     "//components/prefs",
     "//components/prefs:test_support",
     "//components/resources",
-    "//components/search:search",
+    "//components/search",
     "//components/security_state/core",
     "//components/signin/public/identity_manager:test_support",
     "//components/strings",
@@ -1662,7 +1704,7 @@ source_set("unit_tests") {
     "//components/variations",
     "//components/variations:test_support",
     "//components/variations/net",
-    "//components/version_info:version_info",
+    "//components/version_info",
     "//components/webdata/common",
     "//google_apis",
     "//google_apis:test_support",
@@ -1678,7 +1720,7 @@ source_set("unit_tests") {
     "//third_party/libaddressinput:test_support",
     "//third_party/libaddressinput:util",
     "//third_party/libphonenumber",
-    "//third_party/re2:re2",
+    "//third_party/re2",
     "//ui/base",
     "//ui/base:test_support",
     "//ui/gfx:test_support",
@@ -1740,7 +1782,7 @@ if (use_fuzzing_engine_with_lpm) {
     deps = [
       # TODO(crbug.com/41421248): Reduce the dependency on "browser".
       ":browser",
-      "//base:base",
+      "//base",
       "//components/autofill/core/browser",
       "//components/autofill/core/browser:test_support",
       "//components/autofill/core/browser/proto",

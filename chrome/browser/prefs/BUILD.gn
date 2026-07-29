@@ -83,6 +83,7 @@ source_set("impl") {
     "//chrome/browser/ui/safety_hub",
     "//chrome/browser/ui/search_engines",
     "//chrome/browser/ui/side_search",
+    "//chrome/browser/ui/startup",
     "//chrome/browser/ui/startup:startup_tab",
     "//chrome/browser/ui/toolbar",
     "//chrome/browser/ui/toolbar/chrome_labs",
@@ -106,7 +107,7 @@ source_set("impl") {
     "//components/fingerprinting_protection_filter/common:prefs",
     "//components/history_clusters/core",
     "//components/image_fetcher/core/cache",
-    "//components/invalidation/impl",
+    "//components/invalidation:legacy_topics_cleanup",
     "//components/language/content/browser",
     "//components/language/content/browser/ulp_language_code_locator",
     "//components/language/core/browser",
@@ -157,7 +158,7 @@ source_set("impl") {
   }
 
   if (enable_background_mode) {
-    deps += [ "//chrome/browser/background/extensions:extensions" ]
+    deps += [ "//chrome/browser/background/extensions" ]
   }
 
   if (is_chromeos) {
@@ -359,6 +360,10 @@ source_set("impl") {
       "//chrome/browser/glic",
     ]
   }
+
+  if (!is_android && !is_chromeos) {
+    deps += [ "//chrome/browser/ui/startup/default_browser_prompt" ]
+  }
 }
 
 # There are users of this util such as //c/b/ash/app_restore. If it's part of
@@ -487,7 +492,7 @@ if (!is_android) {
       "//chrome/browser/preloading:prefs",
       "//chrome/browser/search_engines",
       "//chrome/browser/ui",
-      "//chrome/browser/ui/browser_window:browser_window",
+      "//chrome/browser/ui/browser_window",
       "//chrome/browser/ui/tabs:tab_strip",
       "//chrome/common:constants",
       "//chrome/common:non_code_constants",

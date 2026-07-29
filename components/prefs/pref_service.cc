@@ -82,19 +82,9 @@ PrefService::~PrefService() {
   // before the prefs are fully loaded.
   user_pref_store_->RemoveObserver(pref_store_observer_.get());
 
-  // TODO(crbug.com/942491, 946668, 945772) The following code collects
-  // augments stack dumps created by ~PrefNotifierImpl() with information
-  // whether the profile owning the PrefService is an incognito profile.
-  // Delete this, once the bugs are closed.
-  const bool is_incognito_profile = user_pref_store_->IsInMemoryPrefStore();
-  base::debug::Alias(&is_incognito_profile);
-  // Export value of is_incognito_profile to a string so that `grep`
-  // is a sufficient tool to analyze crashdumps.
-  char is_incognito_profile_string[32];
-  strncpy(is_incognito_profile_string,
-          is_incognito_profile ? "is_incognito: yes" : "is_incognito: no",
-          sizeof(is_incognito_profile_string));
-  base::debug::Alias(&is_incognito_profile_string);
+  // Gives an opportunity for the PrefObserver to unregister themselves from
+  // the PrefNotifierImpl.
+  pref_notifier_->OnServiceDestroyed();
 }
 
 void PrefService::InitFromStorage(bool async) {
@@ -325,10 +315,12 @@ const base::Value* PrefService::GetDefaultPrefValue(
   return value;
 }
 
-base::CallbackListSubscription PrefService::AddPrefChangedCallback(
-    std::string_view path,
-    PrefChangedCallback callback) {
-  return pref_notifier_->AddPrefChangedCallback(path, std::move(callback));
+void PrefService::AddPrefObserver(std::string_view path, PrefObserver* obs) {
+  pref_notifier_->AddPrefObserver(path, obs);
+}
+
+void PrefService::RemovePrefObserver(std::string_view path, PrefObserver* obs) {
+  pref_notifier_->RemovePrefObserver(path, obs);
 }
 
 void PrefService::AddPrefInitObserver(base::OnceCallback<void(bool)> obs) {
@@ -358,9 +350,12 @@ void PrefService::OnStoreDeletionFromDisk() {
   user_pref_store_->OnStoreDeletionFromDisk();
 }
 
-base::CallbackListSubscription PrefService::AddAllPrefsChangedCallback(
-    PrefChangedCallback callback) {
-  return pref_notifier_->AddAllPrefsChangedCallback(std::move(callback));
+void PrefService::AddPrefObserverAllPrefs(PrefObserver* obs) {
+  pref_notifier_->AddPrefObserverAllPrefs(obs);
+}
+
+void PrefService::RemovePrefObserverAllPrefs(PrefObserver* obs) {
+  pref_notifier_->RemovePrefObserverAllPrefs(obs);
 }
 
 #if BUILDFLAG(IS_ANDROID)

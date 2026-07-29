@@ -30,7 +30,7 @@ public interface ExternalNavigationDelegate {
      * resource fetching via special logic in the ContextWrapper object that is wrapping the
      * Activity.
      */
-    Context getContext();
+    @Nullable Context getContext();
 
     /**
      * Determine if this app is the default or only handler for a given intent. If true, this app
@@ -63,26 +63,29 @@ public interface ExternalNavigationDelegate {
     /** Determine if the application of the embedder is in the foreground. */
     boolean isApplicationInForeground();
 
-    /** @return The WindowAndroid instance associated with this delegate instance. */
-    WindowAndroid getWindowAndroid();
+    /**
+     * @return The WindowAndroid instance associated with this delegate instance.
+     */
+    @Nullable WindowAndroid getWindowAndroid();
 
-    /** @return The WebContents instance associated with this delegate instance. */
-    WebContents getWebContents();
+    /**
+     * @return The WebContents instance associated with this delegate instance.
+     */
+    @Nullable WebContents getWebContents();
 
-    /** @return Whether this delegate has a valid tab available. */
+    /**
+     * @return Whether this delegate has a valid tab available.
+     */
     boolean hasValidTab();
 
     /**
      * @return Whether it's possible to close the current tab on launching on an incognito intent.
-     * TODO(blundell): Investigate whether it would be feasible to change the //chrome
-     * implementation of this method to be identical to that of its implementation of
-     * ExternalNavigationDelegate#hasValidTab() and then eliminate this method in favor of
-     * ExternalNavigationHandler calling hasValidTab() if so.
+     *     TODO(blundell): Investigate whether it would be feasible to change the //chrome
+     *     implementation of this method to be identical to that of its implementation of
+     *     ExternalNavigationDelegate#hasValidTab() and then eliminate this method in favor of
+     *     ExternalNavigationHandler calling hasValidTab() if so.
      */
     boolean canCloseTabOnIncognitoIntentLaunch();
-
-    /** @return whether it's possible to load a URL in the current tab. */
-    boolean canLoadUrlInCurrentTab();
 
     /* Invoked when the tab associated with this delegate should be closed. */
     void closeTab();
@@ -122,13 +125,6 @@ public interface ExternalNavigationDelegate {
     boolean shouldAvoidDisambiguationDialog(GURL intentDataUrl);
 
     /**
-     * Whether navigations started by the embedder (i.e. not by the renderer) should stay in the
-     * browser by default. Note that there are many exceptions to this, like redirects off of the
-     * navigation still being allowed to leave the browser.
-     */
-    boolean shouldEmbedderInitiatedNavigationsStayInBrowser();
-
-    /**
      * Returns the scheme (or null) used by web pages to start up the browser (Chrome Stable for
      * Chrome) without an explicit Intent.
      */
@@ -140,14 +136,14 @@ public interface ExternalNavigationDelegate {
     /**
      * Returns whether the url should be returned as the result of the current activity.
      *
-     * @param url The {@link GURL} to return as activtiy result.
+     * @param url The {@link GURL} to return as activity result.
      */
     boolean shouldReturnAsActivityResult(GURL url);
 
     /**
      * Sets the url as the result of the current activity and finishes it if conditions are met.
      *
-     * @param url The {@link GURL} to return as activtiy result.
+     * @param url The {@link GURL} to return as activity result.
      */
     void returnAsActivityResult(GURL url);
 
@@ -171,5 +167,5 @@ public interface ExternalNavigationDelegate {
      * Returns an intent that targets the embedder application if opening the url in incognito
      * should be prevented. Returns null otherwise.
      */
-    Intent createIntentToPreventIncognitoAccess(GURL url);
+    @Nullable Intent createIntentToPreventIncognitoAccess(GURL url);
 }

@@ -325,8 +325,14 @@ void LayerTreeHostImpl::DidStartScroll() {
 }
 
 void LayerTreeHostImpl::DidEndScroll() {
+  if (base::FeatureList::IsEnabled(
+          features::kNewContentForCheckerboardedScrolls) &&
+      ::features::kNewContentForCheckerboardedScrollsParam.Get() ==
+          ::features::kNewContentForCheckerboardedScrollsPerScroll) {
+    prioritize_new_content_due_to_checkerboarding_ = false;
+  }
+
   scroll_affects_scroll_handler_ = false;
-  scroll_checkerboards_incomplete_recording_ = false;
 
   if (!settings().single_thread_proxy_scheduler) {
     client_->SetHasActiveThreadedScroll(false);
@@ -2019,40 +2025,20 @@ TargetColorParams LayerTreeHostImpl::GetTargetColorParams(
     return params;
 
   gfx::DisplayColorSpaces display_cs = GetDisplayColorSpaces();
-  params.sdr_max_luminance_nits = display_cs.GetSDRMaxLuminanceNits();
 
   if (settings_.prefer_raster_in_srgb &&
       content_color_usage == gfx::ContentColorUsage::kSRGB) {
     return params;
   }
 
-  auto hdr_color_space =
-      display_cs.GetOutputColorSpace(gfx::ContentColorUsage::kHDR,
-                                     /*needs_alpha=*/false);
-
-  // Always specify a color space if color correct rasterization is requested
-  // (not specifying a color space indicates that no color conversion is
-  // required).
-  if (!hdr_color_space.IsValid())
-    return params;
-
-  if (hdr_color_space.IsHDR()) {
-    if (content_color_usage == gfx::ContentColorUsage::kHDR) {
-      // Rasterization of HDR content is always done in extended-sRGB space.
-      params.color_space = gfx::ColorSpace::CreateExtendedSRGB();
-
-      // Only report the HDR capabilities if they are requested.
-      params.hdr_max_luminance_relative =
-          display_cs.GetHDRMaxLuminanceRelative();
-    } else {
-      // If the content is not HDR, then use Display P3 as the rasterization
-      // color space.
-      params.color_space = gfx::ColorSpace::CreateDisplayP3D65();
-    }
-    return params;
+  auto raster_color_space =
+      display_cs.GetRasterAndCompositeColorSpace(content_color_usage);
+  if (raster_color_space.IsValid()) {
+    params.color_space = raster_color_space;
   }
-
-  params.color_space = hdr_color_space;
+  if (params.color_space.IsHDR()) {
+    params.hdr_headroom = display_cs.GetHdrHeadroom();
+  }
   return params;
 }
 
@@ -2168,12 +2154,13 @@ void LayerTreeHostImpl::NotifyTileStateChanged(const Tile* tile,
 
   layer_impl->NotifyTileStateChanged(tile, update_damage);
 
-  if (settings_.TreesInVizInClientProcess() && !is_pending_tree &&
-      !CommitsToActiveTree()) {
-    // Tiles for the tree currently being committed to (Pending or Active)
-    // are pushed to the display during UpdateDisplayTree. For active tree,
-    // if we're not committing to Active, tiles are pushed immediately via
-    // UpdateDisplayTile.
+  if (settings_.TreesInVizInClientProcess() &&
+      !static_cast<PictureLayerImpl&>(*layer_impl)
+           .should_batch_updated_tiles()) {
+    // In TreesInViz mode, send this tile update directly to Viz only if the
+    // layer is not batching its updates. A layer stops batching updates
+    // (should_batch_updated_tiles() becomes false) after it has been
+    // successfully sent to Viz via UpdateDisplayTree().
     layer_context_->UpdateDisplayTile(
         static_cast<PictureLayerImpl&>(*layer_impl), *tile,
         *resource_provider(), *layer_tree_frame_sink_->context_provider(),
@@ -2797,8 +2784,10 @@ RenderFrameMetadata LayerTreeHostImpl::MakeRenderFrameMetadata(
   }
 
   if (GetCurrentLocalSurfaceId().is_valid()) {
-    if (allocate_new_local_surface_id)
+    if (allocate_new_local_surface_id &&
+        !settings().trees_in_viz_in_viz_process) {
       AllocateLocalSurfaceId();
+    }
     metadata.local_surface_id = GetCurrentLocalSurfaceId();
   }
 
@@ -3015,9 +3004,23 @@ std::optional<SubmitInfo> LayerTreeHostImpl::DrawLayers(FrameData* frame) {
     client_->FrameSinksToThrottleUpdated(throttle_decider_.ids());
   }
 
-  if (GetActivelyScrollingType() != ActivelyScrollingType::kNone &&
-      frame->checkerboarded_needs_record) {
-    scroll_checkerboards_incomplete_recording_ = true;
+  // If this frame had checkerboarding, leave the flag on to allow more time for
+  // painting in the next frame.
+  if (base::FeatureList::IsEnabled(
+          features::kNewContentForCheckerboardedScrolls)) {
+    const std::string param =
+        ::features::kNewContentForCheckerboardedScrollsParam.Get();
+    if (param == ::features::kNewContentForCheckerboardedScrollsPerScroll) {
+      if (GetActivelyScrollingType() != ActivelyScrollingType::kNone &&
+          frame->checkerboarded_needs_record) {
+        prioritize_new_content_due_to_checkerboarding_ = true;
+      }
+    } else if (param ==
+               ::features::kNewContentForCheckerboardedScrollsPerFrame) {
+      prioritize_new_content_due_to_checkerboarding_ =
+          GetActivelyScrollingType() != ActivelyScrollingType::kNone &&
+          frame->checkerboarded_needs_record;
+    }
   }
 
   return SubmitInfo{frame_token,
@@ -4533,8 +4536,9 @@ bool LayerTreeHostImpl::InitializeFrameSink(
   // LayerTreeFrameSink to ensure that we do not reuse the same surface after
   // it might have been garbage collected.
   const viz::LocalSurfaceId& local_surface_id = GetCurrentLocalSurfaceId();
-  if (local_surface_id.is_valid())
+  if (local_surface_id.is_valid() && !settings().trees_in_viz_in_viz_process) {
     AllocateLocalSurfaceId();
+  }
 
   return true;
 }
@@ -4715,6 +4719,64 @@ void LayerTreeHostImpl::DidScrollContent(ElementId element_id,
   if (input_delegate_->IsCurrentlyScrolling()) {
     if (!settings().single_thread_proxy_scheduler) {
       client_->SetWaitingForScrollEvent(false);
+    }
+    // If checkerboarding is going to happen, we want to renew the tree priority
+    // to avoid smoothness and give the frame more time to paint the missing
+    // content.
+    if (base::FeatureList::IsEnabled(
+            features::kNewContentForCheckerboardedScrolls) &&
+        ::features::kNewContentForCheckerboardedScrollsParam.Get() ==
+            ::features::kNewContentForCheckerboardedScrollsPerFrame) {
+      prioritize_new_content_due_to_checkerboarding_ = false;
+      const auto& scroll_tree = active_tree_->property_trees()->scroll_tree();
+      if (const gfx::Rect* cull_rect =
+              scroll_tree.ScrollingContentsCullRect(element_id)) {
+        if (const auto* scroll_node =
+                scroll_tree.FindNodeFromElementId(element_id)) {
+          gfx::RectF visible_rect(
+              gfx::Rect(scroll_node->container_origin,
+                        scroll_tree.container_bounds(scroll_node->id)));
+          visible_rect.Offset(
+              scroll_tree.current_scroll_offset(element_id).OffsetFromOrigin());
+          // Clip the `visible_rect` to the screen by translating it to the
+          // screen's coordinate space and intersecting it with the screen's
+          // rect.
+          // TODO(crbug.com/433899668): Add consideration for clipping with
+          // ancestor nodes.
+          const gfx::Transform& transform_to_screen =
+              active_tree_->property_trees()->transform_tree().ToScreen(
+                  scroll_node->transform_id);
+          visible_rect =
+              MathUtil::MapClippedRect(transform_to_screen, visible_rect);
+          visible_rect.Intersect(
+              active_tree()->RootRenderSurface()->DrawableContentRect());
+
+          // Translate the `cull_rect` to the screen's coordinate space to
+          // compare it with the translated `visible_rect`.
+          gfx::RectF to_screen_cull_rect = MathUtil::MapClippedRect(
+              transform_to_screen, gfx::RectF(*cull_rect));
+          // An example of the checkerboarded region denoted with the character
+          // 'c' mapped into the screen space. The rect of interest to determine
+          // whether or not the tree priority should change is denoted with the
+          // character 'a'. Since the cull rect entirely contains the
+          // intersected visible rect with the screen rect, no checkerboarding
+          // is visible and the tree priority should not change.
+          // +------+ <-- Visible rect
+          // |cccccc| <-- Checkerboarded, non-rendered area
+          // |cc+---+---+ <-- Cull rect
+          // |cc|   |   |
+          // |cc| +-+---+-------+ <-- screen
+          // |cc| |a|aaa|       |
+          // +--+-+-+aaa|       |
+          //    | |aaaaa|       |
+          //    +-+-----+       |
+          //      |             |
+          //      +-------------+
+          if (!to_screen_cull_rect.Contains(visible_rect)) {
+            prioritize_new_content_due_to_checkerboarding_ = true;
+          }
+        }
+      }
     }
     client_->RenewTreePriority();
   }
@@ -6007,6 +6069,7 @@ void LayerTreeHostImpl::NotifyDidPresentCompositorFrameOnImplThread(
 }
 
 void LayerTreeHostImpl::AllocateLocalSurfaceId() {
+  DCHECK(!settings().trees_in_viz_in_viz_process);
   child_local_surface_id_allocator_.GenerateId();
 }
 

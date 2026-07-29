@@ -23,6 +23,14 @@
 #include "base/cpu.h"
 #endif
 
+#if BUILDFLAG(IS_MAC)
+#include "base/mac/mac_util.h"
+#endif
+
+#if BUILDFLAG(IS_WIN)
+#include "base/win/windows_version.h"
+#endif
+
 namespace switches {
 
 // Allow users to specify a custom buffer size for debugging purpose.
@@ -1053,6 +1061,20 @@ BASE_FEATURE(kHardwareSecureDecryptionAv1,
              "HardwareSecureDecryptionAv1",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+#if BUILDFLAG(IS_WIN)
+// Enables showing permission indicator in the omnibox when a site is allowed or
+// denied to to use protected content IDs to play protected content.
+BASE_FEATURE(kProtectedMediaIdentifierIndicator,
+             "ProtectedMediaIdentifierIndicator",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+// Requires that setServerCertificate() be called before generateRequest().
+// This feature only affects MediaFoundation OS CDMs.
+BASE_FEATURE(kHardwareSecureDecryptionRequireServerCert,
+             "HardwareSecureDecryptionRequireServerCert",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+#endif
+
 // Enables handling of hardware media keys for controlling media.
 BASE_FEATURE(kHardwareMediaKeyHandling,
              "HardwareMediaKeyHandling",
@@ -1541,24 +1563,6 @@ BASE_FEATURE(kMediaEngagementHTTPSOnly,
              "MediaEngagementHTTPSOnly",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-// Enables experimental local learning for media. Used in the context of media
-// capabilities only. Adds reporting only; does not change media behavior.
-BASE_FEATURE(kMediaLearningExperiment,
-             "MediaLearningExperiment",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
-// Enables the general purpose media machine learning framework. Adds reporting
-// only; does not change media behavior.
-BASE_FEATURE(kMediaLearningFramework,
-             "MediaLearningFramework",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
-// Enables the smoothness prediction experiment.  Requires
-// kMediaLearningFramework to be enabled also, else it does nothing.
-BASE_FEATURE(kMediaLearningSmoothnessExperiment,
-             "MediaLearningSmoothnessExperiment",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
 // Enable the prototype global optimization of tuneables via finch.  See
 // media/base/tuneable.h for how to create tuneable parameters.
 BASE_FEATURE(kMediaOptimizer,
@@ -1617,6 +1621,12 @@ BASE_FEATURE(kInternalMediaSession,
 BASE_FEATURE(kUseFakeDeviceForMediaStream,
              "use-fake-device-for-media-stream",
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Enables accurate dropped frame count for MediaStreamVideoSource.
+// TODO(crbug.com/432367602): Remove after M143.
+BASE_FEATURE(kMediaStreamAccurateDroppedFrameCount,
+             "MediaStreamAccurateDroppedFrameCount",
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_CHROMEOS) && !BUILDFLAG(IS_FUCHSIA)
 // Enables effects for camera and mic streams.
@@ -1762,6 +1772,10 @@ BASE_FEATURE(kMediaFoundationAcceleratedEncodeOnArm64,
 #endif
 
 #if BUILDFLAG(IS_WIN)
+BASE_FEATURE(kD3D12SharedImageEncode,
+             "D3D12SharedImageEncode",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 BASE_FEATURE(kMediaFoundationD3DVideoProcessing,
              "MediaFoundationD3DVideoProcessing",
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -1783,7 +1797,7 @@ BASE_FEATURE(kHeadlessLiveCaption,
 // Allows per-site special processing for media links.
 BASE_FEATURE(kMediaLinkHelpers,
              "MediaLinkHelpers",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 bool IsChromeWideEchoCancellationEnabled() {
 #if BUILDFLAG(CHROME_WIDE_ECHO_CANCELLATION)
@@ -1794,10 +1808,63 @@ bool IsChromeWideEchoCancellationEnabled() {
 #endif
 }
 
+#if BUILDFLAG(IS_MAC)
+namespace {
+// Enables system audio loopback capture using the macOS Screen Capture Kit
+// framework, regardless of the system version.
+BASE_FEATURE(kMacSckSystemAudioLoopbackOverride,
+             "MacSckSystemAudioLoopbackOverride",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+}  // namespace
+
+bool IsMacCatapSystemLoopbackCaptureSupported() {
+  return (base::mac::MacOSVersion() >= 14'02'00);
+}
+
+bool IsMacSckSystemLoopbackCaptureSupported() {
+  // Only supported on macOS 13.0+.
+  // Disabled on macOS 15.0 due to problems with permission prompt.
+  // The override feature is useful for testing on unsupported versions.
+  return (base::mac::MacOSVersion() >= 13'00'00 &&
+          base::mac::MacOSVersion() < 15'00'00) ||
+         base::FeatureList::IsEnabled(kMacSckSystemAudioLoopbackOverride);
+}
+#endif  // BUILDFLAG(IS_MAC)
+
+#if BUILDFLAG(IS_WIN)
+bool IsWindowsSystemLoopbackCaptureSupported() {
+  return (base::win::GetVersion() >= base::win::Version::WIN11);
+}
+#endif  // BUILDFLAG(IS_WIN)
+
+bool IsSystemLoopbackCaptureSupported() {
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(USE_CRAS)
+  return true;
+#elif BUILDFLAG(IS_MAC)
+  return (IsMacSckSystemLoopbackCaptureSupported() ||
+          IsMacCatapSystemLoopbackCaptureSupported());
+#elif BUILDFLAG(IS_LINUX) && defined(USE_PULSEAUDIO)
+  return true;
+#else
+  return false;
+#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(USE_CRAS)
+}
+
 bool IsSystemLoopbackAsAecReferenceEnabled() {
 #if BUILDFLAG(SYSTEM_LOOPBACK_AS_AEC_REFERENCE)
+
+#if BUILDFLAG(IS_MAC)
+  if (!IsMacCatapSystemLoopbackCaptureSupported()) {
+    return false;
+  }
+#elif BUILDFLAG(IS_WIN)
+  if (!IsWindowsSystemLoopbackCaptureSupported()) {
+    return false;
+  }
+#endif
   return base::FeatureList::IsEnabled(kSystemLoopbackAsAecReference);
-#else
+
+#else  // BUILDFLAG(SYSTEM_LOOPBACK_AS_AEC_REFERENCE)
   return false;
 #endif
 }
@@ -1885,6 +1952,17 @@ bool IsVideoCaptureAcceleratedJpegDecodingEnabled() {
   }
 #if BUILDFLAG(IS_CHROMEOS)
   return true;
+#else
+  return false;
+#endif
+}
+
+bool IsRestrictOwnAudioSupported() {
+#if BUILDFLAG(IS_MAC)
+  return IsMacCatapSystemLoopbackCaptureSupported() &&
+         base::FeatureList::IsEnabled(kMacCatapLoopbackAudioForScreenShare);
+#elif BUILDFLAG(IS_WIN)
+  return IsWindowsSystemLoopbackCaptureSupported();
 #else
   return false;
 #endif

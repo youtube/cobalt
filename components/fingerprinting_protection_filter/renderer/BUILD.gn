@@ -17,12 +17,11 @@ if (use_blink) {
     ]
     public_deps = [
       "//base",
-      "//components/fingerprinting_protection_filter/common:common",
+      "//components/fingerprinting_protection_filter/common",
       "//components/fingerprinting_protection_filter/mojom",
       "//components/subresource_filter/content/shared/renderer",
       "//components/subresource_filter/core/common",
       "//components/subresource_filter/core/mojom",
-      "//components/url_pattern_index/proto:url_pattern_index",
       "//content/public/renderer",
       "//mojo/public/cpp/bindings",
       "//services/network/public/mojom",
@@ -31,7 +30,7 @@ if (use_blink) {
     ]
     deps = [
       "//components/fingerprinting_protection_filter/browser",
-      "//components/variations:variations",
+      "//components/variations",
       "//content/public/common",
       "//net",
       "//services/network/public/cpp",
@@ -46,8 +45,8 @@ if (use_blink) {
     ]
     public_deps = [
       ":renderer",
+      "//base",
       "//components/fingerprinting_protection_filter/mojom",
-      "//components/subresource_filter/core/common",
       "//components/subresource_filter/core/mojom",
       "//testing/gmock",
       "//url",
@@ -64,12 +63,12 @@ if (use_blink) {
       ":test_support",
       "//base",
       "//base/test:test_support",
-      "//components/fingerprinting_protection_filter/common:common",
+      "//components/fingerprinting_protection_filter/common",
       "//components/subresource_filter/content/shared/renderer",
       "//components/subresource_filter/core/common",
       "//components/subresource_filter/core/common:test_support",
       "//components/subresource_filter/core/mojom",
-      "//components/variations:variations",
+      "//components/variations",
       "//content/public/renderer",
       "//net",
       "//services/network/public/cpp",

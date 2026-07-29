@@ -53,6 +53,7 @@
 <translation id="2195025571279539885">次回から Chromium でこのサイトの <ph name="LANGUAGE_NAME" /> ページの翻訳を表示しますか？</translation>
 <translation id="22313767259766852">この住所は現在、Chromium に保存されています。Google サービス全体で使用するには、Google アカウント（<ph name="USER_EMAIL" />）に保存してください。</translation>
 <translation id="2236584955986023187">Chromium は毎回 PC 版サイトをリクエストします。</translation>
+<translation id="2245694534483711162">Gemini は、Chromium にすでに付与されている権限に応じて、正確な位置情報を使用することがあります</translation>
 <translation id="2270466829363945454">購入</translation>
 <translation id="2313870531055795960">Chromium に保存されている安全でないサイトのリストと URL を照合します。サイトがパスワードを不正に取得しようとしている場合や、ユーザーが安全でないファイルをダウンロードしようとした場合は、URL とページ コンテンツの一部をセーフ ブラウジングに送信することがあります。</translation>
 <translation id="2314220608288760290">YouTube のシークレット リンクが Chromium のシークレット モードで自動的に開きます。</translation>
@@ -113,11 +114,11 @@ Chromium を使いやすくするためにデータを使用するその他の�
 <translation id="3728124580182886854">パーソナライズなどの目的で、Chromium と他の Google サービスをリンクします</translation>
 <translation id="377649297473651452">Chromium の自動入力拡張ビュー</translation>
 <translation id="3780779443901618967">標準保護機能より多くのサイトデータを分析して、危険なサイト（Google が認識していなかったサイトも含む）について警告します。Chromium の警告をスキップすることもできます。</translation>
-<translation id="3804124559081428680">Chromium のヒント: 本人確認</translation>
 <translation id="3805899903892079518">Chromium で写真または動画にアクセスできません。iOS の [設定] &gt; [プライバシー] &gt; [写真] でアクセスを有効にしてください。</translation>
 <translation id="3816686541346279443">Chromium でパスワードの保存を確認するメッセージが表示されます。</translation>
 <translation id="3827545470516145620">このデバイスは標準のセキュリティ機能で保護されます</translation>
 <translation id="3833326979834193417">Chromium では、データ侵害や安全でないウェブサイトなどからユーザーを保護するため、1 日 1 回、安全チェックを自動的に実行します。安全チェックの詳細は [設定] で確認できます。</translation>
+<translation id="3845223911364528001">Chromium に戻ってファイルをアップロードします</translation>
 <translation id="3855938650519180865">Chromium の新機能</translation>
 <translation id="3886689467633467988">このサイトと Chromium にログインすると、すべてのデバイスで同じブックマークやその他の設定を使用できます。</translation>
 <translation id="3949514465204582407">Chromium のヒント: 他のアプリでパスワードを使用</translation>

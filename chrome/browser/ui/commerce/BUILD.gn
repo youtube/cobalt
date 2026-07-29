@@ -20,7 +20,7 @@ source_set("commerce") {
     "//base",
     "//chrome/browser/commerce",
     "//chrome/browser/ui/page_action:icon_type",
-    "//chrome/browser/ui/tabs",
+    "//chrome/browser/ui/tabs:features",
     "//chrome/browser/ui/tabs:tab_strip_model_observer",
     "//chrome/browser/ui/views/page_action",
     "//chrome/browser/ui/webui/commerce",
@@ -62,6 +62,7 @@ source_set("impl") {
     "//chrome/browser/ui/toasts",
     "//chrome/browser/ui/toasts/api:toasts",
     "//chrome/browser/ui/toolbar",
+    "//chrome/browser/ui/views/frame:toolbar_button_provider",
     "//chrome/browser/ui/views/side_panel",
     "//chrome/common:constants",
     "//components/bookmarks/browser",
@@ -112,7 +113,7 @@ source_set("unit_tests") {
   deps = [
     ":commerce",
     "//base/test:test_support",
-    "//chrome/browser/ui/toasts:toasts",
+    "//chrome/browser/ui/toasts",
     "//chrome/test:test_support",
     "//components/commerce/core:account_checker_test_support",
     "//components/commerce/core:feature_list",
@@ -134,8 +135,8 @@ source_set("browser_tests") {
   ]
   deps = [
     ":commerce",
-    "//chrome/browser/ui/browser_window:browser_window",
-    "//chrome/browser/ui/toasts:toasts",
+    "//chrome/browser/ui/browser_window",
+    "//chrome/browser/ui/toasts",
     "//chrome/test:test_support",
     "//components/commerce/core:account_checker_test_support",
     "//components/commerce/core:shopping_service_test_support",

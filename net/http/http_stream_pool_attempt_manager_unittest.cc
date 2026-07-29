@@ -232,8 +232,9 @@ class StreamRequester : public HttpStreamRequest::Delegate {
     return *this;
   }
 
-  StreamRequester& set_enable_ip_based_pooling(bool enable_ip_based_pooling) {
-    enable_ip_based_pooling_ = enable_ip_based_pooling;
+  StreamRequester& set_enable_ip_based_pooling_for_h2(
+      bool enable_ip_based_pooling_for_h2) {
+    enable_ip_based_pooling_for_h2_ = enable_ip_based_pooling_for_h2;
     return *this;
   }
 
@@ -300,7 +301,7 @@ class StreamRequester : public HttpStreamRequest::Delegate {
             NetLogWithSource::Make(
                 pool.http_network_session()->net_log(),
                 NetLogSourceType::HTTP_STREAM_JOB_CONTROLLER)),
-        priority_, allowed_bad_certs_, enable_ip_based_pooling_,
+        priority_, allowed_bad_certs_, enable_ip_based_pooling_for_h2_,
         enable_alternative_services_);
     Group* group = pool.GetGroupForTesting(stream_key);
     AttemptManager* attempt_manager =
@@ -422,7 +423,7 @@ class StreamRequester : public HttpStreamRequest::Delegate {
 
   std::vector<SSLConfig::CertAndStatus> allowed_bad_certs_;
 
-  bool enable_ip_based_pooling_ = true;
+  bool enable_ip_based_pooling_for_h2_ = true;
   bool enable_alternative_services_ = true;
   NextProtoSet allowed_alpns_ = NextProtoSet::All();
   int load_flags_ = 0;
@@ -547,7 +548,7 @@ class HttpStreamPoolAttemptManagerTest : public TestWithTaskEnvironment {
     Group& group = pool().GetOrCreateGroupForTesting(stream_key);
     CHECK(!spdy_session_pool()->HasAvailableSession(
         group.spdy_session_key(),
-        /*enable_ip_based_pooling=*/true,
+        /*enable_ip_based_pooling_for_h2=*/true,
         /*is_websocket=*/false));
     auto socket = FakeStreamSocket::CreateForSpdy();
     socket->set_peer_addr(peer_addr);
@@ -2450,7 +2451,7 @@ TEST_F(HttpStreamPoolAttemptManagerTest, SSLConfigForServersChanged) {
 TEST_F(HttpStreamPoolAttemptManagerTest, SpdyAvailableSession) {
   StreamRequester requester;
   requester.set_destination("https://a.test")
-      .set_enable_ip_based_pooling(false);
+      .set_enable_ip_based_pooling_for_h2(false);
 
   CreateFakeSpdySession(requester.GetStreamKey());
   requester.RequestStream(pool());
@@ -2502,7 +2503,7 @@ TEST_F(HttpStreamPoolAttemptManagerTest, SpdyOk) {
     ssls.emplace_back(std::move(ssl));
 
     auto requester = std::make_unique<StreamRequester>(stream_key);
-    requester->set_enable_ip_based_pooling(false).RequestStream(pool());
+    requester->set_enable_ip_based_pooling_for_h2(false).RequestStream(pool());
     requesters.emplace_back(std::move(requester));
   }
 
@@ -2574,7 +2575,8 @@ TEST_F(HttpStreamPoolAttemptManagerTest, DoNotUseSpdySessionForHttpRequest) {
   EXPECT_THAT(requester_https.result(), Optional(IsOk()));
   EXPECT_EQ(requester_https.negotiated_protocol(), NextProto::kProtoHTTP2);
   ASSERT_TRUE(spdy_session_pool()->HasAvailableSession(
-      stream_key.CalculateSpdySessionKey(), /*enable_ip_based_pooling=*/true,
+      stream_key.CalculateSpdySessionKey(),
+      /*enable_ip_based_pooling_for_h2=*/true,
       /*is_websocket=*/false));
 
   // Request a stream for http (not https). The second request should use
@@ -2609,7 +2611,8 @@ TEST_F(HttpStreamPoolAttemptManagerTest, CloseIdleSpdySessionWhenPoolStalled) {
       StreamKeyBuilder().set_destination(kDestinationA).Build();
   CreateFakeSpdySession(stream_key_a);
   ASSERT_TRUE(spdy_session_pool()->HasAvailableSession(
-      stream_key_a.CalculateSpdySessionKey(), /*enable_ip_based_pooling=*/true,
+      stream_key_a.CalculateSpdySessionKey(),
+      /*enable_ip_based_pooling_for_h2=*/true,
       /*is_websocket=*/false));
 
   resolver()
@@ -2632,10 +2635,11 @@ TEST_F(HttpStreamPoolAttemptManagerTest, CloseIdleSpdySessionWhenPoolStalled) {
   EXPECT_EQ(requester_b.negotiated_protocol(), NextProto::kProtoHTTP2);
   ASSERT_TRUE(spdy_session_pool()->HasAvailableSession(
       requester_b.GetStreamKey().CalculateSpdySessionKey(),
-      /*enable_ip_based_pooling=*/true,
+      /*enable_ip_based_pooling_for_h2=*/true,
       /*is_websocket=*/false));
   ASSERT_FALSE(spdy_session_pool()->HasAvailableSession(
-      stream_key_a.CalculateSpdySessionKey(), /*enable_ip_based_pooling=*/true,
+      stream_key_a.CalculateSpdySessionKey(),
+      /*enable_ip_based_pooling_for_h2=*/true,
       /*is_websocket=*/false));
 }
 
@@ -2897,7 +2901,7 @@ TEST_F(HttpStreamPoolAttemptManagerTest,
   // The session was already closed so it's not available.
   ASSERT_FALSE(spdy_session_pool()->FindAvailableSession(
       requester_b.GetStreamKey().CalculateSpdySessionKey(),
-      /*enable_ip_based_pooling=*/true,
+      /*enable_ip_based_pooling_for_h2=*/true,
       /*is_websocket=*/false, NetLogWithSource()));
 }
 
@@ -3012,7 +3016,7 @@ TEST_F(HttpStreamPoolAttemptManagerTest, SpdyMatchingIpSessionDisabled) {
 
   StreamRequester requester_b;
   requester_b.set_destination("https://example.test")
-      .set_enable_ip_based_pooling(false)
+      .set_enable_ip_based_pooling_for_h2(false)
       .RequestStream(pool());
 
   endpoint_request
@@ -3050,7 +3054,7 @@ TEST_F(HttpStreamPoolAttemptManagerTest,
 
   StreamRequester requester2;
   requester2.set_destination("https://example.test")
-      .set_enable_ip_based_pooling(false)
+      .set_enable_ip_based_pooling_for_h2(false)
       .RequestStream(pool());
   requester2.WaitForResult();
   EXPECT_THAT(requester2.result(), Optional(IsError(ERR_FAILED)));
@@ -3066,7 +3070,7 @@ TEST_F(HttpStreamPoolAttemptManagerTest,
 
   StreamRequester requester3;
   requester3.set_destination("https://example.test")
-      .set_enable_ip_based_pooling(true)
+      .set_enable_ip_based_pooling_for_h2(true)
       .RequestStream(pool());
   requester3.WaitForResult();
   EXPECT_THAT(requester3.result(), Optional(IsOk()));
@@ -3402,6 +3406,64 @@ TEST_F(HttpStreamPoolAttemptManagerTest,
   EXPECT_THAT(requester2.result(), Optional(IsOk()));
 }
 
+// Tests that when an in-flight TCP-based attempt is slow for a destination
+// that supports SPDY, another attempt is triggered (not throttled) if there is
+// no other non-slow attempt.
+TEST_F(HttpStreamPoolAttemptManagerTest,
+       DoNotThrottleForSpdyWithOnlySlowTcpBasedAttempts) {
+  constexpr std::string_view kDestination = "https://a.test";
+
+  // Set the destination is known to support HTTP/2.
+  HttpStreamKey stream_key =
+      StreamKeyBuilder().set_destination(kDestination).Build();
+  http_server_properties()->SetSupportsSpdy(
+      stream_key.destination(), stream_key.network_anonymization_key(), true);
+
+  base::WeakPtr<FakeServiceEndpointRequest> endpoint_request =
+      resolver()->AddFakeRequest();
+
+  StreamRequester requester;
+  requester.set_destination(kDestination).RequestStream(pool());
+  ASSERT_FALSE(requester.result().has_value());
+
+  SequencedSocketData data1;
+  data1.set_connect_data(MockConnect(SYNCHRONOUS, ERR_IO_PENDING));
+  socket_factory()->AddSocketDataProvider(&data1);
+
+  const MockRead reads[] = {MockRead(SYNCHRONOUS, ERR_IO_PENDING, 0)};
+  const MockWrite writes[] = {MockWrite(SYNCHRONOUS, ERR_IO_PENDING, 1)};
+  MockConnectCompleter completer2;
+  SequencedSocketData data2(reads, writes);
+  data2.set_connect_data(MockConnect(&completer2));
+  socket_factory()->AddSocketDataProvider(&data2);
+  SSLSocketDataProvider ssl2(ASYNC, OK);
+  ssl2.next_proto = NextProto::kProtoHTTP2;
+  socket_factory()->AddSSLSocketDataProvider(&ssl2);
+
+  endpoint_request
+      ->add_endpoint(ServiceEndpointBuilder()
+                         .add_v6("2001:db8::1")
+                         .add_v4("192.0.2.1")
+                         .endpoint())
+      .CallOnServiceEndpointRequestFinished(OK);
+
+  AttemptManager* manager =
+      pool().GetGroupForTesting(requester.GetStreamKey())->attempt_manager();
+  ASSERT_EQ(manager->TcpBasedAttemptCount(), 1u);
+  ASSERT_FALSE(requester.result().has_value());
+
+  // Fast-forward to the connection attempt delay. The in-flight attempt is
+  // treated as slow. Since there is no non-slow attempt, the manager should
+  // not be throttled and start another attempt.
+  FastForwardBy(HttpStreamPool::GetConnectionAttemptDelay());
+  ASSERT_EQ(manager->TcpBasedAttemptCount(), 2u);
+
+  // Complete the second attempt. The request should finish successfully.
+  completer2.Complete(OK);
+  requester.WaitForResult();
+  EXPECT_THAT(requester.result(), Optional(IsOk()));
+}
+
 TEST_F(HttpStreamPoolAttemptManagerTest, PreconnectSpdySessionAvailable) {
   Preconnector preconnector("https://a.test");
   CreateFakeSpdySession(preconnector.GetStreamKey());
@@ -3419,6 +3481,35 @@ TEST_F(HttpStreamPoolAttemptManagerTest, PreconnectActiveStreamsAvailable) {
   int rv = preconnector.Preconnect(pool());
   EXPECT_THAT(rv, IsOk());
   ASSERT_EQ(group.attempt_manager(), nullptr);
+}
+
+TEST_F(HttpStreamPoolAttemptManagerTest, PreconnectSlow) {
+  base::WeakPtr<FakeServiceEndpointRequest> endpoint_request =
+      resolver()->AddFakeRequest();
+
+  Preconnector preconnector("http://a.test");
+
+  // First attempt stalls forever.
+  SequencedSocketData data1;
+  data1.set_connect_data(MockConnect(SYNCHRONOUS, ERR_IO_PENDING));
+  socket_factory()->AddSocketDataProvider(&data1);
+  // Second attempt succeeds.
+  SequencedSocketData data2;
+  data2.set_connect_data(MockConnect(ASYNC, OK));
+  socket_factory()->AddSocketDataProvider(&data2);
+
+  int rv = preconnector.Preconnect(pool());
+  EXPECT_THAT(rv, IsError(ERR_IO_PENDING));
+
+  endpoint_request
+      ->add_endpoint(ServiceEndpointBuilder()
+                         .add_v6("2001:db8::1")
+                         .add_v4("192.0.2.1")
+                         .endpoint())
+      .CallOnServiceEndpointRequestFinished(OK);
+
+  preconnector.WaitForResult();
+  EXPECT_THAT(*preconnector.result(), IsOk());
 }
 
 TEST_F(HttpStreamPoolAttemptManagerTest, PreconnectFail) {
@@ -3558,7 +3649,8 @@ TEST_F(HttpStreamPoolAttemptManagerTest, PreconnectMultipleStreamsHttp2) {
   EXPECT_THAT(preconnector.result(), Optional(IsOk()));
   ASSERT_EQ(group.IdleStreamSocketCount(), 0u);
   ASSERT_TRUE(spdy_session_pool()->HasAvailableSession(
-      stream_key.CalculateSpdySessionKey(), /*enable_ip_based_pooling=*/true,
+      stream_key.CalculateSpdySessionKey(),
+      /*enable_ip_based_pooling_for_h2=*/true,
       /*is_websocket=*/false));
 }
 
@@ -3601,7 +3693,8 @@ TEST_F(HttpStreamPoolAttemptManagerTest, PreconnectRequireHttp1) {
   EXPECT_THAT(preconnector.result(), Optional(IsOk()));
   ASSERT_EQ(group.IdleStreamSocketCount(), 2u);
   ASSERT_FALSE(spdy_session_pool()->HasAvailableSession(
-      stream_key.CalculateSpdySessionKey(), /*enable_ip_based_pooling=*/true,
+      stream_key.CalculateSpdySessionKey(),
+      /*enable_ip_based_pooling_for_h2=*/true,
       /*is_websocket=*/false));
 }
 
@@ -5326,10 +5419,7 @@ TEST_F(HttpStreamPoolAttemptManagerTest, QuicPreconnectMatchingIpSession) {
                                                      quic_key2.destination()));
 }
 
-// Tests that when disabled IP-based pooling, QUIC attempts are also disabled.
-// TODO(crbug.com/346835898): Make sure this behavior is what we actually want.
-// In production code, we currently disable both IP-based pooling and QUIC at
-// the same time.
+// Tests that disabling IP-based pooling for H2 doesn't interfare QUIC attempts.
 TEST_F(HttpStreamPoolAttemptManagerTest, QuicMatchingIpSessionDisabled) {
   base::WeakPtr<FakeServiceEndpointRequest> endpoint_request =
       resolver()->AddFakeRequest();
@@ -5344,14 +5434,14 @@ TEST_F(HttpStreamPoolAttemptManagerTest, QuicMatchingIpSessionDisabled) {
 
   StreamRequester requester;
   requester.set_destination(kDefaultDestination)
-      .set_enable_ip_based_pooling(false)
+      .set_enable_ip_based_pooling_for_h2(false)
       .RequestStream(pool());
-  RunUntilIdle();
+  requester.WaitForResult();
 
   EXPECT_THAT(requester.result(), Optional(IsOk()));
-  ASSERT_FALSE(requester.associated_attempt_manager()
-                   ->GetQuicAttemptResultForTesting()
-                   .has_value());
+  ASSERT_TRUE(requester.associated_attempt_manager()
+                  ->GetQuicAttemptResultForTesting()
+                  .has_value());
 }
 
 TEST_F(HttpStreamPoolAttemptManagerTest, DelayStreamAttemptQuicOk) {

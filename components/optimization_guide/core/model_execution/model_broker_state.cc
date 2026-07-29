@@ -15,14 +15,19 @@ ModelBrokerState::ModelBrokerState(
     on_device_model::ServiceClient::LaunchFn launch_fn)
     : local_state_(local_state),
       service_client_(std::move(launch_fn)),
-      component_state_manager_(local_state, std::move(delegate)) {}
+      performance_classifier_(local_state, service_client_.GetSafeRef()),
+      component_state_manager_(local_state,
+                               performance_classifier_.GetSafeRef(),
+                               std::move(delegate)) {}
 ModelBrokerState::~ModelBrokerState() = default;
 
 void ModelBrokerState::Init() {
   CHECK(!service_controller_);
+  performance_classifier_.Init();
   component_state_manager_.OnStartup();
   service_controller_ = std::make_unique<OnDeviceModelServiceController>(
       std::make_unique<OnDeviceModelAccessController>(*local_state_),
+      performance_classifier_.GetSafeRef(),
       component_state_manager_.GetWeakPtr(), service_client_.GetSafeRef());
   service_controller_->Init();
 }

@@ -450,8 +450,8 @@ std::string FileTransferAnalysisDelegate::email() const {
   return GetProfileEmail(profile_);
 }
 
-std::string FileTransferAnalysisDelegate::url() const {
-  return "";
+const GURL& FileTransferAnalysisDelegate::url() const {
+  return GURL::EmptyGURL();
 }
 
 const GURL& FileTransferAnalysisDelegate::tab_url() const {
@@ -471,6 +471,10 @@ FileTransferAnalysisDelegate::referrer_chain() const {
 google::protobuf::RepeatedPtrField<std::string>
 FileTransferAnalysisDelegate::frame_url_chain() const {
   return {};
+}
+
+content::WebContents* FileTransferAnalysisDelegate::web_contents() const {
+  return nullptr;
 }
 
 void FileTransferAnalysisDelegate::OnGotFileURLs(

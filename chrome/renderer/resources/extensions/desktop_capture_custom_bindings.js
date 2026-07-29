@@ -4,16 +4,16 @@
 
 // Custom binding for the desktopCapture API.
 
-var idGenerator = requireNative('id_generator');
+const idGenerator = requireNative('id_generator');
 
 apiBridge.registerCustomHook(function(bindingsAPI) {
-  var apiFunctions = bindingsAPI.apiFunctions;
+  const apiFunctions = bindingsAPI.apiFunctions;
 
-  var pendingRequests = {};
+  const pendingRequests = {};
 
   function onRequestResult(id, result, options) {
     if (id in pendingRequests) {
-      var callback = pendingRequests[id];
+      const callback = pendingRequests[id];
       delete pendingRequests[id];
       callback(result, options);
     }
@@ -26,13 +26,16 @@ apiBridge.registerCustomHook(function(bindingsAPI) {
           callback = target_tab;
           target_tab = undefined;
         }
-        var id = idGenerator.GetNextId();
+        const id = idGenerator.GetNextId();
         pendingRequests[id] = callback;
         bindingUtil.sendRequest(
             'desktopCapture.chooseDesktopMedia',
             [
-              id, sources, target_tab, options,
-              $Function.bind(onRequestResult, null, id)
+              id,
+              sources,
+              target_tab,
+              options,
+              $Function.bind(onRequestResult, null, id),
             ],
             undefined);
         return id;

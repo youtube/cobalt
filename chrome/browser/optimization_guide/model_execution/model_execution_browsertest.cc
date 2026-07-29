@@ -15,7 +15,7 @@
 #include "build/build_config.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/metrics/chrome_metrics_service_accessor.h"
-#include "chrome/browser/optimization_guide/model_execution/chrome_model_broker_state.h"
+#include "chrome/browser/optimization_guide/model_execution/optimization_guide_global_state.h"
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service.h"
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service_factory.h"
 #include "chrome/browser/signin/identity_test_environment_profile_adaptor.h"
@@ -33,6 +33,7 @@
 #include "components/optimization_guide/core/model_execution/on_device_model_adaptation_loader.h"
 #include "components/optimization_guide/core/model_execution/on_device_model_service_controller.h"
 #include "components/optimization_guide/core/model_execution/optimization_guide_model_execution_error.h"
+#include "components/optimization_guide/core/model_execution/performance_class.h"
 #include "components/optimization_guide/core/model_execution/test/fake_model_assets.h"
 #include "components/optimization_guide/core/model_execution/test/feature_config_builder.h"
 #include "components/optimization_guide/core/model_quality/model_execution_logging_wrappers.h"
@@ -460,6 +461,11 @@ class ModelExecutionEnabledBrowserTest : public ModelExecutionBrowserTestBase {
         {});
   }
 
+  void SetUpLocalStatePrefService(PrefService* local_state) override {
+    UpdatePerformanceClassPref(local_state,
+                               OnDeviceModelPerformanceClass::kServiceCrash);
+  }
+
   OptimizationGuideKeyedService* GetOptGuideKeyedService() {
     return OptimizationGuideKeyedServiceFactory::GetForProfile(
         browser()->profile());
@@ -690,15 +696,20 @@ class OnDeviceModelExecutionEnabledBrowserTest
         {});
   }
 
-  ChromeModelBrokerState* broker_state() {
+  OptimizationGuideGlobalState* broker_state() {
     // Ensure keyed service is created, which should create and hold state.
     GetOptimizationGuideKeyedService();
-    return ChromeModelBrokerState::CreateOrGet().get();
+    return OptimizationGuideGlobalState::CreateOrGet().get();
+  }
+
+  void SetUpLocalStatePrefService(PrefService* local_state) override {
+    model_execution::prefs::RecordFeatureUsage(
+        local_state, ModelBasedCapabilityKey::kCompose);
+    UpdatePerformanceClassPref(local_state,
+                               OnDeviceModelPerformanceClass::kVeryHigh);
   }
 
   void SetUpGlobalAssets() {
-    model_execution::prefs::RecordFeatureUsage(
-        g_browser_process->local_state(), ModelBasedCapabilityKey::kCompose);
     base_model_asset_.SetReadyIn(broker_state()->component_state_manager());
   }
 
@@ -708,7 +719,7 @@ class OnDeviceModelExecutionEnabledBrowserTest
   }
 
  private:
-  optimization_guide::FakeBaseModelAsset base_model_asset_;
+  FakeBaseModelAsset base_model_asset_;
   FakeAdaptationAsset compose_asset_{{
       .config =
           []() {

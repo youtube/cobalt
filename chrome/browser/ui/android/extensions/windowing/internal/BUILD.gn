@@ -13,6 +13,8 @@ source_set("internal") {
   deps = [
     ":jni",
     "//base",
+    "//chrome/browser/extensions",
+    "//chrome/browser/ui/browser_window",
   ]
 }
 
@@ -45,8 +47,28 @@ source_set("unit_tests") {
   deps = [
     ":internal",
     "//base",
+    "//chrome/browser/extensions",
     "//chrome/browser/ui/android/extensions/windowing/test:native_unit_test_support_java",
     "//chrome/browser/ui/android/extensions/windowing/test:native_unit_test_support_jni",
+    "//chrome/browser/ui/browser_window",
+    "//components/sessions:session_id",
     "//testing/gtest",
+  ]
+}
+
+android_library("javatests") {
+  testonly = true
+  sources = [ "java/src/org/chromium/chrome/browser/ui/extensions/windowing/ExtensionWindowControllerBridgeIntegrationTest.java" ]
+  deps = [
+    ":java",
+    "//base:base_java_test_support",
+    "//chrome/android:chrome_java",
+    "//chrome/browser/flags:java",
+    "//chrome/browser/ui/android/extensions/windowing:java",
+    "//chrome/browser/ui/browser_window:java",
+    "//chrome/browser/ui/browser_window/internal:java",
+    "//chrome/test/android:chrome_java_transit",
+    "//third_party/androidx:androidx_test_runner_java",
+    "//third_party/junit",
   ]
 }

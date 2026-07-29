@@ -70,7 +70,7 @@ AtomicString ToAtomicString(const SkString& str) {
 // linux and the embedder has overriden the default fontManager with
 // WebFontRendering::setSkiaFontMgr.
 // static
-AtomicString FontCache::GetFamilyNameForCharacter(
+const FontPlatformData* FontCache::CreateFontPlatformDataForCharacter(
     SkFontMgr* fm,
     UChar32 c,
     const FontDescription& font_description,
@@ -81,13 +81,27 @@ AtomicString FontCache::GetFamilyNameForCharacter(
   Bcp47Vector locales =
       GetBcp47LocaleForRequest(font_description, fallback_priority);
   sk_sp<SkTypeface> typeface(fm->matchFamilyStyleCharacter(
-      family_name, SkFontStyle(), locales.data(), locales.size(), c));
-  if (!typeface)
-    return g_empty_atom;
+      family_name, font_description.SkiaFontStyle(), locales.data(),
+      locales.size(), c));
+  if (!typeface) {
+    return nullptr;
+  }
 
   SkString skia_family_name;
   typeface->getFamilyName(&skia_family_name);
-  return ToAtomicString(skia_family_name);
+
+  bool synthetic_bold = font_description.IsSyntheticBold() &&
+                        !typeface->isBold() &&
+                        font_description.SyntheticBoldAllowed();
+  bool synthetic_italic = font_description.IsSyntheticItalic() &&
+                          !typeface->isItalic() &&
+                          font_description.SyntheticItalicAllowed();
+
+  return MakeGarbageCollected<FontPlatformData>(
+      std::move(typeface), skia_family_name.c_str(),
+      font_description.EffectiveFontSize(), synthetic_bold, synthetic_italic,
+      font_description.TextRendering(), ResolvedFontFeatures(),
+      font_description.Orientation());
 }
 #endif  // BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX) ||
         // BUILDFLAG(IS_CHROMEOS)

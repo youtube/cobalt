@@ -297,6 +297,13 @@ BASE_FEATURE(kEnableExclusiveAccessManager,
              base::FEATURE_DISABLED_BY_DEFAULT);
 #endif
 
+// Enables Fullscreen to Screen on Android platform
+#if BUILDFLAG(IS_ANDROID)
+BASE_FEATURE(kEnableFullscreenToAnyScreenAndroid,
+             "EnableFullscreenToAnyScreenAndroid",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+#endif
+
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 // Controls whether Chrome Apps are supported. See https://crbug.com/1221251.
 // If the feature is disabled, Chrome Apps continue to work. If enabled, Chrome
@@ -346,7 +353,7 @@ BASE_FEATURE(kGeoLanguage, "GeoLanguage", base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kGlicActor, "GlicActor", base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Controls whether the Actor UI components are enabled.
-BASE_FEATURE(kGlicActorUi, "GlicActorUi", base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kGlicActorUi, "GlicActorUi", base::FEATURE_ENABLED_BY_DEFAULT);
 
 const char kGlicActorUiTaskIconName[] = "glic-actor-ui-task-icon";
 const char kGlicActorUiOverlayName[] = "glic-actor-ui-overlay";
@@ -354,10 +361,11 @@ const char kGlicActorUiOverlayMagicCursorName[] =
     "glic-actor-ui-overlay-magic-cursor";
 const char kGlicActorUiToastName[] = "glic-actor-ui-toast";
 const char kGlicActorUiHandoffButtonName[] = "glic-actor-ui-handoff-button";
+const char kGlicActorUiTabIndicatorName[] = "glic-actor-ui-tab-indicator";
 
 // Controls whether the task icon in the actor ui is enabled.
 const base::FeatureParam<bool> kGlicActorUiTaskIcon{
-    &kGlicActorUi, kGlicActorUiTaskIconName, false};
+    &kGlicActorUi, kGlicActorUiTaskIconName, true};
 // Controls whether the Actor Overlay in the actor ui is enabled.
 const base::FeatureParam<bool> kGlicActorUiOverlay{
     &kGlicActorUi, kGlicActorUiOverlayName, false};
@@ -366,10 +374,13 @@ const base::FeatureParam<bool> kGlicActorUiOverlayMagicCursor{
     &kGlicActorUi, kGlicActorUiOverlayMagicCursorName, false};
 // Controls whether the toast in the actor ui is enabled.
 const base::FeatureParam<bool> kGlicActorUiToast{&kGlicActorUi,
-                                                 kGlicActorUiToastName, false};
+                                                 kGlicActorUiToastName, true};
 // Controls whether the handoff button in the actor ui is enabled.
 const base::FeatureParam<bool> kGlicActorUiHandoffButton{
     &kGlicActorUi, kGlicActorUiHandoffButtonName, false};
+// Controls whether the tab indicator in the actor ui is enabled.
+const base::FeatureParam<bool> kGlicActorUiTabIndicator{
+    &kGlicActorUi, kGlicActorUiTabIndicatorName, true};
 
 // Controls renderer tool observation timeout when waiting on local
 // (non-network) work.
@@ -631,7 +642,7 @@ BASE_FEATURE(kGlicScrollTo, "GlicScrollTo", base::FEATURE_DISABLED_BY_DEFAULT);
 // when trying to scroll all documents except PDFs (and fail the request if
 // it's not set).
 const base::FeatureParam<bool> kGlicScrollToEnforceDocumentId{
-    &kGlicScrollTo, "glic-scroll-to-enforce-document-id", false};
+    &kGlicScrollTo, "glic-scroll-to-enforce-document-id", true};
 // Expand the scrollTo capability to PDF documents.
 const base::FeatureParam<bool> kGlicScrollToPDF{&kGlicScrollTo,
                                                 "glic-scroll-to-pdf", false};
@@ -706,10 +717,13 @@ BASE_FEATURE(kGlicPanelSetPositionOnDrag,
              base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kGlicPanelResetOnSessionTimeout,
              "GlicPanelResetOnSessionTimeout",
-             base::FEATURE_ENABLED_BY_DEFAULT);
+             base::FEATURE_DISABLED_BY_DEFAULT);
 const base::FeatureParam<double> kGlicPanelResetOnSessionTimeoutDelayH{
     &kGlicPanelResetOnSessionTimeout,
-    "glic-panel-reset-session-timeout-delay-h", 4};
+    "glic-panel-reset-session-timeout-delay-h", 0};
+BASE_FEATURE(kGlicPanelResetSizeAndLocationOnOpen,
+             "GlicPanelResetSizeAndLocationOnOpen",
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kGlicRecordActorJournal,
              "GlicRecordActorJournal",
@@ -1098,13 +1112,13 @@ BASE_FEATURE(kIsolatedWebAppUnmanagedInstall,
 // Enables users to install isolated web apps in managed guest sessions.
 BASE_FEATURE(kIsolatedWebAppManagedGuestSessionInstall,
              "IsolatedWebAppManagedGuestSessionInstall",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enables bundle cache for isolated web apps in kiosk and managed guest
 // session.
 BASE_FEATURE(kIsolatedWebAppBundleCache,
              "IsolatedWebAppBundleCache",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
 // When enabled, allows other features to use the k-Anonymity Service.
@@ -1899,6 +1913,10 @@ BASE_FEATURE(kWebAppUsePrimaryIcon,
 BASE_FEATURE(kWebAppManifestPolicyAppIdentityUpdate,
              "WebAppManifestPolicyAppIdentityUpdate",
              base::FEATURE_ENABLED_BY_DEFAULT);
+
+#if !BUILDFLAG(IS_ANDROID)
+BASE_FEATURE(kWebium, "Webium", base::FEATURE_DISABLED_BY_DEFAULT);
+#endif  // !BUILDFLAG(IS_ANDROID)
 
 // Restricts the WebUI scripts able to use the generated code cache according to
 // embedder-specified heuristics.

@@ -43,6 +43,7 @@
 #include "chrome/browser/ui/views/autofill/popup/popup_view_views.h"
 #include "chrome/browser/ui/views/bookmarks/bookmark_bar_view.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
+#include "chrome/browser/ui/views/frame/contents_web_view.h"
 #include "chrome/browser/ui/views/location_bar/cookie_controls/cookie_controls_icon_view.h"
 #include "chrome/browser/ui/views/tabs/glic_button.h"
 #include "chrome/browser/ui/views/tabs/tab_icon.h"
@@ -54,6 +55,7 @@
 #include "chrome/browser/ui/views/user_education/impl/browser_feature_promo_controller_20.h"
 #include "chrome/browser/ui/views/user_education/impl/browser_feature_promo_controller_25.h"
 #include "chrome/browser/ui/views/user_education/impl/browser_feature_promo_preconditions.h"
+#include "chrome/browser/ui/views/user_education/impl/browser_user_education_context.h"
 #include "chrome/browser/ui/views/web_apps/web_app_install_dialog_delegate.h"
 #include "chrome/browser/ui/webui/new_tab_page/new_tab_page_ui.h"
 #include "chrome/browser/ui/webui/password_manager/password_manager_ui.h"
@@ -77,6 +79,7 @@
 #include "components/feature_engagement/public/feature_constants.h"
 #include "components/lens/lens_features.h"
 #include "components/password_manager/core/browser/features/password_features.h"
+#include "components/pdf/browser/pdf_document_helper.h"
 #include "components/plus_addresses/features.h"
 #include "components/plus_addresses/grit/plus_addresses_strings.h"
 #include "components/safe_browsing/core/common/safebrowsing_referral_methods.h"
@@ -94,6 +97,7 @@
 #include "components/user_education/common/new_badge/new_badge_specification.h"
 #include "components/user_education/common/tutorial/tutorial_description.h"
 #include "components/user_education/common/tutorial/tutorial_registry.h"
+#include "components/user_education/common/user_education_context.h"
 #include "components/user_education/common/user_education_features.h"
 #include "components/user_education/common/user_education_metadata.h"
 #include "components/user_education/views/help_bubble_delegate.h"
@@ -158,16 +162,27 @@ bool HasTabGroups(const BrowserView* browser_view) {
               .empty();
 }
 
+using ContextPtr = const user_education::UserEducationContextPtr&;
+
+// Convenience method to get the browser view from the context.
+BrowserView& GetBrowserView(ContextPtr context) {
+  auto* const browser_context = context->AsA<BrowserUserEducationContext>();
+  CHECK(browser_context);
+  return browser_context->GetBrowserView();
+}
+
+// Convenience method to get the browser from the context.
+Browser* GetBrowser(ContextPtr context) {
+  return GetBrowserView(context).browser();
+}
+
 // Returns a `CustomActionCallback` that navigates to `target` in a new tab.
 user_education::FeaturePromoSpecification::CustomActionCallback
 CreateNavigationAction(GURL target) {
   return base::BindRepeating(
-      [](GURL url, ui::ElementContext ctx,
+      [](GURL url, ContextPtr ctx,
          user_education::FeaturePromoHandle promo_handle) {
-        auto* const browser = chrome::FindBrowserWithUiElementContext(ctx);
-        if (!browser) {
-          return;
-        }
+        auto* browser = GetBrowser(ctx);
         NavigateParams params(browser->profile(), url,
                               ui::PAGE_TRANSITION_LINK);
         params.disposition = WindowOpenDisposition::NEW_FOREGROUND_TAB;
@@ -269,6 +284,8 @@ void MaybeRegisterChromeFeaturePromos(
           IDS_AUTOFILL_IPH_HOME_AND_WORK_ACCOUNT_PROFILE_SUGGESTION_SCREENREADER,
           FeaturePromoSpecification::AcceleratorInfo())
           .SetBubbleArrow(HelpBubbleArrow::kLeftCenter)
+          .SetBubbleTitleText(
+              IDS_AUTOFILL_IPH_HOME_AND_WORK_ACCOUNT_PROFILE_SUGGESTION_TITLE)
           .SetMetadata(136, "vidhanj@google.com",
                        "Triggered after a home/work suggestion is available to "
                        "user for filling")));
@@ -304,13 +321,9 @@ void MaybeRegisterChromeFeaturePromos(
             }
           }(),
           base::BindRepeating(
-              [](ui::ElementContext ctx,
+              [](ContextPtr ctx,
                  user_education::FeaturePromoHandle promo_handle) {
-                auto* const browser =
-                    chrome::FindBrowserWithUiElementContext(ctx);
-                if (!browser) {
-                  return;
-                }
+                Browser* const browser = GetBrowser(ctx);
                 TabStripModel* const tab_strip_model =
                     browser->tab_strip_model();
                 if (!tab_strip_model) {
@@ -476,12 +489,9 @@ void MaybeRegisterChromeFeaturePromos(
           IDS_TUTORIAL_CUSTOMIZE_CHROME_START_TUTORIAL_IPH,
           IDS_PROMO_SHOW_TUTORIAL_BUTTON,
           base::BindRepeating(
-              [](ui::ElementContext ctx,
+              [](ContextPtr ctx,
                  user_education::FeaturePromoHandle promo_handle) {
-                auto* browser = chrome::FindBrowserWithUiElementContext(ctx);
-                if (!browser) {
-                  return;
-                }
+                Browser* const browser = GetBrowser(ctx);
                 if (!search::DefaultSearchProviderIsGoogle(
                         browser->profile())) {
                   return;
@@ -511,7 +521,8 @@ void MaybeRegisterChromeFeaturePromos(
                 user_education::TutorialIdentifier tutorial_id =
                     kSidePanelCustomizeChromeTutorialId;
 
-                tutorial_service->StartTutorial(tutorial_id, ctx);
+                tutorial_service->StartTutorial(tutorial_id,
+                                                ctx->GetElementContext());
                 tutorial_service->LogIPHLinkClicked(tutorial_id, true);
               }))
           .SetBubbleArrow(HelpBubbleArrow::kNone)
@@ -534,12 +545,8 @@ void MaybeRegisterChromeFeaturePromos(
           kTopContainerElementId, IDS_IPH_CUSTOMIZE_CHROME_REFRESH_BODY,
           IDS_IPH_CUSTOMIZE_CHROME_REFRESH_CUSTOM_ACTION,
           base::BindRepeating(
-              [](ui::ElementContext ctx,
+              [](ContextPtr ctx,
                  user_education::FeaturePromoHandle promo_handle) {
-                auto* browser = chrome::FindBrowserWithUiElementContext(ctx);
-                if (!browser) {
-                  return;
-                }
                 ShowPromoInPage::Params params;
                 params.bubble_anchor_id =
                     NewTabPageUI::kCustomizeChromeButtonElementId;
@@ -547,7 +554,7 @@ void MaybeRegisterChromeFeaturePromos(
                     user_education::HelpBubbleArrow::kBottomRight;
                 params.bubble_text = l10n_util::GetStringUTF16(
                     IDS_IPH_CUSTOMIZE_CHROME_REFRESH_POINTER_BODY);
-                ShowPromoInPage::Start(browser, std::move(params));
+                ShowPromoInPage::Start(GetBrowser(ctx), std::move(params));
               }))
           .SetBubbleArrow(HelpBubbleArrow::kNone)
           .SetCustomActionIsDefault(false)
@@ -766,7 +773,30 @@ void MaybeRegisterChromeFeaturePromos(
           .SetBubbleArrow(HelpBubbleArrow::kNone)
           .SetBubbleTitleText(IDS_PDF_SEARCHIFY_IPH_TITLE)
           .SetMetadata(132, "rhalavati@chromium.org",
-                       "Triggered once when user opens a PDF with images.")));
+                       "Triggered once when user opens a PDF which gets OCRed.")
+          .SetAnchorElementFilter(base::BindRepeating(
+              [](const ui::ElementTracker::ElementList& elements)
+                  -> ui::TrackedElement* {
+                if (elements.empty()) {
+                  return nullptr;
+                }
+                // Ensure a searchified PDF is visible before showing the IPH.
+                auto* const browser_view =
+                    views::ElementTrackerViews::GetInstance()
+                        ->GetFirstMatchingViewAs<BrowserView>(
+                            kBrowserViewElementId, elements[0]->context());
+                std::vector<ContentsWebView*> contents_web_views =
+                    browser_view->GetAllVisibleContentsWebViews();
+                for (auto* contents_web_view : contents_web_views) {
+                  auto* pdf_doc_helper =
+                      pdf::PDFDocumentHelper::MaybeGetForWebContents(
+                          contents_web_view->GetWebContents());
+                  if (pdf_doc_helper && pdf_doc_helper->SearchifyStarted()) {
+                    return elements[0];
+                  }
+                }
+                return nullptr;
+              }))));
 
   // kIPHLensOverlayFeature:
   registry.RegisterFeature(std::move(
@@ -871,12 +901,13 @@ void MaybeRegisterChromeFeaturePromos(
           kCookieControlsIconElementId, IDS_COOKIE_CONTROLS_PROMO_TEXT,
           IDS_COOKIE_CONTROLS_PROMO_SEE_HOW_BUTTON_TEXT,
           base::BindRepeating(
-              [](ui::ElementContext ctx,
+              [](ContextPtr ctx,
                  user_education::FeaturePromoHandle promo_handle) {
                 auto* cookie_controls_icon_view =
                     views::ElementTrackerViews::GetInstance()
                         ->GetFirstMatchingViewAs<CookieControlsIconView>(
-                            kCookieControlsIconElementId, ctx);
+                            kCookieControlsIconElementId,
+                            ctx->GetElementContext());
                 if (cookie_controls_icon_view != nullptr) {
                   cookie_controls_icon_view->ShowCookieControlsBubble();
                 }
@@ -986,6 +1017,8 @@ void MaybeRegisterChromeFeaturePromos(
           .SetAnchorElementFilter(
               base::BindRepeating(&tab_groups::SavedTabGroupUtils::
                                       GetAnchorElementForTabGroupsV2IPH))
+          .SetBubbleArrowCallback(base::BindRepeating(
+              &tab_groups::SavedTabGroupUtils::GetArrowForTabGroupsV2IPH))
           .SetMetadata(127, "dpenning@chromium.org",
                        "triggered on startup when the saved tab groups are "
                        "defaulted to saved for the first time.")));
@@ -1001,6 +1034,8 @@ void MaybeRegisterChromeFeaturePromos(
           .SetAnchorElementFilter(
               base::BindRepeating(&tab_groups::SavedTabGroupUtils::
                                       GetAnchorElementForTabGroupsV2IPH))
+          .SetBubbleArrowCallback(base::BindRepeating(
+              &tab_groups::SavedTabGroupUtils::GetArrowForTabGroupsV2IPH))
           .SetMetadata(127, "dpenning@chromium.org",
                        "triggered on startup when the saved tab groups are "
                        "defaulted to saved for the first time.")));
@@ -1064,15 +1099,11 @@ void MaybeRegisterChromeFeaturePromos(
           IDS_SUPERVISED_USER_PROFILE_SIGNIN_IPH_TEXT,
           IDS_PROMO_LEARN_MORE_BUTTON,
           base::BindRepeating(
-              [](ui::ElementContext ctx,
+              [](ContextPtr ctx,
                  user_education::FeaturePromoHandle promo_handle) {
-                auto* browser = chrome::FindBrowserWithUiElementContext(ctx);
-                if (!browser) {
-                  return;
-                }
                 // Open parental controls page.
                 ShowSingletonTab(
-                    browser,
+                    GetBrowser(ctx),
                     GURL(supervised_user::kManagedByParentUiMoreInfoUrl));
                 base::RecordAction(base::UserMetricsAction(
                     "SupervisedUserProfileSignIn_IPHPromo_"
@@ -1158,9 +1189,9 @@ void MaybeRegisterChromeFeaturePromos(
           IDS_BATTERY_SAVER_MODE_PROMO_TEXT,
           IDS_BATTERY_SAVER_MODE_PROMO_ACTION_TEXT,
           base::BindRepeating(
-              [](ui::ElementContext ctx,
+              [](ContextPtr ctx,
                  user_education::FeaturePromoHandle promo_handle) {
-                auto* browser = chrome::FindBrowserWithUiElementContext(ctx);
+                auto* browser = GetBrowser(ctx);
                 if (browser) {
                   chrome::ShowSettingsSubPage(browser,
                                               chrome::kPerformanceSubPage);
@@ -1179,7 +1210,7 @@ void MaybeRegisterChromeFeaturePromos(
           kToolbarAppMenuButtonElementId, IDS_MEMORY_SAVER_MODE_PROMO_TEXT,
           IDS_MEMORY_SAVER_MODE_PROMO_ACTION_TEXT,
           base::BindRepeating(
-              [](ui::ElementContext context,
+              [](ContextPtr context,
                  user_education::FeaturePromoHandle promo_handle) {
                 performance_manager::user_tuning::UserPerformanceTuningManager::
                     GetInstance()
@@ -1201,12 +1232,8 @@ void MaybeRegisterChromeFeaturePromos(
           feature_engagement::kIPHDiscardRingFeature, kTabIconElementId,
           IDS_DISCARD_RING_PROMO_TEXT, IDS_DISCARD_RING_PROMO_ACTION_TEXT,
           base::BindRepeating(
-              [](ui::ElementContext ctx,
+              [](ContextPtr ctx,
                  user_education::FeaturePromoHandle promo_handle) {
-                auto* browser = chrome::FindBrowserWithUiElementContext(ctx);
-                if (!browser) {
-                  return;
-                }
                 ShowPromoInPage::Params params;
                 params.target_url =
                     chrome::GetSettingsUrl(chrome::kPerformanceSubPage);
@@ -1217,7 +1244,7 @@ void MaybeRegisterChromeFeaturePromos(
                     l10n_util::GetStringUTF16(IDS_DISCARD_RING_SETTINGS_TOAST);
                 params.close_button_alt_text_id = IDS_CLOSE_PROMO;
 
-                ShowPromoInPage::Start(browser, std::move(params));
+                ShowPromoInPage::Start(GetBrowser(ctx), std::move(params));
               }))
           .SetAnchorElementFilter(base::BindRepeating(
               [](const ui::ElementTracker::ElementList& elements)
@@ -1268,15 +1295,12 @@ void MaybeRegisterChromeFeaturePromos(
           kToolbarDownloadButtonElementId, IDS_DOWNLOAD_BUBBLE_ESB_PROMO,
           IDS_DOWNLOAD_BUBBLE_ESB_PROMO_CUSTOM_ACTION,
           base::BindRepeating(
-              [](ui::ElementContext ctx,
+              [](ContextPtr ctx,
                  user_education::FeaturePromoHandle promo_handle) {
-                auto* browser = chrome::FindBrowserWithUiElementContext(ctx);
-                if (!browser) {
-                  return;
-                }
                 chrome::ShowSafeBrowsingEnhancedProtectionWithIph(
-                    browser, safe_browsing::SafeBrowsingSettingReferralMethod::
-                                 kDownloadButtonIphPromo);
+                    GetBrowser(ctx),
+                    safe_browsing::SafeBrowsingSettingReferralMethod::
+                        kDownloadButtonIphPromo);
               }))
           .SetCustomActionIsDefault(true)
           .SetBubbleArrow(HelpBubbleArrow::kTopRight)
@@ -1321,13 +1345,9 @@ void MaybeRegisterChromeFeaturePromos(
           kToolbarAppMenuButtonElementId, IDS_DESKTOP_PWA_LINK_CAPTURING_TEXT,
           IDS_DESKTOP_PWA_LINK_CAPTURING_SETTINGS,
           base::BindRepeating(
-              [](ui::ElementContext ctx,
+              [](ContextPtr ctx,
                  user_education::FeaturePromoHandle promo_handle) {
-                auto* const browser =
-                    chrome::FindBrowserWithUiElementContext(ctx);
-                if (!browser) {
-                  return;
-                }
+                auto* const browser = GetBrowser(ctx);
                 TabStripModel* const tab_strip_model =
                     browser->tab_strip_model();
                 if (!tab_strip_model) {
@@ -1364,13 +1384,9 @@ void MaybeRegisterChromeFeaturePromos(
           kLocationIconElementId, IDS_DESKTOP_PWA_LINK_CAPTURING_TEXT,
           IDS_DESKTOP_PWA_LINK_CAPTURING_SETTINGS,
           base::BindRepeating(
-              [](ui::ElementContext ctx,
+              [](ContextPtr ctx,
                  user_education::FeaturePromoHandle promo_handle) {
-                auto* const browser =
-                    chrome::FindBrowserWithUiElementContext(ctx);
-                if (!browser) {
-                  return;
-                }
+                auto* const browser = GetBrowser(ctx);
                 TabStripModel* const tab_strip_model =
                     browser->tab_strip_model();
                 if (!tab_strip_model) {
@@ -1406,14 +1422,9 @@ void MaybeRegisterChromeFeaturePromos(
           kHistorySearchInputElementId, IDS_HISTORY_EMBEDDINGS_IPH_BODY,
           IDS_HISTORY_EMBEDDINGS_IPH_ACTION,
           base::BindRepeating(
-              [](ui::ElementContext ctx,
+              [](ContextPtr ctx,
                  user_education::FeaturePromoHandle promo_handle) {
-                auto* const browser =
-                    chrome::FindBrowserWithUiElementContext(ctx);
-                if (!browser) {
-                  return;
-                }
-                chrome::ShowSettingsSubPage(browser,
+                chrome::ShowSettingsSubPage(GetBrowser(ctx),
                                             chrome::kHistorySearchSubpage);
               }))
           .SetCustomActionIsDefault(true)
@@ -1701,6 +1712,24 @@ void MaybeRegisterChromeNewBadges(user_education::NewBadgeRegistry& registry) {
       user_education::Metadata(132, "wolfi@chromium.org, kimanh@chromium.org",
                                "Shown in the Sources panel in the AI menu item "
                                "when opening the context menu of a file.")));
+  registry.RegisterFeature(user_education::NewBadgeSpecification(
+      features::kDevToolsAiAssistanceNetworkAgent,
+      user_education::Metadata(
+          132, "wolfi@chromium.org, kimanh@chromium.org",
+          "Shown in the Network panel in the AI menu item "
+          "when opening the context menu of a network request.")));
+  registry.RegisterFeature(user_education::NewBadgeSpecification(
+      features::kDevToolsAiAssistancePerformanceAgent,
+      user_education::Metadata(
+          132, "jacktfranklin@chromium.org, kimanh@chromium.org",
+          "Shown in the Performance panel in the AI menu item "
+          "when opening the context menu of a main thread task.")));
+  registry.RegisterFeature(user_education::NewBadgeSpecification(
+      features::kDevToolsFreestyler,
+      user_education::Metadata(
+          131, "wolfi@chromium.org, kimanh@chromium.org",
+          "Shown in the Elements panel in the AI menu item "
+          "when opening the context menu of a DOM element.")));
 
   registry.RegisterFeature(user_education::NewBadgeSpecification(
       compose::features::kEnableCompose,
@@ -1790,55 +1819,46 @@ void MaybeRegisterChromeNewBadges(user_education::NewBadgeRegistry& registry) {
 }
 
 std::unique_ptr<user_education::FeaturePromoControllerCommon>
-CreateUserEducationResources(BrowserView* browser_view) {
-  Profile* const profile = browser_view->GetProfile();
-
-  // Get the user education service.
-  if (!UserEducationServiceFactory::ProfileAllowsUserEducation(profile)) {
-    return nullptr;
-  }
-  UserEducationService* const user_education_service =
-      UserEducationServiceFactory::GetForBrowserContext(profile);
-  if (!user_education_service) {
-    return nullptr;
-  }
+CreateUserEducationResources(UserEducationService& user_education_service) {
+  Profile* const profile = &user_education_service.profile();
+  CHECK(UserEducationServiceFactory::ProfileAllowsUserEducation(profile));
 
   // Consider registering factories, etc.
   RegisterChromeHelpBubbleFactories(
-      user_education_service->help_bubble_factory_registry());
+      user_education_service.help_bubble_factory_registry());
   MaybeRegisterChromeFeaturePromos(
-      user_education_service->feature_promo_registry(), profile);
-  MaybeRegisterChromeTutorials(user_education_service->tutorial_registry());
-  CHECK(user_education_service->new_badge_registry());
+      user_education_service.feature_promo_registry(), profile);
+  MaybeRegisterChromeTutorials(user_education_service.tutorial_registry());
+  CHECK(user_education_service.new_badge_registry());
 
-  MaybeRegisterChromeNewBadges(*user_education_service->new_badge_registry());
-  user_education_service->new_badge_controller()->InitData();
+  MaybeRegisterChromeNewBadges(*user_education_service.new_badge_registry());
+  user_education_service.new_badge_controller()->InitData();
 
   // Registry is valid if the NTP promo feature is enabled.
-  if (user_education_service->ntp_promo_registry()) {
-    MaybeRegisterNtpPromos(*user_education_service->ntp_promo_registry());
+  if (user_education_service.ntp_promo_registry()) {
+    MaybeRegisterNtpPromos(*user_education_service.ntp_promo_registry());
   }
 
   if (user_education::features::IsUserEducationV25()) {
     auto result = std::make_unique<BrowserFeaturePromoController25>(
         feature_engagement::TrackerFactory::GetForBrowserContext(profile),
-        &user_education_service->feature_promo_registry(),
-        &user_education_service->help_bubble_factory_registry(),
-        &user_education_service->user_education_storage_service(),
-        &user_education_service->feature_promo_session_policy(),
-        &user_education_service->tutorial_service(),
-        &user_education_service->product_messaging_controller());
+        &user_education_service.feature_promo_registry(),
+        &user_education_service.help_bubble_factory_registry(),
+        &user_education_service.user_education_storage_service(),
+        &user_education_service.feature_promo_session_policy(),
+        &user_education_service.tutorial_service(),
+        &user_education_service.product_messaging_controller());
     result->Init();
     return result;
   } else {
     return std::make_unique<BrowserFeaturePromoController20>(
         feature_engagement::TrackerFactory::GetForBrowserContext(profile),
-        &user_education_service->feature_promo_registry(),
-        &user_education_service->help_bubble_factory_registry(),
-        &user_education_service->user_education_storage_service(),
-        &user_education_service->feature_promo_session_policy(),
-        &user_education_service->tutorial_service(),
-        &user_education_service->product_messaging_controller());
+        &user_education_service.feature_promo_registry(),
+        &user_education_service.help_bubble_factory_registry(),
+        &user_education_service.user_education_storage_service(),
+        &user_education_service.feature_promo_session_policy(),
+        &user_education_service.tutorial_service(),
+        &user_education_service.product_messaging_controller());
   }
 }
 

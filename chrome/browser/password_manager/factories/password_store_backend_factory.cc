@@ -26,7 +26,6 @@
 #include "components/prefs/pref_service.h"
 
 #if !BUILDFLAG(USE_LOGIN_DATABASE_AS_BACKEND)
-#include "chrome/browser/password_manager/android/password_manager_eviction_util.h"
 #include "chrome/browser/password_manager/android/password_store_android_account_backend.h"
 #include "chrome/browser/password_manager/android/password_store_android_local_backend.h"
 #include "components/password_manager/core/common/password_manager_pref_names.h"
@@ -45,7 +44,6 @@ namespace {
 using ::password_manager::PasswordStoreBackend;
 using ::password_manager::PasswordStoreBuiltInBackend;
 #if !BUILDFLAG(USE_LOGIN_DATABASE_AS_BACKEND)
-using password_manager::prefs::UseUpmLocalAndSeparateStoresState;
 using password_manager_android_util::PasswordManagerUtilBridge;
 #endif
 

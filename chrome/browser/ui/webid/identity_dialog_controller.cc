@@ -22,7 +22,7 @@
 // We add nognchecks on these includes so that Android bots do not fail
 // dependency checks.
 #if !BUILDFLAG(IS_ANDROID)
-#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"  // nogncheck
 #include "chrome/browser/ui/views/webid/fedcm_account_selection_view_desktop.h"  // nogncheck
 #include "components/tabs/public/tab_interface.h"  // nogncheck
 #endif
@@ -59,8 +59,10 @@ IdentityDialogController::IdentityDialogController(
     optimization_guide_decider_ =
         OptimizationGuideKeyedServiceFactory::GetForProfile(profile);
   }
-  optimization_guide_decider_->RegisterOptimizationTypes(
-      {optimization_guide::proto::OptimizationType::FEDCM_CLICKTHROUGH_RATE});
+  if (optimization_guide_decider_) {
+    optimization_guide_decider_->RegisterOptimizationTypes(
+        {optimization_guide::proto::OptimizationType::FEDCM_CLICKTHROUGH_RATE});
+  }
 }
 
 IdentityDialogController::~IdentityDialogController() = default;
@@ -73,6 +75,21 @@ int IdentityDialogController::GetBrandIconMinimumSize(
 int IdentityDialogController::GetBrandIconIdealSize(
     blink::mojom::RpMode rp_mode) {
   return AccountSelectionView::GetBrandIconIdealSize(rp_mode);
+}
+
+void IdentityDialogController::ShouldShowAccountsPassiveDialog(
+    ShouldShowAccountsPassiveDialogCallback cb) {
+  // If widget mode and segmentation platform feature flag is enabled, make the
+  // call to segmentation platform service for a UI volume recommendation.
+  if (base::FeatureList::IsEnabled(
+          segmentation_platform::features::kSegmentationPlatformFedCmUser)) {
+    RequestUiVolumeRecommendation(
+        base::BindOnce(&IdentityDialogController::
+                           OnRequestUiVolumeRecommendationResultReceived,
+                       weak_ptr_factory_.GetWeakPtr(), std::move(cb)));
+    return;
+  }
+  std::move(cb).Run(true);
 }
 
 bool IdentityDialogController::ShowAccountsDialog(
@@ -100,19 +117,6 @@ bool IdentityDialogController::ShowAccountsDialog(
   // obtain the favicon from the Java code.
   if (favicon_driver && favicon_driver->FaviconIsValid()) {
     rp_data.rp_icon = favicon_driver->GetFavicon();
-  }
-
-  // If widget mode and segmentation platform feature flag is enabled, make the
-  // call to segmentation platform service for a UI volume recommendation.
-  if (rp_mode == blink::mojom::RpMode::kPassive &&
-      base::FeatureList::IsEnabled(
-          segmentation_platform::features::kSegmentationPlatformFedCmUser)) {
-    RequestUiVolumeRecommendation(base::BindOnce(
-        &IdentityDialogController::
-            OnRequestUiVolumeRecommendationResultReceived,
-        weak_ptr_factory_.GetWeakPtr(), rp_data, identity_provider_data,
-        accounts, rp_mode, new_accounts));
-    return true;
   }
 
   return account_view_->Show(rp_data, identity_provider_data, accounts, rp_mode,
@@ -398,11 +402,7 @@ void IdentityDialogController::RequestUiVolumeRecommendation(
 }
 
 void IdentityDialogController::OnRequestUiVolumeRecommendationResultReceived(
-    const content::RelyingPartyData& rp_data,
-    const std::vector<IdentityProviderDataPtr>& identity_provider_data,
-    const std::vector<IdentityRequestAccountPtr>& accounts,
-    blink::mojom::RpMode rp_mode,
-    const std::vector<IdentityRequestAccountPtr>& new_accounts,
+    ShouldShowAccountsPassiveDialogCallback cb,
     const segmentation_platform::ClassificationResult&
         ui_volume_recommendation) {
   training_request_id_ = ui_volume_recommendation.request_id;
@@ -411,14 +411,13 @@ void IdentityDialogController::OnRequestUiVolumeRecommendationResultReceived(
   if (ui_volume_recommendation.status !=
           segmentation_platform::PredictionStatus::kSucceeded ||
       ui_volume_recommendation.ordered_labels[0] == "FedCmUserLoud") {
-    account_view_->Show(rp_data, identity_provider_data, accounts, rp_mode,
-                        new_accounts);
+    std::move(cb).Run(true);
     return;
   }
 
   // TODO(crbug.com/380416872): Integrate with quiet UI. Until then, dismiss the
   // UI.
-  OnDismiss(DismissReason::kSuppressed);
+  std::move(cb).Run(false);
 }
 
 void IdentityDialogController::CollectTrainingData(UserAction user_action) {

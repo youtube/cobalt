@@ -8,6 +8,7 @@
 
 #include "base/containers/contains.h"
 #include "base/run_loop.h"
+#include "base/test/run_until.h"
 #include "base/test/scoped_feature_list.h"
 #include "components/subresource_filter/content/renderer/web_document_subresource_filter_impl.h"
 #include "components/subresource_filter/core/common/memory_mapped_ruleset.h"
@@ -137,7 +138,13 @@ class FixedSubresourceFilterWebFrameClient
 class TestAdTracker : public AdTracker {
  public:
   explicit TestAdTracker(LocalFrame* frame) : AdTracker(frame) {}
-  void SetScriptAtTopOfStack(const String& url) { script_at_top_ = url; }
+  void SetScriptAtTopOfStack(const String& url) {
+    script_at_top_ = url;
+    // For a given script, we generate a unique "script id" for it.
+    if (!script_ids_.Contains(url)) {
+      script_ids_.insert(url, script_id_count_++);
+    }
+  }
   void SetExecutionContext(ExecutionContext* execution_context) {
     execution_context_ = execution_context;
   }
@@ -187,6 +194,27 @@ class TestAdTracker : public AdTracker {
     return result;
   }
 
+  // Since ScriptAtTopOfStack is id based instead of string based, we need to
+  // provide a mocked script id to the AdTracker.
+  void WillExecuteScript(ExecutionContext* execution_context,
+                         const v8::Local<v8::Context>& v8_context,
+                         const String& script_name,
+                         int script_id,
+                         bool top_level_execution) override {
+    if (script_id == v8::Message::kNoScriptIdInfo) {
+      auto it = script_ids_.find(script_name);
+      if (it != script_ids_.end()) {
+        script_id = it->value;
+      } else {
+        script_id = script_id_count_;
+        script_ids_.insert(script_name, script_id_count_++);
+      }
+    }
+
+    AdTracker::WillExecuteScript(execution_context, v8_context, script_name,
+                                 script_id, top_level_execution);
+  }
+
   const AdScriptAncestry& last_ad_script_ancestry() const {
     return last_ad_script_ancestry_;
   }
@@ -194,16 +222,15 @@ class TestAdTracker : public AdTracker {
  protected:
   // Override ScriptAtTopofStack to allow us to mock out the returned script
   // (via `SetScriptAtTopOfStack`).
-  String ScriptAtTopOfStack(
-      std::optional<AdScriptIdentifier>* out_ad_script = nullptr) override {
+  int ScriptAtTopOfStack() override {
     if (script_at_top_) {
-      return script_at_top_;
+      return script_ids_.find(script_at_top_)->value;
     }
     if (!sim_test_) {
-      return "";
+      return -1;
     }
 
-    return AdTracker::ScriptAtTopOfStack(out_ad_script);
+    return AdTracker::ScriptAtTopOfStack();
   }
 
   ExecutionContext* GetCurrentExecutionContext() override {
@@ -235,6 +262,10 @@ class TestAdTracker : public AdTracker {
 
  private:
   HashMap<String, bool> is_ad_;
+  HashMap<String, int> script_ids_;
+
+  // Valid script ids are >= 1.
+  size_t script_id_count_ = 1;
   String script_at_top_;
   Member<ExecutionContext> execution_context_;
   bool sim_test_ = false;
@@ -317,11 +348,16 @@ class AdTrackerTest : public testing::Test {
     ad_tracker_->AppendToKnownAdScripts(
         *GetExecutionContext(), url,
         std::make_unique<AdTracker::NoAdProvenance>());
+    // Calling WilExecuteScript will give the AdTracker a chance to associate
+    // the script url with a script id.
+    WillExecuteScript(url);
+    DidExecuteScript();
   }
 
   void AppendToKnownAdScripts(int script_id) {
     // Matches AdTracker's inline script encoding
-    AppendToKnownAdScripts(String::Format("{ id %d }", script_id));
+    String url = String::Format("{ id %d }", script_id);
+    AppendToKnownAdScripts(url);
   }
 
   test::TaskEnvironment task_environment_;
@@ -399,9 +435,6 @@ TEST_F(AdTrackerTest, TopOfStackIncluded) {
   EXPECT_FALSE(AnyExecutingScriptsTaggedAsAdResource());
 
   ad_tracker_->SetScriptAtTopOfStack("");
-  EXPECT_FALSE(AnyExecutingScriptsTaggedAsAdResource());
-
-  ad_tracker_->SetScriptAtTopOfStack(String());
   EXPECT_FALSE(AnyExecutingScriptsTaggedAsAdResource());
 
   WillExecuteScript(ad_script_url);
@@ -1054,11 +1087,6 @@ TEST_F(AdTrackerSimTest, VanillaPromiseNotDetected) {
 
 // Image loaded by ad script is tagged as ad.
 TEST_F(AdTrackerSimTest, DataURLImageLoadedWhileExecutingAdScriptAsyncEnabled) {
-  // Reset the AdTracker so that it gets the latest base::Feature value on
-  // construction.
-  ad_tracker_ = MakeGarbageCollected<TestAdTracker>(GetDocument().GetFrame());
-  GetDocument().GetFrame()->SetAdTrackerForTesting(ad_tracker_);
-
   const char kAdUrl[] = "https://example.com/ad_script.js";
   SimSubresourceRequest ad_resource(kAdUrl, "text/javascript");
 
@@ -2416,6 +2444,50 @@ TEST_F(AdTrackerSimTest,
   // Clean up for SimTest expectations.
   ad_document1.Complete("<body></body>");
   ad_document2.Complete("<body></body>");
+}
+
+TEST_F(AdTrackerSimTest, SelectivePermissionsInterventionOn) {
+  ScopedSelectivePermissionsInterventionForTest feature(true);
+
+  String ad_script_url = "https://example.com/script.js?ad=true";
+  SimSubresourceRequest ad_script(ad_script_url, "text/javascript");
+  main_resource_->Complete(R"HTML(
+    <body>
+      <script src="script.js?ad=true"></script>
+    </body>
+  )HTML");
+
+  ad_script.Complete(R"SCRIPT(
+     navigator.geolocation.getCurrentPosition(() => {}, () => {console.log("Failed")});
+  )SCRIPT");
+  EXPECT_TRUE(
+      base::test::RunUntil([&]() { return ConsoleMessages().size() == 3; }));
+  EXPECT_TRUE(ConsoleMessages()[0].StartsWith(
+      "Blocked call to geolocation because ad-script"));
+  EXPECT_TRUE(ConsoleMessages()[1].StartsWith(
+      "Permissions policy violation: Geolocation"));
+  EXPECT_EQ("Failed", ConsoleMessages()[2]);
+}
+
+TEST_F(AdTrackerSimTest, SelectivePermissionsInterventionOff) {
+  ScopedSelectivePermissionsInterventionForTest feature(false);
+
+  String ad_script_url = "https://example.com/script.js?ad=true";
+  SimSubresourceRequest ad_script(ad_script_url, "text/javascript");
+  main_resource_->Complete(R"HTML(
+    <body>
+      <script src="script.js?ad=true"></script>
+    </body>
+  )HTML");
+
+  ad_script.Complete(R"SCRIPT(
+    navigator.geolocation.getCurrentPosition(() => {console.log("Success")}, () => {console.log("Failed")});
+  )SCRIPT");
+  EXPECT_TRUE(
+      base::test::RunUntil([&]() { return ConsoleMessages().size() == 1; }));
+
+  // It still fails in this environment, but not because of permission policy.
+  EXPECT_EQ("Failed", ConsoleMessages()[0]);
 }
 
 // Tests that `IsAdScriptInStack` returns the correct ad script ancestry when

@@ -1255,6 +1255,7 @@ void VizLayerContext::UpdateDisplayTreeFrom(
   update->trace_id = tree.trace_id().value();
   update->primary_main_frame_item_sequence_number =
       tree.primary_main_frame_item_sequence_number();
+  update->selection = tree.selection();
   update->page_scale_factor = tree.page_scale_factor()->Current(true);
   update->min_page_scale_factor = tree.min_page_scale_factor();
   update->max_page_scale_factor = tree.max_page_scale_factor();
@@ -1266,8 +1267,7 @@ void VizLayerContext::UpdateDisplayTreeFrom(
   if (tree.local_surface_id_from_parent().is_valid()) {
     update->local_surface_id_from_parent = tree.local_surface_id_from_parent();
   }
-  update->new_local_surface_id_request =
-      tree.TakeNewLocalSurfaceIdRequestForVizProcess();
+  update->current_local_surface_id = host_impl_->GetCurrentLocalSurfaceId();
   if (target_local_surface_id.is_valid()) {
     update->target_local_surface_id = target_local_surface_id;
   }

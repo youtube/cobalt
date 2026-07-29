@@ -117,7 +117,7 @@
   if (self.profilePrefService) {
     _aimShortcutAvailable =
         !self.isLensOverlay &&
-        base::FeatureList::IsEnabled(kIOSOmniboxAimShortcut) &&
+        base::FeatureList::IsEnabled(omnibox::kOmniboxAimShortcutTypedState) &&
         IsAIMAvailable(self.profilePrefService, templateURLService);
   }
 }
@@ -134,7 +134,7 @@
   formatter.defaultSearchEngineIsGoogle = _defaultSearchEngineIsGoogle;
   formatter.pedalData = [self.pedalAnnotator pedalForMatch:match];
   formatter.isMultimodal = self.hasThumbnail;
-  formatter.aimShortcutAvailable = _aimShortcutAvailable;
+  formatter.hasAimShortcut = NO;
 
   if (formatter.suggestionGroupId) {
     omnibox::GroupId groupId =
@@ -155,15 +155,24 @@
       continue;
     }
 
-    if (suggestAction.type != omnibox::ActionInfo_ActionType_CALL) {
-      [actions addObject:suggestAction];
-      continue;
-    }
-
-    BOOL hasDialApp = [[UIApplication sharedApplication]
-        canOpenURL:net::NSURLWithGURL(suggestAction.actionURI)];
-    if (hasDialApp) {
-      [actions addObject:suggestAction];
+    switch (suggestAction.type) {
+      case omnibox::SuggestTemplateInfo_TemplateAction_ActionType_CHROME_AIM:
+        formatter.hasAimShortcut = _aimShortcutAvailable && !self.incognito;
+        break;
+      case omnibox::SuggestTemplateInfo_TemplateAction_ActionType_CALL: {
+        BOOL hasDialApp = [[UIApplication sharedApplication]
+            canOpenURL:net::NSURLWithGURL(suggestAction.actionURI)];
+        if (hasDialApp) {
+          [actions addObject:suggestAction];
+        }
+        break;
+      }
+      case omnibox::SuggestTemplateInfo_TemplateAction_ActionType_DIRECTIONS:
+      case omnibox::SuggestTemplateInfo_TemplateAction_ActionType_REVIEWS:
+        [actions addObject:suggestAction];
+        break;
+      default:
+        break;
     }
   }
 

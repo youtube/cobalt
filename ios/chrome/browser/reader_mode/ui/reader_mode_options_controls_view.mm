@@ -4,6 +4,9 @@
 
 #import "ios/chrome/browser/reader_mode/ui/reader_mode_options_controls_view.h"
 
+#import <UIKit/UIAccessibility.h>
+
+#import "base/task/sequenced_task_runner.h"
 #import "components/dom_distiller/core/mojom/distilled_page_prefs.mojom.h"
 #import "ios/chrome/browser/reader_mode/ui/constants.h"
 #import "ios/chrome/browser/reader_mode/ui/reader_mode_options_mutator.h"
@@ -17,7 +20,7 @@ constexpr CGFloat kCornerRadius = 12.0;
 constexpr CGFloat kSpacing = 16.0;
 constexpr CGFloat kHorizontalInsets = 12.0;
 constexpr CGFloat kVerticalInsets = 16.0;
-constexpr CGFloat kFontSizeStackSpacing = 0.5;
+constexpr CGFloat kFontSizeStackSpacing = 1.0;
 constexpr CGFloat kSmallFontSize = 17.0;
 constexpr CGFloat kLargeFontSize = 24.0;
 constexpr CGFloat kFirstRowHeight = 50.0;
@@ -25,6 +28,12 @@ constexpr CGFloat kSecondRowSpacing = 15.0;
 constexpr CGFloat kSecondRowHeight = 48.0;
 constexpr CGFloat kSelectedThemeBorderWidth = 3.0;
 constexpr CGFloat kUnselectedThemeBorderWidth = 1.0;
+
+// Delay for setting an utterance to be queued, it is required to ensure that
+// standard announcements have already been started and thus would not interrupt
+// the enqueued utterance.
+constexpr base::TimeDelta kA11yAnnouncementQueueDelay = base::Seconds(2);
+
 }  // namespace
 
 @implementation ReaderModeOptionsControlsView {
@@ -39,8 +48,6 @@ constexpr CGFloat kUnselectedThemeBorderWidth = 1.0;
 - (instancetype)initWithFrame:(CGRect)frame {
   self = [super initWithFrame:frame];
   if (self) {
-    self.backgroundColor =
-        [UIColor colorNamed:kGroupedSecondaryBackgroundColor];
     self.layer.cornerRadius = kCornerRadius;
 
     _fontFamilyButton = [self createFontFamilyButton];
@@ -81,12 +88,15 @@ constexpr CGFloat kUnselectedThemeBorderWidth = 1.0;
   _lightThemeButton.configuration =
       [self createLightThemeButtonConfigurationSelected:
                 theme == dom_distiller::mojom::Theme::kLight];
+  _lightThemeButton.selected = theme == dom_distiller::mojom::Theme::kLight;
   _sepiaThemeButton.configuration =
       [self createSepiaThemeButtonConfigurationSelected:
                 theme == dom_distiller::mojom::Theme::kSepia];
+  _sepiaThemeButton.selected = theme == dom_distiller::mojom::Theme::kSepia;
   _darkThemeButton.configuration =
       [self createDarkThemeButtonConfigurationSelected:
                 theme == dom_distiller::mojom::Theme::kDark];
+  _darkThemeButton.selected = theme == dom_distiller::mojom::Theme::kDark;
 }
 
 - (void)setDecreaseFontSizeButtonEnabled:(BOOL)enabled {
@@ -95,6 +105,21 @@ constexpr CGFloat kUnselectedThemeBorderWidth = 1.0;
 
 - (void)setIncreaseFontSizeButtonEnabled:(BOOL)enabled {
   _increaseFontSizeButton.enabled = enabled;
+}
+
+- (void)announceFontSizeMultiplier:(CGFloat)multiplier {
+  if (UIAccessibilityIsVoiceOverRunning()) {
+    NSNumberFormatter* numberFormatter = [[NSNumberFormatter alloc] init];
+    numberFormatter.numberStyle = NSNumberFormatterPercentStyle;
+    numberFormatter.maximumFractionDigits = 0;
+    NSString* announcement = [numberFormatter stringFromNumber:@(multiplier)];
+    base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
+        FROM_HERE, base::BindOnce(^{
+          UIAccessibilityPostNotification(
+              UIAccessibilityAnnouncementNotification, announcement);
+        }),
+        kA11yAnnouncementQueueDelay);
+  }
 }
 
 #pragma mark - UI actions

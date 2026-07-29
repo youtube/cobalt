@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<grit latest_public_release="0" current_release="1">
+  <outputs>
+    <output filename="grit/ui_lottie_resources.h" type="rc_header">
+      <emit emit_type='prepend'></emit>
+    </output>
+    <output filename="ui_lottie_resources.pak" type="data_package" />
+  </outputs>
+  <release seq="1">
+    <structures>
+      <if expr="use_aura">
+        <structure type="lottie" name="IDR_AURA_CURSOR_PTR_LOTTIE" file="vector/common/pointers/left_ptr.json" compress="gzip" />
+        <structure type="lottie" name="IDR_AURA_CURSOR_ALIAS_LOTTIE" file="vector/common/pointers/alias.json" compress="gzip" />
+        <structure type="lottie" name="IDR_AURA_CURSOR_CELL_LOTTIE" file="vector/common/pointers/cell.json" compress="gzip" />
+        <structure type="lottie" name="IDR_AURA_CURSOR_COPY_LOTTIE" file="vector/common/pointers/copy.json" compress="gzip" />
+        <structure type="lottie" name="IDR_AURA_CURSOR_NO_DROP_LOTTIE" file="vector/common/pointers/nodrop.json" compress="gzip" />
+        <structure type="lottie" name="IDR_AURA_CURSOR_IBEAM_LOTTIE" file="vector/common/pointers/xterm.json" compress="gzip" />
+        <structure type="lottie" name="IDR_AURA_CURSOR_THROBBER_LOTTIE" file="vector/common/pointers/throbber.json" compress="gzip" />
+      </if>
+    </structures>
+  </release>
+</grit>
+

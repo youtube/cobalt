@@ -33,6 +33,9 @@ class DEVICE_VR_EXPORT OpenXrGraphicsBindingOpenGLES
       const OpenXrExtensionEnumeration* extension_enum);
   ~OpenXrGraphicsBindingOpenGLES() override;
 
+  // Initialize the GL configurations, making this ready to use.
+  bool InitializeGl();
+
   // OpenXrGraphicsBinding
   bool Initialize(XrInstance instance, XrSystemId system) override;
   const void* GetSessionCreateInfo() const override;
@@ -40,11 +43,11 @@ class DEVICE_VR_EXPORT OpenXrGraphicsBindingOpenGLES
   XrResult EnumerateSwapchainImages(
       const XrSwapchain& color_swapchain) override;
   void ClearSwapchainImages() override;
-  base::span<SwapChainInfo> GetSwapChainImages() override;
-  base::span<const SwapChainInfo> GetSwapChainImages() const override;
+  base::span<OpenXrSwapchainInfo> GetSwapChainImages() override;
+  base::span<const OpenXrSwapchainInfo> GetSwapChainImages() const override;
   bool CanUseSharedImages() const override;
   void CreateSharedImages(gpu::SharedImageInterface* sii) override;
-  const SwapChainInfo& GetActiveSwapchainImage() override;
+  const OpenXrSwapchainInfo& GetActiveSwapchainImage() override;
   bool Render(
       const scoped_refptr<viz::ContextProvider>& context_provider) override;
   void CleanupWithoutSubmit() override;
@@ -56,17 +59,20 @@ class DEVICE_VR_EXPORT OpenXrGraphicsBindingOpenGLES
                          const gpu::SyncToken& sync_token,
                          const gfx::RectF& left,
                          const gfx::RectF& right) override;
+  gfx::Size GetMaxTextureSize() override;
 
- private:
+ protected:
+  // OpenXrGraphicsBinding
   void OnSwapchainImageActivated(gpu::SharedImageInterface* sii) override;
-  void ResizeSharedBuffer(SwapChainInfo& swap_chain_info,
-                          gpu::SharedImageInterface* sii);
+  void ResizeSharedBuffer(OpenXrSwapchainInfo& swap_chain_info,
+                          gpu::SharedImageInterface* sii) override;
 
+  bool gl_initialized_ = false;
   bool initialized_ = false;
   bool using_shared_images_ = false;
   XrGraphicsBindingOpenGLESAndroidKHR binding_{
       XR_TYPE_GRAPHICS_BINDING_OPENGL_ES_ANDROID_KHR, nullptr};
-  std::vector<SwapChainInfo> color_swapchain_images_;
+  std::vector<OpenXrSwapchainInfo> color_swapchain_images_;
   gfx::GpuMemoryBufferHandle overlay_handle_;
 
   bool webxr_visible_ = true;

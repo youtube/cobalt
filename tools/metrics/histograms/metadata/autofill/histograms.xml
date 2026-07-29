@@ -42,6 +42,22 @@ chromium-metrics-reviews@google.com.
                to be filled and assigned to the control case."/>
 </variants>
 
+<!-- LINT.IfChange(Autofill.Ai.EntityType) -->
+
+<variants name="Autofill.Ai.EntityType">
+  <variant name="DriversLicense"
+      summary="Emitted for driver's license forms only."/>
+  <variant name="KnownTravelerNumber"
+      summary="Emitted for Known Traveler Number forms only."/>
+  <variant name="NationalIdCard"
+      summary="Emitted for national id card forms only."/>
+  <variant name="Passport" summary="Emitted for passport forms only."/>
+  <variant name="Vehicle"
+      summary="Emitted for vehicle information forms only."/>
+</variants>
+
+<!-- LINT.ThenChange(//components/autofill/core/browser/data_model/autofill_ai/entity_type.cc:EntityType) -->
+
 <variants name="Autofill.Ai.PromptTypes">
   <variant name="SavePrompt"
       summary="The prompt is asking users to save a new entity."/>
@@ -475,8 +491,9 @@ Called by update_autofill_enums.py. This is a manual comment.-->
   <variant name="EMAIL_ADDRESS"/>
   <variant name="EMAIL_OR_LOYALTY_MEMBERSHIP_ID"/>
   <variant name="EMPTY_TYPE"/>
-  <variant name="FIELD_WITH_DEFAULT_VALUE"/>
   <variant name="IBAN_VALUE"/>
+  <variant name="KNOWN_TRAVELER_NUMBER"/>
+  <variant name="KNOWN_TRAVELER_NUMBER_EXPIRATION_DATE"/>
   <variant name="LOYALTY_MEMBERSHIP_ID"/>
   <variant name="LOYALTY_MEMBERSHIP_PROGRAM"/>
   <variant name="LOYALTY_MEMBERSHIP_PROVIDER"/>
@@ -524,6 +541,7 @@ Called by update_autofill_enums.py. This is a manual comment.-->
   <variant name="PHONE_HOME_WHOLE_NUMBER"/>
   <variant name="PRICE"/>
   <variant name="PROBABLY_NEW_PASSWORD"/>
+  <variant name="REDRESS_NUMBER"/>
   <variant name="SEARCH_TERM"/>
   <variant name="SINGLE_USERNAME"/>
   <variant name="SINGLE_USERNAME_FORGOT_PASSWORD"/>
@@ -648,6 +666,22 @@ Called by update_autofill_enums.py. This is a manual comment.-->
   <variant name="Legacy" summary="kLegacyOrSyncable profiles"/>
 </variants>
 
+<variants name="AutofillSaveCardDestination">
+  <variant name="Local" summary="local"/>
+  <variant name="Server" summary="server"/>
+</variants>
+
+<variants name="AutofillSaveCardSituation">
+  <variant name="RequestingCardHolderName"
+      summary="explicitly requesting cardholder name"/>
+  <variant name="RequestingExpirationDate"
+      summary="explicitly requesting expiration date"/>
+  <variant name="SavingWithCvc"
+      summary="saving security code at the same time"/>
+</variants>
+
+<!-- TODO(crbug.com/430588721): Replace use of AutofillSaveCreditCardPromptDestination with AutofillSaveCardDestination. -->
+
 <variants name="AutofillSaveCreditCardPromptDestination">
   <variant name="Local" summary="locally"/>
   <variant name="Upload" summary="to server"/>
@@ -680,6 +714,14 @@ Called by update_autofill_enums.py. This is a manual comment.-->
   <variant name=".Visible"
       summary="Recorded only for fields that are visible to the user as per
                Autofill's visibility detection (IsWebElementVisible())."/>
+</variants>
+
+<variants name="AutofillServerSaveCardSituation">
+  <variant name="WithMultipleLegalLines"
+      summary="has a legal message with multiple lines"/>
+  <variant name="WithSameLastFourButDifferentExpiration"
+      summary="has the same last four digits as an existing server card but
+               different expiratation date"/>
 </variants>
 
 <variants name="AutofillStrikeDatabaseProjectType">
@@ -721,6 +763,17 @@ Called by update_autofill_enums.py. This is a manual comment.-->
 <variants name="IbanTypeToBeSaved">
   <variant name="Local" summary="Local IBAN save"/>
   <variant name="Upload" summary="Server IBAN save"/>
+</variants>
+
+<variants name="StoredProfileCategories">
+  <variant name="AccountChrome"
+      summary="kAccount profiles originating from Chrome"/>
+  <variant name="AccountHome" summary="kAccountHome profile"/>
+  <variant name="AccountNameEmail" summary="kAccountNameEmail profile"/>
+  <variant name="AccountNonChrome"
+      summary="kAccount profiles originating from outside Chrome"/>
+  <variant name="AccountWork" summary="kAccountWork profile"/>
+  <variant name="Legacy" summary="kLegacyOrSyncable profiles"/>
 </variants>
 
 <variants name="Vcn3ds.ConsentAlreadyGiven">
@@ -1070,6 +1123,19 @@ Called by update_autofill_enums.py. This is a manual comment.-->
   </summary>
 </histogram>
 
+<histogram name="Autofill.Ai.EntityTable.DecryptStatus2"
+    enum="AutofillAiDecryptStatus" expires_after="2025-12-12">
+  <owner>jihadghanna@google.com</owner>
+  <owner>chrome-autofill-alerts@google.com</owner>
+  <summary>
+    Records whether the decryption stage of reading from the EntityTable was
+    successful or not (and in that case whether it was a permanent failure (key
+    was lost or data was corrupted) or a temporary failure (e.g. the decryption
+    service was unavailable). Emitted every time autofill tries to decrypt a
+    value to read/write to the table.
+  </summary>
+</histogram>
+
 <histogram name="Autofill.Ai.EntityTable.{EncryptionStage}Status"
     enum="Boolean" expires_after="2025-12-12">
   <owner>jihadghanna@google.com</owner>
@@ -1085,16 +1151,34 @@ Called by update_autofill_enums.py. This is a manual comment.-->
   </token>
 </histogram>
 
+<histogram name="Autofill.Ai.Funnel.{SubmissionState}.Eligibility2"
+    enum="AutofillAiEntityType" expires_after="2025-12-12">
+  <owner>jihadghanna@google.com</owner>
+  <owner>chrome-autofill-alerts@google.com</owner>
+  <summary>
+    Records the EntityType's for which a form is eligible for filling. Emitted
+    once per form submission/abandonment.
+  </summary>
+  <token key="SubmissionState">
+    <variant name="Abandoned"/>
+    <variant name="Aggregate"/>
+    <variant name="Submitted"/>
+  </token>
+</histogram>
+
 <histogram name="Autofill.Ai.Funnel.{SubmissionState}.{FunnelStage}"
     enum="Boolean" expires_after="2025-12-12">
   <owner>jihadghanna@google.com</owner>
   <owner>chrome-autofill-alerts@google.com</owner>
   <summary>
-    Records various stages of the Autofill AI funnel. The same metric is logged
-    for submitted and for abandoned forms, with an additional metric aggregating
-    both. The metric is recorded once per form per submission/abandonment.
+    (DEPRECATED) Records various stages of the Autofill AI funnel. The same
+    metric is logged for submitted and for abandoned forms, with an additional
+    metric aggregating both. The metric is recorded once per form per
+    submission/abandonment.
 
     {FunnelStage}
+
+    Deprecated in favor of the Funnel metric split by `EntityType`.
   </summary>
   <token key="SubmissionState">
     <variant name="Abandoned"/>
@@ -1123,7 +1207,46 @@ Called by update_autofill_enums.py. This is a manual comment.-->
   </token>
 </histogram>
 
-<histogram name="Autofill.Ai.KeyMetrics{KeyMetric}{EntityGranularity}"
+<histogram
+    name="Autofill.Ai.Funnel.{SubmissionState}.{FunnelStage}.{EntityGranularity}"
+    enum="Boolean" expires_after="2025-12-12">
+  <owner>jihadghanna@google.com</owner>
+  <owner>chrome-autofill-alerts@google.com</owner>
+  <summary>
+    Records various stages of the Autofill AI funnel. The same metric is logged
+    for submitted and for abandoned forms, with an additional metric aggregating
+    both. The metric is recorded once per form per submission/abandonment.
+
+    {FunnelStage}
+
+    {EntityGranularity}
+  </summary>
+  <token key="SubmissionState">
+    <variant name="Abandoned"/>
+    <variant name="Aggregate"/>
+    <variant name="Submitted"/>
+  </token>
+  <token key="FunnelStage">
+    <variant name="CorrectionAfterFill"
+        summary="Given a form where the user filled an Autofill AI
+                 suggestion, records whether the filling was corrected or
+                 not."/>
+    <variant name="FillAfterSuggestion"
+        summary="Given a form where the user saw Autofill AI filling
+                 suggestions, records whether the suggestion was filled or
+                 not."/>
+    <variant name="ReadinessAfterEligibility"
+        summary="Given an Autofill-AI-eligible form, this metric records
+                 whether the user has stored data to fill the form."/>
+    <variant name="SuggestionAfterReadiness"
+        summary="Given an Autofill-AI-eligible form where the user has data
+                 stored to fill it, this metric records whether the user saw
+                 an Autofill AI suggestion or not."/>
+  </token>
+  <token key="EntityGranularity" variants="Autofill.Ai.EntityType"/>
+</histogram>
+
+<histogram name="Autofill.Ai.KeyMetrics{KeyMetric}.{EntityGranularity}"
     enum="Boolean" expires_after="2025-12-12">
   <owner>jihadghanna@google.com</owner>
   <owner>chrome-autofill-alerts@google.com</owner>
@@ -1151,17 +1274,7 @@ Called by update_autofill_enums.py. This is a manual comment.-->
         summary="Records, at form submission, whether the user had Autofill
                  AI data to fill the form or not."/>
   </token>
-  <token key="EntityGranularity">
-    <variant name=""
-        summary="Emitted for all entities supported by Autofill AI."/>
-    <variant name=".DriversLicense"
-        summary="Emitted for driver's license forms only."/>
-    <variant name=".NationalIdCard"
-        summary="Emitted for national id card forms only."/>
-    <variant name=".Passport" summary="Emitted for passport forms only."/>
-    <variant name=".Vehicle"
-        summary="Emitted for vehicle information forms only."/>
-  </token>
+  <token key="EntityGranularity" variants="Autofill.Ai.EntityType"/>
 </histogram>
 
 <histogram name="Autofill.Ai.ModelExecutionStatus"
@@ -1298,6 +1411,8 @@ Called by update_autofill_enums.py. This is a manual comment.-->
   <token key="PromptType" variants="Autofill.Ai.PromptTypes"/>
   <token key="EntityType">
     <variant name=".DriversLicense" summary="Driver license entity"/>
+    <variant name=".KnownTravelerNumber"
+        summary="Known traveler number entity"/>
     <variant name=".NationalIdCard" summary="National ID card entity"/>
     <variant name=".Passport" summary="Passport entity"/>
     <variant name=".Vehicle" summary="Vehicle entity"/>
@@ -1317,7 +1432,7 @@ Called by update_autofill_enums.py. This is a manual comment.-->
 </histogram>
 
 <histogram
-    name="Autofill.AmountExtraction.Latency.{AmountExtractionLatencyResult}"
+    name="Autofill.AmountExtraction.Latency2.{AmountExtractionLatencyResult}"
     units="ms" expires_after="2026-06-01">
   <owner>yiwenqian@google.com</owner>
   <owner>payments-autofill-team@google.com</owner>
@@ -1336,7 +1451,7 @@ Called by update_autofill_enums.py. This is a manual comment.-->
   </token>
 </histogram>
 
-<histogram name="Autofill.AmountExtraction.Result"
+<histogram name="Autofill.AmountExtraction.Result2"
     enum="AmountExtractionResult" expires_after="2026-06-01">
   <owner>yiwenqian@google.com</owner>
   <owner>payments-autofill-team@google.com</owner>
@@ -2694,7 +2809,7 @@ Called by update_autofill_enums.py. This is a manual comment.-->
     This is logged for each Autofill address profile of the given category once
     per Chrome User Profile load.
   </summary>
-  <token key="Category" variants="AutofillProfileCategory"/>
+  <token key="Category" variants="StoredProfileCategories"/>
 </histogram>
 
 <histogram name="Autofill.DaysUntilFirstUsage.Profile" units="day"
@@ -5813,6 +5928,48 @@ Called by update_autofill_enums.py. This is a manual comment.-->
 </histogram>
 
 <histogram
+    name="Autofill.SaveCreditCardPromptOffer.Android.Server.{ServerSaveSituation}"
+    enum="AutofillSavePaymentMethodPromptOfferEnum" expires_after="2026-06-01">
+  <owner>kavitasoni@google.com</owner>
+  <owner>chrome-payments-eng@google.com</owner>
+  <owner>payments-autofill-team@google.com</owner>
+  <summary>
+    Logs whether the save credit card prompt on android is shown or not shown
+    for a card to be saved as a server card, which {ServerSaveSituation}. Is
+    emitted whenever card save is offered or decision to not offer is made.
+  </summary>
+  <token key="ServerSaveSituation" variants="AutofillServerSaveCardSituation"/>
+</histogram>
+
+<histogram name="Autofill.SaveCreditCardPromptOffer.Android.{SaveDestination}"
+    enum="AutofillSavePaymentMethodPromptOfferEnum" expires_after="2026-06-01">
+  <owner>kavitasoni@google.com</owner>
+  <owner>chrome-payments-eng@google.com</owner>
+  <owner>payments-autofill-team@google.com</owner>
+  <summary>
+    Logs whether the save credit card prompt on android is shown or not shown
+    for a card to be saved as a {SaveDestination} card. Is emitted whenever card
+    save is offered or decision to not offer is made.
+  </summary>
+  <token key="SaveDestination" variants="AutofillSaveCardDestination"/>
+</histogram>
+
+<histogram
+    name="Autofill.SaveCreditCardPromptOffer.Android.{SaveDestination}.{SaveSituation}"
+    enum="AutofillSavePaymentMethodPromptOfferEnum" expires_after="2026-06-01">
+  <owner>kavitasoni@google.com</owner>
+  <owner>chrome-payments-eng@google.com</owner>
+  <owner>payments-autofill-team@google.com</owner>
+  <summary>
+    Logs whether the save credit card prompt on android is shown or not shown
+    for a card to be saved as a {SaveDestination} card, when {SaveSituation}. Is
+    emitted whenever card save is offered or decision to not offer is made.
+  </summary>
+  <token key="SaveDestination" variants="AutofillSaveCardDestination"/>
+  <token key="SaveSituation" variants="AutofillSaveCardSituation"/>
+</histogram>
+
+<histogram
     name="Autofill.SaveCreditCardPromptOffer.Desktop.Server.{ServerSaveSituation}"
     enum="AutofillSavePaymentMethodPromptOfferEnum" expires_after="2026-06-01">
   <owner>kavitasoni@google.com</owner>
@@ -5825,13 +5982,7 @@ Called by update_autofill_enums.py. This is a manual comment.-->
     logged for prompt re-shows (e.g., prompt reshown from the omnibox icon on
     desktop).
   </summary>
-  <token key="ServerSaveSituation">
-    <variant name="WithMultipleLegalLines"
-        summary="has a legal message with multiple lines"/>
-    <variant name="WithSameLastFourButDifferentExpiration"
-        summary="has the same last four digits as an existing server card but
-                 different expiratation date"/>
-  </token>
+  <token key="ServerSaveSituation" variants="AutofillServerSaveCardSituation"/>
 </histogram>
 
 <histogram name="Autofill.SaveCreditCardPromptOffer.Desktop.{SaveDestination}"
@@ -5845,10 +5996,7 @@ Called by update_autofill_enums.py. This is a manual comment.-->
     save is offered or decision to not offer is made. Not logged for prompt
     re-shows (e.g., prompt reshown from the omnibox icon on desktop).
   </summary>
-  <token key="SaveDestination">
-    <variant name="Local" summary="local"/>
-    <variant name="Server" summary="server"/>
-  </token>
+  <token key="SaveDestination" variants="AutofillSaveCardDestination"/>
 </histogram>
 
 <histogram
@@ -5864,18 +6012,8 @@ Called by update_autofill_enums.py. This is a manual comment.-->
     logged for prompt re-shows (e.g., prompt reshown from the omnibox icon on
     desktop).
   </summary>
-  <token key="SaveDestination">
-    <variant name="Local" summary="local"/>
-    <variant name="Server" summary="server"/>
-  </token>
-  <token key="SaveSituation">
-    <variant name="RequestingCardHolderName"
-        summary="explicitly requesting cardholder name"/>
-    <variant name="RequestingExpirationDate"
-        summary="explicitly requesting expiration date"/>
-    <variant name="SavingWithCvc"
-        summary="saving security code at the same time"/>
-  </token>
+  <token key="SaveDestination" variants="AutofillSaveCardDestination"/>
+  <token key="SaveSituation" variants="AutofillSaveCardSituation"/>
 </histogram>
 
 <histogram name="Autofill.SaveCreditCardPromptOffer.{SaveDestination}"
@@ -5889,10 +6027,7 @@ Called by update_autofill_enums.py. This is a manual comment.-->
     offered or decision to not offer is made. Not logged for prompt re-shows
     (e.g., prompt reshown from the omnibox icon on desktop).
   </summary>
-  <token key="SaveDestination">
-    <variant name="Local" summary="local"/>
-    <variant name="Server" summary="server"/>
-  </token>
+  <token key="SaveDestination" variants="AutofillSaveCardDestination"/>
 </histogram>
 
 <histogram
@@ -6442,7 +6577,7 @@ Called by update_autofill_enums.py. This is a manual comment.-->
     The number of Autofill addresses a user has stored of the given category or
     in total, measured at launch time.
   </summary>
-  <token key="Suffix" variants="AutofillProfileCategory">
+  <token key="Suffix" variants="StoredProfileCategories">
     <variant name="Total"/>
   </token>
 </histogram>
@@ -6467,7 +6602,7 @@ Called by update_autofill_enums.py. This is a manual comment.-->
     disused. Measured once per Chrome user profile launch. This metric is only
     recorded if the user has at least one profile of that category.
   </summary>
-  <token key="Category" variants="AutofillProfileCategory"/>
+  <token key="Category" variants="StoredProfileCategories"/>
 </histogram>
 
 <histogram name="Autofill.StoredProfileUsedCount.{Category}" units="Profiles"
@@ -6480,7 +6615,7 @@ Called by update_autofill_enums.py. This is a manual comment.-->
     This metric is only recorded if the user has at least one profile of that
     category.
   </summary>
-  <token key="Category" variants="AutofillProfileCategory"/>
+  <token key="Category" variants="StoredProfileCategories"/>
 </histogram>
 
 <histogram name="Autofill.StoredProfileUsedPercentage.{Category}"
@@ -6493,7 +6628,7 @@ Called by update_autofill_enums.py. This is a manual comment.-->
     launch. This metric is only recorded if the user has at least one profile of
     that category.
   </summary>
-  <token key="Category" variants="AutofillProfileCategory"/>
+  <token key="Category" variants="StoredProfileCategories"/>
 </histogram>
 
 <histogram

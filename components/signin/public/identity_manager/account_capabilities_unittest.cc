@@ -206,18 +206,37 @@ TEST_F(AccountCapabilitiesTest, IsAllowedForMachineLearning) {
             signin::Tribool::kFalse);
 }
 
-TEST_F(AccountCapabilitiesTest, IsSubjectToEnterprisePolicies) {
+TEST_F(AccountCapabilitiesTest, IsSubjectToAccountLevelEnterprisePolicies) {
   AccountCapabilities capabilities;
-  EXPECT_EQ(capabilities.is_subject_to_enterprise_policies(),
+  EXPECT_EQ(capabilities.is_subject_to_account_level_enterprise_policies(),
+            signin::Tribool::kUnknown);
+
+#if !BUILDFLAG(IS_IOS)
+  // TODO(crbug.com/435151047): Remove this once the capability is fully rolled
+  // out.
+  AccountCapabilitiesTestMutator mutator(&capabilities);
+  mutator.set_is_subject_to_account_level_enterprise_policies(true);
+  EXPECT_EQ(capabilities.is_subject_to_account_level_enterprise_policies(),
+            signin::Tribool::kTrue);
+
+  mutator.set_is_subject_to_account_level_enterprise_policies(false);
+  EXPECT_EQ(capabilities.is_subject_to_account_level_enterprise_policies(),
+            signin::Tribool::kFalse);
+#endif  // !BUILDFLAG(IS_IOS)
+}
+
+TEST_F(AccountCapabilitiesTest, IsSubjectToEnterpriseFeatures) {
+  AccountCapabilities capabilities;
+  EXPECT_EQ(capabilities.is_subject_to_enterprise_features(),
             signin::Tribool::kUnknown);
 
   AccountCapabilitiesTestMutator mutator(&capabilities);
-  mutator.set_is_subject_to_enterprise_policies(true);
-  EXPECT_EQ(capabilities.is_subject_to_enterprise_policies(),
+  mutator.set_is_subject_to_enterprise_features(true);
+  EXPECT_EQ(capabilities.is_subject_to_enterprise_features(),
             signin::Tribool::kTrue);
 
-  mutator.set_is_subject_to_enterprise_policies(false);
-  EXPECT_EQ(capabilities.is_subject_to_enterprise_policies(),
+  mutator.set_is_subject_to_enterprise_features(false);
+  EXPECT_EQ(capabilities.is_subject_to_enterprise_features(),
             signin::Tribool::kFalse);
 }
 

@@ -65,40 +65,46 @@ struct MultiCaptureUsageIndicatorBrowserTestData {
   std::vector<InstalledApp> allowlisted_capture_apps;
   std::vector<InstalledApp> skip_notification_apps;
   std::vector<InstalledApp> capturing_apps;
-  std::u16string expected_icon_notification_message_before_capture;
-  std::u16string expected_icon_notification_message_after_capture;
+  std::u16string expected_icon_notification_title_before_capture;
+  std::u16string expected_icon_notification_title_after_capture;
   std::optional<std::u16string>
       expected_no_icon_notification_message_after_capture;
 };
 
-const web_package::test::EcdsaP256KeyPair app1_key_pair =
+const web_package::test::EcdsaP256KeyPair kApp1KeyPair =
     web_package::test::EcdsaP256KeyPair::CreateRandom(
         /*produce_invalid_signature=*/false);
-const web_package::SignedWebBundleId app1_bundle_id =
-    web_package::SignedWebBundleId::CreateForPublicKey(
-        app1_key_pair.public_key);
-const InstalledApp app_1 = {.key_pair = app1_key_pair,
-                            .bundle_id = app1_bundle_id,
+const web_package::SignedWebBundleId kApp1BundleId =
+    web_package::SignedWebBundleId::CreateForPublicKey(kApp1KeyPair.public_key);
+const InstalledApp kApp1 = {.key_pair = kApp1KeyPair,
+                            .bundle_id = kApp1BundleId,
                             .app_name = "app 1"};
 
-const web_package::test::EcdsaP256KeyPair app2_key_pair =
+const web_package::test::EcdsaP256KeyPair kApp2KeyPair =
     web_package::test::EcdsaP256KeyPair::CreateRandom(
         /*produce_invalid_signature=*/false);
-const web_package::SignedWebBundleId app2_bundle_id =
-    web_package::SignedWebBundleId::CreateForPublicKey(
-        app2_key_pair.public_key);
-const InstalledApp app_2 = {.key_pair = app2_key_pair,
-                            .bundle_id = app2_bundle_id,
+const web_package::SignedWebBundleId kApp2BundleId =
+    web_package::SignedWebBundleId::CreateForPublicKey(kApp2KeyPair.public_key);
+const InstalledApp kApp2 = {.key_pair = kApp2KeyPair,
+                            .bundle_id = kApp2BundleId,
                             .app_name = "app 2"};
 
 namespace multi_capture {
 
-class MultiCaptureUsageIndicatorBrowserTest
+class MultiCaptureUsageIndicatorBrowserTestBase
     : public web_app::IsolatedWebAppBrowserTestHarness,
-      public NotificationDisplayService::Observer,
-      public testing::WithParamInterface<
-          MultiCaptureUsageIndicatorBrowserTestData> {
+      public NotificationDisplayService::Observer {
  public:
+  MultiCaptureUsageIndicatorBrowserTestBase(
+      const std::vector<InstalledApp>& installed_apps,
+      const std::vector<InstalledApp> allowlisted_capture_apps,
+      const std::vector<InstalledApp> skip_notification_apps,
+      const std::vector<InstalledApp> capturing_apps)
+      : installed_apps_(installed_apps),
+        allowlisted_capture_apps_(allowlisted_capture_apps),
+        skip_notification_apps_(skip_notification_apps),
+        capturing_apps_(capturing_apps) {}
+
   // NotificationDisplayService::Observer:
   void OnNotificationDisplayed(
       const message_center::Notification& notification,
@@ -126,35 +132,39 @@ class MultiCaptureUsageIndicatorBrowserTest
     SetSkipNotificationsAllowlist();
   }
 
+  void InstallIwa(const InstalledApp& app) {
+    PrefService& prefs = CHECK_DEREF(profile()->GetPrefs());
+    base::Value::List app_install_force_list =
+        prefs.GetList(prefs::kIsolatedWebAppInstallForceList).Clone();
+    update_server_mixin_.AddBundle(
+        web_app::IsolatedWebAppBuilder(web_app::ManifestBuilder()
+                                           .SetName(app.app_name)
+                                           .SetVersion("3.0.4"))
+            .AddHtml("/", kIndexHtml706)
+            .BuildBundle(app.bundle_id, {app.key_pair}));
+    app_install_force_list.Append(
+        update_server_mixin_.CreateForceInstallPolicyEntry(app.bundle_id));
+
+    prefs.SetList(prefs::kIsolatedWebAppInstallForceList,
+                  std::move(app_install_force_list));
+    web_app::WebAppTestInstallObserver(browser()->profile())
+        .BeginListeningAndWait(
+            {web_app::IsolatedWebAppUrlInfo::CreateFromSignedWebBundleId(
+                 app.bundle_id)
+                 .app_id()});
+  }
+
   void InstallIwas() {
     base::Value::List install_iwa_force_list;
     std::set<webapps::AppId> app_ids_to_wait_for;
-    for (const auto& installed_app : GetParam().installed_apps) {
-      update_server_mixin_.AddBundle(
-          web_app::IsolatedWebAppBuilder(web_app::ManifestBuilder()
-                                             .SetName(installed_app.app_name)
-                                             .SetVersion("3.0.4"))
-              .AddHtml("/", kIndexHtml706)
-              .BuildBundle(installed_app.bundle_id, {installed_app.key_pair}));
-      install_iwa_force_list.Append(
-          update_server_mixin_.CreateForceInstallPolicyEntry(
-              installed_app.bundle_id));
-      app_ids_to_wait_for.insert(
-          web_app::IsolatedWebAppUrlInfo::CreateFromSignedWebBundleId(
-              installed_app.bundle_id)
-              .app_id());
+    for (const auto& installed_app : installed_apps_) {
+      InstallIwa(installed_app);
     }
-
-    CHECK_DEREF(profile()->GetPrefs())
-        .SetList(prefs::kIsolatedWebAppInstallForceList,
-                 std::move(install_iwa_force_list));
-    web_app::WebAppTestInstallObserver(browser()->profile())
-        .BeginListeningAndWait(app_ids_to_wait_for);
   }
 
   void SetCaptureAllowList() {
     base::Value::List capture_allow_list;
-    for (const auto& allowed_app : GetParam().allowlisted_capture_apps) {
+    for (const auto& allowed_app : allowlisted_capture_apps_) {
       capture_allow_list.Append(
           base::Value("isolated-app://" + allowed_app.bundle_id.id()));
     }
@@ -167,7 +177,7 @@ class MultiCaptureUsageIndicatorBrowserTest
   void SetSkipNotificationsAllowlist() {
     web_app::IwaKeyDistributionInfoProvider::SpecialAppPermissions
         special_app_permissions;
-    for (const auto& skipping_app : GetParam().skip_notification_apps) {
+    for (const auto& skipping_app : skip_notification_apps_) {
       special_app_permissions[skipping_app.bundle_id.id()] = {
           .skip_capture_started_notification = true};
     }
@@ -198,9 +208,7 @@ class MultiCaptureUsageIndicatorBrowserTest
   webapps::AppId GetLastCapturingNotificationWithAppId() {
     return std::string(kCurrentCaptureNotificationId) +
            GetAppIdForBundle(
-               GetParam()
-                   .capturing_apps[GetParam().capturing_apps.size() - 1]
-                   .bundle_id.id());
+               capturing_apps_[capturing_apps_.size() - 1].bundle_id.id());
   }
 
   NotificationDisplayService& notificiation_display_service() {
@@ -214,9 +222,27 @@ class MultiCaptureUsageIndicatorBrowserTest
       chromeos::features::kMultiCaptureReworkedUsageIndicators};
 
  private:
+  const std::vector<InstalledApp> installed_apps_;
+  const std::vector<InstalledApp> allowlisted_capture_apps_;
+  const std::vector<InstalledApp> skip_notification_apps_;
+  const std::vector<InstalledApp> capturing_apps_;
+
   base::ScopedObservation<NotificationDisplayService,
-                          MultiCaptureUsageIndicatorBrowserTest>
+                          MultiCaptureUsageIndicatorBrowserTestBase>
       notification_observation_{this};
+};
+
+class MultiCaptureUsageIndicatorBrowserTest
+    : public MultiCaptureUsageIndicatorBrowserTestBase,
+      public testing::WithParamInterface<
+          MultiCaptureUsageIndicatorBrowserTestData> {
+ public:
+  MultiCaptureUsageIndicatorBrowserTest()
+      : MultiCaptureUsageIndicatorBrowserTestBase(
+            GetParam().installed_apps,
+            GetParam().allowlisted_capture_apps,
+            GetParam().skip_notification_apps,
+            GetParam().capturing_apps) {}
 };
 
 IN_PROC_BROWSER_TEST_P(
@@ -230,9 +256,9 @@ IN_PROC_BROWSER_TEST_P(
       "multi-capture-login-privacy-indicators"));
   const auto& notification =
       visible_notifications_.at("multi-capture-login-privacy-indicators");
-  EXPECT_EQ(notification.title(), u"");
-  EXPECT_EQ(notification.message(),
-            GetParam().expected_icon_notification_message_before_capture);
+  EXPECT_EQ(notification.title(),
+            GetParam().expected_icon_notification_title_before_capture);
+  EXPECT_EQ(notification.message(), u"");
 }
 
 IN_PROC_BROWSER_TEST_P(
@@ -250,9 +276,9 @@ IN_PROC_BROWSER_TEST_P(
       "multi-capture-login-privacy-indicators"));
   const auto& notification =
       visible_notifications_.at("multi-capture-login-privacy-indicators");
-  EXPECT_EQ(notification.title(), u"");
-  EXPECT_EQ(notification.message(),
-            GetParam().expected_icon_notification_message_before_capture);
+  EXPECT_EQ(notification.title(),
+            GetParam().expected_icon_notification_title_before_capture);
+  EXPECT_EQ(notification.message(), u"");
 
   if (GetParam().capturing_apps.empty()) {
     return;
@@ -268,14 +294,13 @@ IN_PROC_BROWSER_TEST_P(
       visible_notifications_,
       Contains(Pair(
           "multi-capture-login-privacy-indicators",
-          AllOf(
-              Property(&message_center::Notification::title, u""),
-              Property(
-                  &message_center::Notification::message,
-                  GetParam().expected_icon_notification_message_after_capture),
-              Property(&message_center::Notification::notifier_id,
-                       Field(&message_center::NotifierId::id,
-                             "multi-capture-login-privacy-indicators"))))));
+          AllOf(Property(
+                    &message_center::Notification::title,
+                    GetParam().expected_icon_notification_title_after_capture),
+                Property(&message_center::Notification::message, u""),
+                Property(&message_center::Notification::notifier_id,
+                         Field(&message_center::NotifierId::id,
+                               "multi-capture-login-privacy-indicators"))))));
 
   if (GetParam()
           .expected_no_icon_notification_message_after_capture.has_value()) {
@@ -283,13 +308,59 @@ IN_PROC_BROWSER_TEST_P(
         visible_notifications_,
         Contains(Pair(
             GetLastCapturingNotificationWithAppId(),
-            AllOf(Property(&message_center::Notification::title, u""),
-                  Property(
-                      &message_center::Notification::message,
+            AllOf(Property(
+                      &message_center::Notification::title,
                       GetParam()
                           .expected_no_icon_notification_message_after_capture
-                          .value())))));
+                          .value()),
+                  Property(&message_center::Notification::message, u"")))));
   }
+}
+
+class MultiCaptureUsageIndicatorDynamicAppBrowserTest
+    : public MultiCaptureUsageIndicatorBrowserTestBase {
+ public:
+  MultiCaptureUsageIndicatorDynamicAppBrowserTest()
+      : MultiCaptureUsageIndicatorBrowserTestBase(
+            /*installed_apps=*/{kApp1},
+            /*allowlisted_capture_apps=*/{kApp1, kApp2},
+            /*skip_notification_apps=*/{kApp1},
+            /*capturing_apps=*/{}) {}
+};
+
+IN_PROC_BROWSER_TEST_F(MultiCaptureUsageIndicatorDynamicAppBrowserTest,
+                       AllowlistedAppAddedAndDeleted) {
+  CHECK_DEREF(
+      multi_capture::MultiCaptureDataServiceFactory::GetForProfile(profile()))
+      .LoadData();
+
+  ASSERT_EQ(visible_notifications_.size(), 1u);
+  EXPECT_THAT(
+      visible_notifications_,
+      Contains(Pair(
+          "multi-capture-login-privacy-indicators",
+          AllOf(
+              Property(&message_center::Notification::title,
+                       u"Your administrator can record your screen with app 1. "
+                       u"You will not be notified when the recording starts."),
+              Property(&message_center::Notification::message, u""),
+              Property(&message_center::Notification::notifier_id,
+                       Field(&message_center::NotifierId::id,
+                             "multi-capture-login-privacy-indicators"))))));
+
+  InstallIwa(kApp2);
+  ASSERT_EQ(visible_notifications_.size(), 1u);
+  EXPECT_THAT(
+      visible_notifications_,
+      Contains(Pair(
+          "multi-capture-login-privacy-indicators",
+          AllOf(Property(&message_center::Notification::title,
+                         u"Your administrator can record your screen with app "
+                         u"1 and app 2."),
+                Property(&message_center::Notification::message, u""),
+                Property(&message_center::Notification::notifier_id,
+                         Field(&message_center::NotifierId::id,
+                               "multi-capture-login-privacy-indicators"))))));
 }
 
 INSTANTIATE_TEST_SUITE_P(
@@ -299,28 +370,28 @@ INSTANTIATE_TEST_SUITE_P(
         // New test case: One app installed and allowlist --> Standard
         // notification.
         MultiCaptureUsageIndicatorBrowserTestData{
-            .installed_apps = {app_1},
-            .allowlisted_capture_apps = {app_1},
+            .installed_apps = {kApp1},
+            .allowlisted_capture_apps = {kApp1},
             .skip_notification_apps = {},
-            .capturing_apps = {app_1},
-            .expected_icon_notification_message_before_capture =
+            .capturing_apps = {kApp1},
+            .expected_icon_notification_title_before_capture =
                 u"Your administrator can record your screen with app 1. "
                 "You will be notified when the recording starts.",
-            .expected_icon_notification_message_after_capture =
+            .expected_icon_notification_title_after_capture =
                 u"Your administrator is recording your screen with app 1.",
             .expected_no_icon_notification_message_after_capture =
                 std::nullopt},
         // New test case: One app installed and two allowlisted --> Still
         // only one app in the notification.
         MultiCaptureUsageIndicatorBrowserTestData{
-            .installed_apps = {app_1},
-            .allowlisted_capture_apps = {app_1, app_2},
+            .installed_apps = {kApp1},
+            .allowlisted_capture_apps = {kApp1, kApp2},
             .skip_notification_apps = {},
-            .capturing_apps = {app_1},
-            .expected_icon_notification_message_before_capture =
+            .capturing_apps = {kApp1},
+            .expected_icon_notification_title_before_capture =
                 u"Your administrator can record your screen with app 1. "
                 "You will be notified when the recording starts.",
-            .expected_icon_notification_message_after_capture =
+            .expected_icon_notification_title_after_capture =
                 u"Your administrator is recording your screen with app 1.",
             .expected_no_icon_notification_message_after_capture =
                 std::nullopt},
@@ -329,14 +400,14 @@ INSTANTIATE_TEST_SUITE_P(
         // current notification.
         // (and remove the future capture notification).
         MultiCaptureUsageIndicatorBrowserTestData{
-            .installed_apps = {app_1, app_2},
-            .allowlisted_capture_apps = {app_1, app_2},
+            .installed_apps = {kApp1, kApp2},
+            .allowlisted_capture_apps = {kApp1, kApp2},
             .skip_notification_apps = {},
-            .capturing_apps = {app_1},
-            .expected_icon_notification_message_before_capture =
+            .capturing_apps = {kApp1},
+            .expected_icon_notification_title_before_capture =
                 u"Your administrator can record your screen with app 1 and "
                 u"app 2. You will be notified when the recording starts.",
-            .expected_icon_notification_message_after_capture =
+            .expected_icon_notification_title_after_capture =
                 u"Your administrator can record your screen with app 2. You "
                 u"will be notified when the recording starts.",
             .expected_no_icon_notification_message_after_capture =
@@ -345,28 +416,28 @@ INSTANTIATE_TEST_SUITE_P(
         // notification. Both are capturing --> show a notification for both
         // (and remove the future capture notification).
         MultiCaptureUsageIndicatorBrowserTestData{
-            .installed_apps = {app_1, app_2},
-            .allowlisted_capture_apps = {app_1, app_2},
+            .installed_apps = {kApp1, kApp2},
+            .allowlisted_capture_apps = {kApp1, kApp2},
             .skip_notification_apps = {},
-            .capturing_apps = {app_1, app_2},
-            .expected_icon_notification_message_before_capture =
+            .capturing_apps = {kApp1, kApp2},
+            .expected_icon_notification_title_before_capture =
                 u"Your administrator can record your screen with app 1 and "
                 u"app 2. You will be notified when the recording starts.",
-            .expected_icon_notification_message_after_capture =
+            .expected_icon_notification_title_after_capture =
                 u"Your administrator is recording your screen with app 1.",
             .expected_no_icon_notification_message_after_capture =
                 u"Your administrator is recording your screen with app 2."},
         // New test case: One app installed and one allowlisted --> Bypass
         // notification.
         MultiCaptureUsageIndicatorBrowserTestData{
-            .installed_apps = {app_1},
-            .allowlisted_capture_apps = {app_1},
-            .skip_notification_apps = {app_1},
+            .installed_apps = {kApp1},
+            .allowlisted_capture_apps = {kApp1},
+            .skip_notification_apps = {kApp1},
             .capturing_apps = {},
-            .expected_icon_notification_message_before_capture =
+            .expected_icon_notification_title_before_capture =
                 u"Your administrator can record your screen with app 1. You "
                 u"will not be notified when the recording starts.",
-            .expected_icon_notification_message_after_capture =
+            .expected_icon_notification_title_after_capture =
                 u"Your administrator can record your screen with app 1. You "
                 u"will not be notified when the recording starts.",
             .expected_no_icon_notification_message_after_capture =
@@ -374,14 +445,14 @@ INSTANTIATE_TEST_SUITE_P(
         // New test case: One app installed and two allowlisted --> Bypass
         // notification for one app.
         MultiCaptureUsageIndicatorBrowserTestData{
-            .installed_apps = {app_1},
-            .allowlisted_capture_apps = {app_1, app_2},
-            .skip_notification_apps = {app_1},
-            .capturing_apps = {app_1},
-            .expected_icon_notification_message_before_capture =
+            .installed_apps = {kApp1},
+            .allowlisted_capture_apps = {kApp1, kApp2},
+            .skip_notification_apps = {kApp1},
+            .capturing_apps = {kApp1},
+            .expected_icon_notification_title_before_capture =
                 u"Your administrator can record your screen with app 1. You "
                 u"will not be notified when the recording starts.",
-            .expected_icon_notification_message_after_capture =
+            .expected_icon_notification_title_after_capture =
                 u"Your administrator can record your screen with app 1. You "
                 u"will not be notified when the recording starts.",
             .expected_no_icon_notification_message_after_capture =
@@ -390,14 +461,14 @@ INSTANTIATE_TEST_SUITE_P(
         // notification for one app. App that isn't allowed to bypass is
         // capturing.
         MultiCaptureUsageIndicatorBrowserTestData{
-            .installed_apps = {app_1, app_2},
-            .allowlisted_capture_apps = {app_1, app_2},
-            .skip_notification_apps = {app_1},
-            .capturing_apps = {app_2},
-            .expected_icon_notification_message_before_capture =
+            .installed_apps = {kApp1, kApp2},
+            .allowlisted_capture_apps = {kApp1, kApp2},
+            .skip_notification_apps = {kApp1},
+            .capturing_apps = {kApp2},
+            .expected_icon_notification_title_before_capture =
                 u"Your administrator can record your screen with app 1 and app "
                 u"2.",
-            .expected_icon_notification_message_after_capture =
+            .expected_icon_notification_title_after_capture =
                 u"Your administrator can record your screen with app 1. You "
                 u"will not be notified when the recording starts.",
             .expected_no_icon_notification_message_after_capture =
@@ -406,14 +477,14 @@ INSTANTIATE_TEST_SUITE_P(
         // notification for one app. App that is allowed to bypass is
         // capturing --> the notification does not change.
         MultiCaptureUsageIndicatorBrowserTestData{
-            .installed_apps = {app_1, app_2},
-            .allowlisted_capture_apps = {app_1, app_2},
-            .skip_notification_apps = {app_1},
-            .capturing_apps = {app_1},
-            .expected_icon_notification_message_before_capture =
+            .installed_apps = {kApp1, kApp2},
+            .allowlisted_capture_apps = {kApp1, kApp2},
+            .skip_notification_apps = {kApp1},
+            .capturing_apps = {kApp1},
+            .expected_icon_notification_title_before_capture =
                 u"Your administrator can record your screen with app 1 and app "
                 u"2.",
-            .expected_icon_notification_message_after_capture =
+            .expected_icon_notification_title_after_capture =
                 u"Your administrator can record your screen with app 1 and app "
                 u"2.",
             .expected_no_icon_notification_message_after_capture =
@@ -422,14 +493,14 @@ INSTANTIATE_TEST_SUITE_P(
         // notification for both apps. One app capturing, notification doesn't
         // change.
         MultiCaptureUsageIndicatorBrowserTestData{
-            .installed_apps = {app_1, app_2},
-            .allowlisted_capture_apps = {app_1, app_2},
-            .skip_notification_apps = {app_1, app_2},
-            .capturing_apps = {app_1, app_2},
-            .expected_icon_notification_message_before_capture =
+            .installed_apps = {kApp1, kApp2},
+            .allowlisted_capture_apps = {kApp1, kApp2},
+            .skip_notification_apps = {kApp1, kApp2},
+            .capturing_apps = {kApp1, kApp2},
+            .expected_icon_notification_title_before_capture =
                 u"Your administrator can record your screen with app 1 and app "
                 u"2. You will not be notified when the recording starts.",
-            .expected_icon_notification_message_after_capture =
+            .expected_icon_notification_title_after_capture =
                 u"Your administrator can record your screen with app 1 and app "
                 u"2. You will not be notified when the recording starts.",
             .expected_no_icon_notification_message_after_capture =

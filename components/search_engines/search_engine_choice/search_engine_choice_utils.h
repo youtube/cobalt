@@ -160,11 +160,12 @@ enum class SearchEngineChoiceWipeReason {
   kInvalidMetadataVersion = 2,
   kFinchBasedReprompt = 3,
   kCommandLineFlag = 4,
-  kDeviceRestored = 5,
+  // kDeviceRestored = 5, // Deprecated
   kInvalidMetadata = 6,
   kMissingDefaultSearchEngine = 7,
+  kChoiceRemadeAfterImport = 8,
 
-  kMaxValue = kMissingDefaultSearchEngine,
+  kMaxValue = kChoiceRemadeAfterImport,
 };
 
 // Exposed for testing.

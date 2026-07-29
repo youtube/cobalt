@@ -5,8 +5,13 @@
 #include "components/signin/public/base/signin_switches.h"
 
 #include "base/feature_list.h"
+#include "base/time/time.h"
 #include "components/prefs/pref_service.h"
 #include "components/signin/public/base/signin_pref_names.h"
+
+#if BUILDFLAG(IS_WIN)
+#include "base/win/windows_version.h"
+#endif
 
 namespace switches {
 
@@ -229,6 +234,24 @@ BASE_FEATURE(kOfferMigrationToDiceUsers,
              "OfferMigrationToDiceUsers",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+BASE_FEATURE_PARAM(base::TimeDelta,
+                   kOfferMigrationToDiceUsersMinDelay,
+                   &kOfferMigrationToDiceUsers,
+                   "offer_migration_to_dice_users_min_delay",
+                   base::Seconds(30));
+
+BASE_FEATURE_PARAM(base::TimeDelta,
+                   kOfferMigrationToDiceUsersMaxDelay,
+                   &kOfferMigrationToDiceUsers,
+                   "offer_migration_to_dice_users_max_delay",
+                   base::Minutes(5));
+
+BASE_FEATURE_PARAM(base::TimeDelta,
+                   kOfferMigrationToDiceUsersMinTimeBetweenDialogs,
+                   &kOfferMigrationToDiceUsers,
+                   "offer_migration_to_dice_users_min_time_between_dialogs",
+                   base::Days(7));
+
 #if BUILDFLAG(IS_IOS)
 
 BASE_FEATURE(kEnableIdentityInAuthError,
@@ -318,6 +341,16 @@ BASE_FEATURE(kChromeIdentitySurveySwitchProfileFromProfilePicker,
              "ChromeIdentitySurveySwitchProfileFromProfilePicker",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+BASE_FEATURE(kChromeIdentitySurveyLaunchWithDelay,
+             "ChromeIdentitySurveyLaunchWithDelay",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+BASE_FEATURE_PARAM(base::TimeDelta,
+                   kChromeIdentitySurveyLaunchWithDelayDuration,
+                   &kChromeIdentitySurveyLaunchWithDelay,
+                   "launch_delay_duration",
+                   base::Milliseconds(3000));
+
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 
 #if BUILDFLAG(ENABLE_DICE_SUPPORT)
@@ -330,6 +363,52 @@ BASE_FEATURE(kEnforceManagementDisclaimer,
              "EnforceManagementDisclaimer",
              base::FEATURE_DISABLED_BY_DEFAULT);
 #endif
+
+#if BUILDFLAG(IS_WIN)
+// Enables expanding the Avatar Pill to show a sync promo. Expected to be used
+// by Windows users only.
+BASE_FEATURE(kAvatarButtonSyncPromo,
+             "AvatarButtonSyncPromo",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE_PARAM(base::TimeDelta,
+                   kAvatarButtonSyncPromoMinimumCookieAgeParam,
+                   &kAvatarButtonSyncPromo,
+                   "minimum-cookie-age",
+                   base::Days(14));
+#endif
+// Convenient testing flag for `kAvatarButtonSyncPromo` on all platforms.
+// Also reduces the minimum cookie age to 30 seconds.
+BASE_FEATURE(kAvatarButtonSyncPromoForTesting,
+             "AvatarButtonSyncPromoForTesting",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+bool IsAvatarSyncPromoFeatureEnabled() {
+  if (base::FeatureList::IsEnabled(
+          switches::kAvatarButtonSyncPromoForTesting)) {
+    return true;
+  }
+#if BUILDFLAG(IS_WIN)
+  return (base::win::GetVersion() >= base::win::Version::WIN7 &&
+          base::win::GetVersion() <= base::win::Version::WIN10_22H2) &&
+         base::FeatureList::IsEnabled(switches::kAvatarButtonSyncPromo);
+#else
+  return false;
+#endif
+}
+
+base::TimeDelta GetAvatarSyncPromoFeatureMinimumCookeAgeParam() {
+  CHECK(IsAvatarSyncPromoFeatureEnabled());
+
+  if (base::FeatureList::IsEnabled(
+          switches::kAvatarButtonSyncPromoForTesting)) {
+    return base::Seconds(30);
+  }
+#if BUILDFLAG(IS_WIN)
+  return kAvatarButtonSyncPromoMinimumCookieAgeParam.Get();
+#else
+  NOTREACHED();
+#endif
+}
 
 }  // namespace switches
 
@@ -355,7 +434,3 @@ BASE_FEATURE(kIgnoreMirrorHeadersInBackgoundTabs,
 BASE_FEATURE(kNonDefaultGaiaOriginCheck,
              "NonDefaultGaiaOriginCheck",
              base::FEATURE_ENABLED_BY_DEFAULT);
-
-BASE_FEATURE(kUseAccountCapabilityToDetermineAccountManagement,
-             "UseAccountCapabilityToDetermineAccountManagement",
-             base::FEATURE_DISABLED_BY_DEFAULT);

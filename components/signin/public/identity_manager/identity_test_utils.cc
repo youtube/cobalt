@@ -675,9 +675,9 @@ void DisableAccessTokenFetchRetries(IdentityManager* identity_manager) {
 }
 
 #if BUILDFLAG(IS_ANDROID)
-void SetUpMockAccountManagerFacade(bool useFakeImpl) {
+void SetUpMockAccountManagerFacade() {
   Java_AccountManagerFacadeUtil_setUpMockFacade(
-      base::android::AttachCurrentThread(), useFakeImpl);
+      base::android::AttachCurrentThread());
 }
 #endif
 
@@ -711,7 +711,8 @@ void SimulateSuccessfulFetchOfAccountInfo(IdentityManager* identity_manager,
       !hosted_domain.empty() && hosted_domain != kNoHostedDomainFound;
   AccountCapabilities capabilities;
   AccountCapabilitiesTestMutator mutator(&capabilities);
-  mutator.set_is_subject_to_enterprise_policies(managed);
+  mutator.set_is_subject_to_enterprise_features(managed);
+  mutator.set_is_subject_to_account_level_enterprise_policies(managed);
   account_tracker_service->SetAccountCapabilities(account_id, capabilities);
   CHECK_EQ(account_tracker_service->GetAccountInfo(account_id).IsManaged(),
            signin::TriboolFromBool(managed));

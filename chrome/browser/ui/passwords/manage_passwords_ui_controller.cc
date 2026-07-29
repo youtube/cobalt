@@ -902,6 +902,10 @@ void ManagePasswordsUIController::OnBubbleHidden() {
       passwords_data_.ClearSingleCredentialModeCredential();
     }
     update_icon = true;
+  } else if (GetState() == password_manager::ui::PASSWORD_CHANGE_STATE) {
+    ClearPopUpFlagForBubble();
+    passwords_data_.OnInactive();
+    update_icon = true;
   }
   if (update_icon) {
     UpdateBubbleAndIconVisibility();
@@ -953,20 +957,17 @@ void ManagePasswordsUIController::OnPasswordsRevealed() {
   passwords_data_.form_manager()->OnPasswordsRevealed();
 }
 
-void ManagePasswordsUIController::MaybeHandlePasswordRecoveryFinished(
+void ManagePasswordsUIController::HandlePasswordRecoveryFinished(
     const std::u16string& username,
-    const std::u16string& password) const {
+    const std::u16string& password,
+    const std::u16string& password_backup) const {
   auto pending_credentials = GetPendingPassword();
   if (pending_credentials.password_value != password ||
       pending_credentials.username_value != username) {
     return;
   }
 
-  const password_manager::PasswordForm* changed_password_credentials =
-      password_manager_util::FindLoginWithChangedPassword(
-          *passwords_data_.form_manager());
-  if (changed_password_credentials &&
-      changed_password_credentials->GetPasswordBackup() == password) {
+  if (password_backup == password) {
     base::UmaHistogramEnumeration(
         "PasswordManager.PasswordChangeRecoveryFlow",
         password_manager::PasswordChangeRecoveryFlowState::
@@ -983,7 +984,18 @@ void ManagePasswordsUIController::MaybeHandlePasswordRecoveryFinished(
 
 void ManagePasswordsUIController::SavePassword(const std::u16string& username,
                                                const std::u16string& password) {
-  MaybeHandlePasswordRecoveryFinished(username, password);
+  if (const password_manager::PasswordForm* changed_password_credentials =
+          password_manager_util::FindLoginWithChangedPassword(
+              *passwords_data_.form_manager());
+      changed_password_credentials &&
+      changed_password_credentials->GetPasswordBackup().has_value()) {
+    // If the new password to be saved should override a backup password,
+    // this function sets an empty backup to the submitted form.
+    passwords_data_.form_manager()->OnRemovePasswordBackupNote();
+    HandlePasswordRecoveryFinished(
+        username, password,
+        changed_password_credentials->GetPasswordBackup().value());
+  }
   UpdatePasswordFormUsernameAndPassword(username, password,
                                         passwords_data_.form_manager());
 
@@ -1265,42 +1277,59 @@ void ManagePasswordsUIController::UpdateBubbleAndIconVisibility() {
     tabs::TabInterface* const tab_interface = browser->GetActiveTabInterface();
     auto* const tab_features = tab_interface->GetTabFeatures();
     CHECK(tab_features);
+    // Retrieve the controller responsible for managing the page action's
+    // visibility and state.
     auto* const controller =
         tab_features->manage_passwords_page_action_controller();
-
-    password_manager::ui::State state = GetState();
-    const bool is_blocklisted = IsExplicitlyBlocklisted();
-
-    if (dialog_controller_ &&
-        state == password_manager::ui::CREDENTIAL_REQUEST_STATE) {
-      state = password_manager::ui::INACTIVE_STATE;
-    }
-
-    if (state != last_page_action_state_ ||
-        is_blocklisted != last_page_action_is_blocklisted_) {
-      PasswordBubbleViewBase::CloseCurrentBubble();
-    }
-    last_page_action_state_ = state;
-    last_page_action_is_blocklisted_ = is_blocklisted;
-
+    // Get the action item associated with the passwords UI.
     actions::ActionItem* passwords_action_item =
         actions::ActionManager::Get().FindAction(
             kActionShowPasswordsBubbleOrPage,
             browser->browser_actions()->root_action_item());
-
-    controller->UpdateVisibility(state, is_blocklisted, *this,
-                                 *passwords_action_item);
-    if (IsAutomaticallyOpeningBubble() ||
-        bubble_status_ == BubbleStatus::SHOULD_POP_UP_WITH_FOCUS) {
-      // This will detach any existing bubble so OnBubbleHidden() isn't called.
-      weak_ptr_factory_.InvalidateWeakPtrs();
-      ShowBubbleWithoutUserInteraction();
-      // If the bubble appeared then the status is updated in OnBubbleShown().
-      ClearPopUpFlagForBubble();
-    }
+    UpdatePasswordIconAndBubbleState(controller, passwords_action_item);
   } else {
     browser->window()->UpdatePageActionIcon(
         PageActionIconType::kManagePasswords);
+  }
+}
+
+void ManagePasswordsUIController::UpdatePasswordIconAndBubbleState(
+    ManagePasswordsPageActionController* controller,
+    actions::ActionItem* passwords_action_item) {
+  password_manager::ui::State state = GetState();
+  const bool is_blocklisted = IsExplicitlyBlocklisted();
+  // If the UI state or blocklist status has changed since the last update,
+  // close the current bubble to ensure that the UI reflects the new state.
+  if (state != last_page_action_state_ ||
+      is_blocklisted != last_page_action_is_blocklisted_) {
+    PasswordBubbleViewBase::CloseCurrentBubble();
+  }
+  // Update the last known state and blocklist status.
+  last_page_action_state_ = state;
+  last_page_action_is_blocklisted_ = is_blocklisted;
+  // Determine whether the bubble should be shown automatically based on
+  // current conditions.
+  const bool show_bubble =
+      IsAutomaticallyOpeningBubble() ||
+      bubble_status_ == BubbleStatus::SHOULD_POP_UP_WITH_FOCUS;
+  // If the bubble is not to be shown, and there's a dialog controller active
+  // and the state is Credential Request, force the state to inactive to
+  // prevent icon from being active.
+  if (!show_bubble && dialog_controller_ &&
+      state == password_manager::ui::CREDENTIAL_REQUEST_STATE) {
+    state = password_manager::ui::INACTIVE_STATE;
+  }
+  // Update the visibility of the page action based on the current state,
+  // blocklist status, and the passwords action item.
+  controller->UpdateVisibility(state, is_blocklisted, *this,
+                               *passwords_action_item);
+
+  if (show_bubble) {
+    // This will detach any existing bubble so OnBubbleHidden() isn't called.
+    weak_ptr_factory_.InvalidateWeakPtrs();
+    ShowBubbleWithoutUserInteraction();
+    // If the bubble appeared then the status is updated in OnBubbleShown().
+    ClearPopUpFlagForBubble();
   }
 }
 

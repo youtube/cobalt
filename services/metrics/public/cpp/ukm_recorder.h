@@ -28,6 +28,10 @@ namespace apps {
 class WebsiteMetrics;
 }  // namespace apps
 
+namespace login_detection {
+class IdentityProviderMetrics;
+}  // namespace login_detection
+
 namespace metrics {
 class UkmRecorderInterface;
 }  // namespace metrics
@@ -47,10 +51,6 @@ class ManifestV2ExperimentManager;
 
 namespace safe_browsing {
 class NotificationContentDetectionUkmUtil;
-}
-
-namespace weblayer {
-class BackgroundSyncDelegateImpl;
 }
 
 namespace ukm {
@@ -124,6 +124,10 @@ class METRICS_EXPORT UkmRecorder {
   // FedCmMetrics class.
   static SourceId GetSourceIdForWebIdentityFromScope(
       base::PassKey<content::FedCmMetrics>,
+      const GURL& provider_url);
+
+  static SourceId GetSourceIdForWebIdentityFromScope(
+      base::PassKey<login_detection::IdentityProviderMetrics>,
       const GURL& provider_url);
 
   // Gets a new SourceId of REDIRECT_ID type and updates the source URL
@@ -224,7 +228,6 @@ class METRICS_EXPORT UkmRecorder {
                                            SourceIdType type);
 
  private:
-  friend weblayer::BackgroundSyncDelegateImpl;
   friend DelegatingUkmRecorder;
   friend TestRecordingHelper;
   friend UkmBackgroundRecorderService;

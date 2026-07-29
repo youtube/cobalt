@@ -564,8 +564,16 @@ bool CheckProgressFunctionTypes(
   switch (function_id) {
     case CSSValueID::kProgress: {
       CalculationResultCategory first_category = nodes[0]->Category();
+      // calc-size() is not allowed as a parameter to progress(),
+      // since it can only be a base of any calculation.
+      // Also, intermediate calculations are not allowed as parameters to
+      // progress(), since only values with canonical units
+      // can be used.
+      if (nodes[0]->IsCalcSize() || first_category == kCalcIntermediate) {
+        return false;
+      }
       if (first_category != nodes[1]->Category() ||
-          first_category != nodes[2]->Category() || nodes[0]->IsCalcSize()) {
+          first_category != nodes[2]->Category()) {
         return false;
       }
       break;
@@ -1846,7 +1854,13 @@ CSSMathExpressionNode* CSSMathExpressionOperation::CreateExponentialFunction(
     return nullptr;
   }
 
-  if (operands.front()->IsCalcSize()) {
+  // calc-size() is not allowed as a parameter to exponential functions,
+  // since it can only be a base of any calculation.
+  // Also, intermediate calculations are not allowed as parameters to
+  // exponential functions, since only values with canonical units
+  // can be used as parameters to exponential functions.
+  if (operands.front()->IsCalcSize() ||
+      operands.front()->Category() == kCalcIntermediate) {
     return nullptr;
   }
 

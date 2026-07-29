@@ -1292,7 +1292,8 @@ TEST_P(PDFiumEngineDrawSelectionTest, DrawTextSelectionsHelloWorld) {
   engine->PluginSizeUpdated({500, 500});
 
   EXPECT_THAT(engine->GetSelectedText(), IsEmpty());
-  DrawSelectionAndCompare(*engine, kPageIndex, "hello_world_blank.png");
+  DrawAndExpectBlank(*engine, kPageIndex,
+                     /*expected_visible_page_size=*/gfx::Size(266, 266));
 
   SetSelection(*engine, /*start_page_index=*/kPageIndex, /*start_char_index=*/1,
                /*end_page_index=*/kPageIndex, /*end_char_index=*/2);
@@ -1937,8 +1938,8 @@ class ScrollingTestClient : public TestClient {
   ScrollingTestClient& operator=(const ScrollingTestClient&) = delete;
 
   // Mock PDFiumEngineClient methods.
-  MOCK_METHOD(void, ScrollToX, (int), (override));
-  MOCK_METHOD(void, ScrollToY, (int), (override));
+  MOCK_METHOD(void, ScrollToX, (int, bool), (override));
+  MOCK_METHOD(void, ScrollToY, (int, bool), (override));
 };
 
 TEST_P(PDFiumEngineTabbingTest, MaintainViewportWhenFocusIsUpdated) {
@@ -1952,10 +1953,12 @@ TEST_P(PDFiumEngineTabbingTest, MaintainViewportWhenFocusIsUpdated) {
   {
     InSequence sequence;
     static constexpr gfx::Point kScrollValue = {510, 478};
-    EXPECT_CALL(client, ScrollToY(kScrollValue.y()))
+    EXPECT_CALL(client,
+                ScrollToY(kScrollValue.y(), /*force_smooth_scroll=*/false))
         .WillOnce(Invoke(
             [&engine]() { engine->ScrolledToYPosition(kScrollValue.y()); }));
-    EXPECT_CALL(client, ScrollToX(kScrollValue.x()))
+    EXPECT_CALL(client,
+                ScrollToX(kScrollValue.x(), /*force_smooth_scroll=*/false))
         .WillOnce(Invoke(
             [&engine]() { engine->ScrolledToXPosition(kScrollValue.x()); }));
   }
@@ -2007,11 +2010,13 @@ TEST_P(PDFiumEngineTabbingTest, ScrollFocusedAnnotationIntoView) {
     static constexpr gfx::Point kScrollValues[] = {{510, 478}, {510, 478}};
 
     for (const auto& scroll_value : kScrollValues) {
-      EXPECT_CALL(client, ScrollToY(scroll_value.y()))
+      EXPECT_CALL(client,
+                  ScrollToY(scroll_value.y(), /*force_smooth_scroll=*/false))
           .WillOnce(Invoke([&engine, &scroll_value]() {
             engine->ScrolledToYPosition(scroll_value.y());
           }));
-      EXPECT_CALL(client, ScrollToX(scroll_value.x()))
+      EXPECT_CALL(client,
+                  ScrollToX(scroll_value.x(), /*force_smooth_scroll=*/false))
           .WillOnce(Invoke([&engine, &scroll_value]() {
             engine->ScrolledToXPosition(scroll_value.x());
           }));
@@ -2795,7 +2800,7 @@ class PDFiumEngineCaretTest : public PDFiumDrawSelectionTestBase {
   base::test::ScopedFeatureList feature_list_;
 };
 
-TEST_P(PDFiumEngineCaretTest, Draw) {
+TEST_P(PDFiumEngineCaretTest, SetCaretBrowsingEnabled) {
   TestClient client;
   std::unique_ptr<PDFiumEngine> engine =
       InitializeEngine(&client, FILE_PATH_LITERAL("hello_world2.pdf"));
@@ -2803,8 +2808,21 @@ TEST_P(PDFiumEngineCaretTest, Draw) {
 
   engine->PluginSizeUpdated({500, 500});
 
+  constexpr gfx::Size kHelloWorldExpectedVisiblePageSize{266, 266};
+  DrawCaretAndExpectBlank(*engine, /*page_index=*/0,
+                          kHelloWorldExpectedVisiblePageSize);
+
+  engine->SetCaretBrowsingEnabled(false);
+  DrawCaretAndExpectBlank(*engine, /*page_index=*/0,
+                          kHelloWorldExpectedVisiblePageSize);
+
+  engine->SetCaretBrowsingEnabled(true);
   DrawCaretAndCompareWithPlatformExpectations(*engine, /*page_index=*/0,
                                               "hello_world_caret.png");
+
+  engine->SetCaretBrowsingEnabled(false);
+  DrawCaretAndExpectBlank(*engine, /*page_index=*/0,
+                          kHelloWorldExpectedVisiblePageSize);
 }
 
 TEST_P(PDFiumEngineCaretTest, DrawOnGeometryChange) {
@@ -2813,6 +2831,7 @@ TEST_P(PDFiumEngineCaretTest, DrawOnGeometryChange) {
       InitializeEngine(&client, FILE_PATH_LITERAL("hello_world2.pdf"));
   ASSERT_TRUE(engine);
 
+  engine->SetCaretBrowsingEnabled(true);
   engine->PluginSizeUpdated({500, 500});
 
   engine->ScrolledToXPosition(20);
@@ -2832,6 +2851,7 @@ TEST_P(PDFiumEngineCaretTest, TextClick) {
       InitializeEngine(&client, FILE_PATH_LITERAL("hello_world2.pdf"));
   ASSERT_TRUE(engine);
 
+  engine->SetCaretBrowsingEnabled(true);
   engine->PluginSizeUpdated({500, 500});
 
   // The "b" in "Goodbye, world!".
@@ -2855,6 +2875,7 @@ TEST_P(PDFiumEngineCaretTest, TextClickSyntheticWhitespace) {
       &client, FILE_PATH_LITERAL("text_synthetic_whitespace.pdf"));
   ASSERT_TRUE(engine);
 
+  engine->SetCaretBrowsingEnabled(true);
   engine->PluginSizeUpdated({500, 500});
 
   // The synthetic whitespace with an empty screen rect.
@@ -2871,6 +2892,7 @@ TEST_P(PDFiumEngineCaretTest, TextClickMultiPage) {
       &client, FILE_PATH_LITERAL("multi_page_hello_world_with_empty_page.pdf"));
   ASSERT_TRUE(engine);
 
+  engine->SetCaretBrowsingEnabled(true);
   // Plugin size chosen so all pages of the document are visible.
   engine->PluginSizeUpdated({1024, 4096});
 
@@ -2903,14 +2925,16 @@ class SearchStringTestClient : public TestClient {
     return TextSearch(/*needle=*/needle, /*haystack=*/haystack, case_sensitive);
   }
 
-  MOCK_METHOD(void, ScrollToX, (int), (override));
-  MOCK_METHOD(void, ScrollToY, (int), (override));
+  MOCK_METHOD(void, ScrollToX, (int, bool), (override));
+  MOCK_METHOD(void, ScrollToY, (int, bool), (override));
   MOCK_METHOD(void, OnNewTextFragmentsSearchStarted, (), (override));
 };
 
 class PDFiumEngineHighlightTextFragmentTest
     : public PDFiumEngineDrawSelectionTest {
  public:
+  static constexpr gfx::Size kSpannerExpectedVisiblePageSize{816, 1056};
+
   std::unique_ptr<PDFiumEngine> InitializePdfEngine(TestClient& client) {
     std::unique_ptr<PDFiumEngine> engine =
         InitializeEngine(&client, FILE_PATH_LITERAL("spanner.pdf"));
@@ -3014,31 +3038,31 @@ TEST_P(PDFiumEngineHighlightTextFragmentTest, FragmentNotInPDF) {
   ASSERT_TRUE(engine);
 
   engine->FindAndHighlightTextFragments({});
-  DrawHighlightsAndCompare(*engine, 0, "spanner_blank.png");
+  DrawAndExpectBlank(*engine, 0, kSpannerExpectedVisiblePageSize);
 
   engine->FindAndHighlightTextFragments({"apples"});
-  DrawHighlightsAndCompare(*engine, 0, "spanner_blank.png");
+  DrawAndExpectBlank(*engine, 0, kSpannerExpectedVisiblePageSize);
 
   engine->FindAndHighlightTextFragments({"of-,Google,-random"});
-  DrawHighlightsAndCompare(*engine, 0, "spanner_blank.png");
+  DrawAndExpectBlank(*engine, 0, kSpannerExpectedVisiblePageSize);
 
   engine->FindAndHighlightTextFragments({"of-,Google,random"});
-  DrawHighlightsAndCompare(*engine, 0, "spanner_blank.png");
+  DrawAndExpectBlank(*engine, 0, kSpannerExpectedVisiblePageSize);
 
   engine->FindAndHighlightTextFragments({"and-,applications,old,-random"});
-  DrawHighlightsAndCompare(*engine, 0, "spanner_blank.png");
+  DrawAndExpectBlank(*engine, 0, kSpannerExpectedVisiblePageSize);
 
   engine->FindAndHighlightTextFragments({"apples-,Google"});
-  DrawHighlightsAndCompare(*engine, 0, "spanner_blank.png");
+  DrawAndExpectBlank(*engine, 0, kSpannerExpectedVisiblePageSize);
 
   engine->FindAndHighlightTextFragments({"Google,-random"});
-  DrawHighlightsAndCompare(*engine, 0, "spanner_blank.png");
+  DrawAndExpectBlank(*engine, 0, kSpannerExpectedVisiblePageSize);
 
   engine->FindAndHighlightTextFragments({"applications,random"});
-  DrawHighlightsAndCompare(*engine, 0, "spanner_blank.png");
+  DrawAndExpectBlank(*engine, 0, kSpannerExpectedVisiblePageSize);
 
   engine->FindAndHighlightTextFragments({"applications,old,-random"});
-  DrawHighlightsAndCompare(*engine, 0, "spanner_blank.png");
+  DrawAndExpectBlank(*engine, 0, kSpannerExpectedVisiblePageSize);
 }
 
 // Assert that the second highlight should clear the existing highlight.
@@ -3066,7 +3090,7 @@ TEST_P(PDFiumEngineHighlightTextFragmentTest,
   DrawHighlightsAndCompare(*engine, 0, "spanner_text_start_highlight.png");
 
   engine->FindAndHighlightTextFragments({"does_not_exist"});
-  DrawHighlightsAndCompare(*engine, 0, "spanner_blank.png");
+  DrawAndExpectBlank(*engine, 0, kSpannerExpectedVisiblePageSize);
 }
 
 TEST_P(PDFiumEngineHighlightTextFragmentTest, RemoveTextFragments) {
@@ -3078,7 +3102,7 @@ TEST_P(PDFiumEngineHighlightTextFragmentTest, RemoveTextFragments) {
   DrawHighlightsAndCompare(*engine, 0, "spanner_text_start_highlight.png");
 
   engine->RemoveTextFragments();
-  DrawHighlightsAndCompare(*engine, 0, "spanner_blank.png");
+  DrawAndExpectBlank(*engine, 0, kSpannerExpectedVisiblePageSize);
 }
 
 TEST_P(PDFiumEngineHighlightTextFragmentTest, ScrollToFirstTextFragment) {
@@ -3087,11 +3111,11 @@ TEST_P(PDFiumEngineHighlightTextFragmentTest, ScrollToFirstTextFragment) {
   ASSERT_TRUE(engine);
   engine->PluginSizeUpdated({200, 400});
 
-  EXPECT_CALL(client, ScrollToX(424));
-  EXPECT_CALL(client, ScrollToY(749));
+  EXPECT_CALL(client, ScrollToX(424, /*force_smooth_scroll=*/true));
+  EXPECT_CALL(client, ScrollToY(749, /*force_smooth_scroll=*/true));
 
   engine->FindAndHighlightTextFragments({"difficult to implement"});
-  engine->ScrollToFirstTextFragment();
+  engine->ScrollToFirstTextFragment(/*force_smooth_scroll=*/true);
 }
 
 // Assert that OnNewTextFragmentsSearchStarted() is called for any text

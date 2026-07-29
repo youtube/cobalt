@@ -860,7 +860,22 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Blink.CookiesTime.{IpcNeeded}" units="ms"
+<histogram name="Blink.CookiesTime.AblationSleepTime" units="microseconds"
+    expires_after="2025-12-28">
+  <owner>elkurin@chromium.org</owner>
+  <owner>chrome-owp-storage@google.com</owner>
+  <summary>
+    Sleep duration (in microseconds) added to Cookies operation with IPC call
+    from the CookieJar used for ablation study. This metrics is recorded only
+    when CookieJar ablation study is enabled, and during getting cookie with
+    IPC. While AblationDelay2 records the wanted delay, this metrics records the
+    actual delay.
+
+    Note: This metric is only reported for clients with high-resolution clocks.
+  </summary>
+</histogram>
+
+<histogram name="Blink.CookiesTime.{IpcNeeded}2" units="microseconds"
     expires_after="2025-12-28">
   <owner>elkurin@chromium.org</owner>
   <owner>chrome-owp-storage@google.com</owner>
@@ -871,7 +886,11 @@ chromium-metrics-reviews@google.com.
     cookie string is taken successfully and has not changed. In such case, the
     metrics is recorded for the time to check shared memory and other tasks. The
     metrics should be separated by whether it needs IPC as it extremely affects
-    the time.
+    the time. This is incremented to 2 because Blink.CookiesTime.{IpcNeeded} was
+    ms units which is not precise enough to capture IpcNotNeeded metrics.
+
+    Note: This metric is reported for all clients, regardless of clock
+    resolution.
   </summary>
   <token key="IpcNeeded">
     <variant name="IpcNeeded"/>
@@ -894,7 +913,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Blink.CullRect.UpdateTime" units="microseconds"
-    expires_after="2025-11-23">
+    expires_after="2026-01-25">
   <owner>pdr@chromium.org</owner>
   <owner>wangxianzhu@chromium.org</owner>
   <owner>paint-dev@chromium.org</owner>
@@ -1527,6 +1546,17 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Blink.FedCm.DidShowUI" enum="Boolean"
+    expires_after="2025-12-14">
+  <owner>npm@chromium.org</owner>
+  <owner>web-identity-eng@google.com</owner>
+  <summary>
+    Records whether the FedCM UI is shown or not. Records a sample when the
+    FedCM call is completed, i.e. at the same time as
+    Blink.FedCm.Status.RequestIdToken.
+  </summary>
+</histogram>
+
 <histogram name="Blink.FedCm.Disconnect.FrameType"
     enum="FedCmRequesterFrameType" expires_after="2025-12-12">
   <owner>npm@chromium.org</owner>
@@ -1871,7 +1901,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Blink.FedCm.SegmentationPlatform.UserAction"
-    enum="FedCmUserAction" expires_after="2025-11-23">
+    enum="FedCmUserAction" expires_after="2026-01-25">
   <owner>tanzachary@chromium.org</owner>
   <owner>web-identity-eng@google.com</owner>
   <summary>
@@ -2301,7 +2331,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Blink.FencedFrame.FailedSandboxLoadInTopLevelFrame"
-    enum="BooleanYesNo" expires_after="2025-08-04">
+    enum="BooleanYesNo" expires_after="2026-08-04">
   <owner>shivanisha@chromium.org</owner>
   <owner>dom@chromium.org</owner>
   <owner>lbrady@google.com</owner>
@@ -2343,7 +2373,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Blink.FencedFrame.MandatoryUnsandboxedFlagsSandboxed"
-    enum="WebSandboxFlags" expires_after="2025-08-04">
+    enum="WebSandboxFlags" expires_after="2026-08-04">
   <owner>shivanisha@chromium.org</owner>
   <owner>dom@chromium.org</owner>
   <owner>lbrady@google.com</owner>
@@ -2794,7 +2824,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Blink.HTMLParsing.IsParserPausingCalledAfterResuming"
-    enum="Boolean" expires_after="2025-10-08">
+    enum="Boolean" expires_after="2026-01-25">
   <owner>sisidovski@chromium.org</owner>
   <owner>chrome-loading@google.com</owner>
   <summary>
@@ -3916,7 +3946,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Blink.LinkHeader.LoadLinksFromHeaderMode"
-    enum="LoadLinksFromHeaderMode" expires_after="2025-11-23">
+    enum="LoadLinksFromHeaderMode" expires_after="2026-01-25">
   <owner>tnak@chromium.org</owner>
   <owner>chrome-loading@google.com</owner>
   <summary>

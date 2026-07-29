@@ -91,7 +91,6 @@ mojom("mojom") {
     ":speech_recognition",
     ":web_speech_recognition",
     "//gpu/ipc/common:interfaces",
-    "//media/learning/mojo/public/mojom",
     "//mojo/public/mojom/base",
     "//sandbox/policy/mojom",
     "//services/media_session/public/mojom",
@@ -933,7 +932,7 @@ source_set("shared_mojom_traits") {
     ":mojom_shared",
     "//gpu/ipc/common",
     "//media",
-    "//media/base/ipc:ipc",
+    "//media/base/ipc",
     "//mojo/public/mojom/base",
     "//ui/gfx/geometry/mojom:mojom_traits",
   ]

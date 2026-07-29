@@ -171,13 +171,28 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="KeyboardAccessory.AccessoryActionSelected"
-    enum="AccessoryAction" expires_after="2025-12-14">
+<histogram name="KeyboardAccessory.AccessoryActionSelected2"
+    enum="AccessoryAction" expires_after="2026-02-04">
   <owner>friedrichh@chromium.org</owner>
   <owner>ioanap@chromium.org</owner>
   <summary>
     Android only. Records whenever users select an action in the accessory bar
-    or one of its sheets.
+    or one of its sheets. Actions include autofill suggestions from bar and
+    accessory sheets.
+  </summary>
+</histogram>
+
+<histogram
+    name="KeyboardAccessory.AccessoryActionSelectedForNonCredentialFieldWithoutSuggestions"
+    enum="BooleanYesNo" expires_after="2026-03-22">
+  <owner>luchenpeng@google.com</owner>
+  <owner>piotrkotynia@google.com</owner>
+  <summary>
+    Android only. Records if user selected a suggestion or action from manual
+    fallback sheet, and the field is not a username or password field and the
+    field has no autofill suggestions. This is used to analyze how many
+    interactions we would miss by suppressing KA on large form factors for non
+    credential fields and fields without autofill suggestions.
   </summary>
 </histogram>
 
@@ -274,7 +289,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Passkeys.IOSMigration" enum="PasskeysMigrationStatus"
-    expires_after="2025-11-21">
+    expires_after="2026-01-25">
   <owner>sugoi@chromium.org</owner>
   <owner>tmartino@chromium.org</owner>
   <summary>
@@ -627,7 +642,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="PasswordManager.AddCredentialFromSettings.UserAction2"
-    enum="AddCredentialFromSettingsUserInteractions" expires_after="2025-11-23">
+    enum="AddCredentialFromSettingsUserInteractions" expires_after="2026-01-25">
   <owner>vidhanj@google.com</owner>
   <summary>
     Records the user actions performed when a new credential is added from
@@ -1742,7 +1757,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="PasswordManager.FirstWaitForUsernameReason"
-    enum="PasswordManagerFirstWaitForUsernameReason" expires_after="2025-11-23">
+    enum="PasswordManagerFirstWaitForUsernameReason" expires_after="2026-01-25">
   <owner>kazinova@google.com</owner>
   <owner>battre@chromium.org</owner>
   <summary>
@@ -2232,7 +2247,7 @@ useful for Chirp alerts (go/crca-alerts). -->
 <histogram
     name="PasswordManager.LoginDatabase.ShouldDeleteUndecryptablePasswords"
     enum="LoginDatabaseShouldDeleteUndecryptablePasswords"
-    expires_after="2025-11-23">
+    expires_after="2026-01-25">
   <owner>sygiet@google.com</owner>
   <owner>vasilii@chromium.org</owner>
   <summary>
@@ -2733,6 +2748,16 @@ useful for Chirp alerts (go/crca-alerts). -->
   </summary>
 </histogram>
 
+<histogram name="PasswordManager.PasswordChange.UserClosedTab"
+    enum="PasswordChangeFlowState" expires_after="2025-11-30">
+  <owner>rgod@google.com</owner>
+  <owner>vsemeniuk@google.com</owner>
+  <summary>
+    Records the state of a password change flow during which the user closed the
+    tab. The metric is recorded when the tab is about to be deleted.
+  </summary>
+</histogram>
+
 <histogram
     name="PasswordManager.PasswordChange.UserHasPasswordSavedOnAPCLaunch"
     enum="Boolean" expires_after="2025-11-30">
@@ -2741,6 +2766,19 @@ useful for Chirp alerts (go/crca-alerts). -->
   <summary>
     Records whether the user has any saved passwords for the particular website
     where they initiated the password change flow.
+  </summary>
+</histogram>
+
+<histogram name="PasswordManager.PasswordChange.WaitingForUserSignInToast"
+    enum="PasswordChangeToastEvent" expires_after="2025-11-30">
+  <owner>rgod@google.com</owner>
+  <owner>vsemeniuk@google.com</owner>
+  <summary>
+    Records password change toast events. This toast is diplayed during password
+    change flow when the user initiated the flow, but there is still some 2FA
+    visible on screen that user has to resolve before the flow can continue.
+    This metric can include user interactions with the toast or events that
+    happen automatically.
   </summary>
 </histogram>
 
@@ -3228,7 +3266,7 @@ useful for Chirp alerts (go/crca-alerts). -->
 
 <histogram name="PasswordManager.PasswordSharingIOS.UserAction"
     enum="PasswordManager.PasswordSharingIOSUserAction"
-    expires_after="2025-11-25">
+    expires_after="2026-01-25">
   <owner>rgod@google.com</owner>
   <owner>mamir@chromium.org</owner>
   <summary>
@@ -3660,7 +3698,7 @@ useful for Chirp alerts (go/crca-alerts). -->
 <histogram
     name="PasswordManager.ProcessIncomingPasswordSharingInvitationResult"
     enum="PasswordManager.ProcessIncomingPasswordSharingInvitationResult"
-    expires_after="2025-11-23">
+    expires_after="2026-01-25">
   <owner>mamir@chromium.org</owner>
   <owner>rushans@google.com</owner>
   <component>1457410</component>
@@ -4282,22 +4320,6 @@ useful for Chirp alerts (go/crca-alerts). -->
   <summary>
     Why was the password manager's UI (bubble or infobar) closed? Save and
     update UI are tracked separately.
-  </summary>
-</histogram>
-
-<histogram name="PasswordManager.UnifiedPasswordManager.ActiveStatus2"
-    enum="UnifiedPasswordManagerActiveStatus" expires_after="2024-03-29">
-  <owner>kazinova@google.com</owner>
-  <owner>ioanap@chromium.org</owner>
-  <owner>friedrichh@chromium.org</owner>
-  <summary>
-    Recorded on profile open after the sync service is initialized and once per
-    regular profile. It is recorded for clients that have UPM enabled and logs
-    whether UPM is actually active for them. Reasons why UPM might be inactive
-    are: passwords sync off or client unenrolled due to unresolvable errors.
-    Note a client can have both sync off and be unenrolled, in which case it
-    will still only appear in the sync off bucket, since this is considered the
-    main reason why the client is inactive for UPM.
   </summary>
 </histogram>
 

@@ -4508,7 +4508,7 @@ enum WebFeature {
   kGeolocationSucceededWithoutInjectionMitigation = 5202,
   kSharedWorkerScriptUnderServiceWorkerControlIsBlob = 5203,
   kOBSOLETE_DisableThirdPartyStoragePartitioning3 = 5204,
-  kControlledFrameElement = 5205,
+  kOBSOLETE_ControlledFrameElement = 5205,
   kCanvas2DIsPointInPath = 5206,
   kCanvas2DIsPointInStroke = 5207,
   kCanvas2DGetImageData = 5208,
@@ -4534,7 +4534,7 @@ enum WebFeature {
   kClipboardCustomFormatWrite = 5228,
   kClipboardSvgRead = 5229,
   kClipboardSvgWrite = 5230,
-  kVarFallbackValidation = 5231,
+  kOBSOLETE_VarFallbackValidation = 5231,
   kLocaleInfoObsoletedGetters = 5232,
   kInjectionMitigatedContextSubFrame = 5233,
   kInjectionMitigatedContextMainFrame = 5234,
@@ -4925,6 +4925,15 @@ enum WebFeature {
   kMessageEventDataBeforeSameSiteOrigin = 5614,
   kMessageEventDataBeforeCrossSiteOrigin = 5615,
   kMessageEventDataBeforeOpaqueOrigin = 5616,
+  kLocalNetworkAccessNonSecureContextAllowedDeprecationTrial = 5617,
+  kCSPUrlHashes = 5618,
+  kCSPEvalHashes = 5619,
+  kWebAppManifestNameLocalized = 5620,
+  kWebAppManifestShortNameLocalized = 5621,
+  kWebAppManifestDescriptionLocalized = 5622,
+  kWebAppManifestIconsLocalized = 5623,
+  kHTMLControlledFrameElement = 5624,
+  kSlowDeserialization = 5625,
 
   // Add new features immediately above this line. Don't change assigned
   // numbers of any item, and don't reuse removed slots. Also don't add extra

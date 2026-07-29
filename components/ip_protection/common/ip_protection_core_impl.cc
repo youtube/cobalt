@@ -5,7 +5,6 @@
 #include "components/ip_protection/common/ip_protection_core_impl.h"
 
 #include <cstddef>
-#include <map>
 #include <memory>
 #include <optional>
 #include <string>
@@ -41,7 +40,7 @@ namespace {
 // only with SCHEME_QUIC.
 std::vector<net::ProxyChain> MakeQuicProxyList(
     const std::vector<net::ProxyChain>& proxy_list,
-    bool include_https_fallback = true) {
+    bool include_https_fallback) {
   if (proxy_list.empty()) {
     return proxy_list;
   }
@@ -53,8 +52,14 @@ std::vector<net::ProxyChain> MakeQuicProxyList(
       quic_servers.emplace_back(net::ProxyServer::Scheme::SCHEME_QUIC,
                                 proxy_server.host_port_pair());
     }
-    return net::ProxyChain::ForIpProtection(
+    auto quic_proxy_chain = net::ProxyChain::ForIpProtection(
         std::move(quic_servers), proxy_chain.ip_protection_chain_id());
+    // The proxy chains passed to this function are assumed to be valid (
+    // validated by the `IpProtectionProxyConfigFetcher()` that created them),
+    // so creating a new QUIC proxy chain from those should also result in valid
+    // proxy chains.
+    CHECK(quic_proxy_chain.IsValid());
+    return quic_proxy_chain;
   };
 
   std::vector<net::ProxyChain> quic_proxy_list;
@@ -77,8 +82,7 @@ IpProtectionCoreImpl::IpProtectionCoreImpl(
     MaskedDomainListManager* masked_domain_list_manager,
     std::unique_ptr<IpProtectionProxyConfigManager>
         ip_protection_proxy_config_manager,
-    std::map<ProxyLayer, std::unique_ptr<IpProtectionTokenManager>>
-        ip_protection_token_managers,
+    ProxyTokenManagerMap ip_protection_token_managers,
     ProbabilisticRevealTokenRegistry* probabilistic_reveal_token_registry,
     std::unique_ptr<IpProtectionProbabilisticRevealTokenManager>
         ipp_prt_manager,
@@ -172,11 +176,10 @@ std::optional<BlindSignedAuthToken> IpProtectionCoreImpl::GetAuthToken(
     return result;
   }
 
-  auto proxy_layer =
-      chain_index == 0 ? ProxyLayer::kProxyA : ProxyLayer::kProxyB;
-  if (ipp_token_managers_.count(proxy_layer) > 0) {
-    result = ipp_token_managers_[proxy_layer]->GetAuthToken(
-        ipp_proxy_config_manager_->CurrentGeo());
+  auto it = ipp_token_managers_.find(chain_index == 0 ? ProxyLayer::kProxyA
+                                                      : ProxyLayer::kProxyB);
+  if (it != ipp_token_managers_.end()) {
+    result = it->second->GetAuthToken(ipp_proxy_config_manager_->CurrentGeo());
   }
   return result;
 }

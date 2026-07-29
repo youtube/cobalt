@@ -8,6 +8,7 @@ import static android.view.ViewGroup.LayoutParams.MATCH_PARENT;
 
 import static org.chromium.chrome.browser.base.SplitCompatApplication.CHROME_SPLIT_NAME;
 
+import android.app.Activity;
 import android.app.ActivityManager.TaskDescription;
 import android.content.Context;
 import android.content.SharedPreferences;
@@ -47,6 +48,7 @@ import org.chromium.base.supplier.OneshotSupplierImpl;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.R;
+import org.chromium.chrome.browser.automotivetoolbar.AutomotiveBackButtonToolbarCoordinator;
 import org.chromium.chrome.browser.base.ServiceTracingProxyProvider;
 import org.chromium.chrome.browser.base.SplitChromeApplication;
 import org.chromium.chrome.browser.compositor.overlays.strip.StripLayoutUtils;
@@ -57,8 +59,11 @@ import org.chromium.chrome.browser.metrics.UmaSessionStats;
 import org.chromium.chrome.browser.night_mode.GlobalNightModeStateProviderHolder;
 import org.chromium.chrome.browser.night_mode.NightModeStateProvider;
 import org.chromium.chrome.browser.night_mode.NightModeUtils;
+import org.chromium.chrome.browser.ui.edge_to_edge.EdgeToEdgeController;
+import org.chromium.chrome.browser.ui.edge_to_edge.EdgeToEdgeControllerCreator;
 import org.chromium.chrome.browser.ui.edge_to_edge.EdgeToEdgeFieldTrialImpl;
 import org.chromium.chrome.browser.ui.edge_to_edge.EdgeToEdgeUtils;
+import org.chromium.chrome.browser.ui.edge_to_edge.SimpleEdgeToEdgeController;
 import org.chromium.components.browser_ui.edge_to_edge.EdgeToEdgeManager;
 import org.chromium.components.browser_ui.edge_to_edge.EdgeToEdgeStateProvider;
 import org.chromium.components.browser_ui.edge_to_edge.EdgeToEdgeSystemBarColorHelper;
@@ -67,6 +72,7 @@ import org.chromium.components.browser_ui.edge_to_edge.layout.EdgeToEdgeLayoutCo
 import org.chromium.components.browser_ui.styles.SemanticColorUtils;
 import org.chromium.components.browser_ui.util.AutomotiveUtils;
 import org.chromium.ui.base.ImmutableWeakReference;
+import org.chromium.ui.base.UiAndroidFeatureList;
 import org.chromium.ui.display.DisplaySwitches;
 import org.chromium.ui.display.DisplayUtil;
 import org.chromium.ui.insets.InsetObserver;
@@ -77,6 +83,7 @@ import org.chromium.ui.util.XrUtils;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
+import java.lang.ref.WeakReference;
 import java.util.LinkedHashSet;
 
 /**
@@ -119,6 +126,9 @@ public class ChromeBaseAppCompatActivity extends AppCompatActivity
             new ObservableSupplierImpl<>();
     protected final OneshotSupplierImpl<SystemBarColorHelper> mSystemBarColorHelperSupplier =
             new OneshotSupplierImpl<>();
+    // TODO(crbug.com/435269657): Update this and the ChromeActivity equivalent to OneShotSupplier
+    protected final ObservableSupplierImpl<EdgeToEdgeController> mEdgeToEdgeControllerSupplier =
+            new ObservableSupplierImpl<>();
 
     private NightModeStateProvider mNightModeStateProvider;
     private final LinkedHashSet<Integer> mThemeResIds = new LinkedHashSet<>();
@@ -129,6 +139,7 @@ public class ChromeBaseAppCompatActivity extends AppCompatActivity
     // Created in #onCreate
     private @Nullable EdgeToEdgeManager mEdgeToEdgeManager;
     private @Nullable EdgeToEdgeLayoutCoordinator mEdgeToEdgeLayoutCoordinator;
+    private @Nullable EdgeToEdgeControllerCreator mEdgeToEdgeControllerCreator;
 
     @Override
     protected void attachBaseContext(Context newBase) {
@@ -235,6 +246,32 @@ public class ChromeBaseAppCompatActivity extends AppCompatActivity
         return mSystemBarColorHelperSupplier;
     }
 
+    /**
+     * Returns an observable supplier providing an {@link EdgeToEdgeController} for observing the
+     * bottom system bar inset and drawing edge-to-edge. This also creates an EdgeToEdgeController
+     * instance for that supplier, or creates a controller creator that will create and supply an
+     * EdgeToEdgeController when all conditions are met for the device to draw edge-to-edge.
+     */
+    protected ObservableSupplier<EdgeToEdgeController> getEdgeToEdgeSupplier() {
+        if (ChromeFeatureList.sEdgeToEdgeMonitorConfigurations.isEnabled()) {
+            if (mEdgeToEdgeControllerCreator == null) {
+                mEdgeToEdgeControllerCreator =
+                        new EdgeToEdgeControllerCreator(
+                                new WeakReference<Activity>(this),
+                                getInsetObserver(),
+                                this::ensureEdgeToEdgeController);
+            }
+        } else {
+            ensureEdgeToEdgeController();
+        }
+        return mEdgeToEdgeControllerSupplier;
+    }
+
+    private void ensureEdgeToEdgeController() {
+        if (mEdgeToEdgeControllerSupplier.get() != null) return;
+        mEdgeToEdgeControllerSupplier.set(new SimpleEdgeToEdgeController(this, getInsetObserver()));
+    }
+
     /** Set the default colors of the system bars for this activity. */
     protected void initializeSystemBarColors(
             EdgeToEdgeSystemBarColorHelper edgeToEdgeSystemBarColorHelper) {
@@ -269,6 +306,13 @@ public class ChromeBaseAppCompatActivity extends AppCompatActivity
         }
         if (mEdgeToEdgeManager != null) {
             mEdgeToEdgeManager.destroy();
+        }
+        if (mEdgeToEdgeControllerSupplier.get() != null) {
+            mEdgeToEdgeControllerSupplier.get().destroy();
+        }
+        if (mEdgeToEdgeControllerCreator != null) {
+            mEdgeToEdgeControllerCreator.destroy();
+            mEdgeToEdgeControllerCreator = null;
         }
         super.onDestroy();
     }
@@ -417,10 +461,22 @@ public class ChromeBaseAppCompatActivity extends AppCompatActivity
      */
     @CallSuper
     protected boolean applyOverrides(Context baseContext, Configuration overrideConfig) {
+        boolean isSmallestScreenWidthDpOverridden = false;
+        if (UiAndroidFeatureList.sFormFactorUseMaxWindowMetrics.isEnabled()) {
+            // We override the smallestScreenWidthDp here for two reasons:
+            // 1. To prevent multi-window from hiding the tabstrip when on a tablet.
+            // 2. To ensure mIsTablet only needs to be set once. Since the override lasts for the
+            // life of the activity, it will never change via onConfigurationUpdated().
+            // See crbug.com/588838, crbug.com/662338, crbug.com/780593.
+            overrideConfig.smallestScreenWidthDp =
+                    DisplayUtil.getCurrentSmallestScreenWidth(baseContext);
+            isSmallestScreenWidthDpOverridden = true;
+        }
         applyOverridesForAutomotive(baseContext, overrideConfig);
         applyOverridesForXr(baseContext, overrideConfig);
-        return NightModeUtils.applyOverridesForNightMode(
-                getNightModeStateProvider(), overrideConfig);
+        return isSmallestScreenWidthDpOverridden
+                || NightModeUtils.applyOverridesForNightMode(
+                        getNightModeStateProvider(), overrideConfig);
     }
 
     @VisibleForTesting
@@ -519,7 +575,7 @@ public class ChromeBaseAppCompatActivity extends AppCompatActivity
         }
 
         if (StripLayoutUtils.shouldApplyMoreDensity()) {
-            applySingleThemeOverlay(R.style.ThemeOverlay_BrowserUI_ToolbarButtonSizeDesktop);
+            applySingleThemeOverlay(R.style.ThemeOverlay_BrowserUI_DesktopDensity);
         }
     }
 
@@ -699,5 +755,6 @@ public class ChromeBaseAppCompatActivity extends AppCompatActivity
                         getOnBackPressedDispatcher().onBackPressed();
                     });
         }
+        AutomotiveBackButtonToolbarCoordinator.hideBackButtonToolbar(this);
     }
 }

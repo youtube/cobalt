@@ -153,6 +153,24 @@ enum class FeedbackType {
   kThumbsDown,
 };
 
+// Used with `stripped_destination_url` to dedupe matches. Matches with the same
+// URL but different types won't be deduped. This'll allow showing e.g. both a
+// "1+1" normal query and a "1+1 = 2" calculator suggestion simultaneously.
+enum class AutocompleteMatchDedupeType {
+  kNormal,
+  kCalculator,        // E.g. "1+1 = 2" matches.
+  kVerbatimProvider,  // Matches that come from the verbatim provider, which
+                      // does not include the verbatim SWYT match.
+  kHistoryEmbeddingAnswer,  // Matches with type `HISTORY_EMBEDDINGS_ANSWER`.
+  kAiMode,  // Matches that activate the DSE's AI Mode. AIM suggestions' URLs
+            // are discerned by a query param `udm=50`. But deduping doesn't
+            // consider extra query params; `google.com/?q=query&udm=50` and
+            // `google.com/?q=query` would usually be deduped. `kAiMode` allows
+            // matches with `udm=50` in their suggest template to not be deduped
+            // with matches without it. But this does not apply to `udm=50` in
+            // the actual match URL; nor to udm values other than 50.
+};
+
 // AutocompleteMatch ----------------------------------------------------------
 
 // A single result line with classified spans.  The autocomplete popup displays
@@ -331,7 +349,7 @@ struct AutocompleteMatch {
   // Update the Java object with clipboard content.
   void UpdateClipboardContent(JNIEnv* env);
   // Update the Java object with new destination URL.
-  void UpdateJavaDestinationUrl();
+  void UpdateJavaNavigationDetails();
   // Update the Java object with new Answer-in-Suggest.
   void UpdateJavaAnswer();
   // Update the Java object description.
@@ -547,6 +565,9 @@ struct AutocompleteMatch {
   // Checks if this match is a specialized toolbelt match with actions on
   // a button row.
   bool IsToolbelt() const;
+
+  // Checks if this match is a AI mode suggestion.
+  bool IsSearchAimSuggestion() const;
 
   // Returns true if this match may attach one or more `actions`.
   // This method is used to keep actions off of matches with types that don't
@@ -851,9 +872,10 @@ struct AutocompleteMatch {
   // `ComputeStrippedDestinationURL()` computation.
   GURL stripped_destination_url;
 
-  // Extra headers to add to the navigation. See `NavigateParams::extra_headers`
-  // for how headers should be represented.
-  std::string extra_headers;
+  // Extra headers to add to the navigation. Keys of the map represent the
+  // header name, and values represent header value, e.g.
+  //   extra_headers["Content-Type"] = "application/json";
+  std::map<std::string, std::string> extra_headers;
 
   // Optional image information. Used for some types of suggestions, such as
   // entity suggestions, that want to display an associated image, which will be

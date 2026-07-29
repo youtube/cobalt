@@ -464,8 +464,10 @@ class CC_EXPORT InputHandler : public InputDelegateForCompositor {
                        const ScrollNode& scroll_node);
   // Returns the amount of delta that can be applied to scroll_node, taking
   // page scale into account.
-  gfx::Vector2dF ComputeScrollDelta(const ScrollNode& scroll_node,
-                                    const gfx::Vector2dF& delta);
+  gfx::Vector2dF ComputeScrollDelta(
+      const ScrollNode& scroll_node,
+      const gfx::Vector2dF& delta,
+      const ScrollState* scroll_state = nullptr) const;
 
   gfx::Vector2dF ScrollSingleNode(const ScrollNode& scroll_node,
                                   const gfx::Vector2dF& delta,
@@ -743,6 +745,10 @@ class CC_EXPORT InputHandler : public InputDelegateForCompositor {
   // |CurrentlyScrollingNode()|.
   void ScrollEnd(ScrollNode* scroll_node, bool should_snap = false);
 
+  void LimitDeltaToScrollerSize(const ScrollState& scroll_state,
+                                const ScrollNode& scroll_node,
+                                gfx::Vector2dF& delta) const;
+
   // The input handler is owned by the delegate so their lifetimes are tied
   // together.
   const raw_ref<CompositorDelegateForInput> compositor_delegate_;
@@ -818,11 +824,6 @@ class CC_EXPORT InputHandler : public InputDelegateForCompositor {
   // animation completion. ScrollEnd will get called once the animation is
   // over.
   bool deferred_scroll_end_ = false;
-
-  // Set to true when a scroll gesture being handled on the compositor has
-  // ended. i.e. When a GSE has arrived and any ongoing scroll animation has
-  // ended.
-  bool scroll_gesture_did_end_ = false;
 
   // True iff some of the delta has been consumed for the current scroll
   // sequence on the specific axis.

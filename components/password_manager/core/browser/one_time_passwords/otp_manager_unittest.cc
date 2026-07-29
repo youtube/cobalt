@@ -24,21 +24,36 @@ using testing::ReturnRef;
 
 constexpr char kTestOtpUrl[] = "https://www.otp-obsessed.com/verification";
 
+FormData CreateTestForm(const autofill::LocalFrameToken& frame_token) {
+  FormData form;
+  form.set_fields({autofill::test::CreateTestFormField(
+      "some_label", "some_name", "some_value",
+      autofill::FormControlType::kInputText)});
+  return autofill::test::CreateFormDataForFrame(form, frame_token);
+}
+
 class MockPasswordManagerClient : public StubPasswordManagerClient {
  public:
   MockPasswordManagerClient() = default;
 
   MOCK_METHOD(const GURL&, GetLastCommittedURL, (), (const, override));
-  MOCK_METHOD(void, InformPasswordChangeServiceOfOtpPresent, (), (override));
 #if BUILDFLAG(IS_ANDROID)
   MOCK_METHOD(SmsOtpBackend*, GetSmsOtpBackend, (), (const, override));
 #endif  // BUILDFLAG(IS_ANDROID)
 };
+
+class MockOtpManagerObserver : public OtpManager::Observer {
+ public:
+  MOCK_METHOD(void, OnOtpFieldDetected, (OtpFormManager*), (override));
+};
+
 }  // namespace
 
 class OtpManagerTest : public testing::Test {
  public:
-  OtpManagerTest() : otp_manager_(&mock_client_) {}
+  OtpManagerTest() : otp_manager_(&mock_client_) {
+    otp_manager_.AddObserver(&observer_);
+  }
 
   void SetUp() override {
     ON_CALL(mock_client_, GetLastCommittedURL)
@@ -48,6 +63,7 @@ class OtpManagerTest : public testing::Test {
  protected:
   MockPasswordManagerClient mock_client_;
   OtpManager otp_manager_;
+  MockOtpManagerObserver observer_;
 
  private:
   GURL test_otp_url_ = GURL(kTestOtpUrl);
@@ -60,7 +76,7 @@ TEST_F(OtpManagerTest, FormManagerCreatedForOtpForm) {
       "some_label", "some_name", "some_value",
       autofill::FormControlType::kInputText)});
 
-  EXPECT_CALL(mock_client_, InformPasswordChangeServiceOfOtpPresent);
+  EXPECT_CALL(observer_, OnOtpFieldDetected);
   otp_manager_.ProcessClassificationModelPredictions(
       form, {{form.fields()[0].global_id(), autofill::ONE_TIME_CODE}});
 
@@ -79,7 +95,7 @@ TEST_F(OtpManagerTest, FormManagerNotCreatedForNotFillableForm) {
       // should not be taken into account.
       autofill::FormControlType::kInputRadio)});
 
-  EXPECT_CALL(mock_client_, InformPasswordChangeServiceOfOtpPresent).Times(0);
+  EXPECT_CALL(observer_, OnOtpFieldDetected).Times(0);
   otp_manager_.ProcessClassificationModelPredictions(
       form, {{form.fields()[0].global_id(), autofill::ONE_TIME_CODE}});
 
@@ -95,7 +111,7 @@ TEST_F(OtpManagerTest, ManagersUpdatedWhenPredictionsChange) {
                        "some_label2", "some_name2", "some_value2",
                        autofill::FormControlType::kInputPassword)}});
 
-  EXPECT_CALL(mock_client_, InformPasswordChangeServiceOfOtpPresent);
+  EXPECT_CALL(observer_, OnOtpFieldDetected);
   otp_manager_.ProcessClassificationModelPredictions(
       form, {{form.fields()[0].global_id(), autofill::ONE_TIME_CODE},
              {form.fields()[1].global_id(), autofill::UNKNOWN_TYPE}});
@@ -103,7 +119,7 @@ TEST_F(OtpManagerTest, ManagersUpdatedWhenPredictionsChange) {
 
   // Simulate receiving new predictions.
   // The client should not be notified the second time.
-  EXPECT_CALL(mock_client_, InformPasswordChangeServiceOfOtpPresent).Times(0);
+  EXPECT_CALL(observer_, OnOtpFieldDetected).Times(0);
   otp_manager_.ProcessClassificationModelPredictions(
       form, {{form.fields()[0].global_id(), autofill::UNKNOWN_TYPE},
              {form.fields()[1].global_id(), autofill::ONE_TIME_CODE}});
@@ -122,7 +138,7 @@ TEST_F(OtpManagerTest, FormManagerdDeletedWhenOtpFieldIsNoLongerParsedAsSuch) {
       "some_label", "some_name", "some_value",
       autofill::FormControlType::kInputText)});
 
-  EXPECT_CALL(mock_client_, InformPasswordChangeServiceOfOtpPresent);
+  EXPECT_CALL(observer_, OnOtpFieldDetected);
   otp_manager_.ProcessClassificationModelPredictions(
       form, {{form.fields()[0].global_id(), autofill::ONE_TIME_CODE}});
   EXPECT_TRUE(otp_manager_.form_managers().contains(form.global_id()));
@@ -138,7 +154,7 @@ TEST_F(OtpManagerTest, FormManagerCreatedForOtpFormWithServerOverrides) {
       "some_label", "some_name", "some_value",
       autofill::FormControlType::kInputText)});
 
-  EXPECT_CALL(mock_client_, InformPasswordChangeServiceOfOtpPresent);
+  EXPECT_CALL(observer_, OnOtpFieldDetected);
   otp_manager_.ProcessServerPredictions(
       form, CreateServerPredictions(form, {{0, autofill::ONE_TIME_CODE}},
                                     /*is_override=*/true));
@@ -156,7 +172,7 @@ TEST_F(OtpManagerTest, FormManagerDeletedForOtpFormWithNonOtpServerOverrides) {
       "some_label", "some_name", "some_value",
       autofill::FormControlType::kInputText)});
 
-  EXPECT_CALL(mock_client_, InformPasswordChangeServiceOfOtpPresent);
+  EXPECT_CALL(observer_, OnOtpFieldDetected);
   otp_manager_.ProcessClassificationModelPredictions(
       form, {{form.fields()[0].global_id(), autofill::ONE_TIME_CODE}});
 
@@ -176,7 +192,7 @@ TEST_F(OtpManagerTest, FormManagerUpdatedWithServerOverrides) {
                        "some_label2", "some_name2", "some_value2",
                        autofill::FormControlType::kInputPassword)}});
 
-  EXPECT_CALL(mock_client_, InformPasswordChangeServiceOfOtpPresent);
+  EXPECT_CALL(observer_, OnOtpFieldDetected);
   otp_manager_.ProcessClassificationModelPredictions(
       form, {{form.fields()[0].global_id(), autofill::ONE_TIME_CODE},
              {form.fields()[1].global_id(), autofill::UNKNOWN_TYPE}});
@@ -203,7 +219,7 @@ TEST_F(OtpManagerTest, FormManagerNotUpdatedWithNotOverridePredictions) {
                        "some_label2", "some_name2", "some_value2",
                        autofill::FormControlType::kInputPassword)}});
 
-  EXPECT_CALL(mock_client_, InformPasswordChangeServiceOfOtpPresent);
+  EXPECT_CALL(observer_, OnOtpFieldDetected);
   otp_manager_.ProcessClassificationModelPredictions(
       form, {{form.fields()[0].global_id(), autofill::ONE_TIME_CODE},
              {form.fields()[1].global_id(), autofill::UNKNOWN_TYPE}});
@@ -219,6 +235,57 @@ TEST_F(OtpManagerTest, FormManagerNotUpdatedWithNotOverridePredictions) {
       form.fields()[0].global_id()};
   EXPECT_EQ(expected_otp_field_ids,
             otp_manager_.form_managers().at(form.global_id())->otp_field_ids());
+}
+
+TEST_F(OtpManagerTest, CleanFormManagersCacheForIndividualFrames) {
+  autofill::LocalFrameToken frame_token1 =
+      autofill::test::MakeLocalFrameToken();
+  FormData form1 = CreateTestForm(frame_token1);
+
+  autofill::LocalFrameToken frame_token2 =
+      autofill::test::MakeLocalFrameToken();
+  FormData form2 = CreateTestForm(frame_token2);
+
+  EXPECT_CALL(observer_, OnOtpFieldDetected).Times(2);
+  otp_manager_.ProcessClassificationModelPredictions(
+      form1, {{form1.fields()[0].global_id(), autofill::ONE_TIME_CODE}});
+  otp_manager_.ProcessClassificationModelPredictions(
+      form2, {{form2.fields()[0].global_id(), autofill::ONE_TIME_CODE}});
+
+  ASSERT_EQ(2u, otp_manager_.form_managers().size());
+
+  // Simulate the first frame being deleted and verify that the form manager
+  // managing the form in the first frame is deleted too.
+  otp_manager_.OnRenderFrameDeleted(frame_token1);
+  EXPECT_EQ(1u, otp_manager_.form_managers().size());
+  EXPECT_FALSE(otp_manager_.form_managers().contains(form1.global_id()));
+  EXPECT_TRUE(otp_manager_.form_managers().contains(form2.global_id()));
+
+  // Simulate the second frame navigating and verify that the form manager
+  // managing the form in the second frame is deleted.
+  otp_manager_.OnDidFinishNavigationInIframe(frame_token2);
+  EXPECT_EQ(0u, otp_manager_.form_managers().size());
+}
+
+TEST_F(OtpManagerTest, CleanFormManagersCacheOnMainFrameNavigation) {
+  autofill::LocalFrameToken frame_token1 =
+      autofill::test::MakeLocalFrameToken();
+  FormData form1 = CreateTestForm(frame_token1);
+
+  autofill::LocalFrameToken frame_token2 =
+      autofill::test::MakeLocalFrameToken();
+  FormData form2 = CreateTestForm(frame_token2);
+
+  EXPECT_CALL(observer_, OnOtpFieldDetected).Times(2);
+  otp_manager_.ProcessClassificationModelPredictions(
+      form1, {{form1.fields()[0].global_id(), autofill::ONE_TIME_CODE}});
+  otp_manager_.ProcessClassificationModelPredictions(
+      form2, {{form2.fields()[0].global_id(), autofill::ONE_TIME_CODE}});
+
+  ASSERT_EQ(2u, otp_manager_.form_managers().size());
+
+  otp_manager_.OnDidFinishNavigationInMainFrame();
+  EXPECT_EQ(0u, otp_manager_.form_managers().size());
 }
 
 #if BUILDFLAG(IS_ANDROID)
@@ -262,7 +329,7 @@ TEST_F(OtpManagerTestWithSmsBackend, OtpFillingWithOtpValueRetrieved) {
   form.set_fields({autofill::test::CreateTestFormField(
       "some_label", "some_name", "some_value",
       autofill::FormControlType::kInputText)});
-  EXPECT_CALL(mock_client_, InformPasswordChangeServiceOfOtpPresent);
+  EXPECT_CALL(observer_, OnOtpFieldDetected);
   otp_manager_.ProcessClassificationModelPredictions(
       form, {{form.fields()[0].global_id(), autofill::ONE_TIME_CODE}});
 

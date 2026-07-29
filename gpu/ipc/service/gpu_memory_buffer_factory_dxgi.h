@@ -36,16 +36,10 @@ class GPU_IPC_SERVICE_EXPORT GpuMemoryBufferFactoryDXGI
       delete;
 
   // Overridden from GpuMemoryBufferFactory:
-  gfx::GpuMemoryBufferHandle CreateGpuMemoryBuffer(
-      gfx::GpuMemoryBufferId id,
+  gfx::GpuMemoryBufferHandle CreateNativeGmbHandle(
       const gfx::Size& size,
-      const gfx::Size& framebuffer_size,
       gfx::BufferFormat format,
-      gfx::BufferUsage usage,
-      int client_id,
-      SurfaceHandle surface_handle) override;
-  void DestroyGpuMemoryBuffer(gfx::GpuMemoryBufferId id,
-                              int client_id) override;
+      gfx::BufferUsage usage) override;
   bool FillSharedMemoryRegionWithBufferContents(
       gfx::GpuMemoryBufferHandle buffer_handle,
       base::UnsafeSharedMemoryRegion shared_memory) override;
@@ -53,14 +47,9 @@ class GPU_IPC_SERVICE_EXPORT GpuMemoryBufferFactoryDXGI
  private:
   Microsoft::WRL::ComPtr<ID3D11Device> GetOrCreateD3D11Device();
 
-  gfx::GpuMemoryBufferHandle CreateGpuMemoryBufferOnIO(
-      gfx::GpuMemoryBufferId id,
-      const gfx::Size& size,
-      const gfx::Size& framebuffer_size,
-      gfx::BufferFormat format,
-      gfx::BufferUsage usage,
-      int client_id,
-      SurfaceHandle surface_handle);
+  gfx::GpuMemoryBufferHandle CreateNativeGmbHandleOnIO(const gfx::Size& size,
+                                                       gfx::BufferFormat format,
+                                                       gfx::BufferUsage usage);
 
   Microsoft::WRL::ComPtr<ID3D11Device> d3d11_device_
       GUARDED_BY_CONTEXT(thread_checker_);

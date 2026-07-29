@@ -39,12 +39,19 @@ class GlicSharingManager {
   virtual base::CallbackListSubscription AddTabPinningStatusChangedCallback(
       TabPinningStatusChangedCallback callback) = 0;
 
+  // Registers a callback to be invoked when the collection of pinned tabs
+  // changes.
+  using PinnedTabsChangedCallback =
+      base::RepeatingCallback<void(const std::vector<content::WebContents*>&)>;
+  virtual base::CallbackListSubscription AddPinnedTabsChangedCallback(
+      PinnedTabsChangedCallback callback) = 0;
+
   // Pins the specified tabs. If we are only able to pin `n` tabs within the
-  // limit, the first `n` tabs from this collection will be pinned and we will
-  // return false (to indicate that it was not fully successful). If any of the
-  // tab handles correspond to a tab that either doesn't exist or is already
-  // pinned, it will be skipped and we will similarly return false to indicate
-  // that the function was not fully successful.
+  // limit, the first `n` tabs from this collection will be pinned and we
+  // will return false (to indicate that it was not fully successful). If
+  // any of the tab handles correspond to a tab that either doesn't exist or
+  // is already pinned, it will be skipped and we will similarly return
+  // false to indicate that the function was not fully successful.
   virtual bool PinTabs(base::span<const tabs::TabHandle> tab_handles) = 0;
 
   // Unpins the specified tabs. If any of the tab handles correspond to a tab
@@ -64,11 +71,6 @@ class GlicSharingManager {
 
   // Queries whether the given tab has been explicitly pinned.
   virtual bool IsTabPinned(tabs::TabHandle tab_handle) const = 0;
-
-  // True if the immutable attributes of `browser` are valid for Glic focus.
-  // or pinning. Invalid browsers are never observed.
-  virtual bool IsBrowserValidForSharing(
-      BrowserWindowInterface* browser_interface) = 0;
 };
 
 }  // namespace glic

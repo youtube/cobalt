@@ -22,6 +22,12 @@ chromium-metrics-reviews@google.com.
 
 <histograms>
 
+<variants name="ComposeboxFileTypes">
+  <variant name="Image"/>
+  <variant name="Other"/>
+  <variant name="Pdf"/>
+</variants>
+
 <variants name="ContentSuggestionCategory">
   <variant name=".Articles" summary="Articles for you"/>
   <variant name=".Bookmarks" summary="Bookmarks"/>
@@ -265,6 +271,32 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="NewTabPage.Composebox.File.Size.{ComposeboxFileTypes}"
+    units="bytes" expires_after="2026-01-20">
+  <owner>jennserrano@google.com</owner>
+  <owner>chrome-desktop-ntp@google.com</owner>
+  <owner>chrome-desktop-search@google.com</owner>
+  <summary>
+    The size of the file received by the browser from the WebUI. Recorded as
+    soon as the browser receives it.
+  </summary>
+  <token key="ComposeboxFileTypes" variants="ComposeboxFileTypes">
+    <variant name=""/>
+  </token>
+</histogram>
+
+<histogram name="NewTabPage.Composebox.File.WebUI.UploadAttemptFailure"
+    enum="ComposeboxFileValidationError" expires_after="2026-01-20">
+  <owner>jennserrano@google.com</owner>
+  <owner>chrome-desktop-ntp@google.com</owner>
+  <owner>chrome-desktop-search@google.com</owner>
+  <summary>
+    Records the validation error hit on the WebUI side when a file is uploaded.
+    If no error occurred, this is logged as &quot;No error.&quot; Recorded when
+    a file upload is attempted.
+  </summary>
+</histogram>
+
 <histogram name="NewTabPage.Composebox.FromNTPLoadToSessionStart" units="ms"
     expires_after="2026-06-17">
   <owner>niharm@google.com</owner>
@@ -278,6 +310,40 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="NewTabPage.Composebox.Query.FileCount" units="count"
+    expires_after="2026-01-20">
+  <owner>jennserrano@google.com</owner>
+  <owner>chrome-desktop-ntp@google.com</owner>
+  <owner>chrome-desktop-search@google.com</owner>
+  <summary>
+    Number of files included in a completed query. May be zero in the case that
+    the input was only text. Recorded after navigation to the AIM page occurs.
+  </summary>
+</histogram>
+
+<histogram name="NewTabPage.Composebox.Query.Modality"
+    enum="NtpComposeboxMultimodalState" expires_after="2026-01-20">
+  <owner>jennserrano@google.com</owner>
+  <owner>chrome-desktop-ntp@google.com</owner>
+  <owner>chrome-desktop-search@google.com</owner>
+  <summary>
+    Records the combination of input types used to form the query. Recorded
+    after navigation to the AIM page occurs.
+  </summary>
+</histogram>
+
+<histogram name="NewTabPage.Composebox.Query.TextLength" units="characters"
+    expires_after="2026-01-20">
+  <owner>jennserrano@google.com</owner>
+  <owner>chrome-desktop-ntp@google.com</owner>
+  <owner>chrome-desktop-search@google.com</owner>
+  <summary>
+    Number of characters in the composebox submission request. May be zero in
+    the case that only a file was uploaded. Recorded after navigation to the AIM
+    page occurs.
+  </summary>
+</histogram>
+
 <histogram name="NewTabPage.Composebox.Query.Time.ToSubmission" units="ms"
     expires_after="2026-01-20">
   <owner>jennserrano@google.com</owner>
@@ -285,39 +351,10 @@ chromium-metrics-reviews@google.com.
   <owner>chrome-desktop-search@google.com</owner>
   <summary>
     Tracks the duration from composebox session start time to the time a query
-    was submitted. A session starts when the compose button is clicked and the
-    composebox shown. There may be multiple query submission times recorded per
-    composebox shown. Recorded at the end of the session. Only recorded if the
-    user is redirected to the AIM page.
-  </summary>
-</histogram>
-
-<histogram name="NewTabPage.Composebox.Session.Duration.Abandoned" units="ms"
-    expires_after="2026-01-20">
-  <owner>jennserrano@google.com</owner>
-  <owner>chrome-desktop-ntp@google.com</owner>
-  <owner>chrome-desktop-search@google.com</owner>
-  <summary>
-    Tracks the duration from when a composebox session starts to its
-    abandonment. A session starts when the compose button is clicked and the
-    composebox shown. A composebox session is abandoned if the user ends the
-    session by closing the composebox or by closing the NTP without submitting a
-    query. Recorded at the end of the session.
-  </summary>
-</histogram>
-
-<histogram name="NewTabPage.Composebox.Session.Duration.Completed" units="ms"
-    expires_after="2026-01-20">
-  <owner>jennserrano@google.com</owner>
-  <owner>chrome-desktop-ntp@google.com</owner>
-  <owner>chrome-desktop-search@google.com</owner>
-  <summary>
-    Tracks the duration from composebox session start time to completion. A
-    session starts when the compose button is clicked and the composebox shown.
-    Completion is when the following happens: 1) user submits a query 2) user is
-    redirected to the AIM page 3) the composebox is closed. Duplicate session
-    durations may be recorded if multiple navigations occur. Recorded at the end
-    of the session.
+    was submitted. Recorded as soon as the query is submitted, but before
+    navigation. Note: A session starts when the compose button is clicked and
+    the composebox shown. There may be multiple query submission times recorded
+    per composebox shown.
   </summary>
 </histogram>
 
@@ -332,9 +369,140 @@ chromium-metrics-reviews@google.com.
     clicked and the composebox shown. Completion is when the following happens:
     1) user submits a query 2) user is redirected to the AIM page 3) the
     composebox is closed. Abandonment is when a user closes the composebox or
-    closes the NTP without query submission. For completed sessions there may be
-    duplicate sessions recorded if multiple navigations occur. Recorded at the
-    end of the session.
+    closes the NTP without query submission. Recorded at the end of the session.
+  </summary>
+</histogram>
+
+<histogram name="NewTabPage.Composebox.Session.Duration.{Status}" units="ms"
+    expires_after="2026-01-20">
+  <owner>jennserrano@google.com</owner>
+  <owner>chrome-desktop-ntp@google.com</owner>
+  <owner>chrome-desktop-search@google.com</owner>
+  <summary>
+    Tracks the duration of composebox sessions from start time to the end of the
+    session. Recorded at the end of the session. Note: A session starts when the
+    compose button is clicked and the composebox shown. A composebox session
+    ends 1) when it is abandoned 2) a query is submitted and the composebox is
+    closed. A session can be abandoned by the user closing the composebox or by
+    exiting out of the NTP while the composebox is open without having submitted
+    a query.
+  </summary>
+  <token key="Status">
+    <variant name="Abandoned"/>
+    <variant name="QuerySubmitted"/>
+  </token>
+</histogram>
+
+<histogram
+    name="NewTabPage.Composebox.Session.File.Browser.UploadAttemptCount.{ComposeboxFileTypes}"
+    units="count" expires_after="2026-01-20">
+  <owner>jennserrano@google.com</owner>
+  <owner>chrome-desktop-ntp@google.com</owner>
+  <owner>chrome-desktop-search@google.com</owner>
+  <summary>
+    The number of times the browser attempted to process {ComposeboxFileTypes}
+    files. Recorded at the end of the session. Note: Only recorded for files
+    that the WebUI approved for file upload (e.g., they passed the file size
+    check).
+  </summary>
+  <token key="ComposeboxFileTypes" variants="ComposeboxFileTypes">
+    <variant name=""/>
+  </token>
+</histogram>
+
+<histogram
+    name="NewTabPage.Composebox.Session.File.Browser.UploadFailureCount.{ComposeboxFileTypes}"
+    units="count" expires_after="2026-01-20">
+  <owner>jennserrano@google.com</owner>
+  <owner>chrome-desktop-ntp@google.com</owner>
+  <owner>chrome-desktop-search@google.com</owner>
+  <summary>
+    The number of failures for {ComposeboxFileTypes} files within the session.
+    Recorded at the end of the session. This does not include files that failed
+    browser validation. Note: Only recorded for files that the WebUI approved
+    for file upload (e.g., they passed the file size check).
+  </summary>
+  <token key="ComposeboxFileTypes" variants="ComposeboxFileTypes">
+    <variant name=""/>
+  </token>
+</histogram>
+
+<histogram
+    name="NewTabPage.Composebox.Session.File.Browser.UploadSuccessCount.{ComposeboxFileTypes}"
+    units="count" expires_after="2026-01-20">
+  <owner>jennserrano@google.com</owner>
+  <owner>chrome-desktop-ntp@google.com</owner>
+  <owner>chrome-desktop-search@google.com</owner>
+  <summary>
+    The number of successful file upload attempts to the Lens server for
+    {ComposeboxFileTypes} files within the session. Recorded at the end of the
+    session. Note: Only recorded for files that the WebUI approved for file
+    upload (e.g., they passed the file size check).
+  </summary>
+  <token key="ComposeboxFileTypes" variants="ComposeboxFileTypes">
+    <variant name=""/>
+  </token>
+</histogram>
+
+<histogram
+    name="NewTabPage.Composebox.Session.File.Browser.ValidationFailureCount.{ComposeboxFileTypes}.{ErrorType}"
+    units="count" expires_after="2026-01-20">
+  <owner>jennserrano@google.com</owner>
+  <owner>chrome-desktop-ntp@google.com</owner>
+  <owner>chrome-desktop-search@google.com</owner>
+  <summary>
+    The total number of {ComposeboxFileTypes} files that failed validation with
+    the error {ErrorType}. Recorded at the end of the session. Note: Only
+    recorded for files that the WebUI approved for file upload (e.g., they
+    passed the file size check).
+  </summary>
+  <token key="ComposeboxFileTypes" variants="ComposeboxFileTypes">
+    <variant name=""/>
+  </token>
+  <token key="ErrorType">
+    <variant name="AbortedError"/>
+    <variant name="BrowserProcessingError"/>
+    <variant name="ImageProcessingError"/>
+    <variant name="NetworkError"/>
+    <variant name="ServerError"/>
+    <variant name="ServerLimitExceededError"/>
+    <variant name="Unknown"/>
+  </token>
+</histogram>
+
+<histogram
+    name="NewTabPage.Composebox.Session.File.DeletedCount.{ComposeboxFileTypes}.{FileState}"
+    units="count" expires_after="2026-01-20">
+  <owner>mfacey@google.com</owner>
+  <owner>chrome-desktop-ntp@google.com</owner>
+  <summary>
+    Count the file deletions from the composebox. This is recorded when a file
+    is uploaded and then deleted from the composebox. Every deletion emits true
+    if it was successful and false if it was not.
+  </summary>
+  <token key="ComposeboxFileTypes" variants="ComposeboxFileTypes">
+    <variant name=""/>
+  </token>
+  <token key="FileState">
+    <variant name="NotUploaded" summary="File not uploaded"/>
+    <variant name="Processing" summary="File upload processing"/>
+    <variant name="Unknown" summary="Unknown"/>
+    <variant name="UploadFailed" summary="File upload failed"/>
+    <variant name="UploadStarted" summary="File upload started"/>
+    <variant name="UploadSuccessful" summary="File upload successful"/>
+    <variant name="ValidationFailed" summary="File validation failed"/>
+  </token>
+</histogram>
+
+<histogram name="NewTabPage.Composebox.Session.QueryCount" units="count"
+    expires_after="2026-01-20">
+  <owner>jennserrano@google.com</owner>
+  <owner>chrome-desktop-ntp@google.com</owner>
+  <owner>chrome-desktop-search@google.com</owner>
+  <summary>
+    Tracks the number of queries submitted per session. Multiple queries may be
+    submitted when the AIM page is opened in a new tab or window and the
+    composebox remains open. Recorded at the end of the session.
   </summary>
 </histogram>
 
@@ -454,7 +622,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="NewTabPage.Customization.BottomSheet.Shown"
-    enum="BottomSheetType" expires_after="2025-12-21">
+    enum="NtpCustomizationBottomSheetType" expires_after="2025-12-21">
   <owner>hanxi@chromium.org</owner>
   <owner>yanlinghu@google.com</owner>
   <owner>clank-start@google.com</owner>
@@ -466,8 +634,8 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="NewTabPage.Customization.OpenBottomSheetEntry" enum="Entry"
-    expires_after="2025-12-21">
+<histogram name="NewTabPage.Customization.OpenBottomSheetEntry"
+    enum="NtpCustomizationEntryPoint" expires_after="2025-12-21">
   <owner>hanxi@chromium.org</owner>
   <owner>xinyiji@chromium.org</owner>
   <owner>yanlinghu@google.com</owner>
@@ -592,7 +760,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="NewTabPage.Drive.FileClick" units="index"
-    expires_after="2025-11-23">
+    expires_after="2026-01-25">
   <owner>rtatum@google.com</owner>
   <owner>tiborg@chromium.org</owner>
   <owner>chrome-desktop-ntp@google.com</owner>
@@ -663,7 +831,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="NewTabPage.Footer.Click" enum="FooterElement"
-    expires_after="2025-11-23">
+    expires_after="2026-01-25">
   <owner>temao@chromium.org</owner>
   <owner>tiborg@chromium.org</owner>
   <owner>chrome-desktop-ntp@google.com</owner>
@@ -679,7 +847,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="NewTabPage.Footer.CustomizeChromeOpened"
-    enum="FooterCustomizeChromeEntryPoint" expires_after="2025-11-23">
+    enum="FooterCustomizeChromeEntryPoint" expires_after="2026-01-25">
   <owner>temao@chromium.org</owner>
   <owner>tiborg@chromium.org</owner>
   <owner>chrome-desktop-ntp@google.com</owner>
@@ -1569,7 +1737,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="NewTabPage.MostVisited.NumberOfCustomTilesOnFirstNtp"
-    units="units" expires_after="2025-11-23">
+    units="units" expires_after="2026-01-25">
   <owner>fredmello@chromium.org</owner>
   <owner>huangs@chromium.org</owner>
   <summary>

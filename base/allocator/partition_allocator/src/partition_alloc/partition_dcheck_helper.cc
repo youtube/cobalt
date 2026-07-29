@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "partition_alloc/partition_dcheck_helper.h"
 
 #include <cstdint>
@@ -10,7 +15,6 @@
 #include "partition_alloc/partition_bucket.h"
 #include "partition_alloc/partition_page.h"
 #include "partition_alloc/partition_root.h"
-#include "partition_alloc/partition_superpage_extent_entry.h"
 
 namespace partition_alloc::internal {
 
@@ -25,7 +29,9 @@ void DCheckIsValidShiftFromSlotStart(const SlotSpanMetadata* slot_span,
 
 void DCheckIsValidObjectAddress(const SlotSpanMetadata* slot_span,
                                 uintptr_t object_addr) {
-  uintptr_t slot_span_start = SlotSpanMetadata::ToSlotSpanStart(slot_span);
+  PartitionRoot* root = PartitionRoot::FromSlotSpanMetadata(slot_span);
+  uintptr_t slot_span_start =
+      SlotSpanMetadata::ToSlotSpanStart(slot_span, root->MetadataOffset());
   PA_DCHECK((object_addr - slot_span_start) % slot_span->bucket->slot_size ==
             0);
 }
@@ -48,7 +54,7 @@ void DCheckRootLockIsAcquired(PartitionRoot* root) {
 
 #endif  // PA_BUILDFLAG(DCHECKS_ARE_ON)
 
-bool DeducedRootIsValid(SlotSpanMetadata* slot_span) {
+bool DeducedRootIsValid(const SlotSpanMetadata* slot_span) {
   PartitionRoot* root = PartitionRoot::FromSlotSpanMetadata(slot_span);
   return root->inverted_self == ~reinterpret_cast<uintptr_t>(root);
 }

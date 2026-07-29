@@ -11,6 +11,7 @@
 
 #include "base/atomic_sequence_num.h"
 #include "base/compiler_specific.h"
+#include "base/debug/crash_logging.h"
 #include "base/lazy_instance.h"
 #include "base/logging.h"
 #include "base/notreached.h"
@@ -93,7 +94,10 @@ ColorSpace::ColorSpace(PrimaryID primaries,
     SetCustomPrimaries(*custom_primary_matrix);
   }
   if (custom_transfer_fn) {
-    SetCustomTransferFunction(*custom_transfer_fn);
+    DCHECK(transfer_ == TransferID::CUSTOM ||
+           transfer_ == TransferID::CUSTOM_HDR);
+    SetCustomTransferFunction(*custom_transfer_fn,
+                              transfer_ == TransferID::CUSTOM_HDR);
   }
 }
 
@@ -104,13 +108,18 @@ ColorSpace::ColorSpace(const SkColorSpace& sk_color_space, bool is_hdr)
                  RangeID::FULL) {
   skcms_TransferFunction fn;
   if (sk_color_space.isNumericalTransferFn(&fn)) {
-    transfer_ = is_hdr ? TransferID::CUSTOM_HDR : TransferID::CUSTOM;
-    SetCustomTransferFunction(fn);
+    SetCustomTransferFunction(fn, is_hdr);
   } else if (skcms_TransferFunction_isHLGish(&fn)) {
     transfer_ = TransferID::HLG;
+    transfer_params_[0] = 203.f;
+    transfer_params_[1] = 1000.f;
+    transfer_params_[2] = 1.2f;
   } else if (skcms_TransferFunction_isPQish(&fn)) {
     transfer_ = TransferID::PQ;
     transfer_params_[0] = GetSDRWhiteLevelFromPQSkTransferFunction(fn);
+    if (transfer_params_[0] == 10000.f) {
+      transfer_params_[0] = 203.f;
+    }
   } else if (skcms_TransferFunction_isHLG(&fn)) {
     transfer_ = TransferID::HLG;
     transfer_params_[0] = fn.a;
@@ -194,10 +203,8 @@ void ColorSpace::SetCustomPrimaries(const skcms_Matrix3x3& to_XYZD50) {
   primaries_ = PrimaryID::CUSTOM;
 }
 
-void ColorSpace::SetCustomTransferFunction(const skcms_TransferFunction& fn) {
-  DCHECK(transfer_ == TransferID::CUSTOM ||
-         transfer_ == TransferID::CUSTOM_HDR);
-
+void ColorSpace::SetCustomTransferFunction(const skcms_TransferFunction& fn,
+                                           bool is_hdr) {
   auto check_transfer_fn = [this, &fn](TransferID id) {
     skcms_TransferFunction id_fn;
     GetTransferFunction(id, &id_fn);
@@ -207,6 +214,8 @@ void ColorSpace::SetCustomTransferFunction(const skcms_TransferFunction& fn) {
     transfer_ = id;
     return true;
   };
+
+  transfer_ = is_hdr ? TransferID::CUSTOM_HDR : TransferID::CUSTOM;
 
   if (transfer_ == TransferID::CUSTOM) {
     // These are all TransferIDs that will return a transfer function from
@@ -592,6 +601,30 @@ ColorSpace ColorSpace::GetWithMatrixAndRange(MatrixID matrix,
 
   result.matrix_ = matrix;
   result.range_ = range;
+  return result;
+}
+
+ColorSpace ColorSpace::GetAsHDR() const {
+  ColorSpace result = *this;
+  skcms_TransferFunction fn;
+  if (result.GetTransferFunction(&fn)) {
+    result.SetCustomTransferFunction(fn, /*is_hdr=*/true);
+  }
+  return result;
+}
+
+ColorSpace ColorSpace::GetWithTransferFunction(TransferID transfer) const {
+  DCHECK_NE(transfer, TransferID::CUSTOM);
+  DCHECK_NE(transfer, TransferID::CUSTOM_HDR);
+  ColorSpace result(*this);
+  result.transfer_ = transfer;
+  return result;
+}
+
+ColorSpace ColorSpace::GetWithTransferFunction(const skcms_TransferFunction& fn,
+                                               bool is_hdr) const {
+  ColorSpace result(*this);
+  result.SetCustomTransferFunction(fn, is_hdr);
   return result;
 }
 
@@ -1101,6 +1134,9 @@ SkM44 ColorSpace::GetRangeAdjustMatrix(int bit_depth) const {
 }
 
 bool ColorSpace::ToSkYUVColorSpace(int bit_depth, SkYUVColorSpace* out) const {
+  // There should be no usages of RGB matrix for YUV conversion.
+  SCOPED_CRASH_KEY_STRING32("ToSkYUVColorSpace", "ColorSpace", ToString());
+  CHECK(matrix_ != gfx::ColorSpace::MatrixID::RGB, base::NotFatalUntil::M141);
   switch (matrix_) {
     case MatrixID::BT709:
       *out = range_ == RangeID::FULL ? kRec709_Full_SkYUVColorSpace

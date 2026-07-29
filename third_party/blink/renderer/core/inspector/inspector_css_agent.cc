@@ -1643,10 +1643,6 @@ protocol::Response InspectorCSSAgent::getEnvironmentVariables(
                     UADefinedVariable::kTitlebarAreaY,
                     UADefinedVariable::kTitlebarAreaWidth,
                     UADefinedVariable::kTitlebarAreaHeight,
-                    UADefinedVariable::kContextMenuInsetTop,
-                    UADefinedVariable::kContextMenuInsetLeft,
-                    UADefinedVariable::kContextMenuInsetBottom,
-                    UADefinedVariable::kContextMenuInsetRight,
                     UADefinedVariable::kPreferredTextScale,
                     UADefinedVariable::kSafePrintableInset};
   // LINT.ThenChange(//third_party/blink/renderer/core/css/style_environment_variables.h:UADefinedVariable)
@@ -3345,6 +3341,9 @@ InspectorCSSAgent::BuildContainerQueryObject(CSSContainerRule* rule) {
   }
   if (rule->Selector().SelectsScrollStateContainers()) {
     container_query_object->setQueriesScrollState(true);
+  }
+  if (rule->Selector().SelectsAnchoredContainers()) {
+    container_query_object->setQueriesAnchored(true);
   }
   return container_query_object;
 }

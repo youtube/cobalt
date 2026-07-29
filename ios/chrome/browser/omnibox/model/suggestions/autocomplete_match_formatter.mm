@@ -17,6 +17,7 @@
 #import "components/omnibox/browser/actions/omnibox_action_in_suggest.h"
 #import "components/omnibox/browser/autocomplete_match.h"
 #import "components/omnibox/browser/autocomplete_provider.h"
+#import "components/omnibox/browser/omnibox_field_trial.h"
 #import "components/omnibox/browser/suggestion_answer.h"
 #import "components/omnibox/common/omnibox_feature_configs.h"
 #import "ios/chrome/browser/net/model/crurl.h"
@@ -63,6 +64,7 @@ UIColor* DimColorIncognito() {
 }
 @synthesize suggestionSectionId;
 @synthesize actionsInSuggest;
+@synthesize hasAimShortcut;
 
 - (instancetype)initWithMatch:(const AutocompleteMatch&)match {
   self = [super init];
@@ -385,11 +387,6 @@ UIColor* DimColorIncognito() {
 
 - (BOOL)isTabMatch {
   return _match.has_tab_match.value_or(false);
-}
-
-- (BOOL)isSearchWithAim {
-  return self.aimShortcutAvailable && _match.IsVerbatimType() &&
-         !_match.IsVerbatimUrlSuggestion();
 }
 
 - (id<OmniboxPedal>)pedal {

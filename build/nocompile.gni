@@ -152,10 +152,6 @@ if (enable_nocompile_tests) {
 
         # Always treat warnings as errors.
         "-Werror",
-
-        # TODO(crbug.com/430317494): disabled on chromeos to unblock a libc++ roll, so
-        # enable it explicitly here until everything is fixed.
-        "-Wthread-safety",
       ]
 
       if (!is_win) {
@@ -187,7 +183,10 @@ if (enable_nocompile_tests) {
           error("Unsupported target_cpu, add it to win_toolchain_data.gni")
         }
         args += win_toolchain_data.include_flags_imsvc_list
-        args += [ "/showIncludes:user" ]
+        args += [
+          "/showIncludes:user",
+          "/TP",
+        ]
       }
 
       # Note: for all platforms, the depfile only lists user includes, and not

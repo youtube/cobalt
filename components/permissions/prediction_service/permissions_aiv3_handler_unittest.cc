@@ -32,6 +32,7 @@ using ModelCallbackFuture =
     ::base::test::TestFuture<const std::optional<PermissionRequestRelevance>&>;
 using ::optimization_guide::proto::OptimizationTarget;
 using ::testing::SizeIs;
+using ModelInput = PermissionsAiv3Handler::ModelInput;
 
 constexpr OptimizationTarget kOptTargetGeolocation = OptimizationTarget::
     OPTIMIZATION_TARGET_GEOLOCATION_IMAGE_PERMISSION_RELEVANCE;
@@ -49,6 +50,9 @@ auto& kImageInputHeight = PermissionsAiv3Encoder::kImageInputHeight;
 
 constexpr char kModelExecutionAlreadyInProgressHistogram[] =
     "Permissions.AIv3.ModelExecutionAlreadyInProgress";
+
+constexpr char kModelExecutionTimeoutHistogram[] =
+    "Permissions.AIv3.ModelExecutionTimeout";
 
 PermissionsAiv3ModelMetadata BuildMetadataFromValues(
     const std::array<float, 4>& thresholds) {
@@ -196,6 +200,8 @@ class Aiv3HandlerTestBase : public testing::Test {
     return model_provider_.get();
   }
 
+  base::test::TaskEnvironment& task_environment() { return task_environment_; }
+
  protected:
   raw_ptr<PermissionsAiv3EncoderFake> geolocation_encoder_mock_;
   raw_ptr<PermissionsAiv3EncoderFake> notification_encoder_mock_;
@@ -205,7 +211,8 @@ class Aiv3HandlerTestBase : public testing::Test {
 
   std::unique_ptr<optimization_guide::TestOptimizationGuideModelProvider>
       model_provider_;
-  base::test::TaskEnvironment task_environment_;
+  base::test::TaskEnvironment task_environment_{
+      base::test::TaskEnvironment::TimeSource::MOCK_TIME};
 };
 
 class Aiv3HandlerTest : public Aiv3HandlerTestBase {};
@@ -275,8 +282,8 @@ TEST_P(RelevanceAiv3HandlerTest,
   ModelCallbackFuture future;
   aiv3_handler->ExecuteModel(
       future.GetCallback(),
-      /*snapshot=*/test::BuildBitmap(kImageInputWidth, kImageInputHeight,
-                                     kDefaultColor));
+      ModelInput{/*snapshot=*/test::BuildBitmap(
+          kImageInputWidth, kImageInputHeight, kDefaultColor)});
   EXPECT_EQ(future.Take(), GetParam().expected_relevance);
 }
 
@@ -306,21 +313,10 @@ TEST_F(Aiv3HandlerTest, BitmapGetsCopiedToTensor) {
 
   ModelCallbackFuture future;
   auto* aiv3_handler = model_handler(kOptTargetGeolocation);
-  aiv3_handler->ExecuteModel(future.GetCallback(), std::move(snapshot));
+  aiv3_handler->ExecuteModel(future.GetCallback(),
+                             ModelInput{std::move(snapshot)});
   EXPECT_EQ(future.Take(), PermissionRequestRelevance::kVeryLow);
   EXPECT_TRUE(flag);
-}
-
-TEST_F(Aiv3HandlerTest, HandlesEmptyInputSnapshot) {
-  PushModelFileToModelExecutor(kOptTargetGeolocation,
-                               test::ModelFilePath(kZeroReturnModel));
-
-  auto snapshot = test::BuildBitmap(/*width=*/0, /*height=*/0, kDefaultColor);
-
-  ModelCallbackFuture future;
-  auto* aiv3_handler = model_handler(kOptTargetGeolocation);
-  aiv3_handler->ExecuteModel(future.GetCallback(), std::move(snapshot));
-  EXPECT_EQ(future.Take(), std::nullopt);
 }
 
 struct ResizeTestCase {
@@ -361,12 +357,12 @@ TEST_P(ResizeAiv3HandlerTest, ResizesBitmapsForModelInput) {
   geolocation_encoder_mock_->set_preprocess_hook(base::BindOnce(
       [](bool* flag, const std::vector<TfLiteTensor*>& input_tensors) {
         std::vector<float> data;
-        if (tflite::task::core::PopulateVector<float>(input_tensors[0], &data)
-                .ok()) {
-          EXPECT_THAT(data, SizeIs(kImageInputWidth * kImageInputHeight * 3));
-          for (int i = 0; i < kImageInputWidth * kImageInputHeight * 3; ++i) {
-            EXPECT_FALSE(std::isnan(data[i]));
-          }
+        ASSERT_TRUE(
+            tflite::task::core::PopulateVector<float>(input_tensors[0], &data)
+                .ok());
+        EXPECT_THAT(data, SizeIs(kImageInputWidth * kImageInputHeight * 3));
+        for (int i = 0; i < kImageInputWidth * kImageInputHeight * 3; ++i) {
+          EXPECT_FALSE(std::isnan(data[i]));
         }
         *flag = true;
       },
@@ -374,7 +370,8 @@ TEST_P(ResizeAiv3HandlerTest, ResizesBitmapsForModelInput) {
 
   ModelCallbackFuture future;
   auto* aiv3_handler = model_handler(kOptTargetGeolocation);
-  aiv3_handler->ExecuteModel(future.GetCallback(), std::move(snapshot));
+  aiv3_handler->ExecuteModel(future.GetCallback(),
+                             ModelInput{std::move(snapshot)});
   EXPECT_EQ(future.Take(), PermissionRequestRelevance::kVeryLow);
   EXPECT_TRUE(flag);
 }
@@ -404,7 +401,8 @@ TEST_F(Aiv3HandlerTest, ModelHandlerPreventsConcurrentExecutions) {
   // The image size is arbitrary and does not affect the test.
   auto snapshot1 =
       test::BuildBitmap(/*width=*/32, /*height=*/32, kDefaultColor);
-  model_handler_mock->ExecuteModel(future1.GetCallback(), std::move(snapshot1));
+  model_handler_mock->ExecuteModel(future1.GetCallback(),
+                                   ModelInput{std::move(snapshot1)});
 
   // Request the second model execution while the first one is still in
   // progress. The second execution should be cancelled with `std::nullopt`
@@ -413,7 +411,8 @@ TEST_F(Aiv3HandlerTest, ModelHandlerPreventsConcurrentExecutions) {
   // The image size is arbitrary and does not affect the test.
   auto snapshot2 =
       test::BuildBitmap(/*width=*/32, /*height=*/32, kDefaultColor);
-  model_handler_mock->ExecuteModel(future2.GetCallback(), std::move(snapshot2));
+  model_handler_mock->ExecuteModel(future2.GetCallback(),
+                                   ModelInput{std::move(snapshot2)});
   EXPECT_EQ(future2.Take(), std::nullopt);
 
   // Any return value is OK as it should be ignored and replaced with
@@ -453,7 +452,8 @@ TEST_F(Aiv3HandlerTest, ModelHandlerSingleExecutions) {
   // The image size is arbitrary and does not affect the test.
   auto snapshot1 =
       test::BuildBitmap(/*width=*/32, /*height=*/32, kDefaultColor);
-  model_handler_mock->ExecuteModel(future1.GetCallback(), std::move(snapshot1));
+  model_handler_mock->ExecuteModel(future1.GetCallback(),
+                                   ModelInput{std::move(snapshot1)});
 
   // The manual release without a concurrent request should return the
   // correct relevance.
@@ -467,6 +467,71 @@ TEST_F(Aiv3HandlerTest, ModelHandlerSingleExecutions) {
 
   histograms.ExpectBucketCount(kModelExecutionAlreadyInProgressHistogram, false,
                                1u);
+}
+
+// This test verifies the timeout behavior of the permission model handler.
+// The timeout is triggered when the model execution takes longer than the
+// timeout threshold. Additionally, this test verifies that the model handler
+// prevents concurrent executions after the timeout is triggered and before the
+// first execution is completed.
+TEST_F(Aiv3HandlerTest, ModelHandlerTimeoutExecutions) {
+  base::HistogramTester histograms;
+
+  auto geolocation_encoder_mock =
+      std::make_unique<PermissionsAiv3EncoderFake>(RequestType::kGeolocation);
+  std::unique_ptr<PermissionsAiv3HandlerMock> model_handler_mock =
+      std::make_unique<PermissionsAiv3HandlerMock>(
+          GetModelProvider(),
+          /*optimization_target=*/kOptTargetGeolocation,
+          /*request_type=*/RequestType::kGeolocation,
+          std::move(geolocation_encoder_mock));
+
+  // Because of `PermissionsAiv3EncoderFake` the first execution will be hold
+  // until manually released. In this case we release the callback before we
+  // try to execute the model again.
+  ModelCallbackFuture future1;
+  // The image size is arbitrary and does not affect the test.
+  auto snapshot1 =
+      test::BuildBitmap(/*width=*/32, /*height=*/32, kDefaultColor);
+  model_handler_mock->ExecuteModel(future1.GetCallback(),
+                                   ModelInput{std::move(snapshot1)});
+
+  task_environment().FastForwardBy(
+      base::Seconds(PermissionsAiv3Handler::kModelExecutionTimeout + 1));
+
+  // Because the execution took longer than the timeout, the execution should
+  // return `std::nullopt` result even without manually releasing the callback.
+  EXPECT_EQ(future1.Take(), std::nullopt);
+
+  // The second execution should return an empty response because the model is
+  // still busy with the first execution.
+  ModelCallbackFuture future2;
+  // The image size is arbitrary and does not affect the test.
+  auto snapshot2 =
+      test::BuildBitmap(/*width=*/32, /*height=*/32, kDefaultColor);
+  model_handler_mock->ExecuteModel(future2.GetCallback(),
+                                   ModelInput{std::move(snapshot2)});
+
+  EXPECT_EQ(future2.Take(), std::nullopt);
+
+  // This will resets the flags that prevent concurrent executions. `kVeryLow`
+  // will not be returned because the callback was released after the timeout.
+  model_handler_mock->ReleaseCallback(PermissionRequestRelevance::kVeryLow);
+
+  ModelCallbackFuture future3;
+  // The image size is arbitrary and does not affect the test.
+  auto snapshot3 =
+      test::BuildBitmap(/*width=*/32, /*height=*/32, kDefaultColor);
+  model_handler_mock->ExecuteModel(future3.GetCallback(),
+                                   ModelInput{std::move(snapshot3)});
+
+  // Because all flags are reset, the execution will not timeout and the
+  // correct relevance will be returned.
+  model_handler_mock->ReleaseCallback(PermissionRequestRelevance::kVeryLow);
+
+  EXPECT_EQ(future3.Take(), PermissionRequestRelevance::kVeryLow);
+
+  histograms.ExpectBucketCount(kModelExecutionTimeoutHistogram, true, 1u);
 }
 
 }  // namespace

@@ -24,6 +24,7 @@ class Profile;
 class PwaInstallPageActionController;
 class ReadAnythingSidePanelController;
 class SidePanelRegistry;
+class TabCaptureContentsBorderHelper;
 class TabResourceUsageTabHelper;
 class TabUIHelper;
 class TranslatePageActionController;
@@ -31,7 +32,7 @@ class QwacWebContentsObserver;
 class ManagePasswordsPageActionController;
 
 namespace actor::ui {
-class ActorUiTabController;
+class ActorUiTabControllerInterface;
 }  // namespace actor::ui
 
 namespace commerce {
@@ -95,10 +96,6 @@ class SavedTabGroupWebContentsListener;
 namespace page_actions {
 class PageActionController;
 }  // namespace page_actions
-
-namespace passage_embeddings {
-class EmbedderTabObserver;
-}  // namespace passage_embeddings
 
 namespace tab_groups {
 class CollaborationMessagingTabData;
@@ -247,7 +244,7 @@ class TabFeatures {
   TabUIHelper* tab_ui_helper() { return tab_ui_helper_.get(); }
 
   // actor_ui_tab_controller_ is only initialized for normal browser windows
-  actor::ui::ActorUiTabController* actor_ui_tab_controller() {
+  actor::ui::ActorUiTabControllerInterface* actor_ui_tab_controller() const {
     return actor_ui_tab_controller_.get();
   }
 
@@ -379,9 +376,6 @@ class TabFeatures {
   std::unique_ptr<tab_groups::CollaborationMessagingTabData>
       collaboration_messaging_tab_data_;
 
-  std::unique_ptr<passage_embeddings::EmbedderTabObserver>
-      embedder_tab_observer_;
-
 #if BUILDFLAG(ENABLE_GLIC)
   std::unique_ptr<glic::GlicTabIndicatorHelper> glic_tab_indicator_helper_;
 #endif  // BUILDFLAG(ENABLE_GLIC)
@@ -405,10 +399,14 @@ class TabFeatures {
 
   std::unique_ptr<QwacWebContentsObserver> qwac_web_contents_observer_;
 
-  std::unique_ptr<actor::ui::ActorUiTabController> actor_ui_tab_controller_;
+  std::unique_ptr<actor::ui::ActorUiTabControllerInterface>
+      actor_ui_tab_controller_;
 
   std::unique_ptr<TabCreationMetricsController>
       tab_creation_metrics_controller_;
+
+  std::unique_ptr<TabCaptureContentsBorderHelper>
+      tab_capture_contents_border_helper_;
 
   // Must be the last member.
   base::WeakPtrFactory<TabFeatures> weak_factory_{this};

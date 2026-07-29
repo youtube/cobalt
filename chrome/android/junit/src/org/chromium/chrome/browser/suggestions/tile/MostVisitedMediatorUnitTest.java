@@ -9,16 +9,14 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
-import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import static org.chromium.chrome.browser.suggestions.tile.MostVisitedTilesProperties.HORIZONTAL_EDGE_PADDINGS;
 import static org.chromium.chrome.browser.suggestions.tile.MostVisitedTilesProperties.HORIZONTAL_INTERVAL_PADDINGS;
-import static org.chromium.chrome.browser.suggestions.tile.MostVisitedTilesProperties.IS_CONTAINER_VISIBLE;
+import static org.chromium.chrome.browser.suggestions.tile.MostVisitedTilesProperties.IS_VISIBLE;
 
 import android.content.res.Configuration;
 import android.content.res.Resources;
@@ -136,57 +134,78 @@ public class MostVisitedMediatorUnitTest {
         verify(mSnapshotTileGridChangedRunnable, atLeastOnce()).run();
     }
 
+    /**
+     * Verifies the container visibility logic when both feature flags are enabled. Visibility
+     * should only depend on the toggle state.
+     */
     @Test
-    @DisableFeatures(ChromeFeatureList.MOST_VISITED_TILES_CUSTOMIZATION)
-    public void testOnTileCountChanged() {
-        // When the there's no mv tile, the mvt section shouldn't be shown.
-        mMostVisitedSites.setTileSuggestions(new ArrayList<>());
+    @Features.EnableFeatures({
+        ChromeFeatureList.NEW_TAB_PAGE_CUSTOMIZATION_FOR_MVT,
+        ChromeFeatureList.MOST_VISITED_TILES_CUSTOMIZATION
+    })
+    public void testOnMvtToggleChanged_MvtCustomizationEnabled() {
         createMediator();
+        verify(mNtpCustomizationConfigManager).addListener(mHomepageStateListenerCaptor.capture());
+        NtpCustomizationConfigManager.HomepageStateListener listener =
+                mHomepageStateListenerCaptor.getValue();
 
-        Assert.assertFalse(mModel.get(IS_CONTAINER_VISIBLE));
-
-        // When the there's mv tile, the mvt section should be shown.
-        mMostVisitedSites.setTileSuggestions(JUnitTestGURLs.HTTP_URL.getSpec());
-        createMediator();
-
-        Assert.assertTrue(mModel.get(IS_CONTAINER_VISIBLE));
+        // Logic: isMvtVisible = isMvtToggleOn && (true || hasTiles) => isMvtToggleOn
+        verifyMvtSectionVisibility(
+                listener,
+                /* toggleIsOn= */ true,
+                /* hasTiles= */ true,
+                /* expectedVisibility= */ true);
+        verifyMvtSectionVisibility(
+                listener,
+                /* toggleIsOn= */ false,
+                /* hasTiles= */ true,
+                /* expectedVisibility= */ false);
+        verifyMvtSectionVisibility(
+                listener,
+                /* toggleIsOn= */ true,
+                /* hasTiles= */ false,
+                /* expectedVisibility= */ true);
+        verifyMvtSectionVisibility(
+                listener,
+                /* toggleIsOn= */ false,
+                /* hasTiles= */ false,
+                /* expectedVisibility= */ false);
     }
 
+    /**
+     * Verifies the container visibility logic when MVT customization is disabled. Visibility should
+     * depend on both the toggle state and whether there are tiles.
+     */
     @Test
-    @DisableFeatures({ChromeFeatureList.MOST_VISITED_TILES_CUSTOMIZATION})
-    public void testMvtContainerOnTileCountChanged_DisableMvtCustomization() {
-        doTestMvtContainerOnTileCountChanged();
-    }
-
-    @Test
-    @EnableFeatures({ChromeFeatureList.MOST_VISITED_TILES_CUSTOMIZATION})
-    public void testMvtContainerOnTileCountChanged_EndableMvtCustomization() {
-        doTestMvtContainerOnTileCountChanged();
-    }
-
-    private void doTestMvtContainerOnTileCountChanged() {
-        ArrayList<SiteSuggestion> array = new ArrayList<>();
-        array.add(mData);
-        mMostVisitedSites.setTileSuggestions(array);
+    @Features.EnableFeatures(ChromeFeatureList.NEW_TAB_PAGE_CUSTOMIZATION_FOR_MVT)
+    @Features.DisableFeatures(ChromeFeatureList.MOST_VISITED_TILES_CUSTOMIZATION)
+    public void testOnMvtToggleChanged_MvtCustomizationDisabled() {
         createMediator();
+        verify(mNtpCustomizationConfigManager).addListener(mHomepageStateListenerCaptor.capture());
+        NtpCustomizationConfigManager.HomepageStateListener listener =
+                mHomepageStateListenerCaptor.getValue();
 
-        Assert.assertTrue(mModel.get(IS_CONTAINER_VISIBLE));
-
-        mMostVisitedSites.setTileSuggestions(new ArrayList<>());
-        mMediator.onTileCountChanged();
-        if (ChromeFeatureList.isEnabled(ChromeFeatureList.MOST_VISITED_TILES_CUSTOMIZATION)) {
-            // When there's no mv tile, the mv tiles container should show (with the "Add new"
-            // button).
-            Assert.assertTrue(mModel.get(IS_CONTAINER_VISIBLE));
-        } else {
-            // When there's no mv tile, the mv tiles container should be hidden.
-            Assert.assertFalse(mModel.get(IS_CONTAINER_VISIBLE));
-        }
-
-        // When there is mv tile, the mv tiles container should be shown.
-        mMostVisitedSites.setTileSuggestions(JUnitTestGURLs.HTTP_URL.getSpec());
-        mMediator.onTileCountChanged();
-        Assert.assertTrue(mModel.get(IS_CONTAINER_VISIBLE));
+        // Logic: isMvtVisible = isMvtToggleOn && (false || hasTiles) => isMvtToggleOn && hasTiles
+        verifyMvtSectionVisibility(
+                listener,
+                /* toggleIsOn= */ true,
+                /* hasTiles= */ true,
+                /* expectedVisibility= */ true);
+        verifyMvtSectionVisibility(
+                listener,
+                /* toggleIsOn= */ false,
+                /* hasTiles= */ true,
+                /* expectedVisibility= */ false);
+        verifyMvtSectionVisibility(
+                listener,
+                /* toggleIsOn= */ true,
+                /* hasTiles= */ false,
+                /* expectedVisibility= */ false);
+        verifyMvtSectionVisibility(
+                listener,
+                /* toggleIsOn= */ false,
+                /* hasTiles= */ false,
+                /* expectedVisibility= */ false);
     }
 
     @Test
@@ -324,33 +343,168 @@ public class MostVisitedMediatorUnitTest {
                 (int) mModel.get(HORIZONTAL_EDGE_PADDINGS));
     }
 
+    /**
+     * Verifies that the container is visible if and only if there are tiles, when both NTP and MVT
+     * customization features are disabled. The MVT toggle state should have no effect.
+     */
     @Test
-    public void testSetMvtVisibility() {
-        createMediatorWithMockPropertyModel();
-        clearInvocations(mModel);
-        mMediator.setMvtVisibility(true);
-        verify(mModel).set(eq(IS_CONTAINER_VISIBLE), eq(true));
+    @DisableFeatures({
+        ChromeFeatureList.NEW_TAB_PAGE_CUSTOMIZATION_FOR_MVT,
+        ChromeFeatureList.MOST_VISITED_TILES_CUSTOMIZATION
+    })
+    public void testMvtContainerOnTileCountChanged_AllDisabled() {
+        // Logic: isMvtVisible = false || hasTiles => hasTiles
+        createMediator();
 
-        mMediator.setMvtVisibility(false);
-        verify(mModel).set(eq(IS_CONTAINER_VISIBLE), eq(false));
+        verifyMvtSectionVisibility(
+                /* listener= */ null,
+                /* toggleIsOn= */ true,
+                /* hasTiles= */ true,
+                /* expectedVisibility= */ true);
+        verifyMvtSectionVisibility(
+                /* listener= */ null,
+                /* toggleIsOn= */ true,
+                /* hasTiles= */ false,
+                /* expectedVisibility= */ false);
+
+        // Testing those two cases for completeness, even though it's an impossible case.
+        // The toggle is inaccessible and defaults to true when the MVT customization feature is
+        // off.
+        verifyMvtSectionVisibility(
+                /* listener= */ null,
+                /* toggleIsOn= */ false,
+                /* hasTiles= */ true,
+                /* expectedVisibility= */ true);
+        verifyMvtSectionVisibility(
+                /* listener= */ null,
+                /* toggleIsOn= */ false,
+                /* hasTiles= */ false,
+                /* expectedVisibility= */ false);
     }
 
+    /**
+     * Verifies that the container is always visible when only the MVT customization feature is
+     * enabled, regardless of the MVT toggle state or whether there are tiles. This is because the
+     * "Add shortcut" button should be visible.
+     */
     @Test
-    @Features.EnableFeatures(ChromeFeatureList.NEW_TAB_PAGE_CUSTOMIZATION_FOR_MVT)
-    public void testOnMvtVisibilityChanged() {
-        createMediatorWithMockPropertyModel();
-        clearInvocations(mModel);
-        verify(mNtpCustomizationConfigManager).addListener(mHomepageStateListenerCaptor.capture());
-        NtpCustomizationConfigManager.HomepageStateListener listener =
-                mHomepageStateListenerCaptor.getValue();
+    @DisableFeatures({ChromeFeatureList.NEW_TAB_PAGE_CUSTOMIZATION_FOR_MVT})
+    @EnableFeatures({ChromeFeatureList.MOST_VISITED_TILES_CUSTOMIZATION})
+    public void testMvtContainerOnTileCountChanged_MvtCustomizationEnabled() {
+        // Logic: isMvtVisible = true || hasTiles => true
+        createMediator();
+        verifyMvtSectionVisibility(
+                /* listener= */ null,
+                /* toggleIsOn= */ true,
+                /* hasTiles= */ true,
+                /* expectedVisibility= */ true);
+        verifyMvtSectionVisibility(
+                /* listener= */ null,
+                /* toggleIsOn= */ true,
+                /* hasTiles= */ false,
+                /* expectedVisibility= */ true);
 
-        // Verifies when the listener is notified, the visibility of the Most Visited Tiles section
-        // is changed properly.
-        listener.onMvtVisibilityChanged(/* isMvtVisible= */ true);
-        verify(mModel).set(eq(IS_CONTAINER_VISIBLE), eq(true));
+        // Testing those two cases for completeness, even though it's an impossible case.
+        // The toggle is inaccessible and defaults to true when the MVT customization feature is
+        // off.
+        verifyMvtSectionVisibility(
+                /* listener= */ null,
+                /* toggleIsOn= */ false,
+                /* hasTiles= */ false,
+                /* expectedVisibility= */ true);
+        verifyMvtSectionVisibility(
+                /* listener= */ null,
+                /* toggleIsOn= */ false,
+                /* hasTiles= */ true,
+                /* expectedVisibility= */ true);
+    }
 
-        listener.onMvtVisibilityChanged(/* isMvtVisible= */ false);
-        verify(mModel).set(eq(IS_CONTAINER_VISIBLE), eq(false));
+    /**
+     * Verifies that the container is visible if and only if the MVT toggle is on and there are
+     * tiles, when only the NTP customization for MVT feature is enabled.
+     */
+    @Test
+    @EnableFeatures({ChromeFeatureList.NEW_TAB_PAGE_CUSTOMIZATION_FOR_MVT})
+    @DisableFeatures({ChromeFeatureList.MOST_VISITED_TILES_CUSTOMIZATION})
+    public void testMvtContainerOnTileCountChanged_NtpCustomizationEnabled() {
+        // Logic: isMvtVisible = isMvtToggleOn && (false || hasTiles) => isMvtToggleOn && hasTiles
+        createMediator();
+        verifyMvtSectionVisibility(
+                /* listener= */ null,
+                /* toggleIsOn= */ true,
+                /* hasTiles= */ true,
+                /* expectedVisibility= */ true);
+        verifyMvtSectionVisibility(
+                /* listener= */ null,
+                /* toggleIsOn= */ false,
+                /* hasTiles= */ true,
+                /* expectedVisibility= */ false);
+        verifyMvtSectionVisibility(
+                /* listener= */ null,
+                /* toggleIsOn= */ true,
+                /* hasTiles= */ false,
+                /* expectedVisibility= */ false);
+        verifyMvtSectionVisibility(
+                /* listener= */ null,
+                /* toggleIsOn= */ false,
+                /* hasTiles= */ false,
+                /* expectedVisibility= */ false);
+    }
+
+    /**
+     * Verifies that the container is visible if and only if the MVT toggle is on, when both NTP and
+     * MVT customization features are enabled. The presence of tiles should have no effect.
+     */
+    @Test
+    @EnableFeatures({
+        ChromeFeatureList.NEW_TAB_PAGE_CUSTOMIZATION_FOR_MVT,
+        ChromeFeatureList.MOST_VISITED_TILES_CUSTOMIZATION
+    })
+    public void testMvtContainerOnTileCountChanged_AllEnabled() {
+        // Logic: isMvtVisible = isMvtToggleOn && (true || hasTiles) => isMvtToggleOn
+        createMediator();
+        verifyMvtSectionVisibility(
+                /* listener= */ null,
+                /* toggleIsOn= */ true,
+                /* hasTiles= */ true,
+                /* expectedVisibility= */ true);
+        verifyMvtSectionVisibility(
+                /* listener= */ null,
+                /* toggleIsOn= */ false,
+                /* hasTiles= */ true,
+                /* expectedVisibility= */ false);
+        verifyMvtSectionVisibility(
+                /* listener= */ null,
+                /* toggleIsOn= */ true,
+                /* hasTiles= */ false,
+                /* expectedVisibility= */ true);
+        verifyMvtSectionVisibility(
+                /* listener= */ null,
+                /* toggleIsOn= */ false,
+                /* hasTiles= */ false,
+                /* expectedVisibility= */ false);
+    }
+
+    private void verifyMvtSectionVisibility(
+            NtpCustomizationConfigManager.HomepageStateListener listener,
+            boolean toggleIsOn,
+            boolean hasTiles,
+            boolean expectedVisibility) {
+        if (hasTiles) {
+            mMostVisitedSites.setTileSuggestions(JUnitTestGURLs.HTTP_URL.getSpec());
+        } else {
+            mMostVisitedSites.setTileSuggestions(new ArrayList<>());
+        }
+
+        when(mNtpCustomizationConfigManager.getPrefIsMvtToggleOn()).thenReturn(toggleIsOn);
+
+        if (listener == null) {
+            mMediator.onTileCountChanged();
+        } else {
+            listener.onMvtToggleChanged();
+        }
+
+        Assert.assertEquals(expectedVisibility, mModel.get(IS_VISIBLE));
     }
 
     @Test
@@ -371,11 +525,6 @@ public class MostVisitedMediatorUnitTest {
 
         mMediator.destroy();
         verify(mNtpCustomizationConfigManager, never()).removeListener(any());
-    }
-
-    private void createMediatorWithMockPropertyModel() {
-        mModel = mock(PropertyModel.class);
-        createMediator(/* isTablet= */ false);
     }
 
     private void createMediator() {

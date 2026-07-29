@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #ifndef PARTITION_ALLOC_PARTITION_ALLOC_CONFIG_H_
 #define PARTITION_ALLOC_PARTITION_ALLOC_CONFIG_H_
 
@@ -165,12 +170,6 @@ constexpr bool kUseLazyCommit = false;
 #define PA_CONFIG_HAS_ATFORK_HANDLER()                 \
   (PA_BUILDFLAG(IS_APPLE) || PA_BUILDFLAG(IS_LINUX) || \
    PA_BUILDFLAG(IS_CHROMEOS))
-
-// With this flag, shadow pools will be mapped, on which writable shadow
-// metadatas are placed, and the real metadatas are set to read-only instead.
-// This feature is only enabled with 64-bit environment because pools work
-// differently with 32-bits pointers (see glossary).
-#define PA_CONFIG_ENABLE_SHADOW_METADATA() 0
 
 #if PA_BUILDFLAG(MOVE_METADATA_OUT_OF_GIGACAGE_FOR_64_BITS_POINTERS) && \
     PA_BUILDFLAG(HAS_64_BIT_POINTERS)

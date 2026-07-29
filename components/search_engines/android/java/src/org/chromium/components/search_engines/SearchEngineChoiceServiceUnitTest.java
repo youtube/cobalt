@@ -22,6 +22,8 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.chromium.base.test.util.Matchers.fulfilledPromise;
 import static org.chromium.base.test.util.Matchers.rejectedPromise;
 
+import org.chromium.base.test.util.Features.DisableFeatures;
+import org.chromium.base.test.util.Features.EnableFeatures;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -40,6 +42,7 @@ import org.chromium.components.search_engines.SearchEngineChoiceService.RefreshR
 import org.chromium.components.search_engines.SearchEngineCountryDelegate.DeviceChoiceEventType;
 
 import java.time.Instant;
+import java.util.concurrent.TimeUnit;
 
 @RunWith(BaseRobolectricTestRunner.class)
 public class SearchEngineChoiceServiceUnitTest {
@@ -87,6 +90,7 @@ public class SearchEngineChoiceServiceUnitTest {
 
         var supplier = service.getIsDeviceChoiceRequiredSupplier();
         ShadowLooper.runUiThreadTasks();
+        ShadowLooper.idleMainLooper(3000, TimeUnit.MILLISECONDS);
         assertTrue(supplier.get());
 
         // The calls below should be fine to run without triggering anything.
@@ -173,6 +177,7 @@ public class SearchEngineChoiceServiceUnitTest {
     }
 
     @Test
+    @DisableFeatures(SearchEnginesFeatures.SUPPRESS_DEFAULT_BROWSER_PROMO_IF_CHOICE_SET)
     public void testIsDefaultBrowserPromoSuppressed() {
         {
             // Default browser selection did not happen => promo should not be suppressed.
@@ -211,6 +216,46 @@ public class SearchEngineChoiceServiceUnitTest {
     }
 
     @Test
+    @EnableFeatures(SearchEnginesFeatures.SUPPRESS_DEFAULT_BROWSER_PROMO_IF_CHOICE_SET)
+    public void testIsDefaultBrowserPromoSuppressed_suppressIfChoiceSet() {
+        {
+            // Default browser selection did not happen => promo should not be suppressed.
+            var service = new SearchEngineChoiceService(mDelegate);
+            doReturn(null).when(mDelegate).getDeviceBrowserSelectedTimestamp();
+            assertFalse(service.isDefaultBrowserPromoSuppressed());
+        }
+
+        {
+            // Default browser selection happened a long time ago => promo should be suppressed.
+            var service = new SearchEngineChoiceService(mDelegate);
+            doReturn(Instant.MIN).when(mDelegate).getDeviceBrowserSelectedTimestamp();
+            assertTrue(service.isDefaultBrowserPromoSuppressed());
+        }
+
+        {
+            // Selection date + suppression period overflow => promo should be suppressed.
+            // Would indicate a configuration issue.
+            var service = new SearchEngineChoiceService(mDelegate);
+            doReturn(Instant.MAX).when(mDelegate).getDeviceBrowserSelectedTimestamp();
+            assertTrue(service.isDefaultBrowserPromoSuppressed());
+        }
+
+        {
+            // Default browser selection happened too recently (simulated by being a date in the
+            // future) => promo should be suppressed if the feature is enabled.
+            Instant futureInstant =
+                    Instant.now()
+                            .plusMillis(
+                                    SearchEnginesFeatureUtils
+                                            .CHOICE_DIALOG_DEFAULT_BROWSER_PROMO_SUPPRESSED_MILLIS);
+            var service = new SearchEngineChoiceService(mDelegate);
+            doReturn(futureInstant).when(mDelegate).getDeviceBrowserSelectedTimestamp();
+            assertTrue(service.isDefaultBrowserPromoSuppressed());
+        }
+    }
+
+    @Test
+    @EnableFeatures(SearchEnginesFeatures.SUPPRESS_DEFAULT_BROWSER_PROMO_IF_CHOICE_SET)
     public void testDelegateRelease() {
         var deviceCountryPromise = new Promise<String>();
         doReturn(deviceCountryPromise).when(mDelegate).getDeviceCountry();

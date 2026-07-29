@@ -8,7 +8,9 @@
 
 #include "base/android/jni_android.h"
 #include "base/android/jni_array.h"
+#include "base/android/jni_callback.h"
 #include "base/android/jni_string.h"
+#include "base/functional/bind.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/notimplemented.h"
 #include "base/trace_event/trace_event.h"
@@ -305,6 +307,15 @@ WebContentsDelegateAndroid::PreHandleKeyboardEvent(
     WebContents* source,
     const input::NativeWebKeyboardEvent& event) {
   if (event.native_key_code == AKEYCODE_ESCAPE) {
+    JNIEnv* env = AttachCurrentThread();
+    ScopedJavaLocalRef<jobject> obj = GetJavaDelegate(env);
+
+    if (!obj.is_null() &&
+        Java_WebContentsDelegateAndroid_preHandleKeyboardEvent(
+            env, obj, reinterpret_cast<intptr_t>(&event))) {
+      return content::KeyboardEventProcessingResult::HANDLED;
+    }
+
     auto* rwhva = source->GetTopLevelRenderWidgetHostView();
     if (rwhva && rwhva->IsPointerLocked()) {
       rwhva->UnlockPointer();
@@ -366,7 +377,8 @@ void WebContentsDelegateAndroid::EnterFullscreenModeForTab(
   if (obj.is_null())
     return;
   Java_WebContentsDelegateAndroid_enterFullscreenModeForTab(
-      env, obj, options.prefers_navigation_bar, options.prefers_status_bar);
+      env, obj, reinterpret_cast<jlong>(requesting_frame),
+      options.prefers_navigation_bar, options.prefers_status_bar);
 }
 
 void WebContentsDelegateAndroid::FullscreenStateChangedForTab(
@@ -419,6 +431,26 @@ void WebContentsDelegateAndroid::RequestPointerLock(
 
   web_contents->GotResponseToPointerLockRequest(
       blink::mojom::PointerLockResult::kSuccess);
+}
+
+void WebContentsDelegateAndroid::RequestKeyboardLock(WebContents* web_contents,
+                                                     bool esc_key_locked) {
+  JNIEnv* env = AttachCurrentThread();
+  ScopedJavaLocalRef<jobject> obj = GetJavaDelegate(env);
+  if (obj.is_null()) {
+    return;
+  }
+  Java_WebContentsDelegateAndroid_requestKeyboardLock(env, obj, esc_key_locked);
+}
+
+void WebContentsDelegateAndroid::CancelKeyboardLockRequest(
+    WebContents* web_contents) {
+  JNIEnv* env = AttachCurrentThread();
+  ScopedJavaLocalRef<jobject> obj = GetJavaDelegate(env);
+  if (obj.is_null()) {
+    return;
+  }
+  Java_WebContentsDelegateAndroid_cancelKeyboardLockRequest(env, obj);
 }
 
 bool WebContentsDelegateAndroid::IsFullscreenForTabOrPending(
@@ -527,14 +559,30 @@ bool WebContentsDelegateAndroid::MaybeCopyContentAreaAsBitmap(
     return false;
   }
   base::TimeTicks start_time = base::TimeTicks::Now();
-  std::unique_ptr<base::OnceCallback<void(const SkBitmap&)>> wrapped_callback =
-      std::make_unique<base::OnceCallback<void(const SkBitmap&)>>(
-          std::move(callback));
+  // Convert the C++ callback to a JNI callback using ToJniCallback.
+  auto wrapped_callback = base::BindOnce(
+      [](base::OnceCallback<void(const SkBitmap&)> callback,
+         const base::android::JavaParamRef<jobject>& bitmap) {
+        TRACE_EVENT("content",
+                    "WebContentsDelegateAndroid::MaybeCopyContentAreaAsBitmap::"
+                    "Callback");
+        if (bitmap.is_null()) {
+          // Failed because of Out of Memory Error.
+          // Pass in an empty bitmap, rather than null in this case.
+          std::move(callback).Run(SkBitmap());
+        } else {
+          gfx::JavaBitmap java_bitmap_lock(bitmap);
+          SkBitmap skbitmap =
+              gfx::CreateSkBitmapFromJavaBitmap(java_bitmap_lock);
+          skbitmap.setImmutable();
+          CHECK(!skbitmap.drawsNothing());
+          std::move(callback).Run(skbitmap);
+        }
+      },
+      std::move(callback));
   if (Java_WebContentsDelegateAndroid_maybeCopyContentAreaAsBitmap(
-          env, obj, reinterpret_cast<jlong>(wrapped_callback.get()))) {
-    // Ownership of callback has been transferred to java side and will be
-    // transferred back in |MaybeCopyContentAreaAsBitmapOutcome|.
-    wrapped_callback.release();
+          env, obj,
+          base::android::ToJniCallback(env, std::move(wrapped_callback)))) {
     base::UmaHistogramTimes("Android.MaybeCopyContentAreaAsBitmap.Time",
                             base::TimeTicks::Now() - start_time);
     return true;
@@ -550,7 +598,6 @@ SkBitmap WebContentsDelegateAndroid::MaybeCopyContentAreaAsBitmapSync() {
   if (obj.is_null()) {
     return SkBitmap();
   }
-  base::TimeTicks start_time = base::TimeTicks::Now();
   ScopedJavaLocalRef<jobject> bitmap =
       Java_WebContentsDelegateAndroid_maybeCopyContentAreaAsBitmapSync(env,
                                                                        obj);
@@ -560,8 +607,6 @@ SkBitmap WebContentsDelegateAndroid::MaybeCopyContentAreaAsBitmapSync() {
   gfx::JavaBitmap java_bitmap_lock(bitmap);
   SkBitmap skbitmap = gfx::CreateSkBitmapFromJavaBitmap(java_bitmap_lock);
   skbitmap.setImmutable();
-  base::UmaHistogramTimes("Android.MaybeCopyContentAreaAsBitmapSync.Time",
-                          base::TimeTicks::Now() - start_time);
   return skbitmap;
 }
 
@@ -629,29 +674,6 @@ void WebContentsDelegateAndroid::ContentsZoomChange(bool zoom_in) {
     return;
   }
   Java_WebContentsDelegateAndroid_contentsZoomChange(env, obj, zoom_in);
-}
-
-void JNI_WebContentsDelegateAndroid_MaybeCopyContentAreaAsBitmapOutcome(
-    JNIEnv* env,
-    jlong callback_ptr,
-    const base::android::JavaParamRef<jobject>& bitmap) {
-  TRACE_EVENT(
-      "content",
-      "JNI_WebContentsDelegateAndroid_MaybeCopyContentAreaAsBitmapOutcome");
-  std::unique_ptr<base::OnceCallback<void(const SkBitmap&)>> callback(
-      reinterpret_cast<base::OnceCallback<void(const SkBitmap&)>*>(
-          callback_ptr));
-  if (bitmap.is_null()) {
-    // Failed because of Out of Memory Error.
-    // Pass in an empty bitmap, rather than null in this case.
-    std::move(*callback).Run(SkBitmap());
-  } else {
-    gfx::JavaBitmap java_bitmap_lock(bitmap);
-    SkBitmap skbitmap = gfx::CreateSkBitmapFromJavaBitmap(java_bitmap_lock);
-    skbitmap.setImmutable();
-    CHECK(!skbitmap.drawsNothing());
-    std::move(*callback).Run(skbitmap);
-  }
 }
 
 }  // namespace web_contents_delegate_android

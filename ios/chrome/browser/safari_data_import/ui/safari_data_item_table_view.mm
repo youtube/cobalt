@@ -9,7 +9,7 @@
 #import "ios/chrome/browser/safari_data_import/public/safari_data_import_stage.h"
 #import "ios/chrome/browser/safari_data_import/public/safari_data_item.h"
 #import "ios/chrome/browser/safari_data_import/public/utils.h"
-#import "ios/chrome/browser/safari_data_import/ui/safari_data_import_import_stage_consumer.h"
+#import "ios/chrome/browser/safari_data_import/ui/safari_data_import_import_stage_transition_handler.h"
 #import "ios/chrome/browser/shared/ui/symbols/symbols.h"
 #import "ios/chrome/browser/shared/ui/table_view/cells/table_view_detail_icon_item.h"
 #import "ios/chrome/browser/shared/ui/table_view/table_view_utils.h"
@@ -159,10 +159,6 @@ UIView* GetCheckmark() {
 
 }  // namespace
 
-@interface SafariDataItemTableView () <UITableViewDelegate>
-
-@end
-
 @implementation SafariDataItemTableView {
   /// Safari data items to be displayed in the table. The dictionary key is an
   /// NSNumber representation of the type.
@@ -185,7 +181,6 @@ UIView* GetCheckmark() {
     self.allowsSelection = NO;
     self.backgroundColor = [UIColor clearColor];
     self.separatorInset = UIEdgeInsetsMake(0, 60, 0, 0);
-    self.delegate = self;
     /// Remove extra space from UITableViewWrapperView.
     self.directionalLayoutMargins =
         NSDirectionalEdgeInsetsMake(0, CGFLOAT_MIN, 0, CGFLOAT_MIN);
@@ -311,6 +306,16 @@ UIView* GetCheckmark() {
   }
 }
 
+/// Returns whether there is at least one item to be imported.
+- (BOOL)hasItemToImport {
+  for (SafariDataItem* item in _itemDictionary.allValues) {
+    if (item.count + item.invalidCount > 0) {
+      return YES;
+    }
+  }
+  return NO;
+}
+
 #pragma mark - SafariDataItemConsumer
 
 - (void)populateItem:(SafariDataItem*)item {
@@ -328,9 +333,13 @@ UIView* GetCheckmark() {
     case SafariDataItemImportStatus::kReady:
       _pendingImportCount++;
       if (_pendingImportCount == kExpectedItemsCount) {
-        [self initializeDataSource];
-        [self.importStageConsumer
-            transitionToImportStage:SafariDataImportStage::kReadyForImport];
+        if ([self hasItemToImport]) {
+          [self initializeDataSource];
+          [self.importStageTransitionHandler transitionToNextImportStage];
+        } else {
+          _itemDictionary = [NSMutableDictionary dictionary];
+          [self.importStageTransitionHandler resetToInitialImportStage:NO];
+        }
       }
       return;
     case SafariDataItemImportStatus::kImporting:
@@ -340,18 +349,10 @@ UIView* GetCheckmark() {
       [self updateCellForItem:item];
       _importedCount++;
       if (_importedCount == kExpectedItemsCount) {
-        [self.importStageConsumer
-            transitionToImportStage:SafariDataImportStage::kImported];
+        [self.importStageTransitionHandler transitionToNextImportStage];
       }
       return;
   }
-}
-
-#pragma mark - UITableViewDelegate
-
-- (void)tableView:(UITableView*)tableView
-    accessoryButtonTappedForRowWithIndexPath:(NSIndexPath*)indexPath {
-  /// TODO(crbug.com/420703283): Show the list of un-imported passwords.
 }
 
 @end

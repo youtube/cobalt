@@ -409,6 +409,12 @@ class CONTENT_EXPORT NavigationHandle : public base::SupportsUserData {
   // navigations that the users may not think of as navigations (such as
   // happens with 'history.replaceState()'), or navigations in non-primary frame
   // trees that should not appear in history.
+  //
+  // NOTE: When `blink::features::kVisitedLinksOnErrorNavigations` is enabled,
+  // this method will return true for 404s from reachable URLs. When
+  // `blink::features::kVisitedLinksOnErrorNavigations` is disabled, this method
+  // will return false for 404s. If callers wish to filter out 404s, they must
+  // perform an explicit response code check.
   virtual bool ShouldUpdateHistory() = 0;
 
   // The previous main frame URL that the user was on. This may be empty if
@@ -693,6 +699,7 @@ class CONTENT_EXPORT NavigationHandle : public base::SupportsUserData {
   // Used for metrics.
   virtual PreloadingTriggerType GetPrerenderTriggerType() = 0;
   virtual std::string GetPrerenderEmbedderHistogramSuffix() = 0;
+  virtual bool IsPrerenderHostReused() = 0;
 
   // Returns a SafeRef to this handle.
   virtual base::SafeRef<NavigationHandle> GetSafeRef() = 0;

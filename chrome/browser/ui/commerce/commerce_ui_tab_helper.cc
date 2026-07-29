@@ -513,6 +513,10 @@ const std::vector<DiscountInfo>& CommerceUiTabHelper::GetDiscounts() {
 }
 
 void CommerceUiTabHelper::UpdatePriceTrackingIconView() {
+  if (IsPageActionMigrated(PageActionIconType::kPriceTracking)) {
+    return;
+  }
+
   UpdatePageActionIconView(PageActionIconType::kPriceTracking);
 }
 
@@ -537,7 +541,7 @@ void CommerceUiTabHelper::MakeShoppingInsightsSidePanelAvailable() {
       SidePanelEntry::Key(SidePanelEntry::Id::kShoppingInsights),
       base::BindRepeating(&CommerceUiTabHelper::CreateShoppingInsightsWebView,
                           base::Unretained(this)),
-      SidePanelEntry::kSidePanelDefaultContentWidth);
+      /*default_content_width_callback=*/base::NullCallback());
   side_panel_registry_->Register(std::move(entry));
 }
 

@@ -179,6 +179,8 @@ android_resources("java_resources") {
     "java/res/color-night/tab_resumption_module_icon_background_color.xml",
     "java/res/color-night/tile_view_icon_background_color.xml",
     "java/res/color-night/toolbar_text_box_bg_color.xml",
+    "java/res/color/card_hover_press_overlay_color_list.xml",
+    "java/res/color/card_hover_press_overlay_color_list_baseline.xml",
     "java/res/color/chip_background_color.xml",
     "java/res/color/chip_ripple_color.xml",
     "java/res/color/chip_state_layer_color.xml",
@@ -238,6 +240,8 @@ android_resources("java_resources") {
     "java/res/drawable/async_image_view_waiting.xml",
     "java/res/drawable/bg_white_dialog.xml",
     "java/res/drawable/bottom_sheet_background.xml",
+    "java/res/drawable/card_background_corners_16dp.xml",
+    "java/res/drawable/card_background_corners_16dp_baseline.xml",
     "java/res/drawable/card_with_corners_background.xml",
     "java/res/drawable/default_icon_background.xml",
     "java/res/drawable/default_icon_background_baseline.xml",
@@ -321,6 +325,7 @@ android_resources("java_resources") {
     "java/res/layout/textbubble_text_with_image.xml",
     "java/res/layout/tile_no_text_view.xml",
     "java/res/layout/tile_no_text_view_condensed.xml",
+    "java/res/layout/tile_text_view.xml",
     "java/res/layout/tile_view_modern.xml",
     "java/res/layout/tile_view_modern_condensed.xml",
     "java/res/layout/title_and_description_layout.xml",
@@ -482,6 +487,7 @@ robolectric_library("junit") {
   resources_package = "org.chromium.components.browser_ui.widget"
   sources = [
     "java/src/org/chromium/components/browser_ui/widget/ActionConfirmationDialogUnitTest.java",
+    "java/src/org/chromium/components/browser_ui/widget/BrowserUiListMenuUnitTest.java",
     "java/src/org/chromium/components/browser_ui/widget/ChromeTransitionDrawableTest.java",
     "java/src/org/chromium/components/browser_ui/widget/CompositeTouchDelegateUnitTest.java",
     "java/src/org/chromium/components/browser_ui/widget/ContextMenuDialogUnitTest.java",

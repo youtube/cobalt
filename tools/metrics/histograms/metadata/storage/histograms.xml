@@ -351,6 +351,42 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="IndexedDB.DatabasePathOverflow.LevelDB" units="characters"
+    expires_after="2026-01-24">
+  <owner>fergal@chromium.org</owner>
+  <owner>evanstade@microsoft.com</owner>
+  <owner>chrome-owp-storage@google.com</owner>
+  <summary>
+    Logged each time the LevelDB backing store is opened or created. Since there
+    is only one backing store for all IDB databases, this is logged less
+    frequently than its SQLite counterpart.
+
+    0 is emitted if the paths that would be used for the engine named in the
+    histogram have no problem fitting within the platform's maximum
+    path/component length contraints. A positive value is emitted when an
+    absolute path of that length didn't pass the maximum path/component length
+    check.
+  </summary>
+</histogram>
+
+<histogram name="IndexedDB.DatabasePathOverflow.SQLite" units="characters"
+    expires_after="2026-01-24">
+  <owner>fergal@chromium.org</owner>
+  <owner>evanstade@microsoft.com</owner>
+  <owner>chrome-owp-storage@google.com</owner>
+  <summary>
+    Logged once for every call to indexedDB.open(), regardless of the database
+    engine in use by the backend. IOW, it's logged once each time a SQLite DB
+    would hypothetically be opened or created.
+
+    0 is emitted if the paths that would be used for the engine named in the
+    histogram have no problem fitting within the platform's maximum
+    path/component length contraints. A positive value is emitted when an
+    absolute path of that length didn't pass the maximum path/component length
+    check.
+  </summary>
+</histogram>
+
 <histogram name="IndexedDB.GetUnacquirableLocksLongTimes" units="ms"
     expires_after="2026-07-01">
   <owner>estade@chromium.org</owner>
@@ -653,6 +689,19 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="LocalStorage.DatabaseOnDiskSizeKB" units="KB"
+    expires_after="2026-01-20">
+  <owner>fergal@chromium.org</owner>
+  <owner>rahsin@microsoft.com</owner>
+  <owner>chrome-owp-storage@google.com</owner>
+  <summary>
+    Records the on disk size of the LocalStorage database for a given browser
+    Profile. This is reported when the DomStorageContextWrapper is created in
+    the Browser process and binds the LocalStorage endpoint in the Storage
+    process.
+  </summary>
+</histogram>
+
 <histogram name="LocalStorage.DatabaseOpen" enum="LevelDBStatus"
     expires_after="2025-10-31">
   <owner>arichiv@chromium.org</owner>
@@ -690,7 +739,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="LocalStorage.MojoSizeInKB" units="KB"
-    expires_after="2025-11-23">
+    expires_after="2026-01-25">
   <owner>fergal@chromium.org</owner>
   <owner>chrome-owp-storage@google.com</owner>
   <summary>
@@ -700,7 +749,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="LocalStorage.MojoTimeToPrime" units="ms"
-    expires_after="2025-11-23">
+    expires_after="2026-01-25">
   <owner>fergal@chromium.org</owner>
   <owner>chrome-owp-storage@google.com</owner>
   <summary>
@@ -710,7 +759,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="LocalStorage.MojoTimeToPrimeAblationDelay" units="ms"
-    expires_after="2025-11-23">
+    expires_after="2026-01-25">
   <owner>fergal@chromium.org</owner>
   <owner>chrome-owp-storage@google.com</owner>
   <summary>
@@ -720,7 +769,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="LocalStorage.MojoTimeToPrimeFor{LocalStorageSizes}" units="ms"
-    expires_after="2025-11-23">
+    expires_after="2026-01-25">
   <owner>fergal@chromium.org</owner>
   <owner>chrome-owp-storage@google.com</owner>
   <summary>

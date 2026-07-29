@@ -7,6 +7,7 @@
 
 #include "base/functional/callback.h"
 #include "base/memory/weak_ptr.h"
+#include "components/autofill/core/browser/payments/legal_message_line.h"
 #include "components/autofill/core/browser/payments/payments_autofill_client.h"
 #include "components/autofill/core/browser/ui/payments/save_and_fill_dialog_controller.h"
 #include "components/autofill/core/browser/ui/payments/save_and_fill_dialog_view.h"
@@ -38,6 +39,10 @@ class SaveAndFillDialogControllerImpl : public SaveAndFillDialogController {
       payments::PaymentsAutofillClient::CardSaveAndFillDialogCallback
           card_save_and_fill_dialog_callback);
 
+  void ShowPendingDialog(
+      base::OnceCallback<std::unique_ptr<SaveAndFillDialogView>()>
+          create_and_show_view_callback);
+
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
   std::u16string GetWindowTitle() const override;
   std::u16string GetExplanatoryMessage() const override;
@@ -55,12 +60,14 @@ class SaveAndFillDialogControllerImpl : public SaveAndFillDialogController {
       size_t old_cursor_position,
       size_t& new_cursor_position) const override;
 #endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
-  bool IsUploadSaveAndFill() const override;
+  SaveAndFillDialogState GetDialogState() const override;
   bool IsValidCreditCardNumber(std::u16string_view input_text) const override;
   bool IsValidCvc(std::u16string_view input_text) const override;
   bool IsValidExpirationDate(
       std::u16string_view expiration_date) const override;
   bool IsValidNameOnCard(std::u16string_view input_text) const override;
+
+  const LegalMessageLines& GetLegalMessageLines() const override;
 
   void Dismiss() override;
   void OnUserAcceptedDialog(
@@ -76,9 +83,10 @@ class SaveAndFillDialogControllerImpl : public SaveAndFillDialogController {
 
   std::unique_ptr<SaveAndFillDialogView> dialog_view_;
 
-  // Determines whether the local or upload save version of the UI should be
-  // shown.
-  bool is_upload_save_and_fill_ = false;
+  // Determines the current state of the Save and Fill dialog. This state
+  // can be a local card save, an upload card save, or a pending state while
+  // waiting for the preflight response.
+  SaveAndFillDialogState dialog_state_;
 
   LegalMessageLines legal_message_lines_;
 

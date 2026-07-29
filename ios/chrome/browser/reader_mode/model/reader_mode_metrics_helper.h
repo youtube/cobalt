@@ -39,8 +39,9 @@ class ReaderModeMetricsHelper
   bool ReaderModeIsRecentlyUsed();
 
   // Records histograms for the Reading Mode distillation event.
-  void RecordReaderDistillerTriggered();
-  void RecordReaderDistillerCompleted(ReaderModeDistillerResult result);
+  void RecordReaderDistillerTriggered(ReaderModeAccessPoint access_point);
+  void RecordReaderDistillerCompleted(ReaderModeAccessPoint access_point,
+                                      ReaderModeDistillerResult result);
 
   // Records the distillation timeout and resets state for the next event.
   void RecordReaderDistillerTimedOut();

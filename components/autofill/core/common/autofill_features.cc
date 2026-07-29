@@ -79,14 +79,56 @@ BASE_FEATURE(kAutofillAiCreateEntityDataManager,
 #endif
 );
 
+// If enabled, no account-level capabilities are checked to determine whether
+// a user is eligible for AutofillAI.
+BASE_FEATURE(kAutofillAiIgnoreCapabilityCheck,
+             "AutofillAiIgnoreCapabilityCheck",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Allows us to control which actions `kAutofillAiIgnoreCapabilityCheck` applies
+// to. If `kAutofillAiIgnoreCapabilityCheckOnlyForNonModelActions` is true, then
+// MES and MQLS interactions are still constrained by an account-level
+// capability check.
+const base::FeatureParam<bool>
+    kAutofillAiIgnoreCapabilityCheckOnlyForNonModelActions{
+        &kAutofillAiIgnoreCapabilityCheck,
+        "autofill_ai_ignore_capability_check_only_for_non_model_actions",
+        false};
+
 // If enabled, no GeoIp requirements are imposed for AutofillAi.
+// Note that this feature can be modified as follows (all assuming that
+// `kAutofillAiIgnoreGeoIp` is enabled):
+// - If both `kAutofillAiIgnoreGeoIpAllowlist` and
+//   `kAutofillAiIgnoreGeoIpBlocklist` are empty, then all geo IPs are
+//   permitted.
+// - If only `kAutofillAiIgnoreGeoIpBlocklist` is non-empty, then all geo ips
+//   but those in `kAutofillAiIgnoreGeoIpBlocklist` are permitted.
+// - If `kAutofillAiIgnoreGeoIpAllowlist` is non-empty, then only geo ips in
+//   `kAutofillAiIgnoreGeoIpAllowlist` are permitted.
+//
+// Both the allowlist and the blocklist are expected to consist of
+// comma-separated uppercase two-digit country codes (see documentation of
+// `GeoIpCountryCode`.)
 BASE_FEATURE(kAutofillAiIgnoreGeoIp,
              "AutofillAiIgnoreGeoIp",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+const base::FeatureParam<std::string> kAutofillAiIgnoreGeoIpAllowlist{
+    &kAutofillAiIgnoreGeoIp, "autofill_ai_geo_ip_allowlist", ""};
+
+const base::FeatureParam<std::string> kAutofillAiIgnoreGeoIpBlocklist{
+    &kAutofillAiIgnoreGeoIp, "autofill_ai_geo_ip_blocklist", ""};
+
 // If enabled, no locale requirements are imposed for AutofillAi.
 BASE_FEATURE(kAutofillAiIgnoreLocale,
              "AutofillAiIgnoreLocale",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// If enabled, no sign-in requirement is imposed for Autofill. Note that if this
+// feature is enabled, the value of `kAutofillAiIgnoreCapabilityCheck` is
+// irrelevant.
+BASE_FEATURE(kAutofillAiIgnoreSignInState,
+             "AutofillAiIgnoreSignInState",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 // If enabled, the existence of address or payments data is not required to show
@@ -95,9 +137,19 @@ BASE_FEATURE(kAutofillAiIgnoreWhetherUserHasAddressOrPaymentsDataForIph,
              "AutofillAiIgnoreWhetherUserHasAddressOrPaymentsDataForIph",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+// If enabled, AutofillAi supports known traveler numbers.
+BASE_FEATURE(kAutofillAiKnownTravelerNumber,
+             "AutofillAiKnownTravelerNumber",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // If enabled, AutofillAi supports national id cards.
 BASE_FEATURE(kAutofillAiNationalIdCard,
              "AutofillAiNationalIdCard",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// If enabled, AutofillAi supports redress number.
+BASE_FEATURE(kAutofillAiRedressNumber,
+             "AutofillAiRedressNumber",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 // If enabled, `*_TAG` types are replaced with dynamic attribute assignments.
@@ -383,6 +435,13 @@ BASE_FEATURE(kAutofillUseDeepEqualInsteadOfSameFieldAs,
 // TODO(crbug.com/354175563): Remove when launched.
 BASE_FEATURE(kAutofillPaymentsFieldSwapping,
              "AutofillPaymentsFieldSwapping",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// When enabled, password manager and autofill bubbles will be shown based on
+// the priorities of the bubbles.
+// TODO(crbug.com/432429605): Remove when launched.
+BASE_FEATURE(kAutofillShowBubblesBasedOnPriorities,
+             "AutofillShowBubblesBasedOnPriorities",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 // When enabled, chrome will support home and work addresses from account.
@@ -721,6 +780,14 @@ const base::FeatureParam<int>
     kAutofillEnableCacheForRegexMatchingCacheSizeParam{
         &kAutofillEnableCacheForRegexMatching, "cache_size", 1000};
 
+// If enabled, AutofillType may be populated with multiple FieldTypes where all
+// but one FieldType are Autofill AI FieldTypes.
+// This is a kill switch.
+// TODO(crbug.com/432645177): Clean up when launched.
+BASE_FEATURE(kAutofillUnionTypesForAutofillAi,
+             "AutofillUnionTypesForAutofillAi",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
 BASE_FEATURE(kAutofillUKMExperimentalFields,
              "AutofillUKMExperimentalFields",
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -739,13 +806,20 @@ const base::FeatureParam<std::string> kAutofillUKMExperimentalFieldsBucket4{
 COMPONENT_EXPORT(AUTOFILL)
 BASE_FEATURE(kAutofillGreekRegexes,
              "AutofillGreekRegexes",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enables uploading of more data to the Autofill server to use for computing
 // signatures: go/autofill-signatures-more-data.
 COMPONENT_EXPORT(AUTOFILL)
 BASE_FEATURE(kAutofillServerUploadMoreData,
              "AutofillServerUploadMoreData",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// TODO(crbug.com/435646513) - Clean-up after feature lands at 100% Stable.
+// Enables the new experimental server-side signatures for evaluation purposes.
+COMPONENT_EXPORT(AUTOFILL)
+BASE_FEATURE(kAutofillServerExperimentalSignatures,
+             "AutofillServerExperimentalSignatures",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Replaces the secondary signature with the structural signature for Uploads.
@@ -755,6 +829,15 @@ COMPONENT_EXPORT(AUTOFILL)
 BASE_FEATURE(kAutofillUseStructuralSignatureInsteadOfSecondary,
              "AutofillUseStructuralSignatureInsteadOfSecondary",
              base::FEATURE_ENABLED_BY_DEFAULT);
+
+// When enabled, forms that are only identified through server predictions
+// are considered for key and funnel metric logging. Without this feature, due
+// to a bug, only forms identified by parsing are considered.
+// TODO(crbug.com/436171158): Clean up when launched.
+COMPONENT_EXPORT(AUTOFILL)
+BASE_FEATURE(kAutofillConsiderServerOnlyFormsInKeyMetrics,
+             "AutofillConsiderServerOnlyFormsInKeyMetrics",
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // When enabled, the field classification model uses runtime caching to not run
 // models on the same inputs multiple times.
@@ -986,6 +1069,16 @@ const base::FeatureParam<bool> kAutofillShowTypePredictionsVerboseParam{
 // By default this is disabled to avoid data collection corruption.
 const base::FeatureParam<bool> kAutofillShowTypePredictionsAsTitleParam{
     &kAutofillShowTypePredictions, "as-title", false};
+
+// If enabled, ensures that the "autofill-information" attribute only contains a
+// single FieldType in "overall type: <FieldTypes>". For example,
+// "overall type: NAME_FULL, USERNAME" becomes "overall type: NAME_FULL" if the
+// feature is enabled.
+// TODO(crbug.com/435354393): Migrate the infrastructure to union types and
+// remove this feature.
+BASE_FEATURE(kAutofillUnionTypesSingleTypeInAutofillInformation,
+             "AutofillUnionTypesSingleTypeInAutofillInformation",
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Autofill upload throttling limits uploading a form to the Autofill server
 // more than once over a `kAutofillUploadThrottlingPeriodInDays` period.

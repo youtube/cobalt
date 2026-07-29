@@ -184,22 +184,6 @@ class BottomControlsMediator
     }
 
     @Override
-    public void onControlsOffsetChanged(
-            int topOffset,
-            int topControlsMinHeightOffset,
-            boolean topControlsMinHeightChanged,
-            int bottomOffset,
-            int bottomControlsMinHeightOffset,
-            boolean bottomControlsMinHeightChanged,
-            boolean requestNewFrame,
-            boolean isVisibilityForced) {
-        // Method call routed to onBrowserControlsOffsetUpdate.
-        if (BottomControlsStacker.isDispatchingYOffset()) return;
-
-        setYOffset(bottomOffset - getBrowserControls().getBottomControlsMinHeight());
-    }
-
-    @Override
     public void onBottomControlsHeightChanged(
             int bottomControlsHeight, int bottomControlsMinHeight) {
         // TODO(331829509): Set position in a way that doesn't rely on browser controls size system.
@@ -232,7 +216,7 @@ class BottomControlsMediator
 
     private void onEdgeToEdgeChanged(
             int bottomInset, boolean isDrawingToEdge, boolean isPageOptInToEdge) {
-        updateBrowserControlsHeight();
+        mBottomControlsStacker.requestLayerUpdate(false);
 
         int androidViewHeight = getAndroidViewHeight();
         if (androidViewHeight != mModel.get(BottomControlsProperties.ANDROID_VIEW_HEIGHT)) {
@@ -258,31 +242,17 @@ class BottomControlsMediator
      * The composited view is the composited version of the Android View. It is used to be able to
      * scroll the bottom controls off-screen synchronously. Since the bottom controls live below the
      * webcontents we re-size the webcontents through {@link
-     * BottomControlsStacker#setBottomControlsHeight(int, int, boolean)} whenever the composited
-     * view visibility changes.
+     * BottomControlsStacker#requestLayerUpdate(boolean)} whenever the composited view visibility
+     * changes.
      */
     private void updateCompositedViewVisibility() {
         final boolean isCompositedViewVisible = isCompositedViewVisible();
         mModel.set(BottomControlsProperties.COMPOSITED_VIEW_VISIBLE, isCompositedViewVisible);
-        updateBrowserControlsHeight();
-    }
-
-    private int getBrowserControlsHeight() {
-        int minHeight = getBrowserControls().getBottomControlsMinHeight();
-        int androidViewHeight = getAndroidViewHeight();
-
-        return isCompositedViewVisible() ? androidViewHeight + minHeight : minHeight;
+        mBottomControlsStacker.requestLayerUpdate(false);
     }
 
     private int getAndroidViewHeight() {
         return mBottomControlsHeight;
-    }
-
-    private void updateBrowserControlsHeight() {
-        mBottomControlsStacker.setBottomControlsHeight(
-                getBrowserControlsHeight(),
-                getBrowserControls().getBottomControlsMinHeight(),
-                false);
     }
 
     boolean isCompositedViewVisible() {
@@ -348,7 +318,6 @@ class BottomControlsMediator
 
     @Override
     public void onBrowserControlsOffsetUpdate(int layerYOffset) {
-        assert BottomControlsStacker.isDispatchingYOffset();
         setYOffset(layerYOffset);
     }
 

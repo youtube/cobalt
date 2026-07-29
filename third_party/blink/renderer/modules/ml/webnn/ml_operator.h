@@ -79,7 +79,10 @@ class MODULES_EXPORT MLOperator : public GarbageCollected<MLOperator> {
 
   const MLOperatorOptions* Options() const;
   MLOperatorOptions* Options();
-  const HeapVector<Member<MLOperand>>& Inputs() const;
+  // This includes optional inputs from Options.
+  HeapVector<Member<MLOperand>> Inputs() const;
+  const HeapVector<Member<MLOperand>>& PositionalInputs() const;
+
   const HeapVector<Member<MLOperand>>& Outputs() const;
   MLGraphBuilder const* Builder() const { return builder_.Get(); }
 
@@ -93,6 +96,8 @@ class MODULES_EXPORT MLOperator : public GarbageCollected<MLOperator> {
                HeapVector<Member<MLOperand>> outputs);
 
  private:
+  void AddOptionalInputs(HeapVector<Member<MLOperand>>& inputs) const;
+
   Member<MLGraphBuilder> builder_;
   webnn::mojom::blink::Operation::Tag kind_;
 
@@ -263,6 +268,7 @@ class MODULES_EXPORT MLPadOperator : public MLOperator {
   MLPadOperator(MLGraphBuilder* builder,
                 const Vector<uint32_t>& beginning_padding,
                 const Vector<uint32_t>& ending_padding,
+                webnn::MLNumber value,
                 MLPadOptions* options);
 
   MLPadOperator(const MLPadOperator&) = delete;
@@ -272,10 +278,12 @@ class MODULES_EXPORT MLPadOperator : public MLOperator {
 
   const Vector<uint32_t>& BeginningPadding() const;
   const Vector<uint32_t>& EndingPadding() const;
+  const webnn::MLNumber& Value() const { return value_; }
 
  private:
   Vector<uint32_t> beginning_padding_;
   Vector<uint32_t> ending_padding_;
+  const webnn::MLNumber value_;
 };
 
 class MODULES_EXPORT MLReverseOperator : public MLOperator {

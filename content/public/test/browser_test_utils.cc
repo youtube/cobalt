@@ -58,6 +58,7 @@
 #include "content/browser/renderer_host/render_frame_metadata_provider_impl.h"
 #include "content/browser/renderer_host/render_frame_proxy_host.h"
 #include "content/browser/renderer_host/render_process_host_impl.h"
+#include "content/browser/renderer_host/render_widget_host_factory.h"
 #include "content/browser/renderer_host/render_widget_host_impl.h"
 #include "content/browser/renderer_host/render_widget_host_view_child_frame.h"
 #include "content/browser/screen_orientation/screen_orientation_provider.h"
@@ -127,6 +128,7 @@
 #include "storage/browser/file_system/file_system_context.h"
 #include "testing/gmock/include/gmock/gmock-matchers.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/abseil-cpp/absl/functional/overload.h"
 #include "third_party/blink/public/common/chrome_debug_urls.h"
 #include "third_party/blink/public/common/frame/frame_visual_properties.h"
 #include "third_party/blink/public/common/input/synthetic_web_input_event_builders.h"
@@ -1582,72 +1584,115 @@ void ExecuteScriptAsyncWithoutUserGesture(const ToRenderFrameHost& adapter,
 
 // EvalJsResult methods.
 EvalJsResult::EvalJsResult(base::Value value, std::string_view error)
-    : error(error), value_(error.empty() ? std::move(value) : base::Value()) {}
+    : data_(error.empty() ? std::variant<std::string, base::Value>(
+                                std::in_place_type_t<base::Value>(),
+                                std::move(value))
+                          : std::variant<std::string, base::Value>(
+                                std::in_place_type_t<std::string>(),
+                                error)) {}
 
 EvalJsResult::EvalJsResult(const EvalJsResult& other)
-    : error(other.error), value_(other.value_.Clone()) {}
+    : data_(std::visit(
+          absl::Overload{
+              [](const std::string& error)
+                  -> std::variant<std::string, base::Value> { return error; },
+              [](const base::Value& value)
+                  -> std::variant<std::string, base::Value> {
+                return value.Clone();
+              },
+          },
+          other.data_)) {}
+
+EvalJsResult& EvalJsResult::operator=(const EvalJsResult& other) {
+  data_ = std::visit(
+      absl::Overload{
+          [](const std::string& error)
+              -> std::variant<std::string, base::Value> { return error; },
+          [](const base::Value& value)
+              -> std::variant<std::string, base::Value> {
+            return value.Clone();
+          },
+      },
+      other.data_);
+  return *this;
+}
+
+EvalJsResult::EvalJsResult(EvalJsResult&&) = default;
+
+EvalJsResult& EvalJsResult::operator=(EvalJsResult&&) = default;
+
+EvalJsResult::~EvalJsResult() = default;
 
 const std::string& EvalJsResult::ExtractString() const {
   CHECK(is_ok())
       << "Can't ExtractString() because the script encountered a problem: "
-      << error;
-  CHECK(value_.is_string())
-      << "Can't ExtractString() because script result: " << value_
+      << *error();
+  CHECK(value()->is_string())
+      << "Can't ExtractString() because script result: " << *value()
       << "is not a string.";
-  return value_.GetString();
+  return value()->GetString();
 }
 
 int EvalJsResult::ExtractInt() const {
   CHECK(is_ok())
       << "Can't ExtractInt() because the script encountered a problem: "
-      << error;
-  CHECK(value_.is_int()) << "Can't ExtractInt() because script result: "
-                         << value_ << "is not an int.";
-  return value_.GetInt();
+      << *error();
+  CHECK(value()->is_int()) << "Can't ExtractInt() because script result: "
+                           << *value() << "is not an int.";
+  return value()->GetInt();
 }
 
 bool EvalJsResult::ExtractBool() const {
   CHECK(is_ok())
       << "Can't ExtractBool() because the script encountered a problem: "
-      << error;
-  CHECK(value_.is_bool()) << "Can't ExtractBool() because script result: "
-                          << value_ << "is not a bool.";
-  return value_.GetBool();
+      << *error();
+  CHECK(value()->is_bool())
+      << "Can't ExtractBool() because script result: " << *value()
+      << "is not a bool.";
+  return value()->GetBool();
 }
 
 double EvalJsResult::ExtractDouble() const {
   CHECK(is_ok())
       << "Can't ExtractDouble() because the script encountered a problem: "
-      << error;
-  CHECK(value_.is_double() || value_.is_int())
-      << "Can't ExtractDouble() because script result: " << value_
+      << *error();
+  CHECK(value()->is_double() || value()->is_int())
+      << "Can't ExtractDouble() because script result: " << *value()
       << "is not a double or int.";
-  return value_.GetDouble();
+  return value()->GetDouble();
 }
 
-base::Value::List EvalJsResult::ExtractList() const {
+const base::Value::List& EvalJsResult::ExtractList() const {
   CHECK(is_ok())
       << "Can't ExtractList() because the script encountered a problem: "
-      << error;
-  CHECK(value_.is_list()) << "Can't ExtractList() because script result: "
-                          << value_ << "is not a list.";
-  return value_.GetList().Clone();
+      << *error();
+  CHECK(value()->is_list())
+      << "Can't ExtractList() because script result: " << *value()
+      << "is not a list.";
+  return value()->GetList();
 }
 
-base::Value::Dict EvalJsResult::ExtractDict() const {
+const base::Value::Dict& EvalJsResult::ExtractDict() const {
   CHECK(is_ok())
       << "Can't ExtractDict() because the script encountered a problem: "
-      << error;
-  CHECK(value_.is_dict()) << "Can't ExtractDict() because script result: "
-                          << value_ << "is not a dictionary.";
-  return value_.GetDict().Clone();
+      << *error();
+  CHECK(value()->is_dict())
+      << "Can't ExtractDict() because script result: " << *value()
+      << "is not a dictionary.";
+  return value()->GetDict();
+}
+
+const std::string& EvalJsResult::ExtractError() const {
+  CHECK(!is_ok()) << "Can't ExtractError() because the script did not fail: "
+                  << *value();
+  return error().value();
 }
 
 std::ostream& operator<<(std::ostream& os, const EvalJsResult& bar) {
   if (!bar.is_ok()) {
-    os << bar.error;
+    os << bar.ExtractError();
   } else {
-    os << bar.value_;
+    os << *bar.value();
   }
   return os;
 }
@@ -1903,8 +1948,8 @@ class ScopedTestDevToolsProtocolClient : public TestDevToolsProtocolClient {
       EvalJs(execution_target, script, options, world_id);
 
   // NOTE: |eval_result.value| is intentionally ignored by ExecJs().
-  if (!eval_result.error.empty()) {
-    return ::testing::AssertionFailure() << eval_result.error;
+  if (!eval_result.is_ok()) {
+    return ::testing::AssertionFailure() << eval_result;
   }
   return ::testing::AssertionSuccess();
 }
@@ -1967,15 +2012,19 @@ EvalJsResult EvalJsAfterLifecycleUpdate(
   EvalJsResult result = EvalJsRunner(execution_target, runner_script,
                                      kWrapperURL, options, world_id);
 
-  if (base::StartsWith(result.error, "a JavaScript error: \"EvalError: Refused",
+  if (!result.is_ok() &&
+      base::StartsWith(result.ExtractError(),
+                       "a JavaScript error: \"EvalError: Refused",
                        base::CompareCase::SENSITIVE)) {
-    return EvalJsResult(
-        base::Value(),
-        "EvalJsAfterLifecycleUpdate encountered an EvalError, because eval() "
-        "is blocked by the document's CSP on this page. To test content that "
-        "is protected by CSP, consider using EvalJsAfterLifecycleUpdate in an "
-        "isolated world. Details: " +
-            result.error);
+    return EvalJsResult(base::Value(),
+                        base::StrCat({"EvalJsAfterLifecycleUpdate encountered "
+                                      "an EvalError, because eval() "
+                                      "is blocked by the document's CSP on "
+                                      "this page. To test content that "
+                                      "is protected by CSP, consider using "
+                                      "EvalJsAfterLifecycleUpdate in an "
+                                      "isolated world. Details: ",
+                                      result.ExtractError()}));
   }
   return result;
 }
@@ -4853,5 +4902,165 @@ bool WaitForDOMContentLoaded(RenderFrameHost* rfh) {
   DOMContentLoadedObserver observer(rfh);
   return observer.Wait();
 }
+
+CreateNewPopupWidgetInterceptor::CreateNewPopupWidgetInterceptor(
+    RenderFrameHost* rfh,
+    base::OnceCallback<void(RenderWidgetHost*)> did_create_callback)
+    : swapped_impl_(static_cast<RenderFrameHostImpl*>(rfh)
+                        ->local_frame_host_receiver_for_testing(),
+                    this),
+      did_create_callback_(std::move(did_create_callback)) {}
+
+CreateNewPopupWidgetInterceptor::~CreateNewPopupWidgetInterceptor() = default;
+
+void CreateNewPopupWidgetInterceptor::CreateNewPopupWidget(
+    mojo::PendingAssociatedReceiver<blink::mojom::PopupWidgetHost>
+        blink_popup_widget_host,
+    mojo::PendingAssociatedReceiver<blink::mojom::WidgetHost> blink_widget_host,
+    mojo::PendingAssociatedRemote<blink::mojom::Widget> blink_widget) {
+  class PopupWidgetCreationObserver : public RenderWidgetHostFactory {
+   public:
+    PopupWidgetCreationObserver() { RegisterFactory(this); }
+
+    ~PopupWidgetCreationObserver() override { UnregisterFactory(); }
+
+    // RenderWidgetHostFactory overrides:
+    RenderWidgetHostImpl* CreateSelfOwnedRenderWidgetHost(
+        FrameTree* frame_tree,
+        RenderWidgetHostDelegate* delegate,
+        base::SafeRef<SiteInstanceGroup> site_instance_group,
+        int32_t routing_id,
+        bool hidden) override {
+      CHECK(!last_created_widget_);
+      last_created_widget_ =
+          RenderWidgetHostFactory::CreateSelfOwnedRenderWidgetHost(
+              frame_tree, delegate, std::move(site_instance_group), routing_id,
+              hidden);
+      return last_created_widget_;
+    }
+
+    RenderWidgetHostImpl* TakeLastCreatedWidget() {
+      return std::exchange(last_created_widget_, nullptr);
+    }
+
+   private:
+    raw_ptr<RenderWidgetHostImpl> last_created_widget_;
+  };
+
+  PopupWidgetCreationObserver creation_observer;
+
+  GetForwardingInterface()->CreateNewPopupWidget(
+      std::move(blink_popup_widget_host), std::move(blink_widget_host),
+      std::move(blink_widget));
+
+  if (!did_create_callback_) {
+    return;
+  }
+
+  if (auto* widget = creation_observer.TakeLastCreatedWidget(); widget) {
+    std::move(did_create_callback_).Run(widget);
+  }
+}
+
+blink::mojom::LocalFrameHost*
+CreateNewPopupWidgetInterceptor::GetForwardingInterface() {
+  return swapped_impl_.old_impl();
+}
+
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_ANDROID)
+ShowPopupWidgetWaiter::ShowPopupMenuInterceptor::ShowPopupMenuInterceptor(
+    RenderFrameHost* rfh,
+    base::OnceCallback<void(const gfx::Rect&)> did_show_popup_menu_callback)
+    : swapped_impl_(static_cast<RenderFrameHostImpl*>(rfh)
+                        ->local_frame_host_receiver_for_testing(),
+                    this),
+      did_show_popup_menu_callback_(std::move(did_show_popup_menu_callback)) {}
+
+ShowPopupWidgetWaiter::ShowPopupMenuInterceptor::~ShowPopupMenuInterceptor() =
+    default;
+
+void ShowPopupWidgetWaiter::ShowPopupMenuInterceptor::ShowPopupMenu(
+    mojo::PendingRemote<blink::mojom::PopupMenuClient> popup_client,
+    const gfx::Rect& bounds,
+    double font_size,
+    int32_t selected_item,
+    std::vector<blink::mojom::MenuItemPtr> menu_items,
+    bool right_aligned,
+    bool allow_multiple_selection) {
+  if (did_show_popup_menu_callback_) {
+    std::move(did_show_popup_menu_callback_).Run(bounds);
+    mojo::Remote<blink::mojom::PopupMenuClient>(std::move(popup_client))
+        ->DidCancel();
+    return;
+  }
+
+  GetForwardingInterface()->ShowPopupMenu(
+      std::move(popup_client), bounds, font_size, selected_item,
+      std::move(menu_items), right_aligned, allow_multiple_selection);
+}
+
+blink::mojom::LocalFrameHost*
+ShowPopupWidgetWaiter::ShowPopupMenuInterceptor::GetForwardingInterface() {
+  return swapped_impl_.old_impl();
+}
+#endif
+
+ShowPopupWidgetWaiter::ShowPopupWidgetWaiter(WebContents* web_contents,
+                                             RenderFrameHost* frame_host)
+    : create_new_popup_widget_interceptor_(
+          static_cast<RenderFrameHostImpl*>(frame_host),
+          base::BindOnce(&ShowPopupWidgetWaiter::DidCreatePopupWidget,
+                         base::Unretained(this))),
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_ANDROID)
+      show_popup_menu_interceptor_(
+          frame_host,
+          base::BindOnce(&ShowPopupWidgetWaiter::DidShowPopupMenu,
+                         base::Unretained(this))),
+#endif
+
+      frame_host_(frame_host) {
+}
+
+ShowPopupWidgetWaiter::~ShowPopupWidgetWaiter() {
+  if (auto* rwhi = RenderWidgetHostImpl::FromID(process_id_, routing_id_)) {
+    std::ignore =
+        rwhi->popup_widget_host_receiver_for_testing().SwapImplForTesting(rwhi);
+  }
+}
+
+void ShowPopupWidgetWaiter::Wait() {
+  run_loop_.Run();
+}
+
+blink::mojom::PopupWidgetHost* ShowPopupWidgetWaiter::GetForwardingInterface() {
+  DCHECK_NE(IPC::mojom::kRoutingIdNone, routing_id_);
+  return RenderWidgetHostImpl::FromID(process_id_, routing_id_);
+}
+
+void ShowPopupWidgetWaiter::ShowPopup(const gfx::Rect& initial_rect,
+                                      const gfx::Rect& initial_anchor_rect,
+                                      ShowPopupCallback callback) {
+  GetForwardingInterface()->ShowPopup(initial_rect, initial_anchor_rect,
+                                      std::move(callback));
+  initial_rect_ = initial_rect;
+  run_loop_.Quit();
+}
+
+void ShowPopupWidgetWaiter::DidCreatePopupWidget(
+    RenderWidgetHost* render_widget_host) {
+  process_id_ = render_widget_host->GetProcess()->GetDeprecatedID();
+  routing_id_ = render_widget_host->GetRoutingID();
+  // Swapped back in destructor from process_id_ and routing_id_ lookup.
+  std::ignore = static_cast<RenderWidgetHostImpl*>(render_widget_host)
+                    ->popup_widget_host_receiver_for_testing()
+                    .SwapImplForTesting(this);
+}
+
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_ANDROID)
+void ShowPopupWidgetWaiter::DidShowPopupMenu(const gfx::Rect& bounds) {
+  initial_rect_ = bounds;
+  run_loop_.Quit();
+}
+#endif
 
 }  // namespace content

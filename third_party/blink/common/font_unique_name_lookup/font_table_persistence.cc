@@ -34,7 +34,7 @@ bool LoadFromFile(base::FilePath file_path,
 
     file_contents.resize(table_cache_file.GetLength());
 
-    if (table_cache_file.Read(0, file_contents) == 0) {
+    if (table_cache_file.Read(0, file_contents).value_or(0) == 0) {
       return false;
     }
   }

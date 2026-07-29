@@ -354,9 +354,7 @@ CGFloat MIAAnimationOpacityForScrollProgress(CGFloat percent) {
       };
       [self registerForTraitChanges:traits withHandler:handler];
       if (IsNTPBackgroundCustomizationEnabled()) {
-        NSArray<UITrait>* colorTraits =
-            TraitCollectionSetForTraits(@[ NewTabPageTrait.class ]);
-        [self registerForTraitChanges:colorTraits
+        [self registerForTraitChanges:@[ NewTabPageTrait.class ]
                            withAction:@selector(applyBackgroundColors)];
       }
     }
@@ -949,7 +947,7 @@ CGFloat MIAAnimationOpacityForScrollProgress(CGFloat percent) {
 // set.
 - (void)applyBackgroundColors {
   NewTabPageColorPalette* colorPalette =
-      [self.traitCollection objectForTrait:NewTabPageTrait.class];
+      [self.traitCollection objectForNewTabPageTrait];
 
   if (colorPalette) {
     [_fakeLocationBar setStartColor:colorPalette.omniboxColor
@@ -964,6 +962,7 @@ CGFloat MIAAnimationOpacityForScrollProgress(CGFloat percent) {
 
     _voiceAndLensDivider.backgroundColor = colorPalette.omniboxIconDividerColor;
     _miaAndVoiceDivider.backgroundColor = colorPalette.omniboxIconDividerColor;
+    _miaAnimationView.alpha = 0;
   } else {
     [_fakeLocationBar setStartColor:FakeboxTopColor()
                            endColor:FakeboxBottomColor()];
@@ -985,6 +984,8 @@ CGFloat MIAAnimationOpacityForScrollProgress(CGFloat percent) {
 
     _voiceAndLensDivider.backgroundColor = [UIColor colorNamed:kGrey600Color];
     _miaAndVoiceDivider.backgroundColor = [UIColor colorNamed:kGrey600Color];
+    _miaAnimationView.alpha =
+        MIAAnimationOpacityForScrollProgress(_lastAnimationPercent);
   }
 }
 
@@ -1164,7 +1165,7 @@ CGFloat MIAAnimationOpacityForScrollProgress(CGFloat percent) {
 - (void)setFakeboxBackgroundWithProgress:(CGFloat)progress {
   UIColor* pinnedColor = [UIColor colorNamed:kTextfieldBackgroundColor];
   NewTabPageColorPalette* colorPalette =
-      [self.traitCollection objectForTrait:NewTabPageTrait.class];
+      [self.traitCollection objectForNewTabPageTrait];
 
   // Use a quadratic curve interpolation.
   progress = progress * progress;

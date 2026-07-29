@@ -10,6 +10,8 @@
 #include "base/containers/to_vector.h"
 #include "base/test/scoped_feature_list.h"
 #include "components/autofill/core/browser/autofill_field.h"
+#include "components/autofill/core/browser/data_model/autofill_ai/entity_type.h"
+#include "components/autofill/core/browser/data_model/autofill_ai/entity_type_names.h"
 #include "components/autofill/core/browser/form_structure.h"
 #include "components/autofill/core/browser/form_structure_sectioning_util.h"
 #include "components/autofill/core/browser/test_utils/autofill_form_test_utils.h"
@@ -24,8 +26,6 @@ namespace autofill {
 void PrintTo(const AutofillFieldWithAttributeType& f, ::std::ostream* os) {
   *os << f.field->global_id() << " -> " << f.type.name_as_string();
 }
-
-namespace {
 
 using ::testing::_;
 using ::testing::AllOf;
@@ -75,15 +75,26 @@ testing::Matcher<AutofillFieldWithAttributeType> FieldAndType(
 }
 
 class DetermineAttributeTypesTest : public testing::Test {
+ public:
+  static constexpr DetermineAttributeTypesPassKey kPassKey = {};
+
+  DetermineAttributeTypesTest() {
+    feature_list_.InitWithFeatures({features::kAutofillAiWithDataSchema,
+                                    features::kAutofillUnionTypesForAutofillAi},
+                                   {});
+  }
+
  private:
   autofill::test::AutofillUnitTestEnvironment autofill_environment_;
+  base::test::ScopedFeatureList feature_list_;
 };
 
 // Tests that DetermineAttributeTypes() doesn't crash on empty lists.
 TEST_F(DetermineAttributeTypesTest, ToleratesEmptyList) {
-  EXPECT_THAT(DetermineAttributeTypes({}), IsEmpty());
-  EXPECT_THAT(DetermineAttributeTypes({}, Section()), IsEmpty());
-  EXPECT_THAT(DetermineAttributeTypes({}, Section(), kPassport), IsEmpty());
+  EXPECT_THAT(DetermineAttributeTypes({}, kPassKey), IsEmpty());
+  EXPECT_THAT(DetermineAttributeTypes({}, Section(), kPassKey), IsEmpty());
+  EXPECT_THAT(DetermineAttributeTypes({}, Section(), kPassport, kPassKey),
+              IsEmpty());
 }
 
 // Tests that DetermineAttributeTypes() is empty on forms that have no entities.
@@ -99,10 +110,10 @@ TEST_F(DetermineAttributeTypesTest, IsEmptyInUnrelatedForm) {
       {ADDRESS_HOME_COUNTRY},
   });
 
-  EXPECT_THAT(DetermineAttributeTypes(fields), IsEmpty());
-  EXPECT_THAT(DetermineAttributeTypes(fields, Section()), IsEmpty());
-  EXPECT_THAT(DetermineAttributeTypes(fields, Section(), kPassport), IsEmpty());
-  EXPECT_FALSE(AreFieldsRelevantForAutofillAi(fields));
+  EXPECT_THAT(DetermineAttributeTypes(fields, kPassKey), IsEmpty());
+  EXPECT_THAT(DetermineAttributeTypes(fields, Section(), kPassKey), IsEmpty());
+  EXPECT_THAT(DetermineAttributeTypes(fields, Section(), kPassport, kPassKey),
+              IsEmpty());
 }
 
 // Tests that DetermineAttributeTypes() processes `*_TAG` correctly if
@@ -132,26 +143,25 @@ TEST_F(DetermineAttributeTypesTest, LegacyBehavior) {
   const Section section = fields.front()->section();
 
   // DetermineAttributeTypes() overload with Section and AttributeType.
-  EXPECT_THAT(DetermineAttributeTypes(fields, section, kVehicle),
+  EXPECT_THAT(DetermineAttributeTypes(fields, section, kVehicle, kPassKey),
               vehicle_matcher);
-  EXPECT_THAT(DetermineAttributeTypes(fields, section, kDriversLicense),
-              drivers_license_matcher);
+  EXPECT_THAT(
+      DetermineAttributeTypes(fields, section, kDriversLicense, kPassKey),
+      drivers_license_matcher);
 
   // DetermineAttributeTypes() overload with Section, without EntityType.
   EXPECT_THAT(
-      DetermineAttributeTypes(fields, section),
+      DetermineAttributeTypes(fields, section, kPassKey),
       UnorderedElementsAre(Pair(kVehicle, vehicle_matcher),
                            Pair(kDriversLicense, drivers_license_matcher)));
 
   // DetermineAttributeTypes() overload without Section and AttributeType.
   EXPECT_THAT(
-      DetermineAttributeTypes(fields),
+      DetermineAttributeTypes(fields, kPassKey),
       UnorderedElementsAre(
           Pair(section, UnorderedElementsAre(
                             Pair(kVehicle, vehicle_matcher),
                             Pair(kDriversLicense, drivers_license_matcher)))));
-
-  EXPECT_TRUE(AreFieldsRelevantForAutofillAi(fields));
 }
 
 // Tests that DetermineAttributeTypes() assigns static types correctly.
@@ -176,20 +186,21 @@ TEST_F(DetermineAttributeTypesTest, AssignsStaticTypes) {
   const Section section = fields.front()->section();
 
   // DetermineAttributeTypes() overload with Section and AttributeType.
-  EXPECT_THAT(DetermineAttributeTypes(fields, section, kVehicle),
+  EXPECT_THAT(DetermineAttributeTypes(fields, section, kVehicle, kPassKey),
               vehicle_matcher);
-  EXPECT_THAT(DetermineAttributeTypes(fields, section, kDriversLicense),
-              drivers_license_matcher);
+  EXPECT_THAT(
+      DetermineAttributeTypes(fields, section, kDriversLicense, kPassKey),
+      drivers_license_matcher);
 
   // DetermineAttributeTypes() overload with Section, without EntityType.
   EXPECT_THAT(
-      DetermineAttributeTypes(fields, section),
+      DetermineAttributeTypes(fields, section, kPassKey),
       UnorderedElementsAre(Pair(kVehicle, vehicle_matcher),
                            Pair(kDriversLicense, drivers_license_matcher)));
 
   // DetermineAttributeTypes() overload without Section and AttributeType.
   EXPECT_THAT(
-      DetermineAttributeTypes(fields),
+      DetermineAttributeTypes(fields, kPassKey),
       UnorderedElementsAre(
           Pair(section, UnorderedElementsAre(
                             Pair(kVehicle, vehicle_matcher),
@@ -230,20 +241,21 @@ TEST_F(DetermineAttributeTypesTest, AssignsDynamicTypesToTheVicinity) {
   const Section section = fields.front()->section();
 
   // DetermineAttributeTypes() overload with Section and AttributeType.
-  EXPECT_THAT(DetermineAttributeTypes(fields, section, kVehicle),
+  EXPECT_THAT(DetermineAttributeTypes(fields, section, kVehicle, kPassKey),
               vehicle_matcher);
-  EXPECT_THAT(DetermineAttributeTypes(fields, section, kDriversLicense),
-              drivers_license_matcher);
+  EXPECT_THAT(
+      DetermineAttributeTypes(fields, section, kDriversLicense, kPassKey),
+      drivers_license_matcher);
 
   // DetermineAttributeTypes() overload with Section, without EntityType.
   EXPECT_THAT(
-      DetermineAttributeTypes(fields, section),
+      DetermineAttributeTypes(fields, section, kPassKey),
       UnorderedElementsAre(Pair(kVehicle, vehicle_matcher),
                            Pair(kDriversLicense, drivers_license_matcher)));
 
   // DetermineAttributeTypes() overload without Section and AttributeType.
   EXPECT_THAT(
-      DetermineAttributeTypes(fields),
+      DetermineAttributeTypes(fields, kPassKey),
       UnorderedElementsAre(
           Pair(section, UnorderedElementsAre(
                             Pair(kVehicle, vehicle_matcher),
@@ -272,7 +284,7 @@ TEST_F(DetermineAttributeTypesTest, PropagatesDynamicTypesForward) {
                   FieldAndType(fields[9], AttributeType(kVehicleOwner)),
                   FieldAndType(fields[14], AttributeType(kVehicleOwner)));
   const Section section = fields.front()->section();
-  EXPECT_THAT(DetermineAttributeTypes(fields, section, kVehicle),
+  EXPECT_THAT(DetermineAttributeTypes(fields, section, kVehicle, kPassKey),
               vehicle_matcher);
 }
 
@@ -298,7 +310,7 @@ TEST_F(DetermineAttributeTypesTest, PropagatesDynamicTypesBackward) {
                   FieldAndType(fields[18], AttributeType(kVehicleOwner)),
                   FieldAndType(fields[20], AttributeType(kVehicleMake)));
   const Section section = fields.front()->section();
-  EXPECT_THAT(DetermineAttributeTypes(fields, section, kVehicle),
+  EXPECT_THAT(DetermineAttributeTypes(fields, section, kVehicle, kPassKey),
               vehicle_matcher);
 }
 
@@ -321,20 +333,21 @@ TEST_F(DetermineAttributeTypesTest,
   const Section section = fields.front()->section();
 
   // DetermineAttributeTypes() overload with Section and AttributeType.
-  EXPECT_THAT(DetermineAttributeTypes(fields, section, kVehicle),
+  EXPECT_THAT(DetermineAttributeTypes(fields, section, kVehicle, kPassKey),
               vehicle_matcher);
-  EXPECT_THAT(DetermineAttributeTypes(fields, section, kDriversLicense),
-              drivers_license_matcher);
+  EXPECT_THAT(
+      DetermineAttributeTypes(fields, section, kDriversLicense, kPassKey),
+      drivers_license_matcher);
 
   // DetermineAttributeTypes() overload with Section, without EntityType.
   EXPECT_THAT(
-      DetermineAttributeTypes(fields, section),
+      DetermineAttributeTypes(fields, section, kPassKey),
       UnorderedElementsAre(Pair(kVehicle, vehicle_matcher),
                            Pair(kDriversLicense, drivers_license_matcher)));
 
   // DetermineAttributeTypes() overload without Section and AttributeType.
   EXPECT_THAT(
-      DetermineAttributeTypes(fields),
+      DetermineAttributeTypes(fields, kPassKey),
       UnorderedElementsAre(
           Pair(section, UnorderedElementsAre(
                             Pair(kVehicle, vehicle_matcher),
@@ -360,20 +373,21 @@ TEST_F(DetermineAttributeTypesTest,
   const Section section = fields.front()->section();
 
   // DetermineAttributeTypes() overload with Section and AttributeType.
-  EXPECT_THAT(DetermineAttributeTypes(fields, section, kVehicle),
+  EXPECT_THAT(DetermineAttributeTypes(fields, section, kVehicle, kPassKey),
               vehicle_matcher);
-  EXPECT_THAT(DetermineAttributeTypes(fields, section, kDriversLicense),
-              drivers_license_matcher);
+  EXPECT_THAT(
+      DetermineAttributeTypes(fields, section, kDriversLicense, kPassKey),
+      drivers_license_matcher);
 
   // DetermineAttributeTypes() overload with Section, without EntityType.
   EXPECT_THAT(
-      DetermineAttributeTypes(fields, section),
+      DetermineAttributeTypes(fields, section, kPassKey),
       UnorderedElementsAre(Pair(kVehicle, vehicle_matcher),
                            Pair(kDriversLicense, drivers_license_matcher)));
 
   // DetermineAttributeTypes() overload without Section and AttributeType.
   EXPECT_THAT(
-      DetermineAttributeTypes(fields),
+      DetermineAttributeTypes(fields, kPassKey),
       UnorderedElementsAre(
           Pair(section, UnorderedElementsAre(
                             Pair(kVehicle, vehicle_matcher),
@@ -417,27 +431,29 @@ TEST_F(DetermineAttributeTypesTest, DistinguishesBetweenSections) {
   ASSERT_NE(vehicle_section, drivers_license_section);
 
   // DetermineAttributeTypes() overload with Section and AttributeType.
-  EXPECT_THAT(DetermineAttributeTypes(fields, vehicle_section, kVehicle),
-              vehicle_matcher);
-  EXPECT_THAT(DetermineAttributeTypes(fields, vehicle_section, kDriversLicense),
+  EXPECT_THAT(
+      DetermineAttributeTypes(fields, vehicle_section, kVehicle, kPassKey),
+      vehicle_matcher);
+  EXPECT_THAT(DetermineAttributeTypes(fields, vehicle_section, kDriversLicense,
+                                      kPassKey),
               IsEmpty());
-  EXPECT_THAT(
-      DetermineAttributeTypes(fields, drivers_license_section, kDriversLicense),
-      drivers_license_matcher);
-  EXPECT_THAT(
-      DetermineAttributeTypes(fields, drivers_license_section, kVehicle),
-      IsEmpty());
+  EXPECT_THAT(DetermineAttributeTypes(fields, drivers_license_section,
+                                      kDriversLicense, kPassKey),
+              drivers_license_matcher);
+  EXPECT_THAT(DetermineAttributeTypes(fields, drivers_license_section, kVehicle,
+                                      kPassKey),
+              IsEmpty());
 
   // DetermineAttributeTypes() overload with Section, without EntityType.
-  EXPECT_THAT(DetermineAttributeTypes(fields, vehicle_section),
+  EXPECT_THAT(DetermineAttributeTypes(fields, vehicle_section, kPassKey),
               UnorderedElementsAre(Pair(kVehicle, vehicle_matcher)));
   EXPECT_THAT(
-      DetermineAttributeTypes(fields, drivers_license_section),
+      DetermineAttributeTypes(fields, drivers_license_section, kPassKey),
       UnorderedElementsAre(Pair(kDriversLicense, drivers_license_matcher)));
 
   // DetermineAttributeTypes() overload without Section and AttributeType.
   EXPECT_THAT(
-      DetermineAttributeTypes(fields),
+      DetermineAttributeTypes(fields, kPassKey),
       UnorderedElementsAre(
           Pair(vehicle_section, ElementsAre(Pair(kVehicle, vehicle_matcher))),
           Pair(drivers_license_section,
@@ -478,27 +494,29 @@ TEST_F(DetermineAttributeTypesTest, OverloadEquivalence) {
       FieldAndType(fields[1], AttributeType(kDriversLicenseName)),
       FieldAndType(fields[3], AttributeType(kDriversLicenseNumber)));
 
-  EXPECT_THAT(DetermineAttributeTypes(fields, section1, kVehicle),
+  EXPECT_THAT(DetermineAttributeTypes(fields, section1, kVehicle, kPassKey),
               vehicle_matcher);
-  EXPECT_THAT(DetermineAttributeTypes(fields, section2, kVehicle), IsEmpty());
-  EXPECT_THAT(DetermineAttributeTypes(fields, section1, kDriversLicense),
+  EXPECT_THAT(DetermineAttributeTypes(fields, section2, kVehicle, kPassKey),
               IsEmpty());
-  EXPECT_THAT(DetermineAttributeTypes(fields, section2, kDriversLicense),
-              drivers_license_matcher);
+  EXPECT_THAT(
+      DetermineAttributeTypes(fields, section1, kDriversLicense, kPassKey),
+      IsEmpty());
+  EXPECT_THAT(
+      DetermineAttributeTypes(fields, section2, kDriversLicense, kPassKey),
+      drivers_license_matcher);
 
   // DetermineAttributeTypes() overload with Section, without EntityType.
-  EXPECT_THAT(DetermineAttributeTypes(fields, section1),
+  EXPECT_THAT(DetermineAttributeTypes(fields, section1, kPassKey),
               ElementsAre(Pair(kVehicle, vehicle_matcher)));
-  EXPECT_THAT(DetermineAttributeTypes(fields, section2),
+  EXPECT_THAT(DetermineAttributeTypes(fields, section2, kPassKey),
               ElementsAre(Pair(kDriversLicense, drivers_license_matcher)));
 
   // DetermineAttributeTypes() overload without Section and AttributeType.
-  EXPECT_THAT(DetermineAttributeTypes(fields),
+  EXPECT_THAT(DetermineAttributeTypes(fields, kPassKey),
               UnorderedElementsAre(
                   Pair(section1, ElementsAre(Pair(kVehicle, vehicle_matcher))),
                   Pair(section2, ElementsAre(Pair(kDriversLicense,
                                                   drivers_license_matcher)))));
 }
 
-}  // namespace
 }  // namespace autofill

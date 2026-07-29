@@ -65,6 +65,41 @@ BrowserTabStripModelDelegate::BrowserTabStripModelDelegate(Browser* browser)
 
 BrowserTabStripModelDelegate::~BrowserTabStripModelDelegate() = default;
 
+#if BUILDFLAG(ENABLE_GLIC)
+bool BrowserTabStripModelDelegate::IsTabGlicPinned(tabs::TabHandle tab_handle) {
+  auto* service =
+      glic::GlicKeyedServiceFactory::GetGlicKeyedService(browser_->profile());
+
+  return service->sharing_manager().IsTabPinned(tab_handle);
+}
+
+bool BrowserTabStripModelDelegate::GlicPinTabs(
+    base::span<const tabs::TabHandle> tab_handles) {
+  auto* service =
+      glic::GlicKeyedServiceFactory::GetGlicKeyedService(browser_->profile());
+
+  return service->sharing_manager().PinTabs(tab_handles);
+}
+
+bool BrowserTabStripModelDelegate::GlicUnpinTabs(
+    base::span<const tabs::TabHandle> tab_handles) {
+  auto* service =
+      glic::GlicKeyedServiceFactory::GetGlicKeyedService(browser_->profile());
+
+  return service->sharing_manager().UnpinTabs(tab_handles);
+}
+
+void BrowserTabStripModelDelegate::OpenGlicWindowFromSharedTab() {
+  auto* service =
+      glic::GlicKeyedServiceFactory::GetGlicKeyedService(browser_->profile());
+
+  if (!service->IsWindowOrFreShowing()) {
+    service->ToggleUI(/*bwi=*/nullptr, /*prevent_close=*/true,
+                      glic::mojom::InvocationSource::kSharedTab);
+  }
+}
+#endif
+
 ////////////////////////////////////////////////////////////////////////////////
 // BrowserTabStripModelDelegate, TabStripModelDelegate implementation:
 
@@ -72,8 +107,9 @@ void BrowserTabStripModelDelegate::AddTabAt(
     const GURL& url,
     int index,
     bool foreground,
-    std::optional<tab_groups::TabGroupId> group) {
-  chrome::AddTabAt(browser_, url, index, foreground, group);
+    std::optional<tab_groups::TabGroupId> group,
+    bool pinned) {
+  chrome::AddTabAt(browser_, url, index, foreground, group, pinned);
 }
 
 Browser* BrowserTabStripModelDelegate::CreateNewStripWithTabs(

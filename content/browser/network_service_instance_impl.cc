@@ -124,14 +124,6 @@ mojo::Remote<network::mojom::NetworkService>* g_network_service_remote =
 network::NetworkConnectionTracker* g_network_connection_tracker;
 bool g_network_service_is_responding = false;
 
-// A directory name that is created below the http cache path and passed to the
-// network context when creating a network context with cache enabled.
-// This must be a directory below the main cache path so operations such as
-// resetting the cache via HttpCacheParams.reset_cache can function correctly
-// as they rely on having access to the parent directory of the cache.
-const base::FilePath::CharType kCacheDataDirectoryName[] =
-    FILE_PATH_LITERAL("Cache_Data");
-
 std::unique_ptr<network::NetworkService>& GetLocalNetworkService() {
   static base::SequenceLocalStorageSlot<
       std::unique_ptr<network::NetworkService>>
@@ -936,6 +928,14 @@ void CreateNetworkContextInNetworkService(
 
   if (params->http_cache_enabled && params->file_paths &&
       params->file_paths->http_cache_directory) {
+    if (!params->file_paths->no_vary_search_directory.has_value()) {
+      static constexpr base::FilePath::CharType kNoVarySearchDirectoryName[] =
+          FILE_PATH_LITERAL("No_Vary_Search");
+
+      params->file_paths->no_vary_search_directory =
+          params->file_paths->http_cache_directory->path().Append(
+              kNoVarySearchDirectoryName);
+    }
     params->file_paths->http_cache_directory =
         params->file_paths->http_cache_directory->path().Append(
             kCacheDataDirectoryName);

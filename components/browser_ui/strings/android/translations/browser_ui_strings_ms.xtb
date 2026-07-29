@@ -78,6 +78,7 @@ Perlindungan Lanjutan mengawal tetapan Chrome ini:
 <translation id="1915307458270490472">Tamatkan panggilan</translation>
 <translation id="1919950603503897840">Pilih kenalan</translation>
 <translation id="1923695749281512248"><ph name="BYTES_DOWNLOADED_WITH_UNITS" /> / <ph name="FILE_SIZE_WITH_UNITS" /></translation>
+<translation id="1939059826036755332">Gambar dalam gambar automatik</translation>
 <translation id="1954597385941141174">Tapak boleh meminta untuk menyambung kepada peranti USB</translation>
 <translation id="1979673356880165407">Jadikan teks dan imej lebih besar atau lebih kecil untuk semua laman yang anda lawati</translation>
 <translation id="1984937141057606926">Dibenarkan, kecuali pihak ketiga</translation>
@@ -228,6 +229,7 @@ Perlindungan Lanjutan mengawal tetapan Chrome ini:
 <translation id="3600792891314830896">Redam tapak yang memainkan bunyi</translation>
 <translation id="3602290021589620013">Pratonton</translation>
 <translation id="3611658447322220736">Laman yang ditutup baru-baru ini boleh menyelesaikan penghantaran dan penerimaan data</translation>
+<translation id="3619294456800709762">Laman dapat memasukkan gambar dalam gambar secara automatik</translation>
 <translation id="3628308229821498208">Carian cadangan</translation>
 <translation id="3641456520301071208">Laman boleh meminta lokasi anda</translation>
 <translation id="3658847490588580244">Helaian bawah penyemak imbas lalai</translation>
@@ -276,6 +278,7 @@ Perlindungan Lanjutan mengawal tetapan Chrome ini:
 <translation id="4031179711345676612">Mikrofon dibenarkan</translation>
 <translation id="4046123991198612571">Lagu seterusnya</translation>
 <translation id="4077310749977440510">Laman biasanya membaca papan keratan anda untuk ciri seperti mengekalkan format teks yang anda salin</translation>
+<translation id="4082080074595021446">Pengecualian untuk laman web tertentu tidak dibenarkan kerana peranti Android tidak memiliki RAM yang mencukupi.</translation>
 <translation id="4149890623864272035">Adakah anda pasti mahu memadamkan semua data setempat, termasuk kuki dan menetapkan semula semua kebenaran untuk laman web ini?</translation>
 <translation id="4149994727733219643">Paparan ringkas bagi halaman web</translation>
 <translation id="4151930093518524179">Zum lalai</translation>
@@ -440,12 +443,14 @@ Perlindungan Lanjutan mengawal tetapan Chrome ini:
 <translation id="5975083100439434680">Zum keluar</translation>
 <translation id="5976059395673079613"><ph name="PERMISSION" /> - <ph name="WARNING_MESSAGE" /></translation>
 <translation id="5998071268779572583">Hidupkan suapan Discover</translation>
+<translation id="6012967556075291653">Pintasan yang disematkan</translation>
 <translation id="6015775454662021376">Kawal akses tapak ini kepada peranti anda</translation>
 <translation id="6040143037577758943">Tutup</translation>
 <translation id="6042308850641462728">Lagi</translation>
 <translation id="6064125863973209585">Muat turun yang telah selesai</translation>
 <translation id="6071501408666570960">Anda mungkin akan dilog keluar dari laman ini</translation>
 <translation id="6085954183010297841">Padamkan kebenaran pengeditan fail? <ph name="FILE" /></translation>
+<translation id="6104860901391833523">Apabila dihidupkan, laman boleh memasukkan gambar dalam gambar secara automatik. Apabila dimatikan, laman tidak dapat memasukkan gambar dalam gambar secara automatik.</translation>
 <translation id="6120483543004435978">Apabila dihidupkan, laman dapat meminta untuk mengetahui waktu anda menggunakan peranti secara aktif. Apabila dimatikan, laman tidak dapat mengetahui waktu anda menggunakan peranti secara aktif.</translation>
 <translation id="615886654739818377">Jangan benarkan laman mengurus tetingkap pada semua paparan anda</translation>
 <translation id="6165508094623778733">Ketahui lebih lanjut</translation>
@@ -608,6 +613,7 @@ Perlindungan Lanjutan mengawal tetapan Chrome ini:
 <translation id="8117244575099414087">Apabila dihidupkan, laman dapat menggunakan penderia peranti anda. Apabila dimatikan, laman tidak dapat menggunakan penderia.</translation>
 <translation id="813082847718468539">Lihat maklumat tapak</translation>
 <translation id="8131740175452115882">Sahkan</translation>
+<translation id="8163152278172770963">Jangan membenarkan laman untuk memasukkan gambar dalam gambar secara automatik</translation>
 <translation id="8168435359814927499">Kandungan</translation>
 <translation id="818487310457576362">Seret daripada bahagian sisi skrin untuk keluar daripada skrin penuh.</translation>
 <translation id="8186479265534291036">Laman tidak berfungsi? Kuki pihak ketiga disekat</translation>
@@ -699,6 +705,7 @@ Perlindungan Lanjutan mengawal tetapan Chrome ini:
 <translation id="913657688200966289">Hidupkan kebenaran untuk <ph name="APP_NAME" /> dalam <ph name="BEGIN_LINK" />Tetapan Android<ph name="END_LINK" />.</translation>
 <translation id="9138037198177304356">Pemberitahuan dibenarkan</translation>
 <translation id="9138217887606523162">Zum semasa ialah <ph name="ZOOM_LEVEL" /> %%</translation>
+<translation id="915112772806845021">Laman menggunakan ciri ini untuk memasukkan gambar dalam gambar secara automatik. Perkara ini membolehkan anda meneruskan tontonan video sambil mengekalkan skrin anda untuk tugasan lain.</translation>
 <translation id="9156722768168878035">Benarkan Chrome memaparkan tab terbaharu anda dalam senarai apl dan hasil carian peranti anda. Anda boleh mematikan ciri ini dalam tetapan Chrome pada bila-bila masa.</translation>
 <translation id="9162462602695099906">Halaman ini berbahaya</translation>
 <translation id="9182556968660520230">Jangan benarkan laman memainkan kandungan yang dilindungi</translation>

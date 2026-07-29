@@ -183,9 +183,7 @@ enum FieldType {
 
   COMPANY_NAME = 60,
 
-  // Generic type whose default value is known.
-  FIELD_WITH_DEFAULT_VALUE = 61,
-
+  // FIELD_WITH_DEFAULT_VALUE value 61 is deprecated.
   // PHONE_BILLING values [62, 66] are deprecated.
   // NAME_BILLING values [67, 72] are deprecated.
 
@@ -526,7 +524,15 @@ enum FieldType {
   NATIONAL_ID_CARD_ISSUE_DATE = 192,
   NATIONAL_ID_CARD_ISSUING_COUNTRY = 193,
 
-  // Types 194 to 200 are not used on the client yet, but will likely be added
+  // Types corresponding to the "Known traveler" entity from
+  // components/autofill/core/browser/data_model/autofill_ai/entity_schema.json.
+  KNOWN_TRAVELER_NUMBER = 194,
+  KNOWN_TRAVELER_NUMBER_EXPIRATION_DATE = 203,
+
+  // Types corresponding to the "Redress number" entity from
+  // components/autofill/core/browser/data_model/autofill_ai/entity_schema.json.
+  REDRESS_NUMBER = 195,
+  // Types 195 to 200 are not used on the client yet, but will likely be added
   // in the future.
 
   // ADDRESS_HOME_ZIP = ADDRESS_HOME_ZIP_PREFIX + separator +
@@ -545,7 +551,7 @@ enum FieldType {
   // If the newly added type is a storable type of AutofillProfile, update
   // AutofillProfile.StorableTypes in
   // tools/metrics/histograms/metadata/autofill/histograms.xml.
-  MAX_VALID_FIELD_TYPE = 203,
+  MAX_VALID_FIELD_TYPE = 204,
 };
 // LINT.ThenChange(//chrome/common/extensions/api/autofill_private.idl)
 
@@ -590,6 +596,10 @@ std::string_view FieldTypeToStringView(FieldType type);
 // Returns a string describing `type`.
 std::string FieldTypeToString(FieldType type);
 
+// Returns a comma-separated list of string representations of the elements of
+// `s`.
+std::string FieldTypeSetToString(FieldTypeSet s);
+
 // Inverse FieldTypeToStringView(). Returns UNKNOWN_TYPE for unknown FieldType
 // string representations.
 FieldType TypeNameToFieldType(std::string_view type_name);
@@ -627,6 +637,8 @@ constexpr FieldType ToSafeFieldType(std::underlying_type_t<FieldType> raw_value,
            t == 94 ||
            // Billing addresses (values [37,43], 78, 80, 82, 84) are deprecated.
            (37 <= t && t <= 43) || t == 78 || t == 80 || t == 82 || t == 84 ||
+           // FIELD_WITH_DEFAULT_VALUE is deprecated.
+           t == 61 ||
            // Billing phone numbers (values [62,66]) are deprecated.
            (62 <= t && t <= 66) ||
            // Billing names (values [67,72]) are deprecated.
@@ -648,10 +660,10 @@ constexpr FieldType ToSafeFieldType(std::underlying_type_t<FieldType> raw_value,
            (187 <= t && t <= 188) ||
            // Types for date of birth, gender, and flight reservation are not
            // used yet, but will likely be added in the future.
-           (194 <= t && t <= 200);
+           (196 <= t && t <= 200);
   };
   return is_invalid(raw_value) ? fallback_value
-                               : static_cast<FieldType>(raw_value);
+                               : static_cast<FieldType>(raw_value);  // nocheck
 }
 
 constexpr HtmlFieldType ToSafeHtmlFieldType(
@@ -811,6 +823,9 @@ constexpr FieldTypeGroup GroupTypeOfFieldType(FieldType field_type) {
     case NATIONAL_ID_CARD_ISSUE_DATE:
     case NATIONAL_ID_CARD_EXPIRATION_DATE:
     case NATIONAL_ID_CARD_ISSUING_COUNTRY:
+    case REDRESS_NUMBER:
+    case KNOWN_TRAVELER_NUMBER:
+    case KNOWN_TRAVELER_NUMBER_EXPIRATION_DATE:
       return FieldTypeGroup::kAutofillAi;
 
     case PASSWORD:
@@ -830,7 +845,6 @@ constexpr FieldTypeGroup GroupTypeOfFieldType(FieldType field_type) {
     case NO_SERVER_DATA:
     case EMPTY_TYPE:
     case AMBIGUOUS_TYPE:
-    case FIELD_WITH_DEFAULT_VALUE:
     case MERCHANT_EMAIL_SIGNUP:
     case MERCHANT_PROMO_CODE:
       return FieldTypeGroup::kNoGroup;

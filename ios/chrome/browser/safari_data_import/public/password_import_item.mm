@@ -4,28 +4,33 @@
 
 #import "ios/chrome/browser/safari_data_import/public/password_import_item.h"
 
+#import "ios/chrome/browser/safari_data_import/public/password_import_item_favicon_data_source.h"
+
 @implementation PasswordImportItem {
-  /// Indicates whether favicon loading is in progress.
-  BOOL _loadingFavicon;
+  /// Indicates whether favicon loading is initiated.
+  BOOL _faviconLoadingInitiated;
 }
 - (instancetype)initWithURL:(NSString*)url
                    username:(NSString*)username
-                   password:(NSString*)password {
+                   password:(NSString*)password
+                     status:(PasswordImportStatus)status {
   self = [super init];
   if (self) {
     _url = url;
     _username = username;
     _password = password;
+    _status = status;
   }
   return self;
 }
 
-- (void)loadFaviconWithCompletionHandler:(UIAction*)handler {
-  if (_loadingFavicon) {
+- (void)loadFaviconWithCompletionHandler:(ProceduralBlock)handler {
+  if (_faviconLoadingInitiated) {
     return;
   }
-  _loadingFavicon = YES;
-  /// TODO(crbug.com/420703283): Implement favicon attribute loading.
+  _faviconLoadingInitiated =
+      [self.faviconDataSource passwordImportItem:self
+             loadFaviconAttributesWithCompletion:handler];
 }
 
 @end

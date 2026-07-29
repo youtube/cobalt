@@ -140,13 +140,6 @@ BASE_FEATURE_PARAM(bool,
                    /*name=*/"SplitMaskedDomainList",
                    /*default_value=*/false);
 
-// When enabled, if the MaskedDomainList is used at all, it will use the
-// flatbuffer implementation (the `MaskedDomainList` class) instead of the
-// `UrlMatcherWithBypass` implementation.
-BASE_FEATURE(kMaskedDomainListFlatbufferImpl,
-             "MaskedDomainListFlatbufferImpl",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 // If this feature is enabled, the mDNS responder service responds to queries
 // for TXT records associated with
 // "Generated-Names._mdns_name_generator._udp.local" with a list of generated
@@ -172,6 +165,24 @@ BASE_FEATURE(kAcceptCHFrame, "AcceptCHFrame", base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kOffloadAcceptCHFrameCheck,
              "OffloadAcceptCHFrameCheck",
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Enable offloading the network layer to check enabled client hints even when
+// cross origin redirect happens.
+// See crbug.com/406407746 for details.
+BASE_FEATURE_PARAM(bool,
+                   kAcceptCHOffloadWithRedirect,
+                   &kOffloadAcceptCHFrameCheck,
+                   "AcceptCHOffloadWithRedirect",
+                   false);
+
+// Enable offloading the network layer to check enabled client hints for
+// subframe requests.
+// See crbug.com/406407746 for details.
+BASE_FEATURE_PARAM(bool,
+                   kAcceptCHOffloadForSubframe,
+                   &kOffloadAcceptCHFrameCheck,
+                   "AcceptCHOffloadForSubframe",
+                   false);
 
 // https://fetch.spec.whatwg.org/#cors-non-wildcard-request-header-name
 BASE_FEATURE(kCorsNonWildcardRequestHeadersSupport,
