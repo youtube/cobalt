@@ -28,10 +28,19 @@ void RunInBackgroundThreadAndWait(std::function<void()>&& function) {
   // dispatch_sync() or using semaphores with GCD both have the same problem of
   // inevitably blocking the main thread without running the main event loop,
   // which leads to a deadlock.
-  SB_CHECK_EQ(CFRunLoopGetMain(), CFRunLoopGetCurrent());
+  if (CFRunLoopGetMain() != CFRunLoopGetCurrent()) {
+    // This happens in some NPLB tests (e.g. MultiplePlayerTest.SunnyDay) where
+    // PlayerFixture instances are created in a separate thread and might end up
+    // invoking this function.
+    function();
+    return;
+  }
+  dispatch_semaphore_t semaphore = dispatch_semaphore_create(0);
   dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INTERACTIVE, 0), ^{
     function();
-    CFRunLoopStop(CFRunLoopGetMain());
+    dispatch_semaphore_signal(semaphore);
   });
-  CFRunLoopRun();
+  while (dispatch_semaphore_wait(semaphore, DISPATCH_TIME_NOW)) {
+    CFRunLoopRunInMode(kCFRunLoopDefaultMode, 0, true);
+  }
 }
