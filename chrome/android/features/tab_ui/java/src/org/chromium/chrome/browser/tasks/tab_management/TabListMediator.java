@@ -88,8 +88,11 @@ import org.chromium.chrome.browser.tabmodel.TabModelActionListener;
 import org.chromium.chrome.browser.tabmodel.TabModelObserver;
 import org.chromium.chrome.browser.tabmodel.TabModelUtils;
 import org.chromium.chrome.browser.tasks.tab_management.PriceMessageService.PriceTabData;
+import org.chromium.chrome.browser.tasks.tab_management.TabGridItemTouchHelperCallback.OnDropOnArchivalMessageCardEventListener;
 import org.chromium.chrome.browser.tasks.tab_management.TabGridView.QuickDeleteAnimationStatus;
 import org.chromium.chrome.browser.tasks.tab_management.TabListCoordinator.TabListMode;
+import org.chromium.chrome.browser.tasks.tab_management.TabListModel.AnimationStatus;
+import org.chromium.chrome.browser.tasks.tab_management.TabListModel.CardProperties;
 import org.chromium.chrome.browser.tasks.tab_management.TabProperties.TabActionState;
 import org.chromium.chrome.browser.tasks.tab_management.TabProperties.UiType;
 import org.chromium.chrome.browser.tasks.tab_management.TabUiMetricsHelper.TabListEditorActionMetricGroups;
@@ -1334,6 +1337,14 @@ class TabListMediator implements TabListNotificationHandler {
                 onLongPressTabItemEventListener);
     }
 
+    /**
+     * @param listener the handler for dropping tabs on top of an archival message card.
+     */
+    public void setOnDropOnArchivalMessageCardEventListener(
+            OnDropOnArchivalMessageCardEventListener listener) {
+        mTabGridItemTouchHelperCallback.setOnDropOnArchivalMessageCardEventListener(listener);
+    }
+
     void setRecyclerViewItemAnimationToggle(
             RecyclerViewItemAnimationToggle recyclerViewItemAnimationToggle) {
         mRecyclerViewItemAnimationToggle = recyclerViewItemAnimationToggle;
@@ -2030,9 +2041,7 @@ class TabListMediator implements TabListNotificationHandler {
                         .with(TabProperties.FAVICON_FETCHED, false)
                         .with(TabProperties.IS_SELECTED, isSelected)
                         .with(CARD_ALPHA, 1f)
-                        .with(
-                                TabProperties.CARD_ANIMATION_STATUS,
-                                TabGridView.AnimationStatus.CARD_RESTORE)
+                        .with(CardProperties.CARD_ANIMATION_STATUS, AnimationStatus.CARD_RESTORE)
                         .with(TabProperties.TAB_SELECTION_DELEGATE, getTabSelectionDelegate())
                         .with(TabProperties.ACCESSIBILITY_DELEGATE, mAccessibilityDelegate)
                         .with(TabProperties.SHOULD_SHOW_PRICE_DROP_TOOLTIP, false)
@@ -2102,9 +2111,7 @@ class TabListMediator implements TabListNotificationHandler {
                         .with(TabProperties.FAVICON_FETCHER, null)
                         .with(TabProperties.IS_SELECTED, false)
                         .with(CARD_ALPHA, 1f)
-                        .with(
-                                TabProperties.CARD_ANIMATION_STATUS,
-                                TabGridView.AnimationStatus.CARD_RESTORE)
+                        .with(CardProperties.CARD_ANIMATION_STATUS, AnimationStatus.CARD_RESTORE)
                         .with(TabProperties.TAB_SELECTION_DELEGATE, getTabSelectionDelegate())
                         .with(TabProperties.ACCESSIBILITY_DELEGATE, mAccessibilityDelegate)
                         .with(CARD_TYPE, TAB_GROUP)
@@ -2324,26 +2331,8 @@ class TabListMediator implements TabListNotificationHandler {
     private void updateFaviconForTab(
             PropertyModel model, Tab tab, @Nullable Bitmap icon, @Nullable GURL iconUrl) {
         if (mActionsOnAllRelatedTabs && isTabInTabGroup(tab)) {
-            List<Tab> relatedTabList = getRelatedTabsForId(tab.getId());
-            if (mMode != TabListMode.LIST) {
-                model.set(TabProperties.FAVICON_FETCHER, null);
-                return;
-            } else if (mMode == TabListMode.LIST && relatedTabList.size() > 1) {
-                // The order of the url list matches the multi-thumbnail.
-                List<GURL> urls = new ArrayList<>();
-                urls.add(tab.getUrl());
-                for (int i = 0; urls.size() < 4 && i < relatedTabList.size(); i++) {
-                    if (tab.getId() == relatedTabList.get(i).getId()) continue;
-                    urls.add(relatedTabList.get(i).getUrl());
-                }
-
-                // For tab group card in list tab switcher, the favicon is the composed favicon.
-                model.set(
-                        TabProperties.FAVICON_FETCHER,
-                        mTabListFaviconProvider.getComposedFaviconImageFetcher(
-                                urls, tab.isIncognito()));
-                return;
-            }
+            model.set(TabProperties.FAVICON_FETCHER, null);
+            return;
         }
         if (!mTabListFaviconProvider.isInitialized()) {
             return;

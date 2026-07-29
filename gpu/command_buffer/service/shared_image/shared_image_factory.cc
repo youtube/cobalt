@@ -10,6 +10,7 @@
 
 #include "base/containers/contains.h"
 #include "base/debug/crash_logging.h"
+#include "base/debug/dump_without_crashing.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/trace_event/memory_dump_manager.h"
 #include "build/build_config.h"
@@ -30,6 +31,7 @@
 #include "gpu/command_buffer/service/shared_image/shared_image_representation.h"
 #include "gpu/command_buffer/service/shared_image/shared_memory_image_backing_factory.h"
 #include "gpu/command_buffer/service/shared_image/wrapped_sk_image_backing_factory.h"
+#include "gpu/config/gpu_finch_features.h"
 #include "gpu/config/gpu_preferences.h"
 #include "gpu/ipc/common/gpu_memory_buffer_impl_shared_memory.h"
 #include "ui/base/ozone_buildflags.h"
@@ -793,6 +795,24 @@ gpu::SharedImageCapabilities SharedImageFactory::MakeCapabilities() {
             kA16_float_SkColorType);
   }
 
+  const bool display_compositor_on_another_thread =
+      shared_image_manager_->display_context_on_another_thread();
+  if (!context_state_) {
+    shared_image_caps.disable_one_component_textures = false;
+  } else if (context_state_->GrContextIsGL()) {
+    shared_image_caps.disable_one_component_textures =
+        display_compositor_on_another_thread &&
+        workarounds_.avoid_one_component_egl_images;
+  } else if (context_state_->GrContextIsVulkan() ||
+             context_state_->IsGraphiteDawnVulkan()) {
+    // Vulkan currently doesn't support single-component cross-thread shared
+    // images for WebView.
+    const bool is_drdc =
+        features::IsDrDcEnabled() && !workarounds_.disable_drdc;
+    shared_image_caps.disable_one_component_textures =
+        display_compositor_on_another_thread && !is_drdc;
+  }
+
 #if BUILDFLAG(IS_MAC)
   shared_image_caps.texture_target_for_io_surfaces =
       texture_target_for_io_surfaces_;
@@ -873,12 +893,21 @@ void SharedImageFactory::LogGetFactoryFailed(gpu::SharedImageUsageSet usage,
                                              viz::SharedImageFormat format,
                                              gfx::GpuMemoryBufferType gmb_type,
                                              const std::string& debug_label) {
+  SCOPED_CRASH_KEY_STRING32("SIFactory", "DebugLabel", debug_label);
+  SCOPED_CRASH_KEY_STRING64("SIFactory", "Format", format.ToString());
+  SCOPED_CRASH_KEY_NUMBER("SIFactory", "Usage", usage);
+  SCOPED_CRASH_KEY_STRING64("SIFactory", "GMBType", GmbTypeToString(gmb_type));
+  SCOPED_CRASH_KEY_BOOL("SIFactory", "SharedBwThreads",
+                        IsSharedBetweenThreads(usage));
   LOG(ERROR) << "Could not find SharedImageBackingFactory with params: usage: "
              << CreateLabelForSharedImageUsage(usage)
              << ", format: " << format.ToString()
              << ", share_between_threads: " << IsSharedBetweenThreads(usage)
              << ", gmb_type: " << GmbTypeToString(gmb_type)
              << ", debug_label: " << debug_label;
+  // DumpWithoutCrashing to get crash reports for failure to find a shared image
+  // backing factory.
+  base::debug::DumpWithoutCrashing();
 }
 
 bool SharedImageFactory::RegisterBacking(

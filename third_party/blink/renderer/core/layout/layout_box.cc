@@ -1948,8 +1948,9 @@ bool LayoutBox::ApplyBoxClips(
   PhysicalRect clip_rect = ClippingRect(PhysicalOffset());
 
   transform_state.Flatten();
-  PhysicalRect rect(
-      gfx::ToEnclosingRect(transform_state.LastPlanarQuad().BoundingBox()));
+  PhysicalRect rect = PhysicalRect::EnclosingRect(
+      transform_state.LastPlanarQuad().BoundingBox());
+
   bool does_intersect;
   if (visual_rect_flags & kEdgeInclusive) {
     does_intersect = rect.InclusiveIntersect(clip_rect);
@@ -3195,7 +3196,8 @@ LayoutUnit LayoutBox::ContainingBlockLogicalHeightForPositioned(
   return height_result;
 }
 
-PhysicalRect LayoutBox::LocalCaretRect(int caret_offset) const {
+PhysicalRect LayoutBox::LocalCaretRect(int caret_offset,
+                                       CaretShape caret_shape) const {
   NOT_DESTROYED();
   // VisiblePositions at offsets inside containers either a) refer to the
   // positions before/after those containers (tables and select elements) or

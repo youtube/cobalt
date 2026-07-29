@@ -236,7 +236,10 @@ _PLATFORMS = [
     _Platform(gn_cpu='x64', bazel_cpu='k8', bazel_platform='//:linux_x64'),
     _Platform(gn_cpu='arm64',
               bazel_cpu='aarch64',
-              bazel_platform='//:linux_aarch64')
+              bazel_platform='//:linux_aarch64'),
+    _Platform(gn_cpu='riscv64',
+              bazel_cpu='riscv64',
+              bazel_platform='//:linux_riscv64')
 ]
 
 
@@ -388,7 +391,7 @@ def _query_object_builds(platform: _Platform) -> list[ObjectBuild]:
         'aquery',
         f'--platforms={platform.bazel_platform}',
         f'--cpu={platform.bazel_cpu}',
-        'mnemonic("CppCompile", filter("//:", deps(@xnnpack//:XNNPACK)))',
+        'mnemonic("CppCompile", deps(@xnnpack//:XNNPACK))',
         "--output=jsonproto",
     ])
     logging.info('parsing actions from bazel aquery...')

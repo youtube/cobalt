@@ -280,6 +280,8 @@ protocol::DOM::PseudoType InspectorDOMAgent::ProtocolPseudoElementType(
       return protocol::DOM::PseudoTypeEnum::ViewTransitionGroup;
     case kPseudoIdViewTransitionImagePair:
       return protocol::DOM::PseudoTypeEnum::ViewTransitionImagePair;
+    case kPseudoIdViewTransitionGroupChildren:
+      return protocol::DOM::PseudoTypeEnum::ViewTransitionGroupChildren;
     case kPseudoIdViewTransitionNew:
       return protocol::DOM::PseudoTypeEnum::ViewTransitionNew;
     case kPseudoIdViewTransitionOld:
@@ -379,6 +381,9 @@ PseudoId InspectorDOMAgent::ProtocolPseudoTypeToPseudoId(
   }
   if (type == protocol::DOM::PseudoTypeEnum::ViewTransitionImagePair) {
     return kPseudoIdViewTransitionImagePair;
+  }
+  if (type == protocol::DOM::PseudoTypeEnum::ViewTransitionGroupChildren) {
+    return kPseudoIdViewTransitionGroupChildren;
   }
   if (type == protocol::DOM::PseudoTypeEnum::ViewTransitionOld) {
     return kPseudoIdViewTransitionOld;
@@ -1665,8 +1670,7 @@ protocol::Response InspectorDOMAgent::getNodeStackTraces(
 
   auto it = node_to_creation_source_location_map_.find(node);
   if (it != node_to_creation_source_location_map_.end()) {
-    SourceLocation& source_location = it->value->GetSourceLocation();
-    *creation = source_location.BuildInspectorObject();
+    *creation = it->value->BuildInspectorObject();
   }
   return protocol::Response::Success();
 }
@@ -2699,12 +2703,10 @@ void InspectorDOMAgent::NodeCreated(Node* node) {
   if (!capture_node_stack_traces_.Get())
     return;
 
-  std::unique_ptr<SourceLocation> creation_source_location =
+  SourceLocation* creation_source_location =
       SourceLocation::CaptureWithFullStackTrace();
   if (creation_source_location) {
-    node_to_creation_source_location_map_.Set(
-        node, MakeGarbageCollected<InspectorSourceLocation>(
-                  std::move(creation_source_location)));
+    node_to_creation_source_location_map_.Set(node, creation_source_location);
   }
 }
 

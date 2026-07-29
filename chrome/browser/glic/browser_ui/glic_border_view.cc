@@ -119,11 +119,12 @@ class GlicBorderView::BorderViewUpdater {
   ~BorderViewUpdater() = default;
 
   // Called when the focused tab changes with the focused tab data object.
-  void OnFocusedTabChanged(FocusedTabData focused_tab_data) {
-    content::WebContents* contents = focused_tab_data.focus();
+  void OnFocusedTabChanged(const FocusedTabData& focused_tab_data) {
+    tabs::TabInterface* tab = focused_tab_data.focus();
     auto* previous_focus = glic_focused_contents_in_current_window_.get();
-    if (contents && IsTabInCurrentWindow(contents)) {
-      glic_focused_contents_in_current_window_ = contents->GetWeakPtr();
+    if (tab && IsTabInCurrentWindow(tab->GetContents())) {
+      glic_focused_contents_in_current_window_ =
+          tab->GetContents()->GetWeakPtr();
     } else {
       glic_focused_contents_in_current_window_.reset();
     }
@@ -545,8 +546,8 @@ void GlicBorderView::Show() {
   }
 
   compositor_ = compositor;
-  compositor_->AddAnimationObserver(this);
-  compositor_->AddObserver(this);
+  compositor_animation_observation_.Observe(compositor_.get());
+  compositor_observation_.Observe(compositor_.get());
 
   if (tester_) [[unlikely]] {
     tester_->AnimationStarted();
@@ -558,8 +559,8 @@ void GlicBorderView::StopShowing() {
     return;
   }
 
-  compositor_->RemoveObserver(this);
-  compositor_->RemoveAnimationObserver(this);
+  compositor_observation_.Reset();
+  compositor_animation_observation_.Reset();
   compositor_ = nullptr;
   first_frame_time_ = base::TimeTicks{};
   first_emphasis_frame_ = base::TimeTicks{};

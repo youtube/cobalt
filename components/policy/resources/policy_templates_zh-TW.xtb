@@ -727,7 +727,6 @@
 <translation id="152657506688053119">預設搜尋的替代網址清單</translation>
 <translation id="1530812829012954197">一律在瀏覽器中算繪以下網址模式</translation>
 <translation id="1534007181698071943">允許在淘汰期間預設停用卸載事件處理常式</translation>
-<translation id="1535199908978041429">在新分頁中顯示 Outlook 行事曆資訊卡 (Beta 版)</translation>
 <translation id="1539343118617844331">學校</translation>
 <translation id="1542491165152947087">允許使用者在裝置上開啟或關閉 <ph name="PRIVACY_SANDBOX_NAME" /> 廣告主題設定。</translation>
 <translation id="1542958897137600427">啟用用戶端憑證佈建作業</translation>
@@ -926,6 +925,7 @@
 
 系統會封鎖同時符合封鎖和許可政策模式的來源。如果不是政策或使用者設定中指定的來源，則只能在使用者做出手勢後呼叫這個 API。</translation>
 <translation id="1645793986494086629">架構：</translation>
+<translation id="1647420986475965896">網址列和新分頁搜尋框的 AI 模式搜尋建議設定</translation>
 <translation id="1647558381546345298">設定這項政策後，無論使用者是否指定 --media-cache-size 旗標，<ph name="PRODUCT_NAME" /> 都會使用你設定的快取大小，在磁碟上儲存快取媒體檔案。這項政策所指定的值並非不可變動的界線，而是提供給快取系統的建議值。MB 以下的值會進位為 MB。
 
       如果將這項政策的值設為 0，系統會使用預設的快取大小，且使用者無法變更設定。
@@ -1502,17 +1502,6 @@
 
       如果未設定 <ph name="DEFAULT_SEARCH_PROVIDER_ICON_URL_POLICY_NAME" /> 政策，搜尋引擎不會有任何圖示。</translation>
 <translation id="2136073175041447267">設定 <ph name="PRODUCT_OS_NAME" /> 中的雲端硬碟 (Google 雲端硬碟、Microsoft OneDrive)。</translation>
-<translation id="2142409122365327693">這是 Beta 版功能。
-
-這項政策可控管新分頁上的 SharePoint 和 OneDrive 檔案資訊卡顯示設定。只有在啟用這項政策，且貴機構授權在瀏覽器中使用 SharePoint 和 OneDrive 檔案資料時，新分頁才會顯示這張資訊卡。
-
-瀏覽器不會儲存 SharePoint 和 OneDrive 資料。
-
-SharePoint 和 OneDrive 檔案建議資訊卡會顯示建議檔案清單。這張資訊卡會為使用者提供前往最重要文件的捷徑，方便解決內容切換問題及提升工作效率。
-
-Microsoft SharePoint 和 OneDrive 資訊卡需要額外的管理員設定。想進一步瞭解如何將 Chrome 新分頁資訊卡連結至 SharePoint，請參閱說明文章。
-
-如果停用 <ph name="NTPCARDSVISIBLE" />，就不會顯示 SharePoint 和 OneDrive 資訊卡。如果啟用 <ph name="NTPCARDSVISIBLE" />，同時也啟用這項政策且有待顯示的資料，就會顯示 SharePoint 和 OneDrive 資訊卡。如果未設定 <ph name="NTPCARDSVISIBLE" />，但有啟用這項政策、使用者在「自訂 Chrome」中啟用 SharePoint 和 OneDrive 資訊卡，且有待顯示的資料，就會顯示此資訊卡。</translation>
 <translation id="2144236546337326489">允許啟用 Phone Hub 工作接續</translation>
 <translation id="2145735238144543545">必須提供用戶端憑證</translation>
 <translation id="2146103669166779785">系統會根據這個十六進位顏色產生主題，並套用至瀏覽器。</translation>
@@ -2250,6 +2239,13 @@ Microsoft SharePoint 和 OneDrive 資訊卡需要額外的管理員設定。想�
 使用者可以確定，如果在工作階段開始時沒有獲得許可，則在登入後也沒有其他應用程式能擷取畫面。</translation>
 <translation id="2615240493030733717">回報時區資訊</translation>
 <translation id="2619258867868873629"><ph name="PRODUCT_OS_NAME" /> 裝置上的「另存為 PDF」目的地和「儲存至 Google 雲端硬碟」目的地</translation>
+<translation id="262035875928535253">設定 <ph name="PRODUCT_NAME" /> 應停用<ph name="PASSWORD_MANAGER_NAME" />的網域清單。這表示系統會停用「儲存及填入」工作流程，確保不會儲存用於這些網站的密碼，也不會在網頁表單中自動填入密碼。
+
+系統會針對清單中的網域停用<ph name="PASSWORD_MANAGER_NAME" />。
+
+如果是未列在清單中的網域，則可使用<ph name="PASSWORD_MANAGER_NAME" />。
+
+如果不設定這項政策，所有網域都可使用<ph name="PASSWORD_MANAGER_NAME" />。</translation>
 <translation id="2621290137818374425">設定這項政策後，系統不會要求指定網址中的主機名稱依憑證透明化揭露規定公開憑證。雖然這會讓系統更難以偵測到誤用憑證的情形，但也因此可讓主機繼續使用因為未依規定對外公開而不受信任的憑證。
 
       如果未設定這項政策，凡是應依憑證透明化規定公開而未公開的憑證，<ph name="PRODUCT_NAME" /> 都會將其視為不受信任的憑證。
@@ -2312,6 +2308,7 @@ Microsoft SharePoint 和 OneDrive 資訊卡需要額外的管理員設定。想�
 <translation id="268695908564263739">這項政策可啟用或停用高效率模式設定。這項設定能讓系統在一段時間後於背景捨棄分頁，以便回收記憶體。
       如果不設定這項政策，使用者將可透過 chrome://settings/performance 控制這項設定。
       </translation>
+<translation id="2687600966277668971">SpeculationRules 預先擷取無法傳送到 ServiceWorkers 控管的網址 (舊版行為)。</translation>
 <translation id="2691668238491124549">如果設定了這項政策 (只能設為「建議」)，系統會將受管理工作階段的建議語言代碼移至清單頂端，並按照政策中顯示的順序排列。系統會預先選取第一個建議語言代碼。
       如果未設定，系統會預先選取目前的 UI 語言代碼。
 
@@ -2333,6 +2330,16 @@ Microsoft SharePoint 和 OneDrive 資訊卡需要額外的管理員設定。想�
 <translation id="2702682139813393777">強制透過 cmd.exe 啟動 Windows 內建訊息傳遞主機</translation>
 <translation id="270582584528242502">使用者嘗試關閉瀏覽器時，不會顯示警告對話方塊</translation>
 <translation id="2706708761587205154">只在 PIN 碼啟用時允許列印</translation>
+<translation id="2706972066112233185">這項政策會控管網址列和新分頁搜尋框的 AI 模式建議專區。
+
+除非將這項政策設為停用，否則所有將預設搜尋引擎設為 Google 的使用者都能使用這項功能。
+
+如果未設定這項政策，系統會根據 <ph name="GEN_AI_DEFAULT_SETTINGS_POLICY_NAME" /> 政策決定其行為。
+
+如果將政策設為「0 - 啟用」或未設定，使用者就能存取這項功能。如果將政策設為「1 - 停用」，使用者將無法存取這項功能。
+
+0 = 允許使用這項功能。
+1 = 不允許使用這項功能。</translation>
 <translation id="2707733461906745082">設定檔區隔</translation>
 <translation id="2707873794476722903">已啟用標準模式中的安全瀏覽功能。</translation>
 <translation id="2709516037105925701">自動填入</translation>
@@ -3894,6 +3901,7 @@ ClearCrossSiteCrossBrowsingContextGroupWindowName 變化版本會控制是否要
 
  如未設定這項政策、設為空白或無效值，系統就不會在列印工作要求中新增額外的 <ph name="CLIENT_INFO_IPP_ATTRIBUTE" />。
 </translation>
+<translation id="3895626555961466729">允許使用 AI 模式建議。</translation>
 <translation id="3896591584655529057">允許使用密碼管理工具儲存密碼金鑰</translation>
 <translation id="3896751141670591496">如果將這項政策設為啟用或不設定，使用具有安全疑慮的指令列旗標啟動 Chrome 時，系統將顯示安全性警告。
 
@@ -4311,6 +4319,7 @@ ClearCrossSiteCrossBrowsingContextGroupWindowName 變化版本會控制是否要
 <translation id="4189872355465413041">系統應用程式</translation>
 <translation id="4190316993598857632">允許編輯書籤</translation>
 <translation id="4192388905594723944">用於驗證遠端存取用戶端驗證憑證的網址</translation>
+<translation id="4195119404667420672">SpeculationRules 預先擷取可傳送到 ServiceWorkers 控管的網址。</translation>
 <translation id="4195698007674066525">輸入密碼時預設顯示數字鍵盤</translation>
 <translation id="4203055629055264833">如果將這項政策設為啟用或不設定，代表使用者可透過工具列上的切換圖示開啟側邊面板，查看預設搜尋引擎的最新搜尋結果。
 
@@ -4874,6 +4883,13 @@ ClearCrossSiteCrossBrowsingContextGroupWindowName 變化版本會控制是否要
 <translation id="4650044303940238102">本機字型設定</translation>
 <translation id="4650759511838826572">停用網址通訊協定機制</translation>
 <translation id="465099050592230505">企業線上應用程式商店網址 (已不適用)</translation>
+<translation id="4652388001247121058">SpeculationRules 預先擷取可傳送到 ServiceWorkers 控管的網址。不過，舊版程式碼不允許這項操作，而且會取消預先擷取要求。這項政策可控管這項行為。
+
+如果將這項政策設為啟用或未設定，系統就會允許將 SpeculationRules 預先擷取傳送到 ServiceWorkers 控管的網址 (如果 PrefetchServiceWorker 功能旗標已啟用)。這是目前的預設行為，而且符合詳細規定。
+
+如果將這項政策設為停用，系統就會禁止將 SpeculationRules 預先擷取傳送到 ServiceWorkers 控管的網址 (舊版行為)。
+
+這項政策只是暫時解決方案，日後將會移除。</translation>
 <translation id="4653465451589191309">如果將這項政策設為啟用或不設定，使用者將可管理 (中斷或修改) VPN 連線。如果是使用 VPN 應用程式建立的 VPN 連線，則應用程式內的使用者介面不會受到影響。因此使用者仍可使用應用程式修改 VPN 連線。這項政策可搭配「永久連線 VPN」功能使用，該功能可讓管理員決定是否在裝置啟動時建立 VPN 連線。
 
       如果將這項政策設為停用，系統會關閉使用者可中斷或關閉 VPN 連線的 <ph name="PRODUCT_OS_NAME" />使用者介面。</translation>
@@ -5524,6 +5540,7 @@ ClearCrossSiteCrossBrowsingContextGroupWindowName 變化版本會控制是否要
 
           如果未設定這項政策，系統會使用預設命令列。</translation>
 <translation id="5151099177901233471">啟用裝置時區資訊回報功能</translation>
+<translation id="5151163911478747031">不在 NTP 頁尾顯示擴充功能來源資訊</translation>
 <translation id="5152393033264257734">允許 DNS 攔截檢查功能，以及你是不是要前往「http://intranetsite/」資訊列。</translation>
 <translation id="5152787786897382519">Chromium 和 Google Chrome 有部分政策群組具有相依關係，依此共同管控特定功能。這些組合如下列政策群組所示。由於政策可能具有多個來源，系統只會套用群組中最高優先來源所提供的值，忽略同個群組中優先順序較低的來源所提供的值。請參閱 <ph name="POLICY_PRIORITY_DOC_URL" /> 瞭解來源的優先順序。</translation>
 <translation id="5153187201534281749">工具列中的瀏覽器實驗功能圖示</translation>
@@ -5610,6 +5627,7 @@ ClearCrossSiteCrossBrowsingContextGroupWindowName 變化版本會控制是否要
 <translation id="5194683382395300627">允許在網站上使用 <ph name="ASSISTANT_PRODUCT_NAME" /> 執行操作，例如自動變更密碼</translation>
 <translation id="5196630732055960309">允許這些網頁應用程式上的 File Handling API</translation>
 <translation id="5205352023880027050">不啟用 EphemeralNetworkPolicies 功能。</translation>
+<translation id="5205385499831960279">限制對區域網路端點的要求</translation>
 <translation id="5206454085187851382">如果在 <ph name="PRINTERS_BULK_ACCESS_MODE_POLICY_NAME" /> 中選擇了 <ph name="PRINTERS_ALLOWLIST" />，系統會根據 <ph name="PRINTERS_BULK_ALLOWLIST_POLICY_NAME" /> 的設定指定使用者可操作的印表機。只有 ID 與這項政策值相符的印表機，才會提供給使用者。印表機 ID 必須與 <ph name="PRINTERS_BULK_CONFIGURATION_POLICY_NAME" /> 政策指定檔案的 <ph name="ID_FIELD" /> 或 <ph name="GUID_FIELD" /> 欄位值相符。</translation>
 <translation id="5207543664699568887">設定 Linux 上的 <ph name="PRODUCT_NAME" /> 是否要使用系統通知。
 
@@ -5846,6 +5864,7 @@ ClearCrossSiteCrossBrowsingContextGroupWindowName 變化版本會控制是否要
 <translation id="5334404204520035180">控管 WebPrinting API 的使用情形</translation>
 <translation id="5334501839642146593">一律不傳送指標資料給 Google</translation>
 <translation id="5335910979215357815">為第三方 <ph name="PRODUCT_OS_NAME" /> 控制項啟用 Save and Share API。</translation>
+<translation id="5337869685871558036">允許將 SpeculationRules 預先擷取傳送到 ServiceWorkers 控管的網址</translation>
 <translation id="5339096331970464266">啟用無障礙虛擬鍵盤</translation>
 <translation id="5340008866815063393">啟用政策資料報告功能</translation>
 <translation id="5345892164332459671">停用浮動單一登入 (SSO)，而且不將使用者的 Web 服務驗證移到新裝置</translation>
@@ -6486,6 +6505,7 @@ ClearCrossSiteCrossBrowsingContextGroupWindowName 變化版本會控制是否要
 
       注意：延長比例係數必須為 100% 以上的值。</translation>
 <translation id="5740636973289452345">啟用擴充功能和外掛程式資訊的報告功能</translation>
+<translation id="5740716956489996914">決定網站能否對區域網路端點發出要求時，使用預設行為</translation>
 <translation id="5741110260062082926">停用 Orca</translation>
 <translation id="5746149754419996562">在 <ph name="PRODUCT_OS_NAME" /> 上啟用 Glanceables 小工具。具體來說，你可以透過檔案櫃上的日期方塊存取這些小工具。
 如果啟用這項政策，系統就會在 <ph name="PRODUCT_OS_NAME" /> 上啟用 Glanceables。
@@ -6607,6 +6627,7 @@ ClearCrossSiteCrossBrowsingContextGroupWindowName 變化版本會控制是否要
 
       如果將這項政策設為停用或不設定，系統不會回報任何系統記錄。</translation>
 <translation id="5861856285460256766">家長存取碼設定</translation>
+<translation id="5864898931148094192">控管是否在新分頁顯示擴充功能來源資訊</translation>
 <translation id="5868414965372171132">使用者層級網路設定</translation>
 <translation id="5868454276721377379">使用者切換 <ph name="PRODUCT_OS_NAME" /> 裝置時，浮動單一登入 (SSO) 服務會在新裝置還原舊裝置上的使用者 Web 服務驗證狀態，做法是在裝置間移動使用者的 Cookie。
 
@@ -6733,11 +6754,6 @@ ClearCrossSiteCrossBrowsingContextGroupWindowName 變化版本會控制是否要
 <translation id="5917897389577978190">Gmail (自 135 版起支援)</translation>
 <translation id="592036544845479336">重新啟用已淘汰/移除的變動事件</translation>
 <translation id="5921713479449475707">允許透過 HTTP 自動更新下載</translation>
-<translation id="5923084443277419535">HTML 剖析器已變更，可在 &lt;select&gt; 元素中加入其他 HTML 標記。這項政策允許舊版 HTML 剖析器行為，直至 M138 為止。
-
-如果啟用或未設定這項政策，HTML 剖析器就會允許在 &lt;select&gt; 元素中加入其他標記。
-
-如果停用這項政策，HTML 剖析器就會限制可放入 &lt;select&gt; 元素中的標記。</translation>
 <translation id="5925405187134730827">這項政策已淘汰，因為所控管的功能從未推出。請改用 <ph name="ENTERPRISE_PROFILE_BADGE_TOOLBAR_SETTINGS" /> 政策。
 
 如果不設定這項政策或設為 <ph name="DISPLAY_MANAGEMENT_LABEL_PERMAMENT_VALUE" /> (值 0)，工具列顯示圖片旁會顯示「公司」或「學校」的標籤。
@@ -6889,6 +6905,13 @@ ClearCrossSiteCrossBrowsingContextGroupWindowName 變化版本會控制是否要
 <translation id="604243460476563291">不允許企業管理員在遠端支援連線時傳輸檔案</translation>
 <translation id="6042629184389251062">不允許輸入網址指標收集功能</translation>
 <translation id="6046615715547751255">禁止使用精細回報控制項</translation>
+<translation id="6047041034696466581">這項政策會決定是否在新分頁 (NTP) 的頁尾顯示擴充功能修改 NTP 的來源資訊。
+
+根據預設，如果擴充功能覆寫標準 NTP，頁尾會顯示一則訊息，說明是分頁由哪一項擴充功能變更。這類來源資訊通常會附上擴充功能的 Chrome 線上應用程式商店連結。
+
+如果將這項政策設為 True 或未設定，當擴充功能控管 NTP 時，NTP 頁尾會顯示擴充功能來源資訊。
+
+如果將這項政策設為 False，NTP 頁尾就不會顯示擴充功能的來源資訊。</translation>
 <translation id="6048199181629830227">開啟用電尖峰轉移電源管理功能</translation>
 <translation id="6048690591359317353">不允許使用者手動中斷連線或修改 VPN</translation>
 <translation id="6049117606554031363">啟用裝置主機板狀態回報功能</translation>
@@ -7410,6 +7433,7 @@ Origin-Agent-Cluster HTTP 標頭會控制文件要在 origin-keyed 代理程式�
 
 如果未設定這項政策，<ph name="PRODUCT_OS_NAME" /> 會使用預設的「下載」目錄儲存螢幕畫面擷取內容，而使用者可變更儲存位置。</translation>
 <translation id="6377031865393559909">允許使用者使用桌面範本</translation>
+<translation id="6377570995433636383">指定是否要限制對區域網路端點的要求</translation>
 <translation id="6378076389057087301">指定會影響電源管理的音訊活動</translation>
 <translation id="6378393933102834628">如果將這項政策設為 True，系統會顯示應用程式捷徑。如果將這項政策設為 False，系統一律不會顯示應用程式捷徑。
 
@@ -8156,17 +8180,6 @@ Origin-Agent-Cluster HTTP 標頭會控制文件要在 origin-keyed 代理程式�
 <translation id="685769593149966548">強制執行 YouTube 高度嚴格篩選模式</translation>
 <translation id="686079137349561371">Microsoft Windows 7 以上版本</translation>
 <translation id="6866755486434471318">允許 <ph name="PEPPER_NAME" /> 使用分享的圖片解碼影片。</translation>
-<translation id="6871249820683694350">這是 Beta 版功能。
-
-這項政策可控管新分頁上的 Outlook 資訊卡顯示設定。只有在啟用這項政策，且貴機構授權在瀏覽器中使用 Outlook 行事曆資料時，新分頁才會顯示這張資訊卡。
-
-瀏覽器不會儲存 Outlook 資料。
-
-Outlook 資訊卡會顯示下一個日曆活動，以及當天其他會議的一覽表。這張資訊卡會為使用者提供前往下一場會議的捷徑，方便解決內容切換問題及提升工作效率。
-
-Microsoft Outlook 資訊卡需要額外的管理員設定。想進一步瞭解如何將 Chrome 新分頁資訊卡連結至 Outlook，請參閱說明文章。
-
-如果停用 <ph name="NTPCARDSVISIBLE" />，就不會顯示 Outlook 資訊卡。如果啟用 <ph name="NTPCARDSVISIBLE" />，同時也啟用這項政策且有待顯示的資料，就會顯示 Outlook 資訊卡。如果未設定 <ph name="NTPCARDSVISIBLE" />，但有啟用這項政策、使用者在「自訂 Chrome」中啟用 Outlook 資訊卡，且有待顯示的資料，就會顯示此資訊卡。</translation>
 <translation id="6878757724611298427">允許使用者在無關聯的裝置上使用 Android 應用程式</translation>
 <translation id="6881397131210596522">如果將這項政策設為 2，系統會自動禁止網站使用 WebPrinting API。
 
@@ -8797,7 +8810,6 @@ Microsoft Outlook 資訊卡需要額外的管理員設定。想進一步瞭解�
           如果設定這項政策，使用者將無法變更或覆寫設定。
 
           如果未設定這項政策，系統預設會停用色彩校正功能，但使用者隨時可以啟用。</translation>
-<translation id="7323780795955997799">在新分頁中顯示 SharePoint 和 OneDrive 檔案資訊卡 (Beta 版)</translation>
 <translation id="7323855063560306712">允許你設定網站網址模式清單，指定要自動拒絕授予視窗管理權限的網站。這項政策會限制網站執行以下操作：查看裝置畫面相關資訊、使用該資訊開啟及放置視窗，或在特定畫面上要求進入全螢幕模式。
 
 如要進一步瞭解有效的網站網址模式，請前往 https://cloud.google.com/docs/chrome-enterprise/policies/url-patterns。你也可以使用萬用字元 (<ph name="WILDCARD_VALUE" />)。這項政策只會根據來源進行比對，因此會忽略網址模式中的路徑。
@@ -9110,6 +9122,7 @@ Microsoft Outlook 資訊卡需要額外的管理員設定。想進一步瞭解�
           如果將這項政策設為 False 或不設定，系統就不會在螢幕鎖定畫面和登入畫面提供 PIN 碼自動提交功能。
 
           如果設定了這項政策，使用者就無法啟用這項功能。</translation>
+<translation id="7612030083959326401">設定要停用<ph name="PASSWORD_MANAGER_NAME" /> (儲存及填入) 的網域清單</translation>
 <translation id="7612059745454194563">不允許顯示憑證提供者擴充功能宣傳資訊</translation>
 <translation id="7612157962821894603">要在 <ph name="PRODUCT_NAME" /> 啟動時套用的全系統設定</translation>
 <translation id="7613115815080726221">閒置動作執行前的緩衝時間長度 (以毫秒為單位)。如果使用者在這段時間內沒有任何動作，系統就會採取閒置動作</translation>
@@ -9344,6 +9357,11 @@ Microsoft Outlook 資訊卡需要額外的管理員設定。想進一步瞭解�
 如要進一步瞭解 Internet Explorer 的 <ph name="IEEM_SITELIST_POLICY" /> 政策，請參閱：https://docs.microsoft.com/internet-explorer/ie11-deploy-guide/what-is-enterprise-mode</translation>
 <translation id="7791215522423893512">不允許使用者錄影或拍攝螢幕截圖</translation>
 <translation id="7792796937016596423">使用者將無法執行網路封包擷取作業</translation>
+<translation id="7795648856511126914">HTML 剖析器已變更，可在 &lt;select&gt; 元素中加入其他 HTML 標記。這項政策允許使用舊版 HTML 剖析器行為，直至 M136 為止。
+
+如果啟用或未設定這項政策，HTML 剖析器就會允許在 &lt;select&gt; 元素中加入其他標記。
+
+如果停用這項政策，HTML 剖析器就會限制可放入 &lt;select&gt; 元素中的標記。</translation>
 <translation id="7798441698807517880">由於 <ph name="FLASH_PLUGIN_NAME" /> 已淘汰，因此這項政策自 <ph name="PRODUCT_NAME" /> 89 版起已移除。
 
       如果將這項政策設為 True，系統會在允許 <ph name="FLASH_PLUGIN_NAME" /> 的網站上執行所有內嵌的 <ph name="FLASH_PLUGIN_NAME" /> 內容，包括來自其他來源的內容或檔案較小的內容。
@@ -10038,6 +10056,7 @@ Microsoft Outlook 資訊卡需要額外的管理員設定。想進一步瞭解�
 
       如果停用這項政策，對於螢幕畫面分享 API 的任何呼叫就會失敗並傳回錯誤訊息；不過，如果網站與下列任何政策中的來源模式相符，系統就不會考量這項政策 (網站將可以使用螢幕畫面分享 API)：<ph name="SCREEN_CAPTURE_ALLOWED_BY_ORIGINS_POLICY_NAME" />、<ph name="WINDOW_CAPTURE_ALLOWED_BY_ORIGINS_POLICY_NAME" />、<ph name="TAB_CAPTURE_ALLOWED_BY_ORIGINS_POLICY_NAME" />、<ph name="SAME_ORIGIN_TAB_CAPTURE_ALLOWED_BY_ORIGINS_POLICY_NAME" />。
       </translation>
+<translation id="8309511882585098865">不允許使用 AI 模式建議。</translation>
 <translation id="8310392396850884147">支援 CORS 非萬用字元要求標頭。</translation>
 <translation id="8312129124898414409">允許您設定網站是否可以使用金鑰產生功能。您可以允許或禁止所有網站使用金鑰產生功能。
 
@@ -10752,6 +10771,7 @@ https://developers.google.com/privacy-sandbox/cookies/storage-partitioning。</t
 如果未設定這項政策或設為 False，自動調節充電模式就不會調整充電速度。
 
 注意：如果已設定 DevicePowerBatteryChargingOptimization，這項政策就不會生效。</translation>
+<translation id="883025651704099882">在 NTP 頁尾顯示擴充功能來源資訊</translation>
 <translation id="8830717323204407209">允許向使用者顯示憑證提供者擴充功能宣傳資訊</translation>
 <translation id="8832829916385857156">如果系統可以取得與卡片相關的網頁內容，新分頁就會顯示卡片</translation>
 <translation id="8833109046074170275">透過預設的 GAIA 流程進行驗證</translation>
@@ -10820,6 +10840,7 @@ https://developers.google.com/privacy-sandbox/cookies/storage-partitioning。</t
       新裝置的出廠預設時區是美國/太平洋時間。時區值格式是採用「IANA 時區資料庫」中訂定的名稱 (請參閱 https://en.wikipedia.org/wiki/Tz_database )。如果輸入無效值，系統會啟用以 GMT 做為時區值的政策。
 
       如果未設定或輸入空白字串，裝置會使用目前採用的時區，但使用者可以變更這項設定。</translation>
+<translation id="8874071621901957187">在新分頁中顯示 Outlook 行事曆資訊卡</translation>
 <translation id="8875202330803089599">如果設定這項政策，使用者就無法略過下載作業安全性判斷機制。
 
       Chrome 有多種下載作業警告，大致可分成以下幾個類別 (如要進一步瞭解安全瀏覽功能判斷機制，請前往 https://support.google.com/chrome/?p=ib_download_blocked)：
@@ -11003,6 +11024,11 @@ https://developers.google.com/privacy-sandbox/cookies/storage-partitioning。</t
       如果這項政策和 <ph name="SENSORS_BLOCKED_FOR_URLS_POLICY_NAME" /> 政策有相同的網址模式，系統會優先執行後者，並禁止存取動作或光源感應器。
 
       想進一步瞭解有效的<ph name="URL_LABEL" />模式，請參閱 https://cloud.google.com/docs/chrome-enterprise/policies/url-patterns。系統允許使用萬用字元 (<ph name="WILDCARD_VALUE" />)。</translation>
+<translation id="9002299469625801504">如果將這項政策設為啟用，只要系統因 <ph name="LOCAL_NETWORK_ACCCESS" /> 檢查失敗而應在<ph name="DEV_TOOLS_NAME" />中顯示警告，系統就會改為封鎖主要要求。
+
+如果將這項政策設為停用或未設定，系統會使用預設處理方式處理 <ph name="LOCAL_NETWORK_ACCESS" /> 要求。
+
+如要瞭解<ph name="LOCAL_NETWORK_ACCESS" />限制，請參閱 https://github.com/explainers-by-googlers/local-network-access。</translation>
 <translation id="9003823644527627017">在 <ph name="PRODUCT_OS_NAME" /> 上設定 Bruschetta VM</translation>
 <translation id="9004469022085379212">如果將這項政策設為啟用，裝置即可在 <ph name="PRODUCT_OS_NAME" />上執行虛擬機器。請務必啟用 <ph name="VIRTUAL_MACHINES_ALLOWED_POLICY_NAME" /> 和 <ph name="CROSTINI_ALLOWED_POLICY_NAME" />，才能使用 <ph name="PRODUCT_CROSTINI_NAME" />。如果將這項政策設為停用，裝置將無法執行虛擬機器。變更為停用後，系統會開始將這項政策套用到新的虛擬機器，不會套用到已經在執行的虛擬機器。
 

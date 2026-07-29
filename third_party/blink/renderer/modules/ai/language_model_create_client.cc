@@ -112,7 +112,7 @@ void LanguageModelCreateClient::Create() {
         "`initialPrompts: [{role: 'system', content: ... }, ...]` instead.");
   }
 
-  if (!options_->hasInitialPrompts()) {
+  if (!options_->hasInitialPrompts() || options_->initialPrompts().empty()) {
     OnInitialPromptsResolved(std::move(sampling_params), std::move(expected_in),
                              std::move(expected_out), /*initial_prompts=*/{});
     return;
@@ -179,7 +179,8 @@ void LanguageModelCreateClient::OnResult(
 }
 
 void LanguageModelCreateClient::OnError(
-    mojom::blink::AIManagerCreateClientError error) {
+    mojom::blink::AIManagerCreateClientError error,
+    mojom::blink::QuotaErrorInfoPtr quota_error_info) {
   if (!GetResolver()) {
     return;
   }
@@ -195,7 +196,11 @@ void LanguageModelCreateClient::OnError(
       break;
     }
     case AIManagerCreateClientError::kInitialInputTooLarge: {
-      QuotaExceededError::Reject(GetResolver(), kExceptionMessageInputTooLarge);
+      CHECK(quota_error_info);
+      QuotaExceededError::Reject(
+          GetResolver(), kExceptionMessageInputTooLarge,
+          static_cast<double>(quota_error_info->quota),
+          static_cast<double>(quota_error_info->requested));
       break;
     }
     case AIManagerCreateClientError::kUnsupportedLanguage: {

@@ -89,8 +89,8 @@ public class FirstRunAppRestrictionInfoTest {
 
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
-                    AppRestrictionSupplier info = AppRestrictionSupplier.takeMaybeInitialized();
-                    info.getHasAppRestriction(appResCallbackHelper::notifyCalled);
+                    AppRestrictionSupplier info = new AppRestrictionSupplier();
+                    info.onAvailable(appResCallbackHelper::notifyCalled);
                     info.getCompletionElapsedRealtimeMs(
                             (ignored) -> completionCallbackHelper.notifyCalled());
                 });
@@ -114,10 +114,10 @@ public class FirstRunAppRestrictionInfoTest {
         mPauseDuringPostTask = true;
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
-                    AppRestrictionSupplier info = AppRestrictionSupplier.takeMaybeInitialized();
-                    info.getHasAppRestriction(appResCallbackHelper1::notifyCalled);
-                    info.getHasAppRestriction(appResCallbackHelper2::notifyCalled);
-                    info.getHasAppRestriction(appResCallbackHelper3::notifyCalled);
+                    AppRestrictionSupplier info = new AppRestrictionSupplier();
+                    info.onAvailable(appResCallbackHelper1::notifyCalled);
+                    info.onAvailable(appResCallbackHelper2::notifyCalled);
+                    info.onAvailable(appResCallbackHelper3::notifyCalled);
                     info.getCompletionElapsedRealtimeMs(
                             (ignored) -> completionCallbackHelper1.notifyCalled());
                     info.getCompletionElapsedRealtimeMs(
@@ -172,13 +172,10 @@ public class FirstRunAppRestrictionInfoTest {
 
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
-                    AppRestrictionSupplier info = AppRestrictionSupplier.takeMaybeInitialized();
-                    info.getHasAppRestriction(appResCallbackHelper::notifyCalled);
+                    AppRestrictionSupplier info = new AppRestrictionSupplier();
+                    info.onAvailable(appResCallbackHelper::notifyCalled);
                     info.getCompletionElapsedRealtimeMs(
                             (ignored) -> completionCallbackHelper.notifyCalled());
-
-                    // Destroy the object before the async task completes.
-                    info.destroy();
 
                     mPendingPostTask.run();
                 });
@@ -197,9 +194,7 @@ public class FirstRunAppRestrictionInfoTest {
     public void testCommandLine() {
         final PayloadCallbackHelper<Boolean> appResCallbackHelper = new PayloadCallbackHelper<>();
         ThreadUtils.runOnUiThreadBlocking(
-                () ->
-                        AppRestrictionSupplier.takeMaybeInitialized()
-                                .getHasAppRestriction(appResCallbackHelper::notifyCalled));
+                () -> new AppRestrictionSupplier().onAvailable(appResCallbackHelper::notifyCalled));
         Assert.assertTrue(appResCallbackHelper.getOnlyPayloadBlocking());
     }
 }
