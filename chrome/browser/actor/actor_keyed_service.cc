@@ -16,6 +16,7 @@
 #include "chrome/browser/actor/task_id.h"
 #include "chrome/browser/actor/tools/tool_request.h"
 #include "chrome/browser/actor/ui/actor_ui_state_manager.h"
+#include "chrome/browser/actor/ui/event_dispatcher.h"
 #include "chrome/browser/page_content_annotations/multi_source_page_context_fetcher.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_finder.h"
@@ -23,13 +24,6 @@
 #include "chrome/common/actor/action_result.h"
 
 namespace {
-
-// TODO(crbug.com/411462297): This is a short term hack. This code will be
-// deleted soon once StartTask stops creating new tabs implicitly. This adds a
-// 1-second delay to wait for about:blank to load. This can be replaced by ~100
-// lines of complex code that tries to precisely wait for navigation commit, but
-// that would be overkill.
-constexpr base::TimeDelta kDelayForNewTab = base::Seconds(1);
 
 void RunLater(base::OnceClosure task) {
   base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(FROM_HERE,
@@ -63,6 +57,8 @@ TaskId ActorKeyedService::AddActiveTask(std::unique_ptr<ActorTask> task) {
   last_created_task_id_ = task_id;
   task->SetId(base::PassKey<ActorKeyedService>(), task_id);
   task->GetExecutionEngine()->SetOwner(task.get());
+  // Notify of task creation now that the task id is set.
+  NotifyTaskStateChanged(*task);
   active_tasks_[task_id] = std::move(task);
   return task_id;
 }
@@ -115,75 +111,19 @@ void ActorKeyedService::ExecuteAction(
 
 TaskId ActorKeyedService::CreateTask() {
   auto execution_engine = std::make_unique<ExecutionEngine>(profile_.get());
-  auto actor_task =
-      std::make_unique<ActorTask>(profile_.get(), std::move(execution_engine));
-  TaskId task_id = AddActiveTask(std::move(actor_task));
-  actor_task_subscriptions_.emplace(
-      task_id, GetTask(task_id)->RegisterTaskStateChange(base::BindRepeating(
-                   &ActorKeyedService::OnActorTaskStateChanged,
-                   weak_ptr_factory_.GetWeakPtr())));
-  return task_id;
+  auto actor_task = std::make_unique<ActorTask>(
+      profile_.get(), std::move(execution_engine),
+      ui::NewUiEventDispatcher(GetActorUiStateManager()));
+  return AddActiveTask(std::move(actor_task));
 }
 
-void ActorKeyedService::StartTask(
-    optimization_guide::proto::BrowserStartTask task,
-    base::OnceCallback<void(optimization_guide::proto::BrowserStartTaskResult)>
-        callback) {
-  // TODO(crbug.com/411462297): This is a short term hack. This code will be
-  // deleted soon once tab_id is removed.
-  tabs::TabHandle handle(task.tab_id());
-  if (!task.tab_id()) {
-    // Get the most recently active browser for this profile.
-    Browser* browser =
-        chrome::FindTabbedBrowser(profile_, /*match_original_profiles=*/false);
-    // If no browser exists create one.
-    if (!browser) {
-      browser = Browser::Create(
-          Browser::CreateParams(profile_, /*user_gesture=*/false));
-    }
-    // Create a new tab.
-    browser->OpenGURL(GURL(url::kAboutBlankURL),
-                      WindowOpenDisposition::NEW_FOREGROUND_TAB);
-    handle = browser->GetActiveTabInterface()->GetHandle();
-    base::SingleThreadTaskRunner::GetCurrentDefault()->PostDelayedTask(
-        FROM_HERE,
-        base::BindOnce(&ActorKeyedService::FinishStartTask,
-                       weak_ptr_factory_.GetWeakPtr(), handle,
-                       std::move(callback)),
-        kDelayForNewTab);
-    return;
-  }
-
-  FinishStartTask(handle, std::move(callback));
+base::CallbackListSubscription ActorKeyedService::AddTaskStateChangedCallback(
+    TaskStateChangedCallback callback) {
+  return tab_state_change_callback_list_.Add(std::move(callback));
 }
 
-void ActorKeyedService::FinishStartTask(
-    tabs::TabHandle handle,
-    base::OnceCallback<void(optimization_guide::proto::BrowserStartTaskResult)>
-        callback) {
-  tabs::TabInterface* tab = handle.Get();
-  std::unique_ptr<actor::ExecutionEngine> execution_engine;
-  if (tab) {
-    execution_engine =
-        std::make_unique<actor::ExecutionEngine>(profile_.get(), tab);
-  } else {
-    execution_engine = std::make_unique<actor::ExecutionEngine>(profile_.get());
-  }
-
-  auto actor_task = std::make_unique<actor::ActorTask>(
-      profile_.get(), std::move(execution_engine));
-  actor::TaskId task_id = AddActiveTask(std::move(actor_task));
-  actor_task_subscriptions_.emplace(
-      task_id, GetTask(task_id)->RegisterTaskStateChange(base::BindRepeating(
-                   &ActorKeyedService::OnActorTaskStateChanged,
-                   weak_ptr_factory_.GetWeakPtr())));
-
-  optimization_guide::proto::BrowserStartTaskResult result;
-  result.set_task_id(task_id.value());
-  result.set_tab_id(handle.raw_value());
-  result.set_status(optimization_guide::proto::BrowserStartTaskResult::SUCCESS);
-  base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
-      FROM_HERE, base::BindOnce(std::move(callback), std::move(result)));
+void ActorKeyedService::NotifyTaskStateChanged(const ActorTask& task) {
+  tab_state_change_callback_list_.Notify(task);
 }
 
 void ActorKeyedService::RequestTabObservation(
@@ -333,8 +273,6 @@ void ActorKeyedService::StopTask(TaskId task_id) {
     auto ret = inactive_tasks_.insert(std::move(task));
     ret.position->second->Stop();
   }
-
-  actor_task_subscriptions_.erase(task_id);
 }
 
 ActorTask* ActorKeyedService::GetTask(TaskId task_id) {
@@ -357,16 +295,11 @@ ActorUiStateManagerInterface* ActorKeyedService::GetActorUiStateManager() {
   return actor_ui_state_manager_.get();
 }
 
-void ActorKeyedService::OnActorTaskStateChanged(TaskId task_id,
-                                                ActorTask::State task_state) {
-  GetActorUiStateManager()->OnActorTaskStateChange(task_id, task_state);
-}
-
 bool ActorKeyedService::IsAnyTaskActingOnTab(
     const tabs::TabInterface& tab) const {
   tabs::TabHandle handle = tab.GetHandle();
   for (auto task_pair : GetActiveTasks()) {
-    if (task_pair.second->HasActedOnTab(handle)) {
+    if (task_pair.second->IsActingOnTab(handle)) {
       return true;
     }
   }

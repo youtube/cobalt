@@ -334,6 +334,8 @@ HTMLMediaElement::PlayPromiseError PauseReasonToPlayPromiseError(
           kPaused_SuspendedPlayerIdleTimeout;
     case WebMediaPlayer::PauseReason::kRemotePlayStateChange:
       return HTMLMediaElement::PlayPromiseError::kPaused_RemotePlayStateChange;
+    case WebMediaPlayer::PauseReason::kFrameFrozen:
+      return HTMLMediaElement::PlayPromiseError::kPaused_FrameFrozen;
     case WebMediaPlayer::PauseReason::kFrameHidden:
       return HTMLMediaElement::PlayPromiseError::kPaused_FrameHidden;
     case WebMediaPlayer::PauseReason::kEndOfPlayback:
@@ -4006,6 +4008,10 @@ void HTMLMediaElement::UpdatePlayState(
       // Always tell WMP about the pause since it may need to clear a pending
       // automatic playback resumption.
       if (web_media_player_ && ready_state_ >= kHaveMetadata) {
+        if (pause_reason == WebMediaPlayer::PauseReason::kFrameHidden) {
+          RecordMediaPlaybackInterruptionType(
+              MediaPlaybackInterruptionType::kFrameHiddenWhilePlaying);
+        }
         web_media_player_->Pause(pause_reason.value());
       }
 
@@ -4087,8 +4093,10 @@ void HTMLMediaElement::ClearMediaPlayer() {
 
 void HTMLMediaElement::ContextLifecycleStateChanged(
     mojom::blink::FrameLifecycleState state) {
-  if (state == mojom::blink::FrameLifecycleState::kFrozen && playing_) {
-    pause();
+  if (state == mojom::blink::FrameLifecycleState::kFrozen) {
+    if (playing_) {
+      PausePlayback(WebMediaPlayer::PauseReason::kFrameFrozen);
+    }
     if (web_media_player_) {
       web_media_player_->OnFrozen();
     }
@@ -4689,12 +4697,13 @@ void HTMLMediaElement::RejectScheduledPlayPromises() {
     case PlayPromiseError::kPaused_PauseRequestedInternally:
       reason = " because a pause was requested by the browser";
       break;
+    case PlayPromiseError::kPaused_FrameFrozen:
+      reason = " because the containing page was frozen";
+      break;
     case PlayPromiseError::kPaused_FrameHidden:
       reason =
           " because the media playback is not allowed by the "
           "media-playback-while-not-visible permission policy";
-      RecordMediaPlaybackInterruptionType(
-          MediaPlaybackInterruptionType::kFrameHiddenWhilePlaying);
       break;
     case PlayPromiseError::kPaused_LetAudioDescriptionFinish:
       reason = " because the audio description has not finished yet";

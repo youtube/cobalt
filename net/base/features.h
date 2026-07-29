@@ -688,6 +688,12 @@ NET_EXPORT BASE_DECLARE_FEATURE_PARAM(
 // This behavior is expected by default; disabling it should only be for
 // testing purposes.
 NET_EXPORT BASE_DECLARE_FEATURE(kDeviceBoundSessionsRefreshQuota);
+// This feature will enable breaking changes to Device Bound Session
+// Credentials from after the Origin Trial started. This is disabled by
+// default to facilitate implementation of feedback from the Origin
+// Trial while still being able to get consistent metrics across Chrome
+// releases.
+NET_EXPORT BASE_DECLARE_FEATURE(kDeviceBoundSessionsOriginTrialFeedback);
 
 // When enabled, all proxies in a proxy chain are partitioned by the NAK for the
 // endpoint of the connection. When disabled, proxies carrying tunnels to other
@@ -728,10 +734,6 @@ NET_EXPORT BASE_DECLARE_FEATURE(kFurtherOptimizeParsingDataUrls);
 // If enabled, unrecognized keys in a No-Vary-Search header will be ignored.
 // Otherwise, unrecognized keys are treated as if the header was invalid.
 NET_EXPORT BASE_DECLARE_FEATURE(kNoVarySearchIgnoreUnrecognizedKeys);
-
-// If enabled, then a cookie entry containing both encrypted and plaintext
-// values is considered invalid, and the entire eTLD group will be dropped.
-NET_EXPORT BASE_DECLARE_FEATURE(kEncryptedAndPlaintextValuesAreInvalid);
 
 // Kill switch for Static CT Log (aka Tiled Log aka Sunlight)
 // enforcements in Certificate Transparency policy checks. If disabled, SCTs

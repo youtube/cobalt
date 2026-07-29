@@ -14,15 +14,18 @@
 #include "base/run_loop.h"
 #include "base/test/bind.h"
 #include "base/test/gmock_move_support.h"
+#include "base/test/metrics/histogram_tester.h"
 #include "base/test/mock_callback.h"
 #include "base/time/time.h"
+#include "base/unguessable_token.h"
 #include "base/version_info/channel.h"
 #include "chrome/browser/search_engines/template_url_service_factory.h"
 #include "chrome/browser/ui/webui/new_tab_page/composebox/composebox.mojom.h"
+#include "chrome/browser/ui/webui/new_tab_page/composebox/composebox_fieldtrial.h"
 #include "chrome/test/base/chrome_render_view_host_test_harness.h"
 #include "chrome/test/base/testing_profile.h"
+#include "components/omnibox/composebox/composebox_query.mojom.h"
 #include "components/omnibox/composebox/test_composebox_query_controller.h"
-#include "components/search/ntp_composebox_fieldtrial.h"
 #include "components/variations/variations_client.h"
 #include "content/public/browser/navigation_entry.h"
 #include "content/public/browser/web_contents.h"
@@ -42,8 +45,30 @@ constexpr int kImageCompressionQuality = 30;
 constexpr int kImageMaxArea = 1000000;
 constexpr int kImageMaxHeight = 1000;
 constexpr int kImageMaxWidth = 1000;
+constexpr char kClientUploadDurationQueryParameter[] = "cud";
 constexpr char kQuerySubmissionTimeQueryParameter[] = "qsubts";
-constexpr char kUserPerceivedQuerySubmissionTimeQueryParameter[] = "pqsubts";
+constexpr char kQueryText[] = "query";
+
+class MockPage : public composebox::mojom::Page {
+ public:
+  MockPage() = default;
+  ~MockPage() override = default;
+
+  mojo::PendingRemote<composebox::mojom::Page> BindAndGetRemote() {
+    DCHECK(!receiver_.is_bound());
+    return receiver_.BindNewPipeAndPassRemote();
+  }
+
+  void FlushForTesting() { receiver_.FlushForTesting(); }
+
+  MOCK_METHOD(void,
+              OnFileUploadStatusChanged,
+              (const base::UnguessableToken&,
+               composebox_query::mojom::FileUploadStatus,
+               std::optional<composebox_query::mojom::FileUploadErrorType>));
+
+  mojo::Receiver<composebox::mojom::Page> receiver_{this};
+};
 }  // namespace
 
 class MockQueryController : public TestComposeboxQueryController {
@@ -54,13 +79,15 @@ class MockQueryController : public TestComposeboxQueryController {
       version_info::Channel channel,
       std::string locale,
       TemplateURLService* template_url_service,
-      variations::VariationsClient* variations_client)
+      variations::VariationsClient* variations_client,
+      bool send_lns_surface)
       : TestComposeboxQueryController(identity_manager,
                                       url_loader_factory,
                                       channel,
                                       locale,
                                       template_url_service,
-                                      variations_client) {}
+                                      variations_client,
+                                      send_lns_surface) {}
   ~MockQueryController() override = default;
 
   MOCK_METHOD(void, NotifySessionStarted, ());
@@ -72,6 +99,7 @@ class MockQueryController : public TestComposeboxQueryController {
        scoped_refptr<base::RefCountedBytes> file_data,
        std::optional<composebox::ImageEncodingOptions> image_options));
   MOCK_METHOD(bool, DeleteFile, (const base::UnguessableToken&));
+  MOCK_METHOD(void, ClearFiles, ());
 
   void NotifySessionStartedBase() {
     TestComposeboxQueryController::NotifySessionStarted();
@@ -93,6 +121,14 @@ class TestWebContentsDelegate : public content::WebContentsDelegate {
         content::NavigationController::LoadURLParams(params));
     return source;
   }
+};
+
+class MockMetricsRecorder : public ComposeboxMetricsRecorder {
+ public:
+  MockMetricsRecorder() : ComposeboxMetricsRecorder("NewTabPage.") {}
+  ~MockMetricsRecorder() override = default;
+
+  MOCK_METHOD(void, NotifySessionStateChanged, (SessionState session_state));
 };
 
 class ComposeboxHandlerTest : public ChromeRenderViewHostTestHarness {
@@ -124,12 +160,15 @@ class ComposeboxHandlerTest : public ChromeRenderViewHostTestHarness {
     auto query_controller_ptr = std::make_unique<MockQueryController>(
         /*identity_manager=*/nullptr, shared_url_loader_factory_,
         version_info::Channel::UNKNOWN, "en-US", template_url_service_,
-        fake_variations_client_.get());
+        fake_variations_client_.get(), /*send_lns_surface=*/false);
     query_controller_ = query_controller_ptr.get();
     web_contents()->SetDelegate(&delegate_);
+    auto metrics_recorder_ptr = std::make_unique<MockMetricsRecorder>();
+    metrics_recorder_ = metrics_recorder_ptr.get();
     handler_ = std::make_unique<ComposeboxHandler>(
-        mojo::PendingReceiver<composebox::mojom::ComposeboxPageHandler>(),
-        std::move(query_controller_ptr), web_contents());
+        mojo::PendingReceiver<composebox::mojom::PageHandler>(),
+        mock_page_.BindAndGetRemote(), std::move(query_controller_ptr),
+        std::move(metrics_recorder_ptr), web_contents());
 
     // Set all the feature params here to keep the test consistent if future
     // default values are changed.
@@ -143,8 +182,10 @@ class ComposeboxHandlerTest : public ChromeRenderViewHostTestHarness {
   ComposeboxHandler& handler() { return *handler_; }
   MockQueryController& query_controller() { return *query_controller_; }
   TemplateURLService& template_url_service() { return *template_url_service_; }
+  base::HistogramTester& histogram_tester() { return histogram_tester_; }
+  MockMetricsRecorder& metrics_recorder() { return *metrics_recorder_; }
 
-  ntp_composebox_fieldtrial::FeatureConfig& scoped_config() {
+  ntp_composebox::FeatureConfig& scoped_config() {
     return scoped_config_.Get();
   }
   TestingProfile::TestingFactories GetTestingFactories() const override {
@@ -153,9 +194,20 @@ class ComposeboxHandlerTest : public ChromeRenderViewHostTestHarness {
         base::BindRepeating(&TemplateURLServiceFactory::BuildInstanceFor)};
   }
 
+  void SubmitQueryAndWaitForNavigation() {
+    content::TestNavigationObserver navigation_observer(web_contents());
+    handler().SubmitQuery(kQueryText, 1, false, false, false, false);
+    auto navigation = content::NavigationSimulator::CreateFromPending(
+        web_contents()->GetController());
+    ASSERT_TRUE(navigation);
+    navigation->Commit();
+    navigation_observer.Wait();
+  }
+
   void TearDown() override {
     template_url_service_ = nullptr;
     query_controller_ = nullptr;
+    metrics_recorder_ = nullptr;
     handler_.reset();
     fake_variations_client_.reset();
     ChromeRenderViewHostTestHarness::TearDown();
@@ -166,38 +218,51 @@ class ComposeboxHandlerTest : public ChromeRenderViewHostTestHarness {
     EXPECT_TRUE(net::GetValueForKeyInQuery(
         url, kQuerySubmissionTimeQueryParameter, &qsubts_param));
 
-    std::string pqsubts_param;
+    std::string cud_param;
     EXPECT_TRUE(net::GetValueForKeyInQuery(
-        url, kUserPerceivedQuerySubmissionTimeQueryParameter, &pqsubts_param));
+        url, kClientUploadDurationQueryParameter, &cud_param));
 
     GURL result_url = url;
     result_url = net::AppendOrReplaceQueryParameter(
         result_url, kQuerySubmissionTimeQueryParameter, std::nullopt);
     result_url = net::AppendOrReplaceQueryParameter(
-        result_url, kUserPerceivedQuerySubmissionTimeQueryParameter,
+        result_url, kClientUploadDurationQueryParameter,
         std::nullopt);
     return result_url;
   }
 
+ protected:
+  testing::NiceMock<MockPage> mock_page_;
+
  private:
-  std::unique_ptr<ComposeboxHandler> handler_;
-  std::unique_ptr<FakeVariationsClient> fake_variations_client_;
+  ntp_composebox::ScopedFeatureConfigForTesting scoped_config_;
   network::TestURLLoaderFactory test_factory_;
   scoped_refptr<network::SharedURLLoaderFactory> shared_url_loader_factory_;
-  raw_ptr<MockQueryController> query_controller_;
   TestWebContentsDelegate delegate_;
   raw_ptr<TemplateURLService> template_url_service_;
-  ntp_composebox_fieldtrial::ScopedFeatureConfigForTesting scoped_config_;
+  std::unique_ptr<FakeVariationsClient> fake_variations_client_;
+  raw_ptr<MockQueryController> query_controller_;
+  raw_ptr<MockMetricsRecorder> metrics_recorder_;
+  std::unique_ptr<ComposeboxHandler> handler_;
+  base::HistogramTester histogram_tester_;
 };
 
-TEST_F(ComposeboxHandlerTest, NotifySessionStarted) {
-  EXPECT_CALL(query_controller(), NotifySessionStarted).Times(1);
+TEST_F(ComposeboxHandlerTest, SessionStarted) {
+  SessionState state_arg = SessionState::kNone;
+  EXPECT_CALL(query_controller(), NotifySessionStarted);
+  EXPECT_CALL(metrics_recorder(), NotifySessionStateChanged)
+      .WillOnce(testing::SaveArg<0>(&state_arg));
   handler().NotifySessionStarted();
+  EXPECT_EQ(state_arg, SessionState::kSessionStarted);
 }
 
-TEST_F(ComposeboxHandlerTest, NotifySessionAbandoned) {
-  EXPECT_CALL(query_controller(), NotifySessionAbandoned).Times(1);
+TEST_F(ComposeboxHandlerTest, SessionAbandoned) {
+  SessionState state_arg = SessionState::kNone;
+  EXPECT_CALL(query_controller(), NotifySessionAbandoned);
+  EXPECT_CALL(metrics_recorder(), NotifySessionStateChanged)
+      .WillOnce(testing::SaveArg<0>(&state_arg));
   handler().NotifySessionAbandoned();
+  EXPECT_EQ(state_arg, SessionState::kSessionAbandoned);
 }
 
 TEST_F(ComposeboxHandlerTest, SubmitQuery) {
@@ -210,6 +275,13 @@ TEST_F(ComposeboxHandlerTest, SubmitQuery) {
         }
       }));
 
+  std::vector<SessionState> session_states;
+  EXPECT_CALL(metrics_recorder(), NotifySessionStateChanged)
+      .Times(3)
+      .WillRepeatedly(testing::Invoke([&](SessionState session_state) {
+        session_states.push_back(session_state);
+      }));
+
   // Start the session.
   EXPECT_CALL(query_controller(), NotifySessionStarted)
       .Times(1)
@@ -218,23 +290,21 @@ TEST_F(ComposeboxHandlerTest, SubmitQuery) {
   handler().NotifySessionStarted();
   run_loop.Run();
 
-  const std::string query = "test";
-  content::TestNavigationObserver navigation_observer(web_contents());
-  handler().SubmitQuery(query, 1, false, false, false, false);
-  auto navigation = content::NavigationSimulator::CreateFromPending(
-      web_contents()->GetController());
-  ASSERT_TRUE(navigation);
-  navigation->Commit();
-  navigation_observer.Wait();
+  SubmitQueryAndWaitForNavigation();
 
   GURL expected_url = query_controller().CreateAimUrl(
-      query, /*query_start_time=*/base::Time::Now());
+      kQueryText, /*query_start_time=*/base::Time::Now());
   GURL actual_url =
       web_contents()->GetController().GetLastCommittedEntry()->GetURL();
 
   // Ensure navigation occurred.
   EXPECT_EQ(StripTimestampsFromAimUrl(expected_url),
             StripTimestampsFromAimUrl(actual_url));
+
+  EXPECT_THAT(session_states,
+              testing::ElementsAre(SessionState::kSessionStarted,
+                                   SessionState::kQuerySubmitted,
+                                   SessionState::kNavigationOccurred));
 }
 
 TEST_F(ComposeboxHandlerTest, AddFile_Pdf) {
@@ -321,3 +391,44 @@ TEST_F(ComposeboxHandlerTest, DeleteFile_FailureThrowsMessage) {
   EXPECT_EQ("An invalid file token was sent to DeleteFile",
             obs.WaitForBadMessage());
 }
+
+TEST_F(ComposeboxHandlerTest, ClearFiles) {
+  EXPECT_CALL(query_controller(), ClearFiles);
+  handler().ClearFiles();
+}
+
+class ComposeboxHandlerFileUploadStatusTest
+    : public ComposeboxHandlerTest,
+      public testing::WithParamInterface<
+          composebox_query::mojom::FileUploadStatus> {};
+
+TEST_P(ComposeboxHandlerFileUploadStatusTest, FileUploadStatusChanged) {
+  composebox_query::mojom::FileUploadStatus status;
+  EXPECT_CALL(mock_page_, OnFileUploadStatusChanged)
+      .Times(1)
+      .WillOnce(testing::Invoke(
+          [&status](
+              const base::UnguessableToken& file_token,
+              composebox_query::mojom::FileUploadStatus file_upload_status,
+              std::optional<composebox_query::mojom::FileUploadErrorType>
+                  file_upload_error_type) { status = file_upload_status; }));
+
+  const auto expected_status = GetParam();
+  base::UnguessableToken token = base::UnguessableToken::Create();
+  handler().OnFileUploadStatusChanged(token, expected_status, std::nullopt);
+  mock_page_.FlushForTesting();
+
+  EXPECT_EQ(expected_status, status);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    All,
+    ComposeboxHandlerFileUploadStatusTest,
+    testing::Values(
+        composebox_query::mojom::FileUploadStatus::kNotUploaded,
+        composebox_query::mojom::FileUploadStatus::kProcessing,
+        composebox_query::mojom::FileUploadStatus::kValidationFailed,
+        composebox_query::mojom::FileUploadStatus::kUploadStarted,
+        composebox_query::mojom::FileUploadStatus::kUploadSuccessful,
+        composebox_query::mojom::FileUploadStatus::kUploadFailed,
+        composebox_query::mojom::FileUploadStatus::kUploadExpired));

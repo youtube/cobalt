@@ -50,6 +50,7 @@
 #include "pdf/loader/document_loader_impl.h"
 #include "pdf/loader/url_loader.h"
 #include "pdf/loader/url_loader_wrapper_impl.h"
+#include "pdf/page_character_index.h"
 #include "pdf/pdf_caret.h"
 #include "pdf/pdf_features.h"
 #include "pdf/pdf_transform.h"
@@ -603,10 +604,6 @@ PDFiumEngine::PDFiumEngine(PDFiumEngineClient* client,
   IFSDK_PAUSE::version = 1;
   IFSDK_PAUSE::user = nullptr;
   IFSDK_PAUSE::NeedToPauseNow = Pause_NeedToPauseNow;
-
-  if (features::kPdfInk2TextHighlighting.Get() && !client_->IsPrintPreview()) {
-    caret_ = std::make_unique<PdfCaret>(this);
-  }
 }
 
 PDFiumEngine::~PDFiumEngine() {
@@ -942,19 +939,18 @@ void PDFiumEngine::OnDocumentCanceled() {
     OnDocumentComplete();
 }
 
-int PDFiumEngine::GetCharCount(int page_index) const {
+uint32_t PDFiumEngine::GetCharCount(uint32_t page_index) const {
   CHECK(PageIndexInBounds(page_index));
-  return pages_[page_index]->GetCharCount();
+  return base::checked_cast<uint32_t>(pages_[page_index]->GetCharCount());
 }
 
 std::vector<gfx::Rect> PDFiumEngine::GetScreenRectsForChar(
-    int page_index,
-    int char_index) const {
-  CHECK(PageIndexInBounds(page_index));
-  PDFiumPage* page = pages_[page_index].get();
-  CHECK(page->IsCharIndexInBounds(char_index));
+    const PageCharacterIndex& index) const {
+  CHECK(PageIndexInBounds(index.page_index));
+  PDFiumPage* page = pages_[index.page_index].get();
+  CHECK(page->IsCharIndexInBounds(index.char_index));
 
-  PDFiumRange range(page, char_index, 1);
+  PDFiumRange range(page, index.char_index, 1);
   return range.GetScreenRects(GetVisibleRect().origin(), current_zoom_,
                               GetCurrentOrientation());
 }
@@ -1021,7 +1017,11 @@ void PDFiumEngine::FinishLoadingDocument() {
 
   // TODO(crbug.com/427242881): Figure out when to enter caret browsing mode.
   // For now, just enter it after the document loads.
-  if (caret_ && !pages_.empty() && pages_[0]->GetCharCount()) {
+  if (features::kPdfInk2TextHighlighting.Get() && !client_->IsPrintPreview() &&
+      !pages_.empty() && pages_[0]->GetCharCount()) {
+    // TODO(crbug.com/427242881): Determine the starting position of the caret.
+    caret_ = std::make_unique<PdfCaret>(this, PageCharacterIndex(0, 0));
+
     // TODO(crbug.com/427778119): Set caret blink interval.
     caret_->SetVisibility(true);
   }
@@ -1067,6 +1067,7 @@ bool PDFiumEngine::FindAndHighlightTextFragments(
     base::span<const std::string> text_fragments) {
   HighlightChangeInvalidator invalidator(this);
   PDFiumTextFragmentFinder text_fragment_finder(this);
+  client_->OnNewTextFragmentsSearchStarted();
   text_fragment_highlights_ =
       text_fragment_finder.FindTextFragments(text_fragments);
   return !text_fragment_highlights_.empty();
@@ -1434,6 +1435,12 @@ void PDFiumEngine::OnTextOrLinkAreaClickInternal(const PointData& point_data,
 
   if (click_count == 1) {
     OnSingleClick(point_data.page_index, point_data.char_index);
+    if (caret_) {
+      // TODO(crbug.com/427133561): Handle corner case of clicking to the right
+      // of the last char on a page.
+      caret_->SetChar(
+          PageCharacterIndex(point_data.page_index, point_data.char_index));
+    }
   } else if (click_count == 2 || click_count == 3) {
     OnMultipleClick(click_count, point_data.page_index, point_data.char_index);
   }
@@ -3186,16 +3193,9 @@ gfx::Size PDFiumEngine::GetPageSizeForLayout(
   int height_in_pixels = static_cast<int>(ConvertUnitFloat(
       size_in_points.value().height(), kPointsPerInch, kPixelsPerInch));
 
-  switch (layout_options.default_page_orientation()) {
-    case PageOrientation::kOriginal:
-    case PageOrientation::kClockwise180:
-      // No axis swap needed.
-      break;
-    case PageOrientation::kClockwise90:
-    case PageOrientation::kClockwise270:
-      // Rotated 90 degrees: swap axes.
-      std::swap(width_in_pixels, height_in_pixels);
-      break;
+  if (IsTransposedPageOrientation(layout_options.default_page_orientation())) {
+    // Rotated 90 degrees: swap axes.
+    std::swap(width_in_pixels, height_in_pixels);
   }
 
   return gfx::Size(width_in_pixels, height_in_pixels);

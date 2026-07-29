@@ -560,6 +560,11 @@ _CROSSBENCH_PIXEL9 = frozenset([
     ]),
 ])
 
+_CROSSBENCH_ANDROID_AL_BRYA = frozenset([
+    _speedometer3_crossbench(arguments=['--fileserver', '--debug']),
+    _motionmark1_3_crossbench(arguments=['--fileserver', '--debug']),
+])
+
 _CROSSBENCH_ANDROID_AL = frozenset([
     _speedometer3_crossbench(arguments=['--fileserver', '--debug']),
 ])
@@ -581,6 +586,7 @@ _CROSSBENCH_WEBVIEW = frozenset([
             '"Android.WebView.Startup.CreationTime.Stage1.FactoryInit":["mean"],'
             '"PageLoad.PaintTiming.NavigationToFirstContentfulPaint":["mean"]}}',
             '--repetitions=50',
+            '--cool-down-threshold=moderate',
             '--stories=cnn',
         ]
     ),
@@ -595,7 +601,9 @@ _CROSSBENCH_WEBVIEW = frozenset([
             '--probe-config=../../clank/android_webview/tools/crossbench_config/'
             'agsa_probe_config.hjson',
             '--repetitions=50',
+            '--cool-down-threshold=moderate',
             '--http-request-timeout=15s',
+            '--action-runner=android',
         ]
     ),
 ])
@@ -823,6 +831,10 @@ _ANDROID_PIXEL_TANGOR_BENCHMARK_CONFIGS = PerfSuite(
         _GetBenchmarkConfig('speedometer3-minorms')
     ])
 # Android Desktop (AL)
+_ANDROID_AL_BRYA_BENCHMARK_CONFIGS = PerfSuite([
+    _GetBenchmarkConfig('jetstream2'),
+    _GetBenchmarkConfig('speedometer2'),
+])
 _ANDROID_AL_BENCHMARK_CONFIGS = PerfSuite([
     _GetBenchmarkConfig('rendering.mobile'),
 ])
@@ -917,9 +929,8 @@ WIN_10_LOW_END = PerfPlatform(
     'SSD, 4GB RAM.',
     _WIN_10_LOW_END_BENCHMARK_CONFIGS,
     # TODO(crbug.com/278947510): Increase the count when m.2 disks stop failing.
-    45,
-    'win',
-    crossbench=_CROSSBENCH_BENCHMARKS_ALL)
+    25,
+    'win')
 WIN_10_LOW_END_PGO = PerfPlatform(
     'win-10_laptop_low_end-perf-pgo',
     'Low end windows 10 HP laptops. HD Graphics 5500, x86-64-i3-5005U, '
@@ -988,7 +999,7 @@ ANDROID_BRYA = PerfPlatform(
     name='android-brya-kano-i5-8gb-perf',
     description='Brya SKU kano_12th_Gen_IntelR_CoreTM_i5_1235U_8GB',
     num_shards=7,
-    benchmark_configs=_ANDROID_AL_BENCHMARK_CONFIGS,
+    benchmark_configs=_ANDROID_AL_BRYA_BENCHMARK_CONFIGS,
     platform_os='android',
     executables=None,
     crossbench=_CROSSBENCH_ANDROID_AL)
@@ -1062,7 +1073,7 @@ ANDROID_PIXEL_FOLD = PerfPlatform(
     'android-pixel-fold-perf',
     'Android U',
     _ANDROID_PIXEL_FOLD_BENCHMARK_CONFIGS,
-    15,
+    10,
     'android',
     executables=_ANDROID_DEFAULT_EXECUTABLE_CONFIGS)
 ANDROID_PIXEL_TANGOR = PerfPlatform(

@@ -7,10 +7,9 @@
 #include <utility>
 
 #include "base/check_deref.h"
-#include "base/debug/crash_logging.h"
 #include "base/notreached.h"
-#include "base/strings/string_number_conversions.h"
 #include "ui/events/android/events_android_utils.h"
+#include "ui/events/android/motion_event_android_factory.h"
 #include "ui/events/android/motion_event_android_native.h"
 
 namespace viz {
@@ -103,21 +102,6 @@ bool AndroidStateTransferHandler::OnMotionEvent(
 
   const int action = AMotionEvent_getAction(input_event.a_input_event()) &
                      AMOTION_EVENT_ACTION_MASK;
-
-  static auto* const input_type_crash_key = base::debug::AllocateCrashKeyString(
-      "431139615-InputType", base::debug::CrashKeySize::Size32);
-  if (input_type_crash_key) {
-    base::debug::SetCrashKeyString(input_type_crash_key,
-                                   base::NumberToString(action));
-  }
-
-  static auto* const input_ts_crash_key = base::debug::AllocateCrashKeyString(
-      "431139615-InputTs", base::debug::CrashKeySize::Size64);
-  if (input_ts_crash_key) {
-    base::debug::SetCrashKeyString(
-        input_ts_crash_key,
-        base::NumberToString(base::TimeTicks::Now().ToUptimeMillis()));
-  }
 
   // Viz only handles touch events, actions like button press/release are not
   // supported and should ideally not be arriving.
@@ -272,16 +256,15 @@ void AndroidStateTransferHandler::HandleTouchEvent(
     return;
   }
 
-  std::optional<ui::MotionEventAndroidNative::EventTimes> event_times =
-      std::nullopt;
+  std::optional<ui::MotionEventAndroid::EventTimes> event_times = std::nullopt;
   if (action == AMOTION_EVENT_ACTION_DOWN) {
-    event_times = ui::MotionEventAndroidNative::EventTimes();
+    event_times = ui::MotionEventAndroid::EventTimes();
     // AMotionEvent_getDownTime returns down time in nanoseconds precision.
     event_times->latest = base::TimeTicks::FromJavaNanoTime(
         AMotionEvent_getDownTime(input_event.a_input_event()));
     event_times->oldest = event_times->latest;
   }
-  auto event = ui::MotionEventAndroidNative::Create(
+  auto event = ui::MotionEventAndroidFactory::CreateFromNative(
       std::move(input_event),
       1.f / state_for_curr_sequence_->transfer_state->dip_scale,
       state_for_curr_sequence_->transfer_state->web_contents_y_offset_pix,

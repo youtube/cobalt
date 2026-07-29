@@ -68,8 +68,7 @@ class BrowserChildProcessHostImpl
  public:
   // Constructs a process host with |ipc_mode| determining how IPC is done.
   BrowserChildProcessHostImpl(content::ProcessType process_type,
-                              BrowserChildProcessHostDelegate* delegate,
-                              ChildProcessHost::IpcMode ipc_mode);
+                              BrowserChildProcessHostDelegate* delegate);
 
   ~BrowserChildProcessHostImpl() override;
 
@@ -78,7 +77,6 @@ class BrowserChildProcessHostImpl
   static void TerminateAll();
 
   // BrowserChildProcessHost implementation:
-  bool Send(IPC::Message* message) override;
   void Launch(std::unique_ptr<SandboxedProcessLauncherDelegate> delegate,
               std::unique_ptr<base::CommandLine> cmd_line,
               bool terminate_on_shutdown) override;
@@ -96,9 +94,7 @@ class BrowserChildProcessHostImpl
   void OnChildDisconnected() override;
   const base::Process& GetProcess() override;
   void BindHostReceiver(mojo::GenericPendingReceiver receiver) override;
-  bool OnMessageReceived(const IPC::Message& message) override;
   void OnChannelConnected(int32_t peer_pid) override;
-  void OnChannelError() override;
   void OnBadMessageReceived(const IPC::Message& message) override;
 
   // HistogramChildProcess implementation:

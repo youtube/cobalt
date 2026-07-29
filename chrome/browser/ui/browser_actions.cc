@@ -12,7 +12,6 @@
 #include "base/functional/bind.h"
 #include "chrome/app/vector_icons/vector_icons.h"
 #include "chrome/browser/devtools/devtools_window.h"
-#include "chrome/browser/download/bubble/download_bubble_prefs.h"
 #include "chrome/browser/prefs/incognito_mode_prefs.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/search_engines/template_url_service_factory.h"
@@ -35,6 +34,7 @@
 #include "chrome/browser/ui/intent_picker_tab_helper.h"
 #include "chrome/browser/ui/lens/lens_overlay_controller.h"
 #include "chrome/browser/ui/lens/lens_overlay_entry_point_controller.h"
+#include "chrome/browser/ui/lens/lens_string_utils.h"
 #include "chrome/browser/ui/passwords/manage_passwords_ui_controller.h"
 #include "chrome/browser/ui/passwords/passwords_model_delegate.h"
 #include "chrome/browser/ui/performance_controls/memory_saver_bubble_controller.h"
@@ -48,13 +48,13 @@
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/commerce/discounts_page_action_view_controller.h"
 #include "chrome/browser/ui/views/commerce/product_specifications_page_action_view_controller.h"
-#include "chrome/browser/ui/views/download/bubble/download_toolbar_ui_controller.h"
 #include "chrome/browser/ui/views/file_system_access/file_system_access_bubble_controller.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/toolbar_button_provider.h"
 #include "chrome/browser/ui/views/media_router/cast_browser_controller.h"
 #include "chrome/browser/ui/views/page_info/page_info_view_factory.h"
 #include "chrome/browser/ui/views/send_tab_to_self/send_tab_to_self_toolbar_bubble_controller.h"
+#include "chrome/browser/ui/views/side_panel/comments/comments_side_panel_coordinator.h"
 #include "chrome/browser/ui/views/side_panel/history/history_side_panel_coordinator.h"
 #include "chrome/browser/ui/views/side_panel/history_clusters/history_clusters_side_panel_utils.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_action_callback.h"
@@ -91,6 +91,10 @@
 #include "ui/gfx/vector_icon_types.h"
 #include "ui/menus/simple_menu_model.h"
 #include "ui/views/view_class_properties.h"
+
+#if !BUILDFLAG(IS_CHROMEOS)
+#include "chrome/browser/ui/views/download/bubble/download_toolbar_ui_controller.h"
+#endif
 
 namespace {
 
@@ -272,9 +276,12 @@ void BrowserActions::InitializeBrowserActions() {
     root_action_item_->AddChild(
         actions::ActionItem::Builder(callback)
             .SetActionId(kActionSidePanelShowLensOverlayResults)
-            .SetText(l10n_util::GetStringUTF16(IDS_SHOW_LENS_OVERLAY))
+            .SetText(l10n_util::GetStringUTF16(
+                lens::GetLensOverlayEntrypointLabelAltIds(
+                    IDS_SHOW_LENS_OVERLAY)))
             .SetTooltipText(l10n_util::GetStringUTF16(
-                IDS_SIDE_PANEL_LENS_OVERLAY_TOOLBAR_TOOLTIP))
+                lens::GetLensOverlayEntrypointLabelAltIds(
+                    IDS_SIDE_PANEL_LENS_OVERLAY_TOOLBAR_TOOLTIP)))
             .SetImage(ui::ImageModel::FromVectorIcon(
                 icon, ui::kColorIcon, ui::SimpleMenuModel::kDefaultIconSize))
             .SetProperty(actions::kActionItemPinnableKey,
@@ -615,8 +622,6 @@ void BrowserActions::InitializeBrowserActions() {
 
   if (IsChromeLabsEnabled() &&
       !web_app::AppBrowserController::IsWebApp(browser)) {
-    // TODO(354758327): Update `ShouldShowChromeLabsUI()` to not require
-    // `model` as a parameter, then use to set visibility of action item.
     root_action_item_->AddChild(
         ChromeMenuAction(base::BindRepeating(
                              [](Browser* browser, actions::ActionItem* item,
@@ -626,7 +631,7 @@ void BrowserActions::InitializeBrowserActions() {
                              base::Unretained(browser)),
                          kActionShowChromeLabs, IDS_CHROMELABS, IDS_CHROMELABS,
                          kScienceIcon)
-            .SetVisible(false)
+            .SetVisible(ShouldShowChromeLabsUI(browser->profile()))
             .Build());
   }
 
@@ -743,21 +748,21 @@ void BrowserActions::InitializeBrowserActions() {
           .Build());
   CastToolbarButtonUtil::AddCastChildActions(media_router_action, browser);
 
-  if (download::IsDownloadBubbleEnabled()) {
-    root_action_item_->AddChild(
-        ChromeMenuAction(base::BindRepeating(
-                             [](Browser* browser, actions::ActionItem* item,
-                                actions::ActionInvocationContext context) {
-                               browser->GetFeatures()
-                                   .download_toolbar_ui_controller()
-                                   ->InvokeUI();
-                             },
-                             base::Unretained(browser)),
-                         kActionShowDownloads, IDS_SHOW_DOWNLOADS,
-                         IDS_TOOLTIP_DOWNLOAD_ICON,
-                         kDownloadToolbarButtonChromeRefreshIcon)
-            .Build());
-  }
+#if !BUILDFLAG(IS_CHROMEOS)
+  root_action_item_->AddChild(
+      ChromeMenuAction(base::BindRepeating(
+                           [](Browser* browser, actions::ActionItem* item,
+                              actions::ActionInvocationContext context) {
+                             browser->GetFeatures()
+                                 .download_toolbar_ui_controller()
+                                 ->InvokeUI();
+                           },
+                           base::Unretained(browser)),
+                       kActionShowDownloads, IDS_SHOW_DOWNLOADS,
+                       IDS_TOOLTIP_DOWNLOAD_ICON,
+                       kDownloadToolbarButtonChromeRefreshIcon)
+          .Build());
+#endif  // !BUILDFLAG(IS_CHROMEOS)
 
   if (tab_groups::SavedTabGroupUtils::SupportsSharedTabGroups()) {
     root_action_item_->AddChild(
@@ -897,6 +902,16 @@ void BrowserActions::InitializeBrowserActions() {
               base::Unretained(browser)))
           .SetActionId(kActionSidePanelShowCustomizeChromeFooter)
           .Build());
+
+  if (CommentsSidePanelCoordinator::IsSupported()) {
+    root_action_item_->AddChild(
+        SidePanelAction(SidePanelEntryId::kComments,
+                        IDS_COLLABORATION_SHARED_TAB_GROUPS_COMMENTS_TITLE,
+                        IDS_COLLABORATION_SHARED_TAB_GROUPS_COMMENTS_TITLE,
+                        vector_icons::kChatIcon, kActionSidePanelShowComments,
+                        browser, false)
+            .Build());
+  }
 
   AddListeners();
 }

@@ -25,6 +25,7 @@
 #include "components/supervised_user/core/browser/supervised_user_url_filter.h"
 #include "components/supervised_user/core/common/supervised_user_constants.h"
 #include "components/supervised_user/core/common/supervised_users.h"
+#include "components/supervised_user/core/browser/supervised_user_content_filters_service.h"
 #include "google_apis/gaia/gaia_id.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
 
@@ -160,6 +161,7 @@ class SupervisedUserService : public KeyedService {
       scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
       PrefService& user_prefs,
       SupervisedUserSettingsService& settings_service,
+      SupervisedUserContentFiltersService* content_filters_service,
       syncer::SyncService* sync_service,
       std::unique_ptr<SupervisedUserURLFilter> url_filter,
       std::unique_ptr<SupervisedUserService::PlatformDelegate> platform_delegate
@@ -180,20 +182,15 @@ class SupervisedUserService : public KeyedService {
   // Activates the service which controls managed settings of url filtering and
   // incognito mode.
   void SetSettingsServiceActive(bool active);
-  // Activates the settings that manually control url filtering.
-  void SetUserSettingsActive(bool active);
 
   void OnCustodianInfoChanged();
+  void OnSupervisedUserIdChanged();
 
   // Handles the change of supervision status driven by Family Link parental
   // controls.
   void OnFamilyLinkParentalControlsEnabled();
-  // Handles the change of supervision status self-set by user.
-  void OnLocalParentalControlsEnabled();
-  // Common handler when supervision is disabled. Intentionally idempotent.
-  void OnParentalControlsDisabled();
-
-  void OnIncognitoModeAvailabilityChanged();
+  // Handler when supervision is disabled. Intentionally idempotent.
+  void OnFamilyLinkParentalControlsDisabled();
 
   // Single handler for all url filter changes.
   // If present, `pref_name` indicates the actual pref that changed and might
@@ -228,6 +225,8 @@ class SupervisedUserService : public KeyedService {
 
   const raw_ref<SupervisedUserSettingsService> settings_service_;
 
+  const raw_ptr<SupervisedUserContentFiltersService> content_filters_service_;
+
   const raw_ptr<syncer::SyncService> sync_service_;
 
   raw_ptr<signin::IdentityManager> identity_manager_;
@@ -235,10 +234,6 @@ class SupervisedUserService : public KeyedService {
   scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory_;
 
   std::unique_ptr<SupervisedUserURLFilter> url_filter_;
-
-  // Manages the status of parental controls and notifies this instance when the
-  // state changes.
-  SupervisedControlsState controls_state_;
 
   std::unique_ptr<PlatformDelegate> platform_delegate_;
 

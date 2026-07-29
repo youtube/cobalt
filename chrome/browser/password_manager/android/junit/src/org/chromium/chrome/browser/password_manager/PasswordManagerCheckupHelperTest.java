@@ -7,7 +7,6 @@ package org.chromium.chrome.browser.password_manager;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
-import static org.junit.Assume.assumeTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
@@ -38,7 +37,6 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
-import org.robolectric.ParameterizedRobolectricTestRunner;
 import org.robolectric.Robolectric;
 import org.robolectric.Shadows;
 import org.robolectric.annotation.Config;
@@ -48,12 +46,11 @@ import org.robolectric.shadows.ShadowSystemClock;
 
 import org.chromium.base.Callback;
 import org.chromium.base.ContextUtils;
-import org.chromium.base.FeatureOverrides;
 import org.chromium.base.supplier.ObservableSupplier;
-import org.chromium.base.test.BaseRobolectricTestRule;
+import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.util.Batch;
 import org.chromium.base.test.util.HistogramWatcher;
-import org.chromium.chrome.browser.flags.ChromeFeatureList;
+import org.chromium.chrome.R;
 import org.chromium.chrome.browser.loading_modal.LoadingModalDialogCoordinator;
 import org.chromium.chrome.browser.password_manager.CredentialManagerLauncher.CredentialManagerError;
 import org.chromium.chrome.browser.password_manager.PasswordCheckupClientHelper.PasswordCheckBackendException;
@@ -76,33 +73,21 @@ import org.chromium.ui.modaldialog.ModalDialogManager;
 import org.chromium.ui.modaldialog.ModalDialogProperties;
 import org.chromium.ui.modelutil.PropertyModel;
 
-import java.util.Arrays;
-import java.util.Collection;
 import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.Set;
 
 /** Tests for the password checkup-related methods in {@link PasswordManagerHelper}. */
-@RunWith(ParameterizedRobolectricTestRunner.class)
+@RunWith(BaseRobolectricTestRunner.class)
 @Config(
         manifest = Config.NONE,
         shadows = {ShadowSystemClock.class})
 @Batch(Batch.PER_CLASS)
 public class PasswordManagerCheckupHelperTest {
-    @ParameterizedRobolectricTestRunner.Parameters
-    public static Collection testCases() {
-        return Arrays.asList(
-                /* isLoginDbDeprecationEnabled= */ true, /* isLoginDbDeprecationEnabled= */ false);
-    }
-
-    @Rule(order = -2)
-    public BaseRobolectricTestRule mBaseRule = new BaseRobolectricTestRule();
-
     private static final String TEST_EMAIL_ADDRESS = "test@email.com";
     private static final String TEST_NO_EMAIL_ADDRESS = null;
 
     @Rule public MockitoRule mMockitoRule = MockitoJUnit.rule();
-    @ParameterizedRobolectricTestRunner.Parameter public boolean mIsLoginDbDeprecationEnabled;
 
     // TODO(crbug.com/40854050): Use a fake for PasswordCheckupClientHelper.
     @Mock private PasswordCheckupClientHelperFactory mPasswordCheckupClientHelperFactoryMock;
@@ -136,11 +121,6 @@ public class PasswordManagerCheckupHelperTest {
 
     @Before
     public void setUp() throws PasswordCheckBackendException {
-        if (mIsLoginDbDeprecationEnabled) {
-            FeatureOverrides.enable(ChromeFeatureList.LOGIN_DB_DEPRECATION_ANDROID);
-        } else {
-            FeatureOverrides.disable(ChromeFeatureList.LOGIN_DB_DEPRECATION_ANDROID);
-        }
         UserPrefsJni.setInstanceForTesting(mUserPrefsJniMock);
         PasswordManagerUtilBridgeJni.setInstanceForTesting(mPasswordManagerUtilBridgeJniMock);
         mPasswordManagerHelper = new PasswordManagerHelper(mProfile);
@@ -162,13 +142,9 @@ public class PasswordManagerCheckupHelperTest {
                 .addObserver(any(LoadingModalDialogCoordinator.Observer.class));
         PasswordManagerBackendSupportHelper.setInstanceForTesting(mBackendSupportHelperMock);
         when(mBackendSupportHelperMock.isBackendPresent()).thenReturn(true);
-        if (mIsLoginDbDeprecationEnabled) {
-            when(mPasswordManagerUtilBridgeJniMock.isPasswordManagerAvailable(
-                            eq(mPrefService), eq(true)))
-                    .thenReturn(true);
-        } else {
-            when(mPasswordManagerUtilBridgeJniMock.areMinUpmRequirementsMet()).thenReturn(true);
-        }
+        when(mPasswordManagerUtilBridgeJniMock.isPasswordManagerAvailable(
+                        eq(mPrefService), eq(true)))
+                .thenReturn(true);
         when(mPasswordCheckupClientHelperFactoryMock.createHelper())
                 .thenReturn(mPasswordCheckupClientHelperMock);
         PasswordCheckupClientHelperFactory.setFactoryForTesting(
@@ -178,8 +154,6 @@ public class PasswordManagerCheckupHelperTest {
 
     @Test
     public void testThrowsPasswordManagerNotAvailableException() {
-        // This test only applies if the login DB deprecation is enabled.
-        assumeTrue(ChromeFeatureList.isEnabled(ChromeFeatureList.LOGIN_DB_DEPRECATION_ANDROID));
         when(mPasswordManagerUtilBridgeJniMock.isPasswordManagerAvailable(
                         eq(mPrefService), eq(true)))
                 .thenReturn(false);
@@ -299,9 +273,6 @@ public class PasswordManagerCheckupHelperTest {
 
     @Test
     public void testRetrievesIntentForLocalCheckup() {
-        when(mPasswordManagerUtilBridgeJniMock.shouldUseUpmWiring(mSyncServiceMock, mPrefService))
-                .thenReturn(true);
-
         mPasswordManagerHelper.showPasswordCheckup(
                 ContextUtils.getApplicationContext(),
                 PasswordCheckReferrer.SAFETY_CHECK,
@@ -332,9 +303,6 @@ public class PasswordManagerCheckupHelperTest {
 
     @Test
     public void testPasswordCheckupIntentForLocalCalledIfSuccess() throws CanceledException {
-        when(mPasswordManagerUtilBridgeJniMock.shouldUseUpmWiring(mSyncServiceMock, mPrefService))
-                .thenReturn(true);
-
         setUpSuccessfulCheckupIntentFetching(mPendingIntentMock, TEST_NO_EMAIL_ADDRESS);
         mPasswordManagerHelper.showPasswordCheckup(
                 ContextUtils.getApplicationContext(),
@@ -381,8 +349,6 @@ public class PasswordManagerCheckupHelperTest {
                                         .PASSWORD_CHECKUP_LAUNCH_CREDENTIAL_MANAGER_SUCCESS_HISTOGRAM,
                                 1)
                         .build();
-        when(mPasswordManagerUtilBridgeJniMock.shouldUseUpmWiring(mSyncServiceMock, mPrefService))
-                .thenReturn(true);
         setUpSuccessfulCheckupIntentFetching(mPendingIntentMock, TEST_NO_EMAIL_ADDRESS);
 
         mPasswordManagerHelper.showPasswordCheckup(
@@ -436,8 +402,6 @@ public class PasswordManagerCheckupHelperTest {
                                         .PASSWORD_CHECKUP_LAUNCH_CREDENTIAL_MANAGER_SUCCESS_HISTOGRAM)
                         .build();
 
-        when(mPasswordManagerUtilBridgeJniMock.shouldUseUpmWiring(mSyncServiceMock, mPrefService))
-                .thenReturn(true);
         returnErrorWhenFetchingIntentForPasswordCheckup(
                 new PasswordCheckBackendException("", CredentialManagerError.UNCATEGORIZED),
                 TEST_NO_EMAIL_ADDRESS);
@@ -492,8 +456,6 @@ public class PasswordManagerCheckupHelperTest {
                                 PasswordMetricsUtil
                                         .PASSWORD_CHECKUP_LAUNCH_CREDENTIAL_MANAGER_SUCCESS_HISTOGRAM)
                         .build();
-        when(mPasswordManagerUtilBridgeJniMock.shouldUseUpmWiring(mSyncServiceMock, mPrefService))
-                .thenReturn(true);
         returnErrorWhenFetchingIntentForPasswordCheckup(
                 new ApiException(new Status(CommonStatusCodes.DEVELOPER_ERROR)),
                 TEST_NO_EMAIL_ADDRESS);
@@ -1140,8 +1102,6 @@ public class PasswordManagerCheckupHelperTest {
 
     @Test
     public void testShowDownloadCsvDialogIfCsvIsPresentAndPwmNotAvailable() {
-        // The dialog exists only if the login db deprecation is enabled.
-        assumeTrue(mIsLoginDbDeprecationEnabled);
         when(mBackendSupportHelperMock.isBackendPresent()).thenReturn(true);
         when(mPasswordManagerUtilBridgeJniMock.isPasswordManagerAvailable(
                         eq(mPrefService), eq(true)))
@@ -1174,8 +1134,6 @@ public class PasswordManagerCheckupHelperTest {
 
     @Test
     public void testShowDownloadCsvDialogIfCsvIsPresentAndNoGms() {
-        // The dialog exists only if the login db deprecation is enabled.
-        assumeTrue(mIsLoginDbDeprecationEnabled);
         when(mBackendSupportHelperMock.isBackendPresent()).thenReturn(true);
         when(mPasswordManagerUtilBridgeJniMock.isPasswordManagerAvailable(
                         eq(mPrefService), eq(true)))
@@ -1207,8 +1165,6 @@ public class PasswordManagerCheckupHelperTest {
 
     @Test
     public void testShowPwmUnavailableDialogNoCsvNoGms() {
-        // The dialog exists only if the login db deprecation is enabled.
-        assumeTrue(mIsLoginDbDeprecationEnabled);
         when(mBackendSupportHelperMock.isBackendPresent()).thenReturn(true);
         when(mPasswordManagerUtilBridgeJniMock.isPasswordManagerAvailable(
                         eq(mPrefService), eq(true)))
@@ -1228,18 +1184,12 @@ public class PasswordManagerCheckupHelperTest {
         PropertyModel dialogModel = mModalDialogManager.getCurrentDialogForTest();
         assertNotNull(dialogModel);
         assertEquals(
-                testActivity
-                        .getResources()
-                        .getString(
-                                org.chromium.chrome.browser.access_loss.R.string
-                                        .pwm_disabled_no_gms_dialog_title),
+                testActivity.getResources().getString(R.string.pwm_disabled_no_gms_dialog_title),
                 dialogModel.get(ModalDialogProperties.TITLE));
     }
 
     @Test
     public void testShowPwmUnavailableDialogNoCsvUpdatableGms() {
-        // The dialog exists only if the login db deprecation is enabled.
-        assumeTrue(mIsLoginDbDeprecationEnabled);
         when(mBackendSupportHelperMock.isBackendPresent()).thenReturn(true);
         when(mPasswordManagerUtilBridgeJniMock.isPasswordManagerAvailable(
                         eq(mPrefService), eq(true)))
@@ -1259,11 +1209,7 @@ public class PasswordManagerCheckupHelperTest {
         PropertyModel dialogModel = mModalDialogManager.getCurrentDialogForTest();
         assertNotNull(dialogModel);
         assertEquals(
-                testActivity
-                        .getResources()
-                        .getString(
-                                org.chromium.chrome.browser.access_loss.R.string
-                                        .access_loss_update_gms_title),
+                testActivity.getResources().getString(R.string.access_loss_update_gms_title),
                 dialogModel.get(ModalDialogProperties.TITLE));
     }
 
@@ -1274,10 +1220,6 @@ public class PasswordManagerCheckupHelperTest {
                 .thenReturn(
                         CoreAccountInfo.createFromEmailAndGaiaId(
                                 TEST_EMAIL_ADDRESS, new GaiaId("0")));
-        // Set the adequate PasswordManagerUtilBridge response for shouldUseUpmWiring for a syncing
-        // user.
-        when(mPasswordManagerUtilBridgeJniMock.shouldUseUpmWiring(mSyncServiceMock, mPrefService))
-                .thenReturn(true);
     }
 
     private void setUpSuccessfulCheckupIntentFetching(PendingIntent intent, String accountEmail) {

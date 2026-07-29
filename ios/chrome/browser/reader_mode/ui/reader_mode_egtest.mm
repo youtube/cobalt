@@ -8,6 +8,7 @@
 #import "components/dom_distiller/core/dom_distiller_features.h"
 #import "components/dom_distiller/core/mojom/distilled_page_prefs.mojom.h"
 #import "components/dom_distiller/core/pref_names.h"
+#import "ios/chrome/browser/badges/ui_bundled/badge_constants.h"
 #import "ios/chrome/browser/popup_menu/ui_bundled/popup_menu_constants.h"
 #import "ios/chrome/browser/reader_mode/model/features.h"
 #import "ios/chrome/browser/reader_mode/ui/constants.h"
@@ -19,6 +20,7 @@
 #import "ios/testing/earl_grey/earl_grey_test.h"
 #import "net/test/embedded_test_server/default_handlers.h"
 #import "testing/gmock/include/gmock/gmock-matchers.h"
+#import "ui/base/l10n/l10n_util.h"
 
 using testing::HasSubstr;
 
@@ -154,6 +156,48 @@ id<GREYMatcher> VisibleContextMenuItem(int message_id) {
       assertWithMatcher:grey_hidden(YES)];
 }
 
+// Tests that the user can show / hide Reader Mode from the tools menu
+// entrypoint on an eligible web page in Incognito Mode.
+- (void)testToggleReaderModeInToolsMenuForDistillablePageInIncognitoMode {
+  // Open a web page in Incognito.
+  [ChromeEarlGrey openNewIncognitoTab];
+  [ChromeEarlGrey loadURL:self.testServer->GetURL("/article.html")];
+  [ChromeEarlGrey waitForPageToFinishLoading];
+
+  // Open Reader Mode UI.
+  [ChromeEarlGreyUI openToolsMenu];
+  [ChromeEarlGreyUI
+      tapToolsMenuAction:grey_accessibilityID(kToolsMenuReaderMode)];
+
+  [ChromeEarlGrey
+      waitForSufficientlyVisibleElementWithMatcher:
+          grey_accessibilityID(kReaderModeViewAccessibilityIdentifier)];
+  [ChromeEarlGrey
+      waitForSufficientlyVisibleElementWithMatcher:
+          grey_accessibilityID(kReaderModeChipViewAccessibilityIdentifier)];
+  [ChromeEarlGrey
+      waitForSufficientlyVisibleElementWithMatcher:
+          grey_accessibilityID(kBadgeButtonIncognitoAccessibilityIdentifier)];
+
+  // Close Reader Mode UI.
+  [ChromeEarlGreyUI openToolsMenu];
+  [ChromeEarlGreyUI
+      tapToolsMenuAction:grey_accessibilityID(kToolsMenuReaderMode)];
+
+  // The Reader Mode UI is not visible, but Incognito badge continues to be
+  // visible.
+  [ChromeEarlGrey
+      waitForUIElementToDisappearWithMatcher:
+          grey_accessibilityID(kReaderModeViewAccessibilityIdentifier)];
+  [[EarlGrey
+      selectElementWithMatcher:grey_accessibilityID(
+                                   kReaderModeChipViewAccessibilityIdentifier)]
+      assertWithMatcher:grey_hidden(YES)];
+  [ChromeEarlGrey
+      waitForSufficientlyVisibleElementWithMatcher:
+          grey_accessibilityID(kBadgeButtonIncognitoAccessibilityIdentifier)];
+}
+
 // Test that a page that is not eligible for Reader Mode shows as a disabled
 // option in the Tools menu.
 - (void)testNotEligibleReaderModePageDisabledInToolsMenu {
@@ -254,6 +298,13 @@ id<GREYMatcher> VisibleContextMenuItem(int message_id) {
   [ChromeEarlGrey
       waitForSufficientlyVisibleElementWithMatcher:
           grey_accessibilityID(kReaderModeChipViewAccessibilityIdentifier)];
+
+  // Check that the chip is a button with the expected accessibility label.
+  [[EarlGrey
+      selectElementWithMatcher:grey_accessibilityID(
+                                   kReaderModeChipViewAccessibilityIdentifier)]
+      assertWithMatcher:chrome_test_util::ButtonWithAccessibilityLabelId(
+                            IDS_IOS_READER_MODE_CHIP_ACCESSIBILITY_LABEL)];
 }
 
 // Tests that theme change is applied to the Reading Mode web page.
@@ -699,6 +750,59 @@ id<GREYMatcher> VisibleContextMenuItem(int message_id) {
       selectElementWithMatcher:grey_accessibilityID(
                                    kReaderModeChipViewAccessibilityIdentifier)]
       assertWithMatcher:grey_hidden(YES)];
+}
+
+// Test accessibility for Reader mode options screen.
+- (void)testReaderModeOptionsAccessibility {
+  [ChromeEarlGrey loadURL:self.testServer->GetURL("/article.html")];
+  [ChromeEarlGrey waitForPageToFinishLoading];
+
+  // Open Reader Mode UI.
+  [ChromeEarlGreyUI openToolsMenu];
+  [ChromeEarlGreyUI
+      tapToolsMenuAction:grey_accessibilityID(kToolsMenuReaderMode)];
+
+  [ChromeEarlGrey
+      waitForSufficientlyVisibleElementWithMatcher:
+          grey_accessibilityID(kReaderModeChipViewAccessibilityIdentifier)];
+
+  // Tap the chip to open the options view.
+  [[EarlGrey
+      selectElementWithMatcher:grey_accessibilityID(
+                                   kReaderModeChipViewAccessibilityIdentifier)]
+      performAction:grey_tap()];
+
+  [ChromeEarlGrey verifyAccessibilityForCurrentScreen];
+}
+
+// Tests that the contextual panel entrypoint disappears and a failure snackbar
+// is presented when distillation fails.
+- (void)testReaderModeDistillationFailure {
+  [ChromeEarlGrey loadURL:self.testServer->GetURL("/article.html")];
+  [ChromeEarlGrey waitForPageToFinishLoading];
+
+  // Wait for the contextual panel entrypoint to appear.
+  id<GREYMatcher> entrypoint = chrome_test_util::ButtonWithAccessibilityLabelId(
+      IDS_IOS_CONTEXTUAL_PANEL_READER_MODE_MODEL_ENTRYPOINT_MESSAGE);
+  [ChromeEarlGrey waitForSufficientlyVisibleElementWithMatcher:entrypoint];
+
+  // Make the page not distillable.
+  [ChromeEarlGrey
+      evaluateJavaScriptForSideEffect:@"document.body.outerHTML = ''"];
+
+  // Tap the entrypoint to trigger distillation.
+  [[EarlGrey selectElementWithMatcher:entrypoint] performAction:grey_tap()];
+
+  // The entrypoint should disappear.
+  [ChromeEarlGrey waitForUIElementToDisappearWithMatcher:entrypoint];
+
+  // A snackbar should be displayed with a failure message.
+  NSString* failureMessage =
+      l10n_util::GetNSString(IDS_IOS_READER_MODE_SNACKBAR_FAILURE_MESSAGE);
+  id<GREYMatcher> snackbarMatcher = grey_allOf(
+      grey_accessibilityID(@"MDCSnackbarMessageTitleAutomationIdentifier"),
+      grey_accessibilityLabel(failureMessage), nil);
+  [ChromeEarlGrey waitForSufficientlyVisibleElementWithMatcher:snackbarMatcher];
 }
 
 @end

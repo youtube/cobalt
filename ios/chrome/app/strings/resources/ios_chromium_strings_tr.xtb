@@ -113,6 +113,7 @@ Hesap değiştirmeden önce birkaç dakika beklemeyi deneyin. Hesabı şimdi de�
 <translation id="3728124580182886854">Kişiselleştirme ve diğer amaçlar için Chromium ile diğer Google hizmetlerini bağlayın</translation>
 <translation id="377649297473651452">Chromium otomatik doldurma genişletilmiş görünümü</translation>
 <translation id="3780779443901618967">Standart korumaya ek olarak sitelerden alınmış daha fazla veriyi analiz ederek Google'ın daha önce bilmedikleri de dahil olmak üzere tehlikeli siteler hakkında sizi uyarır. Chromium uyarılarını atlamayı seçebilirsiniz.</translation>
+<translation id="3804124559081428680">Chromium İpucu: Kimliğinizi doğrulayın</translation>
 <translation id="3805899903892079518">Chromium, fotoğraflarınıza veya videolarınıza erişemiyor. iOS Ayarlar &gt; Gizlilik &gt; Fotoğraflar'dan erişimi etkinleştirin.</translation>
 <translation id="3816686541346279443">Chromium, şifrenizi kaydetmeyi önerir.</translation>
 <translation id="3827545470516145620">Bu cihazda standart güvenlik korumasına sahipsiniz</translation>
@@ -252,6 +253,7 @@ Dikkate alınması gereken noktalar:
 
 Sadece parolanıza sahip olan kişiler şifrelenmiş verilerinizi okuyabilir. Parola Google'a gönderilmez veya Google tarafından saklanmaz. Parolanızı unutursanız veya bu ayarı değiştirmek isterseniz <ph name="BEGIN_LINK" />hesabınızdaki Chromium verilerini silin<ph name="END_LINK" />.</translation>
 <translation id="7192111075364461693">Chromium bildirimleri cihaz ayarlarınızda devre dışı bırakılmış.</translation>
+<translation id="7195217321165708458">Chromium'da Gemini</translation>
 <translation id="7219205286115692265">iPad'inizin ana ekran yuvasından Chromium'a daha hızlı erişin.</translation>
 <translation id="7222001353246886083">Chromium'da ${searchphrase} ifadesini ara</translation>
 <translation id="7228180817326917122">Chromium ipucu: Adres çubuğunuzun konumunu seçin</translation>

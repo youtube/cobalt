@@ -91,6 +91,9 @@ const CGFloat kShareIconBalancingHeightPadding = 1;
 // The injected text field.
 @property(nonatomic, weak) UIView* textField;
 
+// The injected incognito badge view.
+@property(nonatomic, strong) UIView* incognitoBadgeView;
+
 // The injected badge view.
 @property(nonatomic, strong) UIView* badgeView;
 
@@ -176,6 +179,11 @@ const CGFloat kShareIconBalancingHeightPadding = 1;
   _badgeView = badgeView;
 }
 
+- (void)setIncognitoBadgeView:(UIView*)incognitoBadgeView {
+  CHECK(!self.incognitoBadgeView);
+  _incognitoBadgeView = incognitoBadgeView;
+}
+
 - (void)setContextualPanelEntrypointView:
     (UIView*)contextualPanelEntrypointView {
   DCHECK(!self.contextualPanelEntrypointView);
@@ -191,7 +199,11 @@ const CGFloat kShareIconBalancingHeightPadding = 1;
   if (placeholderType == _placeholderType) {
     return;
   }
-  _placeholderType = placeholderType;
+  if (IsDiamondPrototypeEnabled()) {
+    _placeholderType = LocationBarPlaceholderType::kNone;
+  } else {
+    _placeholderType = placeholderType;
+  }
   if (self.isViewLoaded) {
     [self updatePlaceholderView];
   }
@@ -251,6 +263,11 @@ const CGFloat kShareIconBalancingHeightPadding = 1;
   return self.locationBarSteadyView.readerModeChipVisibilityDelegate;
 }
 
+- (id<IncognitoBadgeViewVisibilityDelegate>)
+    incognitoBadgeViewVisibilityDelegate {
+  return self.locationBarSteadyView.incognitoBadgeViewVisibilityDelegate;
+}
+
 - (void)setHelpCommandsHandler:(id<HelpCommands>)helpCommandsHandler {
   _helpCommandsHandler = helpCommandsHandler;
 }
@@ -267,6 +284,10 @@ const CGFloat kShareIconBalancingHeightPadding = 1;
   if (self.contextualPanelEntrypointView) {
     [self.locationBarSteadyView
         setContextualPanelEntrypointView:self.contextualPanelEntrypointView];
+  }
+
+  if (self.incognitoBadgeView) {
+    [self.locationBarSteadyView setIncognitoBadgeView:self.incognitoBadgeView];
   }
 
   DCHECK(self.badgeView) << "The badge view must be set at this point";
@@ -666,6 +687,10 @@ const CGFloat kShareIconBalancingHeightPadding = 1;
 
   TrailingButtonState state = self.trailingButtonState;
   if (state == kShareButton && self.hideShareButtonWhileOnIncognitoNTP) {
+    state = kNoButton;
+  }
+
+  if (IsDiamondPrototypeEnabled()) {
     state = kNoButton;
   }
 

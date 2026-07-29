@@ -113,6 +113,7 @@ Prófaðu að bíða í nokkrar mínútur áður en þú skiptir um reikning. Ef
 <translation id="3728124580182886854">Tengdu Chromium við aðrar Google-þjónustur til að sérsníða upplifun þína og fleira</translation>
 <translation id="377649297473651452">Stækkað yfirlit yfir sjálfvirka útfyllingu í Chromium</translation>
 <translation id="3780779443901618967">Varar þig við hættulegum vefsvæðum, jafnvel þeim sem Google hafði enga vitneskju um, með því að greina fleiri gögn frá vefsvæðum en hefðbundin vörn. Þú getur valið að sleppa Chromium-viðvörunum.</translation>
+<translation id="3804124559081428680">Chromium-ábending: Staðfestu hver þú ert</translation>
 <translation id="3805899903892079518">Chromium hefur ekki aðgang að myndunum þínum eða myndskeiðum. Veittu aðgang í iOS Settings &gt; Privacy &gt; Photos.</translation>
 <translation id="3816686541346279443">Chromium býðst til að vista aðgangsorðið þitt.</translation>
 <translation id="3827545470516145620">Þú er með staðlaða öryggisvörn í þessu tæki</translation>
@@ -252,6 +253,7 @@ Hafðu í huga:
 
 Aðeins einstaklingar sem eru með aðgangsorðið þitt geta lesið dulkóðuðu gögnin þín. Aðgangsorðið er hvorki sent til né vistað hjá Google. Ef þú gleymir aðgangsorðinu eða vilt breyta þessari stillingu skaltu <ph name="BEGIN_LINK" />eyða Chromium-gögnunum á reikningnum þínum<ph name="END_LINK" />.</translation>
 <translation id="7192111075364461693">Slökkt er á Chromium-tilkynningum í stillingum tækisins.</translation>
+<translation id="7195217321165708458">Gemini í Chromium</translation>
 <translation id="7219205286115692265">Hafðu greiðan aðgang að Chromium af stikunni á heimaskjánum í iPad.</translation>
 <translation id="7222001353246886083">Leita að ${searchPhrase} í Chromium</translation>
 <translation id="7228180817326917122">Chromium-ábending: Veldu staðsetningu veffangastikunnar</translation>

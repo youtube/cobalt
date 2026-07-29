@@ -140,6 +140,7 @@ std::vector<KioskApp> KioskControllerImpl::GetApps() const {
   AppendWebApps(apps);
   AppendChromeApps(apps);
   AppendIsolatedWebApps(apps);
+  AppendArcvmApps(apps);
   return apps;
 }
 
@@ -207,10 +208,8 @@ void KioskControllerImpl::InitializeKioskSystemSession(
       iwa_manager_.OnKioskSessionStarted(kiosk_app_id);
       break;
     case KioskAppType::kArcvmApp:
-      // TODO(crbug.com/418950414): Add background for Kiosk system session not
-      // getting created for ARCVM Kiosk. We might need Kiosk system session
-      // for ARCVM kiosk.
-      NOTREACHED();
+      arcvm_app_manager_.OnKioskSessionStarted(kiosk_app_id);
+      break;
   }
 }
 
@@ -455,6 +454,14 @@ void KioskControllerImpl::AppendIsolatedWebApps(
   for (const KioskAppManagerBase::App& iwa_app : iwa_manager_.GetApps()) {
     apps.emplace_back(KioskAppId::ForIsolatedWebApp(iwa_app.account_id),
                       iwa_app.name, iwa_app.icon);
+  }
+}
+
+void KioskControllerImpl::AppendArcvmApps(std::vector<KioskApp>& apps) const {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  for (const KioskAppManagerBase::App& iwa_app : arcvm_app_manager_.GetApps()) {
+    apps.emplace_back(KioskAppId::ForArcvmApp(iwa_app.account_id), iwa_app.name,
+                      iwa_app.icon);
   }
 }
 

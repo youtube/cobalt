@@ -550,9 +550,7 @@ _builtin_deps = {
     add_androidx_test_runner_java_deps,
     '//third_party/android_sdk:android_test_base_java':
     add_android_test_base_java_deps,
-    '//third_party/accessibility_test_framework:accessibility_test_framework_java':
-    add_accessibility_test_framework_java_deps,
-    '//third_party/accessibility_test_framework:accessibility_core_java':
+    '//third_party/android_deps:com_google_android_apps_common_testing_accessibility_framework_accessibility_test_framework_java':
     add_accessibility_test_framework_java_deps,
     '//third_party/android_deps:espresso_java':
     add_espresso_java_deps,
@@ -3279,7 +3277,10 @@ def create_cc_defaults_module():
       # Stops warning about unknown options. This usually happens when
       # Chromium uses a newer version of Clang that supports a flag which
       # Android's clang does not know about.
-      '-Wno-unknown-warning-option'
+      '-Wno-unknown-warning-option',
+      # Required to correctly compile quiche tests.
+      # TODO(crbug.com/433273929): Remove once fixed.
+      "-Wno-nonnull",
   ]
   defaults.build_file_path = ""
   defaults.include_build_directory = False

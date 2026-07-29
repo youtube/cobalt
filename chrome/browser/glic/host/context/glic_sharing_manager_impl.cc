@@ -108,12 +108,6 @@ void GlicSharingManagerImpl::GetContextFromTab(
     tabs::TabHandle tab_handle,
     const mojom::GetTabContextOptions& options,
     base::OnceCallback<void(mojom::GetContextResultPtr)> callback) {
-  if (!profile_->GetPrefs()->GetBoolean(prefs::kGlicTabContextEnabled) ||
-      !window_controller_->IsShowing()) {
-    std::move(callback).Run(mojom::GetContextResult::NewErrorReason(
-        std::string("permission denied")));
-    return;
-  }
 
   auto* tab = tab_handle.Get();
   if (!tab) {
@@ -122,8 +116,18 @@ void GlicSharingManagerImpl::GetContextFromTab(
     return;
   }
 
-  const bool is_focused = focused_tab_manager_.IsTabFocused(tab_handle);
   const bool is_pinned = pinned_tab_manager_.IsTabPinned(tab_handle);
+
+  if ((!profile_->GetPrefs()->GetBoolean(prefs::kGlicTabContextEnabled) ||
+      !window_controller_->IsShowing()) && !is_pinned) {
+    std::move(callback).Run(mojom::GetContextResult::NewErrorReason(
+        std::string("permission denied")));
+    return;
+  }
+
+
+
+  const bool is_focused = focused_tab_manager_.IsTabFocused(tab_handle);
   const bool is_shared = is_focused || is_pinned;
   if (!is_shared || !IsValidCandidateForSharing(tab->GetContents())) {
     std::move(callback).Run(mojom::GetContextResult::NewErrorReason(
@@ -135,6 +139,20 @@ void GlicSharingManagerImpl::GetContextFromTab(
   } else {
     // TODO(b/422240100): Handle metrics for pinned tabs.
   }
+  FetchPageContext(tab, options, std::move(callback));
+}
+
+void GlicSharingManagerImpl::GetContextForActorFromTab(
+    tabs::TabHandle tab_handle,
+    const mojom::GetTabContextOptions& options,
+    base::OnceCallback<void(mojom::GetContextResultPtr)> callback) {
+  auto* tab = tab_handle.Get();
+  if (!tab) {
+    std::move(callback).Run(
+        mojom::GetContextResult::NewErrorReason(std::string("tab not found")));
+    return;
+  }
+
   FetchPageContext(tab, options, std::move(callback));
 }
 
@@ -170,10 +188,11 @@ std::vector<content::WebContents*> GlicSharingManagerImpl::GetPinnedTabs()
   return pinned_tab_manager_.GetPinnedTabs();
 }
 
-void GlicSharingManagerImpl::GetPinCandidates(
-    const mojom::GetPinCandidatesOptions& options,
-    base::OnceCallback<void(std::vector<mojom::TabDataPtr>)> callback) {
-  pinned_tab_manager_.GetPinCandidates(options, std::move(callback));
+void GlicSharingManagerImpl::SubscribeToPinCandidates(
+    mojom::GetPinCandidatesOptionsPtr options,
+    mojo::PendingRemote<mojom::PinCandidatesObserver> observer) {
+  pinned_tab_manager_.SubscribeToPinCandidates(std::move(options),
+                                               std::move(observer));
 }
 
 }  // namespace glic

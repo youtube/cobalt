@@ -5,13 +5,34 @@
 #ifndef IOS_CHROME_BROWSER_INTELLIGENCE_BWG_METRICS_BWG_METRICS_H_
 #define IOS_CHROME_BROWSER_INTELLIGENCE_BWG_METRICS_BWG_METRICS_H_
 
-// UMA histogram key for IOS.BWG.Eligibility.
+// UMA histogram key for IOS.Gemini.Eligibility.
 extern const char kEligibilityHistogram[];
 
-// UMA histogram key for IOS.BWG.EntryPoint.
+// UMA histogram key for IOS.Gemini.EntryPoint.
 extern const char kEntryPointHistogram[];
 
-// UMA histogram key for IOS.BWG.FRE.EntryPoint.
+// UMA histogram key for IOS.Gemini.FRE.EntryPoint.
 extern const char kFREEntryPointHistogram[];
+
+// UMA histogram key for IOS.Gemini.FRE.PromoAction.
+extern const char kPromoActionHistogram[];
+
+// UMA histogram key for IOS.Gemini.FRE.ConsentAction.
+extern const char kConsentActionHistogram[];
+
+// Enum for the IOS.Gemini.FRE.PromoAction and IOS.Gemini.FRE.ConsentAction
+// histograms. LINT.IfChange(IOSGeminiFREAction)
+enum class IOSGeminiFREAction {
+  kAccept = 0,
+  kDismiss = 1,
+  kMaxValue = kDismiss,
+};
+// LINT.ThenChange(//tools/metrics/histograms/metadata/ios/enums.xml:IOSGeminiFREAction)
+
+// Records the user action on the FRE Promo.
+void RecordFREPromoAction(IOSGeminiFREAction action);
+
+// Records the user action on the FRE Consent Screen.
+void RecordFREConsentAction(IOSGeminiFREAction action);
 
 #endif  // IOS_CHROME_BROWSER_INTELLIGENCE_BWG_METRICS_BWG_METRICS_H_

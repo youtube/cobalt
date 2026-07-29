@@ -2,11 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
-#pragma allow_unsafe_libc_calls
-#endif
-
 #include "components/contextual_search/core/browser/contextual_search_delegate_impl.h"
 
 #include <algorithm>
@@ -431,7 +426,8 @@ std::string ContextualSearchDelegateImpl::BuildRequestUrl(
       context->GetTranslationLanguages().detected_language,
       context->GetTranslationLanguages().target_language,
       context->GetTranslationLanguages().fluent_languages,
-      context->GetRelatedSearchesStamp(), context->GetApplyLangHint());
+      context->GetRelatedSearchesStamp(), context->GetApplyLangHint(),
+      context->GetUseSnippetAsSubtitle());
 
   search_terms_args.contextual_search_params = params;
 

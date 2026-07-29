@@ -21,6 +21,7 @@
 #include "chrome/browser/ui/views/frame/multi_contents_view_mini_toolbar.h"
 #include "chrome/browser/ui/views/frame/scrim_view.h"
 #include "chrome/browser/ui/views/frame/top_container_background.h"
+#include "chrome/browser/ui/views/new_tab_footer/footer_web_view.h"
 #include "content/public/browser/web_contents.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/base/ozone_buildflags.h"
@@ -77,6 +78,14 @@ MultiContentsView::MultiContentsView(
             ->AddWebContentsFocusedCallback(
                 base::BindRepeating(&MultiContentsView::OnWebContentsFocused,
                                     base::Unretained(this))));
+
+    if (contents_container_view->GetNewTabFooterView()) {
+      ntp_footer_focused_subscriptions_.push_back(
+          contents_container_view->GetNewTabFooterView()
+              ->AddWebContentsFocusedCallback(
+                  base::BindRepeating(&MultiContentsView::OnNtpFooterFocused,
+                                      base::Unretained(this))));
+    }
   }
 
   SetProperty(views::kElementIdentifierKey, kMultiContentsViewElementId);
@@ -204,6 +213,19 @@ void MultiContentsView::OnSwap() {
   delegate_->ReverseWebContents();
 }
 
+int MultiContentsView::GetMinViewWidth() const {
+  if (!IsInSplitView()) {
+    return 0;
+  }
+
+  const int min_percentage =
+      kMinWebContentsWidthPercentage * browser_view_->GetBounds().width();
+  const int min_fixed_value = min_contents_width_for_testing_.has_value()
+                                  ? min_contents_width_for_testing_.value()
+                                  : kMinWebContentsWidth;
+  return std::min(min_fixed_value, min_percentage);
+}
+
 void MultiContentsView::OnResize(int resize_amount, bool done_resizing) {
   if (!initial_start_width_on_resize_.has_value()) {
     initial_start_width_on_resize_ =
@@ -246,6 +268,19 @@ void MultiContentsView::OnWebContentsFocused(views::WebView* web_view) {
     if (GetInactiveContentsView()->web_contents() == web_view->web_contents() &&
         GetWidget()->IsVisible()) {
       delegate_->WebContentsFocused(web_view->web_contents());
+    }
+  }
+}
+
+void MultiContentsView::OnNtpFooterFocused(views::WebView* web_view) {
+  if (IsInSplitView() && GetWidget()->IsVisible()) {
+    for (auto* contents_container_view : contents_container_views_) {
+      if (contents_container_view->GetNewTabFooterView() == web_view &&
+          GetInactiveContentsView() ==
+              contents_container_view->GetContentsView()) {
+        return delegate_->WebContentsFocused(
+            GetInactiveContentsView()->web_contents());
+      }
     }
   }
 }
@@ -331,10 +366,9 @@ MultiContentsView::ViewWidths MultiContentsView::GetViewWidths(
   } else {
     CHECK(!contents_container_views_[1]->GetVisible());
     widths.drop_target_width =
-        is_drag_and_drop_enabled() ? drop_target_view_->GetPreferredWidth() : 0;
-
-    // TODO(crbug.com/394369035): Drop targets currently don't scale with
-    // browser size. Consider adding a min width value.
+        is_drag_and_drop_enabled()
+            ? drop_target_view_->GetPreferredWidth(available_space.width())
+            : 0;
     widths.start_width = available_space.width() - widths.drop_target_width;
   }
   return ClampToMinWidth(widths);
@@ -348,12 +382,7 @@ MultiContentsView::ViewWidths MultiContentsView::ClampToMinWidth(
     return widths;
   }
 
-  const int min_percentage =
-      kMinWebContentsWidthPercentage * browser_view_->GetBounds().width();
-  const int min_fixed_value = min_contents_width_for_testing_.has_value()
-                                  ? min_contents_width_for_testing_.value()
-                                  : kMinWebContentsWidth;
-  const int min_width = std::min(min_fixed_value, min_percentage);
+  const int min_width = GetMinViewWidth();
   if (widths.start_width < min_width) {
     const double diff = min_width - widths.start_width;
     widths.start_width += diff;

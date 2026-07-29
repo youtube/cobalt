@@ -14,6 +14,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
+#include "base/not_fatal_until.h"
 #include "components/signin/public/base/account_consistency_method.h"
 #include "components/signin/public/base/signin_switches.h"
 #include "components/signin/public/identity_manager/account_info.h"
@@ -161,7 +162,7 @@ ProfileOAuth2TokenServiceDelegateAndroid::
   base::android::ScopedJavaLocalRef<jobject> local_java_ref =
       signin::Java_ProfileOAuth2TokenServiceDelegate_Constructor(
           env, reinterpret_cast<intptr_t>(this));
-  java_ref_.Reset(env, local_java_ref.obj());
+  java_ref_.Reset(env, local_java_ref);
 }
 
 ProfileOAuth2TokenServiceDelegateAndroid::
@@ -246,6 +247,11 @@ void ProfileOAuth2TokenServiceDelegateAndroid::OnAccessTokenInvalidated(
   JNIEnv* env = AttachCurrentThread();
   ScopedJavaLocalRef<jstring> j_access_token =
       ConvertUTF8ToJavaString(env, access_token);
+  // CHECK added to investigate crbug.com/366403142.
+  // Sometimes access_token is unexpectedly empty (for example,
+  // when visiting corp sites), and a previous attempt to throw an exception
+  // caused crashes (see crbug.com/428081405).
+  CHECK(!access_token.empty(), base::NotFatalUntil::M142);
   signin::Java_ProfileOAuth2TokenServiceDelegate_invalidateAccessToken(
       env, java_ref_, j_access_token);
 }
@@ -371,6 +377,14 @@ bool ProfileOAuth2TokenServiceDelegateAndroid::UpdateAccountList(
     }
   }
   return keep_accounts;
+}
+
+void ProfileOAuth2TokenServiceDelegateAndroid::UpdateAuthErrorFromJava(
+    JNIEnv* env,
+    CoreAccountId& core_account_id,
+    GoogleServiceAuthError& auth_error,
+    jboolean fire_auth_error_changed) {
+  UpdateAuthError(core_account_id, auth_error, fire_auth_error_changed);
 }
 
 void ProfileOAuth2TokenServiceDelegateAndroid::FireRefreshTokensLoaded() {

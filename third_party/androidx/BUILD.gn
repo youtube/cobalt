@@ -60,7 +60,7 @@ if (!limit_android_deps) {
   # This is generated, do not edit. Update BuildConfigGenerator.groovy instead.
   androidx_android_aar_prebuilt(
       "androidx_annotation_annotation_experimental_java") {
-    aar_path = "../androidx/cipd/libs/androidx_annotation_annotation_experimental/annotation-experimental-1.5.0.aar"
+    aar_path = "../androidx/cipd/libs/androidx_annotation_annotation_experimental/annotation-experimental-1.6.0-SNAPSHOT.aar"
     info_path = "../androidx/committed/libs/androidx_annotation_annotation_experimental/androidx_annotation_annotation_experimental.info"
     enable_bytecode_checks = false
     deps = [ "//third_party/kotlin_stdlib:kotlin_stdlib_java" ]
@@ -227,7 +227,7 @@ if (!limit_android_deps) {
       ":androidx_test_rules_java",
       ":androidx_test_runner_java",
       ":androidx_tracing_tracing_ktx_java",
-      "//third_party/junit:junit",
+      "//third_party/junit",
       "//third_party/kotlin_stdlib:kotlin_stdlib_java",
     ]
   }
@@ -251,7 +251,7 @@ if (!limit_android_deps) {
       ":androidx_tracing_tracing_perfetto_java",
       "//third_party/android_deps:com_squareup_wire_wire_runtime_java",
       "//third_party/android_deps:org_jspecify_jspecify_java",
-      "//third_party/junit:junit",
+      "//third_party/junit",
       "//third_party/kotlin_stdlib:kotlin_stdlib_java",
     ]
   }
@@ -270,7 +270,7 @@ if (!limit_android_deps) {
       ":androidx_test_rules_java",
       ":androidx_test_runner_java",
       ":androidx_test_uiautomator_uiautomator_java",
-      "//third_party/junit:junit",
+      "//third_party/junit",
       "//third_party/kotlin_stdlib:kotlin_stdlib_java",
     ]
   }
@@ -422,7 +422,7 @@ if (!limit_android_deps) {
 
   # This is generated, do not edit. Update BuildConfigGenerator.groovy instead.
   androidx_java_prebuilt("androidx_concurrent_concurrent_futures_java") {
-    jar_path = "../androidx/cipd/libs/androidx_concurrent_concurrent_futures/concurrent-futures-1.3.0-SNAPSHOT.jar"
+    jar_path = "../androidx/cipd/libs/androidx_concurrent_concurrent_futures/concurrent-futures-1.3.0.jar"
     output_name = "androidx_concurrent_concurrent_futures"
     supports_android = true
     requires_android = true
@@ -436,7 +436,7 @@ if (!limit_android_deps) {
 
   # This is generated, do not edit. Update BuildConfigGenerator.groovy instead.
   androidx_java_prebuilt("androidx_concurrent_concurrent_futures_ktx_java") {
-    jar_path = "../androidx/cipd/libs/androidx_concurrent_concurrent_futures_ktx/concurrent-futures-ktx-1.3.0-SNAPSHOT.jar"
+    jar_path = "../androidx/cipd/libs/androidx_concurrent_concurrent_futures_ktx/concurrent-futures-ktx-1.3.0.jar"
     output_name = "androidx_concurrent_concurrent_futures_ktx"
     supports_android = true
     requires_android = true
@@ -525,7 +525,7 @@ if (!limit_android_deps) {
       ":androidx_annotation_annotation_java",
       ":androidx_core_core_animation_java",
       ":androidx_core_core_java",
-      "//third_party/junit:junit",
+      "//third_party/junit",
     ]
   }
 
@@ -619,6 +619,11 @@ if (!limit_android_deps) {
   # This is generated, do not edit. Update BuildConfigGenerator.groovy instead.
   androidx_java_group("androidx_datastore_datastore_core_java") {
     deps = [ ":androidx_datastore_datastore_core_android_java" ]
+  }
+
+  # This is generated, do not edit. Update BuildConfigGenerator.groovy instead.
+  androidx_java_group("androidx_datastore_datastore_preferences_java") {
+    deps = [ ":androidx_datastore_datastore_preferences_android_java" ]
   }
 
   # This is generated, do not edit. Update BuildConfigGenerator.groovy instead.
@@ -1103,13 +1108,13 @@ if (!limit_android_deps) {
 
   # This is generated, do not edit. Update BuildConfigGenerator.groovy instead.
   androidx_android_aar_prebuilt("androidx_pdf_pdf_viewer_java") {
-    aar_path = "../androidx/cipd/libs/androidx_pdf_pdf_viewer/pdf-viewer-1.0.0-SNAPSHOT.aar"
-    info_path = "../androidx/committed/libs/androidx_pdf_pdf_viewer/androidx_pdf_pdf_viewer.info"
+    aar_path = "cipd/libs/androidx_pdf_pdf_viewer/pdf-viewer-1.0.0-alpha06.aar"
+    info_path =
+        "committed/libs/androidx_pdf_pdf_viewer/androidx_pdf_pdf_viewer.info"
     enable_bytecode_checks = false
     deps = [
       ":androidx_annotation_annotation_java",
       ":androidx_core_core_java",
-      ":androidx_customview_customview_java",
       ":androidx_exifinterface_exifinterface_java",
       "//third_party/android_deps:com_google_errorprone_error_prone_annotations_java",
       "//third_party/android_deps:material_design_java",
@@ -1121,8 +1126,8 @@ if (!limit_android_deps) {
 
   # This is generated, do not edit. Update BuildConfigGenerator.groovy instead.
   androidx_android_aar_prebuilt("androidx_pdf_pdf_viewer_fragment_java") {
-    aar_path = "../androidx/cipd/libs/androidx_pdf_pdf_viewer_fragment/pdf-viewer-fragment-1.0.0-SNAPSHOT.aar"
-    info_path = "../androidx/committed/libs/androidx_pdf_pdf_viewer_fragment/androidx_pdf_pdf_viewer_fragment.info"
+    aar_path = "cipd/libs/androidx_pdf_pdf_viewer_fragment/pdf-viewer-fragment-1.0.0-alpha06.aar"
+    info_path = "committed/libs/androidx_pdf_pdf_viewer_fragment/androidx_pdf_pdf_viewer_fragment.info"
     enable_bytecode_checks = false
     deps = [
       ":androidx_core_core_java",
@@ -1338,7 +1343,7 @@ if (!limit_android_deps) {
       "//third_party/android_deps:javax_inject_javax_inject_java",
       "//third_party/hamcrest:hamcrest_core_java",
       "//third_party/hamcrest:hamcrest_library_java",
-      "//third_party/junit:junit",
+      "//third_party/junit",
       "//third_party/kotlin_stdlib:kotlin_stdlib_java",
     ]
   }
@@ -1385,7 +1390,7 @@ if (!limit_android_deps) {
       ":androidx_test_core_java",
       ":androidx_test_monitor_java",
       ":androidx_test_services_storage_java",
-      "//third_party/junit:junit",
+      "//third_party/junit",
       "//third_party/kotlin_stdlib:kotlin_stdlib_java",
     ]
   }
@@ -1413,7 +1418,7 @@ if (!limit_android_deps) {
     deps = [
       ":androidx_annotation_annotation_java",
       ":androidx_test_runner_java",
-      "//third_party/junit:junit",
+      "//third_party/junit",
     ]
   }
 
@@ -1429,7 +1434,7 @@ if (!limit_android_deps) {
       ":androidx_test_monitor_java",
       ":androidx_test_services_storage_java",
       ":androidx_tracing_tracing_java",
-      "//third_party/junit:junit",
+      "//third_party/junit",
     ]
   }
 
@@ -1456,7 +1461,7 @@ if (!limit_android_deps) {
       ":androidx_test_core_java",
       ":androidx_tracing_tracing_java",
       "//third_party/android_deps:org_jspecify_jspecify_java",
-      "//third_party/junit:junit",
+      "//third_party/junit",
     ]
   }
 
@@ -1916,7 +1921,7 @@ if (!limit_android_deps) {
   # This is generated, do not edit. Update BuildConfigGenerator.groovy instead.
   androidx_android_aar_prebuilt(
       "androidx_compose_material3_material3_android_java") {
-    aar_path = "../androidx/cipd/libs/androidx_compose_material3_material3_android/material3-android-1.4.0-SNAPSHOT.aar"
+    aar_path = "../androidx/cipd/libs/androidx_compose_material3_material3_android/material3-android-1.5.0-SNAPSHOT.aar"
     info_path = "../androidx/committed/libs/androidx_compose_material3_material3_android/androidx_compose_material3_material3_android.info"
     enable_bytecode_checks = false
 
@@ -2199,7 +2204,7 @@ if (!limit_android_deps) {
       ":androidx_test_monitor_java",
       "//third_party/android_deps:org_jetbrains_kotlinx_kotlinx_coroutines_core_java",
       "//third_party/android_deps:org_jetbrains_kotlinx_kotlinx_coroutines_test_java",
-      "//third_party/junit:junit",
+      "//third_party/junit",
       "//third_party/kotlin_stdlib:kotlin_stdlib_java",
     ]
   }
@@ -2304,6 +2309,7 @@ if (!limit_android_deps) {
     deps = [
       ":androidx_annotation_annotation_experimental_java",
       ":androidx_collection_collection_java",
+      ":androidx_compose_runtime_runtime_java",
       "//third_party/kotlin_stdlib:kotlin_stdlib_java",
     ]
   }
@@ -2401,6 +2407,17 @@ if (!limit_android_deps) {
   }
 
   # This is generated, do not edit. Update BuildConfigGenerator.groovy instead.
+  androidx_java_group("androidx_datastore_datastore_java") {
+    # To remove visibility constraint, add this dependency to
+    # //third_party/androidx/build.gradle.
+    visibility = [
+      ":*",
+      "//third_party/android_deps:*",
+    ]
+    deps = [ ":androidx_datastore_datastore_android_java" ]
+  }
+
+  # This is generated, do not edit. Update BuildConfigGenerator.groovy instead.
   androidx_android_aar_prebuilt(
       "androidx_datastore_datastore_core_android_java") {
     aar_path = "../androidx/cipd/libs/androidx_datastore_datastore_core_android/datastore-core-android-1.2.0-SNAPSHOT.aar"
@@ -2451,6 +2468,96 @@ if (!limit_android_deps) {
       "//third_party/android_deps:org_jetbrains_kotlinx_kotlinx_coroutines_core_java",
       "//third_party/kotlin_stdlib:kotlin_stdlib_java",
     ]
+  }
+
+  # This is generated, do not edit. Update BuildConfigGenerator.groovy instead.
+  androidx_android_aar_prebuilt(
+      "androidx_datastore_datastore_preferences_android_java") {
+    aar_path = "../androidx/cipd/libs/androidx_datastore_datastore_preferences_android/datastore-preferences-android-1.2.0-SNAPSHOT.aar"
+    info_path = "../androidx/committed/libs/androidx_datastore_datastore_preferences_android/androidx_datastore_datastore_preferences_android.info"
+    enable_bytecode_checks = false
+
+    # To remove visibility constraint, add this dependency to
+    # //third_party/androidx/build.gradle.
+    visibility = [
+      ":*",
+      "//third_party/android_deps:*",
+    ]
+    deps = [
+      ":androidx_datastore_datastore_java",
+      ":androidx_datastore_datastore_preferences_core_java",
+      "//third_party/android_deps:org_jetbrains_kotlinx_kotlinx_coroutines_core_java",
+      "//third_party/kotlin_stdlib:kotlin_stdlib_java",
+    ]
+  }
+
+  # This is generated, do not edit. Update BuildConfigGenerator.groovy instead.
+  androidx_java_group("androidx_datastore_datastore_preferences_core_java") {
+    # To remove visibility constraint, add this dependency to
+    # //third_party/androidx/build.gradle.
+    visibility = [
+      ":*",
+      "//third_party/android_deps:*",
+    ]
+    deps = [ ":androidx_datastore_datastore_preferences_core_android_java" ]
+  }
+
+  # This is generated, do not edit. Update BuildConfigGenerator.groovy instead.
+  androidx_android_aar_prebuilt(
+      "androidx_datastore_datastore_preferences_core_android_java") {
+    aar_path = "../androidx/cipd/libs/androidx_datastore_datastore_preferences_core_android/datastore-preferences-core-android-1.2.0-SNAPSHOT.aar"
+    info_path = "../androidx/committed/libs/androidx_datastore_datastore_preferences_core_android/androidx_datastore_datastore_preferences_core_android.info"
+    enable_bytecode_checks = false
+
+    # To remove visibility constraint, add this dependency to
+    # //third_party/androidx/build.gradle.
+    visibility = [
+      ":*",
+      "//third_party/android_deps:*",
+    ]
+    deps = [
+      ":androidx_datastore_datastore_core_java",
+      ":androidx_datastore_datastore_core_okio_java",
+      ":androidx_datastore_datastore_preferences_proto_java",
+      "//third_party/android_deps:com_squareup_okio_okio_java",
+      "//third_party/kotlin_stdlib:kotlin_stdlib_java",
+    ]
+  }
+
+  # This is generated, do not edit. Update BuildConfigGenerator.groovy instead.
+  androidx_java_prebuilt(
+      "androidx_datastore_datastore_preferences_external_protobuf_java") {
+    jar_path = "../androidx/cipd/libs/androidx_datastore_datastore_preferences_external_protobuf/datastore-preferences-external-protobuf-1.2.0-SNAPSHOT.jar"
+    output_name = "androidx_datastore_datastore_preferences_external_protobuf"
+    supports_android = true
+    requires_android = true
+    enable_bytecode_checks = false
+
+    # To remove visibility constraint, add this dependency to
+    # //third_party/androidx/build.gradle.
+    visibility = [
+      ":*",
+      "//third_party/android_deps:*",
+    ]
+  }
+
+  # This is generated, do not edit. Update BuildConfigGenerator.groovy instead.
+  androidx_java_prebuilt(
+      "androidx_datastore_datastore_preferences_proto_java") {
+    jar_path = "../androidx/cipd/libs/androidx_datastore_datastore_preferences_proto/datastore-preferences-proto-1.2.0-SNAPSHOT.jar"
+    output_name = "androidx_datastore_datastore_preferences_proto"
+    supports_android = true
+    requires_android = true
+    enable_bytecode_checks = false
+
+    # To remove visibility constraint, add this dependency to
+    # //third_party/androidx/build.gradle.
+    visibility = [
+      ":*",
+      "//third_party/android_deps:*",
+    ]
+    deps =
+        [ ":androidx_datastore_datastore_preferences_external_protobuf_java" ]
   }
 
   # This is generated, do not edit. Update BuildConfigGenerator.groovy instead.
@@ -3198,8 +3305,8 @@ if (!limit_android_deps) {
 
   # This is generated, do not edit. Update BuildConfigGenerator.groovy instead.
   androidx_android_aar_prebuilt("androidx_pdf_pdf_document_service_java") {
-    aar_path = "../androidx/cipd/libs/androidx_pdf_pdf_document_service/pdf-document-service-1.0.0-SNAPSHOT.aar"
-    info_path = "../androidx/committed/libs/androidx_pdf_pdf_document_service/androidx_pdf_pdf_document_service.info"
+    aar_path = "cipd/libs/androidx_pdf_pdf_document_service/pdf-document-service-1.0.0-alpha06.aar"
+    info_path = "committed/libs/androidx_pdf_pdf_document_service/androidx_pdf_pdf_document_service.info"
     enable_bytecode_checks = false
 
     # To remove visibility constraint, add this dependency to

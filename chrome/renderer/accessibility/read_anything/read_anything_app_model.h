@@ -345,6 +345,8 @@ class ReadAnythingAppModel {
   // if the web content's root AXTree has no distillable content.
   void AllowChildTreeForActiveTree(bool use_child_tree);
 
+  bool SelectionNodesContainedInDistilledContent() const;
+
  private:
   struct SelectionEndpoint {
     enum class Source {
@@ -371,7 +373,7 @@ class ReadAnythingAppModel {
 
   void AddPendingUpdates(const ui::AXTreeID& tree_id, Updates& updates);
 
-  void UnserializeUpdates(Updates& updates, const ui::AXTreeID& tree_id);
+  void UnserializeUpdates(const Updates& updates, const ui::AXTreeID& tree_id);
 
   void ProcessNonGeneratedEvents(const std::vector<ui::AXEvent>& events);
 

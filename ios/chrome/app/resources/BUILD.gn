@@ -16,7 +16,7 @@ import("//tools/grit/grit_rule.gni")
 
 group("resources") {
   public_deps = [
-    ":launchscreen_xib",
+    ":launchscreen",
     ":quick_action_icons",
     ":system_strings",
     "//ios/chrome/app/resources:packed_resources",
@@ -141,13 +141,13 @@ repack("repack_unscaled_resources") {
   }
 }
 
-bundle_data_xcassets("chromium_icons") {
-  catalog = "ChromiumIcons.xcassets"
+bundle_data_xcassets("chromium_icons_legacy") {
+  catalog = "ChromiumIconsLegacy.xcassets"
   sources = [
-    "ChromiumIcons.xcassets/AppIcon.appiconset/Contents.json",
-    "ChromiumIcons.xcassets/AppIcon.appiconset/Icon-1024.png",
-    "ChromiumIcons.xcassets/AppIcon.appiconset/Icon-1024Dark.png",
-    "ChromiumIcons.xcassets/AppIcon.appiconset/Icon-1024Tinted.png",
+    "ChromiumIconsLegacy.xcassets/AppIcon.appiconset/Contents.json",
+    "ChromiumIconsLegacy.xcassets/AppIcon.appiconset/Icon-1024.png",
+    "ChromiumIconsLegacy.xcassets/AppIcon.appiconset/Icon-1024Dark.png",
+    "ChromiumIconsLegacy.xcassets/AppIcon.appiconset/Icon-1024Tinted.png",
   ]
 }
 
@@ -179,8 +179,13 @@ bundle_data_storyboard_file("base_scene_storyboard") {
   ]
 }
 
-bundle_data_xib_file("launchscreen_xib") {
-  source = "LaunchScreen.xib"
+bundle_data_storyboard_file("launchscreen") {
+  source = "LaunchScreen.storyboard"
+  bundle_files = [
+    "Info.plist",
+    "Y6W-OH-hqX-view-5EZ-qb-Rvc.nib",
+    "UIViewController-Y6W-OH-hqX.nib",
+  ]
   deps = [ ios_launchscreen_assets_target ]
 }
 

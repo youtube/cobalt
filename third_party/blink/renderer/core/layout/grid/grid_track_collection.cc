@@ -67,10 +67,11 @@ GridRangeBuilder::GridRangeBuilder(const ComputedStyle& grid_style,
                                    GridTrackSizingDirection track_direction,
                                    wtf_size_t auto_repetitions,
                                    wtf_size_t start_offset)
-    : GridRangeBuilder(grid_style.TemplateTracks(track_direction).track_list,
-                       grid_style.AutoTracks(track_direction),
-                       auto_repetitions,
-                       start_offset) {
+    : GridRangeBuilder(
+          grid_style.TemplateTracks(track_direction).GetTrackList(),
+          grid_style.AutoTracks(track_direction),
+          auto_repetitions,
+          start_offset) {
   // There is a special scenario where named grid areas can be specified through
   // the "grid-template" property with no specified explicit grid; such case is
   // tricky because the computed value of "grid-template-columns" is expected to
@@ -290,6 +291,9 @@ GridRangeVector GridRangeBuilder::FinalizeRanges() {
         *end_lines_[line_index].grid_item_range_index_to_cache = ranges.size();
     }
 
+    // TODO(almaher): Handle special auto-fit behavior for Masonry.
+    //
+    // https://drafts.csswg.org/css-grid-3/#repeat-auto-fit
     if (is_in_auto_fit_range && open_items_or_repeaters == 1) {
       range.SetIsCollapsed();
       range.set_count = 0;
@@ -1000,7 +1004,7 @@ void GridSizingTrackCollection::BuildSets(
                                    ? grid_available_size.inline_size
                                    : grid_available_size.block_size;
 
-  BuildSets(grid_style.TemplateTracks(track_direction_).track_list,
+  BuildSets(grid_style.TemplateTracks(track_direction_).GetTrackList(),
             grid_style.AutoTracks(track_direction_),
             available_size == kIndefiniteSize);
   InitializeSets(available_size);

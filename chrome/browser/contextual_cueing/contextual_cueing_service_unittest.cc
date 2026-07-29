@@ -101,7 +101,7 @@ class ContextualCueingServiceTestCapCountAndMinPageCount
           {{"NudgeCapCount", "3"},
            {"MinPageCountBetweenNudges", "3"},
            {"MinTimeBetweenNudges", "0h"}}}},
-        /*disabled_features=*/{});
+        {contextual_cueing::kGlicZeroStateSuggestions});
   }
 };
 
@@ -275,7 +275,7 @@ class ContextualCueingServiceTestMinPageCountBetweenNudges
            {"NudgeCapTime", "0h"},
            {"MinPageCountBetweenNudges", "3"},
            {"MinTimeBetweenNudges", "0h"}}}},
-        /*disabled_features=*/{});
+        {contextual_cueing::kGlicZeroStateSuggestions});
   }
 };
 
@@ -315,7 +315,7 @@ class ContextualCueingServiceTestPerDomainLimits
            {"MinTimeBetweenNudges", "0h"},
            {"NudgeCapTimePerDomain", "24h"},
            {"NudgeCapCountPerDomain", "1"}}}},
-        /*disabled_features=*/{});
+        {contextual_cueing::kGlicZeroStateSuggestions});
   }
 };
 
@@ -497,7 +497,7 @@ TEST_F(ContextualCueingServiceTestZeroStateSuggestions,
       .Times(1);
   InitializeContextualCueingService();
 
-  base::test::TestFuture<std::optional<std::vector<std::string>>> future;
+  base::test::TestFuture<std::vector<std::string>> future;
   service()->GetContextualGlicZeroStateSuggestionsForFocusedTab(
       web_contents(), /*is_fre=*/false, /*supported_tools=*/std::nullopt,
       future.GetCallback());
@@ -512,7 +512,7 @@ TEST_F(ContextualCueingServiceTestZeroStateSuggestions,
   SetGlicTabContextEnabled(false);
   InitializeContextualCueingService();
 
-  base::test::TestFuture<std::optional<std::vector<std::string>>> future;
+  base::test::TestFuture<std::vector<std::string>> future;
   service()->GetContextualGlicZeroStateSuggestionsForFocusedTab(
       web_contents(), /*is_fre=*/false, /*supported_tools=*/{},
       future.GetCallback());
@@ -536,7 +536,7 @@ TEST_F(ContextualCueingServiceTestZeroStateSuggestions,
       .Times(1);
   InitializeContextualCueingService();
 
-  base::test::TestFuture<std::optional<std::vector<std::string>>> future;
+  base::test::TestFuture<std::vector<std::string>> future;
   service()->GetContextualGlicZeroStateSuggestionsForFocusedTab(
       web_contents(), /*is_fre=*/false, std::vector<std::string>({"tool"}),
       future.GetCallback());
@@ -569,7 +569,7 @@ TEST_F(ContextualCueingServiceTestZeroStateSuggestions,
   pref_service()->SetList(prefs::kZeroStateSuggestionsSupportedTools,
                           std::move(tools_pref));
 
-  base::test::TestFuture<std::optional<std::vector<std::string>>> future;
+  base::test::TestFuture<std::vector<std::string>> future;
   service()->GetContextualGlicZeroStateSuggestionsForFocusedTab(
       web_contents(), /*is_fre=*/false, /*supported_tools=*/std::nullopt,
       future.GetCallback());

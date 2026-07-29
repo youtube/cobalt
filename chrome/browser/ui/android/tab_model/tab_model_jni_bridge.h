@@ -37,7 +37,7 @@ class TabModelJniBridge : public TabModel {
                     Profile* profile,
                     chrome::android::ActivityType activity_type,
                     bool is_archived_tab_model);
-  void Destroy(JNIEnv* env, const base::android::JavaParamRef<jobject>& obj);
+  void Destroy(JNIEnv* env);
 
   TabModelJniBridge(const TabModelJniBridge&) = delete;
   TabModelJniBridge& operator=(const TabModelJniBridge&) = delete;
@@ -45,18 +45,18 @@ class TabModelJniBridge : public TabModel {
   ~TabModelJniBridge() override;
 
   // Called by JNI
-  void TabAddedToModel(JNIEnv* env,
-                       const base::android::JavaParamRef<jobject>& obj,
-                       TabAndroid* tab);
+  void TabAddedToModel(JNIEnv* env, TabAndroid* tab);
 
   // Called by JNI
-  void DuplicateTabForTesting(JNIEnv* env,
-                              const base::android::JavaParamRef<jobject>& obj,
-                              TabAndroid* tab);
+  void DuplicateTabForTesting(JNIEnv* env, TabAndroid* tab);
 
   // TabModel::
+  void AddTabListInterfaceObserver(TabListInterfaceObserver* observer) override;
+  void RemoveTabListInterfaceObserver(
+      TabListInterfaceObserver* observer) override;
   int GetTabCount() const override;
   int GetActiveIndex() const override;
+  tabs::TabInterface* GetActiveTab() override;
   content::WebContents* GetWebContentsAt(int index) const override;
   TabAndroid* GetTabAt(int index) const override;
   base::android::ScopedJavaLocalRef<jobject> GetJavaObject() const override;
@@ -86,9 +86,7 @@ class TabModelJniBridge : public TabModel {
 
   // Instructs the TabModel to broadcast a notification that all tabs are now
   // loaded from storage.
-  void BroadcastSessionRestoreComplete(
-      JNIEnv* env,
-      const base::android::JavaParamRef<jobject>& obj);
+  void BroadcastSessionRestoreComplete(JNIEnv* env);
 
   int GetTabCountNavigatedInTimeWindow(
       const base::Time& begin_time,
@@ -105,7 +103,9 @@ class TabModelJniBridge : public TabModel {
   void DiscardTab(tabs::TabHandle tab) override;
   void DuplicateTab(tabs::TabHandle tab) override;
   tabs::TabInterface* GetTab(int index) override;
-  void HighlightTabs(const std::set<tabs::TabHandle>& tabs) override;
+  int GetIndexOfTab(tabs::TabHandle tab) override;
+  void HighlightTabs(tabs::TabHandle tab_to_activate,
+                     const std::set<tabs::TabHandle>& tabs) override;
   void MoveTab(tabs::TabHandle tab, int index) override;
   void CloseTab(tabs::TabHandle tab) override;
   std::vector<tabs::TabInterface*> GetAllTabs() override;

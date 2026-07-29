@@ -6,6 +6,7 @@
 #define CHROME_BROWSER_UI_VIEWS_EXTENSIONS_EXTENSIONS_MENU_VIEW_CONTROLLER_H_
 
 #include "base/memory/raw_ptr.h"
+#include "chrome/browser/ui/extensions/extensions_menu_core_controller.h"
 #include "chrome/browser/ui/tabs/tab_strip_model_observer.h"
 #include "chrome/browser/ui/toolbar/toolbar_actions_model.h"
 #include "chrome/browser/ui/views/extensions/extensions_menu_handler.h"
@@ -15,7 +16,6 @@
 #include "ui/views/view_tracker.h"
 
 namespace views {
-class BubbleDialogDelegate;
 class View;
 }  // namespace views
 
@@ -33,8 +33,7 @@ class ExtensionsMenuViewController
  public:
   ExtensionsMenuViewController(Browser* browser,
                                ExtensionsContainer* extensions_container,
-                               views::View* bubble_contents,
-                               views::BubbleDialogDelegate* dialog_delegate);
+                               views::View* bubble_contents);
   ExtensionsMenuViewController(const ExtensionsMenuViewController&) = delete;
   const ExtensionsMenuViewController& operator=(
       const ExtensionsMenuViewController&) = delete;
@@ -143,11 +142,6 @@ class ExtensionsMenuViewController
   const raw_ptr<Browser> browser_;
   const raw_ptr<ExtensionsContainer> extensions_container_;
   const raw_ptr<views::View> bubble_contents_;
-  // TODO(crbug.com/40260941) There are no guarantee this pointer is safe
-  // to be used. In practice its lifetime is probably always shorter than
-  // `this`. This has to be fixed.
-  const raw_ptr<views::BubbleDialogDelegate, DisableDanglingPtrDetection>
-      bubble_delegate_;
 
   const raw_ptr<ToolbarActionsModel> toolbar_model_;
   base::ScopedObservation<ToolbarActionsModel, ToolbarActionsModel::Observer>
@@ -156,6 +150,8 @@ class ExtensionsMenuViewController
   base::ScopedObservation<extensions::PermissionsManager,
                           extensions::PermissionsManager::Observer>
       permissions_manager_observation_{this};
+
+  ExtensionsMenuCoreController extensions_menu_core_controller_;
 
   // The current page visible in `bubble_contents_`.
   views::ViewTracker current_page_;

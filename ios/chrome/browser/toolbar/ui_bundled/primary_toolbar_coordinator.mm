@@ -131,6 +131,16 @@
   return self.viewController;
 }
 
+#pragma mark - Subclassing
+
+- (BOOL)hasTabGridButton {
+  return !IsSplitToolbarMode(self.viewController);
+}
+
+- (BOOL)shouldPointArrowDownForTabGridIPH {
+  return NO;
+}
+
 #pragma mark - Private
 
 // Returns whether the banner promo is supported given the current view
@@ -153,15 +163,13 @@
 #pragma mark - GuidedTourCommands
 
 - (void)highlightViewInStep:(GuidedTourStep)step {
-  if (!IsSplitToolbarMode(self.viewController) &&
-      step == GuidedTourStep::kNTP) {
+  if ([self hasTabGridButton] && step == GuidedTourStep::kNTP) {
     [self.viewController IPHHighlightTabGridButton:YES];
   }
 }
 
 - (void)stepCompleted:(GuidedTourStep)step {
-  if (!IsSplitToolbarMode(self.viewController) &&
-      step == GuidedTourStep::kNTP) {
+  if ([self hasTabGridButton] && step == GuidedTourStep::kNTP) {
     [self.viewController IPHHighlightTabGridButton:NO];
   }
 }

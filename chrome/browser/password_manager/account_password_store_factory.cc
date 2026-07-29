@@ -17,9 +17,9 @@
 #include "chrome/browser/affiliations/affiliation_service_factory.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/password_manager/chrome_password_manager_client.h"
-#include "chrome/browser/password_manager/credentials_cleaner_runner_factory.h"
-#include "chrome/browser/password_manager/password_reuse_manager_factory.h"
-#include "chrome/browser/password_manager/password_store_backend_factory.h"
+#include "chrome/browser/password_manager/factories/credentials_cleaner_runner_factory.h"
+#include "chrome/browser/password_manager/factories/password_reuse_manager_factory.h"
+#include "chrome/browser/password_manager/factories/password_store_backend_factory.h"
 #include "chrome/browser/password_manager/password_store_utils.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_manager.h"
@@ -114,8 +114,6 @@ scoped_refptr<RefcountedKeyedService> BuildPasswordStore(
 
   Profile* profile = Profile::FromBrowserContext(context);
 
-  CHECK(password_manager::features_util::CanCreateAccountStore(
-      profile->GetPrefs()));
   DCHECK(!profile->IsOffTheRecord());
 
   os_crypt_async::OSCryptAsync* os_crypt_async =
@@ -171,11 +169,6 @@ scoped_refptr<RefcountedKeyedService> BuildPasswordStore(
 scoped_refptr<PasswordStoreInterface>
 AccountPasswordStoreFactory::GetForProfile(Profile* profile,
                                            ServiceAccessType access_type) {
-  if (!password_manager::features_util::CanCreateAccountStore(
-          profile->GetPrefs())) {
-    return nullptr;
-  }
-
   // |profile| gets always redirected to a non-Incognito profile below, so
   // Incognito & IMPLICIT_ACCESS means that incognito browsing session would
   // result in traces in the normal profile without the user knowing it.

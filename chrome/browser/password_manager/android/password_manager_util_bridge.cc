@@ -22,8 +22,6 @@
 #include "chrome/browser/password_manager/android/jni_headers/PasswordManagerUtilBridge_jni.h"
 
 using password_manager::IsGmsCoreUpdateRequired;
-using password_manager::UsesSplitStoresAndUPMForLocal;
-using password_manager_android_util::ShouldUseUpmWiring;
 
 jboolean JNI_PasswordManagerUtilBridge_IsPasswordManagerAvailable(
     JNIEnv* env,
@@ -31,21 +29,6 @@ jboolean JNI_PasswordManagerUtilBridge_IsPasswordManagerAvailable(
     jboolean is_internal_backend_present) {
   return password_manager_android_util::IsPasswordManagerAvailable(
       pref_service, is_internal_backend_present);
-}
-
-jboolean JNI_PasswordManagerUtilBridge_UsesSplitStoresAndUPMForLocal(
-    JNIEnv* env,
-    PrefService* pref_service) {
-  return UsesSplitStoresAndUPMForLocal(pref_service);
-}
-
-// Called via JNI when it's necessary to check that the user is either syncing
-// and enrolled in UPM or not syncing and ready to use local UPM.
-jboolean JNI_PasswordManagerUtilBridge_ShouldUseUpmWiring(
-    JNIEnv* env,
-    syncer::SyncService* sync_service,
-    PrefService* pref_service) {
-  return ShouldUseUpmWiring(sync_service, pref_service);
 }
 
 jboolean JNI_PasswordManagerUtilBridge_IsGmsCoreUpdateRequired(
@@ -57,14 +40,6 @@ jboolean JNI_PasswordManagerUtilBridge_IsGmsCoreUpdateRequired(
 
 jboolean JNI_PasswordManagerUtilBridge_AreMinUpmRequirementsMet(JNIEnv* env) {
   return password_manager_android_util::AreMinUpmRequirementsMet();
-}
-
-jint JNI_PasswordManagerUtilBridge_GetPasswordAccessLossWarningType(
-    JNIEnv* env,
-    PrefService* pref_service) {
-  return static_cast<int>(
-      password_manager_android_util::GetPasswordAccessLossWarningType(
-          pref_service));
 }
 
 base::android::ScopedJavaLocalRef<jstring>

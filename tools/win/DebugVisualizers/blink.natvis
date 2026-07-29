@@ -104,21 +104,13 @@
       </ArrayItems>
     </Expand>
   </Type>
-  <Type Name="WTF::HashTable&lt;*&gt;">
+  <Type Name="blink::HashTable&lt;*&gt;">
     <DisplayString>keyCount={key_count_}, tableSize={table_size_}</DisplayString>
     <Expand>
       <ArrayItems Condition="table_size_>0">
         <Size>table_size_</Size>
         <ValuePointer>table_</ValuePointer>
       </ArrayItems>
-    </Expand>
-  </Type>
-  <Type Name="WTF::RefPtr&lt;*&gt;">
-    <AlternativeType Name="WTF::PassRefPtr&lt;*&gt;"/>
-    <DisplayString Condition="ptr_ == 0">null</DisplayString>
-    <DisplayString>{*ptr_}</DisplayString>
-    <Expand>
-      <Item Name="Ptr">ptr_</Item>
     </Expand>
   </Type>
   <Type Name="blink::FixedPoint&lt;*&gt;">
@@ -156,8 +148,8 @@
     </Expand>
   </Type>
   <Type Name="blink::Length">
-    <DisplayString Condition="is_float_">{(blink::Length::Type)type_} {float_value_}</DisplayString>
-    <DisplayString>{(blink::Length::Type)type_} {int_value_}</DisplayString>
+    <DisplayString Condition="type_ == blink::Length::kCalculated">{(blink::Length::Type)type_} {calculation_handle_}</DisplayString>
+    <DisplayString>{(blink::Length::Type)type_} {value_}</DisplayString>
   </Type>
   <Type Name="blink::LogicalOffset">
     <DisplayString>({inline_offset}, {block_offset})</DisplayString>
@@ -173,11 +165,11 @@
   </Type>
   <!-- Component build version -->
   <Type Name="blink::WebString">
-    <DisplayString>{(blink_platform_wtf.dll!WTF::StringImpl*)(impl_.ptr_)}</DisplayString>
+    <DisplayString>{(blink_platform_wtf.dll!blink::StringImpl*)(impl_.ptr_)}</DisplayString>
   </Type>
   <!-- Non-component build version -->
   <Type Name="blink::WebString" Priority="Low">
-    <DisplayString>{(WTF::StringImpl*)(impl_.ptr_)}</DisplayString>
+    <DisplayString>{(blink::StringImpl*)(impl_.ptr_)}</DisplayString>
   </Type>
   <!-- DOM -->
   <Type Name="blink::QualifiedName">

@@ -63,6 +63,7 @@
 <translation id="1704230497453185209">ছাইটক ধ্বনি প্লে’ অনুমতি নিদিব</translation>
 <translation id="1717218214683051432">ম'শ্বন ছেন্সৰসমূহ</translation>
 <translation id="1717996979683942279">অন কৰা থাকিলে, ছাইটসমূহে আপোনাৰ আটাইবোৰ ডিছপ্লে’ত থকা ৱিণ্ড’সমূহ পৰিচালনা কৰিবলৈ বিচাৰিব পাৰে। অফ কৰা থাকিলে, আপোনাৰ আটাইবোৰ ডিছপ্লে’ত থকা ৱিণ্ড’সমূহ পৰিচালনা কৰিবলৈ বিচাৰিব নোৱাৰে।</translation>
+<translation id="1738912554587725807">নতুন টেবৰ পৃষ্ঠাখন প্ৰদৰ্শিত হোৱা থীমৰ সংগ্ৰহৰ তলৰ শ্বীট</translation>
 <translation id="1743802530341753419">ছাইটসমূহে কোনো ডিভাইচৰ সৈতে সংযুক্ত হোৱাৰ পূর্বে অনুমতি বিচাৰক (চুপাৰিছ কৰা)</translation>
 <translation id="1777815584158991902">ডিস্ক’ভাৰ ফীডৰ তলৰ শ্বীট</translation>
 <translation id="1779089405699405702">প্রতিচ্ছবি ডিক’ড কৰোঁতা</translation>
@@ -120,6 +121,7 @@
 <translation id="2402980924095424747"><ph name="MEGABYTES" /> এম. বি.</translation>
 <translation id="2404630663942400771">{PERMISSIONS_SUMMARY_ALLOWED,plural, =1{<ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> আৰু <ph name="NUM_MORE" /> টাৰ অনুমতি দিয়া আছে}one{<ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> আৰু <ph name="NUM_MORE" /> টাৰ অনুমতি দিয়া আছে}other{<ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> আৰু <ph name="NUM_MORE" /> টাৰ অনুমতি দিয়া আছে}}</translation>
 <translation id="2410940059315936967">আপুনি চোৱা এটা ছাইটে অন্য এটা ছাইটৰ পৰা প্ৰতিচ্ছবি, বিজ্ঞাপন আৰু পাঠৰ দৰে সমল এম্বেড কৰিব পাৰে। এই অন্য ছাইটসমূহে ছেট কৰা কুকিসমূহক তৃতীয় পক্ষৰ কুকি বুলি কোৱা হয়।</translation>
+<translation id="2411116727035790889">শ্বৰ্টকাট অন কৰক</translation>
 <translation id="2433507940547922241">ৰূপ</translation>
 <translation id="2434158240863470628">ডাউনল’ড সম্পূর্ণ হৈছে <ph name="SEPARATOR" /> <ph name="BYTES_DOWNLOADED" /></translation>
 <translation id="2438120137003069591">আপুনি এই ছাইটটোক তৃতীয় পক্ষৰ কুকিসমূহ ব্যৱহাৰ কৰিবলৈ অস্থায়ীভাৱে অনুমতি দিছে, যাৰ ফলস্বৰূপে ব্ৰাউজিং কম সুৰক্ষিত হ’ব কিন্তু ছাইটৰ সুবিধাসমূহে আশা কৰা ধৰণে কাম কৰাৰ সম্ভাৱনা অধিক থাকে। <ph name="BEGIN_LINK" />মতামত পঠিয়াওক<ph name="END_LINK" /></translation>
@@ -186,6 +188,7 @@
 <translation id="3114012059975132928">ভিডিঅ’ প্লে’য়াৰ</translation>
 <translation id="3115898365077584848">তথ্য দেখুৱাওক</translation>
 <translation id="3123473560110926937">কিছুমান ছাইটত অৱৰোধ কৰা আছে</translation>
+<translation id="3132996321662585180">দৈনিক ৰিফ্ৰেশ্ব কৰক</translation>
 <translation id="3143754809889689516">আৰম্ভণিৰ পৰা প্লে’ কৰক</translation>
 <translation id="3162899666601560689">ছাইটসমূহে আপোনাৰ ব্ৰাউজিঙৰ অভিজ্ঞতা উন্নত কৰিবলৈ কুকিসমূহ ব্যৱহাৰ কৰিব পাৰে, যেনে, আপোনাক ছাইন ইন কৰি ৰাখিবলৈ অথবা আপোনাৰ শ্বপিং কার্টত থকা বস্তুবোৰ মনত ৰাখিবলৈ</translation>
 <translation id="3165022941318558018">এটা ছাইটক তৃতীয় পক্ষৰ কুকি ব্যৱহাৰ কৰিবলৈ দিয়ক</translation>
@@ -356,6 +359,7 @@
 <translation id="5100237604440890931">সংকুচিত - সম্প্ৰসাৰণ কৰিবলৈ টিপক</translation>
 <translation id="5116239826668864748">আপুনি বাৰ্তা, নথি আৰু অন্য এপ্‌সমূহত থকা কোনো লিংকত টিপিলে যিকোনো সময়তে Chrome ব্যৱহাৰ কৰিব পাৰে</translation>
 <translation id="5123685120097942451">ইনক’গনিট’ টেব</translation>
+<translation id="512938610812707830">নতুন টেবৰ পৃষ্ঠাখন প্ৰদৰ্শিত হোৱা থীমৰ সংগ্ৰহৰ তলৰ শ্বীটখন সম্পূৰ্ণ উচ্চতাত খোলা হৈছে</translation>
 <translation id="5139253256813381453">{PRICE_DROP_COUNT,plural, =1{আপোনাৰ খুলি ৰখা টেবসমূহত মূল্য কমাৰ তথ্য}one{আপোনাৰ খুলি ৰখা টেবসমূহত মূল্য কমাৰ তথ্য}other{আপোনাৰ খুলি ৰখা টেবসমূহত মূল্য কমাৰ তথ্য}}</translation>
 <translation id="5186036860380548585">স্ক্ৰীনৰ ওপৰৰ অংশৰ ওচৰত বিকল্পটো উপলব্ধ</translation>
 <translation id="5197729504361054390">আপুনি বাছনি কৰা সম্পৰ্কবোৰ <ph name="BEGIN_BOLD" /><ph name="SITE" /><ph name="END_BOLD" />ৰ সৈতে শ্বেয়াৰ কৰা হ’ব।</translation>
@@ -410,6 +414,7 @@
 <translation id="5750869797196646528">হাতৰ ট্ৰেকিং</translation>
 <translation id="5753570386948603678">ইতিহাসৰ পৰা মচক</translation>
 <translation id="5771720122942595109"><ph name="PERMISSION_1" />ক অৱৰোধ কৰা আছে</translation>
+<translation id="5801457289562671820">আপোনাৰ প্ৰতিষ্ঠানে চুপাৰিছ কৰা</translation>
 <translation id="5804241973901381774">অনুমতি</translation>
 <translation id="5822675474983796325">আপোনাৰ নতুন টেবৰ পৃষ্ঠাৰ তলৰ শ্বীটখন কাষ্টমাইজ কৰাটো পূৰ্ণ উচ্চতাত খোলা হৈছে</translation>
 <translation id="5833899990800318936">ছাইটসমূহক JavaScript ব্যৱহাৰ কৰাৰ অনুমতি নিদিব</translation>
@@ -608,7 +613,6 @@
 <translation id="8186479265534291036">ছাইটটোৱে কাম কৰা নাই নেকি? তৃতীয় পক্ষৰ কুকিসমূহ অৱৰোধ কৰা হৈছে</translation>
 <translation id="8197286292360124385"><ph name="PERMISSION_1" />ৰ অনুমতি দিয়া আছে</translation>
 <translation id="8200772114523450471">পুনৰ আৰম্ভ কৰক</translation>
-<translation id="8206354486702514201">আপোনাৰ প্ৰশাসকে এই ছেটিংটো বলৱৎ কৰিছে।</translation>
 <translation id="8211406090763984747">সংযোগটো নিৰাপদ</translation>
 <translation id="822964464349305906"><ph name="TYPE_1" />, <ph name="TYPE_2" /></translation>
 <translation id="8249310407154411074">শীৰ্ষলৈ নিয়ক</translation>
@@ -619,6 +623,7 @@
 <translation id="8324158725704657629">পুনৰ নুসুধিব</translation>
 <translation id="8362795839483915693">আপুনি চোৱা ছাইটসমূহত জুম ইন অথবা জুম আউট কৰিব পাৰে</translation>
 <translation id="8372893542064058268">কোনো নির্দিষ্ট ছাইটৰ বাবে নেপথ্যত ছিংক কৰাৰ অনুমতি দিয়ক।</translation>
+<translation id="8378714024927312812">আপোনাৰ প্ৰতিষ্ঠানৰ দ্বাৰা পৰিচালিত</translation>
 <translation id="83792324527827022">এটা ছাইটে আপোনাৰ কেমেৰা আৰু মাইক্ৰ’ফ’ন ব্যৱহাৰ কৰি আছে</translation>
 <translation id="8380167699614421159">এই ছাইটটোৱে বিনা অনুমতিত বা কোনো বিভ্ৰান্তিকৰ বিজ্ঞাপন দেখুৱায়</translation>
 <translation id="8394832520002899662">এই ছাইটটোলৈ উভতি যাবলৈ টিপক</translation>

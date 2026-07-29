@@ -26,6 +26,7 @@ import org.mockito.junit.MockitoRule;
 import org.robolectric.shadows.ShadowLooper;
 
 import org.chromium.base.Callback;
+import org.chromium.base.Token;
 import org.chromium.base.supplier.ObservableSupplierImpl;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.util.Features.EnableFeatures;
@@ -252,13 +253,12 @@ public class TabSwitcherGroupSuggestionServiceUnitTest {
         TabGroupModelFilterObserver observer = mTabGroupModelFilterObserverCaptor.getValue();
 
         Tab mockTab = mock();
-        List<Tab> mockTabs = Collections.singletonList(mockTab);
 
         observer.willMergeTabToGroup(mockTab, 0, null);
         verify(mSuggestionLifecycleObserverHandler).onSuggestionIgnored();
 
         reset(mSuggestionLifecycleObserverHandler);
-        observer.willMoveTabGroup(0, 1);
+        observer.willMoveTabGroup(new Token(1L, 2L), 0);
         verify(mSuggestionLifecycleObserverHandler).onSuggestionIgnored();
 
         reset(mSuggestionLifecycleObserverHandler);
@@ -266,7 +266,7 @@ public class TabSwitcherGroupSuggestionServiceUnitTest {
         verify(mSuggestionLifecycleObserverHandler).onSuggestionIgnored();
 
         reset(mSuggestionLifecycleObserverHandler);
-        observer.didCreateGroup(mockTabs, null, null, null, null, 0, false);
+        observer.didCreateNewGroup(mockTab, mTabGroupModelFilter);
         verify(mSuggestionLifecycleObserverHandler).onSuggestionIgnored();
 
         reset(mSuggestionLifecycleObserverHandler);

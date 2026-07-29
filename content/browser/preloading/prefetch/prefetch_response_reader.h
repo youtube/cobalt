@@ -58,7 +58,9 @@ class CONTENT_EXPORT PrefetchResponseReader final
     : public network::mojom::URLLoader,
       public base::RefCounted<PrefetchResponseReader> {
  public:
-  explicit PrefetchResponseReader();
+  PrefetchResponseReader(base::OnceClosure on_determined_head_callback,
+                         OnPrefetchResponseCompletedCallback
+                             on_prefetch_response_completed_callback);
 
   void SetStreamingURLLoader(
       base::WeakPtr<PrefetchStreamingURLLoader> streaming_url_loader);
@@ -119,6 +121,46 @@ class CONTENT_EXPORT PrefetchResponseReader final
   void RecordOnPrefetchContainerDestroyed(
       base::PassKey<PrefetchContainer>,
       ukm::builders::PrefetchProxy_PrefetchedResource& builder) const;
+
+  // Valid state transitions (which imply valid event sequences) are:
+  // - Redirect: `kStarted` -> `kRedirectHandled`
+  // - Non-redirect: `kStarted` -> `kResponseReceived` -> `kCompleted`
+  // - Failure: `kStarted` -> `kFailed`
+  //            `kStarted` -> `kFailedRedirect`
+  //            `kStarted` -> `kFailedResponseReceived` -> `kFailed`
+  //            `kStarted` -> `kResponseReceived` -> `kFailed`
+  // Optional `OnReceiveEarlyHints()` and `OnTransferSizeUpdated()` events can
+  // be received in any non-final states.
+  enum class LoadState {
+    // Initial state, not yet receiving a redirect nor non-redirect response.
+    kStarted,
+
+    // [Final] A redirect response is received (`HandleRedirect()` is called).
+    // This is a final state because we always switch to a new
+    // `PrefetchResponseReader` on redirects.
+    kRedirectHandled,
+
+    // [servable] A non-redirect successful response is received
+    // (`OnReceiveResponse()` is called with `servable` = true).
+    kResponseReceived,
+
+    // A non-redirect failed response is received (`OnReceiveResponse()` is
+    // called with `servable` = false).
+    kFailedResponseReceived,
+
+    // [Final, servable] Successful completion (`OnComplete(net::OK)` is called
+    // after `kResponseReceived`.
+    kCompleted,
+
+    // [Final] Failed completion (`OnComplete()` is called, either with
+    // non-`net::OK`, or after `kFailedResponseReceived`).
+    kFailed,
+
+    // [Final] Failed redirects.
+    kFailedRedirect
+  };
+
+  LoadState load_state() const { return load_state_; }
 
   base::WeakPtr<PrefetchResponseReader> GetWeakPtr() {
     return weak_ptr_factory_.GetWeakPtr();
@@ -192,52 +234,33 @@ class CONTENT_EXPORT PrefetchResponseReader final
   };
   EventQueueStatus event_queue_status_{EventQueueStatus::kNotRunning};
 
-  // Valid state transitions (which imply valid event sequences) are:
-  // - Redirect: `kStarted` -> `kRedirectHandled`
-  // - Non-redirect: `kStarted` -> `kResponseReceived` -> `kCompleted`
-  // - Failure: `kStarted` -> `kFailed`
-  //            `kStarted` -> `kFailedRedirect`
-  //            `kStarted` -> `kFailedResponseReceived` -> `kFailed`
-  //            `kStarted` -> `kResponseReceived` -> `kFailed`
-  // Optional `OnReceiveEarlyHints()` and `OnTransferSizeUpdated()` events can
-  // be received in any non-final states.
-  enum class LoadState {
-    // Initial state, not yet receiving a redirect nor non-redirect response.
-    kStarted,
-
-    // [Final] A redirect response is received (`HandleRedirect()` is called).
-    // This is a final state because we always switch to a new
-    // `PrefetchResponseReader` on redirects.
-    kRedirectHandled,
-
-    // [servable] A non-redirect successful response is received
-    // (`OnReceiveResponse()` is called with `servable` = true).
-    kResponseReceived,
-
-    // A non-redirect failed response is received (`OnReceiveResponse()` is
-    // called with `servable` = false).
-    kFailedResponseReceived,
-
-    // [Final, servable] Successful completion (`OnComplete(net::OK)` is called
-    // after `kResponseReceived`.
-    kCompleted,
-
-    // [Final] Failed completion (`OnComplete()` is called, either with
-    // non-`net::OK`, or after `kFailedResponseReceived`).
-    kFailed,
-
-    // [Final] Failed redirects.
-    kFailedRedirect
-  };
-
   // Always access/update through `load_state()` and
   // `SetLoadStateAndAddEventToQueue()` below, to avoid unintentional state
   // changes and missing related callbacks on state changes.
   LoadState load_state_{LoadState::kStarted};
 
-  LoadState load_state() const { return load_state_; }
   void SetLoadStateAndAddEventToQueue(LoadState new_load_state,
                                       EventCallback callback);
+
+  // Called when transitioned for the first time to a state other than
+  // `kStarted` nor `kRedirectHandled`.
+  //
+  // This should be always called once for the entire `PrefetchResponseReader`s
+  // for a given `PrefetchContainer`.
+  // TODO(https://crbug.com/400761083): This isn't called for:
+  // - unexpected mojo disconnection cases (See
+  //   `PrefetchStreamingURLLoaderTest.UnexpectedUrlLoaderDisconnect`).
+  base::OnceClosure on_determined_head_callback_;
+
+  // Called when transitioned to `kCompleted` or `kFailed`.
+  // This is called after `on_determined_head_callback_` at most once for the
+  // entire `PrefetchResponseReader`s for a given `PrefetchContainer`.
+  // TODO(https://crbug.com/400761083): This isn't called for:
+  // - `kFailedRedirect` (See
+  //   `PrefetchStreamingURLLoaderTest.IneligibleRedirect`) or
+  // - unexpected mojo disconnection cases (See
+  //   `PrefetchStreamingURLLoaderTest.UnexpectedUrlLoaderDisconnect`).
+  OnPrefetchResponseCompletedCallback on_prefetch_response_completed_callback_;
 
   // Used for UMA recording.
   // TODO(crbug.com/40064891): we might want to adapt these flags and UMA

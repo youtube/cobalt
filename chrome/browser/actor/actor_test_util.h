@@ -16,9 +16,11 @@
 #include "base/time/time.h"
 #include "chrome/browser/actor/task_id.h"
 #include "chrome/browser/actor/tools/tool_request.h"
+#include "chrome/browser/actor/ui/event_dispatcher.h"
 #include "chrome/common/actor.mojom-forward.h"
 #include "components/optimization_guide/proto/features/actions_data.pb.h"
 #include "components/sessions/core/session_id.h"
+#include "components/tabs/public/tab_interface.h"
 #include "ui/gfx/geometry/point.h"
 
 namespace base {
@@ -34,6 +36,15 @@ class TabInterface;
 }  // namespace tabs
 
 namespace actor {
+template <typename T>
+auto UiEventDispatcherCallback(
+    base::RepeatingCallback<mojom::ActionResultPtr()> result_fn) {
+  return [result_fn = std::move(result_fn)](
+             const T&,
+             ui::UiEventDispatcher::UiCompleteCallback callback) mutable {
+    std::move(callback).Run(result_fn.Run());
+  };
+}
 
 /////////////////////////
 // Proto action makers
@@ -42,16 +53,22 @@ optimization_guide::proto::BrowserAction MakeClick(
     content::RenderFrameHost& rfh,
     int content_node_id);
 optimization_guide::proto::BrowserAction MakeClick(
+    tabs::TabHandle tab_handle,
     const gfx::Point& click_point);
-optimization_guide::proto::BrowserAction MakeHistoryBack();
-optimization_guide::proto::BrowserAction MakeHistoryForward();
+optimization_guide::proto::BrowserAction MakeHistoryBack(
+    tabs::TabHandle tab_handle);
+optimization_guide::proto::BrowserAction MakeHistoryForward(
+    tabs::TabHandle tab_handle);
 optimization_guide::proto::BrowserAction MakeMouseMove(
     content::RenderFrameHost& rfh,
     int content_node_id);
 optimization_guide::proto::BrowserAction MakeMouseMove(
     const gfx::Point& move_point);
 optimization_guide::proto::BrowserAction MakeNavigate(
+    tabs::TabHandle tab_handle,
     std::string_view target_url);
+optimization_guide::proto::BrowserAction MakeCreateTab(SessionID window_id,
+                                                       bool foreground);
 optimization_guide::proto::BrowserAction MakeType(content::RenderFrameHost& rfh,
                                                   int content_node_id,
                                                   std::string_view text,

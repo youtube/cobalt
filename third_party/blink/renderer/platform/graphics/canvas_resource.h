@@ -59,7 +59,7 @@ class StaticBitmapImage;
 // concurrently. The caller is responsible to call Transfer on the object before
 // using it on a different thread.
 class PLATFORM_EXPORT CanvasResource
-    : public WTF::ThreadSafeRefCounted<CanvasResource> {
+    : public ThreadSafeRefCounted<CanvasResource> {
  public:
   using ReleaseCallback = base::OnceCallback<void(
       scoped_refptr<blink::CanvasResource>&& canvas_resource,
@@ -215,9 +215,6 @@ class PLATFORM_EXPORT CanvasResourceSharedImage final : public CanvasResource {
   void EndWriteAccess();
   GrBackendTexture CreateGrTexture() const;
 
-  GLuint GetTextureIdForReadAccess() const {
-    return owning_thread_data().texture_id_for_read_access;
-  }
   GLuint GetTextureIdForWriteAccess() const {
     return owning_thread_data().texture_id_for_write_access;
   }

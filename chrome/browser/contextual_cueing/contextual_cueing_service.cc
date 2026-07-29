@@ -62,11 +62,10 @@ bool IsGlicTabContextEnabled(PrefService* pref_service) {
   return pref_service->GetBoolean(glic::prefs::kGlicTabContextEnabled);
 }
 
-void OnSuggestionsReceived(
-    base::TimeTicks fetch_begin_time,
-    GlicSuggestionsCallback callback,
-    std::optional<std::vector<std::string>> suggestions) {
-  base::UmaHistogramTimes(suggestions
+void OnSuggestionsReceived(base::TimeTicks fetch_begin_time,
+                           GlicSuggestionsCallback callback,
+                           std::vector<std::string> suggestions) {
+  base::UmaHistogramTimes(!suggestions.empty()
                               ? "ContextualCueing.GlicSuggestions."
                                 "SuggestionsFetchLatency.ValidSuggestions"
                               : "ContextualCueing.GlicSuggestions."
@@ -134,11 +133,8 @@ ContextualCueingService::ContextualCueingService(
       template_url_service_(template_url_service),
       mes_url_(optimization_guide::switches::GetModelExecutionServiceURL()) {
   CHECK(base::FeatureList::IsEnabled(contextual_cueing::kContextualCueing) ||
-        base::FeatureList::IsEnabled(
-            contextual_cueing::kGlicZeroStateSuggestions));
-  if (optimization_guide_keyed_service_ &&
-      base::FeatureList::IsEnabled(
-          contextual_cueing::kGlicZeroStateSuggestions)) {
+        IsZeroStateSuggestionsEnabled());
+  if (optimization_guide_keyed_service_ && IsZeroStateSuggestionsEnabled()) {
     optimization_guide_keyed_service_->RegisterOptimizationTypes(
         {optimization_guide::proto::GLIC_ZERO_STATE_SUGGESTIONS});
   }
@@ -309,7 +305,7 @@ void ContextualCueingService::PrepareToFetchContextualGlicZeroStateSuggestions(
     content::WebContents* web_contents) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
-  if (!base::FeatureList::IsEnabled(kGlicZeroStateSuggestions)) {
+  if (!IsZeroStateSuggestionsEnabled()) {
     return;
   }
 
@@ -369,19 +365,19 @@ void ContextualCueingService::
         GlicSuggestionsCallback callback) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
-  if (!base::FeatureList::IsEnabled(kGlicZeroStateSuggestions)) {
-    std::move(callback).Run(std::nullopt);
+  if (!IsZeroStateSuggestionsEnabled()) {
+    std::move(callback).Run({});
     return;
   }
   if (!IsPageTypeEligibleForContextualSuggestions(
           web_contents->GetLastCommittedURL())) {
-    std::move(callback).Run(std::nullopt);
+    std::move(callback).Run({});
     return;
   }
 
 #if BUILDFLAG(ENABLE_GLIC)
   if (!IsGlicTabContextEnabled(pref_service_)) {
-    std::move(callback).Run(std::nullopt);
+    std::move(callback).Run({});
     return;
   }
 
@@ -399,7 +395,7 @@ void ContextualCueingService::
   zss_request_ptr->AddCallback(base::BindOnce(
       &OnSuggestionsReceived, base::TimeTicks::Now(), std::move(callback)));
 #else
-  std::move(callback).Run(std::nullopt);
+  std::move(callback).Run({});
 #endif
 }
 
@@ -411,8 +407,8 @@ void ContextualCueingService::
         GlicSuggestionsCallback callback) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
-  if (!base::FeatureList::IsEnabled(kGlicZeroStateSuggestions)) {
-    std::move(callback).Run(std::nullopt);
+  if (!IsZeroStateSuggestionsEnabled()) {
+    std::move(callback).Run({});
     return;
   }
 
@@ -422,23 +418,18 @@ void ContextualCueingService::
         web_contents->GetLastCommittedURL());
   });
   if (pinned_web_contents.empty()) {
-    std::move(callback).Run(std::nullopt);
+    std::move(callback).Run({});
     return;
   }
 
 #if BUILDFLAG(ENABLE_GLIC)
-  if (!IsGlicTabContextEnabled(pref_service_)) {
-    std::move(callback).Run(std::nullopt);
-    return;
-  }
-
   // Initiate request for suggestions for pinned tabs.
   pinned_tabs_zero_state_suggestions_request_ = MakeZeroStateSuggestionsRequest(
       pinned_web_contents, is_fre, supported_tools, /*is_focused_tab=*/false);
   pinned_tabs_zero_state_suggestions_request_->AddCallback(base::BindOnce(
       &OnSuggestionsReceived, base::TimeTicks::Now(), std::move(callback)));
 #else
-  std::move(callback).Run(std::nullopt);
+  std::move(callback).Run({});
 #endif
 }
 

@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 import {type WebClientInitialState} from '../glic.mojom-webui.js';
-import type {ActInFocusedTabParams, ActInFocusedTabResult, AnnotatedPageData, ChromeVersion, DraggableArea, ErrorReasonTypes, ErrorWithReason, FocusedTabDataHasFocus, FocusedTabDataHasNoFocus, GetPinCandidatesOptions, HostCapability, Journal, OpenPanelInfo, OpenSettingsOptions, PageMetadata, PanelOpeningData, PanelState, PdfDocumentData, Screenshot, ScrollToParams, TabContextOptions, TabContextResult, TabData, UserProfileInfo, ZeroStateSuggestions, ZeroStateSuggestionsOptions, ZeroStateSuggestionsV2} from '../glic_api/glic_api.js';
+import type {ActInFocusedTabParams, ActInFocusedTabResult, ActorTaskState, AnnotatedPageData, ChromeVersion, DraggableArea, ErrorReasonTypes, ErrorWithReason, FocusedTabDataHasFocus, FocusedTabDataHasNoFocus, GetPinCandidatesOptions, HostCapability, Journal, OpenPanelInfo, OpenSettingsOptions, PageMetadata, PanelOpeningData, PanelState, PdfDocumentData, PinCandidate, Screenshot, ScrollToParams, TabContextOptions, TabContextResult, TabData, UserProfileInfo, ZeroStateSuggestions, ZeroStateSuggestionsOptions, ZeroStateSuggestionsV2} from '../glic_api/glic_api.js';
 
 /*
 This file defines messages sent over postMessage in-between the Glic WebUI
@@ -63,6 +63,11 @@ export declare interface HostRequestTypes {
   glicBrowserClosePanel: {};
   glicBrowserClosePanelAndShutdown: {};
   glicBrowserShowProfilePicker: {};
+  glicBrowserGetModelQualityClientId: {
+    response: {
+      modelQualityClientId: string,
+    },
+  };
   glicBrowserGetContextFromFocusedTab: {
     request: {
       options: TabContextOptions,
@@ -72,6 +77,15 @@ export declare interface HostRequestTypes {
     },
   };
   glicBrowserGetContextFromTab: {
+    request: {
+      tabId: string,
+      options: TabContextOptions,
+    },
+    response: {
+      tabContextResult: TabContextResultPrivate,
+    },
+  };
+  glicBrowserGetContextForActorFromTab: {
     request: {
       tabId: string,
       options: TabContextOptions,
@@ -241,6 +255,12 @@ export declare interface HostRequestTypes {
     },
   };
   glicBrowserJournalStop: {};
+  glicBrowserJournalRecordFeedback: {
+    request: {
+      positive: boolean,
+      reason: string,
+    },
+  };
   glicBrowserOnUserInputSubmitted: {
     request: {
       mode: number,
@@ -250,6 +270,12 @@ export declare interface HostRequestTypes {
   glicBrowserOnResponseStarted: {};
   glicBrowserOnResponseStopped: {};
   glicBrowserOnSessionTerminated: {};
+  glicBrowserOnTurnCompleted: {
+    request: {
+      model: number,
+      duration: number,
+    },
+  };
   glicBrowserOnResponseRated: {
     request: {
       positive: boolean,
@@ -289,14 +315,12 @@ export declare interface HostRequestTypes {
     },
   };
   glicBrowserUnpinAllTabs: {};
-  glicBrowserGetPinCandidates: {
+  glicBrowserSubscribeToPinCandidates: {
     request: {
       options: GetPinCandidatesOptions,
     },
-    response: {
-      candidates: TabDataPrivate[],
-    },
   };
+  glicBrowserUnsubscribeFromPinCandidates: {};
   glicBrowserGetZeroStateSuggestionsForFocusedTab: {
     request: {
       isFirstRun?: boolean,
@@ -401,10 +425,21 @@ export declare interface WebClientRequestTypes {
       tabData: TabDataPrivate,
     },
   };
+  glicWebClientPinCandidatesChanged: {
+    request: {
+      candidates: PinCandidatePrivate[],
+    },
+  };
   glicWebClientZeroStateSuggestionsChanged: {
     request: {
       suggestions: ZeroStateSuggestionsV2,
       options: ZeroStateSuggestionsOptions,
+    },
+  };
+  glicWebClientNotifyActorTaskStateChanged: {
+    request: {
+      taskId: number,
+      state: ActorTaskState,
     },
   };
 }
@@ -428,8 +463,10 @@ type HostRequestEnumNamesType = {
     ClosePanel: 0,
     ClosePanelAndShutdown: 0,
     ShowProfilePicker: 0,
+    GetModelQualityClientId: 0,
     GetContextFromFocusedTab: 0,
     GetContextFromTab: 0,
+    GetContextForActorFromTab: 0,
     SetMaximumNumberOfPinnedTabs: 0,
     ActInFocusedTab: 0,
     StopActorTask: 0,
@@ -456,12 +493,14 @@ type HostRequestEnumNamesType = {
     JournalSnapshot: 0,
     JournalStart: 0,
     JournalStop: 0,
+    JournalRecordFeedback: 0,
     OnUserInputSubmitted: 0,
+    OnResponseRated: 0,
     OnRequestStarted: 0,
     OnResponseStarted: 0,
     OnResponseStopped: 0,
     OnSessionTerminated: 0,
-    OnResponseRated: 0,
+    OnTurnCompleted: 0,
     ScrollTo: 0,
     SetSyntheticExperimentState: 0,
     OpenOsPermissionSettingsMenu: 0,
@@ -469,7 +508,8 @@ type HostRequestEnumNamesType = {
     PinTabs: 0,
     UnpinTabs: 0,
     UnpinAllTabs: 0,
-    GetPinCandidates: 0,
+    SubscribeToPinCandidates: 0,
+    UnsubscribeFromPinCandidates: 0,
     GetZeroStateSuggestionsForFocusedTab: 0,
     GetZeroStateSuggestionsAndSubscribe: 0,
     SetClosedCaptioningSetting: 0,
@@ -557,9 +597,6 @@ export type WebClientInitialStatePrivate =
       chromeVersion: ChromeVersion,
       focusedTabData: FocusedTabDataPrivate,
       loggingEnabled: boolean,
-      // Whether or not the web client should resize the content to fit the
-      // window size.
-      fitWindow: boolean,
       enableZeroStateSuggestions: boolean,
       hostCapabilities: HostCapability[],
     }>;
@@ -567,6 +604,11 @@ export type WebClientInitialStatePrivate =
 // TabData format for postMessage transport.
 export declare interface TabDataPrivate extends Omit<TabData, 'favicon'> {
   favicon?: RgbaImage;
+}
+
+export declare interface PinCandidatePrivate extends
+    Omit<PinCandidate, 'tabData'> {
+  tabData: TabDataPrivate;
 }
 
 // A bitmap, used to store data from a BitmapN32 without conversion.

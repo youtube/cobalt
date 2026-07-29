@@ -5,18 +5,18 @@
 #ifndef CHROME_BROWSER_EXTENSIONS_BROWSER_EXTENSION_WINDOW_CONTROLLER_H_
 #define CHROME_BROWSER_EXTENSIONS_BROWSER_EXTENSION_WINDOW_CONTROLLER_H_
 
-#include "base/memory/raw_ptr.h"
+#include "base/memory/raw_ref.h"
 #include "chrome/browser/extensions/window_controller.h"
 #include "components/sessions/core/session_id.h"
 #include "ui/base/unowned_user_data/scoped_unowned_user_data.h"
 
 class BrowserWindowInterface;
 class GURL;
+class TabListInterface;
 
 #if !BUILDFLAG(IS_ANDROID)
 class BrowserWindow;
-class TabStripModel;
-#endif
+#endif  // !BUILDFLAG(IS_ANDROID)
 
 namespace extensions {
 class Extension;
@@ -73,12 +73,12 @@ class BrowserExtensionWindowController : public WindowController {
   bool SupportsTabs() override;
 
  private:
-  const raw_ptr<BrowserWindowInterface> browser_;
+  const raw_ref<BrowserWindowInterface> browser_;
   // TODO(https://crbug.com/423725749): Migrate these to cross-platform
   // concepts.
 #if !BUILDFLAG(IS_ANDROID)
-  const raw_ptr<BrowserWindow> window_;
-  const raw_ptr<TabStripModel> tab_strip_model_;
+  const raw_ref<BrowserWindow> window_;
+  const raw_ref<TabListInterface> tab_list_;
 #endif
   const SessionID session_id_;
   const api::tabs::WindowType window_type_;

@@ -25,14 +25,6 @@ animationRangeStart
 animationTimeline
 animationTimingFunction
 animationTrigger
-animationTriggerBehavior
-animationTriggerExitRange
-animationTriggerExitRangeEnd
-animationTriggerExitRangeStart
-animationTriggerRange
-animationTriggerRangeEnd
-animationTriggerRangeStart
-animationTriggerTimeline
 appRegion
 appearance
 ascentOverride
@@ -163,6 +155,7 @@ containerName
 containerType
 content
 contentVisibility
+continue
 cornerBlockEndShape
 cornerBlockStartShape
 cornerBottomLeftShape
@@ -335,6 +328,7 @@ mathStyle
 maxBlockSize
 maxHeight
 maxInlineSize
+maxLines
 maxWidth
 minBlockSize
 minHeight

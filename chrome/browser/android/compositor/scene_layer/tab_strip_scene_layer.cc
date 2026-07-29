@@ -111,7 +111,6 @@ void TabStripSceneLayer::SetConstants(JNIEnv* env,
 
 void TabStripSceneLayer::SetContentTree(
     JNIEnv* env,
-    const JavaParamRef<jobject>& jobj,
     const JavaParamRef<jobject>& jcontent_tree) {
   SceneLayer* content_tree = FromJavaObject(env, jcontent_tree);
   if (content_tree_ &&
@@ -133,7 +132,6 @@ void TabStripSceneLayer::SetContentTree(
 
 void TabStripSceneLayer::BeginBuildingFrame(
     JNIEnv* env,
-    const JavaParamRef<jobject>& jobj,
     jboolean visible,
     const JavaParamRef<jobject>& jresource_manager,
     const JavaParamRef<jobject>& jlayer_title_cache) {
@@ -145,9 +143,7 @@ void TabStripSceneLayer::BeginBuildingFrame(
   layer_title_cache_ = LayerTitleCache::FromJavaObject(jlayer_title_cache);
 }
 
-void TabStripSceneLayer::FinishBuildingFrame(
-    JNIEnv* env,
-    const JavaParamRef<jobject>& jobj) {
+void TabStripSceneLayer::FinishBuildingFrame(JNIEnv* env) {
   resource_manager_ = nullptr;
   layer_title_cache_ = nullptr;
   if (background_layer_->hide_layer_and_subtree()) {
@@ -169,14 +165,12 @@ void TabStripSceneLayer::FinishBuildingFrame(
 
 void TabStripSceneLayer::UpdateOffsetTag(
     JNIEnv* env,
-    const base::android::JavaParamRef<jobject>& jobj,
     const JavaParamRef<jobject>& joffset_tag) {
   viz::OffsetTag tag = cc::android::FromJavaOffsetTag(env, joffset_tag);
   layer()->SetOffsetTag(tag);
 }
 
 void TabStripSceneLayer::UpdateTabStripLayer(JNIEnv* env,
-                                             const JavaParamRef<jobject>& jobj,
                                              jint width,
                                              jint height,
                                              jfloat y_offset,
@@ -236,7 +230,6 @@ void TabStripSceneLayer::UpdateTabStripLayer(JNIEnv* env,
 
 void TabStripSceneLayer::UpdateNewTabButton(
     JNIEnv* env,
-    const JavaParamRef<jobject>& jobj,
     jint resource_id,
     jint bg_resource_id,
     jfloat x,
@@ -271,7 +264,6 @@ void TabStripSceneLayer::UpdateNewTabButton(
 
 void TabStripSceneLayer::UpdateModelSelectorButton(
     JNIEnv* env,
-    const JavaParamRef<jobject>& jobj,
     jint resource_id,
     jint bg_resource_id,
     jfloat x,
@@ -363,7 +355,6 @@ void TabStripSceneLayer::UpdateCompositorButton(
 
 void TabStripSceneLayer::UpdateTabStripLeftFade(
     JNIEnv* env,
-    const JavaParamRef<jobject>& jobj,
     jint resource_id,
     jfloat opacity,
     jint left_fade_color,
@@ -403,7 +394,6 @@ void TabStripSceneLayer::UpdateTabStripLeftFade(
 
 void TabStripSceneLayer::UpdateTabStripRightFade(
     JNIEnv* env,
-    const JavaParamRef<jobject>& jobj,
     jint resource_id,
     jfloat opacity,
     jint right_fade_color,
@@ -438,7 +428,6 @@ void TabStripSceneLayer::UpdateTabStripRightFade(
 
 void TabStripSceneLayer::PutStripTabLayer(
     JNIEnv* env,
-    const JavaParamRef<jobject>& jobj,
     jint id,
     jint close_resource_id,
     jint close_hover_bg_resource_id,
@@ -455,6 +444,7 @@ void TabStripSceneLayer::PutStripTabLayer(
     jboolean foreground,
     jboolean shouldShowTabOutline,
     jboolean close_pressed,
+    jboolean should_hide_favicon,
     jfloat toolbar_width,
     jfloat x,
     jfloat y,
@@ -516,9 +506,9 @@ void TabStripSceneLayer::PutStripTabLayer(
       id, close_button_resource, close_button_hover_resource,
       is_close_keyboard_focused, close_button_keyboard_focus_ring_resource,
       divider_resource, tab_handle_resource, tab_handle_outline_resource,
-      foreground, shouldShowTabOutline, close_pressed, toolbar_width, x, y,
-      width, height, content_offset_y, divider_offset_x, bottom_margin,
-      top_margin, close_button_padding, close_button_alpha,
+      foreground, shouldShowTabOutline, close_pressed, should_hide_favicon,
+      toolbar_width, x, y, width, height, content_offset_y, divider_offset_x,
+      bottom_margin, top_margin, close_button_padding, close_button_alpha,
       is_start_divider_visible, is_end_divider_visible, is_loading,
       spinner_rotation, opacity, is_keyboard_focused,
       keyboard_focus_ring_drawable, keyboard_focus_ring_offset, stroke_width,
@@ -527,7 +517,6 @@ void TabStripSceneLayer::PutStripTabLayer(
 
 void TabStripSceneLayer::PutGroupIndicatorLayer(
     JNIEnv* env,
-    const base::android::JavaParamRef<jobject>& jobj,
     jboolean incognito,
     jboolean foreground,
     jboolean collapsed,

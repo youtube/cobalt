@@ -6,6 +6,7 @@
 #define COMPONENTS_FACILITATED_PAYMENTS_ANDROID_DEVICE_DELEGATE_ANDROID_H_
 
 #include <memory>
+#include <string_view>
 
 #include "base/android/application_status_listener.h"
 #include "base/functional/callback.h"
@@ -26,20 +27,29 @@ class DeviceDelegateAndroid : public DeviceDelegate {
   DeviceDelegateAndroid& operator=(const DeviceDelegateAndroid&) = delete;
   ~DeviceDelegateAndroid() override;
 
-  // Returns true if Google Wallet is installed, and its version supports Pix
-  // account linking.
-  bool IsPixAccountLinkingSupported() const override;
+  // Returns eligible if Google Wallet is installed, and its version supports
+  // Pix account linking.
+  WalletEligibilityForPixAccountLinking IsPixAccountLinkingSupported()
+      const override;
 
-  // Opens the Pix account linking page in Google Wallet.
-  void LaunchPixAccountLinkingPage() override;
+  // Opens the Pix account linking page in Google Wallet. The `email` is set to
+  // the gaia account that the user logged into.
+  void LaunchPixAccountLinkingPage(std::string email) override;
 
-  // The `callback` is called after the Chrome app goes to background and then
-  // returns to the foreground. The `callback` is not called if the active tab
-  // that called this method is closed or if the app itself is closed.
-  void SetOnReturnToChromeCallback(base::OnceClosure callback) final;
+  // Starts observing the Chrome app status. Runs the `callback` if the Chrome
+  // app is moved to the background and then to the foreground. Stops observing
+  // after running the `callback`. The `callback` is not called if the active
+  // tab that called this method is closed or if the Chrome app itself is
+  // closed.
+  void SetOnReturnToChromeCallbackAndObserveAppState(
+      base::OnceClosure callback) final;
 
   std::unique_ptr<FacilitatedPaymentsAppInfoList> GetSupportedPaymentApps(
       const GURL& payment_link_url) override;
+
+  bool InvokePaymentApp(std::string_view package_name,
+                        std::string_view activity_name,
+                        const GURL& payment_link_url) override;
 
  private:
   friend class DeviceDelegateAndroidTestApi;
@@ -54,6 +64,9 @@ class DeviceDelegateAndroid : public DeviceDelegate {
   bool is_chrome_in_background_ = false;
   // Callback to be called when Chrome comes back to the foreground.
   base::OnceClosure on_return_to_chrome_callback_;
+  // A test-only callback that is run when `OnApplicationStateChanged` is
+  // called.
+  base::OnceClosure on_application_state_changed_callback_for_testing_;
 
   base::WeakPtrFactory<DeviceDelegateAndroid> weak_ptr_factory_{this};
 };

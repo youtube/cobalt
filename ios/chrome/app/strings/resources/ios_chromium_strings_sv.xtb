@@ -113,6 +113,7 @@ Testa att vänta några minuter innan du byter konto. Om du byter konto nu rader
 <translation id="3728124580182886854">Länka Chromium och andra tjänster från Google för anpassning och andra syften</translation>
 <translation id="377649297473651452">Utökad vy för autofyll i Chromium</translation>
 <translation id="3780779443901618967">Varnar dig om farliga webbplatser, även sådana som Google inte kände till tidigare, genom att analysera mer data från webbplatser än standardskyddet. Du kan välja att hoppa över Chromium-varningar.</translation>
+<translation id="3804124559081428680">Tips för Chromium: Verifiera din identitet</translation>
 <translation id="3805899903892079518">Chromium har inte åtkomst till dina foton eller videor. Aktivera åtkomst i iOS-inställningar &gt; Integritet &gt; Foton.</translation>
 <translation id="3816686541346279443">Chromium frågar om du vill spara lösenordet.</translation>
 <translation id="3827545470516145620">Du har standardsäkerhetsskydd på den här enheten</translation>
@@ -252,6 +253,7 @@ Tänk på detta:
 
 Din krypterade data kan endast läsas av en person som har din lösenfras. Lösenfrasen varken skickas till eller lagras av Google. Om du glömmer lösenfrasen eller vill ändra den här inställningen <ph name="BEGIN_LINK" />raderar du kontots Chromium-data<ph name="END_LINK" />.</translation>
 <translation id="7192111075364461693">Chromium-aviseringar är i nuläget inaktiverade i enhetsinställningarna.</translation>
+<translation id="7195217321165708458">Gemini i Chromium</translation>
 <translation id="7219205286115692265">Komma åt Chromium snabbare från startskärmsdockan på iPad.</translation>
 <translation id="7222001353246886083">Sök efter ${searchphrase} i Chromium</translation>
 <translation id="7228180817326917122">Tips för Chromium: Välj adressfältets position</translation>

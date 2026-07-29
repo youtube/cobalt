@@ -5,6 +5,9 @@
 package org.chromium.ui.listmenu;
 
 import static org.chromium.ui.listmenu.ListMenuItemProperties.CLICK_LISTENER;
+import static org.chromium.ui.listmenu.ListMenuItemProperties.ENABLED;
+import static org.chromium.ui.listmenu.ListMenuItemProperties.START_ICON_BITMAP;
+import static org.chromium.ui.listmenu.ListMenuItemProperties.TITLE;
 
 import android.graphics.Bitmap;
 
@@ -67,16 +70,16 @@ public class MenuModelBridge {
     @CalledByNative
     private void addCommand(
             @JniType("std::u16string") final String label,
-            @JniType("SkBitmap") final @Nullable Bitmap bitmap,
+            @JniType("std::optional<SkBitmap>") final @Nullable Bitmap bitmap,
             final boolean isEnabled,
             final Runnable callback) {
         PropertyModel.Builder modelBuilder =
                 new PropertyModel.Builder(ListMenuItemProperties.ALL_KEYS)
-                        .with(ListMenuItemProperties.TITLE, label)
-                        .with(ListMenuItemProperties.START_ICON_BITMAP, bitmap)
-                        .with(ListMenuItemProperties.ENABLED, isEnabled)
+                        .with(TITLE, label)
+                        .with(START_ICON_BITMAP, bitmap)
+                        .with(ENABLED, isEnabled)
                         .with(CLICK_LISTENER, (view) -> callback.run());
-        mItems.add(new ListItem(ListItemType.CONTEXT_MENU_ITEM, modelBuilder.build()));
+        mItems.add(new ListItem(ListItemType.MENU_ITEM, modelBuilder.build()));
     }
 
     /**
@@ -94,13 +97,12 @@ public class MenuModelBridge {
             final boolean isEnabled,
             final Runnable callback) {
         PropertyModel.Builder modelBuilder =
-                new PropertyModel.Builder(ContextMenuCheckItemProperties.ALL_KEYS)
-                        .with(ContextMenuCheckItemProperties.TITLE, label)
-                        .with(ContextMenuCheckItemProperties.CHECKED, isChecked)
-                        .with(ContextMenuCheckItemProperties.ENABLED, isEnabled)
+                new PropertyModel.Builder(ListMenuCheckItemProperties.ALL_KEYS)
+                        .with(TITLE, label)
+                        .with(ListMenuCheckItemProperties.CHECKED, isChecked)
+                        .with(ENABLED, isEnabled)
                         .with(CLICK_LISTENER, (view) -> callback.run());
-        mItems.add(
-                new ListItem(ListItemType.CONTEXT_MENU_ITEM_WITH_CHECKBOX, modelBuilder.build()));
+        mItems.add(new ListItem(ListItemType.MENU_ITEM_WITH_CHECKBOX, modelBuilder.build()));
     }
 
     /**
@@ -118,28 +120,28 @@ public class MenuModelBridge {
             final boolean isEnabled,
             final Runnable callback) {
         PropertyModel.Builder modelBuilder =
-                new PropertyModel.Builder(ContextMenuRadioItemProperties.ALL_KEYS)
-                        .with(ContextMenuRadioItemProperties.TITLE, label)
-                        .with(ContextMenuRadioItemProperties.SELECTED, isSelected)
-                        .with(ContextMenuRadioItemProperties.ENABLED, isEnabled)
+                new PropertyModel.Builder(ListMenuRadioItemProperties.ALL_KEYS)
+                        .with(TITLE, label)
+                        .with(ListMenuRadioItemProperties.SELECTED, isSelected)
+                        .with(ENABLED, isEnabled)
                         .with(CLICK_LISTENER, (view) -> callback.run());
-        mItems.add(
-                new ListItem(
-                        ListItemType.CONTEXT_MENU_ITEM_WITH_RADIO_BUTTON, modelBuilder.build()));
+        mItems.add(new ListItem(ListItemType.MENU_ITEM_WITH_RADIO_BUTTON, modelBuilder.build()));
     }
 
     /** Adds a context menu item that is a submenu parent. */
     @CalledByNative
     private void addSubmenu(
             @JniType("std::u16string") final String label,
+            @JniType("std::optional<SkBitmap>") final @Nullable Bitmap bitmap,
             final boolean isEnabled,
             MenuModelBridge submenuItems) {
         PropertyModel.Builder modelBuilder =
-                new PropertyModel.Builder(ContextMenuSubmenuItemProperties.ALL_KEYS)
-                        .with(ContextMenuSubmenuItemProperties.TITLE, label)
-                        .with(ListMenuItemProperties.ENABLED, isEnabled)
-                        .with(ContextMenuSubmenuItemProperties.SUBMENU_ITEMS, submenuItems.mItems);
-        mItems.add(new ListItem(ListItemType.CONTEXT_MENU_ITEM_WITH_SUBMENU, modelBuilder.build()));
+                new PropertyModel.Builder(ListMenuSubmenuItemProperties.ALL_KEYS)
+                        .with(TITLE, label)
+                        .with(START_ICON_BITMAP, bitmap)
+                        .with(ENABLED, isEnabled)
+                        .with(ListMenuSubmenuItemProperties.SUBMENU_ITEMS, submenuItems.mItems);
+        mItems.add(new ListItem(ListItemType.MENU_ITEM_WITH_SUBMENU, modelBuilder.build()));
     }
 
     /** Adds a divider to the context menu. */

@@ -13,6 +13,7 @@
 #include <vector>
 
 #include "base/callback_list.h"
+#include "base/functional/callback_forward.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/raw_ref.h"
 #include "base/memory/ref_counted.h"
@@ -25,6 +26,7 @@
 #include "base/types/pass_key.h"
 #include "components/optimization_guide/core/delivery/model_info.h"
 #include "components/optimization_guide/core/model_execution/feature_keys.h"
+#include "components/optimization_guide/core/model_execution/on_device_model_adaptation_loader.h"
 #include "components/optimization_guide/core/model_execution/on_device_model_component.h"
 #include "components/optimization_guide/core/model_execution/on_device_model_metadata.h"
 #include "components/optimization_guide/core/model_execution/on_device_model_validator.h"
@@ -48,10 +50,6 @@
 
 class OptimizationGuideLogger;
 
-namespace base {
-class FilePath;
-}  // namespace base
-
 namespace optimization_guide {
 enum class OnDeviceModelEligibilityReason;
 class OnDeviceModelAccessController;
@@ -73,20 +71,16 @@ class ModelController {
 };
 
 // Controls the lifetime of the on-device model service, loading and unloading
-// of the models, and executing them via the service.
-//
-// As all OnDeviceModelServiceController's share the same model, and we do not
-// want to load duplicate models (would consume excessive amounts of memory), at
-// most one instance of OnDeviceModelServiceController is created.
-class OnDeviceModelServiceController
-    : public base::RefCounted<OnDeviceModelServiceController>,
-      public mojom::ModelBroker {
+// of the models, and executing them via the service. There is normally only
+// a single instance of this object.
+class OnDeviceModelServiceController final : public mojom::ModelBroker {
  public:
   OnDeviceModelServiceController(
       std::unique_ptr<OnDeviceModelAccessController> access_controller,
       base::WeakPtr<OnDeviceModelComponentStateManager>
           on_device_component_state_manager,
-      on_device_model::ServiceClient::LaunchFn launch_fn);
+      base::SafeRef<on_device_model::ServiceClient> service_client);
+  ~OnDeviceModelServiceController() override;
 
   // Initializes OnDeviceModelServiceController. This should be called once
   // after creation.
@@ -112,16 +106,14 @@ class OnDeviceModelServiceController
 
   // Updates safety model if the model path provided by `model_info` differs
   // from what is already loaded. Virtual for testing.
-  virtual void MaybeUpdateSafetyModel(
-      base::optional_ref<const ModelInfo> model_info);
+  void MaybeUpdateSafetyModel(base::optional_ref<const ModelInfo> model_info);
 
   // Updates the main execution model.
   void UpdateModel(std::unique_ptr<OnDeviceModelMetadata> model_metadata);
 
   // Updates the model adaptation for the feature.
-  void MaybeUpdateModelAdaptation(
-      ModelBasedCapabilityKey feature,
-      std::unique_ptr<OnDeviceModelAdaptationMetadata> adaptation_metadata);
+  void MaybeUpdateModelAdaptation(ModelBasedCapabilityKey feature,
+                                  MaybeAdaptationMetadata adaptation_metadata);
 
   // Add/remove observers for notifying on-device model availability changes.
   void AddOnDeviceModelAvailabilityChangeObserver(
@@ -138,14 +130,8 @@ class OnDeviceModelServiceController
     return weak_ptr_factory_.GetWeakPtr();
   }
 
-  OnDeviceModelAdaptationMetadata* GetFeatureMetadata(
-      ModelBasedCapabilityKey feature);
-
-  const base::flat_map<ModelBasedCapabilityKey,
-                       OnDeviceModelAdaptationMetadata>&
-  model_adaptation_metadata() const {
-    return model_adaptation_metadata_;
-  }
+  // Retrieves the object storing the adaptation metadata for 'feature'.
+  MaybeAdaptationMetadata& GetFeatureMetadata(ModelBasedCapabilityKey feature);
 
   void BindBroker(mojo::PendingReceiver<mojom::ModelBroker> receiver) {
     receivers_.Add(this, std::move(receiver));
@@ -155,14 +141,13 @@ class OnDeviceModelServiceController
   // `complete` runs.
   void EnsurePerformanceClassAvailable(base::OnceClosure complete);
 
-  virtual void RegisterPerformanceClassSyntheticTrial(
-      OnDeviceModelPerformanceClass perf_class) {}
+  // Registers a callback to be called once performance class is available,
+  // but does not trigger the computation. Returns true if it was already
+  // available.
+  bool ListenForPerformanceClassAvailable(base::OnceClosure available);
 
- protected:
-  ~OnDeviceModelServiceController() override;
-
-  std::optional<base::FilePath> language_detection_model_path() const {
-    return safety_client_.language_detection_model_path();
+  const SafetyClient& GetSafetyClientForTesting() const {
+    return safety_client_;
   }
 
  private:
@@ -346,7 +331,6 @@ class OnDeviceModelServiceController
   friend class SolutionProvider;
   friend class OnDeviceModelAdaptationController;
   friend class OnDeviceModelClient;
-  friend class base::RefCounted<OnDeviceModelServiceController>;
 
   // Called when the service disconnects unexpectedly.
   void OnServiceDisconnected(on_device_model::ServiceDisconnectReason reason);
@@ -373,19 +357,22 @@ class OnDeviceModelServiceController
   // Called when performance class has finished updating.
   void PerformanceClassUpdated(OnDeviceModelPerformanceClass perf_class);
 
+  // Notify observers that the performance class is available.
+  void NotifyPerformanceClassAvailable();
+
   // This may be null in the destructor, otherwise non-null.
   std::unique_ptr<OnDeviceModelAccessController> access_controller_;
   std::optional<OnDeviceModelMetadataLoader> model_metadata_loader_;
   base::WeakPtr<OnDeviceModelComponentStateManager>
       on_device_component_state_manager_;
 
-  on_device_model::ServiceClient service_client_;
+  base::SafeRef<on_device_model::ServiceClient> service_client_;
   SafetyClient safety_client_;
 
   // Map from feature to its adaptation assets. Present only for features that
   // have valid model adaptation. It could be missing for features that require
   // model adaptation, but they have not been loaded yet.
-  base::flat_map<ModelBasedCapabilityKey, OnDeviceModelAdaptationMetadata>
+  base::flat_map<ModelBasedCapabilityKey, MaybeAdaptationMetadata>
       model_adaptation_metadata_;
 
   std::map<ModelBasedCapabilityKey, SolutionProvider> solution_providers_;

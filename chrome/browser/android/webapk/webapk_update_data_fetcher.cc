@@ -73,12 +73,13 @@ jlong JNI_WebApkUpdateDataFetcher_Initialize(
   return reinterpret_cast<intptr_t>(fetcher);
 }
 
-WebApkUpdateDataFetcher::WebApkUpdateDataFetcher(JNIEnv* env,
-                                                 jobject obj,
-                                                 const GURL& start_url,
-                                                 const GURL& scope,
-                                                 const GURL& web_manifest_url,
-                                                 const GURL& web_manifest_id)
+WebApkUpdateDataFetcher::WebApkUpdateDataFetcher(
+    JNIEnv* env,
+    const base::android::JavaRef<jobject>& obj,
+    const GURL& start_url,
+    const GURL& scope,
+    const GURL& web_manifest_url,
+    const GURL& web_manifest_id)
     : content::WebContentsObserver(nullptr),
       start_url_(start_url),
       scope_(scope),
@@ -92,23 +93,20 @@ WebApkUpdateDataFetcher::~WebApkUpdateDataFetcher() = default;
 
 void WebApkUpdateDataFetcher::ReplaceWebContents(
     JNIEnv* env,
-    const JavaParamRef<jobject>& obj,
     const JavaParamRef<jobject>& java_web_contents) {
   content::WebContents* web_contents =
       content::WebContents::FromJavaWebContents(java_web_contents);
   content::WebContentsObserver::Observe(web_contents);
 }
 
-void WebApkUpdateDataFetcher::Destroy(JNIEnv* env,
-                                      const JavaParamRef<jobject>& obj) {
+void WebApkUpdateDataFetcher::Destroy(JNIEnv* env) {
   delete this;
 }
 
 void WebApkUpdateDataFetcher::Start(
     JNIEnv* env,
-    const JavaParamRef<jobject>& obj,
     const JavaParamRef<jobject>& java_web_contents) {
-  ReplaceWebContents(env, obj, java_web_contents);
+  ReplaceWebContents(env, java_web_contents);
   if (!web_contents()->IsLoading())
     FetchInstallableData();
 }

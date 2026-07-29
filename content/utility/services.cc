@@ -8,7 +8,7 @@
 
 #include "base/command_line.h"
 #include "base/feature_list.h"
-#include "base/lazy_instance.h"
+#include "base/no_destructor.h"
 #include "base/task/single_thread_task_runner.h"
 #include "build/branding_buildflags.h"
 #include "build/build_config.h"
@@ -32,6 +32,7 @@
 #include "services/data_decoder/data_decoder_service.h"
 #include "services/network/network_service.h"
 #include "services/on_device_model/on_device_model_service.h"
+#include "services/on_device_model/public/mojom/on_device_model_service.mojom.h"
 #include "services/tracing/public/mojom/tracing_service.mojom.h"
 #include "services/tracing/tracing_service.h"
 #include "services/video_capture/public/mojom/video_capture_service.mojom.h"
@@ -121,8 +122,10 @@ extern sandbox::TargetServices* g_utility_target_services;
 #endif  // BUILDFLAG(ENABLE_GPU_CHANNEL_MEDIA_CAPTURE)
 
 namespace content {
-base::LazyInstance<NetworkBinderCreationCallback>::Leaky
-    g_network_binder_creation_callback_for_testing = LAZY_INSTANCE_INITIALIZER;
+NetworkBinderCreationCallback& GetNetworkBinderCreationCallbackForTesting() {
+  static base::NoDestructor<NetworkBinderCreationCallback> callback;
+  return *callback;
+}
 
 namespace {
 
@@ -187,9 +190,8 @@ class UtilityThreadVideoCaptureServiceImpl final
 auto RunNetworkService(
     mojo::PendingReceiver<network::mojom::NetworkService> receiver) {
   auto binders = std::make_unique<service_manager::BinderRegistry>();
-  if (g_network_binder_creation_callback_for_testing.Get()) {
-    std::move(g_network_binder_creation_callback_for_testing.Get())
-        .Run(binders.get());
+  if (GetNetworkBinderCreationCallbackForTesting()) {
+    std::move(GetNetworkBinderCreationCallbackForTesting()).Run(binders.get());
   }
   return std::make_unique<network::NetworkService>(
       std::move(binders), std::move(receiver),
@@ -397,7 +399,7 @@ auto RunVideoEncodeAcceleratorProviderFactory(
 
 void SetNetworkBinderCreationCallbackForTesting(  // IN-TEST
     NetworkBinderCreationCallback callback) {
-  g_network_binder_creation_callback_for_testing.Get() = std::move(callback);
+  GetNetworkBinderCreationCallbackForTesting() = std::move(callback);
 }
 
 void RegisterIOThreadServices(mojo::ServiceFactory& services) {

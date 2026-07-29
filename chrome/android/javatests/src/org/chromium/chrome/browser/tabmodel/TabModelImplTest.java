@@ -33,7 +33,9 @@ import org.chromium.base.test.util.Batch;
 import org.chromium.base.test.util.CommandLineFlags;
 import org.chromium.base.test.util.CriteriaHelper;
 import org.chromium.base.test.util.DisabledTest;
+import org.chromium.base.test.util.Features;
 import org.chromium.chrome.browser.ChromeTabbedActivity;
+import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.browser.media.MediaCaptureDevicesDispatcherAndroid;
 import org.chromium.chrome.browser.media.MediaCaptureDevicesDispatcherAndroidJni;
@@ -307,6 +309,125 @@ public class TabModelImplTest {
                     assertEquals(
                             TabLaunchType.FROM_TAB_LIST_INTERFACE,
                             duplicatedTab.getTabLaunchTypeAtCreation());
+                });
+    }
+
+    @Test
+    @SmallTest
+    public void testDuplicateTab_PinnedTab() {
+        String url = "https://www.chromium.org/chromium-projects/";
+        GURL gurl1 = new GURL("https://www.example.com/");
+        mPage.openNewTabFast().loadWebPageProgrammatically(url);
+        // 0:Tab0 | 1:Tab1 (tabToDuplicate)
+
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    assertEquals(2, mTabModelJni.getCount());
+                    Tab tab0 = mTabModelJni.getTabAt(/* index= */ 0);
+                    Tab tab1 = mTabModelJni.getTabAt(/* index= */ 1);
+
+                    GURL gurl0 = new GURL(url);
+                    assertEquals(gurl0, tab1.getUrl());
+                    assertNull(tab1.getTabGroupId());
+                    assertFalse(tab1.getIsPinned());
+
+                    mTabModelJni.pinTab(tab1);
+                    mTabModelJni.pinTab(tab0);
+                    assertEquals(0, mTabModelJni.indexOf(tab1));
+                    assertEquals(1, mTabModelJni.indexOf(tab0));
+                    assertTrue(tab1.getIsPinned());
+                    assertTrue(tab0.getIsPinned());
+                    // [0:Tab1 (tabToDuplicate)] | [1:Tab0]
+
+                    mTabModelJni.duplicateTabForTesting(tab1);
+                    assertEquals(3, mTabModelJni.getCount());
+                    assertEquals(0, mTabModelJni.indexOf(tab1));
+                    assertEquals(2, mTabModelJni.indexOf(tab0));
+                    // [0:Tab1 (tabToDuplicate)] | [1:Tab2 (duplicatedTab)] | [2:Tab0]
+
+                    // Assert duplicatedTab (tab2)
+                    Tab tab2 = mTabModelJni.getTabAt(/* index= */ 1);
+                    assertEquals(tab1.getId(), tab2.getParentId());
+                    assertEquals(gurl0, tab2.getUrl());
+                    assertEquals(
+                            TabLaunchType.FROM_TAB_LIST_INTERFACE,
+                            tab2.getTabLaunchTypeAtCreation());
+                    assertTrue(tab2.getIsPinned());
+                    assertNull(tab2.getTabGroupId());
+                    assertNull(tab1.getTabGroupId());
+
+                    mTabModelJni.openTabProgrammatically(gurl1, 3);
+                    assertEquals(4, mTabModelJni.getCount());
+                    Tab tab3 = mTabModelJni.getTabAt(3);
+                    assertEquals(gurl1, tab3.getUrl());
+                    // [0:Tab1] | [1:Tab2] | [2:Tab0] | 3:Tab3
+
+                    mTabModelJni.unpinTab(tab1);
+                    assertEquals(2, mTabModelJni.indexOf(tab1));
+                    // [0:Tab2] | [1:Tab0] | 2:Tab1 | 3:Tab3
+
+                    mTabModelJni.duplicateTabForTesting(tab2);
+                    assertEquals(5, mTabModelJni.getCount());
+                    assertEquals(0, mTabModelJni.indexOf(tab2));
+                    assertEquals(2, mTabModelJni.indexOf(tab0));
+                    assertEquals(3, mTabModelJni.indexOf(tab1));
+                    assertEquals(4, mTabModelJni.indexOf(tab3));
+                    // [0:Tab2 (tabToDuplicate)] | [1:Tab4 (duplicatedTab)] | [2:Tab0] | 3:Tab1
+                    // | 4:Tab3
+
+                    // Assert duplicatedTab (tab4)
+                    Tab tab4 = mTabModelJni.getTabAt(/* index= */ 1);
+                    assertEquals(tab2.getId(), tab4.getParentId());
+                    assertEquals(gurl0, tab4.getUrl());
+                    assertEquals(
+                            TabLaunchType.FROM_TAB_LIST_INTERFACE,
+                            tab2.getTabLaunchTypeAtCreation());
+                    assertTrue(tab4.getIsPinned());
+                    assertNull(tab4.getTabGroupId());
+                    assertNull(tab2.getTabGroupId());
+
+                    // Clean-up (otherwise next tests will fail)
+                    mTabModelJni.unpinTab(tab2);
+                    mTabModelJni.unpinTab(tab4);
+                    mTabModelJni.unpinTab(tab0);
+                });
+    }
+
+    @Test
+    @SmallTest
+    public void testPinUnpinTab() {
+        createTabs(2);
+
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    assertEquals(3, mTabModelJni.getCount());
+                    Tab tab0 = mTabModelJni.getTabAt(/* index= */ 0);
+                    Tab tab1 = mTabModelJni.getTabAt(/* index= */ 1);
+                    Tab tab2 = mTabModelJni.getTabAt(/* index= */ 2);
+                    assertFalse(tab0.getIsPinned());
+                    assertFalse(tab1.getIsPinned());
+                    assertFalse(tab2.getIsPinned());
+
+                    mTabModelJni.pinTab(tab1);
+                    assertTrue(tab1.getIsPinned());
+                    assertEquals(0, mTabModelJni.indexOf(tab1));
+                    assertEquals(1, mTabModelJni.indexOf(tab0));
+                    assertEquals(2, mTabModelJni.indexOf(tab2));
+
+                    mTabModelJni.pinTab(tab2);
+                    assertTrue(tab2.getIsPinned());
+                    assertEquals(0, mTabModelJni.indexOf(tab1));
+                    assertEquals(1, mTabModelJni.indexOf(tab2));
+                    assertEquals(2, mTabModelJni.indexOf(tab0));
+
+                    mTabModelJni.unpinTab(tab1);
+                    assertFalse(tab1.getIsPinned());
+                    assertEquals(0, mTabModelJni.indexOf(tab2));
+                    assertEquals(1, mTabModelJni.indexOf(tab1));
+                    assertEquals(2, mTabModelJni.indexOf(tab0));
+
+                    // Clean-up (otherwise next tests will fail)
+                    mTabModelJni.unpinTab(tab2);
                 });
     }
 
@@ -1058,6 +1179,78 @@ public class TabModelImplTest {
 
                     // Cleanup.
                     tabModel.removeObserver(mTabModelObserver);
+                });
+    }
+
+    @Test
+    @SmallTest
+    @Features.EnableFeatures(ChromeFeatureList.ANDROID_TAB_HIGHLIGHTING)
+    public void testHighlightTabs() {
+        createTabs(2);
+
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    TabModel tabModel =
+                            mActivityTestRule.getActivity().getTabModelSelector().getModel(false);
+                    assertEquals("Should start with 3 tabs.", 3, tabModel.getCount());
+
+                    Tab tab0 = tabModel.getTabAt(0);
+                    Tab tab1 = tabModel.getTabAt(1);
+                    Tab tab2 = tabModel.getTabAt(2);
+
+                    // Initially, only Tab 1 should be in the multi-selection set.
+                    assertEquals(
+                            "There should be only 1 tab in the selection set",
+                            1,
+                            tabModel.getMultiSelectedTabsCount());
+                    assertFalse(
+                            "Tab 0 should not be selected initially.",
+                            tabModel.isTabMultiSelected(tab0.getId()));
+                    assertFalse(
+                            "Tab 1 should not be selected initially.",
+                            tabModel.isTabMultiSelected(tab1.getId()));
+                    assertTrue(
+                            "Tab 2 should be selected initially.",
+                            tabModel.isTabMultiSelected(tab2.getId()));
+
+                    // Highlight Tab 1 and Tab 2, and activate Tab 1.
+                    List<Tab> tabsToHighlight = new ArrayList<>();
+                    tabsToHighlight.add(tab1);
+                    tabsToHighlight.add(tab2);
+                    mTabModelJni.highlightTabs(tab1, tabsToHighlight);
+
+                    // Verify that Tab 1 is the active tab.
+                    assertEquals("The active tab should be at index 1.", 1, tabModel.index());
+
+                    // Verify the multi-selection state.
+                    assertFalse(
+                            "Tab 0 should not be selected.",
+                            tabModel.isTabMultiSelected(tab0.getId()));
+                    assertTrue(
+                            "Tab 1 should now be selected.",
+                            tabModel.isTabMultiSelected(tab1.getId()));
+                    assertTrue(
+                            "Tab 2 should now be selected.",
+                            tabModel.isTabMultiSelected(tab2.getId()));
+
+                    // Verify the destructive nature by highlighting another tab.
+                    List<Tab> moreTabs = new ArrayList<>();
+                    moreTabs.add(tab0);
+                    mTabModelJni.highlightTabs(tab0, moreTabs);
+
+                    // Verify that Tab 0 is now the active tab.
+                    assertEquals("The active tab should now be at index 0.", 0, tabModel.index());
+
+                    // Verify that only tab 0 is in the multi-selection set.
+                    assertTrue(
+                            "Tab 0 should now be selected.",
+                            tabModel.isTabMultiSelected(tab0.getId()));
+                    assertFalse(
+                            "Tab 1 should not be selected.",
+                            tabModel.isTabMultiSelected(tab1.getId()));
+                    assertFalse(
+                            "Tab 2 should not be selected.",
+                            tabModel.isTabMultiSelected(tab2.getId()));
                 });
     }
 

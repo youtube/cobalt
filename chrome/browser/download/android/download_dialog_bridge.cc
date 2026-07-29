@@ -32,8 +32,7 @@ DownloadDialogResult::~DownloadDialogResult() = default;
 DownloadDialogBridge::DownloadDialogBridge() : is_dialog_showing_(false) {
   JNIEnv* env = base::android::AttachCurrentThread();
   java_obj_.Reset(env, Java_DownloadDialogBridge_create(
-                           env, reinterpret_cast<intptr_t>(this))
-                           .obj());
+                           env, reinterpret_cast<intptr_t>(this)));
   DCHECK(!java_obj_.is_null());
 }
 
@@ -84,7 +83,6 @@ void DownloadDialogBridge::ShowDialog(
 
 void DownloadDialogBridge::OnComplete(
     JNIEnv* env,
-    const base::android::JavaParamRef<jobject>& obj,
     std::string& returned_path,
     bool did_user_confirm) {
   DownloadDialogResult dialog_result;
@@ -98,9 +96,7 @@ void DownloadDialogBridge::OnComplete(
   is_dialog_showing_ = false;
 }
 
-void DownloadDialogBridge::OnCanceled(
-    JNIEnv* env,
-    const base::android::JavaParamRef<jobject>& obj) {
+void DownloadDialogBridge::OnCanceled(JNIEnv* env) {
   if (dialog_callback_) {
     DownloadDialogResult dialog_result;
     dialog_result.location_result = DownloadLocationDialogResult::USER_CANCELED;

@@ -30,6 +30,7 @@
 #include "ui/views/layout/box_layout.h"
 #include "ui/views/layout/flex_layout_view.h"
 #include "ui/views/style/typography.h"
+#include "ui/views/view_tracker.h"
 
 class Browser;
 
@@ -182,8 +183,12 @@ class ProfileMenuViewBase : public content::WebContentsDelegate,
 
   void AddBottomMargin();
 
-  // Should be called inside each button/link action.
-  void RecordClick(ActionableItem item);
+  // Records an explicit user click on an actionable item.
+  // Must be called inside each button/link action, which also helps
+  // `ProfileMenuView` differentiate between menu dismissals and actual user
+  // interactions. See `actionable_item_clicked_`.
+  // TODO(crbug.com/433727015): Ensure all actionable item clicks are recorded.
+  void OnActionableItemClicked(ActionableItem item);
 
   Profile& profile() const { return *profile_; }
 
@@ -191,12 +196,11 @@ class ProfileMenuViewBase : public content::WebContentsDelegate,
   // TODO(crbug.com/40587757): remove when a general solution is available.
   int GetMaxHeight() const;
 
-  views::Button* anchor_button() const { return anchor_button_; }
-
   bool perform_menu_actions() const { return perform_menu_actions_; }
   void set_perform_menu_actions_for_testing(bool perform_menu_actions) {
     perform_menu_actions_ = perform_menu_actions;
   }
+  bool actionable_item_clicked() const { return actionable_item_clicked_; }
 
  private:
   class AXMenuWidgetObserver;
@@ -228,7 +232,10 @@ class ProfileMenuViewBase : public content::WebContentsDelegate,
       const std::u16string& text);
 
   const raw_ref<Profile> profile_;
-  const raw_ptr<views::Button> anchor_button_;
+
+  // `anchor_button_` usually lives in a separate Views hierarchy than the menu
+  // view. Use a ViewTracker to avoid potential UAF crashes.
+  views::ViewTracker anchor_button_;
 
   // Component containers.
   raw_ptr<views::View> identity_info_container_ = nullptr;
@@ -250,6 +257,13 @@ class ProfileMenuViewBase : public content::WebContentsDelegate,
   // May be disabled by tests that only watch to histogram records and don't
   // care about actual actions.
   bool perform_menu_actions_ = true;
+
+  // True if a user clicked an actionable item and the click was recorded via
+  // `OnActionableItemClicked`. This flag helps `ProfileMenuView`
+  // distinguish between users dismissing the menu (e.g., via the Escape key or
+  // by clicking outside) and performing an explicit action. Menu dismissals
+  // (when this flag is false) trigger a HaTS survey.
+  bool actionable_item_clicked_ = false;
 
   CloseBubbleOnTabActivationHelper close_bubble_helper_;
 

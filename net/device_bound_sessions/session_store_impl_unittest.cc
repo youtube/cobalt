@@ -78,7 +78,8 @@ std::unique_ptr<Session> CreateSessionHelper(
                        url_string,
                        std::move(scope),
                        std::move(cookie_credentials),
-                       GenerateNewKey(key_service)};
+                       GenerateNewKey(key_service),
+                       /*allowed_refresh_initiators=*/{}};
   return *Session::CreateIfValid(params);
 }
 
@@ -499,6 +500,31 @@ TEST_F(SessionStoreImplTest, PruneLoadedEntryWithSessionMissingWrappedKey) {
   sproto.clear_wrapped_key();
 
   // Create a single entry table with the above session data.
+  proto::SiteSessions site_proto;
+  (*site_proto.mutable_sessions())["session_id"] = std::move(sproto);
+  std::map<std::string, proto::SiteSessions> loaded_tbl;
+  auto site = net::SchemefulSite(GURL("https://foo.example.test"));
+  loaded_tbl[site.Serialize()] = std::move(site_proto);
+
+  // Run the table through the store's cleaning method.
+  std::vector<std::string> keys_to_delete;
+  SessionStore::SessionsMap sessions_map =
+      SessionStoreImpl::CreateSessionsFromLoadedData(loaded_tbl,
+                                                     keys_to_delete);
+
+  // Verify that the DB entry has been pruned in the output sessions map.
+  EXPECT_EQ(sessions_map.size(), 0u);
+  EXPECT_EQ(keys_to_delete.size(), 1u);
+  EXPECT_EQ(keys_to_delete[0], site.Serialize());
+}
+
+TEST_F(SessionStoreImplTest, PruneLoadedEntryWithInvalidRefreshInitiator) {
+  // Create an entry with an invalid refresh initiator.
+  proto::Session sproto =
+      CreateSessionProto(unexportable_key_service(), "https://foo.example.test",
+                         "session_1", "https://foo.example.test");
+  sproto.add_allowed_refresh_initiators("a.*.example.test");
+
   proto::SiteSessions site_proto;
   (*site_proto.mutable_sessions())["session_id"] = std::move(sproto);
   std::map<std::string, proto::SiteSessions> loaded_tbl;

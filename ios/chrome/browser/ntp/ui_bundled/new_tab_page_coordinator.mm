@@ -31,6 +31,7 @@
 #import "ios/chrome/app/profile/profile_init_stage.h"
 #import "ios/chrome/app/profile/profile_state.h"
 #import "ios/chrome/app/profile/profile_state_observer.h"
+#import "ios/chrome/browser/aim/prototype/coordinator/aim_prototype_coordinator.h"
 #import "ios/chrome/browser/authentication/ui_bundled/account_menu/account_menu_constants.h"
 #import "ios/chrome/browser/authentication/ui_bundled/account_menu/account_menu_coordinator.h"
 #import "ios/chrome/browser/authentication/ui_bundled/account_menu/account_menu_coordinator_delegate.h"
@@ -59,6 +60,7 @@
 #import "ios/chrome/browser/lens/ui_bundled/lens_entrypoint.h"
 #import "ios/chrome/browser/ntp/model/new_tab_page_state.h"
 #import "ios/chrome/browser/ntp/model/new_tab_page_tab_helper.h"
+#import "ios/chrome/browser/ntp/search_engine_logo/mediator/search_engine_logo_mediator.h"
 #import "ios/chrome/browser/ntp/shared/metrics/feed_metrics_constants.h"
 #import "ios/chrome/browser/ntp/shared/metrics/feed_metrics_recorder.h"
 #import "ios/chrome/browser/ntp/shared/metrics/home_metrics.h"
@@ -145,6 +147,7 @@
 #import "ui/base/l10n/l10n_util_mac.h"
 
 @interface NewTabPageCoordinator () <AccountMenuCoordinatorDelegate,
+                                     AIMPrototypeCoordinatorDelegate,
                                      AuthenticationServiceObserving,
                                      ContentSuggestionsDelegate,
                                      DiscoverFeedObserverBridgeDelegate,
@@ -274,6 +277,8 @@
 @end
 
 @implementation NewTabPageCoordinator {
+  // Coordinator for the AIM prototype.
+  AIMPrototypeCoordinator* _aimPrototypeCoordinator;
   // Coordinator in charge of handling sharing use cases.
   SharingCoordinator* _sharingCoordinator;
   // Coordinator for presenting the Home customization menu.
@@ -284,7 +289,7 @@
   BOOL _fakeboxTapped;
   // The account menu coordinator.
   AccountMenuCoordinator* _accountMenuCoordinator;
-  // The sign in and history sync coordinator displayed on top of the NTP.
+  // The sign in coordinator displayed on top of the NTP.
   SigninCoordinator* _signinCoordinator;
 }
 
@@ -388,6 +393,8 @@
     return;
   }
 
+  [self stopAimPrototypeCoordinator];
+
   _webState = nullptr;
 
   SceneState* sceneState = self.browser->GetSceneState();
@@ -403,6 +410,9 @@
   // browsers!
 
   [sceneState.profileState removeObserver:self];
+
+  [self.logoVendor disconnect];
+  self.logoVendor = nil;
 
   [_tabGroupIndicatorCoordinator stop];
   _tabGroupIndicatorCoordinator = nil;
@@ -660,7 +670,9 @@
   Browser* browser = self.browser;
   id<NewTabPageComponentFactoryProtocol> componentFactory =
       self.componentFactory;
-  self.logoVendor = ios::provider::CreateLogoVendor(browser, self.webState);
+  self.logoVendor =
+      [[SearchEngineLogoMediator alloc] initWithBrowser:browser
+                                               webState:self.webState];
   self.NTPViewController = [componentFactory NTPViewController];
   self.headerViewController =
       [componentFactory headerViewControllerForProfile:self.profile];
@@ -951,6 +963,23 @@
                                HomeCustomizationEntrypoint::kMain];
 
   [self openCustomizationMenuAtPage:CustomizationMenuPage::kMain animated:YES];
+}
+
+#pragma mark - SigninPromoViewMediatorDelegate
+
+- (void)showSigninWithCommand:(ShowSigninCommand*)command {
+  if (_signinCoordinator) {
+    SigninCoordinatorCompletionCallback completion = command.completion;
+    if (completion) {
+      completion(SigninCoordinatorResultInterrupted, nil);
+    }
+    return;
+  }
+  _signinCoordinator =
+      [SigninCoordinator signinCoordinatorWithCommand:command
+                                              browser:self.browser
+                                   baseViewController:self.baseViewController];
+  [_signinCoordinator start];
 }
 
 #pragma mark - DiscoverFeedVisibilityObserver
@@ -1283,20 +1312,7 @@
 }
 
 - (BOOL)isSignInAllowed {
-  AuthenticationService::ServiceStatus statusService =
-      self.authService->GetServiceStatus();
-  switch (statusService) {
-    case AuthenticationService::ServiceStatus::SigninDisabledByPolicy:
-    case AuthenticationService::ServiceStatus::SigninDisabledByInternal:
-    case AuthenticationService::ServiceStatus::SigninDisabledByUser: {
-      return NO;
-    }
-    case AuthenticationService::ServiceStatus::SigninForcedByPolicy:
-    case AuthenticationService::ServiceStatus::SigninAllowed: {
-      break;
-    }
-  }
-  return YES;
+  return self.authService->SigninEnabled();
 }
 
 #pragma mark - NewTabPageFollowDelegate
@@ -1518,18 +1534,12 @@
 #pragma mark - AuthenticationServiceObserving
 
 - (void)onServiceStatusChanged {
-  switch (self.authService->GetServiceStatus()) {
-    case AuthenticationService::ServiceStatus::SigninForcedByPolicy:
-    case AuthenticationService::ServiceStatus::SigninAllowed:
-      break;
-    case AuthenticationService::ServiceStatus::SigninDisabledByUser:
-    case AuthenticationService::ServiceStatus::SigninDisabledByPolicy:
-    case AuthenticationService::ServiceStatus::SigninDisabledByInternal:
-      // If sign-in becomes disabled, the sign-in promo must be disabled too.
-      // TODO(crbug.com/40280872): The sign-in promo should just be hidden
-      // instead of resetting the hierarchy.
-      [self handleChangeInModules];
-      [self setContentOffsetToTop];
+  if (!self.authService->SigninEnabled()) {
+    // If sign-in becomes disabled, the sign-in promo must be disabled too.
+    // TODO(crbug.com/40280872): The sign-in promo should just be hidden
+    // instead of resetting the hierarchy.
+    [self handleChangeInModules];
+    [self setContentOffsetToTop];
   }
 }
 
@@ -1568,7 +1578,32 @@
   [self stopAccountMenuCoordinator];
 }
 
+#pragma mark - AIMPrototypeCoordinatorDelegate
+
+- (void)aimPrototypeCoordinatorDidFinish:(AIMPrototypeCoordinator*)coordinator {
+  [self stopAimPrototypeCoordinator];
+}
+
 #pragma mark - Private
+
+- (void)startAimPrototypeCoordinator {
+  if (_aimPrototypeCoordinator) {
+    return;
+  }
+  _aimPrototypeCoordinator = [[AIMPrototypeCoordinator alloc]
+      initWithBaseViewController:self.baseViewController
+                         browser:self.browser];
+  _aimPrototypeCoordinator.delegate = self;
+  [_aimPrototypeCoordinator start];
+}
+
+- (void)stopAimPrototypeCoordinator {
+  if (!_aimPrototypeCoordinator) {
+    return;
+  }
+  [_aimPrototypeCoordinator stop];
+  _aimPrototypeCoordinator = nil;
+}
 
 - (void)stopSharingCoordinator {
   [_sharingCoordinator stop];
@@ -1931,6 +1966,10 @@
 }
 
 - (void)openMIA {
+  if (base::FeatureList::IsEnabled(kAIMPrototype)) {
+    [self startAimPrototypeCoordinator];
+    return;
+  }
   [self.NTPMetricsRecorder recordMIATapped];
   OpenNewTabCommand* command = [OpenNewTabCommand
       commandWithURLFromChrome:GetUrlForAim(

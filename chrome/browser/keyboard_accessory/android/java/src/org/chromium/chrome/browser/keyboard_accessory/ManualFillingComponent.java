@@ -188,8 +188,10 @@ public interface ManualFillingComponent extends BackPressHandler {
      * Signals that the accessory has permission to show.
      *
      * @param waitForKeyboard signals if the keyboard is requested.
+     * @param isCredentialFieldOrHasAutofillSuggestions signals if the form field is either a
+     *     username/password field or it has autofill suggestions.
      */
-    void show(boolean waitForKeyboard);
+    void show(boolean waitForKeyboard, boolean isCredentialFieldOrHasAutofillSuggestions);
 
     /**
      * Requests to close the active tab in the keyboard accessory. If there is no active tab, this
@@ -246,15 +248,20 @@ public interface ManualFillingComponent extends BackPressHandler {
     boolean removeObserver(Observer observer);
 
     /**
-     * Show a confimation dialog.
+     * Show a deletion confimation dialog.
      *
      * @param title A title of the confirmation dialog.
      * @param message The message of the confirmation dialog.
+     * @param confirmButtonText The text on the confirmation button.
      * @param confirmedCallback A {@link Runnable} to trigger upon confirmation.
      * @param declinedCallback A {@link Runnable} to trigger upon rejection.
      */
-    void confirmOperation(
-            String title, String message, Runnable confirmedCallback, Runnable declinedCallback);
+    void confirmDeletionOperation(
+            String title,
+            CharSequence message,
+            String confirmButtonText,
+            Runnable confirmedCallback,
+            Runnable declinedCallback);
 
     /**
      * Returns the amount that the keyboard will be extended by the filling component when shown.

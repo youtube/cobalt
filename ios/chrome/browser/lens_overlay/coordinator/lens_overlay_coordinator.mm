@@ -84,6 +84,7 @@
 #import "ios/public/provider/chrome/browser/lens/lens_overlay_api.h"
 #import "ios/public/provider/chrome/browser/lens/lens_overlay_result.h"
 #import "ios/web/public/web_state.h"
+#import "ui/base/device_form_factor.h"
 #import "url/gurl.h"
 
 namespace {
@@ -170,7 +171,7 @@ const base::TimeDelta kSearchWithCameraTooltipHintDelay = base::Seconds(2.0);
   LensOverlayNetworkIssuePresenter* _networkIssuePresenter;
 
   /// Presenter for the results page.
-  LensOverlayResultsPagePresenter* _resultsPagePresenter;
+  id<LensOverlayResultsPagePresenting> _resultsPagePresenter;
 
   /// Presenter for the lens container.
   LensOverlayContainerPresenter* _containerPresenter;
@@ -430,6 +431,9 @@ const base::TimeDelta kSearchWithCameraTooltipHintDelay = base::Seconds(2.0);
   }
 
   [_selectionViewController setTopIconsHidden:self.shouldShowConsentFlow];
+  if (self.shouldShowConsentFlow) {
+    [_selectionViewController updateGuidanceViewVisibility:NO animated:YES];
+  }
 
   [_metricsRecorder setLensOverlayInForeground:YES];
 
@@ -1081,6 +1085,20 @@ const base::TimeDelta kSearchWithCameraTooltipHintDelay = base::Seconds(2.0);
                reason:lens::LensOverlayDismissalSource::kBottomSheetDismissed];
 }
 
+- (void)lensOverlayConsentPresenterWillShowConsent:
+    (LensOverlayConsentPresenter*)presented {
+  if (ui::GetDeviceFormFactor() == ui::DEVICE_FORM_FACTOR_TABLET) {
+    [_containerPresenter setContainerHidden:YES animated:NO];
+  }
+}
+
+- (void)lensOverlayConsentPresenterWillDismissConsent:
+    (LensOverlayConsentPresenter*)presented {
+  if (ui::GetDeviceFormFactor() == ui::DEVICE_FORM_FACTOR_TABLET) {
+    [_containerPresenter setContainerHidden:NO animated:YES];
+  }
+}
+
 #pragma mark - LensOverlayOverflowMenuDelegate
 
 - (void)openActionURL:(GURL)URL {
@@ -1501,6 +1519,7 @@ const base::TimeDelta kSearchWithCameraTooltipHintDelay = base::Seconds(2.0);
   [self disableSelectionInteraction:NO];
   [_selectionViewController setTopIconsHidden:NO];
   [_selectionViewController start];
+  [_selectionViewController updateGuidanceViewVisibility:YES animated:YES];
 
   [self scheduleTooltipHintDisplayIfNecessary];
 }

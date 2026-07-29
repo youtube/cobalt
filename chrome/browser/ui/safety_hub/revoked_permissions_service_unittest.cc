@@ -31,6 +31,7 @@
 #include "chrome/browser/ui/safety_hub/safety_hub_result.h"
 #include "chrome/browser/ui/safety_hub/safety_hub_test_util.h"
 #include "chrome/browser/ui/safety_hub/safety_hub_util.h"
+#include "chrome/browser/ui/safety_hub/unused_site_permissions_manager.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/test/base/chrome_render_view_host_test_harness.h"
 #include "chrome/test/base/testing_browser_process.h"
@@ -86,8 +87,6 @@ const ContentSettingsType revoked_abusive_notification =
     ContentSettingsType::REVOKED_ABUSIVE_NOTIFICATION_PERMISSIONS;
 const ContentSettingsType revoked_unused_site_type =
     ContentSettingsType::REVOKED_UNUSED_SITE_PERMISSIONS;
-// An arbitrary large number that doesn't match any ContentSettingsType;
-const int32_t unknown_type = 300000;
 
 std::set<ContentSettingsType> abusive_permission_types({notifications_type});
 std::set<ContentSettingsType> unused_permission_types({geolocation_type,
@@ -113,39 +112,6 @@ std::unique_ptr<KeyedService> BuildTestHistoryService(
   auto service = std::make_unique<history::HistoryService>();
   service->Init(history::TestHistoryDatabaseParamsForPath(context->GetPath()));
   return service;
-}
-
-void PopulateWebsiteSettingsLists(base::Value::List& integer_keyed,
-                                  base::Value::List& string_keyed) {
-  auto* website_settings_registry =
-      content_settings::WebsiteSettingsRegistry::GetInstance();
-  for (const auto* info : *website_settings_registry) {
-    ContentSettingsType type = info->type();
-    if (content_settings::CanTrackLastVisit(type)) {
-      // TODO(crbug.com/41495119): Find a way to iterate over all chooser based
-      // settings and populate the revoked-chooser dictionary accordingly.
-      if (content_settings::IsChooserPermissionEligibleForAutoRevocation(
-              type)) {
-        // Currently there's only one chooser content settings type.
-        // Ensure all chooser types are covered.
-        EXPECT_EQ(ContentSettingsType::FILE_SYSTEM_ACCESS_CHOOSER_DATA, type);
-      }
-
-      integer_keyed.Append(static_cast<int32_t>(type));
-      string_keyed.Append(
-          RevokedPermissionsService::ConvertContentSettingsTypeToKey(type));
-    }
-  }
-}
-
-void PopulateChooserWebsiteSettingsDicts(base::Value::Dict& integer_keyed,
-                                         base::Value::Dict& string_keyed) {
-  integer_keyed = base::Value::Dict().Set(
-      base::NumberToString(static_cast<int32_t>(chooser_type)),
-      base::Value::Dict().Set("foo", "bar"));
-  string_keyed = base::Value::Dict().Set(
-      RevokedPermissionsService::ConvertContentSettingsTypeToKey(chooser_type),
-      base::Value::Dict().Set("foo", "bar"));
 }
 
 }  // namespace
@@ -354,14 +320,14 @@ class RevokedPermissionsServiceTest
             .Set(permissions::kRevokedKey,
                  base::Value::List()
                      .Append(
-                         RevokedPermissionsService::
+                         UnusedSitePermissionsManager::
                              ConvertContentSettingsTypeToKey(geolocation_type))
-                     .Append(RevokedPermissionsService::
+                     .Append(UnusedSitePermissionsManager::
                                  ConvertContentSettingsTypeToKey(chooser_type)))
             .Set(permissions::kRevokedChooserPermissionsKey,
                  base::Value::Dict().Set(
-                     RevokedPermissionsService::ConvertContentSettingsTypeToKey(
-                         chooser_type),
+                     UnusedSitePermissionsManager::
+                         ConvertContentSettingsTypeToKey(chooser_type),
                      base::Value(base::Value::Dict().Set("foo", "bar"))));
 
     hcsm()->SetWebsiteSettingDefaultScope(
@@ -418,7 +384,7 @@ class RevokedPermissionsServiceTest
         ContentSettingsPattern::FromURLNoWildcard(GURL(url));
     permissions_data.permission_types = permission_types;
     permissions_data.chooser_permissions_data = base::Value::Dict().Set(
-        RevokedPermissionsService::ConvertContentSettingsTypeToKey(
+        UnusedSitePermissionsManager::ConvertContentSettingsTypeToKey(
             chooser_type),
         base::Value::Dict().Set("foo", "bar"));
     permissions_data.constraints =
@@ -888,7 +854,7 @@ TEST_P(RevokedPermissionsServiceTest, MultipleRevocationsForSameOrigin) {
   safety_hub_test_util::UpdateRevokedPermissionsServiceAsync(service());
   EXPECT_EQ(GetRevokedPermissionsForOneOrigin(hcsm(), GURL(url1)).size(), 1u);
   EXPECT_EQ(
-      RevokedPermissionsService::ConvertKeyToContentSettingsType(
+      UnusedSitePermissionsManager::ConvertKeyToContentSettingsType(
           GetRevokedPermissionsForOneOrigin(hcsm(), GURL(url1))[0].GetString()),
       geolocation_type);
   EXPECT_EQ(service()->GetTrackedUnusedPermissionsForTesting().size(), 1u);
@@ -915,15 +881,15 @@ TEST_P(RevokedPermissionsServiceTest,
   safety_hub_test_util::UpdateRevokedPermissionsServiceAsync(service());
   EXPECT_EQ(GetRevokedPermissionsForOneOrigin(hcsm(), GURL(url1)).size(), 3u);
   EXPECT_EQ(
-      RevokedPermissionsService::ConvertKeyToContentSettingsType(
+      UnusedSitePermissionsManager::ConvertKeyToContentSettingsType(
           GetRevokedPermissionsForOneOrigin(hcsm(), GURL(url1))[0].GetString()),
       geolocation_type);
   EXPECT_EQ(
-      RevokedPermissionsService::ConvertKeyToContentSettingsType(
+      UnusedSitePermissionsManager::ConvertKeyToContentSettingsType(
           GetRevokedPermissionsForOneOrigin(hcsm(), GURL(url1))[1].GetString()),
       mediastream_type);
   EXPECT_EQ(
-      RevokedPermissionsService::ConvertKeyToContentSettingsType(
+      UnusedSitePermissionsManager::ConvertKeyToContentSettingsType(
           GetRevokedPermissionsForOneOrigin(hcsm(), GURL(url1))[2].GetString()),
       chooser_type);
 
@@ -1215,7 +1181,7 @@ TEST_P(RevokedPermissionsServiceTest, NotRevokeNotificationPermission) {
   safety_hub_test_util::UpdateRevokedPermissionsServiceAsync(service());
   EXPECT_EQ(GetRevokedPermissionsForOneOrigin(hcsm(), GURL(url1)).size(), 1u);
   EXPECT_EQ(
-      RevokedPermissionsService::ConvertKeyToContentSettingsType(
+      UnusedSitePermissionsManager::ConvertKeyToContentSettingsType(
           GetRevokedPermissionsForOneOrigin(hcsm(), GURL(url1))[0].GetString()),
       geolocation_type);
 
@@ -1727,135 +1693,6 @@ TEST_P(RevokedPermissionsServiceTest, ChangingSettingOnRevokedSettingClearsIt) {
   }
 }
 
-TEST_P(RevokedPermissionsServiceTest,
-       UpdateIntegerValuesToGroupName_AllContentSettings) {
-  base::Value::List permissions_list_int;
-  base::Value::List permissions_list_string;
-  base::Value::Dict chooser_permission_dict_int;
-  base::Value::Dict chooser_permission_dict_string;
-  PopulateWebsiteSettingsLists(permissions_list_int, permissions_list_string);
-  PopulateChooserWebsiteSettingsDicts(chooser_permission_dict_int,
-                                      chooser_permission_dict_string);
-
-  auto dict = base::Value::Dict()
-                  .Set(permissions::kRevokedKey, permissions_list_int.Clone())
-                  .Set(permissions::kRevokedChooserPermissionsKey,
-                       chooser_permission_dict_int.Clone());
-
-  hcsm()->SetWebsiteSettingDefaultScope(GURL(url1), GURL(url1),
-                                        revoked_unused_site_type,
-                                        base::Value(dict.Clone()));
-
-  ContentSettingsForOneType revoked_permissions_content_settings =
-      hcsm()->GetSettingsForOneType(
-          ContentSettingsType::REVOKED_UNUSED_SITE_PERMISSIONS);
-
-  // Expecting no-op, stored integer values of content settings on disk.
-  EXPECT_EQ(permissions_list_int, GetRevokedUnusedPermissions(hcsm())[0]
-                                      .setting_value.GetDict()
-                                      .Find(permissions::kRevokedKey)
-                                      ->GetList());
-  EXPECT_EQ(chooser_permission_dict_int,
-            GetRevokedUnusedPermissions(hcsm())[0]
-                .setting_value.GetDict()
-                .Find(permissions::kRevokedChooserPermissionsKey)
-                ->GetDict());
-
-  // Update disk stored content settings values from integers to strings.
-  service()->UpdateIntegerValuesToGroupName();
-
-  // Validate content settings are stored in group name strings.
-  revoked_permissions_content_settings =
-      hcsm()->GetSettingsForOneType(revoked_unused_site_type);
-  EXPECT_EQ(permissions_list_string, GetRevokedUnusedPermissions(hcsm())[0]
-                                         .setting_value.GetDict()
-                                         .Find(permissions::kRevokedKey)
-                                         ->GetList());
-  EXPECT_EQ(chooser_permission_dict_string,
-            GetRevokedUnusedPermissions(hcsm())[0]
-                .setting_value.GetDict()
-                .Find(permissions::kRevokedChooserPermissionsKey)
-                ->GetDict());
-}
-
-TEST_P(RevokedPermissionsServiceTest,
-       UpdateIntegerValuesToGroupName_SubsetOfContentSettings) {
-  base::Value::List permissions_list_int;
-  permissions_list_int.Append(static_cast<int32_t>(geolocation_type));
-  permissions_list_int.Append(static_cast<int32_t>(mediastream_type));
-
-  auto dict = base::Value::Dict().Set(permissions::kRevokedKey,
-                                      permissions_list_int.Clone());
-  hcsm()->SetWebsiteSettingDefaultScope(GURL(url1), GURL(url1),
-                                        revoked_unused_site_type,
-                                        base::Value(dict.Clone()));
-
-  ContentSettingsForOneType revoked_permissions_content_settings =
-      hcsm()->GetSettingsForOneType(revoked_unused_site_type);
-
-  // Expecting no-op, stored integer values of content settings on disk.
-  EXPECT_EQ(permissions_list_int, GetRevokedUnusedPermissions(hcsm())[0]
-                                      .setting_value.GetDict()
-                                      .Find(permissions::kRevokedKey)
-                                      ->GetList());
-
-  // Update disk stored content settings values from integers to strings.
-  service()->UpdateIntegerValuesToGroupName();
-
-  // Validate content settings are stored in group name strings.
-  auto permissions_list_string =
-      base::Value::List()
-          .Append(RevokedPermissionsService::ConvertContentSettingsTypeToKey(
-              geolocation_type))
-          .Append(RevokedPermissionsService::ConvertContentSettingsTypeToKey(
-              mediastream_type));
-  revoked_permissions_content_settings =
-      hcsm()->GetSettingsForOneType(revoked_unused_site_type);
-  EXPECT_EQ(permissions_list_string, GetRevokedUnusedPermissions(hcsm())[0]
-                                         .setting_value.GetDict()
-                                         .Find(permissions::kRevokedKey)
-                                         ->GetList());
-}
-
-TEST_P(RevokedPermissionsServiceTest,
-       UpdateIntegerValuesToGroupName_UnknownContentSettings) {
-  base::Value::List permissions_list_int;
-  permissions_list_int.Append(static_cast<int32_t>(geolocation_type));
-  // Append a large number that does not match to any content settings type.
-  permissions_list_int.Append(unknown_type);
-
-  auto dict = base::Value::Dict().Set(permissions::kRevokedKey,
-                                      permissions_list_int.Clone());
-  hcsm()->SetWebsiteSettingDefaultScope(GURL(url1), GURL(url1),
-                                        revoked_unused_site_type,
-                                        base::Value(dict.Clone()));
-
-  ContentSettingsForOneType revoked_permissions_content_settings =
-      hcsm()->GetSettingsForOneType(revoked_unused_site_type);
-
-  // Expecting no-op, stored integer values of content settings on disk.
-  EXPECT_EQ(permissions_list_int, GetRevokedUnusedPermissions(hcsm())[0]
-                                      .setting_value.GetDict()
-                                      .Find(permissions::kRevokedKey)
-                                      ->GetList());
-
-  // Update disk stored content settings values from integers to strings.
-  service()->UpdateIntegerValuesToGroupName();
-
-  // Validate content settings are stored in group name strings.
-  auto permissions_list_string =
-      base::Value::List()
-          .Append(RevokedPermissionsService::ConvertContentSettingsTypeToKey(
-              geolocation_type))
-          .Append(unknown_type);
-  revoked_permissions_content_settings =
-      hcsm()->GetSettingsForOneType(revoked_unused_site_type);
-  EXPECT_EQ(permissions_list_string, GetRevokedUnusedPermissions(hcsm())[0]
-                                         .setting_value.GetDict()
-                                         .Find(permissions::kRevokedKey)
-                                         ->GetList());
-}
-
 INSTANTIATE_TEST_SUITE_P(
     All,
     RevokedPermissionsServiceTest,
@@ -1863,195 +1700,3 @@ INSTANTIATE_TEST_SUITE_P(
         /*should_setup_abusive_notification_sites=*/testing::Bool(),
         /*should_setup_unused_sites=*/testing::Bool(),
         /*should_setup_disruptive_sites=*/testing::Bool()));
-
-// TODO(crbug.com/415227458): Remove migration code for revoked permissions
-// using strings.
-// Tests the migration of using strings for the revoked permissions instead of
-// ints when the RevokedPermissionsService first starts up.
-class RevokedPermissionsServiceNameMigrationTest
-    : public ChromeRenderViewHostTestHarness {
- public:
-  RevokedPermissionsServiceNameMigrationTest() {
-    feature_list_.InitWithFeatures(
-        /*enabled_features=*/
-        {content_settings::features::kSafetyCheckUnusedSitePermissions,
-         content_settings::features::
-             kSafetyCheckUnusedSitePermissionsForSupportedChooserPermissions,
-         features::kSafetyHub},
-        /*disabled_features=*/{});
-  }
-
-  ContentSettingsForOneType GetRevokedUnusedPermissions(
-      HostContentSettingsMap* hcsm) {
-    return hcsm->GetSettingsForOneType(
-        ContentSettingsType::REVOKED_UNUSED_SITE_PERMISSIONS);
-  }
-
-  HostContentSettingsMap* hcsm() {
-    return HostContentSettingsMapFactory::GetForProfile(profile());
-  }
-
- private:
-  base::test::ScopedFeatureList feature_list_;
-};
-
-TEST_F(RevokedPermissionsServiceNameMigrationTest,
-       UpdateIntegerValuesToGroupName_OnlyIntegerKeys) {
-  base::Value::List permissions_list_int;
-  base::Value::List permissions_list_string;
-  base::Value::Dict chooser_permission_dict_int;
-  base::Value::Dict chooser_permission_dict_string;
-  PopulateWebsiteSettingsLists(permissions_list_int, permissions_list_string);
-  PopulateChooserWebsiteSettingsDicts(chooser_permission_dict_int,
-                                      chooser_permission_dict_string);
-  auto dict = base::Value::Dict()
-                  .Set(permissions::kRevokedKey, permissions_list_int.Clone())
-                  .Set(permissions::kRevokedChooserPermissionsKey,
-                       chooser_permission_dict_int.Clone());
-
-  hcsm()->SetWebsiteSettingDefaultScope(GURL(url1), GURL(url1),
-                                        revoked_unused_site_type,
-                                        base::Value(dict.Clone()));
-
-  // Expect migration completion to be false at the beginning of the test before
-  // starting the service.
-  EXPECT_FALSE(profile()->GetPrefs()->GetBoolean(
-      safety_hub_prefs::kUnusedSitePermissionsRevocationMigrationCompleted));
-
-  // When we start up a new service instance, the latest result (i.e. the list
-  // of revoked permissions) should be be updated to strings.
-  auto new_service = std::make_unique<RevokedPermissionsService>(
-      profile(), profile()->GetPrefs());
-
-  // Verify the migration is completed on after the service has started and pref
-  // is set accordingly.
-  EXPECT_TRUE(profile()->GetPrefs()->GetBoolean(
-      safety_hub_prefs::kUnusedSitePermissionsRevocationMigrationCompleted));
-  EXPECT_EQ(permissions_list_string, GetRevokedUnusedPermissions(hcsm())[0]
-                                         .setting_value.GetDict()
-                                         .Find(permissions::kRevokedKey)
-                                         ->GetList());
-  EXPECT_EQ(chooser_permission_dict_string,
-            GetRevokedUnusedPermissions(hcsm())[0]
-                .setting_value.GetDict()
-                .Find(permissions::kRevokedChooserPermissionsKey)
-                ->GetDict());
-}
-
-TEST_F(RevokedPermissionsServiceNameMigrationTest,
-       UpdateIntegerValuesToGroupName_MixedKeys) {
-  // Setting up two entries one with integers and one with strings to simulate
-  // partial migration in case of a crash.
-  auto dict_int = base::Value::Dict().Set(
-      permissions::kRevokedKey,
-      base::Value::List().Append(static_cast<int32_t>(mediastream_type)));
-  auto dict_string = base::Value::Dict().Set(
-      permissions::kRevokedKey,
-      base::Value::List().Append(
-          RevokedPermissionsService::ConvertContentSettingsTypeToKey(
-              geolocation_type)));
-  hcsm()->SetWebsiteSettingDefaultScope(GURL(url1), GURL(url1),
-                                        revoked_unused_site_type,
-                                        base::Value(dict_int.Clone()));
-  hcsm()->SetWebsiteSettingDefaultScope(GURL(url2), GURL(url2),
-                                        revoked_unused_site_type,
-                                        base::Value(dict_string.Clone()));
-
-  // Expect migration completion to be false at the beginning of the test before
-  // starting the service.
-  EXPECT_FALSE(profile()->GetPrefs()->GetBoolean(
-      safety_hub_prefs::kUnusedSitePermissionsRevocationMigrationCompleted));
-
-  // When we start up a new service instance, the latest result (i.e. the list
-  // of revoked permissions) should be be updated to strings.
-  auto new_service = std::make_unique<RevokedPermissionsService>(
-      profile(), profile()->GetPrefs());
-
-  // Verify the migration is completed on after the service has started and pref
-  // is set accordingly.
-  EXPECT_TRUE(profile()->GetPrefs()->GetBoolean(
-      safety_hub_prefs::kUnusedSitePermissionsRevocationMigrationCompleted));
-  auto expected_permissions_list_url1 = base::Value::List().Append(
-      RevokedPermissionsService::ConvertContentSettingsTypeToKey(
-          mediastream_type));
-  auto expected_permissions_list_url2 = base::Value::List().Append(
-      RevokedPermissionsService::ConvertContentSettingsTypeToKey(
-          geolocation_type));
-  EXPECT_EQ(expected_permissions_list_url1,
-            GetRevokedUnusedPermissions(hcsm())[0]
-                .setting_value.GetDict()
-                .Find(permissions::kRevokedKey)
-                ->GetList());
-  EXPECT_EQ(expected_permissions_list_url2,
-            GetRevokedUnusedPermissions(hcsm())[1]
-                .setting_value.GetDict()
-                .Find(permissions::kRevokedKey)
-                ->GetList());
-}
-
-TEST_F(RevokedPermissionsServiceNameMigrationTest,
-       UpdateIntegerValuesToGroupName_MixedKeysWithUnknownTypes) {
-  base::HistogramTester histogram_tester;
-  // Setting up two entries one with integers and one with strings to simulate
-  // partial migration in case of a crash.
-  auto dict_int = base::Value::Dict().Set(
-      permissions::kRevokedKey,
-      base::Value::List()
-          .Append(static_cast<int32_t>(mediastream_type))
-          // Append a large number that does not match to any content settings
-          // type.
-          .Append(unknown_type));
-  auto dict_string = base::Value::Dict().Set(
-      permissions::kRevokedKey,
-      base::Value::List().Append(
-          RevokedPermissionsService::ConvertContentSettingsTypeToKey(
-              geolocation_type)));
-  hcsm()->SetWebsiteSettingDefaultScope(GURL(url1), GURL(url1),
-                                        revoked_unused_site_type,
-                                        base::Value(dict_int.Clone()));
-  hcsm()->SetWebsiteSettingDefaultScope(GURL(url2), GURL(url2),
-                                        revoked_unused_site_type,
-                                        base::Value(dict_string.Clone()));
-
-  // Expect migration completion to be false at the beginning of the test before
-  // starting the service.
-  EXPECT_FALSE(profile()->GetPrefs()->GetBoolean(
-      safety_hub_prefs::kUnusedSitePermissionsRevocationMigrationCompleted));
-
-  // No histogram entries should be recorded for failed migration.
-  histogram_tester.ExpectUniqueSample(
-      "Settings.SafetyCheck.UnusedSitePermissionsMigrationFail", unknown_type,
-      0);
-
-  // When we start up a new service instance, the latest result (i.e. the list
-  // of revoked permissions) should be be updated to strings.
-  auto new_service = std::make_unique<RevokedPermissionsService>(
-      profile(), profile()->GetPrefs());
-
-  // Verify the migration is not completed on after the service has started due
-  // to the unknown integer value.
-  EXPECT_FALSE(profile()->GetPrefs()->GetBoolean(
-      safety_hub_prefs::kUnusedSitePermissionsRevocationMigrationCompleted));
-  // Histogram entries should include the unknown type after failed migration.
-  histogram_tester.ExpectUniqueSample(
-      "Settings.SafetyCheck.UnusedSitePermissionsMigrationFail", unknown_type,
-      1);
-  auto expected_permissions_list_url1 =
-      base::Value::List()
-          .Append(RevokedPermissionsService::ConvertContentSettingsTypeToKey(
-              mediastream_type))
-          .Append(unknown_type);
-  auto expected_permissions_list_url2 = base::Value::List().Append(
-      RevokedPermissionsService::ConvertContentSettingsTypeToKey(
-          geolocation_type));
-  EXPECT_EQ(expected_permissions_list_url1,
-            GetRevokedUnusedPermissions(hcsm())[0]
-                .setting_value.GetDict()
-                .Find(permissions::kRevokedKey)
-                ->GetList());
-  EXPECT_EQ(expected_permissions_list_url2,
-            GetRevokedUnusedPermissions(hcsm())[1]
-                .setting_value.GetDict()
-                .Find(permissions::kRevokedKey)
-                ->GetList());
-}

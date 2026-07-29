@@ -50,7 +50,6 @@
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/web_applications/web_app_dialogs.h"
 #include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_integrity_block_data.h"
-#include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_storage_location.h"
 #include "chrome/browser/web_applications/isolated_web_apps/isolation_data.h"
 #include "chrome/browser/web_applications/mojom/user_display_mode.mojom.h"
 #include "chrome/browser/web_applications/proto/web_app.pb.h"
@@ -83,6 +82,7 @@
 #include "components/sync/model/string_ordinal.h"
 #include "components/sync/protocol/web_app_specifics.pb.h"
 #include "components/webapps/browser/installable/installable_metrics.h"
+#include "components/webapps/isolated_web_apps/types/storage_location.h"
 #include "components/webapps/isolated_web_apps/update_channel.h"
 #include "content/public/browser/service_worker_context.h"
 #include "content/public/browser/storage_partition.h"
@@ -119,6 +119,9 @@ constexpr std::string_view kEcdsaP256PublicKeyBase64 =
 constexpr std::string_view kEcdsaP256SHA256SignatureHex =
     "3044022007381524F538B04F99CCC62703F06C87F66EF41BDA18A22D8E57952AA23E53A6"
     "022063C7F81D3A44798CB95823FA38FC23B15E0483744657FF49E1E83AB8C06B63C2";
+
+const std::array<web_app::SquareSizePx, 8> icon_sizes = {32,  48,  64,  96,
+                                                         128, 256, 512, 1024};
 
 }  // namespace
 
@@ -610,6 +613,32 @@ CreateRandomRelatedApplications(RandomHelper& random) {
   return related_applications;
 }
 
+std::vector<apps::IconInfo> CreateRandomIconMetadata(RandomHelper& random,
+                                                     const GURL& base_url) {
+  const int num_icons = random.next_uint(10) + 1;
+  std::vector<apps::IconInfo> icons(num_icons);
+  for (int i = 0; i < num_icons; i++) {
+    apps::IconInfo icon;
+    icon.url = base_url.Resolve(
+        base::StrCat({"/icons", base::NumberToString(random.next_uint())}));
+    icon.square_size_px = icon_sizes[random.next_uint(8)];
+
+    int purpose = random.next_uint(4);
+    if (purpose == 0) {
+      icon.purpose = apps::IconInfo::Purpose::kAny;
+    }
+    if (purpose == 1) {
+      icon.purpose = apps::IconInfo::Purpose::kMaskable;
+    }
+    if (purpose == 2) {
+      icon.purpose = apps::IconInfo::Purpose::kMonochrome;
+    }
+    // if (purpose == 3), leave purpose unset. Should default to ANY.
+    icons[i] = icon;
+  }
+  return icons;
+}
+
 }  // namespace
 
 std::unique_ptr<WebApp> CreateWebApp(const GURL& start_url,
@@ -827,40 +856,19 @@ std::unique_ptr<WebApp> CreateRandomWebApp(CreateRandomWebAppParams params) {
 
   app->SetRunOnOsLoginMode(random.next_enum<RunOnOsLoginMode>());
 
-  const SquareSizePx size = 256;
-  const int num_icons = random.next_uint(10);
-  std::vector<apps::IconInfo> manifest_icons(num_icons);
-  for (int i = 0; i < num_icons; i++) {
-    apps::IconInfo icon;
-    icon.url = params.base_url.Resolve(
-        "/icon" + base::NumberToString(random.next_uint()));
-    if (random.next_bool()) {
-      icon.square_size_px = size;
-    }
+  app->SetManifestIcons(CreateRandomIconMetadata(random, params.base_url));
 
-    int purpose = random.next_uint(4);
-    if (purpose == 0) {
-      icon.purpose = apps::IconInfo::Purpose::kAny;
-    }
-    if (purpose == 1) {
-      icon.purpose = apps::IconInfo::Purpose::kMaskable;
-    }
-    if (purpose == 2) {
-      icon.purpose = apps::IconInfo::Purpose::kMonochrome;
-    }
-    // if (purpose == 3), leave purpose unset. Should default to ANY.
-
-    manifest_icons[i] = icon;
-  }
-  app->SetManifestIcons(manifest_icons);
   if (random.next_bool()) {
-    app->SetDownloadedIconSizes(IconPurpose::ANY, {size});
+    app->SetDownloadedIconSizes(IconPurpose::ANY,
+                                {icon_sizes[random.next_uint(8)]});
   }
   if (random.next_bool()) {
-    app->SetDownloadedIconSizes(IconPurpose::MASKABLE, {size});
+    app->SetDownloadedIconSizes(IconPurpose::MASKABLE,
+                                {icon_sizes[random.next_uint(8)]});
   }
   if (random.next_bool()) {
-    app->SetDownloadedIconSizes(IconPurpose::MONOCHROME, {size});
+    app->SetDownloadedIconSizes(IconPurpose::MONOCHROME,
+                                {icon_sizes[random.next_uint(8)]});
   }
   app->SetIsGeneratedIcon(random.next_bool());
 
@@ -1164,41 +1172,22 @@ std::unique_ptr<WebApp> CreateRandomWebApp(CreateRandomWebAppParams params) {
     if (random.next_bool()) {
       pending_update_info.set_name(name);
     }
-    if (random.next_bool()) {
-      pending_update_info.set_short_name("random_short_name_" + seed_str);
-    }
 
-    if (random.next_bool() || (!pending_update_info.has_name() &&
-                               !pending_update_info.has_short_name())) {
-      const std::vector<int> possible_icon_sizes = {16,  32,  48,  64, 96,
-                                                    128, 192, 256, 512};
-      // Icons to update should not be zero.
-      const int pending_update_icons = random.next_uint(10) + 1;
-      for (int i = 0; i < pending_update_icons; i++) {
-        apps::IconInfo icon;
-        icon.url = params.base_url.Resolve(
-            "/icon" + base::NumberToString(random.next_uint()));
-        size_t random_size_index =
-            random.next_uint() % possible_icon_sizes.size();
-        icon.square_size_px = possible_icon_sizes[random_size_index];
+    if (random.next_bool() || !pending_update_info.has_name()) {
+      std::vector<apps::IconInfo> icons_to_update =
+          CreateRandomIconMetadata(random, params.base_url);
 
-        int purpose = random.next_uint(3);
-        if (purpose == 0) {
-          icon.purpose = apps::IconInfo::Purpose::kAny;
-        }
-        if (purpose == 1) {
-          icon.purpose = apps::IconInfo::Purpose::kMaskable;
-        }
-        if (purpose == 2) {
-          icon.purpose = apps::IconInfo::Purpose::kMonochrome;
-        }
-        sync_pb::WebAppIconInfo* sync_icon =
-            pending_update_info.add_manifest_icons();
-        *sync_icon = AppIconInfoToSyncProto(icon);
+      for (const auto& icon : icons_to_update) {
+        *pending_update_info.add_trusted_icons() = AppIconInfoToSyncProto(icon);
+        *pending_update_info.add_manifest_icons() =
+            AppIconInfoToSyncProto(icon);
       }
     }
+
     app->SetPendingUpdateInfo(pending_update_info);
   }
+
+  app->SetTrustedIcons(CreateRandomIconMetadata(random, params.base_url));
 
   return app;
 }

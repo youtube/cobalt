@@ -95,6 +95,7 @@
 #import "ios/chrome/browser/shared/public/commands/tab_groups_commands.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/shared/public/prototypes/diamond/chrome_app_bar_prototype.h"
+#import "ios/chrome/browser/shared/public/prototypes/diamond/diamond_grid_button.h"
 #import "ios/chrome/browser/shared/public/prototypes/diamond/utils.h"
 #import "ios/chrome/browser/shared/ui/util/layout_guide_names.h"
 #import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
@@ -108,11 +109,10 @@
 #import "ios/chrome/browser/sync/model/sync_service_factory.h"
 #import "ios/chrome/browser/synced_sessions/model/distant_session.h"
 #import "ios/chrome/browser/synced_sessions/model/synced_sessions_util.h"
-#import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/grid/base_grid_view_controller.h"
+#import "ios/chrome/browser/tab_switcher/tab_grid/base_grid/ui/base_grid_view_controller.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/grid/grid_commands.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/grid/grid_constants.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/grid/grid_container_view_controller.h"
-#import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/grid/grid_coordinator_audience.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/grid/grid_mediator_delegate.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/grid/incognito/incognito_grid_coordinator.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/grid/incognito/incognito_grid_mediator.h"
@@ -120,6 +120,7 @@
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/grid/regular/regular_grid_coordinator.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/grid/regular/regular_grid_mediator.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/grid/regular/regular_grid_view_controller.h"
+#import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/grid_coordinator_audience.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/inactive_tabs/inactive_tabs_button_mediator.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/inactive_tabs/inactive_tabs_coordinator.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/inactive_tabs/inactive_tabs_coordinator_delegate.h"
@@ -402,6 +403,8 @@ bool FindNavigatorShouldBePresentedInBrowser(Browser* browser) {
     [_tabGroupsPanelCoordinator stopChildCoordinators];
   }
 
+  [self cancelCollaborationFlows];
+
   [self dismissPopovers];
 
   [self.inactiveTabsCoordinator hide];
@@ -435,6 +438,12 @@ bool FindNavigatorShouldBePresentedInBrowser(Browser* browser) {
   CHECK_NE(page, TabGridPageRemoteTabs);
   CHECK_NE(page, TabGridPageTabGroups);
   [_mediator setActivePage:page];
+
+  if (IsDiamondPrototypeEnabled()) {
+    [[NSNotificationCenter defaultCenter]
+        postNotificationName:kDiamondEnterTabGridNotification
+                      object:nil];
+  }
 
   BOOL animated = !self.animationsDisabledForTesting;
 
@@ -590,8 +599,18 @@ bool FindNavigatorShouldBePresentedInBrowser(Browser* browser) {
 
   __weak TabGridCoordinator* weakSelf = self;
 
+  if (IsDiamondPrototypeEnabled()) {
+    [[NSNotificationCenter defaultCenter]
+        postNotificationName:kDiamondLeaveTabGridNotification
+                      object:nil];
+  }
+
   completion = ^{
-    [weakSelf hideTabGroupsViews];
+    if (self.tabGridEnterTime.is_null()) {
+      // Only hide the TabGroup if the TabGrid hasn't been reopened since the
+      // beginning of the animation. See crbug.com/432227955 for more details.
+      [weakSelf hideTabGroupsViews];
+    }
     if (completion) {
       completion();
     }
@@ -673,7 +692,6 @@ bool FindNavigatorShouldBePresentedInBrowser(Browser* browser) {
       completion();
     }
     self.firstPresentation = NO;
-    [weakSelf hideTabGroupsViews];
   };
 
   self.baseViewController.childViewControllerForStatusBarStyle =
@@ -946,6 +964,16 @@ bool FindNavigatorShouldBePresentedInBrowser(Browser* browser) {
   }
 }
 
+// Cancels all the currently active collaboration flows.
+- (void)cancelCollaborationFlows {
+  collaboration::CollaborationService* collaborationService =
+      collaboration::CollaborationServiceFactory::GetForProfile(
+          self.regularBrowser->GetProfile());
+  if (collaborationService) {
+    collaborationService->CancelAllFlows();
+  }
+}
+
 #pragma mark - ChromeCoordinator
 
 - (void)start {
@@ -995,6 +1023,8 @@ bool FindNavigatorShouldBePresentedInBrowser(Browser* browser) {
 
   if (IsDiamondPrototypeEnabled()) {
     _appBar = [[ChromeAppBarPrototype alloc] init];
+    _appBar.regularBrowser = _regularBrowser;
+    _appBar.incognitoBrowser = _incognitoBrowser;
     [_appBar.askGeminiButton addTarget:self
                                 action:@selector(prototypeGeminiCallback)
                       forControlEvents:UIControlEventTouchUpInside];
@@ -1350,12 +1380,10 @@ bool FindNavigatorShouldBePresentedInBrowser(Browser* browser) {
                            message:nil
                      barButtonItem:buttonAnchor];
 
-    // IOS 17 Bug: The alert arrow direction presentation is broken.
+    // Bug: The alert arrow direction presentation is broken.
     // Workaround: Specifically set the popover arrow direction. (crbug/1490535)
-    if (@available(iOS 17, *)) {
-      self.actionSheetCoordinator.popoverArrowDirection =
-          UIPopoverArrowDirectionDown | UIPopoverArrowDirectionUp;
-    }
+    self.actionSheetCoordinator.popoverArrowDirection =
+        UIPopoverArrowDirectionDown | UIPopoverArrowDirectionUp;
   } else {
     base::RecordAction(base::UserMetricsAction(
         "MobileTabGridSelectionCloseIncognitoTabsConfirmationPresented"));
@@ -1528,6 +1556,10 @@ bool FindNavigatorShouldBePresentedInBrowser(Browser* browser) {
 #pragma mark - RecentTabsPresentationDelegate
 
 - (void)showPrimaryAccountReauth {
+  // In case of double-tap, we must stop the first coordinator. This may occur
+  // because, up to iOS 18, the view may have disappeared without calling the
+  // signin completion. See crbug.com/395959814
+  [_signinCoordinator stop];
   signin_metrics::AccessPoint accessPoint =
       signin_metrics::AccessPoint::kRecentTabs;
   signin_metrics::PromoAction promoAction =

@@ -33,9 +33,6 @@
 
 namespace partition_alloc::internal {
 
-template <MetadataKind kind>
-struct SlotSpanMetadata;
-
 // Metadata of the slot span.
 //
 // Some notes on slot span states. It can be in one of four major states:
@@ -67,16 +64,14 @@ struct SlotSpanMetadata;
 //   found, an empty or decommitted slot spans (if one exists) will be pulled
 //   from the empty/decommitted list on to the active list.
 #pragma pack(push, 1)
-template <MetadataKind kind>
-struct SlotSpanMetadataBase {
- protected:
-  MaybeConstT<kind, FreelistEntry*> freelist_head = nullptr;
+struct SlotSpanMetadata {
+ private:
+  FreelistEntry* freelist_head = nullptr;
 
  public:
   // TODO(lizeb): Make as many fields as possible private or const, to
   // encapsulate things more clearly.
-  MaybeConstT<kind, SlotSpanMetadata<MetadataKind::kReadOnly>*> next_slot_span =
-      nullptr;
+  SlotSpanMetadata* next_slot_span = nullptr;
   PartitionBucket* const bucket = nullptr;
 
   // CHECK()ed in AllocNewSlotSpan().
@@ -86,32 +81,28 @@ struct SlotSpanMetadataBase {
 
   // |num_allocated_slots| is 0 for empty or decommitted slot spans, which can
   // be further differentiated by checking existence of the freelist.
-  MaybeConstT<kind, uint32_t> num_allocated_slots : kMaxSlotsPerSlotSpanBits =
-                                                        0u;
-  MaybeConstT<kind, uint32_t> num_unprovisioned_slots
-      : kMaxSlotsPerSlotSpanBits = 0u;
+  uint32_t num_allocated_slots : kMaxSlotsPerSlotSpanBits;
+  uint32_t num_unprovisioned_slots : kMaxSlotsPerSlotSpanBits;
 
   // |marked_full| isn't equivalent to being full. Slot span is marked as full
   // iff it isn't on the active slot span list (or any other list).
-  MaybeConstT<kind, uint32_t> marked_full : 1 = 0u;
+  uint32_t marked_full : 1;
 
- protected:
-  const uint32_t can_store_raw_size_ : 1 = 0u;
-  MaybeConstT<kind, uint16_t> freelist_is_sorted_ : 1 = 1u;
+ private:
+  const uint32_t can_store_raw_size_ : 1;
+  uint16_t freelist_is_sorted_ : 1;
   // If |in_empty_cache_|==1, |empty_cache_index| is undefined and mustn't be
   // used.
-  MaybeConstT<kind, uint16_t> in_empty_cache_ : 1 = 0u;
+  uint16_t in_empty_cache_ : 1;
   // Index of the page in the empty cache. This is in the range
   // [0, `kMaxEmptySlotSpanRingSize - 1`] so it fits in
   // `BitWidth(kMaxEmptySlotSpanRingSize - 1)`.
-  MaybeConstT<kind, uint16_t> empty_cache_index_
-      : internal::base::bits::BitWidth(kMaxEmptySlotSpanRingSize - 1) = 0u;
+  uint16_t empty_cache_index_
+      : internal::base::bits::BitWidth(kMaxEmptySlotSpanRingSize - 1);
   // Can use only 48 bits (6B) in this bitfield, as this structure is embedded
   // in PartitionPage which has 2B worth of fields and must fit in 32B.
 
  public:
-  // Methods required by both SlotSpanMetadata<kReadOnly> and <kWritable>.
-
   // Checks if it is feasible to store raw_size.
   PA_ALWAYS_INLINE bool CanStoreRawSize() const { return can_store_raw_size_; }
 
@@ -133,46 +124,11 @@ struct SlotSpanMetadataBase {
 
   PA_ALWAYS_INLINE bool in_empty_cache() const { return in_empty_cache_; }
 
- protected:
-  constexpr SlotSpanMetadataBase() noexcept = default;
-  explicit SlotSpanMetadataBase(PartitionBucket* b)
-      : bucket(b), can_store_raw_size_(b->CanStoreRawSize()) {}
+  PA_COMPONENT_EXPORT(PARTITION_ALLOC)
+  explicit SlotSpanMetadata(PartitionBucket* bucket);
 
-  bool is_decommitted_internal() const {
-    bool ret = (!num_allocated_slots && !freelist_head);
-    if (ret) {
-      PA_DCHECK(!marked_full);
-      PA_DCHECK(!num_unprovisioned_slots);
-      PA_DCHECK(!in_empty_cache_);
-    }
-    return ret;
-  }
-
-  bool is_empty_internal() const {
-    bool ret = (!num_allocated_slots && freelist_head);
-    if (ret) {
-      PA_DCHECK(!marked_full);
-    }
-    return ret;
-  }
-};
-
-template <>
-struct SlotSpanMetadata<MetadataKind::kReadOnly>
-    : public SlotSpanMetadataBase<MetadataKind::kReadOnly> {
-#if PA_CONFIG(ENABLE_SHADOW_METADATA)
-  // We don't need to directly create read-only SlotSpanMetadata. We will do:
-  // (1) we know the address of read-only SlotSpanMetadata.
-  // (2) we use ToWritable() to obtain its writable address.
-  // (3) we invoke writable SlotSpanMetadata's constructor.
-  // (4) we see that the read-only one has been initialized.
-  explicit SlotSpanMetadata<MetadataKind::kReadOnly>(PartitionBucket*) = delete;
-#else
-  explicit SlotSpanMetadata<MetadataKind::kReadOnly>(PartitionBucket* b)
-      : SlotSpanMetadataBase<MetadataKind::kReadOnly>(b) {}
-#endif  // PA_CONFIG(ENABLE_SHADOW_METADATA)
   // pa_tcache_inspect needs the copy constructor.
-  SlotSpanMetadata(const SlotSpanMetadata<MetadataKind::kReadOnly>&) = default;
+  inline SlotSpanMetadata(const SlotSpanMetadata&);
 
   // Public API
   // Pointer/address manipulation functions. These must be static as the input
@@ -180,20 +136,15 @@ struct SlotSpanMetadata<MetadataKind::kReadOnly>
   // therefore cannot be trusted. The objective of these functions is to
   // sanitize this input.
   PA_ALWAYS_INLINE static uintptr_t ToSlotSpanStart(
-      const SlotSpanMetadata<MetadataKind::kReadOnly>* slot_span);
-  PA_ALWAYS_INLINE static SlotSpanMetadata<MetadataKind::kReadOnly>* FromAddr(
+      const SlotSpanMetadata* slot_span);
+  PA_ALWAYS_INLINE static SlotSpanMetadata* FromAddr(uintptr_t address);
+  PA_ALWAYS_INLINE static SlotSpanMetadata* FromSlotStart(uintptr_t slot_start);
+  PA_ALWAYS_INLINE static SlotSpanMetadata* FromObject(const void* object);
+  PA_ALWAYS_INLINE static SlotSpanMetadata* FromObjectInnerAddr(
       uintptr_t address);
-  PA_ALWAYS_INLINE static SlotSpanMetadata<MetadataKind::kReadOnly>*
-  FromSlotStart(uintptr_t slot_start);
-  PA_ALWAYS_INLINE static SlotSpanMetadata<MetadataKind::kReadOnly>* FromObject(
-      const void* object);
-  PA_ALWAYS_INLINE static SlotSpanMetadata<MetadataKind::kReadOnly>*
-  FromObjectInnerAddr(uintptr_t address);
-  PA_ALWAYS_INLINE static SlotSpanMetadata<MetadataKind::kReadOnly>*
-  FromObjectInnerPtr(const void* ptr);
+  PA_ALWAYS_INLINE static SlotSpanMetadata* FromObjectInnerPtr(const void* ptr);
 
-  PA_ALWAYS_INLINE PartitionSuperPageExtentEntry<MetadataKind::kReadOnly>*
-  ToSuperPageExtent() const;
+  PA_ALWAYS_INLINE PartitionSuperPageExtentEntry* ToSuperPageExtent() const;
 
   PA_ALWAYS_INLINE size_t GetRawSize() const;
 
@@ -226,15 +177,13 @@ struct SlotSpanMetadata<MetadataKind::kReadOnly>
 
   // TODO(ajwong): Can this be made private?  https://crbug.com/787153
   PA_COMPONENT_EXPORT(PARTITION_ALLOC)
-  static const SlotSpanMetadata<MetadataKind::kReadOnly>*
-  get_sentinel_slot_span();
+  static const SlotSpanMetadata* get_sentinel_slot_span();
   // The sentinel is not supposed to be modified and hence we mark it as const
   // under the hood. However, we often store it together with mutable metadata
   // objects and need a non-const pointer.
   // You can use this function for this case, but you need to ensure that the
   // returned object will not be written to.
-  static SlotSpanMetadata<MetadataKind::kReadOnly>*
-  get_sentinel_slot_span_non_const();
+  static SlotSpanMetadata* get_sentinel_slot_span_non_const();
 
   // Slot span state getters.
   PA_ALWAYS_INLINE bool is_active() const;
@@ -245,57 +194,18 @@ struct SlotSpanMetadata<MetadataKind::kReadOnly>
     return freelist_is_sorted_;
   }
 
-  PA_ALWAYS_INLINE SlotSpanMetadata<MetadataKind::kWritable>* ToWritable(
-      const PartitionRoot* root) {
-    return ToWritableInternal(root);
-  }
-
-  PA_ALWAYS_INLINE SlotSpanMetadata<MetadataKind::kReadOnly>* ToReadOnly() {
-    return this;
-  }
-
  private:
-  void IncrementNumberOfNonemptySlotSpans();
-
-  template <typename T>
-  SlotSpanMetadata<MetadataKind::kWritable>* ToWritableInternal(
-      [[maybe_unused]] T* root) {
-#if PA_CONFIG(ENABLE_SHADOW_METADATA)
-    // Must not make writable slot_span from sentinel slot_span.
-    PA_DCHECK(this != get_sentinel_slot_span());
-    return reinterpret_cast<SlotSpanMetadata<MetadataKind::kWritable>*>(
-        reinterpret_cast<intptr_t>(this) + root->ShadowPoolOffset());
-#else
-    return reinterpret_cast<SlotSpanMetadata<MetadataKind::kWritable>*>(this);
-#endif  // PA_CONFIG(ENABLE_SHADOW_METADATA)
-  }
-
   // sentinel_slot_span_ is used as a sentinel to indicate that there is no slot
   // span in the active list. We could use nullptr, but in that case we need to
   // add a null-check branch to the hot allocation path. We want to avoid that.
   //
   // Note, this declaration is kept in the header as opposed to an anonymous
   // namespace so the getter can be fully inlined.
-  static const SlotSpanMetadata<MetadataKind::kReadOnly> sentinel_slot_span_;
+  static const SlotSpanMetadata sentinel_slot_span_;
   // For the sentinel.
-  inline constexpr SlotSpanMetadata<MetadataKind::kReadOnly>() noexcept =
-      default;
-};
+  inline constexpr SlotSpanMetadata() noexcept;
 
-template <>
-struct SlotSpanMetadata<MetadataKind::kWritable>
-    : public SlotSpanMetadataBase<MetadataKind::kWritable> {
-  PA_COMPONENT_EXPORT(PARTITION_ALLOC)
-  explicit SlotSpanMetadata<MetadataKind::kWritable>(PartitionBucket* b)
-      : SlotSpanMetadataBase<MetadataKind::kWritable>(b) {}
-
-  PA_ALWAYS_INLINE PartitionSuperPageExtentEntry<MetadataKind::kWritable>*
-  ToSuperPageExtent();
-
-  // Note the matching Alloc() functions are in PartitionPage.
-  PA_NOINLINE PA_COMPONENT_EXPORT(PARTITION_ALLOC) void FreeSlowPath(
-      size_t number_of_freed,
-      PartitionRoot* root);
+ public:
   // Note the matching Alloc() functions are in PartitionPage.
   PA_NOINLINE PA_COMPONENT_EXPORT(PARTITION_ALLOC) void FreeSlowPath(
       size_t number_of_freed);
@@ -325,49 +235,28 @@ struct SlotSpanMetadata<MetadataKind::kWritable>
   PA_ALWAYS_INLINE void SetRawSize(size_t raw_size);
 
   PA_ALWAYS_INLINE void SetFreelistHead(FreelistEntry* new_head,
-                                        PartitionRoot* root);
+                                        [[maybe_unused]] PartitionRoot* root);
 
   PA_ALWAYS_INLINE void Reset();
 
-#if PA_BUILDFLAG(DCHECKS_ARE_ON)
-  // Slot span state getters.
-  PA_ALWAYS_INLINE bool is_empty() const;
-  PA_ALWAYS_INLINE bool is_decommitted() const;
-#endif  // PA_BUILDFLAG(DCHECKS_ARE_ON)
-
   PA_ALWAYS_INLINE void set_freelist_sorted() { freelist_is_sorted_ = true; }
-
-  PA_ALWAYS_INLINE SlotSpanMetadata<MetadataKind::kWritable>* ToWritable() {
-    return this;
-  }
-
-  PA_ALWAYS_INLINE SlotSpanMetadata<MetadataKind::kReadOnly>* ToReadOnly(
-      const PartitionRoot* root) {
-    return ToReadOnlyInternal(root);
-  }
-
- private:
-  void IncrementNumberOfNonemptySlotSpans();
-
-  template <typename T>
-  PA_ALWAYS_INLINE SlotSpanMetadata<MetadataKind::kReadOnly>*
-  ToReadOnlyInternal([[maybe_unused]] const T* root) {
-#if PA_CONFIG(ENABLE_SHADOW_METADATA)
-    return reinterpret_cast<SlotSpanMetadata<MetadataKind::kReadOnly>*>(
-        reinterpret_cast<intptr_t>(this) - root->ShadowPoolOffset());
-#else
-    return reinterpret_cast<SlotSpanMetadata<MetadataKind::kReadOnly>*>(this);
-#endif  // PA_CONFIG(ENABLE_SHADOW_METADATA)
-  }
 };
 #pragma pack(pop)
-static_assert(sizeof(SlotSpanMetadata<MetadataKind::kReadOnly>) <=
-                  kPageMetadataSize,
-              "SlotSpanMetadata<MetadataKind::kReadOnly> must fit into a Page "
-              "Metadata slot.");
+static_assert(sizeof(SlotSpanMetadata) <= kPageMetadataSize,
+              "SlotSpanMetadata must fit into a Page Metadata slot.");
+
+inline constexpr SlotSpanMetadata::SlotSpanMetadata() noexcept
+    : num_allocated_slots(0u),
+      num_unprovisioned_slots(0u),
+      marked_full(0u),
+      can_store_raw_size_(0u),
+      freelist_is_sorted_(1u),
+      in_empty_cache_(0u),
+      empty_cache_index_(0u) {}
+
+inline SlotSpanMetadata::SlotSpanMetadata(const SlotSpanMetadata&) = default;
 
 // Metadata of a non-first partition page in a slot span.
-template <MetadataKind kind>
 struct SubsequentPageMetadata {
   // Raw size is the size needed to satisfy the allocation (requested size +
   // extras). If available, it can be used to report better statistics or to
@@ -379,7 +268,7 @@ struct SubsequentPageMetadata {
   // - there is more than one partition page in the slot span (the metadata of
   //   the first one is used to store slot information, but the second one is
   //   available for extra information)
-  MaybeConstT<kind, size_t> raw_size;
+  size_t raw_size;
 };
 
 // Each partition page has metadata associated with it. The metadata of the
@@ -389,20 +278,18 @@ struct SubsequentPageMetadata {
 // "Pack" the union so that common page metadata still fits within
 // kPageMetadataSize. (SlotSpanMetadata is also "packed".)
 #pragma pack(push, 1)
-template <MetadataKind kind>
-struct PartitionPageMetadataBase {
+struct PartitionPageMetadata {
   union {
-    SlotSpanMetadata<kind> slot_span_metadata;
+    SlotSpanMetadata slot_span_metadata;
 
-    SubsequentPageMetadata<kind> subsequent_page_metadata;
+    SubsequentPageMetadata subsequent_page_metadata;
 
     // sizeof(PartitionPageMetadata) must always be:
     // - a power of 2 (for fast modulo operations)
     // - below kPageMetadataSize
     //
     // This makes sure that this is respected no matter the architecture.
-    MaybeConstT<kind, char>
-        optional_padding[kPageMetadataSize - sizeof(uint8_t) - sizeof(bool)];
+    char optional_padding[kPageMetadataSize - sizeof(uint8_t) - sizeof(bool)];
   };
 
   // The first PartitionPage of the slot span holds its metadata. This offset
@@ -416,8 +303,7 @@ struct PartitionPageMetadataBase {
   static constexpr uint16_t kMaxSlotSpanMetadataBits = 6;
   static constexpr uint16_t kMaxSlotSpanMetadataOffset =
       (1 << kMaxSlotSpanMetadataBits) - 1;
-  MaybeConstT<kind, uint8_t> slot_span_metadata_offset
-      : kMaxSlotSpanMetadataBits;
+  uint8_t slot_span_metadata_offset : kMaxSlotSpanMetadataBits;
 
   // |is_valid| tells whether the page is part of a slot span. If |false|,
   // |has_valid_span_after_this| tells whether it's an unused region in between
@@ -425,73 +311,15 @@ struct PartitionPageMetadataBase {
   // Note, |is_valid| has been added for clarity, but if we ever need to save
   // this bit, it can be inferred from:
   //   |!slot_span_metadata_offset && slot_span_metadata->bucket|.
-  MaybeConstT<kind, bool> is_valid : 1;
-  MaybeConstT<kind, bool> has_valid_span_after_this : 1;
-  MaybeConstT<kind, uint8_t> unused;
-};
+  bool is_valid : 1;
+  bool has_valid_span_after_this : 1;
+  uint8_t unused;
 
-template <MetadataKind kind>
-struct PartitionPageMetadata;
-
-template <>
-struct PartitionPageMetadata<MetadataKind::kReadOnly>
-    : public PartitionPageMetadataBase<MetadataKind::kReadOnly> {
-  PA_ALWAYS_INLINE static PartitionPageMetadata<MetadataKind::kReadOnly>*
-  FromAddr(uintptr_t address);
-
-  PA_ALWAYS_INLINE PartitionPageMetadata<MetadataKind::kWritable>* ToWritable(
-      PartitionRoot* root) {
-    return ToWritableInternal(root);
-  }
-
-  // In order to resolve circular dependencies, i.e. ToWritable() needs
-  // PartitionRoot, define template method: ToWritableInternal() here and
-  // ToWritable() uses it.
-  template <typename T>
-  PartitionPageMetadata<MetadataKind::kWritable>* ToWritableInternal(
-      [[maybe_unused]] T* root) {
-#if PA_CONFIG(ENABLE_SHADOW_METADATA)
-    return reinterpret_cast<PartitionPageMetadata<MetadataKind::kWritable>*>(
-        reinterpret_cast<intptr_t>(this) + root->ShadowPoolOffset());
-#else
-    return reinterpret_cast<PartitionPageMetadata<MetadataKind::kWritable>*>(
-        this);
-#endif  // PA_CONFIG(ENABLE_SHADOW_METADATA)
-  }
-};
-
-template <>
-struct PartitionPageMetadata<MetadataKind::kWritable>
-    : public PartitionPageMetadataBase<MetadataKind::kWritable> {
-  PA_ALWAYS_INLINE PartitionPageMetadata<MetadataKind::kReadOnly>* ToReadOnly(
-      PartitionRoot* root) {
-    return ToReadOnlyInternal(root);
-  }
-
-  // In order to resolve circular dependencies, i.e. ToReadOnly() needs
-  // PartitionRoot, define template method: ToReadOnlyInternal() here and
-  // ToReadOnly() uses it.
-  template <typename T>
-  PartitionPageMetadata<MetadataKind::kReadOnly>* ToReadOnlyInternal(
-      [[maybe_unused]] T* root) {
-#if PA_CONFIG(ENABLE_SHADOW_METADATA)
-    return reinterpret_cast<PartitionPageMetadata<MetadataKind::kReadOnly>*>(
-        reinterpret_cast<intptr_t>(this) - root->ShadowPoolOffset());
-#else
-    return reinterpret_cast<PartitionPageMetadata<MetadataKind::kReadOnly>*>(
-        this);
-#endif  // PA_CONFIG(ENABLE_SHADOW_METADATA)
-  }
+  PA_ALWAYS_INLINE static PartitionPageMetadata* FromAddr(uintptr_t address);
 };
 #pragma pack(pop)
-
-static_assert(sizeof(PartitionPageMetadata<MetadataKind::kWritable>) ==
-                  kPageMetadataSize,
+static_assert(sizeof(PartitionPageMetadata) == kPageMetadataSize,
               "PartitionPage must be able to fit in a metadata slot");
-static_assert(sizeof(PartitionPageMetadata<MetadataKind::kReadOnly>) ==
-                  sizeof(PartitionPageMetadata<MetadataKind::kWritable>),
-              "The size of PartitionPageMetadata<MetadataKind::kWritable> must "
-              "be equal to PartitionPageMetadata<MetadataKind::kReadOnly>.");
 
 // Certain functions rely on PartitionPageMetadata being either SlotSpanMetadata
 // or SubsequentPageMetadata, and therefore freely casting between each other.
@@ -500,28 +328,18 @@ static_assert(sizeof(PartitionPageMetadata<MetadataKind::kReadOnly>) ==
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #endif
-static_assert(offsetof(PartitionPageMetadata<MetadataKind::kReadOnly>,
-                       slot_span_metadata) == 0,
+static_assert(offsetof(PartitionPageMetadata, slot_span_metadata) == 0,
               "slot_span_metadata must be placed at the beginning of "
-              "PartitionPageMetadata<MetadataKind::kReadOnly>.");
-static_assert(offsetof(PartitionPageMetadata<MetadataKind::kReadOnly>,
-                       subsequent_page_metadata) == 0,
+              "PartitionPageMetadata.");
+static_assert(offsetof(PartitionPageMetadata, subsequent_page_metadata) == 0,
               "subsequent_page_metadata must be placed at the beginning of "
-              "PartitionPageMetadata<MetadataKind::kReadOnly>.");
-static_assert(offsetof(PartitionPageMetadata<MetadataKind::kWritable>,
-                       slot_span_metadata) == 0,
-              "slot_span_metadata must be placed at the beginning of "
-              "PartitionPageMetadata<MetadataKind::kWritable>.");
-static_assert(offsetof(PartitionPageMetadata<MetadataKind::kWritable>,
-                       subsequent_page_metadata) == 0,
-              "subsequent_page_metadata must be placed at the beginning of "
-              "PartitionPageMetadata<MetadataKind::kWritable>.");
+              "PartitionPageMetadata.");
 #if defined(__clang__) || defined(__GNUC__)
 #pragma GCC diagnostic pop
 #endif
 
-PA_ALWAYS_INLINE PartitionPageMetadata<MetadataKind::kReadOnly>*
-PartitionSuperPageToMetadataArea(uintptr_t super_page) {
+PA_ALWAYS_INLINE PartitionPageMetadata* PartitionSuperPageToMetadataArea(
+    uintptr_t super_page) {
   // This can't be just any super page, but it has to be the first super page of
   // the reservation, as we assume here that the metadata is near its beginning.
   PA_DCHECK(
@@ -529,27 +347,24 @@ PartitionSuperPageToMetadataArea(uintptr_t super_page) {
   PA_DCHECK(!(super_page & kSuperPageOffsetMask));
   // The metadata area is exactly one system page (the guard page) into the
   // super page.
-  return reinterpret_cast<PartitionPageMetadata<MetadataKind::kReadOnly>*>(
-      super_page + SystemPageSize());
+  return reinterpret_cast<PartitionPageMetadata*>(super_page +
+                                                  SystemPageSize());
 }
 
-PA_ALWAYS_INLINE const SubsequentPageMetadata<MetadataKind::kReadOnly>*
-GetSubsequentPageMetadata(
-    const PartitionPageMetadata<MetadataKind::kReadOnly>* page_metadata) {
+PA_ALWAYS_INLINE const SubsequentPageMetadata* GetSubsequentPageMetadata(
+    const PartitionPageMetadata* page_metadata) {
   return &(page_metadata + 1)->subsequent_page_metadata;
 }
 
-PA_ALWAYS_INLINE SubsequentPageMetadata<MetadataKind::kWritable>*
-GetSubsequentPageMetadata(
-    PartitionPageMetadata<MetadataKind::kWritable>* page_metadata) {
+PA_ALWAYS_INLINE SubsequentPageMetadata* GetSubsequentPageMetadata(
+    PartitionPageMetadata* page_metadata) {
   return &(page_metadata + 1)->subsequent_page_metadata;
 }
 
-PA_ALWAYS_INLINE PartitionSuperPageExtentEntry<MetadataKind::kReadOnly>*
-PartitionSuperPageToExtent(uintptr_t super_page) {
+PA_ALWAYS_INLINE PartitionSuperPageExtentEntry* PartitionSuperPageToExtent(
+    uintptr_t super_page) {
   // The very first entry of the metadata is the super page extent entry.
-  return reinterpret_cast<
-      PartitionSuperPageExtentEntry<MetadataKind::kReadOnly>*>(
+  return reinterpret_cast<PartitionSuperPageExtentEntry*>(
       PartitionSuperPageToMetadataArea(super_page));
 }
 
@@ -580,24 +395,10 @@ PA_ALWAYS_INLINE size_t SuperPagePayloadSize(uintptr_t super_page) {
   return SuperPagePayloadEnd(super_page) - SuperPagePayloadBegin(super_page);
 }
 
-PA_ALWAYS_INLINE PartitionSuperPageExtentEntry<MetadataKind::kReadOnly>*
-SlotSpanMetadata<MetadataKind::kReadOnly>::ToSuperPageExtent() const {
+PA_ALWAYS_INLINE PartitionSuperPageExtentEntry*
+SlotSpanMetadata::ToSuperPageExtent() const {
   uintptr_t super_page = reinterpret_cast<uintptr_t>(this) & kSuperPageBaseMask;
   return PartitionSuperPageToExtent(super_page);
-}
-
-PA_ALWAYS_INLINE PartitionSuperPageExtentEntry<MetadataKind::kWritable>*
-SlotSpanMetadata<MetadataKind::kWritable>::ToSuperPageExtent() {
-#if PA_CONFIG(ENABLE_SHADOW_METADATA)
-  uintptr_t super_page_extent_entry =
-      reinterpret_cast<uintptr_t>(this) & SystemPageBaseMask();
-  return reinterpret_cast<
-      PartitionSuperPageExtentEntry<MetadataKind::kWritable>*>(
-      super_page_extent_entry);
-#else
-  // Must be no-op.
-  return ToReadOnly(nullptr)->ToSuperPageExtent()->ToWritable(nullptr);
-#endif  // PA_CONFIG(ENABLE_SHADOW_METADATA)
 }
 
 // Returns whether the pointer lies within the super page's payload area (i.e.
@@ -620,15 +421,15 @@ PA_ALWAYS_INLINE bool IsWithinSuperPagePayload(uintptr_t address) {
 // While it is generally valid for |ptr| to be in the middle of an allocation,
 // care has to be taken with direct maps that span multiple super pages. This
 // function's behavior is undefined if |ptr| lies in a subsequent super page.
-PA_ALWAYS_INLINE PartitionPageMetadata<MetadataKind::kReadOnly>*
-PartitionPageMetadata<MetadataKind::kReadOnly>::FromAddr(uintptr_t address) {
+PA_ALWAYS_INLINE PartitionPageMetadata* PartitionPageMetadata::FromAddr(
+    uintptr_t address) {
   uintptr_t super_page = address & kSuperPageBaseMask;
 
 #if PA_BUILDFLAG(DCHECKS_ARE_ON)
   PA_DCHECK(
       ReservationOffsetTable::Get(super_page).IsReservationStart(super_page));
   PA_DCHECK(IsWithinSuperPagePayload(address));
-#endif  // PA_BUILDFLAG(DCHECKS_ARE_ON)
+#endif
 
   uintptr_t partition_page_index =
       (address & kSuperPageOffsetMask) >> PartitionPageShift();
@@ -645,8 +446,7 @@ PartitionPageMetadata<MetadataKind::kReadOnly>::FromAddr(uintptr_t address) {
 // pages's metadata) into a pointer to the beginning of the slot span. This
 // works on direct maps too.
 PA_ALWAYS_INLINE uintptr_t
-SlotSpanMetadata<MetadataKind::kReadOnly>::ToSlotSpanStart(
-    const SlotSpanMetadata<MetadataKind::kReadOnly>* slot_span) {
+SlotSpanMetadata::ToSlotSpanStart(const SlotSpanMetadata* slot_span) {
   uintptr_t pointer_as_uint = reinterpret_cast<uintptr_t>(slot_span);
   uintptr_t super_page_offset = (pointer_as_uint & kSuperPageOffsetMask);
 
@@ -674,10 +474,9 @@ SlotSpanMetadata<MetadataKind::kReadOnly>::ToSlotSpanStart(
 //
 // CAUTION! For direct-mapped allocation, |address| has to be within the first
 // partition page.
-PA_ALWAYS_INLINE SlotSpanMetadata<MetadataKind::kReadOnly>*
-SlotSpanMetadata<MetadataKind::kReadOnly>::FromAddr(uintptr_t address) {
-  auto* page_metadata =
-      PartitionPageMetadata<MetadataKind::kReadOnly>::FromAddr(address);
+PA_ALWAYS_INLINE SlotSpanMetadata* SlotSpanMetadata::FromAddr(
+    uintptr_t address) {
+  auto* page_metadata = PartitionPageMetadata::FromAddr(address);
   PA_DCHECK(page_metadata->is_valid);
   // Partition pages in the same slot span share the same SlotSpanMetadata
   // object (located in the first PartitionPageMetadata object of that span).
@@ -698,8 +497,8 @@ SlotSpanMetadata<MetadataKind::kReadOnly>::FromAddr(uintptr_t address) {
 // beginning of a slot. It doesn't check if the slot is actually allocated.
 //
 // This works on direct maps too.
-PA_ALWAYS_INLINE SlotSpanMetadata<MetadataKind::kReadOnly>*
-SlotSpanMetadata<MetadataKind::kReadOnly>::FromSlotStart(uintptr_t slot_start) {
+PA_ALWAYS_INLINE SlotSpanMetadata* SlotSpanMetadata::FromSlotStart(
+    uintptr_t slot_start) {
   auto* slot_span = FromAddr(slot_start);
 #if PA_BUILDFLAG(DCHECKS_ARE_ON)
   // Checks that the pointer is a multiple of slot size.
@@ -713,8 +512,8 @@ SlotSpanMetadata<MetadataKind::kReadOnly>::FromSlotStart(uintptr_t slot_start) {
 // an object. It doesn't check if the object is actually allocated.
 //
 // This works on direct maps too.
-PA_ALWAYS_INLINE SlotSpanMetadata<MetadataKind::kReadOnly>*
-SlotSpanMetadata<MetadataKind::kReadOnly>::FromObject(const void* object) {
+PA_ALWAYS_INLINE SlotSpanMetadata* SlotSpanMetadata::FromObject(
+    const void* object) {
   uintptr_t object_addr = ObjectPtr2Addr(object);
   auto* slot_span = FromAddr(object_addr);
   DCheckIsValidObjectAddress(slot_span, object_addr);
@@ -726,8 +525,8 @@ SlotSpanMetadata<MetadataKind::kReadOnly>::FromObject(const void* object) {
 //
 // CAUTION! For direct-mapped allocation, |address| has to be within the first
 // partition page.
-PA_ALWAYS_INLINE SlotSpanMetadata<MetadataKind::kReadOnly>* SlotSpanMetadata<
-    MetadataKind::kReadOnly>::FromObjectInnerAddr(uintptr_t address) {
+PA_ALWAYS_INLINE SlotSpanMetadata* SlotSpanMetadata::FromObjectInnerAddr(
+    uintptr_t address) {
   auto* slot_span = FromAddr(address);
 #if PA_BUILDFLAG(DCHECKS_ARE_ON)
   // Checks that the address is within the expected object boundaries.
@@ -739,30 +538,26 @@ PA_ALWAYS_INLINE SlotSpanMetadata<MetadataKind::kReadOnly>* SlotSpanMetadata<
   return slot_span;
 }
 
-PA_ALWAYS_INLINE SlotSpanMetadata<MetadataKind::kReadOnly>*
-SlotSpanMetadata<MetadataKind::kReadOnly>::FromObjectInnerPtr(const void* ptr) {
+PA_ALWAYS_INLINE SlotSpanMetadata* SlotSpanMetadata::FromObjectInnerPtr(
+    const void* ptr) {
   return FromObjectInnerAddr(ObjectInnerPtr2Addr(ptr));
 }
 
-PA_ALWAYS_INLINE void SlotSpanMetadata<MetadataKind::kWritable>::SetRawSize(
-    size_t raw_size) {
+PA_ALWAYS_INLINE void SlotSpanMetadata::SetRawSize(size_t raw_size) {
   PA_DCHECK(CanStoreRawSize());
-  auto* subsequent_page_metadata = GetSubsequentPageMetadata(
-      reinterpret_cast<PartitionPageMetadata<MetadataKind::kWritable>*>(this));
+  auto* subsequent_page_metadata =
+      GetSubsequentPageMetadata(reinterpret_cast<PartitionPageMetadata*>(this));
   subsequent_page_metadata->raw_size = raw_size;
 }
 
-PA_ALWAYS_INLINE size_t
-SlotSpanMetadata<MetadataKind::kReadOnly>::GetRawSize() const {
+PA_ALWAYS_INLINE size_t SlotSpanMetadata::GetRawSize() const {
   PA_DCHECK(CanStoreRawSize());
   const auto* subsequent_page_metadata = GetSubsequentPageMetadata(
-      reinterpret_cast<const PartitionPageMetadata<MetadataKind::kReadOnly>*>(
-          this));
+      reinterpret_cast<const PartitionPageMetadata*>(this));
   return subsequent_page_metadata->raw_size;
 }
 
-PA_ALWAYS_INLINE void
-SlotSpanMetadata<MetadataKind::kWritable>::SetFreelistHead(
+PA_ALWAYS_INLINE void SlotSpanMetadata::SetFreelistHead(
     FreelistEntry* new_head,
     [[maybe_unused]] PartitionRoot* root) {
 #if PA_BUILDFLAG(DCHECKS_ARE_ON)
@@ -770,8 +565,8 @@ SlotSpanMetadata<MetadataKind::kWritable>::SetFreelistHead(
   // as well.
   uintptr_t new_head_untagged = UntagPtr(new_head);
   PA_DCHECK(!new_head ||
-            (reinterpret_cast<uintptr_t>(ToReadOnly(root)) &
-             kSuperPageBaseMask) == (new_head_untagged & kSuperPageBaseMask));
+            (reinterpret_cast<uintptr_t>(this) & kSuperPageBaseMask) ==
+                (new_head_untagged & kSuperPageBaseMask));
 #endif  // PA_BUILDFLAG(DCHECKS_ARE_ON)
   freelist_head = new_head;
   // Inserted something new in the freelist, assume that it is not sorted
@@ -779,8 +574,7 @@ SlotSpanMetadata<MetadataKind::kWritable>::SetFreelistHead(
   freelist_is_sorted_ = false;
 }
 
-PA_ALWAYS_INLINE FreelistEntry*
-SlotSpanMetadata<MetadataKind::kWritable>::PopForAlloc(size_t size) {
+PA_ALWAYS_INLINE FreelistEntry* SlotSpanMetadata::PopForAlloc(size_t size) {
   // Not using bucket->slot_size directly as the compiler doesn't know that
   // |bucket->slot_size| is the same as |size|.
   PA_DCHECK(size == bucket->slot_size);
@@ -793,9 +587,8 @@ SlotSpanMetadata<MetadataKind::kWritable>::PopForAlloc(size_t size) {
   return result;
 }
 
-PA_ALWAYS_INLINE void SlotSpanMetadata<MetadataKind::kWritable>::Free(
-    uintptr_t slot_start,
-    PartitionRoot* root)
+PA_ALWAYS_INLINE void SlotSpanMetadata::Free(uintptr_t slot_start,
+                                             PartitionRoot* root)
     // PartitionRootLock() is not defined inside partition_page.h, but
     // static analysis doesn't require the implementation.
     PA_EXCLUSIVE_LOCKS_REQUIRED(PartitionRootLock(root)) {
@@ -815,7 +608,7 @@ PA_ALWAYS_INLINE void SlotSpanMetadata<MetadataKind::kWritable>::Free(
   // If the span is marked full, or became empty, take the slow path to update
   // internal state.
   if (marked_full || num_allocated_slots == 0) [[unlikely]] {
-    FreeSlowPath(1, root);
+    FreeSlowPath(1);
   } else {
     // All single-slot allocations must go through the slow path to
     // correctly update the raw size.
@@ -823,11 +616,11 @@ PA_ALWAYS_INLINE void SlotSpanMetadata<MetadataKind::kWritable>::Free(
   }
 }
 
-PA_ALWAYS_INLINE void SlotSpanMetadata<MetadataKind::kWritable>::AppendFreeList(
-    FreelistEntry* head,
-    FreelistEntry* tail,
-    size_t number_of_freed,
-    PartitionRoot* root) PA_EXCLUSIVE_LOCKS_REQUIRED(PartitionRootLock(root)) {
+PA_ALWAYS_INLINE void SlotSpanMetadata::AppendFreeList(FreelistEntry* head,
+                                                       FreelistEntry* tail,
+                                                       size_t number_of_freed,
+                                                       PartitionRoot* root)
+    PA_EXCLUSIVE_LOCKS_REQUIRED(PartitionRootLock(root)) {
 #if PA_BUILDFLAG(DCHECKS_ARE_ON)
   DCheckRootLockIsAcquired(root);
   PA_DCHECK(!(tail->GetNext(bucket->slot_size)));
@@ -842,12 +635,9 @@ PA_ALWAYS_INLINE void SlotSpanMetadata<MetadataKind::kWritable>::AppendFreeList(
          entry = entry->GetNext(bucket->slot_size), ++number_of_entries) {
       uintptr_t untagged_entry = UntagPtr(entry);
       // Check that all entries belong to this slot span.
-      PA_DCHECK(SlotSpanMetadata<MetadataKind::kReadOnly>::ToSlotSpanStart(
-                    ToReadOnly(root)) <= untagged_entry);
+      PA_DCHECK(ToSlotSpanStart(this) <= untagged_entry);
       PA_DCHECK(untagged_entry <
-                SlotSpanMetadata<MetadataKind::kReadOnly>::ToSlotSpanStart(
-                    ToReadOnly(root)) +
-                    bucket->get_bytes_per_span());
+                ToSlotSpanStart(this) + bucket->get_bytes_per_span());
     }
     PA_DCHECK(number_of_entries == number_of_freed);
   }
@@ -860,7 +650,7 @@ PA_ALWAYS_INLINE void SlotSpanMetadata<MetadataKind::kWritable>::AppendFreeList(
   // If the span is marked full, or became empty, take the slow path to update
   // internal state.
   if (marked_full || num_allocated_slots == 0) [[unlikely]] {
-    FreeSlowPath(number_of_freed, root);
+    FreeSlowPath(number_of_freed);
   } else {
     // All single-slot allocations must go through the slow path to
     // correctly update the raw size.
@@ -868,8 +658,7 @@ PA_ALWAYS_INLINE void SlotSpanMetadata<MetadataKind::kWritable>::AppendFreeList(
   }
 }
 
-PA_ALWAYS_INLINE bool SlotSpanMetadata<MetadataKind::kReadOnly>::is_active()
-    const {
+PA_ALWAYS_INLINE bool SlotSpanMetadata::is_active() const {
   PA_DCHECK(this != get_sentinel_slot_span());
   bool ret =
       (num_allocated_slots > 0 && (freelist_head || num_unprovisioned_slots));
@@ -880,8 +669,7 @@ PA_ALWAYS_INLINE bool SlotSpanMetadata<MetadataKind::kReadOnly>::is_active()
   return ret;
 }
 
-PA_ALWAYS_INLINE bool SlotSpanMetadata<MetadataKind::kReadOnly>::is_full()
-    const {
+PA_ALWAYS_INLINE bool SlotSpanMetadata::is_full() const {
   PA_DCHECK(this != get_sentinel_slot_span());
   bool ret = (num_allocated_slots == bucket->get_slots_per_span());
   if (ret) {
@@ -892,29 +680,35 @@ PA_ALWAYS_INLINE bool SlotSpanMetadata<MetadataKind::kReadOnly>::is_full()
   return ret;
 }
 
-PA_ALWAYS_INLINE bool SlotSpanMetadata<MetadataKind::kReadOnly>::is_empty()
-    const {
+PA_ALWAYS_INLINE bool SlotSpanMetadata::is_empty() const {
   PA_DCHECK(this != get_sentinel_slot_span());
-  return is_empty_internal();
+  bool ret = (!num_allocated_slots && freelist_head);
+  if (ret) {
+    PA_DCHECK(!marked_full);
+  }
+  return ret;
 }
 
-PA_ALWAYS_INLINE bool
-SlotSpanMetadata<MetadataKind::kReadOnly>::is_decommitted() const {
+PA_ALWAYS_INLINE bool SlotSpanMetadata::is_decommitted() const {
   PA_DCHECK(this != get_sentinel_slot_span());
-  return is_decommitted_internal();
+  bool ret = (!num_allocated_slots && !freelist_head);
+  if (ret) {
+    PA_DCHECK(!marked_full);
+    PA_DCHECK(!num_unprovisioned_slots);
+    PA_DCHECK(!in_empty_cache_);
+  }
+  return ret;
 }
 
-PA_ALWAYS_INLINE void SlotSpanMetadata<MetadataKind::kWritable>::Reset() {
-#if PA_BUILDFLAG(DCHECKS_ARE_ON)
-  PA_DCHECK(is_decommitted_internal());
-#endif  // PA_BUILDFLAG(DCHECKS_ARE_ON)
+PA_ALWAYS_INLINE void SlotSpanMetadata::Reset() {
+  PA_DCHECK(is_decommitted());
 
   size_t num_slots_per_span = bucket->get_slots_per_span();
   PA_DCHECK(num_slots_per_span <= kMaxSlotsPerSlotSpan);
   num_unprovisioned_slots = static_cast<uint16_t>(num_slots_per_span);
   PA_DCHECK(num_unprovisioned_slots);
 
-  IncrementNumberOfNonemptySlotSpans();
+  ToSuperPageExtent()->IncrementNumberOfNonemptySlotSpans();
 
   next_slot_span = nullptr;
 }
@@ -930,13 +724,11 @@ void IterateSlotSpans(uintptr_t super_page, Callback callback) {
 #endif  // PA_BUILDFLAG(DCHECKS_ARE_ON)
 
   auto* const first_page_metadata =
-      PartitionPageMetadata<MetadataKind::kReadOnly>::FromAddr(
-          SuperPagePayloadBegin(super_page));
-  auto* const last_page_metadata =
-      PartitionPageMetadata<MetadataKind::kReadOnly>::FromAddr(
-          SuperPagePayloadEnd(super_page) - PartitionPageSize());
-  PartitionPageMetadata<MetadataKind::kReadOnly>* page_metadata = nullptr;
-  SlotSpanMetadata<MetadataKind::kReadOnly>* slot_span = nullptr;
+      PartitionPageMetadata::FromAddr(SuperPagePayloadBegin(super_page));
+  auto* const last_page_metadata = PartitionPageMetadata::FromAddr(
+      SuperPagePayloadEnd(super_page) - PartitionPageSize());
+  PartitionPageMetadata* page_metadata = nullptr;
+  SlotSpanMetadata* slot_span = nullptr;
   for (page_metadata = first_page_metadata;
        page_metadata <= last_page_metadata;) {
     PA_DCHECK(!page_metadata
@@ -963,8 +755,7 @@ void IterateSlotSpans(uintptr_t super_page, Callback callback) {
   // Just a quick check that the search ended at a valid slot span and there
   // was no unnecessary iteration over gaps afterwards.
   PA_DCHECK(page_metadata ==
-            reinterpret_cast<PartitionPageMetadata<MetadataKind::kReadOnly>*>(
-                slot_span) +
+            reinterpret_cast<PartitionPageMetadata*>(slot_span) +
                 slot_span->bucket->get_pages_per_slot_span());
 }
 
@@ -1002,12 +793,8 @@ class PA_COMPONENT_EXPORT(PARTITION_ALLOC) SlotStart {
 
   PA_ALWAYS_INLINE
   void CheckIsSlotStart() const {
-    auto* slot_span_metadata =
-        SlotSpanMetadata<MetadataKind::kReadOnly>::FromAddr(
-            untagged_slot_start_);
-    uintptr_t slot_span =
-        SlotSpanMetadata<MetadataKind::kReadOnly>::ToSlotSpanStart(
-            slot_span_metadata);
+    auto* slot_span_metadata = SlotSpanMetadata::FromAddr(untagged_slot_start_);
+    uintptr_t slot_span = SlotSpanMetadata::ToSlotSpanStart(slot_span_metadata);
     PA_CHECK(!((untagged_slot_start_ - slot_span) %
                slot_span_metadata->bucket->slot_size));
   }

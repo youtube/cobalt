@@ -137,6 +137,19 @@ std::string PrintToString(const TestParams& p) {
   return ParsedQuicVersionToString(p.version);
 }
 
+QuicSessionPool::QuicCryptoClientConfigKey CreateTestQuicCryptoClientConfigKey(
+    const NetworkAnonymizationKey& network_anonymization_key) {
+  // Note: Most of the values in this QuicSessionKey aren't actually used when
+  // constructing the QuicCryptoClientConfigKey, but still attempt to use a
+  // QuicSessionKey with realistic values.
+  return QuicSessionPool::QuicCryptoClientConfigKey(QuicSessionKey(
+      QuicSessionPoolTestBase::kDefaultServerHostName,
+      QuicSessionPoolTestBase::kDefaultServerPort,
+      PrivacyMode::PRIVACY_MODE_DISABLED, ProxyChain::Direct(),
+      SessionUsage::kDestination, SocketTag(), network_anonymization_key,
+      SecureDnsPolicy::kAllow, /*require_dns_https_alpn=*/false));
+}
+
 std::vector<TestParams> GetTestParams() {
   std::vector<TestParams> params;
   quic::ParsedQuicVersionVector all_supported_versions =
@@ -692,7 +705,8 @@ void QuicSessionPoolTest::VerifyInitialization(
   EXPECT_EQ(ERR_IO_PENDING, builder.CallRequest());
   EXPECT_THAT(callback_.WaitForResult(), IsOk());
 
-  QuicSessionPool::QuicCryptoClientConfigKey key1(network_anonymization_key1);
+  QuicSessionPool::QuicCryptoClientConfigKey key1 =
+      CreateTestQuicCryptoClientConfigKey(network_anonymization_key1);
   EXPECT_FALSE(QuicSessionPoolPeer::CryptoConfigCacheIsEmpty(
       pool_.get(), quic_server_id1, key1));
 
@@ -733,7 +747,8 @@ void QuicSessionPoolTest::VerifyInitialization(
   EXPECT_EQ(ERR_IO_PENDING, builder2.CallRequest());
   EXPECT_THAT(callback_.WaitForResult(), IsOk());
 
-  QuicSessionPool::QuicCryptoClientConfigKey key2(network_anonymization_key2);
+  QuicSessionPool::QuicCryptoClientConfigKey key2 =
+      CreateTestQuicCryptoClientConfigKey(network_anonymization_key2);
   EXPECT_FALSE(QuicSessionPoolPeer::CryptoConfigCacheIsEmpty(
       pool_.get(), quic_server_id2, key2));
   std::unique_ptr<QuicCryptoClientConfigHandle> crypto_config_handle2 =
@@ -1900,7 +1915,8 @@ TEST_P(QuicSessionPoolTest, HttpsPoolingWithMatchingPins) {
   EXPECT_TRUE(primary_pin.FromString(
       "sha256/Nn8jk5By4Vkq6BeOVZ7R7AC6XUUBZsWmUbJR1f1Y5FY="));
   ProofVerifyDetailsChromium verify_details = DefaultProofVerifyDetails();
-  verify_details.cert_verify_result.public_key_hashes.push_back(primary_pin);
+  verify_details.cert_verify_result.public_key_hashes.push_back(
+      primary_pin.sha256hashvalue());
   crypto_client_stream_factory_.AddProofVerifyDetails(&verify_details);
 
   host_resolver_->set_synchronous_mode(true);
@@ -1959,7 +1975,8 @@ TEST_P(QuicSessionPoolTest, NoHttpsPoolingWithDifferentPins) {
   EXPECT_TRUE(primary_pin.FromString(
       "sha256/Nn8jk5By4Vkq6BeOVZ7R7AC6XUUBZsWmUbJR1f1Y5FY="));
   ProofVerifyDetailsChromium verify_details2 = DefaultProofVerifyDetails();
-  verify_details2.cert_verify_result.public_key_hashes.push_back(primary_pin);
+  verify_details2.cert_verify_result.public_key_hashes.push_back(
+      primary_pin.sha256hashvalue());
   crypto_client_stream_factory_.AddProofVerifyDetails(&verify_details2);
 
   host_resolver_->set_synchronous_mode(true);
@@ -12355,20 +12372,20 @@ TEST_P(QuicSessionPoolTest, CryptoConfigCache) {
   const SchemefulSite kSite1(GURL("https://foo.test/"));
   const auto kNetworkAnonymizationKey1 =
       NetworkAnonymizationKey::CreateSameSite(kSite1);
-  const QuicSessionPool::QuicCryptoClientConfigKey kKey1(
-      kNetworkAnonymizationKey1);
+  const QuicSessionPool::QuicCryptoClientConfigKey kKey1 =
+      CreateTestQuicCryptoClientConfigKey(kNetworkAnonymizationKey1);
 
   const SchemefulSite kSite2(GURL("https://bar.test/"));
   const auto kNetworkAnonymizationKey2 =
       NetworkAnonymizationKey::CreateSameSite(kSite2);
-  const QuicSessionPool::QuicCryptoClientConfigKey kKey2(
-      kNetworkAnonymizationKey2);
+  const QuicSessionPool::QuicCryptoClientConfigKey kKey2 =
+      CreateTestQuicCryptoClientConfigKey(kNetworkAnonymizationKey2);
 
   const SchemefulSite kSite3(GURL("https://baz.test/"));
   const auto kNetworkAnonymizationKey3 =
       NetworkAnonymizationKey::CreateSameSite(kSite3);
-  const QuicSessionPool::QuicCryptoClientConfigKey kKey3(
-      kNetworkAnonymizationKey3);
+  const QuicSessionPool::QuicCryptoClientConfigKey kKey3 =
+      CreateTestQuicCryptoClientConfigKey(kNetworkAnonymizationKey3);
 
   Initialize();
 
@@ -12410,20 +12427,20 @@ TEST_P(QuicSessionPoolTest, CryptoConfigCacheWithNetworkAnonymizationKey) {
   const SchemefulSite kSite1(GURL("https://foo.test/"));
   const auto kNetworkAnonymizationKey1 =
       NetworkAnonymizationKey::CreateSameSite(kSite1);
-  const QuicSessionPool::QuicCryptoClientConfigKey kKey1(
-      kNetworkAnonymizationKey1);
+  const QuicSessionPool::QuicCryptoClientConfigKey kKey1 =
+      CreateTestQuicCryptoClientConfigKey(kNetworkAnonymizationKey1);
 
   const SchemefulSite kSite2(GURL("https://bar.test/"));
   const auto kNetworkAnonymizationKey2 =
       NetworkAnonymizationKey::CreateSameSite(kSite2);
-  const QuicSessionPool::QuicCryptoClientConfigKey kKey2(
-      kNetworkAnonymizationKey2);
+  const QuicSessionPool::QuicCryptoClientConfigKey kKey2 =
+      CreateTestQuicCryptoClientConfigKey(kNetworkAnonymizationKey2);
 
   const SchemefulSite kSite3(GURL("https://baz.test/"));
   const auto kNetworkAnonymizationKey3 =
       NetworkAnonymizationKey::CreateSameSite(kSite3);
-  const QuicSessionPool::QuicCryptoClientConfigKey kKey3(
-      kNetworkAnonymizationKey3);
+  const QuicSessionPool::QuicCryptoClientConfigKey kKey3 =
+      CreateTestQuicCryptoClientConfigKey(kNetworkAnonymizationKey3);
 
   Initialize();
 
@@ -12506,8 +12523,8 @@ TEST_P(QuicSessionPoolTest, CryptoConfigCacheMRUWithNetworkAnonymizationKey) {
 
     std::unique_ptr<QuicCryptoClientConfigHandle> crypto_config_handle =
         QuicSessionPoolPeer::GetCryptoConfig(
-            pool_.get(), QuicSessionPool::QuicCryptoClientConfigKey(
-                             network_anonymization_keys[i]));
+            pool_.get(),
+            CreateTestQuicCryptoClientConfigKey(network_anonymization_keys[i]));
     crypto_config_handle->GetConfig()->set_user_agent_id(
         base::NumberToString(i));
     crypto_config_handles.emplace_back(std::move(crypto_config_handle));
@@ -12522,8 +12539,8 @@ TEST_P(QuicSessionPoolTest, CryptoConfigCacheMRUWithNetworkAnonymizationKey) {
     // A new handle for the same NAK returns the same crypto config.
     std::unique_ptr<QuicCryptoClientConfigHandle> crypto_config_handle =
         QuicSessionPoolPeer::GetCryptoConfig(
-            pool_.get(), QuicSessionPool::QuicCryptoClientConfigKey(
-                             network_anonymization_keys[i]));
+            pool_.get(),
+            CreateTestQuicCryptoClientConfigKey(network_anonymization_keys[i]));
     EXPECT_EQ(base::NumberToString(i),
               crypto_config_handle->GetConfig()->user_agent_id());
   }
@@ -12541,8 +12558,8 @@ TEST_P(QuicSessionPoolTest, CryptoConfigCacheMRUWithNetworkAnonymizationKey) {
     // evicted. Otherwise, it will return the same one.
     std::unique_ptr<QuicCryptoClientConfigHandle> crypto_config_handle =
         QuicSessionPoolPeer::GetCryptoConfig(
-            pool_.get(), QuicSessionPool::QuicCryptoClientConfigKey(
-                             network_anonymization_keys[i]));
+            pool_.get(),
+            CreateTestQuicCryptoClientConfigKey(network_anonymization_keys[i]));
     if (kNumSessionsToMake - i > kNumSessionsToMake) {
       EXPECT_EQ("", crypto_config_handle->GetConfig()->user_agent_id());
     } else {
@@ -12669,7 +12686,7 @@ TEST_P(QuicSessionPoolTest,
       EXPECT_EQ(i - (kMaxRecentCryptoConfigs + 1) < j && j <= i,
                 !QuicSessionPoolPeer::CryptoConfigCacheIsEmpty(
                     pool_.get(), kQuicServerId,
-                    QuicSessionPool::QuicCryptoClientConfigKey(
+                    CreateTestQuicCryptoClientConfigKey(
                         network_anonymization_keys[j])));
     }
 
@@ -12684,7 +12701,7 @@ TEST_P(QuicSessionPoolTest,
       EXPECT_EQ(i - kMaxRecentCryptoConfigs < j && j <= i,
                 !QuicSessionPoolPeer::CryptoConfigCacheIsEmpty(
                     pool_.get(), kQuicServerId,
-                    QuicSessionPool::QuicCryptoClientConfigKey(
+                    CreateTestQuicCryptoClientConfigKey(
                         network_anonymization_keys[j])));
     }
   }
@@ -14227,7 +14244,7 @@ TEST_P(QuicSessionPoolTest, RequireDnsHttpsAlpnMatch) {
   endpoints[0].ip_endpoints = {IPEndPoint(IPAddress::IPv4Localhost(), 0)};
   endpoints[0].metadata.supported_protocol_alpns = {
       quic::AlpnForVersion(version_)};
-  // Add a final non-protocol endpoint at the end.
+  // Add a final authority endpoint (no protocols specified) at the end.
   endpoints[1].ip_endpoints = {IPEndPoint(IPAddress::IPv4Localhost(), 0)};
   TestRequireDnsHttpsAlpn(std::move(endpoints), /*expect_success=*/true);
 }
@@ -14236,7 +14253,7 @@ TEST_P(QuicSessionPoolTest, RequireDnsHttpsAlpnUnknownAlpn) {
   std::vector<HostResolverEndpointResult> endpoints(2);
   endpoints[0].ip_endpoints = {IPEndPoint(IPAddress::IPv4Localhost(), 0)};
   endpoints[0].metadata.supported_protocol_alpns = {"unknown"};
-  // Add a final non-protocol endpoint at the end.
+  // Add a final authority endpoint (no protocols specified) at the end.
   endpoints[1].ip_endpoints = {IPEndPoint(IPAddress::IPv4Localhost(), 0)};
   TestRequireDnsHttpsAlpn(std::move(endpoints), /*expect_success=*/false);
 }
@@ -14246,7 +14263,7 @@ TEST_P(QuicSessionPoolTest, RequireDnsHttpsAlpnUnknownAndSupportedAlpn) {
   endpoints[0].ip_endpoints = {IPEndPoint(IPAddress::IPv4Localhost(), 0)};
   endpoints[0].metadata.supported_protocol_alpns = {
       "unknown", quic::AlpnForVersion(version_)};
-  // Add a final non-protocol endpoint at the end.
+  // Add a final authority endpoint (no protocols specified) at the end.
   endpoints[1].ip_endpoints = {IPEndPoint(IPAddress::IPv4Localhost(), 0)};
   TestRequireDnsHttpsAlpn(std::move(endpoints), /*expect_success=*/true);
 }
@@ -14258,7 +14275,7 @@ TEST_P(QuicSessionPoolTest, RequireDnsHttpsNotAlpnName) {
   endpoints[0].ip_endpoints = {IPEndPoint(IPAddress::IPv4Localhost(), 0)};
   endpoints[0].metadata.supported_protocol_alpns = {
       quic::ParsedQuicVersionToString(version_)};
-  // Add a final non-protocol endpoint at the end.
+  // Add a final authority endpoint (no protocols specified) at the end.
   endpoints[1].ip_endpoints = {IPEndPoint(IPAddress::IPv4Localhost(), 0)};
   TestRequireDnsHttpsAlpn(std::move(endpoints), /*expect_success=*/false);
 }

@@ -75,6 +75,18 @@ chromium-metrics-reviews@google.com.
   <int value="2" label="Suggestion Deleted"/>
 </enum>
 
+<!-- LINT.IfChange(AutofillAddressOptInChange) -->
+
+<enum name="AutofillAddressOptInChange">
+  <summary>
+    Records when a user opts in or out of the address autofill feature.
+  </summary>
+  <int value="0" label="OptIn"/>
+  <int value="1" label="OptOut"/>
+</enum>
+
+<!-- LINT.ThenChange(//chrome/browser/resources/settings/autofill_page/autofill_section.ts:AutofillAddressOptInChange) -->
+
 <enum name="AutofillAddressProfileImportCountrySpecificFieldRequirement">
   <int value="0" label="All required fields present"/>
   <int value="1" label="Missing: ZIP"/>
@@ -160,6 +172,15 @@ chromium-metrics-reviews@google.com.
   <int value="2" label="The FFR learn more button was clicked"/>
   <int value="3" label="FFR was accepted"/>
 </enum>
+
+<!-- LINT.IfChange(AutofillAiOptInStatus) -->
+
+<enum name="AutofillAiOptInStatus">
+  <int value="0" label="Opted out"/>
+  <int value="1" label="Opted in"/>
+</enum>
+
+<!-- LINT.ThenChange(/components/autofill/core/browser/permissions/autofill_ai/autofill_ai_permission_utils.h:AutofillAiOptInStatus) -->
 
 <enum name="AutofillAlternativeNameFieldValueCharacterSet">
   <int value="0" label="Katakana"/>
@@ -294,21 +315,6 @@ chromium-metrics-reviews@google.com.
   <int value="2" label="Denied"/>
   <int value="3" label="Ignored"/>
   <int value="4" label="NotShown, invalid legal message"/>
-</enum>
-
-<enum name="AutofillCreditCardOfferSelection">
-  <int value="0" label="Selected card without offer"/>
-  <int value="1" label="Selected card with offer"/>
-</enum>
-
-<enum name="AutofillCreditCardOfferSubmission">
-  <int value="0" label="Submitted card without offer"/>
-  <int value="1" label="Submitted card with offer"/>
-</enum>
-
-<enum name="AutofillCreditCardOfferSuggestion">
-  <int value="0" label="No cards with offer suggested"/>
-  <int value="1" label="Card with offer suggested"/>
 </enum>
 
 <enum name="AutofillCreditCardPreflightCallEvent">
@@ -1266,7 +1272,7 @@ Called by update_autofill_enums.py.-->
 </enum>
 
 <enum name="AutofillFieldPredictionQualityByFieldType">
-<!-- Generated from components/autofill/core/browser/metrics/autofill_metrics.cc.
+<!-- Generated from components/autofill/core/browser/metrics/prediction_quality_metrics.cc.
 Called by update_autofill_enums.py.-->
 
   <int value="0" label="AMBIGUOUS: True Positive"/>
@@ -1919,20 +1925,36 @@ Called by update_autofill_enums.py.-->
       label="STANDALONE_CREDIT_CARD_VERIFICATION: False Negative (Mismatch)"/>
   <int value="12041"
       label="STANDALONE_CREDIT_CARD_VERIFICATION: False Negative (Unknown)"/>
-  <int value="12288" label="PREDICTION_IMPROVEMENTS: True Positive"/>
-  <int value="12289"
-      label="PREDICTION_IMPROVEMENTS: True Negative (Ambiguous)"/>
-  <int value="12290" label="PREDICTION_IMPROVEMENTS: True Negative (Unknown)"/>
-  <int value="12291" label="PREDICTION_IMPROVEMENTS: True Negative (Empty)"/>
-  <int value="12292"
-      label="PREDICTION_IMPROVEMENTS: False Positive (Mismatch)"/>
-  <int value="12293"
-      label="PREDICTION_IMPROVEMENTS: False Positive (Ambiguous)"/>
-  <int value="12294" label="PREDICTION_IMPROVEMENTS: False Positive (Unknown)"/>
-  <int value="12295" label="PREDICTION_IMPROVEMENTS: False Positive (Empty)"/>
-  <int value="12296"
-      label="PREDICTION_IMPROVEMENTS: False Negative (Mismatch)"/>
-  <int value="12297" label="PREDICTION_IMPROVEMENTS: False Negative (Unknown)"/>
+  <int value="12288" label="AUTOFILL_AI: True Positive"/>
+  <int value="12289" label="AUTOFILL_AI: True Negative (Ambiguous)"/>
+  <int value="12290" label="AUTOFILL_AI: True Negative (Unknown)"/>
+  <int value="12291" label="AUTOFILL_AI: True Negative (Empty)"/>
+  <int value="12292" label="AUTOFILL_AI: False Positive (Mismatch)"/>
+  <int value="12293" label="AUTOFILL_AI: False Positive (Ambiguous)"/>
+  <int value="12294" label="AUTOFILL_AI: False Positive (Unknown)"/>
+  <int value="12295" label="AUTOFILL_AI: False Positive (Empty)"/>
+  <int value="12296" label="AUTOFILL_AI: False Negative (Mismatch)"/>
+  <int value="12297" label="AUTOFILL_AI: False Negative (Unknown)"/>
+  <int value="12544" label="LOYALTY_CARD: True Positive"/>
+  <int value="12545" label="LOYALTY_CARD: True Negative (Ambiguous)"/>
+  <int value="12546" label="LOYALTY_CARD: True Negative (Unknown)"/>
+  <int value="12547" label="LOYALTY_CARD: True Negative (Empty)"/>
+  <int value="12548" label="LOYALTY_CARD: False Positive (Mismatch)"/>
+  <int value="12549" label="LOYALTY_CARD: False Positive (Ambiguous)"/>
+  <int value="12550" label="LOYALTY_CARD: False Positive (Unknown)"/>
+  <int value="12551" label="LOYALTY_CARD: False Positive (Empty)"/>
+  <int value="12552" label="LOYALTY_CARD: False Negative (Mismatch)"/>
+  <int value="12553" label="LOYALTY_CARD: False Negative (Unknown)"/>
+  <int value="12800" label="ONE_TIME_PASSWORD: True Positive"/>
+  <int value="12801" label="ONE_TIME_PASSWORD: True Negative (Ambiguous)"/>
+  <int value="12802" label="ONE_TIME_PASSWORD: True Negative (Unknown)"/>
+  <int value="12803" label="ONE_TIME_PASSWORD: True Negative (Empty)"/>
+  <int value="12804" label="ONE_TIME_PASSWORD: False Positive (Mismatch)"/>
+  <int value="12805" label="ONE_TIME_PASSWORD: False Positive (Ambiguous)"/>
+  <int value="12806" label="ONE_TIME_PASSWORD: False Positive (Unknown)"/>
+  <int value="12807" label="ONE_TIME_PASSWORD: False Positive (Empty)"/>
+  <int value="12808" label="ONE_TIME_PASSWORD: False Negative (Mismatch)"/>
+  <int value="12809" label="ONE_TIME_PASSWORD: False Negative (Unknown)"/>
 </enum>
 
 <enum name="AutofillFieldType">
@@ -2398,13 +2420,6 @@ Called by update_autofill_enums.py.-->
   <int value="1" label="Ambiguous"/>
   <int value="2" label="Label"/>
   <int value="3" label="Name"/>
-</enum>
-
-<enum name="AutofillOfferNotificationBubbleResult">
-  <int value="0" label="User closed bubble via OK button"/>
-  <int value="1" label="User closed bubble via corner X"/>
-  <int value="2" label="User did not interact with the bubble"/>
-  <int value="3" label="Bubble lost focus and was deactivated"/>
 </enum>
 
 <enum name="AutofillOptionsReferrer">
@@ -3230,6 +3245,11 @@ Called by update_autofill_enums.py.-->
   <int value="1" label="Filled"/>
 </enum>
 
+<enum name="BooleanAutofillHomeAndWorkRemoved">
+  <int value="0" label="Address available"/>
+  <int value="1" label="Address removed from Chrome"/>
+</enum>
+
 <enum name="BooleanAutofillHomeAndWorkSilentUpdateUsage">
   <int value="0" label="The filled address wasn't silently updated"/>
   <int value="1" label="The filled address was silently updated"/>
@@ -3959,23 +3979,6 @@ Called by update_autofill_enums.py.-->
   <int value="1" label="Settings link clicked"/>
 </enum>
 
-<enum name="OffersSuggestionsEvent">
-  <int value="0" label="Undefined"/>
-  <int value="1" label="Suggestion shown in popup"/>
-  <int value="2" label="Suggestion shown in popup (once)"/>
-  <int value="3" label="Suggestion selected in popup"/>
-  <int value="4" label="Suggestion selected in popup (once)"/>
-  <int value="5" label="Footer suggestion see offer details selected in popup"/>
-  <int value="6"
-      label="Footer suggestion see offer details selected in popup (once)"/>
-</enum>
-
-<enum name="OffersSuggestionsPopupEvent">
-  <int value="0" label="Undefined"/>
-  <int value="1" label="Suggestions popup shown"/>
-  <int value="2" label="Suggestions popup shown (once)"/>
-</enum>
-
 <enum name="PaymentsWindowUserConsentDialogResult">
   <int value="0" label="The tab or browser was closed"/>
   <int value="1" label="The escape key was pressed, closing the dialog"/>
@@ -4059,6 +4062,15 @@ Called by update_autofill_enums.py.-->
   <int value="3" label="User-edited text field"/>
   <int value="4" label="User-edited select field"/>
 </enum>
+
+<!-- LINT.IfChange(SaveAndFillFormEvent) -->
+
+<enum name="SaveAndFillFormEvent">
+  <int value="0" label="The Save and Fill suggestion was shown."/>
+  <int value="1" label="The Save and Fill suggestion was accepted."/>
+</enum>
+
+<!-- LINT.ThenChange(/components/autofill/core/browser/metrics/payments/save_and_fill_metrics.h:SaveAndFillFormEvent) -->
 
 <!-- LINT.IfChange(SaveCreditCardPromptResultIOS) -->
 
@@ -4170,6 +4182,7 @@ Called by update_autofill_enums.py.-->
       label="Suggestion to try a backup credential in case of login failure"/>
   <int value="72" label="Footer with multiline freeform text"/>
   <int value="73" label="All loyalty cards"/>
+  <int value="74" label="One time password entry"/>
 </enum>
 
 <!-- LINT.ThenChange(/components/autofill/core/browser/suggestions/suggestion_type.h:SuggestionType) -->

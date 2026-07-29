@@ -297,6 +297,8 @@ target(link_target_type, "gles2_sources") {
     "shared_image/wrapped_sk_image_backing_factory.h",
     "shared_image_interface_in_process.cc",
     "shared_image_interface_in_process.h",
+    "shared_image_interface_in_process_base.cc",
+    "shared_image_interface_in_process_base.h",
     "shared_memory_region_wrapper.cc",
     "shared_memory_region_wrapper.h",
     "single_task_sequence.h",
@@ -504,12 +506,17 @@ target(link_target_type, "gles2_sources") {
     configs -= [ "//build/config/compiler:enable_arc" ]
 
     if (skia_use_metal) {
-      deps += [ "//components/viz/common:metal_context_provider" ]
+      sources += [
+        "metal_context_provider.h",
+        "metal_context_provider.mm",
+      ]
+      deps += [ "//components/metal_util" ]
     }
 
     # Required by gles2_cmd_decoder.cc on Apple.
     frameworks = [
       "CoreVideo.framework",
+      "Foundation.framework",
       "IOSurface.framework",
       "Metal.framework",
     ]

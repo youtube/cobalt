@@ -7,7 +7,6 @@
 // Branded symbol names.
 #if BUILDFLAG(IOS_USE_BRANDED_SYMBOLS)
 // TODO(crbug.com/1489185): Move PNG images out of this file.
-NSString* const kChromeAIHubHeaderImage = @"chrome_ai_hub_header";
 NSString* const kChromeDefaultBrowserIllustrationImage =
     @"chrome_default_browser_illustration";
 NSString* const kChromeDefaultBrowserScreenBannerImage =
@@ -25,6 +24,7 @@ NSString* const kGeminiBrandedLogoImage = @"gemini_logo";
 NSString* const kGoogleDriveSymbol = @"google_drive";
 NSString* const kGoogleFullSymbol = @"google_full";
 NSString* const kGoogleIconSymbol = @"google_icon";
+NSString* const kGoogleSearchEngineLogoImage = @"google_logo";
 NSString* const kGoogleShieldSymbol = @"google_shield";
 NSString* const kGoogleMapsSymbol = @"google_maps";
 NSString* const kGooglePasswordManagerWidgetPromoImage =
@@ -42,7 +42,6 @@ NSString* const kFedexCarrierImage = @"parcel_tracking_carrier_fedex";
 NSString* const kUPSCarrierImage = @"parcel_tracking_carrier_ups";
 NSString* const kUSPSCarrierImage = @"parcel_tracking_carrier_usps";
 #else
-NSString* const kChromiumAIHubHeaderImage = @"chromium_ai_hub_header";
 NSString* const kChromiumDefaultBrowserScreenBannerImage =
     @"chromium_default_browser_screen_banner";
 NSString* const kChromiumGuidedTourBannerImage = @"chromium_guided_tour_banner";
@@ -311,6 +310,8 @@ NSString* const kCounterClockWiseSymbol =
     @"clock.arrow.trianglehead.counterclockwise.rotate.90";
 NSString* const kTextSparkSymbol = @"text_spark";
 NSString* const kBuilding2Symbol = @"building.2";
+NSString* const kBookSymbol = @"book";
+NSString* const kKeySymbol = @"key";
 
 // Names of the default symbol being non-monochrome by default. When using them,
 // you probably want to set their color to monochrome.

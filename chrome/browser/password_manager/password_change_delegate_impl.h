@@ -28,10 +28,12 @@ class PasswordFormManager;
 
 class ChangePasswordFormFillingSubmissionHelper;
 class ChangePasswordFormFinder;
+class CrossOriginNavigationObserver;
 class ModelQualityLogsUploader;
 class PasswordChangeUIController;
 class PasswordChangeHats;
 class Profile;
+class OtpDetectionHelper;
 
 // This class controls password change process including acceptance of privacy
 // notice, opening of a new tab, navigation to the change password url, password
@@ -54,6 +56,8 @@ class PasswordChangeDelegateImpl : public PasswordChangeDelegate {
   base::WeakPtr<PasswordChangeDelegate> AsWeakPtr() override;
 
 #if defined(UNIT_TEST)
+  ModelQualityLogsUploader* logs_uploader() { return logs_uploader_.get(); }
+  OtpDetectionHelper* otp_helper() { return otp_detection_.get(); }
   ChangePasswordFormFinder* form_finder() { return form_finder_.get(); }
   content::WebContents* executor() { return executor_.get(); }
   PasswordChangeUIController* ui_controller() { return ui_controller_.get(); }
@@ -80,6 +84,8 @@ class PasswordChangeDelegateImpl : public PasswordChangeDelegate {
   void AddObserver(Observer* observer) override;
   void RemoveObserver(Observer* observer) override;
 
+  void OnOtpNotFound();
+
   void OnTabWillDetach(tabs::TabInterface* tab_interface,
                        tabs::TabInterface::DetachReason reason);
 
@@ -95,21 +101,25 @@ class PasswordChangeDelegateImpl : public PasswordChangeDelegate {
 
   std::u16string GetDisplayOrigin() const;
 
+  void OnCrossOriginNavigationDetected();
+
   const GURL change_password_url_;
   const std::u16string username_;
   const std::u16string original_password_;
 
   std::u16string generated_password_;
 
-  raw_ptr<content::WebContents> originator_;
+  raw_ptr<content::WebContents> originator_ = nullptr;
   std::unique_ptr<content::WebContents> executor_;
 
-  const raw_ptr<Profile> profile_;
+  const raw_ptr<Profile> profile_ = nullptr;
 
   // Helper class which uploads model quality logs.
   std::unique_ptr<ModelQualityLogsUploader> logs_uploader_;
 
-  State current_state_ = static_cast<State>(-1);
+  State current_state_ = State::kNoState;
+
+  std::unique_ptr<OtpDetectionHelper> otp_detection_;
 
   // Helper class which looks for a change password form.
   std::unique_ptr<ChangePasswordFormFinder> form_finder_;
@@ -132,6 +142,8 @@ class PasswordChangeDelegateImpl : public PasswordChangeDelegate {
 
   // Helper class for handling happiness tracking surveys.
   std::unique_ptr<PasswordChangeHats> password_change_hats_;
+
+  std::unique_ptr<CrossOriginNavigationObserver> navigation_observer_;
 
   // URL of the last committed page in `originator_` on the password change flow
   // startup.

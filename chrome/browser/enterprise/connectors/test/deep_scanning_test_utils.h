@@ -19,6 +19,7 @@
 #include "build/build_config.h"
 #include "components/enterprise/buildflags/buildflags.h"
 #include "components/enterprise/common/proto/connectors.pb.h"
+#include "components/enterprise/common/proto/synced/browser_events.pb.h"
 #include "components/enterprise/connectors/core/reporting_test_utils.h"
 #include "components/enterprise/data_controls/core/browser/verdict.h"
 #include "components/signin/public/identity_manager/identity_test_environment.h"
@@ -99,6 +100,10 @@ class EventReportValidator : public EventReportValidatorBase {
           expected_event);
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 
+  void ExpectSensitiveDataEvent(
+      chrome::cros::reporting::proto::DlpSensitiveDataEvent
+          expected_sensitive_data_event);
+
   void ExpectSensitiveDataEvents(
       const std::string& expected_url,
       const std::string& expected_tab_url,
@@ -116,6 +121,24 @@ class EventReportValidator : public EventReportValidatorBase {
       const std::vector<std::string>& expected_scan_ids,
       const std::optional<std::string>& expected_content_transfer_method,
       const std::optional<std::u16string>& expected_user_justification);
+
+  void ExpectSensitiveDataEventWarnThenBypass(
+      const std::string& expected_url,
+      const std::string& expected_tab_url,
+      const std::string& expected_source,
+      const std::string& expected_destination,
+      const std::string& expected_filename,
+      const std::string& expected_sha256,
+      const std::string& expected_trigger,
+      const ContentAnalysisResponse::Result& expected_dlp_verdict,
+      const std::set<std::string>* expected_mimetypes,
+      std::optional<int64_t> expected_content_size,
+      const std::string& expected_profile_username,
+      const std::string& expected_profile_identifier,
+      const std::string& expected_scan_id,
+      const std::optional<std::string>& expected_content_transfer_method,
+      const std::vector<std::optional<std::u16string>>&
+          expected_user_justifications);
 
   void ExpectDangerousDeepScanningResultAndSensitiveDataEvent(
       const std::string& expected_url,
@@ -151,6 +174,10 @@ class EventReportValidator : public EventReportValidatorBase {
       const std::string& expected_profile_username,
       const std::string& expected_profile_identifier,
       const std::string& expected_scan_id);
+
+  void ExpectUnscannedFileEvent(
+      chrome::cros::reporting::proto::UnscannedFileEvent
+          expected_unscanned_file_event);
 
   void ExpectUnscannedFileEvent(
       const std::string& expected_url,

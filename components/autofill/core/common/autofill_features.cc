@@ -13,7 +13,7 @@ namespace autofill::features {
 // TODO(crbug.com/40266699) Remove once launched.
 BASE_FEATURE(kAutofillAcrossIframesIos,
              "AutofillAcrossIframesIos",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Throttles child frame extraction to a maximum number of child frames that
 // can be extracted by applying the following rules: (1) remove the child frames
@@ -21,7 +21,7 @@ BASE_FEATURE(kAutofillAcrossIframesIos,
 // frames on other forms once the limit is reached across forms.
 BASE_FEATURE(kAutofillAcrossIframesIosThrottling,
              "AutofillAcrossIframesIosThrottling",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 // LINT.ThenChange(//components/autofill/ios/form_util/resources/autofill_form_features.ts:autofill_across_iframes_ios)
 
 // Controls whether to trigger form extraction when detecting a form activity on
@@ -29,7 +29,7 @@ BASE_FEATURE(kAutofillAcrossIframesIosThrottling,
 // (kAutofillAcrossIframesIos).
 BASE_FEATURE(kAutofillAcrossIframesIosTriggerFormExtraction,
              "AutofillAcrossIframesIosTriggerFormExtraction",
-             base::FEATURE_ENABLED_BY_DEFAULT);
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Feature flag to control displaying of Autofill suggestions on
 // unclassified fields based on prefix matching. These suggestions are displayed
@@ -87,6 +87,12 @@ BASE_FEATURE(kAutofillAiIgnoreGeoIp,
 // If enabled, no locale requirements are imposed for AutofillAi.
 BASE_FEATURE(kAutofillAiIgnoreLocale,
              "AutofillAiIgnoreLocale",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// If enabled, the existence of address or payments data is not required to show
+// the Iph bubble for AutofillAi.
+BASE_FEATURE(kAutofillAiIgnoreWhetherUserHasAddressOrPaymentsDataForIph,
+             "AutofillAiIgnoreWhetherUserHasAddressOrPaymentsDataForIph",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 // If enabled, AutofillAi supports national id cards.
@@ -357,13 +363,13 @@ BASE_FEATURE(kAutofillImproveCityFieldClassification,
 // we have guarantees that in the meantime the form couldn't have changed.
 BASE_FEATURE(kAutofillOptimizeFormExtraction,
              "AutofillOptimizeFormExtraction",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // If enabled, credit cards that are split into different fields are imported.
 // TODO: crbug.com/392179445 - Clean up when launched.
 BASE_FEATURE(kAutofillFixSplitCreditCardImport,
              "AutofillFixSplitCreditCardImport",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // If enabled, autofill will use FormFieldData::DeepEqual instead of deprecated
 // SameFieldAs().
@@ -666,6 +672,20 @@ BASE_FEATURE(kAutofillMoreProminentPopup,
 const base::FeatureParam<int> kAutofillMoreProminentPopupMaxOffsetToCenterParam{
     &kAutofillMoreProminentPopup, "max_offset_to_center_px", 92};
 
+// TODO(crbug.com/346507576): Remove once the experiment is over.
+// When enabled, makes autocomplete label sensitive.
+BASE_FEATURE(kAutofillLabelSensitiveAutocomplete,
+             "AutofillLabelSensitiveAutocomplete",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+// Migration generation for the autocomplete label-sensitive feature.
+// If the migration generation received from the Finch server is greater than
+// the stored browser parameter, re-migrate AutocompleteTableLabelSensitive data
+// from the old AutocompleteTable.
+const base::FeatureParam<int>
+    kAutofillLabelSensitiveAutocompleteMigrationGeneration{
+        &kAutofillLabelSensitiveAutocomplete,
+        "autocomplete_label_sensitive_migration_generation", 0};
+
 // Enable the feature by default, and set the enabled percentage as a feature
 // param. We are logging information of field types, autofill status and
 // forms with a defined sampling rate of 10% on sessions.
@@ -727,6 +747,14 @@ COMPONENT_EXPORT(AUTOFILL)
 BASE_FEATURE(kAutofillServerUploadMoreData,
              "AutofillServerUploadMoreData",
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Replaces the secondary signature with the structural signature for Uploads.
+// For Queries still only the secondary (alternative) signature is used.
+// TODO(crbug.com/431737839): Clean up when roll out finishes successfully.
+COMPONENT_EXPORT(AUTOFILL)
+BASE_FEATURE(kAutofillUseStructuralSignatureInsteadOfSecondary,
+             "AutofillUseStructuralSignatureInsteadOfSecondary",
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // When enabled, the field classification model uses runtime caching to not run
 // models on the same inputs multiple times.
@@ -807,6 +835,12 @@ BASE_FEATURE(kUseSettingsAddressEditorInPaymentsRequest,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 #if BUILDFLAG(IS_ANDROID)
+// If enabled, on Android desktop, Autofill keyboard accessory will be
+// suppressed when there are no autofill suggestions.
+BASE_FEATURE(kAutofillAndroidDesktopSuppressAccessoryOnEmpty,
+             "AutofillAndroidDesktopSuppressAccessoryOnEmpty",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // If enabled, other apps can open the Autofill Options in Chrome.
 BASE_FEATURE(kAutofillDeepLinkAutofillOptions,
              "AutofillDeepLinkAutofillOptions",

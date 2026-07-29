@@ -31,6 +31,8 @@ class FakeBaseModelAsset {
     proto::OnDeviceModelExecutionConfig config;
     std::string version = "0.0.1";
     uint32_t cache_weight = 0;
+    int supported_performance_hint =
+        proto::ON_DEVICE_MODEL_PERFORMANCE_HINT_HIGHEST_QUALITY;
   };
   FakeBaseModelAsset();
   explicit FakeBaseModelAsset(Content&& content);
@@ -53,6 +55,7 @@ class FakeBaseModelAsset {
 
  private:
   std::string version_;
+  int supported_performance_hint_;
   base::ScopedTempDir temp_dir_;
 };
 
@@ -68,9 +71,7 @@ class FakeAdaptationAsset {
 
   int64_t version() const { return 12345; }
   ModelBasedCapabilityKey feature() const { return feature_; }
-  std::unique_ptr<OnDeviceModelAdaptationMetadata> metadata() const {
-    return std::make_unique<OnDeviceModelAdaptationMetadata>(*metadata_);
-  }
+  OnDeviceModelAdaptationMetadata metadata() const { return *metadata_; }
 
   void SendTo(OnDeviceModelServiceController& controller) const;
 
@@ -88,6 +89,7 @@ class FakeLanguageModelAsset {
   ~FakeLanguageModelAsset();
 
   const ModelInfo& model_info() { return *model_info_; }
+  base::FilePath model_path() const;
 
  private:
   base::ScopedTempDir temp_dir_;

@@ -134,7 +134,6 @@
 #include "content/test/did_commit_navigation_interceptor.h"
 #include "content/test/render_document_feature.h"
 #include "ipc/constants.mojom.h"
-#include "ipc/ipc_security_test_util.h"
 #include "media/base/media_switches.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/sync_call_restrictions.h"
@@ -202,6 +201,7 @@
 #include "ui/android/view_android.h"
 #include "ui/android/window_android.h"
 #include "ui/events/android/event_handler_android.h"
+#include "ui/events/android/motion_event_android_factory.h"
 #include "ui/events/android/motion_event_android_java.h"
 #include "ui/events/motionevent_jni_headers/MotionEvent_jni.h"
 #include "ui/gfx/geometry/point_f.h"
@@ -8013,10 +8013,7 @@ class SitePerProcessAndroidImeTest : public SitePerProcessBrowserTest {
         base::android::ConvertUTF8ToJavaString(env, text);
 
     // Simulating a native call from Java side.
-    ime_adapter()->CommitText(
-        env, base::android::JavaParamRef<jobject>(env, caller.obj()),
-        base::android::JavaParamRef<jobject>(env, jtext.obj()),
-        base::android::JavaParamRef<jstring>(env, jtext.obj()), 0);
+    ime_adapter()->CommitText(env, caller, jtext, jtext, 0);
   }
 
   std::vector<raw_ptr<RenderFrameHostImpl, VectorExperimental>> frames_;
@@ -9503,10 +9500,26 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
       JNI_MotionEvent::Java_MotionEvent_obtain(
           env, /*downTime=*/0, /*eventTime=*/0, /*action=*/0, /*x=*/0, /*y=*/0,
           /*metaState=*/0);
-  ui::MotionEventAndroidJava event(env, obj, 1.f / root_view->GetDipScale(),
-                                   0.f, 0.f, 0.f, base::TimeTicks(), 0, 1, 0, 0,
-                                   0, 0, 0, 0, 0, false, &pointer0, nullptr);
-  root_view->OnTouchEventForTesting(event);
+  auto event = ui::MotionEventAndroidFactory::CreateFromJava(
+      env, obj,
+      /*pix_to_dip=*/1.f / root_view->GetDipScale(),
+      /*ticks_x=*/0.f,
+      /*ticks_y=*/0.f,
+      /*tick_multiplier=*/0.f,
+      /*oldest_event_time=*/base::TimeTicks(),
+      /*android_action=*/0,
+      /*pointer_count=*/1,
+      /*history_size=*/0,
+      /*action_index=*/0,
+      /*android_action_button=*/0,
+      /*android_gesture_classification=*/0,
+      /*android_button_state=*/0,
+      /*raw_offset_x_pixels=*/0,
+      /*raw_offset_y_pixels=*/0,
+      /*for_touch_handle=*/false,
+      /*pointer0=*/&pointer0,
+      /*pointer1=*/nullptr);
+  root_view->OnTouchEventForTesting(*event);
 
   EXPECT_TRUE(mock_handler.did_receive_event());
   EXPECT_FALSE(mock_handler_speculative.did_receive_event());
@@ -9847,11 +9860,26 @@ class TouchSelectionControllerClientAndroidSiteIsolationTest
         JNI_MotionEvent::Java_MotionEvent_obtain(
             env, /*downTime=*/0, /*eventTime=*/0, /*action=*/0, /*x=*/0,
             /*y=*/0, /*metaState=*/0);
-    ui::MotionEventAndroidJava touch(
-        env, obj, 1.f, 0, 0, 0, base::TimeTicks::FromJavaNanoTime(time_ns),
-        ui::MotionEventAndroid::GetAndroidAction(action), 1, 0, 0, 0, 0, 0, 0,
-        0, false, &p, nullptr);
-    view->OnTouchEvent(touch);
+    auto touch = ui::MotionEventAndroidFactory::CreateFromJava(
+        env, obj,
+        /*pix_to_dip=*/1.f,
+        /*ticks_x=*/0,
+        /*ticks_y=*/0,
+        /*tick_multiplier=*/0,
+        /*oldest_event_time=*/base::TimeTicks::FromJavaNanoTime(time_ns),
+        /*android_action=*/ui::MotionEventAndroid::GetAndroidAction(action),
+        /*pointer_count=*/1,
+        /*history_size=*/0,
+        /*action_index=*/0,
+        /*android_action_button=*/0,
+        /*android_gesture_classification=*/0,
+        /*android_button_state=*/0,
+        /*raw_offset_x_pixels=*/0,
+        /*raw_offset_y_pixels=*/0,
+        /*for_touch_handle=*/false,
+        /*pointer0=*/&p,
+        /*pointer1=*/nullptr);
+    view->OnTouchEvent(*touch);
   }
 
   raw_ptr<RenderWidgetHostViewAndroid, DanglingUntriaged> root_rwhv_;
@@ -11162,6 +11190,15 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest, FrameDepthTest) {
             child1_rvh->GetWidget()->GetPriority().frame_depth);
   EXPECT_FALSE(static_cast<RenderWidgetHostOwnerDelegate*>(child1_rvh)
                    ->ShouldContributePriorityToProcess());
+  // The RenderWidgetHost of the RenderFrameHost is different from the
+  // RenderWidgetHost of the RenderViewHost and contributes to the priority.
+  EXPECT_NE(child1->current_frame_host()->GetRenderWidgetHost(),
+            child1_rvh->GetWidget());
+  EXPECT_EQ(1u, child1->current_frame_host()
+                    ->GetLocalRenderWidgetHost()
+                    ->GetPriority()
+                    .frame_depth);
+  EXPECT_EQ(1u, child1->current_frame_host()->GetProcess()->GetFrameDepth());
 
   FrameTreeNode* grand_child = root->child_at(1)->child_at(0);
   {
@@ -13631,8 +13668,19 @@ IN_PROC_BROWSER_TEST_P(
   EXPECT_NE(js_process, web_contents()->GetPrimaryMainFrame()->GetProcess());
 }
 
-// Test that cross-site navigations clear user activation.
-IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest, UserActivationCrossSite) {
+namespace {
+
+void CheckStickyUserActivationState(RenderFrameHostImpl* host, bool expected) {
+  EXPECT_EQ(expected, host->HasStickyUserActivation());
+  EXPECT_EQ(expected, EvalJs(host, "navigator.userActivation.hasBeenActive",
+                             EXECUTE_SCRIPT_NO_USER_GESTURE));
+}
+
+}  // namespace
+
+// Test that a cross-site navigation in an iframe clears user activation.
+IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
+                       UserActivationAfterCrossSiteNavInIframe) {
   GURL main_url(embedded_test_server()->GetURL(
       "a.com", "/cross_site_iframe_factory.html?a(b)"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
@@ -13642,37 +13690,25 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest, UserActivationCrossSite) {
   FrameTreeNode* child = root->child_at(0);
 
   // Sanity check that there is no sticky user activation at first.
-  EXPECT_FALSE(child->current_frame_host()->HasStickyUserActivation());
-  EXPECT_EQ(false, EvalJs(child->current_frame_host(),
-                          "navigator.userActivation.hasBeenActive",
-                          EXECUTE_SCRIPT_NO_USER_GESTURE));
+  CheckStickyUserActivationState(child->current_frame_host(), false);
 
   // Load cross-site page into iframe and verify there is still no sticky user
   // activation.
   GURL first_http_url(embedded_test_server()->GetURL("d.com", "/title1.html"));
   EXPECT_TRUE(
       NavigateToURLFromRendererWithoutUserGesture(child, first_http_url));
-  EXPECT_FALSE(child->current_frame_host()->HasStickyUserActivation());
-  EXPECT_EQ(false, EvalJs(child->current_frame_host(),
-                          "navigator.userActivation.hasBeenActive",
-                          EXECUTE_SCRIPT_NO_USER_GESTURE));
+  CheckStickyUserActivationState(child->current_frame_host(), false);
 
   // Give the child iframe user activation.
   EXPECT_TRUE(ExecJs(child, "// No-op script"));
-  EXPECT_TRUE(child->current_frame_host()->HasStickyUserActivation());
-  EXPECT_EQ(true, EvalJs(child->current_frame_host(),
-                         "navigator.userActivation.hasBeenActive",
-                         EXECUTE_SCRIPT_NO_USER_GESTURE));
+  CheckStickyUserActivationState(child->current_frame_host(), true);
 
   // Perform another cross-site navigation in the iframe.
   GURL http_url(embedded_test_server()->GetURL("c.com", "/title1.html"));
   EXPECT_TRUE(NavigateToURLFromRendererWithoutUserGesture(child, http_url));
 
   // The cross-site navigation should have cleared the user activation.
-  EXPECT_FALSE(child->current_frame_host()->HasStickyUserActivation());
-  EXPECT_EQ(false, EvalJs(child->current_frame_host(),
-                          "navigator.userActivation.hasBeenActive",
-                          EXECUTE_SCRIPT_NO_USER_GESTURE));
+  CheckStickyUserActivationState(child->current_frame_host(), false);
 
   // Ensure that a top-level navigation cannot happen.
   EXPECT_TRUE(ExecJs(child->current_frame_host(),
@@ -13682,10 +13718,10 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest, UserActivationCrossSite) {
   EXPECT_NE(http_url, shell()->web_contents()->GetLastCommittedURL());
 }
 
-// Test that same-site cross-origin navigations keep user activation.
-// TODO(crbug.com/40228985): Find a way to reset activation here without
-// breaking sites in practice.
-IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest, UserActivationSameSite) {
+// Test that a same-site cross-origin navigation in an iframe keeps user
+// activation.
+IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
+                       UserActivationAfterSameSiteNavInIframe) {
   GURL main_url(embedded_test_server()->GetURL(
       "a.com", "/cross_site_iframe_factory.html?a(b)"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
@@ -13695,10 +13731,7 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest, UserActivationSameSite) {
   FrameTreeNode* child = root->child_at(0);
 
   // Sanity check that there is no sticky user activation at first.
-  EXPECT_FALSE(child->current_frame_host()->HasStickyUserActivation());
-  EXPECT_EQ(false, EvalJs(child->current_frame_host(),
-                          "navigator.userActivation.hasBeenActive",
-                          EXECUTE_SCRIPT_NO_USER_GESTURE));
+  CheckStickyUserActivationState(child->current_frame_host(), false);
 
   // Load cross-origin same-site page into iframe and verify there is still no
   // sticky user activation.
@@ -13706,17 +13739,11 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest, UserActivationSameSite) {
       embedded_test_server()->GetURL("subdomain.b.com", "/title1.html"));
   EXPECT_TRUE(
       NavigateToURLFromRendererWithoutUserGesture(child, first_http_url));
-  EXPECT_FALSE(child->current_frame_host()->HasStickyUserActivation());
-  EXPECT_EQ(false, EvalJs(child->current_frame_host(),
-                          "navigator.userActivation.hasBeenActive",
-                          EXECUTE_SCRIPT_NO_USER_GESTURE));
+  CheckStickyUserActivationState(child->current_frame_host(), false);
 
   // Give the child iframe user activation.
   EXPECT_TRUE(ExecJs(child, "// No-op script"));
-  EXPECT_TRUE(child->current_frame_host()->HasStickyUserActivation());
-  EXPECT_EQ(true, EvalJs(child->current_frame_host(),
-                         "navigator.userActivation.hasBeenActive",
-                         EXECUTE_SCRIPT_NO_USER_GESTURE));
+  CheckStickyUserActivationState(child->current_frame_host(), true);
 
   // Perform another same-site navigation in the iframe.
   GURL http_url(embedded_test_server()->GetURL("b.com", "/title1.html"));
@@ -13724,10 +13751,7 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest, UserActivationSameSite) {
 
   // The cross-origin same-site navigation should keep the sticky user
   // activation from the previous page.
-  EXPECT_TRUE(child->current_frame_host()->HasStickyUserActivation());
-  EXPECT_EQ(true, EvalJs(child->current_frame_host(),
-                         "navigator.userActivation.hasBeenActive",
-                         EXECUTE_SCRIPT_NO_USER_GESTURE));
+  CheckStickyUserActivationState(child->current_frame_host(), true);
 
   // Ensure that top-level navigations can still happen.
   EXPECT_TRUE(ExecJs(child->current_frame_host(),
@@ -13737,10 +13761,9 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest, UserActivationSameSite) {
   EXPECT_EQ(http_url, shell()->web_contents()->GetLastCommittedURL());
 }
 
-// Test that same-origin navigations keep user activation.
-// TODO(crbug.com/40228985): Find a way to reset activation here without
-// breaking sites in practice.
-IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest, UserActivationSameOrigin) {
+// Test that a same-origin navigation in an iframe keeps user activation.
+IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
+                       UserActivationAfterSameOriginNavInIframe) {
   GURL main_url(embedded_test_server()->GetURL(
       "a.com", "/cross_site_iframe_factory.html?a(b)"));
   EXPECT_TRUE(NavigateToURL(shell(), main_url));
@@ -13750,26 +13773,17 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest, UserActivationSameOrigin) {
   FrameTreeNode* child = root->child_at(0);
 
   // Sanity check that there is no sticky user activation at first.
-  EXPECT_FALSE(child->current_frame_host()->HasStickyUserActivation());
-  EXPECT_EQ(false, EvalJs(child->current_frame_host(),
-                          "navigator.userActivation.hasBeenActive",
-                          EXECUTE_SCRIPT_NO_USER_GESTURE));
+  CheckStickyUserActivationState(child->current_frame_host(), false);
 
   // Load cross-site page into iframe and verify there is still no sticky user
   // activation.
   GURL first_http_url(embedded_test_server()->GetURL("c.com", "/title1.html"));
   EXPECT_TRUE(NavigateIframeToURL(web_contents(), "child-0", first_http_url));
-  EXPECT_FALSE(child->current_frame_host()->HasStickyUserActivation());
-  EXPECT_EQ(false, EvalJs(child->current_frame_host(),
-                          "navigator.userActivation.hasBeenActive",
-                          EXECUTE_SCRIPT_NO_USER_GESTURE));
+  CheckStickyUserActivationState(child->current_frame_host(), false);
 
   // Give the child iframe user activation.
   EXPECT_TRUE(ExecJs(child, "// No-op script"));
-  EXPECT_TRUE(child->current_frame_host()->HasStickyUserActivation());
-  EXPECT_EQ(true, EvalJs(child->current_frame_host(),
-                         "navigator.userActivation.hasBeenActive",
-                         EXECUTE_SCRIPT_NO_USER_GESTURE));
+  CheckStickyUserActivationState(child->current_frame_host(), true);
 
   // Load same-origin page into iframe.
   GURL http_url(embedded_test_server()->GetURL("c.com", "/title2.html"));
@@ -13777,10 +13791,7 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest, UserActivationSameOrigin) {
 
   // The same-origin navigation should keep the sticky user activation from the
   // previous page.
-  EXPECT_TRUE(child->current_frame_host()->HasStickyUserActivation());
-  EXPECT_EQ(true, EvalJs(child->current_frame_host(),
-                         "navigator.userActivation.hasBeenActive",
-                         EXECUTE_SCRIPT_NO_USER_GESTURE));
+  CheckStickyUserActivationState(child->current_frame_host(), true);
 
   // Ensure that top-level navigations can still happen.
   EXPECT_TRUE(ExecJs(child->current_frame_host(),

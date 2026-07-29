@@ -380,7 +380,7 @@
 
       <!-- Settings UI -->
       <message name="IDS_MANAGED_BY_YOUR_ORGANIZATION" desc="Popup message when the user clicks a UI element that has been disabled by enterprise policy.">
-        This setting is enforced by your administrator.
+        Managed by your organization
       </message>
       <message name="IDS_MANAGED_BY_YOUR_PARENTS" desc="Popup message when the user clicks a UI element that has been disabled by their parents.">
         Managed by your parents
@@ -390,6 +390,9 @@
       </message>
       <message name="IDS_MANAGED_SETTINGS_CANNOT_BE_RESET" desc="Popup message when the user clicks a UI element that resets a list of settings that include managed settings.">
         Managed settings cannot be reset
+      </message>
+      <message name="IDS_RECOMMENDED_BY_YOUR_ORGANIZATION" desc="Text displayed when a value is recommended for a setting through policy and the user is following this recommendation. The setting is still user-editable.">
+        Recommended by your organization
       </message>
       <message name="IDS_ACCESSIBILITY_EXPANDED_GROUP" desc="The accessibility text to read when the selected widget is expanded.">
         Expanded - click to collapse.
@@ -1385,6 +1388,9 @@
       </message>
       <message name="IDS_NTP_CUSTOMIZATION_THEME_COLLECTIONS_BOTTOM_SHEET_OPENED_FULL" desc="Accessibility string that describes the new tab page appearance theme collections bottom sheet is fully opened.">
         New tab page appearance theme collections bottom sheet opened at full height
+      </message>
+      <message name="IDS_NTP_CUSTOMIZATION_THEME_COLLECTIONS_DAILY_UPDATE" desc="Title of the toggle switch for updating theme collection background daily">
+        Refresh daily
       </message>
 
       <!-- Time Last Accessed strings -->

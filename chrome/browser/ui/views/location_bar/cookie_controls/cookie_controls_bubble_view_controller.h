@@ -36,7 +36,7 @@ class CookieControlsBubbleViewController
                        CookieControlsEnforcement enforcement,
                        CookieBlocking3pcdStatus blocking_status,
                        base::Time expiration) override;
-  void OnFinishedPageReloadWithChangedSettings() override;
+  void OnBubbleCloseTriggered() override;
 
   void SetSubjectUrlNameForTesting(const std::u16string& name);
 
@@ -71,7 +71,7 @@ class CookieControlsBubbleViewController
 
   void FillViewForThirdPartyCookies(CookieControlsEnforcement enforcement,
                                     base::Time expiration);
-  void FillViewForTrackingProtections();
+  void FillViewForTrackingProtections(CookieControlsEnforcement enforcement);
 
   void CloseBubble();
 

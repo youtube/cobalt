@@ -270,7 +270,7 @@ class CountDanglingRawPtr {
 namespace partition_alloc::internal {
 
 using BucketDistribution = PartitionRoot::BucketDistribution;
-using SlotSpan = SlotSpanMetadata<MetadataKind::kReadOnly>;
+using SlotSpan = SlotSpanMetadata;
 
 const size_t kTestAllocSize = 16;
 
@@ -467,10 +467,6 @@ class PartitionAllocTest
     PartitionRoot::SetSortActiveSlotSpansEnabled(true);
     PartitionAllocGlobalInit(HandleOOM);
     InitializeMainTestAllocators();
-#if PA_CONFIG(ENABLE_SHADOW_METADATA)
-    PartitionRoot::EnableShadowMetadata(internal::PoolHandleMask::kRegular |
-                                        internal::PoolHandleMask::kBRP);
-#endif
 
     test_bucket_index_ = SizeToIndex(ActualTestAllocSize());
   }
@@ -759,8 +755,7 @@ class MockPartitionStatsDumper : public PartitionStatsDumper {
 // Regarding IsManagedByDirectMap(), this rarely happens because of allocation
 // size. But we should also check who allocates the memory.
 bool IsNormalBucketsAllocatedByRoot(uintptr_t address, PartitionRoot* root) {
-  partition_alloc::internal::PartitionSuperPageExtentEntry<
-      partition_alloc::internal::MetadataKind::kReadOnly>* extent =
+  partition_alloc::internal::PartitionSuperPageExtentEntry* extent =
       root->first_extent;
   while (extent != nullptr) {
     uintptr_t super_page =
@@ -779,8 +774,7 @@ bool IsDirectMapAllocatedByRoot(uintptr_t address, PartitionRoot* root) {
   ::partition_alloc::internal::ScopedGuard locker{
       partition_alloc::internal::PartitionRootLock(root)};
 
-  partition_alloc::internal::PartitionDirectMapExtent<
-      partition_alloc::internal::MetadataKind::kReadOnly>* extent =
+  partition_alloc::internal::PartitionDirectMapExtent* extent =
       root->direct_map_list;
   while (extent != nullptr) {
     uintptr_t super_page =
@@ -2826,8 +2820,7 @@ TEST_P(PartitionAllocDeathTest, OffByOneDetectionByCookie) {
   const size_t alloc_size = 2 * sizeof(void*);
   char* array = static_cast<char*>(allocator.root()->Alloc(alloc_size));
 
-  auto* slot_span =
-      PartitionRoot::ReadOnlySlotSpanMetadata::FromObjectInnerPtr(array);
+  auto* slot_span = PartitionRoot::SlotSpanMetadata::FromObjectInnerPtr(array);
   size_t usable_size = allocator.root()->GetSlotUsableSize(slot_span);
 
   char previous_value = array[usable_size];
@@ -2854,8 +2847,7 @@ TEST_P(PartitionAllocDeathTest, OffByOneDetectionByCookieWithRealisticData) {
   void** array = static_cast<void**>(allocator.root()->Alloc(alloc_size));
   char valid;
 
-  auto* slot_span =
-      PartitionRoot::ReadOnlySlotSpanMetadata::FromObjectInnerPtr(array);
+  auto* slot_span = PartitionRoot::SlotSpanMetadata::FromObjectInnerPtr(array);
   size_t usable_size =
       allocator.root()->GetSlotUsableSize(slot_span) / sizeof(void*);
 
@@ -3923,8 +3915,8 @@ TEST_P(PartitionAllocTest, InaccessibleRegionAfterSlotSpans) {
   void* ptr =
       root->Alloc(incomplete_bucket->slot_size - ExtraAllocSize(allocator), "");
   ASSERT_TRUE(ptr);
-  uintptr_t start = SlotSpanMetadata<MetadataKind::kReadOnly>::ToSlotSpanStart(
-      SlotSpanMetadata<MetadataKind::kReadOnly>::FromAddr(UntagPtr(ptr)));
+  uintptr_t start = SlotSpanMetadata::ToSlotSpanStart(
+      SlotSpanMetadata::FromAddr(UntagPtr(ptr)));
   uintptr_t end = start + incomplete_bucket->get_bytes_per_span();
 
   std::string proc_maps;
@@ -3978,8 +3970,8 @@ TEST_P(PartitionAllocTest, FewerMemoryRegions) {
   void* ptr =
       root->Alloc(incomplete_bucket->slot_size - ExtraAllocSize(allocator), "");
   ASSERT_TRUE(ptr);
-  uintptr_t start = SlotSpanMetadata<MetadataKind::kReadOnly>::ToSlotSpanStart(
-      SlotSpanMetadata<MetadataKind::kReadOnly>::FromAddr(UntagPtr(ptr)));
+  uintptr_t start = SlotSpanMetadata::ToSlotSpanStart(
+      SlotSpanMetadata::FromAddr(UntagPtr(ptr)));
   uintptr_t end = start + incomplete_bucket->get_bytes_per_span();
 
   std::string proc_maps;
@@ -6059,10 +6051,10 @@ TEST_P(PartitionAllocTest, SortActiveSlotSpans) {
       // But slot_spans must contain the readonly slot spans.
       size_t loop_count = std::min(num_slotspans_per_superpage, count);
       for (size_t j = 0; j < loop_count; ++j) {
-        size_t offset = sizeof(SlotSpanMetadata<MetadataKind::kWritable>) * j;
-        SlotSpanMetadata<MetadataKind::kWritable>* writable_slot_span =
+        size_t offset = sizeof(SlotSpanMetadata) * j;
+        SlotSpanMetadata* writable_slot_span =
             new (reinterpret_cast<void*>(writable_metadata + offset))
-                SlotSpanMetadata<MetadataKind::kWritable>(&bucket);
+                SlotSpanMetadata(&bucket);
 
         SlotSpan* slot_span = reinterpret_cast<SlotSpan*>(metadata + offset);
         slot_spans.push_back(slot_span);
@@ -6089,14 +6081,13 @@ TEST_P(PartitionAllocTest, SortActiveSlotSpans) {
     for (size_t i = 0; i < count; i++) {
       slot_spans.emplace_back(&bucket);
       auto& slot_span = slot_spans.back();
-      slot_span.ToWritable(nullptr)->num_unprovisioned_slots =
+      slot_span.num_unprovisioned_slots =
           partition_alloc::internal::base::RandGenerator(
               bucket.get_slots_per_span() / 2);
-      slot_span.ToWritable(nullptr)->num_allocated_slots =
+      slot_span.num_allocated_slots =
           partition_alloc::internal::base::RandGenerator(
               bucket.get_slots_per_span() - slot_span.num_unprovisioned_slots);
-      slot_span.ToWritable(nullptr)->next_slot_span =
-          bucket.active_slot_spans_head;
+      slot_span.next_slot_span = bucket.active_slot_spans_head;
       bucket.active_slot_spans_head = &slot_span;
     }
 #endif  // PA_CONFIG(ENABLE_SHADOW_METADATA)

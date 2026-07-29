@@ -10,12 +10,10 @@
 #include "base/feature_list.h"
 #include "base/memory/ptr_util.h"
 #include "base/no_destructor.h"
+#include "chrome/browser/actor/ui/actor_overlay_window_controller.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/collaboration/collaboration_service_factory.h"
 #include "chrome/browser/commerce/shopping_service_factory.h"
-#include "chrome/browser/download/bubble/download_bubble_prefs.h"
-#include "chrome/browser/download/bubble/download_bubble_ui_controller.h"
-#include "chrome/browser/download/bubble/download_display_controller.h"
 #include "chrome/browser/extensions/browser_extension_window_controller.h"
 #include "chrome/browser/extensions/manifest_v2_experiment_manager.h"
 #include "chrome/browser/extensions/mv2_experiment_stage.h"
@@ -45,7 +43,6 @@
 #include "chrome/browser/ui/performance_controls/memory_saver_opt_in_iph_controller.h"
 #include "chrome/browser/ui/signin/signin_view_controller.h"
 #include "chrome/browser/ui/sync/browser_synced_window_delegate.h"
-#include "chrome/browser/ui/tabs/glic_actor_task_icon_controller.h"
 #include "chrome/browser/ui/tabs/glic_nudge_controller.h"
 #include "chrome/browser/ui/tabs/organization/tab_declutter_controller.h"
 #include "chrome/browser/ui/tabs/saved_tab_groups/most_recent_shared_tab_update_store.h"
@@ -64,7 +61,6 @@
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/color_provider_browser_helper.h"
 #include "chrome/browser/ui/views/data_sharing/data_sharing_bubble_controller.h"
-#include "chrome/browser/ui/views/download/bubble/download_toolbar_ui_controller.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/immersive_mode_controller.h"
 #include "chrome/browser/ui/views/frame/tab_strip_region_view.h"
@@ -76,6 +72,7 @@
 #include "chrome/browser/ui/views/profiles/profile_menu_coordinator.h"
 #include "chrome/browser/ui/views/send_tab_to_self/send_tab_to_self_toolbar_bubble_controller.h"
 #include "chrome/browser/ui/views/side_panel/bookmarks/bookmarks_side_panel_coordinator.h"
+#include "chrome/browser/ui/views/side_panel/comments/comments_side_panel_coordinator.h"
 #include "chrome/browser/ui/views/side_panel/extensions/extension_side_panel_manager.h"
 #include "chrome/browser/ui/views/side_panel/history/history_side_panel_coordinator.h"
 #include "chrome/browser/ui/views/side_panel/history_clusters/history_clusters_side_panel_coordinator.h"
@@ -116,11 +113,18 @@
 #include "chrome/browser/ui/views/frame/windows_taskbar_icon_updater.h"
 #endif
 
+#if !BUILDFLAG(IS_CHROMEOS)
+#include "chrome/browser/download/bubble/download_bubble_ui_controller.h"
+#include "chrome/browser/download/bubble/download_display_controller.h"
+#include "chrome/browser/ui/views/download/bubble/download_toolbar_ui_controller.h"
+#endif
+
 #if BUILDFLAG(ENABLE_GLIC)
 #include "chrome/browser/glic/browser_ui/glic_button_controller.h"
 #include "chrome/browser/glic/browser_ui/glic_iph_controller.h"
 #include "chrome/browser/glic/glic_enabling.h"
 #include "chrome/browser/glic/glic_keyed_service.h"
+#include "chrome/browser/ui/tabs/glic_actor_task_icon_controller.h"
 #endif
 
 #if defined(USE_AURA)
@@ -189,12 +193,12 @@ void BrowserWindowFeatures::Init(BrowserWindowInterface* browser) {
 
 #if BUILDFLAG(ENABLE_GLIC)
     if (glic::GlicEnabling::IsProfileEligible(browser->GetProfile())) {
-      DCHECK(features::IsTabSearchMoving());
+      DCHECK(features::HasTabSearchToolbarButton());
       glic_iph_controller_ = std::make_unique<glic::GlicIphController>(browser);
       glic_nudge_controller_ =
           std::make_unique<tabs::GlicNudgeController>(browser);
 
-      if (base::FeatureList::IsEnabled(features::kGlicActorTaskIcon)) {
+      if (features::kGlicActorUiTaskIcon.Get()) {
         glic_actor_task_icon_controller_ =
             std::make_unique<tabs::GlicActorTaskIconController>(browser);
       }
@@ -232,7 +236,8 @@ void BrowserWindowFeatures::Init(BrowserWindowInterface* browser) {
           browser->GetAppBrowserController());
 
   tab_group_deletion_dialog_controller_ =
-      std::make_unique<tab_groups::DeletionDialogController>(browser);
+      std::make_unique<tab_groups::DeletionDialogController>(
+          browser, browser->GetProfile(), tab_strip_model_);
 
   user_education_ =
       GetUserDataFactory().CreateInstance<BrowserUserEducationInterfaceImpl>(
@@ -247,7 +252,8 @@ void BrowserWindowFeatures::Init(BrowserWindowInterface* browser) {
       std::make_unique<ReadingListSidePanelCoordinator>(
           browser->GetProfile(), browser->GetTabStripModel());
 
-  signin_view_controller_ = std::make_unique<SigninViewController>(browser);
+  signin_view_controller_ = std::make_unique<SigninViewController>(
+      browser, browser->GetProfile(), tab_strip_model_);
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
   if (base::FeatureList::IsEnabled(features::kPdfInfoBar)) {
@@ -264,7 +270,8 @@ void BrowserWindowFeatures::Init(BrowserWindowInterface* browser) {
 #endif
 
   data_sharing_bubble_controller_ =
-      std::make_unique<DataSharingBubbleController>(browser);
+      std::make_unique<DataSharingBubbleController>(
+          browser, browser->GetProfile(), tab_strip_model_);
 
   content_setting_bubble_model_delegate_ =
       std::make_unique<BrowserContentSettingBubbleModelDelegate>(browser);
@@ -302,10 +309,12 @@ void BrowserWindowFeatures::InitPostWindowConstruction(Browser* browser) {
       browser->window()->GetExclusiveAccessContext());
 
   // This code needs exclusive access manager to be initialized.
+#if !BUILDFLAG(IS_CHROMEOS)
   if (download_toolbar_ui_controller_) {
     download_toolbar_ui_controller_->display_controller()
         ->ListenToFullScreenChanges();
   }
+#endif
 
   // Features that are only enabled for normal browser windows (e.g. a window
   // with an omnibox and a tab strip). By default most features should be
@@ -384,13 +393,15 @@ void BrowserWindowFeatures::InitPostWindowConstruction(Browser* browser) {
     }
   }
 
-  synced_window_delegate_ =
-      std::make_unique<BrowserSyncedWindowDelegate>(browser);
+  synced_window_delegate_ = std::make_unique<BrowserSyncedWindowDelegate>(
+      browser, browser->GetTabStripModel(), browser->GetSessionID(),
+      browser->GetType());
 
   extension_window_controller_ =
       std::make_unique<extensions::BrowserExtensionWindowController>(browser);
 
-  profile_menu_coordinator_ = std::make_unique<ProfileMenuCoordinator>(browser);
+  profile_menu_coordinator_ =
+      std::make_unique<ProfileMenuCoordinator>(browser, browser->GetProfile());
 
   upgrade_notification_controller_ =
       std::make_unique<UpgradeNotificationController>(browser);
@@ -405,7 +416,10 @@ void BrowserWindowFeatures::InitPostWindowConstruction(Browser* browser) {
             browser->GetTabStripModel(), browser_view->GetWidget());
   }
 
-  live_tab_context_ = std::make_unique<BrowserLiveTabContext>(browser);
+  live_tab_context_ = std::make_unique<BrowserLiveTabContext>(
+      browser, browser->GetTabStripModel(), browser->GetProfile(),
+      browser->GetWindow(), browser->GetType(), browser->app_name(),
+      browser->GetSessionID());
 
   if (browser->is_type_normal() || browser->is_type_app()) {
     toast_service_ = std::make_unique<ToastService>(browser);
@@ -430,10 +444,16 @@ void BrowserWindowFeatures::InitPostBrowserViewConstruction(
   }
 
   history_clusters_side_panel_coordinator_ =
-      std::make_unique<HistoryClustersSidePanelCoordinator>(browser_);
+      std::make_unique<HistoryClustersSidePanelCoordinator>(
+          browser_, browser_->GetProfile(), side_panel_coordinator_.get());
 
   bookmarks_side_panel_coordinator_ =
       std::make_unique<BookmarksSidePanelCoordinator>();
+
+  if (CommentsSidePanelCoordinator::IsSupported()) {
+    comments_side_panel_coordinator_ =
+        std::make_unique<CommentsSidePanelCoordinator>();
+  }
 
   side_panel_coordinator_->Init(browser_view->browser());
 
@@ -470,12 +490,18 @@ void BrowserWindowFeatures::InitPostBrowserViewConstruction(
           std::make_unique<media_router::CastBrowserController>(
               browser_view->browser());
     }
+
+    if (features::kGlicActorUiOverlay.Get()) {
+      actor_overlay_window_controller_ =
+          std::make_unique<actor::ui::ActorOverlayWindowController>(
+              browser_view->GetActorOverlayView());
+    }
   }
 
-  if (download::IsDownloadBubbleEnabled()) {
-    download_toolbar_ui_controller_ =
-        std::make_unique<DownloadToolbarUIController>(browser_view);
-  }
+#if !BUILDFLAG(IS_CHROMEOS)
+  download_toolbar_ui_controller_ =
+      std::make_unique<DownloadToolbarUIController>(browser_view);
+#endif
 
   if (base::FeatureList::IsEnabled(ntp_features::kNtpFooter)) {
     new_tab_footer_controller_ =
@@ -501,14 +527,17 @@ void BrowserWindowFeatures::TearDownPreBrowserWindowDestruction() {
   profile_menu_coordinator_.reset();
   toast_service_.reset();
   extension_window_controller_.reset();
+  actor_overlay_window_controller_.reset();
 
 #if BUILDFLAG(ENABLE_GLIC)
   glic_button_controller_.reset();
 #endif
 
+#if !BUILDFLAG(IS_CHROMEOS)
   if (download_toolbar_ui_controller_) {
     download_toolbar_ui_controller_->TearDownPreBrowserWindowDestruction();
   }
+#endif
 
   history_clusters_side_panel_coordinator_.reset();
 

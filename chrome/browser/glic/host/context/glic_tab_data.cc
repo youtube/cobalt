@@ -36,6 +36,16 @@ bool IsForeground(content::Visibility visibility) {
 TabDataObserver::TabDataObserver(
     content::WebContents* web_contents,
     base::RepeatingCallback<void(glic::mojom::TabDataPtr)> tab_data_changed)
+    : TabDataObserver(web_contents
+                          ? tabs::TabInterface::GetFromContents(web_contents)
+                          : nullptr,
+                      web_contents,
+                      std::move(tab_data_changed)) {}
+
+TabDataObserver::TabDataObserver(
+    tabs::TabInterface* tab,
+    content::WebContents* web_contents,
+    base::RepeatingCallback<void(glic::mojom::TabDataPtr)> tab_data_changed)
     : content::WebContentsObserver(web_contents),
       tab_data_changed_(std::move(tab_data_changed)) {
   if (web_contents) {
@@ -44,10 +54,8 @@ TabDataObserver::TabDataObserver(
     if (favicon_driver) {
       favicon_driver->AddObserver(this);
     }
-    tab_detach_subscription_ =
-        tabs::TabInterface::GetFromContents(web_contents)
-            ->RegisterWillDetach(base::BindRepeating(
-                &TabDataObserver::OnTabWillDetach, base::Unretained(this)));
+    tab_detach_subscription_ = tab->RegisterWillDetach(base::BindRepeating(
+        &TabDataObserver::OnTabWillDetach, base::Unretained(this)));
   }
 }
 
@@ -136,8 +144,6 @@ glic::mojom::TabDataPtr CreateTabData(content::WebContents* web_contents) {
     }
   }
 
-  // TODO(b/426644734): investigate triggering updates due to changes to
-  // observability for focused tab data.
   bool is_audible = web_contents->IsCurrentlyAudible();
   bool is_foreground = IsForeground(web_contents->GetVisibility());
   bool is_observable = is_audible || is_foreground;

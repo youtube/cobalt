@@ -136,6 +136,9 @@ TestProfileIOS::~TestProfileIOS() {
   // Allows blocking in this scope for testing.
   base::ScopedAllowBlockingForTesting allow_bocking;
 
+  // Notify the callback of the profile destruction before destroying anything.
+  NotifyProfileDestroyed();
+
   // If this TestProfileIOS owns an incognito TestProfileIOS,
   // tear it down first.
   otr_profile_.reset();
@@ -216,13 +219,6 @@ scoped_refptr<base::SequencedTaskRunner> TestProfileIOS::GetIOTaskRunner() {
   return base::SingleThreadTaskRunner::GetCurrentDefault();
 }
 
-TestProfileIOS*
-TestProfileIOS::CreateOffTheRecordBrowserStateWithTestingFactories(
-    TestingFactories testing_factories) {
-  return CreateOffTheRecordProfileWithTestingFactories(
-      std::move(testing_factories));
-}
-
 ProfileIOS* TestProfileIOS::GetOriginalProfile() {
   if (IsOffTheRecord()) {
     return original_profile_;
@@ -243,7 +239,7 @@ ProfileIOS* TestProfileIOS::GetOffTheRecordProfile() {
     return otr_profile_.get();
   }
 
-  return CreateOffTheRecordBrowserStateWithTestingFactories();
+  return CreateOffTheRecordProfileWithTestingFactories();
 }
 
 void TestProfileIOS::DestroyOffTheRecordProfile() {

@@ -31,7 +31,6 @@
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
 #include "third_party/blink/renderer/platform/bindings/script_state.h"
 #include "third_party/blink/renderer/platform/instrumentation/use_counter.h"
-#include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 
 namespace blink {
 
@@ -1604,7 +1603,7 @@ class OperatorFlatMapSubscribeDelegate final
     // this). These values are queued and processed one-by-one; they each get
     // passed into `mapper_`.
     //
-    // TODO(crbug.com/40282760): This should be a `WTF::Deque` or `HeapDeque`,
+    // TODO(crbug.com/40282760): This should be a `blink::Deque` or `HeapDeque`,
     // but neither support holding a `ScriptValue` type at the moment. This
     // needs some investigation, so we can avoid using `HeapVector` here, which
     // has O(n) performance when removing values from the front.
@@ -2587,7 +2586,6 @@ Observable::Observable(ExecutionContext* execution_context,
       subscribe_callback_(subscribe_callback) {
   DCHECK(subscribe_callback_);
   DCHECK(!subscribe_delegate_);
-  DCHECK(RuntimeEnabledFeatures::ObservableAPIEnabled(execution_context));
 }
 
 Observable::Observable(ExecutionContext* execution_context,
@@ -2596,7 +2594,6 @@ Observable::Observable(ExecutionContext* execution_context,
       subscribe_delegate_(subscribe_delegate) {
   DCHECK(!subscribe_callback_);
   DCHECK(subscribe_delegate_);
-  DCHECK(RuntimeEnabledFeatures::ObservableAPIEnabled(execution_context));
 }
 
 void Observable::subscribe(ScriptState* script_state,

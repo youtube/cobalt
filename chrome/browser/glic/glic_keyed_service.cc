@@ -60,7 +60,6 @@
 #include "extensions/browser/guest_view/web_view/web_view_guest.h"
 #include "mojo/public/cpp/base/proto_wrapper.h"
 #include "mojo/public/cpp/bindings/callback_helpers.h"
-#include "net/log/net_log_with_source.h"
 #include "third_party/abseil-cpp/absl/strings/str_format.h"
 #include "third_party/blink/public/common/web_preferences/web_preferences.h"
 #include "ui/base/page_transition_types.h"
@@ -81,11 +80,6 @@ base::TimeDelta GetWarmingDelay() {
   }
   return delay_start;
 }
-
-// TODO(b/421426722): Use net::DefineNetworkTrafficAnnotationTag() to define the
-// annotation, and remove this file from tools/traffic_annotation/safe_list.txt.
-const net::NetworkTrafficAnnotationTag kGlicWebUITrafficAnnotation =
-    MISSING_TRAFFIC_ANNOTATION;
 
 }  // namespace
 
@@ -120,6 +114,7 @@ GlicKeyedService::GlicKeyedService(
       zero_state_suggestions_manager_(
           std::make_unique<GlicZeroStateSuggestionsManager>(
               sharing_manager_.get(),
+              window_controller_.get(),
               contextual_cueing_service,
               host_.get())),
       contextual_cueing_service_(contextual_cueing_service) {
@@ -223,15 +218,13 @@ void GlicKeyedService::OnZeroStateSuggestionsFetched(
     mojom::ZeroStateSuggestionsPtr suggestions,
     mojom::WebClientHandler::GetZeroStateSuggestionsForFocusedTabCallback
         callback,
-    std::optional<std::vector<std::string>> returned_suggestions) {
+    std::vector<std::string> returned_suggestions) {
   std::vector<mojom::SuggestionContentPtr> output_suggestions;
-  if (returned_suggestions) {
-    for (const std::string& suggestion_string : returned_suggestions.value()) {
-      output_suggestions.push_back(
-          mojom::SuggestionContent::New(suggestion_string));
-    }
-    suggestions->suggestions = std::move(output_suggestions);
+  for (const std::string& suggestion_string : returned_suggestions) {
+    output_suggestions.push_back(
+        mojom::SuggestionContent::New(suggestion_string));
   }
+  suggestions->suggestions = std::move(output_suggestions);
 
   std::move(callback).Run(std::move(suggestions));
 }
@@ -257,7 +250,7 @@ void GlicKeyedService::FetchZeroStateSuggestions(
                 base::BindOnce(&GlicKeyedService::OnZeroStateSuggestionsFetched,
                                GetWeakPtr(), std::move(suggestions),
                                std::move(callback)),
-                std::nullopt));
+                std::vector<std::string>({})));
 
   } else {
     std::move(callback).Run(nullptr);
@@ -392,6 +385,11 @@ void GlicKeyedService::PerformActions(
     return;
   }
 
+  auto* actor_service = actor::ActorKeyedService::Get(profile_);
+  actor_service->GetJournal().Log(
+      GURL(), actor::TaskId(actions.task_id()), "GlicPerformActions",
+      absl::StrFormat("Proto: %s", actor::ToBase64(actions)));
+
   if (!actions.has_task_id()) {
     std::move(callback).Run(
         base::unexpected(mojom::PerformActionsErrorReason::kMissingTaskId));
@@ -399,7 +397,6 @@ void GlicKeyedService::PerformActions(
   }
 
   actor::TaskId task_id(actions.task_id());
-  auto* actor_service = actor::ActorKeyedService::Get(profile_);
 
   actor::BuildToolRequestResult requests = actor::BuildToolRequest(actions);
   if (!requests.has_value()) {
@@ -438,15 +435,6 @@ void GlicKeyedService::ActInFocusedTab(
   }
 
   CHECK(actor_controller_);
-
-  auto* actor_service = actor::ActorKeyedService::Get(profile_);
-  CHECK(actor_service);
-
-  actor::ActorTask* task = actor_service->GetMostRecentTask();
-  if (task && (!action.has_task_id() || action.task_id() == 0)) {
-    action.set_task_id(task->id().value());
-  }
-
   actor_controller_->Act(action, options, std::move(callback));
 }
 
@@ -525,7 +513,7 @@ void GlicKeyedService::TryPreload() {
       !base::FeatureList::IsEnabled(features::kGlicWarming)) {
     // This is to ensure the preload process completes and preload_callback_ is
     // called.
-    FinishPreload(false);
+    FinishPreload(GlicPrewarmingChecksResult::kWarmingDisabled);
     return;
   }
   GlicProfileManager* glic_profile_manager = GlicProfileManager::GetInstance();
@@ -596,17 +584,14 @@ bool GlicKeyedService::IsActiveWebContents(content::WebContents* contents) {
          contents == window_controller().GetFreWebContents();
 }
 
-void GlicKeyedService::FinishPreload(bool should_preload) {
+void GlicKeyedService::FinishPreload(GlicPrewarmingChecksResult result) {
+  base::UmaHistogramEnumeration("Glic.Prewarming.ChecksResult", result);
   if (preload_callback_) {
     base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
         FROM_HERE, base::BindOnce(std::move(preload_callback_)));
   }
-  if (base::FeatureList::IsEnabled(features::kGlicWarming) && profile_ &&
-      GlicEnabling::IsEnabledAndConsentForProfile(profile_)) {
-    base::UmaHistogramBoolean("Glic.ShouldPreload", should_preload);
-  }
 
-  if (!should_preload) {
+  if (result != GlicPrewarmingChecksResult::kSuccess) {
     return;
   }
 
@@ -634,21 +619,6 @@ bool GlicKeyedService::IsProcessHostForGlic(
 
 bool GlicKeyedService::IsGlicWebUi(content::WebContents* web_contents) {
   return host().IsGlicWebUi(web_contents);
-}
-
-void GlicKeyedService::LogDummyNetworkRequestForTrafficAnnotation(
-    const GURL& url) {
-  net::NetLogWithSource net_log =
-      net::NetLogWithSource::Make(net::NetLogSourceType::URL_REQUEST);
-  net_log.AddEvent(net::NetLogEventType::REQUEST_ALIVE, [&]() {
-    base::Value::Dict dict;
-    dict.Set("priority", "IDLE");
-    dict.Set("url", url.spec());
-    dict.Set("traffic_annotation",
-             kGlicWebUITrafficAnnotation.unique_id_hash_code);
-    dict.Set("dummy_request", true);
-    return dict;
-  });
 }
 
 }  // namespace glic

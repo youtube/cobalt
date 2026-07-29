@@ -162,10 +162,6 @@ BASE_FEATURE(kInitImageDecodeLastUseTime,
              "InitImageDecodeLastUseTime",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
-BASE_FEATURE(kDynamicSafeAreaInsetsSupportedByCC,
-             "DynamicSafeAreaInsetsSupportedByCC",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 BASE_FEATURE(kThrottleMainFrameTo60Hz,
              "ThrottleMainFrameTo60Hz",
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -262,4 +258,8 @@ BASE_FEATURE(kSlimDirectReceiverIpc,
 BASE_FEATURE(kOverscrollBehaviorRespectedOnAllScrollContainers,
              "OverscrollBehaviorRespectedOnAllScrollContainers",
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kSkipFinishDuringReleaseLayerTreeFrameSink,
+             "SkipFinishDuringReleaseLayerTreeFrameSink",
+             base::FEATURE_ENABLED_BY_DEFAULT);
 }  // namespace features

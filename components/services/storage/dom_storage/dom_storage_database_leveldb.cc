@@ -2,20 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
-#pragma allow_unsafe_buffers
-#endif
-
 #include "components/services/storage/dom_storage/dom_storage_database_leveldb.h"
 
 #include <algorithm>
 #include <utility>
 
+#include "base/compiler_specific.h"
 #include "base/debug/leak_annotations.h"
 #include "base/memory/ptr_util.h"
 #include "base/no_destructor.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/task/bind_post_task.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/task_traits.h"
 #include "base/trace_event/memory_allocator_dump.h"
@@ -80,13 +77,10 @@ leveldb_env::Options MakeOptions() {
 std::unique_ptr<leveldb::DB> TryOpenDB(
     const leveldb_env::Options& options,
     const std::string& name,
-    scoped_refptr<base::SequencedTaskRunner> callback_task_runner,
     DomStorageDatabaseLevelDB::StatusCallback callback) {
   std::unique_ptr<leveldb::DB> db;
   leveldb::Status status = leveldb_env::OpenDB(options, name, &db);
-  callback_task_runner->PostTask(
-      FROM_HERE,
-      base::BindOnce(std::move(callback), FromLevelDBStatus(status)));
+  std::move(callback).Run(FromLevelDBStatus(status));
   return db;
 }
 
@@ -124,7 +118,27 @@ DbStatus ForEachWithPrefix(leveldb::DB* db,
   return FromLevelDBStatus(iter->status());
 }
 
+leveldb::WriteBatch* GetAsWriteBatch(DomStorageBatchOperation& batch) {
+  return static_cast<DomStorageBatchOperationLevelDB*>(&batch)->write_batch();
+}
+
 }  // namespace
+
+DomStorageBatchOperationLevelDB::DomStorageBatchOperationLevelDB() = default;
+
+DomStorageBatchOperationLevelDB::~DomStorageBatchOperationLevelDB() = default;
+
+void DomStorageBatchOperationLevelDB::Put(KeyView key, ValueView value) {
+  write_batch_.Put(MakeSlice(key), MakeSlice(value));
+}
+
+void DomStorageBatchOperationLevelDB::Delete(KeyView key) {
+  write_batch_.Delete(MakeSlice(key));
+}
+
+size_t DomStorageBatchOperationLevelDB::ApproximateSizeForMetrics() const {
+  return write_batch_.ApproximateSize();
+}
 
 DomStorageDatabaseLevelDB::DomStorageDatabaseLevelDB(
     PassKey,
@@ -132,12 +146,11 @@ DomStorageDatabaseLevelDB::DomStorageDatabaseLevelDB(
     const std::string& name,
     const std::optional<base::trace_event::MemoryAllocatorDumpGuid>&
         memory_dump_id,
-    scoped_refptr<base::SequencedTaskRunner> callback_task_runner,
     StatusCallback callback)
     : name_(MakeFullPersistentDBName(directory, name)),
       options_(MakeOptions()),
       memory_dump_id_(memory_dump_id) {
-  Init(std::move(callback_task_runner), std::move(callback));
+  Init(std::move(callback));
 }
 
 DomStorageDatabaseLevelDB::DomStorageDatabaseLevelDB(
@@ -145,19 +158,16 @@ DomStorageDatabaseLevelDB::DomStorageDatabaseLevelDB(
     const std::string& tracking_name,
     const std::optional<base::trace_event::MemoryAllocatorDumpGuid>&
         memory_dump_id,
-    scoped_refptr<base::SequencedTaskRunner> callback_task_runner,
     StatusCallback callback)
     : env_(leveldb_chrome::NewMemEnv(tracking_name)),
       memory_dump_id_(memory_dump_id) {
   options_.env = env_.get();
-  Init(std::move(callback_task_runner), std::move(callback));
+  Init(std::move(callback));
 }
 
 void DomStorageDatabaseLevelDB::Init(
-    scoped_refptr<base::SequencedTaskRunner> callback_task_runner,
     StatusCallback callback) {
-  db_ = TryOpenDB(options_, name_, std::move(callback_task_runner),
-                  std::move(callback));
+  db_ = TryOpenDB(options_, name_, std::move(callback));
   base::trace_event::MemoryDumpManager::GetInstance()
       ->RegisterDumpProviderWithSequencedTaskRunner(
           this, "MojoLevelDB", base::SequencedTaskRunner::GetCurrentDefault(),
@@ -195,21 +205,21 @@ void DomStorageDatabaseLevelDB::CreateSequenceBoundDomStorageDatabase(
   ANNOTATE_LEAKING_OBJECT_PTR(database_ptr);
   *database_ptr = base::SequenceBound<DomStorageDatabaseLevelDB>(
       blocking_task_runner, PassKey(), args...,
-      base::SequencedTaskRunner::GetCurrentDefault(),
-      base::BindOnce(
-          [](base::SequenceBound<DomStorageDatabaseLevelDB>* database_ptr,
-             DomStorageDatabaseFactory::OpenCallback callback,
-             DbStatus status) {
-            auto database = base::WrapUnique(database_ptr);
-            if (status.ok()) {
-              std::move(callback).Run(std::move(*database), status);
-            } else {
-              std::move(callback).Run({}, status);
-            }
-          },
-          database_ptr, std::move(callback)));
+      base::BindPostTask(
+          base::SequencedTaskRunner::GetCurrentDefault(),
+          base::BindOnce(
+              [](base::SequenceBound<DomStorageDatabaseLevelDB>* database_ptr,
+                 DomStorageDatabaseFactory::OpenCallback callback,
+                 DbStatus status) {
+                auto database = base::WrapUnique(database_ptr);
+                if (status.ok()) {
+                  std::move(callback).Run(std::move(*database), status);
+                } else {
+                  std::move(callback).Run({}, status);
+                }
+              },
+              database_ptr, std::move(callback))));
 }
-
 DomStorageDatabaseLevelDB::~DomStorageDatabaseLevelDB() {
   base::trace_event::MemoryDumpManager::GetInstance()->UnregisterDumpProvider(
       this);
@@ -253,16 +263,13 @@ void DomStorageDatabaseLevelDB::Destroy(
   blocking_task_runner->PostTask(
       FROM_HERE,
       base::BindOnce(
-          [](const std::string& db_name,
-             scoped_refptr<base::SequencedTaskRunner> callback_task_runner,
-             StatusCallback callback) {
-            callback_task_runner->PostTask(
-                FROM_HERE, base::BindOnce(std::move(callback),
-                                          FromLevelDBStatus(leveldb::DestroyDB(
-                                              db_name, MakeOptions()))));
+          [](const std::string& db_name, StatusCallback callback) {
+            std::move(callback).Run(
+                FromLevelDBStatus(leveldb::DestroyDB(db_name, MakeOptions())));
           },
           MakeFullPersistentDBName(directory, name),
-          base::SequencedTaskRunner::GetCurrentDefault(), std::move(callback)));
+          base::BindPostTask(base::SequencedTaskRunner::GetCurrentDefault(),
+                             std::move(callback))));
 }
 
 DbStatus DomStorageDatabaseLevelDB::Get(KeyView key, Value* out_value) const {
@@ -302,7 +309,7 @@ DbStatus DomStorageDatabaseLevelDB::GetPrefixed(
 
 DbStatus DomStorageDatabaseLevelDB::DeletePrefixed(
     KeyView prefix,
-    leveldb::WriteBatch* batch) const {
+    DomStorageBatchOperation& batch) const {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (!db_) {
     return DbStatus::IOError(kInvalidDatabaseMessage);
@@ -310,7 +317,8 @@ DbStatus DomStorageDatabaseLevelDB::DeletePrefixed(
   DbStatus status = ForEachWithPrefix(
       db_.get(), prefix,
       [&](const leveldb::Slice& key, const leveldb::Slice& value) {
-        batch->Delete(key);
+        leveldb::WriteBatch* write_batch = GetAsWriteBatch(batch);
+        write_batch->Delete(key);
       });
   return status;
 }
@@ -318,7 +326,7 @@ DbStatus DomStorageDatabaseLevelDB::DeletePrefixed(
 DbStatus DomStorageDatabaseLevelDB::CopyPrefixed(
     KeyView prefix,
     KeyView new_prefix,
-    leveldb::WriteBatch* batch) const {
+    DomStorageBatchOperation& batch) const {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (!db_) {
     return DbStatus::IOError(kInvalidDatabaseMessage);
@@ -330,21 +338,25 @@ DbStatus DomStorageDatabaseLevelDB::CopyPrefixed(
         DCHECK_GE(key.size(), prefix.size());  // By definition.
         size_t suffix_length = key.size() - prefix.size();
         new_key.resize(new_prefix.size() + suffix_length);
-        std::copy(key.data() + prefix.size(), key.data() + key.size(),
+        std::copy(UNSAFE_TODO(key.data() + prefix.size()),
+                  UNSAFE_TODO(key.data() + key.size()),
                   new_key.begin() + new_prefix.size());
-        batch->Put(MakeSlice(new_key), value);
+        leveldb::WriteBatch* write_batch = GetAsWriteBatch(batch);
+        write_batch->Put(MakeSlice(new_key), value);
       });
   return status;
 }
 
-DbStatus DomStorageDatabaseLevelDB::Commit(leveldb::WriteBatch* batch) const {
+DbStatus DomStorageDatabaseLevelDB::Commit(
+    DomStorageBatchOperation& batch) const {
   if (!db_) {
     return DbStatus::IOError(kInvalidDatabaseMessage);
   }
   if (fail_commits_for_testing_) {
     return DbStatus::IOError("Simulated I/O Error");
   }
-  return FromLevelDBStatus(db_->Write(leveldb::WriteOptions(), batch));
+  return FromLevelDBStatus(
+      db_->Write(leveldb::WriteOptions(), GetAsWriteBatch(batch)));
 }
 
 DbStatus DomStorageDatabaseLevelDB::RewriteDB() {
@@ -356,6 +368,11 @@ DbStatus DomStorageDatabaseLevelDB::RewriteDB() {
     db_.reset();
   }
   return FromLevelDBStatus(status);
+}
+
+std::unique_ptr<DomStorageBatchOperation>
+DomStorageDatabaseLevelDB::CreateBatchOperation() const {
+  return std::make_unique<DomStorageBatchOperationLevelDB>();
 }
 
 void DomStorageDatabaseLevelDB::SetDestructionCallbackForTesting(

@@ -4,39 +4,37 @@
 
 package org.chromium.chrome.browser.suggestions.tile;
 
+import static org.chromium.build.NullUtil.assumeNonNull;
 import static org.chromium.chrome.browser.suggestions.tile.MostVisitedTilesProperties.HORIZONTAL_EDGE_PADDINGS;
 import static org.chromium.chrome.browser.suggestions.tile.MostVisitedTilesProperties.HORIZONTAL_INTERVAL_PADDINGS;
 import static org.chromium.chrome.browser.suggestions.tile.MostVisitedTilesProperties.IS_CONTAINER_VISIBLE;
-import static org.chromium.chrome.browser.suggestions.tile.MostVisitedTilesProperties.IS_MVT_LAYOUT_VISIBLE;
-import static org.chromium.chrome.browser.suggestions.tile.MostVisitedTilesProperties.PLACEHOLDER_VIEW;
 
 import android.content.res.Configuration;
 import android.content.res.Resources;
-import android.view.ViewStub;
 
-import androidx.annotation.Nullable;
-
+import org.chromium.build.annotations.Initializer;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.native_page.ContextMenuManager;
 import org.chromium.chrome.browser.ntp_customization.NtpCustomizationConfigManager;
+import org.chromium.chrome.browser.ntp_customization.NtpCustomizationConfigManager.HomepageStateListener;
 import org.chromium.chrome.browser.offlinepages.OfflinePageBridge;
 import org.chromium.chrome.browser.profiles.Profile;
-import org.chromium.chrome.browser.search_engines.TemplateUrlServiceFactory;
 import org.chromium.chrome.browser.suggestions.SiteSuggestion;
 import org.chromium.chrome.browser.suggestions.SuggestionsConfig;
 import org.chromium.chrome.browser.suggestions.SuggestionsUiDelegate;
 import org.chromium.chrome.browser.suggestions.mostvisited.MostVisitedSitesMetadataUtils;
 import org.chromium.chrome.browser.user_education.UserEducationHelper;
 import org.chromium.components.browser_ui.widget.displaystyle.UiConfig;
-import org.chromium.components.search_engines.TemplateUrlService;
-import org.chromium.components.search_engines.TemplateUrlService.TemplateUrlServiceObserver;
 import org.chromium.ui.modelutil.PropertyModel;
 
 import java.util.List;
 
 /** Mediator for handling {@link MostVisitedTilesLayout} related logic. */
-public class MostVisitedTilesMediator implements TileGroup.Observer, TemplateUrlServiceObserver {
+@NullMarked
+public class MostVisitedTilesMediator implements TileGroup.Observer {
 
     /**
      * Score threshold for the first Top Sites Tiles to trigger IPH for MVT Customization. For
@@ -47,23 +45,20 @@ public class MostVisitedTilesMediator implements TileGroup.Observer, TemplateUrl
     private final Resources mResources;
     private final UiConfig mUiConfig;
     private final MostVisitedTilesLayout mMvTilesLayout;
-    private final ViewStub mNoMvPlaceholderStub;
     private final PropertyModel mModel;
     private final boolean mIsTablet;
     private final int mTileViewLandscapePadding;
     private final int mTileViewPortraitEdgePadding;
-    private final Runnable mSnapshotTileGridChangedRunnable;
-    private final Runnable mTileCountChangedRunnable;
+    private final @Nullable Runnable mSnapshotTileGridChangedRunnable;
+    private final @Nullable Runnable mTileCountChangedRunnable;
     private final boolean mNtpCustomizationForMvtFeatureEnabled;
 
-    private NtpCustomizationConfigManager.HomepageStateListener mMvtVisibilityListener;
+    private @Nullable HomepageStateListener mMvtVisibilityListener;
     private int mTileViewPortraitIntervalPadding;
 
     private TileRenderer mRenderer;
     private TileGroup mTileGroup;
     private UserEducationHelper mUserEducationHelper;
-    private boolean mSearchProviderHasLogo = true;
-    private TemplateUrlService mTemplateUrlService;
 
     private final int mLateralMarginSum;
     private final int mTileViewEdgePaddingForTablet;
@@ -73,7 +68,6 @@ public class MostVisitedTilesMediator implements TileGroup.Observer, TemplateUrl
             Resources resources,
             UiConfig uiConfig,
             MostVisitedTilesLayout mvTilesLayout,
-            ViewStub noMvPlaceholderStub,
             TileRenderer renderer,
             PropertyModel propertyModel,
             boolean isTablet,
@@ -87,7 +81,6 @@ public class MostVisitedTilesMediator implements TileGroup.Observer, TemplateUrl
         mSnapshotTileGridChangedRunnable = snapshotTileGridChangedRunnable;
         mTileCountChangedRunnable = tileCountChangedRunnable;
         mMvTilesLayout = mvTilesLayout;
-        mNoMvPlaceholderStub = noMvPlaceholderStub;
 
         mTileViewLandscapePadding =
                 mResources.getDimensionPixelSize(R.dimen.tile_view_padding_landscape);
@@ -112,7 +105,7 @@ public class MostVisitedTilesMediator implements TileGroup.Observer, TemplateUrl
         if (!mNtpCustomizationForMvtFeatureEnabled) return;
 
         mMvtVisibilityListener =
-                new NtpCustomizationConfigManager.HomepageStateListener() {
+                new HomepageStateListener() {
                     @Override
                     public void onMvtVisibilityChanged(boolean isMvtVisible) {
                         setMvtVisibility(isMvtVisible);
@@ -122,6 +115,7 @@ public class MostVisitedTilesMediator implements TileGroup.Observer, TemplateUrl
     }
 
     /** Called to initialize this mediator when native is ready. */
+    @Initializer
     public void initWithNative(
             Profile profile,
             UserEducationHelper userEducationHelper,
@@ -142,17 +136,6 @@ public class MostVisitedTilesMediator implements TileGroup.Observer, TemplateUrl
                         /* observer= */ this,
                         offlinePageBridge);
         mTileGroup.startObserving(SuggestionsConfig.MAX_TILE_COUNT);
-
-        mTemplateUrlService = TemplateUrlServiceFactory.getForProfile(profile);
-        mTemplateUrlService.addObserver(this);
-
-        onSearchEngineHasLogoChanged();
-    }
-
-    // TemplateUrlServiceObserver overrides
-    @Override
-    public void onTemplateURLServiceChanged() {
-        onSearchEngineHasLogoChanged();
     }
 
     /* TileGroup.Observer implementation. */
@@ -161,6 +144,7 @@ public class MostVisitedTilesMediator implements TileGroup.Observer, TemplateUrl
         if (mTileGroup.getTileSections().size() < 1) return;
 
         List<Tile> tiles = mTileGroup.getTileSections().get(TileSectionType.PERSONALIZED);
+        assumeNonNull(tiles);
         mRenderer.renderTileSection(tiles, mMvTilesLayout, mTileGroup.getTileSetupDelegate());
         mTileGroup.notifyTilesRendered();
         updateTilesView();
@@ -174,7 +158,6 @@ public class MostVisitedTilesMediator implements TileGroup.Observer, TemplateUrl
     @Override
     public void onTileCountChanged() {
         if (mTileCountChangedRunnable != null) mTileCountChangedRunnable.run();
-        updateTilePlaceholderVisibility();
 
         // If Custom Links are enabled, keep container visible for the "Add new" button.
         boolean enable_custom_links = ChromeFeatureList.sMostVisitedTilesCustomization.isEnabled();
@@ -207,11 +190,20 @@ public class MostVisitedTilesMediator implements TileGroup.Observer, TemplateUrl
         mMvTilesLayout.ensureTileIsInViewOnNextLayout(tile.getIndex());
     }
 
+    @Override
+    public void onCustomTileNonReorderChange() {
+        SuggestionsTileVerticalDivider divider = mMvTilesLayout.getDividerMaybeNull();
+        if (divider != null) {
+            divider.showThenHide();
+        }
+    }
+
     public void onConfigurationChanged() {
         maybeSetPortraitIntervalPaddings();
         updateTilesView();
     }
 
+    @SuppressWarnings("NullAway")
     public void destroy() {
         if (mMvTilesLayout != null) {
             mMvTilesLayout.destroy();
@@ -221,7 +213,6 @@ public class MostVisitedTilesMediator implements TileGroup.Observer, TemplateUrl
             mTileGroup.destroy();
             mTileGroup = null;
         }
-        if (mTemplateUrlService != null) mTemplateUrlService.removeObserver(this);
 
         if (mMvtVisibilityListener != null) {
             NtpCustomizationConfigManager.getInstance().removeListener(mMvtVisibilityListener);
@@ -248,7 +239,7 @@ public class MostVisitedTilesMediator implements TileGroup.Observer, TemplateUrl
         if (tileView != null) tileView.renderOfflineBadge(tile);
     }
 
-    private SuggestionsTileView findTileView(SiteSuggestion data) {
+    private @Nullable SuggestionsTileView findTileView(SiteSuggestion data) {
         int tileCount = mMvTilesLayout.getTileCount();
         for (int i = 0; i < tileCount; i++) {
             SuggestionsTileView tileView = (SuggestionsTileView) mMvTilesLayout.getTileAt(i);
@@ -302,29 +293,6 @@ public class MostVisitedTilesMediator implements TileGroup.Observer, TemplateUrl
 
         mModel.set(HORIZONTAL_EDGE_PADDINGS, mTileViewPortraitEdgePadding);
         mModel.set(HORIZONTAL_INTERVAL_PADDINGS, mTileViewPortraitIntervalPadding);
-    }
-
-    private void onSearchEngineHasLogoChanged() {
-        boolean searchEngineHasLogo = mTemplateUrlService.doesDefaultSearchEngineHaveLogo();
-        if (mSearchProviderHasLogo == searchEngineHasLogo) return;
-
-        mSearchProviderHasLogo = searchEngineHasLogo;
-        updateTilePlaceholderVisibility();
-    }
-
-    /**
-     * Shows the most visited placeholder ("Nothing to see here") if there are no most visited
-     * items and there is no search provider logo.
-     */
-    private void updateTilePlaceholderVisibility() {
-        if (mTileGroup == null) return;
-        boolean showPlaceholder =
-                mTileGroup.hasReceivedData() && mTileGroup.isEmpty() && !mSearchProviderHasLogo;
-
-        if (showPlaceholder && mModel.get(PLACEHOLDER_VIEW) == null) {
-            mModel.set(PLACEHOLDER_VIEW, mNoMvPlaceholderStub.inflate());
-        }
-        mModel.set(IS_MVT_LAYOUT_VISIBLE, !showPlaceholder);
     }
 
     private void maybeTriggerCustomizationIph(List<Tile> tiles) {

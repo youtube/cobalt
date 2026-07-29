@@ -6,6 +6,7 @@
 #define CHROME_BROWSER_UI_VIEWS_FRAME_MULTI_CONTENTS_DROP_TARGET_VIEW_H_
 
 #include "base/memory/raw_ptr.h"
+#include "chrome/browser/ui/views/tabs/dragging/tab_drag_controller.h"
 #include "ui/base/interaction/element_identifier.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/gfx/animation/slide_animation.h"
@@ -38,6 +39,10 @@ class MultiContentsDropTargetView : public views::View,
     // Handles links that are dropped on the view.
     virtual void HandleLinkDrop(DropSide side,
                                 const std::vector<GURL>& urls) = 0;
+
+    // Handles tabs that are dropped on the view.
+    virtual void HandleTabDrop(DropSide side,
+                               TabDragDelegate::DragController& controller) = 0;
   };
 
   explicit MultiContentsDropTargetView(DropDelegate& drop_delegate);
@@ -53,8 +58,12 @@ class MultiContentsDropTargetView : public views::View,
 
   bool IsClosing() const;
 
-  // Returns the preferred width of this view, considering animation progress.
-  int GetPreferredWidth() const;
+  // Returns the preferred width of this view for the given web contents width,
+  // considering animation progress.
+  int GetPreferredWidth(int web_contents_width) const;
+  // Returns the maximum width that this view should be for the given web
+  // contents width.
+  int GetMaxWidth(int web_contents_width) const;
 
   // views::View
   void SetVisible(bool visible) override;
@@ -71,6 +80,8 @@ class MultiContentsDropTargetView : public views::View,
   // views::AnimationDelegateViews:
   void AnimationProgressed(const gfx::Animation* animation) override;
   void AnimationEnded(const gfx::Animation* animation) override;
+
+  void HandleTabDrop(TabDragDelegate::DragController& controller);
 
   std::optional<DropSide> side() const { return side_; }
 

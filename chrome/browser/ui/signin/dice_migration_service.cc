@@ -18,11 +18,15 @@
 #include "chrome/grit/branded_strings.h"
 #include "chrome/grit/generated_resources.h"
 #include "chrome/grit/theme_resources.h"
+#include "components/pref_registry/pref_registry_syncable.h"
 #include "components/signin/public/base/signin_pref_names.h"
 #include "components/signin/public/base/signin_switches.h"
+#include "components/signin/public/identity_manager/account_managed_status_finder.h"
+#include "components/signin/public/identity_manager/account_managed_status_finder_outcome.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
 #include "components/signin/public/identity_manager/identity_utils.h"
 #include "components/strings/grit/components_strings.h"
+#include "components/user_education/common/user_education_features.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/models/dialog_model.h"
 #include "ui/views/bubble/bubble_dialog_model_host.h"
@@ -51,8 +55,6 @@ bool IsUserEligibleForDiceMigration(Profile* profile) {
     // The user is not implicitly signed in.
     return false;
   }
-  // TODO(crbug.com/399838468): Add more eligibility checks, for example, when
-  // was the last time the user was shown the migration dialog.
   return true;
 }
 
@@ -108,25 +110,75 @@ void MaybeShowToast(Browser* browser) {
 
 }  // namespace
 
+const char kDiceMigrationDialogShownCount[] =
+    "signin.dice_migration.dialog_shown_count";
+
+const char kDiceMigrationDialogLastShownTime[] =
+    "signin.dice_migration.dialog_last_shown_time";
+
+// static
+const int DiceMigrationService::kMaxDialogShownCount = 3;
+
+// static
+const base::TimeDelta DiceMigrationService::kMinTimeBetweenDialogInDays =
+    base::Days(7);
+
 DEFINE_CLASS_ELEMENT_IDENTIFIER_VALUE(DiceMigrationService,
                                       kAcceptButtonElementId);
+DEFINE_CLASS_ELEMENT_IDENTIFIER_VALUE(DiceMigrationService,
+                                      kCancelButtonElementId);
 
 DiceMigrationService::DiceMigrationService(Profile* profile)
-    : profile_(profile) {}
+    : profile_(profile) {
+  if (!IsUserEligibleForDiceMigration(profile_) ||
+      // Show the dialog at most `kMaxDialogShownCount` times.
+      GetDialogShownCount() >= kMaxDialogShownCount ||
+      // Show the dialog at least one week after the last time it was shown.
+      GetDialogLastShownTime() >
+          base::Time::Now() - kMinTimeBetweenDialogInDays) {
+    return;
+  }
+
+  signin::IdentityManager* identity_manager =
+      IdentityManagerFactory::GetForProfile(profile_);
+  CHECK(identity_manager);
+  primary_account_info_ =
+      identity_manager->GetPrimaryAccountInfo(signin::ConsentLevel::kSignin);
+  identity_manager_observation_.Observe(identity_manager);
+
+  dialog_trigger_timer_.Start(
+      FROM_HERE, user_education::features::GetSessionStartGracePeriod(),
+      base::BindOnce(
+          &DiceMigrationService::OnTimerFinishOrAccountManagedStatusKnown,
+          base::Unretained(this)));
+
+  account_managed_status_finder_ =
+      std::make_unique<signin::AccountManagedStatusFinder>(
+          identity_manager, primary_account_info_,
+          base::BindOnce(
+              &DiceMigrationService::OnTimerFinishOrAccountManagedStatusKnown,
+              base::Unretained(this)));
+}
 
 DiceMigrationService::~DiceMigrationService() {
-  if (dialog_widget_) {
-    dialog_widget_observation_.Reset();
-    dialog_widget_->CloseWithReason(views::Widget::ClosedReason::kUnspecified);
-  }
+  StopTimerOrCloseDialog();
 }
 
 // static
 void DiceMigrationService::RegisterProfilePrefs(
-    user_prefs::PrefRegistrySyncable* registry) {}
+    user_prefs::PrefRegistrySyncable* registry) {
+  registry->RegisterIntegerPref(kDiceMigrationDialogShownCount, 0);
+  registry->RegisterTimePref(kDiceMigrationDialogLastShownTime, base::Time());
+}
 
 void DiceMigrationService::ShowDiceMigrationOfferDialogIfUserEligible() {
-  if (!IsUserEligibleForDiceMigration(profile_) || IsDialogShowing()) {
+  CHECK(!dialog_trigger_timer_.IsRunning());
+  CHECK(!dialog_widget_);
+  CHECK_LT(GetDialogShownCount(), kMaxDialogShownCount);
+  CHECK_LT(GetDialogLastShownTime(),
+           base::Time::Now() - kMinTimeBetweenDialogInDays);
+
+  if (!IsUserEligibleForDiceMigration(profile_)) {
     return;
   }
 
@@ -145,6 +197,7 @@ void DiceMigrationService::ShowDiceMigrationOfferDialogIfUserEligible() {
 
   auto builder =
       ui::DialogModel::Builder(std::make_unique<ui::DialogModelDelegate>());
+  SetBannerImage(builder, IdentityManagerFactory::GetForProfile(profile_));
   builder.SetTitle(l10n_util::GetStringUTF16(IDS_DICE_MIGRATION_DIALOG_TITLE));
   builder.AddParagraph(description_text);
   builder.AddOkButton(base::DoNothing(),
@@ -152,7 +205,19 @@ void DiceMigrationService::ShowDiceMigrationOfferDialogIfUserEligible() {
                           .SetId(kAcceptButtonElementId)
                           .SetLabel(l10n_util::GetStringUTF16(
                               IDS_DICE_MIGRATION_DIALOG_OK_BUTTON)));
-  SetBannerImage(builder, IdentityManagerFactory::GetForProfile(profile_));
+
+  // The "final" variant does not include a close button, but rather the close-x
+  // button.
+  if (GetDialogShownCount() < kMaxDialogShownCount - 1) {
+    // Non-"final" variant.
+    builder.OverrideShowCloseButton(false);
+    builder.AddCancelButton(
+        base::DoNothing(),
+        ui::DialogModel::Button::Params()
+            .SetId(kCancelButtonElementId)
+            .SetLabel(l10n_util::GetStringUTF16(IDS_NOT_NOW)));
+  }
+
   // TODO(crbug.com/399838468): Refine the dialog behavior.
   builder.DisableCloseOnDeactivate();
   builder.SetIsAlertDialog();
@@ -177,34 +242,123 @@ void DiceMigrationService::ShowDiceMigrationOfferDialogIfUserEligible() {
   // clicked.
 }
 
-bool DiceMigrationService::IsDialogShowing() {
-  return dialog_widget_ && !dialog_widget_->IsClosed();
-}
-
 views::Widget* DiceMigrationService::GetDialogWidgetForTesting() {
   return dialog_widget_.get();
+}
+
+base::OneShotTimer& DiceMigrationService::GetDialogTriggerTimerForTesting() {
+  return dialog_trigger_timer_;
 }
 
 void DiceMigrationService::OnWidgetDestroying(views::Widget* widget) {
   CHECK_EQ(dialog_widget_, widget);
   dialog_widget_observation_.Reset();
   dialog_widget_ = nullptr;
+  Browser* browser = browser_.get();
+  browser_.reset();
   // TODO(crbug.com/399838468): Add actions for the different close reasons.
   switch (widget->closed_reason()) {
     // Losing focus should not close the dialog.
     case views::Widget::ClosedReason::kLostFocus:
-    // No close button in the dialog.
-    case views::Widget::ClosedReason::kCancelButtonClicked:
       NOTREACHED();
+    case views::Widget::ClosedReason::kUnspecified:
+      return;
     case views::Widget::ClosedReason::kAcceptButtonClicked:
-      if (MaybeMigrateUser(profile_) && browser_) {
-        MaybeShowToast(browser_.get());
+      if (MaybeMigrateUser(profile_) && browser) {
+        MaybeShowToast(browser);
       }
       break;
-    case views::Widget::ClosedReason::kUnspecified:
-    case views::Widget::ClosedReason::kEscKeyPressed:
+    case views::Widget::ClosedReason::kCancelButtonClicked:
+      // Cancel button is only available in the non-"final" variant.
+      CHECK_LT(GetDialogShownCount(), kMaxDialogShownCount - 1);
+      break;
     case views::Widget::ClosedReason::kCloseButtonClicked:
+      // Close button is only available in the "final" variant.
+      CHECK_EQ(GetDialogShownCount(), kMaxDialogShownCount - 1);
+      break;
+    case views::Widget::ClosedReason::kEscKeyPressed:
       break;
   }
-  browser_.reset();
+  // The dialog is considered shown if the user interacts with it, i.e. the user
+  // accepts or dismisses the dialog. This is better than just tracking when the
+  // dialog was actually shown, since the user might have dismissed the dialog
+  // unknowingly, for example, by closing the browser.
+  UpdateDialogShownCountAndTime();
+}
+
+void DiceMigrationService::OnPrimaryAccountChanged(
+    const signin::PrimaryAccountChangeEvent& event) {
+  switch (event.GetEventTypeFor(signin::ConsentLevel::kSignin)) {
+    case signin::PrimaryAccountChangeEvent::Type::kSet:
+    case signin::PrimaryAccountChangeEvent::Type::kCleared:
+      CHECK_EQ(primary_account_info_, event.GetPreviousState().primary_account);
+      StopTimerOrCloseDialog();
+      break;
+    case signin::PrimaryAccountChangeEvent::Type::kNone:
+      CHECK_EQ(primary_account_info_, event.GetCurrentState().primary_account);
+      break;
+  }
+}
+
+void DiceMigrationService::OnErrorStateOfRefreshTokenUpdatedForAccount(
+    const CoreAccountInfo& account_info,
+    const GoogleServiceAuthError& error,
+    signin_metrics::SourceForRefreshTokenOperation token_operation_source) {
+  if (account_info == primary_account_info_ && error.IsPersistentError()) {
+    // The user is in persistent error state. As soon as the user re-auths, they
+    // will enter the explicitly signed in state.
+    StopTimerOrCloseDialog();
+  }
+}
+
+void DiceMigrationService::OnTimerFinishOrAccountManagedStatusKnown() {
+  if (dialog_trigger_timer_.IsRunning() ||
+      !IsUserEligibleForDiceMigration(profile_)) {
+    return;
+  }
+  switch (account_managed_status_finder_->GetOutcome()) {
+    case signin::AccountManagedStatusFinderOutcome::kPending:
+    case signin::AccountManagedStatusFinderOutcome::kError:
+    case signin::AccountManagedStatusFinderOutcome::kTimeout:
+      return;
+    // Consumer accounts.
+    case signin::AccountManagedStatusFinderOutcome::kConsumerGmail:
+    case signin::AccountManagedStatusFinderOutcome::kConsumerWellKnown:
+    case signin::AccountManagedStatusFinderOutcome::kConsumerNotWellKnown:
+      ShowDiceMigrationOfferDialogIfUserEligible();
+      break;
+    // Managed accounts are not shown the migration dialog.
+    case signin::AccountManagedStatusFinderOutcome::kEnterpriseGoogleDotCom:
+    case signin::AccountManagedStatusFinderOutcome::kEnterprise:
+      return;
+  }
+}
+
+void DiceMigrationService::StopTimerOrCloseDialog() {
+  CHECK(!dialog_trigger_timer_.IsRunning() || !dialog_widget_);
+  identity_manager_observation_.Reset();
+  if (dialog_widget_) {
+    dialog_widget_->CloseWithReason(views::Widget::ClosedReason::kUnspecified);
+  } else if (dialog_trigger_timer_.IsRunning()) {
+    dialog_trigger_timer_.Stop();
+  }
+}
+
+int DiceMigrationService::GetDialogShownCount() const {
+  PrefService* prefs = profile_->GetPrefs();
+  CHECK(prefs);
+  return prefs->GetInteger(kDiceMigrationDialogShownCount);
+}
+
+base::Time DiceMigrationService::GetDialogLastShownTime() const {
+  PrefService* prefs = profile_->GetPrefs();
+  CHECK(prefs);
+  return prefs->GetTime(kDiceMigrationDialogLastShownTime);
+}
+
+void DiceMigrationService::UpdateDialogShownCountAndTime() {
+  PrefService* prefs = profile_->GetPrefs();
+  CHECK(prefs);
+  prefs->SetInteger(kDiceMigrationDialogShownCount, GetDialogShownCount() + 1);
+  prefs->SetTime(kDiceMigrationDialogLastShownTime, base::Time::Now());
 }

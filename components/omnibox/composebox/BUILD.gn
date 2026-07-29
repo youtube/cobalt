@@ -2,12 +2,24 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+import("//mojo/public/tools/bindings/mojom.gni")
+
+mojom("mojo_bindings") {
+  sources = [ "composebox_query.mojom" ]
+  public_deps = [ "//mojo/public/mojom/base" ]
+
+  webui_module_path = "/"
+}
+
 source_set("composebox") {
   sources = [
+    "composebox_metrics_recorder.cc",
+    "composebox_metrics_recorder.h",
     "composebox_query_controller.cc",
     "composebox_query_controller.h",
   ]
   deps = [
+    ":mojo_bindings",
     "//base:base",
     "//components/endpoint_fetcher",
     "//components/lens",
@@ -61,9 +73,13 @@ source_set("test_support") {
 
 source_set("unit_tests") {
   testonly = true
-  sources = [ "composebox_query_controller_unittest.cc" ]
+  sources = [
+    "composebox_metrics_recorder_unittest.cc",
+    "composebox_query_controller_unittest.cc",
+  ]
   deps = [
     ":composebox",
+    ":mojo_bindings",
     ":test_support",
     "//base/test:test_support",
     "//components/endpoint_fetcher",

@@ -2,17 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
-#pragma allow_unsafe_buffers
-#endif
-
 #include "gpu/ipc/common/gpu_memory_buffer_impl_shared_memory.h"
 
 #include <stdint.h>
 
 #include <utility>
 
+#include "base/compiler_specific.h"
 #include "base/format_macros.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
@@ -36,10 +32,7 @@ GpuMemoryBufferImplSharedMemory::GpuMemoryBufferImplSharedMemory(
       shared_memory_region_(std::move(shared_memory_region)),
       shared_memory_mapping_(std::move(shared_memory_mapping)),
       offset_(offset),
-      stride_(stride) {
-  DCHECK(IsUsageSupported(usage));
-  DCHECK(IsSizeValidForFormat(size, format));
-}
+      stride_(stride) {}
 
 GpuMemoryBufferImplSharedMemory::~GpuMemoryBufferImplSharedMemory() = default;
 
@@ -48,8 +41,6 @@ std::unique_ptr<GpuMemoryBufferImplSharedMemory>
 GpuMemoryBufferImplSharedMemory::CreateForTesting(const gfx::Size& size,
                                                   gfx::BufferFormat format,
                                                   gfx::BufferUsage usage) {
-  if (!IsUsageSupported(usage))
-    return nullptr;
   size_t buffer_size = 0u;
   if (!gfx::BufferSizeForBufferFormatChecked(size, format, &buffer_size))
     return nullptr;
@@ -64,31 +55,6 @@ GpuMemoryBufferImplSharedMemory::CreateForTesting(const gfx::Size& size,
       size, format, usage, std::move(shared_memory_region),
       std::move(shared_memory_mapping), 0,
       gfx::RowSizeForBufferFormat(size.width(), format, 0)));
-}
-
-// static
-gfx::GpuMemoryBufferHandle
-GpuMemoryBufferImplSharedMemory::CreateGpuMemoryBuffer(
-    const gfx::Size& size,
-    gfx::BufferFormat format,
-    gfx::BufferUsage usage) {
-  if (!IsUsageSupported(usage))
-    return gfx::GpuMemoryBufferHandle();
-  size_t buffer_size = 0u;
-  if (!gfx::BufferSizeForBufferFormatChecked(size, format, &buffer_size))
-    return gfx::GpuMemoryBufferHandle();
-
-  auto shared_memory_region =
-      base::UnsafeSharedMemoryRegion::Create(buffer_size);
-  if (!shared_memory_region.IsValid())
-    return gfx::GpuMemoryBufferHandle();
-
-  gfx::GpuMemoryBufferHandle handle(std::move(shared_memory_region));
-  handle.type = gfx::SHARED_MEMORY_BUFFER;
-  handle.offset = 0;
-  handle.stride = static_cast<uint32_t>(
-      gfx::RowSizeForBufferFormat(size.width(), format, 0));
-  return handle;
 }
 
 // static
@@ -168,48 +134,20 @@ bool GpuMemoryBufferImplSharedMemory::IsUsageSupported(gfx::BufferUsage usage) {
 }
 
 // static
-bool GpuMemoryBufferImplSharedMemory::IsSizeValidForFormat(
-    const gfx::Size& size,
-    gfx::BufferFormat format) {
-  switch (format) {
-    case gfx::BufferFormat::R_8:
-    case gfx::BufferFormat::R_16:
-    case gfx::BufferFormat::RG_88:
-    case gfx::BufferFormat::RG_1616:
-    case gfx::BufferFormat::BGR_565:
-    case gfx::BufferFormat::RGBA_4444:
-    case gfx::BufferFormat::RGBA_8888:
-    case gfx::BufferFormat::RGBX_8888:
-    case gfx::BufferFormat::BGRA_8888:
-    case gfx::BufferFormat::BGRX_8888:
-    case gfx::BufferFormat::BGRA_1010102:
-    case gfx::BufferFormat::RGBA_1010102:
-    case gfx::BufferFormat::RGBA_F16:
-      return true;
-    case gfx::BufferFormat::YVU_420:
-    case gfx::BufferFormat::YUV_420_BIPLANAR:
-    case gfx::BufferFormat::YUVA_420_TRIPLANAR:
-    case gfx::BufferFormat::P010: {
-      size_t num_planes = gfx::NumberOfPlanesForLinearBufferFormat(format);
-      for (size_t i = 0; i < num_planes; ++i) {
-        size_t factor = gfx::SubsamplingFactorForBufferFormat(format, i);
-        if (size.width() % factor || size.height() % factor)
-          return false;
-      }
-      return true;
-    }
-  }
-
-  NOTREACHED();
-}
-
-// static
 base::OnceClosure GpuMemoryBufferImplSharedMemory::AllocateForTesting(
     const gfx::Size& size,
     gfx::BufferFormat format,
     gfx::BufferUsage usage,
     gfx::GpuMemoryBufferHandle* handle) {
-  *handle = CreateGpuMemoryBuffer(size, format, usage);
+  auto shared_memory_region = base::UnsafeSharedMemoryRegion::Create(
+      gfx::BufferSizeForBufferFormat(size, format));
+  CHECK(shared_memory_region.IsValid());
+
+  *handle = gfx::GpuMemoryBufferHandle(std::move(shared_memory_region));
+  handle->type = gfx::SHARED_MEMORY_BUFFER;
+  handle->offset = 0;
+  handle->stride = static_cast<uint32_t>(
+      gfx::RowSizeForBufferFormat(size.width(), format, 0));
   return base::DoNothing();
 }
 
@@ -239,8 +177,9 @@ bool GpuMemoryBufferImplSharedMemory::Map() {
 void* GpuMemoryBufferImplSharedMemory::memory(size_t plane) {
   AssertMapped();
   DCHECK_LT(plane, gfx::NumberOfPlanesForLinearBufferFormat(format_));
-  return static_cast<uint8_t*>(shared_memory_mapping_.memory()) + offset_ +
-         gfx::BufferOffsetForBufferFormat(size_, format_, plane);
+  return UNSAFE_TODO(static_cast<uint8_t*>(shared_memory_mapping_.memory()) +
+                     offset_ +
+                     gfx::BufferOffsetForBufferFormat(size_, format_, plane));
 }
 
 void GpuMemoryBufferImplSharedMemory::Unmap() {

@@ -150,15 +150,15 @@ FileSystemAccessFileHandleImpl::FileSystemAccessFileHandleImpl(
 FileSystemAccessFileHandleImpl::~FileSystemAccessFileHandleImpl() = default;
 
 void FileSystemAccessFileHandleImpl::GetPermissionStatus(
-    bool writable,
+    blink::mojom::FileSystemAccessPermissionMode mode,
     GetPermissionStatusCallback callback) {
-  DoGetPermissionStatus(writable, std::move(callback));
+  DoGetPermissionStatus(mode, std::move(callback));
 }
 
 void FileSystemAccessFileHandleImpl::RequestPermission(
-    bool writable,
+    blink::mojom::FileSystemAccessPermissionMode mode,
     RequestPermissionCallback callback) {
-  DoRequestPermission(writable, std::move(callback));
+  DoRequestPermission(mode, std::move(callback));
 }
 
 void FileSystemAccessFileHandleImpl::AsBlob(AsBlobCallback callback) {
@@ -191,7 +191,8 @@ void FileSystemAccessFileHandleImpl::CreateFileWriter(
     CreateFileWriterCallback callback) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
-  RunWithWritePermission(
+  // TODO(crbug.com/40276567): Review whether to switch to write-only.
+  RunWithReadWritePermission(
       base::BindOnce(&FileSystemAccessFileHandleImpl::CreateFileWriterImpl,
                      weak_factory_.GetWeakPtr(), keep_existing_data, auto_close,
                      mode),
@@ -212,7 +213,8 @@ void FileSystemAccessFileHandleImpl::Move(
   RenderFrameHost* rfh = RenderFrameHost::FromID(context().frame_id);
   bool has_transient_user_activation = rfh && rfh->HasTransientUserActivation();
 
-  RunWithWritePermission(
+  // TODO(crbug.com/40276567): Review whether to switch to write-only.
+  RunWithReadWritePermission(
       base::BindOnce(&FileSystemAccessHandleBase::DoMove,
                      weak_factory_.GetWeakPtr(),
                      std::move(destination_directory), new_entry_name,
@@ -231,7 +233,8 @@ void FileSystemAccessFileHandleImpl::Rename(const std::string& new_entry_name,
   RenderFrameHost* rfh = RenderFrameHost::FromID(context().frame_id);
   bool has_transient_user_activation = rfh && rfh->HasTransientUserActivation();
 
-  RunWithWritePermission(
+  // TODO(crbug.com/40276567): Review whether to switch to write-only.
+  RunWithReadWritePermission(
       base::BindOnce(&FileSystemAccessHandleBase::DoRename,
                      weak_factory_.GetWeakPtr(), new_entry_name,
                      has_transient_user_activation),
@@ -245,7 +248,8 @@ void FileSystemAccessFileHandleImpl::Rename(const std::string& new_entry_name,
 void FileSystemAccessFileHandleImpl::Remove(RemoveCallback callback) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
-  RunWithWritePermission(
+  // TODO(crbug.com/40276567): Review whether to switch to write-only.
+  RunWithReadWritePermission(
       base::BindOnce(&FileSystemAccessHandleBase::DoRemove,
                      weak_factory_.GetWeakPtr(), url(), /*recurse=*/false),
       base::BindOnce([](blink::mojom::FileSystemAccessErrorPtr result,
@@ -312,7 +316,8 @@ void FileSystemAccessFileHandleImpl::DidTakeAccessHandleLock(
                            weak_factory_.GetWeakPtr(), std::move(lock))
           : base::BindOnce(&FileSystemAccessFileHandleImpl::DoOpenFile,
                            weak_factory_.GetWeakPtr(), std::move(lock));
-  RunWithWritePermission(
+  // TODO(crbug.com/40276567): Review whether to switch to write-only.
+  RunWithReadWritePermission(
       std::move(open_file_callback),
       base::BindOnce([](blink::mojom::FileSystemAccessErrorPtr result,
                         OpenAccessHandleCallback callback) {
@@ -328,7 +333,8 @@ void FileSystemAccessFileHandleImpl::DoOpenIncognitoFile(
     scoped_refptr<FileSystemAccessLockManager::LockHandle> lock,
     OpenAccessHandleCallback callback) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  DCHECK_EQ(GetWritePermissionStatus(),
+  // TODO(crbug.com/40276567): Update if this only needs write-only permission
+  DCHECK_EQ(GetReadWritePermissionStatus(),
             blink::mojom::PermissionStatus::GRANTED);
 
   mojo::PendingRemote<blink::mojom::FileSystemAccessFileDelegateHost>
@@ -350,7 +356,8 @@ void FileSystemAccessFileHandleImpl::DoOpenFile(
     scoped_refptr<FileSystemAccessLockManager::LockHandle> lock,
     OpenAccessHandleCallback callback) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  DCHECK_EQ(GetWritePermissionStatus(),
+  // TODO(crbug.com/40276567): Update if this only needs write-only permission
+  DCHECK_EQ(GetReadWritePermissionStatus(),
             blink::mojom::PermissionStatus::GRANTED);
 
   manager()->DoFileSystemOperation(
@@ -526,7 +533,8 @@ void FileSystemAccessFileHandleImpl::CreateFileWriterImpl(
     blink::mojom::FileSystemAccessWritableFileStreamLockMode mode,
     CreateFileWriterCallback callback) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  DCHECK_EQ(GetWritePermissionStatus(),
+  // TODO(crbug.com/40276567): Update if this only needs write-only permission
+  DCHECK_EQ(GetReadWritePermissionStatus(),
             blink::mojom::PermissionStatus::GRANTED);
 
   // TODO(crbug.com/40194651): Expand this check to all backends.
@@ -602,7 +610,8 @@ void FileSystemAccessFileHandleImpl::StartCreateSwapFile(
     return;
   }
 
-  if (GetWritePermissionStatus() != blink::mojom::PermissionStatus::GRANTED) {
+  // TODO(crbug.com/40276567): Update if this only needs write-only permission
+  if (GetReadWritePermissionStatus() != PermissionStatus::GRANTED) {
     std::move(callback).Run(file_system_access_error::FromStatus(
                                 FileSystemAccessStatus::kPermissionDenied),
                             mojo::NullRemote());

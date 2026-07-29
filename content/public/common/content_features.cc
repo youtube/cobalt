@@ -597,6 +597,12 @@ BASE_FEATURE(kLazyInitializeMediaControls,
              "LazyInitializeMediaControls",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
+// If this is enabled, LoadingPredictor restricts the number of preconnects for
+// the same destination to one.
+BASE_FEATURE(kLoadingPredictorLimitPreconnectSocketCount,
+             "LoadingPredictorLimitPreconnectSocketCount",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 BASE_FEATURE(kLogJsConsoleMessages,
              "LogJsConsoleMessages",
 #if BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_DESKTOP_ANDROID)
@@ -1078,6 +1084,12 @@ BASE_FEATURE(kWebAppPredictableAppUpdating,
 // This is intended as a kill switch for the WebOTP Service feature. To enable
 // this feature, the experimental web platform features flag should be set.
 BASE_FEATURE(kWebOTP, "WebOTP", base::FEATURE_ENABLED_BY_DEFAULT);
+
+// Trial to disable synchronous draw for synchronous compositor (ie Android
+// WebView).
+BASE_FEATURE(kWebViewAsyncDrawOnly,
+             "WebViewAsyncDrawOnly",
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enable the web lockscreen API implementation
 // (https://github.com/WICG/lock-screen) in Chrome.
@@ -1569,7 +1581,7 @@ const base::FeatureParam<CapturingState> kNavigationCapturingDefaultState{
 #if BUILDFLAG(IS_CHROMEOS)
     CapturingState::kReimplDefaultOff,
 #else
-    CapturingState::kReimplOnViaClientMode,
+    CapturingState::kReimplDefaultOn,
 #endif
     &kNavigationCapturingParams};
 

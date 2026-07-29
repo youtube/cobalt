@@ -45,6 +45,7 @@
 #include "device/vr/public/mojom/vr_service.mojom-blink-forward.h"
 #include "gpu/GLES2/gl2extchromium.h"
 #include "gpu/command_buffer/client/gles2_interface.h"
+#include "gpu/command_buffer/client/shared_image_interface.h"
 #include "gpu/command_buffer/common/capabilities.h"
 #include "gpu/command_buffer/common/shared_image_capabilities.h"
 #include "gpu/config/gpu_driver_bug_workaround_type.h"
@@ -128,6 +129,7 @@
 #include "third_party/blink/renderer/platform/bindings/script_state.h"
 #include "third_party/blink/renderer/platform/bindings/v8_binding_macros.h"
 #include "third_party/blink/renderer/platform/graphics/accelerated_static_bitmap_image.h"
+#include "third_party/blink/renderer/platform/graphics/canvas_resource.h"
 #include "third_party/blink/renderer/platform/graphics/canvas_resource_provider.h"
 #include "third_party/blink/renderer/platform/graphics/gpu/image_extractor.h"
 #include "third_party/blink/renderer/platform/graphics/gpu/shared_gpu_context.h"
@@ -791,42 +793,21 @@ void WebGLRenderingContextBase::drawingBufferStorage(GLenum sizedformat,
       }
       break;
     case GL_RGBA16F:
-      if (base::FeatureList::IsEnabled(
-              blink::features::kCorrectFloatExtensionTestForWebGL)) {
-        // Correct float extension testing for WebGL1/2.
-        // See: https://github.com/KhronosGroup/WebGL/pull/3222
-        if (IsWebGL2()) {
-          if (!ExtensionEnabled(kEXTColorBufferFloatName) &&
-              !ExtensionEnabled(kEXTColorBufferHalfFloatName)) {
-            SynthesizeGLError(GL_INVALID_ENUM, function_name,
-                              "EXT_color_buffer_float/"
-                              "EXT_color_buffer_half_float not enabled");
-            return;
-          }
-        } else {
-          if (!ExtensionEnabled(kEXTColorBufferHalfFloatName)) {
-            SynthesizeGLError(GL_INVALID_ENUM, function_name,
-                              "EXT_color_buffer_half_float not enabled");
-            return;
-          }
+      // Correct float extension testing for WebGL1/2.
+      // See: https://github.com/KhronosGroup/WebGL/pull/3222
+      if (IsWebGL2()) {
+        if (!ExtensionEnabled(kEXTColorBufferFloatName) &&
+            !ExtensionEnabled(kEXTColorBufferHalfFloatName)) {
+          SynthesizeGLError(GL_INVALID_ENUM, function_name,
+                            "EXT_color_buffer_float/"
+                            "EXT_color_buffer_half_float not enabled");
+          return;
         }
       } else {
-        // This is the original incorrect extension testing. Remove this code
-        // once this correction safely launches.
-        if (IsWebGL2()) {
-          if (!ExtensionEnabled(kEXTColorBufferFloatName) &&
-              !ExtensionEnabled(kEXTColorBufferHalfFloatName)) {
-            SynthesizeGLError(GL_INVALID_ENUM, function_name,
-                              "EXT_color_buffer_float/"
-                              "EXT_color_buffer_half_float not enabled");
-            return;
-          } else {
-            if (!ExtensionEnabled(kEXTColorBufferHalfFloatName)) {
-              SynthesizeGLError(GL_INVALID_ENUM, function_name,
-                                "EXT_color_buffer_half_float not enabled");
-              return;
-            }
-          }
+        if (!ExtensionEnabled(kEXTColorBufferHalfFloatName)) {
+          SynthesizeGLError(GL_INVALID_ENUM, function_name,
+                            "EXT_color_buffer_half_float not enabled");
+          return;
         }
       }
       break;
@@ -9267,7 +9248,7 @@ void WebGLRenderingContextBase::addProgramCompletionQuery(WebGLProgram* program,
     // exists in the list, too. Clear it out from there so that its
     // new addition doesn't introduce a duplicate.
     wtf_size_t old_index = program_completion_query_list_.Find(program);
-    DCHECK_NE(old_index, WTF::kNotFound);
+    DCHECK_NE(old_index, kNotFound);
     program_completion_query_list_.EraseAt(old_index);
   }
   program_completion_query_map_.Set(program, query);

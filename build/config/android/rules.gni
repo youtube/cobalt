@@ -1743,6 +1743,7 @@ if (!is_robolectric && enable_java_templates) {
         "--output",
         rebase_path(invoker.output, root_build_dir),
         "--dependencies-res-zips=@FileArg($_rebased_build_config:dependency_zips)",
+        "--dependencies-res-zips=@FileArg($_rebased_build_config:dependency_zip_overlays)",
         "--r-text-files=@FileArg($_rebased_build_config:dependency_rtxt_files)",
         "--proguard-configs=@FileArg($_rebased_build_config:proguard_all_configs)",
       ]
@@ -2004,6 +2005,10 @@ if (!is_robolectric && enable_java_templates) {
       }
       if (is_desktop_android) {
         defines += [ "_IS_DESKTOP_ANDROID" ]
+      }
+
+      if (enable_javaless_renderers) {
+        defines += [ "_JAVALESS_RENDERERS_AVAILABLE" ]
       }
 
       if (defined(invoker.write_clang_profiling_data) &&
@@ -2792,6 +2797,9 @@ if (!is_robolectric && enable_java_templates) {
                                "suffix_apk_assets_used_by",
                                "uses_split",
                              ])
+      if (_generate_productconfig_java) {
+        create_locales_java_list = true
+      }
       version_code = _version_code
       version_name = _version_name
       enable_lint = _enable_lint
@@ -3972,6 +3980,7 @@ if (!is_robolectric && enable_java_templates) {
                  [
                    "cpp_root_names",
                    "cpp_package_name",
+                   "deps",
                  ])
     }
     action_with_pydeps(_aidl_target) {
@@ -4033,13 +4042,18 @@ if (!is_robolectric && enable_java_templates) {
       args += rebase_path(sources, root_build_dir)
     }
     if (_do_cpp_gen) {
-      _aidl_config = "${_aidl_target}_include_config"
+      _aidl_config = "${_aidl_target}__config"
       config(_aidl_config) {
         include_dirs = [ "$target_gen_dir" ]
       }
       source_set("${_aidl_target}_native") {
         sources = _cpp_outputs + _header_outputs
         deps = [ ":$_aidl_target" ]
+        if (defined(invoker.deps)) {
+          foreach(_dep, invoker.deps) {
+            deps += [ "${_dep}_native" ]
+          }
+        }
         libs = [ "binder_ndk" ]
         public_configs = [
           "//third_party/android_sdk:libbinder_include",
@@ -4518,7 +4532,7 @@ if (!is_robolectric && enable_java_templates) {
         if (!defined(requires_android)) {
           requires_android = true
         }
-        include_java_resources = !defined(invoker.include_java_resources) ||
+        include_java_resources = defined(invoker.include_java_resources) &&
                                  invoker.include_java_resources
         supports_android = true
         jar_path = "$_output_path/classes.jar"

@@ -64,6 +64,7 @@ import org.chromium.chrome.browser.ui.extensions.ExtensionUi;
 import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
 import org.chromium.components.browser_ui.accessibility.PageZoomCoordinator;
 import org.chromium.components.dom_distiller.core.DomDistillerFeatures;
+import org.chromium.components.dom_distiller.core.DomDistillerUrlUtils;
 import org.chromium.components.embedder_support.util.UrlConstants;
 import org.chromium.components.embedder_support.util.UrlUtilities;
 import org.chromium.components.user_prefs.UserPrefs;
@@ -234,6 +235,9 @@ public class TabbedAppMenuPropertiesDelegate extends AppMenuPropertiesDelegateIm
         // New Window
         if (shouldShowNewWindow()) modelList.add(buildNewWindowItem());
 
+        // New Incognito Window
+        if (shouldShowNewIncognitoWindow()) modelList.add(buildNewIncognitoWindowItem());
+
         // Move to other window
         if (shouldShowMoveToOtherWindow()) modelList.add(buildMoveToOtherWindowItem());
 
@@ -310,8 +314,8 @@ public class TabbedAppMenuPropertiesDelegate extends AppMenuPropertiesDelegateIm
         observeAndMaybeAddReadAloud(modelList, currentTab);
 
         // Reader mode
-        if (DomDistillerFeatures.showAlwaysOnEntryPoint()) {
-            modelList.add(buildReaderModeItem());
+        if (shouldShowReaderModeItem(currentTab)) {
+            modelList.add(buildReaderModeItem(currentTab));
         }
 
         // Open with ...
@@ -344,6 +348,11 @@ public class TabbedAppMenuPropertiesDelegate extends AppMenuPropertiesDelegateIm
         // Get Image Descriptions
         if (shouldShowGetImageDescriptionsItem(currentTab)) {
             modelList.add(buildGetImageDescriptionsItem(currentTab));
+        }
+
+        // Listen to the Feed
+        if (shouldShowListenToFeedItem(currentTab)) {
+            modelList.add(buildListenToFeedItem());
         }
 
         // Divider Line
@@ -537,6 +546,16 @@ public class TabbedAppMenuPropertiesDelegate extends AppMenuPropertiesDelegateIm
                         shouldShowIconBeforeItem() ? R.drawable.ic_new_window : 0));
     }
 
+    private MVCListAdapter.ListItem buildNewIncognitoWindowItem() {
+        assert shouldShowNewIncognitoWindow();
+        return new MVCListAdapter.ListItem(
+                AppMenuHandler.AppMenuItemType.STANDARD,
+                buildModelForStandardMenuItem(
+                        R.id.new_incognito_window_menu_id,
+                        R.string.menu_new_incognito_window,
+                        shouldShowIconBeforeItem() ? R.drawable.ic_incognito : 0));
+    }
+
     private MVCListAdapter.ListItem buildMoveToOtherWindowItem() {
         assert shouldShowMoveToOtherWindow();
         return new MVCListAdapter.ListItem(
@@ -660,13 +679,19 @@ public class TabbedAppMenuPropertiesDelegate extends AppMenuPropertiesDelegateIm
                         shouldShowIconBeforeItem() ? R.drawable.sharing_print : 0));
     }
 
-    private MVCListAdapter.ListItem buildReaderModeItem() {
-        assert DomDistillerFeatures.showAlwaysOnEntryPoint();
+    private boolean shouldShowReaderModeItem(@Nullable Tab currentTab) {
+        return currentTab != null && DomDistillerFeatures.showAlwaysOnEntryPoint();
+    }
+
+    private MVCListAdapter.ListItem buildReaderModeItem(Tab currentTab) {
+        assert shouldShowReaderModeItem(currentTab);
         return new MVCListAdapter.ListItem(
                 AppMenuHandler.AppMenuItemType.STANDARD,
                 buildModelForStandardMenuItem(
                         R.id.reader_mode_menu_id,
-                        R.string.show_reading_mode_text,
+                        DomDistillerUrlUtils.isDistilledPage(currentTab.getUrl())
+                                ? R.string.hide_reading_mode_text
+                                : R.string.show_reading_mode_text,
                         shouldShowIconBeforeItem() ? R.drawable.ic_reader_mode_24dp : 0));
     }
 
@@ -766,6 +791,33 @@ public class TabbedAppMenuPropertiesDelegate extends AppMenuPropertiesDelegateIm
                         R.id.preferences_id,
                         R.string.menu_settings,
                         shouldShowIconBeforeItem() ? R.drawable.settings_cog : 0));
+    }
+
+    private boolean shouldShowListenToFeedItem(@Nullable Tab currentTab) {
+        if (currentTab == null
+                || isIncognitoShowing()
+                || !UrlUtilities.isNtpUrl(currentTab.getUrl())
+                || !ChromeFeatureList.isEnabled(ChromeFeatureList.FEED_AUDIO_OVERVIEWS)) {
+            return false;
+        }
+
+        Profile profile = currentTab.getProfile();
+        if (!FeedFeatures.isFeedEnabled(profile)
+                || !UserPrefs.get(profile).getBoolean(Pref.ARTICLES_LIST_VISIBLE)) {
+            return false;
+        }
+
+        ReadAloudController readAloudController = mReadAloudControllerSupplier.get();
+        return readAloudController != null && readAloudController.isAvailable();
+    }
+
+    private MVCListAdapter.ListItem buildListenToFeedItem() {
+        return new MVCListAdapter.ListItem(
+                AppMenuHandler.AppMenuItemType.STANDARD,
+                buildModelForStandardMenuItem(
+                        R.id.listen_to_feed_id,
+                        R.string.menu_listen_to_feed,
+                        R.drawable.ic_play_circle));
     }
 
     /**
@@ -918,6 +970,20 @@ public class TabbedAppMenuPropertiesDelegate extends AppMenuPropertiesDelegateIm
                     || mMultiWindowModeStateDispatcher.isInMultiWindowMode()
                     || mMultiWindowModeStateDispatcher.isInMultiDisplayMode();
         }
+    }
+
+    /**
+     * @return Whether the "New incognito window" menu item should be displayed.
+     */
+    @VisibleForTesting(otherwise = VisibleForTesting.PROTECTED)
+    public boolean shouldShowNewIncognitoWindow() {
+        // TODO(crbug.com/433789957): A new helper function should be created to consolidate this,
+        // with form factors being checked.
+        if (!ChromeFeatureList.sAndroidOpenIncognitoAsWindow.isEnabled()) {
+            return false;
+        }
+
+        return shouldShowNewWindow();
     }
 
     /**

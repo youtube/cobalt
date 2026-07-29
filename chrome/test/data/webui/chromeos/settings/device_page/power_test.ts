@@ -5,7 +5,7 @@
 import 'chrome://os-settings/lazy_load.js';
 
 import type {SettingsPowerElement} from 'chrome://os-settings/lazy_load.js';
-import type {BatteryStatus, CrButtonElement, CrDialogElement, CrRadioButtonElement, PowerSource, SettingsToggleButtonElement, SettingsToggleV2Element} from 'chrome://os-settings/os_settings.js';
+import type {BatteryStatus, CrButtonElement, CrDialogElement, CrPolicyIndicatorElement, CrRadioButtonElement, PowerSource, SettingsToggleButtonElement, SettingsToggleV2Element} from 'chrome://os-settings/os_settings.js';
 import {DevicePageBrowserProxyImpl, IdleBehavior, LidClosedBehavior, OptimizedChargingStrategy, Router, routes, settingMojom} from 'chrome://os-settings/os_settings.js';
 import {webUIListenerCallback} from 'chrome://resources/js/cr.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
@@ -69,6 +69,8 @@ suite('<settings-power>', () => {
     hasLid?: boolean;
     adaptiveCharging?: boolean;
     adaptiveChargingManaged?: boolean;
+    chargeLimit?: boolean;
+    optimizedChargingStrategy?: OptimizedChargingStrategy;
     batterySaverFeatureEnabled?: boolean;
   }
 
@@ -98,6 +100,9 @@ suite('<settings-power>', () => {
     hasLid = true,
     adaptiveCharging = false,
     adaptiveChargingManaged = false,
+    chargeLimit = false,
+    optimizedChargingStrategy =
+        OptimizedChargingStrategy.STRATEGY_ADAPTIVE_CHARGING,
     batterySaverFeatureEnabled = true,
   }: PowerManagementSettingsParams = {}): void {
     webUIListenerCallback('power-management-settings-changed', {
@@ -112,6 +117,8 @@ suite('<settings-power>', () => {
       hasLid,
       adaptiveCharging,
       adaptiveChargingManaged,
+      chargeLimit,
+      optimizedChargingStrategy,
       batterySaverFeatureEnabled,
     });
     flush();
@@ -652,6 +659,12 @@ suite('<settings-power>', () => {
           null;
     }
 
+    function queryOptimizedChargingPolicyIndicator(): CrPolicyIndicatorElement|
+        null {
+      return powerSubpage.shadowRoot!.querySelector<CrPolicyIndicatorElement>(
+          '#optimizedChargingManagedIndicator');
+    }
+
     async function openChangeDialog() {
       const changeButton = queryOptimizedChargingChangeButton();
       assertTrue(!!changeButton, 'Change button should exist');
@@ -714,8 +727,7 @@ suite('<settings-power>', () => {
     });
 
     test(
-        'Optimized Charging has correct sublabel for enabled adaptive charging',
-        async () => {
+        'has correct sublabel for adaptive charging strategy', async () => {
           // Setup test with adaptive charging being supported.
           loadTimeData.overrideValues({
             isAdaptiveChargingEnabled: true,
@@ -723,9 +735,10 @@ suite('<settings-power>', () => {
           });
           await initSubpage();
 
-          // Case 1: Adaptive Charging is enabled.
+          // Case 1: Adaptive Charging is the selected strategy.
           sendPowerManagementSettings({
-            adaptiveCharging: true,
+            optimizedChargingStrategy:
+                OptimizedChargingStrategy.STRATEGY_ADAPTIVE_CHARGING,
           });
 
           const sublabelSpan = queryOptimizedChargingSublabelSpan();
@@ -733,12 +746,11 @@ suite('<settings-power>', () => {
 
           assertEquals(
               powerSubpage.i18n('powerAdaptiveChargingLabel'),
-              sublabelSpan.textContent!.trim());
+              sublabelSpan.innerText.trim());
         });
 
     test(
-        'Optimized Charging has correct sublabel for disabled adaptive charging',
-        async () => {
+        'has correct sublabel for charge limit strategy', async () => {
           // Setup test with adaptive charging being supported.
           loadTimeData.overrideValues({
             isAdaptiveChargingEnabled: true,
@@ -746,19 +758,23 @@ suite('<settings-power>', () => {
           });
           await initSubpage();
 
-          // Case 2: Adaptive Charging is not enabled.
+          // Case 2: Charge Limit is the selected strategy.
           sendPowerManagementSettings({
-            adaptiveCharging: false,
+            optimizedChargingStrategy:
+                OptimizedChargingStrategy.STRATEGY_CHARGE_LIMIT,
           });
 
           const sublabelSpan = queryOptimizedChargingSublabelSpan();
           assertTrue(!!sublabelSpan);
 
-          assertEquals('', sublabelSpan.textContent!.trim());
+
+          assertEquals(
+              powerSubpage.i18n('powerBatteryChargeLimitLabel'),
+              sublabelSpan.innerText.trim());
         });
 
     test(
-        'Optimized Charging is visible with undefined battery status, and feature enabled.',
+        'is visible with undefined battery status, and feature enabled.',
         async () => {
           // Case 1: batteryStatus is undefined
           await initTestState(undefined, /*featureEnabled=*/ true);
@@ -766,15 +782,14 @@ suite('<settings-power>', () => {
         });
 
     test(
-        'Optimized Charging is hidden with undefined battery status, and feature disabled.',
+        'is hidden with undefined battery status, and feature disabled.',
         async () => {
           await initTestState(undefined, /*featureEnabled=*/ false);
           assertFalse(isVisible(queryOptimizedChargingRow()));
         });
 
     test(
-        'Optimized Charging is visible with a battery present, and feature enabled.',
-        async () => {
+        'is visible with a battery present, and feature enabled.', async () => {
           // Case 2: batteryStatus.present = true
           const mockBatteryStatus: BatteryStatus = {
             present: true,
@@ -789,8 +804,7 @@ suite('<settings-power>', () => {
         });
 
     test(
-        'Optimized Charging is hidden with a battery present, and feature disabled.',
-        async () => {
+        'is hidden with a battery present, and feature disabled.', async () => {
           // Case 2: batteryStatus.present = true
           const mockBatteryStatus: BatteryStatus = {
             present: true,
@@ -805,7 +819,7 @@ suite('<settings-power>', () => {
         });
 
     test(
-        'Optimized Charging is visible without a battery present, and feature enabled.',
+        'is visible without a battery present, and feature enabled.',
         async () => {
           // Case 3: batteryStatus.present = false
           // (This can happen when there is no battery, and a low power adapter
@@ -823,7 +837,7 @@ suite('<settings-power>', () => {
         });
 
     test(
-        'Optimized Charging is hidden without a battery present, and feature disabled.',
+        'is hidden without a battery present, and feature disabled.',
         async () => {
           // Case 3: batteryStatus.present = false
           const mockBatteryStatus = {
@@ -838,7 +852,7 @@ suite('<settings-power>', () => {
           assertFalse(isVisible(queryOptimizedChargingRow()));
         });
 
-    test('Optimized charging is deep-linkable.', async () => {
+    test('is deep-linkable.', async () => {
       loadTimeData.overrideValues({
         isAdaptiveChargingEnabled: true,
         isBatteryChargeLimitAvailable: true,
@@ -1081,5 +1095,224 @@ suite('<settings-power>', () => {
       assertTrue(chargeLimitRadio.checked);
       assertFalse(adaptiveChargingRadio.checked);
     });
+
+    test(
+        'should disable change button and slider toggle when managed.',
+        async () => {
+          loadTimeData.overrideValues({
+            isAdaptiveChargingEnabled: true,
+            isBatteryChargeLimitAvailable: true,
+          });
+          await initSubpage();
+
+          // Set the adaptive charging pref to unmanaged (user-controlled).
+          sendPowerManagementSettings({adaptiveChargingManaged: false});
+          await flushTasks();
+          await waitAfterNextRender(powerSubpage);
+
+          // Assert the Change Button and Slider toggle are enabled.
+          assertFalse(queryOptimizedChargingChangeButton()?.disabled ?? true);
+          assertFalse(queryOptimizedChargingToggle()?.disabled ?? true);
+
+          // Set the adaptive charging pref to managed (policy-controlled).
+          sendPowerManagementSettings({adaptiveChargingManaged: true});
+          await flushTasks();
+          await waitAfterNextRender(powerSubpage);
+
+          // Assert the Change Button and Slider toggle are newly disabled.
+          assertTrue(queryOptimizedChargingChangeButton()?.disabled ?? false);
+          assertTrue(queryOptimizedChargingToggle()?.disabled ?? false);
+        });
+
+    test('should have a policy indicator present when managed.', async () => {
+      loadTimeData.overrideValues({
+        isAdaptiveChargingEnabled: true,
+        isBatteryChargeLimitAvailable: true,
+      });
+      await initSubpage();
+
+      // Set the adaptive charging pref to unmanaged (user-controlled).
+      sendPowerManagementSettings({adaptiveChargingManaged: false});
+      await flushTasks();
+      await waitAfterNextRender(powerSubpage);
+
+      // Assert the policy indicator is invisible.
+      assertFalse(isVisible(queryOptimizedChargingPolicyIndicator()));
+
+      // Set the adaptive charging pref to managed (policy-controlled).
+      sendPowerManagementSettings({adaptiveChargingManaged: true});
+      await flushTasks();
+      await waitAfterNextRender(powerSubpage);
+
+      // Assert the policy indicator is newly visible.
+      assertTrue(isVisible(queryOptimizedChargingPolicyIndicator()));
+    });
+
+    test('toggle state reflects the pref values.', async () => {
+      loadTimeData.overrideValues({
+        isAdaptiveChargingEnabled: true,
+        isBatteryChargeLimitAvailable: true,
+      });
+      await initSubpage();
+
+      // Get the unchecked toggle.
+      const toggle = queryOptimizedChargingToggle();
+      assertTrue(!!toggle);
+      assertFalse(toggle.checked);
+
+      // Enable Adaptive Charging.
+      sendPowerManagementSettings({
+        adaptiveCharging: true,
+        chargeLimit: false,
+      });
+
+      assertTrue(toggle.checked);
+
+      // Disable everything
+      sendPowerManagementSettings({
+        adaptiveCharging: false,
+        chargeLimit: false,
+      });
+
+      assertFalse(toggle.checked);
+
+      // Enable Charge Limit
+      sendPowerManagementSettings({
+        adaptiveCharging: false,
+        chargeLimit: true,
+      });
+
+      assertTrue(toggle.checked);
+    });
+
+    test(
+        'clicking toggle calls setOptimizedCharging with correct strategy',
+        async () => {
+          loadTimeData.overrideValues({
+            isAdaptiveChargingEnabled: true,
+            isBatteryChargeLimitAvailable: true,
+          });
+          await initSubpage();
+
+          // Send an initial state with a specific strategy (e.g., Charge Limit)
+          // and ensure the feature is disabled so the toggle is off.
+          const initialStrategy =
+              OptimizedChargingStrategy.STRATEGY_CHARGE_LIMIT;
+          sendPowerManagementSettings({
+            optimizedChargingStrategy: initialStrategy,
+            adaptiveCharging: false,
+            chargeLimit: false,
+          });
+          await flushTasks();
+
+          const toggle = queryOptimizedChargingToggle();
+          assertTrue(!!toggle, 'Optimized charging toggle should be present');
+          assertFalse(toggle.checked, 'Toggle should be off initially');
+
+          // Reset the proxy method tracker before the action.
+          browserProxy.resetResolver('setOptimizedCharging');
+
+          // Click the toggle to turn it on.
+          toggle.$.control.click();
+
+          // Verify that the browser proxy was called with the correct
+          // strategy and the new enabled state.
+          const [strategy, enabled] =
+              await browserProxy.whenCalled('setOptimizedCharging');
+          assertEquals(
+              initialStrategy, strategy,
+              'Strategy passed to proxy is incorrect');
+          assertTrue(enabled, 'Enabled state passed to proxy should be true');
+        });
+
+    test(
+        'clicking toggle off calls setOptimizedCharging correctly',
+        async () => {
+          loadTimeData.overrideValues({
+            isAdaptiveChargingEnabled: true,
+            isBatteryChargeLimitAvailable: true,
+          });
+          await initSubpage();
+
+          // Send an initial state where the feature is ON, which will
+          // turn the toggle on.
+          const initialStrategy =
+              OptimizedChargingStrategy.STRATEGY_ADAPTIVE_CHARGING;
+          sendPowerManagementSettings({
+            optimizedChargingStrategy: initialStrategy,
+            adaptiveCharging: true,
+            chargeLimit: false,
+          });
+          await flushTasks();
+
+          const toggle = queryOptimizedChargingToggle();
+          assertTrue(!!toggle, 'Optimized charging toggle should be present');
+          assertTrue(toggle.checked, 'Toggle should be on initially');
+
+          // Reset the proxy method tracker before the action.
+          browserProxy.resetResolver('setOptimizedCharging');
+
+          // Click the toggle to turn it off.
+          toggle.$.control.click();
+
+          // Verify that the browser proxy was called to disable the
+          // feature. The `enabled` flag should now be false.
+          const [strategy, enabled] =
+              await browserProxy.whenCalled('setOptimizedCharging');
+          assertEquals(
+              initialStrategy, strategy,
+              'Strategy passed to proxy is incorrect');
+          assertFalse(enabled, 'Enabled state passed to proxy should be false');
+        });
+
+    test(
+        'receiving a new strategy while enabled hotswaps the backend pref',
+        async () => {
+          // Ensure the feature is available.
+          loadTimeData.overrideValues({
+            isAdaptiveChargingEnabled: true,
+            isBatteryChargeLimitAvailable: true,
+          });
+          await initSubpage();
+
+          // Send an initial state where the feature is ON with one
+          // strategy (e.g., Adaptive Charging).
+          sendPowerManagementSettings({
+            optimizedChargingStrategy:
+                OptimizedChargingStrategy.STRATEGY_ADAPTIVE_CHARGING,
+            adaptiveCharging: true,
+            chargeLimit: false,
+          });
+          await flushTasks();
+
+          const toggle = queryOptimizedChargingToggle();
+          assertTrue(!!toggle, 'Optimized charging toggle should be present');
+          assertTrue(toggle.checked, 'Toggle should be on initially');
+
+          // Reset the proxy method tracker before the action.
+          browserProxy.resetResolver('setOptimizedCharging');
+
+          const newStrategy = OptimizedChargingStrategy.STRATEGY_CHARGE_LIMIT;
+
+          // Send a power management update with a new strategy,
+          // while the feature remains enabled. This simulates an external
+          // change, for example, from a policy update.
+          sendPowerManagementSettings({
+            optimizedChargingStrategy: newStrategy,
+            adaptiveCharging: true,  // The overall feature is still "on".
+            chargeLimit: false,
+          });
+
+          // The "hotswap" logic in the frontend should have triggered a call
+          // to the browser proxy to activate the new strategy on the backend.
+          const [strategy, enabled] =
+              await browserProxy.whenCalled('setOptimizedCharging');
+          assertEquals(
+              newStrategy, strategy,
+              'Proxy should be called with the new strategy');
+          assertTrue(
+              enabled,
+              'Proxy should be called with enabled=true to activate the new strategy');
+        });
   });
 });

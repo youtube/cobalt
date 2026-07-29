@@ -119,33 +119,6 @@ found in the LICENSE file.
     border-color: green;
   }
 
-  .fitWindow html {
-    height: unset;
-  }
-
-  .fitWindow body {
-    display: flex;
-    flex-direction: column;
-  }
-
-  .fitWindow #contentSizingTest {
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    flex-grow: 1;
-  }
-
-  .fitWindow #contentSizingTest .section {
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-  }
-
-  .fitWindow #dump {
-    overflow-y: scroll;
-    flex-grow: 1;
-  }
-
   *:disabled {
     pointer-events: none;
     opacity: 0.6;
@@ -449,6 +422,7 @@ found in the LICENSE file.
   <div>
     <button id="scrollToFetchAPCBn">Fetch AnnotatedPageContent</button>
     <div style="margin-top:4px;">Document ID: <span id="scrollToDocumentId">null</span></div>
+    <div>URL: <span id="scrollToURL">null</span></div>
   </div>
   <div class="scrollToSelector">
     <h2>
@@ -514,10 +488,16 @@ found in the LICENSE file.
 <div class="section">
   <h1>Test actInFocusedTab()</h1>
   <div>
-    <button id="executeAction">Execute Action</button>
+    <label for="actorTaskId">Task ID</label>
+    <input id="actorTaskId" type="number" style="width: 8ch;" />
+    <button id="createActorTask">New</button>
+    <button id="stopActorTask">Stop</button>
+  </div>
+  <div>
     <label> <input type="text" id="actionProtoEncodedText" />
       Action Proto, base64-encoded from http://shortn/_Iyf96Pob5S
     </label>
+    <button id="executeAction">Execute Action</button>
   </div>
   <div id="actionUpdatedScreenshot">
     <img id="actionUpdatedScreenshotImg" />
@@ -544,31 +524,12 @@ found in the LICENSE file.
   <ul id="shareCandidates">
   </ul>
 </div>
+<div class="section">
+  <h1>MQLS Client ID</h1>
+  <button id="mqlsClientIdBtn">Get and log ID</button>
+</div>
 <br />
 <div id="status"></div>
-</div>
-<div id="contentSizingTest" hidden>
-<div class="section">
-  <h1>Sizing</h1>
-  <button id="disableTestSizingMode">Exit Test Sizing</button>
-  <br />
-  <form>
-    <fieldset>
-      <legend>Sizing mode:</legend>
-      <div>
-        <input type="radio" id="fitWindow" name="resizeOption" value="fitWindow" checked disabled>
-        <label for="fitWindow">Content fits window</label>
-      </div>
-      <div>
-        <input type="radio" id="naturalSizing" name="resizeOption" value="naturalSizing" disabled>
-        <label for="naturalSize">Content uses natural size</label>
-      </div>
-    </fieldset>
-  </form>
-  <button id="growHeight">Grow height</button>
-  <button id="resetHeight">Reset height</button>
-  <div id="dump"></div>
-</div>
 </div>
 <script src="./test_client.js" type="module">
 </script>

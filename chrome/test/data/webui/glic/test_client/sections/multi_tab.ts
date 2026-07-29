@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import type {PinCandidate, TabContextResult, TabData} from '/glic/glic_api/glic_api.js';
+import type {PinCandidate, Subscriber, TabContextResult, TabData} from '/glic/glic_api/glic_api.js';
 import {DEFAULT_PDF_SIZE_LIMIT} from '/glic/glic_api/glic_api.js';
 
 import {client, getBrowser, logMessage} from '../client.js';
@@ -21,6 +21,7 @@ interface PinnedTabStateUpdate {
 }
 
 let state: PinnedTabState[] = [];
+let pinCandidateSubscriber: Subscriber|undefined;
 
 function updateStateWithTabData(tabData: TabData[]) {
   state = state.filter((x) => {
@@ -81,7 +82,7 @@ async function fetchPinnedTabState(
     return update;
   }
   try {
-    const viewportScreenshot = true;
+    const viewportScreenshot = observableTabOnly;
     const annotatedPageContent = true;
     const pdfData = true;
     const pdfSizeLimit = DEFAULT_PDF_SIZE_LIMIT;
@@ -94,7 +95,9 @@ async function fetchPinnedTabState(
           pdfSizeLimit,
           maxMetaTags,
         });
+    logMessage(`Pinned tab context: ` + JSON.stringify(update));
   } catch (e: any) {
+    logMessage(`Failed to grab pinned tab context: ` + JSON.stringify(e));
     update.errorReason = e.message;
   }
   return update;
@@ -222,16 +225,21 @@ function replaceCandidates(candidates: PinCandidate[]) {
 }
 
 async function fetchCandidates() {
-  getBrowser()!.getPinCandidates!({
-    maxCandidates: 10,
-    query: $.shareCandidateQuery.value,
-  }).subscribe(replaceCandidates);
+  if (pinCandidateSubscriber) {
+    pinCandidateSubscriber.unsubscribe();
+  }
+  pinCandidateSubscriber = getBrowser()!
+                               .getPinCandidates!({
+                                 maxCandidates: 10,
+                                 query: $.shareCandidateQuery.value,
+                               })
+                               .subscribe(replaceCandidates);
 }
 
 client.getInitialized().then(async () => {
   logMessage('Detected client initialized');
 
-  const pinnedTabs = await getBrowser()!.getPinnedTabs!();
+  const pinnedTabs = await getBrowser()!.getPinnedTabs?.();
   if (!pinnedTabs) {
     logMessage('Feature is disabled, bailing');
     $.multiTabSection.style = 'display:none';
@@ -283,6 +291,10 @@ client.getInitialized().then(async () => {
   });
 
   $.shareCandidateQuery.addEventListener('blur', () => {
+    if (pinCandidateSubscriber) {
+      pinCandidateSubscriber.unsubscribe();
+      pinCandidateSubscriber = undefined;
+    }
     clearCandidates();
   });
 

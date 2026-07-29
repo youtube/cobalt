@@ -217,11 +217,6 @@ BASE_FEATURE(kDCompDebugVisualization,
              "DCompDebugVisualization",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-// Use BufferCount of 3 for the direct composition root swap chain.
-BASE_FEATURE(kDCompTripleBufferRootSwapChain,
-             "DCompTripleBufferRootSwapChain",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
 // Use BufferCount of 3 for direct composition video swap chains.
 BASE_FEATURE(kDCompTripleBufferVideoSwapChain,
              "DCompTripleBufferVideoSwapChain",
@@ -232,6 +227,11 @@ BASE_FEATURE(kDCompTripleBufferVideoSwapChain,
 BASE_FEATURE(kDirectCompositionSoftwareOverlays,
              "DirectCompositionSoftwareOverlays",
              base::FEATURE_ENABLED_BY_DEFAULT);
+
+// Detect and mark a single full screen video during overlay processing.
+BASE_FEATURE(kEarlyFullScreenVideoOptimization,
+             "EarlyFullScreenVideoOptimization",
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Adjust the letterbox video size and position to the center of the screen so
 // that DWM power optimization can be turned on.
@@ -269,21 +269,6 @@ BASE_FEATURE(kEGLDualGPURendering,
 // Allow overlay swapchain to use Intel video processor for super resolution.
 BASE_FEATURE(kIntelVpSuperResolution,
              "IntelVpSuperResolution",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
-// Allow overlay swapchain to use NVIDIA video processor for super resolution.
-BASE_FEATURE(kNvidiaVpSuperResolution,
-             "NvidiaVpSuperResolution",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
-// Allow overlay swapchain to use NVIDIA video processor for trueHDR.
-BASE_FEATURE(kNvidiaVpTrueHDR,
-             "NvidiaVpTrueHDR",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
-// Default to using ANGLE's OpenGL backend
-BASE_FEATURE(kDefaultANGLEOpenGL,
-             "DefaultANGLEOpenGL",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Default to using ANGLE's Metal backend.

@@ -276,14 +276,6 @@ chromium-metrics-reviews@google.com.
   <int value="2" label="Open tabs"/>
 </enum>
 
-<enum name="IOSBWGEntryPoint">
-  <int value="0" label="Promo"/>
-  <int value="1" label="Overflow Menu"/>
-  <int value="2" label="AI Hub"/>
-  <int value="3" label="Omnibox Chip (Skipped AI Hub)"/>
-  <int value="4" label="Tab Reopen"/>
-</enum>
-
 <enum name="iOSCredentialIdentityStoreErrorForReporting">
   <int value="0" label="Unknown Error"/>
   <int value="1" label="Internal Error"/>
@@ -571,6 +563,28 @@ chromium-metrics-reviews@google.com.
 <enum name="IOSFilePickerSelectedElement">
   <int value="0" label="Drive"/>
 </enum>
+
+<!-- LINT.IfChange(IOSGeminiEntryPoint) -->
+
+<enum name="IOSGeminiEntryPoint">
+  <int value="0" label="Promo"/>
+  <int value="1" label="Overflow Menu"/>
+  <int value="2" label="AI Hub"/>
+  <int value="3" label="Omnibox Chip (Skipped AI Hub)"/>
+  <int value="4" label="Tab Reopen"/>
+  <int value="5" label="Diamond"/>
+</enum>
+
+<!-- LINT.ThenChange(/ios/chrome/browser/intelligence/bwg/utils/bwg_constants.h:EntryPoint) -->
+
+<!-- LINT.IfChange(IOSGeminiFREAction) -->
+
+<enum name="IOSGeminiFREAction">
+  <int value="0" label="Accept"/>
+  <int value="1" label="Dismiss"/>
+</enum>
+
+<!-- LINT.ThenChange(/ios/chrome/browser/intelligence/bwg/metrics/bwg_metrics.h:IOSGeminiFREAction) -->
 
 <enum name="IOSHomeActionType">
   <int value="0" label="Most Visited Tiles"/>
@@ -1070,18 +1084,6 @@ chromium-metrics-reviews@google.com.
       label="Failure - User out-of-storage and did NOT manage storage"/>
 </enum>
 
-<enum name="IOSSearchExtensionAction">
-  <int value="0" label="No Action"/>
-  <int value="1" label="New Search"/>
-  <int value="2" label="New Incognito Search"/>
-  <int value="3" label="New Voice Search"/>
-  <int value="4" label="New QR Code Search"/>
-  <int value="5" label="Open URL"/>
-  <int value="6" label="Search Text"/>
-  <int value="7" label="Search Image"/>
-  <int value="8" label="Search Image with Lens"/>
-</enum>
-
 <enum name="IOSSearchWithContext">
   <int value="0" label="Normal Mode, Google Search engine"/>
   <int value="1" label="Normal Mode, Other Search engine"/>
@@ -1216,6 +1218,7 @@ chromium-metrics-reviews@google.com.
   <int value="9" label="Lens Overlay"/>
   <int value="10" label="CPE"/>
   <int value="11" label="Incognito Lock"/>
+  <int value="12" label="Trusted Vault Key Retrieval"/>
 </enum>
 
 <enum name="IOSTipsNotificationUserType">
@@ -1223,6 +1226,20 @@ chromium-metrics-reviews@google.com.
   <int value="1" label="Less Engaged"/>
   <int value="2" label="Active Seeker"/>
 </enum>
+
+<!-- LINT.IfChange(TrustedVaultNotificationEvents) -->
+
+<enum name="IOSTipsTrustedVaultNotificationEvents">
+  <int value="0" label="Trusted Vault key retrieval flow started."/>
+  <int value="1"
+      label="Key retrieval flow did not start. Trusted Vault key is already
+             available."/>
+  <int value="2"
+      label="Key retrieval flow did not start. Sync service does not exist
+             for profile."/>
+</enum>
+
+<!-- LINT.ThenChange(/ios/chrome/browser/tips_notifications/model/utils.h:TrustedVaultNotificationEvents) -->
 
 <enum name="IOSUpgradeCenterFailureReason">
   <int value="0" label="Invalid URL"/>
@@ -1361,6 +1378,12 @@ chromium-metrics-reviews@google.com.
   <int value="11" label="Lens Overlay [Tip]"/>
   <int value="12" label="CPE [Tip]"/>
   <int value="13" label="Incognito Lock [Tip]"/>
+  <int value="14" label="unknown type"/>
+  <int value="15" label="Send Tab"/>
+  <int value="16" label="Trusted Vault Key Retrieval [Tip]"/>
+  <int value="17" label="Reminder"/>
+  <int value="18" label="Commerce"/>
+  <int value="19" label="Content"/>
 </enum>
 
 <!-- LINT.ThenChange(/ios/chrome/browser/push_notification/model/constants.h:NotificationType) -->
@@ -1625,6 +1648,7 @@ chromium-metrics-reviews@google.com.
   <int value="3" label="Distillation Started"/>
   <int value="4" label="Distillation Completed"/>
   <int value="5" label="Reader shown"/>
+  <int value="6" label="Distillation Canceled"/>
 </enum>
 
 <!-- LINT.ThenChange(/ios/chrome/browser/reader_mode/model/constants.h:ReaderModeState) -->

@@ -10,6 +10,8 @@ static_library("enterprise") {
     "browser/reporting/browser_report_generator.h",
     "browser/reporting/chrome_profile_request_generator.cc",
     "browser/reporting/chrome_profile_request_generator.h",
+    "browser/reporting/cloud_profile_reporting_policy_handler.cc",
+    "browser/reporting/cloud_profile_reporting_policy_handler.h",
     "browser/reporting/cloud_reporting_frequency_policy_handler.cc",
     "browser/reporting/cloud_reporting_frequency_policy_handler.h",
     "browser/reporting/cloud_reporting_policy_handler.cc",
@@ -61,13 +63,6 @@ static_library("enterprise") {
     ]
   }
 
-  if (!is_ios) {
-    sources += [
-      "browser/reporting/cloud_profile_reporting_policy_handler.cc",
-      "browser/reporting/cloud_profile_reporting_policy_handler.h",
-    ]
-  }
-
   if (!is_ios && !is_android) {
     sources += [
       "browser/promotion/promotion_eligibility_checker.cc",
@@ -92,6 +87,7 @@ static_library("enterprise") {
     "//components/strings",
     "//components/version_info",
     "//crypto",
+    "//google_apis",
     "//net",
     "//services/network/public/cpp",
   ]

@@ -3,12 +3,13 @@
 // found in the LICENSE file.
 
 import type {ActInFocusedTabParams, ActInFocusedTabResult, AnnotatedPageData, ChromeVersion, CreateTabOptions, DraggableArea, FocusedTabData, GetPinCandidatesOptions, GlicBrowserHost, GlicBrowserHostJournal, GlicBrowserHostMetrics, GlicHostRegistry, GlicWebClient, HostCapability, Journal, ObservableValue, OpenPanelInfo, OpenSettingsOptions, PanelOpeningData, PanelState, PdfDocumentData, PinCandidate, ResizeWindowOptions, Screenshot, ScrollToParams, TabContextOptions, TabContextResult, TabData, UserProfileInfo, ZeroStateSuggestions, ZeroStateSuggestionsOptions, ZeroStateSuggestionsV2} from '../glic_api/glic_api.js';
+import {ActorTaskState} from '../glic_api/glic_api.js';
 import {ObservableValue as ObservableValueImpl} from '../observable.js';
 
 import {replaceProperties} from './conversions.js';
 import {newSenderId, PostMessageRequestReceiver, PostMessageRequestSender} from './post_message_transport.js';
 import type {ResponseExtras} from './post_message_transport.js';
-import type {ActInFocusedTabResultPrivate, AnnotatedPageDataPrivate, FocusedTabDataPrivate, PdfDocumentDataPrivate, RequestRequestType, RequestResponseType, RgbaImage, TabContextResultPrivate, TabDataPrivate, TransferableException, WebClientRequestTypes} from './request_types.js';
+import type {ActInFocusedTabResultPrivate, AnnotatedPageDataPrivate, FocusedTabDataPrivate, PdfDocumentDataPrivate, PinCandidatePrivate, RequestRequestType, RequestResponseType, RgbaImage, TabContextResultPrivate, TabDataPrivate, TransferableException, WebClientRequestTypes} from './request_types.js';
 import {ImageAlphaType, ImageColorType, newTransferableException} from './request_types.js';
 
 
@@ -90,8 +91,7 @@ class WebClientMessageHandler implements WebClientMessageHandlerInterface {
     suggestions: ZeroStateSuggestionsV2,
     options: ZeroStateSuggestionsOptions,
   }): void {
-    this.host.getZeroStateSuggestions?.(payload.options)
-        .assignAndSignal(payload.suggestions);
+    this.host.currentZeroStateObserver?.assignAndSignal(payload.suggestions);
   }
 
   glicWebClientCanAttachStateChanged(payload: {canAttach: boolean}): void {
@@ -156,6 +156,17 @@ class WebClientMessageHandler implements WebClientMessageHandlerInterface {
     this.host.getOsHotkeyState().assignAndSignal(payload);
   }
 
+  // TODO(crbug.com/432258121): A race condition can occur when a consumer
+  // unsubscribes and a new one subscribes. An update from the first
+  // subscription that is already in-flight may be delivered to the second
+  // consumer.
+  glicWebClientPinCandidatesChanged(payload: {
+    candidates: PinCandidatePrivate[],
+  }): void {
+    this.host.pinCandidates.assignAndSignal(payload.candidates.map(
+        c => ({tabData: convertTabDataFromPrivate(c.tabData)})));
+  }
+
   glicWebClientNotifyPinnedTabsChanged(payload: {tabData: TabDataPrivate[]}):
       void {
     this.cachedPinnedTabs =
@@ -176,6 +187,11 @@ class WebClientMessageHandler implements WebClientMessageHandlerInterface {
       return cachedTab;
     });
     this.host.pinnedTabs.assignAndSignal(this.cachedPinnedTabs);
+  }
+
+  glicWebClientNotifyActorTaskStateChanged(
+      payload: {taskId: number, state: ActorTaskState}): void {
+    this.host.setActorTaskState(payload.taskId, payload.state);
   }
 }
 
@@ -200,18 +216,20 @@ class GlicBrowserHostImpl implements GlicBrowserHost {
   private osHotkeyState = ObservableValueImpl.withNoValue<{hotkey: string}>();
   panelActiveValue = ObservableValueImpl.withNoValue<boolean>();
   isBrowserOpenValue = ObservableValueImpl.withNoValue<boolean>();
-  private fitWindow = false;
   private journalHost: GlicBrowserHostJournalImpl;
   private metrics: GlicBrowserHostMetricsImpl;
   private manuallyResizing = ObservableValueImpl.withValue<boolean>(false);
   pinnedTabs = ObservableValueImpl.withNoValue<TabData[]>();
+  pinCandidates = ObservableValueImpl.withNoValue<PinCandidate[]>();
   private currentZeroStateSuggestionOptions: ZeroStateSuggestionsOptions = {
     isFirstRun: false,
     supportedTools: [],
   };
-  private currentZeroStateObserver =
+  currentZeroStateObserver =
       ObservableValueImpl.withNoValue<ZeroStateSuggestionsV2>();
   private hostCapabilities: Set<HostCapability> = new Set();
+  private actorTaskState =
+      new Map<number, ObservableValueImpl<ActorTaskState>>();
 
   constructor(public webClient: GlicWebClient, windowProxy: WindowProxy) {
     // TODO(harringtond): Ideally, we could ensure we only process requests from
@@ -264,7 +282,6 @@ class GlicBrowserHostImpl implements GlicBrowserHost {
     this.panelActiveValue.assignAndSignal(state.panelIsActive);
     this.isBrowserOpenValue.assignAndSignal(state.browserIsOpen);
     this.osHotkeyState.assignAndSignal({hotkey: state.hotkey});
-    this.fitWindow = state.fitWindow;
     this.closedCaptioningState.assignAndSignal(
         state.closedCaptioningSettingEnabled);
     for (const capability of state.hostCapabilities) {
@@ -316,6 +333,10 @@ class GlicBrowserHostImpl implements GlicBrowserHost {
       this.unpinTabs = undefined;
       this.unpinAllTabs = undefined;
     }
+
+    if (!state.enableGetContextActor) {
+      this.getContextForActorFromTab = undefined;
+    }
   }
 
   webClientInitialized(
@@ -338,6 +359,14 @@ class GlicBrowserHostImpl implements GlicBrowserHost {
     return {payload: response};
   }
 
+  setActorTaskState(taskId: number, state: ActorTaskState): void {
+    this.getActorTaskState(taskId).assignAndSignal(state);
+
+    if (state === ActorTaskState.STOPPED) {
+      this.actorTaskState.delete(taskId);
+    }
+  }
+
   onRequestReceived(_type: string): void {}
   onRequestHandlerException(_type: string): void {}
   onRequestCompleted(_type: string): void {}
@@ -346,10 +375,6 @@ class GlicBrowserHostImpl implements GlicBrowserHost {
 
   getChromeVersion() {
     return Promise.resolve(this.chromeVersion!);
-  }
-
-  shouldFitWindow() {
-    return Promise.resolve(this.fitWindow);
   }
 
   async createTab(url: string, options: CreateTabOptions): Promise<TabData> {
@@ -389,6 +414,12 @@ class GlicBrowserHostImpl implements GlicBrowserHost {
     this.sender.requestNoResponse('glicBrowserShowProfilePicker', undefined);
   }
 
+  async getModelQualityClientId(): Promise<string> {
+    const result = await this.sender.requestWithResponse(
+        'glicBrowserGetModelQualityClientId', undefined);
+    return result.modelQualityClientId;
+  }
+
   async getContextFromFocusedTab(options: TabContextOptions):
       Promise<TabContextResult> {
     const context = await this.sender.requestWithResponse(
@@ -406,6 +437,13 @@ class GlicBrowserHostImpl implements GlicBrowserHost {
       (tabId: string, options: TabContextOptions): Promise<TabContextResult> {
     const result = await this.sender.requestWithResponse(
         'glicBrowserGetContextFromTab', {tabId, options});
+    return convertTabContextResultFromPrivate(result.tabContextResult);
+  }
+
+  async getContextForActorFromTab?
+      (tabId: string, options: TabContextOptions): Promise<TabContextResult> {
+    const result = await this.sender.requestWithResponse(
+        'glicBrowserGetContextForActorFromTab', {tabId, options});
     return convertTabContextResultFromPrivate(result.tabContextResult);
   }
 
@@ -443,6 +481,20 @@ class GlicBrowserHostImpl implements GlicBrowserHost {
     const response = await this.sender.requestWithResponse(
         'glicBrowserResumeActorTask', {taskId, tabContextOptions});
     return convertTabContextResultFromPrivate(response.tabContextResult);
+  }
+
+  getActorTaskState(taskId: number): ObservableValueImpl<ActorTaskState> {
+    const stateObs = this.actorTaskState.get(taskId);
+    if (stateObs) {
+      return stateObs;
+    }
+    // TODO(mcnee): The client could pass an id that will never have
+    // state updates (e.g. the task already finished and we cleared the old
+    // observable in setActorTaskState). Consider removing these cases from the
+    // map when all subscribers are removed.
+    const newObs = ObservableValueImpl.withNoValue<ActorTaskState>();
+    this.actorTaskState.set(taskId, newObs);
+    return newObs;
   }
 
   async resizeWindow(
@@ -620,15 +672,17 @@ class GlicBrowserHostImpl implements GlicBrowserHost {
 
   getPinCandidates?
       (options: GetPinCandidatesOptions): ObservableValue<PinCandidate[]> {
-    const observable =
-        ObservableValueImpl.withNoValue<PinCandidate[]>(async () => {
-          const candidates = (await this.sender.requestWithResponse(
-                                  'glicBrowserGetPinCandidates', {options}))
-                                 .candidates;
-          observable.assignAndSignal(
-              candidates.map((x) => ({tabData: convertTabDataFromPrivate(x)})));
+    this.pinCandidates =
+        ObservableValueImpl.withNoValue<PinCandidate[]>((isActive: boolean) => {
+          if (isActive) {
+            this.sender.requestNoResponse(
+                'glicBrowserSubscribeToPinCandidates', {options});
+          } else {
+            this.sender.requestNoResponse(
+                'glicBrowserUnsubscribeFromPinCandidates', undefined);
+          }
         });
-    return observable;
+    return this.pinCandidates;
   }
 
   async getZeroStateSuggestionsForFocusedTab?
@@ -729,6 +783,13 @@ class GlicBrowserHostJournalImpl implements GlicBrowserHostJournal {
   stop(): void {
     this.sender.requestNoResponse('glicBrowserJournalStop', undefined);
   }
+
+  recordFeedback(positive: boolean, reason: string) {
+    this.sender.requestNoResponse(
+        'glicBrowserJournalRecordFeedback',
+        {positive, reason},
+    );
+  }
 }
 
 class GlicBrowserHostMetricsImpl implements GlicBrowserHostMetrics {
@@ -761,6 +822,11 @@ class GlicBrowserHostMetricsImpl implements GlicBrowserHostMetrics {
   onClosedCaptionsShown?(): void {
     this.sender.requestNoResponse(
         'glicBrowserOnClosedCaptionsShown', undefined);
+  }
+
+  onTurnCompleted?(model: number, duration: number): void {
+    this.sender.requestNoResponse(
+        'glicBrowserOnTurnCompleted', {model, duration});
   }
 }
 

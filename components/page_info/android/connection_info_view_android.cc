@@ -47,7 +47,7 @@ static jlong JNI_ConnectionInfoView_Init(
 
 ConnectionInfoViewAndroid::ConnectionInfoViewAndroid(
     JNIEnv* env,
-    jobject java_page_info_pop,
+    const base::android::JavaRef<jobject>& java_page_info_pop,
     WebContents* web_contents) {
   page_info_client_ = page_info::GetPageInfoClient();
   DCHECK(page_info_client_);

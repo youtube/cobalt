@@ -108,6 +108,7 @@ Chrome के अनुभव को बेहतर बनाने के ल�
 <translation id="1419753403124156396">क्या Chrome को रीस्टार्ट करना है?</translation>
 <translation id="1428770807407000502">क्या आपको सिंक करने की सुविधा बंद करनी है?</translation>
 <translation id="1430915738399379752">प्रिंट करें</translation>
+<translation id="1433478348197382180">रीडिंग मोड</translation>
 <translation id="1435593198351412143">PDF फ़ाइलें अपने-आप खुलें</translation>
 <translation id="1437543266176261764"><ph name="APP_NAME" /> में चल रही है</translation>
 <translation id="1448440926884431741">ट्रैक किए गए प्रॉडक्ट को Bookmarks में व्यवस्थित करें</translation>
@@ -239,6 +240,7 @@ Chrome के अनुभव को बेहतर बनाने के ल�
 <translation id="2088833076121753253">जानकारी ऑटोमैटिक भरने की सुविधा का सेट अप पूरा करने के लिए, Chrome को अभी रीस्टार्ट करें. आपके टैब अपने-आप फिर से खुल जाएंगे.</translation>
 <translation id="2091863218454846791">कॉम्पैक्ट व्यू दिखाया जा रहा है</translation>
 <translation id="2093731487903423814">पिछले 15 मिनट का</translation>
+<translation id="2096577711562668473">क्या आपको ऑटोमैटिक तरीके से जानकारी भरने की सेटिंग बदलनी हैं?</translation>
 <translation id="2100273922101894616">अपने-आप साइन इन करने की सुविधा</translation>
 <translation id="2109384632594340939">प्रोफ़ाइल फ़ोटो</translation>
 <translation id="2111511281910874386">पेज पर जाएं</translation>
@@ -324,6 +326,7 @@ Chrome के अनुभव को बेहतर बनाने के ल�
 <translation id="2496180316473517155">ब्राउज़िंग इतिहास</translation>
 <translation id="2497852260688568942">सिंक को आपके व्यवस्थापक ने अक्षम कर दिया है</translation>
 <translation id="250020030759455918">आपको Chrome में अपनी <ph name="SITE_NAME" /> की साइन इन स्थिति, ब्राउज़िंग डेटा, और साइट डेटा दिखेगा</translation>
+<translation id="2502798195266898572">रीडिंग मोड में बॉटम शीट पूरी स्क्रीन पर खुली है</translation>
 <translation id="2510106555128151389"><ph name="WEBAPK_NAME" /> को इंस्टॉल किया जा रहा है...</translation>
 <translation id="2512234228327349533">खरीदारी करने के विकल्प खोजें</translation>
 <translation id="2513403576141822879">निजता, सुरक्षा और डेटा इकट्ठा करने से जुड़ी ज़्यादा सेटिंग के लिए, <ph name="BEGIN_LINK" />सिंक और Google सेवाएं<ph name="END_LINK" /> देखें</translation>
@@ -719,6 +722,7 @@ Chrome के अनुभव को बेहतर बनाने के ल�
 <translation id="4306489587293957491">डालें</translation>
 <translation id="4307992518367153382">बुनियादी चीज़ें</translation>
 <translation id="4311652497846705514">क्या आपको PDF फ़ाइल खोलनी है?</translation>
+<translation id="4313895677475587452">{NUM_SUSPICIOUS_NOTIFICATIONS,plural, =1{यह सूचना स्पैम हो सकती है}one{यह सूचना स्पैम हो सकती है (#)}other{ये सूचनाएं स्पैम हो सकती हैं (#)}}</translation>
 <translation id="4320177379694898372">कोई इंटरनेट कनेक्‍शन नहीं</translation>
 <translation id="4326079409704643112">अपने Google खाते में Chrome डेटा का इस्तेमाल करने और सेव करने के लिए, अपनी पहचान की पुष्टि करें</translation>
 <translation id="433213510553688132">फ़ॉलो किया जा रहा है...</translation>
@@ -932,6 +936,7 @@ Chrome के अनुभव को बेहतर बनाने के ल�
 <translation id="5206168361184759344">{FILE_COUNT,plural, =1{फ़ाइल डाउनलोड हो रही है…}one{# फ़ाइल डाउनलोड हो रही है…}other{# फ़ाइलें डाउनलोड हो रही हैं…}}</translation>
 <translation id="5210286577605176222">सीधे पिछले टैब पर जाएं</translation>
 <translation id="5210365745912300556">टैब बंद करें</translation>
+<translation id="5212800876504289412">इस बदलाव को लागू करने के लिए, Chrome को रीस्टार्ट करें. रीस्टार्ट करने पर, टैब अपने-आप खुल जाते हैं.</translation>
 <translation id="5215957675041756913">अपना डेटा और खाता कंट्रोल करें</translation>
 <translation id="5218324087477576825">कार्ड नंबर डालना ज़रूरी है</translation>
 <translation id="5221437554987713282"><ph name="PERMISSION_1" />, <ph name="PERMISSION_2" />, और अन्य अनुमतियां <ph name="SEPARATOR" /> Chrome ने इस साइट के लिए ये अनुमतियां हटा दी हैं, क्योंकि आपने हाल ही में इसका इस्तेमाल नहीं किया है</translation>
@@ -974,7 +979,6 @@ Chrome के अनुभव को बेहतर बनाने के ल�
 <translation id="5414836363063783498">सत्यापन हो रहा है...</translation>
 <translation id="5415871492522952905">आपके सभी डिवाइसों पर टैब और ब्राउज़िंग इतिहास सेव रहेगा, ताकि आप अपने पिछले काम जारी रख सकें</translation>
 <translation id="542073632571549028"><ph name="MEMBER_FULL_NAME" /> (<ph name="EMAIL" />) के लिए “<ph name="GROUP_NAME" />” टैब ग्रुप का ऐक्सेस तुरंत हटा दिया जाएगा</translation>
-<translation id="5423934151118863508">  सबसे ज़्यादा देखे गए पेज यहां दिखाई देंगे</translation>
 <translation id="5424588387303617268"><ph name="GIGABYTES" /> जीबी उपलब्ध है</translation>
 <translation id="543338862236136125">पासवर्ड में बदलाव करें</translation>
 <translation id="5433691172869980887">उपयोगकर्ता नाम कॉपी किया गया</translation>
@@ -1057,8 +1061,10 @@ Chrome के अनुभव को बेहतर बनाने के ल�
 <translation id="580893287573699959">अपने पसंदीदा विषयों और साइटों को मैनेज करें</translation>
 <translation id="5809361687334836369">{HOURS,plural, =1{# घंटा पहले}one{# घंटे पहले}other{# घंटे पहले}}</translation>
 <translation id="5810288467834065221">कॉपीराइट <ph name="YEAR" /> Google LLC. सर्वाधिकार सुरक्षित.</translation>
+<translation id="581030587084991751">{NUM_SUSPICIOUS_NOTIFICATIONS,plural, =1{सूचना दिखाएं}one{सूचना दिखाएं}other{सूचनाएं दिखाएं}}</translation>
 <translation id="5814749351757353073">अपनी पसंदीदा साइटें फ़ॉलो करते रहें</translation>
 <translation id="5823093032261493462">क्या आपको फिर भी <ph name="DOWNLOAD_DOMAIN" /> से "<ph name="FILE_NAME" />" को डाउनलोड करना है?</translation>
+<translation id="5825135637446025843">Chrome के रीस्टार्ट होने के बाद, नए प्रोवाइडर की सेव की गई आपकी जानकारी का इस्तेमाल, पासवर्ड, पासकी, पते, पेमेंट के तरीके, और अन्य जानकारी को ऑटोमैटिक तरीके से भरने के लिए किया जाएगा.</translation>
 <translation id="5828921839638612740">Chrome की सेटिंग में जाकर, डेटा को मिटाया जा सकता है</translation>
 <translation id="5829586821381540080"><ph name="FOLDER_NAME" /> में सेव किया गया</translation>
 <translation id="583281660410589416">अज्ञात</translation>
@@ -1167,6 +1173,7 @@ Chrome के अनुभव को बेहतर बनाने के ल�
 <translation id="6255809143828972562">Chrome के टूल के ज़रिए सुरक्षित तरीके से ब्राउज़िंग की जा सकती है. साथ ही, अपना डेटा भी कंट्रोल किया जा सकता है</translation>
 <translation id="6264376385120300461">फिर भी डाउनलोड करें</translation>
 <translation id="6264485186158353794">वापस सुरक्षित पेज पर जाएं</translation>
+<translation id="6267063201726531683">रीडिंग मोड में बॉटम शीट</translation>
 <translation id="6277522088822131679">पेज को प्रिंट करने में समस्या थी. कृपया फिर से प्रयास करें.</translation>
 <translation id="6278428485366576908">थीम</translation>
 <translation id="6284472661216707937">आपके सभी डिवाइसों पर पासवर्ड का मैसेज बंद हो गया है</translation>
@@ -1174,6 +1181,7 @@ Chrome के अनुभव को बेहतर बनाने के ल�
 <translation id="6295158916970320988">सभी साइटें</translation>
 <translation id="6296366034485697675">एक्सपोर्ट करें और मिटाएं</translation>
 <translation id="629730747756840877">खाता</translation>
+<translation id="6300697579369314762">रीडिंग मोड में बॉटम शीट आधी स्क्रीन पर खुली है</translation>
 <translation id="6301526076346731664">डेवलपर टूल खोलना</translation>
 <translation id="6303969859164067831">साइन आउट करें और सिंक बंद करें</translation>
 <translation id="6307241780749477694">इस डिवाइस पर अपने सभी पासवर्ड ऐक्सेस करने के लिए, अपनी पहचान की पुष्टि करें</translation>
@@ -1394,6 +1402,7 @@ Chrome के अनुभव को बेहतर बनाने के ल�
 <translation id="71503698506017927">लंबे पासवर्ड से एन्क्रिप्ट (सुरक्षित) करने की सुविधा में, Google Pay पर जोड़े गए पेमेंट के तरीके और पते शामिल नहीं होते.
 
 इस सेटिंग को बदलने के लिए, <ph name="BEGIN_LINK" />अपने खाते से Chrome का डेटा मिटाएं<ph name="END_LINK" />.</translation>
+<translation id="7151332203500147130">रीडिंग मोड में खोली गई बॉटम शीट बंद की गई</translation>
 <translation id="7165972437814027679">जानें कि Chrome कुछ फ़ाइलों को क्यों ब्लॉक करता है</translation>
 <translation id="7168323970702333693"><ph name="USER_NAME" /> के तौर पर साइन इन किया गया. इस बटन से सेटिंग खुलती है.</translation>
 <translation id="7173114856073700355">सेटिंग खोलें</translation>
@@ -1727,7 +1736,6 @@ Chrome के अनुभव को बेहतर बनाने के ल�
 <translation id="8493948351860045254">स्‍थान खाली करें</translation>
 <translation id="8497242791509864205">क्रम से लगाने वाले विकल्प खोलें</translation>
 <translation id="8497480609928300907">निजता गाइड के बारे में जानकारी</translation>
-<translation id="8497726226069778601">यहां देखने के लिए…अभी तक कुछ भी नहीं है</translation>
 <translation id="8503813439785031346">उपयोगकर्ता नाम</translation>
 <translation id="8505766168025405649">डाउनलोड की स्थिति जानने के लिए सूचना देखें</translation>
 <translation id="8506357771923193001">डाउनलोड की गई फ़ाइलें यहां दिखेंगी</translation>

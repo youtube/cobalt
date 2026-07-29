@@ -108,6 +108,7 @@
 <translation id="1419753403124156396">Перезапустити Chrome?</translation>
 <translation id="1428770807407000502">Вимкнути синхронізацію?</translation>
 <translation id="1430915738399379752">Друк</translation>
+<translation id="1433478348197382180">Режим читання</translation>
 <translation id="1435593198351412143">Відкривати файли PDF автоматично</translation>
 <translation id="1437543266176261764">Запущено в додатку <ph name="APP_NAME" /></translation>
 <translation id="1448440926884431741">Впорядковуйте відстежувані товари в закладках</translation>
@@ -239,6 +240,7 @@
 <translation id="2088833076121753253">Щоб завершити налаштування автозаповнення, перезапустіть Chrome. Вкладки автоматично відкриються знову.</translation>
 <translation id="2091863218454846791">Показано компактний перегляд</translation>
 <translation id="2093731487903423814">останні 15 хвилин</translation>
+<translation id="2096577711562668473">Змінити сервіс автозаповнення?</translation>
 <translation id="2100273922101894616">Автоматичний вхід</translation>
 <translation id="2109384632594340939">зображення профілю</translation>
 <translation id="2111511281910874386">Перейти на сторінку</translation>
@@ -324,6 +326,7 @@
 <translation id="2496180316473517155">Історія веб-перегляду</translation>
 <translation id="2497852260688568942">Ваш адміністратор вимкнув синхронізацію</translation>
 <translation id="250020030759455918">Ви зможете переглядати статус входу на сайті <ph name="SITE_NAME" />, дані веб-перегляду й сайту в Chrome</translation>
+<translation id="2502798195266898572">Нижній екран режиму читання відкрито на всю висоту</translation>
 <translation id="2510106555128151389">Встановлення додатка <ph name="WEBAPK_NAME" />…</translation>
 <translation id="2512234228327349533">Шукати варіанти купівлі</translation>
 <translation id="2513403576141822879">Інші налаштування конфіденційності, безпеки та збору даних доступні в розділі <ph name="BEGIN_LINK" />Синхронізація та сервіси Google<ph name="END_LINK" /></translation>
@@ -719,6 +722,7 @@
 <translation id="4306489587293957491">Ввести</translation>
 <translation id="4307992518367153382">Основні</translation>
 <translation id="4311652497846705514">Відкрити файл PDF?</translation>
+<translation id="4313895677475587452">{NUM_SUSPICIOUS_NOTIFICATIONS,plural, =1{Можливо, це спам}one{Можливо, це спам (#)}few{Можливо, це спам (#)}many{Можливо, це спам (#)}other{Можливо, це спам (#)}}</translation>
 <translation id="4320177379694898372">Немає з’єднання з Інтернетом</translation>
 <translation id="4326079409704643112">Щоб зберігати й використовувати дані Chrome в обліковому записі Google, підтвердьте свою особу</translation>
 <translation id="433213510553688132">Додавання до підписок…</translation>
@@ -932,6 +936,7 @@
 <translation id="5206168361184759344">{FILE_COUNT,plural, =1{Завантажується файл…}one{Завантажується # файл…}few{Завантажуються # файли…}many{Завантажуються # файлів…}other{Завантажується # файлу…}}</translation>
 <translation id="5210286577605176222">Перейти до попередньої вкладки</translation>
 <translation id="5210365745912300556">Закрити вкладку</translation>
+<translation id="5212800876504289412">Щоб застосувати цю зміну, перезапустіть Chrome. Коли ви це зробите, вкладки автоматично відкриються знову.</translation>
 <translation id="5215957675041756913">Керуйте даними й обліковим записом</translation>
 <translation id="5218324087477576825">Номер картки, обов’язкове поле</translation>
 <translation id="5221437554987713282"><ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> і інші <ph name="SEPARATOR" /> Chrome скасував ці дозволи, оскільки останнім часом ви не відвідували сайт</translation>
@@ -974,7 +979,6 @@
 <translation id="5414836363063783498">Підтвердження…</translation>
 <translation id="5415871492522952905">Історія і вкладки зберігатимуться на всіх ваших пристроях, щоб ви могли продовжувати роботу з того місця, на якому зупинилися</translation>
 <translation id="542073632571549028"><ph name="MEMBER_FULL_NAME" /> (<ph name="EMAIL" />) відразу втратить доступ до групи вкладок "<ph name="GROUP_NAME" />"</translation>
-<translation id="5423934151118863508">Тут відображатимуться найчастіше відвідувані сторінки</translation>
 <translation id="5424588387303617268">Доступно <ph name="GIGABYTES" /> ГБ</translation>
 <translation id="543338862236136125">Змінити пароль</translation>
 <translation id="5433691172869980887">Ім’я користувача скопійовано</translation>
@@ -1057,8 +1061,10 @@
 <translation id="580893287573699959">Керуйте темами й сайтами, які вас цікавлять</translation>
 <translation id="5809361687334836369">{HOURS,plural, =1{# годину тому}one{# годину тому}few{# години тому}many{# годин тому}other{# години тому}}</translation>
 <translation id="5810288467834065221">© Google LLC <ph name="YEAR" />. Усі права захищено.</translation>
+<translation id="581030587084991751">{NUM_SUSPICIOUS_NOTIFICATIONS,plural, =1{Показати сповіщення}one{Показати сповіщення}few{Показати сповіщення}many{Показати сповіщення}other{Показати сповіщення}}</translation>
 <translation id="5814749351757353073">Стежте за улюбленими сайтами</translation>
 <translation id="5823093032261493462">Усе одно завантажити файл <ph name="FILE_NAME" /> із сайту <ph name="DOWNLOAD_DOMAIN" />?</translation>
+<translation id="5825135637446025843">Після перезапуску Chrome збережена інформація від нового постачальника використовуватиметься для автозаповнення паролів, ключів доступу, адрес, способів оплати й інших даних.</translation>
 <translation id="5828921839638612740">Ви можете видалити дані в налаштуваннях Chrome</translation>
 <translation id="5829586821381540080">Збережено в папці "<ph name="FOLDER_NAME" />"</translation>
 <translation id="583281660410589416">Невідомий</translation>
@@ -1167,6 +1173,7 @@
 <translation id="6255809143828972562">Безпечно переглядайте вебсторінки й керуйте налаштуваннями завдяки інструментам від Chrome</translation>
 <translation id="6264376385120300461">Усе одно завантажити</translation>
 <translation id="6264485186158353794">Повернутися на безпечну сторінку</translation>
+<translation id="6267063201726531683">Нижній екран режиму читання</translation>
 <translation id="6277522088822131679">Виникла проблема з друком цієї сторінки. Повторіть спробу.</translation>
 <translation id="6278428485366576908">Тема</translation>
 <translation id="6284472661216707937">Екран "Паролі на всіх ваших пристроях" закрито</translation>
@@ -1174,6 +1181,7 @@
 <translation id="6295158916970320988">Усі сайти</translation>
 <translation id="6296366034485697675">Експортувати й видалити</translation>
 <translation id="629730747756840877">Обліковий запис</translation>
+<translation id="6300697579369314762">Нижній екран режиму читання відкрито на половину висоти</translation>
 <translation id="6301526076346731664">Відкрити Інструменти розробника</translation>
 <translation id="6303969859164067831">Вийти й вимкнути синхронізацію</translation>
 <translation id="6307241780749477694">Підтвердьте свою особу, щоб отримати доступ до всіх паролів на цьому пристрої</translation>
@@ -1394,6 +1402,7 @@
 <translation id="71503698506017927">Шифрування за допомогою парольної фрази не застосовується до способів оплати й адрес із Google Pay.
 
 Щоб змінити це налаштування, <ph name="BEGIN_LINK" />видаліть дані Chrome у своєму обліковому записі<ph name="END_LINK" />.</translation>
+<translation id="7151332203500147130">Нижній екран режиму читання закрито</translation>
 <translation id="7165972437814027679">Докладніше про те, чому Chrome блокує деякі файли</translation>
 <translation id="7168323970702333693">Ви ввійшли як <ph name="USER_NAME" />. Ця опція відкриває налаштування.</translation>
 <translation id="7173114856073700355">Відкрити налаштування</translation>
@@ -1727,7 +1736,6 @@
 <translation id="8493948351860045254">Звільнити місце</translation>
 <translation id="8497242791509864205">Відкрити параметри сортування</translation>
 <translation id="8497480609928300907">Пояснення про посібник щодо конфіденційності</translation>
-<translation id="8497726226069778601">Тут ще нічого немає…</translation>
 <translation id="8503813439785031346">Ім’я користувача</translation>
 <translation id="8505766168025405649">Щоб перевірити статус завантаження, перегляньте сповіщення</translation>
 <translation id="8506357771923193001">Тут відображатимуться ваші завантаження</translation>

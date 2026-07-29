@@ -38,9 +38,13 @@ class TestTabModel : public TabModel {
   ~TestTabModel() override;
 
   // TabModel:
+  void AddTabListInterfaceObserver(TabListInterfaceObserver* observer) override;
+  void RemoveTabListInterfaceObserver(
+      TabListInterfaceObserver* observer) override;
   // Returns tab_count_ if not 0. Otherwise, returns size of web_contents_list_.
   int GetTabCount() const override;
   int GetActiveIndex() const override;
+  tabs::TabInterface* GetActiveTab() override;
   content::WebContents* GetWebContentsAt(int index) const override;
   base::android::ScopedJavaLocalRef<jobject> GetJavaObject() const override;
   void CreateTab(TabAndroid* parent,
@@ -78,7 +82,9 @@ class TestTabModel : public TabModel {
   void DiscardTab(tabs::TabHandle tab) override;
   void DuplicateTab(tabs::TabHandle tab) override;
   tabs::TabInterface* GetTab(int index) override;
-  void HighlightTabs(const std::set<tabs::TabHandle>& tabs) override;
+  int GetIndexOfTab(tabs::TabHandle tab) override;
+  void HighlightTabs(tabs::TabHandle tab_to_activate,
+                     const std::set<tabs::TabHandle>& tabs) override;
   void MoveTab(tabs::TabHandle tab, int index) override;
   void CloseTab(tabs::TabHandle tab) override;
   std::vector<tabs::TabInterface*> GetAllTabs() override;
@@ -116,8 +122,12 @@ class OwningTestTabModel : public TabModel {
 
   // TabModel:
 
+  void AddTabListInterfaceObserver(TabListInterfaceObserver* observer) override;
+  void RemoveTabListInterfaceObserver(
+      TabListInterfaceObserver* observer) override;
   int GetTabCount() const override;
   int GetActiveIndex() const override;
+  tabs::TabInterface* GetActiveTab() override;
   content::WebContents* GetWebContentsAt(int index) const override;
   TabAndroid* GetTabAt(int index) const override;
   void SetActiveIndex(int index) override;
@@ -169,7 +179,9 @@ class OwningTestTabModel : public TabModel {
   void DiscardTab(tabs::TabHandle tab) override;
   void DuplicateTab(tabs::TabHandle tab) override;
   tabs::TabInterface* GetTab(int index) override;
-  void HighlightTabs(const std::set<tabs::TabHandle>& tabs) override;
+  int GetIndexOfTab(tabs::TabHandle tab) override;
+  void HighlightTabs(tabs::TabHandle tab_to_activate,
+                     const std::set<tabs::TabHandle>& tabs) override;
   void MoveTab(tabs::TabHandle tab, int index) override;
   void CloseTab(tabs::TabHandle tab) override;
   std::vector<tabs::TabInterface*> GetAllTabs() override;

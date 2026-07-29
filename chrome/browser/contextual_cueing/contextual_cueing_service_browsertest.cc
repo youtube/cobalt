@@ -150,7 +150,7 @@ IN_PROC_BROWSER_TEST_F(ContextualCueingServiceBrowserTestZSSFlag,
       browser(),
       embedded_test_server()->GetURL("/optimization_guide/zss_page.html")));
 
-  base::test::TestFuture<std::optional<std::vector<std::string>>> future;
+  base::test::TestFuture<std::vector<std::string>> future;
   auto* web_contents = browser()->tab_strip_model()->GetActiveWebContents();
   service->GetContextualGlicZeroStateSuggestionsForFocusedTab(
       web_contents, /*is_fre=*/true,
@@ -175,7 +175,7 @@ IN_PROC_BROWSER_TEST_F(ContextualCueingServiceBrowserTestZSSFlag,
   {
     base::HistogramTester histogram_tester;
 
-    base::test::TestFuture<std::optional<std::vector<std::string>>> future;
+    base::test::TestFuture<std::vector<std::string>> future;
     auto* service =
         ContextualCueingServiceFactory::GetForProfile(browser()->profile());
     ASSERT_TRUE(ui_test_utils::NavigateToURL(
@@ -205,7 +205,7 @@ IN_PROC_BROWSER_TEST_F(ContextualCueingServiceBrowserTestZSSFlag,
     base::HistogramTester histogram_tester;
 
     GURL new_url(embedded_test_server()->GetURL("/links.html"));
-    base::test::TestFuture<std::optional<std::vector<std::string>>> future;
+    base::test::TestFuture<std::vector<std::string>> future;
     fetcher->set_callback(future.GetCallback());
     content::TestNavigationObserver observer(web_contents);
     EXPECT_TRUE(ExecJs(web_contents, "location = '" + new_url.spec() + "';"));
@@ -223,7 +223,7 @@ IN_PROC_BROWSER_TEST_F(ContextualCueingServiceBrowserTestZSSFlag,
         1);
   }
 
-  // Simulate fragment navigation. Should just return from cache.
+  // Simulate fragment navigation. Should re-request.
   {
     base::HistogramTester histogram_tester;
 
@@ -231,7 +231,7 @@ IN_PROC_BROWSER_TEST_F(ContextualCueingServiceBrowserTestZSSFlag,
     // automatically detects that the navigation should be same-document, since
     // the URLs differ only by fragment.
     GURL new_url(embedded_test_server()->GetURL("/links.html#ref"));
-    base::test::TestFuture<std::optional<std::vector<std::string>>> future;
+    base::test::TestFuture<std::vector<std::string>> future;
     fetcher->set_callback(future.GetCallback());
     content::TestNavigationObserver observer(web_contents);
     EXPECT_TRUE(ExecJs(web_contents, "location = '" + new_url.spec() + "';"));
@@ -239,19 +239,22 @@ IN_PROC_BROWSER_TEST_F(ContextualCueingServiceBrowserTestZSSFlag,
     EXPECT_EQ(observer.last_navigation_url(), new_url);
     ASSERT_TRUE(future.Wait());
 
-    histogram_tester.ExpectTotalCount(
-        "ContextualCueing.ZeroStateSuggestions.ContextExtractionDone", 0);
+    histogram_tester.ExpectUniqueSample(
+        "ContextualCueing.ZeroStateSuggestions.ContentExtractionSameDocDelay",
+        true, 1);
+    histogram_tester.ExpectUniqueSample(
+        "ContextualCueing.ZeroStateSuggestions.ContextExtractionDone", true, 1);
     histogram_tester.ExpectTotalCount(
         "OptimizationGuide.ModelExecutionFetcher.RequestStatus."
         "ZeroStateSuggestions",
-        0);
+        1);
   }
 
   // Simulate same-doc navigation in same web contents.
   {
     base::HistogramTester histogram_tester;
 
-    base::test::TestFuture<std::optional<std::vector<std::string>>> future;
+    base::test::TestFuture<std::vector<std::string>> future;
     fetcher->set_callback(future.GetCallback());
     std::string same_document_script = R"(
       window.history.pushState({}, "", "form.html");
@@ -283,7 +286,7 @@ IN_PROC_BROWSER_TEST_F(ContextualCueingServiceBrowserTestZSSFlag,
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(),
                                            GURL(chrome::kChromeUINewTabURL)));
 
-  base::test::TestFuture<std::optional<std::vector<std::string>>> future;
+  base::test::TestFuture<std::vector<std::string>> future;
   auto* web_contents = browser()->tab_strip_model()->GetActiveWebContents();
   service->GetContextualGlicZeroStateSuggestionsForFocusedTab(
       web_contents, /*is_fre=*/false,
@@ -311,7 +314,7 @@ IN_PROC_BROWSER_TEST_F(ContextualCueingServiceBrowserTestZSSFlag,
       browser(),
       template_url_service->GenerateSearchURLForDefaultSearchProvider(u"foo")));
 
-  base::test::TestFuture<std::optional<std::vector<std::string>>> future;
+  base::test::TestFuture<std::vector<std::string>> future;
   auto* web_contents = browser()->tab_strip_model()->GetActiveWebContents();
   service->GetContextualGlicZeroStateSuggestionsForFocusedTab(
       web_contents, /*is_fre=*/false,
@@ -361,7 +364,7 @@ IN_PROC_BROWSER_TEST_F(ContextualCueingServiceBrowserTestAllowZSSForSrp,
       browser(),
       template_url_service->GenerateSearchURLForDefaultSearchProvider(u"foo")));
 
-  base::test::TestFuture<std::optional<std::vector<std::string>>> future;
+  base::test::TestFuture<std::vector<std::string>> future;
   auto* web_contents = browser()->tab_strip_model()->GetActiveWebContents();
   service->GetContextualGlicZeroStateSuggestionsForFocusedTab(
       web_contents, /*is_fre=*/false,

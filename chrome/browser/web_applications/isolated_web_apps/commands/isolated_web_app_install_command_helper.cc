@@ -29,12 +29,8 @@
 #include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_features.h"
 #include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_install_source.h"
 #include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_integrity_block_data.h"
-#include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_response_reader_factory.h"
-#include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_source.h"
-#include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_storage_location.h"
 #include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_trust_checker.h"
 #include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_url_info.h"
-#include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_validator.h"
 #include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_version.h"
 #include "chrome/browser/web_applications/isolated_web_apps/pending_install_info.h"
 #include "chrome/browser/web_applications/jobs/manifest_to_web_app_install_info_job.h"
@@ -49,6 +45,10 @@
 #include "components/webapps/browser/installable/installable_manager.h"
 #include "components/webapps/browser/web_contents/web_app_url_loader.h"
 #include "components/webapps/isolated_web_apps/iwa_key_distribution_info_provider.h"
+#include "components/webapps/isolated_web_apps/reading/response_reader_factory.h"
+#include "components/webapps/isolated_web_apps/reading/validator.h"
+#include "components/webapps/isolated_web_apps/types/source.h"
+#include "components/webapps/isolated_web_apps/types/storage_location.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/reload_type.h"
 #include "content/public/browser/storage_partition_config.h"
@@ -308,19 +308,19 @@ KeyRotationData GetKeyRotationData(
           .pending_update_has_rk = pending_update_has_rk};
 }
 
-bool ShouldPreventVersionChange(
+VersionChangeValidationResult ValidateVersionChangeFeasibility(
     const base::Version& expected_version,
     const base::Version& installed_version,
     bool allow_downgrades,
     bool same_version_update_allowed_by_key_rotation) {
   if (expected_version < installed_version && !allow_downgrades) {
-    return true;
+    return VersionChangeValidationResult::kDowngradeDisallowed;
   }
   if (expected_version == installed_version &&
       !same_version_update_allowed_by_key_rotation) {
-    return true;
+    return VersionChangeValidationResult::kSameVersionUpdateDisallowed;
   }
-  return false;
+  return VersionChangeValidationResult::kAllowed;
 }
 
 // static
@@ -340,7 +340,7 @@ IsolatedWebAppInstallCommandHelper::CreateIsolatedWebAppWebContents(
 std::unique_ptr<IsolatedWebAppResponseReaderFactory>
 IsolatedWebAppInstallCommandHelper::CreateDefaultResponseReaderFactory(
     Profile& profile) {
-  return std::make_unique<IsolatedWebAppResponseReaderFactory>(profile);
+  return std::make_unique<IsolatedWebAppResponseReaderFactory>(&profile);
 }
 
 IsolatedWebAppInstallCommandHelper::IsolatedWebAppInstallCommandHelper(

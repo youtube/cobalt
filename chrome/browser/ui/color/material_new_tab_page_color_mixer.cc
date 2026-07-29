@@ -48,9 +48,25 @@ void AddMaterialNewTabPageColorMixer(ui::ColorProvider* provider,
   mixer[kColorNewTabPageComposeboxCancelButton] = {
       dark_mode ? SkColorSetRGB(0xAD, 0xAF, 0xB8)
                 : SkColorSetRGB(0x0A, 0x0A, 0x0A)};
+  mixer[kColorNewTabPageComposeboxErrorScrimBackground] = {
+      ui::kColorSysStateScrim};
+  mixer[kColorNewTabPageComposeboxErrorScrimButtonBackground] = {
+      dark_mode ? SkColorSetRGB(0x8A, 0xB4, 0xF8)
+                : SkColorSetRGB(0x0B, 0x50, 0xD0)};
+  mixer[kColorNewTabPageComposeboxErrorScrimButtonBackgroundHover] = {
+      dark_mode ? SkColorSetRGB(0xC3, 0xD8, 0xF9)
+                : SkColorSetRGB(0x08, 0x4B, 0xB1)};
+  mixer[kColorNewTabPageComposeboxErrorScrimButtonText] = {
+      dark_mode ? SkColorSetRGB(0x20, 0x21, 0x24)
+                : SkColorSetRGB(0xFF, 0xFF, 0xFF)};
+  mixer[kColorNewTabPageComposeboxErrorScrimForeground] = {
+      SkColorSetRGB(0xDB, 0xDC, 0xDD)};
   mixer[kColorNewTabPageComposeboxHover] = {
       dark_mode ? SkColorSetRGB(0x25, 0x26, 0x2E)
                 : SkColorSetRGB(0xE9, 0xEB, 0xF0)};
+  mixer[kColorNewTabPageComposeboxOutlineHcm] = {
+      dark_mode ? SkColorSetRGB(0xFF, 0xFF, 0xFF)
+                : SkColorSetRGB(0x00, 0x00, 0x00)};
   mixer[kColorNewTabPageComposeboxScrimBackground] = {
       dark_mode ? SkColorSetRGB(0x10, 0x12, 0x18)
                 : SkColorSetRGB(0xFF, 0xFF, 0xFF)};
@@ -59,6 +75,9 @@ void AddMaterialNewTabPageColorMixer(ui::ColorProvider* provider,
   mixer[kColorNewTabPageComposeboxUploadButton] = {
       dark_mode ? SkColorSetRGB(0xE6, 0xE8, 0xF0)
                 : SkColorSetRGB(0x0A, 0x0A, 0x0A)};
+  mixer[kColorNewTabPageComposeboxUploadButtonDisabled] = {
+      dark_mode ? SkColorSetRGB(0x56, 0x59, 0x5E)
+                : SkColorSetRGB(0xAD, 0xAF, 0xB8)};
   mixer[kColorNewTabPageComposeboxFileChipBackground] = {
       dark_mode ? SkColorSetRGB(0x2A, 0x2B, 0x36)
                 : SkColorSetRGB(0xE1, 0xE3, 0xE8)};

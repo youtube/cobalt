@@ -365,13 +365,6 @@ void LogDownloadedPasswordsCountFromAccountStoreAfterUnlock(
       account_store_passwords_count);
 }
 
-void LogDownloadedBlocklistedEntriesCountFromAccountStoreAfterUnlock(
-    int blocklist_entries_count) {
-  base::UmaHistogramCounts100(
-      "PasswordManager.AccountStoreBlocklistedEntriesAfterOptIn",
-      blocklist_entries_count);
-}
-
 void LogPasswordSettingsReauthResult(device_reauth::ReauthResult result) {
   base::UmaHistogramEnumeration(
       "PasswordManager.ReauthToAccessPasswordInSettings", result);
@@ -524,14 +517,6 @@ void LogProcessIncomingPasswordSharingInvitationResult(
 }
 
 #if BUILDFLAG(IS_ANDROID)
-void LogLocalPwdMigrationProgressState(
-    LocalPwdMigrationProgressState scheduling_state) {
-  base::UmaHistogramEnumeration(
-      "PasswordManager.UnifiedPasswordManager.MigrationForLocalUsers."
-      "ProgressState",
-      scheduling_state);
-}
-
 void LogSharedPrefCredentialsAccessOutcome(
     SharedPrefCredentialsAccessOutcome outcome) {
   base::UmaHistogramEnumeration(
@@ -664,6 +649,11 @@ void LogCumulativeGetCredentialsMetrics(
   base::UmaHistogramBoolean(
       "PasswordManager.CredentialRequest.Get.Success",
       error == password_manager::CredentialManagerError::SUCCESS);
+}
+
+void LogPageContentCaptureFailure(PasswordChangeFlowStep step) {
+  base::UmaHistogramEnumeration(
+      "PasswordManager.PasswordChange.FailedCapturingPageContent", step);
 }
 
 }  // namespace password_manager::metrics_util

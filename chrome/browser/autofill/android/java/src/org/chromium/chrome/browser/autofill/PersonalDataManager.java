@@ -81,6 +81,7 @@ public class PersonalDataManager implements Destroyable {
         private @Nullable GURL mCardArtUrl;
         private String mCvc;
         private final String mIssuerId;
+        private final String mBenefitSource;
         private final @Nullable GURL mProductTermsUrl;
         private final @VirtualCardEnrollmentState int mVirtualCardEnrollmentState;
         private final String mProductDescription;
@@ -112,6 +113,7 @@ public class PersonalDataManager implements Destroyable {
                 @JniType("std::u16string") String obfuscatedLastFourDigits,
                 @JniType("std::u16string") String cvc,
                 @JniType("std::string") String issuerId,
+                @JniType("std::string") String benefitSource,
                 GURL productTermsUrl) {
             return new CreditCard(
                     guid,
@@ -137,6 +139,7 @@ public class PersonalDataManager implements Destroyable {
                     obfuscatedLastFourDigits,
                     cvc,
                     issuerId,
+                    benefitSource,
                     productTermsUrl);
         }
 
@@ -177,6 +180,7 @@ public class PersonalDataManager implements Destroyable {
                     /* obfuscatedLastFourDigits= */ "",
                     /* cvc= */ "",
                     /* issuerId= */ "",
+                    /* benefitSource= */ "",
                     /* productTermsUrl= */ null);
         }
 
@@ -204,6 +208,7 @@ public class PersonalDataManager implements Destroyable {
                 String obfuscatedLastFourDigits,
                 String cvc,
                 String issuerId,
+                String benefitSource,
                 @Nullable GURL productTermsUrl) {
             mGUID = guid;
             mOrigin = origin;
@@ -228,6 +233,7 @@ public class PersonalDataManager implements Destroyable {
             mObfuscatedLastFourDigits = obfuscatedLastFourDigits;
             mCvc = cvc;
             mIssuerId = issuerId;
+            mBenefitSource = benefitSource;
             mProductTermsUrl = productTermsUrl;
         }
 
@@ -361,6 +367,11 @@ public class PersonalDataManager implements Destroyable {
         @CalledByNative("CreditCard")
         public String getIssuerId() {
             return mIssuerId;
+        }
+
+        @CalledByNative("CreditCard")
+        public String getBenefitSource() {
+            return mBenefitSource;
         }
 
         @CalledByNative("CreditCard")
@@ -719,18 +730,12 @@ public class PersonalDataManager implements Destroyable {
      * <p>Gets the profiles to suggest when filling a form or completing a transaction. The profiles
      * will have been processed to be more relevant to the user.
      *
-     * @param includeNameInLabel Whether to include the name in the profile's label.
      * @return The list of profiles to suggest to the user.
      */
-    public ArrayList<AutofillProfile> getProfilesToSuggest(boolean includeNameInLabel) {
+    public ArrayList<AutofillProfile> getProfilesToSuggest() {
         ThreadUtils.assertOnUiThread();
         return getProfilesWithLabels(
-                PersonalDataManagerJni.get()
-                        .getProfileLabelsToSuggest(
-                                mPersonalDataManagerAndroid,
-                                includeNameInLabel,
-                                /* includeOrganizationInLabel= */ true,
-                                /* includeCountryInLabel= */ true),
+                PersonalDataManagerJni.get().getProfileLabelsToSuggest(mPersonalDataManagerAndroid),
                 PersonalDataManagerJni.get().getProfileGUIDsToSuggest(mPersonalDataManagerAndroid));
     }
 
@@ -961,33 +966,6 @@ public class PersonalDataManager implements Destroyable {
     }
 
     /**
-     * Checks whether the Autofill PersonalDataManager has profiles.
-     *
-     * @return True If there are profiles.
-     */
-    public boolean hasProfiles() {
-        return PersonalDataManagerJni.get().hasProfiles(mPersonalDataManagerAndroid);
-    }
-
-    /**
-     * Checks whether the Autofill PersonalDataManager has credit cards.
-     *
-     * @return True If there are credit cards.
-     */
-    public boolean hasCreditCards() {
-        return PersonalDataManagerJni.get().hasCreditCards(mPersonalDataManagerAndroid);
-    }
-
-    /**
-     * @return Whether FIDO authentication is available.
-     */
-    public boolean isFidoAuthenticationAvailable() {
-        return isAutofillPaymentMethodsEnabled()
-                && PersonalDataManagerJni.get()
-                        .isFidoAuthenticationAvailable(mPersonalDataManagerAndroid);
-    }
-
-    /**
      * @return Whether the Autofill feature for Profiles (addresses) is enabled.
      */
     public boolean isAutofillProfileEnabled() {
@@ -1060,6 +1038,16 @@ public class PersonalDataManager implements Destroyable {
     }
 
     /**
+     * @param guid The GUID of the credit card.
+     * @return Whether the card is eligible for benefits, based on its `guid`.
+     */
+    public boolean isCardEligibleForBenefits(String guid) {
+        ThreadUtils.assertOnUiThread();
+        return PersonalDataManagerJni.get()
+                .isCardEligibleForBenefits(mPersonalDataManagerAndroid, guid);
+    }
+
+    /**
      * Enables or disables the card benefit showing feature.
      *
      * @param enable True to enable showing card benefits, false otherwise.
@@ -1103,10 +1091,25 @@ public class PersonalDataManager implements Destroyable {
         return mPrefService.getBoolean(Pref.FACILITATED_PAYMENTS_EWALLET);
     }
 
+    /** Sets the preference value for supporting payments using A2A. */
+    public void setFacilitatedPaymentsA2AEnabledPref(boolean value) {
+        mPrefService.setBoolean(Pref.FACILITATED_PAYMENTS_A2A_ENABLED, value);
+    }
+
+    /** Returns the preference value for supporting payments using A2A. */
+    public boolean getFacilitatedPaymentsA2AEnabledPref() {
+        return mPrefService.getBoolean(Pref.FACILITATED_PAYMENTS_A2A_ENABLED);
+    }
+
+    /** Returns the preference value for whether A2A has already been triggered once. */
+    public boolean getFacilitatedPaymentsA2ATriggeredOncePref() {
+        return mPrefService.getBoolean(Pref.FACILITATED_PAYMENTS_A2A_TRIGGERED_ONCE);
+    }
+
     @NativeMethods
     @VisibleForTesting(otherwise = VisibleForTesting.PACKAGE_PRIVATE)
     public interface Natives {
-        long init(PersonalDataManager caller, @JniType("Profile*") Profile profile);
+        long init(PersonalDataManager self, @JniType("Profile*") Profile profile);
 
         void destroy(long nativePersonalDataManagerAndroid);
 
@@ -1118,11 +1121,7 @@ public class PersonalDataManager implements Destroyable {
 
         String[] getProfileLabelsForSettings(long nativePersonalDataManagerAndroid);
 
-        String[] getProfileLabelsToSuggest(
-                long nativePersonalDataManagerAndroid,
-                boolean includeNameInLabel,
-                boolean includeOrganizationInLabel,
-                boolean includeCountryInLabel);
+        String[] getProfileLabelsToSuggest(long nativePersonalDataManagerAndroid);
 
         AutofillProfile getProfileByGUID(
                 long nativePersonalDataManagerAndroid, @JniType("std::string") String guid);
@@ -1185,12 +1184,6 @@ public class PersonalDataManager implements Destroyable {
         void recordAndLogCreditCardUse(
                 long nativePersonalDataManagerAndroid, @JniType("std::string") String guid);
 
-        boolean hasProfiles(long nativePersonalDataManagerAndroid);
-
-        boolean hasCreditCards(long nativePersonalDataManagerAndroid);
-
-        boolean isFidoAuthenticationAvailable(long nativePersonalDataManagerAndroid);
-
         boolean isAutofillProfileManaged(long nativePersonalDataManagerAndroid);
 
         boolean isAutofillCreditCardManaged(long nativePersonalDataManagerAndroid);
@@ -1216,5 +1209,8 @@ public class PersonalDataManager implements Destroyable {
         BankAccount[] getMaskedBankAccounts(long nativePersonalDataManagerAndroid);
 
         Ewallet[] getEwallets(long nativePersonalDataManagerAndroid);
+
+        boolean isCardEligibleForBenefits(
+                long nativePersonalDataManagerAndroid, @JniType("std::string") String guid);
     }
 }

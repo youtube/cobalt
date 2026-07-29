@@ -33,10 +33,13 @@
 #include "third_party/blink/public/platform/platform.h"
 #include "third_party/blink/public/platform/web_string.h"
 #include "third_party/blink/public/platform/web_url.h"
+#include "third_party/blink/public/web/web_local_frame.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_rtc_session_description_init.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_union_boolean_constrainbooleanparameters.h"
 #include "third_party/blink/renderer/core/frame/deprecation/deprecation.h"
 #include "third_party/blink/renderer/core/frame/web_feature.h"
+#include "third_party/blink/renderer/core/page/chrome_client.h"
+#include "third_party/blink/renderer/core/page/page.h"
 #include "third_party/blink/renderer/modules/mediastream/media_constraints.h"
 #include "third_party/blink/renderer/modules/mediastream/media_stream_constraints_util.h"
 #include "third_party/blink/renderer/modules/peerconnection/adapters/web_rtc_cross_thread_copier.h"
@@ -877,16 +880,24 @@ bool RTCPeerConnectionHandler::Initialize(
   configuration_.set_experiment_cpu_load_estimator(true);
 
   // Configure optional SRTP configurations enabled via the command line.
-  configuration_.crypto_options = webrtc::CryptoOptions{};
-  configuration_.crypto_options->srtp.enable_gcm_crypto_suites = true;
-  configuration_.crypto_options->srtp.enable_encrypted_rtp_header_extensions =
+  webrtc::CryptoOptions crypto_options;
+  crypto_options.srtp.enable_gcm_crypto_suites = true;
+  crypto_options.srtp.enable_encrypted_rtp_header_extensions =
       base::FeatureList::IsEnabled(kWebRtcEncryptedRtpHeaderExtensions);
-  configuration_.enable_implicit_rollback = true;
-  if (base::FeatureList::IsEnabled(features::kWebRtcPqcForDtls)) {
-    configuration_.crypto_options->ephemeral_key_exchange_cipher_groups
-        .AddFirst(webrtc::CryptoOptions::EphemeralKeyExchangeCipherGroups::
-                      kX25519_MLKEM768);
+  bool webrtc_post_quantum_key_agreement =
+      LocalFrame::FromFrameToken(frame_->GetLocalFrameToken())
+          ->GetPage()
+          ->GetChromeClient()
+          .GetWebRTCPostQuantumKeyAgreement()
+          .value_or(base::FeatureList::IsEnabled(features::kWebRtcPqcForDtls));
+
+  if (webrtc_post_quantum_key_agreement) {
+    crypto_options.ephemeral_key_exchange_cipher_groups.AddFirst(
+        webrtc::CryptoOptions::EphemeralKeyExchangeCipherGroups::
+            kX25519_MLKEM768);
   }
+  configuration_.crypto_options = crypto_options;
+  configuration_.enable_implicit_rollback = true;
 
   // Apply 40 ms worth of bursting. See webrtc::TaskQueuePacedSender.
   configuration_.pacer_burst_interval = webrtc::TimeDelta::Millis(40);
@@ -1534,8 +1545,9 @@ RTCPeerConnectionHandler::AddTrack(
   std::unique_ptr<blink::WebRtcMediaStreamTrackAdapterMap::AdapterRef>
       track_ref = track_adapter_map_->GetOrCreateLocalTrackAdapter(component);
   std::vector<std::string> stream_ids(descriptors.size());
-  for (WTF::wtf_size_t i = 0; i < descriptors.size(); ++i)
+  for (wtf_size_t i = 0; i < descriptors.size(); ++i) {
     stream_ids[i] = descriptors[i]->Id().Utf8();
+  }
 
   // Invoke native AddTrack() on the signaling thread and surface the resulting
   // transceiver.
@@ -1948,7 +1960,7 @@ void RTCPeerConnectionHandler::OnModifyTransceivers(
     bool is_rollback) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
   Vector<std::unique_ptr<RTCRtpTransceiverPlatform>> platform_transceivers(
-      base::checked_cast<WTF::wtf_size_t>(transceiver_states.size()));
+      base::checked_cast<wtf_size_t>(transceiver_states.size()));
   PeerConnectionTracker::TransceiverUpdatedReason update_reason =
       !is_remote_description ? PeerConnectionTracker::TransceiverUpdatedReason::
                                    kSetLocalDescription
@@ -1956,7 +1968,7 @@ void RTCPeerConnectionHandler::OnModifyTransceivers(
                                    kSetRemoteDescription;
   Vector<uintptr_t> ids(
       base::checked_cast<wtf_size_t>(transceiver_states.size()));
-  for (WTF::wtf_size_t i = 0; i < transceiver_states.size(); ++i) {
+  for (wtf_size_t i = 0; i < transceiver_states.size(); ++i) {
     // Figure out if this transceiver is new or if setting the state modified
     // the transceiver such that it should be logged by the
     // |peer_connection_tracker_|.

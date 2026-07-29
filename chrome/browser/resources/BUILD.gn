@@ -5,6 +5,7 @@
 import("//chrome/browser/buildflags.gni")
 import("//chrome/common/features.gni")
 import("//components/compose/features.gni")
+import("//components/enterprise/buildflags/buildflags.gni")
 import("//pdf/features.gni")
 import("//printing/buildflags/buildflags.gni")
 import("//third_party/closure_compiler/compile_js.gni")
@@ -17,6 +18,7 @@ assert(!is_fuchsia, "Fuchsia shouldn't use anything in //chrome")
 
 group("resources") {
   public_deps = [
+    "connectors_internals:resources",
     "saved_tab_groups_unsupported:resources",
     "segmentation_internals:resources",
   ]
@@ -31,6 +33,7 @@ group("resources") {
       ":dev_ui_paks",
       "about_sys:resources",
       "access_code_cast:resources",
+      "actor_overlay:resources",
       "app_service_internals:resources",
       "autofill_ml_internals:resources",
       "bookmarks:resources",
@@ -107,10 +110,6 @@ group("resources") {
     ]
   }
 
-  if (is_win || is_mac || is_linux || is_chromeos) {
-    public_deps += [ "connectors_internals:resources" ]
-  }
-
   if (is_win || is_mac || is_linux || is_chromeos || is_desktop_android) {
     public_deps += [ "discards:resources" ]
   }
@@ -173,6 +172,10 @@ group("resources") {
       "glic:resources",
       "glic/fre:resources",
     ]
+  }
+
+  if (enterprise_watermark) {
+    public_deps += [ "watermark:resources" ]
   }
 }
 
@@ -306,10 +309,6 @@ group("dev_ui_resources") {
     "//content/browser/webrtc/resources",
   ]
 
-  if (is_chromeos) {
-    public_deps += [ "//chromeos/ash/components/kiosk/vision/webui:resources" ]
-  }
-
   if (enable_vr) {
     public_deps += [ "//content/browser/resources/webxr_internals:resources" ]
   }
@@ -333,6 +332,10 @@ group("dev_ui_resources") {
 
   if (is_android || is_linux || is_chromeos || is_win) {
     public_deps += [ "//chrome/browser/resources/sandbox_internals:resources" ]
+  }
+
+  if (enable_session_service) {
+    public_deps += [ "tab_strip_internals:resources" ]
   }
 }
 
@@ -398,6 +401,10 @@ repack("dev_ui_paks") {
 
   if (is_android || is_linux || is_chromeos || is_win) {
     sources += [ "$root_gen_dir/chrome/sandbox_internals_resources.pak" ]
+  }
+
+  if (enable_session_service) {
+    sources += [ "$root_gen_dir/chrome/tab_strip_internals_resources.pak" ]
   }
 
   deps = [ ":dev_ui_resources" ]

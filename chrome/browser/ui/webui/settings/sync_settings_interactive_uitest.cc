@@ -78,14 +78,14 @@ IN_PROC_BROWSER_TEST_F(SyncSettingsInteractiveTest,
 
   const DeepQuery turn_off_button_query = {"settings-ui",
                                            "settings-main",
-                                           "settings-basic-page",
+                                           "settings-people-page-index",
                                            "settings-people-page",
                                            "settings-sync-account-control",
                                            "cr-button#signout-button"};
 
   const DeepQuery drop_down_query = {"settings-ui",
                                      "settings-main",
-                                     "settings-basic-page",
+                                     "settings-people-page-index",
                                      "settings-people-page",
                                      "settings-sync-account-control",
                                      "cr-icon-button#dropdown-arrow"};
@@ -139,19 +139,19 @@ IN_PROC_BROWSER_TEST_F(SyncSettingsInteractiveTest,
   DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kHistorySyncOptinDialogContentsId);
   const DeepQuery kTurnHistorySyncOn = {"settings-ui",
                                         "settings-main",
-                                        "settings-basic-page",
-                                        "settings-people-page",
+                                        "settings-people-page-index",
+                                        "settings-account-page",
                                         "settings-sync-account-control",
                                         "cr-button#sync-button"};
   const DeepQuery kHistoryOptinAcceptButton = {"history-sync-optin-app",
                                                "#acceptButton"};
   const DeepQuery kHistoryOptinRejectButton = {"history-sync-optin-app",
                                                "#rejectButton"};
-  const GURL kSyncSettingsUrl = GURL("chrome://settings/syncSetup");
+  const GURL kAccountSettingsUrl = GURL("chrome://settings/account");
 
   RunTestSequence(
       InstrumentTab(kTabId, 0, browser()),
-      NavigateWebContents(kTabId, kSyncSettingsUrl),
+      NavigateWebContents(kTabId, kAccountSettingsUrl),
       WaitForStateChange(kTabId, PageWithMatchingTitle("Settings")),
       WaitForStateChange(kTabId, UiElementHasAppeared(kTurnHistorySyncOn)),
       ClickButton(kTabId, kTurnHistorySyncOn),

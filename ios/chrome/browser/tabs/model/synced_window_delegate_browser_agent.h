@@ -31,6 +31,7 @@ class SyncedWindowDelegateBrowserAgent
 
   // Return the tab id for the tab at `index`.
   SessionID GetTabIdAt(int index) const override;
+  bool IsPlaceholderTabAt(int index) const override;
   bool IsSessionRestoreInProgress() const override;
   bool ShouldSync() const override;
 
@@ -55,10 +56,10 @@ class SyncedWindowDelegateBrowserAgent
 
   explicit SyncedWindowDelegateBrowserAgent(Browser* browser);
 
-  // Sets the window id of `web_state` to `session_id_`.
-  void SetWindowIdForWebState(web::WebState* web_state);
+  // Returns the WebState at index.
+  web::WebState* GetWebStateAt(int index) const;
 
-  SessionID session_id_;
+  const SessionID session_id_;
 };
 
 #endif  // IOS_CHROME_BROWSER_TABS_MODEL_SYNCED_WINDOW_DELEGATE_BROWSER_AGENT_H_

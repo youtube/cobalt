@@ -23,6 +23,9 @@
 //components/test/data/optimization_guide/iframe_same_site.html
 //components/test/data/optimization_guide/invalid_model.crx3
 //components/test/data/optimization_guide/label_not_actionable.html
+//components/test/data/optimization_guide/media_data/video.html
+//components/test/data/optimization_guide/media_data/video.webm
+//components/test/data/optimization_guide/media_data/video_in_iframe.html
 //components/test/data/optimization_guide/page_topics_128_model.tflite
 //components/test/data/optimization_guide/paid_content.html
 //components/test/data/optimization_guide/paragraph.html
@@ -31,6 +34,7 @@
 //components/test/data/optimization_guide/paragraph_iframe_partially_scrolled_offscreen.html
 //components/test/data/optimization_guide/paragraph_iframe_sandbox.html
 //components/test/data/optimization_guide/relative_path.html
+//components/test/data/optimization_guide/script_tool.html
 //components/test/data/optimization_guide/scroller.html
 //components/test/data/optimization_guide/simple.html
 //components/test/data/optimization_guide/simple_test.tflite

@@ -1,31 +1,10 @@
-// Builds valid digital identity request for navigator.identity.get() API.
-export function buildValidNavigatorIdentityRequest() {
+// Builds valid digital identity request for navigator.credentials.get() API.
+export function buildValidNavigatorCredentialsRequest() {
   return {
       digital: {
-        providers: [{
+      requests: [{
           protocol: "openid4vp",
-          request: JSON.stringify({
-            // Based on https://github.com/openid/OpenID4VP/issues/125
-            client_id: "client.example.org",
-            client_id_scheme: "web-origin",
-            nonce: "n-0S6_WzA2Mj",
-            presentation_definition: {
-              // Presentation Exchange request, omitted for brevity
-            }
-          }),
-        }],
-      },
-  };
-}
-
-// Builds a valid navigator.identity.get() request where
-// IdentityRequestProvider#request is an object.
-export function buildValidNavigatorIdentityRequestWithRequestObject() {
-  return {
-      digital: {
-        providers: [{
-          protocol: "openid4vp",
-          request: {
+          data: {
             // Based on https://github.com/openid/OpenID4VP/issues/125
             client_id: "client.example.org",
             client_id_scheme: "web-origin",
@@ -42,7 +21,7 @@ export function buildValidNavigatorIdentityRequestWithRequestObject() {
 // Requests digital identity with user activation.
 export function requestIdentityWithActivation(test_driver, request) {
   return test_driver.bless("request identity with activation", async function() {
-    return await navigator.identity.get(request);
+    return await navigator.credentials.get(request);
   });
 }
 
@@ -58,9 +37,9 @@ export function requestIdentityWithActivation(test_driver, request) {
  */
 export async function check_digital_credential_api_availability() {
   try {
-    const request = buildValidNavigatorIdentityRequest();
+    const request = buildValidNavigatorCredentialsRequest();
     request.digital.providers = [];
-    await navigator.identity.get(request);
+    await navigator.credentials.get(request);
     return false;
   } catch (error) {
     // If digital credentials API is disabled, an error due to the API being

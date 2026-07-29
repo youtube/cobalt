@@ -245,6 +245,8 @@
   AutocompleteResultWrapper* autocompleteResultWrapper =
       [[AutocompleteResultWrapper alloc] initWithOmniboxClient:_client.get()];
   autocompleteResultWrapper.pedalAnnotator = annotator;
+  autocompleteResultWrapper.profilePrefService = self.profile->GetPrefs();
+  autocompleteResultWrapper.isLensOverlay = _isLensOverlay;
   autocompleteResultWrapper.templateURLService = templateURLService;
   autocompleteResultWrapper.incognito = incognito;
   autocompleteResultWrapper.delegate = _omniboxAutocompleteController;
@@ -258,13 +260,6 @@
 }
 
 - (void)stop {
-  [_omniboxAutocompleteController disconnect];
-  _omniboxAutocompleteController = nil;
-  [_omniboxTextController disconnect];
-  _omniboxTextController = nil;
-  [_omniboxMetricsRecorder disconnect];
-  _omniboxMetricsRecorder = nil;
-
   [self.popupCoordinator stop];
   self.popupCoordinator = nil;
 
@@ -283,6 +278,12 @@
   self.mediator = nil;
   [self.zeroSuggestPrefetchHelper disconnect];
   self.zeroSuggestPrefetchHelper = nil;
+  [_omniboxAutocompleteController disconnect];
+  _omniboxAutocompleteController = nil;
+  [_omniboxTextController disconnect];
+  _omniboxTextController = nil;
+  [_omniboxMetricsRecorder disconnect];
+  _omniboxMetricsRecorder = nil;
 }
 
 - (void)updateOmniboxState {
@@ -314,7 +315,8 @@
                             browser:self.browser
              autocompleteController:[_omniboxAutocompleteController
                                         autocompleteController]
-      omniboxAutocompleteController:_omniboxAutocompleteController];
+      omniboxAutocompleteController:_omniboxAutocompleteController
+                      isLensOverlay:_isLensOverlay];
   coordinator.presenterDelegate = presenterDelegate;
 
   self.viewController.popupKeyboardDelegate = coordinator.KeyboardDelegate;

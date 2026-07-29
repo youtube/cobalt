@@ -37,7 +37,25 @@
     <message name="IDS_AUTOFILL_DELETE_PROFILE_SUGGESTION_CONFIRMATION_BODY" desc="Text in a dialog to confirm that the user wants to delete an address from Autofill.">
       Remove address from Chromium?
     </message>
-  </if>
+    </if>
+    <message name="IDS_AUTOFILL_REMOVE_HOME_PROFILE_SUGGESTION_CONFIRMATION_TITLE" desc="Title in a dialog to confirm that the user wants to delete their Home address from Autofill.">
+    Remove home address from Chrome autofill?
+    </message>
+    <message name="IDS_AUTOFILL_REMOVE_HOME_PROFILE_SUGGESTION_CONFIRMATION_BODY" desc="Text in a dialog to confirm that the user wants to delete their Home address from Autofill.">
+    Your home address can help you get things done across Google services, like more relevant Search results and directions in Google Maps. You can edit or delete your address <ph name="BEGIN_LINK">&lt;link&gt;</ph>in your Google Account <ph name="ACCOUNT">$1<ex>alexpark@gmail.com</ex></ph><ph name="END_LINK">&lt;/link&gt;</ph>.
+    </message>
+    <message name="IDS_AUTOFILL_REMOVE_WORK_PROFILE_SUGGESTION_CONFIRMATION_TITLE" desc="Title in a dialog to confirm that the user wants to delete their Work address from Autofill.">
+    Remove work address from Chrome autofill?
+    </message>
+      <message name="IDS_AUTOFILL_REMOVE_WORK_PROFILE_SUGGESTION_CONFIRMATION_BODY" desc="Title in a dialog to confirm that the user wants to delete their Work address from Autofill.">
+    Your work address can help you get things done across Google services, like more relevant Search results and directions in Google Maps. You can edit or delete your address <ph name="BEGIN_LINK">&lt;link&gt;</ph>in your Google Account <ph name="ACCOUNT">$1<ex>alexpark@gmail.com</ex></ph><ph name="END_LINK">&lt;/link&gt;</ph>.
+  </message>
+  <message name="IDS_AUTOFILL_REMOVE_SUGGESTION_BUTTON" desc="Text in a remove button for Autofill suggestion.">
+    Remove
+  </message>
+  <message name="IDS_AUTOFILL_DELETE_SUGGESTION_BUTTON" desc="Text in a delete button for Autofill suggestion.">
+    Delete
+  </message>
   <message name="IDS_AUTOFILL_DELETE_AUTOCOMPLETE_SUGGESTION_TOOLTIP" desc="Tooltip shown when hovering over a small button with a trash-can logo next to an Autocomplete entry in the Autofill popup.">
     Delete entry
   </message>
@@ -282,10 +300,10 @@
     You can now use addresses from your Google Account
   </message>
   <message name="IDS_AUTOFILL_IPH_HOME_AND_WORK_ACCOUNT_PROFILE_SUGGESTION" desc="IPH bubble for a suggestion item suggesting that home and work account profiles are available to use.">
-    Your home and work addresses are now available in Chrome
+    Autofill your home and work addresses from your Google Account
   </message>
   <message name="IDS_AUTOFILL_IPH_HOME_AND_WORK_ACCOUNT_PROFILE_SUGGESTION_SCREENREADER" is_accessibility_with_no_ui="true" desc="IPH bubble for a suggestion item suggesting that home and work account profiles are available to use.">
-    Your home and work addresses are now available in Chrome
+    Autofill your home and work addresses from your Google Account
   </message>
 
   <!-- Autofill suggestion label separator -->
@@ -321,8 +339,14 @@
   <message name="IDS_AUTOFILL_ENABLE_PROFILES_TOGGLE_SUBLABEL" desc="Sublabel for a toggle that allows users to control whether addresses should be saved and forms should be autofilled with them." formatter_data="android_java">
     Includes information like phone numbers, email addresses, and shipping addresses
   </message>
-  <message name="IDS_AUTOFILL_LOCAL_PROFILE_ACCESSIBILITY_LABEL" desc="Accessibility label for icon used to identify user's local address profile"  formatter_data="android_java">
+  <message name="IDS_AUTOFILL_LOCAL_PROFILE_ICON_ACCESSIBILITY_LABEL" desc="Accessibility label for icon used to identify user's local address profile" formatter_data="android_java">
     Local address
+  </message>
+  <message name="IDS_AUTOFILL_HOME_PROFILE_ICON_ACCESSIBILITY_LABEL" desc="Accessibility label for icon used to identify user's home address profile" formatter_data="android_java">
+    Home address
+  </message>
+  <message name="IDS_AUTOFILL_WORK_PROFILE_ICON_ACCESSIBILITY_LABEL" desc="Accessibility label for icon used to identify user's work address profile" formatter_data="android_java">
+    Work address
   </message>
   <message name="IDS_AUTOFILL_ENABLE_CREDIT_CARDS_TOGGLE_SUBLABEL" desc="Sublabel for a toggle that allows users to control whether credit cards should be saved and forms should be autofilled with it." formatter_data="android_java">
     Fills in payment forms with your saved payment methods
@@ -399,6 +423,12 @@
     </message>
     <message name="IDS_AUTOFILL_THIRD_PARTY_FILLING_OPT_IN_DESCRIPTION" desc="Description shown on the option enabling the use of third-party autofill in Chrome." formatter_data="android_java">
       To use another autofill service in Chrome, turn it on in Android settings and here
+    </message>
+    <message name="IDS_AUTOFILL_THIRD_PARTY_FILLING_DEFAULT_DESCRIPTION_NEW" desc="Description shown on the option to use the default Chrome autofill experience." formatter_data="android_java">
+      Use info saved in your Google Account to autofill passwords, passkeys, addresses, payment methods, and other info
+    </message>
+    <message name="IDS_AUTOFILL_THIRD_PARTY_FILLING_OPT_IN_DESCRIPTION_NEW" desc="Description shown on the option enabling the use of third-party autofill in Chrome." formatter_data="android_java">
+      To use another autofill service in Chrome, choose your autofill provider in Android settings
     </message>
     <message name="IDS_PAYMENT_METHODS_SETTINGS_LOYALTY_CARDS_TITLE" desc="Title for the payment methods settings page row that links the user to the Google Wallet app." formatter_data="android_java">
       Loyalty cards

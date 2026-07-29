@@ -1181,37 +1181,6 @@ bool OmniboxEditModel::OnSpacePressed() {
   return false;
 }
 
-bool OmniboxEditModel::MaybeAccelerateKeywordSelection(
-    std::u16string_view input_text,
-    char16_t ch) {
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
-  // Only check for acceleration when the current input text is "@" exactly.
-  if (AutocompleteInput::GetFeaturedKeywordMode(input_text) !=
-          AutocompleteInput::FeaturedKeywordMode::kExact ||
-      !history_embeddings::GetFeatureParameters().at_keyword_acceleration) {
-    return false;
-  }
-  TemplateURLService* turl_service =
-      controller_->client()->GetTemplateURLService();
-  const AutocompleteResult& result = autocomplete_controller()->result();
-  for (size_t i = 0; i < result.size(); i++) {
-    const AutocompleteMatch& match = result.match_at(i);
-    // TODO(b/332783748): If this gets used in practice, a more general
-    //  matching mechanism would be needed to handle keywords with a
-    //  prefix in common. This is simple for the prototype where all
-    //  first characters are unique.
-    if (match.HasInstantKeyword(turl_service) && match.keyword.size() > 1 &&
-        match.keyword[1] == ch) {
-      SetPopupSelection(OmniboxPopupSelection(i), true, true);
-      // TODO(b/332783748): Use a different entry method.
-      AcceptKeyword(metrics::OmniboxEventProto::TAB);
-      return true;
-    }
-  }
-#endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
-  return false;
-}
-
 void OmniboxEditModel::OnNavigationLikely(
     size_t line,
     NavigationPredictor navigation_predictor) {
@@ -2012,11 +1981,16 @@ std::u16string OmniboxEditModel::GetPopupAccessibilityLabelForCurrentSelection(
           ask_keyword ? IDS_ACC_ASK_KEYWORD_MODE : IDS_ACC_KEYWORD_MODE;
       return l10n_util::GetStringFUTF16(message_id, replacement_string);
     }
-    case OmniboxPopupSelection::FOCUSED_BUTTON_ACTION:
+    case OmniboxPopupSelection::FOCUSED_BUTTON_ACTION: {
       // When pedal button is focused, the autocomplete suggestion isn't
       // read because it's not relevant to the button's action.
-      DCHECK(match.GetActionAt(0u));
-      return match.GetActionAt(0u)->GetLabelStrings().accessibility_hint;
+      // When dealing with toolbelt actions, we need to ensure that the proper
+      // action a11y label is announced based on the action index.
+      DCHECK(match.GetActionAt(popup_selection_.action_index));
+      return match.GetActionAt(popup_selection_.action_index)
+          ->GetLabelStrings()
+          .accessibility_hint;
+    }
     case OmniboxPopupSelection::FOCUSED_BUTTON_THUMBS_UP:
       additional_message_id = IDS_ACC_THUMBS_UP_SUGGESTION_FOCUSED_PREFIX;
       break;

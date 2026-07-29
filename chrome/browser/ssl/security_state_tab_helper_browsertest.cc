@@ -83,6 +83,7 @@
 #include "mojo/public/cpp/bindings/remote.h"
 #include "mojo/public/cpp/bindings/sync_call_restrictions.h"
 #include "net/base/features.h"
+#include "net/base/hash_value.h"
 #include "net/base/net_errors.h"
 #include "net/cert/cert_database.h"
 #include "net/cert/cert_status_flags.h"
@@ -441,44 +442,6 @@ IN_PROC_BROWSER_TEST_F(SecurityStateTabHelperTest, DevToolsPage) {
       helper->GetVisibleSecurityState();
   EXPECT_EQ(security_state::NONE, helper->GetSecurityLevel());
   EXPECT_TRUE(visible_security_state->is_devtools);
-}
-
-// Tests that interstitial.ssl.visited_site_after_warning is being logged to
-// correctly.
-IN_PROC_BROWSER_TEST_F(SecurityStateTabHelperTest, UMALogsVisitsAfterWarning) {
-  const char kHistogramName[] = "interstitial.ssl.visited_site_after_warning";
-  base::HistogramTester histograms;
-  SetUpMockCertVerifierForHttpsServer(net::CERT_STATUS_DATE_INVALID,
-                                      net::ERR_CERT_DATE_INVALID);
-  ASSERT_TRUE(ui_test_utils::NavigateToURL(
-      browser(), https_server_.GetURL("/ssl/google.html")));
-  // Histogram shouldn't log before clicking through interstitial.
-  histograms.ExpectTotalCount(kHistogramName, 0);
-  ProceedThroughInterstitial(
-      browser()->tab_strip_model()->GetActiveWebContents());
-  // Histogram should log after clicking through.
-  histograms.ExpectTotalCount(kHistogramName, 1);
-  histograms.ExpectBucketCount(kHistogramName, true, 1);
-}
-
-// Tests that interstitial.ssl.visited_site_after_warning is being logged
-// on ERR_CERT_UNABLE_TO_CHECK_REVOCATION (which previously did not show an
-// interstitial.)
-IN_PROC_BROWSER_TEST_F(SecurityStateTabHelperTest,
-                       UMALogsVisitsAfterRevocationCheckFailureWarning) {
-  const char kHistogramName[] = "interstitial.ssl.visited_site_after_warning";
-  base::HistogramTester histograms;
-  SetUpMockCertVerifierForHttpsServer(
-      net::CERT_STATUS_UNABLE_TO_CHECK_REVOCATION,
-      net::ERR_CERT_UNABLE_TO_CHECK_REVOCATION);
-  ASSERT_TRUE(ui_test_utils::NavigateToURL(
-      browser(), https_server_.GetURL("/ssl/google.html")));
-  // Histogram shouldn't log before clicking through interstitial.
-  histograms.ExpectTotalCount(kHistogramName, 0);
-  ProceedThroughInterstitial(
-      browser()->tab_strip_model()->GetActiveWebContents());
-  // Histogram should log after clicking through.
-  histograms.ExpectUniqueSample(kHistogramName, true, 1);
 }
 
 // Test security state after clickthrough for a SHA-1 certificate that is
@@ -1066,8 +1029,8 @@ IN_PROC_BROWSER_TEST_F(PKPModelClientTest, PKPBypass) {
   verify_result.is_issued_by_known_root = false;
   verify_result.verified_cert = cert;
   // Public key hash which does not match the value in the static pin.
-  net::HashValue hash(net::HASH_VALUE_SHA256);
-  std::ranges::fill(hash.span(), 1);
+  net::SHA256HashValue hash;
+  std::ranges::fill(hash, 1);
   verify_result.public_key_hashes.push_back(hash);
 
   mock_cert_verifier()->AddResultForCert(cert, verify_result, net::OK);
@@ -1091,8 +1054,8 @@ IN_PROC_BROWSER_TEST_F(PKPModelClientTest, PKPEnforced) {
   verify_result.is_issued_by_known_root = true;
   verify_result.verified_cert = cert;
   // Public key hash which does not match the value in the static pin.
-  net::HashValue hash(net::HASH_VALUE_SHA256);
-  std::ranges::fill(hash.span(), 1);
+  net::SHA256HashValue hash;
+  std::ranges::fill(hash, 1);
   verify_result.public_key_hashes.push_back(hash);
 
   mock_cert_verifier()->AddResultForCert(cert, verify_result, net::OK);
@@ -1371,36 +1334,6 @@ IN_PROC_BROWSER_TEST_F(SecurityStateTabHelperIncognitoTest, HttpErrorPage) {
   ASSERT_EQ(content::PAGE_TYPE_ERROR, entry->GetPageType());
 
   EXPECT_EQ(security_state::NONE, helper->GetSecurityLevel());
-}
-
-// Tests that the security level form submission histogram is logged correctly.
-IN_PROC_BROWSER_TEST_F(SecurityStateTabHelperTest, FormSecurityLevelHistogram) {
-  const char kHistogramName[] = "Security.SecurityLevel.FormSubmission";
-  SetUpMockCertVerifierForHttpsServer(0, net::OK);
-  base::HistogramTester histograms;
-  // Create a server with an expired certificate for the form to target.
-  net::EmbeddedTestServer broken_https_server(
-      net::EmbeddedTestServer::TYPE_HTTPS);
-  broken_https_server.SetSSLConfig(net::EmbeddedTestServer::CERT_EXPIRED);
-  broken_https_server.ServeFilesFromSourceDirectory(GetChromeTestDataDir());
-  ASSERT_TRUE(broken_https_server.Start());
-
-  // Make the form target the expired certificate server.
-  net::HostPortPair host_port_pair = net::HostPortPair::FromURL(
-      broken_https_server.GetURL("/ssl/google.html"));
-  std::string replacement_path = GetFilePathWithHostAndPortReplacement(
-      "/ssl/page_with_form_targeting_insecure_url.html", host_port_pair);
-  ASSERT_TRUE(ui_test_utils::NavigateToURL(
-      browser(), https_server_.GetURL(replacement_path)));
-  content::TestNavigationObserver navigation_observer(
-      browser()->tab_strip_model()->GetActiveWebContents());
-  ASSERT_TRUE(
-      content::ExecJs(browser()->tab_strip_model()->GetActiveWebContents(),
-                      "document.getElementById('submit').click();"));
-  navigation_observer.Wait();
-  // Check that the histogram count logs the security level of the page
-  // containing the form, not of the form target page.
-  histograms.ExpectUniqueSample(kHistogramName, security_state::SECURE, 1);
 }
 
 IN_PROC_BROWSER_TEST_F(SecurityStateTabHelperTest,
