@@ -31,8 +31,11 @@
 #include "third_party/blink/renderer/modules/mediastream/mock_media_stream_video_sink.h"
 #include "third_party/blink/renderer/modules/mediastream/mock_media_stream_video_source.h"
 #include "third_party/blink/renderer/modules/mediastream/video_track_adapter_settings.h"
+#include "third_party/blink/public/common/buildflags.h"
+#if BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
 #include "third_party/blink/renderer/modules/peerconnection/media_stream_video_webrtc_sink.h"
 #include "third_party/blink/renderer/modules/peerconnection/mock_peer_connection_dependency_factory.h"
+#endif  // BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
 #include "third_party/blink/renderer/platform/mediastream/media_stream_component.h"
 #include "third_party/blink/renderer/platform/mediastream/media_stream_source.h"
 #include "third_party/blink/renderer/platform/testing/io_task_runner_testing_platform_support.h"
@@ -1288,6 +1291,7 @@ TEST_F(MediaStreamVideoTrackRefreshFrameTimerTest, RequiredRefreshRate) {
   test::RunDelayedTasks(base::Seconds(1));
 }
 
+#if BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
 TEST_F(MediaStreamVideoTrackRefreshFrameTimerTest,
        RequiredRefreshRateWebRTCSink) {
   // WebRTC sink has a required min frames per sec set to 1 so when we do
@@ -1368,6 +1372,7 @@ TEST_F(MediaStreamVideoTrackRefreshFrameTimerTest,
 
   test::RunDelayedTasks(base::Seconds(1));
 }
+#endif  // BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
 
 TEST_F(MediaStreamVideoTrackRefreshFrameTimerTest,
        NotifyConstraintsStartsTimerIfMinFpsIsSet) {

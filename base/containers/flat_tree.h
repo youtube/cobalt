@@ -20,6 +20,7 @@
 #include "base/compiler_specific.h"
 #include "base/containers/span.h"
 #include "base/memory/raw_ptr_exclusion.h"
+#include "build/build_config.h"
 
 namespace base {
 
@@ -98,7 +99,12 @@ class flat_tree {
   struct value_compare {
     constexpr bool operator()(const value_type& left,
                               const value_type& right) const {
+#if BUILDFLAG(BUILD_BASE_WITH_CPP17)
+      // C++17 does not allow default initialization here.
+      GetKeyFromValue extractor{};
+#else
       GetKeyFromValue extractor;
+#endif
       return comp(extractor(left), extractor(right));
     }
 

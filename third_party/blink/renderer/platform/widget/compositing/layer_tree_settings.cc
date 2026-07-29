@@ -160,7 +160,15 @@ cc::ManagedMemoryPolicy GetGpuMemoryPolicy(
   cc::ManagedMemoryPolicy actual = default_policy;
   actual.bytes_limit_when_visible = 0;
   actual.priority_cutoff_when_visible =
+<<<<<<< HEAD
       gpu::MemoryAllocation::CUTOFF_ALLOW_NICE_TO_HAVE;
+=======
+#if BUILDFLAG(IS_COBALT)
+      gpu::MemoryAllocation::CUTOFF_ALLOW_REQUIRED_ONLY;
+#else
+      gpu::MemoryAllocation::CUTOFF_ALLOW_NICE_TO_HAVE;
+#endif
+>>>>>>> parent of d584bc1b896 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
   // If the value was overridden on the command line, use the specified value.
   static bool client_hard_limit_bytes_overridden =
@@ -478,7 +486,11 @@ cc::LayerTreeSettings GenerateLayerTreeSettings(
     // On low-end we want to be very careful about killing other
     // apps. So initially we use 50% more memory to avoid flickering
     // or raster-on-demand.
+  #if BUILDFLAG(IS_COBALT)
+    settings.max_memory_for_prepaint_percentage = 0;
+  #else
     settings.max_memory_for_prepaint_percentage = 67;
+  #endif
   } else {
     // On other devices we have increased memory excessively to avoid
     // raster-on-demand already, so now we reserve 50% _only_ to avoid

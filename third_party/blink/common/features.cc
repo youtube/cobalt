@@ -444,6 +444,14 @@ BASE_FEATURE(kClientHintsXRFormFactor,
              "ClientHintsXRFormFactor",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+#if BUILDFLAG(IS_COBALT)
+// Enables zero-copy pass-through of network fetch responses in Cobalt by
+// bypassing BufferingBytesConsumer Oilpan heap buffering.
+BASE_FEATURE(kCobaltBypassBufferingBytesConsumer,
+             "CobaltBypassBufferingBytesConsumer",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+#endif  // BUILDFLAG(IS_COBALT)
+
 // Enable legacy `viewport-width` client hint.
 BASE_FEATURE(kClientHintsViewportWidth_DEPRECATED,
              "ClientHintsViewportWidth_DEPRECATED",

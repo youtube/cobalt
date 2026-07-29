@@ -5,6 +5,7 @@
 #ifndef CONTENT_PUBLIC_BROWSER_NETWORK_SERVICE_INSTANCE_H_
 #define CONTENT_PUBLIC_BROWSER_NETWORK_SERVICE_INSTANCE_H_
 
+#include "base/feature_list.h"
 #include "base/functional/callback.h"
 #include "build/build_config.h"
 #include "content/common/content_export.h"
@@ -34,6 +35,10 @@ class NetworkService;
 
 namespace content {
 
+// If this feature is enabled, the Network Service will run on its own thread
+// when running in-process; otherwise it will run on the IO thread.
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kNetworkServiceDedicatedThread);
+
 // Returns a pointer to the NetworkService, creating / re-creating it as needed.
 // NetworkService will be running in-process if
 //   1) kNetworkService feature is disabled, or
@@ -43,7 +48,8 @@ namespace content {
 CONTENT_EXPORT network::mojom::NetworkService* GetNetworkService();
 
 // Only on ChromeOS since it's only used there.
-#if BUILDFLAG(IS_CHROMEOS)
+// Cobalt: Used on Starboard as well.
+#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_STARBOARD)
 // Returns the global NetworkChangeNotifier instance.
 CONTENT_EXPORT net::NetworkChangeNotifier* GetNetworkChangeNotifier();
 #endif
