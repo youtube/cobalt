@@ -54,8 +54,12 @@ void DetermineGrCacheLimitsFromAvailableMemory(
   *max_glyph_cache_texture_bytes = kMaxDefaultGlyphCacheTextureBytes;
 
   // The limit of the bytes allocated toward GPU resources in the GrContext's
-  // GPU cache.
+  // GPU cache. Low-end Cobalt devices use a smaller 2 MB override.
+#if BUILDFLAG(IS_COBALT)
+  constexpr size_t kMaxLowEndGaneshResourceCacheBytes = 2 * 1024 * 1024;
+#else
   constexpr size_t kMaxLowEndGaneshResourceCacheBytes = 48 * 1024 * 1024;
+#endif
   constexpr size_t kMaxHighEndGaneshResourceCacheBytes = 256 * 1024 * 1024;
   // Limits for glyph cache textures.
   constexpr size_t kMaxLowEndGlyphCacheTextureBytes = 1024 * 512 * 4;

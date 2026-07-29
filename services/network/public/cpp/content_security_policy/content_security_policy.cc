@@ -146,6 +146,12 @@ CSPDirectiveName ToCSPDirectiveName(std::string_view name) {
   if (base::EqualsCaseInsensitiveASCII(name, "report-to")) {
     return CSPDirectiveName::ReportTo;
   }
+#if BUILDFLAG(IS_COBALT)
+  if (base::EqualsCaseInsensitiveASCII(name, "h5vcc-location-src")
+      || base::EqualsCaseInsensitiveASCII(name, "cobalt-location-src")) {
+    return CSPDirectiveName::CobaltLocationSrc;
+  }
+#endif
 
   return CSPDirectiveName::Unknown;
 }
@@ -184,6 +190,9 @@ bool SupportedInReportOnly(CSPDirectiveName directive) {
     case CSPDirectiveName::TrustedTypes:
     case CSPDirectiveName::Unknown:
     case CSPDirectiveName::WorkerSrc:
+#if BUILDFLAG(IS_COBALT)
+    case CSPDirectiveName::CobaltLocationSrc:
+#endif
       return true;
   };
 }
@@ -222,6 +231,9 @@ bool SupportedInMeta(CSPDirectiveName directive) {
     case CSPDirectiveName::Unknown:
     case CSPDirectiveName::UpgradeInsecureRequests:
     case CSPDirectiveName::WorkerSrc:
+#if BUILDFLAG(IS_COBALT)
+    case CSPDirectiveName::CobaltLocationSrc:
+#endif
       return true;
   };
 }
@@ -246,6 +258,11 @@ std::string ErrorMessage(CSPDirectiveName directive,
     case CSPDirectiveName::ConnectSrc:
       action = "Connecting to '$1'";
       break;
+#if BUILDFLAG(IS_COBALT)
+    case CSPDirectiveName::CobaltLocationSrc:
+      action = "Navigating to '$1'";
+      break;
+#endif
 
     case CSPDirectiveName::BaseURI:
     case CSPDirectiveName::BlockAllMixedContent:
@@ -781,6 +798,17 @@ mojom::CSPSourceListPtr ParseSourceList(
       continue;
     }
 
+#if BUILDFLAG(IS_COBALT)
+    if (base::EqualsCaseInsensitiveASCII(expression, "'cobalt-insecure-local-network'")) {
+      directive->cobalt_insecure_local_network = true;
+      continue;
+    }
+    if (base::EqualsCaseInsensitiveASCII(expression, "'cobalt-insecure-private-range'")) {
+      directive->cobalt_insecure_private_range = true;
+      continue;
+    }
+#endif
+
     std::string nonce;
     if (ParseNonce(expression, &nonce)) {
       directive->nonces.push_back(std::move(nonce));
@@ -1146,6 +1174,9 @@ void AddContentSecurityPolicyFromHeader(
       case CSPDirectiveName::StyleSrcAttr:
       case CSPDirectiveName::StyleSrcElem:
       case CSPDirectiveName::WorkerSrc:
+#if BUILDFLAG(IS_COBALT)
+      case CSPDirectiveName::CobaltLocationSrc:
+#endif
         out->directives[directive_name] = ParseSourceList(
             directive_name, directive.second, out->parsing_errors);
         break;
@@ -1326,6 +1357,9 @@ CSPDirectiveName CSPFallbackDirective(CSPDirectiveName directive,
     case CSPDirectiveName::TreatAsPublicAddress:
     case CSPDirectiveName::TrustedTypes:
     case CSPDirectiveName::UpgradeInsecureRequests:
+#if BUILDFLAG(IS_COBALT)
+    case CSPDirectiveName::CobaltLocationSrc:
+#endif
       return CSPDirectiveName::Unknown;
     case CSPDirectiveName::Unknown:
       NOTREACHED();
@@ -1631,6 +1665,9 @@ bool Subsumes(const mojom::ContentSecurityPolicy& policy_a,
       CSPDirectiveName::StyleSrcAttr,   CSPDirectiveName::StyleSrcElem,
       CSPDirectiveName::WorkerSrc,      CSPDirectiveName::BaseURI,
       CSPDirectiveName::FrameAncestors, CSPDirectiveName::FormAction,
+#if BUILDFLAG(IS_COBALT)
+      CSPDirectiveName::CobaltLocationSrc,
+#endif
       CSPDirectiveName::FencedFrameSrc};
 
   return std::ranges::all_of(directives, [&](CSPDirectiveName directive) {
@@ -1717,6 +1754,10 @@ std::string ToString(CSPDirectiveName name) {
       return "worker-src";
     case CSPDirectiveName::ReportTo:
       return "report-to";
+#if BUILDFLAG(IS_COBALT)
+    case CSPDirectiveName::CobaltLocationSrc:
+      return "h5vcc-location-src";
+#endif
     case CSPDirectiveName::Unknown:
       return "";
   }
