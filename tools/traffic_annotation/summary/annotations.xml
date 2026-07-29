@@ -46,11 +46,11 @@ Refer to README.md for content description and update process.
  <item id="desktop_screenshot_save" added_in_milestone="94" content_hash_code="0431b7d2" os_list="linux,windows,chromeos" file_path="chrome/browser/ui/views/sharing_hub/screenshot/screenshot_captured_bubble.cc" />
  <item id="device_management_service" added_in_milestone="62" content_hash_code="05c7768f" os_list="linux,windows,chromeos,android" file_path="components/policy/core/common/cloud/device_management_service.cc" />
  <item id="devtools_cdp_network_resource" added_in_milestone="87" content_hash_code="051db8c6" os_list="linux,windows,chromeos,android" file_path="content/browser/devtools/protocol/devtools_network_resource_loader.cc" />
- <item id="devtools_free_data_source" added_in_milestone="62" content_hash_code="01a26b6a" os_list="linux,windows,chromeos" file_path="chrome/browser/ui/webui/devtools/devtools_ui_data_source.cc" />
+ <item id="devtools_free_data_source" added_in_milestone="62" content_hash_code="01a26b6a" os_list="linux,windows,chromeos,android" file_path="chrome/browser/ui/webui/devtools/devtools_ui_data_source.cc" />
  <item id="devtools_handle_front_end_messages" added_in_milestone="62" content_hash_code="04940191" os_list="linux,windows,chromeos,android" file_path="content/shell/browser/shell_devtools_bindings.cc" />
- <item id="devtools_hard_coded_data_source" added_in_milestone="62" content_hash_code="073b9777" os_list="linux,windows,chromeos" file_path="chrome/browser/ui/webui/devtools/devtools_ui_data_source.cc" />
+ <item id="devtools_hard_coded_data_source" added_in_milestone="62" content_hash_code="073b9777" os_list="linux,windows,chromeos,android" file_path="chrome/browser/ui/webui/devtools/devtools_ui_data_source.cc" />
  <item id="devtools_http_handler" added_in_milestone="66" content_hash_code="054518b9" os_list="linux,windows,chromeos,android" file_path="content/browser/devtools/devtools_http_handler.cc" />
- <item id="devtools_network_resource" added_in_milestone="62" content_hash_code="06958290" os_list="linux,windows,chromeos" file_path="chrome/browser/devtools/devtools_ui_bindings.cc" />
+ <item id="devtools_network_resource" added_in_milestone="62" content_hash_code="06958290" os_list="linux,windows,chromeos,android" file_path="chrome/browser/devtools/devtools_ui_bindings.cc" />
  <item id="devtools_proxy_config" added_in_milestone="85" content_hash_code="01e83c36" os_list="linux,windows,chromeos,android" file_path="content/browser/devtools/protocol/target_handler.cc" />
  <item id="dial_url_fetcher" added_in_milestone="67" content_hash_code="07bd0650" os_list="linux,windows,chromeos" file_path="chrome/browser/media/router/discovery/dial/dial_url_fetcher.cc" />
  <item id="digital_asset_links" added_in_milestone="90" content_hash_code="05caa66d" os_list="linux,windows,chromeos,android" file_path="components/content_relationship_verification/digital_asset_links_handler.cc" />
@@ -178,7 +178,7 @@ Refer to README.md for content description and update process.
  <item id="safe_browsing_binary_upload_connector" added_in_milestone="87" content_hash_code="025fdb96" os_list="linux,windows,chromeos" file_path="chrome/browser/safe_browsing/cloud_content_scanning/cloud_binary_upload_service.cc" />
  <item id="safe_browsing_cache_collector" added_in_milestone="62" content_hash_code="02320d08" os_list="linux,windows,chromeos,android" file_path="components/safe_browsing/content/browser/threat_details_cache.cc" />
  <item id="safe_browsing_client_side_phishing_detector" added_in_milestone="62" content_hash_code="060f72a0" os_list="linux,windows,chromeos,android" file_path="components/safe_browsing/content/browser/client_side_detection_service.cc" />
- <item id="safe_browsing_extended_reporting" added_in_milestone="62" content_hash_code="04d6ea29" os_list="linux,windows,chromeos,android" file_path="components/safe_browsing/core/browser/ping_manager.cc" />
+ <item id="safe_browsing_extended_reporting" added_in_milestone="62" content_hash_code="0011b995" os_list="linux,windows,chromeos,android" file_path="components/safe_browsing/core/browser/ping_manager.cc" />
  <item id="safe_browsing_feedback" added_in_milestone="62" content_hash_code="019dc52e" os_list="linux,windows,chromeos" file_path="chrome/browser/safe_browsing/download_protection/download_feedback.cc" />
  <item id="safe_browsing_incident" added_in_milestone="62" content_hash_code="006f7d23" os_list="linux,windows,chromeos" file_path="chrome/browser/safe_browsing/incident_reporting/incident_report_uploader_impl.cc" />
  <item id="safe_browsing_realtime_url_lookup" added_in_milestone="78" content_hash_code="043efa82" os_list="linux,windows,chromeos,android" file_path="components/safe_browsing/core/browser/realtime/url_lookup_service.cc" />
@@ -400,7 +400,7 @@ Refer to README.md for content description and update process.
  <item id="almanac_app_install" added_in_milestone="120" content_hash_code="04f21824" os_list="chromeos" file_path="chrome/browser/apps/app_service/app_install/app_install_almanac_endpoint.cc" />
  <item id="remoting_report_provisioning_error" added_in_milestone="120" content_hash_code="01928ee5" os_list="linux,windows,android,chromeos" file_path="remoting/base/corp_service_client.cc" />
  <item id="webauthn_rp_id_check" added_in_milestone="121" content_hash_code="048c3faa" os_list="linux,windows,android,chromeos" file_path="content/browser/webauth/webauth_request_security_checker.cc" />
- <item id="devtools_cdp_console_insights" added_in_milestone="121" content_hash_code="051d2911" os_list="linux,windows,chromeos" file_path="chrome/browser/devtools/devtools_ui_bindings.cc" />
+ <item id="devtools_cdp_console_insights" added_in_milestone="121" content_hash_code="051d2911" os_list="linux,windows,chromeos,android" file_path="chrome/browser/devtools/devtools_ui_bindings.cc" />
  <item id="tasks_integration" added_in_milestone="121" content_hash_code="06b37a3d" os_list="chromeos" file_path="chrome/browser/ash/api/tasks/chrome_tasks_delegate.cc" />
  <item id="metrics_report_appkm" added_in_milestone="121" content_hash_code="0662ff56" os_list="linux,windows,android,chromeos" file_path="components/metrics/net/net_metrics_log_uploader.cc" />
  <item id="metrics_report_ukm_and_appkm" added_in_milestone="121" content_hash_code="0616c235" os_list="linux,windows,android,chromeos" file_path="components/metrics/net/net_metrics_log_uploader.cc" />
@@ -436,7 +436,7 @@ Refer to README.md for content description and update process.
  <item id="focus_sounds_configuration" added_in_milestone="127" content_hash_code="02bcde5b" os_list="chromeos" file_path="ash/system/focus_mode/sounds/soundscape/soundscapes_downloader.cc" />
  <item id="device_image_downloader" added_in_milestone="127" content_hash_code="04c18c2c" os_list="chromeos" file_path="ash/system/input_device_settings/device_image_downloader.cc" />
  <item id="glanceables_icon_downloader" added_in_milestone="127" content_hash_code="0704f787" os_list="chromeos" file_path="ash/birch/birch_item.cc" />
- <item id="dbsc_registration" added_in_milestone="127" content_hash_code="03c42469" os_list="windows,linux" file_path="net/device_bound_sessions/registration_fetcher.cc" />
+ <item id="dbsc_registration" added_in_milestone="127" content_hash_code="03c42469" os_list="windows,linux" file_path="net/device_bound_sessions/url_fetcher.cc" />
  <item id="google_calendar_page_handler" added_in_milestone="127" content_hash_code="00ab702c" os_list="linux,windows,chromeos" file_path="chrome/browser/new_tab_page/modules/v2/calendar/google_calendar_page_handler.cc" />
  <item id="nearby_connections_wifi_direct" added_in_milestone="127" content_hash_code="00cec3a0" os_list="chromeos" file_path="chrome/services/sharing/nearby/platform/wifi_direct_socket.cc" />
  <item id="chrome_commerce_comparable_products" added_in_milestone="127" content_hash_code="07478997" os_list="linux,windows,android,chromeos" file_path="components/commerce/core/compare/cluster_server_proxy.cc" />
@@ -516,5 +516,5 @@ Refer to README.md for content description and update process.
  <item id="glic_web_ui" added_in_milestone="140" content_hash_code="015cd923" os_list="linux,windows" file_path="chrome/browser/glic/glic_net_log.cc" />
  <item id="glic_fre_web_ui" added_in_milestone="140" content_hash_code="0354f161" os_list="linux,windows" file_path="chrome/browser/glic/glic_net_log.cc" />
  <item id="webview_preconnect" added_in_milestone="140" content_hash_code="03d15024" os_list="android" file_path="android_webview/browser/aw_preconnector.cc" />
- <item id="aim_eligibility_fetch" added_in_milestone="141" content_hash_code="0750802b" os_list="linux,windows,android,chromeos" file_path="chrome/browser/autocomplete/aim_eligibility_service.cc" />
+ <item id="aim_eligibility_fetch" added_in_milestone="141" content_hash_code="0750802b" os_list="linux,windows,android,chromeos" file_path="components/omnibox/browser/aim_eligibility_service.cc" />
 </annotations>

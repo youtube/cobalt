@@ -27,6 +27,7 @@
 #include "ui/ozone/platform/drm/mojom/drm_device.mojom.h"
 #include "ui/ozone/public/drm_modifiers_filter.h"
 #include "ui/ozone/public/hardware_capabilities.h"
+#include "ui/ozone/public/native_pixmap_usage.h"
 #include "ui/ozone/public/overlay_surface_candidate.h"
 #include "ui/ozone/public/swap_completion_callback.h"
 
@@ -93,19 +94,10 @@ class DrmThread : public base::Thread,
                     const gfx::Size& size,
                     const gfx::Size& framebuffer_size,
                     gfx::BufferFormat format,
-                    gfx::BufferUsage usage,
+                    NativePixmapUsageSet usage,
                     uint32_t flags,
                     std::unique_ptr<GbmBuffer>* buffer,
                     scoped_refptr<DrmFramebuffer>* framebuffer);
-  using CreateBufferAsyncCallback =
-      base::OnceCallback<void(std::unique_ptr<GbmBuffer>,
-                              scoped_refptr<DrmFramebuffer>)>;
-  void CreateBufferAsync(gfx::AcceleratedWidget widget,
-                         const gfx::Size& size,
-                         gfx::BufferFormat format,
-                         gfx::BufferUsage usage,
-                         uint32_t flags,
-                         CreateBufferAsyncCallback callback);
   void CreateBufferFromHandle(gfx::AcceleratedWidget widget,
                               const gfx::Size& size,
                               gfx::BufferFormat format,

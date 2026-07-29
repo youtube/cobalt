@@ -16,6 +16,7 @@ schema_sources_ = [
   "bookmarks.json",
   "cookies.json",
   "context_menus.json",
+  "debugger.json",
   "developer_private.idl",
   "enterprise_hardware_platform.idl",
   "font_settings.json",
@@ -28,10 +29,10 @@ schema_sources_ = [
   "page_capture.json",
   "permissions.json",
   "processes.idl",
-  "reading_list.idl",
+  "reading_list.webidl",
   "scripting.idl",
   "tabs.json",
-  "web_authentication_proxy.idl",
+  "web_authentication_proxy.webidl",
 
   # Despite the name, these APIs do not rely on any WebRTC-specific bits and
   # as such do not belong in a conditional.
@@ -70,7 +71,6 @@ if (enable_extensions) {
     "chrome_web_view_internal.json",
     "command_line_private.json",
     "content_settings.json",
-    "debugger.json",
     "desktop_capture.json",
     "crash_report_private.idl",
     "downloads.idl",

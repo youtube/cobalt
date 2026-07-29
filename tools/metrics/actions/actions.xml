@@ -24119,11 +24119,28 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
+<action name="MobileGeminiEntryPointAutomatic">
+  <owner>kanouche@google.com</owner>
+  <owner>bling-alchemy@google.com</owner>
+  <description>
+    Records the automatic promo entry point for Gemini. iOS only.
+  </description>
+</action>
+
 <action name="MobileGeminiEntryPointImpression">
   <owner>kanouche@google.com</owner>
   <description>
     Reported when the user sees the Gemini entry point impression during
     eligibility checking. iOS only.
+  </description>
+</action>
+
+<action name="MobileGeminiEntryPointTapped">
+  <owner>kanouche@google.com</owner>
+  <owner>bling-alchemy@google.com</owner>
+  <description>
+    Records the entry point used to access Gemini, includes all entry points
+    whether they lead to FRE or regular BWG flow. iOS only.
   </description>
 </action>
 
@@ -24206,6 +24223,15 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
+<action name="MobileGeminiNewChatTapped">
+  <owner>kanouche@google.com</owner>
+  <owner>bling-alchemy@google.com</owner>
+  <description>
+    Reported when the user taps the New Chat button in a BWG session to start a
+    new conversation. iOS only.
+  </description>
+</action>
+
 <action name="MobileGeminiResponseReceived">
   <owner>kanouche@google.com</owner>
   <owner>bling-alchemy@google.com</owner>
@@ -24227,6 +24253,14 @@ should be able to be added at any place in this file.
   <owner>joemerramos@google.com</owner>
   <description>
     Reported when Gemini Settings UI was dismissed. iOS only.
+  </description>
+</action>
+
+<action name="MobileGeminiURLOpened">
+  <owner>kanouche@google.com</owner>
+  <owner>bling-alchemy@google.com</owner>
+  <description>
+    Reported when the user opens a URL from a BWG session. iOS only.
   </description>
 </action>
 
@@ -28720,6 +28754,24 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
+<action name="MobileToolbarTabMenu.MoveTabToGroup">
+  <owner>jhimawan@google.com</owner>
+  <owner>clank-large-form-factors@google.com</owner>
+  <description>
+    User moved a tab to a synced tab group via the tab context menu on tab strip
+    on Android.
+  </description>
+</action>
+
+<action name="MobileToolbarTabMenu.MoveTabToIncognitoGroup">
+  <owner>jhimawan@google.com</owner>
+  <owner>clank-large-form-factors@google.com</owner>
+  <description>
+    User moved a tab to an incognito tab group via the tab context menu on tab
+    strip on Android.
+  </description>
+</action>
+
 <action name="MobileToolbarTabMenu.MoveTabToNewWindow">
   <owner>jhimawan@google.com</owner>
   <owner>clank-large-form-factors@google.com</owner>
@@ -28734,6 +28786,15 @@ should be able to be added at any place in this file.
   <owner>clank-large-form-factors@google.com</owner>
   <description>
     User moved a tab to another window via the tab context menu on tab strip on
+    Android.
+  </description>
+</action>
+
+<action name="MobileToolbarTabMenu.NewGroup">
+  <owner>jhimawan@google.com</owner>
+  <owner>clank-large-form-factors@google.com</owner>
+  <description>
+    User created a new tab group via the tab context menu on tab strip on
     Android.
   </description>
 </action>

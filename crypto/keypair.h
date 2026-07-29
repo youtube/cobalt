@@ -13,10 +13,6 @@
 #include "crypto/subtle_passkey.h"
 #include "third_party/boringssl/src/include/openssl/base.h"
 
-namespace crypto {
-class RSAPrivateKey;
-}
-
 namespace crypto::keypair {
 
 // This class wraps an EVP_PKEY containing a private key. Since EVP_PKEY is
@@ -44,8 +40,10 @@ class CRYPTO_EXPORT PrivateKey {
   static PrivateKey GenerateRsa2048();
   static PrivateKey GenerateRsa4096();
 
-  // Generates a fresh, random elliptic curve key on the NIST P-256 curve.
+  // Generates a fresh, random elliptic curve key on the specified curve.
   static PrivateKey GenerateEcP256();
+  static PrivateKey GenerateEcP384();
+  static PrivateKey GenerateEcP521();
 
   // Generates a fresh, random Ed25519 key.
   static PrivateKey GenerateEd25519();
@@ -55,10 +53,6 @@ class CRYPTO_EXPORT PrivateKey {
   // it after the PrivateKeyInfo block.
   static std::optional<PrivateKey> FromPrivateKeyInfo(
       base::span<const uint8_t> pki);
-
-  // Deprecated compatibility interface for using new signing APIs with the old
-  // RSAPrivateKey type. Do not add new uses.
-  static PrivateKey FromDeprecatedRSAPrivateKey(RSAPrivateKey* key);
 
   // Imports an RFC 8032-encoded Ed25519 private key.
   //
@@ -97,6 +91,10 @@ class CRYPTO_EXPORT PrivateKey {
   bool IsEc() const;
   bool IsEd25519() const;
 
+  bool IsEcP256() const;
+  bool IsEcP384() const;
+  bool IsEcP521() const;
+
  private:
   explicit PrivateKey(bssl::UniquePtr<EVP_PKEY> key);
 
@@ -134,14 +132,18 @@ class CRYPTO_EXPORT PublicKey {
       base::span<const uint8_t> n,
       base::span<const uint8_t> e);
 
-  // Imports a big-endian integer point to form an EC P-256 public key. Returns
+  // Imports a big-endian integer point to form an EC public key. Returns
   // nullopt if the point is not on the curve or something else is wrong with
   // it.
   //
-  // Note: unless you *only* want an EC P-256 key, you should use
+  // Note: unless you *only* want an EC key on a fixed curve, you should use
   // SubjectPublicKeyInfo as a serialization format rather than inventing your
   // own format.
   static std::optional<PublicKey> FromEcP256Point(
+      base::span<const uint8_t> point);
+  static std::optional<PublicKey> FromEcP384Point(
+      base::span<const uint8_t> point);
+  static std::optional<PublicKey> FromEcP521Point(
       base::span<const uint8_t> point);
 
   // Imports an Ed25519 public key in RFC 8032 format.
@@ -160,6 +162,10 @@ class CRYPTO_EXPORT PublicKey {
   bool IsRsa() const;
   bool IsEc() const;
   bool IsEd25519() const;
+
+  bool IsEcP256() const;
+  bool IsEcP384() const;
+  bool IsEcP521() const;
 
  private:
   explicit PublicKey(bssl::UniquePtr<EVP_PKEY> key);

@@ -45,13 +45,18 @@ void TabStripEventRecorder::Handle(Event event) {
   }
 }
 
+void TabStripEventRecorder::Handle(std::vector<Event> events) {
+  for (auto& event : events) {
+    Handle(std::move(event));
+  }
+}
+
 void TabStripEventRecorder::OnTabStripModelChanged(
     TabStripModel* tab_strip_model,
     const TabStripModelChange& change,
     const TabStripSelectionChange& selection) {
   switch (change.type()) {
     case TabStripModelChange::Type::kSelectionOnly:
-      NOTIMPLEMENTED();
       break;
     case TabStripModelChange::Type::kInserted:
       Handle(ToEvent(*change.GetInsert(), tab_strip_model_adapter_));
@@ -65,6 +70,10 @@ void TabStripEventRecorder::OnTabStripModelChanged(
     case TabStripModelChange::Type::kReplaced:
       NOTIMPLEMENTED();
       break;
+  }
+
+  if (selection.active_tab_changed() || selection.selection_changed()) {
+    Handle(ToEvent(selection, tab_strip_model_adapter_));
   }
 }
 

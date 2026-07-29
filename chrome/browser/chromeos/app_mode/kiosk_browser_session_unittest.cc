@@ -99,11 +99,12 @@ constexpr char kBrowserPluginFilePath[] = "/path/to/browser_plugin";
 // close callback on the `TestBrowserWindow`.
 class FakeBrowser {
  public:
-  explicit FakeBrowser(Browser::CreateParams(params))
-      : FakeBrowser(Browser::Create(params)) {}
+  explicit FakeBrowser(Browser::CreateParams params)
+      : FakeBrowser(Browser::DeprecatedCreateOwnedForTesting(params)) {}
 
-  explicit FakeBrowser(Browser* browser) : browser_(browser) {
-    if (!browser->is_type_picture_in_picture()) {
+  explicit FakeBrowser(std::unique_ptr<Browser> browser)
+      : browser_(std::move(browser)) {
+    if (!browser_->is_type_picture_in_picture()) {
       // Add a tab to the browser to ensure that `CloseAllTabs()` works.
       // Note that tabs are not supported with PICTURE_IN_PICTURE windows.
       TabActivitySimulator().AddWebContentsAndNavigate(
@@ -205,9 +206,7 @@ std::unique_ptr<FakeBrowser> CreateBrowserWithFullscreenTestWindowForParams(
   // production.
   auto window = std::make_unique<FullscreenTestBrowserWindow>(
       profile, /*fullscreen=*/is_main_browser);
-  params.window = window.get();
-  // Self deleting.
-  new TestBrowserWindowOwner(std::move(window));
+  params.window = window.release();
   return std::make_unique<FakeBrowser>(params);
 }
 
@@ -911,9 +910,7 @@ class KioskBrowserSessionTroubleshootingTest
     auto params = Browser::CreateParams::CreateForDevTools(profile());
 
     auto test_window = std::make_unique<TestBrowserWindow>();
-    params.window = test_window.get();
-    // Self deleting.
-    new TestBrowserWindowOwner(std::move(test_window));
+    params.window = test_window.release();
 
     return std::make_unique<FakeBrowser>(params);
   }
@@ -927,7 +924,7 @@ class KioskBrowserSessionTroubleshootingTest
     Browser::CreateParams params(profile(), /*user_gesture=*/true);
     params.type = type;
     return std::make_unique<FakeBrowser>(
-        CreateBrowserWithTestWindowForParams(params).release());
+        CreateBrowserWithTestWindowForParams(params));
   }
 
  private:

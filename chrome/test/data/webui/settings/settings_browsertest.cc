@@ -373,7 +373,8 @@ IN_PROC_BROWSER_TEST_F(SettingsTest, GlicPage) {
   RunTest("settings/glic_page_test.js", "runMochaSuite('GlicPage Default')");
 }
 
-IN_PROC_BROWSER_TEST_F(SettingsTest, GlicSubpage) {
+// TODO(crbug.com/438908216): Flaky on at least Linux dbg.
+IN_PROC_BROWSER_TEST_F(SettingsTest, DISABLED_GlicSubpage) {
   RunTest("settings/glic_subpage_test.js",
           "runMochaSuite('GlicSubpage Default')");
 }
@@ -894,8 +895,9 @@ IN_PROC_BROWSER_TEST_F(SettingsClearBrowsingDataV2Test,
 }
 #endif  // !BUILDFLAG(IS_CHROMEOS)
 
+// TODO(crbug.com/438908216): Flaky on at least Linux dbg.
 IN_PROC_BROWSER_TEST_F(SettingsClearBrowsingDataV2Test,
-                       DeleteBrowsingDataDialog) {
+                       DISABLED_DeleteBrowsingDataDialog) {
   RunTest("settings/clear_browsing_data_dialog_v2_test.js",
           "runMochaSuite('DeleteBrowsingDataDialog')");
 }
@@ -1110,12 +1112,6 @@ IN_PROC_BROWSER_TEST_F(SettingsPrivacyGuideTest, SafeBrowsingFragment) {
 IN_PROC_BROWSER_TEST_F(SettingsPrivacyGuideTest, CookiesFragment) {
   RunTest("settings/privacy_guide_cookies_fragment_test.js",
           "runMochaSuite('CookiesFragment')");
-}
-
-IN_PROC_BROWSER_TEST_F(SettingsPrivacyGuideTest,
-                       CookiesFragmentAlwaysBlock3pcsIncognitoDisabled) {
-  RunTest("settings/privacy_guide_cookies_fragment_test.js",
-          "runMochaSuite('CookiesFragmentAlwaysBlock3pcsIncognitoDisabled')");
 }
 
 IN_PROC_BROWSER_TEST_F(SettingsPrivacyGuideTest, CompletionFragment) {
@@ -1355,7 +1351,13 @@ IN_PROC_BROWSER_TEST_F(SettingsPrivacySandboxPageTest, RestrictedEnabled) {
           "runMochaSuite('RestrictedEnabled')");
 }
 
-IN_PROC_BROWSER_TEST_F(SettingsPrivacySandboxPageTest, TopicsSubpage) {
+// TODO(crbug.com/437872601): Flaky on Linux bots.
+#if BUILDFLAG(IS_LINUX)
+#define MAYBE_TopicsSubpage DISABLED_TopicsSubpage
+#else
+#define MAYBE_TopicsSubpage TopicsSubpage
+#endif
+IN_PROC_BROWSER_TEST_F(SettingsPrivacySandboxPageTest, MAYBE_TopicsSubpage) {
   RunTest("settings/privacy_sandbox_page_test.js",
           "runMochaSuite('TopicsSubpage')");
 }
@@ -1577,11 +1579,7 @@ IN_PROC_BROWSER_TEST_F(SettingsSpellCheckPageTest, OfficialBuild) {
 #endif  // BUILDFLAG(GOOGLE_CHROME_BRANDING)
 #endif  // !BUILDFLAG(IS_CHROMEOS)
 
-class SettingsSiteDetailsTest : public SettingsBrowserTest {
- private:
-  base::test::ScopedFeatureList scoped_feature_list_{
-      features::kAutomaticFullscreenContentSetting};
-};
+class SettingsSiteDetailsTest : public SettingsBrowserTest {};
 
 // Disabling on debug due to flaky timeout on Win7 Tests (dbg)(1) bot.
 // https://crbug.com/825304 - later for other platforms in crbug.com/1021219.
@@ -1631,18 +1629,9 @@ IN_PROC_BROWSER_TEST_F(SettingsSiteListTest, AddExceptionDialog) {
 }
 
 class SettingsSiteSettingsPageTest : public SettingsBrowserTest {
- protected:
-  SettingsSiteSettingsPageTest() {
-    scoped_feature_list_.InitWithFeatures(
-        {
-            content_settings::features::kSafetyCheckUnusedSitePermissions,
-            features::kAutomaticFullscreenContentSetting,
-        },
-        {});
-  }
-
  private:
-  base::test::ScopedFeatureList scoped_feature_list_;
+  base::test::ScopedFeatureList scoped_feature_list_{
+      content_settings::features::kSafetyCheckUnusedSitePermissions};
 };
 
 // TODO(crbug.com/40884439): Flaky.

@@ -389,6 +389,9 @@ const PolicyToPreferenceMapEntry kSimplePolicyMap[] = {
   { key::kLegacyCookieScopeEnabledForDomainList,
     prefs::kManagedLegacyCookieScopeForDomains,
     base::Value::Type::LIST },
+  { key::kGloballyScopeHTTPAuthCacheEnabled,
+    prefs::kGloballyScopeHTTPAuthCacheEnabled,
+    base::Value::Type::BOOLEAN},
   { key::kPolicyTestPageEnabled,
     policy_prefs::kPolicyTestPageEnabled,
     base::Value::Type::BOOLEAN},
@@ -644,9 +647,6 @@ const PolicyToPreferenceMapEntry kSimplePolicyMap[] = {
   { key::kForcedLanguages,
     language::prefs::kForcedLanguages,
     base::Value::Type::LIST },
-  { key::kGloballyScopeHTTPAuthCacheEnabled,
-    prefs::kGloballyScopeHTTPAuthCacheEnabled,
-    base::Value::Type::BOOLEAN },
   { key::kHideWebStoreIcon,
     policy::policy_prefs::kHideWebStoreIcon,
     base::Value::Type::BOOLEAN },
@@ -1150,6 +1150,9 @@ const PolicyToPreferenceMapEntry kSimplePolicyMap[] = {
     base::Value::Type::LIST },
   { key::kFloatingSsoSessionCookiesIncluded,
     prefs::kFloatingSsoSessionCookiesIncluded,
+    base::Value::Type::BOOLEAN },
+  { key::kAutoSignOutEnabled,
+    prefs::kAutoSignOutEnabled,
     base::Value::Type::BOOLEAN },
   { key::kDeviceAllowEnterpriseRemoteAccessConnections,
     prefs::kDeviceAllowEnterpriseRemoteAccessConnections,
@@ -3280,6 +3283,10 @@ std::unique_ptr<ConfigurationPolicyHandlerList> BuildHandlerList(
       extensions::pref_names::kExtensionUnpublishedAvailability,
       /*min=*/0, /*max=*/1, /*clamp=*/false));
   handlers->AddHandler(std::make_unique<ExtensionDeveloperModePolicyHandler>());
+  handlers->AddHandler(std::make_unique<SimplePolicyHandler>(
+      key::kExtensionInstallCloudPolicyChecksEnabled,
+      extensions::pref_names::kExtensionInstallCloudPolicyChecksEnabled,
+      base::Value::Type::BOOLEAN));
 
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 

@@ -35,6 +35,8 @@
 #include "content/browser/preloading/prefetch/prefetch_proxy_configurator.h"
 #include "content/browser/preloading/prefetch/prefetch_response_reader.h"
 #include "content/browser/preloading/prefetch/prefetch_scheduler.h"
+#include "content/browser/preloading/prefetch/prefetch_servable_state.h"
+#include "content/browser/preloading/prefetch/prefetch_serving_handle.h"
 #include "content/browser/preloading/prefetch/prefetch_status.h"
 #include "content/browser/preloading/prefetch/prefetch_streaming_url_loader.h"
 #include "content/browser/preloading/preloading_attempt_impl.h"
@@ -296,9 +298,9 @@ void RecordRedirectNetworkContextTransition(
       "PrefetchProxy.Redirect.NetworkContextStateTransition", transition);
 }
 
-void OnIsolatedCookieCopyComplete(PrefetchContainer::Reader reader) {
-  if (reader) {
-    reader.OnIsolatedCookieCopyComplete();
+void OnIsolatedCookieCopyComplete(PrefetchServingHandle serving_handle) {
+  if (serving_handle) {
+    serving_handle.OnIsolatedCookieCopyComplete();
   }
 }
 
@@ -435,11 +437,11 @@ void PrefetchService::AddPrefetchContainerWithoutStartingPrefetch(
 
     switch (
         prefetch_container_old.GetServableState(PrefetchCacheableDuration())) {
-      case PrefetchContainer::ServableState::kNotServable:
+      case PrefetchServableState::kNotServable:
         return Action::kReplaceOldWithNew;
-      case PrefetchContainer::ServableState::kShouldBlockUntilEligibilityGot:
-      case PrefetchContainer::ServableState::kShouldBlockUntilHeadReceived:
-      case PrefetchContainer::ServableState::kServable:
+      case PrefetchServableState::kShouldBlockUntilEligibilityGot:
+      case PrefetchServableState::kShouldBlockUntilHeadReceived:
+      case PrefetchServableState::kServable:
         // nop
         break;
     }
@@ -619,10 +621,10 @@ bool PrefetchService::IsPrefetchStale(
       break;
   }
 
-  // `PrefetchContainer::ServableState` check.
-  PrefetchContainer::ServableState servable_state =
+  // `PrefetchServableState` check.
+  PrefetchServableState servable_state =
       prefetch_container->GetServableState(PrefetchCacheableDuration());
-  if (servable_state == PrefetchContainer::ServableState::kNotServable) {
+  if (servable_state == PrefetchServableState::kNotServable) {
     return true;
   }
   return false;
@@ -1881,46 +1883,49 @@ void PrefetchService::OnPrefetchCompletedOrFailed(
 }
 
 void PrefetchService::CopyIsolatedCookies(
-    const PrefetchContainer::Reader& reader) {
-  DCHECK(reader);
+    const PrefetchServingHandle& serving_handle) {
+  DCHECK(serving_handle);
 
-  if (!reader.GetCurrentNetworkContextToServe()) {
+  if (!serving_handle.GetCurrentNetworkContextToServe()) {
     // Not set in unit tests.
     return;
   }
 
   // We only need to copy cookies if the prefetch used an isolated network
   // context.
-  if (!reader.IsIsolatedNetworkContextRequiredToServe()) {
+  if (!serving_handle.IsIsolatedNetworkContextRequiredToServe()) {
     return;
   }
 
-  reader.OnIsolatedCookieCopyStart();
+  serving_handle.OnIsolatedCookieCopyStart();
   net::CookieOptions options = net::CookieOptions::MakeAllInclusive();
-  reader.GetCurrentNetworkContextToServe()->GetCookieManager()->GetCookieList(
-      reader.GetCurrentURLToServe(), options,
-      net::CookiePartitionKeyCollection::Todo(),
-      base::BindOnce(&PrefetchService::OnGotIsolatedCookiesForCopy,
-                     weak_method_factory_.GetWeakPtr(), reader.Clone()));
+  serving_handle.GetCurrentNetworkContextToServe()
+      ->GetCookieManager()
+      ->GetCookieList(
+          serving_handle.GetCurrentURLToServe(), options,
+          net::CookiePartitionKeyCollection::Todo(),
+          base::BindOnce(&PrefetchService::OnGotIsolatedCookiesForCopy,
+                         weak_method_factory_.GetWeakPtr(),
+                         serving_handle.Clone()));
 }
 
 void PrefetchService::OnGotIsolatedCookiesForCopy(
-    PrefetchContainer::Reader reader,
+    PrefetchServingHandle serving_handle,
     const net::CookieAccessResultList& cookie_list,
     const net::CookieAccessResultList& excluded_cookies) {
-  reader.OnIsolatedCookiesReadCompleteAndWriteStart();
+  serving_handle.OnIsolatedCookiesReadCompleteAndWriteStart();
   RecordPrefetchProxyPrefetchMainframeCookiesToCopy(cookie_list.size());
 
   if (cookie_list.empty()) {
-    reader.OnIsolatedCookieCopyComplete();
+    serving_handle.OnIsolatedCookieCopyComplete();
     return;
   }
 
-  const auto current_url = reader.GetCurrentURLToServe();
+  const auto current_url = serving_handle.GetCurrentURLToServe();
 
   base::RepeatingClosure barrier = base::BarrierClosure(
       cookie_list.size(),
-      base::BindOnce(&OnIsolatedCookieCopyComplete, std::move(reader)));
+      base::BindOnce(&OnIsolatedCookieCopyComplete, std::move(serving_handle)));
 
   net::CookieOptions options = net::CookieOptions::MakeAllInclusive();
   for (const net::CookieWithAccessResult& cookie : cookie_list) {
@@ -1956,9 +1961,8 @@ void PrefetchService::DumpPrefetchesForDebug() const {
 #endif  // DCHECK_IS_ON()
 }
 
-std::pair<
-    std::vector<PrefetchContainer*>,
-    base::flat_map<PrefetchContainer::Key, PrefetchContainer::ServableState>>
+std::pair<std::vector<PrefetchContainer*>,
+          base::flat_map<PrefetchContainer::Key, PrefetchServableState>>
 PrefetchService::CollectMatchCandidates(
     const PrefetchContainer::Key& key,
     bool is_nav_prerender,
@@ -2054,11 +2058,11 @@ void PrefetchService::RecordExistingPrefetchWithMatchingURL(
 
       switch (
           prefetch_iter.second->GetServableState(PrefetchCacheableDuration())) {
-        case PrefetchContainer::ServableState::kNotServable:
-        case PrefetchContainer::ServableState::kShouldBlockUntilHeadReceived:
-        case PrefetchContainer::ServableState::kShouldBlockUntilEligibilityGot:
+        case PrefetchServableState::kNotServable:
+        case PrefetchServableState::kShouldBlockUntilHeadReceived:
+        case PrefetchServableState::kShouldBlockUntilEligibilityGot:
           break;
-        case PrefetchContainer::ServableState::kServable:
+        case PrefetchServableState::kServable:
           num_matching_servable_prefetch++;
           break;
       }

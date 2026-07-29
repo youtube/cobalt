@@ -13,12 +13,12 @@
 #include "base/test/scoped_feature_list.h"
 #include "base/timer/timer.h"
 #include "chrome/browser/actor/ui/actor_ui_state_manager_interface.h"
-#include "chrome/browser/glic/glic_enabling.h"
 #include "chrome/browser/glic/glic_pref_names.h"
 #include "chrome/browser/glic/host/glic.mojom.h"
 #include "chrome/browser/glic/host/glic_cookie_synchronizer.h"
 #include "chrome/browser/glic/host/glic_page_handler.h"
 #include "chrome/browser/glic/host/host.h"
+#include "chrome/browser/glic/public/glic_enabling.h"
 #include "chrome/browser/glic/public/glic_keyed_service.h"
 #include "chrome/browser/glic/public/glic_keyed_service_factory.h"
 #include "chrome/browser/glic/test_support/glic_test_environment.h"
@@ -42,6 +42,7 @@
 #include "chrome/test/user_education/interactive_feature_promo_test.h"
 #include "components/feature_engagement/public/feature_constants.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "ui/base/interaction/element_identifier.h"
 #include "ui/base/interaction/interactive_test.h"
 #include "ui/events/test/event_generator.h"
 #include "url/gurl.h"
@@ -260,6 +261,20 @@ class InteractiveGlicTestT : public T {
     }
   }
 
+  // Toggles Glic through a specific InvocationSource.
+  auto ToggleGlicWindowFromSource(GlicWindowMode window_mode,
+                                  ui::ElementIdentifier element_id,
+                                  mojom::InvocationSource invocation_source) {
+    switch (window_mode) {
+      case GlicWindowMode::kAttached:
+        return Api::PressButton(element_id);
+      case GlicWindowMode::kDetached:
+        return Api::Do([this, invocation_source] {
+          window_controller().Toggle(browser(), false, invocation_source);
+        });
+    }
+  }
+
   // Ensures a mock glic button is present and then clicks it. Works even if the
   // element is off-screen.
   auto ClickMockGlicElement(
@@ -430,9 +445,9 @@ class InteractiveGlicTestT : public T {
   // Send a task state update to show the actor task icon in the tab strip.
   void StartTaskAndShowActorTaskIcon() {
     auto* task_icon_controller =
-        browser()->browser_window_features()->glic_actor_task_icon_controller();
+        tabs::GlicActorTaskIconController::From(browser());
     task_icon_controller->OnStateUpdate(
-        actor::ui::ActorUiStateManagerInterface::UiState::kActive,
+        actor::ui::ActorUiStateManagerInterface::TaskIconUiState::kShown,
         glic::GlicWindowController::State::kClosed,
         mojom::CurrentView::kConversation);
   }

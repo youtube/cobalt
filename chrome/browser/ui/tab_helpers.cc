@@ -119,8 +119,6 @@
 #include "components/download/content/factory/navigation_monitor_factory.h"
 #include "components/download/content/public/download_navigation_observer.h"
 #include "components/enterprise/buildflags/buildflags.h"
-#include "components/fingerprinting_protection_filter/interventions/browser/interventions_web_contents_helper.h"
-#include "components/fingerprinting_protection_filter/interventions/common/interventions_features.h"
 #include "components/history/content/browser/web_contents_top_sites_observer.h"
 #include "components/history/core/browser/top_sites.h"
 #include "components/infobars/content/content_infobar_manager.h"
@@ -160,7 +158,7 @@
 #include "ui/accessibility/accessibility_features.h"
 
 #if BUILDFLAG(IS_ANDROID)
-#include "base/android/build_info.h"
+#include "base/android/android_info.h"
 #include "base/functional/bind.h"
 #include "base/memory/ptr_util.h"
 #include "chrome/browser/android/oom_intervention/oom_intervention_tab_helper.h"
@@ -349,8 +347,8 @@ void TabHelpers::AttachTabHelpers(WebContents* web_contents) {
   // The sensitive content client has to be instantiated after the autofill
   // client, because the sensitive content client starts a flow which uses
   // `ScopedAutofillManagersObservation`.
-  if (base::android::BuildInfo::GetInstance()->sdk_int() >=
-          base::android::SdkVersion::SDK_VERSION_V &&
+  if (base::android::android_info::sdk_int() >=
+          base::android::android_info::SdkVersion::SDK_VERSION_V &&
       base::FeatureList::IsEnabled(
           sensitive_content::features::kSensitiveContent)) {
     sensitive_content::AndroidSensitiveContentClient::CreateForWebContents(
@@ -365,13 +363,6 @@ void TabHelpers::AttachTabHelpers(WebContents* web_contents) {
         HostContentSettingsMapFactory::GetForProfile(profile),
         TrackingProtectionSettingsFactory::GetForProfile(profile),
         profile->IsIncognitoProfile());
-  }
-
-  if (fingerprinting_protection_interventions::features::
-          IsCanvasInterventionsEnabledForIncognitoState(
-              profile->IsIncognitoProfile())) {
-    fingerprinting_protection_interventions::InterventionsWebContentsHelper::
-        CreateForWebContents(web_contents, profile->IsIncognitoProfile());
   }
 
   // Only create the IpProtectionStatus if the User Bypass feature is enabled.
@@ -576,21 +567,11 @@ void TabHelpers::AttachTabHelpers(WebContents* web_contents) {
   TabCaptureContentsBorderHelper::CreateForWebContents(web_contents);
 #endif  // BUILDFLAG(IS_ANDROID)
   TrustedVaultEncryptionKeysTabHelper::CreateForWebContents(web_contents);
-#if BUILDFLAG(IS_ANDROID)
-  if (base::FeatureList::IsEnabled(features::kSafetyHub)) {
-    auto* service = RevokedPermissionsServiceFactory::GetForProfile(profile);
-    if (service) {
-      RevokedPermissionsService::TabHelper::CreateForWebContents(web_contents,
-                                                                 service);
-    }
-  }
-#else   // BUILDFLAG(IS_ANDROID)
   auto* service = RevokedPermissionsServiceFactory::GetForProfile(profile);
   if (service) {
     RevokedPermissionsService::TabHelper::CreateForWebContents(web_contents,
                                                                service);
   }
-#endif  // BUILDFLAG(IS_ANDROID)
   ukm::InitializeSourceUrlRecorderForWebContents(web_contents);
   v8_compile_hints::V8CompileHintsTabHelper::MaybeCreateForWebContents(
       web_contents);

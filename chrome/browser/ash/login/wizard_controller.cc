@@ -60,7 +60,6 @@
 #include "chrome/browser/ash/login/screens/app_downloading_screen.h"
 #include "chrome/browser/ash/login/screens/app_launch_splash_screen.h"
 #include "chrome/browser/ash/login/screens/arc_vm_data_migration_screen.h"
-#include "chrome/browser/ash/login/screens/assistant_optin_flow_screen.h"
 #include "chrome/browser/ash/login/screens/base_screen.h"
 #include "chrome/browser/ash/login/screens/categories_selection_screen.h"
 #include "chrome/browser/ash/login/screens/choobe_screen.h"
@@ -78,6 +77,7 @@
 #include "chrome/browser/ash/login/screens/error_screen.h"
 #include "chrome/browser/ash/login/screens/family_link_notice_screen.h"
 #include "chrome/browser/ash/login/screens/fingerprint_setup_screen.h"
+#include "chrome/browser/ash/login/screens/fjord_station_setup_screen.h"
 #include "chrome/browser/ash/login/screens/fjord_touch_controller_screen.h"
 #include "chrome/browser/ash/login/screens/gaia_info_screen.h"
 #include "chrome/browser/ash/login/screens/gaia_screen.h"
@@ -162,7 +162,6 @@
 #include "chrome/browser/ui/webui/ash/login/app_downloading_screen_handler.h"
 #include "chrome/browser/ui/webui/ash/login/app_launch_splash_screen_handler.h"
 #include "chrome/browser/ui/webui/ash/login/arc_vm_data_migration_screen_handler.h"
-#include "chrome/browser/ui/webui/ash/login/assistant_optin_flow_screen_handler.h"
 #include "chrome/browser/ui/webui/ash/login/auto_enrollment_check_screen_handler.h"
 #include "chrome/browser/ui/webui/ash/login/categories_selection_screen_handler.h"
 #include "chrome/browser/ui/webui/ash/login/choobe_screen_handler.h"
@@ -184,6 +183,7 @@
 #include "chrome/browser/ui/webui/ash/login/family_link_notice_screen_handler.h"
 #include "chrome/browser/ui/webui/ash/login/fingerprint_setup_screen_handler.h"
 #include "chrome/browser/ui/webui/ash/login/fjord_oobe_util.h"
+#include "chrome/browser/ui/webui/ash/login/fjord_station_setup_screen_handler.h"
 #include "chrome/browser/ui/webui/ash/login/fjord_touch_controller_screen_handler.h"
 #include "chrome/browser/ui/webui/ash/login/gaia_info_screen_handler.h"
 #include "chrome/browser/ui/webui/ash/login/gaia_screen_handler.h"
@@ -777,10 +777,7 @@ WizardController::CreateScreens() {
       oobe_ui->GetErrorScreen(),
       base::BindRepeating(&WizardController::OnUpdateRequiredScreenExit,
                           weak_factory_.GetWeakPtr())));
-  append(std::make_unique<AssistantOptInFlowScreen>(
-      oobe_ui->GetView<AssistantOptInFlowScreenHandler>()->AsWeakPtr(),
-      base::BindRepeating(&WizardController::OnAssistantOptInFlowScreenExit,
-                          weak_factory_.GetWeakPtr())));
+
   append(std::make_unique<MultiDeviceSetupScreen>(
       oobe_ui->GetView<MultiDeviceSetupScreenHandler>()->AsWeakPtr(),
       base::BindRepeating(&WizardController::OnMultiDeviceSetupScreenExit,
@@ -1033,6 +1030,8 @@ WizardController::CreateScreens() {
   if (fjord_util::ShouldShowFjordOobe()) {
     append(std::make_unique<FjordTouchControllerScreen>(
         oobe_ui->GetView<FjordTouchControllerScreenHandler>()->AsWeakPtr()));
+    append(std::make_unique<FjordStationSetupScreen>(
+        oobe_ui->GetView<FjordStationSetupScreenHandler>()->AsWeakPtr()));
   }
 
   return result;
@@ -1285,10 +1284,6 @@ void WizardController::ShowUpdateRequiredScreen() {
   SetCurrentScreen(GetScreen(UpdateRequiredView::kScreenId));
 }
 
-void WizardController::ShowAssistantOptInFlowScreen() {
-  SetCurrentScreen(GetScreen(AssistantOptInFlowScreenView::kScreenId));
-}
-
 void WizardController::ShowMultiDeviceSetupScreen() {
   SetCurrentScreen(GetScreen(MultiDeviceSetupScreenView::kScreenId));
 }
@@ -1395,6 +1390,10 @@ void WizardController::ShowAppLaunchSplashScreen() {
 
 void WizardController::ShowFjordTouchControllerScreen() {
   SetCurrentScreen(GetScreen(FjordTouchControllerScreenView::kScreenId));
+}
+
+void WizardController::ShowFjordStationSetupScreen() {
+  SetCurrentScreen(GetScreen(FjordStationSetupScreenView::kScreenId));
 }
 
 void WizardController::OnUserCreationScreenExit(
@@ -2781,13 +2780,6 @@ void WizardController::OnGeminiIntroScreenExit(
     return;
   }
 
-  ShowAssistantOptInFlowScreen();
-}
-
-void WizardController::OnAssistantOptInFlowScreenExit(
-    AssistantOptInFlowScreen::Result result) {
-  OnScreenExit(AssistantOptInFlowScreenView::kScreenId,
-               AssistantOptInFlowScreen::GetResultString(result));
   AdvanceToScreen(SmartPrivacyProtectionView::kScreenId);
 }
 
@@ -3249,8 +3241,6 @@ void WizardController::AdvanceToScreen(OobeScreenId screen_id) {
     ShowEncryptionMigrationScreen();
   } else if (screen_id == UpdateRequiredView::kScreenId) {
     ShowUpdateRequiredScreen();
-  } else if (screen_id == AssistantOptInFlowScreenView::kScreenId) {
-    ShowAssistantOptInFlowScreen();
   } else if (screen_id == MultiDeviceSetupScreenView::kScreenId) {
     ShowMultiDeviceSetupScreen();
   } else if (screen_id == GestureNavigationScreenView::kScreenId) {

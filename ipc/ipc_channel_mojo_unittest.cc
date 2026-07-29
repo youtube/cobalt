@@ -57,7 +57,6 @@
 #include "ipc/ipc_sync_message.h"
 #include "ipc/ipc_test.test-mojom.h"
 #include "ipc/ipc_test_base.h"
-#include "ipc/ipc_test_channel_listener.h"
 #include "ipc/urgent_message_observer.h"
 #include "mojo/public/cpp/bindings/associated_receiver.h"
 #include "mojo/public/cpp/bindings/associated_remote.h"
@@ -86,15 +85,12 @@ class TestListenerBase : public IPC::Listener {
   ~TestListenerBase() override = default;
   void OnChannelError() override { RunQuitClosure(); }
 
-  void set_sender(IPC::Sender* sender) { sender_ = sender; }
-  IPC::Sender* sender() const { return sender_; }
   void RunQuitClosure() {
     if (quit_closure_)
       std::move(quit_closure_).Run();
   }
 
  private:
-  raw_ptr<IPC::Sender> sender_ = nullptr;
   base::OnceClosure quit_closure_;
 };
 

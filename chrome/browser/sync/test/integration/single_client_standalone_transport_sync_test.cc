@@ -446,8 +446,17 @@ IN_PROC_BROWSER_TEST_P(
   syncer::DataTypeSet expected_types = Difference(
       AllowedTypesInStandaloneTransportMode(), kTypesGatedBehindHistoryOptIn);
 
-  // CONTACT_INFO should be disabled by default for explicit-passphrase users.
-  expected_types.Remove(syncer::CONTACT_INFO);
+  if (GetParam()) {
+#if !(BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX))
+    // After SyncToSignin, CONTACT_INFO are enabled for Win/Mac/Linux, and
+    // disabled for other platforms.
+    // See `SyncServiceImpl::PassphraseTypeChanged`.
+    expected_types.Remove(syncer::CONTACT_INFO);
+#endif
+  } else {
+    // CONTACT_INFO should be disabled for sync opt-in.
+    expected_types.Remove(syncer::CONTACT_INFO);
+  }
 
   // Bookmarks and reading list require a separate opt in, unless
   // `syncer::kReplaceSyncPromosWithSignInPromos` is enabled.
@@ -477,8 +486,10 @@ IN_PROC_BROWSER_TEST_P(
     syncer::DataTypeSet expected_types_after_history_opt_in =
         AllowedTypesInStandaloneTransportMode();
 
+#if !(BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX))
     // CONTACT_INFO should remain disabled since it's gated by kAutofill.
     expected_types_after_history_opt_in.Remove(syncer::CONTACT_INFO);
+#endif
 
     // With a custom passphrase, the actual HISTORY types are not supported.
     expected_types_after_history_opt_in.Remove(syncer::HISTORY);
@@ -519,7 +530,7 @@ IN_PROC_BROWSER_TEST_P(SingleClientStandaloneTransportSyncTest,
   EXPECT_EQ(GetSyncService(0)->GetActiveDataTypes().Has(syncer::CONTACT_INFO),
             GetParam());
 }
-#endif  // BUILDFLAG(IS_ANDROID)
+#endif  // !BUILDFLAG(IS_ANDROID)
 
 INSTANTIATE_TEST_SUITE_P(,
                          SingleClientStandaloneTransportSyncTest,
@@ -622,6 +633,11 @@ IN_PROC_BROWSER_TEST_F(ReplaceSyncWithSigninMigrationSyncTest,
       syncer::UserSelectableType::kAutofill));
   EXPECT_FALSE(GetSyncService(0)->GetUserSettings()->GetSelectedTypes().Has(
       syncer::UserSelectableType::kPayments));
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+  // Preferences is supported in transport mode and is enabled by the migration.
+  EXPECT_TRUE(GetSyncService(0)->GetUserSettings()->GetSelectedTypes().Has(
+      syncer::UserSelectableType::kPreferences));
+#else
   // Preferences is supported in transport mode now but should've been disabled
   // by the migration.
   EXPECT_FALSE(GetSyncService(0)->GetUserSettings()->GetSelectedTypes().Has(
@@ -631,6 +647,7 @@ IN_PROC_BROWSER_TEST_F(ReplaceSyncWithSigninMigrationSyncTest,
       syncer::UserSelectableType::kPreferences, true);
   EXPECT_TRUE(GetSyncService(0)->GetUserSettings()->GetSelectedTypes().Has(
       syncer::UserSelectableType::kPreferences));
+#endif
 }
 
 IN_PROC_BROWSER_TEST_F(ReplaceSyncWithSigninMigrationSyncTest,
@@ -671,10 +688,17 @@ IN_PROC_BROWSER_TEST_F(ReplaceSyncWithSigninMigrationSyncTest,
   ASSERT_EQ(GetSyncService(0)->GetUserSettings()->GetPassphraseType(),
             syncer::PassphraseType::kCustomPassphrase);
 
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+  // Preferences is supported now and is enabled by the migration (same as
+  // for non-custom-passphrase users).
+  ASSERT_TRUE(GetSyncService(0)->GetUserSettings()->GetSelectedTypes().Has(
+      syncer::UserSelectableType::kPreferences));
+#else
   // Preferences is supported now, but got disabled by the migration (same as
   // for non-custom-passphrase users).
   ASSERT_FALSE(GetSyncService(0)->GetUserSettings()->GetSelectedTypes().Has(
       syncer::UserSelectableType::kPreferences));
+#endif
   // Autofill should've been disabled specifically for custom passphrase users.
   EXPECT_FALSE(GetSyncService(0)->GetUserSettings()->GetSelectedTypes().Has(
       syncer::UserSelectableType::kAutofill));

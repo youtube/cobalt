@@ -2137,6 +2137,7 @@ IPv4 地址的前缀为 0010；IPv6 地址的前缀为 0020。对于双栈网络
 <translation id="2522304491589804974">配置扩展程序安装许可名单</translation>
 <translation id="2523511232831599126">为登录屏幕启用无障碍快捷方式</translation>
 <translation id="252742292004421898">允许在这些网站上使用 Direct Sockets API</translation>
+<translation id="2528762900096510743">启用自动退出账号服务</translation>
 <translation id="2529880111512635313">配置强制安装的应用和扩展程序的列表</translation>
 <translation id="253135976343875019">使用交流电源供电时的闲置警告延迟时间</translation>
 <translation id="2532480434098051405">允许使用内嵌图片功能并改进 AI 模型。</translation>
@@ -2267,6 +2268,7 @@ IPv4 地址的前缀为 0010；IPv6 地址的前缀为 0020。对于双栈网络
       如果此政策设为“UserOnly”（值为 1），用户便可以管理用户证书，但不能管理设备级证书。</translation>
 <translation id="2593762551209145088">“安全浏览”功能会一直处于关闭状态。</translation>
 <translation id="2594773358911436070">WebRTC 设置</translation>
+<translation id="2600005880585324062">让 <ph name="PRODUCT_NAME" /> 决定将哪些源与同一网站中的其他源隔离。</translation>
 <translation id="26023406105317310">配置 Kerberos 账号</translation>
 <translation id="2603237557651009842">禁止在这些网站上使用 WebPrinting API</translation>
 <translation id="2603382859270873566">启用对 PPB_VideoDecoder(Dev) API 的支持。</translation>
@@ -2462,6 +2464,7 @@ IPv4 地址的前缀为 0010；IPv6 地址的前缀为 0020。对于双栈网络
 <translation id="2753637905605932878">限制 WebRTC 使用的本地 UDP 端口的范围</translation>
 <translation id="2755847332939882873">允许收集系统级性能跟踪记录</translation>
 <translation id="2757054304033424106">允许安装的扩展程序/应用的类型</translation>
+<translation id="275769337615229465">系统会将大多数源与同一网站中的其他源隔离。</translation>
 <translation id="2759224876420453487">控制多用户配置会话中的用户行为</translation>
 <translation id="2760947619380644513">允许远程访问用户在本地客户端浏览器中打开主机端网址</translation>
 <translation id="2761483219396643566">使用电池供电时的闲置警告延迟时间</translation>
@@ -2667,6 +2670,19 @@ IPv4 地址的前缀为 0010；IPv6 地址的前缀为 0020。对于双栈网络
 
       此政策需要额外的设置才能生效，请访问 https://support.google.com/chrome/a?p=chrome_enterprise_connector_policies_setting 了解详情。</translation>
 <translation id="2943242293289396843">旧版封装应用</translation>
+<translation id="2946332292553068214">根据主板情况和关键漏洞补丁的不同，<ph name="PRODUCT_OS_NAME" /> 里程碑可能包含内核密钥版本递增，而这类递增与早期里程碑不兼容。
+
+在消费级设备上，一旦安装了包含密钥递增的版本，这些递增就会立即生效。在验证模式下，这会阻止设备回滚到未包含该递增的旧版本。
+
+在已注册的设备上，此政策会控制密钥递增的生效时机：在稳定渠道中发布首个包含该递增的里程碑后，最多可将递增的生效时间延后 4 个里程碑（约 4 个月）。这样，企业就可以在此期间暂缓启用回滚保护。
+
+对于已注册的设备，默认值为 4。
+
+如果将该值设为 0，系统会强制设备采用与消费级设备相同的行为。
+
+降低此政策的值可能会产生永久性影响：一旦设备上应用了该递增，就无法回滚到内核密钥版本更低的里程碑。
+
+即使之后增大此政策的值，也无法消除该影响。</translation>
 <translation id="2947111924404450461">通过设置此政策，您可以配置企业打印机。其格式与 <ph name="NATIVE_PRINTERS_POLICY_NAME" /> 字典一样，不过每台打印机都还对应一个额外的必填字段<ph name="ID_FIELD" />或<ph name="GUID_FIELD" />，以用于将相应打印机加入许可名单/拒绝名单。该文件不得超过 5MB，且必须采用 JSON 格式。一个包含大约 21000 台打印机的文件在编码后的大小是 5MB。相应的加密哈希值可帮助您验证下载内容的完整性。系统会下载、缓存该文件。当相应网址或哈希值发生变化时，系统会重新下载该文件。<ph name="PRODUCT_OS_NAME" />会下载该文件以获取打印机配置，并会根据 <ph name="BULK_PRINTERS_ACCESS_MODE_POLICY_NAME" />、<ph name="BULK_PRINTERS_WHITELIST" /> 和 <ph name="BULK_PRINTERS_BLACKLIST" /> 向用户提供可用的打印机。
 
       此政策对用户能否在个别设备上配置打印机没有影响。它旨在对个别用户的打印机配置进行补充。
@@ -2807,7 +2823,6 @@ IPv4 地址的前缀为 0010；IPv6 地址的前缀为 0020。对于双栈网络
       请注意：系统始终允许对常规个人资料进行静默身份验证。
 
       在 <ph name="PRODUCT_NAME" /> 版本 81 及更高版本中，如果未设置此政策，系统将会仅在常规会话中启用静默身份验证。</translation>
-<translation id="3021562480854470924">指定允许回滚到的里程碑的数量</translation>
 <translation id="3023572080620427845">与包含要在替代浏览器中加载的网址的 XML 文件对应的网址。</translation>
 <translation id="302528139996622624">图片设置</translation>
 <translation id="3026740867910702435">在登录屏幕上启用大号光标无障碍功能。
@@ -3190,6 +3205,7 @@ Microsoft Outlook 卡片需要由管理员进行额外配置。如需详细了�
 <translation id="3263892501786842604">允许在“新标签页”页面上的搜索框中显示 <ph name="GOOGLE_LENS_PRODUCT_NAME" />按钮（如果支持的话）。</translation>
 <translation id="3264793472749429012">默认搜索服务提供商的编码</translation>
 <translation id="3265952988644972779">停用产品内调查问卷</translation>
+<translation id="3268090369868832496">只有在窗口或 Cookie 同步的情况下，才会在用户登录新设备时从上一个会话中退出账号</translation>
 <translation id="3269198556438453775">禁止企业管理员与这台计算机建立远程支持连接</translation>
 <translation id="3271741247922321334">让您能够设置一系列网址格式，从而指定不允许哪些网站显示可屏蔽的（即主动型）混合内容（即 HTTPS 网站上的 HTTP 内容），以及要为哪些网站升级可选的可屏蔽（即被动型）混合内容。
 
@@ -3568,15 +3584,6 @@ Microsoft Outlook 卡片需要由管理员进行额外配置。如需详细了�
       如果此政策已启用或未设置，系统将会使用内置 DNS 客户端。
 
       如果此政策已停用，只有当 DNS-over-HTTPS 正在使用中时，系统才会使用内置 DNS 客户端。</translation>
-<translation id="3558024517032824255">指定 <ph name="PRODUCT_OS_NAME" /> 随时可从稳定版回滚到的里程碑的数量下限。
-
-对于由消费者注册的设备，默认值为 0；对于由企业注册的设备，默认值为 4（大约半年）。
-
-设置此政策可使回滚防护机制在至少这么多个里程碑内不起作用。
-
-降低此政策的值会产生永久性影响：即使之后再提高此政策的值，设备可能也无法回滚到更早的版本。
-
-实际的回滚可能性或许还取决于设备型号和关键的漏洞补丁。</translation>
 <translation id="3565284547329101236">在 Flex 上预加载 <ph name="ARC_VM" /> 映像</translation>
 <translation id="35668690622495904">
           对 getDisplayMedia 的调用不会因源自未被列入许可名单的上下文而遭到拒绝。（但是，这类调用仍可能会由于别的原因被拒。）</translation>
@@ -4421,6 +4428,13 @@ ServiceWorkerAutoPreload 功能会在 ServiceWorker 引导过程开始的同时�
           如果您设置了此政策，用户将无法更改或覆盖它。
 
           如果此政策未设置，“插入符号突出显示”在登录屏幕上最初会处于停用状态，但用户可以随时启用它。</translation>
+<translation id="4182333458177354245">配置 <ph name="PRODUCT_NAME" /> 如何下载基础生成式 AI 模型并在本地用于推理。
+
+如果此政策设为“允许”（即值为 0）或未设置，系统会自动下载模型，并将其用于推理。
+
+如果此政策设为“停用”（即值为 1），系统将不会下载模型。
+
+也可以通过 <ph name="COMPONENT_UPDATES_ENABLED_POLICY_NAME" /> 禁止下载模型。</translation>
 <translation id="4182348537826882258">通过设置 <ph name="URL_BLOCKLIST_POLICY_NAME" /> 政策，您可禁止加载已列入屏蔽名单的网址所对应的网页。管理员可以指定要屏蔽的网址格式的列表。如果此政策未设置，浏览器将不会屏蔽任何网址。在 <ph name="URL_ALLOWLIST_POLICY_NAME" /> 中，最多可定义 1,000 个例外情况。了解如何设置网址格式 ( https://support.google.com/chrome/a?p=url_blocklist_filter_format )。
 
 注意：此政策不适用于能动态加载数据的页内 JavaScript 网址。如果您屏蔽了 example.com/abc，那么 example.com 仍可以使用 XMLHTTPRequest 加载相应网页。另外，此政策不会阻止网页使用 JavaScript History API 将多功能框中显示的网址更新为已屏蔽的网址。
@@ -4928,6 +4942,7 @@ ServiceWorkerAutoPreload 功能会在 ServiceWorker 引导过程开始的同时�
       如果未设置此政策，则用户可以停用系统中安装的任何插件。</translation>
 <translation id="4549695018986780856">启用 Manifest V2</translation>
 <translation id="4549729301485728119">默认值由其他因素决定</translation>
+<translation id="4554429681167460828">除非源明确要求进行隔离，否则不会将任何源与同一网站中的其他源隔离。</translation>
 <translation id="4554651132977135445">用户政策环回处理模式</translation>
 <translation id="4554991346503872538">一律不提供翻译</translation>
 <translation id="4555850956567117258">为该用户启用远程认证</translation>
@@ -6776,6 +6791,15 @@ Microsoft SharePoint 和 OneDrive 卡片需要由管理员进行额外配置。�
 <translation id="5728154254076636808">允许创建 <ph name="PRODUCT_NAME" /> 个人资料数据的漫游副本</translation>
 <translation id="5729308727912841256">Kerberos 密码。占位符 <ph name="PASSWORD_PLACEHOLDER" /> 会被登录密码取代。</translation>
 <translation id="5730610899971390601">拒绝“Just Works”蓝牙配对请求</translation>
+<translation id="5731898940174379509">通过设置此政策，您可以预先配置在 <ph name="PRODUCT_NAME" /> 的“新标签页”页面上显示多达 10 个自定义快捷方式。
+
+如果设置了此政策，默认情况下，用户会看到上述自定义快捷方式，并且在“自定义 Chrome”面板中可在“我的快捷方式”“最常访问的网站”和“我所属组织的快捷方式”之间切换。如果此政策为空或未设置，那么在“自定义 Chrome”面板中，用户只能在“我的快捷方式”和“最常访问的网站”之间切换。
+
+快捷方式网址不得重复。
+
+如果 <ph name="NTP_SHORTCUTS_ALLOW_USER_EDIT_NAME" /> 设为 true，用户可以更改快捷方式的名称。如果此政策设为 false 或未设置，用户无法修改快捷方式的名称。
+
+如果 <ph name="NTP_SHORTCUTS_ALLOW_USER_DELETE_NAME" /> 设为 true，用户可以移除快捷方式。如果此政策设为 false 或未设置，用户无法移除快捷方式。</translation>
 <translation id="5732972008943405952">首次运行时，从默认浏览器导入自动填充表单数据</translation>
 <translation id="5733040281451845496">如果此政策已启用，仅当在会话内察觉到首项用户活动后，系统才会开始应用电源管理延迟时间和会话时长限制。
 
@@ -7405,17 +7429,6 @@ Microsoft SharePoint 和 OneDrive 卡片需要由管理员进行额外配置。�
 <translation id="6203715554101884845">通过设置此政策，您可以罗列一些网址，从而指定自动授权哪些网站在登录界面上访问具有给定供应商 ID 和产品 ID 的 HID 设备。列表中的每一项都必须同时包含“<ph name="DEVICES_FIELD_NAME" />”和“<ph name="URLS_FIELD_NAME" />”字段才有效，否则该项便无效。“<ph name="DEVICES_FIELD_NAME" />”字段中的每一项都必须包含“<ph name="VENDOR_ID_FIELD_NAME" />”字段且可以包含“<ph name="PRODUCT_ID_FIELD_NAME" />”字段。如果您省略“<ph name="PRODUCT_ID_FIELD_NAME" />”字段，系统将会创建一项与所有具有给定供应商 ID 的设备都匹配的政策。包含“<ph name="PRODUCT_ID_FIELD_NAME" />”字段但不含“<ph name="VENDOR_ID_FIELD_NAME" />”字段的项无效，会被忽略。
 
 如果未设置此政策，系统会对所有网站使用全局默认值（不自动授予访问权限）。</translation>
-<translation id="6205472215607025971">标签页整理工具是一款基于 AI 的工具，可根据用户打开的标签页自动创建标签页分组。系统会根据打开的标签页（而非网页内容）提供建议。
-
-0 表示允许使用此功能，同时允许 Google 使用相关数据改进其 AI 模型。相关数据可能包括提示、输入、输出、来源资料和书面反馈，具体取决于相应功能。工作人员也可能会审核这些数据，以改进 AI 模型。除非下文另有说明，否则默认值是 0。
-
-1 表示允许使用此功能，但不允许 Google 使用用户内容（包括提示、输入、输出、来源资料和书面反馈）改进模型。对于受 <ph name="GOOGLE_ADMIN_CONSOLE_PRODUCT_NAME" />管理的企业用户和受 <ph name="GOOGLE_WORKSPACE_PRODUCT_NAME" /> 管理的教育版账号，默认值是 1。
-
-2 表示不允许使用此功能。
-
-如果此政策未设置，其行为将由 <ph name="GEN_AI_DEFAULT_SETTINGS_POLICY_NAME" /> 政策决定。
-
-如需详细了解生成式 AI 功能的数据处理机制，请访问 https://support.google.com/chrome/a?p=generative_ai_settings。</translation>
 <translation id="6207607210601267301">针对远程访问主机停用无 PIN 码身份验证</translation>
 <translation id="6208896993204286313">报告 <ph name="PRODUCT_NAME" /> 政策信息</translation>
 <translation id="6210259502936598222">报告操作系统和 <ph name="PRODUCT_NAME" /> 版本信息</translation>
@@ -8136,7 +8149,9 @@ Origin-Agent-Cluster HTTP 标头可控制是将某个文档隔离在以源为键
 <translation id="66265932317331474">报告 CPU 信息</translation>
 <translation id="6628120204569232711">报告存储状态</translation>
 <translation id="662991036483361836">禁止用户启用“附近分享”功能</translation>
+<translation id="6630693609822689611">默认启用源键进程隔离。</translation>
 <translation id="663685822663765995">限制打印颜色模式</translation>
+<translation id="6639163415220949156">在用户登录新设备时从上一个会话中退出账号</translation>
 <translation id="6640355849038068978">如果此设置已启用，用户将能够启动 Eche 应用（例如通过点击 Phone Hub 通知）。
 
       如果此设置已停用，用户将无法启动 Eche 应用。
@@ -8230,6 +8245,7 @@ Origin-Agent-Cluster HTTP 标头可控制是将某个文档隔离在以源为键
      如果某些网站限制了请求中可包含的字符，更新后的规范可能会导致这些网站无法正常运作。如需了解详情，请参阅规范：https://wicg.github.io/ua-client-hints/#grease
      此政策将在未来的版本中被移除。</translation>
 <translation id="6682305153467826752">启用关于机器标识信息的报告</translation>
+<translation id="6684842561251679182">被延迟的里程碑内核密钥增量的数量</translation>
 <translation id="6685903773201985073">为访客会话和常规会话启用静默身份验证。</translation>
 <translation id="6687291630099400188">不在登录屏幕上显示系统信息</translation>
 <translation id="6689343802305995925">不执行任何操作。</translation>
@@ -8467,6 +8483,10 @@ Origin-Agent-Cluster HTTP 标头可控制是将某个文档隔离在以源为键
 <translation id="6850300477973481112">桌面连接器设置</translation>
 <translation id="6851199885688265233">启用“光标突出显示”无障碍功能</translation>
 <translation id="6851315055469993882">启用全局范围的 HTTP 身份验证缓存</translation>
+<translation id="6851788229123189909">此政策用于控制用户在登录新的 <ph name="PRODUCT_OS_NAME" /> 设备时，系统是否会自动让用户从上一个会话中退出账号。
+如果此政策已启用，当用户成功登录新的 <ph name="PRODUCT_OS_NAME" /> 设备后，系统会让用户从上一个会话中退出账号。
+
+如果此政策已停用或未设置，只有在 <ph name="FLOATING_SSO_ENABLED_POLICY_NAME" /> 或 <ph name="FLOATING_WORKSPACE_V2_ENABLED_POLICY_NAME" /> 政策已启用的情况下，系统才会让用户从上一个会话中退出账号。</translation>
 <translation id="6854767649023671426">如果此政策已启用或未设置，系统将会在收到针对录像设备的使用请求时提示用户，但 VideoCaptureAllowedUrls 列表中设置的网址除外。
 
       如果此政策已停用，系统将会关闭提示，而且只有 VideoCaptureAllowedUrls 列表中设置的网址可以使用录像设备。
@@ -8480,6 +8500,7 @@ Origin-Agent-Cluster HTTP 标头可控制是将某个文档隔离在以源为键
 如果此政策设为 false 或未设置，布局将不可用。需要重新启动才能生效。</translation>
 <translation id="685769593149966548">强制启用 YouTube“严格”受限模式</translation>
 <translation id="686079137349561371">Microsoft Windows 7 或更高版本</translation>
+<translation id="6863927303509860338">设置要在“新标签页”页面上显示的快捷方式</translation>
 <translation id="6866755486434471318">允许 <ph name="PEPPER_NAME" /> 使用共享图片进行视频解码。</translation>
 <translation id="6878757724611298427">允许用户在非关联设备上使用 Android 应用</translation>
 <translation id="6881397131210596522">如果此政策设为 2，系统会自动禁止网站使用 WebPrinting API。
@@ -8881,6 +8902,19 @@ Origin-Agent-Cluster HTTP 标头可控制是将某个文档隔离在以源为键
     如果此政策设为 true，系统将会显示人体存在传感器界面。
     如果此政策未设置，那么对于受企业管理的用户，会使用默认值“false”；对于不受企业管理的用户，则会使用“true”。</translation>
 <translation id="7127980134843952133">下载记录</translation>
+<translation id="7128472920253801502">由于“标签页整理工具”功能已被弃用，此政策也已被弃用。
+
+标签页整理工具是一款基于 AI 的工具，可根据用户打开的标签页自动创建标签页分组。它会根据打开的标签页（而非网页内容）提供建议。
+
+0 表示允许使用此功能，同时允许 Google 使用相关数据改进其 AI 模型。相关数据可能包括提示、输入、输出、素材和书面反馈，具体取决于相应功能。工作人员也可能会审核这些数据，以改进 AI 模型。除非下文另有说明，否则默认值是 0。
+
+1 表示允许使用此功能，但不允许 Google 使用用户的内容（包括提示、输入、输出、素材和书面反馈）改进模型。对于受 <ph name="GOOGLE_ADMIN_CONSOLE_PRODUCT_NAME" />管理的企业用户和受 <ph name="GOOGLE_WORKSPACE_PRODUCT_NAME" /> 管理的教育版账号，默认值是 1。
+
+2 表示不允许使用此功能。
+
+如果未设置此政策，该工具的行为将由 <ph name="GEN_AI_DEFAULT_SETTINGS_POLICY_NAME" /> 政策决定。
+
+如需详细了解生成式 AI 功能的数据处理机制，请访问 https://support.google.com/chrome/a?p=generative_ai_settings。</translation>
 <translation id="7128513247945602297">允许 HTTPS 网站上的混合内容自动升级</translation>
 <translation id="712963038874313213">提供应在默认 Crostini 容器中执行的 Ansible Playbook。
 
@@ -9131,6 +9165,15 @@ Origin-Agent-Cluster HTTP 标头可控制是将某个文档隔离在以源为键
 <translation id="7313672174502374994">相应壁纸图片的 SHA-256 哈希值。</translation>
 <translation id="7317472245305274219">控制是否默认在 iCloud 钥匙串中创建通行密钥。</translation>
 <translation id="7318503436349210241">已启用：CSS 缩放将遵循标准规范。</translation>
+<translation id="7321519702919205928">通过此政策，您可以使用 HTTP 服务器身份验证凭证为每份个人资料配置一个全局性的缓存文件。
+
+      如果此政策未设置或已停用，浏览器将会使用跨网站身份验证机制的默认行为（该行为将是按顶级网站界定 HTTP 服务器身份验证凭证的适用范围），因此如果两个网站使用的资源是来自同一个要求进行身份验证的网域，则需在这两个网站中分别提供凭证。系统会跨网站重复使用缓存的代理凭证。
+
+      如果此政策已启用，系统会自动将在一个网站中输入的 HTTP 身份验证凭证用于另一个网站。
+
+      启用此政策会导致网站容易受到某些类型的跨网站攻击，并允许使用网址内嵌的凭证向 HTTP 身份验证缓存文件添加条目，让攻击者能够对用户进行跨网站跟踪（甚至是在不使用 Cookie 的情况下）。
+
+      此政策旨在让依靠旧版行为的企业能够更新他们的登录流程，日后将会移除。</translation>
 <translation id="7322825363493984512">用于向远程网络代理验证系统服务身份的密码。</translation>
 <translation id="7323773727263636287">启用色彩校正无障碍功能。
 
@@ -9653,6 +9696,13 @@ Origin-Agent-Cluster HTTP 标头可控制是将某个文档隔离在以源为键
 <translation id="775822241671489040">控制“使用启动器键/搜索键更改功能键的行为”设置</translation>
 <translation id="7758378441185523981">为个人资料类型启用静默身份验证。</translation>
 <translation id="776110834126722255">已弃用</translation>
+<translation id="7761702157788500857">为大多数网页（即默认分配给源键代理集群的网页）启用源键进程隔离。这会提高安全性，但也会增加创建的进程数。用户可以使用命令行 flag 或 chrome://flags（两种方式都可用于开启或关闭此功能）替换设置的政策值。
+
+如果启用了此政策，系统会将大多数源隔离，即使在同一网站中的源也会相互隔离。另请参阅 <ph name="ISOLATE_ORIGINS_POLICY_NAME" /> 和 <ph name="SITE_PER_PROCESS_POLICY_NAME" /> 政策。
+
+如果停用了此政策，除非源明确要求，否则不会将任何源与其同一网站中的其他源隔离。
+
+如果未设置此政策，浏览器会自行决定隔离哪些源以及何时隔离。</translation>
 <translation id="7763614521440615342">在“打开新的标签页”页面上显示内容建议</translation>
 <translation id="7763650553214838209">为“Insert”操作设置快捷键的功能已停用。</translation>
 <translation id="7763655314629932385">指定所需的 IWA 版本。如果提供了，系统会尝试安装此特定版本，并随后阻止任何后续更新。若要取消固定应用并重新启用更新，请移除此字段。**重要提示：**如果提供的版本不存在，IWA 将停留在当前已安装的版本上。这是因为，在尝试更新到固定版本（但失败）后，固定操作会停用任何后续自动更新。</translation>
@@ -11768,14 +11818,5 @@ Related Website Set 中的所有网站都必须是采用 HTTPS 协议的可注�
 <translation id="989197274317162189">此政策已被弃用且不再受支持，请改用“<ph name="URL_BLOCKLIST_POLICY_NAME" />”政策。</translation>
 <translation id="990830704772547092">在 <ph name="PRODUCT_OS_NAME" /> 设备上配置 Bruschetta 虚拟机安装程序</translation>
 <translation id="991560005425213776">向原生打印机发送用户名和文件名</translation>
-<translation id="99232017131102456">通过此政策，您可以使用 HTTP 服务器身份验证凭据为每份个人资料配置一个全局性的缓存文件。
-
-      如果此政策未设置或已停用，浏览器将会使用跨网站身份验证机制的默认行为（自版本 80 起，该行为将是按顶级网站界定 HTTP 服务器身份验证凭据的适用范围），因此如果两个网站使用的资源是来自同一个要求进行身份验证的网域，则需在这两个网站中分别提供凭据。系统会跨网站重复使用缓存的代理凭据。
-
-      如果启用了此政策，系统会自动将在一个网站中输入的 HTTP 身份验证凭据用于另一网站。
-
-      启用此政策会导致网站容易受到某些类型的跨网站攻击，并会允许使用网址内嵌的凭据向 HTTP 身份验证缓存文件添加条目以对用户进行跨网站跟踪（甚至是在没有 Cookie 的情况下）。
-
-      此政策旨在让依靠旧版行为的企业能够更新他们的登录流程，日后将被移除。</translation>
 <translation id="999340611001666174">停用色彩校正</translation>
 </translationbundle>

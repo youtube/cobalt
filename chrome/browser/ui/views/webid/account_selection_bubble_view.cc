@@ -187,11 +187,6 @@ AccountSelectionBubbleView::AccountSelectionBubbleView(
       rp_context_(rp_context) {
   SetButtons(static_cast<int>(ui::mojom::DialogButton::kNone));
   set_fixed_width(kBubbleWidth);
-  // If `idp_title` is std::nullopt, we are going to show multi-IDP UI. DCHECK
-  // that we do not get to this when the flag is disabled.
-  DCHECK(
-      idp_title.has_value() ||
-      base::FeatureList::IsEnabled(features::kFedCmMultipleIdentityProviders));
   set_margins(gfx::Insets::VH(kTopBottomPadding + kVerticalSpacing, 0));
 
   SetShowTitle(false);
@@ -570,8 +565,9 @@ AccountSelectionBubbleView::CreateSingleAccountChooser(
   // We can pass crefs to OnAccountSelected because the `observer_` owns the
   // data.
   auto button = std::make_unique<ContinueButton>(
-      base::BindRepeating(&FedCmAccountSelectionView::OnAccountSelected,
-                          base::Unretained(owner_), account),
+      base::BindRepeating(
+          base::IgnoreResult(&FedCmAccountSelectionView::OnAccountSelected),
+          base::Unretained(owner_), account),
       button_title, this, idp_metadata,
       base::UTF8ToUTF16(account->display_identifier));
   views::MdTextButton* button_ptr = button.get();

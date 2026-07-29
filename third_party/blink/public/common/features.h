@@ -75,6 +75,10 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kAllowURNsInIframes);
 
 #if BUILDFLAG(IS_ANDROID)
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kAndroidDesktopWebPrefsLargeDisplays);
+
+// If enabled, renders styling similar to Android native UI for spelling and
+// grammar errors in textboxes.
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kAndroidSpellcheckNativeUi);
 #endif
 
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(
@@ -135,17 +139,6 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(
 
 // Block all MIDI access with the MIDI_SYSEX permission
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kBlockMidiByDefault);
-
-// Boost the priority of the first N not-small images.
-// crbug.com/1431169
-BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kBoostImagePriority);
-BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(int,
-                                               kBoostImagePriorityImageCount);
-BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(int,
-                                               kBoostImagePriorityImageSize);
-BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(
-    int,
-    kBoostImagePriorityTightMediumLimit);
 
 // Boost the priority of certain loading tasks (https://crbug.com/1470003).
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kBoostImageSetLoadingTaskPriority);
@@ -299,19 +292,9 @@ enum class DelayAsyncScriptDelayType {
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(
     DelayAsyncScriptDelayType,
     kDelayAsyncScriptExecutionDelayParam);
-enum class DelayAsyncScriptTarget {
-  kAll,
-  kCrossSiteOnly,
-  // Unlike other options (that are more like scheduling changes within the
-  // spec),  kCrossSiteWithAllowList and kCrossSiteWithAllowListReportOnly are
-  // used only for the ForceInOrder intervention.
-  // TODO(crbug.com/40231912): Remove these values when the ForceInOrder
-  // experiment is cleaned up.
-  kCrossSiteWithAllowList,
-  kCrossSiteWithAllowListReportOnly,
-};
-BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(DelayAsyncScriptTarget,
-                                               kDelayAsyncScriptTargetParam);
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(
+    bool,
+    kDelayAsyncScriptExecutionCrossSiteOnlyParam);
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(
     base::TimeDelta,
     kDelayAsyncScriptExecutionDelayLimitParam);
@@ -651,10 +634,6 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(ForceDarkImageClassifier,
 // Forces the attribute powerPreference to be set to "high-performance" for
 // WebGL contexts.
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kForceHighPerformanceGPUForWebGL);
-
-// If enabled, parser-blocking scripts are loaded asynchronously but the
-// execution order is respected. See https://crbug.com/1344772
-BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kForceInOrderScript);
 
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kForceOffTextAutosizing);
 

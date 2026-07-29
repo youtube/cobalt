@@ -36,6 +36,7 @@
 #include "base/test/bind.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/test_future.h"
+#include "base/types/expected.h"
 #include "build/build_config.h"
 #include "net/base/auth.h"
 #include "net/base/connection_endpoint_metadata.h"
@@ -348,15 +349,16 @@ class TestProxyDelegateWithProxyInfo : public ProxyDelegate {
 
   void OnFallback(const ProxyChain& bad_chain, int net_error) override {}
 
-  Error OnBeforeTunnelRequest(const ProxyChain& proxy_chain,
-                              size_t chain_index,
-                              HttpRequestHeaders* extra_headers) override {
-    return OK;
+  base::expected<HttpRequestHeaders, Error> OnBeforeTunnelRequest(
+      const ProxyChain& proxy_chain,
+      size_t proxy_index,
+      OnBeforeTunnelRequestCallback callback) override {
+    return HttpRequestHeaders();
   }
 
   Error OnTunnelHeadersReceived(
       const ProxyChain& proxy_chain,
-      size_t chain_index,
+      size_t proxy_index,
       const HttpResponseHeaders& response_headers) override {
     return OK;
   }

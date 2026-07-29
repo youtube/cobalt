@@ -43,12 +43,11 @@ import org.robolectric.annotation.Config;
 import org.chromium.base.Token;
 import org.chromium.base.supplier.ObservableSupplierImpl;
 import org.chromium.base.test.BaseRobolectricTestRunner;
-import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.chrome.browser.app.ChromeActivity;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.ui.native_page.NativePage;
-import org.chromium.components.autofill.AutofillFeatures;
+import org.chromium.components.autofill.AndroidAutofillFeatures;
 import org.chromium.components.autofill.AutofillProvider;
 import org.chromium.components.prefs.PrefService;
 import org.chromium.components.user_prefs.UserPrefs;
@@ -62,6 +61,7 @@ import java.lang.ref.WeakReference;
 /** Tests for {@link Tab}. */
 @RunWith(BaseRobolectricTestRunner.class)
 @Config(manifest = Config.NONE)
+@EnableFeatures(AndroidAutofillFeatures.ANDROID_AUTOFILL_UPDATE_CONTEXT_FOR_WEBCONTENTS_NAME)
 public class TabUnitTest {
     private static final int TAB1_ID = 456;
     private static final int TAB2_ID = 789;
@@ -332,21 +332,6 @@ public class TabUnitTest {
 
     @Test
     @SmallTest
-    @DisableFeatures({AutofillFeatures.AUTOFILL_VIRTUAL_VIEW_STRUCTURE_ANDROID})
-    public void testAutofillUnavailable() {
-        assertFalse(mTab.providesAutofillStructure());
-        mTab.setAutofillProvider(null);
-
-        mTab.onProvideAutofillVirtualStructure(mock(ViewStructure.class), 0);
-        verify(mAutofillProvider, never()).onProvideAutoFillVirtualStructure(any(), anyInt());
-
-        mTab.autofill(new SparseArray<>());
-        verify(mAutofillProvider, never()).autofill(any());
-    }
-
-    @Test
-    @SmallTest
-    @EnableFeatures({AutofillFeatures.AUTOFILL_VIRTUAL_VIEW_STRUCTURE_ANDROID})
     public void testAutofillUnavailableWithoutPref() {
         when(mPrefs.getBoolean(TabImpl.AUTOFILL_PREF_USES_VIRTUAL_STRUCTURE)).thenReturn(false);
         assertFalse(mTab.providesAutofillStructure());
@@ -361,7 +346,6 @@ public class TabUnitTest {
 
     @Test
     @SmallTest
-    @EnableFeatures({AutofillFeatures.AUTOFILL_VIRTUAL_VIEW_STRUCTURE_ANDROID})
     public void testAutofillRequestsHandledByProvider() {
         when(mPrefs.getBoolean(TabImpl.AUTOFILL_PREF_USES_VIRTUAL_STRUCTURE)).thenReturn(true);
         when(mProfile.isNativeInitialized()).thenReturn(true);

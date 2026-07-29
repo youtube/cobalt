@@ -1454,10 +1454,11 @@ bool ContainerNode::ChildrenChangedAllChildrenRemovedNeedsList() const {
 }
 
 void ContainerNode::CloneChildNodesFrom(const ContainerNode& node,
-                                        NodeCloningData& data) {
+                                        NodeCloningData& data,
+                                        CustomElementRegistry* registry) {
   CHECK(data.Has(CloneOption::kIncludeDescendants));
   for (const Node& child : NodeTraversal::ChildrenOf(node)) {
-    child.Clone(GetDocument(), data, this);
+    child.Clone(GetDocument(), data, this, registry);
   }
 }
 
@@ -1889,7 +1890,14 @@ String ContainerNode::getHTML(const GetHTMLOptions* options,
                       shadow_root_inclusion);
 }
 
-WritableStream* ContainerNode::patchSelf(ScriptState* script_state) {
+WritableStream* ContainerNode::patchSelf(ScriptState* script_state,
+                                         ExceptionState& exception_state) {
+  if (!IsElementNode() && !parentElement()) {
+    exception_state.ThrowDOMException(
+        DOMExceptionCode::kHierarchyRequestError,
+        "Patching an orphan DocumentFragment is not allowed");
+    return nullptr;
+  }
   return PatchSupplement::From(GetDocument())
       ->CreateSinglePatchStream(script_state, *this, /*previous_child=*/nullptr,
                                 /*next_child=*/nullptr);

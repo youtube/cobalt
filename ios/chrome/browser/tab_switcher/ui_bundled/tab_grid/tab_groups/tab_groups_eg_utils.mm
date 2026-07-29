@@ -34,8 +34,7 @@ id<GREYMatcher> NewTabGroupButton() {
 void OpenTabGroupCreationViewUsingLongPressForCellAtIndex(int index,
                                                           bool first_group) {
   [[EarlGrey selectElementWithMatcher:TabGridCellAtIndex(index)]
-      performAction:grey_longPress()];
-
+      performAction:grey_longPressWithDuration(base::Seconds(1))];
   if (first_group) {
     [[EarlGrey selectElementWithMatcher:
                    grey_text(l10n_util::GetPluralNSStringF(
@@ -59,22 +58,6 @@ void SetTabGroupCreationName(NSString* group_name) {
   [[EarlGrey selectElementWithMatcher:CreateTabGroupTextField()]
       performAction:grey_tap()];
   [ChromeEarlGrey simulatePhysicalKeyboardEvent:group_name flags:0];
-}
-
-// Long press on the given matcher.
-void LongPressOn(id<GREYMatcher> matcher) {
-  // Ensure the element is visible.
-  [ChromeEarlGrey waitForUIElementToAppearWithMatcher:matcher];
-  [ChromeEarlGreyUI waitForAppToIdle];
-  ConditionBlock condition = ^{
-    NSError* error = nil;
-    [[EarlGrey selectElementWithMatcher:matcher] performAction:grey_longPress()
-                                                         error:&error];
-    return error == nil;
-  };
-
-  GREYAssert(WaitUntilConditionOrTimeout(kWaitForUIElementTimeout, condition),
-             @"Long press failed.");
 }
 
 }  // namespace
@@ -114,7 +97,11 @@ void LongPressTabGroupCellAtIndex(unsigned int index) {
   // Make sure the cell has appeared. Otherwise, long pressing can be flaky.
   [ChromeEarlGrey
       waitForUIElementToAppearWithMatcher:TabGridGroupCellAtIndex(index)];
-  LongPressOn(TabGridGroupCellAtIndex(index));
+  // It happens that on certain bots, the grey_longPress action doesn't return
+  // an error for EarlGrey, but the context menu doesn't open accordingly.
+  // Long press for a pre-determined duration to force the context menu to open.
+  [[EarlGrey selectElementWithMatcher:TabGridGroupCellAtIndex(index)]
+      performAction:grey_longPressWithDuration(base::Seconds(1))];
 }
 
 }  // namespace chrome_test_util

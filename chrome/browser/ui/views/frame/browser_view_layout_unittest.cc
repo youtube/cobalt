@@ -228,8 +228,7 @@ class BrowserViewLayoutTest : public ChromeViewsTestBase {
         CreateFixedSizeView(gfx::Size(kBaseWidth, 600)));
     contents_container_->SetLayoutManager(
         std::make_unique<ContentsLayoutManager>(contents_web_view_,
-                                                lens_overlay_view_,
-                                                /*watermark_view=*/nullptr));
+                                                lens_overlay_view_));
 
     auto delegate = std::make_unique<MockBrowserViewLayoutDelegate>(
         immersive_mode_controller_.get());
@@ -239,9 +238,9 @@ class BrowserViewLayoutTest : public ChromeViewsTestBase {
         /*browser_view=*/nullptr, /*window_scrim=*/nullptr, top_container_,
         /*web_app_frame_toolbar=*/nullptr,
         /*web_app_window_title=*/nullptr, tab_strip_region_view, tab_strip_,
-        toolbar_, infobar_container_, contents_container_,
+        /*vertical_tab_strip_container=*/nullptr, toolbar_, infobar_container_,
+        contents_container_,
         /*multi_contents_view=*/nullptr,
-        /*vertical_tab_strip_container=*/nullptr,
         /*left_aligned_side_panel_separator=*/nullptr,
         /*unified_side_panel=*/nullptr,
         /*right_aligned_side_panel_separator=*/nullptr,

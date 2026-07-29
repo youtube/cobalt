@@ -76,7 +76,7 @@ import org.chromium.chrome.browser.tabwindow.TabWindowManager;
 import org.chromium.chrome.browser.ui.native_page.FrozenNativePage;
 import org.chromium.chrome.browser.ui.native_page.NativePage;
 import org.chromium.chrome.browser.ui.native_page.NativePage.SmoothTransitionDelegate;
-import org.chromium.components.autofill.AutofillFeatures;
+import org.chromium.components.autofill.AndroidAutofillFeatures;
 import org.chromium.components.autofill.AutofillManagerWrapper;
 import org.chromium.components.autofill.AutofillProvider;
 import org.chromium.components.autofill.AutofillProviderUMA;
@@ -103,6 +103,7 @@ import org.chromium.content_public.browser.WebContentsAccessibility;
 import org.chromium.content_public.browser.back_forward_transition.AnimationStage;
 import org.chromium.content_public.browser.navigation_controller.UserAgentOverrideOption;
 import org.chromium.content_public.common.Referrer;
+import org.chromium.ui.base.ImmutableWeakReference;
 import org.chromium.ui.base.PageTransition;
 import org.chromium.ui.base.ViewAndroidDelegate;
 import org.chromium.ui.base.WindowAndroid;
@@ -110,6 +111,7 @@ import org.chromium.url.GURL;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
+import java.lang.ref.WeakReference;
 import java.nio.ByteBuffer;
 import java.util.Objects;
 
@@ -1172,6 +1174,19 @@ class TabImpl implements Tab {
         return null;
     }
 
+    /**
+     * Helper method to access the activity context if there is one.
+     *
+     * @return a {@link WeakReference} to the {@link Context} belonging to the current activity. It
+     *     can be null if the context has been invalidated (e.g. by destruction) or if there is none
+     *     (e.g. because the window is detached).
+     */
+    private WeakReference<Context> getActivityContext() {
+        return getWindowAndroid() != null && windowHasActivity(getWindowAndroid())
+                ? getWindowAndroid().getContext()
+                : new ImmutableWeakReference<>(null);
+    }
+
     protected void updateWebContentObscured(boolean obscureWebContent) {
         // Update whether or not the current native tab and/or web contents are
         // currently visible (from an accessibility perspective), or whether
@@ -1387,6 +1402,11 @@ class TabImpl implements Tab {
         }
 
         mWindowAndroid = windowAndroid;
+        if (mAutofillProvider != null
+                && AndroidAutofillFeatures.ANDROID_AUTOFILL_UPDATE_CONTEXT_FOR_WEBCONTENTS
+                        .isEnabled()) {
+            mAutofillProvider.switchToContext(getActivityContext());
+        }
         WebContents webContents = getWebContents();
         if (webContents != null) {
             assert mWindowAndroid != null;
@@ -1446,10 +1466,7 @@ class TabImpl implements Tab {
      * @return iff the AutofillProvider should provide a ViewStructure when prompted.
      */
     boolean providesAutofillStructure() {
-        if (!ChromeFeatureList.isEnabled(
-                AutofillFeatures.AUTOFILL_VIRTUAL_VIEW_STRUCTURE_ANDROID)) {
-            return false;
-        }
+
         if (mProfile == null || !mProfile.isNativeInitialized()) {
             return false;
         }
@@ -1963,6 +1980,10 @@ class TabImpl implements Tab {
             ContentView cv = ContentView.createContentView(mThemedApplicationContext, webContents);
             cv.setContentDescription(
                     mThemedApplicationContext.getString(R.string.accessibility_content_view));
+            if (ChromeFeatureList.isEnabled(
+                    ChromeFeatureList.ANNOTATED_PAGE_CONTENTS_VIRTUAL_STRUCTURE)) {
+                cv.setVirtualStructureProvider(new PageContentProtoViewStructureBuilder());
+            }
             mContentView = cv;
             webContents.setDelegates(
                     PRODUCT_VERSION,
@@ -2258,9 +2279,10 @@ class TabImpl implements Tab {
             // Provider already existed. Swapping contents suffices.
             mAutofillProvider.setWebContents(newWebContents);
         } else {
+            // TODO: crbug.com/432447902 — Provide only an activity context and push changes.
             mAutofillProvider =
                     new AutofillProvider(
-                            getContext(),
+                            new WeakReference(getContext()),
                             mContentView,
                             newWebContents,
                             getContext().getString(R.string.app_name));
@@ -2271,10 +2293,7 @@ class TabImpl implements Tab {
     }
 
     private void maybeLogAutofillProviderDoesntUseVirtualStructureMetric() {
-        if (!ChromeFeatureList.isEnabled(
-                AutofillFeatures.AUTOFILL_VIRTUAL_VIEW_STRUCTURE_ANDROID)) {
-            return;
-        }
+
         AutofillManager manager =
                 ContextUtils.getApplicationContext().getSystemService(AutofillManager.class);
         if (!AutofillManagerWrapper.isAutofillSupported(manager)) {

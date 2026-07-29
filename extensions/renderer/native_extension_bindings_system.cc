@@ -2,17 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
-#pragma allow_unsafe_libc_calls
-#endif
-
 #include "extensions/renderer/native_extension_bindings_system.h"
 
 #include <string_view>
 #include <utility>
 
 #include "base/command_line.h"
+#include "base/compiler_specific.h"
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
@@ -60,6 +56,7 @@
 #include "extensions/renderer/worker_thread_util.h"
 #include "gin/converter.h"
 #include "gin/data_object_builder.h"
+#include "gin/handle.h"
 #include "gin/per_context_data.h"
 #include "third_party/blink/public/mojom/devtools/console_message.mojom.h"
 #include "third_party/blink/public/mojom/service_worker/service_worker_registration.mojom.h"
@@ -68,8 +65,8 @@
 #include "third_party/blink/public/web/web_local_frame.h"
 #include "third_party/blink/public/web/web_origin_trials.h"
 #include "v8/include/cppgc/allocation.h"
-#include "v8/include/v8-cppgc.h"
 #include "v8/include/v8-context.h"
+#include "v8/include/v8-cppgc.h"
 #include "v8/include/v8-isolate.h"
 #include "v8/include/v8-object.h"
 #include "v8/include/v8-primitive.h"
@@ -642,7 +639,7 @@ void NativeExtensionBindingsSystem::UpdateBindingsForContext(
     for (const char* feature_name : kWebAvailableFeatures) {
       if (context->GetAvailability(feature_name).is_available()) {
         // chrome.app is exposed to all webpages, we ignore it for this check.
-        if (strcmp(feature_name, "app") != 0) {
+        if (UNSAFE_TODO(strcmp(feature_name, "app")) != 0) {
           is_any_feature_available_to_page = true;
         }
         if (!set_accessor(feature_name)) {
@@ -992,16 +989,7 @@ void NativeExtensionBindingsSystem::SendRequest(
       << script_context->GetDebugString();
 
   if (!params->extension_id.empty() && ShouldCollectJSStackTrace(*request)) {
-    auto start_time = base::TimeTicks::Now();
-    auto stack_trace = script_context->GetStackTrace(/*frame_limit=*/5);
-    auto end_time = base::TimeTicks::Now();
-    UMA_HISTOGRAM_CUSTOM_MICROSECONDS_TIMES(
-        "Extensions.Functions.ExtractJSCallStackElapsedTime",
-        end_time - start_time, base::Microseconds(1), base::Milliseconds(10),
-        50);
-    params->js_callstack = std::move(stack_trace);
-  } else {
-    params->js_callstack = std::nullopt;
+    params->js_callstack = script_context->GetStackTrace(/*frame_limit=*/5);
   }
 
   ipc_message_sender_->SendRequestIPC(script_context, std::move(params));

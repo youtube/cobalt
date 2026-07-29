@@ -115,8 +115,26 @@ public interface ChromeAndroidTask {
      */
     boolean isActive();
 
+    /**
+     * Returns the most recent timestamp when this {@link ChromeAndroidTask} became active, i.e.,
+     * when its state changed from nonexistent or inactive (minimized/unfocused), to the active
+     * state (in the foreground and focused).
+     *
+     * <p>The timestamp is in milliseconds since boot.
+     */
+    long getLastActivatedTimeMillis();
+
     /** Returns current bounds of the window. */
     Rect getBounds();
+
+    /** Closes this {@link ChromeAndroidTask}. */
+    void close();
+
+    /**
+     * Move this {@link ChromeAndroidTask} to the front. This will restore the window from minimized
+     * state if necessary.
+     */
+    void activate();
 
     /** Returns all {@link ChromeAndroidTaskFeature}s for testing. */
     List<ChromeAndroidTaskFeature> getAllFeaturesForTesting();

@@ -33,6 +33,7 @@
 #include "content/browser/webid/test/mock_permission_delegate.h"
 #include "content/browser/webid/webid_utils.h"
 #include "content/common/content_navigation_policy.h"
+#include "content/public/browser/login_metrics.h"
 #include "content/public/browser/webid/identity_request_dialog_controller.h"
 #include "content/public/common/content_features.h"
 #include "content/public/test/back_forward_cache_util.h"
@@ -1478,6 +1479,13 @@ class FederatedAuthRequestImplTest : public RenderViewHostImplTestHarness {
                                          status, 1);
     histogram_tester_.ExpectUniqueSample(
         "Blink.FedCm.Status.MediationRequirement", requirement, 1);
+    if (status == FedCmRequestIdTokenStatus::kSuccessUsingTokenInHttpResponse ||
+        status ==
+            FedCmRequestIdTokenStatus::kSuccessUsingIdentityProviderResolve) {
+      histogram_tester_.ExpectUniqueSample(
+          kBrowserAssistedLoginTypeHistogram,
+          BrowserAssistedLoginType::kFedCmPassive, 1);
+    }
     ExpectStatusUKMInternal(status, requirement, FedCmEntry::kEntryName);
     ExpectStatusUKMInternal(status, requirement, FedCmIdpEntry::kEntryName);
   }
@@ -1879,6 +1887,10 @@ class FederatedAuthRequestImplTest : public RenderViewHostImplTestHarness {
     histogram_tester_.ExpectTotalCount(
         "Blink.FedCm.Timing.ShowAccountsDialogBreakdown.ClientMetadataFetch",
         0);
+
+    histogram_tester_.ExpectUniqueSample(kBrowserAssistedLoginTypeHistogram,
+                                         BrowserAssistedLoginType::kFedCmActive,
+                                         1);
   }
 
  protected:
@@ -4516,28 +4528,8 @@ TEST_F(
               kConfigurationValid);
 }
 
-// Tests that multiple IDPs provided results in an error if the
-// `kFedCmMultipleIdentityProviders` flag is disabled.
-TEST_F(FederatedAuthRequestImplTest, MultiIdpDisabled) {
-  base::test::ScopedFeatureList list;
-  list.InitAndDisableFeature(features::kFedCmMultipleIdentityProviders);
-
-  RequestExpectations expectations = {
-      RequestTokenStatus::kError,
-      {},
-      /*standalone_console_message=*/std::nullopt,
-      std::nullopt};
-
-  RunAuthTest(kDefaultMultiIdpRequestParameters, expectations,
-              kConfigurationMultiIdpValid);
-  EXPECT_FALSE(DidFetchAnyEndpoint());
-}
-
 TEST_F(FederatedAuthRequestImplTest,
        AllSuccessfulMultiIdpRequestWithoutIdpReorder) {
-  base::test::ScopedFeatureList list;
-  list.InitAndEnableFeature(features::kFedCmMultipleIdentityProviders);
-
   base::RunLoop ukm_loop;
   ukm_recorder()->SetOnAddEntryCallback(FedCmEntry::kEntryName,
                                         ukm_loop.QuitClosure());
@@ -4598,9 +4590,6 @@ TEST_F(FederatedAuthRequestImplTest,
 // Test successful multi IDP FedCM request.
 TEST_F(FederatedAuthRequestImplTest,
        AllSuccessfulMultiIdpRequestWithIdpReorder) {
-  base::test::ScopedFeatureList list;
-  list.InitAndEnableFeature(features::kFedCmMultipleIdentityProviders);
-
   RequestExpectations expectations = kExpectationSuccess;
   // Since the first IDP does not set the login state of the account but the
   // second IDP has one with state set to SignIn, selecting the first account
@@ -4638,9 +4627,6 @@ TEST_F(FederatedAuthRequestImplTest,
 // Test fetching information for the 1st IdP failing, and succeeding for the
 // second.
 TEST_F(FederatedAuthRequestImplTest, FirstIdpWellKnownInvalid) {
-  base::test::ScopedFeatureList list;
-  list.InitAndEnableFeature(features::kFedCmMultipleIdentityProviders);
-
   // Intentionally fail the 1st provider's request by having an invalid
   // well-known file.
   MockConfiguration configuration = kConfigurationMultiIdpValid;
@@ -4671,9 +4657,6 @@ TEST_F(FederatedAuthRequestImplTest, FirstIdpWellKnownInvalid) {
 // Test fetching information for the 1st IdP succeeding, and failing for the
 // second.
 TEST_F(FederatedAuthRequestImplTest, SecondIdpWellKnownInvalid) {
-  base::test::ScopedFeatureList list;
-  list.InitAndEnableFeature(features::kFedCmMultipleIdentityProviders);
-
   // Intentionally fail the 2nd provider's request by having an invalid
   // well-known file.
   MockConfiguration configuration = kConfigurationMultiIdpValid;
@@ -4703,9 +4686,6 @@ TEST_F(FederatedAuthRequestImplTest, SecondIdpWellKnownInvalid) {
 
 // Test fetching information for all of the IdPs failing.
 TEST_F(FederatedAuthRequestImplTest, AllWellKnownsInvalid) {
-  base::test::ScopedFeatureList list;
-  list.InitAndEnableFeature(features::kFedCmMultipleIdentityProviders);
-
   // Intentionally fail the requests for both IdPs by returning an invalid
   // well-known file.
   MockConfiguration configuration = kConfigurationMultiIdpValid;
@@ -4735,9 +4715,6 @@ TEST_F(FederatedAuthRequestImplTest, AllWellKnownsInvalid) {
 
 // Test multi IDP FedCM request with duplicate IDPs should throw an error.
 TEST_F(FederatedAuthRequestImplTest, DuplicateIdpMultiIdpRequest) {
-  base::test::ScopedFeatureList list;
-  list.InitAndEnableFeature(features::kFedCmMultipleIdentityProviders);
-
   RequestParameters request_parameters = kDefaultMultiIdpRequestParameters;
   request_parameters.identity_providers =
       std::vector<IdentityProviderParameters>{
@@ -4760,9 +4737,6 @@ TEST_F(FederatedAuthRequestImplTest, DuplicateIdpMultiIdpRequest) {
 // Test that API can succeed with multiple IdPs, if one IdP is signed out but
 // the other isn't.
 TEST_F(FederatedAuthRequestImplTest, MultiIdpWithOneIdpSignedOut) {
-  base::test::ScopedFeatureList list;
-  list.InitAndEnableFeature(features::kFedCmMultipleIdentityProviders);
-
   test_permission_delegate_
       ->idp_signin_statuses_[OriginFromString(kProviderUrlFull)] = false;
 
@@ -4780,9 +4754,6 @@ TEST_F(FederatedAuthRequestImplTest, MultiIdpWithOneIdpSignedOut) {
 // Test that API shows all accounts if the user logs in to the IDP with the
 // mismatch UI.
 TEST_F(FederatedAuthRequestImplTest, MultiIdpLoginToOneIdp) {
-  base::test::ScopedFeatureList list;
-  list.InitAndEnableFeature(features::kFedCmMultipleIdentityProviders);
-
   url::Origin providerOrigin = OriginFromString(kProviderUrlFull);
   test_permission_delegate_->idp_signin_statuses_[providerOrigin] = true;
 
@@ -4832,9 +4803,6 @@ TEST_F(FederatedAuthRequestImplTest, MultiIdpLoginToOneIdp) {
 // Test that API can succeed with multiple IdPs, if all IDPs have login status
 // mismatch.
 TEST_F(FederatedAuthRequestImplTest, MultiIdpWithAllIdpsMismatch) {
-  base::test::ScopedFeatureList list;
-  list.InitAndEnableFeature(features::kFedCmMultipleIdentityProviders);
-
   test_permission_delegate_
       ->idp_signin_statuses_[OriginFromString(kProviderUrlFull)] = true;
   test_permission_delegate_
@@ -4883,9 +4851,6 @@ TEST_F(FederatedAuthRequestImplTest, MultiIdpWithAllIdpsMismatch) {
 }
 
 TEST_F(FederatedAuthRequestImplTest, MultiIdpWithOneIdpMismatch) {
-  base::test::ScopedFeatureList list;
-  list.InitAndEnableFeature(features::kFedCmMultipleIdentityProviders);
-
   test_permission_delegate_
       ->idp_signin_statuses_[OriginFromString(kProviderTwoUrlFull)] = true;
 
@@ -4951,9 +4916,6 @@ TEST_F(FederatedAuthRequestImplTest, MultiIdpWithOneIdpMismatch) {
 // only one IdP has a returning account.
 TEST_F(FederatedAuthRequestImplTest,
        MultiIdpWithSilentMediationAndReturningAccountInSecondIdp) {
-  base::test::ScopedFeatureList list;
-  list.InitAndEnableFeature(features::kFedCmMultipleIdentityProviders);
-
   // Pretend the sharing permission has not been granted for any account for the
   // first IdP.
   EXPECT_CALL(
@@ -5022,9 +4984,6 @@ TEST_F(FederatedAuthRequestImplTest,
 // IdPs have a single returning account.
 TEST_F(FederatedAuthRequestImplTest,
        MultiIdpWithSilentMediationAndReturningAccountInTwoIdps) {
-  base::test::ScopedFeatureList list;
-  list.InitAndEnableFeature(features::kFedCmMultipleIdentityProviders);
-
   // Pretend the sharing permission has been granted for exactly one account for
   // the first IdP.
   EXPECT_CALL(
@@ -5094,8 +5053,6 @@ TEST_F(FederatedAuthRequestImplTest,
 // fetch fails for one of them, mediation silent can still succeed.
 TEST_F(FederatedAuthRequestImplTest,
        MultiIdpWithSilentMediationAndOneIdpFetchFailure) {
-  base::test::ScopedFeatureList list;
-  list.InitAndEnableFeature(features::kFedCmMultipleIdentityProviders);
   // Mark both IDPs as logged in.
   test_permission_delegate_
       ->idp_signin_statuses_[OriginFromString(kProviderUrlFull)] = true;
@@ -5170,9 +5127,6 @@ TEST_F(FederatedAuthRequestImplTest,
 }
 
 TEST_F(FederatedAuthRequestImplTest, MultiIdpLoggedOut) {
-  base::test::ScopedFeatureList list;
-  list.InitAndEnableFeature(features::kFedCmMultipleIdentityProviders);
-
   // Mark both IDPs as logged out so the request fails early.
   test_permission_delegate_
       ->idp_signin_statuses_[OriginFromString(kProviderUrlFull)] = false;
@@ -5197,9 +5151,6 @@ TEST_F(FederatedAuthRequestImplTest, MultiIdpLoggedOut) {
 }
 
 TEST_F(FederatedAuthRequestImplTest, MultiIdpWithError) {
-  base::test::ScopedFeatureList list;
-  list.InitAndEnableFeature(features::kFedCmMultipleIdentityProviders);
-
   MockConfiguration configuration = kConfigurationMultiIdpValid;
   ErrorDialogType error_dialog_type =
       ErrorDialogType::kGenericNonEmptyWithoutUrl;
@@ -5522,7 +5473,7 @@ class IdpNetworkRequestMetricsRecorder : public TestIdpNetworkRequestManager {
   void SendFailedTokenRequestMetrics(
       const GURL& metrics_endpoint_url,
       bool did_show_ui,
-      MetricsEndpointErrorCode error_code) override {
+      webid::MetricsEndpointErrorCode error_code) override {
     metrics_endpoints_notified_failure_.push_back(metrics_endpoint_url);
   }
 
@@ -5570,10 +5521,7 @@ TEST_F(FederatedAuthRequestImplTest, MetricsEndpointDuringCooldown) {
 // multi-IDP FederatedAuthRequestImpl::RequestToken() call.
 TEST_F(FederatedAuthRequestImplTest, MetricsEndpointMultiIdp) {
   base::test::ScopedFeatureList list;
-  list.InitWithFeatures(
-      /*enabled_features=*/{features::kFedCmMetricsEndpoint,
-                            features::kFedCmMultipleIdentityProviders},
-      /*disabled_features=*/{});
+  list.InitAndEnableFeature(features::kFedCmMetricsEndpoint);
 
   std::unique_ptr<IdpNetworkRequestMetricsRecorder> unique_metrics_recorder =
       std::make_unique<IdpNetworkRequestMetricsRecorder>();
@@ -5598,10 +5546,7 @@ TEST_F(FederatedAuthRequestImplTest, MetricsEndpointMultiIdp) {
 // FederatedAuthRequestImpl::RequestToken() call fails.
 TEST_F(FederatedAuthRequestImplTest, MetricsEndpointMultiIdpFail) {
   base::test::ScopedFeatureList list;
-  list.InitWithFeatures(
-      /*enabled_features=*/{features::kFedCmMetricsEndpoint,
-                            features::kFedCmMultipleIdentityProviders},
-      /*disabled_features=*/{});
+  list.InitAndEnableFeature(features::kFedCmMetricsEndpoint);
 
   std::unique_ptr<IdpNetworkRequestMetricsRecorder> unique_metrics_recorder =
       std::make_unique<IdpNetworkRequestMetricsRecorder>();

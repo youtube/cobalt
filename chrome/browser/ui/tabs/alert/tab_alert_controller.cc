@@ -20,24 +20,17 @@
 #include "chrome/browser/vr/vr_tab_helper.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_contents_capability_type.h"
+#include "ui/base/unowned_user_data/scoped_unowned_user_data.h"
 
 #if BUILDFLAG(ENABLE_GLIC)
+#include "chrome/browser/glic/browser_ui/glic_tab_indicator_helper.h"
 #include "chrome/browser/glic/public/context/glic_sharing_manager.h"
 #include "chrome/browser/glic/public/glic_keyed_service.h"
 #endif  // BUILDFLAG(ENABLE_GLIC)
 
-namespace {
-glic::GlicKeyedService* GetGlicKeyedService(
-    BrowserWindowInterface* browser_window_interface) {
-#if BUILDFLAG(ENABLE_GLIC)
-  return glic::GlicKeyedService::Get(browser_window_interface->GetProfile());
-#else
-  return nullptr;
-#endif  // BUILDFLAG(ENABLE_GLIC)
-}
-}  // namespace
-
 namespace tabs {
+
+DEFINE_USER_DATA(TabAlertController);
 
 bool CompareAlerts::operator()(TabAlert first, TabAlert second) const {
   // Alerts are ordered from highest priority to be shown to lowest priority.
@@ -65,14 +58,8 @@ bool CompareAlerts::operator()(TabAlert first, TabAlert second) const {
 }
 
 TabAlertController::TabAlertController(TabInterface& tab)
-    : TabAlertController(tab,
-                         GetGlicKeyedService(tab.GetBrowserWindowInterface())) {
-}
-
-TabAlertController::TabAlertController(
-    TabInterface& tab,
-    glic::GlicKeyedService* glic_keyed_service)
-    : tabs::ContentsObservingTabFeature(tab) {
+    : tabs::ContentsObservingTabFeature(tab),
+      scoped_unowned_user_data_(tab.GetUnownedUserDataHost(), *this) {
   media_stream_capture_indicator_observation_.Observe(
       MediaCaptureDevicesDispatcher::GetInstance()
           ->GetMediaStreamCaptureIndicator()
@@ -84,6 +71,7 @@ TabAlertController::TabAlertController(
           ->RegisterRecentlyAudibleChangedCallback(base::BindRepeating(
               &TabAlertController::OnRecentlyAudibleStateChanged,
               base::Unretained(this)));
+
   if (auto* actor_ui_tab_controller =
           tab.GetTabFeatures()->actor_ui_tab_controller()) {
     callback_subscriptions_.emplace_back(
@@ -94,27 +82,31 @@ TabAlertController::TabAlertController(
   }
 
 #if BUILDFLAG(ENABLE_GLIC)
-  if (glic_keyed_service) {
-    callback_subscriptions_.push_back(
-        glic_keyed_service->AddContextAccessIndicatorStatusChangedCallback(
-            base::BindRepeating(
-                &TabAlertController::OnGlicContextAccessIndicatorStatusChanged,
-                base::Unretained(this))));
-    glic::GlicSharingManager& glic_sharing_manager =
-        glic_keyed_service->sharing_manager();
+  glic::GlicTabIndicatorHelper* const glic_tab_indicator_helper =
+      glic::GlicTabIndicatorHelper::From(&tab);
+  if (glic_tab_indicator_helper) {
     callback_subscriptions_.emplace_back(
-        glic_sharing_manager.AddFocusedTabChangedCallback(base::BindRepeating(
-            &TabAlertController::OnGlicSharingFocusedTabChanged,
-            base::Unretained(this))));
+        glic_tab_indicator_helper->RegisterGlicSharingStateChange(
+            base::BindRepeating(&TabAlertController::OnGlicSharingStateChange,
+                                base::Unretained(this))));
     callback_subscriptions_.emplace_back(
-        glic_sharing_manager.AddTabPinningStatusChangedCallback(
-            base::BindRepeating(&TabAlertController::OnGlicTabPinningChanged,
+        glic_tab_indicator_helper->RegisterGlicAccessingStateChange(
+            base::BindRepeating(&TabAlertController::OnGlicAccessingStateChange,
                                 base::Unretained(this))));
   }
 #endif  // BUILDFLAG(ENABLE_GLIC)
 }
 
 TabAlertController::~TabAlertController() = default;
+
+// static:
+const TabAlertController* TabAlertController::From(const TabInterface* tab) {
+  return Get(tab->GetUnownedUserDataHost());
+}
+
+TabAlertController* TabAlertController::From(TabInterface* tab) {
+  return Get(tab->GetUnownedUserDataHost());
+}
 
 base::CallbackListSubscription
 TabAlertController::AddAlertToShowChangedCallback(
@@ -130,7 +122,7 @@ std::optional<TabAlert> TabAlertController::GetAlertToShow() const {
   return *active_alerts_.begin();
 }
 
-std::vector<TabAlert> TabAlertController::GetAllActiveAlerts() {
+std::vector<TabAlert> TabAlertController::GetAllActiveAlerts() const {
   return base::ToVector(active_alerts_);
 }
 
@@ -233,29 +225,12 @@ void TabAlertController::OnIsContentDisplayedInHeadsetChanged(bool state) {
 }
 
 #if BUILDFLAG(ENABLE_GLIC)
-void TabAlertController::OnGlicContextAccessIndicatorStatusChanged(
-    bool is_accessing) {
-  UpdateAlertState(TabAlert::GLIC_ACCESSING,
-                   GetGlicKeyedService(tab().GetBrowserWindowInterface())
-                       ->IsContextAccessIndicatorShown(tab().GetContents()));
+void TabAlertController::OnGlicSharingStateChange(bool is_sharing) {
+  UpdateAlertState(TabAlert::GLIC_SHARING, is_sharing);
 }
 
-void TabAlertController::OnGlicSharingFocusedTabChanged(
-    const glic::FocusedTabData& focused_tab_data) {
-  const bool is_alert_active =
-      focused_tab_data.focus() != &tab()
-          ? false
-          : GetGlicKeyedService(tab().GetBrowserWindowInterface())
-                ->IsContextAccessIndicatorShown(tab().GetContents());
-  UpdateAlertState(TabAlert::GLIC_ACCESSING, is_alert_active);
-}
-
-void TabAlertController::OnGlicTabPinningChanged(
-    tabs::TabInterface* tab_interface,
-    bool is_sharing) {
-  if (tab_interface->GetContents() == web_contents()) {
-    UpdateAlertState(TabAlert::GLIC_SHARING, is_sharing);
-  }
+void TabAlertController::OnGlicAccessingStateChange(bool is_accessing) {
+  UpdateAlertState(TabAlert::GLIC_ACCESSING, is_accessing);
 }
 #endif  // BUILDFLAG(ENABLE_GLIC)
 

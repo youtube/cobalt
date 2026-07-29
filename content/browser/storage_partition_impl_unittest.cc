@@ -2,11 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/342213636): Remove this and spanify to fix the errors.
-#pragma allow_unsafe_buffers
-#endif
-
 #include "content/browser/storage_partition_impl.h"
 
 #include <stddef.h>
@@ -20,6 +15,7 @@
 #include <utility>
 #include <vector>
 
+#include "base/compiler_specific.h"
 #include "base/containers/contains.h"
 #include "base/containers/span.h"
 #include "base/files/file_path.h"
@@ -371,7 +367,7 @@ class RemoveLocalStorageTester {
 
     base::RunLoop populate_loop;
     database->database().PostTaskWithThisObject(
-        base::BindLambdaForTesting([&](const storage::DomStorageDatabase& db) {
+        base::BindLambdaForTesting([&](storage::DomStorageDatabase* db) {
           PopulateDatabase(db, origin1, origin2, origin3);
           populate_loop.Quit();
         }));
@@ -386,7 +382,7 @@ class RemoveLocalStorageTester {
     EXPECT_TRUE(DOMStorageExistsForOrigin(origin3));
   }
 
-  static void PopulateDatabase(const storage::DomStorageDatabase& db,
+  static void PopulateDatabase(storage::DomStorageDatabase* db,
                                const url::Origin& origin1,
                                const url::Origin& origin2,
                                const url::Origin& origin3) {
@@ -398,35 +394,35 @@ class RemoveLocalStorageTester {
     access_data.set_last_accessed(now.ToInternalValue());
     write_data.set_last_modified(now.ToInternalValue());
     write_data.set_size_bytes(16);
-    ASSERT_TRUE(db.Put(CreateAccessMetaDataKey(origin1),
-                       base::as_byte_span(access_data.SerializeAsString()))
+    ASSERT_TRUE(db->Put(CreateAccessMetaDataKey(origin1),
+                        base::as_byte_span(access_data.SerializeAsString()))
                     .ok());
-    ASSERT_TRUE(db.Put(CreateWriteMetaDataKey(origin1),
-                       base::as_byte_span(write_data.SerializeAsString()))
+    ASSERT_TRUE(db->Put(CreateWriteMetaDataKey(origin1),
+                        base::as_byte_span(write_data.SerializeAsString()))
                     .ok());
-    ASSERT_TRUE(db.Put(CreateDataKey(origin1), {}).ok());
+    ASSERT_TRUE(db->Put(CreateDataKey(origin1), {}).ok());
 
     base::Time one_day_ago = now - base::Days(1);
     access_data.set_last_accessed(one_day_ago.ToInternalValue());
     write_data.set_last_modified(one_day_ago.ToInternalValue());
-    ASSERT_TRUE(db.Put(CreateAccessMetaDataKey(origin2),
-                       base::as_byte_span(access_data.SerializeAsString()))
+    ASSERT_TRUE(db->Put(CreateAccessMetaDataKey(origin2),
+                        base::as_byte_span(access_data.SerializeAsString()))
                     .ok());
-    ASSERT_TRUE(db.Put(CreateWriteMetaDataKey(origin2),
-                       base::as_byte_span((write_data.SerializeAsString())))
+    ASSERT_TRUE(db->Put(CreateWriteMetaDataKey(origin2),
+                        base::as_byte_span((write_data.SerializeAsString())))
                     .ok());
-    ASSERT_TRUE(db.Put(CreateDataKey(origin2), {}).ok());
+    ASSERT_TRUE(db->Put(CreateDataKey(origin2), {}).ok());
 
     base::Time sixty_days_ago = now - base::Days(60);
     access_data.set_last_accessed(sixty_days_ago.ToInternalValue());
     write_data.set_last_modified(sixty_days_ago.ToInternalValue());
-    ASSERT_TRUE(db.Put(CreateAccessMetaDataKey(origin3),
-                       base::as_byte_span(access_data.SerializeAsString()))
+    ASSERT_TRUE(db->Put(CreateAccessMetaDataKey(origin3),
+                        base::as_byte_span(access_data.SerializeAsString()))
                     .ok());
-    ASSERT_TRUE(db.Put(CreateWriteMetaDataKey(origin3),
-                       base::as_byte_span(write_data.SerializeAsString()))
+    ASSERT_TRUE(db->Put(CreateWriteMetaDataKey(origin3),
+                        base::as_byte_span(write_data.SerializeAsString()))
                     .ok());
-    ASSERT_TRUE(db.Put(CreateDataKey(origin3), {}).ok());
+    ASSERT_TRUE(db->Put(CreateDataKey(origin3), {}).ok());
   }
 
  private:
@@ -603,7 +599,8 @@ class RemoveCodeCacheTester {
                           mojo_base::BigBuffer data) {
     if (!response_time.is_null()) {
       entry_exists_ = true;
-      received_data_ = std::string(data.data(), data.data() + data.size());
+      received_data_ =
+          std::string(data.data(), UNSAFE_TODO(data.data() + data.size()));
     } else {
       entry_exists_ = false;
     }

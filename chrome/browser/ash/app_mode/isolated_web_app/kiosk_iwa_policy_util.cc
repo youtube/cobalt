@@ -10,7 +10,6 @@
 #include <variant>
 #include <vector>
 
-#include "ash/constants/ash_features.h"
 #include "base/check.h"
 #include "base/check_deref.h"
 #include "base/check_op.h"
@@ -22,6 +21,7 @@
 #include "chrome/browser/ash/policy/core/device_local_account.h"
 #include "chromeos/ash/components/policy/device_local_account/device_local_account_type.h"
 #include "chromeos/ash/components/settings/cros_settings.h"
+#include "chromeos/components/kiosk/kiosk_utils.h"
 #include "components/account_id/account_id.h"
 #include "components/user_manager/user.h"
 #include "components/user_manager/user_manager.h"
@@ -30,11 +30,6 @@
 #include "url/gurl.h"
 
 namespace {
-
-bool IsIwaKioskSession() {
-  return user_manager::UserManager::IsInitialized() &&
-         user_manager::UserManager::Get()->IsLoggedInAsKioskIWA();
-}
 
 policy::DeviceLocalAccount GetCurrentDeviceLocalAccount() {
   const user_manager::User& current_user =
@@ -111,7 +106,7 @@ KioskIwaUpdateData::KioskIwaUpdateData(
 KioskIwaUpdateData::~KioskIwaUpdateData() = default;
 
 std::optional<web_package::SignedWebBundleId> GetCurrentKioskIwaBundleId() {
-  if (!ash::features::IsIsolatedWebAppKioskEnabled() || !IsIwaKioskSession()) {
+  if (!chromeos::IsIwaKioskSession()) {
     return std::nullopt;
   }
 
@@ -126,7 +121,7 @@ std::optional<web_package::SignedWebBundleId> GetCurrentKioskIwaBundleId() {
 }
 
 std::optional<KioskIwaUpdateData> GetCurrentKioskIwaUpdateData() {
-  if (!ash::features::IsIsolatedWebAppKioskEnabled() || !IsIwaKioskSession()) {
+  if (!chromeos::IsIwaKioskSession()) {
     return std::nullopt;
   }
 

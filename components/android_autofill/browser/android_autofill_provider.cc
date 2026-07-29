@@ -6,7 +6,7 @@
 
 #include <memory>
 
-#include "base/android/build_info.h"
+#include "base/android/android_info.h"
 #include "base/android/jni_android.h"
 #include "base/android/jni_array.h"
 #include "base/android/jni_string.h"
@@ -52,7 +52,7 @@ using FieldInfo = ::autofill::AndroidAutofillProviderBridge::FieldInfo;
 using RequestPasswords = WebAuthnCredManDelegate::RequestPasswords;
 
 constexpr int kMinimumSdkVersionForPrefillRequests =
-    base::android::SdkVersion::SDK_VERSION_U;
+    base::android::android_info::SDK_VERSION_U;
 
 constexpr base::TimeDelta kKeyboardSuppressionTimeout = base::Seconds(1);
 
@@ -109,10 +109,7 @@ WebAuthnCredManDelegate* GetCredManDelegate(AutofillManager* manager) {
 bool AllowCredManOnField(const FormFieldData& field) {
   // TODO(crbug.com/380405846): Carefully clean up this check when the feature
   // is launched such that it doesn't accidentally get launched for WebView.
-  if (!base::FeatureList::IsEnabled(
-          features::kAutofillVirtualViewStructureAndroid)) {
-    return false;
-  }
+
   return field.parsed_autocomplete() && field.parsed_autocomplete()->webauthn;
 }
 
@@ -615,9 +612,7 @@ bool AndroidAutofillProvider::IntendsToShowBottomSheet(
 
 bool AndroidAutofillProvider::WasBottomSheetJustShown(
     AutofillManager& manager) {
-  if (base::FeatureList::IsEnabled(
-          features::kAutofillVirtualViewStructureAndroid) &&
-      credman_sheet_status_ == CredManBottomSheetLifecycle::kIsShowing) {
+  if (credman_sheet_status_ == CredManBottomSheetLifecycle::kIsShowing) {
     return true;
   }
   // TODO(crbug.com/40284788) Remove the timer once a fix is landed on the
@@ -689,12 +684,6 @@ bool AndroidAutofillProvider::ShowCredManSheet(
 }
 
 void AndroidAutofillProvider::MaybeInitKeyboardSuppressor() {
-  // Return early if prefill requests are not supported.
-  if (!ArePrefillRequestsSupported() &&
-      !base::FeatureList::IsEnabled(
-          features::kAutofillVirtualViewStructureAndroid)) {
-    return;
-  }
   keyboard_suppressor_ = std::make_unique<TouchToFillKeyboardSuppressor>(
       ContentAutofillClient::FromWebContents(web_contents()),
       base::BindRepeating(&AndroidAutofillProvider::WasBottomSheetJustShown,
@@ -724,9 +713,7 @@ gfx::RectF AndroidAutofillProvider::ToClientAreaBound(
 }
 
 void AndroidAutofillProvider::Reset() {
-  if (base::FeatureList::IsEnabled(
-          features::kAutofillVirtualViewStructureAndroid) &&
-      manager_) {
+  if (manager_) {
     if (WebAuthnCredManDelegate* delegate =
             GetCredManDelegate(manager_.get())) {
       delegate->SetRequestCompletionCallback(base::DoNothing());
@@ -763,7 +750,7 @@ SessionId AndroidAutofillProvider::CreateSessionId() {
 }
 
 bool AndroidAutofillProvider::ArePrefillRequestsSupported() const {
-  return base::android::BuildInfo::GetInstance()->sdk_int() >=
+  return base::android::android_info::sdk_int() >=
          kMinimumSdkVersionForPrefillRequests;
 }
 

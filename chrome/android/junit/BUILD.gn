@@ -182,11 +182,9 @@ if (is_android) {
       "//chrome/browser/tabmodel:factory_java",
       "//chrome/browser/tabmodel:java",
       "//chrome/browser/tabmodel:test_support_java",
-      "//chrome/browser/tabmodel:test_support_java",
       "//chrome/browser/tabmodel/internal:java",
       "//chrome/browser/tabwindow:java",
       "//chrome/browser/thumbnail:java",
-      "//chrome/browser/ui/android/appmenu:java",
       "//chrome/browser/ui/android/appmenu:java",
       "//chrome/browser/ui/android/default_browser_promo:java",
       "//chrome/browser/ui/android/desktop_windowing:java",
@@ -226,6 +224,7 @@ if (is_android) {
       "//chrome/test/android:chrome_java_unit_test_support",
       "//components/android_autofill/browser:features_java",
       "//components/android_autofill/browser:java",
+      "//components/android_autofill/browser/test_support:java",
       "//components/autofill/android:autofill_features_java",
       "//components/autofill/android:autofill_java_resources",
       "//components/autofill/android:main_autofill_java",
@@ -419,6 +418,7 @@ if (is_android) {
       "src/org/chromium/chrome/browser/ShortcutHelperTest.java",
       "src/org/chromium/chrome/browser/SwipeRefreshHandlerUnitTest.java",
       "src/org/chromium/chrome/browser/TabGroupUsageTrackerUnitTest.java",
+      "src/org/chromium/chrome/browser/TabStateThemeResourceProviderTest.java",
       "src/org/chromium/chrome/browser/UndoRefocusHelperTest.java",
     ]
 
@@ -434,6 +434,7 @@ if (is_android) {
       "src/org/chromium/chrome/browser/app/tab_activity_glue/ActivityTabWebContentsDelegateAndroidUnitTest.java",
       "src/org/chromium/chrome/browser/app/tab_activity_glue/PopupCreatorUnitTest.java",
       "src/org/chromium/chrome/browser/app/tab_activity_glue/TabReparentingControllerTest.java",
+      "src/org/chromium/chrome/browser/app/tabmodel/TabCollectionMigrationUtilTest.java",
       "src/org/chromium/chrome/browser/app/tabmodel/TabModelOrchestratorUnitTest.java",
       "src/org/chromium/chrome/browser/app/tabmodel/TabPersistentStoreIntegrationTest.java",
       "src/org/chromium/chrome/browser/app/tabmodel/TabbedModeTabModelOrchestratorUnitTest.java",
@@ -819,6 +820,7 @@ if (is_android) {
       "src/org/chromium/chrome/browser/ntp/IncognitoNewTabPageUnitTest.java",
       "src/org/chromium/chrome/browser/ntp/NewTabPageUtilUnitTest.java",
       "src/org/chromium/chrome/browser/ntp/RecentTabsPageUnitTest.java",
+      "src/org/chromium/chrome/browser/ntp/search/SearchBoxMediatorUnitTest.java",
       "src/org/chromium/chrome/browser/ntp/search/SearchBoxViewBinderUnitTest.java",
     ]
 
@@ -983,7 +985,10 @@ if (is_android) {
       "src/org/chromium/chrome/browser/share/ShareHelperUnitTest.java",
     ]
 
-    deps = [ ":chrome_junit_tests_helper" ]
+    deps = [
+      ":chrome_junit_tests_helper",
+      "//components/paint_preview/common/mojom:mojom_java",
+    ]
   }
 
   robolectric_library("chrome_junit_tests_org.chromium.chrome.browser.signin") {
@@ -1032,6 +1037,7 @@ if (is_android) {
   robolectric_library("chrome_junit_tests_org.chromium.chrome.browser.tab") {
     sources = [
       "//chrome/android/java/src/org/chromium/chrome/browser/tab/TabFaviconTest.java",
+      "src/org/chromium/chrome/browser/tab/PageContentProtoViewStructureBuilderUnitTest.java",
       "src/org/chromium/chrome/browser/tab/TabArchiveSettingsTest.java",
       "src/org/chromium/chrome/browser/tab/TabArchiverUnitTest.java",
       "src/org/chromium/chrome/browser/tab/TabAttributesTest.java",
@@ -1272,6 +1278,7 @@ if (is_android) {
       "src/org/chromium/chrome/browser/creator/CreatorActionDelegateImplTest.java",
       "src/org/chromium/chrome/browser/desktop_site/DesktopSiteSettingsIphControllerUnitTest.java",
       "src/org/chromium/chrome/browser/display_cutout/DisplayCutoutControllerTest.java",
+      "src/org/chromium/chrome/browser/dom_distiller/ReaderModeActionRateLimiterTest.java",
       "src/org/chromium/chrome/browser/dom_distiller/ReaderModeBottomSheetCoordinatorTest.java",
       "src/org/chromium/chrome/browser/dom_distiller/ReaderModeManagerTest.java",
       "src/org/chromium/chrome/browser/dom_distiller/ReaderModeToolbarButtonControllerTest.java",

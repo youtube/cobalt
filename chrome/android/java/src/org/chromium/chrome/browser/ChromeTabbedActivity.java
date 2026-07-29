@@ -237,6 +237,7 @@ import org.chromium.chrome.browser.tabmodel.IncognitoTabHost;
 import org.chromium.chrome.browser.tabmodel.IncognitoTabHostRegistry;
 import org.chromium.chrome.browser.tabmodel.IncognitoTabHostUtils;
 import org.chromium.chrome.browser.tabmodel.MismatchedIndicesHandler;
+import org.chromium.chrome.browser.tabmodel.MultiTabMetadata;
 import org.chromium.chrome.browser.tabmodel.NextTabPolicy.NextTabPolicySupplier;
 import org.chromium.chrome.browser.tabmodel.RedirectTabCreator;
 import org.chromium.chrome.browser.tabmodel.TabClosingSource;
@@ -254,6 +255,7 @@ import org.chromium.chrome.browser.tabmodel.TabModelSelectorObserver;
 import org.chromium.chrome.browser.tabmodel.TabModelSelectorTabModelObserver;
 import org.chromium.chrome.browser.tabmodel.TabModelSelectorTabObserver;
 import org.chromium.chrome.browser.tabmodel.TabModelUtils;
+import org.chromium.chrome.browser.tabwindow.TabWindowManager;
 import org.chromium.chrome.browser.tabwindow.WindowId;
 import org.chromium.chrome.browser.tasks.HomeSurfaceTracker;
 import org.chromium.chrome.browser.tasks.ReturnToChromeUtil;
@@ -338,6 +340,7 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
@@ -667,6 +670,22 @@ public class ChromeTabbedActivity extends ChromeActivity {
                 () -> {
                     minimizeAppAndCloseTabOnBackPress(getActivityTab());
                 });
+
+        Intent intent = getIntent();
+        if (IncognitoUtils.shouldOpenIncognitoAsWindow()) {
+            boolean hasIncognitoExtra =
+                    intent != null
+                            && (intent.getBooleanExtra(
+                                            IntentHandler.EXTRA_OPEN_NEW_INCOGNITO_TAB, false)
+                                    || intent.getBooleanExtra(
+                                            IntentHandler.EXTRA_OPEN_NEW_INCOGNITO_WINDOW, false));
+            mSupportedProfileType =
+                    hasIncognitoExtra
+                            ? SupportedProfileType.OFF_THE_RECORD
+                            : SupportedProfileType.REGULAR;
+        } else {
+            mSupportedProfileType = SupportedProfileType.MIXED;
+        }
     }
 
     @Override
@@ -1796,12 +1815,27 @@ public class ChromeTabbedActivity extends ChromeActivity {
                             });
             return true;
         }
-        processUrlViewIntent(
-                loadUrlParams,
-                tabOpenType,
-                IntentUtils.safeGetStringExtra(intent, Browser.EXTRA_APPLICATION_ID),
-                tabIdToBringToFront,
-                intent);
+        Tab tab =
+                processUrlViewIntent(
+                        loadUrlParams,
+                        tabOpenType,
+                        IntentUtils.safeGetStringExtra(intent, Browser.EXTRA_APPLICATION_ID),
+                        tabIdToBringToFront,
+                        intent);
+        if (IntentHandler.getPinnedState(intent)) {
+            getTabModelSelector().getModel(tab.isIncognito()).pinTab(tab.getId());
+        }
+        int destTabId = IntentHandler.getDestTabId(intent);
+        if (destTabId != Tab.INVALID_TAB_ID) {
+            TabGroupUtils.mergeTabsToDest(
+                    Collections.singletonList(tab),
+                    destTabId,
+                    getTabModelSelector()
+                            .getTabGroupModelFilterProvider()
+                            .getTabGroupModelFilter(tab.isIncognito()),
+                    null);
+            IntentUtils.safeRemoveExtra(intent, IntentHandler.EXTRA_DEST_TAB_ID);
+        }
         return true;
     }
 
@@ -1818,13 +1852,13 @@ public class ChromeTabbedActivity extends ChromeActivity {
      */
     private boolean maybeHandleMultipleUrlIntent(Intent intent) {
         @TabOpenType int tabOpenType = IntentHandler.getTabOpenType(intent);
-        Bundle multiTabBundle =
-                intent.getBundleExtra(IntentHandler.EXTRA_MULTI_TAB_REPARENTING_METADATA);
-        if (multiTabBundle == null) return false;
-        ArrayList<Integer> tabIds =
-                multiTabBundle.getIntegerArrayList(IntentHandler.MULTI_TAB_KEY_TAB_IDS);
-        ArrayList<String> urls =
-                multiTabBundle.getStringArrayList(IntentHandler.MULTI_TAB_KEY_TAB_URLS);
+        MultiTabMetadata multiTabMetadata = IntentHandler.getMultiTabMetadata(intent);
+        if (multiTabMetadata == null) return false;
+        ArrayList<Integer> tabIds = multiTabMetadata.tabIds;
+        ArrayList<String> urls = multiTabMetadata.urls;
+        boolean[] isPinned = multiTabMetadata.isPinned;
+        TabModel tabModel = getTabModelSelector().getModel(multiTabMetadata.isIncognito);
+        List<Tab> tabs = new ArrayList<>();
 
         for (int i = 0; i < urls.size(); i++) {
             int tabId = tabIds.get(i);
@@ -1833,7 +1867,22 @@ public class ChromeTabbedActivity extends ChromeActivity {
             assert url != null : "URL is null";
             assert !url.isEmpty() : "URL is empty";
 
-            processTabIntentAndLoadTab(intent, tabId, url, tabOpenType);
+            Tab tab = processTabIntentAndLoadTab(intent, tabId, url, tabOpenType);
+            if (isPinned[i]) {
+                tabModel.pinTab(tab.getId());
+            }
+            tabs.add(tab);
+        }
+        int destTabId = IntentHandler.getDestTabId(intent);
+        if (destTabId != Tab.INVALID_TAB_ID) {
+            TabGroupUtils.mergeTabsToDest(
+                    tabs,
+                    destTabId,
+                    getTabModelSelector()
+                            .getTabGroupModelFilterProvider()
+                            .getTabGroupModelFilter(multiTabMetadata.isIncognito),
+                    null);
+            IntentUtils.safeRemoveExtra(intent, IntentHandler.EXTRA_DEST_TAB_ID);
         }
         IntentUtils.safeRemoveExtra(intent, IntentHandler.EXTRA_MULTI_TAB_REPARENTING_METADATA);
         return true;
@@ -2475,7 +2524,8 @@ public class ChromeTabbedActivity extends ChromeActivity {
                 // can be handled by other applications (e.g. www.youtube.com links).
                 Tab currentTab = getActivityTab();
                 if (currentTab != null) {
-                    RedirectHandlerTabHelper.updateIntentInTab(currentTab, intent);
+                    RedirectHandlerTabHelper.updateIntentInTab(
+                            currentTab, intent, /* isCustomTab= */ false);
                     currentTab.loadUrl(loadUrlParams);
                     resultTab = currentTab;
                 } else {
@@ -2655,9 +2705,13 @@ public class ChromeTabbedActivity extends ChromeActivity {
 
     private boolean maybeLaunchDraggedTabOrGroupInWindow(Intent intent) {
         @Nullable TabGroupMetadata tabGroupMetadata = IntentHandler.getTabGroupMetadata(intent);
-        return tabGroupMetadata != null
-                ? maybeLaunchDraggedTabGroupInWindow(intent, tabGroupMetadata)
-                : maybeLaunchDraggedTabInWindow(intent);
+        if (tabGroupMetadata != null) {
+            return maybeLaunchDraggedTabGroupInWindow(intent, tabGroupMetadata);
+        }
+        if (intent.hasExtra(IntentHandler.EXTRA_MULTI_TAB_REPARENTING_METADATA)) {
+            return maybeLaunchDraggedMultiTabInWindow(intent);
+        }
+        return maybeLaunchDraggedTabInWindow(intent);
     }
 
     private boolean maybeLaunchDraggedTabInWindow(Intent intent) {
@@ -2679,7 +2733,8 @@ public class ChromeTabbedActivity extends ChromeActivity {
         }
         boolean isTabInGroup = tab.getTabGroupId() != null;
 
-        mMultiInstanceManager.moveTabToWindow(this, tab, /* atIndex= */ 0);
+        mMultiInstanceManager.moveTabsToWindow(
+                this, Collections.singletonList(tab), /* atIndex= */ 0);
 
         if (isTabInGroup) RecordUserAction.record("MobileToolbarReorderTab.TabRemovedFromGroup");
         RecordHistogram.recordBooleanHistogram(HISTOGRAM_DRAGGED_TAB_OPENED_NEW_WINDOW, true);
@@ -2688,6 +2743,31 @@ public class ChromeTabbedActivity extends ChromeActivity {
                 AppHeaderUtils.isAppInDesktopWindow(
                         mRootUiCoordinator.getDesktopWindowStateManager()),
                 /* isTabGroup= */ false);
+        return true;
+    }
+
+    private boolean maybeLaunchDraggedMultiTabInWindow(Intent intent) {
+        MultiTabMetadata multiTabMetadata = IntentHandler.getMultiTabMetadata(intent);
+        ArrayList<Integer> draggedTabIds = multiTabMetadata.tabIds;
+        if (draggedTabIds.isEmpty()) return false;
+
+        if (!IntentHandler.wasIntentSenderChrome(intent)) return false;
+        if (mMultiInstanceManager == null) return false;
+
+        // |draggedTabId| is retrieved from the activity the tab is being dragged from.
+        int windowId =
+                IntentUtils.safeGetIntExtra(
+                        intent, IntentHandler.EXTRA_DRAGDROP_TAB_WINDOW_ID, INVALID_WINDOW_ID);
+        List<Tab> tabs = new ArrayList<>();
+        TabWindowManager tabWindowManager = TabWindowManagerSingleton.getInstance();
+        for (int draggedTabId : draggedTabIds) {
+            Tab tab = tabWindowManager.getTabById(draggedTabId, windowId);
+            tabs.add(tab);
+        }
+
+        mMultiInstanceManager.moveTabsToWindow(this, tabs, /* atIndex= */ 0);
+
+        // TODO(crbug.com/404074503): Add metrics for multi tab drag.
         return true;
     }
 
@@ -3129,22 +3209,8 @@ public class ChromeTabbedActivity extends ChromeActivity {
         assert mWindowId != INVALID_WINDOW_ID;
 
         Bundle savedInstanceState = getSavedInstanceState();
-        Intent intent = getIntent();
-        if (IncognitoUtils.shouldOpenIncognitoAsWindow()) {
-            boolean hasIncognitoExtra =
-                    intent != null
-                            && (intent.getBooleanExtra(
-                                            IntentHandler.EXTRA_OPEN_NEW_INCOGNITO_TAB, false)
-                                    || intent.getBooleanExtra(
-                                            IntentHandler.EXTRA_OPEN_NEW_INCOGNITO_WINDOW, false));
-            mSupportedProfileType =
-                    hasIncognitoExtra
-                            ? SupportedProfileType.OFF_THE_RECORD
-                            : SupportedProfileType.REGULAR;
-        } else {
-            mSupportedProfileType = SupportedProfileType.MIXED;
-        }
 
+        // We determine SupportedProfileType in onPreCreate().
         // We determine the model as soon as possible so every systems get initialized coherently.
         boolean startIncognito =
                 (mSupportedProfileType == SupportedProfileType.OFF_THE_RECORD)
@@ -4718,5 +4784,27 @@ public class ChromeTabbedActivity extends ChromeActivity {
 
     public @SupportedProfileType int getSupportedProfileType() {
         return mSupportedProfileType;
+    }
+
+    @Override
+    protected void applyThemeOverlays() {
+        super.applyThemeOverlays();
+
+        if (isIncognitoWindow()) {
+            // This overlay is for incognito windowing. Any overlay that attempts to change color
+            // roles should be placed before this call in order to not alter incognito coloring.
+            applySingleThemeOverlay(R.style.ThemeOverlay_BrowserUI_TabbedMode_Incognito);
+        }
+    }
+
+    // Applies dynamic colors based on incognito windowing status.
+    @Override
+    protected boolean shouldApplyDynamicColors() {
+        return !isIncognitoWindow();
+    }
+
+    private boolean isIncognitoWindow() {
+        return mSupportedProfileType == SupportedProfileType.OFF_THE_RECORD
+                || ChromeFeatureList.sIncognitoThemeOverlayTesting.isEnabled();
     }
 }

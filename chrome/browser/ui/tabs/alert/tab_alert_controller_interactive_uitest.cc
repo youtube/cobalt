@@ -6,10 +6,13 @@
 
 #include "base/callback_list.h"
 #include "base/functional/bind.h"
+#include "base/test/scoped_feature_list.h"
 #include "build/build_config.h"
 #include "chrome/browser/glic/browser_ui/glic_tab_indicator_helper.h"
+#include "chrome/browser/glic/host/glic_features.mojom-features.h"
 #include "chrome/browser/glic/test_support/interactive_glic_test.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
+#include "chrome/browser/ui/interaction/browser_elements.h"
 #include "chrome/browser/ui/tabs/alert/tab_alert.h"
 #include "chrome/browser/ui/tabs/alert/tab_alert_controller.h"
 #include "chrome/browser/ui/tabs/public/tab_features.h"
@@ -30,10 +33,8 @@ class TabAlertControllerObserver
  public:
   TabAlertControllerObserver(Browser* browser, int tab_index) {
     callback_subscription_ =
-        browser->tab_strip_model()
-            ->GetTabAtIndex(tab_index)
-            ->GetTabFeatures()
-            ->tab_alert_controller()
+        tabs::TabAlertController::From(
+            browser->tab_strip_model()->GetTabAtIndex(tab_index))
             ->AddAlertToShowChangedCallback(base::BindRepeating(
                 &TabAlertControllerObserver::OnAlertToShowChanged,
                 base::Unretained(this)));
@@ -61,8 +62,15 @@ DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kSecondTabId);
 class TabAlertControllerInteractiveUiTest
     : public glic::test::InteractiveGlicTest {
  public:
-  TabAlertControllerInteractiveUiTest() = default;
+  TabAlertControllerInteractiveUiTest() {
+    scoped_feature_list_.InitWithFeatures(
+        {features::kGlic, features::kTabstripComboButton,
+         glic::mojom::features::kGlicMultiTab},
+        {});
+  }
   ~TabAlertControllerInteractiveUiTest() override = default;
+
+  void SetUp() override { glic::test::InteractiveGlicTest::SetUp(); }
 
   GURL GetTestUrl() const {
     return embedded_test_server()->GetURL("/links.html");
@@ -78,6 +86,7 @@ class TabAlertControllerInteractiveUiTest
  protected:
   const InteractiveBrowserTest::DeepQuery kMockGlicContextAccessButton = {
       "#contextAccessIndicator"};
+  base::test::ScopedFeatureList scoped_feature_list_;
 };
 
 IN_PROC_BROWSER_TEST_F(TabAlertControllerInteractiveUiTest,
@@ -121,11 +130,32 @@ IN_PROC_BROWSER_TEST_F(TabAlertControllerInteractiveUiTest,
       ClickMockGlicElement(kMockGlicContextAccessButton),
       WaitForState(kTab1AlertState,
                    std::make_optional(tabs::TabAlert::GLIC_ACCESSING)),
-      InContext(browser2->window()->GetElementContext(),
+      InContext(BrowserElements::From(browser2)->GetContext(),
                 ActivateSurface(kBrowserViewElementId)),
       WaitForState(kTab1AlertState, std::nullopt),
-      InContext(browser2->window()->GetElementContext(),
+      InContext(BrowserElements::From(browser2)->GetContext(),
                 SelectTab(kTabStripElementId, 0)),
       WaitForState(kTab2AlertState,
                    std::make_optional(tabs::TabAlert::GLIC_ACCESSING)));
+}
+
+IN_PROC_BROWSER_TEST_F(TabAlertControllerInteractiveUiTest,
+                       GlicSharingUpdatesAlertController) {
+  RunTestSequence(
+      LoadStartingPage(kFirstTabId, 0, browser()),
+      ObserveState(kTab1AlertState, browser(), 0), Do([this]() {
+        TabStripModel* const tab_strip_model = browser()->GetTabStripModel();
+        CHECK(glic::GlicKeyedService::Get(browser()->profile()));
+        glic::GlicKeyedService::Get(browser()->profile())
+            ->sharing_manager()
+            .PinTabs({tab_strip_model->GetTabAtIndex(0)->GetHandle()});
+      }),
+      WaitForState(kTab1AlertState,
+                   std::make_optional(tabs::TabAlert::GLIC_SHARING)),
+      Do([this]() {
+        glic::GlicKeyedService::Get(browser()->profile())
+            ->sharing_manager()
+            .UnpinAllTabs();
+      }),
+      WaitForState(kTab1AlertState, std::nullopt));
 }
