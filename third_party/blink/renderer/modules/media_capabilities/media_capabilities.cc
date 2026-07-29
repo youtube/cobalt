@@ -56,7 +56,9 @@
 #include "third_party/blink/renderer/modules/encryptedmedia/media_key_system_access_initializer_base.h"
 #include "third_party/blink/renderer/modules/media_capabilities/media_capabilities_identifiability_metrics.h"
 #include "third_party/blink/renderer/modules/media_capabilities_names.h"
-#include "third_party/blink/renderer/modules/mediarecorder/media_recorder_handler.h"
+#if !BUILDFLAG(IS_COBALT)
+#include "third_party/blink/renderer/modules/mediarecorder/media_recorder_handler.h"  // nogncheck
+#endif  // !BUILDFLAG(IS_COBALT)
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
 #include "third_party/blink/renderer/platform/bindings/script_state.h"
 #include "third_party/blink/renderer/platform/bindings/v8_throw_exception.h"
@@ -253,6 +255,19 @@ bool IsValidMimeType(const String& content_type,
 
   const auto& parameters = parsed_content_type.GetParameters();
 
+#if BUILDFLAG(IS_COBALT)
+  // Web applications may append Cobalt-specific parameters to MIME type strings
+  // in any order (e.g. enableflushduringseek=true, enableresetaudiodecoder=true).
+  // Check across all parameters rather than assuming 'codecs' is the first parameter.
+  if (parameters.ParameterCount() == 0)
+    return true;
+
+  for (const auto& param : parameters) {
+    if (EqualIgnoringASCIICase(param.name, kCodecsMimeTypeParam))
+      return true;
+  }
+  return false;
+#else  // BUILDFLAG(IS_COBALT)
   if (parameters.ParameterCount() > 1)
     return false;
 
@@ -260,6 +275,7 @@ bool IsValidMimeType(const String& content_type,
     return true;
 
   return EqualIgnoringASCIICase(parameters.begin()->name, kCodecsMimeTypeParam);
+#endif // BUILDFLAG(IS_COBALT)
 }
 
 bool IsValidMediaConfiguration(const MediaConfiguration* configuration) {
@@ -378,6 +394,7 @@ bool IsValidMediaEncodingConfiguration(
   return true;
 }
 
+#if !BUILDFLAG(IS_COBALT)
 WebAudioConfiguration ToWebAudioConfiguration(
     const AudioConfiguration* configuration) {
   WebAudioConfiguration web_configuration;
@@ -460,6 +477,7 @@ WebMediaConfiguration ToWebMediaConfiguration(
 
   return web_configuration;
 }
+#endif  // !BUILDFLAG(IS_COBALT)
 
 webrtc::SdpAudioFormat ToSdpAudioFormat(
     const AudioConfiguration* configuration) {
@@ -702,6 +720,7 @@ bool IsVideoConfigurationSupported(const String& mime_type,
                                              hdr_metadata_type});
 }
 
+#if !BUILDFLAG(IS_COBALT)
 void OnMediaCapabilitiesEncodingInfo(
     ScriptPromiseResolver<MediaCapabilitiesInfo>* resolver,
     std::unique_ptr<WebMediaCapabilitiesInfo> result) {
@@ -717,6 +736,7 @@ void OnMediaCapabilitiesEncodingInfo(
 
   resolver->Resolve(std::move(info));
 }
+#endif  // !BUILDFLAG(IS_COBALT)
 
 bool ParseContentType(const String& content_type,
                       String* mime_type,
@@ -1119,6 +1139,7 @@ ScriptPromise<MediaCapabilitiesInfo> MediaCapabilities::encodingInfo(
   DCHECK_EQ(config->type(), V8MediaEncodingType::Enum::kRecord);
   DCHECK(RuntimeEnabledFeatures::MediaCapabilitiesEncodingInfoEnabled());
 
+#if !BUILDFLAG(IS_COBALT)
   auto task_runner = resolver->GetExecutionContext()->GetTaskRunner(
       TaskType::kInternalMediaRealTime);
   if (auto* handler = MakeGarbageCollected<MediaRecorderHandler>(
@@ -1132,6 +1153,7 @@ ScriptPromise<MediaCapabilitiesInfo> MediaCapabilities::encodingInfo(
 
     return promise;
   }
+#endif  // !BUILDFLAG(IS_COBALT)
 
   DVLOG(2) << __func__ << " Could not get MediaRecorderHandler.";
   MediaCapabilitiesInfo* info = CreateEncodingInfoWith(false);

@@ -4,7 +4,9 @@
 
 #include "third_party/blink/renderer/platform/fonts/font_fallback_iterator.h"
 
+#include "base/command_line.h"
 #include "base/memory/values_equivalent.h"
+#include "build/build_config.h"
 #include "third_party/blink/renderer/platform/fonts/font_cache.h"
 #include "third_party/blink/renderer/platform/fonts/font_description.h"
 #include "third_party/blink/renderer/platform/fonts/font_fallback_list.h"
@@ -158,6 +160,15 @@ FontDataForRangeSet* FontFallbackIterator::Next(const HintCharList& hint_list) {
 
   if (fallback_stage_ == kFirstCandidateForNotdefGlyph) {
     fallback_stage_ = kOutOfLuck;
+#if BUILDFLAG(IS_ANDROID)
+    // Don't crash the application if first_candidate is null.
+    if (base::CommandLine::ForCurrentProcess()->HasSwitch(
+            "enable-optimized-font-loading")) {
+      if (first_candidate_)                                                                                                                  
+        return first_candidate_; 
+      return MakeGarbageCollected<FontDataForRangeSet>();
+    }
+#endif
     if (!first_candidate_)
       FontCache::CrashWithFontInfo(&font_description_);
     return first_candidate_;

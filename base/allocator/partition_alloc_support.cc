@@ -972,10 +972,12 @@ void PartitionAllocSupport::ReconfigureAfterFeatureListInit(
     CHECK(base::FeatureList::GetInstance());
   }
 
+#if !BUILDFLAG(IS_COBALT)
   if (configure_dangling_pointer_detector) {
     base::allocator::InstallDanglingRawPtrChecks();
   }
   base::allocator::InstallUnretainedDanglingRawPtrChecks();
+#endif  // !BUILDFLAG(IS_COBALT)
   {
     base::AutoLock scoped_lock(lock_);
     // Avoid initializing more than once.
@@ -1002,6 +1004,13 @@ void PartitionAllocSupport::ReconfigureAfterFeatureListInit(
 
     called_after_feature_list_init_ = true;
   }
+
+#if BUILDFLAG(IS_COBALT)
+  if (configure_dangling_pointer_detector) {
+    base::allocator::InstallDanglingRawPtrChecks();
+  }
+  base::allocator::InstallUnretainedDanglingRawPtrChecks();
+#endif  // BUILDFLAG(IS_COBALT)
 
   DCHECK_NE(process_type, switches::kZygoteProcess);
   [[maybe_unused]] BrpConfiguration brp_config =
