@@ -5,6 +5,13 @@
 #ifndef CONTENT_BROWSER_DEVTOOLS_DEVTOOLS_THROTTLE_HANDLE_H_
 #define CONTENT_BROWSER_DEVTOOLS_DEVTOOLS_THROTTLE_HANDLE_H_
 
+#include "build/build_config.h"
+#include "third_party/blink/public/common/buildflags.h"
+
+#if !BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
+#include "content/browser/devtools/cobalt/devtools_throttle_handle_stub.h"
+#else  // BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
+
 #include "base/functional/callback.h"
 #include "base/memory/scoped_refptr.h"
 
@@ -28,5 +35,7 @@ class DevToolsThrottleHandle : public base::RefCounted<DevToolsThrottleHandle> {
 };
 
 }  // namespace content
+
+#endif  // !BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
 
 #endif  // CONTENT_BROWSER_DEVTOOLS_DEVTOOLS_THROTTLE_HANDLE_H_

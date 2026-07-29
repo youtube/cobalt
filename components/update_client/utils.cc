@@ -26,6 +26,7 @@
 #include "base/functional/callback.h"
 #include "base/functional/function_ref.h"
 #include "base/json/json_file_value_serializer.h"
+#include "base/logging.h"
 #include "base/path_service.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
@@ -47,6 +48,11 @@
 
 #include "base/win/windows_version.h"
 #endif  // BUILDFLAG(IS_WIN)
+
+#if BUILDFLAG(IS_STARBOARD)
+#include <map>
+#include "base/no_destructor.h"
+#endif
 
 namespace update_client {
 
@@ -94,6 +100,97 @@ std::string GetCrxIdFromPublicKeyHash(base::span<const uint8_t> pk_hash) {
   return result;
 }
 
+#if BUILDFLAG(IS_STARBOARD)
+#if defined(IN_MEMORY_UPDATES)
+bool VerifyHash256(const std::string* content,
+                   const std::string& expected_hash_str) {
+  std::array<uint8_t, crypto::hash::kSha256Size> expected_hash;
+  if (!base::HexStringToSpan(expected_hash_str, expected_hash)) {
+    return false;
+  }
+
+  std::array<uint8_t, crypto::hash::kSha256Size> hash;
+  crypto::hash::Hash(crypto::hash::kSha256, *content, hash);
+
+  return base::span(hash) == base::span(expected_hash);
+}
+#else  // defined(IN_MEMORY_UPDATES)
+bool VerifyFileHash256(const base::FilePath& filepath,
+                       const std::string& expected_hash_str) {
+  std::array<uint8_t, crypto::hash::kSha256Size> expected_hash;
+  if (!base::HexStringToSpan(expected_hash_str, expected_hash)) {
+    return false;
+  }
+
+  base::File source_file(filepath,
+                         base::File::FLAG_OPEN | base::File::FLAG_READ);
+  if (!source_file.IsValid()) {
+    DPLOG(ERROR) << "VerifyFileHash256(): Unable to open source file: "
+                 << filepath.value();
+    return false;
+  }
+
+  std::array<uint8_t, crypto::hash::kSha256Size> hash;
+  if (!crypto::hash::HashFile(crypto::hash::kSha256, &source_file, hash)) {
+    return false;
+  }
+
+  return base::span(hash) == base::span(expected_hash);
+}
+#endif  // defined(IN_MEMORY_UPDATES)
+
+base::Version ReadEvergreenVersion(base::FilePath installation_dir) {
+  auto manifest = ReadManifest(installation_dir);
+  if (manifest) {
+    auto version = manifest->Find("version");
+    if (version) {
+      return base::Version(version->GetString());
+    }
+  }
+  LOG(WARNING) << "ReadEvergreenVersion: unable to read version from "
+               << installation_dir.value();
+  return base::Version();
+}
+
+const std::map<ComponentState, UpdaterStatus>& GetComponentToUpdaterStatusMap() {
+  static const base::NoDestructor<std::map<ComponentState, UpdaterStatus>> map({
+      {ComponentState::kNew, UpdaterStatus::kNewUpdate},
+      {ComponentState::kChecking, UpdaterStatus::kChecking},
+      {ComponentState::kCanUpdate, UpdaterStatus::kUpdateAvailable},
+      {ComponentState::kDownloading, UpdaterStatus::kDownloading},
+      {ComponentState::kDecompressing, UpdaterStatus::kDecompressing},
+      {ComponentState::kPatching, UpdaterStatus::kPatching},
+      {ComponentState::kUpdating, UpdaterStatus::kUpdating},
+      {ComponentState::kUpdated, UpdaterStatus::kUpdated},
+      {ComponentState::kUpToDate, UpdaterStatus::kUpToDate},
+      {ComponentState::kUpdateError, UpdaterStatus::kUpdateError},
+      {ComponentState::kRun, UpdaterStatus::kRun},
+  });
+  return *map;
+}
+
+const std::map<UpdaterStatus, const char*>& GetUpdaterStatusStringMap() {
+  static const base::NoDestructor<std::map<UpdaterStatus, const char*>> map({
+      {UpdaterStatus::kNewUpdate, "Will check for update soon"},
+      {UpdaterStatus::kChecking, "Checking for update"},
+      {UpdaterStatus::kUpdateAvailable, "Update is available"},
+      {UpdaterStatus::kDownloading, "Downloading update"},
+      {UpdaterStatus::kSlotLocked, "Slot is locked"},
+      {UpdaterStatus::kDownloaded, "Update is downloaded"},
+      {UpdaterStatus::kDecompressing, "Update is being decompressed"},
+      {UpdaterStatus::kPatching, "Patch is being applied"},
+      {UpdaterStatus::kUpdating, "Installing update"},
+      {UpdaterStatus::kUpdated, "Update installed, pending restart"},
+      {UpdaterStatus::kRolledForward, "Updated locally, pending restart"},
+      {UpdaterStatus::kUpToDate, "App is up to date"},
+      {UpdaterStatus::kUpdateError, "Failed to update"},
+      {UpdaterStatus::kUninstalled, "Update uninstalled"},
+      {UpdaterStatus::kRun, "Transitioning..."},
+  });
+  return *map;
+}
+#else  // BUILDFLAG(IS_STARBOARD)
+
 bool VerifyFileHash256(const base::FilePath& filepath,
                        const std::string& expected_hash_str) {
   std::array<uint8_t, crypto::hash::kSha256Size> expected_hash;
@@ -115,6 +212,8 @@ bool VerifyFileHash256(const base::FilePath& filepath,
 
   return base::span(hash) == base::span(expected_hash);
 }
+
+#endif  // BUILDFLAG(IS_STARBOARD)
 
 bool IsValidBrand(const std::string& brand) {
   const size_t kMaxBrandSize = 4;
