@@ -123,6 +123,9 @@ void MemoryPressureListenerRegistry::OnMemoryPressure(
     base::MemoryPressureListener::MemoryPressureLevel level) {
   TRACE_EVENT1("blink", "MemoryPressureListenerRegistry::onMemoryPressure",
                "level", level);
+#if BUILDFLAG(IS_COBALT)
+  LOG(INFO) << "Blink handling OnMemoryPressure";
+#endif
   CHECK(IsMainThread());
   for (auto& client : clients_)
     client->OnMemoryPressure(level);
