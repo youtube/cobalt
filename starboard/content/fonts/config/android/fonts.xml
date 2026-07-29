@@ -214,7 +214,7 @@
         <font weight="400" style="normal">NotoSansTamilUI-Regular.ttf</font>
         <font weight="400" style="normal">NotoSansTamilUI-Regular.otf</font>
         <font weight="700" style="normal">NotoSansTamilUI-Bold.ttf</font>
-        <font weight="400" style="normal">NotoSansTamilUI-Bold.otf</font>
+        <font weight="700" style="normal">NotoSansTamilUI-Bold.otf</font>
         <font weight="400" style="normal" tag_wght="400" font_name="Noto Sans Tamil UI" postscript_name="NotoSansTamilUI-Regular">NotoSansTamilUI-VF.ttf</font>
         <font weight="700" style="normal" tag_wght="700" font_name="Noto Sans Tamil UI Bold" postscript_name="NotoSansTamilUI-Bold">NotoSansTamilUI-VF.ttf</font>
     </family>
