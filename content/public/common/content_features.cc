@@ -1319,7 +1319,23 @@ BASE_FEATURE(ReduceGpuPriorityOnBackground, base::FEATURE_DISABLED_BY_DEFAULT);
 // Screen Capture API support for Android.
 // This should not be enabled unless ENABLE_SCREEN_CAPTURE is on, otherwise
 // it won't work.
+<<<<<<< HEAD
 BASE_FEATURE(UserMediaScreenCapturing, base::FEATURE_DISABLED_BY_DEFAULT);
+=======
+BASE_FEATURE(kUserMediaScreenCapturing,
+             "UserMediaScreenCapturing",
+#if BUILDFLAG(ENABLE_SCREEN_CAPTURE)
+             base::FEATURE_ENABLED_BY_DEFAULT
+#else
+             base::FEATURE_DISABLED_BY_DEFAULT
+#endif  // BUILDFLAG(ENABLE_SCREEN_CAPTURE)
+);
+
+BASE_FEATURE(kDoNotGenerateChromiumA11yTree,
+             "DoNotGenerateChromiumA11yTree",
+             BUILDFLAG(IS_COBALT) ? base::FEATURE_ENABLED_BY_DEFAULT
+                                   : base::FEATURE_DISABLED_BY_DEFAULT);
+>>>>>>> parent of 035876acff5 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #endif  // BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(IS_MAC)
