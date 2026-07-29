@@ -62,7 +62,9 @@ import org.chromium.chrome.browser.omnibox.status.StatusCoordinator;
 import org.chromium.chrome.browser.omnibox.styles.OmniboxResourceProvider;
 import org.chromium.chrome.browser.omnibox.suggestions.OmniboxSuggestionsDropdownScrollListener;
 import org.chromium.chrome.browser.tab.Tab;
+import org.chromium.chrome.browser.tabmodel.IncognitoStateProvider;
 import org.chromium.chrome.browser.theme.SurfaceColorUpdateUtils;
+import org.chromium.chrome.browser.theme.ThemeColorProvider;
 import org.chromium.chrome.browser.theme.ThemeUtils;
 import org.chromium.chrome.browser.toolbar.R;
 import org.chromium.chrome.browser.toolbar.ToolbarDataProvider;
@@ -365,7 +367,9 @@ public class ToolbarPhone extends ToolbarLayout
             @Nullable ReloadButtonCoordinator reloadButtonCoordinator,
             @Nullable BackButtonCoordinator backButtonCoordinator,
             @Nullable HomeButtonDisplay homeButtonDisplay,
-            @Nullable ExtensionToolbarCoordinator extensionToolbarCoordinator) {
+            @Nullable ExtensionToolbarCoordinator extensionToolbarCoordinator,
+            ThemeColorProvider themeColorProvider,
+            IncognitoStateProvider incognitoStateProvider) {
         super.initialize(
                 toolbarDataProvider,
                 tabController,
@@ -378,7 +382,9 @@ public class ToolbarPhone extends ToolbarLayout
                 reloadButtonCoordinator,
                 backButtonCoordinator,
                 homeButtonDisplay,
-                extensionToolbarCoordinator);
+                extensionToolbarCoordinator,
+                themeColorProvider,
+                incognitoStateProvider);
         mUserEducationHelper = userEducationHelper;
         mTrackerSupplier = trackerSupplier;
         mHomeButtonDisplay = assumeNonNull(homeButtonDisplay);
@@ -579,7 +585,7 @@ public class ToolbarPhone extends ToolbarLayout
             // setTabSwitcherMode()/onTabSwitcherTransitionFinished() ->
             // updateVisualsForLocationBarState()
             if (!isInTabSwitcherMode()) {
-                invokeTransition(false);
+                invokeTransition();
             }
             if (!changed) return;
         } else {
@@ -860,7 +866,7 @@ public class ToolbarPhone extends ToolbarLayout
             updateLocationBarForNtp(mVisualState, urlHasFocus());
         }
         updateUrlExpansionFraction();
-        invokeTransition(false);
+        invokeTransition();
     }
 
     /**
@@ -971,7 +977,7 @@ public class ToolbarPhone extends ToolbarLayout
     private void setUrlFocusChangeFraction(float fraction) {
         mUrlFocusChangeFraction = fraction;
         updateUrlExpansionFraction();
-        invokeTransition(false);
+        invokeTransition();
     }
 
     private void updateUrlExpansionFraction() {
@@ -2222,7 +2228,7 @@ public class ToolbarPhone extends ToolbarLayout
         boolean wasShowingNtp = ntpDelegate.wasShowingNtp();
         float previousNtpScrollFraction = mNtpSearchBoxScrollFraction;
 
-        invokeTransition(true);
+        invokeTransition(/* resetNtpTransition= */ true, /* skipUrlExpansion= */ false);
         ntpDelegate.setSearchBoxScrollListener(this::onNtpScrollChanged);
         if (ntpDelegate.isLocationBarShown()) {
             updateToNtpBackground();
@@ -2292,6 +2298,23 @@ public class ToolbarPhone extends ToolbarLayout
                 && !hideShadowForIncognitoNtp()
                 && !hideShadowForInterstitial()
                 && getVisibility() == View.VISIBLE;
+    }
+
+    @Override
+    public void onToEdgeChange(int newTopPadding) {
+        // The status bar hides when the newTopInset value is greater than zero. When the New Tab
+        // Page (NTP) transitions to an edge-to-edge display at the top, we add the original status
+        // bar height as the top padding to the toolbar. This ensures the toolbar stays in its
+        // original screen position, and the entire top area (status bar and toolbar) is rendered
+        // with the toolbar's color.
+        ViewGroup.MarginLayoutParams marginLayoutParams =
+                (ViewGroup.MarginLayoutParams) getLayoutParams();
+        int height =
+                getResources().getDimensionPixelSize(R.dimen.toolbar_height_no_shadow)
+                        + newTopPadding;
+        marginLayoutParams.height = height;
+
+        setPaddingRelative(getPaddingStart(), newTopPadding, getPaddingEnd(), getPaddingBottom());
     }
 
     private boolean hideShadowForIncognitoNtp() {
@@ -2446,7 +2469,10 @@ public class ToolbarPhone extends ToolbarLayout
             mLayoutUpdater.run();
         }
         updateShadowVisibility();
-        invokeTransition(false);
+        invokeTransition(
+                /* resetNtpTransition= */ false,
+                /* skipUrlExpansion= */ ChromeFeatureList.sToolbarPhoneAnimationRefactor
+                        .isEnabled());
 
         // This exception is to prevent early change of theme color when exiting the tab switcher
         // since currently visual state does not map correctly to tab switcher state. See
@@ -2804,13 +2830,20 @@ public class ToolbarPhone extends ToolbarLayout
         mNtpSearchBoxScrollFraction = ntpSearchBoxScrollFraction;
     }
 
+    private void invokeTransition() {
+        invokeTransition(/* resetNtpTransition= */ false, /* skipUrlExpansion= */ false);
+    }
+
     /**
      * Triggers NTP transition animation (if toolbar is shown on NTP) and URL expansion animation.
      *
      * @param resetNtpTransition if the transition is to reset NTP animation.
+     * @param skipUrlExpansion if the URL expansion animation should be skipped.
      */
-    private void invokeTransition(boolean resetNtpTransition) {
+    private void invokeTransition(boolean resetNtpTransition, boolean skipUrlExpansion) {
         if (resetNtpTransition) {
+            // skipUrlExpansion should not be set when resetNtpTransition is true.
+            assert !skipUrlExpansion;
             resetNtpAnimationValues();
             return;
         }
@@ -2829,7 +2862,10 @@ public class ToolbarPhone extends ToolbarLayout
         } else {
             resetNtpAnimationValues();
         }
-        updateUrlExpansionAnimation();
+
+        if (!skipUrlExpansion) {
+            updateUrlExpansionAnimation();
+        }
     }
 
     private boolean inOrEnteringTabSwitcher() {

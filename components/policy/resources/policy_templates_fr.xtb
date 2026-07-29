@@ -278,6 +278,7 @@ Pour en savoir plus sur la gestion des données pour les fonctionnalités d'IA 
 <translation id="1202216683470826356">Afficher les fiches sur la page Nouvel onglet</translation>
 <translation id="1203676252390737801">Gestion des adresses IP WebRTC par URL</translation>
 <translation id="1204263402976895730">Imprimantes d'entreprise activées</translation>
+<translation id="120513772363332049">Aucun autre processus ne sera planifié sur le même cœur de processeur lorsque le processus de rendu y est exécuté.</translation>
 <translation id="1207301487141109411">Empêcher la sélection de l'avatar de l'utilisateur à partir du système de fichiers local, de l'appareil photo et du profil Google</translation>
 <translation id="1209096923317019235">Affecte les applis en tant que gestionnaires par défaut pour les extensions de fichier spécifiées</translation>
 <translation id="120937472976628837">Transmettre des infos sur le ventilateur</translation>
@@ -402,6 +403,7 @@ Pour en savoir plus sur les contextes sécurisés, consultez la page https://www
       Si la règle <ph name="DEFAULT_SEARCH_PROVIDER_NAME_POLICY_NAME" /> n'est pas configurée, le nom d'hôte indiqué par l'URL de recherche est utilisé.</translation>
 <translation id="1312799700549720683">Contrôle les paramètres d'affichage.</translation>
 <translation id="131353325527891113">Afficher les noms d'utilisateur sur l'écran de connexion</translation>
+<translation id="1317158052518324525">Ne pas autoriser la saisie automatique améliorée.</translation>
 <translation id="1317658068839330898">Ne pas autoriser l'utilisation de l'<ph name="ASSISTANT_PRODUCT_NAME" /> sur le Web</translation>
 <translation id="1318233005302276244">Permet aux utilisateurs de suivre leurs colis sur Chrome.</translation>
 <translation id="1323501563951768821">Les paramètres F12 utilisent le raccourci qui contient la touche de modification Maj</translation>
@@ -841,6 +843,33 @@ Si cette règle est activée, l'option apparaît sous chaque écran pour exclure
 Si cette règle est désactivée ou n'est pas configurée, l'option sera masquée.
 
 Remarque : Cette règle ne concerne que l'UI. ChromeOS conserve les paramètres existants quand l'UI est masquée.</translation>
+<translation id="1579027593897822029">Liste des actions à exécuter lorsque le délai d'inactivité de la règle <ph name="IDLE_TIMEOUT_POLICY_NAME" /> est atteint.
+
+Avertissement : La définition de cette règle peut affecter les données personnelles locales et entraîner leur suppression définitive. Nous vous recommandons de tester vos paramètres avant de les déployer pour éviter toute suppression accidentelle de données personnelles.
+
+Cette règle n'a aucune incidence si la règle <ph name="IDLE_TIMEOUT_POLICY_NAME" /> n'est pas configurée.
+
+Lorsque le délai d'inactivité de la règle <ph name="IDLE_TIMEOUT_POLICY_NAME" /> est atteint, le navigateur exécute les actions configurées dans celle-ci.
+
+La règle <ph name="IDLE_TIMEOUT_POLICY_NAME" /> n'a aucune incidence si elle est vide ou si elle n'est pas configurée.
+
+Actions acceptées :
+
+<ph name="CLOSE_BROWSERS_ACTION" /> : ferme toutes les fenêtres de navigateur et les PWA pour ce profil. Non disponible sur Android et iOS.
+
+<ph name="CLOSE_TABS_ACTION" /> : ferme tous les onglets ouverts dans les fenêtres ouvertes. Uniquement disponible sur iOS.
+
+<ph name="SHOW_PROFILE_PICKER_ACTION" /> : affiche la fenêtre de sélection des profils. Non disponible sur Android et iOS.
+
+<ph name="SIGN_OUT_ACTION" /> : déconnecte l'utilisateur actuellement connecté. Uniquement disponible sur iOS.
+
+<ph name="CLEAR_BROWSING_HISTORY_ACTION" />, <ph name="CLEAR_DOWNLOAD_HISTORY_ACTION" />, <ph name="CLEAR_COOKIES_AND_OTHER_SITE_DATA_ACTION" />, <ph name="CLEAR_CACHED_IMAGES_AND_FILES_ACTION" />, <ph name="CLEAR_PASSWORD_SIGNIN_ACTION" />, <ph name="CLEAR_AUTOFILL_ACTION" />, <ph name="CLEAR_SITE_SETTINGS_ACTION" />, <ph name="CLEAR_HOSTED_APP_DATA_ACTION" /> : efface les données de navigation correspondantes. Pour en savoir plus, consultez la règle <ph name="CLEAR_BROWSING_DATA_ON_EXIT_LIST_POLICY_NAME" />. Les types compatibles avec iOS sont <ph name="CLEAR_BROWSING_HISTORY_ACTION" />, <ph name="CLEAR_COOKIES_AND_OTHER_SITE_DATA_ACTION" />, <ph name="CLEAR_CACHED_IMAGES_AND_FILES_ACTION" />, <ph name="CLEAR_PASSWORD_SIGNIN_ACTION" /> et <ph name="CLEAR_AUTOFILL_ACTION" />.
+
+<ph name="RELOAD_PAGES_ACTION" /> : actualise toutes les pages Web. L'utilisateur peut d'abord être invité à confirmer l'opération pour certaines pages. Non disponible sur iOS.
+
+L'utilisateur restera connecté à son compte Google lorsqu'il supprimera les cookies à l'aide de <ph name="CLEAR_COOKIES_AND_OTHER_SITE_DATA_ACTION" />.
+
+Si vous configurez <ph name="CLEAR_BROWSING_HISTORY_ACTION" />, <ph name="CLEAR_PASSWORD_SIGNIN_ACTION" />, <ph name="CLEAR_AUTOFILL_ACTION" /> et <ph name="CLEAR_SITE_SETTINGS_ACTION" />, la synchronisation sera désactivée pour les types de données respectifs si <ph name="CHROME_SYNC_NAME" /> n'est pas désactivé en définissant la règle <ph name="SYNC_DISABLED_POLICY_NAME" /> et si <ph name="BROWSER_SIGNIN_POLICY_NAME" /> n'est pas désactivé.</translation>
 <translation id="1583248206450240930">Utiliser <ph name="PRODUCT_FRAME_NAME" /> par défaut</translation>
 <translation id="1587585749332985896">Ne pas autoriser le mode headless</translation>
 <translation id="1588240398285670601">Paramètres du navigateur</translation>
@@ -1047,7 +1076,6 @@ Cette règle constitue une solution temporaire au cas où des entreprises rencon
 
       Remarque : Ce paramètre ignore la règle "<ph name="REMOTE_ACCESS_HOST_DOMAIN_POLICY_NAME" />", le cas échéant.</translation>
 <translation id="172374442286684480">Autoriser tous les sites à définir des données locales</translation>
-<translation id="1725541103767528536">Autoriser la saisie automatique avec l'IA sans améliorer les modèles d'IA.</translation>
 <translation id="1729169799290004131">Cette règle permet de définir le niveau de luminosité de l'écran (en pourcentage), ce qui désactive les fonctionnalités de réglage automatique de la luminosité. En outre, le niveau initial de luminosité de l'écran est ajusté à la valeur définie dans cette règle. Toutefois, les utilisateurs peuvent modifier ce paramètre.
 
       Si cette règle n'est pas configurée, les réglages de l'utilisateur concernant l'écran ou les fonctionnalités de réglage automatique de la luminosité ne sont pas affectés.
@@ -1482,6 +1510,9 @@ Cette règle est habituellement désactivée pour protéger les utilisateurs con
 <translation id="208566302163036794">Bloquer les fonctionnalités désactivées</translation>
 <translation id="2086040449830622332">Activer le bac à sable LPAC pour l'impression</translation>
 <translation id="208623333578980446">Autoriser les wakelocks forçant l'activation de l'écran pour la gestion de l'alimentation</translation>
+<translation id="2086505225896497574">Cette règle permet de spécifier les ID RP WebAuthn pour lesquels aucune invite ne s'affiche lorsque des certificats d'attestation des clés de sécurité sont demandés sur l'écran de connexion. Un signal est également envoyé à la clé de sécurité pour indiquer qu'une attestation d'entreprise peut être utilisée. Sans cela, les utilisateurs sont avertis lorsque des sites demandent une attestation des clés de sécurité.
+
+Cette règle relative aux appareils est équivalente à la règle relative aux utilisateurs <ph name="SECURITY_KEY_PERMIT_ATTESTATION_POLICY_NAME" /> existante, à la différence qu'elle s'applique au profil de connexion sur l'écran de connexion.</translation>
 <translation id="2089541797660774692">Activer la création de rapports cloud via un navigateur géré</translation>
 <translation id="2090712407517297305">La page de l'historique Chrome organisée par groupes sera visible sur chrome://history/grouped.</translation>
 <translation id="2090939118981888335">Si vous activez cette règle, le proxy de compression des données est activé. Si vous la désactivez, le proxy est désactivé.
@@ -1687,7 +1718,6 @@ Si vous définissez cette règle, vous devez désactiver la règle <ph name="PRI
 Si elle est désactivée, les utilisateurs ne peuvent pas utiliser cette fonctionnalité.
 
       Si cette règle est configurée, les utilisateurs ne peuvent pas la modifier dans <ph name="PRODUCT_NAME" />. Si elle n'est pas configurée, la vérification de fuite d'identifiants est autorisée, mais l'utilisateur peut la désactiver.</translation>
-<translation id="220834508664708052">Autoriser la saisie automatique avec l'IA et améliorer les modèles d'IA.</translation>
 <translation id="2208976000652006649">Paramètres pour l'URL de recherche utilisant POST</translation>
 <translation id="2212011154693551439">La page de l'historique Chrome organisée par groupes sera visible par défaut sur chrome://history/grouped.</translation>
 <translation id="2212207215880394506">Ne pas autoriser la retouche photo par IA générative.</translation>
@@ -3301,15 +3331,6 @@ Si elle est désactivée, la fonctionnalité d'écriture prédictive est désact
 <translation id="3387999258705169775">Comportement par défaut pour la limitation imbriquée de la fonction setTimeout().</translation>
 <translation id="3388628790024977864">Interdire le flux <ph name="CLOUD_UPLOAD_NAME" /> pour <ph name="GOOGLE_DRIVE_NAME" /> et <ph name="GOOGLE_WORKSPACE_NAME" /></translation>
 <translation id="3389088527709746815">Activer l'authentification gnubby pour l'hôte d'accès à distance</translation>
-<translation id="3393332712712388726">Liste de formats d'URL. Les requêtes initiées à partir de sites desservis par des origines qui figurent sur la liste ne sont pas soumises aux contrôles d‘<ph name="LOCAL_NETWORK_ACCESS" />.
-
-Si une origine est couverte à la fois par cette règle et par LocalNetworkAccessBlockedForUrls, LocalNetworkAccessBlockedForUrls prévaut.
-
-Pour les origines autres que celles représentées par les formats spécifiés ici, la configuration personnelle de l'utilisateur s'applique.
-
-Pour en savoir plus sur les formats d'URL valides, veuillez consulter https://cloud.google.com/docs/chrome-enterprise/policies/url-patterns.
-
-Pour connaître les restrictions d‘<ph name="LOCAL_NETWORK_ACCESS" />, consultez https://github.com/explainers-by-googlers/local-network-access.</translation>
 <translation id="3395744872155955051">Autoriser le choix de fichiers directement dans <ph name="GOOGLE_DRIVE_NAME" /></translation>
 <translation id="3397883909301547525">Ne pas afficher de recommandations d'applis dans le lanceur de <ph name="PRODUCT_OS_NAME" /></translation>
 <translation id="3398051852031115795">Comportement système par défaut (varie en fonction de la taille d'écran)</translation>
@@ -3719,6 +3740,15 @@ Si le résultat de la vérification n'est pas concluant pour une connexion, l'er
       Si cette règle est désactivée, l'utilisation de l'API Translator n'est pas autorisée.</translation>
 <translation id="366494444808132420">Autoriser les intégrations de Gemini.</translation>
 <translation id="3665437376055221832">N'inviter l'utilisateur que si la règle de sélection automatique n'établit de correspondance avec aucun certificat.</translation>
+<translation id="3667089394451236198">Liste de formats d'URL. Les requêtes initiées à partir de sites desservis par des origines qui figurent sur la liste ne sont pas soumises aux contrôles d‘<ph name="LOCAL_NETWORK_ACCESS" />.
+
+Si une origine est couverte à la fois par cette règle et par LocalNetworkAccessBlockedForUrls, cette dernière prévaut.
+
+Pour les origines autres que celles représentées par les formats spécifiés ici, la configuration personnelle de l'utilisateur s'applique.
+
+Pour en savoir plus sur les formats d'URL valides, veuillez consulter https://cloud.google.com/docs/chrome-enterprise/policies/url-patterns.
+
+Pour connaître les restrictions concernant <ph name="LOCAL_NETWORK_ACCESS" />, consultez https://wicg.github.io/local-network-access/.</translation>
 <translation id="3671773704245936868">Désactiver la mise en surbrillance des éléments sélectionnés au clavier</translation>
 <translation id="3674010627788940405">Ne prend pas en charge les en-têtes de requêtes CORS sans caractères génériques.</translation>
 <translation id="3675303748198647471">setTimeout(…, 0) est souvent utilisée pour décomposer les longues tâches JavaScript.
@@ -4277,6 +4307,17 @@ Pour en savoir plus sur les formats <ph name="URL_LABEL" /> valides, veuillez co
       Si la règle <ph name="DEFAULT_SEARCH_PROVIDER_KEYWORD_POLICY_NAME" /> n'est pas configurée, aucun mot clé n'active le moteur de recherche.</translation>
 <translation id="4090088362777472639">Hachage SHA-256 du playbook Ansible.</translation>
 <translation id="4091040199847925434">Désactiver les rapports sur les informations système et le contenu de pages utilisés pour améliorer la navigation sécurisée</translation>
+<translation id="4092882308219320847">Liste de formats d'URL. Les requêtes d‘<ph name="LOCAL_NETWORK_ACCESS" /> initiées à partir de sites desservis par des origines qui figurent sur la liste sont bloquées.
+
+Si une origine est couverte à la fois par cette règle et par LocalNetworkAccessAllowedForUrls, la présente règle prévaut.
+
+Selon le stade de déploiement de l‘<ph name="LOCAL_NETWORK_ACCESS" />, il peut aussi être nécessaire d'activer LocalNetworkAccessRestrictionsEnabled pour que cette règle bloque les requêtes d‘<ph name="LOCAL_NETWORK_ACCESS" />.
+
+Pour les origines autres que celles représentées par les formats spécifiés ici, la configuration personnelle de l'utilisateur s'applique.
+
+Pour en savoir plus sur les formats d'URL valides, veuillez consulter https://cloud.google.com/docs/chrome-enterprise/policies/url-patterns.
+
+Pour connaître les restrictions concernant <ph name="LOCAL_NETWORK_ACCESS" />, consultez https://wicg.github.io/local-network-access/.</translation>
 <translation id="4093058072421210667">Ne pas autoriser Inline Image.</translation>
 <translation id="4098920079809952737">Autoriser l'impression à la fois avec et sans graphiques d'arrière-plan</translation>
 <translation id="410061592404122032">Demander chaque fois qu'un site souhaite obtenir l'autorisation de gestion des fenêtres</translation>
@@ -5153,6 +5194,19 @@ Les utilisateurs peuvent activer ou désactiver les services de localisation Goo
 <translation id="468822697351680932">Utiliser la règle SiteList d'Internet Explorer comme source des règles</translation>
 <translation id="4693190628432874457">Activer la mise à jour de la position de l'appareil</translation>
 <translation id="4693779768620889402">Destinations basées sur des extensions</translation>
+<translation id="4693956469331697434">Permet de configurer les paramètres de durée de conservation des données de navigation dans <ph name="PRODUCT_NAME" />. Cette règle permet aux administrateurs de définir (selon le type de données) quand le navigateur supprime ces données. C'est utile pour les clients qui utilisent des données sensibles.
+
+Avertissement : La définition de cette règle peut affecter les données personnelles locales et entraîner leur suppression définitive. Nous vous recommandons de tester vos paramètres avant de les déployer pour éviter toute suppression accidentelle de données personnelles.
+
+Types de données disponibles : <ph name="DATA_TYPE_BROWSING_HISTORY" />, <ph name="DATA_TYPE_DOWNLOAD_HISTORY" />, <ph name="DATA_TYPE_COOKIES_AND_OTHER_SITE_DATA" />, <ph name="DATA_TYPE_CACHED_IMAGES_AND_FILES" />, <ph name="DATA_TYPE_PASSWORD" />, <ph name="DATA_TYPE_AUTOFILL" />, <ph name="DATA_TYPE_SITE_SETTINGS" /> et <ph name="DATA_TYPE_HOSTED_APP_DATA" />. <ph name="DATA_TYPE_DOWNLOAD_HISTORY" /> et <ph name="DATA_TYPE_HOSTED_APP_DATA" /> ne sont pas compatibles avec Android.
+
+Le navigateur supprimera automatiquement les données des types sélectionnés qui datent de plus de <ph name="TIME_TO_LIVE_IN_HOURS" />. Vous ne pouvez pas définir une valeur inférieure à une heure.
+
+La suppression des données expirées se fera 15 secondes après le démarrage du navigateur, puis toutes les 30 minutes lorsque le navigateur sera en cours d'exécution.
+
+L'utilisateur restera connecté à son compte Google lorsqu'il supprimera les cookies.
+
+Jusqu'à Chrome 114, cette règle exigeait que la règle <ph name="SYNC_DISABLED_POLICY_NAME" /> soit définie sur "true". À partir de Chrome 115, si vous configurez cette règle, la synchronisation sera désactivée pour les types de données respectifs si <ph name="CHROME_SYNC_NAME" /> n'est pas désactivé en définissant la règle <ph name="SYNC_DISABLED_POLICY_NAME" /> et que <ph name="BROWSER_SIGNIN_POLICY_NAME" /> n'est pas désactivé.</translation>
 <translation id="4694138212536142867">Activer les rapports sur l'état du matériel de l'appareil</translation>
 <translation id="4697581738794063407">Contrôler la fonctionnalité de filtrage des paramètres d'URL</translation>
 <translation id="4698895924806859508">Ne pas signaler les événements réseau</translation>
@@ -5421,6 +5475,19 @@ Si cette règle est définie sur <ph name="ALLOW_PASSTHROUGH_OF_SEARCH_BASED_SHO
 <translation id="4918261735182294270">Laisser aux utilisateurs le choix d'activer ou de désactiver <ph name="CHROME_SYNC_NAME" /></translation>
 <translation id="491889618361437456">Activer l'intégration de <ph name="GOOGLE_CALENDAR_NAME" /></translation>
 <translation id="4919122295221518724">Appliquer un traitement plus strict au contenu mixte</translation>
+<translation id="4919341087029582581">Configure une liste des types de données de navigation devant être supprimés lorsque l'utilisateur ferme toutes les fenêtres du navigateur.
+
+Avertissement : La définition de cette règle peut affecter les données personnelles locales et entraîner leur suppression définitive. Nous vous recommandons de tester vos paramètres avant de les déployer pour éviter toute suppression accidentelle de données personnelles.
+
+Les types de données disponibles sont les suivants : historique de navigation (<ph name="DATA_TYPE_BROWSING_HISTORY" />), historique des téléchargements (<ph name="DATA_TYPE_DOWNLOAD_HISTORY" />), cookies (<ph name="DATA_TYPE_COOKIES_AND_OTHER_SITE_DATA" />), cache (<ph name="DATA_TYPE_CACHED_IMAGES_AND_FILES" />), saisie automatique (<ph name="DATA_TYPE_AUTOFILL" />), mots de passe (<ph name="DATA_TYPE_PASSWORD" />), paramètres des sites (<ph name="DATA_TYPE_SITE_SETTINGS" />) et données des applis hébergées (<ph name="DATA_TYPE_HOSTED_APP_DATA" />). Cette règle ne prévaut pas sur <ph name="ALLOW_DELETING_BROWSER_HISTORY_POLICY_NAME" />.
+
+L'utilisateur restera connecté à son compte Google lorsqu'il supprimera les cookies.
+
+Jusqu'à Chrome 114, cette règle exigeait que la règle <ph name="SYNC_DISABLED_POLICY_NAME" /> soit définie sur "true". À partir de Chrome 115, si vous configurez cette règle, la synchronisation sera désactivée pour les types de données respectifs si <ph name="CHROME_SYNC_NAME" /> n'est pas désactivé en définissant la règle <ph name="SYNC_DISABLED_POLICY_NAME" /> et que <ph name="BROWSER_SIGNIN_POLICY_NAME" /> n'est pas désactivé.
+
+Si, pour une raison quelconque, la suppression des données a commencé, mais ne s'est pas terminée, les données de navigation seront effacées lors du prochain chargement du profil.
+
+Si <ph name="PRODUCT_NAME" /> ne se ferme pas correctement (par exemple, si le navigateur ou l'OS plante), les données de navigation ne sont pas effacées, car l'utilisateur n'a pas causé la fermeture du navigateur en fermant toutes ses fenêtres.</translation>
 <translation id="4921553515199936667">Si cette règle est définie sur "True" ou n'est pas configurée, le décodage vidéo est accéléré par le matériel lorsqu'il est disponible.
 
 Si cette règle est définie sur "False", le décodage vidéo ne sera jamais accéléré par le matériel.
@@ -6063,11 +6130,6 @@ Les caractères génériques d'hôte globaux (par exemple, "*" ou "[*]") ne sont
 
 Remarque : Cette règle ne s'applique pas aux mises à niveau HSTS.</translation>
 <translation id="5297948043665200363">Autoriser l'utilisateur à rester connecté une fois que son compte n'est plus authentifié</translation>
-<translation id="5298594338496226089">Si cette règle est configurée, les origines listées sont autorisées à récupérer les attributs de l'appareil (comme le numéro de série ou le nom d'hôte) à l'aide de l'API Device Attributes.
-
-Les origines doivent correspondre aux applis Web installées d'office à l'aide de la règle <ph name="WEB_APP_INSTALL_FORCE_LIST_POLICY_NAME" /> ou <ph name="ISOLATED_WEB_APP_INSTALL_FORCE_LIST_POLICY_NAME" /> (depuis la version 125), ou configurées en tant qu'applis kiosque. Pour connaître les spécifications de l'API Device Attributes, veuillez consulter https://wicg.github.io/WebApiDevice/device_attributes.
-
-Pour en savoir plus sur les formats <ph name="URL_LABEL" /> valides (depuis la version 127), veuillez consulter https://cloud.google.com/docs/chrome-enterprise/policies/url-patterns. La valeur <ph name="WILDCARD_VALUE" /> n'est pas acceptée pour cette règle.</translation>
 <translation id="5298949392804966105">Aucune restriction pour les comptes gérés</translation>
 <translation id="530111809849214840">Masquer l'option <ph name="GOOGLE_DRIVE_NAME" />.</translation>
 <translation id="530134925949808452">Heure locale à laquelle le quota d'utilisation est renouvelé.</translation>
@@ -6367,6 +6429,7 @@ Elle n'empêche pas les utilisateurs d'enregistrer des fichiers dans <ph name="G
 <translation id="5490462588616309068">Si cette règle est définie sur "true" ou n'est pas configurée, l'utilisation d'identifiants pour le contenu protégé est autorisée, ce qui peut contribuer à améliorer la qualité de lecture de ce type de contenu.
 
 Si cette règle est définie sur "false", l'utilisation d'identifiants n'est pas autorisée pour le contenu protégé.</translation>
+<translation id="5492713303272131731">Tous les autres processus peuvent être planifiés sur le même cœur de processeur lorsque le processus de rendu y est exécuté.</translation>
 <translation id="5494322570831642650">Permet de spécifier si l'utilisateur peut ouvrir ou non des pages en mode navigation privée dans <ph name="PRODUCT_NAME" />.
 
       Si la règle est activée ou n'est pas définie, l'utilisateur peut ouvrir des pages en mode navigation privée.
@@ -6739,6 +6802,7 @@ Cette règle concerne à la fois les flux d'authentification à la connexion et 
       Remarque : S'il y a plusieurs valeurs, séparez-les par une virgule.</translation>
 <translation id="5693469654327063861">Autoriser la migration de données</translation>
 <translation id="56936613186060503">Le gestionnaire de téléchargement ne proposera pas l'option d'enregistrer des fichiers dans <ph name="GOOGLE_DRIVE_NAME" />.</translation>
+<translation id="569457565603183">URL/domaines automatiquement autorisés à recevoir une attestation des clés de sécurité sur l'écran de connexion</translation>
 <translation id="5695209488612697377">Permet d'utiliser un moteur de recherche par défaut dans le menu contextuel.
 
           Si vous désactivez cette règle, l'élément de menu contextuel de recherche qui dépend de votre moteur de recherche par défaut ne sera pas disponible.
@@ -6925,17 +6989,6 @@ Pour en savoir plus sur la gestion des données pour les fonctionnalités d'IA 
 <translation id="5860010874344790473">Si cette règle est activée, les journaux système sont envoyés au serveur de gestion pour permettre aux administrateurs de les contrôler.
 
       Si cette règle est désactivée ou qu'elle n'est pas configurée, aucun journal système n'est communiqué.</translation>
-<translation id="5860520143792505638">Liste de formats d'URL. Les requêtes d‘<ph name="LOCAL_NETWORK_ACCESS" /> initiées à partir de sites desservis par des origines qui figurent sur la liste sont bloquées.
-
-Si une origine est couverte à la fois par cette règle et par LocalNetworkAccessAllowedForUrls, la présente règle prévaut.
-
-Selon le stade de déploiement de l‘<ph name="LOCAL_NETWORK_ACCESS" />, il peut aussi être nécessaire d'activer LocalNetworkAccessRestrictionsEnabled pour que cette règle bloque les requêtes d‘<ph name="LOCAL_NETWORK_ACCESS" />.
-
-Pour les origines autres que celles représentées par les formats spécifiés ici, la configuration personnelle de l'utilisateur s'applique.
-
-Pour en savoir plus sur les formats d'URL valides, veuillez consulter https://cloud.google.com/docs/chrome-enterprise/policies/url-patterns.
-
-Pour connaître les restrictions d‘<ph name="LOCAL_NETWORK_ACCESS" />, consultez https://github.com/explainers-by-googlers/local-network-access.</translation>
 <translation id="5861856285460256766">Configuration du code d'accès parental</translation>
 <translation id="5864898931148094192">Contrôler la visibilité de l'attribution à l'extension sur la page "Nouvel onglet"</translation>
 <translation id="5868414965372171132">Configuration réseau au niveau de l'utilisateur</translation>
@@ -7804,7 +7857,6 @@ Pour en savoir plus sur la gestion des données pour les fonctionnalités d'IA 
 <translation id="6412352702230183710">Autoriser uniquement les hôtes de messagerie natifs au niveau du système</translation>
 <translation id="6412793408912788345">Afficher l'écran d'introduction de Gemini lors de la connexion</translation>
 <translation id="6416506846917150119">Désactiver l'écriture prédictive lors de la saisie au clavier physique</translation>
-<translation id="6416916931494972926">Activer les rapports de télémétrie de Kiosk Vision.</translation>
 <translation id="6417265370957905582">Assistant Google</translation>
 <translation id="6419001911253110938">Activer l'affichage de l'écran d'introduction pour les fonctionnalités d'IA en cours de session pendant la procédure de connexion</translation>
 <translation id="6421254653839955267">Si cette règle est activée, la recherche du CNAME est ignorée. Le nom du serveur est utilisé tel qu'il a été saisi lors de la génération du SPN Kerberos.
@@ -7956,7 +8008,6 @@ Si cette règle n'est pas configurée ou si la liste d'URL est vide, toutes les 
 
       Si cette règle n'est pas configurée, le protocole est, par défaut, désactivé pour les utilisateurs gérés et activé pour les autres.</translation>
 <translation id="6508403116553969858">Définir la valeur de la règle par défaut de <ph name="PRODUCT_NAME" /> pour les fonctionnalités d'IA générative couvertes</translation>
-<translation id="6508882314969525299">Désactiver les rapports de télémétrie de Kiosk Vision.</translation>
 <translation id="6509376413448002446">Permet de configurer l'économiseur d'écran de l'utilisateur pour l'écran de verrouillage.
 
 Si cette règle est définie sur "True", l'appareil <ph name="PRODUCT_OS_NAME" /> affiche un économiseur d'écran lorsque l'écran de verrouillage est actif.
@@ -8190,6 +8241,7 @@ Sous <ph name="MS_WIN_NAME" />, la règle KDC est toujours respectée.</transla
 <translation id="6659537776197644458">Ne pas déclencher les flux d'authentification pour la synchronisation des mots de passe</translation>
 <translation id="6659877981632400997">Le menu contextuel ne comportera pas d'élément de menu permettant de partager des images avec <ph name="GOOGLE_PHOTOS_PRODUCT_NAME" />.</translation>
 <translation id="6661178198729301029">Activer la création de rapports cloud pour un profil géré</translation>
+<translation id="666203515318060501">Autoriser la saisie automatique améliorée sans améliorer les modèles d'IA.</translation>
 <translation id="6665670272107384733">Définir la fréquence à laquelle l'utilisateur doit saisir le mot de passe pour utiliser le déverrouillage rapide</translation>
 <translation id="6667586534922258705">Activer le bouton permettant d'afficher le mot de passe sur l'écran de connexion et de verrouillage</translation>
 <translation id="6667636336079341367">Autoriser Scanner sans améliorer les modèles d'IA.</translation>
@@ -8303,6 +8355,11 @@ Si elle est activée, les données sont collectées et importées dans la <ph na
 
 Concernant <ph name="PRODUCT_NAME" />, cette règle n'est appliquée que si l'appareil est enregistré avec la règle <ph name="CLOUD_MANAGEMENT_ENROLLMENT_TOKEN" />.
 Cette règle est toujours appliquée pour <ph name="PRODUCT_OS_NAME" />.</translation>
+<translation id="6720071484598746942">Lorsque cette règle est activée, la requête principale est bloquée chaque fois qu'un avertissement est censé s'afficher dans <ph name="DEV_TOOLS_NAME" /> en raison de l'échec des vérifications <ph name="LOCAL_NETWORK_ACCCESS" />.
+
+Si cette règle est désactivée ou n'est pas configurée, les requêtes <ph name="LOCAL_NETWORK_ACCESS" /> utiliseront le traitement par défaut.
+
+Pour connaître les restrictions concernant <ph name="LOCAL_NETWORK_ACCESS" />, consultez https://wicg.github.io/local-network-access/.</translation>
 <translation id="6720330829631914048">Heures écoulées depuis le début de la journée (format 24 heures).</translation>
 <translation id="6721252203593581486">WebSQL dans des contextes tiers (ex. : les cadres iFrame intersites) est désactivé par défaut à partir de M97 et sera entièrement supprimé dans M101.
           Si cette règle est définie sur "False" ou n'est pas configurée, WebSQL dans des contextes tiers restera désactivé.
@@ -9529,6 +9586,7 @@ Si vous définissez cette règle, vous devez désactiver la règle <ph name="PRI
 <translation id="7657261947024629645">Privilégier les performances.</translation>
 <translation id="76580522298425324">Autoriser la capture d'écran sans geste préalable de l'utilisateur</translation>
 <translation id="7666228839913571182">Autoriser les cookies tiers</translation>
+<translation id="7666782560345386904">Paramètres de la saisie automatique améliorée</translation>
 <translation id="7669630878711068277">Si vous activez cette règle ou que vous ne la configurez pas, les utilisateurs peuvent imprimer dans <ph name="PRODUCT_NAME" />. En revanche, ils ne peuvent pas modifier ce paramètre.
 
       Si vous la désactivez, les utilisateurs ne peuvent pas imprimer à partir de <ph name="PRODUCT_NAME" />. La fonctionnalité d'impression est désactivée dans le menu à trois points, les extensions et les applications JavaScript.</translation>
@@ -10448,7 +10506,12 @@ Si cette règle n'est pas configurée, la commande par le visage est désactivé
 <translation id="8331421240786531350">Empêcher les sites d'envoyer des requêtes à des points de terminaison du réseau local.</translation>
 <translation id="8331479227794770304">Activer les touches rémanentes</translation>
 <translation id="8332822245414537447">Désactiver la vérification de l'utilisation des clés RSA</translation>
+<translation id="8333141477131859004">Autoriser la saisie automatique améliorée et améliorer les modèles d'IA.</translation>
 <translation id="8334685561819743286">Désactiver la correction automatique lors de la saisie au clavier physique</translation>
+<translation id="8336986243404088829">Cette règle atténue les attaques de mémoire en traitement croisé par canal auxiliaire en isolant le processus de rendu sur le cœur de processeur et en empêchant d'autres processus de partager le même cœur. L'atténuation est compatible avec <ph name="MS_WIN_NAME" /> 11 24H2 et versions ultérieures. Si l'OS ne dispose pas de la prise en charge de la planification requise, cette règle n'aura aucun effet. Cette règle peut ralentir les performances dans certains scénarios exigeants analogues à la désactivation de l'hyperthreading. Pour en savoir plus, consultez https://learn.microsoft.com/fr-fr/windows/win32/api/winnt/ns-winnt-process_mitigation_side_channel_isolation_policy
+      Si cette règle est activée, aucun autre processus ne sera planifié sur le même cœur de processeur lorsque le processus de rendu est en cours d'exécution.
+      Si cette règle est désactivée, tous les autres processus peuvent être planifiés sur le même cœur de processeur, même si un processus de rendu y est exécuté.
+      Si cette règle n'est pas configurée, tous les autres processus peuvent être planifiés sur le même cœur de processeur, même si un processus de rendu y est exécuté. Celle-ci peut varier en fonction de la version de <ph name="PRODUCT_NAME" />, des tests en conditions réelles en cours et de la plate-forme.</translation>
 <translation id="8337114537412769126">Si la règle <ph name="DEFAULT_SEARCH_PROVIDER_ENABLED_POLICY_NAME" /> est activée, la règle <ph name="DEFAULT_SEARCH_PROVIDER_SUGGEST_URL_POST_PARAMS_POLICY_NAME" /> vous permet de définir les paramètres d'une recherche suggérée à l'aide de la méthode POST. Il s'agit de paires de noms et de valeurs séparées par une virgule. Si une valeur correspond à un paramètre modèle, comme <ph name="SEARCH_TERM_MARKER" />, elle est remplacée par des termes de recherches réels.
 
       Si la règle <ph name="DEFAULT_SEARCH_PROVIDER_SUGGEST_URL_POST_PARAMS_POLICY_NAME" /> n'est pas configurée, les requêtes de recherche suggérée sont envoyées à l'aide de la méthode GET.</translation>
@@ -10858,9 +10921,6 @@ Si cette règle n'est pas configurée, les utilisateurs ne peuvent pas jouer à 
       Si cette règle est définie sur "True", les onglets en arrière-plan depuis au moins cinq minutes peuvent être figés. En figeant ces onglets, vous sollicitez moins le processeur, la batterie et la mémoire. <ph name="PRODUCT_NAME" /> utilise des heuristiques pour ne pas figer les onglets qui exécutent une tâche utile en arrière-plan (par exemple, l'affichage de notifications, la lecture audio d'un contenu, la diffusion d'une vidéo en streaming). Notez que les développeurs Web peuvent également choisir de ne pas figer les pages de leur site (https://chromium.googlesource.com/chromium/src/+/HEAD/chrome/browser/performance_manager/docs/freezing_opt_out_opt_in.md).
 
       Si cette règle est définie sur "False", aucun onglet n'est figé.</translation>
-<translation id="8607613052618540095">Si cette règle est activée, les rapports de télémétrie de Kiosk Vision sont activés.
-Elle lance le framework Kiosk Vision et active les rapports de télémétrie sur l'audience.
-Si cette règle est désactivée ou qu'elle n'est pas configurée, les rapports de télémétrie de Kiosk Vision sont désactivés.</translation>
 <translation id="8610216287193516769">Supprimée dans M122, cette règle côté serveur uniquement n'a jamais utilisé l'infrastructure de règles ChromeOS pour sa propagation.
 Si elle est définie sur <ph name="POLICY_VALUE_ALL" /> ou n'est pas configurée, l'utilisation de comptes gérés n'est pas limitée. Il sera donc possible qu'un compte géré soit un compte secondaire. Celui-ci ne recevrait alors de règles que lorsqu'il serait connecté en tant que compte principal dans un profil de navigateur.
       Les règles configurées sur le compte ne s'appliqueront pas dans les cas suivants :
@@ -11409,11 +11469,6 @@ Si cette règle est désactivée, toutes les intégrations le sont aussi.</trans
       Si un même format d'URL est spécifié à la fois dans cette règle et dans <ph name="SENSORS_BLOCKED_FOR_URLS_POLICY_NAME" />, cette dernière est prioritaire et l'accès aux capteurs de mouvement ou de lumière est bloqué.
 
       Pour en savoir plus sur les formats <ph name="URL_LABEL" /> valides, veuillez consulter https://cloud.google.com/docs/chrome-enterprise/policies/url-patterns. Les caractères génériques (<ph name="WILDCARD_VALUE" />) sont autorisés.</translation>
-<translation id="9002299469625801504">Lorsque cette règle est activée, la requête principale est bloquée chaque fois qu'un avertissement est censé s'afficher dans <ph name="DEV_TOOLS_NAME" /> en raison de l'échec des vérifications <ph name="LOCAL_NETWORK_ACCCESS" />.
-
-Si cette règle est désactivée ou n'est pas configurée, les requêtes <ph name="LOCAL_NETWORK_ACCESS" /> utiliseront le traitement par défaut.
-
-Pour connaître les restrictions concernant <ph name="LOCAL_NETWORK_ACCESS" />, consultez https://github.com/explainers-by-googlers/local-network-access.</translation>
 <translation id="9003823644527627017">Configurer les VM Bruschetta sur <ph name="PRODUCT_OS_NAME" /></translation>
 <translation id="9004469022085379212">Si cette règle est activée, l'appareil est autorisé à exécuter des machines virtuelles sur <ph name="PRODUCT_OS_NAME" />. Vous devez activer <ph name="VIRTUAL_MACHINES_ALLOWED_POLICY_NAME" /> et <ph name="CROSTINI_ALLOWED_POLICY_NAME" /> pour pouvoir utiliser <ph name="PRODUCT_CROSTINI_NAME" />. Si cette règle est désactivée, l'appareil n'est pas autorisé à exécuter des machines virtuelles. Si vous la désactivez, elle sera appliquée aux machines virtuelles qui vont être lancées, mais pas à celles qui le sont déjà.
 
@@ -11446,7 +11501,6 @@ Remarque : Pour le moment, seule la première entrée est prise en compte. Les 
       Si une langue est incluse à la fois dans cette règle et dans la règle <ph name="SPELLCHECK_LANGUAGE_POLICY_NAME" />, cette dernière prévaut, et la vérification orthographique est activée pour cette langue.
 
       Actuellement, les langues compatibles sont les suivantes : af, bg, ca, cs, da, de, el, en-AU, en-CA, en-GB, en-US, es, es-419, es-AR, es-ES, es-MX, es-US, et, fa, fo, fr, he, hi, hr, hu, id, it, ko, lt, lv, nb, nl, pl, pt-BR, pt-PT, ro, ru, sh, sk, sl, sq, sr, sv, ta, tg, tr, uk et vi.</translation>
-<translation id="900867836818807386">Paramètres de la saisie automatique avec l'IA</translation>
 <translation id="9009119876570708617">Cette règle ayant été supprimée à compter de la version M85, veuillez utiliser à la place la règle <ph name="POLICY_NAME" /> pour autoriser le contenu non sécurisé en fonction du site concerné.
        Permet de contrôler le traitement du contenu mixte (contenu HTTP sur les sites HTTPS) dans le navigateur.
        Si cette règle est définie sur "True" ou qu'elle n'est pas configurée, le contenu mixte audio et vidéo passe automatiquement à HTTPS (c'est-à-dire que l'URL est réécrite pour apparaître sous la forme HTTPS, sans aucune solution de remplacement si la ressource n'est pas disponible via HTTPS). En outre, un avertissement "Non sécurisé" s'affiche dans la barre d'URL pour les images.
@@ -11696,6 +11750,7 @@ Si cette règle n'est pas configurée, ce paramètre est activé et l'utilisateu
 <translation id="9162444960513782569">Ne pas appliquer de limitation des minuteurs JavaScript en arrière-plan</translation>
 <translation id="9164656078867027374">Définir les domaines autorisés à accéder à <ph name="GOOGLE_WORKSPACE_PRODUCT_NAME" /></translation>
 <translation id="9165128017344777105">Accorder l'autorisation des polices locales pour ces sites</translation>
+<translation id="9165498643231979857">Restreindre le partage de cœur de processeur pour le processus de rendu</translation>
 <translation id="9166670902476893480">Cette règle permet d'autoriser <ph name="PRODUCT_NAME" /> à demander d'autres types d'enregistrements DNS en cas d'envois de requêtes DNS à risque, ou de l'en empêcher. Cette règle n'a aucune incidence sur les requêtes DNS envoyées via DNS sécurisé, qui peut toujours envoyer d'autres types de requêtes DNS.
 
       Si cette règle n'est pas configurée ou si elle est activée, d'autres types de requêtes, par exemple <ph name="DNS_TYPE_HTTPS" /> (type de DNS 65), peuvent être demandés en plus des types <ph name="DNS_TYPE_A" /> (type de DNS 1) et <ph name="DNS_TYPE_AAAA" /> (type de DNS 28).
@@ -11732,7 +11787,6 @@ Cette règle n'a aucun effet si la règle <ph name="METRICS_REPORTING_ENABLED_PO
 La valeur par défaut est "RollbackDisabled".</translation>
 <translation id="9197740283131855199">Pourcentage d'adaptation du délai d'assombrissement de l'écran si l'utilisateur devient actif après la réduction de la luminosité</translation>
 <translation id="9200828125069750521">Paramètres pour l'URL d'image utilisant POST</translation>
-<translation id="9202520409249547230">Ne pas autoriser la saisie automatique avec l'IA.</translation>
 <translation id="9204520300236345497">Autoriser l'utilisation d'identifiants pour le contenu protégé sur les sites, ce qui peut conduire à améliorer la qualité de lecture de ce type de contenu.</translation>
 <translation id="9204863016826119209">Des clés d'entreprise peuvent être utilisées par les applications Android installées et identifiées dans cette règle.</translation>
 <translation id="9206472508136116830">Ne pas autoriser la découverte des partages NetBIOS</translation>

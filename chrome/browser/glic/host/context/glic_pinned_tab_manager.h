@@ -21,12 +21,11 @@ class BrowserTabStripTracker;
 
 namespace glic {
 
-class GlicSharingManager;
-
 // Manages a collection of tabs that have been selected to be shared.
 class GlicPinnedTabManager : public TabStripModelObserver {
  public:
-  GlicPinnedTabManager(Profile* profile, GlicSharingManager* sharing_manager);
+  explicit GlicPinnedTabManager(Profile* profile,
+                                GlicWindowController* window_controller);
   ~GlicPinnedTabManager() override;
 
   // Registers a callback to be invoked when the collection of pinned tabs
@@ -90,6 +89,10 @@ class GlicPinnedTabManager : public TabStripModelObserver {
 
   // Visible for testing.
   virtual bool IsBrowserValidForSharing(BrowserWindowInterface* browser_window);
+  // Visible for testing.
+  virtual bool IsValidForSharing(content::WebContents* web_contents);
+  // Visible for testing.
+  virtual bool IsGlicWindowShowing();
 
  private:
   class UpdateThrottler;
@@ -114,6 +117,7 @@ class GlicPinnedTabManager : public TabStripModelObserver {
   std::vector<content::WebContents*> GetUnsortedPinCandidates();
 
   class PinnedTabObserver;
+  friend PinnedTabObserver;
   struct PinnedTabEntry {
     PinnedTabEntry(tabs::TabHandle tab_handle,
                    std::unique_ptr<PinnedTabObserver> tab_observer);
@@ -135,11 +139,10 @@ class GlicPinnedTabManager : public TabStripModelObserver {
   // Returns true if the tab is in the pinned collection.
   bool IsTabPinned(int tab_id) const;
 
-  // Called by the PinnedTabObserver.
+  // Called by friend PinnedTabObserver.
   void OnTabWillClose(tabs::TabHandle tab_handles);
-
-  // Called by the PinnedTabObserver.
   void OnTabDataChanged(tabs::TabHandle tab_handle, mojom::TabDataPtr);
+  void OnTabChangedOrigin(tabs::TabHandle tab_handle);
 
   // List of callbacks to invoke when the collection of pinned tabs changes
   // (including changes to metadata).
@@ -158,9 +161,7 @@ class GlicPinnedTabManager : public TabStripModelObserver {
   // Enables searching for pin_candidates.
   raw_ptr<Profile> profile_;
 
-  // Enables access to information about other sharing modes and common sharing
-  // functionality.
-  raw_ptr<GlicSharingManager> sharing_manager_;
+  raw_ptr<GlicWindowController> window_controller_;
 
   // Using a vector lets us store the pinned tabs in the order that they are
   // pinned. Searching for a pinned tab is currently linear.

@@ -8,6 +8,19 @@
         padding-bottom: 10px;
       }
 
+      settings-collapse-radio-button {
+        --settings-collapse-toggle-min-height: var(--cr-section-min-height);
+      }
+
+      settings-collapse-radio-button.two-line {
+        --settings-collapse-toggle-min-height:
+            var(--cr-section-two-line-min-height);
+      }
+
+      settings-collapse-radio-button:not(:first-of-type) {
+        --settings-collapse-separator-line: var(--cr-separator-line);
+      }
+
       .cpss-heading {
         padding-bottom: 13px;
         padding-top: 13px;
@@ -61,8 +74,8 @@
         <template is="dom-if" if="[[enableIncognitoTrackingProtections_]]">
           <cr-link-row id="incognitoTrackingProtectionsLinkRow" class="hr"
               start-icon="settings:visibility-off"
-              label="$i18n{incognitoTrackingProtectionsPageTitle}"
-              sub-label="$i18n{incognitoTrackingProtectionsPageEntrypointDescription}"
+              label="$i18n{incognitoTrackingProtectionsPageEntrypointLabel}"
+              sub-label="$i18n{incognitoTrackingProtectionsPageEntrypointSublabel}"
               on-click="onIncognitoTrackingProtectionsClick_"
               role-description="$i18n{subpageArrowRoleDescription}">
           </cr-link-row>
@@ -484,8 +497,31 @@
       </template>
       <template is="dom-if" route-path="/content/pdfDocuments" no-search>
         <settings-subpage page-title="$i18n{siteSettingsPdfDocuments}">
-          <settings-pdf-documents-page prefs="{{prefs}}"
-          </settings-pdf-documents-page>
+          <div class="radio-group">
+            <div class="secondary">$i18n{siteSettingsPdfsDescription}</div>
+            <h2>$i18n{siteSettingsDefaultBehavior}</h2>
+            <div class="secondary radio-sub-heading">
+              $i18n{siteSettingsDefaultBehaviorDescription}
+            </div>
+            <settings-radio-group
+                pref="{{prefs.plugins.always_open_pdf_externally}}"
+                selectable-elements="settings-collapse-radio-button">
+              <settings-collapse-radio-button no-collapse
+                  pref="[[prefs.plugins.always_open_pdf_externally]]"
+                  label="$i18n{siteSettingsPdfsAllowed}"
+                  name="true"
+                  disabled$="[[isGuest_]]"
+                  icon="cr:file-download">
+              </settings-collapse-radio-button>
+              <settings-collapse-radio-button no-collapse
+                  pref="[[prefs.plugins.always_open_pdf_externally]]"
+                  label="$i18n{siteSettingsPdfsBlocked}"
+                  name="false"
+                  disabled$="[[isGuest_]]"
+                  icon="privacy:open-in-browser">
+              </settings-collapse-radio-button>
+            </settings-radio-group>
+          </div>
         </settings-subpage>
       </template>
       <template is="dom-if" route-path="/content/javascript" no-search>
@@ -813,9 +849,66 @@
             search-label="$i18n{siteSettingsAllSitesSearch}"
             search-term="{{searchFilter_}}">
 </if>
-          <settings-protected-content-page prefs="{{prefs}}"
-              search-term="[[searchFilter_]]">
-          </settings-protected-content-page>
+          <div class="radio-group">
+            <div class="secondary">
+              $i18n{siteSettingsProtectedContentDescription}
+            </div>
+            <h2>$i18n{siteSettingsDefaultBehavior}</h2>
+            <div class="secondary radio-sub-heading">
+              $i18n{siteSettingsDefaultBehaviorDescription}
+            </div>
+            <settings-radio-group
+              pref="{{prefs.webkit.webprefs.encrypted_media_enabled}}"
+              selectable-elements="settings-collapse-radio-button">
+              <settings-collapse-radio-button no-collapse
+                  pref="[[prefs.webkit.webprefs.encrypted_media_enabled]]"
+                  label="$i18n{siteSettingsProtectedContentAllowed}"
+                  name="true"
+                  disabled$="[[isGuest_]]"
+                  icon="privacy:sync-saved-locally">
+              </settings-collapse-radio-button>
+              <settings-collapse-radio-button no-collapse
+                  pref="[[prefs.webkit.webprefs.encrypted_media_enabled]]"
+                  label="$i18n{siteSettingsProtectedContentBlocked}"
+                  sub-label=
+                      "$i18n{siteSettingsProtectedContentBlockedSubLabel}"
+                  name="false"
+                  disabled$="[[isGuest_]]"
+                  icon="privacy:web-asset-off">
+              </settings-collapse-radio-button>
+            </settings-radio-group>
+          </div>
+<if expr="is_chromeos or is_win">
+          <settings-category-default-radio-group
+            header="$i18n{siteSettingsProtectedContentIdentifiers}"
+            description=
+                "$i18n{siteSettingsProtectedContentIdentifiersExplanation}"
+            category="[[contentSettingsTypesEnum_.PROTECTED_CONTENT]]"
+            block-option-label=
+                "$i18n{siteSettingsProtectedContentIdentifiersBlocked}"
+            block-option-sub-label=
+                "$i18n{siteSettingsProtectedContentIdentifiersBlockedSubLabel}"
+            block-option-icon="privacy:web-asset-off"
+            allow-option-label=
+                "$i18n{siteSettingsProtectedContentIdentifiersAllowed}"
+<if expr="is_win and _google_chrome">
+            allow-option-sub-label=
+                "$i18n{siteSettingsProtectedContentIdentifiersAllowedSubLabel}"
+</if>
+            allow-option-icon="privacy:sync-saved-locally"
+            disabled$="[[isGuest_]]">
+          </settings-category-default-radio-group>
+          <category-setting-exceptions
+              description=
+                  "$i18n{siteSettingsCustomizedBehaviorsDescriptionShort}"
+              category="[[contentSettingsTypesEnum_.PROTECTED_CONTENT]]"
+              allow-header=
+                  "$i18n{siteSettingsProtectedContentIdentifiersAllowedExceptions}"
+              block-header=
+                  "$i18n{siteSettingsProtectedContentIdentifiersBlockedExceptions}"
+              search-filter="[[searchFilter_]]">
+          </category-setting-exceptions>
+</if>
         </settings-subpage>
       </template>
       <template is="dom-if" route-path="/content/clipboard" no-search>

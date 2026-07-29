@@ -9,7 +9,6 @@
 #include "base/task/single_thread_task_runner.h"
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service_factory.h"
 #include "chrome/browser/password_manager/password_change/button_click_helper.h"
-#include "chrome/browser/password_manager/password_change/change_password_form_waiter.h"
 #include "chrome/browser/password_manager/password_change/model_quality_logs_uploader.h"
 #include "chrome/browser/profiles/profile.h"
 #include "components/optimization_guide/content/browser/page_content_proto_provider.h"
@@ -22,6 +21,10 @@
 namespace {
 
 using Logger = password_manager::BrowserSavePasswordProgressLogger;
+
+constexpr optimization_guide::proto::PasswordChangeRequest::FlowStep
+    kOpenFormFlowStep = optimization_guide::proto::PasswordChangeRequest::
+        FlowStep::PasswordChangeRequest_FlowStep_OPEN_FORM_STEP;
 
 blink::mojom::AIPageContentOptionsPtr GetAIPageContentOptions() {
   auto options = optimization_guide::DefaultAIPageContentOptions();
@@ -53,25 +56,26 @@ ChangePasswordFormFinder::ChangePasswordFormFinder(
     password_manager::PasswordManagerClient* client,
     ModelQualityLogsUploader* logs_uploader,
     const GURL& change_password_url,
-    ChangePasswordFormWaiter::PasswordFormFoundCallback callback)
+    ChangePasswordFormFoundCallback callback,
+    LoginFormFoundCallback login_form_found_callback)
     : web_contents_(web_contents),
       client_(client),
       logs_uploader_(logs_uploader),
       change_password_url_(change_password_url),
-      callback_(std::move(callback)) {
+      callback_(std::move(callback)),
+      login_form_found_callback_(std::move(login_form_found_callback)) {
+  CHECK(logs_uploader_);
   capture_annotated_page_content_ =
       base::BindOnce(&optimization_guide::GetAIPageContent, web_contents,
                      GetAIPageContentOptions());
-  form_waiter_ = std::make_unique<ChangePasswordFormWaiter>(
+  form_waiter_ = std::make_unique<PasswordFormWaiter>(
       web_contents, client_,
       base::BindOnce(&ChangePasswordFormFinder::OnInitialFormWaitingResult,
                      weak_ptr_factory_.GetWeakPtr()));
 
-  base::SingleThreadTaskRunner::GetCurrentDefault()->PostDelayedTask(
-      FROM_HERE,
-      base::BindOnce(&ChangePasswordFormFinder::OnFormNotFound,
-                     weak_ptr_factory_.GetWeakPtr()),
-      kFormWaitingTimeout);
+  timeout_timer_.Start(FROM_HERE, kFormWaitingTimeout,
+                       base::BindOnce(&ChangePasswordFormFinder::OnFormNotFound,
+                                      weak_ptr_factory_.GetWeakPtr()));
 }
 
 ChangePasswordFormFinder::ChangePasswordFormFinder(
@@ -80,36 +84,60 @@ ChangePasswordFormFinder::ChangePasswordFormFinder(
     password_manager::PasswordManagerClient* client,
     ModelQualityLogsUploader* logs_uploader,
     const GURL& change_password_url,
-    ChangePasswordFormWaiter::PasswordFormFoundCallback callback,
+    ChangePasswordFormFoundCallback callback,
+    LoginFormFoundCallback login_form_found_callback,
     base::OnceCallback<void(optimization_guide::OnAIPageContentDone)>
         capture_annotated_page_content)
     : ChangePasswordFormFinder(web_contents,
                                client,
                                logs_uploader,
                                change_password_url,
-                               std::move(callback)) {
+                               std::move(callback),
+                               std::move(login_form_found_callback)) {
   capture_annotated_page_content_ = std::move(capture_annotated_page_content);
 }
 
 ChangePasswordFormFinder::~ChangePasswordFormFinder() = default;
 
 void ChangePasswordFormFinder::OnInitialFormWaitingResult(
-    password_manager::PasswordFormManager* form_manager) {
+    PasswordFormWaiter::Result result) {
   CHECK(web_contents_);
   CHECK(callback_);
+  form_waiter_.reset();
 
   if (auto logger = GetLoggerIfAvailable(client_)) {
     logger->LogBoolean(
         Logger::STRING_PASSWORD_CHANGE_INITIAL_FORM_WAITING_RESULT,
-        form_manager);
+        result.change_password_form_manager);
   }
 
-  form_waiter_.reset();
-  if (form_manager) {
-    std::move(callback_).Run(form_manager);
+  // Change password form found, invoke callback immediately.
+  if (result.change_password_form_manager) {
+    logs_uploader_->MarkStepSkipped(kOpenFormFlowStep);
+    std::move(callback_).Run(result.change_password_form_manager);
     return;
   }
 
+  // Login form detected, refresh page and wait again. User hasn't fully signed
+  // in.
+  if (result.login_form_manager) {
+    timeout_timer_.Reset();
+    if (login_form_found_callback_) {
+      std::move(login_form_found_callback_).Run();
+    }
+
+    web_contents_->GetController().LoadURLWithParams(
+        content::NavigationController::LoadURLParams(change_password_url_));
+
+    form_waiter_ = std::make_unique<PasswordFormWaiter>(
+        web_contents_, client_,
+        base::BindOnce(&ChangePasswordFormFinder::OnInitialFormWaitingResult,
+                       weak_ptr_factory_.GetWeakPtr()));
+    return;
+  }
+
+  // Neither change password nor login form is detected. It's potentially a
+  // settings page.
   CHECK(capture_annotated_page_content_);
   std::move(capture_annotated_page_content_)
       .Run(base::BindOnce(&ChangePasswordFormFinder::OnPageContentReceived,
@@ -129,8 +157,7 @@ void ChangePasswordFormFinder::OnPageContentReceived(
   }
 
   optimization_guide::proto::PasswordChangeRequest request;
-  request.set_step(optimization_guide::proto::PasswordChangeRequest::FlowStep::
-                       PasswordChangeRequest_FlowStep_OPEN_FORM_STEP);
+  request.set_step(kOpenFormFlowStep);
   *request.mutable_page_context()->mutable_annotated_page_content() =
       std::move(content->proto);
   *request.mutable_page_context()->mutable_title() =
@@ -186,7 +213,7 @@ void ChangePasswordFormFinder::OnExecutionResponseCallback(
     // failing immediately continue refreshing the page until timeout.
     if (response.value().open_form_data().page_type() ==
         optimization_guide::proto::OpenFormResponseData_PageType_LOG_IN_PAGE) {
-      ProcessPasswordFormManagerOrRefresh(/*form_manager=*/nullptr);
+      ProcessPasswordFormManagerOrRefresh({});
     } else {
       std::move(callback_).Run(nullptr);
     }
@@ -211,14 +238,17 @@ void ChangePasswordFormFinder::OnButtonClicked(bool result) {
     return;
   }
 
-  form_waiter_ = std::make_unique<ChangePasswordFormWaiter>(
+  form_waiter_ = std::make_unique<PasswordFormWaiter>(
       web_contents_, client_,
       base::BindOnce(&ChangePasswordFormFinder::OnSubsequentFormWaitingResult,
                      weak_ptr_factory_.GetWeakPtr()));
 }
 
 void ChangePasswordFormFinder::OnSubsequentFormWaitingResult(
-    password_manager::PasswordFormManager* form_manager) {
+    PasswordFormWaiter::Result result) {
+  password_manager::PasswordFormManager* form_manager =
+      result.change_password_form_manager;
+
   if (auto logger = GetLoggerIfAvailable(client_)) {
     logger->LogBoolean(
         Logger::STRING_PASSWORD_CHANGE_SUBSEQUENT_FORM_WAITING_RESULT,
@@ -232,7 +262,10 @@ void ChangePasswordFormFinder::OnSubsequentFormWaitingResult(
 }
 
 void ChangePasswordFormFinder::ProcessPasswordFormManagerOrRefresh(
-    password_manager::PasswordFormManager* form_manager) {
+    PasswordFormWaiter::Result result) {
+  password_manager::PasswordFormManager* form_manager =
+      result.change_password_form_manager;
+
   if (form_manager) {
     CHECK(callback_);
     std::move(callback_).Run(form_manager);
@@ -241,7 +274,7 @@ void ChangePasswordFormFinder::ProcessPasswordFormManagerOrRefresh(
   web_contents_->GetController().LoadURLWithParams(
       content::NavigationController::LoadURLParams(change_password_url_));
 
-  form_waiter_ = std::make_unique<ChangePasswordFormWaiter>(
+  form_waiter_ = std::make_unique<PasswordFormWaiter>(
       web_contents_, client_,
       base::BindOnce(
           &ChangePasswordFormFinder::ProcessPasswordFormManagerOrRefresh,

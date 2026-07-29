@@ -71,7 +71,7 @@ criteria = ["crypto-safe", "safe-to-deploy", "ub-risk-2"]
 [policy."bytemuck:1.23.1"]
 criteria = ["crypto-safe", "safe-to-deploy", "ub-risk-2"]
 
-[policy."bytemuck_derive:1.9.3"]
+[policy."bytemuck_derive:1.10.0"]
 criteria = ["crypto-safe", "safe-to-deploy", "ub-risk-2"]
 
 [policy."bytes:1.10.1"]
@@ -80,16 +80,16 @@ criteria = ["crypto-safe", "safe-to-deploy", "ub-risk-2"]
 [policy."calendrical_calculations:0.2.0"]
 criteria = ["crypto-safe", "safe-to-deploy", "ub-risk-2"]
 
-[policy."cc:1.2.29"]
+[policy."cc:1.2.31"]
 criteria = []
 
 [policy."cfg-if:1.0.1"]
 criteria = ["crypto-safe", "safe-to-deploy", "ub-risk-2"]
 
-[policy."clap:4.5.41"]
+[policy."clap:4.5.42"]
 criteria = ["crypto-safe", "safe-to-run"]
 
-[policy."clap_builder:4.5.41"]
+[policy."clap_builder:4.5.42"]
 criteria = ["crypto-safe", "safe-to-run"]
 
 [policy."clap_lex:0.7.5"]
@@ -107,16 +107,16 @@ criteria = ["crypto-safe", "safe-to-deploy", "ub-risk-2"]
 [policy."crc32fast:1.5.0"]
 criteria = ["crypto-safe", "safe-to-deploy", "ub-risk-2"]
 
-[policy."cxx:1.0.160"]
+[policy."cxx:1.0.161"]
 criteria = ["crypto-safe", "safe-to-deploy", "ub-risk-2"]
 
-[policy."cxxbridge-cmd:1.0.160"]
+[policy."cxxbridge-cmd:1.0.161"]
 criteria = ["crypto-safe", "safe-to-run"]
 
-[policy."cxxbridge-flags:1.0.160"]
+[policy."cxxbridge-flags:1.0.161"]
 criteria = ["crypto-safe", "safe-to-deploy", "ub-risk-2"]
 
-[policy."cxxbridge-macro:1.0.160"]
+[policy."cxxbridge-macro:1.0.161"]
 criteria = ["crypto-safe", "safe-to-deploy", "ub-risk-2"]
 
 [policy."derive_arbitrary:1.4.1"]
@@ -173,7 +173,7 @@ criteria = ["crypto-safe", "safe-to-deploy", "ub-risk-2"]
 [policy."hex:0.4.3"]
 criteria = ["crypto-safe", "safe-to-run"]
 
-[policy."icu_calendar:2.0.2"]
+[policy."icu_calendar:2.0.3"]
 criteria = ["crypto-safe", "safe-to-deploy", "ub-risk-2"]
 
 [policy."icu_calendar_data:2.0.0"]
@@ -248,7 +248,7 @@ criteria = ["crypto-safe", "safe-to-run"]
 [policy."itoa:1.0.15"]
 criteria = ["crypto-safe", "safe-to-deploy", "ub-risk-2"]
 
-[policy."ixdtf:0.6.1"]
+[policy."ixdtf:0.6.2"]
 criteria = ["crypto-safe", "safe-to-deploy", "ub-risk-2"]
 
 [policy."jiff-tzdb:0.1.4"]
@@ -269,7 +269,7 @@ criteria = []
 [policy."litemap:0.8.0"]
 criteria = ["crypto-safe", "safe-to-deploy", "ub-risk-2"]
 
-[policy."llguidance:1.0.1"]
+[policy."llguidance:1.1.1"]
 criteria = ["crypto-safe", "safe-to-deploy", "ub-risk-2"]
 
 [policy."log:0.4.27"]
@@ -314,7 +314,7 @@ criteria = ["crypto-safe", "safe-to-deploy", "ub-risk-2"]
 [policy."quote:1.0.40"]
 criteria = ["crypto-safe", "safe-to-deploy", "ub-risk-2"]
 
-[policy."read-fonts:0.30.1"]
+[policy."read-fonts:0.31.1"]
 criteria = ["crypto-safe", "safe-to-deploy", "ub-risk-2"]
 
 [policy."regex-automata:0.4.9"]
@@ -326,7 +326,7 @@ criteria = ["crypto-safe", "safe-to-deploy", "ub-risk-2"]
 [policy."rustc-demangle-capi:0.1.1"]
 criteria = ["crypto-safe", "safe-to-run"]
 
-[policy."rustc-demangle:0.1.25"]
+[policy."rustc-demangle:0.1.26"]
 criteria = ["crypto-safe", "safe-to-run"]
 
 [policy."rustversion:1.0.21"]
@@ -341,7 +341,7 @@ criteria = ["crypto-safe", "safe-to-deploy", "ub-risk-2"]
 [policy."serde_derive:1.0.219"]
 criteria = ["crypto-safe", "safe-to-deploy", "ub-risk-2"]
 
-[policy."serde_json:1.0.140"]
+[policy."serde_json:1.0.142"]
 criteria = ["crypto-safe", "safe-to-deploy", "ub-risk-2"]
 
 [policy."serde_json_lenient:0.2.4"]
@@ -353,7 +353,7 @@ criteria = []
 [policy."simd-adler32:0.3.7"]
 criteria = ["crypto-safe", "safe-to-deploy", "ub-risk-2"]
 
-[policy."skrifa:0.32.0"]
+[policy."skrifa:0.33.1"]
 criteria = ["crypto-safe", "safe-to-deploy", "ub-risk-2"]
 
 [policy."small_ctor:0.1.2"]
@@ -374,10 +374,10 @@ criteria = ["crypto-safe", "safe-to-deploy", "ub-risk-2"]
 [policy."strsim:0.11.1"]
 criteria = ["crypto-safe", "safe-to-run"]
 
-[policy."strum:0.27.1"]
+[policy."strum:0.27.2"]
 criteria = ["crypto-safe", "safe-to-deploy", "ub-risk-2"]
 
-[policy."strum_macros:0.27.1"]
+[policy."strum_macros:0.27.2"]
 criteria = ["crypto-safe", "safe-to-deploy", "ub-risk-2"]
 
 [policy."subtle:2.6.1"]
@@ -419,7 +419,7 @@ criteria = ["crypto-safe", "safe-to-deploy", "ub-risk-2"]
 [policy."tinystr:0.8.1"]
 criteria = ["crypto-safe", "safe-to-deploy", "ub-risk-2"]
 
-[policy."toktrie:1.0.1"]
+[policy."toktrie:1.1.1"]
 criteria = ["crypto-safe", "safe-to-deploy", "ub-risk-2"]
 
 [policy."tzif:0.4.0"]

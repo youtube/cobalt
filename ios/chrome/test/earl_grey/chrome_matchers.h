@@ -648,12 +648,6 @@ id<GREYMatcher> TabGroupSnackBarAction();
 // the tab grid.
 id<GREYMatcher> TabGridTabGroupsPanelButton();
 
-// Returns a matcher for the button to go to the third panel in
-// the tab grid. If Tab Group Sync is enabled, it's equivalent to
-// `TabGridTabGroupsPanelButton`. Otherwise, it's equivalent to
-// `TabGridOtherDevicesPanelButton`.
-id<GREYMatcher> TabGridThirdPanelButton();
-
 // Returns a matcher that matches tab grid normal mode page control - The
 // PageControl panel always exist only on the tab grid normal mode, So this can
 // be used to validate that the tab grid normal mode is active.
@@ -969,7 +963,7 @@ id<GREYMatcher> FakeJoinFlowView();
 
 #pragma mark - Tab Groups Panel
 
-// Returns the matcher for the tab groups panel view.
+// Returns the matcher for the tab groups page of the tab grid.
 id<GREYMatcher> TabGroupsPanel();
 
 }  // namespace chrome_test_util

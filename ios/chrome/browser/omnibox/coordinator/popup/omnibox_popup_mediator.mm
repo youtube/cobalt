@@ -51,11 +51,6 @@ namespace {
 /// will be reported in the overflow bucket.
 const NSUInteger kMaxSuggestTileTypePosition = 15;
 
-/// The entrypoint id associated with aim being invoked from the omnibox
-/// shortcut. Used for logging purposes.
-/// Do not change without changing IOS_CHROME_OMNIBOX_SEARCH_ENTRY_POINT in
-/// chrome_aim_entry_point.proto
-const std::string kShortcutEntrypointAimID = "62";
 }  // namespace
 
 @interface OmniboxPopupMediator ()
@@ -211,7 +206,7 @@ const std::string kShortcutEntrypointAimID = "62";
                                                     true /* used */);
 
   switch (action.type) {
-    case omnibox::ActionInfo_ActionType_CALL: {
+    case omnibox::SuggestTemplateInfo_TemplateAction_ActionType_CALL: {
       NSURL* URL = net::NSURLWithGURL(action.actionURI);
       __weak __typeof__(self) weakSelf = self;
       [[UIApplication sharedApplication] openURL:URL
@@ -223,7 +218,7 @@ const std::string kShortcutEntrypointAimID = "62";
                                }];
       break;
     }
-    case omnibox::ActionInfo_ActionType_DIRECTIONS: {
+    case omnibox::SuggestTemplateInfo_TemplateAction_ActionType_DIRECTIONS: {
       NSURL* URL = net::NSURLWithGURL(action.actionURI);
 
       if (IsGoogleMapsAppInstalled() && !self.incognito) {
@@ -235,7 +230,7 @@ const std::string kShortcutEntrypointAimID = "62";
       }
       break;
     }
-    case omnibox::ActionInfo_ActionType_REVIEWS: {
+    case omnibox::SuggestTemplateInfo_TemplateAction_ActionType_REVIEWS: {
       [self openNewTabWithSuggestAction:action];
       break;
     }
@@ -251,16 +246,31 @@ const std::string kShortcutEntrypointAimID = "62";
         (AutocompleteMatchFormatter*)suggestion;
     const AutocompleteMatch& match =
         autocompleteMatchFormatter.autocompleteMatch;
-    if (suggestion.isSearchWithAim) {
+    if (suggestion.hasAimShortcut) {
+      GURL aimURL;
+      for (const auto& action : match.actions) {
+        const OmniboxActionInSuggest* action_in_suggest =
+            OmniboxActionInSuggest::FromAction(action.get());
+        if (action_in_suggest &&
+            action_in_suggest->Type() ==
+                omnibox::
+                    SuggestTemplateInfo_TemplateAction_ActionType_CHROME_AIM) {
+          aimURL = GURL(action_in_suggest->template_action.action_uri());
+          break;
+        }
+      }
+      CHECK(aimURL.is_valid());
       AutocompleteMatch aimMatch = match;
-      GURL aimURL =
-          GetUrlForAim(self.templateURLService, kShortcutEntrypointAimID,
-                       /*query_start_time=*/base::Time::Now(), match.contents);
-      aimMatch.destination_url = aimURL;
+      UMA_HISTOGRAM_COUNTS_100("IOS.Omnibox.AimShortcutTapped",
+                               aimMatch.contents.length());
+      OmniboxActionInSuggest::RecordShownAndUsedMetrics(
+          omnibox::SuggestTemplateInfo_TemplateAction_ActionType_CHROME_AIM,
+          true /* used */);
       [self.omniboxAutocompleteController
-          selectMatchForOpening:aimMatch
-                          inRow:row
-                         openIn:WindowOpenDisposition::CURRENT_TAB];
+             selectMatchForOpening:aimMatch
+          withCustomDestinationURL:aimURL
+                             inRow:row
+                            openIn:WindowOpenDisposition::CURRENT_TAB];
     } else if (match.has_tab_match.value_or(false)) {
       [self.omniboxAutocompleteController
           selectMatchForOpening:match

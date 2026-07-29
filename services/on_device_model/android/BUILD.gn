@@ -7,8 +7,6 @@ import("//third_party/jni_zero/jni_zero.gni")
 
 source_set("android") {
   sources = [
-    "backend_impl_android.cc",
-    "backend_impl_android.h",
     "backend_model_impl_android.cc",
     "backend_model_impl_android.h",
     "backend_session_impl_android.cc",
@@ -20,6 +18,7 @@ source_set("android") {
   deps = [
     ":jni_headers",
     "//base",
+    "//components/optimization_guide/proto:optimization_guide_proto",
     "//mojo/public/cpp/bindings",
     "//services/on_device_model:backend_interfaces",
     "//services/on_device_model/public/cpp",
@@ -29,12 +28,13 @@ source_set("android") {
 
 source_set("unit_tests") {
   testonly = true
-  sources = [ "backend_impl_android_unittest.cc" ]
+  sources = [ "backend_model_impl_android_unittest.cc" ]
   deps = [
     ":android",
     ":native_j_unittests_jni_headers",
     ":native_java_unittests_java",
     "//base/test:test_support",
+    "//components/optimization_guide/proto:optimization_guide_proto",
     "//services/on_device_model/public/cpp/test_support",
     "//testing/gmock",
     "//testing/gtest",
@@ -46,11 +46,15 @@ android_library("java") {
     "java/src/org/chromium/on_device_model/AiCoreSession.java",
     "java/src/org/chromium/on_device_model/AiCoreSessionFactory.java",
     "java/src/org/chromium/on_device_model/AiCoreSessionUpstreamImpl.java",
+    "java/src/org/chromium/on_device_model/InputPieceHelper.java",
     "java/src/org/chromium/on_device_model/OnDeviceModelBridge.java",
   ]
   deps = [
     "//base:base_java",
     "//base:service_loader_java",
+    "//components/optimization_guide/proto:optimization_guide_proto_java",
+    "//services/on_device_model/public/mojom:mojom_java",
+    "//third_party/androidx:androidx_annotation_annotation_java",
     "//third_party/jni_zero:jni_zero_java",
   ]
   srcjar_deps = [ ":jni_headers" ]
@@ -64,6 +68,8 @@ android_library("native_java_unittests_java") {
     "//base:base_java",
     "//base:base_java_test_support",
     "//base:service_loader_java",
+    "//components/optimization_guide/proto:optimization_guide_proto_java",
+    "//services/on_device_model/public/mojom:mojom_java",
     "//third_party/jni_zero:jni_zero_java",
     "//third_party/junit",
   ]
@@ -73,6 +79,7 @@ android_library("native_java_unittests_java") {
 generate_jni("jni_headers") {
   sources = [
     "java/src/org/chromium/on_device_model/AiCoreSession.java",
+    "java/src/org/chromium/on_device_model/InputPieceHelper.java",
     "java/src/org/chromium/on_device_model/OnDeviceModelBridge.java",
   ]
 }

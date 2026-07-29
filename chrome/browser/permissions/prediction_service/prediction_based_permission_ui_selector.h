@@ -18,6 +18,7 @@
 #include "components/optimization_guide/proto/common_types.pb.h"
 #include "components/optimization_guide/proto/features/permissions_ai.pb.h"
 #include "components/optimization_guide/proto/models.pb.h"
+#include "components/passage_embeddings/passage_embeddings_types.h"
 #include "components/permissions/permission_actions_history.h"
 #include "components/permissions/permission_request_enums.h"
 #include "components/permissions/prediction_service/permission_ui_selector.h"
@@ -41,19 +42,11 @@ class GeneratePredictionsResponse;
 class PredictionBasedPermissionUiSelector
     : public permissions::PermissionUiSelector {
  public:
-  enum class PredictionSource {
-    kNoCpssModel,
-    kServerSideCpssV3Model,
-    kOnDeviceCpssV1Model,
-    kOnDeviceAiv1AndServerSideModel,
-    kOnDeviceAiv3AndServerSideModel,
-  };
-
   // Contains information that are not important as features for the
   // prediction service, but contain details about the workflow and the origin
   // of feature data.
   struct PredictionRequestMetadata {
-    PredictionSource prediction_source;
+    permissions::PermissionPredictionSource prediction_source;
     permissions::RequestType request_type;
   };
 
@@ -63,12 +56,26 @@ class PredictionBasedPermissionUiSelector
     permissions::PredictionRequestFeatures features;
     PredictionRequestMetadata request_metadata;
     permissions::PredictionModelType model_type;
-    std::unique_ptr<SkBitmap>(snapshot);
-    std::string inner_text;
+    std::optional<std::string> inner_text;
+    std::optional<SkBitmap>(snapshot);
+    std::optional<passage_embeddings::Embedding> inner_text_embedding;
+
+    ModelExecutionData(permissions::PredictionRequestFeatures features,
+                       PredictionRequestMetadata request_metadata,
+                       permissions::PredictionModelType model_type);
+    ModelExecutionData();
+    ~ModelExecutionData();
+    ModelExecutionData(const ModelExecutionData&) = delete;
+    ModelExecutionData(ModelExecutionData&&);
+    ModelExecutionData& operator=(const ModelExecutionData&) = delete;
   };
 
   using PredictionGrantLikelihood =
       permissions::PermissionUiSelector::PredictionGrantLikelihood;
+
+  using ModelExecutionCallback =
+      base::OnceCallback<void(ModelExecutionData model_data)>;
+
   // Constructs an instance in the context of the given |profile|.
   explicit PredictionBasedPermissionUiSelector(Profile* profile);
   ~PredictionBasedPermissionUiSelector() override;
@@ -99,7 +106,12 @@ class PredictionBasedPermissionUiSelector
   std::optional<permissions::PermissionRequestRelevance>
   get_permission_request_relevance_for_testing();
 
+#if BUILDFLAG(BUILD_WITH_TFLITE_LIB)
   void set_snapshot_for_testing(SkBitmap snapshot);
+#endif
+
+  void set_inner_text_for_testing(
+      content_extraction::InnerTextResult inner_text);
 
  private:
   FRIEND_TEST_ALL_PREFIXES(
@@ -121,34 +133,38 @@ class PredictionBasedPermissionUiSelector
       std::optional<optimization_guide::proto::PermissionsAiResponse> response);
 
   permissions::PredictionRequestFeatures BuildPredictionRequestFeatures(
-      permissions::PermissionRequest* request);
+      permissions::PermissionRequest* request,
+      permissions::PermissionPredictionSource prediction_source);
   void LookupResponseReceived(
       base::TimeTicks model_inquire_start_time,
       PredictionRequestMetadata request_metadata,
       bool lookup_successful,
       bool response_from_cache,
       const std::optional<permissions::GeneratePredictionsResponse>& response);
-  PredictionSource GetPredictionTypeToUse(
+  permissions::PermissionPredictionSource GetPredictionTypeToUse(
       permissions::RequestType request_type);
 
   void set_likelihood_override(PredictionGrantLikelihood mock_likelihood) {
     likelihood_override_for_testing_ = mock_likelihood;
   }
 
-  // Part of the AIv1 model execution chain; provided as a curryed callback to
+  // Part of the AIvX model execution chain; provided as a curryed callback to
   // be submitted to the logic that fetches the current page content text for
-  // the AIv1 model. The first two parameters are set by the callee, to be used
-  // by the server side model later.
+  // the AIvX model. The first two parameters are set by the callee; content of
+  // model_data is used to call the on device model and by the server side model
+  // later. When the text is fetched asynchronously with success,
+  // model_execution_callback will get called to continue the chain of
+  // asynchronously added input data.
   void OnGetInnerTextForOnDeviceModel(
       ModelExecutionData model_data,
+      ModelExecutionCallback model_execution_callback,
       std::unique_ptr<content_extraction::InnerTextResult> result);
 
   bool ShouldHoldBack(const PredictionRequestMetadata& request_metadata) const;
 
   void InquireServerModel(
       const permissions::PredictionRequestFeatures& features,
-      PredictionRequestMetadata request_metadata,
-      bool record_source);
+      PredictionRequestMetadata request_metadata);
 
   // As the first part of the AIv1 model execution chain, this function triggers
   // AIv1 input collection and model execution, with its output being input of
@@ -156,7 +172,7 @@ class PredictionBasedPermissionUiSelector
   // available or is executed with an error, only the server side model will get
   // called.
   void InquireOnDeviceAiv1AndServerModelIfAvailable(
-      content::RenderFrameHost* rfh,
+      content::RenderFrameHost* render_frame_host,
       permissions::PredictionRequestFeatures features,
       PredictionRequestMetadata request_metadata);
 
@@ -173,9 +189,19 @@ class PredictionBasedPermissionUiSelector
       permissions::PredictionRequestFeatures features,
       PredictionRequestMetadata request_metadata);
 
-  // Part of the AIv3 model execution chain; provided as a curryed callback to
+  // As the first part of the AIv4 model execution chain, this function triggers
+  // AIv4 input collection and model execution, with its output being input of
+  // the follow-up CPSSv3 server side model execution. If the AIv4 model is not
+  // available or is executed with an error, only the server side model will get
+  // called.
+  void InquireOnDeviceAiv4AndServerModelIfAvailable(
+      content::WebContents* web_contents,
+      permissions::PredictionRequestFeatures features,
+      PredictionRequestMetadata request_metadata);
+
+  // Part of the AIvX model execution chain; provided as a curryed callback to
   // be submitted to the logic that fetches a snapshot that serves as the input
-  // for the AIv3 model. The first three parameters are set by the callee, to
+  // for the AIvX models. The first three parameters are set by the callee, to
   // be used by the server side model later and for logging.
   void OnSnapshotTakenForOnDeviceModel(
       base::TimeTicks snapshot_inquire_start_time,
@@ -195,9 +221,43 @@ class PredictionBasedPermissionUiSelector
       const permissions::PredictionRequestFeatures& features,
       PredictionRequestMetadata request_metadata);
 
+  // Part of the AivX model workflow. Creates a snapshot asynchronously and
+  // calls ExecuteOnDeviceAivXModel if the snapshot is not empty. If snapshot
+  // creation failed, on-device model execution is not attempted and instead it
+  // proceeds with the basic CPSSv3 workflow without the output of the
+  // on-device model.
   void TakeSnapshot(content::RenderWidgetHostView* host_view,
                     ModelExecutionData model_data);
 
+  // Extracts inner text asynchronously and runs the provided model execution
+  // callback, which is meant to be a wrapper around ExecuteOnDeviceAivXModel.
+  // Part of the AivX model workflow.
+  void GetInnerText(content::RenderFrameHost* render_frame_host,
+                    ModelExecutionData model_data,
+                    ModelExecutionCallback model_execution_callback);
+
+  // Part of Aiv4 workflow; to use the inner text as input to the tflite model,
+  // we need to preprocess it with the passage embeddings model. If
+  // rendered_text is an empty string, on-device model execution is not
+  // attempted and instead it proceeds with the basic CPSSv3 workflow without
+  // the output of the on-device model.
+  void CreatePassageEmbeddingFromRenderedText(
+      std::string rendered_text,
+      passage_embeddings::Embedder::ComputePassagesEmbeddingsCallback callback);
+
+  // Callback for the passage embeddings model. Sets the
+  // |passage_embeddings_task_id_| if the passage_embedder model is available.
+  // Still running embedder tasks will get canceled upon calling this function.
+  // Fills in the inner_text_embeddings field of the model_metadata on success
+  // and calls the model_execution_callback in any case. Failures will get
+  // propagated and should be handled by the model_execution_callback callback.
+  void OnPassageEmbeddingsComputed(
+      ModelExecutionData model_data,
+      ModelExecutionCallback model_execution_callback,
+      std::vector<std::string> passages,
+      std::vector<passage_embeddings::Embedding> embeddings,
+      passage_embeddings::Embedder::TaskId task_id,
+      passage_embeddings::ComputeEmbeddingsStatus status);
 #endif  // BUILDFLAG(BUILD_WITH_TFLITE_LIB)
 
   raw_ptr<Profile> profile_;
@@ -212,7 +272,16 @@ class PredictionBasedPermissionUiSelector
 
   DecisionMadeCallback callback_;
 
+  std::optional<content_extraction::InnerTextResult> inner_text_for_testing_;
+#if BUILDFLAG(BUILD_WITH_TFLITE_LIB)
   std::optional<SkBitmap> snapshot_for_testing_;
+
+  // Used to cancel a still running embedding task for the previous stale query
+  // to the passage embedder model that we use to prepare the text input for
+  // AIv4.
+  std::optional<passage_embeddings::Embedder::TaskId>
+      passage_embeddings_task_id_;
+#endif
 
   // Used to asynchronously call the callback during on device model execution.
   base::WeakPtrFactory<PredictionBasedPermissionUiSelector> weak_ptr_factory_{

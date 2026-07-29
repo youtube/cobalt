@@ -20,6 +20,8 @@
 #import "ios/chrome/browser/infobars/ui_bundled/modals/infobar_modal_constants.h"
 #import "ios/chrome/browser/infobars/ui_bundled/modals/infobar_translate_modal_constants.h"
 #import "ios/chrome/browser/popup_menu/ui_bundled/popup_menu_constants.h"
+#import "ios/chrome/browser/reader_mode/model/features.h"
+#import "ios/chrome/browser/reader_mode/ui/constants.h"
 #import "ios/chrome/browser/shared/model/url/chrome_url_constants.h"
 #import "ios/chrome/browser/translate/model/translate_app_interface.h"
 #import "ios/chrome/grit/ios_strings.h"
@@ -104,6 +106,7 @@ const char kLinkPath[] = "/linkpath/";
 const char kSubresourcePath[] = "/subresourcepath/";
 const char kSomeLanguageUrl[] = "http://languagepath/?http=es";
 const char kFrenchPagePath[] = "/frenchpage/";
+const char kFrenchPageDistillablePath[] = "/frenchpagedistillable/";
 const char kFrenchPageWithLinkPath[] = "/frenchpagewithlink/";
 const char kFrenchPageNoTranslateContent[] = "/frenchpagenotranslatecontent/";
 const char kFrenchPageNoTranslateValue[] = "/frenchpagenotranslatevalue/";
@@ -149,6 +152,18 @@ std::string GetFrenchPageHtml(const std::string& html_tag,
          "</body></html>";
 }
 
+// Builds a distillable (eligible for Reader mode) HTML document with a French
+// text and the given `html` and `meta` tags.
+std::string GetFrenchPageDistillableHtml() {
+  return std::string("<!DOCTYPE html><html><head><title>Test Page "
+                     "Title</title></head><body><div><p>") +
+         kFrenchText + "</p><p>" + kFrenchText + "</p><p>" + kFrenchText +
+         "</p><p>" + kFrenchText + "</p><p>" + kFrenchText + "</p><p>" +
+         kFrenchText + "</p><p>" + kFrenchText + "</p><p>" + kFrenchText +
+         "</p><p>" + kFrenchText + "</p><p>" + kFrenchText +
+         "</p></div></body></html>";
+}
+
 #pragma mark - TestResponseProvider
 
 // A ResponseProvider that provides html responses of texts in different
@@ -179,6 +194,7 @@ bool TestResponseProvider::CanHandleRequest(const Request& request) {
   return (url.host() == kHttpServerDomain &&
           (url.path() == kLanguagePath || url.path() == kLinkPath ||
            url.path() == kSubresourcePath || url.path() == kFrenchPagePath ||
+           url.path() == kFrenchPageDistillablePath ||
            url.path() == kFrenchPageWithLinkPath ||
            url.path() == kFrenchPageNoTranslateContent ||
            url.path() == kFrenchPageNoTranslateValue ||
@@ -213,6 +229,9 @@ void TestResponseProvider::GetResponseHeadersAndBody(
     return;
   } else if (url.path() == kFrenchPagePath) {
     *response_body = GetFrenchPageHtml(kHtmlAttribute, "");
+    return;
+  } else if (url.path() == kFrenchPageDistillablePath) {
+    *response_body = GetFrenchPageDistillableHtml();
     return;
   } else if (url.path() == kFrenchPageWithLinkPath) {
     GURL page_path_url = web::test::HttpServer::MakeUrl(
@@ -1128,9 +1147,9 @@ void TestResponseProvider::GetLanguageResponse(
                  grey_accessibilityID(
                      kTranslateInfobarModalTranslateSourceLanguageItemAXId)]
       performAction:grey_tap()];
-  // Select "Dutch" from the table view.
+  // Select "English" from the table view.
   [[[EarlGrey selectElementWithMatcher:grey_accessibilityLabel(@"English")]
-         usingSearchAction:grey_scrollInDirection(kGREYDirectionDown, 300)
+         usingSearchAction:grey_scrollInDirection(kGREYDirectionDown, 320)
       onElementWithMatcher:grey_accessibilityID(
                                kTranslateInfobarLanguageSelectionTableViewAXId)]
       performAction:grey_tap()];
@@ -1240,6 +1259,62 @@ void TestResponseProvider::GetLanguageResponse(
                                  adoptedLanguage, expectedAdoptedLanguage];
   GREYAssertEqualObjects(expectedAdoptedLanguage, adoptedLanguage,
                          adoptedLanguageError);
+}
+
+// Tests that triggering translate after opening and closing reader mode works.
+// TODO(crbug.com/430489596): `kTranslateInfobarModalTranslateButtonAXId` cannot
+// be found occasionally. This test should be reenabled.
+- (void)DISABLED_testTranslateAfterReaderMode {
+#if !TARGET_OS_SIMULATOR
+  if ([ChromeEarlGrey isIPadIdiom]) {
+    EARL_GREY_TEST_DISABLED(@"Disabled on iPad devices");
+  }
+#endif
+  // Set up server with a French page.
+  std::unique_ptr<web::DataResponseProvider> provider(new TestResponseProvider);
+  web::test::SetUpHttpServer(std::move(provider));
+
+  GURL URL = web::test::HttpServer::MakeUrl(
+      base::StringPrintf("http://%s", kFrenchPageDistillablePath));
+
+  // Load URL.
+  [ChromeEarlGrey loadURL:URL];
+
+  // Open Reader Mode.
+  [ChromeEarlGrey showReaderMode];
+  GREYAssertTrue([ChromeEarlGrey waitUntilReaderModeWebStateIsReady],
+                 @"Reader mode content could not be loaded.");
+
+  // Verify Reader Mode is active.
+  [ChromeEarlGrey
+      waitForSufficientlyVisibleElementWithMatcher:
+          grey_accessibilityID(kReaderModeViewAccessibilityIdentifier)];
+
+  // Close Reader Mode.
+  [ChromeEarlGrey hideReaderMode];
+
+  // Verify Reader Mode is closed.
+  [ChromeEarlGrey
+      waitForUIElementToDisappearWithMatcher:
+          grey_accessibilityID(kReaderModeViewAccessibilityIdentifier)];
+
+  // Open modal.
+  [[EarlGrey
+      selectElementWithMatcher:
+          grey_accessibilityID(kBadgeButtonTranslateAccessibilityIdentifier)]
+      performAction:grey_tap()];
+
+  // Translate.
+  [[EarlGrey selectElementWithMatcher:
+                 grey_allOf(grey_accessibilityID(
+                                kTranslateInfobarModalTranslateButtonAXId),
+                            grey_accessibilityTrait(UIAccessibilityTraitButton),
+                            nil)] performAction:grey_tap()];
+
+  // Verify page is translated.
+  GREYAssertTrue([self isAfterTranslateBannerVisible],
+                 @"Show Original Banner was not found.");
+  [ChromeEarlGrey waitForWebStateContainingText:"Translated"];
 }
 
 @end

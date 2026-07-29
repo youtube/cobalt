@@ -39,7 +39,6 @@ import androidx.annotation.RequiresApi;
 import com.android.webview.chromium.SharedStatics.ApiCall;
 import com.android.webview.chromium.WebViewChromiumAwInit.CallSite;
 
-import org.chromium.android_webview.ApkType;
 import org.chromium.android_webview.AwBrowserMainParts;
 import org.chromium.android_webview.AwBrowserProcess;
 import org.chromium.android_webview.AwContentsStatics;
@@ -77,6 +76,7 @@ import org.chromium.build.BuildConfig;
 import org.chromium.build.NativeLibraries;
 import org.chromium.components.embedder_support.application.ClassLoaderContextWrapperFactory;
 import org.chromium.content_public.browser.LGEmailActionModeWorkaround;
+import org.chromium.support_lib_boundary.ProcessGlobalConfigConstants;
 
 import java.io.File;
 import java.util.List;
@@ -129,10 +129,6 @@ public class WebViewChromiumFactoryProvider implements WebViewFactoryProvider {
 
     private static final String ASSET_PATH_WORKAROUND_HISTOGRAM_NAME =
             "Android.WebView.AssetPathWorkaroundUsed.FactoryInit";
-
-    // This is an ID hardcoded by WebLayer for resources stored in locale splits. See
-    // WebLayerImpl.java for more info.
-    private static final int SHARED_LIBRARY_MAX_ID = 36;
 
     @GuardedBy("mAwInit.getLazyInitLock()")
     private TracingController mTracingController;
@@ -296,6 +292,24 @@ public class WebViewChromiumFactoryProvider implements WebViewFactoryProvider {
                 .isCachedFeatureEnabled(AwFeatures.WEBVIEW_USE_STARTUP_TASKS_LOGIC);
     }
 
+    private boolean shouldEnableStartupTasksExperimentP2() {
+        if (CommandLine.getInstance().hasSwitch(AwSwitches.WEBVIEW_USE_STARTUP_TASKS_LOGIC_P2)) {
+            return true;
+        }
+
+        return WebViewCachedFlags.get()
+                .isCachedFeatureEnabled(AwFeatures.WEBVIEW_USE_STARTUP_TASKS_LOGIC_P2);
+    }
+
+    private boolean shouldEnableStartupTasksYieldToNativeExperiment() {
+        if (CommandLine.getInstance().hasSwitch(AwSwitches.WEBVIEW_STARTUP_TASKS_YIELD_TO_NATIVE)) {
+            return true;
+        }
+
+        return WebViewCachedFlags.get()
+                .isCachedFeatureEnabled(AwFeatures.WEBVIEW_STARTUP_TASKS_YIELD_TO_NATIVE);
+    }
+
     @SuppressWarnings({"NoContextGetApplicationContext", "DiscouragedApi"})
     private void initialize(WebViewDelegate webViewDelegate) {
         mInitInfo.mStartTime = SystemClock.uptimeMillis();
@@ -410,11 +424,6 @@ public class WebViewChromiumFactoryProvider implements WebViewFactoryProvider {
                 RecordHistogram.recordBooleanHistogram(ASSET_PATH_WORKAROUND_HISTOGRAM_NAME, true);
                 addWebViewAssetPath(ctx);
                 packageId = webViewDelegate.getPackageId(ctx.getResources(), resourcePackage);
-            }
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
-                    && AwBrowserProcess.getApkType() != ApkType.TRICHROME
-                    && packageId > SHARED_LIBRARY_MAX_ID) {
-                throw new RuntimeException("Package ID too high for WebView: " + packageId);
             }
 
             mAwInit.setUpResourcesOnBackgroundThread(packageId, ctx);
@@ -549,15 +558,8 @@ public class WebViewChromiumFactoryProvider implements WebViewFactoryProvider {
                 }
             }
 
-            // This check must happen after pref value has been read and SafeMode setup has
-            // completed.
-            boolean enableStartupTasksExperiment = shouldEnableStartupTasksExperiment();
-            mAwInit.setStartupTaskExperimentEnabled(enableStartupTasksExperiment);
-            AwBrowserMainParts.setWebViewStartupTasksLogicIsEnabled(enableStartupTasksExperiment);
-            AwBrowserMainParts.setWebViewStartupTasksExperimentEnabledP2(
-                    mAwInit.shouldEnableStartupTasksExperimentP2());
-            AwBrowserMainParts.setWebViewStartupTasksYieldToNativeIsEnabled(
-                    mAwInit.shouldEnableStartupTasksYieldToNativeExperiment());
+            // This must happen after pref value has been read and SafeMode setup has completed.
+            setupStartupTaskExperiments(androidXConfig);
 
             if (!FastVariationsSeedSafeModeAction.hasRun()) {
                 mAwInit.startVariationsInit();
@@ -617,6 +619,57 @@ public class WebViewChromiumFactoryProvider implements WebViewFactoryProvider {
                     startupTimestamps.getProviderClassForNameEnd()
                             - startupTimestamps.getProviderClassForNameStart());
         }
+    }
+
+    private void setupStartupTaskExperiments(AndroidXProcessGlobalConfig androidXConfig) {
+        switch (androidXConfig.getUiThreadStartupMode()) {
+            case ProcessGlobalConfigConstants.UI_THREAD_STARTUP_MODE_DEFAULT:
+                setStartupTaskExperimentValues(
+                        shouldEnableStartupTasksExperiment(),
+                        shouldEnableStartupTasksExperimentP2(),
+                        shouldEnableStartupTasksYieldToNativeExperiment());
+                return;
+            case ProcessGlobalConfigConstants.UI_THREAD_STARTUP_MODE_SYNC:
+                setStartupTaskExperimentValues(
+                        /* enablePhase1= */ false,
+                        /* enablePhase2= */ false,
+                        /* enableYieldToNative= */ false);
+                return;
+            case ProcessGlobalConfigConstants.UI_THREAD_STARTUP_MODE_ASYNC_LONG_TASKS:
+                setStartupTaskExperimentValues(
+                        /* enablePhase1= */ true,
+                        /* enablePhase2= */ false,
+                        /* enableYieldToNative= */ false);
+                return;
+            case ProcessGlobalConfigConstants.UI_THREAD_STARTUP_MODE_ASYNC_SHORT_TASKS:
+                setStartupTaskExperimentValues(
+                        /* enablePhase1= */ false,
+                        /* enablePhase2= */ true,
+                        /* enableYieldToNative= */ false);
+                return;
+            case ProcessGlobalConfigConstants.UI_THREAD_STARTUP_MODE_ASYNC_VERY_SHORT_TASKS:
+                setStartupTaskExperimentValues(
+                        /* enablePhase1= */ false,
+                        /* enablePhase2= */ false,
+                        /* enableYieldToNative= */ true);
+                return;
+            default:
+                throw new RuntimeException(
+                        "Invalid AndroidXProcessGlobalConfig UI thread startup mode: "
+                                + androidXConfig.getUiThreadStartupMode());
+        }
+    }
+
+    private void setStartupTaskExperimentValues(
+            boolean enablePhase1, boolean enablePhase2, boolean enableYieldToNative) {
+        mAwInit.setStartupTaskExperimentEnabled(enablePhase1);
+        AwBrowserMainParts.setWebViewStartupTasksLogicIsEnabled(enablePhase1);
+
+        mAwInit.setStartupTaskExperimentP2Enabled(enablePhase2);
+        AwBrowserMainParts.setWebViewStartupTasksExperimentEnabledP2(enablePhase2);
+
+        mAwInit.setStartupTasksYieldToNativeExperimentEnabled(enableYieldToNative);
+        AwBrowserMainParts.setWebViewStartupTasksYieldToNativeIsEnabled(enableYieldToNative);
     }
 
     /* package */ static void checkStorageIsNotDeviceProtected(Context context) {

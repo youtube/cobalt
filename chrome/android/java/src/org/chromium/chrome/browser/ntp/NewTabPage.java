@@ -71,7 +71,10 @@ import org.chromium.chrome.browser.magic_stack.HomeModulesMetricsUtils;
 import org.chromium.chrome.browser.magic_stack.ModuleDelegateHost;
 import org.chromium.chrome.browser.magic_stack.ModuleRegistry;
 import org.chromium.chrome.browser.metrics.StartupMetricsTracker;
+import org.chromium.chrome.browser.ntp_customization.NtpCustomizationConfigManager;
 import org.chromium.chrome.browser.ntp_customization.NtpCustomizationCoordinator;
+import org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils;
+import org.chromium.chrome.browser.ntp_customization.edge_to_edge.TopInsetCoordinator;
 import org.chromium.chrome.browser.omnibox.OmniboxFocusReason;
 import org.chromium.chrome.browser.omnibox.OmniboxStub;
 import org.chromium.chrome.browser.omnibox.voice.VoiceRecognitionHandler;
@@ -202,6 +205,12 @@ public class NewTabPage
     private boolean mSnapshotSingleTabCardChanged;
     private final boolean mIsInNightMode;
     private final @Nullable OneshotSupplier<ModuleRegistry> mModuleRegistrySupplier;
+    private final boolean mCanSupportEdgeToEdgeForCustomizedTheme;
+    private final ObservableSupplier<TopInsetCoordinator> mTopInsetCoordinatorSupplier;
+    private @Nullable Callback<TopInsetCoordinator> mTopInsetCoordinatorCallback;
+
+    private TopInsetCoordinator.@org.chromium.build.annotations.Nullable Observer
+            mTopInsetChangeObserver;
 
     private @Nullable SearchResumptionModuleCoordinator mSearchResumptionModuleCoordinator;
     private @Nullable NtpSmoothTransitionDelegate mSmoothTransitionDelegate;
@@ -515,6 +524,7 @@ public class NewTabPage
             ObservableSupplier<Integer> tabStripHeightSupplier,
             OneshotSupplier<ModuleRegistry> moduleRegistrySupplier,
             ObservableSupplier<EdgeToEdgeController> edgeToEdgeControllerSupplier,
+            ObservableSupplier<TopInsetCoordinator> topInsetCoordinatorSupplier,
             StartupMetricsTracker startupMetricsTracker) {
         mConstructedTimeNs = System.nanoTime();
         TraceEvent.begin(TAG);
@@ -534,6 +544,7 @@ public class NewTabPage
         mIsInNightMode = isInNightMode;
         mTabStripHeightSupplier = tabStripHeightSupplier;
         mModuleRegistrySupplier = moduleRegistrySupplier;
+        mTopInsetCoordinatorSupplier = topInsetCoordinatorSupplier;
 
         Profile profile = mTab.getProfile();
 
@@ -641,6 +652,13 @@ public class NewTabPage
 
         mToolbarHeight =
                 activity.getResources().getDimensionPixelSize(R.dimen.toolbar_height_no_shadow);
+
+        mCanSupportEdgeToEdgeForCustomizedTheme =
+                NtpCustomizationUtils.canEnableEdgeToEdgeForCustomizedTheme(
+                        windowAndroid, mIsTablet);
+        if (mCanSupportEdgeToEdgeForCustomizedTheme) {
+            initTopInsetCoordinatorObserver();
+        }
 
         NewTabPageUma.recordContentSuggestionsDisplayStatus(profile);
 
@@ -771,6 +789,38 @@ public class NewTabPage
         if (isTrackingTabReady) {
             ReturnToChromeUtil.recordHomeSurfaceShown();
         }
+    }
+
+    private void initTopInsetCoordinatorObserver() {
+        mTopInsetChangeObserver = this::onToEdgeChange;
+        if (mTopInsetCoordinatorSupplier.hasValue()) {
+            mTopInsetCoordinatorSupplier.get().addObserver(mTopInsetChangeObserver);
+            return;
+        }
+
+        mTopInsetCoordinatorCallback =
+                topInsetCoordinator -> {
+                    topInsetCoordinator.addObserver(assumeNonNull(mTopInsetChangeObserver));
+                    if (mTopInsetCoordinatorCallback != null) {
+                        mTopInsetCoordinatorSupplier.removeObserver(mTopInsetCoordinatorCallback);
+                        mTopInsetCoordinatorCallback = null;
+                    }
+                };
+        mTopInsetCoordinatorSupplier.addObserver(mTopInsetCoordinatorCallback);
+    }
+
+    /**
+     * Called when the layout changes between edge-to-edge and standard.
+     *
+     * @param systemTopInset The system's top inset, i.e., the height of the Status bar. While
+     *     usually greater than zero, it can be zero in split-screen mode.
+     * @param consumeTopInset Whether the parent layout will consume the top inset.
+     */
+    void onToEdgeChange(int systemTopInset, boolean consumeTopInset) {
+        // When consumeTopInset is false, it is possible: 1) the next Tab isn't NTP and 2) the next
+        // Tab is NTP while NTP should show regular toolbar. NewTabPageLayout should only be
+        // adjusted based on supportsEdgeToEdgeOnTop(), not the parent view's decision.
+        mNewTabPageLayout.onToEdgeChange(systemTopInset, supportsEdgeToEdgeOnTop());
     }
 
     /**
@@ -1078,6 +1128,17 @@ public class NewTabPage
         if (mHomeModulesCoordinator != null) {
             mHomeModulesCoordinator.destroy();
         }
+
+        if (mTopInsetCoordinatorSupplier.hasValue() && mTopInsetChangeObserver != null) {
+            mTopInsetCoordinatorSupplier.get().removeObserver(mTopInsetChangeObserver);
+            mTopInsetChangeObserver = null;
+        }
+
+        if (mTopInsetCoordinatorCallback != null) {
+            mTopInsetCoordinatorSupplier.removeObserver(mTopInsetCoordinatorCallback);
+            mTopInsetCoordinatorCallback = null;
+        }
+
         sTotalCount--;
         mIsDestroyed = true;
     }
@@ -1100,6 +1161,15 @@ public class NewTabPage
     @Override
     public boolean supportsEdgeToEdge() {
         return true;
+    }
+
+    @Override
+    public boolean supportsEdgeToEdgeOnTop() {
+        return mCanSupportEdgeToEdgeForCustomizedTheme
+                && !mIsTablet
+                && isInSingleUrlBarMode()
+                && NtpCustomizationConfigManager.getInstance().getBackgroundImageType()
+                        != NtpCustomizationUtils.NtpBackgroundImageType.DEFAULT;
     }
 
     @Override

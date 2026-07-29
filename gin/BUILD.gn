@@ -31,7 +31,6 @@ component("gin") {
     "gin_export.h",
     "gin_features.cc",
     "gin_features.h",
-    "handle.h",
     "interceptor.cc",
     "interceptor.h",
     "isolate_holder.cc",
@@ -77,7 +76,6 @@ component("gin") {
     "v8_shared_memory_dump_provider.h",
     "wrappable.cc",
     "wrappable.h",
-    "wrapper_info.cc",
   ]
 
   if (use_partition_alloc) {
@@ -139,7 +137,7 @@ if (is_android && enable_java_templates &&
       sources = []
       deps = []
       if (use_v8_context_snapshot) {
-        deps += [ "//tools/v8_context_snapshot:v8_context_snapshot" ]
+        deps += [ "//tools/v8_context_snapshot" ]
         sources += [ "$root_build_dir/$v8_context_snapshot_filename" ]
       }
       if (!use_v8_context_snapshot || include_both_v8_snapshots) {
@@ -243,7 +241,7 @@ test("gin_unittests") {
 
   data_deps = [
     "//testing/buildbot/filters:gin_unittests_filters",
-    "//tools/v8_context_snapshot:v8_context_snapshot",
+    "//tools/v8_context_snapshot",
   ]
   data = []
 

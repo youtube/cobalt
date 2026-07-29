@@ -11,11 +11,11 @@
 #include "base/time/time.h"
 #include "chrome/browser/enterprise/browser_management/management_service_factory.h"
 #include "chrome/browser/glic/glic_enabling.h"
-#include "chrome/browser/glic/glic_keyed_service.h"
-#include "chrome/browser/glic/glic_keyed_service_factory.h"
 #include "chrome/browser/glic/glic_pref_names.h"
 #include "chrome/browser/glic/glic_user_status_code.h"
 #include "chrome/browser/glic/glic_user_status_fetcher.h"
+#include "chrome/browser/glic/public/glic_keyed_service.h"
+#include "chrome/browser/glic/public/glic_keyed_service_factory.h"
 #include "chrome/browser/glic/test_support/glic_test_environment.h"
 #include "chrome/browser/prefs/browser_prefs.h"
 #include "chrome/browser/profiles/profile.h"
@@ -104,6 +104,12 @@ class GlicUserStatusBrowserTest : public InProcessBrowserTest {
     profile()->GetPrefs()->SetInteger(
         ::prefs::kGeminiSettings,
         static_cast<int>(glic::prefs::SettingsPolicyState::kEnabled));
+
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+    disclaimer_service_resetter_ =
+        enterprise_util::DisableAutomaticManagementDisclaimerUntilReset(
+            profile());
+#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
   }
 
   void TearDownOnMainThread() override {
@@ -135,11 +141,6 @@ class GlicUserStatusBrowserTest : public InProcessBrowserTest {
   }
   // Simulates user signing in and getting a refresh token.
   void SimulatePrimaryAccountChangedSignIn(TestAccount* account) {
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
-    auto resetter =
-        enterprise_util::DisableAutomaticManagementDisclaimerUntilReset(
-            profile());
-#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
     identity_test_env_->SetAutomaticIssueOfAccessTokens(true);
 
     AccountInfo account_info = identity_test_env_->MakePrimaryAccountAvailable(
@@ -147,6 +148,8 @@ class GlicUserStatusBrowserTest : public InProcessBrowserTest {
 
     AccountCapabilitiesTestMutator mutator(&account_info.capabilities);
     mutator.set_can_use_model_execution_features(true);
+    mutator.set_is_subject_to_enterprise_features(
+        !account->host_domain.empty());
     identity_test_env_->UpdateAccountInfoForAccount(account_info);
 
     SimulateSuccessfulFetchOfAccountInfo(account, &account_info);
@@ -219,6 +222,7 @@ class GlicUserStatusBrowserTest : public InProcessBrowserTest {
   raw_ptr<signin::IdentityManager> identity_manager_;
   raw_ptr<signin::IdentityTestEnvironment> identity_test_env_;
   network::TestURLLoaderFactory test_url_loader_factory_;
+  base::ScopedClosureRunner disclaimer_service_resetter_;
 };
 
 IN_PROC_BROWSER_TEST_F(GlicUserStatusBrowserTest, EnterpriseSignInEnabled) {

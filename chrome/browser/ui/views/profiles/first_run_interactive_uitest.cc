@@ -65,10 +65,6 @@
 #include "ui/views/interaction/element_tracker_views.h"
 #include "ui/views/view_class_properties.h"
 
-#if !BUILDFLAG(ENABLE_DICE_SUPPORT)
-#error "Unsupported platform"
-#endif
-
 namespace {
 
 DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kProfilePickerViewId);
@@ -354,7 +350,7 @@ class FirstRunInteractiveUiTest
     if (account_email == kTestEnterpriseEmail) {
       account_info.hosted_domain = "chromium.org";
     }
-    mutator.set_is_subject_to_enterprise_policies(account_email ==
+    mutator.set_is_subject_to_enterprise_features(account_email ==
                                                   kTestEnterpriseEmail);
 
     if (params_.with_supervision.has_value()) {

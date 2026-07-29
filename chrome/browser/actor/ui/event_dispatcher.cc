@@ -18,9 +18,9 @@
 #include "chrome/browser/actor/ui/tool_request_variant.h"
 #include "chrome/browser/actor/ui/ui_event.h"
 #include "chrome/browser/actor/ui/ui_event_debugstring.h"
-#include "chrome/browser/actor/variant_visitor.h"
 #include "chrome/common/actor/action_result.h"
 #include "content/public/browser/browser_context.h"
+#include "third_party/abseil-cpp/absl/functional/overload.h"
 
 namespace actor::ui {
 namespace {
@@ -45,7 +45,7 @@ auto NoUiEvents = [](const T& tr) -> EventSequence<AsyncUiEvent> {
   return EventSequence<AsyncUiEvent>();
 };
 
-constexpr Visitor PreToolEventsFn{
+constexpr absl::Overload PreToolEventsFn{
     [](const ClickToolRequest& tr) {
       return EventSequence<AsyncUiEvent>{
           MouseMove(tr.GetTabHandle(), tr.GetTarget()),
@@ -68,31 +68,32 @@ constexpr Visitor PreToolEventsFn{
           MouseMove(tr.GetTabHandle(), tr.GetTarget())};
     },
     NoUiEvents<WaitToolRequest>,
-    NoUiEvents<AttemptLoginToolRequest>};
+    NoUiEvents<AttemptLoginToolRequest>,
+    NoUiEvents<ScriptToolRequest>};
 
-constexpr Visitor PostToolEventsFn{
+constexpr absl::Overload PostToolEventsFn{
     NoUiEvents<ClickToolRequest>,          NoUiEvents<ActivateTabToolRequest>,
     NoUiEvents<CloseTabToolRequest>,       NoUiEvents<CreateTabToolRequest>,
     NoUiEvents<DragAndReleaseToolRequest>, NoUiEvents<HistoryToolRequest>,
     NoUiEvents<MoveMouseToolRequest>,      NoUiEvents<NavigateToolRequest>,
     NoUiEvents<ScrollToolRequest>,         NoUiEvents<SelectToolRequest>,
     NoUiEvents<TypeToolRequest>,           NoUiEvents<WaitToolRequest>,
-    NoUiEvents<AttemptLoginToolRequest>};
+    NoUiEvents<AttemptLoginToolRequest>,   NoUiEvents<ScriptToolRequest>};
 
 // TODO(crbug.com/425784083): Remove FirstActEventsFn once functionality moves
 // to ActorTaskChangeFn.
-constexpr Visitor FirstActEventsFn{
+constexpr absl::Overload FirstActEventsFn{
     NoUiEvents<UiEventDispatcher::FirstActInfo>,
 };
 
-constexpr Visitor ActorTaskAsyncChangeFn{
+constexpr absl::Overload ActorTaskAsyncChangeFn{
     [](const UiEventDispatcher::AddTab& c) {
       return EventSequence<AsyncUiEvent>{
           StartingToActOnTab(c.handle, c.task_id)};
     },
 };
 
-constexpr Visitor ActorTaskSyncChangeFn{
+constexpr absl::Overload ActorTaskSyncChangeFn{
     [](const UiEventDispatcher::ChangeTaskState& c) {
       auto seq = EventSequence<SyncUiEvent>{};
       if (c.old_state == ActorTask::State::kCreated &&
@@ -107,7 +108,7 @@ constexpr Visitor ActorTaskSyncChangeFn{
     },
 };
 
-template <Visitor V>
+template <absl::Overload V>
 struct VisitorTraits {};
 
 template <>
@@ -170,11 +171,12 @@ struct InputTraits<UiEventDispatcher::ActorTaskAsyncChange> {
   static constexpr auto convert_fn = std::identity();
   static constexpr auto debug_info =
       [](const UiEventDispatcher::ActorTaskAsyncChange& change) {
-        constexpr Visitor DebugFn{[](const UiEventDispatcher::AddTab& c) {
-          return absl::StrFormat("AddTab task_id=%d tab=%d",
-                                 c.task_id.GetUnsafeValue(),
-                                 c.handle.raw_value());
-        }};
+        constexpr absl::Overload DebugFn{
+            [](const UiEventDispatcher::AddTab& c) {
+              return absl::StrFormat("AddTab task_id=%d tab=%d",
+                                     c.task_id.GetUnsafeValue(),
+                                     c.handle.raw_value());
+            }};
         return std::visit(DebugFn, change);
       };
 };
@@ -185,7 +187,7 @@ struct InputTraits<UiEventDispatcher::ActorTaskSyncChange> {
   static constexpr auto convert_fn = std::identity();
   static constexpr auto debug_info =
       [](const UiEventDispatcher::ActorTaskSyncChange& change) {
-        constexpr Visitor DebugFn{
+        constexpr absl::Overload DebugFn{
             [](const UiEventDispatcher::ChangeTaskState& c) {
               return absl::StrFormat(
                   "ChangeTaskState task_id=%d old_state=%s new_state=%s",
@@ -249,7 +251,7 @@ class UiEventDispatcherImpl : public UiEventDispatcher {
   }
 
   // Takes async path.
-  template <Visitor V, typename InputT>
+  template <absl::Overload V, typename InputT>
   void On(const InputT& in, UiCompleteCallback callback) {
     VLOG(4) << VisitorTraits<V>::phase_name << "(" << InputTraits<InputT>::name
             << "): " << InputTraits<InputT>::debug_info(in);
@@ -258,7 +260,7 @@ class UiEventDispatcherImpl : public UiEventDispatcher {
   }
 
   // Takes synchronous path.
-  template <Visitor V, typename InputT>
+  template <absl::Overload V, typename InputT>
   void On(const InputT& in) {
     VLOG(4) << VisitorTraits<V>::phase_name << "(" << InputTraits<InputT>::name
             << "): " << InputTraits<InputT>::debug_info(in);
@@ -266,7 +268,7 @@ class UiEventDispatcherImpl : public UiEventDispatcher {
                                     UiCompleteCallback() /*=null*/);
   }
 
-  template <Visitor V, typename EventT, typename ConvertedInputT>
+  template <absl::Overload V, typename EventT, typename ConvertedInputT>
   void GenerateAndSend(const ConvertedInputT& converted,
                        UiCompleteCallback callback) {
     CHECK(std::visit([]<typename T>(EventSequence<T>& e) { return e.empty(); },
@@ -297,7 +299,7 @@ class UiEventDispatcherImpl : public UiEventDispatcher {
 
   // Asynchronously send events.  Called back after each event is processed
   // by ActorUiStateManager.
-  template <Visitor V>
+  template <absl::Overload V>
   void MaybeSendNextEvent(ActionResultPtr result) {
     if (result->code != ActionResultCode::kOk) {
       VLOG(4) << VisitorTraits<V>::phase_name
@@ -322,7 +324,7 @@ class UiEventDispatcherImpl : public UiEventDispatcher {
   }
 
   // Synchronously send events.
-  template <Visitor V>
+  template <absl::Overload V>
   void SendAllEvents() {
     auto& events = std::get<EventSequence<SyncUiEvent>>(events_);
     while (!events.empty()) {

@@ -709,22 +709,25 @@ class MODULES_EXPORT WebGLRenderingContextBase
 
   // CanvasRenderingContext implementation.
   bool IsComposited() const override { return true; }
-  bool IsAccelerated() const override;
-  bool UsingSwapChain() const override;
   bool CanUseDrawingBufferSIWithoutCopyForLowLatency();
   void PageVisibilityChanged() override;
   void SizeChanged() override;
-  std::unique_ptr<CanvasResourceProvider> CreateCanvasResourceProvider();
+  std::unique_ptr<CanvasResourceProvider> CreateCanvasResourceProvider(
+      bool use_bitmap_provider);
   scoped_refptr<StaticBitmapImage> PaintRenderingResultsToSnapshot(
       SourceDrawingBuffer source_buffer,
       FlushReason reason) override;
   void ClearMarkedCanvasDirty() override { marked_canvas_dirty_ = false; }
   scoped_refptr<CanvasResource> PaintRenderingResultsToResource(
-      bool was_dirty,
-      bool has_dispatcher,
       SourceDrawingBuffer source_buffer,
       FlushReason reason) override;
 
+  scoped_refptr<StaticBitmapImage>
+  CopyRenderingResultsToUnacceleratedStaticBitmapImage(
+      SourceDrawingBuffer source_buffer,
+      viz::SharedImageFormat format,
+      SkAlphaType alpha_type,
+      GrSurfaceOrigin origin);
   bool CopyRenderingResultsToVideoFrame(
       WebGraphicsContext3DVideoFramePool*,
       SourceDrawingBuffer,
@@ -998,7 +1001,8 @@ class MODULES_EXPORT WebGLRenderingContextBase
 
     bool MatchesName(const String&) const;
 
-    virtual WebGLExtension* GetExtension(WebGLRenderingContextBase*) = 0;
+    virtual WebGLExtension* GetExtension(WebGLRenderingContextBase*,
+                                         ExecutionContext*) = 0;
     virtual bool Supported(WebGLRenderingContextBase*) const = 0;
     virtual const char* ExtensionName() const = 0;
     virtual void LoseExtension(bool) = 0;
@@ -1022,9 +1026,10 @@ class MODULES_EXPORT WebGLRenderingContextBase
     explicit TypedExtensionTracker(ExtensionFlags flags)
         : ExtensionTracker(flags) {}
 
-    WebGLExtension* GetExtension(WebGLRenderingContextBase* context) override {
+    WebGLExtension* GetExtension(WebGLRenderingContextBase* context,
+                                 ExecutionContext* execution_context) override {
       if (!extension_) {
-        extension_ = MakeGarbageCollected<T>(context);
+        extension_ = MakeGarbageCollected<T>(context, execution_context);
       }
 
       return extension_.Get();
@@ -1070,7 +1075,9 @@ class MODULES_EXPORT WebGLRenderingContextBase
   }
 
   bool ExtensionSupportedAndAllowed(const ExtensionTracker*);
-  WebGLExtension* EnableExtensionIfSupported(const String& name);
+  WebGLExtension* EnableExtensionIfSupported(
+      const String& name,
+      ExecutionContext* execution_context);
 
   bool TimerQueryExtensionsEnabled();
 
@@ -1963,9 +1970,11 @@ class MODULES_EXPORT WebGLRenderingContextBase
       SourceDrawingBuffer source_buffer,
       bool export_only_if_update);
 
-  CanvasResourceProvider* GetOrCreateCanvasResourceProvider();
+  CanvasResourceProvider* GetOrCreateCanvasResourceProvider(
+      bool use_bitmap_provider);
   CanvasResourceProvider* PaintRenderingResultsToResourceProvider(
       SourceDrawingBuffer source_buffer,
+      bool use_bitmap_provider,
       bool* resource_provider_was_updated = nullptr);
   void TexImageHelperMediaVideoFrame(
       TexImageParams,

@@ -27,6 +27,7 @@ class BookmarkBarController;
 class BookmarksSidePanelCoordinator;
 class BreadcrumbManagerBrowserAgent;
 class Browser;
+class BrowserActions;
 class BrowserContentSettingBubbleModelDelegate;
 class BrowserInstantController;
 class BrowserLiveTabContext;
@@ -49,6 +50,7 @@ class IncognitoClearBrowsingDataDialogCoordinator;
 class ImmersiveModeController;
 class LocationBarModel;
 class MemorySaverOptInIPHController;
+class PinnedToolbarActionsController;
 class ProfileMenuCoordinator;
 class ReadingListSidePanelCoordinator;
 class SidePanelCoordinator;
@@ -96,7 +98,12 @@ class Mv2DisabledDialogController;
 
 namespace tabs {
 class TabDeclutterController;
+class VerticalTabStripStateController;
 }  // namespace tabs
+
+namespace chrome {
+class BrowserCommandController;
+}  // namespace chrome
 
 namespace commerce {
 class ProductSpecificationsEntryPointController;
@@ -104,9 +111,7 @@ class ProductSpecificationsEntryPointController;
 
 namespace tabs {
 class GlicNudgeController;
-#if BUILDFLAG(ENABLE_GLIC)
 class GlicActorTaskIconController;
-#endif
 }
 
 namespace tab_groups {
@@ -176,6 +181,12 @@ class BrowserWindowFeatures {
   void TearDownPreBrowserWindowDestruction();
 
   // Public accessors for features:
+  BrowserActions* browser_actions() { return browser_actions_.get(); }
+
+  chrome::BrowserCommandController* browser_command_controller() {
+    return browser_command_controller_.get();
+  }
+
   extensions::Mv2DisabledDialogController*
   mv2_disabled_dialog_controller_for_testing() {
     return mv2_disabled_dialog_controller_.get();
@@ -199,6 +210,10 @@ class BrowserWindowFeatures {
 
   CommentsSidePanelCoordinator* comments_side_panel_coordinator() {
     return comments_side_panel_coordinator_.get();
+  }
+
+  PinnedToolbarActionsController* pinned_toolbar_actions_controller() {
+    return pinned_toolbar_actions_controller_.get();
   }
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
@@ -241,15 +256,17 @@ class BrowserWindowFeatures {
     return tab_declutter_controller_.get();
   }
 
+  tabs::VerticalTabStripStateController* vertical_tab_strip_state_controller() {
+    return vertical_tab_strip_state_controller_.get();
+  }
+
   tabs::GlicNudgeController* glic_nudge_controller() {
     return glic_nudge_controller_.get();
   }
 
-#if BUILDFLAG(ENABLE_GLIC)
   tabs::GlicActorTaskIconController* glic_actor_task_icon_controller() {
     return glic_actor_task_icon_controller_.get();
   }
-#endif
 
   TabStripModel* tab_strip_model() { return tab_strip_model_; }
 
@@ -416,6 +433,10 @@ class BrowserWindowFeatures {
   // Features that are per-browser window will each have a controller. e.g.
   // std::unique_ptr<FooFeature> foo_feature_;
 
+  std::unique_ptr<BrowserActions> browser_actions_;
+
+  std::unique_ptr<chrome::BrowserCommandController> browser_command_controller_;
+
   std::unique_ptr<BookmarkBarController> bookmark_bar_controller_;
 
   std::unique_ptr<BrowserInstantController> instant_controller_;
@@ -443,6 +464,9 @@ class BrowserWindowFeatures {
 
   std::unique_ptr<tabs::TabDeclutterController> tab_declutter_controller_;
 
+  std::unique_ptr<tabs::VerticalTabStripStateController>
+      vertical_tab_strip_state_controller_;
+
   std::unique_ptr<MemorySaverOptInIPHController>
       memory_saver_opt_in_iph_controller_;
 
@@ -453,6 +477,9 @@ class BrowserWindowFeatures {
 
   std::unique_ptr<CommentsSidePanelCoordinator>
       comments_side_panel_coordinator_;
+
+  std::unique_ptr<PinnedToolbarActionsController>
+      pinned_toolbar_actions_controller_;
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
   std::unique_ptr<pdf::infobar::PdfInfoBarController> pdf_infobar_controller_;
@@ -487,9 +514,10 @@ class BrowserWindowFeatures {
 
   std::unique_ptr<tabs::GlicNudgeController> glic_nudge_controller_;
 
-#if BUILDFLAG(ENABLE_GLIC)
   std::unique_ptr<tabs::GlicActorTaskIconController>
       glic_actor_task_icon_controller_;
+
+#if BUILDFLAG(ENABLE_GLIC)
   std::unique_ptr<glic::GlicButtonController> glic_button_controller_;
   std::unique_ptr<glic::GlicIphController> glic_iph_controller_;
 #endif

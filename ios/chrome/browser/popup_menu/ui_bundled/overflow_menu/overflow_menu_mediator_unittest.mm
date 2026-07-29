@@ -198,6 +198,7 @@ class OverflowMenuMediatorTest : public PlatformTest {
     navigation_item_ = web::NavigationItem::Create();
     GURL url = GURL("http://chromium.org");
     navigation_item_->SetURL(url);
+    navigation_item_->SetUserAgentType(web::UserAgentType::MOBILE);
     navigation_manager->SetVisibleItem(navigation_item_.get());
 
     std::unique_ptr<web::FakeWebState> test_web_state =
@@ -325,7 +326,11 @@ class OverflowMenuMediatorTest : public PlatformTest {
           web_state_, DistillerServiceFactory::GetForProfile(profile_.get()));
       tab_helper = ReaderModeTabHelper::FromWebState(web_state_);
     }
-    tab_helper->SetActive(active);
+    if (active) {
+      tab_helper->ActivateReader(ReaderModeAccessPoint::kToolsMenu);
+    } else {
+      tab_helper->DeactivateReader();
+    }
   }
 
   void InsertNewWebState(int index) {
@@ -1186,8 +1191,11 @@ TEST_F(OverflowMenuMediatorTest, TestReadingModeMenu) {
 
   // Force model update.
   mediator_.model = model_;
-  ASSERT_TRUE(HasItem(kToolsMenuReadLater, /*enabled=*/NO));
+  ASSERT_TRUE(HasItem(kToolsMenuReadLater, /*enabled=*/YES));
   ASSERT_TRUE(HasItem(kToolsMenuTextZoom, /*enabled=*/NO));
+  ASSERT_TRUE(HasItem(kToolsMenuRequestDesktopId, /*enabled=*/YES));
+  ASSERT_TRUE(HasItem(kToolsMenuAddToBookmarks, /*enabled=*/YES));
+  ASSERT_TRUE(HasItem(kToolsMenuReadingListId, /*enabled=*/YES));
 
   // Fake a navigationFinished to force the popup menu items to update.
   // This will clear RM and reenable the item.
@@ -1196,4 +1204,7 @@ TEST_F(OverflowMenuMediatorTest, TestReadingModeMenu) {
   web_state_->SetCurrentURL(kUrl);
   ASSERT_TRUE(HasItem(kToolsMenuReadLater, /*enabled=*/YES));
   ASSERT_TRUE(HasItem(kToolsMenuTextZoom, /*enabled=*/YES));
+  ASSERT_TRUE(HasItem(kToolsMenuRequestDesktopId, /*enabled=*/YES));
+  ASSERT_TRUE(HasItem(kToolsMenuAddToBookmarks, /*enabled=*/YES));
+  ASSERT_TRUE(HasItem(kToolsMenuReadingListId, /*enabled=*/YES));
 }

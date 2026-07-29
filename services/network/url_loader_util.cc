@@ -37,6 +37,7 @@
 #include "services/network/public/cpp/resource_request.h"
 #include "services/network/public/cpp/resource_request_body.h"
 #include "services/network/public/cpp/sri_message_signatures.h"
+#include "services/network/public/cpp/unencoded_digests.h"
 #include "services/network/public/mojom/client_security_state.mojom.h"
 #include "services/network/public/mojom/fetch_api.mojom-shared.h"
 #include "services/network/public/mojom/network_context.mojom-shared.h"
@@ -720,7 +721,9 @@ mojom::URLResponseHeadPtr BuildResponseHead(
     bool load_with_storage_access,
     bool is_load_timing_enabled,
     bool include_load_timing_internal_info_with_response,
-    base::TimeTicks response_start) {
+    base::TimeTicks response_start,
+    const raw_ptr<mojom::DevToolsObserver> devtools_observer,
+    const std::string& devtools_request_id) {
   auto response = mojom::URLResponseHead::New();
   response->request_time = url_request.request_time();
   response->response_time = url_request.response_time();
@@ -801,6 +804,14 @@ mojom::URLResponseHeadPtr BuildResponseHead(
 
   url_request.GetClientSideContentDecodingTypes(
       &response->client_side_content_decoding_types);
+
+  if (response->headers) {
+    response->unencoded_digests =
+        ParseUnencodedDigestsFromHeaders(*response->headers.get());
+    ReportUnencodedDigestIssuesToDevtools(
+        response->unencoded_digests, devtools_observer, devtools_request_id,
+        url_request.url());
+  }
 
   return response;
 }

@@ -370,7 +370,7 @@ ci.builder(
         per_test_modifications = {
             "base_unittests": targets.mixin(
                 args = [
-                    "--test-launcher-filter-file=../../testing/buildbot/filters/android.pie_tot.base_unittests.filter",
+                    "--test-launcher-filter-file=../../testing/buildbot/filters/android.device_10.tot.base_unittests.filter",
                 ],
             ),
         },
@@ -888,7 +888,7 @@ ci.builder(
         mixins = [
             "arm64",
             "docker",
-            "linux-jammy-or-focal",
+            "linux-jammy",
         ],
     ),
     console_view_entry = [
@@ -1126,10 +1126,9 @@ clang_tot_linux_builder(
             "all",
         ],
         mixins = [
-            "linux-focal",
+            "linux-jammy",
         ],
     ),
-    os = os.LINUX_FOCAL,
     short_name = "msn",
 )
 

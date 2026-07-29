@@ -53,6 +53,7 @@
 <translation id="2195025571279539885">La propera vegada, voleu que Chromium s'ofereixi per traduir les pàgines d'aquest lloc escrites en <ph name="LANGUAGE_NAME" />?</translation>
 <translation id="22313767259766852">Aquesta adreça està desada a Chromium. Per utilitzar-la en tots els productes de Google, desa-la al teu Compte de Google, <ph name="USER_EMAIL" />.</translation>
 <translation id="2236584955986023187">Això vol dir que Chromium sol·licitarà el lloc web per a ordinadors cada vegada.</translation>
+<translation id="2245694534483711162">És possible que Gemini utilitzi la teva ubicació precisa, en funció del permís que ja hagis donat a Chromium</translation>
 <translation id="2270466829363945454">Botiga</translation>
 <translation id="2313870531055795960">Compara els URL amb una llista de llocs web no segurs emmagatzemada a Chromium. Si un lloc web prova de robar-te la contrasenya o si baixes un fitxer maliciós, és possible que Chromium també n'enviï els URL, inclosos fragments de contingut de les pàgines, a Navegació segura.</translation>
 <translation id="2314220608288760290">Chromium obre automàticament els enllaços d'incògnit de YouTube en el mode d'incògnit.</translation>
@@ -113,11 +114,11 @@ Espera uns quants minuts abans de canviar de compte. Si canvies de compte ara, a
 <translation id="3728124580182886854">Enllaça Chromium i altres serveis de Google per a la personalització i altres finalitats</translation>
 <translation id="377649297473651452">Visualització ampliada de la funció Emplenament automàtic de Chromium</translation>
 <translation id="3780779443901618967">T'avisa de llocs web perillosos, fins i tot dels que Google no coneixia abans, ja que analitza més dades dels llocs web que la protecció estàndard. Pots optar per ometre els advertiments de Chromium.</translation>
-<translation id="3804124559081428680">Consell de Chromium: verifica la teva identitat</translation>
 <translation id="3805899903892079518">Chromium no té accés als vostres vídeos o fotos. Permeteu-li l'accés a iOS, a Configuració &gt; Privadesa &gt; Fotos.</translation>
 <translation id="3816686541346279443">Chromium t'oferirà desar la contrasenya.</translation>
 <translation id="3827545470516145620">Tindràs protecció de seguretat estàndard en aquest dispositiu</translation>
 <translation id="3833326979834193417">Chromium executa automàticament la funció Comprovació de seguretat cada dia per protegir-te de violacions de les dades, de llocs web no segurs i més. Pots obtenir més informació sobre Comprovació de seguretat a Configuració.</translation>
+<translation id="3845223911364528001">Torna a Chromium per penjar el fitxer</translation>
 <translation id="3855938650519180865">Novetats de Chromium</translation>
 <translation id="3886689467633467988">Inicia la sessió en aquest lloc web i a Chromium per accedir a les teves adreces d'interès i més contingut en tots els teus dispositius.</translation>
 <translation id="3949514465204582407">Consell de Chromium: obtén les contrasenyes en qualsevol aplicació</translation>

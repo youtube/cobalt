@@ -241,6 +241,10 @@ class LensOverlayController : public lens::mojom::LensPageHandler,
   // logging.
   uint64_t GetInvocationTimeSinceEpoch();
 
+  // Testing helper method for checking the blur layer delegate.
+  lens::LensOverlayBlurLayerDelegate*
+  GetLensOverlayBlurLayerDelegateForTesting();
+
   // Testing helper method for checking view housing our overlay.
   views::View* GetOverlayViewForTesting();
 
@@ -660,6 +664,17 @@ class LensOverlayController : public lens::mojom::LensPageHandler,
 
   class UnderlyingWebContentsObserver;
 
+  // Implementation of IssueContextualSearchRequest() for passing
+  // query_start_time.
+  void IssueContextualSearchRequestInner(
+      base::Time query_start_time,
+      std::string query_text,
+      std::map<std::string, std::string> additional_query_parameters,
+      lens::LensOverlayQueryController* lens_overlay_query_controller,
+      AutocompleteMatchType::Type match_type,
+      bool is_zero_prefix_suggestion,
+      lens::LensOverlayInvocationSource invocation_source);
+
   // Takes a screenshot of the current viewport.
   void CaptureScreenshot();
 
@@ -689,6 +704,12 @@ class LensOverlayController : public lens::mojom::LensPageHandler,
       const std::vector<gfx::Rect>& bounds,
       std::optional<uint32_t> pdf_current_page);
 
+  // Called when the page context eligibility is fetched.
+  void OnPageContextEligibilityFetched(const SkBitmap& bitmap,
+                                       const std::vector<gfx::Rect>& all_bounds,
+                                       std::optional<uint32_t> pdf_current_page,
+                                       bool is_page_context_eligible);
+
   // Process the bitmap and creates all necessary data to initialize the
   // overlay. Happens on a separate thread to prevent main thread from hanging.
   void CreateInitializationData(const SkBitmap& screenshot,
@@ -717,10 +738,6 @@ class LensOverlayController : public lens::mojom::LensPageHandler,
   // Updates state of the ghost loader. |suppress_ghost_loader| is true when
   // the page bytes can't be uploaded.
   void SuppressGhostLoader();
-
-  // Enables/disables the background blur updating live. This should be used to
-  // save resources on blurring the background when not needed.
-  void SetLiveBlur(bool enabled);
 
   // Called when the UI needs to show the overlay via a view that is a child of
   // the tab contents view.
@@ -830,6 +847,7 @@ class LensOverlayController : public lens::mojom::LensPageHandler,
   void ActivityRequestedByOverlay(
       ui::mojom::ClickModifiersPtr click_modifiers) override;
   void AddBackgroundBlur() override;
+  void SetLiveBlur(bool enabled) override;
   void ClosePreselectionBubble() override;
   void CloseRequestedByOverlayCloseButton() override;
   void CloseRequestedByOverlayBackgroundClick() override;
@@ -921,6 +939,7 @@ class LensOverlayController : public lens::mojom::LensPageHandler,
   // Callback to run when the page context has been updated and the suggestion
   // query should now be issued.
   void OnPageContextUpdatedForSuggestion(
+      base::Time query_start_time,
       std::string query_text,
       std::map<std::string, std::string> additional_query_parameters,
       AutocompleteMatchType::Type match_type,

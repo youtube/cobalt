@@ -27,7 +27,6 @@
 #include <string>
 #include <vector>
 
-#include "base/callback_list.h"
 #include "base/check.h"
 #include "base/files/file_path.h"
 #include "base/functional/bind.h"
@@ -36,17 +35,20 @@
 #include "base/memory/ref_counted.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/values.h"
+#include "components/prefs/pref_observer.h"
 #include "components/prefs/prefs_export.h"
 
 class PrefService;
 
 namespace subtle {
 
-class COMPONENTS_PREFS_EXPORT PrefMemberBase {
+class COMPONENTS_PREFS_EXPORT PrefMemberBase : public PrefObserver {
  public:
   // Type of callback you can register if you need to know the name of
   // the pref that is changing.
   using NamedChangeCallback = base::RepeatingCallback<void(const std::string&)>;
+  using NamedChangeAsViewCallback =
+      base::RepeatingCallback<void(std::string_view)>;
 
   PrefService* prefs() { return prefs_; }
   const PrefService* prefs() const { return prefs_; }
@@ -96,13 +98,16 @@ class COMPONENTS_PREFS_EXPORT PrefMemberBase {
   };
 
   PrefMemberBase();
-  virtual ~PrefMemberBase();
+  ~PrefMemberBase() override;
 
   // See PrefMember<> for description.
-  void Init(const std::string& pref_name,
+  void Init(std::string pref_name,
             PrefService* prefs,
-            const NamedChangeCallback& observer);
-  void Init(const std::string& pref_name, PrefService* prefs);
+            NamedChangeCallback observer);
+  void Init(std::string pref_name,
+            PrefService* prefs,
+            NamedChangeAsViewCallback observer);
+  void Init(std::string pref_name, PrefService* prefs);
 
   virtual void CreateInternal() const = 0;
 
@@ -111,8 +116,10 @@ class COMPONENTS_PREFS_EXPORT PrefMemberBase {
 
   void MoveToSequence(scoped_refptr<base::SequencedTaskRunner> task_runner);
 
-  // Invoked when a preference changes.
-  void OnPreferenceChanged(std::string_view pref_name);
+  // PrefObserver:
+  void OnServiceDestroyed(PrefService* service) override;
+  void OnPreferenceChanged(PrefService* service,
+                           std::string_view pref_name) override;
 
   void VerifyValuePrefName() const {
     DCHECK(!pref_name_.empty());
@@ -138,9 +145,8 @@ class COMPONENTS_PREFS_EXPORT PrefMemberBase {
  private:
   // Ordered the members to compact the class instance.
   std::string pref_name_;
-  NamedChangeCallback observer_;
+  NamedChangeAsViewCallback observer_;
   raw_ptr<PrefService> prefs_;
-  base::CallbackListSubscription subscription_;
 
  protected:
   bool setting_value_;

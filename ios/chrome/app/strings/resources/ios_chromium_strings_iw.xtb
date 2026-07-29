@@ -53,6 +53,7 @@
 <translation id="2195025571279539885">‏רוצה ש-Chromium יציע בפעם הבאה לתרגם דפים ב<ph name="LANGUAGE_NAME" /> מאתר זה?</translation>
 <translation id="22313767259766852">‏הכתובת הזו שמורה ב-Chromium. כדי להשתמש בה בכל מוצרי Google, צריך לשמור אותה בחשבון Google שלך, <ph name="USER_EMAIL" />.</translation>
 <translation id="2236584955986023187">‏כלומר, Chromium תמיד יבקש את האתר למחשב.</translation>
+<translation id="2245694534483711162">‏‫Gemini עשוי להשתמש במיקום המדויק שלך, בהתאם להרשאה שכבר נתת ל-Chromium</translation>
 <translation id="2270466829363945454">קניות</translation>
 <translation id="2313870531055795960">‏המערכת בודקת כתובות URL בעזרת רשימה של אתרים לא בטוחים ששמורה ב-Chromium. אם באתר כלשהו מתבצע ניסיון לגנוב את הסיסמה שלך, או אם המערכת מזהה הורדה של קובץ מזיק, Chromium עשוי גם לשלוח כתובות URL לבדיקה באמצעות 'גלישה בטוחה'. הנתונים שנשלחים לבדיקה כוללים ביטים מתוכן של דפים.</translation>
 <translation id="2314220608288760290">‏‫Chromium פותח באופן אוטומטי קישורים פרטיים של YouTube במצב פרטי.</translation>
@@ -107,17 +108,18 @@
 <translation id="3581385059720151202">‏חיפוש רכיבים חזותיים ב-Chromium</translation>
 <translation id="3582640969619785896">‏‫Chromium יציע לשמור את הסיסמה</translation>
 <translation id="3594315078412605236">‏ניהול אמצעי תשלום ב-Chromium</translation>
+<translation id="3617143087229977194">‏פותחים את הגדרות אפליקציות ברירת המחדל ב-iOS, לוחצים על "אפליקציית דפדפן" ובוחרים ב-Chromium.</translation>
 <translation id="3634039384458740619">‏פתיחת ההגדרות של Chromium</translation>
 <translation id="3639997914391704523">‏Chromium יכול לבדוק את הסיסמאות כשנכנסים באמצעות חשבון Google.</translation>
 <translation id="372658070733623520">‏כדי להשתמש בנתוני Chromium ולשמור אותם בחשבון Google, עליך לאמת את הזהות שלך.</translation>
 <translation id="3728124580182886854">‏אפשר לקשר את Chromium לשירותי Google אחרים לצורך התאמה אישית ולמטרות אחרות</translation>
 <translation id="377649297473651452">‏תצוגה מורחבת של המילוי האוטומטי ב-Chromium</translation>
 <translation id="3780779443901618967">‏מקבלים אזהרות לגבי אתרים מסוכנים, גם כאלה שלא היו ידועים ל-Google לפני כן, בעזרת ניתוח של יותר נתונים מאתרים בהשוואה להגנה הרגילה. אפשר לדלג על האזהרות מ-Chromium.</translation>
-<translation id="3804124559081428680">‏טיפ ל-Chromium: אימות הזהות שלך</translation>
 <translation id="3805899903892079518">‏ל-Chromium אין גישה לתמונות או לסרטונים שלך. יש להפעיל את הגישה ב'הגדרות iOS' &gt; 'פרטיות' &gt; 'תמונות'.</translation>
 <translation id="3816686541346279443">‏‫Chromium יציע לשמור את הסיסמה.</translation>
 <translation id="3827545470516145620">במכשיר הזה יש אבטחה ברמה רגילה</translation>
 <translation id="3833326979834193417">‏Chromium מפעיל בדיקת אבטחה באופן אוטומטי מדי יום כדי להגן עליך מפני פרצות באבטחת מידע, אתרים לא בטוחים ועוד. מידע נוסף על בדיקת האבטחה זמין בהגדרות.</translation>
+<translation id="3845223911364528001">‏כדי להעלות את הקובץ, צריך לחזור ל-Chromium</translation>
 <translation id="3855938650519180865">‏מה חדש ב-Chromium</translation>
 <translation id="3886689467633467988">‏יש לך אפשרות להיכנס לאתר הזה ול-Chromium כדי שהסימניות, הסיסמאות ונתונים נוספים יופיעו בכל המכשירים שלך.</translation>
 <translation id="3949514465204582407">‏טיפ ל-Chromium: גישה לסיסמאות מכל אפליקציה</translation>
@@ -178,6 +180,7 @@
 <translation id="5383251701169024761">‏כדי לגשת בקלות לסיסמאות השמורות שלך באפליקציות אחרות, אפשר לבחור ב-Chromium למילוי אוטומטי.</translation>
 <translation id="538767207339317086">‏התרת כניסה אל Chromium</translation>
 <translation id="5389058611415066188">‏שמירה על הבטיחות בעזרת Chromium</translation>
+<translation id="5414059596208264343">‏טיפ ל-Chromium: גישה לסיסמאות שלך</translation>
 <translation id="5415273218238091735">‏טיפ ל-Chromium</translation>
 <translation id="5427571867875391349">‏הגדרת Chromium כדפדפן ברירת המחדל שלך</translation>
 <translation id="5434562575369834882">‏פתיחת הקישור במצב פרטי ב-Chromium</translation>

@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "base/allocator/partition_alloc_support.h"
 
 #include <algorithm>
@@ -14,6 +19,7 @@
 #include <string_view>
 
 #include "base/allocator/partition_alloc_features.h"
+#include "base/allocator/scheduler_loop_quarantine_config.h"
 #include "base/at_exit.h"
 #include "base/check.h"
 #include "base/containers/span.h"
@@ -45,6 +51,7 @@
 #include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
 #include "partition_alloc/allocation_guard.h"
+#include "partition_alloc/allocator_config.h"
 #include "partition_alloc/buildflags.h"
 #include "partition_alloc/dangling_raw_ptr_checks.h"
 #include "partition_alloc/in_slot_metadata.h"
@@ -306,6 +313,23 @@ std::map<std::string, std::string> ProposeSyntheticFinchTrials() {
 #endif  // BUILDFLAG(IS_ANDROID)
   }
 #endif  // PA_BUILDFLAG(HAS_MEMORY_TAGGING)
+
+#if PA_CONFIG(MOVE_METADATA_OUT_OF_GIGACAGE) && \
+    PA_BUILDFLAG(ENABLE_MOVE_METADATA_OUT_OF_GIGACAGE_TRIAL)
+  switch (partition_alloc::GetExternalMetadataTrialGroup()) {
+    case partition_alloc::ExternalMetadataTrialGroup::kEnabled:
+      trials.emplace(partition_alloc::kExternalMetadataTrialName,
+                     partition_alloc::kExternalMetadataTrialGroup_Enabled);
+      break;
+    case partition_alloc::ExternalMetadataTrialGroup::kDisabled:
+      trials.emplace(partition_alloc::kExternalMetadataTrialName,
+                     partition_alloc::kExternalMetadataTrialGroup_Disabled);
+      break;
+    default:
+      break;
+  }
+#endif  // PA_CONFIG(MOVE_METADATA_OUT_OF_GIGACAGE) &&
+        // PA_BUILDFLAG(ENABLE_MOVE_METADATA_OUT_OF_GIGACAGE_TRIAL)
 
   return trials;
 }
@@ -817,53 +841,6 @@ bool PartitionAllocSupport::ShouldEnableMemoryTaggingInRendererProcess() {
 }
 
 // static
-::partition_alloc::internal::SchedulerLoopQuarantineConfig
-PartitionAllocSupport::GetSchedulerLoopQuarantineConfiguration(
-    const std::string& process_type,
-    features::internal::SchedulerLoopQuarantineBranchType branch_type) {
-  ::partition_alloc::internal::SchedulerLoopQuarantineConfig config;
-
-#if PA_BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
-  if (!base::FeatureList::IsEnabled(
-          base::features::kPartitionAllocSchedulerLoopQuarantine)) {
-    return config;
-  }
-
-  config.enable_quarantine = true;
-  config.branch_capacity_in_bytes = static_cast<size_t>(
-      base::features::kPartitionAllocSchedulerLoopQuarantineBranchCapacity
-          .Get());
-  config.enable_zapping = base::FeatureList::IsEnabled(
-      base::features::kPartitionAllocZappingByFreeFlags);
-
-  switch (branch_type) {
-    case features::internal::SchedulerLoopQuarantineBranchType::kGlobal:
-      config.leak_on_destruction = true;
-      break;
-    case features::internal::SchedulerLoopQuarantineBranchType::
-        kThreadLocalDefault:
-      config.leak_on_destruction = false;
-      break;
-    case features::internal::SchedulerLoopQuarantineBranchType::kMain:
-      config.leak_on_destruction = false;
-      if (process_type == "") {
-        config.branch_capacity_in_bytes = static_cast<size_t>(
-            base::features::
-                kPartitionAllocSchedulerLoopQuarantineBrowserUICapacity.Get());
-      }
-      break;
-  }
-#endif  // PA_BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
-
-  if (config.branch_capacity_in_bytes == 0) {
-    config.enable_quarantine = false;
-    config.enable_zapping = false;
-  }
-
-  return config;
-}
-
-// static
 bool PartitionAllocSupport::ShouldEnablePartitionAllocWithAdvancedChecks(
     const std::string& process_type) {
 #if !PA_BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
@@ -1076,12 +1053,10 @@ void PartitionAllocSupport::ReconfigureAfterFeatureListInit(
 
   const auto scheduler_loop_quarantine_global_config =
       GetSchedulerLoopQuarantineConfiguration(
-          process_type,
-          features::internal::SchedulerLoopQuarantineBranchType::kGlobal);
+          process_type, SchedulerLoopQuarantineBranchType::kGlobal);
   const auto scheduler_loop_quarantine_thread_local_config =
       GetSchedulerLoopQuarantineConfiguration(
-          process_type, features::internal::SchedulerLoopQuarantineBranchType::
-                            kThreadLocalDefault);
+          process_type, SchedulerLoopQuarantineBranchType::kThreadLocalDefault);
 
   const bool eventually_zero_freed_memory = base::FeatureList::IsEnabled(
       base::features::kPartitionAllocEventuallyZeroFreedMemory);
@@ -1211,8 +1186,7 @@ void PartitionAllocSupport::ReconfigureAfterFeatureListInit(
     // `ReconfigureAfterTaskRunnerInit()` is called on the Main thread.
     partition_alloc::internal::SchedulerLoopQuarantineConfig quarantine_config =
         GetSchedulerLoopQuarantineConfiguration(
-            process_type,
-            features::internal::SchedulerLoopQuarantineBranchType::kMain);
+            process_type, SchedulerLoopQuarantineBranchType::kMain);
     allocator_shim::internal::PartitionAllocMalloc::Allocator()
         ->ReconfigureSchedulerLoopQuarantineForCurrentThread(quarantine_config);
   }

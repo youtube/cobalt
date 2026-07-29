@@ -111,7 +111,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="CustomTabs.AdaptiveToolbarButton.Shown"
-    enum="AdaptiveToolbarButtonVariant" expires_after="2025-09-25">
+    enum="AdaptiveToolbarButtonVariant" expires_after="2026-01-25">
   <owner>jinsukkiim@google.com</owner>
   <owner>clank-app-team@google.com</owner>
   <summary>
@@ -131,7 +131,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="CustomTabs.AuthTab.ExternalNavigationScheme"
-    enum="CustomTabsAuthScheme" expires_after="2025-08-24">
+    enum="CustomTabsAuthScheme" expires_after="2026-06-22">
   <owner>sinansahin@google.com</owner>
   <owner>chrome-connective-tissue@google.com</owner>
   <summary>
@@ -142,7 +142,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="CustomTabs.AuthTab.RedirectUriScheme"
-    enum="CustomTabsAuthScheme" expires_after="2025-08-24">
+    enum="CustomTabsAuthScheme" expires_after="2026-06-22">
   <owner>sinansahin@google.com</owner>
   <owner>chrome-connective-tissue@google.com</owner>
   <summary>
@@ -153,7 +153,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="CustomTabs.AuthTab.TimeToDalVerification.SinceFlowCompletion"
-    units="ms" expires_after="2025-06-22">
+    units="ms" expires_after="2026-06-22">
   <owner>sinansahin@google.com</owner>
   <owner>chrome-connective-tissue@google.com</owner>
   <summary>
@@ -166,7 +166,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="CustomTabs.AuthTab.TimeToDalVerification.SinceStart"
-    units="ms" expires_after="2025-06-22">
+    units="ms" expires_after="2026-06-22">
   <owner>sinansahin@google.com</owner>
   <owner>chrome-connective-tissue@google.com</owner>
   <summary>
@@ -306,6 +306,18 @@ chromium-metrics-reviews@google.com.
     status and whether the app was using a KeepAlive connection. Recorded for
     all apps other than AGSA. Starting with M84 this is is also recorded for
     webapps/WebAPKs. Filter the platform for just CCT/TWA data.
+  </summary>
+</histogram>
+
+<histogram name="CustomTabs.ContextMenu.DisplayedContextualCustomActionType"
+    enum="ContextualCustomActionType" expires_after="2025-10-30">
+  <owner>adelm@google.com</owner>
+  <owner>chrome-connective-tissue@google.com</owner>
+  <summary>
+    Records when a custom content action is displayed in the context menu in a
+    Custom Tab, broken down by the type of content the action was for (e.g. Link
+    or Image). This allows for tracking overall engagement with custom actions
+    of different types with respect to the amount of times it was displayed.
   </summary>
 </histogram>
 
@@ -671,7 +683,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="CustomTabs.PageNavigation.ErrorCode" enum="NetErrorCodes"
-    expires_after="2025-11-23">
+    expires_after="2026-01-25">
   <owner>jinsukkim@chromium.org</owner>
   <owner>chrome-connective-tissue@google.com</owner>
   <summary>

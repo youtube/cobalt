@@ -89,11 +89,15 @@ class MockPasswordManagerClient : public StubPasswordManagerClient {
 
 class MockPasswordChangeService : public PasswordChangeServiceInterface {
  public:
-  MOCK_METHOD(bool, IsPasswordChangeAvailable, (), (override));
+  MOCK_METHOD(bool, IsPasswordChangeAvailable, (), (const override));
   MOCK_METHOD(bool,
               IsPasswordChangeSupported,
               (const GURL&, const autofill::LanguageCode&),
-              (override));
+              (const override));
+  MOCK_METHOD(void,
+              RecordLoginAttemptQuality,
+              (password_manager::LogInWithChangedPasswordOutcome, const GURL&),
+              (const override));
 };
 
 PasswordFormFillData::LoginCollection::const_iterator FindPasswordByUsername(
@@ -880,10 +884,12 @@ TEST(PasswordFormFillDataTest, TestGroupedAffiliation) {
   EXPECT_TRUE(result.preferred_login.is_grouped_affiliation);
 }
 
-TEST_F(PasswordFormFillingTest, PasswordChangeSupported) {
+TEST_F(PasswordFormFillingTest, PasswordChangeSupportedAndPasswordLeaked) {
   observed_form_.accepts_webauthn_credentials = true;
   saved_match_.change_password_url =
       GURL("https://example.com/.well-known/change-password/");
+  saved_match_.password_issues = {{password_manager::InsecureType::kLeaked,
+                                   password_manager::InsecurityMetadata()}};
   std::vector<PasswordForm> best_matches = {saved_match_};
 
   EXPECT_CALL(client_, PasswordWasAutofilled);
@@ -903,6 +909,8 @@ TEST_F(PasswordFormFillingTest, PasswordChangeSupported) {
 
 TEST_F(PasswordFormFillingTest, PasswordChangeUrlMissing) {
   observed_form_.accepts_webauthn_credentials = true;
+  saved_match_.password_issues = {{password_manager::InsecureType::kLeaked,
+                                   password_manager::InsecurityMetadata()}};
   std::vector<PasswordForm> best_matches = {saved_match_};
 
   EXPECT_CALL(client_, PasswordWasAutofilled);
@@ -923,11 +931,33 @@ TEST_F(PasswordFormFillingTest, PasswordChangeNotSupported) {
   observed_form_.accepts_webauthn_credentials = true;
   saved_match_.change_password_url =
       GURL("https://example.com/.well-known/change-password/");
+  saved_match_.password_issues = {{password_manager::InsecureType::kLeaked,
+                                   password_manager::InsecurityMetadata()}};
   std::vector<PasswordForm> best_matches = {saved_match_};
 
   EXPECT_CALL(client_, PasswordWasAutofilled);
   EXPECT_CALL(password_change_service_, IsPasswordChangeAvailable)
       .WillOnce(testing::Return(false));
+  PasswordFormFillData fill_data;
+  EXPECT_CALL(driver_, PropagateFillDataOnParsingCompletion)
+      .WillOnce(SaveArg<0>(&fill_data));
+
+  SendFillInformationToRenderer(&client_, &driver_, observed_form_,
+                                best_matches, federated_matches_, &saved_match_,
+                                metrics_recorder_.get(),
+                                /*webauthn_suggestions_available=*/false,
+                                /*suggestion_banned_fields=*/{});
+  EXPECT_FALSE(fill_data.notify_browser_of_successful_filling);
+}
+
+TEST_F(PasswordFormFillingTest, PasswordIsNotLeaked) {
+  observed_form_.accepts_webauthn_credentials = true;
+  saved_match_.change_password_url =
+      GURL("https://example.com/.well-known/change-password/");
+  std::vector<PasswordForm> best_matches = {saved_match_};
+
+  EXPECT_CALL(client_, PasswordWasAutofilled);
+  EXPECT_CALL(password_change_service_, IsPasswordChangeAvailable).Times(0);
   PasswordFormFillData fill_data;
   EXPECT_CALL(driver_, PropagateFillDataOnParsingCompletion)
       .WillOnce(SaveArg<0>(&fill_data));

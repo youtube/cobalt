@@ -109,11 +109,15 @@ class MockLeakDetectionCheck : public LeakDetectionCheck {
 
 class MockPasswordChangeService : public PasswordChangeServiceInterface {
  public:
-  MOCK_METHOD(bool, IsPasswordChangeAvailable, (), (override));
+  MOCK_METHOD(bool, IsPasswordChangeAvailable, (), (const override));
   MOCK_METHOD(bool,
               IsPasswordChangeSupported,
               (const GURL&, const autofill::LanguageCode&),
-              (override));
+              (const override));
+  MOCK_METHOD(void,
+              RecordLoginAttemptQuality,
+              (password_manager::LogInWithChangedPasswordOutcome, const GURL&),
+              (const override));
 };
 
 }  // namespace
@@ -134,11 +138,6 @@ class LeakDetectionDelegateTest : public testing::Test {
         ::prefs::kSafeBrowsingEnabled, true);
     pref_service_->registry()->RegisterBooleanPref(
         ::prefs::kSafeBrowsingEnhanced, false);
-#if BUILDFLAG(IS_ANDROID)
-    pref_service_->registry()->RegisterIntegerPref(
-        prefs::kPasswordsUseUPMLocalAndSeparateStores,
-        static_cast<int>(prefs::UseUpmLocalAndSeparateStoresState::kOff));
-#endif  // BUILDFLAG(IS_ANDROID)
     ON_CALL(client_, GetPrefs()).WillByDefault(Return(pref_service()));
   }
 
@@ -559,8 +558,7 @@ TEST_F(LeakDetectionDelegateTest,
 }
 
 #if BUILDFLAG(IS_ANDROID)
-TEST_F(LeakDetectionDelegateTest,
-       LeakDetectionDoneLocalStoreWithUPMSplitStores) {
+TEST_F(LeakDetectionDelegateTest, LeakDetectionDoneLocalStore) {
   LeakDetectionDelegateInterface* delegate_interface = &delegate();
   const PasswordForm form = CreateTestForm();
 
@@ -569,13 +567,6 @@ TEST_F(LeakDetectionDelegateTest,
       .WillByDefault(Return(account_store()));
   ON_CALL(client(), GetProfilePasswordStore())
       .WillByDefault(Return(profile_store()));
-
-  // The login db deprecation also stops automatic migration and deprecates
-  // the migration pref, so set it to off to verify that its value doesn't
-  // matter.
-  pref_service()->SetInteger(
-      prefs::kPasswordsUseUPMLocalAndSeparateStores,
-      static_cast<int>(prefs::UseUpmLocalAndSeparateStoresState::kOff));
 
   ASSERT_EQ(sync_util::GetPasswordSyncState(sync_service()),
             sync_util::SyncState::kActiveWithNormalEncryption);
@@ -603,8 +594,7 @@ TEST_F(LeakDetectionDelegateTest,
   WaitForPasswordStore();
 }
 
-TEST_F(LeakDetectionDelegateTest,
-       LeakDetectionDoneAccountStoreWithUPMSplitStores) {
+TEST_F(LeakDetectionDelegateTest, LeakDetectionDoneAccountStore) {
   LeakDetectionDelegateInterface* delegate_interface = &delegate();
   const PasswordForm form = CreateTestForm();
 
@@ -613,13 +603,6 @@ TEST_F(LeakDetectionDelegateTest,
       .WillByDefault(Return(account_store()));
   ON_CALL(client(), GetProfilePasswordStore())
       .WillByDefault(Return(profile_store()));
-
-  // The login db deprecation also stops automatic migration and deprecates
-  // the migration pref, so set it to off to verify that its value doesn't
-  // matter.
-  pref_service()->SetInteger(
-      prefs::kPasswordsUseUPMLocalAndSeparateStores,
-      static_cast<int>(prefs::UseUpmLocalAndSeparateStoresState::kOff));
 
   ASSERT_EQ(sync_util::GetPasswordSyncState(sync_service()),
             sync_util::SyncState::kActiveWithNormalEncryption);

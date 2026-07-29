@@ -43,8 +43,8 @@ const CGFloat kHighlightScaling = 0.7;
     self.pointerStyleProvider = CreateDefaultEffectCirclePointerStyleProvider();
     self.tintColor = [UIColor colorNamed:kToolbarButtonColor];
 
-    // TODO(crbug.com/420643840): Add an actual accessibiity label.
-    self.accessibilityLabel = @"Page action menu";
+    self.accessibilityLabel = l10n_util::GetNSString(
+        IDS_IOS_BWG_PAGE_ACTION_MENU_ENTRY_POINT_ACCESSIBILITY_LABEL);
 
     UIImageSymbolConfiguration* symbolConfig = [UIImageSymbolConfiguration
         configurationWithPointSize:kIconPointSize
@@ -53,6 +53,8 @@ const CGFloat kHighlightScaling = 0.7;
     [self setPreferredSymbolConfiguration:symbolConfig
                           forImageInState:UIControlStateNormal];
     if (IsDirectBWGEntryPoint()) {
+      self.accessibilityLabel =
+          l10n_util::GetNSString(IDS_IOS_BWG_ASK_GEMINI_ACCESSIBILITY_LABEL);
 #if BUILDFLAG(IOS_USE_BRANDED_SYMBOLS)
       [self setImage:CustomSymbolWithPointSize(kGeminiBrandedLogoImage,
                                                kIconPointSize)

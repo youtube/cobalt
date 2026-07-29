@@ -20,7 +20,6 @@
 #include "components/autofill/core/browser/suggestions/suggestion.h"
 #include "components/autofill/core/browser/suggestions/suggestion_type.h"
 #include "components/autofill/core/common/password_form_fill_data.h"
-#include "components/password_manager/content/common/web_ui_constants.h"
 #include "components/password_manager/core/browser/features/password_features.h"
 #include "components/password_manager/core/browser/password_manager_client.h"
 #include "components/password_manager/core/browser/password_manager_driver.h"
@@ -43,6 +42,9 @@ namespace password_manager {
 
 const char kReauthPromoHistogramName[] =
     "PasswordManager.PasswordFilling.ReauthPromo";
+#if BUILDFLAG(ENABLE_DICE_SUPPORT)
+const char kPasswordManagerHost[] = "password-manager";
+#endif
 
 namespace {
 
@@ -369,7 +371,7 @@ bool CanShowPendingStatePromo(const PasswordManagerClient& password_client) {
   const bool is_external_url =
       !gaia::HasGaiaSchemeHostPort(password_client.GetLastCommittedURL()) &&
       password_client.GetLastCommittedURL().host_piece() !=
-          password_manager::kChromeUIPasswordManagerHost;
+          kPasswordManagerHost;
 
   return password_client.GetIdentityManager()
              ->HasAccountWithRefreshTokenInPersistentErrorState(
@@ -520,6 +522,9 @@ PasswordSuggestionGenerator::GetProactiveRecoverySuggestions(
   suggestion.additional_label = std::u16string(
       payload.backup_password->size(), constants::kPasswordReplacementChar);
   suggestion.additional_label_alignment_right = true;
+  // This prevents the label from including the masked password string.
+  suggestion.voice_over = l10n_util::GetStringUTF16(
+      IDS_PASSWORD_MANAGER_UI_PROACTIVE_RECOVERY_SUGGESTION);
   suggestions.emplace_back(std::move(suggestion));
 
   Suggestion separator(SuggestionType::kSeparator);

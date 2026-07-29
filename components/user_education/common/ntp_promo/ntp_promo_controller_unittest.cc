@@ -4,6 +4,7 @@
 
 #include "components/user_education/common/ntp_promo/ntp_promo_controller.h"
 
+#include "base/test/bind.h"
 #include "base/test/mock_callback.h"
 #include "base/test/task_environment.h"
 #include "base/time/time.h"
@@ -27,6 +28,10 @@ constexpr char kPromo2Id[] = "promo2";
 
 constexpr int kSessionNumber = 10;
 
+constexpr auto kEligible = NtpPromoSpecification::Eligibility::kEligible;
+constexpr auto kIneligible = NtpPromoSpecification::Eligibility::kIneligible;
+constexpr auto kCompleted = NtpPromoSpecification::Eligibility::kCompleted;
+
 class NtpPromoControllerTest : public testing::Test {
  public:
   NtpPromoControllerTest() : controller_(registry_, storage_service_) {
@@ -36,14 +41,30 @@ class NtpPromoControllerTest : public testing::Test {
   }
 
  protected:
+  // Register a promo with the supplied callbacks.
   void RegisterPromo(
       NtpPromoIdentifier id,
       NtpPromoSpecification::EligibilityCallback eligibility_callback,
+      NtpPromoSpecification::ShowCallback show_callback,
       NtpPromoSpecification::ActionCallback action_callback) {
-    registry_.AddPromo(
-        NtpPromoSpecification(id, NtpPromoContent("", IDS_OK, IDS_CANCEL),
-                              eligibility_callback, action_callback,
-                              /*show_after=*/{}, user_education::Metadata()));
+    registry_.AddPromo(NtpPromoSpecification(
+        id, NtpPromoContent("", IDS_OK, IDS_CANCEL), eligibility_callback,
+        show_callback, action_callback,
+        /*show_after=*/{}, user_education::Metadata()));
+  }
+
+  // Register a promo of the the specified eligibility.
+  void RegisterPromo(NtpPromoIdentifier id,
+                     NtpPromoSpecification::Eligibility eligibility) {
+    RegisterPromo(id, base::BindLambdaForTesting([=](Profile* profile) {
+                    return eligibility;
+                  }),
+                  base::DoNothing(), base::DoNothing());
+  }
+
+  int ShowablePendingPromoCount() {
+    const auto showable_promos = controller_.GenerateShowablePromos(nullptr);
+    return showable_promos.pending.size();
   }
 
   base::test::TaskEnvironment task_environment_{
@@ -55,28 +76,15 @@ class NtpPromoControllerTest : public testing::Test {
 
 }  // namespace
 
-// Note: Parameterize these eligibility tests when there are more of them.
 TEST_F(NtpPromoControllerTest, IneligiblePromoHidden) {
-  base::MockRepeatingCallback<NtpPromoSpecification::Eligibility(Profile*)>
-      eligibility_callback;
-  RegisterPromo(kPromoId, eligibility_callback.Get(),
-                NtpPromoSpecification::ActionCallback());
-  EXPECT_CALL(eligibility_callback, Run(_))
-      .WillOnce(Return(NtpPromoSpecification::Eligibility::kIneligible));
-
+  RegisterPromo(kPromoId, kIneligible);
   const auto showable_promos = controller_.GenerateShowablePromos(nullptr);
   EXPECT_TRUE(showable_promos.pending.empty());
   EXPECT_TRUE(showable_promos.completed.empty());
 }
 
 TEST_F(NtpPromoControllerTest, EligiblePromoShows) {
-  base::MockRepeatingCallback<NtpPromoSpecification::Eligibility(Profile*)>
-      eligibility_callback;
-  RegisterPromo(kPromoId, eligibility_callback.Get(),
-                NtpPromoSpecification::ActionCallback());
-  EXPECT_CALL(eligibility_callback, Run(_))
-      .WillOnce(Return(NtpPromoSpecification::Eligibility::kEligible));
-
+  RegisterPromo(kPromoId, kEligible);
   const auto showable_promos = controller_.GenerateShowablePromos(nullptr);
   EXPECT_EQ(showable_promos.pending.size(), 1u);
   EXPECT_TRUE(showable_promos.completed.empty());
@@ -85,25 +93,15 @@ TEST_F(NtpPromoControllerTest, EligiblePromoShows) {
 // A promo that reports itself as complete, but was never clicked, should not
 // be shown.
 TEST_F(NtpPromoControllerTest, UnclickedCompletedPromoHidden) {
-  base::MockRepeatingCallback<NtpPromoSpecification::Eligibility(Profile*)>
-      eligibility_callback;
-  RegisterPromo(kPromoId, eligibility_callback.Get(),
-                NtpPromoSpecification::ActionCallback());
-  EXPECT_CALL(eligibility_callback, Run(_))
-      .WillOnce(Return(NtpPromoSpecification::Eligibility::kCompleted));
-
+  RegisterPromo(kPromoId, kCompleted);
   const auto showable_promos = controller_.GenerateShowablePromos(nullptr);
   EXPECT_TRUE(showable_promos.pending.empty());
   EXPECT_TRUE(showable_promos.completed.empty());
 }
 
 TEST_F(NtpPromoControllerTest, ClickedCompletedPromoShows) {
-  base::MockRepeatingCallback<NtpPromoSpecification::Eligibility(Profile*)>
-      eligibility_callback;
-  RegisterPromo(kPromoId, eligibility_callback.Get(),
-                NtpPromoSpecification::ActionCallback());
-  EXPECT_CALL(eligibility_callback, Run(_))
-      .WillOnce(Return(NtpPromoSpecification::Eligibility::kCompleted));
+  RegisterPromo(kPromoId, kCompleted);
+
   // Simulate that the user clicked on the promo.
   user_education::KeyedNtpPromoData keyed_data;
   keyed_data.last_clicked = base::Time::Now();
@@ -121,13 +119,7 @@ TEST_F(NtpPromoControllerTest, ClickedCompletedPromoShows) {
 // Once a promo has been declared completed, it should continue to show as
 // completed even if the promo reverts to Eligible state (eg. a user signs out).
 TEST_F(NtpPromoControllerTest, PreviouslyCompletedPromoShows) {
-  base::MockRepeatingCallback<NtpPromoSpecification::Eligibility(Profile*)>
-      eligibility_callback;
-  RegisterPromo(kPromoId, eligibility_callback.Get(),
-                NtpPromoSpecification::ActionCallback());
-  EXPECT_CALL(eligibility_callback, Run(_))
-      .WillOnce(Return(NtpPromoSpecification::Eligibility::kEligible));
-
+  RegisterPromo(kPromoId, kEligible);
   user_education::KeyedNtpPromoData keyed_data;
   keyed_data.completed = base::Time::Now();
   storage_service_.SaveNtpPromoData(kPromoId, keyed_data);
@@ -138,13 +130,7 @@ TEST_F(NtpPromoControllerTest, PreviouslyCompletedPromoShows) {
 }
 
 TEST_F(NtpPromoControllerTest, OldCompletedPromoHidden) {
-  base::MockRepeatingCallback<NtpPromoSpecification::Eligibility(Profile*)>
-      eligibility_callback;
-  RegisterPromo(kPromoId, eligibility_callback.Get(),
-                NtpPromoSpecification::ActionCallback());
-  EXPECT_CALL(eligibility_callback, Run(_))
-      .WillOnce(Return(NtpPromoSpecification::Eligibility::kEligible));
-
+  RegisterPromo(kPromoId, kEligible);
   user_education::KeyedNtpPromoData keyed_data;
   keyed_data.completed =
       base::Time::Now() - controller_.GetCompletedPromoShowDurationForTest();
@@ -156,12 +142,7 @@ TEST_F(NtpPromoControllerTest, OldCompletedPromoHidden) {
 }
 
 TEST_F(NtpPromoControllerTest, FutureCompletedPromoHidden) {
-  base::MockRepeatingCallback<NtpPromoSpecification::Eligibility(Profile*)>
-      eligibility_callback;
-  RegisterPromo(kPromoId, eligibility_callback.Get(),
-                NtpPromoSpecification::ActionCallback());
-  EXPECT_CALL(eligibility_callback, Run(_))
-      .WillOnce(Return(NtpPromoSpecification::Eligibility::kEligible));
+  RegisterPromo(kPromoId, kCompleted);
 
   // Verify that a pref saved with a nonsense timestamp doesn't end up
   // showing a completed promo indefinitely.
@@ -177,7 +158,7 @@ TEST_F(NtpPromoControllerTest, FutureCompletedPromoHidden) {
 TEST_F(NtpPromoControllerTest, PromoClicked) {
   base::MockRepeatingCallback<void(BrowserWindowInterface*)> action_callback;
   RegisterPromo(kPromoId, NtpPromoSpecification::EligibilityCallback(),
-                action_callback.Get());
+                base::DoNothing(), action_callback.Get());
   EXPECT_CALL(action_callback, Run(_));
   controller_.OnPromoClicked(kPromoId, nullptr);
 
@@ -185,14 +166,27 @@ TEST_F(NtpPromoControllerTest, PromoClicked) {
   EXPECT_EQ(prefs.value().last_clicked, base::Time::Now());
 }
 
-TEST_F(NtpPromoControllerTest, OnPromosShown_CompletedPromoOnly) {
+TEST_F(NtpPromoControllerTest, ClickedPromoHiddenTemporarily) {
+  RegisterPromo(kPromoId, kEligible);
+  EXPECT_EQ(ShowablePendingPromoCount(), 1);
+
+  controller_.OnPromoClicked(kPromoId, nullptr);
+  EXPECT_EQ(ShowablePendingPromoCount(), 0);
+
+  task_environment_.AdvanceClock(
+      controller_.GetClickedPromoHideDurationForTest());
+  EXPECT_EQ(ShowablePendingPromoCount(), 1);
+}
+
+TEST_F(NtpPromoControllerTest, CompletedPromoShown) {
   const auto old_value = storage_service_.ReadNtpPromoData(kPromoId);
   controller_.OnPromosShown({}, {kPromoId});
   const auto new_value = storage_service_.ReadNtpPromoData(kPromoId);
   EXPECT_EQ(old_value, new_value);
 }
 
-TEST_F(NtpPromoControllerTest, OnPromosShown_EligiblePromo_NoPreviousData) {
+TEST_F(NtpPromoControllerTest, TopSpotPromoShownFirstTime) {
+  RegisterPromo(kPromoId, kEligible);
   const auto old_value = storage_service_.ReadNtpPromoData(kPromoId);
   EXPECT_EQ(std::nullopt, old_value);
   controller_.OnPromosShown({kPromoId}, {});
@@ -201,18 +195,60 @@ TEST_F(NtpPromoControllerTest, OnPromosShown_EligiblePromo_NoPreviousData) {
   EXPECT_EQ(1, new_value->top_spot_session_count);
 }
 
-TEST_F(NtpPromoControllerTest, OnPromosShown_EligiblePromo_PreviousData) {
+// When the shown top spot promo was previously in the top spot, during the
+// same browsing session, prefs shouldn't change.
+TEST_F(NtpPromoControllerTest, TopSpotPromoShownInSameSession) {
+  RegisterPromo(kPromoId, kEligible);
+  KeyedNtpPromoData old_value;
+  old_value.last_top_spot_session = kSessionNumber;
+  old_value.top_spot_session_count = 2;
+  storage_service_.SaveNtpPromoData(kPromoId, old_value);
+  controller_.OnPromosShown({kPromoId}, {});
+  const auto new_value = storage_service_.ReadNtpPromoData(kPromoId);
+  EXPECT_EQ(kSessionNumber, new_value->last_top_spot_session);
+  EXPECT_EQ(2, new_value->top_spot_session_count);
+}
+
+// When the shown top spot promo was previously in the top spot, during the
+// previous browsing session, the top spot session count should be incremented.
+TEST_F(NtpPromoControllerTest, TopSpotPromoShownInNewSession) {
+  RegisterPromo(kPromoId, kEligible);
   KeyedNtpPromoData old_value;
   old_value.last_top_spot_session = kSessionNumber - 1;
   old_value.top_spot_session_count = 2;
   storage_service_.SaveNtpPromoData(kPromoId, old_value);
   controller_.OnPromosShown({kPromoId}, {});
   const auto new_value = storage_service_.ReadNtpPromoData(kPromoId);
-  EXPECT_EQ(10, new_value->last_top_spot_session);
+  EXPECT_EQ(kSessionNumber, new_value->last_top_spot_session);
   EXPECT_EQ(3, new_value->top_spot_session_count);
 }
 
-TEST_F(NtpPromoControllerTest, OnPromosShown_MultiplePromos) {
+// When the shown top spot promo was not previously in the top spot, it should
+// clear its top spot count to start a fresh stay at the top of the list.
+TEST_F(NtpPromoControllerTest, TopSpotPromoShownReclaimsTopSpot) {
+  RegisterPromo(kPromoId, kEligible);
+  RegisterPromo(kPromo2Id, kEligible);
+
+  // Have Promo2 be the most recent top-spot holder.
+  KeyedNtpPromoData old_promo_2;
+  old_promo_2.last_top_spot_session = kSessionNumber - 1;
+  storage_service_.SaveNtpPromoData(kPromo2Id, old_promo_2);
+  // Have Promo be a previous top-spot holder, before Promo2.
+  KeyedNtpPromoData old_value;
+  old_promo_2.last_top_spot_session = kSessionNumber - 2;
+  old_promo_2.top_spot_session_count = 3;
+  storage_service_.SaveNtpPromoData(kPromoId, old_value);
+
+  // Showing Promo should clear its top spot count and restart at 1.
+  controller_.OnPromosShown({kPromoId}, {});
+  const auto new_value = storage_service_.ReadNtpPromoData(kPromoId);
+  EXPECT_EQ(kSessionNumber, new_value->last_top_spot_session);
+  EXPECT_EQ(1, new_value->top_spot_session_count);
+}
+
+TEST_F(NtpPromoControllerTest, OnMultiplePromosShown) {
+  RegisterPromo(kPromoId, kEligible);
+  RegisterPromo(kPromo2Id, kEligible);
   const auto old_value2 = storage_service_.ReadNtpPromoData(kPromo2Id);
   controller_.OnPromosShown({kPromoId, kPromo2Id}, {});
   const auto new_value = storage_service_.ReadNtpPromoData(kPromoId);
@@ -220,6 +256,14 @@ TEST_F(NtpPromoControllerTest, OnPromosShown_MultiplePromos) {
   EXPECT_EQ(10, new_value->last_top_spot_session);
   EXPECT_EQ(1, new_value->top_spot_session_count);
   EXPECT_EQ(old_value2, new_value2);
+}
+
+TEST_F(NtpPromoControllerTest, ShownCallbackInvoked) {
+  base::MockRepeatingCallback<void()> show_callback;
+  RegisterPromo(kPromoId, NtpPromoSpecification::EligibilityCallback(),
+                show_callback.Get(), base::DoNothing());
+  EXPECT_CALL(show_callback, Run());
+  controller_.OnPromosShown({kPromoId}, {});
 }
 
 }  // namespace user_education

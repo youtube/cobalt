@@ -20,6 +20,7 @@
 #include "base/task/thread_pool.h"
 #include "base/types/pass_key.h"
 #include "build/build_config.h"
+#include "build/buildflag.h"
 #include "net/base/cache_type.h"
 #include "net/base/features.h"
 #include "net/base/net_errors.h"
@@ -30,6 +31,7 @@
 #include "net/cert/multi_log_ct_verifier.h"
 #include "net/cert/sct_auditing_delegate.h"
 #include "net/cookies/cookie_monster.h"
+#include "net/disk_cache/buildflags.h"
 #include "net/dns/context_host_resolver.h"
 #include "net/dns/host_resolver.h"
 #include "net/dns/host_resolver_manager.h"
@@ -580,14 +582,21 @@ std::unique_ptr<URLRequestContext> URLRequestContextBuilder::Build() {
           break;
         case HttpCacheParams::IN_MEMORY:
           NOTREACHED();
+#if BUILDFLAG(ENABLE_DISK_CACHE_SQL_BACKEND)
+        case HttpCacheParams::DISK_EXPERIMENTAL_SQL:
+          backend_type = CACHE_BACKEND_EXPERIMENTAL_SQL;
+#endif  // ENABLE_DISK_CACHE_SQL_BACKEND
       }
       http_cache_backend = std::make_unique<HttpCache::DefaultBackend>(
           DISK_CACHE, backend_type, http_cache_params_.file_operations_factory,
           http_cache_params_.path, http_cache_params_.max_size,
           http_cache_params_.reset_cache);
-      if (base::FeatureList::IsEnabled(features::kHttpCacheNoVarySearch)) {
+      if (base::FeatureList::IsEnabled(features::kHttpCacheNoVarySearch) &&
+          features::kHttpCacheNoVarySearchPersistenceEnabled.Get() &&
+          !http_cache_params_.no_vary_search_path.empty()) {
+        CHECK(!http_cache_params_.path.empty());
         file_operations = NoVarySearchCacheStorageFileOperations::Create(
-            http_cache_params_.path);
+            http_cache_params_.no_vary_search_path, http_cache_params_.path);
       }
     } else {
       http_cache_backend =

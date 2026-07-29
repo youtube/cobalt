@@ -78,6 +78,7 @@
 <translation id="1915307458270490472">Mbyll</translation>
 <translation id="1919950603503897840">Zgjidh kontaktet</translation>
 <translation id="1923695749281512248"><ph name="BYTES_DOWNLOADED_WITH_UNITS" /> / <ph name="FILE_SIZE_WITH_UNITS" /></translation>
+<translation id="1939059826036755332">Modaliteti automatik "figurë brenda figurës"</translation>
 <translation id="1954597385941141174">Sajtet mund të kërkojnë të lidhen me pajisjet me USB</translation>
 <translation id="1979673356880165407">Bëje tekstin dhe imazhet më të mëdha ose më të vogla për të gjitha sajtet që viziton ti</translation>
 <translation id="1984937141057606926">Lejohet, përveç palëve të treta</translation>
@@ -228,6 +229,7 @@
 <translation id="3600792891314830896">Hiq zërin për sajtet që luajnë tinguj</translation>
 <translation id="3602290021589620013">Pamje paraprake</translation>
 <translation id="3611658447322220736">Sajtet e mbyllura së fundi mund të përfundojnë dërgimin dhe marrjen e të dhënave</translation>
+<translation id="3619294456800709762">Sajtet mund të kalojnë automatikisht në modalitetin "figurë brenda figurës"</translation>
 <translation id="3628308229821498208">Kërkimet e sugjeruara</translation>
 <translation id="3641456520301071208">Sajtet mund të pyesin për vendndodhjen tënde</translation>
 <translation id="3658847490588580244">Fleta e poshtme e shfletuesit të parazgjedhur</translation>
@@ -276,6 +278,7 @@
 <translation id="4031179711345676612">Mikrofoni lejohet</translation>
 <translation id="4046123991198612571">Kënga tjetër</translation>
 <translation id="4077310749977440510">Sajtet lexojnë zakonisht kujtesën tënde të fragmenteve për veçoritë si ruajtja e formatimit të tekstit që ke kopjuar</translation>
+<translation id="4082080074595021446">Përjashtimet për uebsajte specifike nuk lejohen sepse pajisja Android nuk ka RAM të mjaftueshëm.</translation>
 <translation id="4149890623864272035">E konfirmon që dëshiron t'i fshish të gjitha të dhënat lokale, duke përfshirë kukit, dhe të rivendosësh të gjitha lejet për këtë uebsajt?</translation>
 <translation id="4149994727733219643">Pamje e thjeshtuar për faqet e uebit</translation>
 <translation id="4151930093518524179">Zmadhimi i parazgjedhur</translation>
@@ -414,6 +417,7 @@
 <translation id="5750869797196646528">Gjurmimi i duarve</translation>
 <translation id="5753570386948603678">Fshije nga historiku</translation>
 <translation id="5771720122942595109"><ph name="PERMISSION_1" /> është bllokuar</translation>
+<translation id="5801457289562671820">Rekomanduar nga organizata jote</translation>
 <translation id="5804241973901381774">Lejet</translation>
 <translation id="5822675474983796325">Fleta e poshtme "Personalizo faqen e skedës së re" u hap në lartësi të plotë</translation>
 <translation id="5833899990800318936">Mos lejo që sajtet të përdorin JavaScript</translation>
@@ -445,6 +449,7 @@
 <translation id="6064125863973209585">Shkarkimet e përfunduara</translation>
 <translation id="6071501408666570960">Mund të dalësh nga ky sajt</translation>
 <translation id="6085954183010297841">Të fshihet leja për modifikimin e skedarëve? <ph name="FILE" /></translation>
+<translation id="6104860901391833523">Kur cilësimi është aktiv, sajtet mund të kalojnë automatikisht në modalitetin "figurë brenda figurës". Kur cilësimi është joaktiv, sajtet nuk mund të kalojnë automatikisht në modalitetin "figurë brenda figurës".</translation>
 <translation id="6120483543004435978">Kur cilësimi është aktiv, sajtet mund të kërkojnë që të mësojnë se kur e përdor ti pajisjen tënde. Kur cilësimi është joaktiv, sajtet nuk mund të mësojnë se kur e përdor ti pajisjen tënde.</translation>
 <translation id="615886654739818377">Mos i lejo sajtet të menaxhojnë dritaret në të gjitha ekranet e tua</translation>
 <translation id="6165508094623778733">Mëso më shumë</translation>
@@ -607,6 +612,7 @@
 <translation id="8117244575099414087">Kur cilësimi është aktiv, sajtet mund të përdorin sensorët e pajisjes. Kur cilësimi është joaktiv, sajtet nuk mund të përdorin sensorët.</translation>
 <translation id="813082847718468539">Shiko informacionin rreth faqes</translation>
 <translation id="8131740175452115882">Konfirmo</translation>
+<translation id="8163152278172770963">Mos lejo që sajtet të kalojnë automatikisht në modalitetin "figurë brenda figurës"</translation>
 <translation id="8168435359814927499">Përmbajtja</translation>
 <translation id="818487310457576362">Zvarrit nga ana e ekranit për të dalë nga ekrani i plotë.</translation>
 <translation id="8186479265534291036">Sajti nuk funksionon? Kukit e palëve të treta janë bllokuar</translation>
@@ -698,6 +704,7 @@
 <translation id="913657688200966289">Aktivizo lejet për <ph name="APP_NAME" /> në <ph name="BEGIN_LINK" />Cilësimet e Android<ph name="END_LINK" />.</translation>
 <translation id="9138037198177304356">Njoftimet lejohen</translation>
 <translation id="9138217887606523162">Zmadhimi aktual është në <ph name="ZOOM_LEVEL" />%%</translation>
+<translation id="915112772806845021">Sajtet e përdorin këtë veçori për të kaluar automatikisht në modalitetin "figurë brenda figurës". Kjo të lejon të vazhdosh të shikosh një video, ndërkohë që e liron ekranin për detyra të tjera.</translation>
 <translation id="9156722768168878035">Lejo që Chrome të shfaqë skedat e tua të fundit në listën e aplikacioneve dhe rezultatet e kërkimit të pajisjes sate. Mund ta çaktivizosh këtë në çdo kohë te cilësimet e Chrome.</translation>
 <translation id="9162462602695099906">Kjo faqe është e rrezikshme</translation>
 <translation id="9182556968660520230">Mos lejo që sajtet të luajnë përmbajtje të mbrojtura</translation>

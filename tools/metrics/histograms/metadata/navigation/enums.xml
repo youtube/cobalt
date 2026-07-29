@@ -516,6 +516,7 @@ chromium-metrics-reviews@google.com.
   <int value="4" label="kNoRestart"/>
   <int value="5" label="kTooManyRestart"/>
   <int value="6" label="kSendingErrorAborted"/>
+  <int value="7" label="kDuringExclusiveTask"/>
 </enum>
 
 <!-- LINT.ThenChange(//content/browser/loader/navigation_url_loader_impl.cc:OnAcceptCHFrameReceivedReturnLocation) -->
@@ -1920,6 +1921,23 @@ chromium-metrics-reviews@google.com.
     URL had about: scheme without being about:blank or about:srcdoc.
   </int>
 </enum>
+
+<!-- LINT.IfChange(RendererProcessReadiness) -->
+
+<enum name="RendererProcessReadiness">
+  <int value="0" label="Process not ready">
+    This implies that the renderer process should have been started earlier.
+  </int>
+  <int value="1"
+      label="Process ready, but view/proxy/frame objects not yet created">
+    This implies that the speculative RenderFrameHost should have been created
+    earlier.
+  </int>
+  <int value="2"
+      label="Process ready, and all view/proxy/frame objects created"/>
+</enum>
+
+<!-- LINT.ThenChange(//content/renderer/renderer_navigation_metrics_manager.cc:RendererProcessReadiness) -->
 
 <enum name="ThirdPartyCookieBlockState">
   <int value="0" label="Cookies allowed"/>

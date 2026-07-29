@@ -78,7 +78,7 @@ source_set("service_sources") {
   public_deps = [
     "//base",
     "//gpu/command_buffer/common",
-    "//url:url",
+    "//url",
   ]
   deps = [
     "//base",
@@ -245,6 +245,8 @@ target(link_target_type, "gles2_sources") {
     "shared_image/compound_image_backing.h",
     "shared_image/copy_image_plane.cc",
     "shared_image/copy_image_plane.h",
+    "shared_image/cpu_readback_upload_copy_strategy.cc",
+    "shared_image/cpu_readback_upload_copy_strategy.h",
     "shared_image/egl_image_backing.cc",
     "shared_image/egl_image_backing.h",
     "shared_image/egl_image_backing_factory.cc",
@@ -269,6 +271,9 @@ target(link_target_type, "gles2_sources") {
     "shared_image/shared_image_backing.h",
     "shared_image/shared_image_backing_factory.cc",
     "shared_image/shared_image_backing_factory.h",
+    "shared_image/shared_image_copy_manager.cc",
+    "shared_image/shared_image_copy_manager.h",
+    "shared_image/shared_image_copy_strategy.h",
     "shared_image/shared_image_factory.cc",
     "shared_image/shared_image_factory.h",
     "shared_image/shared_image_format_service_utils.cc",
@@ -355,6 +360,10 @@ target(link_target_type, "gles2_sources") {
     "//gpu:webgpu_implementation",
     "//third_party/khronos:khronos_headers",
   ]
+
+  # This target pulls in angle headers that can't be built with this
+  # warning active: crbug.com/430317494
+  cflags_cc = [ "-Wno-thread-safety" ]
 
   public_deps = [
     "//base",

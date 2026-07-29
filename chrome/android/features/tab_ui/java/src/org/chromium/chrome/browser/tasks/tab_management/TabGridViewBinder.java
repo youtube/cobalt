@@ -210,14 +210,16 @@ class TabGridViewBinder {
             setNullablePeripheralClickListener(
                     tabActionListener, view.fastFindViewById(R.id.action_button), model);
 
-            boolean showOverflowButton =
-                    data == null ? false : data.type == TabActionButtonType.OVERFLOW;
-            ((TabGridView) view).setTabActionButtonDrawable(showOverflowButton);
+            @TabActionButtonType
+            int actionButtonType = data != null ? data.type : TabActionButtonType.OVERFLOW;
+            ((TabGridView) view).setTabActionButtonDrawable(actionButtonType);
         } else if (TabProperties.TAB_CLICK_LISTENER == propertyKey) {
             setNullableClickListener(model.get(TabProperties.TAB_CLICK_LISTENER), view, model);
         } else if (TabProperties.TAB_LONG_CLICK_LISTENER == propertyKey) {
             setNullableLongClickListener(
                     model.get(TabProperties.TAB_LONG_CLICK_LISTENER), view, model);
+        } else if (TabProperties.MEDIA_INDICATOR == propertyKey) {
+            ((TabGridView) view).setMediaIndicator(model.get(TabProperties.MEDIA_INDICATOR));
         }
     }
 
@@ -535,6 +537,7 @@ class TabGridViewBinder {
         TextView titleView = rootView.fastFindViewById(R.id.tab_title);
         TabThumbnailView thumbnail = rootView.fastFindViewById(R.id.tab_thumbnail);
         ChromeImageView backgroundView = rootView.fastFindViewById(R.id.background_view);
+        ImageView mediaIndicator = rootView.fastFindViewById(R.id.media_indicator_icon);
 
         cardView.getBackground().mutate();
         final @ColorInt int backgroundColor =
@@ -555,6 +558,10 @@ class TabGridViewBinder {
                 backgroundView,
                 TabUiThemeProvider.getHoveredCardBackgroundTintList(
                         backgroundView.getContext(), isIncognito, isSelected));
+
+        mediaIndicator.setImageTintList(
+                TabCardThemeUtil.getMediaIndicatorColorStateList(
+                        mediaIndicator.getContext(), isIncognito, isSelected));
     }
 
     private static void updateColorForSelectionToggleButton(

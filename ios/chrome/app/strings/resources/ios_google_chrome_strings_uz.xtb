@@ -119,7 +119,6 @@ Hisobdan chiqishga shoshilmang. Hozir chiqsangiz, bu maʼlumotlar oʻchib ketadi
 <translation id="3863841106411295595">Kiritilgan URL manzillarni Chrome Saqlangan sahifalariga qoʻshadi.</translation>
 <translation id="3901001113120561395">Chromedan unumli foydalaning</translation>
 <translation id="3913386780052199712">Chrome hisobiga kirildi</translation>
-<translation id="3932250749914183695">Chrome maslahati: shaxsingizni tasdiqlang</translation>
 <translation id="3984746313391923992">Tashkilotingiz Chrome hisobidan chiqishingizni talab qilmoqda.</translation>
 <translation id="3988789688219830639">Google Chrome rasm va videolaringizni ko‘ra olmayapti. “Sozlamalar &gt; Maxfiylik &gt; Rasmlar” oynasida ruxsat bering.</translation>
 <translation id="4064699917955374540">Chrome maʼlumotlarini Google hisobida saqlash va ulardan foydalanish uchun shaxsingizni tasdiqlang.</translation>
@@ -134,6 +133,7 @@ Hisobdan chiqishga shoshilmang. Hozir chiqsangiz, bu maʼlumotlar oʻchib ketadi
 <translation id="4636900170638246267">Bu sayt va Chrome hisobiga kiring.</translation>
 <translation id="4647910807533196601">Oxirgi varaq Chromeda ochilsin</translation>
 <translation id="4693084815234024320">Siz Chrome Inkognito rejimidasiz</translation>
+<translation id="4713740144985377441">Faylni yuklash uchun Chrome brauzeriga qayting</translation>
 <translation id="4713907610796204963">Ishni boshlash uchun foydali Chrome tavsiyalari bilan tanishing</translation>
 <translation id="4724297637870447613">Chrome doim yoningizda</translation>
 <translation id="4738647308035481133">Google Chrome sahifasi</translation>
@@ -201,6 +201,7 @@ Hisoblarni almashtirishdan oldin bir necha daqiqa kuting. Hisoblarni hozir almas
 <translation id="6238746320622508509">Chrome bilan Inkognito varaqlarni himoyalang.</translation>
 <translation id="6247557882553405851">Google Parollar menejeri</translation>
 <translation id="6272822675004864999">Chrome bildirishnomalarini olish uchun iOS sozlamalari orqali bildirishnomalarni yoqing.</translation>
+<translation id="6299253454218177732">Chrome maslahati: Parollaringizdan foydalaning</translation>
 <translation id="630693926528731525">Parolingiz ulashilmadi. Internet aloqasini tekshiring va Chrome hisobiga kiring. Keyin qaytadan urining.</translation>
 <translation id="6348855835728304880">Bu qurilmadagi boshqa ilovalarda Chrome parollaringiz va boshqalarga kiring.</translation>
 <translation id="6373751563207403289">Xavfsizlik tekshiruvi maʼlumotlaringizni shubhali saytlar, axborotlar sizib chiqishi va xavfsizlikka oid muammolardan himoya qiladi. Maxfiylik va xavfsizlikka oid muammolar aniqlanganda Chrome bu haqida xabar qiladi.</translation>
@@ -231,6 +232,7 @@ Chromeni yaxshilashda ishlatiladigan maʼlumotlar qoʻshimcha sozlamalarini <ph 
 <translation id="6922332667202044570">Chrome brauzeri maʼlumotlarini oʻchirish.</translation>
 <translation id="6924922227983877439">Havolalarni doim Chromeda oching</translation>
 <translation id="6975725306479268850">Avtomatik kiritish uchun Chromeni tanlang</translation>
+<translation id="7038674195294813388">iOS sozlamalarida Birlamchi ilovalar sahifasini ochib, “Brauzer ilovasi” ustiga bosing va Chromiumni tanlang.</translation>
 <translation id="7056826488869329999">Chromeda xavfsizliktekshiruvini ishga tushiradi.</translation>
 <translation id="7061455974939528301">Chrome belgisini bosib turing va "Bosh ekranni tahrirlash" ustiga bosing</translation>
 <translation id="7124339256045485976">Chrome brauzerini yangilab boring</translation>
@@ -330,6 +332,7 @@ Maʼlumotlaringiz <ph name="TIME" /> sanasida kodli ibora bilan shifrlangan. Chr
 <translation id="8897749957032330183">Parollar shu qurilmadagi Google Parollar menejeriga saqlanadi.</translation>
 <translation id="9004772704776174843">Chrome hisobidan chiqildi</translation>
 <translation id="9068336935206019333">Chrome Inkognito oynasida ochish</translation>
+<translation id="9082304295862405388">Gemini aniq joylashuvingizdan Chromega ilgari berilgan ruxsat asosida foydalanishi mumkin</translation>
 <translation id="909127538042363610">Chrome brauzerining kuchli xavfsizligidan foydalaning</translation>
 <translation id="9122931302567044771">Bunda Chrome har safar saytning kompyuter versiyasini talab qiladi.</translation>
 <translation id="9176561303811134420">Chromeda toʻlov usullarini boshqarish</translation>

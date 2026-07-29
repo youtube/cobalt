@@ -92,6 +92,43 @@ enum class ReaderModeFontFamily {
 };
 // LINT.ThenChange(/tools/metrics/histograms/metadata/ios/enums.xml:ReaderModeFontFamily)
 
+// Recorded for IOS.ReaderMode.AccessPoint. Entries should not be renumbered and
+// numeric values should never be reused.
+// LINT.IfChange(ReaderModeAccessPoint)
+enum class ReaderModeAccessPoint {
+  kContextualChip = 0,
+  kToolsMenu = 1,
+  kAIHub = 2,
+  kMaxValue = kAIHub,
+};
+// LINT.ThenChange(/tools/metrics/histograms/metadata/ios/enums.xml:ReaderModeAccessPoint)
+
+// Recorded for IOS.ReaderMode.Distiller.Result. Entries should not be
+// renumbered and numeric values should never be reused.
+// LINT.IfChange(ReaderModeDistillerOutcome)
+enum class ReaderModeDistillerOutcome {
+  kContextualChipIsDistillable = 0,
+  kContextualChipIsNotDistillable = 1,
+  kToolsMenuIsDistillable = 2,
+  kToolsMenuIsNotDistillable = 3,
+  kAIHubIsDistillable = 4,
+  kAIHubIsNotDistillable = 5,
+  kMaxValue = kAIHubIsNotDistillable,
+};
+// LINT.ThenChange(/tools/metrics/histograms/metadata/ios/enums.xml:ReaderModeDistillerOutcome)
+
+// Reasons for which Reader mode can be deactivated.
+enum class ReaderModeDeactivationReason {
+  // User deactivated Reader mode using the UI.
+  kUserDeactivated,
+  // Reader mode was deactivated because a navigation occurred.
+  kNavigationDeactivated,
+  // Reader mode was deactivated because distillation failed.
+  kDistillationFailureDeactivated,
+  // Reader mode was deactivated because the host tab was destroyed.
+  kHostTabDestructionDeactivated,
+};
+
 // Default delay in seconds for triggering Reader Mode distiller heuristic.
 // This allows the page to react to the DOM loading and ensures minimal
 // interference with the JavaScript execution.
@@ -114,6 +151,9 @@ extern const char kReaderModeHeuristicLatencyHistogram[];
 // Histogram name for Reader Mode distillation latency.
 extern const char kReaderModeDistillerLatencyHistogram[];
 
+// Histogram name for Reader Mode distillation result.
+extern const char kReaderModeDistillerResultHistogram[];
+
 // Histogram name for Reader Mode theme customization.
 extern const char kReaderModeThemeCustomizationHistogram[];
 
@@ -128,6 +168,9 @@ extern const char kReaderModeCustomizationHistogram[];
 
 // Histogram name for time spent in Reader Mode.
 extern const char kReaderModeTimeSpentHistogram[];
+
+// Histogram name for Reader Mode access point for starting distillation.
+extern const char kReaderModeAccessPointHistogram[];
 
 // Returns the Reader mode symbol name.
 NSString* GetReaderModeSymbolName();

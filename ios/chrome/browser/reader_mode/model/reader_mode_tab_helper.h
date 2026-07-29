@@ -18,6 +18,8 @@
 #import "ios/web/public/web_state_user_data.h"
 
 @protocol SnackbarCommands;
+@protocol ReaderModeCommands;
+class FullscreenController;
 
 // Observes changes to the web state to perform reader mode operations.
 class ReaderModeTabHelper : public web::WebStateObserver,
@@ -31,7 +33,8 @@ class ReaderModeTabHelper : public web::WebStateObserver,
         ReaderModeTabHelper* tab_helper) = 0;
     // Called when Reader mode content will become unavailable in this tab.
     virtual void ReaderModeWebStateWillBecomeUnavailable(
-        ReaderModeTabHelper* tab_helper) = 0;
+        ReaderModeTabHelper* tab_helper,
+        ReaderModeDeactivationReason reason) = 0;
 
     // Called when distillation fails.
     virtual void ReaderModeDistillationFailed(
@@ -61,24 +64,36 @@ class ReaderModeTabHelper : public web::WebStateObserver,
   // Returns whether Reader mode is active in the current tab. If so, the Reader
   // mode UI should be presented. GetReaderModeWebState() may still return null.
   bool IsActive() const;
-  // Activates/deactivates Reader mode in the current tab.
-  void SetActive(bool active);
+  // Activates Reader mode in the current tab.
+  void ActivateReader(ReaderModeAccessPoint access_point);
+  // Deactivates Reader mode in the current tab.
+  void DeactivateReader(ReaderModeDeactivationReason reason =
+                            ReaderModeDeactivationReason::kUserDeactivated);
 
   // Returns the Reader mode content WebState if it is available. This can be
   // null if Reader mode is active, or non-null while Reader mode is inactive.
   web::WebState* GetReaderModeWebState();
 
-  // Returns whether the current page supports Reading mode.
-  bool CurrentPageSupportsReaderMode() const;
+  // Returns whether the current page should be considered for Reader Mode.
+  bool CurrentPageIsEligibleForReaderMode() const;
+  // Returns whether the current page is distillable.
+  bool CurrentPageIsDistillable() const;
+  // Returns whether the distillation failed already in the current page
+  bool CurrentPageDistillationAlreadyFailed() const;
+
   // - If the eligibility of the last committed URL is already known, calls
   // `callback` immediately with a boolean value as argument indicating whether
-  // the last committed URL is eligible.
-  // - If the eligibility of the last committed URL is not known, waits until
+  // the last committed URL is probably distillable.
+  // - If the distillability of the last committed URL is not known, waits until
   // the result is available and then calls `callback`.
   // - If the WebState navigates to a different URL (ignoring ref) before the
   // result is available, calls `callback` with nullopt.
-  void FetchLastCommittedUrlEligibilityResult(
+  void FetchLastCommittedUrlDistillabilityResult(
       base::OnceCallback<void(std::optional<bool>)> callback);
+
+  // Setter and getter for the readerMode handler.
+  void SetReaderModeHandler(id<ReaderModeCommands> reader_mode_handler);
+  id<ReaderModeCommands> GetReaderModeHandler() const;
 
   // Sets the snackbar handler.
   void SetSnackbarHandler(id<SnackbarCommands> snackbar_handler);
@@ -87,6 +102,10 @@ class ReaderModeTabHelper : public web::WebStateObserver,
   // the `url` content.
   void HandleReaderModeHeuristicResult(const GURL& url,
                                        ReaderModeHeuristicResult result);
+
+  // Sets the full screen controller that will passed to the
+  // `ReaderModeContentTabHelper`.
+  void SetFullscreenController(FullscreenController* fullscreen_controller);
 
   // web::WebStateObserver overrides:
   void DidStartNavigation(web::WebState* web_state,
@@ -105,6 +124,9 @@ class ReaderModeTabHelper : public web::WebStateObserver,
       ReaderModeContentTabHelper* reader_mode_content_tab_helper,
       NSURLRequest* request,
       web::WebStatePolicyDecider::RequestInfo request_info) override;
+
+  // Returns a weak pointer.
+  base::WeakPtr<ReaderModeTabHelper> GetWeakPtr();
 
  private:
   friend class web::WebStateUserData<ReaderModeTabHelper>;
@@ -126,16 +148,19 @@ class ReaderModeTabHelper : public web::WebStateObserver,
 
   // Callback for handling completion of the page distillation.
   void PageDistillationCompleted(
+      ReaderModeAccessPoint access_point,
       const GURL& page_url,
       const std::string& html,
       const std::vector<DistillerViewerInterface::ImageInfo>& images,
       const std::string& title,
       const std::string& csp_nonce);
 
-  // Creates `reader_mode_web_state_` and starts distillation.
-  void CreateReaderModeWebState();
-  // Destroys `reader_mode_web_state_` and stops any ongoing distillation.
-  void DestroyReaderModeWebState();
+  // Creates `reader_mode_web_state_` if necessary, adds a content tab helper
+  // and starts distillation.
+  void CreateReaderModeContent(ReaderModeAccessPoint access_point);
+  // Destroys the content tab helper in `reader_mode_web_state_` and stops any
+  // ongoing distillation.
+  void DestroyReaderModeContent(ReaderModeDeactivationReason reason);
 
   // Sets the last committed URL. If `url` is the equal to the previous value
   // ignoring ref, then this is a no-op.
@@ -146,11 +171,22 @@ class ReaderModeTabHelper : public web::WebStateObserver,
   // Cancels any ongoing distillation and destroys the `reader_mode_web_state_`.
   void CancelDistillation();
 
+  // Records the current page distillation failure, when called
+  // `distillation_already_failed_` is set to true.
+  void RecordDistillationFailure();
+
   // Whether Reader mode is active in this tab.
   bool active_ = false;
   // Whether the Reader mode WebState content was loaded.
   bool reader_mode_web_state_content_loaded_ = false;
-  // WebState used to render the Reader mode content.
+
+  // Whether the distillation failed already in the current navigation.
+  bool distillation_already_failed_ = false;
+
+  id<ReaderModeCommands> reader_mode_handler_;
+
+  // WebState used to render the Reader mode content. Lazily created the first
+  // time Reader mode is activated and persists until the tab is closed.
   std::unique_ptr<web::WebState> reader_mode_web_state_;
   id<SnackbarCommands> snackbar_handler_;
   base::OneShotTimer trigger_reader_mode_timer_;

@@ -189,10 +189,14 @@ ContextProperties ContextImplOrt::GetContextProperties() {
        {DataTypeConstraint::kFloat16To32, kMaxRank},
        /*leaky_relu_input=*/{DataTypeConstraint::kFloat16To32, kMaxRank},
        /*linear_input=*/{DataTypeConstraint::kFloat16To32, kMaxRank},
-       /*lstm_input=*/{},
-       /*lstm_bias=*/{},
-       /*lstm_cell_input=*/{},
-       /*lstm_cell_bias=*/{},
+       /*lstm_input=*/
+       {DataTypeConstraint::kFloat16To32, SupportedRanks::Exactly(3)},
+       /*lstm_bias=*/
+       {DataTypeConstraint::kFloat16To32, SupportedRanks::Exactly(2)},
+       /*lstm_cell_input=*/
+       {DataTypeConstraint::kFloat16To32, SupportedRanks::Exactly(2)},
+       /*lstm_cell_bias=*/
+       {DataTypeConstraint::kFloat16To32, SupportedRanks::Exactly(1)},
        /*matmul_input=*/{DataTypeConstraint::kFloat16To32Ints32To64, kMaxRank},
        /*pad_input=*/
        {DataTypeConstraint::kAllDataTypesAtLeast8bits, kMaxNonScalarRank},
@@ -301,6 +305,16 @@ void ContextImplOrt::CreateTensorImpl(
   std::move(callback).Run(base::MakeRefCounted<TensorImplOrt>(
       std::move(receiver), AsWeakPtr(), std::move(tensor_info),
       std::move(buffer_state)));
+}
+
+void ContextImplOrt::CreateTensorFromMailboxImpl(
+    mojo::PendingAssociatedReceiver<mojom::WebNNTensor> receiver,
+    mojom::TensorInfoPtr tensor_info,
+    gpu::Mailbox mailbox,
+    CreateTensorImplCallback callback) {
+  std::move(callback).Run(
+      base::unexpected(mojom::Error::New(mojom::Error::Code::kNotSupportedError,
+                                         "WebGPU Interop is not supported.")));
 }
 
 }  // namespace webnn::ort

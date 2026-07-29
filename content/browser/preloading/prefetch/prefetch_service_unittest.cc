@@ -1311,6 +1311,14 @@ TEST_P(PrefetchServiceTest, SuccessCase) {
           GetMetricsSuffixTriggerTypeAndEagerness(
               prefetch_type, /*embedder_histogram_suffix=*/std::nullopt)),
       false, 1);
+
+  histogram_tester.ExpectUniqueSample(
+      base::StrCat(
+          {"Prefetch.PrefetchPotentialCandidateServingResult."
+           "PerMatchingCandidate.",
+           GetMetricsSuffixTriggerTypeAndEagerness(
+               prefetch_type, /*embedder_histogram_suffix=*/std::nullopt)}),
+      PrefetchPotentialCandidateServingResult::kServed, 1);
 }
 
 TEST_P(PrefetchServiceTest, SuccessCase_Browser) {
@@ -1387,6 +1395,15 @@ TEST_P(PrefetchServiceTest, SuccessCase_Browser) {
                            /*use_prefetch_proxy=*/false),
               test::kPreloadingEmbedderHistgramSuffixForTesting)),
       false, 1);
+
+  histogram_tester.ExpectUniqueSample(
+      base::StrCat({"Prefetch.PrefetchPotentialCandidateServingResult."
+                    "PerMatchingCandidate.",
+                    GetMetricsSuffixTriggerTypeAndEagerness(
+                        PrefetchType(PreloadingTriggerType::kEmbedder,
+                                     /*use_prefetch_proxy=*/false),
+                        test::kPreloadingEmbedderHistgramSuffixForTesting)}),
+      PrefetchPotentialCandidateServingResult::kServed, 1);
 }
 
 TEST_P(PrefetchServiceTest, SuccessCase_Browser_NoVarySearch) {
@@ -1727,6 +1744,14 @@ TEST_P(PrefetchServiceTest, SuccessCase_Embedder) {
               prefetch_type,
               test::kPreloadingEmbedderHistgramSuffixForTesting)),
       false, 1);
+
+  histogram_tester.ExpectUniqueSample(
+      base::StrCat({"Prefetch.PrefetchPotentialCandidateServingResult."
+                    "PerMatchingCandidate.",
+                    GetMetricsSuffixTriggerTypeAndEagerness(
+                        prefetch_type,
+                        test::kPreloadingEmbedderHistgramSuffixForTesting)}),
+      PrefetchPotentialCandidateServingResult::kServed, 1);
 }
 
 TEST_P(PrefetchServiceTest,
@@ -4356,6 +4381,12 @@ TEST_P(PrefetchServiceAlwaysBlockUntilHeadTest,
           "Prefetch.PrefetchMatchingBlockedNavigation.PerMatchingCandidate.%s",
           histogram_suffix),
       true, 1);
+
+  histogram_tester.ExpectUniqueSample(
+      base::StrCat({"Prefetch.PrefetchPotentialCandidateServingResult."
+                    "PerMatchingCandidate.",
+                    histogram_suffix}),
+      PrefetchPotentialCandidateServingResult::kServed, 1);
 }
 
 // TODO(crbug.com/40249481): Test flaky on trybots.
@@ -4433,6 +4464,14 @@ TEST_P(PrefetchServiceAlwaysBlockUntilHeadTest,
           "Prefetch.PrefetchMatchingBlockedNavigation.PerMatchingCandidate.%s",
           histogram_suffix),
       true, 1);
+
+  histogram_tester.ExpectUniqueSample(
+      base::StrCat({"Prefetch.PrefetchPotentialCandidateServingResult."
+                    "PerMatchingCandidate.",
+                    histogram_suffix}),
+      PrefetchPotentialCandidateServingResult::
+          kNotServedDeterminedNVSHeaderMismatch,
+      1);
 }
 
 // TODO(crbug.com/40249481): Test flaky on trybots.
@@ -4512,6 +4551,14 @@ TEST_P(PrefetchServiceAlwaysBlockUntilHeadTest,
           "Prefetch.PrefetchMatchingBlockedNavigation.PerMatchingCandidate.%s",
           histogram_suffix),
       true, 1);
+
+  histogram_tester.ExpectUniqueSample(
+      base::StrCat({"Prefetch.PrefetchPotentialCandidateServingResult."
+                    "PerMatchingCandidate.",
+                    histogram_suffix}),
+      PrefetchPotentialCandidateServingResult::
+          kNotServedDeterminedNVSHeaderMismatch,
+      1);
 }
 
 // TODO(crbug.com/40249481): Test flaky on trybots.
@@ -4599,6 +4646,12 @@ TEST_P(PrefetchServiceAlwaysBlockUntilHeadTest,
           "Prefetch.PrefetchMatchingBlockedNavigation.PerMatchingCandidate.%s",
           histogram_suffix),
       true, 1);
+
+  histogram_tester.ExpectUniqueSample(
+      base::StrCat({"Prefetch.PrefetchPotentialCandidateServingResult."
+                    "PerMatchingCandidate.",
+                    histogram_suffix}),
+      PrefetchPotentialCandidateServingResult::kNotServedCookiesChanged, 1);
 }
 
 // TODO(crbug.com/40249481): Test flaky on trybots.
@@ -4659,6 +4712,13 @@ TEST_P(PrefetchServiceAlwaysBlockUntilHeadTest,
           "Prefetch.PrefetchMatchingBlockedNavigation.PerMatchingCandidate.%s",
           histogram_suffix),
       true, 1);
+
+  histogram_tester.ExpectUniqueSample(
+      base::StrCat({"Prefetch.PrefetchPotentialCandidateServingResult."
+                    "PerMatchingCandidate.",
+                    histogram_suffix}),
+      PrefetchPotentialCandidateServingResult::kNotServedBlockUntilHeadTimeout,
+      1);
 }
 
 // TODO(crbug.com/40249481): Test flaky on trybots.
@@ -4822,6 +4882,14 @@ TEST_P(PrefetchServiceAlwaysBlockUntilHeadTest,
           "Prefetch.PrefetchMatchingBlockedNavigation.PerMatchingCandidate.%s",
           histogram_suffix),
       true, 1);
+
+  histogram_tester.ExpectUniqueSample(
+      base::StrCat({"Prefetch.PrefetchPotentialCandidateServingResult."
+                    "PerMatchingCandidate.",
+                    histogram_suffix}),
+      PrefetchPotentialCandidateServingResult::
+          kNotServedUnsatisfiedPrefetchServeableState,
+      1);
 }
 
 // TODO(crbug.com/40064525): For NVSBlockUntilHeadReceivedOneMatchOneTimeout,
@@ -5314,6 +5382,13 @@ TEST_P(PrefetchServiceAlwaysBlockUntilHeadTest,
           "Prefetch.PrefetchMatchingBlockedNavigation.PerMatchingCandidate.%s",
           histogram_suffix),
       true, 1);
+
+  histogram_tester.ExpectUniqueSample(
+      base::StrCat({"Prefetch.PrefetchPotentialCandidateServingResult."
+                    "PerMatchingCandidate.",
+                    histogram_suffix}),
+      PrefetchPotentialCandidateServingResult::kNotServedBlockUntilHeadTimeout,
+      1);
 }
 
 TEST_P(PrefetchServiceAlwaysBlockUntilHeadTest,
@@ -5377,6 +5452,13 @@ TEST_P(PrefetchServiceAlwaysBlockUntilHeadTest,
           "Prefetch.PrefetchMatchingBlockedNavigation.PerMatchingCandidate.%s",
           histogram_suffix),
       true, 1);
+
+  histogram_tester.ExpectUniqueSample(
+      base::StrCat({"Prefetch.PrefetchPotentialCandidateServingResult."
+                    "PerMatchingCandidate.",
+                    histogram_suffix}),
+      PrefetchPotentialCandidateServingResult::kNotServedBlockUntilHeadTimeout,
+      1);
 }
 
 // TODO(crbug.com/40249481): Test flaky on trybots.
@@ -7266,7 +7348,7 @@ TEST_P(
   histogram_tester.ExpectUniqueSample(
       "Prefetch.PrefetchMatchingBlockedNavigation.PerMatchingCandidate."
       "SpeculationRule_"
-      "Immediate",
+      "Immediate2",
       false, 2);
 }
 
@@ -7334,7 +7416,7 @@ TEST_P(
   histogram_tester.ExpectUniqueSample(
       "Prefetch.PrefetchMatchingBlockedNavigation.PerMatchingCandidate."
       "SpeculationRule_"
-      "Immediate",
+      "Immediate2",
       true, 2);
 }
 
@@ -7408,7 +7490,7 @@ TEST_P(PrefetchServiceTest,
   histogram_tester.ExpectUniqueSample(
       "Prefetch.PrefetchMatchingBlockedNavigation.PerMatchingCandidate."
       "SpeculationRule_"
-      "Immediate",
+      "Immediate2",
       true, 2);
 }
 
@@ -7466,7 +7548,7 @@ TEST_P(PrefetchServiceTest,
   histogram_tester.ExpectUniqueSample(
       "Prefetch.PrefetchMatchingBlockedNavigation.PerMatchingCandidate."
       "SpeculationRule_"
-      "Immediate",
+      "Immediate2",
       true, 2);
 }
 
@@ -7555,7 +7637,7 @@ TEST_P(PrefetchServiceTest,
   histogram_tester.ExpectUniqueSample(
       "Prefetch.PrefetchMatchingBlockedNavigation.PerMatchingCandidate."
       "SpeculationRule_"
-      "Immediate",
+      "Immediate2",
       true, 1);
 
   prefetch_service.SetDelayEligibilityCheckForTesting(base::NullCallback());
@@ -8538,39 +8620,39 @@ TEST_P(
 
   histogram_tester.ExpectUniqueSample(
       "Prefetch.PrefetchMatchingBlockedNavigation.PerMatchingCandidate."
-      "SpeculationRule_Immediate",
+      "SpeculationRule_Immediate2",
       true, 1);
   histogram_tester.ExpectUniqueSample(
       "Prefetch.PrefetchMatchingBlockedNavigation.PerMatchingCandidate."
-      "NonPrerender.SpeculationRule_Immediate",
+      "NonPrerender.SpeculationRule_Immediate2",
       true, 1);
   histogram_tester.ExpectTotalCount(
       "Prefetch.PrefetchMatchingBlockedNavigation.PerMatchingCandidate."
-      "Prerender.SpeculationRule_Immediate",
+      "Prerender.SpeculationRule_Immediate2",
       0);
   histogram_tester.ExpectUniqueTimeSample(
       "Prefetch.BlockUntilHeadDuration.PerMatchingCandidate.Served."
-      "SpeculationRule_Immediate",
+      "SpeculationRule_Immediate2",
       base::Milliseconds(kHeaderLatency), 1);
   histogram_tester.ExpectTotalCount(
       "Prefetch.BlockUntilHeadDuration.PerMatchingCandidate.NotServed."
-      "SpeculationRule_Immediate",
+      "SpeculationRule_Immediate2",
       0);
   histogram_tester.ExpectUniqueTimeSample(
       "Prefetch.BlockUntilHeadDuration.PerMatchingCandidate.NonPrerender."
-      "Served.SpeculationRule_Immediate",
+      "Served.SpeculationRule_Immediate2",
       base::Milliseconds(kHeaderLatency), 1);
   histogram_tester.ExpectTotalCount(
       "Prefetch.BlockUntilHeadDuration.PerMatchingCandidate.NonPrerender."
-      "NotServed.SpeculationRule_Immediate",
+      "NotServed.SpeculationRule_Immediate2",
       0);
   histogram_tester.ExpectTotalCount(
       "Prefetch.BlockUntilHeadDuration.PerMatchingCandidate.Prerender.Served."
-      "SpeculationRule_Immediate",
+      "SpeculationRule_Immediate2",
       0);
   histogram_tester.ExpectTotalCount(
       "Prefetch.BlockUntilHeadDuration.PerMatchingCandidate.Prerender."
-      "NotServed.SpeculationRule_Immediate",
+      "NotServed.SpeculationRule_Immediate2",
       0);
 }
 

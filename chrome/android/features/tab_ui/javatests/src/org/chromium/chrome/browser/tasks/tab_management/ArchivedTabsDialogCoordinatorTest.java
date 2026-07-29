@@ -99,6 +99,7 @@ import org.chromium.content_public.browser.LoadUrlParams;
 import org.chromium.ui.base.DeviceFormFactor;
 import org.chromium.url.GURL;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -109,8 +110,6 @@ import java.util.List;
 @CommandLineFlags.Add({ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE})
 @DisableFeatures("IPH_AndroidTabDeclutter")
 public class ArchivedTabsDialogCoordinatorTest {
-    private static final int TAB1_ID = 456;
-    private static final Token TAB_GROUP_ID1 = new Token(829L, 283L);
     private static final String SYNC_GROUP_ID1 = "test_sync_group_id1";
     private static final String SYNC_GROUP_ID2 = "test_sync_group_id2";
     private static final String SYNC_GROUP_ID3 = "test_sync_group_id3";
@@ -146,12 +145,11 @@ public class ArchivedTabsDialogCoordinatorTest {
     private TabModel mRegularTabModel;
     private UserActionTester mUserActionTester;
     private TabArchiveSettings mTabArchiveSettings;
-    private int mTimesShown;
 
     private WebPageStation mInitialPage;
 
     @Before
-    public void setUp() throws Exception {
+    public void setUp() {
         TabGroupSyncServiceFactory.setForTesting(mTabGroupSyncService);
         when(mTabGroupSyncService.getAllGroupIds()).thenReturn(new String[] {});
         doNothing()
@@ -179,7 +177,6 @@ public class ArchivedTabsDialogCoordinatorTest {
 
     @After
     public void tearDown() {
-        mUserActionTester.tearDown();
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
                     mArchivedTabModel
@@ -191,7 +188,7 @@ public class ArchivedTabsDialogCoordinatorTest {
 
     @Test
     @MediumTest
-    public void testOneInactiveTab() throws Exception {
+    public void testOneInactiveTab() {
         addArchivedTab(new GURL("https://google.com"), "test 2");
 
         RegularTabSwitcherStation tabSwitcherStation = mInitialPage.openRegularTabSwitcher();
@@ -209,7 +206,7 @@ public class ArchivedTabsDialogCoordinatorTest {
 
     @Test
     @MediumTest
-    public void testTwoInactiveTabs() throws Exception {
+    public void testTwoInactiveTabs() {
         addArchivedTab(new GURL("https://google.com"), "test 1");
         addArchivedTab(new GURL("https://google.com"), "test 2");
 
@@ -224,7 +221,7 @@ public class ArchivedTabsDialogCoordinatorTest {
 
     @Test
     @MediumTest
-    public void testDialogIph() throws Exception {
+    public void testDialogIph() {
         addArchivedTab(new GURL("https://google.com"), "test 1");
         addArchivedTab(new GURL("https://google.com"), "test 2");
 
@@ -240,7 +237,7 @@ public class ArchivedTabsDialogCoordinatorTest {
 
     @Test
     @MediumTest
-    public void testDialogIph_Clicked() throws Exception {
+    public void testDialogIph_Clicked() {
         addArchivedTab(new GURL("https://google.com"), "test 1");
         addArchivedTab(new GURL("https://google.com"), "test 2");
 
@@ -268,7 +265,7 @@ public class ArchivedTabsDialogCoordinatorTest {
 
     @Test
     @LargeTest
-    public void testDialogIph_CloseDialog() throws Exception {
+    public void testDialogIph_CloseDialog() {
         addArchivedTab(new GURL("https://google.com"), "test 1");
         addArchivedTab(new GURL("https://google.com"), "test 2");
 
@@ -309,7 +306,7 @@ public class ArchivedTabsDialogCoordinatorTest {
 
     @Test
     @MediumTest
-    public void testRestoreAllInactiveTabs() throws Exception {
+    public void testRestoreAllInactiveTabs() {
         addArchivedTab(new GURL("https://google.com"), "test 1");
         addArchivedTab(new GURL("https://google.com"), "test 2");
 
@@ -332,7 +329,7 @@ public class ArchivedTabsDialogCoordinatorTest {
 
     @Test
     @MediumTest
-    public void testRestoreArchivedTabsAndOpenLast() throws Exception {
+    public void testRestoreArchivedTabsAndOpenLast() {
         addArchivedTab(new GURL("https://google.com"), "test 1");
         addArchivedTab(new GURL("https://google.com"), "test 2");
 
@@ -377,7 +374,7 @@ public class ArchivedTabsDialogCoordinatorTest {
 
     @Test
     @MediumTest
-    public void testSettings() throws Exception {
+    public void testSettings() {
         addArchivedTab(new GURL("https://google.com"), "test 1");
         addArchivedTab(new GURL("https://google.com"), "test 2");
 
@@ -403,7 +400,7 @@ public class ArchivedTabsDialogCoordinatorTest {
 
     @Test
     @MediumTest
-    public void testTurnOffArchiveThroughSettings() throws Exception {
+    public void testTurnOffArchiveThroughSettings() {
         mTabArchiveSettings.setShouldShowDialogIphForTesting(true);
         addArchivedTab(new GURL("https://google.com"), "test 1");
         addArchivedTab(new GURL("https://google.com"), "test 2");
@@ -433,7 +430,7 @@ public class ArchivedTabsDialogCoordinatorTest {
 
     @Test
     @MediumTest
-    public void testCloseAllArchivedTabs() throws Exception {
+    public void testCloseAllArchivedTabs() {
         addArchivedTab(new GURL("https://google.com"), "test 1");
         addArchivedTab(new GURL("https://google.com"), "test 2");
 
@@ -455,7 +452,7 @@ public class ArchivedTabsDialogCoordinatorTest {
 
     @Test
     @MediumTest
-    public void testCloseAllArchivedTabs_Cancel() throws Exception {
+    public void testCloseAllArchivedTabs_Cancel() {
         addArchivedTab(new GURL("https://google.com"), "test 1");
         addArchivedTab(new GURL("https://google.com"), "test 2");
 
@@ -640,7 +637,7 @@ public class ArchivedTabsDialogCoordinatorTest {
 
     @Test
     @MediumTest
-    public void testCloseDialogWithBackButton() throws Exception {
+    public void testCloseDialogWithBackButton() {
         addArchivedTab(new GURL("https://google.com"), "test 2");
 
         RegularTabSwitcherStation tabSwitcherStation = mInitialPage.openRegularTabSwitcher();
@@ -656,7 +653,7 @@ public class ArchivedTabsDialogCoordinatorTest {
 
     @Test
     @MediumTest
-    public void testRestoreAndOpenSingleTab() throws Exception {
+    public void testRestoreAndOpenSingleTab() {
         GURL archivedUrl = new GURL("https://www.google.com");
         Tab tab = addArchivedTab(archivedUrl, "test 1");
         int tabId = tab.getId();
@@ -682,7 +679,7 @@ public class ArchivedTabsDialogCoordinatorTest {
 
     @Test
     @MediumTest
-    public void testCloseArchivedTab() throws Exception {
+    public void testCloseArchivedTab() {
         addArchivedTab(new GURL("https://google.com"), "test 1");
         addArchivedTab(new GURL("https://google.com"), "test 2");
 
@@ -699,7 +696,7 @@ public class ArchivedTabsDialogCoordinatorTest {
 
     @Test
     @MediumTest
-    public void testCloseArchivedTab_SnackbarResetForTabSwitcher() throws Exception {
+    public void testCloseArchivedTab_SnackbarResetForTabSwitcher() {
         addArchivedTab(new GURL("https://google.com"), "test 1");
         addArchivedTab(new GURL("https://google.com"), "test 2");
 
@@ -756,7 +753,7 @@ public class ArchivedTabsDialogCoordinatorTest {
 
     @Test
     @MediumTest
-    public void testBottomShadowView() throws Exception {
+    public void testBottomShadowView() {
         for (int i = 0; i < 50; i++) {
             addArchivedTab(new GURL("https://google.com?q=" + i), "test " + i);
         }
@@ -775,7 +772,7 @@ public class ArchivedTabsDialogCoordinatorTest {
     @MediumTest
     // Scrolling all the way down on tablets is flaky.
     @Restriction(DeviceFormFactor.PHONE)
-    public void testBottomShadowView_DisappersWhenFullyScrolled() throws Exception {
+    public void testBottomShadowView_DisappersWhenFullyScrolled() {
         addArchivedTab(new GURL("https://google.com"), "test 1");
         addArchivedTab(new GURL("https://google.com"), "test 2");
         addArchivedTab(new GURL("https://google.com"), "test 3");
@@ -812,7 +809,7 @@ public class ArchivedTabsDialogCoordinatorTest {
     @MediumTest
     @Restriction(DeviceFormFactor.TABLET_OR_DESKTOP)
     @Feature({"RenderTest"})
-    public void testMessageResizedOnTablet() throws Exception {
+    public void testMessageResizedOnTablet() throws IOException {
         ChromeTabbedActivity cta = mCtaTestRule.getActivity();
         ActivityTestUtils.rotateActivityToOrientation(cta, ORIENTATION_PORTRAIT);
         addArchivedTab(new GURL("https://www.google.com/"), "test 2");
@@ -832,7 +829,7 @@ public class ArchivedTabsDialogCoordinatorTest {
     @MediumTest
     @Restriction(DeviceFormFactor.TABLET_OR_DESKTOP)
     @Feature({"RenderTest"})
-    public void testIphMessageResizedOnTablet() throws Exception {
+    public void testIphMessageResizedOnTablet() throws IOException {
         ChromeTabbedActivity cta = mCtaTestRule.getActivity();
         ActivityTestUtils.rotateActivityToOrientation(cta, ORIENTATION_PORTRAIT);
         addArchivedTab(new GURL("https://www.google1.com/"), "test 1");
@@ -858,7 +855,7 @@ public class ArchivedTabsDialogCoordinatorTest {
     @MediumTest
     @Feature({"RenderTest"})
     @EnableFeatures({ChromeFeatureList.ANDROID_TAB_DECLUTTER_ARCHIVE_TAB_GROUPS})
-    public void testTabGroupMultiThumbnail_3Tabs_4Tabs_5Tabs() throws Exception {
+    public void testTabGroupMultiThumbnail_3Tabs_4Tabs_5Tabs() throws IOException {
         ChromeTabbedActivity cta = mCtaTestRule.getActivity();
         when(mTabGroupSyncService.getAllGroupIds())
                 .thenReturn(new String[] {SYNC_GROUP_ID1, SYNC_GROUP_ID2, SYNC_GROUP_ID3});
@@ -879,7 +876,7 @@ public class ArchivedTabsDialogCoordinatorTest {
     @MediumTest
     @Feature({"RenderTest"})
     @EnableFeatures({ChromeFeatureList.ANDROID_TAB_DECLUTTER_ARCHIVE_TAB_GROUPS})
-    public void testTabGroupMultiThumbnail_SelectableBackgroundColor() throws Exception {
+    public void testTabGroupMultiThumbnail_SelectableBackgroundColor() throws IOException {
         ChromeTabbedActivity cta = mCtaTestRule.getActivity();
         when(mTabGroupSyncService.getAllGroupIds())
                 .thenReturn(new String[] {SYNC_GROUP_ID1, SYNC_GROUP_ID2, SYNC_GROUP_ID3});
@@ -988,8 +985,8 @@ public class ArchivedTabsDialogCoordinatorTest {
         assertTrue(
                 snackbarManager.getCurrentSnackbarForTesting().getController()
                         instanceof SavedTabGroupUndoBarController);
-        TabUiTestHelper.verifyUndoBarShowingAndClickUndo();
-        // CriteriaHelper.pollUiThread(() -> 3 == mArchivedTabModel.getCount());
+        CriteriaHelper.pollInstrumentationThread(TabUiTestHelper::verifyUndoBarShowingAndClickUndo);
+        CriteriaHelper.pollUiThread(() -> 3 == mArchivedTabModel.getCount());
         verify(mTabGroupSyncService).updateArchivalStatus(SYNC_GROUP_ID1, true);
         savedTabGroup.archivalTimeMs = System.currentTimeMillis();
         ThreadUtils.runOnUiThreadBlocking(
@@ -1042,7 +1039,7 @@ public class ArchivedTabsDialogCoordinatorTest {
         assertTrue(
                 snackbarManager.getCurrentSnackbarForTesting().getController()
                         instanceof SavedTabGroupUndoBarController);
-        TabUiTestHelper.verifyUndoBarShowingAndClickUndo();
+        CriteriaHelper.pollInstrumentationThread(TabUiTestHelper::verifyUndoBarShowingAndClickUndo);
         verify(mTabGroupSyncService).updateArchivalStatus(SYNC_GROUP_ID1, true);
         savedTabGroup.archivalTimeMs = System.currentTimeMillis();
         ThreadUtils.runOnUiThreadBlocking(
@@ -1104,7 +1101,7 @@ public class ArchivedTabsDialogCoordinatorTest {
         assertTrue(
                 snackbarManager.getCurrentSnackbarForTesting().getController()
                         instanceof SavedTabGroupUndoBarController);
-        TabUiTestHelper.verifyUndoBarShowingAndClickUndo();
+        CriteriaHelper.pollInstrumentationThread(TabUiTestHelper::verifyUndoBarShowingAndClickUndo);
         verify(mTabGroupSyncService).updateArchivalStatus(SYNC_GROUP_ID1, true);
         verify(mTabGroupSyncService).updateArchivalStatus(SYNC_GROUP_ID2, true);
         savedTabGroup1.archivalTimeMs = System.currentTimeMillis();
@@ -1164,7 +1161,7 @@ public class ArchivedTabsDialogCoordinatorTest {
     @Test
     @MediumTest
     @EnableFeatures({ChromeFeatureList.ANDROID_TAB_DECLUTTER_ARCHIVE_TAB_GROUPS})
-    public void testRestoreAllInactiveTabs_WithSyncedTabGroups() throws Exception {
+    public void testRestoreAllInactiveTabs_WithSyncedTabGroups() {
         when(mTabGroupSyncService.getAllGroupIds()).thenReturn(new String[] {SYNC_GROUP_ID1});
         SavedTabGroup savedTabGroup =
                 createSavedTabGroup(SYNC_GROUP_ID1, GROUP_TITLE1, SYNC_GROUP_COLOR1, 1, true);
@@ -1257,7 +1254,7 @@ public class ArchivedTabsDialogCoordinatorTest {
     @Test
     @MediumTest
     @EnableFeatures({ChromeFeatureList.ANDROID_TAB_DECLUTTER_ARCHIVE_TAB_GROUPS})
-    public void testCloseArchivedTabGroup_PressCloseButton() throws Exception {
+    public void testCloseArchivedTabGroup_PressCloseButton() {
         when(mTabGroupSyncService.getAllGroupIds()).thenReturn(new String[] {SYNC_GROUP_ID1});
         SavedTabGroup savedTabGroup =
                 createSavedTabGroup(SYNC_GROUP_ID1, GROUP_TITLE1, SYNC_GROUP_COLOR1, 1, true);

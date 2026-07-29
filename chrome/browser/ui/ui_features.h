@@ -158,6 +158,8 @@ enum class MiniToolbarActiveConfiguration {
 BASE_DECLARE_FEATURE_PARAM(MiniToolbarActiveConfiguration,
                            kSideBySideMiniToolbarActiveConfiguration);
 
+BASE_DECLARE_FEATURE_PARAM(int, kSideBySideSnapDistance);
+
 BASE_DECLARE_FEATURE(kSideBySideSessionRestore);
 
 bool IsRestoringSplitViewEnabled();
@@ -334,6 +336,8 @@ BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationCookieControls);
 BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationAutofillAddress);
 BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationFind);
 BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationCollaborationMessaging);
+BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationPriceTracking);
+BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationAutofillMandatoryReauth);
 
 // Determines whether the "save password" page action displays different UI if
 // the user has said to never save passwords for that site.
@@ -362,6 +366,11 @@ bool HasTabSearchToolbarButton();
 
 // Controls whether to show a toast for Chrome non milestone update.
 BASE_DECLARE_FEATURE(kNonMilestoneUpdateToast);
+
+// Controls whether the updated bookmark and tab group conversion is enabled.
+BASE_DECLARE_FEATURE(kBookmarkTabGroupConversion);
+
+bool IsBookmarkTabGroupConversionEnabled();
 
 }  // namespace features
 

@@ -262,7 +262,7 @@ std::unique_ptr<MockPasswordFormManagerForUI> CreateFormManagerWithBestMatches(
   auto form_manager =
       std::make_unique<testing::StrictMock<MockPasswordFormManagerForUI>>();
   EXPECT_CALL(*form_manager, GetBestMatches())
-      .Times(AtMost(2))
+      .Times(AtMost(3))
       .WillRepeatedly(Return(best_matches));
   EXPECT_CALL(*form_manager, GetFederatedMatches())
       .Times(AtMost(2))
@@ -290,7 +290,8 @@ std::unique_ptr<MockPasswordFormManagerForUI> CreateFormManagerWithBestMatches(
 class MockPasswordChangeService : public ChromePasswordChangeService {
  public:
   MockPasswordChangeService()
-      : ChromePasswordChangeService(/*affiliation_service=*/nullptr,
+      : ChromePasswordChangeService(/*pref_service*/ nullptr,
+                                    /*affiliation_service=*/nullptr,
                                     /*optimization_keyed_service=*/nullptr,
                                     /*settings_service=*/nullptr,
                                     /*feature_manager=*/nullptr) {}
@@ -592,6 +593,7 @@ TEST_F(ManagePasswordsUIControllerTest, BackupPasswordSaved) {
   auto test_form_manager = CreateFormManagerWithBestMatches(
       /*best_matches=*/{stored_matching_form}, &submitted_form);
 
+  EXPECT_CALL(*test_form_manager, OnRemovePasswordBackupNote()).Times(1);
   EXPECT_CALL(*test_form_manager, Save());
   controller()->OnUpdatePasswordSubmitted(std::move(test_form_manager));
 
@@ -2426,4 +2428,8 @@ TEST_F(ManagePasswordsUIControllerTest, ShowChangePasswordBubble) {
   EXPECT_EQ(controller()->PasswordChangeNewPassword(), kExamplePassword);
   EXPECT_TRUE(controller()->opened_automatic_bubble());
   ExpectIconAndControllerStateIs(password_manager::ui::PASSWORD_CHANGE_STATE);
+
+  EXPECT_CALL(*controller(), OnUpdateBubbleAndIconVisibility());
+  controller()->OnBubbleHidden();
+  ExpectIconAndControllerStateIs(password_manager::ui::INACTIVE_STATE);
 }

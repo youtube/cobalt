@@ -40,9 +40,7 @@
     [self addSubview:_editButton];
 
     if (IsNTPBackgroundCustomizationEnabled()) {
-      NSArray<UITrait>* colorTraits =
-          TraitCollectionSetForTraits(@[ NewTabPageTrait.class ]);
-      [self registerForTraitChanges:colorTraits
+      [self registerForTraitChanges:@[ NewTabPageTrait.class ]
                          withAction:@selector(applyBackgroundColors)];
       [self applyBackgroundColors];
     } else {
@@ -84,7 +82,7 @@
 // set.
 - (void)applyBackgroundColors {
   NewTabPageColorPalette* colorPalette =
-      [self.traitCollection objectForTrait:NewTabPageTrait.class];
+      [self.traitCollection objectForNewTabPageTrait];
 
   if (colorPalette) {
     _editButton.tintColor = colorPalette.tintColor;

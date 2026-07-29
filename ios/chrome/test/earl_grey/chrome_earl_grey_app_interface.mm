@@ -508,8 +508,14 @@ NSString* SerializedValue(const base::Value* value) {
 
   NSUserActivity* activity =
       [[NSUserActivity alloc] initWithActivityType:@"EG2NewWindow"];
-  UISceneActivationRequestOptions* options =
-      [[UISceneActivationRequestOptions alloc] init];
+  UIWindowSceneActivationRequestOptions* options =
+      [[UIWindowSceneActivationRequestOptions alloc] init];
+  if (@available(iOS 19.0, *)) {
+    // For iOS26 windowing, ensure the new window doesn't fully overlap the
+    // prior window.
+    options.placement = [UIWindowSceneProminentPlacement prominentPlacement];
+  }
+
   [UIApplication.sharedApplication
       requestSceneSessionActivation:nil /* make a new scene */
                        userActivity:activity
@@ -1181,10 +1187,6 @@ NSString* SerializedValue(const base::Value* value) {
   return base::FeatureList::IsEnabled(ukm::kUkmFeature);
 }
 
-+ (BOOL)isDWAEnabled {
-  return base::FeatureList::IsEnabled(metrics::dwa::kDwaFeature);
-}
-
 + (BOOL)isTestFeatureEnabled {
   return base::FeatureList::IsEnabled(kTestFeature);
 }
@@ -1224,10 +1226,6 @@ NSString* SerializedValue(const base::Value* value) {
   return ios::provider::IsLensSupported() &&
          ui::GetDeviceFormFactor() != ui::DEVICE_FORM_FACTOR_TABLET &&
          search_engines::SupportsSearchImageWithLens(service);
-}
-
-+ (BOOL)isTabGroupSyncEnabled {
-  return IsTabGroupSyncEnabled();
 }
 
 + (BOOL)isCurrentLayoutBottomOmnibox {

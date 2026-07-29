@@ -403,6 +403,9 @@ test("components_unittests") {
       "//components/supervised_user/test_support:account_repository_unit_tests",
     ]
   }
+  if (is_android) {
+    deps += [ "//components/supervised_user/core/browser/android:unit_tests" ]
+  }
 
   if (build_allocation_stack_trace_recorder) {
     deps += [
@@ -485,8 +488,8 @@ test("components_unittests") {
       "//components/history_clusters/core:unit_tests",
       "//components/history_embeddings:unit_tests",
       "//components/input:unit_tests",
+      "//components/invalidation:legacy_topics_cleanup_unit_tests",
       "//components/invalidation:unit_tests",
-      "//components/invalidation/impl:unit_tests",
       "//components/javascript_dialogs:unit_tests",
       "//components/js_injection/common:unit_tests",
       "//components/keyed_service/content:unit_tests",
@@ -561,10 +564,6 @@ test("components_unittests") {
 
   if (is_linux || is_win || is_mac) {
     deps += [ "//components/named_system_lock:unit_tests" ]
-  }
-
-  if (is_linux || is_win || is_mac || is_chromeos) {
-    deps += [ "//components/webapps/isolated_web_apps:unit_tests" ]
   }
 
   if (is_ios) {
@@ -672,7 +671,6 @@ test("components_unittests") {
       "//components/gcm_driver/instance_id:test_support",
       "//components/gcm_driver/instance_id/android:instance_id_driver_java",
       "//components/gcm_driver/instance_id/android:instance_id_driver_test_support_java",
-      "//components/invalidation/impl",
       "//components/media_router/browser/android:java",
       "//components/media_router/browser/android:test_support_java",
       "//components/messages/android:java",
@@ -720,6 +718,7 @@ test("components_unittests") {
     deps += [
       "//components/keep_alive_registry:unit_tests",
       "//components/manta:unit_tests",
+      "//components/password_manager/core/browser/actor_login/internal:unit_tests",
       "//components/trusted_vault:unit_tests",
     ]
   }
@@ -778,7 +777,6 @@ test("components_unittests") {
       "//components/peripherals/logging:unit_tests",
       "//components/reporting/health:unit_tests",
       "//components/user_manager:unit_tests",
-      "//components/variations/cros_evaluate_seed:unit_tests",
     ]
   }
 
@@ -787,7 +785,10 @@ test("components_unittests") {
   }
 
   if (is_win || is_linux || is_chromeos || is_mac) {
-    deps += [ "//components/stability_report:unit_tests" ]
+    deps += [
+      "//components/stability_report:unit_tests",
+      "//components/webapps/isolated_web_apps:unit_tests",
+    ]
   }
 
   if (is_win) {
@@ -1063,6 +1064,7 @@ if (use_blink) {
       "optimization_guide/content/browser/page_content_proto_provider_browsertest.cc",
       "optimization_guide/content/renderer/page_text_agent_browsertest.cc",
       "paint_preview/renderer/paint_preview_recorder_browsertest.cc",
+      "password_manager/content/browser/bad_message_browsertest.cc",
       "ukm/content/source_url_recorder_browsertest.cc",
       "url_rewrite/browser/url_request_rewrite_rules_manager_browsertest.cc",
     ]

@@ -209,12 +209,20 @@ class PaymentsAutofillClient : public RiskDataLoader {
     kIgnored,
   };
 
-  // Used for explicitly requesting the user to enter/confirm cardholder name,
-  // expiration date month and year.
+  // Carries card details that were explicitly provided or confirmed by the
+  // user in a save/update UI. This can include data from a fix flow
+  // (e.g., corrected name) or optional data from an initial save (e.g., CVC).
   struct UserProvidedCardDetails {
+    UserProvidedCardDetails();
+    UserProvidedCardDetails(const UserProvidedCardDetails&);
+    UserProvidedCardDetails& operator=(const UserProvidedCardDetails&);
+    UserProvidedCardDetails(UserProvidedCardDetails&&);
+    UserProvidedCardDetails& operator=(UserProvidedCardDetails&&);
+    ~UserProvidedCardDetails();
     std::u16string cardholder_name;
     std::u16string expiration_date_month;
     std::u16string expiration_date_year;
+    std::u16string cvc;
   };
 
   enum class CardSaveAndFillDialogUserDecision {
@@ -631,6 +639,13 @@ class PaymentsAutofillClient : public RiskDataLoader {
   virtual void ShowCreditCardUploadSaveAndFillDialog(
       const LegalMessageLines& legal_message_lines,
       CardSaveAndFillDialogCallback callback);
+
+  // Shows a pending state dialog with a throbber while the preflight
+  // response is being fetched. This pending state is a precursor to either the
+  // local or upload Save and Fill dialog. If the preflight call fails, the
+  // dialog transitions to the local version. If it succeeds, the dialog
+  // transitions to the server version.
+  virtual void ShowCreditCardSaveAndFillPendingDialog();
 
   // Gets the payments Save and Fill manager owned by the client. This will be
   // used to handle the Save and Fill dialog.

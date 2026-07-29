@@ -21,6 +21,7 @@ import org.chromium.chrome.browser.compositor.overlays.strip.AnimationHost;
 import org.chromium.chrome.browser.compositor.overlays.strip.ScrollDelegate;
 import org.chromium.chrome.browser.compositor.overlays.strip.StripLayoutGroupTitle;
 import org.chromium.chrome.browser.compositor.overlays.strip.StripLayoutTab;
+import org.chromium.chrome.browser.compositor.overlays.strip.StripLayoutTabDelegate;
 import org.chromium.chrome.browser.compositor.overlays.strip.StripLayoutUtils;
 import org.chromium.chrome.browser.compositor.overlays.strip.StripLayoutView;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
@@ -124,6 +125,7 @@ public class ReorderDelegate {
 
     private ReorderStrategy mActiveStrategy;
     private TabReorderStrategy mTabStrategy;
+    private MultiTabReorderStrategy mMultiTabStrategy;
     private GroupReorderStrategy mGroupStrategy;
     @Nullable private SourceViewDragDropReorderStrategy mSourceViewDragDropReorderStrategy;
     @Nullable private ExternalViewDragDropReorderStrategy mExternalViewDragDropReorderStrategy;
@@ -145,7 +147,8 @@ public class ReorderDelegate {
         return getInReorderMode()
                 && ((mActiveStrategy == mSourceViewDragDropReorderStrategy
                                 && mSourceViewDragDropReorderStrategy.isReorderingTab())
-                        || mActiveStrategy == mTabStrategy);
+                        || mActiveStrategy == mTabStrategy
+                        || mActiveStrategy == mMultiTabStrategy);
     }
 
     private boolean isReorderingForTabDrop() {
@@ -171,6 +174,11 @@ public class ReorderDelegate {
             return mExternalViewDragDropReorderStrategy;
         } else {
             if (instanceOfTab) {
+                StripLayoutTab tab = (StripLayoutTab) interactingView;
+                if (mModel.isTabMultiSelected(tab.getTabId())
+                        && mModel.getMultiSelectedTabsCount() > 1) {
+                    return mMultiTabStrategy;
+                }
                 return mTabStrategy;
             } else if (instanceOfGroup) {
                 return mGroupStrategy;
@@ -233,6 +241,19 @@ public class ReorderDelegate {
                         mTabWidthSupplier,
                         mLastReorderScrollTimeSupplier,
                         mInReorderModeSupplier);
+        mMultiTabStrategy =
+                new MultiTabReorderStrategy(
+                        /* reorderDelegate= */ this,
+                        mStripUpdateDelegate,
+                        mAnimationHost,
+                        mScrollDelegate,
+                        mModel,
+                        mTabGroupModelFilter,
+                        mContainerView,
+                        mGroupIdToHideSupplier,
+                        mTabWidthSupplier,
+                        mLastReorderScrollTimeSupplier,
+                        mInReorderModeSupplier);
         mGroupStrategy =
                 new GroupReorderStrategy(
                         /* reorderDelegate= */ this,
@@ -261,6 +282,7 @@ public class ReorderDelegate {
                             tabStripDragHandler,
                             actionConfirmationManager,
                             mTabStrategy,
+                            mMultiTabStrategy,
                             mGroupStrategy);
             mExternalViewDragDropReorderStrategy =
                     new ExternalViewDragDropReorderStrategy(
@@ -470,6 +492,35 @@ public class ReorderDelegate {
             StripLayoutGroupTitle[] groupTitles, List<Integer> tabIds, int dropIndex) {
         assert mInitialized && mExternalViewDragDropReorderStrategy != null;
         return mExternalViewDragDropReorderStrategy.handleDrop(groupTitles, tabIds, dropIndex);
+    }
+
+    /**
+     * Called to trigger an animated reorder when not in reorder mode. This can be triggered through
+     * keyboard shortcuts.
+     *
+     * @param tabDelegate The {@link StripLayoutTabDelegate} for updating tab visuals.
+     * @param stripViews The list of {@link StripLayoutView}.
+     * @param groupTitles The list of {@link StripLayoutGroupTitle}.
+     * @param stripTabs The list of {@link StripLayoutTab}.
+     * @param reorderingView The view to reorder.
+     * @param toLeft {@code True} if reordering the view to the left.
+     */
+    public void reorderViewInDirection(
+            StripLayoutTabDelegate tabDelegate,
+            StripLayoutView[] stripViews,
+            StripLayoutGroupTitle[] groupTitles,
+            StripLayoutTab[] stripTabs,
+            StripLayoutView reorderingView,
+            boolean toLeft) {
+        if (reorderingView instanceof StripLayoutTab) {
+            mTabStrategy.reorderViewInDirection(
+                    tabDelegate, stripViews, groupTitles, stripTabs, reorderingView, toLeft);
+        } else if (reorderingView instanceof StripLayoutGroupTitle) {
+            mGroupStrategy.reorderViewInDirection(
+                    tabDelegate, stripViews, groupTitles, stripTabs, reorderingView, toLeft);
+        } else {
+            assert false : "Attempted to reorder an invalid view type.";
+        }
     }
 
     // ============================================================================================

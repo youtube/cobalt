@@ -12,18 +12,16 @@
 
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
+#include "components/prefs/pref_observer.h"
 #include "components/prefs/prefs_export.h"
 #include "components/prefs/transparent_unordered_string_map.h"
 
 class PrefService;
-namespace base {
-class CallbackListSubscription;
-}
 
 // Automatically manages the registration of one or more pref change observers
 // with a PrefStore. When the Registrar is destroyed, all registered observers
 // are automatically unregistered with the PrefStore.
-class COMPONENTS_PREFS_EXPORT PrefChangeRegistrar {
+class COMPONENTS_PREFS_EXPORT PrefChangeRegistrar final : public PrefObserver {
  public:
   // You can register this type of callback if you need to know the
   // path of the preference that is changing.
@@ -36,7 +34,7 @@ class COMPONENTS_PREFS_EXPORT PrefChangeRegistrar {
   PrefChangeRegistrar(const PrefChangeRegistrar&) = delete;
   PrefChangeRegistrar& operator=(const PrefChangeRegistrar&) = delete;
 
-  ~PrefChangeRegistrar();
+  ~PrefChangeRegistrar() final;
 
   // Must be called before adding or removing observers. Can be called more
   // than once as long as the value of |service| doesn't change.
@@ -75,10 +73,14 @@ class COMPONENTS_PREFS_EXPORT PrefChangeRegistrar {
   const PrefService* prefs() const;
 
  private:
-  using SubscriptionMap =
-      TransparentUnorderedStringMap<base::CallbackListSubscription>;
+  // PrefObserver:
+  void OnServiceDestroyed(PrefService* service) final;
+  void OnPreferenceChanged(PrefService* service,
+                           std::string_view pref_name) final;
 
-  SubscriptionMap subscriptions_;
+  using ObserverMap = TransparentUnorderedStringMap<NamedChangeAsViewCallback>;
+
+  ObserverMap observers_;
   raw_ptr<PrefService, AcrossTasksDanglingUntriaged> service_;
 };
 

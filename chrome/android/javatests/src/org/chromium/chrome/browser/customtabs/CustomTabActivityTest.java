@@ -108,6 +108,7 @@ import org.chromium.base.shared_preferences.SharedPreferencesManager;
 import org.chromium.base.supplier.ObservableSupplierImpl;
 import org.chromium.base.task.PostTask;
 import org.chromium.base.task.TaskTraits;
+import org.chromium.base.test.transit.Triggers;
 import org.chromium.base.test.util.ApplicationTestUtils;
 import org.chromium.base.test.util.CallbackHelper;
 import org.chromium.base.test.util.CommandLineFlags;
@@ -128,7 +129,6 @@ import org.chromium.base.test.util.UserActionTester;
 import org.chromium.chrome.browser.ChromeTabbedActivity;
 import org.chromium.chrome.browser.IntentHandler;
 import org.chromium.chrome.browser.LaunchIntentDispatcher;
-import org.chromium.chrome.browser.TabsOpenedFromExternalAppTest;
 import org.chromium.chrome.browser.WarmupManager;
 import org.chromium.chrome.browser.browserservices.SessionDataHolder;
 import org.chromium.chrome.browser.browserservices.intents.BrowserServicesIntentDataProvider;
@@ -176,6 +176,7 @@ import org.chromium.chrome.test.OverrideContextWrapperTestRule;
 import org.chromium.chrome.test.R;
 import org.chromium.chrome.test.transit.ChromeTransitTestRules;
 import org.chromium.chrome.test.transit.FreshCtaTransitTestRule;
+import org.chromium.chrome.test.transit.page.ReferrerCondition;
 import org.chromium.chrome.test.util.ActivityTestUtils;
 import org.chromium.chrome.test.util.ChromeTabUtils;
 import org.chromium.chrome.test.util.browser.contextmenu.ContextMenuUtils;
@@ -1120,8 +1121,54 @@ public class CustomTabActivityTest {
     @Test
     @SmallTest
     public void testCallbacksAreSent() throws Exception {
+        final Semaphore tabShownSemaphore = new Semaphore(0);
         final Semaphore navigationStartSemaphore = new Semaphore(0);
         final Semaphore navigationFinishedSemaphore = new Semaphore(0);
+        Intent intent =
+                createIntentWithCallback(
+                        tabShownSemaphore, navigationStartSemaphore, navigationFinishedSemaphore);
+        mCustomTabActivityTestRule.startCustomTabActivityWithIntent(intent);
+        Assert.assertTrue(
+                tabShownSemaphore.tryAcquire(TIMEOUT_PAGE_LOAD_SECONDS, TimeUnit.SECONDS));
+        Assert.assertTrue(
+                navigationStartSemaphore.tryAcquire(TIMEOUT_PAGE_LOAD_SECONDS, TimeUnit.SECONDS));
+        Assert.assertTrue(
+                navigationFinishedSemaphore.tryAcquire(
+                        TIMEOUT_PAGE_LOAD_SECONDS, TimeUnit.SECONDS));
+    }
+
+    /** Tests that the navigation callbacks are sent for pre-warmed CCT. */
+    @Test
+    @SmallTest
+    public void testCallbacksAreSentForPreWarmedCCT() throws Exception {
+        final Semaphore tabShownSemaphore = new Semaphore(0);
+        final Semaphore navigationStartSemaphore = new Semaphore(0);
+        final Semaphore navigationFinishedSemaphore = new Semaphore(0);
+        CustomTabsConnection connection = CustomTabsTestUtils.warmUpAndWait();
+        Intent intent =
+                createIntentWithCallback(
+                        tabShownSemaphore, navigationStartSemaphore, navigationFinishedSemaphore);
+        final var token = SessionHolder.getSessionHolderFromIntent(intent);
+        Assert.assertTrue(connection.newSession(token.getSessionAsCustomTab()));
+        Assert.assertTrue(
+                connection.mayLaunchUrl(
+                        token.getSessionAsCustomTab(), Uri.parse(mTestPage), null, null));
+        mCustomTabActivityTestRule.startCustomTabActivityWithIntent(intent);
+
+        Assert.assertTrue(
+                tabShownSemaphore.tryAcquire(TIMEOUT_PAGE_LOAD_SECONDS, TimeUnit.SECONDS));
+        Assert.assertTrue(
+                navigationStartSemaphore.tryAcquire(TIMEOUT_PAGE_LOAD_SECONDS, TimeUnit.SECONDS));
+        Assert.assertTrue(
+                navigationFinishedSemaphore.tryAcquire(
+                        TIMEOUT_PAGE_LOAD_SECONDS, TimeUnit.SECONDS));
+    }
+
+    private Intent createIntentWithCallback(
+            Semaphore tabShownSemaphore,
+            Semaphore navigationStartSemaphore,
+            Semaphore navigationFinishedSemaphore)
+            throws Exception {
         CustomTabsSession session =
                 CustomTabsTestUtils.bindWithCallback(
                                 new CustomTabsCallback() {
@@ -1134,7 +1181,9 @@ public class CustomTabActivityTest {
                                         Assert.assertNotEquals(
                                                 CustomTabsCallback.NAVIGATION_ABORTED,
                                                 navigationEvent);
-                                        if (navigationEvent
+                                        if (navigationEvent == CustomTabsCallback.TAB_SHOWN) {
+                                            tabShownSemaphore.release();
+                                        } else if (navigationEvent
                                                 == CustomTabsCallback.NAVIGATION_STARTED) {
                                             navigationStartSemaphore.release();
                                         } else if (navigationEvent
@@ -1150,13 +1199,7 @@ public class CustomTabActivityTest {
                 new ComponentName(
                         ApplicationProvider.getApplicationContext(), ChromeLauncherActivity.class));
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-
-        mCustomTabActivityTestRule.startCustomTabActivityWithIntent(intent);
-        Assert.assertTrue(
-                navigationStartSemaphore.tryAcquire(TIMEOUT_PAGE_LOAD_SECONDS, TimeUnit.SECONDS));
-        Assert.assertTrue(
-                navigationFinishedSemaphore.tryAcquire(
-                        TIMEOUT_PAGE_LOAD_SECONDS, TimeUnit.SECONDS));
+        return intent;
     }
 
     /** Tests that page load metrics are sent. */
@@ -1844,8 +1887,7 @@ public class CustomTabActivityTest {
         CriteriaHelper.pollInstrumentationThread(
                 new ElementContentCriteria(tab, "visibility", "hidden"), 2000, 200);
         // The Referrer is correctly set.
-        CriteriaHelper.pollInstrumentationThread(
-                new TabsOpenedFromExternalAppTest.ReferrerCriteria(tab, referrer), 2000, 200);
+        Triggers.noopTo().waitFor(new ReferrerCondition(() -> tab, referrer));
     }
 
     /**
@@ -1866,8 +1908,7 @@ public class CustomTabActivityTest {
         CriteriaHelper.pollInstrumentationThread(
                 new ElementContentCriteria(tab, "visibility", "visible"), 2000, 200);
         // The Referrer is correctly set.
-        CriteriaHelper.pollInstrumentationThread(
-                new TabsOpenedFromExternalAppTest.ReferrerCriteria(tab, launchReferrer), 2000, 200);
+        Triggers.noopTo().waitFor(new ReferrerCondition(() -> tab, launchReferrer));
     }
 
     /** Tests that a client can set a referrer, without speculating. */
@@ -1880,8 +1921,7 @@ public class CustomTabActivityTest {
 
         Tab tab = getActivity().getActivityTab();
         // The Referrer is correctly set.
-        CriteriaHelper.pollInstrumentationThread(
-                new TabsOpenedFromExternalAppTest.ReferrerCriteria(tab, referrerUrl), 2000, 200);
+        Triggers.noopTo().waitFor(new ReferrerCondition(() -> tab, referrerUrl));
     }
 
     @Test

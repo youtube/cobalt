@@ -46,7 +46,6 @@
 #include "components/autofill/core/browser/form_structure.h"
 #include "components/autofill/core/browser/foundations/autofill_client.h"
 #include "components/autofill/core/browser/integrators/autofill_ai/autofill_ai_import_utils.h"
-#include "components/autofill/core/browser/integrators/autofill_ai/autofill_ai_suggestions.h"
 #include "components/autofill/core/browser/integrators/autofill_ai/metrics/autofill_ai_logger.h"
 #include "components/autofill/core/browser/logging/log_manager.h"
 #include "components/autofill/core/browser/ml_model/autofill_ai/autofill_ai_model_executor.h"
@@ -55,6 +54,7 @@
 #include "components/autofill/core/browser/strike_databases/autofill_ai/autofill_ai_save_strike_database_by_host.h"
 #include "components/autofill/core/browser/strike_databases/autofill_ai/autofill_ai_update_strike_database.h"
 #include "components/autofill/core/browser/strike_databases/strike_database.h"
+#include "components/autofill/core/browser/suggestions/autofill_ai/autofill_ai_suggestion_generator.h"
 #include "components/autofill/core/browser/suggestions/suggestion.h"
 #include "components/autofill/core/browser/suggestions/suggestion_type.h"
 #include "components/autofill/core/common/autofill_features.h"
@@ -191,16 +191,20 @@ AutofillAiManager::AutofillAiManager(AutofillClient* client,
 
 AutofillAiManager::~AutofillAiManager() = default;
 
-void AutofillAiManager::OnSuggestionsShown(const FormStructure& form,
-                                           const AutofillField& field,
-                                           ukm::SourceId ukm_source_id) {
-  logger_.OnSuggestionsShown(form, field, ukm_source_id);
+void AutofillAiManager::OnSuggestionsShown(
+    const FormStructure& form,
+    const AutofillField& field,
+    DenseSet<EntityType> suggested_entity_types,
+    ukm::SourceId ukm_source_id) {
+  logger_.OnSuggestionsShown(form, field, suggested_entity_types,
+                             ukm_source_id);
 }
 
 void AutofillAiManager::OnFormSeen(const FormStructure& form) {
-  bool is_eligible = AreFieldsRelevantForAutofillAi(form.fields());
-  logger_.OnFormEligibilityAvailable(form.global_id(), is_eligible);
-  if (!is_eligible) {
+  const DenseSet<EntityType> relevant_entities =
+      GetRelevantEntityTypesForFields(form.fields());
+  logger_.OnFormEligibilityAvailable(form.global_id(), relevant_entities);
+  if (relevant_entities.empty()) {
     return;
   }
 
@@ -208,30 +212,34 @@ void AutofillAiManager::OnFormSeen(const FormStructure& form) {
   if (!entity_manager) {
     return;
   }
-  if (entity_manager->GetEntityInstances().empty()) {
+
+  auto entities_to_fill = DenseSet<EntityType>(
+      entity_manager->GetEntityInstances(), &EntityInstance::type);
+  entities_to_fill.intersect(relevant_entities);
+  if (entities_to_fill.empty()) {
     return;
   }
-  // TODO(crbug.com/389629573): We should check whether any of `entities`
-  // can actually fill a field in the `form`, not only whether entities
-  // exist.
-  logger_.OnFormHasDataToFill(form.global_id());
+
+  logger_.OnFormHasDataToFill(form.global_id(), entities_to_fill);
 }
 
 void AutofillAiManager::OnDidFillSuggestion(
-    const base::Uuid& guid,
+    const EntityInstance& entity,
     const FormStructure& form,
     const AutofillField& trigger_field,
     base::span<const AutofillField* const> filled_fields,
     ukm::SourceId ukm_source_id) {
-  logger_.OnDidFillSuggestion(form, trigger_field, ukm_source_id);
+  logger_.OnDidFillSuggestion(form, trigger_field, entity.type(),
+                              ukm_source_id);
   for (const AutofillField* const field : filled_fields) {
-    logger_.OnDidFillField(form, CHECK_DEREF(field), ukm_source_id);
+    logger_.OnDidFillField(form, CHECK_DEREF(field), entity.type(),
+                           ukm_source_id);
   }
   EntityDataManager* entity_manager = client_->GetEntityDataManager();
   if (!entity_manager) {
     return;
   }
-  entity_manager->RecordEntityUsed(guid, base::Time::Now());
+  entity_manager->RecordEntityUsed(entity.guid(), base::Time::Now());
 }
 
 void AutofillAiManager::OnEditedAutofilledField(const FormStructure& form,
@@ -242,10 +250,8 @@ void AutofillAiManager::OnEditedAutofilledField(const FormStructure& form,
 
 bool AutofillAiManager::OnFormSubmitted(const FormStructure& form,
                                         ukm::SourceId ukm_source_id) {
-  if (AreFieldsRelevantForAutofillAi(form.fields())) {
-    logger_.RecordFormMetrics(form, ukm_source_id, /*submission_state=*/true,
-                              GetAutofillAiOptInStatus(*client_));
-  }
+  logger_.RecordFormMetrics(form, ukm_source_id, /*submission_state=*/true,
+                            GetAutofillAiOptInStatus(*client_));
   return MaybeImportForm(form);
 }
 
@@ -345,29 +351,32 @@ void AutofillAiManager::HandleUpdatePromptResult(
 std::vector<Suggestion> AutofillAiManager::GetSuggestions(
     const FormStructure& form,
     const FormFieldData& trigger_field) {
-  if (!MayPerformAutofillAiAction(*client_, AutofillAiAction::kFilling)) {
-    return {};
-  }
-
-  EntityDataManager* entity_manager = client_->GetEntityDataManager();
-  if (!entity_manager) {
-    return {};
-  }
-
-  base::span<const EntityInstance> entities =
-      entity_manager->GetEntityInstances();
-  if (entities.empty()) {
-    return {};
-  }
-
+  AutofillAiSuggestionGenerator suggestion_generator;
+  std::vector<Suggestion> suggestions;
   const AutofillField* autofill_field =
       form.GetFieldById(trigger_field.global_id());
-  if (!autofill_field) {
-    return {};
-  }
 
-  return CreateFillingSuggestions(form, trigger_field, entities,
-                                  client_->GetAppLocale());
+  auto on_suggestion_data_returned =
+      [&form, &autofill_field, &trigger_field, &suggestions,
+       &suggestion_generator](
+          std::pair<FillingProduct,
+                    std::vector<SuggestionGenerator::SuggestionData>>
+              suggestion_data) {
+        suggestion_generator.GenerateSuggestions(
+            form.ToFormData(), trigger_field, &form, autofill_field,
+            {std::move(suggestion_data)},
+            [&suggestions](
+                SuggestionGenerator::ReturnedSuggestions returned_suggestions) {
+              suggestions = std::move(returned_suggestions.second);
+            });
+      };
+
+  // Since the `on_suggestion_data_returned` callback is called synchronously,
+  // we can assume that `suggestions_generated` will hold correct value.
+  suggestion_generator.FetchSuggestionData(form.ToFormData(), trigger_field,
+                                           &form, autofill_field, *client_,
+                                           on_suggestion_data_returned);
+  return suggestions;
 }
 
 bool AutofillAiManager::ShouldDisplayIph(const FormStructure& form,
@@ -398,8 +407,8 @@ bool AutofillAiManager::ShouldDisplayIph(const FormStructure& form,
   // We want to show IPH if filling the `focused_field` and fields that belong
   // to the same entity leads to an import.
   std::map<EntityType, DenseSet<AttributeType>> attributes_in_form;
-  for (auto [entity, fields_and_types] :
-       DetermineAttributeTypes(form.fields(), focused_field->section())) {
+  for (auto [entity, fields_and_types] : RationalizeAndDetermineAttributeTypes(
+           form.fields(), focused_field->section())) {
     if (base::Contains(fields_and_types, focused_field->global_id(),
                        [](const AutofillFieldWithAttributeType& f) {
                          return f.field->global_id();

@@ -104,18 +104,21 @@ bool SaveCardOfferBubbleViews::Accept() {
   }
 
   if (controller()) {
-    controller()->OnSaveButton(
-        {cardholder_name_textfield_
-             ? std::u16string(cardholder_name_textfield_->GetText())
-             : std::u16string(),
-         month_input_dropdown_
-             ? month_input_dropdown_->GetModel()->GetItemAt(
-                   month_input_dropdown_->GetSelectedIndex().value())
-             : std::u16string(),
-         year_input_dropdown_
-             ? year_input_dropdown_->GetModel()->GetItemAt(
-                   year_input_dropdown_->GetSelectedIndex().value())
-             : std::u16string()});
+    payments::PaymentsAutofillClient::UserProvidedCardDetails details;
+    if (cardholder_name_textfield_) {
+      details.cardholder_name = cardholder_name_textfield_->GetText();
+    }
+    if (month_input_dropdown_) {
+      details.expiration_date_month =
+          month_input_dropdown_->GetModel()->GetItemAt(
+              month_input_dropdown_->GetSelectedIndex().value());
+    }
+    if (year_input_dropdown_) {
+      details.expiration_date_year =
+          year_input_dropdown_->GetModel()->GetItemAt(
+              year_input_dropdown_->GetSelectedIndex().value());
+    }
+    controller()->OnSaveButton(details);
   }
 
   // If a throbber is shown, don't automatically close the bubble view upon
@@ -166,10 +169,25 @@ bool SaveCardOfferBubbleViews::IsDialogButtonEnabled(
 
 void SaveCardOfferBubbleViews::AddedToWidget() {
   SaveCardBubbleViews::AddedToWidget();
+  int lottie_resource_id;
+  switch (controller()->GetBubbleType()) {
+    case BubbleType::UPLOAD_SAVE:
+    case BubbleType::UPLOAD_IN_PROGRESS:
+    case BubbleType::UPLOAD_COMPLETED:
+      lottie_resource_id = IDR_AUTOFILL_SAVE_CARD_SECURE_LOTTIE;
+      break;
+    case BubbleType::LOCAL_CVC_SAVE:
+    case BubbleType::UPLOAD_CVC_SAVE:
+      lottie_resource_id = IDR_AUTOFILL_SAVE_SECURITY_CODE_LOTTIE;
+      break;
+    default:
+      lottie_resource_id = IDR_AUTOFILL_SAVE_CARD_LOCAL_LOTTIE;
+  }
+
   // Set the header image.
   ui::ResourceBundle& bundle = ui::ResourceBundle::GetSharedInstance();
   auto image_view = std::make_unique<views::ImageView>(
-      bundle.GetThemedLottieImageNamed(IDR_AUTOFILL_SAVE_CARD_LOTTIE));
+      bundle.GetThemedLottieImageNamed(lottie_resource_id));
   image_view->GetViewAccessibility().SetIsInvisible(true);
   GetBubbleFrameView()->SetHeaderView(std::move(image_view));
 }

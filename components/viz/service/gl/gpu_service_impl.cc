@@ -130,6 +130,7 @@
 
 #if BUILDFLAG(IS_OZONE)
 #include "ui/ozone/public/ozone_platform.h"
+#include "ui/ozone/public/surface_factory_ozone.h"
 #endif  // BUILDFLAG(IS_OZONE)
 
 namespace viz {
@@ -697,6 +698,7 @@ void GpuServiceImpl::BindWebNNContextProvider(
     // `client_id` in order to support memory metrics.
     webnn_context_provider_ = webnn::WebNNContextProviderImpl::Create(
         std::move(shared_context_state), gpu_feature_info_, gpu_info_,
+        shared_image_manager(),
         base::BindOnce(&GpuServiceImpl::LoseAllContexts, weak_ptr_),
         main_runner(), GetGpuScheduler(), client_id);
   }
@@ -1267,26 +1269,31 @@ bool GpuServiceImpl::OnBeginFrameDerivedImpl(const BeginFrameArgs& args) {
 #if BUILDFLAG(IS_LINUX)
 bool GpuServiceImpl::IsGMBNV12Supported() {
   CHECK(main_runner_->BelongsToCurrentThread());
+
+  // Determine whether it's possible to create an NV12 NativePixmap with
+  // GPU_READ_CPU_READ_WRITE usage (the relevant usage for the clients of this
+  // method).
   auto buffer_format = gfx::BufferFormat::YUV_420_BIPLANAR;
   auto buffer_usage = gfx::BufferUsage::GPU_READ_CPU_READ_WRITE;
 
   if (!IsNativeBufferSupported(buffer_format, buffer_usage)) {
     return false;
   }
+
   auto size = gfx::Size(2, 2);
+  scoped_refptr<gfx::NativePixmap> pixmap =
+      ui::OzonePlatform::GetInstance()
+          ->GetSurfaceFactoryOzone()
+          ->CreateNativePixmap(gpu::kNullSurfaceHandle,
+                               vulkan_context_provider()
+                                   ? vulkan_context_provider()->GetDeviceQueue()
+                                   : nullptr,
+                               size, buffer_format, buffer_usage, size);
+  if (!pixmap.get() || pixmap->ExportHandle().planes.empty()) {
+    return false;
+  }
 
-  // Note that |gmb_id| and |client_id| does not matter here as this is the
-  // first GMB which will created and immediately destroyed.
-  auto gmb_id = gfx::GpuMemoryBufferId(
-      static_cast<int>(gpu::MappableSIClientGmbId::kGpuServiceImpl));
-  auto client_id = gpu::kMappableSIClientId;
-  auto gmb_handle = gpu_memory_buffer_factory_->CreateGpuMemoryBuffer(
-      gmb_id, size, /*framebuffer_size=*/size, buffer_format, buffer_usage,
-      client_id, gpu::kNullSurfaceHandle);
-
-  // Destroy the gmb_handle since it will be no longer needed.
-  gpu_memory_buffer_factory_->DestroyGpuMemoryBuffer(gmb_id, client_id);
-  return !gmb_handle.is_null();
+  return true;
 }
 #endif
 

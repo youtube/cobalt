@@ -129,6 +129,8 @@ std::string GetRequestTypeName(
       return "VibrationApi";
     case safe_browsing::ClientSideDetectionType::FULLSCREEN_API:
       return "FullscreenApi";
+    case safe_browsing::ClientSideDetectionType::CLIPBOARD_COPY_API:
+      return "ClipboardCopyApi";
   }
 }
 
@@ -150,6 +152,8 @@ safe_browsing::mojom::ClientSideDetectionType GetClientSideDetectionMojomType(
       return safe_browsing::mojom::ClientSideDetectionType::kVibrationApi;
     case safe_browsing::ClientSideDetectionType::FULLSCREEN_API:
       return safe_browsing::mojom::ClientSideDetectionType::kFullscreen;
+    case safe_browsing::ClientSideDetectionType::CLIPBOARD_COPY_API:
+      return safe_browsing::mojom::ClientSideDetectionType::kClipboardCopyApi;
     case safe_browsing::ClientSideDetectionType::
         CLIENT_SIDE_DETECTION_TYPE_UNSPECIFIED:
     default:
@@ -496,6 +500,12 @@ class ClientSideDetectionHost::ShouldClassifyUrlRequest {
             "SBClientPhishing.MatchCSDAllowlistOnFullscreenApi",
             match_allowlist);
       }
+      if (phishing_detection_request_type_ ==
+          ClientSideDetectionType::CLIPBOARD_COPY_API) {
+        base::UmaHistogramBoolean(
+            "SBClientPhishing.MatchCSDAllowlistOnClipboardCopyApi",
+            match_allowlist);
+      }
       // This check is also for logging purposes although the CSD allowlist
       // could be matched or not checked at all. Once it completes,
       // preclassification check will continue.
@@ -557,11 +567,14 @@ class ClientSideDetectionHost::ShouldClassifyUrlRequest {
     }
 
     if (phishing_detection_request_type_ ==
-        ClientSideDetectionType::FULLSCREEN_API) {
-      // The purpose of triggering preclassification for fullscreen API to have
+            ClientSideDetectionType::FULLSCREEN_API ||
+        (phishing_detection_request_type_ ==
+             ClientSideDetectionType::CLIPBOARD_COPY_API &&
+         !base::FeatureList::IsEnabled(kClientSideDetectionClipboardCopyApi))) {
+      // The purpose of triggering preclassification for these APIs is to have
       // an initial assessment on how often we'll be hitting the allowlist and
-      // triggering the classification. We will not go further than checking for
-      // this metric for now.
+      // triggering the classification. We will not go further than checking
+      // for this metric, unless otherwise specified by feature flags.
       DontClassifyForPhishing(
           PreClassificationCheckResult::NO_CLASSIFY_ALLOWLIST_METRIC);
     }
@@ -579,7 +592,7 @@ class ClientSideDetectionHost::ShouldClassifyUrlRequest {
           /*is_from_cache=*/true, ClientSideDetectionType::TRIGGER_MODELS,
           did_match_high_confidence_allowlist_, url_, is_phishing,
           /*response_code=*/std::nullopt,
-          /*IntelligentScanVerdict=*/std::nullopt);
+          /*intelligent_scan_verdict=*/std::nullopt);
       DontClassifyForPhishing(
           PreClassificationCheckResult::NO_CLASSIFY_RESULT_FROM_CACHE);
     }
@@ -639,6 +652,11 @@ class ClientSideDetectionHost::ShouldClassifyUrlRequest {
       case ClientSideDetectionType::TRIGGER_MODELS:
         return base::RandDouble() <=
                probability_for_accepting_hc_allowlist_trigger_;
+      case ClientSideDetectionType::CLIPBOARD_COPY_API:
+        return base::FeatureList::IsEnabled(
+                   kClientSideDetectionClipboardCopyApi) &&
+               (base::RandDouble() <
+                kCSDClipboardCopyApiHCAcceptanceRate.Get());
       default:
         return false;
     }
@@ -903,6 +921,19 @@ void ClientSideDetectionHost::DidToggleFullscreenModeForTab(
   if (!HasDonePreclassificationCheckOnSameURL(
           ClientSideDetectionType::FULLSCREEN_API)) {
     MaybeStartPreClassification(ClientSideDetectionType::FULLSCREEN_API);
+  }
+}
+
+void ClientSideDetectionHost::OnTextCopiedToClipboard(
+    content::RenderFrameHost* render_frame_host,
+    const std::u16string& copied_text) {
+  if (!IsEnhancedProtectionEnabled(*delegate_->GetPrefs())) {
+    return;
+  }
+
+  if (!HasDonePreclassificationCheckOnSameURL(
+          ClientSideDetectionType::CLIPBOARD_COPY_API)) {
+    MaybeStartPreClassification(ClientSideDetectionType::CLIPBOARD_COPY_API);
   }
 }
 
@@ -1244,6 +1275,7 @@ void ClientSideDetectionHost::MaybeSendClientPhishingRequest(
         &phishing_image_embedder_);
 
     if (phishing_image_embedder_.is_bound()) {
+      image_embedding_start_time_ = tick_clock_->NowTicks();
       phishing_image_embedder_->StartImageEmbedding(
           current_url_,
           base::BindOnce(&ClientSideDetectionHost::PhishingImageEmbeddingDone,
@@ -1263,8 +1295,21 @@ void ClientSideDetectionHost::PhishingImageEmbeddingDone(
     std::optional<bool> did_match_high_confidence_allowlist,
     mojom::PhishingImageEmbeddingResult result,
     std::optional<mojo_base::ProtoWrapper> image_feature_embedding) {
+  std::string request_type_name =
+      GetRequestTypeName(verdict->client_side_detection_type());
+  base::TimeDelta image_embedding_duration =
+      base::TimeTicks::Now() - image_embedding_start_time_;
+  base::UmaHistogramMediumTimes(
+      "SBClientPhishing.PhishingImageEmbeddingDuration",
+      image_embedding_duration);
+  base::UmaHistogramMediumTimes(
+      "SBClientPhishing.PhishingImageEmbeddingDuration." + request_type_name,
+      image_embedding_duration);
   base::UmaHistogramEnumeration("SBClientPhishing.PhishingImageEmbeddingResult",
                                 result);
+  base::UmaHistogramEnumeration(
+      "SBClientPhishing.PhishingImageEmbeddingResult." + request_type_name,
+      result);
   if (result == mojom::PhishingImageEmbeddingResult::kSuccess) {
     std::optional<ImageFeatureEmbedding> embedding;
     if (image_feature_embedding.has_value()) {
@@ -1371,21 +1416,24 @@ void ClientSideDetectionHost::OnInnerTextComplete(
 void ClientSideDetectionHost::OnInquireOnDeviceModelDone(
     std::unique_ptr<ClientPhishingRequest> verdict,
     std::optional<bool> did_match_high_confidence_allowlist,
-    std::optional<IntelligentScanDelegate::IntelligentScanResult> response) {
+    IntelligentScanDelegate::IntelligentScanResult response) {
   base::UmaHistogramBoolean(
       "SBClientPhishing.OnDeviceModelHasSuccessfulResponse",
-      response.has_value());
+      response.execution_success);
   base::UmaHistogramBoolean(
       "SBClientPhishing.OnDeviceModelHasSuccessfulResponse." +
           GetRequestTypeName(verdict->client_side_detection_type()),
-      response.has_value());
+      response.execution_success);
   IntelligentScanInfo intelligent_scan_info;
-  if (response.has_value()) {
-    intelligent_scan_info.set_brand(response->brand);
-    intelligent_scan_info.set_intent(response->intent);
+  if (response.execution_success) {
+    intelligent_scan_info.set_brand(response.brand);
+    intelligent_scan_info.set_intent(response.intent);
   } else {
     intelligent_scan_info.set_no_info_reason(
         IntelligentScanInfo::ON_DEVICE_MODEL_OUTPUT_MISSING);
+  }
+  if (response.model_version > 0) {
+    intelligent_scan_info.set_model_version(response.model_version);
   }
   *verdict->mutable_intelligent_scan_info() = std::move(intelligent_scan_info);
 

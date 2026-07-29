@@ -12,7 +12,6 @@
 #include "base/strings/stringprintf.h"
 #include "base/trace_event/process_memory_dump.h"
 #include "build/build_config.h"
-#include "gpu/ipc/common/gpu_memory_buffer_impl_shared_memory.h"
 #include "ui/gfx/buffer_format_util.h"
 #include "ui/gfx/buffer_usage_util.h"
 
@@ -190,21 +189,6 @@ GpuMemoryBufferSupport::GetNativeGpuMemoryBufferConfigurations() {
         // BUILDFLAG(IS_ANDROID)
 
   return configurations;
-}
-
-bool GpuMemoryBufferSupport::IsConfigurationSupportedForTest(
-    gfx::GpuMemoryBufferType type,
-    gfx::BufferFormat format,
-    gfx::BufferUsage usage) {
-  if (type == GetNativeGpuMemoryBufferType()) {
-    return IsNativeGpuMemoryBufferConfigurationSupported(format, usage);
-  }
-
-  if (type == gfx::SHARED_MEMORY_BUFFER) {
-    return GpuMemoryBufferImplSharedMemory::IsUsageSupported(usage);
-  }
-
-  NOTREACHED();
 }
 
 }  // namespace gpu

@@ -189,18 +189,7 @@ android_library("java") {
     "java/src/org/chromium/chrome/browser/password_manager/PasswordStoreBridge.java",
     "java/src/org/chromium/chrome/browser/password_manager/PasswordStoreCredential.java",
     "java/src/org/chromium/chrome/browser/password_manager/PasswordSyncControllerDelegateBridgeImpl.java",
-    "java/src/org/chromium/chrome/browser/password_manager/settings/ExportFlow.java",
-    "java/src/org/chromium/chrome/browser/password_manager/settings/ExportFlowInterface.java",
-    "java/src/org/chromium/chrome/browser/password_manager/settings/PasswordAccessReauthenticationHelper.java",
-    "java/src/org/chromium/chrome/browser/password_manager/settings/PasswordListObserver.java",
-    "java/src/org/chromium/chrome/browser/password_manager/settings/PasswordManagerHandler.java",
-    "java/src/org/chromium/chrome/browser/password_manager/settings/PasswordManagerHandlerProvider.java",
-    "java/src/org/chromium/chrome/browser/password_manager/settings/PasswordReauthenticationFragment.java",
-    "java/src/org/chromium/chrome/browser/password_manager/settings/PasswordUiView.java",
     "java/src/org/chromium/chrome/browser/password_manager/settings/PasswordsPreference.java",
-    "java/src/org/chromium/chrome/browser/password_manager/settings/ProgressBarDialogFragment.java",
-    "java/src/org/chromium/chrome/browser/password_manager/settings/ReauthenticationManager.java",
-    "java/src/org/chromium/chrome/browser/password_manager/settings/SavedPasswordEntry.java",
   ]
 
   resources_package = "org.chromium.chrome.browser.password_manager"
@@ -223,7 +212,6 @@ generate_jni("jni_headers") {
     "java/src/org/chromium/chrome/browser/password_manager/PasswordStoreBridge.java",
     "java/src/org/chromium/chrome/browser/password_manager/PasswordStoreCredential.java",
     "java/src/org/chromium/chrome/browser/password_manager/PasswordSyncControllerDelegateBridgeImpl.java",
-    "java/src/org/chromium/chrome/browser/password_manager/settings/PasswordUiView.java",
   ]
 }
 
@@ -234,12 +222,6 @@ android_library("utils_java") {
     "java/src/org/chromium/chrome/browser/password_manager/HelpUrlLauncher.java",
     "java/src/org/chromium/chrome/browser/password_manager/LoginDbDeprecationUtilBridge.java",
     "java/src/org/chromium/chrome/browser/password_manager/PasswordExportLauncher.java",
-    "java/src/org/chromium/chrome/browser/password_manager/settings/CallbackDelayer.java",
-    "java/src/org/chromium/chrome/browser/password_manager/settings/DialogManager.java",
-    "java/src/org/chromium/chrome/browser/password_manager/settings/ExportErrorDialogFragment.java",
-    "java/src/org/chromium/chrome/browser/password_manager/settings/NonCancelableProgressBar.java",
-    "java/src/org/chromium/chrome/browser/password_manager/settings/SingleThreadBarrierClosure.java",
-    "java/src/org/chromium/chrome/browser/password_manager/settings/TimedCallbackDelayer.java",
   ]
 
   srcjar_deps = [ ":utils_jni_headers" ]
@@ -284,7 +266,6 @@ java_group("javatests") {
   deps = [
     "account_storage_notice:javatests",
     "grouped_affiliations:javatests",
-    "pwd_migration:javatests",
   ]
 }
 
@@ -318,8 +299,6 @@ robolectric_binary("password_manager_junit_tests") {
     "junit/src/org/chromium/chrome/browser/password_manager/PasswordSyncControllerDelegateBridgeTest.java",
     "junit/src/org/chromium/chrome/browser/password_manager/one_time_passwords/AndroidSmsOtpFetchDispatcherBridgeTest.java",
     "junit/src/org/chromium/chrome/browser/password_manager/one_time_passwords/AndroidSmsOtpFetchReceiverBridgeTest.java",
-    "junit/src/org/chromium/chrome/browser/password_manager/settings/PasswordReauthenticationFragmentTest.java",
-    "junit/src/org/chromium/chrome/browser/password_manager/settings/ReauthenticationManagerTest.java",
     "junit/src/org/chromium/chrome/browser/password_manager/tests/utils/FakePasswordCheckupClientHelperTest.java",
   ]
 
@@ -336,7 +315,6 @@ robolectric_binary("password_manager_junit_tests") {
     "add_username_dialog:junit",
     "bottom_sheet:junit",
     "grouped_affiliations:junit",
-    "pwd_migration:junit",
     "pwm_disabled:junit",
     "//base:base_java",
     "//base:base_java_test_support",
@@ -347,7 +325,6 @@ robolectric_binary("password_manager_junit_tests") {
     "//chrome/browser/loading_modal/android:java",
     "//chrome/browser/password_manager/android/one_time_passwords:java",
     "//chrome/browser/password_manager/android/one_time_passwords:sms_otp_fetching_interface_java",
-    "//chrome/browser/password_manager/android/pwd_migration:java",
     "//chrome/browser/password_manager/android/pwm_disabled:java",
     "//chrome/browser/preferences:java",
     "//chrome/browser/profiles/android:java",
@@ -474,7 +451,6 @@ android_library("test_support_java") {
     "test_support/java/src/org/chromium/chrome/browser/password_manager/FakePasswordCheckupClientHelper.java",
     "test_support/java/src/org/chromium/chrome/browser/password_manager/FakePasswordCheckupClientHelperFactoryImpl.java",
     "test_support/java/src/org/chromium/chrome/browser/password_manager/FakePasswordManagerBackendSupportHelper.java",
-    "test_support/java/src/org/chromium/chrome/browser/password_manager/FakePasswordManagerHandler.java",
     "test_support/java/src/org/chromium/chrome/browser/password_manager/FakePasswordSettingsAccessor.java",
     "test_support/java/src/org/chromium/chrome/browser/password_manager/FakePasswordSettingsAccessorFactoryImpl.java",
     "test_support/java/src/org/chromium/chrome/browser/password_manager/FakePasswordStoreAndroidBackend.java",
@@ -533,8 +509,6 @@ source_set("utils") {
     "password_generation_element_data.h",
     "password_manager_android_util.cc",
     "password_manager_android_util.h",
-    "password_manager_eviction_util.cc",
-    "password_manager_eviction_util.h",
     "password_manager_helper.cc",
     "password_manager_ui_util_android.cc",
     "password_manager_ui_util_android.h",
@@ -591,7 +565,6 @@ source_set("unit_tests") {
     "password_generation_controller_impl_unittest.cc",
     "password_manager_android_util_unittest.cc",
     "password_manager_error_message_delegate_unittest.cc",
-    "password_manager_eviction_util_unittest.cc",
     "password_manager_settings_service_android_impl_unittest.cc",
     "password_manager_ui_util_android_unittest.cc",
     "password_settings_updater_android_bridge_helper_impl_unittest.cc",

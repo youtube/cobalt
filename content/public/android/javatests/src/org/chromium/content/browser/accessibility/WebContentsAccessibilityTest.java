@@ -83,6 +83,7 @@ import static org.chromium.content.browser.accessibility.AccessibilityNodeInfoBu
 import static org.chromium.content.browser.accessibility.AccessibilityNodeInfoBuilder.EXTRAS_KEY_OFFSCREEN;
 import static org.chromium.content.browser.accessibility.AccessibilityNodeInfoBuilder.EXTRAS_KEY_UNCLIPPED_BOTTOM;
 import static org.chromium.content.browser.accessibility.AccessibilityNodeInfoBuilder.EXTRAS_KEY_UNCLIPPED_TOP;
+import static org.chromium.content.browser.accessibility.WebContentsAccessibilityImpl.EXTRA_DATA_ABSOLUTE_DRAWING_ORDER_KEY;
 import static org.chromium.ui.accessibility.AccessibilityState.EVENT_TYPE_MASK_NONE;
 import static org.chromium.ui.accessibility.AccessibilityState.KNOWN_SCREEN_READER_SERVICE_IDS;
 import static org.chromium.ui.accessibility.AccessibilityState.StateIdentifierForTesting.EVENT_TYPE_MASK;
@@ -126,6 +127,7 @@ import org.junit.runner.RunWith;
 
 import org.chromium.base.Log;
 import org.chromium.base.ThreadUtils;
+import org.chromium.base.test.util.CommandLineFlags;
 import org.chromium.base.test.util.Criteria;
 import org.chromium.base.test.util.CriteriaHelper;
 import org.chromium.base.test.util.DisableIf;
@@ -1859,6 +1861,114 @@ public class WebContentsAccessibilityTest {
         Assert.assertTrue(result[2].left < result[3].left);
     }
 
+    /** Test |AccessibilityNodeInfo| object for character bounds for a text field node. */
+    @Test
+    @SmallTest
+    public void testNodeInfo_extraDataAdded_characterLocationsInTextField() {
+        final String text = "Some text that is long so it wraps";
+        final int linebreakIndex = 18;
+        setupTestWithHTML("<textarea rows=\"2\" cols=\"20\">" + text + "</textarea>");
+
+        // Wait until we find a node in the accessibility tree with the text "Text".
+        int textNodeVirtualViewId = waitForNodeMatching(sTextMatcher, text);
+        mNodeInfo = createAccessibilityNodeInfo(textNodeVirtualViewId);
+        Assert.assertNotNull(NODE_TIMEOUT_ERROR, mNodeInfo);
+
+        // Call the API we want to test - addExtraDataToAccessibilityNodeInfo.
+        final Bundle arguments = new Bundle();
+        arguments.putInt(EXTRA_DATA_TEXT_CHARACTER_LOCATION_ARG_START_INDEX, 0);
+        arguments.putInt(EXTRA_DATA_TEXT_CHARACTER_LOCATION_ARG_LENGTH, text.length());
+
+        // addExtraDataToAccessibilityNodeInfo() will end up calling RenderFrameHostImpl's method
+        // AccessibilityPerformAction() in the C++ code, which needs to be run from the UI thread.
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    mActivityTestRule.mNodeProvider.addExtraDataToAccessibilityNodeInfo(
+                            textNodeVirtualViewId,
+                            mNodeInfo,
+                            EXTRA_DATA_TEXT_CHARACTER_LOCATION_KEY,
+                            arguments);
+                });
+
+        // The data needed for text character locations loads asynchronously. Block until
+        // it successfully returns the character bounds.
+        CriteriaHelper.pollUiThread(
+                () -> {
+                    AccessibilityNodeInfoCompat textNode =
+                            createAccessibilityNodeInfo(textNodeVirtualViewId);
+                    mActivityTestRule.mNodeProvider.addExtraDataToAccessibilityNodeInfo(
+                            textNodeVirtualViewId,
+                            textNode,
+                            EXTRA_DATA_TEXT_CHARACTER_LOCATION_KEY,
+                            arguments);
+                    Bundle textNodeExtras = textNode.getExtras();
+                    RectF[] textNodeResults =
+                            (RectF[])
+                                    textNodeExtras.getParcelableArray(
+                                            EXTRA_DATA_TEXT_CHARACTER_LOCATION_KEY);
+                    Criteria.checkThat(textNodeResults, Matchers.arrayWithSize(text.length()));
+                    Criteria.checkThat(textNodeResults[0], Matchers.not(textNodeResults[1]));
+                });
+
+        // The final result should be the separate bounding box of all four characters.
+        mNodeInfo = createAccessibilityNodeInfo(textNodeVirtualViewId);
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    mActivityTestRule.mNodeProvider.addExtraDataToAccessibilityNodeInfo(
+                            textNodeVirtualViewId,
+                            mNodeInfo,
+                            EXTRA_DATA_TEXT_CHARACTER_LOCATION_KEY,
+                            arguments);
+                });
+
+        Bundle extras = mNodeInfo.getExtras();
+        // The role string should be a camel cased programmatic identifier.
+        CharSequence roleString = extras.getCharSequence(EXTRAS_KEY_CHROME_ROLE);
+        Assert.assertEquals("textField", roleString.toString());
+
+        RectF[] result =
+                (RectF[]) extras.getParcelableArray(EXTRA_DATA_TEXT_CHARACTER_LOCATION_KEY);
+        Assert.assertNotEquals(result, null);
+        Assert.assertEquals(text.length(), result.length);
+
+        StringBuilder sb = new StringBuilder();
+        for (RectF rect : result) {
+            sb.append(rect.toString());
+            sb.append(" ");
+        }
+        Log.d(TAG, "result: [%s]", sb.toString());
+
+        for (int i = 1; i < text.length(); i++) {
+            Assert.assertNotEquals("For index=" + i, result[0], result[i]);
+        }
+
+        // All bounds should have nonzero left, top, width, and height
+        for (RectF rect : result) {
+            String msg = "For RectF=" + rect.toString();
+            Assert.assertTrue(msg, rect.left > 0);
+            Assert.assertTrue(msg, rect.top > 0);
+            Assert.assertTrue(msg, rect.width() > 0);
+            Assert.assertTrue(msg, rect.height() > 0);
+        }
+
+        // They should be in order.
+        float prevX = result[0].left;
+        float prevY = result[0].top;
+        for (int i = 1; i < result.length; i++) {
+            String msg = "For index=" + i + " char=\"" + text.charAt(i) + "\"";
+            if (i == linebreakIndex) {
+                Assert.assertTrue(msg, prevX > result[i].left);
+                Assert.assertTrue(msg, prevY < result[i].top);
+                prevX = result[i].left;
+                prevY = result[i].top;
+                continue;
+            }
+            Assert.assertTrue(msg, prevX < result[i].left);
+            Assert.assertEquals(msg, prevY, result[i].top, /* delta= */ 0);
+            prevX = result[i].left;
+        }
+    }
+
     /**
      * Test |AccessibilityNodeInfo| object for character bounds in screen coordinates should be
      * different in window coordinates.
@@ -1955,6 +2065,102 @@ public class WebContentsAccessibilityTest {
         Assert.assertTrue(
                 IMAGE_DATA_BUNDLE_EXTRA_ERROR,
                 mNodeInfo.getExtras().getByteArray(EXTRAS_KEY_IMAGE_DATA).length > 50);
+    }
+
+    private int getAbsoluteDrawingOrderForId(String id) {
+        // Wait until we find a node in the accessibility tree with the specified text.
+        int textNodeVirtualViewId = waitForNodeMatching(sViewIdResourceNameMatcher, id);
+        mNodeInfo = createAccessibilityNodeInfo(textNodeVirtualViewId);
+        Assert.assertNotNull(NODE_TIMEOUT_ERROR, mNodeInfo);
+
+        // Call the API we want to test - addExtraDataToAccessibilityNodeInfo.
+        // This needs to run on the UI thread.
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    mActivityTestRule.mNodeProvider.addExtraDataToAccessibilityNodeInfo(
+                            textNodeVirtualViewId,
+                            mNodeInfo,
+                            EXTRA_DATA_ABSOLUTE_DRAWING_ORDER_KEY,
+                            null);
+                });
+
+        Bundle extras = mNodeInfo.getExtras();
+        return extras.getInt(EXTRA_DATA_ABSOLUTE_DRAWING_ORDER_KEY);
+    }
+
+    /** Test |AccessibilityNodeInfo| object for correct paint order values. */
+    @Test
+    @SmallTest
+    @EnableFeatures("XrDevice") // Paint order only available on XR devices for performance reasons
+    @CommandLineFlags.Add({"force-renderer-accessibility"})
+    public void testNodeInfo_extraDataAdded_paintOrder() {
+        // Green box with a red box on top of it, and a blue box on top of both.
+        // We include JS handlers in case we optimize out non-interactable regions in the future.
+        setupTestWithHTML(
+                """
+                <div id="red" style="position: absolute; top: 10px;
+                                     left: 10px; width: 60px; height: 60px;
+                                     background: red; z-index: 1;">red</div>
+                <div id="blue" style="position: absolute; top: 30px;
+                                      left: 30px; width: 60px; height: 60px;
+                                      background: blue; z-index: 1;">blue</div>
+                <div id="green" style="width: 100px; height: 100px;
+                                       background: lightgreen;">green</div>
+                <script>
+                    red.onclick = () => alert('red');
+                    blue.onclick = () => alert('blue');
+                    green.onclick = () => alert('green');
+                </script>
+                """);
+
+        int resultRed = getAbsoluteDrawingOrderForId("red");
+        int resultBlue = getAbsoluteDrawingOrderForId("blue");
+        int resultGreen = getAbsoluteDrawingOrderForId("green");
+
+        // They should be in correct order.
+        Assert.assertTrue(resultGreen < resultRed);
+        Assert.assertTrue(resultRed < resultBlue);
+    }
+
+    /**
+     * Test |AccessibilityNodeInfo| object for correct paint order values, this time adding
+     * "will-change: transform" to each of the divs to force Chromium to put them on different
+     * cc::Layers.
+     */
+    @Test
+    @SmallTest
+    @EnableFeatures("XrDevice") // Paint order only available on XR devices for performance reasons
+    @CommandLineFlags.Add({"force-renderer-accessibility"})
+    public void testNodeInfo_extraDataAdded_paintOrderWillChangeTransform() {
+        // Green box with a red box on top of it, and a blue box on top of both.
+        // We include JS handlers in case we optimize out non-interactable regions in the future.
+        setupTestWithHTML(
+                """
+                <div id="red" style="position: absolute; top: 10px;
+                                     left: 10px; width: 60px; height: 60px;
+                                     background: red; z-index: 1;
+                                     will-change: transform;">red</div>
+                <div id="blue" style="position: absolute; top: 30px;
+                                      left: 30px; width: 60px; height: 60px;
+                                      background: blue; z-index: 1;
+                                      will-change: transform;">blue</div>
+                <div id="green" style="width: 100px; height: 100px;
+                                       background: lightgreen;
+                                       will-change: transform;">green</div>
+                <script>
+                    red.onclick = () => alert('red');
+                    blue.onclick = () => alert('blue');
+                    green.onclick = () => alert('green');
+                </script>
+                """);
+
+        int resultRed = getAbsoluteDrawingOrderForId("red");
+        int resultBlue = getAbsoluteDrawingOrderForId("blue");
+        int resultGreen = getAbsoluteDrawingOrderForId("green");
+
+        // They should be in correct order.
+        Assert.assertTrue(resultGreen < resultRed);
+        Assert.assertTrue(resultRed < resultBlue);
     }
 
     @Test
@@ -2936,6 +3142,7 @@ public class WebContentsAccessibilityTest {
     @Test
     @SmallTest
     @EnableFeatures(AccessibilityFeatures.ACCESSIBILITY_TEXT_FORMATTING)
+    @DisabledTest(message = "https://crbug.com/434253831")
     public void testAccessibilityNodeInfo_textFormatting() throws Throwable {
         // Build a simple web page with a variety of text formatting options.
         setupTestFromFile("content/test/data/android/accessibility_text_formatting_examples.html");
@@ -3249,6 +3456,10 @@ public class WebContentsAccessibilityTest {
                         .expectNoRecords(
                                 "Accessibility.Android.TextFormatting.Performance.TotalDuration.NoStyleData")
                         .expectAnyRecord(
+                                "Accessibility.Android.TextFormatting.Performance.CheckAXFocusDuration")
+                        .expectNoRecords(
+                                "Accessibility.Android.TextFormatting.Performance.CheckAXFocusDuration.NoStyleData")
+                        .expectAnyRecord(
                                 "Accessibility.Android.TextFormatting.Performance.GetTextContentDuration")
                         .expectNoRecords(
                                 "Accessibility.Android.TextFormatting.Performance.GetTextContentDuration.NoStyleData")
@@ -3298,6 +3509,10 @@ public class WebContentsAccessibilityTest {
                         .expectAnyRecord(
                                 "Accessibility.Android.TextFormatting.Performance.TotalDuration.NoStyleData")
                         .expectNoRecords(
+                                "Accessibility.Android.TextFormatting.Performance.CheckAXFocusDuration")
+                        .expectAnyRecord(
+                                "Accessibility.Android.TextFormatting.Performance.CheckAXFocusDuration.NoStyleData")
+                        .expectNoRecords(
                                 "Accessibility.Android.TextFormatting.Performance.GetTextContentDuration")
                         .expectAnyRecord(
                                 "Accessibility.Android.TextFormatting.Performance.GetTextContentDuration.NoStyleData")
@@ -3340,13 +3555,17 @@ public class WebContentsAccessibilityTest {
                         .expectNoRecords(
                                 "Accessibility.Android.TextFormatting.Performance.TotalDuration.NoStyleData")
                         .expectAnyRecord(
+                                "Accessibility.Android.TextFormatting.Performance.CheckAXFocusDuration")
+                        .expectNoRecords(
+                                "Accessibility.Android.TextFormatting.Performance.CheckAXFocusDuration.NoStyleData")
+                        .expectAnyRecord(
                                 "Accessibility.Android.TextFormatting.Performance.ToJavaDataDuration")
                         .expectNoRecords(
-                                "Accessibility.Android.TextFormatting.Performance.GetTextContentDuration.NoStyleData")
+                                "Accessibility.Android.TextFormatting.Performance.ToJavaDataDuration.NoStyleData")
                         .expectAnyRecord(
                                 "Accessibility.Android.TextFormatting.Performance.GetTextContentDuration")
                         .expectNoRecords(
-                                "Accessibility.Android.TextFormatting.Performance.ToJavaDataDuration.NoStyleData")
+                                "Accessibility.Android.TextFormatting.Performance.GetTextContentDuration.NoStyleData")
                         .expectAnyRecord(
                                 "Accessibility.Android.TextFormatting.Performance.SetAniTextDuration")
                         .expectNoRecords(

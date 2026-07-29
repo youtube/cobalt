@@ -144,12 +144,17 @@ ProxyImpl::~ProxyImpl() {
   DCHECK(IsImplThread());
   DCHECK(IsMainThreadBlocked());
 
-  // Prevent the scheduler from performing actions while we're in an
+  // Prevent the scheduler from performing scheduled actions while we're in an
   // inconsistent state.
   scheduler_->Stop();
+
   // Take away the LayerTreeFrameSink before destroying things so it doesn't
   // try to call into its client mid-shutdown.
   host_impl_->ReleaseLayerTreeFrameSink();
+
+  // The `Scheduler` has a raw_ptr to the CompositorFrameReportingController
+  // that is owned by the LTHI.
+  scheduler_->TearDown();
 
   // It is important to destroy LTHI before the Scheduler since it can make
   // callbacks that access it during destruction cleanup.
@@ -458,7 +463,7 @@ void ProxyImpl::NotifyReadyToActivate() {
   TRACE_EVENT_INSTANT("cc,benchmark", "ProxyImpl::ReadyToActivate",
                       [&](perfetto::EventContext ctx) {
                         EmitMainFramePipelineStep(
-                            ctx, host_impl_->active_tree()->trace_id(),
+                            ctx, host_impl_->sync_tree()->trace_id(),
                             perfetto::protos::pbzero::MainFramePipeline::Step::
                                 READY_TO_ACTIVATE);
                       });
@@ -515,17 +520,17 @@ bool ProxyImpl::IsInsideDraw() {
 void ProxyImpl::RenewTreePriority() {
   DCHECK(IsImplThread());
 
-  bool precise_scrolling_in_progress =
+  const bool precise_scrolling_in_progress =
       host_impl_->GetActivelyScrollingType() == ActivelyScrollingType::kPrecise;
 
-  bool avoid_entering_smoothness =
+  const bool avoid_entering_smoothness =
       (base::FeatureList::IsEnabled(
            features::kNewContentForCheckerboardedScrolls) &&
-       host_impl_->ScrollCheckerboardsIncompleteRecording()) ||
+       host_impl_->PrioritizeNewContentDueToCheckerboarding()) ||
       (precise_scrolling_in_progress &&
        host_impl_->IsCurrentScrollMainRepainted());
 
-  bool non_scroll_interaction_in_progress =
+  const bool non_scroll_interaction_in_progress =
       host_impl_->IsPinchGestureActive() ||
       host_impl_->page_scale_animation_active();
 

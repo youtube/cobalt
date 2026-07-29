@@ -13,7 +13,6 @@
 #include "base/notreached.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
-#include "chrome/browser/password_manager/android/password_manager_eviction_util.h"
 #include "chrome/browser/password_manager/android/password_manager_util_bridge.h"
 #include "chrome/browser/password_manager/android/password_manager_util_bridge_interface.h"
 #include "components/password_manager/core/browser/export/login_db_deprecation_password_exporter.h"
@@ -26,14 +25,6 @@
 #include "components/prefs/pref_service.h"
 #include "components/sync/base/pref_names.h"
 #include "components/version_info/android/channel_getter.h"
-
-using password_manager::prefs::kCurrentMigrationVersionToGoogleMobileServices;
-using password_manager::prefs::kPasswordsUseUPMLocalAndSeparateStores;
-using password_manager::prefs::UseUpmLocalAndSeparateStoresState;
-using password_manager::prefs::UseUpmLocalAndSeparateStoresState::kOff;
-using password_manager::prefs::UseUpmLocalAndSeparateStoresState::
-    kOffAndMigrationPending;
-using password_manager::prefs::UseUpmLocalAndSeparateStoresState::kOn;
 
 namespace password_manager_android_util {
 
@@ -59,7 +50,7 @@ bool HasMinGmsVersionForFullUpmSupport() {
 void MaybeDeleteLoginDataFiles(PrefService* prefs,
                                const base::FilePath& login_db_directory) {
   bool already_active_in_upm =
-      password_manager::UsesSplitStoresAndUPMForLocal(prefs);
+      password_manager::GetLegacySplitStoresPref(prefs);
   bool login_db_ready_for_deprecation =
       LoginDbDeprecationReady(prefs);
   CHECK(already_active_in_upm || login_db_ready_for_deprecation);
@@ -154,7 +145,7 @@ void InitializeUpmUnmigratedPasswordsExportPref(
     const base::FilePath& login_db_directory) {
   // The umigrated passwords export pref should only be set for users who aren't
   // already part of UPM.
-  if (password_manager::UsesSplitStoresAndUPMForLocal(prefs)) {
+  if (password_manager::GetLegacySplitStoresPref(prefs)) {
     return;
   }
 
@@ -187,57 +178,20 @@ bool IsPasswordManagerAvailable(const PrefService* prefs,
   if (!HasMinGmsVersionForFullUpmSupport()) {
     return false;
   }
-  bool upm_already_active =
-      static_cast<UseUpmLocalAndSeparateStoresState>(prefs->GetInteger(
-          password_manager::prefs::kPasswordsUseUPMLocalAndSeparateStores)) ==
-      password_manager::prefs::UseUpmLocalAndSeparateStoresState::kOn;
+  bool upm_already_active = password_manager::GetLegacySplitStoresPref(prefs);
   bool exported_umigrated_passwords = prefs->GetBoolean(
       password_manager::prefs::kUpmUnmigratedPasswordsExported);
   return upm_already_active || exported_umigrated_passwords;
 }
 
 bool LoginDbDeprecationReady(PrefService* prefs) {
-  bool upm_already_active =
-      static_cast<UseUpmLocalAndSeparateStoresState>(prefs->GetInteger(
-          password_manager::prefs::kPasswordsUseUPMLocalAndSeparateStores)) ==
-      password_manager::prefs::UseUpmLocalAndSeparateStoresState::kOn;
+  bool upm_already_active = password_manager::GetLegacySplitStoresPref(prefs);
   bool exported_umigrated_passwords = prefs->GetBoolean(
       password_manager::prefs::kUpmUnmigratedPasswordsExported);
   return upm_already_active || exported_umigrated_passwords;
 }
 
-UseUpmLocalAndSeparateStoresState GetSplitStoresAndLocalUpmPrefValue(
-    PrefService* pref_service) {
-  auto value = static_cast<UseUpmLocalAndSeparateStoresState>(
-      pref_service->GetInteger(kPasswordsUseUPMLocalAndSeparateStores));
-  switch (value) {
-    case kOff:
-    case kOffAndMigrationPending:
-    case kOn:
-      return value;
-  }
-  NOTREACHED();
-}
-
-bool AreMinUpmRequirementsMet() {
-  PasswordManagerUtilBridge util_bridge;
-  if (!util_bridge.IsInternalBackendPresent()) {
-    return false;
-  }
-
-  int gms_version = 0;
-  // GMSCore version could not be parsed, probably no GMSCore installed.
-  if (!base::StringToInt(
-          base::android::BuildInfo::GetInstance()->gms_version_code(),
-          &gms_version)) {
-    return false;
-  }
-
-  // If the GMSCore version is pre-UPM an update is required.
-  return gms_version >= password_manager::kAccountUpmMinGmsVersion;
-}
-
-void SetUsesSplitStoresAndUPMForLocal(
+void MaybeDeleteLoginDatabases(
     PrefService* pref_service,
     const base::FilePath& login_db_directory,
     std::unique_ptr<PasswordManagerUtilBridgeInterface> util_bridge) {

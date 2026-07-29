@@ -57,6 +57,7 @@ import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.collaboration.CollaborationServiceFactory;
 import org.chromium.chrome.browser.data_sharing.DataSharingServiceFactory;
 import org.chromium.chrome.browser.data_sharing.DataSharingTabManager;
+import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.preferences.ChromePreferenceKeys;
 import org.chromium.chrome.browser.preferences.ChromeSharedPreferences;
 import org.chromium.chrome.browser.price_tracking.PriceTrackingFeatures;
@@ -65,6 +66,7 @@ import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.quick_delete.QuickDeleteAnimationGradientDrawable;
 import org.chromium.chrome.browser.tab.EmptyTabObserver;
 import org.chromium.chrome.browser.tab.Tab;
+import org.chromium.chrome.browser.tab.Tab.MediaState;
 import org.chromium.chrome.browser.tab.TabCreationState;
 import org.chromium.chrome.browser.tab.TabId;
 import org.chromium.chrome.browser.tab.TabLaunchType;
@@ -230,13 +232,15 @@ class TabListMediator implements TabListNotificationHandler {
         @IntDef({
             TabActionButtonType.CLOSE,
             TabActionButtonType.SELECT,
-            TabActionButtonType.OVERFLOW
+            TabActionButtonType.OVERFLOW,
+            TabActionButtonType.PIN
         })
         @Retention(RetentionPolicy.SOURCE)
         @interface TabActionButtonType {
             int CLOSE = 0;
             int SELECT = 1;
             int OVERFLOW = 2;
+            int PIN = 3;
         }
 
         public final @TabActionButtonType int type;
@@ -644,6 +648,28 @@ class TabListMediator implements TabListNotificationHandler {
                         updateFaviconForTab(model, tab, null, null);
                     }
                 }
+
+                @Override
+                public void onMediaStateChanged(Tab updatedTab, @MediaState int mediaState) {
+                    assert mShowingTabs;
+
+                    @Nullable PropertyModel model;
+                    Tab representativeTab = updatedTab;
+                    if (mActionsOnAllRelatedTabs && isTabInTabGroup(updatedTab)) {
+                        @Nullable Pair<Integer, Tab> indexAndTab =
+                                getIndexAndTabForTabGroupId(updatedTab.getTabGroupId());
+                        if (indexAndTab == null) return;
+                        model = mModelList.get(indexAndTab.first).model;
+                        representativeTab = indexAndTab.second;
+                    } else {
+                        model = mModelList.getModelFromTabId(updatedTab.getId());
+                    }
+
+                    if (model == null) return;
+                    model.set(
+                            TabProperties.MEDIA_INDICATOR,
+                            getTabGridMediaIndicator(representativeTab));
+                }
             };
 
     private final TabGroupModelFilterObserver mTabGroupObserver =
@@ -792,31 +818,24 @@ class TabListMediator implements TabListNotificationHandler {
                 }
 
                 @Override
-                public void didMergeTabToGroup(Tab movedTab) {
+                public void didMergeTabToGroup(Tab movedTab, boolean isDestinationTab) {
                     assert mShowingTabs;
 
                     TabGroupModelFilter filter = mCurrentTabGroupModelFilterSupplier.get();
                     assumeNonNull(filter);
                     TabModel tabModel = filter.getTabModel();
                     if (mActionsOnAllRelatedTabs) {
-                        // When merging Tab 1 to Tab 2 as a new group, or merging Tab 1 to an
-                        // existing group 1, we can always find the current indexes of 1) Tab 1
-                        // and 2) Tab 2 or group 1 in the model. The method
-                        // getIndexesForMergeToGroup() returns these two ids by using Tab 1's
-                        // related Tabs, which have been updated in
-                        // TabModel.
                         List<Tab> relatedTabs = getRelatedTabsForId(movedTab.getId());
                         Pair<Integer, Integer> positions =
-                                mModelList.getIndexesForMergeToGroup(tabModel, relatedTabs);
+                                mModelList.getIndexesForMergeToGroup(
+                                        tabModel, movedTab, isDestinationTab, relatedTabs);
                         int srcIndex = positions.second;
                         int desIndex = positions.first;
 
-                        // If only the desIndex is valid then the movedTab was already part of
-                        // another group and is not present in the model. This happens only during
-                        // an undo.
-                        // Refresh just the desIndex tab card in the model. The removal of the
-                        // movedTab from its previous group was already handled by
-                        // didMoveTabOutOfGroup.
+                        // If only the desIndex is valid then just update the destination index as
+                        // this is either a group of size 1 being created or a tab is being moved
+                        // between groups. In the latter case the group moved from will be updated
+                        // by TabGroupModelFilterObserver#didMoveTabOutOfGroup(Tab, int).
                         if (desIndex != TabModel.INVALID_TAB_INDEX
                                 && srcIndex == TabModel.INVALID_TAB_INDEX) {
                             Tab tab =
@@ -833,13 +852,9 @@ class TabListMediator implements TabListNotificationHandler {
                             return;
                         }
 
+                        // We merged the source group to the destination group. Remove the source
+                        // group and update the destination group.
                         mModelList.removeAt(srcIndex);
-                        if (getRelatedTabsForId(movedTab.getId()).size() == 2) {
-                            // When users use drop-to-merge to create a group.
-                            RecordUserAction.record("TabGroup.Created.DropToMerge");
-                        } else {
-                            RecordUserAction.record("TabGrid.Drag.DropToMerge");
-                        }
                         desIndex =
                                 srcIndex > desIndex
                                         ? desIndex
@@ -848,6 +863,15 @@ class TabListMediator implements TabListNotificationHandler {
                                 filter.getRepresentativeTabAt(
                                         mModelList.getTabCardCountsBefore(desIndex));
                         updateTab(desIndex, newSelectedTabInMergedGroup, true, false);
+
+                        // TODO(crbug.com/434246302): These metrics are probably wrong as it looks
+                        // like they get emitted per-tab merged, rather than per-group merged.
+                        if (getRelatedTabsForId(movedTab.getId()).size() == 2) {
+                            // When users use drop-to-merge to create a group.
+                            RecordUserAction.record("TabGroup.Created.DropToMerge");
+                        } else {
+                            RecordUserAction.record("TabGrid.Drag.DropToMerge");
+                        }
                     } else {
                         // If no tab is present we can't check if the added tab is part of the
                         // current group. Assume it isn't since a group state with 0 tab should be
@@ -1424,8 +1448,8 @@ class TabListMediator implements TabListNotificationHandler {
         mOriginalProfile = originalProfile;
         mTabListFaviconProvider.initWithNative(originalProfile);
 
-        mOnTabGroupModelFilterChanged.onResult(
-                mCurrentTabGroupModelFilterSupplier.addObserver(mOnTabGroupModelFilterChanged));
+        mCurrentTabGroupModelFilterSupplier.addSyncObserverAndCallIfNonNull(
+                mOnTabGroupModelFilterChanged);
 
         mTabGroupSyncService = TabGroupSyncServiceFactory.getForProfile(originalProfile);
         if (mTabGroupSyncService != null) {
@@ -1716,6 +1740,7 @@ class TabListMediator implements TabListNotificationHandler {
         model.set(TabProperties.IS_SELECTED, isTabSelected);
         model.set(TabProperties.SHOULD_SHOW_PRICE_DROP_TOOLTIP, false);
         model.set(TabProperties.TITLE, getLatestTitleForTab(tab, /* useDefault= */ true));
+        model.set(TabProperties.MEDIA_INDICATOR, getTabGridMediaIndicator(tab));
 
         bindTabActionStateProperties(model.get(TabProperties.TAB_ACTION_STATE), tab, model);
 
@@ -1746,6 +1771,23 @@ class TabListMediator implements TabListNotificationHandler {
         assert filter.isTabModelRestored();
 
         return filter.isTabInTabGroup(tab);
+    }
+
+    private @MediaState int getTabGridMediaIndicator(Tab representativeTab) {
+        if (!ChromeFeatureList.sMediaIndicatorsAndroid.isEnabled()) return MediaState.NONE;
+
+        if (!mActionsOnAllRelatedTabs || !isTabInTabGroup(representativeTab)) {
+            return representativeTab.getMediaState();
+        }
+        List<Tab> relatedTabs = getRelatedTabsForId(representativeTab.getId());
+        @MediaState int state;
+        for (Tab tab : relatedTabs) {
+            state = tab.getMediaState();
+            if (state != MediaState.NONE) {
+                return state;
+            }
+        }
+        return MediaState.NONE;
     }
 
     /**
@@ -1926,6 +1968,12 @@ class TabListMediator implements TabListNotificationHandler {
                     TabActionButtonData.TabActionButtonType.OVERFLOW,
                     getTabGroupOverflowMenuClickListener());
         }
+
+        if (tab.getIsPinned()) {
+            return new TabActionButtonData(
+                    TabActionButtonData.TabActionButtonType.PIN, /* tabActionListener= */ null);
+        }
+
         return new TabActionButtonData(
                 TabActionButtonData.TabActionButtonType.CLOSE, mTabClosedListener);
     }
@@ -2090,6 +2138,7 @@ class TabListMediator implements TabListNotificationHandler {
                                 QuickDeleteAnimationStatus.TAB_RESTORE)
                         .with(TabProperties.VISIBILITY, View.VISIBLE)
                         .with(TabProperties.USE_SHRINK_CLOSE_ANIMATION, false)
+                        .with(TabProperties.MEDIA_INDICATOR, getTabGridMediaIndicator(tab))
                         .build();
 
         if (!mActionsOnAllRelatedTabs || isInTabGroup) {
@@ -2664,8 +2713,7 @@ class TabListMediator implements TabListNotificationHandler {
 
         Tab tab = getTabForIndex(index);
         // If the found tab has a different group ID from the tabGroupId set in the args then the
-        // update
-        // is likely for a group that no longer exists so we should drop the update.
+        // update is likely for a group that no longer exists so we should drop the update.
         if (tab == null
                 || !tabGroupId.equals(tab.getTabGroupId())
                 || !filter.isTabInTabGroup(tab)) {

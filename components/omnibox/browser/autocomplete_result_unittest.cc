@@ -56,8 +56,8 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/metrics_proto/omnibox_event.pb.h"
-#include "third_party/omnibox_proto/entity_info.pb.h"
 #include "third_party/omnibox_proto/groups.pb.h"
+#include "third_party/omnibox_proto/suggest_template_info.pb.h"
 #include "third_party/omnibox_proto/types.pb.h"
 #include "ui/base/device_form_factor.h"
 
@@ -3397,10 +3397,12 @@ TEST_F(AutocompleteResultTest, Mobile_TrimOmniboxActions) {
                            : AutocompleteMatchType::SEARCH_SUGGEST_ENTITY);
       for (auto& action_id : actions) {
         if (action_id == OmniboxActionId::ACTION_IN_SUGGEST) {
-          omnibox::ActionInfo info;
-          info.set_action_type(omnibox::ActionInfo_ActionType_DIRECTIONS);
+          omnibox::SuggestTemplateInfo::TemplateAction action;
+          action.set_action_type(
+              omnibox::
+                  SuggestTemplateInfo_TemplateAction_ActionType_DIRECTIONS);
           match.actions.push_back(base::MakeRefCounted<OmniboxActionInSuggest>(
-              std::move(info), std::nullopt));
+              std::move(action), std::nullopt));
         } else {
           match.actions.push_back(
               base::MakeRefCounted<FakeOmniboxAction>(action_id));
@@ -3651,3 +3653,43 @@ TEST_F(AutocompleteResultTest, ContextualSearchAblateOthers_AblateUrlOnly) {
   AssertResultMatches(result, expected_data);
 }
 #endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
+
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
+TEST_F(AutocompleteResultTest, AttachAimAction) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(omnibox::kOmniboxAimShortcutTypedState);
+
+  TestData data[] = {
+      {0, 1, 1300, true, {}, AutocompleteMatchType::SEARCH_SUGGEST},
+      {1, 1, 1200, false, {}, AutocompleteMatchType::SEARCH_SUGGEST},
+  };
+
+  ACMatches matches;
+  PopulateAutocompleteMatches(data, &matches);
+  matches[0].contents = u"eligible for aim action";
+
+  AutocompleteInput input(u"eligible for aim action",
+                          metrics::OmniboxEventProto::OTHER,
+                          TestSchemeClassifier());
+  AutocompleteResult result;
+  result.AppendMatches(matches);
+  result.SortAndCull(input, &template_url_service(),
+                     triggered_feature_service(), /*is_lens_active=*/false,
+                     /*can_show_contextual_suggestions=*/false,
+                     /*mia_enabled*/ false);
+
+  ASSERT_EQ(2U, result.size());
+  EXPECT_TRUE(result.match_at(0)->actions.empty());
+  EXPECT_TRUE(result.match_at(1)->actions.empty());
+
+  result.AttachAimAction(&template_url_service());
+
+  EXPECT_EQ(1U, result.match_at(0)->actions.size());
+  const auto* action_in_suggest =
+      OmniboxActionInSuggest::FromAction(result.match_at(0)->actions[0].get());
+  ASSERT_TRUE(action_in_suggest);
+  EXPECT_EQ(action_in_suggest->template_action.action_type(),
+            omnibox::SuggestTemplateInfo_TemplateAction_ActionType_CHROME_AIM);
+  EXPECT_TRUE(result.match_at(1)->actions.empty());
+}
+#endif  // BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)

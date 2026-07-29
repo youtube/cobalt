@@ -23,8 +23,9 @@
 #include "components/user_data_importer/common/imported_bookmark_entry.h"
 #include "components/user_data_importer/common/importer_data_types.h"
 #include "components/user_data_importer/common/importer_url_row.h"
-#include "components/user_data_importer/content/content_bookmark_parser.h"
+#include "components/user_data_importer/content/content_bookmark_parser_utils.h"
 #include "components/user_data_importer/content/favicon_reencode.h"
+#include "components/user_data_importer/utility/bookmark_parser.h"
 #include "sql/database.h"
 #include "sql/statement.h"
 #include "url/gurl.h"
@@ -145,6 +146,7 @@ void FirefoxImporter::StartImport(
     ImportBookmarks();
     bridge_->NotifyItemEnded(user_data_importer::FAVORITES);
   }
+
 #if !BUILDFLAG(IS_MAC)
   if ((items & user_data_importer::PASSWORDS) && !cancelled()) {
     bridge_->NotifyItemStarted(user_data_importer::PASSWORDS);
@@ -157,6 +159,7 @@ void FirefoxImporter::StartImport(
     ImportAutofillFormData();
     bridge_->NotifyItemEnded(user_data_importer::AUTOFILL_FORM_DATA);
   }
+
   bridge_->NotifyEnded();
 }
 
@@ -208,25 +211,15 @@ void FirefoxImporter::ImportHistory() {
 }
 
 void FirefoxImporter::ImportBookmarks() {
-  base::FilePath file = app_path_.AppendASCII("defaults")
-                            .AppendASCII("profile")
-                            .AppendASCII("bookmarks.html");
-
-  user_data_importer::MakeBookmarkParser()->Parse(
-      file, base::BindOnce(&FirefoxImporter::OnBookmarksParsed,
-                           weak_ptr_factory_.GetWeakPtr()));
-}
-
-void FirefoxImporter::OnBookmarksParsed(
-    user_data_importer::BookmarkParser::BookmarkParsingResult
-        default_bookmarks) {
-  base::FilePath file = GetCopiedSourcePath("places.sqlite");
-  if (!base::PathExists(file))
+  base::FilePath sqlite_file = GetCopiedSourcePath("places.sqlite");
+  if (!base::PathExists(sqlite_file)) {
     return;
+  }
 
   sql::Database db(kDatabaseTag);
-  if (!db.Open(file))
+  if (!db.Open(sqlite_file)) {
     return;
+  }
 
   // |moz_favicons| table has been introduced in Firefox 55 and is not available
   // in older Firefox profiles.
@@ -245,11 +238,20 @@ void FirefoxImporter::OnBookmarksParsed(
   LoadLivemarkIDs(&db, &livemark_id);
 
   // Load the default bookmarks.
+  base::FilePath bookmarks_file = app_path_.AppendASCII("defaults")
+                                      .AppendASCII("profile")
+                                      .AppendASCII("bookmarks.html");
+  std::string raw_html;
+
+  // ReadFileToString can return false, but still populate something into
+  // `raw_html`. In that case, try to recover as much data as possible.
+  base::ReadFileToString(bookmarks_file, &raw_html);
+  user_data_importer::BookmarkParser::ParsedBookmarks default_bookmarks =
+      user_data_importer::ParseBookmarksUnsafe(raw_html);
+
   std::set<GURL> default_urls;
-  if (default_bookmarks.has_value()) {
-    for (const auto& bookmark : default_bookmarks->bookmarks) {
-      default_urls.insert(bookmark.url);
-    }
+  for (const auto& bookmark : default_bookmarks.bookmarks) {
+    default_urls.insert(bookmark.url);
   }
 
   BookmarkList list;

@@ -24,18 +24,6 @@
 #import "ui/gfx/favicon_size.h"
 #import "url/gurl.h"
 
-namespace {
-
-constexpr CGFloat kFaviconContainterViewSize = 30;
-
-// Returns the size that the favicon should have.
-CGFloat GetFaviconSize() {
-  return IsKeyboardAccessoryUpgradeEnabled() ? kFaviconContainterViewSize
-                                             : gfx::kFaviconSize;
-}
-
-}  // namespace
-
 @interface ManualFillCredentialItem ()
 
 // The credential for this item.
@@ -139,6 +127,35 @@ namespace {
 // cell.
 static const CGFloat kOffsetForConnectedCell = 16;
 
+constexpr CGFloat kFaviconContainterViewSize = 30;
+
+// Returns the size that the favicon should have.
+CGFloat GetFaviconSize() {
+  return IsKeyboardAccessoryUpgradeEnabled() ? kFaviconContainterViewSize
+                                             : gfx::kFaviconSize;
+}
+
+// Logs the relevant metrics for a tap on the "Autofill form" button.
+void LogAutofillFormButtonTappedMetrics(BOOL from_all_passwords_context,
+                                        BOOL is_backup_credential,
+                                        NSInteger cell_index) {
+  std::string user_action =
+      from_all_passwords_context
+          ? "ManualFallback_AllPasswords_SuggestionAccepted"
+          : "ManualFallback_Password_SuggestionAccepted";
+  if (is_backup_credential) {
+    user_action.append("_Backup");
+  }
+  base::RecordAction(base::UserMetricsAction(user_action.c_str()));
+
+  const char* histogram_suffix =
+      from_all_passwords_context ? ".AllPasswords" : "";
+  std::string histogram = base::StrCat(
+      {"Autofill.UserAcceptedSuggestionAtIndex.Password.ManualFallback",
+       histogram_suffix});
+  base::UmaHistogramSparse(histogram, cell_index);
+}
+
 }  // namespace
 
 @interface ManualFillPasswordCell ()
@@ -149,9 +166,6 @@ static const CGFloat kOffsetForConnectedCell = 16;
 // The dynamic constraints for all the lines (i.e. not set in createView).
 @property(nonatomic, strong)
     NSMutableArray<NSLayoutConstraint*>* dynamicConstraints;
-
-// The constraints for the visible favicon.
-@property(nonatomic, strong) NSArray<NSLayoutConstraint*>* faviconContraints;
 
 // The view displayed at the top the cell containing the favicon, the site name
 // and an overflow button.
@@ -206,8 +220,6 @@ static const CGFloat kOffsetForConnectedCell = 16;
 
 - (void)prepareForReuse {
   [super prepareForReuse];
-  [NSLayoutConstraint deactivateConstraints:self.faviconContraints];
-  self.faviconView.hidden = YES;
 
   [_customSymbolImageView removeFromSuperview];
   _customSymbolImageView = nil;
@@ -216,7 +228,7 @@ static const CGFloat kOffsetForConnectedCell = 16;
   [self.dynamicConstraints removeAllObjects];
 
   self.siteNameLabel.text = @"";
-  [self configureFaviconWithAttributes:nil];
+  [self setUpFaviconViewWithAttributes:nil];
 
   [self.usernameButton setTitle:@"" forState:UIControlStateNormal];
   self.usernameButton.enabled = YES;
@@ -369,14 +381,7 @@ static const CGFloat kOffsetForConnectedCell = 16;
 }
 
 - (void)configureWithFaviconAttributes:(FaviconAttributes*)attributes {
-  if (attributes.faviconImage) {
-    self.faviconView.hidden = NO;
-    [NSLayoutConstraint activateConstraints:self.faviconContraints];
-    [self configureFaviconWithAttributes:attributes];
-    return;
-  }
-  [NSLayoutConstraint deactivateConstraints:self.faviconContraints];
-  self.faviconView.hidden = YES;
+  [self setUpFaviconViewWithAttributes:attributes];
 }
 
 - (void)configureWithSymbol:(UIImage*)symbol {
@@ -429,12 +434,11 @@ static const CGFloat kOffsetForConnectedCell = 16;
                          : [[FaviconView alloc] init];
   self.faviconView.translatesAutoresizingMaskIntoConstraints = NO;
   self.faviconView.clipsToBounds = YES;
-  self.faviconView.hidden = YES;
-  self.faviconContraints = @[
+  [NSLayoutConstraint activateConstraints:@[
     [self.faviconView.widthAnchor constraintEqualToConstant:GetFaviconSize()],
     [self.faviconView.heightAnchor
         constraintEqualToAnchor:self.faviconView.widthAnchor],
-  ];
+  ]];
 
   self.siteNameLabel = CreateLabel();
   self.overflowMenuButton = CreateOverflowMenuButton(_cellIndex);
@@ -492,8 +496,9 @@ static const CGFloat kOffsetForConnectedCell = 16;
                                             requiresHTTPS:YES]) {
     return;
   }
-  base::RecordAction(
-      base::UserMetricsAction("ManualFallback_Password_SelectPassword"));
+  base::RecordAction(base::UserMetricsAction(
+      [self isBackupCredential] ? "ManualFallback_Password_SelectBackupPassword"
+                                : "ManualFallback_Password_SelectPassword"));
   [self.contentInjector userDidPickContent:self.credential.password
                              passwordField:YES
                              requiresHTTPS:YES];
@@ -502,24 +507,15 @@ static const CGFloat kOffsetForConnectedCell = 16;
 // Called when the "Autofill Form" button is tapped. Fills the current form with
 // the credential' data.
 - (void)onAutofillFormButtonTapped {
-  std::string histogram =
-      "Autofill.UserAcceptedSuggestionAtIndex.Password.ManualFallback";
-  if (_fromAllPasswordsContext) {
-    histogram = base::StrCat({histogram, ".AllPasswords"});
-    base::RecordAction(base::UserMetricsAction(
-        "ManualFallback_AllPasswords_SuggestionAccepted"));
-  } else {
-    base::RecordAction(
-        base::UserMetricsAction("ManualFallback_Password_SuggestionAccepted"));
-  }
-  base::UmaHistogramSparse(histogram, _cellIndex);
+  LogAutofillFormButtonTappedMetrics(_fromAllPasswordsContext,
+                                     [self isBackupCredential], _cellIndex);
 
   [self.contentInjector autofillFormWithCredential:self.credential
                                       shouldReauth:!_fromAllPasswordsContext];
 }
 
-// Configure the favicon with the given `attributes`.
-- (void)configureFaviconWithAttributes:(FaviconAttributes*)attributes {
+// Sets up the favicon with the given `attributes`.
+- (void)setUpFaviconViewWithAttributes:(FaviconAttributes*)attributes {
   FaviconView* favicon;
   if (IsKeyboardAccessoryUpgradeEnabled()) {
     FaviconContainerView* faviconContainerView =
@@ -528,6 +524,8 @@ static const CGFloat kOffsetForConnectedCell = 16;
   } else {
     favicon = static_cast<FaviconView*>(self.faviconView);
   }
+  favicon.accessibilityIdentifier =
+      manual_fill::kExpandedManualFillPasswordFaviconID;
   [favicon configureWithAttributes:attributes];
 }
 

@@ -8,6 +8,7 @@
 
 #import "base/notreached.h"
 #import "base/strings/utf_string_conversions.h"
+#import "base/test/ios/wait_util.h"
 #import "components/dom_distiller/core/extraction_utils.h"
 #import "ios/chrome/browser/dom_distiller/model/distiller_service_factory.h"
 #import "ios/chrome/browser/reader_mode/model/features.h"
@@ -54,12 +55,13 @@ std::unique_ptr<web::FakeWebState> ReaderModeTest::CreateWebState() {
   return web_state;
 }
 
-void ReaderModeTest::EnableReaderMode(web::WebState* web_state) {
-  ReaderModeTabHelper::FromWebState(web_state)->SetActive(true);
+void ReaderModeTest::EnableReaderMode(web::WebState* web_state,
+                                      ReaderModeAccessPoint access_point) {
+  ReaderModeTabHelper::FromWebState(web_state)->ActivateReader(access_point);
 }
 
 void ReaderModeTest::DisableReaderMode(web::WebState* web_state) {
-  ReaderModeTabHelper::FromWebState(web_state)->SetActive(false);
+  ReaderModeTabHelper::FromWebState(web_state)->DeactivateReader();
 }
 
 void ReaderModeTest::LoadWebpage(web::FakeWebState* web_state,
@@ -118,11 +120,20 @@ void ReaderModeTest::SetReaderModeState(web::FakeWebState* web_state,
   }));
 }
 
-void ReaderModeTest::WaitForReaderModeContentReady() {
+void ReaderModeTest::WaitForPageLoadDelayAndRunUntilIdle() {
   // Waits for asynchronous trigger heuristic delay
   // `kReaderModeHeuristicPageLoadDelay` after the page is loaded.
   task_environment_.AdvanceClock(base::Seconds(1));
   task_environment_.RunUntilIdle();
+}
+
+bool ReaderModeTest::WaitForAvailableReaderModeContentInWebState(
+    web::WebState* web_state) {
+  return base::test::ios::WaitUntilConditionOrTimeout(
+      base::test::ios::kWaitForJSCompletionTimeout, true, ^{
+        return ReaderModeTabHelper::FromWebState(web_state)
+                   ->GetReaderModeWebState() != nullptr;
+      });
 }
 
 void ReaderModeTest::AddReadabilityHeuristicResultToFrame(

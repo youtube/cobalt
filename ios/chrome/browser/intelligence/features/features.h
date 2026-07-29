@@ -23,6 +23,12 @@ BASE_DECLARE_FEATURE(kPageActionMenu);
 // Returns true if the page action menu is enabled.
 bool IsPageActionMenuEnabled();
 
+// Feature flag controlling the cross-tab floaty chat persistence.
+BASE_DECLARE_FEATURE(kGeminiCrossTab);
+
+// Returns true if the cross-tab chat persistence is enabled for the floaty.
+bool IsGeminiCrossTabEnabled();
+
 // Whether the omnibox entry point opens the BWG overlay immediately, skipping
 // the AI hub.
 bool IsDirectBWGEntryPoint();
@@ -71,5 +77,12 @@ BASE_DECLARE_FEATURE(kBWGPreciseLocation);
 
 // Returns true if the precise location setting is enabled.
 bool IsBWGPreciseLocationEnabled();
+
+// Feature flag controlling the inclusion of anchor tags (links) in Page
+// Context.
+BASE_DECLARE_FEATURE(kPageContextAnchorTags);
+
+// Returns true if the anchor tags are enabled in Page Context.
+bool IsPageContextAnchorTagsEnabled();
 
 #endif  // IOS_CHROME_BROWSER_INTELLIGENCE_FEATURES_FEATURES_H_

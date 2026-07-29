@@ -29,13 +29,18 @@ class ReaderModePanelItemConfiguration
   void ReaderModeWebStateDidLoadContent(
       ReaderModeTabHelper* tab_helper) override;
   void ReaderModeWebStateWillBecomeUnavailable(
-      ReaderModeTabHelper* tab_helper) override;
+      ReaderModeTabHelper* tab_helper,
+      ReaderModeDeactivationReason reason) override;
   void ReaderModeDistillationFailed(ReaderModeTabHelper* tab_helper) override;
 
   // web::WebStateObserver
+  void WasHidden(web::WebState* web_state) override;
   void WebStateDestroyed(web::WebState* web_state) override;
 
  private:
+  // Invalidates this configuration.
+  void Invalidate();
+
   base::ScopedObservation<web::WebState, web::WebStateObserver>
       web_state_observation_{this};
   base::ScopedObservation<ReaderModeTabHelper, ReaderModeTabHelper::Observer>

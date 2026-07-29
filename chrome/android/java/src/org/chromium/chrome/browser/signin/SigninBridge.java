@@ -34,6 +34,7 @@ import org.chromium.components.signin.AccountManagerFacadeProvider;
 import org.chromium.components.signin.AccountUtils;
 import org.chromium.components.signin.GAIAServiceType;
 import org.chromium.components.signin.base.AccountInfo;
+import org.chromium.components.signin.identitymanager.IdentityManager;
 import org.chromium.components.signin.metrics.AccountConsistencyPromoAction;
 import org.chromium.components.signin.metrics.SigninAccessPoint;
 import org.chromium.ui.base.WindowAndroid;
@@ -47,6 +48,8 @@ final class SigninBridge {
     static class AccountPickerBottomSheetCoordinatorFactory {
         AccountPickerBottomSheetCoordinator create(
                 WindowAndroid windowAndroid,
+                IdentityManager identityManager,
+                SigninManager signinManager,
                 BottomSheetController bottomSheetController,
                 AccountPickerDelegate accountPickerDelegate,
                 AccountPickerBottomSheetStrings accountPickerBottomSheetStrings,
@@ -54,6 +57,8 @@ final class SigninBridge {
                 @AccountPickerLaunchMode int accountPickerLaunchMode) {
             return new AccountPickerBottomSheetCoordinator(
                     windowAndroid,
+                    identityManager,
+                    signinManager,
                     bottomSheetController,
                     accountPickerDelegate,
                     accountPickerBottomSheetStrings,
@@ -97,9 +102,8 @@ final class SigninBridge {
             // https://crbug.com/1145031#c5 and https://crbug.com/323424409 for details.
             return;
         }
-        Profile profile = tab.getProfile();
-        SigninManager signinManager =
-                IdentityServicesProvider.get().getSigninManager(profile.getOriginalProfile());
+        Profile profile = tab.getProfile().getOriginalProfile();
+        SigninManager signinManager = IdentityServicesProvider.get().getSigninManager(profile);
         if (!signinManager.isSigninAllowed()) {
             SigninMetricsUtils.logAccountConsistencyPromoAction(
                     AccountConsistencyPromoAction.SUPPRESSED_SIGNIN_NOT_ALLOWED,
@@ -142,6 +146,8 @@ final class SigninBridge {
 
         factory.create(
                 windowAndroid,
+                signinManager.getIdentityManager(),
+                signinManager,
                 bottomSheetController,
                 new WebSigninAccountPickerDelegate(tab, new WebSigninBridge.Factory(), continueUrl),
                 strings,

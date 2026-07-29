@@ -8,14 +8,22 @@
 
 #include "base/android/jni_android.h"
 #include "base/android/scoped_java_ref.h"
+#include "base/no_destructor.h"
 #include "base/notreached.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser_window/internal/jni/AndroidBrowserWindow_jni.h"
+#include "components/sessions/core/session_id.h"
 #include "ui/base/unowned_user_data/unowned_user_data_host.h"
 
 namespace {
 using base::android::AttachCurrentThread;
 using base::android::JavaParamRef;
+
+std::vector<BrowserWindowInterface*>& GetAndroidWindowList() {
+  static base::NoDestructor<std::vector<BrowserWindowInterface*>> list;
+  return *list;
+}
+
 }  // namespace
 
 // Implements Java |AndroidBrowserWindow.Natives#create|.
@@ -27,13 +35,25 @@ static jlong JNI_AndroidBrowserWindow_Create(
 
 AndroidBrowserWindow::AndroidBrowserWindow(
     JNIEnv* env,
-    const JavaParamRef<jobject>& java_android_browser_window) {
+    const JavaParamRef<jobject>& java_android_browser_window)
+    : session_id_(SessionID::NewUnique()) {
   java_android_browser_window_.Reset(env, java_android_browser_window);
+  GetAndroidWindowList().push_back(this);
 }
 
 AndroidBrowserWindow::~AndroidBrowserWindow() {
   Java_AndroidBrowserWindow_clearNativePtr(AttachCurrentThread(),
                                            java_android_browser_window_);
+  std::vector<BrowserWindowInterface*>& all_windows = GetAndroidWindowList();
+  auto iter = std::find(all_windows.begin(), all_windows.end(), this);
+  CHECK(iter != all_windows.end());
+  all_windows.erase(iter);
+}
+
+// static
+std::vector<BrowserWindowInterface*>
+AndroidBrowserWindow::GetAllAndroidBrowserWindowsByCreationTime() {
+  return GetAndroidWindowList();
 }
 
 void AndroidBrowserWindow::Destroy(JNIEnv* env) {
@@ -41,12 +61,12 @@ void AndroidBrowserWindow::Destroy(JNIEnv* env) {
 }
 
 ui::UnownedUserDataHost& AndroidBrowserWindow::GetUnownedUserDataHost() {
-  NOTREACHED();
+  return unowned_user_data_host_;
 }
 
 const ui::UnownedUserDataHost& AndroidBrowserWindow::GetUnownedUserDataHost()
     const {
-  NOTREACHED();
+  return unowned_user_data_host_;
 }
 
 ui::BaseWindow* AndroidBrowserWindow::GetWindow() {
@@ -56,11 +76,13 @@ ui::BaseWindow* AndroidBrowserWindow::GetWindow() {
 }
 
 Profile* AndroidBrowserWindow::GetProfile() {
-  NOTREACHED();
+  // TODO(crbug.com/429037015): Return a proper Profile.
+  // Temporarily return nullptr to avoid crashing callers.
+  return nullptr;
 }
 
 const SessionID& AndroidBrowserWindow::GetSessionID() const {
-  NOTREACHED();
+  return session_id_;
 }
 
 content::WebContents* AndroidBrowserWindow::OpenURL(

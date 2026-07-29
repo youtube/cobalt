@@ -11,13 +11,23 @@
 namespace blink {
 
 HTMLGeolocationElement::HTMLGeolocationElement(Document& document)
-    : HTMLPermissionElement(document) {
+    : HTMLPermissionElement(document, html_names::kGeolocationTag) {
   CHECK(RuntimeEnabledFeatures::GeolocationElementEnabled(
       document.GetExecutionContext()));
   setType(AtomicString("geolocation"));
 }
 
+Geoposition* HTMLGeolocationElement::position() const {
+  return position_.Get();
+}
+
+GeolocationPositionError* HTMLGeolocationElement::error() const {
+  return error_.Get();
+}
+
 void HTMLGeolocationElement::Trace(Visitor* visitor) const {
+  visitor->Trace(position_);
+  visitor->Trace(error_);
   HTMLPermissionElement::Trace(visitor);
 }
 }  // namespace blink

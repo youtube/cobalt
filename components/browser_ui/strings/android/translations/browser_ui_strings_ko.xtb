@@ -78,6 +78,7 @@
 <translation id="1915307458270490472">종료</translation>
 <translation id="1919950603503897840">연락처 선택</translation>
 <translation id="1923695749281512248"><ph name="BYTES_DOWNLOADED_WITH_UNITS" />/<ph name="FILE_SIZE_WITH_UNITS" /></translation>
+<translation id="1939059826036755332">자동 PIP 모드</translation>
 <translation id="1954597385941141174">사이트에서 USB 기기에 연결하도록 요청할 수 있음</translation>
 <translation id="1979673356880165407">방문하는 모든 사이트에서 텍스트 및 이미지 확대 또는 축소합니다.</translation>
 <translation id="1984937141057606926">타사 쿠키만 제외하고 허용</translation>
@@ -228,6 +229,7 @@
 <translation id="3600792891314830896">소리를 재생하는 사이트 음소거</translation>
 <translation id="3602290021589620013">미리보기</translation>
 <translation id="3611658447322220736">최근에 닫은 사이트에서 데이터 송수신을 완료할 수 있음</translation>
+<translation id="3619294456800709762">사이트에서 PIP 모드를 자동으로 시작할 수 있음</translation>
 <translation id="3628308229821498208">추천 검색어</translation>
 <translation id="3641456520301071208">사이트에서 위치 정보를 요청할 수 있음</translation>
 <translation id="3658847490588580244">기본 브라우저 하단 시트</translation>
@@ -276,6 +278,7 @@
 <translation id="4031179711345676612">마이크 허용됨</translation>
 <translation id="4046123991198612571">다음 트랙</translation>
 <translation id="4077310749977440510">사이트에서는 일반적으로 복사한 텍스트 서식 유지와 같은 기능을 사용하기 위해 클립보드를 읽습니다.</translation>
+<translation id="4082080074595021446">Android 기기에 RAM이 부족하여 특정 웹사이트에 대한 예외가 허용되지 않습니다.</translation>
 <translation id="4149890623864272035">쿠키를 포함한 모든 로컬 데이터를 삭제하고 이 웹사이트에 대한 권한을 모두 재설정하시겠습니까?</translation>
 <translation id="4149994727733219643">웹페이지 간단히 보기</translation>
 <translation id="4151930093518524179">기본 확대/축소</translation>
@@ -414,6 +417,7 @@
 <translation id="5750869797196646528">손 추적</translation>
 <translation id="5753570386948603678">기록에서 삭제</translation>
 <translation id="5771720122942595109"><ph name="PERMISSION_1" /> 차단됨</translation>
+<translation id="5801457289562671820">조직 추천</translation>
 <translation id="5804241973901381774">권한</translation>
 <translation id="5822675474983796325">새 탭 페이지 맞춤설정 하단 시트가 전체 높이로 열림</translation>
 <translation id="5833899990800318936">사이트에서 JavaScript를 사용하도록 허용하지 않음</translation>
@@ -445,6 +449,7 @@
 <translation id="6064125863973209585">다운로드 완료</translation>
 <translation id="6071501408666570960">이 사이트에서 로그아웃될 수 있습니다</translation>
 <translation id="6085954183010297841">파일 수정 권한을 삭제하시겠습니까? <ph name="FILE" /></translation>
+<translation id="6104860901391833523">사용 설정하면 사이트에서 PIP 모드로 자동 전환할 수 있습니다. 사용 중지하면 사이트에서 PIP 모드로 자동 전환할 수 없습니다.</translation>
 <translation id="6120483543004435978">사용 설정하면 사이트에서 사용자가 현재 기기를 사용 중인지에 관한 확인을 요청할 수 있습니다. 사용 중지하면 사이트에서 사용자가 현재 기기를 사용 중인지 확인할 수 없습니다.</translation>
 <translation id="615886654739818377">사이트에서 모든 디스플레이의 창을 관리하도록 허용 안함</translation>
 <translation id="6165508094623778733">자세히 알아보기</translation>
@@ -607,6 +612,7 @@
 <translation id="8117244575099414087">사용 설정하면 사이트에서 기기의 센서를 사용할 수 있습니다. 사용 중지하면 사이트에서 센서를 사용할 수 없습니다.</translation>
 <translation id="813082847718468539">사이트 정보 보기</translation>
 <translation id="8131740175452115882">확인</translation>
+<translation id="8163152278172770963">사이트에서 PIP 모드를 자동으로 입력하도록 허용하지 않음</translation>
 <translation id="8168435359814927499">콘텐츠</translation>
 <translation id="818487310457576362">전체 화면을 종료하려면 화면 측면에서 드래그하세요.</translation>
 <translation id="8186479265534291036">사이트가 작동하지 않나요? 서드 파티 쿠키가 차단되었습니다.</translation>
@@ -698,6 +704,7 @@
 <translation id="913657688200966289"><ph name="BEGIN_LINK" />Android 설정<ph name="END_LINK" />에서 <ph name="APP_NAME" /> 관련 권한을 허용하세요.</translation>
 <translation id="9138037198177304356">알림 허용됨</translation>
 <translation id="9138217887606523162">현재 확대/축소 레벨은 <ph name="ZOOM_LEVEL" />%%입니다</translation>
+<translation id="915112772806845021">사이트에서는 이 기능을 사용하여 PIP 모드로 자동 전환합니다. 이렇게 하면 동영상을 계속 시청하면서 다른 작업을 위한 화면을 확보할 수 있습니다.</translation>
 <translation id="9156722768168878035">Chrome에서 기기의 앱 목록과 검색 결과에 최근 탭을 표시하도록 허용합니다. 이 기능은 Chrome 설정에서 언제든지 사용 중지할 수 있습니다.</translation>
 <translation id="9162462602695099906">위험한 페이지입니다.</translation>
 <translation id="9182556968660520230">사이트에서 보호된 콘텐츠를 재생하도록 허용하지 않음</translation>

@@ -497,10 +497,12 @@ void WebContentsAndroid::ResumeLoadingCreatedWebContents(JNIEnv* env) {
   web_contents_->ResumeLoadingCreatedWebContents();
 }
 
-void WebContentsAndroid::SetPrimaryMainFrameImportance(JNIEnv* env,
-                                                       jint importance) {
-  web_contents_->SetPrimaryMainFrameImportance(
-      static_cast<ChildProcessImportance>(importance));
+void WebContentsAndroid::SetPrimaryPageImportance(JNIEnv* env,
+                                                  jint main_frame_importance,
+                                                  jint subframe_importance) {
+  web_contents_->SetPrimaryPageImportance(
+      static_cast<ChildProcessImportance>(main_frame_importance),
+      static_cast<ChildProcessImportance>(subframe_importance));
 }
 
 void WebContentsAndroid::SuspendAllMediaPlayers(JNIEnv* env) {
@@ -912,15 +914,6 @@ void WebContentsAndroid::SetDisplayCutoutSafeArea(JNIEnv* env,
                                                   int right) {
   web_contents()->SetDisplayCutoutSafeArea(
       gfx::Insets::TLBR(top, left, bottom, right));
-}
-
-void WebContentsAndroid::SetContextMenuInsets(JNIEnv* env,
-                                              int top,
-                                              int left,
-                                              int bottom,
-                                              int right) {
-  auto rect = gfx::Rect(left, top, right - left, bottom - top);
-  web_contents()->SetContextMenuInsets(rect);
 }
 
 void WebContentsAndroid::ShowInterestInElement(JNIEnv* env, int nodeID) {

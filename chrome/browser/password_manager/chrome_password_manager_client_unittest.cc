@@ -120,6 +120,7 @@
 #include "chrome/browser/touch_to_fill/password_manager/touch_to_fill_controller_delegate.h"
 #include "components/password_manager/content/browser/mock_keyboard_replacing_surface_visibility_controller.h"
 #include "components/password_manager/core/browser/passkey_credential.h"
+#include "components/password_manager/core/browser/split_stores_and_local_upm.h"
 #include "components/webauthn/android/cred_man_support.h"
 #include "components/webauthn/android/webauthn_cred_man_delegate.h"
 #else
@@ -369,7 +370,8 @@ class MockPasswordAccessoryControllerImpl
 class MockPasswordChangeService : public ChromePasswordChangeService {
  public:
   MockPasswordChangeService()
-      : ChromePasswordChangeService(/*affiliation_service=*/nullptr,
+      : ChromePasswordChangeService(/*pref_service*/ nullptr,
+                                    /*affiliation_service=*/nullptr,
                                     /*optimization_keyed_service=*/nullptr,
                                     /*settings_service=*/nullptr,
                                     /*feature_manager=*/nullptr) {}
@@ -776,8 +778,12 @@ TEST_F(ChromePasswordManagerClientTest, ReceivesAutofillPredictions) {
 
 TEST_F(ChromePasswordManagerClientTest,
        ReceivesPasswordFormClassifierPredictions) {
-  base::test::ScopedFeatureList features(
-      password_manager::features::kPasswordFormClientsideClassifier);
+  base::test::ScopedFeatureList features;
+  features.InitWithFeatures(
+      {password_manager::features::kPasswordFormClientsideClassifier,
+       password_manager::features::
+           kApplyClientsideModelPredictionsForPasswordTypes},
+      /*disabled_features=*/{});
   constexpr char kUrl[] = "https://www.foo.com/login.html";
 
   NavigateAndCommit(GURL(kUrl));
@@ -1722,10 +1728,8 @@ TEST_F(ChromePasswordManagerClientAndroidTest,
 // https://crbug.com/346331137: Broken after M4 rollout.
 TEST_F(ChromePasswordManagerClientAndroidTest,
        DISABLED_FocusedInputChangedFormsFetchedSplitStores) {
-  profile()->GetTestingPrefService()->SetInteger(
-      password_manager::prefs::kPasswordsUseUPMLocalAndSeparateStores,
-      static_cast<int>(
-          password_manager::prefs::UseUpmLocalAndSeparateStoresState::kOn));
+  password_manager::SetLegacySplitStoresPrefForTest(
+      profile()->GetTestingPrefService(), true);
   FormData observed_form_data = MakePasswordFormData();
   SetUpGenerationPreconditions(observed_form_data.url());
 
@@ -1773,10 +1777,8 @@ TEST_F(ChromePasswordManagerClientAndroidTest,
 // https://crbug.com/346331137: Broken after M4 rollout.
 TEST_F(ChromePasswordManagerClientAndroidTest,
        DISABLED_FocusedInputChangedFormsFetchedSingleStore) {
-  profile()->GetTestingPrefService()->SetInteger(
-      password_manager::prefs::kPasswordsUseUPMLocalAndSeparateStores,
-      static_cast<int>(
-          password_manager::prefs::UseUpmLocalAndSeparateStoresState::kOff));
+  password_manager::SetLegacySplitStoresPrefForTest(
+      profile()->GetTestingPrefService(), false);
   FormData observed_form_data = MakePasswordFormData();
   SetUpGenerationPreconditions(observed_form_data.url());
 
@@ -2126,14 +2128,12 @@ TEST_F(ChromePasswordManagerClientTest,
 }
 #endif  // BUILDFLAG(IS_ANDROID)
 
-TEST_F(ChromePasswordManagerClientTest,
-       PasswordChangeDelegateIsNotifiedAboutOTP) {
-  base::test::ScopedFeatureList features(
-      password_manager::features::kPasswordFormClientsideClassifier);
-
-  PasswordChangeDelegateMock mock;
-  ON_CALL(*password_change_service(), GetPasswordChangeDelegate)
-      .WillByDefault(Return(&mock));
+TEST_F(ChromePasswordManagerClientTest, OtpFieldsAreDetected) {
+  base::test::ScopedFeatureList features;
+  features.InitWithFeatures(
+      {password_manager::features::kPasswordFormClientsideClassifier,
+       password_manager::features::kApplyClientsideModelPredictionsForOtps},
+      /*disabled_features=*/{});
 
   NavigateAndCommit(GURL("https://www.foo.com/login.html"));
   ContentAutofillDriver* autofill_driver =
@@ -2154,8 +2154,6 @@ TEST_F(ChromePasswordManagerClientTest,
     ASSERT_TRUE(waiter.Wait(/*num_expected_relevant_events=*/1));
   }
 
-  EXPECT_CALL(mock, OnOtpFieldDetected(web_contents()));
-
   // Simulate that the field types have been determined.
   using Observer = autofill::AutofillManager::Observer;
   autofill_driver->GetAutofillManager()
@@ -2167,6 +2165,123 @@ TEST_F(ChromePasswordManagerClientTest,
   autofill_driver->GetAutofillManager().NotifyObservers(
       &Observer::OnFieldTypesDetermined, form.global_id(),
       Observer::FieldTypeSource::kHeuristicsOrAutocomplete);
+
+  password_manager::OtpManager* otp_manager = GetClient()->GetOtpManager();
+  EXPECT_EQ(1u, otp_manager->form_managers().size());
+}
+
+TEST_F(ChromePasswordManagerClientTest,
+       DidFinishNavigationInMainFrameClearsAllOtpManagers) {
+  password_manager::OtpManager* otp_manager = GetClient()->GetOtpManager();
+  ASSERT_TRUE(otp_manager);
+
+  // Create a main frame and a subframe.
+  const GURL kTestUrl("https://example.com");
+  NavigateAndCommit(GURL(kTestUrl));
+  content::RenderFrameHost* subframe =
+      content::RenderFrameHostTester::For(main_rfh())->AppendChild("subframe");
+
+  FormData main_frame_form = CreateLoginFormDataForFrame(main_rfh());
+  otp_manager->ProcessClassificationModelPredictions(
+      main_frame_form,
+      {{main_frame_form.fields()[0].global_id(), autofill::ONE_TIME_CODE}});
+
+  FormData subframe_form = CreateLoginFormDataForFrame(subframe);
+  otp_manager->ProcessClassificationModelPredictions(
+      subframe_form,
+      {{subframe_form.fields()[0].global_id(), autofill::ONE_TIME_CODE}});
+
+  ASSERT_EQ(2u, otp_manager->form_managers().size());
+
+  // Simulate finishing a navigation in the main frame.
+  content::MockNavigationHandle handle(GURL(kTestUrl), main_rfh());
+  handle.set_has_committed(true);
+  handle.set_is_in_primary_main_frame(true);
+  static_cast<content::WebContentsObserver*>(GetClient())
+      ->DidFinishNavigation(&handle);
+
+  // All form managers should be cleared.
+  EXPECT_EQ(0u, otp_manager->form_managers().size());
+}
+
+TEST_F(ChromePasswordManagerClientTest,
+       DidStartSameDocumentNavigationDoesNotClearOtpManagers) {
+  password_manager::OtpManager* otp_manager = GetClient()->GetOtpManager();
+  ASSERT_TRUE(otp_manager);
+  const GURL kTestUrl("https://example.com");
+  NavigateAndCommit(GURL(kTestUrl));
+
+  FormData main_frame_form = CreateLoginFormDataForFrame(main_rfh());
+  otp_manager->ProcessClassificationModelPredictions(
+      main_frame_form,
+      {{main_frame_form.fields()[0].global_id(), autofill::ONE_TIME_CODE}});
+  ASSERT_EQ(1u, otp_manager->form_managers().size());
+
+  // Simulate finishing a navigation within the same document in the main frame.
+  content::MockNavigationHandle handle(GURL(kTestUrl), main_rfh());
+  handle.set_is_in_primary_main_frame(true);
+  handle.set_has_committed(true);
+  handle.set_is_same_document(true);
+  static_cast<content::WebContentsObserver*>(GetClient())
+      ->DidFinishNavigation(&handle);
+
+  // Form managers should survive.
+  EXPECT_EQ(1u, otp_manager->form_managers().size());
+}
+
+TEST_F(ChromePasswordManagerClientTest,
+       DidFinishNavigationInIframeClearsOtpManagersForFrame) {
+  password_manager::OtpManager* otp_manager = GetClient()->GetOtpManager();
+  ASSERT_TRUE(otp_manager);
+
+  const GURL kTestUrl("https://example.com");
+  NavigateAndCommit(GURL(kTestUrl));
+  content::RenderFrameHost* subframe =
+      content::RenderFrameHostTester::For(main_rfh())->AppendChild("subframe");
+
+  FormData main_frame_form = CreateLoginFormDataForFrame(main_rfh());
+  otp_manager->ProcessClassificationModelPredictions(
+      main_frame_form,
+      {{main_frame_form.fields()[0].global_id(), autofill::ONE_TIME_CODE}});
+
+  FormData subframe_form = CreateLoginFormDataForFrame(subframe);
+  otp_manager->ProcessClassificationModelPredictions(
+      subframe_form,
+      {{subframe_form.fields()[0].global_id(), autofill::ONE_TIME_CODE}});
+
+  ASSERT_EQ(2u, otp_manager->form_managers().size());
+
+  // Simulate finishing a navigation in the subframe.
+  content::MockNavigationHandle handle(GURL(kTestUrl), subframe);
+  handle.set_is_in_primary_main_frame(false);
+  handle.set_has_committed(true);
+  static_cast<content::WebContentsObserver*>(GetClient())
+      ->DidFinishNavigation(&handle);
+
+  // Only the form manager for the subframe should be cleared.
+  EXPECT_EQ(1u, otp_manager->form_managers().size());
+  EXPECT_TRUE(
+      otp_manager->form_managers().contains(main_frame_form.global_id()));
+  EXPECT_FALSE(
+      otp_manager->form_managers().contains(subframe_form.global_id()));
+}
+
+TEST_F(ChromePasswordManagerClientTest,
+       RenderFrameDeletedClearsOtpManagersForFrame) {
+  password_manager::OtpManager* otp_manager = GetClient()->GetOtpManager();
+  ASSERT_TRUE(otp_manager);
+
+  NavigateAndCommit(GURL("https://example.com"));
+  FormData form = CreateLoginFormDataForFrame(main_rfh());
+  otp_manager->ProcessClassificationModelPredictions(
+      form, {{form.fields()[0].global_id(), autofill::ONE_TIME_CODE}});
+  ASSERT_EQ(1u, otp_manager->form_managers().size());
+
+  static_cast<content::WebContentsObserver*>(GetClient())
+      ->RenderFrameDeleted(main_rfh());
+
+  // The form manager should be cleared.
+  EXPECT_EQ(0u, otp_manager->form_managers().size());
 }
 
 #if BUILDFLAG(IS_ANDROID)

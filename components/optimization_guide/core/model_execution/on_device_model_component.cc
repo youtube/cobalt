@@ -9,6 +9,7 @@
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/memory/ptr_util.h"
+#include "base/memory/safe_ref.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/metrics/histogram_functions.h"
@@ -26,6 +27,7 @@
 #include "components/optimization_guide/core/optimization_guide_constants.h"
 #include "components/optimization_guide/core/optimization_guide_enums.h"
 #include "components/optimization_guide/core/optimization_guide_features.h"
+#include "components/prefs/pref_change_registrar.h"
 #include "components/prefs/pref_service.h"
 #include "components/version_info/version_info.h"
 #include "services/on_device_model/public/cpp/cpu.h"
@@ -46,16 +48,6 @@ bool WasAnyOnDeviceEligibleFeatureRecentlyUsed(const PrefService& local_state) {
   return false;
 }
 
-bool IsDeviceGPUCapable(const PrefService& local_state) {
-  return IsPerformanceClassCompatible(
-      features::kPerformanceClassListForOnDeviceModel.Get(),
-      PerformanceClassFromPref(local_state));
-}
-
-bool IsDeviceCapable(const PrefService& local_state) {
-  return IsDeviceGPUCapable(local_state) || on_device_model::IsCpuCapable();
-}
-
 void LogInstallCriteria(std::string_view event_name,
                         std::string_view criteria_name,
                         bool criteria_value) {
@@ -67,7 +59,7 @@ void LogInstallCriteria(std::string_view event_name,
 }
 
 void LogInstallCriteria(
-    OnDeviceModelComponentStateManager::RegistrationCriteria& criteria,
+    const OnDeviceModelComponentStateManager::RegistrationCriteria& criteria,
     std::string_view event_name) {
   // Keep optimization/histograms.xml in sync with these criteria names.
   LogInstallCriteria(event_name, "DiskSpace", criteria.disk_space_available);
@@ -79,6 +71,63 @@ void LogInstallCriteria(
   LogInstallCriteria(event_name, "EnabledByEnterprisePolicy",
                      criteria.enabled_by_enterprise_policy);
   LogInstallCriteria(event_name, "All", criteria.should_install());
+}
+
+// Returns the best performance hint for this device based on the supported
+// performance hints in the manifest. `prioritized_hints` is the
+// list of performance hints in priority order, with highest priority first.
+std::optional<proto::OnDeviceModelPerformanceHint>
+GetBestPerformanceHintForDevice(
+    const base::Value::List* manifest_performance_hints,
+    const std::vector<proto::OnDeviceModelPerformanceHint>& prioritized_hints) {
+  if (!manifest_performance_hints) {
+    return std::nullopt;
+  }
+
+  absl::flat_hash_set<int> supported_hints;
+  for (const auto& supported_performance_hint_val :
+       *manifest_performance_hints) {
+    std::optional<int> supported_performance_hint_int =
+        supported_performance_hint_val.GetIfInt();
+    if (supported_performance_hint_int) {
+      supported_hints.insert(*supported_performance_hint_int);
+    }
+  }
+  for (auto hint : prioritized_hints) {
+    if (supported_hints.contains(base::to_underlying(hint))) {
+      return hint;
+    }
+  }
+  return std::nullopt;
+}
+
+// Reads the base model spec from the component manifest and potentially
+// filters values to make it compatible with this device. `prioritized_hints`
+// is the list of performance hints in priority order, with highest priority
+// first.
+std::optional<OnDeviceBaseModelSpec> GetOnDeviceBaseModelSpecFromManifest(
+    const base::Value::Dict& manifest,
+    const std::vector<proto::OnDeviceModelPerformanceHint>& prioritized_hints) {
+  auto* model_spec = manifest.FindDict("BaseModelSpec");
+  if (!model_spec) {
+    return std::nullopt;
+  }
+  auto* name = model_spec->FindString("name");
+  auto* version = model_spec->FindString("version");
+  if (!name || !version) {
+    return std::nullopt;
+  }
+  auto* supported_performance_hints =
+      model_spec->FindList("supported_performance_hints");
+  std::optional<proto::OnDeviceModelPerformanceHint>
+      supported_performance_hint_enum = GetBestPerformanceHintForDevice(
+          supported_performance_hints, prioritized_hints);
+  return OnDeviceBaseModelSpec(
+      *name, *version,
+      supported_performance_hint_enum
+          ? OnDeviceBaseModelSpec::PerformanceHints(
+                {*supported_performance_hint_enum})
+          : OnDeviceBaseModelSpec::PerformanceHints({}));
 }
 
 }  // namespace
@@ -167,27 +216,6 @@ OnDeviceModelComponentStateManager::GetDebugState() {
   return debug;
 }
 
-bool OnDeviceModelComponentStateManager::IsLowTierDevice() const {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  return IsPerformanceClassCompatible(
-      features::kLowTierPerformanceClassListForOnDeviceModel.Get(),
-      PerformanceClassFromPref(*local_state_));
-}
-
-bool OnDeviceModelComponentStateManager::SupportsImageInput() const {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  return IsPerformanceClassCompatible(
-      features::kPerformanceClassListForImageInput.Get(),
-      PerformanceClassFromPref(*local_state_));
-}
-
-bool OnDeviceModelComponentStateManager::SupportsAudioInput() const {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  return IsPerformanceClassCompatible(
-      features::kPerformanceClassListForAudioInput.Get(),
-      PerformanceClassFromPref(*local_state_));
-}
-
 void OnDeviceModelComponentStateManager::OnDeviceEligibleFeatureUsed(
     ModelBasedCapabilityKey feature) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
@@ -210,40 +238,26 @@ void OnDeviceModelComponentStateManager::OnDeviceEligibleFeatureUsed(
     LogInstallCriteria(*registration_criteria_, "AtAttemptedUse");
   }
 
-  BeginUpdateRegistration(base::DoNothing());
+  BeginUpdateRegistration();
 }
 
-void OnDeviceModelComponentStateManager::DevicePerformanceClassChanged(
-    base::OnceClosure complete,
-    OnDeviceModelPerformanceClass performance_class) {
+void OnDeviceModelComponentStateManager::OnPerformanceClassAvailable() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  UpdatePerformanceClassPref(local_state_, performance_class);
-  BeginUpdateRegistration(std::move(complete));
+  BeginUpdateRegistration();
 }
 
-bool OnDeviceModelComponentStateManager::NeedsPerformanceClassUpdate() {
+void OnDeviceModelComponentStateManager::
+    OnGenAILocalFoundationalModelEnterprisePolicyChanged() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  return base::FeatureList::IsEnabled(
-             features::kOnDeviceModelFetchPerformanceClassEveryStartup) ||
-         local_state_->GetString(model_execution::prefs::localstate::
-                                     kOnDevicePerformanceClassVersion) !=
-             version_info::GetVersionNumber();
+  BeginUpdateRegistration();
 }
 
 void OnDeviceModelComponentStateManager::OnStartup() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   model_execution::prefs::PruneOldUsagePrefs(local_state_);
-  if (auto model_path_override_switch =
-          switches::GetOnDeviceModelExecutionOverride()) {
-    is_model_allowed_ = true;
-    SetReady(
-        base::Version("override"), *model_path_override_switch,
-        base::Value::Dict().Set("BaseModelSpec", base::Value::Dict()
-                                                     .Set("version", "override")
-                                                     .Set("name", "override")));
-    return;
-  }
-  BeginUpdateRegistration(base::DoNothing());
+  performance_classifier_->ListenForPerformanceClassAvailable(base::BindOnce(
+      &OnDeviceModelComponentStateManager::OnPerformanceClassAvailable,
+      weak_ptr_factory_.GetWeakPtr()));
 }
 
 void OnDeviceModelComponentStateManager::InstallerRegistered() {
@@ -259,19 +273,29 @@ bool OnDeviceModelComponentStateManager::IsInstallerRegistered() {
   return state_ != nullptr;
 }
 
-void OnDeviceModelComponentStateManager::BeginUpdateRegistration(
-    base::OnceClosure complete) {
+void OnDeviceModelComponentStateManager::BeginUpdateRegistration() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  if (switches::GetOnDeviceModelExecutionOverride()) {
-    std::move(complete).Run();
+  if (!performance_classifier_->IsPerformanceClassAvailable()) {
+    // Still waiting for performance class.
+    return;
+  }
+  if (auto model_path_override_switch =
+          switches::GetOnDeviceModelExecutionOverride()) {
+    if (!state_) {
+      is_model_allowed_ = true;
+      SetReady(base::Version("override"), *model_path_override_switch,
+               base::Value::Dict().Set("BaseModelSpec",
+                                       base::Value::Dict()
+                                           .Set("version", "override")
+                                           .Set("name", "override")));
+    }
     return;
   }
   delegate_->GetFreeDiskSpace(
       delegate_->GetInstallDirectory(),
       base::BindOnce(
           &OnDeviceModelComponentStateManager::CompleteUpdateRegistration,
-          GetWeakPtr())
-          .Then(std::move(complete)));
+          GetWeakPtr()));
 }
 
 void OnDeviceModelComponentStateManager::CompleteUpdateRegistration(
@@ -302,25 +326,21 @@ void OnDeviceModelComponentStateManager::CompleteUpdateRegistration(
     NotifyStateChanged();
   }
 
-  if (component_installer_registered_) {
-    return;
-  }
-
   if (criteria.should_uninstall()) {
     // Don't allow UpdateRegistration to do anything until after
     // UninstallComplete.
     component_installer_registered_ = true;
     delegate_->Uninstall(GetWeakPtr());
-  } else if (criteria.should_install() || criteria.is_already_installing) {
+  } else if (!component_installer_registered_ &&
+             (criteria.should_install() || criteria.is_already_installing)) {
     component_installer_registered_ = true;
     delegate_->RegisterInstaller(GetWeakPtr(), criteria.is_already_installing);
   }
 
   // Log metrics only for first registration attempt.
-  if (!first_registration_attempt) {
-    return;
+  if (first_registration_attempt) {
+    LogInstallCriteria(criteria, "AtRegistration");
   }
-  LogInstallCriteria(criteria, "AtRegistration");
 }
 
 OnDeviceModelComponentStateManager::RegistrationCriteria
@@ -332,7 +352,7 @@ OnDeviceModelComponentStateManager::ComputeRegistrationCriteria(
       IsFreeDiskSpaceTooLowForOnDeviceModelInstall(disk_space_free_bytes);
   result.disk_space_available = optimization_guide::features::
       IsFreeDiskSpaceSufficientForOnDeviceModelInstall(disk_space_free_bytes);
-  result.device_capable = IsDeviceCapable(*local_state_);
+  result.device_capable = performance_classifier_->IsDeviceCapable();
   result.on_device_feature_recently_used =
       WasAnyOnDeviceEligibleFeatureRecentlyUsed(*local_state_);
   result.enabled_by_feature = features::IsOnDeviceExecutionEnabled();
@@ -358,9 +378,20 @@ OnDeviceModelComponentStateManager::ComputeRegistrationCriteria(
 
 OnDeviceModelComponentStateManager::OnDeviceModelComponentStateManager(
     PrefService* local_state,
+    base::SafeRef<PerformanceClassifier> performance_classifier,
     std::unique_ptr<Delegate> delegate)
-    : local_state_(local_state), delegate_(std::move(delegate)) {
+    : local_state_(local_state),
+      performance_classifier_(std::move(performance_classifier)),
+      delegate_(std::move(delegate)) {
   CHECK(local_state);  // Useful to catch poor test setup.
+  pref_change_registrar_.Init(local_state);
+  pref_change_registrar_.Add(
+      model_execution::prefs::localstate::
+          kGenAILocalFoundationalModelEnterprisePolicySettings,
+      base::BindRepeating(
+          &OnDeviceModelComponentStateManager::
+              OnGenAILocalFoundationalModelEnterprisePolicyChanged,
+          weak_ptr_factory_.GetWeakPtr()));
 }
 
 OnDeviceModelComponentStateManager::~OnDeviceModelComponentStateManager() =
@@ -404,7 +435,8 @@ void OnDeviceModelComponentStateManager::SetReady(
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   state_.reset();
 
-  if (auto model_spec = ProcessBaseModelSpecFromManifest(manifest)) {
+  if (auto model_spec = GetOnDeviceBaseModelSpecFromManifest(
+          manifest, performance_classifier_->GetPossibleHints())) {
     state_ = base::WrapUnique(new OnDeviceModelComponentState);
     state_->install_dir_ = install_dir;
     // This version refers to the component version specifically, not the model
@@ -430,80 +462,6 @@ void OnDeviceModelComponentStateManager::NotifyOnDeviceEligibleFeatureFirstUsed(
   for (auto& o : observers_) {
     o.OnDeviceEligibleFeatureFirstUsed(feature);
   }
-}
-
-const std::optional<OnDeviceBaseModelSpec>
-OnDeviceModelComponentStateManager::ProcessBaseModelSpecFromManifest(
-    const base::Value::Dict& manifest) {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-
-  auto* model_spec = manifest.FindDict("BaseModelSpec");
-  if (!model_spec) {
-    return std::nullopt;
-  }
-  auto* name = model_spec->FindString("name");
-  auto* version = model_spec->FindString("version");
-  if (!name || !version) {
-    return std::nullopt;
-  }
-  auto* supported_performance_hints =
-      model_spec->FindList("supported_performance_hints");
-  std::optional<proto::OnDeviceModelPerformanceHint>
-      supported_performance_hint_enum =
-          GetSupportedPerformanceHintForDeviceFromManifest(
-              supported_performance_hints);
-  return OnDeviceBaseModelSpec(
-      *name, *version,
-      supported_performance_hint_enum
-          ? OnDeviceBaseModelSpec::PerformanceHints(
-                {*supported_performance_hint_enum})
-          : OnDeviceBaseModelSpec::PerformanceHints  ({}));
-}
-
-std::optional<proto::OnDeviceModelPerformanceHint>
-OnDeviceModelComponentStateManager::
-    GetSupportedPerformanceHintForDeviceFromManifest(
-        const base::Value::List* manifest_performance_hints) const {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-
-  if (!manifest_performance_hints) {
-    return std::nullopt;
-  }
-
-  absl::flat_hash_set<int> supported_hints;
-  for (const auto& supported_performance_hint_val :
-       *manifest_performance_hints) {
-    std::optional<int> supported_performance_hint_int =
-        supported_performance_hint_val.GetIfInt();
-    if (supported_performance_hint_int) {
-      supported_hints.insert(*supported_performance_hint_int);
-    }
-  }
-  for (auto hint : GetPossibleHints()) {
-    if (supported_hints.contains(hint)) {
-      return hint;
-    }
-  }
-  return std::nullopt;
-}
-
-std::vector<proto::OnDeviceModelPerformanceHint>
-OnDeviceModelComponentStateManager::GetPossibleHints() const {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  std::vector<proto::OnDeviceModelPerformanceHint> hints;
-  if (IsDeviceGPUCapable(*local_state_)) {
-    // Best option is highest quality for GPU device that is not low tier.
-    if (!IsLowTierDevice()) {
-      hints.push_back(proto::ON_DEVICE_MODEL_PERFORMANCE_HINT_HIGHEST_QUALITY);
-    }
-    // Other GPU capable devices get fastest inference.
-    hints.push_back(proto::ON_DEVICE_MODEL_PERFORMANCE_HINT_FASTEST_INFERENCE);
-  }
-  if (on_device_model::IsCpuCapable()) {
-    // Last option is CPU if the device is capable but not GPU capable.
-    hints.push_back(proto::ON_DEVICE_MODEL_PERFORMANCE_HINT_CPU);
-  }
-  return hints;
 }
 
 OnDeviceModelComponentState::OnDeviceModelComponentState() = default;

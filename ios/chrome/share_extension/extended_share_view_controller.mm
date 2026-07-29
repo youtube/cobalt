@@ -331,13 +331,13 @@ const NSUInteger kSearchCharacterLimit = 1000;
     }
   }
 
-  [self.shareSheet setAccounts:loadedAccounts];
-
   if (!primaryAccount || ![primaryAccount length]) {
     AccountInfo* accountInfo = [[AccountInfo alloc] init];
-    accountInfo.gaiaID = @"Default";
+    accountInfo.gaiaID = app_group::kNoAccount;
     self.shareSheet.selectedAccountInfo = accountInfo;
+    [loadedAccounts addObject:accountInfo];
   }
+  [self.shareSheet setAccounts:loadedAccounts];
 }
 
 - (void)handleImageSharingForCommand:(AppGroupCommand*)command
@@ -809,6 +809,7 @@ const NSUInteger kSearchCharacterLimit = 1000;
   __weak ExtendedShareViewController* weakSelf = self;
   [self queueActionItemURL:_shareURL
                      title:_shareTitle
+                    gaiaID:gaiaID
                     action:app_group::BOOKMARK_ITEM
                     cancel:NO
                 completion:^{
@@ -821,6 +822,7 @@ const NSUInteger kSearchCharacterLimit = 1000;
   __weak ExtendedShareViewController* weakSelf = self;
   [self queueActionItemURL:_shareURL
                      title:_shareTitle
+                    gaiaID:gaiaID
                     action:app_group::READING_LIST_ITEM
                     cancel:NO
                 completion:^{

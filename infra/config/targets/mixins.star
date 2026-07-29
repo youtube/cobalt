@@ -1430,28 +1430,6 @@ targets.mixin(
 )
 
 targets.mixin(
-    name = "linux-jammy-or-focal",
-    generate_pyl_entry = False,
-    swarming = targets.swarming(
-        dimensions = {
-            "os": "Ubuntu-22.04|Ubuntu-20.04",
-        },
-    ),
-)
-
-# TODO(crbug.com/40201775): Remove the xenial mixin once the MSAN bots have
-# migrated to focal.
-targets.mixin(
-    name = "linux-xenial",
-    generate_pyl_entry = False,
-    swarming = targets.swarming(
-        dimensions = {
-            "os": "Ubuntu-16.04",
-        },
-    ),
-)
-
-targets.mixin(
     name = "linux-noble",
     generate_pyl_entry = False,
     swarming = targets.swarming(
@@ -1528,7 +1506,7 @@ targets.mixin(
     swarming = targets.swarming(
         dimensions = {
             "gpu": "8086:4680-23.2.1",
-            "os": "Ubuntu-22.04.4",
+            "os": "Ubuntu-22.04",
             "display_attached": "1",
             "pool": "chromium.tests.gpu",
         },

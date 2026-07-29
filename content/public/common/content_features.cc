@@ -26,6 +26,12 @@ BASE_FEATURE(kAdditionalOpaqueOriginEnforcements,
              "AdditionalOpaqueOriginEnforcements",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
+// Capture Android key event objects to send them to the web contents when the
+// IME sends composition texts.
+BASE_FEATURE(kAndroidCaptureKeyEvents,
+             "AndroidCaptureKeyEvents",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // Fallback to next named service slot if launching a privileged service process
 // hangs. In practice, this means if GPU launch hanges, then retry it once.
 BASE_FEATURE(kAndroidFallbackToNextSlot,
@@ -377,6 +383,13 @@ BASE_FEATURE(kWebRtcHWEncoding,
 BASE_FEATURE(kWebContentsDiscard,
              "WebContentsDiscard",
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+// When this feature is enabled, partial storage cleanup will be
+// disabled for the GPU disk cache. (Performance improvement)
+BASE_FEATURE(kDisablePartialStorageCleanupForGPUDiskCache,
+             "PerformStorageCleanupForGPUDiskCache",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 
 // Enable drawing under System Bars within DisplayCutout.
 BASE_FEATURE(kDrawCutoutEdgeToEdge,
@@ -730,6 +743,14 @@ BASE_FEATURE(kPrefetchProxy, "PrefetchProxy", base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kPrerender2ReuseHost,
              "Prerender2ReuseHost",
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+// If enabled, the feature parameter allows all the prerender hosts for
+// DSE search results to be reused.
+BASE_FEATURE_PARAM(bool,
+                   kPrerender2ReuseSearchResultHost,
+                   &features::kPrerender2ReuseHost,
+                   "reuse_search_host",
+                   false);
 
 // If enabled, browser-initiated prefetch is allowed.
 // Please see crbug.com/40946257 for more details.
@@ -1108,7 +1129,7 @@ BASE_FEATURE(kSiteInstanceGroupsForDataUrls,
 // SiteInstance.
 BASE_FEATURE(kDefaultSiteInstanceGroups,
              "DefaultSiteInstanceGroups",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Controls whether to isolate sites of documents that specify an eligible
 // Cross-Origin-Opener-Policy header.  Note that this is only intended to be
@@ -1195,6 +1216,12 @@ BASE_FEATURE(kSubframeProcessReuseThresholds,
 constexpr base::FeatureParam<double> kSubframeProcessReuseMemoryThreshold{
     &kSubframeProcessReuseThresholds, "SubframeProcessReuseMemoryThreshold",
     512 * 1024 * 1024u};
+
+// When enabled, RenderWidgetHost in BFCache doesn't contribute to the priority
+// of the renderer process.
+BASE_FEATURE(kSubframePriorityContribution,
+             "SubframePriorityContribution",
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Disallows window.{alert, prompt, confirm} if triggered inside a subframe that
 // is not same origin with the main frame.
@@ -1402,12 +1429,9 @@ const base::FeatureParam<bool> kWebUIBundledCodeCacheGenerateResourceMap{
 // Previously, this was only supported on ChromeOS and Linux.
 // Intentionally enabled by default and will be used as a kill switch in case
 // of regressions.
-// TODO(crbug.com/399911225): enable by default and remove this feature once
-// major sources of JS errors are fixed. Currently this is only enabled on 1%
-// stable and 50% non-stable.
 BASE_FEATURE(kWebUIJSErrorReportingExtended,
             "WebUIJSErrorReportingExtended",
-            base::FEATURE_DISABLED_BY_DEFAULT);
+            base::FEATURE_ENABLED_BY_DEFAULT);
 #endif
 
 // Controls whether the WebUSB API is enabled:
@@ -1472,7 +1496,7 @@ BASE_FEATURE(kAccessibilityPageZoomV2,
 // Enables populating the supplemental description information via the
 // Android supplemental description API.
 BASE_FEATURE(kAccessibilityPopulateSupplementalDescriptionApi,
-             "kAccessibilityPopulateSupplementalDescriptionApi",
+             "AccessibilityPopulateSupplementalDescriptionApi",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enables the use of a unified code path for AXTree snapshots.
@@ -1494,11 +1518,16 @@ BASE_FEATURE(kAndroidOpenPdfInline,
 // A feature to enable launch handler and file handler api for Chrome on Android
 BASE_FEATURE(kAndroidWebAppLaunchHandler,
              "AndroidWebAppLaunchHandler",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Allows the use of "Smart Zoom", an alternative form of page zoom, and
 // enables the associated UI.
 BASE_FEATURE(kSmartZoom, "SmartZoom", base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Enables setting the importance for subframes in WebContents.
+BASE_FEATURE(kSubframeImportance,
+             "SubframeImportance",
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Skips clearing objects on main document ready. Only has an impact
 // when gin java bridge is enabled.
@@ -1556,6 +1585,12 @@ BASE_FEATURE(kWebauthnDisabledOnAuto,
              base::FEATURE_ENABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_ANDROID)
 
+#if BUILDFLAG(IS_ANDROID)
+BASE_FEATURE(kKeyboardLockApiOnAndroid,
+             "KeyboardLockApiOnAndroid",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+#endif  // BUILDFLAG(IS_ANDROID)
+
 // Default amount of days after which the global navigation capturing IPH
 // guardrails are cleared from storage.
 const base::FeatureParam<int> kNavigationCapturingIPHGuardrailStorageDuration{
@@ -1563,11 +1598,7 @@ const base::FeatureParam<int> kNavigationCapturingIPHGuardrailStorageDuration{
 
 BASE_FEATURE(kPwaNavigationCapturing,
              "PwaNavigationCapturing",
-#if BUILDFLAG(IS_CHROMEOS)
-             base::FEATURE_DISABLED_BY_DEFAULT);
-#else
              base::FEATURE_ENABLED_BY_DEFAULT);
-#endif
 
 const base::FeatureParam<CapturingState>::Option kNavigationCapturingParams[] =
     {{CapturingState::kDefaultOn, "on_by_default"},

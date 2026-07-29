@@ -29,9 +29,9 @@ NtpPromoSpecification CreateTestPromoSpec(const NtpPromoIdentifier& id) {
       base::BindRepeating([](Profile* profile) {
         return NtpPromoSpecification::Eligibility::kEligible;
       }),
+      base::DoNothing(),
       base::BindRepeating([](BrowserWindowInterface* browser) {}),
-      base::flat_set<NtpPromoIdentifier>{kShowFirstPromoId},
-      user_education::Metadata());
+      base::flat_set<NtpPromoIdentifier>{kShowFirstPromoId}, Metadata());
 }
 
 }  // namespace
@@ -52,8 +52,9 @@ TEST_F(NtpPromoRegistryTest, RegisterPromo) {
       base::BindRepeating([](Profile* profile) {
         return NtpPromoSpecification::Eligibility::kEligible;
       }),
+      base::DoNothing(),
       base::BindRepeating([](BrowserWindowInterface* browser) {}),
-      {kShowFirstPromoId}, user_education::Metadata()));
+      {kShowFirstPromoId}, Metadata()));
 
   const auto* spec = registry_.GetNtpPromoSpecification(kPromoId);
   ASSERT_NE(spec, nullptr);
@@ -64,11 +65,13 @@ TEST_F(NtpPromoRegistryTest, RegisterPromo) {
   EXPECT_THAT(spec->show_after(), testing::ElementsAre(kShowFirstPromoId));
 }
 
+// The registry must maintain registration order, independent of ID.
 TEST_F(NtpPromoRegistryTest, GetIdentifiers) {
+  registry_.AddPromo(CreateTestPromoSpec("Promo3"));
   registry_.AddPromo(CreateTestPromoSpec("Promo1"));
   registry_.AddPromo(CreateTestPromoSpec("Promo2"));
   EXPECT_THAT(registry_.GetNtpPromoIdentifiers(),
-              testing::ElementsAre("Promo1", "Promo2"));
+              testing::ElementsAre("Promo3", "Promo1", "Promo2"));
 }
 
 TEST_F(NtpPromoRegistryTest, DuplicateEntry) {

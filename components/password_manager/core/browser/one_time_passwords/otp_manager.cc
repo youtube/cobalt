@@ -83,8 +83,6 @@ void OtpManager::ProcessClassificationModelPredictions(
     for (Observer& observer : observers_) {
       observer.OnOtpFieldDetected(GetManagerForForm(form_id));
     }
-    client_->InformPasswordChangeServiceOfOtpPresent();
-
   } else {
     form_manager->ProcessUpdatedPredictions(fillable_otp_fields);
   }
@@ -115,7 +113,6 @@ void OtpManager::ProcessServerPredictions(
     for (Observer& observer : observers_) {
       observer.OnOtpFieldDetected(GetManagerForForm(form.global_id()));
     }
-    client_->InformPasswordChangeServiceOfOtpPresent();
     return;
   }
 
@@ -143,12 +140,36 @@ void OtpManager::GetOtpSuggestions(
   form_manager->GetOtpSuggestions(field_id, std::move(callback));
 }
 
+void OtpManager::OnRenderFrameDeleted(
+    const autofill::LocalFrameToken& frame_token) {
+  CleanFormManagersForTheFrame(frame_token);
+}
+
+void OtpManager::OnDidFinishNavigationInMainFrame() {
+  // If navigation happens in the main frame, all child frames also become
+  // inaccessible, but they are not guaranteed to be deleted timely, therefore
+  // it's better to clean all form managers cache now.
+  form_managers_.clear();
+}
+
+void OtpManager::OnDidFinishNavigationInIframe(
+    const autofill::LocalFrameToken& frame_token) {
+  CleanFormManagersForTheFrame(frame_token);
+}
+
 OtpFormManager* OtpManager::GetManagerForForm(
     const FormGlobalId& form_id) const {
   if (form_managers_.find(form_id) == form_managers_.end()) {
     return nullptr;
   }
   return form_managers_.at(form_id).get();
+}
+
+void OtpManager::CleanFormManagersForTheFrame(
+    const autofill::LocalFrameToken& frame_token) {
+  base::EraseIf(form_managers_, ([&](const auto& manager) {
+                  return manager.first.frame_token == frame_token;
+                }));
 }
 
 }  // namespace password_manager

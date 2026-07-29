@@ -62,6 +62,17 @@ LoyaltyCardFormEventLogger::LoyaltyCardFormEventLogger(
 
 LoyaltyCardFormEventLogger::~LoyaltyCardFormEventLogger() = default;
 
+void LoyaltyCardFormEventLogger::OnDidShowSuggestions(
+    const FormStructure& form,
+    const AutofillField& field,
+    base::TimeTicks form_parsed_timestamp,
+    bool off_the_record,
+    base::span<const Suggestion> suggestions) {
+  FormEventLoggerBase::OnDidShowSuggestions(
+      form, field, field.Type().GetLoyaltyCardType(), form_parsed_timestamp,
+      off_the_record, suggestions);
+}
+
 void LoyaltyCardFormEventLogger::UpdateLoyaltyCardsAvailabilityForReadiness(
     const std::vector<LoyaltyCard>& loyalty_cards,
     const GURL& url) {
@@ -84,7 +95,7 @@ void LoyaltyCardFormEventLogger::OnDidFillSuggestion(
     has_logged_form_filling_suggestion_filled_ = true;
     Log(FORM_EVENT_LOCAL_SUGGESTION_FILLED_ONCE, form);
   }
-  FieldType field_type = field.Type().GetStorableType();
+  FieldType field_type = field.Type().GetLoyaltyCardType();
   field_types_with_shown_suggestions_.erase(field_type);
   field_types_with_accepted_suggestions_.insert(field_type);
   ++form_interaction_counts_.autofill_fills;

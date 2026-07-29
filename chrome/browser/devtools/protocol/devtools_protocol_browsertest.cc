@@ -41,6 +41,7 @@
 #include "chrome/browser/tpcd/metadata/manager_factory.h"
 #include "chrome/browser/tpcd/support/trial_test_utils.h"
 #include "chrome/common/chrome_paths.h"
+#include "chrome/common/pref_names.h"
 #include "chrome/common/webui_url_constants.h"
 #include "chrome/test/base/chrome_test_utils.h"
 #include "components/content_settings/core/browser/cookie_settings.h"
@@ -260,9 +261,8 @@ IN_PROC_BROWSER_TEST_F(DevToolsProtocolTest,
       ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP);
   content::WebContents* other_web_contents =
       chrome_test_utils::GetActiveWebContents(this);
-  EXPECT_TRUE(
-      content::EvalJs(target_web_contents, setup_logging).error.empty());
-  EXPECT_TRUE(content::EvalJs(other_web_contents, setup_logging).error.empty());
+  EXPECT_TRUE(content::EvalJs(target_web_contents, setup_logging).is_ok());
+  EXPECT_TRUE(content::EvalJs(other_web_contents, setup_logging).is_ok());
 
   base::Value::Dict params;
   params.Set("button", "left");
@@ -449,7 +449,7 @@ IN_PROC_BROWSER_TEST_F(
     document.body.appendChild(specrules);
   )";
 
-  EXPECT_TRUE(content::EvalJs(web_contents(), add_specrules).error.empty());
+  EXPECT_TRUE(content::EvalJs(web_contents(), add_specrules).is_ok());
 
   {
     base::Value::Dict result;
@@ -642,10 +642,9 @@ testing::AssertionResult SimulateBtmBounce(content::WebContents* web_contents,
   }
 
   const content::BtmRedirectInfo& redirect = *final_observer.redirects()->at(0);
-  if (redirect.redirecting_url.url != bounce_url) {
-    return testing::AssertionFailure()
-           << "Expected redirect at " << bounce_url << "; found "
-           << redirect.redirecting_url.url;
+  if (redirect.redirector.url != bounce_url) {
+    return testing::AssertionFailure() << "Expected redirect at " << bounce_url
+                                       << "; found " << redirect.redirector.url;
   }
 
   if (redirect.access_type != content::BtmDataAccessType::kWrite &&
@@ -1187,7 +1186,6 @@ IN_PROC_BROWSER_TEST_F(ExtensionProtocolTest,
   AttachToBrowserTarget();
   const base::Value::Dict* result = SendCommandSync("Target.getTargets");
 
-  std::string target_id;
   base::Value::Dict ext_target;
   for (const auto& target : *result->FindList("targetInfos")) {
     if (*target.GetDict().FindString("type") == "service_worker") {
@@ -2194,5 +2192,143 @@ IN_PROC_BROWSER_TEST_F(
   EXPECT_THAT(third_party_response.FindBool("isIpProtectionUsed"),
               std::nullopt);
 }
+
+#if !BUILDFLAG(IS_ANDROID)
+IN_PROC_BROWSER_TEST_F(DevToolsProtocolTest,
+                       OpensDevTools_FailsForNonBrowserTarget) {
+  AttachToTabTarget(web_contents());
+
+  const base::Value::Dict* result = SendCommandSync("Target.getTargets");
+  const base::Value::List* list = result->FindList("targetInfos");
+  ASSERT_TRUE(list->size() == 1);
+  const std::string targetId = *list->front().GetDict().FindString("targetId");
+
+  base::Value::Dict params;
+  params.Set("targetId", targetId);
+  result = SendCommandSync("Target.openDevTools", std::move(params));
+
+  EXPECT_EQ(*error()->FindString("message"), "Not allowed");
+}
+
+IN_PROC_BROWSER_TEST_F(DevToolsProtocolTest, OpensDevTools_OpensForPageTarget) {
+  AttachToBrowserTarget();
+
+  const base::Value::Dict* result = SendCommandSync("Target.getTargets");
+  const base::Value::List* list = result->FindList("targetInfos");
+  ASSERT_TRUE(list->size() == 1);
+  const std::string targetId = *list->front().GetDict().FindString("targetId");
+
+  base::Value::Dict params;
+  params.Set("targetId", targetId);
+  result = SendCommandSync("Target.openDevTools", std::move(params));
+
+  const std::string devtools_target_id(*result->FindString("targetId"));
+
+  // CDP `Target.getTargets` result should contain the new DevTools target.
+  result = SendCommandSync("Target.getTargets");
+
+  base::Value::Dict devtools_target;
+  for (const auto& target : *result->FindList("targetInfos")) {
+    if (*target.GetDict().FindString("type") == "other") {
+      devtools_target = target.Clone().TakeDict();
+      break;
+    }
+  }
+
+  EXPECT_EQ(2u, result->FindList("targetInfos")->size());
+  EXPECT_EQ(devtools_target_id, *devtools_target.FindString("targetId"));
+}
+
+IN_PROC_BROWSER_TEST_F(DevToolsProtocolTest, OpensDevTools_OpensForTabTarget) {
+  AttachToBrowserTarget();
+
+  base::Value::Dict tabFilter = base::Value::Dict();
+  tabFilter.Set("type", "tab");
+  tabFilter.Set("exclude", false);
+  base::Value::List targetFilter =
+      base::Value::List().Append(std::move(tabFilter));
+  base::Value::Dict getTargetParams = base::Value::Dict();
+  getTargetParams.Set("filter", std::move(targetFilter));
+
+  const base::Value::Dict* result =
+      SendCommandSync("Target.getTargets", std::move(getTargetParams));
+  base::Value::Dict tab_target;
+  for (const auto& target : *result->FindList("targetInfos")) {
+    if (*target.GetDict().FindString("type") == "tab") {
+      tab_target = target.Clone().TakeDict();
+      break;
+    }
+  }
+
+  base::Value::Dict params;
+  params.Set("targetId", *tab_target.FindString("targetId"));
+  result = SendCommandSync("Target.openDevTools", std::move(params));
+
+  const std::string devtools_target_id(*result->FindString("targetId"));
+
+  // CDP `Target.getTargets` result should contain the new DevTools target.
+  result = SendCommandSync("Target.getTargets");
+
+  base::Value::Dict devtools_target;
+  for (const auto& target : *result->FindList("targetInfos")) {
+    if (*target.GetDict().FindString("type") == "other") {
+      devtools_target = target.Clone().TakeDict();
+      break;
+    }
+  }
+
+  EXPECT_EQ(2u, result->FindList("targetInfos")->size());
+  EXPECT_EQ(devtools_target_id, *devtools_target.FindString("targetId"));
+}
+
+IN_PROC_BROWSER_TEST_F(DevToolsProtocolTest, OpensDevTools_OpensUndocked) {
+  set_agent_host_can_close();
+
+  base::Value::Dict prefs;
+  prefs.Set("isUnderTest", "true");
+  prefs.Set("currentDockState", "undocked");
+  browser()->profile()->GetPrefs()->SetDict(prefs::kDevToolsPreferences,
+                                            std::move(prefs));
+  AttachToBrowserTarget();
+
+  base::Value::Dict tabFilter = base::Value::Dict();
+  tabFilter.Set("type", "tab");
+  tabFilter.Set("exclude", false);
+  base::Value::List targetFilter =
+      base::Value::List().Append(std::move(tabFilter));
+  base::Value::Dict getTargetParams = base::Value::Dict();
+  getTargetParams.Set("filter", std::move(targetFilter));
+
+  const base::Value::Dict* result =
+      SendCommandSync("Target.getTargets", std::move(getTargetParams));
+  base::Value::Dict tab_target;
+  for (const auto& target : *result->FindList("targetInfos")) {
+    if (*target.GetDict().FindString("type") == "tab") {
+      tab_target = target.Clone().TakeDict();
+      break;
+    }
+  }
+
+  base::Value::Dict params;
+  params.Set("targetId", *tab_target.FindString("targetId"));
+  result = SendCommandSync("Target.openDevTools", std::move(params));
+
+  const std::string devtools_target_id(*result->FindString("targetId"));
+
+  // CDP `Target.getTargets` result should contain the new DevTools target.
+  result = SendCommandSync("Target.getTargets");
+
+  base::Value::Dict devtools_target;
+  for (const auto& target : *result->FindList("targetInfos")) {
+    if (*target.GetDict().FindString("type") == "other") {
+      devtools_target = target.Clone().TakeDict();
+      break;
+    }
+  }
+
+  EXPECT_EQ(2u, result->FindList("targetInfos")->size());
+  EXPECT_EQ(devtools_target_id, *devtools_target.FindString("targetId"));
+}
+#endif  // !BUILDFLAG(IS_ANDROID)
 
 }  // namespace

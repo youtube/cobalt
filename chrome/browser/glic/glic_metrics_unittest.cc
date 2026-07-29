@@ -11,11 +11,11 @@
 #include "base/test/scoped_feature_list.h"
 #include "chrome/browser/background/startup_launch_manager.h"
 #include "chrome/browser/glic/glic_enabling.h"
-#include "chrome/browser/glic/glic_keyed_service.h"
 #include "chrome/browser/glic/glic_pref_names.h"
 #include "chrome/browser/glic/host/context/glic_focused_tab_manager.h"
 #include "chrome/browser/glic/host/context/glic_tab_data.h"
 #include "chrome/browser/glic/host/glic.mojom.h"
+#include "chrome/browser/glic/public/glic_keyed_service.h"
 #include "chrome/browser/glic/test_support/glic_test_util.h"
 #include "chrome/browser/glic/widget/glic_window_controller.h"
 #include "chrome/browser/global_features.h"
@@ -56,6 +56,7 @@ class MockDelegate : public GlicMetrics::Delegate {
   ActiveTabSharingState GetActiveTabSharingState() override {
     return tab_sharing_state_;
   }
+  int32_t GetNumPinnedTabs() const override { return num_pinned_tabs_; }
 
   void SetWebContents(content::WebContents* contents) { contents_ = contents; }
   raw_ptr<content::WebContents> contents_;
@@ -64,6 +65,7 @@ class MockDelegate : public GlicMetrics::Delegate {
   bool attached_ = false;
   ActiveTabSharingState tab_sharing_state_ =
       ActiveTabSharingState::kActiveTabIsShared;
+  int32_t num_pinned_tabs_ = 0;
 };
 
 class MockStatusIcon : public StatusIcon {

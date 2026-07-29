@@ -56,6 +56,7 @@
 #include "components/download/public/common/download_stats.h"
 #include "components/fingerprinting_protection_filter/interventions/common/interventions_features.h"
 #include "components/input/cursor_manager.h"
+#include "components/input/features.h"
 #include "components/input/render_widget_host_input_event_router.h"
 #include "components/input/switches.h"
 #include "components/input/utils.h"
@@ -210,6 +211,7 @@
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "ui/accessibility/ax_tree_combiner.h"
 #include "ui/accessibility/platform/browser_accessibility.h"
+#include "ui/accessibility/platform/browser_accessibility_manager.h"
 #include "ui/base/ime/mojom/virtual_keyboard_types.mojom.h"
 #include "ui/base/mojom/window_show_state.mojom.h"
 #include "ui/base/pointer/pointer_device.h"
@@ -1146,8 +1148,9 @@ void WebContentsImpl::WebContentsTreeNode::DetachUnownedInnerWebContents(
   // detaching, the inner WebContents becomes the outermost WebContents from its
   // perspective, so its focused frame tree needs to be set.
   inner_web_contents_node.SetFocusedFrameTree(
-    was_inner_web_contents_focused ?
-      focused_frame_tree : &inner_web_contents->GetPrimaryFrameTree());
+      was_inner_web_contents_focused
+          ? focused_frame_tree
+          : &inner_web_contents->GetPrimaryFrameTree());
   // Reset the outermost WebContents's focused frame tree if the inner
   // WebContents was focused before detaching.
   if (was_inner_web_contents_focused) {
@@ -1480,8 +1483,8 @@ WebContentsImpl::~WebContentsImpl() {
     outermost->SetAsFocusedWebContentsIfNecessary();
   }
 
-  if (GetOuterWebContents()
-      && GetOuterWebContents()->node_.IsUnownedInnerWebContents(this)) {
+  if (GetOuterWebContents() &&
+      GetOuterWebContents()->node_.IsUnownedInnerWebContents(this)) {
     GetOuterWebContents()->DetachUnownedInnerWebContents(this);
   }
 
@@ -2556,13 +2559,6 @@ void WebContentsImpl::SetDisplayCutoutSafeArea(gfx::Insets insets) {
   }
 }
 
-void WebContentsImpl::SetContextMenuInsets(gfx::Rect safe_area) {
-  OPTIONAL_TRACE_EVENT0("content", "WebContentsImpl::SetContextMenuInsets");
-  if (auto* rwhv = GetRenderWidgetHostView()) {
-    rwhv->NotifyContextMenuInsetsObservers(safe_area);
-  }
-}
-
 void WebContentsImpl::ShowInterestInElement(int nodeID) {
   OPTIONAL_TRACE_EVENT0("content", "WebContentsImpl::ShowInterestInElement");
   if (auto* rwhv = GetRenderWidgetHostView()) {
@@ -2653,7 +2649,7 @@ const std::string& WebContentsImpl::GetEncoding() {
   return GetPrimaryPage().GetEncoding();
 }
 
-void WebContentsImpl::Discard() {
+void WebContentsImpl::Discard(base::OnceClosure on_discarded_cb) {
   if (!base::FeatureList::IsEnabled(features::kWebContentsDiscard)) {
     NOTREACHED();
   }
@@ -2661,7 +2657,7 @@ void WebContentsImpl::Discard() {
   AboutToBeDiscarded(this);
   notify_disconnection_ = false;
   CancelAllPrerendering();
-  primary_frame_tree_.Discard();
+  primary_frame_tree_.Discard(std::move(on_discarded_cb));
   NotifyWasDiscarded();
 }
 
@@ -3128,16 +3124,51 @@ WebContentsImpl::GetPrimaryMainFrameImportanceForTesting() {
   return GetPrimaryMainFrame()->GetRenderWidgetHost()->importance();
 }
 
-void WebContentsImpl::SetPrimaryMainFrameImportance(
-    ChildProcessImportance importance) {
-  OPTIONAL_TRACE_EVENT1("content", "WebContentsImpl::SetMainFrameImportance",
-                        "importance", static_cast<int>(importance));
+ChildProcessImportance
+WebContentsImpl::GetPrimaryPageSubframeImportanceForTesting() {
+  return primary_subframe_importance_;
+}
+
+void WebContentsImpl::SetPrimaryPageImportance(
+    ChildProcessImportance main_frame_importance,
+    ChildProcessImportance subframe_importance) {
+  OPTIONAL_TRACE_EVENT2(
+      "content", "WebContentsImpl::SetPrimaryPageImportance",
+      "main_frame_importance", static_cast<int>(main_frame_importance),
+      "subframe_importance", static_cast<int>(subframe_importance));
   CHECK(IsPerceptibleImportanceSupported() ||
-        importance != ChildProcessImportance::PERCEPTIBLE)
+        (main_frame_importance != ChildProcessImportance::PERCEPTIBLE &&
+         subframe_importance != ChildProcessImportance::PERCEPTIBLE))
       << "Setter of ChildProcessImportance::PERCEPTIBLE should be aware of the "
          "support and avoid using PERCEPTIBLE if "
          "IsPerceptibleImportanceSupported() is false";
-  GetPrimaryMainFrame()->GetRenderWidgetHost()->SetImportance(importance);
+  CHECK(main_frame_importance >= subframe_importance);
+
+  if (base::FeatureList::IsEnabled(features::kSubframeImportance)) {
+    CHECK(
+        base::FeatureList::IsEnabled(features::kSubframePriorityContribution));
+    if (subframe_importance != primary_subframe_importance_) {
+      primary_subframe_importance_ = subframe_importance;
+      ApplyPrimaryPageSubframeImportance();
+    }
+  }
+
+  GetPrimaryMainFrame()->GetRenderWidgetHost()->SetImportance(
+      main_frame_importance);
+}
+
+void WebContentsImpl::ApplyPrimaryPageSubframeImportance() {
+  OPTIONAL_TRACE_EVENT1(
+      "content", "WebContentsImpl::ApplyPrimaryPageSubframeImportance",
+      "importance", static_cast<int>(primary_subframe_importance_));
+  for (FrameTreeNode* node : primary_frame_tree_.Nodes()) {
+    if (node->IsMainFrame()) {
+      continue;
+    }
+    if (auto* rwh = node->current_frame_host()->GetLocalRenderWidgetHost()) {
+      rwh->SetImportance(primary_subframe_importance_);
+    }
+  }
 }
 #endif
 
@@ -3219,8 +3250,8 @@ void WebContentsImpl::AttachInnerWebContents(
   // Not reachable with MPArch based guest view.
   CHECK(!base::FeatureList::IsEnabled(features::kGuestViewMPArch));
   AttachInnerWebContentsImpl(inner_web_contents.release(), render_frame_host,
-                            is_full_page,
-                            /*should_take_ownership=*/true);
+                             is_full_page,
+                             /*should_take_ownership=*/true);
 }
 
 void WebContentsImpl::AttachUnownedInnerWebContents(
@@ -3228,8 +3259,8 @@ void WebContentsImpl::AttachUnownedInnerWebContents(
     WebContents* inner_web_contents,
     RenderFrameHost* render_frame_host) {
   AttachInnerWebContentsImpl(inner_web_contents, render_frame_host,
-                            /*is_full_page=*/false,
-                            /*should_take_ownership=*/false);
+                             /*is_full_page=*/false,
+                             /*should_take_ownership=*/false);
 }
 
 void WebContentsImpl::AttachInnerWebContentsImpl(
@@ -5847,7 +5878,8 @@ bool WebContentsImpl::IsJavaScriptDialogShowing() const {
 bool WebContentsImpl::ShouldIgnoreUnresponsiveRenderer() {
   // Suppress unresponsive renderers if the command line asks for it.
   if (base::CommandLine::ForCurrentProcess()->HasSwitch(
-          input::switches::kDisableHangMonitor)) {
+          input::switches::kDisableHangMonitor) ||
+      !base::FeatureList::IsEnabled(input::features::kRendererHangWatcher)) {
     return true;
   }
 
@@ -6860,6 +6892,10 @@ void WebContentsImpl::NotifyWebContentsLostFocus(
 }
 
 void WebContentsImpl::SystemDragEnded(RenderWidgetHost* source_rwh) {
+  if (delegate_) {
+    delegate_->HandleDragEnded();
+  }
+
   OPTIONAL_TRACE_EVENT1("content", "WebContentsImpl::SystemDragEnded",
                         "render_widget_host", source_rwh);
   if (source_rwh) {
@@ -8582,6 +8618,16 @@ void WebContentsImpl::RenderFrameCreated(
   if (safe_area_insets_host_) {
     safe_area_insets_host_->RenderFrameCreated(render_frame_host);
   }
+
+#if BUILDFLAG(IS_ANDROID)
+  if (base::FeatureList::IsEnabled(features::kSubframeImportance) &&
+      render_frame_host->GetParent() &&
+      render_frame_host->frame_tree()->is_primary()) {
+    if (auto* rwh = render_frame_host->GetLocalRenderWidgetHost()) {
+      rwh->SetImportance(primary_subframe_importance_);
+    }
+  }
+#endif
 }
 
 void WebContentsImpl::RenderFrameDeleted(
@@ -10601,8 +10647,8 @@ void WebContentsImpl::OnDialogClosed(int render_process_id,
   std::vector<protocol::PageHandler*> page_handlers =
       protocol::PageHandler::EnabledForWebContents(this);
   for (auto* handler : page_handlers) {
-    handler->DidCloseJavaScriptDialog(rfh->devtools_frame_token(),
-                                      success, user_input);
+    handler->DidCloseJavaScriptDialog(rfh->devtools_frame_token(), success,
+                                      user_input);
   }
 
   is_showing_javascript_dialog_ = false;
@@ -10634,9 +10680,9 @@ WebContentsImpl::GetFaviconURLs() {
   return GetPrimaryMainFrame()->FaviconURLs();
 }
 
-// The Mac implementation  of the next two methods is in
-// web_contents_impl_mac.mm
-#if !BUILDFLAG(IS_MAC)
+// The Mac and iOS implementations of the next two methods are in
+// web_contents_impl_mac.mm and web_contents_impl_ios.mm.
+#if !BUILDFLAG(IS_MAC) && !BUILDFLAG(IS_IOS)
 
 void WebContentsImpl::Resize(const gfx::Rect& new_bounds) {
   OPTIONAL_TRACE_EVENT0("content", "WebContentsImpl::Resize");
@@ -10658,13 +10704,10 @@ gfx::Size WebContentsImpl::GetSize() {
 #elif BUILDFLAG(IS_ANDROID)
   ui::ViewAndroid* view_android = GetNativeView();
   return view_android->GetSizeDIPs();
-#elif BUILDFLAG(IS_IOS)
-  // TODO(crbug.com/40254930): Implement me.
-  NOTREACHED();
 #endif
 }
 
-#endif  // !BUILDFLAG(IS_MAC)
+#endif  // !BUILDFLAG(IS_MAC) && !BUILDFLAG(IS_IOS)
 
 gfx::Rect WebContentsImpl::GetWindowsControlsOverlayRect() const {
   return window_controls_overlay_rect_;
@@ -11207,8 +11250,7 @@ WebContentsImpl::CreateAudioStreamFactory() {
     broker_factory = AudioStreamBrokerFactory::CreateImpl();
   }
   return std::make_unique<ForwardingAudioStreamFactory>(
-      this,
-      std::move(broker_factory));
+      this, std::move(broker_factory));
 }
 
 void WebContentsImpl::MediaStartedPlaying(
@@ -11397,8 +11439,7 @@ void WebContentsImpl::IsClipboardPasteAllowedWrapperCallback(
 std::optional<std::vector<std::u16string>>
 WebContentsImpl::GetClipboardTypesIfPolicyApplied(
     const ui::ClipboardSequenceNumberToken& seqno) {
-  return GetContentClient()->browser()->GetClipboardTypesIfPolicyApplied(
-      seqno);
+  return GetContentClient()->browser()->GetClipboardTypesIfPolicyApplied(seqno);
 }
 
 void WebContentsImpl::BindScreenOrientation(
@@ -11721,26 +11762,24 @@ void WebContentsImpl::ForEachRenderViewHost(
 
   if ((view_mask & (ForEachRenderViewHostTypes::kPrerenderViews |
                     ForEachRenderViewHostTypes::kActiveViews)) != 0) {
-    ForEachFrameTree(
-        [view_mask, &render_view_hosts](FrameTree& frame_tree) {
-          // Check the view masks.
-          if (frame_tree.is_prerendering()) {
-            // We are in a prerendering page.
-            if ((view_mask & ForEachRenderViewHostTypes::kPrerenderViews) ==
-                0) {
-              return;
-            }
-          } else {
-            // We are in an active page.
-            if ((view_mask & ForEachRenderViewHostTypes::kActiveViews) == 0) {
-              return;
-            }
-          }
-          frame_tree.ForEachRenderViewHost(
-              [&render_view_hosts](RenderViewHostImpl* rvh) {
-                render_view_hosts.insert(rvh);
-              });
-        });
+    ForEachFrameTree([view_mask, &render_view_hosts](FrameTree& frame_tree) {
+      // Check the view masks.
+      if (frame_tree.is_prerendering()) {
+        // We are in a prerendering page.
+        if ((view_mask & ForEachRenderViewHostTypes::kPrerenderViews) == 0) {
+          return;
+        }
+      } else {
+        // We are in an active page.
+        if ((view_mask & ForEachRenderViewHostTypes::kActiveViews) == 0) {
+          return;
+        }
+      }
+      frame_tree.ForEachRenderViewHost(
+          [&render_view_hosts](RenderViewHostImpl* rvh) {
+            render_view_hosts.insert(rvh);
+          });
+    });
   }
 
   if ((view_mask & ForEachRenderViewHostTypes::kBackForwardCacheViews) != 0) {
@@ -11762,6 +11801,16 @@ void WebContentsImpl::NotifyPageBecamePrimary(PageImpl& page) {
   OPTIONAL_TRACE_EVENT0("content", "WebContentsImpl::PrimaryPageChanged");
 
   DCHECK_EQ(&page, &GetPrimaryPage());
+
+#if BUILDFLAG(IS_ANDROID)
+  // Apply the cached subframe importance if it is set. This is needed for
+  // pages restored from back/forward cache. Note that we don't need to clear
+  // importance for non-primary pages because the importance is ignored at
+  // RenderWidgetHostImpl::GetPriority() and updated when it becomes inactive.
+  if (base::FeatureList::IsEnabled(features::kSubframeImportance)) {
+    ApplyPrimaryPageSubframeImportance();
+  }
+#endif
 
   // Clear |save_package_| since the primary page changed.
   if (save_package_) {

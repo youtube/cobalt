@@ -109,6 +109,9 @@
 // IWYU pragma: no_include "base/numerics/clamped_math.h"
 
 namespace blink {
+
+class MemoryManagedPaintCanvas;
+
 namespace {
 
 wgpu::TextureFormat AsDawnType(const viz::SharedImageFormat& format) {
@@ -780,7 +783,7 @@ void BaseRenderingContext2D::Trace(Visitor* visitor) const {
   Canvas2DRecorderContext::Trace(visitor);
 }
 
-bool BaseRenderingContext2D::IsAccelerated() const {
+bool BaseRenderingContext2D::Is2DCanvasAccelerated() const {
   auto* resource_provider = GetResourceProviderForCanvas2D();
   return resource_provider ? resource_provider->IsAccelerated()
                            : Host()->ShouldTryToUseGpuRaster();
@@ -799,8 +802,13 @@ scoped_refptr<StaticBitmapImage>
 BaseRenderingContext2D::PaintRenderingResultsToSnapshot(
     SourceDrawingBuffer source_buffer,
     FlushReason reason) {
+  if (!IsCanvas2DResourceProviderValid()) {
+    return nullptr;
+  }
+
   CanvasResourceProvider* provider = GetResourceProviderForCanvas2D();
-  return provider ? provider->Snapshot(reason) : nullptr;
+  provider->FlushCanvas(reason);
+  return provider->Snapshot(reason);
 }
 
 void BaseRenderingContext2D::WillUseCurrentFont() const {
@@ -1170,10 +1178,10 @@ void BaseRenderingContext2D::DrawTextInternal(
           : CanvasOperationType::kStrokeText);
 
   Draw<OverdrawOp::kNone>(
+      /*draw_func=*/
       [font, text = std::move(text), direction, bidi_override, location,
-       run_start, run_end, canvas, text_painter](
-          cc::PaintCanvas* c, const cc::PaintFlags* flags)  // draw lambda
-      {
+       run_start, run_end, canvas,
+       text_painter](MemoryManagedPaintCanvas* c, const cc::PaintFlags* flags) {
         TextRun text_run(text, direction, bidi_override,
                          /* normalize_space */ true);
         // Font::DrawType::kGlyphsAndClusters is required for printing to PDF,
@@ -1201,9 +1209,7 @@ void BaseRenderingContext2D::DrawTextInternal(
                                        draw_type);
         }
       },
-      [](const SkIRect& rect)  // overdraw test lambda
-      { return false; },
-      bounds, paint_type, CanvasRenderingContext2DState::kNoImage,
+      NoOverdraw, bounds, paint_type, CanvasRenderingContext2DState::kNoImage,
       CanvasPerformanceMonitor::DrawType::kText);
 
   if (use_max_width) {

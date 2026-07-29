@@ -38,6 +38,7 @@
 #import "ios/chrome/browser/metrics/model/new_tab_page_uma.h"
 #import "ios/chrome/browser/ntp/model/new_tab_page_state.h"
 #import "ios/chrome/browser/ntp/model/new_tab_page_tab_helper.h"
+#import "ios/chrome/browser/ntp/search_engine_logo/ui/search_engine_logo_state.h"
 #import "ios/chrome/browser/ntp/shared/metrics/feed_metrics_constants.h"
 #import "ios/chrome/browser/ntp/shared/metrics/feed_metrics_recorder.h"
 #import "ios/chrome/browser/ntp/shared/metrics/new_tab_page_metrics_constants.h"
@@ -50,6 +51,7 @@
 #import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_feature.h"
 #import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_header_constants.h"
 #import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_header_consumer.h"
+#import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_image_background_trait.h"
 #import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_trait.h"
 #import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_view_controller.h"
 #import "ios/chrome/browser/ntp/ui_bundled/theme_utils.h"
@@ -61,6 +63,7 @@
 #import "ios/chrome/browser/shared/model/url/chrome_url_constants.h"
 #import "ios/chrome/browser/shared/model/utils/first_run_util.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
+#import "ios/chrome/browser/shared/ui/util/custom_ui_trait_accessor.h"
 #import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
 #import "ios/chrome/browser/signin/model/authentication_service.h"
 #import "ios/chrome/browser/signin/model/chrome_account_manager_service.h"
@@ -274,8 +277,11 @@ void LogLensButtonNewBadgeShownHistogram(IOSNTPNewBadgeShownResult result) {
 - (void)setUp {
   self.templateURLService->Load();
   [self updateModuleVisibilityForConsumer];
-  [self.headerConsumer setLogoIsShowing:search::DefaultSearchProviderIsGoogle(
-                                            self.templateURLService)];
+  SearchEngineLogoState logoState =
+      search::DefaultSearchProviderIsGoogle(self.templateURLService)
+          ? SearchEngineLogoState::kLogo
+          : SearchEngineLogoState::kNone;
+  [self.headerConsumer setSearchEngineLogoState:logoState];
   [self.headerConsumer
       setVoiceSearchIsEnabled:ios::provider::IsVoiceSearchEnabled()];
 
@@ -391,6 +397,9 @@ void LogLensButtonNewBadgeShownHistogram(IOSNTPNewBadgeShownResult result) {
   std::optional<sync_pb::UserColorTheme> colorTheme =
       _backgroundCustomizationService->GetCurrentColorTheme();
 
+  CustomUITraitAccessor* traitAccessor = [[CustomUITraitAccessor alloc]
+      initWithMutableTraits:self.consumer.traitOverrides];
+
   if (colorTheme && colorTheme->color()) {
     // Sets the New Tab Page trait to a color palette generated from the current
     // theme.
@@ -398,17 +407,20 @@ void LogLensButtonNewBadgeShownHistogram(IOSNTPNewBadgeShownResult result) {
         skia::UIColorFromSkColor(colorTheme->color()),
         ProtoEnumToSchemeVariant(colorTheme->browser_color_variant()));
 
-    [self.consumer.traitOverrides setObject:colorPalette
-                                   forTrait:NewTabPageTrait.class];
+    [traitAccessor setObjectForNewTabPageTrait:colorPalette];
     [self.consumer setBackgroundImage:nil];
     [self.headerConsumer updateLogoColor:colorPalette.tintColor];
+    [traitAccessor setBoolForNewTabPageImageBackgroundTrait:NO];
     return;
   }
 
   // Clears the color palette associated with the New Tab Page trait,
   // reverting to the default colors defined by the trait.
-  [self.consumer.traitOverrides setObject:[NewTabPageTrait defaultValue]
-                                 forTrait:NewTabPageTrait.class];
+  [traitAccessor setObjectForNewTabPageTrait:[NewTabPageTrait defaultValue]];
+
+  [traitAccessor
+      setBoolForNewTabPageImageBackgroundTrait:background.has_value()];
+
   if (!background) {
     [self.consumer setBackgroundImage:nil];
     [self.headerConsumer updateLogoColor:nil];
@@ -456,8 +468,11 @@ void LogLensButtonNewBadgeShownHistogram(IOSNTPNewBadgeShownResult result) {
   _defaultSearchEngine = updatedDefaultSearchEngine;
   // AIM availability must be updated before default search engine.
   [self updateAIMAvailability];
-  [self.headerConsumer setLogoIsShowing:search::DefaultSearchProviderIsGoogle(
-                                            self.templateURLService)];
+  SearchEngineLogoState logoState =
+      search::DefaultSearchProviderIsGoogle(self.templateURLService)
+          ? SearchEngineLogoState::kLogo
+          : SearchEngineLogoState::kNone;
+  [self.headerConsumer setSearchEngineLogoState:logoState];
   [self.feedControlDelegate updateFeedForDefaultSearchEngineChanged];
 
   NSString* dseName =

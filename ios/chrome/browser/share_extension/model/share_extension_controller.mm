@@ -18,10 +18,15 @@
 #import "base/task/sequenced_task_runner.h"
 #import "base/task/thread_pool.h"
 #import "base/threading/scoped_blocking_call.h"
+#import "google_apis/gaia/gaia_id.h"
+#import "ios/chrome/browser/share_extension/model/bookmark_adder.h"
 #import "ios/chrome/browser/share_extension/model/parsed_share_extension_entry.h"
+#import "ios/chrome/browser/share_extension/model/reading_list_adder.h"
 #import "ios/chrome/browser/share_extension/model/share_extension_utils.h"
+#import "ios/chrome/browser/shared/model/application_context/application_context.h"
 #import "ios/chrome/browser/shared/model/profile/features.h"
 #import "ios/chrome/browser/shared/public/features/system_flags.h"
+#import "ios/chrome/browser/signin/model/account_profile_mapper.h"
 #import "ios/chrome/common/app_group/app_group_constants.h"
 #import "ios/web/public/thread/web_task_traits.h"
 #import "ios/web/public/thread/web_thread.h"
@@ -68,6 +73,32 @@ ShareExtensionSource SourceIDFromSource(NSString* source) {
     return SHARE_EXTENSION;
   }
   return UNKNOWN_SOURCE;
+}
+
+template <typename T>
+void OnProfileLoaded(std::unique_ptr<T> adder,
+                     ScopedProfileKeepAliveIOS keep_alive) {
+  T* adder_ptr = adder.get();
+  adder_ptr->OnProfileLoaded(
+      std::move(keep_alive),
+      base::BindOnce([](std::unique_ptr<T> adder) {}, std::move(adder)));
+}
+
+template <typename Adder, typename... Args>
+void AddDataToProfileByGaiaID(NSString* gaiaID, Args&&... args) {
+  std::optional<std::string> profileName =
+      GetApplicationContext()
+          ->GetAccountProfileMapper()
+          ->FindProfileNameForGaiaID(GaiaId(gaiaID));
+
+  if (profileName.has_value()) {
+    ProfileManagerIOS* profileManager =
+        GetApplicationContext()->GetProfileManager();
+    auto adder = std::make_unique<Adder>(std::forward<Args>(args)...);
+    profileManager->LoadProfileAsync(
+        *profileName,
+        base::BindOnce(&OnProfileLoaded<Adder>, std::move(adder)));
+  }
 }
 
 }  // namespace
@@ -159,9 +190,11 @@ ShareExtensionSource SourceIDFromSource(NSString* source) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(_sequenceChecker);
   CHECK(!_shutdownCalled);
   if (!_isObservingReadingListFolder) {
+    // Process the existing files first then start observing the folder for any
+    // new added file.
+    [self processExistingFiles];
     _isObservingReadingListFolder = YES;
     [NSFileCoordinator addFilePresenter:self];
-    [self processExistingFiles];
   }
 }
 
@@ -201,9 +234,9 @@ ShareExtensionSource SourceIDFromSource(NSString* source) {
     return;
   }
 
-  [self startObservingReadingListFolder];
-  // There may already be files. Process them.
-  [self processExistingFiles];
+  if (!_isObservingReadingListFolder) {
+    [self startObservingReadingListFolder];
+  }
 }
 
 - (void)applicationWillResignActive {
@@ -253,7 +286,7 @@ ShareExtensionSource SourceIDFromSource(NSString* source) {
 
 - (void)handleFileAtURL:(NSURL*)url {
   DCHECK_CALLED_ON_VALID_SEQUENCE(_sequenceChecker);
-  CHECK(_shutdownCalled);
+  CHECK(!_shutdownCalled);
 
   __weak ShareExtensionController* weakSelf = self;
 
@@ -302,21 +335,111 @@ ShareExtensionSource SourceIDFromSource(NSString* source) {
 
   [self processEntryWithType:parsedEntry.type
                        title:parsedEntry.title
+                      gaiaID:parsedEntry.gaiaID
                          URL:parsedEntry.url
                   completion:completion];
 }
 
 - (void)processEntryWithType:(app_group::ShareExtensionItemType)entryType
                        title:(NSString*)entryTitle
+                      gaiaID:(NSString*)gaiaID
                          URL:(NSURL*)entryURL
                   completion:(ProceduralBlock)completion {
   DCHECK_CALLED_ON_VALID_SEQUENCE(_sequenceChecker);
 
-  // TODO(crbug.com/40260909): Bookmark the URL or add it to reading list.
+  switch (entryType) {
+    case app_group::BOOKMARK_ITEM: {
+      LogHistogramReceivedItem(BOOKMARK_ENTRY);
+      [self addBookmarkToProfileByGaiaID:gaiaID
+                                     URL:entryURL
+                           bookmarkTitle:entryTitle];
+      break;
+    }
+    case app_group::READING_LIST_ITEM: {
+      LogHistogramReceivedItem(READINGLIST_ENTRY);
+      [self addReadingListToProfileByGaiaID:gaiaID
+                                        URL:entryURL
+                           readingListTitle:entryTitle];
+      break;
+    }
+    case app_group::OPEN_IN_CHROME_ITEM: {
+      LogHistogramReceivedItem(OPEN_IN_CHROME_ENTRY);
+      break;
+    }
+    case app_group::OPEN_IN_CHROME_INCOGNITO_ITEM: {
+      LogHistogramReceivedItem(OPEN_IN_CHROME_INCOGNITO_ENTRY);
+      break;
+    }
+    case app_group::IMAGE_SEARCH_ITEM: {
+      LogHistogramReceivedItem(IMAGE_SEARCH_ENTRY);
+      break;
+    }
+    case app_group::TEXT_SEARCH_ITEM: {
+      LogHistogramReceivedItem(TEXT_SEARCH_ENTRY);
+      break;
+    }
+    case app_group::INCOGNITO_IMAGE_SEARCH_ITEM: {
+      LogHistogramReceivedItem(INCOGNITO_IMAGE_SEARCH_ENTRY);
+      break;
+    }
+    case app_group::INCOGNITO_TEXT_SEARCH_ITEM: {
+      LogHistogramReceivedItem(INCOGNITO_TEXT_SEARCH_ENTRY);
+      break;
+    }
+  }
 
   if (completion) {
     completion();
   }
+}
+
+- (void)addBookmarkToProfileByGaiaID:(NSString*)gaiaID
+                                 URL:(NSURL*)URL
+                       bookmarkTitle:(NSString*)bookmarkTitle {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(_sequenceChecker);
+  AddDataToProfileByGaiaID<BookmarkAdder>(
+      gaiaID, net::GURLWithNSURL(URL), base::SysNSStringToUTF8(bookmarkTitle));
+  //  std::optional<std::string> profileName =
+  //      GetApplicationContext()
+  //          ->GetAccountProfileMapper()
+  //          ->FindProfileNameForGaiaID(GaiaId(gaiaID));
+  //
+  //  if (profileName.has_value()) {
+  //    std::string title = base::SysNSStringToUTF8(bookmarkTitle);
+  //    ProfileManagerIOS* profileManager =
+  //        GetApplicationContext()->GetProfileManager();
+  //    std::unique_ptr<BookmarkAdder> adder = std::make_unique<BookmarkAdder>(
+  //        net::GURLWithNSURL(URL), std::move(title));
+  //    profileManager->LoadProfileAsync(
+  //        *profileName,
+  //        base::BindOnce(&OnProfileLoaded<BookmarkAdder>, std::move(adder)));
+  //  }
+}
+
+- (void)addReadingListToProfileByGaiaID:(NSString*)gaiaID
+                                    URL:(NSURL*)URL
+                       readingListTitle:(NSString*)readingListTitle {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(_sequenceChecker);
+  AddDataToProfileByGaiaID<ReadingListAdder>(
+      gaiaID, net::GURLWithNSURL(URL),
+      base::SysNSStringToUTF8(readingListTitle));
+  //  std::optional<std::string> profileName =
+  //      GetApplicationContext()
+  //          ->GetAccountProfileMapper()
+  //          ->FindProfileNameForGaiaID(GaiaId(gaiaID));
+  //
+  //  if (profileName.has_value()) {
+  //    std::string title = base::SysNSStringToUTF8(readingListTitle);
+  //    ProfileManagerIOS* profileManager =
+  //        GetApplicationContext()->GetProfileManager();
+  //    std::unique_ptr<ReadingListAdder> adder =
+  //        std::make_unique<ReadingListAdder>(net::GURLWithNSURL(URL), title,
+  //                                           profileManager);
+  //    profileManager->LoadProfileAsync(
+  //        *profileName,
+  //        base::BindOnce(&OnProfileLoaded<ReadingListAdder>,
+  //        std::move(adder)));
+  //  }
 }
 
 @end

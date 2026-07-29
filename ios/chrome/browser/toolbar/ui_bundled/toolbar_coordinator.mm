@@ -10,7 +10,6 @@
 #import "components/prefs/pref_service.h"
 #import "ios/chrome/browser/intelligence/features/features.h"
 #import "ios/chrome/browser/location_bar/ui_bundled/location_bar_coordinator.h"
-#import "ios/chrome/browser/ntp/model/new_tab_page_tab_helper.h"
 #import "ios/chrome/browser/ntp/model/new_tab_page_util.h"
 #import "ios/chrome/browser/omnibox/model/omnibox_position/omnibox_position_browser_agent.h"
 #import "ios/chrome/browser/omnibox/ui/omnibox_drs_view_controller.h"
@@ -46,6 +45,7 @@
 #import "ios/chrome/browser/toolbar/ui_bundled/toolbar_mediator.h"
 #import "ios/chrome/common/ui/util/ui_util.h"
 #import "ios/components/webui/web_ui_url_constants.h"
+#import "ios/web/public/web_state.h"
 
 @interface ToolbarCoordinator () <GuidedTourCommands,
                                   PrimaryToolbarViewControllerDelegate,
@@ -289,12 +289,7 @@
       self.browser->GetCommandDispatcher(), TextZoomCommands);
   [textZoomCommandsHandler showTextZoomUIIfActive];
 
-  // There are times when the NTP can be hidden but before the visibleURL
-  // changes.  This can leave the BVC in a blank state where only the bottom
-  // toolbar is visible. Instead, if possible, use the NewTabPageTabHelper
-  // IsActive() value rather than checking -IsVisibleURLNewTabPage.
-  NewTabPageTabHelper* NTPHelper = NewTabPageTabHelper::FromWebState(webState);
-  BOOL isNTP = NTPHelper && NTPHelper->IsActive();
+  BOOL isNTP = IsVisibleURLNewTabPage(webState);
   BOOL isOffTheRecord = self.isOffTheRecord;
   BOOL canShowTabStrip = CanShowTabStrip(self.traitEnvironment);
 
@@ -371,14 +366,15 @@
 #pragma mark ToolbarHeightProviding
 
 - (CGFloat)collapsedPrimaryToolbarHeight {
+  if (IsDiamondPrototypeEnabled() &&
+      _omniboxPosition == ToolbarType::kPrimary) {
+    return kDiamondCollapsedToolbarHeight;
+  }
+
   if (_omniboxPosition == ToolbarType::kSecondary) {
     // TODO(crbug.com/40279063): Find out why primary toolbar height cannot be
     // zero. This is a temporary fix for the pdf bug.
     return 1.0;
-  }
-
-  if (IsDiamondPrototypeEnabled()) {
-    return kDiamondCollapsedToolbarHeight;
   }
 
   return ToolbarCollapsedHeight(
@@ -387,13 +383,14 @@
 
 - (CGFloat)expandedPrimaryToolbarHeight {
   if (IsDiamondPrototypeEnabled() &&
-      _omniboxPosition != ToolbarType::kSecondary) {
+      _omniboxPosition == ToolbarType::kPrimary) {
     return kDiamondToolbarHeight;
   }
 
   CGFloat height =
       self.primaryToolbarViewController.view.intrinsicContentSize.height;
-  if (CanShowTabStrip(self.traitEnvironment)) {
+  if (!IsSplitToolbarMode(self.traitEnvironment) ||
+      CanShowTabStrip(self.traitEnvironment)) {
     // When the adaptive toolbar is unsplit or the tab strip is visible, add a
     // margin.
     height += kTopToolbarUnsplitMargin;
@@ -634,13 +631,21 @@
   OmniboxPositionBrowserAgent* positionBrowserAgent =
       OmniboxPositionBrowserAgent::FromBrowser(self.browser);
   switch (toolbarType) {
-    case ToolbarType::kPrimary:
-      [self.primaryToolbarCoordinator
-          setLocationBarViewController:self.locationBarCoordinator
-                                           .locationBarViewController];
-      [self.secondaryToolbarCoordinator setLocationBarViewController:nil];
+    case ToolbarType::kPrimary: {
+      if (IsDiamondPrototypeEnabled()) {
+        [self.secondaryToolbarCoordinator
+            setLocationBarViewController:self.locationBarCoordinator
+                                             .locationBarViewController];
+        [self.primaryToolbarCoordinator setLocationBarViewController:nil];
+      } else {
+        [self.primaryToolbarCoordinator
+            setLocationBarViewController:self.locationBarCoordinator
+                                             .locationBarViewController];
+        [self.secondaryToolbarCoordinator setLocationBarViewController:nil];
+      }
       positionBrowserAgent->SetIsCurrentLayoutBottomOmnibox(false);
       break;
+    }
     case ToolbarType::kSecondary:
       [self.secondaryToolbarCoordinator
           setLocationBarViewController:self.locationBarCoordinator
@@ -648,6 +653,11 @@
       [self.primaryToolbarCoordinator setLocationBarViewController:nil];
       positionBrowserAgent->SetIsCurrentLayoutBottomOmnibox(true);
       break;
+  }
+  if (IsDiamondPrototypeEnabled()) {
+    [self.toolbarHeightDelegate diamondToolbarTypeChanged:toolbarType];
+    self.secondaryToolbarCoordinator.usedAsPrimaryToolbar =
+        toolbarType == ToolbarType::kPrimary;
   }
   [self.toolbarHeightDelegate toolbarsHeightChanged];
 }
@@ -695,9 +705,7 @@
     if (!webState) {
       return OmniboxFocusTrigger::kOther;
     }
-    NewTabPageTabHelper* NTPHelper =
-        NewTabPageTabHelper::FromWebState(webState);
-    if (!NTPHelper || !NTPHelper->IsActive()) {
+    if (!IsVisibleURLNewTabPage(webState)) {
       return OmniboxFocusTrigger::kOther;
     }
 
@@ -721,9 +729,7 @@
     if (!webState) {
       return OmniboxFocusTrigger::kOther;
     }
-    NewTabPageTabHelper* NTPHelper =
-        NewTabPageTabHelper::FromWebState(webState);
-    if (!NTPHelper || !NTPHelper->IsActive()) {
+    if (!IsVisibleURLNewTabPage(webState)) {
       return OmniboxFocusTrigger::kOther;
     }
     return _fakeboxPinned ? OmniboxFocusTrigger::kPinnedFakebox

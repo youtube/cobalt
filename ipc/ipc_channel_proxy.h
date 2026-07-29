@@ -39,8 +39,6 @@ class SingleThreadTaskRunner;
 namespace IPC {
 
 class ChannelFactory;
-class MessageFilter;
-class MessageFilterRouter;
 class UrgentMessageObserver;
 
 //-----------------------------------------------------------------------------
@@ -60,13 +58,6 @@ class UrgentMessageObserver;
 // will queue up on the IPC::Channel when there is a lot of traffic, and the
 // channel will not get cycles to flush its message queue until the thread, on
 // which it is running, returns to its message loop.)
-//
-// An IPC::ChannelProxy can have a MessageFilter associated with it, which will
-// be notified of incoming messages on the IPC::Channel's thread.  This gives
-// the consumer of IPC::ChannelProxy the ability to respond to incoming
-// messages on this background thread instead of on their own thread, which may
-// be bogged down with other processing.  The result can be greatly improved
-// latency for messages that can be handled on a background thread.
 //
 // The consumer of IPC::ChannelProxy is responsible for allocating the Thread
 // instance where the IPC::Channel will be created and operated.
@@ -137,28 +128,11 @@ class COMPONENT_EXPORT(IPC) ChannelProxy : public Sender {
   // Close the IPC::Channel.  This operation completes asynchronously, once the
   // background thread processes the command to close the channel.  It is ok to
   // call this method multiple times.  Redundant calls are ignored.
-  //
-  // WARNING: MessageFilter objects held by the ChannelProxy is also
-  // released asynchronously, and it may in fact have its final reference
-  // released on the background thread.  The caller should be careful to deal
-  // with / allow for this possibility.
   void Close();
 
   // Send a message asynchronously.  The message is routed to the background
   // thread where it is passed to the IPC::Channel's Send method.
   bool Send(Message* message) override;
-
-  // Used to intercept messages as they are received on the background thread.
-  //
-  // Ordinarily, messages sent to the ChannelProxy are routed to the matching
-  // listener on the worker thread.  This API allows code to intercept messages
-  // before they are sent to the worker thread.
-  // If you call this before the target process is launched, then you're
-  // guaranteed to not miss any messages.  But if you call this anytime after,
-  // then some messages might be missed since the filter is added internally on
-  // the IO thread.
-  void AddFilter(MessageFilter* filter);
-  void RemoveFilter(MessageFilter* filter);
 
   // Set the `UrgentMessageObserver` for the channel. Must be called on the
   // proxy thread before initialization.
@@ -314,11 +288,8 @@ class COMPONENT_EXPORT(IPC) ChannelProxy : public Sender {
 
     // Methods called on the IO thread.
     void OnSendMessage(std::unique_ptr<Message> message_ptr);
-    void OnAddFilter();
-    void OnRemoveFilter(MessageFilter* filter);
 
     // Methods called on the listener thread.
-    void AddFilter(MessageFilter* filter);
     void OnDispatchConnected();
     void OnDispatchError();
     void OnDispatchBadMessage(const Message& message);
@@ -346,8 +317,6 @@ class COMPONENT_EXPORT(IPC) ChannelProxy : public Sender {
     scoped_refptr<base::SingleThreadTaskRunner> default_listener_task_runner_;
     raw_ptr<Listener> listener_;
 
-    // List of filters.  This is only accessed on the IPC thread.
-    std::vector<scoped_refptr<MessageFilter> > filters_;
     scoped_refptr<base::SingleThreadTaskRunner> ipc_task_runner_;
 
     // Note, channel_ may be set on the Listener thread or the IPC thread.
@@ -361,14 +330,7 @@ class COMPONENT_EXPORT(IPC) ChannelProxy : public Sender {
     // thread-safe send.
     base::Lock channel_lifetime_lock_;
 
-    // Routes a given message to a proper subset of |filters_|, depending
-    // on which message classes a filter might support.
-    std::unique_ptr<MessageFilterRouter> message_filter_router_;
-
-    // Holds filters between the AddFilter call on the listerner thread and the
-    // IPC thread when they're added to filters_.
-    std::vector<scoped_refptr<MessageFilter> > pending_filters_;
-    // Lock for pending_filters_.
+    // Lock for pending_io_thread_interfaces_ (formerly for pending_filters_)
     base::Lock pending_filters_lock_;
 
     // Cached copy of the peer process ID. Set on IPC but read on both IPC and

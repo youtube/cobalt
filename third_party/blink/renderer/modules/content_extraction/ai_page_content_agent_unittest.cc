@@ -10,6 +10,8 @@
 #include "mojo/public/cpp/test_support/test_utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/public/common/input/web_mouse_event.h"
+#include "third_party/blink/renderer/core/accessibility/ax_context.h"
+#include "third_party/blink/renderer/core/accessibility/ax_object_cache.h"
 #include "third_party/blink/renderer/core/dom/document.h"
 #include "third_party/blink/renderer/core/dom/dom_node_ids.h"
 #include "third_party/blink/renderer/core/frame/frame_test_helpers.h"
@@ -18,10 +20,13 @@
 #include "third_party/blink/renderer/core/input/event_handler.h"
 #include "third_party/blink/renderer/core/layout/layout_object.h"
 #include "third_party/blink/renderer/core/layout/layout_view.h"
+#include "third_party/blink/renderer/modules/accessibility/ax_object_cache_impl.h"
 #include "third_party/blink/renderer/platform/testing/task_environment.h"
 #include "third_party/blink/renderer/platform/testing/unit_test_helpers.h"
 #include "third_party/blink/renderer/platform/testing/url_test_helpers.h"
 #include "third_party/blink/renderer/platform/wtf/text/atomic_string.h"
+#include "ui/accessibility/ax_action_data.h"
+#include "ui/accessibility/ax_mode.h"
 
 namespace blink {
 using ClickabilityReason = mojom::blink::AIPageContentClickabilityReason;
@@ -2286,6 +2291,55 @@ TEST_F(AIPageContentAgentTest, Focus) {
             button.content_attributes->dom_node_id);
 }
 
+TEST_F(AIPageContentAgentTest, AccessibilityFocus) {
+  frame_test_helpers::LoadHTMLString(
+      helper_.LocalMainFrame(),
+      "<body>"
+      "  <style>"
+      "    #button1 {"
+      "      position: absolute;"
+      "      top: -10px;"
+      "      left: -20px;"
+      "      width: 30px;"
+      "      height: 40px;"
+      "    }"
+      "  </style>"
+      "  <button id='button1'>button1</button>"
+      "  <div id='div2'>div2</div>"
+      "</body>",
+      url_test_helpers::ToKURL("http://foobar.com"));
+
+  // Enable accessibility.
+  ui::AXMode ax_mode = ui::kAXModeComplete;
+  Document* document = helper_.LocalMainFrame()->GetFrame()->GetDocument();
+  auto context = std::make_unique<AXContext>(*document, ax_mode);
+  EXPECT_TRUE(document->ExistingAXObjectCache());
+  auto* ax_object_cache =
+      To<AXObjectCacheImpl>(document->ExistingAXObjectCache());
+  EXPECT_EQ(ax_mode, ax_object_cache->GetAXMode());
+  ax_object_cache->UpdateAXForAllDocuments();
+
+  // Set accessibility focus to the button.
+  auto* button_element = document->getElementById(AtomicString("button1"));
+  auto* button_ax_object = ax_object_cache->Get(button_element);
+  ui::AXActionData action_data;
+  action_data.action = ax::mojom::blink::Action::kSetAccessibilityFocus;
+  button_ax_object->PerformAction(action_data);
+
+  GetAIPageContent();
+
+  const auto& root = ContentRootNode();
+  EXPECT_EQ(root.children_nodes.size(), 2u);
+
+  const auto& button = *root.children_nodes[0];
+  const auto& div2 = *root.children_nodes[1];
+  const auto& page_interaction_info = Content()->page_interaction_info;
+  EXPECT_EQ(page_interaction_info->accessibility_focused_dom_node_id,
+            button.content_attributes->dom_node_id);
+  CheckGeometry(button, gfx::Rect(-20, -10, 30, 40), gfx::Rect(0, 0, 10, 30));
+  EXPECT_FALSE(div2.content_attributes->geometry);
+}
+
 TEST_F(AIPageContentAgentTest, MousePosition) {
   frame_test_helpers::LoadHTMLString(
       helper_.LocalMainFrame(),
@@ -3511,6 +3565,24 @@ TEST_F(AIPageContentAgentTest, DisabledButton) {
   CheckHitTestableButNotInteractive(button);
 }
 
+TEST_F(AIPageContentAgentTest, InertButton) {
+  frame_test_helpers::LoadHTMLString(
+      helper_.LocalMainFrame(),
+      R"HTML(
+        <body>
+         <button inert>Text</button>
+        </body>
+      )HTML",
+      url_test_helpers::ToKURL("http://foobar.com"));
+
+  GetAIPageContentWithActionableElements();
+
+  const auto& root = ContentRootNode();
+  ASSERT_EQ(root.children_nodes.size(), 1u);
+  const auto& button = *root.children_nodes.at(0);
+  EXPECT_FALSE(button.content_attributes->node_interaction_info);
+}
+
 TEST_F(AIPageContentAgentTest, ActionablePseudoElements) {
   frame_test_helpers::LoadHTMLString(
       helper_.LocalMainFrame(),
@@ -4024,6 +4096,63 @@ TEST_F(AIPageContentAgentTest, AriaExpandedFalse) {
       interaction_info.clickability_reasons,
       testing::Contains(
           mojom::blink::AIPageContentClickabilityReason::kAriaExpandedFalse));
+}
+
+TEST_F(AIPageContentAgentTest, Autocomplete) {
+  frame_test_helpers::LoadHTMLString(
+      helper_.LocalMainFrame(), R"(<body>
+      <input>
+      <input autocomplete=off>
+      <input autocomplete=on>
+      <input aria-autocomplete>
+      <input aria-autocomplete=none>
+      <input aria-autocomplete=list>
+      </body>)",
+      url_test_helpers::ToKURL("http://foobar.com"));
+
+  const bool kExpected[] = {
+      false,  // no attribute
+      false,  // disabled
+      true,
+      false,  // empty
+      false,  // disabled
+      true,
+  };
+
+  GetAIPageContentWithActionableElements();
+
+  for (int i = 0; bool expected : kExpected) {
+    SCOPED_TRACE(i);
+
+    const auto& input_node = *ContentRootNode().children_nodes[i];
+    ASSERT_TRUE(input_node.content_attributes->node_interaction_info);
+    const auto& interaction_info =
+        *input_node.content_attributes->node_interaction_info;
+
+    EXPECT_THAT(
+        interaction_info.clickability_reasons,
+        testing::Contains(
+            mojom::blink::AIPageContentClickabilityReason::kAutocomplete)
+            .Times(expected));
+
+    ++i;
+  }
+}
+
+TEST_F(AIPageContentAgentTest, TabIndex) {
+  frame_test_helpers::LoadHTMLString(
+      helper_.LocalMainFrame(), "<body><div tabindex=0>Plain Div</div></body>",
+      url_test_helpers::ToKURL("http://foobar.com"));
+
+  GetAIPageContentWithActionableElements();
+  const auto& div_node = *ContentRootNode().children_nodes[0];
+  ASSERT_TRUE(div_node.content_attributes->node_interaction_info);
+
+  const auto& interaction_info =
+      *div_node.content_attributes->node_interaction_info;
+  EXPECT_THAT(interaction_info.clickability_reasons,
+              testing::Contains(
+                  mojom::blink::AIPageContentClickabilityReason::kTabIndex));
 }
 
 }  // namespace

@@ -74,7 +74,7 @@ public class MimeUtils {
      */
     @CalledByNative
     public static @JniType("std::string") String remapGenericMimeType(
-            @JniType("std::string") String mimeType,
+            @JniType("std::string") @Nullable String mimeType,
             @JniType("std::string") String url,
             @JniType("std::string") String filename) {
         if (TextUtils.isEmpty(mimeType)) mimeType = UNKNOWN_MIME_TYPE;
@@ -144,7 +144,8 @@ public class MimeUtils {
      * @return true if the downloaded is OMA download description, or false otherwise.
      */
     @CalledByNative
-    public static boolean isOMADownloadDescription(@JniType("std::string") String mimeType) {
+    public static boolean isOMADownloadDescription(
+            @JniType("std::string") @Nullable String mimeType) {
         return OMA_DOWNLOAD_DESCRIPTOR_MIME.equalsIgnoreCase(mimeType);
     }
 

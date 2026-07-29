@@ -78,6 +78,11 @@
 
 namespace {
 
+// The amount of time after a new page has been opened in reading mode that
+// reading mode waits before logging whether the distillation was successful,
+// the distillation failed, or the distillation is still processing.
+constexpr int kDistillationLoggingDelayMs = 5000;
+
 constexpr char kUndeterminedLocale[] = "und";
 
 // The number of seconds to wait before distilling after a user has stopped
@@ -538,6 +543,26 @@ void ReadAnythingAppController::OnTreeDataChanged(
   }
 }
 
+void ReadAnythingAppController::OnStringAttributeChanged(
+    ui::AXTree* tree,
+    ui::AXNode* node,
+    ax::mojom::StringAttribute attr,
+    const std::string& old_value,
+    const std::string& new_value) {
+  ui::AXNode* rm_node = model_.GetAXNode(node->id());
+  if (!rm_node) {
+    return;
+  }
+  // When the src for an image changes (e.g if an image was lazy loaded and
+  // previously had a placeholder image), request the updated image. The info
+  // will be returned via OnImageDataDownloaded.
+  if (features::IsReadAnythingImagesViaAlgorithmEnabled() &&
+      attr == ax::mojom::StringAttribute::kUrl &&
+      rm_node->GetRole() == ax::mojom::Role::kImage) {
+    RequestImageDataUrl(node->id());
+  }
+}
+
 void ReadAnythingAppController::AccessibilityEventReceived(
     const ui::AXTreeID& tree_id,
     const std::vector<ui::AXTreeUpdate>& updates,
@@ -663,6 +688,16 @@ void ReadAnythingAppController::OnActiveAXTreeIDChanged(
 
   ExecuteJavaScript("chrome.readingMode.showLoading();");
 
+  // After the active tree has changed, start a timer for logging distillation
+  // success or failures. Logging this via a timer reduces duplicate
+  // distillation / failures being logged.
+  distillationsCompleted_ = 0;
+  timer_.Stop();
+  timer_.Start(
+      FROM_HERE, base::Milliseconds(kDistillationLoggingDelayMs),
+      base::BindOnce(&ReadAnythingAppController::RecordDistillationSuccess,
+                     base::Unretained(this)));
+
   // When the UI first constructs, this function may be called before tree_id
   // has been added to the tree list in AccessibilityEventReceived. In that
   // case, do not distill.
@@ -670,6 +705,26 @@ void ReadAnythingAppController::OnActiveAXTreeIDChanged(
       model_.ContainsActiveTree()) {
     Distill();
   }
+}
+
+void ReadAnythingAppController::RecordDistillationSuccess() {
+  read_anything::mojom::DistillationStatus distillationStatus;
+  if (model_.distillation_in_progress()) {
+    distillationStatus =
+        distillationsCompleted_ > 0
+            ? read_anything::mojom::DistillationStatus::kRestarted
+            : read_anything::mojom::DistillationStatus::kStillRunning;
+  } else if (!model_.content_node_ids().empty()) {
+    distillationStatus = read_anything::mojom::DistillationStatus::kSuccess;
+  } else {
+    distillationStatus = read_anything::mojom::DistillationStatus::kFailure;
+  }
+
+  ukm::builders::Accessibility_ReadAnything_Distillation(
+      model_.GetUkmSourceId())
+      .SetDistillationStatus(static_cast<int>(distillationStatus))
+      .Record(ukm_recorder_.get());
+  distillationsCompleted_ = 0;
 }
 
 void ReadAnythingAppController::RecordNumSelections() {
@@ -811,6 +866,8 @@ void ReadAnythingAppController::OnAXTreeDistilled(
     // that call checks if the current selection is inside the currently
     // displayed nodes. Thus, we have to calculate the display nodes first.
     model_.ComputeDisplayNodeIdsForDistilledTree();
+
+    distillationsCompleted_++;
   }
 
   // If there's no distillable content on the active tree, allow child tree
@@ -1046,6 +1103,7 @@ gin::ObjectTemplateBuilder ReadAnythingAppController::GetObjectTemplateBuilder(
       .SetProperty(
           "unexpectedUpdateContentStopSource",
           &ReadAnythingAppController::UnexpectedUpdateContentStopSource)
+      .SetProperty("maxLineWidth", &ReadAnythingAppController::MaxLineWidth)
       .SetProperty("speechRate", &ReadAnythingAppController::SpeechRate)
       .SetProperty("isGoogleDocs", &ReadAnythingAppController::IsGoogleDocs)
       .SetProperty("isReadAloudEnabled",
@@ -1341,6 +1399,10 @@ int ReadAnythingAppController::ContentFinishedStopSource() const {
 int ReadAnythingAppController::UnexpectedUpdateContentStopSource() const {
   return base::to_underlying(
       ReadAloudAppModel::ReadAloudStopSource::kUnexpectedUpdateContent);
+}
+
+int ReadAnythingAppController::MaxLineWidth() const {
+  return a11y::kMaxLineWidth;
 }
 
 std::vector<ui::AXNodeID> ReadAnythingAppController::GetChildren(

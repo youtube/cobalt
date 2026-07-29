@@ -408,7 +408,7 @@ BASE_FEATURE_PARAM(std::string,
 // Enables camera preview in permission bubble and site settings.
 BASE_FEATURE(kCameraMicPreview,
              "CameraMicPreview",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 #endif
 
 // Temporarily disabled due to issues:
@@ -1147,7 +1147,7 @@ BASE_FEATURE(kGetDisplayMediaIgnoreAudioPermissionFailures,
 // Defers device selection until after permission is granted.
 BASE_FEATURE(kGetUserMediaDeferredDeviceSettingsSelection,
              "GetUserMediaDeferredDeviceSettingsSelection",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 #endif
 
 BASE_FEATURE_PARAM(std::string,
@@ -2455,6 +2455,14 @@ BASE_FEATURE_PARAM(std::string,
                    "allowed_urls",
                    "");
 
+// If true, the browser reports crashes via `DumpWithoutCrashing()` when theare
+// was a header mismatch.
+BASE_FEATURE_PARAM(bool,
+                   kServiceWorkerSyntheticResponseReportInconsistentHeader,
+                   &kServiceWorkerSyntheticResponse,
+                   "report_inconsistent_header",
+                   false);
+
 // 'Mode' parameter for blink::features::kSoftNavigationHeuristics.
 const base::FeatureParam<SoftNavigationHeuristicsMode>::Option
     kSoftNavigationHeuristicsModes[] = {
@@ -2681,6 +2689,20 @@ BASE_FEATURE(kVSyncEncoding,
              "VSyncEncoding",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+BASE_FEATURE(kWebBluetoothCancelConnect,
+             "WebBluetoothCancelConnect",
+// TODO(382556910): Enable on Windows when DCHECK issue is resolved.
+// TODO(40502943): Enable on Android when connect callback can be called when
+// cancelled.
+// GATT connect on Windows/Android will timeout after a few seconds if the
+// device is unreachable, so it does not have hang issue like MacOS which
+// definitely needs cancel to get from the hang state.
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_ANDROID)
+             base::FEATURE_DISABLED_BY_DEFAULT);
+#else
+             base::FEATURE_ENABLED_BY_DEFAULT);
+#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_ANDROID)
+
 BASE_FEATURE(kWebRtcUseCaptureBeginTimestamp,
              "WebRtcUseCaptureBeginTimestamp",
              base::FEATURE_ENABLED_BY_DEFAULT);
@@ -2828,6 +2850,10 @@ BASE_FEATURE(kWorkerThreadRespectTermRequest,
              "WorkerThreadRespectTermRequest",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
+// Indicates that renderer is running on an Android XR (AR/VR) device.
+// Enables certain features which are not needed on other platforms.
+BASE_FEATURE(kXrDevice, "XrDevice", base::FEATURE_DISABLED_BY_DEFAULT);
+
 // When adding new features or constants for features, please keep the features
 // sorted by identifier name (e.g. `kAwesomeFeature`), and the constants for
 // that feature grouped with the associated feature.
@@ -2882,6 +2908,10 @@ bool IsKeepAliveURLLoaderServiceEnabled() {
 bool IsLinkPreviewTriggerTypeEnabled(LinkPreviewTriggerType type) {
   return base::FeatureList::IsEnabled(blink::features::kLinkPreview) &&
          type == blink::features::kLinkPreviewTriggerType.Get();
+}
+
+bool IsXrDevice() {
+  return base::FeatureList::IsEnabled(blink::features::kXrDevice);
 }
 
 // DO NOT ADD NEW FEATURES HERE.

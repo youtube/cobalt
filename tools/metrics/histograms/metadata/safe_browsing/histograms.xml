@@ -2010,7 +2010,7 @@ useful for Chirp alerts (go/crca-alerts). -->
 </histogram>
 
 <histogram name="SafeBrowsing.IOS.TotalDelay2{UserCategory}" units="ms"
-    expires_after="2025-11-23">
+    expires_after="2026-01-25">
   <owner>danieltwhite@google.com</owner>
   <owner>joemerramos@chromium.org</owner>
   <owner>chrome-counter-abuse-alerts@google.com</owner>
@@ -2254,7 +2254,7 @@ useful for Chirp alerts (go/crca-alerts). -->
 </histogram>
 
 <histogram name="SafeBrowsing.PhishySite.{UserEvent}" units="count"
-    expires_after="2025-11-23">
+    expires_after="2026-01-25">
   <owner>skrakowi@chromium.org</owner>
   <owner>chrome-counter-abuse-alerts@google.com</owner>
   <summary>
@@ -2270,7 +2270,7 @@ useful for Chirp alerts (go/crca-alerts). -->
 </histogram>
 
 <histogram name="SafeBrowsing.Pref.Daily.Extended" enum="BooleanEnabled"
-    expires_after="2025-11-23">
+    expires_after="2026-01-25">
   <owner>xinghuilu@chromium.org</owner>
   <owner>chrome-counter-abuse-alerts@google.com</owner>
   <summary>
@@ -2492,7 +2492,7 @@ useful for Chirp alerts (go/crca-alerts). -->
 </histogram>
 
 <histogram name="SafeBrowsing.RT.CacheManager.CleanupReachedThreshold"
-    units="entries" expires_after="2025-11-23">
+    units="entries" expires_after="2026-01-25">
   <owner>thefrog@chromium.org</owner>
   <owner>chrome-counter-abuse-alerts@google.com</owner>
   <summary>
@@ -3290,7 +3290,7 @@ useful for Chirp alerts (go/crca-alerts). -->
 </histogram>
 
 <histogram name="SafeBrowsing.Triggers.SuspiciousSite.Event"
-    enum="SuspiciousSiteTriggerEvent" expires_after="2025-11-23">
+    enum="SuspiciousSiteTriggerEvent" expires_after="2026-01-25">
   <owner>vakh@chromium.org</owner>
   <owner>chrome-counter-abuse-alerts@google.com</owner>
   <summary>
@@ -3932,7 +3932,7 @@ failing to fetch the updates which puts users' security at risk. -->
 </histogram>
 
 <histogram name="SafeBrowsing.WebView.AppOptIn" enum="SafeBrowsingAppOptIn"
-    expires_after="2025-01-05">
+    expires_after="2026-07-30">
   <owner>ntfschr@chromium.org</owner>
   <owner>src/android_webview/OWNERS</owner>
   <summary>
@@ -3940,8 +3940,8 @@ failing to fetch the updates which puts users' security at risk. -->
     Browsing by manifest tag, or if they're relying on the default behavior.
     This is recorded once during startup.
 
-    Warning: this histogram was expired from 2024-06-06 to 2024-07-16; data may
-    be missing.
+    Warning: this histogram was expired from 2024-06-06 to 2024-07-16 and
+    2025-01-05 to 2025-07-30; data may be missing.
   </summary>
 </histogram>
 
@@ -3960,7 +3960,7 @@ failing to fetch the updates which puts users' security at risk. -->
 </histogram>
 
 <histogram name="SafeBrowsing.WebView.UserOptInKnown.FirstLoad" enum="Boolean"
-    expires_after="2024-12-18">
+    expires_after="2026-07-28">
   <owner>ntfschr@chromium.org</owner>
   <owner>src/android_webview/OWNERS</owner>
   <summary>
@@ -3969,7 +3969,8 @@ failing to fetch the updates which puts users' security at risk. -->
     consent is known (but not necessarily whether the consent is positive or
     negative), and a value of &quot;false&quot; means we are still waiting for a
     result callback. This histogram is recorded exactly once, during the first
-    URL load in WebView.
+    URL load in WebView. Warning: this histogram was expired from 2024-12-18 to
+    2025-07-29; data may be missing.
   </summary>
 </histogram>
 

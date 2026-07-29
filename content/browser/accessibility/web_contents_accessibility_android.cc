@@ -827,13 +827,16 @@ void WebContentsAccessibilityAndroid::HandleContentChanged(int32_t unique_id) {
   }
 }
 
-void WebContentsAccessibilityAndroid::HandleFocusChanged(int32_t unique_id) {
+void WebContentsAccessibilityAndroid::HandleFocusChanged(
+    int32_t unique_id,
+    bool is_root_or_frame_root) {
   JNIEnv* env = AttachCurrentThread();
   ScopedJavaLocalRef<jobject> obj = java_ref_.get(env);
   if (obj.is_null()) {
     return;
   }
-  Java_WebContentsAccessibilityImpl_handleFocusChanged(env, obj, unique_id);
+  Java_WebContentsAccessibilityImpl_handleFocusChanged(env, obj, unique_id,
+                                                       is_root_or_frame_root);
 }
 
 void WebContentsAccessibilityAndroid::HandleCheckStateChanged(
@@ -1350,23 +1353,22 @@ jboolean WebContentsAccessibilityAndroid::PopulateAccessibilityNodeInfo(
 
   bool is_link = ui::IsLink(node->GetRole());
   if (::features::IsAccessibilityTextFormattingEnabled()) {
+    TextFormattingMetricsRecorder recorder;
+    recorder.StartTimer(TextFormattingMetric::kTotalDuration);
+
+    recorder.StartTimer(TextFormattingMetric::kCheckAXFocusDuration);
     std::unique_ptr<AXStyleData> style_data;
-    if (auto* manager = GetRootBrowserAccessibilityManager()) {
-      if (auto* focus = static_cast<BrowserAccessibilityAndroid*>(
-              manager->GetAccessibilityFocus());
-          focus == node) {
-        style_data = std::make_unique<AXStyleData>();
-      }
+    if (IsAccessibilityFocused(node)) {
+      style_data = std::make_unique<AXStyleData>();
     }
+    recorder.StopTimer(TextFormattingMetric::kCheckAXFocusDuration);
 
-    base::ElapsedTimer total_timer;
-
-    base::ElapsedTimer get_text_timer;
+    recorder.StartTimer(TextFormattingMetric::kGetTextContentDuration);
     std::u16string text = node->GetSubstringTextContentUTF16(
         /*min_length=*/std::nullopt, style_data.get());
-    base::TimeDelta get_text_duration = get_text_timer.Elapsed();
+    recorder.StopTimer(TextFormattingMetric::kGetTextContentDuration);
 
-    base::ElapsedTimer to_java_data_timer;
+    recorder.StartTimer(TextFormattingMetric::kToJavaDataDuration);
     ScopedJavaLocalRef<jobject> java_suggestions;
     ScopedJavaLocalRef<jobject> java_links;
     ScopedJavaLocalRef<jobject> java_text_sizes;
@@ -1397,9 +1399,9 @@ jboolean WebContentsAccessibilityAndroid::PopulateAccessibilityNodeInfo(
       java_locales = ToJavaCanonicalStringRangesMap(env, style_data->locales,
                                                     &ranges_count);
     }
-    base::TimeDelta to_java_data_duration = to_java_data_timer.Elapsed();
+    recorder.StopTimer(TextFormattingMetric::kToJavaDataDuration);
 
-    base::ElapsedTimer set_ani_text_timer;
+    recorder.StartTimer(TextFormattingMetric::kSetAniTextDuration);
     Java_AccessibilityNodeInfoBuilder_setAccessibilityNodeInfoText(
         env, obj, info, base::android::ConvertUTF16ToJavaString(env, text),
         is_link, node->IsTextField(),
@@ -1413,25 +1415,14 @@ jboolean WebContentsAccessibilityAndroid::PopulateAccessibilityNodeInfo(
         java_suggestions, java_links, java_text_sizes, java_text_styles,
         java_text_positions, java_fg_colors, java_bg_colors, java_font_families,
         java_locales);
-    base::TimeDelta set_ani_text_duration = set_ani_text_timer.Elapsed();
+    recorder.StopTimer(TextFormattingMetric::kSetAniTextDuration);
+    recorder.StopTimer(TextFormattingMetric::kTotalDuration);
 
-    base::TimeDelta total_duration = total_timer.Elapsed();
-    RecordTextFormattingTextLengthHistogram(text.length(), !!style_data);
-    RecordTextFormattingDurationHistogram(TextFormattingMetric::kTotalDuration,
-                                          total_duration, !!style_data);
-    RecordTextFormattingDurationHistogram(
-        TextFormattingMetric::kGetTextContentDuration, get_text_duration,
-        !!style_data);
-    RecordTextFormattingDurationHistogram(
-        TextFormattingMetric::kToJavaDataDuration, to_java_data_duration,
-        !!style_data);
-    RecordTextFormattingDurationHistogram(
-        TextFormattingMetric::kSetAniTextDuration, set_ani_text_duration,
-        !!style_data);
+    recorder.EmitHistograms(text.length(), !!style_data);
     if (style_data) {
       RecordTextFormattingRangeCountsForTextLengthHistogram(text, ranges_count);
-      RecordTextFormattingDurationForRangeCountHistogram(ranges_count,
-                                                         total_duration);
+      RecordTextFormattingDurationForRangeCountHistogram(
+          ranges_count, recorder.GetTotalDuration());
     }
   } else {
     ScopedJavaLocalRef<jintArray> java_suggestion_starts;
@@ -1441,10 +1432,16 @@ jboolean WebContentsAccessibilityAndroid::PopulateAccessibilityNodeInfo(
     std::vector<int> suggestion_ends;
     node->GetSuggestions(&suggestion_starts, &suggestion_ends);
 
-    // Starting total timer here, since we don't want to include time taken to
-    // get suggestions.
-    base::ElapsedTimer total_timer;
-    base::ElapsedTimer to_java_data_timer;
+    TextFormattingMetricsRecorder recorder;
+    // Don't include the time taken to get suggestions in total duration here,
+    // since it's not included in the other code path.
+    recorder.StartTimer(TextFormattingMetric::kTotalDuration);
+
+    recorder.StartTimer(TextFormattingMetric::kCheckAXFocusDuration);
+    bool would_have_style_data = IsAccessibilityFocused(node);
+    recorder.StopTimer(TextFormattingMetric::kCheckAXFocusDuration);
+
+    recorder.StartTimer(TextFormattingMetric::kToJavaDataDuration);
     if (suggestion_starts.size() && suggestion_ends.size()) {
       java_suggestion_starts = ToJavaIntArray(env, suggestion_starts);
       java_suggestion_ends = ToJavaIntArray(env, suggestion_ends);
@@ -1455,13 +1452,13 @@ jboolean WebContentsAccessibilityAndroid::PopulateAccessibilityNodeInfo(
       java_suggestion_text =
           base::android::ToJavaArrayOfStrings(env, suggestion_text);
     }
-    base::TimeDelta to_java_data_duration = to_java_data_timer.Elapsed();
+    recorder.StopTimer(TextFormattingMetric::kToJavaDataDuration);
 
-    base::ElapsedTimer get_text_timer;
+    recorder.StartTimer(TextFormattingMetric::kGetTextContentDuration);
     std::u16string text = node->GetTextContentUTF16();
-    base::TimeDelta get_text_duration = get_text_timer.Elapsed();
+    recorder.StopTimer(TextFormattingMetric::kGetTextContentDuration);
 
-    base::ElapsedTimer set_ani_text_timer;
+    recorder.StartTimer(TextFormattingMetric::kSetAniTextDuration);
     Java_AccessibilityNodeInfoBuilder_setAccessibilityNodeInfoText(
         env, obj, info, base::android::ConvertUTF16ToJavaString(env, text),
         is_link
@@ -1478,18 +1475,10 @@ jboolean WebContentsAccessibilityAndroid::PopulateAccessibilityNodeInfo(
                                                 node->GetContentDescription()),
         base::android::ConvertUTF16ToJavaString(
             env, node->GetSupplementalDescription()));
-    base::TimeDelta set_ani_text_duration = set_ani_text_timer.Elapsed();
-    base::TimeDelta total_duration = total_timer.Elapsed();
+    recorder.StopTimer(TextFormattingMetric::kSetAniTextDuration);
+    recorder.StopTimer(TextFormattingMetric::kTotalDuration);
 
-    RecordTextFormattingTextLengthHistogram(text.length());
-    RecordTextFormattingDurationHistogram(TextFormattingMetric::kTotalDuration,
-                                          total_duration);
-    RecordTextFormattingDurationHistogram(
-        TextFormattingMetric::kToJavaDataDuration, to_java_data_duration);
-    RecordTextFormattingDurationHistogram(
-        TextFormattingMetric::kGetTextContentDuration, get_text_duration);
-    RecordTextFormattingDurationHistogram(
-        TextFormattingMetric::kSetAniTextDuration, set_ani_text_duration);
+    recorder.EmitHistograms(text.length(), would_have_style_data);
   }
 
   std::u16string element_id;
@@ -2238,6 +2227,22 @@ jboolean WebContentsAccessibilityAndroid::GetImageData(
   return true;
 }
 
+jint WebContentsAccessibilityAndroid::GetPaintOrder(JNIEnv* env,
+                                                    jint unique_id) {
+  BrowserAccessibilityManagerAndroid* root_manager =
+      GetRootBrowserAccessibilityManager();
+  if (!root_manager) {
+    return static_cast<jint>(0);
+  }
+
+  BrowserAccessibilityAndroid* node = GetAXFromUniqueID(unique_id);
+  if (!node) {
+    return static_cast<jint>(0);
+  }
+
+  return static_cast<jint>(node->GetPaintOrder());
+}
+
 BrowserAccessibilityManagerAndroid*
 WebContentsAccessibilityAndroid::GetRootBrowserAccessibilityManager() const {
   if (snapshot_root_manager_) {
@@ -2251,6 +2256,20 @@ WebContentsAccessibilityAndroid::GetRootBrowserAccessibilityManager() const {
 BrowserAccessibilityAndroid* WebContentsAccessibilityAndroid::GetAXFromUniqueID(
     int32_t unique_id) const {
   return BrowserAccessibilityAndroid::GetFromUniqueId(unique_id);
+}
+
+bool WebContentsAccessibilityAndroid::IsAccessibilityFocused(
+    BrowserAccessibilityAndroid* node) const {
+  if (!node) {
+    return false;
+  }
+  if (auto* manager = GetRootBrowserAccessibilityManager()) {
+    if (auto* focus = static_cast<BrowserAccessibilityAndroid*>(
+            manager->GetAccessibilityFocus())) {
+      return focus == node;
+    }
+  }
+  return false;
 }
 
 void WebContentsAccessibilityAndroid::UpdateFrameInfo(float page_scale) {

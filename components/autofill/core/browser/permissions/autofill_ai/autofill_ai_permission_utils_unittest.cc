@@ -132,10 +132,10 @@ TEST_P(AutofillAiMayPerformActionTest, ModelFeatureOff) {
   // The opt-in IPH cannot be run either since we simulate a state in which the
   // user has opted into the feature.
   const bool is_allowed =
-      (GetParam() != AutofillAiAction::kServerClassificationModel) &&
-      (GetParam() !=
-       AutofillAiAction::kUseCachedServerClassificationModelResults) &&
-      (GetParam() != AutofillAiAction::kIphForOptIn);
+      GetParam() != AutofillAiAction::kServerClassificationModel &&
+      GetParam() !=
+          AutofillAiAction::kUseCachedServerClassificationModelResults &&
+      GetParam() != AutofillAiAction::kIphForOptIn;
   EXPECT_EQ(MayPerformAutofillAiAction(client(), GetParam()), is_allowed);
 }
 
@@ -151,9 +151,9 @@ TEST_P(AutofillAiMayPerformActionTest, FeatureParamForModelCacheUseOff) {
   // The opt-in IPH cannot be run either since we simulate a state in which the
   // user has opted into the feature.
   const bool is_allowed =
-      (GetParam() !=
-       AutofillAiAction::kUseCachedServerClassificationModelResults) &&
-      (GetParam() != AutofillAiAction::kIphForOptIn);
+      GetParam() !=
+          AutofillAiAction::kUseCachedServerClassificationModelResults &&
+      GetParam() != AutofillAiAction::kIphForOptIn;
   EXPECT_EQ(MayPerformAutofillAiAction(client(), GetParam()), is_allowed);
 }
 
@@ -200,9 +200,8 @@ TEST_P(AutofillAiMayPerformActionTest,
   AddEntity();
   client().SetAutofillProfileEnabled(false);
   const bool is_allowed =
-      (GetParam() ==
-       AutofillAiAction::kEditAndDeleteEntityInstanceInSettings) ||
-      (GetParam() == AutofillAiAction::kListEntityInstancesInSettings);
+      GetParam() == AutofillAiAction::kEditAndDeleteEntityInstanceInSettings ||
+      GetParam() == AutofillAiAction::kListEntityInstancesInSettings;
   EXPECT_EQ(MayPerformAutofillAiAction(client(), GetParam()), is_allowed);
 }
 
@@ -211,9 +210,9 @@ TEST_P(AutofillAiMayPerformActionTest,
 TEST_P(AutofillAiMayPerformActionTest, ActionsWhenNotOptedIntoAutofillAi) {
   SetAutofillAiOptInStatus(client(), AutofillAiOptInStatus::kOptedOut);
   const bool is_allowed =
-      (GetParam() == AutofillAiAction::kOptIn) ||
-      (GetParam() == AutofillAiAction::kIphForOptIn) ||
-      (GetParam() == AutofillAiAction::kListEntityInstancesInSettings);
+      GetParam() == AutofillAiAction::kOptIn ||
+      GetParam() == AutofillAiAction::kIphForOptIn ||
+      GetParam() == AutofillAiAction::kListEntityInstancesInSettings;
   EXPECT_EQ(MayPerformAutofillAiAction(client(), GetParam()), is_allowed);
 }
 
@@ -224,11 +223,10 @@ TEST_P(AutofillAiMayPerformActionTest,
   AddEntity();
   SetAutofillAiOptInStatus(client(), AutofillAiOptInStatus::kOptedOut);
   const bool is_allowed =
-      (GetParam() == AutofillAiAction::kOptIn) ||
-      (GetParam() == AutofillAiAction::kIphForOptIn) ||
-      (GetParam() ==
-       AutofillAiAction::kEditAndDeleteEntityInstanceInSettings) ||
-      (GetParam() == AutofillAiAction::kListEntityInstancesInSettings);
+      GetParam() == AutofillAiAction::kOptIn ||
+      GetParam() == AutofillAiAction::kIphForOptIn ||
+      GetParam() == AutofillAiAction::kEditAndDeleteEntityInstanceInSettings ||
+      GetParam() == AutofillAiAction::kListEntityInstancesInSettings;
   EXPECT_EQ(MayPerformAutofillAiAction(client(), GetParam()), is_allowed);
 }
 
@@ -239,9 +237,8 @@ TEST_P(AutofillAiMayPerformActionTest, SignedOut) {
   AddEntity();
   client().identity_test_environment().ClearPrimaryAccount();
   const bool is_allowed =
-      (GetParam() ==
-       AutofillAiAction::kEditAndDeleteEntityInstanceInSettings) ||
-      (GetParam() == AutofillAiAction::kListEntityInstancesInSettings);
+      GetParam() == AutofillAiAction::kEditAndDeleteEntityInstanceInSettings ||
+      GetParam() == AutofillAiAction::kListEntityInstancesInSettings;
   EXPECT_EQ(MayPerformAutofillAiAction(client(), GetParam()), is_allowed);
 }
 #endif  // !BUILDFLAG(IS_CHROMEOS)
@@ -252,24 +249,178 @@ TEST_P(AutofillAiMayPerformActionTest, MayNotRunModel) {
   AddEntity();
   client().SetCanUseModelExecutionFeatures(false);
   const bool is_allowed =
-      (GetParam() ==
-       AutofillAiAction::kEditAndDeleteEntityInstanceInSettings) ||
-      (GetParam() == AutofillAiAction::kListEntityInstancesInSettings);
+      GetParam() == AutofillAiAction::kEditAndDeleteEntityInstanceInSettings ||
+      GetParam() == AutofillAiAction::kListEntityInstancesInSettings;
   EXPECT_EQ(MayPerformAutofillAiAction(client(), GetParam()), is_allowed);
 }
+
+// Tests that enabling `kAutofillAiIgnoreCapabilityCheck` skips the check
+// whether a client can use model execution features.
+TEST_P(AutofillAiMayPerformActionTest, CapabilityCheckOverride) {
+  base::test::ScopedFeatureList feature_list{
+      features::kAutofillAiIgnoreCapabilityCheck};
+  AddEntity();
+  client().SetCanUseModelExecutionFeatures(false);
+  const bool is_allowed = GetParam() != AutofillAiAction::kIphForOptIn;
+  EXPECT_EQ(MayPerformAutofillAiAction(client(), GetParam()), is_allowed);
+}
+
+// Tests that enabling `kAutofillAiIgnoreCapabilityCheck` and setting
+// `kAutofillAiIgnoreCapabilityCheckOnlyForNonModelActions` to true only
+// overrides the capability check for actions that do not involve MQLS or MES.
+TEST_P(AutofillAiMayPerformActionTest,
+       CapabilityCheckOverrideForNonModelActions) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeatureWithParameters(
+      features::kAutofillAiIgnoreCapabilityCheck,
+      {{"autofill_ai_ignore_capability_check_only_for_non_model_actions",
+        "true"}});
+
+  client().SetCanUseModelExecutionFeatures(false);
+  using enum AutofillAiAction;
+  const bool is_allowed =
+      GetParam() != kIphForOptIn && GetParam() != kServerClassificationModel &&
+      GetParam() != kLogToMqls &&
+      GetParam() != kUseCachedServerClassificationModelResults;
+  EXPECT_EQ(MayPerformAutofillAiAction(client(), GetParam()), is_allowed);
+}
+
+// Tests that enabling `kAutofillAiIgnoreCapabilityCheck` skips the check
+// whether a client can use model execution features before opt-in or IPH.
+TEST_P(AutofillAiMayPerformActionTest, CapabilityCheckOverrideOptedOut) {
+  base::test::ScopedFeatureList feature_list{
+      features::kAutofillAiIgnoreCapabilityCheck};
+  SetAutofillAiOptInStatus(client(), AutofillAiOptInStatus::kOptedOut);
+  client().SetCanUseModelExecutionFeatures(false);
+
+  const bool is_allowed =
+      GetParam() == AutofillAiAction::kOptIn ||
+      GetParam() == AutofillAiAction::kIphForOptIn ||
+      GetParam() == AutofillAiAction::kListEntityInstancesInSettings;
+  EXPECT_EQ(MayPerformAutofillAiAction(client(), GetParam()), is_allowed);
+}
+
+#if !BUILDFLAG(IS_CHROMEOS)  // Signing out does not work on ChromeOS.
+// Tests that enabling `kAutofillAiIgnoreSignInState` skips the check whether a
+// client is signed in.
+TEST_P(AutofillAiMayPerformActionTest, IgnoreSignInStatus) {
+  base::test::ScopedFeatureList feature_list{
+      features::kAutofillAiIgnoreSignInState};
+
+  SetAutofillAiOptInStatus(client(), AutofillAiOptInStatus::kOptedOut);
+  client().identity_test_environment().ClearPrimaryAccount();
+  ASSERT_FALSE(GetAutofillAiOptInStatus(client()));
+
+  EXPECT_TRUE(
+      SetAutofillAiOptInStatus(client(), AutofillAiOptInStatus::kOptedIn));
+  EXPECT_TRUE(GetAutofillAiOptInStatus(client()));
+
+  const bool is_allowed = GetParam() != AutofillAiAction::kIphForOptIn;
+  EXPECT_EQ(MayPerformAutofillAiAction(client(), GetParam()), is_allowed);
+}
+#endif  // !BUILDFLAG(IS_CHROMEOS)
 
 // Tests that only filling and cache use are allowed off-the-record.
 TEST_P(AutofillAiMayPerformActionTest, OffTheRecord) {
   client().set_is_off_the_record(true);
   const bool is_allowed =
-      (GetParam() == AutofillAiAction::kFilling) ||
-      (GetParam() ==
-       AutofillAiAction::kUseCachedServerClassificationModelResults);
+      GetParam() == AutofillAiAction::kFilling ||
+      GetParam() ==
+          AutofillAiAction::kUseCachedServerClassificationModelResults;
   EXPECT_EQ(MayPerformAutofillAiAction(client(), GetParam()), is_allowed);
 }
 
 TEST_P(AutofillAiMayPerformActionTest, CountryCode) {
   client().SetVariationConfigCountryCode(GeoIpCountryCode("DE"));
+  EXPECT_FALSE(MayPerformAutofillAiAction(client(), GetParam()));
+}
+
+// Tests that if `kAutofillAiIgnoreGeoIp` and an allowlist is set, the feature
+// is enabled in countries on the allowlist.
+TEST_P(AutofillAiMayPerformActionTest, CountryCodeWithAllowlist) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeatureWithParameters(
+      features::kAutofillAiIgnoreGeoIp,
+      {{"autofill_ai_geo_ip_allowlist", "BR,MX"}});
+
+  client().SetVariationConfigCountryCode(GeoIpCountryCode("DE"));
+  EXPECT_FALSE(MayPerformAutofillAiAction(client(), GetParam()));
+
+  const bool is_allowed = GetParam() != AutofillAiAction::kIphForOptIn;
+  client().SetVariationConfigCountryCode(GeoIpCountryCode("BR"));
+  EXPECT_EQ(MayPerformAutofillAiAction(client(), GetParam()), is_allowed);
+
+  client().SetVariationConfigCountryCode(GeoIpCountryCode("MX"));
+  EXPECT_EQ(MayPerformAutofillAiAction(client(), GetParam()), is_allowed);
+}
+
+// Tests that if `kAutofillAiIgnoreGeoIp` and a blocklist is set, the feature
+// is disabled only in the countries on the allowlist.
+TEST_P(AutofillAiMayPerformActionTest, CountryCodeWithBlocklist) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeatureWithParameters(
+      features::kAutofillAiIgnoreGeoIp,
+      {{"autofill_ai_geo_ip_blocklist", "FR,MX,CA"}});
+
+  client().SetVariationConfigCountryCode(GeoIpCountryCode("FR"));
+  EXPECT_FALSE(MayPerformAutofillAiAction(client(), GetParam()));
+
+  client().SetVariationConfigCountryCode(GeoIpCountryCode("MX"));
+  EXPECT_FALSE(MayPerformAutofillAiAction(client(), GetParam()));
+
+  client().SetVariationConfigCountryCode(GeoIpCountryCode("CA"));
+  EXPECT_FALSE(MayPerformAutofillAiAction(client(), GetParam()));
+
+  const bool is_allowed = GetParam() != AutofillAiAction::kIphForOptIn;
+  client().SetVariationConfigCountryCode(GeoIpCountryCode("DE"));
+  EXPECT_EQ(MayPerformAutofillAiAction(client(), GetParam()), is_allowed);
+
+  client().SetVariationConfigCountryCode(GeoIpCountryCode("US"));
+  EXPECT_EQ(MayPerformAutofillAiAction(client(), GetParam()), is_allowed);
+}
+
+// Tests that users can edit stored data even if their GeoIP is on the
+// blocklist.
+TEST_P(AutofillAiMayPerformActionTest, CountryCodeWithBlocklistAndSavedData) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeatureWithParameters(
+      features::kAutofillAiIgnoreGeoIp,
+      {{"autofill_ai_geo_ip_blocklist", "IN"}});
+
+  AddEntity();
+  client().SetVariationConfigCountryCode(GeoIpCountryCode("IN"));
+  const bool is_allowed =
+      GetParam() == AutofillAiAction::kEditAndDeleteEntityInstanceInSettings ||
+      GetParam() == AutofillAiAction::kListEntityInstancesInSettings;
+  EXPECT_EQ(MayPerformAutofillAiAction(client(), GetParam()), is_allowed);
+}
+
+// Tests that every GeoIP is permitted if `kAutofillAiIgnoreGeoIp` is enabled
+// and no blocklist or allowlist is set.
+TEST_P(AutofillAiMayPerformActionTest, IgnoreGeoIp) {
+  base::test::ScopedFeatureList feature_list{features::kAutofillAiIgnoreGeoIp};
+
+  const bool is_allowed = GetParam() != AutofillAiAction::kIphForOptIn;
+
+  client().SetVariationConfigCountryCode(GeoIpCountryCode("DE"));
+  EXPECT_EQ(MayPerformAutofillAiAction(client(), GetParam()), is_allowed);
+
+  client().SetVariationConfigCountryCode(GeoIpCountryCode("IT"));
+  EXPECT_EQ(MayPerformAutofillAiAction(client(), GetParam()), is_allowed);
+
+  client().SetVariationConfigCountryCode(GeoIpCountryCode("US"));
+  EXPECT_EQ(MayPerformAutofillAiAction(client(), GetParam()), is_allowed);
+}
+
+// Tests that the blocklist has priority over the allowlist.
+TEST_P(AutofillAiMayPerformActionTest, IgnoreGeoIpBlocklistAndAllowlist) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeatureWithParameters(
+      features::kAutofillAiIgnoreGeoIp,
+      {{"autofill_ai_geo_ip_blocklist", "IN"},
+       {"autofill_ai_geo_ip_allowlist", "IN"}});
+
+  client().SetVariationConfigCountryCode(GeoIpCountryCode("IN"));
   EXPECT_FALSE(MayPerformAutofillAiAction(client(), GetParam()));
 }
 
@@ -292,9 +443,8 @@ TEST_P(AutofillAiMayPerformActionTest, AppLocaleWithDataSaved) {
   AddEntity();
   client().set_app_locale("de-DE");
   const bool is_allowed =
-      (GetParam() ==
-       AutofillAiAction::kEditAndDeleteEntityInstanceInSettings) ||
-      (GetParam() == AutofillAiAction::kListEntityInstancesInSettings);
+      GetParam() == AutofillAiAction::kEditAndDeleteEntityInstanceInSettings ||
+      GetParam() == AutofillAiAction::kListEntityInstancesInSettings;
   EXPECT_EQ(MayPerformAutofillAiAction(client(), GetParam()), is_allowed);
 }
 
@@ -328,7 +478,6 @@ TEST_F(AutofillAiPermissionUtilsTest, OptInStatus) {
   // The initially signed in account is opted in.
   EXPECT_TRUE(GetAutofillAiOptInStatus(client()));
 
-  // Signed out clients are never opted in.
   client().identity_test_environment().ClearPrimaryAccount();
   EXPECT_FALSE(GetAutofillAiOptInStatus(client()));
 
@@ -353,6 +502,25 @@ TEST_F(AutofillAiPermissionUtilsTest, OptInStatus) {
   EXPECT_TRUE(
       SetAutofillAiOptInStatus(client(), AutofillAiOptInStatus::kOptedOut));
   EXPECT_FALSE(GetAutofillAiOptInStatus(client()));
+}
+
+// Tests that signing in an opted-in user retains the opt-in status.
+TEST_F(AutofillAiPermissionUtilsTest, SignInAfterOptIn) {
+  base::test::ScopedFeatureList feature_list{
+      features::kAutofillAiIgnoreSignInState};
+
+  SetAutofillAiOptInStatus(client(), AutofillAiOptInStatus::kOptedOut);
+  client().identity_test_environment().ClearPrimaryAccount();
+  ASSERT_FALSE(GetAutofillAiOptInStatus(client()));
+
+  EXPECT_TRUE(
+      SetAutofillAiOptInStatus(client(), AutofillAiOptInStatus::kOptedIn));
+  EXPECT_TRUE(GetAutofillAiOptInStatus(client()));
+
+  // The opt-in status is retained after sign-in.
+  client().identity_test_environment().MakePrimaryAccountAvailable(
+      "foo@gmail.com", signin::ConsentLevel::kSignin);
+  EXPECT_TRUE(GetAutofillAiOptInStatus(client()));
 }
 #endif  // !BUILDFLAG(IS_CHROMEOS)
 

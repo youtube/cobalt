@@ -197,6 +197,11 @@ void PictureLayerImpl::PushPropertiesTo(LayerImpl* base_layer) {
     // updates, so replacement is safe.
     layer_impl->updated_tiles_ = std::move(updated_tiles_);
     updated_tiles_.clear();
+
+    // Since the layer has been activated, all the active tree tile updates
+    // from this point must be batched until all the layer updates has been
+    // serialized and sent to viz via LayerTreeHostImpl::UpdateDisplayTree().
+    layer_impl->should_batch_updated_tiles_ = true;
   }
 
   layer_impl->SanityCheckTilingState();
@@ -948,10 +953,13 @@ void PictureLayerImpl::NotifyTileStateChanged(const Tile* tile,
   }
 
   if (layer_tree_impl()->settings().TreesInVizInClientProcess() &&
-      (!IsActive() || layer_tree_impl()->settings().commit_to_active_tree)) {
-    // Tiles for the tree currently being committed to (Pending or Active)
-    // are pushed to the display during UpdateDisplayTree. Accumulate those
-    // changes. These are pushed to the active tree in PushPropertiesTo().
+      should_batch_updated_tiles_) {
+    // This layer's tile updates are being batched. For a pending layer, this is
+    // always true. For an active layer, this means it was just activated and is
+    // waiting for its state to be sent to Viz via UpdateDisplayTree. The
+    // accumulated updates are pushed to the active tree on activation and
+    // active layer can continue to accumulate the tile updates until
+    // UpdateDisplayTree.
     updated_tiles_[tile->contents_scale_key()].emplace(tile->tiling_i_index(),
                                                        tile->tiling_j_index());
   }
@@ -1743,13 +1751,26 @@ bool PictureLayerImpl::CalculateRasterTranslation(
   // ScreenSpaceTransform() and DrawTransform() in PixelAlignmentOffset(),
   // here we also check if the scale of DrawTransform() approximately equals
   // raster_contents_scale_.
+  // ScreenSpaceTransform() and DrawTransform() need to be scaled by
+  // external_page_scale_factor which is set for OOPIF.
+  const float external_page_scale_factor =
+      (base::FeatureList::IsEnabled(
+           features::kComputeRasterTranslateForExternalScale) &&
+       layer_tree_impl())
+          ? layer_tree_impl()->external_page_scale_factor()
+          : 1.f;
+
+  gfx::Transform scaled_draw_transform = DrawTransform();
+  scaled_draw_transform.PostScale(external_page_scale_factor);
   if (!draw_property_utils::RasterScalesApproximatelyEqual(
-          DrawTransform().To2dScale(), raster_contents_scale_)) {
+          scaled_draw_transform.To2dScale(), raster_contents_scale_)) {
     return false;
   }
 
+  gfx::Transform scaled_screen_space_transform = ScreenSpaceTransform();
+  scaled_screen_space_transform.PostScale(external_page_scale_factor);
   if (auto offset = draw_property_utils::PixelAlignmentOffset(
-          ScreenSpaceTransform(), DrawTransform())) {
+          scaled_screen_space_transform, scaled_draw_transform)) {
     raster_translation = *offset;
     return true;
   }
@@ -2168,6 +2189,12 @@ void PictureLayerImpl::InvalidatePaintWorklets(
 PictureLayerImpl::TileUpdateSet PictureLayerImpl::TakeUpdatedTiles() {
   TileUpdateSet updates;
   updates.swap(updated_tiles_);
+
+  // Reset this flag since the tile updates are now being serialized to viz. All
+  // future tile updates can be sent immediately as a part of active tree tile
+  // update via LayerTreeHostImpl::UpdateDisplayTile() rather than batching
+  // them.
+  should_batch_updated_tiles_ = false;
   return updates;
 }
 

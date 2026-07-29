@@ -56,6 +56,9 @@
                   'chrome/renderer/actor/|' \
                   'third_party/blink/renderer/modules/actor/'
     },
+    'actor_ui': {
+      'filepath': 'chrome/browser/actor/ui/'
+    },
     'add_to_homescreen': {
       'filepath': 'chrome/android/java/src/org/chromium/chrome/browser/webapps/|'\
                   'chrome/android/javatests/src/org/chromium/chrome/browser/webapps/|'\
@@ -1239,6 +1242,9 @@
                   'ash/webui/file_manager|' \
                   'ui/file_manager'
     },
+    'fingerprinting_protection': {
+      'filepath': 'fingerprinting_protection',
+    },
     'firmware_update': {
       'filepath': 'ash/webui/firmware_update_ui/|' \
                   'chromeos/ash/components/dbus/fwupd/|' \
@@ -2420,15 +2426,6 @@
                     '|content/browser/webid'\
                     '|chrome/browser/.*webid',
     },
-    'weblayer': {
-        'filepath': 'weblayer/',
-    },
-    'weblayer_safe_browsing': {
-        'filepath': 'weblayer/browser/safe_browsing/',
-    },
-    'weblayer_ssl': {
-        'filepath': 'weblayer/browser/ssl',
-    },
     'webnn': {
         'filepath': 'third_party/blink/renderer/modules/ml/webnn/'\
                     '|services/webnn/',
@@ -2515,6 +2512,9 @@
     'accessibility_service': ['hirokisato+watch@chromium.org',
                               'katie+watch@chromium.org'],
     'actor': ['mfoltz+watch@chromium.org'],
+    'actor_ui': ['chrstne+watch@google.com', 'kenok+watch@google.com', 'aashnas+watch@google.com', 'boujane+watch@google.com',
+      'kmg+watch@google.com'
+    ],
     'add_to_homescreen': ['pkotwicz+watch@chromium.org',
                           'webapks-watchlist@chromium.org'],
     'agent_scheduling_group': ['blink-isolation-reviews@chromium.org',
@@ -2969,6 +2969,10 @@
     'fileapi': ['kinuko+fileapi@chromium.org'],
     'filebrowse': ['rginda+watch@chromium.org'],
     'filesapp': ['filesapp-reviews@chromium.org'],
+    'fingerprinting_protection': ['johnykim+watch@google.com',
+                                  'ortuno+watch@chromium.org',
+                                  'rizvis+watch@google.com',
+                                  'thesalsa+watch@google.com'],
     'firmware_update': ['jimmyxgong+firmware-watch@chromium.org',
                         'michaelcheco+firmware-watch@google.com'],
     'float': ['toshikikikuchi+watch-float@chromium.org'],
@@ -3034,7 +3038,8 @@
     'ios_widget_kit': ['rkgibson+watch@chromium.org'],
     'ip_protection': ['aakallam+watch@chromium.org',
                       'awillia@chromium.org',
-                      'djmitche@chromium.org'],
+                      'djmitche@chromium.org',
+                      'ortuno+watch@chromium.org'],
     'ipcz': ['andreaorru+watch@chromium.org'],
     'isolated_web_apps_apis': ['greengrape@google.com',
                                'rmcelrath+watch@chromium.org',
@@ -3242,7 +3247,7 @@
                       'vakh+safe_browsing_watch@chromium.org',
                       'xinghuilu+watch@chromium.org',
                       'zackhan+watch@chromium.org'],
-    'sampling_profiler': ['thiabaud@google.com', 'spvw@chromium.org'],
+    'sampling_profiler': ['thiabaud@google.com', 'spvm@chromium.org'],
     'scanning': ['gavinwill+scanning-watch@chromium.org'],
     'screen_ai': ['rhalavati+watch@chromium.org'],
     'search_engine_choice_screen': ['chrome-waffle-eng+watch@google.com'],
@@ -3398,7 +3403,8 @@
     'web_package': ['hayato+watch@chromium.org',
                     'twifkak+watch@chromium.org'],
     'web_share': ['mgiuca+watch@chromium.org'],
-    'webauthn': ['webauthn-reviews@chromium.org'],
+    'webauthn': ['webauthn-reviews@chromium.org',
+                 'derinel+watch-webauthn@google.com'],
     'webcodecs': ['feature-media-reviews@chromium.org'],
     'webgpu': ['cwallez+watch@chromium.org',
                'kainino+watch@chromium.org'],
@@ -3406,11 +3412,6 @@
               'cbiesinger@chromium.org',
               'icer@chromium.org',
               'npm+watch@chromium.org'],
-    'weblayer': ['cricke+watch@chromium.org',
-                 'rayankans+watch@chromium.org',
-                 'swestphal+watch@chromium.org'],
-    'weblayer_safe_browsing' : ['carlosil+watch@chromium.org'],
-    'weblayer_ssl' : ['carlosil+watch@chromium.org'],
     'webnn': ['qjw@chromium.org', 'ningxin.hu@intel.com'],
     'webotp': ['yigu+watch@chromium.org'],
     'webrtc_browser_tests': ['phoglund+watch@chromium.org'],

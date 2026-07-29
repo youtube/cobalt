@@ -151,7 +151,7 @@ std::map<LocalFrameToken, std::vector<std::string>> AllFieldValues(
   web_contents->GetPrimaryMainFrame()->ForEachRenderFrameHost(
       [&](content::RenderFrameHost* rfh) {
         content::EvalJsResult r = content::EvalJs(rfh, kExtractValue);
-        if (r.error.empty()) {
+        if (r.is_ok()) {
           LocalFrameToken frame(rfh->GetFrameToken().value());
           for (const base::Value& value : r.ExtractList()) {
             values[frame].push_back(value.GetString());
@@ -193,8 +193,11 @@ std::vector<std::string> AllFieldValues(content::WebContents* web_contents,
 auto IsWithinAutofillLimits() {
   auto frequencies = [](const FormStructure& form) {
     std::map<FieldType, size_t> counts;
-    for (const auto& field : form)
-      ++counts[field->Type().GetStorableType()];
+    for (const auto& field : form) {
+      for (FieldType field_type : field->Type().GetTypes()) {
+        ++counts[field_type];
+      }
+    }
     return counts;
   };
   return ResultOf(frequencies,

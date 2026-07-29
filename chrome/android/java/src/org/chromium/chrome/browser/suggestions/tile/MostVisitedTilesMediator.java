@@ -7,7 +7,7 @@ package org.chromium.chrome.browser.suggestions.tile;
 import static org.chromium.build.NullUtil.assumeNonNull;
 import static org.chromium.chrome.browser.suggestions.tile.MostVisitedTilesProperties.HORIZONTAL_EDGE_PADDINGS;
 import static org.chromium.chrome.browser.suggestions.tile.MostVisitedTilesProperties.HORIZONTAL_INTERVAL_PADDINGS;
-import static org.chromium.chrome.browser.suggestions.tile.MostVisitedTilesProperties.IS_CONTAINER_VISIBLE;
+import static org.chromium.chrome.browser.suggestions.tile.MostVisitedTilesProperties.IS_VISIBLE;
 
 import android.content.res.Configuration;
 import android.content.res.Resources;
@@ -107,8 +107,8 @@ public class MostVisitedTilesMediator implements TileGroup.Observer {
         mMvtVisibilityListener =
                 new HomepageStateListener() {
                     @Override
-                    public void onMvtVisibilityChanged(boolean isMvtVisible) {
-                        setMvtVisibility(isMvtVisible);
+                    public void onMvtToggleChanged() {
+                        updateMvtVisibility();
                     }
                 };
         NtpCustomizationConfigManager.getInstance().addListener(mMvtVisibilityListener);
@@ -159,18 +159,42 @@ public class MostVisitedTilesMediator implements TileGroup.Observer {
     public void onTileCountChanged() {
         if (mTileCountChangedRunnable != null) mTileCountChangedRunnable.run();
 
-        // If Custom Links are enabled, keep container visible for the "Add new" button.
-        boolean enable_custom_links = ChromeFeatureList.sMostVisitedTilesCustomization.isEnabled();
-        setMvtVisibility(enable_custom_links || !mTileGroup.isEmpty());
+        updateMvtVisibility();
     }
 
     /**
-     * Sets the visibility of the Most Visited Tiles section.
+     * Sets the visibility of the Most Visited Tiles (MVT) section.
      *
-     * @param isMvtVisible True to show the section, false to hide it.
+     * <p>If the `NewTabPageCustomizationForMvt` feature is disabled: The section is visible as long
+     * as it has content, which means there are either tiles to show or custom links are enabled
+     * (showing the "Add new" button).
+     *
+     * <p>If the `NewTabPageCustomizationForMvt` feature is enabled: Visibility is also controlled
+     * by a user accessible toggle. The section will only be visible if the user has the toggle
+     * turned on and the section has content.
+     *
+     * <p>Once the MVT customization feature flag is enabled by default, the code should be changed
+     * to:
+     *
+     * <p>boolean isMvtVisible = !ChromeFeatureList.sNewTabPageCustomizationForMvt.isEnabled() ||
+     * NtpCustomizationConfigManager.getInstance().getPrefIsMvtToggleOn();
+     *
+     * <p>mModel.set(IS_VISIBLE, isMvtVisible);
      */
-    void setMvtVisibility(boolean isMvtVisible) {
-        mModel.set(IS_CONTAINER_VISIBLE, isMvtVisible);
+    void updateMvtVisibility() {
+        // The section has content if the "Add new" button is present or there are tiles.
+        boolean hasContent =
+                ChromeFeatureList.sMostVisitedTilesCustomization.isEnabled()
+                        || (mTileGroup != null && !mTileGroup.isEmpty());
+
+        boolean isMvtVisible = hasContent;
+        if (ChromeFeatureList.sNewTabPageCustomizationForMvt.isEnabled()) {
+            // The toggle turns off the whole MVT section regardless the section has something to
+            // show.
+            isMvtVisible &= NtpCustomizationConfigManager.getInstance().getPrefIsMvtToggleOn();
+        }
+
+        mModel.set(IS_VISIBLE, isMvtVisible);
     }
 
     @Override

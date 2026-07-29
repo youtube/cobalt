@@ -1404,6 +1404,7 @@ chromium-metrics-reviews@google.com.
   <int value="7" label="TILE_NAVSUGGEST"/>
   <int value="8" label="GROUP_SEPARATOR"/>
   <int value="9" label="OBSOLETE_QUERY_TILES"/>
+  <int value="10" label="TAB_GROUP_SUGGESTION"/>
 </enum>
 
 <!-- LINT.ThenChange(//components/omnibox/browser/android/java/src/org/chromium/components/omnibox/suggestions/OmniboxSuggestionUiType.java:OmniboxSuggestionUiType) -->
@@ -1585,6 +1586,7 @@ chromium-metrics-reviews@google.com.
   <int value="6" label="FRE Not Completed"/>
   <int value="7" label="Custom back arrow"/>
   <int value="8" label="Bring Tab To Front"/>
+  <int value="9" label="Bring Tab Group To Front"/>
 </enum>
 
 <!-- LINT.ThenChange(//chrome/android/java/src/org/chromium/chrome/browser/searchwidget/SearchActivity.java:TerminationReason) -->

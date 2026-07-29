@@ -432,9 +432,7 @@ class WebMediaPlayerImplTest
     media::MediaMetricsProvider::Create(
         media::MediaMetricsProvider::BrowsingMode::kNormal,
         media::MediaMetricsProvider::FrameStatus::kNotTopFrame,
-        ukm::kInvalidSourceId, media::learning::FeatureValue(0),
-        media::VideoDecodePerfHistory::SaveCallback(),
-        media::MediaMetricsProvider::GetLearningSessionCallback(),
+        ukm::kInvalidSourceId, media::VideoDecodePerfHistory::SaveCallback(),
         WTF::BindRepeating(&WebMediaPlayerImplTest::IsShuttingDown,
                            WTF::Unretained(this)),
         media::PictureInPictureEventsInfo::AutoPipReasonCallback(),
@@ -2724,7 +2722,7 @@ TEST_F(WebMediaPlayerImplTest, MemDumpReporting) {
       1 /* dump_guid*/, base::trace_event::MemoryDumpType::kExplicitlyTriggered,
       base::trace_event::MemoryDumpLevelOfDetail::kDetailed};
 
-  int32_t id = media::GetNextMediaPlayerLoggingID() - 1;
+  auto id = media::GetNextMediaPlayerLoggingID().value() - 1;
   int dump_count = 0;
 
   auto on_memory_dump_done = base::BindLambdaForTesting(

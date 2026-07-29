@@ -190,18 +190,6 @@ ImageBitmapRenderingContext::GetOrCreateResourceProviderForOffscreenCanvas() {
             SharedGpuContext::SharedImageInterfaceProvider(), Host());
   }
 
-  if (!provider) {
-    // Last resort fallback is to use the bitmap provider. Using this
-    // path is normal for software-rendered OffscreenCanvases that have no
-    // placeholder canvas. If there is a placeholder, its content will not be
-    // visible on screen, but at least readbacks will work. Failure to create
-    // another type of resource prover above is a sign that the graphics
-    // pipeline is in a bad state (e.g. gpu process crashed, out of memory)
-    provider = CanvasResourceProvider::CreateBitmapProvider(
-        Host()->Size(), format, alpha_type, color_space,
-        CanvasResourceProvider::ShouldInitialize::kCallClear, Host());
-  }
-
   resource_provider_for_offscreen_canvas_ = std::move(provider);
   Host()->UpdateMemoryUsage();
 
@@ -219,11 +207,6 @@ ImageBitmapRenderingContext::GetOrCreateResourceProviderForOffscreenCanvas() {
     Host()->DidDraw();
   }
   return resource_provider_for_offscreen_canvas_.get();
-}
-
-bool ImageBitmapRenderingContext::IsAccelerated() const {
-  // This method is not supported for ImageBitmap and should not be called.
-  NOTREACHED();
 }
 
 bool ImageBitmapRenderingContext::PushFrame() {

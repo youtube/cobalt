@@ -78,6 +78,7 @@ Qabaqcıl Qoruma bu Chrome ayarlarına nəzarət edir:
 <translation id="1915307458270490472">Dəstəyi qoyun</translation>
 <translation id="1919950603503897840">Kontaktları seçin</translation>
 <translation id="1923695749281512248"><ph name="BYTES_DOWNLOADED_WITH_UNITS" /> / <ph name="FILE_SIZE_WITH_UNITS" /></translation>
+<translation id="1939059826036755332">Avtomatik şəkildə şəkil</translation>
 <translation id="1954597385941141174">Saytlar USB cihazlara qoşulmaq icazəsi istəyə bilər</translation>
 <translation id="1979673356880165407">Ziyarət etdiyiniz bütün saytlar üçün mətn və şəkilləri böyüdün və ya kiçildin</translation>
 <translation id="1984937141057606926">İcazə verilir, üçüncü tərəf istisna olmaqla</translation>
@@ -228,6 +229,7 @@ Qabaqcıl Qoruma bu Chrome ayarlarına nəzarət edir:
 <translation id="3600792891314830896">Səs oxudan saytları səssiz rejimə keçirin</translation>
 <translation id="3602290021589620013">Önizləmə</translation>
 <translation id="3611658447322220736">Son qapadılan saytlar data göndərilməsi və qəbulunu bitirə bilər</translation>
+<translation id="3619294456800709762">Saytlar şəkildə şəkil rejiminə avtomatik daxil ola bilər</translation>
 <translation id="3628308229821498208">Təklif edilən axtarışlar</translation>
 <translation id="3641456520301071208">Saytlar məkanınızı tələb edə bilər</translation>
 <translation id="3658847490588580244">Defolt brauzerin aşağıdakı vərəqi</translation>
@@ -276,6 +278,7 @@ Qabaqcıl Qoruma bu Chrome ayarlarına nəzarət edir:
 <translation id="4031179711345676612">Mikrofona icazə verildi</translation>
 <translation id="4046123991198612571">Növbəti trek</translation>
 <translation id="4077310749977440510">Saytlar adətən kopiyaladığınız mətnin formatını saxlamaq kimi funksiyalar üçün mübadilə buferinizi oxuyur</translation>
+<translation id="4082080074595021446">Android cihazında kifayət qədər RAM olmadığı üçün xüsusi veb-saytlar üçün istisnalara icazə verilmir.</translation>
 <translation id="4149890623864272035">Kukilər daxil olmaqla bütün lokal datanı silmək və bu veb-sayt üçün icazələri sıfırlamaq istədiyinizə əminsiniz?</translation>
 <translation id="4149994727733219643">İnternet səhifələr üçün sadələşdirilmiş görünüş</translation>
 <translation id="4151930093518524179">Defolt zoom</translation>
@@ -414,6 +417,7 @@ Qabaqcıl Qoruma bu Chrome ayarlarına nəzarət edir:
 <translation id="5750869797196646528">Əlin izlənilməsi</translation>
 <translation id="5753570386948603678">Tarixçədən silin</translation>
 <translation id="5771720122942595109"><ph name="PERMISSION_1" /> bloklanıb</translation>
+<translation id="5801457289562671820">Təşkilatınız tərəfindən tövsiyə olunur</translation>
 <translation id="5804241973901381774">İcazələr</translation>
 <translation id="5822675474983796325">Yeni tab səhifəsinin tam hündürlükdə açılmış aşağıdakı vərəqini fərdiləşdirin</translation>
 <translation id="5833899990800318936">Saytlara JavaScript icazəsi verməyin</translation>
@@ -445,6 +449,7 @@ Qabaqcıl Qoruma bu Chrome ayarlarına nəzarət edir:
 <translation id="6064125863973209585">Tamamlanmış endirmələr</translation>
 <translation id="6071501408666570960">Bu saytdan çıxarıla bilərsiniz</translation>
 <translation id="6085954183010297841">Fayl redaktə qrantı silinsin? <ph name="FILE" /></translation>
+<translation id="6104860901391833523">Yanılı olduqda saytlar şəkildə şəkil rejiminə avtomatik daxil ola bilər. Sönülü olduqda saytlar şəkildə şəkil rejiminə avtomatik daxil ola bilməz.</translation>
 <translation id="6120483543004435978">Aktiv ediləndə saytlar cihazdan nə vaxt aktiv istifadə etdiyinizi öyrənmək üçün icazə istəyə bilər. Deaktiv ediləndə saytlar cihazdan nə vaxt aktiv istifadə etdiyinizi öyrənə bilməz.</translation>
 <translation id="615886654739818377">Saytlara bütün displeylərdəki pəncərələri idarə etməyə icazə verməyin</translation>
 <translation id="6165508094623778733">Ətraflı öyrənin</translation>
@@ -607,6 +612,7 @@ Qabaqcıl Qoruma bu Chrome ayarlarına nəzarət edir:
 <translation id="8117244575099414087">Aktiv ediləndə saytlar cihaz sensorlarından istifadə edə bilər. Deaktiv ediləndə saytlar sensorlardan istifadə edə bilməz.</translation>
 <translation id="813082847718468539">Sayt məlumatına baxın</translation>
 <translation id="8131740175452115882">Təsdiq edin</translation>
+<translation id="8163152278172770963">Saytlara şəkildə şəkil rejiminə avtomatik daxil olmaq icazəsi verməyin</translation>
 <translation id="8168435359814927499">Kontent</translation>
 <translation id="818487310457576362">Tam ekrandan çıxmaq üçün ekranın kənarından dartın.</translation>
 <translation id="8186479265534291036">Sayt işləmir? Üçüncü tərəf kukiləri bloklanıb</translation>
@@ -698,6 +704,7 @@ Qabaqcıl Qoruma bu Chrome ayarlarına nəzarət edir:
 <translation id="913657688200966289"><ph name="APP_NAME" /> üçün icazələri <ph name="BEGIN_LINK" />Android Ayarlarında<ph name="END_LINK" /> aktiv edin.</translation>
 <translation id="9138037198177304356">Bildirişlərə icazə verilib</translation>
 <translation id="9138217887606523162">Cari zoom: <ph name="ZOOM_LEVEL" /> %%</translation>
+<translation id="915112772806845021">Saytlar şəkildə şəkil rejiminə avtomatik daxil olmaq üçün bu funksiyadan istifadə edir. Digər tapşırıqlar üçün ekranı boşaldaraq video izləməyə davam edə bilərsiniz.</translation>
 <translation id="9156722768168878035">Chrome-un cihazın tətbiq siyahısında və axtarış nəticələrində son tabları göstərməsinə icazə verin. Bunu istənilən vaxt Chrome ayarlarında deaktiv edə bilərsiniz.</translation>
 <translation id="9162462602695099906">Bu səhifə təhlükəlidir</translation>
 <translation id="9182556968660520230">Saytlara qorunan məzmunu göstərmək icazəsi verməyin</translation>

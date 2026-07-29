@@ -362,7 +362,6 @@ int GetFieldTypeGroupPredictionQualityMetric(FieldType field_type,
         case CREDIT_CARD_TYPE:
         case CREDIT_CARD_VERIFICATION_CODE:
         case COMPANY_NAME:
-        case FIELD_WITH_DEFAULT_VALUE:
         case MERCHANT_EMAIL_SIGNUP:
         case MERCHANT_PROMO_CODE:
         case PASSWORD:
@@ -421,6 +420,9 @@ int GetFieldTypeGroupPredictionQualityMetric(FieldType field_type,
         case NATIONAL_ID_CARD_EXPIRATION_DATE:
         case NATIONAL_ID_CARD_ISSUE_DATE:
         case NATIONAL_ID_CARD_ISSUING_COUNTRY:
+        case REDRESS_NUMBER:
+        case KNOWN_TRAVELER_NUMBER:
+        case KNOWN_TRAVELER_NUMBER_EXPIRATION_DATE:
           NOTREACHED() << field_type << " type is not in that group.";
       }
       break;
@@ -823,10 +825,12 @@ void LogOverallPredictionQualityMetrics(
     const FormStructure& form,
     const AutofillField& field,
     QualityMetricType metric_type) {
-  LogPredictionQualityMetrics(
-      PREDICTION_SOURCE_OVERALL, field.Type().GetStorableType(),
-      form_interactions_ukm_logger, source_id, form, field, metric_type,
-      /*log_rationalization_metrics=*/true);
+  for (FieldType field_type : field.Type().GetTypes()) {
+    LogPredictionQualityMetrics(PREDICTION_SOURCE_OVERALL, field_type,
+                                form_interactions_ukm_logger, source_id, form,
+                                field, metric_type,
+                                /*log_rationalization_metrics=*/true);
+  }
 }
 
 void LogEmailFieldPredictionMetrics(const AutofillField& field) {
@@ -837,7 +841,7 @@ void LogEmailFieldPredictionMetrics(const AutofillField& field) {
   }
 
   bool is_valid_email = IsValidEmailAddress(value);
-  bool is_email_prediction = field.Type().GetStorableType() == EMAIL_ADDRESS;
+  bool is_email_prediction = field.Type().GetTypes().contains(EMAIL_ADDRESS);
 
   if (is_email_prediction) {
     EmailPredictionConfusionMatrix prediction_precision =

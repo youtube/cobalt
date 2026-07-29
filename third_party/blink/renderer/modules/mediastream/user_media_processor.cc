@@ -22,6 +22,7 @@
 #include "base/types/optional_util.h"
 #include "build/build_config.h"
 #include "media/base/audio_parameters.h"
+#include "media/base/media_switches.h"
 #include "media/capture/video_capture_types.h"
 #include "media/webrtc/constants.h"
 #include "third_party/blink/public/common/features.h"
@@ -1806,17 +1807,19 @@ MediaStreamSource* UserMediaProcessor::InitializeAudioSourceObject(
 #endif  // DCHECK_IS_ON()
 
   MediaStreamSource::Capabilities capabilities;
-  // TODO(crbug.com/428856440): Support new echo cancellation modes for
-  // getCapabilities().
-  capabilities.echo_cancellation = {EchoCancellationMode::kDisabled,
-                                    EchoCancellationMode::kBrowserDecides};
+  media::AudioParameters device_parameters = audio_source->device().input;
+  capabilities.echo_cancellation = GetSupportedEchoCancellationModes(
+      device_parameters.effects(), device.type);
   capabilities.auto_gain_control = {true, false};
   capabilities.noise_suppression = {true, false};
   capabilities.voice_isolation = {true, false};
 
   if (RuntimeEnabledFeatures::RestrictOwnAudioEnabled()) {
     if (device.type == mojom::blink::MediaStreamType::DISPLAY_AUDIO_CAPTURE) {
-      capabilities.restrict_own_audio = {true, false};
+      capabilities.restrict_own_audio = {false};
+      if (media::IsRestrictOwnAudioSupported()) {
+        capabilities.restrict_own_audio->push_back(true);
+      }
     }
   }
 
@@ -1824,7 +1827,6 @@ MediaStreamSource* UserMediaProcessor::InitializeAudioSourceObject(
       media::SampleFormatToBitsPerChannel(media::kSampleFormatS16),  // min
       media::SampleFormatToBitsPerChannel(media::kSampleFormatS16)   // max
   };
-  auto device_parameters = audio_source->device().input;
   if (device_parameters.IsValid()) {
     capabilities.channel_count = {1, device_parameters.channels()};
     capabilities.sample_rate = {

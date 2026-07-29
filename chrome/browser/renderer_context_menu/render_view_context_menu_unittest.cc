@@ -35,7 +35,6 @@
 #include "chrome/browser/password_manager/profile_password_store_factory.h"
 #include "chrome/browser/predictors/loading_predictor.h"
 #include "chrome/browser/predictors/loading_predictor_factory.h"
-#include "chrome/browser/predictors/preconnect_manager.h"
 #include "chrome/browser/prefs/incognito_mode_prefs.h"
 #include "chrome/browser/renderer_context_menu/render_view_context_menu_test_util.h"
 #include "chrome/browser/search_engines/template_url_service_factory.h"
@@ -44,6 +43,8 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/chrome_pages.h"
 #include "chrome/browser/ui/passwords/ui_utils.h"
+#include "chrome/browser/user_education/user_education_service.h"
+#include "chrome/browser/user_education/user_education_service_factory.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/common/webui_url_constants.h"
 #include "chrome/test/base/chrome_render_view_host_test_harness.h"
@@ -75,7 +76,9 @@
 #include "components/proxy_config/proxy_config_pref_names.h"
 #include "components/search_engines/template_url_service.h"
 #include "components/sync/test/test_sync_service.h"
+#include "components/user_education/common/user_education_features.h"
 #include "content/public/browser/global_routing_id.h"
+#include "content/public/browser/preconnect_manager.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/web_contents.h"
@@ -326,7 +329,7 @@ TEST_F(RenderViewContextMenuExtensionsTest,
 
 class RenderViewContextMenuPrefsTest
     : public ChromeRenderViewHostTestHarness,
-      public predictors::PreconnectManager::Observer {
+      public content::PreconnectManager::Observer {
  public:
   RenderViewContextMenuPrefsTest() = default;
 
@@ -1470,6 +1473,52 @@ TEST_F(RenderViewContextMenuPrefsTest,
       IDC_CONTENT_CONTEXT_SEARCHLENSFORIMAGE, &model, &index));
 
   ASSERT_EQ(initial_num_processes, mock_rph_factory().GetProcesses()->size());
+}
+
+BASE_FEATURE(kTestUnregisteredFeature,
+             "TestUnregisteredFeature",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+TEST_F(RenderViewContextMenuPrefsTest, GetIsNewFeatureAtValue) {
+  // Set the profile creation time to be 100 days ago, to ensure that the
+  // feature is considered new.
+  UserEducationServiceFactory::GetForBrowserContext(profile())
+      ->user_education_storage_service()
+      .set_profile_creation_time_for_testing(base::Time::Now() -
+                                             base::Days(100));
+
+  base::test::ScopedFeatureList features;
+  features.InitWithFeatures({user_education::features::kNewBadgeTestFeature,
+                             kTestUnregisteredFeature},
+                            {});
+
+  UserEducationServiceFactory::GetForBrowserContext(profile())
+      ->new_badge_registry()
+      ->RegisterFeature({user_education::features::kNewBadgeTestFeature,
+                         user_education::Metadata()});
+
+  // Initialize the New Badge controller, so that the new badge data for this
+  // profile is set.
+  auto* const controller =
+      UserEducationServiceFactory::GetForBrowserContext(profile())
+          ->new_badge_controller();
+  controller->InitData();
+
+  // Create a context menu with a registered feature.
+  content::ContextMenuParams params;
+  TestRenderViewContextMenu menu(*web_contents()->GetPrimaryMainFrame(),
+                                 params);
+
+  // A registered feature should be considered new.
+  ASSERT_TRUE(menu.GetIsNewFeatureAtValue(
+      user_education::features::kNewBadgeTestFeature.name));
+
+  // An unregistered feature should not be considered new.
+  ASSERT_FALSE(menu.GetIsNewFeatureAtValue(kTestUnregisteredFeature.name));
+
+  const char* const kUnregisteredFeatureName = "UnregisteredFeature";
+  // An unknown feature name should not be considered new.
+  ASSERT_FALSE(menu.GetIsNewFeatureAtValue(kUnregisteredFeatureName));
 }
 
 // Verify that the Lens Region Search menu item is enabled for Progressive Web

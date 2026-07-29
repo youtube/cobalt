@@ -35,10 +35,12 @@ import androidx.test.filters.SmallTest;
 
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 import org.robolectric.Robolectric;
 import org.robolectric.annotation.Config;
 
@@ -59,6 +61,7 @@ public class SingleTabModuleViewBinderUnitTest {
     private static final int TAB_ID = 1;
     private static final String HISTOGRAM_START_SURFACE_MODULE_CLICK = "StartSurface.Module.Click";
 
+    @Rule public final MockitoRule mMockitoRule = MockitoJUnit.rule();
     private Activity mActivity;
     private SingleTabView mSingleTabModuleView;
     private PropertyModelChangeProcessor<PropertyModel, SingleTabView, PropertyKey>
@@ -72,8 +75,6 @@ public class SingleTabModuleViewBinderUnitTest {
 
     @Before
     public void setUp() throws Exception {
-        MockitoAnnotations.initMocks(this);
-
         mActivity = Robolectric.buildActivity(Activity.class).setup().get();
         mActivity.setTheme(R.style.Theme_BrowserUI_DayNight);
         mSingleTabModuleView =
@@ -105,16 +106,16 @@ public class SingleTabModuleViewBinderUnitTest {
     @SmallTest
     public void testVisibility() {
         mPropertyModel.set(IS_VISIBLE, true);
-        assertTrue(isViewVisible(org.chromium.chrome.R.id.single_tab_view));
+        assertTrue(isViewVisible(R.id.single_tab_view));
 
         mPropertyModel.set(IS_VISIBLE, false);
-        assertFalse(isViewVisible(org.chromium.chrome.R.id.single_tab_view));
+        assertFalse(isViewVisible(R.id.single_tab_view));
     }
 
     @Test
     @SmallTest
     public void testSetTitle() {
-        TextView title = mSingleTabModuleView.findViewById(org.chromium.chrome.R.id.tab_title_view);
+        TextView title = mSingleTabModuleView.findViewById(R.id.tab_title_view);
         assertEquals("", title.getText());
 
         mPropertyModel.set(TITLE, TEST_TITLE);
@@ -124,7 +125,7 @@ public class SingleTabModuleViewBinderUnitTest {
     @Test
     @SmallTest
     public void testSetUrl() {
-        TextView url = mSingleTabModuleView.findViewById(org.chromium.chrome.R.id.tab_url_view);
+        TextView url = mSingleTabModuleView.findViewById(R.id.tab_url_view);
         assertEquals("", url.getText());
 
         mPropertyModel.set(URL, TEST_URL);
@@ -134,8 +135,7 @@ public class SingleTabModuleViewBinderUnitTest {
     @Test
     @SmallTest
     public void testSetFavicon() {
-        ImageView favicon =
-                mSingleTabModuleView.findViewById(org.chromium.chrome.R.id.tab_favicon_view);
+        ImageView favicon = mSingleTabModuleView.findViewById(R.id.tab_favicon_view);
         assertNull(favicon.getDrawable());
 
         mPropertyModel.set(FAVICON, new BitmapDrawable());

@@ -313,6 +313,7 @@
 #include "chrome/browser/ui/views/frame/top_controls_slide_controller_chromeos.h"
 #include "chrome/grit/chrome_unscaled_resources.h"
 #include "chromeos/components/mgs/managed_guest_session_utils.h"
+#include "chromeos/ui/base/window_properties.h"
 #include "chromeos/ui/frame/caption_buttons/frame_caption_button_container_view.h"
 #include "chromeos/ui/frame/caption_buttons/frame_size_button.h"
 #include "chromeos/ui/wm/desks/desks_helper.h"
@@ -356,8 +357,8 @@
 
 #if BUILDFLAG(ENABLE_GLIC)
 #include "chrome/browser/glic/glic_enabling.h"
-#include "chrome/browser/glic/glic_keyed_service.h"
-#include "chrome/browser/glic/glic_keyed_service_factory.h"
+#include "chrome/browser/glic/public/glic_keyed_service.h"
+#include "chrome/browser/glic/public/glic_keyed_service_factory.h"
 #include "chrome/browser/glic/resources/grit/glic_browser_resources.h"
 #include "chrome/browser/glic/widget/glic_widget.h"
 #include "chrome/browser/glic/widget/glic_window_controller.h"
@@ -1008,24 +1009,9 @@ BrowserView::BrowserView(std::unique_ptr<Browser> browser)
   watermark_view_ = contents_container->AddChildView(
       std::make_unique<enterprise_watermark::WatermarkView>());
 
-  if (features::kGlicActorUiOverlay.Get()) {
-    auto actor_overlay_view = std::make_unique<views::View>();
-    actor_overlay_view->SetID(VIEW_ID_ACTOR_OVERLAY);
-    actor_overlay_view->SetVisible(false);
-    actor_overlay_view->SetLayoutManager(std::make_unique<views::FillLayout>());
-    actor_overlay_view_ =
-        contents_container->AddChildView(std::move(actor_overlay_view));
-  }
-
-#if BUILDFLAG(ENABLE_GLIC)
   contents_container->SetLayoutManager(std::make_unique<ContentsLayoutManager>(
       devtools_web_view_, devtools_scrim_view_, contents_view,
-      lens_overlay_view_, watermark_view_, actor_overlay_view_));
-#else
-  contents_container->SetLayoutManager(std::make_unique<ContentsLayoutManager>(
-      devtools_web_view_, devtools_scrim_view_, contents_view,
-      lens_overlay_view_, watermark_view_, actor_overlay_view_));
-#endif
+      lens_overlay_view_, watermark_view_));
 
   toolbar_ = top_container_->AddChildView(
       std::make_unique<ToolbarView>(browser_.get(), this));
@@ -1171,7 +1157,6 @@ BrowserView::~BrowserView() {
   left_aligned_side_panel_separator_ = nullptr;
   side_panel_rounded_corner_ = nullptr;
   toolbar_button_provider_ = nullptr;
-  actor_overlay_view_ = nullptr;
 
   // Child views maintain PrefMember attributes that point to
   // OffTheRecordProfile's PrefService which gets deleted by ~Browser.
@@ -2523,6 +2508,22 @@ TabDragDelegate* BrowserView::GetTabDragDelegate(
   return &multi_contents_view_->drop_target_controller();
 }
 
+#if BUILDFLAG(IS_CHROMEOS)
+
+void BrowserView::OnLockedForOnTaskUpdated() {
+  bool locked_for_on_task = browser()->IsLockedForOnTask();
+  // Use immersive mode for tabbed PWA.
+  if (browser()->CanSupportWindowFeature(Browser::FEATURE_TABSTRIP)) {
+    GetNativeWindow()->SetProperty(chromeos::kUseImmersiveInTrustedPinned,
+                                   locked_for_on_task);
+  }
+  // TODO(crbug.com/429215055): Move this logic to window manager.
+  SetCanMinimize(!locked_for_on_task);
+  SetShowCloseButton(!locked_for_on_task);
+}
+
+#endif
+
 base::CallbackListSubscription BrowserView::AddOnLinkOpeningFromGestureCallback(
     OnLinkOpeningFromGestureCallback callback) {
   return link_opened_from_gesture_callbacks_.Add(callback);
@@ -3401,10 +3402,6 @@ views::View* BrowserView::GetLensOverlayView() {
   return lens_overlay_view_;
 }
 
-views::View* BrowserView::GetActorOverlayView() {
-  return actor_overlay_view_;
-}
-
 DownloadBubbleUIController* BrowserView::GetDownloadBubbleUIController() {
 #if !BUILDFLAG(IS_CHROMEOS)
   if (auto* download_controller =
@@ -3552,6 +3549,13 @@ void BrowserView::PreHandleDragExit() {
   if (multi_contents_view_ &&
       multi_contents_view_->is_drag_and_drop_enabled()) {
     multi_contents_view_->drop_target_controller().OnWebContentsDragExit();
+  }
+}
+
+void BrowserView::HandleDragEnded() {
+  if (multi_contents_view_ &&
+      multi_contents_view_->is_drag_and_drop_enabled()) {
+    multi_contents_view_->drop_target_controller().OnWebContentsDragEnded();
   }
 }
 
@@ -4083,6 +4087,7 @@ std::u16string BrowserView::GetAccessibleTabLabel(int index,
         title =
             l10n_util::GetStringFUTF16(IDS_TAB_AX_LABEL_VR_PRESENTING, title);
         break;
+      case tabs::TabAlert::ACTOR_ACCESSING:
       case tabs::TabAlert::GLIC_ACCESSING:
 #if BUILDFLAG(ENABLE_GLIC)
         title =

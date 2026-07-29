@@ -72,6 +72,11 @@ using FillingPayload = std::variant<const AutofillProfile*,
 // It holds any state that is only relevant for [re]filling.
 class FormFiller {
  public:
+  struct ValueAndType {
+    std::u16string value;
+    FieldType type = NO_SERVER_DATA;
+  };
+
   explicit FormFiller(BrowserAutofillManager& manager);
 
   FormFiller(const FormFiller&) = delete;
@@ -85,7 +90,7 @@ class FormFiller {
     static RefillOptions Refill(DenseSet<FieldTypeGroup> originally_filled);
 
     bool is_refill() const;
-    bool may_refill(FieldType field_type) const;
+    bool may_refill(const FieldTypeSet& field_type) const;
 
    private:
     RefillOptions();
@@ -198,34 +203,31 @@ class FormFiller {
                      AutofillTriggerSource trigger_source,
                      RefillTriggerReason refill_trigger_reason);
 
-  // Stores the value to be filled into a field, along with its field type and
-  // if it's an override.
-  struct FieldFillingData {
-    std::u16string value_to_fill;
-    std::optional<FieldType> field_type;
-    bool value_is_an_override;
+  struct ValueAndTypeAndOverride : public ValueAndType {
+    bool value_is_an_override = false;
   };
 
   // Returns the value to fill along with the field type and if the value is an
   // override.
-  FieldFillingData GetFieldFillingData(
+  ValueAndTypeAndOverride GetFieldFillingData(
       const AutofillField& autofill_field,
       const AugmentedFillingPayload& filling_payload,
-      const std::map<FieldGlobalId, std::u16string>& forced_fill_values,
+      const std::map<FieldGlobalId, ValueAndType>& forced_fill_values,
       const FormFieldData& field_data,
       mojom::ActionPersistence action_persistence,
       std::string* failure_to_fill);
 
   // Fills `field_data` and modifies `autofill_field` given all other states.
-  // Returns true if the field has been filled, false otherwise. This is
-  // independent of whether the field was filled or autofilled before.
-  // When `allow_suggestion_swapping` is true, the method still returns true if
-  // the `autofill_field` is emptied.
+  // Returns the FieldType of the value that was filled, or std::nullopt if no
+  // value was filled. If the FieldType is not known, returns UNKNOWN_TYPE. The
+  // return value is independent of whether the field was filled or autofilled
+  // before. When `allow_suggestion_swapping` is true, the method still returns
+  // the FieldType if the `autofill_field` is emptied.
   // TODO(crbug.com/40227071): Cleanup API and logic.
-  bool FillField(
+  std::optional<FieldType> FillField(
       AutofillField& autofill_field,
       const AugmentedFillingPayload& filling_payload,
-      const std::map<FieldGlobalId, std::u16string>& forced_fill_values,
+      const std::map<FieldGlobalId, ValueAndType>& forced_fill_values,
       FormFieldData& field_data,
       mojom::ActionPersistence action_persistence,
       bool allow_suggestion_swapping,

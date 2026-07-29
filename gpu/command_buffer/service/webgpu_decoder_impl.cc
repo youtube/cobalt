@@ -1281,6 +1281,7 @@ bool WebGPUDecoderImpl::IsFeatureExposed(wgpu::FeatureName feature) const {
     case wgpu::FeatureName::SharedBufferMemoryD3D12Resource:
     case wgpu::FeatureName::ChromiumExperimentalSubgroupMatrix:
     case wgpu::FeatureName::TextureComponentSwizzle:
+    case wgpu::FeatureName::ChromiumExperimentalPrimitiveId:
       return safety_level_ == webgpu::SafetyLevel::kUnsafe;
     case wgpu::FeatureName::AdapterPropertiesD3D:
     case wgpu::FeatureName::AdapterPropertiesVk:
@@ -1442,7 +1443,21 @@ WGPUFuture WebGPUDecoderImpl::RequestDeviceImpl(
   if (descriptor != nullptr) {
     desc = *reinterpret_cast<const wgpu::DeviceDescriptor*>(descriptor);
   }
-  DCHECK_EQ(desc.nextInChain, nullptr);
+
+  // Check that the only chained struct allowed is DawnConsumeAdapterDescriptor.
+  for (auto* chain = desc.nextInChain; chain != nullptr;
+       chain = chain->nextInChain) {
+    switch (chain->sType) {
+      case wgpu::SType::DawnConsumeAdapterDescriptor:
+        break;
+      default:
+        callback_info.callback(
+            WGPURequestDeviceStatus_Error, nullptr,
+            MakeStringView("Disallowed chained struct requested."),
+            callback_info.userdata1, callback_info.userdata2);
+        return {};
+    }
+  }
 
   std::vector<wgpu::FeatureName> required_features;
 

@@ -152,13 +152,6 @@ component("variations") {
       "//components/variations/android:variations_seed_jni",
     ]
   }
-
-  if (is_chromeos) {
-    deps += [
-      "//chromeos/ash/components/dbus/featured",
-      "//chromeos/ash/components/dbus/featured:proto",
-    ]
-  }
 }
 
 if (is_android) {
@@ -213,15 +206,15 @@ static_library("test_support") {
   ]
 
   deps = [
-    "field_trial_config:field_trial_config",
+    "field_trial_config",
     "proto",
     "//base/test:test_support",
     "//components/metrics",
-    "//components/prefs:prefs",
+    "//components/prefs",
     "//components/variations/service",
     "//components/web_resource:test_support",
     "//services/network:test_support",
-    "//services/network/public/cpp:cpp",
+    "//services/network/public/cpp",
     "//third_party/zlib/google:compression_utils",
   ]
 
@@ -288,7 +281,7 @@ source_set("unit_tests") {
     "//base/test:test_support",
     "//components/crash/core/common:crash_key",
     "//components/prefs:test_support",
-    "//components/variations/field_trial_config:field_trial_config",
+    "//components/variations/field_trial_config",
     "//services/network/public/cpp:cpp_base",
     "//testing/gmock",
     "//testing/gtest",
@@ -296,13 +289,6 @@ source_set("unit_tests") {
     "//third_party/zlib/google:compression_utils",
     "//url",
   ]
-
-  if (is_chromeos) {
-    deps += [
-      "//chromeos/ash/components/dbus/featured",
-      "//chromeos/ash/components/dbus/featured:proto",
-    ]
-  }
 
   # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
   # enable the diagnostic by removing this line.
@@ -347,7 +333,7 @@ if (use_fuzzing_engine_with_lpm) {
       "//third_party/libprotobuf-mutator",
     ]
   }
-  fuzzer_test("create_trials_from_seed_fuzzer_v2") {
+  fuzzer_test("create_trials_from_seed_v2_fuzzer") {
     sources = [ "fuzzers/create_trials_from_seed_fuzzer_v2.cc" ]
     deps = [
       ":test_cases_proto",
@@ -355,6 +341,7 @@ if (use_fuzzing_engine_with_lpm) {
       ":variations",
       "proto",
       "//base/test:test_support",
+      "//components/variations/service",
       "//third_party/libprotobuf-mutator",
     ]
     seed_corpus = "fuzzers/testcases/create_trials_from_seed/"

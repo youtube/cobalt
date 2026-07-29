@@ -119,7 +119,13 @@ void AggregatedJournalSerializer::WillAddJournalEntry(
   }
   track_event->set_type(pb_type);
   track_event->set_name(entry.data->event);
-  track_event->set_track_uuid(entry.data->task_id);
+  if (entry.data->task_id != 0) {
+    uint64_t track_uuid = entry.data->task_id;
+    if (entry.data->track == mojom::JournalTrack::kFrontEnd) {
+      track_uuid += kFrontEndId;
+    }
+    track_event->set_track_uuid(track_uuid);
+  }
 
   // For Perfetto to read screenshots we need to have the category as
   // "android_screenshot". See
@@ -149,6 +155,12 @@ void AggregatedJournalSerializer::WillAddJournalEntry(
     auto* screenshot = track_event->set_screenshot();
     screenshot->set_jpg_image(entry.jpg_screenshot->data(),
                               entry.jpg_screenshot->size());
+  }
+
+  if (!entry.url.empty()) {
+    annotation = track_event->add_debug_annotations();
+    annotation->set_name("url");
+    annotation->set_string_value(entry.url);
   }
 
   WriteTracePacket(msg.SerializeAsArray());

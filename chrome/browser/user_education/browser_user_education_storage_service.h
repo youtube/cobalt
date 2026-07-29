@@ -83,13 +83,15 @@ class BrowserUserEducationStorageService
       const user_education::NtpPromoIdentifier& id) const override;
   void SaveNtpPromoData(const user_education::NtpPromoIdentifier& id,
                         const user_education::KeyedNtpPromoData& data) override;
-  void ResetNtpPromoData() override;
+  void ResetNtpPromoData(const user_education::NtpPromoIdentifier& id) override;
 
   // RecentSessionDataStorageService:
   RecentSessionData ReadRecentSessionData() const override;
   void SaveRecentSessionData(
       const RecentSessionData& recent_session_data) override;
   void ResetRecentSessionData();
+
+  Profile* profile() const { return profile_; }
 
  private:
   const raw_ptr<Profile> profile_;

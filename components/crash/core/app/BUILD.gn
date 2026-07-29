@@ -32,8 +32,22 @@ source_set("crashpad_handler_main") {
   deps = [
     "//base:debugging_buildflags",
     "//components/gwp_asan/buildflags",
-    "//third_party/crashpad/crashpad/handler:handler",
+    "//third_party/crashpad/crashpad/handler",
   ]
+
+  if (is_mac) {
+    # TODO(crbug.com/40064248): Remove this once sufficient information is
+    # collected.
+    sources += [
+      "command_output_user_stream.cc",
+      "command_output_user_stream.h",
+    ]
+
+    deps += [
+      "//third_party/crashpad/crashpad/minidump",
+      "//third_party/crashpad/crashpad/snapshot",
+    ]
+  }
 
   if (is_linux || is_chromeos || is_mac) {
     deps += [ "//components/stability_report" ]
@@ -320,8 +334,8 @@ source_set("unit_tests") {
       ":run_as_crashpad_handler",
       "//components/crash/win:unit_tests",
       "//third_party/breakpad:client",
-      "//third_party/crashpad/crashpad/client:client",
-      "//third_party/crashpad/crashpad/snapshot:snapshot",
+      "//third_party/crashpad/crashpad/client",
+      "//third_party/crashpad/crashpad/snapshot",
       "//third_party/crashpad/crashpad/util",
     ]
   }

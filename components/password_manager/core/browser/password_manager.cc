@@ -43,6 +43,7 @@
 #include "components/password_manager/core/browser/leak_detection/leak_detection_request_utils.h"
 #include "components/password_manager/core/browser/origin_credential_store.h"
 #include "components/password_manager/core/browser/password_autofill_manager.h"
+#include "components/password_manager/core/browser/password_change_service_interface.h"
 #include "components/password_manager/core/browser/password_form.h"
 #include "components/password_manager/core/browser/password_form_manager.h"
 #include "components/password_manager/core/browser/password_generation_frame_helper.h"
@@ -69,6 +70,7 @@
 #include "components/password_manager/core/browser/first_cct_page_load_passwords_ukm_recorder.h"
 #include "components/password_manager/core/browser/password_feature_manager.h"
 #include "components/password_manager/core/browser/password_sync_util.h"
+#include "components/password_manager/core/browser/split_stores_and_local_upm.h"
 #endif  // BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(IS_WIN)
@@ -108,8 +110,8 @@ bool DidLoginWithPrimaryChangedPassword(
 }
 
 void RecordMetricsForLoginWithChangedPassword(
+    password_manager::PasswordManagerClient* client,
     const PasswordFormManager& submitted_manager,
-    ukm::SourceId ukm_id,
     bool login_successful) {
   const PasswordForm* change_password_login =
       password_manager_util::FindLoginWithChangedPassword(submitted_manager);
@@ -129,7 +131,11 @@ void RecordMetricsForLoginWithChangedPassword(
                   : LogInWithChangedPasswordOutcome::kBackupPasswordFailed;
   }
 
-  ukm::builders::PasswordManager_ChangeSubmission(ukm_id)
+  if (auto* password_change_service = client->GetPasswordChangeService()) {
+    password_change_service->RecordLoginAttemptQuality(
+        outcome, client->GetLastCommittedURL());
+  }
+  ukm::builders::PasswordManager_ChangeSubmission(client->GetUkmSourceId())
       .SetLogInWithPasswordChangeSubmission(static_cast<int>(outcome))
       .Record(ukm::UkmRecorder::Get());
   base::UmaHistogramEnumeration(kLogInWithPasswordChangeSubmissionHistogram,
@@ -329,15 +335,18 @@ bool StoreResultFilterAllowsSaving(PasswordFormManager* form_manager,
              *form_manager->GetSubmittedForm());
 }
 
-bool ModelPredictionsContainCredentialTypes(
+bool ModelPredictionsContainReliableCredentialTypes(
     const base::flat_map<FieldRendererId, FieldType>& predictions) {
+  // Single username forms are hard to identify based only on HTML attributes,
+  // since it's easy to confuse them with e.g. newsletter signups and username
+  // lookup forms, so we don't consider such model predictions to be reliable
+  // at the moment, so if the form is not identified as password form by other
+  // sources, it should not be picked up based only on the model predictions.
   return std::ranges::any_of(
       predictions,
       [](const std::pair<FieldRendererId, FieldType>& field_prediction) {
-        autofill::FieldTypeGroup type_category =
-            GroupTypeOfFieldType(field_prediction.second);
-        return (type_category == autofill::FieldTypeGroup::kUsernameField) ||
-               (type_category == autofill::FieldTypeGroup::kPasswordField);
+        return GroupTypeOfFieldType(field_prediction.second) ==
+               autofill::FieldTypeGroup::kPasswordField;
       });
 }
 
@@ -461,17 +470,16 @@ void RecordProvisionalSaveFailure(
 }
 
 void HandleFailedLoginDetectionForPasswordChange(
+    password_manager::PasswordManagerClient* client,
     PasswordManagerDriver* driver,
-    UndoPasswordChangeController* undo_controller,
-    const PasswordFormManager& submitted_manager,
-    ukm::SourceId ukm_id) {
-  RecordMetricsForLoginWithChangedPassword(submitted_manager, ukm_id,
+    const PasswordFormManager& submitted_manager) {
+  RecordMetricsForLoginWithChangedPassword(client, submitted_manager,
                                            /*login_successful=*/false);
 
   // Proactive recovery on mobile will be implemented via touch to fill instead.
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
   // Create a copy of the submitted form because it will soon be destroyed.
-  undo_controller->OnLoginPotentiallyFailed(
+  client->GetUndoPasswordChangeController()->OnLoginPotentiallyFailed(
       driver, *submitted_manager.GetSubmittedForm());
 #endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
 }
@@ -530,18 +538,10 @@ void PasswordManager::RegisterProfilePrefs(
   registry->RegisterBooleanPref(prefs::kOfferToSavePasswordsEnabledGMS, true);
   registry->RegisterBooleanPref(prefs::kAccountStorageNoticeShown, false);
   registry->RegisterBooleanPref(prefs::kAutoSignInEnabledGMS, true);
-  registry->RegisterIntegerPref(
-      prefs::kCurrentMigrationVersionToGoogleMobileServices, 0);
-  registry->RegisterIntegerPref(
-      prefs::kPasswordsUseUPMLocalAndSeparateStores,
-      static_cast<int>(prefs::UseUpmLocalAndSeparateStoresState::kOff));
-  registry->RegisterBooleanPref(
-      prefs::kUnenrolledFromGoogleMobileServicesDueToErrors, false);
+  RegisterLegacySplitStoresPref(registry);
   registry->RegisterStringPref(prefs::kUPMErrorUIShownTimestamp, "0");
   registry->RegisterIntegerPref(
       prefs::kPasswordGenerationBottomSheetDismissCount, 0);
-  registry->RegisterBooleanPref(
-      prefs::kShouldShowPostPasswordMigrationSheetAtStartup, false);
   // This pref is used to decide whether the PasswordStore can be connected to
   // the new Android backend without migrating existing entries in the
   // LoginDatabase. In doubt, it's best to assume that's not the case, otherwise
@@ -596,6 +596,10 @@ void PasswordManager::RegisterProfilePrefs(
   registry->RegisterBooleanPref(
       prefs::kAutomaticPasskeyUpgrades, true,
       user_prefs::PrefRegistrySyncable::SYNCABLE_PRIORITY_PREF);
+  registry->RegisterTimePref(
+      prefs::kAccountStoreBackupPasswordCleaningLastTimestamp, base::Time());
+  registry->RegisterTimePref(
+      prefs::kProfileStoreBackupPasswordCleaningLastTimestamp, base::Time());
 }
 
 // static
@@ -1554,8 +1558,8 @@ void PasswordManager::OnLoginSuccessful() {
                                          client_);
   }
 
-  RecordMetricsForLoginWithChangedPassword(
-      *submitted_manager, client_->GetUkmSourceId(), /*login_successful=*/true);
+  RecordMetricsForLoginWithChangedPassword(client_, *submitted_manager,
+                                           /*login_successful=*/true);
 
   bool able_to_save_passwords =
       password_manager_util::IsAbleToSavePasswords(client_);
@@ -1649,9 +1653,8 @@ void PasswordManager::OnLoginFailed(PasswordManagerDriver* driver,
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
   MaybeTriggerHatsSurvey(*submitted_manager);
 #endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
-  HandleFailedLoginDetectionForPasswordChange(
-      driver, client_->GetUndoPasswordChangeController(), *submitted_manager,
-      client_->GetUkmSourceId());
+  HandleFailedLoginDetectionForPasswordChange(client_, driver,
+                                              *submitted_manager);
 
   ResetSubmittedManager();
   base::UmaHistogramBoolean("PasswordManager.FailedLoginDetected", false);
@@ -1664,9 +1667,8 @@ void PasswordManager::OnLoginPotentiallyFailed(
     logger->LogMessage(Logger::STRING_PASSWORD_POTENTIALLY_FAILED_LOGIN);
   }
 
-  HandleFailedLoginDetectionForPasswordChange(
-      driver, client_->GetUndoPasswordChangeController(),
-      *GetSubmittedManager(), client_->GetUkmSourceId());
+  HandleFailedLoginDetectionForPasswordChange(client_, driver,
+                                              *GetSubmittedManager());
 
   base::UmaHistogramBoolean("PasswordManager.FailedLoginDetected", true);
 }
@@ -1762,7 +1764,7 @@ void PasswordManager::ProcessClassificationModelPredictions(
   PasswordFormManager* manager =
       GetMatchedManagerForForm(driver, form.renderer_id());
   if (!manager) {
-    if (!ModelPredictionsContainCredentialTypes(predictions_for_form)) {
+    if (!ModelPredictionsContainReliableCredentialTypes(predictions_for_form)) {
       return;
     }
     manager = CreateFormManager(driver, form);

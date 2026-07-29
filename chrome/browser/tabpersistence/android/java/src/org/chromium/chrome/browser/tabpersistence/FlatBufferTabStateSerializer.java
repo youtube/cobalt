@@ -47,7 +47,7 @@ public class FlatBufferTabStateSerializer implements TabStateSerializer {
         TabStateFlatBufferDeserializeResult.NUM_ENTRIES,
     })
     @Retention(RetentionPolicy.SOURCE)
-    @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
+    @VisibleForTesting
     public @interface TabStateFlatBufferDeserializeResult {
         /** FlatBuffer was successfully deserialized to TabState. */
         int SUCCESS = 0;
@@ -165,7 +165,7 @@ public class FlatBufferTabStateSerializer implements TabStateSerializer {
         return null;
     }
 
-    @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
+    @VisibleForTesting
     public static @TabLaunchType int getLaunchTypeFromFlatBuffer(int flatBufferLaunchType) {
         switch (flatBufferLaunchType) {
             case TabLaunchTypeAtCreation.FROM_LINK:
@@ -232,6 +232,8 @@ public class FlatBufferTabStateSerializer implements TabStateSerializer {
                 return TabLaunchType.FROM_LONGPRESS_FOREGROUND_IN_GROUP;
             case TabLaunchTypeAtCreation.FROM_TAB_LIST_INTERFACE:
                 return TabLaunchType.FROM_TAB_LIST_INTERFACE;
+            case TabLaunchTypeAtCreation.FROM_LINK_CREATING_NEW_WINDOW:
+                return TabLaunchType.FROM_LINK_CREATING_NEW_WINDOW;
             case TabLaunchTypeAtCreation.SIZE:
                 return TabLaunchType.SIZE;
             case TabLaunchTypeAtCreation.UNKNOWN:
@@ -245,7 +247,7 @@ public class FlatBufferTabStateSerializer implements TabStateSerializer {
         }
     }
 
-    @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
+    @VisibleForTesting
     public static int getLaunchTypeToFlatBuffer(@TabLaunchType int tabLaunchType) {
         switch (tabLaunchType) {
             case TabLaunchType.FROM_LINK:
@@ -312,6 +314,8 @@ public class FlatBufferTabStateSerializer implements TabStateSerializer {
                 return TabLaunchTypeAtCreation.FROM_LONGPRESS_FOREGROUND_IN_GROUP;
             case TabLaunchType.FROM_TAB_LIST_INTERFACE:
                 return TabLaunchTypeAtCreation.FROM_TAB_LIST_INTERFACE;
+            case TabLaunchType.FROM_LINK_CREATING_NEW_WINDOW:
+                return TabLaunchTypeAtCreation.FROM_LINK_CREATING_NEW_WINDOW;
             case TabLaunchType.SIZE:
                 return TabLaunchTypeAtCreation.SIZE;
             default:
@@ -321,7 +325,7 @@ public class FlatBufferTabStateSerializer implements TabStateSerializer {
         }
     }
 
-    @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
+    @VisibleForTesting
     public static @TabUserAgent int getTabUserAgentTypeFromFlatBuffer(int flatbufferUserAgentType) {
         switch (flatbufferUserAgentType) {
             case UserAgentType.DEFAULT:
@@ -342,7 +346,7 @@ public class FlatBufferTabStateSerializer implements TabStateSerializer {
         }
     }
 
-    @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
+    @VisibleForTesting
     public static int getUserAgentTypeToFlatBuffer(@TabUserAgent int userAgent) {
         switch (userAgent) {
             case TabUserAgent.DEFAULT:

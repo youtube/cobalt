@@ -106,6 +106,11 @@ export class SettingsAutofillSectionElement extends
       showAddressDialog_: Boolean,
       showAddressRemoveConfirmationDialog_: Boolean,
 
+      isHomeOrWorkAddress: {
+        type: Boolean,
+        computed: 'computeIsHomeOrWorkAddress_(activeAddress)',
+      },
+
       isPlusAddressEnabled_: {
         type: Boolean,
         value: () => loadTimeData.getBoolean('plusAddressEnabled'),
@@ -119,6 +124,7 @@ export class SettingsAutofillSectionElement extends
   declare private accountInfo_: chrome.autofillPrivate.AccountInfo|null;
   declare private showAddressDialog_: boolean;
   declare private showAddressRemoveConfirmationDialog_: boolean;
+  declare private isHomeOrWorkAddress: boolean;
   declare private isPlusAddressEnabled_: boolean;
   private autofillManager_: AutofillManagerProxy =
       AutofillManagerImpl.getInstance();
@@ -174,17 +180,6 @@ export class SettingsAutofillSectionElement extends
     this.autofillManager_.removePersonalDataManagerListener(
         this.setPersonalDataListener_!);
     this.setPersonalDataListener_ = null;
-  }
-
-  /**
-   * Returns the text for the edit button in the action menu.
-   */
-  private getMenuEditAddressLabel_(
-      address: chrome.autofillPrivate.AddressEntry): string {
-    const isHomeOrWorkAddress = this.isAccountHomeAddress_(address) ||
-        this.isAccountWorkAddress_(address);
-
-    return this.i18n(isHomeOrWorkAddress ? 'editAddressInAccount' : 'edit');
   }
 
   /**
@@ -247,6 +242,9 @@ export class SettingsAutofillSectionElement extends
         this.shadowRoot!
             .querySelector(
                 'settings-address-remove-confirmation-dialog')!.wasConfirmed();
+    const isHomeOrWorkAddress =
+        this.isAccountHomeAddress_(this.activeAddress!) ||
+        this.isAccountWorkAddress_(this.activeAddress!);
     if (wasDeletionConfirmed) {
       // Two corner cases are handled:
       // 1. removing the only address: the focus goes to the Add button
@@ -264,8 +262,9 @@ export class SettingsAutofillSectionElement extends
       }
 
       this.autofillManager_.removeAddress(this.activeAddress!.guid as string);
-      getAnnouncerInstance().announce(
-          loadTimeData.getString('addressRemovedMessage'));
+      getAnnouncerInstance().announce(loadTimeData.getString(
+          isHomeOrWorkAddress ? 'homeAndWorkAddressRemovedMessage' :
+                                'addressRemovedMessage'));
     }
     chrome.metricsPrivate.recordBoolean(
         'Autofill.ProfileDeleted.Settings',
@@ -308,14 +307,14 @@ export class SettingsAutofillSectionElement extends
         chrome.autofillPrivate.AddressRecordType.ACCOUNT_WORK;
   }
 
-  private getAddressIcon_(address: chrome.autofillPrivate.AddressEntry) {
-    if (this.isAccountHomeAddress_(address)) {
-      return 'settings20:home';
+  private computeIsHomeOrWorkAddress_(
+      address: chrome.autofillPrivate.AddressEntry): boolean {
+    if (!address) {
+      return false;
     }
-    if (this.isAccountWorkAddress_(address)) {
-      return 'settings20:work';
-    }
-    return 'settings20:location-on';
+
+    return this.isAccountHomeAddress_(address) ||
+        this.isAccountWorkAddress_(address);
   }
 
   private onAccountHomeAddressClick_() {
@@ -326,10 +325,6 @@ export class SettingsAutofillSectionElement extends
   private onAccountWorkAddressClick_() {
     OpenWindowProxyImpl.getInstance().openUrl(
         this.i18n('googleAccountWorkAddressUrl'));
-  }
-
-  private shouldShowAddressRowIcon_() {
-    return loadTimeData.getBoolean('enableSupportForHomeAndWork');
   }
 
   private isCloudOffVisible_(
@@ -358,12 +353,75 @@ export class SettingsAutofillSectionElement extends
   }
 
   /**
-   * @returns the title for the More Actions button corresponding to the address
-   *     which is described by `label` and `sublabel`.
+   * Determines if an icon is to be shown for the given address.
    */
-  private moreActionsTitle_(label: string, sublabel: string) {
-    return this.i18n(
-        'moreActionsForAddress', label + (sublabel ? sublabel : ''));
+  private shouldShowAddressIcon_(
+      address: chrome.autofillPrivate.AddressEntry,
+      accountInfo: chrome.autofillPrivate.AccountInfo|null): boolean {
+    return this.isCloudOffVisible_(address, accountInfo) ||
+        loadTimeData.getBoolean('enableSupportForHomeAndWork');
+  }
+
+  /**
+   * Determines which icon to show for a given address.
+   *
+   * @return The icon string or an empty string.
+   */
+  private getAddressIcon_(
+      address: chrome.autofillPrivate.AddressEntry,
+      accountInfo: chrome.autofillPrivate.AccountInfo|null): string {
+    if (this.isAccountHomeAddress_(address)) {
+      return 'settings20:home';
+    }
+    if (this.isAccountWorkAddress_(address)) {
+      return 'settings20:work';
+    }
+    if (this.isCloudOffVisible_(address, accountInfo)) {
+      return 'cr20:cloud-off';
+    }
+
+    return 'settings20:location-on';
+  }
+
+  /**
+   * Determines which a11y string to announce for a given address.
+   *
+   * @return The a11y string or an empty string.
+   */
+  private getA11yLabelForIcon_(
+      address: chrome.autofillPrivate.AddressEntry,
+      accountInfo: chrome.autofillPrivate.AccountInfo|null): string {
+    if (this.isCloudOffVisible_(address, accountInfo)) {
+      return this.i18n('localAddressIconA11yLabel');
+    }
+    if (this.isAccountHomeAddress_(address)) {
+      return this.i18n('homeAddressIconA11yLabel');
+    }
+    if (this.isAccountWorkAddress_(address)) {
+      return this.i18n('workAddressIconA11yLabel');
+    }
+    return '';
+  }
+
+  /**
+   * @returns the title for the More Actions button corresponding to the address
+   */
+  private moreActionsTitle_(address: chrome.autofillPrivate.AddressEntry):
+      string {
+    const label = address.metadata?.summaryLabel;
+    const subLabel = address.metadata?.summarySublabel;
+    const fullLabel = label + (subLabel ?? '');
+
+    let messageKey: string;
+    if (this.isAccountHomeAddress_(address)) {
+      messageKey = 'moreOptionsForHomeAddress';
+    } else if (this.isAccountWorkAddress_(address)) {
+      messageKey = 'moreOptionsForWorkAddress';
+    } else {
+      messageKey = 'moreActionsForAddress';
+    }
+
+    return this.i18n(messageKey, fullLabel);
   }
 
   private isAutofillSyncToggleVisible_(accountInfo:

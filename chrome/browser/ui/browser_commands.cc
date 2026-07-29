@@ -75,6 +75,7 @@
 #include "chrome/browser/ui/browser_tabstrip.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/exclusive_access/exclusive_access_manager.h"
 #include "chrome/browser/ui/exclusive_access/fullscreen_controller.h"
 #include "chrome/browser/ui/find_bar/find_bar.h"
@@ -1369,7 +1370,8 @@ void NewSplitTab(Browser* browser, split_tabs::SplitTabCreatedSource source) {
   const int active_index = tab_strip_model->active_index();
   tab_strip_model->delegate()->AddTabAt(
       GURL(chrome::kChromeUISplitViewNewTabPageURL), active_index + 1, true,
-      tab_strip_model->GetTabGroupForTab(active_index));
+      tab_strip_model->GetTabGroupForTab(active_index),
+      tab_strip_model->IsTabPinned(active_index));
   tab_strip_model->AddToNewSplit({active_index},
                                  split_tabs::SplitTabVisualData(), source);
 }
@@ -1654,7 +1656,8 @@ void MoveTabsToReadLater(Browser* browser,
     }
     model->AddOrReplaceEntry(url, base::UTF16ToUTF8(title),
                              reading_list::EntrySource::ADDED_VIA_CURRENT_APP,
-                             /*estimated_read_time=*/base::TimeDelta());
+                             /*estimated_read_time=*/std::nullopt,
+                             /*creation_time=*/std::nullopt);
     BrowserUserEducationInterface::From(browser)->MaybeShowFeaturePromo(
         feature_engagement::kIPHReadingListDiscoveryFeature);
     base::UmaHistogramEnumeration(
@@ -1717,9 +1720,9 @@ bool IsCurrentTabUnreadInReadLater(Browser* browser) {
   return entry && !entry->IsRead();
 }
 
-void ShowOffersAndRewardsForPage(Browser* browser) {
-  WebContents* web_contents =
-      browser->tab_strip_model()->GetActiveWebContents();
+void ShowOffersAndRewardsForPage(BrowserWindowInterface* bwi) {
+  WebContents* const web_contents =
+      bwi->GetTabStripModel()->GetActiveWebContents();
   autofill::OfferNotificationBubbleControllerImpl* controller =
       autofill::OfferNotificationBubbleControllerImpl::FromWebContents(
           web_contents);

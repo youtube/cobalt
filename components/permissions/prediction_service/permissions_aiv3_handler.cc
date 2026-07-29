@@ -17,6 +17,11 @@ namespace permissions {
 namespace {
 using ModelInput = PermissionsAiv3Encoder::ModelInput;
 using ModelOutput = PermissionsAiv3Encoder::ModelOutput;
+
+// This is the timeout for the model execution. If the model execution takes
+// longer than this timeout, the callback will be called with a nullopt result.
+constexpr auto kModelExecutionTimeoutSeconds =
+    base::Seconds(PermissionsAiv3Handler::kModelExecutionTimeout);
 }  // namespace
 
 PermissionsAiv3Handler::PermissionsAiv3Handler(
@@ -65,47 +70,81 @@ void PermissionsAiv3Handler::OnModelUpdated(
 }
 
 void PermissionsAiv3Handler::ExecuteModel(ExecutionCallback callback,
-                                          std::unique_ptr<SkBitmap> snapshot) {
-  if (snapshot.get()) {
-    base::UmaHistogramBoolean(
-        "Permissions.AIv3.ModelExecutionAlreadyInProgress",
-        is_execution_in_progress_);
-    // If an execution is already in progress, there is no way to cancel it and
-    // we cannot wait until it is done because this will add extra latency, so
-    // we will return an empty response to the callback.
-    if (is_execution_in_progress_) {
-      VLOG(1) << "[PermissionsAIv3] ExecuteModel: Execution already in "
-                 "progress. Returning empty response.";
-      // The callback is no longer valid because a new execution was requested
-      // while the previous one was still in progress.
-      is_callback_valid_ = false;
-      std::move(callback).Run(std::nullopt);
-      return;
-    }
-    is_execution_in_progress_ = true;
-    is_callback_valid_ = true;
-
-    ModelInput input;
-    input.snapshot = *snapshot;
-    input.metadata = model_metadata_;
-
-    ExecutionCallback on_complete_callback =
-        base::BindOnce(&PermissionsAiv3Handler::OnModelExecutionComplete,
-                       weak_factory_.GetWeakPtr(), std::move(callback));
-
-    ExecuteModelWithInput(std::move(on_complete_callback), input);
-  } else {
+                                          ModelInput model_input) {
+  DCHECK(!model_input.snapshot.drawsNothing());
+  VLOG(1) << "PermissionsAiv3Handler::ExecuteModel";
+  base::UmaHistogramBoolean("Permissions.AIv3.ModelExecutionAlreadyInProgress",
+                            is_execution_in_progress_);
+  // If an execution is already in progress, there is no way to cancel it and
+  // we cannot wait until it is done because this will add extra latency, so
+  // we will return an empty response to the callback.
+  if (is_execution_in_progress_) {
+    VLOG(1) << "[PermissionsAIv3] ExecuteModel: Execution already in "
+               "progress. Returning empty response.";
+    // The callback is no longer valid because a new execution was requested
+    // while the previous one was still in progress.
+    is_callback_valid_ = false;
     std::move(callback).Run(std::nullopt);
+    return;
+  } else {
+    VLOG(1) << "[PermissionsAIv3] ExecuteModel: Execution not in "
+               "progress. Starting execution.";
   }
+  is_execution_in_progress_ = true;
+  is_callback_valid_ = true;
+
+  model_input.metadata = model_metadata_;
+
+  current_callback_ = std::move(callback);
+  ExecutionCallback on_complete_callback =
+      base::BindOnce(&PermissionsAiv3Handler::OnModelExecutionComplete,
+                     weak_factory_.GetWeakPtr());
+
+  ExecuteModelWithInput(std::move(on_complete_callback), model_input);
+
+  // In parallel with the model execution, we will start a timer that will
+  // call `OnModelExecutionTimeout` with a nullopt result if the model
+  // execution takes longer than the timeout.
+  timeout_timer_.Start(
+      FROM_HERE, kModelExecutionTimeoutSeconds,
+      base::BindOnce(&PermissionsAiv3Handler::OnModelExecutionTimeout,
+                     weak_factory_.GetWeakPtr(), std::nullopt));
+}
+
+void PermissionsAiv3Handler::OnModelExecutionTimeout(
+    const std::optional<PermissionRequestRelevance>& relevance) {
+  VLOG(1) << "[PermissionsAIv3] OnModelExecutionTimeout: Model execution took "
+             "longer than the timeout. Returning empty response.";
+  base::UmaHistogramBoolean("Permissions.AIv3.ModelExecutionTimeout", true);
+  std::move(current_callback_).Run(std::nullopt);
 }
 
 void PermissionsAiv3Handler::OnModelExecutionComplete(
-    ExecutionCallback original_callback,
     const std::optional<PermissionRequestRelevance>& relevance) {
+  VLOG(1) << "[PermissionsAIv3] OnModelExecutionComplete: Model execution "
+             "completed. Returning relevance: "
+          << (relevance.has_value() ? static_cast<int>(relevance.value()) : -1);
+  timeout_timer_.Stop();
   is_execution_in_progress_ = false;
 
+  if (!current_callback_) {
+    VLOG(1) << "[PermissionsAIv3] OnModelExecutionComplete: Callback was "
+               "replaced. Ignoring the result.";
+    // The callback was executed in `OnModelExecutionTimeout` before the model
+    // execution completed.
+    // The timeout logic does not reset
+    // `is_execution_in_progress_` flag, so in the case of a new request we will
+    // not save a new callback to avoid delivering a stale model execution
+    // result to a new permission prompt.
+    return;
+  }
+
   if (is_callback_valid_) {
-    std::move(original_callback).Run(relevance);
+    VLOG(1) << "[PermissionsAIv3] OnModelExecutionComplete: Callback is "
+               "valid. Delivering relevance: "
+            << (relevance.has_value() ? static_cast<int>(relevance.value())
+                                      : -1);
+    std::move(current_callback_).Run(relevance);
   } else {
     VLOG(1) << "[PermissionsAIv3] OnModelExecutionComplete: Callback is no "
                "longer valid. Ignoring the result.";
@@ -113,7 +152,7 @@ void PermissionsAiv3Handler::OnModelExecutionComplete(
     // while the previous one was still in progress. We will return an empty
     // response to the callback because there is no UI to which the relevance
     // can be applied.
-    std::move(original_callback).Run(std::nullopt);
+    std::move(current_callback_).Run(std::nullopt);
   }
 }
 

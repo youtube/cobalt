@@ -1967,6 +1967,11 @@ Google Chrome is unable to recover your settings.
           Search this video with Google Lens
         </message>
 
+        <message name="IDS_AI_MODE_ENTRYPOINT_LABEL"
+          desc="The label of the AI mode entrypoint in the omnibox">
+          AI Mode
+        </message>
+
         <!-- Lens Side Panel Error Page -->
         <message name="IDS_SIDE_PANEL_LENS_OVERLAY_GENERIC_ERROR_PAGE_FIRST_LINE"
             desc="Text shown on the side panel for the Lens feature when there is a network or other server error. The texts informs the user that an error has occured.">
@@ -2036,6 +2041,12 @@ Google Chrome is unable to recover your settings.
         <message name="IDS_LENS_CONTEXTUAL_SEARCH_DEFAULT_QUERY"
           desc="Default query for Lens searchbox to request help with the current page context.">
           help me with this
+        </message>
+
+        <!-- AI Mode Strings -->
+        <message name="IDS_LENS_COMPOSEBOX_HINT_TEXT"
+          desc="The hint text of the AI mode searchbox in the Lens side panel. This text is shown in the searchbox when the user has not yet typed any text, and prompts the user to ask a follow up question.">
+          Ask a follow up
         </message>
 
         <!-- On Sign-in Avatar Button Label Desktop -->
@@ -2318,10 +2329,13 @@ Google Chrome is unable to recover your settings.
         Speeds up sites with Chrome's V8 engine but makes Chrome slightly less resistant to attacks. This setting is off.
       </message>
       <message name="IDS_SETTINGS_SITE_SETTINGS_JAVASCRIPT_OPTIMIZER_DESCRIPTION" desc="Description of the JavaScript optimizer content setting.">
-        V8 is Chrome’s JavaScript and WebAssembly engine used to improve site performance
+        Speeds up sites with Chrome's V8 engine but makes Chrome slightly less resistant to attacks
       </message>
       <message name="IDS_SETTINGS_SITE_SETTINGS_JAVASCRIPT_OPTIMIZER_ALLOWED_SUB_LABEL" desc="Sub-label for the enabled option of the JavaScript optimizer content setting.">
         Chrome runs faster and features that use JavaScript should work as designed (recommended)
+      </message>
+      <message name="IDS_SETTINGS_SITE_SETTINGS_JAVASCRIPT_OPTIMIZER_BLOCKED_SUB_LABEL" desc="Sub-label for the disabled option of the JavaScript optimizer content setting.">
+        Reduces performance but makes Chrome more resistant to attacks
       </message>
 
       <!-- GoogleUpdater Strings -->

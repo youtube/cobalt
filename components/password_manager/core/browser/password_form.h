@@ -571,6 +571,10 @@ struct PasswordForm {
   // `unique_display_name` if it exists and is not empty.
   std::optional<std::u16string> GetPasswordBackup() const;
 
+  // Returns the value of the note with a password change backup specific
+  // `unique_display_name` if it exists.
+  std::optional<std::u16string> GetPasswordBackupOrEmpty() const;
+
   // Returns the date_created of the note with a password change backup specific
   // `unique_display_name` if it exists and is not empty.
   // This method returns a non-empty optional iff `GetPasswordBackup` also
@@ -580,6 +584,11 @@ struct PasswordForm {
   // Updates the note with a password change backup specific
   // `unique_display_name`.
   void SetPasswordBackupNote(const std::u16string& new_note_value);
+
+  // Deletes the backup note from the password, it uses a specific
+  // `unique_display_name` that indicates this was a backup
+  // saved through the password change flow.
+  void DeletePasswordBackupNote();
 
   PasswordForm();
   PasswordForm(const PasswordForm& other);

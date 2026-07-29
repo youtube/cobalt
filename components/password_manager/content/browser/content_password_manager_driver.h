@@ -125,6 +125,7 @@ class ContentPasswordManagerDriver final
   bool CanShowAutofillUi() const override;
   int GetFrameId() const override;
   const GURL& GetLastCommittedURL() const override;
+  const url::Origin& GetLastCommittedOrigin() const override;
   void AnnotateFieldsWithParsingResult(
       const autofill::ParsingResult& parsing_result) override;
   base::WeakPtr<password_manager::PasswordManagerDriver> AsWeakPtr() override;
@@ -149,6 +150,8 @@ class ContentPasswordManagerDriver final
   content::RenderFrameHost* render_frame_host() const {
     return render_frame_host_;
   }
+
+  PasswordManagerClient* client() { return client_; }
 
 #if defined(UNIT_TEST)
   // Exposed to allow browser tests to hook the driver.

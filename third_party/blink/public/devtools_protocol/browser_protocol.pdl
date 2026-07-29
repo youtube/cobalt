@@ -825,6 +825,13 @@ experimental domain Audits
       ValidationFailedSignatureMismatch
       ValidationFailedIntegrityMismatch
 
+  type UnencodedDigestError extends string
+    enum
+      MalformedDictionary
+      UnknownAlgorithm
+      IncorrectDigestType
+      IncorrectDigestLength
+
   # Details for issues around "Attribution Reporting API" usage.
   # Explainer: https://github.com/WICG/attribution-reporting-api
   type AttributionReportingIssueDetails extends object
@@ -861,6 +868,11 @@ experimental domain Audits
       SRIMessageSignatureError error
       string signatureBase
       array of string integrityAssertions
+      AffectedRequest request
+
+  type UnencodedDigestIssueDetails extends object
+    properties
+      UnencodedDigestError error
       AffectedRequest request
 
   type GenericIssueErrorType extends string
@@ -1123,6 +1135,7 @@ experimental domain Audits
       SharedDictionaryIssue
       ElementAccessibilityIssue
       SRIMessageSignatureIssue
+      UnencodedDigestIssue
       UserReidentificationIssue
 
   # This struct holds a list of optional fields with additional information
@@ -1154,6 +1167,7 @@ experimental domain Audits
       optional SharedDictionaryIssueDetails sharedDictionaryIssueDetails
       optional ElementAccessibilityIssueDetails elementAccessibilityIssueDetails
       optional SRIMessageSignatureIssueDetails sriMessageSignatureIssueDetails
+      optional UnencodedDigestIssueDetails unencodedDigestIssueDetails
       optional UserReidentificationIssueDetails userReidentificationIssueDetails
 
   # A unique id for a DevTools inspector issue. Allows other entities (e.g.
@@ -2134,6 +2148,8 @@ experimental domain CSS
       optional DOM.LogicalAxes logicalAxes
       # true if the query contains scroll-state() queries.
       optional boolean queriesScrollState
+      # true if the query contains anchored() queries.
+      optional boolean queriesAnchored
 
   # CSS Supports at-rule descriptor.
   experimental type CSSSupports extends object
@@ -3717,9 +3733,9 @@ domain DOM
 
   # Returns the query container of the given node based on container query
   # conditions: containerName, physical and logical axes, and whether it queries
-  # scroll-state. If no axes are provided and queriesScrollState is false, the
-  # style container is returned, which is the direct parent or the closest
-  # element with a matching container-name.
+  # scroll-state or anchored elements. If no axes are provided and
+  # queriesScrollState is false, the style container is returned, which is the
+  # direct parent or the closest element with a matching container-name.
   experimental command getContainerForNode
     parameters
       NodeId nodeId
@@ -3727,6 +3743,7 @@ domain DOM
       optional PhysicalAxes physicalAxes
       optional LogicalAxes logicalAxes
       optional boolean queriesScrollState
+      optional boolean queriesAnchored
     returns
       # The container node for the given node, or null if not found.
       optional NodeId nodeId
@@ -10279,8 +10296,7 @@ domain Page
       # Whether or not it was triggered by user gesture.
       boolean userGesture
 
-  # Issued for every compilation cache generated. Is only available
-  # if Page.setGenerateCompilationCache is enabled.
+  # Issued for every compilation cache generated.
   experimental event compilationCacheProduced
     parameters
       string url
@@ -12080,6 +12096,15 @@ domain Target
     parameters
       TargetInfo targetInfo
 
+  # Opens a DevTools window for the target.
+  experimental command openDevTools
+    parameters
+      # This can be the page or tab target ID.
+      TargetID targetId
+    returns
+      # The targetId of DevTools page target.
+      TargetID targetId
+
 # The Tethering domain defines methods and events for browser port binding.
 experimental domain Tethering
 
@@ -13245,6 +13270,7 @@ experimental domain Preload
       V8OptimizerDisabled
       PrerenderFailedDuringPrefetch
       BrowsingDataRemoved
+      PrerenderHostReused
 
   # Fired when a preload enabled state is updated.
   event preloadEnabledStateUpdated

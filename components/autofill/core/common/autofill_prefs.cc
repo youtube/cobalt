@@ -5,6 +5,7 @@
 #include "components/autofill/core/common/autofill_prefs.h"
 
 #include "base/feature_list.h"
+#include "base/metrics/histogram_functions.h"
 #include "build/build_config.h"
 #include "components/autofill/core/common/autofill_features.h"
 #include "components/autofill/core/common/autofill_payments_features.h"
@@ -190,7 +191,24 @@ bool IsAutofillProfileEnabled(const PrefService* prefs) {
 }
 
 void SetAutofillProfileEnabled(PrefService* prefs, bool enabled) {
+  if (prefs->GetBoolean(kAutofillProfileEnabled) == enabled) {
+    return;
+  }
+
   prefs->SetBoolean(kAutofillProfileEnabled, enabled);
+  // These values are persisted to logs. Entries should not be renumbered and
+  // numeric values should never be reused.
+  //
+  // LINT.IfChange(AutofillAddressOptInChange)
+  enum class AutofillAddressOptInChange {
+    kOptIn = 0,
+    kOptOut = 1,
+    kMaxValue = kOptOut
+  };
+  // LINT.ThenChange(/tools/metrics/histograms/metadata/autofill/enums.xml:AutofillAddressOptInChange)
+  using enum AutofillAddressOptInChange;
+  base::UmaHistogramEnumeration("Autofill.Address.IsEnabled.Change",
+                                enabled ? kOptIn : kOptOut);
 }
 
 bool IsPaymentMethodsMandatoryReauthEnabled(const PrefService* prefs) {
@@ -313,6 +331,21 @@ bool IsFacilitatedPaymentsPixAccountLinkingEnabled(const PrefService* prefs) {
 #else
   // Default to false on other platforms as the feature is Android-only.
   return false;
+#endif  // BUILDFLAG(IS_ANDROID)
+}
+
+bool IsFacilitatedPaymentsA2AEnabled(const PrefService* prefs) {
+#if BUILDFLAG(IS_ANDROID)
+  return prefs->GetBoolean(kFacilitatedPaymentsA2AEnabled);
+#else
+  // Default to false on other platforms as the feature is Android-only.
+  return false;
+#endif  // BUILDFLAG(IS_ANDROID)
+}
+
+void SetFacilitatedPaymentsA2ATriggeredOnce(PrefService* prefs, bool value) {
+#if BUILDFLAG(IS_ANDROID)
+  prefs->SetBoolean(kFacilitatedPaymentsA2ATriggeredOnce, value);
 #endif  // BUILDFLAG(IS_ANDROID)
 }
 

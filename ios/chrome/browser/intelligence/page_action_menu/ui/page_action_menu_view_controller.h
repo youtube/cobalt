@@ -7,13 +7,20 @@
 
 #import <UIKit/UIKit.h>
 
+#import "ios/chrome/browser/reader_mode/ui/reader_mode_options_consumer.h"
+
 @protocol BWGCommands;
 @protocol LensOverlayCommands;
 @protocol PageActionMenuCommands;
+@protocol PageActionMenuViewControllerDelegate;
 @protocol ReaderModeCommands;
 
 // The view controller representing the presented page action menu UI.
-@interface PageActionMenuViewController : UIViewController
+@interface PageActionMenuViewController
+    : UIViewController <ReaderModeOptionsConsumer>
+
+// The delegate for this view controller.
+@property(nonatomic, weak) id<PageActionMenuViewControllerDelegate> delegate;
 
 // Initializes the view controller adapted to whether Reader Mode is currently
 // active.
@@ -24,6 +31,10 @@
 - (instancetype)initWithCoder:(NSCoder*)aDecoder NS_UNAVAILABLE;
 - (instancetype)initWithNibName:(NSString*)nibNameOrNil
                          bundle:(NSBundle*)nibBundleOrNil NS_UNAVAILABLE;
+
+// Returns the appropriate detent value for a sheet presentation in `context`.
+- (CGFloat)resolveDetentValueForSheetPresentation:
+    (id<UISheetPresentationControllerDetentResolutionContext>)context;
 
 // The handler for sending BWG commands.
 @property(nonatomic, weak) id<BWGCommands> BWGHandler;

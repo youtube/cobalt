@@ -64,6 +64,23 @@ const int kBaseTableLen = 64 * 1024;
 // Avoid trimming the cache for the first 5 minutes (10 timer ticks).
 const int kTrimDelay = 10;
 
+BASE_FEATURE(kBlockfileCacheBackendDumpWithoutCrashing,
+             "BlockfileCacheBackendDumpWithoutCrashing",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE_PARAM(double,
+                   kBlockfileCacheBackendDumpWithoutCrashingFrequency,
+                   &kBlockfileCacheBackendDumpWithoutCrashing,
+                   "dump_without_crashing_frequency",
+                   0.01);
+
+BASE_FEATURE_PARAM(
+    double,
+    kBlockfileCacheBackendDumpWithoutCrashingFrequencyOnInvalidLinks,
+    &kBlockfileCacheBackendDumpWithoutCrashing,
+    "dump_without_crashing_frequency_on_invalid_links",
+    0.01);
+
 int DesiredIndexTableLen(int32_t storage_size) {
   if (storage_size <= k64kEntriesStore)
     return kBaseTableLen;
@@ -251,6 +268,15 @@ int BackendImpl::SyncInit() {
   if (check_index_result != BackendImpl::CheckIndexResult::kOk) {
     SCOPED_CRASH_KEY_NUMBER("DiskCache", "check_index_result",
                             static_cast<int>(check_index_result));
+    SCOPED_CRASH_KEY_NUMBER("DiskCache", "current_index_size",
+                            index_->GetLength());
+    SCOPED_CRASH_KEY_NUMBER("DiskCache", "table_len", data_->header.table_len);
+    SCOPED_CRASH_KEY_NUMBER("DiskCache", "index_size",
+                            GetIndexSize(data_->header.table_len));
+    SCOPED_CRASH_KEY_NUMBER("DiskCache", "num_entries",
+                            data_->header.num_entries);
+    SCOPED_CRASH_KEY_NUMBER("DiskCache", "last_file_num",
+                            data_->header.last_file);
     ReportError(ERR_INIT_FAILED);
     return net::ERR_FAILED;
   }
@@ -1017,21 +1043,36 @@ void BackendImpl::ReportError(int error) {
   // We transmit positive numbers, instead of direct error codes.
   DCHECK_LE(error, 0);
   if (GetCacheType() == net::DISK_CACHE) {
+    SCOPED_CRASH_KEY_NUMBER("DiskCache", "disk_cache_error", error * -1);
     // TODO(crbug.com/433551601): Remove this once sufficient crash reports have
     // been gathered, and definitely before stable.
     if (error == ERR_INIT_FAILED) {
       static bool has_considered_dumping = false;
-      // We want to DumpWithoutCrashing() only for 0.2% of processes, and only
-      // once per process, to avoid overwhelming the crash service. There are
-      // roughly 8000 ERR_INIT_FAILED logged to UMA per day in Dev and Canary,
-      // so this should yield around 0.002 * 8000 = 16 crash reports per day.
+      // We want to DumpWithoutCrashing() only for X% of processes (configured
+      // by kBlockfileCacheBackendDumpWithoutCrashingFrequency), and only once
+      // per process, to avoid overwhelming the crash service.
       if (!has_considered_dumping) {
         has_considered_dumping = true;
-        if (base::ShouldRecordSubsampledMetric(0.002)) {
+        if (base::FeatureList::IsEnabled(
+                kBlockfileCacheBackendDumpWithoutCrashing) &&
+            base::ShouldRecordSubsampledMetric(
+                kBlockfileCacheBackendDumpWithoutCrashingFrequency.Get())) {
           // Capture the last file error. This may or may not be related to the
           // reason why init failed.
           base::File::Error file_error = base::File::GetLastFileError();
           SCOPED_CRASH_KEY_NUMBER("DiskCache", "file_error", file_error);
+          base::debug::DumpWithoutCrashing();
+        }
+      }
+    } else if (error == ERR_INVALID_LINKS) {
+      static bool has_considered_dumping = false;
+      if (!has_considered_dumping) {
+        has_considered_dumping = true;
+        if (base::FeatureList::IsEnabled(
+                kBlockfileCacheBackendDumpWithoutCrashing) &&
+            base::ShouldRecordSubsampledMetric(
+                kBlockfileCacheBackendDumpWithoutCrashingFrequencyOnInvalidLinks
+                    .Get())) {
           base::debug::DumpWithoutCrashing();
         }
       }
@@ -1396,6 +1437,11 @@ bool BackendImpl::InitBackingStore(bool* file_created) {
 
   index_ = base::MakeRefCounted<MappedFile>();
   data_ = static_cast<Index*>(index_->Init(index_name, 0));
+#if BUILDFLAG(IS_WIN)
+  // Experimentally enable flush for the index file on Windows
+  // (crbug.com/433551601).
+  index_->EnableFlush();
+#endif
   if (!data_) {
     LOG(ERROR) << "Unable to map Index file";
     return false;
@@ -1949,10 +1995,14 @@ BackendImpl::CheckIndexResult BackendImpl::CheckIndex() {
     return BackendImpl::CheckIndexResult::kInvalidTableSize;
   }
 
-  if (current_size < GetIndexSize(data_->header.table_len) ||
-      data_->header.table_len & (kBaseTableLen - 1)) {
+  if (current_size < GetIndexSize(data_->header.table_len)) {
     LOG(ERROR) << "Corrupt Index file";
-    return BackendImpl::CheckIndexResult::kCorruptIndexFileInTableLength;
+    return BackendImpl::CheckIndexResult::kCorruptIndexFileInTableLength1;
+  }
+
+  if (data_->header.table_len & (kBaseTableLen - 1)) {
+    LOG(ERROR) << "Corrupt Index file";
+    return BackendImpl::CheckIndexResult::kCorruptIndexFileInTableLength2;
   }
 
   AdjustMaxCacheSize(data_->header.table_len);

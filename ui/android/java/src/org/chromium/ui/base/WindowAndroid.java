@@ -38,14 +38,15 @@ import org.jni_zero.CalledByNativeForTesting;
 import org.jni_zero.JNINamespace;
 import org.jni_zero.NativeMethods;
 
+import org.chromium.base.AconfigFlaggedApiDelegate;
 import org.chromium.base.ActivityState;
 import org.chromium.base.ApiCompatibilityUtils;
 import org.chromium.base.Callback;
 import org.chromium.base.ContextUtils;
-import org.chromium.base.DeviceInfo;
 import org.chromium.base.Log;
 import org.chromium.base.ObserverList;
 import org.chromium.base.PackageManagerUtils;
+import org.chromium.base.ServiceLoaderUtil;
 import org.chromium.base.TraceEvent;
 import org.chromium.base.UnownedUserDataHost;
 import org.chromium.base.lifetime.Destroyable;
@@ -211,6 +212,8 @@ public class WindowAndroid
     private boolean mIsTopResumedActivity;
     private final boolean mActivityTopResumedSupported;
 
+    private @Nullable AconfigFlaggedApiDelegate mAconfigFlaggedApiDelegate;
+
     /**
      * @param context The application {@link Context}.
      * @param trackOcclusion Whether to track occlusion of the window.
@@ -296,13 +299,10 @@ public class WindowAndroid
     }
 
     private boolean shouldTrackOcclusion() {
-        // Enable occlusion only for desktop Android. For non-desktop Android, occlusion signals
-        // from Android should be the same as the Activity lifecycle signals that already control
-        // web contents occlusion. Also, on rotate Android seems to send a spurious occlusion
-        // signal. See crbug.com/380209799 for details.
+        // On rotate Android seems to send a spurious occlusion signal. See crbug.com/380209799 for
+        // details.
         return mTrackOcclusion
                 && Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM
-                && DeviceInfo.isDesktop()
                 && UiAndroidFeatureList.sAndroidWindowOcclusion.isEnabled();
     }
 
@@ -1352,6 +1352,18 @@ public class WindowAndroid
         mPointerLockingView = null;
         mPointerLockingViewFocusChangeListener = null;
         mPointerLockingViewPrvFocusChangeListener = null;
+    }
+
+    @CalledByNative
+    private boolean setHasKeyboardCapture(boolean hasCapture) {
+        Window window = getWindow();
+        if (window == null) return false;
+        if (mAconfigFlaggedApiDelegate == null) {
+            mAconfigFlaggedApiDelegate =
+                    ServiceLoaderUtil.maybeCreate(AconfigFlaggedApiDelegate.class);
+            if (mAconfigFlaggedApiDelegate == null) return false;
+        }
+        return mAconfigFlaggedApiDelegate.setKeyboardCaptureEnabled(window, hasCapture);
     }
 
     @NativeMethods

@@ -80,7 +80,6 @@ component("modules") {
     "//third_party/blink/renderer/modules/contacts_picker",
     "//third_party/blink/renderer/modules/content_extraction",
     "//third_party/blink/renderer/modules/content_index",
-    "//third_party/blink/renderer/modules/context_menu",
     "//third_party/blink/renderer/modules/cookie_store",
     "//third_party/blink/renderer/modules/credentialmanagement",
     "//third_party/blink/renderer/modules/crypto",
@@ -101,7 +100,6 @@ component("modules") {
     "//third_party/blink/renderer/modules/file_system_access",
     "//third_party/blink/renderer/modules/font_access",
     "//third_party/blink/renderer/modules/gamepad",
-    "//third_party/blink/renderer/modules/geolocation",
     "//third_party/blink/renderer/modules/handwriting",
     "//third_party/blink/renderer/modules/hid",
     "//third_party/blink/renderer/modules/idle",
@@ -736,6 +734,7 @@ source_set("unit_tests") {
     "//third_party/opus",
     "//third_party/webrtc_overrides:logging_test",
     "//third_party/webrtc_overrides:webrtc_component",
+    "//ui/accessibility",
     "//ui/strings:ax_strings_grit",
     "//v8",
   ]

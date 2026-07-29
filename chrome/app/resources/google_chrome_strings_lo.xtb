@@ -86,6 +86,7 @@
 <translation id="2091012649849228750">ເພື່ອຮັບການອັບເດດ Google Chrome ໃນອະນາຄົດ, ທ່ານຈະຕ້ອງໃຊ້ Windows 10 ຫຼື ໃໝ່ກວ່າ. ຄອມພິວເຕີນີ້ກຳລັງນຳໃຊ້ Windows 8.</translation>
 <translation id="2094648590148273905">ຂໍ້ກຳນົດ ChromeOS Flex</translation>
 <translation id="2094919256425865063">ຢືນຢັນການອອກຈາກ Chrome ບໍ?</translation>
+<translation id="2096213354152647998">ທ່ານບໍ່ໄດ້ເຂົ້າເບິ່ງເມື່ອບໍ່ດົນມານີ້. Chrome ໄດ້ລຶບ <ph name="PERMISSION" /> ອອກແລ້ວ.</translation>
 <translation id="2106831557840787829">ChromeOS Flex ເກີດຂຶ້ນໄດ້ດ້ວຍການສະໜັບສະໜຸນຈາກ <ph name="BEGIN_LINK_CROS_OSS" />ຊອບແວໂອເພນຊອດ<ph name="END_LINK_CROS_OSS" /> ເພີ່ມເຕີມ, ເຊັ່ນດຽວກັບ <ph name="BEGIN_LINK_LINUX_OSS" />ສະພາບແວດລ້ອມການພັດທະນາ Linux<ph name="END_LINK_LINUX_OSS" />.</translation>
 <translation id="2108778574543343055">ປິດການນຳໃຊ້ Chrome ທີ່ເຮັດວຽກໃນພື້ນຫຼັງສຳລັບແອັບ</translation>
 <translation id="2120620239521071941">ນີ້ຈະລຶບ <ph name="ITEMS_COUNT" /> ລາຍການອອກຈາກວິດີໂອນີ້. ເພື່ອກູ້ຂໍ້ມູນຂອງທ່ານຄືນໃນພາຍຫຼັງ, ກະລຸນາເຂົ້າສູ່ລະບົບ Chrome ເປັນ <ph name="USER_EMAIL" />.</translation>
@@ -174,6 +175,7 @@
 <translation id="3037838751736561277">Google Chrome ຢູ່ໃນໂໝດພື້ນຫຼັງ.</translation>
 <translation id="3038232873781883849">ກຳ​ລັງ​ລໍ​ຖ້າ​ຕິດ​ຕັ້ງ...</translation>
 <translation id="3045032126857188731">ພາສາທີ່ແປ: <ph name="LANGUAGE" /></translation>
+<translation id="3047590466164881923">ປິດກ່ອງໂຕ້ຕອບຄຳຕິຊົມ</translation>
 <translation id="306179102415443347">ໃຊ້ທາງລັດຂອງທ່ານເພື່ອເຂົ້າຫາຕົວຈັດການລະຫັດຜ່ານ Google ຢ່າງວ່ອງໄວ. ທ່ານສາມາດຍ້າຍທາງລັດຂອງທ່ານໄປຫາໜ້າຈໍຫຼັກຂອງຄອມພິວເຕີ ຫຼື ຕົວເປີດແອັບຂອງທ່ານໄດ້.</translation>
 <translation id="3065168410429928842">ແຖບ Chrome</translation>
 <translation id="3080151273017101988">ສືບຕໍ່ແລ່ນແອັບພື້ນຫຼັງ ເມື່ອ Google Chrome ປິດ</translation>
@@ -196,6 +198,7 @@
 <translation id="3282568296779691940">ລົງຊື່ເຂົ້າ​ໃຊ້ Chrome</translation>
 <translation id="3286538390144397061">ປິດເປີດໃໝ່ດຽວນີ້</translation>
 <translation id="3292333338048274092">ຈາກນັ້ນທ່ານຈະຕ້ອງຣີສະຕາດ Chrome.</translation>
+<translation id="3324218984287646518">ຖາມ Google Lens ກ່ຽວກັບວິດີໂອນີ້</translation>
 <translation id="3327226547491422998">ຕໍ່ມາ, Chrome ຈະສາມາດຖາມວ່າທ່ານຕ້ອງການໃຊ້ຂໍ້ມູນທີ່ບັນທຶກໄວ້ເພື່ອຕື່ມແບບຟອມໃຫ້ທ່ານຫຼືບໍ່</translation>
 <translation id="3352986031709923790">ມຸມຂວາເທິງຂອງພື້ນທີ່ຊອກຫາ: ຂວາ <ph name="RIGHT" />%, ເທິງ <ph name="TOP" />%</translation>
 <translation id="3360895254066713204">ຕົວຊ່ວຍ Chrome</translation>
@@ -214,11 +217,11 @@
 <translation id="3576528680708590453">ຜູ້ເບິ່ງແຍງລະບົບຂອງທ່ານໄດ້ກຳນົດຄ່າໃຫ້ Google Chrome ເປີດໂປຣແກຣມທ່ອງເວັບສຳຮອງເພື່ອເຂົ້າເຖິງ <ph name="TARGET_URL_HOSTNAME" />.</translation>
 <translation id="3582972582564653026">ຊິ້ງຂໍ້ມູນ ແລະ ປັບແຕ່ງ Chrome ໃຫ້ເປັນແບບສ່ວນຕົວໃນທົ່ວອຸປະກອນຂອງທ່ານ</translation>
 <translation id="3583751698304738917">ທ່ານເຂົ້າສູ່ລະບົບດ້ວຍ <ph name="USER_EMAIL_ADDRESS" /> ໃນໂປຣໄຟລ໌ Chrome ອື່ນຢູ່ກ່ອນແລ້ວ</translation>
+<translation id="358381413217813387">ຊອກຫາໜ້ານີ້ດ້ວຍ Google Lens</translation>
 <translation id="3589519427766620380">ຖາມ Google Lens ກ່ຽວກັບໜ້ານີ້</translation>
 <translation id="3595784445906693824">ເຂົ້າສູ່ລະບົບ Chrome ໃນໂປຣໄຟລ໌ໃໝ່ບໍ?</translation>
 <translation id="3596080736082218006">{COUNT,plural, =0{ຜູ້ເບິ່ງແຍງລະບົບຂອງທ່ານກຳນົດໃຫ້ທ່ານເປີດ Chrome ຄືນໃໝ່ເພື່ອນຳໃຊ້ການອັບເດດ}=1{ຜູ້ເບິ່ງແຍງລະບົບຂອງທ່ານກຳນົດໃຫ້ທ່ານເປີດ Chrome ຄືນໃໝ່ເພື່ອນຳໃຊ້ການອັບເດດ. ໜ້າຈໍທີ່ບໍ່ເປີດເຜີຍຕົວຕົນຂອງທ່ານຈະບໍ່ເປີດຄືນໃໝ່.}other{ຜູ້ເບິ່ງແຍງລະບົບຂອງທ່ານກຳນົດໃຫ້ທ່ານເປີດ Chrome ຄືນໃໝ່ເພື່ອນຳໃຊ້ການອັບເດດ. ໜ້າຈໍທີ່ບໍ່ເປີດເຜີຍຕົວຕົນຂອງທ່ານ # ລາຍການຈະບໍ່ເປີດຄືນໃໝ່.}}</translation>
 <translation id="3597003331831379823">ເອີ້ນໃຊ້ການຕັ້ງຄ່າດ້ວຍສິດທິພິເສດລະດັບສູງບໍ່ສຳເລັດ. <ph name="METAINSTALLER_ERROR" /></translation>
-<translation id="3609788354808247807">ທ່ານບໍ່ໄດ້ເຂົ້າເບິ່ງເມື່ອບໍ່ດົນມານີ້. Chromium ໄດ້ລຶບສິດເຂົ້າເຖິງ <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> ແລະ <ph name="PERMISSION_3" /> ອອກແລ້ວ</translation>
 <translation id="3622716124581627104">ລະບຸສິ່ງຂອງ ຫຼື ສະຖານທີ່ ແລ້ວສຳເນົາ ຫຼື ແປຂໍ້ຄວາມ. ເມື່ອທ່ານໃຊ້ Google Lens, ລະບົບຈະສົ່ງຮູບໜ້າຈໍຂອງໜ້າເວັບໄປໃຫ້ Google. <ph name="LEARN_MORE" /></translation>
 <translation id="3622797965165704966">ດຽວນີ້ມັນງ່າຍທີ່ຈະໃຊ້ Chrome ກັບບັນຊີ Google ຂອງທ່ານ ແລະຢູ່ໃນຄອມພິວເຕີທີ່ແຊຣ໌ແລ້ວ.</translation>
 <translation id="3635073343384702370">Chrome ສາມາດກວດເບິ່ງລະຫັດຜ່ານຂອງທ່ານເມື່ອທ່ານບັນທຶກພວກມັນໄວ້</translation>
@@ -268,6 +271,7 @@
 <translation id="4205939740494406371">Chrome ບໍ່ສາມາດກວດລະຫັດຜ່ານຂອງທ່ານໄດ້. ລອງໃໝ່ຫຼັງຈາກ 24 ຊົ່ວໂມງ ຫຼື <ph name="BEGIN_LINK" />ກວດລະຫັດຜ່ານໃນບັນຊີ Google ຂອງທ່ານ<ph name="END_LINK" />.</translation>
 <translation id="4222932583846282852">ກຳລັງຍົກເລີກ...</translation>
 <translation id="4224210481850767180">ການຕິດຕັ້ງຖືກຍົກເລີກ.</translation>
+<translation id="4230631012078055975">ຮັບປະໂຫຍດຫຼາຍຂຶ້ນເມື່ອທ່ານເຂົ້າສູ່ລະບົບ Chrome</translation>
 <translation id="4242034826641750751">Chrome ຕ້ອງການການອະນຸຍາດກ້ອງຖ່າຍຮູບ ແລະ ໄມໂຄຣໂຟນສຳລັບເວັບໄຊນີ້</translation>
 <translation id="424864128008805179">ອອກຈາກລະບົບ Chrome ບໍ?</translation>
 <translation id="4251615635259297716">ລິ້ງ Chrome ຂອງ​ທ່ານກັບບັນຊີນີ້ບໍ?</translation>
@@ -294,9 +298,11 @@
 <translation id="4501471624619070934">ການຕິດຕັ້ງບໍ່ສຳເລັດເນື່ອງຈາກສິດເຂົ້າເຖິງຖືກຈຳກັດໃນປະເທດນີ້.</translation>
 <translation id="4567424176335768812">ທ່ານລົງຊື່ເຂົ້າ​ໃຊ້ເປັນ <ph name="USER_EMAIL_ADDRESS" />. ດຽວນີ້ທ່ານສາມາດເຂົ້າຫາບຸກມາກສ໌, ປະຫວັດ, ແລະການຕັ້ງຄ່າອື່ນຢູ່ໃນທຸກອຸປະກອນທີ່ລົງຊື່ເຂົ້າ​ໃຊ້ຂອງທ່ານ.</translation>
 <translation id="4571503333518166079">ໄປຫາການຕັ້ງຄ່າການແຈ້ງເຕືອນຂອງ Chrome</translation>
+<translation id="4592634244097223647">ຖາມ Google ກ່ຽວກັບຮູບນີ້</translation>
 <translation id="459622048091363950">ເມື່ອ Chrome ມີການເຂົ້າເຖິງ, ເວັບໄຊຈະສາມາດຮ້ອງຂໍການເຂົ້າເຖິງນຳທ່ານ.</translation>
 <translation id="4598116752460667024">ຊອກຫາຂະບວນການໃດໆຈາກລາຍຊື່.</translation>
 <translation id="4600710005438004015">Chrome ບໍ່ສາມາດອັບເດດເປັນເວີຊັນຫຼ້າສຸດໄດ້, ສະນັ້ນທ່ານກຳລັງພາດຄຸນສົມບັດ ແລະ ການແກ້ໄຂດ້ານຄວາມປອດໄພໃໝ່ໆຢູ່.</translation>
+<translation id="4608435347866444037">ຊອກຫາຮູບນີ້ດ້ວຍ Google Lens</translation>
 <translation id="4624065194742029982">ໂໝດບໍ່ເປີດເຜີຍຕົວຕົນໃນ Chrome</translation>
 <translation id="4627412468266359539">ຕົວເລືອກເສີມ: ຊ່ວຍປັບປຸງຄຸນສົມບັດ ແລະ ປະສິດທິພາບຂອງ ChromeOS Flex ໂດຍການສົ່ງຂໍ້ມູນການວິນິໄສ ແລະ ການນຳໃຊ້ໄປໃຫ້ Google ໂດຍອັດຕະໂນມັດ.</translation>
 <translation id="4633000520311261472">ເພື່ອເຮັດໃຫ້  Chrome ປອດໄພຂຶ້ນ, ພວກເຮົາປິດໃຊ້ງານບາງສ່ວນຂະຫຍາຍທີ່ບໍ່ໄດ້ມີລາຍຊື່ຢູ່ໃນ <ph name="IDS_EXTENSION_WEB_STORE_TITLE" /> ແລະອາດຈະຖືກເພີ່ມເຂົ້າໂດຍທີ່ທ່ານບໍ່ຮູ້ຈັກ.</translation>
@@ -309,6 +315,7 @@
 <translation id="4747730611090640388">Chrome ສາມາດປະເມີນຄວາມສົນໃຈຂອງທ່ານໄດ້.  ເວັບໄຊໃດໜຶ່ງທີ່ທ່ານເຂົ້າເບິ່ງຈະສາມາດຂໍ Chrome ເພື່ອເບິ່ງຄວາມສົນໃຈຂອງທ່ານໃນພາຍຫຼັງໄດ້ເພື່ອປັບແຕ່ງໂຄສະນາທີ່ທ່ານເຫັນໃຫ້ເປັນສ່ວນຕົວ.</translation>
 <translation id="475321580758063259">ອັບເດດ Chrome ເພື່ອສືບຕໍ່ນຳໃຊ້ຂໍ້ມູນ Chrome ໃນບັນຊີ Google ຂອງທ່ານ, <ph name="ACCOUNT_EMAIL" /></translation>
 <translation id="4754614261631455953">Google Chrome Canary (mDNS-In)</translation>
+<translation id="4756182432527369254">ເພີ່ມຄວາມໄວເວັບໄຊດ້ວຍເຄື່ອງຈັກ V8 ຂອງ Chrome ແຕ່ເຮັດໃຫ້ Chrome ມີຄວາມທົນທານຕໍ່ການໂຈມຕີໜ້ອຍລົງເລັກນ້ອຍ</translation>
 <translation id="479167709087336770">ນີ້ໃຊ້ຕົວກວດການສະກົດຄໍາດຽວກັນກັບທີ່ໃຊ້ໃນ Google ຊອກຫາ. ຂໍ້ຄວາມທີ່ທ່ານພິມໃນໂປຣແກຣມທ່ອງເວັບຖືກສົ່ງໃຫ້ Google. ທ່ານສາມາດປ່ຽນລັກສະນະການນໍາໃຊ້ນີ້ໄດ້ສະເໝີໃນການຕັ້ງຄ່າ.</translation>
 <translation id="4793679854893018356">ສຶກສາວິທີການທີ່ Chrome ຮັກສາຄວາມປອດໄພໃຫ້ທ່ານ</translation>
 <translation id="4828579605166583682">Google Chrome ກຳລັງພະຍາຍາມປ່ຽນແທນລະຫັດຜ່ານທີ່ມີຢູ່. ພິມລະຫັດຜ່ານ Windows ຂອງທ່ານໃສ່ເພື່ອອະນຸຍາດສິ່ງນີ້.</translation>
@@ -330,7 +337,6 @@
 <translation id="4990567037958725628">Google Chrome Canary</translation>
 <translation id="5003967926796347400">ຄລິກ “ຕົວຈັດການລະຫັດຜ່ານ Google”</translation>
 <translation id="504867494566807945">ເປີດລິ້ງໃນ Chrome ຈາກແອັບໃດກໍໄດ້. ພ້ອມທັງເພື່ອເຂົ້າເຖິງໄດ້ງ່າຍ, ມັນຈະຖືກປັກໝຸດໃສ່ແຖບໜ້າວຽກຂອງທ່ານ.</translation>
-<translation id="5049567194145991071">ເມື່ອທ່ານຄລິກ 'ເຂົ້າໃຈແລ້ວ', ທ່ານຈະສາມາດບັນທຶກ ແລະ ໃຊ້ລະຫັດຜ່ານ ຮວມທັງຂໍ້ມູນອື່ນໆໃນບັນຊີ Google ຂອງທ່ານໄດ້ທຸກເທື່ອທີ່ທ່ານເຂົ້າສູ່ລະບົບ Chrome. <ph name="LEARN_MORE" /></translation>
 <translation id="5114340746415930644">ໃສ່ລະຫັດຜ່ານຂອງທ່ານເພື່ອໃຊ້ ແລະ ບັນທຶກຂໍ້ມູນ Chrome ໃນບັນຊີຂອງທ່ານ, <ph name="USER_EMAIL" /></translation>
 <translation id="5120334927898581447">ເຂົ້າສູ່ລະບົບ Chrome ເມື່ອທ່ານເຂົ້າສູ່ລະບົບບໍລິການອື່ນໆຂອງ Google</translation>
 <translation id="5126049312684316860">Chrome ໂຫຼດໜ້າເວັບໄວ້ກ່ອນລ່ວງໜ້າເພີ່ມຫຼາຍຂຶ້ນສຳລັບໜ້າທີ່ທ່ານອາດຈະເຂົ້າເບິ່ງ, ເພື່ອໃຫ້ພວກມັນໂຫຼດໄວຂຶ້ນເມື່ອທ່ານເຂົ້າເບິ່ງ</translation>
@@ -398,7 +404,7 @@ Google Chrome ບໍ່ສາມາດກູ້ຄືນການຕັ້ງຄ
 <translation id="5941711191222866238">ຫຍໍ້ລົງ</translation>
 <translation id="5941830788786076944">ເຮັດ Google Chrome ເປັນບຣາວເຊີມາດຕະຖານ</translation>
 <translation id="5947104538377036631">ທາງລັດ Chrome</translation>
-<translation id="5953954252731207958">ທ່ານບໍ່ໄດ້ເຂົ້າເບິ່ງເມື່ອບໍ່ດົນມານີ້. Chrome ໄດ້ລຶບສິດເຂົ້າເຖິງ <ph name="PERMISSION" /> ອອກແລ້ວ</translation>
+<translation id="5968400720580217226">ໂໝດ AI</translation>
 <translation id="5980111191913430208">ສ່ວນຂະຫຍາຍ, ແອັບ ແລະ ຮູບແບບສີສັນຈາກແຫຼ່ງຂໍ້ມູນທີ່ບໍ່ຮູ້ຈັກອາດເປັນອັນຕະລາຍກັບອຸປະກອນຂອງທ່ານໄດ້. Chrome ແນະນຳໃຫ້ຕິດຕັ້ງພວກມັນຈາກ <ph name="IDS_EXTENSION_WEB_STORE_TITLE" /> ເທົ່ານັ້ນ</translation>
 <translation id="6003112304606738118">ກຳລັງດາວໂຫຼດ... ຍັງເຫຼືອ <ph name="HOURS" /> ຊົ່ວໂມງ</translation>
 <translation id="6008161919456049856">ລະບົບຈະລຶບລະຫັດຜ່ານ, ວິທີການຈ່າຍເງິນ ແລະ ທີ່ຢູ່ທີ່ທ່ານບັນທຶກໄວ້ໃນບັນຊີ Google ຂອງທ່ານອອກຈາກອຸປະກອນນີ້. ເພື່ອໃຊ້ຂໍ້ມູນເຫຼົ່ານີ້ໃນ Chrome, ໃຫ້ເຂົ້າສູ່ລະບົບອີກຄັ້ງ.</translation>
@@ -423,7 +429,6 @@ Google Chrome ບໍ່ສາມາດກູ້ຄືນການຕັ້ງຄ
 <translation id="6173637689840186878"><ph name="PAGE_TITLE" /> - Google Chrome Beta</translation>
 <translation id="6180522807229584611">ແຖບນີ້ກຳລັງໃຊ້ຊັບພະຍາກອນເພີ່ມເຕີມ. ເພື່ອປັບປຸງປະສິດທິພາບຂອງທ່ານ, ໃຫ້ Chrome ຊ່ວຍເຮັດໃຫ້ມັນບໍ່ເຮັດວຽກ.</translation>
 <translation id="6182736845697986886">ການຕິດຕັ້ງບໍ່ສຳເລັດເນື່ອງຈາກເຊີບເວີອັບເດດເກີດຂໍ້ຜິດພາດພາຍໃນ.</translation>
-<translation id="6200139057479872438">ທ່ານບໍ່ໄດ້ເຂົ້າເບິ່ງເມື່ອບໍ່ດົນມານີ້. Chrome ໄດ້ລຶບສິດເຂົ້າເຖິງ <ph name="PERMISSION_1" /> ແລະ <ph name="PERMISSION_2" /> ອອກແລ້ວ</translation>
 <translation id="6235018212288296708">ກົດລະບຽບຂາເຂົ້າສໍາລັບ Google Chrome ເພື່ອອະນຸຍາດໃຫ້ການຈາລະຈອນ mDNS.</translation>
 <translation id="624230925347970731">Chrome ຈະປິດໄວໆນີ້</translation>
 <translation id="6247557882553405851">ຕົວຈັດການລະຫັດຜ່ານ Google</translation>
@@ -461,6 +466,7 @@ Google Chrome ບໍ່ສາມາດກູ້ຄືນການຕັ້ງຄ
 <translation id="6696915334902295848">Chrome ຕ້ອງການການອະນຸຍາດໄມໂຄຣໂຟນສຳລັບເວັບໄຊນີ້</translation>
 <translation id="6712881677154121168">ດາວໂຫຼດຜິດພາດ: <ph name="DOWNLOAD_ERROR" />.</translation>
 <translation id="6718739135284199302">ເຮັດໃຫ້ Chrome ໄວຂຶ້ນ</translation>
+<translation id="6734827584173583205">ທ່ານບໍ່ໄດ້ເຂົ້າເບິ່ງເມື່ອບໍ່ດົນມານີ້. Chrome ໄດ້ລຶບ <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> ແລະ ອີກ <ph name="COUNT" /> ລາຍການອອກແລ້ວ.</translation>
 <translation id="6735387454586646204">ລະບົບ ChromeOS Flex</translation>
 <translation id="6750954913813541382">ເພື່ອແກ້ໄຂຂໍ້ຜິດພາດກ່ຽວກັບການສະກົດຄຳ, Chrome ສົ່ງຂໍ້ຄວາມທີ່ທ່ານພິມໃນໂປຣແກຣມທ່ອງເວັບໃຫ້ Google</translation>
 <translation id="6760235774835597023">ເພີ່ມຄວາມໄວເວັບໄຊດ້ວຍເຄື່ອງຈັກ V8 ຂອງ Chrome ແຕ່ເຮັດໃຫ້ Chrome ມີຄວາມທົນທານຕໍ່ການໂຈມຕີໜ້ອຍລົງເລັກນ້ອຍ. ການຕັ້ງຄ່ານີ້ເປີດຢູ່.</translation>
@@ -486,7 +492,9 @@ Google Chrome ບໍ່ສາມາດກູ້ຄືນການຕັ້ງຄ
 <translation id="7024536598735240744">ແຕກໄຟລ໌ຜິດພາດ: <ph name="UNPACK_ERROR" />.</translation>
 <translation id="7025789849649390912">ຢຸດການຕິດຕັ້ງແລ້ວ.</translation>
 <translation id="7025800014283535195">ທ່ານສາມາດສະຫຼັບລະຫວ່າງໂປຣໄຟລ໌ Chrome ໄດ້ຢູ່ບ່ອນນີ້</translation>
+<translation id="7051685429025310665">ທ່ານບໍ່ໄດ້ເຂົ້າເບິ່ງເມື່ອບໍ່ດົນມານີ້. Chrome ໄດ້ລຶບ <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" />, <ph name="PERMISSION_3" /> ອອກແລ້ວ.</translation>
 <translation id="7059914902409643750">ຕັ້ງຄ່າ Chrome ແບບກຳນົດເອງ</translation>
+<translation id="7060643578009939353">ຊອກຫາວິດີໂອນີ້ດ້ວຍ Google Lens</translation>
 <translation id="7071827361006050863">Chrome ຈະລຶບຂໍ້ມູນການທ່ອງເວັບໃນໄວໆນີ້</translation>
 <translation id="7085332316435785646">ເລືອກວ່າຈະໃຫ້ຮວມປະຫວັດ Chrome ສຳລັບປະສົບການທີ່ປັບແຕ່ງສ່ວນຕົວໃນບໍລິການ Google ຫຼືບໍ່</translation>
 <translation id="7088681679121566888">Chrome ໃໝ່ຫຼ້າສຸດແລ້ວ</translation>
@@ -540,13 +548,13 @@ Google Chrome ບໍ່ສາມາດກູ້ຄືນການຕັ້ງຄ
 <translation id="7655455401911432608">ປະຫວັດການທ່ອງເວັບຂອງທ່ານ, ບັນທຶກຂອງເວັບໄຊທີ່ທ່ານເຂົ້າເບິ່ງໂດຍໃຊ້ Chrome ຢູ່ອຸປະກອນນີ້.</translation>
 <translation id="7655472416356262023">ລຶບບັນຊີອອກຈາກ Chrome</translation>
 <translation id="7658239707568436148">ຍົກ​ເລີກ​</translation>
-<translation id="7661924425853052955">ທ່ານບໍ່ໄດ້ເຂົ້າເບິ່ງເມື່ອບໍ່ດົນມານີ້. Chrome ໄດ້ລຶບສິດເຂົ້າເຖິງ <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> ແລະ ອີກ <ph name="COUNT" /> ລາຍການອອກແລ້ວ</translation>
 <translation id="7670287553302121848">ບັນຊີ Chrome ຕ້ອງມີການພິສູດຢືນຢັນຄືນໃໝ່</translation>
 <translation id="769538538642757151">Chrome ຈະແຈ້ງໃຫ້ທ່ານຮູ້ຫາກມີສິ່ງໃດທີ່ທ່ານຕ້ອງກວດສອບ</translation>
 <translation id="7716950018788545737">ໜ້າວຽກສິ້ນສຸດແລ້ວ.</translation>
 <translation id="77283119132245232">ໃຫ້ບໍລິການຕິດຕາມລະບົບສຳລັບ <ph name="BROWSER_NAME" />. ຫາກປິດການນຳໃຊ້ບໍລິການນີ້, ການຕິດຕາມປະສິດທິພາບທີ່ສ້າງຂຶ້ນໂດຍໂປຣແກຣມທ່ອງເວັບຈະບໍ່ຮວມກິດຈະກຳທົ່ວລະບົບ ເຊັ່ນ: ກິດຈະກຳປ່ຽນບໍລິບົດ ແລະ ກິດຈະກຳຫົວຂໍ້ທີ່ພ້ອມນຳໃຊ້.</translation>
 <translation id="7736869414036750079">ອົງກອນຂອງທ່ານກຳນົດໃຫ້ທ່ານເຂົ້າສູ່ລະບົບ Chrome</translation>
 <translation id="7747138024166251722">ຕົວຕິດຕັ້ງບໍ່ສາມາດສ້າງໄດເຣັກຕໍຣີຊົ່ວຄາວໄດ້. ກະລຸນາກວດເບິ່ງບ່ອນ​ວ່າງດິສກ໌ ແລະການອະນຸຍາດ ເພື່ອຕິດຕັ້ງຊອບແວ.</translation>
+<translation id="7748969056734910029">ທ່ານບໍ່ໄດ້ເຂົ້າເບິ່ງເມື່ອບໍ່ດົນມານີ້. Chrome ໄດ້ລຶບ <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> ອອກແລ້ວ.</translation>
 <translation id="7761834446675418963">ຄລິກ​ທີ່​ຊື່​ຂອງ​ທ່ານ​ເພື່ອ​ເປີດ Chrome ແລະ​ເລີ່ມ​ຕົ້ນທ່ອງເນັດ.</translation>
 <translation id="7777080907402804672">ຖ້າຮູບບໍ່ມີລາຍລະອຽດທີ່ເປັນປະໂຫຍດ, Chrome ຈະພະຍາຍາມໃຫ້ລາຍລະອຽດແກ່ທ່ານ. ເພື່ອສ້າງລາຍລະອຽດ, ລະບົບຈະສົ່ງຮູບພາບໃຫ້ Google. ທ່ານສາມາດປິດສິ່ງນີ້ໃນການຕັ້ງຄ່າໄດ້ທຸກເວລາ.</translation>
 <translation id="778331955594035129">Chrome ຕ້ອງການການອະນຸຍາດສະຖານທີ່ສຳລັບເວັບໄຊນີ້</translation>
@@ -554,7 +562,6 @@ Google Chrome ບໍ່ສາມາດກູ້ຄືນການຕັ້ງຄ
 <translation id="7801699035218095297">Google Chrome ກໍາລັງພະຍາຍາມສຳເນົາລະຫັດຜ່ານ. ພິມລະຫັດຜ່ານ Windows ຂອງທ່ານ ເພື່ອອະນຸຍາດອັນນີ້.</translation>
 <translation id="7808348361785373670">ເອົາ​ອອກ​ໄປຈາກ Chrome...</translation>
 <translation id="7825851276765848807">ການ​ຕິດ​ຕັ້ງ​ບໍ່​ສໍາ​ເລັດ ​ເນື່ອງ​ຈາກ​ຄວາມຜິດພາດທີ່ບໍ່ໄດ້ລະບຸ​. ກະ​ລຸ​ນາ​ດາວ​ໂຫລດ Google Chrome ອີກ​.</translation>
-<translation id="7826342993930002256">Chrome ຂອງທ່ານໃນທຸກໆບ່ອນ</translation>
 <translation id="7827099906024714326">Chrome ຕ້ອງການຢັ້ງຢືນວ່າແມ່ນທ່ານກ່ອນຈະບັນທຶກຂໍ້ມູນບາງຢ່າງໃນບັນຊີ Google ຂອງທ່ານ ແລະ ໃຊ້ຢູ່ອຸປະກອນຂອງທ່ານທັງໝົດ. ຫາກທ່ານອອກຈາກລະບົບຕອນນີ້, ຂໍ້ມູນນີ້ຈະຖືກລຶບ.</translation>
 <translation id="7845233973568007926">ຂໍຂອບໃຈສຳລັບການຕິດຕັ້ງ. ທ່ານຈະຕ້ອງຣີສະຕາດຄອມພິວເຕີຂອງທ່ານກ່ອນການໃຊ້ <ph name="BUNDLE_NAME" />.</translation>
 <translation id="7872446069773932638">ກຳລັງດາວໂຫຼດ... ຍັງເຫຼືອ <ph name="SECONDS" /> ວິນາທີ</translation>
@@ -593,7 +600,9 @@ Google Chrome ບໍ່ສາມາດກູ້ຄືນການຕັ້ງຄ
 <translation id="8321888067342493336">ບັນທຶກເປັນຮູບ</translation>
 <translation id="8336463659890584292">ເມື່ອເວັບໄຊຂໍໃຫ້ມີການໂຫຼດລິ້ງໄວ້ກ່ອນລ່ວງໜ້າແບບເປັນສ່ວນຕົວຢູ່ໃນໜ້າຂອງເຂົາເຈົ້າ, Chrome ຈະໃຊ້ເຊີບເວີຂອງ Google. ສິ່ງນີ້ຈະເຊື່ອງຕົວຕົນຂອງທ່ານຈາກເວັບໄຊທີ່ໄດ້ໂຫຼດກ່ອນລ່ວງໜ້າ, ແຕ່ Google ຈະສຶກສາວ່າເວັບໄຊໃດຖືກໂຫຼດກ່ອນລ່ວງໜ້າ.</translation>
 <translation id="8342675569599923794">ໄຟລ໌ນີ້ເປັນອັນຕະລາຍ, ສະນັ້ນ Chrome ໄດ້ບລັອກມັນໄວ້ແລ້ວ.</translation>
+<translation id="8349094670477064572">ທ່ານຈະບັນທຶກ ແລະ ໃຊ້ລະຫັດຜ່ານ ຮວມທັງຂໍ້ມູນອື່ນໆໃນບັນຊີ Google ຂອງທ່ານໄດ້ທຸກເທື່ອທີ່ທ່ານເຂົ້າສູ່ລະບົບ Chrome. <ph name="LEARN_MORE" /></translation>
 <translation id="8362914115861174987">ແປພາສາເປັນ</translation>
+<translation id="8366770919198174997">ຫຼຸດປະສິດທິພາບ ແຕ່ເຮັດໃຫ້ Chrome ທົນທານຕໍ່ການໂຈມຕີໄດ້ຫຼາຍຂຶ້ນ</translation>
 <translation id="8370517070665726704">ລິຂະສິດ <ph name="YEAR" /> Google LLC. ສະຫງວນສິດທັງໝົດ.</translation>
 <translation id="8387459386171870978">ສືບຕໍ່ນຳໃຊ້ Chrome</translation>
 <translation id="8394720698884623075">ກວດສອບ URL ກັບລາຍການເວັບໄຊທີ່ບໍ່ປອດໄພທີ່ຈັດເກັບໄວ້ໃນ Chrome</translation>
@@ -622,6 +631,7 @@ Google Chrome ບໍ່ສາມາດກູ້ຄືນການຕັ້ງຄ
 <translation id="8712637175834984815">ເຂົ້າໃຈແລ້ວ</translation>
 <translation id="8712767363896337380">ອັບເດດໃກ້ແລ້ວໆ! ເລີ່ມເປີດໃຊ້ Chrome ໃໝ່ເພື່ອອັບເດດໃຫ້ແລ້ວ.</translation>
 <translation id="8718062187489036808">ອອກຈາກລະບົບ Chrome</translation>
+<translation id="8725440680697264016">ຖາມ Google ກ່ຽວກັບວິດີໂອນີ້</translation>
 <translation id="873133009373065397">Google Chrome ບໍ່ສາມາດກຳນົດ ຫຼື ຕັ້ງໂປຣແກຣມທ່ອງເວັບເລີ່ມຕົ້ນໄດ້</translation>
 <translation id="8747073452963259673">ມຸມຊ້າຍລຸ່ມຂອງພື້ນທີ່ຊອກຫາ: ຊ້າຍ <ph name="LEFT" />%, ລຸ່ມ <ph name="BOTTOM" />%</translation>
 <translation id="8748735421235723888">Chrome ຈະເພີ່ມໜ່ວຍຄວາມຈຳຈາກແຖບທີ່ບໍ່ໄດ້ນຳໃຊ້. ເຊິ່ງນີ້ເຮັດໃຫ້ແຖບທີ່ນຳໃຊ້ຢູ່ ແລະ ແອັບອື່ນໆມີຊັບພະຍາກອນສຳລັບຄອມພິວເຕີເພີ່ມຂຶ້ນ ແລະ ຊ່ວຍໃຫ້ Chrome ເຮັດວຽກໄດ້ໄວ. ແຖບທີ່ບໍ່ມີການນຳໃຊ້ຂອງທ່ານຈະກັບມາເຮັດວຽກໂດຍອັດຕະໂນມັດອີກຄັ້ງເມື່ອທ່ານກັບຄືນໄປຫາແຖບເຫຼົ່ານັ້ນ. <ph name="BEGIN_LINK" />ສຶກສາເພີ່ມເຕີມກ່ຽວກັບຕົວປະຢັດໜ່ວຍຄວາມຈຳ<ph name="END_LINK" /></translation>
@@ -630,7 +640,6 @@ Google Chrome ບໍ່ສາມາດກູ້ຄືນການຕັ້ງຄ
 <translation id="8781673607513845160">ເພື່ອໃຊ້ກ້ອງຂອງທ່ານ, ກະລຸນາມອບສິດເຂົ້າເຖິງໃຫ້ Chrome ໃນ <ph name="BEGIN_LINK" />ການຕັ້ງຄ່າລະບົບ<ph name="END_LINK" /></translation>
 <translation id="878572486461146056">ຂໍ້ຜິດພາດໃນການຕິດຕັ້ງ: ຜູ້ເບິ່ງແຍງລະບົບເຄືອຂ່າຍຂອງທ່ານໃຊ້ນະໂຍບາຍລະດັບກຸ່ມເຊິ່ງປ້ອງກັນການຕິດຕັ້ງ: <ph name="INSTALL_ERROR" /></translation>
 <translation id="8798550110818026746">ອົງກອນຂອງທ່ານສາມາດເບິ່ງ ແລະ ຈັດການຂໍ້ມູນການທ່ອງເວັບ ເຊັ່ນ: ບຸກມາກ, ປະຫວັດ ແລະ ລະຫັດຜ່ານຂອງທ່ານໄດ້. ແຕ່ຈະບໍ່ເຫັນຂໍ້ມູນການທ່ອງເວັບໃນໂປຣໄຟລ໌ Chrome ອື່ນໆ</translation>
-<translation id="8801657293260363985">V8 ແມ່ນເຄື່ອງມື JavaScript ແລະ WebAssembly ຂອງ Chrome ທີ່ໃຊ້ເພື່ອປັບປຸງປະສິດທິພາບຂອງເວັບໄຊ</translation>
 <translation id="8821043148920470810">ເພື່ອຮັບການອັບເດດ Google Chrome ໃນອະນາຄົດ, ທ່ານຈະຕ້ອງໃຊ້ Windows 10 ຫຼື ໃໝ່ກວ່າ. ຄອມພິວເຕີນີ້ກຳລັງນຳໃຊ້ Windows 7.</translation>
 <translation id="8823341990149967727">Chrome ລ້າສະໄໝແລ້ວ</translation>
 <translation id="8825634023950448068">ເພື່ອປົກປ້ອງຄວາມເປັນສ່ວນຕົວຂອງທ່ານ, ພວກເຮົາຈະລຶບຄວາມສົນໃຈຂອງທ່ານທີ່ເກົ່າກວ່າ 4 ອາທິດອອກໂດຍອັດຕະໂນມັດ. ໃນເວລາທີ່ທ່ານສືບຕໍ່ການທ່ອງເວັບ, ຄວາມສົນໃຈອາດປາກົດຢູ່ລາຍຊື່ຄືນໃໝ່. ແລະ ຫາກ Chrome ເຂົ້າໃຈຜິດ ຫຼື ທ່ານບໍ່ຕ້ອງການເຫັນໂຄສະນາບາງຢ່າງ, ທ່ານສາມາດລຶບຄວາມສົນໃຈໃດໜຶ່ງອອກໄດ້.</translation>
@@ -638,6 +647,7 @@ Google Chrome ບໍ່ສາມາດກູ້ຄືນການຕັ້ງຄ
 <translation id="8843516219908676469">Chrome ເຂົ້າໃຈແບບຟອມດີຂຶ້ນ ແລະ ສາມາດຕື່ມຂໍ້ມູນໃສ່ແບບຟອມໂດຍອັດຕະໂນມັດໃຫ້ທ່ານໄດ້</translation>
 <translation id="8851180723659088381">{NUM_EXTENSIONS,plural, =1{Chrome ແນະນຳໃຫ້ທ່ານລຶບອອກ}other{Chrome ແນະນຳໃຫ້ທ່ານລຶບອອກ}}</translation>
 <translation id="8862326446509486874">ທ່ານບໍ່ມີສິດທິທີ່ເໝາະສົມສໍາລັບຕິດຕັ້ງ​ໃນລະດັບລະບົບ. ລອງແລ່ນຕົວຕິດຕັ້ງນີ້ອີກ​ໃນ​ຖານະ​ເປັນ​ຜູ້ຄວບຄຸມ.</translation>
+<translation id="8883862939660515976">ຖາມ Google Lens ກ່ຽວກັບຮູບນີ້</translation>
 <translation id="8914504000324227558">ເປີດໃຊ້ Chrome ຄືນໃໝ່</translation>
 <translation id="8922193594870374009">ເພື່ອສົ່ງເບີຈາກ <ph name="ORIGIN" /> ໃຫ້ໂທລະສັບ Android ຂອງທ່ານ, ກະລຸນາເຂົ້າສູ່ລະບົບ Chrome ຢູ່ໃນທັງສອງອຸປະກອນ.</translation>
 <translation id="8948460679427074738">ສ່ວນຂະຫຍາຍນີ້ບໍ່ໄດ້ເຜີຍແຜ່ຂໍ້ປະຕິບັດຄວາມເປັນສ່ວນຕົວ, ເຊັ່ນ: ວິທີທີ່ມັນຮວບຮວມ ແລະ ໃຊ້ຂໍ້ມູນ. Chrome ແນະນຳໃຫ້ທ່ານລຶບມັນອອກ.</translation>

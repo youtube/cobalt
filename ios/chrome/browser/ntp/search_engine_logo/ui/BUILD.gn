@@ -4,13 +4,16 @@
 
 source_set("ui") {
   sources = [
+    "search_engine_logo_consumer.h",
     "search_engine_logo_container_view.h",
     "search_engine_logo_container_view.mm",
+    "search_engine_logo_state.h",
   ]
   deps = [
     "//base",
     "//components/google/core/common",
     "//components/image_fetcher/ios",
+    "//components/omnibox/common",
     "//components/search",
     "//components/search_provider_logos",
     "//ios/chrome/app/strings",

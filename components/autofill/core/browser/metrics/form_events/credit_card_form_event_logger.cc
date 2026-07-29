@@ -50,7 +50,7 @@ CreditCardFormEventLogger::~CreditCardFormEventLogger() = default;
 
 void CreditCardFormEventLogger::OnBnplSuggestionShown() {
   if (!has_logged_bnpl_suggestion_shown_) {
-    LogBnplFormEvent(BnplFormEvent::kBnplSuggestionShown);
+    LogBnplSuggestionShown(driver().GetPageUkmSourceId());
     has_logged_bnpl_suggestion_shown_ = true;
   }
 }
@@ -82,8 +82,9 @@ void CreditCardFormEventLogger::OnDidShowSuggestions(
     Log(FORM_EVENT_SUGGESTIONS_SHOWN_WITH_VIRTUAL_CARD, form);
 
   // Also perform the logging actions from the base class:
-  FormEventLoggerBase::OnDidShowSuggestions(form, field, form_parsed_timestamp,
-                                            off_the_record, suggestions);
+  FormEventLoggerBase::OnDidShowSuggestions(
+      form, field, field.Type().GetCreditCardType(), form_parsed_timestamp,
+      off_the_record, suggestions);
 
   suggestion_shown_timestamp_ = base::TimeTicks::Now();
 
@@ -443,7 +444,7 @@ void CreditCardFormEventLogger::OnDidFillFormFillingSuggestion(
     }
   }
 
-  FieldType field_type = field.Type().GetStorableType();
+  const FieldType field_type = field.Type().GetCreditCardType();
   field_types_with_shown_suggestions_.erase(field_type);
   field_types_with_accepted_suggestions_.insert(field_type);
 
@@ -541,7 +542,7 @@ void CreditCardFormEventLogger::Log(FormEvent event,
   for (FormTypeNameForLogging form_type :
        base::FeatureList::IsEnabled(
            features::kAutofillEnableLogFormEventsToAllParsedFormTypes)
-           ? parsed_form_types_
+           ? identified_form_types_
            : GetFormTypesForLogging(form)) {
     std::string name = base::StrCat(
         {"Autofill.FormEvents.", FormTypeNameForLoggingToStringView(form_type),
@@ -570,7 +571,7 @@ void CreditCardFormEventLogger::LogCardUnmaskAuthenticationPromptCompleted(
 
 void CreditCardFormEventLogger::OnDidAcceptBnplSuggestion() {
   if (!has_logged_bnpl_suggestion_accepted_) {
-    LogBnplFormEvent(BnplFormEvent::kBnplSuggestionAccepted);
+    LogBnplSuggestionAccepted(driver().GetPageUkmSourceId());
     has_logged_bnpl_suggestion_accepted_ = true;
   }
 }

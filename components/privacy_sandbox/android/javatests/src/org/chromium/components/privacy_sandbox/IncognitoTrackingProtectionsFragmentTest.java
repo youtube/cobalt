@@ -44,18 +44,17 @@ import org.chromium.components.browser_ui.settings.BlankUiTestActivitySettingsTe
 public class IncognitoTrackingProtectionsFragmentTest {
     private static final int BLOCK_3PCS_TOGGLE_LABEL =
             R.string.incognito_tracking_protections_block_3pcs_toggle_label;
-    private static final int IP_PROTECTION_TOGGLE_LABEL =
-            R.string.incognito_tracking_protections_ip_protection_toggle_label;
-    private static final int IP_PROTECTION_TOGGLE_SUBLABEL_OFF =
-            R.string.incognito_tracking_protections_ip_protection_toggle_sublabel_off;
-    private static final int IP_PROTECTION_TOGGLE_SUBLABEL_ON =
-            R.string.incognito_tracking_protections_ip_protection_toggle_sublabel_on;
-    private static final int FINGERPRINTING_PROTECTION_TOGGLE_LABEL =
-            R.string.incognito_tracking_protections_fingerprinting_protection_toggle_label;
-    private static final int FINGERPRINTING_PROTECTION_TOGGLE_SUBLABEL_OFF =
-            R.string.incognito_tracking_protections_fingerprinting_protection_toggle_sublabel_off;
-    private static final int FINGERPRINTING_PROTECTION_TOGGLE_SUBLABEL_ON =
-            R.string.incognito_tracking_protections_fingerprinting_protection_toggle_sublabel_on;
+    private static final int IP_PROTECTION_LINK_ROW_LABEL = R.string.ip_protection_link_row_label;
+    private static final int IP_PROTECTION_LINK_ROW_SUBLABEL_OFF =
+            R.string.ip_protection_link_row_sublabel_disabled;
+    private static final int IP_PROTECTION_LINK_ROW_SUBLABEL_ON =
+            R.string.ip_protection_link_row_sublabel_enabled;
+    private static final int FINGERPRINTING_PROTECTION_LINK_ROW_LABEL =
+            R.string.fingerprinting_protection_link_row_label;
+    private static final int FINGERPRINTING_PROTECTION_LINK_ROW_SUBLABEL_OFF =
+            R.string.fingerprinting_protection_link_row_sublabel_disabled;
+    private static final int FINGERPRINTING_PROTECTION_LINK_ROW_SUBLABEL_ON =
+            R.string.fingerprinting_protection_link_row_sublabel_enabled;
 
     @Rule
     public final BlankUiTestActivitySettingsTestRule mSettingsRule =
@@ -116,9 +115,9 @@ public class IncognitoTrackingProtectionsFragmentTest {
         checkTitleDescriptionAndBlock3pcsToggleAreShown();
         onView(
                         allOf(
-                                withText(FINGERPRINTING_PROTECTION_TOGGLE_LABEL),
+                                withText(FINGERPRINTING_PROTECTION_LINK_ROW_LABEL),
                                 hasSibling(
-                                        withText(FINGERPRINTING_PROTECTION_TOGGLE_SUBLABEL_OFF))))
+                                        withText(FINGERPRINTING_PROTECTION_LINK_ROW_SUBLABEL_OFF))))
                 .check(matches(isDisplayed()));
     }
 
@@ -133,8 +132,9 @@ public class IncognitoTrackingProtectionsFragmentTest {
         checkTitleDescriptionAndBlock3pcsToggleAreShown();
         onView(
                         allOf(
-                                withText(FINGERPRINTING_PROTECTION_TOGGLE_LABEL),
-                                hasSibling(withText(FINGERPRINTING_PROTECTION_TOGGLE_SUBLABEL_ON))))
+                                withText(FINGERPRINTING_PROTECTION_LINK_ROW_LABEL),
+                                hasSibling(
+                                        withText(FINGERPRINTING_PROTECTION_LINK_ROW_SUBLABEL_ON))))
                 .check(matches(isDisplayed()));
     }
 
@@ -149,8 +149,8 @@ public class IncognitoTrackingProtectionsFragmentTest {
         checkTitleDescriptionAndBlock3pcsToggleAreShown();
         onView(
                         allOf(
-                                withText(IP_PROTECTION_TOGGLE_LABEL),
-                                hasSibling(withText(IP_PROTECTION_TOGGLE_SUBLABEL_OFF))))
+                                withText(IP_PROTECTION_LINK_ROW_LABEL),
+                                hasSibling(withText(IP_PROTECTION_LINK_ROW_SUBLABEL_OFF))))
                 .check(matches(isDisplayed()));
     }
 
@@ -165,8 +165,8 @@ public class IncognitoTrackingProtectionsFragmentTest {
         checkTitleDescriptionAndBlock3pcsToggleAreShown();
         onView(
                         allOf(
-                                withText(IP_PROTECTION_TOGGLE_LABEL),
-                                hasSibling(withText(IP_PROTECTION_TOGGLE_SUBLABEL_ON))))
+                                withText(IP_PROTECTION_LINK_ROW_LABEL),
+                                hasSibling(withText(IP_PROTECTION_LINK_ROW_SUBLABEL_ON))))
                 .check(matches(isDisplayed()));
     }
 
@@ -181,8 +181,8 @@ public class IncognitoTrackingProtectionsFragmentTest {
         checkTitleDescriptionAndBlock3pcsToggleAreShown();
         onView(
                         allOf(
-                                withText(IP_PROTECTION_TOGGLE_LABEL),
-                                hasSibling(withText(IP_PROTECTION_TOGGLE_SUBLABEL_OFF))))
+                                withText(IP_PROTECTION_LINK_ROW_LABEL),
+                                hasSibling(withText(IP_PROTECTION_LINK_ROW_SUBLABEL_OFF))))
                 .check(matches(isDisplayed()));
     }
 }
