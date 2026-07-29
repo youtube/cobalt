@@ -288,7 +288,7 @@ def process_results_data(
     data: Dict[str, Any], now: datetime.datetime
 ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
   """Processes a single unified results data dictionary."""
-  source = data.get('source', 'unknown')
+  source = data.get('source') or 'unknown'
   failed_jobs_details = []
   outdated_runs_details = []
 
@@ -363,6 +363,8 @@ def process_results_data(
           'device_logs_status': device_logs_status,
           'time': created_at,
           'matches': matches,
+          'log_downloaded': bool(log_path and os.path.exists(log_path)),
+          'device_log_downloaded': bool(system_log_path and os.path.exists(system_log_path)),
       })
 
   return failed_jobs_details, outdated_runs_details
@@ -395,16 +397,39 @@ def branch_sort_key(branch_name: str) -> tuple:
 
 
 def generate_report(failed_jobs: List[Dict[str, Any]],
-                    outdated_runs: List[Dict[str,
-                                             Any]], total_fetched: int) -> str:
+                    outdated_runs: List[Dict[str, Any]],
+                    total_fetched: Dict[str, int]) -> str:
   """Generates the unified markdown report."""
   report = []
   report.append('# Unified CI Build Status Triage Report\n')
 
   report.append('## Job Stats')
-  report.append(f'*   **Total Jobs Fetched**: {total_fetched}')
-  report.append(f'*   **Failed Jobs (Recent)**: {len(failed_jobs)}')
-  report.append(f'*   **Outdated Failed Runs**: {len(outdated_runs)}\n')
+
+  # Group stats by source
+  sources = set(total_fetched.keys())
+  for job in failed_jobs:
+    sources.add(job['source'])
+  for run in outdated_runs:
+    sources.add(run['source'])
+
+  for src in sorted(sources):
+    src_failed_jobs = [j for j in failed_jobs if j['source'] == src]
+    src_outdated_runs = [r for r in outdated_runs if r['source'] == src]
+
+    # Count downloaded logs
+    logs_downloaded = 0
+    for job in src_failed_jobs:
+      if job.get('log_downloaded'):
+        logs_downloaded += 1
+      if job.get('device_log_downloaded'):
+        logs_downloaded += 1
+
+    report.append(f'### Source: {src.upper()}')
+    report.append(f'*   **Total Jobs Fetched**: {total_fetched.get(src, 0)}')
+    report.append(f'*   **Failed Jobs (Recent)**: {len(src_failed_jobs)}')
+    report.append(f'*   **Outdated Failed Runs**: {len(src_outdated_runs)}')
+    report.append(f'*   **Log Files Downloaded**: {logs_downloaded}\n')
+
 
   # Group by branch
   branches = {}
@@ -539,7 +564,7 @@ def main():
   now = datetime.datetime.now(datetime.timezone.utc)
   all_failed_jobs = []
   all_outdated_runs = []
-  total_fetched = 0
+  total_fetched = {}
 
   for filename in os.listdir(args.incoming_dir):
     if filename.endswith(
@@ -548,7 +573,11 @@ def main():
       try:
         with open(file_path, 'r', encoding='utf-8') as f:
           data = json.load(f)
-        total_fetched += data.get('total_jobs_fetched', 0)
+        source = data.get('source') or 'unknown'
+        total_fetched[source] = (
+            total_fetched.get(source, 0)
+            + data.get('total_jobs_fetched', 0)
+        )
 
         failed, outdated = process_results_data(data, now)
         all_failed_jobs.extend(failed)

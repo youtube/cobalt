@@ -625,6 +625,10 @@ class TestUnifiedAnalyzer(unittest.TestCase):
             self.child_log_path,
         "device_system_log_path":
             self.infra_log_path,
+        "log_downloaded":
+            True,
+        "device_log_downloaded":
+            True,
         "matches": [{
             "line_num": 2,
             "line": "[  FAILED  ] MyClassTest",
@@ -640,8 +644,13 @@ class TestUnifiedAnalyzer(unittest.TestCase):
         }]
     }]
 
-    report = unified_analyzer.generate_report(failed_jobs, [], total_fetched=1)
+    report = unified_analyzer.generate_report(
+        failed_jobs, [], total_fetched={"github": 1})
 
+    self.assertIn("### Source: GITHUB", report)
+    self.assertIn("**Total Jobs Fetched**: 1", report)
+    self.assertIn("**Failed Jobs (Recent)**: 1", report)
+    self.assertIn("**Log Files Downloaded**: 2", report)
     self.assertIn("#### Run: test-device (ID: 301) [GITHUB]", report)
     self.assertIn("**Job**: job-device", report)
     self.assertIn(f"**Cached Log**: `{self.child_log_path}`", report)
@@ -672,6 +681,10 @@ class TestUnifiedAnalyzer(unittest.TestCase):
             self.child_log_path,
         "device_logs_status":
             "MISSING",
+        "log_downloaded":
+            True,
+        "device_log_downloaded":
+            False,
         "matches": [{
             "line_num": 2,
             "line": "[  FAILED  ] MyClassTest",
@@ -681,8 +694,11 @@ class TestUnifiedAnalyzer(unittest.TestCase):
         }]
     }]
 
-    report = unified_analyzer.generate_report(failed_jobs, [], total_fetched=1)
+    report = unified_analyzer.generate_report(
+        failed_jobs, [], total_fetched={"github": 1})
 
+    self.assertIn("### Source: GITHUB", report)
+    self.assertIn("**Log Files Downloaded**: 1", report)
     self.assertIn("#### Run: test-device-missing (ID: 302) [GITHUB]", report)
     self.assertIn("**Job**: job-device-missing", report)
     self.assertIn("**Device System Log**: MISSING", report)
@@ -790,7 +806,8 @@ class TestUnifiedAnalyzer(unittest.TestCase):
         },
     ]
 
-    report = unified_analyzer.generate_report(failed_jobs, [], total_fetched=9)
+    report = unified_analyzer.generate_report(
+        failed_jobs, [], total_fetched={"github": 9})
 
     # Expected order (version descending):
     # 1. main
@@ -863,6 +880,30 @@ class TestUnifiedAnalyzer(unittest.TestCase):
         idx_25_2_det < idx_25_1_det < idx_9_det < idx_cobalt_det <
         idx_custom_det,
         "Branches not sorted in version descending order in Detailed Failures")
+
+  def test_process_results_data_null_source(self):
+    mock_data = {
+        "source": None,
+        "total_jobs_fetched": 1,
+        "runs": [{
+            "run_id": "999",
+            "job_name": "test-null-source",
+            "branch": "main",
+            "event": "push",
+            "createdAt": "2026-07-22T10:00:00Z",
+            "failed_jobs": [{
+                "name": "job1",
+                "url": "http://url",
+                "local_log_path": self.infra_log_path,
+            }],
+        }],
+    }
+    failed, outdated = unified_analyzer.process_results_data(
+        mock_data, self.mock_now)
+    self.assertEqual(len(failed), 1)
+    self.assertEqual(failed[0]["source"], "unknown")
+
+
 
 
 if __name__ == "__main__":
