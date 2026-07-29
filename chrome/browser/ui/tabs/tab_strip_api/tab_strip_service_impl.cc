@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <optional>
 
+#include "base/strings/string_number_conversions.h"
 #include "base/types/expected.h"
 #include "chrome/browser/ui/browser_tabstrip.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
@@ -46,10 +47,10 @@ TabStripServiceImpl::TabStripServiceImpl(
     std::unique_ptr<tabs_api::BrowserAdapter> browser_adapter,
     std::unique_ptr<tabs_api::TabStripModelAdapter> tab_strip_model_adapter,
     std::unique_ptr<tabs_api::events::TabStripEventRecorder> recorder)
-
     : browser_adapter_(std::move(browser_adapter)),
       tab_strip_model_adapter_(std::move(tab_strip_model_adapter)),
       recorder_(std::move(recorder)) {
+  recorder_->SetTabStripModelAdapter(tab_strip_model_adapter_.get());
   recorder_->SetOnEventNotification(base::BindRepeating(
       &TabStripServiceImpl::BroadcastEvent, base::Unretained(this)));
   tab_strip_model_adapter_->AddObserver(recorder_.get());
@@ -71,17 +72,10 @@ TabStripServiceImpl::~TabStripServiceImpl() {
 }
 
 void TabStripServiceImpl::GetTabs(GetTabsCallback callback) {
+  tabs_api::mojom::TabCollectionContainerPtr topology =
+      tab_strip_model_adapter_->GetTabStripTopology();
   auto snapshot = tabs_api::mojom::TabsSnapshot::New();
-
-  std::vector<tabs_api::mojom::TabPtr> result;
-  auto tabs = tab_strip_model_adapter_->GetTabs();
-  for (unsigned int i = 0; i < tabs.size(); ++i) {
-    auto& handle = tabs.at(i);
-    auto renderer_data = tab_strip_model_adapter_->GetTabRendererData(i);
-    auto entry = tabs_api::converters::BuildMojoTab(handle, renderer_data);
-    result.push_back(std::move(entry));
-  }
-  snapshot->tabs = std::move(result);
+  snapshot->tab_strip = std::move(topology);
 
   // Now that we have a snapshot, create a event stream that will capture all
   // subsequent updates.
@@ -242,7 +236,6 @@ void TabStripServiceImpl::ActivateTab(const tabs_api::TabId& id,
   tab_strip_model_adapter_->ActivateTab(maybe_idx.value());
   std::move(callback).Run(mojo_base::mojom::Empty::New());
 }
-
 
 void TabStripServiceImpl::Accept(
     mojo::PendingReceiver<tabs_api::mojom::TabStripService> client) {

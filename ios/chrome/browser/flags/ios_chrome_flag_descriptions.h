@@ -41,6 +41,10 @@ extern const char kAutofillDisableProfileUpdatesDescription[];
 extern const char kAutofillDisableSilentProfileUpdatesName[];
 extern const char kAutofillDisableSilentProfileUpdatesDescription[];
 
+extern const char kAutofillDropNamesWithInvalidCharactersForCardUploadName[];
+extern const char
+    kAutofillDropNamesWithInvalidCharactersForCardUploadDescription[];
+
 extern const char kAutofillEnableAllowlistForBmoCardCategoryBenefitsName[];
 extern const char
     kAutofillEnableAllowlistForBmoCardCategoryBenefitsDescription[];
@@ -372,6 +376,9 @@ extern const char kIOSKeyboardAccessoryUpgradeShortManualFillMenuDescription[];
 extern const char kIOSOneTapMiniMapRemoveSectionBreaksName[];
 extern const char kIOSOneTapMiniMapRemoveSectionBreaksDescription[];
 
+extern const char kIOSMiniMapUniversalLinkName[];
+extern const char kIOSMiniMapUniversalLinkDescription[];
+
 extern const char kIOSOneTapMiniMapRestrictionsName[];
 extern const char kIOSOneTapMiniMapRestrictionsDescription[];
 
@@ -661,8 +668,8 @@ extern const char kOneTapForMapsDescription[];
 extern const char kPageActionMenuName[];
 extern const char kPageActionMenuDescription[];
 
-extern const char kGLICPromoConsentName[];
-extern const char kGLICPromoConsentDescription[];
+extern const char kBWGPromoConsentName[];
+extern const char kBWGPromoConsentDescription[];
 
 extern const char kPageContentAnnotationsName[];
 extern const char kPageContentAnnotationsDescription[];

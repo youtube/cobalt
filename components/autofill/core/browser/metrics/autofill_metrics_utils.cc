@@ -5,6 +5,7 @@
 #include "components/autofill/core/browser/metrics/autofill_metrics_utils.h"
 
 #include "base/check.h"
+#include "base/strings/string_number_conversions.h"
 #include "components/autofill/core/browser/autofill_field.h"
 #include "components/autofill/core/browser/field_type_utils.h"
 #include "components/autofill/core/browser/form_structure.h"
@@ -105,12 +106,14 @@ AutofillProfileRecordTypeCategory GetCategoryOfProfile(
     case AutofillProfile::RecordType::kLocalOrSyncable:
       return AutofillProfileRecordTypeCategory::kLocalOrSyncable;
     case AutofillProfile::RecordType::kAccount:
-    case AutofillProfile::RecordType::kAccountHome:
-    case AutofillProfile::RecordType::kAccountWork:
       return profile.initial_creator_id() ==
                      AutofillProfile::kInitialCreatorOrModifierChrome
                  ? AutofillProfileRecordTypeCategory::kAccountChrome
                  : AutofillProfileRecordTypeCategory::kAccountNonChrome;
+    case AutofillProfile::RecordType::kAccountHome:
+      return AutofillProfileRecordTypeCategory::kAccountHome;
+    case AutofillProfile::RecordType::kAccountWork:
+      return AutofillProfileRecordTypeCategory::kAccountWork;
   }
 }
 
@@ -123,6 +126,10 @@ const char* GetProfileCategorySuffix(
       return "AccountChrome";
     case AutofillProfileRecordTypeCategory::kAccountNonChrome:
       return "AccountNonChrome";
+    case AutofillProfileRecordTypeCategory::kAccountHome:
+      return "AccountHome";
+    case AutofillProfileRecordTypeCategory::kAccountWork:
+      return "AccountWork";
   }
 }
 

@@ -172,9 +172,8 @@ class CONTENT_EXPORT BackingStore : public indexed_db::BackingStore,
     Status RenameIndex(int64_t object_store_id,
                        int64_t index_id,
                        const std::u16string& new_name) override;
-    Status GetRecord(int64_t object_store_id,
-                     const blink::IndexedDBKey& key,
-                     IndexedDBValue* record) override;
+    StatusOr<IndexedDBValue> GetRecord(int64_t object_store_id,
+                                       const blink::IndexedDBKey& key) override;
     StatusOr<RecordIdentifier> PutRecord(int64_t object_store_id,
                                          const blink::IndexedDBKey& key,
                                          IndexedDBValue value) override;
@@ -184,8 +183,8 @@ class CONTENT_EXPORT BackingStore : public indexed_db::BackingStore,
     StatusOr<int64_t> GetKeyGeneratorCurrentNumber(
         int64_t object_store_id) override;
     Status MaybeUpdateKeyGeneratorCurrentNumber(int64_t object_store_id,
-                                                int64_t new_state,
-                                                bool check_current) override;
+                                                int64_t new_number,
+                                                bool was_generated) override;
     StatusOr<std::optional<RecordIdentifier>> KeyExistsInObjectStore(
         int64_t object_store_id,
         const blink::IndexedDBKey& key) override;
@@ -193,17 +192,23 @@ class CONTENT_EXPORT BackingStore : public indexed_db::BackingStore,
                                  int64_t index_id,
                                  const blink::IndexedDBKey& key,
                                  const RecordIdentifier& record) override;
-    Status GetPrimaryKeyViaIndex(
+    StatusOr<blink::IndexedDBKey> GetPrimaryKeyViaIndex(
         int64_t object_store_id,
         int64_t index_id,
-        const blink::IndexedDBKey& key,
-        std::unique_ptr<blink::IndexedDBKey>* primary_key) override;
+        const blink::IndexedDBKey& key) override;
     Status KeyExistsInIndex(
         int64_t object_store_id,
         int64_t index_id,
         const blink::IndexedDBKey& key,
         std::unique_ptr<blink::IndexedDBKey>* found_primary_key,
         bool* exists) override;
+    StatusOr<uint32_t> GetObjectStoreKeyCount(
+        int64_t object_store_id,
+        blink::IndexedDBKeyRange key_range) override;
+    StatusOr<uint32_t> GetIndexKeyCount(
+        int64_t object_store_id,
+        int64_t index_id,
+        blink::IndexedDBKeyRange key_range) override;
     StatusOr<std::unique_ptr<indexed_db::BackingStore::Cursor>>
     OpenObjectStoreKeyCursor(int64_t object_store_id,
                              const blink::IndexedDBKeyRange& key_range,
@@ -334,6 +339,8 @@ class CONTENT_EXPORT BackingStore : public indexed_db::BackingStore,
   // avoid needless git churn.
   class Cursor : public indexed_db::BackingStore::Cursor {
    public:
+    enum IteratorState { READY = 0, SEEK };
+
     struct CursorOptions {
       CursorOptions();
       CursorOptions(const CursorOptions& other);
@@ -363,10 +370,13 @@ class CONTENT_EXPORT BackingStore : public indexed_db::BackingStore,
     blink::IndexedDBKey TakeKey() && override;
     bool Continue(const blink::IndexedDBKey& key,
                   const blink::IndexedDBKey& primary_key,
-                  IteratorState state,
                   Status*) override;
     bool Advance(uint32_t count, Status*) override;
 
+    bool Continue(const blink::IndexedDBKey& key,
+                  const blink::IndexedDBKey& primary_key,
+                  IteratorState state,
+                  Status*);
     bool FirstSeek(Status*);
 
    protected:
@@ -402,7 +412,7 @@ class CONTENT_EXPORT BackingStore : public indexed_db::BackingStore,
     const int64_t database_id_;
     const CursorOptions cursor_options_;
     std::unique_ptr<TransactionalLevelDBIterator> iterator_;
-    std::unique_ptr<blink::IndexedDBKey> current_key_;
+    blink::IndexedDBKey current_key_;
     RecordIdentifier record_identifier_;
 
    private:

@@ -46,8 +46,7 @@ class Configurator : public update_client::Configurator {
  public:
   Configurator(scoped_refptr<UpdaterPrefs> prefs,
                scoped_refptr<ExternalConstants> external_constants,
-               UpdaterScope scope,
-               bool is_ceca_experiment_enabled = false);
+               UpdaterScope scope);
   Configurator(const Configurator&) = delete;
   Configurator& operator=(const Configurator&) = delete;
 
@@ -90,6 +89,7 @@ class Configurator : public update_client::Configurator {
   base::TimeDelta ServerKeepAliveTime() const;
   scoped_refptr<PolicyService> GetPolicyService() const;
   crx_file::VerifierFormat GetCrxVerifierFormat() const;
+  base::TimeDelta MinimumEventLoggingCooldown() const;
 
  private:
   friend class base::RefCountedThreadSafe<Configurator>;

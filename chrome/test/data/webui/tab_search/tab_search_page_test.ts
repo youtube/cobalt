@@ -79,6 +79,7 @@ suite('TabSearchAppTest', () => {
         {
           windows: [{
             active: true,
+            isHostWindow: true,
             height: SAMPLE_WINDOW_HEIGHT,
             tabs: generateSampleTabsFromSiteNames(['OpenTab1'], true),
           }],
@@ -123,6 +124,7 @@ suite('TabSearchAppTest', () => {
         createProfileData({
           windows: [{
             active: true,
+            isHostWindow: true,
             height: SAMPLE_WINDOW_HEIGHT,
             tabs: generateSampleTabsFromSiteNames(['OpenTab1'], true),
           }],
@@ -178,6 +180,7 @@ suite('TabSearchAppTest', () => {
         createProfileData({
           windows: [{
             active: true,
+            isHostWindow: true,
             height: SAMPLE_WINDOW_HEIGHT,
             tabs: generateSampleTabsFromSiteNames(['Open sample tab'], true),
           }],
@@ -222,7 +225,12 @@ suite('TabSearchAppTest', () => {
       lastActiveTimeTicks: {internalValue: BigInt(4)},
     });
     await setupTest(createProfileData({
-      windows: [{active: true, height: SAMPLE_WINDOW_HEIGHT, tabs: [tabData]}],
+      windows: [{
+        active: true,
+        isHostWindow: true,
+        height: SAMPLE_WINDOW_HEIGHT,
+        tabs: [tabData],
+      }],
     }));
 
     const tabSearchItem =
@@ -251,6 +259,7 @@ suite('TabSearchAppTest', () => {
     await setupTest(createProfileData({
       windows: [{
         active: true,
+        isHostWindow: true,
         height: SAMPLE_WINDOW_HEIGHT,
         tabs: [createTab({
           title: 'Google',
@@ -287,6 +296,7 @@ suite('TabSearchAppTest', () => {
     await setupTest(createProfileData({
       windows: [{
         active: true,
+        isHostWindow: true,
         height: SAMPLE_WINDOW_HEIGHT,
         tabs: [createTab({
           title: 'Google',
@@ -311,7 +321,12 @@ suite('TabSearchAppTest', () => {
 
   test('Keyboard navigation on an empty list', async () => {
     await setupTest(createProfileData({
-      windows: [{active: true, height: SAMPLE_WINDOW_HEIGHT, tabs: []}],
+      windows: [{
+        active: true,
+        isHostWindow: true,
+        height: SAMPLE_WINDOW_HEIGHT,
+        tabs: [],
+      }],
     }));
 
     const searchField = tabSearchPage.$.searchField;
@@ -423,6 +438,7 @@ suite('TabSearchAppTest', () => {
     testProxy.getCallbackRouterRemote().tabsChanged(createProfileData({
       windows: [{
         active: true,
+        isHostWindow: true,
         height: SAMPLE_WINDOW_HEIGHT,
         tabs: [testData.windows[0]!.tabs[0]!],
       }],
@@ -444,6 +460,7 @@ suite('TabSearchAppTest', () => {
     });
     const tabUpdateInfo = {
       inActiveWindow: true,
+      inHostWindow: true,
       tab: updatedTab,
     };
     testProxy.getCallbackRouterRemote().tabUpdated(tabUpdateInfo);
@@ -461,6 +478,7 @@ suite('TabSearchAppTest', () => {
     await setupTest(createProfileData({
       windows: [{
         active: true,
+        isHostWindow: true,
         height: SAMPLE_WINDOW_HEIGHT,
         tabs: generateSampleTabsFromSiteNames(['OpenTab1'], true),
       }],
@@ -473,6 +491,7 @@ suite('TabSearchAppTest', () => {
     });
     const tabUpdateInfo = {
       inActiveWindow: true,
+      inHostWindow: true,
       tab: updatedTab,
     };
     testProxy.getCallbackRouterRemote().tabUpdated(tabUpdateInfo);
@@ -506,6 +525,7 @@ suite('TabSearchAppTest', () => {
     await setupTest(createProfileData({
       windows: [{
         active: true,
+        isHostWindow: true,
         height: SAMPLE_WINDOW_HEIGHT,
         tabs:
             generateSampleTabsFromSiteNames(['SampleTab', 'SampleTab2'], true),
@@ -660,12 +680,22 @@ suite('TabSearchAppTest', () => {
         tabId: 2,
         title: 'Bing',
         url: {url: 'https://www.bing.com'},
-        lastActiveTimeTicks: {internalValue: BigInt(4)},
+        lastActiveTimeTicks: {internalValue: BigInt(5)},
         active: true,
+        visible: true,
       }),
       createTab({
         index: 2,
         tabId: 3,
+        title: 'Gmail',
+        url: {url: 'https://www.gmail.com'},
+        lastActiveTimeTicks: {internalValue: BigInt(4)},
+        active: false,
+        visible: true,
+      }),
+      createTab({
+        index: 3,
+        tabId: 4,
         title: 'Yahoo',
         url: {url: 'https://www.yahoo.com'},
         lastActiveTimeTicks: {internalValue: BigInt(3)},
@@ -674,9 +704,14 @@ suite('TabSearchAppTest', () => {
 
     // Move active tab to the bottom of the list.
     await setupTest(createProfileData({
-      windows: [{active: true, height: SAMPLE_WINDOW_HEIGHT, tabs}],
+      windows: [{
+        active: true,
+        isHostWindow: true,
+        height: SAMPLE_WINDOW_HEIGHT,
+        tabs,
+      }],
     }));
-    verifyTabIds(queryRows(), [3, 1, 2]);
+    verifyTabIds(queryRows(), [4, 1, 2, 3]);
   });
 
   test('Tab associated with TabGroup data', async () => {
@@ -696,7 +731,12 @@ suite('TabSearchAppTest', () => {
     };
 
     await setupTest(createProfileData({
-      windows: [{active: true, height: SAMPLE_WINDOW_HEIGHT, tabs}],
+      windows: [{
+        active: true,
+        isHostWindow: true,
+        height: SAMPLE_WINDOW_HEIGHT,
+        tabs,
+      }],
       tabGroups: [tabGroup],
     }));
 
@@ -711,6 +751,7 @@ suite('TabSearchAppTest', () => {
     await setupTest(createProfileData({
       windows: [{
         active: true,
+        isHostWindow: true,
         height: SAMPLE_WINDOW_HEIGHT,
         tabs: generateSampleTabsFromSiteNames(['SampleOpenTab'], true),
       }],
