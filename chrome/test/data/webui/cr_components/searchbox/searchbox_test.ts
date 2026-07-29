@@ -297,6 +297,42 @@ suite('NewTabPageRealboxTest', () => {
     loadTimeData.overrideValues({searchboxCr23Theming: false});
   });
 
+  test('Compose button is not enabled by default.', async () => {
+    // Arrange.
+    document.body.innerHTML = window.trustedTypes!.emptyHTML;
+    realbox = document.createElement('cr-searchbox');
+    document.body.appendChild(realbox);
+    await waitAfterNextRender(realbox);
+
+    // Assert.
+    const composeButton =
+        realbox.shadowRoot!.querySelector<HTMLElement>('#composeButton');
+    assertFalse(!!composeButton);
+  });
+
+  test('clicking composebox entrypoint button emits an event.', async () => {
+    // Arrange.
+    loadTimeData.overrideValues({searchboxShowComposeButton: true});
+    document.body.innerHTML = window.trustedTypes!.emptyHTML;
+    realbox = document.createElement('cr-searchbox');
+    document.body.appendChild(realbox);
+    await waitAfterNextRender(realbox);
+
+    const whenOpenComposeBox = eventToPromise('open-compose-box', realbox);
+
+    // Act.
+    const composeButton =
+        realbox.shadowRoot!.querySelector<HTMLElement>('#composeButton');
+    assertTrue(!!composeButton);
+    composeButton.click();
+
+    // Assert.
+    await whenOpenComposeBox;
+
+    // Restore.
+    loadTimeData.overrideValues({searchboxShowComposeButton: false});
+  });
+
   //============================================================================
   // Test Querying Autocomplete
   //============================================================================
@@ -642,7 +678,8 @@ suite('NewTabPageRealboxTest', () => {
   test(
       'autocomplete triggers on focus on non-empty input with thumbnail',
       async () => {
-        testProxy.callbackRouterRemote.setThumbnail('foo.png');
+        testProxy.callbackRouterRemote.setThumbnail(
+            'foo.png', /*isDeletable=*/ true);
         await waitAfterNextRender(realbox);
         const thumbnail = realbox.$.inputWrapper.querySelector('#thumbnail');
         assertTrue(thumbnail !== null);
@@ -2507,7 +2544,8 @@ suite('NewTabPageRealboxTest', () => {
   test('thumbnail appears on page call from browser', async () => {
     assertTrue(
         realbox.$.inputWrapper.querySelector('#thumbnailContainer') === null);
-    testProxy.callbackRouterRemote.setThumbnail('foo.png');
+    testProxy.callbackRouterRemote.setThumbnail(
+        'foo.png', /*isDeletable=*/ true);
     await waitAfterNextRender(realbox);
     const thumbnailContainer =
         realbox.$.inputWrapper.querySelector('#thumbnailContainer');
@@ -2516,7 +2554,8 @@ suite('NewTabPageRealboxTest', () => {
   });
 
   test('thumbnail clicked deletion', async () => {
-    testProxy.callbackRouterRemote.setThumbnail('foo.png');
+    testProxy.callbackRouterRemote.setThumbnail(
+        'foo.png', /*isDeletable=*/ true);
     await waitAfterNextRender(realbox);
     const thumbnail = realbox.$.inputWrapper.querySelector('#thumbnail');
     assertTrue(thumbnail !== null);
@@ -2543,7 +2582,8 @@ suite('NewTabPageRealboxTest', () => {
 
   test('thumbnail keyboard deletion', async () => {
     realbox.$.input.value = '';
-    testProxy.callbackRouterRemote.setThumbnail('foo.png');
+    testProxy.callbackRouterRemote.setThumbnail(
+        'foo.png', /*isDeletable=*/ true);
     await waitAfterNextRender(realbox);
     const thumbnail = realbox.$.inputWrapper.querySelector('#thumbnail');
     assertTrue(thumbnail !== null);
@@ -2581,7 +2621,8 @@ suite('NewTabPageRealboxTest', () => {
   });
 
   test('keyboard deletion with non-empty input', async () => {
-    testProxy.callbackRouterRemote.setThumbnail('foo.png');
+    testProxy.callbackRouterRemote.setThumbnail(
+        'foo.png', /*isDeletable=*/ true);
     await waitAfterNextRender(realbox);
     const thumbnail = realbox.$.inputWrapper.querySelector('#thumbnail');
     assertTrue(thumbnail !== null);

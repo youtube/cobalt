@@ -9,6 +9,7 @@
 
 #include "base/files/file_util.h"
 #include "base/strings/strcat.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/test_future.h"
 #include "chrome/browser/profiles/profile.h"
@@ -469,6 +470,17 @@ TEST_F(OsIntegrationSynchronizeCommandTest, UpgradeToFullyInstalled) {
       provider()->registrar_unsafe().GetAppCurrentOsIntegrationState(app_id);
   ASSERT_TRUE(states.has_value());
   EXPECT_TRUE(states->has_shortcut());
+}
+
+TEST_F(OsIntegrationSynchronizeCommandTest,
+       IgnoreSynchonizationForNonExistantApp) {
+  base::test::TestFuture<void> done;
+  SynchronizeOsOptions options;
+  options.add_shortcut_to_desktop = true;
+  provider()->scheduler().SynchronizeOsIntegration(
+      "non-existent-app-id", done.GetCallback(), options,
+      /*upgrade_to_fully_installed_if_installed=*/true);
+  ASSERT_TRUE(done.Wait());
 }
 
 }  // namespace

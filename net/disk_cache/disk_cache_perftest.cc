@@ -122,7 +122,11 @@ enum class WhatToRead {
 
 class DiskCachePerfTest : public DiskCacheTestWithCache {
  public:
-  DiskCachePerfTest() { MaybeIncreaseFdLimitTo(kFdLimitForCacheTests); }
+  DiskCachePerfTest()
+      : DiskCacheTestWithCache(
+            base::test::TaskEnvironment::TimeSource::SYSTEM_TIME) {
+    MaybeIncreaseFdLimitTo(kFdLimitForCacheTests);
+  }
 
   const std::vector<TestEntry>& entries() const { return entries_; }
 
@@ -470,7 +474,7 @@ void DiskCachePerfTest::ResetAndEvictSystemDiskCache() {
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
   // And, cache directories, on platforms where the eviction utility supports
   // this (currently Linux and Android only).
-  if (simple_cache_mode_) {
+  if (backend_to_test() == BackendToTest::kSimple) {
     ASSERT_TRUE(
         base::EvictFileFromSystemCache(cache_path_.AppendASCII("index-dir")));
   }
@@ -530,7 +534,7 @@ TEST_F(DiskCachePerfTest, MAYBE_CacheBackendPerformance) {
 #define MAYBE_SimpleCacheBackendPerformance SimpleCacheBackendPerformance
 #endif
 TEST_F(DiskCachePerfTest, MAYBE_SimpleCacheBackendPerformance) {
-  SetSimpleCacheMode();
+  SetBackendToTest(BackendToTest::kSimple);
   CacheBackendPerformance("simple_cache");
 }
 
@@ -587,7 +591,7 @@ TEST_F(DiskCachePerfTest, SimpleCacheInitialReadPortion) {
   // overhead.
   const int kBatchSize = 100;
 
-  SetSimpleCacheMode();
+  SetBackendToTest(BackendToTest::kSimple);
 
   InitCache();
   // Write out the entries, and keep their objects around.

@@ -2128,7 +2128,7 @@ bool SelectorChecker::CheckPseudoClass(const SelectorCheckingContext& context,
       }
       if (auto* anchor_element = DynamicTo<HTMLAnchorElement>(element)) {
         if (ScrollMarkerGroupData* data =
-                anchor_element->GetScrollMarkerGroupContainerData()) {
+                anchor_element->GetScrollTargetGroupContainerData()) {
           return data->Selected() == element;
         }
       }
@@ -2608,6 +2608,7 @@ bool SelectorChecker::CheckPseudoElement(const SelectorCheckingContext& context,
     case CSSSelector::kPseudoViewTransition:
     case CSSSelector::kPseudoViewTransitionGroup:
     case CSSSelector::kPseudoViewTransitionImagePair:
+    case CSSSelector::kPseudoViewTransitionGroupChildren:
     case CSSSelector::kPseudoViewTransitionOld:
     case CSSSelector::kPseudoViewTransitionNew: {
       const PseudoId selector_pseudo_id =

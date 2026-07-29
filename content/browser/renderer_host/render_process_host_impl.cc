@@ -55,6 +55,7 @@
 #include "base/process/process_handle.h"
 #include "base/rand_util.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/supports_user_data.h"
 #include "base/system/sys_info.h"
@@ -3151,6 +3152,15 @@ void RenderProcessHostImpl::AddExpectedNavigationToSite(
   if (!ShouldTrackProcessForSite(site_info))
     return;
 
+  // If an RPH is being prepared for a new navigation, it should no longer be
+  // considered an "empty" process available for general reuse. Remove it
+  // from the empty tracker if it's there.
+  if (IsEmptyRendererProcessesReuseAllowed()) {
+    SiteProcessCountTracker::GetInstance(browser_context,
+                                         kEmptySiteProcessCountTrackerKey)
+        ->ClearProcessForAllSites(render_process_host->GetID());
+  }
+
   SiteProcessCountTracker* tracker = SiteProcessCountTracker::GetInstance(
       browser_context, kPendingSiteProcessCountTrackerKey);
   tracker->IncrementSiteProcessCount(site_info, render_process_host->GetID());
@@ -3457,6 +3467,7 @@ void RenderProcessHostImpl::PropagateBrowserCommandLineToRenderer(
       switches::kAllowLoopbackInPeerConnection,
       switches::kAudioBufferSize,
       switches::kAutoplayPolicy,
+      switches::kBackgroundThreadPoolFieldTrial,
       switches::kDisable2dCanvasImageChromium,
       switches::kDisableYUVImageDecoding,
       switches::kDisableAcceleratedVideoDecode,
@@ -3485,7 +3496,6 @@ void RenderProcessHostImpl::PropagateBrowserCommandLineToRenderer(
       switches::kDisableWebGLImageChromium,
       switches::kDomAutomationController,
       switches::kEnableAutomation,
-      switches::kEnableBackgroundThreadPool,
       switches::kEnableExperimentalAccessibilityLanguageDetection,
       switches::kEnableExperimentalAccessibilityLabelsDebugging,
       switches::kEnableExperimentalWebPlatformFeatures,

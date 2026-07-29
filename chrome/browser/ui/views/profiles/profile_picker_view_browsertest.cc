@@ -15,6 +15,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/run_loop.h"
 #include "base/strings/strcat.h"
+#include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/current_thread.h"
 #include "base/test/bind.h"
@@ -558,8 +559,6 @@ class ProfilePickerCreationFlowBrowserTest
     profile_manager->CreateProfileAsync(
         path, base::BindLambdaForTesting([&run_loop](Profile* profile) {
           ASSERT_TRUE(profile);
-          // Avoid showing the welcome page.
-          profile->GetPrefs()->SetBoolean(prefs::kHasSeenWelcomePage, true);
           run_loop.Quit();
         }));
     run_loop.Run();

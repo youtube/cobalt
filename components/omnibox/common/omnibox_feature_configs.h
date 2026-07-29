@@ -104,14 +104,6 @@ class ScopedConfigForTesting : Config<T> {
 
 // Add new configs below, ordered alphabetically.
 
-// If enabled, use more efficient codepaths when capturing autocomplete metrics.
-struct AutocompleteControllerMetricsOptimization
-    : Config<AutocompleteControllerMetricsOptimization> {
-  DECLARE_FEATURE(kAutocompleteControllerMetricsOptimization);
-  AutocompleteControllerMetricsOptimization();
-  bool enabled;
-};
-
 // If enabled, adds recent calc suggestions.
 struct CalcProvider : Config<CalcProvider> {
   DECLARE_FEATURE(kCalcProvider);
@@ -145,6 +137,8 @@ struct ContextualSearch : Config<ContextualSearch> {
   DECLARE_FEATURE(kContextualSearchOpenLensActionUsesThumbnail);
   DECLARE_FEATURE(kSendPageTitleSuggestParam);
   DECLARE_FEATURE(kContextualSearchAlternativeActionLabel);
+  DECLARE_FEATURE(kUseApcPaywallSignal);
+  DECLARE_FEATURE(kShowSuggestionsOnNoApc);
 
   // Whether to use contextual search features, for example the lens action.
   bool IsContextualSearchEnabled() const;
@@ -198,6 +192,14 @@ struct ContextualSearch : Config<ContextualSearch> {
 
   // Whether the Lens entrypoint action should be shown in the Omnibox popup.
   bool show_open_lens_action;
+
+  // Whether to use the APC paywall signal to determine whether to show
+  // contextual suggestions.
+  bool use_apc_paywall_signal;
+
+  // Whether to show contextual suggestions when the user focuses the omnibox
+  // but APC is not yet available.
+  bool show_suggestions_on_no_apc;
 };
 
 // If enabled, allows MIA zero-prefix suggestions in NTP omnibox and realbox.
@@ -206,6 +208,8 @@ struct MiaZPS : Config<MiaZPS> {
 
   MiaZPS();
   bool enabled;
+  // Whether to use non-normalized text for local history zp suggestions.
+  bool local_history_non_normalized_contents;
 };
 
 // If enabled, adjusts the indentation of the omnibox input and matches to fix
@@ -394,6 +398,8 @@ struct OmniboxUrlSuggestionsOnFocus : Config<OmniboxUrlSuggestionsOnFocus> {
   // The debouncing delay (in milliseconds) to use when throttling
   // HistoryService requests.
   int prefetch_most_visited_sites_delay_ms;
+  // Max number of URLs that will be requested from history.
+  size_t max_requested_urls_from_history;
 
   bool MostVisitedPrefetchingEnabled() const;
 };
@@ -409,6 +415,10 @@ struct HappinessTrackingSurveyForOmniboxOnFocusZps
   size_t focus_threshold;
   // Number of ms before the survey may be shown.
   size_t survey_delay;
+  // Trigger ID of Intent and Satisfaction survey.
+  std::string happiness_trigger_id;
+  // Trigger ID of Usefulness and Distraction survey.
+  std::string utility_trigger_id;
 };
 
 // Do not add new configs here at the bottom by default. They should be ordered

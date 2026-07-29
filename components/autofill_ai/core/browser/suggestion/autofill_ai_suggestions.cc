@@ -14,6 +14,7 @@
 #include "base/containers/to_vector.h"
 #include "base/notreached.h"
 #include "base/strings/strcat.h"
+#include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/time/time.h"
 #include "base/types/strong_alias.h"
@@ -262,10 +263,11 @@ Suggestion::Icon GetSuggestionIcon(
 
 std::vector<Suggestion> CreateFillingSuggestions(
     const autofill::FormStructure& form,
-    FieldGlobalId field_global_id,
+    const autofill::FormFieldData& trigger_field,
     base::span<const autofill::EntityInstance> entities,
     const std::string& app_locale) {
-  const AutofillField* autofill_field = form.GetFieldById(field_global_id);
+  const AutofillField* autofill_field =
+      form.GetFieldById(trigger_field.global_id());
   CHECK(autofill_field);
 
   const std::optional<FieldType> trigger_field_autofill_ai_type =
@@ -437,7 +439,9 @@ std::vector<Suggestion> CreateFillingSuggestions(
 
   // Footer suggestions.
   suggestions.emplace_back(SuggestionType::kSeparator);
-  if (autofill_field->is_autofilled()) {
+  // TODO(crbug.com/420455175): Use `autofill_field` when `is_autofilled` starts
+  // meaning the same thing in both `AutofillField` and `FormFieldData`.
+  if (trigger_field.is_autofilled()) {
     suggestions.emplace_back(CreateUndoSuggestion());
   }
   suggestions.emplace_back(CreateManageSuggestion());

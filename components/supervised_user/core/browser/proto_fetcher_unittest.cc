@@ -68,16 +68,17 @@ constexpr FetcherConfig kTestGetConfig{
         annotations::ClassifyUrlTag,  // traffic annotation is meaningless for
                                       // this tests since there's no real
                                       // traffic.
-    .access_token_config{
-        .credentials_requirement =
-            AccessTokenConfig::CredentialsRequirement::kStrict,
-        .mode = signin::PrimaryAccountAccessTokenFetcher::Mode::kImmediate,
-        // TODO(b/284523446): Refer to GaiaConstants rather than literal.
-        .oauth2_scope =
-            "https://www.googleapis.com/auth/kid.permission",  // Real scope
-                                                               // required.
+    .access_token_config =
+        AccessTokenConfig{
+            .credentials_requirement =
+                AccessTokenConfig::CredentialsRequirement::kStrict,
+            .mode = signin::PrimaryAccountAccessTokenFetcher::Mode::kImmediate,
+            // TODO(b/284523446): Refer to GaiaConstants rather than literal.
+            .oauth2_scope =
+                "https://www.googleapis.com/auth/kid.permission",  // Real scope
+                                                                   // required.
 
-    },
+        },
 };
 
 constexpr FetcherConfig kTestGetConfigWithoutMetrics{
@@ -87,16 +88,17 @@ constexpr FetcherConfig kTestGetConfigWithoutMetrics{
         annotations::ClassifyUrlTag,  // traffic annotation is meaningless for
                                       // this tests since there's no real
                                       // traffic.
-    .access_token_config{
-        .credentials_requirement =
-            AccessTokenConfig::CredentialsRequirement::kStrict,
-        .mode = signin::PrimaryAccountAccessTokenFetcher::Mode::kImmediate,
-        // TODO(b/284523446): Refer to GaiaConstants rather than literal.
-        .oauth2_scope =
-            "https://www.googleapis.com/auth/kid.permission",  // Real scope
-                                                               // required.
+    .access_token_config =
+        AccessTokenConfig{
+            .credentials_requirement =
+                AccessTokenConfig::CredentialsRequirement::kStrict,
+            .mode = signin::PrimaryAccountAccessTokenFetcher::Mode::kImmediate,
+            // TODO(b/284523446): Refer to GaiaConstants rather than literal.
+            .oauth2_scope =
+                "https://www.googleapis.com/auth/kid.permission",  // Real scope
+                                                                   // required.
 
-    },
+        },
 };
 
 constexpr FetcherConfig kTestPostConfig{
@@ -107,16 +109,17 @@ constexpr FetcherConfig kTestPostConfig{
         annotations::ClassifyUrlTag,  // traffic annotation is meaningless for
                                       // this tests since there's no real
                                       // traffic.
-    .access_token_config{
-        .credentials_requirement =
-            AccessTokenConfig::CredentialsRequirement::kStrict,
-        .mode = signin::PrimaryAccountAccessTokenFetcher::Mode::kImmediate,
-        // TODO(b/284523446): Refer to GaiaConstants rather than literal.
-        .oauth2_scope =
-            "https://www.googleapis.com/auth/kid.permission",  // Real scope
-                                                               // required.
+    .access_token_config =
+        AccessTokenConfig{
+            .credentials_requirement =
+                AccessTokenConfig::CredentialsRequirement::kStrict,
+            .mode = signin::PrimaryAccountAccessTokenFetcher::Mode::kImmediate,
+            // TODO(b/284523446): Refer to GaiaConstants rather than literal.
+            .oauth2_scope =
+                "https://www.googleapis.com/auth/kid.permission",  // Real scope
+                                                                   // required.
 
-    },
+        },
 };
 
 constexpr FetcherConfig kTestRetryConfig{
@@ -134,16 +137,17 @@ constexpr FetcherConfig kTestRetryConfig{
             .maximum_backoff_ms = 1,
             .always_use_initial_delay = false,
         },
-    .access_token_config{
-        .credentials_requirement =
-            AccessTokenConfig::CredentialsRequirement::kStrict,
-        .mode = signin::PrimaryAccountAccessTokenFetcher::Mode::kImmediate,
-        // TODO(b/284523446): Refer to GaiaConstants rather than literal.
-        .oauth2_scope =
-            "https://www.googleapis.com/auth/kid.permission",  // Real scope
-                                                               // required.
+    .access_token_config =
+        AccessTokenConfig{
+            .credentials_requirement =
+                AccessTokenConfig::CredentialsRequirement::kStrict,
+            .mode = signin::PrimaryAccountAccessTokenFetcher::Mode::kImmediate,
+            // TODO(b/284523446): Refer to GaiaConstants rather than literal.
+            .oauth2_scope =
+                "https://www.googleapis.com/auth/kid.permission",  // Real scope
+                                                                   // required.
 
-    },
+        },
 };
 
 constexpr FetcherConfig kTestGetConfigBestEffortAccessToken{
@@ -154,16 +158,27 @@ constexpr FetcherConfig kTestGetConfigBestEffortAccessToken{
         annotations::ClassifyUrlTag,  // traffic annotation is meaningless for
                                       // this tests since there's no real
                                       // traffic.
-    .access_token_config{
-        .credentials_requirement =
-            AccessTokenConfig::CredentialsRequirement::kBestEffort,
-        .mode = signin::PrimaryAccountAccessTokenFetcher::Mode::kImmediate,
-        // TODO(b/284523446): Refer to GaiaConstants rather than literal.
-        .oauth2_scope =
-            "https://www.googleapis.com/auth/kid.permission",  // Real scope
-                                                               // required.
+    .access_token_config =
+        AccessTokenConfig{
+            .credentials_requirement =
+                AccessTokenConfig::CredentialsRequirement::kBestEffort,
+            .mode = signin::PrimaryAccountAccessTokenFetcher::Mode::kImmediate,
+            // TODO(b/284523446): Refer to GaiaConstants rather than literal.
+            .oauth2_scope =
+                "https://www.googleapis.com/auth/kid.permission",  // Real scope
+                                                                   // required.
 
-    },
+        },
+};
+
+constexpr FetcherConfig kTestGetConfigWithoutCredentials{
+    .service_path = "/superviser/user:get",
+    .method = FetcherConfig::Method::kGet,
+    .histogram_basename = "SupervisedUser.Request",
+    .traffic_annotation =
+        annotations::ClassifyUrlTag,  // traffic annotation is meaningless for
+                                      // this tests since there's no real
+                                      // traffic.
 };
 
 // Receiver is an artificial consumer of the fetch process. Typically, calling
@@ -195,10 +210,10 @@ class Receiver {
 
 // Base of the test fixture for proto fetcher.
 // Defines required runtime environment, and a collection of helper methods
-// which are used to build initial test state and define behaviours.
+// which are used to build initial test state and define behaviors.
 //
 // Simulate* methods are short-hands to put response with specific property in
-// test url environmnent's queue;
+// test url environment's queue;
 //
 // FastForward is important for retrying feature tests: make sure that the time
 // skipped is greater than possible retry timeouts.
@@ -299,31 +314,19 @@ class ProtoFetcherTestBase {
   base::test::ScopedFeatureList feature_list_;
 };
 
-struct ProtoFetcherTestParam {
-  using TupleT = std::tuple<FetcherConfig, bool>;
-  FetcherConfig fetcher_config;
-  bool uncredentialed_fallback_enabled;
-  explicit ProtoFetcherTestParam(TupleT t)
-      : fetcher_config(std::get<0>(t)),
-        uncredentialed_fallback_enabled(std::get<1>(t)) {}
-};
-
-class ProtoFetcherTest
-    : public ProtoFetcherTestBase,
-      public ::testing::TestWithParam<ProtoFetcherTestParam> {
+class ProtoFetcherTest : public ProtoFetcherTestBase,
+                         public ::testing::TestWithParam<FetcherConfig> {
  public:
-  ProtoFetcherTest() : ProtoFetcherTestBase(GetConfig()) {
-    feature_list_.InitWithFeatureState(
-        supervised_user::kUncredentialedFilteringFallbackForSupervisedUsers,
-        UncredentialedFallbackEnabled());
-  }
-  static const FetcherConfig& GetConfig() { return GetParam().fetcher_config; }
-  static bool UncredentialedFallbackEnabled() {
-    return GetParam().uncredentialed_fallback_enabled;
-  }
+  ProtoFetcherTest() : ProtoFetcherTestBase(GetConfig()) {}
+  static const FetcherConfig& GetConfig() { return GetParam(); }
 
- private:
-  base::test::ScopedFeatureList feature_list_;
+  void SetUp() override {
+    CHECK(GetConfig().access_token_config.has_value() &&
+          GetConfig().access_token_config->credentials_requirement ==
+              AccessTokenConfig::CredentialsRequirement::kStrict)
+        << "To test other credential requirements than strict mode (eg.: best "
+           "effort mode), use BestEffortProtoFetcherTest suite below.";
+  }
 };
 
 // Test whether the outgoing request has correctly set endpoint and method.
@@ -504,16 +507,6 @@ TEST_P(ProtoFetcherTest, HandlesRepeatedServerAuthError) {
   ASSERT_EQ(test_url_loader_factory_.NumPending(), 1);
   SimulateResponseForPendingRequestWithHttpAuthError(0);
 
-  if (UncredentialedFallbackEnabled()) {
-    // This triggers a retry of the request. The access token is invalidated
-    // and a new one is fetched.
-    ASSERT_EQ(test_url_loader_factory_.NumPending(), 1);
-
-    // Simulate another 401 response from the server (which will not be
-    // retried).
-    SimulateResponseForPendingRequestWithHttpAuthError(0);
-  }
-
   // The request is failed.
   ASSERT_EQ(test_url_loader_factory_.NumPending(), 0);
   EXPECT_FALSE(receiver->GetResult().has_value());
@@ -535,25 +528,14 @@ TEST_P(ProtoFetcherTest, HandlesServerAuthErrorThenSuccess) {
   ASSERT_EQ(test_url_loader_factory_.NumPending(), 1);
   SimulateResponseForPendingRequestWithHttpAuthError(0);
 
-  if (UncredentialedFallbackEnabled()) {
-    // This triggers a retry of the request. The access token is invalidated
-    // and a new one is fetched.
-    ASSERT_EQ(test_url_loader_factory_.NumPending(), 1);
-
-    // This time the server responds with success.
-    SimulateDefaultResponseForPendingRequest(0);
-
-    ASSERT_TRUE(receiver->GetResult().has_value());
-  } else {
-    // The request is failed.
-    ASSERT_EQ(test_url_loader_factory_.NumPending(), 0);
-    EXPECT_FALSE(receiver->GetResult().has_value());
-    EXPECT_EQ(receiver->GetResult().error().state(),
-              ProtoFetcherStatus::State::HTTP_STATUS_OR_NET_ERROR);
-    EXPECT_EQ(
-        receiver->GetResult().error().http_status_or_net_error(),
-        ProtoFetcherStatus::HttpStatusOrNetErrorType(net::HTTP_UNAUTHORIZED));
-  }
+  // The request is failed.
+  ASSERT_EQ(test_url_loader_factory_.NumPending(), 0);
+  EXPECT_FALSE(receiver->GetResult().has_value());
+  EXPECT_EQ(receiver->GetResult().error().state(),
+            ProtoFetcherStatus::State::HTTP_STATUS_OR_NET_ERROR);
+  EXPECT_EQ(
+      receiver->GetResult().error().http_status_or_net_error(),
+      ProtoFetcherStatus::HttpStatusOrNetErrorType(net::HTTP_UNAUTHORIZED));
 }
 
 // The fetchers are recording various metrics for the basic flow with default
@@ -817,8 +799,8 @@ TEST_P(ProtoFetcherTest, RetryingFetcherContinuesOnTransientError) {
 // Instead of /0, /1... print human-readable description of the test: status
 // of the retrying feature followed by http method.
 std::string PrettyPrintFetcherTestCaseName(
-    const ::testing::TestParamInfo<ProtoFetcherTestParam>& info) {
-  const FetcherConfig& fetcher_config = info.param.fetcher_config;
+    const ::testing::TestParamInfo<FetcherConfig>& info) {
+  const FetcherConfig& fetcher_config = info.param;
   std::string base = fetcher_config.GetHttpMethod();
   if (fetcher_config.backoff_policy.has_value()) {
     base += "Retrying";
@@ -828,40 +810,24 @@ std::string PrettyPrintFetcherTestCaseName(
   } else {
     base += "WithoutMetrics";
   }
-
-  if (info.param.uncredentialed_fallback_enabled) {
-    base += "_FallbackEnabled";
-  } else {
-    base += "_FallbackDisabled";
-  }
-
   return base;
 }
 
-INSTANTIATE_TEST_SUITE_P(
-    All,
-    ProtoFetcherTest,
-    testing::ConvertGenerator<ProtoFetcherTestParam::TupleT>(
-        testing::Combine(testing::Values(kTestGetConfig,
+INSTANTIATE_TEST_SUITE_P(All,
+                         ProtoFetcherTest,
+                         testing::Values(kTestGetConfig,
                                          kTestPostConfig,
                                          kTestRetryConfig,
                                          kTestGetConfigWithoutMetrics),
-                         testing::Bool())),
-    &PrettyPrintFetcherTestCaseName);
+                         &PrettyPrintFetcherTestCaseName);
 
 class BestEffortProtoFetcherTest : public ProtoFetcherTestBase,
                                    public testing::Test {
  public:
-  BestEffortProtoFetcherTest()
-      : ProtoFetcherTestBase(GetConfig()),
-        feature_list_(supervised_user::
-                          kUncredentialedFilteringFallbackForSupervisedUsers) {}
+  BestEffortProtoFetcherTest() : ProtoFetcherTestBase(GetConfig()) {}
   static const FetcherConfig& GetConfig() {
     return kTestGetConfigBestEffortAccessToken;
   }
-
- private:
-  base::test::ScopedFeatureList feature_list_;
 };
 
 // Tests a flow where the caller is denied access token.
@@ -929,6 +895,40 @@ TEST_F(BestEffortProtoFetcherTest, RetryAfterHttpAuthError) {
 
   // The response is successful.
   EXPECT_TRUE(receiver->GetResult().has_value());
+}
+
+class NoCredentialsProtoFetcherTest : public ProtoFetcherTestBase,
+                                      public testing::Test {
+ protected:
+  NoCredentialsProtoFetcherTest() : ProtoFetcherTestBase(GetConfig()) {}
+  static const FetcherConfig& GetConfig() {
+    return kTestGetConfigWithoutCredentials;
+  }
+};
+
+// Tests a flow where the caller never provided any credentials.
+//
+// Since the fetcher config is not requesting the access token, the request
+// succeeds.
+TEST_F(NoCredentialsProtoFetcherTest, SuccessWithoutAccessToken) {
+  ASSERT_FALSE(identity_test_env_.identity_manager()->HasPrimaryAccount(
+      signin::ConsentLevel::kSignin));
+
+  std::unique_ptr<Receiver> receiver = MakeReceiver();
+  std::unique_ptr<Fetcher> fetcher = MakeFetcher(*receiver.get());
+
+  base::HistogramTester histogram_tester;
+
+  EXPECT_EQ(test_url_loader_factory_.NumPending(), 1);
+  ASSERT_TRUE(google_apis::test_util::HasAPIKey(
+      test_url_loader_factory_.GetPendingRequest(0)->request));
+  SimulateDefaultResponseForPendingRequest(0);
+
+  EXPECT_TRUE(receiver->GetResult().has_value());
+  EXPECT_THAT(histogram_tester.GetAllSamples(
+                  base::StrCat({*GetConfig().histogram_basename, ".Status"})),
+              base::BucketsInclude(base::Bucket(ProtoFetcherStatus::State::OK,
+                                                /*count=*/1)));
 }
 
 }  // namespace

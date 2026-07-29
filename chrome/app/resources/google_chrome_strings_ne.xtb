@@ -316,6 +316,7 @@
 <translation id="4970880042055371251">ChromeOS को संस्करण</translation>
 <translation id="4990567037958725628">Google Chrome क्यानरी</translation>
 <translation id="5003967926796347400">“Google पासवर्ड म्यानेजर” मा क्लिक गर्नुहोस्</translation>
+<translation id="504867494566807945">जुनसुकै एपबाट Chrome मा लिंकहरू खोल्नुहोस्। साथै, सजिलै एक्सेस गर्न सकियोस् भन्नाका लागि यसलाई तपाईंको टास्कबारमा पिन गरिन्छ।</translation>
 <translation id="5114340746415930644">आफ्नो खाता (<ph name="USER_EMAIL" />) मा Chrome को डेटा सेभ तथा प्रयोग गर्न आफ्नो पासफ्रेज हाल्नुहोस्</translation>
 <translation id="5120334927898581447">तपाईंले Google का अन्य सेवामा साइन इन गर्दा Chrome मा साइन इन गर्नुहोस्</translation>
 <translation id="5126049312684316860">Chrome ले तपाईंले खोल्न सक्ने अझ धेरै पेजहरू प्रिलोड गर्छ। तपाईंले ती पेज खोल्दा ती पेजहरू अझ छिटो लोड होऊन् भन्नाका लागि Chrome ले यसो गर्छ</translation>
@@ -394,6 +395,7 @@ Google Chrome ले तपाईंको सेटिङहरू पुन: �
 <translation id="6075300983329039771">तपाईंको सङ्गठन <ph name="MANAGER" /> को नीतिअनुसार तपाईंले Chrome मा साइन इन गर्नु पर्ने हुन्छ</translation>
 <translation id="6113794647360055231">Chrome अझ राम्रो भएको छ</translation>
 <translation id="6116252277240876590">यो भाषा Chrome मा मेनु, सेटिङ, अलर्ट र अन्य टेक्स्ट देखाउन प्रयोग गरिन्छ</translation>
+<translation id="6127237283587442951">Chrome स्वतः प्रयोग गर्नुहोस् र यसलाई पिन गर्नुहोस्</translation>
 <translation id="6134085236017727171">माइक्रोफोन प्रयोग गर्न <ph name="BEGIN_LINK" />सिस्टम सेटिङ<ph name="END_LINK" />मा गई Chrome लाई माइक्रोफोनको एक्सेस दिनुहोस्</translation>
 <translation id="6135456723633883042">यी ट्याबले अतिरिक्त स्रोतहरू प्रयोग गरिरहेका छन्। पर्फर्मेन्स अझ राम्रो बनाउन Chrome लाई यी ट्याब निष्क्रिय बनाउन दिनुहोस्।</translation>
 <translation id="6145313976051292476">PDF फाइलहरू Chrome मा खोलियोस्</translation>
@@ -508,7 +510,6 @@ Google Chrome ले तपाईंको सेटिङहरू पुन: �
 <translation id="7572537927358445944">अफ छ • Chrome ले यो एक्स्टेन्सनको स्रोतका बारेमा पुष्टि गर्न सक्दैन</translation>
 <translation id="7583399374488819119"><ph name="COMPANY_NAME" /> इन्स्टलर</translation>
 <translation id="7606334485649076285">Google ChromeOS Flex</translation>
-<translation id="7626032353295482388">Chrome मा स्वागत छ</translation>
 <translation id="7626072681686626474"><ph name="MANAGER" /> को नीतिअनुसार तपाईंले यो डिभाइस प्रयोग गर्नुअघि सेवाका निम्न सर्तहरू पढेर स्वीकार गर्नु पर्ने हुन्छ। यी सर्तले Google ChromeOS का सर्तहरू विस्तार, परिमार्जन वा सीमित गर्दैनन्।</translation>
 <translation id="7629695634924605473">तपाईंको पासवर्ड ह्याक भएको भण्डमा Chrome ले तपाईंलाई त्यसको जानकारी दिन्छ</translation>
 <translation id="7641148173327520642">तपाईंको प्रणालीका प्रशासकले <ph name="TARGET_URL_HOSTNAME" /> माथि पहुँच गर्नका लागि <ph name="ALTERNATIVE_BROWSER_NAME" /> खोल्न Google Chrome कन्फिगर गरेको छ।</translation>
@@ -628,6 +629,7 @@ Google Chrome ले तपाईंको सेटिङहरू पुन: �
 <translation id="9090566250983691233">Chrome ले केही फाइलहरू ब्लक गर्नुको कारण जान्नुहोस्</translation>
 <translation id="9106236359747881194">खोज्नु पर्ने टेक्स्ट चयन गर्नुहोस्</translation>
 <translation id="911206726377975832">साथै तपाईंको ब्राउजिङ डाटा पनि मेट्ने?</translation>
+<translation id="9134482777260927479">गृहकार्य गर्न मद्दत पाउनुहोस्</translation>
 <translation id="9138603949443464873">आफूले गरेका परिवर्तनहरू लागू गर्न Chrome पुनः सुरु गर्नुहोस्</translation>
 <translation id="9148058034647219655">बाहिर निस्कनुहोस्</translation>
 <translation id="9195993889682885387">गत केही हप्ताको तपाईंको ब्राउजिङ इतिहासका आधारमा Chrome ले तपाईंका रुचिहरू अनुमान ‌गर्न सक्छ। यो जानकारी तपाईंको डिभाइसमै भण्डारण गरिन्छ।</translation>
