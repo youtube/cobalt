@@ -57,6 +57,16 @@ class MEDIA_EXPORT MP4StreamParser : public StreamParser {
   [[nodiscard]] bool AppendToParseBuffer(
       base::span<const uint8_t> buf) override;
   [[nodiscard]] ParseStatus Parse(int max_pending_bytes_to_inspect) override;
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+ private:
+  // The following function and variable should technically be moved down.  They
+  // are kept here to make the new feature easy to review and maintain.
+  [[nodiscard]] ParseStatus ParseInternal(int max_pending_bytes_to_inspect);
+
+  bool buffers_parsed_ = false;
+
+ public:
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // Calculates the rotation value from the track header display matricies.
   VideoTransformation CalculateRotation(const TrackHeader& track,
@@ -133,6 +143,14 @@ class MEDIA_EXPORT MP4StreamParser : public StreamParser {
   // use a new type of queue that internally modulates the increment.
   int64_t max_parse_offset_ = 0;
   OffsetByteQueue queue_;
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Scratch buffer to reuse capacity for video frame bitstream conversion.
+  // Reusing this is possible on Starboard because the frame data is copied
+  // into the media pool rather than moved (which would release/deallocate
+  // the vector's backing memory).
+  std::vector<uint8_t> scratch_frame_buf_;
+#endif
 
   // These two parameters are only valid in the |kEmittingSegments| state.
   //
