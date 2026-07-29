@@ -120,10 +120,17 @@ if (build_with_internal_optimization_guide) {
   source_set("xnnpack_standalone") {
     public = [ "src/include/xnnpack.h" ]
 
+<<<<<<< HEAD
     configs -= [ "//build/config/compiler:chromium_code" ]
     configs += [ "//build/config/compiler:no_chromium_code" ]
     configs += [ "//build/config/sanitizers:cfi_icall_generalize_pointers" ]
     configs += [ ":xnnpack_private_config" ]
+=======
+  configs -= [ "//build/config/compiler:chromium_code" ]
+  configs += [ "//build/config/compiler:no_chromium_code" ]
+  configs += [ "//build/config/sanitizers:cfi_icall_generalize_pointers" ]
+  configs += [ ":xnnpack_private_config" ]
+>>>>>>> parent of e893a2487be (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
     sources = [
     "src/include/xnnpack.h",
@@ -138,7 +145,11 @@ if (build_with_internal_optimization_guide) {
       "//third_party/pthreadpool:pthreadpool_standalone",
     ]
 
+<<<<<<< HEAD
     public_configs = [ ":xnnpack_public_config" ]
+=======
+  public_configs = [ ":xnnpack_public_config" ]
+>>>>>>> parent of e893a2487be (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
     if (!(is_android && use_order_profiling)) {
       assert_no_deps = [ "//base" ]
@@ -185,10 +196,17 @@ if (build_with_internal_optimization_guide) {
   %SRCS%
     ]
 
+<<<<<<< HEAD
     configs -= [ "//build/config/compiler:chromium_code" ]
     configs += [ "//build/config/compiler:no_chromium_code" ]
     configs += [ "//build/config/sanitizers:cfi_icall_generalize_pointers" ]
     configs += [ ":xnnpack_private_config" ]
+=======
+  configs -= [ "//build/config/compiler:chromium_code" ]
+  configs += [ "//build/config/compiler:no_chromium_code" ]
+  configs += [ "//build/config/sanitizers:cfi_icall_generalize_pointers" ]
+  configs += [ ":xnnpack_private_config" ]
+>>>>>>> parent of e893a2487be (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
     deps = [
       "//third_party/cpuinfo",
@@ -197,7 +215,11 @@ if (build_with_internal_optimization_guide) {
       "//third_party/pthreadpool:pthreadpool_standalone",
     ]
 
+<<<<<<< HEAD
     public_configs = [ ":xnnpack_public_config" ]
+=======
+  public_configs = [ ":xnnpack_public_config" ]
+>>>>>>> parent of e893a2487be (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
     if (!(is_android && use_order_profiling)) {
       assert_no_deps = [ "//base" ]

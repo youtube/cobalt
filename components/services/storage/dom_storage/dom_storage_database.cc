@@ -71,6 +71,14 @@ leveldb_env::Options MakeOptions() {
   return options;
 }
 
+#if BUILDFLAG(IS_COBALT)
+leveldb::WriteOptions CreateSyncWriteOptions() {
+  leveldb::WriteOptions options;
+  options.sync = true;
+  return options;
+}
+#endif
+
 std::unique_ptr<leveldb::DB> TryOpenDB(
     const leveldb_env::Options& options,
     const std::string& name,
@@ -289,9 +297,18 @@ DbStatus DomStorageDatabase::Get(KeyView key, Value* out_value) const {
 DbStatus DomStorageDatabase::Put(KeyView key, ValueView value) const {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (!db_)
+<<<<<<< HEAD
     return DbStatus::IOError(kInvalidDatabaseMessage);
   return FromLevelDBStatus(
       db_->Put(leveldb::WriteOptions(), MakeSlice(key), MakeSlice(value)));
+=======
+    return Status::IOError(kInvalidDatabaseMessage);
+#if BUILDFLAG(IS_COBALT)
+  return db_->Put(CreateSyncWriteOptions(), MakeSlice(key), MakeSlice(value));
+#else
+  return db_->Put(leveldb::WriteOptions(), MakeSlice(key), MakeSlice(value));
+#endif
+>>>>>>> parent of e893a2487be (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 DbStatus DomStorageDatabase::GetPrefixed(
@@ -344,8 +361,17 @@ DbStatus DomStorageDatabase::Commit(leveldb::WriteBatch* batch) const {
   if (!db_)
     return DbStatus::IOError(kInvalidDatabaseMessage);
   if (fail_commits_for_testing_)
+<<<<<<< HEAD
     return DbStatus::IOError("Simulated I/O Error");
   return FromLevelDBStatus(db_->Write(leveldb::WriteOptions(), batch));
+=======
+    return Status::IOError("Simulated I/O Error");
+#if BUILDFLAG(IS_COBALT)
+  return db_->Write(CreateSyncWriteOptions(), batch);
+#else
+  return db_->Write(leveldb::WriteOptions(), batch);
+#endif
+>>>>>>> parent of e893a2487be (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 DbStatus DomStorageDatabase::RewriteDB() {

@@ -7,6 +7,14 @@
 
 #include "cc/tiles/image_decode_cache_utils.h"
 
+#include "build/build_config.h"
+
+#if BUILDFLAG(IS_COBALT)
+#include "base/command_line.h"
+#include "base/strings/string_number_conversions.h"
+#include "cc/base/switches.h"
+#endif
+
 #include "base/check.h"
 #include "cc/paint/paint_flags.h"
 #include "third_party/skia/include/core/SkBitmap.h"
@@ -35,6 +43,22 @@ bool ImageDecodeCacheUtils::ShouldEvictCaches(
 // static
 size_t ImageDecodeCacheUtils::GetWorkingSetBytesForImageDecode(
     bool for_renderer) {
+#if BUILDFLAG(IS_COBALT)
+  static const size_t cobalt_decoded_image_working_set_budget_bytes = []() {
+    size_t budget = 128 * 1024 * 1024;
+    auto* command_line = base::CommandLine::ForCurrentProcess();
+    if (command_line->HasSwitch(switches::kDecodedImageWorkingSetBudgetBytes)) {
+      std::string value = command_line->GetSwitchValueASCII(
+          switches::kDecodedImageWorkingSetBudgetBytes);
+      int64_t parsed_value;
+      if (base::StringToInt64(value, &parsed_value) && parsed_value >= 0) {
+        budget = parsed_value;
+      }
+    }
+    return budget;
+  }();
+  return cobalt_decoded_image_working_set_budget_bytes;
+#else
   size_t decoded_image_working_set_budget_bytes = 128 * 1024 * 1024;
 #if !BUILDFLAG(IS_ANDROID)
   if (for_renderer) {
@@ -51,7 +75,46 @@ size_t ImageDecodeCacheUtils::GetWorkingSetBytesForImageDecode(
   }
 #endif  // !BUILDFLAG(IS_ANDROID)
   return decoded_image_working_set_budget_bytes;
+#endif
 }
+
+#if BUILDFLAG(IS_COBALT)
+// static
+size_t ImageDecodeCacheUtils::GetPersistentCacheBudgetCount() {
+  static const size_t cobalt_decoded_image_persistent_cache_budget_count = []() {
+    size_t budget = 2000; // kNormalMaxItemsInCacheForGpu default
+    auto* command_line = base::CommandLine::ForCurrentProcess();
+    if (command_line->HasSwitch(switches::kCCImageCacheLimitItems)) {
+      std::string value = command_line->GetSwitchValueASCII(
+          switches::kCCImageCacheLimitItems);
+      int parsed_value;
+      if (base::StringToInt(value, &parsed_value) && parsed_value >= 0) {
+        budget = static_cast<size_t>(parsed_value);
+      }
+    }
+    return budget;
+  }();
+  return cobalt_decoded_image_persistent_cache_budget_count;
+}
+
+// static
+size_t ImageDecodeCacheUtils::GetPersistentCacheBudgetBytes() {
+  static const size_t cobalt_decoded_image_persistent_cache_budget_bytes = []() {
+    size_t budget = std::numeric_limits<size_t>::max();
+    auto* command_line = base::CommandLine::ForCurrentProcess();
+    if (command_line->HasSwitch(switches::kCCImageCacheLimitBytes)) {
+      std::string value = command_line->GetSwitchValueASCII(
+          switches::kCCImageCacheLimitBytes);
+      int64_t parsed_value;
+      if (base::StringToInt64(value, &parsed_value) && parsed_value >= 0) {
+        budget = static_cast<size_t>(parsed_value);
+      }
+    }
+    return budget;
+  }();
+  return cobalt_decoded_image_persistent_cache_budget_bytes;
+}
+#endif
 
 }  // namespace cc
 

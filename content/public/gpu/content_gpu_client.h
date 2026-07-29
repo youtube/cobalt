@@ -12,6 +12,12 @@
 #include "content/public/common/content_client.h"
 #include "gpu/command_buffer/service/shared_context_state.h"
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+namespace cobalt::media {
+class VideoGeometrySetterService;
+}
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 namespace gpu {
 struct GpuPreferences;
 class GpuDriverBugWorkarounds;
@@ -64,6 +70,10 @@ class CONTENT_EXPORT ContentGpuClient {
   virtual const gpu::SharedContextState::GrContextOptionsProvider*
   GetGrContextOptionsProvider();
 #endif
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  virtual cobalt::media::VideoGeometrySetterService* GetVideoGeometrySetterService();
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 };
 
 }  // namespace content

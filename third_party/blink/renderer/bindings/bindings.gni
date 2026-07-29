@@ -260,3 +260,102 @@ bindings_unittest_files = get_path_info(
           "modules/v8/v8_element_test.cc",
         ],
         "abspath")
+
+if (is_cobalt) {
+  # Exclusion patterns used in Cobalt builds to omit interfaces.
+  cobalt_bindings_exclude_patterns = [
+    "*_rtc_*",
+    "*v8_rtc_*",
+    "*peer_connection*",
+    "*explicit_congestion_notification*",
+    "*v8_union_mediastreamtrack_string*",
+    "*blob_event*",
+    "*v8_media_recorder.*",
+    "*v8_recording_state*",
+  ]
+
+  cobalt_hardware_exclude_patterns = [
+    "*v8_bluetooth*",
+    "*v8_hid.*",
+    "*v8_hid_*",
+    "*v8_ndef*",
+    "*v8_request_device_options*",
+    "*v8_serial.*",
+    "*v8_serial_*",
+    "*v8_serial_port*",
+    "*v8_usb.*",
+    "*v8_usb_*",
+    "*v8_watch_advertisements_options*",
+  ]
+
+  cobalt_webgpu_exclude_patterns = [
+    "*v8_canvas_2d_gpu_*",
+    "*v8_gpu.*",
+    "*v8_gpu_*",
+    "*v8_ml.*",
+    "*v8_ml_*",
+    "*v8_xr.*",
+    "*v8_xr_*",
+    "*v8_union_*gpu*",
+  ]
+
+  cobalt_ai_exclude_patterns = [
+    "*v8_rewriter*",
+    "*v8_translator*",
+    "*v8_writer*",
+    "*v8_summarizer*",
+    "*v8_language_model*",
+    "*v8_proofreader*",
+    "*v8_create_monitor*",
+    "*v8_language_detector*",
+  ]
+
+  if (!enable_privacy_sandbox_apis) {
+    cobalt_bindings_exclude_patterns += [
+      "*ad_auction*",
+      "*adproperties*",
+      "*auction*",
+      "*authentication_*",
+      "*authenticator_*",
+      "*browsing_topic*",
+      "*cable_authentication_*",
+      "*collected_client_data*",
+      "*credential_options*",
+      "*credentials_options*",
+      "*current_user_details_options*",
+      "*dialog_button*",
+      "*digital_credential*",
+      "*federated_credential*",
+      "*fencedframeconfig*",
+      "*identity_credential*",
+      "*identity_provider*",
+      "*identity_request_provider*",
+      "*identity_resolve_options*",
+      "*identity_user_info*",
+      "*identityprovider*",
+      "*interest_group*",
+      "*login_status*",
+      "*navigator_auction*",
+      "*navigator_credentials*",
+      "*navigator_identity*",
+      "*navigator_login*",
+      "*network_or_issuer_information*",
+      "*otp_credential*",
+      "*password*credential*",
+      "*payment_credential*",
+      "*private_attribution*",
+      "*protected_audience*",
+      "*public_key_credential*",
+      "*registration_response*",
+      "*remote_desktop_client_override*",
+      "*secure_payment_confirmation_request*",
+      "*shared_storage*",
+      "*storage_access*",
+      "*v8_ad_*",
+      "*v8_ads*",
+      "*v8_credential*",
+      "*v8_private_aggregation*",
+      "*view_or_click_counts*",
+    ]
+  }
+}

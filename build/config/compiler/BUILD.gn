@@ -23,6 +23,10 @@ import("//build/toolchain/rbe.gni")
 import("//build/toolchain/toolchain.gni")
 import("//build_overrides/build.gni")
 
+if (is_cobalt) {
+  import("//starboard/build/config/toolchain_variables.gni")
+}
+
 if (current_cpu == "arm" || current_cpu == "arm64") {
   import("//build/config/arm.gni")
 }
@@ -252,10 +256,19 @@ use_clang_warning_suppression_file =
 # source root and might have conflicting versions of some headers) can remove
 # this and specify their own include paths.
 config("default_include_dirs") {
+  if (is_cobalt && is_partner_toolchain) {
+    include_dirs = [
+      "//copied_base",
+      "//",
+      "$root_gen_dir/copied_base",
+      root_gen_dir
+    ]
+  } else {
   include_dirs = [
     "//",
     root_gen_dir,
   ]
+  }
 }
 
 # Compiler instrumentation can introduce dependencies in DSOs to symbols in
@@ -683,9 +696,13 @@ config("compiler") {
         cflags_cc += [ "-std=${standard_prefix}++20" ]
       }
     } else {
+      if (use_cxx17 && is_cobalt) {
+        cflags_cc += [ "-std=${standard_prefix}++17" ]
+      } else {
       # The gcc bots are currently using GCC 9, which is not new enough to
       # support "c++20"/"gnu++20".
       cflags_cc += [ "-std=${standard_prefix}++2a" ]
+      }
     }
   } else if (is_win) {
     cflags_c += [ "/std:c11" ]
@@ -1080,6 +1097,9 @@ config("compiler") {
     # We use clang-rt sanitizer runtimes.
     "-Zexternal-clangrt",
   ]
+  if (is_cobalt && current_toolchain == default_toolchain) {
+    rustflags += ["-Ztls-model=emulated"]
+  }
 
   if (!is_win || force_rustc_color_output) {
     # Colorize error output. The analogous flag is passed for clang. This must
@@ -2761,6 +2781,10 @@ config("no_optimize") {
   } else {
     cflags = [ "-O0" ]
     ldflags = []
+    if (is_cobalt && cobalt_debugging_enabled) {
+      # Strip unused symbols to avoid linker errors.
+      ldflags += common_optimize_on_ldflags
+    }
   }
 }
 
@@ -2789,6 +2813,7 @@ config("optimize_max") {
 # TODO(crbug.com/41259697) - rework how all of these configs are related
 # so that we don't need this disclaimer.
 config("optimize_speed") {
+<<<<<<< HEAD
   ldflags = common_optimize_on_ldflags
   if (is_win) {
     # Favor speed over size, /O2 must be before the common flags.
@@ -2796,6 +2821,35 @@ config("optimize_speed") {
     cflags = [ "/O2" ] + common_optimize_on_cflags
     if (is_clang) {
       cflags += [ "/clang:-O3" ]
+=======
+  if (is_nacl && is_nacl_irt) {
+    # The NaCl IRT is a special case and always wants its own config.
+    # Various components do:
+    #   if (!is_debug) {
+    #     configs -= [ "//build/config/compiler:default_optimization" ]
+    #     configs += [ "//build/config/compiler:optimize_max" ]
+    #   }
+    # So this config has to have the selection logic just like
+    # "default_optimization", below.
+    configs = [ "//build/config/nacl:irt_optimize" ]
+  } else {
+    ldflags = common_optimize_on_ldflags
+    if (is_win) {
+      # Favor speed over size, /O2 must be before the common flags.
+      # /O2 implies /Ot, /Oi, and /GF.
+      cflags = [ "/O2" ] + common_optimize_on_cflags
+      if (is_clang) {
+        cflags += [ "/clang:-O3" ]
+      }
+    } else if (optimize_for_fuzzing) {
+      cflags = [ "-O1" ] + common_optimize_on_cflags
+    } else {
+      if (is_starboard) {
+        cflags = [ "-O2" ] + common_optimize_on_cflags
+      } else {
+        cflags = [ "-O3" ] + common_optimize_on_cflags
+      }
+>>>>>>> parent of e893a2487be (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     }
   } else if (optimize_for_fuzzing) {
     cflags = [ "-O1" ] + common_optimize_on_cflags
@@ -2815,7 +2869,15 @@ config("optimize_fuzzing") {
 # The default optimization applied to all targets. This will be equivalent to
 # either "optimize" or "no_optimize", depending on the build flags.
 config("default_optimization") {
+<<<<<<< HEAD
   if (is_debug) {
+=======
+  if (is_nacl && is_nacl_irt) {
+    # The NaCl IRT is a special case and always wants its own config.
+    # It gets optimized the same way regardless of the type of build.
+    configs = [ "//build/config/nacl:irt_optimize" ]
+  } else if (is_debug || is_cobalt && cobalt_debugging_enabled) {
+>>>>>>> parent of e893a2487be (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     configs = [ ":no_optimize" ]
   } else if (optimize_for_fuzzing) {
     assert(!is_win, "Fuzzing optimize level not supported on Windows")

@@ -1,0 +1,308 @@
+// Copyright 2025 The Cobalt Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+#ifndef COBALT_SHELL_BROWSER_SHELL_CONTENT_BROWSER_CLIENT_H_
+#define COBALT_SHELL_BROWSER_SHELL_CONTENT_BROWSER_CLIENT_H_
+
+#include <memory>
+#include <string>
+
+#include "base/files/file_path.h"
+#include "base/functional/callback.h"
+#include "base/memory/raw_ptr.h"
+#include "build/build_config.h"
+#include "cobalt/shell/browser/h5vcc_scheme_url_loader_factory.h"
+#include "cobalt/shell/browser/shell_speech_recognition_manager_delegate.h"
+#include "content/public/browser/content_browser_client.h"
+#include "services/network/public/cpp/permissions_policy/permissions_policy_declaration.h"
+#include "services/network/public/mojom/network_context.mojom-forward.h"
+
+class PrefService;
+
+namespace content {
+class NavigationThrottleRegistry;
+class ShellBrowserContext;
+class ShellBrowserMainParts;
+
+// In content browser tests we allow more than one ShellContentBrowserClient
+// to be created (actually, ContentBrowserTestContentBrowserClient). Any state
+// needed should be added here so that it's shared between the instances.
+struct SharedState {
+  SharedState();
+
+  // Owned by content::BrowserMainLoop.
+  raw_ptr<ShellBrowserMainParts, DanglingUntriaged> shell_browser_main_parts =
+      nullptr;
+
+  std::unique_ptr<PrefService> local_state;
+};
+
+SharedState& GetSharedState();
+
+std::string GetShellUserAgent();
+std::string GetShellLanguage();
+blink::UserAgentMetadata GetShellUserAgentMetadata();
+
+class ShellContentBrowserClient : public ContentBrowserClient {
+ public:
+  // Gets the current instance.
+  static ShellContentBrowserClient* Get();
+
+  explicit ShellContentBrowserClient(const std::string& deep_link = "",
+                                     bool is_visible = true);
+  ~ShellContentBrowserClient() override;
+
+  // The value supplied here is set when creating the NetworkContext.
+  // Specifically
+  // network::mojom::NetworkContext::allow_any_cors_exempt_header_for_browser.
+  static void set_allow_any_cors_exempt_header_for_browser(bool value) {
+    allow_any_cors_exempt_header_for_browser_ = value;
+  }
+
+  // ContentBrowserClient overrides.
+  std::unique_ptr<BrowserMainParts> CreateBrowserMainParts(
+      bool is_integration_test) override;
+  bool IsHandledURL(const GURL& url) override;
+  bool HasCustomSchemeHandler(content::BrowserContext* browser_context,
+                              const std::string& scheme) override;
+  std::vector<std::unique_ptr<blink::URLLoaderThrottle>>
+  CreateURLLoaderThrottles(
+      const network::ResourceRequest& request,
+      BrowserContext* browser_context,
+      const base::RepeatingCallback<WebContents*()>& wc_getter,
+      NavigationUIData* navigation_ui_data,
+      FrameTreeNodeId frame_tree_node_id,
+      std::optional<int64_t> navigation_id) override;
+  void AppendExtraCommandLineSwitches(base::CommandLine* command_line,
+                                      int child_process_id) override;
+  std::string GetAcceptLangs(BrowserContext* context) override;
+  std::string GetDefaultDownloadName() override;
+  std::unique_ptr<WebContentsViewDelegate> GetWebContentsViewDelegate(
+      WebContents* web_contents) override;
+  bool IsIsolatedContextAllowedForUrl(BrowserContext* browser_context,
+                                      const GURL& lock_url) override;
+  bool IsSharedStorageAllowed(
+      content::BrowserContext* browser_context,
+      content::RenderFrameHost* rfh,
+      const url::Origin& top_frame_origin,
+      const url::Origin& accessing_origin,
+      std::string* out_debug_message,
+      bool* out_block_is_site_setting_specific) override;
+  bool IsSharedStorageSelectURLAllowed(
+      content::BrowserContext* browser_context,
+      const url::Origin& top_frame_origin,
+      const url::Origin& accessing_origin,
+      std::string* out_debug_message,
+      bool* out_block_is_site_setting_specific) override;
+  GeneratedCodeCacheSettings GetGeneratedCodeCacheSettings(
+      content::BrowserContext* context) override;
+  base::OnceClosure SelectClientCertificate(
+      BrowserContext* browser_context,
+      int process_id,
+      WebContents* web_contents,
+      net::SSLCertRequestInfo* cert_request_info,
+      net::ClientCertIdentityList client_certs,
+      std::unique_ptr<ClientCertificateDelegate> delegate) override;
+  SpeechRecognitionManagerDelegate* CreateSpeechRecognitionManagerDelegate()
+      override;
+  void OverrideWebPreferences(WebContents* web_contents,
+                              SiteInstance& main_frame_site,
+                              blink::web_pref::WebPreferences* prefs) override;
+  std::unique_ptr<content::DevToolsManagerDelegate>
+  CreateDevToolsManagerDelegate() override;
+  void ExposeInterfacesToRenderer(
+      service_manager::BinderRegistry* registry,
+      blink::AssociatedInterfaceRegistry* associated_registry,
+      RenderProcessHost* render_process_host) override;
+  mojo::Remote<::media::mojom::MediaService> RunSecondaryMediaService()
+      override;
+  void RegisterBrowserInterfaceBindersForFrame(
+      RenderFrameHost* render_frame_host,
+      mojo::BinderMapWithContext<RenderFrameHost*>* map) override;
+  void OpenURL(SiteInstance* site_instance,
+               const OpenURLParams& params,
+               base::OnceCallback<void(WebContents*)> callback) override;
+  void CreateThrottlesForNavigation(
+      content::NavigationThrottleRegistry& registry) override;
+  std::unique_ptr<LoginDelegate> CreateLoginDelegate(
+      const net::AuthChallengeInfo& auth_info,
+      content::WebContents* web_contents,
+      content::BrowserContext* browser_context,
+      const content::GlobalRequestID& request_id,
+      bool is_request_for_primary_main_frame_navigation,
+      bool is_request_for_navigation,
+      const GURL& url,
+      scoped_refptr<net::HttpResponseHeaders> response_headers,
+      bool first_auth_attempt,
+      GuestPageHolder* guest,
+      LoginDelegate::LoginAuthRequiredCallback auth_required_callback) override;
+  base::Value::Dict GetNetLogConstants() override;
+  base::FilePath GetSandboxedStorageServiceDataDirectory() override;
+  base::FilePath GetFirstPartySetsDirectory() override;
+  std::string GetUserAgent() override;
+  blink::UserAgentMetadata GetUserAgentMetadata() override;
+  void OverrideURLLoaderFactoryParams(
+      BrowserContext* browser_context,
+      const url::Origin& origin,
+      bool is_for_isolated_world,
+      bool is_for_service_worker,
+      network::mojom::URLLoaderFactoryParams* factory_params) override;
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_ANDROID)
+  void GetAdditionalMappedFilesForChildProcess(
+      const base::CommandLine& command_line,
+      int child_process_id,
+      content::PosixFileDescriptorInfo* mappings) override;
+#endif  // BUILDFLAG(IS_LINUX) ||
+        // BUILDFLAG(IS_ANDROID)
+  device::GeolocationSystemPermissionManager*
+  GetGeolocationSystemPermissionManager() override;
+  void ConfigureNetworkContextParams(
+      BrowserContext* context,
+      bool in_memory,
+      const base::FilePath& relative_partition_path,
+      network::mojom::NetworkContextParams* network_context_params,
+      cert_verifier::mojom::CertVerifierCreationParams*
+          cert_verifier_creation_params) override;
+  std::vector<base::FilePath> GetNetworkContextsParentDirectory() override;
+
+  void GetHyphenationDictionary(
+      base::OnceCallback<void(const base::FilePath&)>) override;
+  bool HasErrorPage(int http_status_code) override;
+  mojo::PendingRemote<network::mojom::URLLoaderFactory>
+  CreateNonNetworkNavigationURLLoaderFactory(
+      const std::string& scheme,
+      FrameTreeNodeId frame_tree_node_id) override;
+  void RegisterNonNetworkWorkerMainResourceURLLoaderFactories(
+      BrowserContext* browser_context,
+      NonNetworkURLLoaderFactoryMap* factories) override;
+  void RegisterNonNetworkServiceWorkerUpdateURLLoaderFactories(
+      BrowserContext* browser_context,
+      NonNetworkURLLoaderFactoryMap* factories) override;
+  void RegisterNonNetworkSubresourceURLLoaderFactories(
+      int render_process_id,
+      int render_frame_id,
+      const std::optional<url::Origin>& request_initiator_origin,
+      NonNetworkURLLoaderFactoryMap* factories) override;
+
+  // Turns on features via permissions policy for Isolated App
+  // Web Platform Tests.
+  std::optional<network::ParsedPermissionsPolicy>
+  GetPermissionsPolicyForIsolatedWebApp(content::WebContents* web_contents,
+                                        const url::Origin& app_origin) override;
+
+  virtual void CreateFeatureListAndFieldTrials();
+  ShellBrowserContext* browser_context();
+  ShellBrowserContext* off_the_record_browser_context();
+  ShellBrowserMainParts* shell_browser_main_parts();
+
+  // Used for content_browsertests.
+  using SelectClientCertificateCallback = base::OnceCallback<base::OnceClosure(
+      content::WebContents* web_contents,
+      net::SSLCertRequestInfo* cert_request_info,
+      net::ClientCertIdentityList client_certs,
+      std::unique_ptr<content::ClientCertificateDelegate> delegate)>;
+
+  void set_select_client_certificate_callback(
+      SelectClientCertificateCallback select_client_certificate_callback) {
+    select_client_certificate_callback_ =
+        std::move(select_client_certificate_callback);
+  }
+  void set_login_request_callback(
+      base::OnceCallback<void(bool is_primary_main_frame_navigation,
+                              bool is_navigation)> login_request_callback) {
+    login_request_callback_ = std::move(login_request_callback);
+  }
+  void set_url_loader_factory_params_callback(
+      base::RepeatingCallback<void(
+          const network::mojom::URLLoaderFactoryParams*,
+          const url::Origin&,
+          bool is_for_isolated_world,
+          bool is_for_service_worker)> url_loader_factory_params_callback) {
+    url_loader_factory_params_callback_ =
+        std::move(url_loader_factory_params_callback);
+  }
+  void set_create_throttles_for_navigation_callback(
+      base::RepeatingCallback<void(NavigationThrottleRegistry&)>
+          create_throttles_for_navigation_callback) {
+    create_throttles_for_navigation_callback_ =
+        create_throttles_for_navigation_callback;
+  }
+
+  void set_override_web_preferences_callback(
+      base::RepeatingCallback<void(blink::web_pref::WebPreferences*)>
+          callback) {
+    override_web_preferences_callback_ = std::move(callback);
+  }
+
+ protected:
+  // Call this if CreateBrowserMainParts() is overridden in a subclass.
+  void set_browser_main_parts(ShellBrowserMainParts* parts);
+
+  // Used by ConfigureNetworkContextParams(), and can be overridden to change
+  // the parameters used there.
+  virtual void ConfigureNetworkContextParamsForShell(
+      BrowserContext* context,
+      network::mojom::NetworkContextParams* context_params,
+      cert_verifier::mojom::CertVerifierCreationParams*
+          cert_verifier_creation_params);
+
+ private:
+  // For GetShellContentBrowserClientInstances().
+  friend class ContentBrowserTestContentBrowserClient;
+
+  // Needed so that content_shell can use fieldtrial_testing_config.
+  virtual void SetUpFieldTrials();
+
+  // Helper function to register the H5vccSchemeURLLoaderFactory for the
+  // custom scheme kH5vccEmbeddedScheme.
+  void RegisterH5vccScheme(NonNetworkURLLoaderFactoryMap* factories);
+
+  // Returns the list of ShellContentBrowserClients ordered by time created.
+  // If a test overrides ContentBrowserClient, this list will have more than
+  // one item.
+  static const std::vector<ShellContentBrowserClient*>&
+  GetShellContentBrowserClientInstances();
+
+  static bool allow_any_cors_exempt_header_for_browser_;
+
+  SelectClientCertificateCallback select_client_certificate_callback_;
+  base::OnceCallback<void(bool is_primary_main_frame_navigation,
+                          bool is_navigation)>
+      login_request_callback_;
+  base::RepeatingCallback<void(const network::mojom::URLLoaderFactoryParams*,
+                               const url::Origin&,
+                               bool is_for_isolated_world,
+                               bool is_for_service_worker)>
+      url_loader_factory_params_callback_;
+  base::RepeatingCallback<void(NavigationThrottleRegistry&)>
+      create_throttles_for_navigation_callback_;
+  base::RepeatingCallback<void(blink::web_pref::WebPreferences*)>
+      override_web_preferences_callback_;
+  std::unique_ptr<H5vccSchemeURLLoaderFactory> h5vcc_scheme_url_loader_factory_;
+
+  std::string deep_link_;
+  bool is_visible_;
+
+  // NOTE: Tests may install a second ShellContentBrowserClient that becomes
+  // the ContentBrowserClient used by content. This has subtle implications
+  // for any state (variables) that are needed by ShellContentBrowserClient.
+  // Any state that needs to be the same across all ShellContentBrowserClients
+  // should be placed in SharedState (declared in
+  // shell_content_browser_client.cc). Any state that is specific to a
+  // particular instance should be placed here.
+};
+
+}  // namespace content
+
+#endif  // COBALT_SHELL_BROWSER_SHELL_CONTENT_BROWSER_CLIENT_H_

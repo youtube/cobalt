@@ -10,11 +10,18 @@
 namespace v8::internal::wasm::fuzzing {
 
 // Fuzzer that may generate WasmGC+SIMD expressions.
+<<<<<<< HEAD
 bool GenerateModuleWithExternalFuncs(i::Isolate* isolate, i::Zone* zone,
                                      v8::base::Vector<const uint8_t> data,
                                      i::wasm::ZoneBuffer* buffer,
                                      std::vector<ExportData>* exports,
                                      std::vector<ExportData>* imports) {
+=======
+bool GenerateModuleWithExternalFuncs(
+    i::Isolate* isolate, i::Zone* zone, v8::base::Vector<const uint8_t> data,
+    i::wasm::ZoneBuffer* buffer, std::vector<fuzzing::ExportData>* exports,
+    std::vector<fuzzing::ExportData>* imports) {
+>>>>>>> parent of e893a2487be (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   v8::base::Vector<const uint8_t> wire_bytes =
       fuzzing::GenerateRandomWasmModule(
           zone, fuzzing::WasmModuleGenerationOptions::All(), data, exports,

@@ -6,6 +6,9 @@
 # in the file PATENTS.  All contributing project authors may
 # be found in the AUTHORS file in the root of the source tree.
 import("../webrtc.gni")
+if (is_cobalt) {
+  import("//starboard/build/buildflags.gni")
+}
 if (rtc_enable_protobuf) {
   import("//third_party/protobuf/proto_library.gni")
 }
@@ -161,6 +164,87 @@ if (!is_component_build) {
   # This target can be built from Chromium but it doesn't support
   # is_component_build=true because it depends on WebRTC testonly code
   # which is not part of //third_party/webrtc_overrides:webrtc_component.
+<<<<<<< HEAD
+=======
+
+  rtc_executable("rtp_generator") {
+    visibility = [ "*" ]
+    testonly = true
+    sources = [
+      "rtp_generator/main.cc",
+      "rtp_generator/rtp_generator.cc",
+      "rtp_generator/rtp_generator.h",
+    ]
+
+    deps = [
+      "..//api/video_codecs:video_decoder_factory_template",
+      "..//api/video_codecs:video_decoder_factory_template_dav1d_adapter",
+      "..//api/video_codecs:video_decoder_factory_template_libvpx_vp8_adapter",
+      "..//api/video_codecs:video_decoder_factory_template_libvpx_vp9_adapter",
+      "..//api/video_codecs:video_decoder_factory_template_open_h264_adapter",
+      "..//api/video_codecs:video_encoder_factory_template",
+      "..//api/video_codecs:video_encoder_factory_template_libaom_av1_adapter",
+      "..//api/video_codecs:video_encoder_factory_template_libvpx_vp8_adapter",
+      "..//api/video_codecs:video_encoder_factory_template_libvpx_vp9_adapter",
+      "..//api/video_codecs:video_encoder_factory_template_open_h264_adapter",
+      "..//test/network:simulated_network",
+      "../api:array_view",
+      "../api:create_frame_generator",
+      "../api:make_ref_counted",
+      "../api:rtp_headers",
+      "../api:rtp_parameters",
+      "../api:transport_api",
+      "../api/environment",
+      "../api/environment:environment_factory",
+      "../api/video:builtin_video_bitrate_allocator_factory",
+      "../api/video:video_bitrate_allocator_factory",
+      "../api/video_codecs:video_codecs_api",
+      "../call",
+      "../call:call_interfaces",
+      "../call:fake_network",
+      "../call:rtp_interfaces",
+      "../call:rtp_sender",
+      "../call:simulated_packet_receiver",
+      "../call:video_send_stream_api",
+      "../media:media_constants",
+      "../media:rtc_audio_video",
+      "../rtc_base:logging",
+      "../rtc_base:rtc_json",
+      "../rtc_base:threading",
+      "../rtc_base/system:file_wrapper",
+      "../system_wrappers",
+      "../test:fileutils",
+      "../test:frame_generator_capturer",
+      "../test:rtp_test_utils",
+      "../video/config:encoder_config",
+      "../video/config:streams_config",
+      "//third_party/abseil-cpp/absl/flags:flag",
+      "//third_party/abseil-cpp/absl/flags:parse",
+      "//third_party/abseil-cpp/absl/flags:usage",
+      "//third_party/abseil-cpp/absl/strings",
+    ]
+
+    if (is_cobalt && (is_starboard || use_starboard_media)) {
+      deps -= [
+        "..//api/video_codecs:video_decoder_factory_template_libvpx_vp8_adapter",
+        "..//api/video_codecs:video_encoder_factory_template_libvpx_vp8_adapter",
+        "..//api/video_codecs:video_decoder_factory_template_libvpx_vp9_adapter",
+        "..//api/video_codecs:video_encoder_factory_template_libvpx_vp9_adapter",
+      ]
+    }
+
+    if (build_with_chromium) {
+      # When building from Chromium, WebRTC's metrics and field trial
+      # implementations need to be replaced by the Chromium ones.
+      deps += [ "//third_party/webrtc_overrides:webrtc_component" ]
+    }
+  }
+
+  # This target can be built from Chromium but it doesn't support
+  # is_component_build=true because it depends on WebRTC testonly code
+  # which is not part of //third_party/webrtc_overrides:webrtc_component.
+
+>>>>>>> parent of e893a2487be (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   rtc_executable("video_replay") {
     visibility = [ "*" ]
     testonly = true
