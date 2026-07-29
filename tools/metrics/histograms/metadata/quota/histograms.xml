@@ -73,7 +73,7 @@ chromium-metrics-reviews@google.com.
     attempting to migrate the database.
   </summary>
   <token key="VersionUpgrades">
-    <variant name="FromV9ToV10"/>
+    <variant name="FromV10ToV11"/>
   </token>
 </histogram>
 
@@ -94,12 +94,12 @@ chromium-metrics-reviews@google.com.
     <variant name="CreateBucket"/>
     <variant name="CreateTable"/>
     <variant name="DeleteBucket"/>
+    <variant name="GetAllBuckets"/>
     <variant name="GetBucket"/>
     <variant name="GetBucketById"/>
     <variant name="GetBucketsForEviction"/>
     <variant name="GetBucketsForHost"/>
     <variant name="GetBucketsForStorageKey"/>
-    <variant name="GetBucketsForType"/>
     <variant name="GetBucketsModifiedBetween"/>
     <variant name="GetExpired"/>
     <variant name="GetExpiredAndOrphanAndStale"/>

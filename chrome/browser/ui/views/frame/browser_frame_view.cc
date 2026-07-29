@@ -39,6 +39,7 @@
 #include "ui/gfx/paint_vector_icon.h"
 #include "ui/gfx/scoped_canvas.h"
 #include "ui/views/background.h"
+#include "ui/views/controls/label.h"
 #include "ui/views/view.h"
 #include "ui/views/view_class_properties.h"
 #include "ui/views/window/hit_test_utils.h"
@@ -164,10 +165,24 @@ bool BrowserFrameView::CaptionButtonsOnLeadingEdge() const {
   return false;
 }
 
+void BrowserFrameView::LayoutWebAppWindowTitle(
+    const gfx::Rect& available_space,
+    views::Label& window_title_label) const {
+  // Default is no title.
+  window_title_label.SetVisible(false);
+}
+
 void BrowserFrameView::UpdateFullscreenTopUI() {}
 
-bool BrowserFrameView::ShouldHideTopUIForFullscreen() const {
-  return browser_widget_->IsFullscreen();
+bool BrowserFrameView::ShouldHideTopUIInFullscreen() const {
+  return true;
+}
+
+bool BrowserFrameView::ShouldShowWebAppFrameToolbar() const {
+  if (browser_widget_->IsFullscreen() && ShouldHideTopUIInFullscreen()) {
+    return false;
+  }
+  return true;
 }
 
 bool BrowserFrameView::CanUserExitFullscreen() const {

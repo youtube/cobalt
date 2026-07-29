@@ -60,6 +60,7 @@ BASE_DECLARE_FEATURE(kDocumentProviderNoSyncRequirement);
 BASE_DECLARE_FEATURE(kShowPopupOnMouseReleased);
 BASE_DECLARE_FEATURE(kMostVisitedTilesHorizontalRenderGroup);
 BASE_DECLARE_FEATURE(kRichAutocompletion);
+BASE_DECLARE_FEATURE(kWebUIOmniboxFullPopup);
 BASE_DECLARE_FEATURE(kWebUIOmniboxPopup);
 BASE_DECLARE_FEATURE(kWebUIOmniboxPopupDebug);
 extern const base::FeatureParam<bool> kWebUIOmniboxPopupDebugSxSParam;
@@ -67,6 +68,8 @@ extern const base::FeatureParam<bool> kWebUIOmniboxPopupDebugSxSParam;
 // Omnibox UI - these affect the UI or function of the location bar (not the
 // popup).
 BASE_DECLARE_FEATURE(kAiModeOmniboxEntryPoint);
+BASE_DECLARE_FEATURE(kAiModeOmniboxEntryPointEnUs);
+BASE_DECLARE_FEATURE(kHideAimEntrypointOnUserInput);
 BASE_DECLARE_FEATURE(kOmniboxAssistantVoiceSearch);
 BASE_DECLARE_FEATURE(kOmniboxMultimodalInput);
 BASE_DECLARE_FEATURE(kRemoveSearchReadyOmnibox);
@@ -140,9 +143,6 @@ BASE_DECLARE_FEATURE(kEnableSiteSearchAllowUserOverridePolicy);
 // Preconnect/prerender behavior for suggestions
 BASE_DECLARE_FEATURE(kPreconnectNonSearchOmniboxSuggestions);
 
-// Only restore focus when invisible.
-BASE_DECLARE_FEATURE(kOmniboxRestoreInvisibleFocusOnly);
-
 // Adds an aim shortcut shortcut in the typed state.
 BASE_DECLARE_FEATURE(kOmniboxAimShortcutTypedState);
 
@@ -157,8 +157,6 @@ BASE_DECLARE_FEATURE(kGeminiPrototypeOmniboxProvider);
 // Returns whether the Gemini Prototype provider is enabled.
 bool IsGeminiPrototypeProviderEnabled();
 #endif
-
-BASE_DECLARE_FEATURE(kHideAimEntrypointOnUserInput);
 
 // Whether the composebox should use the new `chrome-compose` client.
 BASE_DECLARE_FEATURE(kComposeboxUsesChromeComposeClient);

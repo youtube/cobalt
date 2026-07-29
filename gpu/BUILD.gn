@@ -89,7 +89,6 @@ static_library("test_support") {
     "command_buffer/service/gles2_cmd_decoder_mock.h",
     "command_buffer/service/mocks.cc",
     "command_buffer/service/mocks.h",
-    "command_buffer/service/shared_image/gpu_memory_buffer_factory_test_template.h",
     "command_buffer/service/shared_image/test_image_backing.cc",
     "command_buffer/service/shared_image/test_image_backing.h",
     "command_buffer/service/test_helper.cc",
@@ -235,7 +234,6 @@ test("gl_tests") {
     "command_buffer/tests/gl_cube_map_texture_unittest.cc",
     "command_buffer/tests/gl_depth_texture_unittest.cc",
     "command_buffer/tests/gl_deschedule_unittest.cc",
-    "command_buffer/tests/gl_discardable_textures_unittest.cc",
     "command_buffer/tests/gl_dynamic_config_unittest.cc",
     "command_buffer/tests/gl_ext_blend_func_extended_unittest.cc",
     "command_buffer/tests/gl_ext_multisample_compatibility_unittest.cc",
@@ -480,7 +478,6 @@ test("gpu_unittests") {
     "command_buffer/service/renderbuffer_manager_unittest.cc",
     "command_buffer/service/retaining_one_shot_timer_holder_unittest.cc",
     "command_buffer/service/scheduler_unittest.cc",
-    "command_buffer/service/service_discardable_manager_unittest.cc",
     "command_buffer/service/service_transfer_cache_unittest.cc",
     "command_buffer/service/shader_manager_unittest.cc",
     "command_buffer/service/shader_translator_cache_unittest.cc",
@@ -555,7 +552,6 @@ test("gpu_unittests") {
   if (is_mac) {
     sources += [
       "command_buffer/client/internal/mappable_buffer_io_surface_unittest.cc",
-      "command_buffer/service/shared_image/gpu_memory_buffer_factory_io_surface_unittest.cc",
     ]
   }
 
@@ -568,10 +564,7 @@ test("gpu_unittests") {
   }
 
   if (is_linux || is_chromeos || use_ozone) {
-    sources += [
-      "command_buffer/client/internal/mappable_buffer_native_pixmap_unittest.cc",
-      "command_buffer/service/shared_image/gpu_memory_buffer_factory_native_pixmap_unittest.cc",
-    ]
+    sources += [ "command_buffer/client/internal/mappable_buffer_native_pixmap_unittest.cc" ]
   }
 
   if (is_win) {
@@ -611,6 +604,7 @@ test("gpu_unittests") {
     sources += [
       "command_buffer/service/dawn_caching_interface_unittest.cc",
       "command_buffer/service/dawn_platform_unittest.cc",
+      "command_buffer/service/gpu_persistent_cache_unittest.cc",
       "config/webgpu_blocklist_unittest.cc",
     ]
   }
@@ -628,7 +622,8 @@ test("gpu_unittests") {
     "//base/test:test_support",
     "//cc:test_support",
     "//cc/paint",
-    "//components/viz/common:shared_image_format",
+    "//components/persistent_cache",
+    "//components/viz/common/resources:shared_image_format",
     "//components/viz/test:test_support",
     "//gpu/command_buffer/client:gles2_c_lib",
     "//gpu/command_buffer/client:gles2_implementation",
@@ -672,7 +667,7 @@ test("gpu_unittests") {
 
   if (use_dawn) {
     deps += [
-      "//gpu/config:webgpu_blocklist_impl",
+      "//gpu/config",
       "//net:test_support",
       "//third_party/dawn/src/dawn:cpp",
       "//third_party/dawn/src/dawn:proc",

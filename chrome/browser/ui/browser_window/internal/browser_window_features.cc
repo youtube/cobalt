@@ -12,6 +12,7 @@
 #include "base/no_destructor.h"
 #include "chrome/browser/actor/ui/actor_border_view_controller.h"
 #include "chrome/browser/actor/ui/actor_ui_window_controller.h"
+#include "chrome/browser/autocomplete/aim_eligibility_service_factory.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/collaboration/collaboration_service_factory.h"
 #include "chrome/browser/commerce/shopping_service_factory.h"
@@ -45,8 +46,10 @@
 #include "chrome/browser/ui/find_bar/find_bar.h"
 #include "chrome/browser/ui/find_bar/find_bar_controller.h"
 #include "chrome/browser/ui/lens/lens_overlay_entry_point_controller.h"
+#include "chrome/browser/ui/omnibox/ai_mode_page_action_controller.h"
 #include "chrome/browser/ui/performance_controls/memory_saver_bubble_controller.h"
 #include "chrome/browser/ui/performance_controls/memory_saver_opt_in_iph_controller.h"
+#include "chrome/browser/ui/promos/ios_promo_controller.h"
 #include "chrome/browser/ui/signin/signin_view_controller.h"
 #include "chrome/browser/ui/sync/browser_synced_window_delegate.h"
 #include "chrome/browser/ui/tabs/features.h"
@@ -82,7 +85,6 @@
 #include "chrome/browser/ui/views/interaction/browser_elements_views_impl.h"
 #include "chrome/browser/ui/views/location_bar/cookie_controls/cookie_controls_bubble_coordinator.h"
 #include "chrome/browser/ui/views/location_bar/location_bar_view.h"
-#include "chrome/browser/ui/views/location_bar/zoom_bubble_coordinator.h"
 #include "chrome/browser/ui/views/media_router/cast_browser_controller.h"
 #include "chrome/browser/ui/views/new_tab_footer/footer_controller.h"
 #include "chrome/browser/ui/views/profiles/profile_customization_bubble_sync_controller.h"
@@ -118,11 +120,14 @@
 #include "components/lens/lens_features.h"
 #include "components/omnibox/browser/location_bar_model.h"
 #include "components/omnibox/browser/location_bar_model_impl.h"
+#include "components/omnibox/browser/omnibox_field_trial.h"
+#include "components/omnibox/common/omnibox_features.h"
 #include "components/prefs/pref_service.h"
 #include "components/profile_metrics/browser_profile_type.h"
 #include "components/saved_tab_groups/public/features.h"
 #include "components/search/ntp_features.h"
 #include "components/search/search.h"
+#include "components/sharing_message/features.h"
 #include "content/public/common/content_constants.h"
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)
@@ -416,6 +421,13 @@ void BrowserWindowFeatures::InitPostWindowConstruction(Browser* browser) {
           std::make_unique<ChromeLabsCoordinator>(browser);
     }
 
+    if (MobilePromoOnDesktopTypeEnabled() !=
+        MobilePromoOnDesktopPromoType::kDisabled) {
+      ios_promo_controller_ =
+          GetUserDataFactory().CreateInstance<IOSPromoController>(*browser,
+                                                                  browser);
+    }
+
     send_tab_to_self_toolbar_bubble_controller_ = std::make_unique<
         send_tab_to_self::SendTabToSelfToolbarBubbleController>(browser);
 
@@ -453,6 +465,19 @@ void BrowserWindowFeatures::InitPostWindowConstruction(Browser* browser) {
       }
       lens_overlay_entry_point_controller_->Initialize(
           browser, browser_command_controller_.get(), location_bar);
+    }
+
+    if (browser_view && IsPageActionMigrated(PageActionIconType::kAiMode)) {
+      const auto* aim_eligibility_service =
+          AimEligibilityServiceFactory::GetForProfile(profile);
+      if (OmniboxFieldTrial::IsAimOmniboxEntrypointEnabled(
+              aim_eligibility_service)) {
+        LocationBarView* location_bar_view = browser_view->GetLocationBarView();
+        ai_mode_page_action_controller_ =
+            GetUserDataFactory()
+                .CreateInstance<omnibox::AiModePageActionController>(
+                    *browser, *browser, *profile, *location_bar_view);
+      }
     }
 
     auto* experiment_manager =
@@ -594,7 +619,8 @@ void BrowserWindowFeatures::InitPostBrowserViewConstruction(
 
   scrim_view_controller_ = std::make_unique<ScrimViewController>(browser_view);
 
-  // TODO(crbug.com/346148093): Move SidePanelCoordinator construction to Init.
+  // TODO(crbug.com/346148093): Move SidePanelCoordinator construction to
+  // Init.
   // TODO(crbug.com/346148554): Do not create a SidePanelCoordinator for most
   // browser.h types
   // Conceptually, SidePanelCoordinator handles the "model" whereas
@@ -715,10 +741,6 @@ void BrowserWindowFeatures::InitPostBrowserViewConstruction(
       std::make_unique<WindowsTaskbarIconUpdater>(*browser_view);
 #endif
 
-  zoom_bubble_coordinator_ =
-      GetUserDataFactory().CreateInstance<ZoomBubbleCoordinator>(*browser_,
-                                                                 *browser_view);
-
   user_education_->Init(browser_view);
 
   find_bar_owner_ = std::make_unique<FindBarOwnerViews>(browser_view);
@@ -748,8 +770,6 @@ void BrowserWindowFeatures::TearDownPreBrowserWindowDestruction() {
     download_toolbar_ui_controller_->TearDownPreBrowserWindowDestruction();
   }
 #endif
-
-  zoom_bubble_coordinator_.reset();
 
   comments_side_panel_coordinator_.reset();
 
@@ -819,11 +839,15 @@ void BrowserWindowFeatures::TearDownPreBrowserWindowDestruction() {
 
   scrim_view_controller_.reset();
 
+  ios_promo_controller_.reset();
+
   if (auto* const provider = browser_elements_->AsA<BrowserElementsViews>()) {
     provider->TearDown();
   }
 
   find_bar_owner_.reset();
+
+  ai_mode_page_action_controller_.reset();
 }
 
 SidePanelUI* BrowserWindowFeatures::side_panel_ui() {

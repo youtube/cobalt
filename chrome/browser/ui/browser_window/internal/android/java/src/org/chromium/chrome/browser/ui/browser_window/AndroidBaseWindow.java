@@ -72,14 +72,14 @@ final class AndroidBaseWindow {
     @CalledByNative
     @JniType("std::vector<int>")
     private int[] getRestoredBounds() {
-        Rect bounds = mChromeAndroidTask.getRestoredBounds();
+        Rect bounds = mChromeAndroidTask.getRestoredBoundsInDp();
         return new int[] {bounds.left, bounds.top, bounds.width(), bounds.height()};
     }
 
     @CalledByNative
     @JniType("std::vector<int>")
     private int[] getBounds() {
-        Rect bounds = mChromeAndroidTask.getBounds();
+        Rect bounds = mChromeAndroidTask.getBoundsInDp();
         return new int[] {bounds.left, bounds.top, bounds.width(), bounds.height()};
     }
 
@@ -129,8 +129,8 @@ final class AndroidBaseWindow {
     }
 
     @CalledByNative
-    private void setBounds(int left, int top, int width, int height) {
-        mChromeAndroidTask.setBounds(new Rect(left, top, width, height));
+    private void setBounds(int left, int top, int right, int bottom) {
+        mChromeAndroidTask.setBoundsInDp(new Rect(left, top, right, bottom));
     }
 
     @CalledByNative

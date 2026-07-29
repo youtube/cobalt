@@ -61,6 +61,8 @@
 #import "components/proxy_config/pref_proxy_config_tracker_impl.h"
 #import "components/regional_capabilities/regional_capabilities_prefs.h"
 #import "components/safe_browsing/core/common/safe_browsing_prefs.h"
+#import "components/safety_check/safety_check_pref_names.h"
+#import "components/safety_check/safety_check_prefs.h"
 #import "components/saved_tab_groups/public/pref_names.h"
 #import "components/search_engines/template_url_prepopulate_data.h"
 #import "components/segmentation_platform/embedder/default_model/device_switcher_result_dispatcher.h"
@@ -103,7 +105,6 @@
 #import "ios/chrome/browser/content_suggestions/ui_bundled/price_tracking_promo/price_tracking_promo_prefs.h"
 #import "ios/chrome/browser/content_suggestions/ui_bundled/safety_check/safety_check_prefs.h"
 #import "ios/chrome/browser/content_suggestions/ui_bundled/shop_card/shop_card_prefs.h"
-#import "ios/chrome/browser/content_suggestions/ui_bundled/tips/model/tips_prefs.h"
 #import "ios/chrome/browser/cross_platform_promos/model/cross_platform_promos_service.h"
 #import "ios/chrome/browser/download/model/auto_deletion/auto_deletion_service.h"
 #import "ios/chrome/browser/drive/model/drive_policy.h"
@@ -217,6 +218,12 @@ inline constexpr char kNtpShownBookmarksFolder[] = "ntp.shown_bookmarks_folder";
 constexpr char kGaiaCookieLastListAccountsData[] =
     "gaia_cookie.last_list_accounts_data";
 inline constexpr char kFRESourceTrial[] = "FileMetricsProviderFRESourceTrial";
+
+// Deprecated 10/2025
+inline constexpr char kTipsInMagicStackDisabledPref[] =
+    "tips_magic_stack.disabled";
+inline constexpr char kHomeCustomizationMagicStackSetUpListEnabled[] =
+    "ios.home_customization.magic_stack.set_up_list.enabled";
 
 // Migrates a boolean pref from source to target PrefService.
 void MigrateBooleanPref(std::string_view pref_name,
@@ -358,15 +365,6 @@ void MigrateBooleanPrefFromLocalStatePrefsToProfilePrefs(
     PrefService* profile_pref_service) {
   MigrateBooleanPref(pref_name, profile_pref_service,
                      GetApplicationContext()->GetLocalState());
-}
-
-// Helper function migrating the `bool` preference from Profile prefs to
-// LocalState prefs.
-void MigrateBooleanPrefFromProfilePrefsToLocalStatePrefs(
-    std::string_view pref_name,
-    PrefService* profile_pref_service) {
-  MigrateBooleanPref(pref_name, GetApplicationContext()->GetLocalState(),
-                     profile_pref_service);
 }
 
 // Helper function migrating the `Value::Dict` preference from LocalState prefs
@@ -707,7 +705,6 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
   RegisterPriceTrackingPromoPrefs(registry);
   regional_capabilities::prefs::RegisterProfilePrefs(registry);
   shop_card_prefs::RegisterPrefs(registry);
-  tips_prefs::RegisterPrefs(registry);
   RegisterVoiceSearchBrowserStatePrefs(registry);
   safe_browsing::RegisterProfilePrefs(registry);
   segmentation_platform::SegmentationPlatformService::RegisterProfilePrefs(
@@ -960,10 +957,8 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
                                 true);
 
   // Registers the Magic Stack module visibility prefs.
-  registry->RegisterBooleanPref(
-      prefs::kHomeCustomizationMagicStackSetUpListEnabled, true);
-  registry->RegisterBooleanPref(
-      prefs::kHomeCustomizationMagicStackSafetyCheckEnabled, true);
+  registry->RegisterBooleanPref(prefs::kHomeCustomizationMagicStackTipsEnabled,
+                                true);
   registry->RegisterBooleanPref(
       prefs::kHomeCustomizationMagicStackTabResumptionEnabled, true);
 
@@ -1011,6 +1006,8 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
   registry->RegisterDictionaryPref(
       prefs::kIosSafetyCheckManagerInsecurePasswordCounts,
       PrefRegistry::LOSSY_PREF);
+
+  safety_check::prefs::RegisterProfilePrefs(registry);
 
   // Preferences related to Lens Overlay.
   registry->RegisterBooleanPref(prefs::kLensOverlayConditionsAccepted, false);
@@ -1106,6 +1103,16 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
   registry->RegisterInt64Pref(kNtpShownBookmarksFolder, 0);
   registry->RegisterStringPref(kGaiaCookieLastListAccountsData, std::string());
   registry->RegisterStringPref(kFRESourceTrial, std::string());
+
+  // Deprecated 10/2025
+  registry->RegisterBooleanPref(kTipsInMagicStackDisabledPref, false);
+  registry->RegisterBooleanPref(kHomeCustomizationMagicStackSetUpListEnabled,
+                                true);
+
+  // Deprecated 10/2025. Use
+  // `safety_check::prefs::kSafetyCheckHomeModuleEnabled` instead.
+  registry->RegisterBooleanPref(
+      prefs::kHomeCustomizationMagicStackSafetyCheckEnabled, true);
 }
 
 // This method should be periodically pruned of year+ old migrations.
@@ -1157,10 +1164,6 @@ void MigrateObsoleteProfilePrefs(PrefService* prefs) {
 
   // Check MigrateDeprecatedAutofillPrefs() to see if this is safe to remove.
   autofill::prefs::MigrateDeprecatedAutofillPrefs(prefs);
-
-  // Added 09/2024.
-  MigrateBooleanPrefFromProfilePrefsToLocalStatePrefs(
-      password_manager::prefs::kCredentialProviderEnabledOnStartup, prefs);
 
   // Added 09/2024.
   if (IsIosQuickDeleteEnabled()) {
@@ -1283,6 +1286,15 @@ void MigrateObsoleteProfilePrefs(PrefService* prefs) {
   prefs->ClearPref(kNtpShownBookmarksFolder);
   prefs->ClearPref(kGaiaCookieLastListAccountsData);
   prefs->ClearPref(kFRESourceTrial);
+
+  // Added 10/2025
+  prefs->ClearPref(kTipsInMagicStackDisabledPref);
+  prefs->ClearPref(kHomeCustomizationMagicStackSetUpListEnabled);
+
+  // Added 10/2025.
+  RenameBooleanPref(safety_check::prefs::kSafetyCheckHomeModuleEnabled,
+                    prefs::kHomeCustomizationMagicStackSafetyCheckEnabled,
+                    prefs);
 }
 
 void MigrateObsoleteUserDefault() {

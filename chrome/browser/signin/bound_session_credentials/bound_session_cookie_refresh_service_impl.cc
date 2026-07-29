@@ -147,7 +147,7 @@ GetThrottlerParamsForRequestCoverage(
   // Note: This is needed to ensure the correctness of metrics in case of
   // outages.
   return chrome::mojom::BoundSessionThrottlerParams::New(
-      controller->scope_url().host(), controller->scope_url().path(),
+      controller->scope_url().GetHost(), controller->scope_url().GetPath(),
       base::Time());
 }
 
@@ -393,7 +393,7 @@ void BoundSessionCookieRefreshServiceImpl::CreateRegistrationRequest(
       switches::kEnableBoundSessionCredentialsExclusiveRegistrationPath.Get();
   if (!exclusive_registration_path.empty() &&
       !base::EqualsCaseInsensitiveASCII(
-          registration_params.registration_endpoint().path_piece(),
+          registration_params.registration_endpoint().path(),
           exclusive_registration_path)) {
     return;
   }

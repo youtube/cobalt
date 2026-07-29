@@ -154,13 +154,11 @@ VideoDecoderConfig* CopyConfig(const VideoDecoderConfig& config) {
   if (config.hasOptimizeForLatency())
     copy->setOptimizeForLatency(config.optimizeForLatency());
 
-  if (RuntimeEnabledFeatures::WebCodecsOrientationEnabled()) {
-    if (config.hasFlip()) {
-      copy->setFlip(config.flip());
-    }
-    if (config.hasRotation()) {
-      copy->setRotation(config.rotation());
-    }
+  if (config.hasFlip()) {
+    copy->setFlip(config.flip());
+  }
+  if (config.hasRotation()) {
+    copy->setRotation(config.rotation());
   }
 
   return copy;
@@ -465,9 +463,8 @@ VideoDecoder::MakeMediaVideoDecoderConfigInternal(
       (video_type.codec == media::VideoCodec::kH264 ||
        video_type.codec == media::VideoCodec::kHEVC)) {
     VideoDecoderHelper::Status status;
-    decoder_specific_data.decoder_helper = VideoDecoderHelper::Create(
-        video_type, extra_data.data(), static_cast<int>(extra_data.size()),
-        &status);
+    decoder_specific_data.decoder_helper =
+        VideoDecoderHelper::Create(video_type, extra_data, &status);
     if (status != VideoDecoderHelper::Status::kSucceed) {
       if (video_type.codec == media::VideoCodec::kH264) {
         if (status == VideoDecoderHelper::Status::kDescriptionParseFailed) {
@@ -540,11 +537,8 @@ VideoDecoder::MakeMediaVideoDecoderConfigInternal(
     encryption_scheme = scheme.value();
   }
 
-  auto transformation = media::kNoTransformation;
-  if (RuntimeEnabledFeatures::WebCodecsOrientationEnabled()) {
-    transformation =
-        media::VideoTransformation(config.rotation(), config.flip());
-  }
+  auto transformation =
+      media::VideoTransformation(config.rotation(), config.flip());
 
   media::VideoDecoderConfig media_config;
   media_config.Initialize(video_type.codec, video_type.profile,
@@ -593,13 +587,11 @@ VideoDecoder::MakeInput(const InputType& chunk, bool verify_key_frame) {
   scoped_refptr<media::DecoderBuffer> decoder_buffer = chunk.buffer();
   if (decoder_specific_data_.decoder_helper) {
     auto decoder_buffer_span = base::span(*chunk.buffer());
-    const uint8_t* src = decoder_buffer_span.data();
-    size_t src_size = decoder_buffer_span.size();
 
     // Note: this may not be safe if support for SharedArrayBuffers is added.
     uint32_t output_size =
         decoder_specific_data_.decoder_helper->CalculateNeededOutputBufferSize(
-            src, static_cast<uint32_t>(src_size), verify_key_frame);
+            decoder_buffer_span, verify_key_frame);
     if (!output_size) {
       return media::DecoderStatus(
           media::DecoderStatus::Codes::kMalformedBitstream,
@@ -608,8 +600,8 @@ VideoDecoder::MakeInput(const InputType& chunk, bool verify_key_frame) {
 
     std::vector<uint8_t> buf(output_size);
     if (decoder_specific_data_.decoder_helper->ConvertNalUnitStreamToByteStream(
-            src, static_cast<uint32_t>(src_size), buf.data(), &output_size,
-            verify_key_frame) != VideoDecoderHelper::Status::kSucceed) {
+            decoder_buffer_span, buf, &output_size, verify_key_frame) !=
+        VideoDecoderHelper::Status::kSucceed) {
       return media::DecoderStatus(
           media::DecoderStatus::Codes::kMalformedBitstream,
           "Unable to convert NALU to byte stream.");
@@ -702,8 +694,6 @@ media::DecoderStatus::Or<VideoDecoder::OutputType*> VideoDecoder::MakeOutput(
 }
 
 void VideoDecoder::OnActiveConfigChanged(const MediaConfigType& config) {
-  DCHECK(RuntimeEnabledFeatures::WebCodecsOrientationEnabled() ||
-         config.video_transformation() == media::kNoTransformation);
   active_transform_ = config.video_transformation();
 }
 

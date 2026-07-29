@@ -389,8 +389,7 @@ class HistoryService : public KeyedService,
       QueryMostVisitedURLsCallback callback,
       base::CancelableTaskTracker* tracker,
       const std::optional<std::string>& recency_factor_name = std::nullopt,
-      std::optional<size_t> recency_window_days = std::nullopt,
-      bool check_visual_deduplication_flag = false);
+      std::optional<size_t> recency_window_days = std::nullopt);
 
   // Request `result_count` of the most repeated queries for the given keyword.
   // Used by TopSites.
@@ -454,11 +453,15 @@ class HistoryService : public KeyedService,
   // Gets the last time any webpage on the given host was visited within the
   // time range [`begin_time`, `end_time`). If the given host has not been
   // visited in the given time range, the callback will be called with a null
-  // base::Time.
+  // `base::Time`. `policy_for_404_visits` determines whether a visit with an
+  // HTTP response code of 404 is counted as a visit; if set to `kExclude404s`,
+  // the callback will be called with the time of the most recent non-404 in the
+  // specified time range, or a null `base::Time` if there was none.
   virtual base::CancelableTaskTracker::TaskId GetLastVisitToHost(
       const std::string& host,
       base::Time begin_time,
       base::Time end_time,
+      VisitQuery404sPolicy policy_for_404_visits,
       GetLastVisitCallback callback,
       base::CancelableTaskTracker* tracker);
 
@@ -492,6 +495,7 @@ class HistoryService : public KeyedService,
   base::CancelableTaskTracker::TaskId GetMostRecentVisitsForGurl(
       GURL url,
       int max_visits,
+      VisitQuery404sPolicy policy_for_404_visits,
       QueryURLAndVisitsCallback callback,
       base::CancelableTaskTracker* tracker);
 

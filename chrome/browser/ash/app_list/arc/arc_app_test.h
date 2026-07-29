@@ -24,7 +24,6 @@ class ArcServiceManager;
 class ArcSessionManager;
 class FakeAppInstance;
 class FakeCompatibilityModeInstance;
-class FakeIntentHelperHost;
 class FakeIntentHelperInstance;
 }  // namespace arc
 
@@ -50,7 +49,13 @@ class ArcAppTest {
 
   virtual ~ArcAppTest();
 
+  // Perform initialization that's supposed to be done before profile creation.
+  void PreProfileSetUp();
+
+  // Perform initialization that's supposed to be done after profile creation.
+  // This triggers `PreProfileSetUp` if needed.
   void SetUp(Profile* profile);
+
   void TearDown();
 
   // Public methods to modify AppInstance for unit_tests.
@@ -127,10 +132,6 @@ class ArcAppTest {
     persist_service_manager_ = persist_service_manager;
   }
 
-  void set_start_app_service_publisher(bool start_app_service_publisher) {
-    start_app_service_publisher_ = start_app_service_publisher;
-  }
-
   void set_initialize_real_intent_helper_bridge(bool value) {
     initialize_real_intent_helper_bridge_ = value;
   }
@@ -158,10 +159,6 @@ class ArcAppTest {
   // down.
   bool persist_service_manager_ = false;
 
-  // Whether the ArcApps AppService publisher should be started during
-  // initialization.
-  bool start_app_service_publisher_ = true;
-
   // If set to true, the real ArcIntentHelperBridge is initialized on test start
   // up.
   bool initialize_real_intent_helper_bridge_ = false;
@@ -177,7 +174,6 @@ class ArcAppTest {
   std::unique_ptr<arc::FakeAppInstance> app_instance_;
   std::unique_ptr<arc::FakeCompatibilityModeInstance>
       compatibility_mode_instance_;
-  std::unique_ptr<arc::FakeIntentHelperHost> intent_helper_host_;
   std::unique_ptr<arc::FakeIntentHelperInstance> intent_helper_instance_;
 
   user_manager::TypedScopedUserManager<ash::FakeChromeUserManager>
@@ -188,6 +184,8 @@ class ArcAppTest {
   std::vector<arc::mojom::ShortcutInfo> fake_shortcuts_;
 
   bool concierge_client_initialized_ = false;
+
+  bool is_pre_profile_setup_called_ = false;
 };
 
 #endif  // CHROME_BROWSER_ASH_APP_LIST_ARC_ARC_APP_TEST_H_

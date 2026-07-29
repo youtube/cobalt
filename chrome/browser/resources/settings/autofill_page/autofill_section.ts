@@ -265,9 +265,16 @@ export class SettingsAutofillSectionElement extends
       }
 
       this.autofillManager_.removeAddress(this.activeAddress!.guid as string);
-      getAnnouncerInstance().announce(loadTimeData.getString(
-          isHomeOrWorkAddress ? 'homeAndWorkAddressRemovedMessage' :
-                                'addressRemovedMessage'));
+      if (isHomeOrWorkAddress) {
+        getAnnouncerInstance().announce(
+            loadTimeData.getString('homeAndWorkAddressRemovedMessage'));
+      } else if (this.isAccountNameEmailAddress_(this.activeAddress!)) {
+        getAnnouncerInstance().announce(
+            loadTimeData.getString('nameEmailAddressRemovedMessage'));
+      } else {
+        getAnnouncerInstance().announce(
+            loadTimeData.getString('addressRemovedMessage'));
+      }
     }
     chrome.metricsPrivate.recordBoolean(
         'Autofill.ProfileDeleted.Settings',
@@ -350,7 +357,9 @@ export class SettingsAutofillSectionElement extends
         address.metadata?.recordType ===
             chrome.autofillPrivate.AddressRecordType.ACCOUNT_HOME ||
         address.metadata?.recordType ===
-            chrome.autofillPrivate.AddressRecordType.ACCOUNT_WORK) {
+            chrome.autofillPrivate.AddressRecordType.ACCOUNT_WORK ||
+        address.metadata?.recordType ===
+            chrome.autofillPrivate.AddressRecordType.ACCOUNT_NAME_EMAIL) {
       return false;
     }
 

@@ -52,6 +52,7 @@
 #include "chrome/browser/hid/hid_chooser_context.h"
 #include "chrome/browser/hid/hid_chooser_context_factory.h"
 #include "chrome/browser/history/history_service_factory.h"
+#include "chrome/browser/permissions/permission_actions_history_factory.h"
 #include "chrome/browser/permissions/permission_decision_auto_blocker_factory.h"
 #include "chrome/browser/permissions/system/mock_platform_handle.h"
 #include "chrome/browser/permissions/system/system_permission_settings.h"
@@ -98,6 +99,7 @@
 #include "components/permissions/contexts/bluetooth_chooser_context.h"
 #include "components/permissions/features.h"
 #include "components/permissions/object_permission_context_base.h"
+#include "components/permissions/permission_actions_history.h"
 #include "components/permissions/permission_decision_auto_blocker.h"
 #include "components/permissions/permission_uma_util.h"
 #include "components/permissions/permission_util.h"
@@ -105,6 +107,7 @@
 #include "components/permissions/test/permission_test_util.h"
 #include "components/prefs/testing_pref_service.h"
 #include "components/privacy_sandbox/privacy_sandbox_features.h"
+#include "components/safe_browsing/core/browser/safe_browsing_metrics_collector.h"
 #include "components/services/app_service/public/cpp/app_registry_cache.h"
 #include "components/services/app_service/public/cpp/app_types.h"
 #include "components/services/app_service/public/cpp/app_update.h"
@@ -241,7 +244,7 @@ void ValidateSitesWithRws(
       // Ensure that the `rwsOwner` is set correctly and aligned with
       // |related_website_sets| mapping of site group owners.
       std::string owner_etldplus1 =
-          related_website_sets[schemeful_site].GetURL().host();
+          related_website_sets[schemeful_site].GetURL().GetHost();
       ASSERT_EQ(owner_etldplus1, *site_group.FindString("rwsOwner"));
       if (owner_etldplus1 == "google.com") {
         ASSERT_EQ(2, *site_group.FindInt("rwsNumMembers"));
@@ -2252,6 +2255,61 @@ TEST_F(SiteSettingsHandlerTest, ResetCategoryPermissionForEmbargoedOrigins) {
         kPermissionNotifications, profile(), web_ui(),
         /*incognito=*/false, &exceptions);
     ASSERT_TRUE(exceptions.empty());
+  }
+}
+
+TEST_F(SiteSettingsHandlerTest, ClearHeuristicData) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(blink::features::kGeolocationElement);
+  constexpr char kOrigin[] = "https://www.example.com:443";
+  auto* permission_actions_history =
+      PermissionActionsHistoryFactory::GetForProfile(profile());
+
+  {
+    // Grant a temporary permission to create heuristic data.
+    permission_actions_history->RecordTemporaryGrantAndSetAutoGrantIfNecessary(
+        GURL(kOrigin), ContentSettingsType::GEOLOCATION);
+
+    // Verify that heuristic data exists.
+    EXPECT_EQ(1, permission_actions_history->GetTemporaryGrantCountForTesting(
+                     GURL(kOrigin), ContentSettingsType::GEOLOCATION));
+
+    // Reset permission for the origin.
+    base::Value::List reset_args;
+    reset_args.Append(kOrigin);
+    reset_args.Append(std::string());
+    reset_args.Append(kGeolocation);
+    reset_args.Append(false);  // Incognito.
+    handler()->HandleResetCategoryPermissionForPattern(reset_args);
+
+    // Heuristic data for the given origin should be cleared.
+    EXPECT_EQ(0, permission_actions_history->GetTemporaryGrantCountForTesting(
+                     GURL(kOrigin), ContentSettingsType::GEOLOCATION));
+  }
+
+  const auto kContentSettings = std::to_array<ContentSetting>({
+      CONTENT_SETTING_BLOCK,
+      CONTENT_SETTING_ASK,
+  });
+  for (const ContentSetting content_setting : kContentSettings) {
+    // Grant a temporary permission to create heuristic data.
+    permission_actions_history->RecordTemporaryGrantAndSetAutoGrantIfNecessary(
+        GURL(kOrigin), ContentSettingsType::GEOLOCATION);
+
+    // Verify that heuristic data exists.
+    EXPECT_EQ(1, permission_actions_history->GetTemporaryGrantCountForTesting(
+                     GURL(kOrigin), ContentSettingsType::GEOLOCATION));
+
+    base::Value::List reset_args;
+    reset_args.Append(kOrigin);
+    reset_args.Append(kGeolocation);
+    reset_args.Append(
+        content_settings::ContentSettingToString(content_setting));
+    handler()->HandleSetOriginPermissions(reset_args);
+
+    // Heuristic data for the given origin should be cleared.
+    EXPECT_EQ(0, permission_actions_history->GetTemporaryGrantCountForTesting(
+                     GURL(kOrigin), ContentSettingsType::GEOLOCATION));
   }
 }
 
@@ -6918,6 +6976,175 @@ TEST_F(SiteSettingsHandlerUnusedPermissionRevocationForAllSurfacesTest,
   map->GetWebsiteSetting(primary_url, secondary_url,
                          ContentSettingsType::GEOLOCATION, &info);
   EXPECT_EQ(base::Time(), info.metadata.last_visited());
+}
+
+using SiteSettingsHandlerNotificationRevocationHistogramTest =
+    SiteSettingsHandlerTest;
+
+TEST_F(SiteSettingsHandlerNotificationRevocationHistogramTest,
+       HandleSetOriginPermissionsAllowToBlock) {
+  base::HistogramTester histograms;
+  const GURL primary_url("https://example.com");
+  base::Value::List allow_args;
+  allow_args.Append(primary_url.spec());
+  allow_args.Append(std::move(kNotifications));
+  allow_args.Append(
+      content_settings::ContentSettingToString(CONTENT_SETTING_ALLOW));
+  handler()->HandleSetOriginPermissions(allow_args);
+
+  // Update NOTIFICATIONS to BLOCK.
+  base::Value::List block_args;
+  block_args.Append(primary_url.spec());
+  block_args.Append(std::move(kNotifications));
+  block_args.Append(
+      content_settings::ContentSettingToString(CONTENT_SETTING_BLOCK));
+  handler()->HandleSetOriginPermissions(block_args);
+
+  // Verify histogram is logged as expected.
+  histograms.ExpectUniqueSample("SafeBrowsing.NotificationRevocationSource",
+                                safe_browsing::NotificationRevocationSource::
+                                    kUserManuallyChangedSiteSetting,
+                                1);
+}
+
+TEST_F(SiteSettingsHandlerNotificationRevocationHistogramTest,
+       HandleSetOriginPermissionsAllowToAsk) {
+  base::HistogramTester histograms;
+  const GURL primary_url("https://example.com");
+  base::Value::List allow_args;
+  allow_args.Append(primary_url.spec());
+  allow_args.Append(std::move(kNotifications));
+  allow_args.Append(
+      content_settings::ContentSettingToString(CONTENT_SETTING_ALLOW));
+  handler()->HandleSetOriginPermissions(allow_args);
+
+  // Update NOTIFICATIONS to ASK.
+  base::Value::List block_args;
+  block_args.Append(primary_url.spec());
+  block_args.Append(std::move(kNotifications));
+  block_args.Append(
+      content_settings::ContentSettingToString(CONTENT_SETTING_ASK));
+  handler()->HandleSetOriginPermissions(block_args);
+
+  // Verify histogram is logged as expected.
+  histograms.ExpectUniqueSample("SafeBrowsing.NotificationRevocationSource",
+                                safe_browsing::NotificationRevocationSource::
+                                    kUserManuallyChangedSiteSetting,
+                                1);
+}
+
+TEST_F(SiteSettingsHandlerNotificationRevocationHistogramTest,
+       HandleSetOriginPermissionsAllowToDefault) {
+  base::HistogramTester histograms;
+  const GURL primary_url("https://example.com");
+  base::Value::List allow_args;
+  allow_args.Append(primary_url.spec());
+  allow_args.Append(std::move(kNotifications));
+  allow_args.Append(
+      content_settings::ContentSettingToString(CONTENT_SETTING_ALLOW));
+  handler()->HandleSetOriginPermissions(allow_args);
+
+  // Update NOTIFICATIONS to DEFAULT.
+  base::Value::List block_args;
+  block_args.Append(primary_url.spec());
+  block_args.Append(std::move(kNotifications));
+  block_args.Append(
+      content_settings::ContentSettingToString(CONTENT_SETTING_DEFAULT));
+  handler()->HandleSetOriginPermissions(block_args);
+
+  // Verify histogram is logged as expected.
+  histograms.ExpectUniqueSample("SafeBrowsing.NotificationRevocationSource",
+                                safe_browsing::NotificationRevocationSource::
+                                    kUserManuallyChangedSiteSetting,
+                                1);
+}
+
+TEST_F(SiteSettingsHandlerNotificationRevocationHistogramTest,
+       HandleResetCategoryPermissionForPattern) {
+  base::HistogramTester histograms;
+
+  constexpr char kOrigin[] = "https://www.test.com:443";
+  base::Value::List set_args;
+  set_args.Append(kOrigin);        // Primary pattern.
+  set_args.Append(std::string());  // Secondary pattern.
+  set_args.Append(kNotifications);
+  set_args.Append(
+      content_settings::ContentSettingToString(CONTENT_SETTING_ALLOW));
+  set_args.Append(false);  // Incognito.
+  handler()->HandleSetCategoryPermissionForPattern(set_args);
+
+  base::Value::List reset_args;
+  reset_args.Append(kOrigin);        // Primary pattern.
+  reset_args.Append(std::string());  // Secondary pattern.
+  reset_args.Append(kNotifications);
+  reset_args.Append(false);  // Incognito
+  handler()->HandleResetCategoryPermissionForPattern(reset_args);
+
+  // Verify histogram is logged as expected.
+  histograms.ExpectUniqueSample("SafeBrowsing.NotificationRevocationSource",
+                                safe_browsing::NotificationRevocationSource::
+                                    kUserManuallyChangedSiteSetting,
+                                1);
+}
+
+TEST_F(SiteSettingsHandlerNotificationRevocationHistogramTest,
+       HandleSetCategoryPermissionForPatternAllowToAsk) {
+  base::HistogramTester histograms;
+
+  constexpr char kOrigin[] = "https://www.test.com:443";
+  base::Value::List set_args;
+  set_args.Append(kOrigin);        // Primary pattern.
+  set_args.Append(std::string());  // Secondary pattern.
+  set_args.Append(kNotifications);
+  set_args.Append(
+      content_settings::ContentSettingToString(CONTENT_SETTING_ALLOW));
+  set_args.Append(false);  // Incognito.
+  handler()->HandleSetCategoryPermissionForPattern(set_args);
+
+  base::Value::List reset_args;
+  reset_args.Append(kOrigin);        // Primary pattern.
+  reset_args.Append(std::string());  // Secondary pattern.
+  reset_args.Append(kNotifications);
+  reset_args.Append(
+      content_settings::ContentSettingToString(CONTENT_SETTING_ASK));
+  reset_args.Append(false);  // Incognito.
+  handler()->HandleSetCategoryPermissionForPattern(reset_args);
+
+  // Verify histogram is logged as expected.
+  histograms.ExpectUniqueSample("SafeBrowsing.NotificationRevocationSource",
+                                safe_browsing::NotificationRevocationSource::
+                                    kUserManuallyChangedSiteSetting,
+                                1);
+}
+
+TEST_F(SiteSettingsHandlerNotificationRevocationHistogramTest,
+       HandleSetCategoryPermissionForPatternAllowToBlock) {
+  base::HistogramTester histograms;
+
+  constexpr char kOrigin[] = "https://www.test.com:443";
+  base::Value::List set_args;
+  set_args.Append(kOrigin);        // Primary pattern.
+  set_args.Append(std::string());  // Secondary pattern.
+  set_args.Append(kNotifications);
+  set_args.Append(
+      content_settings::ContentSettingToString(CONTENT_SETTING_ALLOW));
+  set_args.Append(false);  // Incognito.
+  handler()->HandleSetCategoryPermissionForPattern(set_args);
+
+  base::Value::List reset_args;
+  reset_args.Append(kOrigin);        // Primary pattern.
+  reset_args.Append(std::string());  // Secondary pattern.
+  reset_args.Append(kNotifications);
+  reset_args.Append(
+      content_settings::ContentSettingToString(CONTENT_SETTING_BLOCK));
+  reset_args.Append(false);  // Incognito.
+  handler()->HandleSetCategoryPermissionForPattern(reset_args);
+
+  // Verify histogram is logged as expected.
+  histograms.ExpectUniqueSample("SafeBrowsing.NotificationRevocationSource",
+                                safe_browsing::NotificationRevocationSource::
+                                    kUserManuallyChangedSiteSetting,
+                                1);
 }
 
 }  // namespace settings

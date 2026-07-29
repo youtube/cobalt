@@ -3092,8 +3092,9 @@ void SpdySession::OnAltSvc(
     if (origin.empty())
       return;
     const GURL gurl(origin);
-    if (!gurl.is_valid() || gurl.host().empty())
+    if (!gurl.is_valid() || gurl.GetHost().empty()) {
       return;
+    }
     if (!gurl.SchemeIs(url::kHttpsScheme))
       return;
     SSLInfo ssl_info;
@@ -3101,7 +3102,7 @@ void SpdySession::OnAltSvc(
       return;
     }
     if (!CanPool(transport_security_state_, ssl_info, *ssl_config_service_,
-                 host_port_pair().host(), gurl.host_piece())) {
+                 host_port_pair().host(), gurl.host())) {
       return;
     }
     scheme_host_port = url::SchemeHostPort(gurl);

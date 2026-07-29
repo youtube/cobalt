@@ -1364,9 +1364,7 @@ ALWAYS_INLINE bool SelectorChecker::CheckOne(
         selector.GetPseudoType() != CSSSelector::kPseudoScope) {
       return false;
     }
-    if (RuntimeEnabledFeatures::CSSNegatedFeaturelessEnabled()) {
-      return MatchShadowHost(context, result) == kFeaturelessMatches;
-    }
+    return MatchShadowHost(context, result) == kFeaturelessMatches;
   }
   if (RuntimeEnabledFeatures::CSSLogicalCombinationPseudoEnabled()) {
     if (context.pseudo_id != kPseudoIdNone) {
@@ -2235,9 +2233,10 @@ bool SelectorChecker::CheckPseudoClass(const SelectorCheckingContext& context,
         DCHECK((transition->Scope() == &element && context.pseudo_id) ||
                element.IsPseudoElement());
         DCHECK(context.pseudo_argument || element.IsPseudoElement());
-        const AtomicString& pseudo_argument = element.IsPseudoElement()
-                                                  ? element.GetPseudoArgument()
-                                                  : *context.pseudo_argument;
+        const AtomicString& pseudo_argument =
+            element.IsPseudoElement()
+                ? To<PseudoElement>(element).GetPseudoArgument()
+                : *context.pseudo_argument;
         return transition->MatchForOnlyChild(pseudo_id_to_check,
                                              pseudo_argument);
       }
@@ -2658,6 +2657,11 @@ bool SelectorChecker::CheckPseudoClass(const SelectorCheckingContext& context,
       break;
     }
     case CSSSelector::kPseudoTargetCurrent: {
+      probe::ForcePseudoState(&element, CSSSelector::kPseudoTargetCurrent,
+                              &force_pseudo_state);
+      if (force_pseudo_state) {
+        return true;
+      }
       if (element.IsScrollMarkerPseudoElement()) {
         return To<ScrollMarkerPseudoElement>(element).IsSelected();
       }
@@ -2872,11 +2876,8 @@ bool SelectorChecker::CheckPseudoClass(const SelectorCheckingContext& context,
               : WebFeature::kCSSSelectorHostContextInLiveProfile);
       [[fallthrough]];
     case CSSSelector::kPseudoHost:
-      if (RuntimeEnabledFeatures::CSSNegatedFeaturelessEnabled()) {
-        DCHECK(!IsAtShadowHost(context));
-        return false;
-      }
-      return CheckPseudoHost(context, result);
+      DCHECK(!IsAtShadowHost(context));
+      return false;
     case CSSSelector::kPseudoSpatialNavigationFocus:
       DCHECK(is_ua_rule_);
       return MatchesSpatialNavigationFocusPseudoClass(element);
@@ -3147,9 +3148,10 @@ bool SelectorChecker::CheckPseudoElement(const SelectorCheckingContext& context,
       CHECK(!selector.IdentList().empty());
       const AtomicString& name_or_wildcard = selector.IdentList()[0];
 
-      const String& pseudo_argument = element.IsPseudoElement()
-                                          ? element.GetPseudoArgument()
-                                          : pseudo_argument_;
+      const String& pseudo_argument =
+          element.IsPseudoElement()
+              ? To<PseudoElement>(element).GetPseudoArgument()
+              : pseudo_argument_;
       // note that the pseudo_ident_list is the class list, and
       // pseudo_argument is the name, while in the selector the IdentList() is
       // both the name and the classes.

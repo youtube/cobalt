@@ -22,6 +22,12 @@ namespace persistent_cache {
 // This class owns the `SandboxedFile` files and must outlive any use of them.
 class COMPONENT_EXPORT(PERSISTENT_CACHE) SqliteVfsFileSet {
  public:
+  // Creates a new read/write set that using the named files, which will be
+  // created if they do not exist.
+  static std::optional<SqliteVfsFileSet> Create(
+      base::FilePath db_file_path,
+      base::FilePath journal_file_path);
+
   SqliteVfsFileSet(std::unique_ptr<SandboxedFile> db_file,
                    std::unique_ptr<SandboxedFile> journal_file,
                    base::UnsafeSharedMemoryRegion shared_lock);
@@ -41,12 +47,20 @@ class COMPONENT_EXPORT(PERSISTENT_CACHE) SqliteVfsFileSet {
 
   bool read_only() const { return read_only_; }
 
+  // Returns handles to the files in the set with either read-write or read-only
+  // access. Either may be an invalid file in case of error.
+  std::array<base::File, 2> DuplicateFiles(bool read_write) const;
+
+  // Returns a handle to the shared memory region holding the database's shared
+  // lock.
+  base::UnsafeSharedMemoryRegion DuplicateLock() const;
+
  private:
   base::FilePath GetJournalVirtualFilePath() const;
 
+  base::UnsafeSharedMemoryRegion shared_lock_;
   std::unique_ptr<SandboxedFile> db_file_;
   std::unique_ptr<SandboxedFile> journal_file_;
-  base::UnsafeSharedMemoryRegion shared_lock_;
 
   // SQLite databases use standard naming for their files. Since the vfs might
   // register files for many databases at once it needs some way to

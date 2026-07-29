@@ -792,8 +792,8 @@ IN_PROC_BROWSER_TEST_F(StorageAccessAPIBrowserTest,
       "Browser.setPermission",
       base::Value::Dict()
           .Set("setting", "granted")
-          .Set("origin", kOriginB)
-          .Set("embeddingOrigin", kOriginA)
+          .Set("origin", kOriginA)
+          .Set("embeddedOrigin", kOriginB)
           .Set("permission",
                base::Value::Dict().Set("name", "storage-access")));
   test_storage_access(/*expected_for_frame=*/true,
@@ -3231,11 +3231,12 @@ IN_PROC_BROWSER_TEST_F(StorageAccessAPIAutograntsWithFedCMBrowserTest,
   constexpr char kPageWithPermissionPolicyHeader[] = "/page_with_header.html";
   content::URLLoaderInterceptor interceptor(base::BindLambdaForTesting(
       [&](content::URLLoaderInterceptor::RequestParams* params) {
-        if (params->url_request.url.path() != kPageWithPermissionPolicyHeader) {
+        if (params->url_request.url.GetPath() !=
+            kPageWithPermissionPolicyHeader) {
           return false;
         }
 
-        CHECK_EQ(params->url_request.url.host_piece(), kHostB);
+        CHECK_EQ(params->url_request.url.host(), kHostB);
         content::URLLoaderInterceptor::WriteResponse(
             "HTTP/1.1 200 OK\n"
             "Content-type: text/html\n"
@@ -4161,7 +4162,7 @@ IN_PROC_BROWSER_TEST_P(StorageAccessAPIWindowOpenSubFrameTest,
       content::FrameMatchingPredicate(
           popin_web_contents->GetPrimaryPage(),
           base::BindRepeating([](content::RenderFrameHost* rfh) {
-            return rfh->GetLastCommittedURL().path_piece() == "/title1.html";
+            return rfh->GetLastCommittedURL().path() == "/title1.html";
           }));
 
   // Expect no first-party data for cross-origin popin subframes.

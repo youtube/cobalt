@@ -510,11 +510,13 @@ void DedicatedWebTransportHttp3Client::DoLoop(int rv) {
 int DedicatedWebTransportHttp3Client::DoInit() {
   if (!url_.is_valid())
     return ERR_INVALID_URL;
-  if (url_.scheme_piece() != url::kHttpsScheme)
+  if (url_.scheme() != url::kHttpsScheme) {
     return ERR_DISALLOWED_URL_SCHEME;
+  }
 
-  if (!IsPortAllowedForScheme(url_.EffectiveIntPort(), url_.scheme_piece()))
+  if (!IsPortAllowedForScheme(url_.EffectiveIntPort(), url_.scheme())) {
     return ERR_UNSAFE_PORT;
+  }
 
   if (!application_protocols_.empty() &&
       !webtransport::ValidateSubprotocolList(application_protocols_)) {
@@ -648,8 +650,8 @@ void DedicatedWebTransportHttp3Client::CreateConnection() {
   session_ = std::make_unique<DedicatedWebTransportHttp3ClientSession>(
       InitializeQuicConfig(*quic_context_->params()), supported_versions_,
       connection.release(),
-      quic::QuicServerId(url_.host(), url_.EffectiveIntPort()), &crypto_config_,
-      this);
+      quic::QuicServerId(url_.GetHost(), url_.EffectiveIntPort()),
+      &crypto_config_, this);
   if (!original_supported_versions_.empty()) {
     session_->set_client_original_supported_versions(
         original_supported_versions_);
@@ -776,8 +778,8 @@ int DedicatedWebTransportHttp3Client::DoSendRequest() {
   }
 
   quiche::HttpHeaderBlock headers;
-  DCHECK_EQ(url_.scheme(), url::kHttpsScheme);
-  headers[":scheme"] = url_.scheme();
+  DCHECK_EQ(url_.GetScheme(), url::kHttpsScheme);
+  headers[":scheme"] = url_.GetScheme();
   headers[":method"] = "CONNECT";
   headers[":authority"] = GetHostAndOptionalPort(url_);
   headers[":path"] = url_.PathForRequest();

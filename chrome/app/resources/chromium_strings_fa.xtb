@@ -13,7 +13,7 @@
 <translation id="112640046208448578">چیزها یا مکان‌ها را شناسایی کنید و نوشتار را کپی یا ترجمه کنید. وقتی از «جستجوی تصویر» استفاده می‌کنید، نماگرفتی از صفحه به سرور ارسال می‌شود. <ph name="LEARN_MORE" /></translation>
 <translation id="113122355610423240">‏Chromium مرورگر پیش‌فرضتان است</translation>
 <translation id="1131805035311359397">‏برای بررسی اینکه از گذرواژه‌هایتان دربرابر نقض داده یا دیگر مشکلات امنیتی محافظت می‌شود، <ph name="BEGIN_LINK" />به سیستم Chromium وارد شوید<ph name="END_LINK" />.</translation>
-<translation id="1153368717515616349">‏روی منوی Chromium کلیک کنید</translation>
+<translation id="1153368717515616349">‏روی منو Chromium کلیک کنید</translation>
 <translation id="1157985233335035034">زبان‌های اخیر</translation>
 <translation id="1171831736360285680">‏‫<ph name="PARTNER_NAME" /> افزونه‌ای اضافه کرده است که ممکن است نحوه کارکرد Chromium را تغییر دهد.
 
@@ -33,6 +33,7 @@
 <translation id="1345251407431278948">سنجاق شد! دفعه بعد می‌توانید «جستجوی تصویر» را ازطریق این دکمه جدید در نوارابزار باز کنید</translation>
 <translation id="1356661055722410047">جدید! می‌توانید هم نوشتار و هم تصاویر روی صفحه‌نمایش را ترجمه کنید</translation>
 <translation id="1383876407941801731">جستجو</translation>
+<translation id="1397530502368084401">‏مدیریت نمایه‌های Chromium</translation>
 <translation id="1414495520565016063">‏شما وارد سیستم Chromium شدید!</translation>
 <translation id="141901961143729572">افکارتان را هم‌رسانی</translation>
 <translation id="1465192221147974788">‏برای هم‌رسانی پنجره، ضبط صفحه‌نمایش را در «تنظیمات سیستم» برای Chromium مجاز کنید.</translation>
@@ -71,8 +72,8 @@
 <translation id="1896836275755235458">‏‫Chromium با محدود کردن فعالیت پس‌زمینه و جلوه‌های دیداری، مثل پیمایش روان و نرخ فریم ویدیو، در مصرف باتری صرفه‌جویی می‌کند. <ph name="BEGIN_LINK" />درباره «بهینه‌سازی انرژی» بیشتر بدانید<ph name="END_LINK" /></translation>
 <translation id="1898804291554630487">پرسش درباره این صفحه</translation>
 <translation id="1900969832270057921">‏سرویس به‌روزرسان Chromium</translation>
+<translation id="1911666947158375684">‏اکنون که به سیستم وارد شده‌اید، می‌توانید از گذرواژه‌ها و موارد دیگر «حساب Google» خود در Chromium استفاده کنید. هرزمان خواستید می‌توانید آن را در تنظیمات تغییر دهید.</translation>
 <translation id="1911763535808217981">‏با خاموش کردن این گزینه، می‌توانید بدون ورود به سیستم Chromium به سیستم سایت‌های Google مانند Gmail وارد شوید</translation>
-<translation id="1916451563296275579">‏برداشتن این داده‌های برنامه از Chromium</translation>
 <translation id="1929939181775079593">‏Chromium پاسخ نمی‌دهد. مجدداً راه‌اندازی شود؟</translation>
 <translation id="1933341829955786215">‏سازمانتان (<ph name="MANAGER" />) شما را ملزم می‌کند به سیستم Chromium وارد شوید</translation>
 <translation id="193439633299369377">‏برای اعمال به‌روزرسانی، ChromiumOS باید بازراه‌اندازی شود.</translation>
@@ -234,6 +235,9 @@
 <translation id="379589255253486813">‏اگر موردی نیاز به بررسی داشته باشد، Chromium به شما اطلاع می‌دهد</translation>
 <translation id="3802055581630249637">‏‫Chromium صفحه‌هایی را که احتمالاً از آن‌ها بازدید خواهید کرد پیش‌بارگیری می‌کند تا وقتی از آن‌ها بازدید می‌کنید سریع‌تر بارگیری شوند</translation>
 <translation id="3810973564298564668">مدیریت</translation>
+<translation id="3846683726093018685">**خلاصه کردن:** در یک جمله کمتر از ۳۰ کلمه، موضوع اصلی و هدف محتوای نماگرفت را شرح بده.
+
+          **پیشنهاد سؤال:** فهرستی گلوله‌ای با ۳ تا ۵ سؤال تأمل‌برانگیز تولید کن که کاربر بتواند برای درک بهتر نماگرفت بپرسد. حداقل یک مورد از این سؤالات باید به‌طور خاص درباره یک شیء بصری، طراحی، یا جای آن باشد.</translation>
 <translation id="3848258323044014972"><ph name="PAGE_TITLE" /> - Chromium</translation>
 <translation id="3885770153807205175">انتخاب‌گر زبان</translation>
 <translation id="388648406173476553">‏Chromium را سفارشی و کنترل کنید. چیزی نیاز به رسیدگی دارد، برای اطلاعات بیشتر کلیک کنید.</translation>
@@ -340,7 +344,7 @@
 <translation id="5187123684706427865">‏حساب Chromium به اصالت‌سنجی مجدد نیاز دارد</translation>
 <translation id="5224391634244552924">‏گذرواژه ذخیره‌شده‌ای وجود ندارد. Chromium زمانی می‌تواند گذرواژه‌هایتان را بررسی کند که آن‌ها را ذخیره کرده باشید.</translation>
 <translation id="5231355151045086930">‏خروج از سیستم Chromium</translation>
-<translation id="5234764350956374838">رد کردن</translation>
+<translation id="5234764350956374838">بستن</translation>
 <translation id="5254739261293693943">پرسش درباره این ویدیو</translation>
 <translation id="5277894862589591112">‏برای اعمال تغییراتتان، Chromium را راه‌اندازی مجدد کنید</translation>
 <translation id="5286907366254680517">تشخیص داده شد</translation>
@@ -469,6 +473,7 @@
 <translation id="6669284030132180248">‏اگر نشانک‌ها را در «حساب Google» هم ذخیره کنید، می‌توانید قیمت محصولات را در Chromium پیگیری کنید و از کاهش قیمت‌ها مطلع شوید</translation>
 <translation id="6676384891291319759">دسترسی به اینترنت</translation>
 <translation id="668175097507315160">‏به‌دلیل بروز خطا هنگام ورود به سیستم، ChromiumOS نتوانست داده‌های شما را همگام‌سازی کند.</translation>
+<translation id="6691132793308828750">‏برداشتن داده‌های این برنامه از Chromium</translation>
 <translation id="6692797197837897398">‏‫Chromium به شما کمک می‌کند بر آگهی‌هایی که می‌بینید تسلط بیشتری داشته باشید و همچنین میزان اطلاعاتی را که سایت‌ها هنگام نمایش آگهی‌های شخصی‌سازی‌شده به شما درباره‌تان جمع‌آوری می‌کنند محدود می‌کند</translation>
 <translation id="6709350901466051922">‏Chromium برای این سایت به اجازه میکروفون نیاز دارد</translation>
 <translation id="6712881677154121168">خطای بارگیری: <ph name="DOWNLOAD_ERROR" />.</translation>
@@ -489,6 +494,7 @@
 <translation id="6877155553248388166">‏گوشه پایین سمت چپ ناحیه جستجو: ‎٪<ph name="RIGHT" /> سمت چپ، ‎٪<ph name="BOTTOM" /> پایین</translation>
 <translation id="6896758677409633944">کپی</translation>
 <translation id="6901631050894301805">‏‫Chromium را به‌عنوان مرورگر پیش‌فرض خود تنظیم کنید و آن را به نوار وظیفه‌تان سنجاق کنید</translation>
+<translation id="6909503629704372277">‏مدیریت نمایه‌های Chromium</translation>
 <translation id="6934579572334859869">پرسیدن از «جستجوی تصویر» درباره این تصویر</translation>
 <translation id="6964305034639999644">‏باز کردن پیوند در پنجره &amp;ناشناس Chromium</translation>
 <translation id="6965382102122355670">تأیید</translation>
@@ -500,6 +506,7 @@
 <translation id="7024536598735240744">خطای لغو فشرده‌سازی: <ph name="UNPACK_ERROR" />.</translation>
 <translation id="7025789849649390912">نصب متوقف شد.</translation>
 <translation id="7045244423563602563">‏Chromium را برای خود اختصاصی کنید</translation>
+<translation id="7047386856539490735">این نتایج مفیدند؟</translation>
 <translation id="705851970750939768">‏به‌روزرسانی Chromium</translation>
 <translation id="7067091210845072982">‏اگر تصویری توضیح مفیدی نداشته باشد، Chromium توضیحی برای شما ارائه خواهد کرد. برای ایجاد توضیحات، تصاویر به Google ارسال می‌شود.</translation>
 <translation id="7141270731789036260">‏سفارشی‌سازی Chrome for Testing</translation>
@@ -624,7 +631,6 @@ Chromium قادر به بازیابی تنظیمات شما نیست.</translati
 <translation id="8586442755830160949">‏حق نشر <ph name="YEAR" /> نویسندگان Chromium. کلیه حقوق محفوظ است.</translation>
 <translation id="8601359445272098721">جدید! با انتخاب دکمه «ترجمه کردن صفحه‌نمایش»، می‌توانید هم نوشتار و هم تصاویر روی صفحه‌نمایش را ترجمه کنید</translation>
 <translation id="8619360774459241877">‏درحال راه‌اندازی Chromium…</translation>
-<translation id="8621669128220841554">‏به دلیل خطای نامشخص، نصب ناموفق بود. لطفاً دوباره Chromium را بارگیری کنید.</translation>
 <translation id="8648201657708811153">‏نمی‌توان Google Chrome for Testing را به‌عنوان مرورگر پیش‌فرض تنظیم کرد.</translation>
 <translation id="8697124171261953979">‏این برنامه همچنین صفحه‌ای را که هنگام راه‌اندازی Chromium یا جستجو از Omnibox نشان داده می‌شود، کنترل می‌کند.</translation>
 <translation id="8704119203788522458">‏این Chromium شماست</translation>

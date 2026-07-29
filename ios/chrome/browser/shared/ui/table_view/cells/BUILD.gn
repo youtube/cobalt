@@ -10,6 +10,7 @@ source_set("generic_cells") {
     "table_view_cell.mm",
   ]
   deps = [
+    "//ios/chrome/browser/shared/ui/table_view/content_configuration:generic_content",
     "//ios/chrome/browser/shared/ui/util",
     "//ios/chrome/common/ui/colors",
     "//ios/chrome/common/ui/table_view:cells_constants",
@@ -49,8 +50,6 @@ source_set("cells") {
     "table_view_multi_line_text_edit_item.h",
     "table_view_multi_line_text_edit_item.mm",
     "table_view_multi_line_text_edit_item_delegate.h",
-    "table_view_switch_cell.h",
-    "table_view_switch_cell.mm",
     "table_view_switch_item.h",
     "table_view_switch_item.mm",
     "table_view_text_button_item.h",

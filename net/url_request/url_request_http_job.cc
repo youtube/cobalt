@@ -383,7 +383,7 @@ std::unique_ptr<URLRequestJob> URLRequestHttpJob::Create(URLRequest* request) {
   if (TransportSecurityState* hsts =
           request->context()->transport_security_state()) {
     upgrade_decision = hsts->GetSSLUpgradeDecision(
-        url.host(),
+        url.GetHost(),
         /*is_top_level_nav=*/
         request->isolation_info().IsOutermostMainFrameRequest(),
         request->net_log());
@@ -417,7 +417,7 @@ std::unique_ptr<URLRequestJob> URLRequestHttpJob::Create(URLRequest* request) {
     // Check whether the app allows cleartext traffic to this host, and return
     // ERR_CLEARTEXT_NOT_PERMITTED if not.
     if (request->context()->check_cleartext_permitted() &&
-        !android::IsCleartextPermitted(url.host_piece())) {
+        !android::IsCleartextPermitted(url.host())) {
       RecordSTSHistograms(SSLUpgradeDecision::kNoUpgrade,
                           /*is_secure=*/false, request->load_flags());
       return std::make_unique<URLRequestErrorJob>(request,
@@ -1259,7 +1259,7 @@ void URLRequestHttpJob::ProcessStrictTransportSecurityHeader() {
   }
 
   // Don't accept HSTS headers for localhost. (crbug.com/41251622)
-  if (IsLocalHostname(request_info_.url.host()) &&
+  if (IsLocalHostname(request_info_.url.GetHost()) &&
       base::FeatureList::IsEnabled(features::kIgnoreHSTSForLocalhost)) {
     return;
   }
@@ -1273,7 +1273,7 @@ void URLRequestHttpJob::ProcessStrictTransportSecurityHeader() {
   std::optional<std::string_view> value;
   if ((value =
            headers->EnumerateHeader(nullptr, "Strict-Transport-Security"))) {
-    security_state->AddHSTSHeader(request_info_.url.host(), *value);
+    security_state->AddHSTSHeader(request_info_.url.GetHost(), *value);
   }
 }
 
@@ -1346,7 +1346,7 @@ void URLRequestHttpJob::OnStartCompleted(int result) {
     TransportSecurityState* state = context->transport_security_state();
     NotifySSLCertificateError(
         result, transaction_->GetResponseInfo()->ssl_info,
-        state->ShouldSSLErrorsBeFatal(request_info_.url.host()) &&
+        state->ShouldSSLErrorsBeFatal(request_info_.url.GetHost()) &&
             result != ERR_CERT_KNOWN_INTERCEPTION_BLOCKED);
   } else if (result == ERR_SSL_CLIENT_AUTH_CERT_NEEDED) {
     NotifyCertificateRequested(
@@ -1622,7 +1622,7 @@ bool URLRequestHttpJob::IsSafeRedirect(const GURL& location) {
   // HTTP is always safe.
   // TODO(pauljensen): Remove once crbug.com/146591 is fixed.
   if (location.is_valid() &&
-      (location.scheme() == "http" || location.scheme() == "https")) {
+      (location.GetScheme() == "http" || location.GetScheme() == "https")) {
     return true;
   }
   // Query URLRequestJobFactory as to whether |location| would be safe to
@@ -2157,6 +2157,14 @@ void URLRequestHttpJob::RecordCompletionHistograms(CompletionCause reason) {
       base::UmaHistogramEnumeration("Net.HttpJob.IpProtection.JobResult",
                                     ipp_result);
     }
+  }
+
+  for (const auto& [_, result] : request_->device_bound_session_deferrals()) {
+    base::UmaHistogramEnumeration(
+        request_->failed()
+            ? "Net.DeviceBoundSessions.DeferralResultByOutcome.Failure"
+            : "Net.DeviceBoundSessions.DeferralResultByOutcome.Success",
+        result);
   }
 
   start_time_ = base::TimeTicks();

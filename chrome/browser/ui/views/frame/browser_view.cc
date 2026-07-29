@@ -1302,7 +1302,7 @@ void BrowserView::Show() {
   // example, new window in Mac fullscreen with toolbar showing) where we need
   // restore it.
   if (browser_widget_->IsFullscreen() &&
-      !GetFrameView()->ShouldHideTopUIForFullscreen() && GetFocusManager() &&
+      !GetFrameView()->ShouldHideTopUIInFullscreen() && GetFocusManager() &&
       !GetFocusManager()->GetFocusedView()) {
     SetFocusToLocationBar(false);
   }
@@ -2053,7 +2053,8 @@ bool BrowserView::ShouldHideUIForFullscreen() const {
     return false;
   }
 
-  return GetFrameView()->ShouldHideTopUIForFullscreen();
+  return browser_widget_->IsFullscreen() &&
+         GetFrameView()->ShouldHideTopUIInFullscreen();
 }
 
 bool BrowserView::IsFullscreen() const {
@@ -2359,10 +2360,10 @@ void BrowserView::OnLockedForOnTaskUpdated() {
   SetShowCloseButton(!locked_for_on_task);
 }
 
-bool BrowserView::IsTrustedPinned() const {
+bool BrowserView::IsLockedFullscreen() const {
   const auto* frame_view =
       static_cast<const BrowserFrameViewChromeOS*>(GetFrameView());
-  return frame_view->IsTrustedPinned();
+  return frame_view->IsLockedFullscreen();
 }
 
 #endif

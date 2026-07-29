@@ -10,6 +10,8 @@
 
 #include "base/component_export.h"
 #include "base/files/file_path.h"
+#include "base/synchronization/lock.h"
+#include "base/thread_annotations.h"
 #include "base/types/pass_key.h"
 #include "components/persistent_cache/backend.h"
 #include "components/persistent_cache/backend_params.h"
@@ -40,14 +42,19 @@ class COMPONENT_EXPORT(PERSISTENT_CACHE) SqliteBackendImpl : public Backend {
               EntryMetadata metadata) override;
   BackendType GetType() const override;
   bool IsReadOnly() const override;
+  std::optional<BackendParams> ExportReadOnlyParams() override;
+  std::optional<BackendParams> ExportReadWriteParams() override;
 
  private:
   static SqliteVfsFileSet GetVfsFileSetFromParams(BackendParams backend_params);
-  base::FilePath database_path_;
+
+  std::optional<BackendParams> ExportParams(bool read_write);
+
+  const base::FilePath database_path_;
 
   // The set of of `SanboxedFiles` accessible by this backend. This class owns
   // the `SandboxedFiles`.
-  SqliteVfsFileSet vfs_file_set_;
+  const SqliteVfsFileSet vfs_file_set_;
 
   // Owns the registration / unregistration of the `SanboxedFiles` own by this
   // backend to the `SqliteSandboxedVfsDelegate`. Must be defined after
@@ -57,8 +64,10 @@ class COMPONENT_EXPORT(PERSISTENT_CACHE) SqliteBackendImpl : public Backend {
 
   // Defined after `unregister_runner_` to ensure that files remain available
   // through the VFS throughout the database's lifetime.
-  sql::Database db_;
+  std::optional<sql::Database> db_ GUARDED_BY(lock_);
   bool initialized_ = false;
+
+  base::Lock lock_;
 };
 
 }  // namespace persistent_cache

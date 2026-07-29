@@ -501,11 +501,14 @@ class ArcAppModelBuilderTest : public extensions::ExtensionServiceTestBase,
     model_ = std::make_unique<ash::ShelfModel>();
     browser_controller_.emplace();
 
+    arc_test_.PreProfileSetUp();
+
     extensions::ExtensionServiceTestBase::SetUp();
     InitializeExtensionService(ExtensionServiceInitParams());
     service_->Init();
 
     OnBeforeArcTestSetup();
+
     arc_test_.set_initialize_real_intent_helper_bridge(true);
     arc_test_.SetUp(profile_.get());
 
@@ -947,7 +950,6 @@ class ArcAppModelBuilderRecreate : public ArcAppModelBuilderTest {
   }
 
   void StopArc() {
-    apps::ArcAppsFactory::GetInstance()->ShutDownForTesting(profile_.get());
     arc_test()->TearDown();
     RemoveArcApps(profile_.get(), model_updater());
     ResetBuilder();
@@ -1368,7 +1370,7 @@ class ArcPlayStoreAppTest : public ArcDefaultAppTest {
     manifest.Set(extensions::manifest_keys::kDescription,
                  "Play Store for testing");
 
-    std::string error;
+    std::u16string error;
     arc_support_host_ = extensions::Extension::Create(
         base::FilePath(), extensions::mojom::ManifestLocation::kUnpacked,
         manifest, extensions::Extension::NO_FLAGS, arc::kPlayStoreAppId,

@@ -145,7 +145,7 @@ BASE_FEATURE(kDevToolsVerticalDrawer, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Whether DevTools shows submenu example prompts for the AI Assistance panel
 // in context menus.
-BASE_FEATURE(kDevToolsAiSubmenuPrompts, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kDevToolsAiSubmenuPrompts, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Whether DevTools shows 'Debug with AI' and new badges.
 BASE_FEATURE(kDevToolsAiDebugWithAi, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -172,7 +172,7 @@ const base::FeatureParam<bool> kDevToolsGdpProfilesStarterBadgeEnabled{
 
 // Whether DevTools Live Edit (Debugger.setScriptSource usage in CDP) is
 // enabled.
-BASE_FEATURE(kDevToolsLiveEdit, base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(kDevToolsLiveEdit, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kDevToolsIndividualRequestThrottling,
              base::FEATURE_DISABLED_BY_DEFAULT);

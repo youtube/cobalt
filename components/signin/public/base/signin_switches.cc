@@ -92,6 +92,10 @@ BASE_FEATURE(kBrowserSigninInSyncHeaderOnGaiaIntegration,
              base::FEATURE_ENABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
 
+#if BUILDFLAG(IS_IOS)
+BASE_FEATURE(kCacheIdentityListInChrome, base::FEATURE_DISABLED_BY_DEFAULT);
+#endif
+
 #if BUILDFLAG(IS_ANDROID)
 BASE_FEATURE(kCctSignInPrompt, base::FEATURE_ENABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_ANDROID)
@@ -329,6 +333,30 @@ BASE_FEATURE(kRollbackDiceMigration, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kSignInPromoMaterialNextUI, base::FEATURE_ENABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 
+BASE_FEATURE(kSigninWindows10DepreciationStateForTesting,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kSigninWindows10DepreciationStateBypassForTesting,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+bool IsSigninWindows10DepreciationState() {
+  // Bypass the feature for testing.
+  if (base::FeatureList::IsEnabled(
+          switches::kSigninWindows10DepreciationStateBypassForTesting)) {
+    return false;
+  }
+
+  // Force enable the feature for testing.
+  if (base::FeatureList::IsEnabled(
+          switches::kSigninWindows10DepreciationStateForTesting)) {
+    return true;
+  }
+#if BUILDFLAG(IS_WIN)
+  return base::win::GetVersion() >= base::win::Version::WIN7 &&
+         base::win::GetVersion() <= base::win::Version::WIN10_22H2;
+#else
+  return false;
+#endif
+}
+
 #if BUILDFLAG(IS_ANDROID)
 // Feature to bypass double-checking that signin callers have correctly gotten
 // the user to accept account management. This check is slow and not strictly
@@ -372,11 +400,6 @@ BASE_FEATURE(kSyncEnableBookmarksInTransportMode,
 
 #if BUILDFLAG(IS_ANDROID)
 BASE_FEATURE(kUnoForAuto, base::FEATURE_ENABLED_BY_DEFAULT);
-#endif  // BUILDFLAG(IS_ANDROID)
-
-#if BUILDFLAG(IS_ANDROID)
-BASE_FEATURE(kUseHostedDomainForManagementCheckOnSignin,
-             base::FEATURE_ENABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(ENABLE_DICE_SUPPORT)

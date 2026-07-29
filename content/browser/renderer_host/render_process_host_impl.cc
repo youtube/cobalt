@@ -1323,10 +1323,17 @@ void RecordMissedReuseOpportunityMetric(
     return;
   }
 
-  CHECK(allocation_context.navigation_context);
-  auto context = allocation_context.navigation_context->is_outermost_main_frame
-                     ? RecentlyDestroyedHosts::Context::kMainFrame
-                     : RecentlyDestroyedHosts::Context::kSubframe;
+  // IsForNavigation() is true for all navigation-related allocations, but
+  // navigation_context is not guaranteed to be populated. This can happen when
+  // initializing a process for a newly created tab, which is treated as
+  // IsForNavigation() if the kTreatRFHInitRootAsForNavigation feature is
+  // turned on. In this case, we are creating a process for a main frame.
+  auto context =
+      (!allocation_context.navigation_context ||
+       allocation_context.navigation_context->is_outermost_main_frame)
+          ? RecentlyDestroyedHosts::Context::kMainFrame
+          : RecentlyDestroyedHosts::Context::kSubframe;
+
   RecentlyDestroyedHosts::RecordMetricIfReusableHostRecentlyDestroyed(
       context, base::TimeTicks::Now(),
       ProcessLock::FromSiteInfo(site_instance->GetSiteInfo()),
@@ -1922,6 +1929,14 @@ bool RenderProcessHostImpl::Init() {
             ? metrics_memory_region_
             : nullptr,
         tracing_config_memory_region_, tracing_output_memory_region_);
+
+    TRACE_EVENT_BEGIN(
+        "ipc", "RenderProcessHostImpl.Channel.ProcessLaunchPauseToUnpause",
+        tracing_track_, ChromeTrackEvent::kRenderProcessHost, *this);
+    TRACE_EVENT_BEGIN(
+        "ipc", "RenderProcessHostImpl.Channel.ProcessLaunchPauseToFlush",
+        tracing_track_, ChromeTrackEvent::kRenderProcessHost, *this);
+    pause_channel_on_process_launch_time_ = base::TimeTicks::Now();
     channel_->Pause();
 
     // In single process mode, browser-side tracing and memory will cover the
@@ -2021,6 +2036,10 @@ void RenderProcessHostImpl::InitializeChannelProxy() {
 
   // We start the Channel in a paused state. It will be briefly unpaused again
   // in Init() if applicable, before process launch is initiated.
+  TRACE_EVENT_BEGIN(
+      "ipc", "RenderProcessHostImpl.Channel.InitPauseToUnpauseTime",
+      tracing_track_, ChromeTrackEvent::kRenderProcessHost, *this);
+  pause_channel_on_init_time_ = base::TimeTicks::Now();
   channel_->Pause();
 
   InitializeSharedMemoryRegionsOnceChannelIsUp();
@@ -3938,44 +3957,6 @@ bool RenderProcessHostImpl::FastShutdownIfPossible(size_t page_count,
   return true;
 }
 
-bool RenderProcessHostImpl::Send(IPC::Message* msg) {
-  TRACE_IPC_MESSAGE_SEND("renderer_host", "RenderProcessHostImpl::Send", msg);
-
-  std::unique_ptr<IPC::Message> message(msg);
-
-  // |channel_| is only null after Cleanup(), at which point we don't care
-  // about delivering any messages.
-  if (!channel_)
-    return false;
-
-  DCHECK(!message->is_sync());
-  return channel_->Send(message.release());
-}
-
-bool RenderProcessHostImpl::OnMessageReceived(const IPC::Message& msg) {
-  // If we're about to be deleted, or have initiated the fast shutdown
-  // sequence, we ignore incoming messages.
-
-  if (deleting_soon_ || fast_shutdown_started_)
-    return false;
-
-  mark_child_process_activity_time();
-
-  // Dispatch incoming messages to the appropriate IPC::Listener.
-  IPC::Listener* listener = listeners_.Lookup(msg.routing_id());
-  if (!listener) {
-    if (msg.is_sync()) {
-      // The listener has gone away, so we must respond or else the caller
-      // will hang waiting for a reply.
-      IPC::Message* reply = IPC::SyncMessage::GenerateReply(&msg);
-      reply->set_reply_error();
-      Send(reply);
-    }
-    return true;
-  }
-  return listener->OnMessageReceived(msg);
-}
-
 void RenderProcessHostImpl::OnAssociatedInterfaceRequest(
     const std::string& interface_name,
     mojo::ScopedInterfaceEndpointHandle handle) {
@@ -5695,6 +5676,18 @@ void RenderProcessHostImpl::OnProcessLaunched() {
     // yet to ensure that any initialization messages sent here (e.g., things
     // done in response to OnRenderProcessHostCreated; see below) preempt
     // already queued messages.
+    base::UmaHistogramMediumTimes(
+        "Mojo.Channel.ChannelInitPauseToUnpauseTime",
+        base::TimeTicks::Now() - pause_channel_on_init_time_);
+    base::UmaHistogramMediumTimes(
+        "Mojo.Channel.ProcessLaunchPauseToUnpauseTime",
+        base::TimeTicks::Now() - pause_channel_on_process_launch_time_);
+    // "RenderProcessHostImpl.Channel.InitPauseToUnpauseTime"
+    TRACE_EVENT_END("ipc", tracing_track_, ChromeTrackEvent::kRenderProcessHost,
+                    *this);
+    // "RenderProcessHostImpl.Channel.ProcessLaunchPauseToUnpauseTime"
+    TRACE_EVENT_END("ipc", tracing_track_, ChromeTrackEvent::kRenderProcessHost,
+                    *this);
     channel_->Unpause(false /* flush */);
 
     gpu_client_->SetClientPid(GetProcess().Pid());
@@ -5753,8 +5746,18 @@ void RenderProcessHostImpl::OnProcessLaunched() {
   for (auto* observer : GetAllCreationObservers())
     observer->OnRenderProcessHostCreated(this);
 
-  if (child_process_launcher_)
+  if (child_process_launcher_) {
+    base::UmaHistogramMediumTimes(
+        "Mojo.Channel.ChannelInitPauseToFlushTime",
+        base::TimeTicks::Now() - pause_channel_on_init_time_);
+    base::UmaHistogramMediumTimes(
+        "Mojo.Channel.ProcessLaunchPauseToFlushTime",
+        base::TimeTicks::Now() - pause_channel_on_process_launch_time_);
+    // "RenderProcessHostImpl.Channel.ProcessLaunchPauseToFlush"
+    TRACE_EVENT_END("ipc", tracing_track_, ChromeTrackEvent::kRenderProcessHost,
+                    *this);
     channel_->Flush();
+  }
 
   if (IsReady()) {
     DCHECK(!sent_render_process_ready_);

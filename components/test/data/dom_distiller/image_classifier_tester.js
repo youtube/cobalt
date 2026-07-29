@@ -35,16 +35,25 @@ suite('ImageClassifier', function() {
       testContainer.appendChild(parent);
 
       const img = document.getElementById(id);
-      for (const [key, value] of Object.entries(attributes)) {
-        img.setAttribute(key, value);
-      }
 
       // The promise resolves when the image is loaded or has failed to load.
       img.onload = () => resolve(img);
       img.onerror = () => resolve(img);
 
-      // Generate an SVG `src` to control dimensions if one wasn't provided.
-      if (!img.hasAttribute('src')) {
+      // Apply all attributes *except* `src` to avoid triggering a network
+      // request before the load/error handlers are attached.
+      const imgSrc = attributes.src;
+      for (const [key, value] of Object.entries(attributes)) {
+        if (key !== 'src') {
+          img.setAttribute(key, value);
+        }
+      }
+
+      // Set `src` last to ensure handlers are ready.
+      if (imgSrc) {
+        img.src = imgSrc;
+      } else {
+        // Generate an SVG `src` to control dimensions if one wasn't provided.
         const svg = `<svg width="${naturalWidth}" height="${naturalHeight}"
                           xmlns="http://www.w3.org/2000/svg"></svg>`;
         img.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
@@ -112,12 +121,14 @@ suite('ImageClassifier', function() {
     // Wait for all images to be created and loaded into the DOM.
     await Promise.all(imagePromises);
 
-    // Run the classifier on the container. This may attach new onload handlers.
-    ImageClassifier.processImagesIn(testContainer);
-
-    // Wait one more event loop turn for the classifier's onload handlers to
-    // fire.
+    // Yield to the browser's event loop with a `setTimeout` to ensure a layout
+    // pass occurs before the classifier runs. This is critical for
+    // getBoundingClientRect() to return a non-zero width.
     await new Promise(resolve => setTimeout(resolve, 0));
+
+    // Run the classifier on the container. For cached images, this will
+    // synchronously apply the classification classes.
+    ImageClassifier.processImagesIn(testContainer);
 
     // Run the assertions.
     const assertHasClass = (id, expectedClass) => {

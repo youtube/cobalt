@@ -48,17 +48,6 @@ public class DomDistillerTabUtils {
     }
 
     /**
-     * Creates a new WebContents and navigates the {@link WebContents} to view the URL of the
-     * current page, while in the background starts distilling the current page. This method takes
-     * ownership over the old WebContents after swapping in the new one.
-     *
-     * @param webContents the WebContents to distill.
-     */
-    public static void distillCurrentPageAndView(WebContents webContents) {
-        DomDistillerTabUtilsJni.get().distillCurrentPageAndView(webContents);
-    }
-
-    /**
      * Starts distillation in the source {@link WebContents}. The viewer needs to be handled
      * elsewhere.
      *
@@ -79,6 +68,18 @@ public class DomDistillerTabUtils {
     public static void distillAndView(
             WebContents sourceWebContents, WebContents destinationWebContents) {
         DomDistillerTabUtilsJni.get().distillAndView(sourceWebContents, destinationWebContents);
+    }
+
+    /**
+     * Override the default zoom for a reader mode page. This allows reader mode font scaling
+     * preferences to be applied to a page without having conflicting with the default zoom which
+     * may be set by the accessibility zoom setting.
+     *
+     * @param webContents the WebContents that is distilled.
+     * @param url the distiller view URL for the reader mode page.
+     */
+    public static void overrideDefaultZoomForReaderModePage(WebContents webContents, String url) {
+        DomDistillerTabUtilsJni.get().overrideDefaultZoomForReaderModePage(webContents, url);
     }
 
     /**
@@ -184,7 +185,7 @@ public class DomDistillerTabUtils {
         void distillCurrentPageAndViewIfSuccessful(
                 WebContents webContents, Callback<Boolean> callback);
 
-        void distillCurrentPageAndView(WebContents webContents);
+        void overrideDefaultZoomForReaderModePage(WebContents webContents, String url);
 
         void distillCurrentPage(WebContents webContents);
 

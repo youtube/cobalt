@@ -30,12 +30,12 @@
 #import "ios/chrome/browser/shared/ui/table_view/cells/table_view_detail_icon_item.h"
 #import "ios/chrome/browser/shared/ui/table_view/cells/table_view_link_header_footer_item.h"
 #import "ios/chrome/browser/shared/ui/table_view/cells/table_view_multi_detail_text_item.h"
-#import "ios/chrome/browser/shared/ui/table_view/cells/table_view_switch_cell.h"
 #import "ios/chrome/browser/shared/ui/table_view/cells/table_view_switch_item.h"
 #import "ios/chrome/browser/shared/ui/table_view/cells/table_view_text_header_footer_item.h"
 #import "ios/chrome/browser/shared/ui/table_view/cells/table_view_text_item.h"
 #import "ios/chrome/browser/shared/ui/table_view/cells/table_view_text_link_item.h"
 #import "ios/chrome/browser/shared/ui/table_view/content_configuration/colorful_symbol_content_configuration.h"
+#import "ios/chrome/browser/shared/ui/table_view/content_configuration/switch_content_configuration.h"
 #import "ios/chrome/browser/shared/ui/table_view/content_configuration/table_view_cell_content_configuration.h"
 #import "ios/chrome/browser/shared/ui/table_view/table_view_utils.h"
 #import "ios/chrome/common/string_util.h"
@@ -182,7 +182,6 @@ const char kTrackingProtectionSettingsURL[] =
 
   [TableViewCellContentConfiguration registerCellForTableView:tableView];
   RegisterTableViewCell<TableViewDetailIconCell>(tableView);
-  RegisterTableViewCell<TableViewSwitchCell>(tableView);
   RegisterTableViewCell<TableViewTextCell>(tableView);
   RegisterTableViewHeaderFooter<TableViewTextHeaderFooterView>(tableView);
   RegisterTableViewHeaderFooter<TableViewLinkHeaderFooterView>(tableView);
@@ -249,13 +248,15 @@ const char kTrackingProtectionSettingsURL[] =
       [self.pageInfoPresentationHandler showLastVisitedPage];
       break;
     case ItemIdentifierTrackingProtection: {
-      // TODO(crbug.com/442799468): Implement tap functionality for the info
-      // cell.
+      if (_trackingProtectionInfo.hasTrackingProtectionException) {
+        [self.pageInfoPresentationHandler
+            showSendFeedbackPageForSender:UserFeedbackSender::
+                                              TrackingProtections];
+      }
       break;
     }
     case ItemIdentifierTrackingProtectionButton: {
-      // TODO(crbug.com/442799468): Implement tap functionality for the button
-      // cell.
+      [self.trackingProtectionMutator toggleTrackingProtectionState];
       break;
     }
     case ItemIdentifierPermissionsCamera:
@@ -370,7 +371,7 @@ const char kTrackingProtectionSettingsURL[] =
 
       configuration.leadingConfiguration = iconConfiguration;
 
-      TableViewCell* cell =
+      UITableViewCell* cell =
           [TableViewCellContentConfiguration dequeueTableViewCell:tableView];
       cell.contentConfiguration = configuration;
       cell.accessoryType = UITableViewCellAccessoryDisclosureIndicator;
@@ -378,54 +379,79 @@ const char kTrackingProtectionSettingsURL[] =
       return cell;
     }
     case ItemIdentifierPermissionsCamera: {
-      TableViewSwitchCell* cell =
-          DequeueTableViewCell<TableViewSwitchCell>(tableView);
+      TableViewCellContentConfiguration* configuration =
+          [[TableViewCellContentConfiguration alloc] init];
+      configuration.title = l10n_util::GetNSString(IDS_IOS_PERMISSIONS_CAMERA);
+
+      ColorfulSymbolContentConfiguration* symbolConfiguration =
+          [[ColorfulSymbolContentConfiguration alloc] init];
+      symbolConfiguration.symbolImage =
+          CustomSymbolWithPointSize(kCameraSymbol, kPageInfoSymbolPointSize);
+      symbolConfiguration.symbolTintColor = UIColor.whiteColor;
+      symbolConfiguration.symbolBackgroundColor =
+          [UIColor colorNamed:kOrange500Color];
+
+      configuration.leadingConfiguration = symbolConfiguration;
+
       BOOL permissionOn =
           self.permissionsInfo[@(web::PermissionCamera)].unsignedIntValue ==
           web::PermissionStateAllowed;
-      NSString* title = l10n_util::GetNSString(IDS_IOS_PERMISSIONS_CAMERA);
-      [cell configureCellWithTitle:title
-                          subtitle:nil
-                     switchEnabled:YES
-                                on:permissionOn];
+
+      SwitchContentConfiguration* switchConfiguration =
+          [[SwitchContentConfiguration alloc] init];
+      switchConfiguration.target = self;
+      switchConfiguration.selector = @selector(permissionSwitchToggled:);
+      switchConfiguration.tag = itemIdentifier;
+      switchConfiguration.on = permissionOn;
+
+      configuration.trailingConfiguration = switchConfiguration;
+
+      UITableViewCell* cell =
+          [TableViewCellContentConfiguration dequeueTableViewCell:tableView];
+      cell.contentConfiguration = configuration;
+      cell.selectionStyle = UITableViewCellSelectionStyleNone;
+
       cell.accessibilityIdentifier =
           kPageInfoCameraSwitchAccessibilityIdentifier;
-      cell.switchView.tag = itemIdentifier;
-      [cell.switchView addTarget:self
-                          action:@selector(permissionSwitchToggled:)
-                forControlEvents:UIControlEventValueChanged];
-      [cell setIconImage:CustomSymbolWithPointSize(kCameraSymbol,
-                                                   kPageInfoSymbolPointSize)
-                tintColor:UIColor.whiteColor
-          backgroundColor:[UIColor colorNamed:kOrange500Color]
-             cornerRadius:kColorfulBackgroundSymbolCornerRadius
-              borderWidth:0];
 
       return cell;
     }
     case ItemIdentifierPermissionsMicrophone: {
-      TableViewSwitchCell* cell =
-          DequeueTableViewCell<TableViewSwitchCell>(tableView);
+      TableViewCellContentConfiguration* configuration =
+          [[TableViewCellContentConfiguration alloc] init];
+      configuration.title =
+          l10n_util::GetNSString(IDS_IOS_PERMISSIONS_MICROPHONE);
+
+      ColorfulSymbolContentConfiguration* symbolConfiguration =
+          [[ColorfulSymbolContentConfiguration alloc] init];
+      symbolConfiguration.symbolImage = DefaultSymbolWithPointSize(
+          kMicrophoneSymbol, kPageInfoSymbolPointSize);
+      symbolConfiguration.symbolTintColor = UIColor.whiteColor;
+      symbolConfiguration.symbolBackgroundColor =
+          [UIColor colorNamed:kOrange500Color];
+
+      configuration.leadingConfiguration = symbolConfiguration;
+
       BOOL permissionOn =
           self.permissionsInfo[@(web::PermissionMicrophone)].unsignedIntValue ==
           web::PermissionStateAllowed;
-      NSString* title = l10n_util::GetNSString(IDS_IOS_PERMISSIONS_MICROPHONE);
-      [cell configureCellWithTitle:title
-                          subtitle:nil
-                     switchEnabled:YES
-                                on:permissionOn];
+
+      SwitchContentConfiguration* switchConfiguration =
+          [[SwitchContentConfiguration alloc] init];
+      switchConfiguration.target = self;
+      switchConfiguration.selector = @selector(permissionSwitchToggled:);
+      switchConfiguration.tag = itemIdentifier;
+      switchConfiguration.on = permissionOn;
+
+      configuration.trailingConfiguration = switchConfiguration;
+
+      UITableViewCell* cell =
+          [TableViewCellContentConfiguration dequeueTableViewCell:tableView];
+      cell.contentConfiguration = configuration;
+      cell.selectionStyle = UITableViewCellSelectionStyleNone;
+
       cell.accessibilityIdentifier =
           kPageInfoMicrophoneSwitchAccessibilityIdentifier;
-      cell.switchView.tag = itemIdentifier;
-      [cell.switchView addTarget:self
-                          action:@selector(permissionSwitchToggled:)
-                forControlEvents:UIControlEventValueChanged];
-      [cell setIconImage:DefaultSymbolWithPointSize(kMicrophoneSymbol,
-                                                    kPageInfoSymbolPointSize)
-                tintColor:UIColor.whiteColor
-          backgroundColor:[UIColor colorNamed:kOrange500Color]
-             cornerRadius:kColorfulBackgroundSymbolCornerRadius
-              borderWidth:0];
 
       return cell;
     }
@@ -455,7 +481,7 @@ const char kTrackingProtectionSettingsURL[] =
 
       configuration.leadingConfiguration = iconConfiguration;
 
-      TableViewCell* cell =
+      UITableViewCell* cell =
           [TableViewCellContentConfiguration dequeueTableViewCell:tableView];
       cell.contentConfiguration = configuration;
 
@@ -483,7 +509,7 @@ const char kTrackingProtectionSettingsURL[] =
 
       configuration.leadingConfiguration = iconConfiguration;
 
-      TableViewCell* cell =
+      UITableViewCell* cell =
           [TableViewCellContentConfiguration dequeueTableViewCell:tableView];
       cell.contentConfiguration = configuration;
       cell.accessoryType = UITableViewCellAccessoryDisclosureIndicator;
@@ -546,7 +572,7 @@ const char kTrackingProtectionSettingsURL[] =
       }
       configuration.titleColor = [UIColor colorNamed:kBlueColor];
 
-      TableViewCell* cell =
+      UITableViewCell* cell =
           [TableViewCellContentConfiguration dequeueTableViewCell:tableView];
       cell.contentConfiguration = configuration;
       return cell;
@@ -749,9 +775,17 @@ const char kTrackingProtectionSettingsURL[] =
 
 #pragma mark - PageInfoTrackingProtectionConsumer
 
+// Sets PageInfoTrackingProtectionInfo and updates the UI.
 - (void)setTrackingProtectionInfo:
     (PageInfoTrackingProtectionInfo*)trackingProtectionInfo {
   _trackingProtectionInfo = trackingProtectionInfo;
+  NSDiffableDataSourceSnapshot<NSNumber*, NSNumber*>* snapshot =
+      [_dataSource snapshot];
+  [snapshot reconfigureItemsWithIdentifiers:@[
+    @(ItemIdentifierTrackingProtection),
+    @(ItemIdentifierTrackingProtectionButton),
+  ]];
+  [_dataSource applySnapshot:snapshot animatingDifferences:NO];
 }
 
 @end

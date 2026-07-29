@@ -1087,6 +1087,21 @@ bool ServiceWorkerContextWrapper::IsLiveRunningServiceWorker(
                    : false;
 }
 
+void ServiceWorkerContextWrapper::UpdateAllCanvasNoiseTokensFromTopLevelSite(
+    const GURL& top_level_site) {
+  DCHECK_CURRENTLY_ON(BrowserThread::UI);
+  if (!context_core_.get()) {
+    return;
+  }
+  for (const ServiceWorkerVersionInfo& info : GetAllLiveVersionInfo()) {
+    ServiceWorkerVersion* version = GetLiveVersion(info.version_id);
+    if (version &&
+        version->key().top_level_site().IsSameSiteWith(top_level_site)) {
+      version->embedded_worker()->UpdateCanvasNoiseToken();
+    }
+  }
+}
+
 service_manager::InterfaceProvider&
 ServiceWorkerContextWrapper::GetRemoteInterfaces(
     int64_t service_worker_version_id) {
@@ -1974,7 +1989,7 @@ ServiceWorkerContextWrapper::GetLoaderFactoryForBrowserInitiatedRequest(
     // register the URLDataSource directly.
     if (base::FeatureList::IsEnabled(
             features::kEnableServiceWorkersForChromeScheme) &&
-        scope.scheme_piece() == kChromeUIScheme) {
+        scope.scheme() == kChromeUIScheme) {
       config->RegisterURLDataSource(browser_context());
       static_cast<blink::PendingURLLoaderFactoryBundle*>(
           loader_factory_bundle_info.get())
@@ -1984,7 +1999,7 @@ ServiceWorkerContextWrapper::GetLoaderFactoryForBrowserInitiatedRequest(
                                         base::flat_set<std::string>()));
     } else if (base::FeatureList::IsEnabled(
                    features::kEnableServiceWorkersForChromeUntrusted) &&
-               scope.scheme_piece() == kChromeUIUntrustedScheme) {
+               scope.scheme() == kChromeUIUntrustedScheme) {
       config->RegisterURLDataSource(browser_context());
       static_cast<blink::PendingURLLoaderFactoryBundle*>(
           loader_factory_bundle_info.get())

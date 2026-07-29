@@ -39,10 +39,6 @@ enum class NTPMIAEntrypointVariation {
 
 #pragma mark - Feature declarations
 
-// Feature flag to enable static resource serving for the Discover feed.
-// TODO(crbug.com/40246814): Remove this.
-BASE_DECLARE_FEATURE(kEnableDiscoverFeedStaticResourceServing);
-
 // Feature flag to enable discofeed endpoint for the Discover feed.
 BASE_DECLARE_FEATURE(kEnableDiscoverFeedDiscoFeedEndpoint);
 
@@ -61,9 +57,6 @@ BASE_DECLARE_FEATURE(kOverrideFeedSettings);
 
 // Feature flag to enable sending discover feedback to an updated target
 BASE_DECLARE_FEATURE(kWebFeedFeedbackReroute);
-
-// Feature flag to enable signed out user view demotion.
-BASE_DECLARE_FEATURE(kEnableSignedOutViewDemotion);
 
 // Feature flag to enable ghost cards on the iPad feeds.
 BASE_DECLARE_FEATURE(kEnableiPadFeedGhostCards);
@@ -134,9 +127,6 @@ bool IsContentSuggestionsForSupervisedUserEnabled(PrefService* pref_service);
 
 // YES if discover feedback is going to be sent to the updated target.
 bool IsWebFeedFeedbackRerouteEnabled();
-
-// YES if the signed out user view demotion is enabled.
-bool IsSignedOutViewDemotionEnabled();
 
 // Whether ghost cards are enabled on the iPad feeds.
 bool IsiPadFeedGhostCardsEnabled();

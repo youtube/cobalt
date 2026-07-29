@@ -50,7 +50,6 @@
 #import "ios/chrome/browser/shared/ui/table_view/cells/table_view_info_button_cell.h"
 #import "ios/chrome/browser/shared/ui/table_view/cells/table_view_info_button_item.h"
 #import "ios/chrome/browser/shared/ui/table_view/cells/table_view_link_header_footer_item.h"
-#import "ios/chrome/browser/shared/ui/table_view/cells/table_view_switch_cell.h"
 #import "ios/chrome/browser/shared/ui/table_view/cells/table_view_switch_item.h"
 #import "ios/chrome/browser/shared/ui/table_view/cells/table_view_text_header_footer_item.h"
 #import "ios/chrome/browser/shared/ui/table_view/table_view_model.h"
@@ -234,6 +233,8 @@ typedef NS_ENUM(NSInteger, ItemType) {
       [[TableViewSwitchItem alloc] initWithType:ItemTypeAutofillAddressSwitch];
   switchItem.text =
       l10n_util::GetNSString(IDS_AUTOFILL_ENABLE_PROFILES_TOGGLE_LABEL);
+  switchItem.target = self;
+  switchItem.selector = @selector(autofillAddressSwitchChanged:);
   switchItem.on = [self isAutofillProfileEnabled];
   switchItem.accessibilityIdentifier = kAutofillAddressSwitchViewId;
   return switchItem;
@@ -287,56 +288,62 @@ typedef NS_ENUM(NSInteger, ItemType) {
 
 - (TableViewItem*)itemForProfile:
     (const autofill::AutofillProfile&)autofillProfile {
-  std::string guid(autofillProfile.guid());
-  NSString* title = base::SysUTF16ToNSString(autofillProfile.GetInfo(
-      autofill::AutofillType(autofill::NAME_FULL),
-      GetApplicationContext()->GetApplicationLocaleStorage()->Get()));
-  NSString* subTitle = base::SysUTF16ToNSString(autofillProfile.GetInfo(
-      autofill::AutofillType(autofill::ADDRESS_HOME_LINE1),
-      GetApplicationContext()->GetApplicationLocaleStorage()->Get()));
-
   AutofillProfileItem* item =
       [[AutofillProfileItem alloc] initWithType:ItemTypeAddress];
-  item.title = title;
-  item.detailText = subTitle;
+  const auto& locale =
+      GetApplicationContext()->GetApplicationLocaleStorage()->Get();
+  autofill::AutofillProfile::RecordType recordType =
+      autofillProfile.record_type();
 
-  if (base::FeatureList::IsEnabled(
-          autofill::features::kAutofillEnableSupportForHomeAndWork)) {
-    autofill::AutofillProfile::RecordType recordType =
-        autofillProfile.record_type();
-    if (recordType == autofill::AutofillProfile::RecordType::kAccountHome) {
+  item.title = base::SysUTF16ToNSString(
+      autofillProfile.GetInfo(autofill::NAME_FULL, locale));
+  item.detailText = base::SysUTF16ToNSString(
+      autofillProfile.GetInfo(autofill::ADDRESS_HOME_LINE1, locale));
+  item.GUID = autofillProfile.guid();
+  item.accessibilityIdentifier = item.title;
+  item.accessoryType = UITableViewCellAccessoryDisclosureIndicator;
+  item.showMigrateToAccountButton = NO;
+  item.localProfileIconShown = NO;
+
+  switch (recordType) {
+    case autofill::AutofillProfile::RecordType::kAccountHome:
       item.trailingDetailText =
           l10n_util::GetNSString(IDS_IOS_PROFILE_RECORD_TYPE_HOME);
       item.autofillProfileRecordType =
           AutofillAddressProfileRecordType::AutofillAccountHomeProfile;
-    } else if (recordType ==
-               autofill::AutofillProfile::RecordType::kAccountWork) {
+      break;
+
+    case autofill::AutofillProfile::RecordType::kAccountWork:
       item.trailingDetailText =
           l10n_util::GetNSString(IDS_IOS_PROFILE_RECORD_TYPE_WORK);
       item.autofillProfileRecordType =
           AutofillAddressProfileRecordType::AutofillAccountWorkProfile;
-    }
+      break;
+
+    case autofill::AutofillProfile::RecordType::kAccountNameEmail:
+      item.autofillProfileRecordType =
+          AutofillAddressProfileRecordType::AutofillAccountNameEmailProfile;
+      item.detailText = base::SysUTF16ToNSString(
+          autofillProfile.GetInfo(autofill::EMAIL_ADDRESS, locale));
+      break;
+
+    default:
+      if (autofillProfile.IsAccountProfile()) {
+        item.autofillProfileRecordType =
+            AutofillAddressProfileRecordType::AutofillAccountProfile;
+      } else {
+        // This is a local profile.
+        item.autofillProfileRecordType = AutofillLocalProfile;
+        if ([self shouldShowCloudOffIconForProfile:autofillProfile]) {
+          item.showMigrateToAccountButton = YES;
+          item.localProfileIconShown = YES;
+          item.image = CustomSymbolTemplateWithPointSize(
+              kCloudSlashSymbol, kCloudSlashSymbolPointSize);
+        }
+      }
+      break;
   }
 
-  item.accessoryType = UITableViewCellAccessoryDisclosureIndicator;
-  item.accessibilityIdentifier = title;
-  item.GUID = guid;
-  item.showMigrateToAccountButton = NO;
-  item.localProfileIconShown = NO;
-  if (!autofillProfile.IsHomeAndWorkProfile()) {
-    if (autofillProfile.IsAccountProfile()) {
-      item.autofillProfileRecordType =
-          AutofillAddressProfileRecordType::AutofillAccountProfile;
-    } else {
-      item.autofillProfileRecordType = AutofillLocalProfile;
-      if ([self shouldShowCloudOffIconForProfile:autofillProfile]) {
-        item.showMigrateToAccountButton = YES;
-        item.image = CustomSymbolTemplateWithPointSize(
-            kCloudSlashSymbol, kCloudSlashSymbolPointSize);
-        item.localProfileIconShown = YES;
-      }
-    }
-  }
   return item;
 }
 
@@ -580,15 +587,8 @@ typedef NS_ENUM(NSInteger, ItemType) {
     case ItemTypeFooter:
     case ItemTypePlusAddress:
     case ItemTypePlusAddressFooter:
+    case ItemTypeAutofillAddressSwitch:
       break;
-    case ItemTypeAutofillAddressSwitch: {
-      TableViewSwitchCell* switchCell =
-          base::apple::ObjCCastStrict<TableViewSwitchCell>(cell);
-      [switchCell.switchView addTarget:self
-                                action:@selector(autofillAddressSwitchChanged:)
-                      forControlEvents:UIControlEventValueChanged];
-      break;
-    }
     case ItemTypeAutofillAddressManaged: {
       TableViewInfoButtonCell* managedCell =
           base::apple::ObjCCastStrict<TableViewInfoButtonCell>(cell);
@@ -824,6 +824,7 @@ typedef NS_ENUM(NSInteger, ItemType) {
   BOOL hasAccountProfile = NO;
   BOOL hasHomeProfile = NO;
   BOOL hasWorkProfile = NO;
+  BOOL hasNameEmailProfile = NO;
   int profileCount = 0;
 
   for (NSIndexPath* indexPath in indexPaths) {
@@ -848,6 +849,9 @@ typedef NS_ENUM(NSInteger, ItemType) {
       case AutofillAccountWorkProfile:
         hasWorkProfile = YES;
         break;
+      case AutofillAccountNameEmailProfile:
+        hasNameEmailProfile = YES;
+        break;
     }
   }
 
@@ -856,12 +860,13 @@ typedef NS_ENUM(NSInteger, ItemType) {
     return;
   }
 
-  NSString* deletionConfirmationString =
-      [self getDeletionConfirmationStringForProfileCount:profileCount
-                                         hasLocalProfile:hasLocalProfile
-                                       hasAccountProfile:hasAccountProfile
-                                      hasHomeWorkProfile:(hasHomeProfile ||
-                                                          hasWorkProfile)];
+  BOOL hasHomeWorkNameEmailProfile =
+      (hasHomeProfile || hasWorkProfile || hasNameEmailProfile);
+  NSString* deletionConfirmationString = [self
+      getDeletionConfirmationStringForProfileCount:profileCount
+                                   hasLocalProfile:hasLocalProfile
+                                 hasAccountProfile:hasAccountProfile
+                       hasHomeWorkNameEmailProfile:hasHomeWorkNameEmailProfile];
 
   _deletionSheetCoordinator = [[ActionSheetCoordinator alloc]
       initWithBaseViewController:self
@@ -885,8 +890,7 @@ typedef NS_ENUM(NSInteger, ItemType) {
           : l10n_util::GetPluralNSStringF(
                 IDS_IOS_SETTINGS_AUTOFILL_DELETE_ADDRESS_CONFIRMATION_BUTTON,
                 profileCount);
-  if ((hasHomeProfile || hasWorkProfile) && !hasLocalProfile &&
-      !hasAccountProfile) {
+  if (hasHomeWorkNameEmailProfile && !hasLocalProfile && !hasAccountProfile) {
     confirmationButtonText = l10n_util::GetNSString(
         IDS_IOS_SETTINGS_AUTOFILL_REMOVE_ADDRESS_CONFIRMATION_BUTTON);
     [_deletionSheetCoordinator
@@ -897,9 +901,10 @@ typedef NS_ENUM(NSInteger, ItemType) {
                     [weakSelf dismissDeletionSheet];
                     OpenNewTabCommand* command = [OpenNewTabCommand
                         commandWithURLFromChrome:
-                            GURL(hasHomeProfile
-                                     ? kGoogleMyAccountHomeAddressURL
-                                     : kGoogleMyAccountWorkAddressURL)];
+                            GURL(hasHomeProfile ? kGoogleMyAccountHomeAddressURL
+                                 : hasWorkProfile
+                                     ? kGoogleMyAccountWorkAddressURL
+                                     : kGoogleAccountNameEmailAddressEditURL)];
                     [weakSelf.applicationHandler
                         closePresentedViewsAndOpenURL:command];
                   }
@@ -927,11 +932,12 @@ typedef NS_ENUM(NSInteger, ItemType) {
 // Returns the deletion confirmation message string based on
 // `profileCount` and if it the source has any local, account or home/work
 // profiles.
-- (NSString*)
-    getDeletionConfirmationStringForProfileCount:(int)profileCount
-                                 hasLocalProfile:(BOOL)hasLocalProfile
-                               hasAccountProfile:(BOOL)hasAccountProfile
-                              hasHomeWorkProfile:(BOOL)hasHomeWorkProfile {
+- (NSString*)getDeletionConfirmationStringForProfileCount:(int)profileCount
+                                          hasLocalProfile:(BOOL)hasLocalProfile
+                                        hasAccountProfile:
+                                            (BOOL)hasAccountProfile
+                              hasHomeWorkNameEmailProfile:
+                                  (BOOL)hasHomeWorkNameEmailProfile {
   if (!base::FeatureList::IsEnabled(
           autofill::features::kAutofillEnableSupportForHomeAndWork)) {
     if (hasAccountProfile) {
@@ -948,12 +954,12 @@ typedef NS_ENUM(NSInteger, ItemType) {
         profileCount);
   }
 
-  if (hasLocalProfile && hasAccountProfile && hasHomeWorkProfile) {
+  if (hasLocalProfile && hasAccountProfile && hasHomeWorkNameEmailProfile) {
     return l10n_util::GetNSString(
         IDS_IOS_SETTINGS_AUTOFILL_DELETE_LOCAL_ACCOUNT_HOME_WORK_ADDRESS_CONFIRMATION_TITLE);
   }
 
-  if (hasLocalProfile && hasHomeWorkProfile) {
+  if (hasLocalProfile && hasHomeWorkNameEmailProfile) {
     return l10n_util::GetNSString(
         IDS_IOS_SETTINGS_AUTOFILL_DELETE_LOCAL_HOME_WORK_ADDRESS_CONFIRMATION_TITLE);
   }
@@ -964,7 +970,7 @@ typedef NS_ENUM(NSInteger, ItemType) {
         base::SysNSStringToUTF16(_userEmail));
   }
 
-  if (hasAccountProfile && hasHomeWorkProfile) {
+  if (hasAccountProfile && hasHomeWorkNameEmailProfile) {
     return l10n_util::GetNSString(
         IDS_IOS_SETTINGS_AUTOFILL_DELETE_ACCOUNT_HOME_WORK_ADDRESS_CONFIRMATION_TITLE);
   }
@@ -975,7 +981,7 @@ typedef NS_ENUM(NSInteger, ItemType) {
         base::SysNSStringToUTF16(_userEmail));
   }
 
-  if (hasHomeWorkProfile) {
+  if (hasHomeWorkNameEmailProfile) {
     return l10n_util::GetNSString(
         IDS_IOS_SETTINGS_AUTOFILL_DELETE_HOME_WORK_ADDRESS_CONFIRMATION_TITLE);
   }

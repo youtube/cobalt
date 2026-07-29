@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "base/functional/callback.h"
+#include "base/memory/raw_ref.h"
 #include "base/memory/weak_ptr.h"
 #include "base/scoped_observation.h"
 #include "components/autofill/core/browser/foundations/autofill_manager.h"
@@ -34,7 +35,7 @@ class OtpManagerImpl : public OtpManager, public AutofillManager::Observer {
   using GetOtpSuggestionsCallback =
       base::OnceCallback<void(std::vector<std::string>)>;
 
-  OtpManagerImpl(BrowserAutofillManager* owner,
+  OtpManagerImpl(BrowserAutofillManager& owner,
                  one_time_tokens::SmsOtpBackend* sms_otp_backend);
   OtpManagerImpl(const OtpManagerImpl&) = delete;
   OtpManagerImpl& operator=(const OtpManagerImpl&) = delete;
@@ -56,8 +57,12 @@ class OtpManagerImpl : public OtpManager, public AutofillManager::Observer {
   // Handler for when the SMS backend returns OTPs.
   void OnOtpRetrievalComplete(const one_time_tokens::OtpFetchReply& reply);
 
+  // Returns true if an OTP must not be delivered to the caller in an autofill
+  // context, e.g., because the page called the WebOTP API.
+  bool IsOtpDeliveryBlocked();
+
   // The owning BrowserAutofillManager.
-  raw_ptr<BrowserAutofillManager> owner_;
+  raw_ref<BrowserAutofillManager> owner_;
 
   // May be nullptr on platforms that don't support SMS OTP fetching.
   raw_ptr<one_time_tokens::SmsOtpBackend> sms_otp_backend_ = nullptr;
@@ -68,7 +73,6 @@ class OtpManagerImpl : public OtpManager, public AutofillManager::Observer {
   bool sms_otp_retrieval_in_progress_ = false;
 
   // Fetched OTP values. Most recent entry last.
-  // TODO(crbug.com/415273270) Expire old tokens after some time.
   std::vector<one_time_tokens::OneTimeToken> otp_suggestions_;
 
   // Only the last call from the UI to generate suggestions is retained as such

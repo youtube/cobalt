@@ -126,7 +126,7 @@ std::unique_ptr<net::test_server::HttpResponse> PopinRequestHandler(
     std::string proposed_policy = query["popin_policy"][0];
     // We need to fixup the dynamic port so that the policies can match.
     base::ReplaceSubstringsAfterOffset(&proposed_policy, 0, "a.test",
-                                       "a.test:" + request.GetURL().port());
+                                       "a.test:" + request.GetURL().GetPort());
     response->AddCustomHeader("Popin-Policy", "partitioned=" + proposed_policy);
   }
   return response;
@@ -1768,6 +1768,20 @@ IN_PROC_BROWSER_TEST_F(BrowserNavigatorTest,
   }
   EXPECT_EQ(1, browser()->tab_strip_model()->count());
   EXPECT_EQ(GURL(chrome::kChromeUIHistoryURL),
+            browser()->tab_strip_model()->GetActiveWebContents()->GetURL());
+}
+
+IN_PROC_BROWSER_TEST_F(BrowserNavigatorTest,
+                       NavigateFromDefaultToTabsFromOtherDevicesInSameTab) {
+  {
+    content::LoadStopObserver observer(
+        browser()->tab_strip_model()->GetActiveWebContents());
+    chrome::ShowHistorySubPage(browser(), chrome::kChromeUIHistorySyncedTabs);
+    observer.Wait();
+  }
+  EXPECT_EQ(1, browser()->tab_strip_model()->count());
+  EXPECT_EQ(GURL(chrome::kChromeUIHistoryURL)
+                .Resolve(chrome::kChromeUIHistorySyncedTabs),
             browser()->tab_strip_model()->GetActiveWebContents()->GetURL());
 }
 

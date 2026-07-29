@@ -10,6 +10,7 @@
 #include <optional>
 #include <ranges>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "base/check_deref.h"
@@ -22,6 +23,7 @@
 #include "base/location.h"
 #include "base/memory/weak_ptr.h"
 #include "base/metrics/histogram_functions.h"
+#include "base/metrics/histogram_macros.h"
 #include "base/notimplemented.h"
 #include "base/notreached.h"
 #include "base/strings/string_number_conversions.h"
@@ -119,6 +121,21 @@ std::vector<std::string> GetAttributeStrikeKeys(const EntityInstance& entity,
   return base::ToVector(entity.type().strike_keys(), value_for_strike_key);
 }
 
+// Given `local_entity`, returns a copy of it, with its record type set
+// to `EntityInstance::RecordType::kServerWallet`.
+EntityInstance CreateServerEntityFromLocal(const EntityInstance& local_entity) {
+  CHECK_EQ(local_entity.record_type(), EntityInstance::RecordType::kLocal);
+  return EntityInstance(
+      local_entity.type(), base::ToVector(local_entity.attributes()),
+      local_entity.guid(), local_entity.nickname(),
+      /*date_modified=*/local_entity.date_modified(), local_entity.use_count(),
+      /*use_date=*/local_entity.use_date(),
+      EntityInstance::RecordType::kServerWallet,
+      // Entities that are migrated from local to server are never read-only,
+      // since local entities can always be edited by the users, so can their
+      // server counterpart.
+      EntityInstance::AreAttributesReadOnly(false));
+}
 }  // namespace
 
 AutofillAiManager::AutofillAiManager(
@@ -189,6 +206,42 @@ void AutofillAiManager::OnDidFillSuggestion(
   entity_manager->RecordEntityUsed(entity.guid(), base::Time::Now());
 }
 
+bool AutofillAiManager::MaybeUpstreamEntityToWallet(
+    const FormStructure& form,
+    ukm::SourceId ukm_source_id) {
+  if (!MayPerformAutofillAiAction(*client_, AutofillAiAction::kImport)) {
+    return false;
+  }
+
+  std::optional<std::pair<EntityInstance, EntityInstance::EntityId>>
+      entity_to_be_upstreamed = GetEntityUpstreamCandidate(form);
+  if (!entity_to_be_upstreamed) {
+    return false;
+  }
+
+  // Note that the migration prompt uses the regular save prompt strike
+  // database.
+  if (IsSaveBlockedByStrikeDatabase(form.source_url(),
+                                    entity_to_be_upstreamed->first)) {
+    return false;
+  }
+
+  auto prompt_result_callback = BindOnce(
+      &AutofillAiManager::HandleUpstreamEntityPrompt, GetWeakPtr(),
+      form.source_url(),
+      autofill_metrics::FormGlobalIdToHash64Bit(form.global_id()),
+      net::registry_controlled_domains::GetDomainAndRegistry(
+          form.main_frame_origin(),
+          net::registry_controlled_domains::EXCLUDE_PRIVATE_REGISTRIES),
+      ukm_source_id, entity_to_be_upstreamed->first,
+      entity_to_be_upstreamed->second);
+
+  client_->ShowEntitySaveOrUpdateBubble(
+      std::move(entity_to_be_upstreamed->first), /*old_entity=*/std::nullopt,
+      std::move(prompt_result_callback));
+  return true;
+}
+
 void AutofillAiManager::OnEditedAutofilledField(const FormStructure& form,
                                                 const AutofillField& field,
                                                 ukm::SourceId ukm_source_id) {
@@ -199,7 +252,26 @@ bool AutofillAiManager::OnFormSubmitted(const FormStructure& form,
                                         ukm::SourceId ukm_source_id) {
   logger_.RecordFormMetrics(form, ukm_source_id, /*submission_state=*/true,
                             GetAutofillAiOptInStatus(*client_));
-  return MaybeImportForm(form, ukm_source_id);
+  // There are a few prompt/import scenarios a user can find, depending on
+  // whether they are have 1p availability and the data entered in `form`.
+  //
+  // 1. The user submits a form with an entity that cannot be deduplicated with
+  //    saved data. If the user has Wallet enabled, they will be offered to save
+  //    to Wallet. Otherwise, they will be offered to save the data locally.
+  // 2. The user submits a form that either contains a superset of a saved
+  //    entity or fulfills matching criteria with a saved entity. In this case,
+  //    the user will see an update prompt. If the user has Wallet enabled, the
+  //    data is written into Wallet and, the original is deleted it if was
+  //    local. Otherwise, the update is written to local data.
+  // 3. The user submits a form that contains a subset of a locally saved
+  //    entity. If the user has Wallet enabled and the resulting entity is not a
+  //    duplicate of data saved in Wallet, a save prompt to Wallet is shown. On
+  //    acceptance, the local entity is removed.
+  //
+  // Cases 1# and 2# are handled by `MaybeImportForm()`, case is 3# is handled
+  // by `MaybeUpstreamEntityToWallet()`.
+  return MaybeImportForm(form, ukm_source_id) ||
+         MaybeUpstreamEntityToWallet(form, ukm_source_id);
 }
 
 bool AutofillAiManager::MaybeImportForm(const FormStructure& form,
@@ -242,12 +314,39 @@ bool AutofillAiManager::MaybeImportForm(const FormStructure& form,
                         net::registry_controlled_domains::
                             EXCLUDE_PRIVATE_REGISTRIES),
                     ukm_source_id, new_entity);
+
       client_->ShowEntitySaveOrUpdateBubble(std::move(new_entity),
                                             std::move(old_entity),
                                             std::move(prompt_result_callback));
     }
   }
   return !save_update_candidates.empty();
+}
+
+void AutofillAiManager::HandleUpstreamEntityPrompt(
+    const GURL& form_url,
+    uint64_t form_session_id,
+    const std::string& domain,
+    ukm::SourceId ukm_source_id,
+    const EntityInstance& upstream_entity,
+    EntityInstance::EntityId local_entity,
+    AutofillClient::EntitySaveOrUpdatePromptResult result) {
+  // TODO(crbug.com/441742849): Handle logging.
+  if (!result.entity) {
+    if (result.did_user_decline) {
+      AddStrikeForSaveAttempt(form_url, upstream_entity);
+    }
+    return;
+  }
+
+  EntityDataManager* entity_manager = client_->GetEntityDataManager();
+  if (!entity_manager) {
+    return;
+  }
+
+  ClearStrikesForSave(form_url, upstream_entity);
+  // TODO(crbug.com/441742849): Implement main logic by deleting the local
+  // entity and calling the wallet server with the new entity.
 }
 
 void AutofillAiManager::HandleSavePromptResult(
@@ -260,6 +359,8 @@ void AutofillAiManager::HandleSavePromptResult(
   logger_.OnSaveOrUpdatePromptResult(
       AutofillClient::AutofillAiPromptTypes::kSave, entity.type(),
       entity.record_type(), form_session_id, domain, result, ukm_source_id);
+  client_->TriggerAutofillAiSavePromptSurvey(
+      /*prompt_accepted=*/result.entity.has_value());
   if (!result.entity) {
     if (result.did_user_decline) {
       AddStrikeForSaveAttempt(form_url, entity);
@@ -307,6 +408,10 @@ void AutofillAiManager::HandleUpdatePromptResult(
 
   ClearStrikesForUpdate(entity_uuid);
   entity_manager->AddOrUpdateEntityInstance(*std::move(result.entity));
+
+  // TODO(crbug.com/441742849): If the entity prior to updating is local and the
+  // resulting entity is a server one, we should delete the local entity and
+  // store the it in the server.
 }
 
 std::vector<Suggestion> AutofillAiManager::GetSuggestions(
@@ -393,7 +498,7 @@ void AutofillAiManager::AddStrikeForSaveAttempt(const GURL& url,
   if (save_strike_db_by_host_ && url.is_valid() && url.has_host()) {
     save_strike_db_by_host_->AddStrike(
         AutofillAiSaveStrikeDatabaseByHost::GetId(
-            entity.type().name_as_string(), url.host()));
+            entity.type().name_as_string(), url.GetHost()));
   }
   if (save_strike_db_by_attribute_) {
     for (const std::string& key :
@@ -415,7 +520,7 @@ void AutofillAiManager::ClearStrikesForSave(const GURL& url,
   if (save_strike_db_by_host_ && url.is_valid() && url.has_host()) {
     save_strike_db_by_host_->ClearStrikes(
         AutofillAiSaveStrikeDatabaseByHost::GetId(
-            entity.type().name_as_string(), url.host()));
+            entity.type().name_as_string(), url.GetHost()));
   }
   if (save_strike_db_by_attribute_) {
     for (const std::string& key :
@@ -438,7 +543,7 @@ bool AutofillAiManager::IsSaveBlockedByStrikeDatabase(
   if (!save_strike_db_by_host_ ||
       save_strike_db_by_host_->ShouldBlockFeature(
           AutofillAiSaveStrikeDatabaseByHost::GetId(
-              entity.type().name_as_string(), url.host()))) {
+              entity.type().name_as_string(), url.GetHost()))) {
     return true;
   }
 
@@ -477,9 +582,7 @@ AutofillAiManager::GetEntitySaveAndUpdatePromptCandidates(
   base::span<const EntityInstance> saved_entities =
       entity_manager->GetEntityInstances();
   std::vector<EntityInstance> observed_entities =
-      GetPossibleEntitiesFromSubmittedForm(
-          form.fields(), client_->GetAppLocale(),
-          client_->GetVariationConfigCountryCode());
+      GetPossibleEntitiesFromSubmittedForm(form.fields(), *client_);
   std::ranges::sort(observed_entities, EntityInstance::ImportOrder);
 
   std::vector<std::pair<EntityInstance, std::optional<EntityInstance>>>
@@ -545,7 +648,7 @@ AutofillAiManager::GetEntitySaveAndUpdatePromptCandidates(
           EntityInstance(saved_entity.type(), std::move(new_attributes),
                          saved_entity.guid(), saved_entity.nickname(),
                          base::Time::Now(), saved_entity.use_count(),
-                         base::Time::Now(), saved_entity.record_type()),
+                         base::Time::Now(), observed_entity.record_type()),
           saved_entity);
     }
   }
@@ -558,4 +661,70 @@ AutofillAiManager::GetEntitySaveAndUpdatePromptCandidates(
   return candidates;
 }
 
+std::optional<std::pair<EntityInstance, EntityInstance::EntityId>>
+AutofillAiManager::GetEntityUpstreamCandidate(const FormStructure& form) {
+  SCOPED_UMA_HISTOGRAM_TIMER(
+      "Autofill.Ai.Timing.GetEntityUpstreamCandidateFromSubmittedForm");
+
+  const EntityDataManager* entity_manager = client_->GetEntityDataManager();
+  if (!entity_manager) {
+    LOG_AF(GetCurrentLogManager())
+        << LoggingScope::kAutofillAi << LogMessage::kAutofillAi
+        << "Entity data manager is not available";
+    return {};
+  }
+
+  std::vector<EntityInstance> observed_entities =
+      GetPossibleEntitiesFromSubmittedForm(form.fields(), *client_);
+  if (observed_entities.empty()) {
+    return {};
+  }
+
+  std::vector<const EntityInstance*> saved_local_entities;
+  std::vector<const EntityInstance*> saved_server_entities;
+  for (const EntityInstance& entity : entity_manager->GetEntityInstances()) {
+    switch (entity.record_type()) {
+      case EntityInstance::RecordType::kLocal:
+        //  Do not add entity types that cannot be upstreamed.
+        if (MayPerformAutofillAiAction(
+                *client_, AutofillAiAction::kImportToWallet, entity.type())) {
+          saved_local_entities.push_back(&entity);
+        }
+        break;
+      case EntityInstance::RecordType::kServerWallet:
+        saved_server_entities.push_back(&entity);
+        break;
+    }
+  }
+
+  // Keep only local entities that are not a subset of a server entity,
+  // otherwise they would be duplicated on the server.
+  std::erase_if(saved_local_entities, [&](const EntityInstance* local_entity) {
+    return std::ranges::any_of(
+        saved_server_entities, [&](const EntityInstance* server_entity) {
+          return local_entity->IsSubsetOf(*server_entity);
+        });
+  });
+  // Prioritize recently used entities.
+  std::ranges::sort(saved_local_entities,
+                    [](const EntityInstance* lhs, const EntityInstance* rhs) {
+                      return EntityInstance::MigrationOrder(*lhs, *rhs);
+                    });
+
+  std::vector<EntityInstance::EntityId> upstream_candidates;
+  for (const EntityInstance& observed_entity : observed_entities) {
+    for (const EntityInstance* local_entity : saved_local_entities) {
+      if (local_entity->type() != observed_entity.type()) {
+        continue;
+      }
+
+      if (observed_entity.IsSubsetOf(*local_entity)) {
+        return std::make_pair(CreateServerEntityFromLocal(*local_entity),
+                              local_entity->guid());
+      }
+    }
+  }
+
+  return std::nullopt;
+}
 }  // namespace autofill

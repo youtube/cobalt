@@ -18,8 +18,10 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/threading/thread_local_storage.h"
 #include "build/build_config.h"
+#include "components/url_formatter/spoof_checks/skeleton_generator.h"
 #include "net/base/lookup_string_in_fixed_set.h"
 #include "net/base/registry_controlled_domains/registry_controlled_domain.h"
+#include "net/extras/preload_data/decoder.h"
 #include "third_party/icu/source/common/unicode/schriter.h"
 #include "third_party/icu/source/common/unicode/unistr.h"
 #include "third_party/icu/source/i18n/unicode/regex.h"
@@ -592,7 +594,7 @@ bool IDNSpoofChecker::IsTopDomain(const GURL& url) {
   }
   std::string domain_and_registry =
       net::registry_controlled_domains::GetDomainAndRegistry(
-          url.host(),
+          url.GetHost(),
           net::registry_controlled_domains::EXCLUDE_PRIVATE_REGISTRIES);
   return IsDomainAndRegistryATopDomain(domain_and_registry);
 }

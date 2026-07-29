@@ -1928,10 +1928,6 @@ CSSMathExpressionNode* CSSMathExpressionOperation::CreateSteppedValueFunction(
 CSSMathExpressionNode* CSSMathExpressionOperation::CreateExponentialFunction(
     Operands&& operands,
     CSSValueID function_id) {
-  if (!RuntimeEnabledFeatures::CSSExponentialFunctionsEnabled()) {
-    return nullptr;
-  }
-
   // calc-size() is not allowed as a parameter to exponential functions,
   // since it can only be a base of any calculation.
   // Also, intermediate calculations are not allowed as parameters to
@@ -4077,13 +4073,14 @@ class CSSMathExpressionNodeParser {
       case CSSValueID::kRound:
       case CSSValueID::kMod:
       case CSSValueID::kRem:
-        return true;
       case CSSValueID::kPow:
       case CSSValueID::kSqrt:
       case CSSValueID::kHypot:
       case CSSValueID::kLog:
       case CSSValueID::kExp:
-        return RuntimeEnabledFeatures::CSSExponentialFunctionsEnabled();
+      case CSSValueID::kSiblingCount:
+      case CSSValueID::kSiblingIndex:
+        return true;
       case CSSValueID::kAbs:
       case CSSValueID::kSign:
         return RuntimeEnabledFeatures::CSSSignRelatedFunctionsEnabled();
@@ -4093,9 +4090,6 @@ class CSSMathExpressionNodeParser {
         return RuntimeEnabledFeatures::CSSMediaProgressNotationEnabled();
       case CSSValueID::kContainerProgress:
         return RuntimeEnabledFeatures::CSSContainerProgressNotationEnabled();
-      case CSSValueID::kSiblingCount:
-      case CSSValueID::kSiblingIndex:
-        return RuntimeEnabledFeatures::CSSSiblingFunctionsEnabled();
       // TODO(crbug.com/1284199): Support other math functions.
       default:
         return false;
@@ -4383,11 +4377,9 @@ class CSSMathExpressionNodeParser {
       context_.Count(WebFeature::kCSSCalcSizeFunction);
       return calc_size;
     }
-    if (RuntimeEnabledFeatures::CSSSiblingFunctionsEnabled()) {
-      if (CSSMathExpressionNode* sibling_function =
-              ParseSiblingIndexOrCount(function_id, stream, state)) {
-        return sibling_function;
-      }
+    if (CSSMathExpressionNode* sibling_function =
+            ParseSiblingIndexOrCount(function_id, stream, state)) {
+      return sibling_function;
     }
 
     // "arguments" refers to comma separated ones.
@@ -4415,21 +4407,17 @@ class CSSMathExpressionNodeParser {
         max_argument_count = 1;
         break;
       case CSSValueID::kPow:
-        DCHECK(RuntimeEnabledFeatures::CSSExponentialFunctionsEnabled());
         max_argument_count = 2;
         min_argument_count = 2;
         break;
       case CSSValueID::kExp:
       case CSSValueID::kSqrt:
-        DCHECK(RuntimeEnabledFeatures::CSSExponentialFunctionsEnabled());
         max_argument_count = 1;
         break;
       case CSSValueID::kHypot:
-        DCHECK(RuntimeEnabledFeatures::CSSExponentialFunctionsEnabled());
         max_argument_count = kMaxExpressionDepth;
         break;
       case CSSValueID::kLog:
-        DCHECK(RuntimeEnabledFeatures::CSSExponentialFunctionsEnabled());
         max_argument_count = 2;
         break;
       case CSSValueID::kRound:
@@ -4533,7 +4521,6 @@ class CSSMathExpressionNodeParser {
       case CSSValueID::kHypot:
       case CSSValueID::kLog:
       case CSSValueID::kExp: {
-        DCHECK(RuntimeEnabledFeatures::CSSExponentialFunctionsEnabled());
         CSSMathExpressionNode* node =
             CSSMathExpressionOperation::CreateExponentialFunction(
                 std::move(nodes), function_id);

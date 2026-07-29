@@ -61,7 +61,7 @@ IN_PROC_BROWSER_TEST_F(ProfilePickerSignInProviderBrowserTest,
       signin_finished_callback;
 
   // Sign-in is exited, the callback should never run.
-  EXPECT_CALL(signin_finished_callback, Run(_, _, _)).Times(0);
+  EXPECT_CALL(signin_finished_callback, Run(_, _, _, _)).Times(0);
 
   {
     ProfilePickerSignInProvider provider{
@@ -75,7 +75,7 @@ IN_PROC_BROWSER_TEST_F(ProfilePickerSignInProviderBrowserTest,
           EXPECT_NE(browser()->profile()->GetPath(), provider_profile_path);
 
           EXPECT_TRUE(url.spec().starts_with(kExpectedSigninBaseUrl));
-          EXPECT_THAT(url.query(), HasSubstr("flow=promo"));
+          EXPECT_THAT(url.GetQuery(), HasSubstr("flow=promo"));
 
           std::move(callback).Run();
         });
@@ -105,7 +105,7 @@ IN_PROC_BROWSER_TEST_F(ProfilePickerSignInProviderBrowserTest,
       signin_finished_callback;
 
   // Sign-in is exited, the callback should never run.
-  EXPECT_CALL(signin_finished_callback, Run(_, _, _)).Times(0);
+  EXPECT_CALL(signin_finished_callback, Run(_, _, _, _)).Times(0);
 
   {
     ProfilePickerSignInProvider provider{
@@ -120,7 +120,7 @@ IN_PROC_BROWSER_TEST_F(ProfilePickerSignInProviderBrowserTest,
           EXPECT_EQ(browser()->profile()->GetPath(), provider_profile_path);
 
           EXPECT_TRUE(url.spec().starts_with(kExpectedSigninBaseUrl));
-          EXPECT_THAT(url.query(), HasSubstr("flow=promo"));
+          EXPECT_THAT(url.GetQuery(), HasSubstr("flow=promo"));
 
           std::move(callback).Run();
         });

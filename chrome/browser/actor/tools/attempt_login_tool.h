@@ -42,7 +42,7 @@ class AttemptLoginTool : public Tool {
   std::string JournalEvent() const override;
   std::unique_ptr<ObservationDelayController> GetObservationDelayer(
       std::optional<ObservationDelayController::PageStabilityConfig>
-          page_stability_config) const override;
+          page_stability_config) override;
   void UpdateTaskBeforeInvoke(ActorTask& task,
                               InvokeCallback callback) const override;
   tabs::TabHandle GetTargetTab() const override;
@@ -71,6 +71,10 @@ class AttemptLoginTool : public Tool {
   std::vector<base::CancelableTaskTracker> favicon_requests_tracker_;
 
   tabs::TabHandle tab_handle_;
+
+  // Set on invocation. Used to check if the document changed during credential
+  // selection.
+  content::GlobalRenderFrameHostToken main_rfh_token_;
 
   InvokeCallback invoke_callback_;
 

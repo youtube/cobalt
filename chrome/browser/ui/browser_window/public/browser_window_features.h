@@ -58,6 +58,7 @@ class HistoryClustersSidePanelCoordinator;
 class HistorySidePanelCoordinator;
 class IncognitoClearBrowsingDataDialogCoordinator;
 class ImmersiveModeController;
+class IOSPromoController;
 class LocationBarModel;
 class MemorySaverOptInIPHController;
 class PinnedToolbarActionsController;
@@ -80,7 +81,6 @@ class ToastService;
 class TranslateBubbleController;
 class UpgradeNotificationController;
 class WebUIBrowserSidePanelUI;
-class ZoomBubbleCoordinator;
 
 #if BUILDFLAG(IS_WIN)
 class WindowsTaskbarIconUpdater;
@@ -182,6 +182,10 @@ class AcceleratorProvider;
 namespace web_app {
 class AppBrowserController;
 }  // namespace web_app
+
+namespace omnibox {
+class AiModePageActionController;
+}  // namespace omnibox
 
 // This class owns the core controllers for features that are scoped to a given
 // browser window on desktop.
@@ -456,7 +460,6 @@ class BrowserWindowFeatures {
   ImmersiveModeController* immersive_mode_controller() {
     return immersive_mode_controller_.get();
   }
-
   const ImmersiveModeController* immersive_mode_controller() const {
     return immersive_mode_controller_.get();
   }
@@ -523,6 +526,8 @@ class BrowserWindowFeatures {
 
   std::unique_ptr<FullscreenControlHost> fullscreen_control_host_;
 
+  std::unique_ptr<IOSPromoController> ios_promo_controller_;
+
   std::unique_ptr<lens::LensOverlayEntryPointController>
       lens_overlay_entry_point_controller_;
 
@@ -587,8 +592,6 @@ class BrowserWindowFeatures {
 #if !BUILDFLAG(IS_CHROMEOS)
   std::unique_ptr<DownloadToolbarUIController> download_toolbar_ui_controller_;
 #endif
-
-  std::unique_ptr<ZoomBubbleCoordinator> zoom_bubble_coordinator_;
 
   std::unique_ptr<ActorUiWindowController> actor_ui_window_controller_;
 
@@ -732,6 +735,9 @@ class BrowserWindowFeatures {
   raw_ptr<ui::AcceleratorProvider> accelerator_provider_;
 
   std::unique_ptr<FindBarOwner> find_bar_owner_;
+
+  std::unique_ptr<omnibox::AiModePageActionController>
+      ai_mode_page_action_controller_;
 };
 
 #endif  // CHROME_BROWSER_UI_BROWSER_WINDOW_PUBLIC_BROWSER_WINDOW_FEATURES_H_

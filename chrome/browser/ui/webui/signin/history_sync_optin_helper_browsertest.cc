@@ -189,7 +189,7 @@ IN_PROC_BROWSER_TEST_P(
 
   auto history_sync_optin_helper = HistorySyncOptinHelper::Create(
       identity_test_env()->identity_manager(), GetProfile(), account_info,
-      &delegate, GetParam());
+      &delegate, GetParam(), signin_metrics::AccessPoint::kSettings);
   history_sync_optin_helper->StartHistorySyncOptinFlow();
   // This triggers the flow that reaches the delegate's
   // `ShowHistorySyncOptinScreen`.
@@ -220,7 +220,7 @@ IN_PROC_BROWSER_TEST_P(
   switch (GetParam()) {
     case HistorySyncOptinHelper::LaunchContext::kInBrowser:
       EXPECT_CALL(*service, EnsureManagedProfileForAccount)
-          .WillOnce(testing::Invoke(
+          .WillOnce(
               [&](const CoreAccountId&, signin_metrics::AccessPoint,
                   base::OnceCallback<void(Profile*, bool)> callback) {
                 // The callback is executed asynchronously, to better reflect
@@ -228,26 +228,25 @@ IN_PROC_BROWSER_TEST_P(
                 base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
                     FROM_HERE,
                     base::BindOnce(std::move(callback), GetProfile(), true));
-              }));
+              });
       break;
     case HistorySyncOptinHelper::LaunchContext::kInProfilePicker:
       EXPECT_CALL(delegate, ShowAccountManagementScreen)
-          .WillOnce(testing::Invoke([&](signin::SigninChoiceCallback callback) {
+          .WillOnce([&](signin::SigninChoiceCallback callback) {
             std::move(callback).Run(signin::SIGNIN_CHOICE_NEW_PROFILE);
-          }));
+          });
       break;
   }
 
   EXPECT_CALL(delegate, ShowHistorySyncOptinScreen)
-      .WillOnce(testing::Invoke(
-          [&](Profile* profile,
-              base::OnceClosure history_optin_completed_closure) {
-            future.SetValue(profile);
-          }));
+      .WillOnce([&](Profile* profile,
+                    base::OnceClosure history_optin_completed_closure) {
+        future.SetValue(profile);
+      });
 
   auto history_sync_optin_helper = HistorySyncOptinHelper::Create(
       identity_test_env()->identity_manager(), GetProfile(), account_info,
-      &delegate, GetParam());
+      &delegate, GetParam(), signin_metrics::AccessPoint::kSettings);
   history_sync_optin_helper->StartHistorySyncOptinFlow();
 
   // This triggers the flow that reaches the delegate's
@@ -272,28 +271,26 @@ IN_PROC_BROWSER_TEST_P(
   switch (GetParam()) {
     case HistorySyncOptinHelper::LaunchContext::kInBrowser:
       EXPECT_CALL(*service, EnsureManagedProfileForAccount)
-          .WillOnce(testing::Invoke(
-              [&](const CoreAccountId&, signin_metrics::AccessPoint,
-                  base::OnceCallback<void(Profile*, bool)> callback) {
-                // The callback is executed asynchronously, to better reflect
-                // the production implementation.
-                base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
-                    FROM_HERE,
-                    base::BindOnce(std::move(callback), nullptr, false));
-              }));
+          .WillOnce([&](const CoreAccountId&, signin_metrics::AccessPoint,
+                        base::OnceCallback<void(Profile*, bool)> callback) {
+            // The callback is executed asynchronously, to better reflect
+            // the production implementation.
+            base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+                FROM_HERE, base::BindOnce(std::move(callback), nullptr, false));
+          });
       break;
     case HistorySyncOptinHelper::LaunchContext::kInProfilePicker:
       EXPECT_CALL(delegate, ShowAccountManagementScreen)
-          .WillOnce(testing::Invoke([&](signin::SigninChoiceCallback callback) {
+          .WillOnce([&](signin::SigninChoiceCallback callback) {
             std::move(callback).Run(signin::SIGNIN_CHOICE_CANCEL);
-          }));
+          });
       break;
   }
   EXPECT_CALL(delegate, ShowHistorySyncOptinScreen).Times(0);
 
   auto history_sync_optin_helper = HistorySyncOptinHelper::Create(
       identity_test_env()->identity_manager(), GetProfile(), account_info,
-      &delegate, GetParam());
+      &delegate, GetParam(), signin_metrics::AccessPoint::kSettings);
   HistorySyncOptinHelperTestObserver history_sync_optin_helper_observer(future);
   history_sync_optin_helper->AddObserver(&history_sync_optin_helper_observer);
 
@@ -327,7 +324,7 @@ IN_PROC_BROWSER_TEST_P(
 
   auto history_sync_optin_helper = HistorySyncOptinHelper::Create(
       identity_test_env()->identity_manager(), GetProfile(), account_info,
-      &delegate, GetParam());
+      &delegate, GetParam(), signin_metrics::AccessPoint::kSettings);
   history_sync_optin_helper->StartHistorySyncOptinFlow();
   testing::Mock::VerifyAndClearExpectations(&delegate);
 
@@ -355,7 +352,7 @@ IN_PROC_BROWSER_TEST_P(HistorySyncOptinHelperBrowserTest,
 
   auto history_sync_optin_helper = HistorySyncOptinHelper::Create(
       identity_test_env()->identity_manager(), GetProfile(), account_info,
-      &delegate, GetParam());
+      &delegate, GetParam(), signin_metrics::AccessPoint::kSettings);
 
   // The helper is waiting for the sync service to start before attempting
   // to show the history sync optin screen.
@@ -388,7 +385,7 @@ IN_PROC_BROWSER_TEST_P(HistorySyncOptinHelperBrowserTest,
 
   auto history_sync_optin_helper = HistorySyncOptinHelper::Create(
       identity_test_env()->identity_manager(), GetProfile(), account_info,
-      &delegate, GetParam());
+      &delegate, GetParam(), signin_metrics::AccessPoint::kSettings);
   history_sync_optin_helper->StartHistorySyncOptinFlow();
 
   EXPECT_EQ(user_action_tester_.GetActionCount("Signin_HistorySync_Started"),

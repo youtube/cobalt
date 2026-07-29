@@ -95,15 +95,16 @@ consoles.console_view(
     ("clang-tot-device", "iOS|internal", "dev"),
 )]
 
-def tot_mac_builder(*, name, cores = 12, is_rust = False, **kwargs):
+def tot_mac_builder(*, name, is_rust = False, **kwargs):
     if "gn_args" in kwargs:
         kwargs["gn_args"].configs.append("mac")
     desc_tool = "Rust" if is_rust else "Clang"
     return ci.builder(
         name = name,
-        cores = cores,
         os = os.MAC_DEFAULT,
         ssd = True,
+        cores = None,
+        cpu = cpu.ARM64,
         properties = {
             # The Chromium build doesn't need system Xcode, but the ToT
             # bots also build clang and llvm and that build does need system
@@ -1920,8 +1921,6 @@ tot_mac_builder(
             "mac_default_x64",
         ],
     ),
-    cores = None,
-    cpu = cpu.ARM64,
     console_view_entry = consoles.console_view_entry(
         category = "ToT Mac",
         short_name = "rel",
@@ -1961,8 +1960,6 @@ tot_mac_builder(
             "mac_default_x64",
         ],
     ),
-    cores = None,
-    cpu = cpu.ARM64,
     console_view_entry = consoles.console_view_entry(
         category = "ToT Mac",
         short_name = "dbg",
@@ -2011,8 +2008,6 @@ tot_mac_builder(
             "mac_default_x64",
         ],
     ),
-    cores = None,
-    cpu = cpu.ARM64,
     console_view_entry = consoles.console_view_entry(
         category = "ToT Mac",
         short_name = "asn",
@@ -2022,6 +2017,21 @@ tot_mac_builder(
 
 tot_mac_builder(
     name = "ToTMacPGO",
+    builder_spec = builder_config.builder_spec(
+        gclient_config = builder_config.gclient_config(
+            config = "chromium",
+            apply_configs = [
+                "clang_tot",
+            ],
+        ),
+        chromium_config = builder_config.chromium_config(
+            config = "clang_tot_mac",
+            apply_configs = ["mb"],
+            build_config = builder_config.build_config.RELEASE,
+            target_bits = 64,
+            target_platform = builder_config.target_platform.MAC,
+        ),
+    ),
     gn_args = gn_args.config(
         configs = [
             "clang_tot_gn",
@@ -2051,6 +2061,22 @@ tot_mac_builder(
 
 tot_mac_builder(
     name = "ToTMacArm64PGO",
+    builder_spec = builder_config.builder_spec(
+        gclient_config = builder_config.gclient_config(
+            config = "chromium",
+            apply_configs = [
+                "clang_tot",
+            ],
+        ),
+        chromium_config = builder_config.chromium_config(
+            config = "clang_tot_mac",
+            apply_configs = ["mb"],
+            build_config = builder_config.build_config.RELEASE,
+            target_arch = builder_config.target_arch.ARM,
+            target_bits = 64,
+            target_platform = builder_config.target_platform.MAC,
+        ),
+    ),
     gn_args = gn_args.config(
         configs = [
             "clang_tot_gn",
@@ -2077,6 +2103,22 @@ tot_mac_builder(
 
 tot_mac_builder(
     name = "ToTMacArm64",
+    builder_spec = builder_config.builder_spec(
+        gclient_config = builder_config.gclient_config(
+            config = "chromium",
+            apply_configs = [
+                "clang_tot",
+            ],
+        ),
+        chromium_config = builder_config.chromium_config(
+            config = "clang_tot_mac",
+            apply_configs = ["mb"],
+            build_config = builder_config.build_config.RELEASE,
+            target_arch = builder_config.target_arch.ARM,
+            target_bits = 64,
+            target_platform = builder_config.target_platform.MAC,
+        ),
+    ),
     gn_args = gn_args.config(
         configs = [
             "clang_tot_gn",
@@ -2113,8 +2155,6 @@ tot_mac_builder(
             "arm64",
         ],
     ),
-    cores = None,
-    cpu = cpu.ARM64,
     console_view_entry = consoles.console_view_entry(
         category = "ToT Code Coverage",
         short_name = "mac",
@@ -2125,7 +2165,7 @@ tot_mac_builder(
 ### the same gardening rotation
 
 ci.builder(
-    name = "ToTRustLinux (dbg)",
+    name = "ToTRustLinux(dbg)",
     description_html = "Builder that builds and tests chromium using ToT Rust," +
                        "built against ToT LLVM, on linux in debug mode.",
     builder_spec = builder_config.builder_spec(
@@ -2170,7 +2210,7 @@ ci.builder(
 )
 
 ci.builder(
-    name = "ToTWinRust(dbg)",
+    name = "ToTRustWin(dbg)",
     description_html = "Builder that builds and tests chromium using ToT Rust," +
                        "built against ToT LLVM, on windows in debug mode.",
     builder_spec = builder_config.builder_spec(
@@ -2220,7 +2260,7 @@ ci.builder(
 )
 
 tot_mac_builder(
-    name = "ToTMacRust (dbg)",
+    name = "ToTRustMac(dbg)",
     builder_spec = builder_config.builder_spec(
         gclient_config = builder_config.gclient_config(
             config = "chromium",
@@ -2251,8 +2291,6 @@ tot_mac_builder(
             "mac_default_x64",
         ],
     ),
-    cores = None,
-    cpu = cpu.ARM64,
     console_view_entry = consoles.console_view_entry(
         category = "Rust ToT",
         short_name = "mac",

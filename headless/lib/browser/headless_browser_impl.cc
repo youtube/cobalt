@@ -19,20 +19,19 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/task/single_thread_task_runner.h"
 #include "components/embedder_support/user_agent_utils.h"
+#include "components/os_crypt/async/browser/os_crypt_async.h"
+#include "components/os_crypt/async/common/encryptor.h"
 #include "components/version_info/version_info.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
 #include "headless/lib/browser/headless_browser_context_impl.h"
+#include "headless/lib/browser/headless_platform_delegate.h"
 #include "headless/lib/browser/headless_web_contents_impl.h"
 #include "third_party/blink/public/common/user_agent/user_agent_metadata.h"
 
 #if BUILDFLAG(IS_WIN)
 #include "base/command_line.h"
 #include "headless/public/switches.h"
-#endif
-
-#if BUILDFLAG(IS_MAC)
-#include "services/device/public/cpp/geolocation/geolocation_system_permission_manager.h"
 #endif
 
 #if defined(HEADLESS_USE_PREFS)
@@ -90,7 +89,7 @@ std::string HeadlessBrowser::GetProductNameAndVersion() {
 
 /// static
 blink::UserAgentMetadata HeadlessBrowser::GetUserAgentMetadata() {
-  auto metadata = embedder_support::GetUserAgentMetadata(nullptr);
+  auto metadata = embedder_support::GetUserAgentMetadata();
   // Skip override brand version information if components' API returns a blank
   // UserAgentMetadata.
   if (metadata == blink::UserAgentMetadata()) {
@@ -115,7 +114,8 @@ blink::UserAgentMetadata HeadlessBrowser::GetUserAgentMetadata() {
 
 HeadlessBrowserImpl::HeadlessBrowserImpl(
     base::OnceCallback<void(HeadlessBrowser*)> on_start_callback)
-    : on_start_callback_(std::move(on_start_callback)) {}
+    : on_start_callback_(std::move(on_start_callback)),
+      platform_delegate_(std::make_unique<HeadlessPlatformDelegate>()) {}
 
 HeadlessBrowserImpl::~HeadlessBrowserImpl() = default;
 
@@ -203,7 +203,8 @@ void HeadlessBrowserImpl::SetDefaultBrowserContext(
   if (default_browser_context_ && !system_request_context_manager_) {
     system_request_context_manager_ =
         HeadlessRequestContextManager::CreateSystemContext(
-            HeadlessBrowserContextImpl::From(browser_context)->options());
+            HeadlessBrowserContextImpl::From(browser_context)->options(),
+            os_crypt_async());
   }
 }
 
@@ -258,13 +259,18 @@ bool HeadlessBrowserImpl::ShouldStartDevToolsServer() {
 }
 
 void HeadlessBrowserImpl::PreMainMessageLoopRun() {
-  PlatformInitialize();
+  os_crypt_async_ = std::make_unique<os_crypt_async::OSCryptAsync>(
+      std::vector<std::pair<os_crypt_async::OSCryptAsync::Precedence,
+                            std::unique_ptr<os_crypt_async::KeyProvider>>>{});
+
+  platform_delegate_->Initialize(options_.value());
 
   // We don't support the tethering domain on this agent host.
   agent_host_ = content::DevToolsAgentHost::CreateForBrowser(
       nullptr, content::DevToolsAgentHost::CreateServerSocketCallback());
 
-  PlatformStart();
+  platform_delegate_->Start();
+
   std::move(on_start_callback_).Run(this);
 }
 
@@ -273,6 +279,7 @@ void HeadlessBrowserImpl::WillRunMainMessageLoop(base::RunLoop& run_loop) {
 }
 
 void HeadlessBrowserImpl::PostMainMessageLoopRun() {
+  os_crypt_async_.reset();
 #if defined(HEADLESS_USE_PREFS)
   if (local_state_) {
     local_state_->CommitPendingWrite();
@@ -285,6 +292,22 @@ void HeadlessBrowserImpl::PostMainMessageLoopRun() {
     policy_connector_.reset(nullptr);
   }
 #endif
+}
+
+void HeadlessBrowserImpl::InitializeWebContents(
+    HeadlessWebContentsImpl* web_contents) {
+  platform_delegate_->InitializeWebContents(web_contents);
+}
+
+void HeadlessBrowserImpl::SetWebContentsBounds(
+    HeadlessWebContentsImpl* web_contents,
+    const gfx::Rect& bounds) {
+  platform_delegate_->SetWebContentsBounds(web_contents, bounds);
+}
+
+ui::Compositor* HeadlessBrowserImpl::GetCompositor(
+    HeadlessWebContentsImpl* web_contents) {
+  return platform_delegate_->GetCompositor(web_contents);
 }
 
 #if defined(HEADLESS_USE_POLICY)

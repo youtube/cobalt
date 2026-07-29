@@ -340,7 +340,7 @@ try_.orchestrator_builder(
         # TODO (crbug.com/415099984): change to 100,
         # then move out of experimental CQ after,
         # mac15-arm64-rel replaces mac14-arm64-rel on CQ.
-        experiment_percentage = 30,
+        experiment_percentage = 66,
     ),
 )
 
@@ -730,7 +730,7 @@ ios_builder(
     builderless = True,
     cpu = cpu.ARM64,
     contact_team_email = "cobalt-appletv@google.com",
-    xcode = xcode.x26betabots,
+    xcode = xcode.xcode_default,
 )
 
 ios_builder(

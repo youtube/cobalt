@@ -1397,8 +1397,8 @@ enum WebFeature {
   kAnchorClickDispatchForNonConnectedNode = 1971,
   kHTMLParseErrorNestedForm = 1972,
   kFontShapingNotDefGlyphObserved = 1973,
-  kPostMessageOutgoingWouldBeBlockedByConnectSrc = 1974,
-  kPostMessageIncomingWouldBeBlockedByConnectSrc = 1975,
+  kOBSOLETE_PostMessageOutgoingWouldBeBlockedByConnectSrc = 1974,
+  kOBSOLETE_PostMessageIncomingWouldBeBlockedByConnectSrc = 1975,
   kCrossOriginPropertyAccess = 1977,
   kCrossOriginPropertyAccessFromOpener = 1978,
   kCredentialManagerCreate = 1979,
@@ -2202,7 +2202,7 @@ enum WebFeature {
   kV8XRSession_End_Method = 2911,
   kV8XRWebGLLayer_Constructor = 2912,
   kFetchKeepalive = 2913,
-  kCSSTransitionCancelledByRemovingStyle = 2914,
+  kOBSOLETE_CSSTransitionCancelledByRemovingStyle = 2914,
   kV8RTCRtpSender_SetStreams_Method = 2915,
   kCookieNoSameSite = 2916,
   kCookieInsecureAndSameSiteNone = 2917,
@@ -4985,6 +4985,8 @@ enum WebFeature {
   kResolvedColumnRuleWidthWithNoneOrHiddenStyle = 5670,
   kResolvedOutlineWidthWithNoneOrHiddenStyle = 5671,
   kContextMenuEventDefaultPrevented = 5672,
+  kSmartCardEstablishContext = 5673,
+  kSmartCardConnect = 5674,
 
   // Add new features immediately above this line. Don't change assigned
   // numbers of any item, and don't reuse removed slots. Also don't add extra

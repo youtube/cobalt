@@ -101,7 +101,8 @@ NSString* HostnameFromGURL(GURL URL) {
                                    kTabResumptionShowItemImmediately);
   config.additional_args.push_back("--test-ios-module-ranker=tab_resumption");
   config.additional_args.push_back("--mock-shopping-service=is-eligible,"
-                                   "has-empty-price-tracked-bookmarks-results");
+                                   "has-empty-price-tracked-bookmarks-results,"
+                                   "has-empty-subscriptions-results");
   // kVisitedURLRankingHistoryVisibilityScoreFilter require the network, keep
   // it disabled for tests.
   config.features_disabled.push_back(
@@ -128,7 +129,7 @@ NSString* HostnameFromGURL(GURL URL) {
   // Relaunching the app undoes the mock setup for shopping_service in setUp
   // For the relaunch cases, explicitly disabling ShopCard so the tests can
   // continue without waiting for the async callback.
-  config.features_disabled.push_back(commerce::kShopCard);
+  config.features_disabled.push_back(commerce::kTabResumptionShopCard);
   [[AppLaunchManager sharedManager] ensureAppLaunchedWithConfiguration:config];
 }
 
@@ -139,7 +140,7 @@ NSString* HostnameFromGURL(GURL URL) {
   }
   GREYAssertTrue(self.testServer->Start(), @"Test server failed to start.");
   SignInAndEnableHistorySync();
-  [NewTabPageAppInterface disableSetUpList];
+  [NewTabPageAppInterface disableTipsCards];
   [[self class] closeAllTabs];
   [ChromeEarlGrey openNewTab];
 }
@@ -188,7 +189,7 @@ NSString* HostnameFromGURL(GURL URL) {
   // Verify that the location bar shows the distant tab URL in a short form.
   [[EarlGrey selectElementWithMatcher:chrome_test_util::DefocusedLocationView()]
       assertWithMatcher:chrome_test_util::LocationViewContainingText(
-                            self.testServer->base_url().host())];
+                            self.testServer->base_url().GetHost())];
 }
 
 // Tests that the tab resumption tile is correctly displayed for a local tab.
@@ -231,7 +232,7 @@ NSString* HostnameFromGURL(GURL URL) {
   // Verify that the location bar shows the local tab URL in a short form.
   [[EarlGrey selectElementWithMatcher:chrome_test_util::DefocusedLocationView()]
       assertWithMatcher:chrome_test_util::LocationViewContainingText(
-                            destinationUrl.host())];
+                            destinationUrl.GetHost())];
   [ChromeEarlGrey
       waitForWebStateContainingText:"Anyone know any good pony jokes?"];
   // The most recent tab is the second one.

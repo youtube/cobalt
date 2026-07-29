@@ -11,13 +11,6 @@ import("//ios/public/provider/chrome/browser/build_config.gni")
 import("//testing/test.gni")
 import("//third_party/protobuf/proto_library.gni")
 
-declare_args() {
-  # Controls whether to build the Swift - C++ interop tests.
-  # TODO(crbug.com/40911785): the Swift - C++ interop miscompiles when using
-  # a custom libc++. Re-enable those tests when the interop is fixed.
-  ios_enable_swift_interop_tests = !use_custom_libcxx
-}
-
 # All tests needs to be listed in that target to be built as part of
 # "gn_all" target (i.e. by the bots).
 group("all_tests") {
@@ -25,13 +18,10 @@ group("all_tests") {
   deps = [
     ":all_fuzzer_tests",
     ":ios_chrome_unittests",
+    "//ios/chrome/test/swift_interop:ios_swift_interop_xcuitests",
     "//ios/chrome/test/xcuitest:ios_chrome_device_check_xcuitests_module",
     "//ios/chrome/test/xcuitest:ios_chrome_xcuitests",
   ]
-
-  if (ios_enable_swift_interop_tests) {
-    deps += [ "//ios/chrome/test/swift_interop:ios_swift_interop_xcuitests" ]
-  }
 }
 
 group("all_fuzzer_tests") {
@@ -553,6 +543,7 @@ test("ios_chrome_unittests") {
     "//ios/chrome/common:unit_tests",
     "//ios/chrome/common/app_group:unit_tests",
     "//ios/chrome/common/credential_provider:unit_tests",
+    "//ios/chrome/common/credential_provider/ui:unit_tests",
     "//ios/chrome/common/ui/reauthentication:unit_tests",
     "//ios/chrome/common/ui/util:unit_tests",
     "//ios/chrome/test/providers/signin:trusted_vault_provider",
@@ -567,7 +558,11 @@ test("ios_chrome_unittests") {
   }
 
   if (enterprise_data_controls) {
-    deps += [ "//ios/chrome/browser/enterprise/data_controls:unit_tests" ]
+    deps += [
+      "//ios/chrome/browser/enterprise/data_controls/coordinator:unit_tests",
+      "//ios/chrome/browser/enterprise/data_controls/model:unit_tests",
+      "//ios/chrome/browser/enterprise/data_controls/utils:unit_tests",
+    ]
   }
 
   if (ios_enable_widget_kit_extension) {

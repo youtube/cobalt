@@ -27,7 +27,7 @@ BASE_FEATURE_ENUM_PARAM(ActorPaintStabilityMode,
                         kActorPaintStabilityMode,
                         &kGlicActor,
                         "actor-paint-stability-mode",
-                        ActorPaintStabilityMode::kLogOnly,
+                        ActorPaintStabilityMode::kEnabled,
                         &kActorPaintStabilityModeOptions);
 // Timeout controlling how long the paint stability monitor waits after the
 // initial contentful paint before considering the UI to have stabilized.
@@ -83,6 +83,10 @@ BASE_FEATURE(kAppShimNotificationAttribution,
 // When enabled, app shims used by PWAs will be signed with an ad-hoc signature
 // https://crbug.com/40276068
 BASE_FEATURE(kUseAdHocSigningForWebAppShims, base::FEATURE_DISABLED_BY_DEFAULT);
+
+// When enabled, the KeychainKeyProvider is used to provide the OS Crypt async
+// key.
+BASE_FEATURE(kUseKeychainKeyProvider, base::FEATURE_ENABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_MAC)
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
@@ -299,6 +303,8 @@ const char kGlicActorUiToastName[] = "glic-actor-ui-toast";
 const char kGlicActorUiHandoffButtonName[] = "glic-actor-ui-handoff-button";
 const char kGlicActorUiTabIndicatorName[] = "glic-actor-ui-tab-indicator";
 const char kGlicActorUiBorderGlowName[] = "glic-actor-ui-border-glow";
+const char kGlicActorUiStandaloneBorderGlowName[] =
+    "glic-actor-ui-standalone-border-glow";
 const char kGlicActorUiCompletedTaskExpiryDelaySecondsName[] =
     "glic-actor-completed-task-expiry-delay-seconds";
 
@@ -327,6 +333,10 @@ const base::FeatureParam<bool> kGlicActorUiTabIndicator{
 // Controls whether the actor border glow in the actor ui is enabled.
 const base::FeatureParam<bool> kGlicActorUiBorderGlow{
     &kGlicActorUi, kGlicActorUiBorderGlowName, true};
+// Controls whether the actor border glow uses a standalone implementation or a
+// shared implementation with context sharing glow.
+const base::FeatureParam<bool> kGlicActorUiStandaloneBorderGlow{
+    &kGlicActorUi, kGlicActorUiStandaloneBorderGlowName, false};
 // Controls the expiry delay for completed tasks in the actor ui.
 const base::FeatureParam<int> kGlicActorUiCompletedTaskExpiryDelaySeconds{
     &kGlicActorUi, kGlicActorUiCompletedTaskExpiryDelaySecondsName, 10};
@@ -347,6 +357,12 @@ const base::FeatureParam<base::TimeDelta>
         &kGlicActor, "glic-actor-page-stability-invoke-callback-delay",
         base::Milliseconds(200)};
 
+// The overall observation timeout when waiting for a tool to complete.
+// This timeout is long but based on the NavigationToLoadEventFired UMA. This
+// should be tuned with real world usage.
+const base::FeatureParam<base::TimeDelta> kActorObservationDelayTimeout{
+    &kGlicActor, "actor-observation-delay-timeout", base::Seconds(10)};
+
 // Controls whether to enable general wait on renderer-side page stability.
 constexpr base::FeatureParam<ActorGeneralPageStabilityMode>::Option
     kActorGeneralPageStabilityModeOptions[] = {
@@ -355,24 +371,40 @@ constexpr base::FeatureParam<ActorGeneralPageStabilityMode>::Option
          "navigate-and-history-enabled"},
         {ActorGeneralPageStabilityMode::kAllEnabled, "all-enabled"},
 };
-BASE_FEATURE_ENUM_PARAM(
-    ActorGeneralPageStabilityMode,
-    kActorGeneralPageStabilityMode,
-    &kGlicActor,
-    "actor-general-page-stability-mode",
-    ActorGeneralPageStabilityMode::kNavigateAndHistoryEnabled,
-    &kActorGeneralPageStabilityModeOptions);
+BASE_FEATURE_ENUM_PARAM(ActorGeneralPageStabilityMode,
+                        kActorGeneralPageStabilityMode,
+                        &kGlicActor,
+                        "actor-general-page-stability-mode",
+                        ActorGeneralPageStabilityMode::kAllEnabled,
+                        &kActorGeneralPageStabilityModeOptions);
 
 // Controls whether typing happens incrementally.
 BASE_FEATURE(kGlicActorIncrementalTyping, base::FEATURE_ENABLED_BY_DEFAULT);
 
 const base::FeatureParam<base::TimeDelta> kGlicActorKeyDownDuration{
     &kGlicActorIncrementalTyping,
-    "glic-actor-incremental-typing-key-down-duration", base::Milliseconds(5)};
+    "glic-actor-incremental-typing-key-down-duration", base::Milliseconds(25)};
 
 const base::FeatureParam<base::TimeDelta> kGlicActorKeyUpDuration{
     &kGlicActorIncrementalTyping,
-    "glic-actor-incremental-typing-key-up-duration", base::Milliseconds(5)};
+    "glic-actor-incremental-typing-key-up-duration", base::Milliseconds(25)};
+
+// For long text (as defined by the threshold below), this multiplier will be
+// applied to the delays above to change typing speed.
+const base::FeatureParam<double> kGlicActorIncrementalTypingLongMultiplier{
+    &kGlicActorIncrementalTyping,
+    "glic-actor-incremental-typing-long-multiplier", 0.2};
+
+// When incremental typing is enabled, controls the number of characters at
+// which a string to type is considered long (and thus speed boosted).
+const base::FeatureParam<size_t> kGlicActorIncrementalTypingLongTextThreshold{
+    &kGlicActorIncrementalTyping,
+    "glic-actor-incremental-typing-long-text-threshold", 45};
+
+// If the TypeTool is invoked with followed_by_enter, the enter key is
+// dispatched with this delay.
+const base::FeatureParam<base::TimeDelta> kGlicActorTypeToolEnterDelay{
+    &kGlicActor, "glic-actor-type-tool-enter-delay", base::Milliseconds(600)};
 
 const base::FeatureParam<bool> kGlicActorScrollTargetIntoView{
     &kGlicActor, "scroll-target-into-view", true};
@@ -651,6 +683,10 @@ BASE_FEATURE(kGlicTieredRollout, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kGlicRollout, base::FEATURE_DISABLED_BY_DEFAULT);
 
+BASE_FEATURE(kGlicIntro, base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kGlicLearnMore, base::FEATURE_DISABLED_BY_DEFAULT);
+
 BASE_FEATURE(kGlicUserStatusCheck, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kGlicClosedCaptioning, base::FEATURE_ENABLED_BY_DEFAULT);
@@ -747,6 +783,8 @@ const base::FeatureParam<bool> kGlicEntrypointVariationsAltIcon{
 const base::FeatureParam<bool> kGlicEntrypointVariationsHighlightNudge{
     &kGlicEntrypointVariations, "glic-entrypoint-variations-highlight-nudge",
     false};
+
+BASE_FEATURE(kGlicShareImage, base::FEATURE_DISABLED_BY_DEFAULT);
 
 #endif  // BUILDFLAG(ENABLE_GLIC)
 
@@ -1636,6 +1674,11 @@ BASE_FEATURE(kWebAppManifestPolicyAppIdentityUpdate,
 #if !BUILDFLAG(IS_ANDROID)
 BASE_FEATURE(kWebium, base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // !BUILDFLAG(IS_ANDROID)
+
+// Enables the User-Agent override fix for SearchPrefetch. This will work only
+// if enabled together with `kPreloadingRespectUserAgentOverride`.
+BASE_FEATURE(kRespectUserAgentOverrideInSearchPrefetch,
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Restricts the WebUI scripts able to use the generated code cache according to
 // embedder-specified heuristics.

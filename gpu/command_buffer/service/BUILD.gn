@@ -203,8 +203,6 @@ target(link_target_type, "gles2_sources") {
     "memory_program_cache.h",
     "multi_draw_manager.cc",
     "multi_draw_manager.h",
-    "passthrough_discardable_manager.cc",
-    "passthrough_discardable_manager.h",
     "passthrough_program_cache.cc",
     "passthrough_program_cache.h",
     "program_cache.cc",
@@ -225,8 +223,6 @@ target(link_target_type, "gles2_sources") {
     "sampler_manager.h",
     "scheduler_sequence.cc",
     "scheduler_sequence.h",
-    "service_discardable_manager.cc",
-    "service_discardable_manager.h",
     "service_font_manager.cc",
     "service_font_manager.h",
     "service_transfer_cache.cc",
@@ -263,8 +259,6 @@ target(link_target_type, "gles2_sources") {
     "shared_image/gl_texture_image_backing_factory.h",
     "shared_image/gl_texture_passthrough_fallback_image_representation.cc",
     "shared_image/gl_texture_passthrough_fallback_image_representation.h",
-    "shared_image/gpu_memory_buffer_factory.cc",
-    "shared_image/gpu_memory_buffer_factory.h",
     "shared_image/raw_draw_image_backing.cc",
     "shared_image/raw_draw_image_backing.h",
     "shared_image/raw_draw_image_backing_factory.cc",
@@ -396,7 +390,7 @@ target(link_target_type, "gles2_sources") {
     "//build:chromecast_buildflags",
     "//components/crash/core/common",
     "//components/persistent_cache",
-    "//components/viz/common:shared_image_format",
+    "//components/viz/common/resources:shared_image_format",
     "//gpu/command_buffer/client",
     "//gpu/command_buffer/common:gles2_utils",
     "//gpu/config",
@@ -428,8 +422,6 @@ target(link_target_type, "gles2_sources") {
     sources += [
       "shared_image/gl_ozone_image_representation.cc",
       "shared_image/gl_ozone_image_representation.h",
-      "shared_image/gpu_memory_buffer_factory_native_pixmap.cc",
-      "shared_image/gpu_memory_buffer_factory_native_pixmap.h",
       "shared_image/ozone_image_backing.cc",
       "shared_image/ozone_image_backing.h",
       "shared_image/ozone_image_backing_factory.cc",
@@ -527,8 +519,6 @@ target(link_target_type, "gles2_sources") {
 
   if (is_apple) {
     sources += [
-      "shared_image/gpu_memory_buffer_factory_io_surface.cc",
-      "shared_image/gpu_memory_buffer_factory_io_surface.h",
       "shared_image/iosurface_image_backing.h",
       "shared_image/iosurface_image_backing.mm",
       "shared_image/iosurface_image_backing_factory.h",

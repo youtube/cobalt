@@ -1038,6 +1038,7 @@ class CaptivePortalBrowserTest : public InProcessBrowserTest {
     size_t initial_browser_count = browser_list_->size();
 
     // This starts navigation in embedded frame and waits for it to finish.
+    ui_test_utils::BrowserCreatedObserver browser_created_observer;
     create_embedded_frame(web_app_frame, cert_error_url);
 
     // Embedded Frame must have broken page which causes login tab
@@ -1065,10 +1066,11 @@ class CaptivePortalBrowserTest : public InProcessBrowserTest {
 
     if (should_open_new_browser) {
       ASSERT_EQ(initial_browser_count + 1, browser_list_->size());
-      Browser* new_browser = browser_list_->get(initial_browser_count);
+      BrowserWindowInterface* const new_browser =
+          browser_created_observer.Wait();
       ASSERT_TRUE(new_browser);
 
-      tab_strip_model = new_browser->tab_strip_model();
+      tab_strip_model = new_browser->GetTabStripModel();
     } else {
       EXPECT_EQ(initial_browser_count, browser_list_->size());
       tab_strip_model = browser()->tab_strip_model();
@@ -1144,7 +1146,7 @@ void CaptivePortalBrowserTest::SetUpOnMainThread() {
 
 bool CaptivePortalBrowserTest::OnIntercept(
     content::URLLoaderInterceptor::RequestParams* params) {
-  if (params->url_request.url.path() == kMockHttpsBadCertPath &&
+  if (params->url_request.url.GetPath() == kMockHttpsBadCertPath &&
       intercept_bad_cert_) {
     CHECK(BrowserThread::CurrentlyOn(BrowserThread::UI));
     ongoing_mock_requests_.emplace_back(std::move(*params));
@@ -1174,9 +1176,9 @@ bool CaptivePortalBrowserTest::OnIntercept(
 
   if (url_string == kMockHttpsUrl || url_string == kMockHttpsUrl2 ||
       url_string == kMockHttpsQuickTimeoutUrl ||
-      params->url_request.url.path() == kRedirectToMockHttpsPath) {
+      params->url_request.url.GetPath() == kRedirectToMockHttpsPath) {
     CHECK(BrowserThread::CurrentlyOn(BrowserThread::UI));
-    if (params->url_request.url.path() == kRedirectToMockHttpsPath) {
+    if (params->url_request.url.GetPath() == kRedirectToMockHttpsPath) {
       net::RedirectInfo redirect_info;
       redirect_info.new_url = GURL(kMockHttpsUrl);
       redirect_info.new_method = "GET";

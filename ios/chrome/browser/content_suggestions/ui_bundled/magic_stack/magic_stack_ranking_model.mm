@@ -72,7 +72,6 @@
 #import "ios/chrome/browser/content_suggestions/ui_bundled/tab_resumption/tab_resumption_item.h"
 #import "ios/chrome/browser/content_suggestions/ui_bundled/tab_resumption/tab_resumption_mediator.h"
 #import "ios/chrome/browser/content_suggestions/ui_bundled/tips/coordinator/tips_magic_stack_mediator.h"
-#import "ios/chrome/browser/content_suggestions/ui_bundled/tips/model/tips_prefs.h"
 #import "ios/chrome/browser/content_suggestions/ui_bundled/tips/ui/tips_module_state.h"
 #import "ios/chrome/browser/default_browser/model/utils.h"
 #import "ios/chrome/browser/lens/ui_bundled/lens_availability.h"
@@ -96,10 +95,7 @@ namespace {
 // of 3 impressions and an impression only counts if the card is at the
 // front of the Magic Stack.
 BOOL PromoteShopCardToFrontOfStack() {
-  return (base::Contains(commerce::kShopCardVariation.Get(),
-                         commerce::kShopCardArm1) ||
-          commerce::kShopCardVariation.Get() == commerce::kShopCardArm2) &&
-         commerce::kShopCardPosition.Get() == commerce::kShopCardFrontPosition;
+  return commerce::kShopCardPosition.Get() == commerce::kShopCardFrontPosition;
 }
 
 BOOL PromoteTabResumptionShopCardToFrontOfStack() {
@@ -569,8 +565,8 @@ using segmentation_platform::home_modules::SavePasswordsEphemeralModule;
         segmentation_platform::processing::ProcessedValue::FromFloat(
             [self isLensEnabled]));
 
-    if (base::FeatureList::IsEnabled(
-            segmentation_platform::features::kAppBundlePromoEphemeralCard)) {
+    if (segmentation_platform::features::
+            IsAppBundlePromoEphemeralCardEnabled()) {
       CHECK(_appStoreBundleService);
       inputContext->metadata_args.emplace(
           segmentation_platform::kAppBundleAppsInstalledCount,
@@ -578,8 +574,7 @@ using segmentation_platform::home_modules::SavePasswordsEphemeralModule;
               static_cast<float>(
                   _appStoreBundleService->GetInstalledAppCount())));
     }
-    if (base::FeatureList::IsEnabled(
-            segmentation_platform::features::kDefaultBrowserMagicStackIos)) {
+    if (segmentation_platform::features::IsDefaultBrowserMagicStackEnabled()) {
       inputContext->metadata_args.emplace(
           segmentation_platform::kIsDefaultBrowserChromeIos,
           segmentation_platform::processing::ProcessedValue::FromFloat(
@@ -615,6 +610,9 @@ using segmentation_platform::home_modules::SavePasswordsEphemeralModule;
 
   MagicStackModule* card;
 
+  BOOL areTipsCardsEnabled =
+      _prefService->GetBoolean(prefs::kHomeCustomizationMagicStackTipsEnabled);
+
   for (const std::string& label : result.ordered_labels) {
     if (label == segmentation_platform::kPriceTrackingNotificationPromo) {
       if (IsPriceTrackingPromoCardEnabled(_shoppingService, _authService,
@@ -626,8 +624,7 @@ using segmentation_platform::home_modules::SavePasswordsEphemeralModule;
       }
     } else if (segmentation_platform::home_modules::HomeModulesCardRegistry::
                    IsEphemeralTipsModuleLabel(label) &&
-               IsTipsMagicStackEnabled() &&
-               !tips_prefs::IsTipsInMagicStackDisabled(_prefService)) {
+               IsTipsMagicStackEnabled() && areTipsCardsEnabled) {
       TipIdentifier tipIdentifier = TipIdentifierForOutputLabel(label);
 
       if (tipIdentifier != TipIdentifier::kUnknown) {
@@ -656,16 +653,18 @@ using segmentation_platform::home_modules::SavePasswordsEphemeralModule;
         break;
       }
     } else if (label == segmentation_platform::kAppBundlePromoEphemeralModule) {
-      if (base::FeatureList::IsEnabled(
-              segmentation_platform::features::kAppBundlePromoEphemeralCard)) {
+      if (segmentation_platform::features::
+              IsAppBundlePromoEphemeralCardEnabled() &&
+          areTipsCardsEnabled) {
         _ephemeralCardToShow = ContentSuggestionsModuleType::kAppBundlePromo;
         card = _appBundlePromoMediator.config;
         break;
       }
     } else if (label ==
                segmentation_platform::kDefaultBrowserPromoEphemeralModule) {
-      if (base::FeatureList::IsEnabled(
-              segmentation_platform::features::kDefaultBrowserMagicStackIos)) {
+      if (segmentation_platform::features::
+              IsDefaultBrowserMagicStackEnabled() &&
+          areTipsCardsEnabled) {
         _ephemeralCardToShow = ContentSuggestionsModuleType::kDefaultBrowser;
         card = _defaultBrowserMediator.config;
         break;
@@ -800,8 +799,9 @@ using segmentation_platform::home_modules::SavePasswordsEphemeralModule;
   inputContext->metadata_args.emplace(
       segmentation_platform::kNumPriceDropsInShoppingList,
       segmentation_platform::processing::ProcessedValue::FromFloat(-1.0f));
-  if (base::Contains(commerce::kShopCardVariation.Get(),
-                     commerce::kShopCardArm1)) {
+  // Only users that are eligible for ShoppingList are eligible for the
+  // ShopCard.
+  if (_shoppingService->IsShoppingListEligible()) {
     __weak MagicStackRankingModel* weakSelf = self;
     GetAllPriceTrackedBookmarks(
         _shoppingService, _bookmarkModel,
@@ -940,15 +940,15 @@ using segmentation_platform::home_modules::SavePasswordsEphemeralModule;
         break;
       }
       case ContentSuggestionsModuleType::kAppBundlePromo:
-        if (base::FeatureList::IsEnabled(segmentation_platform::features::
-                                             kAppBundlePromoEphemeralCard) &&
+        if (segmentation_platform::features::
+                IsAppBundlePromoEphemeralCardEnabled() &&
             _appBundlePromoMediator && _appBundlePromoMediator.config) {
           [magicStackOrder addObject:_appBundlePromoMediator.config];
         }
         break;
       case ContentSuggestionsModuleType::kDefaultBrowser:
-        if (base::FeatureList::IsEnabled(segmentation_platform::features::
-                                             kDefaultBrowserMagicStackIos) &&
+        if (segmentation_platform::features::
+                IsDefaultBrowserMagicStackEnabled() &&
             _defaultBrowserMediator) {
           [magicStackOrder addObject:_defaultBrowserMediator.config];
         }

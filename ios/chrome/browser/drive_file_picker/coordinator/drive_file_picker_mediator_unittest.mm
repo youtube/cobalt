@@ -232,14 +232,17 @@ class DriveFilePickerMediatorTest : public PlatformTest {
     images_pending_ = [NSMutableSet set];
     image_cache_ = [[NSCache alloc] init];
     web_state_ = std::make_unique<web::FakeWebState>();
+    ChooseFileTabHelper::CreateForWebState(web_state_.get());
     StartChoosingFiles();
     // Start file selection in `web_state_`.
     choose_file_tab_helper_ =
-        ChooseFileTabHelper::GetOrCreateForWebState(web_state_.get());
+        ChooseFileTabHelper::FromWebState(web_state_.get());
     auto controller = std::make_unique<FakeChooseFileController>(
-        ChooseFileEvent(false /*allow_multiple_files*/,
-                        false /*has_selected_file*/, std::vector<std::string>{},
-                        std::vector<std::string>{}, web_state_.get()));
+        ChooseFileEvent::Builder()
+            .SetAllowMultipleFiles(false)
+            .SetHasSelectedFile(false)
+            .SetWebState(web_state_.get())
+            .Build());
     choose_file_tab_helper_->StartChoosingFiles(std::move(controller));
     fake_delegate_ = [[FakeDriveFilePickerMediatorDelegate alloc] init];
     fake_consumer_ = [[FakeDriveFilePickerConsumer alloc] init];
@@ -298,11 +301,13 @@ class DriveFilePickerMediatorTest : public PlatformTest {
   // Starts file selection in the WebState.
   void StartChoosingFiles() {
     ChooseFileTabHelper* tab_helper =
-        ChooseFileTabHelper::GetOrCreateForWebState(web_state_.get());
+        ChooseFileTabHelper::FromWebState(web_state_.get());
     auto controller = std::make_unique<FakeChooseFileController>(
-        ChooseFileEvent(false /*allow_multiple_files*/,
-                        false /*has_selected_file*/, std::vector<std::string>{},
-                        std::vector<std::string>{}, web_state_.get()));
+        ChooseFileEvent::Builder()
+            .SetAllowMultipleFiles(false)
+            .SetHasSelectedFile(false)
+            .SetWebState(web_state_.get())
+            .Build());
     tab_helper->StartChoosingFiles(std::move(controller));
   }
 

@@ -8,12 +8,12 @@
 #include <dawn/platform/DawnPlatform.h>
 
 #include <memory>
+#include <string_view>
 
-#include "base/files/file.h"
 #include "base/memory/ref_counted.h"
-#include "base/memory/unsafe_shared_memory_region.h"
 #include "base/synchronization/lock.h"
 #include "base/thread_annotations.h"
+#include "components/persistent_cache/backend_params.h"
 #include "gpu/gpu_gles2_export.h"
 
 namespace persistent_cache {
@@ -26,15 +26,13 @@ namespace gpu {
 class GPU_GLES2_EXPORT GpuPersistentCache
     : public dawn::platform::CachingInterface {
  public:
-  GpuPersistentCache();
+  explicit GpuPersistentCache(std::string_view cache_prefix);
   ~GpuPersistentCache() override;
 
   GpuPersistentCache(const GpuPersistentCache&) = delete;
   GpuPersistentCache& operator=(const GpuPersistentCache&) = delete;
 
-  void InitializeCache(base::File db,
-                       base::File journal_file,
-                       base::UnsafeSharedMemoryRegion shared_lock);
+  void InitializeCache(persistent_cache::BackendParams backend_params);
 
   // dawn::platform::CachingInterface implementation.
   size_t LoadData(const void* key,
@@ -47,6 +45,11 @@ class GPU_GLES2_EXPORT GpuPersistentCache
                  size_t value_size) override;
 
  private:
+  std::string GetHistogramName(std::string_view metric) const;
+
+  // Prefix to prepend to UMA histogram's name. e.g GraphiteDawn, WebGPU
+  const std::string cache_prefix_;
+
   base::Lock lock_;
   std::unique_ptr<persistent_cache::PersistentCache> persistent_cache_
       GUARDED_BY(lock_);

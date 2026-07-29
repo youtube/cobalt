@@ -334,13 +334,13 @@ std::string SerializeDerivedComponent(
   if (component->name == "@authority") {
     // https://www.rfc-editor.org/rfc/rfc9421.html#name-authority
     if (url_request.url().has_port()) {
-      return base::StrCat({url_request.url().host_piece(), ":",
-                           url_request.url().port_piece()});
+      return base::StrCat(
+          {url_request.url().host(), ":", url_request.url().port()});
     }
-    return url_request.url().host();
+    return url_request.url().GetHost();
   } else if (component->name == "@query") {
     // https://www.rfc-editor.org/rfc/rfc9421.html#name-query
-    return base::StrCat({"?", url_request.url().query()});
+    return base::StrCat({"?", url_request.url().GetQuery()});
   } else if (component->name == "@query-param") {
     DCHECK(component->params.size() == 2u);
     auto name_it =
@@ -360,9 +360,9 @@ std::string SerializeDerivedComponent(
     return url_request.method();
   } else if (component->name == "@path") {
     // https://www.rfc-editor.org/rfc/rfc9421.html#content-request-path
-    return url_request.url().path();
+    return url_request.url().GetPath();
   } else if (component->name == "@scheme") {
-    return url_request.url().scheme();
+    return url_request.url().GetScheme();
   } else if (component->name == "@status") {
     // https://www.rfc-editor.org/rfc/rfc9421.html#content-status-code
     return base::NumberToString(response_status_code);

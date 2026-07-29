@@ -364,7 +364,7 @@ std::optional<CrxInstallError> CrxInstaller::AllowInstall(
       valid = *expected_manifest_ == *original_manifest_;
       if (!valid &&
           expected_manifest_check_level_ == ManifestCheckLevel::kLoose) {
-        std::string error;
+        std::u16string error;
         scoped_refptr<Extension> dummy_extension = Extension::Create(
             base::FilePath(), install_source_, *expected_manifest_,
             creation_flags_, extension->id(), &error);
@@ -447,7 +447,7 @@ std::optional<CrxInstallError> CrxInstaller::AllowInstall(
       // host (or a subdomain of the host) the download happened from.  There's
       // no way for us to verify that the app controls any other hosts.
       URLPattern pattern(UserScript::ValidUserScriptSchemes());
-      pattern.SetHost(download_url_.host());
+      pattern.SetHost(download_url_.GetHost());
       pattern.SetMatchSubdomains(true);
 
       const URLPatternSet& patterns = extension_->web_extent();

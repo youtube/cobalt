@@ -218,7 +218,7 @@ BASE_FEATURE(kVSyncAlignedPresent, base::FEATURE_ENABLED_BY_DEFAULT);
 // proceed with navigation. ViewTransition Animate still waits though for
 // CopyOutputRequests to be actually fulfilled.
 BASE_FEATURE(kAckCopyOutputRequestEarlyForViewTransition,
-             base::FEATURE_ENABLED_BY_DEFAULT);
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kAllowUndamagedNonrootRenderPassToSkip,
 #if BUILDFLAG(IS_MAC)
@@ -322,14 +322,6 @@ BASE_FEATURE(kEvictionUnlocksResources, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kSingleVideoFrameRateThrottling,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-// When enabled, ClientResourceProvider will take callbacks intended to be ran
-// on the Main-thread, and will batch them into a single jump to that thread.
-// Rather than each performing its own separate post task.
-//
-// Enabled 03/2024, kept to run a holdback experiment.
-BASE_FEATURE(kBatchMainThreadReleaseCallbacks,
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 // Remove gpu process reference if gpu context is loss, and gpu channel cannot
 // be established due to said gpu process exiting.
 BASE_FEATURE(kShutdownForFailedChannelCreation,
@@ -385,6 +377,7 @@ BASE_FEATURE(kCrosContentAdjustedRefreshRate,
 BASE_FEATURE(kNoCompositorFrameAcks, base::FEATURE_DISABLED_BY_DEFAULT);
 const base::FeatureParam<int> kNumberPendingFramesUntilThrottle{
     &kNoCompositorFrameAcks, "pending_frames", 1};
+BASE_FEATURE(kDisplaySchedulerAsClient, base::FEATURE_DISABLED_BY_DEFAULT);
 
 int DrawQuadSplitLimit() {
   constexpr int kDefaultDrawQuadSplitLimit = 5;

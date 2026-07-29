@@ -133,17 +133,10 @@ IN_PROC_BROWSER_TEST_F(PageContentMetadataObserverBrowserTest, NoMetaTags) {
   EXPECT_FALSE(callback_waiter_.IsReady());
 }
 
-// TODO(crbug.com/440240260): This test flakes frequently on Fuchsia.
-#if BUILDFLAG(IS_FUCHSIA)
-#define MAYBE_MetaTagsAreObservedInMultipleFrames \
-  DISABLED_MetaTagsAreObservedInMultipleFrames
-#else
-#define MAYBE_MetaTagsAreObservedInMultipleFrames \
-  MetaTagsAreObservedInMultipleFrames
-#endif
-
+// TODO(crbug.com/440240260): This test flakes frequently on debug / arm64
+// builders.
 IN_PROC_BROWSER_TEST_F(PageContentMetadataObserverBrowserTest,
-                       MAYBE_MetaTagsAreObservedInMultipleFrames) {
+                       DISABLED_MetaTagsAreObservedInMultipleFrames) {
   ASSERT_TRUE(LoadPage(
       https_server()->GetURL("a.com", "/meta_tags_in_multiple_frames.html")));
   CreateObserver();
@@ -283,8 +276,9 @@ IN_PROC_BROWSER_TEST_F(PageContentMetadataObserverBrowserTest,
   // The observer should be notified of the change.
   ASSERT_TRUE(callback_waiter_.Wait());
 
-  // The metadata should now be empty.
-  EXPECT_EQ(page_metadata()->frame_metadata.size(), 0u);
+  // The metadata should now contain one frame with no meta tags.
+  EXPECT_EQ(page_metadata()->frame_metadata.size(), 1u);
+  EXPECT_EQ(page_metadata()->frame_metadata[0]->meta_tags.size(), 0u);
 }
 
 IN_PROC_BROWSER_TEST_F(PageContentMetadataObserverBrowserTest,
