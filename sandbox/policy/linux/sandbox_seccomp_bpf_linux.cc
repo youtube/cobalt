@@ -54,14 +54,10 @@
 #include "sandbox/policy/linux/bpf_utility_policy_linux.h"
 
 #if BUILDFLAG(IS_CHROMEOS)
-#include "chromeos/ash/components/assistant/buildflags.h"
 #include "sandbox/policy/features.h"
 #include "sandbox/policy/linux/bpf_ime_policy_linux.h"
 #include "sandbox/policy/linux/bpf_nearby_policy_linux.h"
 #include "sandbox/policy/linux/bpf_tts_policy_linux.h"
-#if BUILDFLAG(ENABLE_CROS_LIBASSISTANT)
-#include "sandbox/policy/linux/bpf_libassistant_policy_linux.h"
-#endif  // BUILDFLAG(ENABLE_CROS_LIBASSISTANT)
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
@@ -233,10 +229,6 @@ std::unique_ptr<BPFBasePolicy> SandboxSeccompBPF::PolicyForSandboxType(
       return GetGpuProcessSandbox(options, MremapPolicy::kBlock);
 #endif  // BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION)
 #endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
-#if BUILDFLAG(IS_LINUX)
-    case sandbox::mojom::Sandbox::kVideoEffects:
-      return std::make_unique<ServiceProcessPolicy>();
-#endif  // BUILDFLAG(IS_LINUX)
 #if BUILDFLAG(IS_CHROMEOS)
     case sandbox::mojom::Sandbox::kIme:
       return std::make_unique<ImeProcessPolicy>();
@@ -244,10 +236,6 @@ std::unique_ptr<BPFBasePolicy> SandboxSeccompBPF::PolicyForSandboxType(
       return std::make_unique<TtsProcessPolicy>();
     case sandbox::mojom::Sandbox::kNearby:
       return std::make_unique<NearbyProcessPolicy>();
-#if BUILDFLAG(ENABLE_CROS_LIBASSISTANT)
-    case sandbox::mojom::Sandbox::kLibassistant:
-      return std::make_unique<LibassistantProcessPolicy>();
-#endif  // BUILDFLAG(ENABLE_CROS_LIBASSISTANT)
 #endif  // BUILDFLAG(IS_CHROMEOS)
     case sandbox::mojom::Sandbox::kZygoteIntermediateSandbox:
     case sandbox::mojom::Sandbox::kNoSandbox:
@@ -303,16 +291,12 @@ void SandboxSeccompBPF::RunSandboxSanityChecks(
     case sandbox::mojom::Sandbox::kIme:
     case sandbox::mojom::Sandbox::kTts:
     case sandbox::mojom::Sandbox::kNearby:
-#if BUILDFLAG(ENABLE_CROS_LIBASSISTANT)
-    case sandbox::mojom::Sandbox::kLibassistant:
-#endif  // BUILDFLAG(ENABLE_CROS_LIBASSISTANT)
 #endif  // BUILDFLAG(IS_CHROMEOS)
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
     case sandbox::mojom::Sandbox::kShapeDetection:
     case sandbox::mojom::Sandbox::kScreenAI:
 #endif
 #if BUILDFLAG(IS_LINUX)
-    case sandbox::mojom::Sandbox::kVideoEffects:
     case sandbox::mojom::Sandbox::kOnDeviceTranslation:
 #endif  // BUILDFLAG(IS_LINUX)
     case sandbox::mojom::Sandbox::kAudio:

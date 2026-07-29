@@ -16,12 +16,16 @@ class ChooseFileController;
 @class WKFrameInfo;
 
 class ChooseFileTabHelper : public web::WebStateUserData<ChooseFileTabHelper>,
-                            public web::WebStateObserver {
+                            public web::WebStateObserver,
+                            public ChooseFileController::Delegate {
  public:
   ~ChooseFileTabHelper() override;
 
   // Start file selection in the current tab using non-null `controller`.
   void StartChoosingFiles(std::unique_ptr<ChooseFileController> controller);
+  // Returns the current ChooseFileController, if any.
+  // Returns `nullptr` if `IsChoosingFiles()` is false.
+  ChooseFileController* GetChooseFileController();
   // Returns whether a file selection is ongoing in the current tab.
   bool IsChoosingFiles() const;
   // Returns the event associated with the current file selection.
@@ -79,6 +83,12 @@ class ChooseFileTabHelper : public web::WebStateUserData<ChooseFileTabHelper>,
                            web::NavigationContext* navigation_context) override;
   void WasHidden(web::WebState* web_state) override;
   void WebStateDestroyed(web::WebState* web_state) override;
+
+  // ChooseFileController::Delegate implementation.
+  void DidSubmitSelection(ChooseFileController* controller,
+                          NSArray<NSURL*>* file_urls,
+                          NSString* display_string,
+                          UIImage* icon_image) override;
 
  private:
   explicit ChooseFileTabHelper(web::WebState* web_state);

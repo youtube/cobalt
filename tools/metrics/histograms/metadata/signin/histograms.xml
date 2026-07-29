@@ -749,15 +749,16 @@ prefs when the profile is loaded.  -->
 </histogram>
 
 <histogram name="Signin.AndroidGetAccountsTime{AndroidGetAccountsTypes}"
-    units="ms" expires_after="2026-01-10">
+    units="ms" expires_after="2026-08-12">
   <owner>bsazonov@chromium.org</owner>
-  <owner>chrome-signin-team@google.com</owner>
+  <owner>chrome-signin-mobile-team@google.com</owner>
   <summary>
     The time it takes to retrieve the list of accounts from the system.
     {AndroidGetAccountsTypes}
   </summary>
   <token key="AndroidGetAccountsTypes">
     <variant name="_AccountManager" summary="Using Android AccountManager API"/>
+    <variant name="_GoogleAuthClient" summary="Using GoogleAuthClient API"/>
     <variant name="_GoogleAuthUtil" summary="Using GoogleAuthUtil API"/>
   </token>
 </histogram>
@@ -860,7 +861,7 @@ prefs when the profile is loaded.  -->
 
 <histogram
     name="Signin.BoundSessionCredentials.CookieRotationOutageAttempts{Interval}"
-    units="requests" expires_after="2026-02-01">
+    units="requests" expires_after="2026-04-12">
   <owner>alexilin@chromium.org</owner>
   <owner>msalama@chromium.org</owner>
   <owner>chrome-signin-team@google.com</owner>
@@ -1697,7 +1698,7 @@ prefs when the profile is loaded.  -->
 </histogram>
 
 <histogram name="Signin.GetAccountsBackoffSuccess"
-    enum="BooleanGetAccountsSucceeded" expires_after="2026-02-09">
+    enum="BooleanGetAccountsSucceeded" expires_after="2026-04-12">
   <owner>samarchehade@google.com</owner>
   <owner>chrome-signin-team@google.com</owner>
   <summary>
@@ -1888,7 +1889,7 @@ prefs when the profile is loaded.  -->
 </histogram>
 
 <histogram name="Signin.Intercept.FRE.Event"
-    enum="SigninInterceptFREDialogEvent" expires_after="2026-02-09">
+    enum="SigninInterceptFREDialogEvent" expires_after="2026-04-12">
   <owner>alexilin@chromium.org</owner>
   <owner>chrome-signin-team@google.com</owner>
   <summary>
@@ -2181,7 +2182,7 @@ prefs when the profile is loaded.  -->
 </histogram>
 
 <histogram name="Signin.IOSIdentityAvailableInProfile"
-    enum="IOSIdentityAvailableInProfile" expires_after="2026-02-11">
+    enum="IOSIdentityAvailableInProfile" expires_after="2026-04-12">
   <owner>jlebel@chromium.org</owner>
   <owner>chrome-signin-team@google.com</owner>
   <summary>
@@ -2432,7 +2433,7 @@ the browser and content area. -->
 </histogram>
 
 <histogram name="Signin.NumberOfActiveAccounts.{TimeRange}" units="accounts"
-    expires_after="2026-02-09">
+    expires_after="2026-04-12">
   <owner>bsazonov@chromium.org</owner>
   <owner>droger@chromium.org</owner>
   <owner>treib@chromium.org</owner>
@@ -3124,7 +3125,7 @@ OAuth Multilogin call. -->
 </histogram>
 
 <histogram name="Signin.SigninManager.SyncHeaderArrivalTimeWindowAfterLst"
-    units="ms" expires_after="2025-11-30">
+    units="ms" expires_after="2026-04-12">
   <owner>droger@chromium.org</owner>
   <owner>anthie@chromium.org</owner>
   <owner>chrome-signin-team@google.com</owner>
@@ -3146,7 +3147,7 @@ OAuth Multilogin call. -->
 </histogram>
 
 <histogram name="Signin.SigninManager.SyncHeaderTimeout" enum="BooleanTimedOut"
-    expires_after="2025-11-30">
+    expires_after="2026-04-12">
   <owner>droger@chromium.org</owner>
   <owner>anthie@chromium.org</owner>
   <owner>chrome-signin-team@google.com</owner>
@@ -3174,7 +3175,7 @@ OAuth Multilogin call. -->
 <!-- TODO(crbug.com/429524688): Remove this histogram after fixing this bug.-->
 
 <histogram name="Signin.SigninManager.UnexpectedSyncHeaderProcessingBeforeLST"
-    enum="BooleanHit" expires_after="2025-11-30">
+    enum="BooleanHit" expires_after="2026-04-12">
   <owner>droger@chromium.org</owner>
   <owner>anthie@chromium.org</owner>
   <owner>chrome-signin-team@google.com</owner>
@@ -3425,31 +3426,9 @@ kept as long as profile signout is possible -->
   </summary>
 </histogram>
 
-<histogram name="Signin.SyncButtons.Clicked" enum="SyncButtonClicked"
-    expires_after="2026-02-16">
-  <owner>tju@google.com</owner>
-  <owner>chrome-signin-team@google.com</owner>
-  <summary>
-    Records the flavor of the button clicked on sync or history sync opt in
-    screens, including buttons function (accept or decline) and appearance
-    (equal or not-equal weighted).
-
-    Recorded when the user clicks on the button.
-
-    Note: the metric doesn't record when the user dismissed the screen in
-    alternative way (eg. with Esc key or by swiping the application on mobile
-    device).
-
-    Warning: Buckets related to the History Sync Screen are recorded incorrectly
-    on Android pre-M128, see https://crbug.com/352495951.
-
-    Pre-stable M132 and M133 Desktop binaries have missing data.
-  </summary>
-</histogram>
-
 <histogram name="Signin.SyncButtons.Shown" enum="SyncButtonsType"
     expires_after="2026-01-18">
-  <owner>tju@chromium.org</owner>
+  <owner>tju@google.com</owner>
   <owner>chrome-kids-team@google.com</owner>
   <owner>chrome-signin-team@google.com</owner>
   <summary>
@@ -3458,18 +3437,7 @@ kept as long as profile signout is possible -->
 
     Note: On some platforms (eg. Android) that allow selecting account for the
     consent, this is recorded each time that the account is changed and the
-    buttons have to be redrawn. If you want to see what kind of buttons were
-    ultimately presented to the user before they selected one of the sync
-    consent screen options, sum up Signin.SyncButtons.Clicked entries from the
-    same appearance category, for example use the following formula:
-
-    &quot;Signin.SyncButtons.Clicked::0 + Signin.SyncButtons.Clicked::1 +
-    Signin.SyncButtons.Clicked::2&quot;
-
-    to see the count of equally weighted buttons that resulted in some user
-    decision.
-
-    Pre-stable M132 and M133 Desktop binaries have missing data.
+    buttons have to be redrawn.
   </summary>
 </histogram>
 
@@ -3631,7 +3599,7 @@ kept as long as profile signout is possible -->
 </histogram>
 
 <histogram name="Signin.Timestamps.Android.Fullscreen.{Event}" units="ms"
-    expires_after="2026-02-09">
+    expires_after="2026-04-12">
   <owner>samarchehade@google.com</owner>
   <owner>chrome-signin-team@google.com</owner>
   <summary>

@@ -48,7 +48,6 @@
 #include "chrome/browser/preloading/prefetch/no_state_prefetch/chrome_no_state_prefetch_contents_delegate.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/search/search.h"
-#include "chrome/common/webui_url_constants.h"
 #include "components/no_state_prefetch/browser/no_state_prefetch_contents.h"
 #include "components/page_load_metrics/browser/features.h"
 #include "components/page_load_metrics/browser/metrics_web_contents_observer.h"
@@ -80,7 +79,9 @@
 #endif
 
 #if !BUILDFLAG(IS_ANDROID)
+#include "chrome/browser/page_load_metrics/observers/initial_webui_page_load_metrics_observer.h"
 #include "chrome/browser/page_load_metrics/observers/non_tab_webui_page_load_metrics_observer.h"
+#include "chrome/browser/ui/waap/waap_utils.h"
 #include "chrome/browser/ui/webui/top_chrome/top_chrome_webui_config.h"
 #endif
 
@@ -164,6 +165,14 @@ void PageLoadMetricsEmbedder::RegisterObservers(
       !IsInternalWebUI(navigation_handle->GetURL())) {
     tracker->AddObserver(std::make_unique<WebUIPageLoadMetricsObserver>());
   }
+
+#if !BUILDFLAG(IS_ANDROID)
+  if (HasWebUIConfig(navigation_handle->GetURL()) &&
+      IsForInitialWebUI(navigation_handle->GetURL())) {
+    tracker->AddObserver(
+        std::make_unique<InitialWebUIPageLoadMetricsObserver>());
+  }
+#endif
 
 #if !BUILDFLAG(IS_ANDROID)
   if (IsNonTabWebUI(navigation_handle->GetURL())) {
@@ -333,11 +342,7 @@ bool PageLoadMetricsEmbedder::IsNonTabWebUI(const GURL& url) {
 }
 
 bool PageLoadMetricsEmbedder::IsInternalWebUI(const GURL& url) {
-  // Include url that are internal WebUI or have URL of which is used to avoid
-  // showing internal WebUI when a user does not have kInternalOnlyUisEnabled
-  // set. That URL does not return true from content::IsInternalWebUI.
-  return content::IsInternalWebUI(url) ||
-         url.host() == chrome::kChromeUIInternalDebugPagesDisabledHost;
+  return content::IsInternalWebUI(url);
 }
 
 bool PageLoadMetricsEmbedder::ShouldObserveScheme(std::string_view scheme) {

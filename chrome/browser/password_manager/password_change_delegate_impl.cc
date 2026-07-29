@@ -22,6 +22,7 @@
 #include "chrome/browser/password_manager/password_change/login_state_checker.h"
 #include "chrome/browser/password_manager/password_change/model_quality_logs_uploader.h"
 #include "chrome/browser/password_manager/password_change/password_change_hats.h"
+#include "chrome/browser/password_manager/password_field_classification_model_handler_factory.h"
 #include "chrome/browser/password_manager/profile_password_store_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/tab_contents/tab_util.h"
@@ -346,6 +347,16 @@ void PasswordChangeDelegateImpl::StartPasswordChangeFlow() {
   } else {
     ProceedToChangePassword();
   }
+
+  // This creates FieldClassificationModelHandler and should trigger download of
+  // a local ML model for field classification.
+  // TODO(452883239): Clean this up when model is downloaded on start-up for
+  // everybody.
+  if (base::FeatureList::IsEnabled(
+          password_manager::features::kDownloadModelForPasswordChange)) {
+    PasswordFieldClassificationModelHandlerFactory::GetForBrowserContext(
+        originator_->GetBrowserContext());
+  }
 }
 
 void PasswordChangeDelegateImpl::OnLoginStateCheckResult(bool is_logged_in) {
@@ -368,9 +379,9 @@ void PasswordChangeDelegateImpl::OnLoginStateCheckResult(bool is_logged_in) {
     return;
   }
 
-  // Maximum number of retries reached. Show an error dialog.
+  // Maximum number of retries reached, stop checking. Let the user decide
+  // whether to cancel the flow or proceed once they are fully logged in.
   login_state_checker_.reset();
-  UpdateState(State::kChangePasswordFormNotFound);
 }
 
 void PasswordChangeDelegateImpl::CancelPasswordChangeFlow() {
@@ -381,6 +392,7 @@ void PasswordChangeDelegateImpl::CancelPasswordChangeFlow() {
   if (logs_uploader_) {
     logs_uploader_->SetFlowInterrupted();
   }
+  login_state_checker_.reset();
   navigation_observer_.reset();
   submission_verifier_.reset();
   form_finder_.reset();

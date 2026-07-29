@@ -11,10 +11,10 @@
 #include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/test/gmock_expected_support.h"
 #include "content/browser/indexed_db/indexed_db_value.h"
 #include "content/browser/indexed_db/instance/backing_store_test_base.h"
 #include "content/browser/indexed_db/instance/backing_store_util.h"
-#include "content/browser/indexed_db/instance/bucket_context.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/public/common/indexeddb/indexeddb_key.h"
 #include "third_party/blink/public/common/indexeddb/indexeddb_key_path.h"
@@ -44,17 +44,12 @@ namespace content::indexed_db {
 class BackingStoreTest : public testing::WithParamInterface<bool>,
                          public BackingStoreTestBase {
  public:
-  BackingStoreTest()
-      : sqlite_override_(BucketContext::OverrideShouldUseSqliteForTesting(
-            IsSqliteBackingStoreEnabled())) {}
+  BackingStoreTest() : BackingStoreTestBase(IsSqliteBackingStoreEnabled()) {}
 
   BackingStoreTest(const BackingStoreTest&) = delete;
   BackingStoreTest& operator=(const BackingStoreTest&) = delete;
 
   bool IsSqliteBackingStoreEnabled() { return GetParam(); }
-
- private:
-  base::AutoReset<std::optional<bool>> sqlite_override_;
 };
 
 INSTANTIATE_TEST_SUITE_P(
@@ -373,14 +368,34 @@ TEST_P(BackingStoreTest, DatabaseExists) {
   EXPECT_FALSE(*db2_exists);
 }
 
+TEST_P(BackingStoreTest, DatabaseNamesAreSorted) {
+  // Hold on to one of the created databases.
+  ASSERT_OK_AND_ASSIGN(std::unique_ptr<BackingStore::Database> db,
+                       backing_store()->CreateOrOpenDatabase(u"bb"));
+  UpdateDatabaseVersion(*db, 1);
+
+  // Create a couple of other databases but immediately close them.
+  UpdateDatabaseVersion(**backing_store()->CreateOrOpenDatabase(u"c"), 1);
+  UpdateDatabaseVersion(**backing_store()->CreateOrOpenDatabase(u"aaa"), 1);
+
+  // Database names should be in sorted order.
+  ASSERT_OK_AND_ASSIGN(
+      std::vector<blink::mojom::IDBNameAndVersionPtr> names_and_versions,
+      backing_store()->GetDatabaseNamesAndVersions());
+  ASSERT_EQ(names_and_versions.size(), 3U);
+  EXPECT_EQ(names_and_versions[0]->name, u"aaa");
+  EXPECT_EQ(names_and_versions[1]->name, u"bb");
+  EXPECT_EQ(names_and_versions[2]->name, u"c");
+}
+
 class BackingStoreTestWithExternalObjects
     : public testing::WithParamInterface<
           std::tuple<bool, ExternalObjectTestType>>,
       public BackingStoreWithExternalObjectsTestBase {
  public:
   BackingStoreTestWithExternalObjects()
-      : sqlite_override_(BucketContext::OverrideShouldUseSqliteForTesting(
-            IsSqliteBackingStoreEnabled())) {}
+      : BackingStoreWithExternalObjectsTestBase(IsSqliteBackingStoreEnabled()) {
+  }
 
   BackingStoreTestWithExternalObjects(
       const BackingStoreTestWithExternalObjects&) = delete;
@@ -397,9 +412,6 @@ class BackingStoreTestWithExternalObjects
   bool IncludesFileSystemAccessHandles() override {
     return TestType() != ExternalObjectTestType::kOnlyBlobs;
   }
-
- private:
-  base::AutoReset<std::optional<bool>> sqlite_override_;
 };
 
 INSTANTIATE_TEST_SUITE_P(

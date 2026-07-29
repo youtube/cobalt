@@ -27,7 +27,6 @@ import org.chromium.base.test.util.MinAndroidSdkLevel;
 import org.chromium.base.test.util.Restriction;
 import org.chromium.chrome.browser.browser_controls.BottomControlsStacker.LayerVisibility;
 import org.chromium.chrome.browser.firstrun.FirstRunStatus;
-import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
 import org.chromium.chrome.test.transit.AutoResetCtaTransitTestRule;
@@ -45,11 +44,7 @@ import org.chromium.ui.test.util.DeviceRestriction;
     ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE,
     ChromeSwitches.DISABLE_MINIMUM_SHOW_DURATION
 })
-@EnableFeatures({
-    "DynamicSafeAreaInsets",
-    "DrawCutoutEdgeToEdge",
-    ChromeFeatureList.EDGE_TO_EDGE_BOTTOM_CHIN
-})
+@EnableFeatures({"DrawCutoutEdgeToEdge"})
 @Batch(Batch.PER_CLASS)
 // Bots <= VERSION_CODES.S use 3-bottom nav bar. See crbug.com/352402600
 @MinAndroidSdkLevel(VERSION_CODES.S_V2)

@@ -109,7 +109,6 @@ Per altre impostazioni che utilizzano i dati per migliorare la tua esperienza co
 <translation id="1419753403124156396">Riavviare Chrome?</translation>
 <translation id="1428770807407000502">Vuoi disattivare la sincronizzazione?</translation>
 <translation id="1430915738399379752">Stampa</translation>
-<translation id="1433478348197382180">Modalità Lettura</translation>
 <translation id="1435593198351412143">Apri automaticamente i PDF</translation>
 <translation id="1437543266176261764">Esecuzione in <ph name="APP_NAME" /></translation>
 <translation id="1448440926884431741">Organizza i tuoi prodotti monitorati in Segnalibri</translation>
@@ -270,6 +269,7 @@ Solo chi conosce la tua passphrase può leggere i tuoi dati criptati. La passphr
 <translation id="2249635629516220541">Personalizza le informazioni usate dai siti per mostrarti annunci</translation>
 <translation id="2251809247798634662">Nuova finestra di navigazione in incognito</translation>
 <translation id="2253927598983295051">Scegli cosa condividere con <ph name="APP_NAME" /></translation>
+<translation id="2261570557291037252">Altre informazioni sull'app</translation>
 <translation id="2276696007612801991">Accedi al tuo Account Google per controllare le tue password</translation>
 <translation id="2281243904606300427"><ph name="TAB_TITLE" />, scheda di navigazione in incognito selezionata</translation>
 <translation id="2286841657746966508">Indirizzo di fatturazione</translation>
@@ -369,7 +369,6 @@ Solo chi conosce la tua passphrase può leggere i tuoi dati criptati. La passphr
 <translation id="2718352093833049315">Solo su Wi-Fi</translation>
 <translation id="2718846868787000099">Per mostrare i contenuti nelle tue lingue preferite, i siti che visiti possono vedere le tue preferenze</translation>
 <translation id="2723001399770238859">audio</translation>
-<translation id="2734335652257251631">Mostra modalità Lettura</translation>
 <translation id="2739887572830526131">Mantieni questo gruppo per aggiungere schede in un secondo momento o eliminalo se non ti serve più.</translation>
 <translation id="2742373789128106053"><ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /> non è al momento disponibile.</translation>
 <translation id="2760805590727089264">MM/AA</translation>
@@ -1011,7 +1010,6 @@ Il tuo Account Google potrebbe avere altre forme di cronologia di navigazione, a
 <translation id="569536719314091526">Traduci questa pagina in una lingua qualsiasi usando il pulsante Altre opzioni</translation>
 <translation id="5696597120588531049">Chrome può contribuire a proteggerti da violazioni dei dati, siti web non sicuri e non solo</translation>
 <translation id="5698878456427040674">Verifica se l'account selezionato è supportato.</translation>
-<translation id="570347048394355941">Passa alla scheda</translation>
 <translation id="5709213329446699338"><ph name="SITE" /> vuole collegarsi a una porta seriale</translation>
 <translation id="5715150588940290235">Eliminare i codici di sicurezza salvati?</translation>
 <translation id="571930967925877633">I preferiti, la cronologia e altri dati di Chrome non verranno più sincronizzati con il tuo Account Google</translation>
@@ -1139,6 +1137,7 @@ Il tuo Account Google potrebbe avere altre forme di cronologia di navigazione, a
 <translation id="6232535412751077445">Se attivi l'opzione "Non tenere traccia", verrà inclusa una richiesta nel tuo traffico di navigazione. Gli effetti dipendono dall'eventuale risposta dei siti web alla richiesta e dall'interpretazione di quest'ultima.
 
 Ad esempio, alcuni siti web potrebbero rispondere alla richiesta mostrando annunci non basati su altri siti web visitati. Molti siti web continueranno tuttavia a raccogliere e a utilizzare i dati di navigazione, ad esempio per aumentare la sicurezza, fornire contenuti, annunci e consigli, nonché per generare statistiche sui rapporti.</translation>
+<translation id="623755660902014047">Modalità Lettura</translation>
 <translation id="6247557882553405851">Gestore delle password di Google</translation>
 <translation id="6248988683584659830">Cerca nelle impostazioni</translation>
 <translation id="6250847299079540062"><ph name="TAB_TITLE" />, schede Incognito bloccate selezionate</translation>
@@ -1300,6 +1299,7 @@ Ad esempio, alcuni siti web potrebbero rispondere alla richiesta mostrando annun
 <translation id="6865313869410766144">Dati della compilazione automatica dei moduli</translation>
 <translation id="6867400383614725881">Nuova scheda Incognito</translation>
 <translation id="686899695320434745">Gli indirizzi non vengono criptati con la tua passphrase. In questo modo puoi utilizzarli in altri servizi Google.</translation>
+<translation id="6870625088374152862">Accesso eseguito come <ph name="USER_EMAIL_ADDRESS" /></translation>
 <translation id="687838958001010630">Chiunque abbia il link può modificare tutte le schede</translation>
 <translation id="6880903702195291049">Non ci sono problemi con le autorizzazioni</translation>
 <translation id="6883204995689174413">Condividi</translation>
@@ -1396,7 +1396,6 @@ Per modificare questa impostazione, <ph name="BEGIN_LINK" />elimina i dati di Ch
 <translation id="7221869452894271364">Ricarica questa pagina</translation>
 <translation id="7227218174981371415">{FILE_COUNT,plural, =1{1 download in attesa}other{# download in attesa}}</translation>
 <translation id="7230064152164845085">Passa alla navigazione in incognito</translation>
-<translation id="7230836263524391273">Nascondi modalità Lettura</translation>
 <translation id="7237724030342645845">Gestore delle password di Google ha smesso di funzionare</translation>
 <translation id="72415438529550637">Il suggerimento per la password è chiuso.</translation>
 <translation id="7248671827512403053">Applicazione</translation>
@@ -1731,7 +1730,6 @@ Per modificare questa impostazione, <ph name="BEGIN_LINK" />elimina i dati di Ch
 <translation id="867914734596684889">Mostra o nascondi la barra dei preferiti</translation>
 <translation id="8683039184091909753">immagine</translation>
 <translation id="8688183792442786085"><ph name="TAB_TITLE" />, scheda selezionata</translation>
-<translation id="8693232767599693749">Visualizzare modalità Lettura?</translation>
 <translation id="8697753151306746444">Condividi una finestra o uno schermo</translation>
 <translation id="8699120352855309748">Non proporre di tradurre queste lingue</translation>
 <translation id="8712637175834984815">Ok</translation>

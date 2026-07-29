@@ -430,6 +430,25 @@ Keep consistent with active providers. Doesn't need to include every provider in
 </histogram>
 
 <histogram
+    name="Omnibox.AimEligibility.EligibilityResponseChange.is_image_generation_eligible"
+    units="index" expires_after="2026-08-05">
+  <owner>ananyaseelam@chromium.org</owner>
+  <owner>manukh@chromium.org</owner>
+  <owner>chrome-desktop-search@google.com</owner>
+  <summary>
+    The AIM Eligibility service makes HTTP requests to determine which AIM
+    features the user is eligible for. The requests are triggered on profile
+    startup and when the primary account changes.
+
+    This metric is logged only when the server response changes compared to the
+    previous value (e.g., the value of the
+    &quot;is_image_generation_eligible&quot; field differs from the last logged
+    response). If the response fails (e.g. server is down or response is poorly
+    formatted), this metric will not be logged.
+  </summary>
+</histogram>
+
+<histogram
     name="Omnibox.AimEligibility.EligibilityResponseChange.is_pdf_upload_eligible"
     enum="Boolean" expires_after="2026-08-05">
   <owner>mahmadi@chromium.org</owner>
@@ -864,7 +883,7 @@ Keep consistent with active providers. Doesn't need to include every provider in
 </histogram>
 
 <histogram name="Omnibox.AutocompletionTime.UpdateResult{Slice}"
-    units="microseconds" expires_after="2026-02-09">
+    units="microseconds" expires_after="2026-04-12">
   <owner>manukh@chromium.org</owner>
   <owner>jdonnelly@chromium.org</owner>
   <owner>chrome-desktop-search@google.com</owner>
@@ -1398,7 +1417,7 @@ Keep consistent with active providers. Doesn't need to include every provider in
 
 <histogram
     name="Omnibox.DsePreload.SignalResult{DsePreloadTriggerType}{PreloadType}"
-    enum="SearchPreloadSignalResult" expires_after="2026-02-09">
+    enum="SearchPreloadSignalResult" expires_after="2026-04-12">
   <owner>khalidpeer@chromium.org</owner>
   <owner>chrome-desktop-search@google.com</owner>
   <owner>kenoss@chromium.org</owner>
@@ -1597,7 +1616,7 @@ Keep consistent with active providers. Doesn't need to include every provider in
 
 <histogram
     name="Omnibox.FocusToOpenTimeAnyPopupState3.ByPageContext.{OmniboxPageContext}"
-    units="ms" expires_after="2026-02-09">
+    units="ms" expires_after="2026-04-12">
   <owner>khalidpeer@chromium.org</owner>
   <owner>chrome-desktop-search@google.com</owner>
   <summary>
@@ -1955,7 +1974,7 @@ Keep consistent with active providers. Doesn't need to include every provider in
 </histogram>
 
 <histogram name="Omnibox.LensAction.Precision" enum="Boolean"
-    expires_after="2025-10-12">
+    expires_after="2026-02-22">
   <owner>khalidpeer@chromium.org</owner>
   <owner>chrome-desktop-search@google.com</owner>
   <summary>
@@ -2019,7 +2038,7 @@ Keep consistent with active providers. Doesn't need to include every provider in
 </histogram>
 
 <histogram name="Omnibox.LoadingPredictor.MatchType.{PreconnectableType}"
-    enum="OmniboxResultType" expires_after="2026-02-09">
+    enum="OmniboxResultType" expires_after="2026-04-12">
   <owner>nidhijaju@chromium.org</owner>
   <owner>chrome-loading@google.com</owner>
   <summary>
@@ -2771,7 +2790,7 @@ Keep consistent with active providers. Doesn't need to include every provider in
 </histogram>
 
 <histogram name="Omnibox.SearchEngineType{Population}"
-    enum="OmniboxSearchEngineType" expires_after="2026-02-09">
+    enum="OmniboxSearchEngineType" expires_after="2026-04-12">
   <owner>jdonnelly@chromium.org</owner>
   <owner>mpearson@chromium.org</owner>
   <owner>chrome-desktop-search@google.com</owner>
@@ -2893,7 +2912,7 @@ Keep consistent with active providers. Doesn't need to include every provider in
 
 <histogram
     name="Omnibox.SearchPrefetch.Within1sDuplicateSearchTermsRelationship"
-    enum="DuplicateNavigationServingResult" expires_after="2026-02-09">
+    enum="DuplicateNavigationServingResult" expires_after="2026-04-12">
   <owner>lingqi@chromium.org</owner>
   <owner>nhiroki@chromium.org</owner>
   <owner>chrome-prerendering@google.com</owner>

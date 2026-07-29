@@ -121,6 +121,7 @@
 <translation id="2359808026110333948">Magpatuloy</translation>
 <translation id="2379925928934107488">Ilapat ang madilim na tema sa mga site kapag ginagamit ng Chrome ang madilim na tema, kapag posible</translation>
 <translation id="2390272837142897736">Dagdagan ang pag-zoom</translation>
+<translation id="2397689164757137845">Pinapayagan • Eksakto</translation>
 <translation id="2402980924095424747"><ph name="MEGABYTES" /> MB</translation>
 <translation id="2403474027143565107">Eksakto</translation>
 <translation id="2404630663942400771">{PERMISSIONS_SUMMARY_ALLOWED,plural, =1{Pinapayagan ang <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" />, at <ph name="NUM_MORE" /> pa}one{Pinapayagan ang <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" />, at <ph name="NUM_MORE" /> pa}other{Pinapayagan ang <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" />, at <ph name="NUM_MORE" /> pa}}</translation>
@@ -140,6 +141,7 @@
 <translation id="2498359688066513246">Tulong at feedback</translation>
 <translation id="2501278716633472235">Bumalik</translation>
 <translation id="2533138527374486328">Kapag naka-on, puwedeng hilingin ng mga site na kumonekta sa anumang device sa iyong lokal na network. Kapag naka-off, hindi makakakonekta ang mga site sa mga device sa iyong lokal na network.</translation>
+<translation id="2536779053640817375">Pinapayagan sa pagkakataong ito • Eksakto</translation>
 <translation id="2544997614631598250">Madilim na kulay ng tema</translation>
 <translation id="2546283357679194313">Cookies at data ng site</translation>
 <translation id="2570922361219980984">Naka-off din ang access sa lokasyon para sa device na ito. I-on ito sa <ph name="BEGIN_LINK" />Mga Setting ng Android<ph name="END_LINK" />.</translation>
@@ -442,6 +444,7 @@ Kinokontrol ng Advanced na Proteksyon ang mga setting ng Chrome na ito:
 <translation id="5876056640971328065">I-pause ang video</translation>
 <translation id="5877248419911025165">I-collapse ang lahat ng request</translation>
 <translation id="5878945009165002849">I-block ang mga prompt sa pag-sign in mula sa mga serbisyo ng pagkakakilanlan</translation>
+<translation id="588258955323874662">Fullscreen</translation>
 <translation id="5884085660368669834">Preference sa site</translation>
 <translation id="5887687176710214216">Huling binisita kahapon</translation>
 <translation id="5908617755156109052">Huwag payagan ang mga site na gumawa ng 3D na map ng iyong kapaligiran o subaybayan ang posisyon ng camera</translation>
@@ -569,6 +572,7 @@ Kinokontrol ng Advanced na Proteksyon ang mga setting ng Chrome na ito:
 <translation id="7406113532070524618">Gumagana ang setting na ito nang hindi ka tinutukoy o hindi pinapayagan ang mga site na makita ang iyong history ng pag-browse, bagama't puwedeng mag-share ang mga site ng kaunting impormasyon bilang bahagi ng pag-verify</translation>
 <translation id="7409735910987429903">Posibleng magpadala ng mga pop-up ang mga site para magpakita ng mga ad, o gumamit ng mga pag-redirect para dalhin ka sa mga website na posibleng hindi mo gustong bisitahin</translation>
 <translation id="7412160840120117304">Hex ng Pangunahing Kulay</translation>
+<translation id="7412223528111026033">{ZOOM_PERCENTAGE,plural, =1{Zoom}one{Zoom: <ph name="ZOOM_PERCENTAGE_NUMBER" />%%}other{Zoom: <ph name="ZOOM_PERCENTAGE_NUMBER" />%%}}</translation>
 <translation id="7423098979219808738">Magtanong muna</translation>
 <translation id="7423538860840206698">Na-block sa pag-read ng clipboard</translation>
 <translation id="7425915948813553151">Madilim na tema para sa mga site</translation>
@@ -700,7 +704,6 @@ Kinokontrol ng Advanced na Proteksyon ang mga setting ng Chrome na ito:
 <translation id="8803526663383843427">Kapag naka-on</translation>
 <translation id="8805385115381080995">Mas mabilis ang pag-browse dahil mas maliit ang posibilidad na hilingin sa iyo ng site na i-verify na totoong tao ka</translation>
 <translation id="8816026460808729765">I-block ang mga site sa pag-access sa mga sensor</translation>
-<translation id="884765916894384048">Pumunta sa background</translation>
 <translation id="8847988622838149491">USB</translation>
 <translation id="8874790741333031443">Subukang payagan nang pansamantala ang third-party na cookies, na nangangahulugang mas mahina ang proteksyon sa pag-browse pero mas malamang na gumana ang mga feature ng site gaya ng inaasahan.</translation>
 <translation id="8889294078294184559">Habang patuloy kang nagba-browse, puwedeng sumangguni ang mga site sa Chrome at i-verify sa naunang site na binisita mo kung malamang na totoong tao ka.</translation>

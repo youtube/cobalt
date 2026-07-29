@@ -35,8 +35,8 @@ class Profile;
 class ProfileManager;
 
 namespace actor {
-struct ActionResultWithLatencyInfo;
 class ActorKeyedService;
+class ActorTaskDelegate;
 }  // namespace actor
 
 namespace contextual_cueing {
@@ -60,6 +60,7 @@ class GlicShareImageHandler;
 class GlicTabSourceObserver;
 class GlicWindowController;
 class HostManager;
+class GlicActorTaskManager;
 
 enum class GlicPrewarmingChecksResult;
 
@@ -172,13 +173,13 @@ class GlicKeyedService : public KeyedService,
   // URL in a new tab. The source is the RenderFrameHost of the Glic
   // instance that is requesting the navigation - this gets set as the
   // navigation handle's opener param.
-  void CreateTab(
-      content::RenderFrameHost* source,
+  tabs::TabInterface* CreateTab(
       const ::GURL& url,
       bool open_in_background,
       const std::optional<int32_t>& window_id,
       glic::mojom::WebClientHandler::CreateTabCallback callback) override;
   void CreateTask(
+      base::WeakPtr<actor::ActorTaskDelegate> delegate,
       actor::webui::mojom::TaskOptionsPtr options,
       mojom::WebClientHandler::CreateTaskCallback callback) override;
   void PerformActions(
@@ -219,9 +220,6 @@ class GlicKeyedService : public KeyedService,
   base::CallbackListSubscription AddUserInputSubmittedCallback(
       base::RepeatingClosure callback);
 
-  void CaptureScreenshot(
-      glic::mojom::WebClientHandler::CaptureScreenshotCallback callback);
-
   // Fetches the image for the context menu item (if possible, and potentially
   // scaling and reencoding) and sends the result to the web client as
   // additional data.
@@ -230,10 +228,6 @@ class GlicKeyedService : public KeyedService,
                          const ::GURL& src_url);
 
   AuthController& GetAuthController() { return *auth_controller_; }
-
-  GlicScreenshotCapturer& GetScreenshotCapturer() {
-    return *screenshot_capturer_;
-  }
 
   bool IsActiveWebContents(content::WebContents* contents);
 
@@ -293,15 +287,6 @@ class GlicKeyedService : public KeyedService,
   void FinishPreload(GlicPrewarmingChecksResult reason);
   void FinishPreloadFre(GlicPrewarmingFreSource source, bool should_preload);
 
-  void PerformActionsFinished(
-      mojom::WebClientHandler::PerformActionsCallback callback,
-      actor::TaskId task_id,
-      base::TimeTicks start_time,
-      bool skip_async_observation_information,
-      actor::mojom::ActionResultCode result_code,
-      std::optional<size_t> index_of_failed_action,
-      std::vector<actor::ActionResultWithLatencyInfo> action_results);
-
   // List of callbacks to be notified when the client requests a change to the
   // context access indicator status.
   base::RepeatingCallbackList<void(bool)>
@@ -325,16 +310,17 @@ class GlicKeyedService : public KeyedService,
   std::unique_ptr<AuthController> auth_controller_;
   std::unique_ptr<base::MemoryPressureListenerRegistration>
       memory_pressure_listener_registration_;
+  // Null in multi-instance mode.
   std::unique_ptr<GlicOcclusionNotifier> occlusion_notifier_;
   std::unique_ptr<GlicZeroStateSuggestionsManager>
       zero_state_suggestions_manager_;
   std::unique_ptr<GlicTabSourceObserver> glic_tab_source_observer_;
   base::OnceCallback<void()> preload_callback_;
+  std::unique_ptr<GlicActorTaskManager> actor_task_manager_;
 
   // Unowned
   raw_ptr<contextual_cueing::ContextualCueingService>
       contextual_cueing_service_;
-  raw_ptr<actor::ActorKeyedService> actor_keyed_service_;
 
   base::WeakPtrFactory<GlicKeyedService> weak_ptr_factory_{this};
 };

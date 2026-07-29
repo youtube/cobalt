@@ -109,7 +109,6 @@ Az adatokat a Chrome-élmény javítására használó további beállításoké
 <translation id="1419753403124156396">Újraindítja a Chrome-ot?</translation>
 <translation id="1428770807407000502">Kikapcsolja a szinkronizálást?</translation>
 <translation id="1430915738399379752">Nyomtatás</translation>
-<translation id="1433478348197382180">Olvasási mód</translation>
 <translation id="1435593198351412143">PDF-fájlok automatikus megnyitása</translation>
 <translation id="1437543266176261764">Itt fut: <ph name="APP_NAME" /></translation>
 <translation id="1448440926884431741">A nyomon követett termékeket a Könyvjelzők között rendszerezheti</translation>
@@ -270,6 +269,7 @@ Csak az Ön összetett jelszava ismeretében tudja bárki is megtekinteni a titk
 <translation id="2249635629516220541">Megszabhatja, hogy a webhelyek milyen adatokat használhassanak, amikor hirdetéseket jelenítnek meg Önnek</translation>
 <translation id="2251809247798634662">Új Inkognitóablak</translation>
 <translation id="2253927598983295051">Válassza ki, hogy mit szeretne megosztani a következővel: <ph name="APP_NAME" /></translation>
+<translation id="2261570557291037252">További információ az alkalmazásról</translation>
 <translation id="2276696007612801991">Jelszavai ellenőrzéséhez jelentkezzen be Google-fiókjába</translation>
 <translation id="2281243904606300427"><ph name="TAB_TITLE" />, kiválasztott inkognitó lap</translation>
 <translation id="2286841657746966508">Számlázási cím</translation>
@@ -369,7 +369,6 @@ Csak az Ön összetett jelszava ismeretében tudja bárki is megtekinteni a titk
 <translation id="2718352093833049315">Csak Wi-Fi-n</translation>
 <translation id="2718846868787000099">A felkeresett webhelyek láthatják az Ön preferenciáit, hogy a kívánt nyelveken jeleníthessék meg a tartalmakat</translation>
 <translation id="2723001399770238859">audio</translation>
-<translation id="2734335652257251631">Olvasási mód megjelenítése</translation>
 <translation id="2739887572830526131">Tartsa meg ezt a csoportot, ha később szeretne hozzáadni lapokat, vagy törölje, ha már nem lesz rá szüksége.</translation>
 <translation id="2742373789128106053">A(z) <ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /> jelenleg nem áll rendelkezésre.</translation>
 <translation id="2760805590727089264">HH/ÉÉ</translation>
@@ -1011,7 +1010,6 @@ Előfordulhat, hogy Google-fiókjában (a <ph name="BEGIN_LINK" />myactivity.goo
 <translation id="569536719314091526">Bármely nyelvre lefordíthatja ezt az oldalt a További lehetőségek gomb segítségével</translation>
 <translation id="5696597120588531049">A Chrome segíthet az adatvédelmi incidensek, a nem biztonságos webhelyek és egyebek elleni védekezésben</translation>
 <translation id="5698878456427040674">Ellenőrizze, hogy a kiválasztott fiók támogatott-e.</translation>
-<translation id="570347048394355941">Váltás lapra</translation>
 <translation id="5709213329446699338">A(z) <ph name="SITE" /> soros porthoz szeretne csatlakozni</translation>
 <translation id="5715150588940290235">Törli a mentett biztonsági kódokat?</translation>
 <translation id="571930967925877633">Könyvjelzői, előzményei és más Chrome-adatai a továbbiakban nem lesznek szinkronizálva a Google-fiókjával.</translation>
@@ -1139,6 +1137,7 @@ Előfordulhat, hogy Google-fiókjában (a <ph name="BEGIN_LINK" />myactivity.goo
 <translation id="6232535412751077445">A „Nincs nyomon követés” engedélyezése azt jelenti, hogy a böngészési forgalommal együtt kérelmet is küld a rendszer. Ennek hatása attól függ, hogy a webhely reagál-e a kérelemre, és hogyan értelmezi azt.
 
 Egyes webhelyek például válaszolhatnak rá úgy, hogy olyan hirdetéseket jelenítenek meg, amelyek nem a már felkeresett egyéb webhelyeken alapulnak. Számos webhely ilyenkor is gyűjti és felhasználja a böngészési adatokat (például a biztonság növelése, továbbá tartalom, hirdetések és ajánlatok biztosítása, valamint jelentésekhez használt statisztika előállítása céljából).</translation>
+<translation id="623755660902014047">Olvasási mód</translation>
 <translation id="6247557882553405851">Google Jelszókezelő</translation>
 <translation id="6248988683584659830">Keresés a beállításokban</translation>
 <translation id="6250847299079540062"><ph name="TAB_TITLE" />, több kiválasztott rögzített inkognitó lap</translation>
@@ -1300,6 +1299,7 @@ Egyes webhelyek például válaszolhatnak rá úgy, hogy olyan hirdetéseket jel
 <translation id="6865313869410766144">Automatikus kitöltési űrlapadatok</translation>
 <translation id="6867400383614725881">Új inkognitó lap</translation>
 <translation id="686899695320434745">A címek nem kerülnek titkosításra az összetett jelszóval. Ezáltal más Google-szolgáltatásokban is használhatja őket.</translation>
+<translation id="6870625088374152862">Bejelentkezve mint <ph name="USER_EMAIL_ADDRESS" /></translation>
 <translation id="687838958001010630">A link birtokában bárki szerkesztheti az összes lapot</translation>
 <translation id="6880903702195291049">Úgy tűnik, rendben vannak az engedélyek</translation>
 <translation id="6883204995689174413">Megosztás</translation>
@@ -1396,7 +1396,6 @@ A beállítás módosításához <ph name="BEGIN_LINK" />törölje a fiókjában
 <translation id="7221869452894271364">Az oldal újratöltése</translation>
 <translation id="7227218174981371415">{FILE_COUNT,plural, =1{1 letöltés függőben}other{# letöltés függőben}}</translation>
 <translation id="7230064152164845085">Váltás inkognitó módra</translation>
-<translation id="7230836263524391273">Olvasási mód elrejtése</translation>
 <translation id="7237724030342645845">A Google Jelszókezelő leállt</translation>
 <translation id="72415438529550637">A jelszójavaslat le van zárva.</translation>
 <translation id="7248671827512403053">Alkalmazás</translation>
@@ -1731,7 +1730,6 @@ A beállítás módosításához <ph name="BEGIN_LINK" />törölje a fiókjában
 <translation id="867914734596684889">Könyvjelzősáv megjelenítése vagy elrejtése</translation>
 <translation id="8683039184091909753">kép</translation>
 <translation id="8688183792442786085"><ph name="TAB_TITLE" />, kiválasztott lap</translation>
-<translation id="8693232767599693749">Megtekinti az Olvasási módot?</translation>
 <translation id="8697753151306746444">Inkább ablak vagy képernyő megosztása</translation>
 <translation id="8699120352855309748">Ne ajánlja fel a fordítást ezekről a nyelvekről</translation>
 <translation id="8712637175834984815">Értem</translation>

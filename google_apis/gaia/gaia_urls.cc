@@ -16,6 +16,7 @@
 #include "google_apis/gaia/gaia_features.h"
 #include "google_apis/gaia/gaia_switches.h"
 #include "google_apis/google_api_keys.h"
+#include "net/base/url_util.h"
 #include "url/url_canon.h"
 #include "url/url_constants.h"
 
@@ -68,10 +69,29 @@ const char kSigninChromeSyncKeysRetrievalUrl[] = "encryption/unlock/desktop";
 const char kSigninChromeSyncKeysRecoverabilityUrlSuffix[] =
     "?kdi=CAIaDgoKY2hyb21lc3luYxAB";
 
+// This kdi parameter allows to open the passkey unlock flow.
+// The kdi parameter here was generated from the following protobuf:
+//
+// {
+//   operation: RETRIEVAL
+//   retrieval_inputs: {
+//     security_domain_name: "hw_protected"
+//   }
+// }
+//
+// And then converted to bytes with:
+//
+// % gqui --outfile=rawproto:/tmp/out.pb from textproto:/tmp/input \
+//       proto gaia_frontend.ClientDecryptableKeyDataInputs
+//
+// Then the contents of `/tmp/out.pb` need to be base64url-encoded to produce
+// the "kdi" parameter's value.
+const char kPasskeyUnlockUrlKdiParameter[] = "CAESDgoMaHdfcHJvdGVjdGVk";
+
 const char kServiceLogoutUrlSuffix[] = "Logout";
 const char kBlankPageSuffix[] = "chrome/blank.html";
 const char kOAuthMultiloginSuffix[] = "oauth/multilogin";
-const char kListAccountsSuffix[] = "ListAccounts?json=standard";
+const char kListAccountsSuffix[] = "ListAccounts?json=standard&laf=b64bin";
 const char kEmbeddedSigninSuffix[] = "embedded/setup/chrome/usermenu";
 const char kAddAccountSuffix[] = "AddSession";
 const char kReauthSuffix[] = "embedded/xreauth/chrome";
@@ -239,6 +259,15 @@ const GURL& GaiaUrls::signin_chrome_sync_keys_retrieval_url() const {
   return signin_chrome_sync_keys_retrieval_url_;
 }
 
+const GURL& GaiaUrls::signin_chrome_passkey_unlock_url() const {
+  return signin_chrome_passkey_unlock_url_;
+}
+
+const std::string_view GaiaUrls::signin_chrome_passkey_unlock_kdi_parameter()
+    const {
+  return kPasskeyUnlockUrlKdiParameter;
+}
+
 const GURL& GaiaUrls::signin_chrome_sync_keys_recoverability_degraded_url()
     const {
   return signin_chrome_sync_keys_recoverability_degraded_url_;
@@ -330,12 +359,11 @@ const GURL& GaiaUrls::google_apis_origin_url() const {
 
 GURL GaiaUrls::ListAccountsURLWithSource(const std::string& source) {
   if (source.empty()) {
-    // TODO(crbug.com/443901858): Append laf=b64bin parameter universally.
     return list_accounts_url_;
   } else {
     std::string query = list_accounts_url_.GetQuery();
     return list_accounts_url_.Resolve(base::StringPrintf(
-        "?gpsia=1&source=%s&laf=b64bin&%s", source.c_str(), query.c_str()));
+        "?gpsia=1&source=%s&%s", source.c_str(), query.c_str()));
   }
 }
 
@@ -416,6 +444,9 @@ void GaiaUrls::InitializeDefault() {
   ResolveURLIfInvalid(&reauth_chrome_dice_, gaia_url, kAccountChooser);
   ResolveURLIfInvalid(&signin_chrome_sync_keys_retrieval_url_, gaia_url,
                       kSigninChromeSyncKeysRetrievalUrl);
+  ResolveURLIfInvalid(&signin_chrome_passkey_unlock_url_, gaia_url,
+                      base::StrCat({kSigninChromeSyncKeysRetrievalUrl,
+                                    "?kdi=", kPasskeyUnlockUrlKdiParameter}));
   ResolveURLIfInvalid(
       &signin_chrome_sync_keys_recoverability_degraded_url_, gaia_url,
       base::StrCat({kSigninChromeSyncKeysRetrievalUrl,
@@ -490,6 +521,7 @@ void GaiaUrls::InitializeFromConfig() {
   config->GetURLIfExists(URL_KEY_AND_PTR(saml_redirect_chromeos_url));
   config->GetURLIfExists(URL_KEY_AND_PTR(signin_chrome_sync_dice));
   config->GetURLIfExists(URL_KEY_AND_PTR(reauth_chrome_dice));
+  config->GetURLIfExists(URL_KEY_AND_PTR(signin_chrome_passkey_unlock_url));
   config->GetURLIfExists(
       URL_KEY_AND_PTR(signin_chrome_sync_keys_retrieval_url));
   config->GetURLIfExists(

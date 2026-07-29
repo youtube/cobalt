@@ -177,7 +177,7 @@ useful for Chirp alerts (go/crca-alerts). -->
 </histogram>
 
 <histogram name="SBClientDownload.DownloadRequestDuration{Analysis}" units="ms"
-    expires_after="2026-02-09">
+    expires_after="2026-04-12">
   <owner>chlily@chromium.org</owner>
   <owner>chrome-counter-abuse-alerts@google.com</owner>
   <summary>
@@ -327,7 +327,7 @@ useful for Chirp alerts (go/crca-alerts). -->
 
 <histogram
     name="SBClientDownload.Warning.DownloadHasUserGesture.{DangerType}.{Action}"
-    enum="BooleanHasUserGesture" expires_after="2025-10-12">
+    enum="BooleanHasUserGesture" expires_after="2026-10-15">
   <owner>xinghuilu@chromium.org</owner>
   <owner>chrome-counter-abuse-alerts@google.com</owner>
   <summary>
@@ -381,7 +381,7 @@ useful for Chirp alerts (go/crca-alerts). -->
 </histogram>
 
 <histogram name="SBClientDownload.{ArchiveType}ArchiveAnalysisResult"
-    enum="ArchiveAnalysisResult" expires_after="2025-10-26">
+    enum="ArchiveAnalysisResult" expires_after="2026-10-16">
   <owner>drubery@chromium.org</owner>
   <owner>chrome-counter-abuse-alerts@google.com</owner>
   <summary>
@@ -569,7 +569,7 @@ useful for Chirp alerts (go/crca-alerts). -->
 </histogram>
 
 <histogram name="SBClientPhishing.CSDPhishingCachedDataAvailable"
-    enum="BooleanAvailable" expires_after="2026-02-10">
+    enum="BooleanAvailable" expires_after="2026-04-12">
   <owner>andysjlim@chromium.org</owner>
   <owner>chrome-counter-abuse-alerts@google.com</owner>
   <summary>
@@ -929,7 +929,7 @@ useful for Chirp alerts (go/crca-alerts). -->
 </histogram>
 
 <histogram name="SBClientPhishing.OnDeviceModelSessionCreationSuccess"
-    enum="BooleanSuccess" expires_after="2026-02-09">
+    enum="BooleanSuccess" expires_after="2026-04-12">
   <owner>andysjlim@chromium.org</owner>
   <owner>chrome-counter-abuse-alerts@google.com</owner>
   <summary>

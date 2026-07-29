@@ -121,6 +121,7 @@
 <translation id="2359808026110333948">Continuă</translation>
 <translation id="2379925928934107488">Aplică tema întunecată pe site-uri când Chrome folosește tema întunecată, dacă este posibil</translation>
 <translation id="2390272837142897736">Mărește nivelul de zoom</translation>
+<translation id="2397689164757137845">Permisă • Exactă</translation>
 <translation id="2402980924095424747"><ph name="MEGABYTES" /> MB</translation>
 <translation id="2403474027143565107">Exactă</translation>
 <translation id="2404630663942400771">{PERMISSIONS_SUMMARY_ALLOWED,plural, =1{<ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> și încă <ph name="NUM_MORE" /> sunt permise}few{<ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> și încă <ph name="NUM_MORE" /> sunt permise}other{<ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> și încă <ph name="NUM_MORE" /> sunt permise}}</translation>
@@ -140,6 +141,7 @@
 <translation id="2498359688066513246">Ajutor și feedback</translation>
 <translation id="2501278716633472235">Înapoi</translation>
 <translation id="2533138527374486328">Când opțiunea este activată, site-urile pot solicita permisiunea de a se conecta la orice dispozitiv din rețeaua locală. Când opțiunea este dezactivată, site-urile nu se pot conecta la dispozitivele din rețeaua locală.</translation>
+<translation id="2536779053640817375">Permisă de data aceasta • Exactă</translation>
 <translation id="2544997614631598250">Culoarea temei închisă</translation>
 <translation id="2546283357679194313">Cookie-uri și date privind site-ul</translation>
 <translation id="2570922361219980984">Accesul la locație este dezactivat și pentru acest dispozitiv. Activează-l în <ph name="BEGIN_LINK" />Setări Android<ph name="END_LINK" />.</translation>
@@ -442,6 +444,7 @@ Protecția avansată gestionează următoarele setări Chrome:
 <translation id="5876056640971328065">Întrerupe videoclipul</translation>
 <translation id="5877248419911025165">Restrânge toate solicitările</translation>
 <translation id="5878945009165002849">Blochează solicitările de conectare de la serviciile de identitate</translation>
+<translation id="588258955323874662">Ecran complet</translation>
 <translation id="5884085660368669834">Preferință pentru site</translation>
 <translation id="5887687176710214216">Accesat ultima dată ieri</translation>
 <translation id="5908617755156109052">Nu permite site-urilor să creeze o hartă 3D a lucrurilor din jur sau să urmărească poziția camerei video</translation>
@@ -569,6 +572,7 @@ Protecția avansată gestionează următoarele setări Chrome:
 <translation id="7406113532070524618">Această setare funcționează fără a te identifica și fără a permite site-urilor să-ți vadă istoricul de navigare, deși acestea pot trimite un volum mic de informații în cadrul verificării</translation>
 <translation id="7409735910987429903">Site-urile pot să afișeze ferestre pop-up cu anunțuri sau să folosească redirecționări pentru a te trimite la site-uri pe care nu vrei să le accesezi</translation>
 <translation id="7412160840120117304">Culoarea principală în sistemul hexazecimal</translation>
+<translation id="7412223528111026033">{ZOOM_PERCENTAGE,plural, =1{Zoom}few{Zoom: <ph name="ZOOM_PERCENTAGE_NUMBER" /> %%}other{Zoom: <ph name="ZOOM_PERCENTAGE_NUMBER" /> %%}}</translation>
 <translation id="7423098979219808738">Mai întâi întreabă</translation>
 <translation id="7423538860840206698">Citirea clipboardului este blocată</translation>
 <translation id="7425915948813553151">Tema întunecată pentru site-uri</translation>
@@ -700,7 +704,6 @@ Protecția avansată gestionează următoarele setări Chrome:
 <translation id="8803526663383843427">Când opțiunea este activată</translation>
 <translation id="8805385115381080995">Navigarea este mai rapidă deoarece este mai puțin probabil ca un site să îți solicite să confirmi că ești o persoană reală</translation>
 <translation id="8816026460808729765">Blochează întotdeauna accesul site-urilor la senzori</translation>
-<translation id="884765916894384048">Redă în fundal</translation>
 <translation id="8847988622838149491">USB</translation>
 <translation id="8874790741333031443">Încearcă să permiți temporar cookie-urile terță parte, ceea ce înseamnă mai puțină protecție pentru navigare, dar există șanse mai mari ca funcțiile site-urilor să funcționeze conform așteptărilor.</translation>
 <translation id="8889294078294184559">În timp ce navighezi, site-urile pot să solicite informații de la Chrome și să confirme cu ajutorul unui site pe care l-ai accesat anterior că ești o persoană reală</translation>

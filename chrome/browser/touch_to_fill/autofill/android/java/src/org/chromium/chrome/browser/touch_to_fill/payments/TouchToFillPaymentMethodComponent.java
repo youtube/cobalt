@@ -14,6 +14,7 @@ import org.chromium.chrome.browser.autofill.PersonalDataManager;
 import org.chromium.chrome.browser.touch_to_fill.common.BottomSheetFocusHelper;
 import org.chromium.components.autofill.AutofillSuggestion;
 import org.chromium.components.autofill.LoyaltyCard;
+import org.chromium.components.autofill.payments.BnplIssuerContext;
 import org.chromium.components.autofill.payments.BnplIssuerTosDetail;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
 
@@ -51,6 +52,16 @@ interface TouchToFillPaymentMethodComponent {
         void creditCardSuggestionSelected(String uniqueId, boolean isVirtual);
 
         /**
+         * Called when the user selects the BNPL suggestion. If the extractedAmount is available, we
+         * show the issuer selection screen. Otherwise, the progress screen is displayed until
+         * amount extraction is complete.
+         *
+         * @param extractedAmount The amount associated with the BNPL suggestion, extracted from the
+         *     page.
+         */
+        void bnplSuggestionSelected(@Nullable Long extractedAmount);
+
+        /**
          * Called when the user selects a local IBAN.
          *
          * @param guid The selected local IBAN.
@@ -76,6 +87,13 @@ interface TouchToFillPaymentMethodComponent {
 
         /** Called when the user clicks the "OK" button on the error screen. */
         void onErrorOkPressed();
+
+        /**
+         * Called when the user selects a BNPL issuer.
+         *
+         * @param issuerId The selected BNPL issuer Id.
+         */
+        void onBnplIssuerSuggestionSelected(String issuerId);
     }
 
     /**
@@ -143,11 +161,11 @@ interface TouchToFillPaymentMethodComponent {
     /**
      * Displays a new BNPL issuers bottom sheet.
      *
-     * @param bnplIssuerContexts A list of {@link PersonalDataManager.BnplIssuerContext} objects,
-     *     each representing a BNPL issuer context, to be displayed on the bottom sheet for the user
-     *     to select from.
+     * @param bnplIssuerContexts A list of {@link BnplIssuerContext} objects, each representing a
+     *     BNPL issuer context, to be displayed on the bottom sheet for the user to select from.
+     * @param footerText The footer text to be displayed on the bottom sheet.
      */
-    void showBnplIssuers(List<PersonalDataManager.BnplIssuerContext> bnplIssuerContexts);
+    void showBnplIssuers(List<BnplIssuerContext> bnplIssuerContexts, String footerText);
 
     /**
      * Displays an error screen bottom sheet.

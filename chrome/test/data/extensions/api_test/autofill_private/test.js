@@ -41,6 +41,7 @@ var ENTITY_INSTANCE = {
     addEntityTypeString: 'Add driver\'s license',
     editEntityTypeString: 'Edit driver\'s license',
     deleteEntityTypeString: 'Delete driver\'s license',
+    supportsWalletStorage: false,
   },
   attributeInstances: [
     {
@@ -211,6 +212,7 @@ function updateCreditCardForCvc(updatedCvcValue) {
 function entityInstaceToEntityInstanceWithLabels(entityInstance, sublabel) {
   return ({
     guid: entityInstance.guid,
+    type: entityInstance.type,
     entityInstanceLabel: entityInstance.type.typeNameAsString,
     entityInstanceSubLabel: sublabel,
     storedInWallet: false,
@@ -924,6 +926,7 @@ var availableTests = [
             addEntityTypeString: 'Add driver\'s license',
             editEntityTypeString: 'Edit driver\'s license',
             deleteEntityTypeString: 'Delete driver\'s license',
+            supportsWalletStorage: false,
           },
           attributeInstances: [
             {
@@ -973,6 +976,7 @@ var availableTests = [
             addEntityTypeString: 'Add passport',
             editEntityTypeString: 'Edit passport',
             deleteEntityTypeString: 'Delete passport',
+            supportsWalletStorage: false,
           },
           attributeInstances: [
             {
@@ -1013,6 +1017,7 @@ var availableTests = [
             addEntityTypeString: 'Add passport',
             editEntityTypeString: 'Edit passport',
             deleteEntityTypeString: 'Delete passport',
+            supportsWalletStorage: false,
           },
           attributeInstances: [
             {
@@ -1053,6 +1058,7 @@ var availableTests = [
             addEntityTypeString: 'Add passport',
             editEntityTypeString: 'Edit passport',
             deleteEntityTypeString: 'Delete passport',
+            supportsWalletStorage: false,
           },
           attributeInstances: [
             {
@@ -1103,6 +1109,7 @@ var availableTests = [
             addEntityTypeString: 'Add vehicle',
             editEntityTypeString: 'Edit vehicle',
             deleteEntityTypeString: 'Delete vehicle',
+            supportsWalletStorage: false,
           },
           attributeInstances: [
             {
@@ -1135,6 +1142,7 @@ var availableTests = [
             addEntityTypeString: 'Add vehicle',
             editEntityTypeString: 'Edit vehicle',
             deleteEntityTypeString: 'Delete vehicle',
+            supportsWalletStorage: false,
           },
           attributeInstances: [
             {
@@ -1285,6 +1293,7 @@ var availableTests = [
         addEntityTypeString: 'Add passport',
         editEntityTypeString: 'Edit passport',
         deleteEntityTypeString: 'Delete passport',
+        supportsWalletStorage: false,
       },
       {
         typeName: 1,
@@ -1292,6 +1301,7 @@ var availableTests = [
         addEntityTypeString: 'Add driver\'s license',
         editEntityTypeString: 'Edit driver\'s license',
         deleteEntityTypeString: 'Delete driver\'s license',
+        supportsWalletStorage: false,
       },
       {
         typeName: 2,
@@ -1299,6 +1309,7 @@ var availableTests = [
         addEntityTypeString: 'Add vehicle',
         editEntityTypeString: 'Edit vehicle',
         deleteEntityTypeString: 'Delete vehicle',
+        supportsWalletStorage: false,
       },
     ];
     for (const index in expectedEntityTypesList) {
@@ -1314,6 +1325,52 @@ var availableTests = [
     for (const index in entityTypesList) {
       chrome.test.assertFalse(
           entityTypesList[index].typeName === 6);  // Flight reservation
+    }
+    chrome.test.succeed();
+  },
+
+  async function verifyWritableEntityTypesWithSyncOnReturnsWalletEntityTypes() {
+    const entityTypesList =
+        await chrome.autofillPrivate.getWritableEntityTypes();
+    const expectedEntityTypesList = [
+      {
+        typeName: 0,
+        typeNameAsString: 'Passport',
+        addEntityTypeString: 'Add passport',
+        editEntityTypeString: 'Edit passport',
+        deleteEntityTypeString: 'Delete passport',
+        supportsWalletStorage: false,
+      },
+      {
+        typeName: 1,
+        typeNameAsString: 'Driver\'s license',
+        addEntityTypeString: 'Add driver\'s license',
+        editEntityTypeString: 'Edit driver\'s license',
+        deleteEntityTypeString: 'Delete driver\'s license',
+        supportsWalletStorage: false,
+      },
+      {
+        typeName: 2,
+        typeNameAsString: 'Vehicle',
+        addEntityTypeString: 'Add vehicle',
+        editEntityTypeString: 'Edit vehicle',
+        deleteEntityTypeString: 'Delete vehicle',
+        supportsWalletStorage:
+            true,  // If a type can be both local and server stored,
+                   // server stored type takes precedence.
+      },
+      {
+        typeName: 6,
+        typeNameAsString: 'Flight',
+        addEntityTypeString: '',
+        editEntityTypeString: '',
+        deleteEntityTypeString: '',
+        supportsWalletStorage: true,
+      },
+    ];
+    for (const index in expectedEntityTypesList) {
+      chrome.test.assertEq(
+          expectedEntityTypesList[index], entityTypesList[index]);
     }
     chrome.test.succeed();
   },
@@ -1381,6 +1438,29 @@ var availableTests = [
         false, await chrome.autofillPrivate.getAutofillAiOptInStatus());
     chrome.test.succeed();
   },
+
+  async function testEntityTypeInEntityInstanceWithLabels() {
+    // Add an entity to ensure there is something to load.
+    await new Promise(resolve => {
+      chrome.test.listenOnce(
+          chrome.autofillPrivate.onEntityInstancesChanged, resolve);
+      chrome.autofillPrivate.addOrUpdateEntityInstance(ENTITY_INSTANCE);
+    });
+
+    const entityInstancesWithLabelsList =
+        await chrome.autofillPrivate.loadEntityInstances();
+    chrome.test.assertEq(1, entityInstancesWithLabelsList.length);
+    const entityInstanceWithLabels = entityInstancesWithLabelsList[0];
+
+    chrome.test.assertTrue(
+        !!entityInstanceWithLabels.type,
+        'EntityInstanceWithLabels should have a type property');
+    chrome.test.assertEq(
+        ENTITY_INSTANCE.type, entityInstanceWithLabels.type,
+        'The type property should match the entity type');
+
+    chrome.test.succeed();
+  },
 ];
 
 /** @const */
@@ -1436,9 +1516,13 @@ var TESTS_FOR_CONFIG = {
   'getWritableEntityTypes': ['getWritableEntityTypes'],
   'verifyWritableEntityTypesDoesNotIncludeReadOnlyTypes':
       ['verifyWritableEntityTypesDoesNotIncludeReadOnlyTypes'],
+  'verifyWritableEntityTypesWithSyncOnReturnsWalletEntityTypes':
+      ['verifyWritableEntityTypesWithSyncOnReturnsWalletEntityTypes'],
   'getAllAttributeTypesForEntityTypeName':
       ['getAllAttributeTypesForEntityTypeName'],
   'testExpectedLabelsAreGenerated': ['testExpectedLabelsAreGenerated'],
+  'testEntityTypeInEntityInstanceWithLabels':
+      ['testEntityTypeInEntityInstanceWithLabels'],
   'getEmptyPayOverTimeIssuerList': ['getEmptyPayOverTimeIssuerList'],
   'optIntoAutofillAi': ['optIntoAutofillAi'],
   'optOutOfAutofillAi': ['optOutOfAutofillAi'],

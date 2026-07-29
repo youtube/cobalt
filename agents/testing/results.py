@@ -6,6 +6,7 @@
 import dataclasses
 import logging
 import pathlib
+import pprint
 import queue
 import sys
 import threading
@@ -30,6 +31,14 @@ class TestResult:
     duration: float
     # Stdout/stderr of the test.
     test_log: str
+    # A mapping of metric name to value. Metric names can be nested, e.g.
+    # {
+    #   'token_usage': {
+    #     'input': 10,
+    #     'output': 20,
+    #   },
+    # }
+    metrics: dict[str, dict | float]
 
     def __lt__(self, other: 'TestResult') -> bool:
         return self.test_file < other.test_file
@@ -106,6 +115,11 @@ class ResultThread(threading.Thread):
             except queue.Empty:
                 continue
 
+            # TODO(crbug.com/449818513): Actually report this to the perf
+            # dashboard or to ResultDB, whichever we end up using for tracking
+            # token usage and test scores.
+            pp = pprint.PrettyPrinter(indent=2)
+            logging.debug('Metrics: %s', pp.pformat(test_result.metrics))
             if not test_result.success or self._print_output_on_success:
                 sys.stdout.write(test_result.test_log)
             if self._result_sink_client:

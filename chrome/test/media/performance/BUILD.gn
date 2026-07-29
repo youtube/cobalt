@@ -6,5 +6,5 @@ import("//build/config/python.gni")
 
 python_library("videostack_performance_test") {
   testonly = true
-  pydeps_files = "videostack_performance_test.pydeps"
+  pydeps_file = "videostack_performance_test.pydeps"
 }

@@ -121,6 +121,7 @@
 <translation id="2359808026110333948">繼續</translation>
 <translation id="2379925928934107488">當 Chrome 採用深色主題時，盡可能對網站套用深色主題</translation>
 <translation id="2390272837142897736">放大</translation>
+<translation id="2397689164757137845">允許 • 精確位置</translation>
 <translation id="2402980924095424747"><ph name="MEGABYTES" /> MB</translation>
 <translation id="2403474027143565107">精確</translation>
 <translation id="2404630663942400771">{PERMISSIONS_SUMMARY_ALLOWED,plural, =1{已允許「<ph name="PERMISSION_1" />」、「<ph name="PERMISSION_2" />」和另外 <ph name="NUM_MORE" /> 項權限}other{已允許「<ph name="PERMISSION_1" />」、「<ph name="PERMISSION_2" />」和另外 <ph name="NUM_MORE" /> 項權限}}</translation>
@@ -140,6 +141,7 @@
 <translation id="2498359688066513246">說明與意見回饋</translation>
 <translation id="2501278716633472235">返回</translation>
 <translation id="2533138527374486328">如果開啟，網站可以要求連線到區域網路上的裝置；如果關閉，網站將無法連線到區域網路上的任何裝置。</translation>
+<translation id="2536779053640817375">這次允許 • 精確位置</translation>
 <translation id="2544997614631598250">主題顏色：深色</translation>
 <translation id="2546283357679194313">Cookie 和網站資料</translation>
 <translation id="2570922361219980984">此外，這部裝置的位置資訊存取權已關閉。請在 <ph name="BEGIN_LINK" />Android 設定<ph name="END_LINK" />中予以開啟。</translation>
@@ -442,6 +444,7 @@
 <translation id="5876056640971328065">暫停影片</translation>
 <translation id="5877248419911025165">收合所有要求</translation>
 <translation id="5878945009165002849">封鎖身分識別服務的登入提示</translation>
+<translation id="588258955323874662">全螢幕</translation>
 <translation id="5884085660368669834">網站偏好設定</translation>
 <translation id="5887687176710214216">上次造訪日期：昨天</translation>
 <translation id="5908617755156109052">不允許網站建立你周遭環境的 3D 地圖或追蹤攝影機位置</translation>
@@ -569,6 +572,7 @@
 <translation id="7406113532070524618">你不必提供身分識別資訊或授權讓網站查看瀏覽記錄，這項設定也能完成驗證。不過，網站在驗證時，可能會分享少量資訊</translation>
 <translation id="7409735910987429903">網站可能會傳送彈出式視窗以顯示廣告，或是透過重新導向將你帶往不想造訪的網站</translation>
 <translation id="7412160840120117304">主要顏色 (十六進位)</translation>
+<translation id="7412223528111026033">{ZOOM_PERCENTAGE,plural, =1{縮放}other{縮放：<ph name="ZOOM_PERCENTAGE_NUMBER" />%%}}</translation>
 <translation id="7423098979219808738">先詢問我</translation>
 <translation id="7423538860840206698">禁止讀取剪貼簿</translation>
 <translation id="7425915948813553151">網站的深色主題</translation>
@@ -700,7 +704,6 @@
 <translation id="8803526663383843427">開啟時</translation>
 <translation id="8805385115381080995">降低網站確認你是否為真人的機率，提供更快速的瀏覽體驗</translation>
 <translation id="8816026460808729765">禁止網站存取感應器</translation>
-<translation id="884765916894384048">在背景播放</translation>
 <translation id="8847988622838149491">USB</translation>
 <translation id="8874790741333031443">請嘗試暫時允許使用第三方 Cookie。這個操作會降低瀏覽防護程度，但會增加網站功能正常運作的機率。</translation>
 <translation id="8889294078294184559">你隨後瀏覽的網站可從 Chrome 取得前一個網站提供的資訊，確認你應該是真人</translation>

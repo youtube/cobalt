@@ -702,6 +702,10 @@ chromium-metrics-reviews@google.com.
   <int value="163" label="Profile.getCustomHeaders"/>
   <int value="164" label="WebSettingsCompat.setRendererLibraryPrefetchMode"/>
   <int value="165" label="WebSettingsCompat.getRendererLibraryPrefetchMode"/>
+  <int value="166" label="BackForwardCacheSettings.setTimeoutInSec"/>
+  <int value="167" label="BackForwardCacheSettings.setMaxPagesInCache"/>
+  <int value="168" label="WebSettingsCompat.addWebNavigationListener"/>
+  <int value="169" label="WebSettingsCompat.removeWebNavigationListener"/>
 <!-- LINT.ThenChange(/android_webview/support_library/java/src/org/chromium/support_lib_glue/SupportLibWebViewChromiumFactory.java:ApiCall) -->
 
 </enum>
@@ -933,6 +937,22 @@ chromium-metrics-reviews@google.com.
   <int value="23" label="Icons, Names, Emails, and Telephone numbers"/>
   <int value="31"
       label="Icons, Addresses, Names, Emails, and Telephone numbers"/>
+</enum>
+
+<enum name="CookieManagerThreadingCondition">
+  <int value="0" label="Not called before UI thread is set"/>
+  <int value="1" label="Called on a non-looper thread"/>
+  <int value="2"
+      label="Called from background looper and UI thread is main looper"/>
+  <int value="3"
+      label="Called from background looper and UI thread is the same
+             background looper"/>
+  <int value="4"
+      label="Called from background looper and UI thread is a different
+             background looper"/>
+  <int value="5" label="Called from main looper and UI thread is main looper"/>
+  <int value="6"
+      label="Called from main looper and UI thread is a background looper"/>
 </enum>
 
 <enum name="CpuAbiBitnessSupport">
@@ -2695,6 +2715,7 @@ chromium-metrics-reviews@google.com.
   <int value="104" label="staticSetDefaultTrafficStatsUid"/>
   <int value="105" label="staticSetRendererLibraryPrefetchMode"/>
   <int value="106" label="staticGetRendererLibraryPrefetchMode"/>
+  <int value="107" label="getDefaultCookieManager"/>
 </enum>
 
 <!-- LINT.ThenChange(//base/tracing/protos/chrome_track_event.proto:WebViewStartup) -->

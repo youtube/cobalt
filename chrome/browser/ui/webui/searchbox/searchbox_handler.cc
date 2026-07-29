@@ -7,6 +7,7 @@
 #include "base/base64.h"
 #include "base/base64url.h"
 #include "base/containers/contains.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
@@ -337,6 +338,8 @@ void SearchboxHandler::SetupWebUIDataSource(content::WebUIDataSource* source,
       {"composeboxPdfUploadButtonTitle",
        IDS_NTP_COMPOSE_PDF_UPLOAD_BUTTON_A11Y_LABEL},
       {"composeboxPlaceholderText", IDS_NTP_COMPOSE_PLACEHOLDER_TEXT},
+      {"composeboxSmartComposeTabTitle", IDS_NTP_COMPOSE_SMART_COMPOSE_TAB},
+      {"composeboxSmartComposeTitle", IDS_NTP_COMPOSE_SMART_COMPOSE_A11Y_LABEL},
       {"composeboxSubmitButtonTitle", IDS_NTP_COMPOSE_SUBMIT_BUTTON_A11Y_LABEL},
       {"composeboxDeleteFileTitle", IDS_NTP_COMPOSE_DELETE_FILE_A11Y_LABEL},
       {"composeboxFileUploadStartedText",
@@ -359,6 +362,9 @@ void SearchboxHandler::SetupWebUIDataSource(content::WebUIDataSource* source,
       {"createImages", IDS_NTP_COMPOSE_CREATE_IMAGES},
       {"composeDeepSearchPlaceholder", IDS_COMPOSE_DEEP_SEARCH_PLACEHOLDER},
       {"composeCreateImagePlaceholder", IDS_COMPOSE_CREATE_IMAGE_PLACEHOLDER},
+      {"askAboutThisTab", IDS_NTP_COMPOSE_ASK_ABOUT_THIS_TAB},
+      {"askAboutThisTabAriaLabel",
+       IDS_NTP_COMPOSE_ASK_ABOUT_THIS_TAB_ARIA_LABEL},
   };
   source->AddLocalizedStrings(kStrings);
   source->AddString("searchboxComposePlaceholder",
@@ -490,9 +496,10 @@ std::string SearchboxHandler::AutocompleteIconToResourceName(
 
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
   if (icon.name == vector_icons::kGoogleAgentspaceMonochromeLogoIcon.name) {
-    return base::FeatureList::IsEnabled(omnibox::kUseAgentspace25Logo)
-               ? kGoogleAgentspaceMonochromeLogo25Icon
-               : kGoogleAgentspaceMonochromeLogoIcon;
+    return kGoogleAgentspaceMonochromeLogoIcon;
+  } else if (icon.name ==
+             vector_icons::kGoogleAgentspaceMonochromeLogo25Icon.name) {
+    return kGoogleAgentspaceMonochromeLogo25Icon;
   } else if (icon.name == vector_icons::kGoogleCalendarIcon.name) {
     return kGoogleCalendarIconResourceName;
   } else if (icon.name == vector_icons::kGoogleGLogoMonochromeIcon.name) {
@@ -654,12 +661,12 @@ SearchboxHandler::CreateAutocompleteMatch(
       bookmark_model->IsBookmarked(match.destination_url);
   // For starter pack suggestions, use template url to generate proper vector
   // icon.
-  const TemplateURL* turl =
+  const TemplateURL* associated_keyword_turl =
       match.associated_keyword.empty()
           ? nullptr
           : turl_service->GetTemplateURLForKeyword(match.associated_keyword);
-  mojom_match->icon_path =
-      AutocompleteIconToResourceName(match.GetVectorIcon(is_bookmarked, turl));
+  mojom_match->icon_path = AutocompleteIconToResourceName(
+      match.GetVectorIcon(is_bookmarked, associated_keyword_turl));
   // For enterprise search aggregator people suggestions, use branded icon if
   // branded build.
   if (match.enterprise_search_aggregator_type ==
@@ -673,6 +680,19 @@ SearchboxHandler::CreateAutocompleteMatch(
 #endif
   }
   mojom_match->icon_url = match.icon_url;
+  // For featured enterprise search suggestions, use template url to generate
+  // the proper icon url.
+  const TemplateURL* keyword_turl =
+      match.keyword.empty()
+          ? nullptr
+          : turl_service->GetTemplateURLForKeyword(match.keyword);
+  if (AutocompleteMatch::IsFeaturedEnterpriseSearchType(match.type) &&
+      keyword_turl) {
+    GURL favicon_url = keyword_turl->favicon_url();
+    if (favicon_url.is_valid()) {
+      mojom_match->icon_url = favicon_url;
+    }
+  }
   mojom_match->image_dominant_color = match.image_dominant_color;
   mojom_match->image_url = match.image_url.spec();
   mojom_match->fill_into_edit = match.fill_into_edit;
@@ -820,7 +840,12 @@ void SearchboxHandler::QueryAutocomplete(const std::u16string& input,
   // Set the lens overlay suggest inputs, if available.
   if (std::optional<lens::proto::LensOverlaySuggestInputs> suggest_inputs =
           controller_->client()->GetLensOverlaySuggestInputs()) {
-    autocomplete_input.set_lens_overlay_suggest_inputs(*suggest_inputs);
+    // Don't set lens params if in "Create Image" mode. This prevents the
+    // contextual client from being used in this tool mode.
+    if (GetAimToolMode() !=
+        omnibox::ChromeAimToolsAndModels::TOOL_MODE_IMAGE_GEN_UPLOAD) {
+      autocomplete_input.set_lens_overlay_suggest_inputs(*suggest_inputs);
+    }
   }
 
   autocomplete_input.set_aim_tool_mode(GetAimToolMode());
@@ -890,6 +915,14 @@ void SearchboxHandler::DeleteAutocompleteMatch(uint8_t line, const GURL& url) {
   autocomplete_controller()->DeleteMatch(*match);
 }
 
+void SearchboxHandler::ActivateKeyword(
+    uint8_t line,
+    const GURL& url,
+    base::TimeTicks match_selection_timestamp,
+    bool is_mouse_event) {
+  // Generic searchbox should not show keywords.
+  NOTREACHED();
+}
 void SearchboxHandler::ExecuteAction(uint8_t line,
                                      uint8_t action_index,
                                      const GURL& url,
@@ -965,6 +998,9 @@ void SearchboxHandler::GetPlaceholderConfig(
   std::move(callback).Run(std::move(config));
 }
 
+void SearchboxHandler::GetRecentTabs(GetRecentTabsCallback callback) {
+  std::move(callback).Run({});
+}
 
 void SearchboxHandler::OnResultChanged(AutocompleteController* controller,
                                        bool default_match_changed) {

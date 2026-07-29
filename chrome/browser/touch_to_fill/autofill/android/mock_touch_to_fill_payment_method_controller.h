@@ -7,6 +7,7 @@
 
 #include <jni.h>
 
+#include <optional>
 #include <string>
 
 #include "base/android/scoped_java_ref.h"
@@ -14,6 +15,7 @@
 #include "base/functional/callback.h"
 #include "chrome/browser/touch_to_fill/autofill/android/touch_to_fill_payment_method_controller.h"
 #include "chrome/browser/touch_to_fill/autofill/android/touch_to_fill_payment_method_view.h"
+#include "components/autofill/core/browser/data_model/payments/bnpl_issuer.h"
 #include "components/autofill/core/browser/data_model/payments/iban.h"
 #include "components/autofill/core/browser/data_model/valuables/loyalty_card.h"
 #include "components/autofill/core/browser/integrators/touch_to_fill/touch_to_fill_delegate.h"
@@ -66,15 +68,17 @@ class MockTouchToFillPaymentMethodController
               (std::unique_ptr<TouchToFillPaymentMethodView> view,
                base::OnceClosure cancel_callback),
               (override));
-  MOCK_METHOD(bool,
-              ShowBnplIssuers,
-              (base::WeakPtr<TouchToFillDelegate>,
-               base::span<const payments::BnplIssuerContext>),
-              (override));
+  MOCK_METHOD(
+      bool,
+      ShowBnplIssuers,
+      (base::span<const payments::BnplIssuerContext> bnpl_issuer_contexts,
+       const std::string& app_locale,
+       base::OnceCallback<void(BnplIssuer)> selected_issuer_callback,
+       base::OnceClosure cancel_callback),
+      (override));
   MOCK_METHOD(bool,
               ShowErrorScreen,
               (std::unique_ptr<TouchToFillPaymentMethodView> view,
-               base::WeakPtr<TouchToFillDelegate> delegate,
                const std::u16string& title,
                const std::u16string& description),
               (override));
@@ -90,6 +94,10 @@ class MockTouchToFillPaymentMethodController
               (JNIEnv*, const std::string&, bool),
               (override));
   MOCK_METHOD(void,
+              BnplSuggestionSelected,
+              (JNIEnv*, std::optional<int64_t>),
+              (override));
+  MOCK_METHOD(void,
               LocalIbanSuggestionSelected,
               (JNIEnv*, const std::string&),
               (override));
@@ -99,7 +107,11 @@ class MockTouchToFillPaymentMethodController
               (JNIEnv*, const LoyaltyCard&),
               (override));
   MOCK_METHOD(void, OnErrorOkPressed, (JNIEnv*), (override));
-  MOCK_METHOD(int, GetJavaResourceId, (int), (override));
+  MOCK_METHOD(void,
+              OnBnplIssuerSuggestionSelected,
+              (JNIEnv*, const std::string&),
+              (override));
+  MOCK_METHOD(int, GetJavaResourceId, (int), (const, override));
   MOCK_METHOD(base::android::ScopedJavaLocalRef<jobject>,
               GetJavaObject,
               (),

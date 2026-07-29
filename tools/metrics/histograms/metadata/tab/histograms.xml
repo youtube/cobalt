@@ -325,7 +325,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Tab.CloseAllTabsDialog.ClosedAllTabs.{CloseType}"
-    enum="Boolean" expires_after="2026-02-09">
+    enum="Boolean" expires_after="2026-04-12">
   <owner>ckitagawa@chromium.org</owner>
   <owner>fredmello@chromium.org</owner>
   <summary>
@@ -446,28 +446,6 @@ chromium-metrics-reviews@google.com.
     only to brand new empty tabs. Note: Currently the &quot;Regular menu
     option&quot; includes some programmatic actions in addition to user actions.
   </summary>
-</histogram>
-
-<histogram name="Tab.NewTabAnimationProgress.{AnimationType}"
-    enum="AnimationFreezeCheckerState" expires_after="2026-04-20">
-  <owner>ckitagawa@chromium.org</owner>
-  <owner>polardz@google.com</owner>
-  <summary>
-    Records the progress of new tab animations on Android to detect freezes. The
-    animation is split into multiple parts, each with its own histogram.
-    {AnimationType}
-  </summary>
-  <token key="AnimationType">
-    <variant name="BackgroundAnimation" summary="The background animation."/>
-    <variant name="ForegroundCornerAnimation"
-        summary="The foreground corner animation."/>
-    <variant name="ForegroundExpandAnimation"
-        summary="The foreground expand animation set."/>
-    <variant name="ForegroundFadeAnimation"
-        summary="The foreground fade out animation."/>
-    <variant name="ForegroundRectAnimation"
-        summary="The foreground rectangle animation."/>
-  </token>
 </histogram>
 
 <histogram name="Tab.Organization.Declutter.DeclutterTabCount" units="tabs"
@@ -869,7 +847,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Tab.StateAtRendererTermination" enum="TabForegroundState"
-    expires_after="2026-02-09">
+    expires_after="2026-04-12">
   <owner>gambard@chromium.org</owner>
   <owner>olivierrobin@chromium.org</owner>
   <summary>
@@ -907,6 +885,28 @@ chromium-metrics-reviews@google.com.
     In M130, this metric was updated to include Custom Tabs on Android, which
     were probably unintentionally excluded.
   </summary>
+</histogram>
+
+<histogram name="Tab.{AnimationType}.NewTabAnimationProgress"
+    enum="AnimationFreezeCheckerState" expires_after="2026-04-20">
+  <owner>ckitagawa@chromium.org</owner>
+  <owner>polardz@google.com</owner>
+  <summary>
+    Records the progress of new tab animations on Android to detect freezes. The
+    animation is split into multiple parts, each with its own histogram.
+    {AnimationType}
+  </summary>
+  <token key="AnimationType">
+    <variant name="BackgroundAnimation" summary="The background animation."/>
+    <variant name="ForegroundCornerAnimation"
+        summary="The foreground corner animation."/>
+    <variant name="ForegroundExpandAnimation"
+        summary="The foreground expand animation set."/>
+    <variant name="ForegroundFadeAnimation"
+        summary="The foreground fade out animation."/>
+    <variant name="ForegroundRectAnimation"
+        summary="The foreground rectangle animation."/>
+  </token>
 </histogram>
 
 <histogram
@@ -1530,7 +1530,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="TabGroups.Sync.RemoteActiveTabGroupCount.{NumberOfDays}Day"
-    units="groups" expires_after="2026-02-09">
+    units="groups" expires_after="2026-04-12">
   <owner>shaktisahu@chromium.org</owner>
   <owner>clank-tab-dev@google.com</owner>
   <summary>
@@ -1790,7 +1790,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="TabGroups.Sync.TabGroupTitleLength" units="characters"
-    expires_after="2026-02-09">
+    expires_after="2026-04-12">
   <owner>shaktisahu@chromium.org</owner>
   <owner>clank-tab-dev@google.com</owner>
   <summary>
@@ -1813,7 +1813,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="TabGroups.Sync.TimeSinceLastUserInteractionWithGroup"
-    units="minutes" expires_after="2026-02-09">
+    units="minutes" expires_after="2026-04-12">
   <owner>shaktisahu@chromium.org</owner>
   <owner>clank-tab-dev@google.com</owner>
   <summary>
@@ -2060,7 +2060,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="TabManager.Discarding.InactiveToReloadTime" units="ms"
-    expires_after="2026-02-09">
+    expires_after="2026-04-12">
   <owner>fdoray@chromium.org</owner>
   <owner>catan-team@chromium.org</owner>
   <summary>
@@ -3334,7 +3334,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Tabs.TabSearch.Mojo.TabUpdated" units="ms"
-    expires_after="2026-02-09">
+    expires_after="2026-04-12">
   <owner>kerenzhu@chromium.org</owner>
   <owner>romanarora@chromium.org</owner>
   <owner>yuhengh@chromium.org</owner>

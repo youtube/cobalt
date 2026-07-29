@@ -14,13 +14,13 @@ import subprocess
 import sys
 import traceback
 
+from compiler import Compiler
 from config import fix_graph
 from graph import IncludeDir
 from graph import run_build
+from platforms import Cpu
+from platforms import Os
 import render
-from compiler import Compiler
-from compiler import Cpu
-from compiler import Os
 
 SOURCE_ROOT = pathlib.Path(__file__).parents[3].resolve()
 _OS_OPTS = '|'.join(os.value for os in Os)
@@ -152,7 +152,7 @@ def _modularize(out_dir: pathlib.Path, error_log: pathlib.Path | None,
   platform = (out_dir / 'gen/module_platform.txt').read_text()
   logging.info('Detected platform %s', platform)
 
-  out_dir = SOURCE_ROOT / 'build/modules' / out_dir.name
+  out_dir = SOURCE_ROOT / 'build/modules' / platform
   out_dir.mkdir(exist_ok=True, parents=False)
   if compiler.sysroot_dir == IncludeDir.Sysroot:
     render.render_modulemap(out_dir=out_dir,

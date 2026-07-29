@@ -428,7 +428,11 @@ void BucketContext::CreateAllExternalObjects(
 }
 
 void BucketContext::QueueRunTasks() {
+  TRACE_EVENT0("IndexedDB", "BucketContext::QueueRunTasks");
+
   if (task_run_queued_) {
+    TRACE_EVENT_INSTANT("IndexedDB",
+                        "BucketContext::QueueRunTasks - Already queued");
     return;
   }
 
@@ -756,7 +760,8 @@ bool BucketContext::CanClose() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DCHECK_GE(open_handles_, 0);
 
-  if (backing_store_ && !backing_store_->CanOpportunisticallyClose()) {
+  if (backing_store_ && !skip_closing_sequence_ &&
+      !backing_store_->CanOpportunisticallyClose()) {
     return false;
   }
 
@@ -1002,6 +1007,7 @@ BucketContext::InitBackingStoreIfNeeded(bool create_if_missing) {
           level_db::BackingStore::OpenAndVerify(
               *this, data_path_, database_path, blob_path, lock_manager.get(),
               is_first_attempt, create_if_missing);
+      CHECK_EQ(status.ok(), !!backing_store);
       if (is_first_attempt) [[likely]] {
         first_try_status = status;
       }

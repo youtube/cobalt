@@ -121,6 +121,7 @@
 <translation id="2359808026110333948">ਜਾਰੀ ਰੱਖੋ</translation>
 <translation id="2379925928934107488">ਜਦੋਂ ਵੀ ਸੰਭਵ ਹੋਵੇ, Chrome ਵੱਲੋਂ ਗੂੜ੍ਹਾ ਥੀਮ ਵਰਤੇ ਜਾਣ 'ਤੇ ਸਾਈਟਾਂ ਲਈ ਗੂੜ੍ਹਾ ਥੀਮ ਲਾਗੂ ਕਰੋ</translation>
 <translation id="2390272837142897736">ਜ਼ੂਮ ਵਧਾਓ</translation>
+<translation id="2397689164757137845">ਆਗਿਆ ਦਿੱਤੀ ਗਈ • ਸਟੀਕ</translation>
 <translation id="2402980924095424747"><ph name="MEGABYTES" /> MB</translation>
 <translation id="2403474027143565107">ਸਟੀਕ</translation>
 <translation id="2404630663942400771">{PERMISSIONS_SUMMARY_ALLOWED,plural, =1{<ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> ਅਤੇ <ph name="NUM_MORE" /> ਹੋਰ ਦੀ ਇਜਾਜ਼ਤ ਦਿੱਤੀ ਗਈ}one{<ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> ਅਤੇ <ph name="NUM_MORE" /> ਹੋਰ ਦੀ ਇਜਾਜ਼ਤ ਦਿੱਤੀ ਗਈ}other{<ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> ਅਤੇ <ph name="NUM_MORE" /> ਹੋਰ ਦੀ ਇਜਾਜ਼ਤ ਦਿੱਤੀ ਗਈ}}</translation>
@@ -140,6 +141,7 @@
 <translation id="2498359688066513246">ਮਦਦ ਅਤੇ ਪ੍ਰਤੀਕਰਮ</translation>
 <translation id="2501278716633472235">ਪਿੱਛੇ ਜਾਓ</translation>
 <translation id="2533138527374486328">ਚਾਲੂ ਹੋਣ 'ਤੇ, ਸਾਈਟਾਂ ਤੁਹਾਡੇ ਸਥਾਨਕ ਨੈੱਟਵਰਕ 'ਤੇ ਕਿਸੇ ਵੀ ਡੀਵਾਈਸ ਨਾਲ ਕਨੈਕਟ ਕਰਨ ਲਈ ਪੁੱਛ ਸਕਦੀਆਂ ਹਨ। ਬੰਦ ਹੋਣ 'ਤੇ, ਸਾਈਟਾਂ ਤੁਹਾਡੇ ਸਥਾਨਕ ਨੈੱਟਵਰਕ 'ਤੇ ਕਿਸੇ ਵੀ ਡੀਵਾਈਸ ਨਾਲ ਕਨੈਕਟ ਨਹੀਂ ਕਰ ਸਕਦੀਆਂ।</translation>
+<translation id="2536779053640817375">ਇਸ ਸਮੇਂ ਆਗਿਆ ਦਿੱਤੀ ਗਈ • ਸਟੀਕ</translation>
 <translation id="2544997614631598250">ਥੀਮ ਦਾ ਰੰਗ ਗੂੜ੍ਹਾ</translation>
 <translation id="2546283357679194313">ਕੁਕੀਜ਼ ਅਤੇ ਸਾਈਟ ਡਾਟਾ</translation>
 <translation id="2570922361219980984">ਇਸ ਡੀਵਾਈਸ ਲਈ ਟਿਕਾਣਾ ਪਹੁੰਚ ਵੀ ਬੰਦ ਹੈ। ਇਸਨੂੰ <ph name="BEGIN_LINK" />Android ਸੈਟਿੰਗਾਂ<ph name="END_LINK" /> ਵਿੱਚ ਚਾਲੂ ਕਰੋ।</translation>
@@ -442,6 +444,7 @@
 <translation id="5876056640971328065">ਵੀਡੀਓ ਰੋਕੋ</translation>
 <translation id="5877248419911025165">ਸਾਰੀਆਂ ਬੇਨਤੀਆਂ ਨੂੰ ਸਮੇਟੋ</translation>
 <translation id="5878945009165002849">ਪਛਾਣ ਸੰਬੰਧੀ ਸੇਵਾਵਾਂ ਵੱਲੋਂ ਸਾਈਨ-ਇਨ ਕਰਨ ਦੇ ਪ੍ਰੋਂਪਟਾਂ ਨੂੰ ਬਲਾਕ ਕਰੋ</translation>
+<translation id="588258955323874662">ਫੁਲਸਕ੍ਰੀਨ</translation>
 <translation id="5884085660368669834">ਸਾਈਟ ਦੀ ਤਰਜੀਹ</translation>
 <translation id="5887687176710214216">ਪਿਛਲੀ ਵਾਰ ਕੱਲ੍ਹ ਦੇਖੀ ਗਈ</translation>
 <translation id="5908617755156109052">ਸਾਈਟਾਂ ਨੂੰ ਤੁਹਾਡੇ ਆਲੇ-ਦੁਆਲੇ ਦਾ 3D ਨਕਸ਼ਾ ਬਣਾਉਣ ਜਾਂ ਕੈਮਰੇ ਦੀ ਸਥਿਤੀ ਨੂੰ ਟਰੈਕ ਕਰਨ ਦੀ ਆਗਿਆ ਨਾ ਦਿਓ</translation>
@@ -569,6 +572,7 @@
 <translation id="7406113532070524618">ਇਹ ਸੈਟਿੰਗ ਤੁਹਾਡੀ ਪਛਾਣ ਕੀਤੇ ਬਿਨਾਂ ਜਾਂ ਸਾਈਟਾਂ ਨੂੰ ਤੁਹਾਡਾ ਬ੍ਰਾਊਜ਼ਿੰਗ ਇਤਿਹਾਸ ਦੇਖਣ ਦੀ ਆਗਿਆ ਦਿੱਤੇ ਬਿਨਾਂ ਕੰਮ ਕਰਦੀ ਹੈ, ਹਾਲਾਂਕਿ ਸਾਈਟਾਂ ਪੁਸ਼ਟੀਕਰਨ ਦੇ ਹਿੱਸੇ ਵਜੋਂ ਕੁਝ ਜਾਣਕਾਰੀ ਨੂੰ ਸਾਂਝਾ ਕਰ ਸਕਦੀਆਂ ਹਨ</translation>
 <translation id="7409735910987429903">ਸਾਈਟਾਂ ਵਿਗਿਆਪਨ ਦਿਖਾਉਣ ਲਈ ਪੌਪ-ਅੱਪ ਭੇਜ ਸਕਦੀਆਂ ਹਨ ਜਾਂ ਤੁਹਾਨੂੰ ਅਜਿਹੀਆਂ ਵੈੱਬਸਾਈਟਾਂ 'ਤੇ ਲਿਜਾਣ ਲਈ ਰੀਡਾਇਰੈਕਟ ਦੀ ਵਰਤੋਂ ਕਰ ਸਕਦੀਆਂ ਹਨ ਜਿਨ੍ਹਾਂ 'ਤੇ ਤੁਸੀਂ ਸ਼ਾਇਦ ਨਾ ਜਾਣਾ ਚਾਹੁੰਦੇ ਹੋਵੋ</translation>
 <translation id="7412160840120117304">ਮੁੱਖ ਰੰਗ ਦਾ ਹੈਕਸ ਕੋਡ</translation>
+<translation id="7412223528111026033">{ZOOM_PERCENTAGE,plural, =1{ਜ਼ੂਮ}one{ਜ਼ੂਮ: <ph name="ZOOM_PERCENTAGE_NUMBER" />%%}other{ਜ਼ੂਮ: <ph name="ZOOM_PERCENTAGE_NUMBER" />%%}}</translation>
 <translation id="7423098979219808738">ਪਹਿਲਾਂ ਪੁੱਛੋ</translation>
 <translation id="7423538860840206698">ਕਲਿੱਪਬੋਰਡ ਪੜ੍ਹਨ ਤੋਂ ਬਲਾਕ ਕੀਤਾ ਗਿਆ</translation>
 <translation id="7425915948813553151">ਸਾਈਟਾਂ ਲਈ ਗੂੜ੍ਹਾ ਥੀਮ</translation>
@@ -700,7 +704,6 @@
 <translation id="8803526663383843427">ਚਾਲੂ ਹੋਣ 'ਤੇ</translation>
 <translation id="8805385115381080995">ਬ੍ਰਾਊਜ਼ ਕਰਨਾ ਇਸ ਲਈ ਤੇਜ਼ ਹੁੰਦਾ ਹੈ, ਕਿਉਂਕਿ ਕਿਸੇ ਸਾਈਟ ਵੱਲੋਂ ਤੁਹਾਨੂੰ ਅਸਲ ਵਰਤੋਂਕਾਰ ਹੋਣ ਦੀ ਪੁਸ਼ਟੀ ਕਰਨ ਲਈ ਕਹਿਣ ਦੀ ਸੰਭਾਵਨਾ ਘੱਟ ਹੁੰਦੀ ਹੈ</translation>
 <translation id="8816026460808729765">ਸਾਈਟਾਂ ਨੂੰ ਸੈਂਸਰਾਂ ਤੱਕ ਪਹੁੰਚ ਕਰਨ ਤੋਂ ਬਲਾਕ ਕਰੋ</translation>
-<translation id="884765916894384048">ਬੈਕਗ੍ਰਾਊਂਡ 'ਤੇ ਜਾਓ</translation>
 <translation id="8847988622838149491">USB</translation>
 <translation id="8874790741333031443">ਕੁਝ ਸਮੇਂ ਲਈ ਤੀਜੀ-ਧਿਰ ਦੀਆਂ ਕੁਕੀਜ਼ ਨੂੰ ਆਗਿਆ ਦਿਓ, ਇਸਦਾ ਮਤਲਬ ਹੈ ਕਿ ਬ੍ਰਾਊਜ਼ਿੰਗ ਸੰਬੰਧੀ ਸੁਰੱਖਿਆ ਘਟ ਜਾਵੇਗੀ ਪਰ ਸਾਈਟ ਦੀਆਂ ਵਿਸ਼ੇਸ਼ਤਾਵਾਂ ਉਮੀਦ ਮੁਤਾਬਕ ਕੰਮ ਕਰਨਗੀਆਂ।</translation>
 <translation id="8889294078294184559">ਤੁਸੀਂ ਜਿਵੇਂ ਬ੍ਰਾਊਜ਼ਿੰਗ ਕਰਨਾ ਜਾਰੀ ਰੱਖਦੇ ਹੋ, ਸਾਈਟਾਂ ਇਸ ਬਾਰੇ Chrome ਨਾਲ ਜਾਂਚ ਕਰ ਸਕਦੀਆਂ ਹਨ ਅਤੇ ਤੁਹਾਡੇ ਵੱਲੋਂ ਦੇਖੀਆਂ ਗਈਆਂ ਪਿਛਲੀਆਂ ਸਾਈਟਾਂ ਨਾਲ ਇਸ ਗੱਲ ਦੀ ਪੁਸ਼ਟੀ ਕਰ ਸਕਦੀਆਂ ਹਨ ਕਿ ਤੁਸੀਂ ਸੰਭਾਵੀ ਤੌਰ 'ਤੇ ਅਸਲ ਵਿਅਕਤੀ ਹੋ</translation>

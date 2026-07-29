@@ -9,7 +9,7 @@
 #include "components/viz/common/resources/shared_image_format.h"
 
 namespace gpu {
-class LegacyGpuMemoryBufferForVideo;
+class GpuMemoryBufferSupport;
 class MappableBufferNativePixmap;
 class SharedImageFormatToBufferFormatRestrictedUtilsAccessor;
 class SharedImageFormatRestrictedUtilsAccessor;
@@ -107,6 +107,17 @@ std::optional<size_t> SharedMemorySizeForSharedImageFormat(
     SharedImageFormat format,
     const gfx::Size& size);
 
+// Multiplanar buffer formats (e.g, YUV_420_BIPLANAR, YVU_420, P010) can be
+// tricky when the size of the primary plane is odd, because the subsampled
+// planes will have a size that is not a divisor of the primary plane's size.
+// This returns whether odd size multiplanar formats are supported.
+COMPONENT_EXPORT(VIZ_SHARED_IMAGE_FORMAT)
+bool IsOddSizeMultiPlanarBuffersAllowed();
+
+// Returns a span containing all mappable SharedImageFormats.
+COMPONENT_EXPORT(VIZ_SHARED_IMAGE_FORMAT)
+base::span<const SharedImageFormat> GetMappableSharedImageFormatForTesting();
+
 // Utilities that conceptually belong only on the service side, but are
 // currently used by some clients. Usage is restricted to friended clients.
 class COMPONENT_EXPORT(VIZ_SHARED_IMAGE_FORMAT)
@@ -129,8 +140,8 @@ class COMPONENT_EXPORT(VIZ_SHARED_IMAGE_FORMAT)
 class COMPONENT_EXPORT(VIZ_SHARED_IMAGE_FORMAT)
     SharedImageFormatToBufferFormatRestrictedUtils {
  private:
+  friend class gpu::GpuMemoryBufferSupport;
   friend class gpu::SharedImageFormatToBufferFormatRestrictedUtilsAccessor;
-  friend class gpu::LegacyGpuMemoryBufferForVideo;
   friend class gpu::MappableBufferNativePixmap;
   friend class ui::WaylandOverlayManager;
 

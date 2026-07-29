@@ -26,6 +26,11 @@
 /// Shows empty state when no downloads exist.
 - (void)setEmptyState:(BOOL)empty;
 
+/// Controls the visibility of the table view header.
+/// When shown is NO, the header should be hidden (e.g., when no records
+/// exist).
+- (void)setDownloadListHeaderShown:(BOOL)shown;
+
 @end
 
 #endif  // IOS_CHROME_BROWSER_DOWNLOAD_UI_DOWNLOAD_LIST_DOWNLOAD_LIST_CONSUMER_H_

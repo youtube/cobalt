@@ -2,7 +2,6 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-import("//build/config/features.gni")
 import("//third_party/jni_zero/jni_zero.gni")
 
 source_set("timestamped_pref_value") {
@@ -30,6 +29,7 @@ source_set("cross_device_pref_tracker") {
   deps = [
     ":timestamped_pref_value",
     "//base",
+    "//components/commerce/core:pref_names",
     "//components/keyed_service/core",
     "//components/ntp_tiles:pref_names",
     "//components/omnibox/browser:pref_names",

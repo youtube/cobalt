@@ -265,7 +265,6 @@ exempted_from_description_builders = {
         "mac-angle-chromium-intel",
         "mac-archive-rel",
         "mac-arm64-archive-rel",
-        "mac-arm64-dbg",
         "mac-arm64-on-arm64-rel",
         "mac-arm64-rel",
         "mac-code-coverage",
@@ -414,7 +413,6 @@ exempted_from_description_builders = {
         "chromeos-js-code-coverage",
         "chromeos-js-coverage-rel",
         "chromeos-octopus-rel",
-        "chromium_presubmit",
         "fuchsia-arm64-cast-receiver-rel",
         "fuchsia-binary-size",
         "fuchsia-clang-tidy-rel",
@@ -776,7 +774,6 @@ exempted_from_contact_builders = {
         "chromeos-arm64-generic-rel",
         "chromeos-js-code-coverage",
         "chromeos-js-coverage-rel",
-        "chromium_presubmit",
         "fuchsia-arm64-cast-receiver-rel",
         "fuchsia-binary-size",
         "fuchsia-clang-tidy-rel",
@@ -1036,7 +1033,6 @@ mega_cq_excluded_builders = [
     "android-arm64-archive-rel",
     "linux-chromeos-archive-rel",
     "linux-rel-test-selection",
-    "mac-arm64-dbg",
 ]
 
 mega_cq_excluded_gardener_rotations = [

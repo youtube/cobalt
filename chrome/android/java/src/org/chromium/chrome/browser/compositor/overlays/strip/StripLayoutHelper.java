@@ -45,6 +45,7 @@ import androidx.annotation.ColorInt;
 import androidx.annotation.StringRes;
 import androidx.annotation.VisibleForTesting;
 import androidx.appcompat.content.res.AppCompatResources;
+import androidx.core.view.ViewCompat;
 
 import org.chromium.base.ApplicationStatus;
 import org.chromium.base.Callback;
@@ -360,10 +361,9 @@ public class StripLayoutHelper
 
                     StripLayoutGroupTitle groupTitle = findGroupTitle(oldTabGroupId);
                     // TODO(crbug.com/443337907) If we're closing for a close button click, we don't
-                    // want to
-                    //  clobber the existing animations. This check can be removed once we update
-                    // the tab strip
-                    //  close button clicks to immediately remove from the model.
+                    // want to clobber the existing animations. This check can be removed once we
+                    // update the tab strip close button clicks to immediately remove from the
+                    // model.
                     if (!mCloseAnimationsRequested || groupTitle == null || groupTitle.isDying()) {
                         clearClosingGroupTitleState(oldTabGroupId);
                     } else {
@@ -381,12 +381,16 @@ public class StripLayoutHelper
     private final TabModelObserver mTabModelObserver =
             new TabModelObserver() {
                 @Override
-                public void onTabSelectionChanged() {
+                public void onTabsSelectionChanged() {
                     if (mModel == null || mStripTabs.length == 0) return;
                     for (StripLayoutTab stripTab : mStripTabs) {
                         mTabDelegate.setIsTabMultiSelected(
                                 stripTab, mModel.isTabMultiSelected(stripTab.getTabId()));
                         setAccessibilityDescription(stripTab, getTabById(stripTab.getTabId()));
+                        if (stripTab.isKeyboardFocused()) {
+                            ViewCompat.setAccessibilityPaneTitle(
+                                    mToolbarContainerView, stripTab.getAccessibilityDescription());
+                        }
                     }
                     mUpdateHost.requestUpdate();
                 }
@@ -434,6 +438,11 @@ public class StripLayoutHelper
                     if (isPinned) {
                         recordPinnedOnlyTabStripUserAction();
                     }
+                }
+
+                @Override
+                public void willUndoTabClosure(List<Tab> tabs, boolean isAllTabs) {
+                    finishAnimations();
                 }
             };
 
@@ -547,8 +556,8 @@ public class StripLayoutHelper
     private final float mFixedEndPadding;
     private float mReservedEndMargin;
 
-    // 3-dots menu button with tab strip end padding
     private final boolean mIncognito;
+    private boolean mSelected;
     private boolean mIsFirstLayoutPass;
     // Whether tab strip scrolling is in progress
     private boolean mIsStripScrollInProgress;
@@ -1573,10 +1582,12 @@ public class StripLayoutHelper
      *     with.
      */
     public void tabModelSelected(boolean selected) {
+        mSelected = selected;
         if (selected) {
             bringSelectedTabToVisibleArea(0, false);
         } else {
             clearLastHoveredTab();
+            finishCloseAnimations();
             mCloseButtonMenu.dismiss();
         }
     }
@@ -1675,15 +1686,18 @@ public class StripLayoutHelper
     }
 
     /**
-     * Called when a multiple tabs are being closed. When called, the closing tabs will not be part
-     * of the model.
+     * Called when multiple tabs are being closed. When called, the closing tabs will not be part of
+     * the model.
      *
      * @param tabs The list of tabs that are being closed.
      */
     public void multipleTabsClosed(List<Tab> tabs) {
         for (Tab tab : tabs) {
             StripLayoutTab stripTab = findTabById(tab.getId());
-            if (stripTab != null && !stripTab.isDying()) mClosingTabs.add(stripTab);
+            if (stripTab != null && !stripTab.isDying()) {
+                mClosingTabs.add(stripTab);
+                stripTab.setSkipAsyncClosure(/* skipAsyncClosure= */ true);
+            }
         }
         if (!mClosingTabs.isEmpty()) {
             requestCloseAnimations();
@@ -2307,7 +2321,19 @@ public class StripLayoutHelper
                             mTabGroupModelFilter,
                             mMultiInstanceManager,
                             mWindowAndroid,
-                            mDataSharingTabManager);
+                            mDataSharingTabManager,
+                            (groupId, toLeft) -> {
+                                // Don't use anchorTab here, since that will be the anchor of the
+                                // first-opened tab context menu (it won't change when a new context
+                                // menu is opened).
+                                mReorderDelegate.reorderViewInDirection(
+                                        mTabDelegate,
+                                        mStripViews,
+                                        mStripGroupTitles,
+                                        mStripTabs,
+                                        findGroupTitle(groupId),
+                                        toLeft);
+                            });
         }
         StripLayoutUtils.performHapticFeedback(mToolbarContainerView);
 
@@ -2372,7 +2398,21 @@ public class StripLayoutHelper
                             mMultiInstanceManager,
                             mShareDelegateSupplier,
                             mWindowAndroid,
-                            mContext);
+                            mContext,
+                            (ids, toLeft) -> {
+                                assert ids.size() == 1
+                                        : "Expected to only be able to reorder individual tabs";
+                                // Don't use anchorTab here, since that will be the anchor of the
+                                // first-opened tab context menu (it won't change when a new context
+                                // menu is opened).
+                                mReorderDelegate.reorderViewInDirection(
+                                        mTabDelegate,
+                                        mStripViews,
+                                        mStripGroupTitles,
+                                        mStripTabs,
+                                        assumeNonNull(findTabById(ids.get(0))),
+                                        toLeft);
+                            });
         }
         RectProvider anchorRectProvider = new RectProvider();
         getAnchorRect(anchorTab, anchorRectProvider);
@@ -3564,13 +3604,20 @@ public class StripLayoutHelper
     }
 
     private void requestCloseAnimations() {
+        if (!mSelected) {
+            finishCloseAnimations();
+            return;
+        }
         finishAnimations();
         mCloseAnimationsRequested = true;
         mUpdateHost.requestUpdate();
     }
 
     private void queueCloseAnimationsIfAny() {
-        if (!mCloseAnimationsRequested) return;
+        if (mCloseAnimationsRequested) queueCloseAnimations();
+    }
+
+    private void queueCloseAnimations() {
         mCloseAnimationsRequested = false;
 
         // TODO(crbug.com/450076798): Unify closing tabs + closing group titles logic.
@@ -3594,9 +3641,6 @@ public class StripLayoutHelper
                 new AnimatorListenerAdapter() {
                     @Override
                     public void onAnimationEnd(Animator animation) {
-                        // Reset any closing-related state on the closing views before they are
-                        // reused in the following rebuild.
-                        resetClosingViewsState();
                         boolean runImprovedTabAnimations = mStripTabs.length > 1;
                         rebuildStripTabs(/* deferAnimations= */ false);
                         if (!ChromeFeatureList.sTabletTabStripAnimation.isEnabled()) {
@@ -3607,27 +3651,6 @@ public class StripLayoutHelper
                 });
     }
 
-    private void resetClosingViewsState() {
-        // TODO(crbug.com/443337907): If the tab closure(s) are cancelled, we are notified after the
-        //  Tabs are already readded to the TabModel. This causes us to reuse these (stale) closing
-        //  views in the subsequent rebuild. As a temporary fix, we manually reset the relevant
-        //  state here. A longer term fix would be to be notified of the cancellation earlier in the
-        //  flow so we can #finishAnimations and rebuild without these closing views, so that we
-        //  don't end up reusing these stale views (and having to clear this state). e.g., add some
-        //  #willCancelTabClosure event.
-        for (StripLayoutGroupTitle groupTitle : mClosingGroupTitles) {
-            groupTitle.setIsDying(/* isDying= */ false);
-            groupTitle.setWillClose(/* willClose= */ false);
-        }
-        for (StripLayoutTab tab : mClosingTabs) {
-            tab.setOffsetY(/* offsetY= */ 0);
-            tab.setDrawY(/* y= */ 0);
-            tab.setIsDying(/* isDying= */ false);
-            tab.setWillClose(/* willClose= */ false);
-            tab.setIsClosed(/* isClosed= */ false);
-        }
-    }
-
     private void clearStateOnCloseAnimationsEnd() {
         for (StripLayoutGroupTitle groupTitle : mClosingGroupTitles) {
             clearClosingGroupTitleState(groupTitle.getTabGroupId());
@@ -3635,6 +3658,11 @@ public class StripLayoutHelper
         clearPendingMouseTabClosureState();
         mClosingTabs.clear();
         mClosingGroupTitles.clear();
+    }
+
+    private void finishCloseAnimations() {
+        queueCloseAnimations();
+        finishAnimations();
     }
 
     private AnimatorSet getAnimatorSet(
@@ -3676,7 +3704,7 @@ public class StripLayoutHelper
         // 2. Figure out which tabs need to be closed.
         ArrayList<StripLayoutTab> tabsToRemove = new ArrayList<>();
         for (StripLayoutTab tab : mStripTabs) {
-            if (tab.isDying()) tabsToRemove.add(tab);
+            if (tab.isDying() && !tab.shouldSkipAsyncClosure()) tabsToRemove.add(tab);
         }
 
         if (tabsToRemove.isEmpty()) return;

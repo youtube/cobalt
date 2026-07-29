@@ -49,6 +49,10 @@ class ProtoGmockGenerator : public google::protobuf::compiler::CodeGenerator {
   ProtoGmockGenerator() = default;
   ~ProtoGmockGenerator() override = default;
 
+  uint64_t GetSupportedFeatures() const override {
+    return FEATURE_PROTO3_OPTIONAL;
+  }
+
   bool Generate(const FileDescriptor* file,
                 const std::string& options,  // Options from build system
                 GeneratorContext* context,
@@ -199,7 +203,9 @@ $print_to_definitions$
       }
       std::string resolve_field_function;
       if (field.type() == FieldDescriptor::Type::TYPE_MESSAGE ||
-          field.type() == FieldDescriptor::Type::TYPE_GROUP) {
+          field.type() == FieldDescriptor::Type::TYPE_GROUP ||
+          field.type() == FieldDescriptor::Type::TYPE_STRING ||
+          field.type() == FieldDescriptor::Type::TYPE_BYTES) {
         resolve_field_function = "::proto_extras::ResolveRepeatedPtrField";
       } else {
         resolve_field_function = "::proto_extras::ResolveRepeatedField";

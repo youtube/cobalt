@@ -11,7 +11,6 @@
 #include "base/no_destructor.h"
 #include "base/state_transitions.h"
 #include "base/task/sequenced_task_runner.h"
-#include "chrome/browser/actor/actor_keyed_service.h"
 #include "chrome/browser/actor/actor_metrics.h"
 #include "chrome/browser/actor/execution_engine.h"
 #include "chrome/browser/actor/ui/event_dispatcher.h"
@@ -76,15 +75,15 @@ void ActorTask::ActingTabState::PrimaryPageChanged(content::Page& page) {
 ActorTask::ActorTask(Profile* profile,
                      std::unique_ptr<ExecutionEngine> execution_engine,
                      std::unique_ptr<ui::UiEventDispatcher> ui_event_dispatcher,
-                     webui::mojom::TaskOptionsPtr options)
+                     webui::mojom::TaskOptionsPtr options,
+                     base::WeakPtr<ActorTaskDelegate> delegate)
     : profile_(profile),
       execution_engine_(std::move(execution_engine)),
       ui_event_dispatcher_(std::move(ui_event_dispatcher)),
-      ui_weak_ptr_factory_(ui_event_dispatcher_.get()) {
-  if (options && options->title.has_value()) {
-    title_ = options->title.value();
-  }
-}
+      title_(options && options->title.has_value() ? options->title.value()
+                                                   : ""),
+      delegate_(std::move(delegate)),
+      ui_weak_ptr_factory_(ui_event_dispatcher_.get()) {}
 
 ActorTask::~ActorTask() = default;
 
@@ -296,6 +295,13 @@ void ActorTask::AddTab(tabs::TabHandle tab_handle, AddTabCallback callback) {
                                 ui::UiEventDispatcher::AddTab{
                                     .task_id = id_, .handle = tab_handle},
                                 std::move(callback)));
+
+  // Post-task this delegate call to avoid any performance issues.
+  if (delegate_) {
+    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE, base::BindOnce(&ActorTaskDelegate::OnTabAddedToTask,
+                                  delegate_, id_, tab_handle));
+  }
 }
 
 // TODO(crbug.com/450524344): Add a test for this. Note that at this point the

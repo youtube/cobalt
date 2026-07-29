@@ -76,7 +76,7 @@ export class SearchboxActionElement extends CrLitElement {
     }
   }
 
-  private onActionClick_(e: MouseEvent|KeyboardEvent) {
+  private onActionClick_(e: PointerEvent|KeyboardEvent) {
     this.fire('execute-action', {
       event: e,
       actionIndex: this.actionIndex,

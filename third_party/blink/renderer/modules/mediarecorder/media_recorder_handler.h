@@ -50,10 +50,6 @@ class MediaStreamDescriptor;
 struct WebMediaCapabilitiesInfo;
 struct WebMediaConfiguration;
 
-// Helper function to convert media recorder codec id to media video codec.
-MODULES_EXPORT media::VideoCodec MediaVideoCodecFromCodecId(
-    VideoTrackRecorder::CodecId id);
-
 // Helper function to parse a codec string to codec/profile/level.
 MODULES_EXPORT VideoTrackRecorder::CodecProfile VideoStringToCodecProfile(
     const String& codecs);
@@ -71,6 +67,14 @@ class MODULES_EXPORT MediaRecorderHandler final
       public VideoTrackRecorder::CallbackInterface,
       public AudioTrackRecorder::CallbackInterface {
  public:
+  // Caller for CanSupportMimeType. Influences emitted UMA histograms.
+  enum class CanSupportMimeTypeCaller {
+    kIsTypeSupported,
+    kMediaRecorderCtor,
+    kEncodingInfo,
+    kTest,
+  };
+
   MediaRecorderHandler(
       scoped_refptr<base::SingleThreadTaskRunner> main_thread_task_runner,
       KeyFrameRequestProcessor::Configuration key_frame_config);
@@ -84,7 +88,12 @@ class MODULES_EXPORT MediaRecorderHandler final
   // sufficient resources are not available to support the concrete media
   // encoding."
   // [1] https://w3c.github.io/mediacapture-record/MediaRecorder.html#methods
-  bool CanSupportMimeType(const String& type, const String& web_codecs);
+  bool CanSupportMimeType(const String& type,
+                          const String& web_codecs,
+                          CanSupportMimeTypeCaller caller);
+  bool CanSupportMimeTypeForCodec(const String& type, std::string_view codec);
+  static const char* StringFromCanSupportMimeTypeCaller(
+      CanSupportMimeTypeCaller);
   bool Initialize(MediaRecorder* client,
                   MediaStreamDescriptor* media_stream,
                   const String& type,
@@ -210,7 +219,7 @@ class MODULES_EXPORT MediaRecorderHandler final
 
   // Video Codec and profile, VP8 is used by default.
   VideoTrackRecorder::CodecProfile video_codec_profile_{
-      VideoTrackRecorder::CodecId::kLast};
+      media::VideoCodec::kUnknown};
 
   // Indicate if the parameter sets are allowed to be inserted into the
   // bitstream or must be "out of band" (can only be write to the
@@ -219,8 +228,7 @@ class MODULES_EXPORT MediaRecorderHandler final
   bool add_parameter_sets_in_bitstream_ = false;
 
   // Audio Codec, OPUS is used by default.
-  AudioTrackRecorder::CodecId audio_codec_id_{
-      AudioTrackRecorder::CodecId::kLast};
+  media::AudioCodec audio_codec_id_{media::AudioCodec::kUnknown};
 
   // Audio bitrate mode (constant, variable, etc.), VBR is used by default.
   AudioTrackRecorder::BitrateMode audio_bitrate_mode_;

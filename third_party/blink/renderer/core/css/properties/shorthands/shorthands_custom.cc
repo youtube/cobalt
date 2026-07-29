@@ -1085,6 +1085,79 @@ const CSSValue* RowRule::CSSValueFromComputedStyleInternal(
       value_phase, CSSGapDecorationPropertyDirection::kRow);
 }
 
+bool RuleBreak::ParseShorthand(
+    bool important,
+    CSSParserTokenStream& stream,
+    const CSSParserContext& context,
+    const CSSParserLocalContext&,
+    HeapVector<CSSPropertyValue, 64>& properties) const {
+  DCHECK_EQ(ruleBreakShorthand().length(), 2u);
+  CSSValue* rule_break = css_parsing_utils::ConsumeIdent<
+      CSSValueID::kNone, CSSValueID::kIntersection, CSSValueID::kSpanningItem>(
+      stream);
+
+  if (!rule_break) {
+    return false;
+  }
+
+  css_parsing_utils::AddProperty(
+      CSSPropertyID::kColumnRuleBreak, CSSPropertyID::kRuleBreak, *rule_break,
+      important, css_parsing_utils::IsImplicitProperty::kNotImplicit,
+      properties);
+  css_parsing_utils::AddProperty(
+      CSSPropertyID::kRowRuleBreak, CSSPropertyID::kRuleBreak, *rule_break,
+      important, css_parsing_utils::IsImplicitProperty::kNotImplicit,
+      properties);
+
+  return true;
+}
+
+const CSSValue* RuleBreak::CSSValueFromComputedStyleInternal(
+    const ComputedStyle& style,
+    const LayoutObject* layout_object,
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
+  return ComputedStyleUtils::ValuesForBidirectionalGapRuleShorthand(
+      ruleBreakShorthand(), style, layout_object, allow_visited_style,
+      value_phase);
+}
+
+bool RuleOutset::ParseShorthand(
+    bool important,
+    CSSParserTokenStream& stream,
+    const CSSParserContext& context,
+    const CSSParserLocalContext&,
+    HeapVector<CSSPropertyValue, 64>& properties) const {
+  DCHECK_EQ(ruleOutsetShorthand().length(), 2u);
+  CSSValue* rule_outset = css_parsing_utils::ConsumeLengthOrPercent(
+      stream, context, CSSPrimitiveValue::ValueRange::kAll);
+
+  if (!rule_outset) {
+    return false;
+  }
+
+  css_parsing_utils::AddProperty(
+      CSSPropertyID::kColumnRuleOutset, CSSPropertyID::kRuleOutset,
+      *rule_outset, important,
+      css_parsing_utils::IsImplicitProperty::kNotImplicit, properties);
+  css_parsing_utils::AddProperty(
+      CSSPropertyID::kRowRuleOutset, CSSPropertyID::kRuleOutset, *rule_outset,
+      important, css_parsing_utils::IsImplicitProperty::kNotImplicit,
+      properties);
+
+  return true;
+}
+
+const CSSValue* RuleOutset::CSSValueFromComputedStyleInternal(
+    const ComputedStyle& style,
+    const LayoutObject* layout_object,
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
+  return ComputedStyleUtils::ValuesForBidirectionalGapRuleShorthand(
+      ruleOutsetShorthand(), style, layout_object, allow_visited_style,
+      value_phase);
+}
+
 bool Columns::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
@@ -3975,29 +4048,26 @@ const CSSValue* TextDecoration::CSSValueFromComputedStyleInternal(
           continue;
         }
       }
-    } else if (RuntimeEnabledFeatures::
-                   TextDecorationShortSerializationEnabled()) {
-      if (property_id == CSSPropertyID::kTextDecorationLine) {
-        if (auto* identifier_value = DynamicTo<CSSIdentifierValue>(value)) {
-          // Skip the initial value.
-          if (identifier_value->GetValueID() == CSSValueID::kNone) {
-            continue;
-          }
-        }
-      } else if (property_id == CSSPropertyID::kTextDecorationStyle) {
-        if (auto* identifier_value = DynamicTo<CSSIdentifierValue>(value)) {
-          // Skip the initial value.
-          if (identifier_value->GetValueID() == CSSValueID::kSolid) {
-            continue;
-          }
-        }
-      } else if (RuntimeEnabledFeatures::
-                     TextDecorationOmitCurrentColorEnabled() &&
-                 property_id == CSSPropertyID::kTextDecorationColor) {
-        // Skip currentColor, which is the initial value.
-        if (style.TextDecorationColor().IsCurrentColor()) {
+    } else if (property_id == CSSPropertyID::kTextDecorationLine) {
+      if (auto* identifier_value = DynamicTo<CSSIdentifierValue>(value)) {
+        // Skip the initial value.
+        if (identifier_value->GetValueID() == CSSValueID::kNone) {
           continue;
         }
+      }
+    } else if (property_id == CSSPropertyID::kTextDecorationStyle) {
+      if (auto* identifier_value = DynamicTo<CSSIdentifierValue>(value)) {
+        // Skip the initial value.
+        if (identifier_value->GetValueID() == CSSValueID::kSolid) {
+          continue;
+        }
+      }
+    } else if (RuntimeEnabledFeatures::
+                   TextDecorationOmitCurrentColorEnabled() &&
+               property_id == CSSPropertyID::kTextDecorationColor) {
+      // Skip currentColor, which is the initial value.
+      if (style.TextDecorationColor().IsCurrentColor()) {
+        continue;
       }
     }
     DCHECK(value);

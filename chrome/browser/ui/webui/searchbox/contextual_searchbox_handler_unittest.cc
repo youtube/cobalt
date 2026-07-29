@@ -55,22 +55,6 @@ constexpr char kClientUploadDurationQueryParameter[] = "cud";
 constexpr char kQuerySubmissionTimeQueryParameter[] = "qsubts";
 constexpr char kQueryText[] = "query";
 
-class MockTabContextualizationController
-    : public lens::TabContextualizationController {
- public:
-  using TabContextualizationController::TabContextualizationController;
-
-  MOCK_METHOD(void,
-              GetPageContext,
-              (GetPageContextCallback callback),
-              (override));
-  MOCK_METHOD(void,
-              CaptureScreenshot,
-              (std::optional<lens::ImageEncodingOptions> image_options,
-               CaptureScreenshotCallback callback),
-              (override));
-};
-
 GURL StripTimestampsFromAimUrl(const GURL& url) {
   std::string qsubts_param;
   EXPECT_TRUE(net::GetValueForKeyInQuery(
@@ -94,15 +78,13 @@ class FakeContextualSearchboxHandler : public ContextualSearchboxHandler {
       mojo::PendingReceiver<searchbox::mojom::PageHandler> pending_page_handler,
       Profile* profile,
       content::WebContents* web_contents,
-      std::unique_ptr<ComposeboxMetricsRecorder> metrics_recorder)
+      std::unique_ptr<ComposeboxMetricsRecorder> metrics_recorder,
+      std::unique_ptr<OmniboxController> controller)
       : ContextualSearchboxHandler(std::move(pending_page_handler),
                                    profile,
                                    web_contents,
                                    std::move(metrics_recorder),
-                                   std::make_unique<OmniboxController>(
-                                       /*view=*/nullptr,
-                                       std::make_unique<TestOmniboxClient>())) {
-  }
+                                   std::move(controller)) {}
   ~FakeContextualSearchboxHandler() override = default;
 
   // searchbox::mojom::PageHandler
@@ -127,12 +109,15 @@ class ContextualSearchboxHandlerTest
   void SetUp() override {
     ContextualSearchboxHandlerTestHarness::SetUp();
 
+    auto query_controller_config_params = std::make_unique<
+        ComposeboxQueryController::QueryControllerConfigParams>();
+    query_controller_config_params->send_lns_surface = false;
+    query_controller_config_params->enable_multi_context_input_flow = false;
+    query_controller_config_params->enable_viewport_images = true;
     auto query_controller_ptr = std::make_unique<MockQueryController>(
         /*identity_manager=*/nullptr, url_loader_factory(),
         version_info::Channel::UNKNOWN, "en-US", template_url_service(),
-        fake_variations_client(), /*send_lns_surface=*/false,
-        /*enable_multi_context_input_flow=*/false,
-        /*enable_viewport_images=*/true);
+        fake_variations_client(), std::move(query_controller_config_params));
     query_controller_ = query_controller_ptr.get();
 
     service_ = std::make_unique<ContextualSessionService>(
@@ -151,7 +136,9 @@ class ContextualSearchboxHandlerTest
     metrics_recorder_ = metrics_recorder_ptr.get();
     handler_ = std::make_unique<FakeContextualSearchboxHandler>(
         mojo::PendingReceiver<searchbox::mojom::PageHandler>(), profile(),
-        web_contents(), std::move(metrics_recorder_ptr));
+        web_contents(), std::move(metrics_recorder_ptr),
+        std::make_unique<OmniboxController>(
+            /*view=*/nullptr, std::make_unique<TestOmniboxClient>()));
 
     handler_->SetPage(mock_searchbox_page_.BindAndGetRemote());
   }
@@ -475,6 +462,32 @@ TEST_F(ContextualSearchboxHandlerTestTabsTest, TabContextAddedMetric) {
   // Check that the histogram was recorded.
   histogram_tester().ExpectUniqueSample("NewTabPage.Composebox.TabContextAdded",
                                         true, 1);
+}
+
+TEST_F(ContextualSearchboxHandlerTestTabsTest,
+       TabStripModelObserverIsAddedWithValidSession) {
+  EXPECT_CALL(mock_searchbox_page_, OnTabStripChanged).Times(1);
+  handler().OnTabStripModelChanged(tab_strip_model(), {}, {});
+}
+
+TEST_F(ContextualSearchboxHandlerTestTabsTest,
+       TabStripModelObserverIsNotAddedWithNullSession) {
+  // Create a handler with a null session handle.
+  auto handler_with_null_session =
+      std::make_unique<FakeContextualSearchboxHandler>(
+          mojo::PendingReceiver<searchbox::mojom::PageHandler>(), profile(),
+          web_contents(), std::make_unique<MockComposeboxMetricsRecorder>(),
+          nullptr);
+
+  // Use a new MockSearchboxPage for the new handler.
+  testing::NiceMock<MockSearchboxPage> local_mock_searchbox_page;
+  handler_with_null_session->SetPage(
+      local_mock_searchbox_page.BindAndGetRemote());
+
+  // The observer should not be added, so OnTabStripChanged should not be
+  // called.
+  EXPECT_CALL(local_mock_searchbox_page, OnTabStripChanged).Times(0);
+  handler_with_null_session->OnTabStripModelChanged(tab_strip_model(), {}, {});
 }
 
 TEST_F(ContextualSearchboxHandlerTestTabsTest,

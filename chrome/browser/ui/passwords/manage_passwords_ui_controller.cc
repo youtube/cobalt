@@ -1234,7 +1234,7 @@ void ManagePasswordsUIController::UpdateBubbleAndIconVisibility() {
   }
 
   // If Actor is operating on the tab, suppress all popups.
-  if (IsActorOperatingOnTab()) {
+  if (passwords_data_.client()->IsActorTaskActive()) {
     ClearPopUpFlagForBubble();
   }
 
@@ -1524,7 +1524,7 @@ ManagePasswordsUIController::GetBubbleControllerBaseWeakPtr() {
 }
 
 bool ManagePasswordsUIController::CanBeReshown() const {
-  return true;
+  return GetState() != password_manager::ui::AUTO_SIGNIN_STATE;
 }
 
 void ManagePasswordsUIController::OnMouseEntered() {
@@ -1557,18 +1557,6 @@ void ManagePasswordsUIController::QueueOrShowBubble(bool user_action) {
   }
 
   ShowBubble();
-}
-
-bool ManagePasswordsUIController::IsActorOperatingOnTab() {
-  auto* actor_service =
-      actor::ActorKeyedService::Get(web_contents()->GetBrowserContext());
-  if (!actor_service) {
-    return false;
-  }
-
-  const auto* tab_interface =
-      tabs::TabInterface::MaybeGetFromContents(web_contents());
-  return tab_interface && actor_service->IsActiveOnTab(*tab_interface);
 }
 
 WEB_CONTENTS_USER_DATA_KEY_IMPL(ManagePasswordsUIController);

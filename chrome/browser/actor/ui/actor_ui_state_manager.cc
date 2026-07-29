@@ -16,6 +16,7 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/browser_window/public/desktop_browser_window_capabilities.h"
 #include "chrome/browser/ui/tabs/public/tab_features.h"
 #include "chrome/browser/ui/toasts/api/toast_id.h"
 #include "chrome/browser/ui/toasts/toast_controller.h"
@@ -239,6 +240,10 @@ void ActorUiStateManager::MaybeShowToast(BrowserWindowInterface* bwi) {
     return;
   }
 
+  if (!bwi || bwi->capabilities()->IsAttemptingToCloseBrowser()) {
+    return;
+  }
+
   PrefService* pref_service = actor_service_->GetProfile()->GetPrefs();
   int toast_shown_count = pref_service->GetInteger(kToastShown);
 
@@ -250,11 +255,11 @@ void ActorUiStateManager::MaybeShowToast(BrowserWindowInterface* bwi) {
     return;
   }
 
-  auto ids = actor_service_->FindTaskIdsInActive(
-      base::BindRepeating([](const ActorTask& task) {
+  auto ids =
+      actor_service_->FindTaskIdsInActive([](const ActorTask& task) {
         return task.GetState() == ActorTask::State::kActing ||
                task.GetState() == ActorTask::State::kReflecting;
-      }));
+      });
 
   if (!ids.empty() && MaybeShowToastViaController(bwi)) {
     pref_service->SetInteger(kToastShown, toast_shown_count + 1);

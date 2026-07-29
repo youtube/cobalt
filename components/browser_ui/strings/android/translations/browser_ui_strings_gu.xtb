@@ -121,6 +121,7 @@
 <translation id="2359808026110333948">આગળ વધો</translation>
 <translation id="2379925928934107488">શક્ય હોય ત્યારે, Chrome જ્યારે ઘેરી થીમનો ઉપયોગ કરે, ત્યારે સાઇટ પર ઘેરી થીમ લાગુ કરો</translation>
 <translation id="2390272837142897736">નાનું-મોટું કરવાની ટકાવારી વધારો</translation>
+<translation id="2397689164757137845">મંજૂરી આપવામાં આવી છે • સચોટ</translation>
 <translation id="2402980924095424747"><ph name="MEGABYTES" /> MB</translation>
 <translation id="2403474027143565107">સચોટ</translation>
 <translation id="2404630663942400771">{PERMISSIONS_SUMMARY_ALLOWED,plural, =1{<ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> અને વધુ <ph name="NUM_MORE" />ની મંજૂરી આપી}one{<ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> અને વધુ <ph name="NUM_MORE" />ની મંજૂરી આપી}other{<ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> અને વધુ <ph name="NUM_MORE" />ની મંજૂરી આપી}}</translation>
@@ -140,6 +141,7 @@
 <translation id="2498359688066513246">સહાય અને પ્રતિસાદ</translation>
 <translation id="2501278716633472235">પાછા જાઓ</translation>
 <translation id="2533138527374486328">જ્યારે વિકલ્પ ચાલુ હોય, ત્યારે સાઇટ, તમારા સ્થાનિક નેટવર્ક પર કોઈપણ ડિવાઇસ સાથે કનેક્ટ કરવાનું પૂછી શકે છે. જ્યારે વિકલ્પ બંધ હોય, ત્યારે સાઇટ તમારા સ્થાનિક નેટવર્ક પર ડિવાઇસ સાથે કનેક્ટ કરી શકતી નથી.</translation>
+<translation id="2536779053640817375">આ વખતે મંજૂરી આપવામાં આવી છે • સચોટ</translation>
 <translation id="2544997614631598250">ડાર્ક રંગવાળી થીમ</translation>
 <translation id="2546283357679194313">કૂકીઝ અને સાઇટ ડેટા</translation>
 <translation id="2570922361219980984">આ ઉપકરણ માટે સ્થાન ઍક્સેસ પણ બંધ છે. તેને <ph name="BEGIN_LINK" />Android સેટિંગ<ph name="END_LINK" />માં ચાલુ કરો.</translation>
@@ -442,6 +444,7 @@
 <translation id="5876056640971328065">વીડિયો થોભાવો</translation>
 <translation id="5877248419911025165">બધી વિનંતીઓ નાની કરો</translation>
 <translation id="5878945009165002849">ઓળખ સેવાઓના સાઇન ઇન કરવાના સંકેતો બ્લૉક કરો</translation>
+<translation id="588258955323874662">પૂર્ણસ્ક્રીન</translation>
 <translation id="5884085660368669834">સાઇટની પસંદગી</translation>
 <translation id="5887687176710214216">છેલ્લે કાલે મુલાકાત લીધી</translation>
 <translation id="5908617755156109052">સાઇટને તમારી આસપાસનો 3D નકશો બનાવવાની કે કૅમેરાની સ્થિતિ ટ્રૅક કરવાની મંજૂરી આપશો નહીં</translation>
@@ -569,6 +572,7 @@
 <translation id="7406113532070524618">આ સેટિંગ તમારી ઓળખ કર્યા વિના અથવા સાઇટને તમારો બ્રાઉઝિંગ ઇતિહાસ જોવાની મંજૂરી આપ્યા વિના કામ કરે છે, તેમ છતાં ચકાસણીના ભાગ તરીકે થોડીક માહિતી શેર કરી શકે છે</translation>
 <translation id="7409735910987429903">સાઇટ કદાચ જાહેરાતો બતાવવા માટે પૉપ-અપ મોકલે અથવા તમારે જેની મુલાકાત ન લેવી હોય તેવી વેબસાઇટ પર તમને રીડાયરેક્ટ કરવા માટે રીડાયરેક્ટનો ઉપયોગ કરે</translation>
 <translation id="7412160840120117304">મુખ્ય રંગનું હેક્સ</translation>
+<translation id="7412223528111026033">{ZOOM_PERCENTAGE,plural, =1{નાનું-મોટું કરો}one{નાનું-મોટું કરો: <ph name="ZOOM_PERCENTAGE_NUMBER" />%%}other{નાનું-મોટું કરો: <ph name="ZOOM_PERCENTAGE_NUMBER" />%%}}</translation>
 <translation id="7423098979219808738">પ્રથમ પૂછો</translation>
 <translation id="7423538860840206698">ક્લિપબોર્ડ વાંચવાનું બ્લૉક કરેલ છે</translation>
 <translation id="7425915948813553151">સાઇટ માટે ઘેરી થીમ</translation>
@@ -700,7 +704,6 @@
 <translation id="8803526663383843427">જ્યારે ચાલુ હોય</translation>
 <translation id="8805385115381080995">બ્રાઉઝિંગની સ્પીડ વધી જાય છે, કારણ કે અલગ-અલગ સાઇટ દ્વારા ચકાસણી માટે તમને એ પૂછવાની શક્યતા ઘટી જાય છે કે તમે જ અસલી વપરાશકર્તા છો</translation>
 <translation id="8816026460808729765">સાઇટને સેન્સરને ઍક્સેસ કરવાથી બ્લૉક કરો</translation>
-<translation id="884765916894384048">બૅકગ્રાઉન્ડ પર જાઓ</translation>
 <translation id="8847988622838149491">USB</translation>
 <translation id="8874790741333031443">ત્રીજા પક્ષની કુકીને હંગામી રીતે મંજૂરી આપવાનો પ્રયાસ કરવાનો અર્થ છે બ્રાઉઝિંગ સંરક્ષણ સાઇટ સુવિધાઓની અપેક્ષા મુજબ કાર્ય કરવાની સંભાવના વધુ છે.</translation>
 <translation id="8889294078294184559">જેમ જેમ તમે બ્રાઉઝ કરવાનું ચાલુ રાખો છો, તેમ તેમ વિવિધ વેબસાઇટ Chrome વડે એ ચેક કરી શકે છે કે તમે અસલી વપરાશકર્તા છો કે નહીં અને સાથે જ તમે મુલાકાત લીધી હોય એવી અગાઉની સાઇટ વડે આ બાબતની ચકાસણી પણ તે કરી શકે છે</translation>

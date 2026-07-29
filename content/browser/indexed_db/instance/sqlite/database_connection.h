@@ -17,6 +17,7 @@
 #include "base/memory/weak_ptr.h"
 #include "base/types/expected.h"
 #include "base/types/pass_key.h"
+#include "content/browser/indexed_db/indexed_db_data_loss_info.h"
 #include "content/browser/indexed_db/indexed_db_external_object_storage.h"
 #include "content/browser/indexed_db/instance/backing_store.h"
 #include "content/browser/indexed_db/instance/sqlite/active_blob_streamer.h"
@@ -73,6 +74,9 @@ class CONTENT_EXPORT DatabaseConnection {
   ~DatabaseConnection();
 
   const blink::IndexedDBDatabaseMetadata& metadata() const { return metadata_; }
+  const IndexedDBDataLossInfo& data_loss_info() const {
+    return data_loss_info_;
+  }
 
   // Gets the version of the database that is actually committed. This can be
   // different from the version in `metadata_` during a version change
@@ -250,6 +254,8 @@ class CONTENT_EXPORT DatabaseConnection {
 
   DatabaseConnection(base::FilePath path, BackingStoreImpl& backing_store);
 
+  bool in_memory() const { return path_.empty(); }
+
   // All startup/initialization tasks that can error are performed here. Will
   // return Status::OK() on success. `name` must be provided if the database is
   // new. If the database is pre-existing, `name` may not be provided, but if it
@@ -294,8 +300,9 @@ class CONTENT_EXPORT DatabaseConnection {
 
   // The connection needs to be held open when there are active blobs or an
   // active BackingStore::Database referencing it. This will return false if
-  // that's the case.
-  bool CanBeDestroyed() const;
+  // that's the case. Even when this is false, `this` may be destroyed if the
+  // `BucketContext` is force-closed.
+  bool CanSelfDestruct() const;
 
   // Attempts to read metadata from the SQLite DB for storing in memory (in
   // `metadata_`).
@@ -331,8 +338,10 @@ class CONTENT_EXPORT DatabaseConnection {
     kBlobChunkMissing = 12,
     kObjectStoreNotFound = 13,
     kBlobTypeUnknown = 14,
+    kV8FormatTooNewOrMissing = 15,
+    kUtf16StringUnreadable = 16,
 
-    kMaxValue = kBlobTypeUnknown,
+    kMaxValue = kUtf16StringUnreadable,
   };
   // LINT.ThenChange(//tools/metrics/histograms/metadata/storage/enums.xml:IndexedDbSqliteSpecificEvent)
 
@@ -431,6 +440,10 @@ class CONTENT_EXPORT DatabaseConnection {
   // True once `DeleteIdbDatabase` has been called, or if a fatal error occurred
   // that we can't recover from.
   bool marked_for_permanent_deletion_ = false;
+
+  // Information relating to any previous data that may have been lost while
+  // attempting to open this database.
+  IndexedDBDataLossInfo data_loss_info_;
 
   // TODO(crbug.com/419203257): this should invalidate its weak pointers when
   // `db_` is closed.

@@ -49,8 +49,13 @@ export class ContextMenuEntrypointElement extends
   static override get properties() {
     return {
       inputsDisabled: {type: Boolean},
+      fileNum: {type: Number},
       showContextMenuDescription: {type: Boolean},
       inCreateImageMode: {
+        reflect: true,
+        type: Boolean,
+      },
+      hasImageFiles: {
         reflect: true,
         type: Boolean,
       },
@@ -66,40 +71,71 @@ export class ContextMenuEntrypointElement extends
         reflect: true,
         type: Boolean,
       },
+      entrypointName: {type: String},
     };
   }
 
   accessor inputsDisabled: boolean = false;
+  accessor fileNum: number = 0;
   accessor showContextMenuDescription: boolean = false;
   accessor inCreateImageMode: boolean = false;
+  accessor hasImageFiles: boolean = false;
   accessor disabledTabIds: Set<number> = new Set();
+  accessor entrypointName: string = '';
   protected accessor tabSuggestions_: TabInfo[] = [];
   protected accessor tabPreviewUrl_: string = '';
   protected accessor tabPreviewsEnabled_: boolean =
       loadTimeData.getBoolean('composeboxShowContextMenuTabPreviews');
   protected accessor showDeepSearch_: boolean =
       loadTimeData.getBoolean('composeboxShowDeepSearchButton');
-
   protected accessor showCreateImage_: boolean =
       loadTimeData.getBoolean('composeboxShowCreateImageButton');
+  protected maxFileCount_: number =
+      loadTimeData.getInteger('composeboxFileMaxCount');
 
   constructor() {
     super();
   }
 
+  // Checks if the image upload item in the context menu should be disabled.
+  protected get imageUploadDisabled_(): boolean {
+    return this.fileNum >= this.maxFileCount_ ||
+        (this.inCreateImageMode && this.hasImageFiles);
+  }
+
+  // Checks if the file upload item in the context menu should be disabled.
+  protected get fileUploadDisabled_(): boolean {
+    return this.inCreateImageMode || this.fileNum >= this.maxFileCount_;
+  }
+
+  // Checks if the deep search item in the context menu should be disabled.
+  protected get deepSearchDisabled_(): boolean {
+    return this.inCreateImageMode || this.fileNum === 1 || this.fileNum > 1;
+  }
+
+  // Checks if the create image item in the context menu should be disabled.
+  protected get createImageDisabled_(): boolean {
+    return this.fileNum > 1 || ((this.fileNum === 1) && !this.hasImageFiles);
+  }
+
+  // Checks if a tab item in the context menu should be disabled.
+  protected isTabDisabled_(tab: TabInfo): boolean {
+    return this.inCreateImageMode || this.fileNum >= this.maxFileCount_ ||
+        this.disabledTabIds.has(tab.tabId);
+  }
+
   protected onEntrypointClick_() {
-    this.fire('refresh-tab-suggestions', {
-      onRefreshComplete: (tabs: TabInfo[]) => {
-        this.tabSuggestions_ = tabs;
-        const entrypoint =
-            this.shadowRoot.querySelector<HTMLElement>('#entrypoint');
-        assert(entrypoint);
-        this.$.menu.showAt(entrypoint, {
-          top: entrypoint.getBoundingClientRect().bottom,
-          width: MENU_WIDTH_PX,
-          anchorAlignmentX: AnchorAlignment['AFTER_START'],
-        });
-      }});
+    const metricName =
+        'NewTabPage.' + this.entrypointName + '.ContextMenuEntry.Clicked';
+    chrome.metricsPrivate.recordBoolean(metricName, true);
+    const entrypoint =
+        this.shadowRoot.querySelector<HTMLElement>('#entrypoint');
+    assert(entrypoint);
+    this.$.menu.showAt(entrypoint, {
+      top: entrypoint.getBoundingClientRect().bottom,
+      width: MENU_WIDTH_PX,
+      anchorAlignmentX: AnchorAlignment['AFTER_START'],
+    });
   }
 
   protected addTabContext_(e: Event) {
@@ -153,7 +189,6 @@ export class ContextMenuEntrypointElement extends
   }
 
   protected onDeepSearchClick_() {
-    this.inputsDisabled = !this.inputsDisabled;
     this.fire('deep-search-click');
     this.$.menu.close();
   }

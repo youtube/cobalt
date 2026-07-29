@@ -44,6 +44,9 @@ BASE_FEATURE(kBiometricTouchToFill, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kCheckIfSubmittedFormIdenticalToObserved,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
+BASE_FEATURE(kCheckVisibilityInChangePasswordFormWaiter,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 BASE_FEATURE(kCheckLoginStateBeforePasswordChange,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -66,6 +69,9 @@ BASE_FEATURE(kClearUndecryptablePasswordsOnSync,
 );
 
 BASE_FEATURE(kDebugUiForOtps, base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kDownloadModelForPasswordChange,
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)  // Desktop
 BASE_FEATURE(kEnableActorLoginPermissions, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -166,9 +172,6 @@ BASE_FEATURE(kEnablePasswordManagerMojoApi, base::FEATURE_ENABLED_BY_DEFAULT);
 #endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
 
 BASE_FEATURE(kImprovedPasswordChangeService, base::FEATURE_DISABLED_BY_DEFAULT);
-
-BASE_FEATURE(kSubmitWithEnterDuringPasswordChange,
-             base::FEATURE_DISABLED_BY_DEFAULT);
 
 #if BUILDFLAG(IS_ANDROID)
 BASE_FEATURE(kReloadPasswordsOnTrustedVaultEncryptionChange,
