@@ -113,14 +113,16 @@ class TestRenderFrameHost : public RenderFrameHostImpl,
   int GetHeavyAdIssueCount(HeavyAdIssueType type) override;
   void SimulateManifestURLUpdate(const GURL& manifest_url) override;
   TestRenderFrameHost* AppendFencedFrame() override;
+#if !BUILDFLAG(IS_COBALT)
   void CreateWebUsbServiceForTesting(
       mojo::PendingReceiver<blink::mojom::WebUsbService> receiver) override;
+#endif
   void ResetLocalFrame() override;
 
-#if !BUILDFLAG(IS_ANDROID)
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT)
   void CreateHidServiceForTesting(
       mojo::PendingReceiver<blink::mojom::HidService> receiver) override;
-#endif  // !BUILDFLAG(IS_ANDROID)
+#endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT)
 
   void SendNavigate(int nav_entry_id,
                     bool did_create_new_entry,

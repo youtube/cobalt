@@ -26,12 +26,12 @@
 #include "src/compiler/turboshaft/graph.h"
 #include "src/compiler/turboshaft/index.h"
 #include "src/compiler/turboshaft/machine-optimization-reducer.h"
-#include "src/compiler/turboshaft/maglev-early-lowering-reducer-inl.h"
 #include "src/compiler/turboshaft/operations.h"
 #include "src/compiler/turboshaft/phase.h"
 #include "src/compiler/turboshaft/representations.h"
 #include "src/compiler/turboshaft/required-optimization-reducer.h"
 #include "src/compiler/turboshaft/sidetable.h"
+#include "src/compiler/turboshaft/turbolev-early-lowering-reducer-inl.h"
 #include "src/compiler/turboshaft/utils.h"
 #include "src/compiler/turboshaft/value-numbering-reducer.h"
 #include "src/compiler/turboshaft/variable-reducer.h"
@@ -482,7 +482,7 @@ constexpr bool TooManyArgumentsForCall(size_t arguments_count) {
 class GraphBuildingNodeProcessor {
  public:
   using AssemblerT =
-      TSAssembler<BlockOriginTrackingReducer, MaglevEarlyLoweringReducer,
+      TSAssembler<BlockOriginTrackingReducer, TurbolevEarlyLoweringReducer,
                   MachineOptimizationReducer, VariableReducer,
                   RequiredOptimizationReducer, ValueNumberingReducer>;
 
@@ -2650,10 +2650,11 @@ class GraphBuildingNodeProcessor {
   maglev::ProcessResult Process(maglev::ExtendPropertiesBackingStore* node,
                                 const maglev::ProcessingState& state) {
     GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
-    SetMap(node, __ ExtendPropertiesBackingStore(
-                     Map(node->property_array_input()),
-                     Map(node->object_input()), node->old_length(), frame_state,
-                     node->eager_deopt_info()->feedback_to_update()));
+    SetMap(node,
+           __ ExtendPropertiesBackingStore(
+               Map(node->property_array_input()), Map(node->object_input()),
+               node->old_map(), node->old_length(), frame_state,
+               node->eager_deopt_info()->feedback_to_update()));
     return maglev::ProcessResult::kContinue;
   }
 
@@ -3970,9 +3971,33 @@ class GraphBuildingNodeProcessor {
     SetMap(node, __ Word32CountLeadingZeros(Map(node->input())));
     return maglev::ProcessResult::kContinue;
   }
-  maglev::ProcessResult Process(maglev::SmiCountLeadingZeros* node,
+  maglev::ProcessResult Process(maglev::TaggedCountLeadingZeros* node,
                                 const maglev::ProcessingState& state) {
-    SetMap(node, __ Word32CountLeadingZeros(__ UntagSmi(Map(node->input()))));
+    ScopedVar<Word32, AssemblerT> result(this);
+    V<Object> value = Map(node->input());
+    IF (__ IsSmi(value)) {
+      result = __ Word32CountLeadingZeros(__ UntagSmi(V<Smi>::Cast(value)));
+    } ELSE {
+#ifdef DEBUG
+      Label<> abort(this);
+      Label<> heap_number(this);
+
+      V<i::Map> map = __ LoadMapField(value);
+      V<Word32> is_heap_number = __ TaggedEqual(
+          map, __ HeapConstant(local_factory_->heap_number_map()));
+      GOTO_IF_NOT(is_heap_number, abort);
+      GOTO(heap_number);
+
+      BIND(abort);
+      __ RuntimeAbort(AbortReason::kUnexpectedValue);
+      __ Unreachable();
+
+      BIND(heap_number);
+#endif
+      result = __ Word32CountLeadingZeros(__ JSTruncateFloat64ToWord32(
+          __ LoadHeapNumberValue(V<HeapNumber>::Cast(value))));
+    }
+    SetMap(node, result);
     return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(maglev::Float64CountLeadingZeros* node,
@@ -6299,9 +6324,9 @@ void RunMaglevOptimizations(PipelineData* data,
   }
 }
 
-std::optional<BailoutReason> MaglevGraphBuildingPhase::Run(PipelineData* data,
-                                                           Zone* temp_zone,
-                                                           Linkage* linkage) {
+std::optional<BailoutReason> TurbolevGraphBuildingPhase::Run(PipelineData* data,
+                                                             Zone* temp_zone,
+                                                             Linkage* linkage) {
   JSHeapBroker* broker = data->broker();
   UnparkedScopeIfNeeded unparked_scope(broker);
 

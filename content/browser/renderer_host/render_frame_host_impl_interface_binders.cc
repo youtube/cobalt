@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "base/debug/dump_without_crashing.h"
+
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
@@ -13,7 +14,9 @@
 #include "base/metrics/metrics_hashes.h"
 #include "base/task/single_thread_task_runner.h"
 #include "content/browser/accessibility/render_accessibility_host.h"
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #include "content/browser/attribution_reporting/attribution_host.h"
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #include "content/browser/blob_storage/chrome_blob_storage_context.h"
 #include "content/browser/file_system/file_system_manager_impl.h"
 #include "content/browser/geolocation/geolocation_service_impl.h"
@@ -22,7 +25,9 @@
 #include "content/browser/renderer_host/page_lifecycle_state_manager.h"
 #include "content/browser/renderer_host/render_frame_host_delegate.h"
 #include "content/browser/renderer_host/render_frame_host_impl.h"
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #include "content/browser/renderer_host/render_view_host_impl.h"
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #include "content/browser/shared_storage/shared_storage_document_service_impl.h"
 #include "content/common/dom_automation_controller.mojom.h"
 #include "content/common/frame.mojom.h"
@@ -219,6 +224,7 @@ void RenderFrameHostImpl::SetUpMojoConnection() {
                     blink::mojom::LocalFrameHost::Name_));
           },
           base::Unretained(this)));
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 
   if (base::FeatureList::IsEnabled(network::features::kSharedStorageAPI)) {
     associated_registry_->AddInterface<
@@ -261,6 +267,7 @@ void RenderFrameHostImpl::SetUpMojoConnection() {
         },
         base::Unretained(this)));
   }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 
   if (is_main_frame()) {
     associated_registry_->AddInterface<blink::mojom::LocalMainFrameHost>(
@@ -330,6 +337,7 @@ void RenderFrameHostImpl::SetUpMojoConnection() {
           },
           base::Unretained(this)));
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   associated_registry_->AddInterface<blink::mojom::AttributionHost>(
       base::BindRepeating(
           [](RenderFrameHostImpl* impl,
@@ -338,6 +346,7 @@ void RenderFrameHostImpl::SetUpMojoConnection() {
             AttributionHost::BindReceiver(std::move(receiver), impl);
           },
           base::Unretained(this)));
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 
   associated_registry_->AddInterface<device::mojom::ScreenOrientation>(
       base::BindRepeating(
