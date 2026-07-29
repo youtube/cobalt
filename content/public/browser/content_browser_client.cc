@@ -88,6 +88,7 @@
 #include "third_party/blink/public/mojom/file_system_access/file_system_access_error.mojom.h"
 #include "third_party/blink/public/mojom/origin_trials/origin_trials_settings.mojom.h"
 #include "third_party/blink/public/mojom/payments/secure_payment_confirmation_service.mojom.h"
+#include "ui/base/clipboard/clipboard_metadata.h"
 #include "ui/gfx/image/image_skia.h"
 #include "ui/shell_dialogs/select_file_policy.h"
 #include "url/gurl.h"
@@ -166,6 +167,10 @@ bool ContentBrowserClient::ShouldCompareEffectiveURLsForSiteInstanceSelection(
   DCHECK(browser_context);
   return true;
 }
+
+void ContentBrowserClient::OnRendererProcessLockedStateUpdated(
+    RenderProcessHost* host,
+    const GURL& site_url) {}
 
 bool ContentBrowserClient::IsExplicitNavigation(ui::PageTransition transition) {
   return transition & ui::PAGE_TRANSITION_FROM_ADDRESS_BAR;
@@ -1353,6 +1358,12 @@ ContentBrowserClient::CreateWindowForVideoPictureInPicture(
   return nullptr;
 }
 
+base::ScopedClosureRunner
+ContentBrowserClient::MaybeGetScopedPictureInPictureTucker(
+    WebContents* web_contents) {
+  return base::ScopedClosureRunner();
+}
+
 media::PictureInPictureEventsInfo::AutoPipInfo
 ContentBrowserClient::GetAutoPipInfo(const WebContents& web_contents) const {
   return media::PictureInPictureEventsInfo::AutoPipInfo();
@@ -1530,7 +1541,7 @@ bool ContentBrowserClient::IsClipboardPasteAllowed(
 void ContentBrowserClient::IsClipboardPasteAllowedByPolicy(
     const ClipboardEndpoint& source,
     const ClipboardEndpoint& destination,
-    const ClipboardMetadata& metadata,
+    const ui::ClipboardMetadata& metadata,
     ClipboardPasteData clipboard_paste_data,
     IsClipboardPasteAllowedCallback callback) {
   std::move(callback).Run(std::move(clipboard_paste_data));
@@ -1538,7 +1549,7 @@ void ContentBrowserClient::IsClipboardPasteAllowedByPolicy(
 
 void ContentBrowserClient::IsClipboardCopyAllowedByPolicy(
     const ClipboardEndpoint& source,
-    const ClipboardMetadata& metadata,
+    const ui::ClipboardMetadata& metadata,
     const ClipboardPasteData& data,
     IsClipboardCopyAllowedCallback callback) {
   std::move(callback).Run(metadata.format_type, data, std::nullopt);
@@ -1973,6 +1984,12 @@ std::optional<std::vector<std::u16string>>
 ContentBrowserClient::GetClipboardTypesIfPolicyApplied(
     const ui::ClipboardSequenceNumberToken& seqno) {
   return std::nullopt;
+}
+
+bool ContentBrowserClient::ShouldEnableCanvasNoise(
+    BrowserContext* browser_context,
+    const GURL& origin) {
+  return false;
 }
 
 }  // namespace content

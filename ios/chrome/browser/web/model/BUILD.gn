@@ -132,6 +132,7 @@ source_set("page_placeholder") {
     "//ios/chrome/browser/shared/ui/elements",
     "//ios/chrome/browser/shared/ui/util",
     "//ios/chrome/browser/snapshots/model",
+    "//ios/chrome/browser/snapshots/model:features",
     "//ios/chrome/browser/tabs/model:features",
     "//ios/chrome/common/ui/util",
     "//ios/net",
@@ -458,7 +459,6 @@ source_set("eg_app_support+eg2") {
     "//ios/components/security_interstitials/lookalikes",
     "//ios/testing/earl_grey:eg_app_support+eg2",
     "//ios/third_party/earl_grey2:app_framework+link",
-    "//ios/third_party/material_components_ios",
     "//ios/web/public",
     "//net",
   ]

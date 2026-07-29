@@ -4,7 +4,7 @@
 
 import {loadTimeData} from '//resources/js/load_time_data.js';
 
-import {getCurrentSpeechRate, playFromSelectionTimeout} from '../common.js';
+import {getCurrentSpeechRate, getWordCount, playFromSelectionTimeout} from '../common.js';
 import {NodeStore} from '../node_store.js';
 import {ReadAnythingLogger} from '../read_anything_logger.js';
 import type {SpeechBrowserProxy} from '../speech_browser_proxy.js';
@@ -231,15 +231,6 @@ export class SpeechController {
     this.logger_.logHighlightGranularity(newGranularity);
   }
 
-  onLinksToggled() {
-    // Rehighlight the current granularity text after links have been
-    // toggled on or off to ensure the entire granularity segment is
-    // highlighted.
-    if (this.highlighter_.hasCurrentHighlights()) {
-      this.highlightCurrentGranularity_(chrome.readingMode.getCurrentText());
-    }
-  }
-
   onPlayPauseToggle(selection: Selection|null, textContent: string|null) {
     if (this.isSpeechActive()) {
       this.stopSpeech_(PauseActionSource.BUTTON_CLICK);
@@ -258,12 +249,18 @@ export class SpeechController {
   }
 
   onNextGranularityClick() {
-    this.moveGranularity_();
-    chrome.readingMode.movePositionToNextGranularity();
-
+    this.moveToNextGranularity_();
+    this.onMovingGranularity_();
     if (!this.highlightAndPlayMessage_()) {
       this.onSpeechFinished_();
     }
+  }
+
+  // Prefer calling this rather than movePositionToNextGranularity directly so
+  // that the highlighter is always informed of the change.
+  private moveToNextGranularity_() {
+    this.highlighter_.onWillMoveToNextGranularity();
+    chrome.readingMode.movePositionToNextGranularity();
   }
 
   onPreviousGranularityClick() {
@@ -271,7 +268,7 @@ export class SpeechController {
     // chrome.readingMode.movePositionToPreviousGranularity so we can accurately
     // determine what's currently being highlighted.
     this.highlighter_.removeCurrentHighlight();
-    this.moveGranularity_();
+    this.onMovingGranularity_();
     chrome.readingMode.movePositionToPreviousGranularity();
 
     if (!this.highlightAndPlayMessage_(
@@ -281,7 +278,7 @@ export class SpeechController {
     }
   }
 
-  private moveGranularity_() {
+  private onMovingGranularity_() {
     this.model_.setIsSpeechBeingRepositioned(true);
     this.highlighter_.resetPreviousHighlight();
 
@@ -473,7 +470,7 @@ export class SpeechController {
     if (isMovingBackward) {
       chrome.readingMode.movePositionToPreviousGranularity();
     } else {
-      chrome.readingMode.movePositionToNextGranularity();
+      this.moveToNextGranularity_();
     }
     return this.highlightAndPlayMessage_(isInterrupted, isMovingBackward);
   }
@@ -503,6 +500,7 @@ export class SpeechController {
     this.setOnBoundary_(message);
     this.setOnSpeechSynthesisUtteranceStart_(message);
 
+    const text = message.text;
     message.onend = () => {
       if (isTextTooLong) {
         // Since our previous utterance was too long, continue speaking pieces
@@ -513,11 +511,12 @@ export class SpeechController {
         return;
       }
 
+      this.countWordsHeardIfNeeded(text);
       // Now that we've finiished reading this utterance, update the
-      // Granularity state to point to the next one Reset the word boundary
-      // index whenever we move the granularity position.
+      // Granularity state to point to the next one Reset the word
+      // boundary index whenever we move the granularity position.
       this.wordBoundaries_.resetToDefaultState();
-      chrome.readingMode.movePositionToNextGranularity();
+      this.moveToNextGranularity_();
       // Continue speaking with the next block of text.
       if (!this.highlightAndPlayMessage_()) {
         this.onSpeechFinished_();
@@ -525,6 +524,16 @@ export class SpeechController {
     };
 
     this.speakMessage_(message);
+  }
+
+  // If word boundaries are not supported, use string parsing to determine how
+  // many words were heard.
+  private countWordsHeardIfNeeded(text: string) {
+    if (this.wordBoundaries_.notSupported()) {
+      const wordCount = getWordCount(text);
+      this.model_.setWordsHeard(this.model_.getWordsHeard() + wordCount);
+      chrome.readingMode.updateWordsHeard(this.model_.getWordsHeard());
+    }
   }
 
   private handleSpeechSynthesisError_(
@@ -607,8 +616,11 @@ export class SpeechController {
   private stopSpeech_(pauseSource: PauseActionSource) {
     // Pause source needs to be set before updating isSpeechActive so that
     // listeners get the correct source when listening for isSpeechActive
-    // changes.
-    this.model_.setPauseSource(pauseSource);
+    // changes. Only update the pause source to the one that actually stopped
+    // speech.
+    if (this.isSpeechActive()) {
+      this.model_.setPauseSource(pauseSource);
+    }
     this.setIsSpeechActive_(false);
     this.setIsAudioCurrentlyPlaying_(false);
 
@@ -654,6 +666,20 @@ export class SpeechController {
       // the sentence granularity level, so we'll retrieve these boundaries in
       // message.onEnd instead.
       if (event.name === 'word') {
+        const text = message.text;
+        const end = event.charIndex + (event.charLength || text.length);
+        const possibleWord = text.substring(event.charIndex, end).trim();
+        if (!this.highlighter_.isInvalidHighlightForWordHighlighting(
+                possibleWord)) {
+          // TODO(crbug.com/c/372890165): Consider adding a heuristic to ensure
+          // we aren't counting the same word multiple times, if the TTS engine
+          // word boundaries are inaccurate.
+          this.model_.incrementWordsHeard();
+          // TODO(crbug.com/c/372890165): Consider using words heard to better
+          // estimate words seen.
+          chrome.readingMode.updateWordsHeard(this.model_.getWordsHeard());
+        }
+
         this.wordBoundaries_.updateBoundary(event.charIndex, event.charLength);
 
         // No need to update the highlight on word boundary events if
@@ -794,6 +820,7 @@ export class SpeechController {
     this.setPreviewVoicePlaying_(null);
     this.model_.setFirstTextNode(null);
     this.model_.setResumeSpeechOnVoiceMenuClose(false);
+    this.model_.setWordsHeard(0);
   }
 
   saveReadAloudState() {
@@ -840,7 +867,7 @@ export class SpeechController {
           currentTextIds, /*scrollIntoView=*/ false,
           /*shouldUpdateSentenceHighlight=*/ true,
           /*shouldSetLastReadingPos=*/ false);
-      chrome.readingMode.movePositionToNextGranularity();
+      this.moveToNextGranularity_();
       currentTextIds = chrome.readingMode.getCurrentText();
       hasCurrentText = currentTextIds.length > 0;
       startOfSelectionIsInCurrentText = currentTextIds.includes(nodeId) &&

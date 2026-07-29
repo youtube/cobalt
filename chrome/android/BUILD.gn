@@ -389,7 +389,6 @@ if (_is_default_toolchain) {
       # TODO(ssid): Decouple dependency on internal library.
       "//base:holder_java",
       "//chrome/browser/autofill/android:third_party_provider_java",
-      "//chrome/browser/collaboration:internal_java",
       "//chrome/browser/collaboration:utils_java",
       "//chrome/browser/data_sharing:data_sharing_public_java",
       "//chrome/browser/data_sharing:internal_library_java",
@@ -558,6 +557,7 @@ if (_is_default_toolchain) {
       "//chrome/browser/xsurface:java",
       "//chrome/browser/xsurface_provider:dependency_provider_impl_java",
       "//chrome/browser/xsurface_provider:java",
+      "//components/android_autofill/browser:features_java",
       "//components/android_autofill/browser:java",
       "//components/autofill/android:autofill_features_java",
       "//components/autofill/android:autofill_java",
@@ -661,6 +661,7 @@ if (_is_default_toolchain) {
       "//components/page_info/android:page_info_action_enum_java",
       "//components/page_info/core:proto_java",
       "//components/paint_preview/browser/android:java",
+      "//components/paint_preview/common/mojom:mojom_java",
       "//components/paint_preview/player/android:java",
       "//components/password_manager/core/browser:password_manager_java_enums",
       "//components/payments/content/android:java",
@@ -1584,7 +1585,6 @@ if (_is_default_toolchain) {
           "//components/messages/android/test:test_support_java",
           "//components/module_installer/android:module_installer_java",
           "//third_party/androidx:androidx_test_core_java",
-          "//third_party/androidx:androidx_test_core_java",
           "//ui/android:ui_java_test_support",
         ]
         deps += chrome_test_xr_java_deps
@@ -1873,6 +1873,10 @@ if (_is_default_toolchain) {
       ]
       disable_compression = true
 
+      if (enable_hidpi) {
+        sources += [ "$target_gen_dir/${_variant}_paks/chrome_200_percent.pak" ]
+      }
+
       deps = [
         ":${_variant}_locale_pak_assets",
         ":${_variant}_paks",
@@ -2056,7 +2060,6 @@ if (_is_default_toolchain) {
       ":base_module_java",
       "//android_webview:android_webview_no_weblayer_java",
       "//base:base_java",
-      "//base/version_info/android:version_constants_java",
       "//base/version_info/android:version_constants_java",
       "//build/android:build_java",
       "//chrome/browser/flags:java",
@@ -2382,6 +2385,7 @@ if (_is_default_toolchain) {
       ":chrome_test_apk_template_resources",
       ":chrome_test_java",
       "//chrome/android/features/keyboard_accessory:test_java",
+      "//chrome/android/modules/on_demand:javatests",
       "//chrome/browser/autofill/android:test_java",
       "//chrome/browser/autofill/test:test_java",
       "//chrome/browser/banners/android:javatests",

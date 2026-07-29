@@ -257,6 +257,12 @@ enum class BoostImagePriorityReason {
   kMaxValue = kBoth,
 };
 
+// Number of not-small images that get a priority boost.
+constexpr int kBoostedImageTarget = 5;
+
+// Area (in pixels) below which an image is considered "small".
+constexpr int kSmallImageMaxSize = 10000;
+
 void MaybeRecordBoostImagePriorityReason(const bool is_first_n,
                                          const bool is_potentially_lcp_element,
                                          const bool is_small_image) {
@@ -700,7 +706,7 @@ ResourceLoadPriority ResourceFetcher::AdjustImagePriority(
   bool is_small_image = false;
   if (resource_width && resource_height) {
     float image_area = resource_width.value() * resource_height.value();
-    if (image_area <= small_image_max_size_) {
+    if (image_area <= kSmallImageMaxSize) {
       is_small_image = true;
     }
   } else if (resource_width && resource_width == 0) {
@@ -711,7 +717,7 @@ ResourceLoadPriority ResourceFetcher::AdjustImagePriority(
 
   if (speculative_preload_type ==
           FetchParameters::SpeculativePreloadType::kInDocument &&
-      !is_link_preload && boosted_image_count_ < boosted_image_target_) {
+      !is_link_preload && boosted_image_count_ < kBoostedImageTarget) {
     // Count all candidate images
     if (!is_small_image) {
       ++boosted_image_count_;
@@ -785,15 +791,6 @@ ResourceFetcher::ResourceFetcher(const ResourceFetcherInit& init)
       allow_stale_resources_(false),
       image_fetched_(false) {
   InstanceCounters::IncrementCounter(InstanceCounters::kResourceFetcherCounter);
-
-  // Determine the number of images that should get a boosted priority and the
-  // pixel area threshold for determining "small" images.
-  // TODO(http://crbug.com/1431169): Change these to constexpr after the
-  // experiments determine appropriate values.
-  if (base::FeatureList::IsEnabled(features::kBoostImagePriority)) {
-    boosted_image_target_ = features::kBoostImagePriorityImageCount.Get();
-    small_image_max_size_ = features::kBoostImagePriorityImageSize.Get();
-  }
 
   if (IsMainThread()) {
     MainThreadFetchersSet().insert(this);
@@ -2239,8 +2236,8 @@ void ResourceFetcher::ClearContext() {
     // complete or the timer fires.
     keepalive_loaders_task_handle_ = PostDelayedCancellableTask(
         *freezable_task_runner_, FROM_HERE,
-        WTF::BindOnce(&ResourceFetcher::StopFetchingIncludingKeepaliveLoaders,
-                      WrapPersistent(this)),
+        BindOnce(&ResourceFetcher::StopFetchingIncludingKeepaliveLoaders,
+                 WrapPersistent(this)),
         kKeepaliveLoadersTimeout);
   }
 }
@@ -2298,8 +2295,8 @@ void ResourceFetcher::ScheduleWarnUnusedPreloads(
   }
   unused_preloads_timer_ = PostDelayedCancellableTask(
       *freezable_task_runner_, FROM_HERE,
-      WTF::BindOnce(&ResourceFetcher::WarnUnusedPreloads,
-                    WrapWeakPersistent(this), std::move(callback)),
+      blink::BindOnce(&ResourceFetcher::WarnUnusedPreloads,
+                      WrapWeakPersistent(this), std::move(callback)),
       kUnusedPreloadTimeout);
 }
 
@@ -2647,16 +2644,16 @@ void ResourceFetcher::ScheduleLoadingPotentiallyUnusedPreload(
       break;
     case features::LcppDeferUnusedPreloadTiming::kLcpTimingPredictor:
       context_->AddLcpPredictedCallback(
-          WTF::BindOnce(&ResourceFetcher::StartLoadAndFinishIfFailed,
-                        WrapWeakPersistent(this), WrapWeakPersistent(resource),
-                        /*is_potentially_unused_preload=*/true));
+          BindOnce(&ResourceFetcher::StartLoadAndFinishIfFailed,
+                   WrapWeakPersistent(this), WrapWeakPersistent(resource),
+                   /*is_potentially_unused_preload=*/true));
       break;
     case features::LcppDeferUnusedPreloadTiming::
         kLcpTimingPredictorWithPostTask:
       context_->AddLcpPredictedCallback(
-          WTF::BindOnce(&ResourceFetcher::ScheduleStartLoadAndFinishIfFailed,
-                        WrapWeakPersistent(this), WrapWeakPersistent(resource),
-                        /*is_potentially_unused_preload=*/true));
+          BindOnce(&ResourceFetcher::ScheduleStartLoadAndFinishIfFailed,
+                   WrapWeakPersistent(this), WrapWeakPersistent(resource),
+                   /*is_potentially_unused_preload=*/true));
       break;
   }
 }
@@ -2688,9 +2685,9 @@ void ResourceFetcher::ScheduleStartLoadAndFinishIfFailed(
     bool is_potentially_unused_preload) {
   freezable_task_runner_->PostTask(
       FROM_HERE,
-      WTF::BindOnce(&ResourceFetcher::StartLoadAndFinishIfFailed,
-                    WrapWeakPersistent(this), WrapWeakPersistent(resource),
-                    is_potentially_unused_preload));
+      BindOnce(&ResourceFetcher::StartLoadAndFinishIfFailed,
+               WrapWeakPersistent(this), WrapWeakPersistent(resource),
+               is_potentially_unused_preload));
 }
 
 void ResourceFetcher::RemoveResourceLoader(ResourceLoader* loader) {
@@ -2975,8 +2972,8 @@ void ResourceFetcher::ScheduleStaleRevalidate(Resource* stale_resource) {
   stale_resource->SetStaleRevalidationStarted();
   freezable_task_runner_->PostTask(
       FROM_HERE,
-      WTF::BindOnce(&ResourceFetcher::RevalidateStaleResource,
-                    WrapWeakPersistent(this), WrapPersistent(stale_resource)));
+      BindOnce(&ResourceFetcher::RevalidateStaleResource,
+               WrapWeakPersistent(this), WrapPersistent(stale_resource)));
 }
 
 void ResourceFetcher::RevalidateStaleResource(Resource* stale_resource) {
@@ -3115,8 +3112,8 @@ void ResourceFetcher::MaybeSaveResourceToStrongReference(Resource* resource) {
     document_resource_strong_refs_total_size_ += resource_size;
     freezable_task_runner_->PostDelayedTask(
         FROM_HERE,
-        WTF::BindOnce(&ResourceFetcher::RemoveResourceStrongReference,
-                      WrapWeakPersistent(this), WrapWeakPersistent(resource)),
+        BindOnce(&ResourceFetcher::RemoveResourceStrongReference,
+                 WrapWeakPersistent(this), WrapWeakPersistent(resource)),
         GetResourceStrongReferenceTimeout(resource, *use_counter_));
   } else {
     MemoryCache::Get()->SaveStrongReference(resource);
@@ -3140,8 +3137,8 @@ void ResourceFetcher::MaybeStartSpeculativeImageDecode() {
     }
     if (Context().StartSpeculativeImageDecode(
             image_to_decode,
-            WTF::BindOnce(&ResourceFetcher::SpeculativeImageDecodeFinished,
-                          WrapWeakPersistent(this)))) {
+            BindOnce(&ResourceFetcher::SpeculativeImageDecodeFinished,
+                     WrapWeakPersistent(this)))) {
       break;
     }
   }

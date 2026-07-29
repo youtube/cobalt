@@ -19,9 +19,7 @@ class GlicIphController;
 }  // namespace glic
 #endif
 
-namespace actor::ui {
 class ActorOverlayWindowController;
-}  // namespace actor::ui
 
 class ActorBorderViewController;
 class BookmarkBarController;
@@ -30,6 +28,7 @@ class BreadcrumbManagerBrowserAgent;
 class Browser;
 class BrowserActions;
 class BrowserContentSettingBubbleModelDelegate;
+class BrowserElements;
 class BrowserInstantController;
 class BrowserLiveTabContext;
 class BrowserLocationBarModelDelegate;
@@ -118,6 +117,10 @@ class GlicNudgeController;
 class GlicActorTaskIconController;
 }  // namespace tabs
 
+namespace enterprise_data_protection {
+class DataProtectionUIController;
+}  // namespace enterprise_data_protection
+
 namespace tab_groups {
 class DeletionDialogController;
 }  // namespace tab_groups
@@ -153,6 +156,10 @@ namespace split_tabs {
 class SplitTabScrimController;
 }  // namespace split_tabs
 
+namespace web_app {
+class AppBrowserController;
+}  // namespace web_app
+
 // This class owns the core controllers for features that are scoped to a given
 // browser window on desktop.
 //
@@ -185,6 +192,14 @@ class BrowserWindowFeatures {
   void TearDownPreBrowserWindowDestruction();
 
   // Public accessors for features:
+  web_app::AppBrowserController* app_browser_controller() {
+    return app_browser_controller_.get();
+  }
+
+  const web_app::AppBrowserController* app_browser_controller() const {
+    return app_browser_controller_.get();
+  }
+
   BrowserActions* browser_actions() { return browser_actions_.get(); }
 
   chrome::BrowserCommandController* browser_command_controller() {
@@ -245,10 +260,6 @@ class BrowserWindowFeatures {
     return lens_overlay_entry_point_controller_.get();
   }
 
-  actor::ui::ActorOverlayWindowController* actor_overlay_window_controller() {
-    return actor_overlay_window_controller_.get();
-  }
-
   lens::LensRegionSearchController* lens_region_search_controller() {
     return lens_region_search_controller_.get();
   }
@@ -263,10 +274,6 @@ class BrowserWindowFeatures {
 
   tabs::GlicNudgeController* glic_nudge_controller() {
     return glic_nudge_controller_.get();
-  }
-
-  tabs::GlicActorTaskIconController* glic_actor_task_icon_controller() {
-    return glic_actor_task_icon_controller_.get();
   }
 
   TabStripModel* tab_strip_model() { return tab_strip_model_; }
@@ -310,16 +317,8 @@ class BrowserWindowFeatures {
     return shared_tab_group_feedback_controller_.get();
   }
 
-  TranslateBubbleController* translate_bubble_controller() {
-    return translate_bubble_controller_.get();
-  }
-
   TabSearchToolbarButtonController* tab_search_toolbar_button_controller() {
     return tab_search_toolbar_button_controller_.get();
-  }
-
-  CookieControlsBubbleCoordinator* cookie_controls_bubble_coordinator() {
-    return cookie_controls_bubble_coordinator_.get();
   }
 
   BrowserSyncedWindowDelegate* synced_window_delegate() {
@@ -441,9 +440,16 @@ class BrowserWindowFeatures {
   // Features that are per-browser window will each have a controller. e.g.
   // std::unique_ptr<FooFeature> foo_feature_;
 
+  // Helper which handles bookmark app specific browser configuration.
+  // This must be initialized before |command_controller_| to ensure the correct
+  // set of commands are enabled.
+  std::unique_ptr<web_app::AppBrowserController> app_browser_controller_;
+
   std::unique_ptr<BrowserActions> browser_actions_;
 
   std::unique_ptr<chrome::BrowserCommandController> browser_command_controller_;
+
+  std::unique_ptr<BrowserElements> browser_elements_;
 
   std::unique_ptr<BookmarkBarController> bookmark_bar_controller_;
 
@@ -515,7 +521,7 @@ class BrowserWindowFeatures {
   std::unique_ptr<DownloadToolbarUIController> download_toolbar_ui_controller_;
 #endif
 
-  std::unique_ptr<actor::ui::ActorOverlayWindowController>
+  std::unique_ptr<ActorOverlayWindowController>
       actor_overlay_window_controller_;
 
   std::unique_ptr<ActorBorderViewController> actor_border_view_controller_;
@@ -566,6 +572,9 @@ class BrowserWindowFeatures {
       new_tab_footer_controller_;
 
   std::unique_ptr<DevtoolsUIController> devtools_ui_controller_;
+
+  std::unique_ptr<enterprise_data_protection::DataProtectionUIController>
+      data_protection_ui_controller_;
 
   std::unique_ptr<ReadingListSidePanelCoordinator>
       reading_list_side_panel_coordinator_;

@@ -11,6 +11,7 @@ import android.text.TextUtils;
 
 import androidx.annotation.IntDef;
 import androidx.annotation.Nullable;
+import androidx.annotation.VisibleForTesting;
 import androidx.appcompat.app.AppCompatActivity;
 
 import org.chromium.base.Callback;
@@ -343,7 +344,9 @@ public class CustomTabActivityTabController implements PauseResumeWithNativeObse
         // This could occur if a CCT was used to pass the redirect to an external handler. This
         // check prevents it from being added to the model which could result in an empty tab that
         // persists on a back navigation from the external handler.
-        if (earlyCreatedTab != null && earlyCreatedTab.isDestroyed()) {
+        if (ChromeFeatureList.sCctDestroyTabWhenModelIsEmpty.isEnabled()
+                && earlyCreatedTab != null
+                && earlyCreatedTab.isDestroyed()) {
             return;
         }
 
@@ -544,7 +547,7 @@ public class CustomTabActivityTabController implements PauseResumeWithNativeObse
     private void initializeTab(Tab tab, boolean isHiddenTab) {
         // TODO(pkotwicz): Determine whether these should be done for webapps.
         if (!mIntentDataProvider.isWebappOrWebApkActivity()) {
-            RedirectHandlerTabHelper.updateIntentInTab(tab, mIntent);
+            updateIntentInTab(tab, /* isCustomTab= */ true);
             tab.getView().requestFocus();
         }
 
@@ -671,5 +674,11 @@ public class CustomTabActivityTabController implements PauseResumeWithNativeObse
         paramsManager.add(tabId, params);
 
         return params.getTabToReparent() != null;
+    }
+
+    @VisibleForTesting
+    void updateIntentInTab(Tab tab, boolean isCustomTab) {
+        assert isCustomTab;
+        RedirectHandlerTabHelper.updateIntentInTab(tab, mIntent, isCustomTab);
     }
 }

@@ -1275,9 +1275,10 @@ GpuImageDecodeCache::GpuImageDecodeCache(
         this, "cc::GpuImageDecodeCache",
         base::SingleThreadTaskRunner::GetCurrentDefault());
   }
-  memory_pressure_listener_ = std::make_unique<base::MemoryPressureListener>(
-      FROM_HERE, base::BindRepeating(&GpuImageDecodeCache::OnMemoryPressure,
-                                     base::Unretained(this)));
+  memory_pressure_listener_ =
+      std::make_unique<base::AsyncMemoryPressureListener>(
+          FROM_HERE, base::BindRepeating(&GpuImageDecodeCache::OnMemoryPressure,
+                                         base::Unretained(this)));
 
   TRACE_EVENT1(TRACE_DISABLED_BY_DEFAULT("cc.debug"),
                "GpuImageDecodeCache::DarkModeFilter", "dark_mode_filter",
@@ -2359,11 +2360,10 @@ void GpuImageDecodeCache::InsertTransferCacheEntry(
     ImageData* image_data) {
   DCHECK(image_data);
   uint32_t size = image_entry.SerializedSize();
-  void* data = context_->ContextSupport()->MapTransferCacheEntry(size);
-  if (data) {
-    // TODO(crbug.com/40285824): Have MapTransferCacheEntry() return a span.
-    bool succeeded = image_entry.Serialize(
-        UNSAFE_TODO(base::span(static_cast<uint8_t*>(data), size)));
+  base::span<uint8_t> data =
+      context_->ContextSupport()->MapTransferCacheEntry(size);
+  if (!data.empty()) {
+    bool succeeded = image_entry.Serialize(data);
     DCHECK(succeeded);
     context_->ContextSupport()->UnmapAndCreateTransferCacheEntry(
         image_entry.UnsafeType(), image_entry.Id());

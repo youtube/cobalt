@@ -272,6 +272,17 @@ BASE_FEATURE(kNotificationTelemetry,
              "NotificationTelemetry",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
+BASE_FEATURE(kNotificationTelemetrySwb,
+             "NotificationTelemetrySwb",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+constexpr base::FeatureParam<bool> kNotificationTelemetrySwbSendReports{
+    &kNotificationTelemetrySwb, "NotificationTelemetrySwbSendReports",
+    /*default_value=*/true};
+constexpr base::FeatureParam<int> kNotificationTelemetrySwbPollingInterval{
+    &kNotificationTelemetrySwb, "NotificationTelemetrySwbPollingInterval",
+    /*default_value=*/60};
+
 BASE_FEATURE(kRedWarningSurvey,
              "RedWarningSurvey",
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -288,7 +299,7 @@ constexpr base::FeatureParam<std::string> kRedWarningSurveyDidProceedFilter{
 
 BASE_FEATURE(kReportNotificationContentDetectionData,
              "ReportNotificationContentDetectionData",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 constexpr base::FeatureParam<int> kReportNotificationContentDetectionDataRate{
     &kReportNotificationContentDetectionData,
@@ -375,6 +386,7 @@ base::Value::List GetFeatureStatusList() {
       &kHashPrefixRealTimeLookups,
       &kLocalIpAddressInEvents,
       &kLocalListsUseSBv5,
+      &kNotificationTelemetrySwb,
       &kReportNotificationContentDetectionData,
       &kShowWarningsForSuspiciousNotifications,
       &kSuspiciousSiteTriggerQuotaFeature,

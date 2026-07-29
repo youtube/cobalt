@@ -8,6 +8,7 @@
 #include <memory>
 #include <variant>
 
+#include "base/android/device_info.h"
 #include "base/containers/contains.h"
 #include "base/containers/span.h"
 #include "base/containers/to_vector.h"
@@ -50,9 +51,6 @@
 #include "components/sync/service/sync_user_settings.h"
 #include "components/webdata/common/web_data_service_consumer.h"
 
-#if BUILDFLAG(IS_ANDROID)
-#include "base/android/build_info.h"
-#endif
 
 namespace autofill {
 
@@ -475,7 +473,7 @@ void PaymentsDataManager::OnWebDataServiceRequestDone(
 
 bool PaymentsDataManager::ShouldShowBnplSettings() const {
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
-    BUILDFLAG(IS_CHROMEOS)
+    BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
   // Check `kAutofillEnableBuyNowPayLater` only if the user has seen a BNPL
   // suggestion before, or there are already linked issuers present, to avoid
   // unnecessary feature flag checks. The linked issuer check is due to the fact
@@ -490,7 +488,7 @@ bool PaymentsDataManager::ShouldShowBnplSettings() const {
 #else
   return false;
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) ||
-        // BUILDFLAG(IS_CHROMEOS)
+        // BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
 }
 
 CoreAccountInfo PaymentsDataManager::GetAccountInfoForPaymentsServer() const {
@@ -1004,13 +1002,13 @@ void PaymentsDataManager::SetPrefService(PrefService* pref_service) {
           &PaymentsDataManager::OnAutofillPaymentsCardBenefitsPrefChange,
           base::Unretained(this)));
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
-    BUILDFLAG(IS_CHROMEOS)
+    BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
   pref_registrar_.Add(
       prefs::kAutofillBnplEnabled,
       base::BindRepeating(&PaymentsDataManager::OnBnplEnabledPrefChange,
                           base::Unretained(this)));
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) ||
-        // BUILDFLAG(IS_CHROMEOS)
+        // BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
 }
 
 bool PaymentsDataManager::IsAutofillBnplPrefEnabled() const {
@@ -1078,7 +1076,7 @@ void PaymentsDataManager::SetAutofillHasSeenIban() {
 }
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
-    BUILDFLAG(IS_CHROMEOS)
+    BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
 bool PaymentsDataManager::IsAutofillHasSeenBnplPrefEnabled() const {
   return prefs::HasSeenBnpl(pref_service_);
 }
@@ -1087,7 +1085,7 @@ void PaymentsDataManager::SetAutofillHasSeenBnpl() {
   prefs::SetAutofillHasSeenBnpl(pref_service_);
 }
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) ||
-        // BUILDFLAG(IS_CHROMEOS)
+        // BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
 
 bool PaymentsDataManager::IsAutofillWalletImportEnabled() const {
   if (is_syncing_for_test_) {
@@ -1270,7 +1268,7 @@ bool PaymentsDataManager::ShouldShowPaymentMethodsMandatoryReauthPromo() {
     // The mandatory reauth feature is always enabled on automotive, there
     // is/was no opt-in. As such, there is no need to log anything here on
     // automotive.
-    if (!base::android::BuildInfo::GetInstance()->is_automotive()) {
+    if (!base::android::device_info::is_automotive()) {
       LogMandatoryReauthOfferOptInDecision(
           MandatoryReauthOfferOptInDecision::kAlreadyOptedIn);
     }
@@ -2088,14 +2086,16 @@ bool PaymentsDataManager::AreEwalletAccountsSupported() const {
 
 bool PaymentsDataManager::AreBnplIssuersSupported() const {
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
-    BUILDFLAG(IS_CHROMEOS)
-  return app_locale_ == "en-US" && GetCountryCodeForExperimentGroup() == "US" &&
+    BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
+  return (app_locale_ == "en-US" || app_locale_ == "en-GB" ||
+          app_locale_ == "en-CA") &&
+         GetCountryCodeForExperimentGroup() == "US" &&
          base::FeatureList::IsEnabled(
              features::kAutofillEnableBuyNowPayLaterSyncing);
 #else
   return false;
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) ||
-        // BUILDFLAG(IS_CHROMEOS)
+        // BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
 }
 
 bool PaymentsDataManager::ArePaymentInstrumentsSupported() const {
@@ -2121,7 +2121,7 @@ void PaymentsDataManager::ClearAllCreditCardBenefits() {
 }
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
-    BUILDFLAG(IS_CHROMEOS)
+    BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
 void PaymentsDataManager::OnBnplEnabledPrefChange() {
   // On pref change to `false`, clearing BNPL issuers is implicitly handled by
   // `GetBnplIssuers()`, since it returns an empty vector when
@@ -2137,7 +2137,7 @@ void PaymentsDataManager::OnBnplEnabledPrefChange() {
   LogBnplPrefToggled(IsAutofillBnplPrefEnabled());
 }
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) ||
-        // BUILDFLAG(IS_CHROMEOS)
+        // BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
 
 void PaymentsDataManager::ProcessCardArtUrlChanges() {
   if (!image_fetcher_) {

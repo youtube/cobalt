@@ -12,6 +12,7 @@
 #include "components/affiliations/core/browser/affiliation_utils.h"
 #include "components/password_manager/core/browser/features/password_features.h"
 #include "components/password_manager/core/browser/form_parsing/form_data_parser.h"
+#include "components/password_manager/core/browser/passkey_credential.h"
 #include "components/password_manager/core/browser/well_known_change_password/well_known_change_password_util.h"
 #include "components/url_formatter/elide_url.h"
 
@@ -148,7 +149,8 @@ CredentialUIEntry::CredentialUIEntry(const PasskeyCredential& passkey)
     : passkey_credential_id(passkey.credential_id()),
       username(base::UTF8ToUTF16(passkey.username())),
       user_display_name(base::UTF8ToUTF16(passkey.display_name())),
-      creation_time(passkey.creation_time()) {
+      creation_time(passkey.creation_time()),
+      hidden(passkey.hidden()) {
   CHECK(!passkey.credential_id().empty());
   CredentialFacet facet;
   facet.url = GURL(base::StrCat(

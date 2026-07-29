@@ -186,7 +186,7 @@
 #endif
 
 #if BUILDFLAG(ENABLE_GLIC)
-#include "chrome/browser/glic/glic_enabling.h"
+#include "chrome/browser/glic/public/glic_enabling.h"
 #include "chrome/browser/glic/public/glic_keyed_service.h"
 #include "chrome/browser/ui/webui/settings/glic_handler.h"
 #endif
@@ -474,10 +474,6 @@ SettingsUI::SettingsUI(content::WebUI* web_ui)
       TrackingProtectionSettingsFactory::GetForProfile(profile)
           ->IsTrackingProtection3pcdEnabled());
 
-  html_source->AddBoolean(
-      "isAlwaysBlock3pcsIncognitoEnabled",
-      base::FeatureList::IsEnabled(privacy_sandbox::kAlwaysBlock3pcsIncognito));
-
   // ACT UX
   bool ipp_ux = base::FeatureList::IsEnabled(privacy_sandbox::kIpProtectionUx);
   bool fpp_ux = base::FeatureList::IsEnabled(
@@ -505,10 +501,6 @@ SettingsUI::SettingsUI(content::WebUI* web_ui)
   html_source->AddBoolean("capturedSurfaceControlEnabled",
                           base::FeatureList::IsEnabled(
                               features::kCapturedSurfaceControlKillswitch));
-
-  html_source->AddBoolean("enableAutomaticFullscreenContentSetting",
-                          base::FeatureList::IsEnabled(
-                              features::kAutomaticFullscreenContentSetting));
 
   html_source->AddBoolean(
       "enablePermissionSiteSettingsRadioButton",
@@ -540,13 +532,12 @@ SettingsUI::SettingsUI(content::WebUI* web_ui)
 
   // AI
   bool show_glic_section = false;
+  bool glic_disallowed_by_admin = false;
 
 #if BUILDFLAG(ENABLE_GLIC)
   auto glic_enablement = glic::GlicEnabling::EnablementForProfile(profile);
   show_glic_section = glic_enablement.ShouldShowSettingsPage();
-  html_source->AddBoolean("showGlicSettings", show_glic_section);
-  html_source->AddBoolean("glicDisallowedByAdmin",
-                          glic_enablement.DisallowedByAdmin());
+  glic_disallowed_by_admin = glic_enablement.DisallowedByAdmin();
 
   if (glic_enablement.IsProfileEligible()) {
     AddSettingsPageUIHandler(std::make_unique<GlicHandler>());
@@ -562,6 +553,9 @@ SettingsUI::SettingsUI(content::WebUI* web_ui)
                                 base::Unretained(this)));
   }
 #endif
+
+  html_source->AddBoolean("showGlicSettings", show_glic_section);
+  html_source->AddBoolean("glicDisallowedByAdmin", glic_disallowed_by_admin);
 
   const bool use_is_setting_visible = base::FeatureList::IsEnabled(
       optimization_guide::features::kAiSettingsPageEnterpriseDisabledUi);

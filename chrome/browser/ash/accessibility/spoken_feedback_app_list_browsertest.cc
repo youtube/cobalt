@@ -313,6 +313,18 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Values(SpokenFeedbackTestConfig(ManifestVersion::kTwo,
                                                kTestAsGuestUser)));
 
+INSTANTIATE_TEST_SUITE_P(
+    ManifestV3NormalUser,
+    SpokenFeedbackAppListTest,
+    ::testing::Values(SpokenFeedbackTestConfig(ManifestVersion::kThree,
+                                               kTestAsNormalUser)));
+
+INSTANTIATE_TEST_SUITE_P(
+    ManifestV3GuestUser,
+    SpokenFeedbackAppListTest,
+    ::testing::Values(SpokenFeedbackTestConfig(ManifestVersion::kThree,
+                                               kTestAsGuestUser)));
+
 class NotificationSpokenFeedbackAppListTest : public SpokenFeedbackAppListTest {
  protected:
   NotificationSpokenFeedbackAppListTest() = default;
@@ -334,6 +346,18 @@ INSTANTIATE_TEST_SUITE_P(
     ManifestV2GuestUser,
     NotificationSpokenFeedbackAppListTest,
     ::testing::Values(SpokenFeedbackTestConfig(ManifestVersion::kTwo,
+                                               kTestAsGuestUser)));
+
+INSTANTIATE_TEST_SUITE_P(
+    ManifestV3NormalUser,
+    NotificationSpokenFeedbackAppListTest,
+    ::testing::Values(SpokenFeedbackTestConfig(ManifestVersion::kThree,
+                                               kTestAsNormalUser)));
+
+INSTANTIATE_TEST_SUITE_P(
+    ManifestV3GuestUser,
+    NotificationSpokenFeedbackAppListTest,
+    ::testing::Values(SpokenFeedbackTestConfig(ManifestVersion::kThree,
                                                kTestAsGuestUser)));
 
 class SpokenFeedbackAppListSearchTest : public SpokenFeedbackAppListBaseTest {
@@ -429,6 +453,34 @@ INSTANTIATE_TEST_SUITE_P(
     ManifestV2GuestUserDesktopMode,
     SpokenFeedbackAppListSearchTest,
     ::testing::Values(SpokenFeedbackTestConfig(ManifestVersion::kTwo,
+                                               kTestAsGuestUser,
+                                               /*tablet_mode=*/false)));
+
+INSTANTIATE_TEST_SUITE_P(
+    ManifestV3NormalUserTabletMode,
+    SpokenFeedbackAppListSearchTest,
+    ::testing::Values(SpokenFeedbackTestConfig(ManifestVersion::kThree,
+                                               kTestAsNormalUser,
+                                               /*tablet_mode=*/true)));
+
+INSTANTIATE_TEST_SUITE_P(
+    ManifestV3GuestUserTabletMode,
+    SpokenFeedbackAppListSearchTest,
+    ::testing::Values(SpokenFeedbackTestConfig(ManifestVersion::kThree,
+                                               kTestAsGuestUser,
+                                               /*tablet_mode=*/true)));
+
+INSTANTIATE_TEST_SUITE_P(
+    ManifestV3NormalUserDesktopMode,
+    SpokenFeedbackAppListSearchTest,
+    ::testing::Values(SpokenFeedbackTestConfig(ManifestVersion::kThree,
+                                               kTestAsNormalUser,
+                                               /*tablet_mode=*/false)));
+
+INSTANTIATE_TEST_SUITE_P(
+    ManifestV3GuestUserDesktopMode,
+    SpokenFeedbackAppListSearchTest,
+    ::testing::Values(SpokenFeedbackTestConfig(ManifestVersion::kThree,
                                                kTestAsGuestUser,
                                                /*tablet_mode=*/false)));
 

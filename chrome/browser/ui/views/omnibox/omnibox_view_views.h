@@ -133,8 +133,7 @@ class OmniboxViewViews
   void SelectAll(bool reversed) override;
   void RevertAll() override;
   void SetFocus(bool is_user_initiated) override;
-  void RequestViewFocus() override;
-  void RequestAimButtonFocus() override;
+  void ApplyFocusRingToAimButton(bool focus_aim) override;
   bool IsImeComposing() const override;
   gfx::NativeView GetRelativeWindowForPopup() const override;
   bool IsImeShowingPopup() const override;
@@ -325,6 +324,10 @@ class OmniboxViewViews
   // Helper for updating placeholder color depending on whether its a keyword or
   // DSE placeholder.
   void UpdatePlaceholderTextColor();
+
+  // Returns true if the AIM placeholder text should be visible instead of the
+  // DSE placeholder text.
+  bool ShouldShowAimPlaceholderText() const;
 
   // When true, the location bar view is read only and also is has a slightly
   // different presentation (smaller font size). This is used for popups.

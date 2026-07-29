@@ -70,7 +70,7 @@
 #include "ui/gfx/image/image_unittest_util.h"
 
 #if BUILDFLAG(IS_ANDROID)
-#include "base/android/build_info.h"
+#include "base/android/device_info.h"
 #include "base/android/scoped_java_ref.h"
 #endif
 
@@ -2368,6 +2368,64 @@ TEST_F(
   ewallet_accounts = payments_data_manager().GetEwalletAccounts();
   EXPECT_EQ(2u, ewallet_accounts.size());
 }
+
+// Tests that eWallet data is unchanged when the `kAutofillBnplEnabled` pref
+// is turned on/off.
+TEST_F(
+    PaymentsDataManagerTest,
+    OnPaymentInstrumentEnabledPrefChange_BnplEnabledPrefChanged_EwalletsUnchanged) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitWithFeatures(
+      {features::kAutofillSyncEwalletAccounts,
+       features::kAutofillEnableBuyNowPayLaterSyncing},
+      {});
+  sync_pb::PaymentInstrument ewallet_1 =
+      test::CreatePaymentInstrumentWithEwalletAccount(1234L);
+  sync_pb::PaymentInstrument ewallet_2 =
+      test::CreatePaymentInstrumentWithEwalletAccount(2345L);
+  sync_pb::PaymentInstrument linked_issuer =
+      test::CreatePaymentInstrumentWithLinkedBnplIssuer(
+          3456L, std::string(kBnplAffirmIssuerId), "USD",
+          /*min_price_in_micros=*/0,
+          /*max_price_in_micros=*/35'000'000);
+  ASSERT_TRUE(GetServerDataTable()->SetPaymentInstruments(
+      {ewallet_1, ewallet_2, linked_issuer}));
+  ASSERT_TRUE(GetServerDataTable()->SetPaymentInstrumentCreationOptions(
+      {test::CreatePaymentInstrumentCreationOptionWithBnplIssuer("5678")}));
+
+  // Since the PaymentsDataManager was initialized before adding the
+  // payment instruments to the WebDatabase, we expect `GetEwalletAccounts()`
+  // and `GetBnplIssuers()` to return an empty list.
+  EXPECT_EQ(0U, payments_data_manager().GetEwalletAccounts().size());
+  EXPECT_EQ(0U, payments_data_manager().GetBnplIssuers().size());
+
+  // We need to call `Refresh()` to ensure that the payment instruments
+  // are loaded again from the WebDatabase.
+  payments_data_manager().Refresh();
+  WaitForOnPaymentsDataChanged();
+
+  EXPECT_EQ(2U, payments_data_manager().GetBnplIssuers().size());
+  EXPECT_EQ(1U, payments_data_manager().GetUnlinkedBnplIssuers().size());
+  EXPECT_EQ(1U, payments_data_manager().GetLinkedBnplIssuers().size());
+  EXPECT_EQ(2U, payments_data_manager().GetEwalletAccounts().size());
+
+  ASSERT_TRUE(prefs::IsAutofillBnplEnabled(prefs_.get()));
+  prefs::SetAutofillBnplEnabled(prefs_.get(), false);
+  WaitForOnPaymentsDataChanged();
+
+  EXPECT_TRUE(payments_data_manager().GetBnplIssuers().empty());
+  EXPECT_TRUE(payments_data_manager().GetUnlinkedBnplIssuers().empty());
+  EXPECT_TRUE(payments_data_manager().GetLinkedBnplIssuers().empty());
+  EXPECT_EQ(2U, payments_data_manager().GetEwalletAccounts().size());
+
+  prefs::SetAutofillBnplEnabled(prefs_.get(), true);
+  WaitForOnPaymentsDataChanged();
+
+  EXPECT_EQ(2U, payments_data_manager().GetBnplIssuers().size());
+  EXPECT_EQ(1U, payments_data_manager().GetUnlinkedBnplIssuers().size());
+  EXPECT_EQ(1U, payments_data_manager().GetLinkedBnplIssuers().size());
+  EXPECT_EQ(2U, payments_data_manager().GetEwalletAccounts().size());
+}
 #endif  // BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
@@ -3427,7 +3485,7 @@ TEST_F(PaymentsDataManagerSyncTransportModeTest, OnUserAcceptedUpstreamOffer) {
 #if BUILDFLAG(IS_ANDROID)
 TEST_F(PaymentsDataManagerTest,
        AutofillPaymentMethodsMandatoryReauthAlwaysEnabledOnAutomotive) {
-  if (!base::android::BuildInfo::GetInstance()->is_automotive()) {
+  if (!base::android::device_info::is_automotive()) {
     GTEST_SKIP() << "This test should only run on automotive.";
   }
 
@@ -3449,7 +3507,7 @@ TEST_F(PaymentsDataManagerTest,
 // correctly.
 TEST_F(PaymentsDataManagerTest, AutofillPaymentMethodsMandatoryReauthEnabled) {
 #if BUILDFLAG(IS_ANDROID)
-  if (base::android::BuildInfo::GetInstance()->is_automotive()) {
+  if (base::android::device_info::is_automotive()) {
     GTEST_SKIP() << "This test should not run on automotive.";
   }
 #endif  // BUILDFLAG(IS_ANDROID)
@@ -3471,7 +3529,7 @@ TEST_F(
     PaymentsDataManagerTest,
     ShouldShowPaymentMethodsMandatoryReauthPromo_MaxValueForPromoShownCounterReached) {
 #if BUILDFLAG(IS_ANDROID)
-  if (base::android::BuildInfo::GetInstance()->is_automotive()) {
+  if (base::android::device_info::is_automotive()) {
     GTEST_SKIP() << "This test should not run on automotive.";
   }
 #endif  // BUILDFLAG(IS_ANDROID)
@@ -3505,7 +3563,7 @@ TEST_F(PaymentsDataManagerTest,
 #if BUILDFLAG(IS_ANDROID)
   // Opt-in prompts are not shown on automotive as mandatory reauth is always
   // enabled.
-  if (base::android::BuildInfo::GetInstance()->is_automotive()) {
+  if (base::android::device_info::is_automotive()) {
     GTEST_SKIP() << "This test should not run on automotive.";
   }
 #endif  // BUILDFLAG(IS_ANDROID)
@@ -3528,7 +3586,7 @@ TEST_F(PaymentsDataManagerTest,
 TEST_F(PaymentsDataManagerTest,
        ShouldShowPaymentMethodsMandatoryReauthPromo_UserOptedOut) {
 #if BUILDFLAG(IS_ANDROID)
-  if (base::android::BuildInfo::GetInstance()->is_automotive()) {
+  if (base::android::device_info::is_automotive()) {
     GTEST_SKIP() << "This test should not run on automotive.";
   }
 #endif  // BUILDFLAG(IS_ANDROID)
@@ -3908,35 +3966,34 @@ TEST_F(PaymentsDataManagerTest, BnplIssuerGetters_AutofillBnplFeatureDisabled) {
   EXPECT_TRUE(payments_data_manager().GetLinkedBnplIssuers().empty());
 }
 
-// Tests that Buy-now-pay-later issuer getters does not return any issuers if
-// `app_locale` is not "en-US".
-TEST_F(PaymentsDataManagerTest,
-       BnplIssuerGetters_AutofillBnplLocaleNotSupported) {
-  test_api(payments_data_manager())
-      .AddBnplIssuer(test::GetTestLinkedBnplIssuer());
-  test_api(payments_data_manager())
-      .AddBnplIssuer(test::GetTestUnlinkedBnplIssuer());
+// Tests that BNPL issuers are supported for "en-US" app locales.
+TEST_F(PaymentsDataManagerTest, AreBnplIssuersSupported_LocaleIsEnUS) {
+  ResetPaymentsDataManager(false, "en-US", "US");
+  EXPECT_TRUE(test_api(payments_data_manager()).AreBnplIssuersSupported());
+}
 
-  ASSERT_EQ(2U, payments_data_manager().GetBnplIssuers().size());
-  ASSERT_EQ(1U, payments_data_manager().GetUnlinkedBnplIssuers().size());
-  ASSERT_EQ(1U, payments_data_manager().GetLinkedBnplIssuers().size());
+// Tests that BNPL issuers are supported for "en-GB" app locales.
+TEST_F(PaymentsDataManagerTest, AreBnplIssuersSupported_LocaleIsEnGB) {
+  ResetPaymentsDataManager(false, "en-GB", "US");
+  EXPECT_TRUE(test_api(payments_data_manager()).AreBnplIssuersSupported());
+}
 
-  ResetPaymentsDataManager(false, "en-CA");
+// Tests that BNPL issuers are supported for "en-CA" app locales.
+TEST_F(PaymentsDataManagerTest, AreBnplIssuersSupported_LocaleIsEnCA) {
+  ResetPaymentsDataManager(false, "en-CA", "US");
+  EXPECT_TRUE(test_api(payments_data_manager()).AreBnplIssuersSupported());
+}
 
-  test_api(payments_data_manager())
-      .AddBnplIssuer(test::GetTestLinkedBnplIssuer());
-  test_api(payments_data_manager())
-      .AddBnplIssuer(test::GetTestUnlinkedBnplIssuer());
-
-  EXPECT_TRUE(payments_data_manager().GetBnplIssuers().empty());
-  EXPECT_TRUE(payments_data_manager().GetUnlinkedBnplIssuers().empty());
-  EXPECT_TRUE(payments_data_manager().GetLinkedBnplIssuers().empty());
+// Tests that BNPL issuers are not supported for "es-US" app locales.
+TEST_F(PaymentsDataManagerTest, AreBnplIssuersSupported_LocaleIsEsUS) {
+  ResetPaymentsDataManager(false, "es-US", "US");
+  EXPECT_FALSE(test_api(payments_data_manager()).AreBnplIssuersSupported());
 }
 
 // Tests that Buy-now-pay-later issuer getters does not return any issuers if
 // `experiment_country_code` is not "US".
 TEST_F(PaymentsDataManagerTest,
-       BnplIssuerGetters_AutofillBnplLanguageCodeNotSupported) {
+       BnplIssuerGetters_AutofillBnplCountryNotSupported) {
   test_api(payments_data_manager())
       .AddBnplIssuer(test::GetTestLinkedBnplIssuer());
   test_api(payments_data_manager())

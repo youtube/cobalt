@@ -229,6 +229,7 @@ chromium-metrics-reviews@google.com.
   <int value="3" label="PermissionDeniedContextPermissionNotEnabled"/>
   <int value="4" label="PermissionDenied"/>
   <int value="5" label="WebContentsChanged"/>
+  <int value="6" label="PageContextNotEligible"/>
 </enum>
 
 <!-- LINT.ThenChange(//chrome/browser/glic/glic_metrics.h:GlicGetContextFromFocusedTabError) -->
@@ -409,6 +410,16 @@ chromium-metrics-reviews@google.com.
 
 <!-- LINT.ThenChange(//chrome/browser/glic/host/glic.mojom:ScrollToErrorReason) -->
 
+<!-- LINT.IfChange(GlicTabPinnedForSharingResult) -->
+
+<enum name="GlicTabPinnedForSharingResult">
+  <int value="0" label="PinTabForSharingFailedTooManyTabs"/>
+  <int value="1" label="PinTabForSharingFailedNotValidForSharing"/>
+  <int value="2" label="PinTabForSharingSucceeded"/>
+</enum>
+
+<!-- LINT.ThenChange(//chrome/browser/glic/glic_metrics.h:GlicTabPinnedForSharingResult) -->
+
 <!-- LINT.IfChange(TieredRolloutEnablementStatus) -->
 
 <enum name="GlicTieredRolloutEnablementStatus">
@@ -434,8 +445,13 @@ chromium-metrics-reviews@google.com.
 <enum name="GlicWebviewExitReason">
   <int value="0" label="Normal"/>
   <int value="1" label="Abnormal"/>
-  <int value="2" label="Crash"/>
-  <int value="3" label="Kill"/>
+  <int value="2" label="Crashed"/>
+  <int value="3" label="Killed"/>
+  <int value="4" label="OOM Killed"/>
+  <int value="5" label="OOM"/>
+  <int value="6" label="Failed to Launch"/>
+  <int value="7" label="Integrity Failure"/>
+  <int value="8" label="Unknown"/>
 </enum>
 
 <!-- LINT.ThenChange(//chrome/browser/resources/glic/webview.ts:WebviewExitReason) -->

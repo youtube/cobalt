@@ -32,6 +32,7 @@
 #include "remoting/host/audio_capturer.h"
 #include "remoting/host/base/screen_resolution.h"
 #include "remoting/host/curtain_mode.h"
+#include "remoting/host/desktop_capturer_proxy.h"
 #include "remoting/host/desktop_display_info.h"
 #include "remoting/host/desktop_display_info_loader.h"
 #include "remoting/host/desktop_display_info_monitor.h"
@@ -119,35 +120,37 @@ std::unique_ptr<InputInjector> GnomeInteractionStrategy::CreateInputInjector() {
   // after the EI session is initialized.
   DCHECK(ei_session_);
 
-  // Passing exclusive ownership to the input-injector allows it to use the EI
-  // session on a different thread.
   return std::make_unique<GnomeInputInjector>(
-      std::move(ei_session_), capture_stream_manager_.GetWeakPtr(), connection_,
-      session_path_);
+      ei_session_->GetWeakPtr(), capture_stream_manager_.GetWeakPtr(),
+      connection_, session_path_);
 }
 
 std::unique_ptr<DesktopResizer>
 GnomeInteractionStrategy::CreateDesktopResizer() {
-  return std::make_unique<GnomeDesktopResizer>(weak_ptr_factory_.GetWeakPtr());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
+  return std::make_unique<GnomeDesktopResizer>(
+      capture_stream_manager_.GetWeakPtr(),
+      display_config_client_.GetWeakPtr());
 }
 
 std::unique_ptr<DesktopCapturer> GnomeInteractionStrategy::CreateVideoCapturer(
     webrtc::ScreenId id) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  // `stream` will only be non-null after the AddStreamCallback of a newly added
-  // stream is called. This is currently not a problem for the initial stream,
-  // since `init_callback_` is called after the AddStreamCallback of the initial
-  // stream is called. However, this may be racy when additional streams are
-  // being added.
-  // TODO(crbug.com/432217140): Refactor PipewireDesktopCapturer so that
-  // PipewireCaptureStream can be provided after it is constructed.
+  auto proxy = std::make_unique<DesktopCapturerProxy>(
+      base::SequencedTaskRunner::GetCurrentDefault());
+  proxy->set_supports_frame_callbacks(
+      PipewireDesktopCapturer::kSupportsFrameCallbacks);
   base::WeakPtr<PipewireCaptureStream> stream =
       capture_stream_manager_.GetStream(id);
-  if (!stream) {
-    LOG(ERROR) << "Cannot find pipewire stream for screen ID: " << id;
-    return nullptr;
+  if (stream) {
+    proxy->set_capturer(std::make_unique<PipewireDesktopCapturer>(stream));
+  } else {
+    HOST_LOG << "Video capturer for screen ID " << id
+             << " will be initialized after the stream is ready.";
+    pending_desktop_capturer_proxies_[id] = proxy->GetWeakPtr();
   }
-  return std::make_unique<PipewireDesktopCapturer>(std::move(stream));
+  return proxy;
 }
 
 std::unique_ptr<webrtc::MouseCursorMonitor>
@@ -189,7 +192,10 @@ std::unique_ptr<CurtainMode> GnomeInteractionStrategy::CreateCurtainMode(
 
 GnomeInteractionStrategy::GnomeInteractionStrategy(
     scoped_refptr<base::SequencedTaskRunner> ui_task_runner)
-    : ui_task_runner_(std::move(ui_task_runner)), weak_ptr_factory_(this) {}
+    : ui_task_runner_(std::move(ui_task_runner)), weak_ptr_factory_(this) {
+  capture_stream_manager_subscription_ =
+      capture_stream_manager_.AddObserver(this);
+}
 
 template <typename SuccessType, typename String>
 GDBusConnectionRef::CallCallback<SuccessType>
@@ -346,10 +352,30 @@ void GnomeInteractionStrategy::OnEiSession(
                                display_config_client_.GetWeakPtr(),
                                screencast_session_path_);
   capture_stream_manager_.AddStream(
-      base::BindOnce([](base::expected<webrtc::ScreenId, std::string> result) {
+      kInitialResolution,
+      base::BindOnce([](base::expected<base::WeakPtr<PipewireCaptureStream>,
+                                       std::string> result) {
         // Transform the value to void, while keeping the error unchanged.
-        return result.transform([](webrtc::ScreenId screen_id) { return; });
+        return result.transform(
+            [](base::WeakPtr<PipewireCaptureStream>) { return; });
       }).Then(std::move(init_callback_)));
+}
+
+void GnomeInteractionStrategy::OnPipewireCaptureStreamAdded(
+    base::WeakPtr<PipewireCaptureStream> stream) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
+  if (!stream) {
+    return;
+  }
+  auto it = pending_desktop_capturer_proxies_.find(stream->screen_id());
+  if (it == pending_desktop_capturer_proxies_.end()) {
+    return;
+  }
+  if (it->second) {
+    it->second->set_capturer(std::make_unique<PipewireDesktopCapturer>(stream));
+  }
+  pending_desktop_capturer_proxies_.erase(it);
 }
 
 GnomeInteractionStrategyFactory::GnomeInteractionStrategyFactory(

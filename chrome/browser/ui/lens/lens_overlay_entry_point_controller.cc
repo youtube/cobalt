@@ -156,13 +156,12 @@ bool LensOverlayEntryPointController::IsEnabled() const {
   }
 
   // Finally, only enable the overlay if user meets our minimum RAM requirement.
-  static int phys_mem_mb = base::SysInfo::AmountOfPhysicalMemoryMB();
+  static int phys_mem_mb = base::SysInfo::AmountOfPhysicalMemory().InMiB();
   return phys_mem_mb > lens::features::GetLensOverlayMinRamMb();
 }
 
 bool LensOverlayEntryPointController::AreVisible() const {
-  return IsEnabled() && !IsOverlayActive() &&
-         !base::FeatureList::IsEnabled(omnibox::kAiModeOmniboxEntryPoint);
+  return IsEnabled() && !IsOverlayActive();
 }
 
 void LensOverlayEntryPointController::UpdateEntryPointsState(

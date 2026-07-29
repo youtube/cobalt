@@ -190,6 +190,7 @@
 #include "ui/accessibility/platform/ax_platform_tree_manager.h"
 #include "ui/accessibility/platform/ax_platform_tree_manager_delegate.h"
 #include "ui/accessibility/platform/ax_unique_id.h"
+#include "ui/base/clipboard/clipboard_metadata.h"
 #include "ui/base/page_transition_types.h"
 #include "ui/gfx/geometry/rect.h"
 #include "url/gurl.h"
@@ -663,7 +664,7 @@ class CONTENT_EXPORT RenderFrameHostImpl
   void IsClipboardPasteAllowedByPolicy(
       const ClipboardEndpoint& source,
       const ClipboardEndpoint& destination,
-      const ClipboardMetadata& metadata,
+      const ui::ClipboardMetadata& metadata,
       ClipboardPasteData clipboard_paste_data,
       IsClipboardPasteAllowedCallback callback);
 
@@ -5529,18 +5530,6 @@ class CONTENT_EXPORT RenderFrameHostImpl
   std::string crash_reporting_group_ = "default";
 
   base::OnceClosure on_process_before_unload_completed_for_testing_;
-
-  // This is written to by the `SetCrashReportStorageKey()` IPC, with data
-  // supplied by the renderer, and read from during
-  // `MaybeGenerateCrashReport()`, to supplement crash reports with this data.
-  std::map<std::string, std::string> crash_storage_map_;
-  // For now, this member is *only* used to track whether initialization has
-  // already occurred via this method. It will be more useful soon when it is
-  // used by `SetCrashReportStorageKey()` to actually enforce a cap on the
-  // number of bytes written to the backing crash report storage memory (for
-  // now, this is `crash_storage_map_`, but in the future it could be a shared
-  // memory region; see https://crrev.com/c/6788146 which is exploring this).
-  std::optional<uint64_t> crash_storage_requested_length_;
 
   // WeakPtrFactories are the last members, to ensure they are destroyed before
   // all other fields of `this`.

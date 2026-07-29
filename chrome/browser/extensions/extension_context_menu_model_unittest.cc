@@ -295,7 +295,6 @@ class ExtensionContextMenuModelTest : public ExtensionServiceTestBase {
   void TearDown() override;
 
  private:
-  std::unique_ptr<TestBrowserWindow> test_window_;
   std::unique_ptr<Browser> browser_;
   display::test::TestScreen test_screen_;
 };
@@ -347,8 +346,8 @@ void ExtensionContextMenuModelTest::InitializeAndAddExtension(
 Browser* ExtensionContextMenuModelTest::GetBrowser() {
   if (!browser_) {
     Browser::CreateParams params(profile(), true);
-    test_window_ = std::make_unique<TestBrowserWindow>();
-    params.window = test_window_.get();
+    auto test_window = std::make_unique<TestBrowserWindow>();
+    params.window = test_window.release();
     browser_ = Browser::DeprecatedCreateOwnedForTesting(params);
   }
   return browser_.get();
@@ -648,9 +647,9 @@ TEST_F(ExtensionContextMenuModelTest,
   }
 }
 
-TEST_F(ExtensionContextMenuModelTest,
-       ExtensionContextMenuOptionsEntryVisibility) {
+TEST_F(ExtensionContextMenuModelTest, ExtensionContextMenuOptionsEntry) {
   InitializeEmptyExtensionService();
+  AddTab(GURL("about:blank"));
 
   scoped_refptr<const Extension> extension =
       ExtensionBuilder("Extension")
@@ -685,6 +684,16 @@ TEST_F(ExtensionContextMenuModelTest,
                                    ContextMenuSource::kToolbarAction);
     EXPECT_EQ(GetCommandState(menu, ExtensionContextMenuModel::OPTIONS),
               CommandState::kEnabled);
+
+    // Verify the option page is opened when the command is executed.
+    menu.ExecuteCommand(ExtensionContextMenuModel::OPTIONS, 0);
+    // Test web contents need a poke to commit.
+    content::WebContents* web_contents =
+        GetBrowser()->tab_strip_model()->GetActiveWebContents();
+    content::NavigationController& controller = web_contents->GetController();
+    content::RenderFrameHostTester::CommitPendingLoad(&controller);
+    EXPECT_EQ(OptionsPageInfo::GetOptionsPage(extension_with_options.get()),
+              web_contents->GetLastCommittedURL());
   }
 }
 

@@ -12,12 +12,6 @@ namespace autofill::features {
 BASE_FEATURE(kAutofillCreditCardScannerIos,
              "AutofillCreditCardScannerIos",
              base::FEATURE_DISABLED_BY_DEFAULT);
-
-// When enabled, save card fix flow values for missing cardholder name and
-// expiry date won't be defaulted as detected on iOS.
-BASE_FEATURE(kAutofillDisableDefaultSaveCardFixFlowDetection,
-             "AutofillDisableDefaultSaveCardFixFlowDetection",
-             base::FEATURE_ENABLED_BY_DEFAULT);
 #endif
 
 // When enabled, card category benefits offered by BMO will be shown in Autofill
@@ -29,13 +23,16 @@ BASE_FEATURE(kAutofillEnableAllowlistForBmoCardCategoryBenefits,
 // When enabled, Chrome will have the ability to load and query the allowlist
 // for checkout amount extraction, which will be used to check if the current
 // URL is eligible for products that use the checkout amount extraction
-// algorithm.
+// algorithm. The suffix `desktop` is kept, it was an error in original naming
+// that can not be updated due to ongoing gcl config experiments.
 BASE_FEATURE(kAutofillEnableAmountExtractionAllowlistDesktop,
              "AutofillEnableAmountExtractionAllowlistDesktop",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 // When enabled, Chrome will extract the checkout amount from the checkout page
-// of the allowlisted merchant websites.
+// of the allowlisted merchant websites. The suffix `desktop` is kept, it was an
+// error in original naming that can not be updated due to ongoing gcl config
+// experiments.
 BASE_FEATURE(kAutofillEnableAmountExtractionDesktop,
              "AutofillEnableAmountExtractionDesktop",
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
@@ -79,7 +76,12 @@ BASE_FEATURE(kAutofillEnableBuyNowPayLaterForKlarna,
 // When enabled, buy now pay later (BNPL) data will be synced to Chrome clients.
 BASE_FEATURE(kAutofillEnableBuyNowPayLaterSyncing,
              "AutofillEnableBuyNowPayLaterSyncing",
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
+    BUILDFLAG(IS_CHROMEOS)
              base::FEATURE_ENABLED_BY_DEFAULT);
+#else
+             base::FEATURE_DISABLED_BY_DEFAULT);
+#endif
 
 // When enabled, card benefits offered by American Express will be shown in
 // Payments Autofill UI.
@@ -291,7 +293,7 @@ BASE_FEATURE(kAutofillRetryImageFetchOnFailure,
 // and both a valid expiry date and cardholder name are present.
 BASE_FEATURE(kAutofillSaveCardBottomSheet,
              "AutofillSaveCardBottomSheet",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 #endif
 
 // If enabled, we will store autofill server card data in shared storage.
@@ -317,15 +319,6 @@ BASE_FEATURE(kAutofillSkipSaveCardForTabModalPopup,
 BASE_FEATURE(kAutofillUnmaskCardRequestTimeout,
              "AutofillUnmaskCardRequestTimeout",
              base::FEATURE_DISABLED_BY_DEFAULT);
-
-// When enabled, adds a timeout on the network request for UploadCard requests.
-BASE_FEATURE(kAutofillUploadCardRequestTimeout,
-             "AutofillUploadCardRequestTimeout",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-const base::FeatureParam<int> kAutofillUploadCardRequestTimeoutMilliseconds{
-    &kAutofillUploadCardRequestTimeout,
-    "autofill_upload_card_request_timeout_milliseconds",
-    /*default_value=*/6500};
 
 // Controls offering credit card upload to Google Payments. Cannot ever be
 // ENABLED_BY_DEFAULT because the feature state depends on the user's country.

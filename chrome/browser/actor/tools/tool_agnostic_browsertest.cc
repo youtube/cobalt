@@ -6,13 +6,17 @@
 #include "chrome/browser/actor/actor_test_util.h"
 #include "chrome/browser/actor/tools/tool_request.h"
 #include "chrome/browser/actor/tools/tools_test_util.h"
+#include "chrome/browser/ui/browser_navigator_params.h"
 #include "chrome/common/actor.mojom.h"
+#include "chrome/test/base/ui_test_utils.h"
 #include "content/public/browser/render_frame_host.h"
+#include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/weak_document_ptr.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/test/back_forward_cache_util.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
+#include "ui/base/page_transition_types.h"
 #include "ui/gfx/geometry/point_conversions.h"
 
 using base::test::TestFuture;
@@ -20,15 +24,30 @@ using content::ChildFrameAt;
 using content::EvalJs;
 using content::GetDOMNodeId;
 using content::NavigateIframeToURL;
+using content::RenderFrameHost;
+using content::WebContents;
 
 namespace actor {
 
 namespace {
 
+class ActorToolAgnosticBrowserTest : public ActorToolsTest {
+ public:
+  ActorToolAgnosticBrowserTest() = default;
+  ~ActorToolAgnosticBrowserTest() override = default;
+
+  void SetUpOnMainThread() override {
+    ActorToolsTest::SetUpOnMainThread();
+    ASSERT_TRUE(embedded_test_server()->Start());
+    ASSERT_TRUE(embedded_https_test_server().Start());
+  }
+};
+
 // Test that requesting tool use on a page that's not active fails. In this case
 // we use BFCache but a prerendered page would be another example of an inactive
 // page with a live RenderFrameHost.
-IN_PROC_BROWSER_TEST_F(ActorToolsTest, InvokeToolInInactiveFrame) {
+IN_PROC_BROWSER_TEST_F(ActorToolAgnosticBrowserTest,
+                       InvokeToolInInactiveFrame) {
   // This test relies on BFCache so don't run it if it's not available.
   if (!content::BackForwardCache::IsBackForwardCacheFeatureEnabled()) {
     GTEST_SKIP();
@@ -57,14 +76,56 @@ IN_PROC_BROWSER_TEST_F(ActorToolsTest, InvokeToolInInactiveFrame) {
   EXPECT_EQ(first_rfh.AsRenderFrameHostIfValid()->GetLifecycleState(),
             content::RenderFrameHost::LifecycleState::kInBackForwardCache);
 
-  TestFuture<mojom::ActionResultPtr, std::optional<size_t>> result;
+  ActResultFuture result;
   actor_task().Act(ToRequestList(action), result.GetCallback());
   ExpectErrorResult(result, mojom::ActionResultCode::kFrameWentAway);
 }
 
+// Ensure actuation for a page tool simulates the page having focus. This is
+// important to ensure, e.g. 'focus' events are fired on the page in a way that
+// matches if a real user was interacting with the page.
+IN_PROC_BROWSER_TEST_F(ActorToolAgnosticBrowserTest,
+                       EnsureFocusSimulatedWhenActing) {
+  const GURL url_background =
+      embedded_test_server()->GetURL("/actor/focus.html");
+  const GURL url_foreground =
+      embedded_test_server()->GetURL("/actor/blank.html");
+
+  ASSERT_TRUE(content::NavigateToURL(web_contents(), url_background));
+
+  WebContents* background_contents = web_contents();
+  NavigateParams params(browser(), url_foreground, ::ui::PAGE_TRANSITION_LINK);
+  params.disposition = WindowOpenDisposition::NEW_FOREGROUND_TAB;
+  ::ui_test_utils::NavigateToURL(&params);
+
+  ASSERT_NE(web_contents(), background_contents);
+  ASSERT_FALSE(background_contents->GetPrimaryMainFrame()
+                   ->GetRenderWidgetHost()
+                   ->GetView()
+                   ->HasFocus());
+
+  content::RenderFrameHost* background_main_frame =
+      background_contents->GetPrimaryMainFrame();
+  std::optional<int> input_id = GetDOMNodeId(*background_main_frame, "input");
+  ASSERT_TRUE(input_id);
+
+  ASSERT_EQ(false, EvalJs(background_contents, "focus_fired"));
+
+  // Create an action that targets the first document.
+  std::unique_ptr<ToolRequest> action =
+      MakeClickRequest(*background_main_frame, input_id.value());
+
+  ActResultFuture result;
+  actor_task().Act(ToRequestList(action), result.GetCallback());
+  ExpectOkResult(result);
+
+  EXPECT_EQ(true, EvalJs(background_contents, "focus_fired"));
+}
+
 // Basic test to ensure sending a click to an element in a same-site subframe
 // works.
-IN_PROC_BROWSER_TEST_F(ActorToolsTest, InvokeToolSameSiteSubframe) {
+IN_PROC_BROWSER_TEST_F(ActorToolAgnosticBrowserTest,
+                       InvokeToolSameSiteSubframe) {
   const GURL url =
       embedded_https_test_server().GetURL("/actor/positioned_iframe.html");
   ASSERT_TRUE(content::NavigateToURL(web_contents(), url));
@@ -85,7 +146,7 @@ IN_PROC_BROWSER_TEST_F(ActorToolsTest, InvokeToolSameSiteSubframe) {
   std::unique_ptr<ToolRequest> action =
       MakeClickRequest(*subframe, button_id.value());
 
-  TestFuture<mojom::ActionResultPtr, std::optional<size_t>> result;
+  ActResultFuture result;
   actor_task().Act(ToRequestList(action), result.GetCallback());
   ExpectOkResult(result);
 
@@ -95,7 +156,7 @@ IN_PROC_BROWSER_TEST_F(ActorToolsTest, InvokeToolSameSiteSubframe) {
 
 // Sending an action to an offscreen element on a page should succeed by
 // scrolling it into view first.
-IN_PROC_BROWSER_TEST_F(ActorToolsTest, OffscreenElement) {
+IN_PROC_BROWSER_TEST_F(ActorToolAgnosticBrowserTest, OffscreenElement) {
   const GURL url =
       embedded_test_server()->GetURL("/actor/page_with_clickable_element.html");
   ASSERT_TRUE(content::NavigateToURL(web_contents(), url));
@@ -108,14 +169,14 @@ IN_PROC_BROWSER_TEST_F(ActorToolsTest, OffscreenElement) {
 
   std::unique_ptr<ToolRequest> action =
       MakeClickRequest(*main_frame(), button_id.value());
-  TestFuture<mojom::ActionResultPtr, std::optional<size_t>> result;
+  ActResultFuture result;
   actor_task().Act(ToRequestList(action), result.GetCallback());
   ExpectOkResult(result);
   EXPECT_EQ(EvalJs(web_contents(), "offscreen_button_clicked"), true);
 }
 
 // Sending an action to an offscreen coordinate should fail.
-IN_PROC_BROWSER_TEST_F(ActorToolsTest, OffscreenCoordinate) {
+IN_PROC_BROWSER_TEST_F(ActorToolAgnosticBrowserTest, OffscreenCoordinate) {
   const GURL url =
       embedded_test_server()->GetURL("/actor/page_with_clickable_element.html");
   ASSERT_TRUE(content::NavigateToURL(web_contents(), url));
@@ -129,7 +190,7 @@ IN_PROC_BROWSER_TEST_F(ActorToolsTest, OffscreenCoordinate) {
 
     std::unique_ptr<ToolRequest> action =
         MakeClickRequest(*active_tab(), click_point);
-    TestFuture<mojom::ActionResultPtr, std::optional<size_t>> result;
+    ActResultFuture result;
     actor_task().Act(ToRequestList(action), result.GetCallback());
     ExpectErrorResult(result, mojom::ActionResultCode::kCoordinatesOutOfBounds);
     EXPECT_EQ(EvalJs(web_contents(), "offscreen_button_clicked"), false);
@@ -138,7 +199,7 @@ IN_PROC_BROWSER_TEST_F(ActorToolsTest, OffscreenCoordinate) {
 
 // Sending an action to a coordinate that's outside the document bounds (i.e.
 // cannot be scrolled to) should fail.
-IN_PROC_BROWSER_TEST_F(ActorToolsTest, InvalidCoordinate) {
+IN_PROC_BROWSER_TEST_F(ActorToolAgnosticBrowserTest, InvalidCoordinate) {
   const GURL url =
       embedded_test_server()->GetURL("/actor/page_with_clickable_element.html");
   ASSERT_TRUE(content::NavigateToURL(web_contents(), url));
@@ -150,7 +211,7 @@ IN_PROC_BROWSER_TEST_F(ActorToolsTest, InvalidCoordinate) {
 
     std::unique_ptr<ToolRequest> action =
         MakeClickRequest(*active_tab(), click_point);
-    TestFuture<mojom::ActionResultPtr, std::optional<size_t>> result;
+    ActResultFuture result;
     actor_task().Act(ToRequestList(action), result.GetCallback());
     ExpectErrorResult(result, mojom::ActionResultCode::kCoordinatesOutOfBounds);
   }
@@ -162,7 +223,7 @@ IN_PROC_BROWSER_TEST_F(ActorToolsTest, InvalidCoordinate) {
 
     std::unique_ptr<ToolRequest> action =
         MakeClickRequest(*active_tab(), click_point);
-    TestFuture<mojom::ActionResultPtr, std::optional<size_t>> result;
+    ActResultFuture result;
     actor_task().Act(ToRequestList(action), result.GetCallback());
     ExpectErrorResult(result, mojom::ActionResultCode::kCoordinatesOutOfBounds);
   }
@@ -170,7 +231,8 @@ IN_PROC_BROWSER_TEST_F(ActorToolsTest, InvalidCoordinate) {
 
 // Sending an action to an offscreen element on a page that cannot be scrolled
 // should fail.
-IN_PROC_BROWSER_TEST_F(ActorToolsTest, OffscreenElementNonScrollablePage) {
+IN_PROC_BROWSER_TEST_F(ActorToolAgnosticBrowserTest,
+                       OffscreenElementNonScrollablePage) {
   const GURL url =
       embedded_test_server()->GetURL("/actor/page_with_clickable_element.html");
   ASSERT_TRUE(content::NavigateToURL(web_contents(), url));
@@ -186,7 +248,7 @@ IN_PROC_BROWSER_TEST_F(ActorToolsTest, OffscreenElementNonScrollablePage) {
 
   std::unique_ptr<ToolRequest> action =
       MakeClickRequest(*main_frame(), button_id.value());
-  TestFuture<mojom::ActionResultPtr, std::optional<size_t>> result;
+  ActResultFuture result;
   actor_task().Act(ToRequestList(action), result.GetCallback());
   ExpectErrorResult(result, mojom::ActionResultCode::kElementOffscreen);
 
@@ -194,7 +256,7 @@ IN_PROC_BROWSER_TEST_F(ActorToolsTest, OffscreenElementNonScrollablePage) {
 }
 
 // Sending an action to an offscreen fixed position element should fail.
-IN_PROC_BROWSER_TEST_F(ActorToolsTest, OffscreenFixedElement) {
+IN_PROC_BROWSER_TEST_F(ActorToolAgnosticBrowserTest, OffscreenFixedElement) {
   const GURL url =
       embedded_test_server()->GetURL("/actor/page_with_clickable_element.html");
   ASSERT_TRUE(content::NavigateToURL(web_contents(), url));
@@ -208,7 +270,7 @@ IN_PROC_BROWSER_TEST_F(ActorToolsTest, OffscreenFixedElement) {
 
   std::unique_ptr<ToolRequest> action =
       MakeClickRequest(*main_frame(), button_id.value());
-  TestFuture<mojom::ActionResultPtr, std::optional<size_t>> result;
+  ActResultFuture result;
   actor_task().Act(ToRequestList(action), result.GetCallback());
   ExpectErrorResult(result, mojom::ActionResultCode::kElementOffscreen);
 

@@ -38,7 +38,6 @@
 #include "third_party/blink/renderer/core/html/parser/html_input_stream.h"
 #include "third_party/blink/renderer/core/script/html_parser_script_runner_host.h"
 #include "third_party/blink/renderer/core/script/script_loader.h"
-#include "third_party/blink/renderer/core/script/script_runner.h"
 #include "third_party/blink/renderer/platform/bindings/v8_per_isolate_data.h"
 #include "third_party/blink/renderer/platform/instrumentation/histogram.h"
 #include "third_party/blink/renderer/platform/instrumentation/tracing/trace_event.h"
@@ -163,11 +162,6 @@ bool HTMLParserScriptRunner::IsParserBlockingScriptReady() {
   DCHECK(ParserBlockingScript());
   if (!document_->IsScriptExecutionReady())
     return false;
-  // TODO(crbug.com/1344772) Consider moving this condition to
-  // Document::IsScriptExecutionReady(), while we are not yet sure.
-  if (base::FeatureList::IsEnabled(features::kForceInOrderScript) &&
-      document_->GetScriptRunner()->HasForceInOrderScripts())
-    return false;
   return ParserBlockingScript()->IsReady();
 }
 
@@ -265,9 +259,9 @@ void HTMLParserScriptRunner::PendingScriptFinished(
   // yielding for cooperative scheduling. Cooperative scheduling requires that
   // the Blink C++ stack be thin when it executes JavaScript.
   document_->GetTaskRunner(TaskType::kInternalContinueScriptLoading)
-      ->PostTask(FROM_HERE,
-                 WTF::BindOnce(&HTMLParserScriptRunnerHost::NotifyScriptLoaded,
-                               WrapPersistent(host_.Get())));
+      ->PostTask(FROM_HERE, blink::BindOnce(
+                                &HTMLParserScriptRunnerHost::NotifyScriptLoaded,
+                                WrapPersistent(host_.Get())));
 }
 
 // <specdef href="https://html.spec.whatwg.org/C/#scriptEndTag">
@@ -542,7 +536,6 @@ void HTMLParserScriptRunner::ProcessScriptElementInternal(
 
       case ScriptSchedulingType::kAsync:
       case ScriptSchedulingType::kInOrder:
-      case ScriptSchedulingType::kForceInOrder:
       case ScriptSchedulingType::kImmediate:
       case ScriptSchedulingType::kNotSet:
       case ScriptSchedulingType::kDeprecatedForceDefer:

@@ -208,10 +208,10 @@ constexpr base::TimeDelta kA11yAnnouncementQueueDelay = base::Seconds(2);
 // Returns the font family selection button.
 - (UIButton*)createFontFamilyButton {
   UIButtonConfiguration* configuration =
-      [UIButtonConfiguration plainButtonConfiguration];
+      [UIButtonConfiguration grayButtonConfiguration];
   configuration.titleAlignment = UIButtonConfigurationTitleAlignmentLeading;
   configuration.baseForegroundColor = [UIColor colorNamed:kTextPrimaryColor];
-  configuration.background.backgroundColor =
+  configuration.baseBackgroundColor =
       [UIColor colorNamed:kGroupedPrimaryBackgroundColor];
   configuration.background.cornerRadius = kCornerRadius;
   UIButton* button = [UIButton buttonWithConfiguration:configuration
@@ -251,7 +251,7 @@ constexpr base::TimeDelta kA11yAnnouncementQueueDelay = base::Seconds(2);
   return [UIMenu
       menuWithTitle:l10n_util::GetNSString(
                         IDS_IOS_READER_MODE_OPTIONS_FONT_FAMILY_MENU_TITLE)
-           children:@[ sansSerifAction, serifAction, monospaceAction ]];
+           children:@[ monospaceAction, sansSerifAction, serifAction ]];
 }
 
 // Returns the action to select the Sans-serif font family.
@@ -337,8 +337,8 @@ constexpr base::TimeDelta kA11yAnnouncementQueueDelay = base::Seconds(2);
 - (UIButton*)createFontSizeButtonWithTitle:(NSString*)title
                                   fontSize:(CGFloat)fontSize {
   UIButtonConfiguration* configuration =
-      [UIButtonConfiguration plainButtonConfiguration];
-  configuration.background.backgroundColor =
+      [UIButtonConfiguration grayButtonConfiguration];
+  configuration.baseBackgroundColor =
       [UIColor colorNamed:kGroupedPrimaryBackgroundColor];
   configuration.baseForegroundColor = [UIColor colorNamed:kTextPrimaryColor];
   configuration.background.cornerRadius = 0;
@@ -440,11 +440,11 @@ constexpr base::TimeDelta kA11yAnnouncementQueueDelay = base::Seconds(2);
                                  textColor:(UIColor*)textColor
                            backgroundColor:(UIColor*)backgroundColor {
   UIButtonConfiguration* configuration =
-      [UIButtonConfiguration plainButtonConfiguration];
+      [UIButtonConfiguration filledButtonConfiguration];
   configuration.title = l10n_util::GetNSString(
       IDS_IOS_READER_MODE_OPTIONS_COLOR_THEME_BUTTON_LABEL);
   configuration.baseForegroundColor = textColor;
-  configuration.background.backgroundColor = backgroundColor;
+  configuration.baseBackgroundColor = backgroundColor;
   configuration.background.strokeColor =
       selected ? [UIColor colorNamed:kBlue600Color]
                : [UIColor colorNamed:kGroupedPrimaryBackgroundColor];

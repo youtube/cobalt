@@ -54,7 +54,6 @@
 #include "cc/input/browser_controls_offset_tag_modifications.h"
 #include "components/attribution_reporting/features.h"
 #include "components/download/public/common/download_stats.h"
-#include "components/fingerprinting_protection_filter/interventions/common/interventions_features.h"
 #include "components/input/cursor_manager.h"
 #include "components/input/features.h"
 #include "components/input/render_widget_host_input_event_router.h"
@@ -87,7 +86,6 @@
 #include "content/browser/download/save_package.h"
 #include "content/browser/fenced_frame/fenced_frame.h"
 #include "content/browser/find_request_manager.h"
-#include "content/browser/fingerprinting_protection/canvas_noise_token_data.h"
 #include "content/browser/gpu/gpu_data_manager_impl.h"
 #include "content/browser/guest_page_holder_impl.h"
 #include "content/browser/host_zoom_map_impl.h"
@@ -212,6 +210,7 @@
 #include "ui/accessibility/ax_tree_combiner.h"
 #include "ui/accessibility/platform/browser_accessibility.h"
 #include "ui/accessibility/platform/browser_accessibility_manager.h"
+#include "ui/base/clipboard/clipboard_metadata.h"
 #include "ui/base/ime/mojom/virtual_keyboard_types.mojom.h"
 #include "ui/base/mojom/window_show_state.mojom.h"
 #include "ui/base/pointer/pointer_device.h"
@@ -234,7 +233,7 @@
 #endif  // BUILDFLAG(IS_WIN)
 
 #if BUILDFLAG(IS_ANDROID)
-#include "base/android/build_info.h"
+#include "base/android/device_info.h"
 #include "base/check.h"
 #include "content/browser/android/java_interfaces_impl.h"
 #include "content/browser/android/nfc_host.h"
@@ -1192,8 +1191,18 @@ void WebContentsImpl::WebContentsTreeNode::OnFrameTreeNodeDestroyed(
          "FrameTreeNode in its outer WebContents that hosts it.";
 
   node->RemoveObserver(this);
-  // Deletes |this| too.
-  outer_web_contents_->node_.DetachInnerWebContents(current_web_contents_);
+
+  if (outer_web_contents_->node_.IsUnownedInnerWebContents(
+          current_web_contents_)) {
+    // Detach at all levels (WebContentsTreeNode and FrameTreeNode,
+    // RenderFrameProxyHost, etc.). This will not delete `this` (the inner
+    // WebContents).
+    outer_web_contents_->DetachUnownedInnerWebContents(current_web_contents_);
+  } else {
+    // Detach only at the WebContentsTreeNode level. This will delete `this` (
+    // the inner WebContents).
+    outer_web_contents_->node_.DetachInnerWebContents(current_web_contents_);
+  }
 }
 
 FrameTree* WebContentsImpl::WebContentsTreeNode::focused_frame_tree() {
@@ -1435,12 +1444,6 @@ WebContentsImpl::WebContentsImpl(BrowserContext* browser_context)
 
   if (base::FeatureList::IsEnabled(network::features::kSharedStorageAPI)) {
     SharedStorageBudgetCharger::CreateForWebContents(this);
-  }
-
-  if (base::FeatureList::IsEnabled(
-          fingerprinting_protection_interventions::features::kCanvasNoise)) {
-    renderer_preferences_.canvas_noise_token =
-        CanvasNoiseTokenData::GetToken(browser_context);
   }
 }
 
@@ -2502,14 +2505,6 @@ void WebContentsImpl::SetUserAgentOverride(
                              ua_override);
 }
 
-void WebContentsImpl::SetRendererInitiatedUserAgentOverrideOption(
-    NavigationController::UserAgentOverrideOption option) {
-  OPTIONAL_TRACE_EVENT0(
-      "content",
-      "WebContentsImpl::SetRendererInitiatedUserAgentOverrideOption");
-  renderer_initiated_user_agent_override_option_ = option;
-}
-
 const blink::UserAgentOverride& WebContentsImpl::GetUserAgentOverride() {
   return renderer_preferences_.user_agent_override;
 }
@@ -2524,22 +2519,14 @@ const blink::UserAgentOverride& WebContentsImpl::GetUserAgentOverride(
 }
 
 bool WebContentsImpl::ShouldOverrideUserAgentForRendererInitiatedNavigation() {
+  // Inherits the current entry setting if it exists and not initial.
   NavigationEntryImpl* current_entry = GetController().GetLastCommittedEntry();
-  if (!current_entry || current_entry->IsInitialEntry()) {
-    return should_override_user_agent_in_new_tabs_;
+  if (current_entry && !current_entry->IsInitialEntry()) {
+    return current_entry->GetIsOverridingUserAgent();
   }
-
-  switch (renderer_initiated_user_agent_override_option_) {
-    case NavigationController::UA_OVERRIDE_INHERIT:
-      return current_entry->GetIsOverridingUserAgent();
-    case NavigationController::UA_OVERRIDE_TRUE:
-      return true;
-    case NavigationController::UA_OVERRIDE_FALSE:
-      return false;
-    default:
-      break;
-  }
-  return false;
+  // Otherwise, follows the setting from the last user-agent override. See
+  // `override_in_new_tabs` in `SetUserAgentOverride()`.
+  return should_override_user_agent_in_new_tabs_;
 }
 
 bool WebContentsImpl::IsWebContentsOnlyAccessibilityModeForTesting() {
@@ -3404,10 +3391,15 @@ void WebContentsImpl::DetachUnownedInnerWebContents(
   inner_web_contents_impl->GetPrimaryFrameTree().ForEachRenderViewHost(
       [&list_of_rvh_with_rwhv](RenderViewHostImpl* rvh) {
         if (rvh->GetWidget() && rvh->GetWidget()->GetView()) {
-          CHECK(
-              rvh->GetWidget()->GetView()->IsRenderWidgetHostViewChildFrame());
+          // While in theory only child frame RWHVs should exist at this stage,
+          // in practice, a race with navigation cleanup could result in a main
+          // frame RWHV that is pending deletion still existing here.
+          // This might happen when a WebContents is destroyed immediately
+          // after it navigates and then attaches to an outer WebContents.
+          if (rvh->GetWidget()->GetView()->IsRenderWidgetHostViewChildFrame()) {
+            list_of_rvh_with_rwhv.push_back(rvh);
+          }
           rvh->GetWidget()->GetView()->Destroy();
-          list_of_rvh_with_rwhv.push_back(rvh);
         }
       });
 
@@ -3832,7 +3824,7 @@ const blink::web_pref::WebPreferences WebContentsImpl::ComputeWebPreferences(
 
 #if BUILDFLAG(IS_ANDROID)
   if (base::FeatureList::IsEnabled(features::kWebauthnDisabledOnAuto) &&
-      base::android::BuildInfo::GetInstance()->is_automotive()) {
+      base::android::device_info::is_automotive()) {
     prefs.disable_webauthn = true;
   }
 #endif  // BUILDFLAG(IS_ANDROID)
@@ -4623,16 +4615,12 @@ void WebContentsImpl::EnterFullscreenMode(
   DCHECK(CanEnterFullscreenMode(requesting_frame));
   DCHECK(requesting_frame->IsActive());
   DCHECK(ContainsOrIsFocusedWebContents());
-  if (base::FeatureList::IsEnabled(
-          features::kAutomaticFullscreenContentSetting)) {
-    // Ensure the window is made active to take input focus. The user may have
-    // activated another window between making a gesture and the site handling
-    // that gesture to request fullscreen. The experimental automatic fullscreen
-    // feature also enables allowlisted sites to request fullscreen without any
-    // gesture, even if the window was inactive. Note: requests from inactive
-    // tabs of multi-tab windows should be rejected before reaching this code.
-    Activate();
-  }
+  // Ensure the window is made active to take input focus. The window may be
+  // inactive when sites request fullscreen via capability delegation, consume
+  // transient activation from a gesture made before another window was focused,
+  // or if the site has been granted the Automatic Fullscreen content setting.
+  // Note: requests by inactive tabs of multi-tab windows are rejected earlier.
+  Activate();
 
   // When WebView is the `delegate_` we can end up with VisualProperties changes
   // synchronously. Notify the view ahead so it can handle the transition.
@@ -7030,9 +7018,10 @@ int WebContentsImpl::DownloadImageFromAxNode(const ui::AXTreeID tree_id,
                         tree_id.ToString() + "," + base::ToString(node_id));
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   const int download_id = GetNextDownloadId();
-  // Always use the main frame when downloading via A11y ids.
-  RenderFrameHostImpl* main_frame = GetPrimaryMainFrame();
-  if (!main_frame->IsRenderFrameLive()) {
+
+  RenderFrameHostImpl* target_frame =
+      RenderFrameHostImpl::FromAXTreeID(tree_id);
+  if (!target_frame || !target_frame->IsRenderFrameLive()) {
     // If the renderer process is dead (i.e. crash, or memory pressure on
     // Android), the downloader service will be invalid. Pre-Mojo, this would
     // hang the callback indefinitely since the IPC would be dropped. Now,
@@ -7042,19 +7031,21 @@ int WebContentsImpl::DownloadImageFromAxNode(const ui::AXTreeID tree_id,
     GetUIThreadTaskRunner({})->PostTask(
         FROM_HERE,
         base::BindOnce(&WebContentsImpl::OnDidDownloadImage,
-                       weak_factory_.GetWeakPtr(), main_frame->GetWeakPtr(),
+                       weak_factory_.GetWeakPtr(),
+                       target_frame ? target_frame->GetWeakPtr() : nullptr,
                        std::move(callback), download_id, GURL(), 400,
                        std::vector<SkBitmap>(), std::vector<gfx::Size>()));
     return download_id;
   }
-  CHECK_EQ(main_frame->GetAXTreeID(), tree_id);
-  main_frame->GetMojoImageDownloader()->DownloadImageFromAxNode(
+  CHECK_EQ(target_frame->GetAXTreeID(), tree_id);
+  target_frame->GetMojoImageDownloader()->DownloadImageFromAxNode(
       node_id, preferred_size, max_bitmap_size, bypass_cache,
       base::BindOnce(&WebContentsImpl::OnDidDownloadImage,
-                     weak_factory_.GetWeakPtr(), main_frame->GetWeakPtr(),
+                     weak_factory_.GetWeakPtr(), target_frame->GetWeakPtr(),
                      std::move(callback), download_id, GURL()));
   return download_id;
 }
+
 int WebContentsImpl::DownloadImage(
     const GURL& url,
     bool is_favicon,
@@ -9081,11 +9072,6 @@ const blink::RendererPreferences& WebContentsImpl::GetRendererPrefs(
   if (auto* guest = GuestPageHolderImpl::FromRenderFrameHost(
           *render_view_host->frame_tree()->GetMainFrame())) {
     return guest->GetRendererPrefs();
-  }
-  if (base::FeatureList::IsEnabled(
-          fingerprinting_protection_interventions::features::kCanvasNoise)) {
-    renderer_preferences_.canvas_noise_token =
-        CanvasNoiseTokenData::GetToken(GetBrowserContext());
   }
   RenderViewHostImpl::GetPlatformSpecificPrefs(&renderer_preferences_);
   return renderer_preferences_;
@@ -11396,7 +11382,7 @@ std::vector<FrameTreeNode*> WebContentsImpl::GetUnattachedOwnedNodes(
 void WebContentsImpl::IsClipboardPasteAllowedByPolicy(
     const ClipboardEndpoint& source,
     const ClipboardEndpoint& destination,
-    const ClipboardMetadata& metadata,
+    const ui::ClipboardMetadata& metadata,
     ClipboardPasteData clipboard_paste_data,
     IsClipboardPasteAllowedCallback callback) {
   ++suppress_unresponsive_renderer_count_;
@@ -12027,11 +12013,6 @@ std::unique_ptr<PrefetchHandle> WebContentsImpl::StartPrefetch(
     base::WeakPtr<PreloadingAttempt> attempt,
     std::optional<PreloadingHoldbackStatus> holdback_status_override,
     std::optional<base::TimeDelta> ttl) {
-  if (!base::FeatureList::IsEnabled(
-          features::kPrefetchBrowserInitiatedTriggers)) {
-    return nullptr;
-  }
-
   PrefetchService* prefetch_service =
       BrowserContextImpl::From(GetBrowserContext())->GetPrefetchService();
   if (!prefetch_service) {

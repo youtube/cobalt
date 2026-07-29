@@ -16,7 +16,6 @@
 #include "base/cancelable_callback.h"
 #include "base/compiler_specific.h"
 #include "base/memory/raw_ptr.h"
-#include "base/memory/ref_counted.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/task/sequenced_task_runner.h"
@@ -53,12 +52,12 @@
 #include "third_party/blink/public/platform/web_content_decryption_module_result.h"
 #include "third_party/blink/public/platform/web_media_player.h"
 #include "third_party/blink/public/platform/web_surface_layer_bridge.h"
-#include "third_party/blink/renderer/platform/allow_discouraged_type.h"
 #include "third_party/blink/renderer/platform/bindings/v8_external_memory_accounter.h"
 #include "third_party/blink/renderer/platform/media/media_player_client.h"
 #include "third_party/blink/renderer/platform/media/multi_buffer_data_source.h"
 #include "third_party/blink/renderer/platform/platform_export.h"
-#include "url/gurl.h"
+
+class GURL;
 
 namespace base {
 class SingleThreadTaskRunner;
@@ -92,8 +91,10 @@ class RasterContextProvider;
 }
 
 namespace blink {
+
 class BufferedDataSourceHostImpl;
 class PowerStatusHelper;
+class KURL;
 class ThreadSafeBrowserInterfaceBrokerProxy;
 class UrlIndex;
 class VideoDecodeStatsReporter;
@@ -288,7 +289,7 @@ class PLATFORM_EXPORT WebMediaPlayerImpl
   void RequestMediaRemoting() override;
 
 #if BUILDFLAG(IS_ANDROID)
-  // TODO(https://crbug.com/839651): Rename Flinging[Started/Stopped] to
+  // TODO(crbug.com/41387054): Rename Flinging[Started/Stopped] to
   // RemotePlayback[Started/Stopped] once the other RemotePlayback methods have
   // been removed
   void FlingingStarted() override;
@@ -644,7 +645,7 @@ class PLATFORM_EXPORT WebMediaPlayerImpl
   // Must be called when either of the following happens:
   // - right after the video was shown,
   // - right before the pipeline is requested to resume
-  //   (see https://crbug.com/678374),
+  //   (see https://crbug.com/41293579),
   // - right after the pipeline has resumed if the video is not hidden.
   void EnableVideoTrackIfNeeded();
 
@@ -686,8 +687,8 @@ class PLATFORM_EXPORT WebMediaPlayerImpl
 
   // Returns the current time without clamping to Duration() as required by
   // HTMLMediaElement for handling ended. This method will never return a
-  // negative or kInfiniteDuration value. See http://crbug.com/409280,
-  // http://crbug.com/645998, and http://crbug.com/751823 for reasons why.
+  // negative or kInfiniteDuration value. See http://crbug.com/40382058,
+  // http://crbug.com/41274857, and http://crbug.com/40533294 for reasons why.
   base::TimeDelta GetCurrentTimeInternal() const;
 
   // Called by the compositor the very first time a frame is received.
@@ -817,7 +818,7 @@ class PLATFORM_EXPORT WebMediaPlayerImpl
   bool pending_suspend_resume_cycle_ = false;
 
   // TODO(scherkus): Replace with an explicit ended signal to HTMLMediaElement,
-  // see http://crbug.com/409280
+  // see http://crbug.com/40382058.
   bool ended_ = false;
 
   // Tracks whether to issue time changed notifications during buffering state
@@ -918,7 +919,7 @@ class PLATFORM_EXPORT WebMediaPlayerImpl
 
   // Tracks if we are currently flinging a video (e.g. in a RemotePlayback
   // session). Used to prevent videos from being paused when hidden.
-  // TODO(https://crbug.com/839651): remove or rename this flag, when removing
+  // TODO(crbug.com/41387054): remove or rename this flag, when removing
   // IsRemote().
   bool is_flinging_ = false;
 
@@ -1104,8 +1105,6 @@ class PLATFORM_EXPORT WebMediaPlayerImpl
 
   // Whether background video optimization is supported on current platform.
   bool is_background_video_track_optimization_supported_ = true;
-
-  const bool should_pause_background_muted_audio_;
 
   bool was_suspended_for_frame_closed_or_frozen_ = false;
 

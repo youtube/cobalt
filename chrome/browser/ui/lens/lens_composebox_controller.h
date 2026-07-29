@@ -6,11 +6,13 @@
 #define CHROME_BROWSER_UI_LENS_LENS_COMPOSEBOX_CONTROLLER_H_
 
 #include <memory>
+#include <set>
 
 #include "base/memory/raw_ptr.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "mojo/public/cpp/bindings/remote.h"
+#include "third_party/lens_server_proto/aim_communication.pb.h"
 #include "ui/webui/resources/cr_components/composebox/composebox.mojom.h"
 
 class LensSearchController;
@@ -47,9 +49,24 @@ class LensComposeboxController {
   // Cleans up any any state associated with this UI instance.
   void CloseUI();
 
+  // Handles AIM messages from the side panel remote UI.
+  void OnAimMessage(const std::vector<uint8_t>& message);
+
+  LensComposeboxHandler* composebox_handler_for_testing() {
+    return composebox_handler_.get();
+  }
+
  private:
+  // Builds a SubmitQuery ClientToAimMessage message to send to the side panel
+  // remote UI.
+  lens::ClientToAimMessage BuildSubmitQueryMessage(
+      const std::string& query_text);
+
   // Owns this.
   const raw_ptr<LensSearchController> lens_search_controller_;
+
+  // The remote UI's capabilities.
+  std::set<lens::FeatureCapability> remote_ui_capabilities_;
 
   // The class responsible for handling messages between the compose box and
   // the WebUI.

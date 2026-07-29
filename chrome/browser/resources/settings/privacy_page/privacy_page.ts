@@ -23,6 +23,7 @@ import '../settings_page/settings_subpage.js';
 import '../settings_shared.css.js';
 import '../site_settings/geolocation_page.js';
 import '../site_settings/notifications_page.js';
+import '../site_settings/pdf_documents_page.js';
 import '../site_settings/protected_content_page.js';
 import '../site_settings/settings_category_default_radio_group.js';
 import '../site_settings/smart_card_readers_page.js';
@@ -205,12 +206,6 @@ export class SettingsPrivacyPageElement extends SettingsPrivacyPageElementBase {
         },
       },
 
-      enableAutomaticFullscreenContentSetting_: {
-        type: Boolean,
-        value: () =>
-            loadTimeData.getBoolean('enableAutomaticFullscreenContentSetting'),
-      },
-
       focusConfig_: {
         type: Object,
         value() {
@@ -331,7 +326,6 @@ export class SettingsPrivacyPageElement extends SettingsPrivacyPageElementBase {
   declare private enableWebPrintingContentSetting_: boolean;
   declare private isPrivacySandboxRestricted_: boolean;
   declare private isPrivacySandboxRestrictedNoticeEnabled_: boolean;
-  declare private enableAutomaticFullscreenContentSetting_: boolean;
   private privateStateTokensEnabled_: boolean;
   declare private autoPictureInPictureEnabled_: boolean;
   declare private capturedSurfaceControlEnabled_: boolean;
@@ -500,11 +494,8 @@ export class SettingsPrivacyPageElement extends SettingsPrivacyPageElementBase {
         this.getPref('profile.cookie_controls_mode').value;
     switch (currentCookieSetting) {
       case CookieControlsMode.OFF:
-        return this.i18n('thirdPartyCookiesLinkRowSublabelEnabled');
       case CookieControlsMode.INCOGNITO_ONLY:
-        return loadTimeData.getBoolean('isAlwaysBlock3pcsIncognitoEnabled') ?
-            this.i18n('thirdPartyCookiesLinkRowSublabelEnabled') :
-            this.i18n('thirdPartyCookiesLinkRowSublabelDisabledIncognito');
+        return this.i18n('thirdPartyCookiesLinkRowSublabelEnabled');
       case CookieControlsMode.BLOCK_THIRD_PARTY:
         return this.i18n('thirdPartyCookiesLinkRowSublabelDisabled');
       default:

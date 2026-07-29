@@ -22,8 +22,20 @@ namespace actor {
 
 namespace {
 
+class ActorNavigateToolBrowserTest : public ActorToolsTest {
+ public:
+  ActorNavigateToolBrowserTest() = default;
+  ~ActorNavigateToolBrowserTest() override = default;
+
+  void SetUpOnMainThread() override {
+    ActorToolsTest::SetUpOnMainThread();
+    ASSERT_TRUE(embedded_test_server()->Start());
+    ASSERT_TRUE(embedded_https_test_server().Start());
+  }
+};
+
 // Basic test of the NavigateTool.
-IN_PROC_BROWSER_TEST_F(ActorToolsTest, NavigateTool) {
+IN_PROC_BROWSER_TEST_F(ActorNavigateToolBrowserTest, NavigateTool) {
   const GURL url_start =
       embedded_test_server()->GetURL("/actor/blank.html?start");
   const GURL url_target =
@@ -32,7 +44,7 @@ IN_PROC_BROWSER_TEST_F(ActorToolsTest, NavigateTool) {
 
   std::unique_ptr<ToolRequest> action =
       MakeNavigateRequest(*active_tab(), url_target.spec());
-  TestFuture<mojom::ActionResultPtr, std::optional<size_t>> result_success;
+  ActResultFuture result_success;
   actor_task().Act(ToRequestList(action), result_success.GetCallback());
   ExpectOkResult(result_success);
 
@@ -41,7 +53,8 @@ IN_PROC_BROWSER_TEST_F(ActorToolsTest, NavigateTool) {
 
 // Ensure that when navigating to a new document, the navigate tool delays
 // completion until the new page has fired the load event.
-IN_PROC_BROWSER_TEST_F(ActorToolsTest, NavigateTool_DelaysUntilLoad) {
+IN_PROC_BROWSER_TEST_F(ActorNavigateToolBrowserTest,
+                       NavigateTool_DelaysUntilLoad) {
   const GURL url_first =
       embedded_test_server()->GetURL("/actor/simple_iframe.html?start");
   const GURL url_second =
@@ -57,7 +70,7 @@ IN_PROC_BROWSER_TEST_F(ActorToolsTest, NavigateTool_DelaysUntilLoad) {
 
   std::unique_ptr<ToolRequest> action =
       MakeNavigateRequest(*active_tab(), url_second.spec());
-  TestFuture<mojom::ActionResultPtr, std::optional<size_t>> result;
+  ActResultFuture result;
   actor_task().Act(ToRequestList(action), result.GetCallback());
 
   // Wait for the main frame navigation to finish and for the main document to
@@ -80,7 +93,8 @@ IN_PROC_BROWSER_TEST_F(ActorToolsTest, NavigateTool_DelaysUntilLoad) {
   ExpectOkResult(result);
 }
 
-IN_PROC_BROWSER_TEST_F(ActorToolsTest, NavigateTool_TargetUrlRestriction) {
+IN_PROC_BROWSER_TEST_F(ActorNavigateToolBrowserTest,
+                       NavigateTool_TargetUrlRestriction) {
   const GURL url_start =
       embedded_https_test_server().GetURL("/actor/blank.html?start");
   const GURL url_target = embedded_https_test_server().GetURL(
@@ -89,7 +103,7 @@ IN_PROC_BROWSER_TEST_F(ActorToolsTest, NavigateTool_TargetUrlRestriction) {
 
   std::unique_ptr<ToolRequest> action =
       MakeNavigateRequest(*active_tab(), url_target.spec());
-  TestFuture<mojom::ActionResultPtr, std::optional<size_t>> result;
+  ActResultFuture result;
   actor_task().Act(ToRequestList(action), result.GetCallback());
   ExpectErrorResult(result, mojom::ActionResultCode::kUrlBlocked);
 
@@ -98,7 +112,8 @@ IN_PROC_BROWSER_TEST_F(ActorToolsTest, NavigateTool_TargetUrlRestriction) {
 
 // Test that the navigate tool correctly adds the acted on tab to the task's set
 // of tabs.
-IN_PROC_BROWSER_TEST_F(ActorToolsTest, NavigateTool_RecordActingOnTask) {
+IN_PROC_BROWSER_TEST_F(ActorNavigateToolBrowserTest,
+                       NavigateTool_RecordActingOnTask) {
   ASSERT_TRUE(actor_task().GetTabs().empty());
 
   const GURL url_target =
@@ -106,7 +121,7 @@ IN_PROC_BROWSER_TEST_F(ActorToolsTest, NavigateTool_RecordActingOnTask) {
 
   std::unique_ptr<ToolRequest> action =
       MakeNavigateRequest(*active_tab(), url_target.spec());
-  TestFuture<mojom::ActionResultPtr, std::optional<size_t>> result_success;
+  ActResultFuture result_success;
   actor_task().Act(ToRequestList(action), result_success.GetCallback());
   ExpectOkResult(result_success);
 

@@ -158,6 +158,8 @@ static_library("browser") {
     "data_model/addresses/autofill_i18n_parsing_expression_components.cc",
     "data_model/addresses/autofill_i18n_parsing_expression_components.h",
     "data_model/addresses/autofill_i18n_parsing_expressions.h",
+    "data_model/addresses/autofill_normalization_utils.cc",
+    "data_model/addresses/autofill_normalization_utils.h",
     "data_model/addresses/autofill_profile.cc",
     "data_model/addresses/autofill_profile.h",
     "data_model/addresses/autofill_profile_comparator.cc",
@@ -578,6 +580,7 @@ static_library("browser") {
     "payments/payments_requests/opt_change_request.h",
     "payments/payments_requests/payments_request.cc",
     "payments/payments_requests/payments_request.h",
+    "payments/payments_requests/payments_request_constants.h",
     "payments/payments_requests/select_challenge_option_request.cc",
     "payments/payments_requests/select_challenge_option_request.h",
     "payments/payments_requests/unmask_card_request.cc",
@@ -1250,6 +1253,8 @@ static_library("test_support") {
     "webdata/mock_autofill_webdata_service.h",
     "webdata/payments/payments_sync_bridge_test_util.cc",
     "webdata/payments/payments_sync_bridge_test_util.h",
+    "webdata/valuables/valuables_sync_test_utils.cc",
+    "webdata/valuables/valuables_sync_test_utils.h",
   ]
 
   public_deps = [
@@ -1384,6 +1389,7 @@ source_set("unit_tests") {
     "data_model/addresses/address_unittest.cc",
     "data_model/addresses/autofill_i18n_api_unittest.cc",
     "data_model/addresses/autofill_i18n_parsing_expression_components_unittest.cc",
+    "data_model/addresses/autofill_normalization_utils_unittest.cc",
     "data_model/addresses/autofill_profile_comparator_unittest.cc",
     "data_model/addresses/autofill_profile_unittest.cc",
     "data_model/addresses/autofill_structured_address_component_unittest.cc",
@@ -1608,7 +1614,10 @@ source_set("unit_tests") {
   }
 
   if (is_android) {
-    sources += [ "payments/autofill_save_iban_ui_info_unittest.cc" ]
+    sources += [
+      "payments/android_bnpl_strategy_unittest.cc",
+      "payments/autofill_save_iban_ui_info_unittest.cc",
+    ]
   }
 
   if (is_ios || is_android) {
@@ -1648,7 +1657,10 @@ source_set("unit_tests") {
   }
 
   if (!is_ios && !is_android) {
-    sources += [ "crowdsourcing/server_prediction_overrides_unittest.cc" ]
+    sources += [
+      "crowdsourcing/server_prediction_overrides_unittest.cc",
+      "payments/desktop_bnpl_strategy_unittest.cc",
+    ]
   }
 
   if (build_with_tflite_lib) {

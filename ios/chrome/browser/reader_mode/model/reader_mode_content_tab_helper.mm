@@ -4,6 +4,7 @@
 
 #import "ios/chrome/browser/reader_mode/model/reader_mode_content_tab_helper.h"
 
+#import "components/translate/core/browser/translate_manager.h"
 #import "ios/chrome/browser/browser_container/model/edit_menu_tab_helper.h"
 #import "ios/chrome/browser/find_in_page/model/find_tab_helper.h"
 #import "ios/chrome/browser/link_to_text/model/link_to_text_tab_helper.h"
@@ -13,6 +14,7 @@
 #import "ios/chrome/browser/shared/model/browser/browser_list_factory.h"
 #import "ios/chrome/browser/shared/model/profile/profile_ios.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_utils.h"
+#import "ios/chrome/browser/translate/model/chrome_ios_translate_client.h"
 #import "ios/chrome/browser/web/model/image_fetch/image_fetch_tab_helper.h"
 #import "ios/chrome/browser/web_selection/model/web_selection_tab_helper.h"
 #import "ios/web/public/navigation/navigation_context.h"
@@ -67,6 +69,8 @@ void ReaderModeContentTabHelper::AttachSupportedTabHelpers(
     LinkToTextTabHelper::CreateForWebState(web_state());
   }
 
+  ChromeIOSTranslateClient::CreateForWebState(web_state());
+
   FindTabHelper::CreateForWebState(web_state());
   ImageFetchTabHelper::CreateForWebState(web_state());
   OverlayRequestQueue::CreateForWebState(web_state());
@@ -82,6 +86,16 @@ void ReaderModeContentTabHelper::SetFullscreenController(
     return;
   }
   find_tab_helper->SetFullscreenController(fullscreen_controller);
+}
+
+void ReaderModeContentTabHelper::ActivateTranslateOnPage() {
+  ChromeIOSTranslateClient* translateClient =
+      ChromeIOSTranslateClient::FromWebState(web_state());
+  CHECK(translateClient);
+  translate::TranslateManager* translateManager =
+      translateClient->GetTranslateManager();
+  translateManager->ShowTranslateUI(/*auto_translate=*/true,
+                                    /*triggered_from_menu=*/true);
 }
 
 #pragma mark - WebStatePolicyDecider

@@ -494,7 +494,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Cryptohome.TimeToInitPkcs11" units="ms"
-    expires_after="2025-12-07">
+    expires_after="2026-02-09">
   <owner>apronin@chromium.org</owner>
   <owner>cros-hwsec+uma@google.com</owner>
   <summary>
@@ -599,32 +599,6 @@ chromium-metrics-reviews@google.com.
     The errors resulting from interacting with the Trusted Platform Module (TPM)
     device.
   </summary>
-</histogram>
-
-<histogram name="Cryptohome.VaultKeysetMetric.{VaultKeysetMetric}"
-    units="count" expires_after="2025-09-14">
-  <owner>thomascedeno@google.com</owner>
-  <owner>cros-security-cryptohome+uma@google.com</owner>
-  <summary>
-    Any given ChromeOS user has some number of vault keysets to store file name
-    encryption keys, depending on registered authentication factors at the time.
-    This histogram records how many vault keysets with {VaultKeysetMetric} a
-    user has. Recorded once per a successful preparation (mount) of the user
-    home directory by the ChromeOS cryptohome daemon.
-  </summary>
-  <token key="VaultKeysetMetric">
-    <variant name="EmptyLabelCount"/>
-    <variant name="EmptyLabelPINCount"/>
-    <variant name="FingerprintCount"/>
-    <variant name="KioskCount"/>
-    <variant name="MissingKeyDataCount"/>
-    <variant name="PasswordCount"/>
-    <variant name="PINCount"/>
-    <variant name="SmartCardCount"/>
-    <variant name="SmartUnlockCount"/>
-    <variant name="UnclassifedKeysetCount"/>
-    <variant name="UntypedKeysetCount"/>
-  </token>
 </histogram>
 
 <histogram name="Cryptohome.WrappingKeyDerivation.Create"

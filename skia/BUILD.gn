@@ -161,7 +161,6 @@ config("skia_library_config") {
   defines = [
     "IS_SKIA_IMPL=1",
     "SKIA_IMPLEMENTATION=1",
-    "SK_FONTATIONS_ADD_FONTATIONS_TO_LOCALIZED_NAMES=1",
   ]
 
   # Let Skia know whether to use `libpng`-based or Rust-based PNG decoder and
@@ -743,6 +742,12 @@ skia_source_set("skia_core_and_effects") {
     ]
   }
   visibility = [ ":skia" ]
+
+  if (is_mac && current_cpu == "x64") {
+    # On x64 macOS, the Clang modules build emits a '-Wignored-attributes' error
+    # in SkOpts_SetTarget.h.
+    use_libcxx_modules = false
+  }
 }
 
 # Bits that involve special vector-y hardware.

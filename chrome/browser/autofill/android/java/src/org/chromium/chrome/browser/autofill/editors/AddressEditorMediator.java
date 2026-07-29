@@ -218,14 +218,7 @@ class AddressEditorMediator {
                         .with(
                                 DELETE_CONFIRMATION_PRIMARY_BUTTON_TEXT,
                                 getDeleteConfirmationPrimaryButtonText())
-                        .with(
-                                EDITOR_FIELDS,
-                                mProfileToEdit.isHomeOrWorkProfile()
-                                        ? buildHomeAndWorkItemsList()
-                                        : buildEditorFieldList(
-                                                AutofillAddress.getCountryCode(
-                                                        mProfileToEdit, mPersonalDataManager),
-                                                mProfileToEdit.getLanguageCode()))
+                        .with(EDITOR_FIELDS, setEditorFields())
                         .with(DONE_RUNNABLE, this::onCommitChanges)
                         // If the user clicks [Cancel], send `toEdit` address back to the caller,
                         // which was the original state (could be null, a complete address, a
@@ -234,7 +227,7 @@ class AddressEditorMediator {
                         .with(ALLOW_DELETE, mAllowDelete)
                         .with(DELETE_RUNNABLE, () -> mDelegate.onDelete(mAddressToEdit))
                         .with(VALIDATE_ON_SHOW, mUserFlow != CREATE_NEW_ADDRESS_PROFILE)
-                        .with(SHOW_BUTTONS, !mProfileToEdit.isHomeOrWorkProfile())
+                        .with(SHOW_BUTTONS, !isNonEditableProfile())
                         .build();
 
         mCountryField.set(
@@ -254,6 +247,20 @@ class AddressEditorMediator {
                 });
 
         return mEditorModel;
+    }
+
+    private ListModel<EditorItem> setEditorFields() {
+        if (isNonEditableProfile()) {
+            return buildNonEditableItemsList();
+        }
+        return buildEditorFieldList(
+                AutofillAddress.getCountryCode(mProfileToEdit, mPersonalDataManager),
+                mProfileToEdit.getLanguageCode());
+    }
+
+    private boolean isNonEditableProfile() {
+        return mProfileToEdit.isHomeOrWorkProfile()
+                || mProfileToEdit.getRecordType() == RecordType.ACCOUNT_NAME_EMAIL;
     }
 
     private boolean shouldDisplayRequiredErrorIfFieldEmpty(AutofillAddressUiComponent component) {
@@ -350,8 +357,11 @@ class AddressEditorMediator {
         return editorFields;
     }
 
-    /** Build a special list of items to display for non-editable Home & Work profiles. */
-    private ListModel<EditorItem> buildHomeAndWorkItemsList() {
+    /**
+     * Build a special list of items to display for non-editable profiles, e.g. home and work, gaia
+     * name and email.
+     */
+    private ListModel<EditorItem> buildNonEditableItemsList() {
         ListModel<EditorItem> editorFields = new ListModel<>();
         PropertyModel descriptionModel =
                 new PropertyModel.Builder(NON_EDITABLE_TEXT_ALL_KEYS)
@@ -498,6 +508,11 @@ class AddressEditorMediator {
             return mContext.getString(
                     R.string.autofill_remove_work_profile_suggestion_confirmation_title);
         }
+        if (mProfileToEdit.getRecordType() == RecordType.ACCOUNT_NAME_EMAIL) {
+            return mContext.getString(
+                    R.string
+                            .autofill_remove_account_name_and_email_profile_suggestion_confirmation_title);
+        }
         return mContext.getString(R.string.autofill_delete_address_confirmation_dialog_title);
     }
 
@@ -524,6 +539,13 @@ class AddressEditorMediator {
                                                 .autofill_remove_work_profile_suggestion_confirmation_body)
                                 .replace("$1", email));
             }
+            if (mProfileToEdit.getRecordType() == RecordType.ACCOUNT_NAME_EMAIL) {
+                return createMessageWithLink(
+                        mContext.getString(
+                                        R.string
+                                                .autofill_remove_account_name_and_email_profile_suggestion_confirmation_body)
+                                .replace("$1", email));
+            }
             return mContext.getString(R.string.autofill_delete_account_address_record_type_notice)
                     .replace("$1", email);
         }
@@ -546,7 +568,7 @@ class AddressEditorMediator {
         if (email == null) return null;
 
         if (isAlreadySavedInAccount()) {
-            if (mProfileToEdit.isHomeOrWorkProfile()) {
+            if (isNonEditableProfile()) {
                 return mContext.getString(
                                 R.string.autofill_address_home_and_work_record_type_notice)
                         .replace("$1", email);
@@ -566,7 +588,7 @@ class AddressEditorMediator {
         // submission.
         return (mUserFlow == UPDATE_EXISTING_ADDRESS_PROFILE
                         && mProfileToEdit.getRecordType() == RecordType.ACCOUNT)
-                || mProfileToEdit.isHomeOrWorkProfile();
+                || isNonEditableProfile();
     }
 
     private boolean isAddressSyncOn() {

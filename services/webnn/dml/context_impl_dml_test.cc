@@ -25,6 +25,7 @@
 #include "services/webnn/webnn_context_provider_impl.h"
 #include "services/webnn/webnn_graph_impl.h"
 #include "services/webnn/webnn_tensor_impl.h"
+#include "services/webnn/webnn_test_environment.h"
 #include "services/webnn/webnn_test_utils.h"
 
 namespace webnn::dml {
@@ -105,13 +106,12 @@ class FakeWebNNBackend final : public ContextImplDml::BackendForTesting {
         std::move(compute_resource_info)));
   }
 
-  void CreateTensorImpl(
-      base::WeakPtr<WebNNContextImpl> context,
-      mojo::PendingAssociatedReceiver<mojom::WebNNTensor> receiver,
-      mojom::TensorInfoPtr tensor_info,
-      WebNNContextImpl::CreateTensorImplCallback callback) override {
-    std::move(callback).Run(base::MakeRefCounted<FakeWebNNTensorImpl>(
-        std::move(receiver), std::move(context), std::move(tensor_info)));
+  base::expected<scoped_refptr<WebNNTensorImpl>, mojom::ErrorPtr>
+  CreateTensorImpl(ContextImplDml* context,
+                   mojo::PendingAssociatedReceiver<mojom::WebNNTensor> receiver,
+                   mojom::TensorInfoPtr tensor_info) override {
+    return base::MakeRefCounted<FakeWebNNTensorImpl>(
+        std::move(receiver), context->AsWeakPtr(), std::move(tensor_info));
   }
 };
 
@@ -219,7 +219,8 @@ void WebNNFakeContextDMLImplTest::TearDown() {
 }
 
 TEST_F(WebNNContextDMLImplTest, CreateGraphImplTest) {
-  WebNNContextProviderImpl::CreateForTesting(
+  test::WebNNTestEnvironment webnn_test_environment;
+  webnn_test_environment.BindWebNNContextProvider(
       webnn_provider_remote_.BindNewPipeAndPassReceiver());
   SKIP_TEST_IF(!CreateWebNNContext());
 
@@ -261,11 +262,12 @@ TEST_F(WebNNContextDMLImplTest, CreateGraphImplTest) {
 
 TEST_F(WebNNFakeContextDMLImplTest, DeviceRemovalFromDispatch) {
   bool all_contexts_lost = false;
-  WebNNContextProviderImpl::CreateForTesting(
-      webnn_provider_remote_.BindNewPipeAndPassReceiver(),
+  test::WebNNTestEnvironment webnn_test_enviroment(
       WebNNContextProviderImpl::WebNNStatus::kWebNNEnabled,
       base::BindOnce([](bool* all_contexts_lost) { *all_contexts_lost = true; },
                      base::Unretained(&all_contexts_lost)));
+  webnn_test_enviroment.BindWebNNContextProvider(
+      webnn_provider_remote_.BindNewPipeAndPassReceiver());
   SKIP_TEST_IF(!CreateWebNNContext());
 
   ASSERT_TRUE(webnn_context_remote_.is_bound());
@@ -314,11 +316,12 @@ TEST_F(WebNNFakeContextDMLImplTest, DeviceRemovalFromDispatch) {
 
 TEST_F(WebNNFakeContextDMLImplTest, DeviceRemovalFromWritingTensor) {
   bool all_contexts_lost = false;
-  WebNNContextProviderImpl::CreateForTesting(
-      webnn_provider_remote_.BindNewPipeAndPassReceiver(),
+  test::WebNNTestEnvironment webnn_test_environment(
       WebNNContextProviderImpl::WebNNStatus::kWebNNEnabled,
       base::BindOnce([](bool* all_contexts_lost) { *all_contexts_lost = true; },
                      base::Unretained(&all_contexts_lost)));
+  webnn_test_environment.BindWebNNContextProvider(
+      webnn_provider_remote_.BindNewPipeAndPassReceiver());
   SKIP_TEST_IF(!CreateWebNNContext());
 
   ASSERT_TRUE(webnn_context_remote_.is_bound());
@@ -336,11 +339,12 @@ TEST_F(WebNNFakeContextDMLImplTest, DeviceRemovalFromWritingTensor) {
 
 TEST_F(WebNNFakeContextDMLImplTest, DeviceRemovalFromReadingTensor) {
   bool all_contexts_lost = false;
-  WebNNContextProviderImpl::CreateForTesting(
-      webnn_provider_remote_.BindNewPipeAndPassReceiver(),
+  test::WebNNTestEnvironment webnn_test_environment(
       WebNNContextProviderImpl::WebNNStatus::kWebNNEnabled,
       base::BindOnce([](bool* all_contexts_lost) { *all_contexts_lost = true; },
                      base::Unretained(&all_contexts_lost)));
+  webnn_test_environment.BindWebNNContextProvider(
+      webnn_provider_remote_.BindNewPipeAndPassReceiver());
   SKIP_TEST_IF(!CreateWebNNContext());
 
   ASSERT_TRUE(webnn_context_remote_.is_bound());

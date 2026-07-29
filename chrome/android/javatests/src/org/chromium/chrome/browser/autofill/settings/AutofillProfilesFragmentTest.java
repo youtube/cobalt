@@ -12,6 +12,8 @@ import static androidx.test.espresso.intent.Intents.intended;
 import static androidx.test.espresso.intent.Intents.intending;
 import static androidx.test.espresso.intent.matcher.IntentMatchers.hasAction;
 import static androidx.test.espresso.intent.matcher.IntentMatchers.hasData;
+import static androidx.test.espresso.matcher.ViewMatchers.isDescendantOfA;
+import static androidx.test.espresso.matcher.ViewMatchers.isDisplayed;
 import static androidx.test.espresso.matcher.ViewMatchers.withEffectiveVisibility;
 import static androidx.test.espresso.matcher.ViewMatchers.withId;
 import static androidx.test.espresso.matcher.ViewMatchers.withText;
@@ -162,6 +164,13 @@ public class AutofillProfilesFragmentTest {
                     .setCountryCode("US")
                     .setPhoneNumber("650-253-0000")
                     .setEmailAddress("work@gmail.com")
+                    .setLanguageCode("en-US")
+                    .build();
+    private static final AutofillProfile sAccountNameEmailProfile =
+            AutofillProfile.builder()
+                    .setRecordType(RecordType.ACCOUNT_NAME_EMAIL)
+                    .setFullName("Elisa Beckett")
+                    .setEmailAddress("elisa.beckett@gmail.com")
                     .setLanguageCode("en-US")
                     .build();
 
@@ -378,6 +387,41 @@ public class AutofillProfilesFragmentTest {
         Context context = autofillProfileFragment.getContext();
         onView(withText(context.getString(R.string.autofill_edit_address_label))).perform(click());
         intended(workIntentMatcher);
+    }
+
+    @Test
+    @MediumTest
+    @Feature({"Preferences"})
+    public void testAccountNameEmailEntry() throws Exception {
+        mHelper.setProfile(sAccountNameEmailProfile);
+        AutofillProfilesFragment autofillProfileFragment = sSettingsActivityTestRule.getFragment();
+
+        AutofillProfileEditorPreference accountNameEmailPreference =
+                autofillProfileFragment.findPreference(
+                        sAccountNameEmailProfile.getInfo(FieldType.NAME_FULL));
+        assertNotNull(accountNameEmailPreference);
+        assertEquals(0, accountNameEmailPreference.getWidgetLayoutResource());
+
+        // Edit a profile.
+        ThreadUtils.runOnUiThreadBlocking(accountNameEmailPreference::performClick);
+
+        // Define a fake result to return immediately when the intent is caught.
+        // This prevents the actual urls from being launched.
+        Instrumentation.ActivityResult ok_result =
+                new Instrumentation.ActivityResult(Activity.RESULT_OK, null);
+        var nameEmailIntentMatcher =
+                allOf(
+                        hasAction(Intent.ACTION_VIEW),
+                        hasData(
+                                Uri.parse(
+                                        AutofillProfilesFragment
+                                                .GOOGLE_ACCOUNT_NAME_EMAIL_ADDRESS_EDIT_URL)));
+        intending(nameEmailIntentMatcher).respondWith(ok_result);
+
+        // Try to find a view with "Link" and click on it.
+        Context context = autofillProfileFragment.getContext();
+        onView(withText(context.getString(R.string.autofill_edit_address_label))).perform(click());
+        intended(nameEmailIntentMatcher);
     }
 
     @Test
@@ -905,6 +949,7 @@ public class AutofillProfilesFragmentTest {
         mHelper.setProfile(sAccountProfile);
         AutofillProfileEditorPreference accountProfilePreference =
                 findPreference(sAccountProfile.getInfo(FieldType.NAME_FULL));
+        assertNotNull(accountProfilePreference);
 
         // Save and fill addresses toggle should be disabled.
         ChromeSwitchPreference saveAndFillToggle =
@@ -915,6 +960,7 @@ public class AutofillProfilesFragmentTest {
         // Address list should be shown.
         AutofillProfileEditorPreference localOrSyncProfilePreference =
                 findPreference(sLocalOrSyncProfile.getInfo(FieldType.NAME_FULL));
+        assertNotNull(localOrSyncProfilePreference);
 
         // Add address button should be hidden.
         AutofillProfileEditorPreference addProfile =
@@ -966,13 +1012,16 @@ public class AutofillProfilesFragmentTest {
         // Trigger address profile list rebuild.
         mHelper.setProfile(sAccountProfile);
 
-        CardWithButtonPreference promoPreference =
+        CardWithButtonPreference disabled_settings_info_pref =
                 autofillProfileFragment.findPreference(
                         AutofillProfilesFragment.DISABLED_SETTINGS_INFO);
-        String title = promoPreference.getTitle().toString();
+        assertNotNull(disabled_settings_info_pref);
+        onView(allOf(withId(R.id.icon), isDescendantOfA(withId(R.id.card_layout))))
+                .check(matches(isDisplayed()));
+        String title = disabled_settings_info_pref.getTitle().toString();
         assertThat(title)
                 .isEqualTo(context.getString(R.string.autofill_disable_settings_explanation_title));
-        String summary = promoPreference.getSummary().toString();
+        String summary = disabled_settings_info_pref.getSummary().toString();
         assertThat(summary)
                 .isEqualTo(context.getString(R.string.autofill_disable_settings_explanation));
 

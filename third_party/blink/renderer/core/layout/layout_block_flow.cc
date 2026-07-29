@@ -41,6 +41,7 @@
 #include "third_party/blink/renderer/core/frame/local_frame.h"
 #include "third_party/blink/renderer/core/frame/local_frame_view.h"
 #include "third_party/blink/renderer/core/frame/web_feature.h"
+#include "third_party/blink/renderer/core/html/html_image_element.h"
 #include "third_party/blink/renderer/core/html/shadow/shadow_element_names.h"
 #include "third_party/blink/renderer/core/layout/absolute_utils.h"
 #include "third_party/blink/renderer/core/layout/forms/layout_text_control_inner_editor.h"
@@ -142,8 +143,8 @@ void LayoutBlockFlow::AddChildBeforeDescendant(
     LayoutObject* new_child,
     LayoutObject* before_descendant) {
   NOT_DESTROYED();
-  DCHECK(RuntimeEnabledFeatures::LayoutAddChildBeforeDescendantFixEnabled());
   DCHECK_NE(before_descendant->Parent(), this);
+
   LayoutObject* before_descendant_container = before_descendant->Parent();
   while (before_descendant_container->Parent() != this) {
     before_descendant_container = before_descendant_container->Parent();
@@ -196,11 +197,7 @@ void LayoutBlockFlow::AddChild(LayoutObject* new_child,
                                LayoutObject* before_child) {
   NOT_DESTROYED();
   if (before_child && before_child->Parent() != this) {
-    if (RuntimeEnabledFeatures::LayoutAddChildBeforeDescendantFixEnabled()) {
-      AddChildBeforeDescendant(new_child, before_child);
-    } else {
-      AddChildBeforeDescendantDeprecated(new_child, before_child);
-    }
+    AddChildBeforeDescendant(new_child, before_child);
     return;
   }
 
@@ -750,6 +747,12 @@ bool LayoutBlockFlow::AllowsColumns() const {
   // MathML layout objects don't support multicol.
   if (IsMathML())
     return false;
+
+  if (IsA<HTMLImageElement>(GetNode())) {
+    // We may create a LayoutBlockFlow for the ALT text of a broken image. Such
+    // a block should not become a multicol container.
+    return false;
+  }
 
   return true;
 }

@@ -25,13 +25,14 @@
 #include "components/strings/grit/components_strings.h"
 #include "components/vector_icons/vector_icons.h"
 
+#if BUILDFLAG(IS_ANDROID)
+#include "base/android/device_info.h"
+#endif
+
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
 #include "chrome/app/vector_icons/vector_icons.h"
 #endif
 
-#if BUILDFLAG(IS_ANDROID)
-#include "base/android/build_info.h"
-#endif
 
 // =============================================================================
 
@@ -428,37 +429,15 @@ class OmniboxPedalRunChromeSafetyCheck : public OmniboxPedal {
   ~OmniboxPedalRunChromeSafetyCheck() override = default;
 
   LabelStrings GetLabelStrings() {
-#if BUILDFLAG(IS_ANDROID)
-    if (base::FeatureList::IsEnabled(features::kSafetyHub)) {
       return LabelStrings(
           IDS_OMNIBOX_PEDAL_RUN_CHROME_SAFETY_CHECK_V2_HINT,
           IDS_OMNIBOX_PEDAL_RUN_CHROME_SAFETY_CHECK_V2_SUGGESTION_CONTENTS,
           IDS_ACC_OMNIBOX_PEDAL_RUN_CHROME_SAFETY_CHECK_V2_SUFFIX,
           IDS_ACC_OMNIBOX_PEDAL_RUN_CHROME_SAFETY_CHECK_V2);
-    }
-    return LabelStrings(
-        IDS_ANDROID_OMNIBOX_PEDAL_RUN_CHROME_SAFETY_CHECK_HINT,
-        IDS_OMNIBOX_PEDAL_RUN_CHROME_SAFETY_CHECK_SUGGESTION_CONTENTS,
-        IDS_ACC_OMNIBOX_PEDAL_RUN_CHROME_SAFETY_CHECK_SUFFIX,
-        IDS_ACC_OMNIBOX_PEDAL_RUN_CHROME_SAFETY_CHECK);
-#else   // BUILDFLAG(IS_ANDROID)
-    return LabelStrings(
-        IDS_OMNIBOX_PEDAL_RUN_CHROME_SAFETY_CHECK_V2_HINT,
-        IDS_OMNIBOX_PEDAL_RUN_CHROME_SAFETY_CHECK_V2_SUGGESTION_CONTENTS,
-        IDS_ACC_OMNIBOX_PEDAL_RUN_CHROME_SAFETY_CHECK_V2_SUFFIX,
-        IDS_ACC_OMNIBOX_PEDAL_RUN_CHROME_SAFETY_CHECK_V2);
-#endif  // BUILDFLAG(IS_ANDROID)
   }
 
   GURL GetUrl() {
-#if BUILDFLAG(IS_ANDROID)
-    if (base::FeatureList::IsEnabled(features::kSafetyHub)) {
-      return GURL("chrome://settings/safetyCheck");
-    }
-    return GURL("chrome://settings/safetyCheck?activateSafetyCheck");
-#else   // BUILDFLAG(IS_ANDROID)
     return GURL("chrome://settings/safetyCheck");
-#endif  // BUILDFLAG(IS_ANDROID)
   }
 };
 
@@ -2014,7 +1993,7 @@ GetPedalImplementations(bool incognito, bool guest, bool testing) {
   add(new OmniboxPedalManagePasswords());
   add(new OmniboxPedalUpdateCreditCard());
   add(new OmniboxPedalLaunchIncognito());
-  if (!base::android::BuildInfo::GetInstance()->is_automotive()) {
+  if (!base::android::device_info::is_automotive()) {
     add(new OmniboxPedalRunChromeSafetyCheck());
   }
   add(new OmniboxPedalPlayChromeDinoGame());

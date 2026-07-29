@@ -45,9 +45,8 @@ constexpr int kAnimationDurationMs = 450;
 DEFINE_CLASS_ELEMENT_IDENTIFIER_VALUE(MultiContentsDropTargetView,
                                       kMultiContentsDropTargetElementId);
 
-MultiContentsDropTargetView::MultiContentsDropTargetView(
-    DropDelegate& drop_delegate)
-    : views::AnimationDelegateViews(this), drop_delegate_(drop_delegate) {
+MultiContentsDropTargetView::MultiContentsDropTargetView()
+    : views::AnimationDelegateViews(this) {
   SetVisible(false);
   SetProperty(views::kElementIdentifierKey, kMultiContentsDropTargetElementId);
   SetLayoutManager(std::make_unique<views::FlexLayout>())
@@ -93,15 +92,44 @@ double MultiContentsDropTargetView::GetAnimationValue() const {
   return 1;
 }
 
+void MultiContentsDropTargetView::SetDragDelegate(DragDelegate* drag_delegate) {
+  drag_delegate_ = drag_delegate;
+}
+
 bool MultiContentsDropTargetView::IsClosing() const {
   return animation_.IsClosing();
 }
 
-int MultiContentsDropTargetView::GetMaxWidth(int web_contents_width) const {
-  const int min_width = features::kSideBySideDropTargetMinWidth.Get();
-  const int max_width = features::kSideBySideDropTargetMaxWidth.Get();
-  const int percentage =
-      features::kSideBySideDropTargetTargetWidthPercentage.Get();
+// static
+int MultiContentsDropTargetView::GetMaxWidth(int web_contents_width,
+                                             DropTargetState state) {
+  int min_width = 0;
+  int max_width = 0;
+  int percentage = 0;
+
+  switch (state) {
+    case DropTargetState::kNudge:
+      CHECK(base::FeatureList::IsEnabled(features::kSideBySideDropTargetNudge));
+      min_width = features::kSideBySideDropTargetNudgeMinWidth.Get();
+      max_width = features::kSideBySideDropTargetNudgeMaxWidth.Get();
+      percentage =
+          features::kSideBySideDropTargetNudgeTargetWidthPercentage.Get();
+      break;
+    case DropTargetState::kNudgeToFull:
+      CHECK(base::FeatureList::IsEnabled(features::kSideBySideDropTargetNudge));
+      min_width = features::kSideBySideDropTargetNudgeToFullMinWidth.Get();
+      max_width = features::kSideBySideDropTargetNudgeToFullMaxWidth.Get();
+      percentage =
+          features::kSideBySideDropTargetNudgeToFullTargetWidthPercentage.Get();
+      break;
+    case DropTargetState::kFull:
+      min_width = features::kSideBySideDropTargetMinWidth.Get();
+      max_width = features::kSideBySideDropTargetMaxWidth.Get();
+      percentage = features::kSideBySideDropTargetTargetWidthPercentage.Get();
+      break;
+    default:
+      NOTREACHED();
+  }
 
   // Calculate the target width based on the web contents width and the target
   // percentage.
@@ -117,7 +145,12 @@ int MultiContentsDropTargetView::GetPreferredWidth(
     return 0;
   }
 
-  return GetAnimationValue() * GetMaxWidth(web_contents_width);
+  CHECK(state_.has_value());
+
+  const int target_full_width = GetMaxWidth(web_contents_width, *state_);
+  const int animation_start_width = animate_expand_starting_width_.value_or(0);
+  return animation_start_width +
+         (GetAnimationValue() * (target_full_width - animation_start_width));
 }
 
 void MultiContentsDropTargetView::AnimationProgressed(
@@ -133,8 +166,20 @@ void MultiContentsDropTargetView::AnimationEnded(
   InvalidateLayout();
 }
 
-void MultiContentsDropTargetView::Show(DropSide side) {
+void MultiContentsDropTargetView::Show(DropSide side, DropTargetState state) {
+  if (state == DropTargetState::kNudge ||
+      state == DropTargetState::kNudgeToFull) {
+    CHECK(base::FeatureList::IsEnabled(features::kSideBySideDropTargetNudge));
+  }
+
+  // If transitioning from a nudge to full state, start a new animation.
+  if (state == DropTargetState::kNudgeToFull &&
+      state_ == MultiContentsDropTargetView::DropTargetState::kNudge) {
+    animation_.Reset(0);
+  }
+
   side_ = side;
+  state_ = state;
   UpdateVisibility(true);
 }
 
@@ -150,6 +195,13 @@ void MultiContentsDropTargetView::SetVisible(bool visible) {
 }
 
 void MultiContentsDropTargetView::UpdateVisibility(bool should_be_open) {
+  // If starting a new "expand" animation, then update the starting width.
+  if (animation_.GetCurrentValue() == 0 && should_be_open) {
+    animate_expand_starting_width_ = width();
+  } else if (!should_be_open) {
+    animate_expand_starting_width_.reset();
+  }
+
   if (ShouldShowAnimation()) {
     if (should_be_open) {
       SetVisible(should_be_open);
@@ -178,59 +230,42 @@ void MultiContentsDropTargetView::OnThemeChanged() {
 bool MultiContentsDropTargetView::GetDropFormats(
     int* formats,
     std::set<ui::ClipboardFormatType>* format_types) {
-  *formats = ui::OSExchangeData::URL;
-  format_types->insert(ui::ClipboardFormatType::UrlType());
-  return true;
+  CHECK(drag_delegate_);
+  return drag_delegate_->GetDropFormats(formats, format_types);
 }
 
 // Allows dropping links only.
 bool MultiContentsDropTargetView::CanDrop(const OSExchangeData& data) {
-  if (!data.HasURL(ui::FilenameToURLPolicy::CONVERT_FILENAMES)) {
-    return false;
-  }
-  auto urls = data.GetURLs(ui::FilenameToURLPolicy::CONVERT_FILENAMES);
-  return urls.has_value() && !urls.value().empty();
+  CHECK(drag_delegate_);
+  return drag_delegate_->CanDrop(data);
+}
+
+void MultiContentsDropTargetView::OnDragEntered(
+    const ui::DropTargetEvent& event) {
+  CHECK(drag_delegate_);
+  drag_delegate_->OnDragEntered(event);
 }
 
 int MultiContentsDropTargetView::OnDragUpdated(
     const ui::DropTargetEvent& event) {
-  return ui::DragDropTypes::DRAG_LINK;
+  CHECK(drag_delegate_);
+  return drag_delegate_->OnDragUpdated(event);
 }
 
 void MultiContentsDropTargetView::OnDragExited() {
-  Hide();
+  CHECK(drag_delegate_);
+  drag_delegate_->OnDragExited();
 }
 
 void MultiContentsDropTargetView::OnDragDone() {
-  Hide();
+  CHECK(drag_delegate_);
+  drag_delegate_->OnDragDone();
 }
 
 views::View::DropCallback MultiContentsDropTargetView::GetDropCallback(
     const ui::DropTargetEvent& event) {
-  return base::BindOnce(&MultiContentsDropTargetView::DoDrop,
-                        base::Unretained(this));
-}
-
-void MultiContentsDropTargetView::DoDrop(
-    const ui::DropTargetEvent& event,
-    ui::mojom::DragOperation& output_drag_op,
-    std::unique_ptr<ui::LayerTreeOwner> drag_image_layer_owner) {
-  CHECK(side_.has_value());
-  DropSide side = side_.value();
-  Hide();
-  auto urls = event.data().GetURLs(ui::FilenameToURLPolicy::CONVERT_FILENAMES);
-  CHECK(urls.has_value());
-  drop_delegate_->HandleLinkDrop(side, urls.value());
-  output_drag_op = ui::mojom::DragOperation::kLink;
-}
-
-void MultiContentsDropTargetView::HandleTabDrop(
-    TabDragDelegate::DragController& controller) {
-  CHECK(GetVisible());
-  CHECK(side_.has_value());
-  DropSide side = side_.value();
-  Hide();
-  drop_delegate_->HandleTabDrop(side, controller);
+  CHECK(drag_delegate_);
+  return drag_delegate_->GetDropCallback(event);
 }
 
 BEGIN_METADATA(MultiContentsDropTargetView)

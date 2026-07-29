@@ -7,8 +7,10 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -39,6 +41,7 @@ import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
+import org.mockito.stubbing.Answer;
 import org.robolectric.Robolectric;
 import org.robolectric.Shadows;
 import org.robolectric.annotation.LooperMode;
@@ -54,7 +57,9 @@ import org.chromium.chrome.browser.omnibox.LocationBarLayout;
 import org.chromium.chrome.browser.omnibox.NewTabPageDelegate;
 import org.chromium.chrome.browser.omnibox.status.StatusCoordinator;
 import org.chromium.chrome.browser.tabmodel.IncognitoStateProvider;
+import org.chromium.chrome.browser.tabmodel.IncognitoStateProvider.IncognitoStateObserver;
 import org.chromium.chrome.browser.theme.ThemeColorProvider;
+import org.chromium.chrome.browser.theme.ThemeColorProvider.TintObserver;
 import org.chromium.chrome.browser.theme.ThemeUtils;
 import org.chromium.chrome.browser.toolbar.R;
 import org.chromium.chrome.browser.toolbar.ToolbarDataProvider;
@@ -62,6 +67,7 @@ import org.chromium.chrome.browser.toolbar.ToolbarProgressBar;
 import org.chromium.chrome.browser.toolbar.ToolbarProgressBarAnimatingView;
 import org.chromium.chrome.browser.toolbar.adaptive.AdaptiveToolbarButtonVariant;
 import org.chromium.chrome.browser.toolbar.back_button.BackButtonCoordinator;
+import org.chromium.chrome.browser.toolbar.incognito.IncognitoIndicatorCoordinator;
 import org.chromium.chrome.browser.toolbar.menu_button.MenuButtonCoordinator;
 import org.chromium.chrome.browser.toolbar.optional_button.ButtonData.ButtonSpec;
 import org.chromium.chrome.browser.toolbar.optional_button.ButtonDataImpl;
@@ -74,7 +80,9 @@ import org.chromium.chrome.browser.ui.theme.BrandedColorScheme;
 import org.chromium.ui.widget.ToastManager;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /** Unit tests for @{@link ToolbarTablet} */
 @LooperMode(LooperMode.Mode.PAUSED)
@@ -92,6 +100,7 @@ public final class ToolbarTabletUnitTest {
     @Mock private NewTabPageDelegate mNewTabPageDelegate;
     @Mock private ReloadButtonCoordinator mReloadButtonCoordinator;
     @Mock private BackButtonCoordinator mBackButtonCoordinator;
+    @Mock private IncognitoIndicatorCoordinator mIncognitoIndicatorCoordinator;
     @Mock private ThemeColorProvider mThemeColorProvider;
     @Mock private IncognitoStateProvider mIncognitoStateProvider;
     private Activity mActivity;
@@ -103,11 +112,40 @@ public final class ToolbarTabletUnitTest {
     private ImageButton mForwardButton;
     private ImageButton mBookmarkButton;
     private ToolbarProgressBar mProgressBar;
+    private Set<TintObserver> mTintObservers;
+    private Set<IncognitoStateObserver> mIncognitoStateObservers;
+
+    private final Answer<Object> mAddIncognitoObserverInIncognitoMode =
+            (invocation) -> {
+                IncognitoStateProvider.IncognitoStateObserver observer = invocation.getArgument(0);
+                observer.onIncognitoStateChanged(/* isIncognito */ true);
+                return null;
+            };
 
     @Before
     public void setUp() {
         mActivity = Robolectric.buildActivity(Activity.class).setup().get();
         mActivity.setTheme(R.style.Theme_BrowserUI_DayNight);
+
+        mTintObservers = new HashSet<>();
+        doAnswer(
+                        invocation -> {
+                            mTintObservers.add((TintObserver) invocation.getArguments()[0]);
+                            return null;
+                        })
+                .when(mThemeColorProvider)
+                .addTintObserver(any());
+
+        mIncognitoStateObservers = new HashSet<>();
+        doAnswer(
+                        invocation -> {
+                            mIncognitoStateObservers.add(
+                                    (IncognitoStateObserver) invocation.getArguments()[0]);
+                            return null;
+                        })
+                .when(mIncognitoStateProvider)
+                .addIncognitoStateObserverAndTrigger(any());
+
         ToolbarTablet realView =
                 (ToolbarTablet)
                         mActivity.getLayoutInflater().inflate(R.layout.toolbar_tablet, null);
@@ -121,6 +159,7 @@ public final class ToolbarTabletUnitTest {
         mToolbarTablet.setToolbarColorObserver(mToolbarColorObserver);
         mToolbarTablet.setReloadButtonCoordinator(mReloadButtonCoordinator);
         mToolbarTablet.setBackButtonCoordinator(mBackButtonCoordinator);
+        mToolbarTablet.setIncognitoIndicatorCoordinatorForTesting(mIncognitoIndicatorCoordinator);
         mToolbarTabletLayout = mToolbarTablet.findViewById(R.id.toolbar_tablet_layout);
         mHomeButton = mToolbarTablet.findViewById(R.id.home_button);
         mBackButton = mToolbarTablet.findViewById(R.id.back_button);
@@ -168,6 +207,10 @@ public final class ToolbarTabletUnitTest {
     @EnableFeatures(ChromeFeatureList.TAB_STRIP_INCOGNITO_MIGRATION)
     @Test
     public void testButtonPositionIncognito() {
+        doAnswer(mAddIncognitoObserverInIncognitoMode)
+                .when(mIncognitoStateProvider)
+                .addIncognitoStateObserverAndTrigger(any());
+
         mToolbarTablet.onFinishInflate();
         mToolbarTablet.initialize(
                 mToolbarDataProvider,
@@ -264,6 +307,10 @@ public final class ToolbarTabletUnitTest {
     @Test
     @EnableFeatures(ChromeFeatureList.TAB_STRIP_INCOGNITO_MIGRATION)
     public void onMeasureIncognito_flipIncognitoVisibility() {
+        doAnswer(mAddIncognitoObserverInIncognitoMode)
+                .when(mIncognitoStateProvider)
+                .addIncognitoStateObserverAndTrigger(any());
+
         mToolbarTablet.onFinishInflate();
         mToolbarTablet.initialize(
                 mToolbarDataProvider,
@@ -660,6 +707,9 @@ public final class ToolbarTabletUnitTest {
                         mToolbarTablet.getContext(),
                         BrandedColorScheme.APP_DEFAULT,
                         /* isActivityFocused= */ false);
+        doReturn(tint).when(mThemeColorProvider).getTint();
+        doReturn(tint).when(mThemeColorProvider).getActivityFocusTint();
+
         // Setup.
         ButtonDataImpl buttonData = new ButtonDataImpl();
         var buttonSpec =
@@ -676,11 +726,17 @@ public final class ToolbarTabletUnitTest {
                         /* hasErrorBadge= */ false);
         buttonData.setButtonSpec(buttonSpec);
         mToolbarTablet.updateOptionalButton(buttonData);
+        for (TintObserver observer : mTintObservers) {
+            observer.onTintChanged(tint, tint, BrandedColorScheme.APP_DEFAULT);
+        }
 
         // Verify the toolbar icon tints, assuming that the activity is initially focused.
         verifyToolbarIconTints(tint, tint);
 
         // Simulate a tint change triggered when the activity loses focus.
+        for (TintObserver observer : mTintObservers) {
+            observer.onTintChanged(tint, unfocusedTint, BrandedColorScheme.APP_DEFAULT);
+        }
         mToolbarTablet.onTintChanged(tint, unfocusedTint, BrandedColorScheme.APP_DEFAULT);
 
         // Verify the icon tints for the unfocused activity.

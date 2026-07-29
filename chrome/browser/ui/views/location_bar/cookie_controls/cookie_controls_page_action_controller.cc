@@ -14,6 +14,7 @@
 #include "chrome/browser/ui/views/page_action/page_action_observer.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/content_settings/core/common/cookie_blocking_3pcd_status.h"
+#include "components/content_settings/core/common/cookie_controls_state.h"
 #include "components/feature_engagement/public/feature_constants.h"
 #include "components/privacy_sandbox/privacy_sandbox_features.h"
 #include "components/strings/grit/privacy_sandbox_strings.h"
@@ -43,7 +44,7 @@ class BubbleDelegateImpl
     auto* const bwi = tab_interface_->GetBrowserWindowInterface();
     CHECK(bwi);
     CookieControlsBubbleCoordinator* const coordinator =
-        bwi->GetFeatures().cookie_controls_bubble_coordinator();
+        CookieControlsBubbleCoordinator::From(bwi);
     CHECK(coordinator);
     return *coordinator;
   }
@@ -89,6 +90,9 @@ CookieControlsPageActionController::CookieControlsPageActionController(
     : tab_(tab_interface),
       page_action_controller_(page_action_controller),
       bubble_delegate_(std::make_unique<BubbleDelegateImpl>(tab_interface)) {
+  // TODO(crbug.com/376283777): A fresh icon status should be set once
+  // `CookieControlsController` is hooked up to this.
+  icon_status_.controls_state = CookieControlsState::kHidden;
   CHECK(IsPageActionMigrated(PageActionIconType::kCookieControls));
 }
 

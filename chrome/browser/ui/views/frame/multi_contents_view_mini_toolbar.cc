@@ -11,6 +11,7 @@
 #include "base/metrics/user_metrics_action.h"
 #include "chrome/app/vector_icons/vector_icons.h"
 #include "chrome/browser/favicon/favicon_utils.h"
+#include "chrome/browser/search/search.h"
 #include "chrome/browser/ui/tabs/alert/tab_alert.h"
 #include "chrome/browser/ui/tabs/alert/tab_alert_controller.h"
 #include "chrome/browser/ui/tabs/alert/tab_alert_icon.h"
@@ -22,9 +23,12 @@
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/contents_web_view.h"
 #include "chrome/browser/ui/views/frame/top_container_background.h"
+#include "chrome/common/webui_url_constants.h"
 #include "chrome/grit/generated_resources.h"
-#include "components/url_formatter/url_formatter.h"
+#include "components/tabs/public/tab_interface.h"
+#include "components/url_formatter/elide_url.h"
 #include "content/public/browser/web_contents.h"
+#include "content/public/common/url_constants.h"
 #include "third_party/skia/include/core/SkMatrix.h"
 #include "third_party/skia/include/core/SkPath.h"
 #include "ui/base/l10n/l10n_util.h"
@@ -52,6 +56,7 @@ namespace {
 constexpr int kContentOutlineThickness = 1;
 constexpr int kMiniToolbarContentPadding = 4;
 constexpr int kMiniToolbarOutlineCornerRadius = 8;
+constexpr int kMiniToolbarDomainMaxWidth = 140;
 
 constexpr gfx::Insets kDefaultInteriorMargins = gfx::Insets::TLBR(
     kMiniToolbarOutlineCornerRadius + kMiniToolbarContentPadding,
@@ -62,6 +67,12 @@ constexpr gfx::Insets kDefaultInteriorMargins = gfx::Insets::TLBR(
 tabs::TabInterface* GetTabInterface(content::WebContents* web_contents) {
   return web_contents ? tabs::TabInterface::GetFromContents(web_contents)
                       : nullptr;
+}
+
+bool IsNTP(const GURL& url) {
+  return (url.SchemeIs(content::kChromeUIScheme) &&
+          url.host() == chrome::kChromeUINewTabHost) ||
+         search::IsNTPURL(url) || search::IsSplitViewNewTabPage(url);
 }
 }  // namespace
 
@@ -95,7 +106,6 @@ MultiContentsViewMiniToolbar::MultiContentsViewMiniToolbar(
           views::MaximumFlexSizeRule::kPreferred)
           .WithOrder(4));
   domain_label_->SetElideBehavior(gfx::ELIDE_HEAD);
-  domain_label_->SetTruncateLength(20);
   domain_label_->SetSubpixelRenderingEnabled(false);
   domain_label_->SetEnabledColor(kColorMulitContentsViewMiniToolbarForeground);
   domain_label_->SetBackgroundColor(kColorToolbar);
@@ -237,9 +247,8 @@ void MultiContentsViewMiniToolbar::OnThemeChanged() {
     UpdateFavicon(tab_data.value());
   }
   if (auto* interface = GetTabInterface(web_contents_)) {
-    auto* tab_features = interface->GetTabFeatures();
-    if (tab_features) {
-      auto* tab_alert_controller = tab_features->tab_alert_controller();
+    auto* tab_alert_controller = tabs::TabAlertController::From(interface);
+    if (tab_alert_controller) {
       OnAlertStatusIndicatorChanged(tab_alert_controller->GetAlertToShow());
     }
   }
@@ -278,8 +287,7 @@ SkPath MultiContentsViewMiniToolbar::GetPath(bool border_stroke_only) const {
 
 void MultiContentsViewMiniToolbar::RegisterTabAlertSubscription() {
   if (auto* interface = GetTabInterface(web_contents_)) {
-    auto* tab_alert_controller =
-        interface->GetTabFeatures()->tab_alert_controller();
+    auto* tab_alert_controller = tabs::TabAlertController::From(interface);
     OnAlertStatusIndicatorChanged(tab_alert_controller->GetAlertToShow());
     tab_alert_status_subscription_ =
         tab_alert_controller->AddAlertToShowChangedCallback(base::BindRepeating(
@@ -323,18 +331,16 @@ void MultiContentsViewMiniToolbar::UpdateContents(TabRendererData tab_data) {
   }
   // Create the formatted domain, this will match the hover card domain.
   std::u16string domain;
-  if (domain_url.SchemeIsFile()) {
+  if (IsNTP(domain_url)) {
+    domain = u"";
+  } else if (domain_url.SchemeIsFile()) {
     domain = l10n_util::GetStringUTF16(IDS_HOVER_CARD_FILE_URL_SOURCE);
   } else if (domain_url.SchemeIsBlob()) {
     domain = l10n_util::GetStringUTF16(IDS_HOVER_CARD_BLOB_URL_SOURCE);
   } else if (tab_data.should_display_url) {
-    domain = url_formatter::FormatUrl(
-        domain_url,
-        url_formatter::kFormatUrlOmitDefaults |
-            url_formatter::kFormatUrlOmitHTTPS |
-            url_formatter::kFormatUrlOmitTrivialSubdomains |
-            url_formatter::kFormatUrlTrimAfterHost,
-        base::UnescapeRule::NORMAL, nullptr, nullptr, nullptr);
+    domain = url_formatter::ElideUrl(
+        domain_url, domain_label_->font_list(),
+        std::min(kMiniToolbarDomainMaxWidth, domain_label_->width()));
   }
   domain_label_->SetText(domain);
 

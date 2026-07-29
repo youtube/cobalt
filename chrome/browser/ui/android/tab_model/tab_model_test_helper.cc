@@ -23,6 +23,7 @@
 #include "chrome/browser/ui/android/tab_model/tab_model.h"
 #include "chrome/browser/ui/android/tab_model/tab_model_list.h"
 #include "chrome/browser/ui/android/tab_model/tab_model_observer.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "content/public/browser/visibility.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/test/browser_test_utils.h"
@@ -142,8 +143,9 @@ void TestTabModel::DiscardTab(tabs::TabHandle tab) {
   NOTIMPLEMENTED();
 }
 
-void TestTabModel::DuplicateTab(tabs::TabHandle tab) {
+tabs::TabInterface* TestTabModel::DuplicateTab(tabs::TabHandle tab) {
   NOTIMPLEMENTED();
+  return nullptr;
 }
 
 tabs::TabInterface* TestTabModel::GetTab(int index) {
@@ -195,6 +197,12 @@ void TestTabModel::Ungroup(const std::set<tabs::TabHandle>& tabs) {
 
 void TestTabModel::MoveGroupTo(tab_groups::TabGroupId group_id, int index) {
   NOTIMPLEMENTED();
+}
+
+void TestTabModel::AssociateWithBrowserWindow(BrowserWindowInterface* browser) {
+  scoped_unowned_user_data_ =
+      std::make_unique<ui::ScopedUnownedUserData<TabModel>>(
+          browser->GetUnownedUserDataHost(), *this);
 }
 
 OwningTestTabModel::OwningTestTabModel(
@@ -362,8 +370,9 @@ void OwningTestTabModel::DiscardTab(tabs::TabHandle tab) {
   NOTIMPLEMENTED();
 }
 
-void OwningTestTabModel::DuplicateTab(tabs::TabHandle tab) {
+tabs::TabInterface* OwningTestTabModel::DuplicateTab(tabs::TabHandle tab) {
   NOTIMPLEMENTED();
+  return nullptr;
 }
 
 tabs::TabInterface* OwningTestTabModel::GetTab(int index) {

@@ -33,7 +33,7 @@ Verdict ChromeRulesService::GetPrintVerdict(
 Verdict ChromeRulesService::GetPasteVerdict(
     const content::ClipboardEndpoint& source,
     const content::ClipboardEndpoint& destination,
-    const content::ClipboardMetadata& metadata) const {
+    const ui::ClipboardMetadata& metadata) const {
   return GetVerdict(Rule::Restriction::kClipboard,
                     {
                         .source = GetAsActionSource(source),
@@ -41,31 +41,20 @@ Verdict ChromeRulesService::GetPasteVerdict(
                     });
 }
 
-Verdict ChromeRulesService::GetCopyRestrictedBySourceVerdict(
-    const GURL& source) const {
-  return GetVerdict(
-      Rule::Restriction::kClipboard,
-      {.source = {.url = source, .incognito = profile_->IsIncognitoProfile()}});
-}
-
-Verdict ChromeRulesService::GetCopyToOSClipboardVerdict(
-    const GURL& source) const {
-  return GetVerdict(Rule::Restriction::kClipboard,
-                    {
-                        .source = {.url = source,
-                                   .incognito = profile_->IsIncognitoProfile()},
-                        .destination =
-                            {
-                                .os_clipboard = true,
-                            },
-                    });
-}
-
 bool ChromeRulesService::BlockScreenshots(const GURL& url) const {
   return GetVerdict(Rule::Restriction::kScreenshot,
-                    {.source = {.url = url,
-                                .incognito = profile_->IsIncognitoProfile()}})
+                    {
+                        .source =
+                            {
+                                .url = url,
+                                .incognito = incognito_profile(),
+                            },
+                    })
              .level() == Rule::Level::kBlock;
+}
+
+bool ChromeRulesService::incognito_profile() const {
+  return profile_->IsIncognitoProfile();
 }
 
 ActionSource ChromeRulesService::GetAsActionSource(

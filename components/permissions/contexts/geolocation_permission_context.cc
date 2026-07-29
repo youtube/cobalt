@@ -79,9 +79,9 @@ void GeolocationPermissionContext::UpdateSetting(
 
     // The Permissions module in Safety check will revoke permissions after
     // a finite amount of time if the permission can be revoked.
-    if (content_settings::CanBeAutoRevoked(content_settings_type(),
-                                           base::Value(content_setting),
-                                           is_one_time)) {
+    if (content_settings::CanBeAutoRevokedAsUnusedPermission(
+            content_settings_type(), base::Value(content_setting),
+            is_one_time)) {
       // For #2, by definition, that should be all of them. If that changes in
       // the future, consider whether revocation for such permission makes
       // sense, and/or change this to an early return so that we don't
@@ -136,9 +136,9 @@ void GeolocationPermissionContext::UpdateTabContext(
   // case, PageSpecificContentSettings will be null.
   if (content_settings) {
     if (allowed) {
-      content_settings->OnContentAllowed(ContentSettingsType::GEOLOCATION);
+      content_settings->OnContentAllowed(content_settings_type());
     } else {
-      content_settings->OnContentBlocked(ContentSettingsType::GEOLOCATION);
+      content_settings->OnContentBlocked(content_settings_type());
     }
   }
 

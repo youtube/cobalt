@@ -41,6 +41,8 @@
 #include "third_party/blink/public/common/page/page_zoom.h"
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "ui/base/base_window.h"
+#include "ui/base/mojom/window_show_state.mojom.h"
+#include "ui/display/screen.h"
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)
 #include "chrome/browser/resource_coordinator/tab_lifecycle_unit_external.h"
@@ -50,6 +52,13 @@
 #if !BUILDFLAG(IS_ANDROID)
 #include "chrome/browser/platform_util.h"
 #endif
+
+#if BUILDFLAG(IS_CHROMEOS)
+#include "ash/wm/window_pin_util.h"
+#include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/browser_command_controller.h"
+#include "chrome/browser/ui/browser_window.h"
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 #if BUILDFLAG(FULL_SAFE_BROWSING)
 #include "chrome/browser/safe_browsing/extension_telemetry/extension_telemetry_service.h"
@@ -185,6 +194,67 @@ content::WebContents* GetTabsAPIDefaultWebContents(ExtensionFunction* function,
   return web_contents;
 }
 
+ui::mojom::WindowShowState ConvertToWindowShowState(
+    windows::WindowState state) {
+  switch (state) {
+    case windows::WindowState::kNormal:
+      return ui::mojom::WindowShowState::kNormal;
+    case windows::WindowState::kMinimized:
+      return ui::mojom::WindowShowState::kMinimized;
+    case windows::WindowState::kMaximized:
+      return ui::mojom::WindowShowState::kMaximized;
+    case windows::WindowState::kFullscreen:
+    case windows::WindowState::kLockedFullscreen:
+      return ui::mojom::WindowShowState::kFullscreen;
+    case windows::WindowState::kNone:
+      return ui::mojom::WindowShowState::kDefault;
+  }
+  NOTREACHED();
+}
+
+// Returns whether the given `bounds` intersect with at least 50% of all the
+// displays.
+bool WindowBoundsIntersectDisplays(const gfx::Rect& bounds) {
+  // Bail if `bounds` has an overflown area.
+  auto checked_area = bounds.size().GetCheckedArea();
+  if (!checked_area.IsValid()) {
+    return false;
+  }
+
+  int intersect_area = 0;
+  for (const auto& display : display::Screen::GetScreen()->GetAllDisplays()) {
+    gfx::Rect display_bounds = display.bounds();
+    display_bounds.Intersect(bounds);
+    intersect_area += display_bounds.size().GetArea();
+  }
+  return intersect_area >= (bounds.size().GetArea() / 2);
+}
+
+#if BUILDFLAG(IS_CHROMEOS)
+void SetLockedFullscreenState(Browser* browser, bool pinned) {
+  aura::Window* window = browser->window()->GetNativeWindow();
+  DCHECK(window);
+
+  CHECK_NE(GetWindowPinType(window), chromeos::WindowPinType::kPinned)
+      << "Extensions only set Trusted Pinned";
+
+  // As this gets triggered from extensions, we might encounter this case.
+  if (IsWindowPinned(window) == pinned) {
+    return;
+  }
+
+  if (pinned) {
+    // Pins from extension are always trusted.
+    PinWindow(window, /*trusted=*/true);
+  } else {
+    UnpinWindow(window);
+  }
+
+  // Update the set of available browser commands.
+  browser->command_controller()->LockedFullscreenStateChanged();
+}
+#endif  // BUILDFLAG(IS_CHROMEOS)
+
 }  // namespace tabs_internal
 
 void ZoomModeToZoomSettings(zoom::ZoomController::ZoomMode zoom_mode,
@@ -310,6 +380,168 @@ ExtensionFunction::ResponseAction WindowsGetAllFunction::Run() {
   }
 
   return RespondNow(WithArguments(std::move(window_list)));
+}
+
+ExtensionFunction::ResponseAction WindowsUpdateFunction::Run() {
+  std::optional<windows::Update::Params> params =
+      windows::Update::Params::Create(args());
+  EXTENSION_FUNCTION_VALIDATE(params);
+
+  WindowController* window_controller = nullptr;
+  std::string error;
+  if (!windows_util::GetControllerFromWindowID(
+          this, params->window_id, WindowController::GetAllWindowFilter(),
+          &window_controller, &error)) {
+    return RespondNow(Error(std::move(error)));
+  }
+
+  BrowserWindowInterface* browser =
+      window_controller->GetBrowserWindowInterface();
+  if (!browser) {
+    return RespondNow(Error(ExtensionTabUtil::kNoCrashBrowserError));
+  }
+  ui::BaseWindow* browser_window = browser->GetWindow();
+
+  // Don't allow locked fullscreen operations on a window without the proper
+  // permission (also don't allow any operations on a locked window if the
+  // extension doesn't have the permission).
+  // TODO(https://crbug.com/432056907): Determine if we need locked-fullscreen
+  // support on desktop android.
+  const bool is_locked_fullscreen =
+#if BUILDFLAG(IS_CHROMEOS)
+      platform_util::IsBrowserLockedFullscreen(
+          browser->GetBrowserForMigrationOnly());
+#else
+      false;
+#endif
+
+  if ((params->update_info.state == windows::WindowState::kLockedFullscreen ||
+       is_locked_fullscreen) &&
+      !tabs_internal::ExtensionHasLockedFullscreenPermission(extension())) {
+    return RespondNow(
+        Error(tabs_internal::kMissingLockWindowFullscreenPrivatePermission));
+  }
+
+  // Before changing any of a window's state, validate the update parameters.
+  // This prevents Chrome from performing "half" an update.
+
+  // Update the window bounds if the bounds from the update parameters intersect
+  // the displays.
+  gfx::Rect window_bounds = browser_window->IsMinimized()
+                                ? browser_window->GetRestoredBounds()
+                                : browser_window->GetBounds();
+  bool set_window_bounds = false;
+  if (params->update_info.left) {
+    window_bounds.set_x(*params->update_info.left);
+    set_window_bounds = true;
+  }
+  if (params->update_info.top) {
+    window_bounds.set_y(*params->update_info.top);
+    set_window_bounds = true;
+  }
+  if (params->update_info.width) {
+    window_bounds.set_width(*params->update_info.width);
+    set_window_bounds = true;
+  }
+  if (params->update_info.height) {
+    window_bounds.set_height(*params->update_info.height);
+    set_window_bounds = true;
+  }
+
+  if (set_window_bounds &&
+      !tabs_internal::WindowBoundsIntersectDisplays(window_bounds)) {
+    return RespondNow(Error(tabs_constants::kInvalidWindowBoundsError));
+  }
+
+  ui::mojom::WindowShowState show_state =
+      tabs_internal::ConvertToWindowShowState(params->update_info.state);
+  if (set_window_bounds &&
+      (show_state == ui::mojom::WindowShowState::kMinimized ||
+       show_state == ui::mojom::WindowShowState::kMaximized ||
+       show_state == ui::mojom::WindowShowState::kFullscreen)) {
+    return RespondNow(Error(tabs_constants::kInvalidWindowStateError));
+  }
+
+  if (params->update_info.focused) {
+    bool focused = *params->update_info.focused;
+    // A window cannot be focused and minimized, or not focused and maximized
+    // or fullscreened.
+    if (focused && show_state == ui::mojom::WindowShowState::kMinimized) {
+      return RespondNow(Error(tabs_constants::kInvalidWindowStateError));
+    }
+    if (!focused && (show_state == ui::mojom::WindowShowState::kMaximized ||
+                     show_state == ui::mojom::WindowShowState::kFullscreen)) {
+      return RespondNow(Error(tabs_constants::kInvalidWindowStateError));
+    }
+  }
+
+  // Parameters are valid. Now to perform the actual updates.
+
+#if BUILDFLAG(IS_CHROMEOS)
+  // state will be WINDOW_STATE_NONE if the state parameter wasn't passed from
+  // the JS side, and in that case we don't want to change the locked state.
+  if (is_locked_fullscreen &&
+      params->update_info.state != windows::WindowState::kLockedFullscreen &&
+      params->update_info.state != windows::WindowState::kNone) {
+    tabs_internal::SetLockedFullscreenState(
+        browser->GetBrowserForMigrationOnly(),
+        /*pinned=*/false);
+  } else if (!is_locked_fullscreen &&
+             params->update_info.state ==
+                 windows::WindowState::kLockedFullscreen) {
+    tabs_internal::SetLockedFullscreenState(
+        browser->GetBrowserForMigrationOnly(),
+        /*pinned=*/true);
+  }
+#endif  // IS_CHROMEOS
+
+  if (show_state != ui::mojom::WindowShowState::kFullscreen &&
+      show_state != ui::mojom::WindowShowState::kDefault) {
+    window_controller->SetFullscreenMode(false, extension()->url());
+  }
+
+  switch (show_state) {
+    case ui::mojom::WindowShowState::kMinimized:
+      browser_window->Minimize();
+      break;
+    case ui::mojom::WindowShowState::kMaximized:
+      browser_window->Maximize();
+      break;
+    case ui::mojom::WindowShowState::kFullscreen:
+      if (browser_window->IsMinimized() || browser_window->IsMaximized()) {
+        browser_window->Restore();
+      }
+      window_controller->SetFullscreenMode(true, extension()->url());
+      break;
+    case ui::mojom::WindowShowState::kNormal:
+      browser_window->Restore();
+      break;
+    default:
+      break;
+  }
+
+  if (set_window_bounds) {
+    // TODO(varkha): Updating bounds during a drag can cause problems and a more
+    // general solution is needed. See http://crbug.com/251813 .
+    browser_window->SetBounds(window_bounds);
+  }
+
+  if (params->update_info.focused) {
+    if (*params->update_info.focused) {
+      browser_window->Activate();
+    } else {
+      browser_window->Deactivate();
+    }
+  }
+
+  if (params->update_info.draw_attention) {
+    browser_window->FlashFrame(*params->update_info.draw_attention);
+  }
+
+  return RespondNow(
+      WithArguments(window_controller->CreateWindowValueForExtension(
+          extension(), WindowController::kDontPopulateTabs,
+          source_context_type())));
 }
 
 ExtensionFunction::ResponseAction WindowsRemoveFunction::Run() {
@@ -582,6 +814,10 @@ ExtensionFunction::ResponseAction TabsQueryFunction::Run() {
       CHECK(tab);
       content::WebContents* web_contents = tab->GetContents();
 
+      if (!web_contents) {
+        continue;
+      }
+
 #if BUILDFLAG(IS_ANDROID)
       Profile* tab_profile =
           Profile::FromBrowserContext(web_contents->GetBrowserContext());
@@ -589,10 +825,6 @@ ExtensionFunction::ResponseAction TabsQueryFunction::Run() {
         continue;
       }
 #endif
-
-      if (!web_contents) {
-        continue;
-      }
 
       if (!MatchesBool(params->query_info.highlighted, tab->IsSelected())) {
         continue;
@@ -706,6 +938,75 @@ ExtensionFunction::ResponseAction TabsQueryFunction::Run() {
   }
 
   return RespondNow(WithArguments(std::move(result)));
+}
+
+ExtensionFunction::ResponseAction TabsDuplicateFunction::Run() {
+  std::optional<tabs::Duplicate::Params> params =
+      tabs::Duplicate::Params::Create(args());
+  EXTENSION_FUNCTION_VALIDATE(params);
+  if (!ExtensionTabUtil::IsTabStripEditable()) {
+    return RespondNow(Error(ExtensionTabUtil::kTabStripNotEditableError));
+  }
+  int tab_id = params->tab_id;
+
+  WindowController* window = nullptr;
+  int tab_index = -1;
+  std::string error;
+  content::WebContents* web_contents = nullptr;
+  if (!tabs_internal::GetTabById(tab_id, browser_context(),
+                                 include_incognito_information(), &window,
+                                 &web_contents, &tab_index, &error)) {
+    return RespondNow(Error(std::move(error)));
+  }
+  if (!window) {
+    return RespondNow(Error(tabs_constants::kInvalidWindowStateError));
+  }
+  BrowserWindowInterface* browser = window->GetBrowserWindowInterface();
+
+  if (!browser || !ExtensionTabUtil::IsTabStripEditable()) {
+    return RespondNow(Error(ExtensionTabUtil::kTabStripNotEditableError));
+  }
+
+  TabListInterface* tab_list = TabListInterface::From(browser);
+  if (!tab_list) {
+    return RespondNow(Error(tabs_constants::kCannotDuplicateTab,
+                            base::NumberToString(tab_id)));
+  }
+  ::tabs::TabInterface* tab_interface =
+      ::tabs::TabInterface::MaybeGetFromContents(web_contents);
+  // We found the tab above, so we should always, always have a TabInterface
+  // for it.
+  CHECK(tab_interface);
+
+  ::tabs::TabInterface* new_tab =
+      tab_list->DuplicateTab(tab_interface->GetHandle());
+
+  if (!new_tab) {
+    return RespondNow(Error(ErrorUtils::FormatErrorMessage(
+        tabs_constants::kCannotDuplicateTab, base::NumberToString(tab_id))));
+  }
+
+  if (!has_callback()) {
+    return RespondNow(NoArguments());
+  }
+
+  // Duplicated tab may not be in the same window as the original, so find
+  // the new window.
+  TabListInterface* new_tab_list = nullptr;
+  int new_tab_index = -1;
+  content::WebContents* new_contents = new_tab->GetContents();
+  if (!ExtensionTabUtil::GetTabListInterface(*new_contents, &new_tab_list,
+                                             &new_tab_index)) {
+    return RespondNow(Error(kUnknownErrorDoNotUse));
+  }
+
+  ExtensionTabUtil::ScrubTabBehavior scrub_tab_behavior =
+      ExtensionTabUtil::GetScrubTabBehavior(extension(), source_context_type(),
+                                            new_contents);
+  return RespondNow(
+      ArgumentList(tabs::Get::Results::Create(ExtensionTabUtil::CreateTabObject(
+          new_contents, scrub_tab_behavior, extension(), new_tab_list,
+          new_tab_index))));
 }
 
 TabsRemoveFunction::TabsRemoveFunction() = default;

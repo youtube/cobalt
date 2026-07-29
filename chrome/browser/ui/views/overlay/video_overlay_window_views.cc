@@ -1208,9 +1208,9 @@ void VideoOverlayWindowViews::SetUpViews() {
     progress_view = std::make_unique<global_media_controls::MediaProgressView>(
         /*use_squiggly_line=*/false,
         /*playing_foreground_color_id=*/ui::kColorSysPrimary,
-        /*playing_background_color_id=*/ui::kColorSysStateDisabledContainer,
-        /*paused_foreground_color_id=*/ui::kColorSysStateDisabledContainer,
-        /*paused_background_color_id=*/ui::kColorSysStateDisabledContainer,
+        /*playing_background_color_id=*/ui::kColorSysStateDisabled,
+        /*paused_foreground_color_id=*/ui::kColorSysStateDisabled,
+        /*paused_background_color_id=*/ui::kColorSysStateDisabled,
         /*focus_ring_color_id=*/ui::kColorSysStateFocusRing,
         /*drag_state_change_callback=*/
         base::BindRepeating(
@@ -1736,8 +1736,7 @@ void VideoOverlayWindowViews::OnUpdateControlsBounds() {
     constexpr int kOriginRightMargin = 80;
     constexpr int kProgressBarHeight = 26;
     constexpr int kCenterControlMargin = 16;
-    constexpr int kControlHorizontalMargin = 8;
-    constexpr int kBottomControlsHorizontalMargin = 8;
+    constexpr int kBottomControlsHorizontalMargin = 12;
     constexpr int kBottomControlsVerticalMargin = 4;
     constexpr int kTimestampHorizontalMargin = 16;
     constexpr int kTimestampVerticalMargin = 10;
@@ -1825,13 +1824,11 @@ void VideoOverlayWindowViews::OnUpdateControlsBounds() {
     // The previous and next track buttons are placed on the top left/right
     // edges of the bottom controls area.
     previous_track_controls_view_->SetPosition(
-        {bottom_controls_bounds.x() + kBottomControlsHorizontalMargin +
-             kControlHorizontalMargin,
+        {bottom_controls_bounds.x() + kBottomControlsHorizontalMargin,
          bottom_controls_bounds.y() + kBottomControlsVerticalMargin});
     next_track_controls_view_->SetPosition(
         {bottom_controls_bounds.x() + bottom_controls_bounds.width() -
-             (kBottomControlsHorizontalMargin + kControlHorizontalMargin +
-              kActionButtonSize.width()),
+             (kBottomControlsHorizontalMargin + kActionButtonSize.width()),
          bottom_controls_bounds.y() + kBottomControlsVerticalMargin});
 
     // The previous and next track buttons are always both visible if at least
@@ -1851,12 +1848,10 @@ void VideoOverlayWindowViews::OnUpdateControlsBounds() {
     // one of those buttons takes up and use that to calculate the width and x
     // position of the progress view.
     constexpr int kPreviousNextTrackWidthPlusHorizontalMargins =
-        kBottomControlsHorizontalMargin + (2 * kControlHorizontalMargin) +
-        kActionButtonSize.width();
+        kBottomControlsHorizontalMargin + kActionButtonSize.width();
     const int used_horizontal_space_left_of_progress_bar =
-        should_show_prev_next
-            ? kPreviousNextTrackWidthPlusHorizontalMargins
-            : kBottomControlsHorizontalMargin + kControlHorizontalMargin;
+        should_show_prev_next ? kPreviousNextTrackWidthPlusHorizontalMargins
+                              : kBottomControlsHorizontalMargin;
     progress_view_->SetPosition(
         {bottom_controls_bounds.x() +
              used_horizontal_space_left_of_progress_bar,

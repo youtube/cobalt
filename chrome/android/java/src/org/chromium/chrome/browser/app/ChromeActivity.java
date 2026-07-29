@@ -14,7 +14,10 @@ import android.content.ActivityNotFoundException;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ResolveInfo;
+import android.content.res.AssetManager;
 import android.content.res.Configuration;
+import android.content.res.Resources;
+import android.content.res.Resources.Theme;
 import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.Drawable;
 import android.net.Uri;
@@ -66,6 +69,7 @@ import org.chromium.chrome.browser.ChromeWindow;
 import org.chromium.chrome.browser.DeferredStartupHandler;
 import org.chromium.chrome.browser.IntentHandler;
 import org.chromium.chrome.browser.PlayServicesVersionInfo;
+import org.chromium.chrome.browser.TabStateThemeResourceProvider;
 import org.chromium.chrome.browser.WarmupManager;
 import org.chromium.chrome.browser.ai.AiAssistantService;
 import org.chromium.chrome.browser.app.appmenu.AppMenuPropertiesDelegateImpl;
@@ -418,6 +422,8 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
     private TabModalLifetimeHandler mTabModalLifetimeHandler;
     private ViewGroup mBaseChromeLayout;
 
+    private @Nullable TabStateThemeResourceProvider mThemeResourceProvider;
+
     protected ChromeActivity() {
         mManualFillingComponentSupplier.set(ManualFillingComponentFactory.createComponent());
         sNextActivityId++;
@@ -447,6 +453,7 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
         CachedFlagsSafeMode.getInstance().onStartOrResumeCheckpoint();
         super.onPreCreate();
         initializeBackPressHandling();
+        initializeThemeResourceWrapper();
     }
 
     @Override
@@ -1155,12 +1162,12 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
 
         getManualFillingComponent().onResume();
         checkForDeviceLockOnAutomotive();
-
-        mRootUiCoordinator.onResumeWithNative();
     }
 
     @Override
     public void onTopResumedActivityChangedWithNative(boolean isTopResumedActivity) {
+        super.onTopResumedActivityChangedWithNative(isTopResumedActivity);
+
         View view = isTopResumedActivity ? getWindow().getDecorView() : null;
         InputHintChecker.setView(view);
 
@@ -2054,19 +2061,20 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
     }
 
     /**
-     * DEPRECATED: Instead, use/hold a reference to {@link #mActivityTabProvider}. See
-     *             https://crbug.com/871279 for more details. Note that there are important
-     *             functional differences between {@link ActivityTabProvider} and this function
-     *             when transitioning to/from the tab switcher. For a drop-in replacement, use
-     *             {@link TabModelSelector#getCurrentTab} instead.
-     *
      * Returns the tab being displayed by this ChromeActivity instance. This allows differentiation
      * between ChromeActivity subclasses that swap between multiple tabs (e.g. ChromeTabbedActivity)
      * and subclasses that only display one Tab (e.g. DocumentActivity).
      *
-     * The default implementation grabs the tab currently selected by the TabModel, which may be
+     * <p>The default implementation grabs the tab currently selected by the TabModel, which may be
      * null if the Tab does not exist or the system is not initialized.
+     *
+     * @deprecated Instead, use/hold a reference to {@link #mActivityTabProvider}. See
+     *     https://crbug.com/871279 for more details. Note that there are important functional
+     *     differences between {@link ActivityTabProvider} and this function when transitioning
+     *     to/from the tab switcher. For a drop-in replacement, use {@link
+     *     TabModelSelector#getCurrentTab} instead.
      */
+    @Deprecated
     public Tab getActivityTab() {
         if (!areTabModelsInitialized()) {
             return null;
@@ -3040,4 +3048,61 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
     protected int getAutomotiveToolbarImplementation() {
         return AutomotiveToolbarImplementation.WITH_TOOLBAR_VIEW;
     }
+
+    // === START of ThemeResourceProvider functionality ===
+
+    private void initializeThemeResourceWrapper() {
+        if (!ChromeFeatureList.sAndroidThemeResourceProvider.isEnabled()
+                || getActivityType() != ActivityType.TABBED) {
+            return;
+        }
+
+        // TODO: This is temporary. Replace with real theme overlay.
+        int resourceId = R.style.ThemeOverlay_BrowserUI_Switch_Incognito;
+        mThemeResourceProvider =
+                new TabStateThemeResourceProvider(
+                        this, resourceId, getActivityTabProvider(), getLayoutManagerSupplier());
+    }
+
+    @Override
+    public Resources getResources() {
+        if (mThemeResourceProvider != null && !mThemeResourceProvider.isBusy()) {
+            return mThemeResourceProvider.getResources();
+        }
+        return super.getResources();
+    }
+
+    @Override
+    public Theme getTheme() {
+        if (mThemeResourceProvider != null && !mThemeResourceProvider.isBusy()) {
+            return mThemeResourceProvider.getTheme();
+        }
+        return super.getTheme();
+    }
+
+    @Override
+    public AssetManager getAssets() {
+        if (mThemeResourceProvider != null && !mThemeResourceProvider.isBusy()) {
+            return mThemeResourceProvider.getAssets();
+        }
+        return super.getAssets();
+    }
+
+    @Override
+    public Object getSystemService(String name) {
+        if (mThemeResourceProvider != null && !mThemeResourceProvider.isBusy()) {
+            return mThemeResourceProvider.getSystemService(name);
+        }
+        return super.getSystemService(name);
+    }
+
+    public TabStateThemeResourceProvider getThemeResourceProviderForTesting() {
+        return mThemeResourceProvider;
+    }
+
+    public void setThemeResourceProviderForTesting(TabStateThemeResourceProvider instance) {
+        mThemeResourceProvider = instance;
+    }
+
+    // === END of ThemeResourceProvider functionality ===
 }

@@ -10,7 +10,7 @@
 #include <utility>
 #include <vector>
 
-#include "base/android/build_info.h"
+#include "base/android/device_info.h"
 #include "base/base64.h"
 #include "base/functional/callback.h"
 #include "base/memory/ptr_util.h"
@@ -57,8 +57,8 @@
 #include "components/password_manager/core/browser/stub_password_manager_driver.h"
 #include "components/password_manager/core/browser/webauthn_credentials_delegate.h"
 #include "components/password_manager/core/common/password_manager_features.h"
+#include "components/plus_addresses/core/common/features.h"
 #include "components/plus_addresses/fake_plus_address_service.h"
-#include "components/plus_addresses/features.h"
 #include "components/plus_addresses/grit/plus_addresses_strings.h"
 #include "components/plus_addresses/plus_address_test_utils.h"
 #include "components/prefs/pref_service.h"
@@ -1452,7 +1452,7 @@ TEST_F(PasswordAccessoryControllerTest, FillsUsername) {
 
 TEST_F(PasswordAccessoryControllerTest, FillsPasswordIfNoAuthAvailable) {
   // Auth is required to fill passwords in Android automotive.
-  if (base::android::BuildInfo::GetInstance()->is_automotive()) {
+  if (base::android::device_info::is_automotive()) {
     GTEST_SKIP();
   }
 

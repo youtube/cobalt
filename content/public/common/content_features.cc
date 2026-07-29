@@ -433,7 +433,7 @@ BASE_FEATURE(kFedCm, "FedCm", base::FEATURE_ENABLED_BY_DEFAULT);
 // (or in addition to) names and emails.
 BASE_FEATURE(kFedCmAlternativeIdentifiers,
              "FedCmAlternativeIdentifiers",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enables RPs to enhance autofill with federated accounts fetched by the FedCM
 // API.
@@ -467,18 +467,6 @@ BASE_FEATURE(kFedCmIframeOrigin,
 BASE_FEATURE(kFedCmMetricsEndpoint,
              "FedCmMetricsEndpoint",
              base::FEATURE_DISABLED_BY_DEFAULT);
-
-// Enables usage of the FedCM API with multiple identity providers at the same
-// time.
-BASE_FEATURE(kFedCmMultipleIdentityProviders,
-             "FedCmMultipleIdentityProviders",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
-// Enables showing filtered out accounts in FedCM UI after the user attempts to
-// login to an account. These accounts are shown greyed out.
-BASE_FEATURE(kFedCmShowFilteredAccounts,
-             "FedCmShowFilteredAccounts",
-             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enables bypassing the well-known file enforcement.
 BASE_FEATURE(kFedCmWithoutWellKnownEnforcement,
@@ -566,6 +554,28 @@ BASE_FEATURE(kInstalledAppProvider,
              "InstalledAppProvider",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
+// When enabled, derives isolate priority from the more granular process
+// priority (user-blocking, user-visible, best-effort) instead of renderer
+// visibility (visible, hidden).
+//
+// Subtlety: A renderer hosting a hidden frame playing audio will have
+// user-blocking priority. Without this feature, an isolate in this renderer
+// would have best-effort priority (derived from the visibility), whereas with
+// the feature it would be user-blocking. To keep isolates in hidden renderers
+// at best-effort priority, but otherwise use the process priority, enable this
+// feature along with "IsolatesPriorityBestEffortWhenHidden".
+BASE_FEATURE(kIsolatesPriorityUseProcessPriority,
+             "IsolatesPriorityUseProcessPriority",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// When enabled, forces the priority of isolates in hidden renderers to
+// best-effort, overriding the effect of kIsolatesPriorityUseProcessPriority
+// (isolates in visible renderer will still get their priority derived from
+// process priority).
+BASE_FEATURE(kIsolatesPriorityBestEffortWhenHidden,
+             "IsolatesPriorityBestEffortWhenHidden",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // Enable support for isolated web apps. This will guard features like serving
 // isolated web apps via the isolated-app:// scheme, and other advanced isolated
 // app functionality. See https://github.com/reillyeon/isolated-web-apps for a
@@ -581,13 +591,6 @@ BASE_FEATURE(kIsolatedWebApps,
 #else
              base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_CHROMEOS)
-
-// Enables a new Automatic Fullscreen content setting that lets allowlisted
-// origins use the HTML Fullscreen API without transient activation.
-// https://chromestatus.com/feature/6218822004768768
-BASE_FEATURE(kAutomaticFullscreenContentSetting,
-             "AutomaticFullscreenContentSetting",
-             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enables process isolation of fenced content (content inside fenced frames)
 // from non-fenced content. See
@@ -752,12 +755,6 @@ BASE_FEATURE_PARAM(bool,
                    "reuse_search_host",
                    false);
 
-// If enabled, browser-initiated prefetch is allowed.
-// Please see crbug.com/40946257 for more details.
-BASE_FEATURE(kPrefetchBrowserInitiatedTriggers,
-             "PrefetchBrowserInitiatedTriggers",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 // Enables exposure of ads APIs in the renderer: Attribution Reporting,
 // FLEDGE, Topics, along with a number of other features actively in development
 // within these APIs.
@@ -909,11 +906,6 @@ BASE_FEATURE(kRestrictThreadPoolInBackground,
 BASE_FEATURE(kSetHistoryInfoOnViewCreation,
              "SetHistoryInfoOnViewCreation",
              base::FEATURE_ENABLED_BY_DEFAULT);
-
-// Set a tri-state priority on v8 isolates reflecting the renderer priority.
-BASE_FEATURE(kSetIsolatesPriority,
-             "SetIsolatesPriority",
-             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // When enabled, sends the spare renderer information when setting the
 // priority of renderers. Currently only Android handles the spare renderer

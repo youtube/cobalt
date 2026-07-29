@@ -114,6 +114,7 @@
 #include "ui/views/animation/ink_drop.h"
 #include "ui/views/border.h"
 #include "ui/views/button_drag_utils.h"
+#include "ui/views/controls/focus_ring.h"
 #include "ui/views/controls/textfield/textfield.h"
 #include "ui/views/view_class_properties.h"
 #include "ui/views/widget/widget.h"
@@ -375,9 +376,14 @@ void OmniboxViewViews::ResetTabState(content::WebContents* web_contents) {
 
 void OmniboxViewViews::InstallPlaceholderText() {
   // If `keyword_placeholder()` is set, then the user is in a keyword mode that
-  // has placeholder text. Use that instead of the DSE placeholder text.
+  // has placeholder text, so display that. If the Omnibox is visibly focused
+  // and AI Mode is enabled, display the AI Mode placeholder text to suggest
+  // tabbing into AI Mode. Otherwise, display the DSE placeholder text.
   if (!model()->keyword_placeholder().empty()) {
     SetPlaceholderText(model()->keyword_placeholder());
+  } else if (ShouldShowAimPlaceholderText()) {
+    SetPlaceholderText(
+        l10n_util::GetStringUTF16(IDS_OMNIBOX_AIM_PLACEHOLDER_TEXT));
   } else if (const auto* default_provider = controller()
                                                 ->client()
                                                 ->GetTemplateURLService()
@@ -543,15 +549,34 @@ void OmniboxViewViews::SetFocus(bool is_user_initiated) {
   model()->ConsumeCtrlKey();
 }
 
-void OmniboxViewViews::RequestViewFocus() {
-  RequestFocus();
-}
-
-void OmniboxViewViews::RequestAimButtonFocus() {
-  set_focus_is_going_to_aim_button(true);
-  location_bar_view_->page_action_icon_controller()
-      ->GetIconView(PageActionIconType::kAiMode)
-      ->RequestFocus();
+void OmniboxViewViews::ApplyFocusRingToAimButton(bool force_focus) {
+  if (!location_bar_view_) {
+    return;
+  }
+  auto* icon_view =
+      location_bar_view_->page_action_icon_controller()->GetIconView(
+          PageActionIconType::kAiMode);
+  if (!icon_view) {
+    return;
+  }
+  auto* const focus_ring = views::FocusRing::Get(icon_view);
+  focus_ring->SetColorId(kColorOmniboxResultsFocusIndicator);
+  focus_ring->SetHasFocusPredicate(base::BindRepeating(
+      [](bool force_focus, const views::View* parent) {
+        if (force_focus) {
+          // Focus ring is forced to be shown in this case. Used by the omnibox
+          // popup when it wants to indicate button focus even though the
+          // omnibox itself is still the focused view.
+          return true;
+        } else {
+          // Otherwise, focus ring is shown if the parent view has focus (the
+          // standard behavior, required to handle normal tab key focus
+          // traversal).
+          return parent->HasFocus();
+        }
+      },
+      force_focus));
+  focus_ring->SchedulePaint();
 }
 
 int OmniboxViewViews::GetTextWidth() const {
@@ -862,15 +887,18 @@ void OmniboxViewViews::UpdatePopup() {
 }
 
 void OmniboxViewViews::ApplyCaretVisibility() {
-  SetCursorEnabled(model()->is_caret_visible());
+  if (model()->focus_state() != OMNIBOX_FOCUS_NONE) {
+    SetCursorEnabled(model()->is_caret_visible());
 
-  // TODO(tommycli): Because the LocationBarView has a somewhat different look
-  // depending on whether or not the caret is visible, we have to resend a
-  // "focused" notification. Remove this once we get rid of the concept of
-  // "invisible focus".
-  if (location_bar_view_) {
-    location_bar_view_->OnOmniboxFocused();
+    // TODO(tommycli): Because the LocationBarView has a somewhat different look
+    // depending on whether or not the caret is visible, we have to resend a
+    // "focused" notification. Remove this once we get rid of the concept of
+    // "invisible focus".
+    if (location_bar_view_) {
+      location_bar_view_->OnOmniboxFocused();
+    }
   }
+  InstallPlaceholderText();
 }
 
 void OmniboxViewViews::OnTemporaryTextMaybeChanged(
@@ -1470,14 +1498,6 @@ bool OmniboxViewViews::HandleAccessibleAction(
 void OmniboxViewViews::OnFocus() {
   views::Textfield::OnFocus();
 
-  // If focus is returning from the AIM button, there is no need for any of the
-  // usual bookkeeping, since the omnibox was logically considered to have
-  // retained focus.
-  if (focus_is_returning_from_aim_button()) {
-    set_focus_is_returning_from_aim_button(false);
-    return;
-  }
-
   // TODO(tommycli): This does not seem like it should be necessary.
   // Investigate why it's needed and see if we can remove it.
   model()->ResetDisplayTexts();
@@ -1510,14 +1530,6 @@ void OmniboxViewViews::OnFocus() {
 
 void OmniboxViewViews::OnBlur() {
   views::Textfield::OnBlur();
-
-  // If focus is going to the AIM button, there is no need for any of the usual
-  // bookkeeping, since the omnibox will logically be considered to have
-  // retained focus.
-  if (focus_is_going_to_aim_button()) {
-    set_focus_is_going_to_aim_button(false);
-    return;
-  }
 
   // Save the user's existing selection to restore it later.
   saved_selection_for_focus_change_ = GetSelectedRange();
@@ -1725,12 +1737,13 @@ void OmniboxViewViews::ExecuteTextEditCommand(ui::TextEditCommand command) {
 
 bool OmniboxViewViews::ShouldShowPlaceholderText() const {
   // The DSE placeholder text is visible only if the omnibox is blurred. The
-  // keyword placeholder text is visible even if the omnibox is focused, because
-  // users won't enter keyword mode, blur the omnibox, read the placeholder
-  // text, refocus the omnibox, and begin typing.
+  // AIM placeholder text and the keyword placeholder texts are visible even
+  // if the omnibox is focused, because users won't enter keyword mode, blur the
+  // omnibox, read the placeholder text, refocus the omnibox, and begin typing.
   return Textfield::ShouldShowPlaceholderText() &&
          (!model()->is_caret_visible() ||
-          !model()->keyword_placeholder().empty());
+          !model()->keyword_placeholder().empty() ||
+          ShouldShowAimPlaceholderText());
 }
 
 void OmniboxViewViews::UpdateAccessibleValue() {
@@ -2226,16 +2239,34 @@ void OmniboxViewViews::OnPopupOpened() {
 }
 
 void OmniboxViewViews::UpdatePlaceholderTextColor() {
-  // Keyword placeholders are dim to differentiate from user input. DSE
-  // placeholders are not dim to draw attention to the omnibox and because the
-  // omnibox is unfocused so there's less risk of confusion with user input.
+  // AIM placeholder text and keyword placeholders are dim to differentiate from
+  // user input. DSE placeholders are not dim to draw attention to the omnibox
+  // and because the omnibox is unfocused so there's less risk of confusion with
+  // user input.
   // Null in tests.
   if (!GetColorProvider()) {
     return;
   }
   set_placeholder_text_color(GetColorProvider()->GetColor(
-      model()->keyword_placeholder().empty() ? kColorOmniboxText
-                                             : kColorOmniboxTextDimmed));
+      model()->keyword_placeholder().empty() && !ShouldShowAimPlaceholderText()
+          ? kColorOmniboxText : kColorOmniboxTextDimmed));
+}
+
+bool OmniboxViewViews::ShouldShowAimPlaceholderText() const {
+  // Verify location bar is fully initialized because
+  // ShouldShowAimPlaceholderText can be called during location bar
+  // initialization, before the page_action_icon_controller is initialized.
+  if (!location_bar_view_ || !location_bar_view_->IsInitialized()) {
+    return false;
+  }
+  // The AIM placeholder text should only be shown when the AIM button is
+  // enabled, and the omnibox is visibly focused with no other popup buttons
+  // focused.
+  PageActionIconView* ai_mode_enabled =
+      location_bar_view_->page_action_icon_controller()
+          ->GetIconView(PageActionIconType::kAiMode);
+  return ai_mode_enabled && model()->is_caret_visible() &&
+      !model()->GetPopupSelection().IsButtonFocused();
 }
 
 BEGIN_METADATA(OmniboxViewViews)

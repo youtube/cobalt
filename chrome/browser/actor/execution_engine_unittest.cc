@@ -10,6 +10,8 @@
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/test_future.h"
+#include "base/timer/elapsed_timer.h"
+#include "chrome/browser/actor/actor_features.h"
 #include "chrome/browser/actor/actor_tab_data.h"
 #include "chrome/browser/actor/actor_task.h"
 #include "chrome/browser/actor/actor_test_util.h"
@@ -27,6 +29,7 @@
 #include "components/optimization_guide/content/browser/page_content_proto_provider.h"
 #include "components/tabs/public/mock_tab_interface.h"
 #include "components/tabs/public/tab_interface.h"
+#include "content/public/test/mock_navigation_handle.h"
 #include "content/public/test/navigation_simulator.h"
 #include "mojo/public/cpp/bindings/associated_receiver_set.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -50,6 +53,10 @@ namespace {
 constexpr int kFakeContentNodeId = 123;
 constexpr char kActionResultHistogram[] =
     "Actor.ExecutionEngine.Action.ResultCode";
+constexpr char kActorTaskDurationCompletedHistogram[] =
+    "Actor.Task.Duration.Completed";
+constexpr char kActorTaskDurationCancelledHistogram[] =
+    "Actor.Task.Duration.Cancelled";
 
 class FakeChromeRenderFrame : public chrome::mojom::ChromeRenderFrame {
  public:
@@ -107,7 +114,9 @@ class FakeChromeRenderFrame : public chrome::mojom::ChromeRenderFrame {
 
 class ExecutionEngineTest : public ChromeRenderViewHostTestHarness {
  public:
-  ExecutionEngineTest() = default;
+  ExecutionEngineTest()
+      : ChromeRenderViewHostTestHarness(
+            content::BrowserTaskEnvironment::TimeSource::MOCK_TIME) {}
   ~ExecutionEngineTest() override = default;
 
   void SetUp() override {
@@ -191,8 +200,7 @@ class ExecutionEngineTest : public ChromeRenderViewHostTestHarness {
                                                                url);
     fake_chrome_render_frame_.OverrideBinder(main_rfh());
 
-    base::test::TestFuture<mojom::ActionResultPtr, std::optional<size_t>>
-        success;
+    ActResultFuture success;
     std::unique_ptr<ToolRequest> action = std::move(make_action).Run();
     task_->Act(ToRequestList(std::move(action)), success.GetCallback());
     return IsOk(*success.Get<0>());
@@ -334,7 +342,7 @@ TEST_F(ExecutionEngineTest, ActFailsWhenTabDestroyed) {
   content::NavigationSimulator::NavigateAndCommitFromBrowser(
       web_contents(), GURL("http://localhost/"));
 
-  base::test::TestFuture<mojom::ActionResultPtr, std::optional<size_t>> result;
+  ActResultFuture result;
 
   FakeChromeRenderFrame fake_chrome_render_frame;
   fake_chrome_render_frame.OverrideBinder(main_rfh());
@@ -358,7 +366,7 @@ TEST_F(ExecutionEngineTest, CrossOriginNavigationBeforeAction) {
   FakeChromeRenderFrame fake_chrome_render_frame;
   fake_chrome_render_frame.OverrideBinder(main_rfh());
 
-  base::test::TestFuture<mojom::ActionResultPtr, std::optional<size_t>> result;
+  ActResultFuture result;
   auto execution_engine = std::make_unique<ExecutionEngine>(profile());
   ActorTask task(profile(), std::move(execution_engine),
                  ui::NewMockUiEventDispatcher());
@@ -377,6 +385,123 @@ TEST_F(ExecutionEngineTest, CrossOriginNavigationBeforeAction) {
   histograms_.ExpectUniqueSample(
       kActionResultHistogram, mojom::ActionResultCode::kCrossOriginNavigation,
       1);
+}
+
+TEST_F(ExecutionEngineTest, CompletedHistogram) {
+  content::NavigationSimulator::NavigateAndCommitFromBrowser(
+      web_contents(), GURL("http://localhost/"));
+
+  ActResultFuture result;
+
+  FakeChromeRenderFrame fake_chrome_render_frame;
+  fake_chrome_render_frame.OverrideBinder(main_rfh());
+
+  std::unique_ptr<ToolRequest> action =
+      MakeClickCallback(kFakeContentNodeId).Run();
+  task_->Act(ToRequestList(action), result.GetCallback());
+
+  // Simulate time passing before the task stops
+  const base::TimeDelta task_duration = base::Milliseconds(123);
+  task_environment()->FastForwardBy(task_duration);
+
+  task_->Stop(/*success=*/true);
+  histograms_.ExpectTimeBucketCount(kActorTaskDurationCompletedHistogram,
+                                    task_duration, 1);
+}
+
+TEST_F(ExecutionEngineTest, CompletedWithPauseHistogram) {
+  content::NavigationSimulator::NavigateAndCommitFromBrowser(
+      web_contents(), GURL("http://localhost/"));
+
+  ActResultFuture result;
+
+  FakeChromeRenderFrame fake_chrome_render_frame;
+  fake_chrome_render_frame.OverrideBinder(main_rfh());
+
+  std::unique_ptr<ToolRequest> action =
+      MakeClickCallback(kFakeContentNodeId).Run();
+  task_->Act(ToRequestList(action), result.GetCallback());
+
+  // Simulate the first active period
+  const base::TimeDelta active_duration1 = base::Milliseconds(100);
+  task_environment()->FastForwardBy(active_duration1);
+
+  task_->Pause(/*from_actor=*/true);
+
+  // Time that passes while paused should not be counted.
+  task_environment()->FastForwardBy(base::Milliseconds(500));
+
+  task_->Resume();
+
+  // Simulate the second active period
+  const base::TimeDelta active_duration2 = base::Milliseconds(50);
+  task_environment()->FastForwardBy(active_duration2);
+
+  task_->Stop(/*success=*/true);
+  histograms_.ExpectTimeBucketCount(kActorTaskDurationCompletedHistogram,
+                                    active_duration1 + active_duration2, 1);
+}
+
+TEST_F(ExecutionEngineTest, CancelledHistogram) {
+  content::NavigationSimulator::NavigateAndCommitFromBrowser(
+      web_contents(), GURL("http://localhost/"));
+
+  ActResultFuture result;
+
+  FakeChromeRenderFrame fake_chrome_render_frame;
+  fake_chrome_render_frame.OverrideBinder(main_rfh());
+
+  std::unique_ptr<ToolRequest> action =
+      MakeClickCallback(kFakeContentNodeId).Run();
+  task_->Act(ToRequestList(action), result.GetCallback());
+
+  // Simulate time passing before the task is cancelled
+  const base::TimeDelta task_duration = base::Milliseconds(456);
+  task_environment()->FastForwardBy(task_duration);
+
+  task_->Stop(/*success=*/false);
+  histograms_.ExpectTimeBucketCount(kActorTaskDurationCancelledHistogram,
+                                    task_duration, 1);
+}
+
+class ExecutionEngineOriginGatingTest : public ExecutionEngineTest {
+ public:
+  void SetUp() override {
+    ExecutionEngineTest::SetUp();
+    scoped_feature_list_.InitAndEnableFeature(kGlicCrossOriginNavigationGating);
+  }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+TEST_F(ExecutionEngineOriginGatingTest, CrossOriginGating) {
+  const GURL kDestination = GURL("https://bar.com");
+
+  struct TestCase {
+    std::optional<url::Origin> initiator;
+    bool expected;
+  };
+
+  TestCase test_cases[] = {
+      // No initiator origin indicates that this navigation was not made by the
+      // page
+      // and should be allowed.
+      {std::nullopt, false},
+      // Same origin should not be gated.
+      {url::Origin::Create(GURL("https://bar.com")), false},
+      // Gate cross origin
+      {url::Origin::Create(GURL("https://foo.com")), true}};
+
+  for (const auto& test_case : test_cases) {
+    content::MockNavigationHandle navigation_handle(kDestination, main_rfh());
+    if (test_case.initiator) {
+      navigation_handle.set_initiator_origin(test_case.initiator.value());
+    }
+    EXPECT_EQ(
+        test_case.expected,
+        task_->GetExecutionEngine()->ShouldGateNavigation(navigation_handle));
+  }
 }
 
 }  // namespace

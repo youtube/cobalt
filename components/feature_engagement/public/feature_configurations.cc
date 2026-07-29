@@ -2,11 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
-#pragma allow_unsafe_libc_calls
-#endif
-
 #include "components/feature_engagement/public/feature_configurations.h"
 
 #include "base/strings/string_util.h"
@@ -1963,6 +1958,22 @@ std::optional<FeatureConfig> GetClientSideFeatureConfig(
                                             360));
     config.used = EventConfig("touch_to_search_expansion_used",
                               Comparator(EQUAL, 0), 360, 360);
+    return config;
+  }
+
+  if (kIPHReaderModeDistillInAppFeature.name == feature->name) {
+    // A config which allows the reader mode IPH to be shown:
+    // * Once per week.
+    // * Three times per year.
+    FeatureConfig config;
+    config.valid = true;
+    config.availability = Comparator(ANY, 0);
+    config.session_rate = Comparator(EQUAL, 0);
+    config.trigger = EventConfig("reader_mode_distill_in_app_iph_triggered",
+                                 Comparator(EQUAL, 0), 7, 7);
+    config.event_configs.insert(
+        EventConfig("reader_mode_distill_in_app_iph_triggered",
+                    Comparator(LESS_THAN, 3), 360, 360));
     return config;
   }
 #endif  // BUILDFLAG(IS_ANDROID)

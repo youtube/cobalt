@@ -26,7 +26,7 @@ targets.legacy_basic_suite(
 targets.legacy_basic_suite(
     name = "blink_unittests_suite",
     tests = {
-        "blink_unit_tests": targets.legacy_test_config(),
+        "blink_unittests": targets.legacy_test_config(),
     },
 )
 
@@ -111,6 +111,7 @@ targets.legacy_basic_suite(
                 # tast-specific logic relying on tast_expr to be non-empty.
                 tast_expr = "STUB_STRING_TO_RUN_TAST_TESTS",
                 timeout_sec = 14400,
+                cros_ctp_suite_name = "chrome-uprev-hw",
                 cros_test_names_exclude_from_file = ["chromeos/tast_control_disabled_tests.txt"],
                 cros_test_tags = ["group:mainline", "dep:chrome"],
                 cros_test_tags_exclude = ["informational", "dep:no_chrome_dcheck"],
@@ -428,6 +429,11 @@ targets.legacy_basic_suite(
         "blink_common_unittests": targets.legacy_test_config(),
         "blink_heap_unittests": targets.legacy_test_config(),
         "blink_platform_unittests": targets.legacy_test_config(),
+        "blink_unittests": targets.legacy_test_config(
+            android_swarming = targets.swarming(
+                shards = 6,
+            ),
+        ),
         "boringssl_crypto_tests": targets.legacy_test_config(),
         "boringssl_ssl_tests": targets.legacy_test_config(),
         "capture_unittests": targets.legacy_test_config(
@@ -496,11 +502,6 @@ targets.legacy_basic_suite(
         "ui_base_unittests": targets.legacy_test_config(),
         "ui_touch_selection_unittests": targets.legacy_test_config(),
         "url_unittests": targets.legacy_test_config(),
-        "webkit_unit_tests": targets.legacy_test_config(
-            android_swarming = targets.swarming(
-                shards = 6,
-            ),
-        ),
         "wtf_unittests": targets.legacy_test_config(),
         "zlib_unittests": targets.legacy_test_config(),
     },

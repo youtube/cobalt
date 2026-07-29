@@ -58,6 +58,7 @@
 #include "third_party/metrics_proto/omnibox_event.pb.h"
 #include "third_party/metrics_proto/omnibox_focus_type.pb.h"
 #include "third_party/metrics_proto/omnibox_input_type.pb.h"
+#include "third_party/omnibox_proto/chrome_aim_entry_point.pb.h"
 #include "third_party/omnibox_proto/groups.pb.h"
 #include "ui/base/device_form_factor.h"
 #include "ui/base/l10n/l10n_util.h"
@@ -98,10 +99,10 @@ constexpr size_t kMaxPedalMatchIndex =
 // The entrypoint id associated with aim being invoked from the AIM shortcut of
 // typed state. Used for logging purposes.
 // Do not change without changing the IDs in chrome_aim_entry_point.proto
-const std::string GetAimActionEntrypointID() {
-  const std::string AndroidAimActionEntrypointID = "61";
-  const std::string IOSAimActionEntrypointID = "62";
-  return is_android ? AndroidAimActionEntrypointID : IOSAimActionEntrypointID;
+omnibox::ChromeAimEntryPoint GetAimActionEntrypointID() {
+  return is_android
+             ? omnibox::ANDROID_CHROME_AIM_SHORTCUT_TYPED_STATE_ENTRY_POINT
+             : omnibox::IOS_CHROME_OMNIBOX_SEARCH_ENTRY_POINT;
 }
 #endif
 
@@ -903,8 +904,9 @@ void AutocompleteResult::AttachPedalsToMatches(
 
 #if BUILDFLAG(IS_IOS) || BUILDFLAG(IS_ANDROID)
 void AutocompleteResult::AttachAimAction(
-    TemplateURLService* template_url_service) {
-  if (!base::FeatureList::IsEnabled(omnibox::kOmniboxAimShortcutTypedState)) {
+    TemplateURLService* template_url_service,
+    AutocompleteProviderClient* client) {
+  if (!OmniboxFieldTrial::IsDeterministicAimActionInTypedStateEnabled(client)) {
     return;
   }
 
@@ -936,11 +938,20 @@ void AutocompleteResult::AttachAimAction(
 
 void AutocompleteResult::AttachContextualSearchFulfillmentActionToMatches() {
   for (AutocompleteMatch& match : matches_) {
-    if (match.IsContextualSearchSuggestion()) {
+    if (match.IsContextualSearchSuggestion() && !match.HasLensSearchAction()) {
       match.takeover_action =
           base::MakeRefCounted<ContextualSearchFulfillmentAction>(
               match.destination_url, match.type,
               match.subtypes.contains(omnibox::SUBTYPE_ZERO_PREFIX));
+    }
+  }
+}
+
+void AutocompleteResult::AttachContextualSearchOpenLensActionToMatches() {
+  for (AutocompleteMatch& match : matches_) {
+    if (match.IsContextualSearchSuggestion() && match.HasLensSearchAction()) {
+      match.takeover_action =
+          base::MakeRefCounted<ContextualSearchOpenLensAction>();
     }
   }
 }

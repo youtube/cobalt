@@ -1485,7 +1485,6 @@
 <translation id="200321182559008924">讓分頁變得井井有條</translation>
 <translation id="2003596238737586336">目前的時間表已設定為<ph name="SUNRISE" />至<ph name="SUNSET" />。此設定由管理員管理。</translation>
 <translation id="2004413981947727241">在任何裝置都能使用你的密碼</translation>
-<translation id="2004697686368036666">部分網站的功能可能會無法正常運作</translation>
 <translation id="2006638907958895361">在 <ph name="APP" />中開啟連結</translation>
 <translation id="2007404777272201486">報告問題…</translation>
 <translation id="200781997903833896">如要使用「朗讀」功能，請騰出裝置空間</translation>
@@ -1641,6 +1640,7 @@
 <translation id="2110941575868943054">允許尋找藍牙裝置</translation>
 <translation id="211144231511833662">清除類型</translation>
 <translation id="2111670510994270194">在右側新增分頁</translation>
+<translation id="2111778868023567359">此頁不會再顯示「分頁群組」</translation>
 <translation id="2112554630428445878"><ph name="USERNAME" />，歡迎使用！</translation>
 <translation id="21133533946938348">固定分頁</translation>
 <translation id="2113479184312716848">開啟檔案(&amp;F)…</translation>
@@ -1969,7 +1969,6 @@
 <translation id="2328137272841210255">重設你的 PIN</translation>
 <translation id="2328474416100889417">所有人將立即無法存取「<ph name="GROUP_NAME" />」分頁群組，而所有邀請連結亦將會關閉</translation>
 <translation id="2328561734797404498">請重新啟動裝置，以便使用 <ph name="APP_NAME" />。</translation>
-<translation id="2328636661627946415">在無痕模式時，網站只能使用 Cookie 查看您在該網站的瀏覽活動。系統就會無痕工作階段結束時刪除 Cookie。</translation>
 <translation id="2329597144923131178">登入後可從任何裝置取得自己的書籤、記錄、密碼和其他設定。</translation>
 <translation id="2330182457402792918">選取此網站能讀取的檔案</translation>
 <translation id="2332115969598251205">無法載入已儲存至 <ph name="PRIMARY_EMAIL" /> 的裝置。請檢查您的互聯網連線，然後再試一次。</translation>
@@ -2053,6 +2052,7 @@
 <translation id="2392369802118427583">啟用</translation>
 <translation id="2393136602862631930">在 Chromebook 上設定 <ph name="APP_NAME" /></translation>
 <translation id="2393313392064891208">Google ChromeOS Flex 條款內容</translation>
+<translation id="2393944685985256805">「<ph name="MODULE_NAME" />」已隱藏</translation>
 <translation id="2395616325548404795">您的 <ph name="DEVICE_TYPE" /> 已成功註冊使用企業管理服務，但無法傳送資產和位置資料。請透過管理控制台為此裝置手動輸入這些資料。</translation>
 <translation id="2396783860772170191">輸入 4 位數 PIN (0000-9999)</translation>
 <translation id="2398546389094871088">在裝置上執行 Powerwash 並不會移除 eSIM 卡設定檔。請前往<ph name="LINK_BEGIN" />流動裝置設定<ph name="LINK_END" />手動移除這些設定檔。</translation>
@@ -2658,6 +2658,7 @@
 <translation id="2794522004398861033">連線至 Wi-Fi 或以太網絡以設定 eSIM 卡</translation>
 <translation id="2794977172822818797">新增目前網站</translation>
 <translation id="2795716239552913152">網站通常會使用您的位置以提供相關功能或資料，例如本地新聞或附近商店</translation>
+<translation id="2797712124653482791">隱藏 <ph name="DISMISS_DAYS" /> 天</translation>
 <translation id="2798347533012571708">保留更新</translation>
 <translation id="2799162042226656283">你的 Chrome</translation>
 <translation id="2799223571221894425">重新啟動</translation>
@@ -3756,7 +3757,6 @@
 <translation id="3593953853060020305">允許此網站編輯「<ph name="FILE_NAME" />」嗎？</translation>
 <translation id="3593965109698325041">憑證名稱限制</translation>
 <translation id="3596012367874587041">應用程式設定</translation>
-<translation id="3596414637720633074">在無痕模式中封鎖第三方 Cookie</translation>
 <translation id="3599221874935822507">凸出</translation>
 <translation id="3600051066689725006">網絡要求資料</translation>
 <translation id="3600956933576601730">你需要查閱並接受條款才能使用這些功能</translation>
@@ -4081,6 +4081,10 @@
 <translation id="3800764353337460026">符號樣式</translation>
 <translation id="3800828618615365228">Google Chrome 和 Chrome OS 的《附加條款》</translation>
 <translation id="3800898876950197674">如要允許此擴充程式，請輸入密碼。</translation>
+<translation id="3801131837165361989">系統會根據你的日常需要，顯示將 Chrome 個人化和提升效益的建議。
+        <ph name="BREAK" />
+        <ph name="BREAK" />
+        你可透過資訊卡選單管理設定，或前往「自訂 Chrome」查看更多選項。</translation>
 <translation id="3801449494961771207">預設的「文字轉語音」聲音</translation>
 <translation id="3802486193901166966">這個擴充程式不需要任何特殊權限，亦無需額外的網站存取權</translation>
 <translation id="380329542618494757">名稱</translation>
@@ -4092,7 +4096,6 @@
 <translation id="3807747707162121253">取消(&amp;C)</translation>
 <translation id="3808202562160426447">調暗背景內容</translation>
 <translation id="3808443763115411087">Crostini 的 Android 應用程式開發</translation>
-<translation id="3808617121485025547">進一步了解封鎖第三方 Cookie</translation>
 <translation id="38089336910894858">使用 ⌘Q 關閉前顯示警告</translation>
 <translation id="3809272675881623365">兔子</translation>
 <translation id="3809280248639369696">外星人</translation>
@@ -4352,7 +4355,6 @@
 <translation id="3975565978598857337">無法連線至指定的伺服器領域</translation>
 <translation id="3976108569178263973">沒有可用的打印機。</translation>
 <translation id="397703832102027365">即將完成…</translation>
-<translation id="3977145907578671392">部分網站的功能可能無法在無痕模式中正常運作</translation>
 <translation id="3977886311744775419">此網絡類型無法下載自動更新，但您可以手動檢查更新。</translation>
 <translation id="3978325380690188371">ChromeVox 開啟時，相黏鍵將無法使用</translation>
 <translation id="3978732922947854545">Chrome 讓 PDF 更容易閱讀</translation>
@@ -4388,6 +4390,7 @@
 <translation id="3994075804072562819">授權「<ph name="SPECIFIC_NAME" />」控制 USB 裝置。</translation>
 <translation id="3994318741694670028">抱歉，您的電腦是由格式錯誤的硬件 ID 設定。這導致 ChromeOS Flex 無法使用最新的安全性修正程式進行更新，您的電腦亦可能因此<ph name="BEGIN_BOLD" />容易被惡意攻擊<ph name="END_BOLD" />。</translation>
 <translation id="3994374631886003300">解鎖手機並靠近您的 <ph name="DEVICE_TYPE" /> 即可解鎖。</translation>
+<translation id="3994522032746736727">使用 <ph name="EMAIL" /> 登入</translation>
 <translation id="3994530503403062649">找出平板電腦按鈕位置</translation>
 <translation id="3994708120330953242">我們從資料外洩事件中發現部分您儲存的密碼。為確保帳戶安全，您應立即變更這些密碼。</translation>
 <translation id="3994878504415702912">縮放(&amp;Z)</translation>
@@ -4965,6 +4968,7 @@
 <translation id="4415815425191869676">一律保持這些網站在啟用狀態</translation>
 <translation id="4416582610654027550">輸入有效的網址</translation>
 <translation id="4417555042033340400">{NUM_TABS,plural, =1{暫停此分頁}other{暫停這些分頁}}</translation>
+<translation id="4419287616181386201">密碼可以在相應的管理設定中刪除</translation>
 <translation id="4421932172707401417">系統會根據你的提示和網頁內容提供撰寫建議</translation>
 <translation id="4421932782753506458">長毛貓</translation>
 <translation id="4423376891418188461">還原設定</translation>
@@ -5855,6 +5859,7 @@
 <translation id="5064921774605267982">打開<ph name="PROFILE_NAME" />設定檔。呢個設定檔由你嘅家長管理。</translation>
 <translation id="5065775832226780415">Smart Lock</translation>
 <translation id="5066100345385738837">在 Chrome OS 設定中管理安全 DNS</translation>
+<translation id="5066523884829290323">在網站上更改</translation>
 <translation id="5066534201484101197">捲動回彈即可瀏覽頁面</translation>
 <translation id="5067399438976153555">保持開啟</translation>
 <translation id="5067867186035333991">當 <ph name="HOST" /> 要求存取麥克風時詢問我。</translation>
@@ -6474,6 +6479,7 @@
 <translation id="5496730470963166430">不允許傳送彈出式視窗或使用重新導向</translation>
 <translation id="5497250476399536588">你可以在「地址及其他資料」中查閱</translation>
 <translation id="5497251278400702716">此檔案</translation>
+<translation id="549762298434242239">「強化安全瀏覽」不信任此擴充程式。<ph name="LEARN_MORE_LINK" /></translation>
 <translation id="5497739595514726398">Chrome 無法驗證此安裝套件</translation>
 <translation id="5498967291577176373">透過內嵌建議迅速輸入您的姓名、地址或電話號碼</translation>
 <translation id="5499211612787418966">目前冇突顯到呢個對話框。㩒一下 Alt、Shift 同 A 鍵就可以突顯呢個對話框。</translation>
@@ -6535,6 +6541,7 @@
 <translation id="554903022911579950">Kerberos</translation>
 <translation id="5549511085333906441">選擇設定</translation>
 <translation id="5551573675707792127">鍵盤和文字輸入</translation>
+<translation id="5551753770140674714">系統已使用你的同步密碼短語加密資料。Google Pay 的付款方法和地址不會包括在內。</translation>
 <translation id="5553089923092577885">憑證政策對應關聯</translation>
 <translation id="5554240068773209752">按一下這裡以自訂控制項</translation>
 <translation id="5554403733534868102">以後不需要等待更新</translation>
@@ -6615,6 +6622,7 @@
 <translation id="560834977503641186">Wi-Fi Sync，了解詳情</translation>
 <translation id="5608580678041221894">輕按以下按鍵即可調整或移動裁剪區域</translation>
 <translation id="5609231933459083978">這似乎是無效的應用程式。</translation>
+<translation id="5610759359710387751">自訂屬於你的 Chrome</translation>
 <translation id="5610867721023328944">請再試一次，或選取下方其中一個可用的主題。</translation>
 <translation id="5611398002774823980">儲存在帳戶中</translation>
 <translation id="5611399285717843500">協助改善 Chrome 和 ChromeOS 的功能與效能。收集這類數據時，系統會移除個人資料。</translation>
@@ -6835,6 +6843,7 @@
 <translation id="5780973441651030252">處理優先次序</translation>
 <translation id="5781092003150880845">以<ph name="ACCOUNT_FULL_NAME" />的身分同步</translation>
 <translation id="5781120434102258025">將學校帳戶資料移至個人帳戶</translation>
+<translation id="5781244749114921664">已隱藏「分頁群組」</translation>
 <translation id="5782227691023083829">正在翻譯…</translation>
 <translation id="5783346913439924978">頭部追蹤</translation>
 <translation id="57838592816432529">静音</translation>
@@ -7513,6 +7522,7 @@
 <translation id="6257602895346497974">開啟同步處理功能…</translation>
 <translation id="625827534921607067">如有多個先前曾連線或設定過的網絡，系統會優先使用此網絡</translation>
 <translation id="6259776178973198997">重新整理 Wi-Fi Direct 擁有者資料</translation>
+<translation id="6261688934280090835">ChromeOS Kiosk 應用程式記錄</translation>
 <translation id="6262371516389954471">您的備份會上載至 Google，並透過您的 Google 帳戶密碼加密。</translation>
 <translation id="6263082573641595914">Microsoft CA 版本</translation>
 <translation id="6263284346895336537">非重要</translation>
@@ -8951,6 +8961,7 @@
 <translation id="7292067737327289208">你的<ph name="BEGIN_LINK" />瀏覽器<ph name="END_LINK" />由機構管理，<ph name="BEGIN_LINK" />個人檔案<ph name="END_LINK" />則由 <ph name="PROFILE_DOMAIN" /> 管理</translation>
 <translation id="7292147651179697920">請家長前往「設定」授予存取權</translation>
 <translation id="7292195267473691167"><ph name="LOCALE" /> (<ph name="VARIANT" />)</translation>
+<translation id="7293774463163321848">搜尋記錄、Gemini 記錄和密碼可以在相應的管理設定中刪除</translation>
 <translation id="7295614427631867477">請注意，Android、Google Play 以及相關聯的應用程式受各自的資料收集政策和使用政策管限。</translation>
 <translation id="7296503797589217366">揀資料夾：<ph name="FOLDER_TITLE" /></translation>
 <translation id="7297726121602187087">深綠色</translation>
@@ -9284,6 +9295,7 @@
 <translation id="7515998400212163428">Android</translation>
 <translation id="7516641972665276706">Page Down 鍵</translation>
 <translation id="7516981202574715431">「<ph name="APP_NAME" />」已暫停</translation>
+<translation id="7517292544534877198">使用 Google 的預設方式加密 Google 帳戶中的密碼</translation>
 <translation id="7517959947270534934">你的家庭成員目前無法接收密碼。請要求他們更新 Chrome 並同步處理密碼。</translation>
 <translation id="7518079994230200553">目前無法使用此選項。</translation>
 <translation id="7520766081042531487">無痕模式入口網站：<ph name="SUBFRAME_SITE" /></translation>
@@ -9742,6 +9754,7 @@
 <translation id="7830276128493844263">已在系統設定中關閉位置功能</translation>
 <translation id="7830833461614351956">要將 <ph name="NUM_OF_FILES" /> 個檔案複製到 <ph name="CLOUD_PROVIDER" /> 開啟嗎？</translation>
 <translation id="7831754656372780761">「<ph name="TAB_TITLE" />」<ph name="EMOJI_MUTING" /></translation>
+<translation id="7833184285837312660">為我更改</translation>
 <translation id="7833720883933317473">已儲存的自訂字詞將會在這裡顯示</translation>
 <translation id="7834832693620032149">如要分享音訊，請改為分享分頁或視窗</translation>
 <translation id="7836577093182643605">您唔希望系統同網站分享呢啲主題，因此已經封鎖咗嘅主題清單</translation>
@@ -10013,6 +10026,7 @@
 <translation id="8008704580256716350">已封鎖可疑的檔案</translation>
 <translation id="8009196983040865987">使用分頁整理工具時，已開啟分頁的標題和網址會傳送至 Google 以生成分頁群組建議</translation>
 <translation id="8009225694047762179">管理密碼</translation>
+<translation id="8010312870936510509">系統已於 <ph name="TIME" />使用你的同步密碼短語加密資料。Google Pay 的付款方法和地址不會包括在內。</translation>
 <translation id="8011372169388649948">郁咗 <ph name="BOOKMARK_TITLE" />。</translation>
 <translation id="8012188750847319132">大寫鎖定鍵</translation>
 <translation id="8012463809859447963">即時熱點詳情</translation>
@@ -10829,7 +10843,6 @@
 <translation id="8573111744706778015">輸入「uo7」會得到「ươ」</translation>
 <translation id="8574990355410201600">一律允許 <ph name="HOST" /> 播放聲音</translation>
 <translation id="8575286410928791436">按住 <ph name="KEY_EQUIVALENT" /> 即可離開</translation>
-<translation id="8576359558126669548">進一步了解喺無痕模式入面封鎖第三方 Cookie</translation>
 <translation id="8576885347118332789">{NUM_TABS,plural, =1{將分頁新增至閱讀清單}other{將分頁新增至閱讀清單}}</translation>
 <translation id="8577052309681449949">自動點擊、游標大小、游標顏色等等</translation>
 <translation id="8578639784464423491">不可超過 99 個字母</translation>
@@ -11142,7 +11155,6 @@
 <translation id="8777628254805677039">Root 密碼</translation>
 <translation id="8779720597365936419">是，分開儲存個人和工作資料 (建議設定)</translation>
 <translation id="877985182522063539">A4</translation>
-<translation id="8779944680596936487">網站只能使用 Cookie 查看您在該網站的瀏覽活動</translation>
 <translation id="8780123805589053431">從 Google 取得圖片說明</translation>
 <translation id="8780443667474968681">語音搜尋功能已關閉。</translation>
 <translation id="8781834595282316166">在群組中新增分頁</translation>

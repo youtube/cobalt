@@ -11,6 +11,7 @@ import org.chromium.base.supplier.ObservableSupplierImpl;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.compositor.overlays.strip.StripLayoutHelperManager.TabModelStartupInfo;
+import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.tab_ui.TabContentManager;
 import org.chromium.chrome.browser.tabmodel.MismatchedIndicesHandler;
 import org.chromium.chrome.browser.tabmodel.TabModel;
@@ -33,6 +34,7 @@ public abstract class TabModelOrchestrator {
     private boolean mTabModelsInitialized;
     private @Nullable Callback<String> mOnStandardActiveIndexRead;
     private boolean mTabPersistentStoreDestroyedEarly;
+    private boolean mIsDestroyed;
 
     // TabModelStartupInfo variables
     private @Nullable ObservableSupplierImpl<TabModelStartupInfo> mTabModelStartupInfoSupplier;
@@ -77,21 +79,18 @@ public abstract class TabModelOrchestrator {
 
     /** Destroy the {@link TabPersistentStore} and {@link TabModelSelectorImpl} members. */
     public void destroy() {
-        if (!mTabModelsInitialized) {
-            return;
-        }
+        if (mIsDestroyed) return;
+        mIsDestroyed = true;
 
-        // TODO(crbug.com/40743848): Set the members to null and mTabModelsInitialized to false.
-        // Right now, it breaks destruction of VrShell, which relies on using TabModel after
-        // its destruction.
-
-        if (mTabPersistentStore != null) {
+        if (mTabPersistentStore != null && !mTabPersistentStoreDestroyedEarly) {
             mTabPersistentStore.destroy();
         }
 
         if (mTabModelSelector != null) {
             mTabModelSelector.destroy();
         }
+
+        mTabModelsInitialized = false;
     }
 
     /**
@@ -107,7 +106,10 @@ public abstract class TabModelOrchestrator {
     }
 
     public void onNativeLibraryReady(TabContentManager tabContentManager) {
-        mTabModelSelector.onNativeLibraryReady(tabContentManager);
+        boolean wasTabCollectionsActive =
+                TabCollectionMigrationUtil.wasTabCollectionsActiveForMetadataFile(
+                        mTabPersistencePolicy.getMetadataFileName());
+        mTabModelSelector.onNativeLibraryReady(tabContentManager, wasTabCollectionsActive);
         mTabPersistencePolicy.setTabContentManager(tabContentManager);
         if (!mTabPersistentStoreDestroyedEarly) mTabPersistentStore.onNativeLibraryReady();
     }
@@ -140,9 +142,13 @@ public abstract class TabModelOrchestrator {
      * Restore the saved tabs which were loaded by {@link #loadState}.
      *
      * @param setActiveTab If true, synchronously load saved active tab and set it as the current
-     *                     active tab.
+     *     active tab.
      */
     public void restoreTabs(boolean setActiveTab) {
+        if (ChromeFeatureList.sTabCollectionAndroid.isEnabled()) {
+            TabCollectionMigrationUtil.setTabCollectionsActiveForMetadataFile(
+                    mTabPersistencePolicy.getMetadataFileName());
+        }
         if (mTabModelStartupInfoSupplier != null) {
             boolean createdStandardTabOnStartup =
                     getTabModelSelector().getModel(false).getCount() > 0;
@@ -243,6 +249,10 @@ public abstract class TabModelOrchestrator {
                 new TabPersistentStoreObserver() {
                     @Override
                     public void onStateLoaded() {
+                        if (!ChromeFeatureList.sTabCollectionAndroid.isEnabled()) {
+                            TabCollectionMigrationUtil.setTabCollectionsActiveForMetadataFile(
+                                    mTabPersistencePolicy.getMetadataFileName());
+                        }
                         mTabModelSelector.markTabStateInitialized();
                     }
 
@@ -286,6 +296,7 @@ public abstract class TabModelOrchestrator {
     }
 
     protected void markTabModelsInitialized() {
+        if (mIsDestroyed) return;
         mTabModelsInitialized = true;
     }
 }

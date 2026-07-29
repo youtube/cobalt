@@ -1291,6 +1291,10 @@ inline constexpr char kFloatingSsoEnabled[] = "floating_sso_enabled";
 inline constexpr char kFloatingSsoSessionCookiesIncluded[] =
     "floating_sso_session_cookies_included";
 
+// Boolean pref that determines whether signing in on a new ChromeOS device
+// automatically signs the user out of their previous session.
+inline constexpr char kAutoSignOutEnabled[] = "auto_sign_out_enabled";
+
 // This boolean controls whether the first window shown on first run should be
 // unconditionally maximized, overriding the heuristic that normally chooses the
 // window size.
@@ -3090,31 +3094,6 @@ inline constexpr char kArcAppInstallEventLoggingEnabled[] =
 // with removing the users while at the login screen.
 inline constexpr char kRemoveUsersRemoteCommand[] =
     "remove_users_remote_command";
-
-// Integer pref used by the metrics::DailyEvent owned by
-// ash::power::auto_screen_brightness::MetricsReporter.
-inline constexpr char kAutoScreenBrightnessMetricsDailySample[] =
-    "auto_screen_brightness.metrics.daily_sample";
-
-// Integer prefs used to back event counts reported by
-// ash::power::auto_screen_brightness::MetricsReporter.
-inline constexpr char kAutoScreenBrightnessMetricsAtlasUserAdjustmentCount[] =
-    "auto_screen_brightness.metrics.atlas_user_adjustment_count";
-inline constexpr char kAutoScreenBrightnessMetricsEveUserAdjustmentCount[] =
-    "auto_screen_brightness.metrics.eve_user_adjustment_count";
-inline constexpr char
-    kAutoScreenBrightnessMetricsNocturneUserAdjustmentCount[] =
-        "auto_screen_brightness.metrics.nocturne_user_adjustment_count";
-inline constexpr char kAutoScreenBrightnessMetricsKohakuUserAdjustmentCount[] =
-    "auto_screen_brightness.metrics.kohaku_user_adjustment_count";
-inline constexpr char kAutoScreenBrightnessMetricsNoAlsUserAdjustmentCount[] =
-    "auto_screen_brightness.metrics.no_als_user_adjustment_count";
-inline constexpr char
-    kAutoScreenBrightnessMetricsSupportedAlsUserAdjustmentCount[] =
-        "auto_screen_brightness.metrics.supported_als_user_adjustment_count";
-inline constexpr char
-    kAutoScreenBrightnessMetricsUnsupportedAlsUserAdjustmentCount[] =
-        "auto_screen_brightness.metrics.unsupported_als_user_adjustment_count";
 
 // Dictionary pref containing the configuration used to verify Parent Access
 // Code. The data is sent through the ParentAccessCodeConfig policy, which is

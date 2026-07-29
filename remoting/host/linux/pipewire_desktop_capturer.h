@@ -8,10 +8,16 @@
 #include <cstdint>
 #include <memory>
 
+#include "base/callback_list.h"
+#include "base/functional/callback.h"
+#include "base/functional/callback_forward.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
+#include "base/sequence_checker.h"
+#include "base/synchronization/lock.h"
 #include "base/task/sequenced_task_runner.h"
+#include "base/thread_annotations.h"
 #include "remoting/host/linux/pipewire_capture_stream.h"
 #include "remoting/protocol/desktop_capturer.h"
 #include "third_party/webrtc/modules/desktop_capture/desktop_capturer.h"
@@ -24,12 +30,15 @@ namespace remoting {
 class PipewireDesktopCapturer : public DesktopCapturer,
                                 public webrtc::DesktopCapturer::Callback {
  public:
+  static constexpr bool kSupportsFrameCallbacks = true;
+
   explicit PipewireDesktopCapturer(base::WeakPtr<PipewireCaptureStream> stream);
   PipewireDesktopCapturer(const PipewireDesktopCapturer&) = delete;
   PipewireDesktopCapturer& operator=(const PipewireDesktopCapturer&) = delete;
   ~PipewireDesktopCapturer() override;
 
   // DesktopCapturer interface.
+  // These methods can be called on any sequence.
   bool SupportsFrameCallbacks() override;
   void Start(Callback* callback) override;
   void CaptureFrame() override;
@@ -48,20 +57,15 @@ class PipewireDesktopCapturer : public DesktopCapturer,
   void OnCaptureResult(Result result,
                        std::unique_ptr<webrtc::DesktopFrame> frame) override;
 
-  scoped_refptr<base::SequencedTaskRunner> creating_sequence_ =
-      base::SequencedTaskRunner::GetCurrentDefault();
-  scoped_refptr<base::SequencedTaskRunner> capture_sequence_;
-
-  // Must only be tested for validity and dereferenced on the creating sequence.
   base::WeakPtr<PipewireCaptureStream> stream_;
 
   // Per the webrtc::DesktopCapturer interface, callback is required to remain
   // valid until this is destroyed.
-  raw_ptr<Callback> callback_;
+  raw_ptr<Callback> callback_ = nullptr;
 
-  // Will be bound to the capture sequence when Start() is called and used by
-  // tasks posted by CallbackProxy.
-  base::WeakPtrFactory<PipewireDesktopCapturer> weak_ptr_factory_{this};
+  SEQUENCE_CHECKER(sequence_checker_);
+
+  base::WeakPtrFactory<PipewireDesktopCapturer> weak_factory_{this};
 };
 
 }  // namespace remoting

@@ -293,11 +293,6 @@ targets.tests.isolated_script_test(
 )
 
 targets.tests.gtest_test(
-    name = "blink_unit_tests",
-    binary = "blink_unittests",
-)
-
-targets.tests.gtest_test(
     name = "blink_unittests",
 )
 
@@ -3274,11 +3269,6 @@ targets.tests.gpu_telemetry_test(
 targets.tests.script_test(
     name = "webkit_lint",
     script = "blink_lint_expectations.py",
-)
-
-targets.tests.gtest_test(
-    name = "webkit_unit_tests",
-    binary = "blink_unittests",
 )
 
 targets.tests.isolated_script_test(

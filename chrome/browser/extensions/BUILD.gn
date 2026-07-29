@@ -170,6 +170,8 @@ source_set("extensions") {
     "api/tabs/tabs_constants.h",
     "api/tabs/tabs_windows_api.cc",
     "api/tabs/tabs_windows_api.h",
+    "api/tabs/windows_event_router.cc",
+    "api/tabs/windows_event_router.h",
     "api/tabs/windows_util.cc",
     "api/tabs/windows_util.h",
     "api/top_sites/top_sites_api.cc",
@@ -539,6 +541,7 @@ source_set("extensions") {
     "//chrome/browser/safe_browsing",
     "//chrome/browser/safe_browsing:metrics_collector",
     "//chrome/browser/signin",
+    "//chrome/browser/tab_group_sync:factories",
     "//chrome/browser/ui:browser_navigator_params_headers",
     "//chrome/browser/ui/autofill",
     "//chrome/browser/ui/browser_window",
@@ -642,7 +645,10 @@ source_set("extensions") {
       "chrome_extension_host_delegate_non_android.cc",
     ]
     public_deps += [ "//components/app_icon_loader" ]
-    deps += [ "//chrome/browser/ui/user_education" ]
+    deps += [
+      "//chrome/browser/ui/user_education",
+      "//chrome/browser/ui/web_applications:launch_utils",
+    ]
   }
 
   if (!is_chromeos) {
@@ -781,8 +787,6 @@ source_set("extensions") {
       "api/tabs/app_window_controller.h",
       "api/tabs/tabs_event_router.cc",
       "api/tabs/tabs_event_router.h",
-      "api/tabs/windows_event_router.cc",
-      "api/tabs/windows_event_router.h",
       "app_tab_helper.cc",
       "app_tab_helper.h",
       "chrome_app_sorting.cc",
@@ -878,6 +882,7 @@ source_set("extensions") {
       "//chrome/browser/ui:browser_tab_strip",
       "//chrome/browser/ui/bookmarks",
       "//chrome/browser/ui/global_error",
+      "//chrome/browser/ui/passwords/settings",
       "//chrome/browser/ui/tab_contents",
       "//chrome/browser/ui/tabs:tab_strip",
       "//chrome/browser/ui/tabs:tab_strip_model_observer",
@@ -1556,6 +1561,13 @@ source_set("extensions") {
       deps += [ "//chrome/browser/ui/toasts" ]
     }
   }  # if (enable_extensions)
+
+  if (enable_platform_apps) {
+    sources += [
+      "api/tabs/app_window_helper.cc",
+      "api/tabs/app_window_helper.h",
+    ]
+  }
 }
 
 if (enable_extensions_core) {
@@ -1584,6 +1596,8 @@ static_library("test_support") {
     "load_error_waiter.h",
     "mock_extension_special_storage_policy.cc",
     "mock_extension_special_storage_policy.h",
+    "mock_window_controller_list_observer.cc",
+    "mock_window_controller_list_observer.h",
     "scoped_database_manager_for_test.cc",
     "scoped_database_manager_for_test.h",
     "scoped_test_mv2_enabler.cc",
@@ -1601,6 +1615,7 @@ static_library("test_support") {
     "//chrome/browser",
     "//chrome/browser:test_support",
     "//chrome/browser/extensions",
+    "//chrome/browser/tab_group_sync:factories",
     "//chrome/browser/ui/toolbar",
     "//components/crx_file",
     "//components/policy/core/common:test_support",

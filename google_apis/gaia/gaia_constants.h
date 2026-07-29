@@ -92,6 +92,9 @@ COMPONENT_EXPORT(GOOGLE_APIS)
 extern const char kGeminiOAuth2Scope[];
 COMPONENT_EXPORT(GOOGLE_APIS)
 extern const char kChromeMemexOAuth2Scope[];
+// OAuth2 scope to access the ChromebookEmailService API.
+COMPONENT_EXPORT(GOOGLE_APIS)
+extern const char kChromebookOAuth2Scope[];
 
 // OAuth 2 scopes for Google Tasks API.
 // https://developers.google.com/identity/protocols/oauth2/scopes#tasks
@@ -140,6 +143,9 @@ COMPONENT_EXPORT(GOOGLE_APIS) extern const char kInvalidRefreshToken[];
 
 // Name of the Google authentication cookie.
 COMPONENT_EXPORT(GOOGLE_APIS) extern const char kGaiaSigninCookieName[];
+
+// OAuth2 scope for Chrome Web Store.
+COMPONENT_EXPORT(GOOGLE_APIS) extern const char kWebstoreOAuth2Scope[];
 
 // Constants for the Chrome Refresh Token Binding.
 inline constexpr std::string_view kTokenBindingAssertionSentinel =

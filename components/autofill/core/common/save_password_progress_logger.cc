@@ -473,6 +473,13 @@ std::string SavePasswordProgressLogger::GetStringFromID(
     case STRING_RESOURCE_FAILED_LOADING_LOGIN_FAILED:
       return "POST error with 400-403 status is detected, considering "
              "current submission failed";
+    case STRING_PASSWORD_CHANGE_CURRENT_PASSWORD_RENDERER_ID:
+      return "Automated password change: Current password element renderer id";
+    case STRING_PASSWORD_CHANGE_NEW_PASSWORD_RENDERER_ID:
+      return "Automated password change: New password element renderer id";
+    case STRING_PASSWORD_CHANGE_CONFIRMATION_PASSWORD_RENDERER_ID:
+      return "Automated password change: Confirmation password element "
+             "renderer id";
     case STRING_PASSWORD_CHANGE_FORM_FILLING_RESULT:
       return "Automated password change: Result of password change form "
              "filling";
@@ -547,6 +554,20 @@ std::string SavePasswordProgressLogger::GetStringFromID(
       return "Automated password change: URL available";
     case STRING_PASSWORD_CHANGE_USER_IS_NOT_ACTIVE:
       return "Automated password change: User is not active";
+    case STRING_LOGIN_STATE_CHECK_STARTED:
+      return "Login state check: has started";
+    case STRING_LOGIN_STATE_CHECK_REQUEST_SENT:
+      return "Login state check: request sent";
+    case STRING_LOGIN_STATE_CHECK_RESPONSE_RECEIVED:
+      return "Login state check: response received";
+    case STRING_LOGIN_STATE_CHECK_RESULT:
+      return "Login state check: result";
+    case STRING_LOGIN_STATE_CHECK_MAX_ATTEMPTS_REACHED:
+      return "Login state check: max attempts reached";
+    case STRING_LOGIN_STATE_CHECK_NO_CONTENT:
+      return "Login state check: no page content";
+    case STRING_LOGIN_STATE_CHECK_FAILURE:
+      return "Login state check: failure";
     case SavePasswordProgressLogger::STRING_INVALID:
       return "INVALID";
       // Intentionally no default: clause here -- all IDs need to get covered.

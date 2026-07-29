@@ -10,10 +10,12 @@
 #include "build/build_config.h"
 #include "components/paint_preview/common/file_stream.h"
 #include "components/paint_preview/common/mojom/paint_preview_recorder.mojom.h"
+#include "components/paint_preview/common/mojom/paint_preview_types.mojom.h"
 #include "components/paint_preview/renderer/paint_preview_recorder_impl.h"
 #include "content/public/renderer/render_frame.h"
 #include "content/public/test/render_view_test.h"
 #include "content/public/test/test_utils.h"
+#include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/platform/web_runtime_features.h"
@@ -52,6 +54,11 @@ std::string CompositeAfterPaintToString(
   return "NoCompositeAfterPaint";
 }
 
+MATCHER_P2(IsBetween, a, b, "") {
+  CHECK_LE(a, b);
+  return a <= arg && arg <= b;
+}
+
 }  // namespace
 
 class PaintPreviewRecorderRenderViewTest
@@ -88,7 +95,11 @@ class PaintPreviewRecorderRenderViewTest
   base::FilePath RunCapture(content::RenderFrame* frame,
                             mojom::PaintPreviewCaptureResponsePtr* out_response,
                             bool is_main_frame = true,
-                            gfx::Rect clip_rect = gfx::Rect()) {
+                            gfx::Rect clip_rect = gfx::Rect(),
+                            mojom::ClipCoordOverride clip_x_coord_override =
+                                mojom::ClipCoordOverride::kNone,
+                            mojom::ClipCoordOverride clip_y_coord_override =
+                                mojom::ClipCoordOverride::kNone) {
     base::FilePath skp_path = MakeTestFilePath("test.skp");
 
     mojom::PaintPreviewCaptureParamsPtr params =
@@ -96,6 +107,8 @@ class PaintPreviewRecorderRenderViewTest
     auto token = base::UnguessableToken::Create();
     params->guid = token;
     params->clip_rect = clip_rect;
+    params->clip_x_coord_override = clip_x_coord_override;
+    params->clip_y_coord_override = clip_y_coord_override;
     params->clip_rect_is_hint = false;
     params->is_main_frame = is_main_frame;
     params->capture_links = true;
@@ -236,21 +249,22 @@ TEST_P(PaintPreviewRecorderRenderViewTest,
       "<body>"
       "  <div style='width: 600px; height: 200px; "
       "              background-color: #ff0000'>&nbsp;</div>"
-      "  <div style='width: 600px; height: 5000px; "
+      "  <div style='width: 5000px; height: 5000px; "
       "              background-color: #00ff00'>&nbsp;</div>"
       "</body>");
 
-  // Scroll to bottom of page to ensure scroll position has no effect on
+  // Scroll to bottom right of page to ensure scroll position has no effect on
   // capture.
-  ExecuteJavaScriptForTests("window.scrollTo(0,document.body.scrollHeight);");
+  ExecuteJavaScriptForTests(
+      "window.scrollTo(document.body.scrollWidth,document.body.scrollHeight);");
   content::RunAllTasksUntilIdle();
 
   auto out_response = mojom::PaintPreviewCaptureResponse::New();
   content::RenderFrame* frame = GetMainRenderFrame();
-  base::FilePath skp_path = RunCapture(
-      frame, &out_response, true,
-      gfx::Rect(paint_preview::mojom::kCenterOnScrollOffset,
-                paint_preview::mojom::kCenterOnScrollOffset, 500, 500));
+  base::FilePath skp_path =
+      RunCapture(frame, &out_response, true, gfx::Rect(0, 0, 500, 500),
+                 mojom::ClipCoordOverride::kCenterOnScrollOffset,
+                 mojom::ClipCoordOverride::kCenterOnScrollOffset);
 
   EXPECT_TRUE(out_response->embedding_token.has_value());
   EXPECT_EQ(frame->GetWebFrame()->GetEmbeddingToken(),
@@ -258,10 +272,13 @@ TEST_P(PaintPreviewRecorderRenderViewTest,
   EXPECT_EQ(out_response->content_id_to_embedding_token.size(), 0U);
 
   // Scroll offset should be within the [0, 500] bounds.
+  EXPECT_GT(out_response->scroll_offsets.x(), 0);
+  EXPECT_LT(out_response->scroll_offsets.x(), 500);
   EXPECT_GT(out_response->scroll_offsets.y(), 0);
   EXPECT_LT(out_response->scroll_offsets.y(), 500);
 
-  // Frame offset should be > 0 in this case.
+  // Both frame offsets should be > 0 in this case.
+  EXPECT_GT(out_response->frame_offsets.x(), 0);
   EXPECT_GT(out_response->frame_offsets.y(), 0);
 
   // Relaxed checks on dimensions and no checks on positions. This is not
@@ -283,6 +300,123 @@ TEST_P(PaintPreviewRecorderRenderViewTest,
 }
 
 TEST_P(PaintPreviewRecorderRenderViewTest,
+       TestCaptureMainFrameAboutScrollPositionYAxis) {
+  LoadHTML(
+      "<!doctype html>"
+      "<body>"
+      "  <div style='width: 600px; height: 200px; "
+      "              background-color: #ff0000'>&nbsp;</div>"
+      "  <div style='width: 5000px; height: 5000px; "
+      "              background-color: #00ff00'>&nbsp;</div>"
+      "</body>");
+
+  // Scroll to bottom right of page to ensure scroll position has no effect on
+  // capture.
+  ExecuteJavaScriptForTests(
+      "window.scrollTo(document.body.scrollWidth,document.body.scrollHeight);");
+  content::RunAllTasksUntilIdle();
+
+  auto out_response = mojom::PaintPreviewCaptureResponse::New();
+  content::RenderFrame* frame = GetMainRenderFrame();
+  base::FilePath skp_path =
+      RunCapture(frame, &out_response, true, gfx::Rect(0, 0, 500, 500),
+                 /*clip_x_coord_override=*/
+                 mojom::ClipCoordOverride::kNone, /*clip_y_coord_override=*/
+                 mojom::ClipCoordOverride::kCenterOnScrollOffset);
+
+  EXPECT_TRUE(out_response->embedding_token.has_value());
+  EXPECT_EQ(frame->GetWebFrame()->GetEmbeddingToken(),
+            out_response->embedding_token.value());
+  EXPECT_EQ(out_response->content_id_to_embedding_token.size(), 0U);
+
+  // Scroll offset should be within the [0, 500] bounds.
+  EXPECT_GT(out_response->scroll_offsets.x(), 0);
+  EXPECT_LT(out_response->scroll_offsets.x(), 500);
+  EXPECT_GT(out_response->scroll_offsets.y(), 0);
+  EXPECT_LT(out_response->scroll_offsets.y(), 500);
+
+  // Only Y frame offset should be > 0 in this case.
+  EXPECT_EQ(out_response->frame_offsets.x(), 0);
+  EXPECT_GT(out_response->frame_offsets.y(), 0);
+
+  // Relaxed checks on dimensions and no checks on positions. This is not
+  // intended to intensively test the rendering behavior of the page.
+  sk_sp<SkPicture> pic;
+  {
+    base::ScopedAllowBlockingForTesting scope;
+    FileRStream rstream(base::File(
+        skp_path, base::File::FLAG_OPEN_ALWAYS | base::File::FLAG_READ));
+    pic = SkPicture::MakeFromStream(&rstream, nullptr);
+  }
+  SkBitmap bitmap;
+  ASSERT_TRUE(bitmap.tryAllocN32Pixels(pic->cullRect().width(),
+                                       pic->cullRect().height()));
+  SkCanvas canvas(bitmap, SkSurfaceProps{});
+  canvas.drawPicture(pic);
+  EXPECT_EQ(bitmap.getColor(50, 10), 0xFF00FF00U);
+  EXPECT_EQ(bitmap.getColor(50, pic->cullRect().height() - 10), 0xFF00FF00U);
+}
+
+TEST_P(PaintPreviewRecorderRenderViewTest,
+       TestCaptureMainFrameAboutScrollPositionXAxis) {
+  LoadHTML(
+      "<!doctype html>"
+      "<body>"
+      "  <div style='width: 600px; height: 200px; "
+      "              background-color: #ff0000'>&nbsp;</div>"
+      "  <div style='width: 5000px; height: 5000px; "
+      "              background-color: #00ff00'>&nbsp;</div>"
+      "</body>");
+
+  // Scroll to bottom right of page to ensure scroll position has no effect on
+  // capture.
+  ExecuteJavaScriptForTests(
+      "window.scrollTo(document.body.scrollWidth,document.body.scrollHeight);");
+  content::RunAllTasksUntilIdle();
+
+  auto out_response = mojom::PaintPreviewCaptureResponse::New();
+  content::RenderFrame* frame = GetMainRenderFrame();
+  base::FilePath skp_path =
+      RunCapture(frame, &out_response, true, gfx::Rect(0, 0, 500, 500),
+                 /*clip_x_coord_override=*/
+                 mojom::ClipCoordOverride::
+                     kCenterOnScrollOffset, /*clip_y_coord_override=*/
+                 mojom::ClipCoordOverride::kNone);
+
+  EXPECT_TRUE(out_response->embedding_token.has_value());
+  EXPECT_EQ(frame->GetWebFrame()->GetEmbeddingToken(),
+            out_response->embedding_token.value());
+  EXPECT_EQ(out_response->content_id_to_embedding_token.size(), 0U);
+
+  // Scroll offset should be within the [0, 500] bounds.
+  EXPECT_GT(out_response->scroll_offsets.x(), 0);
+  EXPECT_LT(out_response->scroll_offsets.x(), 500);
+  EXPECT_GT(out_response->scroll_offsets.y(), 0);
+  EXPECT_LT(out_response->scroll_offsets.y(), 500);
+
+  // Only X frame offset should be > 0 in this case.
+  EXPECT_GT(out_response->frame_offsets.x(), 0);
+  EXPECT_EQ(out_response->frame_offsets.y(), 0);
+
+  // Relaxed checks on dimensions and no checks on positions. This is not
+  // intended to intensively test the rendering behavior of the page.
+  sk_sp<SkPicture> pic;
+  {
+    base::ScopedAllowBlockingForTesting scope;
+    FileRStream rstream(base::File(
+        skp_path, base::File::FLAG_OPEN_ALWAYS | base::File::FLAG_READ));
+    pic = SkPicture::MakeFromStream(&rstream, nullptr);
+  }
+  SkBitmap bitmap;
+  ASSERT_TRUE(bitmap.tryAllocN32Pixels(pic->cullRect().width(),
+                                       pic->cullRect().height()));
+  SkCanvas canvas(bitmap, SkSurfaceProps{});
+  canvas.drawPicture(pic);
+  EXPECT_EQ(bitmap.getColor(50, 10), 0xFFFFFFFFU);
+  EXPECT_EQ(bitmap.getColor(50, pic->cullRect().height() - 10), 0xFF00FF00U);
+}
+
+TEST_P(PaintPreviewRecorderRenderViewTest,
        TestCaptureMainFrameAboutScrollPositionClampedToEdge) {
   LoadHTML(
       "<!doctype html>"
@@ -293,17 +427,18 @@ TEST_P(PaintPreviewRecorderRenderViewTest,
       "              background-color: #00ff00'>&nbsp;</div>"
       "</body>");
 
-  // Scroll to bottom of page to ensure scroll position has no effect on
+  // Scroll to bottom right of page to ensure scroll position has no effect on
   // capture.
-  ExecuteJavaScriptForTests("window.scrollTo(0,document.body.scrollHeight);");
+  ExecuteJavaScriptForTests(
+      "window.scrollTo(document.body.scrollWidth,document.body.scrollHeight);");
   content::RunAllTasksUntilIdle();
 
   auto out_response = mojom::PaintPreviewCaptureResponse::New();
   content::RenderFrame* frame = GetMainRenderFrame();
-  base::FilePath skp_path = RunCapture(
-      frame, &out_response, true,
-      gfx::Rect(paint_preview::mojom::kCenterOnScrollOffset,
-                paint_preview::mojom::kCenterOnScrollOffset, 500, 2000));
+  base::FilePath skp_path =
+      RunCapture(frame, &out_response, true, gfx::Rect(0, 0, 500, 2000),
+                 mojom::ClipCoordOverride::kCenterOnScrollOffset,
+                 mojom::ClipCoordOverride::kCenterOnScrollOffset);
 
   EXPECT_TRUE(out_response->embedding_token.has_value());
   EXPECT_EQ(frame->GetWebFrame()->GetEmbeddingToken(),
@@ -349,17 +484,18 @@ TEST_P(PaintPreviewRecorderRenderViewTest,
       "              background-color: #00ff00'>&nbsp;</div>"
       "</body>");
 
-  // Scroll to bottom of page to ensure scroll position has no effect on
+  // Scroll to bottom right of page to ensure scroll position has no effect on
   // capture.
-  ExecuteJavaScriptForTests("window.scrollTo(0,document.body.scrollHeight);");
+  ExecuteJavaScriptForTests(
+      "window.scrollTo(document.body.scrollWidth,document.body.scrollHeight);");
   content::RunAllTasksUntilIdle();
 
   auto out_response = mojom::PaintPreviewCaptureResponse::New();
   content::RenderFrame* frame = GetMainRenderFrame();
   base::FilePath skp_path =
-      RunCapture(frame, &out_response, true,
-                 gfx::Rect(paint_preview::mojom::kCenterOnScrollOffset,
-                           paint_preview::mojom::kCenterOnScrollOffset, 0, 0));
+      RunCapture(frame, &out_response, true, gfx::Rect(),
+                 mojom::ClipCoordOverride::kCenterOnScrollOffset,
+                 mojom::ClipCoordOverride::kCenterOnScrollOffset);
 
   EXPECT_TRUE(out_response->embedding_token.has_value());
   EXPECT_EQ(frame->GetWebFrame()->GetEmbeddingToken(),
@@ -388,6 +524,168 @@ TEST_P(PaintPreviewRecorderRenderViewTest,
   canvas.drawPicture(pic);
   EXPECT_EQ(bitmap.getColor(600, 50), 0xFFFF0000U);
   EXPECT_EQ(bitmap.getColor(50, pic->cullRect().height() - 100), 0xFF00FF00U);
+}
+
+TEST_P(PaintPreviewRecorderRenderViewTest,
+       TestCaptureMainFrameAtScrollPosition_HalfwayScrolled) {
+  LoadHTML(
+      "<!doctype html>"
+      "<body>"
+      "  <div style='width: 600px; height: 200px; "
+      "              background-color: #ff0000'>&nbsp;</div>"
+      "  <div style='width: 5000px; height: 5000px; "
+      "              background-color: #00ff00'>&nbsp;</div>"
+      "</body>");
+
+  ExecuteJavaScriptForTests(
+      "window.scrollTo(document.body.scrollWidth / 2, "
+      "document.body.scrollHeight / 2);");
+  content::RunAllTasksUntilIdle();
+
+  auto out_response = mojom::PaintPreviewCaptureResponse::New();
+  content::RenderFrame* frame = GetMainRenderFrame();
+  base::FilePath skp_path =
+      RunCapture(frame, &out_response, true, gfx::Rect(0, 0, 500, 500),
+                 mojom::ClipCoordOverride::kScrollOffset,
+                 mojom::ClipCoordOverride::kScrollOffset);
+
+  EXPECT_TRUE(out_response->embedding_token.has_value());
+  EXPECT_EQ(frame->GetWebFrame()->GetEmbeddingToken(),
+            out_response->embedding_token.value());
+  EXPECT_EQ(out_response->content_id_to_embedding_token.size(), 0U);
+
+  // The capture origin is positioned *at* the scroll offsets.
+  EXPECT_EQ(out_response->scroll_offsets.x(), 0);
+  EXPECT_EQ(out_response->scroll_offsets.y(), 0);
+
+  // The capture origin is exactly halfway down each dimension (since we
+  // scrolled halfway in each direction).
+  EXPECT_EQ(out_response->frame_offsets.x(), 5000 / 2);
+  EXPECT_EQ(out_response->frame_offsets.y(), (200 + 5000) / 2);
+
+  // Relaxed checks on dimensions and no checks on positions. This is not
+  // intended to intensively test the rendering behavior of the page.
+  sk_sp<SkPicture> pic;
+  {
+    base::ScopedAllowBlockingForTesting scope;
+    FileRStream rstream(base::File(
+        skp_path, base::File::FLAG_OPEN_ALWAYS | base::File::FLAG_READ));
+    pic = SkPicture::MakeFromStream(&rstream, nullptr);
+  }
+  SkBitmap bitmap;
+  ASSERT_TRUE(bitmap.tryAllocN32Pixels(pic->cullRect().width(),
+                                       pic->cullRect().height()));
+  SkCanvas canvas(bitmap, SkSurfaceProps{});
+  canvas.drawPicture(pic);
+  EXPECT_EQ(bitmap.getColor(50, 10), 0xFF00FF00U);
+  EXPECT_EQ(bitmap.getColor(50, pic->cullRect().height() - 10), 0xFF00FF00U);
+}
+
+TEST_P(PaintPreviewRecorderRenderViewTest,
+       TestCaptureMainFrameAtScrollPosition_ScrollToElement) {
+  LoadHTML(
+      "<!doctype html>"
+      "<body>"
+      "  <div style='width: 600px; height: 200px; "
+      "              background-color: #ff0000'>&nbsp;</div>"
+      "  <div style='width: 5000px; height: 5000px; "
+      "              background-color: #00ff00'>&nbsp;</div>"
+      "</body>");
+
+  ExecuteJavaScriptForTests("window.scrollTo(0, 200);");
+  content::RunAllTasksUntilIdle();
+
+  auto out_response = mojom::PaintPreviewCaptureResponse::New();
+  content::RenderFrame* frame = GetMainRenderFrame();
+  base::FilePath skp_path =
+      RunCapture(frame, &out_response, true, gfx::Rect(0, 0, 500, 500),
+                 mojom::ClipCoordOverride::kScrollOffset,
+                 mojom::ClipCoordOverride::kScrollOffset);
+
+  EXPECT_TRUE(out_response->embedding_token.has_value());
+  EXPECT_EQ(frame->GetWebFrame()->GetEmbeddingToken(),
+            out_response->embedding_token.value());
+  EXPECT_EQ(out_response->content_id_to_embedding_token.size(), 0U);
+
+  // The capture origin is positioned *at* the scroll offsets.
+  EXPECT_EQ(out_response->scroll_offsets.x(), 0);
+  EXPECT_EQ(out_response->scroll_offsets.y(), 0);
+
+  // The frame offsets are the same as the window's scroll offsets.
+  EXPECT_EQ(out_response->frame_offsets.x(), 0);
+  EXPECT_EQ(out_response->frame_offsets.y(), 200);
+
+  sk_sp<SkPicture> pic;
+  {
+    base::ScopedAllowBlockingForTesting scope;
+    FileRStream rstream(base::File(
+        skp_path, base::File::FLAG_OPEN_ALWAYS | base::File::FLAG_READ));
+    pic = SkPicture::MakeFromStream(&rstream, nullptr);
+  }
+  SkBitmap bitmap;
+  ASSERT_TRUE(bitmap.tryAllocN32Pixels(pic->cullRect().width(),
+                                       pic->cullRect().height()));
+  SkCanvas canvas(bitmap, SkSurfaceProps{});
+  canvas.drawPicture(pic);
+  // Top left of the capture should be green, since we scrolled to the start of
+  // the green div.
+  EXPECT_EQ(bitmap.getColor(10, 10), 0xFF00FF00U);
+}
+
+TEST_P(PaintPreviewRecorderRenderViewTest,
+       TestCaptureMainFrameAtScrollPosition_Clamped) {
+  LoadHTML(
+      "<!doctype html>"
+      "<body>"
+      "  <div style='width: 600px; height: 200px; "
+      "              background-color: #ff0000'>&nbsp;</div>"
+      "  <div style='width: 5000px; height: 5000px; "
+      "              background-color: #00ff00'>&nbsp;</div>"
+      "</body>");
+
+  ExecuteJavaScriptForTests(
+      "window.scrollTo(document.body.scrollWidth, "
+      "document.body.scrollHeight);");
+  content::RunAllTasksUntilIdle();
+
+  auto out_response = mojom::PaintPreviewCaptureResponse::New();
+  content::RenderFrame* frame = GetMainRenderFrame();
+  base::FilePath skp_path =
+      RunCapture(frame, &out_response, true, gfx::Rect(0, 0, 500, 500),
+                 mojom::ClipCoordOverride::kScrollOffset,
+                 mojom::ClipCoordOverride::kScrollOffset);
+
+  EXPECT_TRUE(out_response->embedding_token.has_value());
+  EXPECT_EQ(frame->GetWebFrame()->GetEmbeddingToken(),
+            out_response->embedding_token.value());
+  EXPECT_EQ(out_response->content_id_to_embedding_token.size(), 0U);
+
+  // The capture origin is positioned *at* the scroll offsets.
+  EXPECT_EQ(out_response->scroll_offsets.x(), 0);
+  EXPECT_EQ(out_response->scroll_offsets.y(), 0);
+
+  // The capture origin is more than halfway scrolled in each dimension. The
+  // exact placement depends on the size of the viewport.
+  EXPECT_THAT(out_response->frame_offsets.x(), IsBetween(1 + 5000 / 2, 5000));
+  EXPECT_THAT(out_response->frame_offsets.y(),
+              IsBetween(1 + (200 + 5000) / 2, 200 + 5000));
+
+  // Relaxed checks on dimensions and no checks on positions. This is not
+  // intended to intensively test the rendering behavior of the page.
+  sk_sp<SkPicture> pic;
+  {
+    base::ScopedAllowBlockingForTesting scope;
+    FileRStream rstream(base::File(
+        skp_path, base::File::FLAG_OPEN_ALWAYS | base::File::FLAG_READ));
+    pic = SkPicture::MakeFromStream(&rstream, nullptr);
+  }
+  SkBitmap bitmap;
+  ASSERT_TRUE(bitmap.tryAllocN32Pixels(pic->cullRect().width(),
+                                       pic->cullRect().height()));
+  SkCanvas canvas(bitmap, SkSurfaceProps{});
+  canvas.drawPicture(pic);
+  EXPECT_EQ(bitmap.getColor(50, 10), 0xFF00FF00U);
+  EXPECT_EQ(bitmap.getColor(50, pic->cullRect().height() - 10), 0xFF00FF00U);
 }
 
 TEST_P(PaintPreviewRecorderRenderViewTest, TestCaptureFragment) {

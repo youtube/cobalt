@@ -7,6 +7,7 @@
 #include <memory>
 #include <utility>
 
+#include "ash/constants/ash_features.h"
 #include "base/check_deref.h"
 #include "base/check_op.h"
 #include "base/functional/bind.h"
@@ -54,6 +55,7 @@
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/common/chrome_switches.h"
 #include "chromeos/ash/components/account_manager/account_manager_factory.h"
+#include "chromeos/ash/components/auto_sign_out/auto_sign_out_service.h"
 #include "chromeos/ash/components/browser_context_helper/annotated_account_id.h"
 #include "chromeos/ash/components/browser_context_helper/browser_context_flusher.h"
 #include "chromeos/ash/components/dbus/debug_daemon/debug_daemon_client.h"
@@ -122,7 +124,7 @@ void BrowserProcessPlatformPart::InitializeAutomaticRebootManager() {
 
   automatic_reboot_manager_ =
       std::make_unique<ash::system::AutomaticRebootManager>(
-          base::DefaultClock::GetInstance(),
+          g_browser_process->local_state(), base::DefaultClock::GetInstance(),
           base::DefaultTickClock::GetInstance());
 }
 
@@ -203,6 +205,7 @@ void BrowserProcessPlatformPart::InitializeDeviceDisablingManager() {
       std::make_unique<ash::system::DeviceDisablingManagerDefaultDelegate>();
   device_disabling_manager_ =
       std::make_unique<ash::system::DeviceDisablingManager>(
+          g_browser_process->local_state(),
           device_disabling_manager_delegate_.get(), ash::CrosSettings::Get(),
           user_manager::UserManager::Get());
   device_disabling_manager_->Init();
@@ -311,6 +314,10 @@ void BrowserProcessPlatformPart::InitializePrimaryProfileServices(
   secure_dns_manager_ = std::make_unique<ash::SecureDnsManager>(
       g_browser_process->local_state(), CHECK_DEREF(user),
       primary_profile->GetProfilePolicyConnector()->IsManaged());
+
+  if (ash::features::IsAutoSignOutEnabled()) {
+    auto_sign_out_service_ = std::make_unique<ash::AutoSignOutService>();
+  }
 }
 
 void BrowserProcessPlatformPart::ShutdownPrimaryProfileServices() {

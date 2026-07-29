@@ -3,10 +3,6 @@
 // found in the LICENSE file.
 
 #include <variant>
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
-#pragma allow_unsafe_buffers
-#endif
 
 #include <utility>
 
@@ -148,11 +144,11 @@ base::span<const PageInfoUI::PermissionUIInfo> GetContentSettingsUIInfo() {
       {ContentSettingsType::WINDOW_MANAGEMENT,
        IDS_SITE_SETTINGS_TYPE_WINDOW_MANAGEMENT,
        IDS_SITE_SETTINGS_TYPE_WINDOW_MANAGEMENT_MID_SENTENCE},
-#if !BUILDFLAG(IS_ANDROID)
-      // Page Info Permissions that are not defined in Android.
       {ContentSettingsType::AUTO_PICTURE_IN_PICTURE,
        IDS_SITE_SETTINGS_TYPE_AUTO_PICTURE_IN_PICTURE,
        IDS_SITE_SETTINGS_TYPE_AUTO_PICTURE_IN_PICTURE_MID_SENTENCE},
+#if !BUILDFLAG(IS_ANDROID)
+      // Page Info Permissions that are not defined in Android.
       {ContentSettingsType::CAPTURED_SURFACE_CONTROL,
        IDS_SITE_SETTINGS_TYPE_CAPTURED_SURFACE_CONTROL_SHARED_TABS,
        IDS_SITE_SETTINGS_TYPE_CAPTURED_SURFACE_CONTROL_SHARED_TABS_MID_SENTENCE},

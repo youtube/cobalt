@@ -120,15 +120,15 @@ struct CalcProvider : Config<CalcProvider> {
 
 // AIM related omnibox features.
 struct AiMode : Config<AiMode> {
-  DECLARE_FEATURE(kAiModeEchoMatchTweaks);
+  DECLARE_FEATURE(kAllowAiModeMatches);
+  DECLARE_FEATURE(kAiModeEligibility);
 
   AiMode();
 
-  // Chromium-side tweaks to accommodate AI mode echo matches from the server.
-  // Disabling this won't actually disable AI mode echo matches altogether;
-  // that's controlled server side. This just changes client side behavior to
-  // allow them to work well.
-  bool ai_mode_echo_match_tweaks;
+  // Chromium-side guard for AI matches from the search server. Enabling this
+  // won't guarantee AI mode matches are shown; that mostly depends on server
+  // side. But disabling this will hide the server echo matches.
+  bool allow_ai_mode_matches;
 
   // Deduping doesn't consider extra query params like `udm=50`.
   // `google.com/?q=query&udm=50` and `google.com/?q=query` would usually be
@@ -153,6 +153,14 @@ struct AiMode : Config<AiMode> {
   // These changes apply to both omnibox and other (e.g. bookmark, web)
   // navigations.
   bool do_not_show_historic_aim_suggestions = true;
+
+  // Whether to check for AI mode eligibility on the client side
+  // `AimEligibilityService` based on the user's locale.
+  bool check_ai_locale_client_side = true;
+
+  // If true, use the gws side eligibility values. Otherwise, ignore the gws
+  // side response and use client side eligibility values.
+  bool check_ai_eligibility_gws_side = false;
 };
 
 // A config struct for features related to contextual search in omnibox.
@@ -177,6 +185,7 @@ struct ContextualSearch : Config<ContextualSearch> {
   DECLARE_FEATURE(kUseApcPaywallSignal);
   DECLARE_FEATURE(kShowSuggestionsOnNoApc);
   DECLARE_FEATURE(kOpenLensActionUITweaks);
+  DECLARE_FEATURE(kSuggestionsFulfilledByLensSupported);
 
   // Whether to use contextual search features, for example the lens action.
   bool IsContextualSearchEnabled() const;
@@ -253,6 +262,12 @@ struct ContextualSearch : Config<ContextualSearch> {
 
   // Whether to show the Lens entrypoint action with the new UI tweaks.
   bool open_lens_action_ui_tweaks;
+
+  // Whether the feature to allow contextual search suggestions to be fulfilled
+  // by Lens is supported. This allows contextual suggestions to open the Lens
+  // overlay in the selection state. This is in contrast to the default behavior
+  // where the suggestion is fulfilled by the contextual searchbox.
+  bool suggestions_fulfilled_by_lens_supported;
 };
 
 // If enabled, allows MIA zero-prefix suggestions in NTP omnibox and realbox.

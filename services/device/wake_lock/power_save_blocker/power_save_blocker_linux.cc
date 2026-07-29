@@ -23,6 +23,7 @@
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
+#include "base/sequence_checker.h"
 #include "base/task/sequenced_task_runner.h"
 #include "components/dbus/thread_linux/dbus_thread_linux.h"
 #include "components/dbus/utils/name_has_owner.h"
@@ -93,23 +94,19 @@ const char* GetUninhibitMethodName(DBusApi api) {
 
 }  // namespace
 
-class PowerSaveBlocker::Delegate
-    : public base::RefCountedThreadSafe<PowerSaveBlocker::Delegate> {
+class PowerSaveBlocker::Delegate {
  public:
-  Delegate(mojom::WakeLockType type,
-           const std::string& description,
-           scoped_refptr<base::SequencedTaskRunner> ui_task_runner)
-      : type_(type),
-        description_(description),
-        ui_task_runner_(std::move(ui_task_runner)) {
-    bus_ = dbus_thread_linux::GetSharedSessionBus();
-  }
+  Delegate(mojom::WakeLockType type, const std::string& description)
+      : type_(type), description_(description) {}
 
   Delegate(const Delegate&) = delete;
   Delegate& operator=(const Delegate&) = delete;
 
+  ~Delegate() = default;
+
   void Init() {
-    DCHECK(ui_task_runner_->RunsTasksInCurrentSequence());
+    DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+    bus_ = dbus_thread_linux::GetSharedSessionBus();
     if (ShouldBlock()) {
       ApplyBlock();
     }
@@ -117,7 +114,7 @@ class PowerSaveBlocker::Delegate
   }
 
   void CleanUp() {
-    DCHECK(ui_task_runner_->RunsTasksInCurrentSequence());
+    DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
     // Invalidate weak pointers to cancel any pending D-Bus callbacks.
     weak_ptr_factory_.InvalidateWeakPtrs();
 
@@ -128,14 +125,10 @@ class PowerSaveBlocker::Delegate
   }
 
  private:
-  friend class base::RefCountedThreadSafe<Delegate>;
-
   struct InhibitCookie {
     DBusApi api;
     uint32_t cookie;
   };
-
-  ~Delegate() = default;
 
   // Returns true if ApplyBlock() / RemoveBlock() should be called.
   bool ShouldBlock() const {
@@ -146,7 +139,7 @@ class PowerSaveBlocker::Delegate
 
   // Applies the power save block.
   void ApplyBlock() {
-    DCHECK(ui_task_runner_->RunsTasksInCurrentSequence());
+    DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
     // First, try to inhibit using the GNOME API, since it can inhibit both the
     // screensaver and power-saving with one method call. If this fails,
@@ -156,7 +149,7 @@ class PowerSaveBlocker::Delegate
 
   // Removes the power save block.
   void RemoveBlock() {
-    DCHECK(ui_task_runner_->RunsTasksInCurrentSequence());
+    DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
     DCHECK(bus_);  // RemoveBlock() should only be called once.
 
     for (const auto& inhibit_cookie : inhibit_cookies_) {
@@ -167,7 +160,7 @@ class PowerSaveBlocker::Delegate
   }
 
   void FallBackToFreedesktopApis() {
-    DCHECK(ui_task_runner_->RunsTasksInCurrentSequence());
+    DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
     if (ShouldPreventDisplaySleep(type_)) {
       DoInhibitCall(DBusApi::kFreedesktopScreensaver);
     }
@@ -188,14 +181,14 @@ class PowerSaveBlocker::Delegate
   }
 
   void OnInhibitServiceHasOwner(DBusApi api, std::optional<bool> has_owner) {
-    DCHECK(ui_task_runner_->RunsTasksInCurrentSequence());
+    DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
     const bool available = has_owner.value_or(false);
     api_availability_cache_[api] = available;
     OnInhibitServiceAvailable(api, available);
   }
 
   void OnInhibitServiceAvailable(DBusApi api, bool available) {
-    DCHECK(ui_task_runner_->RunsTasksInCurrentSequence());
+    DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
     if (!available) {
       if (api == DBusApi::kGnome) {
         // GNOME service doesn't exist, fall back to Freedesktop APIs.
@@ -214,11 +207,11 @@ class PowerSaveBlocker::Delegate
 
     switch (api) {
       case DBusApi::kGnome:
-      // The arguments of the method are:
-      //     app_id:        The application identifier
-      //     toplevel_xid:  The toplevel X window identifier
-      //     reason:        The reason for the inhibition
-      //     flags:         Flags that specify what should be inhibited
+        // The arguments of the method are:
+        //     app_id:        The application identifier
+        //     toplevel_xid:  The toplevel X window identifier
+        //     reason:        The reason for the inhibition
+        //     flags:         Flags that specify what should be inhibited
         writer.AppendString(
             base::CommandLine::ForCurrentProcess()->GetProgram().value());
         writer.AppendUint32(0);  // toplevel_xid
@@ -243,9 +236,9 @@ class PowerSaveBlocker::Delegate
         break;
       case DBusApi::kFreedesktopPower:
       case DBusApi::kFreedesktopScreensaver:
-      // The arguments of the method are:
-      //     app_id:        The application identifier
-      //     reason:        The reason for the inhibition
+        // The arguments of the method are:
+        //     app_id:        The application identifier
+        //     reason:        The reason for the inhibition
         writer.AppendString(
             base::CommandLine::ForCurrentProcess()->GetProgram().value());
         writer.AppendString(description_);
@@ -259,7 +252,7 @@ class PowerSaveBlocker::Delegate
   }
 
   void OnInhibitResponse(DBusApi api, dbus::Response* response) {
-    DCHECK(ui_task_runner_->RunsTasksInCurrentSequence());
+    DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
     if (!response) {
       LOG(ERROR) << "No response to Inhibit() request for "
                  << kServiceInfos.at(api).service_name;
@@ -332,7 +325,7 @@ class PowerSaveBlocker::Delegate
 
   std::vector<InhibitCookie> inhibit_cookies_;
 
-  scoped_refptr<base::SequencedTaskRunner> ui_task_runner_;
+  SEQUENCE_CHECKER(sequence_checker_);
 
   std::unique_ptr<display::Screen::ScreenSaverSuspender>
       screen_saver_suspender_;
@@ -347,14 +340,12 @@ PowerSaveBlocker::PowerSaveBlocker(
     mojom::WakeLockReason reason,
     const std::string& description,
     scoped_refptr<base::SequencedTaskRunner> ui_task_runner)
-    : delegate_(
-          base::MakeRefCounted<Delegate>(type, description, ui_task_runner)),
-      ui_task_runner_(ui_task_runner) {
-  delegate_->Init();
+    : delegate_(ui_task_runner, type, description) {
+  delegate_.AsyncCall(&PowerSaveBlocker::Delegate::Init);
 }
 
 PowerSaveBlocker::~PowerSaveBlocker() {
-  delegate_->CleanUp();
+  delegate_.AsyncCall(&PowerSaveBlocker::Delegate::CleanUp);
 }
 
 }  // namespace device

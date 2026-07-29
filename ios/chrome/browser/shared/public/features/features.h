@@ -388,6 +388,9 @@ extern const char kBottomOmniboxDefaultSettingParamSafariSwitcher[];
 // Feature flag to change the default position of the omnibox.
 BASE_DECLARE_FEATURE(kBottomOmniboxDefaultSetting);
 
+// Feature flag to enable improvdements in the bottom omnibox.
+BASE_DECLARE_FEATURE(kBottomOmniboxEvolution);
+
 // Feature flag to put all clipboard access onto a background thread. Any
 // synchronous clipboard access will always return nil/false.
 BASE_DECLARE_FEATURE(kOnlyAccessClipboardAsync);
@@ -1013,12 +1016,6 @@ BASE_DECLARE_FEATURE(kRunDefaultStatusCheck);
 // Returns whether `kRunDefaultStatusCheck` is enabled.
 bool IsRunDefaultStatusCheckEnabled();
 
-// Feature flag to have the tab group visually contained.
-BASE_DECLARE_FEATURE(kContainedTabGroup);
-
-// Whether the feature associated with contained tab group is enabled.
-bool IsContainedTabGroupEnabled();
-
 // Feature flag to highlight the app's features during the FRE.
 BASE_DECLARE_FEATURE(kBestOfAppFRE);
 
@@ -1063,5 +1060,10 @@ bool IsDiamondPrototypeEnabled();
 BASE_DECLARE_FEATURE(kIOSDefaultBrowserOffCyclePromo);
 
 bool IsDefaultBrowserOffCyclePromoEnabled();
+
+// Feature flag for logging the app install attribution.
+BASE_DECLARE_FEATURE(kIOSLogInstallAttribution);
+
+bool IsInstallAttributionLoggingEnabled();
 
 #endif  // IOS_CHROME_BROWSER_SHARED_PUBLIC_FEATURES_FEATURES_H_

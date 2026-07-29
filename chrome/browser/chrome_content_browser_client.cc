@@ -16,6 +16,7 @@
 #include <vector>
 
 #include "base/base_switches.h"
+#include "base/byte_count.h"
 #include "base/check_deref.h"
 #include "base/command_line.h"
 #include "base/containers/contains.h"
@@ -25,6 +26,7 @@
 #include "base/files/file_path.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
+#include "base/functional/callback_helpers.h"
 #include "base/i18n/base_i18n_switches.h"
 #include "base/i18n/character_encoding.h"
 #include "base/memory/raw_ptr.h"
@@ -49,6 +51,9 @@
 #include "build/branding_buildflags.h"
 #include "build/build_config.h"
 #include "build/config/chromebox_for_meetings/buildflags.h"  // PLATFORM_CFM
+#if !BUILDFLAG(IS_ANDROID)
+#include "chrome/browser/actor/actor_keyed_service.h"
+#endif  // !BUILDFLAG(IS_ANDROID)
 #include "chrome/browser/after_startup_task_utils.h"
 #include "chrome/browser/ai/ai_manager.h"
 #include "chrome/browser/app_mode/app_mode_utils.h"
@@ -112,6 +117,8 @@
 #include "chrome/browser/performance_manager/public/chrome_browser_main_extra_parts_performance_manager.h"
 #include "chrome/browser/performance_manager/public/chrome_content_browser_client_performance_manager_part.h"
 #include "chrome/browser/performance_monitor/chrome_browser_main_extra_parts_performance_monitor.h"
+#include "chrome/browser/picture_in_picture/picture_in_picture_window_manager.h"
+#include "chrome/browser/picture_in_picture/scoped_tuck_picture_in_picture.h"
 #include "chrome/browser/plugins/plugin_utils.h"
 #include "chrome/browser/policy/policy_util.h"
 #include "chrome/browser/policy/profile_policy_connector.h"
@@ -234,6 +241,7 @@
 #include "components/error_page/common/error_page_switches.h"
 #include "components/error_page/common/localized_error.h"
 #include "components/fingerprinting_protection_filter/common/fingerprinting_protection_filter_features.h"
+#include "components/fingerprinting_protection_filter/interventions/common/interventions_features.h"
 #include "components/google/core/common/google_switches.h"
 #include "components/heap_profiling/in_process/heap_profiler_controller.h"
 #include "components/keep_alive_registry/keep_alive_types.h"
@@ -347,6 +355,7 @@
 #include "google_apis/gaia/gaia_urls.h"
 #include "google_apis/google_api_keys.h"
 #include "gpu/config/gpu_switches.h"
+#include "ipc/ipc_channel_proxy.h"
 #include "media/base/media_switches.h"
 #include "media/media_buildflags.h"
 #include "media/mojo/buildflags.h"
@@ -387,6 +396,7 @@
 #include "third_party/blink/public/public_buildflags.h"
 #include "third_party/widevine/cdm/buildflags.h"
 #include "ui/base/clipboard/clipboard_format_type.h"
+#include "ui/base/clipboard/clipboard_metadata.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/page_transition_types.h"
 #include "ui/base/resource/resource_bundle.h"
@@ -472,7 +482,6 @@
 #include "chrome/browser/ui/views/chrome_browser_main_extra_parts_views_linux.h"
 #elif BUILDFLAG(IS_ANDROID)
 #include "base/android/application_status_listener.h"
-#include "base/android/build_info.h"
 #include "base/feature_list.h"
 #include "chrome/browser/android/customtabs/client_data_header_web_contents_observer.h"
 #include "chrome/browser/android/devtools_manager_delegate_android.h"
@@ -571,6 +580,7 @@
 #endif
 
 #if BUILDFLAG(IS_ANDROID)
+#include "base/android/device_info.h"
 #include "components/crash/content/browser/crash_handler_host_linux.h"
 #endif
 
@@ -995,6 +1005,17 @@ GetNoStatePrefetchCanceler(
           canceler.InitWithNewPipeAndPassReceiver());
   return canceler;
 }
+
+#if !BUILDFLAG(IS_ANDROID)
+mojo::AssociatedRemote<chrome::mojom::RendererConfiguration>
+GetRendererConfiguration(content::RenderProcessHost* render_process_host) {
+  IPC::ChannelProxy* channel = render_process_host->GetChannel();
+  mojo::AssociatedRemote<chrome::mojom::RendererConfiguration>
+      renderer_configuration;
+  channel->GetRemoteAssociatedInterface(&renderer_configuration);
+  return renderer_configuration;
+}
+#endif  // !BUILDFLAG(IS_ANDROID)
 
 bool ShouldHonorPolicies() {
 #if BUILDFLAG(IS_WIN)
@@ -1873,6 +1894,27 @@ GURL ChromeContentBrowserClient::GetEffectiveURL(
 #endif
 }
 
+void ChromeContentBrowserClient::OnRendererProcessLockedStateUpdated(
+    content::RenderProcessHost* host,
+    const GURL& site_url) {
+#if !BUILDFLAG(IS_ANDROID)
+  // If the feature `kInstantUsesSpareRenderer` is not enabled, we continue
+  // relying on the `kInstantProcess` command line switch to handle instant
+  // process related logic.
+  if (!base::FeatureList::IsEnabled(features::kInstantUsesSpareRenderer)) {
+    return;
+  }
+  chrome::mojom::StaticParamsPtr params = chrome::mojom::StaticParams::New();
+  Profile* profile = Profile::FromBrowserContext(host->GetBrowserContext());
+  if (search::ShouldAssignURLToInstantRenderer(site_url, profile)) {
+    params->is_instant_process = true;
+  }
+  auto renderer_configuration = GetRendererConfiguration(host);
+  renderer_configuration->SetConfigurationOnProcessLockUpdate(
+      std::move(params));
+#endif  // !BUILDFLAG(IS_ANDROID)
+}
+
 bool ChromeContentBrowserClient::
     ShouldCompareEffectiveURLsForSiteInstanceSelection(
         content::BrowserContext* browser_context,
@@ -1990,11 +2032,15 @@ bool ChromeContentBrowserClient::ShouldUseSpareRenderProcessHost(
   }
 
 #if !BUILDFLAG(IS_ANDROID)
-  // Instant renderers should not use a spare process, because they require
-  // passing switches::kInstantProcess to the renderer process when it
-  // launches.  A spare process is launched earlier, before it is known which
-  // navigation will use it, so it lacks this flag.
-  if (search::ShouldAssignURLToInstantRenderer(site_url, profile)) {
+  // Instant renderers passed by command line should not use a spare process,
+  // because they require passing switches::kInstantProcess to the renderer
+  // process when it launches. A spare process is launched earlier, before
+  // it is known which navigation will use it, so it lacks this flag. But
+  // with the feature kInstantUsesSpareRenderer enabled, the instant process
+  // is passed later in ProcessLock status changed, we can pass the flag
+  // to spare process.
+  if (search::ShouldAssignURLToInstantRenderer(site_url, profile) &&
+      !base::FeatureList::IsEnabled(features::kInstantUsesSpareRenderer)) {
     // The NTP page chrome://new-tab-page and chrome://new-tab-page-third-party
     // are using WebUI and will not use instant renderer.
     // The only usecase is chrome-search:// URLs.
@@ -2290,8 +2336,18 @@ bool ChromeContentBrowserClient::IsSuitableHost(
         instant_service->IsInstantProcess(process_host->GetDeprecatedID());
     bool should_be_in_instant_process =
         search::ShouldAssignURLToInstantRenderer(site_url, profile);
-    if (is_instant_process || should_be_in_instant_process) {
-      return is_instant_process && should_be_in_instant_process;
+    if (is_instant_process) {
+      return should_be_in_instant_process;
+    }
+    if (should_be_in_instant_process) {
+      // If the host is a spare process that was used for instant URLs,
+      // `IsInstantProcess` is false as `InstantService::AddInstantProcess`
+      // hasn't been called yet. In this case, it's safe to allow the site
+      // to be in the spare process.
+      bool is_spare_taken =
+          (base::FeatureList::IsEnabled(features::kInstantUsesSpareRenderer) &&
+           process_host->HostHasNotBeenUsed());
+      return is_instant_process || is_spare_taken;
     }
   }
 #endif
@@ -2835,7 +2891,8 @@ void ChromeContentBrowserClient::AppendExtraCommandLineSwitches(
       InstantService* instant_service =
           InstantServiceFactory::GetForProfile(profile);
       if (instant_service &&
-          instant_service->IsInstantProcess(process->GetDeprecatedID())) {
+          instant_service->IsInstantProcess(process->GetDeprecatedID()) &&
+          !base::FeatureList::IsEnabled(features::kInstantUsesSpareRenderer)) {
         command_line->AppendSwitch(switches::kInstantProcess);
       }
 
@@ -5047,6 +5104,14 @@ void ChromeContentBrowserClient::GetAdditionalMappedFilesForChildProcess(
   fd = ui::GetCommonResourcesPackFd(&region);
   mappings->ShareWithRegion(kAndroidChrome100PercentPakDescriptor, fd, region);
 
+  if constexpr (BUILDFLAG(ENABLE_HIDPI)) {
+    fd = ui::Get200PercentResourcesPackFd(&region);
+    if (fd != -1) {
+      mappings->ShareWithRegion(kAndroidChrome200PercentPakDescriptor, fd,
+                                region);
+    }
+  }
+
   GetMappedLocalePacksForChildProcess(mappings);
 
   base::FilePath app_data_path;
@@ -6820,6 +6885,23 @@ bool ChromeContentBrowserClient::HandleExternalProtocol(
     mojo::PendingRemote<network::mojom::URLLoaderFactory>* out_factory) {
   CHECK(content::BrowserThread::CurrentlyOn(content::BrowserThread::UI));
 
+#if !BUILDFLAG(IS_ANDROID)
+  content::WebContents* web_contents = web_contents_getter.Run();
+  if (web_contents) {
+    Profile* profile =
+        Profile::FromBrowserContext(web_contents->GetBrowserContext());
+    const auto* tab_interface =
+        tabs::TabInterface::MaybeGetFromContents(web_contents);
+    auto* actor_service = actor::ActorKeyedService::Get(profile);
+    // If actor is active, bail out early to prevent it from launching external
+    // applications.
+    if (tab_interface && actor_service &&
+        actor_service->IsAnyTaskActingOnTab(*tab_interface)) {
+      return false;
+    }
+  }
+#endif  //! BUILDFLAG(IS_ANDROID)
+
 #if BUILDFLAG(ENABLE_EXTENSIONS)
   // External protocols are disabled for guests. An exception is made for the
   // "mailto" protocol, so that pages that utilize it work properly in a
@@ -6863,6 +6945,22 @@ ChromeContentBrowserClient::CreateWindowForVideoPictureInPicture(
   // chrome/browser/ui/views code either from here or from other code in
   // chrome/browser.
   return content::VideoOverlayWindow::Create(controller);
+}
+
+base::ScopedClosureRunner
+ChromeContentBrowserClient::MaybeGetScopedPictureInPictureTucker(
+    content::WebContents* web_contents) {
+#if !BUILDFLAG(IS_ANDROID)
+  if (PictureInPictureWindowManager::GetInstance()
+          ->ShouldFileDialogTuckPictureInPicture(web_contents)) {
+    // Make the `ScopedTuckPictureInPicture` share the same lifecycle as the
+    // `ScopedClosureRunner`.
+    auto tucker = std::make_unique<ScopedTuckPictureInPicture>();
+    return base::ScopedClosureRunner(
+        base::DoNothingWithBoundArgs(std::move(tucker)));
+  }
+#endif
+  return base::ScopedClosureRunner();
 }
 
 media::PictureInPictureEventsInfo::AutoPipInfo
@@ -7152,7 +7250,8 @@ void ChromeContentBrowserClient::OnNetworkServiceDataUseUpdate(
     int64_t recv_bytes,
     int64_t sent_bytes) {
   task_manager::TaskManagerInterface::UpdateAccumulatedStatsNetworkForRoute(
-      render_frame_host_id, recv_bytes, sent_bytes);
+      render_frame_host_id, base::ByteCount(recv_bytes),
+      base::ByteCount(sent_bytes));
 }
 
 base::FilePath
@@ -7513,7 +7612,7 @@ bool ChromeContentBrowserClient::IsClipboardPasteAllowed(
 void ChromeContentBrowserClient::IsClipboardPasteAllowedByPolicy(
     const content::ClipboardEndpoint& source,
     const content::ClipboardEndpoint& destination,
-    const content::ClipboardMetadata& metadata,
+    const ui::ClipboardMetadata& metadata,
     ClipboardPasteData clipboard_paste_data,
     IsClipboardPasteAllowedCallback callback) {
 // TODO(b/352728209): Add Android-specific hook for Data Controls.
@@ -7535,7 +7634,7 @@ void ChromeContentBrowserClient::IsClipboardPasteAllowedByPolicy(
 
 void ChromeContentBrowserClient::IsClipboardCopyAllowedByPolicy(
     const content::ClipboardEndpoint& source,
-    const content::ClipboardMetadata& metadata,
+    const ui::ClipboardMetadata& metadata,
     const ClipboardPasteData& data,
     IsClipboardCopyAllowedCallback callback) {
 #if BUILDFLAG(ENTERPRISE_DATA_CONTROLS)
@@ -7612,7 +7711,7 @@ ChromeContentBrowserClient::ShouldOverridePrivateNetworkRequestPolicy(
     content::BrowserContext* browser_context,
     const url::Origin& origin) {
 #if BUILDFLAG(IS_ANDROID)
-  if (base::android::BuildInfo::GetInstance()->is_automotive()) {
+  if (base::android::device_info::is_automotive()) {
     return content::ContentBrowserClient::PrivateNetworkRequestPolicyOverride::
         kBlockInsteadOfWarn;
   }
@@ -8721,14 +8820,19 @@ ChromeContentBrowserClient::MaybeOverrideLocalURLCrossOriginEmbedderPolicy(
     return std::nullopt;
   }
 
+  // `pdf_extension` could be nullptr, possibly due to a race condition where
+  // the extension frame is deleted as the PDF content navigation is requested.
+  content::RenderFrameHost* pdf_extension = navigation_handle->GetParentFrame();
+  if (!pdf_extension) {
+    return std::nullopt;
+  }
+
   // TODO(crbug.com/40053796): Local URLs inherit their policy container from
   // the navigation initiator instead of the document creating the navigation
   // request, so local PDF URL navigations in the PDF renderer inherit policies
   // from the PDF extension frame (the parent frame) and might have the
   // incorrect COEP. Until this is fixed, just copy the COEP directly from the
   // PDF embedder.
-  content::RenderFrameHost* pdf_extension = navigation_handle->GetParentFrame();
-  CHECK(pdf_extension);
   content::RenderFrameHost* pdf_embedder = pdf_extension->GetParent();
   CHECK(pdf_embedder);
   return pdf_embedder->GetCrossOriginEmbedderPolicy();
@@ -8767,4 +8871,23 @@ ChromeContentBrowserClient::GetClipboardTypesIfPolicyApplied(
   }
 
   return std::nullopt;
+}
+
+bool ChromeContentBrowserClient::ShouldEnableCanvasNoise(
+    content::BrowserContext* browser_context,
+    const GURL& url) {
+  Profile* profile = Profile::FromBrowserContext(browser_context);
+  bool feature_enable = fingerprinting_protection_interventions::features::
+      IsCanvasInterventionsEnabledForIncognitoState(
+          profile->IsIncognitoProfile());
+  // System profiles are considered incognito, but will not query from
+  // ProfileKeyedServices and will return nullptr. We should only check user
+  // bypass if the profile returns TrackingProtectionSettings.
+  privacy_sandbox::TrackingProtectionSettings* tracking_protections_settings =
+      TrackingProtectionSettingsFactory::GetForProfile(profile);
+  if (tracking_protections_settings) {
+    return feature_enable &&
+           !tracking_protections_settings->HasTrackingProtectionException(url);
+  }
+  return feature_enable;
 }

@@ -180,7 +180,7 @@ class TabStripTestBase : public ChromeViewsTestBase {
 
   void CompleteAnimationAndLayout() {
     // Complete animations and lay out *within the current tabstrip width*.
-    tab_strip_->StopAnimating(true);
+    tab_strip_->StopAnimating();
     // Resize the tabstrip based on the current tab states.
     views::test::RunScheduledLayout(tab_strip_parent_.get());
   }
@@ -556,9 +556,9 @@ TEST_P(TabStripTest, ResetBoundsForDraggedTabs) {
 
   // Ending the drag triggers the tabstrip to begin animating this tab back
   // to its ideal bounds.
-  ASSERT_FALSE(tab_strip_->IsAnimating());
+  ASSERT_FALSE(tab_strip_->IsAnimatingInTabStrip());
   StopDragging();
-  EXPECT_TRUE(tab_strip_->IsAnimating());
+  EXPECT_TRUE(tab_strip_->IsAnimatingInTabStrip());
 
   // Change the ideal bounds of the tabs mid-animation by selecting a
   // different tab.
@@ -567,7 +567,7 @@ TEST_P(TabStripTest, ResetBoundsForDraggedTabs) {
   // Once the animation completes, the dragged tab should have animated to
   // the new ideal bounds (computed with this as an inactive tab) rather
   // than the original ones (where it's an active tab).
-  tab_strip_->StopAnimating(false);
+  tab_strip_->StopAnimating();
 
   EXPECT_FALSE(dragged_tab->dragging());
   EXPECT_LT(dragged_tab->bounds().width(), min_active_width);

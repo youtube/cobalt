@@ -5,6 +5,7 @@
 #include "content/browser/webid/federated_auth_disconnect_request.h"
 
 #include "base/notreached.h"
+#include "base/trace_event/trace_event.h"
 #include "content/browser/webid/flags.h"
 #include "content/browser/webid/webid_utils.h"
 #include "content/public/browser/render_frame_host.h"
@@ -55,7 +56,8 @@ FederatedAuthDisconnectRequest::FederatedAuthDisconnectRequest(
       fedcm_metrics_(std::move(fedcm_metrics)),
       options_(std::move(options)),
       origin_(render_frame_host->GetLastCommittedOrigin()),
-      start_time_(base::TimeTicks::Now()) {
+      start_time_(base::TimeTicks::Now()),
+      perfetto_track_(webid::CreatePerfettoTrackForFedCM(this)) {
   RenderFrameHost* main_frame = render_frame_host->GetMainFrame();
   DCHECK(main_frame->IsInPrimaryMainFrame());
   embedding_origin_ = main_frame->GetLastCommittedOrigin();
@@ -64,6 +66,8 @@ FederatedAuthDisconnectRequest::FederatedAuthDisconnectRequest(
 void FederatedAuthDisconnectRequest::SetCallbackAndStart(
     blink::mojom::FederatedAuthRequest::DisconnectCallback callback,
     FederatedIdentityApiPermissionContextDelegate* api_permission_delegate) {
+  TRACE_EVENT_BEGIN("content.fedcm", "FedCM disconnect", perfetto_track_);
+
   callback_ = std::move(callback);
 
   url::Origin config_origin = url::Origin::Create(options_->config->config_url);
@@ -107,7 +111,7 @@ void FederatedAuthDisconnectRequest::SetCallbackAndStart(
     return;
   }
 
-  config_fetcher_ = std::make_unique<FedCmConfigFetcher>(
+  config_fetcher_ = std::make_unique<webid::ConfigFetcher>(
       *render_frame_host_, network_manager_.get());
   GURL config_url = options_->config->config_url;
   // TODO(crbug.com/390626180): It seems ok to ignore the well-known checks in
@@ -115,7 +119,7 @@ void FederatedAuthDisconnectRequest::SetCallbackAndStart(
   // registration API is not enabled since we only really need this for that
   // case.
   config_fetcher_->Start(
-      {{config_url, IsFedCmIdPRegistrationEnabled()}},
+      {{config_url, webid::IsIdPRegistrationEnabled()}},
       blink::mojom::RpMode::kPassive, /*icon_ideal_size=*/0,
       /*icon_minimum_size=*/0,
       base::BindOnce(
@@ -124,12 +128,12 @@ void FederatedAuthDisconnectRequest::SetCallbackAndStart(
 }
 
 void FederatedAuthDisconnectRequest::OnAllConfigAndWellKnownFetched(
-    std::vector<FedCmConfigFetcher::FetchResult> fetch_results) {
+    std::vector<webid::ConfigFetcher::FetchResult> fetch_results) {
   config_fetcher_.reset();
   DCHECK_EQ(fetch_results.size(), 1u);
-  const FedCmConfigFetcher::FetchResult& fetch_result = fetch_results[0];
+  const webid::ConfigFetcher::FetchResult& fetch_result = fetch_results[0];
   if (fetch_result.error) {
-    const FedCmConfigFetcher::FetchError& fetch_error = *fetch_result.error;
+    const webid::ConfigFetcher::FetchError& fetch_error = *fetch_result.error;
     if (fetch_error.additional_console_error_message) {
       render_frame_host_->AddMessageToConsole(
           blink::mojom::ConsoleMessageLevel::kError,
@@ -183,7 +187,7 @@ void FederatedAuthDisconnectRequest::OnAllConfigAndWellKnownFetched(
         break;
       }
       default: {
-        // The FedCmConfigFetcher does not return any other type of
+        // The ConfigFetcher does not return any other type of
         // result.
         NOTREACHED();
       }
@@ -241,6 +245,8 @@ void FederatedAuthDisconnectRequest::Complete(
   if (!callback_) {
     return;
   }
+
+  TRACE_EVENT_END("content.fedcm", perfetto_track_);
   if (disconnect_status_for_metrics != FedCmDisconnectStatus::kSuccess) {
     AddConsoleErrorMessage(disconnect_status_for_metrics);
   }

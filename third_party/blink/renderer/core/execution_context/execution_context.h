@@ -54,7 +54,6 @@
 #include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 #include "third_party/blink/renderer/platform/supplementable.h"
 #include "third_party/blink/renderer/platform/use_counter_and_console_logger.h"
-#include "third_party/blink/renderer/platform/weborigin/kurl.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 #include "third_party/perfetto/include/perfetto/tracing/traced_value_forward.h"
 #include "v8/include/v8-callbacks.h"
@@ -486,6 +485,14 @@ class CORE_EXPORT ExecutionContext : public Supplementable<ExecutionContext>,
     return net::StorageAccessApiStatus::kNone;
   }
 
+  std::optional<uint64_t> CanvasNoiseToken() const {
+    return canvas_noise_token_;
+  }
+
+  void SetCanvasNoiseToken(std::optional<uint64_t> token) {
+    canvas_noise_token_ = token;
+  }
+
  protected:
   ExecutionContext(v8::Isolate* isolate, Agent* agent, bool is_window = false);
   ~ExecutionContext() override;
@@ -549,6 +556,8 @@ class CORE_EXPORT ExecutionContext : public Supplementable<ExecutionContext>,
       runtime_feature_state_override_context_;
 
   bool require_trusted_types_ = false;
+
+  std::optional<uint64_t> canvas_noise_token_;
 };
 
 }  // namespace blink

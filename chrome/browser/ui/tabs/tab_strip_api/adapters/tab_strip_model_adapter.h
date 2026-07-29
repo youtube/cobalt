@@ -14,6 +14,10 @@
 
 namespace tabs_api {
 
+namespace converters {
+struct TabStates;
+}  // namespace converters
+
 // Tab strip has a large API service that is difficult to implement under test.
 // We only need a subset of the API, so an adapter is used to proxy those
 // methods. This makes it easier to swap in a fake for test.
@@ -25,18 +29,23 @@ class TabStripModelAdapter {
   virtual void RemoveObserver(TabStripModelObserver* observer) = 0;
   virtual std::vector<tabs::TabHandle> GetTabs() const = 0;
   virtual TabRendererData GetTabRendererData(int index) const = 0;
+  virtual converters::TabStates GetTabStates(tabs::TabHandle) const = 0;
   virtual const ui::ColorProvider& GetColorProvider() const = 0;
   virtual void CloseTab(size_t tab_index) = 0;
-  virtual std::optional<int> GetIndexForHandle(tabs::TabHandle tab_handle) = 0;
+  virtual std::optional<int> GetIndexForHandle(
+      tabs::TabHandle tab_handle) const = 0;
   virtual void ActivateTab(size_t index) = 0;
   virtual void MoveTab(tabs::TabHandle handle, const Position& position) = 0;
   virtual void MoveCollection(const NodeId& id, const Position& position) = 0;
-  virtual mojom::TabCollectionContainerPtr GetTabStripTopology() = 0;
+  virtual mojom::ContainerPtr GetTabStripTopology() = 0;
   virtual std::optional<const tab_groups::TabGroupId> FindGroupIdFor(
       const tabs::TabCollection::Handle& collection_handle) = 0;
   virtual void UpdateTabGroupVisuals(
       const tab_groups::TabGroupId& group,
       const tab_groups::TabGroupVisualData& visual_data) = 0;
+  virtual void SetTabSelection(
+      const std::vector<tabs::TabHandle>& handles_to_select,
+      tabs::TabHandle to_activate) = 0;
 };
 
 }  // namespace tabs_api

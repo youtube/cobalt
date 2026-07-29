@@ -2,11 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
-#pragma allow_unsafe_libc_calls
-#endif
-
 #include "components/update_client/utils.h"
 
 #include <stddef.h>
@@ -57,6 +52,15 @@ namespace update_client {
 const char kArchAmd64[] = "x86_64";
 const char kArchIntel[] = "x86";
 const char kArchArm64[] = "arm64";
+
+#if BUILDFLAG(IS_CHROMEOS)
+// In ChromeOS, /tmp is a ramfs drive that can be too small
+// for large downloads like Gemini Nano2v3. A larger tmpfiles.d
+// mount has been created (see https://crrev.com/c/6810025) as a
+// scratch space with access to the full stateful partition to
+// handle these larger downloads.
+const char kTempDir[] = "/var/lib/odml/chrome_component_updater";
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 bool IsHttpServerError(int status_code) {
   return 500 <= status_code && status_code < 600;
@@ -218,6 +222,27 @@ bool RetryDeletePathRecursivelyCustom(const base::FilePath& path,
     base::PlatformThread::Sleep(seconds_between_tries);
   }
   return false;
+}
+
+bool CreateTempDirectory(const base::FilePath::StringType& prefix,
+                         base::FilePath* new_temp_path) {
+#if BUILDFLAG(IS_CHROMEOS)
+  const base::FilePath largerTmpDir(kTempDir);
+  if (base::DirectoryExists(largerTmpDir)) {
+    return base::CreateTemporaryDirInDir(largerTmpDir, prefix, new_temp_path);
+  }
+#endif
+  return base::CreateNewTempDirectory(prefix, new_temp_path);
+}
+
+bool CreateScopedTempDirectory(base::ScopedTempDir& dir) {
+#if BUILDFLAG(IS_CHROMEOS)
+  const base::FilePath largerTmpDir(kTempDir);
+  if (base::DirectoryExists(largerTmpDir)) {
+    return dir.CreateUniqueTempDirUnderPath(largerTmpDir);
+  }
+#endif
+  return dir.CreateUniqueTempDir();
 }
 
 }  // namespace update_client

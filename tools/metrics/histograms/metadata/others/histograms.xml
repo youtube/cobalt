@@ -938,7 +938,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Ads.InterestGroup.Auction.HttpCachedTrustedBiddingSignalsAge2"
-    units="ms" expires_after="2025-12-07">
+    units="ms" expires_after="2026-02-09">
   <owner>abigailkatcoff@chromium.org</owner>
   <owner>privacy-sandbox-dev@chromium.org</owner>
   <summary>
@@ -3306,7 +3306,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ClientHints.AcceptCHFrame" enum="AcceptCHFrameRestart"
-    expires_after="2025-12-07">
+    expires_after="2026-02-09">
   <owner>victortan@chromium.org</owner>
   <owner>miketaylr@chromium.org</owner>
   <owner>katabolism-finch@google.com</owner>
@@ -3319,7 +3319,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ClientHints.CriticalCHRestart" enum="CriticalCHRestart"
-    expires_after="2025-12-07">
+    expires_after="2026-02-09">
   <owner>victortan@chromium.org</owner>
   <owner>miketaylr@chromium.org</owner>
   <owner>katabolism-finch@google.com</owner>
@@ -3329,7 +3329,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ClientHints.FetchLatency{OperationType}" units="microseconds"
-    expires_after="2025-12-07">
+    expires_after="2026-02-09">
   <owner>victortan@chromium.org</owner>
   <owner>miketaylr@chromium.org</owner>
   <owner>katabolism-finch@google.com</owner>
@@ -3370,7 +3370,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ClientHints.UpdateSize" units="count"
-    expires_after="2025-12-07">
+    expires_after="2026-02-09">
   <owner>victortan@chromium.org</owner>
   <owner>katabolism-finch@google.com</owner>
   <summary>
@@ -3993,7 +3993,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="DirectSockets.TCPNetworkFailures" enum="NetErrorCodes"
-    expires_after="2025-12-07">
+    expires_after="2026-02-09">
   <owner>greengrape@google.com</owner>
   <owner>iwa-team@google.com</owner>
   <summary>
@@ -4002,7 +4002,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="DirectSockets.TCPReadableStreamError" enum="NetErrorCodes"
-    expires_after="2025-12-07">
+    expires_after="2026-02-09">
   <owner>greengrape@google.com</owner>
   <owner>iwa-team@google.com</owner>
   <summary>How often tcp socket readable stream is errored.</summary>
@@ -4971,15 +4971,6 @@ chromium-metrics-reviews@google.com.
   <summary>Records the source that requested showing the feedback app.</summary>
 </histogram>
 
-<histogram name="Feedback.SecurityPage.SurveyRequested" enum="Boolean"
-    expires_after="2025-05-12">
-  <owner>zackhan@chromium.org</owner>
-  <owner>chrome-counter-abuse-alerts@google.com</owner>
-  <summary>
-    Recorded once every time the security page survey is triggered.
-  </summary>
-</histogram>
-
 <histogram name="Feedback.TrustSafetySentiment.CallTriggerOccurred"
     enum="TrustSafetySentimentFeatureArea" expires_after="2025-12-28">
   <owner>skrakowi@google.com</owner>
@@ -5265,6 +5256,17 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="FirstRun.ImportBookmarksDict"
+    enum="FirstRunImportBookmarksResult" expires_after="M150">
+  <owner>atharvmaan@chromium.org</owner>
+  <owner>chrome-desktop-ui-waterloo@google.com</owner>
+  <summary>
+    Tracks the success or failure of the automatic bookmark import from the
+    Initial Preferences file. This is a one-time import that occurs during the
+    user's First Run experience.
+  </summary>
+</histogram>
+
 <histogram name="FirstRun.IOSFirebaseConfigured" enum="FirebaseConfiguredState"
     expires_after="M89">
   <owner>ghendel@chromium.org</owner>
@@ -5406,7 +5408,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="FirstUserAction.BackgroundTime{FirstUserActionType}"
-    units="minutes" expires_after="2025-09-12">
+    units="minutes" expires_after="2026-08-07">
   <owner>justincohen@chromium.org</owner>
   <owner>olivierrobin@chromium.org</owner>
   <summary>
@@ -5433,7 +5435,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="FirstUserAction.HandsetUserActionType"
-    enum="FirstUserActionType" expires_after="2025-09-12">
+    enum="FirstUserActionType" expires_after="2026-08-07">
   <owner>justincohen@chromium.org</owner>
   <owner>olivierrobin@chromium.org</owner>
   <summary>
@@ -5448,7 +5450,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="FirstUserAction.TabletUserActionType"
-    enum="FirstUserActionType" expires_after="2025-09-12">
+    enum="FirstUserActionType" expires_after="2026-08-07">
   <owner>justincohen@chromium.org</owner>
   <owner>olivierrobin@chromium.org</owner>
   <summary>
@@ -6100,7 +6102,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Mojo.EndToEndLatencyUs.{ThreadName}" units="microseconds"
-    expires_after="2025-12-07">
+    expires_after="2026-02-09">
   <owner>lizeb@chromium.org</owner>
   <owner>rockot@google.com</owner>
   <owner>mthiesse@chromium.org</owner>
@@ -6745,16 +6747,6 @@ chromium-metrics-reviews@google.com.
     <variant name="SessionFailure"/>
     <variant name="UnlockFailed"/>
   </token>
-</histogram>
-
-<histogram name="OSCrypt.Linux.CanUseLibsecret" enum="BooleanAllowed"
-    expires_after="2025-08-15">
-  <owner>thomasanderson@chromium.org</owner>
-  <owner>thestig@chromium.org</owner>
-  <summary>
-    False if libsecret would deadlock when attempting to use the default
-    keyring. Logged once before libsecret initialization.
-  </summary>
 </histogram>
 
 <histogram name="OSCrypt.Linux.DecryptedWithEmptyKey" enum="Boolean"
@@ -9271,7 +9263,7 @@ should be kept until we use this API.  -->
 </histogram>
 
 <histogram name="Touchpad.HapticFeedback.Started" enum="BooleanEnabled"
-    expires_after="2025-09-01">
+    expires_after="2026-09-01">
   <owner>gavinwill@google.com</owner>
   <owner>cros-device-enablement@chromium.org</owner>
   <summary>

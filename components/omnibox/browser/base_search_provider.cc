@@ -22,6 +22,7 @@
 #include "components/omnibox/browser/autocomplete_provider_client.h"
 #include "components/omnibox/browser/autocomplete_provider_listener.h"
 #include "components/omnibox/browser/omnibox_field_trial.h"
+#include "components/omnibox/browser/omnibox_prefs.h"
 #include "components/omnibox/browser/page_classification_functions.h"
 #include "components/omnibox/browser/remote_suggestions_service.h"
 #include "components/omnibox/browser/search_scoring_signals_annotator.h"
@@ -598,6 +599,11 @@ void BaseSearchProvider::AddMatchToMap(
       accepted_suggestion, ShouldAppendExtraParams(result));
   if (!match.destination_url.is_valid())
     return;
+  if (match.IsSearchAimSuggestion() &&
+      (!omnibox_feature_configs::AiMode::Get().allow_ai_mode_matches ||
+       !omnibox::IsAimAllowedByPolicy(client_->GetPrefs()))) {
+    return;
+  }
   match.RecordAdditionalInfo(kRelevanceFromServerKey,
                              result.relevance_from_server() ? kTrue : kFalse);
   match.RecordAdditionalInfo(kShouldPrefetchKey,

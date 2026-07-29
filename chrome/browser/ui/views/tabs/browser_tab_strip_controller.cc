@@ -27,6 +27,7 @@
 #include "chrome/browser/resource_coordinator/tab_lifecycle_unit_external.h"
 #include "chrome/browser/resource_coordinator/tab_lifecycle_unit_source.h"
 #include "chrome/browser/search/search.h"
+#include "chrome/browser/tab_group_sync/tab_group_sync_service_factory.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_command_controller.h"
 #include "chrome/browser/ui/browser_navigator_params.h"
@@ -399,7 +400,7 @@ void BrowserTabStripController::RecordMetricsOnTabSelectionChange(
   }
 
   tab_groups::TabGroupSyncService* tab_group_service =
-      tab_groups::SavedTabGroupUtils::GetServiceForProfile(
+      tab_groups::TabGroupSyncServiceFactory::GetForProfile(
           browser_view_->GetProfile());
 
   if (!tab_group_service) {
@@ -1010,7 +1011,7 @@ void BrowserTabStripController::OnSplitTabChanged(
     // Stop animating if we are updating an active split.
     if (change.GetAddedChange()->reason() !=
         SplitTabChange::SplitTabAddReason::kNewSplitTabAdded) {
-      tabstrip_->StopAnimating(true);
+      tabstrip_->StopAnimating();
     }
   } else if (change.type == SplitTabChange::Type::kRemoved) {
     std::vector<int> split_indices;
@@ -1025,7 +1026,7 @@ void BrowserTabStripController::OnSplitTabChanged(
     // Stop animating if we are updating an active split.
     if (change.GetRemovedChange()->reason() !=
         SplitTabChange::SplitTabRemoveReason::kSplitTabRemoved) {
-      tabstrip_->StopAnimating(true);
+      tabstrip_->StopAnimating();
     }
   } else if (change.type == SplitTabChange::Type::kContentsChanged) {
     std::vector<int> split_indices;
@@ -1035,7 +1036,7 @@ void BrowserTabStripController::OnSplitTabChanged(
         std::back_inserter(split_indices),
         [](const std::pair<tabs::TabInterface*, int>& p) { return p.second; });
     tabstrip_->OnSplitContentsChanged(split_indices);
-    tabstrip_->StopAnimating(true);
+    tabstrip_->StopAnimating();
   }
 }
 

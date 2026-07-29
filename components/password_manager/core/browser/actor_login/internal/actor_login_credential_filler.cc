@@ -4,6 +4,7 @@
 
 #include "components/password_manager/core/browser/actor_login/internal/actor_login_credential_filler.h"
 
+#include <ranges>
 #include <utility>
 
 #include "base/functional/callback.h"
@@ -15,6 +16,7 @@
 #include "components/password_manager/core/browser/password_form.h"
 #include "components/password_manager/core/browser/password_form_cache.h"
 #include "components/password_manager/core/browser/password_form_manager.h"
+#include "components/password_manager/core/browser/password_manager_client.h"
 #include "components/password_manager/core/browser/password_manager_interface.h"
 #include "services/network/public/cpp/is_potentially_trustworthy.h"
 
@@ -23,6 +25,49 @@ namespace actor_login {
 using password_manager::PasswordForm;
 using password_manager::PasswordFormCache;
 using password_manager::PasswordFormManager;
+
+namespace {
+
+LoginStatusResult GetFillingResult(bool username_filled, bool password_filled) {
+  if (username_filled && password_filled) {
+    return LoginStatusResult::kSuccessUsernameAndPasswordFilled;
+  }
+
+  if (username_filled) {
+    return LoginStatusResult::kSuccessUsernameFilled;
+  }
+
+  if (password_filled) {
+    return LoginStatusResult::kSuccessPasswordFilled;
+  }
+
+  return LoginStatusResult::kErrorNoFillableFields;
+}
+
+bool IsElementFocusable(autofill::FieldRendererId renderer_id,
+                        const autofill::FormData& form_data) {
+  auto field = std::ranges::find(form_data.fields(), renderer_id,
+                                 &autofill::FormFieldData::renderer_id);
+  CHECK(field != form_data.fields().end());
+  return field->is_focusable();
+}
+
+bool IsLoginForm(const password_manager::PasswordForm& form) {
+  const bool has_focusable_username =
+      form.HasUsernameElement() &&
+      IsElementFocusable(form.username_element_renderer_id, form.form_data);
+  const bool has_focusable_password =
+      form.HasPasswordElement() &&
+      IsElementFocusable(form.password_element_renderer_id, form.form_data);
+  const bool has_focusable_new_password =
+      form.HasNewPasswordElement() &&
+      IsElementFocusable(form.new_password_element_renderer_id, form.form_data);
+
+  return (has_focusable_username || has_focusable_password) &&
+         !has_focusable_new_password;
+}
+
+}  // namespace
 
 ActorLoginCredentialFiller::ActorLoginCredentialFiller(
     const url::Origin& main_frame_origin,
@@ -38,6 +83,18 @@ void ActorLoginCredentialFiller::AttemptLogin(
     password_manager::PasswordManagerInterface* password_manager) {
   CHECK(password_manager);
 
+  password_manager::PasswordManagerClient* client =
+      password_manager->GetClient();
+  CHECK(client);
+  // AttemptLogin wouldn't fill even without this check, because
+  // `PasswordFormManager` isn't created if this returns false. However, if we
+  // don't add the check here, the error message returned to the caller would be
+  // "kErrorNoSigninForm", which would be inaccurate.
+  if (!client->IsFillingEnabled(origin_.GetURL())) {
+    std::move(callback_).Run(LoginStatusResult::kErrorFillingNotAllowed);
+    return;
+  }
+
   CHECK(network::IsOriginPotentiallyTrustworthy(origin_));
 
   PasswordFormCache* form_cache = password_manager->GetPasswordFormCache();
@@ -51,9 +108,7 @@ void ActorLoginCredentialFiller::AttemptLogin(
     }
 
     const PasswordForm* parsed_form = manager->GetParsedObservedForm();
-    // TODO(crbug.com/427170499): Check if this is the right condition to
-    // check for a signin form.
-    if (!parsed_form || parsed_form->HasNewPasswordElement()) {
+    if (!parsed_form || !IsLoginForm(*parsed_form)) {
       continue;
     }
 
@@ -83,6 +138,14 @@ void ActorLoginCredentialFiller::AttemptLogin(
     return;
   }
 
+  device_authenticator_ = client->GetDeviceAuthenticator();
+
+  if (client->IsReauthBeforeFillingRequired(device_authenticator_.get())) {
+    // TODO(crbug.com/427171273): Prompt to reauthenticate.
+    std::move(callback_).Run(LoginStatusResult::kErrorFillingNotAllowed);
+    return;
+  }
+
   FillForm(*signin_form_manager, *stored_credential);
 }
 
@@ -108,32 +171,45 @@ void ActorLoginCredentialFiller::FillForm(
       manager.GetParsedObservedForm();
   CHECK(form_to_fill);
 
-  // TODO(crbug.com/427170499): Make sure the filling result is also based on
-  // whether the renderer can actually fill.
-  LoginStatusResult filling_result = LoginStatusResult::kErrorNoFillableFields;
-
-  if (!form_to_fill->username_element_renderer_id.is_null()) {
+  if (form_to_fill->username_element_renderer_id.is_null()) {
+    OnUsernameFillingDone(false);
+  } else {
     manager.GetDriver()->FillField(
         form_to_fill->username_element_renderer_id,
         stored_credential.username_value,
-        autofill::FieldPropertiesFlags::kAutofilledActorLogin);
-    filling_result = LoginStatusResult::kSuccessUsernameFilled;
+        autofill::FieldPropertiesFlags::kAutofilledActorLogin,
+        base::BindOnce(&ActorLoginCredentialFiller::OnUsernameFillingDone,
+                       weak_ptr_factory_.GetWeakPtr()));
   }
 
-  if (!form_to_fill->password_element_renderer_id.is_null()) {
+  if (form_to_fill->password_element_renderer_id.is_null()) {
+    OnPasswordFillingDone(false);
+  } else {
     manager.GetDriver()->FillField(
         form_to_fill->password_element_renderer_id,
         stored_credential.password_value,
-        autofill::FieldPropertiesFlags::kAutofilledActorLogin);
-
-    if (filling_result == LoginStatusResult::kSuccessUsernameFilled) {
-      filling_result = LoginStatusResult::kSuccessUsernameAndPasswordFilled;
-    } else {
-      filling_result = LoginStatusResult::kSuccessPasswordFilled;
-    }
+        autofill::FieldPropertiesFlags::kAutofilledActorLogin,
+        base::BindOnce(&ActorLoginCredentialFiller::OnPasswordFillingDone,
+                       weak_ptr_factory_.GetWeakPtr()));
   }
+}
 
-  std::move(callback_).Run(filling_result);
+void ActorLoginCredentialFiller::OnUsernameFillingDone(bool success) {
+  username_filled_ = success;
+  if (!password_filled_.has_value()) {
+    return;
+  }
+  std::move(callback_).Run(
+      GetFillingResult(username_filled_.value(), password_filled_.value()));
+}
+
+void ActorLoginCredentialFiller::OnPasswordFillingDone(bool success) {
+  password_filled_ = success;
+  if (!username_filled_.has_value()) {
+    return;
+  }
+  std::move(callback_).Run(
+      GetFillingResult(username_filled_.value(), password_filled_.value()));
 }
 
 }  // namespace actor_login

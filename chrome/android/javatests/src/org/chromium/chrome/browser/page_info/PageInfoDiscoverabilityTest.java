@@ -5,6 +5,7 @@
 package org.chromium.chrome.browser.page_info;
 
 import static org.chromium.components.permissions.PermissionDialogDelegate.getRequestTypeEnumSize;
+import static org.chromium.components.permissions.PermissionUtil.getGeolocationType;
 
 import android.Manifest;
 import android.content.Context;
@@ -294,7 +295,7 @@ public class PageInfoDiscoverabilityTest {
                 /* javascriptToExecute= */ null,
                 /* missingPermissionPromptTextId= */ 0);
 
-        Assert.assertEquals(ContentSettingsType.GEOLOCATION, mMediator.getLastPermission());
+        Assert.assertEquals(getGeolocationType(), mMediator.getLastPermission());
     }
 
     /** Tests omnibox permission when permission is blocked by the user. */
@@ -326,7 +327,7 @@ public class PageInfoDiscoverabilityTest {
                 /* javascriptToExecute= */ null,
                 /* missingPermissionPromptTextId= */ 0);
 
-        Assert.assertEquals(ContentSettingsType.GEOLOCATION, mMediator.getLastPermission());
+        Assert.assertEquals(getGeolocationType(), mMediator.getLastPermission());
     }
 
     @Test

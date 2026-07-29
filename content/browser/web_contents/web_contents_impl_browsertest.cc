@@ -51,6 +51,7 @@
 #include "content/browser/renderer_host/render_frame_host_impl.h"
 #include "content/browser/renderer_host/render_process_host_impl.h"
 #include "content/browser/renderer_host/render_widget_host_impl.h"
+#include "content/browser/renderer_host/render_widget_host_view_base.h"
 #include "content/browser/renderer_host/render_widget_host_view_child_frame.h"
 #include "content/browser/renderer_host/text_input_manager.h"
 #include "content/browser/web_contents/web_contents_view.h"
@@ -95,6 +96,7 @@
 #include "content/public/test/resource_load_observer.h"
 #include "content/public/test/test_navigation_observer.h"
 #include "content/public/test/test_utils.h"
+#include "content/public/test/text_input_test_utils.h"
 #include "content/public/test/url_loader_interceptor.h"
 #include "content/shell/browser/shell.h"
 #include "content/shell/browser/shell_browser_context.h"
@@ -4724,6 +4726,65 @@ IN_PROC_BROWSER_TEST_F(UnownedInnerWebContentsBrowserTest,
   EXPECT_TRUE(static_cast<RenderViewHostImpl*>(
       rfh_b2->GetRenderViewHost())->IsRenderViewLive());
 }
+
+// Tests destroying the outer delegate node while there is an unowned inner
+// WebContents attached. Ensures that the inner WebContents' RFH is still alive
+// and the WebContents can be re-attached to the outer WebContents.
+IN_PROC_BROWSER_TEST_F(UnownedInnerWebContentsBrowserTest,
+                       DestroyOuterDelegateNode) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+  const GURL outer_url(
+      embedded_test_server()->GetURL("a.com", "/page_with_iframe.html"));
+  const GURL inner_url(embedded_test_server()->GetURL("c.com", "/title1.html"));
+
+  // Setup outer WebContents.
+  ASSERT_TRUE(NavigateToURL(shell(), outer_url));
+  WebContentsImpl* outer_wc =
+      static_cast<WebContentsImpl*>(shell()->web_contents());
+  RenderFrameHostImpl* iframe_rfh = static_cast<RenderFrameHostImpl*>(
+      ChildFrameAt(outer_wc->GetPrimaryMainFrame(), 0));
+  ASSERT_TRUE(iframe_rfh);
+
+  // Setup inner WebContents
+  WebContents::CreateParams inner_params(
+      shell()->web_contents()->GetBrowserContext());
+  std::unique_ptr<WebContents> inner_wc = WebContents::Create(inner_params);
+  ASSERT_TRUE(NavigateToURL(inner_wc.get(), inner_url));
+
+  // Attach inner WC to outer WC's iframe.
+  outer_wc->AttachUnownedInnerWebContents(
+      UnownedInnerWebContentsClient::GetPassKeyForTesting(), inner_wc.get(),
+      iframe_rfh);
+  ASSERT_EQ(outer_wc, inner_wc->GetOuterWebContents());
+
+  // Destroy the outer delegate node (the iframe).
+  FrameDeletedObserver frame_deleted_observer(iframe_rfh);
+  EXPECT_TRUE(ExecJs(outer_wc, "document.querySelector('iframe').remove()"));
+  frame_deleted_observer.Wait();
+
+  // Verify that the inner WebContents is detached and still alive.
+  EXPECT_EQ(nullptr, inner_wc->GetOuterWebContents());
+  EXPECT_FALSE(inner_wc->IsBeingDestroyed());
+
+  // Verify inner WebContents is still functional (e.g. can navigate).
+  EXPECT_TRUE(NavigateToURL(
+      inner_wc.get(), embedded_test_server()->GetURL("a.com", "/title2.html")));
+  EXPECT_EQ(u"Title Of Awesomeness", inner_wc->GetTitle());
+
+  // Reload outer WebContents.
+  ASSERT_TRUE(NavigateToURL(shell(), outer_url));
+  outer_wc = static_cast<WebContentsImpl*>(shell()->web_contents());
+  iframe_rfh = static_cast<RenderFrameHostImpl*>(
+      ChildFrameAt(outer_wc->GetPrimaryMainFrame(), 0));
+  ASSERT_TRUE(iframe_rfh);
+
+  // Re-attach inner WC to outer WC's iframe.
+  outer_wc->AttachUnownedInnerWebContents(
+      UnownedInnerWebContentsClient::GetPassKeyForTesting(), inner_wc.get(),
+      iframe_rfh);
+  EXPECT_EQ(outer_wc, inner_wc->GetOuterWebContents());
+}
+
 #endif  // !BUILDFLAG(IS_ANDROID)
 
 IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
@@ -5674,62 +5735,6 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
   EXPECT_EQ(0, web_contents_observer.call_count());
   EXPECT_EQ(viz::VerticalScrollDirection::kNull,
             web_contents_observer.last_value());
-}
-
-// Verifies assertions for SetRendererInitiatedUserAgentOverrideOption().
-IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
-                       RendererInitiatedUserAgentOverride) {
-  ASSERT_TRUE(embedded_test_server()->Start());
-  WebContents* web_contents = shell()->web_contents();
-
-  // This url triggers a renderer initiated navigation (redirect).
-  NavigationController::LoadURLParams load_params(
-      embedded_test_server()->GetURL("a.co", "/client_redirect.html"));
-  load_params.override_user_agent = NavigationController::UA_OVERRIDE_TRUE;
-
-  const GURL resulting_url =
-      embedded_test_server()->GetURL("a.co", "/title1.html");
-
-  // Assertions for the default SetRendererInitiatedUserAgentOverrideOption(),
-  // which is UA_OVERRIDE_INHERIT.
-  {
-    // The 2 is because the url redirects.
-    TestNavigationObserver observer(shell()->web_contents(), 2);
-    web_contents->GetController().LoadURLWithParams(load_params);
-    observer.Wait();
-
-    NavigationEntry* resulting_entry =
-        web_contents->GetController().GetLastCommittedEntry();
-    ASSERT_TRUE(resulting_entry);
-    EXPECT_EQ(resulting_url, resulting_entry->GetURL());
-    // The resulting entry should override the user-agent as the previous
-    // entry (as created by |load_params|) was configured to override the
-    // user-agent, and the WebContents was configured with
-    // SetRendererInitiatedUserAgentOverrideOption() of
-    // UA_OVERRIDE_INHERIT.
-    EXPECT_TRUE(resulting_entry->GetIsOverridingUserAgent());
-  }
-
-  // Repeat the above, but with UA_OVERRIDE_FALSE.
-  web_contents->SetRendererInitiatedUserAgentOverrideOption(
-      NavigationController::UA_OVERRIDE_FALSE);
-  {
-    // The 2 is because the url redirects.
-    TestNavigationObserver observer(shell()->web_contents(), 2);
-    web_contents->GetController().LoadURLWithParams(load_params);
-    observer.Wait();
-
-    EXPECT_EQ(2, web_contents->GetController().GetEntryCount());
-    NavigationEntry* resulting_entry =
-        web_contents->GetController().GetLastCommittedEntry();
-    ASSERT_TRUE(resulting_entry);
-    EXPECT_EQ(resulting_url, resulting_entry->GetURL());
-    // Even though |load_params| was configured to override the user-agent, the
-    // NavigationEntry for the redirect gets an override user-agent value of
-    // false because
-    // of SetRendererInitiatedUserAgentOverrideOption(UA_OVERRIDE_FALSE).
-    EXPECT_FALSE(resulting_entry->GetIsOverridingUserAgent());
-  }
 }
 
 IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,

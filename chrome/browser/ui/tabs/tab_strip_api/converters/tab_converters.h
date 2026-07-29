@@ -13,14 +13,20 @@
 
 namespace tabs_api::converters {
 
+struct TabStates {
+  bool is_active;
+  bool is_selected;
+};
+
 tabs_api::mojom::TabPtr BuildMojoTab(tabs::TabHandle handle,
                                      const TabRendererData& data,
-                                     const ui::ColorProvider& color_provider);
+                                     const ui::ColorProvider& color_provider,
+                                     const TabStates& states);
 
-// Builds a mojom::TabCollectionPtr based off a TabCollection.
+// Builds a mojom::DataPtr based off a TabCollection.
 // Note: Handle must be valid and point to a live TabCollection. There is a
 // CHECK to enforce that precondition.
-tabs_api::mojom::TabCollectionPtr BuildMojoTabCollection(
+tabs_api::mojom::DataPtr BuildMojoTabCollectionData(
     tabs::TabCollectionHandle handle);
 
 }  // namespace tabs_api::converters

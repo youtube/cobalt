@@ -12,7 +12,7 @@
 #include "build/build_config.h"
 
 #if BUILDFLAG(IS_ANDROID)
-#include "base/android/build_info.h"
+#include "base/android/android_info.h"
 #endif
 
 #if BUILDFLAG(IS_CHROMEOS)
@@ -20,6 +20,12 @@
 #endif
 
 namespace features {
+
+// If enabled, generates an empty GestureScrollUpdate if the preceding TouchMove
+// event had no gestures and sends both events together.
+BASE_FEATURE(kSendEmptyGestureScrollUpdate,
+             "SendEmptyGestureScrollUpdate",
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 #if BUILDFLAG(IS_WIN)
 // If enabled, calculate native window occlusion - Windows-only.
@@ -212,7 +218,7 @@ BASE_FEATURE(kElasticOverscroll,
 // mouse wheel only.
 BASE_FEATURE(kLimitScrollDeltaToScrollerSize,
              "LimitScrollDeltaToScrollerSize",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enables focus follow follow cursor (sloppyfocus).
 BASE_FEATURE(kFocusFollowsCursor,
@@ -350,8 +356,8 @@ BASE_FEATURE(kUIDebugTools,
 bool IsSwipeToMoveCursorEnabled() {
   static const bool enabled =
 #if BUILDFLAG(IS_ANDROID)
-      base::android::BuildInfo::GetInstance()->sdk_int() >=
-      base::android::SDK_VERSION_R;
+      base::android::android_info::sdk_int() >=
+      base::android::android_info::SDK_VERSION_R;
 #else
       base::FeatureList::IsEnabled(kSwipeToMoveCursor) ||
       IsTouchTextEditingRedesignEnabled();

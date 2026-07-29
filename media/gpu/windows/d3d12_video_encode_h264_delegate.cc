@@ -240,8 +240,10 @@ D3D12VideoEncodeH264Delegate::GetSupportedProfiles(
 }
 
 D3D12VideoEncodeH264Delegate::D3D12VideoEncodeH264Delegate(
-    Microsoft::WRL::ComPtr<ID3D12VideoDevice3> video_device)
-    : D3D12VideoEncodeDelegate(std::move(video_device)) {
+    Microsoft::WRL::ComPtr<ID3D12VideoDevice3> video_device,
+    bool disable_non_reference_frames)
+    : D3D12VideoEncodeDelegate(std::move(video_device)),
+      disable_non_reference_frames_(disable_non_reference_frames) {
   // We always do add-one before encoding, so we assign them to be -1 to make it
   // start with 0.
   pic_params_.idr_pic_id = -1;
@@ -262,6 +264,18 @@ D3D12VideoEncodeH264Delegate::~D3D12VideoEncodeH264Delegate() = default;
 
 size_t D3D12VideoEncodeH264Delegate::GetMaxNumOfRefFrames() const {
   return max_num_ref_frames_;
+}
+
+size_t D3D12VideoEncodeH264Delegate::GetMaxNumOfManualRefBuffers() const {
+  // We should have initialized.
+  CHECK_GT(max_num_ref_frames_, 1u);
+
+  // Same as L1Tx modes, we must reserve 1 DPB slot internally for handling
+  // frame_num gap.
+  if (disable_non_reference_frames_) {
+    return max_num_ref_frames_ - 2;
+  }
+  return max_num_ref_frames_ - 1;
 }
 
 bool D3D12VideoEncodeH264Delegate::SupportsRateControlReconfiguration() const {
@@ -332,8 +346,7 @@ bool D3D12VideoEncodeH264Delegate::UpdateRateControl(const Bitrate& bitrate,
   return D3D12VideoEncodeDelegate::UpdateRateControl(bitrate, framerate);
 }
 
-EncoderStatus::Or<BitstreamBufferMetadata>
-D3D12VideoEncodeH264Delegate::EncodeImpl(
+EncoderStatus D3D12VideoEncodeH264Delegate::EncodeImpl(
     ID3D12Resource* input_frame,
     UINT input_frame_subresource,
     const VideoEncoder::EncodeOptions& options,
@@ -386,6 +399,27 @@ D3D12VideoEncodeH264Delegate::EncodeImpl(
     update_buffer = options.update_buffer;
   }
 
+  if (disable_non_reference_frames_) {
+    // Currently it is not supported by some hardware to set current frame
+    // not-referenced. So we use slot 1 for non-referenced frame and let other
+    // long term frames' index added by one if it is not 0.
+    for (uint8_t& reference_id : reference_buffers) {
+      if (reference_id > 0) {
+        ++reference_id;
+      }
+    }
+    if (update_buffer.has_value()) {
+      if (update_buffer.value() > 0) {
+        update_buffer = update_buffer.value() + 1;
+      }
+    } else {
+      update_buffer = 1;
+    }
+    if (destroy_buffer.value_or(0) > 0) {
+      destroy_buffer = destroy_buffer.value() + 1;
+    }
+  }
+
   if (update_buffer.has_value() &&
       update_buffer.value() >= max_num_ref_frames_) {
     return {EncoderStatus::Codes::kBadReferenceBuffer,
@@ -406,10 +440,10 @@ D3D12VideoEncodeH264Delegate::EncodeImpl(
       D3D12_VIDEO_ENCODER_PICTURE_CONTROL_CODEC_DATA_H264_REFERENCE_PICTURE_LIST_MODIFICATION_OPERATION,
       5>
       reordering_flags;
-  // at most 3 operations: op-4, op-6, op-0
+  // at most 4 operations: op-2, op-4, op-6, op-0
   absl::InlinedVector<
       D3D12_VIDEO_ENCODER_PICTURE_CONTROL_CODEC_DATA_H264_REFERENCE_PICTURE_MARKING_OPERATION,
-      3>
+      4>
       mmco;
   if (is_keyframe) {
     H264SPS sps = ToSPS();
@@ -550,11 +584,13 @@ D3D12VideoEncodeH264Delegate::EncodeImpl(
   }
 
   reference_frame_manager_.ProcessMemoryManagementControlOperation(pic_params_);
-  svc_layers_->PostEncode(0);
+  if (svc_layers_) {
+    svc_layers_->PostEncode(0);
+  }
 
   metadata_.key_frame = is_keyframe;
   metadata_.qp = qp;
-  return metadata_;
+  return EncoderStatus::Codes::kOk;
 }
 
 EncoderStatus D3D12VideoEncodeH264Delegate::InitializeVideoEncoder(
@@ -585,6 +621,19 @@ EncoderStatus D3D12VideoEncodeH264Delegate::InitializeVideoEncoder(
 
   if (svc_layers_.has_value()) {
     max_num_ref_frames_ = GetNumTemporalLayers() == 3 ? 2 : 1;
+    if (disable_non_reference_frames_) {
+      // Currently it is not supported by some hardware to set current frame
+      // not-referenced. So we add a space for such case.
+      ++max_num_ref_frames_;
+    }
+
+    // For H.264, when decoder selects to decode "base-layer" frames, there may
+    // be frame_num gaps during decoding. Although during encoding we use long
+    // references only, we must signal 1 extra DPB slot besides those used by
+    // LTRPs, to allow the sliding window picture marking for the non-existing
+    // reference pictures.
+    ++max_num_ref_frames_;
+
     if (picture_control_support_h264.MaxDPBCapacity < max_num_ref_frames_) {
       return {EncoderStatus::Codes::kEncoderUnsupportedConfig,
               base::StringPrintf(
@@ -593,6 +642,12 @@ EncoderStatus D3D12VideoEncodeH264Delegate::InitializeVideoEncoder(
                   max_num_ref_frames_)};
     }
   } else {
+    if (picture_control_support_h264.MaxDPBCapacity < 2) {
+      return {EncoderStatus::Codes::kEncoderUnsupportedConfig,
+              base::StringPrintf("D3D12VideoEncoder require DPB size >=2 to "
+                                 "support manual reference control, got %u",
+                                 picture_control_support_h264.MaxDPBCapacity)};
+    }
     max_num_ref_frames_ = picture_control_support_h264.MaxDPBCapacity;
   }
 
@@ -768,9 +823,12 @@ EncoderStatus D3D12VideoEncodeH264Delegate::InitializeVideoEncoder(
         D3D12_VIDEO_ENCODER_CODEC_CONFIGURATION_H264_FLAG_USE_ADAPTIVE_8x8_TRANSFORM;
   }
 
-  if (!reference_frame_manager_.InitializeTextureArray(
+  bool use_texture_array =
+      encoder_support_flags_ &
+      D3D12_VIDEO_ENCODER_SUPPORT_FLAG_RECONSTRUCTED_FRAMES_REQUIRE_TEXTURE_ARRAYS;
+  if (!reference_frame_manager_.InitializeTextureResources(
           device_.Get(), config.input_visible_size, input_format_,
-          max_num_ref_frames_)) {
+          max_num_ref_frames_, use_texture_array)) {
     return {EncoderStatus::Codes::kEncoderInitializationError,
             "Failed to initialize DPB"};
   }
@@ -863,7 +921,7 @@ H264SPS D3D12VideoEncodeH264Delegate::ToSPS() const {
   sps.log2_max_pic_order_cnt_lsb_minus4 =
       gop_structure_.log2_max_pic_order_cnt_lsb_minus4;
   sps.max_num_ref_frames = max_num_ref_frames_;
-  sps.gaps_in_frame_num_value_allowed_flag = svc_layers_.has_value();
+  sps.gaps_in_frame_num_value_allowed_flag = true;
   constexpr int kMbSize = 16;
   sps.pic_width_in_mbs_minus1 = (input_size_.Width + kMbSize - 1) / kMbSize - 1;
   sps.pic_height_in_map_units_minus1 =

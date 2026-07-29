@@ -26,6 +26,7 @@
 #include "services/webnn/webnn_context_impl.h"
 #include "services/webnn/webnn_context_provider_impl.h"
 #include "services/webnn/webnn_tensor_impl.h"
+#include "services/webnn/webnn_test_environment.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 #if BUILDFLAG(IS_WIN)
@@ -95,7 +96,7 @@ class WebNNTensorImplBackendTest : public dml::TestBase {
 
   base::test::ScopedFeatureList scoped_feature_list_;
   scoped_refptr<dml::Adapter> adapter_;
-  raw_ptr<WebNNContextProviderImpl, DanglingUntriaged> provider_impl_ = nullptr;
+  WebNNTestEnvironment webnn_test_environment_;
   mojo::Remote<mojom::WebNNContextProvider> webnn_provider_remote_;
 };
 
@@ -112,12 +113,8 @@ void WebNNTensorImplBackendTest::SetUp() {
   // DirectML version 1.2 or DML_FEATURE_LEVEL_2_1, so skip the tests if the
   // DirectML version doesn't support this feature.
   SKIP_TEST_IF(!adapter_->IsDMLDeviceCompileGraphSupportedForTesting());
-  // Testing WebGpuInterop usage relies on the WebNNContextProvider
-  // interface implementation in order to lookup WebNNTensorImpls from
-  // non-WebNNContextProviderImpls.
-  provider_impl_ = WebNNContextProviderImpl::CreateForTesting(
-                       webnn_provider_remote_.BindNewPipeAndPassReceiver())
-                       .as_ptr();
+  webnn_test_environment_.BindWebNNContextProvider(
+      webnn_provider_remote_.BindNewPipeAndPassReceiver());
 }
 #elif BUILDFLAG(IS_MAC)
 class WebNNTensorImplBackendTest : public testing::Test {
@@ -135,6 +132,7 @@ class WebNNTensorImplBackendTest : public testing::Test {
 
   base::test::ScopedFeatureList scoped_feature_list_;
   base::test::TaskEnvironment task_environment_;
+  WebNNTestEnvironment webnn_test_environment_;
   mojo::Remote<mojom::WebNNContextProvider> webnn_provider_remote_;
 };
 
@@ -144,7 +142,7 @@ void WebNNTensorImplBackendTest::SetUp() {
                  << base::mac::MacOSVersion();
   }
 
-  WebNNContextProviderImpl::CreateForTesting(
+  webnn_test_environment_.BindWebNNContextProvider(
       webnn_provider_remote_.BindNewPipeAndPassReceiver());
 
   GTEST_SKIP() << "WebNNTensor not implemented on macOS";
@@ -155,7 +153,7 @@ class WebNNTensorImplBackendTest : public testing::Test {
   WebNNTensorImplBackendTest()
       : scoped_feature_list_(
             webnn::mojom::features::kWebMachineLearningNeuralNetwork) {
-    WebNNContextProviderImpl::CreateForTesting(
+    webnn_test_environment_.BindWebNNContextProvider(
         webnn_provider_remote_.BindNewPipeAndPassReceiver());
   }
 
@@ -167,6 +165,7 @@ class WebNNTensorImplBackendTest : public testing::Test {
 
   base::test::ScopedFeatureList scoped_feature_list_;
   base::test::TaskEnvironment task_environment_;
+  WebNNTestEnvironment webnn_test_environment_;
   mojo::Remote<mojom::WebNNContextProvider> webnn_provider_remote_;
 };
 #endif  // BUILDFLAG(WEBNN_USE_TFLITE)
@@ -438,6 +437,7 @@ TEST_F(WebNNTensorImplBackendTest, CreateContextImplManyTest) {
 TEST_F(WebNNTensorImplBackendTest, ContextImplSyncToken) {
   BadMessageTestHelper bad_message_helper;
 
+  blink::WebNNContextToken webnn_context_handle;
   mojo::Remote<mojom::WebNNContext> webnn_context_remote;
   base::expected<CreateContextSuccess, webnn::mojom::Error::Code>
       context_result = CreateWebNNContext();
@@ -447,34 +447,27 @@ TEST_F(WebNNTensorImplBackendTest, ContextImplSyncToken) {
   } else {
     webnn_context_remote =
         std::move(context_result.value().webnn_context_remote);
+    webnn_context_handle =
+        std::move(context_result.value().webnn_context_handle);
   }
 
-  gpu::SyncToken last_sync_token_fence;
-  {
-    base::test::TestFuture<const gpu::SyncToken&> gen_sync_token_future;
-    webnn_context_remote->GenVerifiedSyncToken(
-        gen_sync_token_future.GetCallback());
-    last_sync_token_fence = gen_sync_token_future.Take();
-  }
+  base::optional_ref<WebNNContextImpl> context_impl =
+      webnn_test_environment_.context_provider()->GetWebNNContextImplForTesting(
+          webnn_context_handle);
 
+  gpu::SyncToken last_sync_token_fence = context_impl->GenVerifiedSyncToken();
   EXPECT_EQ(last_sync_token_fence.release_count(), 1u);
 
   // Tell WebNN IPC to flush itself by waiting on its own SyncToken it had
   // previously generated.
-  webnn_context_remote->WaitSyncToken(last_sync_token_fence);
+  context_impl->WaitSyncToken(last_sync_token_fence);
 
-  {
-    base::test::TestFuture<const gpu::SyncToken&> gen_sync_token_future;
-    webnn_context_remote->GenVerifiedSyncToken(
-        gen_sync_token_future.GetCallback());
-    last_sync_token_fence = gen_sync_token_future.Take();
-  }
-
+  last_sync_token_fence = context_impl->GenVerifiedSyncToken();
   EXPECT_EQ(last_sync_token_fence.release_count(), 2u);
 
   // Waiting on the same SyncToken should nop.
-  webnn_context_remote->WaitSyncToken(last_sync_token_fence);
-  webnn_context_remote->WaitSyncToken(last_sync_token_fence);
+  context_impl->WaitSyncToken(last_sync_token_fence);
+  context_impl->WaitSyncToken(last_sync_token_fence);
 
   EXPECT_FALSE(bad_message_helper.GetLastBadMessage().has_value());
 }
@@ -510,7 +503,8 @@ class WebNNTensorImplDmlBackendTest : public WebNNTensorImplBackendTest {
   base::WeakPtr<native::d3d12::WebNNTensor> GetWebNNTensor(
       const blink::WebNNTensorToken& webnn_tensor_handle) const {
     base::optional_ref<WebNNContextImpl> context_impl =
-        provider_impl_->GetWebNNContextImplForTesting(webnn_context_handle_);
+        webnn_test_environment_.context_provider()
+            ->GetWebNNContextImplForTesting(webnn_context_handle_);
     return static_cast<dml::TensorImplDml*>(
                context_impl->GetWebNNTensorImpl(webnn_tensor_handle).get())
         ->AsWeakPtr();

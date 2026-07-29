@@ -8,7 +8,7 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/single_thread_task_runner.h"
 #include "build/build_config.h"
-#include "chrome/browser/glic/glic_enabling.h"
+#include "chrome/browser/glic/public/glic_enabling.h"
 #include "chrome/browser/themes/theme_properties.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
@@ -520,11 +520,20 @@ glic::GlicButton* TabStripRegionView::GetGlicButton() const {
 }
 
 bool TabStripRegionView::IsAnimating() const {
-  return tab_strip_->IsAnimating();
+  return tab_strip_->IsAnimatingInTabStrip();
+}
+
+void TabStripRegionView::StopAnimating() {
+  return tab_strip_->StopAnimating();
 }
 
 std::optional<int> TabStripRegionView::GetFocusedTabIndex() const {
-  return tab_strip_->GetFocusedTabIndex();
+  for (int i = 0; i < tab_strip_->GetTabCount(); ++i) {
+    if (tab_strip_->tab_at(i)->HasFocus()) {
+      return i;
+    }
+  }
+  return std::nullopt;
 }
 
 Tab* TabStripRegionView::GetTabAnchorViewAt(int tab_index) {

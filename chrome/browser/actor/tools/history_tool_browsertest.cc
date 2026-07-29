@@ -27,11 +27,23 @@ namespace actor {
 
 namespace {
 
+class ActorHistoryToolBrowserTest : public ActorToolsTest {
+ public:
+  ActorHistoryToolBrowserTest() = default;
+  ~ActorHistoryToolBrowserTest() override = default;
+
+  void SetUpOnMainThread() override {
+    ActorToolsTest::SetUpOnMainThread();
+    ASSERT_TRUE(embedded_test_server()->Start());
+    ASSERT_TRUE(embedded_https_test_server().Start());
+  }
+};
+
 // TODO(crbug.com/415385900): Add a test for navigation API canceling a
 // same-document navigation.
 
 // Basic test of the HistoryTool going back.
-IN_PROC_BROWSER_TEST_F(ActorToolsTest, HistoryTool_Back) {
+IN_PROC_BROWSER_TEST_F(ActorHistoryToolBrowserTest, HistoryTool_Back) {
   const GURL url_first =
       embedded_test_server()->GetURL("/actor/blank.html?start");
   const GURL url_second =
@@ -39,7 +51,7 @@ IN_PROC_BROWSER_TEST_F(ActorToolsTest, HistoryTool_Back) {
   ASSERT_TRUE(content::NavigateToURL(web_contents(), url_first));
   ASSERT_TRUE(content::NavigateToURL(web_contents(), url_second));
 
-  TestFuture<mojom::ActionResultPtr, std::optional<size_t>> result_success;
+  ActResultFuture result_success;
   std::unique_ptr<ToolRequest> action = MakeHistoryBackRequest(*active_tab());
   actor_task().Act(ToRequestList(action), result_success.GetCallback());
   ExpectOkResult(result_success);
@@ -48,7 +60,7 @@ IN_PROC_BROWSER_TEST_F(ActorToolsTest, HistoryTool_Back) {
 }
 
 // Basic test of the HistoryTool going forward
-IN_PROC_BROWSER_TEST_F(ActorToolsTest, HistoryTool_Forward) {
+IN_PROC_BROWSER_TEST_F(ActorHistoryToolBrowserTest, HistoryTool_Forward) {
   const GURL url_first =
       embedded_test_server()->GetURL("/actor/blank.html?start");
   const GURL url_second =
@@ -59,7 +71,7 @@ IN_PROC_BROWSER_TEST_F(ActorToolsTest, HistoryTool_Forward) {
   GoBack();
   ASSERT_EQ(web_contents()->GetURL(), url_first);
 
-  TestFuture<mojom::ActionResultPtr, std::optional<size_t>> result_success;
+  ActResultFuture result_success;
   std::unique_ptr<ToolRequest> action =
       MakeHistoryForwardRequest(*active_tab());
   actor_task().Act(ToRequestList(action), result_success.GetCallback());
@@ -70,7 +82,7 @@ IN_PROC_BROWSER_TEST_F(ActorToolsTest, HistoryTool_Forward) {
 
 // Basic test will, under normal circumstances use BFCache. Ensure coverage
 // without BFCache as well.
-IN_PROC_BROWSER_TEST_F(ActorToolsTest, HistoryTool_BackNoBFCache) {
+IN_PROC_BROWSER_TEST_F(ActorHistoryToolBrowserTest, HistoryTool_BackNoBFCache) {
   content::DisableBackForwardCacheForTesting(
       web_contents(), content::BackForwardCache::DisableForTestingReason::
                           TEST_REQUIRES_NO_CACHING);
@@ -82,7 +94,7 @@ IN_PROC_BROWSER_TEST_F(ActorToolsTest, HistoryTool_BackNoBFCache) {
   ASSERT_TRUE(content::NavigateToURL(web_contents(), url_first));
   ASSERT_TRUE(content::NavigateToURL(web_contents(), url_second));
 
-  TestFuture<mojom::ActionResultPtr, std::optional<size_t>> result_success;
+  ActResultFuture result_success;
   std::unique_ptr<ToolRequest> action = MakeHistoryBackRequest(*active_tab());
   actor_task().Act(ToRequestList(action), result_success.GetCallback());
   ExpectOkResult(result_success);
@@ -92,7 +104,8 @@ IN_PROC_BROWSER_TEST_F(ActorToolsTest, HistoryTool_BackNoBFCache) {
 
 // Test that tool fails validation if there's no further session history in the
 // direction of travel.
-IN_PROC_BROWSER_TEST_F(ActorToolsTest, HistoryTool_FailNoSessionHistory) {
+IN_PROC_BROWSER_TEST_F(ActorHistoryToolBrowserTest,
+                       HistoryTool_FailNoSessionHistory) {
   const GURL url_first =
       embedded_test_server()->GetURL("/actor/blank.html?first");
   const GURL url_second =
@@ -103,7 +116,7 @@ IN_PROC_BROWSER_TEST_F(ActorToolsTest, HistoryTool_FailNoSessionHistory) {
   // Attempting a forward history navigation should fail since we're at the
   // latest entry.
   {
-    TestFuture<mojom::ActionResultPtr, std::optional<size_t>> result;
+    ActResultFuture result;
     std::unique_ptr<ToolRequest> action =
         MakeHistoryForwardRequest(*active_tab());
     actor_task().Act(ToRequestList(action), result.GetCallback());
@@ -119,7 +132,7 @@ IN_PROC_BROWSER_TEST_F(ActorToolsTest, HistoryTool_FailNoSessionHistory) {
   // Attempting a back history navigation should fail since we're at the first
   // entry.
   {
-    TestFuture<mojom::ActionResultPtr, std::optional<size_t>> result;
+    ActResultFuture result;
     std::unique_ptr<ToolRequest> action = MakeHistoryBackRequest(*active_tab());
     actor_task().Act(ToRequestList(action), result.GetCallback());
     ExpectErrorResult(result, mojom::ActionResultCode::kHistoryNoBackEntries);
@@ -128,7 +141,8 @@ IN_PROC_BROWSER_TEST_F(ActorToolsTest, HistoryTool_FailNoSessionHistory) {
 }
 
 // Test history tool across same document navigations
-IN_PROC_BROWSER_TEST_F(ActorToolsTest, HistoryTool_BackSameDocument) {
+IN_PROC_BROWSER_TEST_F(ActorHistoryToolBrowserTest,
+                       HistoryTool_BackSameDocument) {
   const GURL url_first = embedded_test_server()->GetURL("/actor/blank.html");
   const GURL url_second =
       embedded_test_server()->GetURL("/actor/blank.html#foo");
@@ -136,7 +150,7 @@ IN_PROC_BROWSER_TEST_F(ActorToolsTest, HistoryTool_BackSameDocument) {
   ASSERT_TRUE(content::NavigateToURL(web_contents(), url_second));
 
   {
-    TestFuture<mojom::ActionResultPtr, std::optional<size_t>> result;
+    ActResultFuture result;
     std::unique_ptr<ToolRequest> action = MakeHistoryBackRequest(*active_tab());
     actor_task().Act(ToRequestList(action), result.GetCallback());
     ExpectOkResult(result);
@@ -144,7 +158,7 @@ IN_PROC_BROWSER_TEST_F(ActorToolsTest, HistoryTool_BackSameDocument) {
   }
 
   {
-    TestFuture<mojom::ActionResultPtr, std::optional<size_t>> result;
+    ActResultFuture result;
     std::unique_ptr<ToolRequest> action =
         MakeHistoryForwardRequest(*active_tab());
     actor_task().Act(ToRequestList(action), result.GetCallback());
@@ -154,7 +168,8 @@ IN_PROC_BROWSER_TEST_F(ActorToolsTest, HistoryTool_BackSameDocument) {
 }
 
 // Test history tool across same document navigations
-IN_PROC_BROWSER_TEST_F(ActorToolsTest, HistoryTool_BasicIframeBack) {
+IN_PROC_BROWSER_TEST_F(ActorHistoryToolBrowserTest,
+                       HistoryTool_BasicIframeBack) {
   const GURL main_frame_url =
       embedded_test_server()->GetURL("/actor/simple_iframe.html");
   const GURL child_frame_url_1 =
@@ -175,7 +190,7 @@ IN_PROC_BROWSER_TEST_F(ActorToolsTest, HistoryTool_BasicIframeBack) {
   ASSERT_EQ(child_frame->GetLastCommittedURL(), child_frame_url_2);
 
   // Invoke the history back tool. The iframe should be navigated back.
-  TestFuture<mojom::ActionResultPtr, std::optional<size_t>> result;
+  ActResultFuture result;
   std::unique_ptr<ToolRequest> action = MakeHistoryBackRequest(*active_tab());
   actor_task().Act(ToRequestList(action), result.GetCallback());
   ExpectOkResult(result);
@@ -185,7 +200,7 @@ IN_PROC_BROWSER_TEST_F(ActorToolsTest, HistoryTool_BasicIframeBack) {
 }
 
 // Ensure the history tool doesn't return until the navigation completes.
-IN_PROC_BROWSER_TEST_F(ActorToolsTest, HistoryTool_SlowBack) {
+IN_PROC_BROWSER_TEST_F(ActorHistoryToolBrowserTest, HistoryTool_SlowBack) {
   content::DisableBackForwardCacheForTesting(
       web_contents(), content::BackForwardCache::DisableForTestingReason::
                           TEST_REQUIRES_NO_CACHING);
@@ -198,7 +213,7 @@ IN_PROC_BROWSER_TEST_F(ActorToolsTest, HistoryTool_SlowBack) {
   ASSERT_TRUE(content::NavigateToURL(web_contents(), url_second));
 
   TestNavigationManager back_navigation(web_contents(), url_first);
-  TestFuture<mojom::ActionResultPtr, std::optional<size_t>> result_success;
+  ActResultFuture result_success;
   std::unique_ptr<ToolRequest> action = MakeHistoryBackRequest(*active_tab());
   actor_task().Act(ToRequestList(action), result_success.GetCallback());
   ASSERT_TRUE(back_navigation.WaitForResponse());
@@ -214,7 +229,8 @@ IN_PROC_BROWSER_TEST_F(ActorToolsTest, HistoryTool_SlowBack) {
 }
 
 // Test a case where history back causes navigation in two frames.
-IN_PROC_BROWSER_TEST_F(ActorToolsTest, HistoryTool_ConcurrentNavigations) {
+IN_PROC_BROWSER_TEST_F(ActorHistoryToolBrowserTest,
+                       HistoryTool_ConcurrentNavigations) {
   const GURL main_frame_url =
       embedded_test_server()->GetURL("/actor/concurrent_navigations.html");
   const GURL child_frame_1_start_url =
@@ -260,7 +276,7 @@ IN_PROC_BROWSER_TEST_F(ActorToolsTest, HistoryTool_ConcurrentNavigations) {
 
   // Invoke the history back tool. Both should be navigated back to their
   // starting URL.
-  TestFuture<mojom::ActionResultPtr, std::optional<size_t>> result;
+  ActResultFuture result;
   std::unique_ptr<ToolRequest> action = MakeHistoryBackRequest(*active_tab());
   actor_task().Act(ToRequestList(action), result.GetCallback());
   ExpectOkResult(result);
@@ -274,7 +290,8 @@ IN_PROC_BROWSER_TEST_F(ActorToolsTest, HistoryTool_ConcurrentNavigations) {
 
 // Ensure the history tool works correctly when a before unload handler is
 // present (but doesn't cause a prompt to show).
-IN_PROC_BROWSER_TEST_F(ActorToolsTest, HistoryTool_HasBeforeUnload) {
+IN_PROC_BROWSER_TEST_F(ActorHistoryToolBrowserTest,
+                       HistoryTool_HasBeforeUnload) {
   const GURL url_first =
       embedded_test_server()->GetURL("/actor/blank.html?start");
   const GURL url_second =
@@ -290,7 +307,7 @@ IN_PROC_BROWSER_TEST_F(ActorToolsTest, HistoryTool_HasBeforeUnload) {
                       addEventListener('beforeunload', () => {});
                       )JS"));
 
-  TestFuture<mojom::ActionResultPtr, std::optional<size_t>> result_success;
+  ActResultFuture result_success;
   std::unique_ptr<ToolRequest> action = MakeHistoryBackRequest(*active_tab());
   actor_task().Act(ToRequestList(action), result_success.GetCallback());
   ExpectOkResult(result_success);
@@ -299,7 +316,8 @@ IN_PROC_BROWSER_TEST_F(ActorToolsTest, HistoryTool_HasBeforeUnload) {
 
 // Ensure that when navigating to a new document, the history tool delays
 // completion until the new page has fired the load event.
-IN_PROC_BROWSER_TEST_F(ActorToolsTest, HistoryTool_DelaysUntilLoad) {
+IN_PROC_BROWSER_TEST_F(ActorHistoryToolBrowserTest,
+                       HistoryTool_DelaysUntilLoad) {
   // Ensure BFCache isn't used so the back navigation loads a new document.
   content::DisableBackForwardCacheForTesting(
       web_contents(), content::BackForwardCache::DisableForTestingReason::
@@ -319,7 +337,7 @@ IN_PROC_BROWSER_TEST_F(ActorToolsTest, HistoryTool_DelaysUntilLoad) {
   TestNavigationManager subframe_manager(web_contents(), url_subframe);
   TestNavigationManager main_manager(web_contents(), url_first);
 
-  TestFuture<mojom::ActionResultPtr, std::optional<size_t>> result;
+  ActResultFuture result;
   std::unique_ptr<ToolRequest> action = MakeHistoryBackRequest(*active_tab());
   actor_task().Act(ToRequestList(action), result.GetCallback());
 
@@ -345,14 +363,15 @@ IN_PROC_BROWSER_TEST_F(ActorToolsTest, HistoryTool_DelaysUntilLoad) {
 
 // Test that the history tool correctly adds the acted on tab to the task's set
 // of tabs.
-IN_PROC_BROWSER_TEST_F(ActorToolsTest, HistoryTool_RecordActingOnTask) {
+IN_PROC_BROWSER_TEST_F(ActorHistoryToolBrowserTest,
+                       HistoryTool_RecordActingOnTask) {
   ASSERT_TRUE(actor_task().GetTabs().empty());
 
   const GURL url = embedded_test_server()->GetURL("/actor/blank.html");
   ASSERT_TRUE(content::NavigateToURL(web_contents(), url));
   ASSERT_TRUE(actor_task().GetTabs().empty());
 
-  TestFuture<mojom::ActionResultPtr, std::optional<size_t>> result_success;
+  ActResultFuture result_success;
   std::unique_ptr<ToolRequest> action = MakeHistoryBackRequest(*active_tab());
   actor_task().Act(ToRequestList(action), result_success.GetCallback());
   ExpectOkResult(result_success);

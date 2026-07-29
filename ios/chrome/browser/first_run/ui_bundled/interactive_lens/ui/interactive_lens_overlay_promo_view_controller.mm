@@ -17,10 +17,11 @@
 #import "ui/base/l10n/l10n_util.h"
 
 namespace {
-// Corner radius for the top two corners of the Lens view.
-const CGFloat kLensViewCornerRadius = 45.0;
 // Static image assets.
 NSString* const kLensImageName = @"mountain_webpage";
+NSString* const kHUDImageName = @"lens_overlay_hud";
+// Corner radius for the top two corners of the Lens view.
+const CGFloat kLensViewCornerRadius = 45.0;
 // Multiplier for the top padding for the Lens image.
 const CGFloat kLensImagePaddingMultiplier = 0.14;
 // Margins for the Lens view.
@@ -37,6 +38,8 @@ const CGFloat kScrollViewTopMargin = 45.0;
 const CGFloat kBubbleViewAnimationDuration = 0.3;
 // Margin below the action button.
 const CGFloat kButtonBottomMargin = 45.0;
+// Margin above the HUD view.
+const CGFloat kHUDViewTopMargin = 20.0;
 }  // namespace
 
 @interface InteractiveLensOverlayPromoViewController () <
@@ -50,6 +53,8 @@ const CGFloat kButtonBottomMargin = 45.0;
   UIView* _backgroundContainerView;
   // The static background image view that sits inside _backgroundContainerView.
   UIImageView* _backgroundImageView;
+  // The heads-up display view that sits on top of the Lens view.
+  UIImageView* _hudView;
   // View for the tip bubble.
   BubbleView* _bubbleView;
   // View controller for the interactive Lens instance.
@@ -72,6 +77,8 @@ const CGFloat kButtonBottomMargin = 45.0;
   UIView* _footerContainerView;
   // A list of gesture recognizers that were disabled.
   NSMutableArray<UIGestureRecognizer*>* _disabledGestures;
+  // Whether the user has interacted with the Lens view.
+  BOOL _interaction;
 }
 
 @synthesize lensContainerViewController = _lensViewController;
@@ -262,11 +269,24 @@ const CGFloat kButtonBottomMargin = 45.0;
   }
 }
 
+#pragma mark - LensInteractivePromoResultsPagePresenterDelegate
+
+- (void)lensInteractivePromoResultsPagePresenterWillPresentResults:
+    (LensInteractivePromoResultsPagePresenter*)presenter {
+  [self showHUDView];
+}
+
+- (void)lensInteractivePromoResultsPagePresenterDidDismissResults:
+    (LensInteractivePromoResultsPagePresenter*)presenter {
+  _hudView.hidden = YES;
+}
+
 #pragma mark - LensOverlayPromoContainerViewControllerDelegate
 
 - (void)lensOverlayPromoContainerViewControllerDidBeginInteraction:
     (LensOverlayPromoContainerViewController*)viewController {
   [self handleHideBubbleAnimation];
+  _interaction = YES;
 }
 
 - (void)lensOverlayPromoContainerViewControllerDidEndInteraction:
@@ -426,6 +446,38 @@ const CGFloat kButtonBottomMargin = 45.0;
   return footerContainerView;
 }
 
+// Creates and presents the HUD view.
+- (void)showHUDView {
+  if (_hudView) {
+    return;
+  }
+
+  // Add and constrain the HUD view.
+  _hudView =
+      [[UIImageView alloc] initWithImage:[UIImage imageNamed:kHUDImageName]];
+  _hudView.translatesAutoresizingMaskIntoConstraints = NO;
+  [self.view addSubview:_hudView];
+  UIView* lensView = _lensViewController.view;
+  [NSLayoutConstraint activateConstraints:@[
+    [_hudView.topAnchor constraintEqualToAnchor:lensView.topAnchor
+                                       constant:kHUDViewTopMargin],
+  ]];
+  AddSameConstraintsToSides(_hudView, lensView,
+                            LayoutSides::kLeading | LayoutSides::kTrailing);
+
+  // Animate the HUD sliding down from the top.
+  CGFloat hudHeight = _hudView.image.size.height;
+  _hudView.transform = CGAffineTransformMakeTranslation(0, -hudHeight);
+  __weak __typeof(_hudView) weakHudView = _hudView;
+  [UIView animateWithDuration:0.3
+                        delay:0.1
+                      options:UIViewAnimationOptionCurveEaseOut
+                   animations:^{
+                     weakHudView.transform = CGAffineTransformIdentity;
+                   }
+                   completion:nil];
+}
+
 // Creates and returns the action button.
 - (UIButton*)buttonView {
   _actionButton = [UIButton buttonWithType:UIButtonTypeSystem];
@@ -454,7 +506,7 @@ const CGFloat kButtonBottomMargin = 45.0;
 
 // Handles taps on the action button.
 - (void)buttonTapped {
-  [self.delegate didTapContinueButton];
+  [self.delegate didTapContinueButtonWithInteraction:_interaction];
 }
 
 // Transforms the action button from its initial plain style to a primary

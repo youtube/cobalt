@@ -53,6 +53,8 @@ import org.chromium.ui.base.PageTransition;
 import org.chromium.ui.base.WindowAndroid;
 import org.chromium.url.GURL;
 
+import java.util.Collections;
+
 /** This class creates various kinds of new tabs and adds them to the right {@link TabModel}. */
 @NullMarked
 public class ChromeTabCreator extends TabCreator
@@ -417,7 +419,7 @@ public class ChromeTabCreator extends TabCreator
                                         mNativeWindow,
                                         createDefaultTabDelegateFactory()),
                                 null);
-                RedirectHandlerTabHelper.updateIntentInTab(tab, intent);
+                RedirectHandlerTabHelper.updateIntentInTab(tab, intent, tab.isCustomTab());
                 // Makes WebContents visible before loading the URL to record metrics for SpareTab
                 // (Ref: https://crbug.com/40266649).
                 assumeNonNull(tab.getWebContents()).updateWebContentsVisibility(Visibility.VISIBLE);
@@ -443,7 +445,7 @@ public class ChromeTabCreator extends TabCreator
                             .getNavigationController()
                             .copyStateFrom(parentNavigationController);
                 }
-                RedirectHandlerTabHelper.updateIntentInTab(tab, intent);
+                RedirectHandlerTabHelper.updateIntentInTab(tab, intent, tab.isCustomTab());
                 tab.loadUrl(loadUrlParams);
                 TraceEvent.end("ChromeTabCreator.loadUrl");
             }
@@ -459,7 +461,7 @@ public class ChromeTabCreator extends TabCreator
             mTabModel.addTab(tab, position, type, creationState);
             if (type == TabLaunchType.FROM_LINK_CREATING_NEW_WINDOW
                     && mMultiInstanceManager != null) {
-                mMultiInstanceManager.moveTabToNewWindow(tab);
+                mMultiInstanceManager.moveTabsToNewWindow(Collections.singletonList(tab));
             }
             return tab;
         }

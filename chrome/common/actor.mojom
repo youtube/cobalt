@@ -45,7 +45,15 @@ struct ClickAction {
 };
 
 // Information specific to a mouse move action.
+// Has no members because the target, included in ToolInvocation, is the only
+// needed parameter.
 struct MouseMoveAction {
+};
+
+// Information specific to a scroll-to action.
+// Has no members because the target, included in ToolInvocation, is the only
+// needed parameter.
+struct ScrollToAction {
 };
 
 // Information specific to the type (keyboard input) action.  Note: TypeAction
@@ -122,6 +130,7 @@ union ToolAction {
   SelectAction select;
   TypeAction type;
   ScriptToolAction script_tool;
+  ScrollToAction scroll_to;
 };
 
 
@@ -339,6 +348,25 @@ enum ActionResultCode {
 
   // History navigation committed to an error page.
   kHistoryErrorPage = 805,
+
+  // Please see the comment above about adding new values.
+
+  ///////////////////////////////////////////////////////////////////////
+  // Codes 900-999: Errors for attempt login.
+
+  // The login attempt failed because no credentials were available.
+  kLoginNoCredentialsAvailable = 900,
+
+  // The login attempt failed because the current page is not a login page.
+  // The caller needs to first navigate to a login page.
+  kLoginNotLoginPage = 901,
+
+  // The login attempt failed because the credentials were entered, but another
+  // action is needed to complete the login.
+  kLoginCredentialsEnteredButAnotherActionNeeded = 902,
+
+  // Neither the username, nor the password field could be filled.
+  kLoginNoFillableFields = 903,
 
   // Please see the comment above about adding new values.
 };

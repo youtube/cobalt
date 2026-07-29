@@ -2,11 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
-#pragma allow_unsafe_libc_calls
-#endif
-
 // This class runs functional tests for lens overlay. These tests spin up a full
 // web browser, but allow for inspection and modification of internal state of
 // LensOverlayController and other business-logic classes.
@@ -16,6 +11,7 @@
 #include <memory>
 
 #include "base/base64url.h"
+#include "base/compiler_specific.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/memory/raw_ptr_exclusion.h"
@@ -430,6 +426,11 @@ class LensOverlayPageFake : public lens::mojom::LensPage {
   }
 
   void TextReceived(lens::mojom::TextPtr text) override {
+    last_received_text_ = std::move(text);
+  }
+
+  void RegionTextReceived(lens::mojom::TextPtr text,
+                          bool is_injected_image) override {
     last_received_text_ = std::move(text);
   }
 
@@ -1335,10 +1336,10 @@ IN_PROC_BROWSER_TEST_F(LensOverlayControllerBrowserTest,
       static_cast<lens::TestLensOverlayQueryController*>(
           controller->get_lens_overlay_query_controller_for_testing());
   EXPECT_TRUE(fake_query_controller->last_queried_region_bytes());
-  EXPECT_TRUE(
+  UNSAFE_TODO(EXPECT_TRUE(
       memcmp(fake_query_controller->last_queried_region_bytes()->getPixels(),
              initial_bitmap.getPixels(),
-             initial_bitmap.computeByteSize()) == 0);
+             initial_bitmap.computeByteSize()) == 0));
   EXPECT_EQ(fake_query_controller->last_queried_region_bytes()->width(), 100);
   EXPECT_EQ(fake_query_controller->last_queried_region_bytes()->height(), 100);
   EXPECT_EQ(fake_query_controller->last_lens_selection_type(),
@@ -3920,10 +3921,10 @@ IN_PROC_BROWSER_TEST_F(
   EXPECT_FALSE(controller->get_selected_text_for_region());
   EXPECT_EQ(fake_query_controller->last_queried_region(), kTestRegion);
   EXPECT_TRUE(fake_query_controller->last_queried_region_bytes());
-  EXPECT_TRUE(
+  UNSAFE_TODO(EXPECT_TRUE(
       memcmp(fake_query_controller->last_queried_region_bytes()->getPixels(),
              initial_bitmap.getPixels(),
-             initial_bitmap.computeByteSize()) == 0);
+             initial_bitmap.computeByteSize()) == 0));
   EXPECT_EQ(fake_query_controller->last_queried_region_bytes()->width(), 100);
   EXPECT_EQ(fake_query_controller->last_queried_region_bytes()->height(), 100);
   EXPECT_EQ(fake_query_controller->last_queried_text(), "green");
@@ -3941,10 +3942,10 @@ IN_PROC_BROWSER_TEST_F(
   EXPECT_FALSE(controller->get_selected_text_for_region());
   EXPECT_EQ(fake_query_controller->last_queried_region(), kTestRegion);
   EXPECT_TRUE(fake_query_controller->last_queried_region_bytes());
-  EXPECT_TRUE(
+  UNSAFE_TODO(EXPECT_TRUE(
       memcmp(fake_query_controller->last_queried_region_bytes()->getPixels(),
              initial_bitmap.getPixels(),
-             initial_bitmap.computeByteSize()) == 0);
+             initial_bitmap.computeByteSize()) == 0));
   EXPECT_EQ(fake_query_controller->last_queried_region_bytes()->width(), 100);
   EXPECT_EQ(fake_query_controller->last_queried_region_bytes()->height(), 100);
   EXPECT_TRUE(fake_query_controller->last_queried_text().empty());
@@ -5760,22 +5761,24 @@ IN_PROC_BROWSER_TEST_P(LensOverlayControllerBrowserPDFContextualizationTest,
       lens::Payload(),
       EqualsProto(fake_query_controller->last_sent_page_content_payload()));
 
-  // Verify the searchbox was hidden.
+  // Verify the searchbox was shown. The CSB should be shown for all PDFs
+  // regardless of size. The server will handle what should be returned for large
+  // PDFs.
   auto* fake_controller = static_cast<LensOverlayControllerFake*>(controller);
   ASSERT_TRUE(fake_controller);
-  EXPECT_FALSE(fake_controller->fake_overlay_page_
+  EXPECT_TRUE(fake_controller->fake_overlay_page_
                    .last_received_should_show_contextual_searchbox_);
   CloseOverlayAndWaitForOff(controller,
                             LensOverlayDismissalSource::kOverlayCloseButton);
 
-  // Verify the histogram recorded the searchbox was not shown.
+  // Verify the histogram recorded the searchbox was shown.
   histogram_tester.ExpectUniqueSample(
       "Lens.Overlay.ContextualSearchBox.ByPageContentType.Pdf.ShownInSession",
-      /*sample*/ false,
+      /*sample*/ true,
       /*expected_bucket_count=*/1);
   histogram_tester.ExpectUniqueSample(
       "Lens.Overlay.ContextualSearchBox.ByDocumentType.Pdf.ShownInSession",
-      /*sample*/ false,
+      /*sample*/ true,
       /*expected_bucket_count=*/1);
 }
 
@@ -7753,25 +7756,27 @@ IN_PROC_BROWSER_TEST_F(LensOverlayControllerInnerTextEnabledSmallByteLimitTest,
       lens::Payload(),
       EqualsProto(fake_query_controller->last_sent_page_content_payload()));
 
-  // Verify the searchbox was hidden.
+  // Verify the searchbox was shown. The CSB should be shown even if the inner
+  // text is not included in the request. The server will handle what to show in
+  // the searchbox based on the page content that is received.
   auto* fake_controller = static_cast<LensOverlayControllerFake*>(controller);
   ASSERT_TRUE(fake_controller);
-  EXPECT_FALSE(fake_controller->fake_overlay_page_
+  EXPECT_TRUE(fake_controller->fake_overlay_page_
                    .last_received_should_show_contextual_searchbox_);
 
   CloseOverlayAndWaitForOff(controller,
                             LensOverlayDismissalSource::kOverlayCloseButton);
 
-  // Verify the histogram recorded the searchbox was not shown.
+  // Verify the histogram recorded the searchbox was shown.
   histogram_tester.ExpectUniqueSample(
       "Lens.Overlay.ContextualSearchBox.ByPageContentType.PlainText."
       "ShownInSession",
-      /*sample*/ false,
+      /*sample*/ true,
       /*expected_bucket_count=*/1);
   histogram_tester.ExpectUniqueSample(
       "Lens.Overlay.ContextualSearchBox.ByDocumentType.Html."
       "ShownInSession",
-      /*sample*/ false,
+      /*sample*/ true,
       /*expected_bucket_count=*/1);
 }
 

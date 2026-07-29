@@ -1092,6 +1092,7 @@
 <translation id="6125202119952209826">Приєднатися до групи вкладок, з якою працює <ph name="OWNER_FIRST_NAME" /></translation>
 <translation id="6125864963080902918"><ph name="BEGIN_LINK" />Докладніше<ph name="END_LINK" /></translation>
 <translation id="6127379762771434464">Веб-сайт видалено</translation>
+<translation id="6127860394906721547">Відкрити групу вкладок "<ph name="TITLE_OF_GROUP" />" із сайтами (<ph name="URL_LIST" />); колір: <ph name="COLOR_NAME" />.</translation>
 <translation id="6130303040046284160">Згорнути вкладку</translation>
 <translation id="6134168885321518274">Відкрити панель "Пошук"</translation>
 <translation id="6135608400322377268">{TAB_COUNT,plural, =1{<ph name="TAB_COUNT_ONE" /> вкладка}one{<ph name="TAB_COUNT_MANY" /> вкладка}few{<ph name="TAB_COUNT_MANY" /> вкладки}many{<ph name="TAB_COUNT_MANY" /> вкладок}other{<ph name="TAB_COUNT_MANY" /> вкладки}}</translation>
@@ -1769,7 +1770,7 @@
 <translation id="8970887620466824814">Сталася помилка.</translation>
 <translation id="8972098258593396643">Завантажити в папку за умовчанням?</translation>
 <translation id="8992769679401294069">Ваші дані зашифровано за допомогою парольної фрази. Введіть її, щоб використовувати й зберігати дані Chrome в обліковому записі Google.</translation>
-<translation id="8993760627012879038">Відкрити нове вікно в режимі анонімного перегляду</translation>
+<translation id="8993760627012879038">Відкрити нову вкладку в анонімному режимі</translation>
 <translation id="8995521496079646922">Вибрані додатки використовуватимуться за умовчанням. Якщо додаток іще не встановлено на цьому пристрої, незабаром почнеться його завантаження.</translation>
 <translation id="8996847606757455498">Вибрати іншого постачальника</translation>
 <translation id="8998837250940831980">Не вдалося згорнути вкладку. Повторіть спробу пізніше.</translation>

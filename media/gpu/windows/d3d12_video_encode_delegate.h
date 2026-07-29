@@ -41,7 +41,14 @@ class MEDIA_GPU_EXPORT D3D12VideoEncodeDelegate {
   virtual ~D3D12VideoEncodeDelegate();
 
   virtual EncoderStatus Initialize(VideoEncodeAccelerator::Config config);
+  // Returns the maximum number of reference frames that can be used for
+  // referencing. This value is used for the `input_count` parameter of
+  // VideoEncodeAccelerator::Client::RequireBitstreamBuffers().
   virtual size_t GetMaxNumOfRefFrames() const = 0;
+  // Returns the maximum number of buffers that can be used for future
+  // reference. This value is used for the number_of_manual_reference_buffers
+  // field of VideoEncoderInfo.
+  virtual size_t GetMaxNumOfManualRefBuffers() const = 0;
   // Returns whether the delegate supports changing |Bitrate::Mode| using
   // |UpdateRateControl()| during encoding.
   virtual bool SupportsRateControlReconfiguration() const = 0;
@@ -59,7 +66,7 @@ class MEDIA_GPU_EXPORT D3D12VideoEncodeDelegate {
       const VideoEncoder::EncodeOptions& options);
 
   // Do the codec specific encoding.
-  virtual EncoderStatus::Or<BitstreamBufferMetadata> EncodeImpl(
+  virtual EncoderStatus EncodeImpl(
       ID3D12Resource* input_frame,
       UINT input_frame_subresource,
       const VideoEncoder::EncodeOptions& options,
@@ -166,6 +173,8 @@ class MEDIA_GPU_EXPORT D3D12VideoEncodeDelegate {
   std::unique_ptr<D3D12VideoEncoderWrapper> video_encoder_wrapper_;
 
   std::optional<SVCLayers> svc_layers_;
+  // The metadata of the bitstream buffer for the last encode request.
+  BitstreamBufferMetadata metadata_;
 
  private:
   // The video processor factory that may be changed for testing.
@@ -203,11 +212,15 @@ class D3D12VideoEncodeDecodedPictureBuffers {
 
   size_t size() const { return size_; }
 
-  // Initialize the texture array with the given size and format.
-  bool InitializeTextureArray(ID3D12Device* device,
-                              gfx::Size texture_size,
-                              DXGI_FORMAT format,
-                              size_t max_num_ref_frames);
+  // Initialize the texture resources with the given size and format. When
+  // `use_texture_array` is true, this will create texture array within single
+  // resource; otherwise, an array of textures in invidual resources will be
+  // created.
+  bool InitializeTextureResources(ID3D12Device* device,
+                                  gfx::Size texture_size,
+                                  DXGI_FORMAT format,
+                                  size_t max_num_ref_frames,
+                                  bool use_texture_array = false);
 
   // Get the unused buffer for current frame.
   D3D12PictureBuffer GetCurrentFrame() const;

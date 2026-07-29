@@ -51,9 +51,7 @@ class CollaborationControllerDelegateDesktopInteractiveUITest
 
   void SetUp() override {
     scoped_feature_list_.InitWithFeatures(
-        {data_sharing::features::kDataSharingFeature,
-         tab_groups::kTabGroupSyncServiceDesktopMigration},
-        {});
+        {data_sharing::features::kDataSharingFeature}, {});
     InProcessBrowserTest::SetUp();
   }
 
@@ -275,6 +273,30 @@ IN_PROC_BROWSER_TEST_F(CollaborationControllerDelegateDesktopInteractiveUITest,
   delegate.PrepareFlowUI(exit_callback.Get(), callback.Get());
 
   // Make sure closing a browser will invoke the exit callback.
+  EXPECT_CALL(exit_callback, Run).Times(1);
+  browser2->window()->Close();
+}
+
+IN_PROC_BROWSER_TEST_F(CollaborationControllerDelegateDesktopInteractiveUITest,
+                       OnBrowserCloseWithOpenDialog) {
+  Browser* browser2 = CreateBrowser(browser()->profile());
+
+  // Show a prompt dialog.
+  collaboration::ServiceStatus status;
+  TestCollaborationControllerDelegateDesktop delegate(browser2);
+  EXPECT_CALL(delegate, GetServiceStatus()).WillOnce(testing::Return(status));
+  base::MockCallback<
+      collaboration::CollaborationControllerDelegate::ResultCallback>
+      callback;
+  delegate.ShowAuthenticationUi(collaboration::FlowType::kJoin, callback.Get());
+  ASSERT_NE(nullptr, delegate.prompt_dialog_widget_for_testing());
+  ASSERT_FALSE(delegate.prompt_dialog_widget_for_testing()->IsClosed());
+
+  // Pass in an exit callback to the delegate.
+  base::MockCallback<base::OnceCallback<void()>> exit_callback;
+  delegate.PrepareFlowUI(exit_callback.Get(), callback.Get());
+
+  // Closing the browser should not crash and should invoke the exit callback.
   EXPECT_CALL(exit_callback, Run).Times(1);
   browser2->window()->Close();
 }

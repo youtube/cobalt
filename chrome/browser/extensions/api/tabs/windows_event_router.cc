@@ -10,18 +10,14 @@
 #include "base/functional/bind.h"
 #include "build/build_config.h"
 #include "chrome/browser/browser_process.h"
-#include "chrome/browser/extensions/api/tabs/app_base_window.h"
-#include "chrome/browser/extensions/api/tabs/app_window_controller.h"
 #include "chrome/browser/extensions/api/tabs/windows_util.h"
 #include "chrome/browser/extensions/extension_service.h"
 #include "chrome/browser/extensions/extension_tab_util.h"
 #include "chrome/browser/extensions/window_controller.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/browser.h"
 #include "chrome/common/extensions/api/tabs.h"
 #include "chrome/common/extensions/api/windows.h"
 #include "chrome/common/extensions/extension_constants.h"
-#include "extensions/browser/app_window/app_window.h"
 #include "extensions/browser/event_router.h"
 #include "extensions/browser/extension_util.h"
 #include "extensions/common/constants.h"
@@ -155,11 +151,16 @@ bool WillDispatchWindowFocusedEvent(
 
 WindowsEventRouter::WindowsEventRouter(Profile* profile)
     : profile_(profile),
+#if BUILDFLAG(ENABLE_PLATFORM_APPS)
+      app_window_helper_(
+          profile_,
+          base::BindRepeating(&WindowsEventRouter::OnActiveWindowChanged,
+                              base::Unretained(this))),
+#endif
       focused_profile_(nullptr),
       focused_window_id_(extension_misc::kUnknownWindowId) {
   DCHECK(!profile->IsOffTheRecord());
 
-  observed_app_registry_.Observe(AppWindowRegistry::Get(profile_));
   observed_controller_list_.Observe(WindowControllerList::GetInstance());
   // Needed for when no suitable window can be passed to an extension as the
   // currently focused window. On Mac (even in a toolkit-views build) always
@@ -171,41 +172,17 @@ WindowsEventRouter::WindowsEventRouter(Profile* profile)
       &g_browser_process->platform_part()->key_window_notifier());
 #elif defined(TOOLKIT_VIEWS)
   views::NativeViewFocusManager::GetInstance()->AddFocusChangeListener(this);
+#elif BUILDFLAG(IS_ANDROID)
+  // TODO(https://crbug.com/424857039): Add focus support.
 #else
 #error Unsupported
 #endif
-
-  AppWindowRegistry* registry = AppWindowRegistry::Get(profile_);
-  for (AppWindow* app_window : registry->app_windows())
-    AddAppWindow(app_window);
 }
 
 WindowsEventRouter::~WindowsEventRouter() {
 #if defined(TOOLKIT_VIEWS) && !BUILDFLAG(IS_MAC)
   views::NativeViewFocusManager::GetInstance()->RemoveFocusChangeListener(this);
 #endif
-}
-
-void WindowsEventRouter::OnAppWindowAdded(AppWindow* app_window) {
-  if (!profile_->IsSameOrParent(
-          Profile::FromBrowserContext(app_window->browser_context())))
-    return;
-  AddAppWindow(app_window);
-}
-
-void WindowsEventRouter::OnAppWindowRemoved(AppWindow* app_window) {
-  if (!profile_->IsSameOrParent(
-          Profile::FromBrowserContext(app_window->browser_context())))
-    return;
-
-  app_windows_.erase(app_window->session_id().id());
-}
-
-void WindowsEventRouter::OnAppWindowActivated(AppWindow* app_window) {
-  AppWindowMap::const_iterator iter =
-      app_windows_.find(app_window->session_id().id());
-  OnActiveWindowChanged(iter != app_windows_.end() ? iter->second.get()
-                                                   : nullptr);
 }
 
 void WindowsEventRouter::OnWindowControllerAdded(
@@ -215,8 +192,9 @@ void WindowsEventRouter::OnWindowControllerAdded(
   if (!profile_->IsSameOrParent(window_controller->profile()))
     return;
   // Ignore any windows without an associated browser (e.g., AppWindows).
-  if (!window_controller->GetBrowser())
+  if (!window_controller->GetBrowserWindowInterface()) {
     return;
+  }
 
   base::Value::List args;
   // Since we don't populate tab info here, the context type doesn't matter.
@@ -236,8 +214,9 @@ void WindowsEventRouter::OnWindowControllerRemoved(
   if (!profile_->IsSameOrParent(window_controller->profile()))
     return;
   // Ignore any windows without an associated browser (e.g., AppWindows).
-  if (!window_controller->GetBrowser())
+  if (!window_controller->GetBrowserWindowInterface()) {
     return;
+  }
 
   int window_id = window_controller->GetWindowId();
   base::Value::List args;
@@ -253,8 +232,9 @@ void WindowsEventRouter::OnWindowBoundsChanged(
   if (!profile_->IsSameOrParent(window_controller->profile()))
     return;
   // Ignore any windows without an associated browser (e.g., AppWindows).
-  if (!window_controller->GetBrowser())
+  if (!window_controller->GetBrowserWindowInterface()) {
     return;
+  }
 
   base::Value::List args;
   // Since we don't populate tab info here, the context type doesn't matter.
@@ -262,8 +242,8 @@ void WindowsEventRouter::OnWindowBoundsChanged(
       WindowController::kDontPopulateTabs;
   constexpr mojom::ContextType context_type = mojom::ContextType::kUnspecified;
   args.Append(ExtensionTabUtil::CreateWindowValueForExtension(
-      *window_controller->GetBrowser(), nullptr, populate_behavior,
-      context_type));
+      *window_controller->GetBrowserWindowInterface(), nullptr,
+      populate_behavior, context_type));
   DispatchEvent(events::WINDOWS_ON_BOUNDS_CHANGED,
                 windows::OnBoundsChanged::kEventName, window_controller,
                 std::move(args));
@@ -325,12 +305,6 @@ void WindowsEventRouter::DispatchEvent(events::HistogramValue histogram_value,
 
 bool WindowsEventRouter::HasEventListener(const std::string& event_name) {
   return EventRouter::Get(profile_)->HasEventListener(event_name);
-}
-
-void WindowsEventRouter::AddAppWindow(AppWindow* app_window) {
-  std::unique_ptr<AppWindowController> controller(new AppWindowController(
-      app_window, std::make_unique<AppBaseWindow>(app_window), profile_));
-  app_windows_[app_window->session_id().id()] = std::move(controller);
 }
 
 }  // namespace extensions

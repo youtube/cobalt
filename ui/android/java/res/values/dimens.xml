@@ -12,11 +12,15 @@ found in the LICENSE file.
     <dimen name="text_size_medium">14sp</dimen>
     <dimen name="text_size_small">12sp</dimen>
 
+    <dimen name="text_size_large_desktop">14sp</dimen>
+
     <dimen name="headline_size_leading" tools:ignore="UnusedResources">28sp</dimen>
     <dimen name="headline2_size_leading" tools:ignore="UnusedResources">24sp</dimen>
     <dimen name="text_size_large_leading" tools:ignore="UnusedResources">24sp</dimen>
     <dimen name="text_size_medium_leading" tools:ignore="UnusedResources">20sp</dimen>
     <dimen name="text_size_small_leading" tools:ignore="UnusedResources">16sp</dimen>
+
+    <dimen name="text_size_large_leading_desktop" tools:ignore="UnusedResources">20sp</dimen>
 
     <!-- Common alpha values -->
     <item name="default_enabled_alpha" format="float" type="dimen">1.0</item>
@@ -31,6 +35,8 @@ found in the LICENSE file.
 
     <!-- Minimum height/width for a touchable item -->
     <dimen name="min_touch_target_size">48dp</dimen>
+    <!-- Minimum height/width for a clickable item -->
+    <dimen name="min_click_target_size">36dp</dimen>
 
     <!-- Button default measures -->
     <dimen name="button_min_width">88dp</dimen>
@@ -118,4 +124,11 @@ found in the LICENSE file.
     <dimen name="span_background_border_radius">4dp</dimen>
     <dimen name="span_background_border_width">2dp</dimen>
     <dimen name="span_background_horizontal_padding">4dp</dimen>
+
+    <!-- Keyboard focus outline -->
+    <!-- The size between outline and the view outer bound-->
+    <dimen name="focused_outline_offset">2dp</dimen>
+    <!-- TODO: Merge with "focused_icon_background_stroke_width" -->
+    <dimen name="focused_outline_stroke_width">2dp</dimen>
+    <dimen name="focused_outline_corner_radius_card">16dp</dimen>
 </resources>

@@ -3,7 +3,6 @@
   "version": "1.0.0",
   "contextFileName": "GEMINI.md",
   "excludeTools": [
-    "run_shell_command(autoninja)",
     "glob",
     "search_file_content",
     "run_shell_command(find .)",
@@ -13,6 +12,7 @@
     "run_shell_command(git grep)",
     "run_shell_command(gn ls)",
     "run_shell_command(gn clean)",
-    "read_many_files"
+    "run_shell_command(brew)",
+    "run_shell_command(apt-get)"
   ]
 }

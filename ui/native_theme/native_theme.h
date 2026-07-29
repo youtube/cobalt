@@ -15,6 +15,7 @@
 #include "base/memory/raw_ptr_exclusion.h"
 #include "base/observer_list.h"
 #include "base/sequence_checker.h"
+#include "base/time/time.h"
 #include "build/build_config.h"
 #include "third_party/skia/include/core/SkColor.h"
 #include "ui/base/models/menu_separator_types.h"
@@ -468,9 +469,6 @@ class COMPONENT_EXPORT(NATIVE_THEME) NativeTheme {
 
   // Returns a shared instance of the default native theme for native UI.
   static NativeTheme* GetInstanceForNativeUi();
-
-  // Returns a shared instance of the native theme for incognito UI.
-  static NativeTheme* GetInstanceForDarkUI();
 
   // Whether OS-level dark mode is available in the current OS.
   static bool SystemDarkModeSupported();

@@ -47,6 +47,10 @@ BASE_FEATURE_PARAM(int,
 BASE_FEATURE(kAndroidDesktopWebPrefsLargeDisplays,
              "AndroidDesktopWebPrefsLargeDisplays",
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kAndroidSpellcheckNativeUi,
+             "AndroidSpellcheckNativeUi",
+             base::FEATURE_DISABLED_BY_DEFAULT);
 #endif
 
 // Avoids copying ResourceRequest::TrustedParams when possible.
@@ -201,33 +205,6 @@ BASE_FEATURE_PARAM(std::string,
                    &kBackgroundTracingPerformanceMark,
                    "allow_list",
                    "");
-
-// Boost the priority of the first N not-small images.
-// crbug.com/1431169
-BASE_FEATURE(kBoostImagePriority,
-             "BoostImagePriority",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-// The number of images to bopost the priority of before returning
-// to the default (low) priority.
-BASE_FEATURE_PARAM(int,
-                   kBoostImagePriorityImageCount,
-                   &kBoostImagePriority,
-                   "image_count",
-                   5);
-// Maximum size of an image (in px^2) to be considered "small".
-// Small images, where dimensions are specified in the markup, are not boosted.
-BASE_FEATURE_PARAM(int,
-                   kBoostImagePriorityImageSize,
-                   &kBoostImagePriority,
-                   "image_size",
-                   10000);
-// Number of medium-priority requests to allow in tight-mode independent of the
-// total number of outstanding requests.
-BASE_FEATURE_PARAM(int,
-                   kBoostImagePriorityTightMediumLimit,
-                   &kBoostImagePriority,
-                   "tight_medium_limit",
-                   2);
 
 // Boost the priority of certain loading tasks (https://crbug.com/1470003).
 BASE_FEATURE(kBoostImageSetLoadingTaskPriority,
@@ -559,21 +536,11 @@ BASE_FEATURE_ENUM_PARAM(DelayAsyncScriptDelayType,
                         DelayAsyncScriptDelayType::kFinishedParsing,
                         &delay_async_script_execution_delay_types);
 
-const base::FeatureParam<DelayAsyncScriptTarget>::Option
-    delay_async_script_target_types[] = {
-        {DelayAsyncScriptTarget::kAll, "all"},
-        {DelayAsyncScriptTarget::kCrossSiteOnly, "cross_site_only"},
-        {DelayAsyncScriptTarget::kCrossSiteWithAllowList,
-         "cross_site_with_allow_list"},
-        {DelayAsyncScriptTarget::kCrossSiteWithAllowListReportOnly,
-         "cross_site_with_allow_list_report_only"},
-};
-BASE_FEATURE_ENUM_PARAM(DelayAsyncScriptTarget,
-                        kDelayAsyncScriptTargetParam,
-                        &kDelayAsyncScriptExecution,
-                        "delay_async_exec_target_site",
-                        DelayAsyncScriptTarget::kAll,
-                        &delay_async_script_target_types);
+BASE_FEATURE_PARAM(bool,
+                   kDelayAsyncScriptExecutionCrossSiteOnlyParam,
+                   &kDelayAsyncScriptExecution,
+                   "cross_site_only",
+                   false);
 
 // kDelayAsyncScriptExecution will delay executing async script at max
 // |delay_async_exec_delay_limit|.
@@ -1035,10 +1002,6 @@ BASE_FEATURE(kFledgeTruncateSelectableBuyerAndSellerReportingIdsToKAnonLimit,
 
 BASE_FEATURE(kForceHighPerformanceGPUForWebGL,
              "ForceHighPerformanceGPUForWebGL",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
-BASE_FEATURE(kForceInOrderScript,
-             "ForceInOrderScript",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Text autosizing uses heuristics to inflate text sizes on devices with
@@ -1811,7 +1774,8 @@ BASE_FEATURE(kLowLatencyWebGLImageChromium,
 
 BASE_FEATURE(kLowPriorityAsyncScriptExecution,
              "LowPriorityAsyncScriptExecution",
-#if BUILDFLAG(IS_ANDROID)
+// TODO(crbug/429069717): Fix the high power consumption on ChromeOS.
+#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
              base::FEATURE_DISABLED_BY_DEFAULT
 #else
              base::FEATURE_ENABLED_BY_DEFAULT

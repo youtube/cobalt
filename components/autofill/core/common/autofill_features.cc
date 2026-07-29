@@ -456,6 +456,11 @@ BASE_FEATURE(kAutofillEnableSupportForNameAndEmail,
              "AutofillEnableSupportForNameAndEmail",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+// The number of times after which, a never accepted `kAccountNameEmail`
+// suggestion will result in the `kAccountNameEmail` profile being deleted.
+const base::FeatureParam<int> kAutofillNameAndEmailProfileNotSelectedThreshold{
+    &kAutofillEnableSupportForNameAndEmail, "rejection_threshold", 10};
+
 // When enabled, the autofill suggestion labels are more descriptive and
 // relevant.
 // TODO(crbug.com/380273791): Cleanup when launched.
@@ -918,6 +923,13 @@ BASE_FEATURE(kUseSettingsAddressEditorInPaymentsRequest,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 #if BUILDFLAG(IS_ANDROID)
+// If enabled, on Android desktop, the Autofill keyboard accessory will have a
+// new behavior and design.
+// TODO(crbug.com/438125774): Remove when launched.
+BASE_FEATURE(kAutofillAndroidDesktopKeyboardAccessoryRevamp,
+             "AutofillAndroidDesktopKeyboardAccessoryRevamp",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // If enabled, on Android desktop, Autofill keyboard accessory will be
 // suppressed when there are no autofill suggestions.
 BASE_FEATURE(kAutofillAndroidDesktopSuppressAccessoryOnEmpty,
@@ -939,13 +951,6 @@ BASE_FEATURE(kAutofillEnableSecurityTouchEventFilteringAndroid,
 // virtual view structures to third party providers.
 BASE_FEATURE(kAutofillThirdPartyModeContentProvider,
              "AutofillThirdPartyModeContentProvider",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
-// Controls the whether the Chrome may provide a virtual view structure for
-// Android Autofill.
-// TODO: crbug.com/409579377 - Delete after M139.
-BASE_FEATURE(kAutofillVirtualViewStructureAndroid,
-             "AutofillVirtualViewStructureAndroid",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 #endif  // BUILDFLAG(IS_ANDROID)

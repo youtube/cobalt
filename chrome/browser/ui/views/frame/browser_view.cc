@@ -12,6 +12,7 @@
 #include <set>
 #include <utility>
 
+#include "base/byte_count.h"
 #include "base/check.h"
 #include "base/check_deref.h"
 #include "base/check_op.h"
@@ -135,6 +136,7 @@
 #include "chrome/browser/ui/views/frame/top_container_loading_bar.h"
 #include "chrome/browser/ui/views/frame/top_container_view.h"
 #include "chrome/browser/ui/views/frame/top_controls_slide_controller.h"
+#include "chrome/browser/ui/views/frame/vertical_tab_strip_region_view.h"
 #include "chrome/browser/ui/views/frame/web_contents_close_handler.h"
 #include "chrome/browser/ui/views/fullscreen_control/fullscreen_control_host.h"
 #include "chrome/browser/ui/views/global_media_controls/media_toolbar_button_view.h"
@@ -357,7 +359,7 @@
 #endif  // BUILDFLAG(ENABLE_WEBUI_TAB_STRIP)
 
 #if BUILDFLAG(ENABLE_GLIC)
-#include "chrome/browser/glic/glic_enabling.h"
+#include "chrome/browser/glic/public/glic_enabling.h"
 #include "chrome/browser/glic/public/glic_keyed_service.h"
 #include "chrome/browser/glic/public/glic_keyed_service_factory.h"
 #include "chrome/browser/glic/resources/grit/glic_browser_resources.h"
@@ -785,7 +787,7 @@ class BrowserViewLayoutDelegateImpl : public BrowserViewLayoutDelegate {
     // TODO(crbug.com/40102629): Make PWAs set the visibility of the ToolbarView
     // based on whether it is visible instead of setting the height to 0px. This
     // will enable BrowserViewLayout to hide the contents separator on its own
-    // using the same logic used by normal BrowserViews.
+    // using the same logic used by normal BrowserElementsViews.
     // The separator should not be shown when in split view.
     return !browser_view_->browser()->app_controller() && !IsActiveTabSplit();
   }
@@ -978,7 +980,7 @@ BrowserView::BrowserView(std::unique_ptr<Browser> browser)
   } else {
     contents_container_view_ = contents_container->AddChildView(
         std::make_unique<ContentsContainerView>(this));
-    auto* contents_web_view = contents_container_view_->GetContentsView();
+    auto* contents_web_view = contents_container_view_->contents_view();
     contents_web_view->set_is_primary_web_contents_for_window(true);
     contents_view = contents_container_view_;
   }
@@ -995,11 +997,8 @@ BrowserView::BrowserView(std::unique_ptr<Browser> browser)
   lens_overlay_view_ =
       contents_container->AddChildView(std::move(lens_overlay_view));
 
-  watermark_view_ = contents_container->AddChildView(
-      std::make_unique<enterprise_watermark::WatermarkView>());
-
   contents_container->SetLayoutManager(std::make_unique<ContentsLayoutManager>(
-      contents_view, lens_overlay_view_, watermark_view_));
+      contents_view, lens_overlay_view_));
 
   toolbar_ = top_container_->AddChildView(
       std::make_unique<ToolbarView>(browser_.get(), this));
@@ -1013,9 +1012,9 @@ BrowserView::BrowserView(std::unique_ptr<Browser> browser)
   set_contents_view(contents_container_);
 
   if (tabs::AreVerticalTabsEnabled()) {
-    auto vertical_tab_strip_container = std::make_unique<views::View>();
-    vertical_tab_strip_container->SetBackground(
-        views::CreateSolidBackground(ui::kColorFrameActive));
+    auto vertical_tab_strip_container =
+        std::make_unique<VerticalTabStripRegionView>(
+            browser_->GetFeatures().vertical_tab_strip_state_controller());
     vertical_tab_strip_container_ =
         AddChildView(std::move(vertical_tab_strip_container));
   }
@@ -1135,7 +1134,6 @@ BrowserView::~BrowserView() {
   contents_container_view_ = nullptr;
   lens_overlay_view_ = nullptr;
   window_scrim_view_ = nullptr;
-  watermark_view_ = nullptr;
   contents_container_ = nullptr;
   vertical_tab_strip_container_ = nullptr;
   unified_side_panel_ = nullptr;
@@ -1238,6 +1236,20 @@ ContentsContainerView* BrowserView::GetActiveContentsContainerView() {
     return multi_contents_view_->GetActiveContentsContainerView();
   }
   return contents_container_view_;
+}
+
+ContentsContainerView* BrowserView::GetContentsContainerViewFor(
+    content::WebContents* web_contents) {
+  if (multi_contents_view_) {
+    return multi_contents_view_->GetContentsContainerViewFor(web_contents);
+  }
+
+  if (contents_container_view_->contents_view()->GetWebContents() ==
+      web_contents) {
+    return contents_container_view_;
+  }
+
+  return nullptr;
 }
 
 std::vector<ContentsContainerView*> BrowserView::GetContentsContainerViews() {
@@ -1875,7 +1887,7 @@ void BrowserView::OnActiveTabChanged(content::WebContents* old_contents,
             contents_view->GetWebContentsCloseHandler()->ActiveTabChanged();
           }));
     } else {
-      contents_container_view_->GetContentsView()
+      contents_container_view_->contents_view()
           ->GetWebContentsCloseHandler()
           ->ActiveTabChanged();
     }
@@ -1935,8 +1947,7 @@ void BrowserView::OnActiveTabChanged(content::WebContents* old_contents,
   // Update all the UI bits.
   UpdateTitleBar();
 
-  CHECK_DEREF(browser_->GetFeatures().translate_bubble_controller())
-      .CloseBubble();
+  CHECK_DEREF(TranslateBubbleController::From(browser_.get())).CloseBubble();
 
   // This is only done once when the app is first opened so that there is only
   // one subscriber per web contents.
@@ -1971,7 +1982,7 @@ void BrowserView::OnTabDetached(content::WebContents* contents,
           contents_view->GetWebContentsCloseHandler()->ActiveTabChanged();
         }));
   } else {
-    contents_container_view_->GetContentsView()
+    contents_container_view_->contents_view()
         ->GetWebContentsCloseHandler()
         ->ActiveTabChanged();
   }
@@ -2353,14 +2364,14 @@ void BrowserView::UpdateCustomTabBarVisibility(bool visible, bool animate) {
 
 void BrowserView::SetContentScrimVisibility(bool visible) {
   if (base::FeatureList::IsEnabled(features::KScrimForTabModal)) {
-    GetActiveContentsContainerView()->GetContentsScrimView()->SetVisible(
+    GetActiveContentsContainerView()->contents_scrim_view()->SetVisible(
         visible);
   }
 }
 
 void BrowserView::SetDevToolsScrimVisibility(bool visible) {
   if (base::FeatureList::IsEnabled(features::KScrimForTabModal)) {
-    GetActiveContentsContainerView()->GetDevtoolsScrimView()->SetVisible(
+    GetActiveContentsContainerView()->devtools_scrim_view()->SetVisible(
         visible);
   }
 }
@@ -2741,7 +2752,7 @@ views::WebView* BrowserView::GetContentsWebView() {
   if (multi_contents_view_) {
     return multi_contents_view_->GetActiveContentsView();
   } else {
-    return contents_container_view_->GetContentsView();
+    return contents_container_view_->contents_view();
   }
 }
 
@@ -2786,7 +2797,7 @@ void BrowserView::FocusInactivePopupForAccessibility() {
       glic::GlicWindowController& window_controller =
           service->window_controller();
       if (window_controller.attached_browser() == browser_.get()) {
-        window_controller.GetGlicWidget()->Activate();
+        window_controller.FocusIfOpen();
         return;
       }
     }
@@ -3325,7 +3336,7 @@ ShowTranslateBubbleResult BrowserView::ShowTranslateBubble(
   if (views::Button::AsButton(anchor_view)) {
     translate_icon = views::Button::AsButton(anchor_view);
   }
-  CHECK_DEREF(browser_->GetFeatures().translate_bubble_controller())
+  CHECK_DEREF(TranslateBubbleController::From(browser_.get()))
       .ShowTranslateBubble(web_contents, anchor_view, translate_icon, step,
                            source_language, target_language, error_type,
                            is_user_gesture ? TranslateBubbleView::USER_GESTURE
@@ -3347,7 +3358,7 @@ void BrowserView::StartPartialTranslate(const std::string& source_language,
   views::Button* translate_icon =
       toolbar_button_provider()->GetPageActionView(kActionShowTranslate);
 
-  CHECK_DEREF(browser_->GetFeatures().translate_bubble_controller())
+  CHECK_DEREF(TranslateBubbleController::From(browser_.get()))
       .StartPartialTranslate(
           GetActiveWebContents(),
           toolbar_button_provider()->GetAnchorView(kActionShowTranslate),
@@ -3515,8 +3526,12 @@ void BrowserView::PreHandleDragUpdate(const content::DropData& drop_data,
     // is in a split.
     const bool is_in_split_view =
         browser_->tab_strip_model()->GetActiveTab()->IsSplit();
+    const gfx::Point point_in_multi_contents_view =
+        views::View::ConvertPointToTarget(GetActiveContentsContainerView(),
+                                          multi_contents_view_,
+                                          gfx::ToRoundedPoint(point));
     multi_contents_view_->drop_target_controller().OnWebContentsDragUpdate(
-        drop_data, point, is_in_split_view);
+        drop_data, point_in_multi_contents_view, is_in_split_view);
   }
 }
 
@@ -3763,7 +3778,7 @@ void BrowserView::OnTabStripModelChanged(
             contents_view->GetWebContentsCloseHandler()->TabInserted();
           }));
     } else {
-      contents_container_view_->GetContentsView()
+      contents_container_view_->contents_view()
           ->GetWebContentsCloseHandler()
           ->TabInserted();
     }
@@ -3786,7 +3801,7 @@ void BrowserView::WillCloseAllTabs(TabStripModel* tab_strip_model) {
           contents_view->GetWebContentsCloseHandler()->WillCloseAllTabs();
         }));
   } else {
-    contents_container_view_->GetContentsView()
+    contents_container_view_->contents_view()
         ->GetWebContentsCloseHandler()
         ->WillCloseAllTabs();
   }
@@ -3803,7 +3818,7 @@ void BrowserView::CloseAllTabsStopped(TabStripModel* tab_strip_model,
           contents_view->GetWebContentsCloseHandler()->CloseAllTabsCanceled();
         }));
   } else {
-    contents_container_view_->GetContentsView()
+    contents_container_view_->contents_view()
         ->GetWebContentsCloseHandler()
         ->CloseAllTabsCanceled();
   }
@@ -4085,15 +4100,15 @@ std::u16string BrowserView::GetAccessibleTabLabel(int index,
   const TabRendererData& tab_data = tabstrip_->tab_at(index)->data();
   if (tab_data.should_show_discard_status) {
     title = l10n_util::GetStringFUTF16(IDS_TAB_AX_INACTIVE_TAB, title);
-    if (tab_data.discarded_memory_savings_in_bytes > 0) {
+    if (tab_data.discarded_memory_savings.is_positive()) {
       title = l10n_util::GetStringFUTF16(
           IDS_TAB_AX_MEMORY_SAVINGS, title,
-          ui::FormatBytes(tab_data.discarded_memory_savings_in_bytes));
+          ui::FormatBytes(tab_data.discarded_memory_savings));
     }
   } else if (tab_data.tab_resource_usage &&
-             tab_data.tab_resource_usage->memory_usage_in_bytes() > 0) {
-    const uint64_t memory_used =
-        tab_data.tab_resource_usage->memory_usage_in_bytes();
+             tab_data.tab_resource_usage->memory_usage().is_positive()) {
+    const base::ByteCount memory_used =
+        tab_data.tab_resource_usage->memory_usage();
     const bool is_high_memory_usage =
         tab_data.tab_resource_usage->is_high_memory_usage();
     if (is_high_memory_usage || is_for_tab) {
@@ -4352,7 +4367,7 @@ views::View* BrowserView::GetContentsView() {
   if (multi_contents_view_) {
     return multi_contents_view_->GetActiveContentsView();
   } else {
-    return contents_container_view_->GetContentsView();
+    return contents_container_view_->contents_view();
   }
 }
 
@@ -4721,7 +4736,7 @@ std::vector<ContentsWebView*> BrowserView::GetAllVisibleContentsWebViews() {
       contents_views.push_back(inactive_contents_view);
     }
   } else {
-    contents_views.push_back(contents_container_view_->GetContentsView());
+    contents_views.push_back(contents_container_view_->contents_view());
   }
   return contents_views;
 }
@@ -5182,11 +5197,12 @@ void BrowserView::AddedToWidget() {
       SetLayoutManager(std::make_unique<BrowserViewLayout>(
           std::make_unique<BrowserViewLayoutDelegateImpl>(this), this,
           window_scrim_view_, top_container_, web_app_frame_toolbar_,
-          web_app_window_title_, tab_strip_region_view_, tabstrip_, toolbar_,
-          infobar_container_, contents_container_, multi_contents_view_,
-          vertical_tab_strip_container_, left_aligned_side_panel_separator_,
-          unified_side_panel_, right_aligned_side_panel_separator_,
-          side_panel_rounded_corner_, contents_separator_));
+          web_app_window_title_, tab_strip_region_view_, tabstrip_,
+          vertical_tab_strip_container_, toolbar_, infobar_container_,
+          contents_container_, multi_contents_view_,
+          left_aligned_side_panel_separator_, unified_side_panel_,
+          right_aligned_side_panel_separator_, side_panel_rounded_corner_,
+          contents_separator_));
   browser_view_layout->SetUseBrowserContentMinimumSize(
       ShouldUseBrowserContentMinimumSize());
 
@@ -6204,16 +6220,6 @@ bool BrowserView::IsBrowserAWebApp() const {
   is_web_app = is_web_app && !browser()->app_controller()->system_app();
 #endif
   return is_web_app;
-}
-
-void BrowserView::ApplyWatermarkSettings(const std::string& watermark_text) {
-  if (watermark_view_) {
-    PrefService* prefs = browser_->profile()->GetPrefs();
-    watermark_view_->SetString(watermark_text,
-                               enterprise_watermark::GetFillColor(prefs),
-                               enterprise_watermark::GetOutlineColor(prefs),
-                               enterprise_watermark::GetFontSize(prefs));
-  }
 }
 
 #if BUILDFLAG(ENTERPRISE_SCREENSHOT_PROTECTION)

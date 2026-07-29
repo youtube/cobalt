@@ -15,9 +15,6 @@
 #include "components/prefs/pref_service.h"
 #include "components/sync/service/sync_service.h"
 
-#if BUILDFLAG(IS_ANDROID)
-#include "base/android/build_info.h"
-#endif
 
 namespace password_manager {
 
@@ -75,7 +72,7 @@ PasswordFeatureManagerImpl::ComputePasswordAccountStorageUsageLevel() const {
 
 #if BUILDFLAG(IS_ANDROID)
 bool PasswordFeatureManagerImpl::ShouldUpdateGmsCore() {
-  return IsGmsCoreUpdateRequired(sync_service_);
+  return IsGmsCoreUpdateRequired();
 }
 #endif  // BUILDFLAG(IS_ANDROID)
 

@@ -17,6 +17,10 @@
 #include "components/enterprise/data_controls/core/browser/verdict.h"
 #endif  // BUILDFLAG(ENTERPRISE_DATA_CONTROLS)
 
+namespace base {
+class Time;
+}
+
 namespace enterprise_connectors {
 
 // The maximum number of referrers to include in the referrer chain.
@@ -141,10 +145,29 @@ chrome::cros::reporting::proto::DlpSensitiveDataEvent GetDlpSensitiveDataEvent(
     const std::string& content_area_account_email,
     const std::string& profile_identifier,
     const std::string& profile_username,
+    std::optional<std::u16string> user_justification,
     const int64_t content_size,
     const ContentAnalysisResponse::Result& result,
     const ReferrerChain& referrer_chain,
     EventResult event_result);
+
+chrome::cros::reporting::proto::SafeBrowsingDangerousDownloadEvent
+GetDangerousDownloadEvent(const GURL& url,
+                          const GURL& tab_url,
+                          const std::string& source,
+                          const std::string& destination,
+                          const std::string& file_name,
+                          const std::string& download_digest_sha256,
+                          const std::string& threat_type,
+                          const std::string& mime_type,
+                          const std::string& trigger,
+                          const std::string& scan_id,
+                          const std::string& content_transfer_method,
+                          const std::string& profile_identifier,
+                          const std::string& profile_username,
+                          const int64_t content_size,
+                          const ReferrerChain& referrer_chain,
+                          EventResult event_result);
 
 chrome::cros::reporting::proto::BrowserCrashEvent GetBrowserCrashEvent(
     const std::string& channel,

@@ -36,6 +36,7 @@
 #include "chrome/browser/chrome_browser_main_extra_parts.h"
 #include "chrome/browser/component_updater/registration.h"
 #include "chrome/browser/enterprise/browser_management/management_service_factory.h"
+#include "chrome/browser/first_run/first_run_features.h"
 #include "chrome/browser/language/url_language_histogram_factory.h"
 #include "chrome/browser/lifetime/browser_shutdown.h"
 #include "chrome/browser/media/router/chrome_media_router_factory.h"
@@ -121,6 +122,7 @@
 #include "rlz/buildflags/buildflags.h"
 #include "services/tracing/public/cpp/stack_sampling/tracing_sampler_profiler.h"
 #include "third_party/blink/public/common/origin_trials/origin_trials_settings_provider.h"
+#include "third_party/perfetto/include/perfetto/tracing/track.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/color/color_provider_manager.h"
 #include "ui/gl/gl_switches.h"
@@ -1592,6 +1594,12 @@ int ChromeBrowserMainParts::PreMainMessageLoopRunImpl() {
     // "BrowserSignin" policy is set to "Force". If so, skip the auto import.
     if (profile) {
       first_run::AutoImport(profile, master_prefs_->import_bookmarks_path);
+
+      if (base::FeatureList::IsEnabled(features::kBookmarksImportOnFirstRun) &&
+          !master_prefs_->import_bookmarks_dict.empty()) {
+        first_run::StartBookmarksImportFromDict(
+            profile, std::move(master_prefs_->import_bookmarks_dict));
+      }
     }
 
     // Note: This can pop-up the first run consent dialog on Linux & Mac.
@@ -1778,8 +1786,8 @@ void ChromeBrowserMainParts::WillRunMainMessageLoop(
   // Trace the entry and exit of this main message loop. We don't use the
   // TRACE_EVENT_BEGIN0 macro because the tracing infrastructure doesn't expect
   // a synchronous event around the main loop of a thread.
-  TRACE_EVENT_NESTABLE_ASYNC_BEGIN0(
-      "toplevel", "ChromeBrowserMainParts::MainMessageLoopRun", this);
+  TRACE_EVENT_BEGIN("toplevel", "ChromeBrowserMainParts::MainMessageLoopRun",
+                    perfetto::Track::FromPointer(this));
 #endif
 }
 
@@ -1803,8 +1811,7 @@ void ChromeBrowserMainParts::OnFirstIdle() {
 }
 
 void ChromeBrowserMainParts::PostMainMessageLoopRun() {
-  TRACE_EVENT_NESTABLE_ASYNC_END0(
-      "toplevel", "ChromeBrowserMainParts::MainMessageLoopRun", this);
+  TRACE_EVENT_END("toplevel", perfetto::Track::FromPointer(this));
   TRACE_EVENT0("startup", "ChromeBrowserMainParts::PostMainMessageLoopRun");
 #if BUILDFLAG(IS_ANDROID)
   // Chrome on Android does not use default MessageLoop. It has its own

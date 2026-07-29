@@ -182,7 +182,9 @@ class CORE_EXPORT ContainerNode : public Node {
 
   void RemoveChildren();
 
-  void CloneChildNodesFrom(const ContainerNode&, NodeCloningData&);
+  void CloneChildNodesFrom(const ContainerNode&,
+                           NodeCloningData&,
+                           CustomElementRegistry*);
 
   using Node::DetachLayoutTree;
   void AttachLayoutTree(AttachContext&) override;
@@ -472,7 +474,7 @@ class CORE_EXPORT ContainerNode : public Node {
   // only.
   String getHTML(const GetHTMLOptions*, ExceptionState&) const;
 
-  WritableStream* patchSelf(ScriptState*);
+  WritableStream* patchSelf(ScriptState*, ExceptionState&);
   WritableStream* patchAfter(ScriptState*, Node* a, ExceptionState&);
   WritableStream* patchBefore(ScriptState*, Node* b, ExceptionState&);
   WritableStream* patchBetween(ScriptState*, Node* a, Node* b, ExceptionState&);

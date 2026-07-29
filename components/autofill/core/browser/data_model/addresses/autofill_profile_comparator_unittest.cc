@@ -23,6 +23,7 @@
 #include "components/autofill/core/browser/test_utils/autofill_test_utils.h"
 #include "components/autofill/core/common/autofill_clock.h"
 #include "components/autofill/core/common/autofill_features.h"
+#include "components/signin/public/identity_manager/account_info.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace autofill {
@@ -341,147 +342,72 @@ TEST_F(AutofillProfileComparatorTest, CompareTokens) {
 
 TEST_F(AutofillProfileComparatorTest, Compare) {
   // Checks the empty case.
-  EXPECT_TRUE(
-      comparator_.Compare(std::u16string(), std::u16string(),
-                          AutofillProfileComparator::WhitespaceSpec::kRetain));
-  EXPECT_TRUE(
-      comparator_.Compare(std::u16string(), std::u16string(),
-                          AutofillProfileComparator::WhitespaceSpec::kDiscard));
+  EXPECT_TRUE(AutofillProfileComparator::Compare(
+      std::u16string(), std::u16string(),
+      normalization::WhitespaceSpec::kRetain));
+  EXPECT_TRUE(AutofillProfileComparator::Compare(
+      std::u16string(), std::u16string(),
+      normalization::WhitespaceSpec::kDiscard));
 
   // Checks that leading punctuation and white space are ignored.
-  EXPECT_TRUE(comparator_.Compare(
-      u".,  -().", u"", AutofillProfileComparator::WhitespaceSpec::kRetain));
-  EXPECT_TRUE(comparator_.Compare(
-      u".,  -().", u"", AutofillProfileComparator::WhitespaceSpec::kDiscard));
+  EXPECT_TRUE(AutofillProfileComparator::Compare(
+      u".,  -().", u"", normalization::WhitespaceSpec::kRetain));
+  EXPECT_TRUE(AutofillProfileComparator::Compare(
+      u".,  -().", u"", normalization::WhitespaceSpec::kDiscard));
 
   // Checks that trailing punctuation and white space are ignored.
-  EXPECT_TRUE(comparator_.Compare(
-      u"a ., ", u"a", AutofillProfileComparator::WhitespaceSpec::kRetain));
-  EXPECT_TRUE(comparator_.Compare(
-      u"a ., ", u"a", AutofillProfileComparator::WhitespaceSpec::kDiscard));
+  EXPECT_TRUE(AutofillProfileComparator::Compare(
+      u"a ., ", u"a", normalization::WhitespaceSpec::kRetain));
+  EXPECT_TRUE(AutofillProfileComparator::Compare(
+      u"a ., ", u"a", normalization::WhitespaceSpec::kDiscard));
 
   // Checks that embedded punctuation and white space is collapsed to a single
   // white space with WhitespaceSpec::kRetain and is ignored with
   // WhitespaceSpec::kDiscard.
-  EXPECT_TRUE(comparator_.Compare(
-      u"a() -  a", u"a a", AutofillProfileComparator::WhitespaceSpec::kRetain));
-  EXPECT_TRUE(comparator_.Compare(
-      u"a() -  a", u"aa", AutofillProfileComparator::WhitespaceSpec::kDiscard));
+  EXPECT_TRUE(AutofillProfileComparator::Compare(
+      u"a() -  a", u"a a", normalization::WhitespaceSpec::kRetain));
+  EXPECT_TRUE(AutofillProfileComparator::Compare(
+      u"a() -  a", u"aa", normalization::WhitespaceSpec::kDiscard));
 
   // Checks that characters such as 'œ' respect the status quo established by
   // NormalizeForComparison.
-  EXPECT_TRUE(comparator_.Compare(u"œil", u"oeil"));
-  EXPECT_TRUE(
-      comparator_.Compare(u"Straße", u"Strasse",
-                          AutofillProfileComparator::WhitespaceSpec::kDiscard));
+  EXPECT_TRUE(AutofillProfileComparator::Compare(u"œil", u"oeil"));
+  EXPECT_TRUE(AutofillProfileComparator::Compare(
+      u"Straße", u"Strasse", normalization::WhitespaceSpec::kDiscard));
 
   // Checks that a substring of the string is not considered equal.
-  EXPECT_FALSE(comparator_.Compare(u"A", u"Anna"));
+  EXPECT_FALSE(AutofillProfileComparator::Compare(u"A", u"Anna"));
 
-  EXPECT_FALSE(comparator_.Compare(u"Anna", u"A"));
+  EXPECT_FALSE(AutofillProfileComparator::Compare(u"Anna", u"A"));
 
   // Checks that Compare behaves like NormalizeForComparison. Also, checks that
   // diacritics are removed.
-  EXPECT_TRUE(
-      comparator_.Compare(u"Timothé", u"timothe",
-                          AutofillProfileComparator::WhitespaceSpec::kRetain));
-  EXPECT_TRUE(
-      comparator_.Compare(u" sven-åke ", u"sven ake",
-                          AutofillProfileComparator::WhitespaceSpec::kRetain));
-  EXPECT_TRUE(comparator_.Compare(
-      u"Ç 㸐", u"c 㸐", AutofillProfileComparator::WhitespaceSpec::kRetain));
-  EXPECT_TRUE(
-      comparator_.Compare(u"902103214", u"90210-3214",
-                          AutofillProfileComparator::WhitespaceSpec::kDiscard));
-  EXPECT_TRUE(comparator_.Compare(
+  EXPECT_TRUE(AutofillProfileComparator::Compare(
+      u"Timothé", u"timothe", normalization::WhitespaceSpec::kRetain));
+  EXPECT_TRUE(AutofillProfileComparator::Compare(
+      u" sven-åke ", u"sven ake", normalization::WhitespaceSpec::kRetain));
+  EXPECT_TRUE(AutofillProfileComparator::Compare(
+      u"Ç 㸐", u"c 㸐", normalization::WhitespaceSpec::kRetain));
+  EXPECT_TRUE(AutofillProfileComparator::Compare(
+      u"902103214", u"90210-3214", normalization::WhitespaceSpec::kDiscard));
+  EXPECT_TRUE(AutofillProfileComparator::Compare(
       u"Timothé-Noël Étienne Périer", u"timothe noel etienne perier",
-      AutofillProfileComparator::WhitespaceSpec::kRetain));
-  EXPECT_TRUE(comparator_.Compare(
+      normalization::WhitespaceSpec::kRetain));
+  EXPECT_TRUE(AutofillProfileComparator::Compare(
       u"1600 Amphitheatre, Pkwy.", u"1600 amphitheatre pkwy",
-      AutofillProfileComparator::WhitespaceSpec::kRetain));
-  EXPECT_TRUE(
-      comparator_.Compare(u"Mid\x2013Island\x2003 Plaza", u"mid island plaza",
-                          AutofillProfileComparator::WhitespaceSpec::kRetain));
-  EXPECT_TRUE(comparator_.Compare(
+      normalization::WhitespaceSpec::kRetain));
+  EXPECT_TRUE(AutofillProfileComparator::Compare(
+      u"Mid\x2013Island\x2003 Plaza", u"mid island plaza",
+      normalization::WhitespaceSpec::kRetain));
+  EXPECT_TRUE(AutofillProfileComparator::Compare(
       u"1600 amphitheatre pkwy \n App. 2", u"1600 amphitheatre pkwy app 2",
-      AutofillProfileComparator::WhitespaceSpec::kRetain));
-  EXPECT_TRUE(
-      comparator_.Compare(u"まéÖä정", u"まeoa정",
-                          AutofillProfileComparator::WhitespaceSpec::kRetain));
-  EXPECT_TRUE(
-      comparator_.Compare(u"유재석", u"유 재석",
-                          AutofillProfileComparator::WhitespaceSpec::kDiscard));
-  EXPECT_TRUE(
-      comparator_.Compare(u"ビルゲイツ", u"ヒル・ケイツ",
-                          AutofillProfileComparator::WhitespaceSpec::kDiscard));
-}
-
-TEST_F(AutofillProfileComparatorTest, NormalizeForComparison) {
-  EXPECT_EQ(u"timothe",
-            AutofillProfileComparator::NormalizeForComparison(u"Timothé"));
-  EXPECT_EQ(u"sven ake",
-            AutofillProfileComparator::NormalizeForComparison(u" sven-åke "));
-  EXPECT_EQ(u"c 㸐",
-            AutofillProfileComparator::NormalizeForComparison(u"Ç 㸐"));
-  EXPECT_EQ(
-      u"902103214",
-      AutofillProfileComparator::NormalizeForComparison(
-          u"90210-3214", AutofillProfileComparator::WhitespaceSpec::kDiscard));
-  EXPECT_EQ(u"timothe noel etienne perier",
-            AutofillProfileComparator::NormalizeForComparison(
-                u"Timothé-Noël Étienne Périer"));
-  EXPECT_EQ(u"strasse",
-            AutofillProfileComparator::NormalizeForComparison(u"Straße"));
-  // NOP.
-  EXPECT_EQ(std::u16string(), AutofillProfileComparator::NormalizeForComparison(
-                                  std::u16string()));
-
-  // Simple punctuation removed.
-  EXPECT_EQ(u"1600 amphitheatre pkwy",
-            AutofillProfileComparator::NormalizeForComparison(
-                u"1600 Amphitheatre, Pkwy."));
-
-  // Unicode punctuation (hyphen and space), multiple spaces collapsed.
-  EXPECT_EQ(u"mid island plaza",
-            AutofillProfileComparator::NormalizeForComparison(
-                u"Mid\x2013Island\x2003 Plaza"));
-
-  // Newline character removed.
-  EXPECT_EQ(u"1600 amphitheatre pkwy app 2",
-            AutofillProfileComparator::NormalizeForComparison(
-                u"1600 amphitheatre pkwy \n App. 2"));
-
-  // Diacritics removed.
-  EXPECT_EQ(u"まeoa정",
-            AutofillProfileComparator::NormalizeForComparison(u"まéÖä정"));
-
-  // Spaces removed.
-  EXPECT_EQ(
-      u"유재석",
-      AutofillProfileComparator::NormalizeForComparison(
-          u"유 재석", AutofillProfileComparator::WhitespaceSpec::kDiscard));
-
-  // Punctuation removed, Japanese kana normalized.
-  EXPECT_EQ(u"ヒルケイツ",
-            AutofillProfileComparator::NormalizeForComparison(
-                u"ビル・ゲイツ",
-                AutofillProfileComparator::WhitespaceSpec::kDiscard));
-}
-
-TEST_F(AutofillProfileComparatorTest,
-       NormalizeForComparisonWithGermanTransliteration) {
-  base::test::ScopedFeatureList features{
-      features::kAutofillEnableGermanTransliteration};
-  EXPECT_EQ(
-      u"haensel str",
-      AutofillProfileComparator::NormalizeForComparison(
-          u"Hänsel Str.", AutofillProfileComparator::WhitespaceSpec::kRetain,
-          AddressCountryCode("DE")));
-  EXPECT_EQ(
-      u"hansel str",
-      AutofillProfileComparator::NormalizeForComparison(
-          u"Hänsel Str.", AutofillProfileComparator::WhitespaceSpec::kRetain,
-          AddressCountryCode("US")));
+      normalization::WhitespaceSpec::kRetain));
+  EXPECT_TRUE(AutofillProfileComparator::Compare(
+      u"まéÖä정", u"まeoa정", normalization::WhitespaceSpec::kRetain));
+  EXPECT_TRUE(AutofillProfileComparator::Compare(
+      u"유재석", u"유 재석", normalization::WhitespaceSpec::kDiscard));
+  EXPECT_TRUE(AutofillProfileComparator::Compare(
+      u"ビルゲイツ", u"ヒル・ケイツ", normalization::WhitespaceSpec::kDiscard));
 }
 
 TEST_F(AutofillProfileComparatorTest, GetNamePartVariants) {
@@ -806,6 +732,8 @@ TEST_F(AutofillProfileComparatorTest, HaveMergeableAddresses) {
   AutofillProfile differentSortingCode =
       CopyAndModify(p1, {{ADDRESS_HOME_SORTING_CODE, u"98000 Monaco"}});
 
+  AutofillProfile name_email_profile{AccountInfo{}};
+
   // A profile with no country uses the legacy address and can be merged with
   // other profiles using the same hierarchy.
   EXPECT_TRUE(comparator_.HaveMergeableAddresses(p1, empty));
@@ -829,6 +757,9 @@ TEST_F(AutofillProfileComparatorTest, HaveMergeableAddresses) {
   EXPECT_FALSE(comparator_.HaveMergeableAddresses(p1, differentAddress));
   EXPECT_FALSE(comparator_.HaveMergeableAddresses(p1, differentLocality));
   EXPECT_FALSE(comparator_.HaveMergeableAddresses(p1, differentSortingCode));
+
+  EXPECT_TRUE(comparator_.HaveMergeableAddresses(name_email_profile, p1));
+  EXPECT_TRUE(comparator_.HaveMergeableAddresses(p1, name_email_profile));
 }
 
 TEST_F(AutofillProfileComparatorTest, AreMergeable) {
@@ -1393,6 +1324,21 @@ TEST_F(AutofillProfileComparatorTest, MergeAddressesWithGermanTransliteration) {
 
   MergeAddressesAndExpect(p1, p2, p2.GetAddress());
   MergeAddressesAndExpect(p2, p1, p2.GetAddress());
+}
+
+TEST_F(AutofillProfileComparatorTest, MergeAddressesOneIsAccountNameEmail) {
+  const AutofillProfile address_profile = CreateProfileWithAddress(
+      "Hänsel-Str 33", "", "München", "", "80636", "DE");
+
+  AccountInfo info;
+  info.full_name = "test name";
+  info.email = "testaccount@domain.net";
+  const AutofillProfile account_name_email_profile{info};
+
+  MergeAddressesAndExpect(address_profile, account_name_email_profile,
+                          address_profile.GetAddress());
+  MergeAddressesAndExpect(account_name_email_profile, address_profile,
+                          address_profile.GetAddress());
 }
 
 TEST_F(AutofillProfileComparatorTest,

@@ -213,6 +213,10 @@ const char kGeminiOAuth2Scope[] = "https://www.googleapis.com/auth/gemini";
 const char kChromeMemexOAuth2Scope[] =
     "https://www.googleapis.com/auth/chromememex";
 
+// OAuth2 scope to access the ChromebookEmailService API.
+const char kChromebookOAuth2Scope[] =
+    "https://www.googleapis.com/auth/chromebook.email";
+
 // OAuth 2 scopes for Google Tasks API.
 const char kTasksReadOnlyOAuth2Scope[] =
     "https://www.googleapis.com/auth/tasks.readonly";
@@ -248,6 +252,10 @@ const char kLensOAuth2Scope[] = "https://www.googleapis.com/auth/lens";
 
 // OAuth2 scope for DevTools GenAI features.
 const char kAidaOAuth2Scope[] = "https://www.googleapis.com/auth/aida";
+
+// OAuth2 scope for Chrome Web Store.
+const char kWebstoreOAuth2Scope[] =
+    "https://www.googleapis.com/auth/chromewebstore.readonly";
 
 // Used to build ClientOAuth requests.  These are the names of keys used when
 // building base::DictionaryValue that represent the json data that makes up

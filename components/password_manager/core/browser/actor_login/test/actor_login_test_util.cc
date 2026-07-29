@@ -30,7 +30,8 @@ FormData CreateSigninFormData(const GURL& url) {
   std::vector<autofill::FormFieldData> fields;
   fields.push_back(CreateTestFormField(
       /*label=*/"Username:", /*name=*/"username",
-      /*value=*/"", autofill::FormControlType::kInputEmail));
+      /*value=*/"", autofill::FormControlType::kInputEmail,
+      /*autocomplete=*/"username"));
   fields.push_back(CreateTestFormField(
       /*label=*/"Password:", /*name=*/"password",
       /*value=*/"", autofill::FormControlType::kInputPassword));
@@ -48,6 +49,33 @@ FormData CreateChangePasswordFormData(const GURL& url) {
       /*value=*/"", autofill::FormControlType::kInputPassword));
   fields.push_back(CreateTestFormField(
       /*label=*/"Confirm new password:", /*name=*/"confirm_password",
+      /*value=*/"", autofill::FormControlType::kInputPassword));
+  form_data.set_renderer_id(autofill::test::MakeFormRendererId());
+  form_data.set_url(url);
+  form_data.set_fields(std::move(fields));
+  return form_data;
+}
+
+// Implementation for a username-only form.
+FormData CreateUsernameOnlyFormData(const GURL& url) {
+  autofill::FormData form_data;
+  std::vector<autofill::FormFieldData> fields;
+  fields.push_back(CreateTestFormField(
+      /*label=*/"Username:", /*name=*/"username",
+      /*value=*/"", autofill::FormControlType::kInputEmail,
+      /*autocomplete=*/"username"));
+  form_data.set_renderer_id(autofill::test::MakeFormRendererId());
+  form_data.set_url(url);
+  form_data.set_fields(std::move(fields));
+  return form_data;
+}
+
+// Implementation for a password-only form.
+FormData CreatePasswordOnlyFormData(const GURL& url) {
+  autofill::FormData form_data;
+  std::vector<autofill::FormFieldData> fields;
+  fields.push_back(CreateTestFormField(
+      /*label=*/"Password:", /*name=*/"password",
       /*value=*/"", autofill::FormControlType::kInputPassword));
   form_data.set_renderer_id(autofill::test::MakeFormRendererId());
   form_data.set_url(url);

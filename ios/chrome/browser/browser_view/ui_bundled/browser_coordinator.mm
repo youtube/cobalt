@@ -28,7 +28,7 @@
 #import "components/infobars/core/infobar_manager.h"
 #import "components/password_manager/core/browser/ui/credential_ui_entry.h"
 #import "components/password_manager/core/common/password_manager_features.h"
-#import "components/plus_addresses/features.h"
+#import "components/plus_addresses/core/common/features.h"
 #import "components/prefs/pref_service.h"
 #import "components/profile_metrics/browser_profile_type.h"
 #import "components/safe_browsing/core/common/features.h"
@@ -740,6 +740,7 @@ enum class ToolbarKind {
   _readerModeCoordinator = [[ReaderModeCoordinator alloc]
       initWithBaseViewController:self.browserContainerCoordinator.viewController
                          browser:self.browser];
+  [_readerModeCoordinator setOverscrollDelegate:self];
   [_readerModeCoordinator startAnimated:animated];
 }
 
@@ -2291,7 +2292,7 @@ enum class ToolbarKind {
       feature_engagement::TrackerFactory::GetForProfile(profile);
   engagementTracker->NotifyEvent(
       feature_engagement::events::kTriggeredTranslateInfobar);
-  web::WebState* activeWebState = self.activeWebState;
+  web::WebState* activeWebState = self.activeWebStateOrReaderMode;
   DCHECK(activeWebState);
 
   ChromeIOSTranslateClient* translateClient =

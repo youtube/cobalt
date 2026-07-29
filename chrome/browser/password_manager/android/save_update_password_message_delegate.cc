@@ -8,7 +8,6 @@
 #include <optional>
 #include <utility>
 
-#include "base/android/build_info.h"
 #include "base/check.h"
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
@@ -128,7 +127,7 @@ void SaveUpdatePasswordMessageDelegate::DisplaySaveUpdatePasswordPromptInternal(
   account_email_ = GetAccountForMessageDescription(account_info);
 
   CreateMessage(update_password);
-  RecordMessageShownMetrics();
+  RecordMessageShownMetrics(update_password);
   password_manager::metrics_util::LogFormSubmissionsVsSavePromptsHistogram(
       password_manager::metrics_util::SaveFlowStep::kSavePromptShown);
   messages::MessageDispatcherBridge::Get()->EnqueueMessage(
@@ -452,11 +451,15 @@ void SaveUpdatePasswordMessageDelegate::ClearState() {
   web_contents_ = nullptr;
 }
 
-void SaveUpdatePasswordMessageDelegate::RecordMessageShownMetrics() {
+void SaveUpdatePasswordMessageDelegate::RecordMessageShownMetrics(
+    bool update_password) {
   if (auto* recorder = passwords_state_.form_manager()->GetMetricsRecorder()) {
     recorder->RecordPasswordBubbleShown(
         passwords_state_.form_manager()->GetCredentialSource(),
-        password_manager::metrics_util::AUTOMATIC_WITH_PASSWORD_PENDING);
+        update_password
+            ? password_manager::metrics_util::
+                  AUTOMATIC_WITH_PASSWORD_PENDING_UPDATE
+            : password_manager::metrics_util::AUTOMATIC_WITH_PASSWORD_PENDING);
   }
 }
 

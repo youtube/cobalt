@@ -27,6 +27,7 @@
 #import "components/autofill/ios/browser/autofill_driver_ios.h"
 #import "components/autofill/ios/browser/autofill_java_script_feature.h"
 #import "components/autofill/ios/browser/credit_card_save_manager_test_observer_bridge.h"
+#import "components/autofill/ios/browser/credit_card_util.h"
 #import "components/autofill/ios/browser/ios_test_event_waiter.h"
 #import "components/autofill/ios/common/features.h"
 #import "components/keyed_service/core/service_access_type.h"
@@ -500,11 +501,40 @@ static std::unique_ptr<ScopedAutofillPaymentReauthModuleOverride>
   return base::SysUTF16ToNSString(card.NetworkAndLastFourDigits());
 }
 
++ (NSString*)saveLocalCreditCardWithCvc {
+  autofill::PersonalDataManager* personalDataManager =
+      [self personalDataManager];
+  autofill::CreditCard card =
+      autofill::test::WithCvc(autofill::test::GetCreditCard());
+  size_t card_count =
+      personalDataManager->payments_data_manager().GetCreditCards().size();
+  personalDataManager->payments_data_manager().AddCreditCard(card);
+  ConditionBlock conditionBlock = ^bool {
+    return card_count <
+           personalDataManager->payments_data_manager().GetCreditCards().size();
+  };
+  CHECK(base::test::ios::WaitUntilConditionOrTimeout(
+      base::test::ios::kWaitForFileOperationTimeout, conditionBlock));
+  personalDataManager->NotifyPersonalDataObserver();
+  return base::SysUTF16ToNSString(card.NetworkAndLastFourDigits());
+}
+
 + (NSInteger)localCreditCount {
   return [self personalDataManager]
       ->payments_data_manager()
       .GetCreditCards()
       .size();
+}
+
++ (NSString*)firstLocalCreditCardCvc {
+  autofill::PaymentsDataManager& paymentsDataManager =
+      [self personalDataManager]->payments_data_manager();
+  const std::vector<const autofill::CreditCard*>& cards =
+      paymentsDataManager.GetLocalCreditCards();
+  if (cards.empty()) {
+    return nil;
+  }
+  return autofill::GetCreditCardCvcString(*cards[0]);
 }
 
 + (NSString*)saveMaskedCreditCard {

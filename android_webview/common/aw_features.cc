@@ -69,12 +69,6 @@ BASE_FEATURE(kWebViewLazyFetchHandWritingIcon,
              "WebViewLazyFetchHandWritingIcon",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
-// Enable the WebView Media Integrity API as a Blink extension.
-// This feature requires `kWebViewMediaIntegrityApi` to be disabled.
-BASE_FEATURE(kWebViewMediaIntegrityApiBlinkExtension,
-             "WebViewMediaIntegrityApiBlinkExtension",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 // When enabled, passive mixed content (Audio/Video/Image subresources loaded
 // over HTTP on HTTPS sites) will be autoupgraded to HTTPS, and the load will be
 // blocked if the resource fails to load over HTTPS. This only affects apps that
@@ -145,11 +139,6 @@ const base::FeatureParam<int> kWebViewXRequestedWithHeaderMode{
 BASE_FEATURE(kWebViewInvokeZoomPickerOnGSU,
              "WebViewInvokeZoomPickerOnGSU",
              base::FEATURE_DISABLED_BY_DEFAULT);
-
-// Whether to use WebView's own Context for resource related lookups.
-BASE_FEATURE(kWebViewSeparateResourceContext,
-             "WebViewSeparateResourceContext",
-             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Whether to skip shouldInterceptRequest and other checks for prefetch
 // requests.
@@ -336,6 +325,19 @@ BASE_FEATURE(kAndroidMetricsAsyncMetricLogging,
 // Service bind and connection calls.
 BASE_FEATURE(kWebViewUseBackgroundThreadForGms,
              "WebViewUseBackgroundThreadForGms",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Reduce when the app's copy of the finch seed expires. This makes WebView more
+// aggressive in requesting a new copy of its finch seed.
+BASE_FEATURE(kWebViewReducedSeedExpiration,
+             "WebViewReducedSeedExpiration",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// This flag reduces the minimum amount of time before WebView can request a new
+// seed. This, in conjunction with kWebViewReducedSeedExpiration, should mean
+// more up-to-date copies of finch seeds.
+BASE_FEATURE(kWebViewReducedSeedRequestPeriod,
+             "WebViewReducedSeedRequestPeriod",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 }  // namespace android_webview::features

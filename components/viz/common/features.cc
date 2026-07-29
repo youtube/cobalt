@@ -24,7 +24,7 @@
 #include "ui/gl/gl_switches.h"
 
 #if BUILDFLAG(IS_ANDROID)
-#include "base/android/build_info.h"
+#include "base/android/device_info.h"
 #endif
 
 #if BUILDFLAG(IS_WIN)
@@ -55,6 +55,14 @@ BASE_FEATURE(kAndroidBrowserControlsInViz,
 BASE_FEATURE(kAndroidBcivBottomControls,
              "AndroidBcivBottomControls",
              base::FEATURE_ENABLED_BY_DEFAULT);
+
+// If this flag is enabled, a DumpWithoutCrashing() is captured when a bad
+// state is detected when moving the composited UI. For example, this could
+// mean scrolling without a resource, or OffsetTagValues trying to position
+// the UI outside of their valid constraints.
+BASE_FEATURE(kAndroidDumpForBadCompositedUiState,
+             "AndroidDumpForBadCompositedUiState",
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 #endif  // BUILDFLAG(IS_ANDROID)
 
@@ -480,7 +488,7 @@ bool ShouldWebRtcLogCapturePipeline() {
 #if BUILDFLAG(IS_ANDROID)
 bool UseWebViewNewInvalidateHeuristic() {
   // For Android TVs we bundle this with WebViewSurfaceControlForTV.
-  if (base::android::BuildInfo::GetInstance()->is_tv()) {
+  if (base::android::device_info::is_tv()) {
     return base::FeatureList::IsEnabled(kWebViewSurfaceControlForTV);
   }
 

@@ -2579,54 +2579,6 @@ TEST_F(DisplayManagerTest, RotateExternalDisplayWithNonNativeMode) {
   EXPECT_EQ(display::Display::ROTATE_90, external_info.GetActiveRotation());
 }
 
-TEST_F(DisplayManagerTest, UpdateMouseCursorAfterRotateZoom) {
-  // Make sure just rotating will not change native location.
-  UpdateDisplay("300x200,200x150");
-  aura::Window::Windows root_windows = Shell::GetAllRootWindows();
-  aura::Env* env = aura::Env::GetInstance();
-
-  ui::test::EventGenerator generator1(root_windows[0]);
-  ui::test::EventGenerator generator2(root_windows[1]);
-
-  // Test on 1st display.
-  generator1.MoveMouseToInHost(150, 50);
-  EXPECT_EQ(gfx::Point(150, 50), env->last_mouse_location());
-  UpdateDisplay("300x200/r,200x150");
-  EXPECT_EQ(gfx::Point(50, 150), env->last_mouse_location());
-
-  // Test on 2nd display.
-  generator2.MoveMouseToInHost(50, 100);
-  EXPECT_EQ(gfx::Point(250, 100), env->last_mouse_location());
-  UpdateDisplay("300x200/r,200x150/l");
-  EXPECT_EQ(gfx::Point(250, 50), env->last_mouse_location());
-
-  // The native location is now outside, so move to the center
-  // of closest display.
-  UpdateDisplay("300x200/r,100x50/l");
-  EXPECT_EQ(gfx::Point(225, 50), env->last_mouse_location());
-
-  // Make sure just zooming will not change native location.
-  UpdateDisplay("600x400*2,400x300");
-
-  // Test on 1st display.
-  generator1.MoveMouseToInHost(200, 300);
-  EXPECT_EQ(gfx::Point(100, 150), env->last_mouse_location());
-  UpdateDisplay("600x400*2@1.5,400x300");
-  EXPECT_EQ(gfx::Point(66, 100), env->last_mouse_location());
-
-  // Test on 2nd display.
-  UpdateDisplay("600x400,400x300*2");
-  generator2.MoveMouseToInHost(200, 250);
-  EXPECT_EQ(gfx::Point(700, 125), env->last_mouse_location());
-  UpdateDisplay("600x400,400x300*2@1.5");
-  EXPECT_EQ(gfx::Point(666, 84), env->last_mouse_location());
-
-  // The native location is now outside, so move to the
-  // center of closest display.
-  UpdateDisplay("600x400,400x200*2@1.5");
-  EXPECT_EQ(gfx::Point(665, 66), env->last_mouse_location());
-}
-
 class TestDisplayObserver : public display::DisplayObserver {
  public:
   TestDisplayObserver() = default;
@@ -5624,6 +5576,49 @@ TEST_F(DisplayManagerTest, ExternalDisplayCount) {
   display_manager()->OnNativeDisplaysChanged(
       vector<display::ManagedDisplayInfo>{external_info_1, external_info_2});
   EXPECT_EQ(2u, display_manager()->GetNumExternalDisplays());
+}
+
+TEST_F(DisplayManagerTest, MirrorUsePrimaryAsSourceDisplay) {
+  const int64_t internal_display_id =
+      display::test::DisplayManagerTestApi(display_manager())
+          .SetFirstDisplayAsInternalDisplay();
+  const auto internal_info =
+      display_manager()->GetDisplayInfo(internal_display_id);
+  constexpr int64_t external_id = 210000010;
+
+  const auto external_info =
+      display::ManagedDisplayInfo::CreateFromSpecWithID("400x300", external_id);
+
+  std::vector<display::ManagedDisplayInfo> display_info_list;
+  display_info_list.push_back(internal_info);
+  display_info_list.push_back(external_info);
+  display_manager()->OnNativeDisplaysChanged(display_info_list);
+  EXPECT_EQ(2U, display_manager()->GetNumDisplays());
+  EXPECT_FALSE(display_manager()->IsInMirrorMode());
+
+  // Enter mirror mode
+  SetSoftwareMirrorMode(true);
+
+  // Confirm in mirroring and internal is used as source.
+  EXPECT_TRUE(display_manager()->IsInMirrorMode());
+  EXPECT_EQ(1u, display_manager()->GetNumDisplays());
+  EXPECT_EQ(internal_display_id, display_manager()->mirroring_source_id());
+
+  // Exit Mirror Mode
+  SetSoftwareMirrorMode(false);
+  EXPECT_FALSE(display_manager()->IsInMirrorMode());
+  EXPECT_EQ(2u, display_manager()->GetNumDisplays());
+
+  // Change primary display
+  Shell::Get()->window_tree_host_manager()->SetPrimaryDisplayId(external_id);
+
+  // Enter mirror mode
+  SetSoftwareMirrorMode(true);
+
+  // Confirm in mirroring and internal is used as source.
+  EXPECT_TRUE(display_manager()->IsInMirrorMode());
+  EXPECT_EQ(1u, display_manager()->GetNumDisplays());
+  EXPECT_EQ(external_id, display_manager()->mirroring_source_id());
 }
 
 }  // namespace ash

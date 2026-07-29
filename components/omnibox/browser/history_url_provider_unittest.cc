@@ -2,11 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
-#pragma allow_unsafe_buffers
-#endif
-
 #include "components/omnibox/browser/history_url_provider.h"
 
 #include <stddef.h>
@@ -18,6 +13,7 @@
 #include <utility>
 #include <vector>
 
+#include "base/compiler_specific.h"
 #include "base/containers/span.h"
 #include "base/run_loop.h"
 #include "base/strings/string_util.h"
@@ -1073,7 +1069,7 @@ TEST_F(HistoryURLProviderTest, SuggestExactInput) {
     // Expected Outputs:
     const char* contents;
     // Offsets of the ACMatchClassifications, terminated by npos.
-    size_t offsets[3];
+    std::array<size_t, 3> offsets;
     // The index of the ACMatchClassification that should have the MATCH bit
     // set, npos if no ACMatchClassification should have the MATCH bit set.
     size_t match_classification_index;
@@ -1147,15 +1143,16 @@ TEST_F(HistoryURLProviderTest, SuggestExactInput) {
     EXPECT_EQ(ASCIIToUTF16(test_cases[i].contents), match.contents);
     for (size_t match_index = 0; match_index < match.contents_class.size();
          ++match_index) {
-      EXPECT_EQ(test_cases[i].offsets[match_index],
-                match.contents_class[match_index].offset);
+      UNSAFE_TODO(EXPECT_EQ(test_cases[i].offsets[match_index],
+                            match.contents_class[match_index].offset));
       EXPECT_EQ(ACMatchClassification::URL |
                     (match_index == test_cases[i].match_classification_index
                          ? ACMatchClassification::MATCH
                          : 0),
                 match.contents_class[match_index].style);
     }
-    EXPECT_EQ(npos, test_cases[i].offsets[match.contents_class.size()]);
+    UNSAFE_TODO(
+        EXPECT_EQ(npos, test_cases[i].offsets[match.contents_class.size()]));
   }
 }
 
@@ -1203,53 +1200,55 @@ TEST_F(HistoryURLProviderTest, HUPScoringExperiment) {
       int control_relevance;
       int experiment_relevance;
     };
-    ExpectedMatch matches[kProviderMaxMatches];
+    std::array<ExpectedMatch, kProviderMaxMatches> matches;
   };
   auto test_cases = std::to_array<TestCase>({
       // Max score 2000 -> no demotion.
       {"7.com/1",
        max_2000_no_time_decay,
-       {{"7.com/1a", 1413, 1413}, {nullptr, 0, 0}, {nullptr, 0, 0}}},
+       {{{"7.com/1a", 1413, 1413}, {nullptr, 0, 0}, {nullptr, 0, 0}}}},
 
       // Limit score to 1250/1000 and make sure that the top match is unchanged.
       {"7.com/1",
        max_1250_no_time_decay,
-       {{"7.com/1a", 1413, 1413}, {nullptr, 0, 0}, {nullptr, 0, 0}}},
+       {{{"7.com/1a", 1413, 1413}, {nullptr, 0, 0}, {nullptr, 0, 0}}}},
       {"7.com/2",
        max_1250_no_time_decay,
-       {{"7.com/2a", 1413, 1413}, {"7.com/2b", 1412, 1250}, {nullptr, 0, 0}}},
+       {{{"7.com/2a", 1413, 1413}, {"7.com/2b", 1412, 1250}, {nullptr, 0, 0}}}},
       {"7.com/4",
        max_1000_no_time_decay,
-       {{"7.com/4", 1203, 1203},
-        {"7.com/4a", 1202, 1000},
-        {"7.com/4b", 1201, 999}}},
+       {{{"7.com/4", 1203, 1203},
+         {"7.com/4a", 1202, 1000},
+         {"7.com/4b", 1201, 999}}}},
 
       // Max relevance cap is 1400 and half-life is 16 days.
       {"7.com/1",
        max_1100_with_time_decay_and_max_cap,
-       {{"7.com/1a", 1413, 1413}, {nullptr, 0, 0}, {nullptr, 0, 0}}},
+       {{{"7.com/1a", 1413, 1413}, {nullptr, 0, 0}, {nullptr, 0, 0}}}},
       {"7.com/4",
        max_1100_with_time_decay_and_max_cap,
-       {{"7.com/4", 1203, 1203},
-        {"7.com/4a", 1202, 200},
-        {"7.com/4b", 1201, 100}}},
+       {{{"7.com/4", 1203, 1203},
+         {"7.com/4a", 1202, 200},
+         {"7.com/4b", 1201, 100}}}},
 
       // Max relevance cap is 1400 and half-life is 16 days for both
       // visit/typed.
       {"7.com/5",
        max_1100_visit_typed_decays,
-       {{"7.com/5", 1203, 1203}, {"7.com/5a", 1202, 50}, {nullptr, 0, 0}}},
+       {{{"7.com/5", 1203, 1203}, {"7.com/5a", 1202, 50}, {nullptr, 0, 0}}}},
   });
   for (size_t i = 0; i < std::size(test_cases); ++i) {
     SCOPED_TRACE(test_cases[i].input);
     std::array<UrlAndLegalDefault, kProviderMaxMatches> output;
     size_t max_matches;
     for (max_matches = 0; max_matches < kProviderMaxMatches; ++max_matches) {
-      if (test_cases[i].matches[max_matches].url == nullptr)
+      if (UNSAFE_TODO(test_cases[i].matches[max_matches]).url == nullptr) {
         break;
+      }
       output[max_matches].url =
-          url_formatter::FixupURL(test_cases[i].matches[max_matches].url,
-                                  std::string())
+          url_formatter::FixupURL(
+              UNSAFE_TODO(test_cases[i].matches[max_matches]).url,
+              std::string())
               .spec();
       output[max_matches].allowed_to_be_default_match = true;
     }
@@ -1260,8 +1259,8 @@ TEST_F(HistoryURLProviderTest, HUPScoringExperiment) {
                                     std::string(), false,
                                     base::span(output).first(max_matches)));
     for (size_t j = 0; j < max_matches; ++j) {
-      EXPECT_EQ(test_cases[i].matches[j].experiment_relevance,
-                matches_[j].relevance);
+      UNSAFE_TODO(EXPECT_EQ(test_cases[i].matches[j].experiment_relevance,
+                            matches_[j].relevance));
     }
   }
 }

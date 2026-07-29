@@ -35,6 +35,7 @@ BASE_DECLARE_FEATURE(kAutocompleteActionPredictorConfidenceCutoff);
 BASE_DECLARE_FEATURE(kBookmarksTreeView);
 BASE_DECLARE_FEATURE(kBookmarkTriggerForPrerender2KillSwitch);
 BASE_DECLARE_FEATURE(kBookmarkTriggerForPreconnect);
+BASE_DECLARE_FEATURE(kBookmarkTriggerForPrefetch);
 BASE_DECLARE_FEATURE(kCertificateTransparencyAskBeforeEnabling);
 BASE_DECLARE_FEATURE(kCertVerificationNetworkTime);
 BASE_DECLARE_FEATURE(kClearUserDataUponProfileDestruction);
@@ -47,10 +48,6 @@ BASE_DECLARE_FEATURE(kUseFreedesktopSecretKeyProvider);
 BASE_DECLARE_FEATURE(kDestroyProfileOnBrowserClose);
 BASE_DECLARE_FEATURE(kDestroySystemProfiles);
 
-#if BUILDFLAG(IS_CHROMEOS)
-BASE_DECLARE_FEATURE(kDoubleTapToZoomInTabletMode);
-#endif
-
 BASE_DECLARE_FEATURE(kFlexOrgManagementDisclosure);
 BASE_DECLARE_FEATURE(kIncomingCallNotifications);
 
@@ -60,6 +57,7 @@ BASE_DECLARE_FEATURE(kMuteNotificationSnoozeAction);
 
 BASE_DECLARE_FEATURE(kNetworkAnnotationMonitoring);
 BASE_DECLARE_FEATURE(kNewTabPageTriggerForPrerender2);
+BASE_DECLARE_FEATURE(kNewTabPageTriggerForPrefetch);
 const base::FeatureParam<int>
     kNewTabPagePreconnectStartDelayOnMouseHoverByMiliSeconds{
         &features::kNewTabPageTriggerForPrerender2,

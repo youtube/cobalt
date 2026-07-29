@@ -28,8 +28,61 @@
 #include "content/public/test/test_navigation_observer.h"
 #include "net/dns/mock_host_resolver.h"
 #include "ui/display/display_switches.h"
+#include "ui/gfx/geometry/rect_f.h"
 
 namespace actor {
+
+actor_login::Credential MakeTestCredential(
+    const std::u16string& username,
+    const GURL& url,
+    bool immediately_available_to_login) {
+  actor_login::Credential credential;
+  credential.username = username;
+  // TODO(crbug.com/427171031): Clarify the format.
+  credential.source_site_or_app =
+      base::UTF8ToUTF16(url.GetWithEmptyPath().spec());
+  credential.type = actor_login::CredentialType::kPassword;
+  credential.immediatelyAvailableToLogin = immediately_available_to_login;
+  return credential;
+}
+
+MockActorLoginService::MockActorLoginService() = default;
+
+MockActorLoginService::~MockActorLoginService() = default;
+
+void MockActorLoginService::GetCredentials(
+    tabs::TabInterface* tab,
+    actor_login::CredentialsOrErrorReply callback) {
+  std::move(callback).Run(credentials_);
+}
+
+void MockActorLoginService::AttemptLogin(
+    tabs::TabInterface* tab,
+    const actor_login::Credential& credential,
+    actor_login::LoginStatusResultOrErrorReply callback) {
+  last_credential_used_ = credential;
+  std::move(callback).Run(login_status_);
+}
+
+void MockActorLoginService::SetCredentials(
+    const actor_login::CredentialsOrError& credentials) {
+  credentials_ = credentials;
+}
+
+void MockActorLoginService::SetCredential(
+    const actor_login::Credential& credential) {
+  SetCredentials(std::vector{credential});
+}
+
+void MockActorLoginService::SetLoginStatus(
+    actor_login::LoginStatusResultOrError login_status) {
+  login_status_ = login_status;
+}
+
+const actor_login::Credential& MockActorLoginService::last_credential_used()
+    const {
+  return last_credential_used_;
+}
 
 ActorToolsTest::ActorToolsTest() {
   scoped_feature_list_.InitWithFeatures(
@@ -43,8 +96,6 @@ ActorToolsTest::~ActorToolsTest() = default;
 void ActorToolsTest::SetUpOnMainThread() {
   InProcessBrowserTest::SetUpOnMainThread();
   host_resolver()->AddRule("*", "127.0.0.1");
-  ASSERT_TRUE(embedded_test_server()->Start());
-  ASSERT_TRUE(embedded_https_test_server().Start());
   auto execution_engine = CreateExecutionEngine(browser()->profile());
   auto event_dispatcher = ui::NewUiEventDispatcher(
       ActorKeyedService::Get(browser()->profile())->GetActorUiStateManager());
@@ -112,6 +163,36 @@ ActorTask& ActorToolsTest::actor_task() const {
 std::unique_ptr<ExecutionEngine> ActorToolsTest::CreateExecutionEngine(
     Profile* profile) {
   return std::make_unique<ExecutionEngine>(profile);
+}
+
+gfx::RectF GetBoundingClientRect(content::RenderFrameHost& rfh,
+                                 std::string_view query) {
+  double width =
+      content::EvalJs(
+          &rfh, content::JsReplace(
+                    "document.querySelector($1).getBoundingClientRect().width",
+                    query))
+          .ExtractDouble();
+  double height =
+      content::EvalJs(
+          &rfh, content::JsReplace(
+                    "document.querySelector($1).getBoundingClientRect().height",
+                    query))
+          .ExtractDouble();
+  double x =
+      content::EvalJs(
+          &rfh,
+          content::JsReplace(
+              "document.querySelector($1).getBoundingClientRect().x", query))
+          .ExtractDouble();
+  double y =
+      content::EvalJs(
+          &rfh,
+          content::JsReplace(
+              "document.querySelector($1).getBoundingClientRect().y", query))
+          .ExtractDouble();
+
+  return gfx::RectF(x, y, width, height);
 }
 
 }  // namespace actor

@@ -345,7 +345,6 @@
 #include "third_party/blink/renderer/core/svg_element_factory.h"
 #include "third_party/blink/renderer/core/svg_names.h"
 #include "third_party/blink/renderer/core/timing/render_blocking_metrics_reporter.h"
-#include "third_party/blink/renderer/core/timing/soft_navigation_heuristics.h"
 #include "third_party/blink/renderer/core/trustedtypes/trusted_html.h"
 #include "third_party/blink/renderer/core/view_transition/page_reveal_event.h"
 #include "third_party/blink/renderer/core/view_transition/view_transition_supplement.h"
@@ -1089,7 +1088,14 @@ Document::Document(const DocumentInit& initializer,
       features::kDelayAsyncScriptExecutionDelayByDefaultParam.Get()) {
     script_runner_delayer_->Activate();
   }
-
+  if (is_prerendering_ &&
+      GetPage()->ShouldPauseJavaScriptExecutionOnPrerender()) {
+    DCHECK(RuntimeEnabledFeatures::PrerenderUntilScriptEnabled());
+    prerender_script_runner_delayer_ =
+        MakeGarbageCollected<ScriptRunnerDelayer>(
+            script_runner_, ScriptRunner::DelayReason::kPausedForPrerender);
+    prerender_script_runner_delayer_->Activate();
+  }
   if (LocalFrame* frame = GetFrame()) {
     DCHECK(frame->GetPage());
     fetcher_ = FrameFetchContext::CreateFetcherForCommittedDocument(
@@ -1428,7 +1434,7 @@ std::pair<CustomElementRegistry*, AtomicString> FlattenCreateElementOptions(
         is = AtomicString(options->is());
       // 3-3. If registry is non-null and is is non-null, then throw a
       // "notSupportedError" DOMException.
-      if (registry != nullptr && !is.IsNull()) {
+      if (registry && !is.IsNull()) {
         exception_state.ThrowDOMException(
             DOMExceptionCode::kNotSupportedError,
             "The custom element registry and is option can't be set at the "
@@ -1436,8 +1442,7 @@ std::pair<CustomElementRegistry*, AtomicString> FlattenCreateElementOptions(
       }
       // 4. If registry is null then set registry to the result of looking up a
       // custom element registry given document.
-      if (RuntimeEnabledFeatures::ScopedCustomElementRegistryEnabled() &&
-          !registry) {
+      if (!registry) {
         registry = document->customElementRegistry();
       }
       break;
@@ -1560,7 +1565,6 @@ Element* Document::createElementNS(
   // 3. Let element be the result of creating an element.
   Element* element = CreateElement(
       q_name, CreateElementFlags::ByCreateElement(), is, registry);
-
   return element;
 }
 
@@ -1571,14 +1575,18 @@ Element* Document::CreateElement(const QualifiedName& q_name,
                                  const AtomicString& is,
                                  CustomElementRegistry* registry) {
   CustomElementDefinition* definition = nullptr;
+  // 2. If registry is "default", set registry to the result of looking
+  // up a custom element registry given document.
+  // Note that this step is currently only applicable to scenario when
+  // scoped registry is disabled as a valid registry should be assigned for
+  // default cases while flattening options. We could overload
+  // Document::CreateElement without registry argument and assign
+  // default value in implementation if the use case is ever needed.
+  if (!RuntimeEnabledFeatures::ScopedCustomElementRegistryEnabled()) {
+    registry = customElementRegistry();
+  }
   if (flags.IsCustomElements() &&
       q_name.NamespaceURI() == html_names::xhtmlNamespaceURI) {
-    // 2. If registry is "default", set registry to the result of looking up
-    // a custom element registry given document.
-    if (!RuntimeEnabledFeatures::ScopedCustomElementRegistryEnabled() ||
-        !registry) {
-      registry = customElementRegistry();
-    }
     // 3. Let definition be the result of looking up a custom element definition
     // given registry, namespace, localName and is.
     const CustomElementDescriptor desc(is.IsNull() ? q_name.LocalName() : is,
@@ -1588,8 +1596,9 @@ Element* Document::CreateElement(const QualifiedName& q_name,
     }
   }
 
-  if (definition)
+  if (definition) {
     return definition->CreateElement(*this, q_name, flags, registry);
+  }
 
   return CustomElement::CreateUncustomizedOrUndefinedElement(
       *this, q_name, flags, is, registry);
@@ -1679,9 +1688,24 @@ Node* Document::importNode(Node* imported_node,
     subtree = !options->selfOnly();
   }
 
+  // 5-2. If options["customElementRegistry"] exists, then set registry to it.
   CustomElementRegistry* registry = nullptr;
   if (options->hasCustomElementRegistry()) {
+    CHECK(RuntimeEnabledFeatures::ScopedCustomElementRegistryEnabled());
     registry = options->customElementRegistry();
+    // 5-3. If registry's is scoped is false and registry is not this's custom
+    // element registry, then throw a "notSupportedError" DOMException.
+    if (registry->IsGlobalRegistry() && registry != customElementRegistry()) {
+      exception_state.ThrowDOMException(
+          DOMExceptionCode::kNotSupportedError,
+          "The registry provided is a global registry from another document.");
+      return nullptr;
+    }
+  }
+  // 6. If registry is null, then set registry to the result of looking up a
+  // custom element registry given this
+  if (!registry) {
+    registry = customElementRegistry();
   }
 
   return importNode(imported_node, subtree, registry, exception_state);
@@ -1716,14 +1740,16 @@ Node* Document::importNode(Node* imported_node,
     return nullptr;
   }
 
-  // 2. Return a clone of node, with context object, the clone children flag set
   // if deep is true, and the clone shadows flag set if this is a
   // DocumentFragment whose host is an HTML template element.
   NodeCloningData data;
   if (deep) {
     data.Put(CloneOption::kIncludeDescendants);
   }
-  return imported_node->Clone(*this, data, /*append_to*/ nullptr);
+
+  // 7. Return the result of cloning a node given node with document set to
+  // this, subtree set to subtree, and fallbackRegistry set to registry.
+  return imported_node->Clone(*this, data, /*append_to*/ nullptr, registry);
 }
 
 Node* Document::adoptNode(Node* source, ExceptionState& exception_state) {
@@ -2262,17 +2288,6 @@ String Document::visibilityStateAsString() const {
 
 bool Document::prerendering() const {
   return IsPrerendering();
-}
-uint32_t Document::softNavigations() const {
-  LocalDOMWindow* window = domWindow();
-  if (!window) {
-    return 0;
-  }
-  if (SoftNavigationHeuristics* heuristics =
-          window->GetSoftNavigationHeuristics()) {
-    return heuristics->SoftNavigationCount();
-  }
-  return 0;
 }
 
 bool Document::hidden() const {
@@ -5473,6 +5488,7 @@ bool Document::CanAcceptChild(const Node* new_child,
 Node* Document::Clone(Document& factory,
                       NodeCloningData& data,
                       ContainerNode* append_to,
+                      CustomElementRegistry* fallback_registry,
                       ExceptionState& append_exception_state) const {
   DCHECK_EQ(this, &factory)
       << "Document::Clone() doesn't support importNode mode.";
@@ -5491,8 +5507,15 @@ Node* Document::Clone(Document& factory,
     data.PushPartRoot(*part_root);
     PartRoot::CloneParts(*this, *clone, data);
   }
+  if (RuntimeEnabledFeatures::ScopedCustomElementRegistryEnabled()) {
+    // 2. If node's custom element registry's is scoped is true, then
+    // set copy's custom element registry to node's custom element registry.
+    if (fallback_registry && !fallback_registry->IsGlobalRegistry()) {
+      clone->SetCustomElementRegistry(fallback_registry);
+    }
+  }
   if (data.Has(CloneOption::kIncludeDescendants)) {
-    clone->CloneChildNodesFrom(*this, data);
+    clone->CloneChildNodesFrom(*this, data, fallback_registry);
   }
   DCHECK(!part_root || &data.CurrentPartRoot() == part_root);
   return clone;
@@ -9340,6 +9363,7 @@ void Document::Trace(Visitor* visitor) const {
   visitor->Trace(current_script_stack_);
   visitor->Trace(script_runner_);
   visitor->Trace(script_runner_delayer_);
+  visitor->Trace(prerender_script_runner_delayer_);
   visitor->Trace(lists_invalidated_at_document_);
   visitor->Trace(node_lists_);
   visitor->Trace(top_layer_elements_);
@@ -9704,7 +9728,11 @@ void Document::ActivateForPrerendering(
   if (DocumentLoader* loader = Loader()) {
     loader->NotifyPrerenderingDocumentActivated(params);
   }
-
+  // TODO(https://crbug.com/42850021): Consider deactivating it later, because
+  // async scripts may not be critical for LCP.
+  if (prerender_script_runner_delayer_) {
+    prerender_script_runner_delayer_->Deactivate();
+  }
   Vector<base::OnceClosure> callbacks;
   callbacks.swap(will_dispatch_prerenderingchange_callbacks_);
   for (auto& callback : callbacks) {

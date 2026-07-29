@@ -2,11 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
-#pragma allow_unsafe_buffers
-#endif
-
 #include "components/omnibox/browser/autocomplete_result.h"
 
 #include <stddef.h>
@@ -18,6 +13,7 @@
 #include <string>
 #include <vector>
 
+#include "base/compiler_specific.h"
 #include "base/containers/span.h"
 #include "base/memory/raw_ptr.h"
 #include "base/metrics/field_trial.h"
@@ -90,11 +86,11 @@ void PopulateAutocompleteMatchesFromTestData(const T* data,
   ASSERT_TRUE(matches != nullptr);
   for (size_t i = 0; i < count; ++i) {
     AutocompleteMatch match;
-    match.destination_url = GURL(data[i].destination_url);
+    match.destination_url = GURL(UNSAFE_TODO(data[i]).destination_url);
     match.relevance =
         matches->empty() ? 1300 : (matches->back().relevance - 100);
     match.allowed_to_be_default_match = true;
-    match.type = data[i].type;
+    match.type = UNSAFE_TODO(data[i]).type;
     matches->push_back(match);
   }
 }
@@ -349,7 +345,7 @@ void AutocompleteResultTest::RunTransferOldMatchesTest(
       /*is_lens_active=*/false, /*can_show_contextual_suggestions=*/false,
       /*mia_enabled*/ false);
 
-  AssertResultMatches(current_result, {expected, expected_size});
+  AssertResultMatches(current_result, UNSAFE_TODO({expected, expected_size}));
 }
 
 void AutocompleteResultTest::SortMatchesAndVerifyOrder(
@@ -368,8 +364,9 @@ void AutocompleteResultTest::SortMatchesAndVerifyOrder(
                      /*mia_enabled*/ false);
 
   std::vector<std::string> expected;
-  std::ranges::transform(expected_order, std::back_inserter(expected),
-                         [&](size_t i) { return data[i].destination_url; });
+  std::ranges::transform(
+      expected_order, std::back_inserter(expected),
+      [&](size_t i) { return UNSAFE_TODO(data[i]).destination_url; });
   std::vector<std::string> actual;
   std::ranges::transform(
       result, std::back_inserter(actual),
@@ -2990,7 +2987,8 @@ TEST_F(AutocompleteResultTest, Desktop_ZpsGroupingIPH) {
     SCOPED_TRACE("Query from omnibox - without IPH");
     // Remove the IPH suggestion from the list of matches.
     matches.clear();
-    PopulateAutocompleteMatches({data, std::size(data) - 1}, &matches);
+    PopulateAutocompleteMatches(UNSAFE_TODO({data, std::size(data) - 1}),
+                                &matches);
 
     AutocompleteResult result;
     result.MergeSuggestionGroupsMap(suggestion_groups_map);
@@ -3682,14 +3680,150 @@ TEST_F(AutocompleteResultTest, AttachAimAction) {
   EXPECT_TRUE(result.match_at(0)->actions.empty());
   EXPECT_TRUE(result.match_at(1)->actions.empty());
 
-  result.AttachAimAction(&template_url_service());
+  FakeAutocompleteProviderClient client;
+  MockAimEligibilityService* mock_aim_eligibility_service =
+      static_cast<MockAimEligibilityService*>(client.GetAimEligibilityService());
+  EXPECT_CALL(*mock_aim_eligibility_service, IsServerEligibilityEnabled())
+      .WillRepeatedly(testing::Return(true));
+  EXPECT_CALL(*mock_aim_eligibility_service, IsAimLocallyEligible())
+      .WillRepeatedly(testing::Return(true));
+  EXPECT_CALL(*mock_aim_eligibility_service, IsAimEligible())
+      .WillRepeatedly(testing::Return(true));
+  result.AttachAimAction(&template_url_service(), &client);
 
-  EXPECT_EQ(1U, result.match_at(0)->actions.size());
-  const auto* action_in_suggest =
-      OmniboxActionInSuggest::FromAction(result.match_at(0)->actions[0].get());
-  ASSERT_TRUE(action_in_suggest);
-  EXPECT_EQ(action_in_suggest->template_action.action_type(),
-            omnibox::SuggestTemplateInfo_TemplateAction_ActionType_CHROME_AIM);
-  EXPECT_TRUE(result.match_at(1)->actions.empty());
+  ui::DeviceFormFactor factor = ui::GetDeviceFormFactor();
+  if (factor == ui::DEVICE_FORM_FACTOR_PHONE ||
+      factor == ui::DEVICE_FORM_FACTOR_FOLDABLE) {
+    ASSERT_EQ(1U, result.match_at(0)->actions.size());
+    const auto* action_in_suggest = OmniboxActionInSuggest::FromAction(
+        result.match_at(0)->actions[0].get());
+    ASSERT_TRUE(action_in_suggest);
+    EXPECT_EQ(
+        action_in_suggest->template_action.action_type(),
+        omnibox::SuggestTemplateInfo_TemplateAction_ActionType_CHROME_AIM);
+    EXPECT_TRUE(result.match_at(1)->actions.empty());
+  } else {
+    ASSERT_EQ(0U, result.match_at(0)->actions.size());
+  }
+}
+
+TEST_F(AutocompleteResultTest, AttachAimAction_AimNotEligible) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(omnibox::kOmniboxAimShortcutTypedState);
+
+  TestData data[] = {
+      {0, 1, 1300, true, {}, AutocompleteMatchType::SEARCH_SUGGEST},
+      {1, 1, 1200, false, {}, AutocompleteMatchType::SEARCH_SUGGEST},
+  };
+
+  ACMatches matches;
+  PopulateAutocompleteMatches(data, &matches);
+  matches[0].contents = u"eligible for aim action";
+
+  AutocompleteInput input(u"eligible for aim action",
+                          metrics::OmniboxEventProto::OTHER,
+                          TestSchemeClassifier());
+  AutocompleteResult result;
+  result.AppendMatches(matches);
+  result.SortAndCull(input, &template_url_service(),
+                     triggered_feature_service(), /*is_lens_active=*/false,
+                     /*can_show_contextual_suggestions=*/false,
+                     /*mia_enabled*/ false);
+
+  FakeAutocompleteProviderClient client;
+  MockAimEligibilityService* mock_aim_eligibility_service =
+      static_cast<MockAimEligibilityService*>(client.GetAimEligibilityService());
+  EXPECT_CALL(*mock_aim_eligibility_service, IsServerEligibilityEnabled())
+      .WillRepeatedly(testing::Return(true));
+  EXPECT_CALL(*mock_aim_eligibility_service, IsAimLocallyEligible())
+      .WillRepeatedly(testing::Return(true));
+  EXPECT_CALL(*mock_aim_eligibility_service, IsAimEligible())
+      .WillRepeatedly(testing::Return(false));
+  result.AttachAimAction(&template_url_service(), &client);
+
+  ASSERT_EQ(0U, result.match_at(0)->actions.size());
+}
+
+TEST_F(AutocompleteResultTest, AttachAimAction_AimNotLocallyEligible) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(omnibox::kOmniboxAimShortcutTypedState);
+
+  TestData data[] = {
+      {0, 1, 1300, true, {}, AutocompleteMatchType::SEARCH_SUGGEST},
+      {1, 1, 1200, false, {}, AutocompleteMatchType::SEARCH_SUGGEST},
+  };
+
+  ACMatches matches;
+  PopulateAutocompleteMatches(data, &matches);
+  matches[0].contents = u"eligible for aim action";
+
+  AutocompleteInput input(u"eligible for aim action",
+                          metrics::OmniboxEventProto::OTHER,
+                          TestSchemeClassifier());
+  AutocompleteResult result;
+  result.AppendMatches(matches);
+  result.SortAndCull(input, &template_url_service(),
+                     triggered_feature_service(), /*is_lens_active=*/false,
+                     /*can_show_contextual_suggestions=*/false,
+                     /*mia_enabled*/ false);
+
+  FakeAutocompleteProviderClient client;
+  MockAimEligibilityService* mock_aim_eligibility_service =
+      static_cast<MockAimEligibilityService*>(client.GetAimEligibilityService());
+  EXPECT_CALL(*mock_aim_eligibility_service, IsServerEligibilityEnabled())
+      .WillRepeatedly(testing::Return(false));
+  EXPECT_CALL(*mock_aim_eligibility_service, IsAimLocallyEligible())
+      .WillRepeatedly(testing::Return(false));
+  EXPECT_CALL(*mock_aim_eligibility_service, IsAimEligible())
+      .WillRepeatedly(testing::Return(true));
+  result.AttachAimAction(&template_url_service(), &client);
+
+  ASSERT_EQ(0U, result.match_at(0)->actions.size());
 }
 #endif  // BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
+
+TEST_F(AutocompleteResultTest, AttachContextualSearchOpenLensActionToMatches) {
+  AutocompleteResult result;
+  ACMatches matches;
+
+  // Match 1: Contextual search suggestion with Lens action.
+  AutocompleteMatch match1;
+  match1.subtypes.insert(omnibox::SuggestSubtype::SUBTYPE_CONTEXTUAL_SEARCH);
+  match1.suggest_template = omnibox::SuggestTemplateInfo();
+  auto* action1 = match1.suggest_template->add_action_suggestions();
+  action1->set_action_type(
+      omnibox::SuggestTemplateInfo_TemplateAction_ActionType_CHROME_LENS);
+  matches.push_back(match1);
+
+  // Match 2: Contextual search suggestion without Lens action.
+  AutocompleteMatch match2;
+  match2.subtypes.insert(omnibox::SuggestSubtype::SUBTYPE_CONTEXTUAL_SEARCH);
+  matches.push_back(match2);
+
+  // Match 3: Non-contextual search suggestion with Lens action.
+  AutocompleteMatch match3;
+  match3.suggest_template = omnibox::SuggestTemplateInfo();
+  auto* action3 = match3.suggest_template->add_action_suggestions();
+  action3->set_action_type(
+      omnibox::SuggestTemplateInfo_TemplateAction_ActionType_CHROME_LENS);
+  matches.push_back(match3);
+
+  // Match 4: Non-contextual search suggestion without Lens action.
+  AutocompleteMatch match4;
+  matches.push_back(match4);
+
+  result.AppendMatches(matches);
+  result.AttachContextualSearchOpenLensActionToMatches();
+
+  ASSERT_EQ(4u, result.size());
+
+  // Match 1 should have the takeover action.
+  EXPECT_TRUE(result.match_at(0)->takeover_action);
+  EXPECT_EQ(result.match_at(0)->takeover_action->ActionId(),
+            OmniboxActionId::CONTEXTUAL_SEARCH_OPEN_LENS);
+
+  // Others should not.
+  EXPECT_FALSE(result.match_at(1)->takeover_action);
+  EXPECT_FALSE(result.match_at(2)->takeover_action);
+  EXPECT_FALSE(result.match_at(3)->takeover_action);
+}

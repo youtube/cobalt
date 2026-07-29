@@ -3443,10 +3443,9 @@ bool AXObjectCacheImpl::CommitAXUpdates(Document& document, bool force) {
         document.GetTaskRunner(blink::TaskType::kInternalDefault)
             ->PostDelayedTask(
                 FROM_HERE,
-                WTF::BindOnce(
-                    &AXObjectCacheImpl::ScheduleAXUpdate,
-                    WrapPersistent(weak_factory_for_serialization_pipeline_
-                                       .GetWeakCell())),
+                BindOnce(&AXObjectCacheImpl::ScheduleAXUpdate,
+                         WrapPersistent(weak_factory_for_serialization_pipeline_
+                                            .GetWeakCell())),
                 delay_until_next_serialization);
       }
       return false;
@@ -4037,8 +4036,7 @@ void AXObjectCacheImpl::FireTreeUpdatedEventForAXID(
   base::AutoReset<ax::mojom::blink::Action> event_from_action_resetter(
       &active_event_from_action_, tree_update->event_from_action);
   ScopedBlinkAXEventIntent defered_event_intents(
-      WTF::ToVector(tree_update->event_intents.Values()),
-      ax_object->GetDocument());
+      ToVector(tree_update->event_intents.Values()), ax_object->GetDocument());
 
   // Kept here for convenient debugging:
   // LOG(ERROR) << tree_update->ToString() << " on " << ax_object;
@@ -4103,7 +4101,7 @@ void AXObjectCacheImpl::FireTreeUpdatedEventForNode(
   base::AutoReset<ax::mojom::blink::Action> event_from_action_resetter(
       &active_event_from_action_, tree_update->event_from_action);
   ScopedBlinkAXEventIntent defered_event_intents(
-      WTF::ToVector(tree_update->event_intents.Values()), &node->GetDocument());
+      ToVector(tree_update->event_intents.Values()), &node->GetDocument());
 
   // Kept here for convenient debugging:
   // LOG(ERROR) << tree_update->ToString() << " on " << ax_object;
@@ -4299,14 +4297,14 @@ void AXObjectCacheImpl::ListboxActiveIndexChanged(HTMLSelectElement* select) {
 
 void AXObjectCacheImpl::SetMenuListOptionsBounds(
     HTMLSelectElement* select,
-    const WTF::Vector<gfx::Rect>& options_bounds) {
+    const Vector<gfx::Rect>& options_bounds) {
   CHECK(select->PopupIsVisible());
   CHECK_EQ(select->GetDocument(), GetDocument());
   options_bounds_ = options_bounds;
   current_menu_list_axid_ = select->GetDomNodeId();
 }
 
-const WTF::Vector<gfx::Rect>* AXObjectCacheImpl::GetOptionsBounds(
+const Vector<gfx::Rect>* AXObjectCacheImpl::GetOptionsBounds(
     const AXObject& ax_menu_list) const {
   if (RuntimeEnabledFeatures::CustomizableSelectEnabled()) {
     // Customizable select does not render in a special popup document and does
@@ -5585,7 +5583,7 @@ void AXObjectCacheImpl::MarkElementDirty(const Node* element) {
   MarkAXObjectDirty(Get(element));
 }
 
-WTF::Vector<TextChangedOperation>*
+Vector<TextChangedOperation>*
 AXObjectCacheImpl::GetFromTextOperationInNodeIdMap(AXID id) {
   auto it = text_operation_in_node_ids_.find(id);
   if (it != text_operation_in_node_ids_.end()) {
@@ -5812,7 +5810,7 @@ void AXObjectCacheImpl::SerializeLocationChanges() {
       document.GetTaskRunner(blink::TaskType::kInternalDefault)
           ->PostDelayedTask(
               FROM_HERE,
-              WTF::BindOnce(
+              BindOnce(
                   &AXObjectCacheImpl::ScheduleAXUpdate,
                   WrapPersistent(
                       weak_factory_for_loc_updates_pipeline_.GetWeakCell())),
@@ -6251,7 +6249,7 @@ void AXObjectCacheImpl::HandleDeletionOrInsertionInTextField(
                                              start_obj->AXObjectID(),
                                              end_obj->AXObjectID(), op));
   } else {
-    WTF::Vector<TextChangedOperation> info{
+    Vector<TextChangedOperation> info{
         TextChangedOperation(start_offset, end_offset, start_obj->AXObjectID(),
                              end_obj->AXObjectID(), op)};
     text_operation_in_node_ids_.Set(text_field_obj->AXObjectID(), info);
@@ -6747,27 +6745,27 @@ void AXObjectCacheImpl::ComputeNodesOnLine(const LayoutObject* layout_object) {
     return;
   }
 
+  // Maximum number of attempts to try to find a next object on the line. Used
+  // to
+  // detect unlikely (but theoretically possible), loops.
+  constexpr int kMaxInlineCursorNextObjectCalls = 250000;
+  int runs = 0;
+
   do {
     InlineCursor line_cursor = cursor;
+    runs++;
+
+    if (runs >= kMaxInlineCursorNextObjectCalls) [[unlikely]] {
+      break;
+    }
 
     // Moves to first LayoutObject that a11y cares about.
     line_cursor.MoveToNextInlineLeaf();
 
-    // Maximum number of attempts to try to find a next object on the line. Used
-    // to
-    // detect unlikely (but theoretically possible), loops.
-    constexpr int kMaxInlineCursorNextObjectCalls = 250000;
-    int runs = 0;
     while (line_cursor) {
       runs++;
 
       if (runs >= kMaxInlineCursorNextObjectCalls) [[unlikely]] {
-        // TODO(crbug.com/378761505): Move DUMP_WILL_BE_NOTREACHED() to CHECK().
-        DUMP_WILL_BE_NOTREACHED()
-            << "Did not find an end to the processing of next / previous on "
-               "line candidates for "
-            << layout_object << "(" << Get(layout_object) << ") after " << runs
-            << " runs.";
         break;
       }
       auto* line_object = line_cursor.Current().GetLayoutObject();
@@ -6780,15 +6778,6 @@ void AXObjectCacheImpl::ComputeNodesOnLine(const LayoutObject* layout_object) {
           line_cursor ? line_cursor.Current().GetLayoutObject() : nullptr;
 
       if (line_object == next_line_object) [[unlikely]] {
-        // TODO(crbug.com/378761505): Move DUMP_WILL_BE_NOTREACHED() to
-        // CHECK().
-        DUMP_WILL_BE_NOTREACHED()
-            << "InlineCursor says it moved to the next inline leaf object "
-               "for a different LayyoutObject, but returned value is the "
-               "same as previous inline leaf."
-            << "same object was: " << line_object << "(" << Get(line_object)
-            << ") while processing " << layout_object << " after " << runs
-            << " runs.";
         break;
       }
       if (next_line_object) {

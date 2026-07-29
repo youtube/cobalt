@@ -16,16 +16,12 @@
 #include "chrome/browser/ui/tabs/contents_observing_tab_feature.h"
 #include "chrome/browser/vr/vr_tab_helper.h"
 #include "components/tabs/public/tab_interface.h"
+#include "ui/base/unowned_user_data/scoped_unowned_user_data.h"
 
 namespace content {
 enum class WebContentsCapabilityType;
 class WebContents;
 }  // namespace content
-
-namespace glic {
-class FocusedTabData;
-class GlicKeyedService;
-}  // namespace glic
 
 namespace tabs {
 class TabInterface;
@@ -44,12 +40,14 @@ class TabAlertController : public tabs::ContentsObservingTabFeature,
                            public vr::VrTabHelper::Observer {
  public:
   explicit TabAlertController(TabInterface& tab);
-
-  TabAlertController(TabInterface& tab,
-                     glic::GlicKeyedService* glic_keyed_service);
   TabAlertController(const TabAlertController&) = delete;
   TabAlertController& operator=(const TabAlertController&) = delete;
   ~TabAlertController() override;
+
+  DECLARE_USER_DATA(TabAlertController);
+
+  static const TabAlertController* From(const TabInterface* tab);
+  static TabAlertController* From(TabInterface* tab);
 
   using AlertToShowChangedCallback =
       base::RepeatingCallback<void(std::optional<TabAlert>)>;
@@ -59,7 +57,7 @@ class TabAlertController : public tabs::ContentsObservingTabFeature,
   std::optional<TabAlert> GetAlertToShow() const;
   // Gets all active tab alerts that is sorted from highest priority
   // to lowest priority to be shown.
-  std::vector<TabAlert> GetAllActiveAlerts();
+  std::vector<TabAlert> GetAllActiveAlerts() const;
 
   // Returns true if `alert` is currently active for this tab and false
   // otherwise.
@@ -92,11 +90,8 @@ class TabAlertController : public tabs::ContentsObservingTabFeature,
 
  private:
 #if BUILDFLAG(ENABLE_GLIC)
-  void OnGlicContextAccessIndicatorStatusChanged(bool is_accessing);
-  void OnGlicSharingFocusedTabChanged(
-      const glic::FocusedTabData& focused_tab_data);
-  void OnGlicTabPinningChanged(tabs::TabInterface* tab_interface,
-                               bool is_sharing);
+  void OnGlicSharingStateChange(bool is_sharing);
+  void OnGlicAccessingStateChange(bool is_accessing);
 #endif  // BUILDFLAG(ENABLE_GLIC)
 
   void OnActorTabIndicatorStateChanged(bool is_accessing);
@@ -129,6 +124,8 @@ class TabAlertController : public tabs::ContentsObservingTabFeature,
   // Subscriptions to be notified when an alert status has changed.
   base::CallbackListSubscription recently_audible_subscription_;
   std::vector<base::CallbackListSubscription> callback_subscriptions_;
+
+  ui::ScopedUnownedUserData<TabAlertController> scoped_unowned_user_data_;
 };
 }  // namespace tabs
 

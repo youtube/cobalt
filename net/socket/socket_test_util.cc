@@ -60,7 +60,7 @@
 #include "third_party/abseil-cpp/absl/strings/ascii.h"
 
 #if BUILDFLAG(IS_ANDROID)
-#include "base/android/build_info.h"
+#include "base/android/android_info.h"
 #endif
 
 #define NET_TRACE(level, s) VLOG(level) << s << __FUNCTION__ << "() "
@@ -958,6 +958,9 @@ std::unique_ptr<SSLClientSocket> MockClientSocketFactory::CreateSSLClientSocket(
   if (next_ssl_data->expected_trust_anchor_ids) {
     EXPECT_EQ(*next_ssl_data->expected_trust_anchor_ids,
               ssl_config.trust_anchor_ids);
+  }
+  if (next_ssl_data->expect_no_trust_anchor_ids) {
+    EXPECT_EQ(std::nullopt, ssl_config.trust_anchor_ids);
   }
   return std::make_unique<MockSSLClientSocket>(
       std::move(stream_socket), host_and_port, ssl_config, next_ssl_data);
@@ -2327,8 +2330,8 @@ bool CanGetTaggedBytes() {
   // statistics for local traffic, only mobile and WiFi traffic, so it would not
   // work in tests that spin up a local server. So for now, GetTaggedBytes is
   // only supported on Android releases older than P.
-  return base::android::BuildInfo::GetInstance()->sdk_int() <
-         base::android::SDK_VERSION_P;
+  return base::android::android_info::sdk_int() <
+         base::android::android_info::SDK_VERSION_P;
 }
 
 uint64_t GetTaggedBytes(int32_t expected_tag) {

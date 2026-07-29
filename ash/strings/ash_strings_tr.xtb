@@ -911,7 +911,7 @@ Cihazınızı güç kaynağına bağlayın.</translation>
 <translation id="4021716437419160885">Aşağı kaydır</translation>
 <translation id="4022497978915111141">Cihazı kilitleyin</translation>
 <translation id="4024840464866786680">PIN'inizi ve şifrenizi unuttuysanız ya da Google Hesabınızın şifresini yakın zamanda değiştirdiyseniz bu kullanıcıyı kurtarmayı deneyin.</translation>
-<translation id="4026843240379844265">Etkin pencereyi ekranlar arasında taşıma</translation>
+<translation id="4026843240379844265">Etkin pencereyi ekranlar arasında taşı</translation>
 <translation id="4028481283645788203">Daha fazla güvenlik için şifre gerekiyor</translation>
 <translation id="4032485810211612751"><ph name="HOURS" />:<ph name="MINUTES" />:<ph name="SECONDS" /></translation>
 <translation id="4032988577476260673"><ph name="LAUNCHER_KEY_NAME" /> + sol ok</translation>
@@ -1370,6 +1370,7 @@ Bağlı cihaz yok.</translation>
 <translation id="5429993543155113935">Gizli pencereler şu anda desteklenmiyor</translation>
 <translation id="5431318178759467895">Renk</translation>
 <translation id="5433020815079095860">Ses girişi</translation>
+<translation id="543584294741034249">En çok <ph name="DISPLAY_LIMIT" /> harici ekran bağlayabilirsiniz.</translation>
 <translation id="544691375626129091">Mevcut tüm kullanıcılar zaten bu oturuma eklenmiş.</translation>
 <translation id="54609108002486618">Yönetilen</translation>
 <translation id="5460938382730614333">İşaretçi açık.</translation>

@@ -16,7 +16,6 @@
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
 #include "base/time/time.h"
-#include "net/base/host_mapping_rules.h"
 #include "net/base/host_port_pair.h"
 #include "net/base/load_flags.h"
 #include "net/base/network_anonymization_key.h"
@@ -54,7 +53,6 @@ const char kAlternativeServiceHeader[] = "Alt-Svc";
 // static
 SpdySessionKey HttpStreamFactory::GetSpdySessionKey(
     const ProxyChain& proxy_chain,
-    const GURL& origin_url,
     const StreamRequestInfo& request_info) {
   // In the case that we'll be sending a GET request to the proxy, look for an
   // HTTP/2 proxy session *to* the proxy, instead of to the origin server. The
@@ -63,7 +61,7 @@ SpdySessionKey HttpStreamFactory::GetSpdySessionKey(
   // SpdySession pool, and uses it directly (completely ignoring the result of
   // the ConnectJob, and in fact cancelling it). So we need to create the same
   // key used by the HttpProxyConnectJob for the last proxy in the chain.
-  if (IsGetToProxy(proxy_chain, origin_url)) {
+  if (IsGetToProxy(proxy_chain, request_info.url)) {
     // For this to work as expected, the whole chain should be HTTPS.
     for (const auto& proxy_server : proxy_chain.proxy_servers()) {
       CHECK(proxy_server.is_https());
@@ -81,8 +79,8 @@ SpdySessionKey HttpStreamFactory::GetSpdySessionKey(
         /*disable_cert_network_fetches=*/true);
   }
   return SpdySessionKey(
-      HostPortPair::FromURL(origin_url), request_info.privacy_mode, proxy_chain,
-      SessionUsage::kDestination, request_info.socket_tag,
+      HostPortPair::FromURL(request_info.url), request_info.privacy_mode,
+      proxy_chain, SessionUsage::kDestination, request_info.socket_tag,
       request_info.network_anonymization_key, request_info.secure_dns_policy,
       request_info.load_flags & LOAD_DISABLE_CERT_NETWORK_FETCHES);
 }
@@ -100,7 +98,8 @@ HttpStreamFactory::StreamRequestInfo::StreamRequestInfo() = default;
 
 HttpStreamFactory::StreamRequestInfo::StreamRequestInfo(
     const HttpRequestInfo& http_request_info)
-    : method(http_request_info.method),
+    : url(http_request_info.url),
+      method(http_request_info.method),
       network_anonymization_key(http_request_info.network_anonymization_key),
       traffic_annotation(http_request_info.traffic_annotation),
       is_http1_allowed(!http_request_info.upload_data_stream ||
@@ -147,21 +146,11 @@ void HttpStreamFactory::ProcessAlternativeServices(
   }
 
   session->http_server_properties()->SetAlternativeServices(
-      RewriteHost(http_server), network_anonymization_key,
+      http_server, network_anonymization_key,
       net::ProcessAlternativeServices(
           alternative_service_vector, session->params().enable_http2,
           session->params().enable_quic,
           session->context().quic_context->params()->supported_versions));
-}
-
-url::SchemeHostPort HttpStreamFactory::RewriteHost(
-    const url::SchemeHostPort& server) {
-  HostPortPair host_port_pair(server.host(), server.port());
-  const HostMappingRules* mapping_rules = GetHostMappingRules();
-  if (mapping_rules)
-    mapping_rules->RewriteHost(&host_port_pair);
-  return url::SchemeHostPort(server.scheme(), host_port_pair.host(),
-                             host_port_pair.port());
 }
 
 std::unique_ptr<HttpStreamRequest> HttpStreamFactory::RequestStream(
@@ -270,10 +259,6 @@ void HttpStreamFactory::PreconnectStreams(int num_streams,
   JobController* job_controller_raw_ptr = job_controller.get();
   job_controller_set_.insert(std::move(job_controller));
   job_controller_raw_ptr->Preconnect(num_streams);
-}
-
-const HostMappingRules* HttpStreamFactory::GetHostMappingRules() const {
-  return &session_->params().host_mapping_rules;
 }
 
 void HttpStreamFactory::OnJobControllerComplete(JobController* controller) {

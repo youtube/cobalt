@@ -11,14 +11,12 @@
 // Used to enable development tools for the AIM prototype.
 BASE_DECLARE_FEATURE(kAimPrototypeDevTools);
 
-// The delay in milliseconds to simulate loading the full image.
-extern const base::FeatureParam<int> kImageLoadDelayMs;
-
-// The delay in milliseconds to simulate the upload time.
-extern const base::FeatureParam<int> kUploadDelayMs;
-
-// If true, the upload will be forced to fail.
-extern const base::FeatureParam<bool> kForceUploadFailure;
+// Parameter of `kAimPrototypeDevTools` to delay image loading.
+extern const char kImageLoadDelayMsParam[];
+// Parameter of `kAimPrototypeDevTools` to delay image upload.
+extern const char kUploadDelayMsParam[];
+// Parameter of `kAimPrototypeDevTools` to force image upload failure.
+extern const char kForceUploadFailureParam[];
 
 // Returns the configured image load delay.
 base::TimeDelta GetImageLoadDelay();

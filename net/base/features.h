@@ -341,6 +341,8 @@ NET_EXPORT BASE_DECLARE_FEATURE(kEnableGetNetworkConnectivityHintAPI);
 // Whether or not to enable TCP port randomization via SO_RANDOMIZE_PORT on
 // Windows for versions >= kTcpPortRandomizationWinVersionMinimum.
 // See crbug.com/40744069 for more details.
+// This was launched in M141, but the finch flag was kept around in case it
+// ever causes issues (as some may take time to detect due to rarity).
 NET_EXPORT BASE_DECLARE_FEATURE(kTcpPortRandomizationWin);
 NET_EXPORT BASE_DECLARE_FEATURE_PARAM(int,
                                       kTcpPortRandomizationWinVersionMinimum);
@@ -839,15 +841,6 @@ NET_EXPORT BASE_DECLARE_FEATURE(kSelfSignedLocalNetworkInterstitial);
 // If enabled, server certificates that successfully verify and that identify
 // as QWACs will be verified against the 1-QWAC specification as well.
 NET_EXPORT BASE_DECLARE_FEATURE(kVerifyQWACs);
-#endif
-
-#if BUILDFLAG(IS_MAC)
-// If enabled, includes deprecated APIs for looking up client certificates on
-// macOS. This is disabled by default and is available as an emergency kill
-// switch.
-// TODO(crbug.com/40233280): This will reach stable in M137 (May 2025). Remove
-// this flag sometime after August 2025.
-NET_EXPORT BASE_DECLARE_FEATURE(kIncludeDeprecatedClientCertLookup);
 #endif
 
 // Finch-controlled list of ports that should be blocked due to ongoing abuse.

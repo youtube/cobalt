@@ -41,7 +41,6 @@ import org.chromium.components.browser_ui.edge_to_edge.EdgeToEdgeManager;
 import org.chromium.components.browser_ui.edge_to_edge.EdgeToEdgeManager.BackupNavbarInsetsCallSite;
 import org.chromium.components.browser_ui.edge_to_edge.EdgeToEdgePadAdjuster;
 import org.chromium.components.browser_ui.edge_to_edge.EdgeToEdgeStateProvider;
-import org.chromium.content_public.browser.Page;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.content_public.browser.WebContentsObserver;
 import org.chromium.ui.base.WindowAndroid;
@@ -158,7 +157,6 @@ public class EdgeToEdgeControllerImpl
     private @Nullable WebContentsObserver mWebContentsObserver;
 
     private boolean mIsBottomChinEnabled;
-    private final EdgeToEdgeUtils.EdgeToEdgeDebuggingInfo mEdgeToEdgeDebuggingInfo;
 
     /**
      * Whether the system is drawing "toEdge" (i.e. the edge-to-edge wrapper has no bottom padding).
@@ -214,14 +212,12 @@ public class EdgeToEdgeControllerImpl
             EdgeToEdgeManager edgeToEdgeManager,
             BrowserControlsStateProvider browserControlsStateProvider,
             ObservableSupplier<LayoutManager> layoutManagerSupplier,
-            FullscreenManager fullscreenManager,
-            EdgeToEdgeUtils.EdgeToEdgeDebuggingInfo edgeToEdgeDebuggingInfo) {
+            FullscreenManager fullscreenManager) {
         mActivity = activity;
         mWindowAndroid = windowAndroid;
         mEdgeToEdgeManager = edgeToEdgeManager;
         mPxToDp = 1.f / mActivity.getResources().getDisplayMetrics().density;
         mDisablePaddingRootView = EdgeToEdgeUtils.isEdgeToEdgeEverywhereEnabled();
-        mEdgeToEdgeDebuggingInfo = edgeToEdgeDebuggingInfo;
 
         mEdgeToEdgeOsWrapper =
                 edgeToEdgeOsWrapper == null && !mDisablePaddingRootView
@@ -450,18 +446,6 @@ public class EdgeToEdgeControllerImpl
                         for (var observer : mEdgeChangeObservers) {
                             observer.onSafeAreaConstraintChanged(mHasSafeAreaConstraint);
                         }
-                    }
-
-                    @Override
-                    public void firstContentfulPaintInPrimaryMainFrame(Page page) {
-                        if (mEdgeToEdgeDebuggingInfo.isUsed()) return;
-                        mEdgeToEdgeDebuggingInfo.addToDebugReport(
-                                "EdgeToEdgeController->firstContentfulPaintInPrimaryMainFrame",
-                                true,
-                                isSupportedByConfiguration(mActivity, mInsetObserver),
-                                mActivity.getWindow(),
-                                mWindowAndroid);
-                        mEdgeToEdgeDebuggingInfo.uploadReport();
                     }
                 };
     }
@@ -785,7 +769,12 @@ public class EdgeToEdgeControllerImpl
         // when Chrome does not draw into the system bar region. See https://crbug.com/359659885.
         boolean hasBottomSafeArea =
                 (mIsDrawingToEdge && !mFullscreenManager.getPersistentFullscreenMode());
-        int bottomInsetOnSafeArea = hasBottomSafeArea ? mSystemInsets.bottom : 0;
+
+        // When the content view is padded (e.g. when keyboard is showing), we should not count the
+        // padding as part of the bottom safe area.
+        int safeAreaInsets = Math.max(mSystemInsets.bottom - mAppliedContentViewPadding.bottom, 0);
+
+        int bottomInsetOnSafeArea = hasBottomSafeArea ? safeAreaInsets : 0;
         mInsetObserver.updateBottomInsetForEdgeToEdge(bottomInsetOnSafeArea);
     }
 

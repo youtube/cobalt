@@ -71,7 +71,9 @@ _CONFIG = [
             'base::as_writable_chars',
             'base::AutoReset',
             'base::bit_cast',
+            'base::ByteCount',
             'base::byte_span(_with_nul)?_from_cstring',
+            'base::ByteCount',
             'base::CheckedContiguousIterator',
             'base::ConditionVariable',
             'base::Contains',
@@ -88,6 +90,7 @@ _CONFIG = [
             'base::FunctionRef',
             'base::GetUniqueIdForProcess',
             'base::GetSystemMemoryInfo',
+            'base::GiB',
             'base::HashingLRUCache',
             'base::HashInts',
             'base::HashMetricName',
@@ -100,6 +103,7 @@ _CONFIG = [
             'base::i18n::ToUCharPtr',
             'base::JobDelegate',
             'base::JobHandle',
+            'base::KiB',
             'base::kInvalidThreadId',
             'base::Location',
             'base::MakeRefCounted',
@@ -107,6 +111,7 @@ _CONFIG = [
             'base::MatchPattern',
             'base::MessagePump',
             'base::MetricsSubSampler',
+            'base::MiB',
             'base::Microseconds',
             'base::Milliseconds',
             'base::Minutes',
@@ -1341,6 +1346,10 @@ _CONFIG = [
             # types are generally allowed for interop with non-Blink code, as
             # containers like WTF::Vector are not exposed outside Blink.
             'std::.+',
+
+            # Blink code shouldn't need to be qualified with the Blink namespace,
+            # but there are exceptions, e.g. ambiguous BindRepeating.
+            'blink::BindRepeating',
         ],
     },
     {
@@ -1448,6 +1457,7 @@ _CONFIG = [
         'paths': ['third_party/blink/renderer/core/style/computed_style.h'],
         'allowed': [
             'css_longhand::.+',
+            'css_shorthand::.+',
         ],
     },
     {
@@ -1818,6 +1828,14 @@ _CONFIG = [
         ],
         'inclass_allowed': [
             'base::(SingleThread|Sequenced)TaskRunner::(CurrentDefaultHandle|GetCurrentDefault)'
+        ]
+    },
+    {
+        'paths': [
+            'third_party/blink/renderer/modules/mediasource/',
+        ],
+        'allowed': [
+            'media::.+',
         ]
     },
     {

@@ -123,6 +123,16 @@ class DumpAccessibilityTestBase
     return EventTestPassesExcept<ui::AXApiType::kWinUIA>();
   }
 
+  // We currently don't support dumping blink events. However, the event tests
+  // have optional support for dumping the accessibility tree before and after
+  // each go() pass. Those tree dumps are also supported for blink, providing
+  // a means to test changes to the internal tree in response to events.
+  static ApiTypeVector EventTestPassesWithBlink() {
+    ApiTypeVector passes = EventTestPasses();
+    passes.push_back(ui::AXApiType::kBlink);
+    return passes;
+  }
+
  protected:
   void SetUpCommandLine(base::CommandLine* command_line) override;
   void SetUpOnMainThread() override;
@@ -139,8 +149,9 @@ class DumpAccessibilityTestBase
   // as a sequence of strings.
   virtual std::vector<std::string> Dump() = 0;
 
-  // Add the default filters that are applied to all tests.
-  virtual std::vector<ui::AXPropertyFilter> DefaultFilters() const = 0;
+  // Add the default property filters that are applied to all tests.
+  // Subclasses can adjust the filters if and as needed.
+  virtual std::vector<ui::AXPropertyFilter> DefaultFilters() const;
 
   // This gets called if the diff didn't match; the test can print
   // additional useful info.
@@ -183,7 +194,7 @@ class DumpAccessibilityTestBase
 
   // Returns a list of captured events fired after the invoked action.
   using InvokeAction = base::OnceCallback<base::Value()>;
-  std::pair<base::Value, std::vector<std::string>> CaptureEvents(
+  virtual std::pair<base::Value, std::vector<std::string>> CaptureEvents(
       InvokeAction invoke_action);
 
   // Test scenario loaded from the test file.

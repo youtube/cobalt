@@ -231,9 +231,6 @@ public final class ProductionSupportedFlagList {
                 "Enables retrieval of the emoji font through GMS Core "
                         + "improving emoji glyph coverage."),
         Flag.baseFeature(
-                AndroidAutofillFeatures.ANDROID_AUTOFILL_VIRTUAL_VIEW_STRUCTURE_ANDROID_IN_CCT_NAME,
-                "Disables checking AutofilManager#isEnabled too early. Mainly affects CCTs."),
-        Flag.baseFeature(
                 AndroidAutofillFeatures.ANDROID_AUTOFILL_LAZY_FRAMEWORK_WRAPPER_NAME,
                 "Enable lazily initializing framework Autofill wrapper."),
         Flag.baseFeature(
@@ -658,15 +655,12 @@ public final class ProductionSupportedFlagList {
         Flag.baseFeature("V8FlushCodeBasedOnTime"),
         Flag.baseFeature("V8HighEndAndroid"),
         Flag.baseFeature("V8MemoryReducer"),
+        Flag.baseFeature("V8MemoryPoolReleaseOnMallocFailures"),
         Flag.baseFeature("V8MinorMS"),
         Flag.baseFeature("V8PreconfigureOldGen"),
         Flag.baseFeature("V8ScavengerHigherCapacity"),
         Flag.baseFeature("V8IncrementalMarkingStartUserVisible"),
         Flag.baseFeature("V8ExternalMemoryAccountedInGlobalLimit"),
-        Flag.baseFeature(
-                AwFeatures.WEBVIEW_MEDIA_INTEGRITY_API_BLINK_EXTENSION,
-                "Enable the WebView Media Integrity API as a Blink extension. Only works if"
-                        + " WebViewMediaIntegrityApi is disabled."),
         Flag.baseFeature(
                 "PMProcessPriorityPolicy",
                 "Controls whether the priority of renderers is controlled by the performance "
@@ -835,9 +829,6 @@ public final class ProductionSupportedFlagList {
                 AwFeatures.WEBVIEW_SAFE_AREA_INCLUDES_SYSTEM_BARS,
                 "Include system bars in safe-area-inset CSS environment values for WebViews"
                         + " that take up the entire screen."),
-        Flag.baseFeature(
-                AwFeatures.WEBVIEW_SEPARATE_RESOURCE_CONTEXT,
-                "Use WebView's own Context for Resources rather than the embedding app's"),
         Flag.baseFeature(
                 AwFeatures.WEBVIEW_SKIP_INTERCEPTS_FOR_PREFETCH,
                 "Skip shouldInterceptRequest and other checks for prefetch requests."),

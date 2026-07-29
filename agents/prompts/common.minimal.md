@@ -23,14 +23,22 @@ single agentic tool.
 
 ## Building
 
-* Do not attempt a build or compile without first establishing the correct
-  output directory. If you have not been told the directory, ask for it.
+* Do not attempt a build without first establishing the correct output
+  directory and target. If you have not been given them, and you plan on doing
+  a build, then stop and ask before starting on any other tasks.
 * Unless otherwise instructed, build with: `autoninja --quiet -C {OUT_DIR} {TARGET}`
+  * If given an `autoninja` command that is missing `--quiet`, add `--quiet`.
 
 ## Testing
 
 Unless otherwise instructed, run tests with:
 `tools/autotest.py --quiet --run-all -C {OUT_DIR} {RELEVANT_TEST_FILENAMES}`
+
+When using `tools/autotest.py`:
+* Do not invoke `autoninja` beforehand because `autotest.py` automatically
+  builds relevant targets.
+* Build targets containing colons (`:`) are not valid inputs for
+  `{RELEVANT_TEST_FILENAMES}`.
 
 ## Coding
 
@@ -39,7 +47,7 @@ Unless otherwise instructed, run tests with:
 * Add code comments sparingly: Focus on *why* something is done, not *what* is
   done.
 
-## Presumbit Checks
+## Presubmit Checks
 
 When you have finished validating your changes through other means, run:
 

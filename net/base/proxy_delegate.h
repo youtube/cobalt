@@ -7,6 +7,7 @@
 
 #include <string>
 
+#include "base/types/expected.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_export.h"
 #include "net/base/network_anonymization_key.h"
@@ -60,22 +61,38 @@ class NET_EXPORT ProxyDelegate {
   virtual void OnSuccessfulRequestAfterFailures(
       const ProxyRetryInfoMap& proxy_retry_info) = 0;
 
+  using OnBeforeTunnelRequestCallback =
+      base::OnceCallback<void(base::expected<HttpRequestHeaders, Error>)>;
+
   // Called immediately before a proxy tunnel request is sent. Provides the
-  // embedder an opportunity to add extra request headers. Returning any value
-  // other than OK will cause the connection to fail with that error.
-  virtual Error OnBeforeTunnelRequest(const ProxyChain& proxy_chain,
-                                      size_t chain_index,
-                                      HttpRequestHeaders* extra_headers) = 0;
+  // embedder an opportunity to add extra request headers to the request.
+  // Returns:
+  // - The headers, if they could be computed without blocking. If no headers
+  //   should be added, an empty HttpRequestHeaders should be returned.
+  // - ERR_IO_PENDING, if the implementor must block to compute the headers.
+  // - Any error code, other than ERR_IO_PENDING and OK, if something went
+  //   wrong.
+  // If ERR_IO_PENDING is returned, `callback` will be called asynchronously.
+  // The value passed to `callback` is to be interpreted in the same way as the
+  // return value of this function. With the exception that ERR_IO_PENDING is
+  // no longer an acceptable error code.
+  // `proxy_index` identifies the proxy, within `proxy_chain`, to whom we will
+  // be sending the extra headers`.
+  virtual base::expected<HttpRequestHeaders, Error> OnBeforeTunnelRequest(
+      const ProxyChain& proxy_chain,
+      size_t proxy_index,
+      OnBeforeTunnelRequestCallback callback) = 0;
 
   // Called when the response headers for the proxy tunnel request have been
   // received. Allows the delegate to override the net error code of the tunnel
   // request. Returning OK causes the standard tunnel response handling to be
-  // performed. Implementations should make sure they can trust the proxy server
-  // at position `chain_index` in `proxy_chain` before making decisions based on
+  // performed. `proxy_index` identifies the proxy, within `proxy_chain`, that
+  // we're receiving response headers from. Implementations should make sure
+  // they can trust said proxy before making decisions based on
   // `response_headers`.
   virtual Error OnTunnelHeadersReceived(
       const ProxyChain& proxy_chain,
-      size_t chain_index,
+      size_t proxy_index,
       const HttpResponseHeaders& response_headers) = 0;
 
   // Associates a `ProxyResolutionService` with this `ProxyDelegate`.

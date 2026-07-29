@@ -117,10 +117,6 @@ enum class InstallableWebAppCheckResult;
 struct WebAppBannerData;
 }  // namespace webapps
 
-namespace enterprise_watermark {
-class WatermarkView;
-}
-
 ///////////////////////////////////////////////////////////////////////////////
 // BrowserView
 //
@@ -208,6 +204,11 @@ class BrowserView : public BrowserWindow,
   // Returns the ContentsContainerView for the active tab.
   ContentsContainerView* GetActiveContentsContainerView();
 
+  // Returns the ContentsContainerView that corresponds to `web_contents`.
+  // Returns nullptr if there isn't a corresponding ContentsContainerView.
+  ContentsContainerView* GetContentsContainerViewFor(
+      content::WebContents* web_contents);
+
   // Container for the tabstrip, toolbar, etc.
   TopContainerView* top_container() { return top_container_; }
 
@@ -247,17 +248,6 @@ class BrowserView : public BrowserWindow,
   SidePanel* unified_side_panel() { return unified_side_panel_; }
 
   MultiContentsView* multi_contents_view() { return multi_contents_view_; }
-
-  void set_contents_border_widget(views::Widget* contents_border_widget) {
-    GetBrowserViewLayout()->set_contents_border_widget(contents_border_widget);
-  }
-  views::Widget* contents_border_widget() {
-    return GetBrowserViewLayout()->contents_border_widget();
-  }
-  void SetContentBorderBounds(
-      const std::optional<gfx::Rect>& region_capture_rect) {
-    GetBrowserViewLayout()->SetContentBorderBounds(region_capture_rect);
-  }
 
   TabStripViewInterface* tab_strip_view() const {
     return tab_strip_region_view_.get();
@@ -469,6 +459,9 @@ class BrowserView : public BrowserWindow,
   // Returns true if the browser is currently showing tabs in a split view.
   bool IsInSplitView() const;
 
+  // Convenience method for fetching the element context for the window.
+  ui::ElementContext GetElementContext();
+
   // BrowserWindow:
   void Show() override;
   void ShowInactive() override;
@@ -492,7 +485,6 @@ class BrowserView : public BrowserWindow,
   ui::NativeTheme* GetNativeTheme() override;
   const ui::ThemeProvider* GetThemeProvider() const override;
   const ui::ColorProvider* GetColorProvider() const override;
-  ui::ElementContext GetElementContext() override;
   int GetTopControlsHeight() const override;
   void SetTopControlsGestureScrollInProgress(bool in_progress) override;
   std::vector<StatusBubble*> GetStatusBubbles() override;
@@ -848,21 +840,12 @@ class BrowserView : public BrowserWindow,
     return web_app_frame_toolbar();
   }
 
-  enterprise_watermark::WatermarkView* get_watermark_view_for_testing() {
-    return watermark_view_;
-  }
-
-  enterprise_watermark::WatermarkView* watermark_view() {
-    return watermark_view_;
-  }
-
   // This value is used in a common calculation in NonClientFrameView
   // subclasses. This must be added to the origin of the first painted pixel of
   // NonClientFrameView to get the correct offset. See
   // TopContainerBackground::PaintThemeCustomImage for details.
   gfx::Point GetThemeOffsetFromBrowserView() const;
 
-  void ApplyWatermarkSettings(const std::string& watermark_text);
   void UpdateAccessibleNameForAllTabs();
 
 #if BUILDFLAG(ENTERPRISE_SCREENSHOT_PROTECTION)
@@ -1220,10 +1203,6 @@ class BrowserView : public BrowserWindow,
   // contents_web_view_.
   raw_ptr<views::View> lens_overlay_view_ = nullptr;
 
-  // The view that overlays a watermark on the contents container.
-  raw_ptr<enterprise_watermark::WatermarkView> watermark_view_ = nullptr;
-
-  // The view managing the content position.
   // Handled by ContentsLayoutManager.
   raw_ptr<views::View> contents_container_ = nullptr;
 

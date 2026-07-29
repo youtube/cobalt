@@ -101,6 +101,8 @@ static_library("test_support") {
     "../browser/file_system_access/mock_file_system_access_permission_context.h",
     "../browser/file_system_access/mock_file_system_access_permission_grant.cc",
     "../browser/file_system_access/mock_file_system_access_permission_grant.h",
+    "../browser/file_system_access/spying_shared_handle_state_factory.cc",
+    "../browser/file_system_access/spying_shared_handle_state_factory.h",
     "../browser/first_party_sets/test/scoped_mock_first_party_sets_handler.cc",
     "../browser/first_party_sets/test/scoped_mock_first_party_sets_handler.h",
     "../browser/font_access/font_access_test_utils.cc",
@@ -567,6 +569,7 @@ static_library("test_support") {
     ":content_test_mojo_bindings",
     ":web_ui_mojo_test_resources",
     "//build:chromeos_buildflags",
+    "//build/config/linux/dbus:buildflags",
     "//cc:test_support",
     "//cc/slim",
     "//components/attribution_reporting:data_host_mojom",
@@ -575,6 +578,7 @@ static_library("test_support") {
     "//components/breadcrumbs/core",
     "//components/browsing_topics/common",
     "//components/cbor",
+    "//components/history/core/browser:features",
     "//components/input",
     "//components/input:test_support",
     "//components/network_session_configurator/common",
@@ -843,6 +847,10 @@ static_library("test_support") {
 
   if (is_fuchsia) {
     public_deps += [ "//third_party/fuchsia-sdk/sdk/fidl/fuchsia.mediacodec:fuchsia.mediacodec_hlcpp" ]
+  }
+
+  if (use_dbus) {
+    deps += [ "//components/dbus" ]
   }
 
   # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
@@ -1473,6 +1481,7 @@ test("content_browsertests") {
     "../browser/btm/btm_page_visit_observer_browsertest.cc",
     "../browser/btm/btm_short_visit_observer_browsertest.cc",
     "../browser/btm/btm_test_utils_browsertest.cc",
+    "../browser/cache_storage/cache_storage_blob_browsertest.cc",
     "../browser/child_process_launcher_browsertest.cc",
     "../browser/child_process_security_policy_browsertest.cc",
     "../browser/closewatcher/close_listener_host_browsertest.cc",
@@ -1512,6 +1521,8 @@ test("content_browsertests") {
     "../browser/file_system_access/file_system_access_file_handle_impl_browsertest.cc",
     "../browser/file_system_access/file_system_access_file_modification_host_impl_browsertest.cc",
     "../browser/file_system_access/file_system_access_file_writer_impl_browsertest.cc",
+    "../browser/file_system_access/file_system_access_handle_impl_browsertest_util.cc",
+    "../browser/file_system_access/file_system_access_handle_impl_browsertest_util.h",
     "../browser/file_system_access/file_system_access_observer_browsertest.cc",
     "../browser/file_system_access/file_system_chooser_browsertest.cc",
     "../browser/find_request_manager_browsertest.cc",
@@ -1734,7 +1745,7 @@ test("content_browsertests") {
     "../browser/web_contents/web_contents_observer_browsertest.cc",
     "../browser/web_package/signed_exchange_request_handler_browsertest.cc",
     "../browser/web_package/signed_exchange_subresource_prefetch_browsertest.cc",
-    "../browser/webid/jwt_signer_browsertest.cc",
+    "../browser/webid/delegation/jwt_signer_browsertest.cc",
     "../browser/webid/test/mock_digital_identity_provider.cc",
     "../browser/webid/test/mock_digital_identity_provider.h",
     "../browser/webid/test/mock_identity_request_dialog_controller.cc",
@@ -1871,6 +1882,7 @@ test("content_browsertests") {
     "//components/discardable_memory/service",
     "//components/favicon/content",
     "//components/fingerprinting_protection_filter/interventions/common:features",
+    "//components/history/core/browser:features",
     "//components/input",
     "//components/metrics/dwa",
     "//components/metrics/dwa:dwa_builders",
@@ -2910,18 +2922,17 @@ test("content_unittests") {
     "../browser/web_package/signed_exchange_signature_verifier_unittest.cc",
     "../browser/web_package/signed_exchange_utils_unittest.cc",
     "../browser/web_package/subresource_signed_exchange_url_loader_factory_unittest.cc",
+    "../browser/webid/config_fetcher_unittest.cc",
+    "../browser/webid/delegation/jwt_signer_unittest.cc",
+    "../browser/webid/delegation/sd_jwt_unittest.cc",
     "../browser/webid/digital_credentials/digital_identity_request_impl_unittest.cc",
-    "../browser/webid/fedcm_config_fetcher_unittest.cc",
-    "../browser/webid/fedcm_mappers_unittest.cc",
     "../browser/webid/federated_auth_disconnect_request_unittest.cc",
     "../browser/webid/federated_auth_request_impl_multiple_frames_unittest.cc",
     "../browser/webid/federated_auth_request_impl_registry_unittest.cc",
     "../browser/webid/federated_auth_request_impl_unittest.cc",
-    "../browser/webid/federated_auth_user_info_request_unittest.cc",
     "../browser/webid/identity_registry_unittest.cc",
     "../browser/webid/idp_network_request_manager_unittest.cc",
-    "../browser/webid/jwt_signer_unittest.cc",
-    "../browser/webid/sd_jwt_unittest.cc",
+    "../browser/webid/mappers_unittest.cc",
     "../browser/webid/test/delegated_idp_network_request_manager.cc",
     "../browser/webid/test/delegated_idp_network_request_manager.h",
     "../browser/webid/test/federated_auth_request_request_token_callback_helper.cc",
@@ -2944,6 +2955,7 @@ test("content_unittests") {
     "../browser/webid/test/mock_permission_delegate.h",
     "../browser/webid/test/stub_digital_identity_provider.cc",
     "../browser/webid/test/stub_digital_identity_provider.h",
+    "../browser/webid/user_info_request_unittest.cc",
     "../browser/webrtc/webrtc_internals_message_handler_unittest.cc",
     "../browser/webrtc/webrtc_internals_unittest.cc",
     "../browser/webtransport/web_transport_throttle_context_unittest.cc",

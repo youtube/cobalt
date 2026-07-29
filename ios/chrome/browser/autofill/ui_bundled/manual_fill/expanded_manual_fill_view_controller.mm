@@ -21,8 +21,16 @@ using manual_fill::ManualFillDataType;
 
 namespace {
 
+#if defined(__IPHONE_26_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_26_0
 // Size of the Chrome logo.
-constexpr CGFloat kChromeLogoSize = 24;
+constexpr CGFloat kChromeLogoSize = 28;
+#endif
+// Size of the Chrome logo when liquid glass is disabled.
+constexpr CGFloat kChromeLogoSizePreLiquidGlass = 24;
+#if defined(__IPHONE_26_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_26_0
+// Size of the close button.
+constexpr CGFloat kCloseButtonSize = 44;
+#endif
 // Size of the close button when liquid glass is disabled.
 constexpr CGFloat kCloseButtonSizePreLiquidGlass = 30;
 // Size of the data type icons representing the different segments
@@ -56,11 +64,6 @@ constexpr CGFloat kSegmentedControlLeadingSpacingWideLayout = 18;
 // the wide layout only.
 constexpr CGFloat kSegmentedControlTrailingSpacingWideLayout = 15;
 
-#if defined(__IPHONE_26_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_26_0
-// Size of the close button.
-constexpr CGFloat kCloseButtonSize = 44;
-#endif
-
 // Helper method to get the right segment index depending on the `data_type`.
 int GetSegmentIndexForDataType(ManualFillDataType data_type) {
   switch (data_type) {
@@ -86,6 +89,17 @@ UIColor* GetBackgroundColor() {
   return [UIColor colorNamed:kGroupedPrimaryBackgroundColor];
 }
 
+// Returns the size to use for the Chrome logo.
+CGFloat GetChromeLogoSize() {
+#if defined(__IPHONE_26_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_26_0
+  if (@available(iOS 26, *)) {
+    return kChromeLogoSize;
+  }
+#endif
+
+  return kChromeLogoSizePreLiquidGlass;
+}
+
 // Returns the symbol configuration to use for the close button.
 UIImageSymbolConfiguration* GetCloseButtonSymbolConfiguration() {
 #if defined(__IPHONE_26_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_26_0
@@ -101,6 +115,19 @@ UIImageSymbolConfiguration* GetCloseButtonSymbolConfiguration() {
       configurationWithPointSize:kCloseButtonSizePreLiquidGlass
                           weight:UIImageSymbolWeightRegular
                            scale:UIImageSymbolScaleMedium];
+}
+
+// Returns the constant to apply to the header view top constraint.
+CGFloat GetHeaderViewTopConstraintConstant(bool is_compact_height) {
+#if defined(__IPHONE_26_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_26_0
+  if (@available(iOS 26, *)) {
+    if (!is_compact_height) {
+      return -kHeaderViewTopPadding;
+    }
+  }
+#endif
+
+  return kHeaderViewTopPadding;
 }
 
 }  // namespace
@@ -196,9 +223,12 @@ UIImageSymbolConfiguration* GetCloseButtonSymbolConfiguration() {
       [self createSegmentedControlAndSelectDataType:_initialDataType];
   _headerViewHeightConstraint = [_headerView.heightAnchor
       constraintEqualToConstant:kHeaderViewHeightWideLayout];
+  _headerViewTopConstraint =
+      [_headerView.topAnchor constraintEqualToAnchor:self.view.topAnchor];
 
   [self setUpHeaderView:_headerView
       headerViewHeightConstraint:_headerViewHeightConstraint
+         headerViewTopConstraint:_headerViewTopConstraint
                       chromeLogo:_chromeLogo
                      closeButton:_closeButton
                 segmentedControl:_segmentedControl
@@ -212,9 +242,6 @@ UIImageSymbolConfiguration* GetCloseButtonSymbolConfiguration() {
   _headerViewTrailingConstraint = [_headerView.trailingAnchor
       constraintEqualToAnchor:self.view.safeAreaLayoutGuide.trailingAnchor
                      constant:-kHeaderViewHorizontalPadding];
-  _headerViewTopConstraint =
-      [_headerView.topAnchor constraintEqualToAnchor:self.view.topAnchor
-                                            constant:kHeaderViewTopPadding];
   _headerViewPopoverTopConstraint = [_headerView.topAnchor
       constraintEqualToAnchor:self.view.topAnchor
                      constant:kHeaderViewPopoverTopPadding];
@@ -359,11 +386,11 @@ UIImageSymbolConfiguration* GetCloseButtonSymbolConfiguration() {
 // Creates and configures the Chrome logo.
 - (UIImageView*)createChromeLogo {
 #if BUILDFLAG(IOS_USE_BRANDED_SYMBOLS)
-  UIImage* image = MakeSymbolMulticolor(
-      CustomSymbolWithPointSize(kMulticolorChromeballSymbol, kChromeLogoSize));
+  UIImage* image = MakeSymbolMulticolor(CustomSymbolWithPointSize(
+      kMulticolorChromeballSymbol, GetChromeLogoSize()));
 #else
   UIImage* image =
-      CustomSymbolWithPointSize(kChromeProductSymbol, kChromeLogoSize);
+      CustomSymbolWithPointSize(kChromeProductSymbol, GetChromeLogoSize());
 #endif  // BUILDFLAG(IOS_USE_BRANDED_SYMBOLS)
   UIImageView* chromeLogo = [[UIImageView alloc] initWithImage:image];
   chromeLogo.translatesAutoresizingMaskIntoConstraints = NO;
@@ -455,13 +482,17 @@ UIImageSymbolConfiguration* GetCloseButtonSymbolConfiguration() {
 // Sets up the header view depending on the device's orientation.
 - (void)setUpHeaderView:(UIView*)headerView
     headerViewHeightConstraint:(NSLayoutConstraint*)headerViewHeightConstraint
+       headerViewTopConstraint:(NSLayoutConstraint*)headerViewTopConstraint
                     chromeLogo:(UIImageView*)chromeLogo
                    closeButton:(UIButton*)closeButton
               segmentedControl:(UISegmentedControl*)segmentedControl
                  headerTopView:(UIView*)headerTopView {
   // If the vertical size class is compact, apply the wide layout. Otherwise,
   // apply the narrow layout.
-  if (IsCompactHeight(self)) {
+  bool isCompactHeight = IsCompactHeight(self);
+  _headerViewTopConstraint.constant =
+      GetHeaderViewTopConstraintConstant(isCompactHeight);
+  if (isCompactHeight) {
     [headerView addSubview:chromeLogo];
     [headerView addSubview:closeButton];
     [headerView addSubview:segmentedControl];
@@ -546,6 +577,7 @@ UIImageSymbolConfiguration* GetCloseButtonSymbolConfiguration() {
 // Resets the header view. Called when a layout change is needed.
 - (void)resetHeaderView:(UIView*)headerView
     headerViewHeightConstraint:(NSLayoutConstraint*)headerViewHeightConstraint
+       headerViewTopConstraint:(NSLayoutConstraint*)headerViewTopConstraint
                     chromeLogo:(UIImageView*)chromeLogo
                    closeButton:(UIButton*)closeButton
               segmentedControl:(UISegmentedControl*)segmentedControl
@@ -558,6 +590,7 @@ UIImageSymbolConfiguration* GetCloseButtonSymbolConfiguration() {
 
   [self setUpHeaderView:headerView
       headerViewHeightConstraint:headerViewHeightConstraint
+         headerViewTopConstraint:headerViewTopConstraint
                       chromeLogo:chromeLogo
                      closeButton:closeButton
                 segmentedControl:segmentedControl
@@ -595,6 +628,7 @@ UIImageSymbolConfiguration* GetCloseButtonSymbolConfiguration() {
 - (void)resetHeaderViewOnTraitChange {
   [self resetHeaderView:_headerView
       headerViewHeightConstraint:_headerViewHeightConstraint
+         headerViewTopConstraint:_headerViewTopConstraint
                       chromeLogo:_chromeLogo
                      closeButton:_closeButton
                 segmentedControl:_segmentedControl

@@ -25,7 +25,6 @@ import androidx.annotation.Nullable;
 
 import org.hamcrest.Matcher;
 
-import org.chromium.base.Log;
 import org.chromium.base.Token;
 import org.chromium.base.test.transit.Element;
 import org.chromium.base.test.transit.Facility;
@@ -37,7 +36,6 @@ import org.chromium.chrome.browser.tabmodel.TabGroupColorUtils;
 import org.chromium.chrome.browser.tabmodel.TabGroupModelFilter;
 import org.chromium.chrome.browser.tabmodel.TabModel;
 import org.chromium.chrome.browser.tabmodel.TabModelUtils;
-import org.chromium.chrome.browser.tasks.tab_management.ColorPickerUtils;
 import org.chromium.chrome.test.R;
 import org.chromium.chrome.test.transit.ChromeActivityTabModelBoundStation;
 import org.chromium.chrome.test.transit.SoftKeyboardFacility;
@@ -45,6 +43,7 @@ import org.chromium.chrome.test.transit.tabmodel.TabGroupCreatedCondition;
 import org.chromium.chrome.test.transit.tabmodel.TabGroupUtil;
 import org.chromium.chrome.test.util.TabBinningUtil;
 import org.chromium.components.tab_groups.TabGroupColorId;
+import org.chromium.components.tab_groups.TabGroupColorPickerUtils;
 
 import java.util.List;
 
@@ -64,8 +63,6 @@ public class NewTabGroupDialogFacility<
     public ViewElement<View> doneButtonElement;
     private @Nullable String mTitle;
     private @Nullable List<Integer> mTabIdsToGroup;
-
-    private static final String TAG = "TransitLayer";
 
     /** Constructor. Expects no particular title or selected color. */
     public NewTabGroupDialogFacility(SoftKeyboardFacility softKeyboard) {
@@ -162,7 +159,8 @@ public class NewTabGroupDialogFacility<
         Context context = mHostStation.getActivity();
         String colorName =
                 context.getString(
-                        ColorPickerUtils.getTabGroupColorPickerItemColorAccessibilityString(color));
+                        TabGroupColorPickerUtils.getTabGroupColorPickerItemColorAccessibilityString(
+                                color));
         Matcher<View> contentDescriptionMatcher;
         if (selected != null) {
             contentDescriptionMatcher =
@@ -274,13 +272,8 @@ public class NewTabGroupDialogFacility<
 
     private void ensureSoftKeyboardClosed() {
         if (mSoftKeyboard.getPhase() == Phase.ACTIVE) {
-            Log.i(TAG, "SoftKeyboardFacility active, try to close soft keyboard.");
             mSoftKeyboard.close(dialogElement);
         } else if (mSoftKeyboard.getPhase() == Phase.FINISHED) {
-            Log.i(
-                    TAG,
-                    "SoftKeyboardFacility already finished, won't try to close soft keyboard"
-                            + " again.");
             // Do nothing as the soft keyboard has already been closed
         } else {
             throw new IllegalArgumentException(

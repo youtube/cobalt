@@ -8,6 +8,7 @@
 
 #include "base/check.h"
 #include "base/functional/bind.h"
+#include "base/sequence_checker.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/single_thread_task_runner.h"
@@ -49,18 +50,15 @@ void DeletePowerRequest(POWER_REQUEST_TYPE type, HANDLE handle) {
 
 }  // namespace
 
-class PowerSaveBlocker::Delegate
-    : public base::RefCountedThreadSafe<PowerSaveBlocker::Delegate> {
+class PowerSaveBlocker::Delegate {
  public:
-  Delegate(mojom::WakeLockType type,
-           const std::string& description,
-           scoped_refptr<base::SequencedTaskRunner> ui_task_runner)
-      : type_(type),
-        description_(description),
-        ui_task_runner_(ui_task_runner) {}
+  Delegate(mojom::WakeLockType type, const std::string& description)
+      : type_(type), description_(description) {}
 
   Delegate(const Delegate&) = delete;
   Delegate& operator=(const Delegate&) = delete;
+
+  ~Delegate() = default;
 
   // Does the actual work to apply or remove the desired power save block.
   void ApplyBlock();
@@ -70,9 +68,6 @@ class PowerSaveBlocker::Delegate
   POWER_REQUEST_TYPE RequestType();
 
  private:
-  friend class base::RefCountedThreadSafe<Delegate>;
-  ~Delegate() {}
-
   mojom::WakeLockType type_;
   const std::string description_;
   base::win::ScopedHandle handle_;
@@ -84,11 +79,11 @@ class PowerSaveBlocker::Delegate
   // is needed and it will behave the same on both a S3 based system and a
   // Modern Standby one.
   base::win::ScopedHandle system_sleep_prevention_handle_;
-  scoped_refptr<base::SequencedTaskRunner> ui_task_runner_;
+  SEQUENCE_CHECKER(sequence_checker_);
 };
 
 void PowerSaveBlocker::Delegate::ApplyBlock() {
-  DCHECK(ui_task_runner_->RunsTasksInCurrentSequence());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   handle_.Set(CreatePowerRequest(RequestType(), description_));
   // See comment on instance variable above
   if (type_ == mojom::WakeLockType::kPreventDisplaySleep &&
@@ -99,7 +94,7 @@ void PowerSaveBlocker::Delegate::ApplyBlock() {
 }
 
 void PowerSaveBlocker::Delegate::RemoveBlock() {
-  DCHECK(ui_task_runner_->RunsTasksInCurrentSequence());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DeletePowerRequest(RequestType(), handle_.Take());
   DeletePowerRequest(PowerRequestSystemRequired,
                      system_sleep_prevention_handle_.Take());
@@ -118,15 +113,12 @@ PowerSaveBlocker::PowerSaveBlocker(
     mojom::WakeLockReason reason,
     const std::string& description,
     scoped_refptr<base::SequencedTaskRunner> ui_task_runner)
-    : delegate_(new Delegate(type, description, ui_task_runner)),
-      ui_task_runner_(ui_task_runner) {
-  ui_task_runner_->PostTask(FROM_HERE,
-                            base::BindOnce(&Delegate::ApplyBlock, delegate_));
+    : delegate_(ui_task_runner, type, description) {
+  delegate_.AsyncCall(&Delegate::ApplyBlock);
 }
 
 PowerSaveBlocker::~PowerSaveBlocker() {
-  ui_task_runner_->PostTask(FROM_HERE,
-                            base::BindOnce(&Delegate::RemoveBlock, delegate_));
+  delegate_.AsyncCall(&Delegate::RemoveBlock);
 }
 
 }  // namespace device

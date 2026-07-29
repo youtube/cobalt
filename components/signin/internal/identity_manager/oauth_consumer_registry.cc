@@ -8,6 +8,7 @@
 #include "google_apis/gaia/gaia_constants.h"
 
 namespace {
+
 constexpr char kSyncOAuthConsumerName[] = "sync";
 constexpr char kWallpaperGooglePhotosFetcherName[] =
     "wallpaper_google_photos_fetcher";
@@ -23,7 +24,24 @@ constexpr char kProjectorTokenFetcherName[] = "projector_token_fetcher";
 constexpr char kAddSupervisionName[] = "add_supervision";
 constexpr char kParentAccessName[] = "parent_access";
 constexpr char kDataSharingName[] = "data_sharing";
-}
+constexpr char kLauncherItemSuggestName[] = "launcher_item_suggest";
+constexpr char kMarketingBackendConnectorName[] = "marketing_backend_connector";
+constexpr char kPasswordSyncTokenFetcherName[] = "password_sync_token_fetcher";
+constexpr char kLocaleSwitchScreenName[] = "locale_switch_screen";
+constexpr char kTokenHandleServiceName[] = "token_handle_service";
+constexpr char kSupervisedUserListFamilyMembersName[] =
+    "supervised_user_list_family_members";
+constexpr char kSupervisedUserClassifyUrlName[] =
+    "supervised_user_classify_url";
+constexpr char kSupervisedUserCreatePermissionRequestName[] =
+    "supervised_user_create_permission_request";
+constexpr char kExtensionDownloaderName[] = "extension_downloader";
+constexpr char kEnclaveManagerName[] = "enclave_manager";
+constexpr char kNtpDriveServiceName[] = "ntp_drive_service";
+constexpr char kForceSigninVerifierName[] = "force_signin_verifier";
+constexpr char kCaptureModeDelegateName[] = "capture_mode_delegate";
+
+}  // namespace
 
 namespace signin {
 
@@ -103,6 +121,61 @@ OAuthConsumer GetOAuthConsumerFromId(OAuthConsumerId oauth_consumer_id) {
           /*scopes=*/{GaiaConstants::kPeopleApiReadWriteOAuth2Scope,
                       GaiaConstants::kPeopleApiReadOnlyOAuth2Scope,
                       GaiaConstants::kClearCutOAuth2Scope});
+    case OAuthConsumerId::kLauncherItemSuggest:
+      return OAuthConsumer(
+          /*name=*/kLauncherItemSuggestName,
+          /*scopes=*/{GaiaConstants::kDriveReadOnlyOAuth2Scope});
+    case OAuthConsumerId::kMarketingBackendConnector:
+      return OAuthConsumer(
+          /*name=*/kMarketingBackendConnectorName,
+          /*scopes=*/{GaiaConstants::kChromebookOAuth2Scope});
+    case OAuthConsumerId::kPasswordSyncTokenFetcher:
+      return OAuthConsumer(
+          /*name=*/kPasswordSyncTokenFetcherName,
+          /*scopes=*/{GaiaConstants::kGoogleUserInfoEmail,
+                      GaiaConstants::kDeviceManagementServiceOAuth});
+    case OAuthConsumerId::kLocaleSwitchScreen:
+      return OAuthConsumer(
+          /*name=*/kLocaleSwitchScreenName,
+          /*scopes=*/{GaiaConstants::kPeopleApiReadOnlyOAuth2Scope,
+                      GaiaConstants::kGoogleUserInfoProfile,
+                      GaiaConstants::kProfileLanguageReadOnlyOAuth2Scope});
+    case OAuthConsumerId::kTokenHandleService:
+      return OAuthConsumer(
+          /*name=*/kTokenHandleServiceName,
+          /*scopes=*/{GaiaConstants::kOAuth1LoginScope});
+    case OAuthConsumerId::kSupervisedUserListFamilyMembers:
+      return OAuthConsumer(
+          /*name=*/kSupervisedUserListFamilyMembersName,
+          /*scopes=*/{GaiaConstants::kKidFamilyReadonlyOAuth2Scope});
+    case OAuthConsumerId::kSupervisedUserClassifyUrl:
+      return OAuthConsumer(
+          /*name=*/kSupervisedUserClassifyUrlName,
+          /*scopes=*/{GaiaConstants::kClassifyUrlKidPermissionOAuth2Scope});
+    case OAuthConsumerId::kSupervisedUserCreatePermissionRequest:
+      return OAuthConsumer(
+          /*name=*/kSupervisedUserCreatePermissionRequestName,
+          /*scopes=*/{GaiaConstants::kClassifyUrlKidPermissionOAuth2Scope});
+    case OAuthConsumerId::kExtensionDownloader:
+      return OAuthConsumer(
+          /*name=*/kExtensionDownloaderName,
+          /*scopes=*/{GaiaConstants::kWebstoreOAuth2Scope});
+    case OAuthConsumerId::kEnclaveManager:
+      return OAuthConsumer(
+          /*name=*/kEnclaveManagerName,
+          /*scopes=*/{GaiaConstants::kPasskeysEnclaveOAuth2Scope});
+    case OAuthConsumerId::kNtpDriveService:
+      return OAuthConsumer(
+          /*name=*/kNtpDriveServiceName,
+          /*scopes=*/{GaiaConstants::kDriveReadOnlyOAuth2Scope});
+    case OAuthConsumerId::kForceSigninVerifier:
+      return OAuthConsumer(
+          /*name=*/kForceSigninVerifierName,
+          /*scopes=*/{GaiaConstants::kChromeSyncOAuth2Scope});
+    case OAuthConsumerId::kCaptureModeDelegate:
+      return OAuthConsumer(
+          /*name=*/kCaptureModeDelegateName,
+          /*scopes=*/{GaiaConstants::kSupportContentOAuth2Scope});
   }
   NOTREACHED();
 }

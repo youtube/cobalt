@@ -7,7 +7,7 @@
 #include <memory>
 #include <set>
 
-#include "base/android/build_info.h"
+#include "base/android/device_info.h"
 #include "base/containers/contains.h"
 #include "base/functional/bind.h"
 #include "base/memory/ref_counted.h"
@@ -69,10 +69,10 @@ std::unique_ptr<KeyedService> BuildOfflinePageModel(SimpleFactoryKey* key) {
 class SigninManagerAndroidTest : public ::testing::Test {
  public:
   SigninManagerAndroidTest() {
-    // Override the GMS version to be big enough for local UPM support, so
-    // DoNotWipePasswordsIfLocalUpmOn still passes on bots with outdated GMS.
-    base::android::BuildInfo::GetInstance()->set_gms_version_code_for_test(
-        base::NumberToString(password_manager::GetLocalUpmMinGmsVersion()));
+    // Override the GMS version to be big enough for split stores UPM support,
+    // so DoNotWipePasswordsIfLocalUpmOn still passes on bots with outdated GMS.
+    base::android::device_info::set_gms_version_code_for_test(
+        base::NumberToString(password_manager::GetSplitStoresUpmMinVersion()));
   }
 
   SigninManagerAndroidTest(const SigninManagerAndroidTest&) = delete;

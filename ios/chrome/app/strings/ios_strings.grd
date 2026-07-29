@@ -1772,18 +1772,6 @@ See your search engine’s instructions for deleting your search history, if app
       <message name="IDS_IOS_CONTEXT_MENU_SEARCHWEBFORIMAGE" desc="Context menu text for option to perform a search for image [Length: 25em] [iOS only]">
         Search <ph name="SEARCH_ENGINE">$1<ex>Google</ex></ph> for this image
       </message>
-      <message name="IDS_IOS_COOKIES_ALLOW_ALL" desc="Label that informs the user that no cookies are blocked">
-        Allow all
-      </message>
-      <message name="IDS_IOS_COOKIES_BLOCK_ALL" desc="Label that informs the user that all cookies are blocked">
-        Block all
-      </message>
-      <message name="IDS_IOS_COOKIES_BLOCK_THIRD_PARTY" desc="Label that informs the user that Third-Party cookies are blocked">
-        Block third-party
-      </message>
-      <message name="IDS_IOS_COOKIES_BLOCK_THIRD_PARTY_INCOGNITO" desc="Label that informs the user that Third-Party cookies are blocked only in Incognito">
-        Block in Incognito
-      </message>
       <message name="IDS_IOS_COPY_LINK_ACTION_TITLE" desc="Title of the action used to copy a link to the pasteboard. [iOS only]">
         Copy Link
       </message>
@@ -3255,55 +3243,55 @@ See your search engine’s instructions for deleting your search history, if app
       <message name="IDS_IOS_KEYBOARD_ACCESSORY_VIEW_VOICE_SEARCH" desc="Accessibility label for a button that starts a Voice Search [iOS only]">
         Voice search
       </message>
-      <message name="IDS_IOS_KEYBOARD_ADD_TO_BOOKMARKS" desc="Title of the keyboard shortcut that bookmarks the current page." meaning="Used as a command title in the iPad command menu.">
-        Add to bookmarks
+      <message name="IDS_IOS_KEYBOARD_ADD_TO_BOOKMARKS" desc="Title of the keyboard shortcut that bookmarks the current page. This should be in title case." meaning="Used as a command title in the iPad command menu.">
+        Add to Bookmarks
       </message>
-      <message name="IDS_IOS_KEYBOARD_ADD_TO_READING_LIST" desc="Title of the keyboard shortcut to add the current URL to the Reading List." meaning="Used as a command title in the iPad command menu.">
-        Add to reading list
+      <message name="IDS_IOS_KEYBOARD_ADD_TO_READING_LIST" desc="Title of the keyboard shortcut to add the current URL to the Reading List. This should be in title case." meaning="Used as a command title in the iPad command menu.">
+        Add to Reading List
       </message>
       <message name="IDS_IOS_KEYBOARD_BOOKMARKS" desc="Title of the menu listing bookmarks-related keyboard shortcuts." meaning="Used as a menu title in the iPad command menu.">
         Bookmarks
       </message>
-      <message name="IDS_IOS_KEYBOARD_CLEAR_BROWSING_DATA" desc="Title of the keyboard shortcut to delete the browsing data." meaning="Used as a command title in the iPad command menu.">
-        Delete browsing data…
+      <message name="IDS_IOS_KEYBOARD_CLEAR_BROWSING_DATA" desc="Title of the keyboard shortcut to delete the browsing data. This should be in title case." meaning="Used as a command title in the iPad command menu.">
+        Delete Browsing Data…
       </message>
-      <message name="IDS_IOS_KEYBOARD_CLOSE_ALL" desc="Title of the button in the tab grid UI that closes all the tabs in the grid." meaning="Used as a command title in the iPad command menu.">
-        Close all
+      <message name="IDS_IOS_KEYBOARD_CLOSE_ALL" desc="Title of the button in the tab grid UI that closes all the tabs in the grid. This should be in title case." meaning="Used as a command title in the iPad command menu.">
+        Close All
       </message>
-      <message name="IDS_IOS_KEYBOARD_CLOSE_TAB" desc="Title of the keyboard shortcut to close the current tab." meaning="Used as a command title in the iPad command menu.">
-        Close tab
+      <message name="IDS_IOS_KEYBOARD_CLOSE_TAB" desc="Title of the keyboard shortcut to close the current tab. This should be in title case." meaning="Used as a command title in the iPad command menu.">
+        Close Tab
       </message>
-      <message name="IDS_IOS_KEYBOARD_EDIT_BOOKMARK" desc="Title of the keyboard shortcut that edits the bookmark of the current page." meaning="Used as a command title in the iPad command menu.">
-        Edit bookmark
+      <message name="IDS_IOS_KEYBOARD_EDIT_BOOKMARK" desc="Title of the keyboard shortcut that edits the bookmark of the current page. This should be in title case." meaning="Used as a command title in the iPad command menu.">
+        Edit Bookmark
       </message>
       <message name="IDS_IOS_KEYBOARD_FIND" desc="The default title of the keyboard shortcut to search." meaning="Used as a command title in the iPad command menu.">
         Find
       </message>
-      <message name="IDS_IOS_KEYBOARD_FIND_IN_PAGE" desc="The title of the keyboard shortcut to search in the current page." meaning="Used as a command title in the iPad command menu.">
-        Find in page…
+      <message name="IDS_IOS_KEYBOARD_FIND_IN_PAGE" desc="The title of the keyboard shortcut to search in the current page. This should be in title case." meaning="Used as a command title in the iPad command menu.">
+        Find in Page…
       </message>
-      <message name="IDS_IOS_KEYBOARD_FIND_NEXT" desc="The title of the keyboard shortcut to find the next matching string." meaning="Used as a command title in the iPad command menu.">
-        Find next
+      <message name="IDS_IOS_KEYBOARD_FIND_NEXT" desc="The title of the keyboard shortcut to find the next matching string. This should be in title case." meaning="Used as a command title in the iPad command menu.">
+        Find Next
       </message>
-      <message name="IDS_IOS_KEYBOARD_FIND_PREVIOUS" desc="The title of the keyboard shortcut to find the previous matching string." meaning="Used as a command title in the iPad command menu.">
-        Find previous
+      <message name="IDS_IOS_KEYBOARD_FIND_PREVIOUS" desc="The title of the keyboard shortcut to find the previous matching string. This should be in title case." meaning="Used as a command title in the iPad command menu.">
+        Find Previous
       </message>
-      <message name="IDS_IOS_KEYBOARD_FIRST_TAB" desc="The title of the keyboard shortcut to open the first tab." meaning="Used as a command title in the iPad command menu.">
-        Go to first tab
+      <message name="IDS_IOS_KEYBOARD_FIRST_TAB" desc="The title of the keyboard shortcut to open the first tab. This should be in title case." meaning="Used as a command title in the iPad command menu.">
+        Go to First Tab
       </message>
-      <message name="IDS_IOS_KEYBOARD_GO_TO_INCOGNITO_TAB_GRID" desc="The title of the keyboard shortcut to go to the incognito tab grid from the tab grid menu." meaning="Used as a command title in the iPad command menu.">
-        Incognito tab grid
+      <message name="IDS_IOS_KEYBOARD_GO_TO_INCOGNITO_TAB_GRID" desc="The title of the keyboard shortcut to go to the incognito tab grid from the tab grid menu. This should be in title case." meaning="Used as a command title in the iPad command menu.">
+        Incognito Tab Grid
       </message>
-      <message name="IDS_IOS_KEYBOARD_GO_TO_REGULAR_TAB_GRID" desc="The title of the keyboard shortcut to go to the regular tab grid from the tab grid menu." meaning="Used as a command title in the iPad command menu.">
-        Regular tab grid
+      <message name="IDS_IOS_KEYBOARD_GO_TO_REGULAR_TAB_GRID" desc="The title of the keyboard shortcut to go to the regular tab grid from the tab grid menu. This should be in title case." meaning="Used as a command title in the iPad command menu.">
+        Regular Tab Grid
       </message>
-      <message name="IDS_IOS_KEYBOARD_GO_TO_TAB_GRID" desc="The title of the keyboard shortcut to open the Tab Switcher." meaning="Used as a command title in the iPad command menu.">
-        Go to tab switcher
+      <message name="IDS_IOS_KEYBOARD_GO_TO_TAB_GRID" desc="The title of the keyboard shortcut to open the Tab Switcher. This should be in title case." meaning="Used as a command title in the iPad command menu.">
+        Go to Tab Switcher
       </message>
-      <message name="IDS_IOS_KEYBOARD_GO_TO_TAB_GROUPS_GRID" desc="The title of the keyboard shortcut to go to the tab groups grid from the tab grid menu." meaning="Used as a command title in the iPad command menu.">
-        Tab groups grid
+      <message name="IDS_IOS_KEYBOARD_GO_TO_TAB_GROUPS_GRID" desc="The title of the keyboard shortcut to go to the tab groups grid from the tab grid menu. This should be in title case." meaning="Used as a command title in the iPad command menu.">
+        Tab Groups Grid
       </message>
-    <message name="IDS_IOS_KEYBOARD_HISTORY" desc="Title of the menu listing history-related keyboard shortcuts." meaning="Used as a menu title in the iPad command menu.">
+      <message name="IDS_IOS_KEYBOARD_HISTORY" desc="Title of the menu listing history-related keyboard shortcuts." meaning="Used as a menu title in the iPad command menu.">
         History
       </message>
       <message name="IDS_IOS_KEYBOARD_HISTORY_BACK" desc="Title of the keyboard shortcut to go back in the history menu." meaning="Used as a command title in the iPad command menu.">
@@ -3312,65 +3300,68 @@ See your search engine’s instructions for deleting your search history, if app
       <message name="IDS_IOS_KEYBOARD_HISTORY_FORWARD" desc="Title of the keyboard shortcut to go forward in the history menu." meaning="Used as a command title in the iPad command menu.">
         Forward
       </message>
-      <message name="IDS_IOS_KEYBOARD_LAST_TAB" desc="The title of the keyboard shortcut to open the last tab." meaning="Used as a command title in the iPad command menu.">
-        Go to last tab
+      <message name="IDS_IOS_KEYBOARD_LAST_TAB" desc="The title of the keyboard shortcut to open the last tab. This should be in title case." meaning="Used as a command title in the iPad command menu.">
+        Go to Last Tab
       </message>
-      <message name="IDS_IOS_KEYBOARD_NEW_INCOGNITO_TAB" desc="The title of the keyboard shortcut to open a new Incognito tab." meaning="Used as a command title in the iPad command menu.">
-        New Incognito tab
+      <message name="IDS_IOS_KEYBOARD_NEW_INCOGNITO_TAB" desc="The title of the keyboard shortcut to open a new Incognito tab. This should be in title case." meaning="Used as a command title in the iPad command menu.">
+        New Incognito Tab
       </message>
-      <message name="IDS_IOS_KEYBOARD_NEW_INCOGNITO_WINDOW" desc="The title of the keyboard shortcut to open a new Incognito window." meaning="Used as a command title in the iPad command menu.">
-        New Incognito window
+      <message name="IDS_IOS_KEYBOARD_NEW_INCOGNITO_WINDOW" desc="The title of the keyboard shortcut to open a new Incognito window. This should be in title case." meaning="Used as a command title in the iPad command menu.">
+        New Incognito Window
       </message>
-      <message name="IDS_IOS_KEYBOARD_NEW_TAB" desc="The title of the keyboard shortcut to open a new tab." meaning="Used as a command title in the iPad command menu.">
-        New tab
+      <message name="IDS_IOS_KEYBOARD_NEW_TAB" desc="The title of the keyboard shortcut to open a new tab. This should be in title case." meaning="Used as a command title in the iPad command menu.">
+        New Tab
       </message>
-      <message name="IDS_IOS_KEYBOARD_NEW_WINDOW" desc="The title of the keyboard shortcut to open a new window." meaning="Used as a command title in the iPad command menu.">
-        New window
+      <message name="IDS_IOS_KEYBOARD_NEW_WINDOW" desc="The title of the keyboard shortcut to open a new window. This should be in title case." meaning="Used as a command title in the iPad command menu.">
+        New Window
       </message>
-      <message name="IDS_IOS_KEYBOARD_NEXT_TAB" desc="Title of the keyboard shortcut to switch to the next tab in the tab strip." meaning="Used as a command title in the iPad command menu.">
-        Go to next tab
+      <message name="IDS_IOS_KEYBOARD_NEXT_TAB" desc="Title of the keyboard shortcut to switch to the next tab in the tab strip. This should be in title case." meaning="Used as a command title in the iPad command menu.">
+        Go to Next Tab
       </message>
-      <message name="IDS_IOS_KEYBOARD_OPEN_LOCATION" desc="Title of the keyboard shortcut to open a location (puts cursor in the URL bar)." meaning="Used as a command title in the iPad command menu.">
-        Open location…
+      <message name="IDS_IOS_KEYBOARD_OPEN_LOCATION" desc="Title of the keyboard shortcut to open a location (puts cursor in the URL bar). This should be in title case." meaning="Used as a command title in the iPad command menu.">
+        Open Location…
       </message>
-      <message name="IDS_IOS_KEYBOARD_PREVIOUS_TAB" desc="Title of the keyboard shortcut to switch to the previous tab in the tab strip." meaning="Used as a command title in the iPad command menu.">
-        Go to previous tab
+      <message name="IDS_IOS_KEYBOARD_PREVIOUS_TAB" desc="Title of the keyboard shortcut to switch to the previous tab in the tab strip. This should be in title case." meaning="Used as a command title in the iPad command menu.">
+        Go to Previous Tab
       </message>
       <message name="IDS_IOS_KEYBOARD_RELOAD" desc="Title for the keyboard shortcut to reload the page." meaning="Used as a command title in the iPad command menu.">
         Reload
       </message>
-      <message name="IDS_IOS_KEYBOARD_REOPEN_CLOSED_TAB" desc="Title of the keyboard shortcut to reopen a recently closed tab." meaning="Used as a command title in the iPad command menu.">
-        Reopen last closed tab
+      <message name="IDS_IOS_KEYBOARD_REOPEN_CLOSED_TAB" desc="Title of the keyboard shortcut to reopen a recently closed tab. This should be in title case." meaning="Used as a command title in the iPad command menu.">
+        Reopen Last Closed Tab
       </message>
-      <message name="IDS_IOS_KEYBOARD_REPORT_AN_ISSUE" desc="The title of the keyboard shortcut to open the form to report an issue." meaning="Used as a command title in the iPad command menu.">
-        Report an issue…
+      <message name="IDS_IOS_KEYBOARD_REPORT_AN_ISSUE" desc="The title of the keyboard shortcut to open the form to report an issue. This should be in title case." meaning="Used as a command title in the iPad command menu.">
+        Report an Issue…
       </message>
-      <message name="IDS_IOS_KEYBOARD_SEARCH_TABS" desc="Title of the keyboard shortcut that open the search tab menu in tab grid." meaning="Used as a command title in the iPad command menu.">
-        Search tabs…
+      <message name="IDS_IOS_KEYBOARD_SEARCH_TABS" desc="Title of the keyboard shortcut that open the search tab menu in tab grid. This should be in title case." meaning="Used as a command title in the iPad command menu.">
+        Search Tabs…
       </message>
-      <message name="IDS_IOS_KEYBOARD_SHOW_BOOKMARKS" desc="Title of the keyboard shortcut that shows the list of bookmarks." meaning="Used as a command title in the iPad command menu.">
-        Show bookmarks
+      <message name="IDS_IOS_KEYBOARD_SETTINGS" desc="The title of the keyboard shortcut to open the app's Settings. This should be in title case." meaning="Used as a command title in the iPad command menu for iPadOS 26+.">
+        Settings…
       </message>
-      <message name="IDS_IOS_KEYBOARD_SHOW_DOWNLOADS" desc="The title of the keyboard shortcut to open the app's Download folder." meaning="Used as a command title in the iPad command menu.">
-        Show downloads
+      <message name="IDS_IOS_KEYBOARD_SHOW_BOOKMARKS" desc="Title of the keyboard shortcut that shows the list of bookmarks. This should be in title case." meaning="Used as a command title in the iPad command menu.">
+        Show Bookmarks
       </message>
-      <message name="IDS_IOS_KEYBOARD_SHOW_HELP" desc="The title of the keyboard shortcut to open the app's Help." meaning="Used as a command title in the iPad command menu.">
-        Show help
+      <message name="IDS_IOS_KEYBOARD_SHOW_DOWNLOADS" desc="The title of the keyboard shortcut to open the app's Download folder. This should be in title case." meaning="Used as a command title in the iPad command menu.">
+        Show Downloads
       </message>
-      <message name="IDS_IOS_KEYBOARD_SHOW_HISTORY" desc="Title of the keyboard shortcut to show the History." meaning="Used as a command title in the iPad command menu.">
-        Show history
+      <message name="IDS_IOS_KEYBOARD_SHOW_HELP" desc="The title of the keyboard shortcut to open the app's Help. This should be in title case." meaning="Used as a command title in the iPad command menu.">
+        Show Help
       </message>
-      <message name="IDS_IOS_KEYBOARD_SHOW_READING_LIST" desc="Title of the keyboard shortcut to show the reading list." meaning="Used as a command title in the iPad command menu.">
-        Show reading list
+      <message name="IDS_IOS_KEYBOARD_SHOW_HISTORY" desc="Title of the keyboard shortcut to show the History. This should be in title case." meaning="Used as a command title in the iPad command menu.">
+        Show History
       </message>
-      <message name="IDS_IOS_KEYBOARD_SHOW_SETTINGS" desc="The title of the keyboard shortcut to open the app's Settings." meaning="Used as a command title in the iPad command menu.">
-        Show settings
+      <message name="IDS_IOS_KEYBOARD_SHOW_READING_LIST" desc="Title of the keyboard shortcut to show the reading list. This should be in title case." meaning="Used as a command title in the iPad command menu.">
+        Show Reading List
+      </message>
+      <message name="IDS_IOS_KEYBOARD_SHOW_SETTINGS" desc="The title of the keyboard shortcut to open the app's Settings. This should be in title case." meaning="Used as a command title in the iPad command menu.">
+        Show Settings
       </message>
       <message name="IDS_IOS_KEYBOARD_STOP" desc="The title of the keyboard shortcut to stop loading the page." meaning="Used as a command title in the iPad command menu.">
         Stop
       </message>
-      <message name="IDS_IOS_KEYBOARD_VOICE_SEARCH" desc="Title for the Voice Search keyboard shortcut in the discoverability." meaning="Used as a command title in the iPad command menu.">
-        Voice search
+      <message name="IDS_IOS_KEYBOARD_VOICE_SEARCH" desc="Title for the Voice Search keyboard shortcut in the discoverability. This should be in title case." meaning="Used as a command title in the iPad command menu.">
+        Voice Search
       </message>
       <message name="IDS_IOS_LANGUAGE_SETTINGS_ADD_LANGUAGE_BUTTON_TITLE" desc="Title for the button to add a language to the list of fluent languages in the language settings page. [Length: 30em] [iOS only]">
         Add language…
@@ -3515,6 +3506,15 @@ See your search engine’s instructions for deleting your search history, if app
       </message>
       <message name="IDS_IOS_LOCKDOWN_MODE_TITLE" desc="Title for lockdown mode.">
         Lockdown mode
+      </message>
+      <message name="IDS_IOS_MAGIC_STACK_APP_BUNDLE_PROMO_CARD_IPAD_DESCRIPTION" desc="Description for the app bundle promo card in the magic stack on iPad.">
+        Unlock more features for your iPad with Google apps
+      </message>
+      <message name="IDS_IOS_MAGIC_STACK_APP_BUNDLE_PROMO_CARD_IPHONE_DESCRIPTION" desc="Description for the app bundle promo card in the magic stack on iPhone.">
+        Unlock more features for your iPhone with Google apps
+      </message>
+      <message name="IDS_IOS_MAGIC_STACK_APP_BUNDLE_PROMO_CARD_TITLE" desc="Title for the app bundle promo card in the magic stack.">
+        Get Google's best apps, in one tap
       </message>
       <message name="IDS_IOS_MAGIC_STACK_CONTEXT_MENU_CUSTOMIZE_CARDS_TITLE" desc="The title of the context menu entry to edit the cards.">
         Customize cards
@@ -4099,53 +4099,6 @@ Handoff must also be enabled in the General section of Settings, and your device
       <message name="IDS_IOS_OPTIONS_PRELOAD_WEBPAGES" desc="Title for opening the setting for if/when to preload webpages. [Length: 20em] [iOS only]">
         Preload webpages
       </message>
-        <message name="IDS_IOS_OPTIONS_PRIVACY_COOKIES" desc="Title on Privacy screen to open Cookies">
-        Cookies
-      </message>
-      <message name="IDS_IOS_OPTIONS_PRIVACY_COOKIES_ALLOW_COOKIES_DESCRIPTION" desc="Option description to allow cookies">
-        Sites can use cookies to improve your browsing experience, for example, to keep you signed in or to remember items in your shopping cart.
-
-Sites can use cookies to see your browsing activity across different sites, for example, to personalize ads.
-      </message>
-      <message name="IDS_IOS_OPTIONS_PRIVACY_COOKIES_ALLOW_COOKIES_DETAIL" desc="Option detail to allow cookies">
-        Sites will work normally
-      </message>
-      <message name="IDS_IOS_OPTIONS_PRIVACY_COOKIES_ALLOW_COOKIES_TITLE" desc="Option title to allow cookies">
-        Allow all cookies
-      </message>
-      <message name="IDS_IOS_OPTIONS_PRIVACY_COOKIES_BLOCK_ALL_COOKIES_DESCRIPTION" desc="Option description to block all cookies">
-        Sites can't use cookies to improve your browsing experience, for example, to keep you signed in or to remember items in your shopping cart.
-
-Sites can't use cookies to see your browsing activity across different sites, for example, to personalize ads.
-      </message>
-      <message name="IDS_IOS_OPTIONS_PRIVACY_COOKIES_BLOCK_ALL_COOKIES_DETAIL" desc="Option detail to block all cookies">
-        Features on many sites may break
-      </message>
-      <message name="IDS_IOS_OPTIONS_PRIVACY_COOKIES_BLOCK_ALL_COOKIES_TITLE" desc="Option title to block all cookies">
-        Block all cookies (not recommended)
-      </message>
-      <message name="IDS_IOS_OPTIONS_PRIVACY_COOKIES_BLOCK_THIRD_PARTY_COOKIES_DESCRIPTION" desc="Option description to block third party cookies">
-        Sites can use cookies to improve your browsing experience, for example, to keep you signed in or to remember items in your shopping cart.
-
-Sites can't use cookies to see your browsing activity across different sites, for example, to personalize ads.
-      </message>
-      <message name="IDS_IOS_OPTIONS_PRIVACY_COOKIES_BLOCK_THIRD_PARTY_COOKIES_DETAIL" desc="Option detail to block third party cookies">
-        Features on some sites may break
-      </message>
-      <message name="IDS_IOS_OPTIONS_PRIVACY_COOKIES_BLOCK_THIRD_PARTY_COOKIES_INCOGNITO_DESCRIPTION" desc="Option description to block third party cookies in Incognito">
-        Sites can use cookies to improve your browsing experience, for example, to keep you signed in or to remember items in your shopping cart.
-
-While in Incognito, sites can't use cookies to see your browsing activity across different sites, for example, to personalize ads.
-      </message>
-      <message name="IDS_IOS_OPTIONS_PRIVACY_COOKIES_BLOCK_THIRD_PARTY_COOKIES_INCOGNITO_TITLE" desc="Option title to block third party cookies in Incognito">
-        Block third-party cookies in Incognito
-      </message>
-      <message name="IDS_IOS_OPTIONS_PRIVACY_COOKIES_BLOCK_THIRD_PARTY_COOKIES_TITLE" desc="Option title to block third party cookies">
-        Block third-party cookies
-      </message>
-      <message name="IDS_IOS_OPTIONS_PRIVACY_COOKIES_FOOTER" desc="Footer description explaining how to apply the new cookies setting">
-        Your cookies setting applies to all tabs. To apply a new setting to an open tab, reload the tab.
-      </message>
       <message name="IDS_IOS_OPTIONS_REPORT_AN_ISSUE" desc="Title for the option on Settings page to report an issue. [Length: 20em] [iOS only]">
         Report an Issue
       </message>
@@ -4338,6 +4291,12 @@ While in Incognito, sites can't use cookies to see your browsing activity across
       </message>
       <message name="IDS_IOS_PASSKEY_CREATION_DATE" desc="Passkey creation date. [iOS only]">
         Created on <ph name="Date"><ex>2023/12/31</ex>$1</ph>
+      </message>
+      <message name="IDS_IOS_PASSKEY_DOES_NOT_WORK" desc="Label indicating that the passkey was marked for deletion and does not work anymore. [iOS only]">
+        Doesn't work
+      </message>
+      <message name="IDS_IOS_PASSKEY_HIDDEN_INFO" desc="Label in the popover informing the user that a passkey was deleted by a website and will be deleted from password manager soon. Includes a link to a help center article informing more about passkeys. Refer to Glossary for the meaning of 'passkey', do not translate it as 'password'. [iOS only]">
+        This passkey doesn't work anymore. It was deleted from <ph name="WEBSITE">$1<ex>shrine.com</ex></ph> and will get deleted from here soon. <ph name="BEGIN_LINK">BEGIN_LINK</ph>About passkeys<ph name="END_LINK">END_LINK</ph>
       </message>
       <message name="IDS_IOS_PASSWORD_BOTTOM_SHEET_CONTINUE" desc="The action button to use the selected credentials to fill the username on a username only form without password.">
         Continue
@@ -6090,6 +6049,9 @@ While in Incognito, sites can't use cookies to see your browsing activity across
       </message>
       <message name="IDS_IOS_SETTINGS_AUTOFILL_REMOVE_ADDRESS_CONFIRMATION_BUTTON" desc="Confirmation button title shown to the user when the address is removed. [iOS only]">
           Remove addresses
+      </message>
+      <message name="IDS_IOS_SETTINGS_AUTOFILL_REMOVE_ADDRESS_LABEL" desc="Remove button title shown to the user to remove an address in the table view either by swiping the row or tapping the red minus icon in editing mode. [iOS only]">
+          Remove
       </message>
       <message name="IDS_IOS_SETTINGS_DELETE_ALL_CREDENTIALS" desc="Title for the authentication page when the user tries to delete all saved credentials. [iOS only]">
           To delete all passwords manager data

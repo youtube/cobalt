@@ -319,6 +319,7 @@ Keep consistent with active providers. Doesn't need to include every provider in
     <variant name="AIM"/>
     <variant name="Call"/>
     <variant name="Directions"/>
+    <variant name="Lens"/>
     <variant name="Reviews"/>
   </token>
 </histogram>
@@ -343,6 +344,41 @@ Keep consistent with active providers. Doesn't need to include every provider in
     <variant name="Shown" summary="shown"/>
     <variant name="Used" summary="used"/>
   </token>
+</histogram>
+
+<histogram name="Omnibox.AimEligibility.GwsEligibility.is_eligible"
+    enum="Boolean" expires_after="2026-08-05">
+  <owner>manukh@chromium.org</owner>
+  <owner>chrome-desktop-search@google.com</owner>
+  <summary>
+    The AIM Eligibility service makes HTTP requests to determine which AI
+    features the user is eligible for. The requests are triggered by certain
+    infrequent actions that affect the user profile (e.g. startup, switching
+    profiles, signing in, etc), and also periodically: once every N hours.
+
+    The response is expected to be pretty stable over time. Even if the request
+    is made once every N hours, the response might not change for weeks or
+    longer. only once every week.
+
+    This metric logs whether the response contained a &quot;is_eligible&quot;
+    field set to true. If the field is missing or false, this metric will log
+    false. If the response fails (e.g. server is down or response is poorly
+    formatted), this metric will not be logged.
+  </summary>
+</histogram>
+
+<histogram name="Omnibox.AimEligibility.GwsRequest"
+    enum="ServerAimEligibilityRequestStatus" expires_after="2026-08-05">
+  <owner>manukh@chromium.org</owner>
+  <owner>chrome-desktop-search@google.com</owner>
+  <summary>
+    The AIM Eligibility service makes HTTP requests to determine which AI
+    features the user is eligible for. The requests are triggered by certain
+    infrequent actions that affect the user profile (e.g. startup, switching
+    profiles, signing in, etc), and also periodically: once every N hours.
+
+    This metric logs the status of the request.
+  </summary>
 </histogram>
 
 <histogram name="Omnibox.AnswerAction.UsageByType.{AnswerType}"
@@ -549,7 +585,7 @@ Keep consistent with active providers. Doesn't need to include every provider in
 </histogram>
 
 <histogram name="Omnibox.AutocompletionTime.UpdateResult{Slice}"
-    units="microseconds" expires_after="2025-12-07">
+    units="microseconds" expires_after="2026-02-09">
   <owner>manukh@chromium.org</owner>
   <owner>jdonnelly@chromium.org</owner>
   <owner>chrome-desktop-search@google.com</owner>
@@ -606,8 +642,8 @@ Keep consistent with active providers. Doesn't need to include every provider in
 </histogram>
 
 <histogram name="Omnibox.CalculateVisibleHint.Duration" units="ms"
-    expires_after="2025-09-14">
-  <owner>peilinwang@google.com</owner>
+    expires_after="2026-09-14">
+  <owner>ender@google.com</owner>
   <owner>woa-performance-bugs+jank@google.com</owner>
   <summary>
     Measures the amount of time it takes to call UrlBar.calculateVisibleHint().
@@ -1083,7 +1119,7 @@ Keep consistent with active providers. Doesn't need to include every provider in
 
 <histogram
     name="Omnibox.DsePreload.SignalResult{DsePreloadTriggerType}{PreloadType}"
-    enum="SearchPreloadSignalResult" expires_after="2025-12-01">
+    enum="SearchPreloadSignalResult" expires_after="2026-02-09">
   <owner>khalidpeer@chromium.org</owner>
   <owner>chrome-desktop-search@google.com</owner>
   <owner>kenoss@chromium.org</owner>
@@ -1282,7 +1318,7 @@ Keep consistent with active providers. Doesn't need to include every provider in
 
 <histogram
     name="Omnibox.FocusToOpenTimeAnyPopupState3.ByPageContext.{OmniboxPageContext}"
-    units="ms" expires_after="2025-12-07">
+    units="ms" expires_after="2026-02-09">
   <owner>khalidpeer@chromium.org</owner>
   <owner>chrome-desktop-search@google.com</owner>
   <summary>
@@ -1704,7 +1740,7 @@ Keep consistent with active providers. Doesn't need to include every provider in
 </histogram>
 
 <histogram name="Omnibox.LoadingPredictor.MatchType.{PreconnectableType}"
-    enum="OmniboxResultType" expires_after="2025-12-06">
+    enum="OmniboxResultType" expires_after="2026-02-09">
   <owner>nidhijaju@chromium.org</owner>
   <owner>chrome-loading@google.com</owner>
   <summary>
@@ -2038,8 +2074,8 @@ Keep consistent with active providers. Doesn't need to include every provider in
 </histogram>
 
 <histogram name="Omnibox.NumberOfVisibleCharacters" units="characters"
-    expires_after="2025-09-07">
-  <owner>peilinwang@google.com</owner>
+    expires_after="2026-09-07">
+  <owner>ender@google.com</owner>
   <owner>woa-performance-bugs+jank@google.com</owner>
   <summary>
     Records the number of characters visible in the omnibox. Recorded once per
@@ -2088,6 +2124,39 @@ Keep consistent with active providers. Doesn't need to include every provider in
     windows open. In M-75 and later, it records all omnibox interactions
     regardless, in order to be consistent with how user actions and histograms
     are handled.
+  </summary>
+</histogram>
+
+<histogram name="Omnibox.OnDeviceBrainModel.Latency" units="ms"
+    expires_after="2026-08-08">
+  <owner>cechen@google.com</owner>
+  <owner>suggest-2g@google.com</owner>
+  <summary>
+    Recorded once when OnDeviceHeadProvider is run and the provider calls the on
+    device brain model. Records the latency for the brain model to generate
+    predictions for a given prefix, in unit millisecond.
+  </summary>
+</histogram>
+
+<histogram name="Omnibox.OnDeviceBrainModel.NumResults" units="count"
+    expires_after="2026-08-08">
+  <owner>cechen@google.com</owner>
+  <owner>suggest-2g@google.com</owner>
+  <summary>
+    Recorded once when OnDeviceHeadProvider is run and the provider calls the on
+    device brain model. Records how many predictions the brain model generates
+    for a given prefix.
+  </summary>
+</histogram>
+
+<histogram name="Omnibox.OnDeviceBrainModel.ResultLength" units="chars"
+    expires_after="2026-08-08">
+  <owner>cechen@google.com</owner>
+  <owner>suggest-2g@google.com</owner>
+  <summary>
+    Recorded once for each prediction when OnDeviceHeadProvider is run and the
+    provider calls the on device brain model to generate predictions for a given
+    prefix. Records the length of each prediction respectively.
   </summary>
 </histogram>
 
@@ -2272,8 +2341,8 @@ Keep consistent with active providers. Doesn't need to include every provider in
 </histogram>
 
 <histogram name="Omnibox.ScrollToTLD.Duration" units="ms"
-    expires_after="2025-03-09">
-  <owner>peilinwang@google.com</owner>
+    expires_after="2026-03-09">
+  <owner>ender@google.com</owner>
   <owner>woa-performance-bugs+jank@google.com</owner>
   <summary>
     Measures the amount of time it takes to call UrlBar.scrollToTLD(). Logged
@@ -2333,7 +2402,7 @@ Keep consistent with active providers. Doesn't need to include every provider in
 </histogram>
 
 <histogram name="Omnibox.SearchEngineType{Population}"
-    enum="OmniboxSearchEngineType" expires_after="2025-12-04">
+    enum="OmniboxSearchEngineType" expires_after="2026-02-09">
   <owner>jdonnelly@chromium.org</owner>
   <owner>mpearson@chromium.org</owner>
   <owner>chrome-desktop-search@google.com</owner>
@@ -2455,7 +2524,7 @@ Keep consistent with active providers. Doesn't need to include every provider in
 
 <histogram
     name="Omnibox.SearchPrefetch.Within1sDuplicateSearchTermsRelationship"
-    enum="DuplicateNavigationServingResult" expires_after="2025-12-07">
+    enum="DuplicateNavigationServingResult" expires_after="2026-02-09">
   <owner>lingqi@chromium.org</owner>
   <owner>nhiroki@chromium.org</owner>
   <owner>chrome-prerendering@google.com</owner>

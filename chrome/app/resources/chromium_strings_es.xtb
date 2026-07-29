@@ -102,6 +102,7 @@ Es posible que algunas funciones no estén disponibles y que no se guarden los c
 <translation id="2238130810669087193">Para acceder a tus direcciones y más en todos tus dispositivos, inicia sesión en Chromium. Esta dirección se guardará en tu cuenta de Google cuando inicies sesión.</translation>
 <translation id="2241627712206172106">Si compartes un ordenador, tus amigos y familiares pueden navegar de forma independiente y configurar Chromium a su gusto.</translation>
 <translation id="2287771843518581140">{NUM_TABS,plural, =1{Chromium recomienda pausar la pestaña que ralentiza tu navegador}other{Chromium recomienda pausar las pestañas que ralentizan tu navegador}}</translation>
+<translation id="2307973900865360088">Mantener en el Dock</translation>
 <translation id="2313870531055795960">Comprueba las URLs guardadas en Chromium con una lista de sitios que no son seguros. Si un sitio intenta robarte tu contraseña o si te descargas un archivo dañino, puede que Chromium también envíe URLs, así como fragmentos de contenido de la página, a Navegación segura.</translation>
 <translation id="2343156876103232566">Para enviar un número desde aquí a tu teléfono Android, inicia sesión en Chromium con ambos dispositivos.</translation>
 <translation id="2359808026110333948">Continuar</translation>
@@ -209,6 +210,7 @@ Es posible que algunas funciones no estén disponibles y que no se guarden los c
 <translation id="364817392622123556">{COUNT,plural, =0{Hay una nueva actualización de Chromium disponible que se aplicará cuando reinicies el navegador.}=1{Hay una nueva actualización de Chromium disponible que se aplicará cuando reinicies el navegador. La ventana de Incógnito no se volverá a abrir.}other{Hay una nueva actualización de Chromium disponible que se aplicará cuando reinicies el navegador. Las # ventanas de Incógnito no se volverán a abrir.}}</translation>
 <translation id="3651803019964686660">Para enviar un número desde <ph name="ORIGIN" /> a tu teléfono Android, inicia sesión en Chromium con ambos dispositivos.</translation>
 <translation id="3667616615096815454">No se puede realizar la instalación porque se trata de una aplicación desconocida para el servidor.</translation>
+<translation id="3675854891107786059">Usar tu <ph name="BEGIN_LINK" />propia frase de contraseña<ph name="END_LINK" /> para cifrar todos los datos de Chromium en tu cuenta de Google. Los métodos de pago y las direcciones de Google Pay no se cifrarán. El historial de navegación de Chromium no se sincronizará.</translation>
 <translation id="3685209450716071127">Chromium no puede comprobar tus contraseñas. Revisa tu conexión a Internet.</translation>
 <translation id="370962675267501463">{COUNT,plural, =0{Tu administrador pide que reinicies Chromium para aplicar esta actualización}=1{Tu administrador pide que reinicies Chromium para aplicar esta actualización La ventana de Incógnito no se volverá a abrir.}other{Tu administrador pide que reinicies Chromium para aplicar esta actualización Las # ventanas de Incógnito no se volverán a abrir.}}</translation>
 <translation id="3713809861844741608">Abrir enlace en una pes&amp;taña nueva de Chromium</translation>
@@ -485,6 +487,7 @@ Es posible que algunas funciones no estén disponibles. Especifica un directorio
 <translation id="718435575166326686">Chromium necesita el permiso de la cámara para este sitio</translation>
 <translation id="7196312274710523067">No se ha podido iniciar Chromium. Inténtalo de nuevo.</translation>
 <translation id="7197677400338048821">Chromium no puede comprobar tus contraseñas. Vuelve a intentarlo en 24 horas.</translation>
+<translation id="7213008767289637091">Mantén Chromium en tu Dock para acceder rápidamente a él en cualquier momento</translation>
 <translation id="7213407614656404070">Usa Chromium siempre que hagas clic en enlaces de mensajes, documentos y otras aplicaciones</translation>
 <translation id="7223968959479464213">Administrador de tareas - Chromium</translation>
 <translation id="7246575524853130370">Tus intereses estimados por Chromium</translation>
@@ -498,6 +501,7 @@ Es posible que algunas funciones no estén disponibles. Especifica un directorio
 Chromium no puede recuperar tu configuración.</translation>
 <translation id="7339898014177206373">Nueva ventana</translation>
 <translation id="734373864078049451">Aquí puedes encontrar tus páginas web, marcadores y otros contenidos de Chromium.</translation>
+<translation id="7347827960336370838">Solo las personas que tengan tu frase de contraseña podrán leer tus datos cifrados. Google no recibirá la frase de contraseña ni tampoco la almacenará. Si olvidas tu frase de contraseña o quieres cambiar este ajuste, tendrás que <ph name="BEGIN_LINK" />eliminar los datos de Chromium de tu cuenta<ph name="END_LINK" />.</translation>
 <translation id="7349591376906416160">El administrador del sistema ha configurado Chromium para que abra <ph name="ALTERNATIVE_BROWSER_NAME" /> al acceder a <ph name="TARGET_URL_HOSTNAME" />.</translation>
 <translation id="7352651011704765696">Se ha producido un problema</translation>
 <translation id="7376384068949534168">No has visitado el sitio recientemente. Chromium ha eliminado <ph name="PERMISSION_1" /> y <ph name="PERMISSION_2" />.</translation>
@@ -536,6 +540,7 @@ Chromium no puede recuperar tu configuración.</translation>
 <translation id="7859018312476869945">Al escribir en la barra de direcciones o en el cuadro de búsqueda, Chromium envía lo que escribes al buscador predeterminado para que obtengas mejores sugerencias. Esta función está desactivada en el modo Incógnito.</translation>
 <translation id="7867198900892795913">No se ha podido actualizar Chromium a la versión más reciente, por lo que no disfrutas de las últimas funciones y correcciones de seguridad.</translation>
 <translation id="7872446069773932638">Descargando... Segundos restantes: <ph name="SECONDS" />.</translation>
+<translation id="7873537467422636035">Si has olvidado tu frase de contraseña o quieres cambiar este ajuste, <ph name="BEGIN_LINK" />elimina los datos de Chromium de tu cuenta<ph name="END_LINK" />.</translation>
 <translation id="7877212753140190672">Pregunta sobre esta imagen</translation>
 <translation id="7888981273428720788">Establecer Chromium como navegador predeterminado</translation>
 <translation id="7934340546140346950">Chromium cambia las conexiones no seguras a HTTPS automáticamente cuando es posible</translation>
@@ -586,6 +591,7 @@ Chromium no puede recuperar tu configuración.</translation>
 <translation id="8458614432758743027">Chromium requiere Windows 10 o una versión posterior.</translation>
 <translation id="8463672209299734063">Opcional: Ayuda a mejorar las funciones y el rendimiento de ChromiumOS enviando automáticamente datos de diagnóstico y de uso a Google.</translation>
 <translation id="8471947159125090285">Para usar y guardar los datos de Chromium en tu cuenta de Google, verifica tu identidad</translation>
+<translation id="8482493977473846331">Muestra solicitudes para iniciar sesión en Chromium</translation>
 <translation id="8493179195440786826">Chromium no está actualizado</translation>
 <translation id="8522801943730206384">Chromium puede comprobar tus contraseñas si las guardas</translation>
 <translation id="8555465886620020932">Error del servicio: <ph name="SERVICE_ERROR" />.</translation>
@@ -603,7 +609,6 @@ Chromium no puede recuperar tu configuración.</translation>
 <translation id="8712637175834984815">Entendido</translation>
 <translation id="8719993436687031146">¿Iniciar sesión en Chromium?</translation>
 <translation id="8747073452963259673">esquina inferior izquierda del área de búsqueda: un <ph name="LEFT" /> % a la izquierda y un <ph name="BOTTOM" /> % abajo</translation>
-<translation id="8768722695577490596">Las contraseñas solo se pueden eliminar fuera de Chromium</translation>
 <translation id="878572486461146056">Error de instalación: tu administrador de red ha aplicado una política de grupo que impide la instalación: <ph name="INSTALL_ERROR" /></translation>
 <translation id="8796602469536043152">Chromium necesita permiso para acceder a la cámara y al micrófono en este sitio web</translation>
 <translation id="8818550178040858407">¿Iniciar sesión en Chromium?</translation>

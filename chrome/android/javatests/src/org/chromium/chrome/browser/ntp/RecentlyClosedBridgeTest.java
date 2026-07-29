@@ -7,6 +7,7 @@ package org.chromium.chrome.browser.ntp;
 import static org.mockito.Mockito.when;
 
 import android.os.Build;
+import android.text.TextUtils;
 
 import androidx.test.filters.LargeTest;
 import androidx.test.filters.MediumTest;
@@ -108,7 +109,7 @@ public class RecentlyClosedBridgeTest {
         TabGroupModelFilter filter =
                 mTabModelSelector.getTabGroupModelFilterProvider().getTabGroupModelFilter(false);
         mTabGroupModelFilter = filter;
-        final Tab tab = mActivity.getActivityTab();
+        final Tab tab = mActivityTestRule.getActivityTab();
         ChromeTabUtils.waitForInteractable(tab);
     }
 
@@ -1342,8 +1343,10 @@ public class RecentlyClosedBridgeTest {
         Assert.assertEquals(groupUrls[0], ChromeTabUtils.getUrlOnUiThread(tabs.get(2)).getSpec());
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
-                    Assert.assertNull(
-                            mTabGroupModelFilter.getTabGroupTitle(tabs.get(1).getTabGroupId()));
+                    Assert.assertTrue(
+                            TextUtils.isEmpty(
+                                    mTabGroupModelFilter.getTabGroupTitle(
+                                            tabs.get(1).getTabGroupId())));
                     Assert.assertTrue(mTabGroupModelFilter.isTabInTabGroup(tabs.get(1)));
                     Assert.assertEquals(
                             Arrays.asList(new Tab[] {tabs.get(1), tabs.get(2)}),
@@ -1432,8 +1435,10 @@ public class RecentlyClosedBridgeTest {
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
                     Assert.assertTrue(mTabGroupModelFilter.isTabInTabGroup(tabs.get(1)));
-                    Assert.assertNull(
-                            mTabGroupModelFilter.getTabGroupTitle(tabs.get(1).getTabGroupId()));
+                    Assert.assertTrue(
+                            TextUtils.isEmpty(
+                                    mTabGroupModelFilter.getTabGroupTitle(
+                                            tabs.get(1).getTabGroupId())));
                     Assert.assertEquals(
                             Arrays.asList(new Tab[] {tabs.get(1), tabs.get(2)}),
                             mTabGroupModelFilter.getRelatedTabList(tabs.get(1).getId()));
@@ -1725,7 +1730,8 @@ public class RecentlyClosedBridgeTest {
             String[] titles,
             String[] urls) {
         assert titles.length == urls.length;
-        Assert.assertTrue(cls.isInstance(entry));
+        Assert.assertTrue(
+                "Entry was " + entry.getClass() + " wanted " + cls, cls.isInstance(entry));
 
         if (cls == RecentlyClosedTab.class) {
             assert groupTitles.length == 0;

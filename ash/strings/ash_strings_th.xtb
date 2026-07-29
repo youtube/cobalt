@@ -1315,7 +1315,7 @@
 <translation id="528468243742722775">สิ้นสุด</translation>
 <translation id="5286194356314741248">กำลังสแกน</translation>
 <translation id="528641622273682395">เปิด/ปิดการทดสอบไมโครโฟน</translation>
-<translation id="5297423144044956168">ไม่พบอุปกรณ์เคลื่อนที่</translation>
+<translation id="5297423144044956168">ไม่พบมือถือ</translation>
 <translation id="5297704307811127955">ปิด</translation>
 <translation id="5300589172476337783">แสดง</translation>
 <translation id="5302048478445481009">ภาษา</translation>
@@ -1365,6 +1365,7 @@
 <translation id="5429993543155113935">ขณะนี้ยังไม่รองรับหน้าต่างที่ไม่ระบุตัวตน</translation>
 <translation id="5431318178759467895">สี</translation>
 <translation id="5433020815079095860">อินพุตเสียง</translation>
+<translation id="543584294741034249">คุณเชื่อมต่อจอแสดงผลภายนอกได้สูงสุด <ph name="DISPLAY_LIMIT" /> จอ</translation>
 <translation id="544691375626129091">เพิ่มผู้ใช้ที่มีทั้งหมดลงในเซสชันนี้แล้ว</translation>
 <translation id="54609108002486618">มีการจัดการ</translation>
 <translation id="5460938382730614333">เปิดตัวทำเครื่องหมายอยู่</translation>

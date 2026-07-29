@@ -2,15 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-
 #include "chrome/browser/ui/webui/cr_components/history/history_util.h"
 
 #include "chrome/browser/history_embeddings/history_embeddings_utils.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/signin/identity_manager_factory.h"
-#include "chrome/browser/signin/signin_ui_util.h"
 #include "chrome/browser/ui/webui/cr_components/history_clusters/history_clusters_util.h"
 #include "chrome/browser/ui/webui/favicon_source.h"
+#include "chrome/browser/ui/webui/history/history_sign_in_state_watcher.h"
 #include "chrome/grit/generated_resources.h"
 #include "chrome/grit/history_resources.h"
 #include "chrome/grit/history_resources_map.h"
@@ -20,8 +18,6 @@
 #include "components/history_clusters/core/history_clusters_prefs.h"
 #include "components/prefs/pref_service.h"
 #include "components/signin/public/base/signin_pref_names.h"
-#include "components/signin/public/base/signin_switches.h"
-#include "components/signin/public/identity_manager/identity_manager.h"
 #include "components/strings/grit/components_strings.h"
 #include "content/public/browser/web_ui_data_source.h"
 #include "ui/base/l10n/l10n_util.h"
@@ -29,15 +25,7 @@
 #include "ui/webui/webui_util.h"
 
 // Static
-bool HistoryUtil::IsUserSignedIn(Profile* profile) {
-  signin::IdentityManager* identity_manager =
-      IdentityManagerFactory::GetForProfile(profile);
-  return identity_manager &&
-         identity_manager->HasPrimaryAccount(signin::ConsentLevel::kSync);
-}
-
-// Static
-content::WebUIDataSource* HistoryUtil::PopulateSourceForSidePanelHistory(
+content::WebUIDataSource* HistoryUtil::PopulateCommonSourceForHistory(
     content::WebUIDataSource* source,
     Profile* profile) {
   static constexpr webui::LocalizedString kStrings[] = {
@@ -91,7 +79,8 @@ content::WebUIDataSource* HistoryUtil::PopulateSourceForSidePanelHistory(
   source->AddBoolean("isSignInAllowed",
                      prefs->GetBoolean(prefs::kSigninAllowed));
 
-  source->AddBoolean(kIsUserSignedInKey, IsUserSignedIn(profile));
+  source->AddInteger(kSignInStateKey,
+                     static_cast<int>(GetHistorySignInState(profile)));
 
   source->AddInteger(
       "lastSelectedTab",

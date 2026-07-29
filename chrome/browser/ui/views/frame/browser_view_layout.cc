@@ -31,7 +31,7 @@
 #include "chrome/browser/ui/views/frame/contents_layout_manager.h"
 #include "chrome/browser/ui/views/frame/immersive_mode_controller.h"
 #include "chrome/browser/ui/views/frame/multi_contents_view.h"
-#include "chrome/browser/ui/views/frame/tab_strip_region_view.h"
+#include "chrome/browser/ui/views/frame/tab_strip_view_interface.h"
 #include "chrome/browser/ui/views/frame/top_container_view.h"
 #include "chrome/browser/ui/views/infobars/infobar_container_view.h"
 #include "chrome/browser/ui/views/side_panel/side_panel.h"
@@ -237,11 +237,11 @@ BrowserViewLayout::BrowserViewLayout(
     views::Label* web_app_window_title,
     TabStripRegionView* tab_strip_region_view,
     TabStrip* tab_strip,
+    views::View* vertical_tab_strip_container,
     views::View* toolbar,
     InfoBarContainerView* infobar_container,
     views::View* contents_container,
     MultiContentsView* multi_contents_view,
-    views::View* vertical_tab_strip_container,
     views::View* left_aligned_side_panel_separator,
     views::View* unified_side_panel,
     views::View* right_aligned_side_panel_separator,
@@ -254,11 +254,11 @@ BrowserViewLayout::BrowserViewLayout(
       web_app_frame_toolbar_(web_app_frame_toolbar),
       web_app_window_title_(web_app_window_title),
       tab_strip_region_view_(tab_strip_region_view),
+      vertical_tab_strip_container_(vertical_tab_strip_container),
       toolbar_(toolbar),
       infobar_container_(infobar_container),
       contents_container_(contents_container),
       multi_contents_view_(multi_contents_view),
-      vertical_tab_strip_container_(vertical_tab_strip_container),
       left_aligned_side_panel_separator_(left_aligned_side_panel_separator),
       unified_side_panel_(unified_side_panel),
       right_aligned_side_panel_separator_(right_aligned_side_panel_separator),
@@ -304,8 +304,11 @@ gfx::Size BrowserViewLayout::GetMinimumSize(const views::View* host) const {
       bookmark_bar_ && bookmark_bar_->GetVisible() &&
       delegate_->SupportsWindowFeature(Browser::FEATURE_BOOKMARKBAR);
 
+  // TODO(crbug.com/437917495): Verify all callers have the correct bounds in
+  // vertical and horizontal tabstrip modes.
   gfx::Size tabstrip_size(
-      has_tabstrip ? tab_strip_region_view_->GetMinimumSize() : gfx::Size());
+      has_tabstrip ? browser_view_->tab_strip_view()->GetMinimumSize()
+                   : gfx::Size());
   gfx::Size toolbar_size((has_toolbar || has_location_bar)
                              ? toolbar_->GetMinimumSize()
                              : gfx::Size());
@@ -332,12 +335,6 @@ gfx::Size BrowserViewLayout::GetMinimumSize(const views::View* host) const {
        infobar_container_size.width(), contents_size.width()});
 
   return gfx::Size(min_width, min_height);
-}
-
-void BrowserViewLayout::SetContentBorderBounds(
-    const std::optional<gfx::Rect>& region_capture_rect) {
-  dynamic_content_border_bounds_ = region_capture_rect;
-  LayoutContentBorder();
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -376,8 +373,6 @@ void BrowserViewLayout::Layout(views::View* browser_view) {
 
   // Layout the contents container in the remaining space.
   LayoutContentsContainerView(available_bounds);
-
-  LayoutContentBorder();
 
   // This must be done _after_ we lay out the WebContents since this
   // code calls back into us to find the bounding box the find bar
@@ -917,49 +912,6 @@ void BrowserViewLayout::UpdateTopContainerBounds(
   }
   top_container_->SetBoundsRect(top_container_bounds);
   SetClipPathWithBottomAllowance(top_container_);
-}
-
-void BrowserViewLayout::LayoutContentBorder() {
-  if (!contents_border_widget_ || !contents_border_widget_->IsVisible()) {
-    return;
-  }
-
-  gfx::Point contents_top_left;
-#if BUILDFLAG(IS_CHROMEOS)
-  // On Ash placing the border widget on top of the contents container
-  // does not require an offset -- see crbug.com/1030925.
-  contents_top_left =
-      gfx::Point(contents_container_->x(), contents_container_->y());
-#else
-  views::View::ConvertPointToScreen(contents_container_, &contents_top_left);
-#endif
-
-  gfx::Rect rect;
-  if (dynamic_content_border_bounds_) {
-    rect =
-        gfx::Rect(contents_top_left.x() + dynamic_content_border_bounds_->x(),
-                  contents_top_left.y() + dynamic_content_border_bounds_->y(),
-                  dynamic_content_border_bounds_->width(),
-                  dynamic_content_border_bounds_->height());
-  } else {
-    rect =
-        gfx::Rect(contents_top_left.x(), contents_top_left.y(),
-                  contents_container_->width(), contents_container_->height());
-  }
-
-#if BUILDFLAG(IS_CHROMEOS)
-  // Immersive top container might overlap with the blue border in fullscreen
-  // mode - see crbug.com/1392733. By insetting the bounds rectangle we ensure
-  // that the blue border is always placed below the top container.
-  if (delegate_->GetImmersiveModeController()->IsRevealed()) {
-    int delta = top_container_->bounds().bottom() - rect.y();
-    if (delta > 0) {
-      rect.Inset(gfx::Insets().set_top(delta));
-    }
-  }
-#endif
-
-  contents_border_widget_->SetBounds(rect);
 }
 
 int BrowserViewLayout::GetMinWebContentsWidth() const {

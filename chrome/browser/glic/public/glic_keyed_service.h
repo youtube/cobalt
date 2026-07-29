@@ -15,13 +15,14 @@
 #include "base/memory/memory_pressure_listener.h"
 #include "base/memory/raw_ptr.h"
 #include "chrome/browser/actor/task_id.h"
-#include "chrome/browser/glic/glic_enabling.h"
 #include "chrome/browser/glic/glic_zero_state_suggestions_manager.h"
 #include "chrome/browser/glic/host/glic.mojom.h"
 #include "chrome/browser/glic/public/context/glic_sharing_manager.h"
+#include "chrome/browser/glic/public/glic_enabling.h"
 #include "chrome/browser/glic/widget/glic_window_controller.h"
 #include "chrome/common/actor.mojom-forward.h"
 #include "components/keyed_service/core/keyed_service.h"
+#include "components/optimization_guide/proto/features/common_quality_data.pb.h"
 #include "content/public/browser/web_contents.h"
 
 class BrowserWindowInterface;
@@ -41,6 +42,7 @@ namespace glic {
 class AuthController;
 class GlicActorController;
 class GlicEnabling;
+class GlicFreController;
 class GlicMetrics;
 class GlicOcclusionNotifier;
 class GlicProfileManager;
@@ -117,6 +119,7 @@ class GlicKeyedService : public KeyedService {
   GlicEnabling& enabling() { return *enabling_.get(); }
 
   GlicMetrics* metrics() { return metrics_.get(); }
+  GlicFreController& fre_controller();
   GlicWindowController& window_controller();
   GlicSharingManager& sharing_manager();
 
@@ -239,7 +242,9 @@ class GlicKeyedService : public KeyedService {
       mojom::WebClientHandler::PerformActionsCallback callback,
       actor::TaskId task_id,
       actor::mojom::ActionResultCode result_code,
-      std::optional<size_t> index_of_failed_action);
+      std::optional<size_t> index_of_failed_action,
+      std::vector<optimization_guide::proto::ScriptToolResult>
+          script_tool_results);
 
   // List of callbacks to be notified when the client requests a change to the
   // context access indicator status.
@@ -255,6 +260,7 @@ class GlicKeyedService : public KeyedService {
 
   std::unique_ptr<GlicEnabling> enabling_;
   std::unique_ptr<GlicMetrics> metrics_;
+  std::unique_ptr<GlicFreController> fre_controller_;
   std::unique_ptr<Host> host_;
   std::unique_ptr<GlicWindowControllerImpl> window_controller_;
   std::unique_ptr<GlicSharingManagerImpl> sharing_manager_;

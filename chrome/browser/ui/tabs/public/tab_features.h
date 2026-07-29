@@ -51,6 +51,10 @@ class DiscountsPageActionViewController;
 class ProductSpecificationsPageActionViewController;
 }  // namespace commerce
 
+namespace enterprise_data_protection {
+class DataProtectionNavigationController;
+}  // namespace enterprise_data_protection
+
 namespace content {
 class WebContents;
 }  // namespace content
@@ -62,10 +66,6 @@ class ContextualCueingHelper;
 namespace customize_chrome {
 class SidePanelController;
 }  // namespace customize_chrome
-
-namespace enterprise_data_protection {
-class DataProtectionNavigationController;
-}  // namespace enterprise_data_protection
 
 namespace extensions {
 class ExtensionSidePanelManager;
@@ -131,7 +131,7 @@ class TabFeatures {
 
   enterprise_data_protection::DataProtectionNavigationController*
   data_protection_controller() {
-    return data_protection_controller_.get();
+    return data_protection_tab_controller_.get();
   }
 
   permissions::PermissionIndicatorsTabData* permission_indicators_tab_data() {
@@ -265,10 +265,6 @@ class TabFeatures {
   TabUIHelper* SetTabUIHelperForTesting(
       std::unique_ptr<TabUIHelper> tab_ui_helper);
 
-  TabAlertController* tab_alert_controller() {
-    return tab_alert_controller_.get();
-  }
-
   TabCreationMetricsController* tab_creation_metrics_controller() {
     return tab_creation_metrics_controller_.get();
   }
@@ -299,10 +295,6 @@ class TabFeatures {
   void WillDiscardContents(tabs::TabInterface* tab,
                            content::WebContents* old_contents,
                            content::WebContents* new_contents);
-
-  std::unique_ptr<
-      enterprise_data_protection::DataProtectionNavigationController>
-      data_protection_controller_;
 
   std::unique_ptr<permissions::PermissionIndicatorsTabData>
       permission_indicators_tab_data_;
@@ -346,6 +338,10 @@ class TabFeatures {
 
   // Manages various tab modal dialogs.
   std::unique_ptr<TabDialogManager> tab_dialog_manager_;
+
+  std::unique_ptr<
+      enterprise_data_protection::DataProtectionNavigationController>
+      data_protection_tab_controller_;
 
   // Holds subscriptions for TabInterface callbacks.
   std::vector<base::CallbackListSubscription> tab_subscriptions_;

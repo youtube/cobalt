@@ -12,6 +12,7 @@
 #include "components/autofill/core/browser/webdata/autofill_webdata_service.h"
 #include "components/autofill/core/browser/webdata/valuables/valuables_sync_util.h"
 #include "components/sync/base/data_type.h"
+#include "components/sync/base/features.h"
 #include "components/sync/model/client_tag_based_data_type_processor.h"
 #include "components/sync/model/sync_metadata_store_change_list.h"
 #include "components/sync/protocol/autofill_valuable_specifics.pb.h"
@@ -32,6 +33,23 @@ bool AreAnyItemsDifferent(const std::vector<Item>& old_data,
   }
 
   return base::MakeFlatSet<Item>(old_data) != base::MakeFlatSet<Item>(new_data);
+}
+
+// Tests if the valuable `specifics` are valid and can be converted into an
+// Autofill class instance using `CreateAutofillLoyaltyCardFromSpecifics()`.
+bool AreAutofillLoyaltyCardSpecificsValid(
+    const sync_pb::AutofillValuableSpecifics& specifics) {
+  const auto HasEmptyOrValidProgramLogo =
+      [](const sync_pb::AutofillValuableSpecifics& specifics) {
+        return !specifics.loyalty_card().has_program_logo() ||
+               specifics.loyalty_card().program_logo().empty() ||
+               GURL(specifics.loyalty_card().program_logo()).is_valid();
+      };
+
+  return !specifics.id().empty() && specifics.has_loyalty_card() &&
+         !specifics.loyalty_card().loyalty_card_number().empty() &&
+         !specifics.loyalty_card().merchant_name().empty() &&
+         HasEmptyOrValidProgramLogo(specifics);
 }
 
 }  // namespace
@@ -145,6 +163,13 @@ bool ValuableSyncBridge::IsEntityDataValid(
   switch (autofill_valuable.valuable_data_case()) {
     case sync_pb::AutofillValuableSpecifics::kLoyaltyCard:
       return AreAutofillLoyaltyCardSpecificsValid(autofill_valuable);
+    case sync_pb::AutofillValuableSpecifics::kVehicleRegistration:
+      // TODO(crbug.com/436547381): Add stronger vehicle registration.
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
+      return base::FeatureList::IsEnabled(syncer::kSyncWalletPublicPasses);
+#else
+      return false;
+#endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
     case sync_pb::AutofillValuableSpecifics::VALUABLE_DATA_NOT_SET:
       // Ignore new entry types that the client doesn't know about.
       return false;
@@ -254,6 +279,9 @@ std::optional<syncer::ModelError> ValuableSyncBridge::SetSyncData(
                 CreateAutofillLoyaltyCardFromSpecifics(autofill_valuable));
             break;
           }
+          case sync_pb::AutofillValuableSpecifics::kVehicleRegistration:
+            // TODO(crbug.com/436547381): Handle vehicle registration.
+            break;
           case sync_pb::AutofillValuableSpecifics::VALUABLE_DATA_NOT_SET:
             // Ignore new entry types that the client doesn't know about.
             break;
@@ -279,7 +307,6 @@ std::optional<syncer::ModelError> ValuableSyncBridge::SetSyncData(
     return syncer::ModelError(
         FROM_HERE,
         syncer::ModelError::Type::kAutofillValuableFailedToSetLoyaltyCards);
-    ;
   }
 
   // Commits changes through CommitChanges(...) or through the scoped
@@ -297,6 +324,10 @@ std::optional<syncer::ModelError> ValuableSyncBridge::SetSyncData(
 
 ValuablesTable* ValuableSyncBridge::GetValuablesTable() {
   return ValuablesTable::FromWebDatabase(web_data_backend_->GetDatabase());
+}
+
+EntityTable* ValuableSyncBridge::GetEntityTable() {
+  return EntityTable::FromWebDatabase(web_data_backend_->GetDatabase());
 }
 
 }  // namespace autofill

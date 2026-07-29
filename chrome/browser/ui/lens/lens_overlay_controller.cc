@@ -401,6 +401,14 @@ void LensOverlayController::SendText(lens::mojom::TextPtr text) {
   page_->TextReceived(std::move(text));
 }
 
+void LensOverlayController::SendRegionText(lens::mojom::TextPtr text,
+                                           bool is_injected_image) {
+  if (!page_) {
+    return;
+  }
+  page_->RegionTextReceived(std::move(text), is_injected_image);
+}
+
 lens::mojom::OverlayThemePtr LensOverlayController::CreateTheme(
     lens::PaletteId palette_id) {
   CHECK(base::Contains(lens::kPaletteColors, palette_id));
@@ -1809,21 +1817,15 @@ void LensOverlayController::InitializeOverlayUI(
 
   auto* lens_session_metrics_logger = GetLensSessionMetricsLogger();
 
-  bool should_show_csb = !init_data.page_contents_.empty() &&
-                         !init_data.page_contents_.front().bytes_.empty();
-  if (should_show_csb) {
-    lens_session_metrics_logger->OnContextualSearchboxShown();
-  }
+  lens_session_metrics_logger->OnContextualSearchboxShown();
   lens_session_metrics_logger->OnInitialPageContentRetrieved(
       /*page_content_type=*/init_data.page_contents_.empty()
           ? lens::MimeType::kUnknown
           : init_data.primary_content_type_);
 
-  page_->ShouldShowContextualSearchBox(should_show_csb);
-
+  page_->ShouldShowContextualSearchBox(/*should_show=*/true);
   // If should show CSB, and the CSB viewport thumbnail is enabled, send it now.
-  if (should_show_csb &&
-      lens::features::GetVisualSelectionUpdatesEnableCsbThumbnail()) {
+  if (lens::features::GetVisualSelectionUpdatesEnableCsbThumbnail()) {
     GetLensSearchboxController()->HandleThumbnailCreatedBitmap(
         init_data.initial_screenshot_);
   }
@@ -2604,7 +2606,8 @@ void LensOverlayController::HandleInteractionURLResponse(
 
 void LensOverlayController::HandleInteractionResponse(
     lens::mojom::TextPtr text) {
-  SendText(std::move(text));
+  const bool is_injected_image = lens_selection_type_ == lens::INJECTED_IMAGE;
+  SendRegionText(std::move(text), is_injected_image);
 }
 
 void LensOverlayController::HandlePageContentUploadProgress(uint64_t position,

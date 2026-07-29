@@ -405,19 +405,7 @@ void CreditCardSaveManager::AttemptToOfferCardUploadSave(
       DetectedValue::USER_PROVIDED_EXPIRATION_DATE) {
     upload_decision_metrics_ |=
         autofill_metrics::USER_REQUESTED_TO_PROVIDE_EXPIRATION_DATE;
-    bool should_log_expiration_date_reason = true;
-#if BUILDFLAG(IS_IOS)
-    // If `kAutofillDisableDefaultSaveCardFixFlowDetection` is not enabled,
-    // `USER_PROVIDED_EXPIRATION_DATE` would always be set on iOS even when
-    // valid expiry date would have been detected during form submission and
-    // `LogSaveCardRequestExpirationDateReasonMetric` checks for invalid expiry
-    // date.
-    should_log_expiration_date_reason = base::FeatureList::IsEnabled(
-        features::kAutofillDisableDefaultSaveCardFixFlowDetection);
-#endif
-    if (should_log_expiration_date_reason) {
-      LogSaveCardRequestExpirationDateReasonMetric();
-    }
+    LogSaveCardRequestExpirationDateReasonMetric();
     should_request_expiration_date_from_user_ = true;
   }
 
@@ -526,7 +514,7 @@ void CreditCardSaveManager::AttemptToOfferCardUploadSave(
                      weak_ptr_factory_.GetWeakPtr(), ukm_source_id),
       payments::kUploadPaymentMethodBillableServiceNumber,
       payments::GetBillingCustomerId(payments_data_manager()),
-      payments::UploadCardSource::UPSTREAM_CHECKOUT_FLOW);
+      payments::UploadCardSource::kUpstreamCheckoutFlow);
 }
 
 void CreditCardSaveManager::AttemptToOfferCvcUploadSave(
@@ -1231,18 +1219,6 @@ int CreditCardSaveManager::GetDetectedValues() const {
   if (!(detected_values & DetectedValue::CARDHOLDER_NAME)) {
     detected_values |= DetectedValue::USER_PROVIDED_NAME;
   }
-
-  // On iOS it isn't possible to save the card unless the user provides both a
-  // valid cardholder name and expiration date, so by default set the fix flow
-  // bits when the flag is disabled. When the flag is enabled, the bits won't be
-  // set by default, but only when the data would be missing so that iOS
-  // payments client can conditionally show save card bottomsheet when fix flow
-  // is not present.
-  if (!base::FeatureList::IsEnabled(
-          features::kAutofillDisableDefaultSaveCardFixFlowDetection)) {
-    detected_values |= DetectedValue::USER_PROVIDED_NAME;
-    detected_values |= DetectedValue::USER_PROVIDED_EXPIRATION_DATE;
-  }
 #endif  // BUILDFLAG(IS_IOS)
 
   return detected_values;
@@ -1631,7 +1607,10 @@ bool CreditCardSaveManager::ShouldRequestCvcInclusiveLegalMessage() const {
 
   int num_strikes = GetCreditCardSaveStrikeDatabase()->GetStrikes(
       base::UTF16ToUTF8(upload_request_.card.LastFourDigits()));
+  // Since this code is only reached when no CVC was found on the form,
+  // the save type is kCardSaveOnly.
   return !autofill::ShouldShowSaveCardBottomSheet(
+             payments::PaymentsAutofillClient::CardSaveType::kCardSaveOnly,
              num_strikes, should_request_name_from_user_,
              should_request_expiration_date_from_user_) ||
          !base::FeatureList::IsEnabled(features::kAutofillSaveCardBottomSheet);

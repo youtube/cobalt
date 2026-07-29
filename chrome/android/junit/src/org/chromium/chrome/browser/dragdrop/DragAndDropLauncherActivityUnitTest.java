@@ -4,6 +4,7 @@
 
 package org.chromium.chrome.browser.dragdrop;
 
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -24,6 +25,7 @@ import org.mockito.junit.MockitoRule;
 import org.robolectric.annotation.Config;
 
 import org.chromium.base.ContextUtils;
+import org.chromium.base.IntentUtils;
 import org.chromium.base.Token;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.chrome.browser.IntentHandler;
@@ -32,6 +34,7 @@ import org.chromium.chrome.browser.price_tracking.PriceTrackingFeatures;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tab.MockTab;
 import org.chromium.chrome.browser.tab.Tab;
+import org.chromium.chrome.browser.tabmodel.MultiTabMetadata;
 import org.chromium.chrome.browser.tabmodel.TabGroupMetadata;
 import org.chromium.chrome.browser.tabwindow.TabWindowManager;
 import org.chromium.ui.dragdrop.DragDropMetricUtils.UrlIntentSource;
@@ -179,6 +182,7 @@ public class DragAndDropLauncherActivityUnitTest {
     private void testGetTabOrGroupIntent(
             boolean isGroupDrag, boolean isMultiTabDrag, int destWindowId) {
         Tab tab = MockTab.createAndInitialize(1, mProfile);
+        tab.setIsPinned(true);
         ChromeDropDataAndroid dropData;
         if (isGroupDrag) {
             dropData = createTabGroupDropData(/* allowDragToCreateNewInstance= */ true);
@@ -191,6 +195,7 @@ public class DragAndDropLauncherActivityUnitTest {
         Intent intent =
                 DragAndDropLauncherActivity.buildTabOrGroupIntent(
                         dropData, mContext, sourceWindowId, destWindowId);
+        IntentUtils.addTrustedIntentExtras(intent);
         assertEquals(
                 "The intent action should be DragAndDropLauncherActivity.ACTION_DRAG_DROP_VIEW.",
                 DragAndDropLauncherActivity.ACTION_DRAG_DROP_VIEW,
@@ -230,19 +235,24 @@ public class DragAndDropLauncherActivityUnitTest {
                     buildTabGroupMetadata(),
                     IntentHandler.getTabGroupMetadata(intent));
         } else if (isMultiTabDrag) {
+            MultiTabMetadata multiTabMetadata = IntentHandler.getMultiTabMetadata(intent);
             assertEquals(
                     "The EXTRA_URL_SOURCE intent extra value should match.",
                     UrlIntentSource.TAB_IN_STRIP,
                     intent.getIntExtra(
                             IntentHandler.EXTRA_URL_DRAG_SOURCE, UrlIntentSource.UNKNOWN));
             assertEquals(
-                    "The intent data value should match.",
+                    "The intent data value should match - Urls.",
                     Collections.singletonList(tab.getUrl().getSpec()),
-                    intent.getStringArrayListExtra(IntentHandler.MULTI_TAB_KEY_TAB_URLS));
+                    multiTabMetadata.urls);
             assertEquals(
-                    "The intent data value should match.",
+                    "The intent data value should match - Tab Ids.",
                     Collections.singletonList(tab.getId()),
-                    intent.getIntegerArrayListExtra(IntentHandler.MULTI_TAB_KEY_TAB_IDS));
+                    multiTabMetadata.tabIds);
+            assertArrayEquals(
+                    "The intent data value should match - Is Pinned.",
+                    new boolean[] {tab.getIsPinned()},
+                    multiTabMetadata.isPinned);
         } else {
             assertEquals(
                     "The EXTRA_URL_SOURCE intent extra value should match.",
@@ -257,6 +267,10 @@ public class DragAndDropLauncherActivityUnitTest {
                     "The intent data value should match.",
                     Uri.parse(tab.getUrl().getSpec()),
                     intent.getData());
+            assertEquals(
+                    "The intent data value should match - Is Pinned.",
+                    tab.getIsPinned(),
+                    IntentHandler.getPinnedState(intent));
         }
     }
 

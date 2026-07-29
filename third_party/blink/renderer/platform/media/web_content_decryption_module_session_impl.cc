@@ -128,7 +128,7 @@ bool SanitizeSessionId(const WebString& session_id,
   // Check that |sanitized_session_id| only contains printable characters for
   // easier logging. Note that checking alphanumeric is too strict because there
   // are key systems using Base64 session IDs (which may include spaces). See
-  // https://crbug.com/902828.
+  // https://crbug.com/40601386.
   for (const char c : *sanitized_session_id) {
     if (!base::IsAsciiPrintable(c))
       return false;
@@ -357,7 +357,7 @@ void WebContentDecryptionModuleSessionImpl::InitializeNewSession(
           WTF::BindOnce(
               &WebContentDecryptionModuleSessionImpl::OnSessionInitialized,
               weak_ptr_factory_.GetWeakPtr()),
-          std::vector<SessionInitStatus>{SessionInitStatus::NEW_SESSION}));
+          Vector<SessionInitStatus>{SessionInitStatus::NEW_SESSION}));
 }
 
 void WebContentDecryptionModuleSessionImpl::Load(
@@ -389,9 +389,8 @@ void WebContentDecryptionModuleSessionImpl::Load(
           WTF::BindOnce(
               &WebContentDecryptionModuleSessionImpl::OnSessionInitialized,
               weak_ptr_factory_.GetWeakPtr()),
-          std::vector<SessionInitStatus>{
-              SessionInitStatus::NEW_SESSION,
-              SessionInitStatus::SESSION_NOT_FOUND}));
+          Vector<SessionInitStatus>{SessionInitStatus::NEW_SESSION,
+                                    SessionInitStatus::SESSION_NOT_FOUND}));
 }
 
 void WebContentDecryptionModuleSessionImpl::Update(
@@ -500,7 +499,7 @@ void WebContentDecryptionModuleSessionImpl::OnSessionExpirationUpdate(
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   // The check works around an issue in base::Time that converts null base::Time
   // to |1601-01-01 00:00:00 UTC| in InMillisecondsFSinceUnixEpoch(). See
-  // http://crbug.com/679079
+  // http://crbug.com/40500427.
   client_->OnSessionExpirationUpdate(
       new_expiry_time.is_null()
           ? std::numeric_limits<double>::quiet_NaN()

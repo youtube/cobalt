@@ -35,6 +35,8 @@ import org.chromium.components.browser_ui.widget.gesture.BackPressHandler;
 import org.chromium.components.feature_engagement.Tracker;
 import org.chromium.ui.util.XrUtils;
 
+import java.util.function.Function;
+
 /** Root coordinator of the Hub. */
 @NullMarked
 public class HubCoordinator implements PaneHubController, BackPressHandler {
@@ -153,7 +155,8 @@ public class HubCoordinator implements PaneHubController, BackPressHandler {
                             mainContainer,
                             paneManager,
                             hubColorMixer,
-                            bottomToolbarDelegate);
+                            bottomToolbarDelegate,
+                            edgeToEdgeSupplier);
         } else {
             mHubBottomToolbarCoordinator = null;
         }
@@ -168,7 +171,8 @@ public class HubCoordinator implements PaneHubController, BackPressHandler {
         ObservableSupplier<@Nullable View> overlayViewSupplier =
                 new TransitiveObservableSupplier<Pane, @Nullable View>(
                         mPaneManager.getFocusedPaneSupplier(),
-                        (pane) -> pane.getHubOverlayViewSupplier());
+                        (Function<Pane, ObservableSupplier<@Nullable View>>)
+                                pane -> pane.getHubOverlayViewSupplier());
         mOverlayViewManager =
                 new SingleChildViewManager(
                         mContainerView.findViewById(R.id.hub_overlay_container),

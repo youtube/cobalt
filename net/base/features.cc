@@ -316,7 +316,7 @@ BASE_FEATURE(kEnableGetNetworkConnectivityHintAPI,
 
 BASE_FEATURE(kTcpPortRandomizationWin,
              "TcpPortRandomizationWin",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE_PARAM(int,
                    kTcpPortRandomizationWinVersionMinimum,
@@ -826,12 +826,6 @@ BASE_FEATURE(kSelfSignedLocalNetworkInterstitial,
 #if BUILDFLAG(CHROME_ROOT_STORE_SUPPORTED)
 BASE_FEATURE(kVerifyQWACs, "VerifyQWACs", base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(CHROME_ROOT_STORE_SUPPORTED)
-
-#if BUILDFLAG(IS_MAC)
-BASE_FEATURE(kIncludeDeprecatedClientCertLookup,
-             "IncludeDeprecatedClientCertLookup",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-#endif
 
 BASE_FEATURE(kRestrictAbusePorts,
              "RestrictAbusePorts",

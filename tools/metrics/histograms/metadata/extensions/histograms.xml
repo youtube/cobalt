@@ -930,7 +930,7 @@ This is emitted for two scenarios when a worker may be unregistered:
 </histogram>
 
 <histogram name="Extensions.DeclarativeContentActionCreated"
-    enum="DeclarativeContentActionType" expires_after="2025-12-07">
+    enum="DeclarativeContentActionType" expires_after="2026-02-09">
   <owner>kelvinjiang@chromium.org</owner>
   <owner>extensions-core@chromium.org</owner>
   <summary>
@@ -2567,20 +2567,6 @@ This is emitted for two scenarios when a worker may be unregistered:
   </summary>
 </histogram>
 
-<histogram name="Extensions.Functions.ExtractJSCallStackElapsedTime"
-    units="microseconds" expires_after="2025-08-10">
-  <owner>anunoy@chromium.org</owner>
-  <owner>chrome-counter-abuse-alerts@google.com</owner>
-  <summary>
-    The amount of time it takes to extract the JS call stack when an extension
-    API method is invoked. The elapsed time is recorded on the renderer side
-    before the API request is sent to the browser. Recorded regardless of the
-    API method's execution result. Only supported for a subset of extension API
-    methods, for example, some chrome.tabs and chrome.cookies methods. This
-    histogram is recorded only for clients with high-resolution clocks.
-  </summary>
-</histogram>
-
 <histogram
     name="Extensions.Functions.FailedTime{ExtensionFunctionExecutionTime}"
     enum="ExtensionFunctions" expires_after="never">
@@ -2680,7 +2666,7 @@ This is emitted for two scenarios when a worker may be unregistered:
 </histogram>
 
 <histogram name="Extensions.Functions.SynchronousExecutionTime" units="ms"
-    expires_after="2025-12-07">
+    expires_after="2026-02-09">
   <owner>rdevlin.cronin@chromium.org</owner>
   <owner>extensions-core@chromium.org</owner>
   <summary>
@@ -3438,7 +3424,7 @@ This is emitted for two scenarios when a worker may be unregistered:
 </histogram>
 
 <histogram name="Extensions.ManifestVersionPopulationSplit.{ManifestLocation}"
-    enum="ManifestVersionPopulationSplit" expires_after="2025-12-07">
+    enum="ManifestVersionPopulationSplit" expires_after="2026-02-09">
   <owner>rdevlin.cronin@chromium.org</owner>
   <owner>extensions-core@chromium.org</owner>
   <summary>
@@ -3600,7 +3586,7 @@ This is emitted for two scenarios when a worker may be unregistered:
 
 <histogram
     name="Extensions.MV2Deprecation.MV2ExtensionState.{ManifestLocation}"
-    enum="MV2ExtensionState" expires_after="2025-12-07">
+    enum="MV2ExtensionState" expires_after="2026-02-09">
   <owner>rdevlin.cronin@chromium.org</owner>
   <owner>src/extensions/OWNERS</owner>
   <summary>
@@ -3922,19 +3908,24 @@ This is emitted for two scenarios when a worker may be unregistered:
 </histogram>
 
 <histogram name="Extensions.ServiceWorkerBackground.MultiWorkerVersionIdMatch"
-    enum="Boolean" expires_after="2025-02-23">
+    enum="Boolean" expires_after="2026-01-01">
+  <owner>andreaorru@chromium.org</owner>
   <owner>jlulejian@chromium.org</owner>
   <owner>extensions-core@chromium.org</owner>
   <summary>
     When Extensions.ServiceWorkerBackground.WorkerCountAfterAdd == 2, this emits
     whether the previous and new worker added to WorkerIdSet had the same
     service worker version id.
+
+    Warning: this histogram was expired from 2025-02-24 to 2025-08-15; data may
+    be missing.
   </summary>
 </histogram>
 
 <histogram
     name="Extensions.ServiceWorkerBackground.MultiWorkerVersionStatus.{WorkerType}"
-    enum="ServiceWorkerVersionStatus" expires_after="2025-02-23">
+    enum="ServiceWorkerVersionStatus" expires_after="2026-01-01">
+  <owner>andreaorru@chromium.org</owner>
   <owner>jlulejian@chromium.org</owner>
   <owner>extensions-core@chromium.org</owner>
   <summary>
@@ -3942,6 +3933,9 @@ This is emitted for two scenarios when a worker may be unregistered:
     {WorkerType} WorkerIdSet. Only emitted when
     Extensions.ServiceWorkerBackground.WorkerCountAfterAdd == 2. This ensures
     there will be a new and previous worker to emit for.
+
+    Warning: this histogram was expired from 2025-02-24 to 2025-08-15; data may
+    be missing.
   </summary>
   <token key="WorkerType">
     <variant name="NewWorker" summary="new worker that we've just added to"/>
@@ -4153,7 +4147,7 @@ This is emitted for two scenarios when a worker may be unregistered:
 </histogram>
 
 <histogram name="Extensions.ServiceWorkerBackground.StartWorkerTime_Fail"
-    units="ms" expires_after="2025-12-07">
+    units="ms" expires_after="2026-02-09">
   <owner>jlulejian@chromium.org</owner>
   <owner>extensions-core@chromium.org</owner>
   <summary>

@@ -17,7 +17,9 @@
 #include "chrome/browser/ash/crosapi/crosapi_ash.h"
 #include "chrome/browser/ash/crosapi/crosapi_manager.h"
 #include "chrome/browser/ash/crosapi/file_system_provider_service_ash.h"
+#include "chrome/browser/ash/file_system_provider/operation_request_manager.h"
 #include "chrome/browser/ash/file_system_provider/provided_file_system_info.h"
+#include "chrome/browser/ash/file_system_provider/request_value.h"
 #include "chrome/browser/ash/file_system_provider/service.h"
 #include "chrome/browser/ash/file_system_provider/service_worker_lifetime_manager.h"
 #include "chrome/browser/ash/guest_os/guest_os_terminal.h"
@@ -32,7 +34,14 @@
 namespace extensions {
 namespace {
 
-constexpr const char kInterfaceUnavailable[] = "interface unavailable";
+ash::file_system_provider::ProvidedFileSystemInterface* GetProvidedFileSystem(
+    content::BrowserContext* browser_context,
+    const ash::file_system_provider::ProviderId& provider_id,
+    const std::string& file_system_id) {
+  auto& service =
+      CHECK_DEREF(ash::file_system_provider::Service::Get(browser_context));
+  return service.GetProvidedFileSystem(provider_id, file_system_id);
+}
 
 api::file_system_provider::FileSystemInfo ConvertFileSystemToExtension(
     ash::file_system_provider::ProvidedFileSystemInterface& file_system) {
@@ -231,14 +240,11 @@ ExtensionFunction::ResponseAction FileSystemProviderGetFunction::Run() {
   std::optional<Params> params(Params::Create(args()));
   EXTENSION_FUNCTION_VALIDATE(params);
 
-  auto& service =
-      CHECK_DEREF(ash::file_system_provider::Service::Get(browser_context()));
-  auto provider_id =
+  auto* file_system = GetProvidedFileSystem(
+      browser_context(),
       ash::file_system_provider::ProviderId::CreateFromExtensionId(
-          GetProviderId());
-
-  ash::file_system_provider::ProvidedFileSystemInterface* file_system =
-      service.GetProvidedFileSystem(provider_id, params->file_system_id);
+          GetProviderId()),
+      params->file_system_id);
   if (!file_system) {
     return RespondNow(
         Error(FileErrorToString(base::File::FILE_ERROR_NOT_FOUND)));
@@ -291,61 +297,79 @@ void FileSystemProviderNotifyFunction::OnNotifyCompleted(
   Respond(NoArguments());
 }
 
-bool FileSystemProviderInternal::ForwardMountResult(int64_t request_id,
-                                                    base::Value::List& args) {
-  auto* profile = Profile::FromBrowserContext(browser_context());
-  auto* sw_lifetime_manager =
-      ash::file_system_provider::ServiceWorkerLifetimeManager::Get(profile);
-  sw_lifetime_manager->FinishRequest({
-      extension_id(),
-      /*file_system_id=*/"",
-      request_id,
-  });
-  auto callback =
-      base::BindOnce(&FileSystemProviderInternal::RespondWithError, this);
-  crosapi::CrosapiManager::Get()
-      ->crosapi_ash()
-      ->file_system_provider_service_ash()
-      ->MountFinishedWithProfile(extension_id(), request_id, std::move(args),
-                                 std::move(callback), profile);
-  return true;
-}
-
 ExtensionFunction::ResponseAction
 FileSystemProviderInternalRespondToMountRequestFunction::Run() {
   using api::file_system_provider_internal::RespondToMountRequest::Params;
   std::optional<Params> params(Params::Create(args()));
   EXTENSION_FUNCTION_VALIDATE(params);
 
-  int64_t request_id = params->request_id;
-  bool result = ForwardMountResult(request_id, GetMutableArgs());
-  if (!result)
-    Respond(Error(kInterfaceUnavailable));
-  return RespondLater();
-}
-
-bool FileSystemProviderInternal::ForwardOperationResultImpl(
-    crosapi::mojom::FSPOperationResponse response,
-    crosapi::mojom::FileSystemIdPtr file_system_id,
-    int request_id,
-    base::Value::List args) {
   auto* profile = Profile::FromBrowserContext(browser_context());
   auto* sw_lifetime_manager =
       ash::file_system_provider::ServiceWorkerLifetimeManager::Get(profile);
-  sw_lifetime_manager->FinishRequest({
-      file_system_id->provider,
-      file_system_id->id,
-      request_id,
-  });
-  auto callback =
-      base::BindOnce(&FileSystemProviderInternal::RespondWithError, this);
-  crosapi::CrosapiManager::Get()
-      ->crosapi_ash()
-      ->file_system_provider_service_ash()
-      ->OperationFinishedWithProfile(response, std::move(file_system_id),
-                                     request_id, std::move(args),
-                                     std::move(callback), profile);
-  return true;
+  sw_lifetime_manager->FinishRequest(
+      {extension_id(), /*file_system_id=*/std::string(), params->request_id});
+
+  auto& service = CHECK_DEREF(ash::file_system_provider::Service::Get(profile));
+  auto* provider = service.GetProvider(
+      ash::file_system_provider::ProviderId::CreateFromExtensionId(
+          extension_id()));
+  if (!provider) {
+    return RespondNow(
+        Error(FileErrorToString(base::File::FILE_ERROR_NOT_FOUND)));
+  }
+
+  base::File::Error mount_error =
+      extensions::ProviderErrorToFileError(params->error);
+
+  auto arg =
+      mount_error == base::File::FILE_OK
+          ? std::variant<bool /*has_more*/, base::File::Error /*error*/>(false)
+          : mount_error;
+
+  std::string error =
+      crosapi::CrosapiManager::Get()
+          ->crosapi_ash()
+          ->file_system_provider_service_ash()
+          ->ForwardOperationResponse(
+              CHECK_DEREF(provider->GetRequestManager()), params->request_id,
+              ash::file_system_provider::RequestValue(), arg);
+  if (!error.empty()) {
+    return RespondNow(Error(error));
+  }
+  return RespondNow(NoArguments());
+}
+
+ExtensionFunction::ResponseAction
+FileSystemProviderInternal::ForwardOperationResult(
+    const std::string& file_system_id,
+    int64_t request_id,
+    const ash::file_system_provider::RequestValue& value,
+    std::variant<bool /*has_more*/, base::File::Error /*error*/> arg) {
+  auto* profile = Profile::FromBrowserContext(browser_context());
+  auto* sw_lifetime_manager =
+      ash::file_system_provider::ServiceWorkerLifetimeManager::Get(profile);
+  auto provider_id = GetProviderId();
+  sw_lifetime_manager->FinishRequest({provider_id, file_system_id, request_id});
+
+  auto* file_system = GetProvidedFileSystem(
+      browser_context(),
+      ash::file_system_provider::ProviderId::CreateFromExtensionId(provider_id),
+      file_system_id);
+  if (!file_system) {
+    return RespondNow(
+        Error(FileErrorToString(base::File::FILE_ERROR_NOT_FOUND)));
+  }
+
+  std::string error = crosapi::CrosapiManager::Get()
+                          ->crosapi_ash()
+                          ->file_system_provider_service_ash()
+                          ->ForwardOperationResponse(
+                              CHECK_DEREF(file_system->GetRequestManager()),
+                              request_id, value, arg);
+  if (!error.empty()) {
+    return RespondNow(Error(error));
+  }
+  return RespondNow(NoArguments());
 }
 
 ExtensionFunction::ResponseAction
@@ -354,12 +378,13 @@ FileSystemProviderInternalUnmountRequestedSuccessFunction::Run() {
   std::optional<Params> params(Params::Create(args()));
   EXTENSION_FUNCTION_VALIDATE(params);
 
-  bool result = ForwardOperationResult(
-      params, GetMutableArgs(),
-      crosapi::mojom::FSPOperationResponse::kUnmountSuccess);
-  if (!result)
-    Respond(Error(kInterfaceUnavailable));
-  return RespondLater();
+  std::string file_system_id = params->file_system_id;
+  int request_id = params->request_id;
+  return ForwardOperationResult(
+      file_system_id, request_id,
+      ash::file_system_provider::RequestValue::CreateForUnmountSuccess(
+          std::move(*params)),
+      /*has_more=*/false);
 }
 
 ExtensionFunction::ResponseAction
@@ -368,12 +393,13 @@ FileSystemProviderInternalGetMetadataRequestedSuccessFunction::Run() {
   std::optional<Params> params(Params::Create(args()));
   EXTENSION_FUNCTION_VALIDATE(params);
 
-  bool result = ForwardOperationResult(
-      params, GetMutableArgs(),
-      crosapi::mojom::FSPOperationResponse::kGetEntryMetadataSuccess);
-  if (!result)
-    return RespondNow(Error(kInterfaceUnavailable));
-  return RespondLater();
+  std::string file_system_id = params->file_system_id;
+  int request_id = params->request_id;
+  return ForwardOperationResult(
+      file_system_id, request_id,
+      ash::file_system_provider::RequestValue::CreateForGetMetadataSuccess(
+          std::move(*params)),
+      /*has_more=*/false);
 }
 
 ExtensionFunction::ResponseAction
@@ -381,12 +407,14 @@ FileSystemProviderInternalGetActionsRequestedSuccessFunction::Run() {
   using api::file_system_provider_internal::GetActionsRequestedSuccess::Params;
   std::optional<Params> params(Params::Create(args()));
   EXTENSION_FUNCTION_VALIDATE(params);
-  bool result = ForwardOperationResult(
-      params, GetMutableArgs(),
-      crosapi::mojom::FSPOperationResponse::kGetActionsSuccess);
-  if (!result)
-    return RespondNow(Error(kInterfaceUnavailable));
-  return RespondLater();
+
+  std::string file_system_id = params->file_system_id;
+  int request_id = params->request_id;
+  return ForwardOperationResult(
+      file_system_id, request_id,
+      ash::file_system_provider::RequestValue::CreateForGetActionsSuccess(
+          std::move(*params)),
+      /*has_more=*/false);
 }
 
 ExtensionFunction::ResponseAction
@@ -395,12 +423,15 @@ FileSystemProviderInternalReadDirectoryRequestedSuccessFunction::Run() {
       Params;
   std::optional<Params> params(Params::Create(args()));
   EXTENSION_FUNCTION_VALIDATE(params);
-  bool result = ForwardOperationResult(
-      params, GetMutableArgs(),
-      crosapi::mojom::FSPOperationResponse::kReadDirectorySuccess);
-  if (!result)
-    return RespondNow(Error(kInterfaceUnavailable));
-  return RespondLater();
+
+  std::string file_system_id = params->file_system_id;
+  int request_id = params->request_id;
+  bool has_more = params->has_more;
+  return ForwardOperationResult(
+      file_system_id, request_id,
+      ash::file_system_provider::RequestValue::CreateForReadDirectorySuccess(
+          std::move(*params)),
+      has_more);
 }
 
 ExtensionFunction::ResponseAction
@@ -408,15 +439,17 @@ FileSystemProviderInternalReadFileRequestedSuccessFunction::Run() {
   TRACE_EVENT0("file_system_provider", "ReadFileRequestedSuccess");
   using api::file_system_provider_internal::ReadFileRequestedSuccess::Params;
 
-  // TODO(crbug.com/40221395): Improve performance by removing copy.
   std::optional<Params> params(Params::Create(args()));
   EXTENSION_FUNCTION_VALIDATE(params);
-  bool result = ForwardOperationResult(
-      params, GetMutableArgs(),
-      crosapi::mojom::FSPOperationResponse::kReadFileSuccess);
-  if (!result)
-    return RespondNow(Error(kInterfaceUnavailable));
-  return RespondLater();
+
+  std::string file_system_id = params->file_system_id;
+  int request_id = params->request_id;
+  bool has_more = params->has_more;
+  return ForwardOperationResult(
+      file_system_id, request_id,
+      ash::file_system_provider::RequestValue::CreateForReadFileSuccess(
+          std::move(*params)),
+      has_more);
 }
 
 ExtensionFunction::ResponseAction
@@ -424,42 +457,16 @@ FileSystemProviderInternalOpenFileRequestedSuccessFunction::Run() {
   TRACE_EVENT0("file_system_provider", "OpenFileRequestedSuccess");
   using api::file_system_provider_internal::OpenFileRequestedSuccess::Params;
 
-  // TODO(crbug.com/40221395): Improve performance by removing copy.
   std::optional<Params> params(Params::Create(args()));
   EXTENSION_FUNCTION_VALIDATE(params);
-  bool result = ForwardOpenFileFinishedSuccessullyResult(std::move(params),
-                                                         GetMutableArgs());
-  if (!result) {
-    return RespondNow(Error(kInterfaceUnavailable));
-  }
-  return RespondLater();
-}
 
-bool FileSystemProviderInternal::ForwardOpenFileFinishedSuccessullyResult(
-    std::optional<
-        api::file_system_provider_internal::OpenFileRequestedSuccess::Params>
-        params,
-    base::Value::List& args) {
-  crosapi::mojom::FileSystemIdPtr file_system_id;
-  int64_t request_id;
-  GetOperationMetadata(params, &file_system_id, &request_id);
-  auto* profile = Profile::FromBrowserContext(browser_context());
-  auto* sw_lifetime_manager =
-      ash::file_system_provider::ServiceWorkerLifetimeManager::Get(profile);
-  sw_lifetime_manager->FinishRequest({
-      file_system_id->provider,
-      file_system_id->id,
-      request_id,
-  });
-  auto callback =
-      base::BindOnce(&FileSystemProviderInternal::RespondWithError, this);
-  crosapi::CrosapiManager::Get()
-      ->crosapi_ash()
-      ->file_system_provider_service_ash()
-      ->OpenFileFinishedSuccessfullyWithProfile(
-          std::move(file_system_id), request_id, std::move(GetMutableArgs()),
-          std::move(callback), profile);
-  return true;
+  std::string file_system_id = params->file_system_id;
+  int request_id = params->request_id;
+  return ForwardOperationResult(
+      file_system_id, request_id,
+      ash::file_system_provider::RequestValue::CreateForOpenFileSuccess(
+          std::move(*params)),
+      /*has_more=*/false);
 }
 
 ExtensionFunction::ResponseAction
@@ -468,12 +475,13 @@ FileSystemProviderInternalOperationRequestedSuccessFunction::Run() {
   std::optional<Params> params(Params::Create(args()));
   EXTENSION_FUNCTION_VALIDATE(params);
 
-  bool result = ForwardOperationResult(
-      params, GetMutableArgs(),
-      crosapi::mojom::FSPOperationResponse::kGenericSuccess);
-  if (!result)
-    return RespondNow(Error(kInterfaceUnavailable));
-  return RespondLater();
+  std::string file_system_id = params->file_system_id;
+  int request_id = params->request_id;
+  return ForwardOperationResult(
+      file_system_id, request_id,
+      ash::file_system_provider::RequestValue::CreateForOperationSuccess(
+          std::move(*params)),
+      /*has_more=*/false);
 }
 
 ExtensionFunction::ResponseAction
@@ -487,12 +495,15 @@ FileSystemProviderInternalOperationRequestedErrorFunction::Run() {
     return ValidationFailure(this);
   }
 
-  bool result = ForwardOperationResult(
-      params, GetMutableArgs(),
-      crosapi::mojom::FSPOperationResponse::kGenericFailure);
-  if (!result)
-    return RespondNow(Error(kInterfaceUnavailable));
-  return RespondLater();
+  std::string file_system_id = params->file_system_id;
+  int request_id = params->request_id;
+  base::File::Error operation_error =
+      extensions::ProviderErrorToFileError(params->error);
+  return ForwardOperationResult(
+      file_system_id, request_id,
+      ash::file_system_provider::RequestValue::CreateForOperationError(
+          std::move(*params)),
+      operation_error);
 }
 
 }  // namespace extensions

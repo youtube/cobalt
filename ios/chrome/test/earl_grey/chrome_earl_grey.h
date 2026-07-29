@@ -101,6 +101,9 @@ id<GREYAction> grey_longPressWithDuration(base::TimeDelta duration);
 // Returns whether the Enhanced Safe Browsing Infobar Promo feature is enabled.
 - (BOOL)isEnhancedSafeBrowsingInfobarEnabled;
 
+// Returns the interface orientation of the scene.
+- (UIInterfaceOrientation)interfaceOrientation;
+
 #pragma mark - Profile Utilities (EG2)
 
 // Returns the name (as in `ProfileIOS::GetProfileName()`) of the current
@@ -1004,11 +1007,9 @@ id<GREYAction> grey_longPressWithDuration(base::TimeDelta duration);
 
 #pragma mark - Reader mode Utilities
 
-// Shows Reader mode in the current tab.
-- (void)showReaderMode;
-
-// Waits until the Reader mode WebState is ready in the current tab.
-- (BOOL)waitUntilReaderModeWebStateIsReady;
+// Shows Reader mode in the current tab and wait for the Reader mode WebState to
+// be ready.
+- (BOOL)showReaderModeAndWaitUntilReaderModeWebStateIsReady;
 
 // Hides Reader mode in the current tab.
 - (void)hideReaderMode;

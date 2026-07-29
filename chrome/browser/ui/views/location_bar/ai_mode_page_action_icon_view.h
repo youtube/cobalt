@@ -43,7 +43,6 @@ class AiModePageActionIconView : public PageActionIconView {
 
   // views::View:
   bool OnKeyPressed(const ui::KeyEvent& event) override;
-  bool SkipDefaultKeyEventProcessing(const ui::KeyEvent& event) override;
 
   void ExecuteWithKeyboardSourceForTesting();
 

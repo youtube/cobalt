@@ -204,6 +204,8 @@ void PaymentLinkManager::Reset() {
   ukm_source_id_ = ukm::kInvalidSourceId;
   initiate_payment_request_details_.reset();
   ui_state_ = UiState::kHidden;
+  is_ewallet_available_ = false;
+  is_payment_app_available_ = false;
   weak_ptr_factory_.InvalidateWeakPtrs();
 }
 
@@ -252,6 +254,8 @@ void PaymentLinkManager::OnPaymentAppSelected(std::string_view package_name,
   client_->GetDeviceDelegate()->InvokePaymentApp(
       package_name, activity_name,
       GURL(initiate_payment_request_details_->payment_link_));
+
+  DismissPrompt();
 }
 
 void PaymentLinkManager::OnRiskDataLoaded(base::TimeTicks start_time,
@@ -378,7 +382,11 @@ void PaymentLinkManager::OnUiEvent(UiEvent ui_event_type) {
       LogUiScreenShown(kPaymentsType, ui_state_, scheme_);
       if (ui_state_ == UiState::kFopSelector) {
         LogFopSelectorShownLatency(
-            kPaymentsType,
+            FacilitatedPaymentsType::kEwallet,
+            base::TimeTicks::Now() - payment_flow_triggered_timestamp_,
+            scheme_);
+        LogPaymentLinkFopSelectorShownLatency(
+            GetPaymentLinkFopSelectorType(),
             base::TimeTicks::Now() - payment_flow_triggered_timestamp_,
             scheme_);
         LogEwalletFopSelectorShownUkm(ukm_source_id_, scheme_);
@@ -424,14 +432,14 @@ void PaymentLinkManager::ShowPaymentLinkPrompt(
     base::OnceCallback<void(int64_t)> on_ewallet_account_selected,
     base::OnceCallback<void(std::string_view, std::string_view)>
         on_payment_app_selected) {
-  const bool is_payment_app_available =
-      app_suggestions != nullptr && app_suggestions->Size() > 0;
+  is_ewallet_available_ = ewallet_suggestions.size() > 0;
+  is_payment_app_available_ =
+      (app_suggestions != nullptr) && app_suggestions->Size() > 0;
 
-  if (ewallet_suggestions.size() == 0 && !is_payment_app_available) {
+  if (!is_ewallet_available_ && !is_payment_app_available_) {
     return;
   }
-
-  if (is_payment_app_available) {
+  if (is_payment_app_available_) {
     client_->GetPaymentsDataManager()->SetFacilitatedPaymentsA2ATriggeredOnce(
         true);
   }
@@ -467,6 +475,20 @@ void PaymentLinkManager::DismissProgressScreen() {
   if (ui_state_ == UiState::kProgressScreen) {
     DismissPrompt();
   }
+}
+
+PaymentLinkFopSelectorTypes
+PaymentLinkManager::GetPaymentLinkFopSelectorType() {
+  if (is_payment_app_available_ && is_ewallet_available_) {
+    return PaymentLinkFopSelectorTypes::kEwalletAndA2A;
+  }
+  if (is_payment_app_available_) {
+    return PaymentLinkFopSelectorTypes::kA2AOnly;
+  }
+  if (is_ewallet_available_) {
+    return PaymentLinkFopSelectorTypes::kEwalletOnly;
+  }
+  NOTREACHED();
 }
 
 PaymentLinkSuggestionStrikeDatabase*

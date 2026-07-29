@@ -54,6 +54,7 @@
 #include "content/browser/devtools/network_service_devtools_observer.h"
 #include "content/browser/download/download_manager_impl.h"
 #include "content/browser/fenced_frame/fenced_frame_url_mapping.h"
+#include "content/browser/fingerprinting_protection/canvas_noise_token_data.h"
 #include "content/browser/interest_group/ad_auction_headers_util.h"
 #include "content/browser/loader/browser_initiated_resource_request.h"
 #include "content/browser/loader/cached_navigation_url_loader.h"
@@ -1742,7 +1743,9 @@ NavigationRequest::NavigationRequest(
               : std::nullopt),
       embedder_shared_storage_context_(embedder_shared_storage_context),
       has_ad_auction_headers_attribute_(frame_tree_node->ad_auction_headers()),
-      request_method_(common_params_->method) {
+      request_method_(common_params_->method),
+      prerender_host_id_(
+          GetPrerenderHostRegistry().GetPrerenderHostIdForNavigation(this)) {
   TRACE_EVENT_WITH_FLOW1("navigation", "NavigationRequest::NavigationRequest",
                          TRACE_ID_WITH_SCOPE(kNavigationRequestScope,
                                              TRACE_ID_LOCAL(navigation_id_)),
@@ -1958,8 +1961,6 @@ NavigationRequest::NavigationRequest(
   // Add necessary headers that may not be present in the
   // blink::mojom::BeginNavigationParams.
   if (entry) {
-    // TODO(altimin, crbug.com/933147): Remove this logic after we are done
-    // with implementing back-forward cache.
     if (frame_tree_node->IsOutermostMainFrame() &&
         entry->back_forward_cache_metrics()) {
       entry->back_forward_cache_metrics()
@@ -5467,10 +5468,20 @@ void NavigationRequest::OnStartChecksComplete(
   bool report_raw_headers = false;
   std::optional<std::vector<net::SourceStreamType>>
       devtools_accepted_stream_types;
+  GURL devtools_referrer_override;
   devtools_instrumentation::ApplyNetworkRequestOverrides(
       frame_tree_node_, begin_params_.get(), &report_raw_headers,
       &devtools_accepted_stream_types, &devtools_user_agent_override_,
-      &devtools_accept_language_override_);
+      &devtools_accept_language_override_, &devtools_referrer_override);
+
+  if (!devtools_referrer_override.is_empty()) {
+    // When the `Referer` header is overridden by DevTools (e.g. by CDP command
+    // `Network.setExtraHTTPHeaders`), bypass referrer sanitization and set the
+    // custom referrer of the navigation params to the overridden referrer
+    // value. See crbug.com/437323961.
+    common_params_->referrer->url = devtools_referrer_override;
+  }
+
   devtools_instrumentation::OnNavigationRequestWillBeSent(*this);
 
   // Merge headers with embedder's headers.
@@ -8696,6 +8707,23 @@ void NavigationRequest::ReadyToCommitNavigation(bool is_error) {
     }
   }
 
+  // Populate the canvas noise token if this is a main frame navigation. Canvas
+  // noise tokens should be generated based on the resolved origin, which is
+  // available at |ReadyToCommit| time. Eventually, prior to commit, this value
+  // will be used to sync blink::Pages with this token value, and subsequent
+  // subframe navigations will inherit this token to populate their
+  // blink::Pages.
+  if (IsInMainFrame()) {
+    BrowserContext* browser_context =
+        frame_tree_node()->navigator().controller().GetBrowserContext();
+    canvas_noise_token_ =
+        GetContentClient()->browser()->ShouldEnableCanvasNoise(
+            browser_context, origin_to_commit->GetURL())
+            ? std::optional(CanvasNoiseTokenData::GetToken(
+                  browser_context, origin_to_commit.value()))
+            : std::nullopt;
+  }
+
   if (ready_to_commit_callback_for_testing_)
     std::move(ready_to_commit_callback_for_testing_).Run();
 }
@@ -9568,11 +9596,6 @@ GlobalRenderFrameHostId NavigationRequest::GetPreviousRenderFrameHostId() {
 ChildProcessId NavigationRequest::GetExpectedRenderProcessHostId() {
   DCHECK_LT(state_, READY_TO_COMMIT);
   return expected_render_process_host_id_;
-}
-
-bool NavigationRequest::IsServedFromBackForwardCache() {
-  const NavigationRequest& request = *this;
-  return request.IsServedFromBackForwardCache();
 }
 
 void NavigationRequest::SetIsOverridingUserAgent(bool override_ua) {
@@ -11872,6 +11895,10 @@ void NavigationRequest::ValidateCommitOrigin(
         << "expected_origin: " << expected_origin
         << ", origin_to_commit: " << origin_to_commit;
   }
+}
+
+PrerenderHostId NavigationRequest::GetPrerenderHostId() const {
+  return prerender_host_id_;
 }
 
 }  // namespace content

@@ -1092,6 +1092,7 @@
 <translation id="6125202119952209826">Присоединитесь к группе, в которой состоит <ph name="OWNER_FIRST_NAME" /></translation>
 <translation id="6125864963080902918"><ph name="BEGIN_LINK" />Подробнее…<ph name="END_LINK" /></translation>
 <translation id="6127379762771434464">Быстрая ссылка удалена.</translation>
+<translation id="6127860394906721547">Открой группу вкладок "<ph name="TITLE_OF_GROUP" />", цвет "<ph name="COLOR_NAME" />", со следующими страницами: <ph name="URL_LIST" />.</translation>
 <translation id="6130303040046284160">Свернуть вкладку</translation>
 <translation id="6134168885321518274">Открыть панель поиска</translation>
 <translation id="6135608400322377268">{TAB_COUNT,plural, =1{<ph name="TAB_COUNT_ONE" /> вкладка}one{<ph name="TAB_COUNT_MANY" /> вкладка}few{<ph name="TAB_COUNT_MANY" /> вкладки}many{<ph name="TAB_COUNT_MANY" /> вкладок}other{<ph name="TAB_COUNT_MANY" /> вкладки}}</translation>
@@ -1342,7 +1343,7 @@
 <translation id="7106762743910369165">Этим браузером управляет ваша организация.</translation>
 <translation id="7111394291981742152">Chrome предоставляет больше возможностей контролировать, какие объявления будут вам показываться, и ограничивает информацию, которую сайты могут собирать о вас при показе персонализированной рекламы.</translation>
 <translation id="7111822978084196600">Добавьте название окна</translation>
-<translation id="7115358764509798967">Системные настройки по умолчанию</translation>
+<translation id="7115358764509798967">По умолчанию</translation>
 <translation id="7117485132243600300">Подписки на контент, рекомендованные темы и варианты поисковых запросов</translation>
 <translation id="7136902389402789299">{NUM_SITES,plural, =1{Проверены разрешения у 1 сайта.}one{Проверены разрешения у # сайта.}few{Проверены разрешения у # сайтов.}many{Проверены разрешения у # сайтов.}other{Проверены разрешения у # сайта.}}</translation>
 <translation id="7138678301420049075">Другое</translation>

@@ -43,16 +43,16 @@ void Host::Shutdown() {
   contents_.reset();
 }
 
-void Host::CreateContents() {
+void Host::CreateContents(bool initially_hidden) {
   if (!contents_) {
     contents_ = std::make_unique<WebUIContentsContainer>(
-        profile_, &glic_service().window_controller());
+        profile_, &glic_service().window_controller(), initially_hidden);
     glic::GlicProfileManager::GetInstance()->OnLoadingClientForService(
         &glic_service());
   }
 }
 
-// TODO(crbug.com/422442409): Send the CurrentView to the panel about to open.
+// TODO(crbug.com/437140901): Send the CurrentView to the panel about to open.
 void Host::PanelWillOpen(mojom::InvocationSource invocation_source) {
   CHECK(delegate_);
   invocation_source_ = invocation_source;

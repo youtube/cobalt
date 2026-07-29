@@ -37,6 +37,8 @@ class PLATFORM_EXPORT ShapeResultCursor {
     return run_->start_index_ + GlyphData().character_index;
   }
 
+  const SimpleFontData& FontData() const { return *run_->font_data_; }
+
   // Advance of the current cluster.
   TextRunLayoutUnit ClusterAdvance() const;
 
@@ -62,6 +64,7 @@ class PLATFORM_EXPORT ShapeResultCursor {
  private:
   FRIEND_TEST_ALL_PREFIXES(ShapeResultCursorTest, Ltr);
   FRIEND_TEST_ALL_PREFIXES(ShapeResultCursorTest, Rtl);
+  FRIEND_TEST_ALL_PREFIXES(ShapeResultCursorTest, StartIndex);
 
   // Get `HarfBuzzRunGlyphData` for the current or the specified glyph index.
   const HarfBuzzRunGlyphData& GlyphData(wtf_size_t i) const {

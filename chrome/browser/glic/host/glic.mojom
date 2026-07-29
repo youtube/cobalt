@@ -12,10 +12,10 @@ import "mojo/public/mojom/base/time.mojom";
 import "mojo/public/mojom/base/unguessable_token.mojom";
 import "mojo/public/mojom/base/version.mojom";
 import "skia/public/mojom/bitmap.mojom";
+import "third_party/blink/public/mojom/content_extraction/ai_page_content_metadata.mojom";
 import "ui/gfx/geometry/mojom/geometry.mojom";
 import "url/mojom/origin.mojom";
 import "url/mojom/url.mojom";
-import "third_party/blink/public/mojom/content_extraction/ai_page_content_metadata.mojom";
 
 // The ready state of the profile.
 enum ProfileReadyState {
@@ -110,7 +110,7 @@ interface PageHandler {
   WebviewCommitted(url.mojom.Url url);
 
   // Closes the Glic panel.
-  ClosePanel();
+  ClosePanel() => ();
 
   // Opens the profile picker, and closes the Glic panel.
   OpenProfilePickerAndClosePanel();
@@ -262,6 +262,8 @@ struct WebClientInitialState {
   bool enable_get_context_actor;
   // The list of capabilities of the host.
   array<HostCapability> host_capabilities;
+  // Whether get page metadata is enabled.
+  bool enable_get_page_metadata;
 };
 
 // Options for getting tab context.
@@ -517,7 +519,8 @@ interface WebClientHandler {
   // requested number if the current number of pinned tabs exceeds the requested
   // amount.
   [RuntimeFeature=glic.mojom.features.kGlicMultiTab]
-  SetMaximumNumberOfPinnedTabs(uint32 requested_max) => (uint32 effective_max);
+  SetMaximumNumberOfPinnedTabs(uint32 requested_max)
+      => (uint32 effective_max);
 
   // Pins the given tabs. Can fail if the tabs cannot be found, if the number of
   // pinned tabs exceeds the allowed limit or if the tabs are already pinned.
@@ -536,9 +539,8 @@ interface WebClientHandler {
 
   // Subscribes to receive updates on pin candidates.
   [RuntimeFeature=glic.mojom.features.kGlicMultiTab]
-  SubscribeToPinCandidates(
-      GetPinCandidatesOptions options,
-      pending_remote<PinCandidatesObserver> observer);
+  SubscribeToPinCandidates(GetPinCandidatesOptions options,
+                           pending_remote<PinCandidatesObserver> observer);
 
   // Creates a new task in the actor framework and returns the new task's ID.
   CreateTask() => result<int32, CreateTaskErrorReason>;
@@ -548,11 +550,8 @@ interface WebClientHandler {
   // serialized proto of type optimization_guide::proto::ActionsResult.
   //
   // It is an error to act with a paused task.
-  //
-  // TODO(crbug.com/411462297) Does not yet return observations in the result
-  // proto.
-  PerformActions(array<uint8> actions_proto) =>
-      result<mojo_base.mojom.ProtoWrapper, PerformActionsErrorReason>;
+  PerformActions(array<uint8> actions_proto)
+      => result<mojo_base.mojom.ProtoWrapper, PerformActionsErrorReason>;
 
   // Immediately stops the actor from taking any further actions associated with
   // the given id and exits acting mode. The stop_reason indicates the reason
@@ -653,8 +652,8 @@ interface WebClientHandler {
   SyncCookies() => (bool success);
 
   // Log a begin event in the journal.
-  LogBeginAsyncEvent(uint64 event_async_id, int32 task_id, string event,
-                     string details);
+  LogBeginAsyncEvent(
+      uint64 event_async_id, int32 task_id, string event, string details);
 
   // Log an end event in the journal.
   LogEndAsyncEvent(uint64 event_async_id, string details);
@@ -727,9 +726,9 @@ interface WebClientHandler {
   // NotifyZeroStateSuggestionsChanged until this is called with the same
   // options but with is_live == false.
   [RuntimeFeature=glic.mojom.features.kZeroStateSuggestionsV2]
-  GetZeroStateSuggestionsAndSubscribe(bool is_live,
-                          ZeroStateSuggestionsOptions options) =>
-    (ZeroStateSuggestionsV2? zero_state_suggestions);
+  GetZeroStateSuggestionsAndSubscribe(
+      bool is_live, ZeroStateSuggestionsOptions options)
+      => (ZeroStateSuggestionsV2? zero_state_suggestions);
 
   // Returns zero-state suggestions from the currently active tab.
   GetZeroStateSuggestionsForFocusedTab(bool? is_first_run)
@@ -749,6 +748,12 @@ interface WebClientHandler {
   // used to trigger updates to browser UI which shows the current state of the
   // web client, such as toggle controls.
   OnViewChanged(ViewChangedNotification notification);
+
+  // Subscribe to be notified when meta tags change.  Sends the current state on
+  // first call, and then notifies when the state changes. Call with an empty
+  // names array to stop receiving notifications.
+  SubscribeToPageMetadata(int32 tab_id, array<string> names)
+      => (bool success);
 };
 
 // Data sent from the browser to the web client with panel opening information.
@@ -847,7 +852,7 @@ enum WebClientModel {
 enum ResponseStopCause {
   [Default] kUnknown = 0,
   kUser = 1,
-  kOther = 2
+  kOther = 2,
 };
 
 // Details of response stop event.
@@ -939,9 +944,8 @@ interface WebClient {
   NotifyPinnedTabDataChanged(TabData tab_data);
 
   // Informs the client that the zero state suggestions have changed.
-  NotifyZeroStateSuggestionsChanged(
-    ZeroStateSuggestionsV2? suggestions,
-    ZeroStateSuggestionsOptions options);
+  NotifyZeroStateSuggestionsChanged(ZeroStateSuggestionsV2? suggestions,
+                                    ZeroStateSuggestionsOptions options);
 
   // Notify that the actor task with the given id has changed to the indicated
   // state.
@@ -953,6 +957,10 @@ interface WebClient {
   //
   // The web client should update its view to match the requested change.
   RequestViewChange(ViewChangeRequest request);
+
+  // Informs the client that the metadata tags have changed.
+  // Contents from meta tags are passed unsanitized from the renderer.
+  NotifyPageMetadataChanged(int32 tab_id, blink.mojom.PageMetadata? metadata);
 };
 
 // Information extracted from a tab.
@@ -1026,7 +1034,8 @@ struct TabData {
   // This is a best effort signal, and may not be accurate/stale due to not
   // observing media events directly.
   bool? is_media_active;
-  // Whether the tab content is being captured by another functionality (e.g., screen share in video chat).
+  // Whether the tab content is being captured by another functionality (e.g.,
+  // screen share in video chat).
   // This is a best effort signal, and may not be accurate/stale due to not
   // observing tab content capture events directly.
   bool? is_tab_content_captured;

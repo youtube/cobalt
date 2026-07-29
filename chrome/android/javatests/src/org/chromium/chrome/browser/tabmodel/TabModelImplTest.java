@@ -15,6 +15,9 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import static org.chromium.chrome.test.util.ChromeTabUtils.getIndexOnUiThread;
+import static org.chromium.chrome.test.util.ChromeTabUtils.getTabCountOnUiThread;
+
 import androidx.test.filters.SmallTest;
 import androidx.test.platform.app.InstrumentationRegistry;
 
@@ -26,6 +29,7 @@ import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 
+import org.chromium.base.Log;
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.Token;
 import org.chromium.base.test.util.ApplicationTestUtils;
@@ -67,6 +71,9 @@ import java.util.List;
 })
 @Batch(Batch.PER_CLASS)
 public class TabModelImplTest {
+    private static final String TAG = "TabModelImplTest";
+    private static final boolean ENABLE_DEBUG_LOGGING = false;
+
     @Rule
     public AutoResetCtaTransitTestRule mActivityTestRule =
             ChromeTransitTestRules.fastAutoResetCtaActivityRule();
@@ -95,12 +102,12 @@ public class TabModelImplTest {
     @SmallTest
     public void validIndexAfterRestored_FromColdStart() {
         TabModel normalTabModel = mPage.getTabModelSelector().getModel(false);
-        assertEquals(1, normalTabModel.getCount());
-        assertNotEquals(TabModel.INVALID_TAB_INDEX, normalTabModel.index());
+        assertEquals(1, getTabCountOnUiThread(normalTabModel));
+        assertNotEquals(TabModel.INVALID_TAB_INDEX, getIndexOnUiThread(normalTabModel));
 
         TabModel incognitoTabModel = mPage.getTabModelSelector().getModel(true);
-        assertEquals(0, incognitoTabModel.getCount());
-        assertEquals(TabModel.INVALID_TAB_INDEX, incognitoTabModel.index());
+        assertEquals(0, getTabCountOnUiThread(incognitoTabModel));
+        assertEquals(TabModel.INVALID_TAB_INDEX, getIndexOnUiThread(incognitoTabModel));
     }
 
     @Test
@@ -116,14 +123,14 @@ public class TabModelImplTest {
         TabModel normalTabModel =
                 mActivityTestRule.getActivity().getTabModelSelector().getModel(false);
         // Tab count is 2, because startMainActivityOnBlankPage() is called twice.
-        assertEquals(2, normalTabModel.getCount());
-        assertNotEquals(TabModel.INVALID_TAB_INDEX, normalTabModel.index());
+        assertEquals(2, getTabCountOnUiThread(normalTabModel));
+        assertNotEquals(TabModel.INVALID_TAB_INDEX, getIndexOnUiThread(normalTabModel));
 
         // No incognito tabs are restored from a cold start.
         TabModel incognitoTabModel =
                 mActivityTestRule.getActivity().getTabModelSelector().getModel(true);
-        assertEquals(0, incognitoTabModel.getCount());
-        assertEquals(TabModel.INVALID_TAB_INDEX, incognitoTabModel.index());
+        assertEquals(0, getTabCountOnUiThread(incognitoTabModel));
+        assertEquals(TabModel.INVALID_TAB_INDEX, getIndexOnUiThread(incognitoTabModel));
     }
 
     @Test
@@ -135,12 +142,12 @@ public class TabModelImplTest {
         CriteriaHelper.pollUiThread(newActivity.getTabModelSelector()::isTabStateInitialized);
 
         TabModel normalTabModel = newActivity.getTabModelSelector().getModel(false);
-        assertEquals(1, normalTabModel.getCount());
-        assertNotEquals(TabModel.INVALID_TAB_INDEX, normalTabModel.index());
+        assertEquals(1, getTabCountOnUiThread(normalTabModel));
+        assertNotEquals(TabModel.INVALID_TAB_INDEX, getIndexOnUiThread(normalTabModel));
 
         TabModel incognitoTabModel = newActivity.getTabModelSelector().getModel(true);
-        assertEquals(0, incognitoTabModel.getCount());
-        assertEquals(TabModel.INVALID_TAB_INDEX, incognitoTabModel.index());
+        assertEquals(0, getTabCountOnUiThread(incognitoTabModel));
+        assertEquals(TabModel.INVALID_TAB_INDEX, getIndexOnUiThread(incognitoTabModel));
     }
 
     @Test
@@ -153,12 +160,12 @@ public class TabModelImplTest {
         CriteriaHelper.pollUiThread(newActivity.getTabModelSelector()::isTabStateInitialized);
 
         TabModel normalTabModel = newActivity.getTabModelSelector().getModel(false);
-        assertEquals(1, normalTabModel.getCount());
-        assertNotEquals(TabModel.INVALID_TAB_INDEX, normalTabModel.index());
+        assertEquals(1, getTabCountOnUiThread(normalTabModel));
+        assertNotEquals(TabModel.INVALID_TAB_INDEX, getIndexOnUiThread(normalTabModel));
 
         TabModel incognitoTabModel = newActivity.getTabModelSelector().getModel(true);
-        assertEquals(1, incognitoTabModel.getCount());
-        assertNotEquals(TabModel.INVALID_TAB_INDEX, incognitoTabModel.index());
+        assertEquals(1, getTabCountOnUiThread(incognitoTabModel));
+        assertNotEquals(TabModel.INVALID_TAB_INDEX, getIndexOnUiThread(incognitoTabModel));
     }
 
     @Test
@@ -978,11 +985,11 @@ public class TabModelImplTest {
                 mActivityTestRule.getActivity().getTabModelSelector().getModel(false);
 
         Tab regularTab = createTab();
-        assertEquals(2, normalTabModel.getCount()); // Initial blank page + new tab
-        assertEquals(0, incognitoTabModel.getCount());
+        assertEquals(2, getTabCountOnUiThread(normalTabModel)); // Initial blank page + new tab
+        assertEquals(0, getTabCountOnUiThread(incognitoTabModel));
 
         mPage = Journeys.createIncognitoTabsWithWebPages(mPage, List.of(mTestUrl, mTestUrl));
-        assertEquals(2, incognitoTabModel.getCount());
+        assertEquals(2, getTabCountOnUiThread(incognitoTabModel));
 
         // Switch to the incognito model and select the first incognito tab.
         ThreadUtils.runOnUiThreadBlocking(
@@ -990,11 +997,11 @@ public class TabModelImplTest {
                     mActivityTestRule.getActivity().getTabModelSelector().selectModel(true);
                     incognitoTabModel.setIndex(0, TabSelectionType.FROM_USER);
                 });
-        assertTrue(incognitoTabModel.isActiveModel());
-        assertEquals(0, incognitoTabModel.index());
+        assertTrue(ThreadUtils.runOnUiThreadBlocking(() -> incognitoTabModel.isActiveModel()));
+        assertEquals(0, getIndexOnUiThread(incognitoTabModel));
 
-        Tab incognitoTab1 = incognitoTabModel.getTabAt(0);
-        Tab incognitoTab2 = incognitoTabModel.getTabAt(1);
+        Tab incognitoTab1 = ThreadUtils.runOnUiThreadBlocking(() -> incognitoTabModel.getTabAt(0));
+        Tab incognitoTab2 = ThreadUtils.runOnUiThreadBlocking(() -> incognitoTabModel.getTabAt(1));
         assertNotNull(incognitoTab1);
         assertNotNull(incognitoTab2);
 
@@ -1011,14 +1018,17 @@ public class TabModelImplTest {
                 });
 
         // Verify that the regular model is now active and the regular tab is selected.
-        assertFalse(incognitoTabModel.isActiveModel());
-        assertTrue(normalTabModel.isActiveModel());
-        assertEquals(regularTab, normalTabModel.getCurrentTabSupplier().get());
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    assertFalse(incognitoTabModel.isActiveModel());
+                    assertTrue(normalTabModel.isActiveModel());
+                    assertEquals(regularTab, normalTabModel.getCurrentTabSupplier().get());
 
-        assertEquals(1, incognitoTabModel.getCount());
-        assertEquals(incognitoTab2, incognitoTabModel.getTabAt(0));
-        assertEquals(0, incognitoTabModel.index());
-        assertEquals(incognitoTab2, incognitoTabModel.getCurrentTabSupplier().get());
+                    assertEquals(1, incognitoTabModel.getCount());
+                    assertEquals(incognitoTab2, incognitoTabModel.getTabAt(0));
+                    assertEquals(0, incognitoTabModel.index());
+                    assertEquals(incognitoTab2, incognitoTabModel.getCurrentTabSupplier().get());
+                });
     }
 
     @Test
@@ -1266,7 +1276,7 @@ public class TabModelImplTest {
 
         TabModel tabModel = mActivityTestRule.getActivity().getTabModelSelector().getModel(false);
 
-        int numTabsBeforeTest = tabModel.getCount();
+        int numTabsBeforeTest = getTabCountOnUiThread(tabModel);
 
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
@@ -1287,7 +1297,9 @@ public class TabModelImplTest {
                     "Expected new window to be created");
         } else {
             assertEquals(
-                    "Expected a new tab to be created", numTabsBeforeTest + 1, tabModel.getCount());
+                    "Expected a new tab to be created",
+                    numTabsBeforeTest + 1,
+                    getTabCountOnUiThread(tabModel));
         }
     }
 
@@ -1296,13 +1308,43 @@ public class TabModelImplTest {
         Tab oldIndexTab = mTabModelJni.getTabAt(oldIndex);
         assert movingInsideGroup || oldIndexTab.getTabGroupId() == null
                 : "This is not a single tab movement";
+        if (ENABLE_DEBUG_LOGGING) {
+            logTabModelStructure(mTabModelJni, "Before move");
+            Log.i(
+                    TAG,
+                    "Moving "
+                            + oldIndexTab.getId()
+                            + " from "
+                            + oldIndex
+                            + " to "
+                            + newIndex
+                            + " actual valid index "
+                            + expectedIndex);
+        }
         mTabModelJni.moveTabToIndex(oldIndexTab, newIndex);
+        if (ENABLE_DEBUG_LOGGING) {
+            logTabModelStructure(mTabModelJni, "After move");
+        }
         assertEquals(oldIndexTab, mTabModelJni.getTabAt(expectedIndex));
     }
 
     private void assertMoveTabGroup(List<Tab> tabs, int requestedIndex, int firstValidIndex) {
         Token tabGroupId = tabs.get(0).getTabGroupId();
+        if (ENABLE_DEBUG_LOGGING) {
+            logTabModelStructure(mTabModelJni, "Before move");
+            Log.i(
+                    TAG,
+                    "Moving "
+                            + tabGroupId
+                            + " to "
+                            + requestedIndex
+                            + " actual valid index "
+                            + firstValidIndex);
+        }
         mTabModelJni.moveGroupToIndex(tabGroupId, requestedIndex);
+        if (ENABLE_DEBUG_LOGGING) {
+            logTabModelStructure(mTabModelJni, "After move");
+        }
 
         int size = tabs.size();
         for (int i = 0; i < size; i++) {
@@ -1336,5 +1378,47 @@ public class TabModelImplTest {
 
     private void createTabs(int n) {
         for (int i = 0; i < n; i++) createTab();
+    }
+
+    private void logTabModelStructure(TabModel tabModel, String prefix) {
+        StringBuilder sb = new StringBuilder();
+        sb.append(prefix).append("\n");
+        sb.append("TabModel structure:\n");
+        int tabCount = tabModel.getCount();
+        sb.append("Tab count: " + tabCount + "\n");
+        int i = 0;
+        for (; i < tabCount; i++) {
+            sb.append("Pinned: [\n");
+            Tab tab = tabModel.getTabAt(i);
+            if (!tab.getIsPinned()) break;
+            printTab(sb, tab, i);
+        }
+        sb.append("],\n");
+        sb.append("Unpinned: [\n");
+        for (; i < tabCount; i++) {
+            Tab tab = tabModel.getTabAt(i);
+            Token tabGroupId = tab.getTabGroupId();
+            if (tabGroupId != null) {
+                sb.append("Group: " + tabGroupId + " [\n");
+                while (i < tabCount) {
+                    Tab groupTab = tabModel.getTabAt(i);
+                    if (!tabGroupId.equals(groupTab.getTabGroupId())) {
+                        i--;
+                        break;
+                    }
+                    printTab(sb, groupTab, i);
+                    i++;
+                }
+                sb.append("],\n");
+            } else {
+                printTab(sb, tab, i);
+            }
+        }
+        sb.append("]\n");
+        Log.i(TAG, sb.toString());
+    }
+
+    private void printTab(StringBuilder sb, Tab tab, int index) {
+        sb.append(index).append(": ").append(tab.getId()).append(",\n");
     }
 }

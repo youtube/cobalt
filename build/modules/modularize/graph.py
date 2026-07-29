@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import collections
+import contextlib
 import dataclasses
 import enum
 import functools
@@ -12,7 +13,7 @@ import itertools
 import pathlib
 import re
 
-_INCLUDES = re.compile(r'#\s*include(_next)?\s*<([^>]+)>')
+_INCLUDES = re.compile(r'#\s*(?:include|import)(_next)?\s*<([^>]+)>')
 
 
 class CompileStatus(enum.Enum):
@@ -33,9 +34,6 @@ class IncludeDir(enum.Enum):
     return self.value < other.value
 
 
-HeaderRef = tuple[IncludeDir, str]
-
-
 @dataclasses.dataclass
 class Header:
   include_dir: IncludeDir
@@ -52,20 +50,25 @@ class Header:
   umbrella: bool = False
   compile_status: CompileStatus = CompileStatus.NotCompiled
 
-  deps: list[HeaderRef] = dataclasses.field(default_factory=list)
+  deps: list[Header] = dataclasses.field(default_factory=list)
   direct_deps: set[Header] = dataclasses.field(default_factory=set)
   # Here, None means no exports, and the empty list means 'export *'
   # We default to exporting all to preserve the behaviour of includes.
-  exports: None | list[HeaderRef] = dataclasses.field(default_factory=list)
+  exports: None | list[str] = dataclasses.field(default_factory=list)
 
-  # Any configs required to build this file.
-  public_configs: list[str] = dataclasses.field(default_factory=list)
+  # Kwargs that will end up on the BUILD.gn targets.
+  kwargs: dict[str, list[str]] = dataclasses.field(
+      default_factory=lambda: collections.defaultdict(list))
 
   def __hash__(self):
     return hash((self.include_dir, self.rel))
 
   def __eq__(self, other):
-    return (self.include_dir, self.rel) == (other.include_dir, other.rel)
+    if isinstance(other, Header):
+      return (self.include_dir, self.rel) == (other.include_dir, other.rel)
+    else:
+      # This allows you to write (Sysroot, 'foo.h') in set[Header]
+      return (self.include_dir, self.rel) == other
 
   def __lt__(self, other):
     return (self.include_dir, self.rel) < (other.include_dir, other.rel)
@@ -83,32 +86,102 @@ class Header:
     return 'sysroot_' + normalized
 
   @functools.cached_property
-  def content(self) -> None | str:
-    return self.abs.read_text()
+  def content(self) -> str:
+    return self.abs.read_text(errors='ignore')
 
-  def calculate_direct_deps(self, includes: dict[str,
-                                                 list[Header]]) -> set[Header]:
+  def calculate_direct_deps(self, includes: dict[str, Header],
+                            sysroot: pathlib.Path) -> set[Header]:
+
     direct = set()
-    for is_next, include in _INCLUDES.findall(self.content):
-      header = None
-      order = includes.get(include, [])
-      if is_next and self in order[:-1]:
-        header = order[order.index(self) + 1]
-      if not is_next and order:
-        header = order[0]
+    found_includes = _INCLUDES.findall(self.content)
 
-      # It might have been conditionally included.
-      if header is not None and (header.include_dir, header.rel) in self.deps:
-        direct.add(header)
+    def find_include(is_next, include) -> bool:
+      header = None
+      first = includes.get(include, None)
+      if first is not None:
+        # When modules are enabled, #include_next<foo.h> from any file other
+        # than foo.h is treated the same as #include <foo.h>.
+        if not is_next or (is_next and self.rel != include):
+          header = first
+        elif self.next is not None:
+          header = self.next
+
+        # It might have been conditionally included.
+        if header is not None and header in self.deps:
+          direct.add(header)
+          return True
+      return False
+
+    for is_next, include in found_includes:
+      if not find_include(is_next, include):
+        # This is required, because, for example, libcxx's threading includes
+        # pthread.h, but the include scanner sees pthread/pthread.h (the
+        # symlink target).
+        with contextlib.suppress(OSError, FileNotFoundError):
+          find_include(is_next, str((sysroot / include).readlink()))
+
     return direct
 
-  def direct_deps_closure(self) -> set[Header]:
-    closure = set(self.direct_deps)
-    for dep in self.direct_deps:
-      if dep.textual:
-        closure.remove(dep)
-        closure.update(dep.direct_deps_closure())
-    return closure
+  @functools.cache
+  def _required_deps(self) -> tuple[set[Header], set[Header]]:
+    nontextual = set()
+    textual = set()
+    todo = [self]
+    while todo:
+      hdr = todo.pop()
+      for dep in hdr.direct_deps:
+        if dep.textual and dep not in textual:
+          todo.append(dep)
+          textual.add(dep)
+        elif not dep.textual:
+          nontextual.add(dep)
+    return nontextual, textual
+
+  @property
+  def required_deps(self) -> set[Header]:
+    """The header files required to be built before we can build."""
+    return self._required_deps()[0]
+
+  @property
+  def required_textual_deps(self) -> set[Header]:
+    """The textual header files we directly include.
+
+    This includes textual headers included via other textual headers"""
+    return self._required_deps()[1]
+
+  def find_loop(self) -> list[Header] | None:
+    """Finds a loop of #includes, if it exists."""
+    chain = [self]
+    has_chain = True
+    while has_chain:
+      has_chain = False
+      if self in chain[-1].direct_deps:
+        return chain + [self]
+      for dep in chain[-1].direct_deps:
+        if dep not in chain and self in dep.deps:
+          chain.append(dep)
+          has_chain = True
+          break
+    # It shouldn't be possible to have a node that has you as a transitive
+    # dep without having a dep that has you as a transitive dep.
+    assert len(chain) == 1
+
+
+def calculate_rdeps(headers: list[Header]) -> dict[Header, list[Header]]:
+  """Calculates a reverse dependency graph"""
+  rdeps = collections.defaultdict(list)
+  for header in headers:
+    for dep in header.deps:
+      rdeps[dep].append(header)
+  return rdeps
+
+
+def all_headers(graph: dict[str, Header]):
+  """Iterates through all headers in a graph."""
+  for header in graph.values():
+    while header is not None:
+      yield header
+      header = header.next
 
 
 @dataclasses.dataclass
@@ -122,12 +195,12 @@ class Target:
     return self.name < other.name
 
 
-def run_build(graph: dict[HeaderRef, Header]) -> list[Target]:
+def run_build(graph: dict[str, Header]) -> list[Target]:
   """Calculates the correct way to run a build."""
   unbuilt_modules: dict[str, list[Header]] = collections.defaultdict(list)
   unbuilt_headers: set[Header] = set()
 
-  for header in graph.values():
+  for header in all_headers(graph):
     if not header.textual:
       if header.root_module is None:
         unbuilt_headers.add(header)
@@ -138,30 +211,56 @@ def run_build(graph: dict[HeaderRef, Header]) -> list[Target]:
     # form a dependency loop.
     header.group = [header]
     header.mod_deps = set()
-    header.unbuilt_deps = set([
-        graph[dep] for dep in header.deps
-        # Textual headers don't need to be built.
-        # Also, you don't need to wait for a dependency within the same module.
-        if not graph[dep].textual and \
-          (header.root_module is None or \
-           header.root_module != graph[dep].root_module)
-    ])
+    header.unbuilt_deps = set(
+        dep for dep in header.required_deps
+        # You don't need to wait for a dependency within the same module.
+        if (header.root_module is None or header.root_module != dep.root_module)
+        and dep != header)
 
-  for header in graph.values():
+  # Perform a union find to find all dependency loops.
+  # Since we can easily tell if a given edge represents a dependency loop, we
+  # simply union together all pairs of nodes on loop edges.
+  # We perform a simple form of union find where we don't bother with rank or
+  # size, and only do path compression (always on the lexicographically first
+  # header). It's slower but still plenty fast and simplifies things.
+  parents = {}
+
+  def find(header):
+    if header in parents:
+      # Optimization: path compression
+      parents[header] = find(parents[header])
+      return parents[header]
+    else:
+      return header
+
+  for header in sorted(unbuilt_headers):
+    for dep in header.required_deps:
+      if dep > header and header in dep.deps:
+        assert header.include_dir == IncludeDir.Sysroot and dep.include_dir == IncludeDir.Sysroot, (
+            header, dep)
+        # Perform the 'union' operation.
+        x, y = sorted([find(header), find(dep)])
+        if x != y:
+          parents[y] = x
+
+  loops = collections.defaultdict(list)
+  for header in unbuilt_headers:
+    loops[find(header)].append(header)
+
+  for headers in loops.values():
+    # Not a loop
+    if len(headers) == 1:
+      continue
+    headers.sort()
+    headers[0].group = headers
+    headers[0].unbuilt_deps = set.union(
+        *[header.unbuilt_deps for header in headers]) - set(headers)
+    for header in headers[1:]:
+      unbuilt_headers.remove(header)
+
+  for header in all_headers(graph):
     for dep in header.unbuilt_deps:
       dep.rdeps.add(header)
-
-  # Break dependency loops.
-  for header in sorted(graph.values()):
-    for dep in list(header.unbuilt_deps):
-      # Mark all headers but one in the loop as already having been built.
-      if header in dep.unbuilt_deps and header.include_dir == IncludeDir.Sysroot and dep.include_dir == IncludeDir.Sysroot:
-        header.group.append(dep)
-        dep.group = header.group
-        for rdep in dep.rdeps:
-          assert header is rdep or header in rdep.unbuilt_deps
-          rdep.unbuilt_deps.remove(dep)
-        unbuilt_headers.remove(dep)
 
   build_gn = []
 
@@ -196,12 +295,13 @@ def run_build(graph: dict[HeaderRef, Header]) -> list[Target]:
       n_remaining = len(unbuilt_headers)
       for header in list(unbuilt_headers):
         if not header.unbuilt_deps:
-          header.root_module = sysroot_mod
           build_gn[-1].headers.append(header)
           unbuilt_headers.remove(header)
-          for rdep in header.rdeps:
-            rdep.mod_deps.add(header.root_module)
-            rdep.unbuilt_deps.remove(header)
+          for header in header.group:
+            header.root_module = sysroot_mod
+            for rdep in header.rdeps:
+              rdep.mod_deps.add(header.root_module)
+              rdep.unbuilt_deps.remove(header)
 
       if n_remaining == len(unbuilt_headers):
         break
@@ -220,13 +320,14 @@ def run_build(graph: dict[HeaderRef, Header]) -> list[Target]:
         "Dependency loop in sysroot. You probably want to make one of them textual."
     )
     print("The following headers are in a dependency loop:")
-    pairs = set()
+    seen = set()
     for header in unbuilt_headers:
-      for dep in header.unbuilt_deps:
-        if header in dep.unbuilt_deps:
-          print(f'{header.pretty_name} -> {dep.pretty_name}')
+      if header not in seen:
+        chain = header.find_loop()
+        if chain is not None:
+          print(' -> '.join([header.pretty_name for header in chain]))
+          seen.update(chain)
 
     # If you get to this point, you probably want a debugger to help understand what the problem is.
-    sysroot = lambda rel: graph[(IncludeDir.Sysroot, rel)]
     breakpoint()
     exit(1)

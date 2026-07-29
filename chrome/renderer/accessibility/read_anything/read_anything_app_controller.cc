@@ -2,11 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
-#pragma allow_unsafe_libc_calls
-#endif
-
 #include "chrome/renderer/accessibility/read_anything/read_anything_app_controller.h"
 
 #include <climits>
@@ -18,6 +13,7 @@
 #include <vector>
 
 #include "base/check_deref.h"
+#include "base/compiler_specific.h"
 #include "base/containers/fixed_flat_map.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/metrics_hashes.h"
@@ -670,6 +666,7 @@ void ReadAnythingAppController::OnActiveAXTreeIDChanged(
   // seen), log the words that were seen on the previous tree.
   if (model_.active_tree_id() != ui::AXTreeIDUnknown()) {
     RecordEstimatedWordsSeen();
+    RecordEstimatedWordsHeard();
   }
 
   // Cancel any running draw timers.
@@ -742,8 +739,16 @@ void ReadAnythingAppController::RecordNumSelections() {
 
 void ReadAnythingAppController::RecordEstimatedWordsSeen() {
   VLOG(1) << "Words seen: " << model_.words_seen();
-  base::UmaHistogramCounts100000(kWordsSeenHistogramName, model_.words_seen());
+  base::UmaHistogramCustomCounts(kWordsSeenHistogramName, model_.words_seen(),
+                                 1, kMaxWordsConsumed, kWordsConsumedBuckets);
   model_.set_words_seen(0);
+}
+
+void ReadAnythingAppController::RecordEstimatedWordsHeard() {
+  VLOG(1) << "Words heard: " << model_.words_heard();
+  base::UmaHistogramCustomCounts(kWordsHeardHistogramName, model_.words_heard(),
+                                 1, kMaxWordsConsumed, kWordsConsumedBuckets);
+  model_.set_words_heard(0);
 }
 
 void ReadAnythingAppController::OnAXTreeDestroyed(const ui::AXTreeID& tree_id) {
@@ -1145,6 +1150,8 @@ gin::ObjectTemplateBuilder ReadAnythingAppController::GetObjectTemplateBuilder(
       .SetMethod("onCopy", &ReadAnythingAppController::OnCopy)
       .SetMethod("onNoTextContent", &ReadAnythingAppController::OnNoTextContent)
       .SetMethod("updateWordsSeen", &ReadAnythingAppController::UpdateWordsSeen)
+      .SetMethod("updateWordsHeard",
+                 &ReadAnythingAppController::UpdateWordsHeard)
       .SetMethod("onFontSizeChanged",
                  &ReadAnythingAppController::OnFontSizeChanged)
       .SetMethod("onFontSizeReset", &ReadAnythingAppController::OnFontSizeReset)
@@ -1456,7 +1463,7 @@ std::u16string ReadAnythingAppController::GetTextContent(
   ui::AXNode* ax_node = model_.GetAXNode(ax_node_id);
   CHECK(ax_node);
 
-  return a11y::GetTextContent(ax_node, IsGoogleDocs(), model_.is_pdf());
+  return a11y::GetTextContent(ax_node, model_.is_pdf(), IsGoogleDocs());
 }
 
 std::string ReadAnythingAppController::GetTextDirection(
@@ -1648,7 +1655,7 @@ v8::Local<v8::Value> ReadAnythingAppController::GetImageBitmap(
     // Create an array buffer with the image bytes.
     v8::Local<v8::ArrayBuffer> buffer = v8::ArrayBuffer::New(isolate, size);
     // Copy the memory in.
-    memcpy(buffer->GetBackingStore()->Data(), pixmap.addr(), size);
+    UNSAFE_TODO(memcpy(buffer->GetBackingStore()->Data(), pixmap.addr(), size));
     // Create a clamped array so we can create an ImageData object on the
     // javascript side.
     v8::Local<v8::Uint8ClampedArray> array =
@@ -1766,6 +1773,10 @@ void ReadAnythingAppController::OnNoTextContent(bool previouslyHadContent) {
 
 void ReadAnythingAppController::UpdateWordsSeen(int words_seen) {
   model_.set_words_seen(words_seen);
+}
+
+void ReadAnythingAppController::UpdateWordsHeard(int words_heard) {
+  model_.set_words_heard(words_heard);
 }
 
 void ReadAnythingAppController::OnFontSizeChanged(bool increase) {
@@ -2023,6 +2034,7 @@ void ReadAnythingAppController::OnDeviceLocked() {
   read_aloud_model_.LogSpeechStop(
       ReadAloudAppModel::ReadAloudStopSource::kLockChromeosDevice);
   RecordEstimatedWordsSeen();
+  RecordEstimatedWordsHeard();
   // Signal to the WebUI that the device has been locked. We'll only receive
   // this callback on ChromeOS.
   ExecuteJavaScript("chrome.readingMode.onLockScreen();");
@@ -2038,6 +2050,7 @@ void ReadAnythingAppController::OnReadingModeHidden() {
   read_aloud_model_.LogSpeechStop(
       ReadAloudAppModel::ReadAloudStopSource::kCloseReadingMode);
   RecordEstimatedWordsSeen();
+  RecordEstimatedWordsHeard();
 }
 
 void ReadAnythingAppController::OnTabWillDetach() {
@@ -2045,6 +2058,7 @@ void ReadAnythingAppController::OnTabWillDetach() {
   read_aloud_model_.LogSpeechStop(
       ReadAloudAppModel::ReadAloudStopSource::kCloseTabOrWindow);
   RecordEstimatedWordsSeen();
+  RecordEstimatedWordsHeard();
 }
 
 void ReadAnythingAppController::OnTabMuteStateChange(bool muted) {

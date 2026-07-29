@@ -44,7 +44,7 @@ class Buffer {
   static std::unique_ptr<Buffer> CreateBufferFromGMBHandle(
       gfx::GpuMemoryBufferHandle buffer_handle,
       const gfx::Size& buffer_size,
-      gfx::BufferFormat buffer_format,
+      viz::SharedImageFormat format,
       gfx::BufferUsage buffer_usage,
       unsigned query_type,
       bool use_zero_copy,
@@ -53,7 +53,7 @@ class Buffer {
 
   static std::unique_ptr<Buffer> CreateBuffer(
       gfx::Size buffer_size,
-      gfx::BufferFormat buffer_format,
+      viz::SharedImageFormat format,
       gfx::BufferUsage buffer_usage,
       std::string_view debug_label,
       gpu::SurfaceHandle surface_handle,

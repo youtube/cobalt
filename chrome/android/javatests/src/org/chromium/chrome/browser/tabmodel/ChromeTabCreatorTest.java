@@ -13,6 +13,7 @@ import static org.junit.Assert.assertTrue;
 
 import static org.chromium.base.test.util.Restriction.RESTRICTION_TYPE_LOW_END_DEVICE;
 import static org.chromium.base.test.util.Restriction.RESTRICTION_TYPE_NON_LOW_END_DEVICE;
+import static org.chromium.chrome.test.util.ChromeTabUtils.getTabCountOnUiThread;
 
 import android.content.Intent;
 
@@ -533,7 +534,7 @@ public class ChromeTabCreatorTest {
     @Feature({"Browser"})
     @RequiresRestart // Avoid having multiple windows mess up the other tests
     public void testCreateNewTabInNewWindow() {
-        Tab currentTab = mActivityTestRule.getActivity().getActivityTab();
+        Tab currentTab = mActivityTestRule.getActivityTab();
         String testPath = mTestServer.getURL(TEST_PATH);
         ThreadUtils.runOnUiThreadBlocking(
                 () ->
@@ -553,7 +554,7 @@ public class ChromeTabCreatorTest {
             assertEquals(
                     "Expected a new tab to be created",
                     2,
-                    mActivityTestRule.getActivity().getCurrentTabModel().getCount());
+                    getTabCountOnUiThread(mActivityTestRule.getActivity().getCurrentTabModel()));
         }
     }
 

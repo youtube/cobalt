@@ -7,6 +7,7 @@
 #include <memory>
 #include <ostream>
 
+#include "base/metrics/histogram_functions.h"
 #include "base/no_destructor.h"
 #include "base/state_transitions.h"
 #include "base/task/sequenced_task_runner.h"
@@ -73,23 +74,46 @@ void ActorTask::SetState(State state) {
   }
 #endif  // DCHECK_IS_ON()
 
+  if ((state_ == kPausedByActor || state_ == kPausedByUser) &&
+      state != kCancelled && state != kFinished) {
+    current_timer_.emplace();
+  }
+
   ui_event_dispatcher_->OnActorTaskSyncChange(
       ui::UiEventDispatcher::ChangeTaskState{
           .task_id = id_, .old_state = state_, .new_state = state});
   state_ = state;
   actor::ActorKeyedService::Get(profile_)->NotifyTaskStateChanged(*this);
+
+  if (state_ == kPausedByActor || state_ == kPausedByUser ||
+      state_ == kFinished || state_ == kCancelled) {
+    // If new state is to be paused or done, add the current time.
+    if (current_timer_) {
+      total_active_time_ += current_timer_->Elapsed();
+    }
+    current_timer_ = std::nullopt;
+  }
+
+  // If the state is to be finished/cancelled record a histogram.
+  if (state_ == kFinished) {
+    base::UmaHistogramLongTimes100("Actor.Task.Duration.Completed",
+                                   total_active_time_);
+  } else if (state_ == kCancelled) {
+    base::UmaHistogramLongTimes100("Actor.Task.Duration.Cancelled",
+                                   total_active_time_);
+  }
 }
 
 void ActorTask::Act(std::vector<std::unique_ptr<ToolRequest>>&& actions,
                     ActCallback callback) {
   if (state_ == State::kPausedByActor) {
     std::move(callback).Run(MakeResult(mojom::ActionResultCode::kTaskPaused),
-                            std::nullopt);
+                            std::nullopt, {});
     return;
   }
   if (IsStopped()) {
     std::move(callback).Run(MakeResult(mojom::ActionResultCode::kTaskWentAway),
-                            std::nullopt);
+                            std::nullopt, {});
     return;
   }
   SetState(State::kActing);
@@ -99,15 +123,19 @@ void ActorTask::Act(std::vector<std::unique_ptr<ToolRequest>>&& actions,
                      std::move(callback)));
 }
 
-void ActorTask::OnFinishedAct(ActCallback callback,
-                              mojom::ActionResultPtr result,
-                              std::optional<size_t> index_of_failed_action) {
+void ActorTask::OnFinishedAct(
+    ActCallback callback,
+    mojom::ActionResultPtr result,
+    std::optional<size_t> index_of_failed_action,
+    std::vector<optimization_guide::proto::ScriptToolResult>
+        script_tool_results) {
   if (state_ != State::kActing) {
-    std::move(callback).Run(MakeErrorResult(), std::nullopt);
+    std::move(callback).Run(MakeErrorResult(), std::nullopt, {});
     return;
   }
   SetState(State::kReflecting);
-  std::move(callback).Run(std::move(result), std::nullopt);
+  std::move(callback).Run(std::move(result), std::nullopt,
+                          std::move(script_tool_results));
 }
 
 void ActorTask::Stop(bool success) {
@@ -141,10 +169,25 @@ void ActorTask::Pause(bool from_actor) {
   } else {
     SetState(State::kPausedByUser);
   }
+  actuation_mode_runners_.clear();
 }
 
 void ActorTask::Resume() {
   if (GetState() != State::kFinished || GetState() != State::kCancelled) {
+    if (actuation_mode_runners_.empty()) {
+      for (const auto& tab_handle : tab_handles_) {
+        if (tab_handle.Get()) {
+          content::WebContents* web_contents = tab_handle.Get()->GetContents();
+          CHECK(web_contents);
+          actuation_mode_runners_.emplace(
+              tab_handle,
+              web_contents->IncrementCapturerCount(gfx::Size(),
+                                                   /*stay_hidden=*/false,
+                                                   /*stay_awake=*/true,
+                                                   /*is_activity=*/true));
+        }
+      }
+    }
     SetState(State::kReflecting);
   }
 }
@@ -170,13 +213,18 @@ void ActorTask::AddTab(tabs::TabHandle tab_handle, AddTabCallback callback) {
   }
 
   CHECK(!actuation_mode_runners_.contains(tab_handle));
-  if (tab_handle.Get() && tab_handle.Get()->GetContents()) {
-    content::WebContents* web_contents = tab_handle.Get()->GetContents();
+  tabs::TabInterface* tab = tab_handle.Get();
+  // GetContents may be null in unit tests.
+  if (tab && tab->GetContents()) {
+    content::WebContents* web_contents = tab->GetContents();
     actuation_mode_runners_.emplace(
         tab_handle, web_contents->IncrementCapturerCount(gfx::Size(),
                                                          /*stay_hidden=*/false,
                                                          /*stay_awake=*/true,
                                                          /*is_activity=*/true));
+
+    tab_subscriptions_.push_back(tab->RegisterWillDetach(base::BindRepeating(
+        &ActorTask::OnTabWillDetach, weak_ptr_factory_.GetWeakPtr())));
   }
 
   // Notify the UI of the new tab.
@@ -203,6 +251,21 @@ void ActorTask::RemoveTab(tabs::TabHandle tab_handle) {
                                   ui::UiEventDispatcher::RemoveTab{
                                       .task_id = id_, .handle = tab_handle}));
   }
+}
+
+void ActorTask::OnTabWillDetach(tabs::TabInterface* tab,
+                                tabs::TabInterface::DetachReason reason) {
+  if (reason != tabs::TabInterface::DetachReason::kDelete) {
+    return;
+  }
+  if (!IsActingOnTab(tab->GetHandle())) {
+    return;
+  }
+
+  // TODO(mcnee): This will also stop a task that's paused. Should we leave
+  // paused tasks as is?
+
+  actor::ActorKeyedService::Get(profile_)->StopTask(id(), /*success=*/false);
 }
 
 bool ActorTask::IsActingOnTab(tabs::TabHandle tab) const {

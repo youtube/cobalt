@@ -10,12 +10,14 @@
 #include <string>
 
 #include "base/memory/raw_ref.h"
+#include "base/memory/weak_ptr.h"
 #include "base/observer_list.h"
 #include "base/observer_list_types.h"
 #include "base/types/pass_key.h"
 #include "content/browser/preloading/prerender/prerender_attributes.h"
 #include "content/browser/preloading/prerender/prerender_final_status.h"
 #include "content/browser/preloading/speculation_rules/speculation_rules_tags.h"
+#include "content/browser/prerender_host_id.h"
 #include "content/browser/renderer_host/frame_tree.h"
 #include "content/browser/renderer_host/navigation_controller_delegate.h"
 #include "content/common/content_export.h"
@@ -346,6 +348,7 @@ class CONTENT_EXPORT PrerenderHost {
 
   bool IsBrowserInitiated() { return attributes_.IsBrowserInitiated(); }
 
+  PrerenderHostId prerender_host_id() const { return prerender_host_id_; }
   FrameTreeNodeId frame_tree_node_id() const { return frame_tree_node_id_; }
 
   base::WeakPtr<WebContents> initiator_web_contents() {
@@ -426,6 +429,8 @@ class CONTENT_EXPORT PrerenderHost {
                                    FrameTreeNode& navigating_frame_tree_node);
 
   void NotifyReused();
+
+  base::WeakPtr<PrerenderHost> GetWeakPtr();
 
  private:
   // The helper class to make the frame tree movable among different
@@ -520,6 +525,9 @@ class CONTENT_EXPORT PrerenderHost {
 
   const PrerenderAttributes attributes_;
 
+  // The unique id of this PrerenderHost.
+  const PrerenderHostId prerender_host_id_;
+
   // Indicates if this PrerenderHost is ready for activation.
   bool is_ready_for_activation_ = false;
 
@@ -579,6 +587,8 @@ class CONTENT_EXPORT PrerenderHost {
   bool were_headers_received_ = false;
 
   const bool host_reused_ = false;
+
+  base::WeakPtrFactory<PrerenderHost> weak_factory_{this};
 };
 
 }  // namespace content

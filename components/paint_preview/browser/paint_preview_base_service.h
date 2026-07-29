@@ -20,6 +20,7 @@
 #include "components/paint_preview/common/capture_result.h"
 #include "components/paint_preview/common/file_utils.h"
 #include "components/paint_preview/common/mojom/paint_preview_recorder.mojom.h"
+#include "components/paint_preview/common/mojom/paint_preview_types.mojom.h"
 #include "components/paint_preview/common/proto/paint_preview.pb.h"
 #include "components/paint_preview/common/serialized_recording.h"
 #include "content/public/browser/web_contents.h"
@@ -51,6 +52,13 @@ class PaintPreviewBaseService : public KeyedService {
   };
 
   struct CaptureParams {
+    CaptureParams();
+
+    CaptureParams(const CaptureParams&);
+    CaptureParams& operator=(const CaptureParams&);
+    CaptureParams(CaptureParams&&);
+    CaptureParams& operator=(CaptureParams&&);
+
     raw_ptr<content::WebContents> web_contents = nullptr;
 
     // In case of specifying, an individual |render_frame_host| and its
@@ -78,6 +86,15 @@ class PaintPreviewBaseService : public KeyedService {
 
     // The captured area is clipped to |clip_rect| if it is non-zero.
     gfx::Rect clip_rect;
+
+    // If not `kNone`, overrides the x coordinate of `clip_rect` with some
+    // renderer-computed value.
+    mojom::ClipCoordOverride clip_x_coord_override =
+        mojom::ClipCoordOverride::kNone;
+    // If not `kNone`, overrides the y coordinate of `clip_rect` with some
+    // renderer-computed value.
+    mojom::ClipCoordOverride clip_y_coord_override =
+        mojom::ClipCoordOverride::kNone;
 
     // Whether to record links.
     bool capture_links{false};

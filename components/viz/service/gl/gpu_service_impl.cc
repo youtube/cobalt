@@ -10,10 +10,12 @@
 #include <vector>
 
 #include "base/allocator/partition_alloc_support.h"
+#include "base/android/android_info.h"
 #include "base/command_line.h"
 #include "base/debug/crash_logging.h"
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
+#include "base/memory/memory_pressure_listener_registry.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/no_destructor.h"
@@ -68,6 +70,7 @@
 #include "mojo/public/cpp/bindings/self_owned_receiver.h"
 #include "services/webnn/webnn_context_provider_impl.h"
 #include "skia/buildflags.h"
+#include "third_party/perfetto/include/perfetto/tracing/track.h"
 #include "third_party/skia/include/gpu/ganesh/GrDirectContext.h"
 #include "third_party/skia/include/gpu/ganesh/gl/GrGLAssembleInterface.h"
 #include "third_party/skia/include/gpu/ganesh/gl/GrGLInterface.h"
@@ -87,7 +90,6 @@
 #endif  // BUILDFLAG(USE_VAAPI)
 
 #if BUILDFLAG(IS_ANDROID)
-#include "base/android/build_info.h"
 #include "components/viz/service/gl/throw_uncaught_exception.h"
 #include "media/base/android/media_codec_util.h"
 #endif
@@ -388,12 +390,11 @@ void GpuServiceImpl::UpdateGPUInfo() {
   UMA_HISTOGRAM_CUSTOM_TIMES("GPU.GPUInitializationTime.V4",
                              gpu_info_.initialization_time,
                              base::Milliseconds(5), base::Seconds(90), 100);
-  TRACE_EVENT_NESTABLE_ASYNC_BEGIN_WITH_TIMESTAMP0(
-      kGpuInitializationEventCategory, kGpuInitializationEvent,
-      TRACE_ID_LOCAL(this), start_time_);
-  TRACE_EVENT_NESTABLE_ASYNC_END_WITH_TIMESTAMP0(
-      kGpuInitializationEventCategory, kGpuInitializationEvent,
-      TRACE_ID_LOCAL(this), now);
+  TRACE_EVENT_BEGIN(kGpuInitializationEventCategory, kGpuInitializationEvent,
+                    perfetto::Track::FromPointer(this), start_time_);
+  TRACE_EVENT_END(kGpuInitializationEventCategory,
+                  /* kGpuInitializationEvent */
+                  perfetto::Track::FromPointer(this), now);
 }
 
 void GpuServiceImpl::UpdateGPUInfoGL() {
@@ -831,8 +832,7 @@ std::string GpuServiceImpl::GetShaderPrefixKey() {
         base::SysInfo::ProcessCPUArchitecture();
 
 #if BUILDFLAG(IS_ANDROID)
-    std::string build_fp =
-        base::android::BuildInfo::GetInstance()->android_build_fp();
+    std::string build_fp = base::android::android_info::android_build_fp();
     shader_prefix_key_ += "-" + build_fp;
 #endif
   }
@@ -1188,7 +1188,10 @@ void GpuServiceImpl::OnForegroundedOnMainThread() {
 void GpuServiceImpl::OnMemoryPressure(
     base::MemoryPressureListener::MemoryPressureLevel level) {
   // Forward the notification to the registry of MemoryPressureListeners.
-  base::MemoryPressureListener::NotifyMemoryPressure(level);
+  base::SingleThreadTaskRunner::GetMainThreadDefault()->PostTask(
+      FROM_HERE,
+      base::BindOnce(
+          &base::MemoryPressureListenerRegistry::NotifyMemoryPressure, level));
 }
 #endif
 

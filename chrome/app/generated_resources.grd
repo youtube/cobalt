@@ -7530,6 +7530,9 @@ Keep your key file in a safe place. You will need it to create new versions of y
       <message name="IDS_OMNIBOX_PLACEHOLDER_TEXT" desc="The text displayed in the Omnibox when it is empty and unfocused.">
         Search <ph name="SEARCH_ENGINE_NAME">$1<ex>Google</ex></ph> or type a URL
       </message>
+      <message name="IDS_OMNIBOX_AIM_PLACEHOLDER_TEXT" desc="The text displayed in the Omnibox when it is focused with no input and AI Mode is enabled." translateable="false">
+        &#x21E5; Press tab then enter to ask AI Mode
+      </message>
       <if expr="not use_titlecase">
         <message name="IDS_PASTE_AND_GO" desc="The text label of the Paste And Go menu item when the clipboard contains a URL">
           Pa&amp;ste and go to <ph name="URL">$1<ex>http://www.google.com/</ex></ph>
@@ -8889,6 +8892,17 @@ Keep your key file in a safe place. You will need it to create new versions of y
       </message>
       <message name="IDS_NTP_MODULES_TAB_GROUPS_TITLE" desc="Title for Tab Groups NTP module on the new tab page.">
         Your tab groups
+      </message>
+      <message name="IDS_NTP_MODULES_TAB_GROUPS_TIME_DELTA" desc="Text on a tab group that indicates the time duration that has passed since the interaction.">
+        {TIME_DIMENSION, plural,
+          =0 {Used <ph name="TIME_COUNT">$1<ex>2</ex></ph> day ago}
+          =1 {Used <ph name="TIME_COUNT">$1<ex>2</ex></ph> days ago}
+          =2 {Used <ph name="TIME_COUNT">$1<ex>2</ex></ph> week ago}
+          other {Used <ph name="TIME_COUNT">$1<ex>2</ex></ph> weeks ago}
+        }
+      </message>
+      <message name="IDS_NTP_MODULES_TAB_GROUPS_RECENTLY_USED" desc="The timestamp text on a tab group when the last interaction is less than 1 day ago.">
+        Recently used
       </message>
       <message name="IDS_NTP_MODULES_TAB_GROUPS_ZERO_STATE_TITLE" desc="Title shown in the zero state tab groups module.">
         Stay organized with tab groups
@@ -12250,6 +12264,9 @@ Check your passwords anytime in <ph name="GOOGLE_PASSWORD_MANAGER">$1<ex>Google 
         <message name="IDS_TAB_GROUP_HEADER_CXMENU_UNPIN_GROUP" desc="The label of the saved tab group button context menu item to unpin a gruop">
           Unpin group from bookmarks bar
         </message>
+        <message name="IDS_TAB_GROUP_HEADER_CXMENU_CONVERT_GROUP_TO_BOOKMARK_FOLDER" desc="The label of the tab group header context menu item for moving the entire group to a new window.">
+          Convert group to bookmark folder
+        </message>
         <message name="IDS_TAB_GROUP_HEADER_CXMENU_SEND_FEEDBACK" desc="The label of the tab group header context menu item for sending feedback for tab groups.">
           Send feedback
         </message>
@@ -12294,6 +12311,9 @@ Check your passwords anytime in <ph name="GOOGLE_PASSWORD_MANAGER">$1<ex>Google 
         </message>
         <message name="IDS_TAB_GROUP_HEADER_CXMENU_UNPIN_GROUP" desc="The label of the saved tab group button context menu item to unpin a gruop">
           Unpin Group from Bookmarks Bar
+        </message>
+        <message name="IDS_TAB_GROUP_HEADER_CXMENU_CONVERT_GROUP_TO_BOOKMARK_FOLDER" desc="The label of the tab group header context menu item for moving the entire group to a new window.">
+          Convert Group to Bookmark Folder
         </message>
         <message name="IDS_TAB_GROUP_HEADER_CXMENU_SEND_FEEDBACK" desc="In Title Case: The label of the tab group header context menu item for sending feedback for tab groups.">
           Send Feedback
@@ -17379,17 +17399,8 @@ Please help our engineers fix this problem. Tell us what happened right before y
         </message>
       </if>
 
-      <message name="IDS_WEBAUTHN_TRANSPORT_POPUP_USB" desc="Menu item text. The user selects this to verify their identity on a web site (i.e. sign in) using a security key (an external physical device for user authentication) plugged in to the USB port of the computer.">
-        Verify via USB
-      </message>
       <message name="IDS_WEBAUTHN_TRANSPORT_POPUP_PAIR_PHONE" desc="Menu item text. The user selects this to begin the process of pairing with a previously unknown smartphone.">
         Pair with new phone
-      </message>
-      <message name="IDS_WEBAUTHN_TRANSPORT_POPUP_INTERNAL" desc="Menu item text. The user selects this to verify their identity on a web site (i.e. sign in) using a hardware-based authentication mechanism that is built in to the computer, such as a fingerprint reader.">
-        Use this device
-      </message>
-      <message name="IDS_WEBAUTHN_TRANSPORT_POPUP_CABLE" desc="Menu item text. The user selects this to verify their identity on a web site (i.e. sign in) using their phone. They wirelessly connect their phone to their computer over Bluetooth Low Energy, and then use the phone to sign in to web sites on their computer.">
-        Verify via your phone
       </message>
       <message name="IDS_WEBAUTHN_CABLE_ACTIVATE_TITLE" desc="Title of the dialog shown when the user tries to sign-in using a phone as a security key.">
         Check your phone

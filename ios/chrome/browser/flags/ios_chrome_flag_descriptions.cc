@@ -11,11 +11,6 @@
 
 namespace flag_descriptions {
 
-const char kAddAddressManuallyName[] =
-    "Enable adding an address manually from Address Settings";
-const char kAddAddressManuallyDescription[] =
-    "When enabled, allows users to manually enter and save an address.";
-
 const char kAIMPrototypeDevToolsName[] = "Enable AIM Prototype Dev Tools";
 const char kAIMPrototypeDevToolsDescription[] =
     "Enables development tools for the AIM prototype, allowing simulation of "
@@ -59,12 +54,6 @@ const char kAutofillCreditCardUploadName[] =
 const char kAutofillCreditCardUploadDescription[] =
     "Offers uploading Autofilled credit cards to Google Payments after form "
     "submission.";
-
-const char kAutofillDisableDefaultSaveCardFixFlowDetectionName[] =
-    "Disables save card fix flow values as detected by default";
-const char kAutofillDisableDefaultSaveCardFixFlowDetectionDescription[] =
-    "When enabled, save card fix flow values for missing cardholder "
-    "name and expiry date won't be defaulted as detected.";
 
 const char kAutofillDisableProfileUpdatesName[] =
     "Disables Autofill profile updates from form submissions";
@@ -186,11 +175,23 @@ const char kAutofillEnableSupportForHomeAndWorkName[] =
 const char kAutofillEnableSupportForHomeAndWorkDescription[] =
     "When enabled, chrome will support home and work addresses from account.";
 
+const char kAutofillEnableSupportForNameAndEmailName[] =
+    "Support for name and email addresses in Autofill";
+const char kAutofillEnableSupportForNameAndEmailDescription[] =
+    "When enabled, a name and email profile with data comming from the account "
+    "will be created for autofilling.";
+
 const char kAutofillIsolatedWorldForJavascriptIOSName[] =
     "Isolated content world for Autofill";
 const char kAutofillIsolatedWorldForJavascriptIOSDescription[] =
     "Use the isolated content world instead of the page content world "
     "for the Autofill JS feature scripts.";
+
+const char kAutofillManualTestingDataName[] = "Autofill manual testing data";
+const char kAutofillManualTestingDataDescription[] =
+    "When set, imports the addresses and cards specified on startup. WARNING: "
+    "If at least one address/card is specified, all other existing "
+    "addresses/cards are overwritten.";
 
 const char kAutofillPaymentsSheetV2Name[] =
     "Enable the payments suggestion bottom sheet V2";
@@ -249,13 +250,6 @@ const char kAutofillUnmaskCardRequestTimeoutDescription[] =
     "unmask request. Upon timeout, the client will terminate the current "
     "unmask server call, which may or may not terminate the ongoing unmask UI.";
 
-const char kAutofillUploadCardRequestTimeoutName[] =
-    "Timeout for the credit card upload request";
-const char kAutofillUploadCardRequestTimeoutDescription[] =
-    "When enabled, sets a client-side timeout on the Autofill credit card "
-    "upload request. Upon timeout, the client will terminate the upload UI, "
-    "but the request may still succeed server-side.";
-
 const char kAutofillUseRendererIDsName[] =
     "Autofill logic uses unqiue renderer IDs";
 const char kAutofillUseRendererIDsDescription[] =
@@ -298,6 +292,10 @@ const char kBottomOmniboxDefaultSettingDescription[] =
     "hasn't already changed the setting, changes the omnibox position to top "
     "or bottom of the screen on iPhone. The default is top omnibox.";
 
+const char kBottomOmniboxEvolutionName[] = "Bottom Omnibox Evolution";
+const char kBottomOmniboxEvolutionDescription[] =
+    "Enables improvements in the bottom omnibox UX and animations.";
+
 const char kBWGPreciseLocationName[] = "BWG Precise Location";
 const char kBWGPreciseLocationDescription[] =
     "When enabled, the precise location row is shown in BWG settings.";
@@ -320,10 +318,6 @@ const char kCollaborationMessagingDescription[] =
     "Enables the messaging framework within the collaboration feature, "
     "including features such as recent activity, dirty dots, and description "
     "action chips.";
-
-const char kContainedTabGroupName[] = "Contained tab group";
-const char kContainedTabGroupDescription[] =
-    "When enabled the tab group in the tab grid is not presented fullscreen.";
 
 const char kContentNotificationExperimentName[] =
     "Content Notification Experiment";
@@ -908,11 +902,6 @@ extern const char kLensCameraUnbinnedCaptureFormatsPreferredName[] =
 extern const char kLensCameraUnbinnedCaptureFormatsPreferredDescription[] =
     "When enabled, Lens camera prefers unbinned pixel formats.";
 
-const char kLensClearcutBackgroundUploadEnabledName[] =
-    "Lens clearcut background upload";
-const char kLensClearcutBackgroundUploadEnabledDescription[] =
-    "Enables uploading of clearcut logs in the background.";
-
 extern const char kLensContinuousZoomEnabledName[] =
     "Enable Lens camera continuous zoom";
 extern const char kLensContinuousZoomEnabledDescription[] =
@@ -939,11 +928,6 @@ const char kLensInitialLvfZoomLevel90PercentName[] =
     "Initial Lens camera zoom 90 percent";
 const char kLensInitialLvfZoomLevel90PercentDescription[] =
     "When enabled, sets the initial Lens camera zoom level to 90 percent.";
-
-const char kLensInkMultiSampleModeDisabledName[] =
-    "Disable Lens Ink multi-sample mode";
-const char kLensInkMultiSampleModeDisabledDescription[] =
-    "When disabled, turns off multi-sample mode and uses less memory.";
 
 const char kLensLoadAIMInLensResultPageName[] =
     "Enable loading AIM in the Lens result page";
@@ -1025,11 +1009,6 @@ extern const char kLensPrewarmHardStickinessInQueryFormulationName[] =
 extern const char kLensPrewarmHardStickinessInQueryFormulationDescription[] =
     "When enabled, query formulation prewarms hard stickiness.";
 
-extern const char kLensQRCodeParsingFixName[] =
-    "Enables the Lens QR code parding fix";
-extern const char kLensQRCodeParsingFixDescription[] =
-    "When enabled, properly parses QR codes.";
-
 extern const char kLensSingleTapTextSelectionDisabledName[] =
     "Disable Lens single tap text selection";
 extern const char kLensSingleTapTextSelectionDisabledDescription[] =
@@ -1063,10 +1042,6 @@ const char kLensUnaryHttpTransportEnabledName[] =
     "Lens unary HTTP transport enabled";
 const char kLensUnaryHttpTransportEnabledDescription[] =
     "Enables the HTTP transport for unary requests.";
-
-const char kLensVsintParamEnabledName[] = "Lens vsint param enabled";
-const char kLensVsintParamEnabledDescription[] =
-    "Enables the vsint param for requests.";
 
 const char kLensWebPageLoadOptimizationEnabledName[] =
     "Lens web page load optimization";
@@ -1398,6 +1373,10 @@ const char kReaderModeReadabilityDistillerName[] =
     "Enables Readability distiller for Reader Mode";
 const char kReaderModeReadabilityDistillerDescription[] =
     "Enables Readability distiller for Reader Mode UI.";
+
+const char kReaderModeTranslationName[] = "Enables Reader Mode Translation";
+const char kReaderModeTranslationDescription[] =
+    "Enables translation of web pages in Reader Mode.";
 
 const char kReaderModeDefaultBrowserPromoName[] =
     "Enables the default browser promo with Reader Mode criteria";

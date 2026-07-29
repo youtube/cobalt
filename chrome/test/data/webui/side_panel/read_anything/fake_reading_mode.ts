@@ -86,6 +86,7 @@ export class FakeReadingMode {
 
   fetchedImages: number[] = [];
   wordsSeen: number = 0;
+  wordsHeard: number = 0;
 
   // Returns whether the reading highlight is currently on.
   isHighlightOn(): boolean {
@@ -136,6 +137,11 @@ export class FakeReadingMode {
 
   // Returns the url of the AXNode for the provided AXNodeID.
   getUrl(_nodeId: number): string {
+    return 'foo';
+  }
+
+  // Returns the alt text of the AXNode for the provided AXNodeID.
+  getAltText(_nodeId: number): string {
     return 'foo';
   }
 
@@ -337,6 +343,11 @@ export class FakeReadingMode {
   // Called when the number of words seen by a reading mode user changes.
   updateWordsSeen(wordsSeen: number) {
     this.wordsSeen = wordsSeen;
+  }
+
+  // Called when the number of words heard by a read aloud user changes.
+  updateWordsHeard(wordsHeard: number) {
+    this.wordsHeard = wordsHeard;
   }
 
   ////////////////////////////////////////////////////////////////

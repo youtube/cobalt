@@ -4,6 +4,7 @@
 
 #include "chrome/browser/ui/webui/on_device_internals/on_device_internals_page_handler.h"
 
+#include "base/byte_count.h"
 #include "base/files/file_util.h"
 #include "base/functional/callback_helpers.h"
 #include "base/json/values_util.h"
@@ -95,13 +96,12 @@ base::flat_map<std::string, std::string> GetCriteria(
   std::string disk_space_string =
       base::ToString(criteria->disk_space_available);
   if (!criteria->disk_space_available) {
-    int disk_space_required_mb = optimization_guide::features::
-        GetDiskSpaceRequiredInMbForOnDeviceModelInstall();
-    int disk_space_available_mb =
-        debug_state.disk_space_available_ / (1024 * 1024);
+    base::ByteCount disk_space_required = optimization_guide::features::
+        GetDiskSpaceRequiredForOnDeviceModelInstall();
+    base::ByteCount disk_space_available = debug_state.disk_space_available_;
     disk_space_string = base::StrCat(
-        {" (", base::NumberToString(disk_space_available_mb),
-         " MiB available, ", base::NumberToString(disk_space_required_mb),
+        {" (", base::NumberToString(disk_space_available.InMiB()),
+         " MiB available, ", base::NumberToString(disk_space_required.InMiB()),
          " MiB required)"});
   }
   mojom_criteria["disk space available"] = disk_space_string;
@@ -252,12 +252,13 @@ void PageHandler::OnModelLoaded(
                      on_device_model::mojom::LoadModelResult::kSuccess));
 }
 
-void PageHandler::GetDevicePerformanceInfo(
-    GetDevicePerformanceInfoCallback callback) {
-  GetService().GetDevicePerformanceInfo(
+void PageHandler::GetDeviceAndPerformanceInfo(
+    GetDeviceAndPerformanceInfoCallback callback) {
+  GetService().GetDeviceAndPerformanceInfo(
       mojo::WrapCallbackWithDefaultInvokeIfNotRun(
           std::move(callback),
-          on_device_model::mojom::DevicePerformanceInfo::New()));
+          on_device_model::mojom::DevicePerformanceInfo::New(),
+          on_device_model::mojom::DeviceInfo::New()));
 }
 
 void PageHandler::GetDefaultModelPath(GetDefaultModelPathCallback callback) {
@@ -289,9 +290,10 @@ void PageHandler::OnLogMessageAdded(
 
 void PageHandler::OnReceivedPerformanceInfoForPageData(
     PageHandler::GetPageDataCallback callback,
-    on_device_model::mojom::DevicePerformanceInfoPtr performance_info) {
+    on_device_model::mojom::DevicePerformanceInfoPtr perf_info,
+    on_device_model::mojom::DeviceInfoPtr device_info) {
   auto data = mojom::PageData::New();
-  data->performance_info = std::move(performance_info);
+  data->performance_info = std::move(perf_info);
 
   auto* component_manager =
       optimization_guide_keyed_service_->GetComponentManager();
@@ -364,7 +366,7 @@ void PageHandler::OnReceivedPerformanceInfoForPageData(
 }
 
 void PageHandler::GetPageData(PageHandler::GetPageDataCallback callback) {
-  GetDevicePerformanceInfo(
+  GetDeviceAndPerformanceInfo(
       base::BindOnce(&PageHandler::OnReceivedPerformanceInfoForPageData,
                      weak_ptr_factory_.GetWeakPtr(), std::move(callback)));
 }

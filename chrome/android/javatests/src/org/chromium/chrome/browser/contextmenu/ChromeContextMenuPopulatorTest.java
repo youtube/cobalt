@@ -11,8 +11,10 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -57,6 +59,7 @@ import org.chromium.base.test.util.Batch;
 import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.base.test.util.HistogramWatcher;
+import org.chromium.blink_public.common.ContextMenuDataMediaFlags;
 import org.chromium.blink_public.common.ContextMenuDataMediaType;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.IntentHandler;
@@ -282,7 +285,8 @@ public class ChromeContextMenuPopulatorTest {
         return new ContextMenuParams(
                 0,
                 mMenuModelBridge,
-                0,
+                ContextMenuDataMediaType.NONE,
+                ContextMenuDataMediaFlags.MEDIA_NONE,
                 new GURL(PAGE_URL),
                 new GURL(LINK_URL),
                 LINK_TEXT,
@@ -291,6 +295,31 @@ public class ChromeContextMenuPopulatorTest {
                 "",
                 null,
                 false,
+                0,
+                0,
+                MenuSourceType.TOUCH,
+                false,
+                /* openedFromInterestFor= */ false,
+                /* interestForNodeID= */ 0,
+                /* additionalNavigationParams= */ null);
+    }
+
+    private ContextMenuParams createVideoPipParams(@ContextMenuDataMediaFlags int mediaFlags) {
+        GURL sourceUrl = new GURL("http://www.blah.com/");
+        GURL url = new GURL(sourceUrl.getSpec() + "I_love_mouse_video.avi");
+        return new ContextMenuParams(
+                0,
+                mMenuModelBridge,
+                ContextMenuDataMediaType.VIDEO,
+                mediaFlags,
+                new GURL(PAGE_URL),
+                url,
+                "VIDEO!",
+                GURL.emptyGURL(),
+                sourceUrl,
+                "",
+                null,
+                true,
                 0,
                 0,
                 MenuSourceType.TOUCH,
@@ -398,7 +427,8 @@ public class ChromeContextMenuPopulatorTest {
                 new ContextMenuParams(
                         0,
                         mMenuModelBridge,
-                        0,
+                        ContextMenuDataMediaType.NONE,
+                        ContextMenuDataMediaFlags.MEDIA_NONE,
                         new GURL(PAGE_URL),
                         new GURL(LINK_URL),
                         LINK_TEXT,
@@ -471,7 +501,8 @@ public class ChromeContextMenuPopulatorTest {
                 new ContextMenuParams(
                         0,
                         mMenuModelBridge,
-                        0,
+                        ContextMenuDataMediaType.NONE,
+                        ContextMenuDataMediaFlags.MEDIA_NONE,
                         new GURL(PAGE_URL),
                         new GURL(LINK_URL),
                         LINK_TEXT,
@@ -547,7 +578,8 @@ public class ChromeContextMenuPopulatorTest {
                 new ContextMenuParams(
                         0,
                         mMenuModelBridge,
-                        0,
+                        ContextMenuDataMediaType.NONE,
+                        ContextMenuDataMediaFlags.MEDIA_NONE,
                         new GURL(PAGE_URL),
                         new GURL(DATA_URL),
                         LINK_TEXT,
@@ -618,7 +650,8 @@ public class ChromeContextMenuPopulatorTest {
                 new ContextMenuParams(
                         0,
                         mMenuModelBridge,
-                        0,
+                        ContextMenuDataMediaType.NONE,
+                        ContextMenuDataMediaFlags.MEDIA_NONE,
                         new GURL(PAGE_URL),
                         mailto,
                         "MAIL!",
@@ -698,7 +731,8 @@ public class ChromeContextMenuPopulatorTest {
                 new ContextMenuParams(
                         0,
                         mMenuModelBridge,
-                        0,
+                        ContextMenuDataMediaType.NONE,
+                        ContextMenuDataMediaFlags.MEDIA_NONE,
                         new GURL(PAGE_URL),
                         tel,
                         "PHONE!",
@@ -784,6 +818,7 @@ public class ChromeContextMenuPopulatorTest {
                         0,
                         mMenuModelBridge,
                         ContextMenuDataMediaType.VIDEO,
+                        ContextMenuDataMediaFlags.MEDIA_NONE,
                         new GURL(PAGE_URL),
                         url,
                         "VIDEO!",
@@ -894,6 +929,7 @@ public class ChromeContextMenuPopulatorTest {
                         0,
                         mMenuModelBridge,
                         ContextMenuDataMediaType.VIDEO,
+                        ContextMenuDataMediaFlags.MEDIA_NONE,
                         new GURL(PAGE_URL),
                         url,
                         "VIDEO!",
@@ -974,6 +1010,72 @@ public class ChromeContextMenuPopulatorTest {
     @Test
     @SmallTest
     @UiThreadTest
+    @EnableFeatures(ChromeFeatureList.CONTEXT_MENU_PICTURE_IN_PICTURE_ANDROID)
+    public void testVideoPictureInPicture_Enter() {
+        FirstRunStatus.setFirstRunFlowComplete(true);
+        final String enterPip =
+                ContextUtils.getApplicationContext()
+                        .getString(R.string.contextmenu_picture_in_picture);
+        final String exitPip =
+                ContextUtils.getApplicationContext()
+                        .getString(R.string.contextmenu_exit_picture_in_picture);
+
+        ContextMenuParams canPipParams =
+                createVideoPipParams(ContextMenuDataMediaFlags.MEDIA_CAN_PICTURE_IN_PICTURE);
+
+        initializePopulator(ChromeContextMenuPopulator.ContextMenuMode.NORMAL, canPipParams);
+        // Mock this method because it goes into native code to record a histogram.
+        doNothing().when(mPopulator).recordContextMenuSelection(anyInt());
+        List<ModelList> menuState = mPopulator.buildContextMenu();
+        ListItem pipItem = findItemWithTitle(menuState, enterPip);
+        assertNotNull("Should have 'Picture in Picture' menu item.", pipItem);
+        assertNull(
+                "Should not have 'Exit Picture in Picture' menu item.",
+                findItemWithTitle(menuState, exitPip));
+
+        assertTrue(
+                "Clicking on enter pip should be handled.",
+                mPopulator.onItemSelected(R.id.contextmenu_picture_in_picture));
+        verify(mNativeDelegate).setPictureInPicture(true);
+    }
+
+    @Test
+    @SmallTest
+    @UiThreadTest
+    @EnableFeatures(ChromeFeatureList.CONTEXT_MENU_PICTURE_IN_PICTURE_ANDROID)
+    public void testVideoPictureInPicture_Exit() {
+        FirstRunStatus.setFirstRunFlowComplete(true);
+        final String enterPip =
+                ContextUtils.getApplicationContext()
+                        .getString(R.string.contextmenu_picture_in_picture);
+        final String exitPip =
+                ContextUtils.getApplicationContext()
+                        .getString(R.string.contextmenu_exit_picture_in_picture);
+
+        ContextMenuParams inPipParams =
+                createVideoPipParams(
+                        ContextMenuDataMediaFlags.MEDIA_CAN_PICTURE_IN_PICTURE
+                                | ContextMenuDataMediaFlags.MEDIA_PICTURE_IN_PICTURE);
+
+        initializePopulator(ChromeContextMenuPopulator.ContextMenuMode.NORMAL, inPipParams);
+        // Mock this method because it goes into native code to record a histogram.
+        doNothing().when(mPopulator).recordContextMenuSelection(anyInt());
+        List<ModelList> menuState = mPopulator.buildContextMenu();
+        ListItem pipItem = findItemWithTitle(menuState, exitPip);
+        assertNotNull("Should have 'Exit Picture in Picture' menu item.", pipItem);
+        assertNull(
+                "Should not have 'Picture in Picture' menu item.",
+                findItemWithTitle(menuState, enterPip));
+
+        assertTrue(
+                "Clicking on exit pip should be handled.",
+                mPopulator.onItemSelected(R.id.contextmenu_picture_in_picture));
+        verify(mNativeDelegate).setPictureInPicture(false);
+    }
+
+    @Test
+    @SmallTest
+    @UiThreadTest
     public void testImageHiFi() {
         FirstRunStatus.setFirstRunFlowComplete(false);
         ContextMenuParams params =
@@ -981,6 +1083,7 @@ public class ChromeContextMenuPopulatorTest {
                         0,
                         mMenuModelBridge,
                         ContextMenuDataMediaType.IMAGE,
+                        ContextMenuDataMediaFlags.MEDIA_NONE,
                         new GURL(PAGE_URL),
                         GURL.emptyGURL(),
                         "",
@@ -1069,6 +1172,7 @@ public class ChromeContextMenuPopulatorTest {
                         0,
                         mMenuModelBridge,
                         ContextMenuDataMediaType.IMAGE,
+                        ContextMenuDataMediaFlags.MEDIA_NONE,
                         new GURL(PAGE_URL),
                         new GURL(LINK_URL),
                         LINK_TEXT,
@@ -1177,6 +1281,7 @@ public class ChromeContextMenuPopulatorTest {
                         0,
                         mMenuModelBridge,
                         ContextMenuDataMediaType.IMAGE,
+                        ContextMenuDataMediaFlags.MEDIA_NONE,
                         new GURL(PAGE_URL),
                         GURL.emptyGURL(),
                         "",
@@ -1243,7 +1348,8 @@ public class ChromeContextMenuPopulatorTest {
                 new ContextMenuParams(
                         0,
                         mMenuModelBridge,
-                        0,
+                        ContextMenuDataMediaType.NONE,
+                        ContextMenuDataMediaFlags.MEDIA_NONE,
                         new GURL(PAGE_URL),
                         new GURL(LINK_URL),
                         LINK_TEXT,
@@ -1315,7 +1421,8 @@ public class ChromeContextMenuPopulatorTest {
                 new ContextMenuParams(
                         0,
                         mMenuModelBridge,
-                        0,
+                        ContextMenuDataMediaType.NONE,
+                        ContextMenuDataMediaFlags.MEDIA_NONE,
                         new GURL(PAGE_URL),
                         new GURL("about://blank"), // have an accepted scheme but not HTTP
                         LINK_TEXT,
@@ -1354,7 +1461,8 @@ public class ChromeContextMenuPopulatorTest {
                 new ContextMenuParams(
                         0,
                         mMenuModelBridge,
-                        0,
+                        ContextMenuDataMediaType.NONE,
+                        ContextMenuDataMediaFlags.MEDIA_NONE,
                         new GURL(PAGE_URL),
                         new GURL(LINK_URL),
                         LINK_TEXT,
@@ -1404,7 +1512,8 @@ public class ChromeContextMenuPopulatorTest {
                 new ContextMenuParams(
                         0,
                         mMenuModelBridge,
-                        0,
+                        ContextMenuDataMediaType.NONE,
+                        ContextMenuDataMediaFlags.MEDIA_NONE,
                         new GURL(PAGE_URL),
                         new GURL(LINK_URL),
                         LINK_TEXT,
@@ -1458,7 +1567,8 @@ public class ChromeContextMenuPopulatorTest {
                 new ContextMenuParams(
                         0,
                         mMenuModelBridge,
-                        0,
+                        ContextMenuDataMediaType.NONE,
+                        ContextMenuDataMediaFlags.MEDIA_NONE,
                         new GURL(PAGE_URL),
                         new GURL(LINK_URL),
                         LINK_TEXT,
@@ -1502,7 +1612,8 @@ public class ChromeContextMenuPopulatorTest {
                 new ContextMenuParams(
                         0,
                         mMenuModelBridge,
-                        0,
+                        ContextMenuDataMediaType.NONE,
+                        ContextMenuDataMediaFlags.MEDIA_NONE,
                         new GURL(PAGE_URL),
                         new GURL(LINK_URL),
                         LINK_TEXT,
@@ -1556,7 +1667,8 @@ public class ChromeContextMenuPopulatorTest {
                 new ContextMenuParams(
                         /* nativePtr= */ 0,
                         /* menuModelBridge */ mMenuModelBridge,
-                        /* mediaType= */ 0,
+                        ContextMenuDataMediaType.NONE,
+                        ContextMenuDataMediaFlags.MEDIA_NONE,
                         /* pageUrl= */ GURL.emptyGURL(),
                         /* linkUrl= */ GURL.emptyGURL(),
                         /* linkText= */ "",
@@ -1604,7 +1716,8 @@ public class ChromeContextMenuPopulatorTest {
                 new ContextMenuParams(
                         0,
                         mMenuModelBridge,
-                        0,
+                        ContextMenuDataMediaType.NONE,
+                        ContextMenuDataMediaFlags.MEDIA_NONE,
                         new GURL(PAGE_URL),
                         new GURL(LINK_URL),
                         LINK_TEXT,
@@ -1646,6 +1759,7 @@ public class ChromeContextMenuPopulatorTest {
                         0,
                         mMenuModelBridge,
                         ContextMenuDataMediaType.IMAGE,
+                        ContextMenuDataMediaFlags.MEDIA_NONE,
                         new GURL(PAGE_URL),
                         GURL.emptyGURL(),
                         "",
@@ -1689,6 +1803,7 @@ public class ChromeContextMenuPopulatorTest {
                         0,
                         mMenuModelBridge,
                         ContextMenuDataMediaType.NONE,
+                        ContextMenuDataMediaFlags.MEDIA_NONE,
                         new GURL(PAGE_URL),
                         GURL.emptyGURL(),
                         "",
@@ -1732,6 +1847,7 @@ public class ChromeContextMenuPopulatorTest {
                         0,
                         mMenuModelBridge,
                         ContextMenuDataMediaType.NONE,
+                        ContextMenuDataMediaFlags.MEDIA_NONE,
                         new GURL(PAGE_URL),
                         GURL.emptyGURL(),
                         "",
@@ -1777,6 +1893,7 @@ public class ChromeContextMenuPopulatorTest {
                         0,
                         mMenuModelBridge,
                         ContextMenuDataMediaType.NONE,
+                        ContextMenuDataMediaFlags.MEDIA_NONE,
                         new GURL(PAGE_URL),
                         GURL.emptyGURL(),
                         "",
@@ -1822,6 +1939,7 @@ public class ChromeContextMenuPopulatorTest {
                         0,
                         mMenuModelBridge,
                         ContextMenuDataMediaType.NONE,
+                        ContextMenuDataMediaFlags.MEDIA_NONE,
                         new GURL(PAGE_URL),
                         GURL.emptyGURL(),
                         "",
@@ -2041,6 +2159,7 @@ public class ChromeContextMenuPopulatorTest {
                         0,
                         mMenuModelBridge,
                         ContextMenuDataMediaType.IMAGE,
+                        ContextMenuDataMediaFlags.MEDIA_NONE,
                         new GURL(PAGE_URL),
                         GURL.emptyGURL(),
                         "",
@@ -2171,6 +2290,7 @@ public class ChromeContextMenuPopulatorTest {
                         0,
                         mMenuModelBridge,
                         ContextMenuDataMediaType.IMAGE,
+                        ContextMenuDataMediaFlags.MEDIA_NONE,
                         new GURL(PAGE_URL),
                         new GURL(LINK_URL),
                         "",
@@ -2315,6 +2435,7 @@ public class ChromeContextMenuPopulatorTest {
                         0,
                         mMenuModelBridge,
                         ContextMenuDataMediaType.IMAGE,
+                        ContextMenuDataMediaFlags.MEDIA_NONE,
                         new GURL(PAGE_URL),
                         new GURL(LINK_URL),
                         LINK_TEXT,

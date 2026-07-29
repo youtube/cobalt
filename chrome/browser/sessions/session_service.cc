@@ -37,6 +37,7 @@
 #include "chrome/browser/sessions/session_service_log.h"
 #include "chrome/browser/sessions/session_service_utils.h"
 #include "chrome/browser/sessions/tab_restore_service_factory.h"
+#include "chrome/browser/tab_group_sync/tab_group_sync_service_factory.h"
 #include "chrome/browser/ui/browser_list.h"
 #include "chrome/browser/ui/browser_tabstrip.h"
 #include "chrome/browser/ui/browser_window.h"
@@ -294,7 +295,7 @@ void SessionService::SetTabGroupMetadata(
     const tab_groups::TabGroupId& group_id,
     const tab_groups::TabGroupVisualData* visual_data) {
   tab_groups::TabGroupSyncService* tab_group_service =
-      tab_groups::SavedTabGroupUtils::GetServiceForProfile(profile());
+      tab_groups::TabGroupSyncServiceFactory::GetForProfile(profile());
   std::optional<std::string> saved_guid;
   if (tab_group_service) {
     if (const std::optional<tab_groups::SavedTabGroup> saved_group =
@@ -538,7 +539,6 @@ void SessionService::DidScheduleCommand() {
   if (is_first_session_service_)
     return;
 
-#if BUILDFLAG(IS_CHROMEOS)
   // TODO(crbug.com/40196304): for debugging, remove once tracked down
   // source of problem.
   // A command has been scheduled for a SessionService other than the first.
@@ -548,7 +548,6 @@ void SessionService::DidScheduleCommand() {
   const bool shutdown_started = browser_shutdown::HasShutdownStarted();
   base::debug::Alias(&shutdown_started);
   base::debug::DumpWithoutCrashing();
-#endif
 }
 
 bool SessionService::ShouldRestoreWindowOfType(

@@ -689,14 +689,6 @@ try_.builder(
 )
 
 try_.builder(
-    name = "android-cronet-asan-arm-rel",
-    mirrors = ["ci/android-cronet-asan-arm-rel"],
-    gn_args = "ci/android-cronet-asan-arm-rel",
-    contact_team_email = "cronet-team@google.com",
-    siso_remote_jobs = siso.remote_jobs.LOW_JOBS_FOR_CQ,
-)
-
-try_.builder(
     name = "android-cronet-riscv64-dbg",
     mirrors = ["ci/android-cronet-riscv64-dbg"],
     gn_args = "ci/android-cronet-riscv64-dbg",
@@ -1045,6 +1037,9 @@ try_.builder(
         ],
     ),
     contact_team_email = "chrome-browser-infra-team@google.com",
+    experiments = {
+        "chromium_test.resultdb_module": 100,
+    },
     siso_remote_jobs = siso.remote_jobs.LOW_JOBS_FOR_CQ,
 )
 
@@ -1464,7 +1459,6 @@ gpu.try_.optional_tests_builder(
         android_config = builder_config.android_config(
             config = "base_config",
         ),
-        build_gs_bucket = "chromium-gpu-fyi-archive",
     ),
     builder_config_settings = builder_config.try_settings(
         retry_failed_shards = False,

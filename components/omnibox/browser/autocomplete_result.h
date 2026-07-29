@@ -186,11 +186,15 @@ class AutocompleteResult {
 #if BUILDFLAG(IS_IOS) || BUILDFLAG(IS_ANDROID)
   // Attaches AIM action to the highest-scoring eligible match in the result
   // set, if no other actions are present.
-  void AttachAimAction(TemplateURLService* template_url_service);
+  void AttachAimAction(TemplateURLService* template_url_service,
+                       AutocompleteProviderClient* client);
 #endif
 
   // Sets a takeover action on all matches to issue a contextual search.
   void AttachContextualSearchFulfillmentActionToMatches();
+
+  // Sets a takeover action on all matches to open Lens.
+  void AttachContextualSearchOpenLensActionToMatches();
 
   // Sets |has_tab_match| in matches whose URL matches an open tab's URL.
   // Also, fixes up the description if not using another UI element to

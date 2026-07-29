@@ -24,6 +24,7 @@ import static org.chromium.base.ThreadUtils.runOnUiThreadBlocking;
 import static org.chromium.chrome.browser.preferences.ChromePreferenceKeys.UI_THEME_SETTING;
 import static org.chromium.chrome.browser.tab.Tab.INVALID_TAB_ID;
 import static org.chromium.chrome.browser.tabmodel.TabList.INVALID_TAB_INDEX;
+import static org.chromium.chrome.test.util.ChromeTabUtils.getTabCountOnUiThread;
 
 import androidx.test.annotation.UiThreadTest;
 import androidx.test.filters.MediumTest;
@@ -191,8 +192,8 @@ public class TabArchiverTest {
     @UiThreadTest
     public void testGetTabsToArchive_emptyTabModel() {
         mRegularTabModel.getTabRemover().forceCloseTabs(TabClosureParams.closeAllTabs().build());
-        assertEquals(0, mRegularTabModel.getCount());
-        assertEquals(0, mArchivedTabModel.getCount());
+        assertEquals(0, getTabCountOnUiThread(mRegularTabModel));
+        assertEquals(0, getTabCountOnUiThread(mArchivedTabModel));
 
         assertEquals(
                 mTabArchiver.getTabsToArchive(
@@ -210,8 +211,8 @@ public class TabArchiverTest {
                         mActivityTestRule.getTestServer().getURL(TEST_PATH),
                         /* incognito= */ false);
 
-        assertEquals(2, mRegularTabModel.getCount());
-        assertEquals(0, mArchivedTabModel.getCount());
+        assertEquals(2, getTabCountOnUiThread(mRegularTabModel));
+        assertEquals(0, getTabCountOnUiThread(mArchivedTabModel));
 
         HistogramWatcher watcher =
                 HistogramWatcher.newBuilder()
@@ -226,8 +227,8 @@ public class TabArchiverTest {
                                 Arrays.asList(tab)));
         watcher.assertExpected();
 
-        assertEquals(1, mRegularTabModel.getCount());
-        assertEquals(1, mArchivedTabModel.getCount());
+        assertEquals(1, getTabCountOnUiThread(mRegularTabModel));
+        assertEquals(1, getTabCountOnUiThread(mArchivedTabModel));
         runOnUiThreadBlocking(
                 () ->
                         assertEquals(
@@ -254,8 +255,8 @@ public class TabArchiverTest {
                                 /* areTabsBeingOpened= */ false));
         watcher.assertExpected();
 
-        assertEquals(2, mRegularTabModel.getCount());
-        assertEquals(0, mArchivedTabModel.getCount());
+        assertEquals(2, getTabCountOnUiThread(mRegularTabModel));
+        assertEquals(0, getTabCountOnUiThread(mArchivedTabModel));
         runOnUiThreadBlocking(
                 () -> assertEquals(Tab.INVALID_TAB_ID, mRegularTabModel.getTabAt(1).getParentId()));
         runOnUiThreadBlocking(
@@ -273,8 +274,8 @@ public class TabArchiverTest {
                         mActivityTestRule.getTestServer().getURL(TEST_PATH),
                         /* incognito= */ false);
 
-        assertEquals(2, mRegularTabModel.getCount());
-        assertEquals(0, mArchivedTabModel.getCount());
+        assertEquals(2, getTabCountOnUiThread(mRegularTabModel));
+        assertEquals(0, getTabCountOnUiThread(mArchivedTabModel));
 
         HistogramWatcher watcher =
                 HistogramWatcher.newBuilder()
@@ -289,8 +290,8 @@ public class TabArchiverTest {
                                 Arrays.asList(tab)));
         watcher.assertExpected();
 
-        assertEquals(1, mRegularTabModel.getCount());
-        assertEquals(1, mArchivedTabModel.getCount());
+        assertEquals(1, getTabCountOnUiThread(mRegularTabModel));
+        assertEquals(1, getTabCountOnUiThread(mArchivedTabModel));
         runOnUiThreadBlocking(
                 () ->
                         assertEquals(
@@ -316,8 +317,8 @@ public class TabArchiverTest {
                                 /* areTabsBeingOpened= */ false));
         watcher.assertExpected();
 
-        assertEquals(2, mRegularTabModel.getCount());
-        assertEquals(0, mArchivedTabModel.getCount());
+        assertEquals(2, getTabCountOnUiThread(mRegularTabModel));
+        assertEquals(0, getTabCountOnUiThread(mArchivedTabModel));
         runOnUiThreadBlocking(
                 () -> assertEquals(Tab.INVALID_TAB_ID, mRegularTabModel.getTabAt(1).getParentId()));
         runOnUiThreadBlocking(
@@ -354,8 +355,8 @@ public class TabArchiverTest {
                     filter.createSingleTabGroup(tab);
                 });
 
-        assertEquals(2, mRegularTabModel.getCount());
-        assertEquals(0, mArchivedTabModel.getCount());
+        assertEquals(2, getTabCountOnUiThread(mRegularTabModel));
+        assertEquals(0, getTabCountOnUiThread(mArchivedTabModel));
 
         HistogramWatcher watcher =
                 HistogramWatcher.newBuilder()
@@ -375,8 +376,8 @@ public class TabArchiverTest {
 
         // Verify that the tab group was not added to the archived tab model but closed from the
         // regular tab model.
-        assertEquals(1, mRegularTabModel.getCount());
-        assertEquals(0, mArchivedTabModel.getCount());
+        assertEquals(1, getTabCountOnUiThread(mRegularTabModel));
+        assertEquals(0, getTabCountOnUiThread(mArchivedTabModel));
     }
 
     @Test
@@ -395,14 +396,15 @@ public class TabArchiverTest {
 
         // Set the clock to 1 hour after 0.
         doReturn(TimeUnit.HOURS.toMillis(1)).when(mClock).currentTimeMillis();
-        // Set the timestamp for both tabs at 0, they should be archived.
-        TabImpl tab1 = (TabImpl) mRegularTabModel.getTabAt(0);
-        tab1.setTimestampMillisForTesting(0);
-        ((TabImpl) mRegularTabModel.getTabAt(1)).setTimestampMillisForTesting(0);
 
         // Simulate the first tab being added to a group.
         runOnUiThreadBlocking(
                 () -> {
+                    // Set the timestamp for both tabs at 0, they should be archived.
+                    TabImpl tab1 = (TabImpl) mRegularTabModel.getTabAt(0);
+                    tab1.setTimestampMillisForTesting(0);
+                    ((TabImpl) mRegularTabModel.getTabAt(1)).setTimestampMillisForTesting(0);
+
                     TabGroupModelFilter filter =
                             mRegularTabModelSelector
                                     .getTabGroupModelFilterProvider()
@@ -410,8 +412,8 @@ public class TabArchiverTest {
                     filter.createSingleTabGroup(tab1);
                 });
 
-        assertEquals(3, mRegularTabModel.getCount());
-        assertEquals(0, mArchivedTabModel.getCount());
+        assertEquals(3, getTabCountOnUiThread(mRegularTabModel));
+        assertEquals(0, getTabCountOnUiThread(mArchivedTabModel));
 
         HistogramWatcher watcher =
                 HistogramWatcher.newBuilder()
@@ -427,8 +429,8 @@ public class TabArchiverTest {
                                         .getActivity()
                                         .getTabModelSelectorSupplier()
                                         .get()));
-        CriteriaHelper.pollUiThread(() -> 2 == mRegularTabModel.getCount());
-        assertEquals(1, mArchivedTabModel.getCount());
+        CriteriaHelper.pollUiThread(() -> 2 == getTabCountOnUiThread(mRegularTabModel));
+        assertEquals(1, getTabCountOnUiThread(mArchivedTabModel));
         watcher.assertExpected();
     }
 
@@ -455,15 +457,16 @@ public class TabArchiverTest {
 
         // Set the clock to 2 hour after 0.
         doReturn(TimeUnit.HOURS.toMillis(2)).when(mClock).currentTimeMillis();
-        // Set the timestamp for the tabs to 0, it should be archived.
-        // Set the navigation timestamp for the tab to 1 to pass user active check.
-        TabImpl tab1 = ((TabImpl) mRegularTabModel.getTabAt(0));
-        tab1.setTimestampMillisForTesting(0);
-        tab1.setLastNavigationCommittedTimestampMillis(TimeUnit.HOURS.toMillis(1));
 
         // Simulate the first tab being added to a group.
         runOnUiThreadBlocking(
                 () -> {
+                    // Set the timestamp for the tabs to 0, it should be archived.
+                    // Set the navigation timestamp for the tab to 1 to pass user active check.
+                    TabImpl tab1 = ((TabImpl) mRegularTabModel.getTabAt(0));
+                    tab1.setTimestampMillisForTesting(0);
+                    tab1.setLastNavigationCommittedTimestampMillis(TimeUnit.HOURS.toMillis(1));
+
                     TabGroupModelFilter filter =
                             mRegularTabModelSelector
                                     .getTabGroupModelFilterProvider()
@@ -471,8 +474,8 @@ public class TabArchiverTest {
                     filter.createSingleTabGroup(tab1);
                 });
 
-        assertEquals(2, mRegularTabModel.getCount());
-        assertEquals(0, mArchivedTabModel.getCount());
+        assertEquals(2, getTabCountOnUiThread(mRegularTabModel));
+        assertEquals(0, getTabCountOnUiThread(mArchivedTabModel));
 
         HistogramWatcher watcher =
                 HistogramWatcher.newBuilder()
@@ -489,8 +492,8 @@ public class TabArchiverTest {
                                         .getActivity()
                                         .getTabModelSelectorSupplier()
                                         .get()));
-        CriteriaHelper.pollUiThread(() -> 1 == mRegularTabModel.getCount());
-        assertEquals(0, mArchivedTabModel.getCount());
+        CriteriaHelper.pollUiThread(() -> 1 == getTabCountOnUiThread(mRegularTabModel));
+        assertEquals(0, getTabCountOnUiThread(mArchivedTabModel));
         watcher.assertExpected();
     }
 
@@ -518,15 +521,16 @@ public class TabArchiverTest {
 
         // Set the clock to 2 hour after 0.
         doReturn(TimeUnit.HOURS.toMillis(2)).when(mClock).currentTimeMillis();
-        // Set the timestamp for the tabs to 0, it should be archived.
-        // Set the navigation timestamp for the tab to 1 to pass user active check.
-        TabImpl tab1 = ((TabImpl) mRegularTabModel.getTabAt(0));
-        tab1.setTimestampMillisForTesting(0);
-        tab1.setLastNavigationCommittedTimestampMillis(TimeUnit.HOURS.toMillis(1));
 
         // Simulate the first tab being added to a group.
         runOnUiThreadBlocking(
                 () -> {
+                    // Set the timestamp for the tabs to 0, it should be archived.
+                    // Set the navigation timestamp for the tab to 1 to pass user active check.
+                    TabImpl tab1 = ((TabImpl) mRegularTabModel.getTabAt(0));
+                    tab1.setTimestampMillisForTesting(0);
+                    tab1.setLastNavigationCommittedTimestampMillis(TimeUnit.HOURS.toMillis(1));
+
                     TabGroupModelFilter filter =
                             mRegularTabModelSelector
                                     .getTabGroupModelFilterProvider()
@@ -534,8 +538,8 @@ public class TabArchiverTest {
                     filter.createSingleTabGroup(tab1);
                 });
 
-        assertEquals(2, mRegularTabModel.getCount());
-        assertEquals(0, mArchivedTabModel.getCount());
+        assertEquals(2, getTabCountOnUiThread(mRegularTabModel));
+        assertEquals(0, getTabCountOnUiThread(mArchivedTabModel));
 
         HistogramWatcher watcher =
                 HistogramWatcher.newBuilder()
@@ -551,8 +555,8 @@ public class TabArchiverTest {
                                         .getActivity()
                                         .getTabModelSelectorSupplier()
                                         .get()));
-        CriteriaHelper.pollUiThread(() -> 2 == mRegularTabModel.getCount());
-        assertEquals(0, mArchivedTabModel.getCount());
+        CriteriaHelper.pollUiThread(() -> 2 == getTabCountOnUiThread(mRegularTabModel));
+        assertEquals(0, getTabCountOnUiThread(mArchivedTabModel));
         watcher.assertExpected();
     }
 
@@ -573,17 +577,19 @@ public class TabArchiverTest {
 
         // Set the clock to 1 hour after 0.
         doReturn(TimeUnit.HOURS.toMillis(1)).when(mClock).currentTimeMillis();
-        // Set the timestamp for both tabs at 0, they should be archived.
-        // Set the navigation timestamp for both tabs at 0 to fail user active check.
-        TabImpl tab1 = ((TabImpl) mRegularTabModel.getTabAt(0));
-        tab1.setTimestampMillisForTesting(0);
-        tab1.setLastNavigationCommittedTimestampMillis(0);
-        ((TabImpl) mRegularTabModel.getTabAt(1)).setTimestampMillisForTesting(0);
-        ((TabImpl) mRegularTabModel.getTabAt(1)).setLastNavigationCommittedTimestampMillis(0);
 
         // Simulate the first tab being added to a group.
         runOnUiThreadBlocking(
                 () -> {
+                    // Set the timestamp for both tabs at 0, they should be archived.
+                    // Set the navigation timestamp for both tabs at 0 to fail user active check.
+                    TabImpl tab1 = ((TabImpl) mRegularTabModel.getTabAt(0));
+                    tab1.setTimestampMillisForTesting(0);
+                    tab1.setLastNavigationCommittedTimestampMillis(0);
+                    ((TabImpl) mRegularTabModel.getTabAt(1)).setTimestampMillisForTesting(0);
+                    ((TabImpl) mRegularTabModel.getTabAt(1))
+                            .setLastNavigationCommittedTimestampMillis(0);
+
                     TabGroupModelFilter filter =
                             mRegularTabModelSelector
                                     .getTabGroupModelFilterProvider()
@@ -591,8 +597,8 @@ public class TabArchiverTest {
                     filter.createSingleTabGroup(tab1);
                 });
 
-        assertEquals(3, mRegularTabModel.getCount());
-        assertEquals(0, mArchivedTabModel.getCount());
+        assertEquals(3, getTabCountOnUiThread(mRegularTabModel));
+        assertEquals(0, getTabCountOnUiThread(mArchivedTabModel));
 
         HistogramWatcher watcher =
                 HistogramWatcher.newBuilder()
@@ -606,8 +612,8 @@ public class TabArchiverTest {
                                         .getActivity()
                                         .getTabModelSelectorSupplier()
                                         .get()));
-        CriteriaHelper.pollUiThread(() -> 3 == mRegularTabModel.getCount());
-        assertEquals(0, mArchivedTabModel.getCount());
+        CriteriaHelper.pollUiThread(() -> 3 == getTabCountOnUiThread(mRegularTabModel));
+        assertEquals(0, getTabCountOnUiThread(mArchivedTabModel));
         watcher.assertExpected();
     }
 
@@ -629,16 +635,17 @@ public class TabArchiverTest {
 
         // Set the clock to 1 hour after 0.
         doReturn(TimeUnit.HOURS.toMillis(1)).when(mClock).currentTimeMillis();
-        // Set the timestamp for both tabs at 0, they should be archived.
-        TabImpl tab1 = ((TabImpl) mRegularTabModel.getTabAt(0));
-        tab1.setTimestampMillisForTesting(0);
-        TabImpl tab2 = ((TabImpl) mRegularTabModel.getTabAt(1));
-        tab2.setTimestampMillisForTesting(0);
-        ((TabImpl) mRegularTabModel.getTabAt(2)).setTimestampMillisForTesting(0);
 
         // Simulate the first and second tab being added to a group.
         runOnUiThreadBlocking(
                 () -> {
+                    // Set the timestamp for both tabs at 0, they should be archived.
+                    TabImpl tab1 = ((TabImpl) mRegularTabModel.getTabAt(0));
+                    tab1.setTimestampMillisForTesting(0);
+                    TabImpl tab2 = ((TabImpl) mRegularTabModel.getTabAt(1));
+                    tab2.setTimestampMillisForTesting(0);
+                    ((TabImpl) mRegularTabModel.getTabAt(2)).setTimestampMillisForTesting(0);
+
                     TabGroupModelFilter filter =
                             mRegularTabModelSelector
                                     .getTabGroupModelFilterProvider()
@@ -646,8 +653,8 @@ public class TabArchiverTest {
                     filter.mergeTabsToGroup(tab2.getId(), tab1.getId());
                 });
 
-        assertEquals(4, mRegularTabModel.getCount());
-        assertEquals(0, mArchivedTabModel.getCount());
+        assertEquals(4, getTabCountOnUiThread(mRegularTabModel));
+        assertEquals(0, getTabCountOnUiThread(mArchivedTabModel));
 
         HistogramWatcher watcher =
                 HistogramWatcher.newBuilder()
@@ -662,8 +669,8 @@ public class TabArchiverTest {
                                         .getActivity()
                                         .getTabModelSelectorSupplier()
                                         .get()));
-        CriteriaHelper.pollUiThread(() -> 3 == mRegularTabModel.getCount());
-        assertEquals(1, mArchivedTabModel.getCount());
+        CriteriaHelper.pollUiThread(() -> 3 == getTabCountOnUiThread(mRegularTabModel));
+        assertEquals(1, getTabCountOnUiThread(mArchivedTabModel));
         watcher.assertExpected();
     }
 
@@ -690,11 +697,14 @@ public class TabArchiverTest {
         doReturn(TimeUnit.HOURS.toMillis(1)).when(mClock).currentTimeMillis();
         // Set the timestamp for the second and third tabs sharing the same URL (not fourth since it
         // will be the new active tab), tab 2 at 0 and tab 3 at 1.
-        ((TabImpl) mRegularTabModel.getTabAt(1)).setTimestampMillisForTesting(0);
-        ((TabImpl) mRegularTabModel.getTabAt(2)).setTimestampMillisForTesting(1);
+        runOnUiThreadBlocking(
+                () -> {
+                    ((TabImpl) mRegularTabModel.getTabAt(1)).setTimestampMillisForTesting(0);
+                    ((TabImpl) mRegularTabModel.getTabAt(2)).setTimestampMillisForTesting(1);
+                });
 
-        assertEquals(4, mRegularTabModel.getCount());
-        assertEquals(0, mArchivedTabModel.getCount());
+        assertEquals(4, getTabCountOnUiThread(mRegularTabModel));
+        assertEquals(0, getTabCountOnUiThread(mArchivedTabModel));
 
         HistogramWatcher watcher =
                 HistogramWatcher.newBuilder()
@@ -707,12 +717,13 @@ public class TabArchiverTest {
                     mTabArchiver.doArchivePass(
                             mActivityTestRule.getActivity().getTabModelSelectorSupplier().get());
                 });
-        CriteriaHelper.pollUiThread(() -> 3 == mRegularTabModel.getCount());
+        CriteriaHelper.pollUiThread(() -> 3 == getTabCountOnUiThread(mRegularTabModel));
         // Check that tab 3 (which is now tab 2) is the duplicate that remains as it is last active.
         CriteriaHelper.pollUiThread(() -> 1 == mRegularTabModel.getTabAt(1).getTimestampMillis());
-        assertEquals(1, mArchivedTabModel.getCount());
+        assertEquals(1, getTabCountOnUiThread(mArchivedTabModel));
         // Check that tab 2 has been archived.
-        assertEquals(0, mArchivedTabModel.getTabAt(0).getTimestampMillis());
+        runOnUiThreadBlocking(
+                () -> assertEquals(0, mArchivedTabModel.getTabAt(0).getTimestampMillis()));
         watcher.assertExpected();
         String action = "Tabs.ArchivedDuplicateTab";
         assertTrue(mUserActionTester.getActions().contains(action));
@@ -741,11 +752,14 @@ public class TabArchiverTest {
         doReturn(TimeUnit.HOURS.toMillis(1)).when(mClock).currentTimeMillis();
         // Set the timestamp for the second and third tabs sharing the same URL (not fourth since it
         // will be the new active tab), tab 2 at 0 and tab 3 at 1.
-        ((TabImpl) mRegularTabModel.getTabAt(1)).setTimestampMillisForTesting(0);
-        ((TabImpl) mRegularTabModel.getTabAt(2)).setTimestampMillisForTesting(1);
+        runOnUiThreadBlocking(
+                () -> {
+                    ((TabImpl) mRegularTabModel.getTabAt(1)).setTimestampMillisForTesting(0);
+                    ((TabImpl) mRegularTabModel.getTabAt(2)).setTimestampMillisForTesting(1);
+                });
 
-        assertEquals(4, mRegularTabModel.getCount());
-        assertEquals(0, mArchivedTabModel.getCount());
+        assertEquals(4, getTabCountOnUiThread(mRegularTabModel));
+        assertEquals(0, getTabCountOnUiThread(mArchivedTabModel));
 
         HistogramWatcher watcher =
                 HistogramWatcher.newBuilder().expectNoRecords("Tabs.TabArchived.TabCount").build();
@@ -756,8 +770,8 @@ public class TabArchiverTest {
                     mTabArchiver.doArchivePass(
                             mActivityTestRule.getActivity().getTabModelSelectorSupplier().get());
                 });
-        CriteriaHelper.pollUiThread(() -> 4 == mRegularTabModel.getCount());
-        assertEquals(0, mArchivedTabModel.getCount());
+        CriteriaHelper.pollUiThread(() -> 4 == getTabCountOnUiThread(mRegularTabModel));
+        assertEquals(0, getTabCountOnUiThread(mArchivedTabModel));
         watcher.assertExpected();
     }
 
@@ -786,11 +800,14 @@ public class TabArchiverTest {
         doReturn(TimeUnit.HOURS.toMillis(1)).when(mClock).currentTimeMillis();
         // Set the timestamp for the second and third tabs sharing the same URL (not fourth since it
         // will be the new active tab), tab 2 at 0 and tab 3 at 1.
-        ((TabImpl) mRegularTabModel.getTabAt(1)).setTimestampMillisForTesting(0);
-        ((TabImpl) mRegularTabModel.getTabAt(2)).setTimestampMillisForTesting(1);
+        runOnUiThreadBlocking(
+                () -> {
+                    ((TabImpl) mRegularTabModel.getTabAt(1)).setTimestampMillisForTesting(0);
+                    ((TabImpl) mRegularTabModel.getTabAt(2)).setTimestampMillisForTesting(1);
+                });
 
-        assertEquals(4, mRegularTabModel.getCount());
-        assertEquals(0, mArchivedTabModel.getCount());
+        assertEquals(4, getTabCountOnUiThread(mRegularTabModel));
+        assertEquals(0, getTabCountOnUiThread(mArchivedTabModel));
 
         HistogramWatcher watcher =
                 HistogramWatcher.newBuilder().expectNoRecords("Tabs.TabArchived.TabCount").build();
@@ -801,8 +818,8 @@ public class TabArchiverTest {
                     mTabArchiver.doArchivePass(
                             mActivityTestRule.getActivity().getTabModelSelectorSupplier().get());
                 });
-        CriteriaHelper.pollUiThread(() -> 4 == mRegularTabModel.getCount());
-        assertEquals(0, mArchivedTabModel.getCount());
+        CriteriaHelper.pollUiThread(() -> 4 == getTabCountOnUiThread(mRegularTabModel));
+        assertEquals(0, getTabCountOnUiThread(mArchivedTabModel));
         watcher.assertExpected();
     }
 
@@ -827,16 +844,17 @@ public class TabArchiverTest {
 
         // Set the clock to 1 hour after 0. No tabs should be archived by timestamp eligibility.
         doReturn(TimeUnit.HOURS.toMillis(1)).when(mClock).currentTimeMillis();
-        // Set the timestamp for the second and third tabs sharing the same URL (not fourth since it
-        // will be the new active tab), tab 2 at 0 and tab 3 at 1.
-        TabImpl tab1 = ((TabImpl) mRegularTabModel.getTabAt(0));
-        tab1.setTimestampMillisForTesting(0);
-        TabImpl tab2 = ((TabImpl) mRegularTabModel.getTabAt(1));
-        tab2.setTimestampMillisForTesting(0);
 
         // Simulate the first and second tab being added to a group.
         runOnUiThreadBlocking(
                 () -> {
+                    // Set the timestamp for the second and third tabs sharing the same URL (not
+                    // fourth since it
+                    // will be the new active tab), tab 2 at 0 and tab 3 at 1.
+                    TabImpl tab1 = ((TabImpl) mRegularTabModel.getTabAt(0));
+                    tab1.setTimestampMillisForTesting(0);
+                    TabImpl tab2 = ((TabImpl) mRegularTabModel.getTabAt(1));
+                    tab2.setTimestampMillisForTesting(0);
                     TabGroupModelFilter filter =
                             mRegularTabModelSelector
                                     .getTabGroupModelFilterProvider()
@@ -844,8 +862,8 @@ public class TabArchiverTest {
                     filter.mergeTabsToGroup(tab2.getId(), tab1.getId());
                 });
 
-        assertEquals(4, mRegularTabModel.getCount());
-        assertEquals(0, mArchivedTabModel.getCount());
+        assertEquals(4, getTabCountOnUiThread(mRegularTabModel));
+        assertEquals(0, getTabCountOnUiThread(mArchivedTabModel));
 
         HistogramWatcher watcher =
                 HistogramWatcher.newBuilder().expectNoRecords("Tabs.TabArchived.TabCount").build();
@@ -857,8 +875,8 @@ public class TabArchiverTest {
                                         .getActivity()
                                         .getTabModelSelectorSupplier()
                                         .get()));
-        CriteriaHelper.pollUiThread(() -> 4 == mRegularTabModel.getCount());
-        assertEquals(0, mArchivedTabModel.getCount());
+        CriteriaHelper.pollUiThread(() -> 4 == getTabCountOnUiThread(mRegularTabModel));
+        assertEquals(0, getTabCountOnUiThread(mArchivedTabModel));
         watcher.assertExpected();
         String action = "Tabs.ArchivedDuplicateTab";
         assertFalse(mUserActionTester.getActions().contains(action));
@@ -876,21 +894,24 @@ public class TabArchiverTest {
         // Set the clock to 1 hour after 0.
         doReturn(TimeUnit.HOURS.toMillis(1)).when(mClock).currentTimeMillis();
         // Leave the first two tabs at 0, it will be archived.
-        ((TabImpl) mRegularTabModel.getTabAt(0)).setTimestampMillisForTesting(0);
+        runOnUiThreadBlocking(
+                () -> ((TabImpl) mRegularTabModel.getTabAt(0)).setTimestampMillisForTesting(0));
         Tab tab1 =
                 mActivityTestRule.loadUrlInNewTab(
                         mActivityTestRule.getTestServer().getURL(TEST_PATH),
                         /* incognito= */ false);
-        ((TabImpl) tab1).setTimestampMillisForTesting(0);
+        runOnUiThreadBlocking(() -> ((TabImpl) tab1).setTimestampMillisForTesting(0));
+
+        // Setup the 3rd tab be kept in the regular TabModel
         Tab tab2 =
                 mActivityTestRule.loadUrlInNewTab(
                         mActivityTestRule.getTestServer().getURL(TEST_PATH),
                         /* incognito= */ false);
-        // Setup the 3rd tab be kept in the regular TabModel
-        ((TabImpl) tab2).setTimestampMillisForTesting(TimeUnit.HOURS.toMillis(1));
+        runOnUiThreadBlocking(
+                () -> ((TabImpl) tab2).setTimestampMillisForTesting(TimeUnit.HOURS.toMillis(1)));
 
-        assertEquals(3, mRegularTabModel.getCount());
-        assertEquals(0, mArchivedTabModel.getCount());
+        assertEquals(3, getTabCountOnUiThread(mRegularTabModel));
+        assertEquals(0, getTabCountOnUiThread(mArchivedTabModel));
         HistogramWatcher watcher =
                 HistogramWatcher.newBuilder()
                         .expectIntRecords("Tabs.TabArchiveEligibilityCheck.AfterNDays", 0, 0)
@@ -904,8 +925,8 @@ public class TabArchiverTest {
                                         .getActivity()
                                         .getTabModelSelectorSupplier()
                                         .get()));
-        CriteriaHelper.pollUiThread(() -> 1 == mRegularTabModel.getCount());
-        assertEquals(2, mArchivedTabModel.getCount());
+        CriteriaHelper.pollUiThread(() -> 1 == getTabCountOnUiThread(mRegularTabModel));
+        assertEquals(2, getTabCountOnUiThread(mArchivedTabModel));
         watcher.assertExpected();
     }
 
@@ -922,8 +943,8 @@ public class TabArchiverTest {
                         mActivityTestRule.getTestServer().getURL(TEST_PATH),
                         /* incognito= */ false);
 
-        assertEquals(2, mRegularTabModel.getCount());
-        assertEquals(0, mArchivedTabModel.getCount());
+        assertEquals(2, getTabCountOnUiThread(mRegularTabModel));
+        assertEquals(0, getTabCountOnUiThread(mArchivedTabModel));
 
         CallbackHelper callbackHelper = new CallbackHelper();
         runOnUiThreadBlocking(
@@ -942,10 +963,10 @@ public class TabArchiverTest {
                 });
         callbackHelper.waitForNext();
 
-        assertEquals(1, mRegularTabModel.getCount());
-        assertEquals(1, mArchivedTabModel.getCount());
+        assertEquals(1, getTabCountOnUiThread(mRegularTabModel));
+        assertEquals(1, getTabCountOnUiThread(mArchivedTabModel));
 
-        Tab archivedTab = mArchivedTabModel.getTabAt(0);
+        Tab archivedTab = runOnUiThreadBlocking(() -> mArchivedTabModel.getTabAt(0));
         HistogramWatcher watcher =
                 HistogramWatcher.newBuilder()
                         .expectIntRecords("Tabs.TabAutoDeleteEligibilityCheck.AfterNDays", 0)
@@ -958,9 +979,11 @@ public class TabArchiverTest {
                     mTabArchiver.doAutodeletePass();
                 });
 
-        CriteriaHelper.pollInstrumentationThread(() -> mArchivedTabModel.getCount() == 0);
-        CriteriaHelper.pollInstrumentationThread(() -> archivedTab.isDestroyed());
-        assertEquals(1, mRegularTabModel.getCount());
+        CriteriaHelper.pollInstrumentationThread(
+                () -> getTabCountOnUiThread(mArchivedTabModel) == 0);
+        CriteriaHelper.pollInstrumentationThread(
+                () -> runOnUiThreadBlocking(archivedTab::isDestroyed));
+        assertEquals(1, getTabCountOnUiThread(mRegularTabModel));
 
         runOnUiThreadBlocking(
                 () -> {
@@ -1043,8 +1066,8 @@ public class TabArchiverTest {
                         mActivityTestRule.getTestServer().getURL(TEST_PATH),
                         /* incognito= */ false);
 
-        assertEquals(2, mRegularTabModel.getCount());
-        assertEquals(0, mArchivedTabModel.getCount());
+        assertEquals(2, getTabCountOnUiThread(mRegularTabModel));
+        assertEquals(0, getTabCountOnUiThread(mArchivedTabModel));
 
         CallbackHelper callbackHelper = new CallbackHelper();
         runOnUiThreadBlocking(
@@ -1063,9 +1086,9 @@ public class TabArchiverTest {
                 });
         callbackHelper.waitForNext();
 
-        assertEquals(1, mRegularTabModel.getCount());
-        assertEquals(1, mArchivedTabModel.getCount());
-        Tab archivedTab = mArchivedTabModel.getTabAt(0);
+        assertEquals(1, getTabCountOnUiThread(mRegularTabModel));
+        assertEquals(1, getTabCountOnUiThread(mArchivedTabModel));
+        Tab archivedTab = runOnUiThreadBlocking(() -> mArchivedTabModel.getTabAt(0));
 
         SavedTabGroup eligibleGroup = new SavedTabGroup();
         eligibleGroup.syncId = "eligible_sync_id";
@@ -1104,9 +1127,11 @@ public class TabArchiverTest {
 
         callbackHelper.waitForNext();
 
-        CriteriaHelper.pollInstrumentationThread(() -> mArchivedTabModel.getCount() == 0);
-        CriteriaHelper.pollInstrumentationThread(() -> archivedTab.isDestroyed());
-        assertEquals(1, mRegularTabModel.getCount());
+        CriteriaHelper.pollInstrumentationThread(
+                () -> getTabCountOnUiThread(mArchivedTabModel) == 0);
+        CriteriaHelper.pollInstrumentationThread(
+                () -> runOnUiThreadBlocking(archivedTab::isDestroyed));
+        assertEquals(1, getTabCountOnUiThread(mRegularTabModel));
         runOnUiThreadBlocking(
                 () -> {
                     ArchivePersistedTabData.from(
@@ -1141,8 +1166,8 @@ public class TabArchiverTest {
                         mActivityTestRule.getTestServer().getURL(TEST_PATH),
                         /* incognito= */ false);
 
-        assertEquals(2, mRegularTabModel.getCount());
-        assertEquals(0, mArchivedTabModel.getCount());
+        assertEquals(2, getTabCountOnUiThread(mRegularTabModel));
+        assertEquals(0, getTabCountOnUiThread(mArchivedTabModel));
 
         HistogramWatcher watcher =
                 HistogramWatcher.newBuilder()
@@ -1157,8 +1182,8 @@ public class TabArchiverTest {
                                 Arrays.asList(tab)));
 
         watcher.assertExpected();
-        assertEquals(1, mRegularTabModel.getCount());
-        assertEquals(1, mArchivedTabModel.getCount());
+        assertEquals(1, getTabCountOnUiThread(mRegularTabModel));
+        assertEquals(1, getTabCountOnUiThread(mArchivedTabModel));
         runOnUiThreadBlocking(
                 () -> {
                     Tab archivedTab = mArchivedTabModel.getTabAt(0);
@@ -1188,8 +1213,8 @@ public class TabArchiverTest {
                         mArchivedTabCreator.createFrozenTab(
                                 state, tab.getId(), TabModel.INVALID_TAB_INDEX));
 
-        assertEquals(2, mRegularTabModel.getCount());
-        assertEquals(1, mArchivedTabModel.getCount());
+        assertEquals(2, getTabCountOnUiThread(mRegularTabModel));
+        assertEquals(1, getTabCountOnUiThread(mArchivedTabModel));
 
         HistogramWatcher watcher =
                 HistogramWatcher.newBuilder()
@@ -1205,8 +1230,8 @@ public class TabArchiverTest {
                                         .getTabModelSelectorSupplier()
                                         .get()));
 
-        CriteriaHelper.pollUiThread(() -> 1 == mRegularTabModel.getCount());
-        assertEquals(1, mArchivedTabModel.getCount());
+        CriteriaHelper.pollUiThread(() -> 1 == getTabCountOnUiThread(mRegularTabModel));
+        assertEquals(1, getTabCountOnUiThread(mArchivedTabModel));
         watcher.assertExpected();
     }
 
@@ -1242,8 +1267,8 @@ public class TabArchiverTest {
 
         addRegularTabInBackgroundForArchive(TEST_PATH);
 
-        assertEquals(2, mRegularTabModel.getCount());
-        assertEquals(0, mArchivedTabModel.getCount());
+        assertEquals(2, getTabCountOnUiThread(mRegularTabModel));
+        assertEquals(0, getTabCountOnUiThread(mArchivedTabModel));
 
         HistogramWatcher watcher =
                 HistogramWatcher.newBuilder()
@@ -1282,8 +1307,8 @@ public class TabArchiverTest {
 
         addRegularTabInBackgroundForArchive(TEST_PATH);
 
-        assertEquals(2, mRegularTabModel.getCount());
-        assertEquals(0, mArchivedTabModel.getCount());
+        assertEquals(2, getTabCountOnUiThread(mRegularTabModel));
+        assertEquals(0, getTabCountOnUiThread(mArchivedTabModel));
 
         CallbackHelper callbackHelper = new CallbackHelper();
         runOnUiThreadBlocking(

@@ -327,12 +327,6 @@ bool IsEligibleCommon(const Document& element_document) {
   return true;
 }
 
-// [Intervention, ForceInOrderScript, crbug.com/1344772]
-bool IsEligibleForForceInOrder(const Document& element_document) {
-  return base::FeatureList::IsEnabled(features::kForceInOrderScript) &&
-         IsEligibleCommon(element_document);
-}
-
 // [Intervention, DelayAsyncScriptExecution, crbug.com/1340837]
 bool IsEligibleForDelay(const Resource& resource,
                         const Document& element_document,
@@ -349,6 +343,15 @@ bool IsEligibleForDelay(const Resource& resource,
 
   if (element.IsPotentiallyRenderBlocking()) {
     return false;
+  }
+
+  static const bool delay_async_script_execution_cross_site_only =
+      features::kDelayAsyncScriptExecutionCrossSiteOnlyParam.Get();
+  if (delay_async_script_execution_cross_site_only) {
+    // Cross-site scripts only.
+    if (IsSameSite(resource.Url(), element_document)) {
+      return false;
+    }
   }
 
   // We don't delay async scripts that have matched a resource in the preload
@@ -431,24 +434,7 @@ bool IsEligibleForDelay(const Resource& resource,
       break;
   }
 
-  const features::DelayAsyncScriptTarget delay_async_script_target =
-      features::kDelayAsyncScriptTargetParam.Get();
-  switch (delay_async_script_target) {
-    case features::DelayAsyncScriptTarget::kAll:
-      return true;
-    case features::DelayAsyncScriptTarget::kCrossSiteOnly:
-      return !IsSameSite(resource.Url(), element_document);
-    case features::DelayAsyncScriptTarget::kCrossSiteWithAllowList:
-    case features::DelayAsyncScriptTarget::kCrossSiteWithAllowListReportOnly:
-      if (IsSameSite(resource.Url(), element_document)) {
-        return false;
-      }
-      DEFINE_STATIC_LOCAL(
-          UrlMatcher, url_matcher,
-          (UrlMatcher(GetFieldTrialParamByFeatureAsString(
-              features::kDelayAsyncScriptExecution, "delay_async_exec_allow_list", ""))));
-      return url_matcher.Match(resource.Url());
-  }
+  return true;
 }
 
 ScriptRunner::DelayReasons DetermineDelayReasonsToWait(
@@ -459,6 +445,12 @@ ScriptRunner::DelayReasons DetermineDelayReasonsToWait(
 
   DelayReasons reasons = static_cast<DelayReasons>(DelayReason::kLoad);
 
+  if (script_runner->IsActive(DelayReason::kPausedForPrerender)) {
+    reasons |= static_cast<DelayReasons>(DelayReason::kPausedForPrerender);
+  }
+  // TODO(https://crbug.com/428500219): is_eligible_for_delay may not be a
+  // proper name as all elements are eligible for delay in terms of
+  // DelayReason::kLoad.
   if (is_eligible_for_delay &&
       script_runner->IsActive(DelayReason::kMilestone)) {
     reasons |= static_cast<DelayReasons>(DelayReason::kMilestone);
@@ -752,8 +744,8 @@ PendingScript* ScriptLoader::PrepareScript(
     if (GetScriptType() == ScriptTypeAtPrepare::kImportMap) {
       element_document.GetTaskRunner(TaskType::kDOMManipulation)
           ->PostTask(FROM_HERE,
-                     WTF::BindOnce(&ScriptElementBase::DispatchErrorEvent,
-                                   WrapPersistent(element_.Get())));
+                     blink::BindOnce(&ScriptElementBase::DispatchErrorEvent,
+                                     WrapPersistent(element_.Get())));
       return nullptr;
     }
     // <spec step="31.2">Let src be the value of el's src attribute.</spec>
@@ -765,8 +757,8 @@ PendingScript* ScriptLoader::PrepareScript(
     if (src.empty()) {
       element_document.GetTaskRunner(TaskType::kDOMManipulation)
           ->PostTask(FROM_HERE,
-                     WTF::BindOnce(&ScriptElementBase::DispatchErrorEvent,
-                                   WrapPersistent(element_.Get())));
+                     blink::BindOnce(&ScriptElementBase::DispatchErrorEvent,
+                                     WrapPersistent(element_.Get())));
       return nullptr;
     }
 
@@ -783,8 +775,8 @@ PendingScript* ScriptLoader::PrepareScript(
     if (!url.IsValid()) {
       element_document.GetTaskRunner(TaskType::kDOMManipulation)
           ->PostTask(FROM_HERE,
-                     WTF::BindOnce(&ScriptElementBase::DispatchErrorEvent,
-                                   WrapPersistent(element_.Get())));
+                     blink::BindOnce(&ScriptElementBase::DispatchErrorEvent,
+                                     WrapPersistent(element_.Get())));
       return nullptr;
     }
 
@@ -828,8 +820,8 @@ PendingScript* ScriptLoader::PrepareScript(
             "External speculation rules are not yet supported."));
         element_document.GetTaskRunner(TaskType::kDOMManipulation)
             ->PostTask(FROM_HERE,
-                       WTF::BindOnce(&ScriptElementBase::DispatchErrorEvent,
-                                     WrapPersistent(element_.Get())));
+                       blink::BindOnce(&ScriptElementBase::DispatchErrorEvent,
+                                       WrapPersistent(element_.Get())));
         return nullptr;
 
       case ScriptTypeAtPrepare::kWebBundle:
@@ -839,8 +831,8 @@ PendingScript* ScriptLoader::PrepareScript(
             "External webbundle is not yet supported."));
         element_document.GetTaskRunner(TaskType::kDOMManipulation)
             ->PostTask(FROM_HERE,
-                       WTF::BindOnce(&ScriptElementBase::DispatchErrorEvent,
-                                     WrapPersistent(element_.Get())));
+                       blink::BindOnce(&ScriptElementBase::DispatchErrorEvent,
+                                       WrapPersistent(element_.Get())));
         return nullptr;
 
       case ScriptTypeAtPrepare::kClassic: {
@@ -1081,38 +1073,6 @@ PendingScript* ScriptLoader::PrepareScript(
   ScriptSchedulingType script_scheduling_type = GetScriptSchedulingTypePerSpec(
       element_document, parser_blocking_inline_option);
 
-  // [Intervention, ForceInOrderScript, crbug.com/1344772]
-  // Check for external script that
-  // should be force in-order. Not only the pending scripts that would be marked
-  // (without the intervention) as ScriptSchedulingType::kParserBlocking or
-  // kInOrder, but also the scripts that would be marked as kAsync are put into
-  // the force in-order queue in ScriptRunner because we have to guarantee the
-  // execution order of the scripts.
-  if (IsEligibleForForceInOrder(element_document)) {
-    switch (script_scheduling_type) {
-      case ScriptSchedulingType::kAsync:
-      case ScriptSchedulingType::kInOrder:
-      case ScriptSchedulingType::kParserBlocking:
-        script_scheduling_type = ScriptSchedulingType::kForceInOrder;
-        break;
-      default:
-        break;
-    }
-  }
-
-  // [Intervention, ForceInOrderScript, crbug.com/1344772]
-  // If ScriptRunner still has
-  // ForceInOrder scripts not executed yet, attempt to mark the inline script as
-  // parser blocking so that the inline script is evaluated after the
-  // ForceInOrder scripts are evaluated.
-  if (script_scheduling_type == ScriptSchedulingType::kImmediate &&
-      parser_inserted_ &&
-      parser_blocking_inline_option == ParserBlockingInlineOption::kAllow &&
-      context_window->document()->GetScriptRunner()->HasForceInOrderScripts()) {
-    DCHECK(base::FeatureList::IsEnabled(features::kForceInOrderScript));
-    script_scheduling_type = ScriptSchedulingType::kParserBlockingInline;
-  }
-
   // <spec step="31">If el's type is "classic" and el has a src attribute, or
   // el's type is "module":</spec>
   switch (script_scheduling_type) {
@@ -1126,26 +1086,8 @@ PendingScript* ScriptLoader::PrepareScript(
       // list of scripts that will execute in order as soon as possible.</spec>
       //
       // <spec step="31.3.2">Append el to scripts.</spec>
-    case ScriptSchedulingType::kForceInOrder:
-      // [intervention, https://crbug.com/1344772] Append el to el's
-      // preparation-time document's list of force-in-order scripts.
 
       {
-        // [Intervention, DelayAsyncScriptExecution, crbug.com/1340837]
-        // If the target is kCrossSiteWithAllowList or
-        // kCrossSiteWithAllowListReportOnly, record the metrics and override
-        // is_eligible_for_delay to be always false when
-        // kCrossSiteWithAllowListReportOnly.
-        if (is_eligible_for_delay &&
-            script_scheduling_type == ScriptSchedulingType::kAsync) {
-          const features::DelayAsyncScriptTarget delay_async_script_target =
-              features::kDelayAsyncScriptTargetParam.Get();
-          if (delay_async_script_target ==
-              features::DelayAsyncScriptTarget::
-                  kCrossSiteWithAllowListReportOnly) {
-            is_eligible_for_delay = false;
-          }
-        }
         // TODO(hiroshige): Here the context document is used as "node document"
         // while Step 14 uses |elementDocument| as "node document". Fix this.
         ScriptRunner* script_runner =

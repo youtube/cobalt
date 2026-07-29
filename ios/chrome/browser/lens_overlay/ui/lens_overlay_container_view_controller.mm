@@ -18,7 +18,7 @@ namespace {
 const CGFloat kSidePanelWidth = 375.0;
 
 // The ammount padding from the side panel to the selection UI.
-const CGFloat kSidePannelSelectionPadding = 20.0;
+const CGFloat kSidePanelSelectionPadding = 24.0;
 
 // The duration of the side panel appear and dissapear animations.
 const CGFloat kSidePannelAnimationDuration = 0.4;
@@ -70,9 +70,7 @@ const CGFloat kSelectionUICornerRadius = 13.0;
   [super viewDidLoad];
   // To ensure the elements within this side panel adapt properly to its limited
   // width, explicitly set its horizontal size class to compact.
-  if (@available(iOS 17, *)) {
-    self.traitOverrides.horizontalSizeClass = UIUserInterfaceSizeClassCompact;
-  }
+  self.traitOverrides.horizontalSizeClass = UIUserInterfaceSizeClassCompact;
   _borderView = [self createBorderView];
   [self.view addSubview:_borderView];
   AddSameConstraintsWithInsets(_borderView, self.view,
@@ -125,9 +123,6 @@ const CGFloat kSelectionUICornerRadius = 13.0;
 
 // Whether the side panel is open.
 @property(nonatomic, getter=isSidePanelOpen) BOOL sidePanelOpen;
-
-// The selection area occlusion insets for the side panel presentation.
-@property(nonatomic, readonly) UIEdgeInsets sidePanelOcclusionInsets;
 
 @end
 
@@ -197,10 +192,8 @@ const CGFloat kSelectionUICornerRadius = 13.0;
         constraintEqualToAnchor:_splitViewLayoutGuide.leadingAnchor],
   ]];
 
-  if (@available(iOS 17, *)) {
-    [self registerForTraitChanges:@[ UITraitHorizontalSizeClass.class ]
-                       withAction:@selector(sizeClassDidChange)];
-  }
+  [self registerForTraitChanges:@[ UITraitHorizontalSizeClass.class ]
+                     withAction:@selector(sizeClassDidChange)];
 }
 
 - (void)viewDidAppear:(BOOL)animated {
@@ -209,20 +202,6 @@ const CGFloat kSelectionUICornerRadius = 13.0;
                                   self.selectionViewController);
   [self.delegate lensOverlayContainerDidAppear:self animated:animated];
 }
-
-#if !defined(__IPHONE_17_0) || __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_17_0
-- (void)traitCollectionDidChange:(UITraitCollection*)previousTraitCollection {
-  [super traitCollectionDidChange:previousTraitCollection];
-  if (@available(iOS 17, *)) {
-    return;
-  }
-
-  if (self.traitCollection.horizontalSizeClass !=
-      previousTraitCollection.horizontalSizeClass) {
-    [self sizeClassDidChange];
-  }
-}
-#endif
 
 - (UIInterfaceOrientationMask)supportedInterfaceOrientations {
   return UIInterfaceOrientationMaskPortrait;
@@ -245,15 +224,6 @@ const CGFloat kSelectionUICornerRadius = 13.0;
     _splitViewConstraint.constant = kSidePanelWidth;
   } else {
     _splitViewConstraint.constant = 0;
-  }
-}
-
-- (UIEdgeInsets)sidePanelOcclusionInsets {
-  CGFloat sideInset = kSidePanelWidth + kSidePannelSelectionPadding;
-  if (base::i18n::IsRTL()) {
-    return UIEdgeInsetsMake(0, sideInset, 0, 0);
-  } else {
-    return UIEdgeInsetsMake(0, 0, 0, sideInset);
   }
 }
 
@@ -311,9 +281,6 @@ const CGFloat kSelectionUICornerRadius = 13.0;
   self.selectionViewController.view.layer.maskedCorners =
       [self selectionUICornerMask];
 
-  [self.selectionViewController setOcclusionInsets:self.sidePanelOcclusionInsets
-                                        reposition:YES
-                                          animated:animated];
   if (!animated) {
     self.sidePanelOpen = YES;
     self.selectionViewController.view.layer.cornerRadius =
@@ -332,6 +299,9 @@ const CGFloat kSelectionUICornerRadius = 13.0;
         self.selectionViewController.view.layer.cornerRadius =
             kSelectionUICornerRadius;
         self.sidePanelOpen = YES;
+        [self.selectionViewController
+            zoomImageToCenter:UIEdgeInsetsMake(0, kSidePanelSelectionPadding, 0,
+                                               kSidePanelSelectionPadding)];
         [self.view layoutIfNeeded];
       }
       completion:^(BOOL) {

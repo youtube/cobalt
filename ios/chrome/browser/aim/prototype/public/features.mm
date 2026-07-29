@@ -11,17 +11,16 @@ BASE_FEATURE(kAimPrototypeDevTools,
              "AimPrototypeDevTools",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-const base::FeatureParam<int> kImageLoadDelayMs{&kAimPrototypeDevTools,
-                                                "image_load_delay_ms", 0};
-const base::FeatureParam<int> kUploadDelayMs{&kAimPrototypeDevTools,
-                                             "upload_delay_ms", 0};
-const base::FeatureParam<bool> kForceUploadFailure{
-    &kAimPrototypeDevTools, "force_upload_failure", false};
+const char kImageLoadDelayMsParam[] = "image_load_delay_ms";
+const char kUploadDelayMsParam[] = "upload_delay_ms";
+const char kForceUploadFailureParam[] = "force_upload_failure";
 
 base::TimeDelta GetImageLoadDelay() {
   if (!base::FeatureList::IsEnabled(kAimPrototypeDevTools)) {
     return base::TimeDelta();
   }
+  static const base::FeatureParam<int> kImageLoadDelayMs{
+      &kAimPrototypeDevTools, kImageLoadDelayMsParam, 0};
   return base::Milliseconds(kImageLoadDelayMs.Get());
 }
 
@@ -29,6 +28,8 @@ base::TimeDelta GetUploadDelay() {
   if (!base::FeatureList::IsEnabled(kAimPrototypeDevTools)) {
     return base::TimeDelta();
   }
+  static const base::FeatureParam<int> kUploadDelayMs{&kAimPrototypeDevTools,
+                                                      kUploadDelayMsParam, 0};
   return base::Milliseconds(kUploadDelayMs.Get());
 }
 
@@ -36,5 +37,7 @@ bool ShouldForceUploadFailure() {
   if (!base::FeatureList::IsEnabled(kAimPrototypeDevTools)) {
     return false;
   }
+  static const base::FeatureParam<bool> kForceUploadFailure{
+      &kAimPrototypeDevTools, kForceUploadFailureParam, false};
   return kForceUploadFailure.Get();
 }

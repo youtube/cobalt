@@ -13,7 +13,7 @@ import "url/mojom/url.mojom";
 
 // A snapshot of the current tabs in the tab strip.
 struct TabsSnapshot {
-  TabCollectionContainer tab_strip;
+  Container tab_strip;
   // Updates to tabs would be sent through this update stream. Clients may
   // subscribe to this stream to receive update events.
   // The interface is associated with the interface used to retrieve this
@@ -62,7 +62,14 @@ interface TabStripService {
   ActivateTab(NodeId id)
       => result<mojo_base.mojom.Empty, mojo_base.mojom.Error>;
 
-  // Moves a tab identified by id to a specified position.
+  // Selects a list of tabs. The only accepted id type for this method are
+  // |kContent| ids. The selection must also pass in a tab to activate. This
+  // tab must be part of the tab selection.
+  [Sync]
+  SetSelectedTabs(array<NodeId> selection, NodeId tab_to_activate)
+      => result<mojo_base.mojom.Empty, mojo_base.mojom.Error>;
+
+  // Moves a tab or a tab collection identified by id to a specified position.
   [Sync]
   MoveTab(NodeId id, Position position)
       => result<mojo_base.mojom.Empty, mojo_base.mojom.Error>;

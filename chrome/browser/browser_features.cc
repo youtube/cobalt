@@ -45,6 +45,12 @@ BASE_FEATURE(kBookmarkTriggerForPreconnect,
              "BookmarkTriggerForPreconnect",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+// This flag is used for enabling BookmarkBar triggered prefetch.  See
+// crbug.com/413259638 for more details of Bookmark triggered prefetching.
+BASE_FEATURE(kBookmarkTriggerForPrefetch,
+             "BookmarkTriggerForPrefetch",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // Enables Certificate Transparency on Desktop and Android Browser (CT is
 // disabled in Android Webview, see aw_browser_context.cc).
 // Enabling CT enforcement requires maintaining a log policy, and the ability to
@@ -111,14 +117,6 @@ BASE_FEATURE(kDestroySystemProfiles,
              "DestroySystemProfiles",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-#if BUILDFLAG(IS_CHROMEOS)
-// Enables being able to zoom a web page by double tapping in Chrome OS tablet
-// mode.
-BASE_FEATURE(kDoubleTapToZoomInTabletMode,
-             "DoubleTapToZoomInTabletMode",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-#endif
-
 // Enables showing the email of the flex org admin that setup CBCM in the
 // management disclosures.
 BASE_FEATURE(kFlexOrgManagementDisclosure,
@@ -162,6 +160,12 @@ BASE_FEATURE(kNetworkAnnotationMonitoring,
 BASE_FEATURE(kNewTabPageTriggerForPrerender2,
              "NewTabPageTriggerForPrerender2",
              base::FEATURE_ENABLED_BY_DEFAULT);
+
+// This flag is used for enabling New Tab Page triggered prefetch. See
+// crbug.com/421941586 for more details of New Tab Page triggered prefetching.
+BASE_FEATURE(kNewTabPageTriggerForPrefetch,
+             "NewTabPageTriggerForPrefetch",
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 #if BUILDFLAG(IS_ANDROID)
 // Adds an "Unsubscribe" action to web push notifications that allows stopping

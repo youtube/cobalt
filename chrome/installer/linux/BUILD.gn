@@ -8,6 +8,7 @@ import("//build/config/features.gni")
 import("//build/config/sanitizers/sanitizers.gni")
 import("//build/config/sysroot.gni")
 import("//build/linux/strip_binary.gni")
+import("//build/timestamp.gni")
 import("//build/util/lastchange.gni")
 import("//build/util/process_version.gni")
 import("//chrome/version.gni")
@@ -283,7 +284,6 @@ copy("deb_packaging_files") {
     "debian/build.sh",
     "debian/changelog.template",
     "debian/control.template",
-    "debian/debian.menu",
     "debian/postinst",
     "debian/postrm",
     "debian/prerm",
@@ -298,7 +298,6 @@ copy("theme_files") {
     "$branding_dir/linux/product_logo_128.png",
     "$branding_dir/linux/product_logo_24.png",
     "$branding_dir/linux/product_logo_256.png",
-    "$branding_dir/linux/product_logo_32.xpm",
     "$branding_dir/linux/product_logo_48.png",
     "$branding_dir/linux/product_logo_64.png",
     "$branding_dir_100/linux/product_logo_16.png",
@@ -315,9 +314,6 @@ copy("theme_files") {
       "$branding_dir/linux/product_logo_256_beta.png",
       "$branding_dir/linux/product_logo_256_canary.png",
       "$branding_dir/linux/product_logo_256_dev.png",
-      "$branding_dir/linux/product_logo_32_beta.xpm",
-      "$branding_dir/linux/product_logo_32_canary.xpm",
-      "$branding_dir/linux/product_logo_32_dev.xpm",
       "$branding_dir/linux/product_logo_48_beta.png",
       "$branding_dir/linux/product_logo_48_canary.png",
       "$branding_dir/linux/product_logo_48_dev.png",
@@ -474,6 +470,8 @@ template("linux_package") {
       rebase_path("$root_out_dir/installer/debian/build.sh", root_build_dir),
       "-a",
       deb_arch,
+      "-b",
+      build_timestamp,
       "-c",
       invoker.channel,
       "-d",

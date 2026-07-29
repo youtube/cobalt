@@ -1314,8 +1314,7 @@ ScriptPromise<IDLNullable<Credential>> AuthenticationCredentialsContainer::get(
   if (RuntimeEnabledFeatures::WebIdentityDigitalCredentialsEnabled(
           resolver->GetExecutionContext()) &&
       IsDigitalIdentityCredentialType(*options)) {
-    DiscoverDigitalIdentityCredentialFromExternalSource(resolver, *options,
-                                                        exception_state);
+    DiscoverDigitalIdentityCredentialFromExternalSource(resolver, *options);
     return promise;
   }
 
@@ -1752,8 +1751,7 @@ AuthenticationCredentialsContainer::create(
   if (RuntimeEnabledFeatures::WebIdentityDigitalCredentialsCreationEnabled(
           resolver->GetExecutionContext()) &&
       IsDigitalIdentityCredentialType(*options)) {
-    CreateDigitalIdentityCredentialInExternalSource(resolver, *options,
-                                                    exception_state);
+    CreateDigitalIdentityCredentialInExternalSource(resolver, *options);
     return promise;
   }
 
@@ -2137,19 +2135,10 @@ void AuthenticationCredentialsContainer::GetForIdentity(
       resolver->GetExecutionContext()
           ->GetContentSecurityPolicyForCurrentWorld();
   if (identity_options.providers().size() > 1) {
-    if (RuntimeEnabledFeatures::FedCmMultipleIdentityProvidersEnabled(
-            context)) {
-      UseCounter::Count(resolver->GetExecutionContext(),
-                        WebFeature::kFedCmMultipleIdentityProviders);
-      if (identity_options.providers().size() > 10u) {
-        resolver->RejectWithTypeError(
-            "More than 10 providers are not allowed.");
-        return;
-      }
-    } else {
-      resolver->RejectWithTypeError(
-          "Multiple providers specified but FedCmMultipleIdentityProviders "
-          "flag is disabled.");
+    UseCounter::Count(resolver->GetExecutionContext(),
+                      WebFeature::kFedCmMultipleIdentityProviders);
+    if (identity_options.providers().size() > 10u) {
+      resolver->RejectWithTypeError("More than 10 providers are not allowed.");
       return;
     }
   }

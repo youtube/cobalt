@@ -56,6 +56,7 @@ import org.chromium.chrome.browser.renderer_host.ChromeNavigationUiData;
 import org.chromium.chrome.browser.search_engines.TemplateUrlServiceFactory;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TabLaunchType;
+import org.chromium.chrome.browser.tabmodel.MultiTabMetadata;
 import org.chromium.chrome.browser.tabmodel.TabGroupMetadata;
 import org.chromium.chrome.browser.webapps.WebappActivity;
 import org.chromium.components.bookmarks.BookmarkId;
@@ -91,6 +92,9 @@ public class IntentHandler {
 
     /** Tab ID to use when creating a new Tab. */
     private static final String EXTRA_TAB_ID = "com.android.chrome.tab_id";
+
+    /** The pinned state of the tab to be created. */
+    private static final String EXTRA_PINNED_STATE = "com.android.chrome.pinned_state";
 
     /** The tab id of the parent tab, if any. */
     public static final String EXTRA_PARENT_TAB_ID = "com.android.chrome.parent_tab_id";
@@ -274,7 +278,6 @@ public class IntentHandler {
      */
     public static final String EXTRA_TAB_GROUP_METADATA =
             "org.chromium.chrome.browser.tab_group_metadata";
-
     /**
      * A Bundle containing a list of tab IDs and URLs to reparent as a multi-tab selection. See
      * TabGroupMetadata.KEY_TAB_IDS and TabGroupMetadata.KEY_TAB_URLS.
@@ -282,11 +285,8 @@ public class IntentHandler {
     public static final String EXTRA_MULTI_TAB_REPARENTING_METADATA =
             "org.chromium.chrome.browser.multi_tab_reparenting_metadata";
 
-    /** Used as the key to store the tab ids during multi tab reparenting. */
-    public static final String MULTI_TAB_KEY_TAB_IDS = "MultiTabReparentingIdsKey";
-
-    /** Used as the key to store the tab urls during multi tab reparenting. */
-    public static final String MULTI_TAB_KEY_TAB_URLS = "MultiTabReparentingUrlsKey";
+    /** The id of the tab in the destination tab group to merge the reparented tabs to. */
+    public static final String EXTRA_DEST_TAB_ID = "org.chromium.chrome.browser.dest_tab_id";
 
     /** Used to measure the duration of the tab group drag drop reparenting process. */
     public static final String EXTRA_REPARENT_START_TIME =
@@ -945,17 +945,16 @@ public class IntentHandler {
         // wild.
         try {
             // If the intent contains a list of tabs to reparent, it's a valid intent from Chrome.
-            if (intent.hasExtra(EXTRA_MULTI_TAB_REPARENTING_METADATA)) {
+            @Nullable MultiTabMetadata multiTabMetadata = getMultiTabMetadata(intent);
+            if (multiTabMetadata != null) {
                 // Exit early if the incognito intent is not allowed.
                 if (IntentUtils.safeGetBooleanExtra(intent, EXTRA_OPEN_NEW_INCOGNITO_TAB, false)
                         && !isAllowedIncognitoIntent(
                                 wasIntentSenderChrome(intent), isCustomTab, intent)) {
                     return true;
                 }
-                Bundle multiTabBundle = intent.getBundleExtra(EXTRA_MULTI_TAB_REPARENTING_METADATA);
-                ArrayList<Integer> tabIds =
-                        multiTabBundle.getIntegerArrayList(MULTI_TAB_KEY_TAB_IDS);
-                ArrayList<String> urls = multiTabBundle.getStringArrayList(MULTI_TAB_KEY_TAB_URLS);
+                ArrayList<Integer> tabIds = multiTabMetadata.tabIds;
+                ArrayList<String> urls = multiTabMetadata.urls;
 
                 if (urls == null || tabIds == null || urls.size() != tabIds.size()) {
                     assert false : "Urls and tabIds size are mismatched or empty.";
@@ -1514,6 +1513,40 @@ public class IntentHandler {
     }
 
     /**
+     * @param intent An Intent to be checked.
+     * @return The {@link MultiTabMetadata} for multi tab drag drop to transfer tab data between
+     *     windows.
+     */
+    public static @Nullable MultiTabMetadata getMultiTabMetadata(Intent intent) {
+        Bundle bundle =
+                IntentUtils.safeGetBundleExtra(intent, EXTRA_MULTI_TAB_REPARENTING_METADATA);
+        return MultiTabMetadata.maybeCreateFromBundle(bundle);
+    }
+
+    /**
+     * Sets the The {@link MultiTabMetadata} for multi tab drag drop to transfer tab data between
+     * windows.
+     *
+     * @param intent The Intent to be set.
+     */
+    public static void setMultiTabMetadata(Intent intent, MultiTabMetadata multiTabMetadata) {
+        intent.putExtra(EXTRA_MULTI_TAB_REPARENTING_METADATA, multiTabMetadata.toBundle());
+    }
+
+    /**
+     * Sets the destination tab id for multi tab drag drop to transfer tab data between windows.
+     *
+     * @param intent The Intent to be set.
+     */
+    public static void setDestTabId(Intent intent, int destTabId) {
+        intent.putExtra(EXTRA_DEST_TAB_ID, destTabId);
+    }
+
+    public static int getDestTabId(Intent intent) {
+        return IntentUtils.safeGetIntExtra(intent, EXTRA_DEST_TAB_ID, Tab.INVALID_TAB_ID);
+    }
+
+    /**
      * Creates an Intent that will launch a ChromeTabbedActivity on the new tab page. The Intent
      * will be trusted and therefore able to launch Incognito tabs.
      *
@@ -1616,6 +1649,19 @@ public class IntentHandler {
     public static int getTabId(@Nullable Intent intent) {
         if (!wasIntentSenderChrome(intent)) return Tab.INVALID_TAB_ID;
         return IntentUtils.safeGetIntExtra(intent, EXTRA_TAB_ID, Tab.INVALID_TAB_ID);
+    }
+
+    /**
+     * Sets the pinned state extra for a given intent. Will only be usable by trusted Chrome
+     * intents.
+     */
+    public static void setPinnedState(Intent intent, boolean isPinned) {
+        intent.putExtra(IntentHandler.EXTRA_PINNED_STATE, isPinned);
+    }
+
+    public static boolean getPinnedState(Intent intent) {
+        if (!wasIntentSenderChrome(intent)) return false;
+        return IntentUtils.safeGetBooleanExtra(intent, IntentHandler.EXTRA_PINNED_STATE, false);
     }
 
     /**

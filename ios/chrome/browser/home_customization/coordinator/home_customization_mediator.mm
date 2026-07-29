@@ -12,6 +12,7 @@
 #import "components/image_fetcher/core/image_fetcher.h"
 #import "components/image_fetcher/core/image_fetcher_service.h"
 #import "components/prefs/pref_service.h"
+#import "components/themes/ntp_background_data.h"
 #import "ios/chrome/browser/content_suggestions/ui_bundled/set_up_list/utils.h"
 #import "ios/chrome/browser/discover_feed/model/discover_feed_visibility_browser_agent.h"
 #import "ios/chrome/browser/discover_feed/model/feed_constants.h"
@@ -274,32 +275,37 @@
 // is no customization currently.
 - (BackgroundCustomizationConfigurationItem*)
     generateConfigurationItemForCurrentBackground {
-  std::optional<sync_pb::NtpCustomBackground> currentBackground =
+  std::optional<HomeCustomBackground> currentBackground =
       _backgroundService->GetCurrentCustomBackground();
   if (currentBackground) {
-    CollectionImage image;
-    image.collection_id = currentBackground->collection_id();
-    image.thumbnail_image_url = GURL(currentBackground->url());
-    image.image_url = GURL(currentBackground->url());
+    if (std::holds_alternative<sync_pb::NtpCustomBackground>(
+            currentBackground.value())) {
+      sync_pb::NtpCustomBackground ntpCustomBackground =
+          std::get<sync_pb::NtpCustomBackground>(currentBackground.value());
+      CollectionImage image;
+      image.collection_id = ntpCustomBackground.collection_id();
+      image.thumbnail_image_url = AddOptionsToImageURL(
+          RemoveOptionsFromImageURL(ntpCustomBackground.url()).spec(),
+          GetThumbnailImageOptions());
+      image.image_url = GURL(ntpCustomBackground.url());
 
-    image.attribution.push_back(currentBackground->attribution_line_1());
-    image.attribution.push_back(currentBackground->attribution_line_2());
-    image.attribution_action_url =
-        GURL(currentBackground->attribution_action_url());
-    return [[BackgroundCustomizationConfigurationItem alloc]
-        initWithCollectionImage:image];
-  }
+      image.attribution.push_back(ntpCustomBackground.attribution_line_1());
+      image.attribution.push_back(ntpCustomBackground.attribution_line_2());
+      image.attribution_action_url =
+          GURL(ntpCustomBackground.attribution_action_url());
+      return [[BackgroundCustomizationConfigurationItem alloc]
+          initWithCollectionImage:image];
+    } else {
+      HomeUserUploadedBackground currentUserUploadedBackground =
+          std::get<HomeUserUploadedBackground>(currentBackground.value());
+      NSString* imagePath =
+          base::SysUTF8ToNSString(currentUserUploadedBackground.image_path);
 
-  std::optional<UserUploadedBackground> currentUserUploadedBackground =
-      _backgroundService->GetCurrentUserUploadedBackground();
-
-  if (currentUserUploadedBackground) {
-    NSString* imagePath =
-        base::SysUTF8ToNSString(currentUserUploadedBackground->first);
-
-    return [[BackgroundCustomizationConfigurationItem alloc]
-        initWithUserUploadedImagePath:imagePath
-                   framingCoordinates:currentUserUploadedBackground->second];
+      return [[BackgroundCustomizationConfigurationItem alloc]
+          initWithUserUploadedImagePath:imagePath
+                     framingCoordinates:currentUserUploadedBackground
+                                            .framing_coordinates];
+    }
   }
 
   std::optional<sync_pb::UserColorTheme> currentColorTheme =

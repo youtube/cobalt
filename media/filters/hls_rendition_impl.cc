@@ -100,14 +100,9 @@ void HlsRenditionImpl::CheckState(
       return;
     }
 
-    // This will require a new manifest fetch. Clear the queue first, and tell
-    // it what the new start timestamp should be. Then we request a seek to
-    // the new start timestamp, which will take place after we fetch the
-    // updated manifest.
-    segments_->ResetExpectingFutureManifest(pause_duration + media_time);
-    engine_host_->RequestSeek(pause_duration + media_time +
-                              segments_->GetMaxDuration());
-    FetchManifestUpdates(std::move(time_remaining_cb), base::Seconds(0));
+    ResumeLivePlayback(
+        pause_duration + media_time + segments_->GetMaxDuration(),
+        base::BindOnce(std::move(time_remaining_cb), base::Seconds(0)));
     return;
   }
 
@@ -272,8 +267,9 @@ void HlsRenditionImpl::FetchManifestUpdates(ManifestDemuxer::DelayCallback cb,
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   CHECK(!is_stopped_for_shutdown_);
   last_download_time_ = base::TimeTicks::Now();
-  TRACE_EVENT_NESTABLE_ASYNC_BEGIN1("media", "HLS::FetchManifestUpdates", this,
-                                    "uri", media_playlist_uri_);
+  TRACE_EVENT_BEGIN("media", "HLS::FetchManifestUpdates",
+                    perfetto::Track::FromPointer(this), "uri",
+                    media_playlist_uri_);
   rendition_host_->UpdateRenditionManifestUri(
       role_, media_playlist_uri_,
       base::BindOnce(&HlsRenditionImpl::OnManifestUpdate,
@@ -283,7 +279,7 @@ void HlsRenditionImpl::FetchManifestUpdates(ManifestDemuxer::DelayCallback cb,
 void HlsRenditionImpl::OnManifestUpdate(ManifestDemuxer::DelayCallback cb,
                                         base::TimeDelta delay,
                                         HlsDemuxerStatus success) {
-  TRACE_EVENT_NESTABLE_ASYNC_END0("media", "HLS::FetchManifestUpdates", this);
+  TRACE_EVENT_END("media", perfetto::Track::FromPointer(this));
   auto update_duration = base::TimeTicks::Now() - last_download_time_;
   if (update_duration > delay) {
     std::move(cb).Run(base::Seconds(0));
@@ -367,6 +363,47 @@ ManifestDemuxer::SeekResponse HlsRenditionImpl::Seek(
   return ManifestDemuxer::SeekState::kNeedsData;
 }
 
+void HlsRenditionImpl::ResumeLivePlayback(base::TimeDelta estimated_resume,
+                                          base::OnceClosure done) {
+  // The estimated resume might not be totally correct, because live content
+  // doesn't always sync up with real-time (drops and speedups). So we want to
+  // clear the old manifest, grab a new one, fetch the first segment, and then
+  // seek to the start of the loaded ranges that we have.
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  segments_->ResetExpectingFutureManifest(estimated_resume);
+  engine_host_->Remove(role_, base::TimeDelta(), estimated_resume);
+  FetchManifestUpdates(
+      base::BindOnce(&HlsRenditionImpl::ManifestUpdateForLiveResume,
+                     weak_factory_.GetWeakPtr(), std::move(done)),
+      base::Seconds(0));
+}
+
+void HlsRenditionImpl::ManifestUpdateForLiveResume(base::OnceClosure done,
+                                                   base::TimeDelta) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  if (segments_->Exhausted()) {
+    rendition_host_->Quit(HlsDemuxerStatus::Codes::kNoDataEverAppended);
+    std::move(done).Run();
+    return;
+  }
+  FetchNext(base::BindOnce(&HlsRenditionImpl::FirstSegmentFetchedForLiveResume,
+                           weak_factory_.GetWeakPtr(), std::move(done)),
+            std::nullopt);
+}
+
+void HlsRenditionImpl::FirstSegmentFetchedForLiveResume(
+    base::OnceClosure done) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  auto ranges = engine_host_->GetBufferedRanges(role_);
+  if (ranges.size() == 0) {
+    rendition_host_->Quit(HlsDemuxerStatus::Codes::kNoDataEverAppended);
+    std::move(done).Run();
+    return;
+  }
+  engine_host_->RequestSeek(ranges.start(0));
+  std::move(done).Run();
+}
+
 void HlsRenditionImpl::StartWaitingForSeek() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 }
@@ -411,7 +448,8 @@ base::TimeDelta HlsRenditionImpl::ClearOldSegments(base::TimeDelta media_time) {
   return base::TimeTicks::Now() - removal_start;
 }
 
-void HlsRenditionImpl::FetchNext(base::OnceClosure cb, base::TimeDelta time) {
+void HlsRenditionImpl::FetchNext(base::OnceClosure cb,
+                                 std::optional<base::TimeDelta> time) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   CHECK(!is_stopped_for_shutdown_);
   CHECK(!segments_->Exhausted());
@@ -427,9 +465,9 @@ void HlsRenditionImpl::FetchNext(base::OnceClosure cb, base::TimeDelta time) {
   // again.
   bool include_init = requires_init_segment_ || segment->HasNewInitSegment();
 
-  TRACE_EVENT_NESTABLE_ASYNC_BEGIN2("media", "HLS::FetchSegment", this, "start",
-                                    segment_start, "include init",
-                                    include_init);
+  TRACE_EVENT_BEGIN("media", "HLS::FetchSegment",
+                    perfetto::Track::FromPointer(this), "start", segment_start,
+                    "include init", include_init);
 
   bool is_fetching_new_key = false;
   if (auto enc = segment->GetEncryptionData()) {
@@ -444,15 +482,16 @@ void HlsRenditionImpl::FetchNext(base::OnceClosure cb, base::TimeDelta time) {
                      segment_end, base::TimeTicks::Now(), is_fetching_new_key));
 }
 
-void HlsRenditionImpl::OnSegmentData(scoped_refptr<hls::MediaSegment> segment,
-                                     base::OnceClosure cb,
-                                     base::TimeDelta required_time,
-                                     base::TimeDelta parse_end,
-                                     base::TimeTicks net_req_start,
-                                     bool fetched_new_key,
-                                     HlsDataSourceProvider::ReadResult result) {
+void HlsRenditionImpl::OnSegmentData(
+    scoped_refptr<hls::MediaSegment> segment,
+    base::OnceClosure cb,
+    std::optional<base::TimeDelta> required_time,
+    base::TimeDelta parse_end,
+    base::TimeTicks net_req_start,
+    bool fetched_new_key,
+    HlsDataSourceProvider::ReadResult result) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  TRACE_EVENT_NESTABLE_ASYNC_END0("media", "HLS::FetchSegment", this);
+  TRACE_EVENT_END("media", perfetto::Track::FromPointer(this));
   if (is_stopped_for_shutdown_) {
     std::move(cb).Run();
     return;
@@ -534,11 +573,10 @@ void HlsRenditionImpl::OnSegmentData(scoped_refptr<hls::MediaSegment> segment,
   if (last_discontinuity_sequence_num_.value_or(
           segment->GetDiscontinuitySequenceNumber()) !=
       segment->GetDiscontinuitySequenceNumber()) {
-    engine_host_->ResetParserState(role_, parse_end + base::Seconds(1),
-                                   &parse_offset_);
+    engine_host_->ResetParserState(role_, kInfiniteDuration, &parse_offset_);
   }
 
-  if (!engine_host_->AppendAndParseData(role_, parse_end + base::Seconds(1),
+  if (!engine_host_->AppendAndParseData(role_, kInfiniteDuration,
                                         &parse_offset_, stream_data)) {
     rendition_host_->Quit(HlsDemuxerStatus::Codes::kCouldNotAppendData);
     return;
@@ -563,8 +601,9 @@ void HlsRenditionImpl::OnSegmentData(scoped_refptr<hls::MediaSegment> segment,
   media_log_->SetProperty<MediaLogProperty::kHlsBufferedRanges>(ranges);
 
   if (ranges.size()) {
-    if (required_time >= ranges.start(0) &&
-        required_time <= std::get<1>(ranges.back())) {
+    if (!required_time.has_value() ||
+        (*required_time >= ranges.start(0) &&
+         *required_time <= std::get<1>(ranges.back()))) {
       std::move(cb).Run();
       return;
     }

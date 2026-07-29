@@ -42,40 +42,7 @@
 
 namespace content {
 
-using ui::AXPropertyFilter;
-using ui::AXTreeFormatter;
 
-std::vector<ui::AXPropertyFilter> DumpAccessibilityTreeTest::DefaultFilters()
-    const {
-  std::vector<AXPropertyFilter> property_filters;
-  if (GetParam() == ui::AXApiType::kMac) {
-    return property_filters;
-  }
-
-  property_filters.emplace_back("value='*'", AXPropertyFilter::ALLOW);
-  // The value attribute on the document object contains the URL of the
-  // current page which will not be the same every time the test is run.
-  property_filters.emplace_back("value='http*'", AXPropertyFilter::DENY);
-  // Object attributes.value
-  property_filters.emplace_back("layout-guess:*", AXPropertyFilter::ALLOW);
-  property_filters.emplace_back("details-from:*", AXPropertyFilter::ALLOW);
-
-  property_filters.emplace_back("select*", AXPropertyFilter::ALLOW);
-  property_filters.emplace_back("selectedFromFocus=*", AXPropertyFilter::DENY);
-  property_filters.emplace_back("descript*", AXPropertyFilter::ALLOW);
-  property_filters.emplace_back("check*", AXPropertyFilter::ALLOW);
-  property_filters.emplace_back("horizontal", AXPropertyFilter::ALLOW);
-  property_filters.emplace_back("multiselectable", AXPropertyFilter::ALLOW);
-  property_filters.emplace_back("placeholder=*", AXPropertyFilter::ALLOW);
-  property_filters.emplace_back("ispopup*", AXPropertyFilter::ALLOW);
-
-  // Deny most empty values.
-  property_filters.emplace_back("*=''", AXPropertyFilter::DENY);
-  // After denying empty values, we need to add the following filter because we
-  // want to allow name=''.
-  property_filters.emplace_back("name=*", AXPropertyFilter::ALLOW_EMPTY);
-  return property_filters;
-}
 
 DumpAccessibilityTreeTest::DumpAccessibilityTreeTest()
     : DumpAccessibilityTestBase() {}
@@ -4909,9 +4876,8 @@ IN_PROC_BROWSER_TEST_P(DumpAccessibilityTreeWithMaterialDesignTest,
   RunMaterialDesignTest(FILE_PATH_LITERAL("list.html"));
 }
 
-// TODO(crbug.com/436869739): Flaky on all platforms.
 IN_PROC_BROWSER_TEST_P(DumpAccessibilityTreeWithMaterialDesignTest,
-                       DISABLED_MaterialDesignMenu) {
+                       MaterialDesignMenu) {
   RunMaterialDesignTest(FILE_PATH_LITERAL("menu.html"));
 }
 

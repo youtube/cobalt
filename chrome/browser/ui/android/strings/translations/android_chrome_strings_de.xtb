@@ -235,7 +235,7 @@ Nur Personen, die deine Passphrase kennen, können deine verschlüsselten Daten 
 <translation id="213279576345780926"><ph name="TAB_TITLE" /> geschlossen</translation>
 <translation id="2138283760993967204">Symbol „Verwalten“</translation>
 <translation id="2141396931810938595">Auf Grundlage deiner Nutzung</translation>
-<translation id="2145315049852051678">Chrome prüft regelmäßig, ob dein Browser die sichersten Einstellungen hat. Solltest du etwas überprüfen müssen, informieren wir dich.</translation>
+<translation id="2145315049852051678">Chrome prüft regelmäßig, ob dein Browser möglichst sichere Einstellungen hat. Solltest du etwas überprüfen müssen, informieren wir dich.</translation>
 <translation id="2149973817440762519">Lesezeichen bearbeiten</translation>
 <translation id="2163089732491971196">Gib deine Passphrase ein, um Chrome-Daten in deinem Google-Konto verwenden und speichern zu können</translation>
 <translation id="2166228530126694506">Version <ph name="VERSION_NUMBER" /></translation>
@@ -1092,6 +1092,7 @@ Eventuell findest du unter <ph name="BEGIN_LINK" />history.google.com<ph name="E
 <translation id="6125202119952209826">Tabgruppe mit <ph name="OWNER_FIRST_NAME" /> beitreten</translation>
 <translation id="6125864963080902918"><ph name="BEGIN_LINK" />Weitere Details<ph name="END_LINK" /></translation>
 <translation id="6127379762771434464">Eintrag entfernt</translation>
+<translation id="6127860394906721547">Tabgruppe „<ph name="TITLE_OF_GROUP" />“ mit der Farbe <ph name="COLOR_NAME" /> und den Websites <ph name="URL_LIST" /> öffnen.</translation>
 <translation id="6130303040046284160">Tab minimieren</translation>
 <translation id="6134168885321518274">Suchleiste öffnen</translation>
 <translation id="6135608400322377268">{TAB_COUNT,plural, =1{<ph name="TAB_COUNT_ONE" /> Tab}other{<ph name="TAB_COUNT_MANY" /> Tabs}}</translation>

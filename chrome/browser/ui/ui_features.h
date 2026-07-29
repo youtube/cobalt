@@ -55,6 +55,11 @@ enum class PdfInfoBarTrigger { kPdfLoad = 0, kStartup = 1 };
 BASE_DECLARE_FEATURE_PARAM(PdfInfoBarTrigger, kPdfInfoBarTrigger);
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
 
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX)
+// When enabled, user may see the session restore UI flow.
+BASE_DECLARE_FEATURE(kSessionRestoreInfobar);
+#endif
+
 BASE_DECLARE_FEATURE(kPreloadTopChromeWebUI);
 // This enum entry values must be in sync with
 // WebUIContentsPreloadManager::PreloadMode.
@@ -142,9 +147,25 @@ BASE_DECLARE_FEATURE(kSideBySide);
 BASE_DECLARE_FEATURE_PARAM(base::TimeDelta, kSideBySideShowDropTargetDelay);
 
 // Feature params for the width of the multi-contents drop target.
+// If the `kSideBySideDropTargetNudge` feature is enabled, then these only
+// apply for tab dragging.
 BASE_DECLARE_FEATURE_PARAM(int, kSideBySideDropTargetMinWidth);
 BASE_DECLARE_FEATURE_PARAM(int, kSideBySideDropTargetMaxWidth);
 BASE_DECLARE_FEATURE_PARAM(int, kSideBySideDropTargetTargetWidthPercentage);
+
+// Feature and params to control the "nudge" behavior of drop targets.
+BASE_DECLARE_FEATURE(kSideBySideDropTargetNudge);
+BASE_DECLARE_FEATURE_PARAM(int, kSideBySideDropTargetNudgeMinWidth);
+BASE_DECLARE_FEATURE_PARAM(int, kSideBySideDropTargetNudgeMaxWidth);
+BASE_DECLARE_FEATURE_PARAM(int,
+                           kSideBySideDropTargetNudgeTargetWidthPercentage);
+BASE_DECLARE_FEATURE_PARAM(int, kSideBySideDropTargetNudgeToFullMinWidth);
+BASE_DECLARE_FEATURE_PARAM(int, kSideBySideDropTargetNudgeToFullMaxWidth);
+BASE_DECLARE_FEATURE_PARAM(
+    int,
+    kSideBySideDropTargetNudgeToFullTargetWidthPercentage);
+// The ratio of window width that will trigger a nudge to show/hide.
+BASE_DECLARE_FEATURE_PARAM(double, kSideBySideDropTargetNudgeShowRatio);
 
 enum class MiniToolbarActiveConfiguration {
   // Hides the toolbar in the active view.
@@ -338,6 +359,7 @@ BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationFind);
 BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationCollaborationMessaging);
 BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationPriceTracking);
 BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationAutofillMandatoryReauth);
+BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationClickToCall);
 
 // Determines whether the "save password" page action displays different UI if
 // the user has said to never save passwords for that site.
@@ -363,6 +385,12 @@ BASE_DECLARE_FEATURE(kLaunchedTabSearchToolbarButton);
 BASE_DECLARE_FEATURE_PARAM(bool, kTabSearchToolbarButton);
 
 bool HasTabSearchToolbarButton();
+
+#if !BUILDFLAG(IS_ANDROID)
+// Controls whether to add new tabs to active tab group or to the end of the
+// tab strip.
+BASE_DECLARE_FEATURE(kNewTabAddsToActiveGroup);
+#endif  // !BUILDFLAG(IS_ANDROID)
 
 // Controls whether to show a toast for Chrome non milestone update.
 BASE_DECLARE_FEATURE(kNonMilestoneUpdateToast);

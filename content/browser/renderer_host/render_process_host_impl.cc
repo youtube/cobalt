@@ -1413,7 +1413,7 @@ size_t RenderProcessHost::GetMaxRendererProcessCount() {
 #else
         60;  // In MB
 #endif
-    max_count = base::SysInfo::AmountOfPhysicalMemoryMB() / 2;
+    max_count = base::SysInfo::AmountOfPhysicalMemory().InMiB() / 2;
     max_count /= kEstimatedWebContentsMemoryUsage;
 
     static constexpr size_t kMinRendererProcessCount = 3;
@@ -3177,7 +3177,7 @@ bool RenderProcessHostImpl::IsSpareProcessKeptAtAllTimes() {
   // The comparison below is using 1077 rather than 1024 because this helps
   // ensure that devices with exactly 1GB of RAM won't get included because of
   // inaccuracies or off-by-one errors.
-  if (base::SysInfo::AmountOfPhysicalMemoryMB() <=
+  if (base::SysInfo::AmountOfPhysicalMemory().InMiB() <=
       features::kAndroidSpareRendererMemoryThreshold.Get()) {
     return false;
   }
@@ -3277,11 +3277,20 @@ void RenderProcessHostImpl::NotifyRendererOfLockedStateUpdate() {
     }
   }
 
-  if (!process_lock.IsASiteOrOrigin())
-    return;
+  if (process_lock.IsASiteOrOrigin()) {
+    CHECK(process_lock.is_locked_to_site());
+    GetRendererInterface()->SetIsLockedToSite();
+  }
 
-  CHECK(process_lock.is_locked_to_site());
-  GetRendererInterface()->SetIsLockedToSite();
+  // Only notify the renderer once to avoid reapplying static renderer
+  // settings that are intended to be set once.
+  // TODO(http://crbug.com/434735272): — Handle other settings that are
+  // also meant to be applied once but may currently be updated dynamically.
+  if (!did_update_renderer_locked_state_) {
+    GetContentClient()->browser()->OnRendererProcessLockedStateUpdated(
+        this, process_lock.site_url());
+    did_update_renderer_locked_state_ = true;
+  }
 }
 
 bool RenderProcessHostImpl::IsForGuestsOnly() {
@@ -5157,6 +5166,10 @@ void RenderProcessHostImpl::ProcessDied(
   // Make sure no IPCs or mojo calls from the old process get dispatched after
   // it has died.
   ResetIPC();
+
+  // Make sure we can call update the setting for the renderer process
+  // when the process is respawned after a crash.
+  did_update_renderer_locked_state_ = false;
 
   UpdateProcessPriority();
 

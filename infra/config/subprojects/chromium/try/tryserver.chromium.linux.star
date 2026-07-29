@@ -120,6 +120,22 @@ try_.builder(
 )
 
 try_.builder(
+    name = "linux-structured-test-ids-rel-fyi",
+    mirrors = ["ci/linux-structured-test-ids-rel-fyi"],
+    gn_args = gn_args.config(
+        configs = [
+            "ci/linux-structured-test-ids-rel-fyi",
+            "release_try_builder",
+        ],
+    ),
+    contact_team_email = "chrome-browser-infra-team@google.com",
+    experiments = {
+        "chromium_tests.resultdb_module": 100,
+    },
+    siso_remote_jobs = siso.remote_jobs.LOW_JOBS_FOR_CQ,
+)
+
+try_.builder(
     name = "linux-trees-in-viz-rel",
     mirrors = ["ci/linux-trees-in-viz-rel"],
     gn_args = gn_args.config(
@@ -1033,7 +1049,6 @@ gpu.try_.optional_tests_builder(
             target_bits = 64,
             target_platform = builder_config.target_platform.LINUX,
         ),
-        build_gs_bucket = "chromium-gpu-fyi-archive",
     ),
     builder_config_settings = builder_config.try_settings(
         retry_failed_shards = False,

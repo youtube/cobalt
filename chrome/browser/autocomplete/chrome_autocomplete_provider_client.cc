@@ -15,7 +15,6 @@
 #include "base/strings/utf_string_conversions.h"
 #include "build/build_config.h"
 #include "chrome/app/chrome_command_ids.h"
-#include "chrome/browser/autocomplete/aim_eligibility_service.h"
 #include "chrome/browser/autocomplete/aim_eligibility_service_factory.h"
 #include "chrome/browser/autocomplete/autocomplete_classifier_factory.h"
 #include "chrome/browser/autocomplete/document_suggestions_service_factory.h"
@@ -60,6 +59,7 @@
 #include "components/history_clusters/core/features.h"
 #include "components/language/core/browser/pref_names.h"
 #include "components/omnibox/browser/actions/omnibox_pedal_provider.h"
+#include "components/omnibox/browser/aim_eligibility_service.h"
 #include "components/omnibox/browser/autocomplete_classifier.h"
 #include "components/omnibox/browser/autocomplete_match.h"
 #include "components/omnibox/browser/lens_suggest_inputs_utils.h"
@@ -669,9 +669,10 @@ bool ChromeAutocompleteProviderClient::OpenJourneys(const std::string& query) {
     return false;
   }
 
-  if (auto* history_clusters_side_panel_coordinator =
-          browser->GetFeatures().history_clusters_side_panel_coordinator()) {
-    history_clusters_side_panel_coordinator->Show(query);
+  auto* const history_clusters_side_panel_coordinator =
+      browser->GetFeatures().history_clusters_side_panel_coordinator();
+  if (history_clusters_side_panel_coordinator &&
+      history_clusters_side_panel_coordinator->Show(query)) {
     return true;
   }
 
