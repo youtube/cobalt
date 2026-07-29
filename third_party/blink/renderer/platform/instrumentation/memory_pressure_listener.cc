@@ -18,6 +18,7 @@
 
 namespace blink {
 
+<<<<<<< HEAD
 MemoryPressureListenerRegistration::MemoryPressureListenerRegistration(
     base::Location location,
     base::MemoryPressureListenerTag tag,
@@ -31,6 +32,23 @@ MemoryPressureListenerRegistration::~MemoryPressureListenerRegistration() {
 void MemoryPressureListenerRegistration::Dispose() {
   registration_.reset();
 }
+=======
+#if BUILDFLAG(IS_COBALT)
+namespace {
+const char* MemoryPressureLevelToString(base::MemoryPressureLevel level) {
+  switch (level) {
+    case base::MEMORY_PRESSURE_LEVEL_NONE:
+      return "NONE";
+    case base::MEMORY_PRESSURE_LEVEL_MODERATE:
+      return "MODERATE";
+    case base::MEMORY_PRESSURE_LEVEL_CRITICAL:
+      return "CRITICAL";
+  }
+  return "UNKNOWN";
+}
+}  // namespace
+#endif  // BUILDFLAG(IS_COBALT)
+>>>>>>> parent of 7f1dbcc01a6 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
 // static
 bool MemoryPressureListenerRegistry::is_low_end_device_ = false;
@@ -101,6 +119,10 @@ void MemoryPressureListenerRegistry::OnMemoryPressure(
     base::MemoryPressureLevel level) {
   TRACE_EVENT1("blink", "MemoryPressureListenerRegistry::onMemoryPressure",
                "level", level);
+#if BUILDFLAG(IS_COBALT)
+  LOG(INFO) << "Blink handling OnMemoryPressure, level: " << level
+            << " (" << MemoryPressureLevelToString(level) << ")";
+#endif  // BUILDFLAG(IS_COBALT)
   CHECK(IsMainThread());
   for (auto& client : clients_)
     client->OnMemoryPressure(level);

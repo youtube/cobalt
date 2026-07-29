@@ -23,7 +23,8 @@
 #include <system_error>
 
 #include "base/debug/buffered_dwarf_reader.h"
-#include "base/third_party/symbolize/symbolize.h"
+// TODO(cobalt, b/377295011): remove the nogncheck annotation.
+#include "base/third_party/symbolize/symbolize.h"  // nogncheck
 #include "partition_alloc/pointers/raw_ptr.h"
 #include "partition_alloc/pointers/raw_ref.h"
 

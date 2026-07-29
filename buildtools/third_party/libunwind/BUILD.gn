@@ -4,6 +4,10 @@
 
 import("//build/config/c++/c++.gni")
 
+if (is_cobalt) {
+  import("//starboard/build/config/toolchain_variables.gni")
+}
+
 config("libunwind_config") {
   defines = [ "_LIBUNWIND_IS_NATIVE_ONLY" ]
   cflags = [
@@ -24,6 +28,12 @@ source_set("libunwind") {
   visibility = [ "//buildtools/third_party/libc++abi" ]
   if (is_android) {
     visibility += [ "//services/tracing/public/cpp" ]
+
+    if (is_cobalt && is_partner_toolchain) {
+      # On AOSP, devil_util_bin is built statically against the NDK, and needs
+      # the unwinder symbols to build.
+      visibility += [ "//tools/android/devil_util:devil_util_bin" ]
+    }
   }
   if (!is_component_build) {
     defines = [ "_LIBUNWIND_DISABLE_VISIBILITY_ANNOTATIONS" ]
