@@ -121,6 +121,7 @@
 <translation id="2359808026110333948">ต่อไป</translation>
 <translation id="2379925928934107488">เมื่อทำได้ ให้ใช้ธีมมืดกับเว็บไซต์เมื่อ Chrome ใช้ธีมมืด</translation>
 <translation id="2390272837142897736">เพิ่มการซูม</translation>
+<translation id="2397689164757137845">อนุญาต • แน่นอน</translation>
 <translation id="2402980924095424747"><ph name="MEGABYTES" /> MB</translation>
 <translation id="2403474027143565107">แน่นอน</translation>
 <translation id="2404630663942400771">{PERMISSIONS_SUMMARY_ALLOWED,plural, =1{อนุญาตให้เข้าถึง<ph name="PERMISSION_1" /> <ph name="PERMISSION_2" /> และอีก <ph name="NUM_MORE" /> รายการ}other{อนุญาตให้เข้าถึง<ph name="PERMISSION_1" /> <ph name="PERMISSION_2" /> และอีก <ph name="NUM_MORE" /> รายการ}}</translation>
@@ -140,6 +141,7 @@
 <translation id="2498359688066513246">ความช่วยเหลือและความคิดเห็น</translation>
 <translation id="2501278716633472235">ย้อนกลับ</translation>
 <translation id="2533138527374486328">เมื่อเปิด เว็บไซต์จะขอเชื่อมต่อกับอุปกรณ์ในเครือข่ายภายในของคุณได้ เมื่อปิด เว็บไซต์จะเชื่อมต่อกับอุปกรณ์ในเครือข่ายภายในของคุณไม่ได้</translation>
+<translation id="2536779053640817375">อนุญาตในครั้งนี้ • แน่นอน</translation>
 <translation id="2544997614631598250">ธีมสีมืด</translation>
 <translation id="2546283357679194313">คุกกี้และข้อมูลเว็บไซต์</translation>
 <translation id="2570922361219980984">การเข้าถึงตำแหน่งสำหรับอุปกรณ์เครื่องนี้ปิดอยู่ เปิดการเข้าถึงได้ใน<ph name="BEGIN_LINK" />การตั้งค่า Android<ph name="END_LINK" /></translation>
@@ -442,6 +444,7 @@
 <translation id="5876056640971328065">หยุดวิดีโอชั่วคราว</translation>
 <translation id="5877248419911025165">ยุบคำขอทั้งหมด</translation>
 <translation id="5878945009165002849">บล็อกข้อความแจ้งให้ลงชื่อเข้าใช้จากบริการระบุตัวตน</translation>
+<translation id="588258955323874662">เต็มหน้าจอ</translation>
 <translation id="5884085660368669834">ค่ากำหนดสำหรับเว็บไซต์</translation>
 <translation id="5887687176710214216">เข้าชมล่าสุดเมื่อวาน</translation>
 <translation id="5908617755156109052">ไม่อนุญาตให้เว็บไซต์สร้างแผนที่ 3 มิติของสิ่งที่อยู่รอบตัวคุณหรือติดตามตำแหน่งของกล้อง</translation>
@@ -701,7 +704,6 @@
 <translation id="8803526663383843427">เมื่อเปิด</translation>
 <translation id="8805385115381080995">การท่องเว็บจะรวดเร็วขึ้นเนื่องจากเว็บไซต์อาจขอให้ยืนยันว่าคุณเป็นคนจริงๆ น้อยลง</translation>
 <translation id="8816026460808729765">บล็อกไม่ให้เว็บไซต์เข้าถึงเซ็นเซอร์</translation>
-<translation id="884765916894384048">ไปที่การเล่นขณะล็อกหน้าจอ</translation>
 <translation id="8847988622838149491">USB</translation>
 <translation id="8874790741333031443">ลองอนุญาตคุกกี้ของบุคคลที่สามชั่วคราว ซึ่งหมายความว่าการปกป้องขณะท่องเว็บจะลดลง แต่ฟีเจอร์ของเว็บไซต์มีแนวโน้มที่จะทํางานตามที่คาดได้มากกว่า</translation>
 <translation id="8889294078294184559">ขณะท่องเว็บ เว็บไซต์ต่างๆ สามารถตรวจสอบกับ Chrome และยืนยันด้วยเว็บไซต์ที่เข้าชมก่อนหน้าได้ว่าคุณเป็นคนจริงๆ</translation>

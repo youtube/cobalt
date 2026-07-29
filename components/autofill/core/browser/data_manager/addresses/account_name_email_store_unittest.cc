@@ -161,6 +161,42 @@ TEST_F(AccountNameEmailStoreTest, EmptyAccountNameCreation) {
   EXPECT_THAT(address_data_manager().GetProfiles(), IsEmpty());
 }
 
+// Tests that a new kAccountNameEmail profile isn't created when the account
+// info's full_name is an email address.
+TEST_F(AccountNameEmailStoreTest, FullNameIsEmailAddress) {
+  CreatePrimaryAccount(kTestEmailAddress1, kTestEmailAddress1);
+  EXPECT_THAT(address_data_manager().GetProfiles(), IsEmpty());
+}
+
+// Tests that a new kAccountNameEmail profile is removed when name was changed
+// to an email address.
+TEST_F(AccountNameEmailStoreTest, NameUpdatedToEmailAddress) {
+  CreatePrimaryAccount(kTestName1, kTestEmailAddress1);
+  ASSERT_THAT(address_data_manager().GetProfiles(),
+              ElementsAre(IsCorrectAccountNameEmail(
+                  base::UTF8ToUTF16(kTestName1),
+                  base::UTF8ToUTF16(kTestEmailAddress1))));
+
+  // Update the name to an email address.
+  AccountInfo info = GetPrimaryAccountInfo();
+  info.full_name = kTestEmailAddress1;
+  OnAccountUpdated(info);
+
+  // The old profile should be removed and nothing should be created.
+  EXPECT_THAT(address_data_manager().GetProfiles(), IsEmpty());
+
+  // Update the name to a valid value.
+  info = GetPrimaryAccountInfo();
+  info.full_name = kTestName2;
+  OnAccountUpdated(info);
+
+  // A profile with a valid name should be created.
+  EXPECT_THAT(address_data_manager().GetProfiles(),
+              ElementsAre(IsCorrectAccountNameEmail(
+                  base::UTF8ToUTF16(kTestName2),
+                  base::UTF8ToUTF16(kTestEmailAddress1))));
+}
+
 // Tests that a new kAccountNameEmail profile isn't created when autofill is not
 // synced.
 TEST_F(AccountNameEmailStoreTest, AutofillNotSynced) {
@@ -652,6 +688,39 @@ TEST_F(AccountNameEmailStoreSyncTest, SyncTheFeatureState) {
                   base::UTF8ToUTF16(kTestName1),
                   base::UTF8ToUTF16(kTestEmailAddress1))));
 }
+
+struct NicknameTestCase {
+  std::string account_name_with_nickname;
+  std::string expected_autofill_profile_full_name;
+};
+
+class AccountNameEmailStoreWithNicknameTest
+    : public AccountNameEmailStoreCoreTest,
+      public testing::WithParamInterface<NicknameTestCase> {};
+
+// Tests that AutofillProfile is created without the nickname.
+TEST_P(AccountNameEmailStoreWithNicknameTest, CreatedProfileMissesNickname) {
+  auto test_case = GetParam();
+  CreatePrimaryAccount(test_case.account_name_with_nickname,
+                       kTestEmailAddress1);
+  EXPECT_THAT(
+      address_data_manager().GetProfiles(),
+      ElementsAre(IsCorrectAccountNameEmail(
+          base::UTF8ToUTF16(test_case.expected_autofill_profile_full_name),
+          base::UTF8ToUTF16(kTestEmailAddress1))));
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    AccountNameEmailNicknameTest,
+    AccountNameEmailStoreWithNicknameTest,
+    testing::Values(
+        NicknameTestCase{"John Ben Smith (JJ)", "John Ben Smith"},
+        NicknameTestCase{"John Ben Smith (John Smith)", "John Ben Smith"},
+        NicknameTestCase{"John Ben \"John Smith\" Smith", "John Ben Smith"},
+        NicknameTestCase{"John \"JJ\" Smith", "John Smith"},
+        NicknameTestCase{"John Ben (John Smith) Smith", "John Ben Smith"},
+        NicknameTestCase{"John (JJ) Smith", "John Smith"},
+        NicknameTestCase{"John Smith", "John Smith"}));
 
 }  // namespace
 

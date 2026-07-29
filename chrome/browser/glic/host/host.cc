@@ -28,18 +28,6 @@
 #include "third_party/blink/public/common/web_preferences/web_preferences.h"
 
 namespace glic {
-namespace {
-
-class NullInstanceInterfaceForMigration
-    : public Host::InstanceInterfaceForMigration {
- public:
-  void AddStateObserver(PanelStateObserver* observer) override {}
-  void RemoveStateObserver(PanelStateObserver* observer) override {}
-  mojom::PanelState GetPanelState() override { return {}; }
-};
-
-NullInstanceInterfaceForMigration g_null_instance_interface;
-}  // namespace
 
 bool EmptyEmbedderDelegate::IsShowing() const {
   return true;
@@ -57,6 +45,11 @@ void EmptyEmbedderDelegate::SwitchConversation(
   std::move(callback).Run(std::nullopt);
 }
 
+void EmptyEmbedderDelegate::CaptureScreenshot(
+    glic::mojom::WebClientHandler::CaptureScreenshotCallback callback) {
+  std::move(callback).Run(nullptr);
+}
+
 Host::PageHandlerInfo::PageHandlerInfo() = default;
 Host::PageHandlerInfo::~PageHandlerInfo() = default;
 Host::PageHandlerInfo::PageHandlerInfo(PageHandlerInfo&&) = default;
@@ -65,15 +58,18 @@ Host::PageHandlerInfo& Host::PageHandlerInfo::operator=(PageHandlerInfo&&) =
 
 Host::Host(Profile* profile,
            GlicSharingManagerProvider* sharing_manager_provider,
-           InstanceInterfaceForMigration* instance_interface,
+           GlicInstance* glic_instance,
            InstanceDelegate* instance_delegate)
     : profile_(profile),
       instance_delegate_(instance_delegate),
-      // Some tests pass null here, so swap in a benign implementation.
-      instance_interface_(instance_interface ? instance_interface
-                                             : &g_null_instance_interface),
+      glic_instance_(glic_instance),
       sharing_manager_provider_(sharing_manager_provider) {}
-Host::~Host() = default;
+
+Host::~Host() {
+  // Destroying the web contents results in calls back to the host, so do that
+  // first.
+  Shutdown();
+}
 
 void Host::SetDelegate(EmbedderDelegate* new_delegate) {
   CHECK(new_delegate);
@@ -81,6 +77,7 @@ void Host::SetDelegate(EmbedderDelegate* new_delegate) {
 }
 
 void Host::Shutdown() {
+  handler_info_.reset();
   contents_.reset();
 }
 
@@ -134,9 +131,11 @@ void Host::PanelWillOpen(mojom::InvocationSource invocation_source,
   invocation_source_ = invocation_source;
   if (handler_info_ && handler_info_->web_client) {
     handler_info_->web_client->PanelWillOpen(
-        mojom::PanelOpeningData::New(
-            instance_interface_->GetPanelState().Clone(), invocation_source,
-            std::move(options.conversation_id)),
+        glic_instance_
+            ? mojom::PanelOpeningData::New(
+                  glic_instance_->GetPanelState().Clone(), invocation_source,
+                  std::move(options.conversation_id))
+            : mojom::PanelOpeningData::New(),
         base::BindOnce(
             &Host::PanelWillOpenComplete,
             // Unretained is safe because web client is owned by `contents_`.
@@ -174,11 +173,15 @@ void Host::RemoveObserver(Observer* observer) {
 }
 
 void Host::AddPanelStateObserver(PanelStateObserver* observer) {
-  instance_interface_->AddStateObserver(observer);
+  if (glic_instance_) {
+    glic_instance_->AddStateObserver(observer);
+  }
 }
 
 void Host::RemovePanelStateObserver(PanelStateObserver* observer) {
-  instance_interface_->RemoveStateObserver(observer);
+  if (glic_instance_) {
+    glic_instance_->RemoveStateObserver(observer);
+  }
 }
 
 void Host::WebUIPageHandlerAdded(GlicPageHandler* page_handler) {
@@ -273,7 +276,7 @@ void Host::NotifyWindowIntentToShow() {
 }
 
 void Host::UnsetWebClient(GlicWebClientAccess* web_client) {
-  if (handler_info_ && handler_info_->web_client != web_client) {
+  if (!handler_info_ || handler_info_->web_client != web_client) {
     return;
   }
 
@@ -296,8 +299,9 @@ void Host::SetWebClient(GlicWebClientAccess* web_client) {
     }
     web_client->PanelWillOpen(
         mojom::PanelOpeningData::New(
-            instance_interface_->GetPanelState().Clone(), *invocation_source_,
-            std::move(conversation_id)),
+            glic_instance_ ? glic_instance_->GetPanelState().Clone()
+                           : mojom::PanelState::New(),
+            *invocation_source_, std::move(conversation_id)),
         base::BindOnce(
             &Host::PanelWillOpenComplete,
             // Unretained is safe because web client is owned by `contents_`.
@@ -463,7 +467,6 @@ void Host::DetachPanel(GlicPageHandler* page_handler) {
 
 void Host::ClosePanel(GlicPageHandler* page_handler) {
   delegate_->ClosePanel();
-  glic_service().GetScreenshotCapturer().CloseScreenPicker();
 }
 
 void Host::SetPanelDraggableAreas(
@@ -481,12 +484,17 @@ void Host::SetMinimumWidgetSize(GlicPageHandler* page_handler,
   }
 }
 
+void Host::CaptureScreenshot(
+    glic::mojom::WebClientHandler::CaptureScreenshotCallback callback) {
+  delegate_->CaptureScreenshot(std::move(callback));
+}
+
 bool Host::IsWidgetShowing(GlicWebClientAccess* client) const {
   return delegate_->IsShowing();
 }
 
 mojom::PanelState Host::GetPanelState(GlicWebClientAccess* client) const {
-  return instance_interface_->GetPanelState();
+  return glic_instance_ ? glic_instance_->GetPanelState() : mojom::PanelState();
 }
 
 HostManager::HostManager(Profile* profile,
@@ -559,7 +567,15 @@ Host* HostManager::WebUIPageHandlerAdded(GlicPageHandler* page_handler) {
     return host;
   }
 
-  tab_hosts_.push_back(std::make_unique<Host>(profile_, nullptr, nullptr,
+  // For backwards compatibility, tab hosts are tied to the window controller.
+  // In multi-instance mode, no instance is used for now. We should consider
+  // just creating new instances for these hosts.
+  GlicInstance* glic_instance = nullptr;
+  if (!base::FeatureList::IsEnabled(features::kGlicMultiInstance)) {
+    glic_instance =
+        static_cast<GlicWindowControllerInterface*>(window_controller_.get());
+  }
+  tab_hosts_.push_back(std::make_unique<Host>(profile_, nullptr, glic_instance,
                                               GlicKeyedService::Get(profile_)));
   Host& new_host = *tab_hosts_.back();
   new_host.SetDelegate(empty_embedder_delegate_.get());

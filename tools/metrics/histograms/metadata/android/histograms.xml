@@ -1033,7 +1033,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.BackPress.Intercept{Direction}"
-    enum="BackPressConsumer" expires_after="2026-02-09">
+    enum="BackPressConsumer" expires_after="2026-04-12">
   <owner>lazzzis@chromium.org</owner>
   <owner>src/chrome/browser/back_press/android/OWNERS</owner>
   <summary>
@@ -1270,6 +1270,18 @@ chromium-metrics-reviews@google.com.
   </token>
 </histogram>
 
+<histogram name="Android.ChildProcessBinding.TotalBindingCount"
+    units="bindings" expires_after="2026-03-08">
+  <owner>kawasin@google.com</owner>
+  <owner>yfriedman@chromium.org</owner>
+  <summary>
+    Records the total number of service bindings for sandboxed
+    ChildProcessConnections in existence. This is emitted even if there are no
+    live connections. Emitted at a Poisson distributed period with a mean of 5
+    minutes on Chrome on Android while in the foreground.
+  </summary>
+</histogram>
+
 <histogram name="Android.ChildProcessBinding.TotalConnections"
     units="connections" expires_after="2026-03-08">
   <owner>ckitagawa@chromium.org</owner>
@@ -1280,6 +1292,21 @@ chromium-metrics-reviews@google.com.
     distributed period with a mean of 5 minutes on Chrome on Android while in
     the foreground.
   </summary>
+</histogram>
+
+<histogram
+    name="Android.ChildProcessBinding.{ChildProcessConnectionMetricsBindingState}BindingCount"
+    units="connections" expires_after="2026-03-08">
+  <owner>kawasin@google.com</owner>
+  <owner>yfriedman@chromium.org</owner>
+  <summary>
+    Records the number of {ChildProcessConnectionMetricsBindingState} service
+    bindings for sandboxed ChildProcessConnections. This is emitted even if
+    there are no live connections. Emitted at a Poisson distributed period with
+    a mean of 5 minutes on Chrome on Android while in the foreground.
+  </summary>
+  <token key="ChildProcessConnectionMetricsBindingState"
+      variants="ChildProcessConnectionMetricsBindingState"/>
 </histogram>
 
 <histogram
@@ -2334,7 +2361,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.Hub.PaneFocused" enum="HubPaneId"
-    expires_after="2026-02-09">
+    expires_after="2026-04-12">
   <owner>ckitagawa@chromium.org</owner>
   <owner>clank-hub-dev@google.com</owner>
   <summary>
@@ -3018,7 +3045,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.Messages.Enqueued" enum="MessageIdentifier"
-    expires_after="2026-02-09">
+    expires_after="2026-04-12">
   <owner>lazzzis@chromium.org</owner>
   <owner>src/components/messages/OWNERS</owner>
   <summary>
@@ -3056,7 +3083,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.Messages.Enqueued.Visible" enum="MessageIdentifier"
-    expires_after="2026-02-09">
+    expires_after="2026-04-12">
   <owner>lazzzis@chromium.org</owner>
   <owner>src/components/messages/OWNERS</owner>
   <summary>
@@ -6627,7 +6654,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.WebView.ComponentUpdater.BindServiceTime.{Result}"
-    units="microseconds" expires_after="2026-02-09">
+    units="microseconds" expires_after="2026-04-12">
   <owner>ashleynewson@chromium.org</owner>
   <owner>src/android_webview/OWNERS</owner>
   <summary>
@@ -6692,7 +6719,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.WebView.ComponentUpdater.ProviderConnectUiTime"
-    units="microseconds" expires_after="2026-02-09">
+    units="microseconds" expires_after="2026-04-12">
   <owner>ashleynewson@chromium.org</owner>
   <owner>src/android_webview/OWNERS</owner>
   <summary>
@@ -7320,7 +7347,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.WebView.HistoricalApplicationExitInfo.Counts2.STARTUP"
-    enum="AndroidProcessExitReason" expires_after="2026-02-09">
+    enum="AndroidProcessExitReason" expires_after="2026-04-12">
   <owner>mvanouwerkerk@chromium.org</owner>
   <owner>src/android_webview/OWNERS</owner>
   <improvement direction="LOWER_IS_BETTER"/>
@@ -7447,6 +7474,30 @@ chromium-metrics-reviews@google.com.
     Records the scheme for calls to loadUrl that have failed (they will have
     recorded Android.WebView.LoadUrl.Success == false). Logged once per call to
     loadUrl.
+  </summary>
+</histogram>
+
+<histogram name="Android.WebView.LoadUrl.RejectedHeaderCount" units="headers"
+    expires_after="2026-10-01">
+  <owner>pbirk@chromium.org</owner>
+  <owner>src/android_webview/OWNERS</owner>
+  <summary>
+    This histogram records the number of HTTP headers that are silently rejected
+    by the WebView.loadUrl API. The API will reject headers if the name or value
+    contains any of NULL, CR, LF with an IllegalArgumentException. However,
+    header names have more forbidden characters than just those three, and the
+    API will silently discard those headers to maintain long-term compatibility.
+
+    The purpose of this histogram is to identify applications who rely on this
+    silent rejection of invalid headers in order to determine the disruption
+    caused if we change the API contract in the future.
+
+    This histogram logs the count of headers that are silently rejected.
+
+    The histogram will only be emitted if the application is setting at least
+    one header, and will be 0 if no invalid headers were rejected. It will not
+    be emitted if any headers were rejected due to the 3 characters mentioned
+    above.
   </summary>
 </histogram>
 
@@ -7815,7 +7866,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.WebView.NonEmbeddedMetrics.HistogramRecordAge"
-    units="minutes" expires_after="2026-02-09">
+    units="minutes" expires_after="2026-04-12">
   <owner>ntfschr@chromium.org</owner>
   <owner>src/android_webview/OWNERS</owner>
   <summary>
@@ -7828,7 +7879,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.WebView.NonEmbeddedMetrics.NumHistograms"
-    units="histograms" expires_after="2026-02-09">
+    units="histograms" expires_after="2026-04-12">
   <owner>ntfschr@chromium.org</owner>
   <owner>src/android_webview/OWNERS</owner>
   <summary>
@@ -7840,7 +7891,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram name="Android.WebView.NonEmbeddedMetrics.ParsingLogResult"
     enum="AndroidWebViewNonEmbeddedMetricsParsingLogResult"
-    expires_after="2026-02-09">
+    expires_after="2026-04-12">
   <owner>ntfschr@chromium.org</owner>
   <owner>src/android_webview/OWNERS</owner>
   <summary>
@@ -7852,7 +7903,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.WebView.NonEmbeddedMetrics.TransmissionResult"
-    enum="AndroidWebViewDevUiMetricsTransmission" expires_after="2026-02-09">
+    enum="AndroidWebViewDevUiMetricsTransmission" expires_after="2026-04-12">
   <owner>ntfschr@chromium.org</owner>
   <owner>src/android_webview/OWNERS</owner>
   <summary>
@@ -8348,7 +8399,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Android.WebView.ShouldInterceptRequest.GetCookieHeader.PostMojo.TimeToRun"
-    units="ms" expires_after="2025-11-20">
+    units="ms" expires_after="2026-10-01">
   <owner>pbirk@chromium.org</owner>
   <owner>src/android_webview/OWNERS</owner>
   <summary>
@@ -8414,7 +8465,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Android.WebView.ShouldInterceptRequest.SetCookieHeader.TimeToRun"
-    units="ms" expires_after="2025-11-20">
+    units="ms" expires_after="2026-10-01">
   <owner>pbirk@chromium.org</owner>
   <owner>src/android_webview/OWNERS</owner>
   <summary>
@@ -8568,6 +8619,23 @@ chromium-metrics-reviews@google.com.
     tasks.
   </summary>
   <token key="StartupMode" variants="WebViewChromiumStartupMode"/>
+</histogram>
+
+<histogram name="Android.WebView.Startup.CookieManagerThreadingCondition"
+    enum="CookieManagerThreadingCondition" expires_after="2026-06-01">
+  <owner>abhijithnair@chromium.org</owner>
+  <owner>src/android_webview/OWNERS</owner>
+  <summary>
+    Describes whether the default profile's cookie manager was accessed (gotten)
+    before the Chromium UI thread looper has been set and, if so, describes the
+    combination of the looper associated with the first cookie manager access
+    and the looper set for the UI thread.
+
+    This is recorded once during WebView process global startup when the UI
+    thread is set.
+
+    Only recorded on Android WebView.
+  </summary>
 </histogram>
 
 <histogram name="Android.WebView.Startup.CreationTime.AssetsAddTime" units="ms"
@@ -8877,20 +8945,6 @@ chromium-metrics-reviews@google.com.
     <variant name="MetricsBridgeService"/>
     <variant name="VariationsSeedServer"/>
   </token>
-</histogram>
-
-<histogram name="Android.WebView.Startup.WebViewInitCalledOnAndroidMainLooper"
-    enum="Boolean" expires_after="2026-05-26">
-  <owner>abhijithnair@chromium.org</owner>
-  <owner>src/android_webview/OWNERS</owner>
-  <summary>
-    Reports whether or not `WebViewChromium#init` is called on the main looper.
-
-    This will be emitted each time within a call to the WebView constructor.
-
-    Only recorded on Android WebView on apps whose target SDK version is less
-    than JELLY_BEAN_MR2.
-  </summary>
 </histogram>
 
 <histogram name="Android.WebView.StorageAccessAutoGrantTime" units="ms"
@@ -9224,6 +9278,28 @@ chromium-metrics-reviews@google.com.
   <summary>
     Reports whether or not the warm up renderer process API call starts a new
     process. Recorded once per call to the warm up renderer process API.
+  </summary>
+</histogram>
+
+<histogram name="Android.Window.TimeToAcquireWindowBounds" units="ms"
+    expires_after="M150">
+  <owner>chominskib@google.com</owner>
+  <owner>lt-web-apps-team@google.com</owner>
+  <summary>
+    Records the time it takes to acquire on-screen bounds of the browser window
+    by the `WindowAndroid::GetBoundsInScreenCoordinates()` method.
+  </summary>
+</histogram>
+
+<histogram name="Android.Window.TimeToUpdateWindowBounds" units="ms"
+    expires_after="M150">
+  <owner>chominskib@google.com</owner>
+  <owner>lt-web-apps-team@google.com</owner>
+  <summary>
+    Records the time it takes to process a window bounds change event received
+    from the OS, including notifying native counterparts and sending new bounds
+    to Blink in native part. Recorded only if the window bounds have actually
+    changed compared to values cached in the WindowAndroid Java object.
   </summary>
 </histogram>
 

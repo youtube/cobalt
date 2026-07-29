@@ -2,9 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 import {ClientView, HostCapability, MetricUserInputReactionType, PanelStateKind, ResponseStopCause, ScrollToErrorReason, WebClientMode} from '/glic/glic_api/glic_api.js';
-import type {FocusedTabData, GetPinCandidatesOptions, GlicBrowserHost, OpenPanelInfo, PageMetadata, PanelOpeningData, ScrollToError, UserProfileInfo, ViewChangeRequest, ZeroStateSuggestionsV2} from '/glic/glic_api/glic_api.js';
+import type {FocusedTabData, GetPinCandidatesOptions, GlicBrowserHost, OpenPanelInfo, PageMetadata, PanelOpeningData, ScrollToError, TabData, UserProfileInfo, ViewChangeRequest, ZeroStateSuggestionsV2} from '/glic/glic_api/glic_api.js';
 
-import {ApiTestError, ApiTestFixtureBase, assertDefined, assertEquals, assertFalse, assertNotEquals, assertRejects, assertTrue, assertUndefined, checkDefined, observeSequence, readStream, runUntil, sleep, testMain, waitFor, WebClient} from './browser_test_base.js';
+import {ApiTestError, ApiTestFixtureBase, assertDefined, assertEquals, assertFalse, assertNotEquals, assertRejects, assertTrue, assertUndefined, checkDefined, mapObservable, observeSequence, readStream, runUntil, sleep, testMain, waitFor, WebClient} from './browser_test_base.js';
+import type {SequencedSubscriber} from './browser_test_base.js';
 
 // Test cases here correspond to test cases in glic_api_browsertest.cc.
 // Since these tests run in the webview, this test can't use normal deps like
@@ -204,6 +205,29 @@ class ApiTests extends ApiTestFixtureBase {
     }
   }
 
+  async testThereCanOnlyBeOneFloaty() {
+    assertDefined(this.host.getPanelState);
+    assertDefined(this.host.detachPanel);
+
+    if (this.testParams === 'first') {
+      this.host.detachPanel();
+      const panelStates = observeSequence(this.host.getPanelState());
+      await panelStates.waitFor(
+          state => state.kind === PanelStateKind.DETACHED);
+      await this.advanceToNextStep();
+
+      observeSequence(this.host.getPanelState())
+          .waitFor(state => state.kind === PanelStateKind.HIDDEN);
+
+    } else if (this.testParams === 'second') {
+      this.host.detachPanel();
+      const panelStates = observeSequence(this.host.getPanelState());
+      await panelStates.waitFor(
+          state => state.kind === PanelStateKind.DETACHED);
+    }
+  }
+
+
   async testClosePanel() {
     assertDefined(this.host.closePanel);
 
@@ -245,23 +269,6 @@ class ApiTests extends ApiTestFixtureBase {
     // Close the browser.
     await this.advanceToNextStep();
     assertTrue(!await isBrowserOpen.next());
-  }
-
-  async testActiveBrowser() {
-    assertDefined(this.host.activeBrowser);
-    const activeBrowserSeq = observeSequence(this.host.activeBrowser());
-    let activeBrowser = await activeBrowserSeq.next();
-    assertDefined(activeBrowser);
-    const firstWindowId = activeBrowser.windowId;
-    assertNotEquals(firstWindowId, '');
-    assertTrue(activeBrowser.usingThisProfile);
-
-    // Open another browser window on a different profile.
-    await this.advanceToNextStep();
-    activeBrowser = await activeBrowserSeq.next();
-    assertDefined(activeBrowser);
-    assertNotEquals(activeBrowser.windowId, firstWindowId);
-    assertFalse(activeBrowser.usingThisProfile);
   }
 
   async testEnableDragResize() {
@@ -748,6 +755,16 @@ class ApiTests extends ApiTestFixtureBase {
     assertTrue(await closedCaptioningState.next());
   }
 
+  async testActuationOnWebSetting() {
+    assertDefined(this.host.getActuationOnWebSetting);
+    assertDefined(this.host.setActuationOnWebSetting);
+    const actuationOnWebState =
+        observeSequence(this.host.getActuationOnWebSetting());
+    assertFalse(await actuationOnWebState.next());
+    await this.host.setActuationOnWebSetting(true);
+    assertTrue(await actuationOnWebState.next());
+  }
+
   async testGetUserProfileInfo() {
     assertDefined(this.host.getUserProfileInfo);
     const profileInfo = await this.host.getUserProfileInfo();
@@ -1063,13 +1080,13 @@ class ApiTests extends ApiTestFixtureBase {
     }
   }
 
-  // Helper function to pin the focused tab. Asserts the tab is pinned, and
+  // Helper function to pin the active tab. Asserts the tab is pinned, and
   // returns the tab ID.
-  async pinFocusedTab(): Promise<string> {
+  async pinActiveTab(): Promise<string> {
     assertDefined(this.host.pinTabs);
     assertDefined(this.host.getPinnedTabs);
     assertDefined(this.host.unpinTabs);
-    const tabId = this.getFocusedTabId();
+    const tabId = this.getActiveTabId();
     await this.host.pinTabs([tabId]);
     const pinnedTabsUpdates = observeSequence(this.host.getPinnedTabs());
     await pinnedTabsUpdates.waitFor(
@@ -1081,7 +1098,7 @@ class ApiTests extends ApiTestFixtureBase {
     // Pin the focused tab and verify it's sent.
     assertDefined(this.host.getPinnedTabs);
     assertDefined(this.host.unpinTabs);
-    await this.pinFocusedTab();
+    await this.pinActiveTab();
 
     // Unpin and verify the pinned tab list is updated.
     const pinnedTabsUpdates = observeSequence(this.host.getPinnedTabs());
@@ -1092,7 +1109,7 @@ class ApiTests extends ApiTestFixtureBase {
 
   async testUnpinTabsWhileClosing() {
     assertDefined(this.host.closePanel);
-    const tabId = await this.pinFocusedTab();
+    const tabId = await this.pinActiveTab();
     const {promise, resolve} = Promise.withResolvers<boolean>();
     this.client.onNotifyPanelWasClosed = () => {
       this.host.unpinTabs!([tabId]).then(resolve);
@@ -1108,15 +1125,14 @@ class ApiTests extends ApiTestFixtureBase {
     assertDefined(this.host.unpinTabs);
     assertDefined(this.host.getFocusedTabStateV2);
 
-    const tabId = await this.pinFocusedTab();
+    const tabId = await this.pinActiveTab();
 
     // Focus the next tab.
     await this.advanceToNextStep();
 
-    // Wait for focus to change and pin the focused tab.
-    await observeSequence(this.host.getFocusedTabStateV2())
-        .waitFor((f) => !!f.hasFocus && f.hasFocus.tabData.tabId !== tabId);
-    const tabId2 = await this.pinFocusedTab();
+    // Wait for active tab to change and pin the focused tab.
+    await this.observeActiveTab().waitFor((f) => f?.tabId !== tabId);
+    const tabId2 = await this.pinActiveTab();
 
     // Wait until we see two pinned tabs.
     const pinnedTabsUpdates = observeSequence(this.host.getPinnedTabs());
@@ -1151,9 +1167,9 @@ class ApiTests extends ApiTestFixtureBase {
     assertDefined(this.host.getPinnedTabs);
 
     const tabId = this.testParams.tabId;
-    const focusedTabId = this.getFocusedTabId();
+    const activeTabId = this.getActiveTabId();
 
-    assertTrue(await this.host.pinTabs([focusedTabId, tabId]));
+    assertTrue(await this.host.pinTabs([activeTabId, tabId]));
     const pinnedTabsUpdates = observeSequence(this.host.getPinnedTabs());
     await pinnedTabsUpdates.waitFor((tabs) => tabs.length === 2);
 
@@ -1173,9 +1189,9 @@ class ApiTests extends ApiTestFixtureBase {
       assertDefined(this.host.getPinnedTabs);
 
       const tabId = this.testParams.tabId;
-      const focusedTabId = this.getFocusedTabId();
+      const activeTabId = this.getActiveTabId();
 
-      assertTrue(await this.host.pinTabs([focusedTabId, tabId]));
+      assertTrue(await this.host.pinTabs([activeTabId, tabId]));
       const pinnedTabsUpdates = observeSequence(this.host.getPinnedTabs());
       await pinnedTabsUpdates.waitFor((tabs) => tabs.length === 2);
     } else {
@@ -1199,7 +1215,7 @@ class ApiTests extends ApiTestFixtureBase {
     assertDefined(this.host.unpinTabs);
 
     const tabId = this.testParams.tabId;
-    const tabId2 = this.getFocusedTabId();
+    const tabId2 = this.getActiveTabId();
     // Pin both tabs.
     assertTrue(await this.host.pinTabs([tabId2, tabId]));
 
@@ -1221,7 +1237,7 @@ class ApiTests extends ApiTestFixtureBase {
     assertDefined(this.host.unpinAllTabs);
 
     const tabId = this.testParams.tabId;
-    const tabId2 = this.getFocusedTabId();
+    const tabId2 = this.getActiveTabId();
 
     // Pin both tabs.
     assertTrue(await this.host.pinTabs([tabId2, tabId]));
@@ -1297,7 +1313,7 @@ class ApiTests extends ApiTestFixtureBase {
     assertDefined(this.host.pinTabs);
 
     const tabId = this.testParams.tabId;
-    assertNotEquals(tabId, this.getFocusedTabId());
+    assertNotEquals(tabId, this.getActiveTabId());
 
     await this.host.pinTabs([tabId]);
     const pinnedTabsUpdates = observeSequence(this.host.getPinnedTabs());
@@ -1308,7 +1324,7 @@ class ApiTests extends ApiTestFixtureBase {
     await this.advanceToNextStep();
 
     // Make sure that the pinned tab is not focused.
-    assertNotEquals(tabId, this.getFocusedTabId());
+    assertNotEquals(tabId, this.getActiveTabId());
     await pinnedTabsUpdates.waitFor(
         (tabs) =>
             tabs.some(t => t.tabId === tabId && t.url.includes('changed')));
@@ -1319,7 +1335,7 @@ class ApiTests extends ApiTestFixtureBase {
     assertDefined(this.host.pinTabs);
 
     const tabId = this.testParams.tabId;
-    assertNotEquals(tabId, this.getFocusedTabId());
+    assertNotEquals(tabId, this.getActiveTabId());
 
     await this.host.pinTabs([tabId]);
     const pinnedTabsUpdates = observeSequence(this.host.getPinnedTabs());
@@ -1345,6 +1361,33 @@ class ApiTests extends ApiTestFixtureBase {
     assertDefined(this.host.getFocusedTabStateV2);
     const focus = this.host.getFocusedTabStateV2().getCurrentValue();
     return checkDefined(focus?.hasFocus?.tabData.tabId);
+  }
+
+  // Asserts that there is an active tab, and returns its tab ID.
+  getActiveTabId(): string {
+    assertDefined(this.host.getFocusedTabStateV2);
+    const focus = this.host.getFocusedTabStateV2().getCurrentValue();
+    assertDefined(focus);
+    // In multi-instance, the active tab isn't necessarily focused.
+    if (!this.isMultiInstanceEnabled()) {
+      assertDefined(focus.hasFocus);
+    }
+    if (focus.hasFocus) {
+      return focus.hasFocus.tabData.tabId;
+    }
+    return checkDefined(focus.hasNoFocus?.tabFocusCandidateData?.tabId);
+  }
+
+  observeActiveTab(): SequencedSubscriber<TabData|undefined> {
+    assertDefined(this.host.getFocusedTabStateV2);
+    return observeSequence(
+        mapObservable(this.host.getFocusedTabStateV2(), (focus) => {
+          let active = focus?.hasFocus?.tabData;
+          if (!active && this.isMultiInstanceEnabled()) {
+            active = focus?.hasNoFocus?.tabFocusCandidateData;
+          }
+          return active;
+        }));
   }
 
   async testGetContextFromTabIgnorePermissionWhenPinned() {

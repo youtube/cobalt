@@ -699,7 +699,7 @@ bool ElementRuleCollector::CollectMatchingRulesForListInternal(
   if (perf_trace_enabled) {
     DCHECK_EQ(mode_, SelectorChecker::kResolvingStyle);
     selector_statistics_collector.EndCollectionForCurrentRule();
-    AggregateRulePerfData(current_matching_tree_scope_,
+    AggregateRulePerfData(current_rule_tree_scope_,
                           context_.GetElement().GetDocument(),
                           selector_statistics_collector.PerRuleStatistics());
   }
@@ -1007,17 +1007,14 @@ DISABLE_CFI_PERF bool ElementRuleCollector::CollectMatchingRulesInternal(
     }
   }
 
-  if (match_request.HasAnyRuleSetsWithActiveViewTransitionRules()) {
-    if (SelectorChecker::MatchesActiveViewTransitionPseudoClass(element)) {
-      for (const auto bundle :
-           match_request.RuleSetsWithActiveViewTransitionRules()) {
-        if (CollectMatchingRulesForList<stop_at_first_match>(
-                bundle.rule_set->ActiveViewTransitionRules(), match_request,
-                bundle.rule_set, bundle.style_sheet_index, checker,
-                context.context) &&
-            stop_at_first_match) {
-          return true;
-        }
+  if (SelectorChecker::MatchesActiveViewTransitionPseudoClass(element)) {
+    for (const auto bundle : match_request.AllRuleSets()) {
+      if (CollectMatchingRulesForList<stop_at_first_match>(
+              bundle.rule_set->ActiveViewTransitionRules(), match_request,
+              bundle.rule_set, bundle.style_sheet_index, checker,
+              context.context) &&
+          stop_at_first_match) {
+        return true;
       }
     }
   }
@@ -1252,8 +1249,7 @@ void ElementRuleCollector::SortAndTransferMatchedRules(
 
   if (mode_ == SelectorChecker::kCollectingCSSRules) {
     for (unsigned i = 0; i < matched_rules_.size(); ++i) {
-      AppendCSSOMWrapperForRule(current_matching_tree_scope_, matched_rules_[i],
-                                i);
+      AppendCSSOMWrapperForRule(current_rule_tree_scope_, matched_rules_[i], i);
     }
     return;
   }
@@ -1481,7 +1477,7 @@ void ElementRuleCollector::AddMatchedRulesToTracker(
     StyleRuleUsageTracker* tracker) const {
   for (const auto& matched_rule : matched_rules_) {
     const StyleRule* rule = matched_rule.Rule();
-    tracker->Track(FindStyleSheet(current_matching_tree_scope_,
+    tracker->Track(FindStyleSheet(current_rule_tree_scope_,
                                   context_.GetElement().GetDocument(), rule),
                    rule);
   }

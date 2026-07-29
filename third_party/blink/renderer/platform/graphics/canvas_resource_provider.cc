@@ -153,7 +153,7 @@ scoped_refptr<StaticBitmapImage> CanvasResourceProviderBitmap::Snapshot(
     FlushReason reason,
     ImageOrientation orientation) {
   TRACE_EVENT0("blink", "CanvasResourceProviderBitmap::Snapshot");
-  return SnapshotInternal(orientation, reason);
+  return UnacceleratedSnapshot(orientation, reason);
 }
 
 sk_sp<SkSurface> CanvasResourceProviderBitmap::CreateSkSurface() const {
@@ -495,10 +495,6 @@ void CanvasResourceProviderSharedImage::EndWriteAccess() {
 void CanvasResourceProviderSharedImage::WillDrawInternal() {
   DCHECK(resource_);
 
-  if (IsGpuContextLost()) {
-    return;
-  }
-
   // Since the resource will be updated, the cached snapshot is no longer
   // valid. Note that it is important to release this reference here to not
   // trigger copy-on-write below from the resource ref in the snapshot.
@@ -565,6 +561,12 @@ void CanvasResourceProviderSharedImage::WillDrawUnaccelerated() {
   }
   cached_snapshot_.reset();
   EnsureWriteAccess();
+}
+
+void CanvasResourceProviderSharedImage::PrepareForWebGPUDummyMailbox() {
+  if (resource_) {
+    resource_->PrepareForWebGPUDummyMailbox();
+  }
 }
 
 bool CanvasResourceProviderSharedImage::WritePixels(
@@ -780,13 +782,17 @@ CanvasResourceProviderSharedImage::GetBackingClientSharedImageForExternalWrite(
 
   // NOTE: The above invocation of WillDrawInternal() ensures that this
   // invocation of GetSyncToken() will generate a new sync token.
-  internal_access_sync_token = resource_->GetSyncToken();
-
+  resource_->GetSyncToken();
+  internal_access_sync_token = resource_->sync_token();
   return resource_->GetClientSharedImage();
 }
 
 void CanvasResourceProviderSharedImage::EndExternalWrite(
     const gpu::SyncToken& external_write_sync_token) {
+  if (IsGpuContextLost()) {
+    return;
+  }
+
   resource()->EndExternalWrite(external_write_sync_token);
 }
 
@@ -803,7 +809,7 @@ void CanvasResourceProviderSharedImage::ExternalCanvasDrawHelper(
     // TODO(crbug.com/40183122): Video frames don't work without this
     // conditional WillDraw(), but we are getting memory leak on CreatePattern
     // with it. There should be a better way to solve this.
-    if (cached_snapshot_) {
+    if (cached_snapshot_ && !IsGpuContextLost()) {
       WillDrawInternal();
       EnsureWriteAccess();
     }
@@ -824,7 +830,7 @@ scoped_refptr<StaticBitmapImage> CanvasResourceProviderSharedImage::Snapshot(
   // rendering results visible on the GpuMemoryBuffer while we return cpu
   // memory, rendererd to by skia, here.
   if (!is_accelerated_) {
-    return SnapshotInternal(orientation, reason);
+    return UnacceleratedSnapshot(orientation, reason);
   }
 
   if (!cached_snapshot_) {
@@ -1695,9 +1701,9 @@ void CanvasResourceProvider::ReleaseLockedImages() {
     canvas_image_provider_->ReleaseLockedImages();
 }
 
-scoped_refptr<StaticBitmapImage> CanvasResourceProvider::SnapshotInternal(
-    ImageOrientation orientation,
-    FlushReason reason) {
+scoped_refptr<UnacceleratedStaticBitmapImage>
+CanvasResourceProvider::UnacceleratedSnapshot(ImageOrientation orientation,
+                                              FlushReason reason) {
   if (!IsValid())
     return nullptr;
 
@@ -1706,9 +1712,33 @@ scoped_refptr<StaticBitmapImage> CanvasResourceProvider::SnapshotInternal(
   // associated HighEntropyCanvasOpTypes).
   HighEntropyCanvasOpType high_entropy_canvas_op_types =
       GetRecorderHighEntropyCanvasOpTypes();
-  auto paint_image = MakeImageSnapshot(reason);
+
+  FlushCanvas(reason);
+
+  cc::PaintImage paint_image;
+
+  auto sk_image = GetSkSurface()->makeImageSnapshot();
+  if (sk_image) {
+    auto last_snapshot_sk_image_id = snapshot_sk_image_id_;
+    snapshot_sk_image_id_ = sk_image->uniqueID();
+
+    // Ensure that a new PaintImage::ContentId is used only when the underlying
+    // SkImage changes. This is necessary to ensure that the same image results
+    // in a cache hit in cc's ImageDecodeCache.
+    if (snapshot_paint_image_content_id_ == PaintImage::kInvalidContentId ||
+        last_snapshot_sk_image_id != snapshot_sk_image_id_) {
+      snapshot_paint_image_content_id_ = PaintImage::GetNextContentId();
+    }
+
+    paint_image =
+        PaintImageBuilder::WithDefault()
+            .set_id(snapshot_paint_image_id_)
+            .set_image(std::move(sk_image), snapshot_paint_image_content_id_)
+            .TakePaintImage();
+  }
+
   DCHECK(!paint_image.IsTextureBacked());
-  scoped_refptr<StaticBitmapImage> snapshot =
+  scoped_refptr<UnacceleratedStaticBitmapImage> snapshot =
       UnacceleratedStaticBitmapImage::Create(std::move(paint_image),
                                              orientation);
   if (ShouldPropagateHighEntropyCanvasOpTypes(high_entropy_canvas_op_types,
@@ -1716,29 +1746,6 @@ scoped_refptr<StaticBitmapImage> CanvasResourceProvider::SnapshotInternal(
     snapshot->SetHighEntropyCanvasOpTypes(high_entropy_canvas_op_types);
   }
   return snapshot;
-}
-
-cc::PaintImage CanvasResourceProvider::MakeImageSnapshot(FlushReason reason) {
-  FlushCanvas(reason);
-  auto sk_image = GetSkSurface()->makeImageSnapshot();
-  if (!sk_image)
-    return cc::PaintImage();
-
-  auto last_snapshot_sk_image_id = snapshot_sk_image_id_;
-  snapshot_sk_image_id_ = sk_image->uniqueID();
-
-  // Ensure that a new PaintImage::ContentId is used only when the underlying
-  // SkImage changes. This is necessary to ensure that the same image results
-  // in a cache hit in cc's ImageDecodeCache.
-  if (snapshot_paint_image_content_id_ == PaintImage::kInvalidContentId ||
-      last_snapshot_sk_image_id != snapshot_sk_image_id_) {
-    snapshot_paint_image_content_id_ = PaintImage::GetNextContentId();
-  }
-
-  return PaintImageBuilder::WithDefault()
-      .set_id(snapshot_paint_image_id_)
-      .set_image(std::move(sk_image), snapshot_paint_image_content_id_)
-      .TakePaintImage();
 }
 
 gpu::gles2::GLES2Interface* CanvasResourceProvider::ContextGL() const {

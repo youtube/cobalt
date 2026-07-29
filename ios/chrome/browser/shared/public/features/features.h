@@ -337,6 +337,9 @@ BASE_DECLARE_FEATURE(kTabGridNewTransitions);
 // Feature flag for the tab grid drag and drop functionality.
 BASE_DECLARE_FEATURE(kTabGridDragAndDrop);
 
+// YES if the tab grid drag and drop feature is enabled.
+bool IsTabGridDragAndDropEnabled();
+
 // Whether the new tab grid tabs transitions should be enabled.
 bool IsNewTabGridTransitionsEnabled();
 
@@ -405,6 +408,10 @@ BASE_DECLARE_FEATURE(kNotificationSettingsMenuItem);
 
 // Feature flag the "Hide Toolbar" button in the overflow menu.
 BASE_DECLARE_FEATURE(kHideToolbarsInOverflowMenu);
+
+extern const char kBottomOmniboxEvolutionParam[];
+extern const char kBottomOmniboxEvolutionParamEditStateFollowSteadyState[];
+extern const char kBottomOmniboxEvolutionParamForceBottomOmniboxEditState[];
 
 // Feature flag to enable improvdements in the bottom omnibox.
 BASE_DECLARE_FEATURE(kBottomOmniboxEvolution);
@@ -581,9 +588,6 @@ extern const char kBackgroundRefreshMaxAgeInSeconds[];
 // Whether the Following Feed is enabled on NTP.
 bool IsWebChannelsEnabled();
 
-// Whether the Discover service is created early, alongside the app creation.
-bool IsDiscoverFeedServiceCreatedEarly();
-
 // Whether feed background refresh is enabled.
 bool IsFeedBackgroundRefreshEnabled();
 
@@ -659,6 +663,13 @@ bool IsContentPushNotificationsSetUpListRegistrationOnly();
 // to be deprecated, so we're not adding liquid glass support to it). Returns
 // false otherwise.
 bool IsLiquidGlassEffectEnabled();
+
+// Feature flag to enable the two-bubble design for the Keyboard Accessory view.
+BASE_DECLARE_FEATURE(kIOSKeyboardAccessoryTwoBubble);
+
+// Returns true if the two-bubble design for the keyboard accessory view is
+// enabled.
+bool IsIOSKeyboardAccessoryTwoBubbleEnabled();
 
 // Feature that enables tab resumption.
 BASE_DECLARE_FEATURE(kTabResumption);
@@ -1100,5 +1111,24 @@ enum class TipsNotificationsAlternativeStringVersion {
 // ```kIOSTipsNotificationsAlternativeStrings``` experiment.
 TipsNotificationsAlternativeStringVersion
 GetTipsNotificationsAlternativeStringVersion();
+
+// Feature for applying cross device settings through the Synced Set Up
+// experience.
+BASE_DECLARE_FEATURE(kIOSSyncedSetUp);
+
+// Returns true if `kIOSSyncedSetUp` is enabled.
+bool IsSyncedSetUpEnabled();
+
+// Enables the MultilineBrowserOmnibox feature.
+BASE_DECLARE_FEATURE(kMultilineBrowserOmnibox);
+
+// Returns true if the MultilineBrowserOmnibox feature is enabled.
+bool IsMultilineBrowserOmniboxEnabled();
+
+// Feature flag for settings controls auto open remote tab groups.
+BASE_DECLARE_FEATURE(kIOSAutoOpenRemoteTabGroupsSettings);
+
+// Whether the kIOSAutoOpenRemoteTabGroupsSettings feature is enabled.
+bool IsAutoOpenRemoteTabGroupsSettingsFeatureEnabled();
 
 #endif  // IOS_CHROME_BROWSER_SHARED_PUBLIC_FEATURES_FEATURES_H_

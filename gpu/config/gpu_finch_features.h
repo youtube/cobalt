@@ -52,10 +52,6 @@ GPU_CONFIG_EXPORT BASE_DECLARE_FEATURE(kAdjustGpuProcessPriority);
 
 GPU_CONFIG_EXPORT BASE_DECLARE_FEATURE(kClearGrShaderDiskCacheOnInvalidPrefix);
 
-GPU_CONFIG_EXPORT BASE_DECLARE_FEATURE(kVaapiJpegImageDecodeAcceleration);
-
-GPU_CONFIG_EXPORT BASE_DECLARE_FEATURE(kVaapiWebPImageDecodeAcceleration);
-
 GPU_CONFIG_EXPORT BASE_DECLARE_FEATURE(kVulkan);
 
 GPU_CONFIG_EXPORT BASE_DECLARE_FEATURE(kSkiaGraphite);
@@ -117,6 +113,8 @@ GPU_CONFIG_EXPORT extern const base::FeatureParam<std::string>
     kWebGPUEnabledToggles;
 GPU_CONFIG_EXPORT extern const base::FeatureParam<std::string>
     kWebGPUUnsafeFeatures;
+GPU_CONFIG_EXPORT extern const base::FeatureParam<bool>
+    kWebGPUSpontaneousWireServer;
 GPU_CONFIG_EXPORT extern const base::FeatureParam<std::string>
     kWGSLUnsafeFeatures;
 

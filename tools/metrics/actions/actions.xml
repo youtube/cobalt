@@ -3394,6 +3394,16 @@ should be able to be added at any place in this file.
   <description>Please enter the description of this user action.</description>
 </action>
 
+<action name="Actor.Ui.ActuatingTabWebContentsAttached">
+  <owner>chrstne@google.com</owner>
+  <owner>kenok@google.com</owner>
+  <owner>koilos@google.com</owner>
+  <description>
+    Recorded when the WebContents of an actuating tab is attached while the
+    associated ActorTask isn't paused or stopped.
+  </description>
+</action>
+
 <action name="Actor.Ui.HandoffButton.GiveControl.Clicked">
   <owner>chrstne@google.com</owner>
   <owner>kenok@google.com</owner>
@@ -9734,25 +9744,6 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
-<action name="ContentSuggestions.Follow.FirstFollow.GotItButtonTapped">
-  <owner>adamta@google.org</owner>
-  <owner>feed@chromium.org</owner>
-  <owner>sczs@chromium.org</owner>
-  <owner>tinazwang@chromium.org</owner>
-  <description>
-    The user tapped Got It button on the first follow sheet. iOS only.
-  </description>
-</action>
-
-<action name="ContentSuggestions.Follow.SnackbarGoToFeedButtonTapped">
-  <owner>adamta@google.org</owner>
-  <owner>sczs@chromium.org</owner>
-  <owner>tinazwang@chromium.org</owner>
-  <description>
-    The user tapped GO TO FEED button on the follow succeed snackbar.
-  </description>
-</action>
-
 <action name="ContentSuggestions.NotificationsPreferenceOff">
   <owner>dgn@chromium.org</owner>
   <owner>finkm@chromium.org</owner>
@@ -10486,6 +10477,23 @@ should be able to be added at any place in this file.
   <owner>jinsukkim@google.com</owner>
   <description>
     Emitted by CCT when the URL in CCT is opened in browser.
+  </description>
+</action>
+
+<action name="CustomTabs.ReaderMode.PromptSuppressed" not_user_triggered="true">
+  <owner>jinsukkim@google.com</owner>
+  <description>
+    Emitted by CCT when Reader Mode Message prompt UI previously suppressed
+    despite meeting all the conditions ends up not being displayed due to a
+    certain modified condition.
+  </description>
+</action>
+
+<action name="CustomTabs.ReaderMode.TabDestroyed" not_user_triggered="true">
+  <owner>jinsukkim@google.com</owner>
+  <description>
+    Emitted by CCT when Reader Mode Message prompt UI discovers that the
+    associated Tab was already destroyed, therefore cannot be displayed.
   </description>
 </action>
 
@@ -14355,6 +14363,20 @@ should be able to be added at any place in this file.
   <owner>pauladedeji@google.com</owner>
   <description>
     Tracks when glic tab context permission is enabled from the web client.
+  </description>
+</action>
+
+<action name="GlicUserDisabledActuationOnWeb">
+  <owner>michelleabreo@google.com</owner>
+  <description>
+    Logged when the user disables actuation on web in Chrome settings.
+  </description>
+</action>
+
+<action name="GlicUserEnabledActuationOnWeb">
+  <owner>michelleabreo@google.com</owner>
+  <description>
+    Logged when the user enables actuation on web in Chrome settings.
   </description>
 </action>
 
@@ -38433,6 +38455,13 @@ should be able to be added at any place in this file.
   <owner>joemerramos@google.com</owner>
   <description>
     Reported when user tap BWG App Activity row in Settings. iOS only.
+  </description>
+</action>
+
+<action name="Settings.BWGSettings.BWGExtensions">
+  <owner>joemerramos@google.com</owner>
+  <description>
+    Reported when user tap BWG Extensions row in Settings. iOS only.
   </description>
 </action>
 

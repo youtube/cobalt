@@ -11,6 +11,7 @@
 #include "chrome/browser/autocomplete/aim_eligibility_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/actions/chrome_action_id.h"
+#include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/omnibox/ai_mode_page_action_controller.h"
 #include "chrome/browser/ui/ui_features.h"
@@ -40,6 +41,8 @@ std::unique_ptr<KeyedService> BuildMockAimServiceEligibilityServiceInstance(
   EXPECT_CALL(*mock_aim_eligibility_service, IsServerEligibilityEnabled())
       .WillRepeatedly(testing::Return(true));
   EXPECT_CALL(*mock_aim_eligibility_service, IsAimEligible())
+      .WillRepeatedly(testing::Return(true));
+  EXPECT_CALL(*mock_aim_eligibility_service, IsAimLocallyEligible())
       .WillRepeatedly(testing::Return(true));
 
   return std::move(mock_aim_eligibility_service);
@@ -178,6 +181,17 @@ IN_PROC_BROWSER_TEST_F(AiModePageActionControllerInteractiveUiTest,
 
   histogram_tester.ExpectUniqueSample(
       "Omnibox.AimEntrypoint.Activated.ViaKeyboard", true, 1);
+}
+
+IN_PROC_BROWSER_TEST_F(AiModePageActionControllerInteractiveUiTest,
+                       TogglesVisibilityWithPreferenceChange) {
+  RunTestSequence(OpenTabWithPageUrlAndFocusOmnibox(/*is_ntp=*/true),
+                  CheckChipVisible(/*visible=*/true),
+
+                  Do(base::BindLambdaForTesting([&]() {
+                    chrome::ToggleShowAiModeOmniboxButton(browser());
+                  })),
+                  CheckChipVisible(/*visible=*/false));
 }
 
 class AiModePageActionControllerHideEntryPointOnEditInteractiveUiTest

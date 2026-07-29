@@ -7,6 +7,7 @@
 #include <memory>
 #include <utility>
 
+#include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_forward.h"
 #include "components/optimization_guide/core/model_execution/feature_keys.h"
@@ -19,6 +20,7 @@
 #include "components/optimization_guide/proto/model_quality_metadata.pb.h"
 #include "components/optimization_guide/proto/text_safety_model_metadata.pb.h"
 #include "services/on_device_model/android/backend_model_impl_android.h"
+#include "services/on_device_model/android/downloader_params.mojom.h"
 #include "services/on_device_model/android/model_downloader_android.h"
 #include "services/on_device_model/on_device_model_mojom_impl.h"
 #include "services/on_device_model/public/mojom/on_device_model.mojom.h"
@@ -52,6 +54,19 @@ proto::OnDeviceModelVersions GetModelVersions(const OnDeviceBaseModelSpec& spec,
   base_model_metadata->set_base_model_name(spec.model_name);
   base_model_metadata->set_base_model_version(spec.model_version);
   return versions;
+}
+
+bool RequirePersistentModeForFeature(ModelBasedCapabilityKey feature) {
+  switch (feature) {
+    case ModelBasedCapabilityKey::kScamDetection:
+      // TODO(crbug.com/428248156): Pending decision on whether it is required
+      // to gate scam detection on persistent mode, which may limit device reach
+      // on other OEMs.
+      return base::FeatureList::IsEnabled(
+          features::kRequirePersistentModeForScamDetection);
+    default:
+      return true;
+  }
 }
 
 class SolutionImpl : public ModelBrokerImpl::Solution {
@@ -130,6 +145,12 @@ void SolutionImpl::ReportHealthyCompletion() {
 }
 
 }  // namespace
+
+namespace features {
+BASE_FEATURE(kRequirePersistentModeForScamDetection,
+             "RequirePersistentModeForScamDetection",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+}  // namespace features
 
 ModelBrokerAndroid::ModelService::ModelService() = default;
 ModelBrokerAndroid::ModelService::~ModelService() = default;
@@ -229,9 +250,11 @@ void ModelBrokerAndroid::SolutionFactory::MaybeStartDownload(
   if (model_downloaders_.contains(feature)) {
     return;
   }
+  auto params = on_device_model::mojom::DownloaderParams::New();
+  params->require_persistent_mode = RequirePersistentModeForFeature(feature);
   model_downloaders_[feature] =
       std::make_unique<on_device_model::ModelDownloaderAndroid>(
-          ToModelExecutionFeatureProto(feature));
+          ToModelExecutionFeatureProto(feature), std::move(params));
   model_downloaders_[feature]->StartDownload(
       base::BindOnce(&SolutionFactory::OnAICoreModelUpdated,
                      weak_ptr_factory_.GetWeakPtr(), feature));

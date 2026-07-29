@@ -360,7 +360,7 @@ public class RootUiCoordinator
     private @Nullable EdgeToEdgeController mEdgeToEdgeController;
     private ComposedBrowserControlsVisibilityDelegate mAppBrowserControlsVisibilityDelegate;
     private @Nullable BoardingPassController mBoardingPassController;
-    private final @NonNull EdgeToEdgeManager mEdgeToEdgeManager;
+    protected final @NonNull EdgeToEdgeManager mEdgeToEdgeManager;
     private AutomotiveBackButtonToolbarCoordinator mAutomotiveBackButtonToolbarCoordinator;
     protected AdaptiveToolbarUiCoordinator mAdaptiveToolbarUiCoordinator;
     private final @Nullable ObservableSupplier<Boolean> mXrSpaceModeObservableSupplier;
@@ -1967,7 +1967,8 @@ public class RootUiCoordinator
                             new SnackbarManager(
                                     mActivity,
                                     view.findViewById(R.id.bottom_sheet_snackbar_container),
-                                    mWindowAndroid);
+                                    mWindowAndroid,
+                                    mEdgeToEdgeControllerSupplier);
                 };
 
         Supplier<OverlayPanelManager> panelManagerSupplier =

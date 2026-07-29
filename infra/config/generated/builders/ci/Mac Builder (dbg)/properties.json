@@ -29,35 +29,6 @@
                 "config": "chromium"
               }
             }
-          },
-          {
-            "builder_id": {
-              "bucket": "ci",
-              "builder": "mac15-tests-dbg",
-              "project": "chromium"
-            },
-            "builder_spec": {
-              "builder_group": "chromium.mac",
-              "execution_mode": "TEST",
-              "legacy_chromium_config": {
-                "apply_configs": [
-                  "mb"
-                ],
-                "build_config": "Debug",
-                "config": "chromium",
-                "target_arch": "intel",
-                "target_bits": 64,
-                "target_platform": "mac"
-              },
-              "legacy_gclient_config": {
-                "config": "chromium"
-              },
-              "parent": {
-                "bucket": "ci",
-                "builder": "Mac Builder (dbg)",
-                "project": "chromium"
-              }
-            }
           }
         ]
       },
@@ -68,20 +39,9 @@
           "project": "chromium"
         }
       ],
-      "builder_ids_in_scope_for_testing": [
-        {
-          "bucket": "ci",
-          "builder": "mac15-tests-dbg",
-          "project": "chromium"
-        }
-      ],
       "mirroring_builder_group_and_names": [
         {
-          "builder": "mac_chromium_compile_dbg_ng",
-          "group": "tryserver.chromium.mac"
-        },
-        {
-          "builder": "mac_chromium_dbg_ng",
+          "builder": "mac-x64-compile-dbg",
           "group": "tryserver.chromium.mac"
         }
       ],

@@ -181,6 +181,20 @@ void ContextualSearchboxHandler::OnPreviewReceived(
           : std::make_optional(webui::GetBitmapDataUrl(preview_bitmap)));
 }
 
+void ContextualSearchboxHandler::OnTabStripModelChanged(
+    TabStripModel* tab_strip_model,
+    const TabStripModelChange& change,
+    const TabStripSelectionChange& selection) {
+  // TODO(crbug.com/449196853): We should be using the `tab_strip_api` on the
+  // typescript side, but it's not visible to `cr_components`, so we're using
+  // `TabStripModelObserver` for now until `tab_strip_api` gets moved out of
+  // //chrome. The current implementation is likely brittle, as it's not a
+  // supported API for external users.
+  if (IsRemoteBound()) {
+    page_->OnTabStripChanged();
+  }
+}
+
 std::optional<lens::ImageEncodingOptions>
 ContextualSearchboxHandler::CreateTabPreviewEncodingOptions(
     content::WebContents* web_contents) {
@@ -212,9 +226,29 @@ ContextualSearchboxHandler::ContextualSearchboxHandler(
   if (auto* query_controller = GetQueryController()) {
     file_upload_status_observer_.Observe(query_controller);
   }
+
+  auto* helper =
+      ContextualSessionWebContentsHelper::FromWebContents(web_contents_);
+  if (helper && helper->session_handle()) {
+    auto* browser_window_interface =
+        webui::GetBrowserWindowInterface(web_contents_);
+    if (browser_window_interface) {
+      browser_window_interface->GetTabStripModel()->AddObserver(this);
+    }
+  }
 }
 
-ContextualSearchboxHandler::~ContextualSearchboxHandler() = default;
+ContextualSearchboxHandler::~ContextualSearchboxHandler() {
+  auto* helper =
+      ContextualSessionWebContentsHelper::FromWebContents(web_contents_);
+  if (helper && helper->session_handle()) {
+    auto* browser_window_interface =
+        webui::GetBrowserWindowInterface(web_contents_);
+    if (browser_window_interface) {
+      browser_window_interface->GetTabStripModel()->RemoveObserver(this);
+    }
+  }
+}
 
 ComposeboxQueryController* ContextualSearchboxHandler::GetQueryController() {
   auto* contextual_session_web_contents_helper =
@@ -342,14 +376,27 @@ void ContextualSearchboxHandler::DeleteContext(
   // It is possible to receive a call to delete a context before that context
   // has been created in the query controller. We queue all context tokens for
   // deletion at query submission time.
-  deleted_context_tokens_.insert(context_token);
   if (auto* query_controller = GetQueryController()) {
-    query_controller->ClearSuggestInputs();
+    ComposeboxQueryController::FileInfo* file_info =
+        query_controller->GetFileInfo(context_token);
+
+    if (file_info == nullptr) {
+      deleted_context_tokens_.insert(context_token);
+      return;
+    }
+    lens::MimeType file_type = file_info ? file_info->mime_type_
+                                         : lens::MimeType::kUnknown;
+    FileUploadStatus file_status =
+        file_info ? file_info->GetFileUploadStatus()
+                  : FileUploadStatus::kNotUploaded;
+
+    bool success = query_controller->DeleteFile(context_token);
+    composebox_metrics_recorder_->RecordFileDeletedMetrics(
+        success, file_type, file_status);
   }
 }
 
 void ContextualSearchboxHandler::ClearFiles() {
-  deleted_context_tokens_.clear();
   if (auto* query_controller = GetQueryController()) {
     query_controller->ClearFiles();
   }
@@ -399,30 +446,6 @@ void ContextualSearchboxHandler::ComputeAndOpenQueryUrl(
     return;
   }
 
-  // Update the query controller state to reflect any deleted contexts.
-  std::erase_if(deleted_context_tokens_,
-                [&](const base::UnguessableToken& context_token) {
-                  ComposeboxQueryController::FileInfo* file_info =
-                      query_controller->GetFileInfo(context_token);
-
-                  if (file_info == nullptr) {
-                    return false;
-                  }
-
-                  lens::MimeType file_type = file_info
-                                                 ? file_info->mime_type_
-                                                 : lens::MimeType::kUnknown;
-                  FileUploadStatus file_status =
-                      file_info ? file_info->GetFileUploadStatus()
-                                : FileUploadStatus::kNotUploaded;
-
-                  bool success = query_controller->DeleteFile(context_token);
-                  composebox_metrics_recorder_->RecordFileDeletedMetrics(
-                      success, file_type, file_status);
-
-                  return success;
-                });
-
   // This is the time that the user clicked the submit button, however optional
   // autocomplete logic may be run before this if there was a match associated
   // with the query.
@@ -446,6 +469,11 @@ void ContextualSearchboxHandler::ComputeAndOpenQueryUrl(
 void ContextualSearchboxHandler::OnGetTabPageContext(
     const base::UnguessableToken& context_token,
     std::unique_ptr<lens::ContextualInputData> page_content_data) {
+  if (deleted_context_tokens_.contains(context_token))  {
+    // Tab was deleted before the file upload flow could start.
+    deleted_context_tokens_.erase(context_token);
+    return;
+  }
   if (auto* query_controller = GetQueryController()) {
     query_controller->StartFileUploadFlow(context_token,
                                           std::move(page_content_data),

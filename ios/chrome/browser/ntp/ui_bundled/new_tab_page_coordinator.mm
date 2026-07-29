@@ -534,8 +534,7 @@
           underName:kFeedIPHNamedGuide];
 }
 
-- (void)handleFeedModelOfType:(FeedType)feedType
-                didEndUpdates:(FeedLayoutUpdateType)updateType {
+- (void)handleFeedModelDidEndUpdates:(FeedLayoutUpdateType)updateType {
   DCHECK(self.NTPViewController);
   if (!self.feedViewController) {
     return;
@@ -1704,7 +1703,7 @@
 - (IOSNTPImpressionCustomizationState)currentCustomizationState {
   PrefService* prefService = self.prefService;
   BOOL MVTEnabled =
-      prefService->GetBoolean(prefs::kHomeCustomizationMostVisitedEnabled);
+      prefService->GetBoolean(ntp_tiles::prefs::kMostVisitedHomeModuleEnabled);
   BOOL magicStackEnabled =
       prefService->GetBoolean(ntp_tiles::prefs::kMagicStackHomeModuleEnabled);
   BOOL feedEnabled = [self.NTPMediator isFeedHeaderVisible];

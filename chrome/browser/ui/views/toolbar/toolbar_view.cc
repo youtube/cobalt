@@ -78,6 +78,7 @@
 #include "chrome/browser/ui/views/toolbar/home_button.h"
 #include "chrome/browser/ui/views/toolbar/pinned_toolbar_actions_container.h"
 #include "chrome/browser/ui/views/toolbar/reload_button.h"
+#include "chrome/browser/ui/views/toolbar/reload_button_web_view.h"
 #include "chrome/browser/ui/views/toolbar/split_tabs_button.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_button.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_controller.h"
@@ -86,6 +87,7 @@
 #include "chrome/browser/web_applications/link_capturing_features.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/common/pref_names.h"
+#include "chrome/common/webui_url_constants.h"
 #include "chrome/grit/branded_strings.h"
 #include "chrome/grit/generated_resources.h"
 #include "chrome/grit/theme_resources.h"
@@ -347,9 +349,6 @@ void ToolbarView::Init() {
       BackForwardButton::Direction::kForward,
       base::BindRepeating(callback, browser_, IDC_FORWARD), browser_);
 
-  std::unique_ptr<ReloadButton> reload =
-      std::make_unique<ReloadButton>(browser_->command_controller());
-
   PrefService* const prefs = browser_->profile()->GetPrefs();
   std::unique_ptr<HomeButton> home = std::make_unique<HomeButton>(
       browser_, base::BindRepeating(callback, browser_, IDC_HOME));
@@ -376,7 +375,14 @@ void ToolbarView::Init() {
   // Always add children in order from left to right, for accessibility.
   back_ = container_view_->AddChildView(std::move(back));
   forward_ = container_view_->AddChildView(std::move(forward));
-  reload_ = container_view_->AddChildView(std::move(reload));
+  if (features::IsWebUIReloadButtonEnabled()) {
+    auto reload_webview = std::make_unique<ReloadButtonWebView>(browser_);
+    reload_webview_ = container_view_->AddChildView(std::move(reload_webview));
+  } else {
+    std::unique_ptr<ReloadButton> reload = std::make_unique<ReloadButton>(
+        browser_->GetProfile(), browser_->command_controller());
+    reload_ = container_view_->AddChildView(std::move(reload));
+  }
   home_ = container_view_->AddChildView(std::move(home));
   if (base::FeatureList::IsEnabled(features::kSideBySide)) {
     std::unique_ptr<SplitTabsToolbarButton> split =
@@ -604,13 +610,6 @@ void ToolbarView::UpdateCustomTabBarVisibility(bool visible, bool animate) {
 
 void ToolbarView::UpdateForWebUITabStrip() {
 #if BUILDFLAG(ENABLE_WEBUI_TAB_STRIP)
-  TabSearchToolbarButtonController* tab_search_toolbar_button_controller =
-      browser_->browser_window_features()
-          ->tab_search_toolbar_button_controller();
-  if (tab_search_toolbar_button_controller) {
-    tab_search_toolbar_button_controller->UpdateForWebUITabStrip();
-  }
-
   if (!new_tab_button_) {
     return;
   }
@@ -900,10 +899,8 @@ void ToolbarView::ActiveStateChanged() {
 }
 
 void ToolbarView::NewTabButtonPressed(const ui::Event& event) {
-  chrome::ExecuteCommand(browser_view_->browser(), IDC_NEW_TAB);
-  UMA_HISTOGRAM_ENUMERATION("Tab.NewTab",
-                            NewTabTypes::NEW_TAB_BUTTON_IN_TOOLBAR_FOR_TOUCH,
-                            NewTabTypes::NEW_TAB_ENUM_COUNT);
+  chrome::NewTab(browser_view_->browser(),
+                 NewTabTypes::NEW_TAB_BUTTON_IN_TOOLBAR_FOR_TOUCH);
 }
 
 bool ToolbarView::AcceleratorPressed(const ui::Accelerator& accelerator) {
@@ -1183,6 +1180,10 @@ ToolbarButton* ToolbarView::GetBackButton() {
 
 ReloadButton* ToolbarView::GetReloadButton() {
   return reload_;
+}
+
+ReloadButtonWebView* ToolbarView::GetReloadButtonWebView() {
+  return reload_webview_;
 }
 
 IntentChipButton* ToolbarView::GetIntentChipButton() {

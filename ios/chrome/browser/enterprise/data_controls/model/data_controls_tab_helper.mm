@@ -7,13 +7,20 @@
 #import "base/feature_list.h"
 #import "base/functional/bind.h"
 #import "base/functional/callback.h"
+#import "components/enterprise/data_controls/core/browser/prefs.h"
 #import "components/enterprise/data_controls/core/browser/rule.h"
+#import "components/policy/core/common/policy_types.h"
+#import "components/prefs/pref_service.h"
+#import "components/strings/grit/components_strings.h"
+#import "ios/chrome/browser/enterprise/common/util.h"
 #import "ios/chrome/browser/enterprise/data_controls/model/data_controls_pasteboard_manager.h"
 #import "ios/chrome/browser/enterprise/data_controls/utils/data_controls_utils.h"
 #import "ios/chrome/browser/shared/model/profile/profile_ios.h"
+#import "ios/chrome/browser/shared/public/commands/snackbar_commands.h"
 #import "ios/components/enterprise/data_controls/features.h"
 #import "ios/web/public/web_state.h"
 #import "ui/base/clipboard/clipboard_metadata.h"
+#import "ui/base/l10n/l10n_util.cc"
 #import "url/gurl.h"
 
 namespace data_controls {
@@ -36,7 +43,6 @@ void DataControlsTabHelper::ShouldAllowCopy(
   ProfileIOS* profile =
       ProfileIOS::FromBrowserState(web_state_->GetBrowserState());
   const GURL& source_url = web_state_->GetLastCommittedURL();
-
   CopyPolicyVerdicts verdicts =
       IsCopyAllowedByPolicy(source_url, metadata, profile);
 
@@ -44,13 +50,14 @@ void DataControlsTabHelper::ShouldAllowCopy(
     case Rule::Level::kWarn:
       ShowWarningDialog(
           DataControlsDialog::Type::kClipboardCopyWarn,
+          GetManagementDomain(profile),
           base::BindOnce(&DataControlsTabHelper::FinishCopy,
                          weak_factory_.GetWeakPtr(), source_url,
                          std::move(verdicts), std::move(callback)));
       break;
     case Rule::Level::kBlock:
-      // TODO(crbug.com/438198881): Show a toast to the user indicating that
-      // the copy action has been blocked.
+      ShowRestrictSnackbar(GetManagementDomain(profile));
+      [[fallthrough]];
     case Rule::Level::kReport:
     case Rule::Level::kAllow:
     case Rule::Level::kNotSet:
@@ -82,19 +89,22 @@ void DataControlsTabHelper::ShouldAllowPaste(
   PastePolicyVerdict policy_verdict =
       IsPasteAllowedByPolicy(source.source_url, destination_url, metadata,
                              source.source_profile, profile);
+  std::string domain = policy_verdict.dialog_triggered_by_source
+                           ? GetManagementDomain(source.source_profile)
+                           : GetManagementDomain(profile);
 
   switch (policy_verdict.verdict.level()) {
     case Rule::Level::kWarn:
       ShowWarningDialog(
-          DataControlsDialog::Type::kClipboardPasteWarn,
+          DataControlsDialog::Type::kClipboardPasteWarn, domain,
           base::BindOnce(&DataControlsTabHelper::FinishPaste,
                          weak_factory_.GetWeakPtr(), destination_url,
                          std::move(policy_verdict.verdict),
                          std::move(callback)));
       break;
     case Rule::Level::kBlock:
-    // TODO(crbug.com/438198881): Show a toast to the user indicating that
-    // the paste action has been blocked.
+      ShowRestrictSnackbar(domain);
+      [[fallthrough]];
     case Rule::Level::kReport:
     case Rule::Level::kAllow:
     case Rule::Level::kNotSet:
@@ -119,6 +129,15 @@ void DataControlsTabHelper::ShouldAllowShare(
 void DataControlsTabHelper::SetDataControlsCommandsHandler(
     id<DataControlsCommands> handler) {
   commands_handler_ = handler;
+}
+
+void DataControlsTabHelper::SetSnackbarHandler(
+    id<SnackbarCommands> snackbar_handler) {
+  snackbar_handler_ = snackbar_handler;
+}
+void DataControlsTabHelper::DidFinishClipboardRead() {
+  DataControlsPasteboardManager::GetInstance()
+      ->RestorePlaceholderToGeneralPasteboardIfNeeded();
 }
 
 bool DataControlsTabHelper::IsClipboardDataControlsEnabled() const {
@@ -148,7 +167,8 @@ void DataControlsTabHelper::FinishCopy(const GURL& source_url,
     ProfileIOS* profile =
         ProfileIOS::FromBrowserState(web_state_->GetBrowserState());
     auto* pasteboard_manager = DataControlsPasteboardManager::GetInstance();
-    pasteboard_manager->SetNextPasteboardItemsSource(source_url, profile);
+    pasteboard_manager->SetNextPasteboardItemsSource(
+        source_url, profile, verdicts.copy_to_os_clipbord);
   }
 
   std::move(callback).Run(allowed);
@@ -170,21 +190,52 @@ void DataControlsTabHelper::FinishPaste(const GURL& destination_url,
   if (verdict.level() == Rule::Level::kWarn) {
     allowed = bypassed;
   }
-  std::move(callback).Run(allowed);
+
+  if (allowed) {
+    DataControlsPasteboardManager::GetInstance()
+        ->RestoreItemsToGeneralPasteboardIfNeeded(
+            base::BindOnce(std::move(callback), allowed));
+  } else {
+    std::move(callback).Run(false);
+  }
 }
 
 void DataControlsTabHelper::ShowWarningDialog(
     DataControlsDialog::Type dialog_type,
+    std::string_view org_domain,
     base::OnceCallback<void(bool)> on_bypassed_callback) {
   if (commands_handler_) {
     [commands_handler_
         showDataControlsWarningDialog:dialog_type
+                   organizationDomain:org_domain
                              callback:std::move(on_bypassed_callback)];
   } else {
     if (on_bypassed_callback) {
       std::move(on_bypassed_callback).Run(false);
     }
   }
+}
+
+void DataControlsTabHelper::ShowRestrictSnackbar(std::string_view org_domain) {
+  NSString* message =
+      org_domain.empty()
+          ? l10n_util::GetNSString(IDS_POLICY_ACTION_BLOCKED_BY_ORGANIZATION)
+          : l10n_util::GetNSStringF(IDS_DATA_CONTROLS_BLOCKED_LABEL_WITH_DOMAIN,
+                                    base::UTF8ToUTF16(org_domain));
+  [snackbar_handler_ showSnackbarWithMessage:message
+                                  buttonText:nil
+                               messageAction:nil
+                            completionAction:nil];
+}
+
+std::string DataControlsTabHelper::GetManagementDomain(ProfileIOS* profile) {
+  if (!profile) {
+    return std::string();
+  }
+
+  policy::PolicyScope scope = static_cast<policy::PolicyScope>(
+      profile->GetPrefs()->GetInteger(kDataControlsRulesScopePref));
+  return enterprise::GetManagementDomain(scope, profile);
 }
 
 }  // namespace data_controls

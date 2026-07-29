@@ -173,6 +173,8 @@ class MockWebMediaPlayerClient : public MediaPlayerClient {
   MOCK_METHOD1(SetCcLayer, void(cc::Layer*));
   MOCK_METHOD1(AddTrack, void(const media::MediaTrack& track));
   MOCK_METHOD1(RemoveTrack, void(const media::MediaTrack&));
+  MOCK_METHOD2(SetTrackState,
+               void(const media::MediaTrack&, media::MediaTrack::State));
   MOCK_METHOD1(MediaSourceOpened, void(std::unique_ptr<WebMediaSource>));
   MOCK_METHOD2(RemotePlaybackCompatibilityChanged, void(const KURL&, bool));
   MOCK_METHOD0(WasAlwaysMuted, bool());
@@ -2729,9 +2731,11 @@ TEST_F(WebMediaPlayerImplTest, MemDumpReporting) {
   int dump_count = 0;
 
   auto on_memory_dump_done = base::BindLambdaForTesting(
-      [&](bool success, uint64_t dump_guid,
+      [&](base::trace_event::ProcessMemoryDumpOutcome outcome,
+          uint64_t dump_guid,
           std::unique_ptr<base::trace_event::ProcessMemoryDump> pmd) {
-        ASSERT_TRUE(success);
+        ASSERT_EQ(base::trace_event::ProcessMemoryDumpOutcome::kSuccess,
+                  outcome);
         const auto& dumps = pmd->allocator_dumps();
 
         std::vector<const char*> allocations = {"audio", "video", "data_source",

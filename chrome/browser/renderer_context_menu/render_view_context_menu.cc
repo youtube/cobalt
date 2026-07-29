@@ -235,6 +235,7 @@
 #include "ui/base/models/image_model.h"
 #include "ui/base/mojom/menu_source_type.mojom.h"
 #include "ui/base/window_open_disposition_utils.h"
+#include "ui/color/color_provider.h"
 #include "ui/gfx/favicon_size.h"
 #include "ui/gfx/geometry/point.h"
 #include "ui/gfx/geometry/point_conversions.h"
@@ -278,6 +279,7 @@
 #include "chrome/browser/glic/public/glic_keyed_service.h"
 #include "chrome/browser/glic/public/glic_keyed_service_factory.h"
 #include "chrome/browser/glic/resources/grit/glic_browser_resources.h"
+#include "ui/base/resource/resource_bundle.h"
 #endif  // BUILDFLAG(ENABLE_GLIC)
 
 #if BUILDFLAG(ENABLE_PDF)
@@ -4334,8 +4336,11 @@ void RenderViewContextMenu::ExecSaveAs() {
 
 void RenderViewContextMenu::ExecGlicShareImage() {
 #if BUILDFLAG(ENABLE_GLIC)
-  CHECK(glic::GlicEnabling::IsEnabledForProfile(GetProfile()) &&
-        base::FeatureList::IsEnabled(features::kGlicShareImage));
+  if (!glic::GlicEnabling::IsEnabledForProfile(GetProfile()) ||
+      !base::FeatureList::IsEnabled(features::kGlicShareImage)) {
+    // If this has changed since the context menu was summoned, bail early.
+    return;
+  }
   if (auto* glic_service = glic::GlicKeyedService::Get(browser_context_)) {
     glic_service->ShareContextImage(
         tabs::TabInterface::MaybeGetFromContents(source_web_contents_),

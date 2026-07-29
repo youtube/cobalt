@@ -109,15 +109,6 @@ inline constexpr char kDownloadAutoDeletionIPHShown[] =
 inline constexpr char kDownloadAutoDeletionScheduledFiles[] =
     "ios.auto_deletion.scheduled_files";
 
-// Number of times the First Follow UI has been shown.
-inline constexpr char kFirstFollowUIShownCount[] =
-    "follow.first_follow_ui_modal_count";
-
-// Number of times the First Follow UI has been shown with Follow UI Update
-// enabled.
-inline constexpr char kFirstFollowUpdateUIShownCount[] =
-    "follow.first_follow_update_ui_modal_count";
-
 // A dictionary mapping push notification enabled features to their permission
 // to send notifications to the user. This is stored in Profile prefs.
 inline constexpr char kFeaturePushNotificationPermissions[] =
@@ -659,6 +650,11 @@ inline constexpr char kAutofillBrandingIconAnimationRemainingCount[] =
 // displayed.
 inline constexpr char kAutofillBrandingIconDisplayCount[] =
     "ios.autofill.branding.display_count";
+
+// A boolean used for the automatically open tab groups from other devices
+// setting.
+inline constexpr char kAutomaticallyOpenTabGroupsEnabled[] =
+    "ios.settings.automatically_open_tab_groups_enabled";
 
 // A boolean used to determine if the Price Tracking UI has been shown.
 inline constexpr char kPriceNotificationsHasBeenShown[] =

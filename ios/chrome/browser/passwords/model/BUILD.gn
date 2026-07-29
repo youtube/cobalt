@@ -6,8 +6,8 @@ import("//components/optimization_guide/features.gni")
 
 source_set("model") {
   sources = [
-    "ios_chrome_bulk_leak_check_service_factory.cc",
     "ios_chrome_bulk_leak_check_service_factory.h",
+    "ios_chrome_bulk_leak_check_service_factory.mm",
     "ios_chrome_password_check_manager.h",
     "ios_chrome_password_check_manager.mm",
     "ios_chrome_password_check_manager_factory.h",
@@ -300,6 +300,7 @@ source_set("unit_tests") {
     "//ios/chrome/app/strings",
     "//ios/chrome/browser/affiliations/model",
     "//ios/chrome/browser/autofill/model",
+    "//ios/chrome/browser/autofill/model:features",
     "//ios/chrome/browser/autofill/model/bottom_sheet",
     "//ios/chrome/browser/autofill/ui_bundled:coordinator",
     "//ios/chrome/browser/autofill/ui_bundled/form_input_accessory",

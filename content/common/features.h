@@ -16,6 +16,9 @@ namespace features {
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kAllowContentInitiatedDataUrlNavigations);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kAndroidDownloadableFontsMatching);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kAndroidDragDropOopif);
+#if BUILDFLAG(IS_WIN)
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kArabicDigitSubstitution);
+#endif
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kAvoidUnnecessaryBeforeUnloadCheckSync);
 // Please check the code comment on
 // ContentBrowserClient::SupportsAvoidUnnecessaryBeforeUnloadCheckSync() in the
@@ -162,6 +165,7 @@ CONTENT_EXPORT BASE_DECLARE_FEATURE(kRestrictOrientationLockToPhones);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kContinueGestureOnLosingFocus);
 #endif
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kRemoveRendererProcessLimit);
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kRendererCancellationThrottleImprovements);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(
     kPartitionAllocSchedulerLoopQuarantineTaskObserverForBrowserUIThread);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kSendBeaconThrowForBlobWithNonSimpleType);
@@ -177,6 +181,7 @@ CONTENT_EXPORT BASE_DECLARE_FEATURE(
     kServiceWorkerStaticRouterStartServiceWorker);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kServiceWorkerClientUrlIsCreationUrl);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kSkipEarlyCommitPendingForCrashedFrame);
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kSkipRedundantNavigationStateNotification);
 #if BUILDFLAG(IS_ANDROID)
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kStrictHighRankProcessLRU);
 #endif

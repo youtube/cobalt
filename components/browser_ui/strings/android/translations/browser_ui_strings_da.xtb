@@ -121,6 +121,7 @@
 <translation id="2359808026110333948">Fortsæt</translation>
 <translation id="2379925928934107488">Anvend Mørkt tema på websites, når Chrome anvender Mørkt tema (når det er muligt)</translation>
 <translation id="2390272837142897736">Zoom in</translation>
+<translation id="2397689164757137845">Tilladt • Præcis</translation>
 <translation id="2402980924095424747"><ph name="MEGABYTES" /> MB</translation>
 <translation id="2403474027143565107">Præcis</translation>
 <translation id="2404630663942400771">{PERMISSIONS_SUMMARY_ALLOWED,plural, =1{<ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> og <ph name="NUM_MORE" /> mere er tilladt}one{<ph name="PERMISSION_1" />, <ph name="PERMISSION_2" />, and <ph name="NUM_MORE" /> more allowed}other{<ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> og <ph name="NUM_MORE" /> mere er tilladt}}</translation>
@@ -140,6 +141,7 @@
 <translation id="2498359688066513246">Hjælp og feedback</translation>
 <translation id="2501278716633472235">Gå tilbage</translation>
 <translation id="2533138527374486328">Når denne indstilling er aktiveret, kan websites anmode om at oprette tilknytning til enhver enhed på dit lokale netværk. Når denne indstilling er deaktiveret, kan websites ikke oprette tilknytning til enheder på dit lokale netværk.</translation>
+<translation id="2536779053640817375">Tilladt denne gang • Præcis</translation>
 <translation id="2544997614631598250">Mørk temafarve</translation>
 <translation id="2546283357679194313">Cookies og websitedata</translation>
 <translation id="2570922361219980984">Lokationsadgang er også deaktiveret for denne enhed. Aktivér det under <ph name="BEGIN_LINK" />indstillinger for Android<ph name="END_LINK" />.</translation>
@@ -442,6 +444,7 @@ Avanceret beskyttelse styrer disse Chrome-indstillinger:
 <translation id="5876056640971328065">Sæt video på pause</translation>
 <translation id="5877248419911025165">Skjul alle anmodninger</translation>
 <translation id="5878945009165002849">Bloker loginmeddelelser fra identitetstjenester</translation>
+<translation id="588258955323874662">Fuld skærm</translation>
 <translation id="5884085660368669834">Websitepræference</translation>
 <translation id="5887687176710214216">Senest besøgt i går</translation>
 <translation id="5908617755156109052">Tillad ikke, at websites kan oprette et 3D-kort over dine omgivelser eller registrere kamerapositionen</translation>
@@ -569,6 +572,7 @@ Avanceret beskyttelse styrer disse Chrome-indstillinger:
 <translation id="7406113532070524618">Denne indstilling fungerer uden at identificere dig eller give websites tilladelse til at se din browserhistorik, men websites kan dele en lille mængde oplysninger som en del af verificeringen</translation>
 <translation id="7409735910987429903">Websites kan sende pop op-vinduer for at vise annoncer eller bruge omdirigeringer til af føre dig til websites, du måske ikke ønsker at besøge</translation>
 <translation id="7412160840120117304">Hex-kode for primær farve</translation>
+<translation id="7412223528111026033">{ZOOM_PERCENTAGE,plural, =1{Zoom}one{Zoom: <ph name="ZOOM_PERCENTAGE_NUMBER" /> %%}other{Zoom: <ph name="ZOOM_PERCENTAGE_NUMBER" /> %%}}</translation>
 <translation id="7423098979219808738">Spørg først</translation>
 <translation id="7423538860840206698">Blokeret fra at læse udklipsholderen</translation>
 <translation id="7425915948813553151">Mørkt tema på websites</translation>
@@ -700,7 +704,6 @@ Avanceret beskyttelse styrer disse Chrome-indstillinger:
 <translation id="8803526663383843427">Når funktionen er aktiveret</translation>
 <translation id="8805385115381080995">Dette skaber færre afbrydelser, når du bruger nettet, da det er mindre sandsynligt, at et website beder dig om at verificere, at du er en rigtig person</translation>
 <translation id="8816026460808729765">Bloker adgang til sensorer på websites</translation>
-<translation id="884765916894384048">Skift til afspilning i baggrunden</translation>
 <translation id="8847988622838149491">USB</translation>
 <translation id="8874790741333031443">Prøv midlertidigt at tillade tredjepartscookies, hvilket vil betyde mindre browserbeskyttelse, men større sandsynlighed for, at websitefunktionerne fungerer som forventet.</translation>
 <translation id="8889294078294184559">Når du derefter bruger nettet, kan websites ved hjælp af Chrome tjekke og verificere via et website, du tidligere har besøgt, at du sandsynligvis er en rigtig person</translation>

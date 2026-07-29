@@ -35,6 +35,7 @@
 #include "chrome/common/pref_names.h"
 #include "components/captive_portal/content/captive_portal_service.h"
 #include "components/captive_portal/core/buildflags.h"
+#include "components/contextual_tasks/public/features.h"
 #include "components/dom_distiller/content/browser/distiller_page_web_contents.h"
 #include "components/error_page/content/browser/net_error_auto_reloader.h"
 #include "components/fingerprinting_protection_filter/browser/throttle_manager.h"
@@ -47,6 +48,8 @@
 #include "components/page_load_metrics/browser/metrics_navigation_throttle.h"
 #include "components/payments/content/payment_handler_navigation_throttle.h"
 #include "components/policy/content/policy_blocklist_navigation_throttle.h"
+#include "components/policy/content/policy_blocklist_service.h"
+#include "components/policy/content/safe_search_service.h"
 #include "components/privacy_sandbox/privacy_sandbox_settings.h"
 #include "components/safe_browsing/buildflags.h"
 #include "components/security_interstitials/content/insecure_form_navigation_throttle.h"
@@ -54,6 +57,7 @@
 #include "components/security_interstitials/content/ssl_error_navigation_throttle.h"
 #include "components/subresource_filter/content/browser/content_subresource_filter_throttle_manager.h"
 #include "components/tabs/public/tab_interface.h"
+#include "components/user_prefs/user_prefs.h"
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/navigation_throttle_registry.h"
 #include "content/public/browser/web_contents.h"
@@ -76,6 +80,7 @@
 #include "chrome/browser/actor/actor_navigation_throttle.h"
 #include "chrome/browser/apps/link_capturing/link_capturing_navigation_throttle.h"
 #include "chrome/browser/apps/link_capturing/web_app_link_capturing_delegate.h"
+#include "chrome/browser/contextual_tasks/contextual_tasks_navigation_throttle.h"
 #include "chrome/browser/devtools/devtools_window.h"
 #include "chrome/browser/page_info/web_view_side_panel_throttle.h"
 #include "chrome/browser/preloading/preview/preview_navigation_throttle.h"
@@ -390,8 +395,12 @@ void CreateAndAddChromeThrottlesForNavigation(
 
   PasswordManagerNavigationThrottle::MaybeCreateAndAdd(registry);
 
+  content::BrowserContext* context =
+      handle.GetWebContents()->GetBrowserContext();
   registry.AddThrottle(std::make_unique<PolicyBlocklistNavigationThrottle>(
-      registry, handle.GetWebContents()->GetBrowserContext()));
+      registry, user_prefs::UserPrefs::Get(context),
+      PolicyBlocklistFactory::GetForBrowserContext(context),
+      SafeSearchFactory::GetForBrowserContext(context)));
 
   // Before setting up SSL error detection, configure SSLErrorHandler to invoke
   // the relevant extension API whenever an SSL interstitial is shown.
@@ -434,6 +443,11 @@ void CreateAndAddChromeThrottlesForNavigation(
         // BUILDFLAG(IS_CHROMEOS)
 
 #if !BUILDFLAG(IS_ANDROID)
+  if (base::FeatureList::IsEnabled(contextual_tasks::kContextualTasks)) {
+    contextual_tasks::ContextualTasksNavigationThrottle::MaybeCreateAndAdd(
+        registry);
+  }
+
   DevToolsWindow::MaybeCreateAndAddNavigationThrottle(registry);
 
   NewTabPageNavigationThrottle::MaybeCreateAndAdd(registry);

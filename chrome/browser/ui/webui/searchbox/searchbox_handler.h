@@ -14,7 +14,6 @@
 #include "base/time/time.h"
 #include "components/omnibox/browser/autocomplete_controller.h"
 #include "components/omnibox/browser/searchbox.mojom.h"
-#include "content/public/browser/web_contents.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "mojo/public/cpp/bindings/remote.h"
@@ -35,6 +34,14 @@ namespace searchbox_internal {
 // subclasses.
 extern const char* kSearchIconResourceName;
 }  // namespace searchbox_internal
+
+// How an AIM Composebox query was submitted.
+enum class SubmissionType {
+  kDefault = 0,
+  kDeepSearch = 1,
+  kCreateImages = 2,
+  kMaxValue = kCreateImages,
+};
 
 // Base class for browser-side handlers that handle bi-directional communication
 // with WebUI search boxes.
@@ -81,6 +88,10 @@ class SearchboxHandler : public searchbox::mojom::PageHandler,
       const GURL& url,
       omnibox::mojom::NavigationPredictor navigation_predictor) override;
   void DeleteAutocompleteMatch(uint8_t line, const GURL& url) override;
+  void ActivateKeyword(uint8_t line,
+                       const GURL& url,
+                       base::TimeTicks match_selection_timestamp,
+                       bool is_mouse_event) override;
   void ExecuteAction(uint8_t line,
                      uint8_t action_index,
                      const GURL& url,
@@ -91,7 +102,7 @@ class SearchboxHandler : public searchbox::mojom::PageHandler,
                      bool meta_key,
                      bool shift_key) override;
   void GetPlaceholderConfig(GetPlaceholderConfigCallback callback) override;
-  void GetRecentTabs(GetRecentTabsCallback callback) override {}
+  void GetRecentTabs(GetRecentTabsCallback callback) override;
   void GetTabPreview(int32_t tab_id, GetTabPreviewCallback callback) override {}
   void NotifySessionStarted() override {}
   void NotifySessionAbandoned() override {}

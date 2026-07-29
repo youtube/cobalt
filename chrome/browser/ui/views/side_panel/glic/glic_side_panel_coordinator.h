@@ -81,6 +81,7 @@ class GlicSidePanelCoordinator : public SidePanelEntryObserver {
   // SidePanelEntryObserver:
   void OnEntryWillHide(SidePanelEntry* entry,
                        SidePanelEntryHideReason reason) override;
+  void OnEntryHideCancelled(SidePanelEntry* entry) override;
   void OnEntryShown(SidePanelEntry* entry) override;
 
  private:
@@ -96,7 +97,6 @@ class GlicSidePanelCoordinator : public SidePanelEntryObserver {
 
   raw_ptr<tabs::TabInterface> tab_ = nullptr;
   raw_ptr<SidePanelRegistry> side_panel_registry_ = nullptr;
-  raw_ptr<actions::ActionItem> glic_action_ = nullptr;
   base::WeakPtr<SidePanelEntry> entry_;
   base::CallbackListSubscription on_glic_enabled_changed_subscription_;
   base::RepeatingCallbackList<void(State state)> state_changed_callbacks_;

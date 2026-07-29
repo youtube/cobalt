@@ -875,6 +875,10 @@ class MockTouchToFillDelegate : public TouchToFillDelegate {
               (std::string unique_id, bool is_virtual),
               (override));
   MOCK_METHOD(void,
+              BnplSuggestionSelected,
+              (std::optional<int64_t> extracted_amount),
+              (override));
+  MOCK_METHOD(void,
               IbanSuggestionSelected,
               ((std::variant<Iban::Guid, Iban::InstrumentId>)),
               (override));
@@ -885,12 +889,20 @@ class MockTouchToFillDelegate : public TouchToFillDelegate {
   MOCK_METHOD(void, OnDismissed, (bool dismissed_by_user), (override));
   MOCK_METHOD(void, OnErrorOkPressed, (), (override));
   MOCK_METHOD(void,
+              OnBnplIssuerSuggestionSelected,
+              (const std::string& issuer_id),
+              (override));
+  MOCK_METHOD(void,
               LogMetricsAfterSubmission,
               (const FormStructure&),
               (override));
   MOCK_METHOD(void,
               SetCancelCallback,
               (base::OnceClosure cancel_callback),
+              (override));
+  MOCK_METHOD(void,
+              SetSelectedIssuerCallback,
+              (base::OnceCallback<void(BnplIssuer)> selected_issuer_callback),
               (override));
 };
 

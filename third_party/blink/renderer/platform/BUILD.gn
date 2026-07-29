@@ -6,7 +6,6 @@ import("//base/trace_event/tracing.gni")
 import("//build/buildflag_header.gni")
 import("//build/compiled_action.gni")
 import("//build/config/compiler/compiler.gni")
-import("//build/config/features.gni")
 import("//build/config/ui.gni")
 import("//build/nocompile.gni")
 import("//media/media_options.gni")
@@ -621,7 +620,6 @@ component("platform") {
     "exported/web_string.cc",
     "exported/web_surface_layer_bridge.cc",
     "exported/web_text_input_info.cc",
-    "exported/web_text_run.cc",
     "exported/web_thread_safe_data.cc",
     "exported/web_time_range.cc",
     "exported/web_url.cc",
@@ -755,8 +753,6 @@ component("platform") {
     "fonts/script_run_iterator.h",
     "fonts/segmented_font_data.cc",
     "fonts/segmented_font_data.h",
-    "fonts/shaping/caching_word_shape_iterator.cc",
-    "fonts/shaping/caching_word_shape_iterator.h",
     "fonts/shaping/case_mapping_harfbuzz_buffer_filler.cc",
     "fonts/shaping/case_mapping_harfbuzz_buffer_filler.h",
     "fonts/shaping/font_features.cc",
@@ -2233,6 +2229,7 @@ source_set("blink_platform_unittests_sources") {
     "fonts/orientation_iterator_test.cc",
     "fonts/palette_interpolation_test.cc",
     "fonts/plain_text_node_test.cc",
+    "fonts/plain_text_painter_test.cc",
     "fonts/script_run_iterator_test.cc",
     "fonts/shaping/font_features_test.cc",
     "fonts/shaping/frame_shape_cache_test.cc",
@@ -2386,7 +2383,6 @@ source_set("blink_platform_unittests_sources") {
     "text/suffix_tree_test.cc",
     "text/text_break_iterator_test.cc",
     "text/text_encoding_detector_test.cc",
-    "text/text_run_test.cc",
     "text/unicode_utilities_test.cc",
     "text/writing_direction_mode_test.cc",
     "text/writing_mode_utils_test.cc",

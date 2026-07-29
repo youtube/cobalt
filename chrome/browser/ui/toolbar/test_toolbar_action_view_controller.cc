@@ -76,7 +76,6 @@ bool TestToolbarActionViewController::IsShowingPopup() const {
 
 void TestToolbarActionViewController::HidePopup() {
   popup_showing_ = false;
-  delegate_->OnPopupClosed();
 }
 
 gfx::NativeView TestToolbarActionViewController::GetPopupNativeView() {
@@ -97,10 +96,6 @@ void TestToolbarActionViewController::ExecuteUserAction(
 void TestToolbarActionViewController::TriggerPopupForAPI(
     ShowPopupCallback callback) {}
 
-void TestToolbarActionViewController::UpdateState() {
-  UpdateDelegate();
-}
-
 extensions::SitePermissionsHelper::SiteInteraction
 TestToolbarActionViewController::GetSiteInteraction(
     content::WebContents* web_contents) const {
@@ -109,7 +104,6 @@ TestToolbarActionViewController::GetSiteInteraction(
 
 void TestToolbarActionViewController::ShowPopup(bool by_user) {
   popup_showing_ = true;
-  delegate_->OnPopupShown(by_user);
 }
 
 void TestToolbarActionViewController::SetActionName(

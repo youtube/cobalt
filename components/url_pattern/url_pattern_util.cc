@@ -154,7 +154,7 @@ base::expected<std::string, absl::Status> HostnameEncodeCallback(
   url::Component component;
 
   bool result = url::CanonicalizeHost(
-      input.data(), url::Component(0, base::checked_cast<int>(input.size())),
+      input, url::Component(0, base::checked_cast<int>(input.size())),
       &canon_output, &component);
 
   if (!result) {
@@ -174,9 +174,8 @@ base::expected<std::string, absl::Status> PortEncodeCallback(
   url::RawCanonOutputT<char> canon_output;
   url::Component component;
 
-  bool result = url::CanonicalizePort(
-      input.data(), url::Component(0, base::checked_cast<int>(input.size())),
-      url::PORT_UNSPECIFIED, &canon_output, &component);
+  bool result = url::CanonicalizePort(input, url::PORT_UNSPECIFIED,
+                                      &canon_output, &component);
 
   if (!result) {
     return base::unexpected(absl::InvalidArgumentError(

@@ -64,9 +64,9 @@
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
 #include "chrome/browser/ui/browser.h"
-#include "chrome/browser/ui/browser_list.h"
 #include "chrome/browser/ui/browser_navigator.h"
 #include "chrome/browser/ui/browser_navigator_params.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
 #include "chrome/browser/ui/tabs/tab_model.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/tabs/tab_strip_model_observer.h"
@@ -129,19 +129,6 @@ mojom::GetContextResultPtr LogErrorAndUnwrapResult(
     return mojom::GetContextResult::NewErrorReason(result.error().message);
   }
   return std::move(result.value());
-}
-
-glic::mojom::ActiveBrowserInfoPtr CreateActiveBrowserInfo(
-    Profile* profile,
-    BrowserWindowInterface* browser) {
-  if (!browser) {
-    return nullptr;
-  }
-  glic::mojom::ActiveBrowserInfoPtr active_browser_info =
-      glic::mojom::ActiveBrowserInfo::New();
-  active_browser_info->window_id = GetWindowId(*browser);
-  active_browser_info->using_this_profile = browser->GetProfile() == profile;
-  return active_browser_info;
 }
 
 // Monitors the panel state and the browser widget state. Emits an event any
@@ -228,7 +215,7 @@ class ActiveStateCalculator : public PanelStateObserver {
   }
 
   bool Calculate() {
-    if (panel_state_kind_ == glic::mojom::PanelState::Kind::kHidden) {
+    if (panel_state_kind_ == glic::mojom::PanelStateKind::kHidden) {
       return false;
     }
     // TODO(b:444463509): Implement better calculation.
@@ -251,7 +238,7 @@ class ActiveStateCalculator : public PanelStateObserver {
 
   raw_ptr<Host> host_;
   base::ObserverList<Observer> observers_;
-  glic::mojom::PanelState::Kind panel_state_kind_;
+  glic::mojom::PanelStateKind panel_state_kind_;
   bool is_active_ = false;
   raw_ptr<BrowserWindowInterface> attached_browser_ = nullptr;
 };
@@ -266,10 +253,12 @@ class BrowserIsOpenCalculator : public BrowserListObserver {
   explicit BrowserIsOpenCalculator(Profile* profile, Observer* observer)
       : profile_(profile) {
     BrowserList::AddObserver(this);
-    BrowserList* list = BrowserList::GetInstance();
-    for (Browser* browser : *list) {
-      OnBrowserAdded(browser);
-    }
+    ForEachCurrentBrowserWindowInterfaceOrderedByActivation(
+        [this](BrowserWindowInterface* browser_window_interface) {
+          OnBrowserAdded(
+              browser_window_interface->GetBrowserForMigrationOnly());
+          return true;
+        });
     // Don't notify observer during construction.
     observer_ = observer;
   }
@@ -631,6 +620,10 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
         prefs::kGlicDefaultTabContextEnabled,
         base::BindRepeating(&GlicWebClientHandler::OnPrefChanged,
                             base::Unretained(this)));
+    pref_change_registrar_.Add(
+        prefs::kGlicUserEnabledActuationOnWeb,
+        base::BindRepeating(&GlicWebClientHandler::OnPrefChanged,
+                            base::Unretained(this)));
     host().AddPanelStateObserver(this);
 
     if (base::FeatureList::IsEnabled(
@@ -668,15 +661,6 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
         sharing_manager().AddFocusedBrowserChangedCallback(
             base::BindRepeating(&GlicWebClientHandler::OnFocusedBrowserChanged,
                                 base::Unretained(this)));
-
-    if (!base::FeatureList::IsEnabled(features::kGlicMultiInstance)) {
-      active_browser_changed_subscription_ =
-          sharing_manager()
-              .focused_browser_manager()
-              .AddActiveBrowserChangedCallback(base::BindRepeating(
-                  &GlicWebClientHandler::OnActiveBrowserChanged,
-                  base::Unretained(this)));
-    }
 
     browser_attach_observation_ = ObserveBrowserForAttachment(profile_, this);
 
@@ -736,10 +720,6 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
     state->browser_is_open = browser_is_open_calculator_.IsOpen();
     state->browser_is_active = sharing_manager().GetFocusedBrowser();
 
-    state->active_browser_info = CreateActiveBrowserInfo(
-        profile_,
-        sharing_manager().focused_browser_manager().GetActiveBrowser());
-
     state->always_detached_mode = GlicWindowController::AlwaysDetached();
 
     state->enable_act_in_focused_tab =
@@ -770,6 +750,11 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
         base::FeatureList::IsEnabled(glic::mojom::features::kGlicMultiTab);
     state->enable_get_context_actor = base::FeatureList::IsEnabled(
         glic::mojom::features::kGlicActorTabContext);
+    state->enable_web_actuation_setting_feature =
+        base::FeatureList::IsEnabled(features::kGlicWebActuationSetting);
+    state->actuation_on_web_setting_enabled =
+        pref_service_->GetBoolean(prefs::kGlicUserEnabledActuationOnWeb);
+
 #if BUILDFLAG(ENABLE_PDF)
     if (features::kGlicScrollToPDF.Get()) {
       state->host_capabilities.push_back(mojom::HostCapability::kScrollToPdf);
@@ -792,6 +777,8 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
       state->host_capabilities.push_back(
           mojom::HostCapability::kGetModelQualityClientId);
     }
+    state->enable_capture_region =
+        base::FeatureList::IsEnabled(features::kGlicCaptureRegion);
 
     std::move(callback).Run(std::move(state));
   }
@@ -839,10 +826,7 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
         }
       }
     }
-    content::RenderFrameHost* host_main_frame =
-        page_handler_->host().webui_contents()->GetPrimaryMainFrame();
-    host().instance_delegate().CreateTab(host_main_frame, url,
-                                         open_in_background, window_id,
+    host().instance_delegate().CreateTab(url, open_in_background, window_id,
                                          std::move(callback));
   }
 
@@ -990,7 +974,7 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
 
   void CreateTask(actor::webui::mojom::TaskOptionsPtr options,
                   CreateTaskCallback callback) override {
-    host().instance_delegate().CreateTask(std::move(options),
+    host().instance_delegate().CreateTask(nullptr, std::move(options),
                                           std::move(callback));
   }
 
@@ -1040,7 +1024,7 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
   }
 
   void CaptureScreenshot(CaptureScreenshotCallback callback) override {
-    glic_service_->CaptureScreenshot(std::move(callback));
+    host().CaptureScreenshot(std::move(callback));
   }
 
   void SetAudioDucking(bool enabled,
@@ -1132,6 +1116,16 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
       base::RecordAction(
           base::UserMetricsAction("GlicClosedCaptioningDisabled"));
     }
+    std::move(callback).Run();
+  }
+
+  void SetActuationOnWebSetting(
+      bool enabled,
+      SetActuationOnWebSettingCallback callback) override {
+    pref_service_->SetBoolean(prefs::kGlicUserEnabledActuationOnWeb, enabled);
+    base::RecordAction(
+        enabled ? base::UserMetricsAction("GlicUserEnabledActuationOnWeb")
+                : base::UserMetricsAction("GlicUserDisabledActuationOnWeb"));
     std::move(callback).Run();
   }
 
@@ -1525,6 +1519,8 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
       web_client_->NotifyClosedCaptioningSettingChanged(is_enabled);
     } else if (pref_name == prefs::kGlicDefaultTabContextEnabled) {
       web_client_->NotifyDefaultTabContextPermissionStateChanged(is_enabled);
+    } else if (pref_name == prefs::kGlicUserEnabledActuationOnWeb) {
+      web_client_->NotifyActuationOnWebSettingChanged(is_enabled);
     } else {
       DCHECK(false) << "Unknown Glic permission pref changed: " << pref_name;
     }
@@ -1553,11 +1549,6 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
   void OnFocusedBrowserChanged(BrowserWindowInterface* browser_interface) {
     const bool is_browser_active = browser_interface != nullptr;
     web_client_->NotifyBrowserIsActiveChanged(is_browser_active);
-  }
-
-  void OnActiveBrowserChanged(BrowserWindowInterface* browser_interface) {
-    web_client_->NotifyActiveBrowserChanged(
-        CreateActiveBrowserInfo(profile_, browser_interface));
   }
 
   bool ShouldDoApiActivationGating() const {

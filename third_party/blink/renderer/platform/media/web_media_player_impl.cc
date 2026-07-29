@@ -1534,8 +1534,13 @@ void WebMediaPlayerImpl::Paint(cc::PaintCanvas* canvas,
   paint_params.dest_rect = gfx::RectF(rect);
   paint_params.transformation =
       pipeline_metadata_.video_decoder_config.video_transformation();
-  video_renderer_.Paint(video_frame, canvas, flags, paint_params,
-                        raster_context_provider_.get());
+
+  // This class should only be used with raster context providers that
+  // support OOP-R.
+  CHECK(!raster_context_provider_ ||
+        raster_context_provider_->ContextCapabilities().gpu_rasterization);
+  video_renderer_.PaintOOPR(video_frame, canvas, flags, paint_params,
+                            raster_context_provider_.get());
 }
 
 scoped_refptr<media::VideoFrame>
@@ -1666,6 +1671,11 @@ void WebMediaPlayerImpl::AddTrack(const media::MediaTrack& track) {
 
 void WebMediaPlayerImpl::RemoveTrack(const media::MediaTrack& track) {
   client_->RemoveTrack(track);
+}
+
+void WebMediaPlayerImpl::SetTrackState(const media::MediaTrack& track,
+                                       media::MediaTrack::State state) {
+  client_->SetTrackState(track, state);
 }
 
 #endif  // BUILDFLAG(ENABLE_FFMPEG) || BUILDFLAG(ENABLE_HLS_DEMUXER)
@@ -2914,6 +2924,7 @@ std::unique_ptr<media::Renderer> WebMediaPlayerImpl::CreateRenderer(
   }
 
   bool old_uses_audio_service = UsesAudioService(renderer_type_);
+  const auto old_renderer_type = renderer_type_;
   renderer_type_ = renderer_factory_selector_->GetCurrentRendererType();
 
   // TODO(crbug.com/40261162): Support codec changing for Media Foundation.
@@ -2927,6 +2938,13 @@ std::unique_ptr<media::Renderer> WebMediaPlayerImpl::CreateRenderer(
 
   media_metrics_provider_->SetRendererType(renderer_type_);
   media_log_->SetProperty<MediaLogProperty::kRendererName>(renderer_type_);
+
+  // Recreate the watch time reporter if renderer type is changed so that
+  // WatchTimeReporter constructor can take PlaybackProperties with the updated
+  // renderer type.
+  if (old_renderer_type != renderer_type_ && watch_time_reporter_) {
+    CreateWatchTimeReporter();
+  }
 
   return renderer_factory_selector_->GetCurrentFactory()->CreateRenderer(
       media_task_runner_, worker_task_runner_, audio_source_provider_.get(),

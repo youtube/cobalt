@@ -66,6 +66,7 @@
 #include "components/infobars/content/content_infobar_manager.h"
 #include "components/metrics/structured/structured_events.h"
 #include "components/metrics/structured/structured_metrics_client.h"
+#include "components/permissions/permission_util.h"
 #include "components/policy/core/common/policy_map.h"
 #include "components/policy/core/common/policy_service.h"
 #include "components/policy/policy_constants.h"
@@ -124,6 +125,8 @@
 #include "ui/shell_dialogs/select_file_dialog.h"
 
 #if !BUILDFLAG(IS_ANDROID)
+#include "chrome/browser/themes/theme_service.h"
+#include "chrome/browser/themes/theme_service_factory.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/user_education/browser_user_education_interface.h"
@@ -389,6 +392,15 @@ std::string SanitizeEnabledExperiments(const std::string& value) {
   return std::ranges::all_of(value, is_legal) ? value : std::string();
 }
 
+std::string SanitizeTraceURL(const std::string& value) {
+  if (base::StartsWith(value, "http") &&
+      (base::EndsWith(value, ".json") || base::EndsWith(value, ".json.gz"))) {
+    return value;
+  }
+
+  return std::string();
+}
+
 std::string SanitizeFrontendQueryParam(const std::string& key,
                                        const std::string& value) {
   // Convert boolean flags to true.
@@ -423,6 +435,10 @@ std::string SanitizeFrontendQueryParam(const std::string& key,
 
   if (key == "enabledExperiments") {
     return SanitizeEnabledExperiments(value);
+  }
+
+  if (key == "traceURL") {
+    return SanitizeTraceURL(value);
   }
 
   if (key == "targetType" && value == "tab") {

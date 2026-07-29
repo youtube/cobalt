@@ -121,6 +121,7 @@
 <translation id="2359808026110333948">Продолжи</translation>
 <translation id="2379925928934107488">Ако е можно, примени темна тема на сајтовите кога Chrome користи темна тема</translation>
 <translation id="2390272837142897736">Зумирај</translation>
+<translation id="2397689164757137845">Дозволено • Прецизно</translation>
 <translation id="2402980924095424747"><ph name="MEGABYTES" /> MB</translation>
 <translation id="2403474027143565107">Прецизна</translation>
 <translation id="2404630663942400771">{PERMISSIONS_SUMMARY_ALLOWED,plural, =1{<ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> и уште <ph name="NUM_MORE" /> се одобрени}one{<ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> и уште <ph name="NUM_MORE" /> се одобрени}other{<ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> и уште <ph name="NUM_MORE" /> се одобрени}}</translation>
@@ -140,6 +141,7 @@
 <translation id="2498359688066513246">Помош и повратни информации</translation>
 <translation id="2501278716633472235">Врати се</translation>
 <translation id="2533138527374486328">Кога е вклучено, сајтовите може да бараат да се поврзуваат со кој било уред во вашата локална мрежа. Кога е исклучено, сајтовите не може да поврзуваат со уредите во вашата локална мрежа.</translation>
+<translation id="2536779053640817375">Дозволено овој пат • Прецизно</translation>
 <translation id="2544997614631598250">Боја на темата: Темна</translation>
 <translation id="2546283357679194313">Колачиња и податоци од сајтот</translation>
 <translation id="2570922361219980984">Пристапот до локацијата е исклучен и за уредов. Вклучете го во <ph name="BEGIN_LINK" />Поставки за Android<ph name="END_LINK" />.</translation>
@@ -442,6 +444,7 @@
 <translation id="5876056640971328065">Паузирајте го видеото</translation>
 <translation id="5877248419911025165">Собирај ги сите барања</translation>
 <translation id="5878945009165002849">Блокирајте prompt за најавување од услуги за идентификација</translation>
+<translation id="588258955323874662">Цел екран</translation>
 <translation id="5884085660368669834">Поставки за сајтот</translation>
 <translation id="5887687176710214216">Последно посетено вчера</translation>
 <translation id="5908617755156109052">Не дозволувај им на сајтовите да создаваат 3D-карта на опкружувањето или да ја следат позицијата на камерата</translation>
@@ -569,6 +572,7 @@
 <translation id="7406113532070524618">Поставкава функционира без да ве идентификува или да дозволи сајтовите да ја гледаат вашата историја на прелистувањето, иако сајтовите може да споделат мала количина податоци како дел од процесот на потврда</translation>
 <translation id="7409735910987429903">Сајтовите може да испраќаат скокачки прозорци за да прикажуваат реклами или да користат пренасочувања за да ве одведат на веб-сајтови што можеби не сакате да ги посетите</translation>
 <translation id="7412160840120117304">Хексадецимална вредност за примарна боја</translation>
+<translation id="7412223528111026033">{ZOOM_PERCENTAGE,plural, =1{Зум}one{Зум: <ph name="ZOOM_PERCENTAGE_NUMBER" /> %%}other{Зум: <ph name="ZOOM_PERCENTAGE_NUMBER" /> %%}}</translation>
 <translation id="7423098979219808738">Прво прашај</translation>
 <translation id="7423538860840206698">Блокирано читање на привремената меморија</translation>
 <translation id="7425915948813553151">Темна тема за сајтови</translation>
@@ -700,7 +704,6 @@
 <translation id="8803526663383843427">Кога е вклучено</translation>
 <translation id="8805385115381080995">Прелистувањето е побрзо затоа што е помала веројатноста даден сајт да побара да потврдите дека сте вистинска личност</translation>
 <translation id="8816026460808729765">Блокирајте го пристапот до сензорите за сајтовите</translation>
-<translation id="884765916894384048">Префрли во заднина</translation>
 <translation id="8847988622838149491">USB</translation>
 <translation id="8874790741333031443">Обидете се со привремено дозволување колачиња од трети страни, што значи помала заштита при прелистување, но поголема веројатност функциите на сајтот да работат според очекувањата.</translation>
 <translation id="8889294078294184559">Додека прелистувате, сајтовите може да проверат со Chrome и да потврдат со некој претходен сајт што сте го отвориле дека најверојатно сте вистинска личност</translation>
@@ -721,7 +724,7 @@
 <translation id="9019902583201351841">Управувано од вашите родители</translation>
 <translation id="902236149563113779">Сајтовите обично ја следат позицијата на камерата за AR-функциите како што се игрите или упатствата за внимание</translation>
 <translation id="9039697262778250930">Можно е да се одјавите од сајтовиве</translation>
-<translation id="9065203028668620118">Измени</translation>
+<translation id="9065203028668620118">Изменете</translation>
 <translation id="9074739597929991885">Bluetooth</translation>
 <translation id="9106233582039520022">Да се избришат колачињата?</translation>
 <translation id="9109747640384633967">{PERMISSIONS_SUMMARY_MIXED,plural, =1{<ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> и уште <ph name="NUM_MORE" />}one{<ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> и уште <ph name="NUM_MORE" />}other{<ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> и уште <ph name="NUM_MORE" />}}</translation>

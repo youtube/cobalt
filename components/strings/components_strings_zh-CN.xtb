@@ -286,6 +286,7 @@
 <translation id="1457992721081300557">{NUM_REVIEWS,plural, =0{查看 0 条评价}=1{查看 1 条评价}other{查看全部 # 条评价}}</translation>
 <translation id="1458059624921545588">人与社会</translation>
 <translation id="1458140305240870199">内衣</translation>
+<translation id="1458770162980644530">“先买后付”服务条款界面。键盘已隐藏。</translation>
 <translation id="1459693405370120464">天气</translation>
 <translation id="1461041542809785877">性能</translation>
 <translation id="1462245070427461050">JIS B9</translation>
@@ -983,6 +984,7 @@
 <translation id="2596415276201385844">要建立安全连接，您的时钟设置必须正确。这是因为，网站用于证明身份的证书仅在特定时间段有效。由于您设备的时钟不正确，因此 Chrome 无法验证这些证书。</translation>
 <translation id="2597378329261239068">本文档设置了密码保护，请输入密码。</translation>
 <translation id="2600083925285092409">如果将此卡保存到 Google Pay 中，那么在 Chromium 中购物时可以自动填充此卡的信息</translation>
+<translation id="2602283642570832995">此操作可能违反了 <ph name="DOMAIN" /> 的政策</translation>
 <translation id="2605979593348332811">姓名拼音</translation>
 <translation id="2606760465469169465">自动验证</translation>
 <translation id="2608019759319359258">主题被屏蔽后，将不会用于展示个性化广告</translation>
@@ -2017,6 +2019,7 @@
 <translation id="4281998142035485137">{0,plural, =1{打开机密文件？}other{打开机密文件？}}</translation>
 <translation id="4282280603030594840">购车</translation>
 <translation id="4282346679996504092">针对此商品的提醒已被关闭，相应书签已被移除</translation>
+<translation id="4284885181066817063">已被 <ph name="DOMAIN" /> 阻止</translation>
 <translation id="4285498937028063278">取消固定</translation>
 <translation id="4287495839370498922">强化 Chrome 上的广告隐私权</translation>
 <translation id="4288101205645068104">删除车辆</translation>
@@ -2285,6 +2288,7 @@
 <translation id="4758311279753947758">添加联系信息</translation>
 <translation id="4761326898079498987">查看更多详情</translation>
 <translation id="4761869838909035636">运行 Chrome 安全检查</translation>
+<translation id="4762097990764616058">继续通过<ph name="BNPL_ISSUER_NAME" />付款？</translation>
 <translation id="4763196677855776703"><ph name="URL" /> 的条款及条件</translation>
 <translation id="4764680219299728632">炉子、灶台和烤箱</translation>
 <translation id="4764776831041365478">网址为 <ph name="URL" /> 的网页可能暂时无法连接，或者它已永久性地移动到了新网址。</translation>
@@ -2914,9 +2918,9 @@
 <translation id="5813119285467412249">恢复添加(&amp;R)</translation>
 <translation id="5813753398265398978">物理学</translation>
 <translation id="5817918615728894473">配对</translation>
-<translation id="5820625124144807242">查看订单后，您必须登录或创建“<ph name="BNPL_ISSUER_NAME" />”账号。此账号将自动与 Google Pay 关联。</translation>
 <translation id="5826507051599432481">公用名 (CN)</translation>
 <translation id="5830698870816298009">使用和移动摄像头</translation>
+<translation id="5831217499016131155">Google 电子钱包</translation>
 <translation id="583281660410589416">未知</translation>
 <translation id="5832976493438355584">已锁定</translation>
 <translation id="5837220895135257862">请先释放 <ph name="CLOUD_PROVIDER" /> 中的空间，然后重试</translation>
@@ -3426,6 +3430,7 @@
 <translation id="6649510485211003056">195 x 270 毫米</translation>
 <translation id="6651270836885078973">管理者：</translation>
 <translation id="6652101503459149953">使用 Windows Hello</translation>
+<translation id="6653684225271066234"><ph name="BNPL_ISSUER_NAME" />将检查您是否符合资格要求（这不会影响您的信用评分）。如果您符合资格条件，<ph name="BNPL_ISSUER_NAME" />将提供潜在的付款方案，以便您完成购买交易。</translation>
 <translation id="6654224358955673568">使用正式语气</translation>
 <translation id="6654244995031366386">玻璃（有纹理）</translation>
 <translation id="6657585470893396449">密码</translation>
@@ -3589,6 +3594,7 @@
 <translation id="6925267999184670015">北美洲 B+</translation>
 <translation id="6926216138694948720">人体艺术</translation>
 <translation id="692638818576287323">商用车</translation>
+<translation id="6927057753277044239">查看订单后，您必须登录或创建<ph name="BNPL_ISSUER_NAME" />账号。此账号将自动与您的 Google 账号关联。</translation>
 <translation id="6930607614725241390">在侧边栏中搜索</translation>
 <translation id="6934236486840930310"><ph name="BEGIN_BOLD" />默认搜索引擎让您可在网络中搜索信息，并支持 Chrome 功能<ph name="END_BOLD" />，例如通过地址栏和运用网页上的图片进行搜索。如果您所用的搜索引擎不支持某项功能，您可能无法使用该功能。</translation>
 <translation id="6934672428414710184">此名称来自您的 Google 账号</translation>
@@ -3640,6 +3646,7 @@
 <translation id="6997288673234694149">棒球和垒球装备</translation>
 <translation id="6998512609912910179">更快捷地填写表单</translation>
 <translation id="6999480632062519056">健身指导与私人训练</translation>
+<translation id="7002897669829306463">住址：<ph name="ADDRESS" /></translation>
 <translation id="7003278537452757231">地垫与地毯</translation>
 <translation id="7003322000677139268">车辆零配件</translation>
 <translation id="7004499039102548441">最近打开的标签页</translation>
@@ -3941,7 +3948,6 @@
 <translation id="7485085230273446323">工商业</translation>
 <translation id="7485870689360869515">找不到数据。</translation>
 <translation id="7486880426035242089">OneDrive</translation>
-<translation id="7489255442002627311"><ph name="BNPL_ISSUER_NAME" />将检查您是否符合资格要求（这不会影响您的信用评分）。如果获得批准，<ph name="BNPL_ISSUER_NAME" />将提供付款方案供您选择，以便您完成购买交易。</translation>
 <translation id="7489392576326061356">洗发水和护发素</translation>
 <translation id="7489919936111034362">您的 Google 云端硬盘存储空间已满</translation>
 <translation id="7495528107193238112">该内容被屏蔽了。请联系网站所有者以解决此问题。</translation>
@@ -4207,6 +4213,8 @@
 <translation id="7916162853251942238">柔印底基</translation>
 <translation id="791698251820376781">您所在的组织不允许您登录</translation>
 <translation id="7926503317156566022">航空业</translation>
+<translation id="7930282586031445870">“先买后付”服务条款界面已关闭。</translation>
+<translation id="7932035970207573919">工作地址：<ph name="ADDRESS" /></translation>
 <translation id="793209273132572360">更新地址？</translation>
 <translation id="7932579305932748336">涂层</translation>
 <translation id="79338296614623784">请输入有效的电话号码</translation>
@@ -4620,6 +4628,7 @@
 <translation id="8601027005147870853"><ph name="BEGIN_BOLD" />我们会使用哪些数据<ph name="END_BOLD" />：您在此设备上使用 Chrome 访问某个网站时进行的活动。</translation>
 <translation id="8601456038554914806">水上运动装备</translation>
 <translation id="8601782593888534566">科幻与奇幻内容</translation>
+<translation id="8604103095921958091">“先买后付”服务条款界面已以最大高度显示。</translation>
 <translation id="8606988009912891950">广告主题有助于网站向您展示相关广告，同时保护您的浏览记录和身份信息。Chrome 会根据您近期的浏览活动来记录您感兴趣的主题。之后，您访问的网站可请求 Chrome 提供相关主题，以便向您展示个性化广告。</translation>
 <translation id="8612919051706159390">在线社区</translation>
 <translation id="8617269623452051934">您的设备使用情况</translation>
@@ -4860,6 +4869,7 @@
 <translation id="9045525010788763347"><ph name="RESULT_MODIFIED_DATE" /> - <ph name="RESULT_PRODUCT_SOURCE" /></translation>
 <translation id="9046578823518542618"><ph name="URL" /> 想要查找并连接到本地网络中的任何设备</translation>
 <translation id="9046864189129893978">麦克风（<ph name="MICS_COUNT" /> 个）</translation>
+<translation id="9046865906192819796">“先买后付”服务条款界面已以一半高度显示。</translation>
 <translation id="9047528041803621289">默认搜索引擎用于搜索网络中的信息，您可以在设置中更改选项。</translation>
 <translation id="9048035366624198823">以下操作需要将 <ph name="POLICY_NAME" /> 政策设置为 <ph name="POLICY_VALUE" />：<ph name="ACTION_LIST" />。</translation>
 <translation id="9048662076076074925">24 x 36 英寸</translation>

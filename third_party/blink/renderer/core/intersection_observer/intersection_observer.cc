@@ -28,6 +28,7 @@
 #include "third_party/blink/renderer/core/intersection_observer/intersection_observer_delegate.h"
 #include "third_party/blink/renderer/core/intersection_observer/intersection_observer_entry.h"
 #include "third_party/blink/renderer/core/layout/layout_view.h"
+#include "third_party/blink/renderer/core/page/chrome_client.h"
 #include "third_party/blink/renderer/core/timing/dom_window_performance.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
 #include "third_party/blink/renderer/platform/instrumentation/use_counter.h"
@@ -45,13 +46,10 @@ class IntersectionObserverDelegateImpl final
   IntersectionObserverDelegateImpl(
       ExecutionContext* context,
       IntersectionObserver::EventCallback callback,
-      IntersectionObserver::DeliveryBehavior delivery_behavior,
-      bool needs_initial_observation_with_detached_target)
+      IntersectionObserver::DeliveryBehavior delivery_behavior)
       : context_(context),
         callback_(std::move(callback)),
-        delivery_behavior_(delivery_behavior),
-        needs_initial_observation_with_detached_target_(
-            needs_initial_observation_with_detached_target) {}
+        delivery_behavior_(delivery_behavior) {}
   IntersectionObserverDelegateImpl(const IntersectionObserverDelegateImpl&) =
       delete;
   IntersectionObserverDelegateImpl& operator=(
@@ -59,10 +57,6 @@ class IntersectionObserverDelegateImpl final
 
   IntersectionObserver::DeliveryBehavior GetDeliveryBehavior() const override {
     return delivery_behavior_;
-  }
-
-  bool NeedsInitialObservationWithDetachedTarget() const override {
-    return needs_initial_observation_with_detached_target_;
   }
 
   void Deliver(const HeapVector<Member<IntersectionObserverEntry>>& entries,
@@ -83,7 +77,6 @@ class IntersectionObserverDelegateImpl final
   WeakMember<ExecutionContext> context_;
   IntersectionObserver::EventCallback callback_;
   IntersectionObserver::DeliveryBehavior delivery_behavior_;
-  bool needs_initial_observation_with_detached_target_;
 };
 
 void ParseMargin(const String& margin_parameter,
@@ -328,8 +321,7 @@ IntersectionObserver* IntersectionObserver::Create(
     Params&& params) {
   IntersectionObserverDelegateImpl* intersection_observer_delegate =
       MakeGarbageCollected<IntersectionObserverDelegateImpl>(
-          document.GetExecutionContext(), std::move(callback), params.behavior,
-          params.needs_initial_observation_with_detached_target);
+          document.GetExecutionContext(), std::move(callback), params.behavior);
   return MakeGarbageCollected<IntersectionObserver>(
       *intersection_observer_delegate, ukm_metric_id, std::move(params));
 }
@@ -393,25 +385,20 @@ void IntersectionObserver::observe(Element* target,
       MakeGarbageCollected<IntersectionObservation>(*this, *target);
   target->EnsureIntersectionObserverData().AddObservation(*observation);
   observations_.insert(observation);
-  if (root() && root()->isConnected()) {
+  if (root()) {
     root()
         ->GetDocument()
         .EnsureIntersectionObserverController()
         .AddTrackedObserver(*this);
   }
-  if (target->isConnected()) {
-    target->GetDocument()
-        .EnsureIntersectionObserverController()
-        .AddTrackedObservation(*observation);
-    if (LocalFrameView* frame_view = target->GetDocument().View()) {
-      // The IntersectionObserver spec requires that at least one observation
-      // be recorded after observe() is called, even if the frame is throttled.
-      frame_view->SetIntersectionObservationState(LocalFrameView::kRequired);
-      frame_view->ScheduleAnimation();
-    }
-  } else if (delegate_->NeedsInitialObservationWithDetachedTarget()) {
-    ComputeIntersectionsContext context;
-    observation->ComputeIntersectionImmediately(context);
+  target->GetDocument()
+      .EnsureIntersectionObserverController()
+      .AddTrackedObservation(*observation);
+  if (LocalFrameView* frame_view = target->GetDocument().View()) {
+    // The IntersectionObserver spec requires that at least one observation
+    // be recorded after observe() is called, even if the frame is throttled.
+    frame_view->SetIntersectionObservationState(LocalFrameView::kRequired);
+    frame_view->ScheduleAnimation();
   }
 }
 
@@ -428,7 +415,7 @@ void IntersectionObserver::unobserve(Element* target,
   observation->Disconnect();
   observations_.erase(observation);
   active_observations_.erase(observation);
-  if (root() && root()->isConnected() && observations_.empty()) {
+  if (root() && observations_.empty()) {
     root()
         ->GetDocument()
         .EnsureIntersectionObserverController()
@@ -441,7 +428,7 @@ void IntersectionObserver::disconnect(ExceptionState& exception_state) {
     observation->Disconnect();
   observations_.clear();
   active_observations_.clear();
-  if (root() && root()->isConnected()) {
+  if (root()) {
     root()
         ->GetDocument()
         .EnsureIntersectionObserverController()

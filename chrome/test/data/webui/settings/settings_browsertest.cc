@@ -119,6 +119,10 @@ IN_PROC_BROWSER_TEST_F(SettingsTest, AutofillSection) {
   RunTest("settings/autofill_section_test.js", "mocha.run()");
 }
 
+IN_PROC_BROWSER_TEST_F(SettingsTest, AutofillAiEntriesList) {
+  RunTest("settings/autofill_ai_entries_list_test.js", "mocha.run()");
+}
+
 IN_PROC_BROWSER_TEST_F(SettingsTest, AutofillAiSection) {
   RunTest("settings/autofill_ai_section_test.js", "mocha.run()");
 }
@@ -1611,7 +1615,13 @@ IN_PROC_BROWSER_TEST_F(SettingsSiteDetailsTest, MAYBE_SiteDetails) {
 
 class SettingsSiteListTest : public SettingsBrowserTest {};
 
-IN_PROC_BROWSER_TEST_F(SettingsSiteListTest, SiteList) {
+// TODO(crbug.com/452036455): Disabled on Linux dbg due to flakiness.
+#if BUILDFLAG(IS_LINUX) && !defined(NDEBUG)
+#define MAYBE_SiteList DISABLED_SiteList
+#else
+#define MAYBE_SiteList SiteList
+#endif
+IN_PROC_BROWSER_TEST_F(SettingsSiteListTest, MAYBE_SiteList) {
   RunTest("settings/site_list_test.js", "runMochaSuite('SiteList')");
 }
 
@@ -1722,6 +1732,10 @@ using YourSavedInfoTest = SettingsBrowserTest;
 
 IN_PROC_BROWSER_TEST_F(YourSavedInfoTest, YourSavedInfoAccount) {
   RunTest("settings/your_saved_info_account_test.js", "mocha.run()");
+}
+
+IN_PROC_BROWSER_TEST_F(YourSavedInfoTest, CollapsibleAutofillSettingsCard) {
+  RunTest("settings/collapsible_autofill_settings_card_test.js", "mocha.run()");
 }
 
 IN_PROC_BROWSER_TEST_F(YourSavedInfoTest, YourSavedInfoPage) {

@@ -31,9 +31,53 @@
 
 namespace blink {
 
+namespace {
+
+// Each of the follow V8 classes wraps a DOM class that implements
+// `DOMOriginUtils`. We'll try each type in sequence (the order is irrelevant),
+// and return the first valid result or `nullptr` if the object isn't one of
+// these types.
+DOMOriginUtils* GetDOMOriginUtilsFromV8Object(v8::Isolate* i,
+                                              v8::Local<v8::Value> o) {
+  if (auto* p = V8HTMLAnchorElement::ToWrappable(i, o)) {
+    return p;
+  }
+  if (auto* p = V8HTMLAreaElement::ToWrappable(i, o)) {
+    return p;
+  }
+  if (auto* p = V8Location::ToWrappable(i, o)) {
+    return p;
+  }
+  if (auto* p = V8MessageEvent::ToWrappable(i, o)) {
+    return p;
+  }
+  if (auto* p = V8URL::ToWrappable(i, o)) {
+    return p;
+  }
+  if (auto* p = V8Window::ToWrappable(i, o)) {
+    return p;
+  }
+  if (auto* p = V8WorkerGlobalScope::ToWrappable(i, o)) {
+    return p;
+  }
+  if (auto* p = V8WorkerLocation::ToWrappable(i, o)) {
+    return p;
+  }
+
+  return nullptr;
+}
+
+}  // namespace
+
 // Static `::Create()` methods:
 DOMOrigin* DOMOrigin::Create() {
-  return MakeGarbageCollected<DOMOrigin>(SecurityOrigin::CreateUniqueOpaque());
+  return DOMOrigin::Create(SecurityOrigin::CreateUniqueOpaque());
+}
+
+// static
+DOMOrigin* DOMOrigin::Create(scoped_refptr<const SecurityOrigin> origin) {
+  return MakeGarbageCollected<DOMOrigin>(base::PassKey<DOMOrigin>(),
+                                         std::move(origin));
 }
 
 // static
@@ -49,7 +93,7 @@ DOMOrigin* DOMOrigin::parse(const String& value) {
   if (security_origin->ToString() != value) {
     return nullptr;
   }
-  return MakeGarbageCollected<DOMOrigin>(std::move(security_origin));
+  return DOMOrigin::Create(std::move(security_origin));
 }
 
 // static
@@ -58,7 +102,7 @@ DOMOrigin* DOMOrigin::fromURL(const String& serialized_url) {
   if (!url.IsValid()) {
     return nullptr;
   }
-  return MakeGarbageCollected<DOMOrigin>(SecurityOrigin::Create(url));
+  return DOMOrigin::Create(SecurityOrigin::Create(url));
 }
 
 // static
@@ -80,7 +124,7 @@ DOMOrigin* DOMOrigin::from(ScriptState* script_state,
           "The string provided cannot be parsed as a serialized URL.");
       return nullptr;
     }
-    return MakeGarbageCollected<DOMOrigin>(SecurityOrigin::Create(parsed_url));
+    return DOMOrigin::Create(SecurityOrigin::Create(parsed_url));
   }
 
   // If it's not a string, check whether it's an object. If it's not, throw an
@@ -109,76 +153,27 @@ DOMOrigin* DOMOrigin::from(ScriptState* script_state,
   // fall through to throw a `TypeError`.
   v8::Local<v8::Object> v8_object = v8_value.As<v8::Object>();
 
+  // Origin
+  if (DOMOrigin* origin = V8Origin::ToWrappable(isolate, v8_object)) {
+    return DOMOrigin::Create(origin->origin_);
+  }
+
   // ExtendableMessageEvent
   //
   // TODO(mkwst): This is implemented as a module, which might mean we need to
   // move `Origin` object itself elsewhere to enable inclusion. Leaving this
   // unimplemented for the moment.
 
-  // HTMLHyperlinkElementUtils (as `HTMLAnchorElement` or `HTMLAreaElement`)
-  if (HTMLAnchorElement* el =
-          V8HTMLAnchorElement::ToWrappable(isolate, v8_object)) {
-    return MakeGarbageCollected<DOMOrigin>(SecurityOrigin::Create(el->Url()));
-  }
-  if (HTMLAreaElement* el =
-          V8HTMLAreaElement::ToWrappable(isolate, v8_object)) {
-    return MakeGarbageCollected<DOMOrigin>(SecurityOrigin::Create(el->Url()));
-  }
-
-  // Location is accessible cross-origin, so we need to be careful before
-  // handing out its Origin.
-  if (Location* location = V8Location::ToWrappable(isolate, v8_object)) {
-    if (BindingSecurity::ShouldAllowAccessTo(LocalDOMWindow::From(script_state),
-                                             location)) {
-      return MakeGarbageCollected<DOMOrigin>(
-          SecurityOrigin::CreateFromString(location->origin()));
+  LocalDOMWindow* accessing_window = LocalDOMWindow::From(script_state);
+  if (DOMOriginUtils* dom_origin_utils =
+          GetDOMOriginUtilsFromV8Object(isolate, v8_object)) {
+    if (DOMOrigin* result = dom_origin_utils->GetDOMOrigin(accessing_window)) {
+      return result;
     }
   }
 
-  // MessageEvent
-  if (MessageEvent* event = V8MessageEvent::ToWrappable(isolate, v8_object)) {
-    // TODO(434131026): We only have a serialized origin here, which means
-    // our handling of `null` is broken. We'll need to teach `MessageEvent`
-    // to hold a `SecurityOrigin` instead.
-    return MakeGarbageCollected<DOMOrigin>(event->GetSecurityOrigin());
-  }
-
-  // Origin
-  if (DOMOrigin* origin = V8Origin::ToWrappable(isolate, v8_object)) {
-    return MakeGarbageCollected<DOMOrigin>(origin->origin_);
-  }
-
-  // URL (as `DOMURL`)
-  if (DOMURL* dom_url = V8URL::ToWrappable(isolate, v8_object)) {
-    return MakeGarbageCollected<DOMOrigin>(
-        SecurityOrigin::Create(dom_url->Url()));
-  }
-
-  // WindowOrWorkerGlobalScope (as `LocalDOMWindow` or `WorkerGlobalScope`)
-  //
-  // Note that `Window` is accessible cross-origin, so we'll need security
-  // checks before generating an `Origin`.
-  if (DOMWindow* window = V8Window::ToWrappable(isolate, v8_object)) {
-    if (BindingSecurity::ShouldAllowAccessTo(LocalDOMWindow::From(script_state),
-                                             window) &&
-        window->IsLocalDOMWindow()) {
-      return MakeGarbageCollected<DOMOrigin>(
-          To<LocalDOMWindow>(window)->GetSecurityOrigin());
-    }
-  }
-  if (WorkerGlobalScope* worker =
-          V8WorkerGlobalScope::ToWrappable(isolate, v8_object)) {
-    return MakeGarbageCollected<DOMOrigin>(worker->GetSecurityOrigin());
-  }
-
-  // WorkerLocation
-  if (WorkerLocation* location =
-          V8WorkerLocation::ToWrappable(isolate, v8_object)) {
-    return MakeGarbageCollected<DOMOrigin>(
-        SecurityOrigin::Create(location->Url()));
-  }
-
-  // Finally, if it wasn't an object we know how to handle, throw an exception:
+  // If we didn't receive an object we know how to handle, or we weren't able
+  // to extract an origin from that object, throw an exception:
   exception_state.ThrowTypeError(
       "An origin cannot be extracted from the given parameter.");
   return nullptr;
@@ -195,7 +190,8 @@ DOMOrigin* DOMOrigin::Create(const String& value,
 }
 
 // Constructor
-DOMOrigin::DOMOrigin(scoped_refptr<const SecurityOrigin> origin)
+DOMOrigin::DOMOrigin(base::PassKey<DOMOrigin>,
+                     scoped_refptr<const SecurityOrigin> origin)
     : origin_(std::move(origin)) {}
 
 // Destructor
@@ -204,10 +200,6 @@ DOMOrigin::~DOMOrigin() = default;
 
 bool DOMOrigin::opaque() const {
   return origin_->IsOpaque();
-}
-
-String DOMOrigin::toJSON() const {
-  return origin_->ToString();
 }
 
 bool DOMOrigin::isSameOrigin(const DOMOrigin* other) const {

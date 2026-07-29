@@ -19,7 +19,6 @@ import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 import {isMac} from 'chrome://resources/js/platform.js';
 import {PromiseResolver} from 'chrome://resources/js/promise_resolver.js';
 import {PageCallbackRouter as SearchboxPageCallbackRouter, PageHandlerRemote as SearchboxPageHandlerRemote} from 'chrome://resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
-import type {AutocompleteMatch, AutocompleteResult} from 'chrome://resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
 import {assertDeepEquals, assertEquals, assertFalse, assertNotEquals, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import type {MetricsTracker} from 'chrome://webui-test/metrics_test_support.js';
 import {fakeMetricsPrivate} from 'chrome://webui-test/metrics_test_support.js';
@@ -117,64 +116,6 @@ suite('NewTabPageAppTest', () => {
     assertTrue(!!searchboxContainer);
     return searchboxContainer.shadowRoot.querySelector<HTMLElement>(
         '#composeButton');
-  }
-
-  function createAutocompleteMatch(): AutocompleteMatch {
-    return {
-      a11yLabel: '',
-      actions: [],
-      allowedToBeDefaultMatch: false,
-      isSearchType: false,
-      isEnterpriseSearchAggregatorPeopleType: false,
-      swapContentsAndDescription: false,
-      supportsDeletion: false,
-      suggestionGroupId: -1,  // Indicates a missing suggestion group Id.
-      contents: '',
-      contentsClass: [{offset: 0, style: 0}],
-      description: '',
-      descriptionClass: [{offset: 0, style: 0}],
-      destinationUrl: {url: ''},
-      inlineAutocompletion: '',
-      fillIntoEdit: '',
-      iconPath: '',
-      iconUrl: {url: ''},
-      imageDominantColor: '',
-      imageUrl: '',
-      isNoncannedAimSuggestion: false,
-      removeButtonA11yLabel: '',
-      type: '',
-      isRichSuggestion: false,
-      isWeatherAnswerSuggestion: null,
-      answer: null,
-      tailSuggestCommonPrefix: null,
-      keywordChipHint: '',
-      keywordChipA11y: '',
-    };
-  }
-
-  function createAutocompleteResult(
-      modifiers: Partial<AutocompleteResult> = {}): AutocompleteResult {
-    const base: AutocompleteResult = {
-      input: '',
-      matches: [],
-      suggestionGroupsMap: {},
-      smartComposeInlineHint: null,
-    };
-
-    return Object.assign(base, modifiers);
-  }
-
-  function createSearchMatch(modifiers: Partial<AutocompleteMatch> = {}):
-      AutocompleteMatch {
-    return Object.assign(
-        createAutocompleteMatch(), {
-          isSearchType: true,
-          contents: 'hello world',
-          destinationUrl: {url: 'https://www.google.com/search?q=hello+world'},
-          fillIntoEdit: 'hello world',
-          type: 'search-suggest',
-        },
-        modifiers);
   }
 
   function getScrim(): HTMLElement|null {
@@ -460,9 +401,9 @@ suite('NewTabPageAppTest', () => {
           'https://info.com',
           $$(app, '#backgroundImageAttribution')!.getAttribute('href'));
       assertEquals(
-          'foo', $$(app, '#backgroundImageAttribution1')!.textContent!.trim());
+          'foo', $$(app, '#backgroundImageAttribution1')!.textContent.trim());
       assertEquals(
-          'bar', $$(app, '#backgroundImageAttribution2')!.textContent!.trim());
+          'bar', $$(app, '#backgroundImageAttribution2')!.textContent.trim());
     });
 
     test('setting logo color colors logo', async function() {
@@ -1288,26 +1229,6 @@ suite('NewTabPageAppTest', () => {
       assertTrue(!!composebox);
       assertStyle($$(app, '#searchbox')!, 'visibility', 'hidden');
     });
-    test('searchbox text carries over to composebox', async () => {
-      // Arrange.
-      callbackRouterRemote.setTheme(createTheme());
-      await callbackRouterRemote.$.flushForTesting();
-
-      // Act.
-      $$(app, '#searchbox')!.dispatchEvent(
-          new CustomEvent('open-composebox', {
-            detail: {searchboxText: 'text', contextFiles: []},
-          }));
-      await microtasksFinished();
-
-      // Assert.
-      const composebox = app.shadowRoot.querySelector('ntp-composebox');
-      assertTrue(!!composebox);
-      assertEquals(
-          'text',
-          composebox.shadowRoot.querySelector<HTMLInputElement>('#input')!.value);
-      assertStyle($$(app, '#searchbox')!, 'visibility', 'hidden');
-    });
     test(
         'Clicking the searchbox composebox button notifies composebox handler',
         async () => {
@@ -1378,28 +1299,36 @@ suite('NewTabPageAppTest', () => {
                   'NewTabPage.ComposeEntrypoint.Click.UserTextPresent', true));
         });
 
-    test('Propagate composebox text when closed', async () => {
-      searchboxHandler.reset();
-      $$(app, '#searchbox')!.dispatchEvent(
-          new CustomEvent('open-composebox', {
-            detail: {searchboxText: '', contextFiles: []},
-          }));
-      await microtasksFinished();
-      const ntpComposebox = app.shadowRoot.querySelector('ntp-composebox');
-      ntpComposebox!.setText('hello');
-      const composeboxScrim =
-          app.shadowRoot.querySelector<HTMLElement>('#scrim');
-      assertTrue(!!composeboxScrim);
-      assertEquals(ntpComposebox!.getText(), 'hello');
-      composeboxScrim.click();
-      await microtasksFinished();
+    [false, true].forEach((ntpRealboxNextEnabled) => {
+      test(
+          `Propagate composebox text when closed when ntpRealboxNextEnabled is ${
+              ntpRealboxNextEnabled}`,
+          async () => {
+            searchboxHandler.reset();
+            const searchbox = $$(app, '#searchbox');
+            assertTrue(!!searchbox);
+            searchbox.dispatchEvent(new CustomEvent('open-composebox', {
+              detail: {searchboxText: '', contextFiles: []},
+            }));
+            await microtasksFinished();
+            const ntpComposebox =
+                app.shadowRoot.querySelector('ntp-composebox');
+            ntpComposebox!.setText('hello');
+            const composeboxScrim =
+                app.shadowRoot.querySelector<HTMLElement>('#scrim');
+            assertTrue(!!composeboxScrim);
+            assertEquals(ntpComposebox!.getText(), 'hello');
+            composeboxScrim.click();
+            await microtasksFinished();
 
-      const searchboxContainer = app.shadowRoot.querySelector('cr-searchbox');
+            const searchboxContainer =
+                app.shadowRoot.querySelector('cr-searchbox');
 
-      assertEquals(
-          'hello',
-          searchboxContainer!.shadowRoot
-              .querySelector<HTMLInputElement>('#input')!.value);
+            assertEquals(
+                'hello',
+                searchboxContainer!.shadowRoot
+                    .querySelector<HTMLInputElement>('#input')!.value);
+          });
     });
     suite('Close options disabled', () => {
       suiteSetup(() => {
@@ -1931,45 +1860,30 @@ suite('NewTabPageAppTest', () => {
       });
     });
     test(
-        'A scrim is applied when the dropdown is shown in searchbox',
-        async () => {
-          assertFalse(!!getScrim());
-          const realbox_input =
-              $$<SearchboxElement>(app, '#searchbox')!.$.input;
-          realbox_input.value = 'he';
-          realbox_input.dispatchEvent(new InputEvent('input'));
-          await microtasksFinished();
-          const matches = [createSearchMatch()];
-          SearchboxBrowserProxy.getInstance()
-              .callbackRouter.$.bindNewPipeAndPassRemote()
-              .autocompleteResultChanged(createAutocompleteResult({
-                input: realbox_input.value.trimStart(),
-                matches: matches,
-              }));
-          await microtasksFinished();
+        'A scrim is applied when the focus is on searchbox input', async () => {
           const scrim = getScrim();
           assertTrue(!!scrim);
-
-          // The dropdown is closed when a keypress on Esc is made.
-          const escapeEvent = new KeyboardEvent('keydown', {
-            bubbles: true,
-            cancelable: true,
-            composed: true,  // So it propagates across shadow DOM boundary.
-            key: 'Escape',
-          });
-          realbox_input.dispatchEvent(escapeEvent);
+          assertTrue(scrim.hidden);
+          const realbox_input =
+              $$<SearchboxElement>(app, '#searchbox')!.$.input;
+          realbox_input.dispatchEvent(new FocusEvent('focus'));
           await microtasksFinished();
-          assertFalse(!!getScrim());
+          assertFalse(scrim.hidden);
+
+          $$<SearchboxElement>(app, '#searchbox')!.$.inputWrapper.dispatchEvent(
+              new FocusEvent('focusout', {relatedTarget: scrim}));
+          await microtasksFinished();
+          assertTrue(scrim.hidden);
         });
     test(
-        'A scrim is applied when the dropdown is shown in composebox',
+        'A scrim is applied when the focus is on the composebox input',
         async () => {
           loadTimeData.overrideValues({
-            composeboxShowZps: true,
-            composeboxShowTypedSuggest: true,
             composeboxCloseByClickOutside: true,
           });
-          assertFalse(!!getScrim());
+          const scrim = getScrim();
+          assertTrue(!!scrim);
+          assertTrue(scrim?.hidden);
           const realbox = $$(app, '#searchbox');
           assertTrue(!!realbox);
           realbox.dispatchEvent(new CustomEvent('open-composebox', {
@@ -1978,27 +1892,40 @@ suite('NewTabPageAppTest', () => {
           await microtasksFinished();
           const ntpComposebox = app.shadowRoot.querySelector('ntp-composebox');
           assertTrue(!!ntpComposebox);
+          ntpComposebox.$.input.dispatchEvent(new FocusEvent('focus'));
+          await microtasksFinished();
 
-          // Open the dropbox by satisfying its opening condition
-          ntpComposebox.$.input.value = 'Test';
-          ntpComposebox.$.input.style.height = '48px';
-          ntpComposebox.$.input.dispatchEvent(new Event('input'));
-          await microtasksFinished();
-          const matches = [createSearchMatch()];
-          ComposeboxProxyImpl.getInstance()
-              .searchboxCallbackRouter.$.bindNewPipeAndPassRemote()
-              .autocompleteResultChanged(createAutocompleteResult({
-                input: 'Test'.trimStart(),
-                matches: matches,
-              }));
-          await microtasksFinished();
-          const scrim = getScrim();
-          assertTrue(!!scrim);
+          assertFalse(scrim.hidden);
 
-          scrim.click();  // closes the composebox and thus the dropdown
+          ntpComposebox.$.input.dispatchEvent(
+              new FocusEvent('focusout', {relatedTarget: scrim}));
           await microtasksFinished();
-          assertFalse(!!getScrim());
+          scrim.click();
+          await microtasksFinished();
+          assertTrue(scrim?.hidden);
+          // Composebox should have been closed.
+          assertFalse(!!app.shadowRoot.querySelector('ntp-composebox'));
         });
+    test('searchbox text carries over to composebox', async () => {
+        // Arrange.
+      callbackRouterRemote.setTheme(createTheme());
+      await callbackRouterRemote.$.flushForTesting();
+
+      // Act.
+      $$(app, '#searchbox')!.dispatchEvent(
+          new CustomEvent('open-composebox', {
+            detail: {searchboxText: 'text', contextFiles: []},
+          }));
+      await microtasksFinished();
+
+      // Assert.
+      const composebox = app.shadowRoot.querySelector('ntp-composebox');
+      assertTrue(!!composebox);
+      assertEquals(
+        'text',
+        composebox.shadowRoot.querySelector<HTMLInputElement>('#input')!.value);
+      assertStyle($$(app, '#searchbox')!, 'visibility', 'hidden');
+    });
   });
 
   suite('ActionChips', () => {

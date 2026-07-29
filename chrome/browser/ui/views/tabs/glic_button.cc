@@ -54,6 +54,8 @@ constexpr int kLabelRightMargin = 8;
 constexpr int kCloseButtonMargin = 6;
 constexpr ui::ColorId kHighlightColorId = ui::kColorSysPrimary;
 constexpr ui::ColorId kTextOnHighlight = ui::kColorSysOnPrimary;
+constexpr ui::ColorId kTextDisabledOnHighlight = kTextOnHighlight;
+constexpr ui::ColorId kTextDisabled = ui::kColorLabelForegroundDisabled;
 constexpr ui::ColorId kDefaultTextColorV2 = ui::kColorSysOnSurface;
 
 constexpr int kIconSize = 16;
@@ -329,6 +331,20 @@ void GlicButton::StateChanged(ButtonState old_state) {
   UpdateIcon();
 }
 
+void GlicButton::AddedToWidget() {
+  if (EntrypointVariationsEnabled()) {
+    // Both TabStripControlButton and parent LabelButton set up similar logic
+    // here for drawing the button as enabled or disabled when window activation
+    // changes. Use LabelButton's as TabStripControlButton fails to update the
+    // text color when the window goes from inactive to active.
+    // TODO(crbug.com/452116005): Make this behavior configurable on
+    // TabStripControlButton.
+    LabelButton::AddedToWidget();
+  }
+
+  TabStripNudgeButton::AddedToWidget();
+}
+
 void GlicButton::SetDropToAttachIndicator(bool indicate) {
   if (indicate) {
     SetBackgroundFrameActiveColorId(ui::kColorSysStateHeaderHover);
@@ -435,12 +451,6 @@ void GlicButton::AnnounceNudgeShown() {
   GetViewAccessibility().AnnounceAlert(announcement);
 }
 
-void GlicButton::HighlightGlicButton() {
-  SetBackgroundFrameActiveColorId(kColorTabBackgroundInactiveHoverFrameActive);
-  SetBackgroundFrameInactiveColorId(
-      kColorTabBackgroundInactiveHoverFrameInactive);
-}
-
 void GlicButton::SetDefaultColors() {
   SetForegroundFrameActiveColorId(
       EntrypointVariationsEnabled() ? kDefaultTextColorV2
@@ -464,12 +474,15 @@ void GlicButton::UpdateTextAndBackgroundColors() {
 
     if (highlight_visible) {
       SetForegroundFrameActiveColorId(kTextOnHighlight);
+      SetTextColor(STATE_DISABLED, kTextDisabledOnHighlight);
     } else {
       SetForegroundFrameActiveColorId(kDefaultTextColorV2);
+      SetTextColor(STATE_DISABLED, kTextDisabled);
     }
   } else {
     SetBackgroundFrameActiveColorId(kColorNewTabButtonCRBackgroundFrameActive);
     SetForegroundFrameActiveColorId(kDefaultTextColorV2);
+    SetTextColor(STATE_DISABLED, kTextDisabled);
   }
 
   UpdateColors();
@@ -507,6 +520,11 @@ void GlicButton::StartShowAnimation() {
     return SetCloseButtonVisible(true);
   }
 
+  // Don't restart the animation if already expanding or expanded.
+  if (is_showing_nudge_) {
+    return;
+  }
+
   // Remember the button's original width before changing the text and showing
   // the close button.
   initial_width_ = GetLayoutManager()->GetPreferredSize(this).width();
@@ -541,6 +559,11 @@ void GlicButton::StartHideAnimation() {
     // If flag is disabled, the parent drives the animation. Just update the
     // close button.
     return SetCloseButtonVisible(false);
+  }
+
+  // Don't start the animation if already collapsing or collapsed.
+  if (!is_showing_nudge_) {
+    return;
   }
 
   const base::TimeDelta kHideDuration = DurationMs(500);
@@ -713,6 +736,10 @@ void GlicButton::SetCloseButtonVisible(bool visible) {
 
 gfx::SlideAnimation* GlicButton::GetExpansionAnimationForTesting() {
   return expansion_animation_.get();
+}
+
+bool GlicButton::GetLabelEnabledForTesting() const {
+  return label()->GetEnabled();
 }
 
 BEGIN_METADATA(GlicButton)

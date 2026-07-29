@@ -109,7 +109,6 @@ Pour voir d'autres paramètres qui utilisent les données pour améliorer votre 
 <translation id="1419753403124156396">Redémarrer Chrome ?</translation>
 <translation id="1428770807407000502">Désactiver la synchronisation ?</translation>
 <translation id="1430915738399379752">Imprimer</translation>
-<translation id="1433478348197382180">Mode Lecture</translation>
 <translation id="1435593198351412143">Ouvrir automatiquement les PDF</translation>
 <translation id="1437543266176261764">Exécution dans <ph name="APP_NAME" /></translation>
 <translation id="1448440926884431741">Organisez vos produits suivis dans les favoris</translation>
@@ -270,6 +269,7 @@ Seule une personne connaissant votre phrase secrète peut lire vos données chif
 <translation id="2249635629516220541">Personnalisez les informations utilisées par les sites pour vous montrer des annonces</translation>
 <translation id="2251809247798634662">Nouvelle fenêtre de navigation privée</translation>
 <translation id="2253927598983295051">Choisissez ce qui doit être partagé avec <ph name="APP_NAME" /></translation>
+<translation id="2261570557291037252">Plus d'infos sur l'appli</translation>
 <translation id="2276696007612801991">Connectez-vous à votre compte Google pour vérifier vos mots de passe</translation>
 <translation id="2281243904606300427"><ph name="TAB_TITLE" />, onglet de navigation privée sélectionné</translation>
 <translation id="2286841657746966508">Adresse de facturation</translation>
@@ -369,7 +369,6 @@ Seule une personne connaissant votre phrase secrète peut lire vos données chif
 <translation id="2718352093833049315">Wi-Fi uniquement</translation>
 <translation id="2718846868787000099">Permet d'afficher le contenu dans vos langues favorites. Les sites que vous visitez peuvent voir vos préférences</translation>
 <translation id="2723001399770238859">audio</translation>
-<translation id="2734335652257251631">Afficher le mode Lecture</translation>
 <translation id="2739887572830526131">Conservez ce groupe pour y ajouter des onglets plus tard, ou supprimez-le si vous n'en avez plus besoin.</translation>
 <translation id="2742373789128106053"><ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /> n'est pas disponible pour le moment.</translation>
 <translation id="2760805590727089264">MM/AA</translation>
@@ -1011,7 +1010,6 @@ Votre compte Google conserve peut-être d'autres contenus d'historique de naviga
 <translation id="569536719314091526">Traduire cette page dans n'importe quelle langue à partir du bouton "Plus d'options"</translation>
 <translation id="5696597120588531049">Chrome peut vous aider à vous protéger, entre autres, contre les violations de données et les sites Web dangereux</translation>
 <translation id="5698878456427040674">Vérifiez si le compte sélectionné est compatible.</translation>
-<translation id="570347048394355941">Ouvrir un autre onglet</translation>
 <translation id="5709213329446699338"><ph name="SITE" /> souhaite se connecter à un port série</translation>
 <translation id="5715150588940290235">Supprimer les codes de sécurité enregistrés ?</translation>
 <translation id="571930967925877633">Vos favoris, votre historique et d'autres données Chrome ne seront plus synchronisés avec votre compte Google</translation>
@@ -1139,6 +1137,7 @@ Votre compte Google conserve peut-être d'autres contenus d'historique de naviga
 <translation id="6232535412751077445">Si vous interdisez le suivi, une demande sera incluse dans le trafic lié à votre navigation. Les résultats obtenus dépendent de la réponse du site (s'il répond ou non) et de la manière dont il interprète la demande.
 
 Par exemple, certains sites Web peuvent répondre à cette demande en diffusant des annonces qui ne sont pas déterminées en fonction des autres sites Web que vous avez consultés. Toutefois, nombre d'entre eux recueillent et utilisent vos données de navigation afin, par exemple, d'améliorer la sécurité ou d'afficher du contenu, des services, des annonces et des recommandations, ou encore pour générer des rapports statistiques.</translation>
+<translation id="623755660902014047">Mode Lecture</translation>
 <translation id="6247557882553405851">Gestionnaire de mots de passe Google</translation>
 <translation id="6248988683584659830">Rechercher dans les paramètres</translation>
 <translation id="6250847299079540062"><ph name="TAB_TITLE" />, onglet de navigation privée épinglé multisélectionné</translation>
@@ -1300,6 +1299,7 @@ Par exemple, certains sites Web peuvent répondre à cette demande en diffusant 
 <translation id="6865313869410766144">Données de saisie automatique</translation>
 <translation id="6867400383614725881">Nouvel onglet de navigation privée</translation>
 <translation id="686899695320434745">Les adresses ne sont pas chiffrées avec votre phrase secrète. Vous pourrez ainsi les utiliser dans d'autres services Google.</translation>
+<translation id="6870625088374152862">Connecté en tant que <ph name="USER_EMAIL_ADDRESS" /></translation>
 <translation id="687838958001010630">Toutes les personnes disposant du lien peuvent modifier tous les onglets</translation>
 <translation id="6880903702195291049">Les autorisations semblent sûres</translation>
 <translation id="6883204995689174413">Partager</translation>
@@ -1396,7 +1396,6 @@ Pour modifier ce paramètre, <ph name="BEGIN_LINK" />supprimez les données Chro
 <translation id="7221869452894271364">Actualiser cette page</translation>
 <translation id="7227218174981371415">{FILE_COUNT,plural, =1{1 téléchargement en attente}one{# téléchargement en attente}other{# téléchargements en attente}}</translation>
 <translation id="7230064152164845085">Passer à la navigation privée</translation>
-<translation id="7230836263524391273">Masquer le mode Lecture</translation>
 <translation id="7237724030342645845">Le Gestionnaire de mots de passe de Google a cessé de fonctionner</translation>
 <translation id="72415438529550637">La suggestion de mot de passe est fermée.</translation>
 <translation id="7248671827512403053">Application</translation>
@@ -1731,7 +1730,6 @@ Pour modifier ce paramètre, <ph name="BEGIN_LINK" />supprimez les données Chro
 <translation id="867914734596684889">Afficher ou masquer la barre de favoris</translation>
 <translation id="8683039184091909753">image</translation>
 <translation id="8688183792442786085"><ph name="TAB_TITLE" />, onglet sélectionné</translation>
-<translation id="8693232767599693749">Consulter le mode Lecture ?</translation>
 <translation id="8697753151306746444">Partagez plutôt une fenêtre ou un écran</translation>
 <translation id="8699120352855309748">Ne pas proposer de traduire ces langues</translation>
 <translation id="8712637175834984815">OK</translation>

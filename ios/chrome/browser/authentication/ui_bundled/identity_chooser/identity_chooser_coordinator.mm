@@ -10,6 +10,7 @@
 #import "base/metrics/user_metrics.h"
 #import "base/metrics/user_metrics_action.h"
 #import "base/notreached.h"
+#import "google_apis/gaia/gaia_id.h"
 #import "ios/chrome/browser/authentication/ui_bundled/identity_chooser/identity_chooser_coordinator_delegate.h"
 #import "ios/chrome/browser/authentication/ui_bundled/identity_chooser/identity_chooser_mediator.h"
 #import "ios/chrome/browser/authentication/ui_bundled/identity_chooser/identity_chooser_transition_delegate.h"
@@ -164,7 +165,7 @@ typedef NS_ENUM(NSInteger, IdentityChooserCoordinatorState) {
 
 - (void)identityChooserViewController:
             (IdentityChooserViewController*)viewController
-          didSelectIdentityWithGaiaID:(NSString*)gaiaID {
+          didSelectIdentityWithGaiaID:(const GaiaId&)gaiaID {
   DCHECK_EQ(self.identityChooserViewController, viewController);
   DCHECK_EQ(IdentityChooserCoordinatorStateStarted, self.state);
   [self.identityChooserMediator selectIdentityWithGaiaID:gaiaID];

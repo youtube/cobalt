@@ -121,6 +121,7 @@
 <translation id="2359808026110333948">Doorgaan</translation>
 <translation id="2379925928934107488">Donker thema zo mogelijk toepassen op sites als Chrome het donkere thema gebruikt</translation>
 <translation id="2390272837142897736">Zoomniveau vergroten</translation>
+<translation id="2397689164757137845">Toegestaan • Exact</translation>
 <translation id="2402980924095424747"><ph name="MEGABYTES" /> MB</translation>
 <translation id="2403474027143565107">Exact</translation>
 <translation id="2404630663942400771">{PERMISSIONS_SUMMARY_ALLOWED,plural, =1{<ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> en nog <ph name="NUM_MORE" /> toegestaan}other{<ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> en nog <ph name="NUM_MORE" /> toegestaan}}</translation>
@@ -140,6 +141,7 @@
 <translation id="2498359688066513246">Hulp en feedback</translation>
 <translation id="2501278716633472235">Terug</translation>
 <translation id="2533138527374486328">Als deze optie aanstaat, kunnen sites vragen of ze verbinding mogen maken met apparaten in je lokale netwerk. Staat de optie uit, dan kunnen sites geen verbinding maken met apparaten in je lokale netwerk.</translation>
+<translation id="2536779053640817375">Deze keer toegestaan • Exact</translation>
 <translation id="2544997614631598250">Themakleur donker</translation>
 <translation id="2546283357679194313">Cookies en sitegegevens</translation>
 <translation id="2570922361219980984">Locatietoegang staat ook uit voor dit apparaat. Zet deze aan via de <ph name="BEGIN_LINK" />Android-instellingen<ph name="END_LINK" />.</translation>
@@ -442,6 +444,7 @@ Geavanceerde beveiliging beheert deze Chrome-instellingen:
 <translation id="5876056640971328065">Video pauzeren</translation>
 <translation id="5877248419911025165">Alle verzoeken samenvouwen</translation>
 <translation id="5878945009165002849">Inlogprompts van identiteitsservices blokkeren</translation>
+<translation id="588258955323874662">Volledig scherm</translation>
 <translation id="5884085660368669834">Sitevoorkeur</translation>
 <translation id="5887687176710214216">Laatst bezocht: gisteren</translation>
 <translation id="5908617755156109052">Niet toestaan dat sites een 3D-kaart van je omgeving maken of de camerapositie volgen</translation>
@@ -569,6 +572,7 @@ Geavanceerde beveiliging beheert deze Chrome-instellingen:
 <translation id="7406113532070524618">Deze instelling werkt zonder je te identificeren of sites toegang te geven tot je browsegeschiedenis, maar sites kunnen wel een kleine hoeveelheid informatie delen als onderdeel van de verificatie</translation>
 <translation id="7409735910987429903">Sites sturen mogelijk pop-ups om advertenties te bekijken of gebruiken omleidingen die je naar websites leiden die je mogelijk niet wilt bezoeken</translation>
 <translation id="7412160840120117304">Hexadecimale code voor primaire kleur</translation>
+<translation id="7412223528111026033">{ZOOM_PERCENTAGE,plural, =1{Zoomen}other{Zoomen: <ph name="ZOOM_PERCENTAGE_NUMBER" />%%}}</translation>
 <translation id="7423098979219808738">Eerst vragen</translation>
 <translation id="7423538860840206698">Lezen van het klembord geblokkeerd</translation>
 <translation id="7425915948813553151">Donker thema voor sites</translation>
@@ -700,7 +704,6 @@ Geavanceerde beveiliging beheert deze Chrome-instellingen:
 <translation id="8803526663383843427">Als dit aanstaat</translation>
 <translation id="8805385115381080995">Je kunt sneller browsen omdat een site je minder vaak vraagt te verifiëren dat je een echte persoon bent</translation>
 <translation id="8816026460808729765">Sites geen toegang tot sensoren geven</translation>
-<translation id="884765916894384048">Naar achtergrond gaan</translation>
 <translation id="8847988622838149491">USB</translation>
 <translation id="8874790741333031443">Sta cookies van derden tijdelijk toe. Dit betekent dat je minder browserbeveiliging hebt, maar dat sitefuncties waarschijnlijk wel werken zoals verwacht.</translation>
 <translation id="8889294078294184559">Terwijl je browst, kunnen sites via Chrome checken en met een eerder bezochte site verifiëren dat je waarschijnlijk een echte persoon bent</translation>

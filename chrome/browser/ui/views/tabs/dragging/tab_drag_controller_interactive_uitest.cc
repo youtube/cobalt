@@ -1438,15 +1438,9 @@ IN_PROC_BROWSER_TEST_P(DetachToBrowserTabDragControllerTest,
   EXPECT_EQ(group_model->GetTabGroup(group1)->ListTabs(), gfx::Range(3, 4));
 }
 
-// TODO(crbug.com/333085989): Re-enable flaky tests
-#if BUILDFLAG(IS_CHROMEOS)
-#define MAYBE_RevertDragSplitTab DISABLED_RevertDragSplitTab
-#else
-#define MAYBE_RevertDragSplitTab RevertDragSplitTab
-#endif
 // Drag a split tab within a tabstrip and cancel the drag.
 IN_PROC_BROWSER_TEST_P(DetachToBrowserTabDragControllerTest,
-                       MAYBE_RevertDragSplitTab) {
+                       RevertDragSplitTab) {
   ASSERT_TRUE(browser()->tab_strip_model()->SupportsTabGroups());
 
   TabStrip* tab_strip = GetTabStripForBrowser(browser());
@@ -1515,15 +1509,9 @@ IN_PROC_BROWSER_TEST_P(DetachToBrowserTabDragControllerTest,
 // tabstrip . While this drag is still in session, pressing escape will revert
 // group of the tab, but will not recreate the group because the group was
 // closed during dragging.
-// Flaky in LaCrOS. https://crbug.com/1176998
-#if BUILDFLAG(IS_LINUX)
-#define MAYBE_RevertDragSingleTabGroup DISABLED_RevertDragSingleTabGroup
-#else
-#define MAYBE_RevertDragSingleTabGroup RevertDragSingleTabGroup
-#endif
 
 IN_PROC_BROWSER_TEST_P(DetachToBrowserTabDragControllerTest,
-                       MAYBE_RevertDragSingleTabGroup) {
+                       RevertDragSingleTabGroup) {
   ASSERT_TRUE(browser()->tab_strip_model()->SupportsTabGroups());
 
   TabStrip* tab_strip = GetTabStripForBrowser(browser());
@@ -2706,8 +2694,7 @@ IN_PROC_BROWSER_TEST_P(DetachToBrowserTabDragControllerTest,
   // Toggle the immersive fullscreen mode for the initial browser.
   chrome::ToggleFullscreenMode(browser());
   ImmersiveModeController* controller =
-      BrowserView::GetBrowserViewForBrowser(browser())
-          ->immersive_mode_controller();
+      ImmersiveModeController::From(browser());
   ASSERT_TRUE(controller->IsEnabled());
 
   // Forcively reveal the tabstrip immediately.
@@ -2738,9 +2725,7 @@ IN_PROC_BROWSER_TEST_P(DetachToBrowserTabDragControllerTest,
 
   // The bounds of the initial window should not have changed.
   EXPECT_TRUE(browser()->GetWindow()->IsFullscreen());
-  ASSERT_TRUE(BrowserView::GetBrowserViewForBrowser(browser())
-                  ->immersive_mode_controller()
-                  ->IsEnabled());
+  ASSERT_TRUE(controller->IsEnabled());
 
   EXPECT_FALSE(GetIsDragged(browser()));
   EXPECT_FALSE(GetIsDragged(new_browser));
@@ -2751,9 +2736,7 @@ IN_PROC_BROWSER_TEST_P(DetachToBrowserTabDragControllerTest,
       IsWindowPositionManaged(new_browser->GetWindow()->GetNativeWindow()));
 
   // The new browser should be in immersive fullscreen mode.
-  ASSERT_TRUE(BrowserView::GetBrowserViewForBrowser(new_browser)
-                  ->immersive_mode_controller()
-                  ->IsEnabled());
+  ASSERT_TRUE(ImmersiveModeController::From(new_browser)->IsEnabled());
   EXPECT_TRUE(new_browser->GetWindow()->IsFullscreen());
 }
 
@@ -5327,9 +5310,7 @@ IN_PROC_BROWSER_TEST_P(DetachToBrowserInSeparateDisplayTabDragControllerTest,
           .id());
 
   // Put the second browser into immersive fullscreen.
-  BrowserView* browser_view2 = BrowserView::GetBrowserViewForBrowser(browser2);
-  ImmersiveModeController* immersive_controller2 =
-      browser_view2->immersive_mode_controller();
+  auto* const immersive_controller2 = ImmersiveModeController::From(browser2);
   chromeos::ImmersiveFullscreenControllerTestApi(
       static_cast<ImmersiveModeControllerChromeos*>(immersive_controller2)
           ->controller())
@@ -5372,8 +5353,7 @@ IN_PROC_BROWSER_TEST_P(DetachToBrowserInSeparateDisplayTabDragControllerTest,
   // The first browser window should not be in immersive fullscreen.
   // browser2 should still be in immersive fullscreen, but the top chrome should
   // no longer be revealed.
-  BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser());
-  EXPECT_FALSE(browser_view->immersive_mode_controller()->IsEnabled());
+  EXPECT_FALSE(ImmersiveModeController::From(browser())->IsEnabled());
 
   EXPECT_TRUE(immersive_controller2->IsEnabled());
   EXPECT_FALSE(immersive_controller2->IsRevealed());

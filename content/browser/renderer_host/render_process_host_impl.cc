@@ -1552,6 +1552,15 @@ RenderProcessHost* RenderProcessHostImpl::CreateRenderProcessHost(
     flags |= RenderProcessFlags::kDisallowV8FeatureFlagOverrides;
   }
 
+#if !BUILDFLAG(IS_ANDROID)
+  if (site_instance) {
+    const GURL& site_url = site_instance->GetSiteURL();
+    if (GetContentClient()->browser()->IsInitialWebUIScheme(site_url)) {
+      flags |= RenderProcessFlags::kForInitialWebUI;
+    }
+  }
+#endif  // !BUILDFLAG(IS_ANDROID)
+
   return new RenderProcessHostImpl(browser_context, storage_partition_impl,
                                    flags, is_spare_renderer);
 }
@@ -1872,8 +1881,8 @@ bool RenderProcessHostImpl::Init() {
 #endif
     // As for execution sequence, this callback should have no any dependency
     // on starting in-process-render-thread.
-    // So put it here to trigger ChannelMojo initialization earlier to enable
-    // in-process-render-thread using ChannelMojo there.
+    // So put it here to trigger Channel initialization earlier to enable
+    // in-process-render-thread using Channel there.
     OnProcessLaunched();  // Fake a callback that the process is ready.
 
     in_process_renderer_->StartWithOptions(std::move(options));
@@ -3401,6 +3410,12 @@ bool RenderProcessHostImpl::IsForGuestsOnly() {
   return !!(flags_ & RenderProcessFlags::kForGuestsOnly);
 }
 
+#if !BUILDFLAG(IS_ANDROID)
+bool RenderProcessHostImpl::IsForInitialWebUI() const {
+  return (flags_ & RenderProcessFlags::kForInitialWebUI) != 0;
+}
+#endif
+
 bool RenderProcessHostImpl::IsJitDisabled() {
   return !!(flags_ & RenderProcessFlags::kJitDisabled);
 }
@@ -3521,6 +3536,12 @@ void RenderProcessHostImpl::AppendRendererCommandLine(
 
   command_line->AppendSwitchASCII(switches::kRendererClientId,
                                   base::NumberToString(GetDeprecatedID()));
+
+#if !BUILDFLAG(IS_ANDROID)
+  if (IsForInitialWebUI()) {
+    command_line->AppendSwitch(switches::kRendererForInitialWebUI);
+  }
+#endif  // !BUILDFLAG(IS_ANDROID)
 
   // Synchronize unix/monotonic clocks across consistent processes.
   if (base::TimeTicks::IsConsistentAcrossProcesses()) {

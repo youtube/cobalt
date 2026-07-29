@@ -375,6 +375,10 @@ namespace autofillPrivate {
     // dynamically, because the "<entity type>" string might need declension in
     // some languages.
     DOMString deleteEntityTypeString;
+    // Whether the entity type can be stored on Google Wallet servers.
+    // Note that an entity type might support Wallet and local storage
+    // as well. (e.g. Vehicle).
+    boolean supportsWalletStorage;
   };
 
   // Contains date information: month, day and year.
@@ -419,6 +423,9 @@ namespace autofillPrivate {
   dictionary EntityInstanceWithLabels {
     // The guid of the entity instance.
     DOMString guid;
+    // Contains the entity type name and other relevant information about the
+    // entity type.
+    EntityType type;
     // The entity instance label.
     DOMString entityInstanceLabel;
     // The entity instance sublabel.

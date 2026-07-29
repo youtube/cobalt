@@ -121,6 +121,7 @@
 <translation id="2359808026110333948">Dalej</translation>
 <translation id="2379925928934107488">Stosuj ciemny motyw witryn w przypadkach, w których stosuje go Chrome, tam, gdzie to możliwe</translation>
 <translation id="2390272837142897736">Zwiększ powiększenie</translation>
+<translation id="2397689164757137845">Dozwolona • Dokładna</translation>
 <translation id="2402980924095424747"><ph name="MEGABYTES" /> MB</translation>
 <translation id="2403474027143565107">Dokładna</translation>
 <translation id="2404630663942400771">{PERMISSIONS_SUMMARY_ALLOWED,plural, =1{Dozwolone: <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> i jeszcze <ph name="NUM_MORE" />}few{Dozwolone: <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> i jeszcze <ph name="NUM_MORE" />}many{Dozwolone: <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> i jeszcze <ph name="NUM_MORE" />}other{Dozwolone: <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> i jeszcze <ph name="NUM_MORE" />}}</translation>
@@ -140,6 +141,7 @@
 <translation id="2498359688066513246">Pomoc i opinie</translation>
 <translation id="2501278716633472235">Wróć</translation>
 <translation id="2533138527374486328">Gdy ta opcja jest włączona, strony mogą prosić o zgodę na połączenie z dowolnym urządzeniem w Twojej sieci lokalnej. Gdy jest wyłączona, strony nie mogą łączyć się z urządzeniami w sieci lokalnej.</translation>
+<translation id="2536779053640817375">Dozwolona jednorazowo • Dokładna</translation>
 <translation id="2544997614631598250">Kolor motywu: ciemny</translation>
 <translation id="2546283357679194313">Pliki cookie i dane witryn</translation>
 <translation id="2570922361219980984">Dostęp do lokalizacji jest wyłączony też na tym urządzeniu. Włącz go w <ph name="BEGIN_LINK" />Ustawieniach Androida<ph name="END_LINK" />.</translation>
@@ -442,6 +444,7 @@ Zaawansowana ochrona kontroluje te ustawienia Chrome:
 <translation id="5876056640971328065">Wstrzymaj film</translation>
 <translation id="5877248419911025165">Zwiń wszystkie żądania</translation>
 <translation id="5878945009165002849">Blokuj prośby o zalogowanie się pochodzące od usług tożsamości</translation>
+<translation id="588258955323874662">Pełny ekran</translation>
 <translation id="5884085660368669834">Ustawienie witryny</translation>
 <translation id="5887687176710214216">Ostatnio używana wczoraj</translation>
 <translation id="5908617755156109052">Nie zezwalaj stronom na tworzenie mapy 3D otoczenia ani na śledzenie pozycji kamery</translation>
@@ -569,6 +572,7 @@ Zaawansowana ochrona kontroluje te ustawienia Chrome:
 <translation id="7406113532070524618">To ustawienie działa bez ujawniania Twojej tożsamości i udzielania witrynom dostępu do Twojej historii przeglądania, chociaż witryny mogą w ramach weryfikacji udostępniać niewielką ilość informacji.</translation>
 <translation id="7409735910987429903">Strony mogą wysyłać wyskakujące okienka, by wyświetlać reklamy, albo używać przekierowań, by otwierać strony, których możesz nie chcieć odwiedzać</translation>
 <translation id="7412160840120117304">Szesnastkowy kod koloru podstawowego</translation>
+<translation id="7412223528111026033">{ZOOM_PERCENTAGE,plural, =1{Powiększenie}few{Powiększenie: <ph name="ZOOM_PERCENTAGE_NUMBER" />%%}many{Powiększenie: <ph name="ZOOM_PERCENTAGE_NUMBER" />%%}other{Powiększenie: <ph name="ZOOM_PERCENTAGE_NUMBER" />%%}}</translation>
 <translation id="7423098979219808738">Najpierw zapytaj</translation>
 <translation id="7423538860840206698">Zablokowano odczytywanie schowka</translation>
 <translation id="7425915948813553151">Ciemny motyw witryn</translation>
@@ -700,7 +704,6 @@ Zaawansowana ochrona kontroluje te ustawienia Chrome:
 <translation id="8803526663383843427">Kiedy funkcja jest włączona</translation>
 <translation id="8805385115381080995">Przeglądanie działa szybciej, bo witryny rzadziej proszą o potwierdzenie, że jesteś prawdziwą osobą.</translation>
 <translation id="8816026460808729765">Blokuj stronom dostęp do czujników</translation>
-<translation id="884765916894384048">Przejdź do odtwarzania w tle</translation>
 <translation id="8847988622838149491">USB</translation>
 <translation id="8874790741333031443">Spróbuj tymczasowo zezwolić na pliki cookie innych firm – oznacza to słabszą ochronę podczas przeglądania, ale jest większa szansa na to, że funkcje witryny będą działać zgodnie z oczekiwaniami.</translation>
 <translation id="8889294078294184559">Witryny, które przeglądasz, mogą sprawdzać te informacje w Chrome i uzyskiwać potwierdzenie z wcześniej odwiedzonej witryny, że prawdopodobnie jesteś prawdziwą osobą.</translation>

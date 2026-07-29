@@ -38,7 +38,7 @@
 namespace {
 
 using InteractiveMixinBasedBrowserTest =
-    InteractiveBrowserTestT<MixinBasedInProcessBrowserTest>;
+    InteractiveBrowserTestMixin<MixinBasedInProcessBrowserTest>;
 
 // This JavaScript is used to select an option from a dropdown menu. This
 // JavaScript can be formatted with a single string to identify the desired
@@ -529,7 +529,7 @@ void InteractiveAshTest::TearDownOnMainThread() {
     base::RunLoop loop;
     loop.Run();
   }
-  InteractiveBrowserTestT<
+  InteractiveBrowserTestMixin<
       MixinBasedInProcessBrowserTest>::TearDownOnMainThread();
 }
 
@@ -541,6 +541,29 @@ InteractiveAshTest::WaitForWindowWithTitle(aura::Env* env,
       ObserveState(kTitleObserver,
                    std::make_unique<AuraWindowTitleObserver>(env, title)),
       WaitForState(kTitleObserver, true), StopObservingState(kTitleObserver));
+}
+
+ui::test::internal::InteractiveTestPrivate::MultiStep
+InteractiveAshTest::WaitForElementExists(
+    const ui::ElementIdentifier& element_id,
+    const WebContentsInteractionTestUtil::DeepQuery& query) {
+  DEFINE_LOCAL_CUSTOM_ELEMENT_EVENT_TYPE(kElementExists);
+  StateChange element_exists;
+  element_exists.event = kElementExists;
+  element_exists.where = query;
+  return WaitForStateChange(element_id, element_exists);
+}
+
+ui::test::internal::InteractiveTestPrivate::MultiStep
+InteractiveAshTest::WaitForElementDoesNotExist(
+    const ui::ElementIdentifier& element_id,
+    const WebContentsInteractionTestUtil::DeepQuery& query) {
+  DEFINE_LOCAL_CUSTOM_ELEMENT_EVENT_TYPE(kElementDoesNotExist);
+  StateChange does_not_exist;
+  does_not_exist.type = StateChange::Type::kDoesNotExist;
+  does_not_exist.event = kElementDoesNotExist;
+  does_not_exist.where = query;
+  return WaitForStateChange(element_id, does_not_exist);
 }
 
 ui::test::internal::InteractiveTestPrivate::MultiStep
