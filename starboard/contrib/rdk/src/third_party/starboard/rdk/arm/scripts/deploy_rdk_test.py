@@ -597,6 +597,21 @@ class TestDeduplicateSbArgs(unittest.TestCase):
         res3 = deploy_rdk.deduplicate_sb_args(["--bar", "1", "--v=1"], ["--bar 2"])
         self.assertEqual(res3, ["--v=1", "--bar 2"])
 
+    def test_positional_param_rejection(self):
+        """Verifies parse_args fails when positional arguments are passed to --param."""
+        argv = ["deploy_rdk.py", "--param", "www.youtube.com/tv"]
+        with mock.patch("sys.argv", argv):
+            with mock.patch("sys.exit") as mock_exit:
+                deploy_rdk.parse_args()
+                mock_exit.assert_called_once_with(1)
+
+    def test_valid_param_flags(self):
+        """Verifies parse_args succeeds when valid -- flags are passed to --param."""
+        argv = ["deploy_rdk.py", "--param", "--url=www.youtube.com/tv", "--enable-heap-profiling"]
+        with mock.patch("sys.argv", argv):
+            args = deploy_rdk.parse_args()
+            self.assertEqual(args.param, ["--url=www.youtube.com/tv", "--enable-heap-profiling"])
+
 
 if __name__ == "__main__":
     unittest.main()

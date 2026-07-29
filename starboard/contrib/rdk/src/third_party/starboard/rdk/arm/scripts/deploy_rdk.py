@@ -521,9 +521,23 @@ def parse_args() -> argparse.Namespace:
         "--param",
         nargs=argparse.REMAINDER,
         default=[],
-        help="Additional runtime parameter(s) to pass to StarboardMain (must be specified last).",
+        help=(
+            "Additional runtime parameter(s) to pass to StarboardMain (must be specified last). "
+            "All arguments must start with '--' (positional arguments are not supported)."
+        ),
     )
-    return parser.parse_args()
+    args = parser.parse_args()
+
+    if args.param:
+        for arg in args.param:
+            if not arg.startswith("--"):
+                print(
+                    f"Error: All arguments passed to --param must start with '--'. "
+                    f"Positional argument '{arg}' is not supported."
+                )
+                sys.exit(1)
+
+    return args
 
 
 def get_model_name(device_id: str) -> Optional[str]:
